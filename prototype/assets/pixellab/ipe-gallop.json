@@ -1,0 +1,77 @@
+{
+  "usage": {
+    "type": "generations",
+    "generations": 1
+  },
+  "id": "f41d02c9-b05e-4c33-b145-3a6f2153c5f5",
+  "status": "completed",
+  "created_at": "2026-11-05T18:08:51.944203+00:00",
+  "last_response": {
+    "seed": 303,
+    "type": "message_done",
+    "usage": {
+      "usd": 0,
+      "type": "generations",
+      "generations": 1,
+      "cost_if_paid": 0.030045142392317453
+    },
+    "images": [
+      {
+        "type": "base64",
+        "base64": "<omitido>",
+        "format": "png"
+      },
+      {
+        "type": "base64",
+        "base64": "<omitido>",
+        "format": "png"
+      },
+      {
+        "type": "base64",
+        "base64": "<omitido>",
+        "format": "png"
+      },
+      {
+        "type": "base64",
+        "base64": "<omitido>",
+        "format": "png"
+      },
+      {
+        "type": "base64",
+        "base64": "<omitido>",
+        "format": "png"
+      },
+      {
+        "type": "base64",
+        "base64": "<omitido>",
+        "format": "png"
+      },
+      {
+        "type": "base64",
+        "base64": "<omitido>",
+        "format": "png"
+      },
+      {
+        "type": "base64",
+        "base64": "<omitido>",
+        "format": "png"
+      },
+      {
+        "type": "base64",
+        "base64": "<omitido>",
+        "format": "png"
+      }
+    ],
+    "status": "completed",
+    "progress": 1,
+    "flow_kind": "animation",
+    "billing_usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "generation_id": "14720d6d-2571-4292-9679-6e987a189b02",
+    "queue_position": 0,
+    "billing_charged": true,
+    "generation_started_at": "2026-11-05T18:09:16.373481+00:00"
+  }
+}

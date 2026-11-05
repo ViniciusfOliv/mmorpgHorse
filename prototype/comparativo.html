@@ -1,0 +1,19 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Comparativo de sprites</title>
+<style>body{margin:0;background:#1b2421;color:#f1ead6;font:16px monospace}h1{font-size:22px;margin:16px 20px 4px}p{margin:0 20px 10px;color:#9fb3a6}
+.g{display:grid;grid-template-columns:110px 1fr 1fr;gap:10px;padding:0 20px;align-items:center}.h{color:#f2c14e;text-align:center}canvas{background:#2a3a33;image-rendering:pixelated;width:100%}</style></head><body>
+<h1>Galope Elemental · Código × PixelLab (IA)</h1><p>Mesmos 3 iniciais, animação de galope em loop</p>
+<div class="g"><div></div><div class="h">Feito por código</div><div class="h">PixelLab (IA)</div></div>
+<div class="g" id="rows"></div>
+<script src="src/sprites.js"></script><script>
+const H=[['brasa','fogo','Brasa · Fogo'],['mare','agua','Maré · Água'],['ipe','grama','Ipê · Grama']];
+const rows=document.getElementById('rows'),items=[];
+for(const [id,el,label] of H){const d=document.createElement('div');d.textContent=label;rows.append(d);
+ const a=document.createElement('canvas');a.width=200;a.height=150;const b=document.createElement('canvas');b.width=200;b.height=150;rows.append(a,b);
+ const fr=[];for(let i=0;i<9;i++){const im=new Image();im.src='assets/pixellab/'+id+'-gallop-'+String(i).padStart(2,'0')+'.png';fr.push(im)}
+ items.push({el,a,b,fr});}
+let t0=performance.now();
+function loop(now){const t=(now-t0)/1000;for(const it of items){
+ const ca=it.a.getContext('2d');ca.clearRect(0,0,200,150);Sprites.drawHorse(ca,20,10,{palette:Sprites.PALETTES[it.el],element:it.el,frame:Math.floor(t*12),scale:4,silks:'#d23a3a',t});
+ const cb=it.b.getContext('2d');cb.imageSmoothingEnabled=false;cb.clearRect(0,0,200,150);const f=it.fr[Math.floor(t*12)%9];if(f.complete)cb.drawImage(f,4,-30,192,192);}
+ requestAnimationFrame(loop)}requestAnimationFrame(loop);
+</script></body></html>

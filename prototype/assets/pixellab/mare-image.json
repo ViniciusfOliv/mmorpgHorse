@@ -1,0 +1,11 @@
+{
+  "usage": {
+    "type": "generations",
+    "generations": 1
+  },
+  "image": {
+    "type": "base64",
+    "base64": "<omitido>",
+    "format": "png"
+  }
+}
