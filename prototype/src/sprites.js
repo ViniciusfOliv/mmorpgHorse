@@ -118,7 +118,7 @@
   //   S sela  q manta (cor do jóquei)  Q debrum branco
   //   H capacete  j camisa (silks)  J camisa sombra  i camisa luz  V óculos
   //   K pele  p culote  P culote sombra  B bota
-  var HORSE_W = 40, HORSE_H = 32, FOOT_Y = 30;
+  var HORSE_W = 40, HORSE_H = 32, FOOT_Y = 31; // FOOT_Y: linha nativa onde os cascos tocam o chão (base do sprite)
 
   // Cabeça + pescoço (galope e parado compartilham). origem x=21 y=3
   var HEAD = {
@@ -174,8 +174,8 @@
       '.pJJJJJJ....',
       '.pppp.......',
       '...pppp.....',
-      '.....Pp.....',
-      '......BB....',
+      '.....Ppp....',
+      '......RR....',
       '......BBB...'
     ]
   };
@@ -200,7 +200,7 @@
       '.ppp......',
       '.pppppp...',
       '.....Pp...',
-      '.....BB...',
+      '.....RR...',
       '.....BBB..'
     ]
   };
@@ -379,10 +379,11 @@
   ];
 
   // ---- Crinas e caudas por estilo de elemento -----------------------
-  // Crina: origem x=19 y=4 (linha do pescoço desce de (29,5) até (22,12))
+  // Crina: origem x=19 y=2 (crista do pescoço desce de (29,5) até (22,12)). z = brilho sem contorno.
   var MANE = {
     plain: [
-      ['..........mm',
+      ['', '',
+       '..........mm',
        '.........kmn',
        '.......kmmn',
        '.......kmn',
@@ -391,7 +392,8 @@
        '...kmmn',
        '...kmn',
        '...mn'],
-      ['..........mm',
+      ['', '',
+       '..........mm',
        '........kmmn',
        '........kmn',
        '......kmmn',
@@ -400,68 +402,204 @@
        '....kmn',
        '..kmmn',
        '...mn']
+    ],
+    flame: [
+      ['.........k',
+       '......k..km',
+       '......km.kmm',
+       '....k.kmmzmn',
+       '....kmkmzmn',
+       '..k.kmzmmn',
+       '..kmkmzmn',
+       '...kmzmn',
+       '.kmkmmn',
+       '..kmmn',
+       '...mn'],
+      ['......k',
+       '......km.k',
+       '....k.kmkmm',
+       '....kmkmmzmn',
+       '..k.kmmzmmn',
+       '..kmkmzmmn',
+       '.k.kmzmmn',
+       '.kmkmmmn',
+       '..kmmmn',
+       '..kmmn',
+       '...mn']
+    ],
+    wave: [
+      ['', '',
+       '..........m',
+       '.....kk..kmn',
+       '....kmmnkmmn',
+       '....mn.kmmn',
+       '..kk..kmmn',
+       '.kmmnkmmn',
+       '.mn.kmmn',
+       '...kmmn',
+       '...mn'],
+      ['', '',
+       '.........km',
+       '.........kmn',
+       '......kk.kmn',
+       '.....kmmnmmn',
+       '.....mn.kmn',
+       '...kk.kmmn',
+       '..kmmnkmn',
+       '..mn.kmn',
+       '...mn']
+    ],
+    leaf: [
+      ['',
+       '.........k',
+       '......k..km',
+       '......mk.mmn',
+       '....k.nmkmn',
+       '....mk.kmmn',
+       '..k.nmkmmn',
+       '..mk.kmmn',
+       '..nmkmmn',
+       '...kmmn',
+       '...mn'],
+      ['',
+       '..........k',
+       '.......k.kmn',
+       '.......mkmmn',
+       '.....k.nmmn',
+       '.....mk.kmn',
+       '...k.nmkmn',
+       '...mk.kmmn',
+       '...nmkmmn',
+       '...kmmn',
+       '...mn']
     ]
   };
-  MANE.flame = MANE.plain; MANE.wave = MANE.plain; MANE.leaf = MANE.plain;
 
-  // Cauda em galope: origem x=1 y=11 (inserção em ~(11,12))
+  // Cauda em galope: origem x=1 y=10 (inserção em ~(11,12))
   var TAIL_RUN = {
     plain: [
-      ['.....kmmm..',
+      ['',
+       '.....kmmm..',
        '...kmmmmmmm',
        '..kmmnnnmm.',
        '....mnn....',
        '.....n.....'],
-      ['......mmm..',
+      ['',
+       '......mmm..',
        '....kmmmmmm',
        '...kmmnnnm.',
        '..kmnn.....',
        '...nn......'],
-      ['....kmm....',
+      ['',
+       '....kmm....',
        '...kmmmmmmm',
        '....mmnnmm.',
        '....mnn....',
        '.....n.....']
+    ],
+    flame: [
+      ['.k...k.....',
+       '.mk.kmk.k..',
+       'kmzkmzmkmmm',
+       '.kmmmmnnmm.',
+       '..kmnn.....',
+       '....n......'],
+      ['...k...k...',
+       '..kmk.kmk..',
+       '.kmzmkmzmmm',
+       'kmmmmmnnmm.',
+       '.kmnn......',
+       '..n........'],
+      ['k....k.....',
+       'mk..kmk.k..',
+       'kmkkmzmkmmm',
+       '.kmzmmnnmm.',
+       '...kmn.....',
+       '...n.......']
+    ],
+    wave: [
+      ['',
+       '.kk..kmmm..',
+       'kmmnkmmmmmm',
+       'mn.kmmnnmm.',
+       '..kmnn.....',
+       '..nn.......'],
+      ['',
+       '..kk.kmmm..',
+       '.kmmnkmmmmm',
+       '.mn.kmnnmm.',
+       '.kkmnn.....',
+       'kmn........'],
+      ['.kk........',
+       'kmmn.kmmm..',
+       'mn.kmmmmmmm',
+       '..kmmnnnmm.',
+       '..mnn......',
+       '...n.......']
+    ],
+    leaf: [
+      ['',
+       '.k...kmm...',
+       'kmk.kmmmmmm',
+       '.nmkmmnnmm.',
+       '..nmkn.....',
+       '...n.......'],
+      ['',
+       '..k..kmm...',
+       '.kmk.kmmmmm',
+       'k.nmkmnnmm.',
+       'mk.nmn.....',
+       'nm..n......'],
+      ['.k.........',
+       'kmk.kmm....',
+       '.nmkmmmmmmm',
+       '..kmmnnnmm.',
+       '.kmnn......',
+       '..n........']
     ]
   };
-  TAIL_RUN.flame = TAIL_RUN.plain; TAIL_RUN.wave = TAIL_RUN.plain; TAIL_RUN.leaf = TAIL_RUN.plain;
 
   // Cauda parada (pendurada, abanando): origem x=5 y=12
+  var TAIL_IDLE_PLAIN = [
+    ['....kmm',
+     '...kmmn',
+     '...mmn.',
+     '..kmmn.',
+     '..mmnn.',
+     '..mmn..',
+     '..mnn..',
+     '..mnn..',
+     '..nn...',
+     '..n....'],
+    ['....kmm',
+     '...kmmn',
+     '..kmmn.',
+     '..mmn..',
+     '.kmnn..',
+     '.mmn...',
+     '.mnn...',
+     '.mn....',
+     '.nn....',
+     'n......'],
+    ['....kmm',
+     '....mmn',
+     '....mmn',
+     '....kmn',
+     '...kmmn',
+     '...mmnn',
+     '....mnn',
+     '....mnn',
+     '.....nn',
+     '......n']
+  ];
+  // Variações por elemento: fogo tem pontas acesas, água com espuma, grama com folhas.
+  function restyleTail(maps, fn) { return maps.map(function (m) { return m.map(fn); }); }
   var TAIL_IDLE = {
-    plain: [
-      ['....kmm',
-       '...kmmn',
-       '...mmn.',
-       '..kmmn.',
-       '..mmnn.',
-       '..mmn..',
-       '..mnn..',
-       '..mnn..',
-       '..nn...',
-       '..n....'],
-      ['....kmm',
-       '...kmmn',
-       '..kmmn.',
-       '..mmn..',
-       '.kmnn..',
-       '.mmn...',
-       '.mnn...',
-       '.mn....',
-       '.nn....',
-       'n......'],
-      ['....kmm',
-       '....mmn',
-       '....mmn',
-       '....kmn',
-       '...kmmn',
-       '...mmnn',
-       '....mnn',
-       '....mnn',
-       '.....nn',
-       '......n']
-    ]
+    plain: TAIL_IDLE_PLAIN,
+    flame: restyleTail(TAIL_IDLE_PLAIN, function (row, i) { return i > 6 ? row.replace(/n/g, 'k') : i > 3 ? row.replace(/m/, 'z') : row; }),
+    wave: restyleTail(TAIL_IDLE_PLAIN, function (row, i) { return i === 8 || i === 4 ? row.replace(/n/, 'k') : row; }),
+    leaf: restyleTail(TAIL_IDLE_PLAIN, function (row, i) { return i % 3 === 1 ? row.replace(/\.(?=k|m)/, 'k') : row; })
   };
-  TAIL_IDLE.flame = TAIL_IDLE.plain; TAIL_IDLE.wave = TAIL_IDLE.plain; TAIL_IDLE.leaf = TAIL_IDLE.plain;
 
   var ELEMENT_STYLE = { fogo: 'flame', agua: 'wave', grama: 'leaf', neutro: 'plain' };
 
@@ -536,7 +674,8 @@
   };
 
   function buildColors(pal, element, silks, skin) {
-    var coat = pal.coat, cs = pal.coatShade, mane = pal.mane, acc = pal.accent || '#f2ead8';
+    var coat = pal.coat || '#a0704a', cs = pal.coatShade || shade(coat, 0.35);
+    var mane = pal.mane || shade(coat, 0.5), acc = pal.accent || '#f2ead8';
     var em = ELEMENT_MANE[element] || {};
     var outline = mix(shade(cs, 0.75), '#140c16', 0.6);
     var silkS = shade(silks, 0.32), silkL = light(silks, 0.3);
@@ -555,7 +694,7 @@
       q: silks, Q: '#f3efe6',
       H: silks, j: silks, J: silkS, i: silkL, V: '#2b3a4a',
       K: skin || '#e3a878', L: shade(skin || '#e3a878', 0.25),
-      p: '#f3efe6', P: '#c7bfb0', B: '#2a2024'
+      p: '#f3efe6', P: '#c7bfb0', B: '#2a2024', R: '#b0703a'
     };
   }
 
@@ -578,15 +717,16 @@
     // cauda
     var tails = idle ? TAIL_IDLE[style] : TAIL_RUN[style];
     var tmap = tails[o.tailVar % tails.length];
-    layers.push({ map: tmap, x: idle ? 5 : 1, y: (idle ? 12 : 11) + bob, group: 'tail' });
+    layers.push({ map: tmap, x: idle ? 5 : 1, y: (idle ? 12 : 10) + bob, group: 'tail' });
     // corpo + cabeça
     layers.push({ map: BODY.map, x: BODY.x, y: BODY.y + bob, group: 'horse' });
     var headMap = HEAD.map;
     if (o.blink) headMap = headMap.map(function (r) { return r.replace('e', 's'); });
+    if (o.ear) headMap = ['.........c.........', '.........hcs.......'].concat(headMap.slice(2));
     layers.push({ map: headMap, x: HEAD.x, y: HEAD.y + bob + headDy, group: 'horse' });
     // crina
     var manes = MANE[style];
-    layers.push({ map: manes[o.maneVar % manes.length], x: 19, y: 4 + bob + headDy, group: 'mane' });
+    layers.push({ map: manes[o.maneVar % manes.length], x: 19, y: 2 + bob + headDy, group: 'mane' });
     // pernas do lado de cá
     leg(HIND, o.legs.nh, 'nh', 'nearleg');
     leg(FORE, o.legs.nf, 'nf', 'nearleg');
@@ -615,16 +755,17 @@
       var tp = mod(t, 4.2);
       st.tailVar = tp < 3.0 ? 0 : tp < 3.3 ? 1 : tp < 3.6 ? 2 : tp < 3.9 ? 1 : 0;
       st.blink = mod(t, 3.7) < 0.14;
-      st.maneVar = st.element === 'fogo' ? Math.floor(t * 6) % 2 : Math.floor(t * 0.8) % 2;
+      st.ear = mod(t, 5.3) > 4.95;
+      st.maneVar = mod(st.element === 'fogo' ? Math.floor(t * 6) : Math.floor(t * 0.8), 2);
       st.legs = { nf: 'PLANT', ff: 'PLANT', nh: 'PLANT', fh: 'PLANT' };
-      st.key = 'I' + st.bob + st.tailVar + (st.blink ? 1 : 0) + st.maneVar;
+      st.key = 'I' + st.bob + st.tailVar + (st.blink ? 1 : 0) + (st.ear ? 1 : 0) + st.maneVar;
     } else {
       var f = mod(Math.floor(opts.frame || 0), GALLOP.length);
       var G = GALLOP[f];
       st.bob = G.bob; st.head = G.head;
       st.legs = G;
       st.tailVar = f % 3;
-      st.maneVar = (Math.floor(f / 2) + (st.element === 'fogo' ? Math.floor(t * 10) : 0)) % 2;
+      st.maneVar = mod(Math.floor(f / 2) + (st.element === 'fogo' ? Math.floor(t * 10) : 0), 2);
       st.key = 'R' + f + st.maneVar;
     }
     return st;
@@ -659,7 +800,7 @@
     crisp(ctx);
     if (opts.shadow !== false) {
       ctx.fillStyle = 'rgba(20,10,20,0.28)';
-      var sy = y + (FOOT_Y) * s;
+      var sy = y + (FOOT_Y - 1) * s;
       ctx.fillRect(x + 9 * s, sy, 22 * s, s);
       ctx.fillRect(x + 11 * s, sy + s, 18 * s, s);
     }
@@ -674,8 +815,31 @@
     agua: { coat: '#93a8bf', coatShade: '#5e7290', mane: '#3fd2ea', accent: '#e8f6ff' },     // tordilho azulado, crina aqua
     grama: { coat: '#6a4127', coatShade: '#40241a', mane: '#3f9a3a', accent: '#24160f' },    // castanho escuro, crina de folhas
     neutro: { coat: '#d8b064', coatShade: '#a57a38', mane: '#f3e8cc', accent: '#fff6e4' },   // baio/palomino
-    neutro2: { coat: '#3c3642', coatShade: '#25202b', mane: '#17131c', accent: '#ece8e0' }   // preto com meias brancas
+    neutro2: { coat: '#3e3846', coatShade: '#26212c', mane: '#2c2634', accent: '#ece8e0' }   // preto com meias brancas
   };
+
+  // Pelagens naturais para bots / sorteio determinístico.
+  var COATS = [
+    { coat: '#b8562c', coatShade: '#7e321c', mane: '#8a3a1c', accent: '#f6e9cf' },  // alazão
+    { coat: '#6a4127', coatShade: '#40241a', mane: '#1e1418', accent: '#24160f' },  // castanho
+    { coat: '#8a5a32', coatShade: '#5a3620', mane: '#2a1c18', accent: '#f2ead8' },  // baio escuro
+    { coat: '#d8b064', coatShade: '#a57a38', mane: '#f3e8cc', accent: '#fff6e4' },  // palomino
+    { coat: '#c9c4bc', coatShade: '#8e8a86', mane: '#ecebe6', accent: '#ffffff' },  // tordilho claro
+    { coat: '#3e3846', coatShade: '#26212c', mane: '#2c2634', accent: '#ece8e0' },  // preto
+    { coat: '#b89a6a', coatShade: '#7e6440', mane: '#3a2a20', accent: '#2a1e18' },  // lobuno
+    { coat: '#9a6a5a', coatShade: '#664238', mane: '#4a2e26', accent: '#f0e6dc' }   // ruão
+  ];
+  var ELEMENT_MANE_COLOR = { fogo: '#ff7a1e', agua: '#3fd2ea', grama: '#3f9a3a' };
+  function randomPalette(seed, element) {
+    seed = Math.floor(seed || 0);
+    var b = COATS[Math.floor(hash(seed * 7 + 11) * COATS.length)];
+    return {
+      coat: b.coat, coatShade: b.coatShade,
+      mane: ELEMENT_MANE_COLOR[element] || b.mane,
+      accent: hash(seed * 3 + 5) < 0.45 ? b.coatShade : b.accent   // sem marcas x com meias/lista
+    };
+  }
+  var SILKS = ['#d8353b', '#2f6fd8', '#f2c230', '#8a4ad8', '#30b060', '#f07a2a', '#e85aa8', '#2ab8b0'];
 
   // ===================================================================
   // Fonte pixel 3x5 (com acentos do português)
@@ -707,6 +871,9 @@
     "'": ['#', '#', '.', '.', '.'], '(': ['.#', '#.', '#.', '#.', '.#'], ')': ['#.', '.#', '.#', '.#', '#.'],
     'x': ['...', '#.#', '.#.', '#.#', '...'], '#': ['#.#', '###', '#.#', '###', '#.#'],
     '>': ['#..', '.#.', '..#', '.#.', '#..'], '<': ['..#', '.#.', '#..', '.#.', '..#'],
+    '\u00b7': ['.', '.', '#', '.', '.'], '\u2014': ['....', '....', '####', '....', '....'], '\u2013': ['...', '...', '###', '...', '...'],
+    '=': ['...', '###', '...', '###', '...'], '*': ['...', '#.#', '.#.', '#.#', '...'], '"': ['#.#', '#.#', '...', '...', '...'],
+    '$': ['.##', '##.', '.#.', '.##', '##.'], '_': ['...', '...', '...', '...', '###'], '[': ['##', '#.', '#.', '#.', '##'], ']': ['##', '.#', '.#', '.#', '##'],
     ' ': ['..', '..', '..', '..', '..']
   };
   var ACCENTS = { '́': ['..#', '.#.'], '̀': ['#..', '.#.'], '̂': ['.#.', '#.#'], '̃': ['.##', '##.'] };
@@ -794,16 +961,16 @@
       'od.oo.....',
       'o.........'], pal: { o: '#0f2a12', l: '#b6ec6a', g: '#4cae3c', d: '#2a6e2a' } },
     neutro: { map: [
-      '...oooo...',
-      '..owwwwo..',
-      '.owwssswo.',
-      'owwsooswwo',
-      'owsoggoswo',
-      'owsoggoswo',
-      'owwsooswwo',
-      '.owwssswo.',
-      '..owwwwo..',
-      '...oooo...'], pal: { o: '#2a2630', w: '#e8e4dc', s: '#a9a3a0', g: '#6c6670' } }
+      '.oo....oo.',
+      'owwo..owso',
+      'owno..onso',
+      'owso..owso',
+      'owso..owso',
+      'owno..onso',
+      'owsoooowdo',
+      '.owssssddo',
+      '..oddddoo.',
+      '...oooo...'], pal: { o: '#2a2630', w: '#f0ece4', s: '#b8b2ac', d: '#7a7480', n: '#4a4450' } }
   };
   var iconCache = new Map();
   function drawElementIcon(ctx, x, y, element, scale) {
@@ -824,57 +991,75 @@
   // ===================================================================
   // Rastro de elemento (partículas atrás do cavalo)
   // ===================================================================
-  var PARTS = {
-    fogo: [
-      { map: ['.y.', 'yry', '.r.'], pal: { y: '#ffe25a', r: '#ff7a1e' } },
-      { map: ['.y', 'yr'], pal: { y: '#ffd23a', r: '#f04a1a' } },
-      { map: ['r'], pal: { r: '#d8361a' } }
-    ],
-    agua: [
-      { map: ['.w.', 'wbb', 'bbd', '.d.'], pal: { w: '#e6fdff', b: '#4cc4f0', d: '#2386c8' } },
-      { map: ['wb', 'bd'], pal: { w: '#e6fdff', b: '#4cc4f0', d: '#2386c8' } },
-      { map: ['b'], pal: { b: '#8fe2ff' } }
-    ],
-    grama: [
-      { map: ['..l', '.lg', 'gd.'], pal: { l: '#b6ec6a', g: '#4cae3c', d: '#2a6e2a' } },
-      { map: ['lg', 'gd'], pal: { l: '#b6ec6a', g: '#4cae3c', d: '#2a6e2a' } },
-      { map: ['g.', '.l'], pal: { l: '#d9ff9a', g: '#4cae3c' } }
-    ],
-    neutro: [
-      { map: ['dd', 'd.'], pal: { d: '#c9b79a' } },
-      { map: ['d'], pal: { d: '#b8a385' } },
-      { map: ['d'], pal: { d: '#ddd0b8' } }
-    ]
+  // Cada elemento tem estágios (nascimento -> fim) e algumas formas alternativas.
+  var TRAIL = {
+    fogo: {
+      pal: { w: '#fff6c0', Y: '#ffd23a', y: '#ff9a1e', r: '#e2401a', d: '#8a2a1a', s: '#5a4a52' },
+      stages: [
+        [['..y..', '.yYy.', 'yYwYy', 'yrYry', '.rrr.'], ['.y...', '.Yy.y', 'yYwYy', 'rYYyr', '.rrr.']],
+        [['.y.', 'yYy', 'ryr'], ['y..', 'yYy', '.rr']],
+        [['yr', 'rd'], ['.y', 'rd']],
+        [['ss', 'ss'], ['s.', 'ss']]
+      ]
+    },
+    agua: {
+      pal: { w: '#effeff', l: '#a8ecff', b: '#46c2f0', d: '#2382c6' },
+      stages: [
+        [['.w.', 'wlb', 'lbb', 'bbd', '.d.'], ['.w..', 'wlb.', 'lbbd', '.dd.']],
+        [['.w.', 'wbb', '.d.'], ['wb', 'bd']],
+        [['l.l', '.b.'], ['b.', '.l']],
+        [['l'], ['.l', 'l.']]
+      ]
+    },
+    grama: {
+      pal: { l: '#c4f27a', g: '#56b640', d: '#2c6e2c', s: '#8a6a3a' },
+      stages: [
+        [['..lg', '.lgd', 'lgd.', 's...'], ['lg..', 'dlg.', '.dlg', '...s'], ['.ll.', 'lggd', '.dd.']],
+        [['.l', 'lg', 'd.'], ['lg', '.d'], ['l.', 'gd']],
+        [['.l', 'lg', 'd.'], ['lg', '.d'], ['l.', 'gd']],
+        [['g'], ['l']]
+      ]
+    },
+    neutro: {
+      pal: { d: '#d8c8a8', D: '#bca888', l: '#efe4cc' },
+      stages: [
+        [['ld', 'dD']],
+        [['.ld.', 'lddD', '.DD.']],
+        [['.ll.', 'lddd', 'dddD', '.dD.']],
+        [['.l.l', 'l.d.', '.d.l']]
+      ]
+    }
   };
   function drawTrail(ctx, x, y, element, t, intensity, scale) {
     var s = Math.max(1, Math.round(scale || 2));
     var I = Math.max(0, Math.min(1, intensity == null ? 1 : intensity));
-    if (I <= 0) return;
-    var set = PARTS[element] || PARTS.neutro;
-    var n = Math.round(4 + 10 * I);
+    if (I <= 0.01) return;
+    var def = TRAIL[element] || TRAIL.neutro;
+    var n = Math.round(5 + 13 * I);
+    t = t || 0;
     for (var i = 0; i < n; i++) {
-      var life = 0.45 + 0.35 * hash(i * 13 + 1);
-      var age = frac(t / life + hash(i * 7 + 3));
-      var cyc = Math.floor(t / life + hash(i * 7 + 3));
+      var life = 0.5 + 0.35 * hash(i * 13 + 1);
+      var u = t / life + hash(i * 7 + 3);
+      var age = frac(u), cyc = Math.floor(u);
       var jx = hash(i * 31 + cyc * 17), jy = hash(i * 17 + cyc * 29);
       var px, py;
-      if (element === 'fogo') {
-        px = x - age * (14 + 10 * jx) * s - jx * 4 * s;
-        py = y - age * (8 + 8 * jy) * s + (jy - 0.5) * 8 * s;
-      } else if (element === 'agua') {
-        px = x - age * (16 + 10 * jx) * s - jx * 3 * s;
-        py = y + (age * age * 22 - age * 10) * s + (jy - 0.5) * 8 * s;
-      } else if (element === 'grama') {
-        px = x - age * (18 + 12 * jx) * s;
-        py = y + Math.sin(age * 9 + i) * 3 * s + (jy - 0.5) * 10 * s + age * 4 * s;
-      } else {
-        px = x - age * 12 * s - jx * 4 * s;
-        py = y + (jy - 0.5) * 4 * s - age * 3 * s;
+      if (element === 'fogo') {          // labaredas sobem e ficam para trás
+        px = x - age * (16 + 14 * jx) * s - jx * 3 * s;
+        py = y + (jy - 0.5) * 9 * s - age * (6 + 8 * jy) * s;
+      } else if (element === 'agua') {   // gotas em arco que caem
+        px = x - age * (18 + 12 * jx) * s - jx * 3 * s;
+        py = y + (jy - 0.5) * 8 * s + (age * age * 20 - age * 9) * s;
+      } else if (element === 'grama') {  // folhas rodopiando
+        px = x - age * (20 + 14 * jx) * s;
+        py = y + (jy - 0.5) * 10 * s + Math.sin(age * 8 + i) * 3 * s + age * 5 * s;
+      } else {                           // poeira
+        px = x - age * (10 + 8 * jx) * s - jx * 3 * s;
+        py = y + 8 * s + (jy - 0.5) * 4 * s - age * 4 * s;
       }
-      var stage = Math.min(set.length - 1, Math.floor(age * set.length));
-      var p = set[stage];
-      ctx.globalAlpha = (1 - age * 0.6) * (0.5 + 0.5 * I);
-      drawMap(ctx, p.map, Math.round(px / s) * s, Math.round(py / s) * s, s, p.pal);
+      var st = def.stages[Math.min(def.stages.length - 1, Math.floor(age * def.stages.length))];
+      var shape = st[(i + Math.floor(age * 7)) % st.length];
+      ctx.globalAlpha = Math.max(0, (1 - age * age) * (0.55 + 0.45 * I));
+      drawMap(ctx, shape, Math.round(px / s) * s, Math.round(py / s) * s, s, def.pal);
     }
     ctx.globalAlpha = 1;
   }
@@ -911,9 +1096,10 @@
         var h = hash2(x, y), col;
         if (surface === 'grama') {
           col = (x < 32) ? S.a : S.b;
-          if (h < 0.07) col = S.dark;
-          else if (h > 0.95) col = S.lite;
-          else if (hash2(x, y + 1) < 0.05) col = S.dark;
+          var bl = hash2(x, y + 1);
+          if (h < 0.035 || bl < 0.03) col = mix(col, S.dark, 0.75);
+          else if (h > 0.975) col = S.lite;
+          if (x === 0 || x === 32) col = mix(col, S.dark, 0.12);
         } else if (surface === 'terra') {
           col = (h < 0.5) ? S.a : S.b;
           if (y % 4 === 3 && hash2(x, 99) > 0.25) col = mix(col, S.dark, 0.35);
@@ -1054,7 +1240,7 @@
   function drawTrack(ctx, o) {
     var W = o.width, Hh = o.height;
     var lanes = o.lanes || 6, laneH = o.laneH || 24, laneTop = o.laneTop || Math.round(Hh * 0.35);
-    var ppm = o.pxPerMeter || 4, cam = o.cameraX || 0, t = o.t || 0;
+    var ppm = Math.max(0.05, o.pxPerMeter || 4), cam = o.cameraX || 0, t = o.t || 0;
     var weather = o.weather || 'sol', surface = o.surface || 'grama';
     var P = o.pixel || Math.max(1, Math.round(laneH / 12));
     var trackH = lanes * laneH, trackBottom = laneTop + trackH;
@@ -1165,7 +1351,7 @@
     }
 
     // --- marcas de distância (linhas na pista)
-    var ev = o.distanceMarkersEvery || 200;
+    var ev = Math.max(10, o.distanceMarkersEvery || 200);
     var finishM = o.finishM || 1000;
     var mStart = Math.max(ev, Math.ceil((cam - 40 / ppm) / ev) * ev);
     var mEnd = cam + (W + 80) / ppm;
@@ -1237,7 +1423,7 @@
     }
     // poste de chegada + faixa quadriculada
     if (fx > -60 * P && fx < W + 60 * P) {
-      var postTop = laneTop - 40 * P;
+      var postTop = Math.max(22 * P, laneTop - 40 * P);
       ctx.fillStyle = '#1c1820'; ctx.fillRect(fx - P, postTop - P, 4 * P, laneTop - postTop + P);
       ctx.fillStyle = '#f6f2ea'; ctx.fillRect(fx, postTop, 2 * P, laneTop - postTop);
       // disco vermelho no topo
@@ -1285,12 +1471,12 @@
   // ===================================================================
   // CLIMA (sobreposição em tela)
   // ===================================================================
-  function drawWeather(ctx, weather, t, W, H) {
+  function drawWeather(ctx, weather, t, W, H, pixel) {
     t = t || 0;
-    var P = Math.max(1, Math.round(Math.min(W, H) / 220));
+    var P = pixel || Math.max(2, Math.round(Math.min(W, H) / 150));
     if (weather === 'chuva') {
       ctx.fillStyle = 'rgba(16,26,52,0.30)'; ctx.fillRect(0, 0, W, H);
-      var n = Math.round(W * H / 5000);
+      var n = Math.round(W * H / 1800);
       for (var i = 0; i < n; i++) {
         var sp = 0.75 + 0.5 * hash(i * 3 + 2);
         var yy = mod(hash(i * 3 + 1) * H * 1.3 + t * H * 1.4 * sp, H * 1.3) - H * 0.15;
@@ -1301,7 +1487,7 @@
         for (var k = 0; k < segs; k++) ctx.fillRect(Math.round(xx - k * P * 0.6), Math.round(yy - k * P * 2), P, P * 2);
       }
       // respingos
-      var ns = Math.round(W * H / 14000);
+      var ns = Math.round(W * H / 6000);
       for (var j = 0; j < ns; j++) {
         var per = 0.5 + 0.4 * hash(j + 900);
         var ph = frac(t / per + hash(j + 901));
@@ -1355,7 +1541,11 @@
 
   return {
     HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y,
+    // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela
+    ANCHORS: { rear: [8, 14], nose: [38, 8], saddle: [18, 10] },
     PALETTES: PALETTES,
+    SILKS: SILKS,
+    randomPalette: randomPalette,
     ELEMENTS: ['fogo', 'agua', 'grama', 'neutro'],
     drawHorse: drawHorse,
     horseCanvas: horseCanvas,

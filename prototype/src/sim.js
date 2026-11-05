@@ -2,52 +2,69 @@
  * MMORPG Horse — simulação de corrida (protótipo descartável).
  *
  * RaceSim.simulate(config) é uma FUNÇÃO PURA e DETERMINÍSTICA de (config, seed):
- * sem Math.random, sem Date. O servidor simularia; o cliente só anima os frames.
+ * sem Math.random, sem Date, sem estado global. O servidor simularia; o cliente só
+ * anima os frames. No laço só há + - * / (raízes por Newton), então o resultado é
+ * idêntico bit a bit em qualquer motor JS.
  *
  * ============================== MODELO ======================================
- * Passo fixo dt = 0.1 s. RNG: mulberry32. Cada corredor tem seu próprio fluxo
- * de RNG derivado de (seed, índice), então o resultado não depende de ordem.
+ * Passo fixo dt = 0.1 s. RNG mulberry32; cada corredor tem um fluxo próprio
+ * derivado de hash(seed, índice). Constantes em RaceSim.TUNING (ajustadas com
+ * tools/balance.js).
  *
- * Status efetivos (computeStats): base + potencial*0.1 + (level-1)*crescimento,
- *   crescimento = (0.45 + 0.6*pot/31) * raridade.growth, limitado a raridade.statCap;
- *   depois soma bônus de elemento (+8 no status do elemento) e mods do item.
- *   n(x) = status/100 (pode passar de 1 com item).
+ * STATUS EFETIVOS (computeStats)
+ *   status = base + pot*0.1 + (level-1) * (0.50 + 0.65*pot/31) * raridade.growth
+ *   limitado a raridade.statCap; depois + bônus do elemento (+8 no status dele) e
+ *   + mods do item. Na corrida, a AFINIDADE do elemento multiplica todos os status
+ *   (cada regra ±4% × peso da regra; total limitado a 0,92–1,10).
  *
- * Por corredor:
- *   vMax   = (vBase + vRange*n(vel)) * formaDoDia * afinidade      [m/s, ~15–19]
- *   accel  = aBase + aRange*n(acel)                                 [m/s²]
- *   tanque = poolBase + poolEst*n(est)    (estamina normalizada 0..1)
- *   formaDoDia: ruído por corredor, triangular ±formRange (o "dia" do cavalo).
- *   largada: atraso de reação 0..startDelayMax s (menor com Aceleração).
+ * POR CORREDOR (n(x) = status/100)
+ *   vMax  = (16.8 + 2.2*n(vel)) * formaDoDia             ~16,8–19 m/s
+ *   accel = 0.6 + 2.4*n(acel) m/s²   (largada e retomadas; Aceleração encurta a reação)
+ *   tanque de estamina = 66 + 20*n(est)
+ *   formaDoDia: ruído triangular ±10% por corredor (racerInfo.disposicao). É a maior
+ *   fonte de zebra: sem ele um Comum nunca venceria um Lendário.
  *
- * Ritmo (fração s da vMax), por tática e fase (p = posição/distância):
- *   ponteiro:    s alto no início (sem economizar), depois cruzeiro, sprint curto no fim.
- *   perseguidor: ritmo constante, sprint a partir de ~70%. Ganha vácuo.
- *   arrancador:  economiza (margem de reserva) e explode nos últimos 25% (s até >1).
- *   "Jóquei": fora da largada do ponteiro, s é limitado ao ritmo constante que o
- *   tanque restante consegue sustentar até o fim (forma fechada, ver affordablePace).
- *   Sem estamina (=0) => s = exhaustPace (75%) até o fim + evento 'cansou'.
+ * ESTAMINA
+ *   gasto/s = (v / tetoComBoosts)^4 * (1600/distância)^0.4 * mods / tanque
+ *   mods: areia/terra, sol (+4%), subida (+30%, aliviada por Força), vácuo (−10%
+ *   para perseguidor/arrancador a 0,5–4 m atrás de alguém), habilidades.
+ *   Pistas longas apertam mais o tanque => Estamina pesa mais em 2400 m.
+ *   Boosts de Garra, de habilidade e da tática elevam o teto SEM custo extra.
+ *   Estamina 0 => ritmo cai para 75% até o fim + evento 'cansou'.
  *
- * Gasto de estamina por segundo = drainK * (v / vTetoBoosts)^drainExp * mods / tanque.
- *   mods: superfície, sol (+), subida (+, aliviado por Força), vácuo (−), habilidades.
- *   Boosts de Garra e de habilidades elevam o teto sem custo extra ("coração").
+ * RITMO (fração s de vMax), pelo "jóquei"
+ *   aff = ritmo constante que o tanque restante sustenta até o fim (forma fechada,
+ *   affordablePace); o jóquei lê o tanque com um erro de −2%..+6% (às vezes cansa).
+ *   ponteiro:    até 30% corre a 1.00 SEM economizar (+3% grátis em curta, +1,5% em média),
+ *                depois min(0.97, aff), sprint até 1.00. Forte em curta, murcha em longa.
+ *   perseguidor: min(0.97, aff) até 72%, sprint até 1.03. Ganha vácuo. Estável.
+ *   arrancador:  guarda 4% (min(0.93/0.95, aff*0.96)) até 70%, sprint até 1.06 com
+ *                explosão grátis (+0% curta, +2,5% média, +5% longa) e +15% de chance
+ *                de Garra. Fraco em curta, forte em longa.
+ *   Ritmo mínimo voluntário 0.80.
  *
- * Modificadores de velocidade-alvo:
- *   superfície (terra/areia mais lentas), subida, pelotão (vizinhos a <2,5 m)
- *   — os três aliviados por Força; chuva deixa todos ~1,5% mais lentos;
- *   habilidades ativas (speedMult) e Garra.
- *   Afinidade de elemento multiplica vMax (cada regra ±affinityStep, limitado).
+ * VELOCIDADE-ALVO = s * vMax * terreno * pelotão * chuva * boosts * jitter(±0,3%)
+ *   terreno: terra −3%, areia −6%, subida −15% (Força alivia 70–80%);
+ *   pelotão: até −3% com vizinhos a ≤2,5 m (Força alivia 80%); chuva −1,5% para todos.
+ *   A velocidade sobe com accel e desce a 1,2 m/s².
  *
- * Garra: ao cruzar 80% da pista, rola chance = garraChanceBase + garraChanceRange*n(garra)
- *   (+bônus de item). Se passar: teto de velocidade x(1 + garraBoostBase + garraBoostRange*n(garra))
- *   até o fim. Evento 'garra'.
+ * GARRA: ao cruzar 80%, rola chance = 0.10 + 0.70*n(garra) (+ item, + tática).
+ *   Sucesso: teto ×(1.02 + 0.16*n(garra)) até a chegada. Evento 'garra'.
  *
- * Eventos: 'skill', 'garra', 'cansou', 'ultrapassagem' (só troca de líder confirmada
- *   por leadConfirmS, com intervalo mínimo, depois de 12% da pista), 'chegada'.
+ * HABILIDADES: disparam 1 vez por corrida conforme trigger (ver data.js) e geram
+ *   evento 'skill'. Itens: mods + special (ignoreWeatherPenalty, garraChanceBonus,
+ *   staminaPoolMult).
  *
- * Frames: um por tick, inclusive t=0. pos é limitado a `distance` depois da
- *   chegada (pos === distance => chegou); a velocidade de quem chegou cai até 0
- *   em ~2 s (para a animação desacelerar). Simula até TODOS chegarem.
+ * EVENTOS: 'skill', 'garra', 'cansou' (estamina zerou faltando >2%), 'ultrapassagem'
+ *   (troca de líder confirmada por 1,5 s, intervalo mínimo 4 s, após 12% da pista,
+ *   antes do 1º chegar), 'chegada' (todos). Ordenados por t.
+ *
+ * FRAMES: um por tick, inclusive t=0. Depois da chegada pos fica = distance
+ *   (pos === distance => chegou) e a velocidade cai a 0 em ~2 s. Simula até TODOS
+ *   chegarem. config.recordFrames === false pula os frames (usado no balance.js).
+ *
+ * EXTRA (além do contrato): result.seed, result.conditions (normalizadas) e
+ *   result.racerInfo[i] = { name, horseName, tactic, stats, affinity, form, disposicao }.
  * ============================================================================
  *
  * UMD: no browser vira window.RaceSim (precisa de window.GameData antes);
@@ -67,12 +84,12 @@
     // crescimento por level
     growthBase: 0.50, growthPot: 0.65, potFlat: 0.1,
     // velocidade / aceleração
-    vBase: 15.4, vRange: 3.2,
-    aBase: 2.0, aRange: 1.0,
+    vBase: 16.8, vRange: 2.2,
+    aBase: 0.6, aRange: 2.4,
     decel: 1.2,
     // estamina
-    poolBase: 60, poolEst: 30,
-    drainK: 1.0, drainExp: 4, drainDistExp: 0.8, drainRefDist: 1600,
+    poolBase: 66, poolEst: 20,
+    drainK: 1.0, drainExp: 4, drainDistExp: [2, 5], drainRefDist: 1600,   // drainDistExp = 2/5 (fração p/ evitar Math.pow)
     rationReserve: 0.03,
     jockeyErrMin: -0.02, jockeyErrMax: 0.06,   // otimismo do jóquei ao ler o tanque (às vezes cansa no fim)
     exhaustPace: 0.75,
@@ -82,22 +99,33 @@
     tickJitter: 0.006,
     startDelayMax: 0.6,
     // terreno / pelotão
-    hillSlow: 0.12, hillDrain: 0.30, forcaHillRelief: 0.5,
-    forcaSurfRelief: 0.7,
+    hillSlow: 0.15, hillDrain: 0.30, forcaHillRelief: 0.7,
+    forcaSurfRelief: 0.8,
     crowdRange: 2.5, crowdSlow: 0.03, forcaCrowdRelief: 0.8,
     draftMin: 0.5, draftRange: 4.0, draftSave: 0.10,
     rainSlow: 0.015, sunDrain: 1.04,
     // afinidade de elemento
-    affinityStep: 0.05, affinityMin: 0.90, affinityMax: 1.10,
+    affinityStep: 0.04, affinityMin: 0.92, affinityMax: 1.10,
     // garra
     garraZone: 0.8,
-    garraChanceBase: 0.20, garraChanceRange: 0.60, garraChanceMax: 0.95,
-    garraBoostBase: 0.04, garraBoostRange: 0.07,
+    garraChanceBase: 0.10, garraChanceRange: 0.70, garraChanceMax: 0.95,
+    garraBoostBase: 0.02, garraBoostRange: 0.16,
     // táticas (fração s da vMax)
     tactics: {
-      ponteiro:    { earlyEnd: 0.35, early: 1.00, earlyMargin: 99,   mid: 0.96, spurtStart: 0.78, spurtCap: 1.00, margin: 1.00, kick: 1.00, garraBonus: 0.00, draft: false },
-      perseguidor: { earlyEnd: 0.30, early: 0.96, earlyMargin: 1.00, mid: 0.96, spurtStart: 0.70, spurtCap: 1.02, margin: 1.00, kick: 1.00, garraBonus: 0.00, draft: true },
-      arrancador:  { earlyEnd: 0.30, early: 0.94, earlyMargin: 0.97, mid: 0.95, spurtStart: 0.72, spurtCap: 1.05, margin: 0.97, kick: 1.03, garraBonus: 0.10, draft: true }
+      // early/mid/spurtCap: teto de ritmo por fase; earlyMargin/margin: quanto acima (>1) ou abaixo (<1)
+      // do ritmo sustentável o jóquei aceita correr; earlyBoost/kick: bônus grátis (número ou tabela por distância).
+      ponteiro: {
+        earlyEnd: 0.30, early: 1.00, earlyMargin: 99, mid: 0.97, spurtStart: 0.78, spurtCap: 1.00, margin: 1.00,
+        earlyBoost: { 1000: 1.03, 1600: 1.015, 2400: 1.00 }, kick: 1.00, garraBonus: 0.00, draft: false
+      },
+      perseguidor: {
+        earlyEnd: 0.30, early: 0.97, earlyMargin: 1.00, mid: 0.97, spurtStart: 0.72, spurtCap: 1.03, margin: 1.00,
+        earlyBoost: 1.00, kick: 1.00, garraBonus: 0.00, draft: true
+      },
+      arrancador: {
+        earlyEnd: 0.30, early: 0.93, earlyMargin: 0.96, mid: 0.95, spurtStart: 0.70, spurtCap: 1.06, margin: 0.96,
+        earlyBoost: 1.00, kick: { 1000: 1.00, 1600: 1.025, 2400: 1.05 }, garraBonus: 0.15, draft: true
+      }
     },
     // eventos
     leadMinP: 0.12, leadConfirmS: 1.5, leadMinGapS: 4.0,
@@ -128,6 +156,42 @@
   }
 
   function clamp(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+
+  // Aritmética só com + - * / (IEEE 754 exato em qualquer motor JS), para que a mesma
+  // seed dê o mesmo resultado no Node, Chrome, Safari etc. Nada de Math.pow/exp/log no laço.
+  function powi(x, k) { var r = 1; for (var i = 0; i < k; i++) r *= x; return r; }
+  function nthRoot(x, m) {
+    if (!(x > 0)) return 0;
+    if (m === 1) return x;
+    var y = 1 + (x - 1) / m;
+    if (y <= 0) y = 0.5;
+    for (var i = 0; i < 80; i++) {
+      var ny = ((m - 1) * y + x / powi(y, m - 1)) / m;
+      var d = ny - y;
+      y = ny;
+      if (d < 1e-13 * y && d > -1e-13 * y) break;
+    }
+    return y;
+  }
+  // x^(num/den); exp pode ser [num, den] ou um inteiro.
+  function ratPow(x, exp) {
+    if (typeof exp === 'number') return (exp % 1 === 0) ? powi(x, exp) : Math.pow(x, exp); // não-inteiro: não portátil
+    return nthRoot(powi(x, exp[0]), exp[1]);
+  }
+  // valor de tuning que pode ser número ou tabela por distância {1000: x, 1600: y, 2400: z}
+  function byDist(v, D) {
+    if (v == null) return 1;
+    if (typeof v === 'number') return v;
+    if (v[D] != null) return v[D];
+    var keys = Object.keys(v).map(Number).sort(function (a, b) { return a - b; });
+    if (D <= keys[0]) return v[keys[0]];
+    if (D >= keys[keys.length - 1]) return v[keys[keys.length - 1]];
+    for (var i = 1; i < keys.length; i++) if (D < keys[i]) {
+      var a = keys[i - 1], b = keys[i];
+      return v[a] + (v[b] - v[a]) * (D - a) / (b - a);
+    }
+    return 1;
+  }
   function r2(x) { return Math.round(x * 100) / 100; }
   function r3(x) { return Math.round(x * 1000) / 1000; }
   function fmtTime(s) { return s.toFixed(2).replace('.', ',') + 's'; }
@@ -231,8 +295,9 @@
           reasons.push(rule.text + ' (anulado pela Capa)');
           continue;
         }
-        sum += rule.sign * T.affinityStep;
-        var pct = Math.round(T.affinityStep * 100);
+        var step = T.affinityStep * (rule.weight == null ? 1 : rule.weight);
+        sum += rule.sign * step;
+        var pct = Math.round(step * 100);
         reasons.push(rule.text + ' (' + (rule.sign > 0 ? '+' : '−') + pct + '%)');
       }
     }
@@ -289,7 +354,7 @@
     if (avail <= 0) return 0;
     if (remaining <= 0) return 9;
     var x = avail * pool * vRef / (remaining * T.drainK * cdrain);
-    return Math.pow(x, 1 / (T.drainExp - 1));
+    return nthRoot(x, T.drainExp - 1);
   }
 
   function buildRacer(entry, index, cond, rng) {
@@ -312,6 +377,8 @@
       tactic: tactic,
       tac: T.tactics[tactic],
       stats: stats,
+      aff: aff,
+      form: form,
       nf: nf,
       vMax: (T.vBase + T.vRange * nv) * form,
       accel: T.aBase + T.aRange * na,
@@ -326,9 +393,17 @@
       effects: [],
       pos: 0, v: 0, stamina: 1,
       exhausted: false, finished: false, finishTime: null,
-      garraRolled: false, garraMult: 1,
-      hillSeen: false
+      garraRolled: false, garraMult: 1
     };
+  }
+
+  // "Forma do dia" em palavras (para a UI explicar zebras).
+  function dispositionFor(form) {
+    if (form >= 1.05) return 'Radiante';
+    if (form >= 1.02) return 'Animado';
+    if (form > 0.98) return 'Normal';
+    if (form > 0.95) return 'Sonolento';
+    return 'Indisposto';
   }
 
   function simulate(config) {
@@ -343,10 +418,16 @@
     var surf = GameData.SURFACES[cond.surface];
     var weatherDrain = cond.weather === 'sol' ? T.sunDrain : 1;
     var weatherSlow = cond.weather === 'chuva' ? (1 - T.rainSlow) : 1;
-    var distDrain = Math.pow(T.drainRefDist / D, T.drainDistExp); // pistas longas gastam menos por segundo (mas duram mais)
+    var distDrain = ratPow(T.drainRefDist / D, T.drainDistExp); // pistas longas gastam menos por segundo (mas duram mais)
 
     var R = [];
     for (var i = 0; i < n; i++) R.push(buildRacer(entries[i], i, cond, mulberry32(hash2(seed, i + 1))));
+    // nome usado na narração: nome do cavalo; se dois corredores têm cavalos de mesmo nome, acrescenta o jogador
+    for (i = 0; i < n; i++) {
+      var dup = false;
+      for (var q = 0; q < n; q++) if (q !== i && R[q].horseName === R[i].horseName) dup = true;
+      R[i].label = (dup && R[i].name !== R[i].horseName) ? R[i].horseName + ' (' + R[i].name + ')' : R[i].horseName;
+    }
 
     var events = [];
     function ev(t, racer, type, text) { events.push({ t: r2(t), racer: racer, type: type, text: text }); }
@@ -374,10 +455,10 @@
           drainMult: e.staminaDrainMult || 1
         });
       }
-      ev(t, r.index, 'skill', r.horseName + ' ativou ' + sk.name + '!');
+      ev(t, r.index, 'skill', r.label + ' ativou ' + sk.name + '!');
     }
 
-    function checkSkills(r, t, p, rank, nActive) {
+    function checkSkills(r, t, p, rank, nRacers) {
       for (var s = 0; s < r.skills.length; s++) {
         var id = r.skills[s];
         if (r.fired[id]) continue;
@@ -388,7 +469,7 @@
         else if (trig === 'midrace') ok = p >= 0.5;
         else if (trig === 'lowStamina') ok = r.stamina <= 0.25 && !r.exhausted;
         else if (trig === 'hill') ok = inHill(cond.hills, r.pos);
-        else if (trig === 'behind') ok = p >= 0.6 && rank >= Math.ceil(nActive / 2);
+        else if (trig === 'behind') ok = p >= 0.6 && rank >= Math.ceil(nRacers / 2);
         else if (trig.indexOf('weather:') === 0) ok = trig.slice(8) === cond.weather;
         else if (trig.indexOf('surface:') === 0) ok = trig.slice(8) === cond.surface;
         if (ok) fireSkill(r, id, t);
@@ -416,7 +497,6 @@
       order.sort(function (a, b) { return (prevPos[b] - prevPos[a]) || (a - b); });
       var rankOf = new Array(n);
       for (i = 0; i < n; i++) rankOf[order[i]] = i;
-      var nActive = n;
 
       for (i = 0; i < n; i++) {
         var r = R[i];
@@ -426,13 +506,13 @@
         }
         if (tPrev < r.startDelay) {
           // ainda reagindo ao sinal de largada
-          if (!r.fired.__start) { r.fired.__start = true; checkSkills(r, tPrev, 0, rankOf[i], nActive); }
+          if (!r.fired.__start) { r.fired.__start = true; checkSkills(r, tPrev, 0, rankOf[i], n); }
           continue;
         }
         var pos = prevPos[i];
         var p = pos / D;
         var rem = D - pos;
-        checkSkills(r, tPrev, p, rankOf[i], nActive);
+        checkSkills(r, tPrev, p, rankOf[i], n);
 
         // efeitos ativos
         var effSpeed = 1, effAccel = 1, effDrain = 1;
@@ -446,7 +526,7 @@
           r.garraRolled = true;
           if (r.rng() < Math.min(T.garraChanceMax, r.garraChance + r.tac.garraBonus)) {
             r.garraMult = r.garraBoost;
-            ev(tPrev, i, 'garra', r.horseName + ' mostrou GARRA na reta final!');
+            ev(tPrev, i, 'garra', r.label + ' mostrou GARRA na reta final!');
           }
         }
 
@@ -493,7 +573,13 @@
           s = Math.max(s, T.minPace);
         }
 
-        var boost = effSpeed * r.garraMult * (p >= tac.spurtStart && !r.exhausted ? tac.kick : 1);
+        // bônus "de graça" da tática (não gastam estamina): arrancada do ponteiro e explosão do arrancador
+        var tacBoost = 1;
+        if (!r.exhausted) {
+          if (p < tac.earlyEnd) tacBoost = byDist(tac.earlyBoost, D);
+          else if (p >= tac.spurtStart) tacBoost = byDist(tac.kick, D);
+        }
+        var boost = effSpeed * r.garraMult * tacBoost;
         var jitter = 1 + (r.rng() - 0.5) * T.tickJitter;
         var vTarget = s * r.vMax * speedMod * boost * jitter;
 
@@ -503,11 +589,11 @@
         // gasto de estamina (boosts não custam)
         if (!r.exhausted) {
           var sEff = r.v / (r.vMax * boost);
-          r.stamina -= T.drainK * Math.pow(sEff, T.drainExp) * drainMod * dt / r.pool;
+          r.stamina -= T.drainK * powi(sEff, T.drainExp) * drainMod * dt / r.pool;
           if (r.stamina <= 0) {
             r.stamina = 0;
             r.exhausted = true;
-            if (rem > D * 0.02) ev(t, i, 'cansou', r.horseName + ' cansou e perdeu o ritmo!');
+            if (rem > D * 0.02) ev(t, i, 'cansou', r.label + ' cansou e perdeu o ritmo!');
           }
         }
 
@@ -536,7 +622,7 @@
           cand = L; candSince = t;
         } else if (t - candSince >= T.leadConfirmS) {
           if (candSince - lastLeadEvent >= T.leadMinGapS) {
-            ev(candSince, L, 'ultrapassagem', R[L].horseName + ' passou ' + R[leader].horseName + ' e assumiu a liderança!');
+            ev(candSince, L, 'ultrapassagem', R[L].label + ' passou ' + R[leader].label + ' e assumiu a liderança!');
             lastLeadEvent = candSince;
           }
           leader = L; cand = -1;
@@ -564,12 +650,21 @@
     for (var k = 0; k < finishOrder.length; k++) {
       var ri = finishOrder[k];
       ev(R[ri].finishTime == null ? T.maxTime : R[ri].finishTime, ri, 'chegada',
-        R[ri].horseName + ' cruzou a linha em ' + (k + 1) + 'º lugar! (' + fmtTime(finishTimes[ri]) + ')');
+        R[ri].label + ' cruzou a linha em ' + (k + 1) + 'º lugar! (' + fmtTime(finishTimes[ri]) + ')');
     }
     // ordena eventos por tempo (estável)
     var idx = events.map(function (e, q) { return q; });
     idx.sort(function (a, b) { return (events[a].t - events[b].t) || (a - b); });
     events = idx.map(function (q) { return events[q]; });
+
+    // Extra (fora do contrato mínimo): resumo por corredor para dicas na UI.
+    var racerInfo = R.map(function (r) {
+      return {
+        name: r.name, horseName: r.horseName, tactic: r.tactic,
+        stats: r.stats, affinity: r.aff,
+        form: Math.round(r.form * 1000) / 1000, disposicao: dispositionFor(r.form)
+      };
+    });
 
     return {
       seed: seed,
@@ -579,7 +674,8 @@
       frames: frames,
       events: events,
       finishOrder: finishOrder,
-      finishTimes: finishTimes
+      finishTimes: finishTimes,
+      racerInfo: racerInfo
     };
   }
 

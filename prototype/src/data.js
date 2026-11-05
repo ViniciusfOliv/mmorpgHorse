@@ -13,7 +13,8 @@
   // ---------------------------------------------------------------------------
   // Elementos
   //   statBonus: somado em RaceSim.computeStats.
-  //   affinity: regras usadas por RaceSim.elementAffinity (sign +1 favorece, -1 atrapalha).
+  //   affinity: regras usadas por RaceSim.elementAffinity (sign +1 favorece, -1 atrapalha;
+  //     weight opcional multiplica o passo padrão, default 1).
   //     kind: 'weather' | 'surface' | 'distance' | 'hills'
   // ---------------------------------------------------------------------------
   var ELEMENTS = {
@@ -22,8 +23,8 @@
       statBonus: { stat: 'acel', amount: 8 },
       desc: 'Explosivo na largada. Brilha no sol e em pista curta; sofre com chuva.',
       affinity: [
-        { kind: 'weather', value: 'sol', sign: 1, text: 'Sol favorece Fogo' },
-        { kind: 'distance', value: 1000, sign: 1, text: 'Pista curta favorece Fogo' },
+        { kind: 'weather', value: 'sol', sign: 1, weight: 0.75, text: 'Sol favorece Fogo' },
+        { kind: 'distance', value: 1000, sign: 1, weight: 0.5, text: 'Pista curta favorece Fogo' },
         { kind: 'weather', value: 'chuva', sign: -1, text: 'Chuva apaga o Fogo' }
       ]
     },
@@ -32,7 +33,7 @@
       statBonus: { stat: 'est', amount: 8 },
       desc: 'Fôlego de sobra. Cresce na chuva e em pista longa; afunda na areia.',
       affinity: [
-        { kind: 'weather', value: 'chuva', sign: 1, text: 'Chuva favorece Água' },
+        { kind: 'weather', value: 'chuva', sign: 1, weight: 1.5, text: 'Chuva favorece Água' },
         { kind: 'distance', value: 2400, sign: 1, text: 'Pista longa favorece Água' },
         { kind: 'surface', value: 'areia', sign: -1, text: 'Areia atola a Água' }
       ]
@@ -42,8 +43,8 @@
       statBonus: { stat: 'forca', amount: 8 },
       desc: 'Firme como raiz. Domina terra e subidas; murcha no sol forte.',
       affinity: [
-        { kind: 'surface', value: 'terra', sign: 1, text: 'Terra favorece Grama' },
-        { kind: 'hills', value: true, sign: 1, text: 'Subidas favorecem Grama' },
+        { kind: 'surface', value: 'terra', sign: 1, weight: 1.25, text: 'Terra favorece Grama' },
+        { kind: 'hills', value: true, sign: 1, weight: 1.25, text: 'Subidas favorecem Grama' },
         { kind: 'weather', value: 'sol', sign: -1, text: 'Sol forte murcha a Grama' }
       ]
     },
@@ -125,8 +126,8 @@
     // --- Fogo ---
     'labareda': {
       id: 'labareda', name: 'Labareda', element: 'fogo', exclusive: 'brasa', trigger: 'start',
-      desc: 'Largada em chamas: +25% de aceleração e +2% de velocidade por 5s.',
-      effect: { accelMult: 1.25, speedMult: 1.02, durationS: 5 }
+      desc: 'Largada em chamas: +15% de aceleração e +1% de velocidade por 5s.',
+      effect: { accelMult: 1.15, speedMult: 1.01, durationS: 5 }
     },
     'chama-final': {
       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
@@ -141,8 +142,8 @@
     // --- Água ---
     'mare-alta': {
       id: 'mare-alta', name: 'Maré Alta', element: 'agua', exclusive: 'mare', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 25%, a maré sobe: recupera 22% de estamina.',
-      effect: { staminaRestore: 0.22 }
+      desc: 'Quando a estamina cai a 25%, a maré sobe: recupera 20% de estamina e ganha +3% de velocidade por 8s.',
+      effect: { staminaRestore: 0.20, speedMult: 1.03, durationS: 8 }
     },
     'correnteza': {
       id: 'correnteza', name: 'Correnteza', element: 'agua', trigger: 'weather:chuva',
@@ -162,8 +163,8 @@
     // --- Grama ---
     'raizes-firmes': {
       id: 'raizes-firmes', name: 'Raízes Firmes', element: 'grama', exclusive: 'ipe', trigger: 'midrace',
-      desc: 'Na metade da corrida, finca os cascos: recupera 12% de estamina e +2% de velocidade por 8s.',
-      effect: { staminaRestore: 0.12, speedMult: 1.02, durationS: 8 }
+      desc: 'Na metade da corrida, finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s.',
+      effect: { staminaRestore: 0.05, speedMult: 1.02, durationS: 8 }
     },
     'casco-de-cabra': {
       id: 'casco-de-cabra', name: 'Casco de Cabra', element: 'grama', trigger: 'hill',
@@ -213,12 +214,12 @@
     'ferradura-cravos': {
       id: 'ferradura-cravos', name: 'Ferradura com Cravos', rarity: 'comum', price: 120,
       desc: 'Agarra na areia e nas subidas, mas pesa na reta.',
-      mods: { forca: 8, vel: -3 }
+      mods: { forca: 10, vel: -3 }
     },
     'sela-couro': {
       id: 'sela-couro', name: 'Sela de Couro Cru', rarity: 'comum', price: 100,
       desc: 'Confortável e sem segredo.',
-      mods: { est: 4 }
+      mods: { est: 5 }
     },
     'manta-la': {
       id: 'manta-la', name: 'Manta de Lã', rarity: 'incomum', price: 220,
@@ -228,13 +229,13 @@
     'antolhos': {
       id: 'antolhos', name: 'Antolhos', rarity: 'incomum', price: 220,
       desc: 'Foco total na reta final; demora a pegar embalo.',
-      mods: { garra: 9, acel: -3 }
+      mods: { garra: 10, acel: -3 }
     },
     'rapadura-engenho': {
       id: 'rapadura-engenho', name: 'Rapadura de Engenho', rarity: 'incomum', price: 180,
-      desc: 'Energia pura: tanque de estamina +8%, mas fica pesado (−2 Vel).',
+      desc: 'Energia pura: tanque de estamina +4%, mas fica pesado (−2 Vel).',
       mods: { vel: -2 },
-      special: { staminaPoolMult: 1.08 }
+      special: { staminaPoolMult: 1.04 }
     },
     'esporas-prata': {
       id: 'esporas-prata', name: 'Esporas de Prata', rarity: 'raro', price: 400,
@@ -276,7 +277,7 @@
 
   var STARTERS = [
     horse('brasa', 'Brasa', 'fogo', 'raro', 1,
-      { vel: 64, acel: 70, est: 52, forca: 52, garra: 62 },
+      { vel: 64, acel: 62, est: 60, forca: 52, garra: 62 },
       { vel: 22, acel: 24, est: 12, forca: 14, garra: 18 },
       ['labareda'],
       { coat: '#c4471d', coatShade: '#7f2a0e', mane: '#ffb02e', accent: '#ffe066' },
@@ -392,11 +393,11 @@
   // Ligas por Rating de Poder (RaceSim.powerRating). min inclusivo.
   var LEAGUES = [
     { id: 'bronze',   name: 'Bronze',   min: 0,    color: '#b0703c' },
-    { id: 'prata',    name: 'Prata',    min: 500,  color: '#b8c2cc' },
-    { id: 'ouro',     name: 'Ouro',     min: 620,  color: '#f2c230' },
-    { id: 'platina',  name: 'Platina',  min: 740,  color: '#5fd3c8' },
-    { id: 'diamante', name: 'Diamante', min: 860,  color: '#7ab8ff' },
-    { id: 'lenda',    name: 'Lenda',    min: 980,  color: '#ff7a3d' }
+    { id: 'prata',    name: 'Prata',    min: 550,  color: '#b8c2cc' },
+    { id: 'ouro',     name: 'Ouro',     min: 700,  color: '#f2c230' },
+    { id: 'platina',  name: 'Platina',  min: 800,  color: '#5fd3c8' },
+    { id: 'diamante', name: 'Diamante', min: 900,  color: '#7ab8ff' },
+    { id: 'lenda',    name: 'Lenda',    min: 1000, color: '#ff7a3d' }
   ];
 
   var ECONOMY = {

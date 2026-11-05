@@ -43,7 +43,8 @@ function n(x) { return Math.max(1, Math.round(x * SCALE)); }
 function seedOf(test, k) { return S.hash2(test * 7919 + 13, k); }
 function pickTactic(seed, i) { return TACTICS[Math.floor(S.mulberry32(S.hash2(seed, 900 + i))() * 3)]; }
 function pct(a, b) { return b ? (100 * a / b) : 0; }
-function f1(x) { return x.toFixed(1); }
+function f1(x) { return x.toFixed(1).replace('.', ','); }
+function f2(x) { return x.toFixed(2).replace('.', ','); }
 function pad(s, w) { s = String(s); while (s.length < w) s += ' '; return s; }
 function run(seed, conditions, racers) {
   return S.simulate({ seed: seed, conditions: conditions, racers: racers, recordFrames: false });
@@ -155,7 +156,7 @@ STARTERS.forEach(function (h, i) {
   var v = pct(wins, N2);
   check('2', h.name + ' favorável', v, 45, 65);
   var condTxt = G.DISTANCES[cond.distance].label + ', ' + G.SURFACES[cond.surface].name + ', ' + G.WEATHERS[cond.weather].name + (cond.hills.length ? ', ' + cond.hills.length + ' subidas' : '');
-  var affs = STARTERS.map(function (x) { var a = S.elementAffinity(x.element, cond); return x.name + ' ×' + a.mult.toFixed(2); }).join(' · ');
+  var affs = STARTERS.map(function (x) { var a = S.elementAffinity(x.element, cond); return x.name + ' ×' + f2(a.mult); }).join(' · ');
   log('| ' + h.name + ' | ' + condTxt + ' | ' + affs + ' | **' + f1(v) + '%** |');
 });
 log('');
@@ -358,8 +359,8 @@ log('| Métrica | Valor |');
 log('|---|---|');
 log('| Garra disparou | ' + f1(pct(info.garra, E)) + '% dos corredores |');
 log('| "Cansou" (estamina zerou antes dos últimos 2%) | ' + f1(pct(info.cansou, E)) + '% dos corredores |');
-log('| Trocas de liderança narradas por corrida | ' + (info.ultrap / info.races).toFixed(2) + ' |');
-log('| Habilidades ativadas por corrida | ' + (info.skills / info.races).toFixed(2) + ' |');
+log('| Trocas de liderança narradas por corrida | ' + f2(info.ultrap / info.races) + ' |');
+log('| Habilidades ativadas por corrida | ' + f2(info.skills / info.races) + ' |');
 log('');
 
 log('### Resultado das metas');
@@ -382,18 +383,19 @@ process.exit(failed.length ? 1 : 0);
 // ---------------------------------------------------------------------------
 function exemplo() {
   var track = G.TRACK_EXAMPLES.filter(function (t) { return t.id === 'raia-sertao'; })[0];
-  var byId = {}; allHorses.forEach(function (h) { byId[h.id] = h; });
+  var byId = {}; STARTERS.concat(WILD).forEach(function (h) { byId[h.id] = h; });
   var field = [
-    { horse: clone(byId.brasa, 6), itemId: 'esporas-prata', tactic: 'ponteiro', name: 'Você', isPlayer: true },
-    { horse: clone(byId.mare, 6), itemId: 'manta-la', tactic: 'perseguidor', name: G.BOT_NAMES[0], isPlayer: false },
-    { horse: clone(byId.ipe, 6), itemId: 'ferradura-cravos', tactic: 'perseguidor', name: G.BOT_NAMES[1], isPlayer: false },
-    { horse: byId['w-garoa'], itemId: null, tactic: 'arrancador', name: G.BOT_NAMES[2], isPlayer: false },
+    { horse: clone(byId.ipe, 6), itemId: 'ferradura-cravos', tactic: 'perseguidor', name: 'Você', isPlayer: true },
+    { horse: clone(byId.brasa, 6), itemId: 'esporas-prata', tactic: 'ponteiro', name: G.BOT_NAMES[0], isPlayer: false },
+    { horse: clone(byId.mare, 6), itemId: 'manta-la', tactic: 'arrancador', name: G.BOT_NAMES[1], isPlayer: false },
+    { horse: byId['w-garoa'], itemId: null, tactic: 'perseguidor', name: G.BOT_NAMES[2], isPlayer: false },
     { horse: byId['w-ticao'], itemId: 'ferradura-leve', tactic: 'ponteiro', name: G.BOT_NAMES[3], isPlayer: false },
     { horse: byId['w-mandacaru'], itemId: 'sela-couro', tactic: 'arrancador', name: G.BOT_NAMES[4], isPlayer: false },
     { horse: clone(byId['w-ventania'], 4), itemId: null, tactic: 'perseguidor', name: G.BOT_NAMES[5], isPlayer: false },
     { horse: clone(byId['w-pororoca'], 3), itemId: null, tactic: 'arrancador', name: G.BOT_NAMES[6], isPlayer: false }
   ];
-  var seed = 20261105;
+  var si = args.indexOf('--seed');
+  var seed = si >= 0 ? Number(args[si + 1]) : 20261119;
   var res = S.simulate({ seed: seed, conditions: track, racers: field });
   var pay = S.payouts(100, field.length, res.finishOrder);
   var lines = [];
@@ -406,17 +408,20 @@ function exemplo() {
     var a = S.elementAffinity(r.horse.element, track);
     lines.push('| ' + (i + 1) + ' | ' + r.name + ' | ' + r.horse.name + ' | ' + G.ELEMENTS[r.horse.element].name + ' | ' + G.RARITIES[r.horse.rarity].name + ' | ' + r.horse.level + ' | ' +
       (r.itemId ? G.ITEMS[r.itemId].name : '—') + ' | ' + TAC_NAME[r.tactic] + ' | ' + [s.vel, s.acel, s.est, s.forca, s.garra].join('/') + ' | ' +
-      S.powerRating(r.horse, r.itemId) + ' | ×' + a.mult.toFixed(2) + (a.reasons.length ? ' (' + a.reasons.join('; ') + ')' : '') + ' |');
+      S.powerRating(r.horse, r.itemId) + ' | ×' + f2(a.mult) + (a.reasons.length ? ' (' + a.reasons.join('; ') + ')' : '') + ' |');
   });
   lines.push('');
-  lines.push('| Pos. | Jogador | Cavalo | Tempo | Prêmio |');
-  lines.push('|---|---|---|---|---|');
+  lines.push('| Pos. | Jogador | Cavalo | Tempo | Disposição do dia | Prêmio |');
+  lines.push('|---|---|---|---|---|---|');
   res.finishOrder.forEach(function (ri, k) {
     var pr = pay.prizes.filter(function (x) { return x.racer === ri; })[0];
-    lines.push('| ' + (k + 1) + 'º | ' + field[ri].name + ' | ' + field[ri].horse.name + ' | ' + res.finishTimes[ri].toFixed(2).replace('.', ',') + 's | ' + (pr ? pr.amount + ' Ouro' : '—') + ' |');
+    var inf = res.racerInfo[ri];
+    var fpct = Math.round((inf.form - 1) * 1000) / 10;
+    lines.push('| ' + (k + 1) + 'º | ' + field[ri].name + ' | ' + field[ri].horse.name + ' | ' + res.finishTimes[ri].toFixed(2).replace('.', ',') + 's | ' +
+      inf.disposicao + ' (' + (fpct >= 0 ? '+' : '') + String(fpct).replace('.', ',') + '%) | ' + (pr ? pr.amount + ' Ouro' : '—') + ' |');
   });
   lines.push('');
-  lines.push('Pote ' + pay.pot + ' · taxa ' + pay.fee + ' · duração ' + res.duration + 's · ' + res.frames.length + ' frames');
+  lines.push('Pote ' + pay.pot + ' · taxa ' + pay.fee + ' · duração ' + f2(res.duration) + 's · ' + res.frames.length + ' frames');
   lines.push('');
   res.events.forEach(function (e) { lines.push('[' + e.t.toFixed(1).replace('.', ',') + 's] (' + e.type + ') ' + e.text); });
   console.log(lines.join('\n'));
