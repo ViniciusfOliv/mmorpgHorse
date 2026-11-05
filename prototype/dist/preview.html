@@ -1386,6 +1386,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       given += amount;
       prizes.push({ racer: order[i], place: i + 1, amount: amount });
     }
+    // o resto do arredondamento cai no último pago e, com fees minúsculos, invertia prêmios
+    // (ex.: fee 1, n=6 → [2, 1, 2]); reordena os valores para nunca pagar mais a quem chega depois
+    var amounts = prizes.map(function (p) { return p.amount; }).sort(function (a, b) { return b - a; });
+    for (i = 0; i < places; i++) prizes[i].amount = amounts[i];
     return { pot: pot, fee: fee, prizes: prizes };
   }
 
@@ -4059,7 +4063,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
         '<p class="nota">Dá para trocar item e tática na sala de largada, já vendo pista e clima.</p>' +
         '<div class="tela-cabeca"><span class="rotulo" id="r-entrada">Entrada da corrida</span>' +
           '<div class="opcoes opcoes--3 opcoes--tier" role="group" aria-labelledby="r-entrada">' + tierOpts + '</div>' +
-          '<p class="nota">Todos pagam a mesma entrada; a casa fica com 10% do pote. Com 4–5 corredores pagam 1º e 2º (70/30); com 6–7, 1º/2º/3º (50/30/20); com 8, 60/25/15. Quem sobe ao pódio nunca sai no prejuízo.</p></div>' +
+          '<p class="nota">Todos pagam a mesma entrada; a casa fica com 10% do pote. Com 4–5 corredores pagam 1º e 2º (70/30); com 6–7, 1º/2º/3º (50/30/20); com 8, 60/25/15. Quem leva prêmio nunca sai no prejuízo.</p></div>' +
         cta +
       '</section>' +
       '<section class="caixa" aria-labelledby="t-selvagens"><h2 class="titulo" id="t-selvagens">Cavalos selvagens</h2>' +
@@ -4074,14 +4078,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   // ===========================================================================
   // Sala de largada: campo sorteado uma vez (state.pending) e simulado só no "Largar!"
   // ===========================================================================
-  function ratingAt(template, level, itemId) {
-    var h = clone(template); h.level = level;
-    return RS.powerRating(h, itemId);
-  }
   function bestLevelFor(template, itemId, target, lo, hi) {
+    var h = clone(template); // um clone por template, mudando só o level (clonar a cada nível custava ~10 ms por sala)
     var best = lo || 1, bestD = Infinity;
     for (var L = (lo || 1); L <= (hi || E.maxLevel || 50); L++) {
-      var d = Math.abs(ratingAt(template, L, itemId) - target);
+      h.level = L;
+      var d = Math.abs(RS.powerRating(h, itemId) - target);
       if (d < bestD - 0.5) { bestD = d; best = L; }
     }
     return { level: best, diff: bestD };
@@ -4098,10 +4100,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     if (P && !P.training && state.gold < P.fee) P = null;          // não dá mais para pagar (ex.: save editado)
     if (P && P.training && !training && state.gold >= MIN_ENTRY) P = null; // treino pendente vira corrida valendo
     if (!P) {
+      var fee = training ? 0 : effectiveTier();
+      if (fee == null) { training = true; fee = 0; } // sem Ouro para nenhuma entrada (ex.: save editado): vira treino
       state.raceCounter += 1;
       P = {
         // pareamento pelo cavalo (sem item): o item é escolha de estratégia na sala e não atrai rivais mais fortes
-        counter: state.raceCounter, training: !!training, fee: training ? 0 : (effectiveTier() || 0),
+        counter: state.raceCounter, training: !!training, fee: fee,
         pr: RS.powerRating(playerHorse(), null)
       };
       state.pending = P;
@@ -4963,7 +4967,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   // Ações
   // ===========================================================================
   function startLobby(training) {
-    ui.lobby = openLobby(training);
+    var s = state;
+    var lobby = openLobby(training);
+    if (state !== s) return; // outra aba gravou um save mais novo durante o persist: adoptExternal já navegou
+    ui.lobby = lobby;
     go('largada');
   }
 
@@ -4999,8 +5006,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       case 'largar': {
         var L = ui.lobby;
         if (!L || L.sim) { go('estabulo'); break; }
+        persist();                    // sincroniza com outras abas antes de debitar
+        if (ui.lobby !== L) break;    // save mais novo adotado: adoptExternal já navegou para um ponto seguro
         if (!L.training && state.gold < L.fee) { ui.notice = 'Ouro insuficiente para esta entrada.'; state.pending = null; persist(); go('estabulo'); break; }
+        var sAntes = state;
         ui.result = settle(L);
+        if (state !== sAntes) { ui.result = null; break; } // conflito no meio da liquidação: descarta o resultado misto
         go('corrida');
         break;
       }

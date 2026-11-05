@@ -368,6 +368,10 @@
       given += amount;
       prizes.push({ racer: order[i], place: i + 1, amount: amount });
     }
+    // o resto do arredondamento cai no último pago e, com fees minúsculos, invertia prêmios
+    // (ex.: fee 1, n=6 → [2, 1, 2]); reordena os valores para nunca pagar mais a quem chega depois
+    var amounts = prizes.map(function (p) { return p.amount; }).sort(function (a, b) { return b - a; });
+    for (i = 0; i < places; i++) prizes[i].amount = amounts[i];
     return { pot: pot, fee: fee, prizes: prizes };
   }
 

@@ -14,7 +14,16 @@ _Atualizado em 2026-11-05._
 - **Sprites PixelLab** dos 3 iniciais (base + galope de 9 quadros), comparados com os sprites por
   código em `prototype/comparativo.html`. **Ainda não estão em uso no jogo.**
 - **Regras de trabalho**: `CLAUDE.md`, `scripts/check.sh`, `.claude/settings.json`, `.gitignore`
-  e esta memória.
+  e esta memória. **Integradas na `main`** em 2026-11-05; branches antigas já mergeadas podem ser
+  apagadas no GitHub (`claude/analise-regras-arquivo-3j3zv1`, `claude/kind-thompson-gsqj7r`).
+- **Pente fino (2026-11-05)**: revisão completa do protótipo + varredura de segredos no histórico
+  git (nada vazado; chave PixelLab só por variável de ambiente). Sem XSS (tudo passa por `esc()`
+  + `sanitize()` com whitelist); regras invioláveis verificadas (determinismo, pagar antes do
+  resultado, sem re-sorteio grátis). Corrigidos: crash/da liquidação descartada em conflito
+  multi-aba no "Largar!", sala valendo com entrada 0 via save adulterado (agora vira treino),
+  inversão de prêmios com fees minúsculos em `payouts`, texto do estábulo ("quem leva prêmio"
+  em vez de "pódio"), e matchmaking ~10 ms mais rápido por sala (um clone por template em
+  `bestLevelFor`). `README.md` criado na raiz.
 
 ## Pendente no design (GDD seções 6+)
 Itens e upgrades · curvas de XP/level · breeding · expedições · economia (valores de entrada,
