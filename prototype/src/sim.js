@@ -15,10 +15,12 @@
  *   status = base + pot*0.1 + (level-1) * (0.50 + 0.65*pot/31) * raridade.growth
  *   limitado a raridade.statCap; depois + bônus do elemento (+8 no status dele) e
  *   + mods do item. Na corrida, a AFINIDADE do elemento multiplica todos os status
- *   (cada regra ±4% × peso da regra; total limitado a 0,92–1,10).
+ *   (cada regra ±4% × peso da regra; total limitado a 0,92–1,08) e, quando favorável,
+ *   22% dela vai direto na vMax (afinidade +8% => vMax +1,8%). Sem isso, um único fator
+ *   favorável (ex.: só a chuva para Água) quase não mudava a chance de vitória.
  *
  * POR CORREDOR (n(x) = status/100)
- *   vMax  = (16.8 + 2.2*n(vel)) * formaDoDia             ~16,8–19 m/s
+ *   vMax  = (16.8 + 2.2*n(vel)) * formaDoDia * (1 + 0.22*max(0, afinidade-1))   ~16,8–19 m/s
  *   accel = 0.6 + 2.4*n(acel) m/s²   (largada e retomadas; Aceleração encurta a reação)
  *   tanque de estamina = 66 + 20*n(est)
  *   formaDoDia: ruído triangular ±10% por corredor (racerInfo.disposicao). É a maior
@@ -63,6 +65,9 @@
  *   (pos === distance => chegou) e a velocidade cai a 0 em ~2 s. Simula até TODOS
  *   chegarem. config.recordFrames === false pula os frames (usado no balance.js).
  *
+ * CONDIÇÕES: config.conditions é opcional (sem ela => randomConditions(seed)); campos
+ *   ausentes (ex.: pista sem `weather`) são sorteados pela seed.
+ *
  * EXTRA (além do contrato): result.seed, result.conditions (normalizadas) e
  *   result.racerInfo[i] = { name, horseName, tactic, stats, affinity, form, disposicao }.
  * ============================================================================
@@ -104,8 +109,8 @@
     crowdRange: 2.5, crowdSlow: 0.03, forcaCrowdRelief: 0.8,
     draftMin: 0.5, draftRange: 4.0, draftSave: 0.10,
     rainSlow: 0.015, sunDrain: 1.04,
-    // afinidade de elemento
-    affinityStep: 0.04, affinityMin: 0.92, affinityMax: 1.10,
+    // afinidade de elemento: multiplica os status (n) e, além disso, uma fração dela vai direto na vMax
+    affinityStep: 0.04, affinityMin: 0.92, affinityMax: 1.08, affinityVel: 0.22, affinityVelNeg: 0,
     // garra
     garraZone: 0.8,
     garraChanceBase: 0.10, garraChanceRange: 0.70, garraChanceMax: 0.95,
@@ -127,6 +132,8 @@
         earlyBoost: 1.00, kick: { 1000: 1.00, 1600: 1.025, 2400: 1.05 }, garraBonus: 0.15, draft: true
       }
     },
+    // Rating de Poder: peso de cada status efetivo (habilidades somam 20 × chance do gatilho)
+    ratingW: { vel: 2.4, acel: 1.5, est: 2.0, forca: 1.8, garra: 1.8 },   // acel 1.5 (era 2.0): superestimava cavalos de largada (Brasa perdia 30% abaixo do justo nos níveis altos)
     // eventos
     leadMinP: 0.12, leadConfirmS: 1.5, leadMinGapS: 4.0,
     maxTime: 900
@@ -219,11 +226,38 @@
     return out;
   }
 
-  // Rating de Poder: soma ponderada dos status efetivos + habilidades.
+  // Rating de Poder: soma ponderada dos status efetivos + habilidades + especial do item.
+  // Cada habilidade vale 20 × a chance de o gatilho disparar numa corrida típica: clima, piso e
+  // subida só acontecem em ~1/3 das corridas, então valem ~1/3 (antes valiam 20 cheios e
+  // inflavam o rating de Garoa, Mandacaru etc.).
+  var SKILL_TRIGGER_WEIGHT = { start: 1, final: 1, midrace: 1, lowStamina: 0.8, behind: 0.5, hill: 1 / 3 };
+  function skillWeight(id) {
+    var sk = GameData.SKILLS[id];
+    if (!sk) return 0;
+    var trig = sk.trigger || '';
+    if (trig.indexOf('weather:') === 0 || trig.indexOf('surface:') === 0) return 1 / 3;
+    return SKILL_TRIGGER_WEIGHT[trig] != null ? SKILL_TRIGGER_WEIGHT[trig] : 1;
+  }
+  function itemSpecialPoints(horse, itemId) {
+    var item = itemId ? GameData.ITEMS[itemId] : null;
+    var sp = item && item.special;
+    if (!sp) return 0;
+    var pts = 0;
+    if (sp.staminaPoolMult) pts += (sp.staminaPoolMult - 1) * 400;
+    if (sp.garraChanceBonus) pts += sp.garraChanceBonus * 120;
+    if (sp.ignoreWeatherPenalty) {
+      var el = GameData.ELEMENTS[horse.element];
+      var hasWeatherPenalty = !!(el && el.affinity && el.affinity.some(function (r) { return r.sign < 0 && r.kind === 'weather'; }));
+      if (hasWeatherPenalty) pts += 8;
+    }
+    return pts;
+  }
   function powerRating(horse, itemId) {
     var s = computeStats(horse, itemId);
-    var nSkills = (horse.skills || []).length;
-    return Math.round(s.vel * 2.4 + s.acel * 2.0 + s.est * 2.0 + s.forca * 1.8 + s.garra * 1.8 + nSkills * 20);
+    var skillPts = 0;
+    (horse.skills || []).forEach(function (id) { skillPts += 20 * skillWeight(id); });
+    var w = T.ratingW;
+    return Math.round(s.vel * w.vel + s.acel * w.acel + s.est * w.est + s.forca * w.forca + s.garra * w.garra + skillPts + itemSpecialPoints(horse, itemId));
   }
 
   function leagueFor(rating) {
@@ -262,13 +296,16 @@
     return { distance: distance, surface: surface, weather: weather, hills: hills };
   }
 
-  function normalizeConditions(c) {
+  // Campos ausentes (ex.: pista de exemplo sem `weather`) são sorteados pela seed;
+  // sem seed (dicas de UI) ficam neutros (1600 m, grama, nublado, sem subida).
+  function normalizeConditions(c, seed) {
     c = c || {};
+    var rnd = (seed == null) ? null : randomConditions(seed);
     return {
-      distance: c.distance || 1600,
-      surface: GameData.SURFACES[c.surface] ? c.surface : 'grama',
-      weather: GameData.WEATHERS[c.weather] ? c.weather : 'nublado',
-      hills: (c.hills || []).map(function (h) { return [h[0], h[1]]; })
+      distance: c.distance || (rnd ? rnd.distance : 1600),
+      surface: GameData.SURFACES[c.surface] ? c.surface : (rnd ? rnd.surface : 'grama'),
+      weather: GameData.WEATHERS[c.weather] ? c.weather : (rnd ? rnd.weather : 'nublado'),
+      hills: (c.hills || (rnd ? rnd.hills : [])).map(function (h) { return [h[0], h[1]]; })
     };
   }
 
@@ -318,7 +355,11 @@
     var places = Math.min(E.payoutSplit.length, order.length, numRacers);
     var prizes = [];
     if (places <= 0) return { pot: pot, fee: pot, prizes: prizes };
-    var split = E.payoutSplit.slice(0, places);
+    // divisão por tamanho do campo (ECONOMY.payoutSplitFor): em campos pequenos pagam menos
+    // posições, para que todo lugar premiado receba pelo menos a entrada de volta.
+    var full = (typeof E.payoutSplitFor === 'function' ? E.payoutSplitFor(numRacers) : null) || E.payoutSplit;
+    places = Math.min(places, full.length);
+    var split = full.slice(0, places);
     var tot = 0, i;
     for (i = 0; i < split.length; i++) tot += split[i];
     var given = 0;
@@ -380,7 +421,7 @@
       aff: aff,
       form: form,
       nf: nf,
-      vMax: (T.vBase + T.vRange * nv) * form,
+      vMax: (T.vBase + T.vRange * nv) * form * (1 + (aff.mult > 1 ? T.affinityVel : T.affinityVelNeg) * (aff.mult - 1)),
       accel: T.aBase + T.aRange * na,
       pool: (T.poolBase + T.poolEst * ne) * (special.staminaPoolMult || 1),
       garraChance: clamp(T.garraChanceBase + T.garraChanceRange * ng + (special.garraChanceBonus || 0), 0, T.garraChanceMax),
@@ -409,7 +450,7 @@
   function simulate(config) {
     config = config || {};
     var seed = (config.seed >>> 0);
-    var cond = normalizeConditions(config.conditions || randomConditions(seed));
+    var cond = normalizeConditions(config.conditions || randomConditions(seed), seed);
     var D = cond.distance;
     var entries = config.racers || [];
     var n = entries.length;
@@ -688,7 +729,12 @@
     powerRating: powerRating,
     leagueFor: leagueFor,
     randomConditions: randomConditions,
-    elementAffinity: function (element, conditions) { return elementAffinity(element, conditions); },
+    // opts opcional: { itemId } para a UI mostrar a Capa anulando a penalidade de clima
+    elementAffinity: function (element, conditions, opts) {
+      var item = opts && opts.itemId ? GameData.ITEMS[opts.itemId] : null;
+      var special = (item && item.special) || {};
+      return elementAffinity(element, conditions, { ignoreWeatherPenalty: !!special.ignoreWeatherPenalty });
+    },
     simulate: simulate,
     payouts: payouts
   };

@@ -361,7 +361,21 @@
       'cs....',
       '.cs...',
       '..aa..',
-      '..ff..'] }
+      '..ff..'] },
+    // parado, descansando o posterior: jarrete dobrado e pinça do casco apoiada
+    REST: { dx: 0, map: [
+      'ccccc',
+      'ccccc',
+      'cccc.',
+      '.ccs.',
+      '.ccs.',
+      '..cs.',
+      '..cs.',
+      '..cs.',
+      '..cs.',
+      '..aa.',
+      '..ff.',
+      '.ff..'] }
   };
 
   // Encaixe das pernas (x da coluna 0 do mapa quando dx=0)
@@ -742,7 +756,28 @@
   // ===================================================================
   // Cache de quadros renderizados
   // ===================================================================
-  var horseCache = new Map();
+  // Cache LRU limitado por bytes (largura × altura × 4). Os quadros base ficam em 1x; drawHorse
+  // amplia na hora com imageSmoothingEnabled=false (vizinho mais próximo, sem custo de memória).
+  // Antes cada escala virava um canvas próprio e a memória crescia ~5 MB por corrida em telas DPR 3.
+  function LruCanvasCache(maxBytes) { this.map = new Map(); this.bytes = 0; this.max = maxBytes; }
+  LruCanvasCache.prototype.get = function (k) {
+    var v = this.map.get(k);
+    if (v) { this.map.delete(k); this.map.set(k, v); }
+    return v;
+  };
+  LruCanvasCache.prototype.set = function (k, c) {
+    var old = this.map.get(k);
+    if (old) { this.bytes -= old.width * old.height * 4; this.map.delete(k); }
+    this.map.set(k, c);
+    this.bytes += c.width * c.height * 4;
+    while (this.bytes > this.max && this.map.size > 1) {
+      var first = this.map.keys().next().value, fc = this.map.get(first);
+      this.map.delete(first);
+      this.bytes -= fc.width * fc.height * 4;
+    }
+  };
+  var baseCache = new LruCanvasCache(12 * 1024 * 1024);    // ~2400 quadros de 40x32
+  var scaledCache = new LruCanvasCache(24 * 1024 * 1024);  // só para quem chama horseCanvas() direto
   function palKey(p) { return [p.coat, p.coatShade, p.mane, p.accent].join(','); }
 
   function horseState(opts) {
@@ -757,8 +792,12 @@
       st.blink = mod(t, 3.7) < 0.14;
       st.ear = mod(t, 5.3) > 4.95;
       st.maneVar = mod(st.element === 'fogo' ? Math.floor(t * 6) : Math.floor(t * 0.8), 2);
-      st.legs = { nf: 'PLANT', ff: 'PLANT', nh: 'PLANT', fh: 'PLANT' };
-      st.key = 'I' + st.bob + st.tailVar + (st.blink ? 1 : 0) + (st.ear ? 1 : 0) + st.maneVar;
+      // troca o apoio (descansa um posterior) e de vez em quando abaixa a cabeça
+      var rest = mod(t, 6.4) > 3.4;
+      var np = mod(t, 7.1);
+      if (np > 5.7 && np < 6.5) st.head = np > 5.9 && np < 6.3 ? 1 : 0;
+      st.legs = { nf: 'PLANT', ff: 'PLANT', nh: rest ? 'REST' : 'PLANT', fh: 'PLANT' };
+      st.key = 'I' + st.bob + st.tailVar + (st.blink ? 1 : 0) + (st.ear ? 1 : 0) + st.maneVar + (rest ? 1 : 0) + st.head;
     } else {
       var f = mod(Math.floor(opts.frame || 0), GALLOP.length);
       var G = GALLOP[f];
@@ -771,25 +810,30 @@
     return st;
   }
 
-  function horseCanvas(opts) {
+  function horseBase(opts) {
     var pal = opts.palette || PALETTES.neutro;
-    var scale = Math.max(1, Math.round(opts.scale || 1));
     var silks = opts.silks || '#d8353b';
     var st = horseState(opts);
     var baseKey = palKey(pal) + '|' + st.element + '|' + silks + '|' + (st.jockey ? 1 : 0) + '|' + st.key;
-    var key = baseKey + '|x' + scale;
-    var hit = horseCache.get(key);
-    if (hit) return hit;
-    var base = horseCache.get(baseKey);
+    var base = baseCache.get(baseKey);
     if (!base) {
       var colors = buildColors(pal, st.element, silks, opts.skin);
       var comp = compose(horseLayers(st));
       base = gridToCanvas(outlineAndColor(comp, colors), HORSE_W, HORSE_H);
-      horseCache.set(baseKey, base);
+      baseCache.set(baseKey, base);
     }
-    var scaled = scaleCanvas(base, scale);
-    horseCache.set(key, scaled);
-    if (horseCache.size > 4000) horseCache.clear();
+    return { canvas: base, key: baseKey };
+  }
+
+  function horseCanvas(opts) {
+    var scale = Math.max(1, Math.round(opts.scale || 1));
+    var b = horseBase(opts);
+    if (scale === 1) return b.canvas;
+    var key = b.key + '|x' + scale;
+    var hit = scaledCache.get(key);
+    if (hit) return hit;
+    var scaled = scaleCanvas(b.canvas, scale);
+    scaledCache.set(key, scaled);
     return scaled;
   }
 
@@ -804,8 +848,9 @@
       ctx.fillRect(x + 9 * s, sy, 22 * s, s);
       ctx.fillRect(x + 11 * s, sy + s, 18 * s, s);
     }
-    ctx.drawImage(horseCanvas(opts), x, y);
+    ctx.drawImage(horseBase(opts).canvas, x, y, HORSE_W * s, HORSE_H * s);
   }
+  function cacheStats() { return { baseBytes: baseCache.bytes, baseCount: baseCache.map.size, scaledBytes: scaledCache.bytes, scaledCount: scaledCache.map.size }; }
 
   // ===================================================================
   // Paletas de exemplo
@@ -855,7 +900,7 @@
     'O': ['.#.', '#.#', '#.#', '#.#', '.#.'], 'P': ['##.', '#.#', '##.', '#..', '#..'],
     'Q': ['.#.', '#.#', '#.#', '##.', '.##'], 'R': ['##.', '#.#', '##.', '#.#', '#.#'],
     'S': ['.##', '#..', '.#.', '..#', '##.'], 'T': ['###', '.#.', '.#.', '.#.', '.#.'],
-    'U': ['#.#', '#.#', '#.#', '#.#', '###'], 'V': ['#.#', '#.#', '#.#', '#.#', '.#.'],
+    'U': ['#.#', '#.#', '#.#', '#.#', '###'], 'V': ['#.#', '#.#', '#.#', '.#.', '.#.'],
     'W': ['#...#', '#...#', '#.#.#', '##.##', '#...#'], 'X': ['#.#', '#.#', '.#.', '#.#', '#.#'],
     'Y': ['#.#', '#.#', '.#.', '.#.', '.#.'], 'Z': ['###', '..#', '.#.', '#..', '###'],
     '0': ['###', '#.#', '#.#', '#.#', '###'], '1': ['.#.', '##.', '.#.', '.#.', '###'],
@@ -874,6 +919,9 @@
     '\u00b7': ['.', '.', '#', '.', '.'], '\u2014': ['....', '....', '####', '....', '....'], '\u2013': ['...', '...', '###', '...', '...'],
     '=': ['...', '###', '...', '###', '...'], '*': ['...', '#.#', '.#.', '#.#', '...'], '"': ['#.#', '#.#', '...', '...', '...'],
     '$': ['.##', '##.', '.#.', '.##', '##.'], '_': ['...', '...', '...', '...', '###'], '[': ['##', '#.', '#.', '#.', '##'], ']': ['##', '.#', '.#', '.#', '##'],
+    '\u00ba': ['.#.', '#.#', '.#.', '...', '###'], '\u00aa': ['.##', '#.#', '.##', '...', '###'],
+    '\u25bc': ['#####', '.###.', '..#..', '.....', '.....'], '\u25c0': ['..#', '.##', '###', '.##', '..#'],
+    '\u25b6': ['#..', '##.', '###', '##.', '#..'], '\u25b2': ['.....', '..#..', '.###.', '#####', '.....'],
     ' ': ['..', '..', '..', '..', '..']
   };
   var ACCENTS = { '́': ['..#', '.#.'], '̀': ['#..', '.#.'], '̂': ['.#.', '#.#'], '̃': ['.##', '##.'] };
@@ -961,15 +1009,15 @@
       'od.oo.....',
       'o.........'], pal: { o: '#0f2a12', l: '#b6ec6a', g: '#4cae3c', d: '#2a6e2a' } },
     neutro: { map: [
-      '.oo....oo.',
-      'owwo..owso',
-      'owno..onso',
-      'owso..owso',
-      'owso..owso',
-      'owno..onso',
-      'owsoooowdo',
-      '.owssssddo',
-      '..oddddoo.',
+      '...oooo...',
+      '.oowwssoo.',
+      '.owwsssdo.',
+      'owsnnnnsdo',
+      'owsnssnsdo',
+      'owsnssnddo',
+      'ossnnnnddo',
+      '.ossssddo.',
+      '.oosdddoo.',
       '...oooo...'], pal: { o: '#2a2630', w: '#f0ece4', s: '#b8b2ac', d: '#7a7480', n: '#4a4450' } }
   };
   var iconCache = new Map();
@@ -1237,6 +1285,30 @@
     return { x: x, w: w, h: h };
   }
 
+  // Subidas em relevo: a faixa da pista (e quem corre nela) sobe em rampa ao longo do trecho e
+  // desce rápido no fim (placa FIM), o mesmo desenho do perfil da sala de largada. Em rampa (e não
+  // em lombada) a inclinação aparece em qualquer ponto da subida, não só nas bordas.
+  var HILL_AMP = 24;   // altura máxima em pixels de arte (trechos longos)
+  function hillShape(m, a, b) {
+    if (!(m > a && m < b)) return 0;
+    var len = b - a, d = Math.min(0.3, 30 / len), u = (m - a) / len;
+    return u < 1 - d ? u / (1 - d) : (1 - u) / d;
+  }
+  function hillAmp(a, b) { return Math.max(10, Math.min(HILL_AMP, Math.round((b - a) * 0.1))); }
+  // maxLift (opcional): teto da altura quando falta espaço acima da pista (ex.: celular deitado)
+  function hillLiftAt(m, hills, maxLift) {
+    if (!hills) return 0;
+    for (var i = 0; i < hills.length; i++) {
+      var a = hills[i][0], b = hills[i][1];
+      if (m > a && m < b) {
+        var amp = hillAmp(a, b);
+        if (maxLift != null) amp = Math.min(amp, maxLift);
+        return Math.round(amp * hillShape(m, a, b));
+      }
+    }
+    return 0;
+  }
+
   function drawTrack(ctx, o) {
     var W = o.width, Hh = o.height;
     var lanes = o.lanes || 6, laneH = o.laneH || 24, laneTop = o.laneTop || Math.round(Hh * 0.35);
@@ -1325,6 +1397,15 @@
     }
     // borda escura no topo da pista (sombra da cerca)
     ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(0, laneTop, W, P);
+    // raia destacada (a do jogador): faixa dourada translúcida com bordas tracejadas
+    var hl = o.highlightLane;
+    if (hl != null && hl >= 0 && hl < lanes) {
+      var hly = laneTop + hl * laneH;
+      ctx.fillStyle = 'rgba(242,194,48,0.12)'; ctx.fillRect(0, hly, W, laneH);
+      ctx.fillStyle = 'rgba(242,194,48,0.6)';
+      var hd = 4 * P, hOff = mod(camPx, hd * 2);
+      for (var hlx = -hOff; hlx < W; hlx += hd * 2) { ctx.fillRect(Math.round(hlx), hly, hd, P); ctx.fillRect(Math.round(hlx), hly + laneH - P, hd, P); }
+    }
 
     // --- subidas
     var hills = o.hills || [];
@@ -1466,6 +1547,24 @@
     ctx.fillStyle = '#f6f2ea'; ctx.fillRect(0, trackBottom + P, W, 2 * P);
     ctx.fillStyle = '#1c1820'; ctx.fillRect(0, trackBottom + 3 * P, W, P);
     if (fx > -10 && fx < W + 10) { ctx.fillStyle = '#f6f2ea'; ctx.fillRect(fx, trackBottom, 2 * P, 8 * P); }
+
+    // --- relevo das subidas: copia as colunas da faixa (da cerca externa para baixo) para cima
+    if (hills.length && o.hillRelief !== false) {
+      var y0 = laneTop - 8 * P, innerC = weather === 'chuva' ? '#355c38' : weather === 'nublado' ? '#41703f' : '#4c8a44';
+      var spanX = -1, spanDy = 0;
+      var flush = function (xEnd) {
+        if (spanX < 0 || spanDy <= 0) return;
+        var w = xEnd - spanX;
+        ctx.drawImage(ctx.canvas, spanX, y0, w, Hh - y0, spanX, y0 - spanDy, w, Hh - y0);
+        // encosta: faixa de terra escura sob a cerca levantada e gramado no rodapé exposto
+        ctx.fillStyle = innerC; ctx.fillRect(spanX, Hh - spanDy, w, spanDy);
+      };
+      for (var cx2 = 0; cx2 < W; cx2 += P) {
+        var dy = hillLiftAt(cam + (cx2 + P / 2) / ppm, hills, o.hillMaxLift) * P;
+        if (dy !== spanDy || spanX < 0) { flush(cx2); spanX = cx2; spanDy = dy; }
+      }
+      flush(W);
+    }
   }
 
   // ===================================================================
@@ -1476,7 +1575,7 @@
     var P = pixel || Math.max(2, Math.round(Math.min(W, H) / 150));
     if (weather === 'chuva') {
       ctx.fillStyle = 'rgba(16,26,52,0.30)'; ctx.fillRect(0, 0, W, H);
-      var n = Math.round(W * H / 1800);
+      var n = Math.round(W * H / (450 * P * P));   // densidade constante em pixels de arte (independe do DPR)
       for (var i = 0; i < n; i++) {
         var sp = 0.75 + 0.5 * hash(i * 3 + 2);
         var yy = mod(hash(i * 3 + 1) * H * 1.3 + t * H * 1.4 * sp, H * 1.3) - H * 0.15;
@@ -1487,7 +1586,7 @@
         for (var k = 0; k < segs; k++) ctx.fillRect(Math.round(xx - k * P * 0.6), Math.round(yy - k * P * 2), P, P * 2);
       }
       // respingos
-      var ns = Math.round(W * H / 6000);
+      var ns = Math.round(W * H / (1500 * P * P));
       for (var j = 0; j < ns; j++) {
         var per = 0.5 + 0.4 * hash(j + 900);
         var ph = frac(t / per + hash(j + 901));
@@ -1508,9 +1607,11 @@
         var cw = W * (0.5 + 0.3 * hash(s + 5));
         var cx = mod(hash(s + 1) * (W + cw) - t * (14 + 6 * s) * P, W + cw) - cw / 2;
         var cy = H * (0.35 + 0.4 * hash(s + 3));
-        var g = ctx.createRadialGradient(cx, cy, 0, cx, cy, cw / 2);
-        g.addColorStop(0, 'rgba(10,20,40,0.13)'); g.addColorStop(1, 'rgba(10,20,40,0)');
-        ctx.fillStyle = g; ctx.fillRect(cx - cw / 2, cy - cw / 2, cw, cw);
+        ctx.fillStyle = 'rgba(10,20,40,0.05)';
+        for (var ring = 0; ring < 2; ring++) {
+          var rw = Math.round(cw * (ring ? 0.3 : 0.5) / P) * P, rh = Math.round(rw * 0.35 / P) * P;
+          ctx.fillRect(Math.round(cx / P) * P - rw, Math.round(cy / P) * P - rh, rw * 2, rh * 2);
+        }
       }
       // nuvens em primeiro plano no topo
       for (var c = 0; c < 4; c++) {
@@ -1522,11 +1623,18 @@
         ctx.globalAlpha = 1;
       }
     } else { // sol
-      ctx.fillStyle = 'rgba(255,196,110,0.07)'; ctx.fillRect(0, 0, W, H);
-      var gx = W * 0.86, gy = -H * 0.08;
-      var g2 = ctx.createRadialGradient(gx, gy, 0, gx, gy, Math.max(W, H) * 0.75);
-      g2.addColorStop(0, 'rgba(255,246,210,0.38)'); g2.addColorStop(0.35, 'rgba(255,230,170,0.12)'); g2.addColorStop(1, 'rgba(255,230,170,0)');
-      ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(255,196,110,0.06)'; ctx.fillRect(0, 0, W, H);
+      // brilho do sol em 3 degraus de pixel (sem gradiente suave)
+      var gx = Math.round(W * 0.86), R0 = Math.max(W, H) * 0.5;
+      var steps = [[1.0, 0.05], [0.62, 0.06], [0.32, 0.08]];
+      for (var gs = 0; gs < steps.length; gs++) {
+        var rr = Math.round(R0 * steps[gs][0] / P) * P;
+        ctx.fillStyle = 'rgba(255,240,190,' + steps[gs][1] + ')';
+        for (var ry = 0; ry < rr; ry += 2 * P) {
+          var hw = Math.round(Math.sqrt(Math.max(0, rr * rr - ry * ry)) / P) * P;
+          ctx.fillRect(gx - hw, ry, hw * 2, 2 * P);
+        }
+      }
       // reflexos de lente em pixels
       var pulse = 0.5 + 0.5 * Math.sin(t * 1.3);
       var flares = [[0.62, 0.22, 5, 0.10], [0.48, 0.38, 3, 0.12], [0.3, 0.6, 7, 0.06]];
@@ -1553,6 +1661,10 @@
     drawWeather: drawWeather,
     drawTrail: drawTrail,
     drawElementIcon: drawElementIcon,
+    hillLiftAt: hillLiftAt,
+    hillShape: hillShape,
+    HILL_AMP: HILL_AMP,
+    cacheStats: cacheStats,
     drawText: drawText,
     measureText: measureText,
     _debug: { compose: compose, horseLayers: horseLayers, horseState: horseState, outlineAndColor: outlineAndColor, buildColors: buildColors }

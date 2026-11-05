@@ -23,8 +23,8 @@
       statBonus: { stat: 'acel', amount: 8 },
       desc: 'Explosivo na largada. Brilha no sol e em pista curta; sofre com chuva.',
       affinity: [
-        { kind: 'weather', value: 'sol', sign: 1, weight: 0.75, text: 'Sol favorece Fogo' },
-        { kind: 'distance', value: 1000, sign: 1, weight: 0.5, text: 'Pista curta favorece Fogo' },
+        { kind: 'weather', value: 'sol', sign: 1, weight: 0.5, text: 'Sol favorece Fogo' },
+        { kind: 'distance', value: 1000, sign: 1, weight: 0.25, text: 'Pista curta favorece Fogo' },
         { kind: 'weather', value: 'chuva', sign: -1, text: 'Chuva apaga o Fogo' }
       ]
     },
@@ -41,11 +41,11 @@
     grama: {
       id: 'grama', name: 'Grama', color: '#4caf3a', icon: 'leaf',
       statBonus: { stat: 'forca', amount: 8 },
-      desc: 'Firme como raiz. Domina terra e subidas; murcha no sol forte.',
+      desc: 'Firme como raiz. Domina terra e subidas; murcha no sol.',
       affinity: [
         { kind: 'surface', value: 'terra', sign: 1, weight: 1.25, text: 'Terra favorece Grama' },
         { kind: 'hills', value: true, sign: 1, weight: 1.25, text: 'Subidas favorecem Grama' },
-        { kind: 'weather', value: 'sol', sign: -1, text: 'Sol forte murcha a Grama' }
+        { kind: 'weather', value: 'sol', sign: -1, text: 'Sol murcha a Grama' }
       ]
     },
     neutro: {
@@ -89,7 +89,7 @@
     },
     arrancador: {
       id: 'arrancador', name: 'Arrancador',
-      desc: 'Guarda energia lá atrás e explode nos últimos 25%. Forte em pista longa; arriscado em pista curta.'
+      desc: 'Guarda energia lá atrás e explode nos últimos 30%. Forte em pista longa; arriscado em pista curta.'
     }
   };
 
@@ -209,7 +209,7 @@
     'ferradura-leve': {
       id: 'ferradura-leve', name: 'Ferradura Leve', rarity: 'comum', price: 120,
       desc: 'Casco leve, passada solta. Perde firmeza no pesado.',
-      mods: { vel: 5, forca: -4 }
+      mods: { vel: 8, forca: -5 }
     },
     'ferradura-cravos': {
       id: 'ferradura-cravos', name: 'Ferradura com Cravos', rarity: 'comum', price: 120,
@@ -219,7 +219,7 @@
     'sela-couro': {
       id: 'sela-couro', name: 'Sela de Couro Cru', rarity: 'comum', price: 100,
       desc: 'Confortável e sem segredo.',
-      mods: { est: 5 }
+      mods: { est: 7 }
     },
     'manta-la': {
       id: 'manta-la', name: 'Manta de Lã', rarity: 'incomum', price: 220,
@@ -228,8 +228,9 @@
     },
     'antolhos': {
       id: 'antolhos', name: 'Antolhos', rarity: 'incomum', price: 220,
-      desc: 'Foco total na reta final; demora a pegar embalo.',
-      mods: { garra: 10, acel: -3 }
+      desc: 'Foco total na reta final (+8% de chance de Garra); demora a pegar embalo.',
+      mods: { garra: 12, acel: -3 },
+      special: { garraChanceBonus: 0.08 }
     },
     'rapadura-engenho': {
       id: 'rapadura-engenho', name: 'Rapadura de Engenho', rarity: 'incomum', price: 180,
@@ -256,8 +257,8 @@
     },
     'penas-gaviao': {
       id: 'penas-gaviao', name: 'Penas de Gavião-Real', rarity: 'lendario', price: 1500,
-      desc: 'Voa baixo na reta (+10 Vel, +4 Gar), mas cansa antes (−6 Est).',
-      mods: { vel: 10, garra: 4, est: -6 }
+      desc: 'Voa baixo na reta (+14 Vel, +6 Gar), mas cansa antes (−6 Est).',
+      mods: { vel: 14, garra: 6, est: -6 }
     }
   };
 
@@ -286,14 +287,14 @@
       { vel: 62, acel: 54, est: 70, forca: 56, garra: 58 },
       { vel: 16, acel: 12, est: 24, forca: 18, garra: 20 },
       ['mare-alta'],
-      { coat: '#3f78b0', coatShade: '#244a72', mane: '#d6f1ff', accent: '#3fd0e0' },
-      { title: 'O fôlego do oceano', bio: 'Égua tordilha-azulada. Quanto mais longa a pista, mais perigosa.' }),
+      { coat: '#9ba7b4', coatShade: '#646f7e', mane: '#5fd8ee', accent: '#e6f4fb' },
+      { title: 'O fôlego do oceano', bio: 'Égua tordilha de crina cor do mar. Quanto mais longa a pista, mais perigosa.' }),
     horse('ipe', 'Ipê', 'grama', 'raro', 1,
       { vel: 62, acel: 56, est: 60, forca: 68, garra: 54 },
       { vel: 16, acel: 14, est: 18, forca: 24, garra: 18 },
       ['raizes-firmes'],
-      { coat: '#6f8f3a', coatShade: '#465e22', mane: '#f5c518', accent: '#a3d977' },
-      { title: 'A raiz que não verga', bio: 'Cavalo robusto de crina amarela como ipê florido. Não teme subida.' })
+      { coat: '#7a4a2a', coatShade: '#4c2b18', mane: '#f5c518', accent: '#f2e6c8' },
+      { title: 'A raiz que não verga', bio: 'Castanho robusto de crina amarela como ipê florido. Não teme subida.' })
   ];
 
   var WILD_HORSES = [
@@ -405,6 +406,13 @@
     entryTiers: [50, 100, 250],
     houseFee: 0.10,
     payoutSplit: [0.6, 0.25, 0.15],
+    // Divisão conforme o tamanho do campo: todo lugar premiado recebe pelo menos a entrada.
+    //   4–5 corredores: 1º/2º (70/30) · 6–7: 1º/2º/3º (50/30/20) · 8: 60/25/15.
+    payoutSplitFor: function (numRacers) {
+      if (numRacers <= 5) return [0.7, 0.3];
+      if (numRacers <= 7) return [0.5, 0.3, 0.2];
+      return [0.6, 0.25, 0.15];
+    },
     startingGold: 500,
     minRacers: 4,
     maxRacers: 8,
@@ -415,7 +423,8 @@
     xpToLevel: function (level) { return 50 + 25 * level; }
   };
 
-  // Hipódromos de exemplo (fictícios). hills: [[inícioM, fimM], ...]
+  // Hipódromos de exemplo (fictícios). hills: [[inícioM, fimM], ...]. Se faltar `weather`,
+  // RaceSim.simulate sorteia o clima pela seed.
   var TRACK_EXAMPLES = [
     { id: 'praia-dourada', name: 'Hipódromo Praia Dourada', distance: 1000, surface: 'areia', weather: 'sol', hills: [],
       desc: 'Reta curta à beira-mar, areia fofa e sol de rachar.' },

@@ -161,6 +161,35 @@ STARTERS.forEach(function (h, i) {
 });
 log('');
 
+// 2b) Um único fator favorável (só o clima, só a distância, só o piso, só uma subida)
+var SINGLE = [
+  ['brasa', { distance: 1600, surface: 'grama', weather: 'sol', hills: [] }],
+  ['mare', { distance: 1600, surface: 'grama', weather: 'chuva', hills: [] }],
+  ['mare', { distance: 2400, surface: 'grama', weather: 'nublado', hills: [] }],
+  ['ipe', { distance: 1600, surface: 'terra', weather: 'nublado', hills: [] }],
+  ['ipe', { distance: 1600, surface: 'grama', weather: 'nublado', hills: [[700, 900]] }]
+];
+var N2b = n(2000);
+log('### 2b. Um único fator favorável vs os outros dois (meta: 38%–60%; base 33%)');
+log('');
+log('| Inicial | Condição | Afinidade | Vitórias (' + N2b + ') |');
+log('|---|---|---|---|');
+SINGLE.forEach(function (sc, si) {
+  var i = STARTERS.map(function (x) { return x.id; }).indexOf(sc[0]);
+  var cond = sc[1], wins = 0;
+  for (var k = 0; k < N2b; k++) {
+    var seed = seedOf(250 + si, k);
+    var rs = STARTERS.map(function (x, j) { return racer(clone(x, 1), pickTactic(seed, j)); });
+    if (run(seed, cond, rs).finishOrder[0] === i) wins++;
+  }
+  var v = pct(wins, N2b);
+  var a = S.elementAffinity(STARTERS[i].element, cond);
+  check('2b', STARTERS[i].name + ' com 1 fator (' + a.reasons.join('; ') + ')', v, 38, 60);
+  var condTxt = G.DISTANCES[cond.distance].label + ', ' + G.SURFACES[cond.surface].name + ', ' + G.WEATHERS[cond.weather].name + (cond.hills.length ? ', ' + cond.hills.length + ' subida' : '');
+  log('| ' + STARTERS[i].name + ' | ' + condTxt + ' | ×' + f2(a.mult) + ' | **' + f1(v) + '%** |');
+});
+log('');
+
 // ---------------------------------------------------------------------------
 // 3) Táticas em corrida-espelho (mesmo cavalo x4)
 // ---------------------------------------------------------------------------
@@ -301,20 +330,22 @@ G.ECONOMY.entryTiers.forEach(function (fee) {
     var p = S.payouts(fee, nr, order);
     var sum = p.prizes.reduce(function (s, x) { return s + x.amount; }, 0);
     var ints = [p.pot, p.fee].concat(p.prizes.map(function (x) { return x.amount; })).every(function (x) { return Number.isInteger(x) && x >= 0; });
-    var ok = ints && sum + p.fee === p.pot && p.pot === fee * nr && p.prizes.length === 3 &&
-      p.prizes[0].racer === order[0] && p.prizes[1].racer === order[1] && p.prizes[2].racer === order[2];
+    var paid = G.ECONOMY.payoutSplitFor ? G.ECONOMY.payoutSplitFor(nr).length : 3;
+    // todo lugar premiado recebe pelo menos a entrada de volta
+    var ok = ints && sum + p.fee === p.pot && p.pot === fee * nr && p.prizes.length === paid &&
+      p.prizes.every(function (x, k) { return x.racer === order[k] && x.amount >= fee; });
     if (!ok) { payOk = false; payDetail.push(fee + 'x' + nr); }
   }
 });
-checkBool('6', 'Pagamentos: soma(prêmios)+taxa == pote, inteiros (4..8 corredores × ' + G.ECONOMY.entryTiers.join('/') + ')', payOk, payDetail.join(','));
-log('### 6. Pagamentos (pote = entrada × corredores; taxa ' + (G.ECONOMY.houseFee * 100) + '%; 60/25/15)');
+checkBool('6', 'Pagamentos: soma(prêmios)+taxa == pote, inteiros, pódio ≥ entrada (4..8 corredores × ' + G.ECONOMY.entryTiers.join('/') + ')', payOk, payDetail.join(','));
+log('### 6. Pagamentos (pote = entrada × corredores; taxa ' + (G.ECONOMY.houseFee * 100) + '%; 4–5 corredores 70/30, 6–7 50/30/20, 8 60/25/15)');
 log('');
 log('| Entrada | Corredores | Pote | Taxa | 1º | 2º | 3º |');
 log('|---|---|---|---|---|---|---|');
 G.ECONOMY.entryTiers.forEach(function (fee) {
-  [4, 6, 8].forEach(function (nr) {
+  [4, 5, 6, 7, 8].forEach(function (nr) {
     var p = S.payouts(fee, nr, [0, 1, 2, 3, 4, 5, 6, 7].slice(0, nr));
-    log('| ' + fee + ' | ' + nr + ' | ' + p.pot + ' | ' + p.fee + ' | ' + p.prizes.map(function (x) { return x.amount; }).join(' | ') + ' |');
+    log('| ' + fee + ' | ' + nr + ' | ' + p.pot + ' | ' + p.fee + ' | ' + p.prizes.map(function (x) { return x.amount; }).join(' | ') + (p.prizes.length < 3 ? ' | — |' : ' |'));
   });
 });
 log('');
