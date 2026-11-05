@@ -1,0 +1,23 @@
+# Segredos — nunca commitar
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.p12
+*.pem
+key.properties
+
+# Dependências e saídas de build (prototype/dist/ É versionado de propósito)
+node_modules/
+build/
+
+# Configurações locais do Claude Code (as compartilhadas ficam em .claude/settings.json)
+.claude/settings.local.json
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/

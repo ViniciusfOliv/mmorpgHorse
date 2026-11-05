@@ -1,6 +1,6 @@
 // Teste de fluxo completo da interface com Playwright (sem instalar nada).
 //   node build.mjs && node tools/ui-test.mjs
-// Gera as capturas finais em prototype/screens/final-*.png (deviceScaleFactor 2) e falha se houver
+// Gera as capturas finais em prototype/screens/final-*.png (ou em $SHOTS_DIR) (deviceScaleFactor 2) e falha se houver
 // erro de console, rolagem horizontal, cavalo do jogador fora da tela, sala re-sorteada de graça,
 // resultado calculado antes de pagar, ou a tela de corrida não couber na altura da janela.
 import { createRequire } from 'node:module'
@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url)
 const { chromium } = require('playwright')
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const URL = pathToFileURL(join(ROOT, 'dist', 'preview.html')).href
-const SHOTS = join(ROOT, 'screens')
+const SHOTS = process.env.SHOTS_DIR || join(ROOT, 'screens') // SHOTS_DIR: usado pelo scripts/check.sh
 await mkdir(SHOTS, { recursive: true })
 
 const problems = []

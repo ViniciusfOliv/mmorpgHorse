@@ -1,4 +1,6 @@
-# MMORPG Horse — Design (rascunho v0.1)
+# MMORPG Horse — GDD (rascunho v0.1)
+
+> Fonte da verdade do design. Números concretos do protótipo: `docs/exemplos.md`. Decisões com data e motivo: `docs/memoria/decisoes.md`.
 
 Status: **rascunho em construção**. Seções 1–5 aprovadas em conversa. Seções 6+ ainda serão discutidas.
 

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./scripts/check.sh)",
+      "Bash(node prototype/build.mjs)",
+      "Bash(node prototype/tools/balance.js:*)",
+      "Bash(node prototype/tools/ui-test.mjs)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)"
+    ]
+  }
+}
