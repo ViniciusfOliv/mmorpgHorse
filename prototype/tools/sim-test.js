@@ -284,7 +284,9 @@ test('uid distinto mesmo com nomes iguais', function () {
 });
 
 test('snapshot dourado dos potros de exemplos.md', function () {
-  // docs/exemplos.md §13 "Três potros de exemplo": seedBase 20261106, nextUid 2, breedCounter 0/1/2
+  // docs/exemplos.md §13 "Três potros de exemplo": seedBase 20261106, nextUid 2, breedCounter 0/1/2.
+  // Compara o potro INTEIRO (inclusive a paleta, passo 9 da RNG): qualquer chamada de rng a mais,
+  // a menos ou fora de ordem em breed.js muda algum campo e derruba este teste.
   function par(id, level, uid) {
     var h = JSON.parse(JSON.stringify(G.STARTERS.concat(G.WILD_HORSES).filter(function (x) { return x.id === id; })[0]));
     h.level = level; h.uid = uid; return h;
@@ -292,19 +294,23 @@ test('snapshot dourado dos potros de exemplos.md', function () {
   function st(a) { var o = {}; G.STAT_KEYS.forEach(function (k, i) { o[k] = a[i]; }); return o; }
   var casos = [
     { f: par('mare', 30, null), m: par('brasa', 30, null), name: 'Quimera', rarity: 'magico', grau: 3, element: 'agua', sex: 'm',
-      base: [53, 59, 57, 60, 59, 52, 57], potential: [21, 16, 18, 18, 20, 16, 16], skills: ['pe-na-chuva'] },
+      base: [53, 59, 57, 60, 59, 52, 57], potential: [21, 16, 18, 18, 20, 16, 16], skills: ['pe-na-chuva'],
+      palette: { coat: '#aa837c', coatShade: '#6e5555', mane: '#9ac9a7', accent: '#efedc4' }, breedLeft: 2 },
     { f: par('w-faisca', 1, null), m: par('w-pangare', 1, null), name: 'Quimera', rarity: 'comum', grau: 2, element: 'neutro', sex: 'f',
-      base: [47, 42, 43, 44, 46, 46, 44], potential: [10, 12, 15, 10, 20, 27, 10], skills: ['arranque'] },
+      base: [47, 42, 43, 44, 46, 46, 44], potential: [10, 12, 15, 10, 20, 27, 10], skills: ['arranque'],
+      palette: { coat: '#b4733e', coatShade: '#7c4924', mane: '#9b7f55', accent: '#e59d65' }, breedLeft: 1 },
     { f: par('w-ventania', 30, null), m: par('w-jequitiba', 30, null), name: 'Estrela', rarity: 'lendario', grau: 1, element: 'grama', sex: 'm',
-      base: [65, 62, 61, 60, 62, 64, 61], potential: [28, 25, 17, 27, 21, 19, 16], skills: ['sprint', 'arrancada-final'] }
+      base: [65, 62, 61, 60, 62, 64, 61], potential: [28, 25, 17, 27, 21, 19, 16], skills: ['sprint', 'arrancada-final'],
+      palette: { coat: '#ac9e8d', coatShade: '#7f7466', mane: '#5a7b5b', accent: '#94cab1' }, breedLeft: 2 }
   ];
   casos.forEach(function (c, i) {
     var x = B.foal({ f: c.f, m: c.m, seedBase: 20261106, breedCounter: i, nextUid: 2 });
-    assert.deepStrictEqual(
-      { name: x.name, rarity: x.rarity, grau: x.grau, element: x.element, sex: x.sex, base: x.base, potential: x.potential, skills: x.skills },
-      { name: c.name, rarity: c.rarity, grau: c.grau, element: c.element, sex: c.sex, base: st(c.base), potential: st(c.potential), skills: c.skills },
-      'potro ' + i);
-    assert.strictEqual(x.uid, 'm2');
+    assert.deepStrictEqual(x, {
+      uid: 'm2', templateId: null, name: c.name, especie: 'cavalo', element: c.element, rarity: c.rarity, grau: c.grau, sex: c.sex,
+      level: 1, xp: 0, skills: c.skills, base: st(c.base), potential: st(c.potential), palette: c.palette, breedLeft: c.breedLeft,
+      parents: { f: { uid: null, name: c.f.name }, m: { uid: null, name: c.m.name } },
+      born: i, gestacao: null
+    }, 'potro ' + i);
   });
 });
 

@@ -23,16 +23,23 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   - Pergunta aberta: sem ruído por corrida, campos desiguais são previsíveis — decidir se queremos
     zebra (ruído ±3–5%).
   - Margens frágeis: 4b em 25,9% (piso 25); meta 3 a 3 p.p. do teto.
-- **Subprojeto 2 — Cavalos v2 (Estábulo, Haras e Cruzamento): concluído na branch
-  `claude/cruzamento` (aguardando revisão do Vinicius e integração na `main`).** Spec:
+- **Subprojeto 2 — Cavalos v2 (Estábulo, Haras e Cruzamento): concluído e revisado na branch
+  `claude/cruzamento` (aguardando o Vinicius jogar e a integração na `main`).** Spec:
   `docs/superpowers/specs/2026-11-06-cruzamento-design.md` (§14 = ajustes da implementação).
   - Entregue: estábulo com várias montarias (3 vagas, até 8), grau ★–★★★, `breed.js` determinístico,
     Haras (aluguel, cruzar dois seus, Troca, calculadora de chances), save v3, skills com Corcel.
-  - Verificação: `check.sh` em 5 etapas — 40 testes unitários, balanço 28/28, UI com o contexto
+  - Revisão final por agente (modelo forte) + onda de correções (commit `4700533`) + re-revisão:
+    calculadora do Corcel honesta (min(garantidas, candidatas, vagas)), teste de ponta a ponta do
+    cruzamento com montaria própria, `sanitize` mais duro (v3 com `mounts` inválido ⇒ `[]`, uid
+    `/^m\d{1,9}$/`), cartão do recém-nascido sem ações, pool de bots exclui todos os modelos
+    possuídos, arredondamento por maior resto na calculadora, snapshot dourado dos 3 potros de
+    `docs/exemplos.md` §13 (compara o potro inteiro, inclusive paleta).
+  - Verificação: `check.sh` em 5 etapas — 41 testes unitários, balanço 28/28, UI com o contexto
     `cruzamento` determinístico (captura `final-06-haras.png`).
   - Painel `?dev=1` para dar Ouro e cruzar à vontade ao testar.
   - Limites conhecidos: status do potro não herdam dos pais (só grau e potencial); sem timer de
-    gestação (`gestacao` fica null).
+    gestação (`gestacao` fica null); `game.js` segue um arquivo só (descartável; o que sobrevive é
+    `breed.js`).
 - A economia virou o subprojeto 6 (a branch vazia `claude/economia-gdd` foi removida).
 
 ## Pronto
@@ -74,8 +81,3 @@ taxa da casa, sinks de Ouro) · stack técnica (cliente, servidor, Android) · a
 - **Skills:** 1,66 ativações por corrida de 3 corredores; a simulação não expõe as tentativas.
 - **Zebra:** sem ruído por corrida, campos desiguais são previsíveis (Mítico lv1 × Comum lv1 = 100%).
   Proposta se quisermos: ruído de ±3–5%, não a volta da Disposição de ±10%.
-
-## Próximos passos sugeridos
-1. Vinicius joga o núcleo v2 (`prototype/dist/preview.html`) e decide sobre a zebra.
-2. Subprojeto 2: cavalos v2 (sexo já no modelo, cruzamento) — nova branch dedicada.
-3. Decidir sprites PixelLab vs. sprites por código; fechar as seções 6+ do GDD.

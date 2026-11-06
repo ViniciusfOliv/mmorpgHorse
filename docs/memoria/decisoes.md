@@ -4,6 +4,14 @@ Formato: **data · decisão** — motivo. A mais nova fica no topo. Decisões de
 continuam no `docs/GDD.md`; aqui fica o registro de *quando* e *por quê*.
 
 ## 2026-11-06
+- **Revisão final do cruzamento aplicada numa única onda** (commit `4700533`) — calculadora do
+  Corcel promete só min(garantidas, candidatas, vagas); save v3 com `mounts` inválido vira `[]` em
+  vez de cair na migração v1/v2 (não perde Ouro); pool de bots exclui todos os modelos possuídos.
+- **Snapshot dourado dos 3 potros de `docs/exemplos.md` §13 no `sim-test`** — compara o potro
+  inteiro (até a paleta); qualquer chamada de RNG a mais/a menos em `breed.js` derruba o teste e
+  protege a regra "potro só pela RNG da seed".
+- **`game.js` não será dividido agora** — o protótipo é descartável; o que sobrevive para a stack
+  final é `breed.js` (puro) e `sim.js`.
 - **Save v3 com várias montarias** (`mounts[]`, `activeId`, `stableSlots`, `breedCounter`) — o potro
   precisa de uma vaga no estábulo; o save v1/v2 é migrado sem perder Ouro.
 - **Haras com reprodutores NPC + Troca** — o protótipo precisa de um 2º pai desde o início e a Troca
