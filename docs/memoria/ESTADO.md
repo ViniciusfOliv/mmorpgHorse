@@ -40,8 +40,9 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   - Limites conhecidos: status do potro não herdam dos pais (só grau e potencial); sem timer de
     gestação (`gestacao` fica null); `game.js` segue um arquivo só (descartável; o que sobrevive é
     `breed.js`).
-- **Subprojeto 3 — Equipamentos: concluído na branch `claude/equipamentos` (aguardando revisão final,
-  o Vinicius jogar e a integração na `main`).** Spec:
+- **Subprojeto 3 — Equipamentos: concluído e integrado na `main` em 2026-11-06** (fast-forward;
+  revisão final por agente + onda de correções; branch `claude/equipamentos` pode ser apagada no
+  GitHub). Spec:
   `docs/superpowers/specs/2026-11-06-equipamentos-design.md` (§16 = ajustes da implementação).
   - Entregue: 5 slots por montaria, catálogo de 40 peças, `gear.js` puro, melhoria +0…+10, conjuntos
     Sol/Chuva/Névoa (3/4/5 peças), Loja, Pedra Negra no pódio, save v4 com migração, bots equipados
@@ -77,9 +78,11 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   `bestLevelFor`). `README.md` criado na raiz.
 
 ## Próximos passos
-1. Revisão final e integração do subprojeto 3 (equipamentos) na `main`.
-2. Vinicius joga os equipamentos (`prototype/dist/preview.html?dev=1` para Ouro, Pedras e conjunto Lendário).
-3. Subprojeto 4 (expedições) / decidir a zebra (ruído ±3–5% por corrida) / despertar Lendário→Mítico.
+1. Vinicius joga os equipamentos (`prototype/dist/preview.html?dev=1` para Ouro, Pedras e conjunto Lendário)
+   e decide sobre a força do bônus de 4 peças (hoje dobra o clima, 1,03→1,10; alternativa 1,07).
+2. Subprojeto 4 (expedições, batalha por turnos estilo Origem Fadas; dão Ouro, XP e moeda de pacotes) —
+   nova branch dedicada; o Vinicius descreve o sistema antes.
+3. Decidir a zebra (ruído ±3–5% por corrida) e o despertar Lendário→Mítico (depois das expedições).
 
 ## Pendente no design (GDD seções 8+)
 Curvas de XP/level · expedições · economia (valores de entrada,
