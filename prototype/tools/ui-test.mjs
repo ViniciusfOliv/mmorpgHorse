@@ -167,7 +167,7 @@ try {
   await sleep(600)
   await checkOverflow(page, 'resultado')
   await page.screenshot({ path: join(SHOTS, 'final-05-resultado.png') })
-  const after = await page.evaluate(() => ({ gold: window.__galope.state.gold, level: window.__galope.state.level, xp: window.__galope.state.xp, result: window.__galope.ui.result, pending: window.__galope.state.pending }))
+  const after = await page.evaluate(() => ({ gold: window.__galope.state.gold, level: window.__galope.state.mounts.filter((m) => m.uid === window.__galope.state.activeId)[0].level, xp: window.__galope.state.mounts.filter((m) => m.uid === window.__galope.state.activeId)[0].xp, result: window.__galope.ui.result, pending: window.__galope.state.pending }))
   if (after.gold !== goldBefore - after.result.fee + after.result.prize) problems.push(`ouro: ${after.gold} != ${goldBefore} - ${after.result.fee} + ${after.result.prize}`)
   if (after.pending) problems.push('sala continuou pendente depois de correr')
   const res = await page.evaluate(() => ({
@@ -219,9 +219,51 @@ try {
   await old.addInitScript((raw) => { window.localStorage.setItem('galope-elemental:v1', raw) }, OLD_SAVE)
   await old.goto(URL, { waitUntil: 'domcontentloaded' })
   await old.waitForSelector('#t-estabulo')
-  const mig = await old.evaluate(() => { const s = window.__galope.state; return { gold: s.gold, tactic: s.tactic, skills: JSON.stringify(s.skills) } })
-  if (mig.gold !== 777 || mig.tactic !== undefined || mig.skills !== '["mare-alta"]') problems.push('save antigo não migrou: ' + JSON.stringify(mig))
+  const mig = await old.evaluate(() => {
+    const s = window.__galope.state
+    return {
+      ok: s.mounts.length === 1 && s.mounts[0].templateId === 'mare' && JSON.stringify(s.mounts[0].skills) === '["mare-alta"]' && s.activeId === 'm1' && s.gold === 777 && s.level === undefined,
+      tactic: s.tactic, save: JSON.stringify(s)
+    }
+  })
+  if (!mig.ok || mig.tactic !== undefined) problems.push('save antigo não migrou: ' + mig.save)
   await oldCtx.close()
+
+  // save v2 (um inicial com nível, XP e skills na raiz) vira v3 com mounts[0]
+  const v2Ctx = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const v2 = await v2Ctx.newPage()
+  v2.on('console', (m) => { if (m.type() === 'error') problems.push(`[save-v2] console: ${m.text()}`) })
+  v2.on('pageerror', (e) => problems.push(`[save-v2] pageerror: ${e.message}`))
+  const V2_SAVE = '{"v":2,"rev":2,"starterId":"brasa","level":7,"xp":40,"gold":321,"inventory":["sela-couro"],"equipped":"sela-couro","skills":["labareda","sprint"],"tier":100,"seedBase":77,"raceCounter":3,"pending":null,"races":3,"wins":1,"podiums":2,"goldWon":150}'
+  await v2.addInitScript((raw) => { window.localStorage.setItem('galope-elemental:v1', raw) }, V2_SAVE)
+  await v2.goto(URL, { waitUntil: 'domcontentloaded' })
+  await v2.waitForSelector('#t-estabulo')
+  const migV2 = await v2.evaluate(() => {
+    const s = window.__galope.state, m = s.mounts[0]
+    return {
+      ok: m.templateId === 'brasa' && m.level === 7 && m.xp === 40 && JSON.stringify(m.skills) === '["labareda","sprint"]' &&
+        s.equipped === 'sela-couro' && s.gold === 321 && s.tier === 100,
+      save: JSON.stringify(s)
+    }
+  })
+  if (!migV2.ok) problems.push('save v2 não migrou: ' + migV2.save)
+  await v2Ctx.close()
+
+  // save v3 corrompido: montaria inválida descartada, activeId/vagas/nextUid corrigidos, Ouro preservado
+  const badCtx = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const bad = await badCtx.newPage()
+  bad.on('console', (m) => { if (m.type() === 'error') problems.push(`[save-v3-corrompido] console: ${m.text()}`) })
+  bad.on('pageerror', (e) => problems.push(`[save-v3-corrompido] pageerror: ${e.message}`))
+  const BAD_V3 = '{"v":3,"rev":1,"gold":555,"inventory":[],"equipped":null,"tier":50,"seedBase":9,"raceCounter":0,"pending":null,"races":0,"wins":0,"podiums":0,"goldWon":0,"mounts":[{"uid":"m1","templateId":"brasa","name":"Ok","element":"fogo","rarity":"raro","grau":2,"sex":"m","level":3,"xp":0,"skills":["labareda"],"base":{"vel":64,"acel":62,"man":60,"forca":52,"est":58,"garra":62,"sorte":50},"potential":{"vel":1,"acel":1,"man":1,"forca":1,"est":1,"garra":1,"sorte":1},"palette":null,"breedLeft":2,"parents":null,"born":0},{"uid":"m2","templateId":null,"name":"Quebrado","element":"fogo","rarity":"xxx","grau":9,"sex":"m","level":1,"xp":0,"skills":[],"base":{},"potential":{},"palette":null,"breedLeft":2,"parents":null,"born":0}],"activeId":"m9","nextUid":1,"stableSlots":1,"breedCounter":0}'
+  await bad.addInitScript((raw) => { window.localStorage.setItem('galope-elemental:v1', raw) }, BAD_V3)
+  await bad.goto(URL, { waitUntil: 'domcontentloaded' })
+  await bad.waitForSelector('#t-estabulo')
+  const migBad = await bad.evaluate(() => {
+    const s = window.__galope.state
+    return { ok: s.mounts.length === 1 && s.activeId === 'm1' && s.gold === 555 && s.stableSlots === 3 && s.nextUid >= 2, save: JSON.stringify(s) }
+  })
+  if (!migBad.ok) problems.push('save v3 corrompido não foi saneado: ' + migBad.save)
+  await badCtx.close()
 
   // ---------------- desktop 1280x800 ----------------
   const desk = await newPage(browser, { width: 1280, height: 800 }, 'desktop')

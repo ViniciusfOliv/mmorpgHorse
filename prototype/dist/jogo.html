@@ -4169,38 +4169,167 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     try { window.localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignora */ }
   }
 
+  // Save v3: várias montarias (instâncias) e uma ativa. Saves v1/v2 (um inicial com level/xp/skills na
+  // raiz) são migrados em sanitize(): o inicial vira mounts[0] ('m1').
+  var BR = E.breeding || { stableSlotsStart: 3, stableSlotsMax: 8 };
+  var MAX_LEVEL = E.maxLevel || 50;
+
+  function instanceFromTemplate(tpl, uid) {
+    return {
+      uid: uid,
+      templateId: tpl.id,
+      name: tpl.name,
+      especie: tpl.especie || 'cavalo',
+      element: tpl.element,
+      rarity: tpl.rarity,
+      grau: tpl.grau || 2,
+      sex: tpl.sex,
+      level: 1,
+      xp: 0,
+      skills: tpl.skills.slice(),
+      base: clone(tpl.base),
+      potential: clone(tpl.potential),
+      palette: tpl.palette ? clone(tpl.palette) : null,
+      breedLeft: tpl.breedLeftMax || GD.BREED_LEFT[tpl.sex],
+      parents: null,
+      born: 0,
+      gestacao: null
+    };
+  }
+
   function newState(starterId) {
     var idx = Math.max(0, GD.STARTERS.map(function (h) { return h.id; }).indexOf(starterId));
     return {
-      v: 2,
+      v: 3,
       rev: 0,
-      starterId: GD.STARTERS[idx].id,
-      level: 1,
-      xp: 0,
       gold: E.startingGold,
       inventory: START_INVENTORY.filter(function (id) { return !!GD.ITEMS[id]; }),
       equipped: null,
-      skills: GD.STARTERS[idx].skills.slice(),
       tier: E.entryTiers[0],
       seedBase: freshSeedBase(idx),
       raceCounter: 0,
       pending: null,
-      races: 0, wins: 0, podiums: 0, goldWon: 0
+      races: 0, wins: 0, podiums: 0, goldWon: 0,
+      mounts: [instanceFromTemplate(GD.STARTERS[idx], 'm1')],
+      activeId: 'm1',
+      nextUid: 2,
+      stableSlots: BR.stableSlotsStart,
+      breedCounter: 0
     };
+  }
+
+  function num(v, d, lo, hi) { v = Number(v); return isFinite(v) ? clamp(Math.floor(v), lo, hi) : d; }
+  function hasOwn(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+
+  // Status das 7 chaves, todos finitos; senão null (a montaria é descartada).
+  function statBlock(o, lo, hi) {
+    if (!o || typeof o !== 'object') return null;
+    var out = {};
+    for (var i = 0; i < STAT_KEYS.length; i++) {
+      var v = Number(o[STAT_KEYS[i]]);
+      if (o[STAT_KEYS[i]] == null || !isFinite(v)) return null;
+      out[STAT_KEYS[i]] = clamp(Math.round(v), lo, hi);
+    }
+    return out;
+  }
+  var PALETTE_KEYS = ['coat', 'coatShade', 'mane', 'accent'];
+  function validPalette(p) {
+    if (!p || typeof p !== 'object') return null;
+    var out = {};
+    for (var i = 0; i < PALETTE_KEYS.length; i++) {
+      var c = p[PALETTE_KEYS[i]];
+      if (typeof c !== 'string' || !/^#[0-9a-f]{6}$/i.test(c)) return null;
+      out[PALETTE_KEYS[i]] = c;
+    }
+    return out;
+  }
+  function validParent(p) {
+    if (!p || typeof p !== 'object') return null;
+    var uid = p.uid == null ? null : (typeof p.uid === 'string' ? p.uid.slice(0, 16) : undefined);
+    var name = p.name == null ? null : (typeof p.name === 'string' ? p.name.slice(0, 16) : undefined);
+    if (uid === undefined || name === undefined) return null;
+    return { uid: uid, name: name };
+  }
+  function validParents(p) {
+    if (!p || typeof p !== 'object') return null;
+    var f = validParent(p.f), m = validParent(p.m);
+    return f && m ? { f: f, m: m } : null;
+  }
+
+  // Uma montaria do save v3: tipos e faixas; campo essencial ausente ou status inválidos -> null.
+  function sanitizeMount(m) {
+    if (!m || typeof m !== 'object') return null;
+    if (typeof m.uid !== 'string' || !/^m\d+$/.test(m.uid)) return null;
+    if (typeof m.element !== 'string' || !hasOwn(GD.ELEMENTS, m.element)) return null;
+    if (typeof m.rarity !== 'string' || !hasOwn(GD.RARITIES, m.rarity)) return null;
+    if (m.sex !== 'm' && m.sex !== 'f') return null;
+    var templateId = null;
+    if (m.templateId != null) {
+      if (typeof m.templateId !== 'string' || !horseById(m.templateId)) return null;
+      templateId = m.templateId;
+    }
+    var base = statBlock(m.base, 1, 100), potential = statBlock(m.potential, 0, 31);
+    if (!base || !potential) return null;
+    var name = typeof m.name === 'string' ? String(m.name).replace(/\s+/g, ' ').trim().slice(0, 16) : '';
+    if (name.length < 2) name = 'Montaria';
+    var out = {
+      uid: m.uid,
+      templateId: templateId,
+      name: name,
+      especie: 'cavalo',
+      element: m.element,
+      rarity: m.rarity,
+      grau: num(m.grau, 2, 1, 3),
+      sex: m.sex,
+      level: num(m.level, 1, 1, MAX_LEVEL),
+      xp: num(m.xp, 0, 0, 1e7),
+      skills: [],
+      base: base,
+      potential: potential,
+      palette: validPalette(m.palette),
+      breedLeft: num(m.breedLeft, GD.BREED_LEFT[m.sex], 0, 4),
+      parents: validParents(m.parents),
+      born: num(m.born, 0, 0, 1e9),
+      gestacao: (typeof m.gestacao === 'number' && isFinite(m.gestacao) && m.gestacao >= 0) ? m.gestacao : null
+    };
+    out.skills = validSkills(m.skills, out);
+    return out;
   }
 
   function sanitize(s) {
     if (!s || typeof s !== 'object') return null;
-    if (!GD.STARTERS.some(function (h) { return h.id === s.starterId; })) return null;
-    var base = newState(s.starterId);
-    function num(v, d, lo, hi) { v = Number(v); return isFinite(v) ? clamp(Math.floor(v), lo, hi) : d; }
+    var mounts, activeId, nextUid, stableSlots, breedCounter;
+    var start = BR.stableSlotsStart, max = BR.stableSlotsMax;
+    if (!Array.isArray(s.mounts)) {
+      // v1/v2: um inicial com level/xp/skills na raiz (v1 tinha tática e não tinha skills: ignorados)
+      var starter = GD.STARTERS.filter(function (h) { return h.id === s.starterId; })[0];
+      if (!starter) return null;
+      var m1 = instanceFromTemplate(starter, 'm1');
+      m1.level = num(s.level, 1, 1, MAX_LEVEL);
+      m1.xp = num(s.xp, 0, 0, 1e7);
+      m1.skills = validSkills(s.skills, m1);
+      mounts = [m1]; activeId = 'm1'; nextUid = 2; stableSlots = start; breedCounter = 0;
+    } else {
+      mounts = [];
+      var seen = {}, maxUid = 0;
+      s.mounts.forEach(function (raw) {
+        var m = sanitizeMount(raw);
+        if (!m || seen[m.uid]) return;
+        seen[m.uid] = true;
+        mounts.push(m);
+        maxUid = Math.max(maxUid, Number(m.uid.slice(1)));
+      });
+      if (!mounts.length) { mounts.push(instanceFromTemplate(GD.STARTERS[0], 'm1')); maxUid = 1; }
+      activeId = mounts.some(function (m) { return m.uid === s.activeId; }) ? s.activeId : mounts[0].uid;
+      nextUid = Math.max(num(s.nextUid, 0, 0, 1e9), maxUid + 1);
+      stableSlots = clamp(num(s.stableSlots, start, 0, 1e9), Math.max(start, mounts.length), max);
+      breedCounter = num(s.breedCounter, 0, 0, 1e9);
+    }
+    var base = newState(GD.STARTERS[0].id);
     base.rev = num(s.rev, 0, 0, 1e12);
-    base.level = num(s.level, 1, 1, E.maxLevel || 50);
-    base.xp = num(s.xp, 0, 0, 1e7);
     base.gold = num(s.gold, E.startingGold, 0, 1e9);
     if (Array.isArray(s.inventory)) base.inventory = s.inventory.filter(function (id) { return !!GD.ITEMS[id]; });
     base.equipped = (s.equipped && base.inventory.indexOf(s.equipped) >= 0) ? s.equipped : null;
-    base.skills = validSkills(s.skills, s.starterId);   // save v1 (com tática, sem skills): tática é ignorada
     base.tier = E.entryTiers.indexOf(s.tier) >= 0 ? s.tier : E.entryTiers[0];
     base.seedBase = num(s.seedBase, base.seedBase, 0, 4294967295);
     base.raceCounter = num(s.raceCounter, 0, 0, 1e9);
@@ -4215,34 +4344,60 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     base.wins = num(s.wins, 0, 0, 1e9);
     base.podiums = num(s.podiums, 0, 0, 1e9);
     base.goldWon = num(s.goldWon, 0, 0, 1e12);
+    base.mounts = mounts;
+    base.activeId = activeId;
+    base.nextUid = nextUid;
+    base.stableSlots = stableSlots;
+    base.breedCounter = breedCounter;
     return base;
   }
 
-  // Skills salvas: só ids que o inicial pode ter (mesmas regras do RaceSim.learnSkill), sem repetir,
-  // até o nº de vagas da raridade. Ausente/vazio/inválido -> as skills de nascença do inicial.
-  function validSkills(list, starterId) {
-    var st = GD.STARTERS.filter(function (h) { return h.id === starterId; })[0] || GD.STARTERS[0];
-    var slots = (GD.RARITIES[st.rarity] || GD.RARITIES.comum).skillSlots;
+  // Skills salvas de uma montaria: só ids que ela pode ter (mesmas regras do RaceSim.learnSkill:
+  // elemento dela ou neutro; exclusiva só do template dono), sem repetir, até o nº de vagas da raridade.
+  // Ausente/vazio/inválido -> as skills de nascença do template (potro sem template: nenhuma).
+  function validSkills(list, mount) {
+    var st = mount.templateId ? horseById(mount.templateId) : null;
+    var slots = (GD.RARITIES[mount.rarity] || GD.RARITIES.comum).skillSlots;
     var out = [];
     if (Array.isArray(list)) {
       list.forEach(function (id) {
-        var sk = typeof id === 'string' && Object.prototype.hasOwnProperty.call(GD.SKILLS, id) ? GD.SKILLS[id] : null;
+        var sk = typeof id === 'string' && hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
         if (!sk || out.indexOf(id) >= 0 || out.length >= slots) return;
-        if (sk.exclusive && sk.exclusive !== st.id) return;
-        if (sk.element !== 'neutro' && sk.element !== st.element) return;
+        if (sk.exclusive && sk.exclusive !== mount.templateId) return;
+        if (sk.element !== 'neutro' && sk.element !== mount.element) return;
         out.push(id);
       });
     }
-    return out.length ? out : st.skills.slice();
+    return out.length ? out : (st ? st.skills.slice() : []);
   }
 
+  // Montaria ativa: a instância viva (para mutar). playerHorse() devolve um clone dela.
+  function activeMount() {
+    for (var i = 0; i < state.mounts.length; i++) if (state.mounts[i].uid === state.activeId) return state.mounts[i];
+    return state.mounts[0];
+  }
   function playerHorse() {
-    var base = GD.STARTERS.filter(function (h) { return h.id === state.starterId; })[0] || GD.STARTERS[0];
-    var h = clone(base);
-    h.level = state.level;
-    h.xp = state.xp;
-    h.skills = state.skills.slice();
-    return h;
+    return clone(activeMount());
+  }
+
+  // XP ganho -> níveis (até o máximo) e, a cada nível, chance de aprender uma skill
+  // (sorteio determinístico pela seed do save, pelo seedTag (nº do páreo) e pelo nível alcançado).
+  function applyXp(mount, xpGain, seedTag) {
+    var levels = 0, learned = [];
+    mount.xp += xpGain;
+    while (mount.level < MAX_LEVEL && mount.xp >= E.xpToLevel(mount.level)) {
+      mount.xp -= E.xpToLevel(mount.level);
+      mount.level += 1;
+      levels += 1;
+    }
+    if (mount.level >= MAX_LEVEL) mount.xp = Math.min(mount.xp, E.xpToLevel(mount.level));
+    for (var k = 1; k <= levels; k++) {
+      var lrng = RS.mulberry32(RS.hash2(state.seedBase, seedTag * 100 + (mount.level - levels + k)));
+      // learnSkill confere a exclusiva por .id: a instância usa o id do template de origem
+      var sid = RS.learnSkill({ id: mount.templateId, element: mount.element, rarity: mount.rarity, skills: mount.skills }, lrng);
+      if (sid) { mount.skills.push(sid); learned.push(sid); }
+    }
+    return { levels: levels, learned: learned };
   }
 
   // ===========================================================================
@@ -4673,7 +4828,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     };
 
     var names = shuffle(GD.BOT_NAMES.slice(), rng);
-    var pool = GD.WILD_HORSES.concat(GD.STARTERS.filter(function (s) { return s.id !== state.starterId; }));
+    var pool = GD.WILD_HORSES.concat(GD.STARTERS.filter(function (s) { return s.id !== activeMount().templateId; }));
     var itemIds = Object.keys(GD.ITEMS);
     var used = {};
     var silkOrder = shuffle(BOT_SILKS.map(function (c, i) { return i; }), rng);
@@ -4904,7 +5059,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     var order = L.sim.finishOrder;
     var place = order.indexOf(L.playerIdx) + 1;
     var hBefore = playerHorse();
-    var before = { level: state.level, xp: state.xp, gold: state.gold, stats: RS.computeStats(hBefore, null) };
+    var before = { level: hBefore.level, xp: hBefore.xp, gold: state.gold, stats: RS.computeStats(hBefore, null) };
     var pay = null, prize;
     if (L.training) {
       prize = TRAINING_GOLD[place - 1] || 10;
@@ -4917,21 +5072,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     var xpGain = L.training ? Math.round(xpBase / 2) : xpBase;
 
     state.gold = state.gold - L.fee + prize;
-    var levels = 0;
-    state.xp += xpGain;
-    while (state.level < (E.maxLevel || 50) && state.xp >= E.xpToLevel(state.level)) {
-      state.xp -= E.xpToLevel(state.level);
-      state.level += 1;
-      levels += 1;
-    }
-    if (state.level >= (E.maxLevel || 50)) state.xp = Math.min(state.xp, E.xpToLevel(state.level));
-    // cada nível ganho pode ensinar uma skill (sorteio determinístico pela seed do save e do páreo)
-    var learned = [];
-    for (var k = 1; k <= levels; k++) {
-      var lrng = RS.mulberry32(RS.hash2(state.seedBase, state.raceCounter * 100 + (state.level - levels + k)));
-      var sid = RS.learnSkill(playerHorse(), lrng);
-      if (sid) { state.skills.push(sid); learned.push(sid); }
-    }
+    var gained = applyXp(activeMount(), xpGain, state.raceCounter);
+    var levels = gained.levels, learned = gained.learned;
     state.races += 1;
     if (place === 1) state.wins += 1;
     if (place <= 3) state.podiums += 1;
@@ -4944,7 +5086,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay,
       xpGain: xpGain, levels: levels, learned: learned,
       before: before,
-      after: { level: state.level, xp: state.xp, gold: state.gold, stats: RS.computeStats(hAfter, null) }
+      after: { level: hAfter.level, xp: hAfter.xp, gold: state.gold, stats: RS.computeStats(hAfter, null) }
     };
   }
 
