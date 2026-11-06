@@ -3,6 +3,30 @@
 Formato: **data · decisão** — motivo. A mais nova fica no topo. Decisões de design detalhadas
 continuam no `docs/GDD.md`; aqui fica o registro de *quando* e *por quê*.
 
+## 2026-11-06
+- **Redesign em 6 subprojetos** (núcleo → cavalos/cruzamento → equipamentos → expedições →
+  montarias → economia) — pedido do Vinicius; a ordem segue as dependências (tudo se apoia nos
+  atributos novos). Detalhes em `docs/superpowers/specs/2026-11-06-nucleo-corrida-v2-design.md`.
+- **7 atributos: + Manobra e + Sorte** — cada trecho do mapa aleatório (reta/curva/subida) precisa de um
+  atributo dono; Sorte é atributo e mecânica (Dado da Sorte). Referências: Umamusume (passivas com %
+  de ativação), Black Desert (skills de pista, aprendizado por nível), Rival Stars.
+- **5 raridades: Comum, Mágico, Raro, Lendário, Mítico** — escala pedida pelo Vinicius; define teto,
+  vagas de skill e chance base de ativação.
+- **Tática e "Disposição do dia" removidas** — corrida = status + terreno + RNG; a única sorte é o Dado
+  da Sorte, visível e com atributo próprio.
+- **Elementos agem só pelo clima** (Sol/Chuva/Névoa; Fogo > Grama > Água > Fogo) — uma regra em vez de
+  três tabelas de afinidade; pista curta/longa/subida já favorecem cada elemento pelos atributos.
+- **Mapa aleatório em blocos** (sem pistas fixas) — ideia do Vinicius; nenhum tipo de montaria fica
+  sem pista. Água, Fogo e Grama mantidos (Terra não entra).
+- **Skills aprendidas por nível** (nasce com algumas, 8% por nível de aprender outra até lotar as
+  vagas) — modelo Black Desert; dá valor ao nível e ao cruzamento.
+- **Pacotes de montaria (gacha) só com moeda ganha em expedição; loja de Gemas só cosméticos/passe** —
+  Lei 15.211/2025 (ECA Digital, em vigor desde 17/03/2026): art. 2º, IV define caixa de recompensa
+  como aquisição *mediante pagamento* de item aleatório; art. 20 veda em jogos de acesso provável
+  por menores. Pacote pago por Gemas também violaria "Gemas nunca viram Ouro".
+- **Rede do ambiente Default liberada para** `www.youtube.com`, `youtube.com`, `www2.camara.leg.br`,
+  `www.planalto.gov.br` — pesquisa de referências; aprovado pelo Vinicius.
+
 ## 2026-11-05
 - **Fluxo de trabalho: uma conversa principal + ramificações por serviço** — a conversa principal
   integra e mantém a `main`; cada serviço novo (ex.: breeding, expedições, economia) nasce numa

@@ -1,8 +1,25 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-05._
+_Atualizado em 2026-11-06._
 
 **Fase:** Protótipo.
+
+## Em andamento — virada de design (2026-11-05/06)
+O jogo foi redesenhado em 6 subprojetos, nesta ordem (cada um em branch própria, integrado na `main`
+pela conversa principal): **1. Núcleo da corrida v2** → 2. Cavalos v2 (sexo, 5 raridades,
+cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo Black Desert) →
+4. Expedições (estágios 1-1…, batalha por turnos estilo Pokémon; dão Ouro, XP e moeda de pacotes)
+→ 5. Montarias novas (tigre, dragão…) → 6. Economia.
+
+- **Subprojeto 1 — spec escrita, aguardando revisão:**
+  `docs/superpowers/specs/2026-11-06-nucleo-corrida-v2-design.md` (branch `claude/nucleo-corrida-v2`).
+  Resumo: 7 atributos (Velocidade, Aceleração, **Manobra**, Força, Estamina, Garra, **Sorte**); 5
+  raridades (Comum, Mágico, Raro, Lendário, Mítico); elementos Água/Fogo/Grama agindo só pelo clima
+  (Sol/Chuva/Névoa/Nublado); mapa aleatório em blocos (reta/curva/subida); **Dado da Sorte** a 1/3 e
+  2/3 da pista muda o clima; skills passivas automáticas aprendidas por nível; **sem tática, sem
+  Disposição do dia**.
+- Próximo passo: Vinicius revisa a spec → plano de implementação → código na mesma branch.
+- Branch `claude/economia-gdd` foi criada e está vazia (economia virou subprojeto 6).
 
 ## Pronto
 - **Design v0.1** (`docs/GDD.md`): seções 1–5 aprovadas (visão, pilares, status, elementos, protótipo).
