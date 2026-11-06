@@ -145,6 +145,14 @@ try {
   const mapa = await page.evaluate(() => ({ blocks: window.__galope.ui.lobby.cond.blocks ? window.__galope.ui.lobby.cond.blocks.length : 0, perfil: !!document.querySelector('.perfil') }))
   if (mapa.blocks < 5 || mapa.blocks > 9) problems.push('sala: mapa com ' + mapa.blocks + ' blocos (esperado 5–9)')
   if (!mapa.perfil) problems.push('sala: sem o desenho do mapa (.perfil)')
+  // bots recebem equipamento pela liga do alvo (o rating do jogador já fica em Prata ou acima)
+  const botGear = await page.evaluate(() => {
+    const L = window.__galope.ui.lobby
+    return { pr: window.__galope.state.pending.pr, bots: L.racers.filter((r) => !r.isPlayer).map((r) => ({ rating: r.rating, pieces: r.gear ? r.gear.pieces.length : -1, set: r.gear && r.gear.set ? r.gear.set.id + '×' + r.gear.set.count : null })) }
+  })
+  botGear.bots.forEach((b) => { b.league = S.leagueFor(b.rating).id })
+  notes.botGear = botGear
+  if (!botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: nenhum bot com equipamento ' + JSON.stringify(botGear))
   await page.getByRole('button', { name: 'Voltar ao estábulo' }).click()
   await page.waitForSelector('#t-estabulo')
   await page.reload({ waitUntil: 'domcontentloaded' })

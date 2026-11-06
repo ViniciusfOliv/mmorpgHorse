@@ -5399,6 +5399,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     }
     return { level: best, diff: bestD };
   }
+  // índice da liga (em GD.LEAGUES) de um rating; RS.leagueFor devolve um objeto novo, então busca pelo id
+  function leagueIndex(rating) {
+    var id = RS.leagueFor(rating).id;
+    for (var i = 0; i < GD.LEAGUES.length; i++) if (GD.LEAGUES[i].id === id) return i;
+    return 0;
+  }
   // Faixa de nível plausível para um cavalo selvagem: perto do nível em que ele é achado.
   function levelBand(tpl) {
     var L0 = tpl.level || 1;
@@ -5455,7 +5461,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       var target = pr * (0.915 + 0.2 * rng());
       // equipamento do bot pela liga do alvo e pelo elemento do template (Neutro: conjunto pelo pick)
       var gpick = rng();
-      var leagueIdx = GD.LEAGUES.indexOf(RS.leagueFor(target));
+      var leagueIdx = leagueIndex(target);
       var inBand = pool.map(function (tpl) {
         var bd = levelBand(tpl), bg = GR.botGear(leagueIdx, tpl.element, gpick);
         return { tpl: tpl, gear: bg, fit: bestLevelFor(tpl, bg, target, bd[0], bd[1]) };
