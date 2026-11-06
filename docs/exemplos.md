@@ -44,7 +44,7 @@ O elemento dá um bônus fixo de status e tem um clima "dono". O clima multiplic
 | 🌿 Grama | +8 FOR | Névoa | Sol | Névoa Amiga |
 | ⚪ Neutro | — | — | — | — |
 
-Triângulo pelo clima: no **sol**, Fogo sobe e Grama cai (Fogo > Grama); na **névoa**, Grama sobe e Água cai (Grama > Água); na **chuva**, Água sobe e Fogo cai (Água > Fogo). Efeitos gerais: sol aumenta o gasto de estamina em 4% para todos; chuva tira 1,5% da velocidade de todos; névoa e nublado não têm efeito geral. A Capa Impermeável anula o ×0,97.
+Triângulo pelo clima: no **sol**, Fogo sobe e Grama cai (Fogo > Grama); na **névoa**, Grama sobe e Água cai (Grama > Água); na **chuva**, Água sobe e Fogo cai (Água > Fogo). Efeitos gerais: sol aumenta o gasto de estamina em 4% para todos; chuva tira 1,5% da velocidade de todos; névoa e nublado não têm efeito geral. O conjunto de 5 peças (§14) anula o ×0,97.
 
 Sorteio do mapa (`RaceSim.randomConditions`, tudo pela seed): distância múltipla de 100 m entre 1 000 e 2 400 m; 5 a 9 blocos de comprimento sorteado (arredondado a 10 m); o primeiro e o último bloco são reta, os do meio sorteiam reta/curva/subida com 1/3 cada; piso grama/terra/areia (1/3 cada); clima inicial sol/chuva/névoa/nublado (1/4 cada).
 
@@ -137,7 +137,7 @@ Quando o líder cruza **1/3** e **2/3** da pista, todas as montarias rolam um da
 | Liga | Rating | Exemplos |
 |---|---|---|
 | Bronze | 0–659 | Pangaré lv1 (503), Faísca lv3 (572), Lambari lv2 (532), Capim lv4 (559), Mandacaru lv7 (639) |
-| Prata | 660–779 | Brasa lv1 (728), Maré lv1 (724), Ipê lv1 (709), Tição lv8 (680), Garoa lv10 (683), Brasa lv1 + Penas de Gavião-Real (758) |
+| Prata | 660–779 | Brasa lv1 (728), Maré lv1 (724), Ipê lv1 (709), Tição lv8 (680), Garoa lv10 (683), Brasa lv1 com 5 Lendárias do Sol (837, Ouro) |
 | Ouro | 780–879 | Ventania lv15 (843), Pororoca lv18 (851), Brasa lv10 (822) |
 | Platina | 880–979 | Brasa lv25 (920), Maré lv25 (915), Ipê lv25 (904) |
 | Diamante | 980–1099 | Fogaréu lv22 (1008), Jequitibá lv25 (991) |
@@ -537,7 +537,7 @@ Regras em `docs/GDD.md` §7. Aqui os números do protótipo.
 
 ### Metas de equipamento (`balance.js`)
 
-Duelos de dois corredores iguais, mapas aleatórios, 400 corridas por meta; só muda o equipamento.
+Mapas aleatórios, 400 corridas por meta; só muda o equipamento. E1–E4 são duelos de dois corredores iguais; E3b tem um terceiro corredor (Maré, Água) para o Dado poder virar o clima.
 
 | Meta | Confronto | Faixa | Completo | `--quick` |
 |---|---|---|---|---|
