@@ -1984,13 +1984,28 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
  * ALUGUEL: Math.round(rentalBase[raridade] · grauMult[grau−1]); Mítico não se aluga (null).
  * CORCEL: montaria que já tem todas as skills "de linha" da sua raridade (CORCEL_SETS).
  *
- * Ordem de chamadas de rng() em foal(): ver Tarefa 3.
+ * ORDEM DE CHAMADAS DE rng() em foal() (rng = mulberry32(hash2(seedBase>>>0, 0xB0B0 + breedCounter))):
+ *   1. raridade (1 chamada); rarityChanged = sinal(ordem do resultado − menor ordem dos pais)
+ *   2. grau (1 chamada, só se a raridade não mudou; subiu ⇒ ★1, desceu ⇒ ★3)
+ *   3. elemento (1 chamada, só se os pais têm elementos diferentes: < 0,5 ⇒ égua)
+ *   4. sexo (1 chamada: < 0,5 ⇒ fêmea)
+ *   5. status base: 1 chamada por chave de STAT_KEYS, na janela baseLo + GRAU_WINDOW[grau−1]
+ *   6. potencial: 2 chamadas por chave. Herda (1ª < potInherit): 2ª escolhe égua (< 0,5) ou garanhão.
+ *      Não herda: 1ª (porta) + 2ª floor(rng()·32) = valor novo. Sempre exatamente 2 chamadas.
+ *      Depois aplica o piso do grau (GRAU_POT_FLOOR) com Math.max.
+ *   7. skills: se corcel com 1 pai só (g=1): 1 chamada (< 0,5 ⇒ g=2); depois min(g, candidatas) chamadas
+ *      de índice (garantidas, sem reposição); 1 chamada (< skillInherit) por candidata restante, na
+ *      ordem égua→garanhão; corte em skillSlots; preenchimento até bornSkills: 1 chamada de índice cada.
+ *   8. nome (1 chamada: índice em FOAL_NAMES)
+ *   9. paleta (1 chamada t = 0,3 + 0,4·rng(), só se os dois pais têm paleta)
  */
 (function (root) {
   'use strict';
 
   var G = (typeof require === 'function' && typeof module !== 'undefined' && module.exports)
     ? require('./data.js') : root.GameData;
+  var S = (typeof require === 'function' && typeof module !== 'undefined' && module.exports)
+    ? require('./sim.js') : root.RaceSim;
 
   var TUNING = {
     // colunas: 1 abaixo, igual, 1 acima, 2 acima (percentuais)
@@ -2103,6 +2118,120 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     return true;
   }
 
+  // offsets sobre RARITIES[r].baseLo por grau (★1, ★★, ★★★) e piso do potencial por grau
+  var GRAU_WINDOW = [[0, 8], [5, 11], [8, 16]];
+  var GRAU_POT_FLOOR = [0, 8, 16];
+  var PAL_KEYS = ['coat', 'coatShade', 'mane', 'accent'];
+
+  function hexMix(a, b, t) {
+    var out = '#';
+    for (var i = 0; i < 3; i++) {
+      var ca = parseInt(a.substr(1 + i * 2, 2), 16), cb = parseInt(b.substr(1 + i * 2, 2), 16);
+      var v = Math.round(ca + (cb - ca) * t);
+      out += (v < 16 ? '0' : '') + v.toString(16);
+    }
+    return out;
+  }
+
+  function compatible(id, element) {
+    var sk = G.SKILLS[id];
+    return !!sk && !sk.exclusive && (sk.element === 'neutro' || sk.element === element);
+  }
+
+  // ids das skills dos pais (égua depois garanhão) que o potro pode herdar
+  function skillCandidates(f, m, element) {
+    var out = [], lists = [f.skills || [], m.skills || []];
+    for (var l = 0; l < 2; l++) {
+      for (var i = 0; i < lists[l].length; i++) {
+        var id = lists[l][i];
+        if (compatible(id, element) && out.indexOf(id) < 0) out.push(id);
+      }
+    }
+    return out;
+  }
+
+  function potOf(mount, k) {
+    var v = mount.potential && mount.potential[k];
+    return typeof v === 'number' ? v : 0;
+  }
+
+  function foal(opts) {
+    var f = opts.f, m = opts.m, breedCounter = opts.breedCounter;
+    var rng = S.mulberry32(S.hash2(opts.seedBase >>> 0, 0xB0B0 + breedCounter));
+    var keys = G.STAT_KEYS, i, k;
+
+    // 1-2. raridade e grau
+    var rarity = rollRarity(rng, f, m);
+    var diff = G.RARITIES[rarity].order - Math.min(order(f), order(m));
+    var rarityChanged = diff > 0 ? 1 : (diff < 0 ? -1 : 0);
+    var grau = rollGrau(rng, f, m, rarityChanged);
+    var R = G.RARITIES[rarity];
+
+    // 3-4. elemento e sexo
+    var element = f.element === m.element ? f.element : (rng() < 0.5 ? f.element : m.element);
+    var sex = rng() < 0.5 ? 'f' : 'm';
+
+    // 5. status base
+    var win = GRAU_WINDOW[grau - 1], lo = R.baseLo + win[0], hi = R.baseLo + win[1];
+    var base = {};
+    for (i = 0; i < keys.length; i++) base[keys[i]] = lo + Math.floor(rng() * (hi - lo + 1));
+
+    // 6. potencial (2 chamadas por chave)
+    var potential = {}, v;
+    for (i = 0; i < keys.length; i++) {
+      k = keys[i];
+      if (rng() < TUNING.potInherit) {
+        v = potOf(rng() < 0.5 ? f : m, k);
+      } else {
+        rng();
+        v = Math.floor(rng() * 32);
+      }
+      potential[k] = Math.max(GRAU_POT_FLOOR[grau - 1], v);
+    }
+
+    // 7. skills
+    var cands = skillCandidates(f, m, element), inherited = [];
+    var g = (isCorcel(f) ? 1 : 0) + (isCorcel(m) ? 1 : 0);
+    if (g === 1 && rng() < 0.5) g = 2;
+    var n = Math.min(g, cands.length), idx;
+    for (i = 0; i < n; i++) {
+      idx = Math.floor(rng() * cands.length);
+      inherited.push(cands.splice(idx, 1)[0]);
+    }
+    for (i = 0; i < cands.length; i++) if (rng() < TUNING.skillInherit) inherited.push(cands[i]);
+    if (inherited.length > R.skillSlots) inherited.length = R.skillSlots;
+    var pool = [], id;
+    for (id in G.SKILLS) {
+      if (Object.prototype.hasOwnProperty.call(G.SKILLS, id) && compatible(id, element) && inherited.indexOf(id) < 0) pool.push(id);
+    }
+    while (inherited.length < R.bornSkills && pool.length) {
+      idx = Math.floor(rng() * pool.length);
+      inherited.push(pool.splice(idx, 1)[0]);
+    }
+
+    // 8. nome
+    var name = G.FOAL_NAMES[Math.floor(rng() * G.FOAL_NAMES.length)];
+
+    // 9. paleta
+    var palette = null;
+    if (f.palette && m.palette) {
+      var t = 0.3 + 0.4 * rng();
+      palette = {};
+      for (i = 0; i < PAL_KEYS.length; i++) palette[PAL_KEYS[i]] = hexMix(f.palette[PAL_KEYS[i]], m.palette[PAL_KEYS[i]], t);
+    } else if (f.palette || m.palette) {
+      var src = f.palette || m.palette;
+      palette = {};
+      for (i = 0; i < PAL_KEYS.length; i++) palette[PAL_KEYS[i]] = src[PAL_KEYS[i]];
+    }
+
+    return {
+      uid: 'm' + opts.nextUid, templateId: null, name: name, especie: 'cavalo', element: element, rarity: rarity, grau: grau, sex: sex,
+      level: 1, xp: 0, skills: inherited, base: base, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
+      parents: { f: { uid: f.uid || null, name: f.name }, m: { uid: m.uid || null, name: m.name } },
+      born: breedCounter, gestacao: null
+    };
+  }
+
   var Breed = {
     TUNING: TUNING,
     CORCEL_SETS: CORCEL_SETS,
@@ -2113,7 +2242,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     rollRarity: rollRarity,
     rollGrau: rollGrau,
     rentalPrice: rentalPrice,
-    isCorcel: isCorcel
+    isCorcel: isCorcel,
+    GRAU_WINDOW: GRAU_WINDOW,
+    GRAU_POT_FLOOR: GRAU_POT_FLOOR,
+    hexMix: hexMix,
+    skillCandidates: skillCandidates,
+    foal: foal
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = Breed;
