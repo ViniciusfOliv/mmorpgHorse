@@ -23,6 +23,16 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   - Pergunta aberta: sem ruído por corrida, campos desiguais são previsíveis — decidir se queremos
     zebra (ruído ±3–5%).
   - Margens frágeis: 4b em 25,9% (piso 25); meta 3 a 3 p.p. do teto.
+- **Subprojeto 2 — Cavalos v2 (Estábulo, Haras e Cruzamento): concluído na branch
+  `claude/cruzamento` (aguardando revisão do Vinicius e integração na `main`).** Spec:
+  `docs/superpowers/specs/2026-11-06-cruzamento-design.md` (§14 = ajustes da implementação).
+  - Entregue: estábulo com várias montarias (3 vagas, até 8), grau ★–★★★, `breed.js` determinístico,
+    Haras (aluguel, cruzar dois seus, Troca, calculadora de chances), save v3, skills com Corcel.
+  - Verificação: `check.sh` em 5 etapas — 40 testes unitários, balanço 28/28, UI com o contexto
+    `cruzamento` determinístico (captura `final-06-haras.png`).
+  - Painel `?dev=1` para dar Ouro e cruzar à vontade ao testar.
+  - Limites conhecidos: status do potro não herdam dos pais (só grau e potencial); sem timer de
+    gestação (`gestacao` fica null).
 - A economia virou o subprojeto 6 (a branch vazia `claude/economia-gdd` foi removida).
 
 ## Pronto
@@ -46,8 +56,13 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   em vez de "pódio"), e matchmaking ~10 ms mais rápido por sala (um clone por template em
   `bestLevelFor`). `README.md` criado na raiz.
 
-## Pendente no design (GDD seções 6+)
-Itens e upgrades · curvas de XP/level · breeding · expedições · economia (valores de entrada,
+## Próximos passos
+1. Vinicius revisa e joga (cruzar com `?dev=1`).
+2. Integrar `claude/cruzamento` na `main`.
+3. Subprojeto 3 (equipamentos) ou decidir a zebra.
+
+## Pendente no design (GDD seções 7+)
+Itens e upgrades · curvas de XP/level · expedições · economia (valores de entrada,
 taxa da casa, sinks de Ouro) · stack técnica (cliente, servidor, Android) · anti-cheat · roadmap MVP.
 
 ## Para revisar no balanceamento (de `docs/exemplos.md` §12)

@@ -78,6 +78,7 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
 - Resultado nunca é calculado/mostrado antes de a entrada ser paga; sala não pode ser re-sorteada
   de graça (o `ui-test.mjs` verifica).
 - Dado da Sorte e viradas de clima só com a RNG da seed (nada de `Math.random`).
+- Potro gerado só pela RNG da seed (`prototype/src/breed.js`); Mítico nunca nasce de cruzamento.
 
 ## 9. Não faça
 - Não editar `prototype/dist/` à mão.

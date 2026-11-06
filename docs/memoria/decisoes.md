@@ -4,6 +4,16 @@ Formato: **data · decisão** — motivo. A mais nova fica no topo. Decisões de
 continuam no `docs/GDD.md`; aqui fica o registro de *quando* e *por quê*.
 
 ## 2026-11-06
+- **Save v3 com várias montarias** (`mounts[]`, `activeId`, `stableSlots`, `breedCounter`) — o potro
+  precisa de uma vaga no estábulo; o save v1/v2 é migrado sem perder Ouro.
+- **Haras com reprodutores NPC + Troca** — o protótipo precisa de um 2º pai desde o início e a Troca
+  (dois seus viram um potro) e as vagas limitadas seguram a inflação de cavalos.
+- **Status do potro sorteados na faixa do grau, não herdados dos pais** — pedido do Vinicius; só o
+  grau e o potencial vêm dos pais.
+- **Chances saturam no nível 30 e a égua pesa 60%** — inspirado no Black Desert.
+- **Mítico fora do cruzamento (só por despertar, depois das expedições)** — inspirado no Black Desert.
+- **Grau (★/★★/★★★) como sub-tier dentro da raridade** — dá variação de qualidade entre cavalos da
+  mesma raridade e uma recompensa por cruzar bem, sem criar uma 6ª raridade.
 - **Testes unitários `sim-test.js` no `check.sh`** — TDD por tarefa; 26 testes na etapa 2.
 - **Save v1 migrado em vez de chave nova** — não perder o Ouro do jogador.
 - **Gatilho de Garra/reta final: reta ≥ 150 m** — definido na spec.

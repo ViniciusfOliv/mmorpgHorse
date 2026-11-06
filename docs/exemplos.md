@@ -448,3 +448,50 @@ Limites: Bronze ≥ 0 · Prata ≥ 660 · Ouro ≥ 780 · Platina ≥ 880 · Dia
 - **Garra dispara em 52%** dos corredores; é comum demais para ser um momento especial? Talvez reduzir a chance base ou mostrar só quando muda posição.
 - **Skills: 1,66 ativações por corrida** de 3 corredores (cada um tem uma skill a 60%). A simulação não expõe as tentativas, só as ativações.
 - **Pergunta de design — zebra:** sem ruído por corrida, campos desiguais são previsíveis (Mítico lv1 × Comum lv1 = 100%; especialista de reta em reta pura = 100%). O Dado da Sorte mexe no clima, não no resultado direto. Decidir se queremos zebra; se sim, a proposta é um ruído pequeno por corrida (±3–5%), e não a volta da Disposição do dia de ±10%.
+
+## 13. Cruzamento
+
+Números reais de `prototype/src/breed.js` (modelo no cabeçalho do arquivo; spec em `docs/superpowers/specs/2026-11-06-cruzamento-design.md`). Para regenerar, rode `Breed.rentalPrice(h)`, `Breed.odds(égua, garanhão)` e `Breed.foal({ f, m, seedBase: 20261106, breedCounter, nextUid: 2 })` num `node -e` com `data.js` e `breed.js`.
+
+### Preço de aluguel (reprodutores selvagens; Míticos não se alugam)
+
+Base da raridade × multiplicador do grau (×1 / ×1,25 / ×1,5), arredondado.
+
+| Reprodutor | Raridade | Grau | Sexo | Preço (Ouro) |
+|---|---|---|---|---|
+| Pangaré | Comum | ★ | M | 100 |
+| Faísca | Comum | ★★ | F | 125 |
+| Lambari | Comum | ★ | M | 100 |
+| Capim | Comum | ★★ | F | 125 |
+| Tição | Mágico | ★★ | M | 313 |
+| Garoa | Mágico | ★★ | F | 313 |
+| Mandacaru | Mágico | ★★ | M | 313 |
+| Ventania | Raro | ★★★ | F | 900 |
+| Pororoca | Raro | ★★ | M | 750 |
+| Fogaréu | Lendário | ★★★ | F | 2250 |
+| Jequitibá | Lendário | ★★★ | M | 2250 |
+| Boitatá, Iara | Mítico | ★★★ | F, M | não se alugam |
+
+Dois cavalos seus: 50 Ouro (registro). Troca: 50 Ouro.
+
+### Chances por par (`Breed.odds`)
+
+| Par (égua × garanhão) | L | Raridade do potro | Grau do potro (★ / ★★ / ★★★) |
+|---|---|---|---|
+| Maré lv30 ★★ × Brasa lv30 ★★ (Raro × Raro) | 1,000 | Mágico 30% · Raro 65% · Lendário 5% | 10% / 50% / 40% |
+| Faísca lv1 ★★ × Pangaré lv1 ★ (Comum × Comum) | 0,033 | Comum 98,9% · Mágico 1,1% | 24,5% / 54,8% / 20,7% |
+| Ventania lv30 ★★★ × Jequitibá lv30 ★★★ (Raro × Lendário) | 1,000 | Mágico 20% · Raro 50% · Lendário 30% | 0% / 10% / 90% |
+
+O grau só vale se a raridade não mudou; se subiu, o potro nasce ★, se desceu, ★★★.
+
+### Três potros de exemplo
+
+`seedBase` 20261106, `nextUid` 2, `breedCounter` 0, 1 e 2. Os mesmos pais, seed e contador sempre dão o mesmo potro.
+
+| # | Pais | Nome | Raridade | Elemento | Sexo | VEL | ACE | MAN | FOR | EST | GAR | SOR | Potencial (mesma ordem) | Skills |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | Maré × Brasa | Quimera | Mágico ★★★ | Água | M | 53 | 59 | 57 | 60 | 59 | 52 | 57 | 21 / 16 / 18 / 18 / 20 / 16 / 16 | Pé na Chuva |
+| 1 | Faísca × Pangaré | Quimera | Comum ★★ | Neutro | F | 47 | 42 | 43 | 44 | 46 | 46 | 44 | 10 / 12 / 15 / 10 / 20 / 27 / 10 | Arranque |
+| 2 | Ventania × Jequitibá | Estrela | Lendário ★ | Grama | M | 65 | 62 | 61 | 60 | 62 | 64 | 61 | 28 / 25 / 17 / 27 / 21 / 19 / 16 | Sprint, Arrancada Final |
+
+O potro 2 nasceu Lendário (30%) e por isso ★ (a raridade subiu em relação ao Raro). Os status são sorteados na janela do grau, não herdados: o potro 2 (Lendário ★: 60–68) tem status 60–65. O potro 0 saiu Mágico ★★★ (janela 52–60) porque a raridade caiu (30% de chance de descer, par Raro × Raro lv30). Todos nascem lv1 com 2 (M) ou 1 (F) cruzamentos.

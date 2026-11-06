@@ -228,3 +228,19 @@ Up manual, equipamento do potro (subprojeto 3), potros de outras espécies (subp
   testes mostrarem que cruzar nunca compensa subir de nível, subir o piso de potencial por grau.
 - **Save v3 corrompido:** `sanitize` reconstrói a partir do que for válido e nunca perde Ouro; se
   `mounts` ficar vazio, recria o inicial pelo `templateId` (ou Brasa).
+
+## 14. Histórico de ajustes (implementação, 2026-11-06)
+
+O que mudou na implementação em relação ao texto aprovado (antigo → novo):
+
+- **Helper de teste `mk2`:** nível padrão `o.level || 30` → `o.level == null ? 30 : o.level` (o antigo transformava nível 0 em 30). Só afeta o teste.
+- **`sanitizeMount` (§3, §7):** não citava `gestacao` → aceita `gestacao` (null ou número ≥ 0; qualquer outro valor vira null), pois o campo nasce no potro.
+- **`validSkills`:** validação de skills ligada à instância → genérica (recebe a montaria), para servir a qualquer montaria do estábulo, incluindo potros sem `templateId`.
+- **`applyXp` / `learnSkill`:** passava a própria montaria → passa um adaptador `{ id: templateId, element, rarity, skills }`, porque `learnSkill` checa exclusividade por `.id` e a instância não tem `id`. Efeito: potros (`templateId` null) nunca aprendem skills exclusivas.
+- **Potencial (§7, passo 6):** "até 2 chamadas" por status → exatamente 2 chamadas de `rng` por status nos dois ramos (1ª = porta; 2ª = pai OU valor). O ramo "não herda" chegou a gastar 3 chamadas; corrigido e documentado no cabeçalho de `breed.js`.
+- **Paleta (§7, passo 8):** se um pai não tinha paleta, usava `randomPalette(seed, element)` → se só um pai tem paleta, copia a dele; `randomPalette` não é usado. A mistura (1 chamada, `t = 0,3 + 0,4·rng()`) continua só quando os dois têm paleta.
+- **Troca (§6, §9):** abas de parceiro Aluguel / Meus cavalos também no modo Troca → no modo Troca as abas ficam escondidas (o parceiro é sempre um cavalo seu).
+- **Avisos no haras:** um aviso por vez → todos os avisos aplicáveis (sem vaga, sem Ouro, sem parceiro etc.) aparecem juntos.
+- **Painel `?dev=1` (§10):** `.dev-espaco`, um espaçador que impede o painel de cobrir o rodapé da tela.
+- **Cartão da montaria (§5):** o nome vira `<h3 class="cavalo-nome">` (o teste de interface lê esse seletor).
+- **Ambiente de trabalho:** sem worktree separado; a sessão na nuvem já roda isolada numa branch dedicada (`claude/cruzamento`).

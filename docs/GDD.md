@@ -79,6 +79,47 @@ Iniciais (Brasa, Maré, Ipê) são Raros e têm uma skill exclusiva do elemento.
 
 `prototype/` contém um protótipo web descartável para visualizar sprites, simulação e o fluxo de aposta. Não é a base de código final.
 
-## 6+. Seções pendentes
+## 6. Estábulo e cruzamento
 
-Itens e upgrades · Curvas de XP/level · Regras de breeding · Expedições · Economia (valores de entrada, taxa da casa, sinks de Ouro) · Stack técnica (cliente, servidor, Android) · Anti-cheat · Roadmap MVP.
+Spec completa e algoritmo: `docs/superpowers/specs/2026-11-06-cruzamento-design.md` (o código é `prototype/src/breed.js`). Números reais: `docs/exemplos.md` §13.
+
+**Estábulo:** começa com 3 vagas; +1 vaga por 300 Ouro, até 8. Cada montaria tem nome, raridade + grau, elemento, sexo, nível e cruzamentos restantes (♂ 2 / ♀ 1). Uma delas é a ativa (a que corre). Liberar não devolve Ouro; a ativa e a última montaria não podem ser liberadas.
+
+**Grau (★/★★/★★★):** sub-tier dentro da raridade. Define a janela dos 7 status base do potro e o piso do potencial (cada status é sorteado de forma independente na janela):
+
+| Raridade | Faixa | ★ | ★★ | ★★★ | Piso de potencial (★/★★/★★★) |
+|---|---|---|---|---|---|
+| Comum | 36–52 | 36–44 | 41–47 | 44–52 | 0 / 8 / 16 |
+| Mágico | 44–60 | 44–52 | 49–55 | 52–60 | 0 / 8 / 16 |
+| Raro | 52–68 | 52–60 | 57–63 | 60–68 | 0 / 8 / 16 |
+| Lendário | 60–76 | 60–68 | 65–71 | 68–76 | 0 / 8 / 16 |
+| Mítico | 68–84 | 68–76 | 73–79 | 76–84 | 0 / 8 / 16 |
+
+**Haras:** o jogador escolhe uma montaria sua e um parceiro de sexo oposto: outra sua ou um reprodutor de aluguel (selvagens não Míticos). Aluguel = base da raridade (Comum 100 · Mágico 250 · Raro 600 · Lendário 1500) × grau (×1 / ×1,25 / ×1,5), arredondado. Dois seus: 50 Ouro. **Troca:** dois seus de sexos opostos, 50 Ouro, qualquer número de cruzamentos restantes; os dois pais somem e o potro ocupa a vaga de um deles. A calculadora mostra chances de raridade e grau antes de pagar. Resultado instantâneo (gestação com timer fica para depois).
+
+**Chance de raridade do potro** (L = nível efetivo; interpolação linear entre lv1 e lv30; alvo fora de Comum–Lendário soma no limite):
+
+| Pais | 1 abaixo | igual | 1 acima | 2 acima |
+|---|---|---|---|---|
+| mesma raridade, lv1 → lv30 | 45% → 30% | 54% → 65% | 1% → 4,5% | 0% → 0,5% |
+| raridades diferentes, lv1 → lv30 | 35% → 20% | 50% → 50% | 15% → 29% | 0% → 1% |
+
+A base é a menor raridade entre os pais. **Grau do potro:** se a raridade subiu, nasce ★; se desceu, ★★★; se igual, a base é 0,6·grau da égua + 0,4·grau do garanhão (arredondada) e o sorteio é desce/mantém/sobe = 25% → 10% / 55% → 50% / 20% → 40% (lv1 → lv30).
+
+**Chances saturam no nível 30; a égua pesa 60%:** L = (0,6·nível da égua + 0,4·nível do garanhão) / 30, limitado a 1. **Mítico nunca nasce de cruzamento — só por despertar** (Lendário → Mítico, depois das expedições).
+
+**Elemento e sexo:** pais com o mesmo elemento passam o elemento; diferentes, 50/50 (Neutro conta como elemento). Sexo 50/50. Status base do potro são sorteados na janela do grau (não são herdados); o potencial herda de um pai com 50% de chance por status, senão sorteia 0–31, sempre respeitando o piso do grau.
+
+**Skills e Corcel:** o potro herda cada skill não exclusiva e compatível com o seu elemento com 35% de chance, até as vagas da raridade; completa até o mínimo de nascimento com skills sorteadas. Corcel é a montaria com todas as skills "de linha" da sua raridade; garante herança de skill:
+
+| Raridade | Conjunto do Corcel | Skills garantidas |
+|---|---|---|
+| Comum | Arranque | dois Corcéis: 2 · um só: 1, com 50% de virar 2 |
+| Mágico | Arranque, Sprint | idem |
+| Raro | + Drift | idem |
+| Lendário | + Saída Rápida | idem |
+| Mítico | + Arrancada Final | idem |
+
+## 7+. Seções pendentes
+
+Itens e upgrades · Curvas de XP/level · Expedições · Economia (valores de entrada, taxa da casa, sinks de Ouro) · Stack técnica (cliente, servidor, Android) · Anti-cheat · Roadmap MVP.
