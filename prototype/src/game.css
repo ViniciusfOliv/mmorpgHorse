@@ -269,6 +269,17 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .acoes-peca { display: flex; flex-wrap: wrap; gap: 8px; }
 .acoes-peca .btn { flex: 1 1 auto; }
 
+/* tela da Loja: abas por slot + pedras e cartões de produto */
+.abas.abas--loja { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 8px; }
+.abas--loja .opcao { min-height: 44px; min-width: 0; padding-left: 4px; padding-right: 4px; overflow-wrap: anywhere; }
+.loja-grade { display: grid; grid-template-columns: 1fr; gap: 10px; }
+@media (min-width: 601px) { .loja-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.produto { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--painel-2); box-shadow: inset 4px 0 0 0 var(--linha); min-width: 0; }
+.produto-nome { margin: 0; font-size: var(--t-m); overflow-wrap: anywhere; }
+.produto-stats { margin: 0; font-weight: 700; }
+.produto-diff { margin: 0; font-size: var(--t-s); color: var(--texto-2); }
+.produto-preco { display: flex; justify-content: flex-end; }
+
 /* opções selecionáveis (aria-pressed) */
 .opcoes { display: grid; gap: 10px; }
 .opcoes--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }

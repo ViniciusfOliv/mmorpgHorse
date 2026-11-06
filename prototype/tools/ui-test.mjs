@@ -591,6 +591,76 @@ try {
     await eq.context().close()
   }
 
+  // ---------------- loja: abas, comprar (com recusa sem Ouro), Pedras Negras e resumo na largada ----------------
+  {
+    const lj = await newPage(browser, { width: 390, height: 844 }, 'loja')
+    try {
+      const st = () => lj.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+      const txt = async () => (await lj.locator('#tela').textContent()) || ''
+      // 1. Ipê; abrir a loja; aba inicial ferraduras com 5 produtos; aba sela com os 3 conjuntos
+      await lj.getByRole('button', { name: 'Escolher Ipê' }).click()
+      await lj.waitForSelector('#t-estabulo')
+      await lj.locator('[data-acao="loja"]').click()
+      await lj.waitForSelector('#t-loja', { timeout: 5000 })
+      const nProd = await lj.locator('.produto').count()
+      if (nProd !== 5) problems.push('loja: aba inicial com ' + nProd + ' produtos (esperado 5)')
+      await lj.locator('[data-acao="loja-tab"][data-id="sela"]').click()
+      const t1 = await txt()
+      for (const nome of ['Sela do Sol', 'Sela da Chuva', 'Sela da Névoa']) if (!t1.includes(nome)) problems.push('loja: aba sela sem "' + nome + '"')
+      // 2. comprar a sela mágica
+      await lj.locator('[data-acao="comprar"][data-id="sela-magico"]').click()
+      let s = await st()
+      const last = s.items[s.items.length - 1]
+      if (s.gold !== 250 || s.items.length !== 3 || last.id !== 'sela-magico' || last.plus !== 0 || last.uid !== 'i3') {
+        problems.push('loja: compra ' + JSON.stringify({ gold: s.gold, n: s.items.length, last }))
+      }
+      // 3. sem Ouro: botão desabilitado e o handler recusa mesmo com clique forçado
+      if (!(await lj.locator('[data-acao="comprar"][data-id="sela-sol-raro"]').isDisabled())) problems.push('loja: comprar 600 habilitado com 250 de Ouro')
+      await lj.evaluate(() => { window.__galope.state.gold = 10 })
+      await lj.locator('[data-acao="loja-tab"][data-id="sela"]').click()
+      await lj.evaluate(() => document.querySelector('[data-acao="comprar"][data-id="sela-comum"]').click())
+      s = await st()
+      if (s.gold !== 10 || s.items.length !== 3) problems.push('loja: compra sem Ouro aceita ' + JSON.stringify({ gold: s.gold, n: s.items.length }))
+      // 4. Pedras Negras
+      await lj.evaluate(() => { window.__galope.state.gold = 250 })
+      await lj.locator('[data-acao="loja-tab"][data-id="pedras"]').click()
+      await lj.locator('[data-acao="comprar-pedra"][data-id="5"]').click()
+      s = await st()
+      if (s.pedras !== 5 || s.gold !== 50) problems.push('loja: pedras ' + JSON.stringify({ pedras: s.pedras, gold: s.gold }))
+      if (!(await lj.locator('[data-acao="comprar-pedra"][data-id="5"]').isDisabled())) problems.push('loja: comprar 5 pedras habilitado com 50 de Ouro')
+      // 5. captura na aba sela; sem rolagem horizontal
+      await lj.locator('[data-acao="loja-tab"][data-id="sela"]').click()
+      await sleep(300)
+      await checkOverflow(lj, 'loja')
+      await lj.screenshot({ path: join(SHOTS, 'final-08-loja.png') })
+      // 6. equipar a sela comprada e ver o resumo + atalho na largada
+      await lj.locator('[data-acao="loja-voltar"]').click()
+      await lj.waitForSelector('#t-estabulo')
+      await lj.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
+      await lj.waitForSelector('#t-equipamento')
+      await lj.locator('[data-acao="equip-slot"][data-id="sela"]').click()
+      await lj.locator('[data-acao="equipar"][data-id="i3"]').click()
+      s = await st()
+      if (s.mounts[0].equip.sela !== 'i3') problems.push('loja: equipar i3 deixou sela ' + s.mounts[0].equip.sela)
+      await lj.locator('[data-acao="equip-voltar"]').click()
+      await lj.waitForSelector('#t-estabulo')
+      await lj.getByRole('button', { name: 'Procurar corrida' }).click()
+      await lj.waitForSelector('#t-largada')
+      const cheios = await lj.locator('#tela .slots .slot--cheio').count()
+      if (cheios !== 2) problems.push('loja: largada com ' + cheios + ' slots cheios (esperado 2)')
+      const atalho = lj.locator('#tela [data-acao="equipar-tela"]')
+      if ((await atalho.count()) !== 1) problems.push('loja: largada sem o atalho Equipar')
+      else {
+        await atalho.click()
+        await lj.waitForSelector('#t-equipamento')
+        if (!/Páreo aberto/.test(await txt())) problems.push('loja: Equipamento aberto da largada sem "Páreo aberto"')
+      }
+    } catch (e) {
+      problems.push('loja: ' + e.message)
+    }
+    await lj.context().close()
+  }
+
   // ---------------- desktop 1280x800 ----------------
   const desk = await newPage(browser, { width: 1280, height: 800 }, 'desktop')
   await desk.waitForSelector('.inicial')

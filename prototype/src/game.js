@@ -754,6 +754,7 @@
     if (screen !== ui.screen) { ui.confirmReset = false; ui.confirmLiberar = null; }
     if (screen === 'haras' && ui.screen !== 'haras') ui.haras = newHaras();
     if (screen !== 'equipamento') ui.equip = null;   // sair da tela descarta o "Desfazer venda" e a confirmação
+    if (screen !== 'loja') ui.loja = null;
     ui.screen = screen;
     if (appEl) appEl.classList.toggle('app--corrida', screen === 'corrida');
     render();
@@ -778,6 +779,7 @@
       case 'resultado': html = renderResultado(); break;
       case 'haras': html = renderHaras(); break;
       case 'equipamento': html = renderEquipamento(); break;
+      case 'loja': html = renderLoja(); break;
       default: html = renderInicial();
     }
     if (devAtivo() && ui.screen !== 'corrida') {
@@ -889,6 +891,7 @@
         state.mounts.length + '/' + state.stableSlots + ' vagas</span></h2>' +
       '<div class="montarias">' + state.mounts.map(function (m) { return mountCardHtml(m, m.uid === state.activeId); }).join('') + '</div>' +
       '<div class="acoes"><button type="button" data-acao="haras" class="btn btn--ouro">Haras</button>' +
+        '<button type="button" data-acao="loja" class="btn">Loja</button>' +
         '<button type="button" data-acao="expandir" class="btn"' + (canExpand ? '' : ' disabled') + '>' +
         (maxed ? 'Estábulo no máximo' : 'Expandir estábulo (' + fmt(SLOT_PRICE) + ')') + '</button></div>' +
     '</section>';
@@ -1342,6 +1345,77 @@
   }
 
   // ===========================================================================
+  // Loja: peças do catálogo (shop) por slot e Pedras Negras. Compra não equipa.
+  // ===========================================================================
+  var LOJA_TABS = GR.SLOTS.concat(['pedras']);
+
+  function lojaStatsTxt(def) {
+    var info = GD.GEAR_SLOT_INFO[def.slot];
+    var t = '+' + def.main + ' ' + GD.STATS[info.main].short;
+    if (def.sub) t += ' · +' + def.sub + ' ' + GD.STATS[info.sub].short;
+    return t;
+  }
+  // diferença do principal para a peça que a montaria ativa usa no slot (com o +N dela)
+  function lojaDiffTxt(def) {
+    var gear = gearOf(activeMount()), cur = null;
+    gear.pieces.forEach(function (p) { if (p.slot === def.slot) cur = p; });
+    if (!cur) return 'slot vazio';
+    var info = GD.GEAR_SLOT_INFO[def.slot];
+    var d = def.main - (GD.GEAR[cur.id].main + cur.plus);
+    if (!d) return 'igual à equipada';
+    return (d > 0 ? '+' : '−') + Math.abs(d) + ' ' + GD.STATS[info.main].short + ' em relação à equipada';
+  }
+  function lojaBotaoHtml(acao, id, price) {
+    var pode = state.gold >= price;
+    return '<button type="button" class="btn btn--ouro btn--pequeno" data-acao="' + acao + '" data-id="' + esc(id) + '"' + (pode ? '' : ' disabled') + '>' +
+      (pode ? 'Comprar' : 'Sem Ouro') + ' (' + fmt(price) + ')</button>';
+  }
+  function produtoHtml(def) {
+    var chip = def.set && hasOwn(GD.GEAR_SETS, def.set) ? '<span class="chip">' + esc(GD.GEAR_SETS[def.set].name) + '</span>' : '';
+    return '<article class="produto">' +
+      '<h3 class="produto-nome">' + esc(def.name) + '</h3>' +
+      '<div class="linha-meta">' + rarityHtml(def.rarity) + chip + '</div>' +
+      '<p class="produto-stats">' + esc(lojaStatsTxt(def)) + '</p>' +
+      '<p class="produto-diff">' + esc(lojaDiffTxt(def)) + '</p>' +
+      '<div class="produto-preco">' + lojaBotaoHtml('comprar', def.id, def.price) + '</div>' +
+    '</article>';
+  }
+  function pedraProdutoHtml(n) {
+    return '<article class="produto">' +
+      '<h3 class="produto-nome">Pedra Negra ×' + n + '</h3>' +
+      '<p class="produto-diff">' + esc('Melhora peças na tela Equipar. Você tem ' + pedrasTxt(state.pedras) + '.') + '</p>' +
+      '<div class="produto-preco">' + lojaBotaoHtml('comprar-pedra', String(n), n * GE.stonePrice) + '</div>' +
+    '</article>';
+  }
+  function renderLoja() {
+    if (!ui.loja || LOJA_TABS.indexOf(ui.loja.tab) < 0) ui.loja = { tab: LOJA_TABS[0], msg: null };
+    var Q = ui.loja;
+    var head = '<header class="topo"><button type="button" class="btn btn--pequeno" data-acao="loja-voltar">Voltar ao estábulo</button>' +
+        '<span class="topo-saldos"><span class="pedras" aria-label="' + esc(pedrasTxt(state.pedras) + ' negras') + '">🪨 ' + fmt(state.pedras) + '</span>' +
+        '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></span></header>' +
+      '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>';
+    var msg = Q.msg ? '<p class="aviso" role="status">' + esc(Q.msg) + '</p>' : '';
+    var abas = '<div class="abas abas--loja" role="group" aria-label="Seção da loja">' + LOJA_TABS.map(function (t) {
+      var nome = t === 'pedras' ? 'Pedras' : GD.GEAR_SLOT_INFO[t].name;
+      return '<button type="button" class="btn opcao opcao--centro" data-acao="loja-tab" data-id="' + esc(t) + '" aria-pressed="' + (Q.tab === t) + '">' + esc(nome) + '</button>';
+    }).join('') + '</div>';
+    var produtos;
+    if (Q.tab === 'pedras') {
+      produtos = pedraProdutoHtml(1) + pedraProdutoHtml(GE.stoneBundle);
+    } else {
+      produtos = Object.keys(GD.GEAR).filter(function (k) {
+        return GD.GEAR[k].shop && GD.GEAR[k].slot === Q.tab;
+      }).map(function (k) { return produtoHtml(GD.GEAR[k]); }).join('');
+    }
+    var nota = Q.tab === 'pedras' ? 'Pedras Negras melhoram peças (+1 a +10) na tela Equipar.'
+      : 'A diferença compara com a peça que ' + activeMount().name + ' (ativa) usa neste slot. Comprar não equipa.';
+    return '<section class="tela" aria-labelledby="t-loja">' + head + msg +
+      '<section class="caixa">' + abas + '<p class="nota">' + esc(nota) + '</p>' +
+        '<div class="loja-grade">' + produtos + '</div></section>' +
+    '</section>';
+  }
+
+  // ===========================================================================
   // Sala de largada: campo sorteado uma vez (state.pending) e simulado só no "Largar!"
   // ===========================================================================
   function bestLevelFor(template, gear, target, lo, hi) {
@@ -1560,7 +1634,10 @@
           L.cond.blocks.map(function (bl) { return GD.BLOCK_TYPES[bl.type].name.toLowerCase(); }).join(', ')) + '"></canvas>' +
         climaHints(L) + '</section>' +
       '<section class="caixa" aria-labelledby="t-estrategia"><h2 class="titulo" id="t-estrategia">Sua estratégia</h2>' +
-        '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) + '</div>' + '</section>' +
+        '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
+          '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div>' +
+          (state.pending ? '<p class="nota">' + esc('Com o páreo aberto, só trocas que não passem do rating da sala (' + state.pending.pr + ').') + '</p>' : '') +
+        '</div></section>' +
       '<section class="caixa" aria-labelledby="t-corredores"><h2 class="titulo" id="t-corredores">Corredores<span class="nota">' + L.n + ' na raia</span></h2>' +
         '<ol class="programa">' + L.racers.map(racerRow).join('') + '</ol></section>' +
       pote +
@@ -2370,6 +2447,46 @@
         persist();
         rerenderKeepScroll();
         break;
+      }
+      case 'loja':
+        if (!state) break;
+        ui.loja = { tab: GD.GEAR_SLOTS[0], msg: null };
+        go('loja'); break;
+      case 'loja-voltar':
+        go('estabulo'); break;
+      case 'loja-tab':
+        if (!ui.loja || LOJA_TABS.indexOf(id) < 0) break;
+        ui.loja.tab = id; ui.loja.msg = null;
+        rerenderKeepScroll(); break;
+      case 'comprar': {
+        // nunca confia no botão: confere catálogo, flag da loja e Ouro de novo
+        if (!ui.loja) break;
+        var sC = state;
+        persist();                    // sincroniza com outras abas antes de debitar
+        if (state !== sC) break;
+        var pd = hasOwn(GD.GEAR, id) ? GD.GEAR[id] : null;
+        if (!pd || !pd.shop || !(pd.price > 0) || state.gold < pd.price) { rerenderKeepScroll(); break; }
+        state.gold -= pd.price;
+        newItem(id);
+        persist();
+        if (state !== sC) break;
+        ui.loja.msg = 'Comprou ' + pd.name + '. Equipe na tela Equipar.';
+        rerenderKeepScroll(); break;
+      }
+      case 'comprar-pedra': {
+        var pn = id === '1' ? 1 : id === String(GE.stoneBundle) ? GE.stoneBundle : 0;
+        if (!ui.loja || !pn) break;
+        var sP = state;
+        persist();
+        if (state !== sP) break;
+        var pc = pn * GE.stonePrice;
+        if (state.gold < pc) { rerenderKeepScroll(); break; }
+        state.gold -= pc;
+        state.pedras += pn;
+        persist();
+        if (state !== sP) break;
+        ui.loja.msg = 'Comprou ' + pedrasTxt(pn) + ' negra' + (pn === 1 ? '' : 's') + '.';
+        rerenderKeepScroll(); break;
       }
       case 'equipar-tela':
         if (!state || !mountByUid(id)) break;
