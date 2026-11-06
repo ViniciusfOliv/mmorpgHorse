@@ -114,7 +114,7 @@ A base é a menor raridade entre os pais. **Grau do potro:** se a raridade subiu
 
 | Raridade | Conjunto do Corcel | Skills garantidas |
 |---|---|---|
-| Comum | Arranque | dois Corcéis: 2 · um só: 1, com 50% de virar 2 |
+| Comum | Arranque | dois Corcéis: garante até 2 · um só: até 1, com 50% de virar 2 — sempre limitado às candidatas (skills herdáveis dos pais) e às vagas da raridade do potro |
 | Mágico | Arranque, Sprint | idem |
 | Raro | + Drift | idem |
 | Lendário | + Saída Rápida | idem |

@@ -328,6 +328,7 @@ try {
       problems.push('cruzamento: potro diferente do calculado no Node\n  jogo: ' + JSON.stringify(c1.mounts[1]) + '\n  node: ' + JSON.stringify(esperado))
     }
     if (!/Nasceu/.test(await cz.locator('#tela').textContent())) problems.push('cruzamento: resultado sem "Nasceu"')
+    if (await cz.locator('.montaria .montaria-acoes').count()) problems.push('cruzamento: card do potro no resultado com ativar/renomear/liberar')
     await cz.locator('[data-acao="haras-ativar"]').click()
     if ((await cz.evaluate(() => window.__galope.state.activeId)) !== 'm2') problems.push('cruzamento: haras-ativar não ativou m2')
     await cz.locator('[data-acao="voltar"]').first().click()
@@ -377,9 +378,25 @@ try {
     await cz.waitForSelector('#t-resultado')
     await cz.getByRole('button', { name: 'Voltar ao estábulo' }).click()
     await cz.waitForSelector('#t-estabulo')
-    // Troca: Brasa (m) × potro (f)
+    // cruzamento próprio: Brasa (m1, ♂, 1 cruza) × potro (m2, ♀, 1 cruza), registro
     await cz.locator('[data-acao="haras"]').click()
     await cz.waitForSelector('#t-haras')
+    await cz.locator('[data-acao="haras-mode"][data-id="cruzar"]').click()
+    await cz.locator('[data-acao="haras-mine"][data-id="m1"]').click()
+    await cz.locator('[data-acao="haras-tab"][data-id="minhas"]').click()
+    await cz.locator('[data-acao="haras-partner"][data-kind="own"][data-id="m2"]').click()
+    const goldBeforeOwn = await cz.evaluate(() => window.__galope.state.gold)
+    await cz.locator('[data-acao="cruzar"]').click()
+    const own = await cz.evaluate(() => {
+      const s = window.__galope.state, by = (u) => s.mounts.filter((m) => m.uid === u)[0]
+      return { gold: s.gold, n: s.mounts.length, m1: by('m1') && by('m1').breedLeft, m2: by('m2') && by('m2').breedLeft, counter: s.breedCounter, novo: s.mounts[s.mounts.length - 1].uid }
+    })
+    if (own.gold !== goldBeforeOwn - G.ECONOMY.breeding.ownRegistration || own.n !== 3 || own.m1 !== 0 || own.m2 !== 0 || own.counter !== 2 || own.novo !== 'm3') {
+      problems.push('cruzamento próprio: ' + JSON.stringify(own) + ' (ouro antes ' + goldBeforeOwn + ')')
+    }
+    notes.cruzamentoProprio = own
+    await cz.locator('[data-acao="haras-denovo"]').click()
+    // Troca: Brasa (m1, ♂, 0 cruzas) × potro (m2, ♀, 0 cruzas) — a Troca ignora as cruzas
     await cz.locator('[data-acao="haras-mode"][data-id="troca"]').click()
     await cz.locator('[data-acao="haras-mine"][data-id="m1"]').click()
     if (await cz.locator('[data-acao="haras-tab"][data-id="aluguel"]').count()) problems.push('troca: aba Aluguel visível no modo Troca')
@@ -388,14 +405,14 @@ try {
     if (!/deixam de existir/.test(await cz.locator('#tela').textContent())) problems.push('troca: sem a confirmação "deixam de existir"')
     const goldBeforeTroca = await cz.evaluate(() => window.__galope.state.gold)
     await cz.locator('[data-acao="troca-sim"]').click()
-    const tr = await cz.evaluate(() => { const s = window.__galope.state; return { n: s.mounts.length, uid: s.mounts[0].uid, active: s.activeId, gold: s.gold } })
-    if (tr.n !== 1 || tr.uid !== 'm3' || tr.active !== 'm3' || tr.gold !== goldBeforeTroca - 50) problems.push('troca: ' + JSON.stringify(tr) + ' (ouro antes ' + goldBeforeTroca + ')')
+    const tr = await cz.evaluate(() => { const s = window.__galope.state; return { n: s.mounts.length, uids: s.mounts.map((m) => m.uid).join(','), active: s.activeId, gold: s.gold } })
+    if (tr.n !== 2 || tr.uids !== 'm3,m4' || tr.active !== 'm4' || tr.gold !== goldBeforeTroca - G.ECONOMY.breeding.exchange) problems.push('troca: ' + JSON.stringify(tr) + ' (ouro antes ' + goldBeforeTroca + ')')
     notes.troca = tr
     // persistência
     await cz.reload({ waitUntil: 'domcontentloaded' })
     await cz.waitForSelector('#t-estabulo')
     const per = await cz.evaluate(() => ({ n: window.__galope.state.mounts.length, active: window.__galope.state.activeId }))
-    if (per.n !== 1 || per.active !== 'm3') problems.push('troca: não persistiu ' + JSON.stringify(per))
+    if (per.n !== 2 || per.active !== 'm4') problems.push('troca: não persistiu ' + JSON.stringify(per))
     // captura do haras com a calculadora
     await cz.locator('[data-acao="haras"]').click()
     await cz.waitForSelector('#t-haras')

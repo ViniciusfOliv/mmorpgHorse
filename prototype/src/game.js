@@ -187,7 +187,7 @@
 
   // Save v3: várias montarias (instâncias) e uma ativa. Saves v1/v2 (um inicial com level/xp/skills na
   // raiz) são migrados em sanitize(): o inicial vira mounts[0] ('m1').
-  var BR = E.breeding || { stableSlotsStart: 3, stableSlotsMax: 8 };
+  var BR = E.breeding;
   var MAX_LEVEL = E.maxLevel || 50;
 
   function instanceFromTemplate(tpl, uid) {
@@ -275,7 +275,7 @@
   // Uma montaria do save v3: tipos e faixas; campo essencial ausente ou status inválidos -> null.
   function sanitizeMount(m) {
     if (!m || typeof m !== 'object') return null;
-    if (typeof m.uid !== 'string' || !/^m\d+$/.test(m.uid)) return null;
+    if (typeof m.uid !== 'string' || !/^m\d{1,9}$/.test(m.uid)) return null;
     if (typeof m.element !== 'string' || !hasOwn(GD.ELEMENTS, m.element)) return null;
     if (typeof m.rarity !== 'string' || !hasOwn(GD.RARITIES, m.rarity)) return null;
     if (m.sex !== 'm' && m.sex !== 'f') return null;
@@ -316,7 +316,8 @@
     if (!s || typeof s !== 'object') return null;
     var mounts, activeId, nextUid, stableSlots, breedCounter;
     var start = BR.stableSlotsStart, max = BR.stableSlotsMax;
-    if (!Array.isArray(s.mounts)) {
+    var v3 = Number(s.v) >= 3;
+    if (!v3 && !Array.isArray(s.mounts)) {
       // v1/v2: um inicial com level/xp/skills na raiz (v1 tinha tática e não tinha skills: ignorados)
       var starter = GD.STARTERS.filter(function (h) { return h.id === s.starterId; })[0];
       if (!starter) return null;
@@ -326,14 +327,15 @@
       m1.skills = validSkills(s.skills, m1);
       mounts = [m1]; activeId = 'm1'; nextUid = 2; stableSlots = start; breedCounter = 0;
     } else {
+      // v3+: mounts que não é array vira [] (recria o inicial e mantém o Ouro)
       mounts = [];
       var seen = {}, maxUid = 0;
-      s.mounts.forEach(function (raw) {
+      (Array.isArray(s.mounts) ? s.mounts : []).forEach(function (raw) {
         var m = sanitizeMount(raw);
         if (!m || seen[m.uid]) return;
         seen[m.uid] = true;
         mounts.push(m);
-        maxUid = Math.max(maxUid, Number(m.uid.slice(1)));
+        if (/^m\d{1,9}$/.test(m.uid)) maxUid = Math.max(maxUid, Number(m.uid.slice(1)));
       });
       if (!mounts.length) { mounts.push(instanceFromTemplate(GD.STARTERS[0], 'm1')); maxUid = 1; }
       activeId = mounts.some(function (m) { return m.uid === s.activeId; }) ? s.activeId : mounts[0].uid;
@@ -727,7 +729,7 @@
   // state.tier é a preferência; a entrada efetiva é calculada na hora (sem regravar a preferência).
   function effectiveTier() { return affordableTier(state.gold, state.tier); }
 
-  var SLOT_PRICE = BR.stableSlotPrice || 300;
+  var SLOT_PRICE = BR.stableSlotPrice;
   function estrelasHtml(grau) {
     var g = clamp(Math.floor(Number(grau) || 0), 0, 3), txt = '';
     for (var i = 0; i < 3; i++) txt += i < g ? '★' : '☆';
@@ -735,12 +737,14 @@
   }
   function uidNum(uid) { return String(uid).replace(/\D+/g, ''); }
 
-  function mountCardHtml(m, isActive) {
+  // opts.semAcoes: sem os botões ativar/renomear/liberar (ex.: card do potro no resultado do Haras)
+  function mountCardHtml(m, isActive, opts) {
     var P = state.pending;
+    var semAcoes = !!(opts && opts.semAcoes);
     var canRelease = !isActive && state.mounts.length > 1 && !P;
     var corcel = window.Breed && window.Breed.isCorcel(m)
       ? '<span class="corcel" title="Corcel: herança garantida">⚑ Corcel</span>' : '';
-    var acoes = ui.confirmLiberar === m.uid && canRelease
+    var acoes = semAcoes ? '' : ui.confirmLiberar === m.uid && canRelease
       ? '<div class="confirma" role="group" aria-label="Confirmar liberação"><span>Liberar ' + esc(m.name) + '? Ela deixa o estábulo para sempre, sem Ouro de volta.</span>' +
         '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="liberar-sim" data-id="' + esc(m.uid) + '">Sim, liberar</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="liberar-nao" data-id="' + esc(m.uid) + '">Cancelar</button></div>'
@@ -855,7 +859,6 @@
   // Haras: cruzar (reprodutor de aluguel ou duas suas) e Troca (dois seus viram um potro)
   // ===========================================================================
   var BRD = window.Breed;
-  var RARITY_ORDER = ['comum', 'magico', 'raro', 'lendario', 'mitico'];
 
   function defaultMine(mode) {
     var a = activeMount();
@@ -924,6 +927,19 @@
     return out;
   }
 
+  // percentuais inteiros somando 100 (maiores restos: arredonda para baixo e distribui os pontos
+  // que faltam para os maiores restos; empate fica com a ordem da lista). values já em %.
+  function pctRound(values) {
+    var out = [], rest = [], sum = 0;
+    values.forEach(function (raw, k) {
+      var fl = Math.floor(raw + 1e-9);
+      out.push(fl); sum += fl; rest.push({ k: k, frac: raw - fl });
+    });
+    rest.sort(function (a, b) { return (b.frac - a.frac) || (a.k - b.k); });
+    for (var j = 0; sum < 100 && j < rest.length; j++) { out[rest[j].k]++; sum++; }
+    return out;
+  }
+
   function harasCardHtml(h, acao, kind, id, on, extra) {
     return '<button type="button" class="btn opcao haras-card' + (on ? ' sel--on' : '') + '" data-acao="' + acao + '"' +
         (kind ? ' data-kind="' + kind + '"' : '') + ' data-id="' + esc(id) + '" aria-pressed="' + on + '">' +
@@ -937,16 +953,16 @@
 
   function calcHtml(P) {
     var o = BRD.odds(P.f, P.m);
-    var bars = RARITY_ORDER.map(function (id) {
+    var bars = BRD.RARITY_IDS.map(function (id) {
       var p = o.rarity[id] || 0, pct = Math.round(p * 100);
       if (p <= 0 && id !== 'mitico') return '';
       var label = GD.RARITIES[id].name + ' ' + (p > 0 && pct === 0 ? '<1' : pct) + '%' + (p <= 0 ? ' (só por despertar)' : '');
       return '<div class="calc-linha"><span>' + esc(label) + '</span>' +
         '<span class="calc-barra calc-barra--' + esc(id) + '"><i style="width:' + (p * 100).toFixed(1) + '%"></i></span></div>';
     }).join('');
-    var g = o.grau;
-    var grau = 'Se mantiver a raridade: ★ ' + Math.round(g[1] * 100) + '% · ★★ ' + Math.round(g[2] * 100) + '% · ★★★ ' +
-      Math.round(g[3] * 100) + '%; se subir, nasce ★; se descer, ★★★';
+    var gp = pctRound([o.grau[1] * 100, o.grau[2] * 100, o.grau[3] * 100]);
+    var grau = 'Se mantiver a raridade: ★ ' + gp[0] + '% · ★★ ' + gp[1] + '% · ★★★ ' + gp[2] +
+      '%; se subir, nasce ★; se descer, ★★★';
     var elName = function (e) { return (GD.ELEMENTS[e] || GD.ELEMENTS.neutro).name; };
     var els = P.f.element === P.m.element ? [P.f.element] : [P.f.element, P.m.element];
     var elTxt = 'Elemento: ' + (els.length === 1 ? elName(els[0]) : elName(els[0]) + ' ou ' + elName(els[1]) + ' (50/50)');
@@ -958,7 +974,13 @@
       ? cands.map(function (id) { return GD.SKILLS[id] ? GD.SKILLS[id].name : id; }).join(', ')
       : 'nenhuma skill dos pais');
     var nc = (BRD.isCorcel(P.f) ? 1 : 0) + (BRD.isCorcel(P.m) ? 1 : 0);
-    var corcel = nc ? '<p class="corcel">' + esc('⚑ Corcel: herança garantida (' + (nc === 2 ? '2 skills' : '1 skill, 50% de chance de 2') + ')') + '</p>' : '';
+    // garantia real = min(g, candidatas), e o corte nas vagas da raridade do potro ainda vale
+    var nMax = Math.min(2, cands.length), nTxt;
+    if (nc === 1 && nMax === 2) nTxt = '1 skill (50% de chance de 2)';
+    else { var nG = Math.min(nc, cands.length); nTxt = nG + (nG === 1 ? ' skill' : ' skills'); }
+    var corcel = !nc ? '' : '<p class="corcel">' + esc(cands.length
+      ? '⚑ Corcel: herança garantida de até ' + nTxt + ' dos pais (limitado às vagas da raridade do potro)'
+      : '⚑ Corcel, mas nenhuma skill herdável') + '</p>';
     var custoNome = ui.haras.mode === 'troca' ? 'Troca' : (P.kind === 'rent' ? 'Aluguel' : 'Registro');
     return '<section class="caixa calc" aria-labelledby="t-calc"><h2 class="titulo" id="t-calc">Calculadora</h2>' +
       '<p class="nota">' + esc(P.f.name + ' ♀ × ' + P.m.name + ' ♂') + '</p>' +
@@ -974,7 +996,7 @@
   function harasResultHtml(foal) {
     var isActive = foal.uid === state.activeId;
     return '<section class="caixa" aria-labelledby="t-nasceu"><h2 class="titulo" id="t-nasceu">' + esc('Nasceu ' + foal.name + '!') + '</h2>' +
-      mountCardHtml(foal, isActive) +
+      mountCardHtml(foal, isActive, { semAcoes: true }) +
       '<div class="acoes">' +
         '<button type="button" class="btn btn--ouro" data-acao="haras-ativar"' + (isActive || state.pending ? ' disabled' : '') + '>Tornar ativa</button>' +
         '<button type="button" class="btn" data-acao="haras-denovo">Cruzar de novo</button>' +
@@ -1110,7 +1132,9 @@
     };
 
     var names = shuffle(GD.BOT_NAMES.slice(), rng);
-    var pool = GD.WILD_HORSES.concat(GD.STARTERS.filter(function (s) { return s.id !== activeMount().templateId; }));
+    var owned = {};   // nenhum bot corre com o modelo de uma montaria que o jogador tem
+    state.mounts.forEach(function (m) { if (m.templateId) owned[m.templateId] = true; });
+    var pool = GD.WILD_HORSES.concat(GD.STARTERS).filter(function (tpl) { return !owned[tpl.id]; });
     var itemIds = Object.keys(GD.ITEMS);
     var used = {};
     var silkOrder = shuffle(BOT_SILKS.map(function (c, i) { return i; }), rng);
@@ -1169,14 +1193,9 @@
   // percentuais do traçado somando 100 (maiores restos: arredonda para baixo e distribui
   // os pontos que faltam para os maiores restos; empate fica com a ordem reta/curva/subida)
   function sharePct(cond) {
-    var types = ['reta', 'curva', 'subida'], out = {}, rest = [], sum = 0;
-    types.forEach(function (t, k) {
-      var raw = RS.blockShare(cond.blocks, t) * 100, fl = Math.floor(raw + 1e-9);
-      out[t] = fl; sum += fl; rest.push({ t: t, k: k, frac: raw - fl });
-    });
-    rest.sort(function (a, b) { return (b.frac - a.frac) || (a.k - b.k); });
-    for (var j = 0; sum < 100 && j < rest.length; j++) { out[rest[j].t]++; sum++; }
-    return out;
+    var types = ['reta', 'curva', 'subida'];
+    var pc = pctRound(types.map(function (t) { return RS.blockShare(cond.blocks, t) * 100; }));
+    return { reta: pc[0], curva: pc[1], subida: pc[2] };
   }
   function conditionChips(cond) {
     var sh = sharePct(cond);

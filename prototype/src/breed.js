@@ -14,7 +14,7 @@
  * alvo fora de [0, maxRarityOrder] é preso ao limite e SOMA no alvo preso. Mítico nunca nasce
  * de cruzamento (maxRarityOrder = 3).
  *
- * GRAU (1–3 estrelas): gb = round(0.6·grau da égua + 0.4·grau do garanhão); desce/mantém/sobe
+ * GRAU (1–3 estrelas): gb = round(mareWeight·grau da égua + (1−mareWeight)·grau do garanhão); desce/mantém/sobe
  * interpolados por L; alvo fora de 1–3 soma em "mantém". Se a raridade SUBIU o potro nasce ★1;
  * se DESCEU, ★3 (sem sorteio de grau).
  *
@@ -99,7 +99,16 @@
     return out;
   }
 
-  function grauBase(f, m) { return Math.round(0.6 * f.grau + 0.4 * m.grau); }
+  function grauBase(f, m) {
+    var w = G.ECONOMY.breeding.mareWeight;
+    return Math.round(w * f.grau + (1 - w) * m.grau);
+  }
+
+  // u ≥ soma das colunas (só por erro de arredondamento no topo): cai na última coluna com p > 0
+  function lastPositive(cols) {
+    for (var k = cols.length - 1; k > 0; k--) if (cols[k] > 0) return k;
+    return 0;
+  }
 
   function grauCols(f, m) { return lerpCols(TUNING.grau.lv1, TUNING.grau.lv30, levelFactor(f, m)); }
 
@@ -125,7 +134,7 @@
       acc += cols[k];
       if (u < acc) break;
     }
-    if (k >= cols.length) k = cols.length - 1; // erro de arredondamento no topo
+    if (k >= cols.length) k = lastPositive(cols); // erro de arredondamento no topo
     return RARITY_IDS[clamp(base - 1 + k, 0, TUNING.maxRarityOrder)];
   }
 
@@ -138,7 +147,7 @@
       acc += cols[k];
       if (u < acc) break;
     }
-    if (k > 2) k = 2;
+    if (k > 2) k = lastPositive(cols);
     return clamp(grauBase(f, m) - 1 + k, 1, 3);
   }
 
@@ -270,6 +279,7 @@
 
   var Breed = {
     TUNING: TUNING,
+    RARITY_IDS: RARITY_IDS,
     CORCEL_SETS: CORCEL_SETS,
     levelFactor: levelFactor,
     rarityOdds: rarityOdds,

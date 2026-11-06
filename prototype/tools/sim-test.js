@@ -283,5 +283,30 @@ test('uid distinto mesmo com nomes iguais', function () {
   G.FOAL_NAMES = saved; assert.strictEqual(a.name, b.name); assert.notStrictEqual(a.uid, b.uid);
 });
 
+test('snapshot dourado dos potros de exemplos.md', function () {
+  // docs/exemplos.md §13 "Três potros de exemplo": seedBase 20261106, nextUid 2, breedCounter 0/1/2
+  function par(id, level, uid) {
+    var h = JSON.parse(JSON.stringify(G.STARTERS.concat(G.WILD_HORSES).filter(function (x) { return x.id === id; })[0]));
+    h.level = level; h.uid = uid; return h;
+  }
+  function st(a) { var o = {}; G.STAT_KEYS.forEach(function (k, i) { o[k] = a[i]; }); return o; }
+  var casos = [
+    { f: par('mare', 30, null), m: par('brasa', 30, null), name: 'Quimera', rarity: 'magico', grau: 3, element: 'agua', sex: 'm',
+      base: [53, 59, 57, 60, 59, 52, 57], potential: [21, 16, 18, 18, 20, 16, 16], skills: ['pe-na-chuva'] },
+    { f: par('w-faisca', 1, null), m: par('w-pangare', 1, null), name: 'Quimera', rarity: 'comum', grau: 2, element: 'neutro', sex: 'f',
+      base: [47, 42, 43, 44, 46, 46, 44], potential: [10, 12, 15, 10, 20, 27, 10], skills: ['arranque'] },
+    { f: par('w-ventania', 30, null), m: par('w-jequitiba', 30, null), name: 'Estrela', rarity: 'lendario', grau: 1, element: 'grama', sex: 'm',
+      base: [65, 62, 61, 60, 62, 64, 61], potential: [28, 25, 17, 27, 21, 19, 16], skills: ['sprint', 'arrancada-final'] }
+  ];
+  casos.forEach(function (c, i) {
+    var x = B.foal({ f: c.f, m: c.m, seedBase: 20261106, breedCounter: i, nextUid: 2 });
+    assert.deepStrictEqual(
+      { name: x.name, rarity: x.rarity, grau: x.grau, element: x.element, sex: x.sex, base: x.base, potential: x.potential, skills: x.skills },
+      { name: c.name, rarity: c.rarity, grau: c.grau, element: c.element, sex: c.sex, base: st(c.base), potential: st(c.potential), skills: c.skills },
+      'potro ' + i);
+    assert.strictEqual(x.uid, 'm2');
+  });
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
