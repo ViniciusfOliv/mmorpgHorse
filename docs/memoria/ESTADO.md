@@ -23,8 +23,8 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   - Pergunta aberta: sem ruído por corrida, campos desiguais são previsíveis — decidir se queremos
     zebra (ruído ±3–5%).
   - Margens frágeis: 4b em 25,9% (piso 25); meta 3 a 3 p.p. do teto.
-- **Subprojeto 2 — Cavalos v2 (Estábulo, Haras e Cruzamento): concluído e revisado na branch
-  `claude/cruzamento` (aguardando o Vinicius jogar e a integração na `main`).** Spec:
+- **Subprojeto 2 — Cavalos v2 (Estábulo, Haras e Cruzamento): concluído e integrado na `main`
+  em 2026-11-06** (fast-forward; branch `claude/cruzamento` pode ser apagada no GitHub). Spec:
   `docs/superpowers/specs/2026-11-06-cruzamento-design.md` (§14 = ajustes da implementação).
   - Entregue: estábulo com várias montarias (3 vagas, até 8), grau ★–★★★, `breed.js` determinístico,
     Haras (aluguel, cruzar dois seus, Troca, calculadora de chances), save v3, skills com Corcel.
@@ -64,9 +64,9 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   `bestLevelFor`). `README.md` criado na raiz.
 
 ## Próximos passos
-1. Vinicius revisa e joga (cruzar com `?dev=1`).
-2. Integrar `claude/cruzamento` na `main`.
-3. Subprojeto 3 (equipamentos) ou decidir a zebra.
+1. Vinicius joga o cruzamento (`prototype/dist/preview.html?dev=1` para Ouro e níveis à vontade).
+2. Subprojeto 3 (inventário e set de equipamentos, modelo Black Desert) — nova branch dedicada.
+3. Decidir a zebra (ruído ±3–5% por corrida) e o despertar Lendário→Mítico (depois das expedições).
 
 ## Pendente no design (GDD seções 7+)
 Itens e upgrades · curvas de XP/level · expedições · economia (valores de entrada,
