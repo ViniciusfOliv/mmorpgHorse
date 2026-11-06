@@ -14,7 +14,7 @@ trap 'rm -rf "$SHOTS_DIR"' EXIT
 
 step() { printf '\n== %s ==\n' "$1"; }
 
-step "1/4 Build (prototype/dist)"
+step "1/5 Build (prototype/dist)"
 node prototype/build.mjs
 
 step "2/5 Testes unitários"
