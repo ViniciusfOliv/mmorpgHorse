@@ -248,8 +248,26 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   border: 2px solid var(--linha); background: var(--painel-2); font-weight: 700; font-variant-numeric: tabular-nums;
 }
 .slot--cheio { border-color: var(--ouro-escuro); color: var(--ouro-claro); }
-.slot--vazio { color: var(--texto-3); }
+.slot--vazio { color: var(--texto-3); opacity: 0.5; }
 .set-badge { padding: 2px 8px; border: 2px solid var(--ouro); color: var(--ouro); font-weight: 700; white-space: nowrap; }
+
+/* tela de Equipamento: saldo de pedras, linhas de slot e lista de peças */
+.topo-saldos { display: flex; align-items: center; gap: 8px; flex: none; }
+.pedras { font-family: var(--fonte-display); font-size: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--texto); }
+.set-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 4px 0 0; }
+.slot-linhas { display: flex; flex-direction: column; gap: 10px; }
+.slot-linha { display: flex; flex-direction: column; gap: 8px; }
+.slot-linha--aberta { background: var(--painel-2); padding-bottom: 8px; }
+.slot-botao { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; min-height: 56px; }
+.slot-nome { font-weight: 700; }
+.slot-peca { font-size: var(--t-s); color: var(--texto-2); font-weight: 400; overflow-wrap: anywhere; }
+.pecas { display: flex; flex-direction: column; gap: 8px; padding: 0 8px; }
+.peca { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--painel); box-shadow: inset 4px 0 0 0 var(--linha); min-width: 0; }
+.peca--equipada { box-shadow: inset 4px 0 0 0 var(--ouro); }
+.peca-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.peca-poder { font-size: var(--t-s); color: var(--texto-2); }
+.acoes-peca { display: flex; flex-wrap: wrap; gap: 8px; }
+.acoes-peca .btn { flex: 1 1 auto; }
 
 /* opções selecionáveis (aria-pressed) */
 .opcoes { display: grid; gap: 10px; }
@@ -579,4 +597,5 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   .btn:active:not(:disabled) { transform: none; }
 }
 
-.dev-painel { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 6px; align-items: center; padding: 6px 10px; background: rgba(0,0,0,.85); color: #ddd; font-size: 12px; z-index: 50; }
+.dev-painel { position: fixed; left: 0; right: 0; bottom: 0; display: flex; overflow-x: auto; gap: 6px; align-items: center; padding: 6px 10px; background: rgba(0,0,0,.85); color: #ddd; font-size: 12px; z-index: 50; }
+.dev-painel .btn { flex: none; }

@@ -484,6 +484,113 @@ try {
     await cz.context().close()
   }
 
+  // ---------------- equipamento: dev, equipar/tirar, melhorar determinístico, venda com desfazer e trava ----------------
+  {
+    const eq = await newPage(browser, { width: 390, height: 844 }, 'equipamento', { query: '?dev=1' })
+    try {
+      const st = () => eq.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+      const txt = async () => (await eq.locator('#tela').textContent()) || ''
+      const itemOf = (s, uid) => s.items.find((it) => it.uid === uid)
+      // 1. inicial com o equipamento de partida
+      await eq.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await eq.waitForSelector('#t-estabulo')
+      let s = await st()
+      if (s.items.length !== 2 || s.mounts[0].equip.sela !== 'i1' || s.mounts[0].equip.ferraduras !== 'i2' || s.pedras !== 0) {
+        problems.push('equipamento: estado inicial ' + JSON.stringify({ items: s.items, equip: s.mounts[0].equip, pedras: s.pedras }))
+      }
+      // 2. painel dev: pedras e conjunto Lendário do Sol (Brasa é Fogo)
+      await eq.locator('[data-acao="dev-pedras"]').click()
+      if ((await st()).pedras !== 5) problems.push('equipamento: dev-pedras não deu 5 pedras')
+      await eq.locator('[data-acao="dev-set"]').click()
+      s = await st()
+      if (s.items.length !== 7) problems.push('equipamento: dev-set deixou ' + s.items.length + ' peças (esperado 7)')
+      const ids = GR.SLOTS.map((sl) => { const it = itemOf(s, s.mounts[0].equip[sl]); return it ? it.id : null })
+      GR.SLOTS.forEach((sl, k) => { if (ids[k] !== sl + '-sol-lendario') problems.push('equipamento: dev-set ' + sl + ' = ' + ids[k]) })
+      const L = s.mounts[0].equip.sela
+      // 3. tela de equipamento
+      await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
+      await eq.waitForSelector('#t-equipamento', { timeout: 5000 })
+      if (!/Sol ×5/.test(await txt())) problems.push('equipamento: tela sem "Sol ×5"')
+      // 4. tirar a sela
+      await eq.locator('[data-acao="equip-slot"][data-id="sela"]').click()
+      await eq.locator('[data-acao="tirar"][data-id="sela"]').click()
+      s = await st()
+      if (s.mounts[0].equip.sela !== null) problems.push('equipamento: tirar deixou sela ' + s.mounts[0].equip.sela)
+      if (!/Sol ×4/.test(await txt())) problems.push('equipamento: tela sem "Sol ×4" depois de tirar')
+      // 5. equipar a sela comum de volta; a Lendária fica no inventário
+      await eq.locator('[data-acao="equipar"][data-id="i1"]').click()
+      s = await st()
+      if (s.mounts[0].equip.sela !== 'i1') problems.push('equipamento: equipar i1 deixou sela ' + s.mounts[0].equip.sela)
+      if (!itemOf(s, L)) problems.push('equipamento: a sela Lendária ' + L + ' sumiu do inventário')
+      // 6. melhorar i1 três vezes, conferindo cada sorteio com o Node
+      const seedBase = s.seedBase
+      let plus = itemOf(s, 'i1').plus, gastas = 0
+      const seq = [plus]
+      for (let k = 0; k < 3; k++) {
+        const odds = GR.enhanceOdds(plus)
+        const r = GR.enhance({ uid: 'i1', id: 'sela-comum', plus }, seedBase, k)
+        await eq.locator('[data-acao="melhorar"][data-id="i1"]').click()
+        await eq.locator('[data-acao="melhorar-sim"][data-id="i1"]').click()
+        plus = r.plus; gastas += odds.cost; seq.push(plus)
+        s = await st()
+        if (itemOf(s, 'i1').plus !== plus || s.pedras !== 5 - gastas || s.enhanceCounter !== k + 1) {
+          problems.push('equipamento: melhoria ' + k + ' jogo ' + JSON.stringify({ plus: itemOf(s, 'i1').plus, pedras: s.pedras, counter: s.enhanceCounter }) + ' node ' + JSON.stringify({ plus, pedras: 5 - gastas, counter: k + 1 }))
+        }
+      }
+      if (s.enhanceCounter !== 3) problems.push('equipamento: enhanceCounter ' + s.enhanceCounter)
+      if (!/Sucesso|Falhou/.test(await txt())) problems.push('equipamento: sem mensagem de Sucesso/Falhou')
+      notes.equipamento = { seedBase, plusSeq: seq, pedras: s.pedras }
+      // 7. vender a Lendária e desfazer; sair limpa o desfazer
+      const gold0 = s.gold
+      await eq.locator(`[data-acao="vender"][data-id="${L}"]`).click()
+      s = await st()
+      if (s.gold !== gold0 + 375 || s.items.length !== 6) problems.push('equipamento: venda ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
+      await eq.locator('[data-acao="vender-desfazer"]').click()
+      s = await st()
+      if (s.gold !== gold0 || s.items.length !== 7 || !itemOf(s, L)) problems.push('equipamento: desfazer ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
+      await eq.locator('[data-acao="vender"][data-id="' + L + '"]').click()
+      await eq.locator('[data-acao="vender-desfazer"]').click()
+      await eq.locator('[data-acao="equip-voltar"]').click()
+      await eq.waitForSelector('#t-estabulo')
+      await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
+      await eq.waitForSelector('#t-equipamento')
+      if (await eq.locator('[data-acao="vender-desfazer"]').count()) problems.push('equipamento: "Desfazer venda" continua depois de sair da tela')
+      // 8. persistência
+      const antes = await st()
+      await eq.reload({ waitUntil: 'domcontentloaded' })
+      await eq.waitForSelector('#t-estabulo')
+      s = await st()
+      if (JSON.stringify(s.mounts[0].equip) !== JSON.stringify(antes.mounts[0].equip) || itemOf(s, 'i1').plus !== itemOf(antes, 'i1').plus || s.items.length !== 7) {
+        problems.push('equipamento: não persistiu ' + JSON.stringify({ equip: s.mounts[0].equip, plus: itemOf(s, 'i1').plus }))
+      }
+      // 9. trava parcial com páreo aberto
+      await eq.getByRole('button', { name: 'Procurar corrida' }).click()
+      await eq.waitForSelector('#t-largada')
+      await eq.locator('[data-acao="voltar"]').first().click()
+      await eq.waitForSelector('#t-estabulo')
+      await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
+      await eq.waitForSelector('#t-equipamento')
+      await eq.locator('[data-acao="equip-slot"][data-id="sela"]').click()
+      const pr = await eq.evaluate(() => window.__galope.state.pending && window.__galope.state.pending.pr)
+      if (!(await eq.locator(`[data-acao="equipar"][data-id="${L}"]`).isDisabled())) problems.push('equipamento: equipar a Lendária habilitado com páreo aberto')
+      if (!/Páreo aberto/.test(await txt())) problems.push('equipamento: sem aviso "Páreo aberto"')
+      if (!(await eq.locator('[data-acao="melhorar"][data-id="i1"]').isDisabled())) problems.push('equipamento: melhorar peça da ativa habilitado com páreo aberto')
+      await eq.locator('[data-acao="tirar"][data-id="sela"]').click()
+      if ((await st()).mounts[0].equip.sela !== null) problems.push('equipamento: tirar bloqueado com páreo aberto')
+      await eq.locator('[data-acao="equipar"][data-id="i1"]').click()
+      if ((await st()).mounts[0].equip.sela !== 'i1') problems.push('equipamento: re-equipar i1 bloqueado com páreo aberto')
+      const ratingL = S.powerRating(antes.mounts[0], GR.resolve({ equip: Object.assign({}, antes.mounts[0].equip, { sela: L }) }, Object.fromEntries(antes.items.map((it) => [it.uid, it]))))
+      notes.equipamentoTrava = { pr, liga: S.leagueFor(pr).name, ratingComLendaria: ratingL, ligaComLendaria: S.leagueFor(ratingL).name }
+      // 10. sem rolagem horizontal; captura com o slot aberto
+      await sleep(300)
+      await checkOverflow(eq, 'equipamento')
+      await eq.screenshot({ path: join(SHOTS, 'final-07-equipamento.png') })
+    } catch (e) {
+      problems.push('equipamento: ' + e.message)
+    }
+    await eq.context().close()
+  }
+
   // ---------------- desktop 1280x800 ----------------
   const desk = await newPage(browser, { width: 1280, height: 800 }, 'desktop')
   await desk.waitForSelector('.inicial')

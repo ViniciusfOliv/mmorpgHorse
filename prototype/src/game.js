@@ -548,7 +548,7 @@
   // Estado de UI (não persistido)
   // ===========================================================================
   var state = null;
-  var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null };
+  var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null, equip: null };
   var live = [];          // canvases animados da tela atual
   var raceView = null;
   var portraitQueue = [];
@@ -753,6 +753,7 @@
     if (raceView && screen !== 'corrida') { raceView.destroy(); raceView = null; }
     if (screen !== ui.screen) { ui.confirmReset = false; ui.confirmLiberar = null; }
     if (screen === 'haras' && ui.screen !== 'haras') ui.haras = newHaras();
+    if (screen !== 'equipamento') ui.equip = null;   // sair da tela descarta o "Desfazer venda" e a confirmação
     ui.screen = screen;
     if (appEl) appEl.classList.toggle('app--corrida', screen === 'corrida');
     render();
@@ -776,13 +777,16 @@
       case 'corrida': html = renderCorrida(); break;
       case 'resultado': html = renderResultado(); break;
       case 'haras': html = renderHaras(); break;
+      case 'equipamento': html = renderEquipamento(); break;
       default: html = renderInicial();
     }
     if (devAtivo() && ui.screen !== 'corrida') {
       html += '<div class="dev-espaco" style="height:56px" aria-hidden="true"></div><div class="dev-painel" role="group" aria-label="Painel de desenvolvimento"><span>dev</span>' +
         '<button type="button" class="btn btn--pequeno" data-acao="dev-niveis">+10 níveis (ativa)</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="dev-ouro">+1000 Ouro</button>' +
-        '<button type="button" class="btn btn--pequeno" data-acao="dev-cruz">+1 cruzamento (ativa)</button></div>';
+        '<button type="button" class="btn btn--pequeno" data-acao="dev-cruz">+1 cruzamento (ativa)</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="dev-pedras">+5 Pedras</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="dev-set">+ conjunto Lendário (ativa)</button></div>';
     }
     telaEl.innerHTML = ordFix(html);
     hydrate(telaEl);
@@ -864,6 +868,7 @@
         '<button type="button" class="btn btn--pequeno" data-acao="ativar" data-id="' + esc(m.uid) + '"' + (isActive || P ? ' disabled' : '') + '>Tornar ativa</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="renomear" data-id="' + esc(m.uid) + '">Renomear</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="liberar" data-id="' + esc(m.uid) + '"' + (canRelease ? '' : ' disabled') + '>Liberar</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(m.uid) + '">Equipar</button>' +
         '</div>';
     return '<article class="montaria' + (isActive ? ' montaria--ativa' : '') + '" data-uid="' + esc(m.uid) + '">' +
       portraitHtml(m) +
@@ -873,7 +878,7 @@
         '<span class="nivel">Nv ' + esc(m.level) + '</span>' +
         '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
         (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
-      '</div>' + acoes +
+      '</div>' + gearSummaryHtml(m) + acoes +
     '</article>';
   }
 
@@ -1188,6 +1193,152 @@
     state.nextUid += 1;
     state.breedCounter += 1;
     return foal;
+  }
+
+  // ===========================================================================
+  // Equipamento (por montaria): equipar/tirar, melhorar com Pedras Negras, vender e trava parcial
+  // ===========================================================================
+  // cópia do equip da montaria com um slot trocado (uid ou null)
+  function equipWith(mount, slot, uid) {
+    var e = {}, cur = mount.equip || {};
+    GR.SLOTS.forEach(function (s) { e[s] = cur[s] || null; });
+    e[slot] = uid;
+    return e;
+  }
+  function ratingWith(mount, equip) {
+    return RS.powerRating(mount, GR.resolve({ equip: equip }, itemsByUid()));
+  }
+  // trava parcial (spec §9): com páreo aberto, a ativa só aceita um equip que não passe do rating da sala
+  function canEquip(mount, equipNovo) {
+    var P = state.pending;
+    if (!P || mount.uid !== state.activeId) return { ok: true, limit: null };
+    return { ok: ratingWith(mount, equipNovo) <= P.pr, limit: P.pr };
+  }
+  // peça equipada na ativa com páreo aberto não pode ser melhorada
+  function enhanceLocked(uid) {
+    var where = isEquipped(uid);
+    return !!(state.pending && where && where.mount.uid === state.activeId);
+  }
+  function rarityRank(id) {
+    var def = GR.piece(id);
+    return def && GD.RARITIES[def.rarity] ? GD.RARITIES[def.rarity].order : -1;
+  }
+  // peças do slot no inventário (não equipadas em nenhuma montaria), da raridade maior para a menor e por +N
+  function freePieces(slot) {
+    return state.items.filter(function (it) {
+      var def = GR.piece(it.id);
+      return def && def.slot === slot && !isEquipped(it.uid);
+    }).sort(function (a, b) { return (rarityRank(b.id) - rarityRank(a.id)) || (b.plus - a.plus); });
+  }
+  function pieceModsText(item) {
+    var def = GR.piece(item.id), info = GD.GEAR_SLOT_INFO[def.slot];
+    var t = '+' + (def.main + item.plus) + ' ' + GD.STATS[info.main].short;
+    if (def.sub) t += ', +' + def.sub + ' ' + GD.STATS[info.sub].short;
+    return t;
+  }
+  function pieceLabel(item) {
+    var def = GR.piece(item.id);
+    return def.name + ' · ' + GD.RARITIES[def.rarity].name + ' · +' + item.plus + ' · ' + pieceModsText(item);
+  }
+  function setLineHtml(gear) {
+    var st = gear.set, sb = GE.setBonus;
+    if (!st || !st.id || !st.count || !hasOwn(GD.GEAR_SETS, st.id)) return '<p class="set-linha nota">sem conjunto</p>';
+    var bon = [];
+    if (st.count >= sb.pieces[0]) bon.push('+' + sb.sorte + ' Sorte e +' + Math.round(sb.skillChance * 100) + '% de skill');
+    if (st.count >= sb.pieces[1]) bon.push('bônus do clima dobrado');
+    if (st.count >= sb.pieces[2]) bon.push('sem penalidade de clima');
+    return '<p class="set-linha"><span class="set-badge">' + esc(GD.GEAR_SETS[st.id].name + ' ×' + st.count) + '</span> ' +
+      '<span class="nota">' + esc(bon.length ? bon.join(' · ') : 'bônus a partir de ' + sb.pieces[0] + ' peças') + '</span></p>';
+  }
+  function pedrasTxt(n) { return n + (n === 1 ? ' pedra' : ' pedras'); }
+
+  // uma peça da lista aberta: equipada (Tirar/Melhorar) ou do inventário (Equipar/Melhorar/Vender)
+  function equipRowHtml(m, item, equipped, ratingNow) {
+    var def = GR.piece(item.id);
+    var novo = equipWith(m, def.slot, equipped ? null : item.uid);
+    var depois = ratingWith(m, novo);
+    var lock = canEquip(m, novo);
+    var odds = GR.enhanceOdds(item.plus);
+    var travada = enhanceLocked(item.uid);
+    var uid = esc(item.uid);
+    var d = depois - ratingNow;
+    var poder = '<span class="peca-poder">Poder ' + ratingNow + ' → <b class="' + (d > 0 ? 'mais' : d < 0 ? 'menos-t' : '') + '">' + depois + '</b></span>';
+    var acoes;
+    if (ui.equip.confirm === item.uid && odds && !travada) {
+      var falha = odds.dropTo < item.plus ? 'cai para +' + odds.dropTo : 'continua +' + item.plus;
+      var semPedras = state.pedras < odds.cost;
+      acoes = '<div class="confirma" role="group" aria-label="Confirmar melhoria"><span>' +
+          esc('Melhorar ' + def.name + ' +' + item.plus + ' → +' + (item.plus + 1) + ': ' + Math.round(odds.chance * 100) + '% · ' +
+            pedrasTxt(odds.cost) + ' · se falhar ' + falha) + '</span>' +
+        '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="melhorar-sim" data-id="' + uid + '"' + (semPedras ? ' disabled' : '') + '>' +
+          (semPedras ? 'Sem pedras' : 'Tentar') + '</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="melhorar-nao" data-id="' + uid + '">Cancelar</button></div>';
+    } else {
+      var limite = lock.ok ? '' : ' disabled title="' + esc('Páreo aberto: passaria do rating ' + lock.limit) + '"';
+      var mel = '<button type="button" class="btn btn--pequeno" data-acao="melhorar" data-id="' + uid + '"' +
+        (!odds ? ' disabled title="Já está no máximo"' : travada ? ' disabled title="Páreo aberto"' : '') + '>Melhorar</button>';
+      acoes = '<div class="acoes-peca">' + (equipped
+        ? '<button type="button" class="btn btn--pequeno" data-acao="tirar" data-id="' + esc(def.slot) + '"' + limite + '>Tirar</button>' + mel
+        : '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="equipar" data-id="' + uid + '"' + limite + '>Equipar</button>' + mel +
+          '<button type="button" class="btn btn--pequeno" data-acao="vender" data-id="' + uid + '">Vender (' + fmt(GR.sellPrice(item.id)) + ')</button>') +
+        '</div>';
+    }
+    return '<div class="peca' + (equipped ? ' peca--equipada' : '') + '">' +
+      '<div class="peca-info"><b>' + esc(def.name + ' +' + item.plus) + '</b>' +
+        '<span class="linha-meta">' + rarityHtml(def.rarity) + (equipped ? '<span class="badge-ativa">Equipada</span>' : '') +
+          '<span>' + esc(pieceModsText(item)) + '</span></span>' + poder + '</div>' +
+      acoes + '</div>';
+  }
+
+  function renderEquipamento() {
+    var m = ui.equip ? mountByUid(ui.equip.uid) : null;
+    if (!m) { ui.equip = null; ui.screen = 'estabulo'; return renderEstabulo(); } // montaria sumiu (ex.: outra aba)
+    var Q = ui.equip, P = state.pending;
+    var h = clone(m);
+    var gear = gearOf(m);
+    var stats = RS.computeStats(h, gear), baseStats = RS.computeStats(h, null);
+    var rating = RS.powerRating(h, gear);
+    var head = '<header class="topo"><button type="button" class="btn btn--pequeno" data-acao="equip-voltar">Voltar</button>' +
+        '<span class="topo-saldos"><span class="pedras" aria-label="' + esc(pedrasTxt(state.pedras) + ' negras') + '">🪨 ' + fmt(state.pedras) + '</span>' +
+        '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></span></header>' +
+      '<h1 class="titulo titulo--tela" id="t-equipamento" tabindex="-1" data-foco>Equipamento</h1>';
+    var avisos = '';
+    if (Q.msg) avisos += '<p class="aviso" role="status">' + esc(Q.msg) + '</p>';
+    if (Q.undo) {
+      avisos += '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="vender-desfazer">' +
+        esc('Desfazer venda de ' + (GR.piece(Q.undo.item.id) || { name: '?' }).name + ' (−' + fmt(Q.undo.price) + ' de Ouro)') + '</button></div>';
+    }
+    if (P && m.uid === state.activeId) avisos += '<p class="aviso">' + esc('Páreo aberto: o rating não pode passar de ' + P.pr) + '</p>';
+
+    var bySlot = {};
+    gear.pieces.forEach(function (p) { bySlot[p.slot] = p; });
+    var linhas = GR.SLOTS.map(function (slot) {
+      var info = GD.GEAR_SLOT_INFO[slot], aberto = Q.slot === slot;
+      var cur = bySlot[slot] ? itemByUid(bySlot[slot].uid) : null;
+      var lista = '';
+      if (aberto) {
+        var rows = (cur ? [equipRowHtml(m, cur, true, rating)] : []).concat(freePieces(slot).map(function (it) {
+          return equipRowHtml(m, it, false, rating);
+        }));
+        lista = '<div class="pecas" id="pecas-' + esc(slot) + '">' + (rows.length ? rows.join('')
+          : '<p class="nota">' + esc('Nenhuma peça de ' + info.name + ' no inventário.') + '</p>') + '</div>';
+      }
+      return '<div class="slot-linha' + (aberto ? ' slot-linha--aberta' : '') + '">' +
+        '<button type="button" class="btn slot-botao" data-acao="equip-slot" data-id="' + esc(slot) + '" aria-expanded="' + aberto + '">' +
+          '<span class="slot-nome">' + esc(info.name) + '</span>' +
+          '<span class="slot-peca">' + esc(cur ? pieceLabel(cur) : 'vazio') + '</span></button>' + lista + '</div>';
+    }).join('');
+
+    return '<section class="tela" aria-labelledby="t-equipamento">' + head + avisos +
+      '<article class="caixa"><div class="cavalo-cabeca">' + portraitHtml(m) +
+        '<div class="cavalo-info"><h2 class="cavalo-nome">' + esc(m.name) + '</h2>' +
+          '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
+          setLineHtml(gear) + '</div></div>' +
+        statsHtml(stats, baseStats) + '</article>' +
+      '<section class="caixa" aria-labelledby="t-pecas"><h2 class="titulo" id="t-pecas">Peças</h2>' +
+        '<p class="nota">Toque num slot para ver as peças do inventário. Melhorar gasta Pedras Negras; vender devolve 25% do preço.</p>' +
+        '<div class="slot-linhas">' + linhas + '</div></section>' +
+    '</section>';
   }
 
   // ===========================================================================
@@ -2202,6 +2353,117 @@
         persist();
         rerenderKeepScroll();
         break;
+      case 'dev-pedras':
+        if (!devAtivo() || !state) break;
+        state.pedras += 5;
+        persist();
+        rerenderKeepScroll();
+        break;
+      case 'dev-set': {
+        // 5 Lendárias +0 do conjunto do clima do elemento da ativa (Neutro: Sol); as peças antigas voltam ao inventário
+        if (!devAtivo() || !state) break;
+        var ds = activeMount();
+        var dw = GD.ELEMENTS[ds.element] ? GD.ELEMENTS[ds.element].weather : null;
+        var dSet = dw && hasOwn(GD.GEAR_SETS, dw) ? dw : 'sol';
+        if (!ds.equip) ds.equip = emptyEquip();
+        GR.SLOTS.forEach(function (sl) { ds.equip[sl] = newItem(sl + '-' + dSet + '-lendario').uid; });
+        persist();
+        rerenderKeepScroll();
+        break;
+      }
+      case 'equipar-tela':
+        if (!state || !mountByUid(id)) break;
+        ui.equip = { uid: id, slot: null, confirm: null, undo: null, msg: null };
+        go('equipamento');
+        break;
+      case 'equip-voltar':
+        go('estabulo'); break;
+      case 'equip-slot':
+        if (!ui.equip || GR.SLOTS.indexOf(id) < 0) break;
+        ui.equip.slot = ui.equip.slot === id ? null : id;
+        ui.equip.confirm = null; ui.equip.msg = null;
+        rerenderKeepScroll(); break;
+      case 'equipar': {
+        var qm = ui.equip ? mountByUid(ui.equip.uid) : null;
+        var qi = itemByUid(id), qd = qi ? GR.piece(qi.id) : null;
+        if (!qm || !qd || isEquipped(id)) break;
+        var qe = equipWith(qm, qd.slot, id);
+        ui.equip.confirm = null; ui.equip.msg = null;
+        if (canEquip(qm, qe).ok) { qm.equip = qe; persist(); }
+        rerenderKeepScroll(); break;
+      }
+      case 'tirar': {
+        var tm = ui.equip ? mountByUid(ui.equip.uid) : null;
+        if (!tm || GR.SLOTS.indexOf(id) < 0 || !tm.equip || !tm.equip[id]) break;
+        var te = equipWith(tm, id, null);
+        ui.equip.confirm = null; ui.equip.msg = null;
+        if (canEquip(tm, te).ok) { tm.equip = te; persist(); }
+        rerenderKeepScroll(); break;
+      }
+      case 'melhorar': {
+        var mi0 = itemByUid(id);
+        if (!ui.equip || !mi0 || !GR.enhanceOdds(mi0.plus) || enhanceLocked(id)) break;
+        ui.equip.confirm = id; ui.equip.msg = null;
+        rerenderKeepScroll(); focusAction('melhorar-nao', id); break;
+      }
+      case 'melhorar-nao':
+        if (ui.equip) ui.equip.confirm = null;
+        rerenderKeepScroll(); focusAction('melhorar', id); break;
+      case 'melhorar-sim': {
+        if (!ui.equip || ui.equip.confirm !== id) break;
+        ui.equip.confirm = null;
+        var sM = state;
+        persist();                    // sincroniza com outras abas antes de debitar
+        if (state !== sM) break;      // save mais novo adotado: adoptExternal já navegou
+        var mi = itemByUid(id);
+        var mo = mi ? GR.enhanceOdds(mi.plus) : null;
+        if (!mo || state.pedras < mo.cost || enhanceLocked(id)) { rerenderKeepScroll(); break; }
+        // paga antes de ver: debita as pedras e avança o contador, só então sorteia (um sorteio por tentativa)
+        state.pedras -= mo.cost;
+        var mc = state.enhanceCounter;
+        state.enhanceCounter += 1;
+        var mr = GR.enhance(mi, state.seedBase, mc);
+        var mAntes = mi.plus;
+        mi.plus = mr.plus;
+        persist();
+        if (state !== sM) break;
+        var mNome = GR.piece(mi.id).name;
+        ui.equip.msg = mr.success ? 'Sucesso! ' + mNome + ' agora é +' + mr.plus
+          : mr.plus < mAntes ? 'Falhou e ' + mNome + ' caiu para +' + mr.plus : 'Falhou. ' + mNome + ' continua +' + mr.plus;
+        rerenderKeepScroll(); focusAction('melhorar', id); break;
+      }
+      case 'vender': {
+        if (!ui.equip) break;
+        var sV = state;
+        persist();
+        if (state !== sV) break;
+        var vi = itemByUid(id);
+        if (!vi || isEquipped(id)) { rerenderKeepScroll(); break; }
+        var vp = GR.sellPrice(vi.id);
+        state.gold += vp;
+        state.items = state.items.filter(function (x) { return x.uid !== id; });
+        persist();
+        if (state !== sV) break;
+        ui.equip.undo = { item: vi, price: vp };
+        ui.equip.confirm = null;
+        ui.equip.msg = 'Vendida por ' + fmt(vp) + ' de Ouro';
+        rerenderKeepScroll(); focusAction('vender-desfazer'); break;
+      }
+      case 'vender-desfazer': {
+        if (!ui.equip || !ui.equip.undo) break;
+        var un = ui.equip.undo;
+        var sU = state;
+        persist();
+        if (state !== sU) break;
+        ui.equip.undo = null;
+        if (state.gold < un.price || itemByUid(un.item.uid)) { rerenderKeepScroll(); break; }
+        state.items.push(un.item);
+        state.gold -= un.price;
+        persist();
+        if (state !== sU) break;
+        ui.equip.msg = 'Venda desfeita: ' + GR.piece(un.item.id).name + ' voltou ao inventário';
+        rerenderKeepScroll(); break;
+      }
       case 'escolher':
         state = newState(id);
         persist();
@@ -2383,7 +2645,7 @@
   // Início (com suporte opcional a window.claude.hot)
   // ===========================================================================
   function snapshot() {
-    return { save: state, screen: (ui.screen === 'corrida' || ui.screen === 'resultado' || ui.screen === 'largada') ? 'estabulo' : ui.screen };
+    return { save: state, screen: (ui.screen === 'corrida' || ui.screen === 'resultado' || ui.screen === 'largada' || ui.screen === 'equipamento') ? 'estabulo' : ui.screen };
   }
 
   var started = false;
