@@ -69,7 +69,7 @@
  *   ausentes (ex.: pista sem `weather`) são sorteados pela seed.
  *
  * EXTRA (além do contrato): result.seed, result.conditions (normalizadas) e
- *   result.racerInfo[i] = { name, horseName, tactic, stats, affinity, form, disposicao }.
+ *   result.racerInfo[i] = { name, horseName, stats, skillChance }.
  * ============================================================================
  *
  * UMD: no browser vira window.RaceSim (precisa de window.GameData antes);
@@ -100,38 +100,27 @@
     exhaustPace: 0.75,
     minPace: 0.80,
     // ruído
-    formRange: 0.10,
     tickJitter: 0.006,
     startDelayMax: 0.6,
+    // blocos: rendimento na curva (Manejo) e na subida (Força), limitado a 1; subida gasta mais
+    curveBase: 0.82, curveRange: 0.15,
+    hillBase: 0.85, hillRange: 0.15, hillDrain: 0.30,
     // terreno / pelotão
-    hillSlow: 0.15, hillDrain: 0.30, forcaHillRelief: 0.7,
     forcaSurfRelief: 0.8,
     crowdRange: 2.5, crowdSlow: 0.03, forcaCrowdRelief: 0.8,
-    draftMin: 0.5, draftRange: 4.0, draftSave: 0.10,
+    draftMin: 0.5, draftRange: 4.0, draftSave: 0.10,   // vácuo: vale para todos
     rainSlow: 0.015, sunDrain: 1.04,
-    // afinidade de elemento: multiplica os status (n) e, além disso, uma fração dela vai direto na vMax
-    affinityStep: 0.04, affinityMin: 0.92, affinityMax: 1.08, affinityVel: 0.22, affinityVelNeg: 0,
+    // clima: dono multiplica os status por 1,05 (1,10 com skill de clima), penalizado por 0,95;
+    // weatherVel: fração extra do desvio que vai direto na vMax
+    weatherMult: 1.05, weatherMultDouble: 1.10, weatherVel: 0.22,
     // garra
     garraZone: 0.8,
     garraChanceBase: 0.10, garraChanceRange: 0.70, garraChanceMax: 0.95,
     garraBoostBase: 0.02, garraBoostRange: 0.16,
-    // táticas (fração s da vMax)
-    tactics: {
-      // early/mid/spurtCap: teto de ritmo por fase; earlyMargin/margin: quanto acima (>1) ou abaixo (<1)
-      // do ritmo sustentável o jóquei aceita correr; earlyBoost/kick: bônus grátis (número ou tabela por distância).
-      ponteiro: {
-        earlyEnd: 0.30, early: 1.00, earlyMargin: 99, mid: 0.97, spurtStart: 0.78, spurtCap: 1.00, margin: 1.00,
-        earlyBoost: { 1000: 1.03, 1600: 1.015, 2400: 1.00 }, kick: 1.00, garraBonus: 0.00, draft: false
-      },
-      perseguidor: {
-        earlyEnd: 0.30, early: 0.97, earlyMargin: 1.00, mid: 0.97, spurtStart: 0.72, spurtCap: 1.03, margin: 1.00,
-        earlyBoost: 1.00, kick: 1.00, garraBonus: 0.00, draft: true
-      },
-      arrancador: {
-        earlyEnd: 0.30, early: 0.93, earlyMargin: 0.96, mid: 0.95, spurtStart: 0.70, spurtCap: 1.06, margin: 0.96,
-        earlyBoost: 1.00, kick: { 1000: 1.00, 1600: 1.025, 2400: 1.05 }, garraBonus: 0.15, draft: true
-      }
-    },
+    // skills
+    lowStaminaAt: 0.20,
+    // ritmo único do jóquei (fração s da vMax): mid até spurtStart, depois sprint até spurtCap
+    pace: { mid: 0.97, spurtStart: 0.72, spurtCap: 1.03 },
     // Rating de Poder: peso de cada status efetivo (habilidades somam 20 × chance do gatilho)
     ratingW: { vel: 2.2, acel: 1.8, man: 1.6, est: 1.8, forca: 1.6, garra: 1.6, sorte: 0.8 },
     // chance de a skill disparar no gatilho: base da raridade + nível + sorte (teto 95%)
@@ -187,20 +176,6 @@
   function ratPow(x, exp) {
     if (typeof exp === 'number') return (exp % 1 === 0) ? powi(x, exp) : Math.pow(x, exp); // não-inteiro: não portátil
     return nthRoot(powi(x, exp[0]), exp[1]);
-  }
-  // valor de tuning que pode ser número ou tabela por distância {1000: x, 1600: y, 2400: z}
-  function byDist(v, D) {
-    if (v == null) return 1;
-    if (typeof v === 'number') return v;
-    if (v[D] != null) return v[D];
-    var keys = Object.keys(v).map(Number).sort(function (a, b) { return a - b; });
-    if (D <= keys[0]) return v[keys[0]];
-    if (D >= keys[keys.length - 1]) return v[keys[keys.length - 1]];
-    for (var i = 1; i < keys.length; i++) if (D < keys[i]) {
-      var a = keys[i - 1], b = keys[i];
-      return v[a] + (v[b] - v[a]) * (D - a) / (b - a);
-    }
-    return 1;
   }
   function r2(x) { return Math.round(x * 100) / 100; }
   function r3(x) { return Math.round(x * 1000) / 1000; }
@@ -416,7 +391,7 @@
   // ---------------------------------------------------------------------------
   // Simulação
   // ---------------------------------------------------------------------------
-  // Fração do trecho [from, to) que cai em blocos de subida (calço até a Tarefa 4).
+  // Fração do trecho [from, to) que cai em blocos de subida (usada na estimativa de gasto do jóquei).
   function hillFraction(blocks, from, to) {
     if (to <= from) return 0;
     var len = 0;
@@ -437,53 +412,75 @@
     return nthRoot(x, T.drainExp - 1);
   }
 
+  // Multiplicador de clima de um elemento: dono do clima => T.weatherMult (T.weatherMultDouble
+  // com skill de clima ativa); elemento penalizado => 2 - T.weatherMult (0,95); senão 1.
+  function weatherMult(element, weather, doubled) {
+    var w = GameData.WEATHERS[weather];
+    var el = GameData.ELEMENTS[element];
+    if (!w || !el) return 1;
+    if (el.weather === weather) return doubled ? T.weatherMultDouble : T.weatherMult;
+    if (w.penalizes === element) return 2 - T.weatherMult;
+    return 1;
+  }
+
+  // (Re)calcula os números do corredor que dependem do clima. Pode ser chamada de novo no meio da
+  // corrida (troca de clima, skill que dobra o bônus, bônus de Garra): só lê statsN e os totais.
+  function applyWeather(r, weather) {
+    var m = weatherMult(r.element, weather, r.weatherDouble);
+    if (m < 1 && r.ignoreWeatherPenalty) m = 1;   // item Capa: anula a penalidade
+    var sn = r.statsN;
+    r.weatherM = m;
+    r.vMax = (T.vBase + T.vRange * sn.vel * m) * (1 + T.weatherVel * (m - 1));
+    r.accel = T.aBase + T.aRange * sn.acel * m;
+    r.nf = sn.forca * m;
+    r.nm = sn.man * m;
+    var ng = sn.garra * m;
+    r.garraChance = clamp(T.garraChanceBase + T.garraChanceRange * ng + r.garraBonusTotal, 0, T.garraChanceMax);
+    r.garraBoost = 1 + T.garraBoostBase + T.garraBoostRange * ng + r.garraBoostBonusTotal;
+  }
+
+  // Ordem das chamadas de r.rng() (fluxo próprio de cada corredor; manter estável):
+  //   montagem: 1) startDelay, 2) jockeyErr;
+  //   por tick: 3) tentativas de skill (só quando um gatilho acontece; na ordem dos gatilhos
+  //   start/bloco/clima/lowStamina/final e, dentro de cada gatilho, na ordem da lista de skills),
+  //   4) sorteio da Garra (uma vez, ao cruzar garraZone), 5) jitter.
   function buildRacer(entry, index, cond, rng) {
     var horse = entry.horse;
     var itemId = entry.itemId || null;
     var item = itemId ? GameData.ITEMS[itemId] : null;
     var special = (item && item.special) || {};
     var stats = computeStats(horse, itemId);
-    var aff = { mult: 1, reasons: [] };   // calço: afinidade removida (Tarefa 4 limpa)
-    // afinidade de elemento multiplica todos os status efetivos nesta corrida
-    var am = aff.mult / 100;
-    var nv = stats.vel * am, na = stats.acel * am, ne = stats.est * am, nf = stats.forca * am, ng = stats.garra * am;
-    var form = 1 + (rng() + rng() - 1) * T.formRange;
-    var tactic = T.tactics[entry.tactic] ? entry.tactic : 'perseguidor';
+    var statsN = {};
+    for (var i = 0; i < STAT_KEYS.length; i++) statsN[STAT_KEYS[i]] = stats[STAT_KEYS[i]] / 100;
     var skills = (horse.skills || []).filter(function (id) { return !!GameData.SKILLS[id]; });
-    return {
+    var r = {
       index: index,
       name: entry.name || horse.name,
       horseName: horse.name,
-      tactic: tactic,
-      tac: T.tactics[tactic],
+      element: horse.element,
       stats: stats,
-      aff: aff,
-      form: form,
-      nf: nf,
-      vMax: (T.vBase + T.vRange * nv) * form * (1 + (aff.mult > 1 ? T.affinityVel : T.affinityVelNeg) * (aff.mult - 1)),
-      accel: T.aBase + T.aRange * na,
-      pool: (T.poolBase + T.poolEst * ne) * (special.staminaPoolMult || 1),
-      garraChance: clamp(T.garraChanceBase + T.garraChanceRange * ng + (special.garraChanceBonus || 0), 0, T.garraChanceMax),
-      garraBoost: 1 + T.garraBoostBase + T.garraBoostRange * ng,
-      startDelay: rng() * T.startDelayMax * (1 - 0.5 * clamp(na, 0, 1)),
-      jockeyErr: T.jockeyErrMin + rng() * (T.jockeyErrMax - T.jockeyErrMin) + (T.tactics[tactic].jockeyBias || 0),
+      statsN: statsN,
+      skillChance: skillChance(horse, stats),
+      pool: (T.poolBase + T.poolEst * statsN.est) * (special.staminaPoolMult || 1),   // tanque fixo (sem clima)
+      ignoreWeatherPenalty: !!special.ignoreWeatherPenalty,
+      garraBonusTotal: special.garraChanceBonus || 0,
+      garraBoostBonusTotal: 0,
+      weatherDouble: false,
+      extraDice: 0,
+      startDelay: rng() * T.startDelayMax * (1 - 0.5 * clamp(statsN.acel, 0, 1)),
+      jockeyErr: T.jockeyErrMin + rng() * (T.jockeyErrMax - T.jockeyErrMin),
       rng: rng,
       skills: skills,
-      fired: {},
+      started: false,
+      blockIdx: -1,
+      tried: {},
       effects: [],
       pos: 0, v: 0, stamina: 1,
       exhausted: false, finished: false, finishTime: null,
       garraRolled: false, garraMult: 1
     };
-  }
-
-  // "Forma do dia" em palavras (para a UI explicar zebras).
-  function dispositionFor(form) {
-    if (form >= 1.05) return 'Radiante';
-    if (form >= 1.02) return 'Animado';
-    if (form > 0.98) return 'Normal';
-    if (form > 0.95) return 'Sonolento';
-    return 'Indisposto';
+    applyWeather(r, cond.weather);
+    return r;
   }
 
   function simulate(config) {
@@ -491,6 +488,7 @@
     var seed = (config.seed >>> 0);
     var cond = normalizeConditions(config.conditions || randomConditions(seed), seed);
     var D = cond.distance;
+    var blocks = cond.blocks;
     var entries = config.racers || [];
     var n = entries.length;
     var dt = T.dt;
@@ -499,6 +497,8 @@
     var weatherDrain = cond.weather === 'sol' ? T.sunDrain : 1;
     var weatherSlow = cond.weather === 'chuva' ? (1 - T.rainSlow) : 1;
     var distDrain = ratPow(T.drainRefDist / D, T.drainDistExp); // pistas longas gastam menos por segundo (mas duram mais)
+    // clima vigente (a Tarefa 5 troca no meio da corrida e chama applyWeather de novo)
+    cond.weatherAtual = cond.weather;
 
     var R = [];
     for (var i = 0; i < n; i++) R.push(buildRacer(entries[i], i, cond, mulberry32(hash2(seed, i + 1))));
@@ -521,39 +521,40 @@
     }
     pushFrame(0);
 
-    // Ativação de habilidade
-    function fireSkill(r, id, t) {
+    // Uma tentativa por gatilho (por corrida; por bloco se blockScoped): sorteia contra r.skillChance.
+    function tryFire(r, id, t, pos, blockTo) {
       var sk = GameData.SKILLS[id];
-      r.fired[id] = true;
       var e = sk.effect || {};
+      var key = e.blockScoped ? id + '#' + r.blockIdx : id;
+      if (r.tried[key]) return;
+      r.tried[key] = true;
+      if (!(r.rng() < r.skillChance)) return;
       if (e.staminaRestore && !r.exhausted) r.stamina = Math.min(1, r.stamina + e.staminaRestore);
-      if (e.durationS) {
+      if (e.extraDice) r.extraDice += e.extraDice;
+      var reweather = false;
+      if (e.garraChanceBonus) { r.garraBonusTotal += e.garraChanceBonus; reweather = true; }
+      if (e.garraBoostBonus) { r.garraBoostBonusTotal += e.garraBoostBonus; reweather = true; }
+      if (e.weatherDouble) { r.weatherDouble = true; reweather = true; }
+      if (reweather) applyWeather(r, cond.weatherAtual);
+      if (e.speedMult || e.accelMult || e.drainMult || e.curveBonus || e.hillBonus || e.hillDrainMult) {
         r.effects.push({
-          until: t + e.durationS,
+          untilT: e.durationS ? t + e.durationS : null,
+          untilPos: e.distanceM ? pos + e.distanceM : (e.blockScoped ? blockTo : null),
           speedMult: e.speedMult || 1,
           accelMult: e.accelMult || 1,
-          drainMult: e.staminaDrainMult || 1
+          drainMult: e.drainMult || 1,
+          curveBonus: e.curveBonus || 0,
+          hillBonus: e.hillBonus || 0,
+          hillDrainMult: e.hillDrainMult || 1
         });
       }
       ev(t, r.index, 'skill', r.label + ' ativou ' + sk.name + '!');
     }
 
-    function checkSkills(r, t, p, rank, nRacers) {
+    // Tenta todas as skills do corredor com o gatilho dado (na ordem da lista).
+    function trigger(r, trig, t, pos, blockTo) {
       for (var s = 0; s < r.skills.length; s++) {
-        var id = r.skills[s];
-        if (r.fired[id]) continue;
-        var trig = GameData.SKILLS[id].trigger;
-        var ok = false;
-        if (trig === 'start') ok = true;
-        else if (trig === 'final') ok = p >= T.garraZone;
-        else if (trig === 'midrace') ok = p >= 0.5;
-        else if (trig === 'lowStamina') ok = r.stamina <= 0.25 && !r.exhausted;
-        else if (trig === 'hill') ok = cond.blocks[blockAt(cond.blocks, r.pos)].type === 'subida';
-        else if (trig === 'behind') ok = p >= 0.6 && rank >= Math.ceil(nRacers / 2);
-        else if (trig.indexOf('weather:') === 0) ok = trig.slice(8) === cond.weather;
-        else if (trig.indexOf('surface:') === 0) ok = trig.slice(8) === cond.surface;
-        if (ok) fireSkill(r, id, t);
-        else if (trig.indexOf('weather:') === 0 || trig.indexOf('surface:') === 0) r.fired[id] = true; // nunca vai disparar
+        if (GameData.SKILLS[r.skills[s]].trigger === trig) tryFire(r, r.skills[s], t, pos, blockTo);
       }
     }
 
@@ -575,8 +576,6 @@
       for (i = 0; i < n; i++) prevPos[i] = R[i].pos;
       // ranking pelo snapshot (maior pos primeiro; empate: menor índice)
       order.sort(function (a, b) { return (prevPos[b] - prevPos[a]) || (a - b); });
-      var rankOf = new Array(n);
-      for (i = 0; i < n; i++) rankOf[order[i]] = i;
 
       for (i = 0; i < n; i++) {
         var r = R[i];
@@ -584,43 +583,61 @@
           r.v = Math.max(0, r.v - 8 * dt);
           continue;
         }
-        if (tPrev < r.startDelay) {
-          // ainda reagindo ao sinal de largada
-          if (!r.fired.__start) { r.fired.__start = true; checkSkills(r, tPrev, 0, rankOf[i], n); }
-          continue;
-        }
         var pos = prevPos[i];
+        if (!r.started) { r.started = true; trigger(r, 'start', tPrev, pos, null); }
+        if (tPrev < r.startDelay) continue;   // ainda reagindo ao sinal de largada
         var p = pos / D;
         var rem = D - pos;
-        checkSkills(r, tPrev, p, rankOf[i], n);
+
+        // gatilhos de bloco (checados antes de mover, com o bloco de `pos`)
+        var bi = blockAt(blocks, pos);
+        if (bi !== r.blockIdx) {
+          var prevB = r.blockIdx;
+          r.blockIdx = bi;
+          var bTo = blocks[bi].to;
+          if (prevB >= 0 && blocks[prevB].type === 'curva') trigger(r, 'curveExit', tPrev, pos, bTo);
+          if (blocks[bi].type === 'curva') trigger(r, 'curve', tPrev, pos, bTo);
+          else if (blocks[bi].type === 'subida') trigger(r, 'hill', tPrev, pos, bTo);
+          else if (bi > 0) trigger(r, 'straight', tPrev, pos, bTo);
+        }
+        var blk = blocks[r.blockIdx];
+        // clima (checado a cada tick: pode passar a valer quando o clima mudar)
+        trigger(r, 'weather:' + cond.weatherAtual, tPrev, pos, blk.to);
+        if (r.stamina <= T.lowStaminaAt && !r.exhausted) trigger(r, 'lowStamina', tPrev, pos, blk.to);
+        if (p >= T.garraZone) trigger(r, 'final', tPrev, pos, blk.to);
 
         // efeitos ativos
-        var effSpeed = 1, effAccel = 1, effDrain = 1;
+        var effSpeed = 1, effAccel = 1, effDrain = 1, curveBonus = 0, hillBonus = 0, hillDrainMult = 1;
         for (var e = 0; e < r.effects.length; e++) {
           var fx = r.effects[e];
-          if (tPrev < fx.until) { effSpeed *= fx.speedMult; effAccel *= fx.accelMult; effDrain *= fx.drainMult; }
+          if ((fx.untilT == null || tPrev < fx.untilT) && (fx.untilPos == null || pos < fx.untilPos)) {
+            effSpeed *= fx.speedMult; effAccel *= fx.accelMult; effDrain *= fx.drainMult;
+            curveBonus += fx.curveBonus; hillBonus += fx.hillBonus; hillDrainMult *= fx.hillDrainMult;
+          }
         }
 
         // Garra
         if (!r.garraRolled && p >= T.garraZone) {
           r.garraRolled = true;
-          if (r.rng() < Math.min(T.garraChanceMax, r.garraChance + r.tac.garraBonus)) {
+          if (r.rng() < r.garraChance) {
             r.garraMult = r.garraBoost;
             ev(tPrev, i, 'garra', r.label + ' mostrou GARRA na reta final!');
           }
         }
 
-        // terreno
-        var nf = clamp(r.nf, 0, 1.2);
+        // terreno e bloco
+        var nf = clamp(r.nf, 0, 1.2), nm = clamp(r.nm, 0, 1.2);
         var speedMod = weatherSlow;
         var drainMod = surf.drain * weatherDrain * distDrain * effDrain;
         speedMod *= 1 - surf.slow * (1 - T.forcaSurfRelief * nf);
-        var onHill = cond.blocks[blockAt(cond.blocks, pos)].type === 'subida';
-        if (onHill) {
-          speedMod *= 1 - T.hillSlow * (1 - T.forcaHillRelief * nf);
-          drainMod *= 1 + T.hillDrain * (1 - 0.5 * nf);
+        var fatorBloco = 1;
+        if (blk.type === 'curva') {
+          fatorBloco = Math.min(1, T.curveBase + T.curveRange * nm + curveBonus);
+        } else if (blk.type === 'subida') {
+          fatorBloco = Math.min(1, T.hillBase + T.hillRange * nf + hillBonus);
+          drainMod *= 1 + T.hillDrain * (1 - 0.5 * nf) * hillDrainMult;
         }
-        // pelotão e vácuo
+        // pelotão e vácuo (vácuo vale para todos)
         var neighbors = 0, drafting = false;
         for (var j = 0; j < n; j++) {
           if (j === i || R[j].finished) continue;
@@ -631,44 +648,36 @@
         if (neighbors > 0) {
           speedMod *= 1 - T.crowdSlow * Math.min(neighbors, 3) / 3 * (1 - T.forcaCrowdRelief * nf);
         }
-        if (drafting && r.tac.draft) drainMod *= 1 - T.draftSave;
+        if (drafting) drainMod *= 1 - T.draftSave;
 
-        // ritmo do jóquei
-        var tac = r.tac;
+        // ritmo do jóquei (perfil único)
         var s;
         if (r.exhausted) {
           s = T.exhaustPace;
         } else {
-          var hf = hillFraction(cond.blocks, pos, D);
-          var cEst = surf.drain * weatherDrain * distDrain * (1 + hf * T.hillDrain * (1 - 0.5 * nf));
+          var hf = hillFraction(blocks, pos, D);
+          // na subida o gasto por segundo é o da reta (sEff já desconta o fatorSubida), mas o trecho
+          // dura 1/fatorSubida a mais: o jóquei prevê isso na fração de subida restante
+          var fsH = Math.min(1, T.hillBase + T.hillRange * nf);
+          var cEst = surf.drain * weatherDrain * distDrain * (1 + hf * ((1 + T.hillDrain * (1 - 0.5 * nf)) / fsH - 1));
           var vRef = r.vMax * speedMod;
           var aff = affordablePace(r.stamina + r.jockeyErr - T.rationReserve, rem, vRef, r.pool, cEst);
-          if (p < tac.earlyEnd) {
-            s = Math.min(tac.early, aff * tac.earlyMargin);
-          } else if (p < tac.spurtStart) {
-            s = Math.min(tac.mid, aff * tac.margin);
-          } else {
-            s = Math.min(tac.spurtCap, aff);
-          }
+          s = Math.min(p < T.pace.spurtStart ? T.pace.mid : T.pace.spurtCap, aff);
           s = Math.max(s, T.minPace);
         }
 
-        // bônus "de graça" da tática (não gastam estamina): arrancada do ponteiro e explosão do arrancador
-        var tacBoost = 1;
-        if (!r.exhausted) {
-          if (p < tac.earlyEnd) tacBoost = byDist(tac.earlyBoost, D);
-          else if (p >= tac.spurtStart) tacBoost = byDist(tac.kick, D);
-        }
-        var boost = effSpeed * r.garraMult * tacBoost;
+        var boost = effSpeed * r.garraMult;
         var jitter = 1 + (r.rng() - 0.5) * T.tickJitter;
-        var vTarget = s * r.vMax * speedMod * boost * jitter;
+        var vTarget = s * r.vMax * speedMod * fatorBloco * boost * jitter;
 
         if (r.v < vTarget) r.v = Math.min(vTarget, r.v + r.accel * effAccel * dt);
         else r.v = Math.max(vTarget, r.v - T.decel * dt);
 
         // gasto de estamina (boosts não custam)
         if (!r.exhausted) {
-          var sEff = r.v / (r.vMax * boost);
+          // na subida o fatorBloco é esforço, não descanso: sem dividir por ele, quem é lento na
+          // subida gasta menos estamina e recupera no fim (o especialista de Força perdia na subida)
+          var sEff = r.v / (r.vMax * boost * (blk.type === 'subida' ? fatorBloco : 1));
           r.stamina -= T.drainK * powi(sEff, T.drainExp) * drainMod * dt / r.pool;
           if (r.stamina <= 0) {
             r.stamina = 0;
@@ -740,9 +749,7 @@
     // Extra (fora do contrato mínimo): resumo por corredor para dicas na UI.
     var racerInfo = R.map(function (r) {
       return {
-        name: r.name, horseName: r.horseName, tactic: r.tactic,
-        stats: r.stats, affinity: r.aff,
-        form: Math.round(r.form * 1000) / 1000, disposicao: dispositionFor(r.form)
+        name: r.name, horseName: r.horseName, stats: r.stats, skillChance: r.skillChance
       };
     });
 
@@ -767,6 +774,7 @@
     computeStats: computeStats,
     powerRating: powerRating,
     skillChance: skillChance,
+    weatherMult: weatherMult,
     learnSkill: learnSkill,
     leagueFor: leagueFor,
     randomConditions: randomConditions,
