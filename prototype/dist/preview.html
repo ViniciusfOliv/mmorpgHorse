@@ -1054,8 +1054,75 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       ownRegistration: 50, exchange: 50,
       stableSlotPrice: 300, stableSlotsStart: 3, stableSlotsMax: 8,
       levelSaturation: 30, mareWeight: 0.6
+    },
+    // Equipamento: preço por raridade, venda, pedras de reforço, +N e bônus de conjunto.
+    gear: {
+      price: { comum: 100, magico: 250, raro: 600, lendario: 1500 },
+      sellRate: 0.25, stonePrice: 40, stoneBundle: 5,
+      main: { comum: 2, magico: 3, raro: 4, lendario: 6 },
+      sub: { comum: 0, magico: 2, raro: 3, lendario: 4 },
+      plusMax: 10,
+      // Chance e custo (em pedras) de cada passo +0→+1 … +9→+10; falha derruba a partir de enhanceDropFrom.
+      enhanceChance: [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25],
+      enhanceCost: [1, 1, 1, 1, 1, 1, 2, 2, 2, 2],
+      enhanceDropFrom: 6,
+      setBonus: { pieces: [3, 4, 5], skillChance: 0.05, sorte: 5, ratingPts: [10, 15, 20] },
+      podiumStone: [0.6, 0.4, 0.25],
+      startGear: ['sela-comum', 'ferraduras-comum']
     }
   };
+
+  // ---------------------------------------------------------------------------------------------
+  // Equipamento: 5 slots por montaria. Cada peça dá um status principal e um secundário, definidos
+  // pelo slot (GEAR_SLOT_INFO) e pela raridade (ECONOMY.gear.main/sub).
+  //   id: '<slot>-<raridade>' (solta: Comum/Mágico) ou '<slot>-<conjunto>-<raridade>' (Raro/Lendário).
+  //   Conjuntos (sol/chuva/nevoa) dão bônus por nº de peças equipadas; Lendário não vai à loja.
+  // ---------------------------------------------------------------------------------------------
+  var GEAR_SLOTS = ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'];
+
+  var GEAR_SLOT_INFO = {
+    ferraduras: { name: 'Ferraduras', main: 'vel', sub: 'acel' },
+    sela: { name: 'Sela', main: 'est', sub: 'garra' },
+    estribos: { name: 'Estribos', main: 'man', sub: 'sorte' },
+    testeira: { name: 'Testeira', main: 'acel', sub: 'garra' },
+    armadura: { name: 'Armadura', main: 'forca', sub: 'est' }
+  };
+
+  var GEAR_SETS = {
+    sol: { id: 'sol', name: 'Sol', weather: 'sol', suffix: 'do Sol' },
+    chuva: { id: 'chuva', name: 'Chuva', weather: 'chuva', suffix: 'da Chuva' },
+    nevoa: { id: 'nevoa', name: 'Névoa', weather: 'nevoa', suffix: 'da Névoa' }
+  };
+
+  // Nomes das peças soltas por slot: [Comum, Mágico].
+  var GEAR_LOOSE_NAMES = {
+    ferraduras: ['Ferradura Leve', 'Ferradura com Cravos'],
+    sela: ['Sela de Couro Cru', 'Sela Acolchoada'],
+    estribos: ['Estribos de Corda', 'Esporas de Prata'],
+    testeira: ['Antolhos', 'Testeira de Couro'],
+    armadura: ['Manta de Lã', 'Capa Impermeável']
+  };
+
+  var GEAR = {};
+  (function () {
+    function add(slot, rarity, set, name) {
+      var id = slot + (set ? '-' + set : '') + '-' + rarity;
+      GEAR[id] = {
+        id: id, name: name, slot: slot, rarity: rarity, set: set,
+        main: ECONOMY.gear.main[rarity], sub: ECONOMY.gear.sub[rarity],
+        price: ECONOMY.gear.price[rarity], shop: rarity !== 'lendario'
+      };
+    }
+    GEAR_SLOTS.forEach(function (slot) {
+      add(slot, 'comum', null, GEAR_LOOSE_NAMES[slot][0]);
+      add(slot, 'magico', null, GEAR_LOOSE_NAMES[slot][1]);
+      Object.keys(GEAR_SETS).forEach(function (setId) {
+        var nome = GEAR_SLOT_INFO[slot].name + ' ' + GEAR_SETS[setId].suffix;
+        add(slot, 'raro', setId, nome);
+        add(slot, 'lendario', setId, nome);
+      });
+    });
+  })();
 
   var GameData = {
     version: '0.2-prototipo',
@@ -1068,6 +1135,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     BLOCK_TYPES: BLOCK_TYPES,
     SKILLS: SKILLS,
     ITEMS: ITEMS,
+    GEAR_SLOTS: GEAR_SLOTS,
+    GEAR_SLOT_INFO: GEAR_SLOT_INFO,
+    GEAR_SETS: GEAR_SETS,
+    GEAR: GEAR,
     STARTERS: STARTERS,
     WILD_HORSES: WILD_HORSES,
     BOT_NAMES: BOT_NAMES,

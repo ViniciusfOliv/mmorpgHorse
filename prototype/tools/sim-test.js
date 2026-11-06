@@ -314,5 +314,54 @@ test('snapshot dourado dos potros de exemplos.md', function () {
   });
 });
 
+section('equipamento: catálogo');
+test('5 slots com status principal e secundário', function () {
+  assert.deepStrictEqual(G.GEAR_SLOTS, ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura']);
+  assert.deepStrictEqual(G.GEAR_SLOT_INFO.ferraduras, { name: 'Ferraduras', main: 'vel', sub: 'acel' });
+  assert.deepStrictEqual(G.GEAR_SLOT_INFO.sela, { name: 'Sela', main: 'est', sub: 'garra' });
+  assert.deepStrictEqual(G.GEAR_SLOT_INFO.estribos, { name: 'Estribos', main: 'man', sub: 'sorte' });
+  assert.deepStrictEqual(G.GEAR_SLOT_INFO.testeira, { name: 'Testeira', main: 'acel', sub: 'garra' });
+  assert.deepStrictEqual(G.GEAR_SLOT_INFO.armadura, { name: 'Armadura', main: 'forca', sub: 'est' });
+  assert.deepStrictEqual(Object.keys(G.GEAR_SETS), ['sol', 'chuva', 'nevoa']);
+  assert.strictEqual(G.GEAR_SETS.nevoa.weather, 'nevoa');
+});
+test('40 peças, 25 à venda, ids e nomes', function () {
+  var ids = Object.keys(G.GEAR);
+  assert.strictEqual(ids.length, 40);
+  assert.strictEqual(ids.filter(function (id) { return G.GEAR[id].shop; }).length, 25);
+  ids.forEach(function (id) {
+    var p = G.GEAR[id];
+    assert.strictEqual(p.id, id);
+    assert.ok(/^(ferraduras|sela|estribos|testeira|armadura)(-(sol|chuva|nevoa))?-(comum|magico|raro|lendario)$/.test(id), id);
+    assert.ok(G.GEAR_SLOTS.indexOf(p.slot) >= 0 && G.RARITIES[p.rarity], id);
+    if (p.set) assert.ok(p.rarity === 'raro' || p.rarity === 'lendario', id + ' conjunto só Raro/Lendário');
+    else assert.ok(p.rarity === 'comum' || p.rarity === 'magico', id + ' solta só Comum/Mágico');
+    assert.strictEqual(p.shop, p.rarity !== 'lendario');
+  });
+  assert.deepStrictEqual(G.GEAR['sela-sol-raro'], { id: 'sela-sol-raro', name: 'Sela do Sol', slot: 'sela', rarity: 'raro', set: 'sol', main: 4, sub: 3, price: 600, shop: true });
+  assert.deepStrictEqual(G.GEAR['ferraduras-comum'], { id: 'ferraduras-comum', name: 'Ferradura Leve', slot: 'ferraduras', rarity: 'comum', set: null, main: 2, sub: 0, price: 100, shop: true });
+  assert.strictEqual(G.GEAR['armadura-chuva-lendario'].name, 'Armadura da Chuva');
+  assert.strictEqual(G.GEAR['armadura-chuva-lendario'].main, 6);
+  assert.strictEqual(G.GEAR['armadura-chuva-lendario'].sub, 4);
+  assert.strictEqual(G.GEAR['armadura-chuva-lendario'].price, 1500);
+  assert.strictEqual(G.GEAR['estribos-magico'].name, 'Esporas de Prata');
+  assert.strictEqual(G.GEAR['estribos-magico'].sub, 2);
+  assert.strictEqual(G.GEAR['testeira-nevoa-raro'].name, 'Testeira da Névoa');
+});
+test('ECONOMY.gear', function () {
+  var g = G.ECONOMY.gear;
+  assert.deepStrictEqual(g.price, { comum: 100, magico: 250, raro: 600, lendario: 1500 });
+  assert.strictEqual(g.sellRate, 0.25); assert.strictEqual(g.stonePrice, 40); assert.strictEqual(g.stoneBundle, 5);
+  assert.deepStrictEqual(g.main, { comum: 2, magico: 3, raro: 4, lendario: 6 });
+  assert.deepStrictEqual(g.sub, { comum: 0, magico: 2, raro: 3, lendario: 4 });
+  assert.strictEqual(g.plusMax, 10);
+  assert.deepStrictEqual(g.enhanceChance, [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25]);
+  assert.deepStrictEqual(g.enhanceCost, [1, 1, 1, 1, 1, 1, 2, 2, 2, 2]);
+  assert.strictEqual(g.enhanceDropFrom, 6);
+  assert.deepStrictEqual(g.setBonus, { pieces: [3, 4, 5], skillChance: 0.05, sorte: 5, ratingPts: [10, 15, 20] });
+  assert.deepStrictEqual(g.podiumStone, [0.6, 0.4, 0.25]);
+  assert.deepStrictEqual(g.startGear, ['sela-comum', 'ferraduras-comum']);
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
