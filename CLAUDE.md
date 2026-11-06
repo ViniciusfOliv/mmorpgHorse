@@ -38,7 +38,7 @@ Nada de polimento, servidor, contas ou loja ainda. Fases e checklist de lançame
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~25 s |
 | Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~1,5 min |
 | Teste de interface (Playwright) + capturas em `prototype/screens/` | `node prototype/tools/ui-test.mjs` | ~1,5 min |
-| **Verificação completa** (build + balanço + UI, sem tocar nas capturas) | `./scripts/check.sh` | ~2 min |
+| **Verificação completa** (build + testes unitários + balanço + UI, sem tocar nas capturas) | `./scripts/check.sh` | ~2,5 min |
 
 Abrir o jogo localmente: `prototype/dist/preview.html` no navegador.
 Capturas oficiais em `prototype/screens/` só são atualizadas quando a interface muda de propósito
@@ -77,6 +77,7 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
   cliente só anima). O `balance.js` verifica.
 - Resultado nunca é calculado/mostrado antes de a entrada ser paga; sala não pode ser re-sorteada
   de graça (o `ui-test.mjs` verifica).
+- Dado da Sorte e viradas de clima só com a RNG da seed (nada de `Math.random`).
 
 ## 9. Não faça
 - Não editar `prototype/dist/` à mão.

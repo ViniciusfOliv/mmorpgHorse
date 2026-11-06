@@ -647,7 +647,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 
   // ---------------------------------------------------------------------------
   // Habilidades
-  //   trigger: 'start' | 'straight' | 'curve' | 'curveExit' | 'hill' | 'lowStamina' (<=25%)
+  //   trigger: 'start' | 'straight' | 'curve' | 'curveExit' | 'hill' | 'lowStamina' (<=20%)
   //            | 'final' (últimos 20%) | 'dice' | 'weather:<sol|chuva|nevoa>'
   //   effect (chaves usadas):
   //     accelMult / speedMult: multiplicadores; drainMult: gasto de estamina;
@@ -688,7 +688,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     },
     'segundo-ar': {
       id: 'segundo-ar', name: 'Segundo Ar', element: 'neutro', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 25%, recupera 15%.',
+      desc: 'Quando a estamina cai a 20%, recupera 15%.',
       effect: { staminaRestore: 0.15 }
     },
     'arrancada-final': {
@@ -725,7 +725,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     },
     'mare-alta': {
       id: 'mare-alta', name: 'Maré Alta', element: 'agua', exclusive: 'mare', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 25%, a maré sobe: recupera 20% de estamina e ganha +3% de velocidade por 8s.',
+      desc: 'Quando a estamina cai a 20%, a maré sobe: recupera 20% de estamina e ganha +3% de velocidade por 8s.',
       effect: { staminaRestore: 0.20, speedMult: 1.03, durationS: 8 }
     },
     'canto-da-iara': {
@@ -1001,77 +1001,110 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 <script>
 /* src/sim.js */
 /*
- * MMORPG Horse — simulação de corrida (protótipo descartável).
+ * MMORPG Horse — simulação de corrida (protótipo descartável). Modelo v2 ("núcleo v2").
  *
  * RaceSim.simulate(config) é uma FUNÇÃO PURA e DETERMINÍSTICA de (config, seed):
  * sem Math.random, sem Date, sem estado global. O servidor simularia; o cliente só
  * anima os frames. No laço só há + - * / (raízes por Newton), então o resultado é
- * idêntico bit a bit em qualquer motor JS.
+ * idêntico bit a bit em qualquer motor JS. Mapa, Dado da Sorte e viradas de clima
+ * também saem só da seed.
  *
  * ============================== MODELO ======================================
  * Passo fixo dt = 0.1 s. RNG mulberry32; cada corredor tem um fluxo próprio
- * derivado de hash(seed, índice). Constantes em RaceSim.TUNING (ajustadas com
- * tools/balance.js).
+ * mulberry32(hash2(seed, índice+1)); o mapa usa hash2(seed, 0xC0FFEE) e o Dado da
+ * Sorte hash2(seed, 0xD1CE). Constantes em RaceSim.TUNING (ajustadas com
+ * tools/balance.js). Corrida = status + terreno + RNG, sem ruído escondido por
+ * corredor (a sorte "grande" é o Dado da Sorte, visível na pista).
  *
- * STATUS EFETIVOS (computeStats)
- *   status = base + pot*0.1 + (level-1) * (0.50 + 0.65*pot/31) * raridade.growth
- *   limitado a raridade.statCap; depois + bônus do elemento (+8 no status dele) e
- *   + mods do item. Na corrida, a AFINIDADE do elemento multiplica todos os status
- *   (cada regra ±4% × peso da regra; total limitado a 0,92–1,08) e, quando favorável,
- *   22% dela vai direto na vMax (afinidade +8% => vMax +1,8%). Sem isso, um único fator
- *   favorável (ex.: só a chuva para Água) quase não mudava a chance de vitória.
+ * STATUS (7, escala 1–100): vel, acel, man (Manobra), forca, est, garra, sorte.
+ *   computeStats: status = base + pot*0.1 + (level-1) * (0.50 + 0.65*pot/31) * raridade.growth,
+ *   limitado a raridade.statCap (Comum 60 … Mítico 100); depois + bônus do elemento (+8 no
+ *   status dele) e + mods do item; arredondado e limitado a 1–120. n(x) = status/100.
+ *   powerRating = 2,2·VEL + 1,8·ACE + 1,6·MAN + 1,8·EST + 1,6·FOR + 1,6·GAR + 0,8·SOR
+ *   + 20 × peso do gatilho por skill + especial do item (ligas em GameData.LEAGUES).
  *
- * POR CORREDOR (n(x) = status/100)
- *   vMax  = (16.8 + 2.2*n(vel)) * formaDoDia * (1 + 0.22*max(0, afinidade-1))   ~16,8–19 m/s
- *   accel = 0.6 + 2.4*n(acel) m/s²   (largada e retomadas; Aceleração encurta a reação)
- *   tanque de estamina = 66 + 20*n(est)
- *   formaDoDia: ruído triangular ±10% por corredor (racerInfo.disposicao). É a maior
- *   fonte de zebra: sem ele um Comum nunca venceria um Lendário.
+ * CLIMA (sol / chuva / nevoa / nublado). weatherMult(elemento, clima, dobrado):
+ *   dono do clima ×1,03 (T.weatherMult; ×1,10 = T.weatherMultDouble com a skill de clima
+ *   ativa), elemento penalizado ×0,97 (2 − weatherMult), resto e Nublado ×1. A Capa
+ *   Impermeável anula o ×0,97. applyWeather(r, clima) recalcula, com m = weatherMult:
+ *     vMax  = (17.2 + 2.2*n(vel)*m) * (1 + 0.10*(m-1))   (weatherVel: um extra direto na vMax)
+ *     accel = 0.6 + 2.4*n(acel)*m  m/s²   (largada e retomadas)
+ *     Força, Manobra e Garra efetivas = n(x)*m;  chance/força da Garra (abaixo).
+ *   O tanque NÃO depende do clima: tanque = (66 + 20*n(est)) * item.staminaPoolMult.
+ *   Efeitos gerais: sol => gasto ×1,04; chuva => todos −1,5% de velocidade.
+ *   É chamada de novo quando o clima vira, quando uma skill de clima dobra o bônus e quando
+ *   uma skill mexe na Garra; o que já foi gasto não muda.
+ *
+ * MAPA EM BLOCOS (randomConditions(seed)). Ordem das chamadas de rng():
+ *   1) distância D = 1000 + 100*floor(rng*15)  (1 000–2 400 m);  2) nº de blocos B = 5..9;
+ *   3) B pesos w = 0.5 + rng (fronteiras acumuladas D·Σw/total arredondadas a 10 m, o último
+ *   fecha em D);  4) tipo de cada bloco do meio (B−2, uniforme reta/curva/subida; o 1º e o
+ *   último são sempre reta);  5) piso (grama/terra/areia);  6) clima inicial (4 climas).
+ *   conditions = { distance, surface, weather, blocks: [{ type, from, to }] }. Campos ausentes
+ *   em config.conditions são sorteados pela seed (normalizeConditions).
+ *
+ * FATOR DO BLOCO (multiplica a velocidade-alvo; teto 1):
+ *   reta 1;  curva = min(1, 0.82 + 0.15*n(man) + bônus de skill)   (0,82–0,97);
+ *   subida = min(1, 0.85 + 0.15*n(forca) + bônus de skill)          (0,85–1,00).
+ *   Ao sair da curva/subida a velocidade volta com accel (Aceleração manda na retomada).
+ *
+ * VELOCIDADE-ALVO = s * vMax * piso * pelotão * chuva * fatorBloco * boosts * jitter(±0,3%)
+ *   piso: terra −3%, areia −6%, aliviado por Força em 50% × n(forca);
+ *   pelotão: até −3% com vizinhos a ≤2,5 m (Força alivia 80%). Sobe com accel, desce a 1,2 m/s².
+ *
+ * RITMO (fração s de vMax), um perfil só pelo "jóquei":
+ *   aff = ritmo constante que o tanque restante sustenta até o fim (forma fechada,
+ *   affordablePace); o jóquei lê o tanque com erro −2%..+6% (às vezes cansa) e guarda 3%.
+ *   s = min(0.97, aff) até 72% da pista, depois min(1.03, aff) (sprint); mínimo voluntário 0,80.
+ *   Na estimativa o jóquei prevê a subida restante: lá o trecho dura 1/fatorSubida a mais e
+ *   gasta ×(1 + 0.30*(1 − 0.5*n(forca))).
  *
  * ESTAMINA
- *   gasto/s = (v / tetoComBoosts)^4 * (1600/distância)^0.4 * mods / tanque
- *   mods: areia/terra, sol (+4%), subida (+30%, aliviada por Força), vácuo (−10%
- *   para perseguidor/arrancador a 0,5–4 m atrás de alguém), habilidades.
- *   Pistas longas apertam mais o tanque => Estamina pesa mais em 2400 m.
- *   Boosts de Garra, de habilidade e da tática elevam o teto SEM custo extra.
- *   Estamina 0 => ritmo cai para 75% até o fim + evento 'cansou'.
+ *   gasto/s = (v / (vMax*boosts*fatorSubida))^4 * (1600/D)^0.4 * mods / tanque
+ *   Na subida o esforço divide pelo fator da subida (subir é esforço, não descanso) e a
+ *   estimativa do jóquei prevê isso; nas curvas e retas o fator do bloco não entra.
+ *   mods: piso (terra ×1,05, areia ×1,12), sol ×1,04, subida ×(1 + 0.30*(1 − 0.5*n(forca))
+ *   × skill de subida), vácuo −10% (para todos, a 0,5–4 m atrás de alguém), skills.
+ *   Boosts (Garra, skills) elevam o teto SEM custo extra. Pistas longas apertam mais o tanque.
+ *   Estamina 0 => ritmo cai para 0,75 até o fim + evento 'cansou'.
  *
- * RITMO (fração s de vMax), pelo "jóquei"
- *   aff = ritmo constante que o tanque restante sustenta até o fim (forma fechada,
- *   affordablePace); o jóquei lê o tanque com um erro de −2%..+6% (às vezes cansa).
- *   ponteiro:    até 30% corre a 1.00 SEM economizar (+3% grátis em curta, +1,5% em média),
- *                depois min(0.97, aff), sprint até 1.00. Forte em curta, murcha em longa.
- *   perseguidor: min(0.97, aff) até 72%, sprint até 1.03. Ganha vácuo. Estável.
- *   arrancador:  guarda 4% (min(0.93/0.95, aff*0.96)) até 70%, sprint até 1.06 com
- *                explosão grátis (+0% curta, +2,5% média, +5% longa) e +15% de chance
- *                de Garra. Fraco em curta, forte em longa.
- *   Ritmo mínimo voluntário 0.80.
+ * GARRA: ao cruzar 80%, rola chance = min(0.95, 0.10 + 0.70*n(garra)*m + bônus de item/skill).
+ *   Sucesso: teto ×(1.02 + 0.16*n(garra)*m + bônus de skill) até a chegada. Evento 'garra'.
  *
- * VELOCIDADE-ALVO = s * vMax * terreno * pelotão * chuva * boosts * jitter(±0,3%)
- *   terreno: terra −3%, areia −6%, subida −15% (Força alivia 70–80%);
- *   pelotão: até −3% com vizinhos a ≤2,5 m (Força alivia 80%); chuva −1,5% para todos.
- *   A velocidade sobe com accel e desce a 1,2 m/s².
+ * SKILLS (gatilhos e efeitos em data.js). Quando o gatilho acontece, UMA tentativa contra
+ *   skillChance = min(0.95, raridade.skillChance + 0.005*(level−1) + 0.001*sorte)
+ *   (por corrida; por bloco se effect.blockScoped). Gatilhos: start (largada), straight (entrou
+ *   numa reta ≥150 m que não é a da largada), curve, curveExit, hill (entrou no bloco),
+ *   lowStamina (estamina ≤20%), final (cruzou 80%), dice (antes de cada Dado da Sorte),
+ *   weather:<clima> (checado a cada tick com o clima vigente). Chaves de effect: accelMult,
+ *   speedMult, drainMult (por distanceM ou durationS), curveBonus, hillBonus, hillDrainMult
+ *   (até o fim do bloco), staminaRestore, garraChanceBonus, garraBoostBonus, extraDice,
+ *   weatherDouble. Itens: mods + special (ignoreWeatherPenalty, garraChanceBonus,
+ *   staminaPoolMult). Evento 'skill'.
  *
- * GARRA: ao cruzar 80%, rola chance = 0.10 + 0.70*n(garra) (+ item, + tática).
- *   Sucesso: teto ×(1.02 + 0.16*n(garra)) até a chegada. Evento 'garra'.
- *
- * HABILIDADES: disparam 1 vez por corrida conforme trigger (ver data.js) e geram
- *   evento 'skill'. Itens: mods + special (ignoreWeatherPenalty, garraChanceBonus,
- *   staminaPoolMult).
+ * DADO DA SORTE: quando o líder cruza 1/3 e 2/3 de D (T.diceAt), todos rolam (inclusive quem
+ *   já chegou), no fluxo próprio do Dado. rollDice: d1 = 1..100; Sorte = chance de rolar um
+ *   segundo dado (sorte/100) e ficar com o melhor; Dado Viciado soma um dado extra (até 3).
+ *   Maior dado vence; empate no topo => re-rola só os empatados. O clima vira o do elemento do
+ *   vencedor (Fogo sol, Água chuva, Grama névoa); se já for esse ou o vencedor for Neutro, o
+ *   clima "segura". Eventos 'dado' { at, rolls, winner, weather, changed } e, se virou, 'clima'.
  *
  * EVENTOS: 'skill', 'garra', 'cansou' (estamina zerou faltando >2%), 'ultrapassagem'
  *   (troca de líder confirmada por 1,5 s, intervalo mínimo 4 s, após 12% da pista,
- *   antes do 1º chegar), 'chegada' (todos). Ordenados por t.
+ *   antes do 1º chegar), 'chegada' (todos), 'dado', 'clima'. Ordenados por t.
  *
  * FRAMES: um por tick, inclusive t=0. Depois da chegada pos fica = distance
  *   (pos === distance => chegou) e a velocidade cai a 0 em ~2 s. Simula até TODOS
  *   chegarem. config.recordFrames === false pula os frames (usado no balance.js).
  *
- * CONDIÇÕES: config.conditions é opcional (sem ela => randomConditions(seed)); campos
- *   ausentes (ex.: pista sem `weather`) são sorteados pela seed.
+ * RESULTADO: { seed, conditions (iniciais normalizadas), weatherFinal (clima depois dos
+ *   Dados), dt, duration, frames, events, finishOrder, finishTimes,
+ *   racerInfo[i] = { name, horseName, stats, skillChance } }.
  *
- * EXTRA (além do contrato): result.seed, result.conditions (normalizadas) e
- *   result.racerInfo[i] = { name, horseName, stats, skillChance }.
+ * ORDEM DAS CHAMADAS DE r.rng() (fluxo de cada corredor; manter estável):
+ *   montagem: 1) startDelay, 2) jockeyErr; por tick: 3) tentativas de skill (só quando um
+ *   gatilho acontece), 4) sorteio da Garra (uma vez, em 80%), 5) jitter; depois do movimento,
+ *   quando o Dado vai rolar: tentativa do gatilho 'dice'. Detalhes junto de buildRacer.
  * ============================================================================
  *
  * UMD: no browser vira window.RaceSim (precisa de window.GameData antes);

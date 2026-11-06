@@ -92,7 +92,7 @@
 
   // ---------------------------------------------------------------------------
   // Habilidades
-  //   trigger: 'start' | 'straight' | 'curve' | 'curveExit' | 'hill' | 'lowStamina' (<=25%)
+  //   trigger: 'start' | 'straight' | 'curve' | 'curveExit' | 'hill' | 'lowStamina' (<=20%)
   //            | 'final' (últimos 20%) | 'dice' | 'weather:<sol|chuva|nevoa>'
   //   effect (chaves usadas):
   //     accelMult / speedMult: multiplicadores; drainMult: gasto de estamina;
@@ -133,7 +133,7 @@
     },
     'segundo-ar': {
       id: 'segundo-ar', name: 'Segundo Ar', element: 'neutro', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 25%, recupera 15%.',
+      desc: 'Quando a estamina cai a 20%, recupera 15%.',
       effect: { staminaRestore: 0.15 }
     },
     'arrancada-final': {
@@ -170,7 +170,7 @@
     },
     'mare-alta': {
       id: 'mare-alta', name: 'Maré Alta', element: 'agua', exclusive: 'mare', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 25%, a maré sobe: recupera 20% de estamina e ganha +3% de velocidade por 8s.',
+      desc: 'Quando a estamina cai a 20%, a maré sobe: recupera 20% de estamina e ganha +3% de velocidade por 8s.',
       effect: { staminaRestore: 0.20, speedMult: 1.03, durationS: 8 }
     },
     'canto-da-iara': {

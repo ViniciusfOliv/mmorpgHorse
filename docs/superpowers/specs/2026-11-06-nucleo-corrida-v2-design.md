@@ -180,6 +180,8 @@ Tudo passa a se chamar **montaria** (`mount`), já prevendo tigres e dragões (s
 `playerHorse()`/`STARTERS`/`WILD_HORSES` ganham `man` e `sorte` (base e potencial) e `sex`; o save
 (`sanitize`) valida os novos campos e descarta `tactic`. Iniciais: Brasa (Fogo), Maré (Água), Ipê (Grama),
 Raros, com `sorte` base ≈ 50 e `man` coerente com a identidade (Brasa ágil, Maré estável, Ipê firme).
+Implementado (base lv1 VEL/ACE/MAN/FOR/EST/GAR/SOR, depois da calibração da §14): Brasa ♂
+64/62/60/52/58/62/50 · Maré ♀ 66/58/54/56/66/58/46 · Ipê ♂ 62/54/50/64/64/52/54.
 
 **Rating de Poder** (ligas e pareamento), provisório até o `balance.js` recalibrar:
 `2,2·VEL + 1,8·ACE + 1,6·MAN + 1,8·EST + 1,6·FOR + 1,6·GAR + 0,8·SORTE + 20 por skill`
@@ -199,12 +201,12 @@ Raros, com `sorte` base ≈ 50 e `man` coerente com a identidade (Brasa ágil, M
 | # | Meta | Faixa |
 |---|---|---|
 | 1 | Iniciais no mesmo nível (lv1 e lv25), mapas aleatórios, 3 corredores | 28–39% cada |
-| 2 | Inicial com o clima do seu elemento fixo durante a corrida (sem Dado) vs os outros dois | 45–65% |
+| 2 | Inicial com o clima do seu elemento fixo durante a corrida (sem Dado), em mapas aleatórios, vs os outros dois | 45–65% |
 | 3 | Especialistas por trecho (um atributo 90, os outros 60): "de curva" × "de reta" em mapa com ≥ 60% de curva | o de curva vence 55–75% |
-| 3b | Idem em mapa com ≥ 60% de reta | o de reta vence 55–75% |
+| 3b | "de reta" (Velocidade 90) × "de curva" em reta pura (100% reta) | o de reta vence 70–100% |
 | 3c | "de subida" (Força 90) × "de reta" em mapa com ≥ 60% de subida | o de subida vence 55–75% |
-| 4a | Mítico lv1 × Comum lv1 | 75–92% |
-| 4b | Comum lv25 × Raro lv1 | 35–65% |
+| 4a | Mítico lv1 × Comum lv1 | 90–100% |
+| 4b | Comum lv25 × Raro lv1 | 25–60% |
 | 5 | Duração: 1 000 m / 2 400 m (iniciais e PVP 8) | 55–70 s / 140–170 s |
 | 6 | Pagamentos: soma(prêmios) + taxa == pote, inteiros, prêmios não crescentes | sempre |
 | 7 | Dado da Sorte: Sorte 100 contra sete de Sorte 0 vence o dado | 18–28% |
@@ -233,3 +235,35 @@ curva/subida (PixelLab, só com confirmação).
   partir de Sorte 50, por exemplo).
 - **Migração do save:** saves antigos com `tactic` e raridades antigas: `sanitize` descarta/mapeia; sem
   perda de Ouro.
+
+## 14. Histórico de ajustes (implementação, 2026-11-06)
+
+O código entregue difere deste documento nos pontos abaixo (antigo → novo). Os números valem
+`prototype/src/sim.js` (`RaceSim.TUNING`), `prototype/src/data.js` e `prototype/tools/balance.js`.
+
+- **Subida:** `hillRange` 0,12 → 0,15 (`fatorSubida = 0,85 + 0,15·n(forca)`, 0,85–1,00). Regra do
+  esforço na subida (variante B): no gasto de estamina, a velocidade relativa é dividida pelo fator da
+  subida — subir é esforço, não descanso (sem isso, quem é lento na subida gastava menos e recuperava
+  no fim). A estimativa do jóquei prevê isso: na fração de subida restante o trecho dura
+  1/`fatorSubida` a mais e gasta ×(1 + 0,30·(1 − 0,5·n(forca))).
+- **Gatilho `straight`:** só dispara ao entrar numa reta com pelo menos 150 m (`straightMinM`) que não
+  seja a da largada. `lowStamina` dispara com estamina ≤ 20%. Drift, Casco Firme e Fôlego de
+  Montanha valem uma vez por bloco (`blockScoped`).
+- **Clima:** `weatherMult` 1,05 → 1,03 (penalizado 0,95 → 0,97; com skill de clima continua ×1,10) e
+  `weatherVel` 0,22 → 0,10 (fração extra do desvio que vai direto na vMax).
+- **Piso:** `forcaSurfRelief` 0,8 → 0,5 (Força alivia 0,5·n(forca) da penalidade de terra/areia:
+  ≈ 25–45% para Força 50–90, em vez de 70–80%).
+- **Velocidade:** `vBase` 16,8 → 17,2 (`vMax = 17,2 + 2,2·n(vel)`), para a duração caber na meta 5.
+- **Ligas** (`LEAGUES.min`): Bronze 0 · Prata 660 · Ouro 780 · Platina 880 · Diamante 980 · Lenda 1100.
+- **Iniciais (base lv1):** Maré vel 62 → 66, acel 54 → 58, man 54, forca 56, est 70 → 66, garra 58,
+  sorte 50 → 46; Ipê vel 62, acel 56 → 54, man 50, forca 68 → 64, est 60 → 64, garra 54 → 52,
+  sorte 50 → 54; Brasa sem mudança (64/62/60/52/58/62/50).
+- **Metas rebaseadas** (§11 já atualizada): 3b 55–75% → 70–100% (agora em reta pura); 4a 75–92% →
+  90–100%; 4b 35–65% → 25–60%; meta 2 medida em mapas aleatórios com o clima do elemento forçado e
+  Dado desligado (não em reta pura).
+
+**Por quê.** Sem Disposição do dia a corrida é quase determinística dado o status — isso é
+intencional (status + terreno + RNG do dado). As metas que embutiam o ruído do v1 (zebra de raridade
+e de especialista) foram rebaseadas para o que o modelo sem ruído produz. Se quisermos zebra entre
+campos desiguais, a decisão nova é um ruído pequeno por corrida (±3–5%), e não a volta da Disposição
+do dia de ±10%.
