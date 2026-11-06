@@ -6,7 +6,7 @@
  *
  * Sala de largada: o campo (seed, condições, rivais, entrada) é sorteado UMA vez e fica salvo em
  * state.pending até ser corrido. Voltar ao estábulo ou recarregar reabre a mesma sala (sem
- * re-sorteio grátis). O jogador escolhe tática e item já vendo as condições.
+ * re-sorteio grátis). O jogador escolhe o item já vendo o traçado e o clima.
  * A corrida é calculada por RaceSim.simulate (função pura da seed) só quando o jogador aperta
  * "Largar!", depois de pagar a entrada, como um servidor faria; a tela de corrida só anima os
  * frames. Ouro e XP são liquidados nesse momento: recarregar no meio da corrida não muda nada.
@@ -28,8 +28,7 @@
   // ===========================================================================
   var SAVE_KEY = 'galope-elemental:v1';
   var E = GD.ECONOMY;
-  var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'est', 'forca', 'garra'];
-  var TACTIC_IDS = ['ponteiro', 'perseguidor', 'arrancador'];
+  var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
   var START_INVENTORY = ['sela-couro', 'ferradura-leve', 'antolhos', 'capa-impermeavel'];
   var TRAINING_GOLD = [30, 22, 16, 12, 10, 10, 10, 10];
   var MIN_ENTRY = Math.min.apply(null, E.entryTiers);
@@ -151,7 +150,9 @@
     acel: ['....##..', '...##...', '..##....', '.######.', '....##..', '...##...', '..##....', '.#......'],
     est: ['........', '.##.##..', '#######.', '#######.', '.#####..', '..###...', '...#....', '........'],
     forca: ['........', '...#....', '..###...', '..####..', '.######.', '.#######', '########', '........'],
-    garra: ['...#..#.', '..#..#..', '..#..#.#', '.#..#..#', '.#..#.#.', '#..#..#.', '#..#.#..', '........']
+    garra: ['...#..#.', '..#..#..', '..#..#.#', '.#..#..#', '.#..#.#.', '#..#..#.', '#..#.#..', '........'],
+    man: ['..####..', '.#....#.', '#......#', '#.......', '#.....#.', '.#...###', '..#..#.#', '........'],
+    sorte: ['.##..##.', '#..##..#', '#..##..#', '.######.', '.######.', '#..##..#', '#..##..#', '.##..##.']
   };
   function statIcon(k) { return pixelSvg(STAT_ICON_ROWS[k] || STAT_ICON_ROWS.vel, 'icone-status icone-status--' + k); }
 
@@ -187,7 +188,7 @@
   function newState(starterId) {
     var idx = Math.max(0, GD.STARTERS.map(function (h) { return h.id; }).indexOf(starterId));
     return {
-      v: 1,
+      v: 2,
       rev: 0,
       starterId: GD.STARTERS[idx].id,
       level: 1,
@@ -195,7 +196,7 @@
       gold: E.startingGold,
       inventory: START_INVENTORY.filter(function (id) { return !!GD.ITEMS[id]; }),
       equipped: null,
-      tactic: 'perseguidor',
+      skills: GD.STARTERS[idx].skills.slice(),
       tier: E.entryTiers[0],
       seedBase: freshSeedBase(idx),
       raceCounter: 0,
@@ -215,7 +216,7 @@
     base.gold = num(s.gold, E.startingGold, 0, 1e9);
     if (Array.isArray(s.inventory)) base.inventory = s.inventory.filter(function (id) { return !!GD.ITEMS[id]; });
     base.equipped = (s.equipped && base.inventory.indexOf(s.equipped) >= 0) ? s.equipped : null;
-    base.tactic = TACTIC_IDS.indexOf(s.tactic) >= 0 ? s.tactic : 'perseguidor';
+    base.skills = validSkills(s.skills, s.starterId);   // save v1 (com tática, sem skills): tática é ignorada
     base.tier = E.entryTiers.indexOf(s.tier) >= 0 ? s.tier : E.entryTiers[0];
     base.seedBase = num(s.seedBase, base.seedBase, 0, 4294967295);
     base.raceCounter = num(s.raceCounter, 0, 0, 1e9);
@@ -233,11 +234,30 @@
     return base;
   }
 
+  // Skills salvas: só ids que o inicial pode ter (mesmas regras do RaceSim.learnSkill), sem repetir,
+  // até o nº de vagas da raridade. Ausente/vazio/inválido -> as skills de nascença do inicial.
+  function validSkills(list, starterId) {
+    var st = GD.STARTERS.filter(function (h) { return h.id === starterId; })[0] || GD.STARTERS[0];
+    var slots = (GD.RARITIES[st.rarity] || GD.RARITIES.comum).skillSlots;
+    var out = [];
+    if (Array.isArray(list)) {
+      list.forEach(function (id) {
+        var sk = typeof id === 'string' && Object.prototype.hasOwnProperty.call(GD.SKILLS, id) ? GD.SKILLS[id] : null;
+        if (!sk || out.indexOf(id) >= 0 || out.length >= slots) return;
+        if (sk.exclusive && sk.exclusive !== st.id) return;
+        if (sk.element !== 'neutro' && sk.element !== st.element) return;
+        out.push(id);
+      });
+    }
+    return out.length ? out : st.skills.slice();
+  }
+
   function playerHorse() {
     var base = GD.STARTERS.filter(function (h) { return h.id === state.starterId; })[0] || GD.STARTERS[0];
     var h = clone(base);
     h.level = state.level;
     h.xp = state.xp;
+    h.skills = state.skills.slice();
     return h;
   }
 
@@ -399,18 +419,6 @@
     });
     return parts.join(' ');
   }
-  function affinityLabel(rule) {
-    switch (rule.kind) {
-      case 'weather': return (GD.WEATHERS[rule.value] || {}).name || rule.value;
-      case 'distance': {
-        var d = GD.DISTANCES[rule.value];
-        return d ? 'Pista ' + d.name.toLowerCase() + ' (' + d.meters + ' m)' : rule.value + ' m';
-      }
-      case 'surface': return 'Piso de ' + ((GD.SURFACES[rule.value] || {}).name || rule.value).toLowerCase();
-      case 'hills': return 'Subidas';
-      default: return '';
-    }
-  }
   function xpHtml(level, xp) {
     var need = E.xpToLevel(level);
     var maxed = level >= (E.maxLevel || 50);
@@ -419,7 +427,6 @@
       (maxed ? 'Nível máximo' : fmt(xp) + ' / ' + fmt(need) + ' XP') + '</span></div>' +
       '<div class="barra barra--xp" role="img" aria-label="' + esc('Experiência ' + Math.round(pct) + '%') + '"><i style="width:' + (Math.round(pct / 5) * 5) + '%"></i></div></div>';
   }
-  function tacticName(id) { return (GD.TACTICS[id] || {}).name || id; }
   function itemName(id) { return id && GD.ITEMS[id] ? GD.ITEMS[id].name : 'Sem item'; }
   function skillHtml(id) {
     var sk = GD.SKILLS[id];
@@ -444,20 +451,11 @@
         '<span class="opcao-desc">' + rarityHtml(it.rarity) + '<span>' + esc(modsText(it.mods) || 'Efeito especial') + '</span></span></button>';
     }).join('');
   }
-  function tacticOptionsHtml() {
-    return TACTIC_IDS.map(function (id) {
-      return '<button type="button" class="btn opcao opcao--centro" data-acao="tatica" data-id="' + id + '" aria-pressed="' + (state.tactic === id) + '">' +
-        '<span class="opcao-nome">' + esc(tacticName(id)) + '</span></button>';
-    }).join('');
-  }
   function strategyHtml(idPrefix) {
     var eqItem = state.equipped ? GD.ITEMS[state.equipped] : null;
     return '<div class="tela-cabeca"><span class="rotulo" id="' + idPrefix + '-item">Item equipado</span>' +
         '<div class="opcoes opcoes--itens" role="group" aria-labelledby="' + idPrefix + '-item">' + itemOptionsHtml() + '</div>' +
-        '<p class="nota">' + esc(eqItem ? eqItem.name + ': ' + eqItem.desc : 'Sem item: status puros do cavalo.') + '</p></div>' +
-      '<div class="tela-cabeca"><span class="rotulo" id="' + idPrefix + '-tatica">Tática</span>' +
-        '<div class="opcoes opcoes--3" role="group" aria-labelledby="' + idPrefix + '-tatica">' + tacticOptionsHtml() + '</div>' +
-        '<p class="nota">' + esc(GD.TACTICS[state.tactic].desc) + '</p></div>';
+        '<p class="nota">' + esc(eqItem ? eqItem.name + ': ' + eqItem.desc : 'Sem item: status puros do cavalo.') + '</p></div>';
   }
 
   // ===========================================================================
@@ -517,8 +515,9 @@
       var stats = RS.computeStats(h, null);
       var el = GD.ELEMENTS[h.element];
       var rating = RS.powerRating(h, null);
-      var best = el.affinity.filter(function (r) { return r.sign > 0; }).map(affinityLabel).join(', ');
-      var worst = el.affinity.filter(function (r) { return r.sign < 0; }).map(affinityLabel).join(', ');
+      var best = el.weather && GD.WEATHERS[el.weather] ? GD.WEATHERS[el.weather].name + ' (+5%)' : '—';
+      var worst = Object.keys(GD.WEATHERS).filter(function (w) { return GD.WEATHERS[w].penalizes === h.element; })
+        .map(function (w) { return GD.WEATHERS[w].name + ' (−5%)'; }).join(', ') || '—';
       var bonus = el.statBonus ? '+' + el.statBonus.amount + ' de ' + GD.STATS[el.statBonus.stat].name : '—';
       return '<article class="caixa inicial" id="ini-' + esc(h.id) + '" aria-label="' + esc(h.name + ', ' + (idx + 1) + ' de ' + GD.STARTERS.length) + '">' +
         '<div class="retrato-palco">' + portraitHtml(h) + '<span class="contador">' + (idx + 1) + '/' + GD.STARTERS.length + '</span></div>' +
@@ -527,8 +526,8 @@
         '<div class="linha-meta">' + rarityHtml(h.rarity) + '<span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
         statsHtml(stats) +
         skillHtml(h.skills[0]) +
-        '<dl class="afinidade"><dt>Bônus</dt><dd>' + esc(bonus) + '</dd><dt>Melhor em</dt><dd class="mais">' + esc(best) +
-        '</dd><dt>Pior em</dt><dd class="menos-t">' + esc(worst) + '</dd></dl>' +
+        '<dl class="afinidade"><dt>Bônus</dt><dd>' + esc(bonus) + '</dd><dt>Clima bom</dt><dd class="mais">' + esc(best) +
+        '</dd><dt>Clima ruim</dt><dd class="menos-t">' + esc(worst) + '</dd></dl>' +
         '<button type="button" class="btn btn--ouro btn--grande" data-acao="escolher" data-id="' + esc(h.id) + '">Escolher ' + esc(h.name) + '</button>' +
         '</article>';
     }).join('');
@@ -538,10 +537,10 @@
     }).join('');
     return '<section class="tela tela--larga" aria-labelledby="t-inicial">' +
       '<header class="tela-cabeca"><h1 class="logo" id="t-inicial" tabindex="-1" data-foco>Galope Elemental</h1>' +
-      '<p class="sub">Escolha seu primeiro cavalo. Ele corre sozinho nas corridas valendo Ouro: você decide o item, a tática e a aposta antes da largada.</p></header>' +
+      '<p class="sub">Escolha seu primeiro cavalo. Ele corre sozinho nas corridas valendo Ouro: você decide o item e a aposta antes da largada.</p></header>' +
       '<div class="iniciais-nav" role="group" aria-label="Comparar os 3 iniciais">' + nav + '<span class="nota">Deslize para comparar</span></div>' +
       '<div class="iniciais">' + cards + '</div>' +
-      '<p class="nota">Elementos não batem de frente: Fogo, Água e Grama ganham ou perdem conforme o clima, o piso e a distância sorteados em cada corrida.</p>' +
+      '<p class="nota">Elementos não batem de frente: Fogo, Água e Grama ganham ou perdem conforme o clima de cada corrida, que pode virar no Dado da Sorte.</p>' +
       '</section>';
   }
 
@@ -610,13 +609,15 @@
           '<div class="linha-meta">' + elementHtml(h.element) + rarityHtml(h.rarity) + '</div>' +
           xpHtml(h.level, h.xp) +
           '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
+          '<div class="linha-meta"><span>' + (h.sex === 'f' ? '♀ Fêmea' : '♂ Macho') + '</span>' +
+            '<span>Skills: <b>' + Math.round(RS.skillChance(h, stats) * 100) + '%</b> de ativar</span></div>' +
         '</div></div>' +
         statsHtml(stats, baseStats) +
         h.skills.map(skillHtml).join('') +
       '</article>' +
       '<section class="caixa" aria-labelledby="t-preparar"><h2 class="titulo" id="t-preparar">Preparar corrida</h2>' +
         strategyHtml('r-est') +
-        '<p class="nota">Dá para trocar item e tática na sala de largada, já vendo pista e clima.</p>' +
+        '<p class="nota">Dá para trocar o item na sala de largada, já vendo o traçado e o clima.</p>' +
         '<div class="tela-cabeca"><span class="rotulo" id="r-entrada">Entrada da corrida</span>' +
           '<div class="opcoes opcoes--3 opcoes--tier" role="group" aria-labelledby="r-entrada">' + tierOpts + '</div>' +
           '<p class="nota">Todos pagam a mesma entrada; a casa fica com 10% do pote. Com 4–5 corredores pagam 1º e 2º (70/30); com 6–7, 1º/2º/3º (50/30/20); com 8, 60/25/15. Quem leva prêmio nunca sai no prejuízo.</p></div>' +
@@ -676,26 +677,13 @@
     var rng = RS.mulberry32(RS.hash2(seed, 0xA11CE)); // aleatoriedade só de UI/matchmaking, derivada da seed
 
     // pista
-    var cond, trackName, trackDesc = '';
-    if (rng() < 0.35) {
-      var tr = pick(GD.TRACK_EXAMPLES, rng);
-      cond = { distance: tr.distance, surface: tr.surface, weather: tr.weather, hills: tr.hills };
-      trackName = tr.name; trackDesc = tr.desc || '';
-    } else {
-      cond = RS.randomConditions(seed);
-      trackName = pick(TRACK_NAMES, rng);
-    }
-    var rnd = RS.randomConditions(seed);   // completa campos ausentes como o RaceSim faria
-    cond = {
-      distance: cond.distance || rnd.distance, surface: GD.SURFACES[cond.surface] ? cond.surface : rnd.surface,
-      weather: GD.WEATHERS[cond.weather] ? cond.weather : rnd.weather,
-      hills: (cond.hills || rnd.hills).map(function (h) { return [h[0], h[1]]; })
-    };
+    var cond = RS.randomConditions(seed), trackName = pick(TRACK_NAMES, rng), trackDesc = '';
+    withRanges(cond);
 
     var n = (E.minRacers || 4) + Math.floor(rng() * ((E.maxRacers || 8) - (E.minRacers || 4) + 1));
     var pr = P.pr;
     var player = {
-      isPlayer: true, name: PLAYER_NAME, horse: playerHorse(), itemId: state.equipped, tactic: state.tactic,
+      isPlayer: true, name: PLAYER_NAME, horse: playerHorse(), itemId: state.equipped,
       silks: PLAYER_SILKS, silkIdx: -1
     };
 
@@ -728,7 +716,7 @@
       var silkIdx = SP.SILKS.indexOf(BOT_SILKS[silkOrder[b % silkOrder.length]]);
       bots.push({
         isPlayer: false, name: names[b % names.length], horse: horse, itemId: itemId,
-        tactic: pick(TACTIC_IDS, rng), silks: SP.SILKS[silkIdx], silkIdx: silkIdx,
+        silks: SP.SILKS[silkIdx], silkIdx: silkIdx,
         rating: RS.powerRating(horse, itemId)
       });
     }
@@ -741,52 +729,61 @@
       racers: racers, playerIdx: playerIdx, sim: null
     };
   }
-  // o cavalo do jogador na sala reflete o item e a tática atuais
+  // trechos de subida/curva derivados dos blocos (só para desenhar: a simulação lê os blocos)
+  function withRanges(cond) {
+    cond.hills = RS.hillsFromBlocks(cond.blocks);
+    cond.curves = RS.curvesFromBlocks(cond.blocks);
+    return cond;
+  }
+  // o cavalo do jogador na sala reflete o item atual
   function refreshPlayerEntry(L) {
     var r = L.racers[L.playerIdx];
-    r.horse = playerHorse(); r.itemId = state.equipped; r.tactic = state.tactic;
+    r.horse = playerHorse(); r.itemId = state.equipped;
   }
 
   // ===========================================================================
   // Tela 3 — Sala de largada
   // ===========================================================================
+  function sharePct(cond) {
+    var out = {};
+    ['reta', 'curva', 'subida'].forEach(function (t) { out[t] = Math.round(RS.blockShare(cond.blocks, t) * 100); });
+    return out;
+  }
   function conditionChips(cond) {
-    var D = GD.DISTANCES[cond.distance];
-    var hills = cond.hills.length ? cond.hills.length + (cond.hills.length > 1 ? ' trechos' : ' trecho') : 'Nenhuma';
+    var sh = sharePct(cond);
     return '<div class="chips">' +
-      '<span class="chip"><span class="rotulo">Distância</span><b>' + esc(D ? D.name + ' · ' + D.meters + ' m' : cond.distance + ' m') + '</b></span>' +
+      '<span class="chip"><span class="rotulo">Distância</span><b>' + esc(cond.distance + ' m') + '</b></span>' +
       '<span class="chip"><span class="rotulo">Piso</span><b>' + esc(GD.SURFACES[cond.surface].name) + '</b></span>' +
-      '<span class="chip"><span class="rotulo">Clima</span><b>' + esc(GD.WEATHERS[cond.weather].name) + '</b></span>' +
-      '<span class="chip"><span class="rotulo">Subidas</span><b>' + esc(hills) + '</b></span></div>';
+      '<span class="chip"><span class="rotulo">Clima inicial</span><b>' + esc(GD.WEATHERS[cond.weather].name) + '</b></span>' +
+      '<span class="chip"><span class="rotulo">Traçado</span><b>' + esc(sh.reta + '% reta · ' + sh.curva + '% curva · ' + sh.subida + '% subida') + '</b></span></div>';
   }
 
   function strategyTips(L) {
     var tips = [];
-    var d = L.cond.distance;
-    if (d <= 1000) tips.push('Pista curta: o Ponteiro dispara e quase não cansa; o Arrancador tem pouco espaço para explodir.');
-    else if (d >= 2400) tips.push('Pista longa: o Arrancador guarda fôlego e explode no fim; o Ponteiro costuma cansar.');
-    else tips.push('Pista média: o Perseguidor é a escolha mais segura; as três táticas se equilibram.');
-    var h = playerHorse(), el = GD.ELEMENTS[h.element];
-    var pen = (el.affinity || []).filter(function (r) { return r.sign < 0 && r.kind === 'weather' && r.value === L.cond.weather; })[0];
-    var capa = state.inventory.filter(function (id) { var it = GD.ITEMS[id]; return it && it.special && it.special.ignoreWeatherPenalty; })[0];
-    if (pen && capa && state.equipped !== capa) tips.push(GD.ITEMS[capa].name + ' anula a penalidade de ' + GD.WEATHERS[L.cond.weather].name.toLowerCase() + ' para ' + el.name + '.');
-    if (L.cond.surface === 'areia' || L.cond.hills.length) tips.push('Areia e subidas pesam: Força ajuda (a Ferradura Leve tira Força).');
+    var sh = sharePct(L.cond);
+    if (sh.curva >= 40) tips.push('Muitas curvas: Manobra segura a velocidade na curva e na saída dela.');
+    if (sh.subida >= 30) tips.push('Muitas subidas: Força ajuda a não perder ritmo (a Ferradura Leve tira Força).');
+    if (L.cond.distance >= 2000) tips.push('Pista longa: Estamina segura o ritmo até o fim.');
+    var h = playerHorse();
+    if (RS.weatherMult(h.element, L.cond.weather, false) < 1) {
+      var capa = state.inventory.filter(function (id) { var it = GD.ITEMS[id]; return it && it.special && it.special.ignoreWeatherPenalty; })[0];
+      if (capa && state.equipped !== capa) tips.push('A ' + GD.ITEMS[capa].name + ' anula a penalidade de clima.');
+    }
     return tips;
   }
 
-  function affinityHints(L) {
+  function climaHints(L) {
     var h = playerHorse();
-    var el = GD.ELEMENTS[h.element];
-    var aff = RS.elementAffinity(h.element, L.cond, { itemId: state.equipped });
-    var items = aff.reasons.map(function (r) {
-      var cls = /anulado/.test(r) ? 'anulado' : (/\(\+/.test(r) ? 'bom' : 'ruim');
-      return '<li class="' + cls + '">' + esc(r) + '</li>';
-    });
-    if (!items.length) items.push('<li>' + esc(h.element === 'neutro' ? 'Neutro: sem bônus nem penalidade.' : 'Condições neutras para ' + el.name + '.') + '</li>');
-    var pct = Math.round((aff.mult - 1) * 100);
-    var head = 'Afinidade de ' + el.name + ': ' + (pct === 0 ? 'neutra' : pct > 0 ? 'favorável' : 'desfavorável');
+    var el = GD.ELEMENTS[h.element] || GD.ELEMENTS.neutro;
+    var w = GD.WEATHERS[L.cond.weather];
+    var m = RS.weatherMult(h.element, L.cond.weather, false);
+    var pct = Math.round((m - 1) * 100);
+    var eff = pct > 0 ? '+' + pct + '% para ' + el.name : pct < 0 ? '−' + Math.abs(pct) + '% para ' + el.name : 'neutro para ' + el.name;
+    var sorte = RS.computeStats(h, state.equipped).sorte;
+    var items = '<li' + (pct > 0 ? ' class="bom"' : pct < 0 ? ' class="ruim"' : '') + '>' + esc('Clima inicial ' + w.name + ': ' + eff) + '</li>' +
+      '<li class="dica">' + esc('Dado da Sorte a 1/3 e 2/3 da pista: quem tira o maior dado puxa o clima para o seu elemento. Sua Sorte: ' + sorte + '% de rolar dois dados.') + '</li>';
     var tips = strategyTips(L).map(function (t) { return '<li class="dica">' + esc(t) + '</li>'; }).join('');
-    return '<div class="tela-cabeca"><span class="rotulo">' + esc(head) + '</span><ul class="dicas">' + items.join('') + tips + '</ul></div>';
+    return '<div class="tela-cabeca"><span class="rotulo">Clima e sorte</span><ul class="dicas">' + items + tips + '</ul></div>';
   }
 
   function racerRow(r, i) {
@@ -796,7 +793,7 @@
       '<div class="corredor"><b>' + (r.isPlayer ? '<span class="tag-voce">VOCÊ</span>' : '') +
         '<span class="nome">' + esc(r.isPlayer ? h.name : r.name) + '</span></b>' +
         '<small>' + (r.isPlayer ? '' : '<span>' + esc(h.name) + '</span>') + elementHtml(h.element) + rarityHtml(h.rarity) +
-        '<span>Nv ' + h.level + '</span><span>' + esc(tacticName(r.tactic)) + '</span>' +
+        '<span>Nv ' + h.level + '</span>' +
         (r.itemId ? '<span>' + esc(itemName(r.itemId)) + '</span>' : '') + '</small></div>' +
       '<div class="poder"><b>' + rating + '</b><small>Poder</small></div></li>';
   }
@@ -833,8 +830,9 @@
         '<h1 class="titulo titulo--tela" id="t-largada" tabindex="-1" data-foco>' + esc(L.trackName) + '</h1>' +
         (L.trackDesc ? '<p class="nota">' + esc(L.trackDesc) + '</p>' : '') + '</header>' +
       '<section class="caixa" aria-label="Condições da pista">' + conditionChips(L.cond) +
-        '<canvas class="perfil" data-perfil="1" role="img" aria-label="' + esc('Perfil da pista de ' + D + ' metros' + (L.cond.hills.length ? ' com subidas' : ', plana')) + '"></canvas>' +
-        affinityHints(L) + '</section>' +
+        '<canvas class="perfil" data-perfil="1" role="img" aria-label="' + esc('Mapa da pista de ' + D + ' metros em ' + L.cond.blocks.length + ' trechos: ' +
+          L.cond.blocks.map(function (bl) { return GD.BLOCK_TYPES[bl.type].name.toLowerCase(); }).join(', ')) + '"></canvas>' +
+        climaHints(L) + '</section>' +
       '<section class="caixa" aria-labelledby="t-estrategia"><h2 class="titulo" id="t-estrategia">Sua estratégia</h2>' +
         strategyHtml('r-sala') + '</section>' +
       '<section class="caixa" aria-labelledby="t-corredores"><h2 class="titulo" id="t-corredores">Corredores<span class="nota">' + L.n + ' na raia</span></h2>' +
@@ -844,7 +842,8 @@
       '</section>';
   }
 
-  // Perfil da pista: faixa do piso com morros nas subidas, marcas de distância, largada e chegada.
+  // Mapa da pista: faixa colorida por bloco (reta na cor do piso, curva e subida na cor do tipo), morros nas
+  // subidas, marcas de distância, largada e chegada.
   // Os rótulos de distância ficam abaixo da faixa, sobre o painel, com contraste de texto.
   function drawProfileCanvas(cv) {
     var L = ui.lobby; if (!L) return;
@@ -869,7 +868,8 @@
     }
     for (var x = x0; x <= x1; x++) {
       var m = (x - x0) / (x1 - x0) * D, hh = hillH(m);
-      R(x, base - hh, 1, bandBottom - (base - hh), surf);
+      var bt = cond.blocks[RS.blockAt(cond.blocks, m)].type;
+      R(x, base - hh, 1, bandBottom - (base - hh), bt === 'reta' ? surf : GD.BLOCK_TYPES[bt].color);
       R(x, base - hh, 1, 1, hh > 0 ? C.ouro : C.texto);
     }
     var every = D <= 1000 ? 100 : 200;
@@ -882,11 +882,18 @@
     for (var fy = 4; fy < bandBottom; fy += 2) { R(x1, fy, 2, 1, (fy / 2) % 2 ? C.sombra : C.texto); R(x1 + 2, fy, 2, 1, (fy / 2) % 2 ? C.texto : C.sombra); }
     SP.drawText(ctx, '0', x0 * k, 30 * k, { scale: k, color: C.texto });
     SP.drawText(ctx, D + 'm', (x1 + 3) * k, 30 * k, { scale: k, color: C.texto, align: 'right' });
-    if (!cond.hills.length) SP.drawText(ctx, 'PISTA PLANA', Math.round((x0 + x1) / 2) * k, 10 * k, { scale: k, color: C.texto2, align: 'center' });
-    cond.hills.forEach(function (hl) {
-      var cx = Math.round(x0 + (hl[0] + hl[1]) / 2 / D * (x1 - x0));
-      SP.drawText(ctx, 'SUBIDA', cx * k, 3 * k, { scale: k, color: C.ouro, align: 'center' });
-    });
+    // rótulos sobre os trechos; um rótulo que encostaria no anterior da mesma linha é omitido (a cor já diz o tipo)
+    function labels(ranges, text, y, color) {
+      var tw = SP.measureText ? SP.measureText(text, 1) : text.length * 4, lastRight = -Infinity;
+      ranges.forEach(function (rg) {
+        var cx = Math.round(x0 + (rg[0] + rg[1]) / 2 / D * (x1 - x0));
+        if (cx - tw / 2 < lastRight + 3) return;
+        lastRight = cx + tw / 2;
+        SP.drawText(ctx, text, cx * k, y * k, { scale: k, color: color, align: 'center' });
+      });
+    }
+    labels(cond.hills, 'SUBIDA', 3, C.ouro);
+    labels(cond.curves, 'CURVA', 10, GD.BLOCK_TYPES.curva.color);
   }
 
   // ===========================================================================
@@ -898,10 +905,10 @@
       seed: L.seed,
       conditions: L.cond,
       racers: L.racers.map(function (r) {
-        return { horse: r.horse, itemId: r.itemId, tactic: r.tactic, name: r.name, isPlayer: r.isPlayer };
+        return { horse: r.horse, itemId: r.itemId, name: r.name, isPlayer: r.isPlayer };
       })
     });
-    L.cond = L.sim.conditions;
+    L.cond = withRanges(L.sim.conditions);
     var order = L.sim.finishOrder;
     var place = order.indexOf(L.playerIdx) + 1;
     var hBefore = playerHorse();
@@ -926,6 +933,13 @@
       levels += 1;
     }
     if (state.level >= (E.maxLevel || 50)) state.xp = Math.min(state.xp, E.xpToLevel(state.level));
+    // cada nível ganho pode ensinar uma skill (sorteio determinístico pela seed do save e do páreo)
+    var learned = [];
+    for (var k = 1; k <= levels; k++) {
+      var lrng = RS.mulberry32(RS.hash2(state.seedBase, state.raceCounter * 100 + (state.level - levels + k)));
+      var sid = RS.learnSkill(playerHorse(), lrng);
+      if (sid) { state.skills.push(sid); learned.push(sid); }
+    }
     state.races += 1;
     if (place === 1) state.wins += 1;
     if (place <= 3) state.podiums += 1;
@@ -936,7 +950,7 @@
     var hAfter = playerHorse();
     return {
       place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay,
-      xpGain: xpGain, levels: levels,
+      xpGain: xpGain, levels: levels, learned: learned,
       before: before,
       after: { level: state.level, xp: state.xp, gold: state.gold, stats: RS.computeStats(hAfter, null) }
     };
@@ -1500,7 +1514,7 @@
         '<td><div class="quem"><b>' + laneChip(r, ri, 'raia--mini') + esc(r.horse.name) +
         (r.isPlayer ? ' <span class="tag-voce">VOCÊ</span>' : '') + '</b>' +
         (r.isPlayer ? '' : '<small>' + esc(r.name) + '</small>') +
-        '<small>' + esc(tacticName(r.tactic) + (info ? ' · forma ' + info.disposicao.toLowerCase() : '')) + '</small></div></td>' +
+        '<small>' + esc('Nv ' + r.horse.level + (info ? ' · skills ' + Math.round(info.skillChance * 100) + '%' : '')) + '</small></div></td>' +
         '<td class="num"><span class="tempo">' + fmtSec(t) + '</span><small>' + gap + '</small></td><td class="num">' + prize + '</td></tr>';
     }).join('');
 
@@ -1515,7 +1529,7 @@
       '<section class="caixa" aria-labelledby="t-chegada"><h2 class="titulo" id="t-chegada">Ordem de chegada</h2>' +
         '<div class="rolagem"><table class="tabela"><thead><tr><th>Pos</th><th>Cavalo</th><th class="num">Tempo</th><th class="num">Prêmio</th></tr></thead>' +
         '<tbody>' + rows + '</tbody></table></div>' +
-        '<p class="nota">"Forma" é a disposição do cavalo no dia: varia até 10% na velocidade e explica as zebras.</p></section>' +
+        '</section>' +
       '</section>';
   }
 
@@ -1547,8 +1561,6 @@
       }
       case 'item':
         state.equipped = id || null; persist(); rerenderKeepScroll(); break;
-      case 'tatica':
-        state.tactic = id; persist(); rerenderKeepScroll(); break;
       case 'tier':
         if (state.pending) break;
         state.tier = Number(id); persist(); rerenderKeepScroll(); break;

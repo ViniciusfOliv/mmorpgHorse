@@ -115,6 +115,9 @@ try {
   await page.waitForSelector('#t-largada')
   const lobbyA = await page.evaluate(() => ({ seed: window.__galope.ui.lobby.seed, counter: window.__galope.ui.lobby.counter, sim: !!window.__galope.ui.lobby.sim, gold: window.__galope.state.gold }))
   if (lobbyA.sim) problems.push('sala de largada já tem o resultado antes do Largar!')
+  const mapa = await page.evaluate(() => ({ blocks: window.__galope.ui.lobby.cond.blocks ? window.__galope.ui.lobby.cond.blocks.length : 0, perfil: !!document.querySelector('.perfil') }))
+  if (mapa.blocks < 5 || mapa.blocks > 9) problems.push('sala: mapa com ' + mapa.blocks + ' blocos (esperado 5–9)')
+  if (!mapa.perfil) problems.push('sala: sem o desenho do mapa (.perfil)')
   await page.getByRole('button', { name: 'Voltar ao estábulo' }).click()
   await page.waitForSelector('#t-estabulo')
   await page.reload({ waitUntil: 'domcontentloaded' })
@@ -124,11 +127,10 @@ try {
   const lobbyB = await page.evaluate(() => ({ seed: window.__galope.ui.lobby.seed, counter: window.__galope.ui.lobby.counter, gold: window.__galope.state.gold }))
   if (lobbyA.seed !== lobbyB.seed || lobbyA.counter !== lobbyB.counter) problems.push(`voltar/recarregar re-sorteou a sala (${lobbyA.counter} -> ${lobbyB.counter})`)
   if (lobbyB.gold !== lobbyA.gold) problems.push('voltar à sala cobrou Ouro')
-  // tática e item na própria sala
-  await page.getByRole('group', { name: 'Tática' }).getByRole('button', { name: 'Ponteiro' }).click()
+  // item na própria sala
   await page.getByRole('group', { name: 'Item equipado' }).getByRole('button', { name: /Ferradura Leve/ }).click()
-  const strat = await page.evaluate(() => ({ tactic: window.__galope.state.tactic, item: window.__galope.state.equipped, row: document.querySelector('.programa li.voce').textContent }))
-  if (strat.tactic !== 'ponteiro' || strat.item !== 'ferradura-leve' || !/Ponteiro/.test(strat.row)) problems.push('sala: troca de tática/item não aplicou ' + JSON.stringify(strat))
+  const strat = await page.evaluate(() => ({ item: window.__galope.state.equipped, row: document.querySelector('.programa li.voce').textContent }))
+  if (strat.item !== 'ferradura-leve' || !/Ferradura Leve/.test(strat.row)) problems.push('sala: troca de item não aplicou ' + JSON.stringify(strat))
   await page.evaluate(() => window.scrollTo(0, 0))
   await sleep(300)
   await checkOverflow(page, 'largada')
@@ -179,7 +181,7 @@ try {
 
   // sem Ouro: oferece treino gratuito
   await page.evaluate(() => { window.__galope.state.gold = 20 })
-  await page.getByRole('button', { name: 'Ponteiro' }).first().click()   // re-renderiza o estábulo
+  await page.getByRole('button', { name: 'Sem item' }).first().click()   // re-renderiza o estábulo
   await page.waitForSelector('[data-acao="treino"]')
   await page.getByRole('button', { name: 'Treino gratuito' }).click()
   await page.waitForSelector('#t-largada')
@@ -190,6 +192,19 @@ try {
   if (!(trainGold > 20)) problems.push(`treino não pagou Ouro: ${trainGold}`)
   await page.context().close()
 
+  // save antigo (v1, com tática e sem skills) é lido e migrado
+  const oldCtx = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const old = await oldCtx.newPage()
+  old.on('console', (m) => { if (m.type() === 'error') problems.push(`[save-antigo] console: ${m.text()}`) })
+  old.on('pageerror', (e) => problems.push(`[save-antigo] pageerror: ${e.message}`))
+  const OLD_SAVE = '{"v":1,"rev":3,"starterId":"mare","level":4,"xp":10,"gold":777,"inventory":["sela-couro"],"equipped":null,"tactic":"ponteiro","tier":50,"seedBase":123,"raceCounter":2,"pending":null,"races":2,"wins":1,"podiums":1,"goldWon":100}'
+  await old.addInitScript((raw) => { window.localStorage.setItem('galope-elemental:v1', raw) }, OLD_SAVE)
+  await old.goto(URL, { waitUntil: 'domcontentloaded' })
+  await old.waitForSelector('#t-estabulo')
+  const mig = await old.evaluate(() => { const s = window.__galope.state; return { gold: s.gold, tactic: s.tactic, skills: JSON.stringify(s.skills) } })
+  if (mig.gold !== 777 || mig.tactic !== undefined || mig.skills !== '["mare-alta"]') problems.push('save antigo não migrou: ' + JSON.stringify(mig))
+  await oldCtx.close()
+
   // ---------------- desktop 1280x800 ----------------
   const desk = await newPage(browser, { width: 1280, height: 800 }, 'desktop')
   await desk.waitForSelector('.inicial')
@@ -197,7 +212,6 @@ try {
   await checkOverflow(desk, 'desktop-inicial')
   await desk.getByRole('button', { name: 'Escolher Maré' }).click()
   await desk.getByRole('button', { name: 'Procurar corrida' }).click()
-  await desk.getByRole('group', { name: 'Tática' }).getByRole('button', { name: 'Arrancador' }).click()
   await desk.getByRole('button', { name: /^Largar/ }).click()
   await desk.waitForSelector('#pista')
   await startCamMonitor(desk)

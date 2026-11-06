@@ -37,10 +37,10 @@
   --neutro: #cfc8b4;
   /* raridades (GameData.RARITIES) */
   --r-comum: #9e9e9e;
-  --r-incomum: #4caf50;
+  --r-magico: #4caf50;
   --r-raro: #2196f3;
-  --r-epico: #9c27b0;
   --r-lendario: #ff9800;
+  --r-mitico: #9c27b0;
   /* ligas (GameData.LEAGUES) */
   --l-bronze: #b0703c;
   --l-prata: #b8c2cc;
@@ -299,10 +299,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   padding: 1px 6px; color: var(--tinta); background: var(--r-comum); line-height: 1.5;
   box-shadow: inset 0 -2px 0 0 var(--escuro-25);
 }
-.raridade--incomum { background: var(--r-incomum); }
+.raridade--magico { background: var(--r-magico); }
 .raridade--raro { background: var(--r-raro); }
-.raridade--epico { background: var(--r-epico); color: var(--texto); }
 .raridade--lendario { background: var(--r-lendario); }
+.raridade--mitico { background: var(--r-mitico); color: var(--texto); }
 
 .liga { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
 .liga::before { content: ""; width: 10px; height: 10px; background: currentColor; box-shadow: 0 0 0 2px var(--sombra); }
@@ -389,10 +389,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .selvagem b { font-size: var(--t-m); }
 .selvagem .nota { font-size: var(--t-xs); line-height: 1.3; }
 .selvagem--comum { box-shadow: inset 0 -4px 0 0 var(--r-comum); }
-.selvagem--incomum { box-shadow: inset 0 -4px 0 0 var(--r-incomum); }
+.selvagem--magico { box-shadow: inset 0 -4px 0 0 var(--r-magico); }
 .selvagem--raro { box-shadow: inset 0 -4px 0 0 var(--r-raro); }
-.selvagem--epico { box-shadow: inset 0 -4px 0 0 var(--r-epico); }
 .selvagem--lendario { box-shadow: inset 0 -4px 0 0 var(--r-lendario); }
+.selvagem--mitico { box-shadow: inset 0 -4px 0 0 var(--r-mitico); }
 .aviso { background: var(--painel-2); padding: 10px 12px; color: var(--texto); font-size: var(--t-s); box-shadow: inset 4px 0 0 0 var(--ouro); margin: 0; }
 .aviso--perda { box-shadow: inset 4px 0 0 0 var(--perda); }
 .confirma { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
