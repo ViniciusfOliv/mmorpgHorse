@@ -14,6 +14,7 @@
 
 var G = require('../src/data.js');
 var S = require('../src/sim.js');
+var GR = require('../src/gear.js');
 
 var args = process.argv.slice(2);
 var QUICK = args.indexOf('--quick') >= 0;
@@ -62,8 +63,8 @@ function f2(x) { return x.toFixed(2).replace('.', ','); }
 function run(seed, conditions, racers) {
   return S.simulate({ seed: seed, conditions: conditions, racers: racers, recordFrames: false });
 }
-function racer(h, itemId, name) {
-  return { horse: h, itemId: itemId || null, name: name || h.name, isPlayer: false };
+function racer(h, gear, name) {
+  return { horse: h, gear: gear || null, name: name || h.name, isPlayer: false };
 }
 function mean(a) { var s = 0; for (var i = 0; i < a.length; i++) s += a[i]; return a.length ? s / a.length : 0; }
 function quant(a, q) { var b = a.slice().sort(function (x, y) { return x - y; }); return b.length ? b[Math.min(b.length - 1, Math.floor(q * b.length))] : 0; }
@@ -139,7 +140,7 @@ var r1b = test1(25, n(3000), false);
 
 log('## Relatório de balanceamento v2');
 log('');
-log('Gerado por `node tools/balance.js`' + (QUICK ? ' --quick' : '') + '. Mapas aleatórios em blocos (`randomConditions`), sem itens, salvo indicação. ' +
+log('Gerado por `node tools/balance.js`' + (QUICK ? ' --quick' : '') + '. Mapas aleatórios em blocos (`randomConditions`), sem equipamento, salvo indicação. ' +
   'Dado da Sorte ligado (1/3 e 2/3 da pista), exceto na seção 2.');
 log('');
 log('### 1. Iniciais no mesmo level, mapas aleatórios (meta: 28%–39% cada)');
@@ -394,14 +395,14 @@ log('');
 // 9) Determinismo
 // ---------------------------------------------------------------------------
 var detOk = true;
-var itemIds = Object.keys(G.ITEMS);
 function detConfig(seed) {
   var rng = S.mulberry32(seed);
   var rs = [];
   var m = 4 + Math.floor(rng() * 5);
   for (var q = 0; q < m; q++) {
     var h = ALL[Math.floor(rng() * ALL.length)];
-    rs.push({ horse: h, itemId: rng() < 0.6 ? itemIds[Math.floor(rng() * itemIds.length)] : null, name: G.BOT_NAMES[q], isPlayer: q === 0 });
+    var lg = Math.floor(rng() * 6);
+    rs.push({ horse: h, gear: rng() < 0.6 ? GR.botGear(lg, h.element, rng()) : null, name: G.BOT_NAMES[q], isPlayer: q === 0 });
   }
   return { seed: seed, conditions: S.randomConditions(S.hash2(seed, 99)), racers: rs };
 }
@@ -506,14 +507,14 @@ process.exit(failed.length ? 1 : 0);
 function exemplo() {
   var byId = {}; ALL.forEach(function (h) { byId[h.id] = h; });
   var field = [
-    { horse: clone(byId.ipe, 6), itemId: 'ferradura-cravos', name: 'Você', isPlayer: true },
-    { horse: clone(byId.brasa, 6), itemId: 'esporas-prata', name: G.BOT_NAMES[0], isPlayer: false },
-    { horse: clone(byId.mare, 6), itemId: 'manta-la', name: G.BOT_NAMES[1], isPlayer: false },
-    { horse: clone(byId['w-garoa']), itemId: null, name: G.BOT_NAMES[2], isPlayer: false },
-    { horse: clone(byId['w-ticao']), itemId: 'ferradura-leve', name: G.BOT_NAMES[3], isPlayer: false },
-    { horse: clone(byId['w-mandacaru']), itemId: 'sela-couro', name: G.BOT_NAMES[4], isPlayer: false },
-    { horse: clone(byId['w-ventania'], 4), itemId: null, name: G.BOT_NAMES[5], isPlayer: false },
-    { horse: clone(byId['w-pororoca'], 3), itemId: null, name: G.BOT_NAMES[6], isPlayer: false }
+    { horse: clone(byId.ipe, 6), gear: GR.botGear(2, 'grama', 0.5), name: 'Você', isPlayer: true },
+    { horse: clone(byId.brasa, 6), gear: GR.botGear(1, 'fogo', 0.5), name: G.BOT_NAMES[0], isPlayer: false },
+    { horse: clone(byId.mare, 6), gear: null, name: G.BOT_NAMES[1], isPlayer: false },
+    { horse: clone(byId['w-garoa']), gear: null, name: G.BOT_NAMES[2], isPlayer: false },
+    { horse: clone(byId['w-ticao']), gear: null, name: G.BOT_NAMES[3], isPlayer: false },
+    { horse: clone(byId['w-mandacaru']), gear: null, name: G.BOT_NAMES[4], isPlayer: false },
+    { horse: clone(byId['w-ventania'], 4), gear: null, name: G.BOT_NAMES[5], isPlayer: false },
+    { horse: clone(byId['w-pororoca'], 3), gear: null, name: G.BOT_NAMES[6], isPlayer: false }
   ];
   var si = args.indexOf('--seed');
   var seed = si >= 0 ? Number(args[si + 1]) : 20261119;
@@ -528,15 +529,15 @@ function exemplo() {
   lines.push('');
   cond.blocks.forEach(function (b) { lines.push('- ' + b.type + ' ' + b.from + '–' + b.to + ' m'); });
   lines.push('');
-  lines.push('| Raia | Jogador | Cavalo | Elem. | Rar. | Sexo | Lv | Item | VEL/ACE/MAN/FOR/EST/GAR/SOR | Rating | Skills % |');
+  lines.push('| Raia | Jogador | Cavalo | Elem. | Rar. | Sexo | Lv | Equip. | VEL/ACE/MAN/FOR/EST/GAR/SOR | Rating | Skills % |');
   lines.push('|---|---|---|---|---|---|---|---|---|---|---|');
   field.forEach(function (r, i) {
-    var s = S.computeStats(r.horse, r.itemId);
+    var s = S.computeStats(r.horse, r.gear);
     var ch = Math.round(100 * res.racerInfo[i].skillChance);
     var sk = (r.horse.skills || []).map(function (id) { return G.SKILLS[id].name; }).join(', ');
     lines.push('| ' + (i + 1) + ' | ' + r.name + ' | ' + r.horse.name + ' | ' + G.ELEMENTS[r.horse.element].name + ' | ' + G.RARITIES[r.horse.rarity].name + ' | ' +
-      (r.horse.sex === 'f' ? 'F' : 'M') + ' | ' + r.horse.level + ' | ' + (r.itemId ? G.ITEMS[r.itemId].name : '—') + ' | ' +
-      G.STAT_KEYS.map(function (k) { return s[k]; }).join('/') + ' | ' + S.powerRating(r.horse, r.itemId) + ' | ' +
+      (r.horse.sex === 'f' ? 'F' : 'M') + ' | ' + r.horse.level + ' | ' + (r.gear && r.gear.set && r.gear.set.count ? r.gear.set.id + ' ×' + r.gear.set.count : '—') + ' | ' +
+      G.STAT_KEYS.map(function (k) { return s[k]; }).join('/') + ' | ' + S.powerRating(r.horse, r.gear) + ' | ' +
       (sk ? sk + ' (' + ch + '%)' : '—') + ' |');
   });
   lines.push('');

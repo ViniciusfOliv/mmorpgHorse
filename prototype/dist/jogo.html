@@ -1172,18 +1172,18 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
  * STATUS (7, escala 1–100): vel, acel, man (Manobra), forca, est, garra, sorte.
  *   computeStats: status = base + pot*0.1 + (level-1) * (0.50 + 0.65*pot/31) * raridade.growth,
  *   limitado a raridade.statCap (Comum 60 … Mítico 100); depois + bônus do elemento (+8 no
- *   status dele) e + mods do item; arredondado e limitado a 1–120. n(x) = status/100.
+ *   status dele) e + mods do equipamento; arredondado e limitado a 1–120. n(x) = status/100.
  *   powerRating = 2,2·VEL + 1,8·ACE + 1,6·MAN + 1,8·EST + 1,6·FOR + 1,6·GAR + 0,8·SOR
- *   + 20 × peso do gatilho (skillWeight) por skill + especial do item (ligas em GameData.LEAGUES).
+ *   + 20 × peso do gatilho (skillWeight) por skill + pontos de conjunto 3/4/5 peças (10/15/20; ligas em GameData.LEAGUES).
  *
  * CLIMA (sol / chuva / nevoa / nublado). weatherMult(elemento, clima, dobrado):
  *   dono do clima ×1,03 (T.weatherMult; ×1,10 = T.weatherMultDouble com a skill de clima
- *   ativa), elemento penalizado ×0,97 (2 − weatherMult), resto e Nublado ×1. A Capa
- *   Impermeável anula o ×0,97. applyWeather(r, clima) recalcula, com m = weatherMult:
+ *   ativa), elemento penalizado ×0,97 (2 − weatherMult), resto e Nublado ×1. O equipamento
+ *   pode anular o ×0,97 (ignoreWeatherPenalty) ou dobrar o bônus de um clima (weatherDoubleClimate). applyWeather(r, clima) recalcula, com m = weatherMult:
  *     vMax  = (17.2 + 2.2*n(vel)*m) * (1 + 0.10*(m-1))   (weatherVel: um extra direto na vMax)
  *     accel = 0.6 + 2.4*n(acel)*m  m/s²   (largada e retomadas)
  *     Força, Manobra e Garra efetivas = n(x)*m;  chance/força da Garra (abaixo).
- *   O tanque NÃO depende do clima: tanque = (66 + 20*n(est)) * item.staminaPoolMult.
+ *   O tanque NÃO depende do clima: tanque = 66 + 20*n(est).
  *   Efeitos gerais: sol => gasto ×1,04; chuva => todos −1,5% de velocidade.
  *   É chamada de novo quando o clima vira, quando uma skill de clima dobra o bônus e quando
  *   uma skill mexe na Garra; o que já foi gasto não muda.
@@ -1232,8 +1232,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
  *   weather:<clima> (checado a cada tick com o clima vigente). Chaves de effect: accelMult,
  *   speedMult, drainMult (por distanceM ou durationS), curveBonus, hillBonus, hillDrainMult
  *   (até o fim do bloco), staminaRestore, garraChanceBonus, garraBoostBonus, extraDice,
- *   weatherDouble. Itens: mods + special (ignoreWeatherPenalty, garraChanceBonus,
- *   staminaPoolMult). Evento 'skill'.
+ *   weatherDouble. Equipamento: mods + special (skillChanceBonus,
+ *   weatherDoubleClimate, ignoreWeatherPenalty), vindo de Gear.resolve. Evento 'skill'.
  *
  * DADO DA SORTE: quando o líder cruza 1/3 e 2/3 de D (T.diceAt), todos rolam (inclusive quem
  *   já chegou), no fluxo próprio do Dado. rollDice: d1 = 1..100; Sorte = chance de rolar um
@@ -1378,11 +1378,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   // ---------------------------------------------------------------------------
   // Status
   // ---------------------------------------------------------------------------
-  function computeStats(horse, itemId) {
+  function computeStats(horse, gear) {
     var rar = GameData.RARITIES[horse.rarity] || GameData.RARITIES.comum;
     var lvl = clamp(Math.floor(horse.level || 1), 1, GameData.ECONOMY.maxLevel || 50);
     var el = GameData.ELEMENTS[horse.element];
-    var item = itemId ? GameData.ITEMS[itemId] : null;
+    // gear que não seja objeto com mods (null, string de save antigo) vale null
+    var mods = (gear && typeof gear === 'object' && gear.mods) ? gear.mods : null;
     var out = {};
     for (var i = 0; i < STAT_KEYS.length; i++) {
       var k = STAT_KEYS[i];
@@ -1392,13 +1393,13 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       var v = base + pot * T.potFlat + (lvl - 1) * growth;
       v = Math.min(v, rar.statCap);
       if (el && el.statBonus && el.statBonus.stat === k) v += el.statBonus.amount;
-      if (item && item.mods && item.mods[k]) v += item.mods[k];
+      if (mods && mods[k]) v += mods[k];
       out[k] = clamp(Math.round(v), 1, 120);
     }
     return out;
   }
 
-  // Rating de Poder: soma ponderada dos status efetivos + habilidades + especial do item.
+  // Rating de Poder: soma ponderada dos status efetivos + habilidades + pontos de conjunto.
   // Cada habilidade vale 20 × a chance de o gatilho disparar numa corrida típica: clima, piso e
   // subida só acontecem em ~1/3 das corridas, então valem ~1/3 (antes valiam 20 cheios e
   // inflavam o rating de Garoa, Mandacaru etc.).
@@ -1410,20 +1411,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     if (trig.indexOf('weather:') === 0) return 0.4;
     return SKILL_TRIGGER_WEIGHT[trig] != null ? SKILL_TRIGGER_WEIGHT[trig] : 1;
   }
-  function itemSpecialPoints(horse, itemId) {
-    var item = itemId ? GameData.ITEMS[itemId] : null;
-    var sp = item && item.special;
-    if (!sp) return 0;
-    var pts = 0;
-    if (sp.staminaPoolMult) pts += (sp.staminaPoolMult - 1) * 400;
-    if (sp.garraChanceBonus) pts += sp.garraChanceBonus * 120;
-    if (sp.ignoreWeatherPenalty) pts += 8;
-    return pts;
-  }
   // Chance de uma skill disparar quando o gatilho acontece.
-  function skillChance(horse, stats) {
+  function skillChance(horse, stats, bonus) {
     var rar = GameData.RARITIES[horse.rarity] || GameData.RARITIES.comum;
-    var c = rar.skillChance + T.skillPerLevel * ((horse.level || 1) - 1) + T.skillPerSorte * ((stats && stats.sorte) || 0);
+    var c = rar.skillChance + T.skillPerLevel * ((horse.level || 1) - 1) + T.skillPerSorte * ((stats && stats.sorte) || 0) + (bonus || 0);
     return Math.min(T.skillChanceMax, c);
   }
   // Sorteia uma skill nova ao subir de nível (ou null). Não muta a montaria.
@@ -1444,13 +1435,17 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     if (!cands.length) return null;
     return cands[Math.floor(rng() * cands.length)];
   }
-  function powerRating(horse, itemId) {
-    var s = computeStats(horse, itemId);
+  function powerRating(horse, gear) {
+    var s = computeStats(horse, gear);
     var skillPts = 0;
     (horse.skills || []).forEach(function (id) { skillPts += 20 * skillWeight(id); });
     var w = T.ratingW, sum = 0;
     for (var i = 0; i < STAT_KEYS.length; i++) sum += s[STAT_KEYS[i]] * w[STAT_KEYS[i]];
-    return Math.round(sum + skillPts + itemSpecialPoints(horse, itemId));
+    var setPts = 0;
+    if (gear && typeof gear === 'object' && gear.set && gear.set.count >= 3) {
+      setPts = GameData.ECONOMY.gear.setBonus.ratingPts[gear.set.count - 3] || 0;
+    }
+    return Math.round(sum + skillPts + setPts);
   }
 
   function leagueFor(rating) {
@@ -1620,8 +1615,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   // (Re)calcula os números do corredor que dependem do clima. Pode ser chamada de novo no meio da
   // corrida (troca de clima, skill que dobra o bônus, bônus de Garra): só lê statsN e os totais.
   function applyWeather(r, weather) {
-    var m = weatherMult(r.element, weather, r.weatherDouble);
-    if (m < 1 && r.ignoreWeatherPenalty) m = 1;   // item Capa: anula a penalidade
+    var m = weatherMult(r.element, weather, r.weatherDouble || r.gearDoubleClimate === weather);
+    if (m < 1 && r.ignoreWeatherPenalty) m = 1;   // equipamento: anula a penalidade
     var sn = r.statsN;
     r.weatherM = m;
     r.vMax = (T.vBase + T.vRange * sn.vel * m) * (1 + T.weatherVel * (m - 1));
@@ -1640,10 +1635,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   //   4) sorteio da Garra (uma vez, ao cruzar garraZone), 5) jitter.
   function buildRacer(entry, index, cond, rng) {
     var horse = entry.horse;
-    var itemId = entry.itemId || null;
-    var item = itemId ? GameData.ITEMS[itemId] : null;
-    var special = (item && item.special) || {};
-    var stats = computeStats(horse, itemId);
+    var gear = (entry.gear && typeof entry.gear === 'object' && entry.gear.mods) ? entry.gear : null;
+    var special = (gear && gear.special) || {};
+    var stats = computeStats(horse, gear);
     var statsN = {};
     for (var i = 0; i < STAT_KEYS.length; i++) statsN[STAT_KEYS[i]] = stats[STAT_KEYS[i]] / 100;
     var skills = (horse.skills || []).filter(function (id) { return !!GameData.SKILLS[id]; });
@@ -1654,10 +1648,11 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       element: horse.element,
       stats: stats,
       statsN: statsN,
-      skillChance: skillChance(horse, stats),
-      pool: (T.poolBase + T.poolEst * statsN.est) * (special.staminaPoolMult || 1),   // tanque fixo (sem clima)
+      skillChance: skillChance(horse, stats, special.skillChanceBonus || 0),
+      pool: T.poolBase + T.poolEst * statsN.est,   // tanque fixo (sem clima)
       ignoreWeatherPenalty: !!special.ignoreWeatherPenalty,
-      garraBonusTotal: special.garraChanceBonus || 0,
+      garraBonusTotal: 0,
+      gearDoubleClimate: special.weatherDoubleClimate || null,
       garraBoostBonusTotal: 0,
       weatherDouble: false,
       extraDice: 0,

@@ -104,7 +104,7 @@ test('normalizeConditions aceita blocos explícitos e completa o resto pela seed
 section('corrida');
 function mk(over) { var h = JSON.parse(JSON.stringify(G.WILD_HORSES[0])); h.rarity = 'mitico'; h.level = 1; h.element = 'neutro'; h.skills = [];
   G.STAT_KEYS.forEach(function (k) { h.base[k] = 60; h.potential[k] = 0; }); for (var k in over) h.base[k] = over[k]; return h; }
-function race(seed, cond, horses) { return S.simulate({ seed: seed, conditions: cond, recordFrames: false, racers: horses.map(function (h, i) { return { horse: h, itemId: null, name: 'r' + i, isPlayer: i === 0 }; }) }); }
+function race(seed, cond, horses) { return S.simulate({ seed: seed, conditions: cond, recordFrames: false, racers: horses.map(function (h, i) { return { horse: h, gear: null, name: 'r' + i, isPlayer: i === 0 }; }) }); }
 var CURVA = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 200 }, { type: 'curva', from: 200, to: 1400 }, { type: 'reta', from: 1400, to: 1600 }] };
 var RETA = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 1600 }] };
 var SUBIDA = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 200 }, { type: 'subida', from: 200, to: 1400 }, { type: 'reta', from: 1400, to: 1600 }] };
@@ -142,7 +142,7 @@ test('straight só dispara em reta de 150 m ou mais (e dispara na reta final lon
   var h = mk({ sorte: 100 }); h.level = 50; h.skills = ['sprint'];
   var fired = 0;
   for (var s = 0; s < 20; s++) {
-    var res = S.simulate({ seed: s, conditions: cond, recordFrames: true, racers: [h, mk({})].map(function (x, i) { return { horse: x, itemId: null, name: 'r' + i }; }) });
+    var res = S.simulate({ seed: s, conditions: cond, recordFrames: true, racers: [h, mk({})].map(function (x, i) { return { horse: x, gear: null, name: 'r' + i }; }) });
     var t600 = null; for (var f = 0; f < res.frames.length; f++) if (res.frames[f].pos[0] >= 600) { t600 = res.frames[f].t; break; }
     res.events.forEach(function (e) { if (e.type === 'skill' && e.racer === 0) assert.ok(e.t >= t600 - 0.1, 'seed ' + s + ': Sprint em t=' + e.t + ' antes de 600 m (t=' + t600 + ')'); });
     if (res.events.some(function (e) { return e.type === 'skill' && e.racer === 0 && e.t >= t600 - 0.1; })) fired++;
@@ -442,6 +442,54 @@ test('botGear por liga', function () {
 test('sellPrice e ratingPts', function () {
   assert.strictEqual(GR.sellPrice('sela-magico'), 63); assert.strictEqual(GR.sellPrice('armadura-sol-lendario'), 375); assert.strictEqual(GR.sellPrice('nada'), 0);
   assert.deepStrictEqual([0, 1, 2, 3, 4, 5, 6].map(GR.ratingPts), [0, 0, 0, 10, 15, 20, 0]);
+});
+
+section('equipamento: simulação');
+function cl(h) { return JSON.parse(JSON.stringify(h)); }
+test('computeStats soma mods do equipamento e limita a 120; string vale null', function () {
+  var h = cl(G.STARTERS[0]);
+  var base = S.computeStats(h, null);
+  var g = GR.resolve({ equip: { sela: 'i1' } }, { i1: { uid: 'i1', id: 'sela-sol-raro', plus: 10 } });
+  var s = S.computeStats(h, g);
+  assert.strictEqual(s.est, base.est + 14); assert.strictEqual(s.garra, base.garra + 3); assert.strictEqual(s.vel, base.vel);
+  assert.deepStrictEqual(S.computeStats(h, 'sela-couro'), base);
+  var big = { mods: { vel: 200, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 }, special: {}, set: { id: null, count: 0 }, pieces: [] };
+  assert.strictEqual(S.computeStats(h, big).vel, 120);
+});
+test('skillChance com bônus respeita o teto 0,95', function () {
+  var h = cl(G.STARTERS[0]); var st = S.computeStats(h, null);
+  assert.ok(Math.abs(S.skillChance(h, st, 0.05) - (S.skillChance(h, st) + 0.05)) < 1e-9);
+  h.rarity = 'mitico'; h.level = 50; st.sorte = 100;
+  assert.strictEqual(S.skillChance(h, st, 0.5), 0.95);
+});
+test('powerRating conta mods e pontos de conjunto', function () {
+  var h = cl(G.STARTERS[0]);
+  var items = {}; var equip = {};
+  ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'].forEach(function (sl, i) { items['i' + i] = { uid: 'i' + i, id: sl + '-sol-raro', plus: 0 }; equip[sl] = 'i' + i; });
+  var g5 = GR.resolve({ equip: equip }, items);
+  var g0 = GR.resolve({}, {});
+  var r5 = S.powerRating(h, g5), r0 = S.powerRating(h, g0);
+  assert.ok(r5 > r0 + 20, 'rating sobe com 5 Raras: ' + r0 + ' -> ' + r5);
+  var g3 = GR.resolve({ equip: { ferraduras: 'i0', sela: 'i1', estribos: 'i2' } }, items);
+  var statsOnly = S.powerRating(h, { mods: g3.mods, special: {}, set: { id: null, count: 0 }, pieces: [] });
+  assert.strictEqual(S.powerRating(h, g3) - statsOnly, 10);
+});
+test('5 peças Chuva anulam a penalidade do Fogo na chuva; 4 Sol dobram o Sol', function () {
+  var brasa = cl(G.STARTERS.filter(function (x) { return x.id === 'brasa'; })[0]);
+  function gearOf(set, n) { var items = {}, equip = {}; ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'].slice(0, n).forEach(function (sl, i) { items['i' + i] = { uid: 'i' + i, id: sl + '-' + set + '-raro', plus: 0 }; equip[sl] = 'i' + i; }); return GR.resolve({ equip: equip }, items); }
+  function mixed(n) { var sets = ['sol', 'chuva', 'nevoa', 'sol', 'chuva']; var items = {}, equip = {}; ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'].slice(0, n).forEach(function (sl, i) { items['i' + i] = { uid: 'i' + i, id: sl + '-' + sets[i] + '-raro', plus: 0 }; equip[sl] = 'i' + i; }); return GR.resolve({ equip: equip }, items); }
+  function wins(gA, gB, weather) {
+    var w = 0, saved = S.TUNING.diceAt; S.TUNING.diceAt = [];
+    for (var k = 0; k < 200; k++) {
+      var seed = S.hash2(777, k), cond = S.randomConditions(seed); cond.weather = weather;
+      var pair = k % 2 ? [gB, gA] : [gA, gB];
+      var res = S.simulate({ seed: seed, conditions: cond, recordFrames: false, racers: pair.map(function (g) { return { horse: brasa, gear: g, name: 'x', isPlayer: false }; }) });
+      if (pair[res.finishOrder[0]] === gA) w++;
+    }
+    S.TUNING.diceAt = saved; return w;
+  }
+  assert.ok(wins(gearOf('chuva', 5), mixed(5), 'chuva') >= 110, 'anula penalidade (≥55% de 200)');
+  assert.ok(wins(gearOf('sol', 4), mixed(4), 'sol') >= 110, 'dobra o Sol (≥55% de 200)');
 });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
