@@ -50,7 +50,9 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
     `equipamento` e `loja` (capturas `final-07-equipamento.png` e `final-08-loja.png`).
   - Painel `?dev=1` com +5 Pedras e conjunto Lendário na ativa.
   - Limites conhecidos: sem durabilidade; sem limite de inventário; Lendário só via dev até as
-    expedições; meta E2 reformulada em E2a/E2b e E3 rebaseada (ver spec §16).
+    expedições; meta E2 reformulada em E2a/E2b e E3 rebaseada (ver spec §16); 34 metas, com a
+    E3b (corrida de 3 com uma Água como agente do Dado, pino 65–85%, medido 82,5%). Pergunta aberta:
+    enfraquecer o bônus de 4 peças (ex.: 1,07) se o Vinicius achar forte demais.
 - A economia virou o subprojeto 6 (a branch vazia `claude/economia-gdd` foi removida).
 
 ## Pronto
@@ -92,3 +94,5 @@ taxa da casa, sinks de Ouro) · stack técnica (cliente, servidor, Android) · a
 - **Skills:** 1,66 ativações por corrida de 3 corredores; a simulação não expõe as tentativas.
 - **Zebra:** sem ruído por corrida, campos desiguais são previsíveis (Mítico lv1 × Comum lv1 = 100%).
   Proposta se quisermos: ruído de ±3–5%, não a volta da Disposição de ±10%.
+- **E3b / 4 peças do conjunto:** a Brasa com 4 Raras do Sol fica à frente da misturada em 82,5% mesmo com
+  o Dado ligado (pino 65–85%). Se o Vinicius achar forte demais, enfraquecer o 4-peças (ex.: 1,07).
