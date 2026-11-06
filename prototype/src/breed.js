@@ -27,8 +27,8 @@
  *   3. elemento (1 chamada, só se os pais têm elementos diferentes: < 0,5 ⇒ égua)
  *   4. sexo (1 chamada: < 0,5 ⇒ fêmea)
  *   5. status base: 1 chamada por chave de STAT_KEYS, na janela baseLo + GRAU_WINDOW[grau−1]
- *   6. potencial: 2 chamadas por chave. Herda (1ª < potInherit): 2ª escolhe égua (< 0,5) ou garanhão.
- *      Não herda: 1ª (porta) + 2ª floor(rng()·32) = valor novo. Sempre exatamente 2 chamadas.
+ *   6. potencial: 2 chamadas por chave, nos dois ramos. 1ª = porta (< potInherit ⇒ herda).
+ *      Herda: 2ª escolhe o pai (< 0,5 ⇒ égua). Não herda: 2ª é o valor floor(rng()·32).
  *      Depois aplica o piso do grau (GRAU_POT_FLOOR) com Math.max.
  *   7. skills: se corcel com 1 pai só (g=1): 1 chamada (< 0,5 ⇒ g=2); depois min(g, candidatas) chamadas
  *      de índice (garantidas, sem reposição); 1 chamada (< skillInherit) por candidata restante, na
@@ -220,7 +220,6 @@
       if (rng() < TUNING.potInherit) {
         v = potOf(rng() < 0.5 ? f : m, k);
       } else {
-        rng();
         v = Math.floor(rng() * 32);
       }
       potential[k] = Math.max(GRAU_POT_FLOOR[grau - 1], v);
