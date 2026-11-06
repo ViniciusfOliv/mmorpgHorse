@@ -424,7 +424,7 @@
   // Estado de UI (não persistido)
   // ===========================================================================
   var state = null;
-  var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null };
+  var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null };
   var live = [];          // canvases animados da tela atual
   var raceView = null;
   var portraitQueue = [];
@@ -638,6 +638,7 @@
   function go(screen) {
     if (raceView && screen !== 'corrida') { raceView.destroy(); raceView = null; }
     if (screen !== ui.screen) { ui.confirmReset = false; ui.confirmLiberar = null; }
+    if (screen === 'haras' && ui.screen !== 'haras') ui.haras = newHaras();
     ui.screen = screen;
     if (appEl) appEl.classList.toggle('app--corrida', screen === 'corrida');
     render();
@@ -840,14 +841,207 @@
       '</section>';
   }
 
-  // Haras (tela de cruzamento) — provisória: a tarefa 6 a substitui
+  // ===========================================================================
+  // Haras: cruzar (reprodutor de aluguel ou duas suas) e Troca (dois seus viram um potro)
+  // ===========================================================================
+  var BRD = window.Breed;
+  var RARITY_ORDER = ['comum', 'magico', 'raro', 'lendario', 'mitico'];
+
+  function defaultMine(mode) {
+    var a = activeMount();
+    if (mode === 'troca') return a ? a.uid : null;
+    if (a && a.breedLeft >= 1) return a.uid;
+    for (var i = 0; i < state.mounts.length; i++) if (state.mounts[i].breedLeft >= 1) return state.mounts[i].uid;
+    return null;
+  }
+  function newHaras() {
+    return { mine: defaultMine('cruzar'), tab: 'aluguel', partner: null, mode: 'cruzar', result: null, confirmTroca: false };
+  }
+  function rentalById(id) { return GD.WILD_HORSES.filter(function (h) { return h.id === id; })[0] || null; }
+  function rentalList(mine) {
+    return GD.WILD_HORSES.filter(function (h) { return h.sex !== mine.sex && h.rarity !== 'mitico' && BRD.rentalPrice(h) != null; });
+  }
+  function mineList(mode) {
+    return state.mounts.filter(function (o) { return mode === 'troca' || o.breedLeft >= 1; });
+  }
+  function ownPartnerList(mine, mode) {
+    return state.mounts.filter(function (o) { return o.uid !== mine.uid && o.sex !== mine.sex && (mode === 'troca' || o.breedLeft >= 1); });
+  }
+  // corrige ui.haras depois de qualquer mudança (montaria liberada, cruzas gastas, troca de modo)
+  function harasNormalize() {
+    var H = ui.haras || (ui.haras = newHaras());
+    var mine = H.mine ? mountByUid(H.mine) : null;
+    if (!mine || (H.mode === 'cruzar' && mine.breedLeft < 1)) H.mine = defaultMine(H.mode);
+    if (H.mode === 'troca') H.tab = 'minhas';
+    if (H.result && !mountByUid(H.result)) H.result = null;
+    var P = harasPartner(H.mine ? mountByUid(H.mine) : null);
+    if (!P) { H.partner = null; H.confirmTroca = false; }
+    return H;
+  }
+  function harasPartner(mine) {
+    var H = ui.haras, p = H.partner;
+    if (!p || !mine) return null;
+    if (p.kind === 'rent') {
+      if (H.mode === 'troca') return null;
+      var t = rentalById(p.id);
+      return t && t.sex !== mine.sex && t.rarity !== 'mitico' && BRD.rentalPrice(t) != null ? t : null;
+    }
+    var o = mountByUid(p.id);
+    return o && o.uid !== mine.uid && o.sex !== mine.sex && (H.mode === 'troca' || o.breedLeft >= 1) ? o : null;
+  }
+  // { mine, partner, kind, f, m, price }: f é sempre a fêmea e m o macho
+  function harasPair() {
+    var H = harasNormalize();
+    var mine = H.mine ? mountByUid(H.mine) : null;
+    var partner = harasPartner(mine);
+    var out = { mine: mine, partner: partner, kind: null, f: null, m: null, price: null };
+    if (!mine || !partner) return out;
+    out.kind = H.partner.kind;
+    out.f = mine.sex === 'f' ? mine : partner;
+    out.m = mine.sex === 'f' ? partner : mine;
+    out.price = H.mode === 'troca' ? BR.exchange : (out.kind === 'rent' ? BRD.rentalPrice(partner) : BR.ownRegistration);
+    return out;
+  }
+  function harasProblems(P) {
+    var mode = ui.haras.mode, out = [];
+    if (state.pending) out.push('Termine o páreo aberto antes de cruzar');
+    if (!P.mine) out.push('Nenhuma montaria sua pode cruzar agora');
+    else if (!P.partner) out.push('Escolha um parceiro');
+    if (mode === 'cruzar' && state.mounts.length >= state.stableSlots) out.push('Estábulo cheio: libere uma montaria ou expanda');
+    if (P.price != null && state.gold < P.price) out.push('Ouro insuficiente');
+    if (P.partner && mode === 'cruzar' && (P.mine.breedLeft < 1 || (P.kind === 'own' && P.partner.breedLeft < 1))) out.push('Uma das montarias não pode mais cruzar');
+    if (P.partner && mode === 'troca' && P.kind !== 'own') out.push('A Troca é só entre duas montarias suas');
+    return out;
+  }
+
+  function harasCardHtml(h, acao, kind, id, on, extra) {
+    return '<button type="button" class="btn opcao haras-card' + (on ? ' sel--on' : '') + '" data-acao="' + acao + '"' +
+        (kind ? ' data-kind="' + kind + '"' : '') + ' data-id="' + esc(id) + '" aria-pressed="' + on + '">' +
+      portraitHtml(h) +
+      '<b class="haras-nome">' + esc(h.name) + '</b>' +
+      '<span class="linha-meta">' + rarityHtml(h.rarity) + estrelasHtml(h.grau) + '</span>' +
+      '<span class="linha-meta">' + elementHtml(h.element) + '</span>' +
+      '<span class="linha-meta"><span>' + (h.sex === 'f' ? '♀' : '♂') + ' Nv ' + esc(h.level) + '</span>' + extra + '</span>' +
+    '</button>';
+  }
+
+  function calcHtml(P) {
+    var o = BRD.odds(P.f, P.m);
+    var bars = RARITY_ORDER.map(function (id) {
+      var p = o.rarity[id] || 0, pct = Math.round(p * 100);
+      if (p <= 0 && id !== 'mitico') return '';
+      var label = GD.RARITIES[id].name + ' ' + (p > 0 && pct === 0 ? '<1' : pct) + '%' + (p <= 0 ? ' (só por despertar)' : '');
+      return '<div class="calc-linha"><span>' + esc(label) + '</span>' +
+        '<span class="calc-barra calc-barra--' + esc(id) + '"><i style="width:' + (p * 100).toFixed(1) + '%"></i></span></div>';
+    }).join('');
+    var g = o.grau;
+    var grau = 'Se mantiver a raridade: ★ ' + Math.round(g[1] * 100) + '% · ★★ ' + Math.round(g[2] * 100) + '% · ★★★ ' +
+      Math.round(g[3] * 100) + '%; se subir, nasce ★; se descer, ★★★';
+    var elName = function (e) { return (GD.ELEMENTS[e] || GD.ELEMENTS.neutro).name; };
+    var els = P.f.element === P.m.element ? [P.f.element] : [P.f.element, P.m.element];
+    var elTxt = 'Elemento: ' + (els.length === 1 ? elName(els[0]) : elName(els[0]) + ' ou ' + elName(els[1]) + ' (50/50)');
+    var cands = [];
+    els.forEach(function (e) {
+      BRD.skillCandidates(P.f, P.m, e).forEach(function (id) { if (cands.indexOf(id) < 0) cands.push(id); });
+    });
+    var skTxt = 'Pode herdar: ' + (cands.length
+      ? cands.map(function (id) { return GD.SKILLS[id] ? GD.SKILLS[id].name : id; }).join(', ')
+      : 'nenhuma skill dos pais');
+    var nc = (BRD.isCorcel(P.f) ? 1 : 0) + (BRD.isCorcel(P.m) ? 1 : 0);
+    var corcel = nc ? '<p class="corcel">' + esc('⚑ Corcel: herança garantida (' + (nc === 2 ? '2 skills' : '1 skill, 50% de chance de 2') + ')') + '</p>' : '';
+    var custoNome = ui.haras.mode === 'troca' ? 'Troca' : (P.kind === 'rent' ? 'Aluguel' : 'Registro');
+    return '<section class="caixa calc" aria-labelledby="t-calc"><h2 class="titulo" id="t-calc">Calculadora</h2>' +
+      '<p class="nota">' + esc(P.f.name + ' ♀ × ' + P.m.name + ' ♂') + '</p>' +
+      '<div class="calc-barras">' + bars + '</div>' +
+      '<p>' + esc(grau) + '</p>' +
+      '<p>' + esc(elTxt) + '</p>' +
+      '<p>' + esc(skTxt) + '</p>' + corcel +
+      '<p>' + esc('Nível efetivo: ' + Math.round(o.L * 100) + '% do máximo') + '</p>' +
+      '<p class="calc-custo">' + esc(custoNome) + ': ' + ouroHtml(P.price) + '</p>' +
+    '</section>';
+  }
+
+  function harasResultHtml(foal) {
+    var isActive = foal.uid === state.activeId;
+    return '<section class="caixa" aria-labelledby="t-nasceu"><h2 class="titulo" id="t-nasceu">' + esc('Nasceu ' + foal.name + '!') + '</h2>' +
+      mountCardHtml(foal, isActive) +
+      '<div class="acoes">' +
+        '<button type="button" class="btn btn--ouro" data-acao="haras-ativar"' + (isActive || state.pending ? ' disabled' : '') + '>Tornar ativa</button>' +
+        '<button type="button" class="btn" data-acao="haras-denovo">Cruzar de novo</button>' +
+      '</div></section>';
+  }
+
   function renderHaras() {
-    return '<section class="tela" aria-labelledby="t-haras">' +
-      '<header class="topo"><button type="button" class="btn btn--pequeno" data-acao="voltar">Voltar ao estábulo</button>' +
+    var H = harasNormalize();
+    var head = '<header class="topo"><button type="button" class="btn btn--pequeno" data-acao="voltar">Voltar ao estábulo</button>' +
         '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></header>' +
-      '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>' +
-      '<p class="nota">Em construção.</p>' +
+      '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>';
+    var foal = H.result ? mountByUid(H.result) : null;
+    if (foal) return '<section class="tela" aria-labelledby="t-haras">' + head + harasResultHtml(foal) + '</section>';
+
+    var troca = H.mode === 'troca';
+    var P = harasPair();
+    var probs = harasProblems(P);
+
+    var modo = '<div class="abas" role="group" aria-label="Modo">' +
+      '<button type="button" class="btn opcao opcao--centro" data-acao="haras-mode" data-id="cruzar" aria-pressed="' + !troca + '">Cruzar</button>' +
+      '<button type="button" class="btn opcao opcao--centro" data-acao="haras-mode" data-id="troca" aria-pressed="' + troca + '">Troca</button></div>' +
+      '<p class="nota">' + (troca
+        ? esc('Troca: duas montarias suas, de sexos opostos e com qualquer número de cruzas, viram um potro (' + BR.exchange + ' de Ouro). Os dois pais deixam o estábulo.')
+        : esc('Cruzar com um reprodutor de aluguel ou com outra montaria sua (registro de ' + BR.ownRegistration + ' de Ouro). O potro ocupa uma vaga.')) + '</p>';
+
+    var mines = mineList(H.mode).map(function (o) {
+      return harasCardHtml(o, 'haras-mine', null, o.uid, o.uid === H.mine, '<span>cruza ' + esc(o.breedLeft) + 'x</span>');
+    }).join('');
+    var mineBox = '<section class="caixa" aria-labelledby="t-sua"><h2 class="titulo" id="t-sua">Sua montaria</h2>' +
+      (mines ? '<div class="haras-sel">' + mines + '</div>' : '<p class="nota">Nenhuma montaria sua pode cruzar agora.</p>') + '</section>';
+
+    var partnerBox = '';
+    if (P.mine) {
+      var tabs = troca ? '' : '<div class="abas" role="group" aria-label="Parceiros">' +
+        '<button type="button" class="btn opcao opcao--centro" data-acao="haras-tab" data-id="aluguel" aria-pressed="' + (H.tab === 'aluguel') + '">Aluguel</button>' +
+        '<button type="button" class="btn opcao opcao--centro" data-acao="haras-tab" data-id="minhas" aria-pressed="' + (H.tab === 'minhas') + '">Minhas</button></div>';
+      var sel = H.partner;
+      var list = H.tab === 'aluguel'
+        ? rentalList(P.mine).map(function (t) {
+          return harasCardHtml(t, 'haras-partner', 'rent', t.id, !!(sel && sel.kind === 'rent' && sel.id === t.id), ouroHtml(BRD.rentalPrice(t)));
+        }).join('')
+        : ownPartnerList(P.mine, H.mode).map(function (o) {
+          return harasCardHtml(o, 'haras-partner', 'own', o.uid, !!(sel && sel.kind === 'own' && sel.id === o.uid), '<span>cruza ' + esc(o.breedLeft) + 'x</span>');
+        }).join('');
+      partnerBox = '<section class="caixa" aria-labelledby="t-parceiro"><h2 class="titulo" id="t-parceiro">Parceiro ' +
+          '<span class="nota">' + (P.mine.sex === 'f' ? 'machos' : 'fêmeas') + '</span></h2>' + tabs +
+        (list ? '<div class="haras-sel">' + list + '</div>'
+          : '<p class="nota">' + (H.tab === 'aluguel' ? 'Nenhum reprodutor de aluguel disponível.' : 'Nenhuma montaria sua de sexo oposto ' + (troca ? 'no estábulo.' : 'com cruzas restantes.')) + '</p>') +
       '</section>';
+    }
+
+    var calc = P.f && P.m ? calcHtml(P) : '';
+    var avisos = probs.map(function (t) { return '<p class="aviso">' + esc(t) + '</p>'; }).join('');
+    var acao;
+    if (troca && H.confirmTroca && !probs.length) {
+      acao = '<div class="confirma" role="group" aria-label="Confirmar troca"><span>' +
+          esc('Os dois pais deixam de existir. Trocar ' + P.mine.name + ' e ' + P.partner.name + ' por um potro?') + '</span>' +
+        '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="troca-sim">Sim, trocar</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="troca-nao">Cancelar</button></div>';
+    } else if (troca) {
+      acao = '<button type="button" class="btn btn--ouro btn--grande" data-acao="troca"' + (probs.length ? ' disabled' : '') + '>Trocar por um potro</button>';
+    } else {
+      acao = '<button type="button" class="btn btn--ouro btn--grande" data-acao="cruzar"' + (probs.length ? ' disabled' : '') + '>Cruzar</button>';
+    }
+    return '<section class="tela" aria-labelledby="t-haras">' + head +
+      '<section class="caixa" aria-label="Modo">' + modo + '</section>' +
+      mineBox + partnerBox + calc + avisos +
+      '<div class="barra-acao">' + acao + '</div>' +
+    '</section>';
+  }
+
+  // gera o potro já com o Ouro debitado; nunca chamada sem validar antes
+  function harasFoal(P) {
+    var foal = BRD.foal({ f: P.f, m: P.m, seedBase: state.seedBase, breedCounter: state.breedCounter, nextUid: state.nextUid });
+    state.nextUid += 1;
+    state.breedCounter += 1;
+    return foal;
   }
 
   // ===========================================================================
@@ -1898,6 +2092,73 @@
         state.gold -= SLOT_PRICE; state.stableSlots += 1; persist(); rerenderKeepScroll(); break;
       case 'haras':
         go('haras'); break;
+      case 'haras-mine':
+        if (!ui.haras || !mountByUid(id)) break;
+        ui.haras.mine = id; ui.haras.partner = null; ui.haras.confirmTroca = false; rerenderKeepScroll(); break;
+      case 'haras-tab':
+        if (!ui.haras || (id !== 'aluguel' && id !== 'minhas')) break;
+        ui.haras.tab = id; ui.haras.partner = null; ui.haras.confirmTroca = false; rerenderKeepScroll(); break;
+      case 'haras-mode':
+        if (!ui.haras || (id !== 'cruzar' && id !== 'troca') || id === ui.haras.mode) break;
+        ui.haras.mode = id; ui.haras.partner = null; ui.haras.confirmTroca = false;
+        ui.haras.tab = id === 'troca' ? 'minhas' : 'aluguel';
+        rerenderKeepScroll(); break;
+      case 'haras-partner': {
+        var kind = b.getAttribute('data-kind');
+        if (!ui.haras || (kind !== 'own' && kind !== 'rent')) break;
+        ui.haras.partner = { kind: kind, id: id }; ui.haras.confirmTroca = false; rerenderKeepScroll(); break;
+      }
+      case 'cruzar': {
+        if (!ui.haras || ui.haras.mode !== 'cruzar') break;
+        var sC = state;
+        persist();                    // sincroniza com outras abas antes de debitar
+        if (state !== sC) break;      // save mais novo adotado: adoptExternal já navegou
+        var PC = harasPair();
+        if (!PC.f || harasProblems(PC).length) { rerenderKeepScroll(); break; }
+        state.gold -= PC.price;
+        var potro = harasFoal(PC);
+        PC.mine.breedLeft -= 1;
+        if (PC.kind === 'own') PC.partner.breedLeft -= 1;
+        state.mounts.push(potro);
+        persist();
+        if (state !== sC) break;
+        ui.haras.result = potro.uid; ui.haras.partner = null;
+        rerenderKeepScroll(); break;
+      }
+      case 'troca': {
+        if (!ui.haras || ui.haras.mode !== 'troca') break;
+        var PT = harasPair();
+        ui.haras.confirmTroca = !!PT.f && PT.kind === 'own' && !harasProblems(PT).length;
+        rerenderKeepScroll(); focusAction('troca-nao'); break;
+      }
+      case 'troca-nao':
+        if (ui.haras) ui.haras.confirmTroca = false;
+        rerenderKeepScroll(); focusAction('troca'); break;
+      case 'troca-sim': {
+        if (!ui.haras || ui.haras.mode !== 'troca' || !ui.haras.confirmTroca) break;
+        ui.haras.confirmTroca = false;
+        var sT = state;
+        persist();
+        if (state !== sT) break;
+        var PX = harasPair();
+        if (!PX.f || PX.kind !== 'own' || harasProblems(PX).length) { rerenderKeepScroll(); break; }
+        state.gold -= BR.exchange;
+        var potroT = harasFoal(PX);
+        var gone = [PX.mine.uid, PX.partner.uid];
+        state.mounts = state.mounts.filter(function (m) { return gone.indexOf(m.uid) < 0; });
+        state.mounts.push(potroT);
+        if (gone.indexOf(state.activeId) >= 0) state.activeId = potroT.uid;
+        persist();
+        if (state !== sT) break;
+        ui.haras.result = potroT.uid; ui.haras.partner = null;
+        rerenderKeepScroll(); break;
+      }
+      case 'haras-ativar':
+        if (!ui.haras || state.pending || !mountByUid(ui.haras.result)) break;
+        state.activeId = ui.haras.result; persist(); rerenderKeepScroll(); break;
+      case 'haras-denovo':
+        if (ui.haras) { ui.haras.result = null; ui.haras.partner = null; }
+        rerenderKeepScroll(); break;
       case 'reset':
         ui.confirmReset = true; rerenderKeepScroll(); focusAction('reset-nao'); break;
       case 'reset-nao':
