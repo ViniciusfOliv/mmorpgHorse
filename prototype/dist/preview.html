@@ -565,84 +565,60 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   // ---------------------------------------------------------------------------
   // Elementos
   //   statBonus: somado em RaceSim.computeStats.
-  //   affinity: regras usadas por RaceSim.elementAffinity (sign +1 favorece, -1 atrapalha;
-  //     weight opcional multiplica o passo padrão, default 1).
-  //     kind: 'weather' | 'surface' | 'distance' | 'hills'
+  //   weather: clima "dono" do elemento (WEATHERS[w].element aponta de volta); null = nenhum.
   // ---------------------------------------------------------------------------
   var ELEMENTS = {
     fogo: {
       id: 'fogo', name: 'Fogo', color: '#e8541e', icon: 'fire',
       statBonus: { stat: 'acel', amount: 8 },
-      desc: 'Explosivo na largada. Brilha no sol e em pista curta; sofre com chuva.',
-      affinity: [
-        { kind: 'weather', value: 'sol', sign: 1, weight: 0.5, text: 'Sol favorece Fogo' },
-        { kind: 'distance', value: 1000, sign: 1, weight: 0.25, text: 'Pista curta favorece Fogo' },
-        { kind: 'weather', value: 'chuva', sign: -1, text: 'Chuva apaga o Fogo' }
-      ]
+      weather: 'sol',
+      desc: 'Explosivo na largada. Brilha no sol; sofre com chuva.'
     },
     agua: {
       id: 'agua', name: 'Água', color: '#2f8fd8', icon: 'water',
       statBonus: { stat: 'est', amount: 8 },
-      desc: 'Fôlego de sobra. Cresce na chuva e em pista longa; afunda na areia.',
-      affinity: [
-        { kind: 'weather', value: 'chuva', sign: 1, weight: 1.5, text: 'Chuva favorece Água' },
-        { kind: 'distance', value: 2400, sign: 1, text: 'Pista longa favorece Água' },
-        { kind: 'surface', value: 'areia', sign: -1, text: 'Areia atola a Água' }
-      ]
+      weather: 'chuva',
+      desc: 'Fôlego de sobra. Cresce na chuva; sofre na névoa.'
     },
     grama: {
       id: 'grama', name: 'Grama', color: '#4caf3a', icon: 'leaf',
       statBonus: { stat: 'forca', amount: 8 },
-      desc: 'Firme como raiz. Domina terra e subidas; murcha no sol.',
-      affinity: [
-        { kind: 'surface', value: 'terra', sign: 1, weight: 1.25, text: 'Terra favorece Grama' },
-        { kind: 'hills', value: true, sign: 1, weight: 1.25, text: 'Subidas favorecem Grama' },
-        { kind: 'weather', value: 'sol', sign: -1, text: 'Sol murcha a Grama' }
-      ]
+      weather: 'nevoa',
+      desc: 'Firme como raiz. Domina a névoa e as subidas; murcha no sol.'
     },
     neutro: {
       id: 'neutro', name: 'Neutro', color: '#9e9a8e', icon: 'circle',
       statBonus: null,
-      desc: 'Sem bônus nem penalidade. Rende igual em qualquer pista.',
-      affinity: []
+      weather: null,
+      desc: 'Sem bônus nem penalidade. Rende igual em qualquer clima.'
     }
   };
 
   // ---------------------------------------------------------------------------
   // Raridades
   //   statCap: teto de cada status por level (antes de elemento e item).
-  //   skillSlots: nº máximo de habilidades.
   //   growth: multiplicador do crescimento por level.
+  //   skillSlots: nº máximo de habilidades; bornSkills: nº máximo ao nascer;
+  //   skillChance: chance de cada habilidade ao nascer.
   // ---------------------------------------------------------------------------
   var RARITIES = {
-    comum:    { id: 'comum',    name: 'Comum',    color: '#9e9e9e', statCap: 65,  skillSlots: 1, growth: 0.80, order: 0 },
-    incomum:  { id: 'incomum',  name: 'Incomum',  color: '#4caf50', statCap: 75,  skillSlots: 2, growth: 0.90, order: 1 },
-    raro:     { id: 'raro',     name: 'Raro',     color: '#2196f3', statCap: 85,  skillSlots: 2, growth: 1.00, order: 2 },
-    epico:    { id: 'epico',    name: 'Épico',    color: '#9c27b0', statCap: 95,  skillSlots: 3, growth: 1.10, order: 3 },
-    lendario: { id: 'lendario', name: 'Lendário', color: '#ff9800', statCap: 100, skillSlots: 3, growth: 1.20, order: 4 }
+    comum:    { id: 'comum',    name: 'Comum',    color: '#9e9e9e', statCap: 60,  growth: 0.80, skillSlots: 1, bornSkills: 1, skillChance: 0.35, order: 0 },
+    magico:   { id: 'magico',   name: 'Mágico',   color: '#4caf50', statCap: 70,  growth: 0.90, skillSlots: 2, bornSkills: 1, skillChance: 0.45, order: 1 },
+    raro:     { id: 'raro',     name: 'Raro',     color: '#2196f3', statCap: 80,  growth: 1.00, skillSlots: 3, bornSkills: 2, skillChance: 0.55, order: 2 },
+    lendario: { id: 'lendario', name: 'Lendário', color: '#ff9800', statCap: 90,  growth: 1.10, skillSlots: 4, bornSkills: 2, skillChance: 0.65, order: 3 },
+    mitico:   { id: 'mitico',   name: 'Mítico',   color: '#9c27b0', statCap: 100, growth: 1.20, skillSlots: 5, bornSkills: 3, skillChance: 0.75, order: 4 }
   };
+
+  var STAT_KEYS = ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
 
   var STATS = {
     vel:   { id: 'vel',   name: 'Velocidade', short: 'VEL', desc: 'Velocidade máxima.' },
     acel:  { id: 'acel',  name: 'Aceleração', short: 'ACE', desc: 'Rapidez até a velocidade máxima (largada e retomadas).' },
-    est:   { id: 'est',   name: 'Estamina',   short: 'EST', desc: 'Quanto tempo mantém o ritmo.' },
+    man:   { id: 'man',   name: 'Manobra',    short: 'MAN', desc: 'Agilidade nas curvas e na saída delas.' },
     forca: { id: 'forca', name: 'Força',      short: 'FOR', desc: 'Subidas, terreno pesado e disputa no pelotão.' },
-    garra: { id: 'garra', name: 'Garra',      short: 'GAR', desc: 'Chance e força da arrancada final (últimos 20%).' }
-  };
-
-  var TACTICS = {
-    ponteiro: {
-      id: 'ponteiro', name: 'Ponteiro',
-      desc: 'Dispara na frente e tenta segurar até o fim. Forte em pista curta; pode cansar em pista longa.'
-    },
-    perseguidor: {
-      id: 'perseguidor', name: 'Perseguidor',
-      desc: 'Corre colado no pelotão da frente, ritmo constante, aproveita o vácuo. Seguro em qualquer pista.'
-    },
-    arrancador: {
-      id: 'arrancador', name: 'Arrancador',
-      desc: 'Guarda energia lá atrás e explode nos últimos 30%. Forte em pista longa; arriscado em pista curta.'
-    }
+    est:   { id: 'est',   name: 'Estamina',   short: 'EST', desc: 'Quanto tempo mantém o ritmo.' },
+    garra: { id: 'garra', name: 'Garra',      short: 'GAR', desc: 'Chance e força da arrancada final (últimos 20%).' },
+    sorte: { id: 'sorte', name: 'Sorte',      short: 'SOR', desc: 'Dados extras e eventos a favor durante a corrida.' }
   };
 
   // slow: perda de velocidade (aliviada por Força); drain: gasto extra de estamina.
@@ -652,30 +628,82 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     areia: { id: 'areia', name: 'Areia', color: '#e2c27a', slow: 0.06, drain: 1.12, desc: 'Pista pesada: Força ajuda muito.' }
   };
 
+  // Cada clima tem um elemento dono (bônus) e um penalizado.
   var WEATHERS = {
-    sol:     { id: 'sol',     name: 'Sol',     icon: 'sun',   desc: 'Calor: gasta um pouco mais de estamina.' },
-    chuva:   { id: 'chuva',   name: 'Chuva',   icon: 'rain',  desc: 'Pista escorregadia: todos um pouco mais lentos.' },
-    nublado: { id: 'nublado', name: 'Nublado', icon: 'cloud', desc: 'Condição neutra.' }
+    sol:     { id: 'sol',     name: 'Sol',     icon: 'sun',   element: 'fogo',  penalizes: 'grama', desc: 'Favorece Fogo; Grama murcha.' },
+    chuva:   { id: 'chuva',   name: 'Chuva',   icon: 'rain',  element: 'agua',  penalizes: 'fogo',  desc: 'Favorece Água; Fogo apaga.' },
+    nevoa:   { id: 'nevoa',   name: 'Névoa',   icon: 'fog',   element: 'grama', penalizes: 'agua',  desc: 'Favorece Grama; Água perde o rumo.' },
+    nublado: { id: 'nublado', name: 'Nublado', icon: 'cloud', element: null,    penalizes: null,    desc: 'Condição neutra: ninguém é favorecido.' }
   };
 
-  // Chave numérica = metros (conditions.distance).
-  var DISTANCES = {
-    1000: { id: 'curta', meters: 1000, name: 'Curta',  label: 'Curta (1000 m)' },
-    1600: { id: 'media', meters: 1600, name: 'Média',  label: 'Média (1600 m)' },
-    2400: { id: 'longa', meters: 2400, name: 'Longa',  label: 'Longa (2400 m)' }
+  var BLOCK_TYPES = {
+    reta:   { id: 'reta',   name: 'Reta',   color: '#f6f2ea' },
+    curva:  { id: 'curva',  name: 'Curva',  color: '#7ab8ff' },
+    subida: { id: 'subida', name: 'Subida', color: '#f2c230' }
   };
 
   // ---------------------------------------------------------------------------
   // Habilidades
-  //   trigger: 'start' | 'final' (>=80% da pista) | 'midrace' (>=50%) | 'lowStamina' (<=25%)
-  //            | 'hill' (entra na 1ª subida) | 'behind' (>=60% e na metade de trás)
-  //            | 'weather:<sol|chuva|nublado>' | 'surface:<grama|terra|areia>'
-  //   Cada habilidade dispara no máximo 1 vez por corrida.
-  //   effect: speedMult/accelMult/staminaDrainMult valem por durationS; staminaRestore é instantâneo.
-  //   exclusive: id do cavalo inicial dono (só ele pode ter).
+  //   trigger: 'start' | 'straight' | 'curve' | 'curveExit' | 'hill' | 'lowStamina' (<=25%)
+  //            | 'final' (últimos 20%) | 'dice' | 'weather:<sol|chuva|nevoa>'
+  //   effect (chaves usadas):
+  //     accelMult / speedMult: multiplicadores; drainMult: gasto de estamina;
+  //     distanceM / durationS: duração do efeito em metros ou segundos;
+  //     curveBonus / hillBonus / hillDrainMult: bônus nos blocos de curva/subida;
+  //     blockScoped: vale uma vez por bloco (curva/subida), não uma vez por corrida;
+  //     staminaRestore: recupera fração do tanque (instantâneo);
+  //     garraChanceBonus / garraBoostBonus: reforça a arrancada de Garra;
+  //     extraDice: dados extras; weatherDouble: dobra o bônus do clima.
+  //   exclusive: id da montaria inicial dona (só ela pode ter).
   // ---------------------------------------------------------------------------
   var SKILLS = {
+    // --- Genéricas (neutro) ---
+    'arranque': {
+      id: 'arranque', name: 'Arranque', element: 'neutro', trigger: 'start',
+      desc: 'Largada explosiva: +30% de aceleração nos primeiros 100 m.',
+      effect: { accelMult: 1.3, distanceM: 100 }
+    },
+    'sprint': {
+      id: 'sprint', name: 'Sprint', element: 'neutro', trigger: 'straight',
+      desc: 'Numa reta: +4% de velocidade por 150 m, gastando 15% mais estamina.',
+      effect: { speedMult: 1.04, drainMult: 1.15, distanceM: 150 }
+    },
+    'drift': {
+      id: 'drift', name: 'Drift', element: 'neutro', trigger: 'curve',
+      desc: 'Em cada curva: +5% de rendimento na curva.',
+      effect: { curveBonus: 0.05, blockScoped: true }
+    },
+    'saida-rapida': {
+      id: 'saida-rapida', name: 'Saída Rápida', element: 'neutro', trigger: 'curveExit',
+      desc: 'Ao sair da curva: +40% de aceleração por 4s.',
+      effect: { accelMult: 1.4, durationS: 4 }
+    },
+    'folego-de-montanha': {
+      id: 'folego-de-montanha', name: 'Fôlego de Montanha', element: 'neutro', trigger: 'hill',
+      desc: 'Em cada subida: gasta 30% menos estamina.',
+      effect: { hillDrainMult: 0.7, blockScoped: true }
+    },
+    'segundo-ar': {
+      id: 'segundo-ar', name: 'Segundo Ar', element: 'neutro', trigger: 'lowStamina',
+      desc: 'Quando a estamina cai a 25%, recupera 15%.',
+      effect: { staminaRestore: 0.15 }
+    },
+    'arrancada-final': {
+      id: 'arrancada-final', name: 'Arrancada Final', element: 'neutro', trigger: 'final',
+      desc: 'Na reta final: +15% de chance de Garra e +3% de força na arrancada.',
+      effect: { garraChanceBonus: 0.15, garraBoostBonus: 0.03 }
+    },
+    'dado-viciado': {
+      id: 'dado-viciado', name: 'Dado Viciado', element: 'neutro', trigger: 'dice',
+      desc: 'Rola 1 dado extra nos eventos de Sorte.',
+      effect: { extraDice: 1 }
+    },
     // --- Fogo ---
+    'sol-a-pino': {
+      id: 'sol-a-pino', name: 'Sol a Pino', element: 'fogo', trigger: 'weather:sol',
+      desc: 'Com sol: o bônus do clima para o Fogo é dobrado.',
+      effect: { weatherDouble: true }
+    },
     'labareda': {
       id: 'labareda', name: 'Labareda', element: 'fogo', exclusive: 'brasa', trigger: 'start',
       desc: 'Largada em chamas: +15% de aceleração e +1% de velocidade por 5s.',
@@ -686,68 +714,42 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       desc: 'Na reta final, +5% de velocidade por 5s.',
       effect: { speedMult: 1.05, durationS: 5 }
     },
-    'sol-a-pino': {
-      id: 'sol-a-pino', name: 'Sol a Pino', element: 'fogo', trigger: 'weather:sol',
-      desc: 'Com sol: +10% de aceleração e +2% de velocidade nos primeiros 30s.',
-      effect: { accelMult: 1.1, speedMult: 1.02, durationS: 30 }
-    },
     // --- Água ---
+    'pe-na-chuva': {
+      id: 'pe-na-chuva', name: 'Pé na Chuva', element: 'agua', trigger: 'weather:chuva',
+      desc: 'Com chuva: o bônus do clima para a Água é dobrado.',
+      effect: { weatherDouble: true }
+    },
     'mare-alta': {
       id: 'mare-alta', name: 'Maré Alta', element: 'agua', exclusive: 'mare', trigger: 'lowStamina',
       desc: 'Quando a estamina cai a 25%, a maré sobe: recupera 20% de estamina e ganha +3% de velocidade por 8s.',
       effect: { staminaRestore: 0.20, speedMult: 1.03, durationS: 8 }
     },
-    'correnteza': {
-      id: 'correnteza', name: 'Correnteza', element: 'agua', trigger: 'weather:chuva',
-      desc: 'Com chuva: gasta 15% menos estamina por 40s.',
-      effect: { staminaDrainMult: 0.85, durationS: 40 }
-    },
-    'nascente': {
-      id: 'nascente', name: 'Nascente', element: 'agua', trigger: 'midrace',
-      desc: 'Na metade da corrida, recupera 12% de estamina.',
-      effect: { staminaRestore: 0.12 }
-    },
     'canto-da-iara': {
       id: 'canto-da-iara', name: 'Canto da Iara', element: 'agua', trigger: 'final',
       desc: 'Na reta final, +6% de velocidade por 5s e gasta 30% menos estamina.',
-      effect: { speedMult: 1.06, staminaDrainMult: 0.7, durationS: 5 }
+      effect: { speedMult: 1.06, drainMult: 0.7, durationS: 5 }
+    },
+    'nascente': {
+      id: 'nascente', name: 'Nascente', element: 'agua', trigger: 'straight',
+      desc: 'Numa reta, recupera 12% de estamina.',
+      effect: { staminaRestore: 0.12 }
     },
     // --- Grama ---
+    'nevoa-amiga': {
+      id: 'nevoa-amiga', name: 'Névoa Amiga', element: 'grama', trigger: 'weather:nevoa',
+      desc: 'Com névoa: o bônus do clima para a Grama é dobrado.',
+      effect: { weatherDouble: true }
+    },
+    'casco-firme': {
+      id: 'casco-firme', name: 'Casco Firme', element: 'grama', trigger: 'hill',
+      desc: 'Em cada subida: +6% de rendimento na subida.',
+      effect: { hillBonus: 0.06, blockScoped: true }
+    },
     'raizes-firmes': {
-      id: 'raizes-firmes', name: 'Raízes Firmes', element: 'grama', exclusive: 'ipe', trigger: 'midrace',
-      desc: 'Na metade da corrida, finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s.',
+      id: 'raizes-firmes', name: 'Raízes Firmes', element: 'grama', exclusive: 'ipe', trigger: 'straight',
+      desc: 'Numa reta, finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s.',
       effect: { staminaRestore: 0.05, speedMult: 1.02, durationS: 8 }
-    },
-    'casco-de-cabra': {
-      id: 'casco-de-cabra', name: 'Casco de Cabra', element: 'grama', trigger: 'hill',
-      desc: 'Na primeira subida: +8% de velocidade e 30% menos gasto de estamina por 8s.',
-      effect: { speedMult: 1.08, staminaDrainMult: 0.7, durationS: 8 }
-    },
-    'trilha-de-terra': {
-      id: 'trilha-de-terra', name: 'Trilha de Terra', element: 'grama', trigger: 'surface:terra',
-      desc: 'Em pista de terra: +2% de velocidade nos primeiros 30s.',
-      effect: { speedMult: 1.02, durationS: 30 }
-    },
-    // --- Genéricas (qualquer elemento) ---
-    'largada-rapida': {
-      id: 'largada-rapida', name: 'Largada Rápida', element: 'neutro', trigger: 'start',
-      desc: '+30% de aceleração por 4s na largada.',
-      effect: { accelMult: 1.3, durationS: 4 }
-    },
-    'segundo-folego': {
-      id: 'segundo-folego', name: 'Segundo Fôlego', element: 'neutro', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 25%, recupera 18%.',
-      effect: { staminaRestore: 0.18 }
-    },
-    'sprint-final': {
-      id: 'sprint-final', name: 'Sprint Final', element: 'neutro', trigger: 'final',
-      desc: 'Na reta final, +4% de velocidade por 5s.',
-      effect: { speedMult: 1.04, durationS: 5 }
-    },
-    'raca': {
-      id: 'raca', name: 'Raça', element: 'neutro', trigger: 'behind',
-      desc: 'Se estiver na metade de trás depois de 60% da pista: +4% de velocidade por 6s.',
-      effect: { speedMult: 1.04, durationS: 6 }
     }
   };
 
@@ -774,18 +776,18 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       mods: { est: 7 }
     },
     'manta-la': {
-      id: 'manta-la', name: 'Manta de Lã', rarity: 'incomum', price: 220,
+      id: 'manta-la', name: 'Manta de Lã', rarity: 'magico', price: 220,
       desc: 'Poupa o fôlego, mas deixa a largada preguiçosa.',
       mods: { est: 9, acel: -4 }
     },
     'antolhos': {
-      id: 'antolhos', name: 'Antolhos', rarity: 'incomum', price: 220,
+      id: 'antolhos', name: 'Antolhos', rarity: 'magico', price: 220,
       desc: 'Foco total na reta final (+8% de chance de Garra); demora a pegar embalo.',
       mods: { garra: 12, acel: -3 },
       special: { garraChanceBonus: 0.08 }
     },
     'rapadura-engenho': {
-      id: 'rapadura-engenho', name: 'Rapadura de Engenho', rarity: 'incomum', price: 180,
+      id: 'rapadura-engenho', name: 'Rapadura de Engenho', rarity: 'magico', price: 180,
       desc: 'Energia pura: tanque de estamina +4%, mas fica pesado (−2 Vel).',
       mods: { vel: -2 },
       special: { staminaPoolMult: 1.04 }
@@ -802,135 +804,131 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       special: { ignoreWeatherPenalty: true }
     },
     'figa-sorte': {
-      id: 'figa-sorte', name: 'Figa da Sorte', rarity: 'epico', price: 700,
+      id: 'figa-sorte', name: 'Figa da Sorte', rarity: 'lendario', price: 700,
       desc: 'Garra +5 e +15% de chance de a Garra disparar.',
       mods: { garra: 5 },
       special: { garraChanceBonus: 0.15 }
     },
     'penas-gaviao': {
-      id: 'penas-gaviao', name: 'Penas de Gavião-Real', rarity: 'lendario', price: 1500,
+      id: 'penas-gaviao', name: 'Penas de Gavião-Real', rarity: 'mitico', price: 1500,
       desc: 'Voa baixo na reta (+14 Vel, +6 Gar), mas cansa antes (−6 Est).',
       mods: { vel: 14, garra: 6, est: -6 }
     }
   };
 
   // ---------------------------------------------------------------------------
-  // Cavalos
+  // Montarias (espécie 'cavalo')
   //   base = status no level 1 (antes de crescimento, elemento e item).
   //   potential 0–31 por status (oculto no jogo).
+  //   sex: 'm' | 'f'.
   // ---------------------------------------------------------------------------
-  function horse(id, name, element, rarity, level, base, potential, skills, palette, extra) {
+  function mount(id, name, element, rarity, sex, level, base, potential, skills, palette, extra) {
     var h = {
-      id: id, name: name, element: element, rarity: rarity, level: level, xp: 0,
-      base: base, potential: potential, skills: skills, palette: palette
+      id: id, name: name, especie: 'cavalo', element: element, rarity: rarity, sex: sex,
+      level: level, xp: 0, base: base, potential: potential, skills: skills, palette: palette
     };
     if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) h[k] = extra[k];
     return h;
   }
 
   var STARTERS = [
-    horse('brasa', 'Brasa', 'fogo', 'raro', 1,
-      { vel: 64, acel: 62, est: 60, forca: 52, garra: 62 },
-      { vel: 22, acel: 24, est: 12, forca: 14, garra: 18 },
+    mount('brasa', 'Brasa', 'fogo', 'raro', 'm', 1,
+      { vel: 64, acel: 62, man: 60, forca: 52, est: 58, garra: 62, sorte: 50 },
+      { vel: 22, acel: 24, man: 18, forca: 14, est: 12, garra: 18, sorte: 14 },
       ['labareda'],
       { coat: '#c4471d', coatShade: '#7f2a0e', mane: '#ffb02e', accent: '#ffe066' },
       { title: 'A fagulha veloz', bio: 'Potro alazão de crina dourada. Larga como um rojão.' }),
-    horse('mare', 'Maré', 'agua', 'raro', 1,
-      { vel: 62, acel: 54, est: 70, forca: 56, garra: 58 },
-      { vel: 16, acel: 12, est: 24, forca: 18, garra: 20 },
+    mount('mare', 'Maré', 'agua', 'raro', 'f', 1,
+      { vel: 62, acel: 54, man: 54, forca: 56, est: 70, garra: 58, sorte: 50 },
+      { vel: 16, acel: 12, man: 12, forca: 18, est: 24, garra: 20, sorte: 18 },
       ['mare-alta'],
       { coat: '#9ba7b4', coatShade: '#646f7e', mane: '#5fd8ee', accent: '#e6f4fb' },
       { title: 'O fôlego do oceano', bio: 'Égua tordilha de crina cor do mar. Quanto mais longa a pista, mais perigosa.' }),
-    horse('ipe', 'Ipê', 'grama', 'raro', 1,
-      { vel: 62, acel: 56, est: 60, forca: 68, garra: 54 },
-      { vel: 16, acel: 14, est: 18, forca: 24, garra: 18 },
+    mount('ipe', 'Ipê', 'grama', 'raro', 'm', 1,
+      { vel: 62, acel: 56, man: 50, forca: 68, est: 60, garra: 54, sorte: 50 },
+      { vel: 16, acel: 14, man: 12, forca: 24, est: 18, garra: 18, sorte: 14 },
       ['raizes-firmes'],
       { coat: '#7a4a2a', coatShade: '#4c2b18', mane: '#f5c518', accent: '#f2e6c8' },
       { title: 'A raiz que não verga', bio: 'Castanho robusto de crina amarela como ipê florido. Não teme subida.' })
   ];
 
   var WILD_HORSES = [
-    // Comum
-    horse('w-pangare', 'Pangaré', 'neutro', 'comum', 1,
-      { vel: 44, acel: 42, est: 46, forca: 48, garra: 40 },
-      { vel: 10, acel: 12, est: 14, forca: 15, garra: 9 },
+    mount('w-pangare', 'Pangaré', 'neutro', 'comum', 'm', 1,
+      { vel: 44, acel: 42, man: 39, forca: 48, est: 46, garra: 40, sorte: 40 },
+      { vel: 10, acel: 12, man: 11, forca: 15, est: 14, garra: 9, sorte: 10 },
       [],
       { coat: '#8d6e52', coatShade: '#5c4532', mane: '#3b2a1e', accent: '#c9b28f' },
       { habitat: 'Pasto da fazenda' }),
-    horse('w-faisca', 'Faísca', 'fogo', 'comum', 3,
-      { vel: 48, acel: 50, est: 38, forca: 42, garra: 46 },
-      { vel: 14, acel: 16, est: 8, forca: 10, garra: 12 },
-      ['largada-rapida'],
+    mount('w-faisca', 'Faísca', 'fogo', 'comum', 'f', 3,
+      { vel: 48, acel: 50, man: 45, forca: 42, est: 38, garra: 46, sorte: 40 },
+      { vel: 14, acel: 16, man: 15, forca: 10, est: 8, garra: 12, sorte: 10 },
+      ['arranque'],
       { coat: '#d9772b', coatShade: '#9a4d16', mane: '#f7d08a', accent: '#ff8a3d' },
       { habitat: 'Cerrado seco' }),
-    horse('w-lambari', 'Lambari', 'agua', 'comum', 2,
-      { vel: 42, acel: 44, est: 52, forca: 42, garra: 44 },
-      { vel: 9, acel: 11, est: 17, forca: 12, garra: 13 },
+    mount('w-lambari', 'Lambari', 'agua', 'comum', 'm', 2,
+      { vel: 42, acel: 44, man: 39, forca: 42, est: 52, garra: 44, sorte: 40 },
+      { vel: 9, acel: 11, man: 10, forca: 12, est: 17, garra: 13, sorte: 10 },
       [],
       { coat: '#7fa6c4', coatShade: '#4f7594', mane: '#e8f4fb', accent: '#5ec2d9' },
       { habitat: 'Beira de rio' }),
-    horse('w-capim', 'Capim', 'grama', 'comum', 4,
-      { vel: 42, acel: 42, est: 46, forca: 52, garra: 42 },
-      { vel: 10, acel: 10, est: 13, forca: 18, garra: 12 },
-      ['segundo-folego'],
+    mount('w-capim', 'Capim', 'grama', 'comum', 'f', 4,
+      { vel: 42, acel: 42, man: 38, forca: 52, est: 46, garra: 42, sorte: 40 },
+      { vel: 10, acel: 10, man: 10, forca: 18, est: 13, garra: 12, sorte: 10 },
+      ['segundo-ar'],
       { coat: '#9a8a4a', coatShade: '#6a5e2e', mane: '#5b7d2a', accent: '#b9d46a' },
       { habitat: 'Campos gerais' }),
-    // Incomum
-    horse('w-ticao', 'Tição', 'fogo', 'incomum', 8,
-      { vel: 54, acel: 56, est: 42, forca: 46, garra: 52 },
-      { vel: 17, acel: 19, est: 10, forca: 12, garra: 15 },
+    mount('w-ticao', 'Tição', 'fogo', 'magico', 'm', 8,
+      { vel: 54, acel: 56, man: 51, forca: 46, est: 42, garra: 52, sorte: 45 },
+      { vel: 17, acel: 19, man: 18, forca: 12, est: 10, garra: 15, sorte: 12 },
       ['chama-final'],
       { coat: '#3a2a26', coatShade: '#1e1513', mane: '#ff5a1f', accent: '#ffb347' },
       { habitat: 'Carvoaria abandonada' }),
-    horse('w-garoa', 'Garoa', 'agua', 'incomum', 10,
-      { vel: 48, acel: 46, est: 58, forca: 48, garra: 50 },
-      { vel: 13, acel: 12, est: 20, forca: 14, garra: 15 },
-      ['correnteza', 'segundo-folego'],
+    mount('w-garoa', 'Garoa', 'agua', 'magico', 'f', 10,
+      { vel: 48, acel: 46, man: 43, forca: 48, est: 58, garra: 50, sorte: 45 },
+      { vel: 13, acel: 12, man: 13, forca: 14, est: 20, garra: 15, sorte: 12 },
+      ['pe-na-chuva', 'segundo-ar'],
       { coat: '#a9b8c6', coatShade: '#73879a', mane: '#f2f6fa', accent: '#6fb7e8' },
       { habitat: 'Serra enevoada' }),
-    horse('w-mandacaru', 'Mandacaru', 'grama', 'incomum', 7,
-      { vel: 46, acel: 48, est: 52, forca: 58, garra: 46 },
-      { vel: 12, acel: 13, est: 16, forca: 21, garra: 13 },
-      ['casco-de-cabra'],
+    mount('w-mandacaru', 'Mandacaru', 'grama', 'magico', 'm', 7,
+      { vel: 46, acel: 48, man: 43, forca: 58, est: 52, garra: 46, sorte: 45 },
+      { vel: 12, acel: 13, man: 13, forca: 21, est: 16, garra: 13, sorte: 12 },
+      ['casco-firme'],
       { coat: '#b48a5a', coatShade: '#7d5c38', mane: '#3f6b2a', accent: '#e85d9a' },
       { habitat: 'Caatinga' }),
-    // Raro
-    horse('w-ventania', 'Ventania', 'neutro', 'raro', 15,
-      { vel: 62, acel: 58, est: 56, forca: 52, garra: 57 },
-      { vel: 21, acel: 18, est: 15, forca: 13, garra: 17 },
-      ['sprint-final', 'raca'],
+    mount('w-ventania', 'Ventania', 'neutro', 'raro', 'f', 15,
+      { vel: 62, acel: 58, man: 56, forca: 52, est: 56, garra: 57, sorte: 50 },
+      { vel: 21, acel: 18, man: 20, forca: 13, est: 15, garra: 17, sorte: 14 },
+      ['sprint', 'arrancada-final'],
       { coat: '#e9e4da', coatShade: '#b6aea0', mane: '#7a7a7a', accent: '#9ad0ff' },
       { habitat: 'Pampa gaúcho' }),
-    horse('w-pororoca', 'Pororoca', 'agua', 'raro', 18,
-      { vel: 55, acel: 53, est: 64, forca: 57, garra: 56 },
-      { vel: 15, acel: 14, est: 24, forca: 17, garra: 16 },
-      ['nascente', 'correnteza'],
+    mount('w-pororoca', 'Pororoca', 'agua', 'raro', 'm', 18,
+      { vel: 55, acel: 53, man: 50, forca: 57, est: 64, garra: 56, sorte: 50 },
+      { vel: 15, acel: 14, man: 15, forca: 17, est: 24, garra: 16, sorte: 14 },
+      ['nascente', 'pe-na-chuva'],
       { coat: '#2e5f73', coatShade: '#1a3b49', mane: '#9ee7e0', accent: '#2fd6c5' },
       { habitat: 'Foz do Amazonas' }),
-    // Épico
-    horse('w-fogareu', 'Fogaréu', 'fogo', 'epico', 22,
-      { vel: 66, acel: 68, est: 52, forca: 54, garra: 60 },
-      { vel: 24, acel: 26, est: 15, forca: 16, garra: 20 },
-      ['sol-a-pino', 'chama-final', 'largada-rapida'],
+    mount('w-fogareu', 'Fogaréu', 'fogo', 'lendario', 'f', 22,
+      { vel: 66, acel: 68, man: 63, forca: 54, est: 52, garra: 60, sorte: 55 },
+      { vel: 24, acel: 26, man: 25, forca: 16, est: 15, garra: 20, sorte: 16 },
+      ['sol-a-pino', 'chama-final', 'arranque'],
       { coat: '#b3201a', coatShade: '#6e110d', mane: '#ffd23f', accent: '#ff7b00' },
       { habitat: 'Chapada em chamas' }),
-    horse('w-jequitiba', 'Jequitibá', 'grama', 'epico', 25,
-      { vel: 56, acel: 54, est: 62, forca: 70, garra: 58 },
-      { vel: 17, acel: 16, est: 21, forca: 27, garra: 19 },
-      ['casco-de-cabra', 'trilha-de-terra', 'segundo-folego'],
+    mount('w-jequitiba', 'Jequitibá', 'grama', 'lendario', 'm', 25,
+      { vel: 56, acel: 54, man: 51, forca: 70, est: 62, garra: 58, sorte: 55 },
+      { vel: 17, acel: 16, man: 17, forca: 27, est: 21, garra: 19, sorte: 16 },
+      ['casco-firme', 'folego-de-montanha', 'segundo-ar'],
       { coat: '#5a4127', coatShade: '#36261a', mane: '#2f7d32', accent: '#8bc34a' },
       { habitat: 'Mata Atlântica' }),
-    // Lendário
-    horse('w-boitata', 'Boitatá', 'fogo', 'lendario', 30,
-      { vel: 70, acel: 72, est: 56, forca: 58, garra: 64 },
-      { vel: 28, acel: 29, est: 20, forca: 21, garra: 26 },
-      ['sol-a-pino', 'chama-final', 'raca'],
+    mount('w-boitata', 'Boitatá', 'fogo', 'mitico', 'f', 30,
+      { vel: 70, acel: 72, man: 67, forca: 58, est: 56, garra: 64, sorte: 60 },
+      { vel: 28, acel: 29, man: 29, forca: 21, est: 20, garra: 26, sorte: 18 },
+      ['sol-a-pino', 'chama-final', 'drift'],
       { coat: '#2a1a3a', coatShade: '#140b1e', mane: '#3cf0ff', accent: '#ff4fd8' },
       { habitat: 'Só aparece em noites de queimada', lore: 'A cobra de fogo do folclore, em forma de cavalo.' }),
-    horse('w-iara', 'Iara', 'agua', 'lendario', 28,
-      { vel: 64, acel: 60, est: 72, forca: 58, garra: 66 },
-      { vel: 22, acel: 21, est: 30, forca: 20, garra: 25 },
-      ['canto-da-iara', 'correnteza', 'nascente'],
+    mount('w-iara', 'Iara', 'agua', 'mitico', 'm', 28,
+      { vel: 64, acel: 60, man: 58, forca: 58, est: 72, garra: 66, sorte: 60 },
+      { vel: 22, acel: 21, man: 22, forca: 20, est: 30, garra: 25, sorte: 18 },
+      ['canto-da-iara', 'pe-na-chuva', 'nascente'],
       { coat: '#1f6f78', coatShade: '#0f3f45', mane: '#b8fff1', accent: '#ffd36e' },
       { habitat: 'Rios encantados', lore: 'A mãe-d\'água que encanta quem a ouve.' })
   ];
@@ -975,39 +973,22 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     xpToLevel: function (level) { return 50 + 25 * level; }
   };
 
-  // Hipódromos de exemplo (fictícios). hills: [[inícioM, fimM], ...]. Se faltar `weather`,
-  // RaceSim.simulate sorteia o clima pela seed.
-  var TRACK_EXAMPLES = [
-    { id: 'praia-dourada', name: 'Hipódromo Praia Dourada', distance: 1000, surface: 'areia', weather: 'sol', hills: [],
-      desc: 'Reta curta à beira-mar, areia fofa e sol de rachar.' },
-    { id: 'serra-verde', name: 'Circuito Serra Verde', distance: 1600, surface: 'grama', weather: 'nublado', hills: [[450, 650], [1050, 1220]],
-      desc: 'Duas subidas na serra, gramado bem cuidado.' },
-    { id: 'raia-sertao', name: 'Raia do Sertão', distance: 2400, surface: 'terra', weather: 'sol', hills: [[900, 1120]],
-      desc: 'Terra batida, calor e uma ladeira no meio do caminho.' },
-    { id: 'hipodromo-garoa', name: 'Hipódromo da Garoa', distance: 2400, surface: 'grama', weather: 'chuva', hills: [],
-      desc: 'Pista longa e plana sob chuva fina. Paraíso da Água.' },
-    { id: 'pampa-vento', name: 'Pista do Pampa', distance: 1600, surface: 'terra', weather: 'chuva', hills: [],
-      desc: 'Planície gaúcha, terra molhada.' }
-  ];
-
   var GameData = {
-    version: '0.1-prototipo',
-    STAT_KEYS: ['vel', 'acel', 'est', 'forca', 'garra'],
+    version: '0.2-prototipo',
+    STAT_KEYS: STAT_KEYS,
     STATS: STATS,
     ELEMENTS: ELEMENTS,
     RARITIES: RARITIES,
-    TACTICS: TACTICS,
     SURFACES: SURFACES,
     WEATHERS: WEATHERS,
-    DISTANCES: DISTANCES,
+    BLOCK_TYPES: BLOCK_TYPES,
     SKILLS: SKILLS,
     ITEMS: ITEMS,
     STARTERS: STARTERS,
     WILD_HORSES: WILD_HORSES,
     BOT_NAMES: BOT_NAMES,
     LEAGUES: LEAGUES,
-    ECONOMY: ECONOMY,
-    TRACK_EXAMPLES: TRACK_EXAMPLES
+    ECONOMY: ECONOMY
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = GameData;
