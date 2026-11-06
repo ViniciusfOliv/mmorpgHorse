@@ -44,5 +44,32 @@ test('catálogo de skills', function () {
   Object.keys(G.ITEMS).forEach(function (id) { assert.ok(G.RARITIES[G.ITEMS[id].rarity], 'item ' + id); });
 });
 
+section('status');
+test('computeStats devolve 7 chaves e respeita o teto da raridade', function () {
+  var h = JSON.parse(JSON.stringify(G.STARTERS[0])); h.level = 50;
+  var s = S.computeStats(h, null);
+  assert.deepStrictEqual(Object.keys(s), G.STAT_KEYS);
+  assert.ok(s.vel <= 80, 'raro teto 80'); assert.strictEqual(s.acel <= 88, true, 'teto + bônus de elemento 8');
+});
+test('skillChance: comum lv1 sorte 0 = 0.35; mítico lv50 sorte 100 = 0.95 (teto); raro lv10 sorte 50 ≈ 0.645', function () {
+  var mk = function (r, lv, so) { return { rarity: r, level: lv }; };
+  assert.strictEqual(S.skillChance(mk('comum', 1), { sorte: 0 }), 0.35);
+  assert.strictEqual(S.skillChance(mk('mitico', 50), { sorte: 100 }), 0.95);
+  assert.ok(Math.abs(S.skillChance(mk('raro', 10), { sorte: 50 }) - 0.645) < 1e-9);
+});
+test('powerRating usa os 7 pesos', function () {
+  var h = JSON.parse(JSON.stringify(G.STARTERS[0])); var s = S.computeStats(h, null), w = S.TUNING.ratingW, sum = 0;
+  G.STAT_KEYS.forEach(function (k) { sum += s[k] * w[k]; });
+  assert.strictEqual(S.powerRating(h, null), Math.round(sum + 20 * 1));   // labareda: start = 1
+});
+test('learnSkill não estoura vagas e respeita elemento/exclusividade', function () {
+  var full = { id: 'x', element: 'fogo', rarity: 'comum', skills: ['arranque'] };
+  assert.strictEqual(S.learnSkill(full, function () { return 0; }), null);
+  var m = { id: 'x', element: 'fogo', rarity: 'mitico', skills: [] }, seen = {};
+  for (var i = 0; i < 400; i++) { var id = S.learnSkill(m, S.mulberry32(i)); if (id) seen[id] = 1; }
+  assert.ok(seen.arranque && seen['sol-a-pino'], 'aprende neutras e do elemento');
+  assert.ok(!seen['pe-na-chuva'] && !seen.labareda, 'não aprende de outro elemento nem exclusiva alheia');
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
