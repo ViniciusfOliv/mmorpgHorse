@@ -150,6 +150,7 @@ try {
   await page.screenshot({ path: join(SHOTS, 'final-04-corrida.png') })
   // resto em x2 até a troca automática para o resultado
   await page.getByRole('button', { name: 'x2' }).click()
+  await page.waitForFunction(() => /🎲/.test(document.getElementById('feed').textContent), null, { timeout: 90000 })
   await page.waitForSelector('#t-resultado', { timeout: 90000 })
   notes.cam390 = await page.evaluate(() => window.__cc)
   await sleep(600)
@@ -158,6 +159,12 @@ try {
   const after = await page.evaluate(() => ({ gold: window.__galope.state.gold, level: window.__galope.state.level, xp: window.__galope.state.xp, result: window.__galope.ui.result, pending: window.__galope.state.pending }))
   if (after.gold !== goldBefore - after.result.fee + after.result.prize) problems.push(`ouro: ${after.gold} != ${goldBefore} - ${after.result.fee} + ${after.result.prize}`)
   if (after.pending) problems.push('sala continuou pendente depois de correr')
+  const res = await page.evaluate(() => ({
+    dados: window.__galope.ui.lobby.sim.events.filter((e) => e.type === 'dado').length,
+    tabela: document.querySelector('.tabela').textContent
+  }))
+  if (res.dados !== 2) problems.push(`resultado: ${res.dados} eventos 'dado' (esperado 2)`)
+  if (/forma/i.test(res.tabela)) problems.push('resultado: tabela ainda fala em "forma"')
 
   // HUD x resultado oficial
   // correr de novo -> nova sala (contador +1)

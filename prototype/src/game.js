@@ -781,7 +781,7 @@
     var eff = pct > 0 ? '+' + pct + '% para ' + el.name : pct < 0 ? '−' + Math.abs(pct) + '% para ' + el.name : 'neutro para ' + el.name;
     var sorte = RS.computeStats(h, state.equipped).sorte;
     var items = '<li' + (pct > 0 ? ' class="bom"' : pct < 0 ? ' class="ruim"' : '') + '>' + esc('Clima inicial ' + w.name + ': ' + eff) + '</li>' +
-      '<li class="dica">' + esc('Dado da Sorte a 1/3 e 2/3 da pista: quem tira o maior dado puxa o clima para o seu elemento. Sua Sorte: ' + sorte + '% de rolar dois dados.') + '</li>';
+      '<li class="dica">' + esc('Dado da Sorte a 1/3 e 2/3 da pista: quem tira o maior dado puxa o clima para o seu elemento. Sua Sorte: ' + Math.min(100, sorte) + '% de rolar dois dados.') + '</li>';
     var tips = strategyTips(L).map(function (t) { return '<li class="dica">' + esc(t) + '</li>'; }).join('');
     return '<div class="tela-cabeca"><span class="rotulo">Clima e sorte</span><ul class="dicas">' + items + tips + '</ul></div>';
   }
@@ -961,8 +961,11 @@
   // ===========================================================================
   function renderCorrida() {
     var L = ui.lobby, D = L.cond.distance;
-    var condTxt = D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ' + GD.WEATHERS[L.cond.weather].name +
-      (L.cond.hills.length ? ' · ' + L.cond.hills.length + (L.cond.hills.length > 1 ? ' subidas' : ' subida') : '');
+    var tracado = ['curva', 'subida'].map(function (tp) {
+      var sh = Math.round(RS.blockShare(L.cond.blocks, tp) * 100);
+      return sh ? sh + '% ' + tp : '';
+    }).filter(Boolean).join(' · ') || 'reta pura';
+    var condTxt = D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ' + GD.WEATHERS[L.cond.weather].name + ' · ' + tracado;
     return '<section class="tela tela--larga tela--corrida" aria-labelledby="t-corrida">' +
       '<header class="corrida-topo"><div class="corrida-titulo">' +
         '<h1 class="corrida-nome" id="t-corrida" tabindex="-1" data-foco>' + esc(L.trackName) + '</h1>' +
@@ -982,7 +985,15 @@
   }
 
   function createRaceView(L, root) {
-    var sim = L.sim, n = L.n, D = L.cond.distance, hills = L.cond.hills;
+    var sim = L.sim, n = L.n, D = L.cond.distance, hills = L.cond.hills, curves = L.cond.curves || [];
+    var blocks = L.cond.blocks;
+    // clima em cada instante: o inicial, trocado por cada evento 'clima' (Dado da Sorte) já ocorrido
+    var climaEvs = sim.events.filter(function (ev) { return ev.type === 'clima'; });
+    function climaAtual(simT) {
+      var w = L.cond.weather;
+      for (var c = 0; c < climaEvs.length && climaEvs[c].t <= simT; c++) w = climaEvs[c].weather;
+      return w;
+    }
     var frames = sim.frames, F = frames.length, dt = sim.dt;
     var me = L.playerIdx;
     var cv = root.querySelector('#pista');
@@ -1060,6 +1071,7 @@
       simT: 0, tReal: 0, last: 0, mult: 1, phase: 'contagem', count: reduced() ? 1.2 : 2.4,
       gallop: new Array(n), S: 2, W: 0, H: 0, done: false, endTimer: 0,
       lastHud: {}, flash: 0, winnerSeen: false, finishCam: false, playerRect: null, crossed: false,
+      climaMsg: '', climaTimer: 0,
       lay: null
     };
     for (i = 0; i < n; i++) self.gallop[i] = i * 1.7;
@@ -1165,6 +1177,13 @@
         return '<li class="tipo-' + esc(e.type) + (mine ? ' voce' : '') + '"><time>' + fmtClock(e.t) + '</time>' + chip + '<span>' + esc(e.text) + '</span></li>';
       }).join(''));
       if (ev.racer === me && (ev.type === 'chegada' || ev.type === 'garra' || ev.type === 'skill')) hud.anuncio.textContent = ev.text;
+      if (ev.type === 'dado' && ev.changed && GD.WEATHERS[ev.weather]) {
+        // virada de clima: anúncio por ~2 s (faixa no canvas + leitor de tela) e um clarão leve
+        self.climaMsg = 'CLIMA: ' + GD.WEATHERS[ev.weather].name.toUpperCase();
+        self.climaTimer = 2;
+        hud.anuncio.textContent = 'O clima virou: ' + GD.WEATHERS[ev.weather].name + '.';
+        if (!reduced()) self.flash = Math.max(self.flash, 0.12);
+      }
     }
 
     // ---- desenho em pixels de arte (A = escala)
@@ -1208,14 +1227,14 @@
       box(A - 2 - tw2, 2, tw2, 14, C.veu);
       text(tTxt, A - 4, 3, C.texto, 1, 'right');
       text(kmh, A - 4, 10, C.texto2, 1, 'right');
-      // SUBIDA (enquanto o jogador sobe)
-      var onHill = false;
-      for (var h = 0; h < hills.length; h++) if (st.pos[me] >= hills[h][0] && st.pos[me] < hills[h][1]) onHill = true;
-      if (onHill && self.phase !== 'contagem') {
-        var lbl = '▲SUBIDA', lw = tw(lbl) + 4;
+      // tipo do bloco do jogador: SUBIDA ou CURVA (nada na reta)
+      var bType = blocks[RS.blockAt(blocks, st.pos[me])].type;
+      var lbl = bType === 'subida' ? '▲SUBIDA' : bType === 'curva' ? '↪CURVA' : '';
+      if (lbl && self.phase !== 'contagem') {
+        var lw = tw(lbl) + 4;
         var hy = lay.compact ? 6 : 18 + n + 4;
         var hx = lay.compact ? A - 2 - tw2 - 4 - lw : 2;
-        box(hx, hy, lw, 7, C.ouro, C.sombra);
+        box(hx, hy, lw, 7, bType === 'curva' ? '#7ab8ff' : C.ouro, C.sombra);
         text(lbl, hx + 2, hy + 1, C.tinta);
       }
       if (lay.compact) return;
@@ -1223,6 +1242,11 @@
       var x0 = 4, x1 = A - 9, y0 = 19;
       box(x0 - 1, y0 - 1, x1 - x0 + 3, n + 2, C.veu);
       ctx.fillStyle = C.linha; ctx.fillRect(x0 * self.S, y0 * self.S, (x1 - x0 + 1) * self.S, n * self.S);
+      ctx.fillStyle = C.brilho;   // curvas: a faixa clareada
+      curves.forEach(function (cl) {
+        var ca = Math.round(x0 + cl[0] / D * (x1 - x0)), cb = Math.round(x0 + cl[1] / D * (x1 - x0));
+        ctx.fillRect(ca * self.S, y0 * self.S, Math.max(1, cb - ca) * self.S, n * self.S);
+      });
       ctx.fillStyle = C.ouroEscuro;
       hills.forEach(function (hl) {
         var ha = Math.round(x0 + hl[0] / D * (x1 - x0)), hb = Math.round(x0 + hl[1] / D * (x1 - x0));
@@ -1257,10 +1281,11 @@
       var cam = self.finishCam ? D - 0.62 * visM : follow;
       var laneH = lay.laneArt * S, laneTop = lay.laneTopArt * S;
       var tr = self.tReal;
+      var clima = climaAtual(self.simT);
       SP.drawTrack(ctx, {
         width: W, height: H, cameraX: cam, pxPerMeter: ppm, lanes: n, laneTop: laneTop, laneH: laneH,
-        surface: L.cond.surface, finishM: D, hills: hills, distanceMarkersEvery: D <= 1000 ? 100 : 200,
-        t: reduced() ? 0 : tr, weather: L.cond.weather, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift
+        surface: L.cond.surface, finishM: D, hills: hills, curves: curves, distanceMarkersEvery: D <= 1000 ? 100 : 200,
+        t: reduced() ? 0 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift
       });
       var tagsR = [], tagsL = [], badges = [], youTag = null;
       for (var j = 0; j < n; j++) {
@@ -1312,13 +1337,17 @@
         text(yt, tx + 2, ty + 3, C.ouro);
       }
       layoutTags(tagsR, true); layoutTags(tagsL, false);
-      SP.drawWeather(ctx, L.cond.weather, reduced() ? 0 : tr, W, H, S);
+      SP.drawWeather(ctx, clima, reduced() ? 0 : tr, W, H, S);
       if (self.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + (0.55 * self.flash / 0.3).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
       drawHud(st, order);
       if (self.finishCam || (self.phase !== 'contagem' && Math.abs(self.simT - tWin) < 0.6)) {
         var bt = 'FOTO DE CHEGADA', bw = tw(bt) + 6, bx2 = Math.round(lay.artW / 2 - bw / 2), by2 = lay.hudH + 3;
         box(bx2, by2, bw, 9, C.sombra, C.ouro);
         text(bt, bx2 + 3, by2 + 2, C.ouro);
+      } else if (self.climaTimer > 0) {
+        var ct = self.climaMsg, cw2 = tw(ct) + 6, cx3 = Math.round(lay.artW / 2 - cw2 / 2), cy3 = lay.hudH + 3;
+        box(cx3, cy3, cw2, 9, C.sombra, '#7ab8ff');
+        text(ct, cx3 + 3, cy3 + 2, C.texto);
       }
       if (self.phase === 'contagem') {
         var c = Math.ceil(self.count / (reduced() ? 0.4 : 0.8));
@@ -1376,6 +1405,7 @@
       }
       if (!self.winnerSeen && self.simT >= tWin) { self.winnerSeen = true; if (!reduced()) self.flash = 0.3; }
       if (self.flash > 0) self.flash = Math.max(0, self.flash - dtReal);
+      if (self.climaTimer > 0) self.climaTimer = Math.max(0, self.climaTimer - dtReal);
       if (!self.crossed && self.simT >= fTime[me]) {
         self.crossed = true;
         hud.anuncio.textContent = 'Você cruzou a linha em ' + (rankOf[me] + 1) + 'º lugar.';
@@ -1494,6 +1524,13 @@
       lvl = '<div class="levelup" role="status"><b>Subiu para o nível ' + R.after.level + '!</b>' +
         '<div class="ganhos">' + (ups || '<span>Os status já estão no teto da raridade.</span>') + '</div></div>';
     }
+    if (R.learned && R.learned.length) {
+      var skNames = R.learned.map(function (id) { return GD.SKILLS[id] ? GD.SKILLS[id].name : id; }).join(', ');
+      lvl += '<div class="levelup" role="status"><b>' + esc('Nova skill: ' + skNames + '!') + '</b></div>';
+    }
+    var dados = sim.events.filter(function (ev) { return ev.type === 'dado' || ev.type === 'clima'; }).map(function (ev) {
+      return '<li class="tipo-' + esc(ev.type) + '"><time>' + esc(fmtSec(ev.t)) + '</time><span>' + esc(ev.text) + '</span></li>';
+    }).join('');
 
     var broke = state.gold < MIN_ENTRY;
     var actions = broke
@@ -1526,9 +1563,12 @@
         '<div class="tela-cabeca"><span class="rotulo">Experiência ' + '<span class="mais">+' + R.xpGain + ' XP</span>' + (R.training ? ' (treino: metade)' : '') + '</span>' +
         xpHtml(R.after.level, R.after.xp) + '</div>' + lvl + '</section>' +
       actions +
+      (dados ? '<section class="caixa" aria-labelledby="t-dados"><h2 class="titulo" id="t-dados">Dados da Sorte</h2>' +
+        '<ol class="feed feed--estatica">' + dados + '</ol></section>' : '') +
       '<section class="caixa" aria-labelledby="t-chegada"><h2 class="titulo" id="t-chegada">Ordem de chegada</h2>' +
         '<div class="rolagem"><table class="tabela"><thead><tr><th>Pos</th><th>Cavalo</th><th class="num">Tempo</th><th class="num">Prêmio</th></tr></thead>' +
         '<tbody>' + rows + '</tbody></table></div>' +
+        '<p class="nota">🎲 Dado da Sorte: a 1/3 e 2/3 da pista o maior dado puxa o clima para o elemento de quem tirou.</p>' +
         '</section>' +
       '</section>';
   }

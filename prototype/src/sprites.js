@@ -6,7 +6,7 @@
  *   Sprites.HORSE_W, Sprites.HORSE_H, Sprites.GALLOP_FRAMES, Sprites.FOOT_Y
  *   Sprites.drawHorse(ctx, x, y, { palette, element, frame, scale, silks, idle, t, jockey, shadow })
  *   Sprites.drawTrack(ctx, { width, height, cameraX, pxPerMeter, lanes, laneTop, laneH, surface,
- *                           finishM, hills, distanceMarkersEvery, t, weather, pixel })
+ *                           finishM, hills, curves, distanceMarkersEvery, t, weather, pixel })
  *   Sprites.drawWeather(ctx, weather, t, width, height)
  *   Sprites.drawTrail(ctx, x, y, element, t, intensity, scale)
  *   Sprites.drawElementIcon(ctx, x, y, element, scale)
@@ -922,6 +922,7 @@
     '\u00ba': ['.#.', '#.#', '.#.', '...', '###'], '\u00aa': ['.##', '#.#', '.##', '...', '###'],
     '\u25bc': ['#####', '.###.', '..#..', '.....', '.....'], '\u25c0': ['..#', '.##', '###', '.##', '..#'],
     '\u25b6': ['#..', '##.', '###', '##.', '#..'], '\u25b2': ['.....', '..#..', '.###.', '#####', '.....'],
+    '\u21aa': ['.##..', '#....', '#..#.', '.####', '...#.'],
     ' ': ['..', '..', '..', '..', '..']
   };
   var ACCENTS = { '́': ['..#', '.#.'], '̀': ['#..', '.#.'], '̂': ['.#.', '#.#'], '̃': ['.##', '##.'] };
@@ -1131,6 +1132,10 @@
     areia: { a: '#e2c98f', b: '#d9be82', dark: '#bf9f62', lite: '#f4e4b8', edge: '#c8aa70' }
   };
 
+  // Névoa usa as mesmas cores apagadas do nublado (céu, colinas, gramados, arquibancada).
+  function isDim(weather) { return weather === 'nublado' || weather === 'nevoa'; }
+  function skyKey(weather) { return weather === 'nevoa' ? 'nublado' : weather; }
+
   var tileCache = new Map();
   function surfaceTile(surface, weather, artH) {
     var key = surface + '|' + weather + '|' + artH;
@@ -1183,7 +1188,7 @@
     var TW = 120, TH = 40;
     var cols = new Array(TW * TH).fill(null);
     function px(x, y, col) { if (x >= 0 && y >= 0 && x < TW && y < TH) cols[y * TW + x] = col; }
-    var dim = weather === 'chuva' ? 0.35 : weather === 'nublado' ? 0.15 : 0;
+    var dim = weather === 'chuva' ? 0.35 : isDim(weather) ? 0.15 : 0;
     function C(h) { return dim ? shade(h, dim) : h; }
     // estrutura: x 6..86
     var x0 = 6, x1 = 88;
@@ -1313,7 +1318,7 @@
     var W = o.width, Hh = o.height;
     var lanes = o.lanes || 6, laneH = o.laneH || 24, laneTop = o.laneTop || Math.round(Hh * 0.35);
     var ppm = Math.max(0.05, o.pxPerMeter || 4), cam = o.cameraX || 0, t = o.t || 0;
-    var weather = o.weather || 'sol', surface = o.surface || 'grama';
+    var weather = skyKey(o.weather || 'sol'), surface = o.surface || 'grama';
     var P = o.pixel || Math.max(1, Math.round(laneH / 12));
     var trackH = lanes * laneH, trackBottom = laneTop + trackH;
     var camPx = cam * ppm;
@@ -1341,7 +1346,7 @@
     }
 
     // nuvens de fundo
-    var nClouds = weather === 'sol' ? 3 : weather === 'nublado' ? 7 : 9;
+    var nClouds = weather === 'sol' ? 3 : isDim(weather) ? 7 : 9;
     for (var ci = 0; ci < nClouds; ci++) {
       var cc = cloudCanvas(ci % 5, P, weather);
       var span = W + cc.width * 2;
@@ -1377,7 +1382,7 @@
     for (var sxp = -stOff; sxp < W; sxp += stW) ctx.drawImage(st, Math.round(sxp), stY, stW, stH);
 
     // gramado entre arquibancada e pista
-    ctx.fillStyle = weather === 'chuva' ? '#3f6a3c' : weather === 'nublado' ? '#4a7c44' : '#58944a';
+    ctx.fillStyle = weather === 'chuva' ? '#3f6a3c' : isDim(weather) ? '#4a7c44' : '#58944a';
     ctx.fillRect(0, laneTop - 4 * P, W, 4 * P);
 
     // --- superfície da pista
@@ -1428,6 +1433,20 @@
       for (var ly2 = laneTop; ly2 < trackBottom; ly2 += 4 * P) {
         if (a >= 0 && a < W) ctx.fillRect(a, ly2, P, 2 * P);
         if (bb >= 0 && bb < W) ctx.fillRect(bb, ly2, P, 2 * P);
+      }
+    }
+
+    // --- curvas: tinta azulada sobre as raias e setas ↪ ao longo da cerca externa (ancoradas no mundo)
+    var curves = o.curves || [];
+    for (var cvi = 0; cvi < curves.length; cvi++) {
+      var ca = sx(curves[cvi][0]), cb = sx(curves[cvi][1]);
+      if (cb < -60 * P || ca > W + 60 * P) continue;
+      var cx0 = Math.max(0, ca), cx1 = Math.min(W, cb);
+      if (cx1 > cx0) { ctx.fillStyle = 'rgba(30,60,120,0.18)'; ctx.fillRect(cx0, laneTop, cx1 - cx0, trackH); }
+      ctx.fillStyle = '#7ab8ff';
+      for (var ly3 = laneTop; ly3 < trackBottom; ly3 += 4 * P) {
+        if (ca >= 0 && ca < W) ctx.fillRect(ca, ly3, P, 2 * P);
+        if (cb >= 0 && cb < W) ctx.fillRect(cb, ly3, P, 2 * P);
       }
     }
 
@@ -1498,6 +1517,27 @@
         drawBoard(ctx, hb, laneTop - 22 * P, 'FIM', P, '#f2c230', '#1c1820');
       }
     }
+    // placas de curva e setas ↪ (chevron de 3 pixels) a cada 40·P sobre a cerca externa
+    for (var c2 = 0; c2 < curves.length; c2++) {
+      var ka = sx(curves[c2][0]), kb = sx(curves[c2][1]);
+      if (kb < -40 * P || ka > W + 40 * P) continue;
+      var aStep = 40 * P, aFrom = ka + aStep / 2;
+      if (aFrom < 0) aFrom += Math.ceil(-aFrom / aStep) * aStep;
+      ctx.fillStyle = '#7ab8ff';
+      for (var ax = aFrom; ax < Math.min(kb - 4 * P, W); ax += aStep) {
+        var ay = laneTop - 10 * P;
+        ctx.fillRect(ax, ay, P, P); ctx.fillRect(ax + P, ay + P, P, P); ctx.fillRect(ax, ay + 2 * P, P, P);
+        ctx.fillRect(ax + 2 * P, ay, P, P); ctx.fillRect(ax + 3 * P, ay + P, P, P); ctx.fillRect(ax + 2 * P, ay + 2 * P, P, P);
+      }
+      if (ka > -40 * P && ka < W + 40 * P) {
+        ctx.fillStyle = '#2a4a78'; ctx.fillRect(ka, laneTop - 16 * P, P, 16 * P);
+        drawBoard(ctx, ka, laneTop - 26 * P, 'CURVA', P, '#7ab8ff', '#1c1820');
+      }
+      if (kb > -40 * P && kb < W + 40 * P) {
+        ctx.fillStyle = '#2a4a78'; ctx.fillRect(kb, laneTop - 12 * P, P, 12 * P);
+        drawBoard(ctx, kb, laneTop - 22 * P, 'FIM', P, '#7ab8ff', '#1c1820');
+      }
+    }
     if (sx0 > -40 * P && sx0 < W + 40 * P) {
       ctx.fillStyle = '#e8e2d6'; ctx.fillRect(sx0, laneTop - 14 * P, P, 14 * P);
       drawBoard(ctx, sx0, laneTop - 24 * P, 'LARGADA', P, '#3a7ae0', '#ffffff');
@@ -1524,7 +1564,7 @@
     }
 
     // --- cerca interna e gramado interno
-    ctx.fillStyle = weather === 'chuva' ? '#355c38' : weather === 'nublado' ? '#41703f' : '#4c8a44';
+    ctx.fillStyle = weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
     ctx.fillRect(0, trackBottom, W, Hh - trackBottom);
     // tufos e flores do gramado interno
     var inOff = camPx;
@@ -1550,7 +1590,7 @@
 
     // --- relevo das subidas: copia as colunas da faixa (da cerca externa para baixo) para cima
     if (hills.length && o.hillRelief !== false) {
-      var y0 = laneTop - 8 * P, innerC = weather === 'chuva' ? '#355c38' : weather === 'nublado' ? '#41703f' : '#4c8a44';
+      var y0 = laneTop - 8 * P, innerC = weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
       var spanX = -1, spanDy = 0;
       var flush = function (xEnd) {
         if (spanX < 0 || spanDy <= 0) return;
@@ -1621,6 +1661,18 @@
         ctx.globalAlpha = 0.85;
         ctx.drawImage(cc, Math.round(x), Math.round(-cc.height * 0.35 + hash(c + 9) * H * 0.06));
         ctx.globalAlpha = 1;
+      }
+    } else if (weather === 'nevoa') {
+      ctx.fillStyle = 'rgba(200,212,222,0.10)'; ctx.fillRect(0, 0, W, H);
+      // 3 faixas de névoa deslizando na horizontal
+      var bandH = 6 * P, rows = [0.3, 0.55, 0.8];
+      ctx.fillStyle = 'rgba(230,236,240,0.18)';
+      for (var bi = 0; bi < rows.length; bi++) {
+        var bw = Math.round(W * (0.55 + 0.25 * hash(bi + 21)) / P) * P;
+        var bspan = W + bw;
+        var bx = Math.round((mod(hash(bi + 31) * bspan + t * (10 + 5 * bi) * P, bspan) - bw) / P) * P;
+        var by = Math.round(H * rows[bi] / P) * P;
+        ctx.fillRect(bx, by, bw, bandH);
       }
     } else { // sol
       ctx.fillStyle = 'rgba(255,196,110,0.06)'; ctx.fillRect(0, 0, W, H);
