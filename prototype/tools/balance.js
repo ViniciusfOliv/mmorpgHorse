@@ -141,7 +141,8 @@ var r1b = test1(25, n(3000), false);
 log('## Relatório de balanceamento v2');
 log('');
 log('Gerado por `node tools/balance.js`' + (QUICK ? ' --quick' : '') + '. Mapas aleatórios em blocos (`randomConditions`), sem equipamento, salvo indicação. ' +
-  'Dado da Sorte ligado (1/3 e 2/3 da pista), exceto na seção 2.');
+  'Dado da Sorte ligado (1/3 e 2/3 da pista), exceto na seção 2. ' +
+  'Metas E1–E4 medem o equipamento (`gear.js`).');
 log('');
 log('### 1. Iniciais no mesmo level, mapas aleatórios (meta: 28%–39% cada)');
 log('');
@@ -271,6 +272,84 @@ log('| **Mítico lv1 × Comum lv1 (média, meta 90%–100%)** | **' + f1(v4a) + 
 rows4a.forEach(function (r) { log(r); });
 log('| **Comum lv25 × Raro lv1 (média, meta 25%–60%)** | **' + f1(v4b) + '%** |');
 rows4b.forEach(function (r) { log(r); });
+log('');
+
+// ---------------------------------------------------------------------------
+// E) Equipamento (metas E1–E4): duelos de 2 corredores com peças de gear.js
+// ---------------------------------------------------------------------------
+var GEAR_SLOTS = G.GEAR_SLOTS;
+function gearFrom(ids) {   // ids por slot (null = vazio) -> objeto resolvido
+  var equip = {}, items = {};
+  GEAR_SLOTS.forEach(function (s, i) {
+    if (ids[i]) { equip[s] = 'u' + i; items['u' + i] = { uid: 'u' + i, id: ids[i], plus: ids.plus }; }
+    else equip[s] = null;
+  });
+  return GR.resolve({ equip: equip }, items);
+}
+function pieceIds(plus, fn, count) {
+  var ids = GEAR_SLOTS.map(function (s, i) { return i < count ? fn(s, i) : null; });
+  ids.plus = plus;
+  return ids;
+}
+// primeiras n peças (ordem dos slots) do conjunto
+function setGear(set, rarity, plus, cnt) {
+  return gearFrom(pieceIds(plus, function (s) { return s + '-' + set + '-' + rarity; }, cnt));
+}
+// peça do slot i do conjunto sets[i] (sets mais curto = slots finais vazios)
+function mixedGear(rarity, plus, sets) {
+  return gearFrom(pieceIds(plus, function (s, i) { return s + '-' + sets[i] + '-' + rarity; }, sets.length));
+}
+// cinco peças soltas (só comum/mágico)
+function looseGear(rarity, plus) {
+  return gearFrom(pieceIds(plus, function (s) { return s + '-' + rarity; }, GEAR_SLOTS.length));
+}
+// Duelo com equipamento por corredor; com `weather` fixa o clima (Dado desligado) durante o laço.
+function duelGear(a, ga, b, gb, N, testId, weather) {
+  var saved = S.TUNING.diceAt, winsA = 0;
+  try {
+    if (weather) S.TUNING.diceAt = [];
+    for (var k = 0; k < N; k++) {
+      var seed = seedOf(testId, k);
+      var cond = S.randomConditions(seed);
+      if (weather) cond.weather = weather;
+      var pair = (k % 2 === 0) ? [[a, ga], [b, gb]] : [[b, gb], [a, ga]];   // alterna a largada
+      var res = run(seed, cond, pair.map(function (p) { return racer(p[0], p[1]); }));
+      if (pair[res.finishOrder[0]][0] === a) winsA++;
+    }
+  } finally { S.TUNING.diceAt = saved; }
+  return winsA;
+}
+var NE = n(400), byId = {};
+ALL.forEach(function (h) { byId[h.id] = h; });
+var e1W = 0, e1N = 0;
+STARTERS.forEach(function (h, si) {
+  e1W += duelGear(clone(h, 1), looseGear('comum', 0), clone(h, 1), null, NE, 1100 + si, 'nublado'); e1N += NE;
+});
+var vE1 = pct(e1W, e1N);
+check('E1', 'Inicial lv1 com 5 Comuns +0 vence sem nada', vE1, 60, 75);
+var e2W = 0, e2N = 0, gE2 = setGear('sol', 'raro', 10, 5);
+comuns.forEach(function (C, ci) {
+  raros.forEach(function (Rr, ri) {
+    e2W += duelGear(clone(C, 30), gE2, clone(Rr, 30), null, NE, 1200 + ci * 10 + ri, 'nublado'); e2N += NE;
+  });
+});
+var vE2 = pct(e2W, e2N);
+check('E2', 'Comum lv30 com conjunto Raro +10 vence Raro lv30 sem nada', vE2, 40, 60);
+var brasa = byId.brasa;
+var vE3 = pct(duelGear(clone(brasa, 10), setGear('sol', 'raro', 0, 4), clone(brasa, 10), mixedGear('raro', 0, ['sol', 'sol', 'chuva', 'nevoa']), NE, 1300, 'sol'), NE);
+check('E3', '4 Raras do Sol × 4 Raras misturadas, com Sol', vE3, 55, 70);
+var vE4 = pct(duelGear(clone(brasa, 10), setGear('chuva', 'raro', 0, 5), clone(brasa, 10), mixedGear('raro', 0, ['chuva', 'chuva', 'sol', 'sol', 'nevoa']), NE, 1301, 'chuva'), NE);
+check('E4', 'Fogo com 5 Raras da Chuva × misturadas, na chuva', vE4, 60, 75);
+log('### E. Equipamento (metas E1–E4)');
+log('');
+log('Duelos de 2 corredores (' + NE + ' corridas por duelo, largada alternada), mapas aleatórios; clima fixo nas metas com clima (Dado desligado). Peças de `gear.js`.');
+log('');
+log('| Meta | Duelo | Vitórias do 1º | Faixa |');
+log('|---|---|---|---|');
+log('| E1 | Inicial lv1 com 5 Comuns +0 × sem nada (nublado) | **' + f1(vE1) + '%** | 60–75% |');
+log('| E2 | Comum lv30 com conjunto Raro +10 × Raro lv30 sem nada (nublado) | **' + f1(vE2) + '%** | 40–60% |');
+log('| E3 | 4 Raras do Sol × 4 Raras misturadas, Brasa lv10, com Sol | **' + f1(vE3) + '%** | 55–70% |');
+log('| E4 | Brasa lv10 com 5 Raras da Chuva × misturadas, na chuva | **' + f1(vE4) + '%** | 60–75% |');
 log('');
 
 // ---------------------------------------------------------------------------
