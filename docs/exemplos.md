@@ -230,7 +230,7 @@ O que aconteceu: o mapa tinha 1 070 m de subida seguida (430–1500 m), bom para
 
 ## 11. Relatório de balanceamento
 
-Gerado por `node tools/balance.js`. Mapas aleatórios em blocos (`randomConditions`), sem itens, salvo indicação. Dado da Sorte ligado (1/3 e 2/3 da pista), exceto na seção 2.
+Gerado por `node tools/balance.js`. Mapas aleatórios em blocos (`randomConditions`), sem equipamento, salvo indicação. Dado da Sorte ligado (1/3 e 2/3 da pista), exceto na seção 2. Metas E1–E4 (E2 em a/b) medem o equipamento (`gear.js`).
 
 ### 1. Iniciais no mesmo level, mapas aleatórios (meta: 28%–39% cada)
 
@@ -296,6 +296,21 @@ Faixas rebaseadas (4a 90%–100%, 4b 25%–60%): sem Disposição do dia (intenc
 | Capim lv25 × Ipê lv1 | 19,3% |
 | Capim lv25 × Ventania lv1 | 47,1% |
 | Capim lv25 × Pororoca lv1 | 42,6% |
+
+### E. Equipamento (metas E1–E4, E2 em a/b, + E3b)
+
+Duelos de 2 corredores (400 corridas por duelo, largada alternada), mapas aleatórios; clima fixo nas metas com clima (Dado desligado), exceto E3b (3 corredores, Sol inicial, Dado ligado). Peças de `gear.js`.
+
+E2a/E2b: no lv30 o salto Comum→Raro vale ~20 pontos por status (statCap 60 contra 80) mais duas skills extras; um conjunto Raro +10 completo (+14) fecha um degrau (vence o Mágico) mas não dois (perde do Raro): "fecha um degrau, não dois". E3 (75–90%): o bônus de 4 peças é a "dobra do clima" aprovada (1,03→1,10), igual à skill de dobrar clima; num duelo de clima fixo entre cavalos idênticos vale ~86%, e no jogo o Dado vira o clima ~1,2× por corrida, então a vantagem real é menor. E3b mede essa vantagem real: os dois Brasas do E3 mais uma Maré (Água, sem equipamento) na pista, Sol só no início e o Dado ligado; conta quantas vezes a Brasa do Sol chega à frente da misturada. A terceira montaria de outro elemento é necessária porque o Dado vira o clima para o elemento de quem o vence: com só dois Fogos ele sempre cairia no Sol e o clima nunca viraria.
+
+| Meta | Duelo | Vitórias do 1º | Faixa |
+|---|---|---|---|
+| E1 | Inicial lv1 com 5 Comuns +0 × sem nada (nublado) | **69,2%** | 60–75% |
+| E2a | Comum lv30 com conjunto Raro +10 × Mágico lv30 sem nada (nublado) | **75,3%** | 60–85% |
+| E2b | Comum lv30 com conjunto Raro +10 × Raro lv30 sem nada (nublado) | **13,2%** | 10–40% |
+| E3 | 4 Raras do Sol × 4 Raras misturadas, Brasa lv10, com Sol | **86,0%** | 75–90% |
+| E3b | 4 Raras do Sol à frente de 4 Raras misturadas, Brasa lv10, + Maré lv10; Sol inicial com Dado ligado | **82,5%** | 55–80% |
+| E4 | Brasa lv10 com 5 Raras da Chuva × misturadas, na chuva | **73,5%** | 60–75% |
 
 ### 5. Duração (tempo de simulação até o último cruzar a linha)
 
@@ -406,6 +421,12 @@ Limites: Bronze ≥ 0 · Prata ≥ 660 · Ouro ≥ 780 · Platina ≥ 880 · Dia
 | 3c | De subida (FOR 90) × de reta (VEL 90) | 68,3% | 55–75% | ✅ |
 | 4a | Mítico lv1 vence Comum lv1 | 100,0% | 90–100% | ✅ |
 | 4b | Comum lv25 vence Raro lv1 | 25,9% | 25–60% | ✅ |
+| E1 | Inicial lv1 com 5 Comuns +0 vence sem nada | 69,2% | 60–75% | ✅ |
+| E2a | Comum lv30 com conjunto Raro +10 vence Mágico lv30 sem nada | 75,3% | 60–85% | ✅ |
+| E2b | Comum lv30 com conjunto Raro +10 vence Raro lv30 sem nada | 13,2% | 10–40% | ✅ |
+| E3 | 4 Raras do Sol × 4 Raras misturadas, com Sol | 86,0% | 75–90% | ✅ |
+| E3b | Brasa com 4 Raras do Sol à frente da Brasa misturada, Sol inicial com Dado ligado e uma Água na pista | 82,5% | 55–80% | ❌ |
+| E4 | Fogo com 5 Raras da Chuva × misturadas, na chuva | 73,5% | 60–75% | ✅ |
 | 5 | Duração curta (≤1200 m), iniciais | 68,3 s | 55–70 s | ✅ |
 | 5 | Duração curta (≤1200 m), PVP 8 | 69,1 s | 55–70 s | ✅ |
 | 5 | Duração longa (≥2200 m), iniciais | 149,2 s | 140–170 s | ✅ |
@@ -413,7 +434,7 @@ Limites: Bronze ≥ 0 · Prata ≥ 660 · Ouro ≥ 780 · Platina ≥ 880 · Dia
 | 6 | Pagamentos: soma(prêmios)+taxa == pote, inteiros, prêmios não crescentes, pódio ≥ entrada (4..8 corredores × 50/100/250; não crescentes também com entrada 1/3/7) | sim | — | ✅ |
 | 7 | Sorte 100 contra sete de Sorte 0 vence o dado | 20,6% | 18–28% | ✅ |
 | 8 | Viradas de clima por corrida (PVP 8) | 1,33 | 0,8–1,6 | ✅ |
-| 9 | Determinismo: mesma seed+config => mesmo mapa, mesmos dados, mesmo resultado (25 configs com itens e mapas aleatórios, reexecução em ordem inversa) | sim | — | ✅ |
+| 9 | Determinismo: mesma seed+config => mesmo mapa, mesmos dados, mesmo resultado (25 configs com equipamento de bot e mapas aleatórios, reexecução em ordem inversa) | sim | — | ✅ |
 | 9 | Seeds diferentes => corridas diferentes | sim | — | ✅ |
 | 10 | Skill Comum: observada 38,1% × calculada 40,0% (diferença) | 1,9 p.p. | 0–3 p.p. | ✅ |
 | 10 | Skill Mágico: observada 50,5% × calculada 50,0% (diferença) | 0,5 p.p. | 0–3 p.p. | ✅ |
@@ -421,7 +442,7 @@ Limites: Bronze ≥ 0 · Prata ≥ 660 · Ouro ≥ 780 · Platina ≥ 880 · Dia
 | 10 | Skill Lendário: observada 68,0% × calculada 70,0% (diferença) | 2,0 p.p. | 0–3 p.p. | ✅ |
 | 10 | Skill Mítico: observada 79,3% × calculada 80,0% (diferença) | 0,7 p.p. | 0–3 p.p. | ✅ |
 
-**Todas as 28 metas passaram.**
+**1 meta(s) falharam.**
 
 ## 12. Para revisar
 
@@ -524,10 +545,10 @@ Duelos de dois corredores iguais, mapas aleatórios, 400 corridas por meta; só 
 | E2a | Comum lv30 com conjunto Raro +10 × Mágico lv30 sem nada (nublado) | 60–85% | 75,3% | 76,0% |
 | E2b | Comum lv30 com conjunto Raro +10 × Raro lv30 sem nada (nublado) | 10–40% | 13,2% | 13,9% |
 | E3 | 4 Raras do Sol × 4 Raras misturadas, Brasa lv10, com Sol | 75–90% | 86,0% | 84,0% |
-| E3b | 4 Raras do Sol × 4 Raras misturadas, Brasa lv10, Sol inicial com Dado ligado | 55–80% (provisória) | 82,8% ❌ | 85,0% ❌ |
+| E3b | Brasa lv10 com 4 Raras do Sol à frente da Brasa lv10 com 4 Raras misturadas, + Maré lv10 sem nada; Sol inicial com Dado ligado | 55–80% (provisória) | 82,5% ❌ | 80,0% |
 | E4 | Brasa lv10 com 5 Raras da Chuva × misturadas, na chuva | 60–75% | 73,5% | 70,0% |
 
-No nível 30 a distância Comum→Raro já é de cerca de 20 pontos por status (limite 60 contra 80) mais duas skills; por isso o conjunto +10 fecha **um degrau** (Mágico, E2a) e não dois (Raro, E2b). O E3 é alto porque o "dobra o clima" de 4 peças é idêntico à skill de dobrar o clima: num duelo de clima fixo entre cavalos iguais vale cerca de 86%; no jogo o Dado vira o clima ~1,2 vez por corrida. O E3b mede a vantagem do bônus de 4 peças dentro do jogo, com o Dado ligado podendo virar o clima (faixa provisória; como os dois corredores são Fogo, o Dado sempre cai no Sol e o E3b fica perto do E3).
+No nível 30 a distância Comum→Raro já é de cerca de 20 pontos por status (limite 60 contra 80) mais duas skills; por isso o conjunto +10 fecha **um degrau** (Mágico, E2a) e não dois (Raro, E2b). O E3 é alto porque o "dobra o clima" de 4 peças é idêntico à skill de dobrar o clima: num duelo de clima fixo entre cavalos iguais vale cerca de 86%; no jogo o Dado vira o clima ~1,2 vez por corrida. O E3b mede a vantagem do bônus de 4 peças dentro do jogo: os dois Brasas do E3 correm com uma Maré (Água, sem equipamento), Sol só no início e o Dado ligado, e conta-se quantas vezes a Brasa do Sol chega à frente da misturada (faixa provisória). A terceira montaria de outro elemento é necessária porque o Dado vira o clima para o elemento de quem o vence: com só dois Fogos ele sempre cairia no Sol; quando a Maré vence um Dado, o clima vira Chuva e o Sol deixa de ajudar.
 
 ### Exemplo de `Gear.resolve`: Brasa lv1 com 5 Lendárias do Sol +0
 

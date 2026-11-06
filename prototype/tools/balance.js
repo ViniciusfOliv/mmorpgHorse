@@ -302,11 +302,10 @@ function looseGear(rarity, plus) {
   return gearFrom(pieceIds(function (s) { return s + '-' + rarity; }, GEAR_SLOTS.length), plus);
 }
 // Duelo com equipamento por corredor; com `weather` fixa o clima (Dado desligado) durante o laço.
-// Com `comDado`, `weather` só define o clima inicial e o Dado continua virando o clima.
-function duelGear(a, ga, b, gb, N, testId, weather, comDado) {
+function duelGear(a, ga, b, gb, N, testId, weather) {
   var saved = S.TUNING.diceAt, winsA = 0;
   try {
-    if (weather && !comDado) S.TUNING.diceAt = [];
+    if (weather) S.TUNING.diceAt = [];
     for (var k = 0; k < N; k++) {
       var seed = seedOf(testId, k);
       var cond = S.randomConditions(seed);
@@ -343,18 +342,37 @@ check('E2b', 'Comum lv30 com conjunto Raro +10 vence Raro lv30 sem nada', vE2b, 
 var brasa = byId.brasa;
 var vE3 = pct(duelGear(clone(brasa, 10), setGear('sol', 'raro', 0, 4), clone(brasa, 10), mixedGear('raro', 0, ['sol', 'sol', 'chuva', 'nevoa']), NE, 1300, 'sol'), NE);
 check('E3', '4 Raras do Sol × 4 Raras misturadas, com Sol', vE3, 75, 90);
-// E3b: mesmo duelo, mas com o Dado ligado (Sol só no início) — a vantagem real do bônus de 4 peças no jogo
-var vE3b = pct(duelGear(clone(brasa, 10), setGear('sol', 'raro', 0, 4), clone(brasa, 10), mixedGear('raro', 0, ['sol', 'sol', 'chuva', 'nevoa']), NE, 1302, 'sol', true), NE);
-check('E3b', '4 Raras do Sol × misturadas, Sol inicial com Dado ligado', vE3b, 55, 80);
+// E3b: os dois Brasas do E3 + uma Maré (Água, sem equipamento) como agente do Dado; Sol só no início e
+// Dado ligado. Com só dois Fogos o Dado sempre cairia no Sol; a Maré, quando vence um Dado, vira o clima
+// para Chuva (penaliza o Fogo). Conta as corridas em que A (4 do Sol) chega à frente de B (misturada).
+function e3b(N, testId) {
+  var A = clone(brasa, 10), B = clone(brasa, 10), C = clone(byId.mare, 10);
+  var gA = setGear('sol', 'raro', 0, 4), gB = mixedGear('raro', 0, ['sol', 'sol', 'chuva', 'nevoa']);
+  var perms = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];   // as 6 ordens de raia
+  var field = [[A, gA], [B, gB], [C, null]], aheadA = 0;
+  for (var k = 0; k < N; k++) {
+    var seed = seedOf(testId, k);
+    var cond = S.randomConditions(seed);
+    cond.weather = 'sol';   // só o clima inicial; o Dado continua ligado
+    var order = perms[k % perms.length];
+    var res = run(seed, cond, order.map(function (q) { return racer(field[q][0], field[q][1]); }));
+    var posA = res.finishOrder.indexOf(order.indexOf(0)), posB = res.finishOrder.indexOf(order.indexOf(1));
+    if (posA < posB) aheadA++;
+  }
+  return aheadA;
+}
+var vE3b = pct(e3b(NE, 1302), NE);
+check('E3b', 'Brasa com 4 Raras do Sol à frente da Brasa misturada, Sol inicial com Dado ligado e uma Água na pista', vE3b, 55, 80);
 var vE4 = pct(duelGear(clone(brasa, 10), setGear('chuva', 'raro', 0, 5), clone(brasa, 10), mixedGear('raro', 0, ['chuva', 'chuva', 'sol', 'sol', 'nevoa']), NE, 1301, 'chuva'), NE);
 check('E4', 'Fogo com 5 Raras da Chuva × misturadas, na chuva', vE4, 60, 75);
 log('### E. Equipamento (metas E1–E4, E2 em a/b, + E3b)');
 log('');
-log('Duelos de 2 corredores (' + NE + ' corridas por duelo, largada alternada), mapas aleatórios; clima fixo nas metas com clima (Dado desligado), exceto E3b (clima inicial fixo, Dado ligado). Peças de `gear.js`.');
+log('Duelos de 2 corredores (' + NE + ' corridas por duelo, largada alternada), mapas aleatórios; clima fixo nas metas com clima (Dado desligado), exceto E3b (3 corredores, Sol inicial, Dado ligado). Peças de `gear.js`.');
 log('');
 log('E2a/E2b: no lv30 o salto Comum→Raro vale ~20 pontos por status (statCap 60 contra 80) mais duas skills extras; um conjunto Raro +10 completo (+14) fecha um degrau (vence o Mágico) mas não dois (perde do Raro): "fecha um degrau, não dois". ' +
   'E3 (75–90%): o bônus de 4 peças é a "dobra do clima" aprovada (1,03→1,10), igual à skill de dobrar clima; num duelo de clima fixo entre cavalos idênticos vale ~86%, e no jogo o Dado vira o clima ~1,2× por corrida, então a vantagem real é menor. ' +
-  'E3b mede essa vantagem real: mesmo duelo do E3, com Sol só no início e o Dado ligado virando o clima.');
+  'E3b mede essa vantagem real: os dois Brasas do E3 mais uma Maré (Água, sem equipamento) na pista, Sol só no início e o Dado ligado; conta quantas vezes a Brasa do Sol chega à frente da misturada. ' +
+  'A terceira montaria de outro elemento é necessária porque o Dado vira o clima para o elemento de quem o vence: com só dois Fogos ele sempre cairia no Sol e o clima nunca viraria.');
 log('');
 log('| Meta | Duelo | Vitórias do 1º | Faixa |');
 log('|---|---|---|---|');
@@ -362,7 +380,7 @@ log('| E1 | Inicial lv1 com 5 Comuns +0 × sem nada (nublado) | **' + f1(vE1) + 
 log('| E2a | Comum lv30 com conjunto Raro +10 × Mágico lv30 sem nada (nublado) | **' + f1(vE2a) + '%** | 60–85% |');
 log('| E2b | Comum lv30 com conjunto Raro +10 × Raro lv30 sem nada (nublado) | **' + f1(vE2b) + '%** | 10–40% |');
 log('| E3 | 4 Raras do Sol × 4 Raras misturadas, Brasa lv10, com Sol | **' + f1(vE3) + '%** | 75–90% |');
-log('| E3b | 4 Raras do Sol × 4 Raras misturadas, Brasa lv10, Sol inicial com Dado ligado | **' + f1(vE3b) + '%** | 55–80% |');
+log('| E3b | 4 Raras do Sol à frente de 4 Raras misturadas, Brasa lv10, + Maré lv10; Sol inicial com Dado ligado | **' + f1(vE3b) + '%** | 55–80% |');
 log('| E4 | Brasa lv10 com 5 Raras da Chuva × misturadas, na chuva | **' + f1(vE4) + '%** | 60–75% |');
 log('');
 
@@ -510,7 +528,7 @@ var sample = S.simulate(detConfig(seedOf(900, 3)));
 var framesOk = sample.frames.length > 10 && sample.frames[0].t === 0 &&
   sample.frames.every(function (f, i) { return Math.abs(f.t - i * sample.dt) < 1e-9 && f.pos.length === sample.finishOrder.length; }) &&
   sample.finishOrder.slice().sort().join() === sample.finishOrder.map(function (x, i) { return i; }).join();
-checkBool('9', 'Determinismo: mesma seed+config => mesmo mapa, mesmos dados, mesmo resultado (25 configs com itens e mapas aleatórios, reexecução em ordem inversa)',
+checkBool('9', 'Determinismo: mesma seed+config => mesmo mapa, mesmos dados, mesmo resultado (25 configs com equipamento de bot e mapas aleatórios, reexecução em ordem inversa)',
   detOk && framesOk, framesOk ? '' : 'frames inválidos');
 var diffSeeds = JSON.stringify(S.simulate(detConfig(seedOf(900, 1)))) !== JSON.stringify(S.simulate(detConfig(seedOf(900, 2))));
 checkBool('9', 'Seeds diferentes => corridas diferentes', diffSeeds);
@@ -543,9 +561,9 @@ RAR_IDS.forEach(function (rid, ri) {
 log('');
 
 // ---------------------------------------------------------------------------
-// Ligas (informativo: Rating de Poder sem item)
+// Ligas (informativo: Rating de Poder sem equipamento)
 // ---------------------------------------------------------------------------
-log('### Ligas (Rating de Poder sem item)');
+log('### Ligas (Rating de Poder sem equipamento)');
 log('');
 log('Limites: ' + G.LEAGUES.map(function (L) { return L.name + ' ≥ ' + L.min; }).join(' · ') + '.');
 log('');
