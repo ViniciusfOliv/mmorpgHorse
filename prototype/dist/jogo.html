@@ -946,11 +946,11 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   // Ligas por Rating de Poder (RaceSim.powerRating). min inclusivo.
   var LEAGUES = [
     { id: 'bronze',   name: 'Bronze',   min: 0,    color: '#b0703c' },
-    { id: 'prata',    name: 'Prata',    min: 550,  color: '#b8c2cc' },
-    { id: 'ouro',     name: 'Ouro',     min: 700,  color: '#f2c230' },
-    { id: 'platina',  name: 'Platina',  min: 800,  color: '#5fd3c8' },
-    { id: 'diamante', name: 'Diamante', min: 900,  color: '#7ab8ff' },
-    { id: 'lenda',    name: 'Lenda',    min: 1000, color: '#ff7a3d' }
+    { id: 'prata',    name: 'Prata',    min: 660,  color: '#b8c2cc' },
+    { id: 'ouro',     name: 'Ouro',     min: 780,  color: '#f2c230' },
+    { id: 'platina',  name: 'Platina',  min: 880,  color: '#5fd3c8' },
+    { id: 'diamante', name: 'Diamante', min: 980,  color: '#7ab8ff' },
+    { id: 'lenda',    name: 'Lenda',    min: 1100, color: '#ff7a3d' }
   ];
 
   var ECONOMY = {
@@ -1090,7 +1090,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     // crescimento por level
     growthBase: 0.50, growthPot: 0.65, potFlat: 0.1,
     // velocidade / aceleração
-    vBase: 16.8, vRange: 2.2,
+    vBase: 17.2, vRange: 2.2,
     aBase: 0.6, aRange: 2.4,
     decel: 1.2,
     // estamina
@@ -1111,9 +1111,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     crowdRange: 2.5, crowdSlow: 0.03, forcaCrowdRelief: 0.8,
     draftMin: 0.5, draftRange: 4.0, draftSave: 0.10,   // vácuo: vale para todos
     rainSlow: 0.015, sunDrain: 1.04,
-    // clima: dono multiplica os status por 1,05 (1,10 com skill de clima), penalizado por 0,95;
+    // clima: dono multiplica os status por 1,04 (1,10 com skill de clima), penalizado por 0,96;
     // weatherVel: fração extra do desvio que vai direto na vMax
-    weatherMult: 1.05, weatherMultDouble: 1.10, weatherVel: 0.22,
+    weatherMult: 1.04, weatherMultDouble: 1.10, weatherVel: 0.22,
     // garra
     garraZone: 0.8,
     garraChanceBase: 0.10, garraChanceRange: 0.70, garraChanceMax: 0.95,
@@ -1417,7 +1417,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   }
 
   // Multiplicador de clima de um elemento: dono do clima => T.weatherMult (T.weatherMultDouble
-  // com skill de clima ativa); elemento penalizado => 2 - T.weatherMult (0,95); senão 1.
+  // com skill de clima ativa); elemento penalizado => 2 - T.weatherMult (0,96); senão 1.
   function weatherMult(element, weather, doubled) {
     var w = GameData.WEATHERS[weather];
     var el = GameData.ELEMENTS[element];
@@ -4120,9 +4120,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       var stats = RS.computeStats(h, null);
       var el = GD.ELEMENTS[h.element];
       var rating = RS.powerRating(h, null);
-      var best = el.weather && GD.WEATHERS[el.weather] ? GD.WEATHERS[el.weather].name + ' (+5%)' : '—';
+      var wPct = Math.round((RS.TUNING.weatherMult - 1) * 100);
+      var best = el.weather && GD.WEATHERS[el.weather] ? GD.WEATHERS[el.weather].name + ' (+' + wPct + '%)' : '—';
       var worst = Object.keys(GD.WEATHERS).filter(function (w) { return GD.WEATHERS[w].penalizes === h.element; })
-        .map(function (w) { return GD.WEATHERS[w].name + ' (−5%)'; }).join(', ') || '—';
+        .map(function (w) { return GD.WEATHERS[w].name + ' (−' + wPct + '%)'; }).join(', ') || '—';
       var bonus = el.statBonus ? '+' + el.statBonus.amount + ' de ' + GD.STATS[el.statBonus.stat].name : '—';
       return '<article class="caixa inicial" id="ini-' + esc(h.id) + '" aria-label="' + esc(h.name + ', ' + (idx + 1) + ' de ' + GD.STARTERS.length) + '">' +
         '<div class="retrato-palco">' + portraitHtml(h) + '<span class="contador">' + (idx + 1) + '/' + GD.STARTERS.length + '</span></div>' +

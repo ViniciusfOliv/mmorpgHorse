@@ -119,9 +119,10 @@ test('especialista de reta vence o de curva em reta pura; de subida vence em sub
   for (var s = 0; s < 80; s++) { if (race(s, RETA, [mk({ vel: 90 }), mk({ man: 90 })]).finishOrder[0] === 0) w++; if (race(s, SUBIDA, [mk({ forca: 90 }), mk({ vel: 90 })]).finishOrder[0] === 0) h++; }
   assert.ok(w >= 44 && h >= 44, 'reta ' + w + ', subida ' + h);
 });
-test('weatherMult: dono 1.05, dobrado 1.10, penalizado 0.95, neutro 1', function () {
-  assert.strictEqual(S.weatherMult('fogo', 'sol', false), 1.05); assert.strictEqual(S.weatherMult('fogo', 'sol', true), 1.10);
-  assert.ok(Math.abs(S.weatherMult('grama', 'sol', false) - 0.95) < 1e-9); assert.strictEqual(S.weatherMult('agua', 'sol', false), 1); assert.strictEqual(S.weatherMult('neutro', 'chuva', false), 1);
+test('weatherMult: dono T.weatherMult (1,04–1,07), dobrado 1.10, penalizado 2 − T.weatherMult, neutro 1', function () {
+  var wm = S.TUNING.weatherMult; assert.ok(wm >= 1.04 && wm <= 1.07, 'weatherMult ' + wm);
+  assert.strictEqual(S.weatherMult('fogo', 'sol', false), wm); assert.strictEqual(S.weatherMult('fogo', 'sol', true), 1.10);
+  assert.ok(Math.abs(S.weatherMult('grama', 'sol', false) - (2 - wm)) < 1e-9); assert.strictEqual(S.weatherMult('agua', 'sol', false), 1); assert.strictEqual(S.weatherMult('neutro', 'chuva', false), 1);
 });
 test('skills disparam pela chance: mítico lv50 sorte 100 ativa Arranque ≥ 85% das vezes; comum lv1 sorte 0 ≤ 50%', function () {
   var hi = mk({ sorte: 100 }); hi.level = 50; hi.skills = ['arranque']; var lo = mk({ sorte: 0 }); lo.rarity = 'comum'; lo.skills = ['arranque'];

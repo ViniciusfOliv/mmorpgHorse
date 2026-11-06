@@ -392,11 +392,11 @@
   // Ligas por Rating de Poder (RaceSim.powerRating). min inclusivo.
   var LEAGUES = [
     { id: 'bronze',   name: 'Bronze',   min: 0,    color: '#b0703c' },
-    { id: 'prata',    name: 'Prata',    min: 550,  color: '#b8c2cc' },
-    { id: 'ouro',     name: 'Ouro',     min: 700,  color: '#f2c230' },
-    { id: 'platina',  name: 'Platina',  min: 800,  color: '#5fd3c8' },
-    { id: 'diamante', name: 'Diamante', min: 900,  color: '#7ab8ff' },
-    { id: 'lenda',    name: 'Lenda',    min: 1000, color: '#ff7a3d' }
+    { id: 'prata',    name: 'Prata',    min: 660,  color: '#b8c2cc' },
+    { id: 'ouro',     name: 'Ouro',     min: 780,  color: '#f2c230' },
+    { id: 'platina',  name: 'Platina',  min: 880,  color: '#5fd3c8' },
+    { id: 'diamante', name: 'Diamante', min: 980,  color: '#7ab8ff' },
+    { id: 'lenda',    name: 'Lenda',    min: 1100, color: '#ff7a3d' }
   ];
 
   var ECONOMY = {

@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /*
- * Relatório de balanceamento do RaceSim.
+ * Relatório de balanceamento v2 do RaceSim (mapas em blocos, clima como triângulo, Dado da Sorte,
+ * skills com chance; sem tática).
  *
  *   node tools/balance.js            # relatório completo (milhares de corridas)
  *   node tools/balance.js --quick    # 1/4 das corridas (iteração rápida)
- *   node tools/balance.js --tune '{"formRange":0.04}'   # sobrescreve RaceSim.TUNING (só p/ ajuste)
+ *   node tools/balance.js --tune '{"curveBase":0.84}'   # sobrescreve RaceSim.TUNING (só p/ ajuste)
  *   node tools/balance.js --exemplo  # imprime a corrida de exemplo usada em docs/exemplos.md
  *
  * Sai com código 1 se alguma meta falhar.
@@ -23,10 +24,16 @@ if (tuneIdx >= 0) {
 }
 var SCALE = QUICK ? 0.25 : 1;
 
-var TACTICS = ['ponteiro', 'perseguidor', 'arrancador'];
-var TAC_NAME = { ponteiro: 'Ponteiro', perseguidor: 'Perseguidor', arrancador: 'Arrancador' };
 var STARTERS = G.STARTERS;
 var WILD = G.WILD_HORSES;
+var ALL = STARTERS.concat(WILD);
+var RAR_IDS = Object.keys(G.RARITIES);
+var TRIANGLE = ['fogo', 'agua', 'grama'];
+
+// mapas sintéticos (os mesmos de tools/sim-test.js)
+var CURVA = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 200 }, { type: 'curva', from: 200, to: 1400 }, { type: 'reta', from: 1400, to: 1600 }] };
+var RETA = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 1600 }] };
+var SUBIDA = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 200 }, { type: 'subida', from: 200, to: 1400 }, { type: 'reta', from: 1400, to: 1600 }] };
 
 function deepAssign(dst, src) {
   for (var k in src) {
@@ -39,26 +46,42 @@ function clone(h, level) {
   if (level != null) c.level = level;
   return c;
 }
+// Montaria sintética: mítico lv1 neutro, os 7 status base 60, potencial 0, sem skills (+ overrides).
+function mk(over, name) {
+  var h = clone(WILD[0], 1);
+  h.id = 'sint'; h.name = name || 'Sintético'; h.rarity = 'mitico'; h.element = 'neutro'; h.skills = [];
+  G.STAT_KEYS.forEach(function (k) { h.base[k] = 60; h.potential[k] = 0; });
+  for (var k in (over || {})) h.base[k] = over[k];
+  return h;
+}
 function n(x) { return Math.max(1, Math.round(x * SCALE)); }
 function seedOf(test, k) { return S.hash2(test * 7919 + 13, k); }
-function pickTactic(seed, i) { return TACTICS[Math.floor(S.mulberry32(S.hash2(seed, 900 + i))() * 3)]; }
 function pct(a, b) { return b ? (100 * a / b) : 0; }
 function f1(x) { return x.toFixed(1).replace('.', ','); }
 function f2(x) { return x.toFixed(2).replace('.', ','); }
-function pad(s, w) { s = String(s); while (s.length < w) s += ' '; return s; }
 function run(seed, conditions, racers) {
   return S.simulate({ seed: seed, conditions: conditions, racers: racers, recordFrames: false });
 }
-function racer(h, tactic, itemId, name) {
-  return { horse: h, itemId: itemId || null, tactic: tactic, name: name || h.name, isPlayer: false };
+function racer(h, itemId, name) {
+  return { horse: h, itemId: itemId || null, name: name || h.name, isPlayer: false };
 }
 function mean(a) { var s = 0; for (var i = 0; i < a.length; i++) s += a[i]; return a.length ? s / a.length : 0; }
 function quant(a, q) { var b = a.slice().sort(function (x, y) { return x - y; }); return b.length ? b[Math.min(b.length - 1, Math.floor(q * b.length))] : 0; }
+function countType(res, type, racerIdx) {
+  var c = 0;
+  for (var i = 0; i < res.events.length; i++) {
+    var e = res.events[i];
+    if (e.type === type && (racerIdx == null || e.racer === racerIdx)) c++;
+  }
+  return c;
+}
+function distGroup(d) { return d <= 1200 ? 'curta' : (d >= 2200 ? 'longa' : 'media'); }
+var GROUP_LABEL = { curta: 'curta (≤1200 m)', media: 'média (1300–2100 m)', longa: 'longa (≥2200 m)' };
 
 var results = [];
 function check(id, label, value, lo, hi, unit) {
   var ok = value >= lo && value <= hi;
-  results.push({ id: id, label: label, value: value, lo: lo, hi: hi, ok: ok, unit: unit || '%' });
+  results.push({ id: id, label: label, value: value, lo: lo, hi: hi, ok: ok, unit: unit == null ? '%' : unit });
   return ok;
 }
 function checkBool(id, label, ok, detail) {
@@ -75,49 +98,51 @@ if (args.indexOf('--exemplo') >= 0) { exemplo(); process.exit(0); }
 var t0 = Date.now(); // só para medir o tempo do relatório (não entra na simulação)
 
 // ---------------------------------------------------------------------------
-// 1) Iniciais no mesmo level, condições aleatórias
+// 1) Iniciais no mesmo level, mapas aleatórios
 // ---------------------------------------------------------------------------
-var durByDist = { 1000: [], 1600: [], 2400: [] };
-var winTimeByDist = { 1000: [], 1600: [], 2400: [] };
-var info = { races: 0, cansou: 0, garra: 0, ultrap: 0, skills: 0, racerEntries: 0 };
-var starterByDist = {};
+var durStarters = { curta: [], media: [], longa: [] };
+var winTimeStarters = { curta: [], media: [], longa: [] };
+var info = { races: 0, cansou: 0, garra: 0, ultrap: 0, skills: 0, clima: 0, racerEntries: 0 };
 
 function test1(level, N, collect) {
   var wins = [0, 0, 0];
-  var distWins = { 1000: [0, 0, 0], 1600: [0, 0, 0], 2400: [0, 0, 0] };
-  var distCount = { 1000: 0, 1600: 0, 2400: 0 };
+  var gWins = { curta: [0, 0, 0], media: [0, 0, 0], longa: [0, 0, 0] };
+  var gCount = { curta: 0, media: 0, longa: 0 };
   var hs = STARTERS.map(function (h) { return clone(h, level); });
   for (var k = 0; k < N; k++) {
     var seed = seedOf(level === 1 ? 1 : 100 + level, k);
     var cond = S.randomConditions(seed);
-    var rs = hs.map(function (h, i) { return racer(h, pickTactic(seed, i)); });
+    var rs = hs.map(function (h) { return racer(h); });
     var res = run(seed, cond, rs);
     var w = res.finishOrder[0];
-    wins[w]++; distWins[cond.distance][w]++; distCount[cond.distance]++;
+    var g = distGroup(cond.distance);
+    wins[w]++; gWins[g][w]++; gCount[g]++;
     if (collect) {
-      durByDist[cond.distance].push(res.duration);
-      winTimeByDist[cond.distance].push(res.finishTimes[w]);
+      durStarters[g].push(res.duration);
+      winTimeStarters[g].push(res.finishTimes[w]);
       info.races++; info.racerEntries += rs.length;
       res.events.forEach(function (e) {
         if (e.type === 'cansou') info.cansou++;
         else if (e.type === 'garra') info.garra++;
         else if (e.type === 'ultrapassagem') info.ultrap++;
         else if (e.type === 'skill') info.skills++;
+        else if (e.type === 'clima') info.clima++;
       });
     }
   }
-  return { wins: wins, N: N, distWins: distWins, distCount: distCount };
+  return { wins: wins, N: N, gWins: gWins, gCount: gCount };
 }
 
 var N1 = n(6000);
 var r1 = test1(1, N1, true);
 var r1b = test1(25, n(3000), false);
 
-log('## Relatório de balanceamento');
+log('## Relatório de balanceamento v2');
 log('');
-log('Gerado por `node tools/balance.js`' + (QUICK ? ' --quick' : '') + '. Táticas sorteadas por corredor, sem itens, salvo indicação.');
+log('Gerado por `node tools/balance.js`' + (QUICK ? ' --quick' : '') + '. Mapas aleatórios em blocos (`randomConditions`), sem itens, salvo indicação. ' +
+  'Dado da Sorte ligado (1/3 e 2/3 da pista), exceto na seção 2.');
 log('');
-log('### 1. Iniciais no mesmo level, condições aleatórias (meta: 28%–39% cada)');
+log('### 1. Iniciais no mesmo level, mapas aleatórios (meta: 28%–39% cada)');
 log('');
 log('| Inicial | Vitórias lv1 (' + N1 + ' corridas) | Curta | Média | Longa | Vitórias lv25 (' + r1b.N + ') |');
 log('|---|---|---|---|---|---|');
@@ -125,113 +150,71 @@ STARTERS.forEach(function (h, i) {
   var v = pct(r1.wins[i], r1.N);
   check('1', h.name + ' lv1', v, 28, 39);
   check('1', h.name + ' lv25', pct(r1b.wins[i], r1b.N), 28, 39);
-  log('| ' + h.name + ' | **' + f1(v) + '%** | ' + f1(pct(r1.distWins[1000][i], r1.distCount[1000])) + '% | ' +
-    f1(pct(r1.distWins[1600][i], r1.distCount[1600])) + '% | ' + f1(pct(r1.distWins[2400][i], r1.distCount[2400])) + '% | ' +
+  log('| ' + h.name + ' | **' + f1(v) + '%** | ' +
+    ['curta', 'media', 'longa'].map(function (g) { return f1(pct(r1.gWins[g][i], r1.gCount[g])) + '%'; }).join(' | ') + ' | ' +
     f1(pct(r1b.wins[i], r1b.N)) + '% |');
 });
 log('');
 
 // ---------------------------------------------------------------------------
-// 2) Inicial em condição claramente favorável
+// 2) Inicial com o clima do seu elemento fixo (Dado desligado)
 // ---------------------------------------------------------------------------
-var FAVORABLE = {
-  brasa: { distance: 1000, surface: 'grama', weather: 'sol', hills: [] },
-  mare: { distance: 2400, surface: 'grama', weather: 'chuva', hills: [] },
-  ipe: { distance: 1600, surface: 'terra', weather: 'nublado', hills: [[450, 650], [1050, 1220]] }
-};
 var N2 = n(3000);
-log('### 2. Inicial em condição favorável vs os outros dois (meta: 45%–65%)');
+var savedDiceAt = S.TUNING.diceAt;
+S.TUNING.diceAt = [];   // isola do Dado: o clima não vira durante a corrida
+log('### 2. Inicial com o clima do seu elemento fixo, sem Dado (meta: 45%–65%)');
 log('');
-log('| Inicial | Condição | Afinidades | Vitórias (' + N2 + ') |');
+log('Reta única de 1600 m, grama, clima do elemento do inicial durante toda a corrida (`diceAt = []` nesta seção).');
+log('');
+log('| Inicial | Clima | Multiplicadores (Brasa · Maré · Ipê) | Vitórias (' + N2 + ') |');
 log('|---|---|---|---|');
 STARTERS.forEach(function (h, i) {
-  var cond = FAVORABLE[h.id];
+  var w = G.ELEMENTS[h.element].weather;
+  var cond = { distance: 1600, surface: 'grama', weather: w, blocks: [{ type: 'reta', from: 0, to: 1600 }] };
   var wins = 0;
   for (var k = 0; k < N2; k++) {
     var seed = seedOf(200 + i, k);
-    var rs = STARTERS.map(function (x, j) { return racer(clone(x, 1), pickTactic(seed, j)); });
-    var res = run(seed, cond, rs);
-    if (res.finishOrder[0] === i) wins++;
-  }
-  var v = pct(wins, N2);
-  check('2', h.name + ' favorável', v, 45, 65);
-  var condTxt = G.DISTANCES[cond.distance].label + ', ' + G.SURFACES[cond.surface].name + ', ' + G.WEATHERS[cond.weather].name + (cond.hills.length ? ', ' + cond.hills.length + ' subidas' : '');
-  var affs = STARTERS.map(function (x) { var a = S.elementAffinity(x.element, cond); return x.name + ' ×' + f2(a.mult); }).join(' · ');
-  log('| ' + h.name + ' | ' + condTxt + ' | ' + affs + ' | **' + f1(v) + '%** |');
-});
-log('');
-
-// 2b) Um único fator favorável (só o clima, só a distância, só o piso, só uma subida)
-var SINGLE = [
-  ['brasa', { distance: 1600, surface: 'grama', weather: 'sol', hills: [] }],
-  ['mare', { distance: 1600, surface: 'grama', weather: 'chuva', hills: [] }],
-  ['mare', { distance: 2400, surface: 'grama', weather: 'nublado', hills: [] }],
-  ['ipe', { distance: 1600, surface: 'terra', weather: 'nublado', hills: [] }],
-  ['ipe', { distance: 1600, surface: 'grama', weather: 'nublado', hills: [[700, 900]] }]
-];
-var N2b = n(2000);
-log('### 2b. Um único fator favorável vs os outros dois (meta: 38%–60%; base 33%)');
-log('');
-log('| Inicial | Condição | Afinidade | Vitórias (' + N2b + ') |');
-log('|---|---|---|---|');
-SINGLE.forEach(function (sc, si) {
-  var i = STARTERS.map(function (x) { return x.id; }).indexOf(sc[0]);
-  var cond = sc[1], wins = 0;
-  for (var k = 0; k < N2b; k++) {
-    var seed = seedOf(250 + si, k);
-    var rs = STARTERS.map(function (x, j) { return racer(clone(x, 1), pickTactic(seed, j)); });
+    var rs = STARTERS.map(function (x) { return racer(clone(x, 1)); });
     if (run(seed, cond, rs).finishOrder[0] === i) wins++;
   }
-  var v = pct(wins, N2b);
-  var a = S.elementAffinity(STARTERS[i].element, cond);
-  check('2b', STARTERS[i].name + ' com 1 fator (' + a.reasons.join('; ') + ')', v, 38, 60);
-  var condTxt = G.DISTANCES[cond.distance].label + ', ' + G.SURFACES[cond.surface].name + ', ' + G.WEATHERS[cond.weather].name + (cond.hills.length ? ', ' + cond.hills.length + ' subida' : '');
-  log('| ' + STARTERS[i].name + ' | ' + condTxt + ' | ×' + f2(a.mult) + ' | **' + f1(v) + '%** |');
+  var v = pct(wins, N2);
+  check('2', h.name + ' no seu clima', v, 45, 65);
+  var mults = STARTERS.map(function (x) { return '×' + f2(S.weatherMult(x.element, w, false)); }).join(' · ');
+  log('| ' + h.name + ' | ' + G.WEATHERS[w].name + ' | ' + mults + ' | **' + f1(v) + '%** |');
 });
+S.TUNING.diceAt = savedDiceAt;   // restaura o Dado da Sorte
 log('');
 
 // ---------------------------------------------------------------------------
-// 3) Táticas em corrida-espelho (mesmo cavalo x4)
+// 3) Especialistas por trecho
 // ---------------------------------------------------------------------------
-var N3 = n(3000);
-var tacAgg = { ponteiro: [0, 0], perseguidor: [0, 0], arrancador: [0, 0] };
-var tacDist = {};
-[1000, 1600, 2400].forEach(function (d) { tacDist[d] = { ponteiro: [0, 0], perseguidor: [0, 0], arrancador: [0, 0] }; });
-var tacPerHorse = [];
-var mirrorHorses = STARTERS.concat([WILD.filter(function (h) { return h.id === 'w-ventania'; })[0]]);
-mirrorHorses.forEach(function (h, hi) {
-  var per = { ponteiro: [0, 0], perseguidor: [0, 0], arrancador: [0, 0] };
-  var hh = clone(h, 1);
+var N3 = n(2000);
+function specialist(map, statA, statB, testId) {
+  var a = mk((function () { var o = {}; o[statA] = 90; return o; })(), 'Esp. ' + statA);
+  var b = mk((function () { var o = {}; o[statB] = 90; return o; })(), 'Esp. ' + statB);
+  var winsA = 0;
   for (var k = 0; k < N3; k++) {
-    var seed = seedOf(300 + hi, k);
-    var cond = S.randomConditions(seed);
-    var tacs = TACTICS.concat([TACTICS[k % 3]]);
-    // embaralha posição de largada (determinístico)
-    var rng = S.mulberry32(S.hash2(seed, 31337));
-    for (var q = tacs.length - 1; q > 0; q--) { var z = Math.floor(rng() * (q + 1)); var tmp = tacs[q]; tacs[q] = tacs[z]; tacs[z] = tmp; }
-    var rs = tacs.map(function (tc) { return racer(hh, tc); });
-    var res = run(seed, cond, rs);
-    var w = res.finishOrder[0];
-    tacs.forEach(function (tc, j) {
-      per[tc][1]++; tacAgg[tc][1]++; tacDist[cond.distance][tc][1]++;
-      if (j === w) { per[tc][0]++; tacAgg[tc][0]++; tacDist[cond.distance][tc][0]++; }
-    });
+    var seed = seedOf(testId, k);
+    var pair = (k % 2 === 0) ? [a, b] : [b, a];   // largada alternada
+    var res = run(seed, map, pair.map(function (h) { return racer(h); }));
+    if (pair[res.finishOrder[0]] === a) winsA++;
   }
-  tacPerHorse.push({ name: h.name + (h.level !== 1 ? ' (lv1)' : ''), per: per });
-});
-log('### 3. Táticas em corrida-espelho: 4× o mesmo cavalo, condições aleatórias (meta: 18%–35% por tática)');
+  return pct(winsA, N3);
+}
+var SPEC = [
+  ['3', 'De curva (MAN 90) × de reta (VEL 90)', CURVA, 'man', 'vel', 'curva'],
+  ['3b', 'De reta (VEL 90) × de curva (MAN 90)', RETA, 'vel', 'man', 'reta'],
+  ['3c', 'De subida (FOR 90) × de reta (VEL 90)', SUBIDA, 'forca', 'vel', 'subida']
+];
+log('### 3. Especialistas por trecho (mítico lv1 neutro, base 60 e um status 90; meta: o especialista do trecho vence 55%–75%)');
 log('');
-log('Taxa = vitórias da tática / participações da tática (base = 25%). ' + N3 + ' corridas por cavalo.');
-log('');
-log('| Tática | Geral | Curta | Média | Longa | ' + tacPerHorse.map(function (x) { return x.name; }).join(' | ') + ' |');
-log('|---|---|---|---|---|' + tacPerHorse.map(function () { return '---|'; }).join(''));
-TACTICS.forEach(function (tc) {
-  var v = pct(tacAgg[tc][0], tacAgg[tc][1]);
-  check('3', TAC_NAME[tc] + ' (geral)', v, 18, 35);
-  tacPerHorse.forEach(function (x) { check('3', TAC_NAME[tc] + ' c/ ' + x.name, pct(x.per[tc][0], x.per[tc][1]), 18, 35); });
-  log('| ' + TAC_NAME[tc] + ' | **' + f1(v) + '%** | ' +
-    [1000, 1600, 2400].map(function (d) { return f1(pct(tacDist[d][tc][0], tacDist[d][tc][1])) + '%'; }).join(' | ') + ' | ' +
-    tacPerHorse.map(function (x) { return f1(pct(x.per[tc][0], x.per[tc][1])) + '%'; }).join(' | ') + ' |');
+log('| # | Duelo | Mapa | Vitórias do 1º (' + N3 + ', largada alternada) |');
+log('|---|---|---|---|');
+SPEC.forEach(function (sp, si) {
+  var v = specialist(sp[2], sp[3], sp[4], 300 + si);
+  check(sp[0], sp[1], v, 55, 75);
+  var share = Math.round(100 * S.blockShare(sp[2].blocks, sp[5]));
+  log('| ' + sp[0] + ' | ' + sp[1] + ' | 1600 m, ' + share + '% ' + sp[5] + ' | **' + f1(v) + '%** |');
 });
 log('');
 
@@ -243,29 +226,26 @@ function duel(a, b, N, testId) {
   for (var k = 0; k < N; k++) {
     var seed = seedOf(testId, k);
     var cond = S.randomConditions(seed);
-    // alterna a posição de largada
-    var pair = (k % 2 === 0) ? [a, b] : [b, a];
-    var rs = pair.map(function (h, j) { return racer(h, pickTactic(seed, j)); });
-    var res = run(seed, cond, rs);
-    var winner = pair[res.finishOrder[0]];
-    if (winner === a) winsA++;
+    var pair = (k % 2 === 0) ? [a, b] : [b, a];   // alterna a posição de largada
+    var res = run(seed, cond, pair.map(function (h) { return racer(h); }));
+    if (pair[res.finishOrder[0]] === a) winsA++;
   }
   return winsA;
 }
 var comuns = WILD.filter(function (h) { return h.rarity === 'comum'; });
-var lendarios = WILD.filter(function (h) { return h.rarity === 'lendario'; });
-var raros = STARTERS.concat(WILD.filter(function (h) { return h.rarity === 'raro'; }));
+var miticos = WILD.filter(function (h) { return h.rarity === 'mitico'; });
+var raros = ALL.filter(function (h) { return h.rarity === 'raro'; });
 var N4 = n(1500);
 var aggW = 0, aggN = 0, rows4a = [];
-lendarios.forEach(function (L, li) {
+miticos.forEach(function (M, mi) {
   comuns.forEach(function (C, ci) {
-    var w = duel(clone(L, 1), clone(C, 1), N4, 400 + li * 10 + ci);
+    var w = duel(clone(M, 1), clone(C, 1), N4, 400 + mi * 10 + ci);
     aggW += w; aggN += N4;
-    rows4a.push('| ' + L.name + ' lv1 × ' + C.name + ' lv1 | ' + f1(pct(w, N4)) + '% |');
+    rows4a.push('| ' + M.name + ' lv1 × ' + C.name + ' lv1 | ' + f1(pct(w, N4)) + '% |');
   });
 });
 var v4a = pct(aggW, aggN);
-check('4a', 'Lendário lv1 vence Comum lv1', v4a, 75, 92);
+check('4a', 'Mítico lv1 vence Comum lv1', v4a, 75, 92);
 var N4b = n(800);
 var aggW2 = 0, aggN2 = 0, rows4b = [];
 comuns.forEach(function (C, ci) {
@@ -277,11 +257,11 @@ comuns.forEach(function (C, ci) {
 });
 var v4b = pct(aggW2, aggN2);
 check('4b', 'Comum lv25 vence Raro lv1', v4b, 35, 65);
-log('### 4. Raridade × level, duelos 1v1 com condições aleatórias');
+log('### 4. Raridade × level, duelos 1v1 em mapas aleatórios (' + N4 + ' / ' + N4b + ' corridas por duelo)');
 log('');
 log('| Duelo | Vitórias do 1º |');
 log('|---|---|');
-log('| **Lendário lv1 × Comum lv1 (média, meta 75%–92%)** | **' + f1(v4a) + '%** |');
+log('| **Mítico lv1 × Comum lv1 (média, meta 75%–92%)** | **' + f1(v4a) + '%** |');
 rows4a.forEach(function (r) { log(r); });
 log('| **Comum lv25 × Raro lv1 (média, meta 35%–65%)** | **' + f1(v4b) + '%** |');
 rows4b.forEach(function (r) { log(r); });
@@ -290,33 +270,31 @@ log('');
 // ---------------------------------------------------------------------------
 // 5) Duração das corridas
 // ---------------------------------------------------------------------------
-// Campo PVP misto: 8 cavalos de liga parecida (rating ±120 do sorteado)
-var allHorses = STARTERS.concat(WILD);
-var mixDur = { 1000: [], 1600: [], 2400: [] };
+// Campo PVP: 8 montarias de liga parecida (rating ±150 da sorteada), nos levels do catálogo
+var mixDur = { curta: [], media: [], longa: [] };
 var N5 = n(1500);
+var ratingOf = ALL.map(function (h) { return S.powerRating(h, null); });
 for (var k5 = 0; k5 < N5; k5++) {
   var seed5 = seedOf(600, k5);
   var cond5 = S.randomConditions(seed5);
   var rng5 = S.mulberry32(S.hash2(seed5, 4242));
-  var pool5 = allHorses.slice();
-  var anchor = pool5[Math.floor(rng5() * pool5.length)];
-  var ar = S.powerRating(anchor, null);
-  var near = pool5.filter(function (h) { return Math.abs(S.powerRating(h, null) - ar) <= 120; });
+  var ar = ratingOf[Math.floor(rng5() * ALL.length)];
+  var near = ALL.filter(function (h, q) { return Math.abs(ratingOf[q] - ar) <= 150; });
   var rs5 = [];
-  for (var q5 = 0; q5 < 8; q5++) rs5.push(racer(near[Math.floor(rng5() * near.length)], pickTactic(seed5, q5)));
-  mixDur[cond5.distance].push(run(seed5, cond5, rs5).duration);
+  for (var q5 = 0; q5 < 8; q5++) rs5.push(racer(near[Math.floor(rng5() * near.length)], null, G.BOT_NAMES[q5]));
+  mixDur[distGroup(cond5.distance)].push(run(seed5, cond5, rs5).duration);
 }
 log('### 5. Duração (tempo de simulação até o último cruzar a linha)');
 log('');
-log('| Distância | Iniciais lv1: média (p5–p95) | Vencedor: média | Campo PVP de 8 (mesma liga): média (p5–p95) | Meta |');
+log('| Distância | Iniciais lv1: média (p5–p95) | Vencedor: média | PVP de 8 (mesma liga): média (p5–p95) | Meta |');
 log('|---|---|---|---|---|');
-[1000, 1600, 2400].forEach(function (d) {
-  var a = durByDist[d], m = mixDur[d];
-  var meta = d === 1000 ? '55–70s' : (d === 2400 ? '140–170s' : '—');
-  if (d === 1000) { check('5', 'Duração 1000m (iniciais)', mean(a), 55, 70, 's'); check('5', 'Duração 1000m (PVP 8)', mean(m), 55, 70, 's'); }
-  if (d === 2400) { check('5', 'Duração 2400m (iniciais)', mean(a), 140, 170, 's'); check('5', 'Duração 2400m (PVP 8)', mean(m), 140, 170, 's'); }
-  log('| ' + d + ' m | ' + f1(mean(a)) + 's (' + f1(quant(a, 0.05)) + '–' + f1(quant(a, 0.95)) + ') | ' + f1(mean(winTimeByDist[d])) + 's | ' +
-    f1(mean(m)) + 's (' + f1(quant(m, 0.05)) + '–' + f1(quant(m, 0.95)) + ') | ' + meta + ' |');
+['curta', 'media', 'longa'].forEach(function (g) {
+  var a = durStarters[g], m = mixDur[g];
+  var meta = g === 'curta' ? '55–70 s' : (g === 'longa' ? '140–170 s' : '—');
+  if (g === 'curta') { check('5', 'Duração curta (≤1200 m), iniciais', mean(a), 55, 70, ' s'); check('5', 'Duração curta (≤1200 m), PVP 8', mean(m), 55, 70, ' s'); }
+  if (g === 'longa') { check('5', 'Duração longa (≥2200 m), iniciais', mean(a), 140, 170, ' s'); check('5', 'Duração longa (≥2200 m), PVP 8', mean(m), 140, 170, ' s'); }
+  log('| ' + GROUP_LABEL[g] + ' | ' + f1(mean(a)) + ' s (' + f1(quant(a, 0.05)) + '–' + f1(quant(a, 0.95)) + ') | ' + f1(mean(winTimeStarters[g])) + ' s | ' +
+    f1(mean(m)) + ' s (' + f1(quant(m, 0.05)) + '–' + f1(quant(m, 0.95)) + ') | ' + meta + ' |');
 });
 log('');
 
@@ -324,20 +302,24 @@ log('');
 // 6) Pagamentos
 // ---------------------------------------------------------------------------
 var payOk = true, payDetail = [];
-G.ECONOMY.entryTiers.forEach(function (fee) {
+var payFees = G.ECONOMY.entryTiers.concat([1, 3, 7]);   // + entradas minúsculas (arredondamento)
+payFees.forEach(function (fee) {
   for (var nr = 4; nr <= 8; nr++) {
     var order = []; for (var q = 0; q < nr; q++) order.push((q * 3 + 1) % nr);
     var p = S.payouts(fee, nr, order);
     var sum = p.prizes.reduce(function (s, x) { return s + x.amount; }, 0);
     var ints = [p.pot, p.fee].concat(p.prizes.map(function (x) { return x.amount; })).every(function (x) { return Number.isInteger(x) && x >= 0; });
     var paid = G.ECONOMY.payoutSplitFor ? G.ECONOMY.payoutSplitFor(nr).length : 3;
-    // todo lugar premiado recebe pelo menos a entrada de volta
-    var ok = ints && sum + p.fee === p.pot && p.pot === fee * nr && p.prizes.length === paid &&
-      p.prizes.every(function (x, k) { return x.racer === order[k] && x.amount >= fee; });
+    var nonInc = p.prizes.every(function (x, k) { return k === 0 || x.amount <= p.prizes[k - 1].amount; });
+    var ok = ints && nonInc && sum + p.fee === p.pot && p.pot === fee * nr && p.prizes.length === paid &&
+      p.prizes.every(function (x, k) { return x.racer === order[k]; });
+    // com as entradas reais, todo lugar premiado recebe pelo menos a entrada de volta
+    if (G.ECONOMY.entryTiers.indexOf(fee) >= 0) ok = ok && p.prizes.every(function (x) { return x.amount >= fee; });
     if (!ok) { payOk = false; payDetail.push(fee + 'x' + nr); }
   }
 });
-checkBool('6', 'Pagamentos: soma(prêmios)+taxa == pote, inteiros, pódio ≥ entrada (4..8 corredores × ' + G.ECONOMY.entryTiers.join('/') + ')', payOk, payDetail.join(','));
+checkBool('6', 'Pagamentos: soma(prêmios)+taxa == pote, inteiros, prêmios não crescentes, pódio ≥ entrada (4..8 corredores × ' +
+  G.ECONOMY.entryTiers.join('/') + '; não crescentes também com entrada 1/3/7)', payOk, payDetail.join(','));
 log('### 6. Pagamentos (pote = entrada × corredores; taxa ' + (G.ECONOMY.houseFee * 100) + '%; 4–5 corredores 70/30, 6–7 50/30/20, 8 60/25/15)');
 log('');
 log('| Entrada | Corredores | Pote | Taxa | 1º | 2º | 3º |');
@@ -351,7 +333,60 @@ G.ECONOMY.entryTiers.forEach(function (fee) {
 log('');
 
 // ---------------------------------------------------------------------------
-// 7) Determinismo
+// 7) Dado da Sorte (rollDice direto, sem simulação)
+// ---------------------------------------------------------------------------
+var N7 = 4000;
+var rng7 = S.mulberry32(seedOf(750, 0));
+var w7 = 0, sum100 = 0, sum0 = 0, n0 = 0;
+for (var i7 = 0; i7 < N7; i7++) {
+  var me = S.rollDice(rng7, 100, 0).best, top = 0;
+  sum100 += me;
+  for (var j7 = 0; j7 < 7; j7++) { var b7 = S.rollDice(rng7, 0, 0).best; sum0 += b7; n0++; if (b7 > top) top = b7; }
+  if (me > top) w7++;
+}
+var v7 = pct(w7, N7);
+check('7', 'Sorte 100 contra sete de Sorte 0 vence o dado', v7, 18, 28, '%');
+log('### 7. Dado da Sorte (`rollDice`, ' + N7 + ' rodadas; meta: 18%–28%; sem viés seria 12,5%)');
+log('');
+log('| Métrica | Valor |');
+log('|---|---|');
+log('| Sorte 100 tira mais que os sete de Sorte 0 | **' + f1(v7) + '%** |');
+log('| Média do dado com Sorte 100 | ' + f1(sum100 / N7) + ' |');
+log('| Média do dado com Sorte 0 | ' + f1(sum0 / n0) + ' |');
+log('');
+
+// ---------------------------------------------------------------------------
+// 8) Viradas de clima por corrida (PVP 8, elementos sorteados no triângulo)
+// ---------------------------------------------------------------------------
+var N8 = n(1000);
+var flips = [], flipHist = [0, 0, 0];
+for (var k8 = 0; k8 < N8; k8++) {
+  var seed8 = seedOf(800, k8);
+  var rng8 = S.mulberry32(S.hash2(seed8, 8888));
+  var rs8 = [];
+  for (var q8 = 0; q8 < 8; q8++) {
+    var h8 = mk({}, 'Sint ' + (q8 + 1));
+    h8.element = TRIANGLE[Math.floor(rng8() * 3)];
+    rs8.push(racer(h8, null, G.BOT_NAMES[q8]));
+  }
+  var c8 = countType(run(seed8, S.randomConditions(seed8), rs8), 'clima');
+  flips.push(c8);
+  flipHist[Math.min(c8, 2)]++;
+}
+var v8 = mean(flips);
+check('8', 'Viradas de clima por corrida (PVP 8)', v8, 0.8, 1.6, '');
+log('### 8. Viradas de clima por corrida (PVP 8 sintético, mítico lv1 base 60, elementos sorteados entre Fogo/Água/Grama; meta: média 0,8–1,6)');
+log('');
+log('| Métrica (' + N8 + ' corridas) | Valor |');
+log('|---|---|');
+log('| Média de viradas por corrida | **' + f2(v8) + '** |');
+log('| Corridas com 0 viradas | ' + f1(pct(flipHist[0], N8)) + '% |');
+log('| Corridas com 1 virada | ' + f1(pct(flipHist[1], N8)) + '% |');
+log('| Corridas com 2 viradas | ' + f1(pct(flipHist[2], N8)) + '% |');
+log('');
+
+// ---------------------------------------------------------------------------
+// 9) Determinismo
 // ---------------------------------------------------------------------------
 var detOk = true;
 var itemIds = Object.keys(G.ITEMS);
@@ -360,30 +395,77 @@ function detConfig(seed) {
   var rs = [];
   var m = 4 + Math.floor(rng() * 5);
   for (var q = 0; q < m; q++) {
-    var h = allHorses[Math.floor(rng() * allHorses.length)];
-    rs.push({ horse: h, itemId: rng() < 0.6 ? itemIds[Math.floor(rng() * itemIds.length)] : null, tactic: TACTICS[Math.floor(rng() * 3)], name: G.BOT_NAMES[q], isPlayer: q === 0 });
+    var h = ALL[Math.floor(rng() * ALL.length)];
+    rs.push({ horse: h, itemId: rng() < 0.6 ? itemIds[Math.floor(rng() * itemIds.length)] : null, name: G.BOT_NAMES[q], isPlayer: q === 0 });
   }
-  return { seed: seed, conditions: rng() < 0.5 ? S.randomConditions(seed) : G.TRACK_EXAMPLES[Math.floor(rng() * G.TRACK_EXAMPLES.length)], racers: rs };
+  return { seed: seed, conditions: S.randomConditions(S.hash2(seed, 99)), racers: rs };
 }
 var firstRun = [];
-for (var d7 = 0; d7 < 25; d7++) firstRun.push(JSON.stringify(S.simulate(detConfig(seedOf(700, d7)))));
-for (var e7 = 24; e7 >= 0; e7--) { // ordem inversa: nenhum estado global vaza entre chamadas
-  var again = JSON.stringify(S.simulate(detConfig(seedOf(700, e7))));
-  if (again !== firstRun[e7]) detOk = false;
+for (var d9 = 0; d9 < 25; d9++) firstRun.push(JSON.stringify(S.simulate(detConfig(seedOf(900, d9)))));
+for (var e9 = 24; e9 >= 0; e9--) { // ordem inversa: nenhum estado global vaza entre chamadas
+  var again = JSON.stringify(S.simulate(detConfig(seedOf(900, e9))));
+  if (again !== firstRun[e9]) detOk = false;
 }
 // sanidade dos frames
-var sample = S.simulate(detConfig(seedOf(700, 3)));
+var sample = S.simulate(detConfig(seedOf(900, 3)));
 var framesOk = sample.frames.length > 10 && sample.frames[0].t === 0 &&
   sample.frames.every(function (f, i) { return Math.abs(f.t - i * sample.dt) < 1e-9 && f.pos.length === sample.finishOrder.length; }) &&
   sample.finishOrder.slice().sort().join() === sample.finishOrder.map(function (x, i) { return i; }).join();
-checkBool('7', 'Determinismo: mesma seed+config => saída idêntica (25 configs, com itens e pistas de exemplo)', detOk && framesOk, framesOk ? '' : 'frames inválidos');
-var sameSeedDiffCond = JSON.stringify(S.simulate(detConfig(seedOf(700, 1)))) !== JSON.stringify(S.simulate(detConfig(seedOf(700, 2))));
-checkBool('7', 'Seeds diferentes => corridas diferentes', sameSeedDiffCond);
+checkBool('9', 'Determinismo: mesma seed+config => mesmo mapa, mesmos dados, mesmo resultado (25 configs com itens e mapas aleatórios, reexecução em ordem inversa)',
+  detOk && framesOk, framesOk ? '' : 'frames inválidos');
+var diffSeeds = JSON.stringify(S.simulate(detConfig(seedOf(900, 1)))) !== JSON.stringify(S.simulate(detConfig(seedOf(900, 2))));
+checkBool('9', 'Seeds diferentes => corridas diferentes', diffSeeds);
+
+// ---------------------------------------------------------------------------
+// 10) Chance de skill observada x calculada, por raridade
+// ---------------------------------------------------------------------------
+// sem n(): com 500 corridas o erro-padrão (~2,2 p.p.) deixa o teste de ±3 p.p. instável no --quick;
+// 2000 corridas (~1,1 p.p.) custam poucos segundos
+var N10 = 2000;
+log('### 10. Chance de skill: observada × calculada (lv1, Sorte 50, `Arranque`, ' + N10 + ' corridas em reta de 1600 m; meta: diferença ≤ 3 p.p.)');
+log('');
+log('| Raridade | Calculada (`skillChance`) | Observada | Diferença |');
+log('|---|---|---|---|');
+RAR_IDS.forEach(function (rid, ri) {
+  var h = mk({ sorte: 50 }, 'Sint ' + rid);
+  h.rarity = rid; h.skills = ['arranque'];
+  var other = mk({}, 'Rival');
+  var calc = 100 * S.skillChance(h, S.computeStats(h, null));
+  var fired = 0;
+  for (var k = 0; k < N10; k++) {
+    var seed = seedOf(1000 + ri, k);
+    if (countType(run(seed, RETA, [racer(h), racer(other)]), 'skill', 0) > 0) fired++;
+  }
+  var obs = pct(fired, N10);
+  var diff = Math.abs(obs - calc);
+  check('10', 'Skill ' + G.RARITIES[rid].name + ': observada ' + f1(obs) + '% × calculada ' + f1(calc) + '% (diferença)', diff, 0, 3, ' p.p.');
+  log('| ' + G.RARITIES[rid].name + ' | ' + f1(calc) + '% | ' + f1(obs) + '% | ' + f1(diff) + ' p.p. |');
+});
+log('');
+
+// ---------------------------------------------------------------------------
+// Ligas (informativo: Rating de Poder sem item)
+// ---------------------------------------------------------------------------
+log('### Ligas (Rating de Poder sem item)');
+log('');
+log('Limites: ' + G.LEAGUES.map(function (L) { return L.name + ' ≥ ' + L.min; }).join(' · ') + '.');
+log('');
+log('| Montaria | Raridade | Lv | Rating | Liga |');
+log('|---|---|---|---|---|');
+function leagueRow(h, lv) {
+  var c = clone(h, lv);
+  var rt = S.powerRating(c, null);
+  log('| ' + h.name + ' | ' + G.RARITIES[h.rarity].name + ' | ' + c.level + ' | ' + rt + ' | ' + S.leagueFor(rt).name + ' |');
+}
+STARTERS.forEach(function (h) { leagueRow(h, 1); });
+STARTERS.forEach(function (h) { leagueRow(h, 25); });
+WILD.forEach(function (h) { leagueRow(h, null); });
+log('');
 
 // ---------------------------------------------------------------------------
 // Info extra
 // ---------------------------------------------------------------------------
-log('### Outros números (corridas do teste 1)');
+log('### Outros números (corridas do teste 1: iniciais lv1, mapas aleatórios)');
 log('');
 var E = info.racerEntries;
 log('| Métrica | Valor |');
@@ -391,7 +473,8 @@ log('|---|---|');
 log('| Garra disparou | ' + f1(pct(info.garra, E)) + '% dos corredores |');
 log('| "Cansou" (estamina zerou antes dos últimos 2%) | ' + f1(pct(info.cansou, E)) + '% dos corredores |');
 log('| Trocas de liderança narradas por corrida | ' + f2(info.ultrap / info.races) + ' |');
-log('| Habilidades ativadas por corrida | ' + f2(info.skills / info.races) + ' |');
+log('| Viradas de clima por corrida | ' + f2(info.clima / info.races) + ' |');
+log('| Skills ativadas por corrida | ' + f2(info.skills / info.races) + ' (a simulação não expõe as tentativas; só as ativações) |');
 log('');
 
 log('### Resultado das metas');
@@ -400,7 +483,10 @@ log('| # | Meta | Valor | Faixa | OK |');
 log('|---|---|---|---|---|');
 results.forEach(function (r) {
   if (r.bool) log('| ' + r.id + ' | ' + r.label + ' | ' + (r.ok ? 'sim' : 'NÃO ' + (r.detail || '')) + ' | — | ' + (r.ok ? '✅' : '❌') + ' |');
-  else log('| ' + r.id + ' | ' + r.label + ' | ' + f1(r.value) + r.unit + ' | ' + r.lo + '–' + r.hi + r.unit + ' | ' + (r.ok ? '✅' : '❌') + ' |');
+  else {
+    var fmt = r.unit === '' ? f2 : f1;
+    log('| ' + r.id + ' | ' + r.label + ' | ' + fmt(r.value) + r.unit + ' | ' + String(r.lo).replace('.', ',') + '–' + String(r.hi).replace('.', ',') + r.unit + ' | ' + (r.ok ? '✅' : '❌') + ' |');
+  }
 });
 var failed = results.filter(function (r) { return !r.ok; });
 log('');
@@ -413,47 +499,54 @@ process.exit(failed.length ? 1 : 0);
 // Corrida de exemplo (docs/exemplos.md)
 // ---------------------------------------------------------------------------
 function exemplo() {
-  var track = G.TRACK_EXAMPLES.filter(function (t) { return t.id === 'raia-sertao'; })[0];
-  var byId = {}; STARTERS.concat(WILD).forEach(function (h) { byId[h.id] = h; });
+  var byId = {}; ALL.forEach(function (h) { byId[h.id] = h; });
   var field = [
-    { horse: clone(byId.ipe, 6), itemId: 'ferradura-cravos', tactic: 'perseguidor', name: 'Você', isPlayer: true },
-    { horse: clone(byId.brasa, 6), itemId: 'esporas-prata', tactic: 'ponteiro', name: G.BOT_NAMES[0], isPlayer: false },
-    { horse: clone(byId.mare, 6), itemId: 'manta-la', tactic: 'arrancador', name: G.BOT_NAMES[1], isPlayer: false },
-    { horse: byId['w-garoa'], itemId: null, tactic: 'perseguidor', name: G.BOT_NAMES[2], isPlayer: false },
-    { horse: byId['w-ticao'], itemId: 'ferradura-leve', tactic: 'ponteiro', name: G.BOT_NAMES[3], isPlayer: false },
-    { horse: byId['w-mandacaru'], itemId: 'sela-couro', tactic: 'arrancador', name: G.BOT_NAMES[4], isPlayer: false },
-    { horse: clone(byId['w-ventania'], 4), itemId: null, tactic: 'perseguidor', name: G.BOT_NAMES[5], isPlayer: false },
-    { horse: clone(byId['w-pororoca'], 3), itemId: null, tactic: 'arrancador', name: G.BOT_NAMES[6], isPlayer: false }
+    { horse: clone(byId.ipe, 6), itemId: 'ferradura-cravos', name: 'Você', isPlayer: true },
+    { horse: clone(byId.brasa, 6), itemId: 'esporas-prata', name: G.BOT_NAMES[0], isPlayer: false },
+    { horse: clone(byId.mare, 6), itemId: 'manta-la', name: G.BOT_NAMES[1], isPlayer: false },
+    { horse: clone(byId['w-garoa']), itemId: null, name: G.BOT_NAMES[2], isPlayer: false },
+    { horse: clone(byId['w-ticao']), itemId: 'ferradura-leve', name: G.BOT_NAMES[3], isPlayer: false },
+    { horse: clone(byId['w-mandacaru']), itemId: 'sela-couro', name: G.BOT_NAMES[4], isPlayer: false },
+    { horse: clone(byId['w-ventania'], 4), itemId: null, name: G.BOT_NAMES[5], isPlayer: false },
+    { horse: clone(byId['w-pororoca'], 3), itemId: null, name: G.BOT_NAMES[6], isPlayer: false }
   ];
   var si = args.indexOf('--seed');
   var seed = si >= 0 ? Number(args[si + 1]) : 20261119;
-  var res = S.simulate({ seed: seed, conditions: track, racers: field });
+  var cond = S.randomConditions(seed);
+  var res = S.simulate({ seed: seed, conditions: cond, racers: field });
   var pay = S.payouts(100, field.length, res.finishOrder);
   var lines = [];
-  lines.push('Pista: ' + track.name + ' — ' + track.distance + ' m, ' + track.surface + ', ' + track.weather + ', subidas ' + JSON.stringify(track.hills) + ', seed ' + seed);
+  lines.push('Mapa `randomConditions(' + seed + ')`: ' + cond.distance + ' m, piso ' + G.SURFACES[cond.surface].name +
+    ', clima inicial ' + G.WEATHERS[cond.weather].name + ', clima final ' + G.WEATHERS[res.weatherFinal].name + ', seed ' + seed + '.');
   lines.push('');
-  lines.push('| Raia | Jogador | Cavalo | Elem. | Rar. | Lv | Item | Tática | VEL/ACE/EST/FOR/GAR | Rating | Afinidade |');
+  lines.push('Blocos:');
+  lines.push('');
+  cond.blocks.forEach(function (b) { lines.push('- ' + b.type + ' ' + b.from + '–' + b.to + ' m'); });
+  lines.push('');
+  lines.push('| Raia | Jogador | Cavalo | Elem. | Rar. | Sexo | Lv | Item | VEL/ACE/MAN/FOR/EST/GAR/SOR | Rating | Skills % |');
   lines.push('|---|---|---|---|---|---|---|---|---|---|---|');
   field.forEach(function (r, i) {
     var s = S.computeStats(r.horse, r.itemId);
-    var a = S.elementAffinity(r.horse.element, track);
-    lines.push('| ' + (i + 1) + ' | ' + r.name + ' | ' + r.horse.name + ' | ' + G.ELEMENTS[r.horse.element].name + ' | ' + G.RARITIES[r.horse.rarity].name + ' | ' + r.horse.level + ' | ' +
-      (r.itemId ? G.ITEMS[r.itemId].name : '—') + ' | ' + TAC_NAME[r.tactic] + ' | ' + [s.vel, s.acel, s.est, s.forca, s.garra].join('/') + ' | ' +
-      S.powerRating(r.horse, r.itemId) + ' | ×' + f2(a.mult) + (a.reasons.length ? ' (' + a.reasons.join('; ') + ')' : '') + ' |');
+    var ch = Math.round(100 * res.racerInfo[i].skillChance);
+    var sk = (r.horse.skills || []).map(function (id) { return G.SKILLS[id].name; }).join(', ');
+    lines.push('| ' + (i + 1) + ' | ' + r.name + ' | ' + r.horse.name + ' | ' + G.ELEMENTS[r.horse.element].name + ' | ' + G.RARITIES[r.horse.rarity].name + ' | ' +
+      (r.horse.sex === 'f' ? 'F' : 'M') + ' | ' + r.horse.level + ' | ' + (r.itemId ? G.ITEMS[r.itemId].name : '—') + ' | ' +
+      G.STAT_KEYS.map(function (k) { return s[k]; }).join('/') + ' | ' + S.powerRating(r.horse, r.itemId) + ' | ' +
+      (sk ? sk + ' (' + ch + '%)' : '—') + ' |');
   });
   lines.push('');
-  lines.push('| Pos. | Jogador | Cavalo | Tempo | Disposição do dia | Prêmio |');
-  lines.push('|---|---|---|---|---|---|');
+  lines.push('| Pos | Jogador | Cavalo | Tempo | Prêmio |');
+  lines.push('|---|---|---|---|---|');
   res.finishOrder.forEach(function (ri, k) {
     var pr = pay.prizes.filter(function (x) { return x.racer === ri; })[0];
-    var inf = res.racerInfo[ri];
-    var fpct = Math.round((inf.form - 1) * 1000) / 10;
-    lines.push('| ' + (k + 1) + 'º | ' + field[ri].name + ' | ' + field[ri].horse.name + ' | ' + res.finishTimes[ri].toFixed(2).replace('.', ',') + 's | ' +
-      inf.disposicao + ' (' + (fpct >= 0 ? '+' : '') + String(fpct).replace('.', ',') + '%) | ' + (pr ? pr.amount + ' Ouro' : '—') + ' |');
+    lines.push('| ' + (k + 1) + 'º | ' + field[ri].name + ' | ' + field[ri].horse.name + ' | ' + res.finishTimes[ri].toFixed(2).replace('.', ',') + ' s | ' +
+      (pr ? pr.amount + ' Ouro' : '—') + ' |');
   });
   lines.push('');
-  lines.push('Pote ' + pay.pot + ' · taxa ' + pay.fee + ' · duração ' + f2(res.duration) + 's · ' + res.frames.length + ' frames');
+  lines.push('Pote ' + pay.pot + ' · taxa ' + pay.fee + ' · duração ' + f2(res.duration) + ' s · ' + res.frames.length + ' frames');
   lines.push('');
+  lines.push('```');
   res.events.forEach(function (e) { lines.push('[' + e.t.toFixed(1).replace('.', ',') + 's] (' + e.type + ') ' + e.text); });
+  lines.push('```');
   console.log(lines.join('\n'));
 }

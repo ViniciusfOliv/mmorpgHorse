@@ -515,9 +515,10 @@
       var stats = RS.computeStats(h, null);
       var el = GD.ELEMENTS[h.element];
       var rating = RS.powerRating(h, null);
-      var best = el.weather && GD.WEATHERS[el.weather] ? GD.WEATHERS[el.weather].name + ' (+5%)' : '—';
+      var wPct = Math.round((RS.TUNING.weatherMult - 1) * 100);
+      var best = el.weather && GD.WEATHERS[el.weather] ? GD.WEATHERS[el.weather].name + ' (+' + wPct + '%)' : '—';
       var worst = Object.keys(GD.WEATHERS).filter(function (w) { return GD.WEATHERS[w].penalizes === h.element; })
-        .map(function (w) { return GD.WEATHERS[w].name + ' (−5%)'; }).join(', ') || '—';
+        .map(function (w) { return GD.WEATHERS[w].name + ' (−' + wPct + '%)'; }).join(', ') || '—';
       var bonus = el.statBonus ? '+' + el.statBonus.amount + ' de ' + GD.STATS[el.statBonus.stat].name : '—';
       return '<article class="caixa inicial" id="ini-' + esc(h.id) + '" aria-label="' + esc(h.name + ', ' + (idx + 1) + ' de ' + GD.STARTERS.length) + '">' +
         '<div class="retrato-palco">' + portraitHtml(h) + '<span class="contador">' + (idx + 1) + '/' + GD.STARTERS.length + '</span></div>' +
