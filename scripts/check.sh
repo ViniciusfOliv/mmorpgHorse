@@ -17,18 +17,22 @@ step() { printf '\n== %s ==\n' "$1"; }
 step "1/4 Build (prototype/dist)"
 node prototype/build.mjs
 
-step "2/4 dist atualizado em relação ao src"
+step "2/5 Testes unitários"
+node prototype/tools/sim-test.js > "$SHOTS_DIR/unit.txt" || { cat "$SHOTS_DIR/unit.txt"; exit 1; }
+tail -n 1 "$SHOTS_DIR/unit.txt"
+
+step "3/5 dist atualizado em relação ao src"
 if ! git diff --quiet -- prototype/dist; then
   echo "AVISO: o build mudou prototype/dist/ — lembre de commitar junto com o src."
 else
   echo "ok"
 fi
 
-step "3/4 Balanceamento rápido"
+step "4/5 Balanceamento rápido"
 node prototype/tools/balance.js --quick > "$SHOTS_DIR/balance.txt" || { cat "$SHOTS_DIR/balance.txt"; exit 1; }
 grep -E 'metas passaram|❌' "$SHOTS_DIR/balance.txt" || true
 
-step "4/4 Teste de interface (Playwright)"
+step "5/5 Teste de interface (Playwright)"
 node prototype/tools/ui-test.mjs > "$SHOTS_DIR/ui.txt" 2>&1 || { cat "$SHOTS_DIR/ui.txt"; exit 1; }
 tail -n 1 "$SHOTS_DIR/ui.txt"
 

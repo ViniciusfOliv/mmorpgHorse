@@ -34,6 +34,7 @@ Nada de polimento, servidor, contas ou loja ainda. Fases e checklist de lançame
 | Para quê | Comando | Tempo |
 |---|---|---|
 | Gerar o jogo (`prototype/dist/`) | `node prototype/build.mjs` | 1 s |
+| Testes unitários da simulação | `node prototype/tools/sim-test.js` | 5 s |
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~25 s |
 | Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~1,5 min |
 | Teste de interface (Playwright) + capturas em `prototype/screens/` | `node prototype/tools/ui-test.mjs` | ~1,5 min |

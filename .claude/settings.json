@@ -3,6 +3,7 @@
     "allow": [
       "Bash(./scripts/check.sh)",
       "Bash(node prototype/build.mjs)",
+      "Bash(node prototype/tools/sim-test.js)",
       "Bash(node prototype/tools/balance.js:*)",
       "Bash(node prototype/tools/ui-test.mjs)",
       "Bash(git status:*)",
