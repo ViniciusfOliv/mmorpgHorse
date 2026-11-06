@@ -43,7 +43,7 @@ test('catálogo de skills', function () {
   ['arranque','sprint','drift','saida-rapida','casco-firme','folego-de-montanha','segundo-ar','arrancada-final','dado-viciado','sol-a-pino','pe-na-chuva','nevoa-amiga'].forEach(function (id) { assert.ok(G.SKILLS[id], id); });
   assert.strictEqual(G.SKILLS.drift.trigger, 'curve');
   assert.strictEqual(G.SKILLS['dado-viciado'].effect.extraDice, 1); assert.ok(!G.SKILLS.raca && !G.SKILLS.correnteza);
-  Object.keys(G.ITEMS).forEach(function (id) { assert.ok(G.RARITIES[G.ITEMS[id].rarity], 'item ' + id); });
+  assert.ok(!G.ITEMS, 'catálogo antigo de itens removido');
 });
 
 section('status');

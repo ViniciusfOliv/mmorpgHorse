@@ -245,12 +245,19 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   background: linear-gradient(to bottom, transparent 0 6px, rgb(15 28 23 / 0.6) 6px 10px, var(--noite) 10px);
 }
 
+/* resumo do equipamento (um quadrinho por slot + selo do conjunto) */
+.slots { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.slot {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 36px; height: 32px; padding: 0 6px;
+  border: 2px solid var(--linha); background: var(--painel-2); font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.slot--cheio { border-color: var(--ouro-escuro); color: var(--ouro-claro); }
+.slot--vazio { color: var(--texto-3); }
+.set-badge { padding: 2px 8px; border: 2px solid var(--ouro); color: var(--ouro); font-weight: 700; white-space: nowrap; }
+
 /* opções selecionáveis (aria-pressed) */
 .opcoes { display: grid; gap: 10px; }
 .opcoes--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.opcoes--itens { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.opcoes--itens .opcao--nenhum { grid-column: 1 / -1; flex-direction: row; align-items: baseline; gap: 10px; min-height: 48px; padding-block: 8px; }
-.opcoes--itens .opcao--nenhum .opcao-nome { flex: none; white-space: nowrap; }
 .opcao {
   text-align: left; align-items: flex-start; justify-content: flex-start; flex-direction: column; gap: 2px;
   min-width: 0; font-weight: 500;
@@ -631,7 +638,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 
   // ---------------------------------------------------------------------------
   // Raridades
-  //   statCap: teto de cada status por level (antes de elemento e item).
+  //   statCap: teto de cada status por level (antes de elemento e equipamento).
   //   growth: multiplicador do crescimento por level.
   //   skillSlots: nº máximo de habilidades; bornSkills: nº máximo ao nascer;
   //   skillChance: chance base de ativar cada skill quando o gatilho acontece.
@@ -790,71 +797,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   };
 
   // ---------------------------------------------------------------------------
-  // Itens (1 por corrida). mods somam nos status; special é tratado pelo RaceSim.
-  //   special.ignoreWeatherPenalty: anula a penalidade de clima do elemento.
-  //   special.garraChanceBonus: soma na chance de Garra (0..1).
-  //   special.staminaPoolMult: multiplica o tanque de estamina.
-  // ---------------------------------------------------------------------------
-  var ITEMS = {
-    'ferradura-leve': {
-      id: 'ferradura-leve', name: 'Ferradura Leve', rarity: 'comum', price: 120,
-      desc: 'Casco leve, passada solta. Perde firmeza no pesado.',
-      mods: { vel: 8, forca: -5 }
-    },
-    'ferradura-cravos': {
-      id: 'ferradura-cravos', name: 'Ferradura com Cravos', rarity: 'comum', price: 120,
-      desc: 'Agarra na areia e nas subidas, mas pesa na reta.',
-      mods: { forca: 10, vel: -3 }
-    },
-    'sela-couro': {
-      id: 'sela-couro', name: 'Sela de Couro Cru', rarity: 'comum', price: 100,
-      desc: 'Confortável e sem segredo.',
-      mods: { est: 7 }
-    },
-    'manta-la': {
-      id: 'manta-la', name: 'Manta de Lã', rarity: 'magico', price: 220,
-      desc: 'Poupa o fôlego, mas deixa a largada preguiçosa.',
-      mods: { est: 9, acel: -4 }
-    },
-    'antolhos': {
-      id: 'antolhos', name: 'Antolhos', rarity: 'magico', price: 220,
-      desc: 'Foco total na reta final (+8% de chance de Garra); demora a pegar embalo.',
-      mods: { garra: 12, acel: -3 },
-      special: { garraChanceBonus: 0.08 }
-    },
-    'rapadura-engenho': {
-      id: 'rapadura-engenho', name: 'Rapadura de Engenho', rarity: 'magico', price: 180,
-      desc: 'Energia pura: tanque de estamina +4%, mas fica pesado (−2 Vel).',
-      mods: { vel: -2 },
-      special: { staminaPoolMult: 1.04 }
-    },
-    'esporas-prata': {
-      id: 'esporas-prata', name: 'Esporas de Prata', rarity: 'raro', price: 400,
-      desc: 'Arranque brutal, fôlego curto.',
-      mods: { acel: 10, est: -6 }
-    },
-    'capa-impermeavel': {
-      id: 'capa-impermeavel', name: 'Capa Impermeável', rarity: 'raro', price: 380,
-      desc: 'Anula a penalidade de clima do elemento (ex.: Fogo na chuva).',
-      mods: { est: 2 },
-      special: { ignoreWeatherPenalty: true }
-    },
-    'figa-sorte': {
-      id: 'figa-sorte', name: 'Figa da Sorte', rarity: 'lendario', price: 700,
-      desc: 'Garra +5 e +15% de chance de a Garra disparar.',
-      mods: { garra: 5 },
-      special: { garraChanceBonus: 0.15 }
-    },
-    'penas-gaviao': {
-      id: 'penas-gaviao', name: 'Penas de Gavião-Real', rarity: 'mitico', price: 1500,
-      desc: 'Voa baixo na reta (+14 Vel, +6 Gar), mas cansa antes (−6 Est).',
-      mods: { vel: 14, garra: 6, est: -6 }
-    }
-  };
-
-  // ---------------------------------------------------------------------------
   // Montarias (espécie 'cavalo')
-  //   base = status no level 1 (antes de crescimento, elemento e item).
+  //   base = status no level 1 (antes de crescimento, elemento e equipamento).
   //   potential 0–31 por status (oculto no jogo).
   //   sex: 'm' | 'f'.
   //   extra (opcional): title, bio, habitat, lore, grau (1–3, qualidade do cruzamento),
@@ -1134,7 +1078,6 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     WEATHERS: WEATHERS,
     BLOCK_TYPES: BLOCK_TYPES,
     SKILLS: SKILLS,
-    ITEMS: ITEMS,
     GEAR_SLOTS: GEAR_SLOTS,
     GEAR_SLOT_INFO: GEAR_SLOT_INFO,
     GEAR_SETS: GEAR_SETS,
@@ -4255,12 +4198,14 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 /*
  * Galope Elemental — interface jogável do protótipo (descartável).
  *
- * Depende de window.GameData (data.js), window.RaceSim (sim.js) e window.Sprites (sprites.js).
+ * Depende de window.GameData (data.js), window.RaceSim (sim.js), window.Gear (gear.js) e
+ * window.Sprites (sprites.js).
  * Fluxo: Escolha do inicial -> Estábulo -> Sala de largada -> Corrida -> Resultado.
  *
  * Sala de largada: o campo (seed, condições, rivais, entrada) é sorteado UMA vez e fica salvo em
  * state.pending até ser corrido. Voltar ao estábulo ou recarregar reabre a mesma sala (sem
- * re-sorteio grátis). O jogador escolhe o item já vendo o traçado e o clima.
+ * re-sorteio grátis). O equipamento (persistente, por montaria) entra no pareamento; com páreo aberto
+ * só trocas que não passem do rating da sala.
  * A corrida é calculada por RaceSim.simulate (função pura da seed) só quando o jogador aperta
  * "Largar!", depois de pagar a entrada, como um servidor faria; a tela de corrida só anima os
  * frames. Ouro e XP são liquidados nesse momento: recarregar no meio da corrida não muda nada.
@@ -4269,11 +4214,11 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
-  if (!GD || !RS || !SP || !telaEl) {
-    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js ou sprites.js).';
+  if (!GD || !RS || !SP || !GR || !telaEl) {
+    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js ou sprites.js).';
     return;
   }
 
@@ -4282,8 +4227,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   // ===========================================================================
   var SAVE_KEY = 'galope-elemental:v1';
   var E = GD.ECONOMY;
+  var GE = E.gear;
   var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
-  var START_INVENTORY = ['sela-couro', 'ferradura-leve', 'antolhos', 'capa-impermeavel'];
   var TRAINING_GOLD = [30, 22, 16, 12, 10, 10, 10, 10];
   var MIN_ENTRY = Math.min.apply(null, E.entryTiers);
   var WILD_SHOWCASE = ['w-pangare', 'w-mandacaru', 'w-ventania', 'w-fogareu', 'w-iara', 'w-boitata'];
@@ -4439,8 +4384,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     try { window.localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignora */ }
   }
 
-  // Save v3: várias montarias (instâncias) e uma ativa. Saves v1/v2 (um inicial com level/xp/skills na
-  // raiz) são migrados em sanitize(): o inicial vira mounts[0] ('m1').
+  // Save v4: várias montarias (instâncias) e uma ativa; peças de equipamento como instâncias em
+  // state.items ({ uid: 'i<n>', id, plus }) e equipadas por montaria em mount.equip (slot -> uid|null).
+  // Saves v1/v2 (um inicial com level/xp/skills na raiz) são migrados em sanitize(): o inicial vira
+  // mounts[0] ('m1'); o inventário de itens antigos (v1–v3) vira peças pelo OLD_ITEM_MAP.
   var BR = E.breeding;
   var MAX_LEVEL = E.maxLevel || 50;
 
@@ -4463,18 +4410,25 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       breedLeft: tpl.breedLeftMax || GD.BREED_LEFT[tpl.sex],
       parents: null,
       born: 0,
-      gestacao: null
+      gestacao: null,
+      equip: GR.emptyEquip()
     };
+  }
+
+  // cria uma peça +0 no save st (uid 'i' + nextItemUid) e devolve a instância
+  function addItem(st, id) {
+    var it = { uid: 'i' + st.nextItemUid, id: id, plus: 0 };
+    st.items.push(it);
+    st.nextItemUid += 1;
+    return it;
   }
 
   function newState(starterId) {
     var idx = Math.max(0, GD.STARTERS.map(function (h) { return h.id; }).indexOf(starterId));
-    return {
-      v: 3,
+    var st = {
+      v: 4,
       rev: 0,
       gold: E.startingGold,
-      inventory: START_INVENTORY.filter(function (id) { return !!GD.ITEMS[id]; }),
-      equipped: null,
       tier: E.entryTiers[0],
       seedBase: freshSeedBase(idx),
       raceCounter: 0,
@@ -4484,9 +4438,35 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       activeId: 'm1',
       nextUid: 2,
       stableSlots: BR.stableSlotsStart,
-      breedCounter: 0
+      breedCounter: 0,
+      items: [],
+      nextItemUid: 1,
+      pedras: 0,
+      enhanceCounter: 0
     };
+    // equipamento inicial (+0) já equipado no inicial
+    GE.startGear.forEach(function (id) {
+      if (!hasOwn(GD.GEAR, id)) return;
+      var it = addItem(st, id);
+      st.mounts[0].equip[GD.GEAR[id].slot] = it.uid;
+    });
+    return st;
   }
+
+  // Itens do save v1–v3 -> peça do catálogo novo (spec §11). null: sem peça (rapadura vira 3 Pedras Negras).
+  var OLD_ITEM_MAP = {
+    'ferradura-leve': 'ferraduras-comum',
+    'ferradura-cravos': 'ferraduras-magico',
+    'sela-couro': 'sela-comum',
+    'manta-la': 'armadura-comum',
+    'antolhos': 'testeira-comum',
+    'esporas-prata': 'estribos-magico',
+    'capa-impermeavel': 'armadura-magico',
+    'figa-sorte': 'estribos-magico',
+    'penas-gaviao': 'testeira-magico',
+    'rapadura-engenho': null
+  };
+  var OLD_RAPADURA_PEDRAS = 3;
 
   function num(v, d, lo, hi) { v = Number(v); return isFinite(v) ? clamp(Math.floor(v), lo, hi) : d; }
   function hasOwn(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
@@ -4560,7 +4540,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       breedLeft: num(m.breedLeft, GD.BREED_LEFT[m.sex], 0, 4),
       parents: validParents(m.parents),
       born: num(m.born, 0, 0, 1e9),
-      gestacao: (typeof m.gestacao === 'number' && isFinite(m.gestacao) && m.gestacao >= 0) ? m.gestacao : null
+      gestacao: (typeof m.gestacao === 'number' && isFinite(m.gestacao) && m.gestacao >= 0) ? m.gestacao : null,
+      equip: GR.emptyEquip()      // preenchido em sanitize(), que conhece as peças válidas
     };
     out.skills = validSkills(m.skills, out);
     return out;
@@ -4570,7 +4551,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     if (!s || typeof s !== 'object') return null;
     var mounts, activeId, nextUid, stableSlots, breedCounter;
     var start = BR.stableSlotsStart, max = BR.stableSlotsMax;
-    var v3 = Number(s.v) >= 3;
+    var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4;
+    var rawEquip = {};   // uid da montaria -> equip cru do save (validado depois das peças)
     if (!v3 && !Array.isArray(s.mounts)) {
       // v1/v2: um inicial com level/xp/skills na raiz (v1 tinha tática e não tinha skills: ignorados)
       var starter = GD.STARTERS.filter(function (h) { return h.id === s.starterId; })[0];
@@ -4589,6 +4571,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
         if (!m || seen[m.uid]) return;
         seen[m.uid] = true;
         mounts.push(m);
+        if (raw.equip && typeof raw.equip === 'object') rawEquip[m.uid] = raw.equip;
         if (/^m\d{1,9}$/.test(m.uid)) maxUid = Math.max(maxUid, Number(m.uid.slice(1)));
       });
       if (!mounts.length) { mounts.push(instanceFromTemplate(GD.STARTERS[0], 'm1')); maxUid = 1; }
@@ -4600,8 +4583,6 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     var base = newState(GD.STARTERS[0].id);
     base.rev = num(s.rev, 0, 0, 1e12);
     base.gold = num(s.gold, E.startingGold, 0, 1e9);
-    if (Array.isArray(s.inventory)) base.inventory = s.inventory.filter(function (id) { return !!GD.ITEMS[id]; });
-    base.equipped = (s.equipped && base.inventory.indexOf(s.equipped) >= 0) ? s.equipped : null;
     base.tier = E.entryTiers.indexOf(s.tier) >= 0 ? s.tier : E.entryTiers[0];
     base.seedBase = num(s.seedBase, base.seedBase, 0, 4294967295);
     base.raceCounter = num(s.raceCounter, 0, 0, 1e9);
@@ -4621,7 +4602,68 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     base.nextUid = nextUid;
     base.stableSlots = stableSlots;
     base.breedCounter = breedCounter;
+    sanitizeGear(s, v4, base, rawEquip);
     return base;
+  }
+
+  // Peças, pedras e equipamento (sobrescreve o equipamento inicial de newState). v4: lê s.items;
+  // v1–v3: migra s.inventory/s.equipped. Peça inválida (uid, id, plus ou uid repetido) some em silêncio;
+  // equip só aponta para peça existente, do slot certo, e cada peça fica em uma montaria só
+  // (vence a primeira na ordem de mounts). Nunca mexe no Ouro.
+  function sanitizeGear(s, v4, base, rawEquip) {
+    var items = [], byUid = {}, maxItemUid = 0, pedras = num(s.pedras, 0, 0, 1e6);
+    var legacyEquip = null;   // peça migrada do antigo 'equipped' (vai para a montaria ativa)
+    if (v4) {
+      (Array.isArray(s.items) ? s.items : []).forEach(function (it) {
+        if (!it || typeof it !== 'object') return;
+        if (typeof it.uid !== 'string' || !/^i\d{1,9}$/.test(it.uid) || hasOwn(byUid, it.uid)) return;
+        if (typeof it.id !== 'string' || !hasOwn(GD.GEAR, it.id)) return;
+        var p = it.plus;
+        if (!(typeof p === 'number' && p === Math.floor(p) && p >= 0 && p <= GE.plusMax)) return;
+        var out = { uid: it.uid, id: it.id, plus: p };
+        items.push(out);
+        byUid[out.uid] = out;
+        maxItemUid = Math.max(maxItemUid, Number(out.uid.slice(1)));
+      });
+    } else {
+      pedras = 0;
+      var n = 0;
+      (Array.isArray(s.inventory) ? s.inventory : []).forEach(function (oldId) {
+        if (typeof oldId !== 'string' || !hasOwn(OLD_ITEM_MAP, oldId)) return;
+        var newId = OLD_ITEM_MAP[oldId];
+        if (newId === null) { pedras += OLD_RAPADURA_PEDRAS; return; }
+        if (!hasOwn(GD.GEAR, newId)) return;
+        n += 1;
+        var out = { uid: 'i' + n, id: newId, plus: 0 };
+        items.push(out);
+        byUid[out.uid] = out;
+        if (oldId === s.equipped && !legacyEquip) legacyEquip = out;
+      });
+      maxItemUid = n;
+      pedras = Math.min(pedras, 1e6);
+    }
+    var taken = {};
+    base.mounts.forEach(function (m) {
+      var raw = v4 && hasOwn(rawEquip, m.uid) ? rawEquip[m.uid] : null;
+      var eq = GR.emptyEquip();
+      GR.SLOTS.forEach(function (slot) {
+        var uid = raw ? raw[slot] : null;
+        if (typeof uid !== 'string' || !hasOwn(byUid, uid) || taken[uid]) return;
+        if (GD.GEAR[byUid[uid].id].slot !== slot) return;
+        eq[slot] = uid;
+        taken[uid] = true;
+      });
+      m.equip = eq;
+    });
+    if (legacyEquip) {
+      var act = null;
+      base.mounts.forEach(function (m) { if (m.uid === base.activeId) act = m; });
+      if (act) act.equip[GD.GEAR[legacyEquip.id].slot] = legacyEquip.uid;
+    }
+    base.items = items;
+    base.nextItemUid = v4 ? Math.max(num(s.nextItemUid, 0, 0, 1e9), maxItemUid + 1) : maxItemUid + 1;
+    base.pedras = pedras;
+    base.enhanceCounter = v4 ? num(s.enhanceCounter, 0, 0, 1e9) : 0;
   }
 
   // Skills salvas de uma montaria: só ids que ela pode ter (mesmas regras do RaceSim.learnSkill:
@@ -4653,6 +4695,29 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   }
   function mountByUid(uid) {
     for (var i = 0; i < state.mounts.length; i++) if (state.mounts[i].uid === uid) return state.mounts[i];
+    return null;
+  }
+
+  // Equipamento: peças em state.items, equipadas por montaria em mount.equip (slot -> uid|null).
+  function emptyEquip() { return GR.emptyEquip(); }
+  function itemsByUid() {
+    var o = {};
+    state.items.forEach(function (it) { o[it.uid] = it; });
+    return o;
+  }
+  function itemByUid(uid) {
+    for (var i = 0; i < state.items.length; i++) if (state.items[i].uid === uid) return state.items[i];
+    return null;
+  }
+  function gearOf(mount) { return GR.resolve(mount, itemsByUid()); }
+  function playerGear() { return gearOf(activeMount()); }
+  function newItem(id) { return addItem(state, id); }
+  // onde a peça está equipada: { mount, slot } ou null
+  function isEquipped(uid) {
+    for (var i = 0; i < state.mounts.length; i++) {
+      var eq = state.mounts[i].equip || {};
+      for (var j = 0; j < GR.SLOTS.length; j++) if (eq[GR.SLOTS[j]] === uid) return { mount: state.mounts[i], slot: GR.SLOTS[j] };
+    }
     return null;
   }
 
@@ -4827,13 +4892,6 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     });
     return out + '</dl>';
   }
-  function modsText(mods) {
-    var parts = [];
-    STAT_KEYS.forEach(function (k) {
-      if (mods && mods[k]) parts.push((mods[k] > 0 ? '+' : '−') + Math.abs(mods[k]) + ' ' + GD.STATS[k].short);
-    });
-    return parts.join(' ');
-  }
   function xpHtml(level, xp) {
     var need = E.xpToLevel(level);
     var maxed = level >= (E.maxLevel || 50);
@@ -4842,7 +4900,6 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       (maxed ? 'Nível máximo' : fmt(xp) + ' / ' + fmt(need) + ' XP') + '</span></div>' +
       '<div class="barra barra--xp" role="img" aria-label="' + esc('Experiência ' + Math.round(pct) + '%') + '"><i style="width:' + (Math.round(pct / 5) * 5) + '%"></i></div></div>';
   }
-  function itemName(id) { return id && GD.ITEMS[id] ? GD.ITEMS[id].name : 'Sem item'; }
   function skillHtml(id) {
     var sk = GD.SKILLS[id];
     if (!sk) return '';
@@ -4853,24 +4910,22 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     return '<span class="raia ' + silkClass(r) + (extra ? ' ' + extra : '') + '" aria-label="Raia ' + (i + 1) + '">' + (i + 1) + '</span>';
   }
 
-  function itemOptionsHtml() {
-    return state.inventory.concat([null]).map(function (id) {
-      var it = id ? GD.ITEMS[id] : null;
-      var pressed = (state.equipped || null) === id;
-      if (!it) {
-        return '<button type="button" class="btn opcao opcao--nenhum" data-acao="item" data-id="" aria-pressed="' + pressed + '">' +
-          '<span class="opcao-nome">Sem item</span><span class="opcao-desc">corre só com os status do cavalo</span></button>';
-      }
-      return '<button type="button" class="btn opcao" data-acao="item" data-id="' + esc(id) + '" aria-pressed="' + pressed + '">' +
-        '<span class="opcao-nome">' + esc(it.name) + '</span>' +
-        '<span class="opcao-desc">' + rarityHtml(it.rarity) + '<span>' + esc(modsText(it.mods) || 'Efeito especial') + '</span></span></button>';
-    }).join('');
+  // selo do conjunto (a partir de 3 peças, quando o bônus começa)
+  function setBadgeHtml(gear) {
+    if (!gear || !gear.set || !gear.set.id || gear.set.count < 3 || !hasOwn(GD.GEAR_SETS, gear.set.id)) return '';
+    return '<span class="set-badge">' + esc(GD.GEAR_SETS[gear.set.id].name + ' ×' + gear.set.count) + '</span>';
   }
-  function strategyHtml(idPrefix) {
-    var eqItem = state.equipped ? GD.ITEMS[state.equipped] : null;
-    return '<div class="tela-cabeca"><span class="rotulo" id="' + idPrefix + '-item">Item equipado</span>' +
-        '<div class="opcoes opcoes--itens" role="group" aria-labelledby="' + idPrefix + '-item">' + itemOptionsHtml() + '</div>' +
-        '<p class="nota">' + esc(eqItem ? eqItem.name + ': ' + eqItem.desc : 'Sem item: status puros do cavalo.') + '</p></div>';
+  // resumo do equipamento de uma montaria: um quadrinho por slot (+N ou vazio) e o selo do conjunto
+  function gearSummaryHtml(mount) {
+    var gear = gearOf(mount);
+    var bySlot = {};
+    gear.pieces.forEach(function (p) { bySlot[p.slot] = p; });
+    var slots = GR.SLOTS.map(function (slot) {
+      var p = bySlot[slot], info = GD.GEAR_SLOT_INFO[slot];
+      if (!p) return '<span class="slot slot--vazio" title="' + esc(info.name + ': vazio') + '">—</span>';
+      return '<span class="slot slot--cheio" title="' + esc(GD.GEAR[p.id].name + ' +' + p.plus) + '">+' + p.plus + '</span>';
+    }).join('');
+    return '<div class="slots" aria-label="Equipamento">' + slots + setBadgeHtml(gear) + '</div>';
   }
 
   // ===========================================================================
@@ -5033,9 +5088,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 
   function renderEstabulo() {
     var h = playerHorse();
-    var stats = RS.computeStats(h, state.equipped);
+    var gear = playerGear();
+    var stats = RS.computeStats(h, gear);
     var baseStats = RS.computeStats(h, null);
-    var rating = RS.powerRating(h, state.equipped);
+    var rating = RS.powerRating(h, gear);
     var broke = state.gold < MIN_ENTRY;
     var tier = effectiveTier();
     var P = state.pending;
@@ -5087,14 +5143,14 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
           xpHtml(h.level, h.xp) +
           '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
           '<div class="linha-meta"><span>' + (h.sex === 'f' ? '♀ Fêmea' : '♂ Macho') + '</span>' +
-            '<span>Skills: <b>' + Math.round(RS.skillChance(h, stats) * 100) + '%</b> de ativar</span></div>' +
+            '<span>Skills: <b>' + Math.round(RS.skillChance(h, stats, gear.special.skillChanceBonus) * 100) + '%</b> de ativar</span></div>' +
         '</div></div>' +
         statsHtml(stats, baseStats) +
         h.skills.map(skillHtml).join('') +
       '</article>' +
       '<section class="caixa" aria-labelledby="t-preparar"><h2 class="titulo" id="t-preparar">Preparar corrida</h2>' +
-        strategyHtml('r-est') +
-        '<p class="nota">Dá para trocar o item na sala de largada, já vendo o traçado e o clima.</p>' +
+        '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
+          '<p class="nota">Troque as peças na tela Equipar.</p></div>' +
         '<div class="tela-cabeca"><span class="rotulo" id="r-entrada">Entrada da corrida</span>' +
           '<div class="opcoes opcoes--3 opcoes--tier" role="group" aria-labelledby="r-entrada">' + tierOpts + '</div>' +
           '<p class="nota">Todos pagam a mesma entrada; a casa fica com 10% do pote. Com 4–5 corredores pagam 1º e 2º (70/30); com 6–7, 1º/2º/3º (50/30/20); com 8, 60/25/15. Quem leva prêmio nunca sai no prejuízo.</p></div>' +
@@ -5325,6 +5381,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   // gera o potro já com o Ouro debitado; nunca chamada sem validar antes
   function harasFoal(P) {
     var foal = BRD.foal({ f: P.f, m: P.m, seedBase: state.seedBase, breedCounter: state.breedCounter, nextUid: state.nextUid });
+    foal.equip = GR.emptyEquip();   // entra no estábulo sem peças (Breed.foal não sabe de equipamento)
     state.nextUid += 1;
     state.breedCounter += 1;
     return foal;
@@ -5333,12 +5390,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   // ===========================================================================
   // Sala de largada: campo sorteado uma vez (state.pending) e simulado só no "Largar!"
   // ===========================================================================
-  function bestLevelFor(template, itemId, target, lo, hi) {
+  function bestLevelFor(template, gear, target, lo, hi) {
     var h = clone(template); // um clone por template, mudando só o level (clonar a cada nível custava ~10 ms por sala)
     var best = lo || 1, bestD = Infinity;
     for (var L = (lo || 1); L <= (hi || E.maxLevel || 50); L++) {
       h.level = L;
-      var d = Math.abs(RS.powerRating(h, itemId) - target);
+      var d = Math.abs(RS.powerRating(h, gear) - target);
       if (d < bestD - 0.5) { bestD = d; best = L; }
     }
     return { level: best, diff: bestD };
@@ -5359,9 +5416,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       if (fee == null) { training = true; fee = 0; } // sem Ouro para nenhuma entrada (ex.: save editado): vira treino
       state.raceCounter += 1;
       P = {
-        // pareamento pelo cavalo (sem item): o item é escolha de estratégia na sala e não atrai rivais mais fortes
+        // pareamento pelo cavalo COM o equipamento: ele é persistente (não é escolha de sala), então entra
+        // no rating que atrai os rivais; com o páreo aberto, trocas não podem passar deste rating
         counter: state.raceCounter, training: !!training, fee: fee,
-        pr: RS.powerRating(playerHorse(), null)
+        pr: RS.powerRating(playerHorse(), playerGear())
       };
       state.pending = P;
       persist();
@@ -5381,7 +5439,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     var n = (E.minRacers || 4) + Math.floor(rng() * ((E.maxRacers || 8) - (E.minRacers || 4) + 1));
     var pr = P.pr;
     var player = {
-      isPlayer: true, name: PLAYER_NAME, horse: playerHorse(), itemId: state.equipped,
+      isPlayer: true, name: PLAYER_NAME, horse: playerHorse(), gear: playerGear(),
       silks: PLAYER_SILKS, silkIdx: -1
     };
 
@@ -5389,7 +5447,6 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     var owned = {};   // nenhum bot corre com o modelo de uma montaria que o jogador tem
     state.mounts.forEach(function (m) { if (m.templateId) owned[m.templateId] = true; });
     var pool = GD.WILD_HORSES.concat(GD.STARTERS).filter(function (tpl) { return !owned[tpl.id]; });
-    var itemIds = Object.keys(GD.ITEMS);
     var used = {};
     var silkOrder = shuffle(BOT_SILKS.map(function (c, i) { return i; }), rng);
     var bots = [];
@@ -5397,14 +5454,22 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       // alvo em torno do rating do jogador (−8,5%..+11,5%); o rating já pesa cada habilidade pela chance
       // do gatilho. O leve viés para cima mantém a margem da casa (~10%) também contra bots.
       var target = pr * (0.915 + 0.2 * rng());
-      var itemId = rng() < 0.55 ? pick(itemIds, rng) : null;
-      var inBand = pool.map(function (tpl) { var bd = levelBand(tpl); return { tpl: tpl, fit: bestLevelFor(tpl, itemId, target, bd[0], bd[1]) }; })
+      // equipamento do bot pela liga do alvo e pelo elemento do template (Neutro: conjunto pelo pick)
+      var gpick = rng();
+      var leagueIdx = GD.LEAGUES.indexOf(RS.leagueFor(target));
+      var inBand = pool.map(function (tpl) {
+        var bd = levelBand(tpl), bg = GR.botGear(leagueIdx, tpl.element, gpick);
+        return { tpl: tpl, gear: bg, fit: bestLevelFor(tpl, bg, target, bd[0], bd[1]) };
+      })
         .filter(function (c) { return c.fit.diff <= target * 0.06; });
       var fresh = inBand.filter(function (c) { return !used[c.tpl.id]; });
       var cands = fresh.length ? fresh : inBand;
       if (!cands.length) {
         // ninguém plausível na faixa: o mais próximo do alvo em qualquer nível
-        var all = pool.map(function (tpl) { return { tpl: tpl, fit: bestLevelFor(tpl, itemId, target) }; });
+        var all = pool.map(function (tpl) {
+          var bg = GR.botGear(leagueIdx, tpl.element, gpick);
+          return { tpl: tpl, gear: bg, fit: bestLevelFor(tpl, bg, target) };
+        });
         all.sort(function (x, y) { return x.fit.diff - y.fit.diff; });
         cands = all.slice(0, 3);
       }
@@ -5415,9 +5480,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       horse.id = choice.tpl.id + '-b' + b;
       var silkIdx = SP.SILKS.indexOf(BOT_SILKS[silkOrder[b % silkOrder.length]]);
       bots.push({
-        isPlayer: false, name: names[b % names.length], horse: horse, itemId: itemId,
+        isPlayer: false, name: names[b % names.length], horse: horse, gear: choice.gear,
         silks: SP.SILKS[silkIdx], silkIdx: silkIdx,
-        rating: RS.powerRating(horse, itemId)
+        rating: RS.powerRating(horse, choice.gear)
       });
     }
     var racers = shuffle([player].concat(bots), rng);   // ordem = raia
@@ -5435,10 +5500,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     cond.curves = RS.curvesFromBlocks(cond.blocks);
     return cond;
   }
-  // o cavalo do jogador na sala reflete o item atual
+  // o cavalo do jogador na sala reflete a montaria ativa e o equipamento atual
   function refreshPlayerEntry(L) {
     var r = L.racers[L.playerIdx];
-    r.horse = playerHorse(); r.itemId = state.equipped;
+    r.horse = playerHorse(); r.gear = playerGear();
   }
 
   // ===========================================================================
@@ -5464,12 +5529,11 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     var tips = [];
     var sh = sharePct(L.cond);
     if (sh.curva >= 40) tips.push('Muitas curvas: Manobra segura a velocidade na curva e na saída dela.');
-    if (sh.subida >= 30) tips.push('Muitas subidas: Força ajuda a não perder ritmo (a Ferradura Leve tira Força).');
+    if (sh.subida >= 30) tips.push('Muitas subidas: Força ajuda a não perder ritmo (a Armadura dá Força).');
     if (L.cond.distance >= 2000) tips.push('Pista longa: Estamina segura o ritmo até o fim.');
     var h = playerHorse();
-    if (RS.weatherMult(h.element, L.cond.weather, false) < 1) {
-      var capa = state.inventory.filter(function (id) { var it = GD.ITEMS[id]; return it && it.special && it.special.ignoreWeatherPenalty; })[0];
-      if (capa && state.equipped !== capa) tips.push('A ' + GD.ITEMS[capa].name + ' anula a penalidade de clima.');
+    if (RS.weatherMult(h.element, L.cond.weather, false) < 1 && !playerGear().special.ignoreWeatherPenalty) {
+      tips.push('Um conjunto completo (5 peças) anula a penalidade de clima.');
     }
     return tips;
   }
@@ -5481,7 +5545,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     var m = RS.weatherMult(h.element, L.cond.weather, false);
     var pct = Math.round((m - 1) * 100);
     var eff = pct > 0 ? '+' + pct + '% para ' + el.name : pct < 0 ? '−' + Math.abs(pct) + '% para ' + el.name : 'neutro para ' + el.name;
-    var sorte = RS.computeStats(h, state.equipped).sorte;
+    var sorte = RS.computeStats(h, playerGear()).sorte;
     var items = '<li' + (pct > 0 ? ' class="bom"' : pct < 0 ? ' class="ruim"' : '') + '>' + esc('Clima inicial ' + w.name + ': ' + eff) + '</li>' +
       '<li class="dica">' + esc('Dado da Sorte a 1/3 e 2/3 da pista: quem tira o maior dado puxa o clima para o seu elemento. Sua Sorte: ' + Math.min(100, sorte) + '% de rolar dois dados.') + '</li>';
     var tips = strategyTips(L).map(function (t) { return '<li class="dica">' + esc(t) + '</li>'; }).join('');
@@ -5490,13 +5554,13 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 
   function racerRow(r, i) {
     var h = r.horse;
-    var rating = r.isPlayer ? RS.powerRating(h, r.itemId) : r.rating;
+    var rating = r.isPlayer ? RS.powerRating(h, r.gear) : r.rating;
     return '<li class="' + (r.isPlayer ? 'voce' : '') + '">' + laneChip(r, i) +
       '<div class="corredor"><b>' + (r.isPlayer ? '<span class="tag-voce">VOCÊ</span>' : '') +
         '<span class="nome">' + esc(r.isPlayer ? h.name : r.name) + '</span></b>' +
         '<small>' + (r.isPlayer ? '' : '<span>' + esc(h.name) + '</span>') + elementHtml(h.element) + rarityHtml(h.rarity) +
         '<span>Nv ' + h.level + '</span>' +
-        (r.itemId ? '<span>' + esc(itemName(r.itemId)) + '</span>' : '') + '</small></div>' +
+        setBadgeHtml(r.gear) + '</small></div>' +
       '<div class="poder"><b>' + rating + '</b><small>Poder</small></div></li>';
   }
 
@@ -5536,7 +5600,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
           L.cond.blocks.map(function (bl) { return GD.BLOCK_TYPES[bl.type].name.toLowerCase(); }).join(', ')) + '"></canvas>' +
         climaHints(L) + '</section>' +
       '<section class="caixa" aria-labelledby="t-estrategia"><h2 class="titulo" id="t-estrategia">Sua estratégia</h2>' +
-        strategyHtml('r-sala') + '</section>' +
+        '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) + '</div>' + '</section>' +
       '<section class="caixa" aria-labelledby="t-corredores"><h2 class="titulo" id="t-corredores">Corredores<span class="nota">' + L.n + ' na raia</span></h2>' +
         '<ol class="programa">' + L.racers.map(racerRow).join('') + '</ol></section>' +
       pote +
@@ -5607,7 +5671,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       seed: L.seed,
       conditions: L.cond,
       racers: L.racers.map(function (r) {
-        return { horse: r.horse, itemId: r.itemId, name: r.name, isPlayer: r.isPlayer };
+        return { horse: r.horse, gear: r.gear, name: r.name, isPlayer: r.isPlayer };
       })
     });
     L.cond = withRanges(L.sim.conditions);
@@ -5627,6 +5691,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     var xpGain = L.training ? Math.round(xpBase / 2) : xpBase;
 
     state.gold = state.gold - L.fee + prize;
+    // Pedra Negra do pódio: só em corrida valendo, pela seed da sala, na mesma gravação do Ouro
+    var stone = L.training ? 0 : GR.podiumStone(L.seed, place, L.fee);
+    state.pedras += stone;
     var gained = applyXp(activeMount(), xpGain, state.raceCounter);
     var levels = gained.levels, learned = gained.learned;
     state.races += 1;
@@ -5638,7 +5705,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 
     var hAfter = playerHorse();
     return {
-      place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay,
+      place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone,
       xpGain: xpGain, levels: levels, learned: learned,
       before: before,
       after: { level: hAfter.level, xp: hAfter.xp, gold: state.gold, stats: RS.computeStats(hAfter, null) }
@@ -6216,6 +6283,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       : '<dl class="balanco"><dt>Entrada</dt><dd class="menos-t">−' + fmt(R.fee) + '</dd>' +
         '<dt>Prêmio (' + R.place + 'º lugar)</dt><dd class="' + (R.prize ? 'mais' : '') + '">' + (R.prize ? '+' + fmt(R.prize) : '0') + '</dd>' +
         '<dt>Resultado</dt><dd class="' + (net > 0 ? 'mais' : net < 0 ? 'menos-t' : '') + '">' + signed(net) + '</dd>' +
+        (R.stone ? '<dt>Pedra Negra</dt><dd class="mais">🪨 +1</dd>' : '') +
         '<div class="final" style="display:contents"><dt>Saldo</dt><dd>' + ouroHtml(R.after.gold) + '</dd></div></dl>';
 
     var lvl = '';
@@ -6335,8 +6403,6 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
         if (card) { try { card.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'nearest', inline: 'center' }); } catch (e2) { card.scrollIntoView(); } }
         break;
       }
-      case 'item':
-        state.equipped = id || null; persist(); rerenderKeepScroll(); break;
       case 'tier':
         if (state.pending) break;
         state.tier = Number(id); persist(); rerenderKeepScroll(); break;

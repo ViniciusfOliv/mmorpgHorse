@@ -44,7 +44,7 @@
 
   // ---------------------------------------------------------------------------
   // Raridades
-  //   statCap: teto de cada status por level (antes de elemento e item).
+  //   statCap: teto de cada status por level (antes de elemento e equipamento).
   //   growth: multiplicador do crescimento por level.
   //   skillSlots: nº máximo de habilidades; bornSkills: nº máximo ao nascer;
   //   skillChance: chance base de ativar cada skill quando o gatilho acontece.
@@ -203,71 +203,8 @@
   };
 
   // ---------------------------------------------------------------------------
-  // Itens (1 por corrida). mods somam nos status; special é tratado pelo RaceSim.
-  //   special.ignoreWeatherPenalty: anula a penalidade de clima do elemento.
-  //   special.garraChanceBonus: soma na chance de Garra (0..1).
-  //   special.staminaPoolMult: multiplica o tanque de estamina.
-  // ---------------------------------------------------------------------------
-  var ITEMS = {
-    'ferradura-leve': {
-      id: 'ferradura-leve', name: 'Ferradura Leve', rarity: 'comum', price: 120,
-      desc: 'Casco leve, passada solta. Perde firmeza no pesado.',
-      mods: { vel: 8, forca: -5 }
-    },
-    'ferradura-cravos': {
-      id: 'ferradura-cravos', name: 'Ferradura com Cravos', rarity: 'comum', price: 120,
-      desc: 'Agarra na areia e nas subidas, mas pesa na reta.',
-      mods: { forca: 10, vel: -3 }
-    },
-    'sela-couro': {
-      id: 'sela-couro', name: 'Sela de Couro Cru', rarity: 'comum', price: 100,
-      desc: 'Confortável e sem segredo.',
-      mods: { est: 7 }
-    },
-    'manta-la': {
-      id: 'manta-la', name: 'Manta de Lã', rarity: 'magico', price: 220,
-      desc: 'Poupa o fôlego, mas deixa a largada preguiçosa.',
-      mods: { est: 9, acel: -4 }
-    },
-    'antolhos': {
-      id: 'antolhos', name: 'Antolhos', rarity: 'magico', price: 220,
-      desc: 'Foco total na reta final (+8% de chance de Garra); demora a pegar embalo.',
-      mods: { garra: 12, acel: -3 },
-      special: { garraChanceBonus: 0.08 }
-    },
-    'rapadura-engenho': {
-      id: 'rapadura-engenho', name: 'Rapadura de Engenho', rarity: 'magico', price: 180,
-      desc: 'Energia pura: tanque de estamina +4%, mas fica pesado (−2 Vel).',
-      mods: { vel: -2 },
-      special: { staminaPoolMult: 1.04 }
-    },
-    'esporas-prata': {
-      id: 'esporas-prata', name: 'Esporas de Prata', rarity: 'raro', price: 400,
-      desc: 'Arranque brutal, fôlego curto.',
-      mods: { acel: 10, est: -6 }
-    },
-    'capa-impermeavel': {
-      id: 'capa-impermeavel', name: 'Capa Impermeável', rarity: 'raro', price: 380,
-      desc: 'Anula a penalidade de clima do elemento (ex.: Fogo na chuva).',
-      mods: { est: 2 },
-      special: { ignoreWeatherPenalty: true }
-    },
-    'figa-sorte': {
-      id: 'figa-sorte', name: 'Figa da Sorte', rarity: 'lendario', price: 700,
-      desc: 'Garra +5 e +15% de chance de a Garra disparar.',
-      mods: { garra: 5 },
-      special: { garraChanceBonus: 0.15 }
-    },
-    'penas-gaviao': {
-      id: 'penas-gaviao', name: 'Penas de Gavião-Real', rarity: 'mitico', price: 1500,
-      desc: 'Voa baixo na reta (+14 Vel, +6 Gar), mas cansa antes (−6 Est).',
-      mods: { vel: 14, garra: 6, est: -6 }
-    }
-  };
-
-  // ---------------------------------------------------------------------------
   // Montarias (espécie 'cavalo')
-  //   base = status no level 1 (antes de crescimento, elemento e item).
+  //   base = status no level 1 (antes de crescimento, elemento e equipamento).
   //   potential 0–31 por status (oculto no jogo).
   //   sex: 'm' | 'f'.
   //   extra (opcional): title, bio, habitat, lore, grau (1–3, qualidade do cruzamento),
@@ -547,7 +484,6 @@
     WEATHERS: WEATHERS,
     BLOCK_TYPES: BLOCK_TYPES,
     SKILLS: SKILLS,
-    ITEMS: ITEMS,
     GEAR_SLOTS: GEAR_SLOTS,
     GEAR_SLOT_INFO: GEAR_SLOT_INFO,
     GEAR_SETS: GEAR_SETS,

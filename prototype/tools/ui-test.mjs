@@ -13,6 +13,7 @@ const { chromium } = require('playwright')
 const G = require('../src/data.js')
 const S = require('../src/sim.js')
 const B = require('../src/breed.js')
+const GR = require('../src/gear.js')
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const URL = pathToFileURL(join(ROOT, 'dist', 'preview.html')).href
 const SHOTS = process.env.SHOTS_DIR || join(ROOT, 'screens') // SHOTS_DIR: usado pelo scripts/check.sh
@@ -130,7 +131,7 @@ try {
   await page.locator('.montaria--ativa [data-acao="renomear"]').click()
   if ((await page.evaluate(() => window.__galope.state.mounts[0].name)) !== 'Brasa') problems.push('renomear de volta para Brasa falhou')
   await page.evaluate(() => { window.__galope.state.gold = 2000 })
-  await page.getByRole('button', { name: 'Sem item' }).first().click()   // re-renderiza o estábulo
+  await page.locator('[data-acao="tier"][data-id="50"]').first().click()   // re-renderiza o estábulo
   await page.locator('[data-acao="expandir"]').click()
   const exp = await page.evaluate(() => ({ slots: window.__galope.state.stableSlots, gold: window.__galope.state.gold }))
   if (exp.slots !== 4 || exp.gold !== 1700) problems.push('expandir estábulo: ' + JSON.stringify(exp))
@@ -153,10 +154,8 @@ try {
   const lobbyB = await page.evaluate(() => ({ seed: window.__galope.ui.lobby.seed, counter: window.__galope.ui.lobby.counter, gold: window.__galope.state.gold }))
   if (lobbyA.seed !== lobbyB.seed || lobbyA.counter !== lobbyB.counter) problems.push(`voltar/recarregar re-sorteou a sala (${lobbyA.counter} -> ${lobbyB.counter})`)
   if (lobbyB.gold !== lobbyA.gold) problems.push('voltar à sala cobrou Ouro')
-  // item na própria sala
-  await page.getByRole('group', { name: 'Item equipado' }).getByRole('button', { name: /Ferradura Leve/ }).click()
-  const strat = await page.evaluate(() => ({ item: window.__galope.state.equipped, row: document.querySelector('.programa li.voce').textContent }))
-  if (strat.item !== 'ferradura-leve' || !/Ferradura Leve/.test(strat.row)) problems.push('sala: troca de item não aplicou ' + JSON.stringify(strat))
+  // a sala mostra o resumo do equipamento da montaria ativa
+  if ((await page.locator('.slots').count()) < 1) problems.push('sala: sem resumo do equipamento')
   await page.evaluate(() => window.scrollTo(0, 0))
   await sleep(300)
   await checkOverflow(page, 'largada')
@@ -193,9 +192,12 @@ try {
   await sleep(600)
   await checkOverflow(page, 'resultado')
   await page.screenshot({ path: join(SHOTS, 'final-05-resultado.png') })
-  const after = await page.evaluate(() => ({ gold: window.__galope.state.gold, level: window.__galope.state.mounts.filter((m) => m.uid === window.__galope.state.activeId)[0].level, xp: window.__galope.state.mounts.filter((m) => m.uid === window.__galope.state.activeId)[0].xp, result: window.__galope.ui.result, pending: window.__galope.state.pending }))
+  const after = await page.evaluate(() => ({ gold: window.__galope.state.gold, pedras: window.__galope.state.pedras, level: window.__galope.state.mounts.filter((m) => m.uid === window.__galope.state.activeId)[0].level, xp: window.__galope.state.mounts.filter((m) => m.uid === window.__galope.state.activeId)[0].xp, result: window.__galope.ui.result, pending: window.__galope.state.pending }))
   if (after.gold !== goldBefore - after.result.fee + after.result.prize) problems.push(`ouro: ${after.gold} != ${goldBefore} - ${after.result.fee} + ${after.result.prize}`)
   if (after.pending) problems.push('sala continuou pendente depois de correr')
+  // pedra do pódio: determinística pela seed da sala (1ª sala do save)
+  const expectStone = GR.podiumStone(S.hash2(seedBase1, 1), after.result.place, after.result.fee)
+  if (after.pedras !== expectStone || after.result.stone !== expectStone) problems.push(`pedra do pódio: ${after.pedras} (resultado ${after.result.stone}) != ${expectStone}`)
   const res = await page.evaluate(() => ({
     dados: window.__galope.ui.lobby.sim.events.filter((e) => e.type === 'dado').length,
     tabela: document.querySelector('.tabela').textContent
@@ -225,7 +227,8 @@ try {
 
   // sem Ouro: oferece treino gratuito
   await page.evaluate(() => { window.__galope.state.gold = 20 })
-  await page.getByRole('button', { name: 'Sem item' }).first().click()   // re-renderiza o estábulo
+  // re-renderiza o estábulo: sem Ouro para a menor entrada, "Procurar corrida" só redesenha (as entradas ficam desabilitadas)
+  await page.getByRole('button', { name: 'Procurar corrida' }).click()
   await page.waitForSelector('[data-acao="treino"]')
   await page.getByRole('button', { name: 'Treino gratuito' }).click()
   await page.waitForSelector('#t-largada')
@@ -248,7 +251,9 @@ try {
   const mig = await old.evaluate(() => {
     const s = window.__galope.state
     return {
-      ok: s.mounts.length === 1 && s.mounts[0].templateId === 'mare' && JSON.stringify(s.mounts[0].skills) === '["mare-alta"]' && s.activeId === 'm1' && s.gold === 777 && s.level === undefined,
+      ok: s.mounts.length === 1 && s.mounts[0].templateId === 'mare' && JSON.stringify(s.mounts[0].skills) === '["mare-alta"]' && s.activeId === 'm1' && s.gold === 777 && s.level === undefined &&
+        s.v === 4 && s.items.length === 1 && s.items[0].id === 'sela-comum' && s.mounts[0].equip.sela === null && s.pedras === 0 &&
+        s.inventory === undefined && s.equipped === undefined,
       tactic: s.tactic, save: JSON.stringify(s)
     }
   })
@@ -268,7 +273,7 @@ try {
     const s = window.__galope.state, m = s.mounts[0]
     return {
       ok: m.templateId === 'brasa' && m.level === 7 && m.xp === 40 && JSON.stringify(m.skills) === '["labareda","sprint"]' &&
-        s.equipped === 'sela-couro' && s.gold === 321 && s.tier === 100,
+        s.items.length === 1 && s.mounts[0].equip.sela === s.items[0].uid && s.equipped === undefined && s.gold === 321 && s.tier === 100,
       save: JSON.stringify(s)
     }
   })
@@ -291,11 +296,54 @@ try {
   if (!migBad.ok) problems.push('save v3 corrompido não foi saneado: ' + migBad.save)
   await badCtx.close()
 
+  // fixtures de equipamento: v3 completo (todos os itens antigos) e v4 corrompido
+  const openSave = async (label, raw) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } })
+    const pg = await ctx.newPage()
+    pg.on('console', (m) => { if (m.type() === 'error') problems.push(`[${label}] console: ${m.text()}`) })
+    pg.on('pageerror', (e) => problems.push(`[${label}] pageerror: ${e.message}`))
+    await pg.addInitScript((r) => { window.localStorage.setItem('galope-elemental:v1', r) }, raw)
+    await pg.goto(URL, { waitUntil: 'domcontentloaded' })
+    await pg.waitForSelector('#t-estabulo')
+    const st = await pg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    await ctx.close()
+    return st
+  }
+  const BAD_V3_OBJ = JSON.parse(BAD_V3)
+  const M1 = BAD_V3_OBJ.mounts[0]
+  const V3_FULL = JSON.stringify(Object.assign({}, BAD_V3_OBJ, {
+    gold: 999, mounts: [M1], activeId: 'm1', nextUid: 2,
+    inventory: ['ferradura-leve', 'ferradura-cravos', 'sela-couro', 'manta-la', 'antolhos', 'rapadura-engenho', 'esporas-prata', 'capa-impermeavel', 'figa-sorte', 'penas-gaviao'],
+    equipped: 'capa-impermeavel'
+  }))
+  {
+    const s = await openSave('save-v3-completo', V3_FULL)
+    const arm = s.items.filter((it) => it.id === 'armadura-magico')[0]
+    const ok = s.v === 4 && s.items.length === 9 && s.pedras === 3 && arm && s.mounts[0].equip.armadura === arm.uid &&
+      s.gold === 999 && s.nextItemUid === 10 && s.inventory === undefined && s.equipped === undefined
+    if (!ok) problems.push('save v3 completo não migrou os itens: ' + JSON.stringify({ items: s.items, equip: s.mounts[0] && s.mounts[0].equip, pedras: s.pedras, gold: s.gold, nextItemUid: s.nextItemUid }))
+  }
+  const BAD_V4 = JSON.stringify(Object.assign({}, BAD_V3_OBJ, {
+    v: 4, gold: 444, inventory: undefined, equipped: undefined,
+    items: [{ uid: 'i1', id: 'sela-comum', plus: 3 }, { uid: 'i1', id: 'sela-magico', plus: 0 }, { uid: 'i2', id: 'ferraduras-comum', plus: 99 },
+      { uid: 'i3', id: 'estribos-magico', plus: 1 }, { uid: 'zz', id: 'sela-comum', plus: 0 }, { uid: 'i4', id: 'nada', plus: 0 }],
+    mounts: [Object.assign({}, M1, { uid: 'm1', equip: { ferraduras: 'i1', sela: 'i1', estribos: 'i3' } }), Object.assign({}, M1, { uid: 'm2', name: 'Dois', equip: { estribos: 'i3' } })],
+    activeId: 'm1', nextUid: 3, pedras: -5, enhanceCounter: 'x'
+  }))
+  {
+    const s = await openSave('save-v4-corrompido', BAD_V4)
+    const m1 = s.mounts[0] || {}, m2 = s.mounts[1] || {}
+    const ok = JSON.stringify(s.items) === JSON.stringify([{ uid: 'i1', id: 'sela-comum', plus: 3 }, { uid: 'i3', id: 'estribos-magico', plus: 1 }]) &&
+      s.mounts.length === 2 && m1.equip.ferraduras === null && m1.equip.sela === 'i1' && m1.equip.estribos === 'i3' && m2.equip.estribos === null &&
+      s.pedras === 0 && s.enhanceCounter === 0 && s.nextItemUid === 4 && s.gold === 444
+    if (!ok) problems.push('save v4 corrompido não foi saneado: ' + JSON.stringify({ items: s.items, e1: m1.equip, e2: m2.equip, pedras: s.pedras, enh: s.enhanceCounter, next: s.nextItemUid, gold: s.gold }))
+  }
+
   // ---------------- cruzamento (haras): aluguel, determinismo ponta a ponta, bloqueios e Troca ----------------
   {
     const cz = await newPage(browser, { width: 390, height: 844 }, 'cruzamento', { query: '?dev=1' })
     const avisos = async () => (await cz.locator('.aviso').allTextContents()).join(' | ')
-    const rerender = async () => { await cz.getByRole('button', { name: 'Sem item' }).first().click() }
+    const rerender = async () => { await cz.locator('[data-acao="tier"][data-id="50"]').first().click() }
     await cz.getByRole('button', { name: 'Escolher Brasa' }).click()
     await cz.waitForSelector('#t-estabulo')
     if ((await cz.locator('.dev-painel').count()) !== 1) problems.push('cruzamento: painel dev ausente com ?dev=1')
@@ -324,7 +372,8 @@ try {
     if (c1.mounts.length !== 2) problems.push('cruzamento: ' + c1.mounts.length + ' montarias (esperado 2)')
     if (c1.breedCounter !== 1) problems.push('cruzamento: breedCounter ' + c1.breedCounter)
     if (c1.mounts[0].breedLeft !== 1) problems.push('cruzamento: breedLeft de Brasa ' + c1.mounts[0].breedLeft)
-    if (c1.mounts.length > 1 && JSON.stringify(c1.mounts[1]) !== JSON.stringify(esperado)) {
+    // o potro entra no estábulo com o equipamento vazio (Breed.foal não sabe de equipamento)
+    if (c1.mounts.length > 1 && JSON.stringify(c1.mounts[1]) !== JSON.stringify(Object.assign({}, esperado, { equip: GR.emptyEquip() }))) {
       problems.push('cruzamento: potro diferente do calculado no Node\n  jogo: ' + JSON.stringify(c1.mounts[1]) + '\n  node: ' + JSON.stringify(esperado))
     }
     if (!/Nasceu/.test(await cz.locator('#tela').textContent())) problems.push('cruzamento: resultado sem "Nasceu"')
