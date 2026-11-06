@@ -40,6 +40,17 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   - Limites conhecidos: status do potro não herdam dos pais (só grau e potencial); sem timer de
     gestação (`gestacao` fica null); `game.js` segue um arquivo só (descartável; o que sobrevive é
     `breed.js`).
+- **Subprojeto 3 — Equipamentos: concluído na branch `claude/equipamentos` (aguardando revisão final,
+  o Vinicius jogar e a integração na `main`).** Spec:
+  `docs/superpowers/specs/2026-11-06-equipamentos-design.md` (§16 = ajustes da implementação).
+  - Entregue: 5 slots por montaria, catálogo de 40 peças, `gear.js` puro, melhoria +0…+10, conjuntos
+    Sol/Chuva/Névoa (3/4/5 peças), Loja, Pedra Negra no pódio, save v4 com migração, bots equipados
+    por liga, trava parcial com páreo aberto.
+  - Verificação: `check.sh` em 5 etapas — 57 testes unitários, 33 metas de balanço, UI com os contextos
+    `equipamento` e `loja` (capturas `final-07-equipamento.png` e `final-08-loja.png`).
+  - Painel `?dev=1` com +5 Pedras e conjunto Lendário na ativa.
+  - Limites conhecidos: sem durabilidade; sem limite de inventário; Lendário só via dev até as
+    expedições; meta E2 reformulada em E2a/E2b e E3 rebaseada (ver spec §16).
 - A economia virou o subprojeto 6 (a branch vazia `claude/economia-gdd` foi removida).
 
 ## Pronto
@@ -64,12 +75,12 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   `bestLevelFor`). `README.md` criado na raiz.
 
 ## Próximos passos
-1. Vinicius joga o cruzamento (`prototype/dist/preview.html?dev=1` para Ouro e níveis à vontade).
-2. Subprojeto 3 (inventário e set de equipamentos, modelo Black Desert) — nova branch dedicada.
-3. Decidir a zebra (ruído ±3–5% por corrida) e o despertar Lendário→Mítico (depois das expedições).
+1. Revisão final e integração do subprojeto 3 (equipamentos) na `main`.
+2. Vinicius joga os equipamentos (`prototype/dist/preview.html?dev=1` para Ouro, Pedras e conjunto Lendário).
+3. Subprojeto 4 (expedições) / decidir a zebra (ruído ±3–5% por corrida) / despertar Lendário→Mítico.
 
 ## Pendente no design (GDD seções 7+)
-Itens e upgrades · curvas de XP/level · expedições · economia (valores de entrada,
+Curvas de XP/level · expedições · economia (valores de entrada,
 taxa da casa, sinks de Ouro) · stack técnica (cliente, servidor, Android) · anti-cheat · roadmap MVP.
 
 ## Para revisar no balanceamento (de `docs/exemplos.md` §12)

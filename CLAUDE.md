@@ -79,6 +79,7 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
   de graça (o `ui-test.mjs` verifica).
 - Dado da Sorte e viradas de clima só com a RNG da seed (nada de `Math.random`).
 - Potro gerado só pela RNG da seed (`prototype/src/breed.js`); Mítico nunca nasce de cruzamento.
+- Melhoria de peça e Pedra Negra do pódio só pela RNG da seed (`prototype/src/gear.js`); Lendário nunca à venda.
 
 ## 9. Não faça
 - Não editar `prototype/dist/` à mão.

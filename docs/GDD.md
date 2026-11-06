@@ -120,6 +120,70 @@ A base é a menor raridade entre os pais. **Grau do potro:** se a raridade subiu
 | Lendário | + Saída Rápida | idem |
 | Mítico | + Arrancada Final | idem |
 
-## 7+. Seções pendentes
+## 7. Equipamentos
 
-Itens e upgrades · Curvas de XP/level · Expedições · Economia (valores de entrada, taxa da casa, sinks de Ouro) · Stack técnica (cliente, servidor, Android) · Anti-cheat · Roadmap MVP.
+Cada montaria usa um **set de 5 peças** (modelo do equipamento de cavalo do Black Desert). As peças ficam num **inventário compartilhado**, são compradas na **Loja** com Ouro e melhoradas de +0 a +10 com **Pedras Negras**. Os **conjuntos** ligados aos climas criam a escolha pré-corrida: turbinar o dia bom ou se proteger do dia ruim. Sem durabilidade e sem limite de vagas (por enquanto).
+
+**Slots e status:**
+
+| Slot | Principal | Secundário |
+|---|---|---|
+| Ferraduras | Velocidade | Aceleração |
+| Sela | Estamina | Garra |
+| Estribos | Manobra | Sorte |
+| Testeira | Aceleração | Garra |
+| Armadura | Força | Estamina |
+
+**Raridade da peça** (Mítico não tem peça; vem do despertar, no futuro). O principal vale o valor da raridade **mais o nível de melhoria**; o secundário é fixo. Comum não tem secundário. O preço de Lendário é só referência de venda: **não está à venda**.
+
+| Raridade | Principal | Secundário | Preço | Venda (25%) |
+|---|---|---|---|---|
+| Comum | +2 | — | 100 | 25 |
+| Mágico | +3 | +2 | 250 | 63 |
+| Raro | +4 | +3 | 600 | 150 |
+| Lendário | +6 | +4 | 1.500 | 375 |
+
+Peças Comum e Mágica são soltas; Raro e Lendário vêm em **conjuntos** (Sol, Chuva, Névoa), com o mesmo nome nas duas raridades. São 40 peças no catálogo; 25 estão à venda. Os bônus entram na corrida depois do crescimento por nível e do bônus de elemento, e podem passar do limite de status da raridade (como o elemento já passa). Um conjunto Raro completo em +10 soma cerca de +14 nos cinco status de pista: pouco mais de um degrau de raridade.
+
+**Melhoria (+0 a +10).** Cada tentativa gasta Pedras Negras e tem chance de sucesso decrescente. A partir de +6, falhar faz a peça **cair um nível**. A pedra é paga e o resultado sorteado pela seed antes de ser mostrado, e o sorteio não se repete ao recarregar.
+
+| De → para | +0→1 | +1→2 | +2→3 | +3→4 | +4→5 | +5→6 | +6→7 | +7→8 | +8→9 | +9→10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Chance | 100% | 90% | 80% | 70% | 60% | 50% | 40% | 35% | 30% | 25% |
+| Pedras por tentativa | 1 | 1 | 1 | 1 | 1 | 1 | 2 | 2 | 2 | 2 |
+| Se falhar | nada | nada | nada | nada | nada | nada | cai p/ +5 | cai p/ +6 | cai p/ +7 | cai p/ +8 |
+
+Custo esperado da cadeia completa, contando as quedas (pedra a 40 Ouro): **+5 ≈ 6 pedras (258 Ouro) · +7 ≈ 16 (658) · +8 ≈ 37 (1.481) · +10 ≈ 264 (10.548)**. O +10 é objetivo de longo prazo de propósito. Uma peça equipada na montaria ativa com páreo aberto não pode ser melhorada.
+
+**Conjuntos.** Conta-se, por montaria, o maior número de peças equipadas do **mesmo** conjunto (raridades misturadas valem; empate entre conjuntos não ativa nada). Os bônus **acumulam**:
+
+| Peças | Bônus |
+|---|---|
+| 3 | +5 p.p. na chance de todas as skills e +5 de Sorte |
+| 4 | O bônus do clima do conjunto dobra (1,03 → 1,10) quando a montaria é do elemento favorecido por ele. Não acumula com a skill "dobra o clima": vale o maior |
+| 5 | A montaria ignora a penalidade de clima, em qualquer clima |
+
+Conjuntos: **Sol** (clima do Fogo), **Chuva** (Água), **Névoa** (Grama). Além dos bônus, o conjunto soma pontos ao Rating de Poder (3 peças +10, 4 peças +15, 5 peças +20; não cumulativo).
+
+**Loja e venda.** Tela própria, com uma aba por slot (1 Comum, 1 Mágica e 3 Raras, uma de cada conjunto) e uma aba de Pedras (×1 por 40 Ouro, ×5 por 200). Comprar não equipa. Cada cartão mostra a diferença para a peça que a montaria ativa usa no slot. Peça **não equipada** vende de volta por 25% do preço da raridade (ignora a melhoria), com "Desfazer" até sair da tela.
+
+**Pedra Negra no pódio.** Só em corrida **valendo** (nunca em treino): 1º lugar 60% de chance, 2º 40%, 3º 25%, sorteados pela seed na liquidação do prêmio. É a única fonte de pedra fora da Loja e nunca dá peça.
+
+**Pareamento e trava parcial.** O equipamento entra no Rating de Poder que forma a sala. Com páreo aberto, a montaria ativa só aceita trocar de peça se o rating resultante **não passar do que a sala viu**: dá para trocar Sol por Chuva de mesma força depois de ver a previsão do clima, mas não dá para abrir a sala fraco e equipar forte.
+
+**Bots por liga.** Os bots entram equipados conforme a liga do alvo, com o conjunto do clima do próprio elemento (Neutro sorteia um):
+
+| Liga | Equipamento do bot |
+|---|---|
+| Bronze | nada |
+| Prata | 2 Comuns +0 (ferraduras, sela) |
+| Ouro | 5 Comuns +2 |
+| Platina | 5 Mágicas +3 (soltas) |
+| Diamante | 3 Raras +4 do conjunto + 2 Mágicas +3 |
+| Lenda | 5 Raras +7 do conjunto |
+
+**Depois (fora do protótipo):** durabilidade e reparo · limite de vagas no inventário · Lendário na loja (hoje só pelo painel `?dev=1`, até as expedições) · peça Mítica · mercado entre jogadores · cosméticos por Gemas · desmanche · expedições e pacotes como fonte de peças · transferência de peças entre contas.
+
+## 8+. Seções pendentes
+
+Curvas de XP/level · Expedições · Economia (valores de entrada, taxa da casa, sinks de Ouro) · Stack técnica (cliente, servidor, Android) · Anti-cheat · Roadmap MVP.

@@ -1,8 +1,6 @@
 # Equipamentos — Inventário, Set e Melhoria — Design
 
-Status: **aguardando revisão do Vinicius**. Aprovado em conversa em 2026-11-06 (seções 1–6). Depois de
-aprovado vira plano (`docs/superpowers/plans/`) e, ao final, escreve a seção "Equipamentos" do
-`docs/GDD.md`.
+Status: **implementado na branch `claude/equipamentos` (2026-11-06)**; ver §16 para os ajustes.
 
 Subprojeto 3 de 6 (núcleo v2 → cavalos v2 → **equipamentos** → expedições → montarias → economia).
 Branch: `claude/equipamentos`. Referência de regras: equipamento de cavalo do Black Desert (5 peças,
@@ -304,3 +302,16 @@ transferência de peças entre contas.
   se a sensação for ruim, mexer só em +8→+9 e +9→+10.
 - **Migração:** saves v3 com `equipped` apontando para item que não existe mais caem no caminho
   "descarta em silêncio"; o Ouro nunca é tocado.
+
+## 16. Histórico de ajustes (implementação, 2026-11-06)
+
+O que mudou na implementação em relação ao texto aprovado (antigo → novo):
+
+- **Meta E2 (§13):** "Comum lv30 com conjunto Raro +10 × Raro lv30 sem nada, 40–60%" → dividida em **E2a** (× Mágico lv30 sem nada, 60–85%, medido 75,3%) e **E2b** (× Raro lv30 sem nada, 10–40%, medido 13,2%). No nível 30 a distância Comum→Raro é de ~20 pontos por status (`statCap` 60 contra 80) mais duas skills; "fecha um degrau, não dois" passou a ser medido assim. Os 40–60% contra Raro eram inalcançáveis sem tornar o equipamento dominante nos níveis baixos.
+- **Meta E3 (§13):** 55–70% → **75–90%** (medido 86,0%). O "dobra o clima" de 4 peças é idêntico à skill de dobrar o clima; num duelo de clima fixo entre cavalos iguais vale ~86%. No jogo o Dado vira o clima ~1,2× por corrida.
+- **Bots no pareamento (§9):** a liga do bot é calculada por id (`leagueIndex`) e há mais uma chamada de `rng()` por bot, para a escolha do conjunto do Neutro (`pick`).
+- **Prévia da trava (§9, §10):** o rating mostrado em cada peça é só `Poder A → B`, sem os status antes/depois completos.
+- **Cartões da Loja e do Equipamento (§7, §10):** os status usam as siglas curtas já existentes (`EST`, `GAR`…).
+- **Testes de interface (§13):** cobrem a sequência de melhoria calculada com o `seedBase` ao vivo, a trava com Lendária bloqueada e Comum liberada, a recusa na Loja com o botão reabilitado (guarda do handler) e bots com equipamento na sala.
+- **Metas finais medidas (completo):** E1 69,2% · E2a 75,3% · E2b 13,2% · E3 86,0% · E4 73,5%; rodada `--quick`: 72,7 · 76,0 · 13,9 · 84,0 · 70,0.
+

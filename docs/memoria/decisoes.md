@@ -4,6 +4,25 @@ Formato: **data · decisão** — motivo. A mais nova fica no topo. Decisões de
 continuam no `docs/GDD.md`; aqui fica o registro de *quando* e *por quê*.
 
 ## 2026-11-06
+- **Lendário fora da loja até as expedições** — o conjunto Lendário só existe via `?dev=1` por enquanto;
+  Mítico não tem peça (despertar).
+- **Meta E2 dividida em E2a/E2b e E3 rebaseada** — no nível 30 a distância Comum→Raro é ~20 pontos por
+  status (limite 60 contra 80) mais duas skills, então o conjunto +10 fecha um degrau, não dois: E2a
+  (× Mágico, 60–85%, medido 75,3%) e E2b (× Raro, 10–40%, medido 13,2%); os "40–60% contra Raro" da
+  spec exigiriam equipamento dominante nos níveis baixos. E3 passou a 75–90% (medido 86,0%): o "dobra o
+  clima" de 4 peças é idêntico à skill de dobrar o clima e, em clima fixo entre cavalos iguais, vale
+  ~86%; no jogo o Dado vira o clima ~1,2× por corrida.
+- **Trava parcial com páreo aberto** — a montaria ativa só aceita trocar peça se o rating não passar
+  do que a sala viu: dá para trocar de conjunto pela previsão do clima, não para abrir a sala fraco e
+  equipar forte.
+- **Loja com Ouro + Pedra Negra só no pódio** (opção C do Vinicius) — a loja é o sink de Ouro; o pódio
+  em corrida valendo rende pedra (60/40/25%), nunca peça, nunca em treino.
+- **Conjuntos por clima com bônus de 3/4/5 peças** (Sol/Chuva/Névoa) — cria a escolha pré-corrida:
+  turbinar o dia bom (4 peças) ou se proteger do dia ruim (5 peças).
+- **Melhoria +0…+10 com chances reduzidas e queda a partir de +6** — chances 100/90/80/70/60/50/40/35/
+  30/25%; a pedido do Vinicius ("diminua as chances"); sorteio só pela RNG da seed.
+- **5 slots com status dono** (ferraduras→Vel, sela→Est, estribos→Man, testeira→Acel, armadura→Força)
+  — espelha o equipamento de cavalo do Black Desert.
 - **Revisão final do cruzamento aplicada numa única onda** (commit `4700533`) — calculadora do
   Corcel promete só min(garantidas, candidatas, vagas); save v3 com `mounts` inválido vira `[]` em
   vez de cair na migração v1/v2 (não perde Ouro); pool de bots exclui todos os modelos possuídos.

@@ -495,3 +495,65 @@ O grau só vale se a raridade não mudou; se subiu, o potro nasce ★, se desceu
 | 2 | Ventania × Jequitibá | Estrela | Lendário ★ | Grama | M | 65 | 62 | 61 | 60 | 62 | 64 | 61 | 28 / 25 / 17 / 27 / 21 / 19 / 16 | Sprint, Arrancada Final |
 
 O potro 2 nasceu Lendário (30%) e por isso ★ (a raridade subiu em relação ao Raro). Os status são sorteados na janela do grau, não herdados: o potro 2 (Lendário ★: 60–68) tem status 60–65. O potro 0 saiu Mágico ★★★ (janela 52–60) porque a raridade caiu (30% de chance de descer, par Raro × Raro lv30). Todos nascem lv1 com 2 (M) ou 1 (F) cruzamentos.
+
+## 14. Equipamentos
+
+Regras em `docs/GDD.md` §7. Aqui os números do protótipo.
+
+### Preços
+
+| Item | Preço | Venda de volta (25%) |
+|---|---|---|
+| Peça Comum | 100 | 25 |
+| Peça Mágica | 250 | 63 |
+| Peça Rara | 600 | 150 |
+| Peça Lendária (não está à venda) | 1.500 (referência) | 375 |
+| Pedra Negra ×1 | 40 | — |
+| Pedra Negra ×5 | 200 | — |
+
+### Custo esperado da melhoria (cadeia completa, com as quedas)
+
+| Meta | Pedras (média) | Ouro (pedra a 40) |
+|---|---|---|
+| +5 | 6 | 258 |
+| +7 | 16 | 658 |
+| +8 | 37 | 1.481 |
+| +10 | 264 | 10.548 |
+
+### Equipamento dos bots por liga
+
+| Liga | Equipamento do bot |
+|---|---|
+| Bronze | nada |
+| Prata | 2 Comuns +0 (ferraduras, sela) |
+| Ouro | 5 Comuns +2 |
+| Platina | 5 Mágicas +3 (soltas) |
+| Diamante | 3 Raras +4 do conjunto + 2 Mágicas +3 |
+| Lenda | 5 Raras +7 do conjunto |
+
+### Metas de equipamento (`balance.js`)
+
+Duelos de dois corredores iguais, mapas aleatórios, 400 corridas por meta; só muda o equipamento.
+
+| Meta | Confronto | Faixa | Completo | `--quick` |
+|---|---|---|---|---|
+| E1 | Inicial lv1 com 5 Comuns +0 × sem nada (nublado) | 60–75% | 69,2% | 72,7% |
+| E2a | Comum lv30 com conjunto Raro +10 × Mágico lv30 sem nada (nublado) | 60–85% | 75,3% | 76,0% |
+| E2b | Comum lv30 com conjunto Raro +10 × Raro lv30 sem nada (nublado) | 10–40% | 13,2% | 13,9% |
+| E3 | 4 Raras do Sol × 4 Raras misturadas, Brasa lv10, com Sol | 75–90% | 86,0% | 84,0% |
+| E4 | Brasa lv10 com 5 Raras da Chuva × misturadas, na chuva | 60–75% | 73,5% | 70,0% |
+
+No nível 30 a distância Comum→Raro já é de cerca de 20 pontos por status (limite 60 contra 80) mais duas skills; por isso o conjunto +10 fecha **um degrau** (Mágico, E2a) e não dois (Raro, E2b). O E3 é alto porque o "dobra o clima" de 4 peças é idêntico à skill de dobrar o clima: num duelo de clima fixo entre cavalos iguais vale cerca de 86%; no jogo o Dado vira o clima ~1,2 vez por corrida.
+
+### Exemplo de `Gear.resolve`: Brasa lv1 com 5 Lendárias do Sol +0
+
+Ferraduras, sela, estribos, testeira e armadura do Sol (Lendário, +0): principal +6 e secundário +4 em cada peça, mais +5 de Sorte pelas 3 peças.
+
+| Resultado | Valor |
+|---|---|
+| Mods | VEL +6 · ACE +10 · MAN +6 · FOR +6 · EST +10 · GAR +8 · SOR +9 |
+| Conjunto | Sol, 5 peças |
+| Especial | +5 p.p. de chance de skill · dobra o clima do Sol · ignora a penalidade de clima |
+| Status da Brasa lv1 (sem → com) | VEL 66 → 72 · ACE 72 → 82 · MAN 62 → 68 · FOR 53 → 59 · EST 59 → 69 · GAR 64 → 72 · SOR 51 → 60 |
+| Rating de Poder | 728 → 837 (+109, dos quais +20 pelo conjunto de 5 peças) |
+
