@@ -47,7 +47,7 @@
   //   statCap: teto de cada status por level (antes de elemento e item).
   //   growth: multiplicador do crescimento por level.
   //   skillSlots: nº máximo de habilidades; bornSkills: nº máximo ao nascer;
-  //   skillChance: chance de cada habilidade ao nascer.
+  //   skillChance: chance base de ativar cada skill quando o gatilho acontece.
   // ---------------------------------------------------------------------------
   var RARITIES = {
     comum:    { id: 'comum',    name: 'Comum',    color: '#9e9e9e', statCap: 60,  growth: 0.80, skillSlots: 1, bornSkills: 1, skillChance: 0.35, order: 0 },
@@ -66,7 +66,7 @@
     forca: { id: 'forca', name: 'Força',      short: 'FOR', desc: 'Subidas, terreno pesado e disputa no pelotão.' },
     est:   { id: 'est',   name: 'Estamina',   short: 'EST', desc: 'Quanto tempo mantém o ritmo.' },
     garra: { id: 'garra', name: 'Garra',      short: 'GAR', desc: 'Chance e força da arrancada final (últimos 20%).' },
-    sorte: { id: 'sorte', name: 'Sorte',      short: 'SOR', desc: 'Dados extras e eventos a favor durante a corrida.' }
+    sorte: { id: 'sorte', name: 'Sorte',      short: 'SOR', desc: 'Chance de rolar um 2º dado no Dado da Sorte e bônus para ativar skills.' }
   };
 
   // slow: perda de velocidade (aliviada por Força); drain: gasto extra de estamina.

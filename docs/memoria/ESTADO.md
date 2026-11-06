@@ -29,8 +29,8 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
 - **Design v0.1** (`docs/GDD.md`): seções 1–5 aprovadas (visão, pilares, status, elementos, protótipo).
 - **Protótipo jogável** (`prototype/`): telas inicial → estábulo → largada → corrida animada →
   resultado; economia de aposta com pote 60/25/15 e taxa de 10%; sprites feitos por código.
-- **Simulação** (`prototype/src/sim.js`): determinística por seed; 38 metas de balanceamento
-  passando (`node prototype/tools/balance.js`).
+- **Simulação** (`prototype/src/sim.js`): determinística por seed; 28 metas de balanceamento
+  v2 passando (`node prototype/tools/balance.js`).
 - **Teste de interface** com Playwright (`prototype/tools/ui-test.mjs`).
 - **Sprites PixelLab** dos 3 iniciais (base + galope de 9 quadros), comparados com os sprites por
   código em `prototype/comparativo.html`. **Ainda não estão em uso no jogo.**

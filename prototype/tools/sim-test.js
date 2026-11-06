@@ -3,8 +3,8 @@
 var assert = require('assert');
 var G = require('../src/data.js');
 var S = require('../src/sim.js');
-var fails = 0, count = 0, cur = '';
-function section(t) { cur = t; console.log('\n## ' + t); }
+var fails = 0, count = 0;
+function section(t) { console.log('\n## ' + t); }
 function test(name, fn) {
   count++;
   try { fn(); console.log('  ok  ' + name); }
@@ -52,7 +52,7 @@ test('computeStats devolve 7 chaves e respeita o teto da raridade', function () 
   assert.ok(s.vel <= 80, 'raro teto 80'); assert.strictEqual(s.acel <= 88, true, 'teto + bônus de elemento 8');
 });
 test('skillChance: comum lv1 sorte 0 = 0.35; mítico lv50 sorte 100 = 0.95 (teto); raro lv10 sorte 50 ≈ 0.645', function () {
-  var mk = function (r, lv, so) { return { rarity: r, level: lv }; };
+  var mk = function (r, lv) { return { rarity: r, level: lv }; };
   assert.strictEqual(S.skillChance(mk('comum', 1), { sorte: 0 }), 0.35);
   assert.strictEqual(S.skillChance(mk('mitico', 50), { sorte: 100 }), 0.95);
   assert.ok(Math.abs(S.skillChance(mk('raro', 10), { sorte: 50 }) - 0.645) < 1e-9);
@@ -135,14 +135,17 @@ test('sim: mapa com bloco de 10 m não duplica gatilhos', function () {
   var ev = race(3, cond, [h, mk({})]).events.filter(function (e) { return e.type === 'skill' && e.racer === 0; }).map(function (e) { return e.text; });
   assert.ok(ev.length <= 3, ev.join(' | ')); assert.strictEqual(ev.filter(function (t) { return /Drift/.test(t); }).length <= 1, true);
 });
-test('straight só dispara em reta de 150 m ou mais', function () {
+test('straight só dispara em reta de 150 m ou mais (e dispara na reta final longa)', function () {
   var cond = { distance: 1000, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 300 }, { type: 'curva', from: 300, to: 400 }, { type: 'reta', from: 400, to: 500 }, { type: 'curva', from: 500, to: 600 }, { type: 'reta', from: 600, to: 1000 }] };
   var h = mk({ sorte: 100 }); h.level = 50; h.skills = ['sprint'];
+  var fired = 0;
   for (var s = 0; s < 20; s++) {
     var res = S.simulate({ seed: s, conditions: cond, recordFrames: true, racers: [h, mk({})].map(function (x, i) { return { horse: x, itemId: null, name: 'r' + i }; }) });
     var t600 = null; for (var f = 0; f < res.frames.length; f++) if (res.frames[f].pos[0] >= 600) { t600 = res.frames[f].t; break; }
     res.events.forEach(function (e) { if (e.type === 'skill' && e.racer === 0) assert.ok(e.t >= t600 - 0.1, 'seed ' + s + ': Sprint em t=' + e.t + ' antes de 600 m (t=' + t600 + ')'); });
+    if (res.events.some(function (e) { return e.type === 'skill' && e.racer === 0 && e.t >= t600 - 0.1; })) fired++;
   }
+  assert.ok(fired >= 15, 'Sprint disparou na reta final em só ' + fired + '/20 seeds');
 });
 
 section('dado');

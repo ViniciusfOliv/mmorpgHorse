@@ -19,7 +19,7 @@
  *   limitado a raridade.statCap (Comum 60 … Mítico 100); depois + bônus do elemento (+8 no
  *   status dele) e + mods do item; arredondado e limitado a 1–120. n(x) = status/100.
  *   powerRating = 2,2·VEL + 1,8·ACE + 1,6·MAN + 1,8·EST + 1,6·FOR + 1,6·GAR + 0,8·SOR
- *   + 20 × peso do gatilho por skill + especial do item (ligas em GameData.LEAGUES).
+ *   + 20 × peso do gatilho (skillWeight) por skill + especial do item (ligas em GameData.LEAGUES).
  *
  * CLIMA (sol / chuva / nevoa / nublado). weatherMult(elemento, clima, dobrado):
  *   dono do clima ×1,03 (T.weatherMult; ×1,10 = T.weatherMultDouble com a skill de clima
@@ -155,7 +155,7 @@
     straightMinM: 150,   // gatilho 'straight' só em reta com pelo menos esse comprimento
     // ritmo único do jóquei (fração s da vMax): mid até spurtStart, depois sprint até spurtCap
     pace: { mid: 0.97, spurtStart: 0.72, spurtCap: 1.03 },
-    // Rating de Poder: peso de cada status efetivo (habilidades somam 20 × chance do gatilho)
+    // Rating de Poder: peso de cada status efetivo (cada skill soma 20 × peso do gatilho)
     ratingW: { vel: 2.2, acel: 1.8, man: 1.6, est: 1.8, forca: 1.6, garra: 1.6, sorte: 0.8 },
     // chance de a skill disparar no gatilho: base da raridade + nível + sorte (teto 95%)
     skillPerLevel: 0.005, skillPerSorte: 0.001, skillChanceMax: 0.95,
@@ -210,7 +210,10 @@
   }
   // x^(num/den); exp pode ser [num, den] ou um inteiro.
   function ratPow(x, exp) {
-    if (typeof exp === 'number') return (exp % 1 === 0) ? powi(x, exp) : Math.pow(x, exp); // não-inteiro: não portátil
+    if (typeof exp === 'number') {
+      if (exp % 1 !== 0) throw new Error('ratPow: expoente fracionário não portável — use [num, den]');
+      return powi(x, exp);
+    }
     return nthRoot(powi(x, exp[0]), exp[1]);
   }
   function r2(x) { return Math.round(x * 100) / 100; }
@@ -625,8 +628,6 @@
     var finishedCount = 0;
     var step = 0;
     var prevPos = new Array(n);
-    var order = [];
-    for (i = 0; i < n; i++) order.push(i);
 
     while (finishedCount < n) {
       step++;
@@ -635,8 +636,6 @@
       var tPrev = (step - 1) / 10;
 
       for (i = 0; i < n; i++) prevPos[i] = R[i].pos;
-      // ranking pelo snapshot (maior pos primeiro; empate: menor índice)
-      order.sort(function (a, b) { return (prevPos[b] - prevPos[a]) || (a - b); });
 
       for (i = 0; i < n; i++) {
         var r = R[i];
@@ -770,14 +769,16 @@
           rolls.push({ racer: i, dice: rd.dice, best: rd.best, rerolls: 0 });
           cands.push(i);
         }
-        // empate no topo: re-rola só os empatados até sobrar um
-        for (;;) {
+        // empate no topo: re-rola só os empatados até sobrar um. Teto de 20 rodadas de
+        // desempate (na prática inalcançável); se ainda empatar, vence o menor índice
+        // (tied segue a ordem crescente dos índices, então tied[0]).
+        for (var tieRound = 0; ; tieRound++) {
           var top = -1, tied = [];
           for (q = 0; q < cands.length; q++) {
             var bq = rolls[cands[q]].best;
             if (bq > top) { top = bq; tied = [cands[q]]; } else if (bq === top) tied.push(cands[q]);
           }
-          if (tied.length === 1) break;
+          if (tied.length === 1 || tieRound >= 20) break;
           cands = tied;
           for (q = 0; q < cands.length; q++) {
             var ro = rolls[cands[q]];

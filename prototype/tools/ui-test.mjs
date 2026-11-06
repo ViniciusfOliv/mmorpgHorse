@@ -137,6 +137,16 @@ try {
   await page.screenshot({ path: join(SHOTS, 'final-03-largada.png') })
 
   const goldBefore = await page.evaluate(() => window.__galope.state.gold)
+  // a narração só mostra as 6 últimas linhas: um observador registra se o 🎲 apareceu em algum momento
+  await page.evaluate(() => {
+    window.__sawDice = false
+    const tela = document.getElementById('tela')
+    const obs = new MutationObserver(() => {
+      if (window.__sawDice) return
+      for (const li of document.querySelectorAll('#feed li')) if (li.textContent.includes('🎲')) { window.__sawDice = true; obs.disconnect(); return }
+    })
+    obs.observe(tela, { subtree: true, childList: true, characterData: true })
+  })
   await page.getByRole('button', { name: /^Largar/ }).dblclick()
   await page.waitForSelector('#pista')
   await startCamMonitor(page)
@@ -150,8 +160,9 @@ try {
   await page.screenshot({ path: join(SHOTS, 'final-04-corrida.png') })
   // resto em x2 até a troca automática para o resultado
   await page.getByRole('button', { name: 'x2' }).click()
-  await page.waitForFunction(() => /🎲/.test(document.getElementById('feed').textContent), null, { timeout: 90000 })
   await page.waitForSelector('#t-resultado', { timeout: 90000 })
+  if (!(await page.evaluate(() => window.__sawDice))) problems.push('narração nunca mostrou um Dado da Sorte')
+  if (!(await page.evaluate(() => !!document.getElementById('t-dados')))) problems.push('resultado sem a seção de momentos/dados')
   notes.cam390 = await page.evaluate(() => window.__cc)
   await sleep(600)
   await checkOverflow(page, 'resultado')

@@ -745,9 +745,16 @@
   // ===========================================================================
   // Tela 3 — Sala de largada
   // ===========================================================================
+  // percentuais do traçado somando 100 (maiores restos: arredonda para baixo e distribui
+  // os pontos que faltam para os maiores restos; empate fica com a ordem reta/curva/subida)
   function sharePct(cond) {
-    var out = {};
-    ['reta', 'curva', 'subida'].forEach(function (t) { out[t] = Math.round(RS.blockShare(cond.blocks, t) * 100); });
+    var types = ['reta', 'curva', 'subida'], out = {}, rest = [], sum = 0;
+    types.forEach(function (t, k) {
+      var raw = RS.blockShare(cond.blocks, t) * 100, fl = Math.floor(raw + 1e-9);
+      out[t] = fl; sum += fl; rest.push({ t: t, k: k, frac: raw - fl });
+    });
+    rest.sort(function (a, b) { return (b.frac - a.frac) || (a.k - b.k); });
+    for (var j = 0; sum < 100 && j < rest.length; j++) { out[rest[j].t]++; sum++; }
     return out;
   }
   function conditionChips(cond) {
@@ -962,15 +969,18 @@
   // ===========================================================================
   function renderCorrida() {
     var L = ui.lobby, D = L.cond.distance;
+    var shp = sharePct(L.cond);
     var tracado = ['curva', 'subida'].map(function (tp) {
-      var sh = Math.round(RS.blockShare(L.cond.blocks, tp) * 100);
-      return sh ? sh + '% ' + tp : '';
+      return shp[tp] ? shp[tp] + '% ' + tp : '';
     }).filter(Boolean).join(' · ') || 'reta pura';
-    var condTxt = D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ' + GD.WEATHERS[L.cond.weather].name + ' · ' + tracado;
+    // o trecho do clima fica num span próprio: pushFeed troca o texto quando o Dado vira o clima
+    var climaTxt = 'Clima: ' + GD.WEATHERS[L.cond.weather].name;
+    var condTxt = D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ' + climaTxt + ' · ' + tracado;
     return '<section class="tela tela--larga tela--corrida" aria-labelledby="t-corrida">' +
       '<header class="corrida-topo"><div class="corrida-titulo">' +
         '<h1 class="corrida-nome" id="t-corrida" tabindex="-1" data-foco>' + esc(L.trackName) + '</h1>' +
-        '<span class="rotulo">' + esc(condTxt) + '</span></div>' +
+        '<span class="rotulo">' + esc(D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ') +
+          '<span id="clima-atual">' + esc(climaTxt) + '</span>' + esc(' · ' + tracado) + '</span></div>' +
         '<span class="saldo saldo--pote">' + (L.training ? '<span class="rotulo">Treino</span>' : '<span class="rotulo">Pote</span>' + ouroHtml(L.fee * L.n)) + '</span></header>' +
       '<div class="palco"><canvas id="pista" role="img" aria-label="' + esc('Corrida em ' + L.trackName + ', ' + condTxt) + '"></canvas></div>' +
       '<div class="corrida-baixo">' +
@@ -1002,7 +1012,8 @@
     var tela = root.querySelector('.tela--corrida');
     var ctx = cv.getContext('2d');
     var hud = {
-      feed: root.querySelector('#feed'), pular: root.querySelector('#btn-pular'), anuncio: root.querySelector('#anuncio')
+      feed: root.querySelector('#feed'), pular: root.querySelector('#btn-pular'), anuncio: root.querySelector('#anuncio'),
+      clima: root.querySelector('#clima-atual')
     };
     var fTime = sim.finishTimes;
     var rankOf = new Array(n);
@@ -1178,6 +1189,7 @@
         return '<li class="tipo-' + esc(e.type) + (mine ? ' voce' : '') + '"><time>' + fmtClock(e.t) + '</time>' + chip + '<span>' + esc(e.text) + '</span></li>';
       }).join(''));
       if (ev.racer === me && (ev.type === 'chegada' || ev.type === 'garra' || ev.type === 'skill')) hud.anuncio.textContent = ev.text;
+      if (ev.type === 'clima' && hud.clima && GD.WEATHERS[ev.weather]) hud.clima.textContent = 'Clima: ' + GD.WEATHERS[ev.weather].name;
       if (ev.type === 'dado' && ev.changed && GD.WEATHERS[ev.weather]) {
         // virada de clima: anúncio por ~2 s (faixa no canvas + leitor de tela) e um clarão leve
         self.climaMsg = 'CLIMA: ' + GD.WEATHERS[ev.weather].name.toUpperCase();
@@ -1228,6 +1240,15 @@
       box(A - 2 - tw2, 2, tw2, 14, C.veu);
       text(tTxt, A - 4, 3, C.texto, 1, 'right');
       text(kmh, A - 4, 10, C.texto2, 1, 'right');
+      // clima atual (vira com o Dado da Sorte), à esquerda do relógio; no layout compacto
+      // não há espaço (a CURVA/SUBIDA fica ali) e o cabeçalho da tela mostra o clima
+      var wName = GD.WEATHERS[climaAtual(self.simT)].name.toUpperCase();
+      var ww = Math.max(tw('CLIMA'), tw(wName)) + 4, wx = A - 2 - tw2 - 4 - ww;
+      if (!lay.compact && wx > sx + barW + 4 + 4) {
+        box(wx, 2, ww, 14, C.veu);
+        text('CLIMA', wx + 2, 3, C.texto2);
+        text(wName, wx + 2, 10, C.texto);
+      }
       // tipo do bloco do jogador: SUBIDA ou CURVA (nada na reta)
       var bType = blocks[RS.blockAt(blocks, st.pos[me])].type;
       var lbl = bType === 'subida' ? '▲SUBIDA' : bType === 'curva' ? '↪CURVA' : '';
@@ -1235,7 +1256,7 @@
         var lw = tw(lbl) + 4;
         var hy = lay.compact ? 6 : 18 + n + 4;
         var hx = lay.compact ? A - 2 - tw2 - 4 - lw : 2;
-        box(hx, hy, lw, 7, bType === 'curva' ? '#7ab8ff' : C.ouro, C.sombra);
+        box(hx, hy, lw, 7, bType === 'curva' ? GD.BLOCK_TYPES.curva.color : C.ouro, C.sombra);
         text(lbl, hx + 2, hy + 1, C.tinta);
       }
       if (lay.compact) return;
@@ -1347,7 +1368,7 @@
         text(bt, bx2 + 3, by2 + 2, C.ouro);
       } else if (self.climaTimer > 0) {
         var ct = self.climaMsg, cw2 = tw(ct) + 6, cx3 = Math.round(lay.artW / 2 - cw2 / 2), cy3 = lay.hudH + 3;
-        box(cx3, cy3, cw2, 9, C.sombra, '#7ab8ff');
+        box(cx3, cy3, cw2, 9, C.sombra, GD.BLOCK_TYPES.curva.color);
         text(ct, cx3 + 3, cy3 + 2, C.texto);
       }
       if (self.phase === 'contagem') {
@@ -1529,8 +1550,17 @@
       var skNames = R.learned.map(function (id) { return GD.SKILLS[id] ? GD.SKILLS[id].name : id; }).join(', ');
       lvl += '<div class="levelup" role="status"><b>' + esc('Nova skill: ' + skNames + '!') + '</b></div>';
     }
-    var dados = sim.events.filter(function (ev) { return ev.type === 'dado' || ev.type === 'clima'; }).map(function (ev) {
-      return '<li class="tipo-' + esc(ev.type) + '"><time>' + esc(fmtSec(ev.t)) + '</time><span>' + esc(ev.text) + '</span></li>';
+    // momentos da corrida (spec §10): skills, garra, cansaço, Dados da Sorte e viradas de clima,
+    // de todos os corredores; sem ultrapassagens/chegadas/narração (a tabela já conta isso)
+    var MOMENTOS = { skill: 1, garra: 1, cansou: 1, dado: 1, clima: 1 };
+    var momentos = sim.events.filter(function (ev) { return MOMENTOS[ev.type]; }).map(function (ev) {
+      var txt = ev.text;
+      if (ev.type === 'dado') {
+        var mine = ev.rolls && ev.rolls[L.playerIdx];
+        if (mine) txt += ' · você tirou ' + mine.best + (mine.dice.length > 1 ? ' (' + mine.dice.join(', ') + ')' : '') + (mine.rerolls > 0 ? ' (desempate)' : '');
+      }
+      var chip = ev.racer >= 0 && L.racers[ev.racer] ? laneChip(L.racers[ev.racer], ev.racer, 'raia--mini') : '';
+      return '<li class="tipo-' + esc(ev.type) + (ev.racer === L.playerIdx ? ' voce' : '') + '"><time>' + esc(fmtClock(ev.t)) + '</time>' + chip + '<span>' + esc(txt) + '</span></li>';
     }).join('');
 
     var broke = state.gold < MIN_ENTRY;
@@ -1563,9 +1593,9 @@
         '<p class="sub">' + sub + '</p>' + balanco +
         '<div class="tela-cabeca"><span class="rotulo">Experiência ' + '<span class="mais">+' + R.xpGain + ' XP</span>' + (R.training ? ' (treino: metade)' : '') + '</span>' +
         xpHtml(R.after.level, R.after.xp) + '</div>' + lvl + '</section>' +
+      (momentos ? '<section class="caixa" aria-labelledby="t-dados"><h2 class="titulo" id="t-dados">Momentos da corrida</h2>' +
+        '<ol class="feed feed--estatica">' + momentos + '</ol></section>' : '') +
       actions +
-      (dados ? '<section class="caixa" aria-labelledby="t-dados"><h2 class="titulo" id="t-dados">Dados da Sorte</h2>' +
-        '<ol class="feed feed--estatica">' + dados + '</ol></section>' : '') +
       '<section class="caixa" aria-labelledby="t-chegada"><h2 class="titulo" id="t-chegada">Ordem de chegada</h2>' +
         '<div class="rolagem"><table class="tabela"><thead><tr><th>Pos</th><th>Cavalo</th><th class="num">Tempo</th><th class="num">Prêmio</th></tr></thead>' +
         '<tbody>' + rows + '</tbody></table></div>' +

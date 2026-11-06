@@ -17,7 +17,7 @@ Rating = Rating de Poder (`RaceSim.powerRating`), usado para as ligas. Sexo: M m
 
 ## 1. Os 3 iniciais
 
-Todos Raros, level 1, com uma habilidade exclusiva. O elemento soma +8 no status dele. Chance de a habilidade disparar no lv1: 60%.
+Todos Raros, level 1, com uma habilidade exclusiva. O elemento soma +8 no status dele. Chance de a habilidade disparar no lv1 (`RaceSim.skillChance`: 55% do Raro + 0,1 p.p. por ponto de Sorte efetiva): **Brasa 60,1%** (SOR 51) · **Maré 59,8%** (SOR 48) · **Ipê 60,5%** (SOR 55) — na tela, arredondado: 60% / 60% / 61%.
 
 | Inicial | Elemento | Sexo | Base lv1 (VEL/ACE/MAN/FOR/EST/GAR/SOR) | Efetivo lv1 (c/ elemento) | Efetivo lv25 | Potencial | Habilidade exclusiva | Rating lv1 → lv25 |
 |---|---|---|---|---|---|---|---|---|
