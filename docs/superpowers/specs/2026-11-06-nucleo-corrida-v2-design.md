@@ -115,8 +115,8 @@ também é gradual.
 
 ## 7. Dado da Sorte
 
-- **Quando:** ao cruzar 1/3 e 2/3 de `D` (dois eventos por corrida). Por distância, não por tempo: fica
-  determinístico e independe do tamanho da pista.
+- **Quando:** no instante em que o **líder** cruza 1/3 e depois 2/3 de `D` (dois eventos por corrida,
+  todos rolam juntos). Por distância, não por tempo: fica determinístico e independe do tamanho da pista.
 - **Rolagem de cada montaria:** `d1 = 1 + floor(rng()·100)`. Com probabilidade `sorte/100`, rola
   `d2` e fica com `max(d1, d2)`. **Sorte é a chance, em %, de rolar duas vezes e ficar com o melhor.**
   A skill *Dado Viciado* (§8) acrescenta um dado garantido (então até 3 dados).
@@ -151,8 +151,8 @@ Gera evento `'skill'` (como hoje).
 | Clima do seu elemento ativo | `weather:<id>` | **Sol a Pino** (Fogo) · **Pé na Chuva** (Água) · **Névoa Amiga** (Grama) | dobra o multiplicador do clima (×1,10 em vez de ×1,05) enquanto ele durar |
 
 As skills exclusivas dos iniciais (Labareda, Maré Alta, Raízes Firmes) continuam e ocupam vaga.
-Skills atuais são mapeadas assim: gatilho `midrace` vira `straight` (dispara na primeira reta depois
-de 1/3 da pista); `weather:sol`/`weather:chuva` continuam; `hill`, `final`, `lowStamina` e `start`
+Skills atuais são mapeadas assim: gatilho `midrace` vira `straight` (dispara ao entrar numa reta que
+não seja a da largada); `weather:sol`/`weather:chuva` continuam; `hill`, `final`, `lowStamina` e `start`
 continuam; qualquer efeito ligado a tática é removido. Sol a Pino passa a ser a skill de clima do Fogo
 (tabela acima), e Correnteza vira Pé na Chuva.
 
