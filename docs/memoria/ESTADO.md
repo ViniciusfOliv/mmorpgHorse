@@ -11,9 +11,9 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
 4. Expedições (estágios 1-1…, batalha por turnos estilo Pokémon; dão Ouro, XP e moeda de pacotes)
 → 5. Montarias novas (tigre, dragão…) → 6. Economia.
 
-- **Subprojeto 1 — Núcleo da corrida v2: concluído na branch `claude/nucleo-corrida-v2`
-  (aguardando revisão do Vinicius e integração na `main`).** Spec:
-  `docs/superpowers/specs/2026-11-06-nucleo-corrida-v2-design.md`.
+- **Subprojeto 1 — Núcleo da corrida v2: concluído e integrado na `main` em 2026-11-06**
+  (revisão final por agente feita; correções aplicadas; branch `claude/nucleo-corrida-v2` pode ser
+  apagada no GitHub). Spec: `docs/superpowers/specs/2026-11-06-nucleo-corrida-v2-design.md`.
   - Entregue: 7 atributos (+ Manobra, Sorte), 5 raridades, mapa aleatório em blocos
     (reta/curva/subida), clima + triângulo de elementos, Dado da Sorte (1/3 e 2/3 da pista), skills
     com chance e aprendizado por nível; sem tática e sem Disposição do dia.
@@ -23,7 +23,7 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   - Pergunta aberta: sem ruído por corrida, campos desiguais são previsíveis — decidir se queremos
     zebra (ruído ±3–5%).
   - Margens frágeis: 4b em 25,9% (piso 25); meta 3 a 3 p.p. do teto.
-- Branch `claude/economia-gdd` foi criada e está vazia (economia virou subprojeto 6).
+- A economia virou o subprojeto 6 (a branch vazia `claude/economia-gdd` foi removida).
 
 ## Pronto
 - **Design v0.1** (`docs/GDD.md`): seções 1–5 aprovadas (visão, pilares, status, elementos, protótipo).
@@ -61,7 +61,6 @@ taxa da casa, sinks de Ouro) · stack técnica (cliente, servidor, Android) · a
   Proposta se quisermos: ruído de ±3–5%, não a volta da Disposição de ±10%.
 
 ## Próximos passos sugeridos
-1. Vinicius revisa/joga o núcleo v2 e decide sobre a zebra.
-2. Integrar `claude/nucleo-corrida-v2` na `main`.
-3. Subprojeto 2: cavalos v2 (sexo já no modelo, cruzamento).
-4. Decidir sprites PixelLab vs. sprites por código; fechar as seções 6+ do GDD.
+1. Vinicius joga o núcleo v2 (`prototype/dist/preview.html`) e decide sobre a zebra.
+2. Subprojeto 2: cavalos v2 (sexo já no modelo, cruzamento) — nova branch dedicada.
+3. Decidir sprites PixelLab vs. sprites por código; fechar as seções 6+ do GDD.
