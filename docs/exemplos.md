@@ -76,7 +76,7 @@ Sorteio do mapa (`RaceSim.randomConditions`, tudo pela seed): distância múltip
 
 ## 4. Raridades
 
-O teto vale por status antes de elemento/item. Sem ruído por corrida, a raridade quase sempre decide: Mítico lv1 vence Comum lv1 em 100% dos duelos, e Comum lv25 vence Raro lv1 em 25,9% (relatório, §11 teste 4). Os iniciais batem o teto 80 entre o lv13 e o lv40, conforme o status e o potencial.
+O teto vale por status antes de elemento/equipamento. Sem ruído por corrida, a raridade quase sempre decide: Mítico lv1 vence Comum lv1 em 100% dos duelos, e Comum lv25 vence Raro lv1 em 25,9% (relatório, §11 teste 4). Os iniciais batem o teto 80 entre o lv13 e o lv40, conforme o status e o potencial.
 
 | Raridade | Teto por status | Crescimento/level | Vagas de skill | Nasce com até | Chance base de skill | Ex.: rating lv1 → lv50 |
 |---|---|---|---|---|---|---|
@@ -88,22 +88,9 @@ O teto vale por status antes de elemento/item. Sem ruído por corrida, a raridad
 
 Chance de skill = base da raridade + 0,5 p.p. por level acima do 1 + 0,1 p.p. por ponto de Sorte, teto 95%. Ao subir de level, 8% de chance de aprender uma skill nova compatível (neutra ou do elemento), se houver vaga.
 
-## 5. Itens (1 por corrida)
+## 5. Itens → equipamento (ver §14)
 
-| Item | Raridade | Preço | Efeito | Para quê |
-|---|---|---|---|---|
-| Ferradura Leve | Comum | 120 | +8 VEL, −5 FOR | Casco leve, passada solta. Perde firmeza no pesado. |
-| Ferradura com Cravos | Comum | 120 | +10 FOR, −3 VEL | Agarra na areia e nas subidas, mas pesa na reta. |
-| Sela de Couro Cru | Comum | 100 | +7 EST | Confortável e sem segredo. |
-| Manta de Lã | Mágico | 220 | +9 EST, −4 ACE | Poupa o fôlego, mas deixa a largada preguiçosa. |
-| Antolhos | Mágico | 220 | +12 GAR, −3 ACE, +8% chance de Garra | Foco total na reta final; demora a pegar embalo. |
-| Rapadura de Engenho | Mágico | 180 | −2 VEL, tanque ×1,04 | Energia pura: tanque de estamina +4%, mas fica pesado (−2 Vel). |
-| Esporas de Prata | Raro | 400 | +10 ACE, −6 EST | Arranque brutal, fôlego curto. |
-| Capa Impermeável | Raro | 380 | +2 EST, anula a penalidade de clima | Anula a penalidade de clima do elemento (ex.: Fogo na chuva). |
-| Figa da Sorte | Lendário | 700 | +5 GAR, +15% chance de Garra | Garra +5 e +15% de chance de a Garra disparar. |
-| Penas de Gavião-Real | Mítico | 1500 | +14 VEL, +6 GAR, −6 EST | Voa baixo na reta, mas cansa antes. |
-
-O efeito dos itens na taxa de vitória ainda não foi medido no v2 (o relatório roda sem itens; só o teste de determinismo e a corrida de exemplo usam itens).
+O sistema antigo de um item por corrida foi substituído em 2026-11-06 pelo equipamento: 5 slots por montaria, peças com melhoria +0…+10 e conjuntos Sol/Chuva/Névoa (`gear.js`). Preços, metas e exemplos em §14; regras em `docs/GDD.md` §7.
 
 ## 6. Habilidades (⭐ = exclusiva de inicial)
 
@@ -156,7 +143,7 @@ Quando o líder cruza **1/3** e **2/3** da pista, todas as montarias rolam um da
 | Diamante | 980–1099 | Fogaréu lv22 (1008), Jequitibá lv25 (991) |
 | Lenda | 1100+ | Boitatá lv30 (1163), Iara lv28 (1145) |
 
-Rating = 2,2·VEL + 1,8·ACE + 1,6·MAN + 1,8·EST + 1,6·FOR + 1,6·GAR + 0,8·SOR (status efetivos, com item) + 20 × peso do gatilho por habilidade (largada/reta/final/dado 1; curva 0,8; estamina baixa 0,8; subida 0,6; clima 0,4) + especial do item. Dentro da liga, o pareamento usaria o MMR do jogador.
+Rating = 2,2·VEL + 1,8·ACE + 1,6·MAN + 1,8·EST + 1,6·FOR + 1,6·GAR + 0,8·SOR (status efetivos, com equipamento) + 20 × peso do gatilho por habilidade (largada/reta/final/dado 1; curva 0,8; estamina baixa 0,8; subida 0,6; clima 0,4) + pontos do conjunto de equipamento (`gear.js`). Dentro da liga, o pareamento usaria o MMR do jogador.
 
 ## 9. Economia
 
@@ -190,60 +177,56 @@ Blocos:
 - subida 1190–1500 m
 - reta 1500–1900 m
 
-| Raia | Jogador | Cavalo | Elem. | Rar. | Sexo | Lv | Item | VEL/ACE/MAN/FOR/EST/GAR/SOR | Rating | Skills % |
+| Raia | Jogador | Cavalo | Elem. | Rar. | Sexo | Lv | Equip. | VEL/ACE/MAN/FOR/EST/GAR/SOR | Rating | Skills % |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 1 | Você | Ipê | Grama | Raro | M | 6 | Ferradura com Cravos | 65/59/55/89/70/58/59 | 766 | Raízes Firmes (63%) |
-| 2 | ZéDaBaia | Brasa | Fogo | Raro | M | 6 | Esporas de Prata | 71/87/66/57/57/68/55 | 785 | Labareda (63%) |
-| 3 | Rapadura_Turbo | Maré | Água | Raro | F | 6 | Manta de Lã | 72/59/59/62/90/65/52 | 782 | Maré Alta (63%) |
+| 1 | Você | Ipê | Grama | Raro | M | 6 | 5 peças | 72/63/59/83/74/58/59 | 792 | Raízes Firmes (63%) |
+| 2 | ZéDaBaia | Brasa | Fogo | Raro | M | 6 | 2 peças | 73/77/66/57/65/68/55 | 786 | Labareda (63%) |
+| 3 | Rapadura_Turbo | Maré | Água | Raro | F | 6 | — | 72/63/59/62/81/65/52 | 773 | Maré Alta (63%) |
 | 4 | Galopeira99 | Garoa | Água | Mágico | F | 10 | — | 56/53/51/56/75/58/52 | 683 | Pé na Chuva, Segundo Ar (55%) |
-| 5 | Uai_Sô | Tição | Fogo | Mágico | M | 8 | Ferradura Leve | 69/72/58/47/47/59/51 | 689 | Chama Final (54%) |
-| 6 | Bah_Tchê | Mandacaru | Grama | Mágico | M | 7 | Sela de Couro Cru | 51/53/48/73/65/51/50 | 652 | Casco Firme (53%) |
+| 5 | Uai_Sô | Tição | Fogo | Mágico | M | 8 | — | 61/72/58/52/47/59/51 | 680 | Chama Final (54%) |
+| 6 | Bah_Tchê | Mandacaru | Grama | Mágico | M | 7 | — | 51/53/48/73/58/51/50 | 639 | Casco Firme (53%) |
 | 7 | Oxente_Racing | Ventania | Neutro | Raro | F | 4 | — | 67/62/61/56/60/61/54 | 735 | Sprint, Arrancada Final (62%) |
 | 8 | Cuscuz_Nitro | Pororoca | Água | Raro | M | 3 | — | 58/56/53/60/76/59/53 | 711 | Nascente, Pé na Chuva (61%) |
 
 | Pos | Jogador | Cavalo | Tempo | Prêmio |
 |---|---|---|---|---|
-| 1º | Rapadura_Turbo | Maré | 113,24 s | 432 Ouro |
-| 2º | Você | Ipê | 113,77 s | 180 Ouro |
+| 1º | Você | Ipê | 112,35 s | 432 Ouro |
+| 2º | Rapadura_Turbo | Maré | 113,71 s | 180 Ouro |
 | 3º | Cuscuz_Nitro | Pororoca | 118,20 s | 108 Ouro |
-| 4º | Oxente_Racing | Ventania | 119,36 s | — |
-| 5º | ZéDaBaia | Brasa | 120,24 s | — |
-| 6º | Bah_Tchê | Mandacaru | 120,26 s | — |
-| 7º | Galopeira99 | Garoa | 121,94 s | — |
-| 8º | Uai_Sô | Tição | 123,93 s | — |
+| 4º | Oxente_Racing | Ventania | 119,98 s | — |
+| 5º | Bah_Tchê | Mandacaru | 122,29 s | — |
+| 6º | ZéDaBaia | Brasa | 122,80 s | — |
+| 7º | Galopeira99 | Garoa | 123,57 s | — |
+| 8º | Uai_Sô | Tição | 124,67 s | — |
 
-Pote 800 · taxa 80 · duração 123,93 s · 1241 frames
+Pote 800 · taxa 80 · duração 124,67 s · 1248 frames
 
 ```
-[31,6s] (ultrapassagem) Maré passou Brasa e assumiu a liderança!
-[42,2s] (dado) 🎲 Pororoca tirou 98 — começa a chover!
-[42,2s] (clima) O clima virou: Chuva!
-[42,2s] (skill) Pororoca ativou Pé na Chuva!
-[53,2s] (ultrapassagem) Ipê passou Maré e assumiu a liderança!
-[58,9s] (skill) Mandacaru ativou Casco Firme!
-[80,2s] (dado) 🎲 Pororoca tirou 99 — o clima segura!
-[95,0s] (garra) Ipê mostrou GARRA na reta final!
-[95,3s] (skill) Maré ativou Maré Alta!
-[95,8s] (garra) Maré mostrou GARRA na reta final!
+[26,9s] (ultrapassagem) Maré passou Brasa e assumiu a liderança!
+[31,0s] (ultrapassagem) Ipê passou Maré e assumiu a liderança!
+[42,0s] (dado) 🎲 Pororoca tirou 98 — começa a chover!
+[42,0s] (clima) O clima virou: Chuva!
+[42,0s] (skill) Pororoca ativou Pé na Chuva!
+[79,7s] (dado) 🎲 Pororoca tirou 99 — o clima segura!
+[93,5s] (skill) Ipê ativou Raízes Firmes!
+[94,6s] (garra) Ipê mostrou GARRA na reta final!
+[95,6s] (skill) Maré ativou Maré Alta!
+[96,3s] (garra) Maré mostrou GARRA na reta final!
 [97,2s] (skill) Pororoca ativou Nascente!
-[100,6s] (garra) Mandacaru mostrou GARRA na reta final!
-[101,0s] (skill) Ventania ativou Arrancada Final!
-[101,0s] (garra) Ventania mostrou GARRA na reta final!
-[101,2s] (garra) Brasa mostrou GARRA na reta final!
-[102,1s] (skill) Tição ativou Chama Final!
-[102,4s] (ultrapassagem) Maré passou Ipê e assumiu a liderança!
-[103,1s] (skill) Garoa ativou Segundo Ar!
-[113,2s] (chegada) Maré cruzou a linha em 1º lugar! (113,24s)
-[113,8s] (chegada) Ipê cruzou a linha em 2º lugar! (113,77s)
+[99,7s] (skill) Ventania ativou Sprint!
+[100,9s] (garra) Ventania mostrou GARRA na reta final!
+[102,4s] (garra) Mandacaru mostrou GARRA na reta final!
+[112,3s] (chegada) Ipê cruzou a linha em 1º lugar! (112,35s)
+[113,7s] (chegada) Maré cruzou a linha em 2º lugar! (113,71s)
 [118,2s] (chegada) Pororoca cruzou a linha em 3º lugar! (118,20s)
-[119,4s] (chegada) Ventania cruzou a linha em 4º lugar! (119,36s)
-[120,2s] (chegada) Brasa cruzou a linha em 5º lugar! (120,24s)
-[120,3s] (chegada) Mandacaru cruzou a linha em 6º lugar! (120,26s)
-[121,9s] (chegada) Garoa cruzou a linha em 7º lugar! (121,94s)
-[123,9s] (chegada) Tição cruzou a linha em 8º lugar! (123,93s)
+[120,0s] (chegada) Ventania cruzou a linha em 4º lugar! (119,98s)
+[122,3s] (chegada) Mandacaru cruzou a linha em 5º lugar! (122,29s)
+[122,8s] (chegada) Brasa cruzou a linha em 6º lugar! (122,80s)
+[123,6s] (chegada) Garoa cruzou a linha em 7º lugar! (123,57s)
+[124,7s] (chegada) Tição cruzou a linha em 8º lugar! (124,67s)
 ```
 
-O que aconteceu: o mapa tinha 1 070 m de subida seguida (430–1500 m), bom para o Ipê do jogador (FOR 89 com a Ferradura com Cravos). A corrida largou no sol, mas no primeiro Dado da Sorte (1/3 da pista) o Pororoca tirou 98 e virou o clima para **chuva**: Água passou a ×1,03 e Fogo a ×0,97, e o Pororoca ativou Pé na Chuva (×1,10). O Ipê assumiu a ponta na subida aos 53 s; no segundo Dado o Pororoca tirou 99 e a chuva segurou. Na reta final a Maré ativou Maré Alta, mostrou Garra e passou o Ipê aos 102 s, vencendo por **0,53 s**. Os dois Fogos (Brasa e Tição), penalizados pela chuva desde os 42 s, chegaram em 5º e 8º; a Labareda do Brasa não disparou na largada (chance de 63%).
+O que aconteceu: o mapa tinha 1 070 m de subida seguida (430–1500 m), bom para o Ipê do jogador (FOR 83, com 5 peças de equipamento que somam +4 em VEL, ACE, MAN, FOR e EST). A corrida largou no sol; a Maré passou a Brasa aos 27 s e o Ipê assumiu a ponta aos 31 s. No primeiro Dado da Sorte (1/3 da pista) o Pororoca tirou 98 e virou o clima para **chuva**: Água passou a ×1,03 e Fogo a ×0,97, e o Pororoca ativou Pé na Chuva (×1,10). No segundo Dado o Pororoca tirou 99 e a chuva segurou. Na reta final o Ipê ativou Raízes Firmes e mostrou Garra; a Maré respondeu com Maré Alta e Garra, mas não alcançou: o Ipê venceu por **1,36 s**. Os dois Fogos (Brasa, com 2 peças, e Tição), penalizados pela chuva desde os 42 s, chegaram em 6º e 8º; a Labareda do Brasa não disparou na largada (chance de 63%).
 
 ## 11. Relatório de balanceamento
 
@@ -369,7 +352,7 @@ Faixas rebaseadas (4a 90%–100%, 4b 25%–60%): sem Disposição do dia (intenc
 | Lendário | 70,0% | 68,0% | 2,0 p.p. |
 | Mítico | 80,0% | 79,3% | 0,7 p.p. |
 
-### Ligas (Rating de Poder sem item)
+### Ligas (Rating de Poder sem equipamento)
 
 Limites: Bronze ≥ 0 · Prata ≥ 660 · Ouro ≥ 780 · Platina ≥ 880 · Diamante ≥ 980 · Lenda ≥ 1100.
 
@@ -541,9 +524,10 @@ Duelos de dois corredores iguais, mapas aleatórios, 400 corridas por meta; só 
 | E2a | Comum lv30 com conjunto Raro +10 × Mágico lv30 sem nada (nublado) | 60–85% | 75,3% | 76,0% |
 | E2b | Comum lv30 com conjunto Raro +10 × Raro lv30 sem nada (nublado) | 10–40% | 13,2% | 13,9% |
 | E3 | 4 Raras do Sol × 4 Raras misturadas, Brasa lv10, com Sol | 75–90% | 86,0% | 84,0% |
+| E3b | 4 Raras do Sol × 4 Raras misturadas, Brasa lv10, Sol inicial com Dado ligado | 55–80% (provisória) | 82,8% ❌ | 85,0% ❌ |
 | E4 | Brasa lv10 com 5 Raras da Chuva × misturadas, na chuva | 60–75% | 73,5% | 70,0% |
 
-No nível 30 a distância Comum→Raro já é de cerca de 20 pontos por status (limite 60 contra 80) mais duas skills; por isso o conjunto +10 fecha **um degrau** (Mágico, E2a) e não dois (Raro, E2b). O E3 é alto porque o "dobra o clima" de 4 peças é idêntico à skill de dobrar o clima: num duelo de clima fixo entre cavalos iguais vale cerca de 86%; no jogo o Dado vira o clima ~1,2 vez por corrida.
+No nível 30 a distância Comum→Raro já é de cerca de 20 pontos por status (limite 60 contra 80) mais duas skills; por isso o conjunto +10 fecha **um degrau** (Mágico, E2a) e não dois (Raro, E2b). O E3 é alto porque o "dobra o clima" de 4 peças é idêntico à skill de dobrar o clima: num duelo de clima fixo entre cavalos iguais vale cerca de 86%; no jogo o Dado vira o clima ~1,2 vez por corrida. O E3b mede a vantagem do bônus de 4 peças dentro do jogo, com o Dado ligado podendo virar o clima (faixa provisória; como os dois corredores são Fogo, o Dado sempre cai no Sol e o E3b fica perto do E3).
 
 ### Exemplo de `Gear.resolve`: Brasa lv1 com 5 Lendárias do Sol +0
 

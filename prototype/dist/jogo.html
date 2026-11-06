@@ -5521,14 +5521,14 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 
   function renderEquipamento() {
     var m = ui.equip ? mountByUid(ui.equip.uid) : null;
-    if (!m) { ui.equip = null; ui.screen = 'estabulo'; return renderEstabulo(); } // montaria sumiu (ex.: outra aba)
+    if (!m) { ui.equip = null; ui.screen = 'estabulo'; syncHistory('estabulo'); return renderEstabulo(); } // montaria sumiu (ex.: outra aba): volta ao estábulo sem recursão em render()
     var Q = ui.equip, P = state.pending;
     var h = clone(m);
     var gear = gearOf(m);
     var stats = RS.computeStats(h, gear), baseStats = RS.computeStats(h, null);
     var rating = RS.powerRating(h, gear);
     var head = '<header class="topo"><button type="button" class="btn btn--pequeno" data-acao="equip-voltar">Voltar</button>' +
-        '<span class="topo-saldos"><span class="pedras" aria-label="' + esc(pedrasTxt(state.pedras) + ' negras') + '">🪨 ' + fmt(state.pedras) + '</span>' +
+        '<span class="topo-saldos"><span class="pedras" aria-label="' + esc(pedrasTxt(state.pedras) + (state.pedras === 1 ? ' negra' : ' negras')) + '">🪨 ' + fmt(state.pedras) + '</span>' +
         '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></span></header>' +
       '<h1 class="titulo titulo--tela" id="t-equipamento" tabindex="-1" data-foco>Equipamento</h1>';
     var avisos = '';
@@ -5617,7 +5617,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     if (!ui.loja || LOJA_TABS.indexOf(ui.loja.tab) < 0) ui.loja = { tab: LOJA_TABS[0], msg: null };
     var Q = ui.loja;
     var head = '<header class="topo"><button type="button" class="btn btn--pequeno" data-acao="loja-voltar">Voltar ao estábulo</button>' +
-        '<span class="topo-saldos"><span class="pedras" aria-label="' + esc(pedrasTxt(state.pedras) + ' negras') + '">🪨 ' + fmt(state.pedras) + '</span>' +
+        '<span class="topo-saldos"><span class="pedras" aria-label="' + esc(pedrasTxt(state.pedras) + (state.pedras === 1 ? ' negra' : ' negras')) + '">🪨 ' + fmt(state.pedras) + '</span>' +
         '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></span></header>' +
       '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>';
     var msg = Q.msg ? '<p class="aviso" role="status">' + esc(Q.msg) + '</p>' : '';
@@ -6799,7 +6799,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
         persist();
         if (state !== sU) break;
         ui.equip.undo = null;
-        if (state.gold < un.price || itemByUid(un.item.uid)) { rerenderKeepScroll(); break; }
+        if (state.gold < un.price) { ui.equip.msg = 'Sem Ouro para desfazer a venda.'; rerenderKeepScroll(); break; }
+        if (itemByUid(un.item.uid)) { rerenderKeepScroll(); break; }
         state.items.push(un.item);
         state.gold -= un.price;
         persist();

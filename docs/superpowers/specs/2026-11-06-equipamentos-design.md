@@ -314,4 +314,5 @@ O que mudou na implementação em relação ao texto aprovado (antigo → novo):
 - **Cartões da Loja e do Equipamento (§7, §10):** os status usam as siglas curtas já existentes (`EST`, `GAR`…).
 - **Testes de interface (§13):** cobrem a sequência de melhoria calculada com o `seedBase` ao vivo, a trava com Lendária bloqueada e Comum liberada, a recusa na Loja com o botão reabilitado (guarda do handler) e bots com equipamento na sala.
 - **Metas finais medidas (completo):** E1 69,2% · E2a 75,3% · E2b 13,2% · E3 86,0% · E4 73,5%; rodada `--quick`: 72,7 · 76,0 · 13,9 · 84,0 · 70,0.
+- **Revisão final:** meta nova **E3b** (mesmo duelo do E3 com Sol só no início e o Dado ligado; faixa provisória 55–80%, medido 82,8% completo / 85,0% `--quick`: Brasa × Brasa faz o Dado sempre cair no Sol) e teste unitário de que o equipamento nunca baixa o `powerRating` e tirar uma peça nunca o sobe (premissa da trava). Testes de interface: Desfazer venda consumido não repete (clique forçado), sair da tela mantém a venda, e cliques forçados em Equipar/Melhorar com páreo aberto não mudam nada.
 

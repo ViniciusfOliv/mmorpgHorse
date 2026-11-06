@@ -548,13 +548,17 @@ try {
       await eq.locator('[data-acao="vender-desfazer"]').click()
       s = await st()
       if (s.gold !== gold0 || s.items.length !== 7 || !itemOf(s, L)) problems.push('equipamento: desfazer ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
+      // 7c. vender de novo e desfazer uma vez; um segundo clique forçado não pode desfazer de novo
       await eq.locator('[data-acao="vender"][data-id="' + L + '"]').click()
+      s = await st()
+      if (s.gold !== gold0 + 375 || s.items.length !== 6) problems.push('equipamento: 2ª venda ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
       await eq.locator('[data-acao="vender-desfazer"]').click()
-      await eq.locator('[data-acao="equip-voltar"]').click()
-      await eq.waitForSelector('#t-estabulo')
-      await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
-      await eq.waitForSelector('#t-equipamento')
-      if (await eq.locator('[data-acao="vender-desfazer"]').count()) problems.push('equipamento: "Desfazer venda" continua depois de sair da tela')
+      s = await st()
+      if (s.gold !== gold0 || s.items.length !== 7 || !itemOf(s, L)) problems.push('equipamento: 2º desfazer ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
+      if (await eq.locator('[data-acao="vender-desfazer"]').count() !== 0) problems.push('equipamento: "Desfazer venda" continua depois de usado')
+      await eq.evaluate(() => { const b = document.querySelector('[data-acao="vender-desfazer"]'); if (b) { b.disabled = false; b.click() } })
+      s = await st()
+      if (s.gold !== gold0 || s.items.length !== 7) problems.push('equipamento: desfazer usado duas vezes ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
       // 8. persistência
       const antes = await st()
       await eq.reload({ waitUntil: 'domcontentloaded' })
@@ -575,6 +579,17 @@ try {
       if (!(await eq.locator(`[data-acao="equipar"][data-id="${L}"]`).isDisabled())) problems.push('equipamento: equipar a Lendária habilitado com páreo aberto')
       if (!/Páreo aberto/.test(await txt())) problems.push('equipamento: sem aviso "Páreo aberto"')
       if (!(await eq.locator('[data-acao="melhorar"][data-id="i1"]').isDisabled())) problems.push('equipamento: melhorar peça da ativa habilitado com páreo aberto')
+      // clique forçado no handler: equipar a Lendária e melhorar i1 continuam bloqueados
+      const travaAntes = await st()
+      await eq.evaluate((L) => { const b = document.querySelector('[data-acao="equipar"][data-id="' + L + '"]'); b.disabled = false; b.click() }, L)
+      if ((await st()).mounts[0].equip.sela !== 'i1') problems.push('equipamento: clique forçado equipou a Lendária com páreo aberto')
+      if (!/Páreo aberto/.test(await txt())) problems.push('equipamento: sem aviso "Páreo aberto" depois do clique forçado')
+      await eq.evaluate(() => { const b = document.querySelector('[data-acao="melhorar"][data-id="i1"]'); if (b) { b.disabled = false; b.click() } })
+      await eq.evaluate(() => { const b = document.querySelector('[data-acao="melhorar-sim"][data-id="i1"]'); if (b) { b.disabled = false; b.click() } })
+      const travaDepois = await st()
+      if (travaDepois.enhanceCounter !== travaAntes.enhanceCounter || travaDepois.pedras !== travaAntes.pedras || itemOf(travaDepois, 'i1').plus !== itemOf(travaAntes, 'i1').plus) {
+        problems.push('equipamento: clique forçado melhorou i1 com páreo aberto ' + JSON.stringify({ antes: [travaAntes.enhanceCounter, travaAntes.pedras], depois: [travaDepois.enhanceCounter, travaDepois.pedras] }))
+      }
       await eq.locator('[data-acao="tirar"][data-id="sela"]').click()
       if ((await st()).mounts[0].equip.sela !== null) problems.push('equipamento: tirar bloqueado com páreo aberto')
       await eq.locator('[data-acao="equipar"][data-id="i1"]').click()
@@ -585,6 +600,21 @@ try {
       await sleep(300)
       await checkOverflow(eq, 'equipamento')
       await eq.screenshot({ path: join(SHOTS, 'final-07-equipamento.png') })
+      // 11. vender a Lendária pela 3ª vez e sair: a venda fica e o "Desfazer" some
+      //     (depois da trava e da captura, que ainda usam a Lendária no inventário)
+      const goldAntes3 = (await st()).gold
+      await eq.locator('[data-acao="vender"][data-id="' + L + '"]').click()
+      s = await st()
+      const gold3 = s.gold
+      if (gold3 !== goldAntes3 + 375 || s.items.length !== 6) problems.push('equipamento: 3ª venda ' + JSON.stringify({ gold: s.gold, goldAntes3, n: s.items.length }))
+      await eq.locator('[data-acao="equip-voltar"]').click()
+      await eq.waitForSelector('#t-estabulo')
+      await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
+      await eq.waitForSelector('#t-equipamento')
+      if (await eq.locator('[data-acao="vender-desfazer"]').count()) problems.push('equipamento: "Desfazer venda" continua depois de sair da tela')
+      s = await st()
+      if (s.items.length !== 6 || s.gold !== gold3 || itemOf(s, L)) problems.push('equipamento: venda não ficou depois de sair ' + JSON.stringify({ gold: s.gold, gold3, n: s.items.length }))
+      notes.equipamentoVenda = { gold0, goldVenda: gold0 + 375, goldAntes3, goldVendida3: gold3, goldFinal: s.gold }
     } catch (e) {
       problems.push('equipamento: ' + e.message)
     }

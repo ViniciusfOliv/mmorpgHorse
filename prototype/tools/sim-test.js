@@ -474,19 +474,40 @@ test('powerRating conta mods e pontos de conjunto', function () {
   var statsOnly = S.powerRating(h, { mods: g3.mods, special: {}, set: { id: null, count: 0 }, pieces: [] });
   assert.strictEqual(S.powerRating(h, g3) - statsOnly, 10);
 });
+test('equipamento nunca baixa o rating; tirar uma peça nunca o sobe (premissa da trava do páreo)', function () {
+  var SL = ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'];
+  function gearIds(ids, plus) { var items = {}, equip = {}; ids.forEach(function (id, i) { if (id) { items['i' + i] = { uid: 'i' + i, id: id, plus: plus }; equip[SL[i]] = 'i' + i; } }); return GR.resolve({ equip: equip }, items); }
+  var gears = [
+    gearIds(SL.map(function (sl) { return sl + '-comum'; }), 0),              // 5 Comuns soltas
+    gearIds(SL.map(function (sl) { return sl + '-sol-raro'; }), 10),          // conjunto Raro completo +10
+    gearIds([null, 'sela-comum', null, null, null], 3)                         // uma peça só
+  ];
+  var horses = [cl(G.STARTERS[0]), cl(G.STARTERS[1]), cl(G.STARTERS[2])];
+  horses[2].level = 50;   // perto do teto da raridade
+  horses.forEach(function (h) {
+    gears.forEach(function (g, gi) {
+      assert.ok(S.powerRating(h, g) >= S.powerRating(h, null), h.id + ' gear ' + gi + ': ' + S.powerRating(h, g) + ' < ' + S.powerRating(h, null));
+    });
+    var com = gearIds(SL.map(function (sl) { return sl + '-sol-raro'; }), 5);
+    var sem = gearIds(SL.map(function (sl, i) { return i === 1 ? null : sl + '-sol-raro'; }), 5);   // tira a sela (quebra o bônus de 5)
+    assert.ok(S.powerRating(h, com) >= S.powerRating(h, sem), h.id + ': tirar a sela subiu o rating');
+  });
+});
 test('5 peças Chuva anulam a penalidade do Fogo na chuva; 4 Sol dobram o Sol', function () {
   var brasa = cl(G.STARTERS.filter(function (x) { return x.id === 'brasa'; })[0]);
   function gearOf(set, n) { var items = {}, equip = {}; ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'].slice(0, n).forEach(function (sl, i) { items['i' + i] = { uid: 'i' + i, id: sl + '-' + set + '-raro', plus: 0 }; equip[sl] = 'i' + i; }); return GR.resolve({ equip: equip }, items); }
   function mixed(n) { var sets = ['sol', 'chuva', 'nevoa', 'sol', 'chuva']; var items = {}, equip = {}; ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'].slice(0, n).forEach(function (sl, i) { items['i' + i] = { uid: 'i' + i, id: sl + '-' + sets[i] + '-raro', plus: 0 }; equip[sl] = 'i' + i; }); return GR.resolve({ equip: equip }, items); }
   function wins(gA, gB, weather) {
     var w = 0, saved = S.TUNING.diceAt; S.TUNING.diceAt = [];
-    for (var k = 0; k < 200; k++) {
-      var seed = S.hash2(777, k), cond = S.randomConditions(seed); cond.weather = weather;
-      var pair = k % 2 ? [gB, gA] : [gA, gB];
-      var res = S.simulate({ seed: seed, conditions: cond, recordFrames: false, racers: pair.map(function (g) { return { horse: brasa, gear: g, name: 'x', isPlayer: false }; }) });
-      if (pair[res.finishOrder[0]] === gA) w++;
-    }
-    S.TUNING.diceAt = saved; return w;
+    try {
+      for (var k = 0; k < 200; k++) {
+        var seed = S.hash2(777, k), cond = S.randomConditions(seed); cond.weather = weather;
+        var pair = k % 2 ? [gB, gA] : [gA, gB];
+        var res = S.simulate({ seed: seed, conditions: cond, recordFrames: false, racers: pair.map(function (g) { return { horse: brasa, gear: g, name: 'x', isPlayer: false }; }) });
+        if (pair[res.finishOrder[0]] === gA) w++;
+      }
+    } finally { S.TUNING.diceAt = saved; }
+    return w;
   }
   assert.ok(wins(gearOf('chuva', 5), mixed(5), 'chuva') >= 110, 'anula penalidade (≥55% de 200)');
   assert.ok(wins(gearOf('sol', 4), mixed(4), 'sol') >= 110, 'dobra o Sol (≥55% de 200)');

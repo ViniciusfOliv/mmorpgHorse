@@ -12,7 +12,7 @@ Jogo em pixel art (web + Play Store) de corrida de cavalos com progressão estil
 
 | Tema | Decisão |
 |---|---|
-| Jogabilidade da corrida | **Automática.** Estratégia acontece antes: escolher a montaria e o item para o mapa e o clima da corrida. Servidor simula com *seed*; cliente só anima. |
+| Jogabilidade da corrida | **Automática.** Estratégia acontece antes: escolher a montaria e o equipamento para o mapa e o clima da corrida. Servidor simula com *seed*; cliente só anima. |
 | "MMO" | **Hub social**: cidade/estábulo compartilhado (chat, ranking, haras/guildas, mercado). Resto por menus. |
 | Obter cavalos | **Breeding + Expedições PVE** (núcleo) + **Ovos/gacha** (opcional, monetização). |
 | Monetização | **Duas moedas**: 🪙 Ouro (só ganho jogando, é apostável) / 💎 Gemas (compradas; cosméticos, passe, ovos). Gemas **nunca** viram Ouro. Evita classificação como jogo de azar. |
@@ -46,7 +46,7 @@ Cada montaria também tem:
 
   A chance de uma skill disparar quando o gatilho acontece = base da raridade + 0,5 p.p. por level + 0,1 p.p. por ponto de Sorte (teto 95%). A cada level ganho há 8% de chance de aprender uma skill nova, se houver vaga.
 - **Sexo** (macho/fêmea), para o cruzamento.
-- **Potencial** oculto 0–31 por status (revelado com item).
+- **Potencial** oculto 0–31 por status (revelação fica para depois).
 - **Level** 1–50 (status crescem conforme potencial e raridade, até o teto).
 
 ## 4. Elementos, clima e Dado da Sorte

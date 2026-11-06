@@ -46,7 +46,7 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   - Entregue: 5 slots por montaria, catálogo de 40 peças, `gear.js` puro, melhoria +0…+10, conjuntos
     Sol/Chuva/Névoa (3/4/5 peças), Loja, Pedra Negra no pódio, save v4 com migração, bots equipados
     por liga, trava parcial com páreo aberto.
-  - Verificação: `check.sh` em 5 etapas — 57 testes unitários, 33 metas de balanço, UI com os contextos
+  - Verificação: `check.sh` em 5 etapas — 58 testes unitários, 34 metas de balanço, UI com os contextos
     `equipamento` e `loja` (capturas `final-07-equipamento.png` e `final-08-loja.png`).
   - Painel `?dev=1` com +5 Pedras e conjunto Lendário na ativa.
   - Limites conhecidos: sem durabilidade; sem limite de inventário; Lendário só via dev até as
@@ -79,7 +79,7 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
 2. Vinicius joga os equipamentos (`prototype/dist/preview.html?dev=1` para Ouro, Pedras e conjunto Lendário).
 3. Subprojeto 4 (expedições) / decidir a zebra (ruído ±3–5% por corrida) / despertar Lendário→Mítico.
 
-## Pendente no design (GDD seções 7+)
+## Pendente no design (GDD seções 8+)
 Curvas de XP/level · expedições · economia (valores de entrada,
 taxa da casa, sinks de Ouro) · stack técnica (cliente, servidor, Android) · anti-cheat · roadmap MVP.
 
