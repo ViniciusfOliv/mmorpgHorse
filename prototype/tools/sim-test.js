@@ -71,5 +71,33 @@ test('learnSkill não estoura vagas e respeita elemento/exclusividade', function
   assert.ok(!seen['pe-na-chuva'] && !seen.labareda, 'não aprende de outro elemento nem exclusiva alheia');
 });
 
+section('mapa');
+test('mapa é determinístico e bem formado', function () {
+  for (var seed = 1; seed <= 500; seed++) {
+    var c = S.randomConditions(seed), d = S.randomConditions(seed);
+    assert.deepStrictEqual(c, d);
+    assert.ok(c.distance >= 1000 && c.distance <= 2400 && c.distance % 100 === 0, 'distância');
+    assert.ok(c.blocks.length >= 5 && c.blocks.length <= 9, 'nº de blocos');
+    assert.strictEqual(c.blocks[0].type, 'reta'); assert.strictEqual(c.blocks[c.blocks.length - 1].type, 'reta');
+    assert.strictEqual(c.blocks[0].from, 0); assert.strictEqual(c.blocks[c.blocks.length - 1].to, c.distance);
+    c.blocks.forEach(function (b, i) { assert.ok(b.to > b.from && b.from % 10 === 0 && b.to % 10 === 0, 'bloco ' + i); if (i) assert.strictEqual(b.from, c.blocks[i - 1].to); });
+    assert.ok(['sol','chuva','nevoa','nublado'].indexOf(c.weather) >= 0); assert.ok(G.SURFACES[c.surface]);
+    assert.strictEqual(c.hills, undefined);
+  }
+});
+test('os três tipos aparecem e blockShare/blockAt funcionam', function () {
+  var seen = { reta: 0, curva: 0, subida: 0 };
+  for (var s = 1; s <= 300; s++) S.randomConditions(s).blocks.forEach(function (b) { seen[b.type]++; });
+  assert.ok(seen.curva > 100 && seen.subida > 100);
+  var bl = [{ type: 'reta', from: 0, to: 200 }, { type: 'curva', from: 200, to: 1400 }, { type: 'reta', from: 1400, to: 1600 }];
+  assert.strictEqual(S.blockShare(bl, 'curva'), 0.75); assert.strictEqual(S.blockAt(bl, 199.9), 0); assert.strictEqual(S.blockAt(bl, 200), 1); assert.strictEqual(S.blockAt(bl, 1600), 2);
+  assert.deepStrictEqual(S.curvesFromBlocks(bl), [[200, 1400]]); assert.deepStrictEqual(S.hillsFromBlocks(bl), []);
+});
+test('normalizeConditions aceita blocos explícitos e completa o resto pela seed', function () {
+  var c = S.normalizeConditions({ distance: 1600, blocks: [{ type: 'reta', from: 0, to: 1600 }] }, 7);
+  assert.strictEqual(c.blocks.length, 1); assert.ok(G.WEATHERS[c.weather]);
+  assert.strictEqual(S.elementAffinity, undefined);
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

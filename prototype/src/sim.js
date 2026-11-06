@@ -295,76 +295,90 @@
   // ---------------------------------------------------------------------------
   // Condições
   // ---------------------------------------------------------------------------
-  var DIST_LIST = [1000, 1600, 2400];
   var SURF_LIST = ['grama', 'terra', 'areia'];
-  var WEATHER_LIST = ['sol', 'chuva', 'nublado'];
+  var WEATHER_LIST = ['sol', 'chuva', 'nevoa', 'nublado'];
+  var BLOCK_LIST = ['reta', 'curva', 'subida'];
 
+  // Pista em blocos, toda derivada da seed. Ordem das chamadas de rng:
+  // distância, nº de blocos B, pesos (B), tipos (B-2), superfície, clima.
   function randomConditions(seed) {
     var rng = mulberry32(hash2(seed, 0xC0FFEE));
-    var distance = DIST_LIST[Math.floor(rng() * 3)];
-    var surface = SURF_LIST[Math.floor(rng() * 3)];
-    var weather = WEATHER_LIST[Math.floor(rng() * 3)];
-    var hills = [];
-    if (rng() < 1 / 3) {
-      var count = (distance >= 1600 && rng() < 0.5) ? 2 : 1;
-      var lo = 0.15 * distance, hi = 0.80 * distance;
-      var slot = (hi - lo) / count;
-      for (var i = 0; i < count; i++) {
-        var len = Math.round((100 + rng() * 120) * (distance / 1600 * 0.5 + 0.5) / 10) * 10;
-        len = Math.min(len, slot - 20);
-        var start = lo + i * slot + rng() * (slot - len);
-        start = Math.round(start / 10) * 10;
-        hills.push([start, start + len]);
-      }
+    var distance = 1000 + 100 * Math.floor(rng() * 15);
+    var B = 5 + Math.floor(rng() * 5);
+    var weights = [], total = 0, i;
+    for (i = 0; i < B; i++) { weights.push(0.5 + rng()); total += weights[i]; }
+    var blocks = [], acc = 0, from = 0, to;
+    for (i = 0; i < B; i++) {
+      acc += weights[i];
+      // fronteiras acumuladas arredondadas a 10 m; o último bloco fecha em `distance`
+      to = (i === B - 1) ? distance : Math.round(distance * acc / total / 10) * 10;
+      var type = (i === 0 || i === B - 1) ? 'reta' : BLOCK_LIST[Math.floor(rng() * 3)];
+      blocks.push({ type: type, from: from, to: to });
+      from = to;
     }
-    return { distance: distance, surface: surface, weather: weather, hills: hills };
+    var surface = SURF_LIST[Math.floor(rng() * 3)];
+    var weather = WEATHER_LIST[Math.floor(rng() * 4)];
+    return { distance: distance, surface: surface, weather: weather, blocks: blocks };
+  }
+
+  // Blocos são válidos se contíguos a partir de 0 e (quando dada) terminam em `distance`.
+  function validBlocks(blocks, distance) {
+    if (!blocks || !blocks.length) return false;
+    var prev = 0;
+    for (var i = 0; i < blocks.length; i++) {
+      var b = blocks[i];
+      if (!b || !GameData.BLOCK_TYPES[b.type]) return false;
+      if (b.from !== Math.floor(b.from) || b.to !== Math.floor(b.to) || !(b.from < b.to)) return false;
+      if (b.from !== prev) return false;
+      prev = b.to;
+    }
+    return distance == null || prev === distance;
   }
 
   // Campos ausentes (ex.: pista de exemplo sem `weather`) são sorteados pela seed;
-  // sem seed (dicas de UI) ficam neutros (1600 m, grama, nublado, sem subida).
+  // sem seed (dicas de UI) ficam neutros (1600 m, grama, nublado, uma reta única).
   function normalizeConditions(c, seed) {
     c = c || {};
     var rnd = (seed == null) ? null : randomConditions(seed);
+    var given = c.distance || null;
+    var blocks;
+    if (validBlocks(c.blocks, given)) {
+      blocks = c.blocks;
+      if (!given) given = blocks[blocks.length - 1].to;
+    } else {
+      if (!given) given = rnd ? rnd.distance : 1600;
+      if (rnd && rnd.distance === given) blocks = rnd.blocks;
+      else blocks = rnd && !c.distance ? rnd.blocks : [{ type: 'reta', from: 0, to: given }];
+    }
     return {
-      distance: c.distance || (rnd ? rnd.distance : 1600),
+      distance: given,
       surface: GameData.SURFACES[c.surface] ? c.surface : (rnd ? rnd.surface : 'grama'),
       weather: GameData.WEATHERS[c.weather] ? c.weather : (rnd ? rnd.weather : 'nublado'),
-      hills: (c.hills || (rnd ? rnd.hills : [])).map(function (h) { return [h[0], h[1]]; })
+      blocks: blocks.map(function (b) { return { type: b.type, from: b.from, to: b.to }; })
     };
   }
 
-  function ruleMatches(rule, cond) {
-    switch (rule.kind) {
-      case 'weather': return cond.weather === rule.value;
-      case 'surface': return cond.surface === rule.value;
-      case 'distance': return cond.distance === rule.value;
-      case 'hills': return (cond.hills && cond.hills.length > 0) === !!rule.value;
-      default: return false;
-    }
+  // Índice do bloco que contém `pos` (varredura linear; pos >= fim -> último; pos < 0 -> 0).
+  function blockAt(blocks, pos) {
+    for (var i = 0; i < blocks.length; i++) if (pos < blocks[i].to) return i;
+    return blocks.length - 1;
   }
 
-  // opts.ignoreWeatherPenalty (item Capa Impermeável) é usado internamente pela simulação.
-  function elementAffinity(element, conditions, opts) {
-    var el = GameData.ELEMENTS[element];
-    var cond = normalizeConditions(conditions);
-    var sum = 0, reasons = [];
-    if (el && el.affinity) {
-      for (var i = 0; i < el.affinity.length; i++) {
-        var rule = el.affinity[i];
-        if (!ruleMatches(rule, cond)) continue;
-        if (rule.sign < 0 && rule.kind === 'weather' && opts && opts.ignoreWeatherPenalty) {
-          reasons.push(rule.text + ' (anulado pela Capa)');
-          continue;
-        }
-        var step = T.affinityStep * (rule.weight == null ? 1 : rule.weight);
-        sum += rule.sign * step;
-        var pct = Math.round(step * 100);
-        reasons.push(rule.text + ' (' + (rule.sign > 0 ? '+' : '−') + pct + '%)');
-      }
-    }
-    var mult = clamp(1 + sum, T.affinityMin, T.affinityMax);
-    return { mult: Math.round(mult * 10000) / 10000, reasons: reasons };
+  // Fração (0-1) do comprimento total ocupada por blocos do tipo dado.
+  function blockShare(blocks, type) {
+    var len = 0;
+    for (var i = 0; i < blocks.length; i++) if (blocks[i].type === type) len += blocks[i].to - blocks[i].from;
+    var total = blocks.length ? blocks[blocks.length - 1].to - blocks[0].from : 0;
+    return total > 0 ? len / total : 0;
   }
+
+  function rangesOf(blocks, type) {
+    var out = [];
+    for (var i = 0; i < blocks.length; i++) if (blocks[i].type === type) out.push([blocks[i].from, blocks[i].to]);
+    return out;
+  }
+  function hillsFromBlocks(blocks) { return rangesOf(blocks, 'subida'); }
+  function curvesFromBlocks(blocks) { return rangesOf(blocks, 'curva'); }
 
   // ---------------------------------------------------------------------------
   // Pagamentos
@@ -402,16 +416,13 @@
   // ---------------------------------------------------------------------------
   // Simulação
   // ---------------------------------------------------------------------------
-  function inHill(hills, pos) {
-    for (var i = 0; i < hills.length; i++) if (pos >= hills[i][0] && pos < hills[i][1]) return true;
-    return false;
-  }
-
-  function hillFraction(hills, from, to) {
+  // Fração do trecho [from, to) que cai em blocos de subida (calço até a Tarefa 4).
+  function hillFraction(blocks, from, to) {
     if (to <= from) return 0;
     var len = 0;
-    for (var i = 0; i < hills.length; i++) {
-      var a = Math.max(from, hills[i][0]), b = Math.min(to, hills[i][1]);
+    for (var i = 0; i < blocks.length; i++) {
+      if (blocks[i].type !== 'subida') continue;
+      var a = Math.max(from, blocks[i].from), b = Math.min(to, blocks[i].to);
       if (b > a) len += b - a;
     }
     return len / (to - from);
@@ -432,7 +443,7 @@
     var item = itemId ? GameData.ITEMS[itemId] : null;
     var special = (item && item.special) || {};
     var stats = computeStats(horse, itemId);
-    var aff = elementAffinity(horse.element, cond, { ignoreWeatherPenalty: !!special.ignoreWeatherPenalty });
+    var aff = { mult: 1, reasons: [] };   // calço: afinidade removida (Tarefa 4 limpa)
     // afinidade de elemento multiplica todos os status efetivos nesta corrida
     var am = aff.mult / 100;
     var nv = stats.vel * am, na = stats.acel * am, ne = stats.est * am, nf = stats.forca * am, ng = stats.garra * am;
@@ -537,7 +548,7 @@
         else if (trig === 'final') ok = p >= T.garraZone;
         else if (trig === 'midrace') ok = p >= 0.5;
         else if (trig === 'lowStamina') ok = r.stamina <= 0.25 && !r.exhausted;
-        else if (trig === 'hill') ok = inHill(cond.hills, r.pos);
+        else if (trig === 'hill') ok = cond.blocks[blockAt(cond.blocks, r.pos)].type === 'subida';
         else if (trig === 'behind') ok = p >= 0.6 && rank >= Math.ceil(nRacers / 2);
         else if (trig.indexOf('weather:') === 0) ok = trig.slice(8) === cond.weather;
         else if (trig.indexOf('surface:') === 0) ok = trig.slice(8) === cond.surface;
@@ -604,7 +615,7 @@
         var speedMod = weatherSlow;
         var drainMod = surf.drain * weatherDrain * distDrain * effDrain;
         speedMod *= 1 - surf.slow * (1 - T.forcaSurfRelief * nf);
-        var onHill = inHill(cond.hills, pos);
+        var onHill = cond.blocks[blockAt(cond.blocks, pos)].type === 'subida';
         if (onHill) {
           speedMod *= 1 - T.hillSlow * (1 - T.forcaHillRelief * nf);
           drainMod *= 1 + T.hillDrain * (1 - 0.5 * nf);
@@ -628,7 +639,7 @@
         if (r.exhausted) {
           s = T.exhaustPace;
         } else {
-          var hf = hillFraction(cond.hills, pos, D);
+          var hf = hillFraction(cond.blocks, pos, D);
           var cEst = surf.drain * weatherDrain * distDrain * (1 + hf * T.hillDrain * (1 - 0.5 * nf));
           var vRef = r.vMax * speedMod;
           var aff = affordablePace(r.stamina + r.jockeyErr - T.rationReserve, rem, vRef, r.pool, cEst);
@@ -759,12 +770,11 @@
     learnSkill: learnSkill,
     leagueFor: leagueFor,
     randomConditions: randomConditions,
-    // opts opcional: { itemId } para a UI mostrar a Capa anulando a penalidade de clima
-    elementAffinity: function (element, conditions, opts) {
-      var item = opts && opts.itemId ? GameData.ITEMS[opts.itemId] : null;
-      var special = (item && item.special) || {};
-      return elementAffinity(element, conditions, { ignoreWeatherPenalty: !!special.ignoreWeatherPenalty });
-    },
+    normalizeConditions: normalizeConditions,
+    blockAt: blockAt,
+    blockShare: blockShare,
+    hillsFromBlocks: hillsFromBlocks,
+    curvesFromBlocks: curvesFromBlocks,
     simulate: simulate,
     payouts: payouts
   };
