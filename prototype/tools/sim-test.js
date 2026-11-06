@@ -4,6 +4,7 @@ var assert = require('assert');
 var G = require('../src/data.js');
 var S = require('../src/sim.js');
 var B = require('../src/breed.js');
+var GR = require('../src/gear.js');
 var fails = 0, count = 0;
 function section(t) { console.log('\n## ' + t); }
 function test(name, fn) {
@@ -361,6 +362,86 @@ test('ECONOMY.gear', function () {
   assert.deepStrictEqual(g.setBonus, { pieces: [3, 4, 5], skillChance: 0.05, sorte: 5, ratingPts: [10, 15, 20] });
   assert.deepStrictEqual(g.podiumStone, [0.6, 0.4, 0.25]);
   assert.deepStrictEqual(g.startGear, ['sela-comum', 'ferraduras-comum']);
+});
+
+section('equipamento: gear.js');
+function gm(equip) { return { equip: equip }; }
+function gi(uid, id, plus) { return { uid: uid, id: id, plus: plus || 0 }; }
+function byUid(list) { var o = {}; list.forEach(function (it) { o[it.uid] = it; }); return o; }
+test('resolve soma principal+plus e secundário; sem equip zera', function () {
+  var items = byUid([gi('i1', 'sela-sol-raro', 3), gi('i2', 'ferraduras-comum')]);
+  var g = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2' }), items);
+  assert.deepStrictEqual(g.mods, { vel: 2, acel: 0, man: 0, forca: 0, est: 7, garra: 3, sorte: 0 });
+  assert.deepStrictEqual(g.set, { id: 'sol', count: 1 });
+  assert.deepStrictEqual(g.special, { skillChanceBonus: 0, weatherDoubleClimate: null, ignoreWeatherPenalty: false });
+  assert.deepStrictEqual(g.pieces.map(function (p) { return p.uid; }), ['i2', 'i1']);
+  var z = GR.resolve({}, {});
+  assert.deepStrictEqual(z.mods, { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 });
+  assert.deepStrictEqual(z.set, { id: null, count: 0 }); assert.deepStrictEqual(z.pieces, []);
+});
+test('resolve ignora uid inexistente, slot errado e plus inválido', function () {
+  var items = byUid([gi('i1', 'sela-sol-raro', 3), gi('i2', 'ferraduras-comum', 11), gi('i3', 'estribos-magico', 1.5)]);
+  var g = GR.resolve(gm({ ferraduras: 'i1', sela: 'i9', estribos: 'i3', testeira: 'i2' }), items);
+  assert.deepStrictEqual(g.pieces, []); assert.strictEqual(g.set.count, 0);
+});
+test('conjunto: 3/4/5 peças com raridades misturadas; 2+2+1 não ativa', function () {
+  var items = byUid([gi('i1', 'sela-chuva-raro'), gi('i2', 'ferraduras-chuva-lendario', 2), gi('i3', 'estribos-chuva-raro'), gi('i4', 'testeira-chuva-raro'), gi('i5', 'armadura-chuva-lendario'), gi('i6', 'testeira-sol-raro'), gi('i7', 'armadura-nevoa-raro')]);
+  var g3 = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', estribos: 'i3' }), items);
+  assert.deepStrictEqual(g3.set, { id: 'chuva', count: 3 }); assert.strictEqual(g3.mods.sorte, 8); // 3 (sub do estribo Raro) + 5 (conjunto)
+  assert.deepStrictEqual(g3.special, { skillChanceBonus: 0.05, weatherDoubleClimate: null, ignoreWeatherPenalty: false });
+  var g4 = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', estribos: 'i3', testeira: 'i4' }), items);
+  assert.strictEqual(g4.special.weatherDoubleClimate, 'chuva'); assert.strictEqual(g4.special.ignoreWeatherPenalty, false);
+  var g5 = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', estribos: 'i3', testeira: 'i4', armadura: 'i5' }), items);
+  assert.deepStrictEqual(g5.set, { id: 'chuva', count: 5 }); assert.strictEqual(g5.special.ignoreWeatherPenalty, true);
+  assert.strictEqual(g5.mods.vel, 8); // lendário 6 + 2
+  var gx = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', testeira: 'i6', armadura: 'i7' }), items);
+  assert.strictEqual(gx.set.count, 2); assert.strictEqual(gx.mods.sorte, 0); assert.strictEqual(gx.special.skillChanceBonus, 0);
+});
+test('enhanceOdds segue a tabela', function () {
+  assert.deepStrictEqual(GR.enhanceOdds(0), { chance: 1, cost: 1, dropTo: 0 });
+  assert.deepStrictEqual(GR.enhanceOdds(5), { chance: 0.5, cost: 1, dropTo: 5 });
+  assert.deepStrictEqual(GR.enhanceOdds(6), { chance: 0.4, cost: 2, dropTo: 5 });
+  assert.deepStrictEqual(GR.enhanceOdds(9), { chance: 0.25, cost: 2, dropTo: 8 });
+  assert.strictEqual(GR.enhanceOdds(10), null);
+});
+test('enhance é determinístico, não muta e cai só a partir de +6', function () {
+  var it = gi('i1', 'sela-comum', 0);
+  var a = GR.enhance(it, 20261106, 0), b = GR.enhance(it, 20261106, 0);
+  assert.deepStrictEqual(a, b); assert.strictEqual(it.plus, 0);
+  assert.strictEqual(a.success, true); assert.strictEqual(a.plus, 1); // +0→+1 é 100%
+  assert.strictEqual(GR.enhance(gi('i1', 'sela-comum', 10), 1, 0), null);
+  var falhou = null;
+  for (var c = 0; c < 200 && !falhou; c++) { var r = GR.enhance(gi('x', 'sela-comum', 7), 20261106, c); if (!r.success) falhou = r; }
+  assert.ok(falhou && falhou.plus === 6, 'falha em +7 cai para +6');
+  var falhou3 = null;
+  for (c = 0; c < 200 && !falhou3; c++) { r = GR.enhance(gi('x', 'sela-comum', 3), 20261106, c); if (!r.success) falhou3 = r; }
+  assert.ok(falhou3 && falhou3.plus === 3, 'falha em +3 não cai');
+});
+test('snapshot dourado: 12 tentativas seguidas com seedBase 20261106', function () {
+  var plus = 0, seq = [];
+  for (var c = 0; c < 12; c++) { var r = GR.enhance(gi('x', 'sela-comum', plus), 20261106, c); plus = r.plus; seq.push(plus); }
+  assert.deepStrictEqual(seq, [1, 2, 3, 4, 5, 6, 7, 6, 5, 5, 5, 6]);
+});
+test('podiumStone: só pódio em corrida valendo; frequência do 1º lugar', function () {
+  assert.strictEqual(GR.podiumStone(123, 1, 0), 0); assert.strictEqual(GR.podiumStone(123, 4, 50), 0);
+  assert.strictEqual(GR.podiumStone(123, 1, 50), GR.podiumStone(123, 1, 50));
+  var n = 0; for (var s = 1; s <= 2000; s++) n += GR.podiumStone(s, 1, 50);
+  assert.ok(n > 1100 && n < 1300, '1º lugar ~60%: ' + n + '/2000');
+  var n3 = 0; for (s = 1; s <= 2000; s++) n3 += GR.podiumStone(s, 3, 50);
+  assert.ok(n3 > 400 && n3 < 600, '3º lugar ~25%: ' + n3 + '/2000');
+});
+test('botGear por liga', function () {
+  assert.strictEqual(GR.botGear(0, 'fogo', 0.5).set.count, 0);
+  var p = GR.botGear(1, 'agua', 0.5); assert.deepStrictEqual(p.pieces.map(function (x) { return x.id; }), ['ferraduras-comum', 'sela-comum']);
+  var l = GR.botGear(5, 'fogo', 0.5);
+  assert.deepStrictEqual(l.set, { id: 'sol', count: 5 }); assert.strictEqual(l.mods.vel, 11); assert.strictEqual(l.mods.sorte, 8); // 3 sub + 5 conjunto
+  assert.strictEqual(l.special.ignoreWeatherPenalty, true);
+  assert.strictEqual(GR.botGear(5, 'neutro', 0.0).set.id, 'sol'); assert.strictEqual(GR.botGear(5, 'neutro', 0.5).set.id, 'chuva'); assert.strictEqual(GR.botGear(5, 'neutro', 0.9).set.id, 'nevoa');
+  var d = GR.botGear(4, 'grama', 0.5); assert.deepStrictEqual(d.set, { id: 'nevoa', count: 3 }); assert.strictEqual(d.pieces.length, 5);
+});
+test('sellPrice e ratingPts', function () {
+  assert.strictEqual(GR.sellPrice('sela-magico'), 63); assert.strictEqual(GR.sellPrice('armadura-sol-lendario'), 375); assert.strictEqual(GR.sellPrice('nada'), 0);
+  assert.deepStrictEqual([0, 1, 2, 3, 4, 5, 6].map(GR.ratingPts), [0, 0, 0, 10, 15, 20, 0]);
 });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
