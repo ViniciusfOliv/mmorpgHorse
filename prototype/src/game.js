@@ -395,6 +395,10 @@
   function playerHorse() {
     return clone(activeMount());
   }
+  function mountByUid(uid) {
+    for (var i = 0; i < state.mounts.length; i++) if (state.mounts[i].uid === uid) return state.mounts[i];
+    return null;
+  }
 
   // XP ganho -> níveis (até o máximo) e, a cada nível, chance de aprender uma skill
   // (sorteio determinístico pela seed do save, pelo seedTag (nº do páreo) e pelo nível alcançado).
@@ -420,7 +424,7 @@
   // Estado de UI (não persistido)
   // ===========================================================================
   var state = null;
-  var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, notice: null };
+  var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null };
   var live = [];          // canvases animados da tela atual
   var raceView = null;
   var portraitQueue = [];
@@ -633,7 +637,7 @@
 
   function go(screen) {
     if (raceView && screen !== 'corrida') { raceView.destroy(); raceView = null; }
-    if (screen !== ui.screen) ui.confirmReset = false;
+    if (screen !== ui.screen) { ui.confirmReset = false; ui.confirmLiberar = null; }
     ui.screen = screen;
     if (appEl) appEl.classList.toggle('app--corrida', screen === 'corrida');
     render();
@@ -652,6 +656,7 @@
       case 'largada': html = renderLargada(); break;
       case 'corrida': html = renderCorrida(); break;
       case 'resultado': html = renderResultado(); break;
+      case 'haras': html = renderHaras(); break;
       default: html = renderInicial();
     }
     telaEl.innerHTML = ordFix(html);
@@ -711,6 +716,52 @@
   // state.tier é a preferência; a entrada efetiva é calculada na hora (sem regravar a preferência).
   function effectiveTier() { return affordableTier(state.gold, state.tier); }
 
+  var SLOT_PRICE = BR.stableSlotPrice || 300;
+  function estrelasHtml(grau) {
+    var g = clamp(Math.floor(Number(grau) || 0), 0, 3), txt = '';
+    for (var i = 0; i < 3; i++) txt += i < g ? '★' : '☆';
+    return '<span class="estrelas" aria-label="Grau ' + g + '">' + txt + '</span>';
+  }
+  function uidNum(uid) { return String(uid).replace(/\D+/g, ''); }
+
+  function mountCardHtml(m, isActive) {
+    var P = state.pending;
+    var canRelease = !isActive && state.mounts.length > 1 && !P;
+    var corcel = window.Breed && window.Breed.isCorcel(m)
+      ? '<span class="corcel" title="Corcel: herança garantida">⚑ Corcel</span>' : '';
+    var acoes = ui.confirmLiberar === m.uid && canRelease
+      ? '<div class="confirma" role="group" aria-label="Confirmar liberação"><span>Liberar ' + esc(m.name) + '? Ela deixa o estábulo para sempre, sem Ouro de volta.</span>' +
+        '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="liberar-sim" data-id="' + esc(m.uid) + '">Sim, liberar</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="liberar-nao" data-id="' + esc(m.uid) + '">Cancelar</button></div>'
+      : '<div class="montaria-acoes">' +
+        '<button type="button" class="btn btn--pequeno" data-acao="ativar" data-id="' + esc(m.uid) + '"' + (isActive || P ? ' disabled' : '') + '>Tornar ativa</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="renomear" data-id="' + esc(m.uid) + '">Renomear</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="liberar" data-id="' + esc(m.uid) + '"' + (canRelease ? '' : ' disabled') + '>Liberar</button>' +
+        '</div>';
+    return '<article class="montaria' + (isActive ? ' montaria--ativa' : '') + '" data-uid="' + esc(m.uid) + '">' +
+      portraitHtml(m) +
+      '<h3 class="cavalo-nome">' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h3>' +
+      '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
+        '<span>' + (m.sex === 'f' ? '♀ Fêmea' : '♂ Macho') + '</span>' +
+        '<span class="nivel">Nv ' + esc(m.level) + '</span>' +
+        '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
+        (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
+      '</div>' + acoes +
+    '</article>';
+  }
+
+  function montariasHtml() {
+    var maxed = state.stableSlots >= BR.stableSlotsMax;
+    var canExpand = !maxed && state.gold >= SLOT_PRICE;
+    return '<section class="caixa" aria-labelledby="t-montarias"><h2 class="titulo" id="t-montarias">Suas montarias <span class="nota">' +
+        state.mounts.length + '/' + state.stableSlots + ' vagas</span></h2>' +
+      '<div class="montarias">' + state.mounts.map(function (m) { return mountCardHtml(m, m.uid === state.activeId); }).join('') + '</div>' +
+      '<div class="acoes"><button type="button" data-acao="haras" class="btn btn--ouro">Haras</button>' +
+        '<button type="button" data-acao="expandir" class="btn"' + (canExpand ? '' : ' disabled') + '>' +
+        (maxed ? 'Estábulo no máximo' : 'Expandir estábulo (' + fmt(SLOT_PRICE) + ')') + '</button></div>' +
+    '</section>';
+  }
+
   function renderEstabulo() {
     var h = playerHorse();
     var stats = RS.computeStats(h, state.equipped);
@@ -759,6 +810,7 @@
     return '<section class="tela" aria-labelledby="t-estabulo">' +
       '<header class="topo"><span class="logo-mini">Galope Elemental</span><span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></header>' +
       '<h1 class="titulo titulo--tela" id="t-estabulo" tabindex="-1" data-foco>Estábulo</h1>' + notice +
+      montariasHtml() +
       '<article class="caixa">' +
         '<div class="cavalo-cabeca">' + portraitHtml(h) +
           '<div class="cavalo-info"><h2 class="cavalo-nome">' + esc(h.name) + '</h2>' +
@@ -785,6 +837,16 @@
       '</section>' +
       '<footer class="caixa"><div class="linha-meta"><span>Corridas <b>' + state.races + '</b></span><span>Vitórias <b>' + state.wins + '</b></span>' +
         '<span>Pódios <b>' + state.podiums + '</b></span><span>Prêmios ' + ouroHtml(state.goldWon) + '</span></div>' + reset + '</footer>' +
+      '</section>';
+  }
+
+  // Haras (tela de cruzamento) — provisória: a tarefa 6 a substitui
+  function renderHaras() {
+    return '<section class="tela" aria-labelledby="t-haras">' +
+      '<header class="topo"><button type="button" class="btn btn--pequeno" data-acao="voltar">Voltar ao estábulo</button>' +
+        '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></header>' +
+      '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>' +
+      '<p class="nota">Em construção.</p>' +
       '</section>';
   }
 
@@ -1808,6 +1870,34 @@
       case 'denovo':
         if (state.gold < MIN_ENTRY) startLobby(true); else startLobby(false);
         break;
+      case 'ativar':
+        if (state.pending || !mountByUid(id)) break;
+        state.activeId = id; persist(); rerenderKeepScroll(); break;
+      case 'renomear': {
+        var rm = mountByUid(id);
+        if (!rm) break;
+        var nome = window.prompt('Novo nome (2–16 letras)', rm.name);
+        if (nome == null) break;
+        nome = String(nome).replace(/\s+/g, ' ').trim().slice(0, 16);
+        if (nome.length < 2) break;
+        rm.name = nome; persist(); rerenderKeepScroll(); break;
+      }
+      case 'liberar':
+        ui.confirmLiberar = id; rerenderKeepScroll(); focusAction('liberar-nao', id); break;
+      case 'liberar-nao':
+        ui.confirmLiberar = null; rerenderKeepScroll(); focusAction('liberar', id); break;
+      case 'liberar-sim':
+        ui.confirmLiberar = null;
+        if (!state.pending && id !== state.activeId && state.mounts.length > 1 && mountByUid(id)) {
+          state.mounts = state.mounts.filter(function (m) { return m.uid !== id; });
+          persist();
+        }
+        rerenderKeepScroll(); break;
+      case 'expandir':
+        if (state.stableSlots >= BR.stableSlotsMax || state.gold < SLOT_PRICE) { rerenderKeepScroll(); break; }
+        state.gold -= SLOT_PRICE; state.stableSlots += 1; persist(); rerenderKeepScroll(); break;
+      case 'haras':
+        go('haras'); break;
       case 'reset':
         ui.confirmReset = true; rerenderKeepScroll(); focusAction('reset-nao'); break;
       case 'reset-nao':

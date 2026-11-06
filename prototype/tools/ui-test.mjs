@@ -110,6 +110,27 @@ try {
   await checkOverflow(page, 'estabulo')
   await page.screenshot({ path: join(SHOTS, 'final-02-estabulo.png') })
 
+  // lista de montarias: renomear (escapado), expandir o estábulo, a ativa não pode ser liberada
+  await page.evaluate(() => { window.prompt = () => '<b>x</b>' })
+  await page.locator('.montaria--ativa [data-acao="renomear"]').click()
+  const ren = await page.evaluate(() => ({
+    name: window.__galope.state.mounts[0].name,
+    html: document.querySelector('.montaria--ativa .cavalo-nome').innerHTML,
+    text: document.querySelector('.montaria--ativa .cavalo-nome').textContent
+  }))
+  if (ren.name !== '<b>x</b>') problems.push('renomear: nome salvo ' + JSON.stringify(ren.name))
+  if (!ren.html.includes('&lt;b&gt;') || ren.html.includes('<b>')) problems.push('renomear: nome sem escapar: ' + ren.html)
+  if (!ren.text.includes('#1')) problems.push('cartão da montaria sem o #1: ' + ren.text)
+  await page.evaluate(() => { window.prompt = () => 'Brasa' })
+  await page.locator('.montaria--ativa [data-acao="renomear"]').click()
+  if ((await page.evaluate(() => window.__galope.state.mounts[0].name)) !== 'Brasa') problems.push('renomear de volta para Brasa falhou')
+  await page.evaluate(() => { window.__galope.state.gold = 2000 })
+  await page.getByRole('button', { name: 'Sem item' }).first().click()   // re-renderiza o estábulo
+  await page.locator('[data-acao="expandir"]').click()
+  const exp = await page.evaluate(() => ({ slots: window.__galope.state.stableSlots, gold: window.__galope.state.gold }))
+  if (exp.slots !== 4 || exp.gold !== 1700) problems.push('expandir estábulo: ' + JSON.stringify(exp))
+  if (!(await page.locator('.montaria--ativa [data-acao="liberar"]').isDisabled())) problems.push('liberar da montaria ativa não está desabilitado')
+
   // sala de largada: voltar não re-sorteia, e nada de resultado antes de pagar
   await page.getByRole('button', { name: 'Procurar corrida' }).click()
   await page.waitForSelector('#t-largada')
