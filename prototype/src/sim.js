@@ -106,13 +106,13 @@
     curveBase: 0.82, curveRange: 0.15,
     hillBase: 0.85, hillRange: 0.15, hillDrain: 0.30,
     // terreno / pelotão
-    forcaSurfRelief: 0.8,
+    forcaSurfRelief: 0.5,
     crowdRange: 2.5, crowdSlow: 0.03, forcaCrowdRelief: 0.8,
     draftMin: 0.5, draftRange: 4.0, draftSave: 0.10,   // vácuo: vale para todos
     rainSlow: 0.015, sunDrain: 1.04,
-    // clima: dono multiplica os status por 1,04 (1,10 com skill de clima), penalizado por 0,96;
+    // clima: dono multiplica os status por 1,03 (1,10 com skill de clima), penalizado por 0,97;
     // weatherVel: fração extra do desvio que vai direto na vMax
-    weatherMult: 1.04, weatherMultDouble: 1.10, weatherVel: 0.22,
+    weatherMult: 1.03, weatherMultDouble: 1.10, weatherVel: 0.10,
     // garra
     garraZone: 0.8,
     garraChanceBase: 0.10, garraChanceRange: 0.70, garraChanceMax: 0.95,
@@ -416,7 +416,7 @@
   }
 
   // Multiplicador de clima de um elemento: dono do clima => T.weatherMult (T.weatherMultDouble
-  // com skill de clima ativa); elemento penalizado => 2 - T.weatherMult (0,96); senão 1.
+  // com skill de clima ativa); elemento penalizado => 2 - T.weatherMult (0,97); senão 1.
   function weatherMult(element, weather, doubled) {
     var w = GameData.WEATHERS[weather];
     var el = GameData.ELEMENTS[element];

@@ -841,13 +841,13 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       { coat: '#c4471d', coatShade: '#7f2a0e', mane: '#ffb02e', accent: '#ffe066' },
       { title: 'A fagulha veloz', bio: 'Potro alazão de crina dourada. Larga como um rojão.' }),
     mount('mare', 'Maré', 'agua', 'raro', 'f', 1,
-      { vel: 62, acel: 54, man: 54, forca: 56, est: 70, garra: 58, sorte: 50 },
+      { vel: 66, acel: 58, man: 54, forca: 56, est: 66, garra: 58, sorte: 46 },
       { vel: 16, acel: 12, man: 12, forca: 18, est: 24, garra: 20, sorte: 18 },
       ['mare-alta'],
       { coat: '#9ba7b4', coatShade: '#646f7e', mane: '#5fd8ee', accent: '#e6f4fb' },
       { title: 'O fôlego do oceano', bio: 'Égua tordilha de crina cor do mar. Quanto mais longa a pista, mais perigosa.' }),
     mount('ipe', 'Ipê', 'grama', 'raro', 'm', 1,
-      { vel: 62, acel: 56, man: 50, forca: 68, est: 60, garra: 54, sorte: 50 },
+      { vel: 62, acel: 54, man: 50, forca: 64, est: 64, garra: 52, sorte: 54 },
       { vel: 16, acel: 14, man: 12, forca: 24, est: 18, garra: 18, sorte: 14 },
       ['raizes-firmes'],
       { coat: '#7a4a2a', coatShade: '#4c2b18', mane: '#f5c518', accent: '#f2e6c8' },
@@ -1107,13 +1107,13 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     curveBase: 0.82, curveRange: 0.15,
     hillBase: 0.85, hillRange: 0.15, hillDrain: 0.30,
     // terreno / pelotão
-    forcaSurfRelief: 0.8,
+    forcaSurfRelief: 0.5,
     crowdRange: 2.5, crowdSlow: 0.03, forcaCrowdRelief: 0.8,
     draftMin: 0.5, draftRange: 4.0, draftSave: 0.10,   // vácuo: vale para todos
     rainSlow: 0.015, sunDrain: 1.04,
-    // clima: dono multiplica os status por 1,04 (1,10 com skill de clima), penalizado por 0,96;
+    // clima: dono multiplica os status por 1,03 (1,10 com skill de clima), penalizado por 0,97;
     // weatherVel: fração extra do desvio que vai direto na vMax
-    weatherMult: 1.04, weatherMultDouble: 1.10, weatherVel: 0.22,
+    weatherMult: 1.03, weatherMultDouble: 1.10, weatherVel: 0.10,
     // garra
     garraZone: 0.8,
     garraChanceBase: 0.10, garraChanceRange: 0.70, garraChanceMax: 0.95,
@@ -1417,7 +1417,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   }
 
   // Multiplicador de clima de um elemento: dono do clima => T.weatherMult (T.weatherMultDouble
-  // com skill de clima ativa); elemento penalizado => 2 - T.weatherMult (0,96); senão 1.
+  // com skill de clima ativa); elemento penalizado => 2 - T.weatherMult (0,97); senão 1.
   function weatherMult(element, weather, doubled) {
     var w = GameData.WEATHERS[weather];
     var el = GameData.ELEMENTS[element];

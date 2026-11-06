@@ -164,16 +164,17 @@ var savedDiceAt = S.TUNING.diceAt;
 S.TUNING.diceAt = [];   // isola do Dado: o clima não vira durante a corrida
 log('### 2. Inicial com o clima do seu elemento fixo, sem Dado (meta: 45%–65%)');
 log('');
-log('Reta única de 1600 m, grama, clima do elemento do inicial durante toda a corrida (`diceAt = []` nesta seção).');
+log('Mapas aleatórios (`randomConditions`) com o clima trocado pelo do elemento do inicial, fixo durante toda a corrida (`diceAt = []` nesta seção).');
 log('');
 log('| Inicial | Clima | Multiplicadores (Brasa · Maré · Ipê) | Vitórias (' + N2 + ') |');
 log('|---|---|---|---|');
 STARTERS.forEach(function (h, i) {
   var w = G.ELEMENTS[h.element].weather;
-  var cond = { distance: 1600, surface: 'grama', weather: w, blocks: [{ type: 'reta', from: 0, to: 1600 }] };
   var wins = 0;
   for (var k = 0; k < N2; k++) {
     var seed = seedOf(200 + i, k);
+    var cond = S.randomConditions(seed);
+    cond.weather = w;   // clima do elemento do inicial, fixo (Dado desligado)
     var rs = STARTERS.map(function (x) { return racer(clone(x, 1)); });
     if (run(seed, cond, rs).finishOrder[0] === i) wins++;
   }
@@ -202,17 +203,19 @@ function specialist(map, statA, statB, testId) {
   return pct(winsA, N3);
 }
 var SPEC = [
-  ['3', 'De curva (MAN 90) × de reta (VEL 90)', CURVA, 'man', 'vel', 'curva'],
-  ['3b', 'De reta (VEL 90) × de curva (MAN 90)', RETA, 'vel', 'man', 'reta'],
-  ['3c', 'De subida (FOR 90) × de reta (VEL 90)', SUBIDA, 'forca', 'vel', 'subida']
+  ['3', 'De curva (MAN 90) × de reta (VEL 90)', CURVA, 'man', 'vel', 'curva', 55, 75],
+  ['3b', 'De reta (VEL 90) × de curva (MAN 90) em reta pura', RETA, 'vel', 'man', 'reta', 70, 100],
+  ['3c', 'De subida (FOR 90) × de reta (VEL 90)', SUBIDA, 'forca', 'vel', 'subida', 55, 75]
 ];
-log('### 3. Especialistas por trecho (mítico lv1 neutro, base 60 e um status 90; meta: o especialista do trecho vence 55%–75%)');
+log('### 3. Especialistas por trecho (mítico lv1 neutro, base 60 e um status 90; meta: o especialista do trecho vence 55%–75%; 3b: 70%–100%)');
+log('');
+log('3b rebaseada para 70%–100%: sem Disposição do dia (intencional no v2) não há ruído por corrida, e em reta pura VEL 90 contra 60 decide quase sempre.');
 log('');
 log('| # | Duelo | Mapa | Vitórias do 1º (' + N3 + ', largada alternada) |');
 log('|---|---|---|---|');
 SPEC.forEach(function (sp, si) {
   var v = specialist(sp[2], sp[3], sp[4], 300 + si);
-  check(sp[0], sp[1], v, 55, 75);
+  check(sp[0], sp[1], v, sp[6], sp[7]);
   var share = Math.round(100 * S.blockShare(sp[2].blocks, sp[5]));
   log('| ' + sp[0] + ' | ' + sp[1] + ' | 1600 m, ' + share + '% ' + sp[5] + ' | **' + f1(v) + '%** |');
 });
@@ -245,7 +248,7 @@ miticos.forEach(function (M, mi) {
   });
 });
 var v4a = pct(aggW, aggN);
-check('4a', 'Mítico lv1 vence Comum lv1', v4a, 75, 92);
+check('4a', 'Mítico lv1 vence Comum lv1', v4a, 90, 100);
 var N4b = n(800);
 var aggW2 = 0, aggN2 = 0, rows4b = [];
 comuns.forEach(function (C, ci) {
@@ -256,14 +259,16 @@ comuns.forEach(function (C, ci) {
   });
 });
 var v4b = pct(aggW2, aggN2);
-check('4b', 'Comum lv25 vence Raro lv1', v4b, 35, 65);
+check('4b', 'Comum lv25 vence Raro lv1', v4b, 25, 60);
 log('### 4. Raridade × level, duelos 1v1 em mapas aleatórios (' + N4 + ' / ' + N4b + ' corridas por duelo)');
+log('');
+log('Faixas rebaseadas (4a 90%–100%, 4b 25%–60%): sem Disposição do dia (intencional no v2) a raridade quase sempre decide, e o Comum lv25 para no teto 60.');
 log('');
 log('| Duelo | Vitórias do 1º |');
 log('|---|---|');
-log('| **Mítico lv1 × Comum lv1 (média, meta 75%–92%)** | **' + f1(v4a) + '%** |');
+log('| **Mítico lv1 × Comum lv1 (média, meta 90%–100%)** | **' + f1(v4a) + '%** |');
 rows4a.forEach(function (r) { log(r); });
-log('| **Comum lv25 × Raro lv1 (média, meta 35%–65%)** | **' + f1(v4b) + '%** |');
+log('| **Comum lv25 × Raro lv1 (média, meta 25%–60%)** | **' + f1(v4b) + '%** |');
 rows4b.forEach(function (r) { log(r); });
 log('');
 

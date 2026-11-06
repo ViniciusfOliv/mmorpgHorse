@@ -119,8 +119,8 @@ test('especialista de reta vence o de curva em reta pura; de subida vence em sub
   for (var s = 0; s < 80; s++) { if (race(s, RETA, [mk({ vel: 90 }), mk({ man: 90 })]).finishOrder[0] === 0) w++; if (race(s, SUBIDA, [mk({ forca: 90 }), mk({ vel: 90 })]).finishOrder[0] === 0) h++; }
   assert.ok(w >= 44 && h >= 44, 'reta ' + w + ', subida ' + h);
 });
-test('weatherMult: dono T.weatherMult (1,04–1,07), dobrado 1.10, penalizado 2 − T.weatherMult, neutro 1', function () {
-  var wm = S.TUNING.weatherMult; assert.ok(wm >= 1.04 && wm <= 1.07, 'weatherMult ' + wm);
+test('weatherMult: dono T.weatherMult (1,03–1,07), dobrado 1.10, penalizado 2 − T.weatherMult, neutro 1', function () {
+  var wm = S.TUNING.weatherMult; assert.ok(wm >= 1.03 && wm <= 1.07, 'weatherMult ' + wm);
   assert.strictEqual(S.weatherMult('fogo', 'sol', false), wm); assert.strictEqual(S.weatherMult('fogo', 'sol', true), 1.10);
   assert.ok(Math.abs(S.weatherMult('grama', 'sol', false) - (2 - wm)) < 1e-9); assert.strictEqual(S.weatherMult('agua', 'sol', false), 1); assert.strictEqual(S.weatherMult('neutro', 'chuva', false), 1);
 });
