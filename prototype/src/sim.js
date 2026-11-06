@@ -119,6 +119,7 @@
     garraBoostBase: 0.02, garraBoostRange: 0.16,
     // skills
     lowStaminaAt: 0.20,
+    straightMinM: 150,   // gatilho 'straight' só em reta com pelo menos esse comprimento
     // ritmo único do jóquei (fração s da vMax): mid até spurtStart, depois sprint até spurtCap
     pace: { mid: 0.97, spurtStart: 0.72, spurtCap: 1.03 },
     // Rating de Poder: peso de cada status efetivo (habilidades somam 20 × chance do gatilho)
@@ -598,7 +599,7 @@
           if (prevB >= 0 && blocks[prevB].type === 'curva') trigger(r, 'curveExit', tPrev, pos, bTo);
           if (blocks[bi].type === 'curva') trigger(r, 'curve', tPrev, pos, bTo);
           else if (blocks[bi].type === 'subida') trigger(r, 'hill', tPrev, pos, bTo);
-          else if (bi > 0) trigger(r, 'straight', tPrev, pos, bTo);
+          else if (bi > 0 && blocks[bi].to - blocks[bi].from >= T.straightMinM) trigger(r, 'straight', tPrev, pos, bTo);
         }
         var blk = blocks[r.blockIdx];
         // clima (checado a cada tick: pode passar a valer quando o clima mudar)
