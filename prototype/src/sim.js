@@ -129,6 +129,8 @@
     learnChance: 0.08,   // chance de aprender uma skill nova ao subir de nível
     // eventos
     leadMinP: 0.12, leadConfirmS: 1.5, leadMinGapS: 4.0,
+    // Dado da Sorte: rola quando o líder cruza essas frações de D ([] desliga)
+    diceAt: [1 / 3, 2 / 3],
     maxTime: 900
   };
 
@@ -484,6 +486,22 @@
     return r;
   }
 
+  // Dado da Sorte de uma montaria. Ordem das chamadas de rng() (manter estável): d1, sorteio do
+  // 2º dado (sempre consumido, mesmo com sorte 0 ou 100), d2 (se houver), dado extra (Dado Viciado).
+  // Sorte = chance, em %, de rolar dois dados e ficar com o melhor; extraDice limitado a 1 (até 3 dados).
+  function rollDice(rng, sorte, extraDice) {
+    var dice = [1 + Math.floor(rng() * 100)];
+    var p = clamp((sorte || 0) / 100, 0, 1);
+    if (rng() < p) dice.push(1 + Math.floor(rng() * 100));
+    var extra = clamp(Math.floor(extraDice || 0), 0, 1);
+    for (var k = 0; k < extra; k++) dice.push(1 + Math.floor(rng() * 100));
+    var best = dice[0];
+    for (k = 1; k < dice.length; k++) if (dice[k] > best) best = dice[k];
+    return { dice: dice, best: best };
+  }
+
+  var DICE_PHRASE = { sol: 'o sol abre!', chuva: 'começa a chover!', nevoa: 'a névoa desce!' };
+
   function simulate(config) {
     config = config || {};
     var seed = (config.seed >>> 0);
@@ -495,11 +513,20 @@
     var dt = T.dt;
     var record = config.recordFrames !== false;
     var surf = GameData.SURFACES[cond.surface];
-    var weatherDrain = cond.weather === 'sol' ? T.sunDrain : 1;
-    var weatherSlow = cond.weather === 'chuva' ? (1 - T.rainSlow) : 1;
+    // efeitos gerais do clima vigente (recalculados quando o Dado vira o clima)
+    var weatherDrain, weatherSlow;
+    function setWeatherGlobals(w) {
+      weatherDrain = w === 'sol' ? T.sunDrain : 1;
+      weatherSlow = w === 'chuva' ? (1 - T.rainSlow) : 1;
+    }
+    setWeatherGlobals(cond.weather);
     var distDrain = ratPow(T.drainRefDist / D, T.drainDistExp); // pistas longas gastam menos por segundo (mas duram mais)
-    // clima vigente (a Tarefa 5 troca no meio da corrida e chama applyWeather de novo)
+    // clima vigente (o Dado da Sorte troca no meio da corrida e chama applyWeather de novo)
     cond.weatherAtual = cond.weather;
+    // Dado da Sorte: fluxo próprio, para não perturbar os fluxos por corredor
+    var diceRng = mulberry32(hash2(seed, 0xD1CE));
+    var diceAt = T.diceAt || [];
+    var diceIdx = 0;
 
     var R = [];
     for (var i = 0; i < n; i++) R.push(buildRacer(entries[i], i, cond, mulberry32(hash2(seed, i + 1))));
@@ -698,6 +725,55 @@
         }
       }
 
+      // Dado da Sorte: quando o líder cruza diceAt[k]·D, todos rolam (inclusive quem já chegou)
+      var maxPos = 0;
+      for (i = 0; i < n; i++) if (R[i].pos > maxPos) maxPos = R[i].pos;
+      while (n > 0 && diceIdx < diceAt.length && maxPos >= diceAt[diceIdx] * D) {
+        // gatilho 'dice' (Dado Viciado): tenta no fluxo do próprio corredor, antes de rolar
+        for (i = 0; i < n; i++) trigger(R[i], 'dice', t, R[i].pos, null);
+        var rolls = [], cands = [];
+        for (i = 0; i < n; i++) {
+          var rd = rollDice(diceRng, R[i].stats.sorte, R[i].extraDice);
+          rolls.push({ racer: i, dice: rd.dice, best: rd.best, rerolls: 0 });
+          cands.push(i);
+        }
+        // empate no topo: re-rola só os empatados até sobrar um
+        for (;;) {
+          var top = -1, tied = [];
+          for (q = 0; q < cands.length; q++) {
+            var bq = rolls[cands[q]].best;
+            if (bq > top) { top = bq; tied = [cands[q]]; } else if (bq === top) tied.push(cands[q]);
+          }
+          if (tied.length === 1) break;
+          cands = tied;
+          for (q = 0; q < cands.length; q++) {
+            var ro = rolls[cands[q]];
+            var rr = rollDice(diceRng, R[cands[q]].stats.sorte, R[cands[q]].extraDice);
+            ro.dice = rr.dice; ro.best = rr.best; ro.rerolls++;
+          }
+        }
+        var win = tied[0];
+        var wEl = GameData.ELEMENTS[R[win].element];
+        var novo = (wEl && wEl.weather) || cond.weatherAtual;
+        var changed = novo !== cond.weatherAtual;
+        if (changed) {
+          cond.weatherAtual = novo;
+          setWeatherGlobals(novo);
+          for (i = 0; i < n; i++) applyWeather(R[i], novo);
+        }
+        events.push({
+          t: r2(t), racer: win, type: 'dado', at: diceAt[diceIdx], rolls: rolls, winner: win,
+          weather: cond.weatherAtual, changed: changed,
+          text: '🎲 ' + R[win].label + ' tirou ' + rolls[win].best +
+            (changed ? ' — ' + DICE_PHRASE[novo] : ' — o clima segura!')
+        });
+        if (changed) {
+          events.push({ t: r2(t), racer: -1, type: 'clima', weather: novo,
+            text: 'O clima virou: ' + GameData.WEATHERS[novo].name + '!' });
+        }
+        diceIdx++;
+      }
+
       // troca de liderança (antes do primeiro chegar)
       var L = 0;
       for (i = 1; i < n; i++) if (R[i].pos > R[L].pos) L = i;
@@ -754,9 +830,13 @@
       };
     });
 
+    var weatherFinal = cond.weatherAtual;
+    delete cond.weatherAtual;   // conditions devolvidas = condições iniciais normalizadas
+
     return {
       seed: seed,
       conditions: cond,
+      weatherFinal: weatherFinal,
       dt: dt,
       duration: r2(duration),
       frames: frames,
@@ -784,6 +864,7 @@
     blockShare: blockShare,
     hillsFromBlocks: hillsFromBlocks,
     curvesFromBlocks: curvesFromBlocks,
+    rollDice: rollDice,
     simulate: simulate,
     payouts: payouts
   };
