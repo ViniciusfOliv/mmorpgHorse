@@ -23,11 +23,12 @@ const notes = {}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 async function newPage(browser, viewport, label, extra = {}) {
-  const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2, ...extra })
+  const { query = '', ...ctxExtra } = extra
+  const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2, ...ctxExtra })
   const page = await ctx.newPage()
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`[${label}] console: ${m.text()}`) })
   page.on('pageerror', (e) => problems.push(`[${label}] pageerror: ${e.message}`))
-  await page.goto(URL, { waitUntil: 'domcontentloaded' })
+  await page.goto(URL + query, { waitUntil: 'domcontentloaded' })
   await Promise.race([page.evaluate(() => document.fonts && document.fonts.ready), sleep(4000)])
   return page
 }
@@ -112,6 +113,7 @@ try {
   await sleep(400)
   await checkOverflow(page, 'estabulo')
   await page.screenshot({ path: join(SHOTS, 'final-02-estabulo.png') })
+  if ((await page.locator('.dev-painel').count()) !== 0) problems.push('painel dev presente sem ?dev=1')
 
   // lista de montarias: renomear (escapado), expandir o estábulo, a ativa não pode ser liberada
   await page.evaluate(() => { window.prompt = () => '<b>x</b>' })
@@ -291,11 +293,15 @@ try {
 
   // ---------------- cruzamento (haras): aluguel, determinismo ponta a ponta, bloqueios e Troca ----------------
   {
-    const cz = await newPage(browser, { width: 390, height: 844 }, 'cruzamento')
+    const cz = await newPage(browser, { width: 390, height: 844 }, 'cruzamento', { query: '?dev=1' })
     const avisos = async () => (await cz.locator('.aviso').allTextContents()).join(' | ')
     const rerender = async () => { await cz.getByRole('button', { name: 'Sem item' }).first().click() }
     await cz.getByRole('button', { name: 'Escolher Brasa' }).click()
     await cz.waitForSelector('#t-estabulo')
+    if ((await cz.locator('.dev-painel').count()) !== 1) problems.push('cruzamento: painel dev ausente com ?dev=1')
+    await cz.locator('[data-acao="dev-niveis"]').click()
+    const lvDev = await cz.evaluate(() => window.__galope.state.mounts[0].level)
+    if (lvDev !== 11) problems.push('cruzamento: dev-niveis deixou nível ' + lvDev + ' (esperado 11)')
     const m1 = await cz.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts[0])))
     const faisca = G.WILD_HORSES.find((h) => h.id === 'w-faisca')
     let SEED = 0

@@ -648,6 +648,10 @@
     syncHistory(screen);
   }
 
+  function devAtivo() {
+    return /[?&]dev=1(&|$)/.test(window.location.search);
+  }
+
   function render() {
     live = [];
     portraitQueue = [];
@@ -659,6 +663,12 @@
       case 'resultado': html = renderResultado(); break;
       case 'haras': html = renderHaras(); break;
       default: html = renderInicial();
+    }
+    if (devAtivo() && ui.screen !== 'corrida') {
+      html += '<div class="dev-espaco" style="height:56px" aria-hidden="true"></div><div class="dev-painel" role="group" aria-label="Painel de desenvolvimento"><span>dev</span>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="dev-niveis">+10 níveis (ativa)</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="dev-ouro">+1000 Ouro</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="dev-cruz">+1 cruzamento (ativa)</button></div>';
     }
     telaEl.innerHTML = ordFix(html);
     hydrate(telaEl);
@@ -2018,6 +2028,30 @@
     if (!b || b.disabled) return;
     var id = b.getAttribute('data-id');
     switch (b.getAttribute('data-acao')) {
+      case 'dev-niveis':
+        if (!devAtivo() || !state) break;
+        var dm = activeMount();
+        var alvo = Math.min(E.maxLevel || 50, dm.level + 10);
+        var need = 0;
+        for (var dl = dm.level; dl < alvo; dl++) need += E.xpToLevel(dl);
+        need -= dm.xp;
+        if (need > 0) applyXp(dm, need, 9000000 + state.breedCounter);
+        persist();
+        rerenderKeepScroll();
+        break;
+      case 'dev-ouro':
+        if (!devAtivo() || !state) break;
+        state.gold += 1000;
+        persist();
+        rerenderKeepScroll();
+        break;
+      case 'dev-cruz':
+        if (!devAtivo() || !state) break;
+        var dc = activeMount();
+        dc.breedLeft = Math.min(4, dc.breedLeft + 1);
+        persist();
+        rerenderKeepScroll();
+        break;
       case 'escolher':
         state = newState(id);
         persist();

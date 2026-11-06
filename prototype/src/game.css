@@ -571,3 +571,5 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
   .btn:active:not(:disabled) { transform: none; }
 }
+
+.dev-painel { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 6px; align-items: center; padding: 6px 10px; background: rgba(0,0,0,.85); color: #ddd; font-size: 12px; z-index: 50; }
