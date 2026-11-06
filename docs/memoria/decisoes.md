@@ -4,6 +4,15 @@ Formato: **data · decisão** — motivo. A mais nova fica no topo. Decisões de
 continuam no `docs/GDD.md`; aqui fica o registro de *quando* e *por quê*.
 
 ## 2026-11-06
+- **Testes unitários `sim-test.js` no `check.sh`** — TDD por tarefa; 26 testes na etapa 2.
+- **Save v1 migrado em vez de chave nova** — não perder o Ouro do jogador.
+- **Gatilho de Garra/reta final: reta ≥ 150 m** — definido na spec.
+- **Regra da subida: "esforço divide pelo fator da subida"** — o especialista de Força perdia 16/80.
+- **Calibração:** forcaSurfRelief 0,8→0,5, weatherVel 0,22→0,10, weatherMult 1,05→1,03, vBase
+  16,8→17,2, hillRange 0,12→0,15, ligas 0/660/780/880/980/1100, Maré/Ipê ±4 — iniciais equilibrados
+  (33/34/33%) e cada um com 52–63% no próprio clima.
+- **Metas 3b/4a/4b rebaseadas e meta 2 avaliada em mapas aleatórios** — sem Disposição do dia o
+  modelo é quase determinístico, intencional.
 - **Redesign em 6 subprojetos** (núcleo → cavalos/cruzamento → equipamentos → expedições →
   montarias → economia) — pedido do Vinicius; a ordem segue as dependências (tudo se apoia nos
   atributos novos). Detalhes em `docs/superpowers/specs/2026-11-06-nucleo-corrida-v2-design.md`.

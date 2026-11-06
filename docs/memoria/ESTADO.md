@@ -11,14 +11,18 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
 4. Expedições (estágios 1-1…, batalha por turnos estilo Pokémon; dão Ouro, XP e moeda de pacotes)
 → 5. Montarias novas (tigre, dragão…) → 6. Economia.
 
-- **Subprojeto 1 — spec escrita, aguardando revisão:**
-  `docs/superpowers/specs/2026-11-06-nucleo-corrida-v2-design.md` (branch `claude/nucleo-corrida-v2`).
-  Resumo: 7 atributos (Velocidade, Aceleração, **Manobra**, Força, Estamina, Garra, **Sorte**); 5
-  raridades (Comum, Mágico, Raro, Lendário, Mítico); elementos Água/Fogo/Grama agindo só pelo clima
-  (Sol/Chuva/Névoa/Nublado); mapa aleatório em blocos (reta/curva/subida); **Dado da Sorte** a 1/3 e
-  2/3 da pista muda o clima; skills passivas automáticas aprendidas por nível; **sem tática, sem
-  Disposição do dia**.
-- Próximo passo: Vinicius revisa a spec → plano de implementação → código na mesma branch.
+- **Subprojeto 1 — Núcleo da corrida v2: concluído na branch `claude/nucleo-corrida-v2`
+  (aguardando revisão do Vinicius e integração na `main`).** Spec:
+  `docs/superpowers/specs/2026-11-06-nucleo-corrida-v2-design.md`.
+  - Entregue: 7 atributos (+ Manobra, Sorte), 5 raridades, mapa aleatório em blocos
+    (reta/curva/subida), clima + triângulo de elementos, Dado da Sorte (1/3 e 2/3 da pista), skills
+    com chance e aprendizado por nível; sem tática e sem Disposição do dia.
+  - Verificação: `check.sh` em 5 etapas (build, 26 testes unitários, balanço 28/28, UI Playwright).
+  - Calibração: constantes e iniciais ajustados (decisoes.md); metas 3b/4a/4b rebaseadas porque, sem
+    Disposição do dia, o modelo é quase determinístico. Iniciais 33/34/33% e 52–63% no próprio clima.
+  - Pergunta aberta: sem ruído por corrida, campos desiguais são previsíveis — decidir se queremos
+    zebra (ruído ±3–5%).
+  - Margens frágeis: 4b em 25,9% (piso 25); meta 3 a 3 p.p. do teto.
 - Branch `claude/economia-gdd` foi criada e está vazia (economia virou subprojeto 6).
 
 ## Pronto
@@ -47,13 +51,17 @@ Itens e upgrades · curvas de XP/level · breeding · expedições · economia (
 taxa da casa, sinks de Ouro) · stack técnica (cliente, servidor, Android) · anti-cheat · roadmap MVP.
 
 ## Para revisar no balanceamento (de `docs/exemplos.md` §12)
-- "Disposição do dia" (±10% vMax) é a maior fonte de zebra: Comum vence Lendário em ~14% dos
-  duelos. Ideia: mostrar antes da aposta.
-- Raros batem no teto (85) entre lv20–33; depois disso o level quase não importa.
-- "Cansou" é raro (~1%); dá para aumentar o erro de leitura do jóquei para ter mais drama.
-- Itens mexem pouco (+0–6 p.p.); itens raros podem precisar de mais identidade.
+- **4b colado no piso:** Comum lv25 vence Raro lv1 em 25,9% (piso 25%); qualquer ajuste que ajude
+  os Raros pode quebrar essa meta.
+- **Meta 3 perto do teto:** especialista de curva vence o de reta em 71,8% (teto 75%); subida 68,3%.
+- **"Cansou" quase não acontece:** 0,5% dos corredores; aumentar o erro de leitura do jóquei dá drama.
+- **Garra dispara em 52%** dos corredores: comum demais para ser momento especial?
+- **Skills:** 1,66 ativações por corrida de 3 corredores; a simulação não expõe as tentativas.
+- **Zebra:** sem ruído por corrida, campos desiguais são previsíveis (Mítico lv1 × Comum lv1 = 100%).
+  Proposta se quisermos: ruído de ±3–5%, não a volta da Disposição de ±10%.
 
 ## Próximos passos sugeridos
-1. Decidir: adotar os sprites da PixelLab no protótipo ou manter os sprites por código.
-2. Jogar o protótipo e responder à pergunta da fase: a aposta + estratégia é divertida?
-3. Fechar as seções 6+ do GDD, começando por economia e stack técnica.
+1. Vinicius revisa/joga o núcleo v2 e decide sobre a zebra.
+2. Integrar `claude/nucleo-corrida-v2` na `main`.
+3. Subprojeto 2: cavalos v2 (sexo já no modelo, cruzamento).
+4. Decidir sprites PixelLab vs. sprites por código; fechar as seções 6+ do GDD.
