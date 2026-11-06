@@ -618,7 +618,8 @@ try {
       if (!(await lj.locator('[data-acao="comprar"][data-id="sela-sol-raro"]').isDisabled())) problems.push('loja: comprar 600 habilitado com 250 de Ouro')
       await lj.evaluate(() => { window.__galope.state.gold = 10 })
       await lj.locator('[data-acao="loja-tab"][data-id="sela"]').click()
-      await lj.evaluate(() => document.querySelector('[data-acao="comprar"][data-id="sela-comum"]').click())
+      // o botão fica disabled: reabilita no DOM para o clique chegar ao handler, que precisa recusar
+      await lj.evaluate(() => { const b = document.querySelector('[data-acao="comprar"][data-id="sela-comum"]'); b.disabled = false; b.click() })
       s = await st()
       if (s.gold !== 10 || s.items.length !== 3) problems.push('loja: compra sem Ouro aceita ' + JSON.stringify({ gold: s.gold, n: s.items.length }))
       // 4. Pedras Negras
@@ -628,6 +629,9 @@ try {
       s = await st()
       if (s.pedras !== 5 || s.gold !== 50) problems.push('loja: pedras ' + JSON.stringify({ pedras: s.pedras, gold: s.gold }))
       if (!(await lj.locator('[data-acao="comprar-pedra"][data-id="5"]').isDisabled())) problems.push('loja: comprar 5 pedras habilitado com 50 de Ouro')
+      await lj.evaluate(() => { const b = document.querySelector('[data-acao="comprar-pedra"][data-id="5"]'); b.disabled = false; b.click() })
+      s = await st()
+      if (s.pedras !== 5 || s.gold !== 50) problems.push('loja: compra de pedras sem Ouro aceita ' + JSON.stringify({ pedras: s.pedras, gold: s.gold }))
       // 5. captura na aba sela; sem rolagem horizontal
       await lj.locator('[data-acao="loja-tab"][data-id="sela"]').click()
       await sleep(300)
