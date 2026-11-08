@@ -35,7 +35,7 @@ Nada de polimento, servidor, contas ou loja ainda. Fases e checklist de lançame
 |---|---|---|
 | Gerar o jogo (`prototype/dist/`) | `node prototype/build.mjs` | 1 s |
 | Testes unitários da simulação | `node prototype/tools/sim-test.js` | 5 s |
-| Testes dos moldes (cavalos e ícones gerados) | `node prototype/tools/moldes-test.mjs` | <1 s |
+| Testes dos moldes de cavalo (PNGs e âncoras gerados) | `node prototype/tools/moldes-test.mjs` | <1 s |
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~25 s |
 | Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~1,5 min |
 | Teste de interface (Playwright) + capturas em `prototype/screens/` | `node prototype/tools/ui-test.mjs` | ~1,5 min |

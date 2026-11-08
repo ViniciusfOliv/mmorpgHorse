@@ -13,8 +13,7 @@ Pronta na branch `claude/visuais`, **aguardando revisão final e merge na `main`
   `pixellab-moldes.mjs`; testes `moldes-test.mjs` (etapa 3b do `check.sh`); capturas oficiais novas.
 - Gasto: 55 de 60 gerações aprovadas (saldo 1994 → 1939), US$ 0.
 - Pendências estacionadas: bússola (`aba-expedicao`) com agulha pouco nítida (refazer custa 1 geração);
-  retrato do estilo ondas sai uma escala abaixo dos outros em telas de densidade 1; estados parados
-  (retrato, largada, pódio) sem animação de respiração ou piscar.
+  estados parados (retrato, largada, pódio) sem animação de respiração ou piscar.
 - Branches remotas antigas para o Vinicius apagar no GitHub: `claude/equipamentos`,
   `claude/cruzamento`, `claude/nucleo-corrida-v2`, `claude/analise-regras-arquivo-3j3zv1`,
   `claude/kind-thompson-gsqj7r`, `claude/menu-abas`.
@@ -84,12 +83,14 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
 ## Pronto
 - **Design v0.1** (`docs/GDD.md`): seções 1–5 aprovadas (visão, pilares, status, elementos, protótipo).
 - **Protótipo jogável** (`prototype/`): telas inicial → estábulo → largada → corrida animada →
-  resultado; economia de aposta com pote 60/25/15 e taxa de 10%; sprites feitos por código.
+  resultado; economia de aposta com pote 60/25/15 e taxa de 10%; cavalos com os moldes PixelLab
+  recoloridos pela paleta da montaria (com queda para o desenho por código se os moldes não carregarem).
 - **Simulação** (`prototype/src/sim.js`): determinística por seed; 28 metas de balanceamento
   v2 passando (`node prototype/tools/balance.js`).
 - **Teste de interface** com Playwright (`prototype/tools/ui-test.mjs`).
-- **Sprites PixelLab** dos 3 iniciais (base + galope de 9 quadros), só em `prototype/comparativo.html`;
-  no jogo os cavalos agora usam os moldes (ver "frente de visuais").
+- **Sprites PixelLab** dos 3 iniciais (base + galope de 9 quadros, 2026-11-05): só no repositório, sem uso
+  (o `prototype/comparativo.html` atual compara os moldes e não os carrega); no jogo os cavalos usam os
+  moldes (ver "frente de visuais").
 - **Regras de trabalho**: `CLAUDE.md`, `scripts/check.sh`, `.claude/settings.json`, `.gitignore`
   e esta memória. **Integradas na `main`** em 2026-11-05; branches antigas já mergeadas podem ser
   apagadas no GitHub (`claude/analise-regras-arquivo-3j3zv1`, `claude/kind-thompson-gsqj7r`).

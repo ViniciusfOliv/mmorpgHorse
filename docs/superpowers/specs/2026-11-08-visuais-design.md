@@ -1,8 +1,7 @@
 # Visuais — Moldes de cavalo recoloridos, ícones e marca — Design
 
-Status: **aguardando revisão do Vinicius**. Aprovado em conversa em 2026-11-08 (seções 1–4). Depois de
-aprovado vira plano (`docs/superpowers/plans/`); ao final atualiza `docs/memoria/assets.md`, GDD §5 e
-`CLAUDE.md` §7.
+Status: **aprovada; implementada na branch `claude/visuais`**. Aprovada em conversa em 2026-11-08 (seções
+1–4); plano em `docs/superpowers/plans/2026-11-08-visuais.md`; ajustes da execução em §10.
 
 Frente de visuais pedida pelo Vinicius em 2026-11-08 ("usar os novos visuais também, com o pixellab e
 canvas pagos"), adiantada para antes das expedições a pedido dele (opção 2). Branch: `claude/visuais`.
@@ -196,7 +195,7 @@ página da loja completa · trocar a pista por código.
 8. Gasto: 55 das 60 gerações aprovadas (saldo 1994 → 1939), US$ 0; repetidos: lisa, `slot-estribos`, `aba-expedicao`.
 9. `pixellab-moldes.mjs`: dry-run padrão, `--gerar`, `--teto`, `--only`, `--repetir`, `--reprocessar`; `pixellab-generate.mjs` removido.
 10. Âncoras no jogo por estado (chão = maior `footY`; horizontal = mediana do focinho), não por quadro.
-11. Escala única para todos os estilos: `max(1, round(k × 40 / Lref))`, limitada pela altura em quadro fixo.
+11. Escala única para todos os estilos: `max(1, round(k × 40 / Lref))`, também nos quadros fixos (retratos, pódio); se o cavalo não couber na altura, os cascos vão para a base e o topo pode ser cortado em até 10 % (revisão final: limitar pela altura deixava o retrato de Água uma escala abaixo).
 12. Cadência: um ciclo do galope do molde (9 quadros) dura o mesmo que um do sprite por código (6).
 13. Cache de canvases sem a escala na chave; `dist/moldes.js` para o `comparativo.html` via `file://`.
 14. Ícones: abas em 32 px (1:1), ícones de 16 px com `image-rendering: auto`, halo claro; sub-abas da Loja sem ícone.

@@ -4,6 +4,14 @@ Formato: **data · decisão** — motivo. A mais nova fica no topo. Decisões de
 continuam no `docs/GDD.md`; aqui fica o registro de *quando* e *por quê*.
 
 ## 2026-11-08
+- **Galope do molde: os 9 quadros duram um ciclo dos 6 do sprite por código** (índice = ⌊(fase mod 6) × 9 / 6⌋,
+  com a fase contínua do contador da corrida) — com o mesmo contador a passada do molde ficava 1,5× mais lenta.
+- **Contorno procedural só no montado e no galope** (retrato e parado mantêm a regra de silhueta) — o montado e
+  o galope vinham quase sem borda preta e o `validar` rejeitava por silhueta aberta; aplicado em todos os
+  quadros, mudava as âncoras commitadas e deixava a checagem de silhueta do retrato e do parado sem efeito.
+- **Retratos e pódio com a mesma escala única; corte de até 10 % no topo** — limitar pela altura deixava o
+  retrato de Água (crista alta) uma escala abaixo dos outros; agora os cascos vão para a base da baia e a crista
+  pode perder ~4 % no topo.
 - **Cavalos com moldes do PixelLab recoloridos no jogo, no lugar dos desenhados por código** — qualidade de arte maior sem gerar um sprite por cavalo.
 - **Cores naturais + classificação local, sem paleta forçada** — com `color_image` o PixelLab pintava cada par num tom só e a validação rejeitava; o experimento de 4 gerações deu vitória à classificação por matiz/saturação com Otsu.
 - **Escala inteira única para todos os estilos** (`max(1, round(k × 40 / Lref))`) — pixels nítidos e cavalos do mesmo tamanho entre estilos.
