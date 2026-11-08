@@ -131,8 +131,22 @@
     '<path style="fill:var(--ouro)" d="M2 1h4v1h1v4h-1v1h-4v-1h-1v-4h1z"/>' +
     '<path style="fill:var(--ouro-claro)" d="M3 2h2v1h-2zM2 3h1v2h-1z"/>' +
     '<path style="fill:var(--ouro-escuro)" d="M4 3h1v3h-1z"/></svg>';
+  // Ícone do PixelLab (window.__ICONES, embutido pelo build): <img> pixelado e decorativo. Sem o ícone
+  // (ou sem o mapa), devolve o fallback (o caractere/SVG de antes), nunca um <img> quebrado.
+  function iconeHtml(nome, fallback, tam) {
+    var m = window.__ICONES;
+    if (!m || typeof m !== 'object' || !hasOwn(m, nome) || typeof m[nome] !== 'string' || !m[nome]) return fallback || '';
+    var t = tam || 16;
+    return '<img class="icone icone--' + esc(nome) + '" src="' + esc(m[nome]) + '" alt="" width="' + t + '" height="' + t + '">';
+  }
+  // Logotipo do Canva (window.__MARCA.logo): <img> com o título como alt; sem arquivo, o texto de antes.
+  function logoHtml(fallback, altura) {
+    var m = window.__MARCA;
+    if (!m || typeof m !== 'object' || typeof m.logo !== 'string' || !m.logo) return fallback;
+    return '<img class="logo-img" src="' + esc(m.logo) + '" alt="Galope Elemental"' + (altura ? ' height="' + altura + '"' : '') + '>';
+  }
   function ouroHtml(n, extraClass) {
-    return '<span class="ouro' + (extraClass ? ' ' + extraClass : '') + '">' + COIN + '<span>' + fmt(n) + '</span><span class="sr">Ouro</span></span>';
+    return '<span class="ouro' + (extraClass ? ' ' + extraClass : '') + '">' + iconeHtml('moeda-ouro', COIN) + '<span>' + fmt(n) + '</span><span class="sr">Ouro</span></span>';
   }
   function pixelSvg(rows, cls) {
     var d = '';
@@ -582,7 +596,7 @@
   }
 
   function iconHtml(element) {
-    return '<canvas class="icone" data-icon="' + esc(element) + '" aria-hidden="true"></canvas>';
+    return iconeHtml('el-' + element, '<canvas class="icone" data-icon="' + esc(element) + '" aria-hidden="true"></canvas>');
   }
 
   // Retrato: baia com parede de tábuas e palha; cavalo parado (respira, pisca, abana o rabo,
@@ -724,8 +738,8 @@
     gear.pieces.forEach(function (p) { bySlot[p.slot] = p; });
     var slots = GR.SLOTS.map(function (slot) {
       var p = bySlot[slot], info = GD.GEAR_SLOT_INFO[slot];
-      if (!p) return '<span class="slot slot--vazio" title="' + esc(info.name + ': vazio') + '">—</span>';
-      return '<span class="slot slot--cheio" title="' + esc(GD.GEAR[p.id].name + ' +' + p.plus) + '">+' + p.plus + '</span>';
+      if (!p) return '<span class="slot slot--vazio" title="' + esc(info.name + ': vazio') + '">' + iconeHtml('slot-' + slot, '') + '—</span>';
+      return '<span class="slot slot--cheio" title="' + esc(GD.GEAR[p.id].name + ' +' + p.plus) + '">' + iconeHtml('slot-' + slot, '') + '+' + p.plus + '</span>';
     }).join('');
     return '<div class="slots" aria-label="Equipamento">' + slots + setBadgeHtml(gear) + '</div>';
   }
@@ -821,21 +835,21 @@
   // Casca: cabeçalho fixo e barra de abas (abas e sub-telas)
   // ===========================================================================
   function appTopoHtml() {
-    return '<header class="app-topo"><span class="logo-mini">Galope Elemental</span>' +
+    return '<header class="app-topo"><span class="logo-mini">' + logoHtml('Galope Elemental', 24) + '</span>' +
       '<span class="topo-saldos">' + pedrasSaldoHtml() +
       '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></span>' +
       '<button type="button" class="btn btn--pequeno app-perfil" data-acao="perfil" aria-label="Perfil">👤</button></header>';
   }
   // saldo de Pedras Negras ("🪨 N"), igual no cabeçalho e no Perfil
   function pedrasSaldoHtml() {
-    return '<span class="pedras" aria-label="' + esc(pedrasTxt(state.pedras) + (state.pedras === 1 ? ' negra' : ' negras')) + '">🪨 ' + fmt(state.pedras) + '</span>';
+    return '<span class="pedras" aria-label="' + esc(pedrasTxt(state.pedras) + (state.pedras === 1 ? ' negra' : ' negras')) + '">' + iconeHtml('pedra-negra', '🪨') + ' ' + fmt(state.pedras) + '</span>';
   }
   function appAbasHtml() {
     return '<nav class="app-abas" role="navigation" aria-label="Seções">' + ABAS.map(function (a) {
       var ativa = ui.tab === a.id;
       var cls = 'app-aba' + (ativa ? ' app-aba--ativa' : '') + (a.id === 'correr' && state.pending ? ' app-aba--ponto' : '');
       return '<button type="button" class="' + cls + '" data-acao="aba" data-id="' + esc(a.id) + '"' + (ativa ? ' aria-current="page"' : '') + '>' +
-        '<span class="app-aba-icone" aria-hidden="true">' + a.icone + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
+        '<span class="app-aba-icone" aria-hidden="true">' + iconeHtml('aba-' + a.id, a.icone, 24) + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
     }).join('') + '</nav>';
   }
   // Perfil: estatísticas, saldo, inventário e "Recomeçar com outro inicial"
@@ -883,7 +897,7 @@
         iconHtml(h.element) + '<span>' + esc(h.name) + '</span></button>';
     }).join('');
     return '<section class="tela tela--larga" aria-labelledby="t-inicial">' +
-      '<header class="tela-cabeca"><h1 class="logo" id="t-inicial" tabindex="-1" data-foco>Galope Elemental</h1>' +
+      '<header class="tela-cabeca"><h1 class="logo" id="t-inicial" tabindex="-1" data-foco>' + logoHtml('Galope Elemental') + '</h1>' +
       '<p class="sub">Escolha seu primeiro cavalo. Ele corre sozinho nas corridas valendo Ouro: você decide o item e a aposta antes da largada.</p></header>' +
       '<div class="iniciais-nav" role="group" aria-label="Comparar os 3 iniciais">' + nav + '<span class="nota">Deslize para comparar</span></div>' +
       '<div class="iniciais">' + cards + '</div>' +
@@ -1382,7 +1396,7 @@
       }
       return '<div class="slot-linha' + (aberto ? ' slot-linha--aberta' : '') + '">' +
         '<button type="button" class="btn slot-botao" data-acao="equip-slot" data-id="' + esc(slot) + '" aria-expanded="' + aberto + '">' +
-          '<span class="slot-nome">' + esc(info.name) + '</span>' +
+          '<span class="slot-nome">' + iconeHtml('slot-' + slot, '') + esc(info.name) + '</span>' +
           '<span class="slot-peca">' + esc(cur ? pieceLabel(cur) : 'vazio') + '</span></button>' + lista + '</div>';
     }).join('');
 
@@ -2456,7 +2470,7 @@
       : '<dl class="balanco"><dt>Entrada</dt><dd class="menos-t">−' + fmt(R.fee) + '</dd>' +
         '<dt>Prêmio (' + R.place + 'º lugar)</dt><dd class="' + (R.prize ? 'mais' : '') + '">' + (R.prize ? '+' + fmt(R.prize) : '0') + '</dd>' +
         '<dt>Resultado</dt><dd class="' + (net > 0 ? 'mais' : net < 0 ? 'menos-t' : '') + '">' + signed(net) + '</dd>' +
-        (R.stone ? '<dt>Pedra Negra</dt><dd class="mais">🪨 +1</dd>' : '') +
+        (R.stone ? '<dt>Pedra Negra</dt><dd class="mais">' + iconeHtml('pedra-negra', '🪨') + ' +1</dd>' : '') +
         '<div class="final" style="display:contents"><dt>Saldo</dt><dd>' + ouroHtml(R.after.gold) + '</dd></div></dl>';
 
     var lvl = '';

@@ -150,6 +150,10 @@ try {
   await sleep(500)
   await checkOverflow(page, 'inicial')
   await page.screenshot({ path: join(SHOTS, 'final-01-inicial.png') })
+  // marca: o h1 continua existindo e leva o logotipo (alt = título) quando o arquivo existe
+  if (await page.evaluate(() => !!(window.__MARCA && window.__MARCA.logo))) {
+    if ((await page.locator('h1#t-inicial img.logo-img[alt="Galope Elemental"]').count()) !== 1) problems.push('inicial: sem img.logo-img[alt="Galope Elemental"] dentro do h1')
+  }
 
   await page.getByRole('button', { name: 'Escolher Brasa' }).click()
   await page.waitForSelector('#t-estabulo')
@@ -157,6 +161,17 @@ try {
   await sleep(400)
   await checkOverflow(page, 'estabulo')
   await page.screenshot({ path: join(SHOTS, 'final-02-estabulo.png') })
+  // ícones do PixelLab: barra de abas e saldos do cabeçalho (img decorativa + rótulo de texto ao lado)
+  for (const [aba, rotulo] of [['estabulo', 'Estábulo'], ['correr', 'Correr'], ['expedicao', 'Expedição'], ['haras', 'Haras'], ['loja', 'Loja']]) {
+    const b = page.locator(`.app-aba[data-id="${aba}"]`)
+    if ((await b.locator('img.icone[alt=""]').count()) !== 1) problems.push('ícones: aba ' + aba + ' sem img.icone[alt=""]')
+    if (((await b.locator('.app-aba-rotulo').textContent()) || '').trim() !== rotulo) problems.push('ícones: aba ' + aba + ' perdeu o rótulo de texto')
+  }
+  if ((await page.locator('.app-topo .saldo img.icone--moeda-ouro[alt=""]').count()) !== 1) problems.push('ícones: saldo de Ouro sem img.icone--moeda-ouro')
+  if ((await page.locator('.app-topo .pedras img.icone--pedra-negra[alt=""]').count()) !== 1) problems.push('ícones: saldo de Pedras sem img.icone--pedra-negra')
+  if ((await page.locator('.app-topo img.logo-img[alt="Galope Elemental"]').count()) !== 1) problems.push('ícones: cabeçalho sem img.logo-img')
+  const quebradas = await page.evaluate(() => Array.prototype.filter.call(document.querySelectorAll('img.icone, img.logo-img'), (i) => !i.complete || i.naturalWidth === 0).length)
+  if (quebradas) problems.push('ícones: ' + quebradas + ' imagem(ns) quebrada(s)')
   if ((await page.locator('.dev-painel').count()) !== 0) problems.push('painel dev presente sem ?dev=1')
 
   // tela da Montaria (pelo "Ver" do cartão): renomear (escapado), a ativa não pode ser liberada; depois expandir o estábulo
@@ -643,6 +658,8 @@ try {
       await mn.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
       await mn.evaluate(() => window.scrollTo(0, 0))
       await sleep(300)
+      if ((await mn.locator('.slot-botao img.icone[alt=""]').count()) !== 5) problems.push('ícones: os 5 slots do Equipamento deveriam ter img.icone')
+      if ((await mn.locator('.slot-botao .slot-nome').count()) !== 5) problems.push('ícones: rótulos dos slots sumiram')
       await mn.screenshot({ path: join(SHOTS, 'final-03-montaria.png') })
       for (const aba of ['skills', 'equip', 'status']) {
         await mn.locator(`[data-acao="montaria-aba"][data-id="${aba}"]`).click()
@@ -1061,6 +1078,32 @@ try {
       problems.push('moldes-cache: ' + e.message)
     }
     await mc.context().close()
+  }
+
+  // ---------------- sem ícones nem logotipo: volta aos caracteres, sem <img> quebrado ----------------
+  {
+    const sem = await newPage(browser, { width: 390, height: 844 }, 'sem-icones', {
+      init: () => {
+        Object.defineProperty(window, '__ICONES', { get: () => ({}), set: () => {}, configurable: true })
+        Object.defineProperty(window, '__MARCA', { get: () => ({ logo: null }), set: () => {}, configurable: true })
+      }
+    })
+    try {
+      await sem.waitForSelector('.inicial')
+      if ((await sem.locator('img').count()) !== 0) problems.push('sem-icones: há <img> na tela inicial')
+      if (((await sem.locator('h1#t-inicial').textContent()) || '').trim() !== 'Galope Elemental') problems.push('sem-icones: título da tela inicial perdeu o texto')
+      await sem.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await sem.waitForSelector('#t-estabulo')
+      if ((await sem.locator('img').count()) !== 0) problems.push('sem-icones: há <img> no estábulo')
+      const icones = await sem.locator('.app-aba-icone').allTextContents()
+      if (icones.join('') !== '🐴🏁🧭💞🛒') problems.push('sem-icones: abas sem os emojis de antes: ' + icones.join('|'))
+      if (!/🪨/.test((await sem.locator('.app-topo .pedras').textContent()) || '')) problems.push('sem-icones: saldo de Pedras sem o emoji')
+      if ((await sem.locator('.app-topo .saldo svg').count()) !== 1) problems.push('sem-icones: saldo de Ouro sem a moeda em SVG')
+      if (((await sem.locator('.app-topo .logo-mini').textContent()) || '').trim() !== 'Galope Elemental') problems.push('sem-icones: cabeçalho sem o texto da marca')
+    } catch (e) {
+      problems.push('sem-icones: ' + e.message)
+    }
+    await sem.context().close()
   }
 
   // ---------------- celular pequeno, paisagem e movimento reduzido ----------------

@@ -668,3 +668,16 @@ html.app-com-abas { scroll-padding: 56px 0 calc(72px + env(safe-area-inset-botto
 .dev-painel .btn { flex: none; }
 /* telas cheias (largada): a barra de ação fixa sobe acima do painel dev em vez de ficar coberta por ele */
 html.dev-ativo:not(.app-com-abas) .barra-acao { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+
+/* ---------- ícones do PixelLab e logotipo do Canva ---------- */
+img.icone { width: 16px; height: 16px; flex: none; image-rendering: pixelated; vertical-align: middle; }
+.app-aba-icone img.icone { width: 24px; height: 24px; display: block; }
+.ouro img.icone { margin: 0; }
+.pedras { display: inline-flex; align-items: center; gap: 4px; }
+.slot { gap: 4px; }
+.slot-nome { display: inline-flex; align-items: center; gap: 6px; }
+.slot--vazio img.icone { opacity: 0.6; }
+.logo-img { display: block; max-width: 100%; height: auto; image-rendering: pixelated; }
+.logo .logo-img { width: 320px; }
+.app-topo .logo-mini { display: flex; align-items: center; }
+.app-topo .logo-img { height: 24px; width: auto; max-width: 100%; }
