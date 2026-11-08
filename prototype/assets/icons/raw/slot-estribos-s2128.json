@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-08T20:23:06.742Z",
+  "pedido": {
+    "description": "single stirrup iron: D-shaped metal loop with a flat footplate at the bottom, hanging from a short leather strap, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 97 bytes, sha256 a1bf1739709c2562>",
+      "format": "png"
+    },
+    "seed": 2128
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 471 bytes, sha256 f45ca0e95973ed66>",
+      "format": "png"
+    }
+  }
+}

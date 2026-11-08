@@ -25,7 +25,8 @@
 // cores do jóquei na crina; com cores livres + classificação o resultado ficou melhor (relatório da Task 2).
 // Uma imagem crua já gravada em raw/ com o MESMO pedido (prompt, parâmetros, seed e imagens de entrada)
 // é reaproveitada sem nova chamada; uma tentativa que deu erro de API fica registrada (JSON com "erro") e
-// a seed é pulada ao retomar o lote.
+// a seed é pulada ao retomar o lote. Uma imagem válida mas ruim na conferência visual é marcada à mão com
+// "rejeitada": "<motivo>" no JSON cru, e a seed também é pulada.
 // Saídas:
 //   prototype/assets/pixellab/molde-<estilo>-{retrato,parado,galope-N}.png  (cinza = papel × 25)
 //   prototype/assets/pixellab/molde-<estilo>.json        (âncoras, larguraUtil, limiares por geração, seeds)
@@ -63,31 +64,42 @@ const POSES = {
   parado: 'horse standing still ' + JOQUEI,
   montado: 'racing horse in mid-gallop stride ' + JOQUEI,
 };
+// montado (opcional): seed e reforço próprios do montado — rodada 1 de correção: o montado da lisa saía
+// com crina e cauda marrom-escuras e o jóquei borrado.
 const ESTILOS = [
   { id: 'chamas', seed: 1101, crina: 'mane and tail shaped like flickering flames' },
   { id: 'ondas', seed: 1201, crina: 'mane and tail shaped like flowing water waves' },
   { id: 'folhas', seed: 1301, crina: 'mane and tail made of leaves' },
-  { id: 'lisa', seed: 1401, crina: 'long straight flowing mane and tail' },
+  { id: 'lisa', seed: 1401, crina: 'long straight flowing mane and tail',
+    montado: { seed: 1451, reforco: 'bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet' } },
 ];
+const seedBaseDe = (estilo, k) => (k === 'montado' && estilo.montado ? estilo.montado.seed : estilo.seed);
 const ACAO_GALOPE = 'galloping at full racing speed in a seamless loop, legs extending and gathering, mane and tail flowing back';
 
 const SUFIXO_ICONE = 'pixel art game ui icon, centered, simple, readable at small size';
 const PALETA_ICONES = ['#000000', '#f2c230', '#ffe27a', '#9c7210', '#f1e9d4', '#16271f', '#335446'];
+// [nome, descrição, opções]; opções da rodada 1 de correção (bússola parecia timão, estribo parecia
+// ferradura): seed + 20 e descrição nova; `cor` = cor extra da paleta quando a descrição pede uma que a
+// paleta da interface não tem (agulha vermelha ⇒ --perda do jogo).
 const ICONES = [
-  ['aba-estabulo', 'horse head icon'], ['aba-correr', 'checkered racing flag icon'], ['aba-expedicao', 'compass icon'],
+  ['aba-estabulo', 'horse head icon'], ['aba-correr', 'checkered racing flag icon'],
+  ['aba-expedicao', 'round navigation compass, top view, red and white needle pointing up, cardinal marks', { seed: 2123, cor: '#ff6b5e' }],
   ['aba-haras', 'two hearts icon'], ['aba-loja', 'shopping cart icon'], ['slot-ferraduras', 'horseshoe icon'],
-  ['slot-sela', 'horse saddle icon'], ['slot-estribos', 'stirrup icon'], ['slot-testeira', 'horse head armor chamfron icon'],
+  ['slot-sela', 'horse saddle icon'],
+  ['slot-estribos', 'single stirrup iron: D-shaped metal loop with a flat footplate at the bottom, hanging from a short leather strap', { seed: 2128 }],
+  ['slot-testeira', 'horse head armor chamfron icon'],
   ['slot-armadura', 'horse barding armor icon'], ['moeda-ouro', 'gold coin icon'], ['pedra-negra', 'black polished stone gem icon'],
   ['el-fogo', 'flame icon (#ff8a4c)'], ['el-agua', 'water drop icon (#62b8ff)'], ['el-grama', 'green leaf icon (#7be07a)'],
   ['el-neutro', 'grey circle rune icon (#cfc8b4)'],
-].map(([id, desc], i) => ({ id, desc, seed: 2101 + i }));
+].map(([id, desc, op = {}], i) => ({ id, desc, seed: op.seed || 2101 + i, cor: op.cor || null }));
 
 // ---------------------------------------------------------------- corpos das chamadas
 const imagem = buf => ({ type: 'base64', base64: buf.toString('base64'), format: 'png' });
 
 function pedidoPose(estilo, pose, seed) {
+  const reforco = pose === 'montado' && estilo.montado ? `, ${estilo.montado.reforco}` : '';
   return {
-    description: `side view, facing right, ${POSES[pose]}, ${estilo.crina}, ${COR}`,
+    description: `side view, facing right, ${POSES[pose]}, ${estilo.crina}${reforco}, ${COR}`,
     image_size: { width: LADO, height: LADO },
     view: 'side', direction: 'east',
     outline: 'single color black outline', shading: 'basic shading', detail: 'medium detail',
@@ -99,7 +111,8 @@ function pedidoGalope(montado, seed) {
 }
 function coresIcone(icone) {
   const m = /\(#([0-9a-f]{6})\)/i.exec(icone.desc); // cor do tema, quando a descrição traz uma
-  return m ? PALETA_ICONES.concat('#' + m[1].toLowerCase()) : PALETA_ICONES;
+  const tema = icone.cor || (m && '#' + m[1].toLowerCase());
+  return tema ? PALETA_ICONES.concat(tema) : PALETA_ICONES;
 }
 function paletaIconePng(icone) {
   const cores = coresIcone(icone), rgba = new Uint8Array(cores.length * 4);
@@ -208,14 +221,14 @@ function registrarAsset(arquivos, endpoint, prompt, seedTexto, geracoes, emUso) 
 function seedPlanejada(dir, prefixo, seedBase, pedidoDe, rotulo) {
   for (let k = 0; k <= MAX_REPETICOES + (REPETIR_EXTRA.includes(rotulo) ? 1 : 0); k++) {
     const seed = seedBase + PASSO_SEED * k, corpo = pedidoDe(seed), reg = lerCru(dir, `${prefixo}-s${seed}`, corpo);
-    if (reg && reg.erro) continue;
+    if (reg && (reg.erro || reg.rejeitada)) continue;
     return { seed, corpo, cru: !!(reg && pngsCrus(dir, `${prefixo}-s${seed}`, false)) };
   }
   return { seed: seedBase, corpo: pedidoDe(seedBase), cru: false };
 }
 function planoEstilo(e) {
   const poses = ['retrato', 'parado', 'montado'].map(p => {
-    const s = seedPlanejada(DIR_MOLDES_RAW, `${e.id}-${p}`, e.seed, seed => pedidoPose(e, p, seed), `${e.id}/${p}`);
+    const s = seedPlanejada(DIR_MOLDES_RAW, `${e.id}-${p}`, seedBaseDe(e, p), seed => pedidoPose(e, p, seed), `${e.id}/${p}`);
     return { item: `${e.id}/${p}`, endpoint: PIXFLUX, seed: s.seed, texto: s.corpo.description, cru: s.cru };
   });
   return [...poses, { item: `${e.id}/galope`, endpoint: ANIMA, seed: e.seed, texto: `${ACAO_GALOPE} [first_frame = ${e.id}/montado; frame_count 8; drift_threshold 0; reaproveitável se o montado for o mesmo]`, cru: false }];
@@ -420,7 +433,7 @@ async function gerarPose(estilo, pose, it) {
     console.log(`  ${it.rotulo} seed ${seed}`);
     const corpo = pedidoPose(estilo, pose, seed), base = `${estilo.id}-${pose}-s${seed}`;
     const reg = lerCru(DIR_MOLDES_RAW, base, corpo), crus = reg && pngsCrus(DIR_MOLDES_RAW, base, false);
-    if (reg && reg.erro) { rejeitar(it, seed, `erro registrado em lote anterior: ${reg.erro}`); continue; }
+    if (reg && (reg.erro || reg.rejeitada)) { rejeitar(it, seed, reg.erro ? `erro registrado em lote anterior: ${reg.erro}` : `rejeitada na conferência visual: ${reg.rejeitada}`); continue; }
     let buf;
     if (crus) {
       reaproveitar(it, seed, reg); buf = crus[0];
@@ -447,7 +460,7 @@ async function gerarGalope(estilo, it, montado) {
     console.log(`  ${it.rotulo} seed ${seed} (job assíncrono; pode levar minutos)`);
     const corpo = pedidoGalope(montado, seed), base = `${estilo.id}-galope-s${seed}`;
     const reg = lerCru(DIR_MOLDES_RAW, base, corpo);
-    if (reg && reg.erro) { rejeitar(it, seed, `erro registrado em lote anterior: ${reg.erro}`); continue; }
+    if (reg && (reg.erro || reg.rejeitada)) { rejeitar(it, seed, reg.erro ? `erro registrado em lote anterior: ${reg.erro}` : `rejeitada na conferência visual: ${reg.rejeitada}`); continue; }
     let bufs = reg && pngsCrus(DIR_MOLDES_RAW, base, true);
     if (bufs) {
       reaproveitar(it, seed, reg);
@@ -465,6 +478,10 @@ async function gerarGalope(estilo, it, montado) {
       }
       const imgs = (r.job.last_response && r.job.last_response.images) || r.job.images || [];
       bufs = imgs.map((img, i) => bufDe(img, `${it.rotulo} quadro ${i}`));
+      // mesma seed com outro montado sobrescreve: apaga os quadros antigos para não misturar 8 com 9
+      for (const f of fs.existsSync(DIR_MOLDES_RAW) ? fs.readdirSync(DIR_MOLDES_RAW) : []) {
+        if (new RegExp(`^${base}-\\d+\\.png$`).test(f)) fs.unlinkSync(path.join(DIR_MOLDES_RAW, f));
+      }
       gravarCru(DIR_MOLDES_RAW, base, ANIMA, corpo, r, bufs.map((b, i) => [`${base}-${i}.png`, b]));
     }
     if (bufs.length !== 9 && bufs.length !== 8) {
@@ -481,7 +498,7 @@ async function gerarGalope(estilo, it, montado) {
 async function gerarEstilo(estilo) {
   console.log(`\n== Molde ${estilo.id} (seed base ${estilo.seed}) ==`);
   const it = {};
-  for (const k of ['retrato', 'parado', 'montado', 'galope']) it[k] = novoItem(`${estilo.id}/${k}`, estilo.seed);
+  for (const k of ['retrato', 'parado', 'montado', 'galope']) it[k] = novoItem(`${estilo.id}/${k}`, seedBaseDe(estilo, k));
   const falhou = motivo => { console.log(`  FALHOU ${estilo.id}: ${motivo} — nada gravado como final (crus em raw/)`); return { estilo: estilo.id, ok: false, motivo }; };
 
   const fontes = {};
@@ -547,7 +564,7 @@ async function gerarEstilo(estilo) {
     `parado 64×64: cavalo parado com jóquei (seda e capacete #ffff00, pele #ffc0cb, sela e manta #808080), ${crina}, ${proc}`,
     seedTxt(it.parado), custoTotal(it.parado), uso);
   registrarAsset(`\`${pre}-galope-0..${galope.length - 1}.png\` e \`${pre}.json\``, '`create-image-pixflux` + `animate-with-text-v3`',
-    `montado (meio da passada, com jóquei, ${crina}; ${seedTxt(it.montado)}) animado com "${ACAO_GALOPE}", frame_count 8 (${galope.length} quadros recebidos), drift_threshold 0`,
+    `montado (meio da passada, com jóquei, ${crina}${estilo.montado ? `, reforço "${estilo.montado.reforco}"` : ''}; ${seedTxt(it.montado)}) animado com "${ACAO_GALOPE}", frame_count 8 (${galope.length} quadros recebidos), drift_threshold 0`,
     `galope ${seedTxt(it.galope)}`, custoTotal(it.montado) + custoTotal(it.galope), uso);
 
   const t = (g, k) => `${k} ${tons[g][k].procedural ? 'procedural' : tons[g][k].limiar}`;
@@ -564,7 +581,7 @@ async function gerarIcone(ic) {
     console.log(`  ${it.rotulo} seed ${seed}`);
     const corpo = pedidoIcone(ic, seed), base = `${ic.id}-s${seed}`;
     const reg = lerCru(DIR_ICONES_RAW, base, corpo), crus = reg && pngsCrus(DIR_ICONES_RAW, base, false);
-    if (reg && reg.erro) { rejeitar(it, seed, `erro registrado em lote anterior: ${reg.erro}`); continue; }
+    if (reg && (reg.erro || reg.rejeitada)) { rejeitar(it, seed, reg.erro ? `erro registrado em lote anterior: ${reg.erro}` : `rejeitada na conferência visual: ${reg.rejeitada}`); continue; }
     let buf;
     if (crus) {
       reaproveitar(it, seed, reg); buf = crus[0];
