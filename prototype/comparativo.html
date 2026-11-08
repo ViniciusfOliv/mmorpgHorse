@@ -16,7 +16,8 @@ canvas.xadrez{background:repeating-conic-gradient(#33463e 0 25%,#2a3a33 0 50%) 0
 </style></head><body>
 <h1>Galope Elemental · Moldes do PixelLab × sprite por código</h1>
 <p>Para cada estilo: o molde no mapa de papéis, o galope em 1× e 3× (código à esquerda, molde à direita, mesma
-linha de chão e mesmo focinho) e o recolor com as paletas das 16 montarias e as 8 sedas.
+linha de chão e mesmo focinho; escala única para os 4 estilos; o ciclo do galope dura o mesmo nos dois) e o recolor
+com as paletas das 16 montarias e as 8 sedas.
 Os moldes vêm de <code>dist/moldes.js</code> (gerado por <code>node prototype/build.mjs</code>).</p>
 <p id="aviso"></p>
 <div class="legenda" id="legenda"></div>
@@ -60,7 +61,8 @@ function par(k, opts) {
     draw(t) {
       g.clearRect(0, 0, W, H)
       g.fillStyle = '#3b5246'; g.fillRect(0, y + 32 * k, W, H - y - 32 * k)
-      const o = Object.assign({ scale: k, t }, opts, { frame: Math.floor(t * 12) })
+      // fase contínua a 12 quadros do código por segundo: o molde completa o ciclo no mesmo tempo
+      const o = Object.assign({ scale: k, t }, opts, { frame: t * 12 })
       Sprites.drawHorseCodigo(g, 4 * k, y, o)
       Sprites.drawHorse(g, 70 * k, y, o)
     }
@@ -95,7 +97,7 @@ function secao(estilo) {
     figura(l1, c, estado)
   }
   const ga = canvas(192, 192, true)
-  animados.push({ draw(t) { ga.g.clearRect(0, 0, 192, 192); ga.g.drawImage(Sprites.moldeCanvas(estilo, 'galope', Math.floor(t * 12), PAPEIS), 0, 0, 192, 192) } })
+  animados.push({ draw(t) { ga.g.clearRect(0, 0, 192, 192); ga.g.drawImage(Sprites.moldeCanvas(estilo, 'galope', Sprites._quadroGalope(el, t * 12), PAPEIS), 0, 0, 192, 192) } })
   figura(l1, ga.c, 'galope (animado)')
 
   // 2. galope em 1× e 3× e os estados parados em 3×, com a montaria de referência do elemento

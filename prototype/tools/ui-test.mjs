@@ -999,6 +999,37 @@ try {
     }
     const mc = await newPage(browser, { width: 390, height: 844 }, 'moldes-cache')
     try {
+      // encaixe dos moldes: escala única entre estilos, molde inteiro nos quadros de altura fixa e
+      // ciclo do galope com a mesma duração do código
+      const enc = await mc.evaluate(() => {
+        const SP = window.Sprites, ELS = ['fogo', 'agua', 'grama', 'neutro'], erros = []
+        for (let k = 1; k <= 9; k++) {
+          const Ss = ELS.map((el) => SP._layoutMolde(el, 'galope', 0, 0, k).S)
+          if (new Set(Ss).size !== 1) erros.push(`pista k=${k}: escalas diferentes entre estilos ${Ss}`)
+        }
+        for (const k of [3, 6, 9]) for (const el of ELS) for (const est of ['retrato', 'parado']) {   // baia 48×36 (retratos)
+          const L = SP._layoutMolde(el, est, 5 * k, 1 * k, k, { topo: 0, base: 36 * k })
+          if (L.topo < 0 || L.pe > 36 * k) erros.push(`retrato ${el}/${est} k=${k}: bbox ${L.topo}..${L.pe} fora de 0..${36 * k}`)
+        }
+        for (const k of [2, 4, 6]) for (const top of [49, 57, 63]) for (const el of ELS) {   // pódio: em pé no bloco
+          const L = SP._layoutMolde(el, 'parado', (84 - 21) * k, (top - 32) * k, k, { topo: 0, base: top * k })
+          if (L.topo < 0 || L.pe !== top * k) erros.push(`pódio ${el} k=${k} topo ${top}: bbox ${L.topo}..${L.pe} (bloco em ${top * k})`)
+        }
+        const G = SP.GALLOP_FRAMES
+        for (const el of ELS) {
+          const vistos = new Set()
+          let ant = -1
+          for (let f = 0; f < G; f += 0.01) {
+            const q = SP._quadroGalope(el, f)
+            if (q < ant) erros.push(`galope ${el}: quadro ${q} depois de ${ant} dentro do ciclo`)
+            ant = q; vistos.add(q)
+          }
+          if (SP._quadroGalope(el, G) !== 0) erros.push(`galope ${el}: o ciclo do molde não volta ao quadro 0 junto com o do código`)
+          if (vistos.size !== Math.max(...vistos) + 1) erros.push(`galope ${el}: pulou quadros (${[...vistos]})`)
+        }
+        return erros
+      })
+      enc.forEach((e) => problems.push('moldes-encaixe: ' + e))
       await mc.getByRole('button', { name: 'Escolher Ipê' }).click()
       await mc.waitForSelector('#t-estabulo')
       await mc.evaluate((sd) => { window.__galope.state.seedBase = sd }, SEED8)

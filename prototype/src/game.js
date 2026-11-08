@@ -636,9 +636,10 @@
             if (item.drawn && reduced()) return;
             item.drawn = true;
             drawStall(s.ctx, s.k, PORTRAIT_W, PORTRAIT_H, seed);
+            // quadro: o molde inteiro cabe na altura da baia (o desenho por código já cabe)
             SP.drawHorse(s.ctx, 5 * s.k, 1 * s.k, {
               palette: horse.palette, element: horse.element, idle: true, t: reduced() ? 0.5 : t + phase,
-              scale: s.k, jockey: !!o.jockey, silks: o.silks || PLAYER_SILKS
+              scale: s.k, jockey: !!o.jockey, silks: o.silks || PLAYER_SILKS, quadro: { topo: 0, base: PORTRAIT_H * s.k }
             });
           }
         };
@@ -2257,7 +2258,8 @@
           ctx.fillRect(x + (1 + dp) * S, feetY - 4 * S, S, S);
         }
         SP.drawHorse(ctx, x, y, {
-          palette: r.horse.palette, element: r.horse.element, frame: Math.floor(self.gallop[j]),
+          // fase contínua do galope: o código usa o quadro inteiro; o molde mapeia o ciclo (mesma duração)
+          palette: r.horse.palette, element: r.horse.element, frame: self.gallop[j],
           scale: S, silks: r.silks, t: tr, idle: standing
         });
         var finished = fTime[j] <= self.simT;
@@ -2415,7 +2417,7 @@
           SP.drawText(ctx, String(sl.place), sl.cx * k, (sl.top + 3) * k, { scale: 2 * k, color: C.tinta, align: 'center' });
           SP.drawHorse(ctx, (sl.cx - 21) * k, (sl.top - 32) * k, {
             palette: r.horse.palette, element: r.horse.element, idle: true, t: reduced() ? 0.5 : t + sl.place * 0.8,
-            scale: k, silks: r.silks, shadow: false
+            scale: k, silks: r.silks, shadow: false, quadro: { topo: 0, base: sl.top * k }   // em pé no bloco, sem sair do canvas
           });
           if (r.isPlayer) {
             // seta dourada sobre o seu cavalo
