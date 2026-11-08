@@ -153,7 +153,7 @@ try {
   botGear.bots.forEach((b) => { b.league = S.leagueFor(b.rating).id })
   notes.botGear = botGear
   if (!botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: nenhum bot com equipamento ' + JSON.stringify(botGear))
-  await page.getByRole('button', { name: 'Voltar ao estábulo' }).click()
+  await page.getByRole('button', { name: /^Voltar/ }).click()
   await page.waitForSelector('#t-estabulo')
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForSelector('#t-estabulo')
@@ -369,7 +369,7 @@ try {
     notes.cruzamento = { SEED, potro: { name: esperado.name, rarity: esperado.rarity, grau: esperado.grau, element: esperado.element, sex: esperado.sex, skills: esperado.skills } }
     await cz.evaluate((seed) => { const s = window.__galope.state; s.gold = 5000; s.seedBase = seed }, SEED)
     await rerender()
-    await cz.locator('[data-acao="haras"]').click()
+    await cz.locator('[data-acao="aba"][data-id="haras"]').click()
     await cz.waitForSelector('#t-haras')
     await cz.locator('[data-acao="haras-partner"][data-kind="rent"][data-id="w-faisca"]').click()
     const calcTxt = await cz.locator('.calc').textContent()
@@ -388,7 +388,7 @@ try {
     if (await cz.locator('.montaria .montaria-acoes').count()) problems.push('cruzamento: card do potro no resultado com ativar/renomear/liberar')
     await cz.locator('[data-acao="haras-ativar"]').click()
     if ((await cz.evaluate(() => window.__galope.state.activeId)) !== 'm2') problems.push('cruzamento: haras-ativar não ativou m2')
-    await cz.locator('[data-acao="voltar"]').first().click()
+    await cz.locator('[data-acao="aba"][data-id="estabulo"]').click()
     await cz.waitForSelector('#t-estabulo')
     // o potro corre
     await cz.getByRole('button', { name: 'Procurar corrida' }).click()
@@ -399,12 +399,12 @@ try {
     await cz.waitForSelector('#t-resultado')
     const racedUid = await cz.evaluate(() => { const L = window.__galope.ui.lobby; return L.racers[L.playerIdx].horse.uid })
     if (racedUid !== 'm2') problems.push('cruzamento: quem correu foi ' + racedUid + ' (esperado m2)')
-    await cz.getByRole('button', { name: 'Voltar ao estábulo' }).click()
+    await cz.getByRole('button', { name: /^Voltar/ }).click()
     await cz.waitForSelector('#t-estabulo')
     // estábulo cheio
     await cz.evaluate(() => { const s = window.__galope.state; s.stableSlots = s.mounts.length })
     await rerender()
-    await cz.locator('[data-acao="haras"]').click()
+    await cz.locator('[data-acao="aba"][data-id="haras"]').click()
     await cz.waitForSelector('#t-haras')
     await cz.locator('[data-acao="haras-mine"][data-id="m1"]').click()
     await cz.locator('[data-acao="haras-partner"][data-kind="rent"][data-id="w-faisca"]').click()
@@ -412,20 +412,20 @@ try {
     if (!/cheio/.test(await avisos())) problems.push('cruzamento: sem aviso de estábulo cheio: ' + await avisos())
     await cz.evaluate(() => { window.__galope.state.stableSlots = 3 })
     // páreo aberto bloqueia
-    await cz.locator('[data-acao="voltar"]').first().click()
+    await cz.locator('[data-acao="aba"][data-id="estabulo"]').click()
     await cz.waitForSelector('#t-estabulo')
     await cz.getByRole('button', { name: 'Procurar corrida' }).click()
     await cz.waitForSelector('#t-largada')
-    await cz.getByRole('button', { name: 'Voltar ao estábulo' }).click()
+    await cz.getByRole('button', { name: /^Voltar/ }).click()
     await cz.waitForSelector('#t-estabulo')
     if (!(await cz.locator('.montaria:not(.montaria--ativa) [data-acao="ativar"]').first().isDisabled())) problems.push('cruzamento: ativar habilitado com páreo aberto')
-    await cz.locator('[data-acao="haras"]').click()
+    await cz.locator('[data-acao="aba"][data-id="haras"]').click()
     await cz.waitForSelector('#t-haras')
     await cz.locator('[data-acao="haras-mine"][data-id="m1"]').click()
     await cz.locator('[data-acao="haras-partner"][data-kind="rent"][data-id="w-faisca"]').click()
     if (!(await cz.locator('[data-acao="cruzar"]').isDisabled())) problems.push('cruzamento: cruzar habilitado com páreo aberto')
     if (!/páreo/.test(await avisos())) problems.push('cruzamento: sem aviso de páreo aberto: ' + await avisos())
-    await cz.locator('[data-acao="voltar"]').first().click()
+    await cz.locator('[data-acao="aba"][data-id="estabulo"]').click()
     await cz.waitForSelector('#t-estabulo')
     await cz.getByRole('button', { name: /Voltar à sala/ }).click()
     await cz.waitForSelector('#t-largada')
@@ -433,10 +433,10 @@ try {
     await cz.waitForSelector('#pista')
     await cz.getByRole('button', { name: /Pular/ }).click()
     await cz.waitForSelector('#t-resultado')
-    await cz.getByRole('button', { name: 'Voltar ao estábulo' }).click()
+    await cz.getByRole('button', { name: /^Voltar/ }).click()
     await cz.waitForSelector('#t-estabulo')
     // cruzamento próprio: Brasa (m1, ♂, 1 cruza) × potro (m2, ♀, 1 cruza), registro
-    await cz.locator('[data-acao="haras"]').click()
+    await cz.locator('[data-acao="aba"][data-id="haras"]').click()
     await cz.waitForSelector('#t-haras')
     await cz.locator('[data-acao="haras-mode"][data-id="cruzar"]').click()
     await cz.locator('[data-acao="haras-mine"][data-id="m1"]').click()
@@ -471,7 +471,7 @@ try {
     const per = await cz.evaluate(() => ({ n: window.__galope.state.mounts.length, active: window.__galope.state.activeId }))
     if (per.n !== 2 || per.active !== 'm4') problems.push('troca: não persistiu ' + JSON.stringify(per))
     // captura do haras com a calculadora
-    await cz.locator('[data-acao="haras"]').click()
+    await cz.locator('[data-acao="aba"][data-id="haras"]').click()
     await cz.waitForSelector('#t-haras')
     const capim = cz.locator('[data-acao="haras-partner"][data-kind="rent"][data-id="w-capim"]')
     if (await capim.count()) await capim.click()
@@ -482,6 +482,44 @@ try {
     await checkOverflow(cz, 'haras')
     await cz.screenshot({ path: join(SHOTS, 'final-06-haras.png') })
     await cz.context().close()
+  }
+
+  // ---------------- menu de abas: casca, foco, aria-current e histórico ----------------
+  {
+    const mn = await newPage(browser, { width: 390, height: 844 }, 'menu')
+    try {
+      await mn.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await mn.waitForSelector('#t-estabulo')
+      // 1. as 5 abas abrem e focam o h1 certo
+      for (const [id, h1] of [['correr', 't-correr'], ['expedicao', 't-expedicao'], ['haras', 't-haras'], ['loja', 't-loja'], ['estabulo', 't-estabulo']]) {
+        await mn.locator(`[data-acao="aba"][data-id="${id}"]`).click()
+        await mn.waitForSelector('#' + h1)
+        const focused = await mn.evaluate(() => document.activeElement && document.activeElement.id)
+        if (focused !== h1) problems.push(`menu: foco em ${focused} ao abrir ${id} (esperado ${h1})`)
+        const current = await mn.locator('[data-acao="aba"][aria-current="page"]').getAttribute('data-id')
+        if (current !== id) problems.push(`menu: aria-current em ${current} (esperado ${id})`)
+      }
+      // 2. trocar de aba não empilha histórico
+      const len0 = await mn.evaluate(() => history.length)
+      for (let i = 0; i < 10; i++) await mn.locator(`[data-acao="aba"][data-id="${['correr', 'haras', 'loja', 'estabulo', 'expedicao'][i % 5]}"]`).click()
+      const len1 = await mn.evaluate(() => history.length)
+      if (len1 !== len0) problems.push(`menu: history.length ${len0} -> ${len1} ao trocar de aba`)
+      // 3. cabeçalho e barra presentes nas abas, ausentes na corrida
+      if ((await mn.locator('.app-topo').count()) !== 1 || (await mn.locator('.app-abas').count()) !== 1) problems.push('menu: casca ausente numa aba')
+      await mn.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await mn.getByRole('button', { name: 'Procurar corrida' }).click()   // ainda no Estábulo até a Task 2
+      await mn.waitForSelector('#t-largada')
+      if ((await mn.locator('.app-abas').count()) !== 0) problems.push('menu: barra visível na largada')
+      await mn.getByRole('button', { name: /^Largar/ }).click()
+      await mn.waitForSelector('#pista')
+      if ((await mn.locator('.app-topo').count()) !== 0 || (await mn.locator('.app-abas').count()) !== 0) problems.push('menu: casca visível na corrida')
+      await mn.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+      await mn.waitForSelector('#t-resultado')
+      await checkOverflow(mn, 'menu-390')
+    } catch (e) {
+      problems.push('menu: ' + e.message)
+    }
+    await mn.context().close()
   }
 
   // ---------------- equipamento: dev, equipar/tirar, melhorar determinístico, venda com desfazer e trava ----------------
@@ -630,7 +668,7 @@ try {
       // 1. Ipê; abrir a loja; aba inicial ferraduras com 5 produtos; aba sela com os 3 conjuntos
       await lj.getByRole('button', { name: 'Escolher Ipê' }).click()
       await lj.waitForSelector('#t-estabulo')
-      await lj.locator('[data-acao="loja"]').click()
+      await lj.locator('[data-acao="aba"][data-id="loja"]').click()
       await lj.waitForSelector('#t-loja', { timeout: 5000 })
       const nProd = await lj.locator('.produto').count()
       if (nProd !== 5) problems.push('loja: aba inicial com ' + nProd + ' produtos (esperado 5)')
@@ -668,7 +706,7 @@ try {
       await checkOverflow(lj, 'loja')
       await lj.screenshot({ path: join(SHOTS, 'final-08-loja.png') })
       // 6. equipar a sela comprada e ver o resumo + atalho na largada
-      await lj.locator('[data-acao="loja-voltar"]').click()
+      await lj.locator('[data-acao="aba"][data-id="estabulo"]').click()
       await lj.waitForSelector('#t-estabulo')
       await lj.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
       await lj.waitForSelector('#t-equipamento')

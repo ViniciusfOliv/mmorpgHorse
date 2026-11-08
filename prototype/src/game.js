@@ -548,7 +548,7 @@
   // Estado de UI (não persistido)
   // ===========================================================================
   var state = null;
-  var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null, equip: null };
+  var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null, equip: null, tab: 'estabulo' };
   var live = [];          // canvases animados da tela atual
   var raceView = null;
   var portraitQueue = [];
@@ -734,8 +734,13 @@
   // ===========================================================================
   // Navegação (+ botão Voltar do Android/navegador)
   // ===========================================================================
+  // Tipos de tela: 'aba' (raiz, com cabeçalho e barra; não empilha histórico), 'sub' (com cabeçalho e barra;
+  // empilha um estado e o Voltar devolve a ui.tab) e 'full' (tela cheia, sem casca).
+  var SCREEN_KIND = { inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', equipamento: 'sub', largada: 'full', corrida: 'full', resultado: 'full' };
+  var ABAS = [{ id: 'estabulo', icone: '🐴', rotulo: 'Estábulo' }, { id: 'correr', icone: '🏁', rotulo: 'Correr' }, { id: 'expedicao', icone: '🧭', rotulo: 'Expedição' }, { id: 'haras', icone: '💞', rotulo: 'Haras' }, { id: 'loja', icone: '🛒', rotulo: 'Loja' }];
+  function kindOf(screen) { return hasOwn(SCREEN_KIND, screen) ? SCREEN_KIND[screen] : 'full'; }
   var guardPushed = false, ignorePop = false;
-  function isRoot(screen) { return screen === 'estabulo' || screen === 'inicial'; }
+  function isRoot(screen) { return kindOf(screen) === 'aba' || screen === 'inicial'; }
   function syncHistory(screen) {
     try {
       if (!isRoot(screen) && !guardPushed) { window.history.pushState({ galope: 1 }, ''); guardPushed = true; }
@@ -746,7 +751,7 @@
     if (ignorePop) { ignorePop = false; return; }
     guardPushed = false;
     if (ui.screen === 'corrida') { if (raceView) raceView.skip(); else go('resultado'); }
-    else if (!isRoot(ui.screen) && state) go('estabulo');
+    else if (!isRoot(ui.screen) && state) go(ui.tab);
   });
 
   function go(screen) {
@@ -755,6 +760,7 @@
     if (screen === 'haras' && ui.screen !== 'haras') ui.haras = newHaras();
     if (screen !== 'equipamento') ui.equip = null;   // sair da tela descarta o "Desfazer venda" e a confirmação
     if (screen !== 'loja') ui.loja = null;
+    if (kindOf(screen) === 'aba') ui.tab = screen;   // a barra de abas lê ui.tab
     ui.screen = screen;
     if (appEl) appEl.classList.toggle('app--corrida', screen === 'corrida');
     render();
@@ -780,8 +786,14 @@
       case 'haras': html = renderHaras(); break;
       case 'equipamento': html = renderEquipamento(); break;
       case 'loja': html = renderLoja(); break;
+      case 'correr': html = renderCorrer(); break;
+      case 'expedicao': html = renderExpedicao(); break;
+      case 'perfil': html = renderPerfil(); break;
       default: html = renderInicial();
     }
+    var comCasca = kindOf(ui.screen) !== 'full';
+    if (comCasca) html = appTopoHtml() + '<main class="app-conteudo">' + html + '</main>' + appAbasHtml();
+    if (appEl) appEl.classList.toggle('app-com-abas', comCasca);
     if (devAtivo() && ui.screen !== 'corrida') {
       html += '<div class="dev-espaco" style="height:56px" aria-hidden="true"></div><div class="dev-painel" role="group" aria-label="Painel de desenvolvimento"><span>dev</span>' +
         '<button type="button" class="btn btn--pequeno" data-acao="dev-niveis">+10 níveis (ativa)</button>' +
@@ -797,6 +809,32 @@
       raceView = createRaceView(ui.lobby, telaEl);
     }
   }
+
+  // ===========================================================================
+  // Casca: cabeçalho fixo e barra de abas (abas e sub-telas)
+  // ===========================================================================
+  function appTopoHtml() {
+    return '<header class="app-topo"><span class="logo-mini">Galope Elemental</span>' +
+      '<span class="topo-saldos"><span class="pedras" aria-label="' + esc(pedrasTxt(state.pedras) + (state.pedras === 1 ? ' negra' : ' negras')) + '">🪨 ' + fmt(state.pedras) + '</span>' +
+      '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></span>' +
+      '<button type="button" class="btn btn--pequeno app-perfil" data-acao="perfil" aria-label="Perfil">👤</button></header>';
+  }
+  function appAbasHtml() {
+    return '<nav class="app-abas" role="navigation" aria-label="Seções">' + ABAS.map(function (a) {
+      var ativa = ui.tab === a.id;
+      var cls = 'app-aba' + (ativa ? ' app-aba--ativa' : '') + (a.id === 'correr' && state.pending ? ' app-aba--ponto' : '');
+      return '<button type="button" class="' + cls + '" data-acao="aba" data-id="' + esc(a.id) + '"' + (ativa ? ' aria-current="page"' : '') + '>' +
+        '<span class="app-aba-icone" aria-hidden="true">' + a.icone + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
+    }).join('') + '</nav>';
+  }
+  // Telas provisórias (preenchidas nas próximas tarefas)
+  function telaProvisoriaHtml(id, nome) {
+    return '<section class="tela" aria-labelledby="t-' + id + '"><h1 class="titulo titulo--tela" id="t-' + id + '" tabindex="-1" data-foco>' + esc(nome) + '</h1>' +
+      '<p class="nota">Em construção.</p></section>';
+  }
+  function renderCorrer() { return telaProvisoriaHtml('correr', 'Correr'); }
+  function renderExpedicao() { return telaProvisoriaHtml('expedicao', 'Expedição'); }
+  function renderPerfil() { return telaProvisoriaHtml('perfil', 'Perfil'); }
 
   // ===========================================================================
   // Tela 1 — Escolha do inicial (carrossel no celular)
@@ -1126,9 +1164,7 @@
 
   function renderHaras() {
     var H = harasNormalize();
-    var head = '<header class="topo"><button type="button" class="btn btn--pequeno" data-acao="voltar">Voltar ao estábulo</button>' +
-        '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></header>' +
-      '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>';
+    var head = '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>';
     var foal = H.result ? mountByUid(H.result) : null;
     if (foal) return '<section class="tela" aria-labelledby="t-haras">' + head + harasResultHtml(foal) + '</section>';
 
@@ -1295,7 +1331,7 @@
 
   function renderEquipamento() {
     var m = ui.equip ? mountByUid(ui.equip.uid) : null;
-    if (!m) { ui.equip = null; ui.screen = 'estabulo'; syncHistory('estabulo'); return renderEstabulo(); } // montaria sumiu (ex.: outra aba): volta ao estábulo sem recursão em render()
+    if (!m) { ui.equip = null; ui.screen = 'estabulo'; ui.tab = 'estabulo'; syncHistory('estabulo'); return renderEstabulo(); } // montaria sumiu (ex.: outra aba): volta ao estábulo sem recursão em render()
     var Q = ui.equip, P = state.pending;
     var h = clone(m);
     var gear = gearOf(m);
@@ -1390,10 +1426,7 @@
   function renderLoja() {
     if (!ui.loja || LOJA_TABS.indexOf(ui.loja.tab) < 0) ui.loja = { tab: LOJA_TABS[0], msg: null };
     var Q = ui.loja;
-    var head = '<header class="topo"><button type="button" class="btn btn--pequeno" data-acao="loja-voltar">Voltar ao estábulo</button>' +
-        '<span class="topo-saldos"><span class="pedras" aria-label="' + esc(pedrasTxt(state.pedras) + (state.pedras === 1 ? ' negra' : ' negras')) + '">🪨 ' + fmt(state.pedras) + '</span>' +
-        '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></span></header>' +
-      '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>';
+    var head = '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>';
     var msg = Q.msg ? '<p class="aviso" role="status">' + esc(Q.msg) + '</p>' : '';
     var abas = '<div class="abas abas--loja" role="group" aria-label="Seção da loja">' + LOJA_TABS.map(function (t) {
       var nome = t === 'pedras' ? 'Pedras' : GD.GEAR_SLOT_INFO[t].name;
@@ -2452,8 +2485,12 @@
         if (!state) break;
         ui.loja = { tab: GD.GEAR_SLOTS[0], msg: null };
         go('loja'); break;
-      case 'loja-voltar':
-        go('estabulo'); break;
+      case 'aba':
+        if (state && hasOwn(SCREEN_KIND, id) && SCREEN_KIND[id] === 'aba') go(id);
+        break;
+      case 'perfil':
+        if (state) go('perfil');
+        break;
       case 'loja-tab':
         if (!ui.loja || LOJA_TABS.indexOf(id) < 0) break;
         ui.loja.tab = id; ui.loja.msg = null;
@@ -2601,7 +2638,7 @@
       case 'treino':
         startLobby(true); break;
       case 'voltar':
-        go('estabulo'); break;
+        go(ui.tab); break;
       case 'largar': {
         var L = ui.lobby;
         if (!L || L.sim) { go('estabulo'); break; }
