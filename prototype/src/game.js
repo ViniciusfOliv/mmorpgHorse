@@ -548,7 +548,7 @@
   // Estado de UI (não persistido)
   // ===========================================================================
   var state = null;
-  var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null, equip: null, tab: 'estabulo' };
+  var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null, montaria: null, tab: 'estabulo' };
   var live = [];          // canvases animados da tela atual
   var raceView = null;
   var portraitQueue = [];
@@ -736,7 +736,7 @@
   // ===========================================================================
   // Tipos de tela: 'aba' (raiz, com cabeçalho e barra; não empilha histórico), 'sub' (com cabeçalho e barra;
   // empilha um estado e o Voltar devolve a ui.tab) e 'full' (tela cheia, sem casca).
-  var SCREEN_KIND = { inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', equipamento: 'sub', largada: 'full', corrida: 'full', resultado: 'full' };
+  var SCREEN_KIND = { inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', largada: 'full', corrida: 'full', resultado: 'full' };
   var ABAS = [{ id: 'estabulo', icone: '🐴', rotulo: 'Estábulo' }, { id: 'correr', icone: '🏁', rotulo: 'Correr' }, { id: 'expedicao', icone: '🧭', rotulo: 'Expedição' }, { id: 'haras', icone: '💞', rotulo: 'Haras' }, { id: 'loja', icone: '🛒', rotulo: 'Loja' }];
   function kindOf(screen) { return hasOwn(SCREEN_KIND, screen) ? SCREEN_KIND[screen] : 'full'; }
   var guardPushed = false, ignorePop = false;
@@ -758,7 +758,7 @@
     if (raceView && screen !== 'corrida') { raceView.destroy(); raceView = null; }
     if (screen !== ui.screen) { ui.confirmReset = false; ui.confirmLiberar = null; }
     if (screen === 'haras' && ui.screen !== 'haras') ui.haras = newHaras();
-    if (screen !== 'equipamento') ui.equip = null;   // sair da tela descarta o "Desfazer venda" e a confirmação
+    if (screen !== 'montaria') ui.montaria = null;   // sair da Montaria descarta o "Desfazer venda" e a confirmação
     if (screen !== 'loja') ui.loja = null;
     if (kindOf(screen) === 'aba') ui.tab = screen;   // a barra de abas lê ui.tab
     ui.screen = screen;
@@ -784,7 +784,7 @@
       case 'corrida': html = renderCorrida(); break;
       case 'resultado': html = renderResultado(); break;
       case 'haras': html = renderHaras(); break;
-      case 'equipamento': html = renderEquipamento(); break;
+      case 'montaria': html = renderMontaria(); break;
       case 'loja': html = renderLoja(); break;
       case 'correr': html = renderCorrer(); break;
       case 'expedicao': html = renderExpedicao(); break;
@@ -893,21 +893,14 @@
 
   // opts.semAcoes: sem os botões (ex.: card do potro no resultado do Haras).
   // O cartão inteiro abre a montaria (data-acao="montaria"); os botões internos têm a própria ação.
+  // Renomear e Liberar ficam na tela da Montaria.
   function mountCardHtml(m, isActive, opts) {
     var P = state.pending;
     var semAcoes = !!(opts && opts.semAcoes);
-    var canRelease = !isActive && state.mounts.length > 1 && !P;
     var corcel = window.Breed && window.Breed.isCorcel(m)
       ? '<span class="corcel" title="Corcel: herança garantida">⚑ Corcel</span>' : '';
-    var acoes = semAcoes ? '' : ui.confirmLiberar === m.uid && canRelease
-      ? '<div class="confirma" role="group" aria-label="Confirmar liberação"><span>Liberar ' + esc(m.name) + '? Ela deixa o estábulo para sempre, sem Ouro de volta.</span>' +
-        '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="liberar-sim" data-id="' + esc(m.uid) + '">Sim, liberar</button>' +
-        '<button type="button" class="btn btn--pequeno" data-acao="liberar-nao" data-id="' + esc(m.uid) + '">Cancelar</button></div>'
-      : '<div class="montaria-acoes">' +
+    var acoes = semAcoes ? '' : '<div class="montaria-acoes">' +
         '<button type="button" class="btn btn--pequeno" data-acao="ativar" data-id="' + esc(m.uid) + '"' + (isActive || P ? ' disabled' : '') + '>Tornar ativa</button>' +
-        // Renomear e Liberar ficam no cartão até a tela da Montaria existir (Task 3)
-        '<button type="button" class="btn btn--pequeno" data-acao="renomear" data-id="' + esc(m.uid) + '">Renomear</button>' +
-        '<button type="button" class="btn btn--pequeno" data-acao="liberar" data-id="' + esc(m.uid) + '"' + (canRelease ? '' : ' disabled') + '>Liberar</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="montaria" data-id="' + esc(m.uid) + '">Ver</button>' +
         '</div>';
     var abre = semAcoes ? '' : ' data-acao="montaria" data-id="' + esc(m.uid) + '"';
@@ -1316,7 +1309,7 @@
     var d = depois - ratingNow;
     var poder = '<span class="peca-poder">Poder ' + ratingNow + ' → <b class="' + (d > 0 ? 'mais' : d < 0 ? 'menos-t' : '') + '">' + depois + '</b></span>';
     var acoes;
-    if (ui.equip.confirm === item.uid && odds && !travada) {
+    if (ui.montaria.equip.confirm === item.uid && odds && !travada) {
       var falha = odds.dropTo < item.plus ? 'cai para +' + odds.dropTo : 'continua +' + item.plus;
       var semPedras = state.pedras < odds.cost;
       acoes = '<div class="confirma" role="group" aria-label="Confirmar melhoria"><span>' +
@@ -1342,18 +1335,11 @@
       acoes + '</div>';
   }
 
-  function renderEquipamento() {
-    var m = ui.equip ? mountByUid(ui.equip.uid) : null;
-    if (!m) { ui.equip = null; ui.screen = 'estabulo'; ui.tab = 'estabulo'; syncHistory('estabulo'); return renderEstabulo(); } // montaria sumiu (ex.: outra aba): volta ao estábulo sem recursão em render()
-    var Q = ui.equip, P = state.pending;
-    var h = clone(m);
+  // conteúdo da sub-aba Equipamento da Montaria (estado em ui.montaria.equip)
+  function montariaEquipHtml(m) {
+    var Q = ui.montaria.equip, P = state.pending;
     var gear = gearOf(m);
-    var stats = RS.computeStats(h, gear), baseStats = RS.computeStats(h, null);
-    var rating = RS.powerRating(h, gear);
-    var head = '<header class="topo"><button type="button" class="btn btn--pequeno" data-acao="equip-voltar">Voltar</button>' +
-        '<span class="topo-saldos"><span class="pedras" aria-label="' + esc(pedrasTxt(state.pedras) + (state.pedras === 1 ? ' negra' : ' negras')) + '">🪨 ' + fmt(state.pedras) + '</span>' +
-        '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></span></header>' +
-      '<h1 class="titulo titulo--tela" id="t-equipamento" tabindex="-1" data-foco>Equipamento</h1>';
+    var rating = RS.powerRating(clone(m), gear);
     var avisos = '';
     if (Q.msg) avisos += '<p class="aviso" role="status">' + esc(Q.msg) + '</p>';
     if (Q.undo) {
@@ -1381,15 +1367,98 @@
           '<span class="slot-peca">' + esc(cur ? pieceLabel(cur) : 'vazio') + '</span></button>' + lista + '</div>';
     }).join('');
 
-    return '<section class="tela" aria-labelledby="t-equipamento">' + head + avisos +
-      '<article class="caixa"><div class="cavalo-cabeca">' + portraitHtml(m) +
-        '<div class="cavalo-info"><h2 class="cavalo-nome">' + esc(m.name) + '</h2>' +
-          '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
-          setLineHtml(gear) + '</div></div>' +
-        statsHtml(stats, baseStats) + '</article>' +
+    return avisos +
       '<section class="caixa" aria-labelledby="t-pecas"><h2 class="titulo" id="t-pecas">Peças</h2>' +
+        setLineHtml(gear) +
         '<p class="nota">Toque num slot para ver as peças do inventário. Melhorar gasta Pedras Negras; vender devolve 25% do preço.</p>' +
-        '<div class="slot-linhas">' + linhas + '</div></section>' +
+        '<div class="slot-linhas">' + linhas + '</div></section>';
+  }
+
+  // ===========================================================================
+  // Tela da Montaria (sub-tela): cabeça com ações e sub-abas Status / Skills / Equipamento
+  // ===========================================================================
+  var MONTARIA_ABAS = [{ id: 'status', rotulo: 'Status' }, { id: 'skills', rotulo: 'Skills' }, { id: 'equip', rotulo: 'Equipamento' }];
+
+  // abre a Montaria numa sub-aba; o estado do equipamento (confirmação, Desfazer) começa zerado
+  function goMontaria(uid, aba) {
+    if (!state || !mountByUid(uid)) return;
+    ui.montaria = { uid: uid, aba: aba, equip: { slot: null, confirm: null, undo: null, msg: null } };
+    go('montaria');
+  }
+
+  // renderer de uma aba pelo id (sem passar por render(), para não entrar em recursão)
+  function renderTab(tab) {
+    switch (tab) {
+      case 'correr': return renderCorrer();
+      case 'expedicao': return renderExpedicao();
+      case 'haras': return renderHaras();
+      case 'loja': return renderLoja();
+      default: return renderEstabulo();
+    }
+  }
+
+  function renderMontaria() {
+    var m = ui.montaria ? mountByUid(ui.montaria.uid) : null;
+    if (!m) { ui.montaria = null; ui.screen = ui.tab; syncHistory(ui.tab); return renderTab(ui.tab); } // montaria sumiu (liberada, outra aba): volta à aba
+    var M = ui.montaria, P = state.pending;
+    var isActive = m.uid === state.activeId;
+    var uid = esc(m.uid);
+    var h = clone(m);
+    var gear = gearOf(m);
+    var stats = RS.computeStats(h, gear), baseStats = RS.computeStats(h, null);
+    var rating = RS.powerRating(h, gear);
+    var skillPct = Math.round(RS.skillChance(h, stats, gear.special.skillChanceBonus) * 100);
+    var corcel = window.Breed && window.Breed.isCorcel(m)
+      ? '<span class="corcel" title="Corcel: herança garantida">⚑ Corcel</span>' : '';
+    var canRelease = !isActive && state.mounts.length > 1 && !P;
+
+    var acoes = ui.confirmLiberar === m.uid && canRelease
+      ? '<div class="confirma" role="group" aria-label="Confirmar liberação"><span>Liberar ' + esc(m.name) + '? Ela deixa o estábulo para sempre, sem Ouro de volta.</span>' +
+        '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="liberar-sim" data-id="' + uid + '">Sim, liberar</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="liberar-nao" data-id="' + uid + '">Cancelar</button></div>'
+      : '<div class="montaria-acoes">' +
+        '<button type="button" class="btn btn--pequeno" data-acao="ativar" data-id="' + uid + '"' + (isActive || P ? ' disabled' : '') + '>Tornar ativa</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="renomear" data-id="' + uid + '">Renomear</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="liberar" data-id="' + uid + '"' + (canRelease ? '' : ' disabled') + '>Liberar</button>' +
+        '</div>';
+
+    var cabeca = '<article class="caixa montaria-cabeca" aria-label="Montaria">' +
+      '<div class="cavalo-cabeca">' + portraitHtml(m) +
+        '<div class="cavalo-info">' +
+          '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco>' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h1>' +
+          '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
+            '<span>' + (m.sex === 'f' ? '♀ Fêmea' : '♂ Macho') + '</span>' +
+            '<span class="nivel">Nv ' + esc(m.level) + '</span>' +
+            '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
+            (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
+          '</div>' +
+          xpHtml(m.level, m.xp) +
+          '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) +
+            '<span>Skills: <b>' + skillPct + '%</b> de ativar</span></div>' +
+          gearSummaryHtml(m) +
+        '</div></div>' + acoes + '</article>';
+
+    var subabas = '<div class="subabas" role="group" aria-label="Seções da montaria">' + MONTARIA_ABAS.map(function (a) {
+      return '<button type="button" class="btn opcao opcao--centro" data-acao="montaria-aba" data-id="' + esc(a.id) + '" aria-pressed="' + (M.aba === a.id) + '">' + esc(a.rotulo) + '</button>';
+    }).join('') + '</div>';
+
+    var corpo;
+    if (M.aba === 'skills') {
+      var vagas = (GD.RARITIES[m.rarity] || GD.RARITIES.comum).skillSlots - m.skills.length;
+      corpo = '<section class="caixa" aria-label="Skills">' + (m.skills.length ? m.skills.map(skillHtml).join('') : '<p class="nota">Nenhuma skill ainda.</p>') +
+        '<p class="nota">' + (vagas > 0
+          ? vagas + (vagas === 1 ? ' vaga livre' : ' vagas livres') + ' · ' + Math.round(RS.TUNING.learnChance * 100) + '% de chance de aprender uma skill nova a cada nível'
+          : 'Sem vagas livres') + '</p></section>';
+    } else if (M.aba === 'equip') {
+      corpo = montariaEquipHtml(m);
+    } else {
+      corpo = '<section class="caixa" aria-label="Status">' + statsHtml(stats, baseStats) +
+        '<p class="nota">Valores com o equipamento; a diferença para o valor puro aparece ao lado.</p></section>';
+    }
+
+    return '<section class="tela" aria-labelledby="t-montaria">' +
+      '<button type="button" class="btn btn--pequeno" data-acao="montaria-voltar">Voltar</button>' +
+      cabeca + subabas + corpo +
     '</section>';
   }
 
@@ -2494,10 +2563,6 @@
         rerenderKeepScroll();
         break;
       }
-      case 'loja':
-        if (!state) break;
-        ui.loja = { tab: GD.GEAR_SLOTS[0], msg: null };
-        go('loja'); break;
       case 'aba':
         if (state && hasOwn(SCREEN_KIND, id) && SCREEN_KIND[id] === 'aba') go(id);
         break;
@@ -2538,52 +2603,49 @@
         ui.loja.msg = 'Comprou ' + pedrasTxt(pn) + ' negra' + (pn === 1 ? '' : 's') + '.';
         rerenderKeepScroll(); break;
       }
-      case 'montaria':
-        // provisório até a tela da Montaria (Task 3): "Ver" abre o equipamento da montaria.
-        // Cliques no texto da confirmação de liberar não abrem nada.
-        if (e.target.closest && e.target.closest('.confirma')) break;
-        // falls through
-      case 'equipar-tela':
-        if (!state || !mountByUid(id)) break;
-        ui.equip = { uid: id, slot: null, confirm: null, undo: null, msg: null };
-        go('equipamento');
-        break;
-      case 'equip-voltar':
-        go('estabulo'); break;
+      case 'montaria':                // cartão do Estábulo e botão "Ver"
+        goMontaria(id, 'status'); break;
+      case 'equipar-tela':            // "Equipar" da aba Correr e da largada
+        goMontaria(id, 'equip'); break;
+      case 'montaria-aba':
+        if (!ui.montaria || ['status', 'skills', 'equip'].indexOf(id) < 0) break;
+        ui.montaria.aba = id; rerenderKeepScroll(); break;
+      case 'montaria-voltar':
+        go(ui.tab); break;
       case 'equip-slot':
-        if (!ui.equip || GR.SLOTS.indexOf(id) < 0) break;
-        ui.equip.slot = ui.equip.slot === id ? null : id;
-        ui.equip.confirm = null; ui.equip.msg = null;
+        if (!ui.montaria || GR.SLOTS.indexOf(id) < 0) break;
+        ui.montaria.equip.slot = ui.montaria.equip.slot === id ? null : id;
+        ui.montaria.equip.confirm = null; ui.montaria.equip.msg = null;
         rerenderKeepScroll(); break;
       case 'equipar': {
-        var qm = ui.equip ? mountByUid(ui.equip.uid) : null;
+        var qm = ui.montaria ? mountByUid(ui.montaria.uid) : null;
         var qi = itemByUid(id), qd = qi ? GR.piece(qi.id) : null;
         if (!qm || !qd || isEquipped(id)) break;
         var qe = equipWith(qm, qd.slot, id);
-        ui.equip.confirm = null; ui.equip.msg = null;
+        ui.montaria.equip.confirm = null; ui.montaria.equip.msg = null;
         if (canEquip(qm, qe).ok) { qm.equip = qe; persist(); }
         rerenderKeepScroll(); break;
       }
       case 'tirar': {
-        var tm = ui.equip ? mountByUid(ui.equip.uid) : null;
+        var tm = ui.montaria ? mountByUid(ui.montaria.uid) : null;
         if (!tm || GR.SLOTS.indexOf(id) < 0 || !tm.equip || !tm.equip[id]) break;
         var te = equipWith(tm, id, null);
-        ui.equip.confirm = null; ui.equip.msg = null;
+        ui.montaria.equip.confirm = null; ui.montaria.equip.msg = null;
         if (canEquip(tm, te).ok) { tm.equip = te; persist(); }
         rerenderKeepScroll(); break;
       }
       case 'melhorar': {
         var mi0 = itemByUid(id);
-        if (!ui.equip || !mi0 || !GR.enhanceOdds(mi0.plus) || enhanceLocked(id)) break;
-        ui.equip.confirm = id; ui.equip.msg = null;
+        if (!ui.montaria || !mi0 || !GR.enhanceOdds(mi0.plus) || enhanceLocked(id)) break;
+        ui.montaria.equip.confirm = id; ui.montaria.equip.msg = null;
         rerenderKeepScroll(); focusAction('melhorar-nao', id); break;
       }
       case 'melhorar-nao':
-        if (ui.equip) ui.equip.confirm = null;
+        if (ui.montaria) ui.montaria.equip.confirm = null;
         rerenderKeepScroll(); focusAction('melhorar', id); break;
       case 'melhorar-sim': {
-        if (!ui.equip || ui.equip.confirm !== id) break;
-        ui.equip.confirm = null;
+        if (!ui.montaria || ui.montaria.equip.confirm !== id) break;
+        ui.montaria.equip.confirm = null;
         var sM = state;
         persist();                    // sincroniza com outras abas antes de debitar
         if (state !== sM) break;      // save mais novo adotado: adoptExternal já navegou
@@ -2600,12 +2662,12 @@
         persist();
         if (state !== sM) break;
         var mNome = GR.piece(mi.id).name;
-        ui.equip.msg = mr.success ? 'Sucesso! ' + mNome + ' agora é +' + mr.plus
+        ui.montaria.equip.msg = mr.success ? 'Sucesso! ' + mNome + ' agora é +' + mr.plus
           : mr.plus < mAntes ? 'Falhou e ' + mNome + ' caiu para +' + mr.plus : 'Falhou. ' + mNome + ' continua +' + mr.plus;
         rerenderKeepScroll(); focusAction('melhorar', id); break;
       }
       case 'vender': {
-        if (!ui.equip) break;
+        if (!ui.montaria) break;
         var sV = state;
         persist();
         if (state !== sV) break;
@@ -2616,25 +2678,25 @@
         state.items = state.items.filter(function (x) { return x.uid !== id; });
         persist();
         if (state !== sV) break;
-        ui.equip.undo = { item: vi, price: vp };
-        ui.equip.confirm = null;
-        ui.equip.msg = 'Vendida por ' + fmt(vp) + ' de Ouro';
+        ui.montaria.equip.undo = { item: vi, price: vp };
+        ui.montaria.equip.confirm = null;
+        ui.montaria.equip.msg = 'Vendida por ' + fmt(vp) + ' de Ouro';
         rerenderKeepScroll(); focusAction('vender-desfazer'); break;
       }
       case 'vender-desfazer': {
-        if (!ui.equip || !ui.equip.undo) break;
-        var un = ui.equip.undo;
+        if (!ui.montaria || !ui.montaria.equip.undo) break;
+        var un = ui.montaria.equip.undo;
         var sU = state;
         persist();
         if (state !== sU) break;
-        ui.equip.undo = null;
-        if (state.gold < un.price) { ui.equip.msg = 'Sem Ouro para desfazer a venda.'; rerenderKeepScroll(); break; }
+        ui.montaria.equip.undo = null;
+        if (state.gold < un.price) { ui.montaria.equip.msg = 'Sem Ouro para desfazer a venda.'; rerenderKeepScroll(); break; }
         if (itemByUid(un.item.uid)) { rerenderKeepScroll(); break; }
         state.items.push(un.item);
         state.gold -= un.price;
         persist();
         if (state !== sU) break;
-        ui.equip.msg = 'Venda desfeita: ' + GR.piece(un.item.id).name + ' voltou ao inventário';
+        ui.montaria.equip.msg = 'Venda desfeita: ' + GR.piece(un.item.id).name + ' voltou ao inventário';
         rerenderKeepScroll(); break;
       }
       case 'escolher':
@@ -2707,8 +2769,6 @@
       case 'expandir':
         if (state.stableSlots >= BR.stableSlotsMax || state.gold < SLOT_PRICE) { rerenderKeepScroll(); break; }
         state.gold -= SLOT_PRICE; state.stableSlots += 1; persist(); rerenderKeepScroll(); break;
-      case 'haras':
-        go('haras'); break;
       case 'haras-mine':
         if (!ui.haras || !mountByUid(id)) break;
         ui.haras.mine = id; ui.haras.partner = null; ui.haras.confirmTroca = false; rerenderKeepScroll(); break;
@@ -2818,7 +2878,7 @@
   // Início (com suporte opcional a window.claude.hot)
   // ===========================================================================
   function snapshot() {
-    return { save: state, screen: (ui.screen === 'corrida' || ui.screen === 'resultado' || ui.screen === 'largada' || ui.screen === 'equipamento') ? 'estabulo' : ui.screen };
+    return { save: state, screen: (ui.screen === 'corrida' || ui.screen === 'resultado' || ui.screen === 'largada' || ui.screen === 'montaria') ? 'estabulo' : ui.screen };
   }
 
   var started = false;

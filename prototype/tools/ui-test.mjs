@@ -116,26 +116,30 @@ try {
   await page.screenshot({ path: join(SHOTS, 'final-02-estabulo.png') })
   if ((await page.locator('.dev-painel').count()) !== 0) problems.push('painel dev presente sem ?dev=1')
 
-  // lista de montarias: renomear (escapado), expandir o estábulo, a ativa não pode ser liberada
+  // tela da Montaria (pelo "Ver" do cartão): renomear (escapado), a ativa não pode ser liberada; depois expandir o estábulo
+  await page.locator('button[data-acao="montaria"][data-id="m1"]').click()
+  await page.waitForSelector('#t-montaria')
   await page.evaluate(() => { window.prompt = () => '<b>x</b>' })
-  await page.locator('.montaria--ativa [data-acao="renomear"]').click()
+  await page.locator('[data-acao="renomear"][data-id="m1"]').click()
   const ren = await page.evaluate(() => ({
     name: window.__galope.state.mounts[0].name,
-    html: document.querySelector('.montaria--ativa .cavalo-nome').innerHTML,
-    text: document.querySelector('.montaria--ativa .cavalo-nome').textContent
+    html: document.querySelector('#t-montaria').innerHTML,
+    text: document.querySelector('#t-montaria').textContent
   }))
   if (ren.name !== '<b>x</b>') problems.push('renomear: nome salvo ' + JSON.stringify(ren.name))
   if (!ren.html.includes('&lt;b&gt;') || ren.html.includes('<b>')) problems.push('renomear: nome sem escapar: ' + ren.html)
-  if (!ren.text.includes('#1')) problems.push('cartão da montaria sem o #1: ' + ren.text)
+  if (!ren.text.includes('#1')) problems.push('tela da montaria sem o #1: ' + ren.text)
   await page.evaluate(() => { window.prompt = () => 'Brasa' })
-  await page.locator('.montaria--ativa [data-acao="renomear"]').click()
+  await page.locator('[data-acao="renomear"][data-id="m1"]').click()
   if ((await page.evaluate(() => window.__galope.state.mounts[0].name)) !== 'Brasa') problems.push('renomear de volta para Brasa falhou')
+  if (!(await page.locator('[data-acao="liberar"][data-id="m1"]').isDisabled())) problems.push('liberar da montaria ativa não está desabilitado')
+  await page.locator('[data-acao="montaria-voltar"]').click()
+  await page.waitForSelector('#t-estabulo')
   await page.evaluate(() => { window.__galope.state.gold = 2000 })
   await page.locator('[data-acao="aba"][data-id="estabulo"]').click()   // re-renderiza o estábulo
   await page.locator('[data-acao="expandir"]').click()
   const exp = await page.evaluate(() => ({ slots: window.__galope.state.stableSlots, gold: window.__galope.state.gold }))
   if (exp.slots !== 4 || exp.gold !== 1700) problems.push('expandir estábulo: ' + JSON.stringify(exp))
-  if (!(await page.locator('.montaria--ativa [data-acao="liberar"]').isDisabled())) problems.push('liberar da montaria ativa não está desabilitado')
 
   // sala de largada: voltar não re-sorteia, e nada de resultado antes de pagar
   await page.locator('[data-acao="aba"][data-id="correr"]').click()
@@ -547,10 +551,25 @@ try {
       await mn.locator('[data-acao="aba"][data-id="estabulo"]').click()
       const estTxt = await mn.locator('#tela').textContent()
       if (/Preparar corrida|Cavalos selvagens|Recomeçar/.test(estTxt)) problems.push('menu: estábulo ainda tem conteúdo das outras abas')
-      if ((await mn.locator('[data-acao="montaria"][data-id="m1"]').count()) < 1) problems.push('menu: cartão sem "Ver"')
+      if ((await mn.locator('button[data-acao="montaria"][data-id="m1"]').count()) !== 1) problems.push('menu: cartão sem "Ver"')
       // 7. expedição mostra a vitrine dos selvagens
       await mn.locator('[data-acao="aba"][data-id="expedicao"]').click()
       if ((await mn.locator('.selvagem').count()) < 3) problems.push('menu: expedição sem selvagens')
+      // 8. tela da Montaria: 3 sub-abas, Renomear e Liberar
+      await mn.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await mn.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await mn.waitForSelector('#t-montaria')
+      for (const aba of ['skills', 'equip', 'status']) {
+        await mn.locator(`[data-acao="montaria-aba"][data-id="${aba}"]`).click()
+        if ((await mn.locator(`[data-acao="montaria-aba"][data-id="${aba}"][aria-pressed="true"]`).count()) !== 1) problems.push('menu: sub-aba ' + aba + ' não ativou')
+      }
+      if ((await mn.locator('.slots').count()) < 1) problems.push('menu: sub-aba status sem resumo do equipamento')   // o cabeçalho da montaria traz gearSummaryHtml
+      await mn.evaluate(() => { window.prompt = () => 'Trovão' })   // renomear usa window.prompt, como o teste principal já faz
+      await mn.locator('[data-acao="renomear"][data-id="m1"]').click()
+      if ((await mn.evaluate(() => window.__galope.state.mounts[0].name)) !== 'Trovão') problems.push('menu: renomear na Montaria não aplicou')
+      if (!/Trovão/.test(await mn.locator('#t-montaria').textContent())) problems.push('menu: h1 da Montaria não mostra o nome novo')
+      // Liberar desabilitado na ativa/única
+      if (!(await mn.locator('[data-acao="liberar"][data-id="m1"]').isDisabled())) problems.push('menu: Liberar habilitado na única montaria')
     } catch (e) {
       problems.push('menu: ' + e.message)
     }
@@ -580,11 +599,10 @@ try {
       const ids = GR.SLOTS.map((sl) => { const it = itemOf(s, s.mounts[0].equip[sl]); return it ? it.id : null })
       GR.SLOTS.forEach((sl, k) => { if (ids[k] !== sl + '-sol-lendario') problems.push('equipamento: dev-set ' + sl + ' = ' + ids[k]) })
       const L = s.mounts[0].equip.sela
-      // 3. tela de equipamento (pelo "Equipar" da aba Correr)
-      await eq.locator('[data-acao="aba"][data-id="correr"]').click()
-      await eq.waitForSelector('#t-correr')
-      await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
-      await eq.waitForSelector('#t-equipamento', { timeout: 5000 })
+      // 3. tela da Montaria (pelo "Ver" do cartão do Estábulo), sub-aba Equipamento
+      await eq.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await eq.waitForSelector('#t-montaria', { timeout: 5000 })
+      await eq.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
       if (!/Sol ×5/.test(await txt())) problems.push('equipamento: tela sem "Sol ×5"')
       // 4. tirar a sela
       await eq.locator('[data-acao="equip-slot"][data-id="sela"]').click()
@@ -649,8 +667,9 @@ try {
       await eq.waitForSelector('#t-largada')
       await eq.locator('[data-acao="voltar"]').first().click()
       await eq.waitForSelector('#t-correr')
-      await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
-      await eq.waitForSelector('#t-equipamento')
+      await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()   // "Equipar" da aba Correr
+      await eq.waitForSelector('#t-montaria')
+      if ((await eq.locator('[data-acao="montaria-aba"][data-id="equip"][aria-pressed="true"]').count()) !== 1) problems.push('equipamento: "Equipar" da aba Correr não abriu a sub-aba Equipamento')
       await eq.locator('[data-acao="equip-slot"][data-id="sela"]').click()
       const pr = await eq.evaluate(() => window.__galope.state.pending && window.__galope.state.pending.pr)
       if (!(await eq.locator(`[data-acao="equipar"][data-id="${L}"]`).isDisabled())) problems.push('equipamento: equipar a Lendária habilitado com páreo aberto')
@@ -684,15 +703,27 @@ try {
       s = await st()
       const gold3 = s.gold
       if (gold3 !== goldAntes3 + 375 || s.items.length !== 6) problems.push('equipamento: 3ª venda ' + JSON.stringify({ gold: s.gold, goldAntes3, n: s.items.length }))
-      await eq.locator('[data-acao="equip-voltar"]').click()
-      await eq.waitForSelector('#t-estabulo')
-      await eq.locator('[data-acao="aba"][data-id="correr"]').click()
-      await eq.waitForSelector('#t-correr')
+      await eq.locator('[data-acao="montaria-voltar"]').click()
+      await eq.waitForSelector('#t-correr')   // ui.tab é correr: a Montaria foi aberta pela aba Correr
       await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
-      await eq.waitForSelector('#t-equipamento')
+      await eq.waitForSelector('#t-montaria')
       if (await eq.locator('[data-acao="vender-desfazer"]').count()) problems.push('equipamento: "Desfazer venda" continua depois de sair da tela')
       s = await st()
       if (s.items.length !== 6 || s.gold !== gold3 || itemOf(s, L)) problems.push('equipamento: venda não ficou depois de sair ' + JSON.stringify({ gold: s.gold, gold3, n: s.items.length }))
+      // 12. trocar de aba pela barra também descarta o "Desfazer" (vende as ferraduras comuns, i2)
+      await eq.locator('[data-acao="equip-slot"][data-id="ferraduras"]').click()
+      await eq.locator('[data-acao="vender"][data-id="i2"]').click()
+      if ((await eq.locator('[data-acao="vender-desfazer"]').count()) !== 1) problems.push('equipamento: sem "Desfazer venda" depois de vender i2')
+      const n12 = (await st()).items.length
+      await eq.locator('[data-acao="aba"][data-id="loja"]').click()
+      await eq.waitForSelector('#t-loja')
+      await eq.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await eq.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await eq.waitForSelector('#t-montaria')
+      await eq.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+      if ((await eq.locator('[data-acao="vender-desfazer"]').count()) !== 0) problems.push('equipamento: "Desfazer venda" continua depois de trocar de aba')
+      s = await st()
+      if (s.items.length !== n12 || itemOf(s, 'i2')) problems.push('equipamento: venda de i2 não ficou depois de trocar de aba ' + JSON.stringify({ n: s.items.length, n12 }))
       notes.equipamentoVenda = { gold0, goldVenda: gold0 + 375, goldAntes3, goldVendida3: gold3, goldFinal: s.gold }
     } catch (e) {
       problems.push('equipamento: ' + e.message)
@@ -747,15 +778,16 @@ try {
       await checkOverflow(lj, 'loja')
       await lj.screenshot({ path: join(SHOTS, 'final-08-loja.png') })
       // 6. equipar a sela comprada e ver o resumo + atalho na largada
-      await lj.locator('[data-acao="aba"][data-id="correr"]').click()
-      await lj.waitForSelector('#t-correr')
-      await lj.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
-      await lj.waitForSelector('#t-equipamento')
+      await lj.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await lj.waitForSelector('#t-estabulo')
+      await lj.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await lj.waitForSelector('#t-montaria')
+      await lj.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
       await lj.locator('[data-acao="equip-slot"][data-id="sela"]').click()
       await lj.locator('[data-acao="equipar"][data-id="i3"]').click()
       s = await st()
       if (s.mounts[0].equip.sela !== 'i3') problems.push('loja: equipar i3 deixou sela ' + s.mounts[0].equip.sela)
-      await lj.locator('[data-acao="equip-voltar"]').click()
+      await lj.locator('[data-acao="montaria-voltar"]').click()
       await lj.waitForSelector('#t-estabulo')
       await lj.locator('[data-acao="aba"][data-id="correr"]').click()
       await lj.waitForSelector('#t-correr')
@@ -767,7 +799,8 @@ try {
       if ((await atalho.count()) !== 1) problems.push('loja: largada sem o atalho Equipar')
       else {
         await atalho.click()
-        await lj.waitForSelector('#t-equipamento')
+        await lj.waitForSelector('#t-montaria')
+        if ((await lj.locator('[data-acao="montaria-aba"][data-id="equip"][aria-pressed="true"]').count()) !== 1) problems.push('loja: atalho da largada não abriu a sub-aba Equipamento')
         if (!/Páreo aberto/.test(await txt())) problems.push('loja: Equipamento aberto da largada sem "Páreo aberto"')
       }
     } catch (e) {
