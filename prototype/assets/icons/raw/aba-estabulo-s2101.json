@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-08T19:53:25.004Z",
+  "pedido": {
+    "description": "horse head icon, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 97 bytes, sha256 a1bf1739709c2562>",
+      "format": "png"
+    },
+    "seed": 2101
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 532 bytes, sha256 9e6039b5f2000d8f>",
+      "format": "png"
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "estilo": "lisa",
+  "w": 64,
+  "h": 64,
+  "footY": 56,
+  "frames": 9,
+  "larguraUtil": 53,
+  "limiares": {
+    "retrato": {
+      "pelagem": {
+        "limiar": -1,
+        "procedural": true
+      },
+      "crina": {
+        "limiar": 53,
+        "procedural": false
+      }
+    },
+    "parado": {
+      "pelagem": {
+        "limiar": 28,
+        "procedural": true
+      },
+      "crina": {
+        "limiar": 81,
+        "procedural": false
+      }
+    },
+    "galope": {
+      "pelagem": {
+        "limiar": 55,
+        "procedural": false
+      },
+      "crina": {
+        "limiar": 114,
+        "procedural": true
+      }
+    }
+  },
+  "seeds": {
+    "retrato": 1411,
+    "parado": 1421,
+    "montado": 1431,
+    "galope": 1411
+  },
+  "gerado": "2026-11-08",
+  "ancoras": {
+    "retrato": {"footY":56,"nose":[59,20],"rear":[8,29],"saddle":null,"bbox":{"x":7,"y":8,"w":53,"h":49}},
+    "parado": {"footY":54,"nose":[56,24],"rear":[8,31],"saddle":[30,29],"bbox":{"x":7,"y":9,"w":50,"h":46}},
+    "galope-0": {"footY":50,"nose":[54,29],"rear":[11,34],"saddle":[29,29],"bbox":{"x":4,"y":17,"w":51,"h":34}},
+    "galope-1": {"footY":50,"nose":[55,30],"rear":[10,33],"saddle":[32,26],"bbox":{"x":5,"y":16,"w":51,"h":35}},
+    "galope-2": {"footY":50,"nose":[56,31],"rear":[7,33],"saddle":[31,27],"bbox":{"x":6,"y":15,"w":51,"h":36}},
+    "galope-3": {"footY":50,"nose":[56,31],"rear":[5,33],"saddle":[31,29],"bbox":{"x":5,"y":16,"w":52,"h":35}},
+    "galope-4": {"footY":49,"nose":[55,30],"rear":[5,33],"saddle":null,"bbox":{"x":5,"y":17,"w":51,"h":33}},
+    "galope-5": {"footY":50,"nose":[54,29],"rear":[11,34],"saddle":[31,29],"bbox":{"x":4,"y":18,"w":51,"h":33}},
+    "galope-6": {"footY":50,"nose":[53,28],"rear":[10,34],"saddle":[30,33],"bbox":{"x":4,"y":17,"w":50,"h":34}},
+    "galope-7": {"footY":50,"nose":[55,30],"rear":[9,33],"saddle":[30,28],"bbox":{"x":5,"y":16,"w":51,"h":35}},
+    "galope-8": {"footY":50,"nose":[56,31],"rear":[7,33],"saddle":[30,30],"bbox":{"x":6,"y":15,"w":51,"h":36}}
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-08T19:58:15.505Z",
+  "pedido": {
+    "description": "green leaf icon (#7be07a), pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 3bdb8f6341cbcc60>",
+      "format": "png"
+    },
+    "seed": 2115
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 373 bytes, sha256 2d98941556ba55c0>",
+      "format": "png"
+    }
+  }
+}

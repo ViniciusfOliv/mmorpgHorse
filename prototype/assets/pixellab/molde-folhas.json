@@ -1,0 +1,60 @@
+{
+  "estilo": "folhas",
+  "w": 64,
+  "h": 64,
+  "footY": 51,
+  "frames": 9,
+  "larguraUtil": 50,
+  "limiares": {
+    "retrato": {
+      "pelagem": {
+        "limiar": 49,
+        "procedural": false
+      },
+      "crina": {
+        "limiar": 105,
+        "procedural": false
+      }
+    },
+    "parado": {
+      "pelagem": {
+        "limiar": 44,
+        "procedural": false
+      },
+      "crina": {
+        "limiar": 53,
+        "procedural": false
+      }
+    },
+    "galope": {
+      "pelagem": {
+        "limiar": 51,
+        "procedural": false
+      },
+      "crina": {
+        "limiar": 67,
+        "procedural": false
+      }
+    }
+  },
+  "seeds": {
+    "retrato": 1301,
+    "parado": 1301,
+    "montado": 1311,
+    "galope": 1301
+  },
+  "gerado": "2026-11-08",
+  "ancoras": {
+    "retrato": {"footY":51,"nose":[56,24],"rear":[9,24],"saddle":null,"bbox":{"x":7,"y":12,"w":50,"h":40}},
+    "parado": {"footY":53,"nose":[57,25],"rear":[10,28],"saddle":[31,27],"bbox":{"x":6,"y":10,"w":52,"h":44}},
+    "galope-0": {"footY":52,"nose":[60,25],"rear":[6,32],"saddle":[31,28],"bbox":{"x":3,"y":11,"w":58,"h":42}},
+    "galope-1": {"footY":51,"nose":[59,24],"rear":[7,31],"saddle":[32,24],"bbox":{"x":5,"y":11,"w":55,"h":41}},
+    "galope-2": {"footY":51,"nose":[59,24],"rear":[6,32],"saddle":[32,25],"bbox":{"x":5,"y":12,"w":55,"h":40}},
+    "galope-3": {"footY":50,"nose":[59,25],"rear":[6,31],"saddle":[32,26],"bbox":{"x":5,"y":12,"w":55,"h":39}},
+    "galope-4": {"footY":51,"nose":[60,26],"rear":[5,32],"saddle":[32,26],"bbox":{"x":5,"y":12,"w":56,"h":40}},
+    "galope-5": {"footY":51,"nose":[60,25],"rear":[6,31],"saddle":[32,25],"bbox":{"x":5,"y":12,"w":56,"h":40}},
+    "galope-6": {"footY":52,"nose":[60,24],"rear":[5,32],"saddle":[32,23],"bbox":{"x":3,"y":11,"w":58,"h":42}},
+    "galope-7": {"footY":52,"nose":[60,25],"rear":[7,31],"saddle":[34,24],"bbox":{"x":5,"y":11,"w":56,"h":42}},
+    "galope-8": {"footY":52,"nose":[59,26],"rear":[7,31],"saddle":[32,26],"bbox":{"x":5,"y":12,"w":55,"h":41}}
+  }
+}

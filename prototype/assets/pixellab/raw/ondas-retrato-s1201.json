@@ -1,0 +1,30 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-08T19:20:40.471Z",
+  "origem": "experimento da Task 2 (caminho B, sem paleta forçada)",
+  "pedido": {
+    "description": "side view, facing right, standing still horse, no rider, no saddle, mane and tail shaped like flowing water waves, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "side",
+    "direction": "east",
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "detail": "medium detail",
+    "no_background": true,
+    "seed": 1201
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1405 bytes>",
+      "format": "png"
+    }
+  }
+}

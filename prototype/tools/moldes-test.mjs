@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePng, encodePng, encodeGray } from './png.mjs';
-import { PAPEIS, paletaPng, normalizar, validar, ancoras, paraCinza, deCinza } from './moldes-lib.mjs';
+import { PAPEIS, paletaPng, normalizar, validar, ancoras, paraCinza, deCinza, sombrearRegioes, limparJoquei, limiarOtsu, classificarFamilias, limiaresDeTons, posProcessar, contornar } from './moldes-lib.mjs';
 
 let fails = 0, count = 0;
 function section(t) { console.log('\n## ' + t); }
@@ -156,15 +156,101 @@ test('paraCinza/deCinza ida e volta', () => {
   assert.deepStrictEqual(Array.from(deCinza(ruidoso)), Array.from(idx));
 });
 
+section('pós-processamento (cores livres → papéis)');
+test('sombrearRegioes: terço de baixo de cada corrida vertical vira sombra; regioes limita as famílias', () => {
+  // coluna 0: pelagem 3 ×6 ⇒ 2,2,2,2,3,3; coluna 1: pelagem ×2 ⇒ 2,2 (sem sombra); coluna 2: crina 5 ×3 ⇒ 4,4,5
+  const w = 3, h = 6, idx = new Uint8Array(w * h);
+  for (let y = 0; y < 6; y++) idx[y * w] = 3;
+  idx[1] = 3; idx[w + 1] = 2; idx[2 * w + 1] = 1;
+  for (let y = 0; y < 3; y++) idx[y * w + 2] = 5;
+  const r = sombrearRegioes(idx, w, h);
+  const col = (q, x) => Array.from({ length: h }, (_, y) => q[y * w + x]);
+  assert.deepStrictEqual(col(r.idx, 0), [2, 2, 2, 2, 3, 3]);
+  assert.deepStrictEqual(col(r.idx, 1), [2, 2, 1, 0, 0, 0]);
+  assert.deepStrictEqual(col(r.idx, 2), [4, 4, 5, 0, 0, 0]);
+  assert.strictEqual(r.alterados, 4 + 1 + 2);
+  assert.strictEqual(idx[0], 3, 'não altera a entrada');
+  const so = sombrearRegioes(idx, w, h, { regioes: [4] });
+  assert.deepStrictEqual(col(so.idx, 0), [3, 3, 3, 3, 3, 3], 'pelagem fora das regiões fica como está');
+});
+test('limparJoquei no retrato: 7/8/9 viram o vizinho não-jóquei mais comum (desempate 4, 2, 6, 1)', () => {
+  const w = 3, h = 3;
+  const a = Uint8Array.from([4, 4, 4, 4, 7, 2, 2, 2, 2]); // 4 ×4, 2 ×4 ⇒ empate ⇒ 4
+  assert.deepStrictEqual(Array.from(limparJoquei(a, w, h).idx), [4, 4, 4, 4, 4, 2, 2, 2, 2]);
+  const b = Uint8Array.from([2, 2, 2, 2, 9, 9, 2, 6, 1]); // os dois 9 veem mais vizinhos 2 do que 6/1 ⇒ 2
+  const rb = limparJoquei(b, w, h);
+  assert.deepStrictEqual(Array.from(rb.idx), [2, 2, 2, 2, 2, 2, 2, 6, 1]);
+  assert.strictEqual(rb.remapeados, 2);
+});
+test('limparJoquei com jóquei: fica o maior grupo, os a ≤ 2 px e o cinza a ≤ 4 px', () => {
+  const caso = linha => limparJoquei(Uint8Array.from(linha), linha.length, 1, { comJoquei: true });
+  const fim = linha => { const r = caso(linha); return [r.idx[linha.length - 1], r.remapeados]; };
+  assert.deepStrictEqual(fim([7, 7, 7, 2, 8]), [8, 0], 'pele a 2 px fica');
+  assert.deepStrictEqual(fim([7, 7, 7, 2, 2, 8]), [2, 1], 'pele a 3 px sai');
+  assert.deepStrictEqual(fim([7, 7, 7, 2, 2, 2, 9]), [9, 0], 'sela (cinza) a 4 px fica');
+  assert.deepStrictEqual(fim([7, 7, 7, 2, 2, 2, 2, 9]), [2, 1], 'cinza a 5 px ao lado sai');
+  assert.deepStrictEqual(fim([7, 7, 7, 2, 8, 2, 7]), [7, 0], 'em cadeia: capacete a 2 px do rosto, que está a 2 px da seda');
+  assert.deepStrictEqual(fim([7, 7, 7, 2, 8, 2, 2, 7]), [2, 1], 'a 3 px do último da cadeia sai');
+  // cinza 6 linhas abaixo da seda (sela sob a calça) fica; o mesmo cinza deslocado para o lado sai
+  const w = 10, h = 8, base = new Uint8Array(w * h).fill(2);
+  base[1] = base[2] = base[3] = 7;
+  const sob = Uint8Array.from(base); sob[6 * w + 2] = sob[6 * w + 3] = 9;
+  assert.strictEqual(limparJoquei(sob, w, h, { comJoquei: true }).idx[6 * w + 2], 9, 'sela embaixo fica');
+  const lado = Uint8Array.from(base); lado[6 * w + 8] = lado[6 * w + 9] = 9;
+  assert.strictEqual(limparJoquei(lado, w, h, { comJoquei: true }).idx[6 * w + 8], 2, 'cinza fora da faixa sai');
+});
+test('limiarOtsu separa dois grupos e devolve -1 sem contraste', () => {
+  const t = limiarOtsu([10, 12, 10, 200, 210]);
+  assert.ok(t >= 12 && t < 200, 't = ' + t);
+  assert.strictEqual(limiarOtsu([90, 90, 90]), -1);
+});
+test('classificarFamilias: famílias de cor ⇒ papéis; matiz sem família conta como aproximado', () => {
+  // … roxo/magenta = sombra da seda (7); ciano = crina (4); laranja fica entre famílias ⇒ aproximado (amarelo)
+  const cores = ['#101010', '#ff2020', '#801010', '#20e020', '#107010', '#2030ff', '#ffe020', '#ffc0cb', '#808080', '#af0785', '#00e0e0', '#ff8000'];
+  const rgba = new Uint8Array(cores.length * 4);
+  cores.forEach((c, i) => { rgba.set(hex(c), i * 4); rgba[i * 4 + 3] = 255; });
+  const q = classificarFamilias(rgba, cores.length, 1);
+  assert.deepStrictEqual(Array.from(q.idx), [1, 2, 2, 4, 4, 6, 7, 8, 9, 7, 4, 7]);
+  assert.strictEqual(q.aproximados, 1); assert.strictEqual(q.opacos, 12);
+});
+test('limiaresDeTons usa todos os quadros juntos; lado < 10% ⇒ procedural', () => {
+  const f = (vals, papel) => ({ idx: Uint8Array.from(vals.map(() => papel)), lum: Float32Array.from(vals) });
+  // pelagem: 6 escuros num quadro e 4 claros no outro ⇒ um limiar só para os dois quadros
+  const t = limiaresDeTons([f([40, 42, 41, 40, 43, 41], 2), f([180, 182, 181, 179], 2)]);
+  assert.ok(t.pelagem.limiar >= 43 && t.pelagem.limiar < 179, 'limiar ' + t.pelagem.limiar);
+  assert.strictEqual(t.pelagem.procedural, false);
+  assert.strictEqual(t.crina.procedural, true, 'sem crina ⇒ procedural');
+  const d = limiaresDeTons([f([100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 30], 4)]);
+  assert.strictEqual(d.crina.procedural, true, '1 de 13 na sombra (< 10%)');
+});
+test('contornar fecha a borda só onde falta contorno', () => {
+  // 5×5: bloco 3×3 de pelagem no centro, com a coluna da esquerda já contornada (1)
+  const w = 5, h = 5, idx = new Uint8Array(w * h);
+  for (let y = 1; y <= 3; y++) { idx[y * w + 1] = 1; idx[y * w + 2] = 2; idx[y * w + 3] = 2; }
+  const r = contornar(idx, w, h);
+  assert.strictEqual(r.adicionados, 2 + 2 + 3, 'em cima (2), embaixo (2) e à direita (3); nada à esquerda do contorno');
+  assert.strictEqual(r.idx[0 * w + 2], 1); assert.strictEqual(r.idx[2 * w + 4], 1); assert.strictEqual(r.idx[2 * w + 0], 0);
+});
+test('posProcessar: Otsu na família equilibrada, procedural na desequilibrada', () => {
+  // coluna 0: pelagem com lum 200,200,60 (sombra pelo limiar); coluna 1: crina toda lum 120 (procedural)
+  const w = 2, h = 3, fam = { idx: Uint8Array.from([2, 4, 2, 4, 2, 4]), lum: Float32Array.from([200, 120, 200, 120, 60, 120]), aproximados: 0, opacos: 6, w, h };
+  const r = posProcessar(fam, { pelagem: { limiar: 100, procedural: false }, crina: { limiar: -1, procedural: true } });
+  assert.deepStrictEqual(Array.from(r.idx), [2, 4, 2, 4, 3, 5]);
+  assert.deepStrictEqual([...r.papeis].sort(), [2, 3, 4, 5]); assert.strictEqual(r.sombreados, 1);
+  assert.strictEqual(r.contornados, 0, 'sem pixel transparente, nada a contornar');
+});
+
 section('moldes reais');
 const moldes = fs.existsSync(DIR) ? fs.readdirSync(DIR).filter(f => /^molde-.*\.json$/.test(f)) : [];
 if (!moldes.length) console.log('  sem moldes reais — bloco pulado');
 moldes.forEach(arq => {
   const J = JSON.parse(fs.readFileSync(path.join(DIR, arq), 'utf8'));
   const estilo = arq.replace(/^molde-|\.json$/g, '');
-  const nomes = ['retrato', 'parado'].concat(Array.from({ length: 9 }, (_, i) => 'galope-' + i));
+  // o galope tem J.frames quadros (9, ou 8 quando a API devolve 8)
+  const nomes = ['retrato', 'parado'].concat(Array.from({ length: J.frames }, (_, i) => 'galope-' + i));
   const quadros = {};
-  test(estilo + ': 11 arquivos 64x64 com índices 0–9', () => {
+  test(estilo + ': frames 8 ou 9 e ' + nomes.length + ' arquivos 64x64 em cinza = papel × 25 (0–225)', () => {
+    assert.ok(J.frames === 8 || J.frames === 9, 'frames = ' + J.frames);
     nomes.forEach(n => {
       const f = path.join(DIR, 'molde-' + estilo + '-' + n + '.png');
       assert.ok(fs.existsSync(f), 'falta ' + path.basename(f));
@@ -172,8 +258,9 @@ moldes.forEach(arq => {
       assert.strictEqual(d.width, 64); assert.strictEqual(d.height, 64);
       const g = new Uint8Array(64 * 64);
       for (let i = 0; i < g.length; i++) g[i] = d.rgba[i * 4];
+      // confere o cinza bruto (antes de deCinza, que já limitaria a 9): só múltiplos de 25 até 225
+      g.forEach((v, i) => assert.ok(v % 25 === 0 && v <= 225, n + ' cinza ' + v + ' no pixel ' + i));
       const idx = deCinza(g);
-      idx.forEach(v => assert.ok(v >= 0 && v <= 9, n + ' índice ' + v));
       quadros[n] = { idx, w: 64, h: 64, papeis: new Set(idx.filter(v => v)), aproximados: 0 };
     });
   });
@@ -187,7 +274,7 @@ moldes.forEach(arq => {
     const a = ancoras(quadros.retrato.idx, 64, 64);
     assert.strictEqual(J.footY, a.footY);
     const n0 = ancoras(quadros['galope-0'].idx, 64, 64).nose[0];
-    for (let i = 1; i < 9; i++) {
+    for (let i = 1; i < J.frames; i++) {
       const nx = ancoras(quadros['galope-' + i].idx, 64, 64).nose[0];
       assert.ok(Math.abs(nx - n0) <= 6, 'galope-' + i + ' nose.x ' + nx + ' vs ' + n0);
     }
