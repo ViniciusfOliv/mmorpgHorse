@@ -2,7 +2,8 @@
 // Um "molde" é uma imagem 64×64 em que cada pixel carrega um PAPEL (0–9), não uma cor final.
 import { encodePng } from './png.mjs';
 
-// Índice = papel. 0 = transparente. Cores de referência dos papéis (prompt, prévias e paletaPng).
+// Índice = papel. 0 = transparente. Cores de referência dos papéis: as que o prompt pede por texto e as
+// das prévias. (paletaPng() vem da paleta forçada, testada e descartada no lote; segue para testes e consultas.)
 export const PAPEIS = [null, '#000000', '#ff0000', '#800000', '#00ff00', '#008000', '#0000ff', '#ffff00', '#ffc0cb', '#808080'];
 export const NOMES_PAPEIS = [
   'transparente', 'contorno', 'pelagem', 'pelagem-sombra', 'crina', 'crina-sombra',
@@ -267,11 +268,13 @@ export function limiarOtsu(valores) {
  * cinza (S < 0.3) ⇒ 9; vermelho (≥ 330° ou < 25°) ⇒ 2 (pelagem); amarelo (38–72°) ⇒ 7; verde a ciano
  * (72–190°) ⇒ 4 (crina); azul (190–265°) ⇒ 6; magenta/roxo (265–330°) ⇒ 7 (o modelo sombreia a seda amarela
  * puxando para o magenta; longe do jóquei, limparJoquei remapeia). Laranja (25–38°) vai para a família de
- * centro mais próximo (0°, 55°, 120°, 225°) e conta em `aproximados`. Alfa < 128 ⇒ 0. `lum` é a luminância (0,299 R + 0,587 G + 0,114 B) de cada pixel.
- * @returns {{ idx: Uint8Array, lum: Float32Array, aproximados: number, opacos: number, w: number, h: number }}
+ * centro mais próximo (0°, 55°, 120°, 225°) e conta em `aproximados`. Alfa < 128 ⇒ 0. `lum` é a luminância
+ * (0,299 R + 0,587 G + 0,114 B) de cada pixel. `magenta` marca os pixels que viraram seda pela faixa magenta:
+ * os que a limpeza tirar do jóquei contam como aproximados em posProcessar().
+ * @returns {{ idx: Uint8Array, lum: Float32Array, magenta: Uint8Array, aproximados: number, opacos: number, w: number, h: number }}
  */
 export function classificarFamilias(rgba, w, h) {
-  const idx = new Uint8Array(w * h), lum = new Float32Array(w * h);
+  const idx = new Uint8Array(w * h), lum = new Float32Array(w * h), magenta = new Uint8Array(w * h);
   const CENTROS = [[0, 2], [55, 7], [120, 4], [225, 6]];
   const distMatiz = (a, b) => { const d = Math.abs(a - b) % 360; return Math.min(d, 360 - d); };
   let aproximados = 0, opacos = 0;
@@ -292,14 +295,14 @@ export function classificarFamilias(rgba, w, h) {
     else if (hue >= 38 && hue < 72) p = 7;
     else if (hue >= 72 && hue < 190) p = 4; // inclui o turquesa/ciano: crina pedida verde às vezes sai assim
     else if (hue >= 190 && hue < 265) p = 6;
-    else if (hue >= 265 && hue < 330) p = 7; // magenta/roxo: sombra da seda amarela (hue shift do pixel art)
+    else if (hue >= 265 && hue < 330) { p = 7; magenta[i] = 1; } // sombra da seda amarela (hue shift do pixel art)
     else {
       aproximados++;
       p = CENTROS.reduce((m, cc) => (distMatiz(hue, cc[0]) < distMatiz(hue, m[0]) ? cc : m))[1];
     }
     idx[i] = p;
   }
-  return { idx, lum, aproximados, opacos, w, h };
+  return { idx, lum, magenta, aproximados, opacos, w, h };
 }
 
 /**
@@ -343,15 +346,17 @@ export function contornar(idx, w, h) {
 }
 
 /**
- * Quadro classificado → papéis finais: separa claro/sombra com os limiares do estilo, limpa os papéis do
- * jóquei (limparJoquei), sombreia por procedimento as famílias marcadas como `procedural` e fecha o
- * contorno (contornar).
+ * Quadro classificado → papéis finais: separa claro/sombra com os limiares do grupo, limpa os papéis do
+ * jóquei (limparJoquei), sombreia por procedimento as famílias marcadas como `procedural` e, só com
+ * `contorno: true` (montado e galope, que o animate devolve sem borda), fecha o contorno (contornar). No
+ * retrato e no parado o contorno fica como veio, para o validar() continuar pegando silhueta aberta.
+ * `aproximados` = os da classificação + magenta que a limpeza tirou do jóquei (virou papel de cavalo).
  * Devolve o formato de normalizar() (serve para validar()) e as contagens das etapas.
- * @param {{ idx: Uint8Array, lum: Float32Array, aproximados: number, opacos: number, w: number, h: number }} fam
+ * @param {{ idx: Uint8Array, lum: Float32Array, magenta?: Uint8Array, aproximados: number, opacos: number, w: number, h: number }} fam
  * @param {ReturnType<typeof limiaresDeTons>} tons
- * @param {{ comJoquei?: boolean }} opts
+ * @param {{ comJoquei?: boolean, contorno?: boolean }} opts
  */
-export function posProcessar(fam, tons, { comJoquei = false } = {}) {
+export function posProcessar(fam, tons, { comJoquei = false, contorno = false } = {}) {
   const { w, h } = fam, idx = Uint8Array.from(fam.idx);
   for (const [nome, claro] of Object.entries(FAMILIAS)) {
     const t = tons[nome];
@@ -360,8 +365,10 @@ export function posProcessar(fam, tons, { comJoquei = false } = {}) {
   const lj = limparJoquei(idx, w, h, { comJoquei });
   const regioes = Object.entries(FAMILIAS).filter(([nome]) => tons[nome].procedural).map(([, claro]) => claro);
   const s = regioes.length ? sombrearRegioes(lj.idx, w, h, { regioes }) : { idx: lj.idx, alterados: 0 };
-  const c = contornar(s.idx, w, h);
+  const c = contorno ? contornar(s.idx, w, h) : { idx: s.idx, adicionados: 0 };
+  let aproximados = fam.aproximados;
+  if (fam.magenta) for (let i = 0; i < idx.length; i++) if (fam.magenta[i] && !JOQUEI(lj.idx[i])) aproximados++;
   const papeis = new Set();
   for (const v of c.idx) if (v) papeis.add(v);
-  return { idx: c.idx, papeis, aproximados: fam.aproximados, opacos: fam.opacos, w, h, remapeados: lj.remapeados, sombreados: s.alterados, contornados: c.adicionados };
+  return { idx: c.idx, papeis, aproximados, opacos: fam.opacos, w, h, remapeados: lj.remapeados, sombreados: s.alterados, contornados: c.adicionados };
 }

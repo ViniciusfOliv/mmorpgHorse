@@ -44,9 +44,22 @@
     "galope": 1201
   },
   "gerado": "2026-11-08",
+  "contagens": {
+    "retrato": {"aproximados":0,"remapeados":0,"contornados":0},
+    "parado": {"aproximados":0,"remapeados":13,"contornados":0},
+    "galope-0": {"aproximados":10,"remapeados":23,"contornados":71},
+    "galope-1": {"aproximados":9,"remapeados":14,"contornados":83},
+    "galope-2": {"aproximados":9,"remapeados":14,"contornados":77},
+    "galope-3": {"aproximados":10,"remapeados":16,"contornados":71},
+    "galope-4": {"aproximados":10,"remapeados":15,"contornados":71},
+    "galope-5": {"aproximados":9,"remapeados":15,"contornados":78},
+    "galope-6": {"aproximados":9,"remapeados":14,"contornados":83},
+    "galope-7": {"aproximados":8,"remapeados":15,"contornados":75},
+    "galope-8": {"aproximados":9,"remapeados":25,"contornados":70}
+  },
   "ancoras": {
     "retrato": {"footY":59,"nose":[61,21],"rear":[3,32],"saddle":null,"bbox":{"x":2,"y":4,"w":60,"h":56}},
-    "parado": {"footY":57,"nose":[60,27],"rear":[5,33],"saddle":[29,32],"bbox":{"x":1,"y":9,"w":60,"h":49}},
+    "parado": {"footY":56,"nose":[59,27],"rear":[6,33],"saddle":[29,32],"bbox":{"x":2,"y":10,"w":58,"h":47}},
     "galope-0": {"footY":52,"nose":[58,26],"rear":[8,31],"saddle":[31,28],"bbox":{"x":3,"y":10,"w":56,"h":43}},
     "galope-1": {"footY":54,"nose":[58,25],"rear":[5,32],"saddle":[32,27],"bbox":{"x":3,"y":9,"w":56,"h":46}},
     "galope-2": {"footY":55,"nose":[58,25],"rear":[4,33],"saddle":[32,28],"bbox":{"x":3,"y":10,"w":56,"h":46}},

@@ -240,6 +240,32 @@ test('posProcessar: Otsu na família equilibrada, procedural na desequilibrada',
   assert.strictEqual(r.contornados, 0, 'sem pixel transparente, nada a contornar');
 });
 
+test('posProcessar sem contorno (retrato/parado) mantém a regra de silhueta: buraco 4×4 na pelagem é rejeitado', () => {
+  // moldura de contorno 12×10 com pelagem (claro em cima, sombra embaixo), crina na 1ª linha e um buraco 4×4
+  const w = 14, h = 12, idx = new Uint8Array(w * h), lum = new Float32Array(w * h);
+  for (let y = 1; y <= 10; y++) for (let x = 1; x <= 12; x++) {
+    const i = y * w + x, borda = y === 1 || y === 10 || x === 1 || x === 12;
+    idx[i] = borda ? 1 : 2; lum[i] = borda ? 10 : (y < 6 ? 200 : 80);
+  }
+  for (let x = 2; x <= 4; x++) { idx[2 * w + x] = 4; lum[2 * w + x] = 150; }
+  for (let y = 4; y <= 7; y++) for (let x = 6; x <= 9; x++) idx[y * w + x] = 0;
+  const fam = { idx, lum, aproximados: 0, opacos: idx.filter(v => v).length, w, h };
+  const tons = limiaresDeTons([fam]);
+  const r = validar(posProcessar(fam, tons), { exigeJoquei: false });
+  assert.strictEqual(r.ok, false); assert.match(r.motivo, /silhueta aberta/);
+  assert.strictEqual(validar(posProcessar(fam, tons, { contorno: true }), { exigeJoquei: false }).ok, true,
+    'com contorno (só no montado/galope) o buraco vira borda — por isso ele não vale para retrato e parado');
+});
+test('magenta que a limpeza tira do jóquei conta como aproximado', () => {
+  const cores = ['#ff2020', '#ff2020', '#ff2020', '#ff2020', '#af0785', '#ff2020', '#ff2020', '#ff2020', '#ff2020'];
+  const rgba = new Uint8Array(cores.length * 4);
+  cores.forEach((c, i) => { rgba.set(hex(c), i * 4); rgba[i * 4 + 3] = 255; });
+  const fam = classificarFamilias(rgba, 3, 3);
+  assert.strictEqual(fam.aproximados, 0); assert.strictEqual(fam.magenta[4], 1);
+  const q = posProcessar(fam, limiaresDeTons([fam]), { comJoquei: false });
+  assert.strictEqual(q.aproximados, 1); assert.notStrictEqual(q.idx[4], 7);
+});
+
 section('moldes reais');
 const moldes = fs.existsSync(DIR) ? fs.readdirSync(DIR).filter(f => /^molde-.*\.json$/.test(f)) : [];
 if (!moldes.length) console.log('  sem moldes reais — bloco pulado');

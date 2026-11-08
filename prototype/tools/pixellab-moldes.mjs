@@ -9,6 +9,7 @@
 //   --only id um estilo (chamas|ondas|folhas|lisa) ou um ícone (aba-estabulo, el-fogo, …).
 //   --repetir item[,item]  dá UMA tentativa a mais (seed + 30) a cada item citado (ex.: lisa/parado,
 //             icone/aba-loja): a repetição manual de item ruim (no máximo 2 itens por lote, plano Step 3).
+//   --reprocessar  refaz os finais só a partir de raw/, sem rede (nem /balance): falha se faltar imagem crua.
 // Credencial: o proxy de rede injeta a chave (nunca no código nem em arquivo). O fetch do Node não lê
 // HTTPS_PROXY sozinho: na sessão na nuvem, rode com NODE_USE_ENV_PROXY=1 (Node ≥ 22.21), senão a API
 // responde 401 (a chamada sai sem passar pelo proxy e sem a chave).
@@ -18,7 +19,8 @@
 // cor (moldes-lib: classificarFamilias); claro × sombra da pelagem e da crina usam um limiar de Otsu por
 // geração — retrato, parado e os quadros do galope juntos (para o galope não piscar); juntar as três
 // gerações não serve, porque cada uma vem com um brilho diferente. Depois limpa os papéis do jóquei,
-// sombreia por procedimento o par desequilibrado, fecha o contorno (o animate devolve sem borda) e valida.
+// sombreia por procedimento o par desequilibrado, fecha o contorno só no montado e no galope (o animate
+// devolve sem borda; no retrato e no parado a regra de silhueta do validar continua valendo) e valida.
 // Quadro inválido refaz o item com seed + 10 (até 2 repetições por item, contando no teto).
 // A paleta forçada (color_image com as cores de papel + /reduce-colors) foi testada em 2026-11-08 e
 // descartada: o modelo pintava cada par num tom só (pelagem toda #800000, crina toda #008000) e punha
@@ -132,10 +134,11 @@ function pedidoIcone(icone, seed) {
 function sair(msg) { console.error(msg); process.exit(2); }
 
 function lerArgs(argv) {
-  const a = { lote: null, only: null, teto: 60, gerar: false, repetir: [] };
+  const a = { lote: null, only: null, teto: 60, gerar: false, reprocessar: false, repetir: [] };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--gerar') a.gerar = true;
+    else if (k === '--reprocessar') a.reprocessar = true;
     else if (k === '--lote') a.lote = argv[++i];
     else if (k === '--only') a.only = argv[++i];
     else if (k === '--teto') a.teto = Number(argv[++i]);
@@ -146,6 +149,7 @@ function lerArgs(argv) {
     sair('uso: node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|tudo [--only <id>] [--teto 60] [--gerar]');
   }
   if (!Number.isFinite(a.teto) || a.teto <= 0) sair('--teto precisa ser um número maior que zero');
+  if (a.gerar && a.reprocessar) sair('--gerar e --reprocessar não andam juntos');
   a.estilos = a.lote === 'icones' ? [] : ESTILOS.filter(e => !a.only || e.id === a.only);
   a.icones = a.lote === 'moldes' ? [] : ICONES.filter(ic => !a.only || ic.id === a.only);
   if (a.only && !a.estilos.length && !a.icones.length) sair(`--only ${a.only}: não existe no lote "${a.lote}"`);
@@ -269,6 +273,7 @@ const recuperavel = e => e instanceof ErroApi && !e.fatal;
 const dormir = ms => new Promise(r => setTimeout(r, ms));
 const TOKEN = process.env.PIXELLAB_API_KEY || 'proxy-injected';
 let REDE_LIBERADA = false; // só --gerar libera; o dry-run nunca chega aqui
+let REPROCESSAR = false;   // --reprocessar: só raw/, nenhuma chamada
 
 async function chamar(metodo, caminho, corpo) {
   if (!REDE_LIBERADA) throw new Error('chamada de rede sem --gerar (bug do script)');
@@ -353,6 +358,7 @@ const orc = {
 // Executa uma chamada paga: confere o teto antes e soma o custo real depois (ou a estimativa, se a
 // resposta não informar ou se a chamada falhar depois de possivelmente cobrar).
 async function pago(ep, item, executar) {
+  if (REPROCESSAR) throw new ErroApi(`--reprocessar: faltaria gerar ${item.rotulo} (sem imagem crua em raw/)`, { fatal: true });
   orc.reservar(ep, item.rotulo);
   const est = orc.estimativa(ep);
   let r;
@@ -399,6 +405,11 @@ function reaproveitar(it, seed, reg) {
   it.anteriores += g; it.reaproveitadas.push(seed);
   console.log(`    ${it.rotulo}: reaproveitada a imagem crua da seed ${seed} (mesmo pedido; ${fmt(g)} geração gasta antes)`);
 }
+// seed com erro de API (não cobrada) ou rejeitada na conferência visual (cobrada: entra no custo da linha)
+function pular(it, seed, reg) {
+  if (reg.rejeitada) it.anteriores += geracoesDe(reg.resposta, reg.resposta && reg.resposta.job) ?? 1;
+  rejeitar(it, seed, reg.erro ? `erro registrado em lote anterior: ${reg.erro}` : `rejeitada na conferência visual: ${reg.rejeitada}`);
+}
 const ultimaSeed = it => it.seeds[it.seeds.length - 1];
 const custoTotal = it => it.geracoes + it.anteriores;
 function seedTxt(it) {
@@ -414,14 +425,14 @@ function decodificar64(buf, onde) {
   }
   return d;
 }
-// Classifica um grupo de quadros com limiares próprios do grupo, limpa, valida e devolve a 1ª falha.
-// (Checagem antes de gastar mais; a validação definitiva usa os limiares do estilo inteiro.)
-function preChecar(bufs, comJoquei, onde) {
+// Classifica um grupo de quadros com os limiares do próprio grupo (como nos finais: retrato, parado e o
+// galope inteiro), limpa, valida e devolve a 1ª falha — antes de gastar a etapa seguinte.
+function preChecar(bufs, comJoquei, onde, contorno) {
   const fams = bufs.map((b, i) => classificarFamilias(decodificar64(b, `${onde} quadro ${i}`).rgba, LADO, LADO));
   const tons = limiaresDeTons(fams);
   const ruins = [];
   fams.forEach((f, i) => {
-    const v = validar(posProcessar(f, tons, { comJoquei }), { exigeJoquei: comJoquei });
+    const v = validar(posProcessar(f, tons, { comJoquei, contorno }), { exigeJoquei: comJoquei });
     if (!v.ok) ruins.push((bufs.length > 1 ? `galope-${i}: ` : '') + v.motivo);
   });
   return ruins.length ? { ok: false, motivo: ruins.join('; ') } : { ok: true };
@@ -433,7 +444,7 @@ async function gerarPose(estilo, pose, it) {
     console.log(`  ${it.rotulo} seed ${seed}`);
     const corpo = pedidoPose(estilo, pose, seed), base = `${estilo.id}-${pose}-s${seed}`;
     const reg = lerCru(DIR_MOLDES_RAW, base, corpo), crus = reg && pngsCrus(DIR_MOLDES_RAW, base, false);
-    if (reg && (reg.erro || reg.rejeitada)) { rejeitar(it, seed, reg.erro ? `erro registrado em lote anterior: ${reg.erro}` : `rejeitada na conferência visual: ${reg.rejeitada}`); continue; }
+    if (reg && (reg.erro || reg.rejeitada)) { pular(it, seed, reg); continue; }
     let buf;
     if (crus) {
       reaproveitar(it, seed, reg); buf = crus[0];
@@ -448,19 +459,19 @@ async function gerarPose(estilo, pose, it) {
       buf = bufDe(resp.image, it.rotulo);
       gravarCru(DIR_MOLDES_RAW, base, PIXFLUX, corpo, resp, [[base + '.png', buf]]);
     }
-    const v = preChecar([buf], pose !== 'retrato', it.rotulo);
+    const v = preChecar([buf], pose !== 'retrato', it.rotulo, pose === 'montado');
     if (v.ok) return buf;
     rejeitar(it, seed, v.motivo);
   }
   return null;
 }
 
-async function gerarGalope(estilo, it, montado) {
+async function gerarGalope(estilo, it, montado, seedMontado) {
   for (let seed; (seed = proximaSeed(it)) != null;) {
-    console.log(`  ${it.rotulo} seed ${seed} (job assíncrono; pode levar minutos)`);
-    const corpo = pedidoGalope(montado, seed), base = `${estilo.id}-galope-s${seed}`;
+    console.log(`  ${it.rotulo} seed ${seed} (montado ${seedMontado}; job assíncrono; pode levar minutos)`);
+    const corpo = pedidoGalope(montado, seed), base = `${estilo.id}-galope-m${seedMontado}-s${seed}`;
     const reg = lerCru(DIR_MOLDES_RAW, base, corpo);
-    if (reg && (reg.erro || reg.rejeitada)) { rejeitar(it, seed, reg.erro ? `erro registrado em lote anterior: ${reg.erro}` : `rejeitada na conferência visual: ${reg.rejeitada}`); continue; }
+    if (reg && (reg.erro || reg.rejeitada)) { pular(it, seed, reg); continue; }
     let bufs = reg && pngsCrus(DIR_MOLDES_RAW, base, true);
     if (bufs) {
       reaproveitar(it, seed, reg);
@@ -478,7 +489,7 @@ async function gerarGalope(estilo, it, montado) {
       }
       const imgs = (r.job.last_response && r.job.last_response.images) || r.job.images || [];
       bufs = imgs.map((img, i) => bufDe(img, `${it.rotulo} quadro ${i}`));
-      // mesma seed com outro montado sobrescreve: apaga os quadros antigos para não misturar 8 com 9
+      // pedido refeito com o mesmo nome: apaga os quadros antigos para não misturar 8 com 9
       for (const f of fs.existsSync(DIR_MOLDES_RAW) ? fs.readdirSync(DIR_MOLDES_RAW) : []) {
         if (new RegExp(`^${base}-\\d+\\.png$`).test(f)) fs.unlinkSync(path.join(DIR_MOLDES_RAW, f));
       }
@@ -488,7 +499,7 @@ async function gerarGalope(estilo, it, montado) {
       throw new ErroApi(`${it.rotulo}: veio com ${bufs.length} quadros (esperado 9, ou 8)`, { fatal: true });
     }
     if (bufs.length === 8) console.log(`    AVISO ${it.rotulo}: vieram 8 quadros (não 9); usando 8`);
-    const v = preChecar(bufs, true, it.rotulo);
+    const v = preChecar(bufs, true, it.rotulo, true);
     if (v.ok) return bufs;
     rejeitar(it, seed, v.motivo);
   }
@@ -506,37 +517,19 @@ async function gerarEstilo(estilo) {
     fontes[pose] = await gerarPose(estilo, pose, it[pose]);
     if (!fontes[pose]) return falhou(`${pose} rejeitado em todas as tentativas`);
   }
-  let galope = await gerarGalope(estilo, it.galope, fontes.montado);
+  const galope = await gerarGalope(estilo, it.galope, fontes.montado, ultimaSeed(it.montado));
   if (!galope) return falhou('galope rejeitado em todas as tentativas');
 
-  // limiares de claro × sombra por geração (retrato, parado, galope); um quadro inválido refaz o item dono
-  let nomes, quadros, tons;
+  // finais: limiares por geração (retrato, parado, galope) e contorno só no galope — o mesmo que a
+  // pré-checagem de cada item já validou, então aqui um quadro inválido seria erro do script
+  const nomes = ['retrato', 'parado', ...galope.map((_, i) => 'galope-' + i)];
   const grupoDe = n => (n.startsWith('galope-') ? 'galope' : n);
-  for (;;) {
-    nomes = ['retrato', 'parado', ...galope.map((_, i) => 'galope-' + i)];
-    const fams = nomes.map(n => classificarFamilias(decodificar64(n.startsWith('galope-') ? galope[Number(n.slice(7))] : fontes[n], n).rgba, LADO, LADO));
-    tons = {};
-    for (const g of ['retrato', 'parado', 'galope']) tons[g] = limiaresDeTons(fams.filter((_, i) => grupoDe(nomes[i]) === g));
-    quadros = fams.map((f, i) => posProcessar(f, tons[grupoDe(nomes[i])], { comJoquei: nomes[i] !== 'retrato' }));
-    const invalidos = {};
-    quadros.forEach((q, i) => {
-      const v = validar(q, { exigeJoquei: nomes[i] !== 'retrato' });
-      if (v.ok) return;
-      const dono = nomes[i].startsWith('galope-') ? 'galope' : nomes[i];
-      (invalidos[dono] = invalidos[dono] || []).push(`${nomes[i]}: ${v.motivo}`);
-    });
-    if (!Object.keys(invalidos).length) break;
-    for (const [dono, motivos] of Object.entries(invalidos)) {
-      rejeitar(it[dono], ultimaSeed(it[dono]), 'com os limiares do estilo — ' + motivos.join('; '));
-      if (dono === 'galope') {
-        galope = await gerarGalope(estilo, it.galope, fontes.montado);
-        if (!galope) return falhou('galope rejeitado em todas as tentativas');
-      } else {
-        fontes[dono] = await gerarPose(estilo, dono, it[dono]);
-        if (!fontes[dono]) return falhou(`${dono} rejeitado em todas as tentativas`);
-      }
-    }
-  }
+  const fams = nomes.map(n => classificarFamilias(decodificar64(n.startsWith('galope-') ? galope[Number(n.slice(7))] : fontes[n], n).rgba, LADO, LADO));
+  const tons = {};
+  for (const g of ['retrato', 'parado', 'galope']) tons[g] = limiaresDeTons(fams.filter((_, i) => grupoDe(nomes[i]) === g));
+  const quadros = fams.map((f, i) => posProcessar(f, tons[grupoDe(nomes[i])], { comJoquei: nomes[i] !== 'retrato', contorno: grupoDe(nomes[i]) === 'galope' }));
+  const invalidos = quadros.map((q, i) => [nomes[i], validar(q, { exigeJoquei: nomes[i] !== 'retrato' })]).filter(([, v]) => !v.ok);
+  if (invalidos.length) return falhou('inconsistência entre pré-checagem e finais: ' + invalidos.map(([n, v]) => `${n}: ${v.motivo}`).join('; '));
 
   // grava os finais (remove galopes antigos: um lote de 8 quadros não pode herdar um galope-8 velho)
   for (const f of fs.readdirSync(DIR_MOLDES)) if (f.startsWith(`molde-${estilo.id}-galope-`)) fs.unlinkSync(path.join(DIR_MOLDES, f));
@@ -552,9 +545,12 @@ async function gerarEstilo(estilo) {
     seeds: { retrato: ultimaSeed(it.retrato), parado: ultimaSeed(it.parado), montado: ultimaSeed(it.montado), galope: ultimaSeed(it.galope) },
     gerado: HOJE,
   };
-  const textoAnc = nomes.map(n => `    "${n}": ${JSON.stringify(anc[n])}`).join(',\n'); // uma linha por quadro
+  // uma linha por quadro: âncoras e contagens (aproximados, remapeados pela limpeza, contorno acrescentado)
+  const linhas = obj => nomes.map(n => `    "${n}": ${JSON.stringify(obj[n])}`).join(',\n');
+  const cont = {};
+  nomes.forEach((n, i) => { cont[n] = { aproximados: quadros[i].aproximados, remapeados: quadros[i].remapeados, contornados: quadros[i].contornados }; });
   fs.writeFileSync(path.join(DIR_MOLDES, `molde-${estilo.id}.json`),
-    JSON.stringify(json, null, 2).replace(/\n}$/, `,\n  "ancoras": {\n${textoAnc}\n  }\n}\n`));
+    JSON.stringify(json, null, 2).replace(/\n}$/, `,\n  "contagens": {\n${linhas(cont)}\n  },\n  "ancoras": {\n${linhas(anc)}\n  }\n}\n`));
 
   const pre = `prototype/assets/pixellab/molde-${estilo.id}`, crina = `crina "${estilo.crina}"`, uso = 'Não (até a Task 3)';
   const proc = 'cores de papel pedidas por texto (pelo #ff0000, crina #00ff00 …; sem paleta forçada); papéis por família de cor + Otsu do estilo';
@@ -581,7 +577,7 @@ async function gerarIcone(ic) {
     console.log(`  ${it.rotulo} seed ${seed}`);
     const corpo = pedidoIcone(ic, seed), base = `${ic.id}-s${seed}`;
     const reg = lerCru(DIR_ICONES_RAW, base, corpo), crus = reg && pngsCrus(DIR_ICONES_RAW, base, false);
-    if (reg && (reg.erro || reg.rejeitada)) { rejeitar(it, seed, reg.erro ? `erro registrado em lote anterior: ${reg.erro}` : `rejeitada na conferência visual: ${reg.rejeitada}`); continue; }
+    if (reg && (reg.erro || reg.rejeitada)) { pular(it, seed, reg); continue; }
     let buf;
     if (crus) {
       reaproveitar(it, seed, reg); buf = crus[0];
@@ -622,13 +618,14 @@ async function saldo(quando) {
 }
 
 async function gerar(a) {
-  REDE_LIBERADA = true;
+  REPROCESSAR = a.reprocessar;
+  REDE_LIBERADA = !REPROCESSAR;
   orc.teto = a.teto;
   fs.mkdirSync(DIR_MOLDES, { recursive: true });
-  console.log(`GERAÇÃO REAL — lote "${a.lote}"${a.only ? ` (--only ${a.only})` : ''}; teto ${a.teto} gerações.`);
-  const antes = await saldo('antes');
-  const disponivel = antes.subscription && antes.subscription.generations;
-  if (!(disponivel >= a.teto)) {
+  console.log(`${REPROCESSAR ? 'REPROCESSAMENTO a partir de raw/ (sem rede)' : 'GERAÇÃO REAL'} — lote "${a.lote}"${a.only ? ` (--only ${a.only})` : ''}; teto ${a.teto} gerações.`);
+  const antes = REPROCESSAR ? null : await saldo('antes');
+  const disponivel = antes && antes.subscription && antes.subscription.generations;
+  if (!REPROCESSAR && !(disponivel >= a.teto)) {
     throw new ErroApi(`saldo do plano (${disponivel}) menor que o teto (${a.teto}): o resto sairia dos créditos em US$; abortado`, { fatal: true });
   }
 
@@ -653,6 +650,7 @@ async function gerar(a) {
   const falhas = resultados.filter(r => !r.ok);
   console.log(`  Itens finais: ${resultados.length - falhas.length} ok, ${falhas.length} com falha${parada ? '; lote interrompido' : ''}`);
   console.log(`  Gerações gastas neste lote (soma do usage): ${fmt(orc.gasto)} de teto ${a.teto}, em ${orc.chamadas} chamadas pagas`);
+  if (REPROCESSAR) return parada || falhas.length ? 1 : 0;
   try {
     const depois = await saldo('depois');
     const queda = antes.subscription.generations - depois.subscription.generations;
@@ -664,7 +662,7 @@ async function gerar(a) {
 }
 
 const args = lerArgs(process.argv.slice(2));
-if (!args.gerar) {
+if (!args.gerar && !args.reprocessar) {
   dryRun(args);
 } else {
   try {
