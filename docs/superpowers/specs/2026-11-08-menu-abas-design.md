@@ -1,7 +1,6 @@
 # Menu de abas — Casca de navegação do protótipo — Design
 
-Status: **aguardando revisão do Vinicius**. Aprovado em conversa em 2026-11-08 (seções 1–4). Depois de
-aprovado vira plano (`docs/superpowers/plans/`) e, ao final, atualiza a seção 5 do `docs/GDD.md`.
+Status: **implementado na branch `claude/menu-abas` (2026-11-08); ver §10**.
 
 Frente de interface pedida pelo Vinicius em 2026-11-08 ("atualmente é só uma rolagem para baixo,
 precisamos melhorar"), executada **antes** do subprojeto 4 (expedições) e dos visuais pagos, nesta
@@ -153,3 +152,14 @@ colunas no desktop · animações de transição · mudar regras de jogo ou de s
 - **Histórico do navegador** é a parte mais fácil de quebrar (Voltar do Android). O teste 2 do contexto
   `menu` e o fluxo existente (Voltar na corrida pula para o resultado) cobrem.
 - **Capturas** mudam todas; é intencional (interface muda de propósito).
+
+## 10. Histórico de ajustes (implementação, 2026-11-08)
+- Renomear e Liberar foram para a tela da Montaria na Tarefa 3; o cartão do Estábulo os manteve na Tarefa 2 só para o teste.
+- "Ver" abriu o antigo Equipamento até a Tarefa 3.
+- `scroll-padding` adicionado em `html.app-com-abas` para a barra não cobrir o foco.
+- Os fallbacks de `largar` vão para a aba Correr.
+- O Perfil recebeu o "Recomeçar" cedo (Tarefa 2), para o fluxo principal do teste chegar ao `reset`.
+- O painel `?dev=1` sobe acima da barra de abas.
+- No desktop, o marcador da aba ativa é uma barra à esquerda.
+- Bordas de 2 px.
+- Liberar pela Montaria volta ao Estábulo (`go(ui.tab)`) com o foco no título.

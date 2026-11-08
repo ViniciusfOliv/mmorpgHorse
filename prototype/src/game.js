@@ -828,10 +828,19 @@
         '<span class="app-aba-icone" aria-hidden="true">' + a.icone + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
     }).join('') + '</nav>';
   }
-  // Perfil provisório: por enquanto só o "Recomeçar" (estatísticas na próxima tarefa)
+  // Perfil: estatísticas, saldo, inventário e "Recomeçar com outro inicial"
   function renderPerfil() {
-    return '<section class="tela" aria-labelledby="t-perfil"><h1 class="titulo titulo--tela" id="t-perfil" tabindex="-1" data-foco>Perfil</h1>' +
-      '<p class="nota">Em construção.</p><footer class="caixa">' + resetHtml() + '</footer></section>';
+    return '<section class="tela" aria-labelledby="t-perfil">' +
+      '<button type="button" class="btn btn--texto" data-acao="perfil-voltar">Voltar</button>' +
+      '<h1 class="titulo titulo--tela" id="t-perfil" tabindex="-1" data-foco>Perfil</h1>' +
+      '<div class="caixa">' +
+        '<div class="linha-meta"><span>Corridas <b>' + fmt(state.races) + '</b></span><span>Vitórias <b>' + fmt(state.wins) + '</b></span>' +
+          '<span>Pódios <b>' + fmt(state.podiums) + '</b></span><span>Prêmios ' + ouroHtml(state.goldWon) + '</span></div>' +
+        '<div class="linha-meta"><span>Ouro ' + ouroHtml(state.gold) + '</span><span>Pedras <b>🪨 ' + fmt(state.pedras) + '</b></span></div>' +
+        '<div class="linha-meta"><span>' + esc(state.mounts.length) + (state.mounts.length === 1 ? ' montaria' : ' montarias') + ' · ' +
+          esc(state.items.length) + (state.items.length === 1 ? ' peça' : ' peças') + '</span></div>' +
+      '</div>' +
+      '<footer class="caixa">' + resetHtml() + '</footer></section>';
   }
 
   // ===========================================================================
@@ -1428,7 +1437,6 @@
           '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco>' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h1>' +
           '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
             '<span>' + (m.sex === 'f' ? '♀ Fêmea' : '♂ Macho') + '</span>' +
-            '<span class="nivel">Nv ' + esc(m.level) + '</span>' +
             '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
             (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
           '</div>' +
@@ -1501,7 +1509,7 @@
   function pedraProdutoHtml(n) {
     return '<article class="produto">' +
       '<h3 class="produto-nome">Pedra Negra ×' + n + '</h3>' +
-      '<p class="produto-diff">' + esc('Melhora peças na tela Equipar. Você tem ' + pedrasTxt(state.pedras) + '.') + '</p>' +
+      '<p class="produto-diff">' + esc('Melhora peças na aba Equipamento da montaria. Você tem ' + pedrasTxt(state.pedras) + '.') + '</p>' +
       '<div class="produto-preco">' + lojaBotaoHtml('comprar-pedra', String(n), n * GE.stonePrice) + '</div>' +
     '</article>';
   }
@@ -1522,7 +1530,7 @@
         return GD.GEAR[k].shop && GD.GEAR[k].slot === Q.tab;
       }).map(function (k) { return produtoHtml(GD.GEAR[k]); }).join('');
     }
-    var nota = Q.tab === 'pedras' ? 'Pedras Negras melhoram peças (+1 a +10) na tela Equipar.'
+    var nota = Q.tab === 'pedras' ? 'Pedras Negras melhoram peças (+1 a +10) na aba Equipamento da montaria.'
       : 'A diferença compara com a peça que ' + activeMount().name + ' (ativa) usa neste slot. Comprar não equipa.';
     return '<section class="tela" aria-labelledby="t-loja">' + head + msg +
       '<section class="caixa">' + abas + '<p class="nota">' + esc(nota) + '</p>' +
@@ -2585,7 +2593,7 @@
         newItem(id);
         persist();
         if (state !== sC) break;
-        ui.loja.msg = 'Comprou ' + pd.name + '. Equipe na tela Equipar.';
+        ui.loja.msg = 'Comprou ' + pd.name + '. Equipe na aba Equipamento da montaria.';
         rerenderKeepScroll(); break;
       }
       case 'comprar-pedra': {
@@ -2608,9 +2616,10 @@
       case 'equipar-tela':            // "Equipar" da aba Correr e da largada
         goMontaria(id, 'equip'); break;
       case 'montaria-aba':
-        if (!ui.montaria || ['status', 'skills', 'equip'].indexOf(id) < 0) break;
+        if (!ui.montaria || !MONTARIA_ABAS.some(function (a) { return a.id === id; })) break;
         ui.montaria.aba = id; rerenderKeepScroll(); break;
       case 'montaria-voltar':
+      case 'perfil-voltar':
         go(ui.tab); break;
       case 'equip-slot':
         if (!ui.montaria || GR.SLOTS.indexOf(id) < 0) break;
@@ -2765,7 +2774,8 @@
           state.mounts = state.mounts.filter(function (m) { return m.uid !== id; });
           persist();
         }
-        rerenderKeepScroll(); break;
+        if (ui.screen === 'montaria') go(ui.tab); else rerenderKeepScroll();
+        break;
       case 'expandir':
         if (state.stableSlots >= BR.stableSlotsMax || state.gold < SLOT_PRICE) { rerenderKeepScroll(); break; }
         state.gold -= SLOT_PRICE; state.stableSlots += 1; persist(); rerenderKeepScroll(); break;

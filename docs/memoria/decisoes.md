@@ -4,6 +4,11 @@ Formato: **data · decisão** — motivo. A mais nova fica no topo. Decisões de
 continuam no `docs/GDD.md`; aqui fica o registro de *quando* e *por quê*.
 
 ## 2026-11-08
+- **Menu de abas antes das expedições e dos visuais** (opção A do Vinicius) — a rolagem única do Estábulo não comportava as novas telas; a casca de navegação vem primeiro.
+- **5 abas (Estábulo, Correr, Expedição, Haras, Loja) + Perfil no cabeçalho** — Perfil guarda estatísticas e "Recomeçar", que não merecem uma aba.
+- **A casca fica dentro do `game.js`** — o protótipo é descartável; não vale separar arquivos antes de escolher a stack.
+- **Equipamento vira sub-aba da Montaria** (Status/Skills/Equipamento) e o Estábulo só lista — uma tela por assunto, sem rolagem longa.
+- **A corrida PVP continua automática**; as batalhas de expedição terão modo automático e manual (decisão do Vinicius para o subprojeto 4).
 - **Bônus de 4 peças do conjunto passa de ×1,10 para ×1,07** (`weatherMultSet`) — a skill de clima
   (×1,10) volta a valer mais que o conjunto e não acumula; com o Dado ligado a Brasa com 4 Raras do Sol
   caiu de 82,5% para 73,0% à frente da misturada (E3b, pino 60–80%); E3 recentrada em 65–85% (77,3%).

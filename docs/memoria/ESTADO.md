@@ -54,6 +54,15 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
     expedições; meta E2 reformulada em E2a/E2b e E3 rebaseada (ver spec §16); 34 metas, com a
     E3b (corrida de 3 com uma Água como agente do Dado, pino 60–80%, medido 73,0%). Bônus de 4 peças
     fixado em ×1,07 em 2026-11-08 (era ×1,10).
+- **Frente de interface — Menu de abas: concluída na branch `claude/menu-abas` (aguardando revisão final e integração).**
+  Spec: `docs/superpowers/specs/2026-11-08-menu-abas-design.md` (§10 = ajustes da implementação).
+  - Entregue: casca com cabeçalho (saldo + Perfil) e barra de 5 abas (embaixo no celular, à esquerda
+    no desktop), Estábulo só lista, tela da Montaria com sub-abas Status/Skills/Equipamento, abas
+    Correr/Expedição/Haras/Loja, Perfil com estatísticas e Recomeçar, histórico do navegador sem
+    empilhar abas, painel `?dev=1` acima da barra.
+  - Verificação: `check.sh` em 5 etapas, 58 testes unitários, 34 metas, UI com o contexto `menu`,
+    12 capturas novas em `prototype/screens/`.
+  - Limites: ícones por caracteres até os visuais; a aba Expedição é um placeholder.
 - A economia virou o subprojeto 6 (a branch vazia `claude/economia-gdd` foi removida).
 
 ## Pronto
@@ -78,6 +87,7 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   `bestLevelFor`). `README.md` criado na raiz.
 
 ## Próximos passos
+0. Revisão final e integração da branch `claude/menu-abas`; depois expedições (subprojeto 4) e visuais.
 1. Vinicius joga os equipamentos (`prototype/dist/preview.html?dev=1` para Ouro, Pedras e conjunto Lendário)
    (bônus de 4 peças já fixado em ×1,07; a skill de clima segue em ×1,10).
 2. Subprojeto 4 (expedições, batalha por turnos estilo Origem Fadas; dão Ouro, XP e moeda de pacotes) —
