@@ -121,7 +121,7 @@ valem). Empate entre conjuntos (ex.: 2+2+1) não ativa nada. Bônus **acumulam**
 | Peças | Bônus |
 |---|---|
 | 3 | +5 p.p. na chance de todas as skills e +5 de Sorte |
-| 4 | Bônus do clima do conjunto dobra (1,03 → 1,10) quando a montaria é do elemento favorecido por ele. Não acumula com a skill "dobra o clima": vale o maior (os dois dão o mesmo 1,10). |
+| 4 | Bônus do clima do conjunto sobe de 1,03 para 1,07 (`weatherMultSet`) quando a montaria é do elemento favorecido por ele. Não acumula com a skill de clima (1,10): vale o maior. _(Aprovado como "dobra, 1,10"; ajustado para 1,07 em 2026-11-08, ver §16.)_ |
 | 5 | A montaria ignora a penalidade de clima, em qualquer clima. |
 
 ### 6.1 `Gear.resolve(mount, itemsByUid)` → equipamento resolvido
@@ -315,4 +315,4 @@ O que mudou na implementação em relação ao texto aprovado (antigo → novo):
 - **Testes de interface (§13):** cobrem a sequência de melhoria calculada com o `seedBase` ao vivo, a trava com Lendária bloqueada e Comum liberada, a recusa na Loja com o botão reabilitado (guarda do handler) e bots com equipamento na sala.
 - **Metas finais medidas (completo):** E1 69,2% · E2a 75,3% · E2b 13,2% · E3 86,0% · E4 73,5%; rodada `--quick`: 72,7 · 76,0 · 13,9 · 84,0 · 70,0.
 - **Revisão final:** meta nova **E3b** — corrida de 3 (as duas Brasas do E3 + uma Maré lv10, Água, sem equipamento, como agente do Dado; só com Fogos o Dado sempre cairia no Sol), Sol inicial e Dado ligado; mede a Brasa com 4 Raras do Sol à frente da misturada. Faixa **65–85%** (pino de regressão), medido **82,5%** completo / 80,0% `--quick`; o clima virou em ~28% das corridas. Pergunta aberta: enfraquecer o 4-peças (ex.: 1,07) se o Vinicius achar forte demais. Teste unitário novo: o equipamento nunca baixa o `powerRating` e tirar uma peça nunca o sobe (premissa da trava). Testes de interface: Desfazer venda consumido não repete (clique forçado), sair da tela mantém a venda, e cliques forçados em Equipar/Melhorar com páreo aberto não mudam nada.
-
+- **Bônus de 4 peças (§6), 2026-11-08:** 1,03→1,10 → **1,03→1,07** (`RaceSim.TUNING.weatherMultSet`), decidido pela conversa principal a pedido do Vinicius ("altere os arquivos você mesmo"): a skill de clima (1,10) continua valendo mais e não acumula com o conjunto. E3 recentrada em 65–85% (medido 77,3%; era 86,0% com 1,10) e E3b em 60–80% (medido 73,0%; era 82,5%). O duelo de clima fixo (E3) quase não muda porque a simulação é quase determinística; a corrida com o Dado (E3b) é a que sente o ajuste.

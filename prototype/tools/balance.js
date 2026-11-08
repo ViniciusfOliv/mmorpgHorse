@@ -341,7 +341,7 @@ check('E2a', 'Comum lv30 com conjunto Raro +10 vence Mágico lv30 sem nada', vE2
 check('E2b', 'Comum lv30 com conjunto Raro +10 vence Raro lv30 sem nada', vE2b, 10, 40);
 var brasa = byId.brasa;
 var vE3 = pct(duelGear(clone(brasa, 10), setGear('sol', 'raro', 0, 4), clone(brasa, 10), mixedGear('raro', 0, ['sol', 'sol', 'chuva', 'nevoa']), NE, 1300, 'sol'), NE);
-check('E3', '4 Raras do Sol × 4 Raras misturadas, com Sol', vE3, 75, 90);
+check('E3', '4 Raras do Sol × 4 Raras misturadas, com Sol', vE3, 65, 85);
 // E3b: os dois Brasas do E3 + uma Maré (Água, sem equipamento) como agente do Dado; Sol só no início e
 // Dado ligado. Com só dois Fogos o Dado sempre cairia no Sol; a Maré, quando vence um Dado, vira o clima
 // para Chuva (penaliza o Fogo). Conta as corridas em que A (4 do Sol) chega à frente de B (misturada).
@@ -362,7 +362,7 @@ function e3b(N, testId) {
   return aheadA;
 }
 var vE3b = pct(e3b(NE, 1302), NE);
-check('E3b', 'Brasa com 4 Raras do Sol à frente da Brasa misturada, Sol inicial com Dado ligado e uma Água na pista', vE3b, 65, 85);
+check('E3b', 'Brasa com 4 Raras do Sol à frente da Brasa misturada, Sol inicial com Dado ligado e uma Água na pista', vE3b, 60, 80);
 var vE4 = pct(duelGear(clone(brasa, 10), setGear('chuva', 'raro', 0, 5), clone(brasa, 10), mixedGear('raro', 0, ['chuva', 'chuva', 'sol', 'sol', 'nevoa']), NE, 1301, 'chuva'), NE);
 check('E4', 'Fogo com 5 Raras da Chuva × misturadas, na chuva', vE4, 60, 75);
 log('### E. Equipamento (metas E1–E4, E2 em a/b, + E3b)');
@@ -370,18 +370,18 @@ log('');
 log('Duelos de 2 corredores (' + NE + ' corridas por duelo, largada alternada), mapas aleatórios; clima fixo nas metas com clima (Dado desligado), exceto E3b (3 corredores, Sol inicial, Dado ligado). Peças de `gear.js`.');
 log('');
 log('E2a/E2b: no lv30 o salto Comum→Raro vale ~20 pontos por status (statCap 60 contra 80) mais duas skills extras; um conjunto Raro +10 completo (+14) fecha um degrau (vence o Mágico) mas não dois (perde do Raro): "fecha um degrau, não dois". ' +
-  'E3 (75–90%): o bônus de 4 peças é a "dobra do clima" aprovada (1,03→1,10), igual à skill de dobrar clima; num duelo de clima fixo entre cavalos idênticos vale ~86%, e no jogo o Dado vira o clima ~1,2× por corrida, então a vantagem real é menor. ' +
+  'E3 (65–85%): o bônus de 4 peças reforça o clima do conjunto para ×1,07 (a skill de clima dá ×1,10 e vale mais, sem acumular); num duelo de clima fixo entre cavalos idênticos vale ~77%, porque a simulação é quase determinística e qualquer vantagem constante vira vitória. ' +
   'E3b mede essa vantagem real: os dois Brasas do E3 mais uma Maré (Água, sem equipamento) na pista, Sol só no início e o Dado ligado; conta quantas vezes a Brasa do Sol chega à frente da misturada. ' +
   'A terceira montaria de outro elemento é necessária porque o Dado vira o clima para o elemento de quem o vence: com só dois Fogos ele sempre cairia no Sol e o clima nunca viraria. ' +
-  'A faixa 65–85% é um pino de regressão em torno do valor medido: o bônus de 4 peças é forte sempre que a previsão se mantém (o clima virou em ~28% das corridas desta meta), e as duas Brasas empatam quando o clima vira.');
+  'A faixa 60–80% é um pino de regressão em torno do valor medido: o bônus de 4 peças é forte sempre que a previsão se mantém (o clima virou em ~28% das corridas desta meta), e as duas Brasas empatam quando o clima vira.');
 log('');
 log('| Meta | Duelo | Vitórias do 1º | Faixa |');
 log('|---|---|---|---|');
 log('| E1 | Inicial lv1 com 5 Comuns +0 × sem nada (nublado) | **' + f1(vE1) + '%** | 60–75% |');
 log('| E2a | Comum lv30 com conjunto Raro +10 × Mágico lv30 sem nada (nublado) | **' + f1(vE2a) + '%** | 60–85% |');
 log('| E2b | Comum lv30 com conjunto Raro +10 × Raro lv30 sem nada (nublado) | **' + f1(vE2b) + '%** | 10–40% |');
-log('| E3 | 4 Raras do Sol × 4 Raras misturadas, Brasa lv10, com Sol | **' + f1(vE3) + '%** | 75–90% |');
-log('| E3b | 4 Raras do Sol à frente de 4 Raras misturadas, Brasa lv10, + Maré lv10; Sol inicial com Dado ligado | **' + f1(vE3b) + '%** | 65–85% |');
+log('| E3 | 4 Raras do Sol × 4 Raras misturadas, Brasa lv10, com Sol | **' + f1(vE3) + '%** | 65–85% |');
+log('| E3b | 4 Raras do Sol à frente de 4 Raras misturadas, Brasa lv10, + Maré lv10; Sol inicial com Dado ligado | **' + f1(vE3b) + '%** | 60–80% |');
 log('| E4 | Brasa lv10 com 5 Raras da Chuva × misturadas, na chuva | **' + f1(vE4) + '%** | 60–75% |');
 log('');
 

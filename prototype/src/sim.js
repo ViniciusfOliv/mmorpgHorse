@@ -24,7 +24,9 @@
  * CLIMA (sol / chuva / nevoa / nublado). weatherMult(elemento, clima, dobrado):
  *   dono do clima ×1,03 (T.weatherMult; ×1,10 = T.weatherMultDouble com a skill de clima
  *   ativa), elemento penalizado ×0,97 (2 − weatherMult), resto e Nublado ×1. O equipamento
- *   pode anular o ×0,97 (ignoreWeatherPenalty) ou dobrar o bônus de um clima (weatherDoubleClimate). applyWeather(r, clima) recalcula, com m = weatherMult:
+ *   pode anular o ×0,97 (ignoreWeatherPenalty) ou reforçar o bônus de um clima para ×1,07
+ *   (T.weatherMultSet, 4 peças do conjunto; a skill, ×1,10, vale mais e não acumula).
+ *   applyWeather(r, clima) recalcula, com m = weatherMult:
  *     vMax  = (17.2 + 2.2*n(vel)*m) * (1 + 0.10*(m-1))   (weatherVel: um extra direto na vMax)
  *     accel = 0.6 + 2.4*n(acel)*m  m/s²   (largada e retomadas)
  *     Força, Manobra e Garra efetivas = n(x)*m;  chance/força da Garra (abaixo).
@@ -143,9 +145,10 @@
     crowdRange: 2.5, crowdSlow: 0.03, forcaCrowdRelief: 0.8,
     draftMin: 0.5, draftRange: 4.0, draftSave: 0.10,   // vácuo: vale para todos
     rainSlow: 0.015, sunDrain: 1.04,
-    // clima: dono multiplica os status por 1,03 (1,10 com skill de clima), penalizado por 0,97;
+    // clima: dono multiplica os status por 1,03 (1,10 com skill de clima; 1,07 com 4 peças do conjunto
+    // do clima, sem a skill), penalizado por 0,97;
     // weatherVel: fração extra do desvio que vai direto na vMax
-    weatherMult: 1.03, weatherMultDouble: 1.10, weatherVel: 0.10,
+    weatherMult: 1.03, weatherMultDouble: 1.10, weatherMultSet: 1.07, weatherVel: 0.10,
     // garra
     garraZone: 0.8,
     garraChanceBase: 0.10, garraChanceRange: 0.70, garraChanceMax: 0.95,
@@ -460,7 +463,9 @@
   // (Re)calcula os números do corredor que dependem do clima. Pode ser chamada de novo no meio da
   // corrida (troca de clima, skill que dobra o bônus, bônus de Garra): só lê statsN e os totais.
   function applyWeather(r, weather) {
-    var m = weatherMult(r.element, weather, r.weatherDouble || r.gearDoubleClimate === weather);
+    var m = weatherMult(r.element, weather, r.weatherDouble);
+    // 4 peças do conjunto do clima: ×1,07 no lugar de ×1,03 (só se a skill de clima não estiver dobrando)
+    if (!r.weatherDouble && r.gearDoubleClimate === weather && m === T.weatherMult) m = T.weatherMultSet;
     if (m < 1 && r.ignoreWeatherPenalty) m = 1;   // equipamento: anula a penalidade
     var sn = r.statsN;
     r.weatherM = m;

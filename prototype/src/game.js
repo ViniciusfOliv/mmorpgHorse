@@ -1248,7 +1248,7 @@
     if (!st || !st.id || !st.count || !hasOwn(GD.GEAR_SETS, st.id)) return '<p class="set-linha nota">sem conjunto</p>';
     var bon = [];
     if (st.count >= sb.pieces[0]) bon.push('+' + sb.sorte + ' Sorte e +' + Math.round(sb.skillChance * 100) + '% de skill');
-    if (st.count >= sb.pieces[1]) bon.push('bônus do clima dobrado');
+    if (st.count >= sb.pieces[1]) bon.push('bônus do clima reforçado (×1,07)');
     if (st.count >= sb.pieces[2]) bon.push('sem penalidade de clima');
     return '<p class="set-linha"><span class="set-badge">' + esc(GD.GEAR_SETS[st.id].name + ' ×' + st.count) + '</span> ' +
       '<span class="nota">' + esc(bon.length ? bon.join(' · ') : 'bônus a partir de ' + sb.pieces[0] + ' peças') + '</span></p>';

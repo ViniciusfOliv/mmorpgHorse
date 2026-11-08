@@ -3,6 +3,14 @@
 Formato: **data · decisão** — motivo. A mais nova fica no topo. Decisões de design detalhadas
 continuam no `docs/GDD.md`; aqui fica o registro de *quando* e *por quê*.
 
+## 2026-11-08
+- **Bônus de 4 peças do conjunto passa de ×1,10 para ×1,07** (`weatherMultSet`) — a skill de clima
+  (×1,10) volta a valer mais que o conjunto e não acumula; com o Dado ligado a Brasa com 4 Raras do Sol
+  caiu de 82,5% para 73,0% à frente da misturada (E3b, pino 60–80%); E3 recentrada em 65–85% (77,3%).
+  Decisão da conversa principal a pedido do Vinicius ("altere os arquivos você mesmo").
+- **Branches remotas já mescladas não podem ser apagadas desta sessão** — o proxy bloqueia `git push
+  --delete` e a API; fica para o Vinicius no GitHub.
+
 ## 2026-11-06
 - **Lendário fora da loja até as expedições** — o conjunto Lendário só existe via `?dev=1` por enquanto;
   Mítico não tem peça (despertar).

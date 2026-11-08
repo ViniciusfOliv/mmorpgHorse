@@ -58,7 +58,7 @@ Cada montaria também tem:
 | 🌿 Grama | +8 Força | Névoa |
 | ⚪ Neutro | — | — |
 
-O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima**. O dono do clima tem os status ×1,03 (×1,10 com a skill de clima do elemento); o penalizado, ×0,97.
+O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima**. O dono do clima tem os status ×1,03 (×1,07 com 4 peças do conjunto do clima; ×1,10 com a skill de clima do elemento); o penalizado, ×0,97.
 
 | Clima | Favorece | Penaliza | Efeito geral |
 |---|---|---|---|
@@ -160,7 +160,7 @@ Custo esperado da cadeia completa, contando as quedas (pedra a 40 Ouro): **+5 �
 | Peças | Bônus |
 |---|---|
 | 3 | +5 p.p. na chance de todas as skills e +5 de Sorte |
-| 4 | O bônus do clima do conjunto dobra (1,03 → 1,10) quando a montaria é do elemento favorecido por ele. Não acumula com a skill "dobra o clima": vale o maior |
+| 4 | O bônus do clima do conjunto sobe de 1,03 para 1,07 quando a montaria é do elemento favorecido por ele. Não acumula com a skill de clima (1,10): vale o maior |
 | 5 | A montaria ignora a penalidade de clima, em qualquer clima |
 
 Conjuntos: **Sol** (clima do Fogo), **Chuva** (Água), **Névoa** (Grama). Além dos bônus, o conjunto soma pontos ao Rating de Poder (3 peças +10, 4 peças +15, 5 peças +20; não cumulativo).

@@ -1,6 +1,6 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-06._
+_Atualizado em 2026-11-08._
 
 **Fase:** Protótipo.
 
@@ -52,8 +52,8 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   - Painel `?dev=1` com +5 Pedras e conjunto Lendário na ativa.
   - Limites conhecidos: sem durabilidade; sem limite de inventário; Lendário só via dev até as
     expedições; meta E2 reformulada em E2a/E2b e E3 rebaseada (ver spec §16); 34 metas, com a
-    E3b (corrida de 3 com uma Água como agente do Dado, pino 65–85%, medido 82,5%). Pergunta aberta:
-    enfraquecer o bônus de 4 peças (ex.: 1,07) se o Vinicius achar forte demais.
+    E3b (corrida de 3 com uma Água como agente do Dado, pino 60–80%, medido 73,0%). Bônus de 4 peças
+    fixado em ×1,07 em 2026-11-08 (era ×1,10).
 - A economia virou o subprojeto 6 (a branch vazia `claude/economia-gdd` foi removida).
 
 ## Pronto
@@ -79,7 +79,7 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
 
 ## Próximos passos
 1. Vinicius joga os equipamentos (`prototype/dist/preview.html?dev=1` para Ouro, Pedras e conjunto Lendário)
-   e decide sobre a força do bônus de 4 peças (hoje dobra o clima, 1,03→1,10; alternativa 1,07).
+   (bônus de 4 peças já fixado em ×1,07; a skill de clima segue em ×1,10).
 2. Subprojeto 4 (expedições, batalha por turnos estilo Origem Fadas; dão Ouro, XP e moeda de pacotes) —
    nova branch dedicada; o Vinicius descreve o sistema antes.
 3. Decidir a zebra (ruído ±3–5% por corrida) e o despertar Lendário→Mítico (depois das expedições).
@@ -97,5 +97,5 @@ taxa da casa, sinks de Ouro) · stack técnica (cliente, servidor, Android) · a
 - **Skills:** 1,66 ativações por corrida de 3 corredores; a simulação não expõe as tentativas.
 - **Zebra:** sem ruído por corrida, campos desiguais são previsíveis (Mítico lv1 × Comum lv1 = 100%).
   Proposta se quisermos: ruído de ±3–5%, não a volta da Disposição de ±10%.
-- **E3b / 4 peças do conjunto:** a Brasa com 4 Raras do Sol fica à frente da misturada em 82,5% mesmo com
-  o Dado ligado (pino 65–85%). Se o Vinicius achar forte demais, enfraquecer o 4-peças (ex.: 1,07).
+- **E3b / 4 peças do conjunto:** com ×1,07 a Brasa com 4 Raras do Sol fica à frente da misturada em 73,0%
+  com o Dado ligado (pino 60–80%); era 82,5% com ×1,10.
