@@ -43,8 +43,6 @@
   var PLAYER_SILKS = '#f2c230';
   var BOT_SILKS = SP.SILKS.filter(function (c) { return c.toLowerCase() !== PLAYER_SILKS; });
   var PORTRAIT_SCALE = 3;        // escala única dos retratos em todas as telas
-  var NOSE = SP.ANCHORS ? SP.ANCHORS.nose[0] : 38;
-  var REAR = SP.ANCHORS ? SP.ANCHORS.rear : [8, 14];
 
   var motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function reduced() { return !!(motionQuery && motionQuery.matches); }
@@ -756,7 +754,10 @@
 
   function go(screen) {
     if (raceView && screen !== 'corrida') { raceView.destroy(); raceView = null; }
-    if (screen !== ui.screen) { ui.confirmReset = false; ui.confirmLiberar = null; }
+    if (screen !== ui.screen) {
+      ui.confirmReset = false; ui.confirmLiberar = null;
+      SP.limparCacheMoldes();   // os moldes recoloridos da tela anterior não voltam a ser usados
+    }
     // voltar de uma sub-tela (Perfil, Montaria) para a mesma aba de origem preserva o estado do Haras e da Loja
     var voltaMesmaAba = kindOf(ui.screen) === 'sub' && screen === ui.tab;
     if (screen === 'haras' && ui.screen !== 'haras' && !voltaMesmaAba) ui.haras = newHaras();
@@ -2228,15 +2229,17 @@
       var tagsR = [], tagsL = [], badges = [], youTag = null;
       for (var j = 0; j < n; j++) {
         var r = L.racers[j];
-        var hoofM = st.pos[j] - (NOSE - 20) / self.ppmArt;
+        var standing = self.phase === 'contagem' || st.speed[j] < 0.4;
+        // âncoras do sprite por código ou do molde (convertidas): o focinho é sempre o mesmo NOSE
+        var an = SP.anchorsFor(r.horse.element, S, standing ? 'parado' : 'galope');
+        var hoofM = st.pos[j] - (an.nose[0] - 20) / self.ppmArt;
         var lift = SP.hillLiftAt ? SP.hillLiftAt(hoofM, hills, lay.maxLift) * S : 0;
         var feetY = laneTop + (j + 1) * laneH - 3 * S - lift;
         var y = feetY - (SP.FOOT_Y + 1) * S;
-        var x = Math.round(((st.pos[j] - cam) * ppm - NOSE * S) / S) * S;
+        var x = Math.round(((st.pos[j] - cam) * ppm - an.nose[0] * S) / S) * S;
         if (j === me) self.playerRect = { x: x, y: y, w: SP.HORSE_W * S, h: SP.HORSE_H * S, W: W, H: H };
         if (x > W - 2 * S) { tagsR.push({ j: j, y: feetY - 12 * S, txt: '+' + Math.round(st.pos[j] - p) + 'm' }); continue; }
         if (x + SP.HORSE_W * S < 2 * S) { tagsL.push({ j: j, y: feetY - 12 * S, txt: '-' + Math.round(p - st.pos[j]) + 'm' }); continue; }
-        var standing = self.phase === 'contagem' || st.speed[j] < 0.4;
         if (j === me) {
           // anel dourado no chão sob os cascos do jogador
           var ry = feetY - 2 * S;
@@ -2245,7 +2248,7 @@
           ctx.fillRect(x + 8 * S, ry, 3 * S, 2 * S); ctx.fillRect(x + 29 * S, ry, 3 * S, 2 * S);
         }
         var inten = standing ? 0 : boostIntensity(j, self.simT);
-        if (inten > 0.02) SP.drawTrail(ctx, x + REAR[0] * S, y + REAR[1] * S, r.horse.element, tr + j * 0.31, inten, S);
+        if (inten > 0.02) SP.drawTrail(ctx, x + an.rear[0] * S, y + an.rear[1] * S, r.horse.element, tr + j * 0.31, inten, S);
         if (lift > 0 && !standing && !reduced()) {
           // poeira levantada na subida
           var dp = Math.floor(tr * 10 + j) % 3;
@@ -2258,7 +2261,7 @@
           scale: S, silks: r.silks, t: tr, idle: standing
         });
         var finished = fTime[j] <= self.simT;
-        if (j === me) youTag = { x: x + (NOSE + 3) * S, y: y + 3 * S, place: finished ? rankOf[j] + 1 : 0 };
+        if (j === me) youTag = { x: x + (an.nose[0] + 3) * S, y: y + 3 * S, place: finished ? rankOf[j] + 1 : 0 };
         else if (finished) badges.push({ x: x + 22 * S, y: y - 2 * S, j: j, place: rankOf[j] + 1 });
       }
       // segunda passada: etiquetas por cima de todos os cavalos
@@ -2913,6 +2916,12 @@
     data = data || {};
     state = sanitize(data.save) || sanitize(loadSave());
     ui.screen = state ? 'estabulo' : 'inicial';
+    // moldes do PixelLab (embutidos pelo build): decodificam em segundo plano; até lá (ou sem eles, ou
+    // com ?semmoldes=1) os cavalos saem do desenho por código. Ao chegarem, a tela é redesenhada — menos
+    // a corrida, que redesenha sozinha a cada quadro (re-renderizar recriaria a corrida).
+    if (!/[?&]semmoldes=1(&|$)/.test(window.location.search) && window.__MOLDES) {
+      SP.loadMolds(window.__MOLDES, function () { if (ui.screen !== 'corrida') rerenderKeepScroll(); });
+    }
     try {
       var hot = window.claude && window.claude.hot;
       if (hot && typeof hot.snapshot === 'function') hot.snapshot(snapshot);

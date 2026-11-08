@@ -1,19 +1,135 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Comparativo de sprites</title>
-<style>body{margin:0;background:#1b2421;color:#f1ead6;font:16px monospace}h1{font-size:22px;margin:16px 20px 4px}p{margin:0 20px 10px;color:#9fb3a6}
-.g{display:grid;grid-template-columns:110px 1fr 1fr;gap:10px;padding:0 20px;align-items:center}.h{color:#f2c14e;text-align:center}canvas{background:#2a3a33;image-rendering:pixelated;width:100%}</style></head><body>
-<h1>Galope Elemental · Código × PixelLab (IA)</h1><p>Mesmos 3 iniciais, animação de galope em loop</p>
-<div class="g"><div></div><div class="h">Feito por código</div><div class="h">PixelLab (IA)</div></div>
-<div class="g" id="rows"></div>
-<script src="src/sprites.js"></script><script>
-const H=[['brasa','fogo','Brasa · Fogo'],['mare','agua','Maré · Água'],['ipe','grama','Ipê · Grama']];
-const rows=document.getElementById('rows'),items=[];
-for(const [id,el,label] of H){const d=document.createElement('div');d.textContent=label;rows.append(d);
- const a=document.createElement('canvas');a.width=200;a.height=150;const b=document.createElement('canvas');b.width=200;b.height=150;rows.append(a,b);
- const fr=[];for(let i=0;i<9;i++){const im=new Image();im.src='assets/pixellab/'+id+'-gallop-'+String(i).padStart(2,'0')+'.png';fr.push(im)}
- items.push({el,a,b,fr});}
-let t0=performance.now();
-function loop(now){const t=(now-t0)/1000;for(const it of items){
- const ca=it.a.getContext('2d');ca.clearRect(0,0,200,150);Sprites.drawHorse(ca,20,10,{palette:Sprites.PALETTES[it.el],element:it.el,frame:Math.floor(t*12),scale:4,silks:'#d23a3a',t});
- const cb=it.b.getContext('2d');cb.imageSmoothingEnabled=false;cb.clearRect(0,0,200,150);const f=it.fr[Math.floor(t*12)%9];if(f.complete)cb.drawImage(f,4,-30,192,192);}
- requestAnimationFrame(loop)}requestAnimationFrame(loop);
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Comparativo dos moldes</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;background:#1b2421;color:#f1ead6;font:14px/1.4 monospace}
+h1{font-size:22px;margin:16px 20px 4px}h2{font-size:18px;margin:22px 20px 6px;color:#f2c14e}h3{font-size:13px;margin:10px 20px 4px;color:#9fb3a6;font-weight:normal}
+p{margin:0 20px 10px;color:#9fb3a6}
+.linha{display:flex;flex-wrap:wrap;gap:10px;padding:0 20px;align-items:flex-end}
+figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:2px}
+figcaption{font-size:11px;color:#9fb3a6}
+canvas{background:#2a3a33;image-rendering:pixelated;display:block}
+canvas.xadrez{background:repeating-conic-gradient(#33463e 0 25%,#2a3a33 0 50%) 0 0/16px 16px}
+.grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;padding:0 20px}
+.legenda{display:flex;flex-wrap:wrap;gap:10px;padding:0 20px 6px;font-size:12px}
+.legenda i{display:inline-block;width:12px;height:12px;margin-right:4px;vertical-align:-2px;border:1px solid #0006}
+#aviso{color:#ff8a7a}
+</style></head><body>
+<h1>Galope Elemental · Moldes do PixelLab × sprite por código</h1>
+<p>Para cada estilo: o molde no mapa de papéis, o galope em 1× e 3× (código à esquerda, molde à direita, mesma
+linha de chão e mesmo focinho) e o recolor com as paletas das 16 montarias e as 8 sedas.
+Os moldes vêm de <code>dist/moldes.js</code> (gerado por <code>node prototype/build.mjs</code>).</p>
+<p id="aviso"></p>
+<div class="legenda" id="legenda"></div>
+<div id="estilos"></div>
+<script src="dist/moldes.js"></script>
+<script src="src/data.js"></script>
+<script src="src/sprites.js"></script>
+<script>
+'use strict'
+// Cores de referência dos papéis (as mesmas de prototype/tools/moldes-lib.mjs).
+const PAPEIS = [null, '#000000', '#ff0000', '#800000', '#00ff00', '#008000', '#0000ff', '#ffff00', '#ffc0cb', '#808080']
+const NOMES = ['', 'contorno', 'pelo', 'sombra do pelo', 'crina', 'sombra da crina', 'detalhe', 'seda', 'pele', 'sela']
+const ELEMENTO = { chamas: 'fogo', ondas: 'agua', folhas: 'grama', lisa: 'neutro' }
+const MONTARIAS = GameData.STARTERS.concat(GameData.WILD_HORSES)   // as 16 montarias
+const SEDAS = Sprites.SILKS                                          // as 8 sedas
+const aviso = document.getElementById('aviso')
+const animados = []   // { draw(t) }
+
+function canvas(w, h, xadrez) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h
+  if (xadrez) c.className = 'xadrez'
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false
+  return { c, g }
+}
+function figura(pai, el, legenda) {
+  const f = document.createElement('figure'); f.append(el)
+  const fc = document.createElement('figcaption'); fc.textContent = legenda; f.append(fc)
+  pai.append(f)
+}
+function linha(sec, titulo) {
+  if (titulo) { const h = document.createElement('h3'); h.textContent = titulo; sec.append(h) }
+  const d = document.createElement('div'); d.className = 'linha'; sec.append(d); return d
+}
+
+// Código à esquerda e molde à direita no mesmo canvas, com a mesma linha de chão (escala k).
+// O molde pode passar ~20 px nativos para a esquerda do x do sprite (focinho alinhado), daí o vão.
+function par(k, opts) {
+  const W = 120 * k, H = 50 * k, y = 16 * k
+  const { c, g } = canvas(W, H)
+  const item = {
+    draw(t) {
+      g.clearRect(0, 0, W, H)
+      g.fillStyle = '#3b5246'; g.fillRect(0, y + 32 * k, W, H - y - 32 * k)
+      const o = Object.assign({ scale: k, t }, opts, { frame: Math.floor(t * 12) })
+      Sprites.drawHorseCodigo(g, 4 * k, y, o)
+      Sprites.drawHorse(g, 70 * k, y, o)
+    }
+  }
+  animados.push(item)
+  return c
+}
+
+function legenda() {
+  const d = document.getElementById('legenda')
+  for (let i = 1; i <= 9; i++) {
+    const s = document.createElement('span')
+    s.innerHTML = `<i style="background:${PAPEIS[i]}"></i>${i} ${NOMES[i]}`
+    d.append(s)
+  }
+}
+
+function secao(estilo) {
+  const el = ELEMENTO[estilo]
+  const info = window.__MOLDES.estilos[estilo].json
+  const sec = document.createElement('section')
+  const h = document.createElement('h2')
+  h.textContent = `${estilo} · ${GameData.ELEMENTS[el].name} — ${info.frames} quadros de galope, larguraUtil ${info.larguraUtil}`
+  sec.append(h)
+  document.getElementById('estilos').append(sec)
+
+  // 1. mapa de papéis, 3× (o PNG do molde, 64×64, pintado com as cores de referência)
+  const l1 = linha(sec, 'Mapa de papéis (molde cru, 3×)')
+  for (const estado of ['retrato', 'parado']) {
+    const { c, g } = canvas(192, 192, true)
+    g.drawImage(Sprites.moldeCanvas(estilo, estado, 0, PAPEIS), 0, 0, 192, 192)
+    figura(l1, c, estado)
+  }
+  const ga = canvas(192, 192, true)
+  animados.push({ draw(t) { ga.g.clearRect(0, 0, 192, 192); ga.g.drawImage(Sprites.moldeCanvas(estilo, 'galope', Math.floor(t * 12), PAPEIS), 0, 0, 192, 192) } })
+  figura(l1, ga.c, 'galope (animado)')
+
+  // 2. galope em 1× e 3× e os estados parados em 3×, com a montaria de referência do elemento
+  const ref = MONTARIAS.filter((m) => m.element === el)[0]
+  const base = { palette: ref.palette, element: el, silks: SEDAS[0] }
+  const l2 = linha(sec, `Código × molde — ${ref.name} (${ref.palette.coat}), seda ${SEDAS[0]}`)
+  figura(l2, par(1, base), 'galope 1×')
+  figura(l2, par(3, base), 'galope 3×')
+  figura(l2, par(3, Object.assign({ idle: true }, base)), 'parado 3× (largada, pódio)')
+  figura(l2, par(3, Object.assign({ idle: true, jockey: false }, base)), 'retrato 3× (estábulo)')
+
+  // 3. as 16 montarias, cada uma com uma das 8 sedas, galope 2×
+  const h3 = document.createElement('h3'); h3.textContent = 'Recolor: 16 montarias × 8 sedas (galope 2×; código | molde)'; sec.append(h3)
+  const grade = document.createElement('div'); grade.className = 'grade'; sec.append(grade)
+  MONTARIAS.forEach((m, i) => {
+    figura(grade, par(2, { palette: m.palette, element: el, silks: SEDAS[i % SEDAS.length] }), `${m.name} · seda ${i % SEDAS.length + 1}`)
+  })
+}
+
+function loop(now) {
+  const t = now / 1000
+  for (const a of animados) a.draw(t)
+  requestAnimationFrame(loop)
+}
+
+if (!window.__MOLDES || !window.__MOLDES.estilos || !Object.keys(window.__MOLDES.estilos).length) {
+  aviso.textContent = 'Sem moldes: rode "node prototype/build.mjs" (gera dist/moldes.js) e recarregue.'
+} else {
+  setTimeout(() => { if (!Sprites.moldsReady) aviso.textContent = 'Os moldes não carregaram (veja o console).' }, 3000)
+  Sprites.loadMolds(window.__MOLDES, () => {
+    legenda()
+    for (const estilo of ['chamas', 'ondas', 'folhas', 'lisa']) secao(estilo)
+    requestAnimationFrame(loop)
+    window.__comparativoPronto = true
+  })
+}
 </script></body></html>

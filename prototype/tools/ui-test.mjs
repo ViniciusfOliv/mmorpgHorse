@@ -23,15 +23,57 @@ const problems = []
 const notes = {}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// extra.query: sufixo da URL; extra.init: função para page.addInitScript (roda antes dos scripts da página);
+// extra.moldes (padrão true): espera os moldes do PixelLab carregarem (Sprites.moldsReady === true) — o jogo
+// re-renderiza a tela quando eles chegam, e esperar evita clicar num botão que está sendo trocado.
 async function newPage(browser, viewport, label, extra = {}) {
-  const { query = '', ...ctxExtra } = extra
+  const { query = '', init = null, moldes = true, ...ctxExtra } = extra
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2, ...ctxExtra })
   const page = await ctx.newPage()
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`[${label}] console: ${m.text()}`) })
   page.on('pageerror', (e) => problems.push(`[${label}] pageerror: ${e.message}`))
+  if (init) await page.addInitScript(init)
   await page.goto(URL + query, { waitUntil: 'domcontentloaded' })
   await Promise.race([page.evaluate(() => document.fonts && document.fonts.ready), sleep(4000)])
+  if (moldes) {
+    try {
+      await page.waitForFunction(() => window.Sprites && window.Sprites.moldsReady === true, null, { timeout: 8000 })
+    } catch (e) {
+      const v = await page.evaluate(() => String(window.Sprites && window.Sprites.moldsReady))
+      problems.push(`[${label}] moldes: Sprites.moldsReady não virou true (ficou ${v})`)
+    }
+  }
   return page
+}
+
+// Corrida até o resultado sem os moldes (queda para o desenho por código): moldsReady fica false, nenhum
+// canvas de molde é criado e o cache do desenho por código recebe os quadros.
+async function corridaSemMoldes(browser, label, extra) {
+  const pg = await newPage(browser, { width: 390, height: 844 }, label, { ...extra, moldes: false })
+  try {
+    await pg.waitForSelector('.inicial')
+    await sleep(600)   // folga para um carregamento de moldes que não deve acontecer
+    const r0 = await pg.evaluate(() => window.Sprites.moldsReady)
+    if (r0 !== false) problems.push(`[${label}] Sprites.moldsReady = ${r0} na tela inicial (esperado false)`)
+    await pg.getByRole('button', { name: 'Escolher Maré' }).click()
+    await pg.waitForSelector('#t-estabulo')
+    await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+    await pg.waitForSelector('#t-correr')
+    await pg.getByRole('button', { name: 'Procurar corrida' }).click()
+    await pg.waitForSelector('#t-largada')
+    await pg.getByRole('button', { name: /^Largar/ }).click()
+    await pg.waitForSelector('#pista')
+    await pg.getByRole('button', { name: 'x2' }).click()
+    await sleep(2500)
+    const meio = await pg.evaluate(() => ({ ready: window.Sprites.moldsReady, moldes: window.Sprites._cacheMoldes(), codigo: window.Sprites.cacheStats().baseCount }))
+    if (meio.ready !== false || meio.moldes !== 0 || !(meio.codigo > 0)) problems.push(`[${label}] corrida sem moldes não usou o desenho por código: ${JSON.stringify(meio)}`)
+    await pg.getByRole('button', { name: /Pular/ }).click()
+    await pg.waitForSelector('#t-resultado')
+    notes['queda-' + label] = meio
+  } catch (e) {
+    problems.push(`[${label}] ${e.message}`)
+  }
+  await pg.context().close()
 }
 
 async function checkOverflow(page, label) {
@@ -102,6 +144,7 @@ async function pickShotTime(page) {
 const browser = await chromium.launch()
 try {
   // ---------------- celular 390x844 ----------------
+  // newPage já espera Sprites.moldsReady === true (moldes do PixelLab embutidos pelo build e decodificados)
   const page = await newPage(browser, { width: 390, height: 844 }, 'mobile')
   await page.waitForSelector('.inicial')
   await sleep(500)
@@ -937,6 +980,57 @@ try {
   await desk.waitForSelector('#t-resultado', { timeout: 90000 })
   notes.cam1280 = await desk.evaluate(() => window.__cc)
   await desk.context().close()
+
+  // ---------------- moldes: queda para o código e teto do cache ----------------
+  await corridaSemMoldes(browser, 'semmoldes', { query: '?semmoldes=1' })
+  // build sem arte: a página vê uma tabela vazia. O build atribui window.__MOLDES num script inline que roda
+  // depois do init script, então a propriedade ignora a atribuição (setter vazio) e continua vazia.
+  await corridaSemMoldes(browser, 'moldes-vazio', {
+    init: () => { Object.defineProperty(window, '__MOLDES', { configurable: true, get: () => ({}), set: () => {} }) }
+  })
+  {
+    // corrida de 8: a 1ª sala do save sai de hash2(seedBase, 1); o nº de corredores é o 2º sorteio do rng da sala
+    // (o 1º escolhe o nome da pista). Conferido no navegador abaixo (L.n === 8).
+    let SEED8 = 0
+    for (let sd = 1; sd <= 500 && !SEED8; sd++) {
+      const rng = S.mulberry32(S.hash2(S.hash2(sd, 1), 0xA11CE))
+      rng()
+      if (4 + Math.floor(rng() * 5) === 8) SEED8 = sd
+    }
+    const mc = await newPage(browser, { width: 390, height: 844 }, 'moldes-cache')
+    try {
+      await mc.getByRole('button', { name: 'Escolher Ipê' }).click()
+      await mc.waitForSelector('#t-estabulo')
+      await mc.evaluate((sd) => { window.__galope.state.seedBase = sd }, SEED8)
+      await mc.locator('[data-acao="aba"][data-id="correr"]').click()
+      await mc.waitForSelector('#t-correr')
+      await mc.getByRole('button', { name: 'Procurar corrida' }).click()
+      await mc.waitForSelector('#t-largada')
+      const n = await mc.evaluate(() => window.__galope.ui.lobby.n)
+      if (n !== 8) problems.push(`moldes-cache: a sala da seed ${SEED8} tem ${n} corredores (esperado 8)`)
+      // maior nº de entradas do cache de moldes enquanto a corrida está na tela (go() limpa ao sair)
+      await mc.evaluate(() => {
+        const m = window.__mcache = { max: 0, frames: 0 }
+        const tick = () => {
+          if (window.__galope.ui.screen === 'corrida') { m.frames++; m.max = Math.max(m.max, window.Sprites._cacheMoldes()) }
+          requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+      })
+      await mc.getByRole('button', { name: /^Largar/ }).click()
+      await mc.waitForSelector('#pista')
+      await mc.getByRole('button', { name: 'x2' }).click()
+      await mc.waitForSelector('#t-resultado', { timeout: 120000 })
+      const cache = await mc.evaluate(() => ({ max: window.__mcache.max, frames: window.__mcache.frames, resultado: window.Sprites._cacheMoldes() }))
+      notes.moldesCache = { seed: SEED8, n, ...cache }
+      if (!(cache.max > 0)) problems.push('moldes-cache: a corrida não desenhou nenhum molde ' + JSON.stringify(cache))
+      if (cache.max > 240) problems.push('moldes-cache: ' + cache.max + ' entradas no cache depois de uma corrida de 8 (teto 240)')
+      if (cache.resultado > 3) problems.push('moldes-cache: o cache não foi limpo ao sair da corrida (' + cache.resultado + ' entradas no resultado; só o pódio = 3)')
+    } catch (e) {
+      problems.push('moldes-cache: ' + e.message)
+    }
+    await mc.context().close()
+  }
 
   // ---------------- celular pequeno, paisagem e movimento reduzido ----------------
   for (const [label, vp] of [['m360', { width: 360, height: 740 }], ['land', { width: 844, height: 390 }]]) {

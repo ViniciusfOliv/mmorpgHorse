@@ -1,6 +1,6 @@
 /*
  * sprites.js — camada de pixel art do protótipo MMORPG Horse.
- * Tudo procedural em <canvas>: nenhuma imagem externa.
+ * Procedural em <canvas>; os cavalos podem vir dos moldes do PixelLab embutidos pelo build (data:).
  *
  * API (global `Sprites` no navegador; module.exports no Node):
  *   Sprites.HORSE_W, Sprites.HORSE_H, Sprites.GALLOP_FRAMES, Sprites.FOOT_Y
@@ -12,6 +12,9 @@
  *   Sprites.drawElementIcon(ctx, x, y, element, scale)
  *   Sprites.drawText(ctx, text, x, y, { scale, color, shadow, align })  // fonte pixel 3x5 com acentos
  *   Sprites.PALETTES  // paletas de exemplo
+ *   Moldes do PixelLab (recolor por paleta; sem eles, desenho por código):
+ *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
+ *   Sprites.anchorsFor(element, scale, estado), Sprites.limparCacheMoldes(), Sprites.drawHorseCodigo(...)
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -119,6 +122,8 @@
   //   H capacete  j camisa (silks)  J camisa sombra  i camisa luz  V óculos
   //   K pele  p culote  P culote sombra  B bota
   var HORSE_W = 40, HORSE_H = 32, FOOT_Y = 31; // FOOT_Y: linha nativa onde os cascos tocam o chão (base do sprite)
+  // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela
+  var ANCHORS = { rear: [8, 14], nose: [38, 8], saddle: [18, 10] };
 
   // Cabeça + pescoço (galope e parado compartilham). origem x=21 y=3
   var HEAD = {
@@ -837,7 +842,8 @@
     return scaled;
   }
 
-  function drawHorse(ctx, x, y, opts) {
+  // Desenho por código (sempre disponível): usado quando os moldes não carregaram ou a pose não tem molde.
+  function drawHorseCodigo(ctx, x, y, opts) {
     opts = opts || {};
     var s = Math.max(1, Math.round(opts.scale || 1));
     x = Math.round(x); y = Math.round(y);
@@ -851,6 +857,216 @@
     ctx.drawImage(horseBase(opts).canvas, x, y, HORSE_W * s, HORSE_H * s);
   }
   function cacheStats() { return { baseBytes: baseCache.bytes, baseCount: baseCache.map.size, scaledBytes: scaledCache.bytes, scaledCount: scaledCache.map.size }; }
+
+  // ===================================================================
+  // MOLDES DO PIXELLAB — recolor por paleta em tempo de execução
+  // ===================================================================
+  // Um molde é um PNG 64×64 em tons de cinza em que cada pixel guarda um PAPEL (cinza = papel × 25):
+  //   0 transparente · 1 contorno · 2 pelo · 3 sombra do pelo · 4 crina · 5 sombra da crina
+  //   6 detalhe · 7 seda · 8 pele · 9 sela.
+  // Cada estilo (chamas, ondas, folhas, lisa) tem três estados: retrato (sem jóquei), parado (com jóquei)
+  // e galope (N quadros). O build embute PNGs e âncoras em window.__MOLDES; loadMolds decodifica os PNGs
+  // num canvas e guarda os índices. drawHorse pinta cada papel com as cores da montaria e do corredor.
+  //
+  // Encaixe no sprite por código (40×32, escala k): o molde é desenhado em escala inteira
+  // S = max(1, round(k × 40 / larguraUtil)), com
+  //   • a última linha dos cascos (o maior footY entre os quadros do estado) terminando em y + (FOOT_Y + 1)·k,
+  //     a mesma linha de chão do sprite por código;
+  //   • a coluna do focinho (mediana de nose.x entre os quadros do estado) em x + NOSE·k (NOSE = 38).
+  // As referências são POR ESTADO, não por quadro: por quadro o cavalo tremeria no galope (cauda e patas
+  // mudam rear e footY). Como o focinho cai no mesmo NOSE, a câmera e as etiquetas da corrida não mudam;
+  // anchorsFor() converte rear/saddle do molde para as unidades do sprite por código.
+  var ESTILO_POR_ELEMENTO = { fogo: 'chamas', agua: 'ondas', grama: 'folhas', neutro: 'lisa' };
+  var ESTILOS_MOLDE = ['chamas', 'ondas', 'folhas', 'lisa'];
+  var MOLDE_CORES_FIXAS = { contorno: '#1a1405', pele: '#e8b48a', sela: '#5a3a22' };
+  var moldes = null;       // estilo -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados }
+  var moldsOk = false;
+  var moldesGeracao = 0;   // descarta um carregamento antigo se loadMolds for chamado de novo
+  // 64×64×4 = 16 KB por entrada; o teto em bytes é só uma rede de segurança (go() limpa ao trocar de tela)
+  var moldCache = new LruCanvasCache(8 * 1024 * 1024);
+  LruCanvasCache.prototype.clear = function () { this.map.clear(); this.bytes = 0; };
+
+  function estiloDe(element) { return ESTILO_POR_ELEMENTO[element] || 'lisa'; }
+  function moldScale(k, larguraUtil) { return Math.max(1, Math.round(k * 40 / larguraUtil)); }
+  function mediana(v) {
+    var s = v.slice().sort(function (a, b) { return a - b; }), n = s.length;
+    return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+  }
+  function ponto(p) { return p && p.length === 2 && isFinite(p[0]) && isFinite(p[1]); }
+
+  // Referência de um estado a partir das âncoras dos seus quadros (calculada uma vez, ao carregar).
+  function refEstado(lista) {
+    var foot = -1, nx = [], ny = [], rx = [], ry = [], sx = [], sy = [], cx = [];
+    for (var i = 0; i < lista.length; i++) {
+      var a = lista[i];
+      if (!a || !isFinite(a.footY) || !ponto(a.nose) || !ponto(a.rear) || !a.bbox) throw new Error('âncora inválida');
+      foot = Math.max(foot, a.footY);
+      nx.push(a.nose[0]); ny.push(a.nose[1]); rx.push(a.rear[0]); ry.push(a.rear[1]);
+      if (ponto(a.saddle)) { sx.push(a.saddle[0]); sy.push(a.saddle[1]); }
+      cx.push(a.bbox.x + a.bbox.w / 2);
+    }
+    return {
+      footY: foot,
+      nose: [Math.round(mediana(nx)), Math.round(mediana(ny))],
+      rear: [Math.round(mediana(rx)), Math.round(mediana(ry))],
+      saddle: sx.length ? [Math.round(mediana(sx)), Math.round(mediana(sy))] : null,
+      centro: mediana(cx)   // centro horizontal do corpo (para a sombra)
+    };
+  }
+
+  // PNG em data: URL -> índices de papel (round(cinza / 25)); falha se o tamanho ou os tons não baterem.
+  function decodificaMolde(url, w, h, ok, falha) {
+    var img = new Image();
+    img.onload = function () {
+      try {
+        if (img.width !== w || img.height !== h) throw new Error('tamanho do molde');
+        var c = makeCanvas(w, h), g = c.getContext('2d');
+        g.drawImage(img, 0, 0);
+        var d = g.getImageData(0, 0, w, h).data, idx = new Array(w * h);
+        for (var i = 0; i < w * h; i++) {
+          var r = d[i * 4], v = Math.round(r / 25);
+          if (d[i * 4 + 3] < 128) v = 0;
+          else if (v > 9 || Math.abs(r - v * 25) > 3) throw new Error('tom de cinza fora dos papéis');
+          idx[i] = v;
+        }
+        ok(idx);
+      } catch (e) { falha(); }
+    };
+    img.onerror = function () { falha(); };
+    img.src = url;
+  }
+
+  // tabela = { estilos: { chamas: { json, retrato, parado, galope: [...] }, ... } } (window.__MOLDES).
+  // Só liga os moldes quando os 4 estilos carregam; qualquer falha deixa moldsReady = false, sem exceção.
+  function loadMolds(tabela, pronto) {
+    var geracao = ++moldesGeracao;
+    moldsOk = false; api.moldsReady = false; moldes = null; moldCache.clear();
+    var est = tabela && tabela.estilos;
+    if (!est || typeof Image === 'undefined' || typeof document === 'undefined') return;
+    var novos = {}, pendentes = 1, falhou = false;   // 1 = o próprio laço abaixo (fecha no fim)
+    function falha() { falhou = true; }
+    function fim() {
+      pendentes--;
+      if (falhou || pendentes > 0 || geracao !== moldesGeracao) return;
+      moldes = novos; moldsOk = true; api.moldsReady = true;
+      if (typeof pronto === 'function') pronto();
+    }
+    try {
+      ESTILOS_MOLDE.forEach(function (nome) {
+        var e = est[nome], J = e && e.json;
+        if (!J || !e.retrato || !e.parado || !e.galope) throw new Error('estilo ausente: ' + nome);
+        var frames = J.frames | 0, A = J.ancoras || {};
+        if (!(frames > 0) || e.galope.length !== frames || !(J.w > 0) || !(J.h > 0) || !(J.larguraUtil > 0)) throw new Error('molde inválido: ' + nome);
+        var lista = [];
+        for (var f = 0; f < frames; f++) lista.push(A['galope-' + f]);
+        var M = novos[nome] = {
+          w: J.w, h: J.h, frames: frames, larguraUtil: J.larguraUtil, retrato: null, parado: null, galope: [],
+          estados: { retrato: refEstado([A.retrato]), parado: refEstado([A.parado]), galope: refEstado(lista) }
+        };
+        function carrega(url, guarda) {
+          pendentes++;
+          decodificaMolde(url, M.w, M.h, function (idx) { guarda(idx); fim(); }, function () { falha(); fim(); });
+        }
+        carrega(e.retrato, function (idx) { M.retrato = idx; });
+        carrega(e.parado, function (idx) { M.parado = idx; });
+        e.galope.forEach(function (url, q) { carrega(url, function (idx) { M.galope[q] = idx; }); });
+      });
+    } catch (ex) {
+      falhou = true;   // as decodificações já pedidas terminam sem ligar os moldes
+    }
+    fim();
+  }
+
+  // Estado do molde para as opções do drawHorse; null = pose sem molde (galope sem jóquei): usa o código.
+  function estadoMolde(o) {
+    if (o.retrato) return 'retrato';
+    if (o.jockey === false) return o.idle ? 'retrato' : null;
+    return o.idle ? 'parado' : 'galope';
+  }
+
+  // Cores por papel (índice 0–9) para as opções do drawHorse.
+  function coresMolde(o) {
+    var pal = o.palette || PALETTES.neutro;
+    var coat = pal.coat || '#a0704a', mane = pal.mane || shade(coat, 0.5);
+    return [null, MOLDE_CORES_FIXAS.contorno, coat, pal.coatShade || shade(coat, 0.35), mane, shade(mane, 0.35),
+      pal.accent || '#f2ead8', o.silks || '#d8353b', MOLDE_CORES_FIXAS.pele, MOLDE_CORES_FIXAS.sela];
+  }
+
+  function pintaIndices(idx, w, h, cores) {
+    var rgb = cores.map(function (c) { return c ? hexToRgb(c) : null; });
+    var c = makeCanvas(w, h), g = c.getContext('2d'), img = g.createImageData(w, h), d = img.data;
+    for (var i = 0; i < w * h; i++) {
+      var v = rgb[idx[i]];
+      if (!v) continue;
+      d[i * 4] = v[0]; d[i * 4 + 1] = v[1]; d[i * 4 + 2] = v[2]; d[i * 4 + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    return c;
+  }
+  function indicesMolde(M, estado, quadro) { return estado === 'galope' ? M.galope[quadro] : M[estado]; }
+
+  // Canvas 1× recolorido; a escala fica no drawImage (vizinho mais próximo), então a chave não leva a
+  // escala: uma entrada por estilo|estado|quadro|cores, em qualquer tamanho de tela.
+  function moldeRecolorido(nome, estado, quadro, o) {
+    var cores = coresMolde(o);
+    var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',');
+    var c = moldCache.get(key);
+    if (!c) {
+      var M = moldes[nome];
+      c = pintaIndices(indicesMolde(M, estado, quadro), M.w, M.h, cores);
+      moldCache.set(key, c);
+    }
+    return c;
+  }
+
+  function drawHorseMolde(ctx, x, y, o, estado) {
+    var k = Math.max(1, Math.round(o.scale || 1));
+    var nome = estiloDe(o.element), M = moldes[nome], ref = M.estados[estado];
+    var quadro = estado === 'galope' ? mod(Math.floor(o.frame || 0), M.frames) : 0;
+    var S = moldScale(k, M.larguraUtil);
+    x = Math.round(x); y = Math.round(y);
+    var ox = x + ANCHORS.nose[0] * k - ref.nose[0] * S;
+    var oy = y + (FOOT_Y + 1) * k - (ref.footY + 1) * S;
+    crisp(ctx);
+    if (o.shadow !== false) {   // a mesma sombra do sprite por código, centrada sob o corpo do molde
+      ctx.fillStyle = 'rgba(20,10,20,0.28)';
+      var cx = Math.round(ox + ref.centro * S), sy = y + (FOOT_Y - 1) * k;
+      ctx.fillRect(cx - 11 * k, sy, 22 * k, k);
+      ctx.fillRect(cx - 9 * k, sy + k, 18 * k, k);
+    }
+    ctx.drawImage(moldeRecolorido(nome, estado, quadro, o), ox, oy, M.w * S, M.h * S);
+  }
+
+  function drawHorse(ctx, x, y, opts) {
+    opts = opts || {};
+    var estado = moldsOk ? estadoMolde(opts) : null;
+    if (estado) drawHorseMolde(ctx, x, y, opts, estado);
+    else drawHorseCodigo(ctx, x, y, opts);
+  }
+
+  // Âncoras nas unidades do sprite por código (some x + v·escala, y + v·escala), para o estado pedido
+  // ('galope' por padrão, 'parado' ou 'retrato'). Com a escala, a conversão é exata para aquele tamanho;
+  // sem ela, usa a proporção ideal 40 / larguraUtil. Sem moldes: ANCHORS. O focinho é sempre NOSE.
+  function anchorsFor(element, scale, estado) {
+    if (!moldsOk) return ANCHORS;
+    var M = moldes[estiloDe(element)];
+    var ref = M.estados[estado === 'parado' || estado === 'retrato' ? estado : 'galope'];
+    var k = scale > 0 ? Math.max(1, Math.round(scale)) : 0;
+    var r = k ? moldScale(k, M.larguraUtil) / k : 40 / M.larguraUtil;
+    function conv(p) { return p ? [ANCHORS.nose[0] + (p[0] - ref.nose[0]) * r, FOOT_Y + 1 - (ref.footY + 1 - p[1]) * r] : null; }
+    return { rear: conv(ref.rear), nose: conv(ref.nose), saddle: conv(ref.saddle) };
+  }
+
+  function limparCacheMoldes() { moldCache.clear(); }
+  function cacheMoldes() { return moldCache.map.size; }
+
+  // Para o comparativo.html: um quadro do molde pintado com cores livres (índice -> cor), sem cache.
+  function moldeCanvas(estilo, estado, quadro, cores) {
+    var M = moldsOk && moldes[estilo];
+    if (!M) return null;
+    var idx = indicesMolde(M, estado, estado === 'galope' ? mod(quadro | 0, M.frames) : 0);
+    return idx ? pintaIndices(idx, M.w, M.h, cores) : null;
+  }
 
   // ===================================================================
   // Paletas de exemplo
@@ -1699,16 +1915,26 @@
     }
   }
 
-  return {
+  var api = {
     HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y,
-    // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela
-    ANCHORS: { rear: [8, 14], nose: [38, 8], saddle: [18, 10] },
+    // pontos úteis em pixels nativos (multiplique pela escala): traseira p/ rastro, focinho, sela.
+    // Com moldes, use anchorsFor(element, scale, estado): mesmas unidades, já convertidas.
+    ANCHORS: ANCHORS,
     PALETTES: PALETTES,
     SILKS: SILKS,
     randomPalette: randomPalette,
     ELEMENTS: ['fogo', 'agua', 'grama', 'neutro'],
     drawHorse: drawHorse,
+    drawHorseCodigo: drawHorseCodigo,
     horseCanvas: horseCanvas,
+    // moldes do PixelLab (ver a seção MOLDES)
+    ESTILO_POR_ELEMENTO: ESTILO_POR_ELEMENTO,
+    moldsReady: false,
+    loadMolds: loadMolds,
+    anchorsFor: anchorsFor,
+    limparCacheMoldes: limparCacheMoldes,
+    moldeCanvas: moldeCanvas,
+    _cacheMoldes: cacheMoldes,
     drawTrack: drawTrack,
     drawWeather: drawWeather,
     drawTrail: drawTrail,
@@ -1721,4 +1947,5 @@
     measureText: measureText,
     _debug: { compose: compose, horseLayers: horseLayers, horseState: horseState, outlineAndColor: outlineAndColor, buildColors: buildColors }
   };
+  return api;
 }));
