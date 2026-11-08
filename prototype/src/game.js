@@ -757,9 +757,12 @@
   function go(screen) {
     if (raceView && screen !== 'corrida') { raceView.destroy(); raceView = null; }
     if (screen !== ui.screen) { ui.confirmReset = false; ui.confirmLiberar = null; }
-    if (screen === 'haras' && ui.screen !== 'haras') ui.haras = newHaras();
+    // voltar de uma sub-tela (Perfil, Montaria) para a mesma aba de origem preserva o estado do Haras e da Loja
+    var voltaMesmaAba = kindOf(ui.screen) === 'sub' && screen === ui.tab;
+    if (screen === 'haras' && ui.screen !== 'haras' && !voltaMesmaAba) ui.haras = newHaras();
     if (screen !== 'montaria') ui.montaria = null;   // sair da Montaria descarta o "Desfazer venda" e a confirmação
-    if (screen !== 'loja') ui.loja = null;
+    // a Loja guarda o estado enquanto uma sub-tela aberta a partir dela está por cima
+    if (screen !== 'loja' && !(kindOf(screen) === 'sub' && ui.tab === 'loja')) ui.loja = null;
     if (kindOf(screen) === 'aba') ui.tab = screen;   // a barra de abas lê ui.tab
     ui.screen = screen;
     if (appEl) appEl.classList.toggle('app--corrida', screen === 'corrida');
@@ -795,6 +798,7 @@
     if (comCasca) html = appTopoHtml() + '<main class="app-conteudo">' + html + '</main>' + appAbasHtml();
     if (appEl) appEl.classList.toggle('app-com-abas', comCasca);
     document.documentElement.classList.toggle('app-com-abas', comCasca);   // scroll-padding do foco (CSS)
+    document.documentElement.classList.toggle('dev-ativo', devAtivo());     // telas cheias: barra de ação acima do painel dev
     if (devAtivo() && ui.screen !== 'corrida') {
       html += '<div class="dev-espaco" style="height:56px" aria-hidden="true"></div><div class="dev-painel" role="group" aria-label="Painel de desenvolvimento"><span>dev</span>' +
         '<button type="button" class="btn btn--pequeno" data-acao="dev-niveis">+10 níveis (ativa)</button>' +
@@ -816,9 +820,13 @@
   // ===========================================================================
   function appTopoHtml() {
     return '<header class="app-topo"><span class="logo-mini">Galope Elemental</span>' +
-      '<span class="topo-saldos"><span class="pedras" aria-label="' + esc(pedrasTxt(state.pedras) + (state.pedras === 1 ? ' negra' : ' negras')) + '">🪨 ' + fmt(state.pedras) + '</span>' +
+      '<span class="topo-saldos">' + pedrasSaldoHtml() +
       '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></span>' +
       '<button type="button" class="btn btn--pequeno app-perfil" data-acao="perfil" aria-label="Perfil">👤</button></header>';
+  }
+  // saldo de Pedras Negras ("🪨 N"), igual no cabeçalho e no Perfil
+  function pedrasSaldoHtml() {
+    return '<span class="pedras" aria-label="' + esc(pedrasTxt(state.pedras) + (state.pedras === 1 ? ' negra' : ' negras')) + '">🪨 ' + fmt(state.pedras) + '</span>';
   }
   function appAbasHtml() {
     return '<nav class="app-abas" role="navigation" aria-label="Seções">' + ABAS.map(function (a) {
@@ -831,12 +839,12 @@
   // Perfil: estatísticas, saldo, inventário e "Recomeçar com outro inicial"
   function renderPerfil() {
     return '<section class="tela" aria-labelledby="t-perfil">' +
-      '<button type="button" class="btn btn--texto" data-acao="perfil-voltar">Voltar</button>' +
+      '<button type="button" class="btn btn--pequeno" data-acao="perfil-voltar">Voltar</button>' +
       '<h1 class="titulo titulo--tela" id="t-perfil" tabindex="-1" data-foco>Perfil</h1>' +
       '<div class="caixa">' +
         '<div class="linha-meta"><span>Corridas <b>' + fmt(state.races) + '</b></span><span>Vitórias <b>' + fmt(state.wins) + '</b></span>' +
           '<span>Pódios <b>' + fmt(state.podiums) + '</b></span><span>Prêmios ' + ouroHtml(state.goldWon) + '</span></div>' +
-        '<div class="linha-meta"><span>Ouro ' + ouroHtml(state.gold) + '</span><span>Pedras <b>🪨 ' + fmt(state.pedras) + '</b></span></div>' +
+        '<div class="linha-meta"><span>Ouro ' + ouroHtml(state.gold) + '</span><span>Pedras ' + pedrasSaldoHtml() + '</span></div>' +
         '<div class="linha-meta"><span>' + esc(state.mounts.length) + (state.mounts.length === 1 ? ' montaria' : ' montarias') + ' · ' +
           esc(state.items.length) + (state.items.length === 1 ? ' peça' : ' peças') + '</span></div>' +
       '</div>' +
@@ -2754,7 +2762,12 @@
         break;
       case 'ativar':
         if (state.pending || !mountByUid(id)) break;
-        state.activeId = id; persist(); rerenderKeepScroll(); break;
+        state.activeId = id; persist(); rerenderKeepScroll();
+        if (ui.screen === 'montaria') {   // o botão "Ativar" fica desabilitado: o foco iria para o body
+          var hf = telaEl.querySelector('[data-foco]');
+          if (hf) { try { hf.focus({ preventScroll: true }); } catch (e) { hf.focus(); } }
+        }
+        break;
       case 'renomear': {
         var rm = mountByUid(id);
         if (!rm) break;
@@ -2887,8 +2900,9 @@
   // ===========================================================================
   // Início (com suporte opcional a window.claude.hot)
   // ===========================================================================
+  // start() ignora data.screen (sempre abre no Estábulo ou no inicial): o snapshot só leva o save
   function snapshot() {
-    return { save: state, screen: (ui.screen === 'corrida' || ui.screen === 'resultado' || ui.screen === 'largada' || ui.screen === 'montaria') ? 'estabulo' : ui.screen };
+    return { save: state };
   }
 
   var started = false;

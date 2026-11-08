@@ -495,6 +495,14 @@ try {
     await sleep(400)
     await checkOverflow(cz, 'haras')
     await cz.screenshot({ path: join(SHOTS, 'final-08-haras.png') })
+    // Perfil -> Voltar devolve ao Haras com o mesmo parceiro selecionado
+    {
+      const parceiro0 = await cz.evaluate(() => JSON.stringify(window.__galope.ui.haras && window.__galope.ui.haras.partner))
+      await cz.locator('[data-acao="perfil"]').click(); await cz.waitForSelector('#t-perfil')
+      await cz.locator('[data-acao="perfil-voltar"]').click(); await cz.waitForSelector('#t-haras')
+      const parceiro1 = await cz.evaluate(() => JSON.stringify(window.__galope.ui.haras && window.__galope.ui.haras.partner))
+      if (parceiro0 === 'null' || parceiro1 !== parceiro0) problems.push(`cruzamento: Perfil -> Voltar mudou o parceiro do Haras (${parceiro0} -> ${parceiro1})`)
+    }
     // liberar uma montaria pela tela da Montaria: volta ao Estábulo com o foco no h1 e a montaria some
     {
       const est = await cz.evaluate(() => ({ n: window.__galope.state.mounts.length, active: window.__galope.state.activeId, uids: window.__galope.state.mounts.map((m) => m.uid) }))
@@ -528,16 +536,28 @@ try {
         const current = await mn.locator('[data-acao="aba"][aria-current="page"]').getAttribute('data-id')
         if (current !== id) problems.push(`menu: aria-current em ${current} (esperado ${id})`)
       }
-      // 2. trocar de aba não empilha histórico
+      // 2. trocar de aba não empilha histórico: abas são raízes, sem o estado de guarda { galope: 1 }
+      //    (só history.length não pega a regressão: o guarda único mantém o comprimento estável)
       const len0 = await mn.evaluate(() => history.length)
-      for (let i = 0; i < 10; i++) await mn.locator(`[data-acao="aba"][data-id="${['correr', 'haras', 'loja', 'estabulo', 'expedicao'][i % 5]}"]`).click()
+      for (let i = 0; i < 10; i++) {
+        const id = ['correr', 'haras', 'loja', 'estabulo', 'expedicao'][i % 5]
+        await mn.locator(`[data-acao="aba"][data-id="${id}"]`).click()
+        await mn.waitForSelector('#t-' + id)
+        const hs = await mn.evaluate(() => history.state)
+        if (hs !== null) problems.push(`menu: history.state ${JSON.stringify(hs)} na aba ${id} (esperado null)`)
+      }
       const len1 = await mn.evaluate(() => history.length)
       if (len1 !== len0) problems.push(`menu: history.length ${len0} -> ${len1} ao trocar de aba`)
+      const guarda = async (onde) => {
+        const hs = await mn.evaluate(() => history.state)
+        if (!(hs && hs.galope === 1)) problems.push(`menu: sem o estado de guarda em ${onde} (history.state ${JSON.stringify(hs)})`)
+      }
       // 3. cabeçalho e barra presentes nas abas, ausentes na corrida
       if ((await mn.locator('.app-topo').count()) !== 1 || (await mn.locator('.app-abas').count()) !== 1) problems.push('menu: casca ausente numa aba')
       await mn.locator('[data-acao="aba"][data-id="correr"]').click()
       await mn.getByRole('button', { name: 'Procurar corrida' }).click()
       await mn.waitForSelector('#t-largada')
+      await guarda('#t-largada')
       if ((await mn.locator('.app-abas').count()) !== 0) problems.push('menu: barra visível na largada')
       await mn.getByRole('button', { name: /^Largar/ }).click()
       await mn.waitForSelector('#pista')
@@ -547,6 +567,7 @@ try {
       await checkOverflow(mn, 'menu-390')
       await mn.getByRole('button', { name: /^Voltar/ }).click()
       await mn.waitForSelector('#t-correr')
+      if ((await mn.locator('.app-aba--ponto').count()) !== 0) problems.push('menu: ponto na aba Correr depois da corrida')
       // 4. ponto na aba Correr com páreo aberto; Voltar da largada volta à aba Correr com a mesma sala
       await mn.locator('[data-acao="aba"][data-id="correr"]').click()
       await mn.getByRole('button', { name: 'Procurar corrida' }).click()
@@ -570,10 +591,16 @@ try {
       // 7. expedição mostra a vitrine dos selvagens
       await mn.locator('[data-acao="aba"][data-id="expedicao"]').click()
       if ((await mn.locator('.selvagem').count()) < 3) problems.push('menu: expedição sem selvagens')
-      // 8. tela da Montaria: 3 sub-abas, Renomear e Liberar
+      // 8. tela da Montaria: estado de guarda, captura, 3 sub-abas, Renomear e Liberar
       await mn.locator('[data-acao="aba"][data-id="estabulo"]').click()
       await mn.locator('button[data-acao="montaria"][data-id="m1"]').click()
       await mn.waitForSelector('#t-montaria')
+      await guarda('#t-montaria')
+      // captura da Montaria na sub-aba Equipamento, do topo (cabeça + sub-abas), sem o painel dev
+      await mn.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+      await mn.evaluate(() => window.scrollTo(0, 0))
+      await sleep(300)
+      await mn.screenshot({ path: join(SHOTS, 'final-03-montaria.png') })
       for (const aba of ['skills', 'equip', 'status']) {
         await mn.locator(`[data-acao="montaria-aba"][data-id="${aba}"]`).click()
         if ((await mn.locator(`[data-acao="montaria-aba"][data-id="${aba}"][aria-pressed="true"]`).count()) !== 1) problems.push('menu: sub-aba ' + aba + ' não ativou')
@@ -585,7 +612,7 @@ try {
       if (!/Trovão/.test(await mn.locator('#t-montaria').textContent())) problems.push('menu: h1 da Montaria não mostra o nome novo')
       // Liberar desabilitado na ativa/única
       if (!(await mn.locator('[data-acao="liberar"][data-id="m1"]').isDisabled())) problems.push('menu: Liberar habilitado na única montaria')
-      // 9. capturas das abas Correr e Expedição + overflow com a casca a 360 px
+      // 9. capturas das abas Correr e Expedição
       await mn.locator('[data-acao="montaria-voltar"]').click()
       await mn.waitForSelector('#t-estabulo')
       await mn.locator('[data-acao="aba"][data-id="correr"]').click()
@@ -599,6 +626,7 @@ try {
       // 10. perfil: estatísticas e Recomeçar; Voltar retorna à aba de onde veio
       const abaAntes = await mn.evaluate(() => window.__galope.ui.tab)
       await mn.locator('[data-acao="perfil"]').click(); await mn.waitForSelector('#t-perfil')
+      await guarda('#t-perfil')
       const perfilTxt = await mn.locator('#tela').textContent()
       if (!/Corridas/.test(perfilTxt) || !/Vitórias/.test(perfilTxt) || !/Pódios/.test(perfilTxt) || !/Recomeçar/.test(perfilTxt)) problems.push('menu: perfil incompleto')
       if (!/montaria/.test(perfilTxt) || !/peça/.test(perfilTxt)) problems.push('menu: perfil sem contagem de montarias/peças')
@@ -607,7 +635,14 @@ try {
       await mn.goBack(); await mn.waitForSelector('#t-' + abaAntes)
       await mn.locator('[data-acao="perfil"]').click(); await mn.waitForSelector('#t-perfil')
       await mn.locator('[data-acao="perfil-voltar"]').click(); await mn.waitForSelector('#t-' + abaAntes)
-      // 11. barra embaixo no celular (390) e à esquerda no desktop (1280)
+      // 11. Perfil -> Voltar devolve à Loja com a mesma aba interna (Pedras)
+      await mn.locator('[data-acao="aba"][data-id="loja"]').click(); await mn.waitForSelector('#t-loja')
+      await mn.locator('[data-acao="loja-tab"][data-id="pedras"]').click()
+      await mn.locator('[data-acao="perfil"]').click(); await mn.waitForSelector('#t-perfil')
+      await mn.locator('[data-acao="perfil-voltar"]').click(); await mn.waitForSelector('#t-loja')
+      const lojaTab = await mn.evaluate(() => window.__galope.ui.loja && window.__galope.ui.loja.tab)
+      if (lojaTab !== 'pedras') problems.push(`menu: Perfil -> Voltar perdeu a aba da Loja (${lojaTab}, esperado pedras)`)
+      // 12. barra embaixo no celular (390) e à esquerda no desktop (1280)
       const mbox = await mn.locator('.app-abas').boundingBox()
       if (!mbox || mbox.y < 700 || mbox.width < 380) problems.push('menu: barra não está embaixo em 390: ' + JSON.stringify(mbox))
       const desk = await newPage(browser, { width: 1280, height: 800 }, 'menu-desk')
@@ -620,7 +655,7 @@ try {
         await checkOverflow(desk, 'menu-1280')
         await desk.screenshot({ path: join(SHOTS, 'final-desktop-correr.png') })
       } finally { await desk.context().close() }
-      // 6. a casca não estoura a 360 px
+      // 13. a casca não estoura a 360 px
       const p360 = await newPage(browser, { width: 360, height: 740 }, 'menu-360')
       try {
         await p360.getByRole('button', { name: 'Escolher Brasa' }).click(); await p360.waitForSelector('#t-estabulo')
@@ -731,6 +766,13 @@ try {
       await eq.waitForSelector('#t-correr')
       await eq.getByRole('button', { name: 'Procurar corrida' }).click()
       await eq.waitForSelector('#t-largada')
+      // 9a. na largada (tela cheia, no topo) o painel dev não cobre o "Largar!"
+      {
+        const lb = await eq.locator('.barra-acao .btn').boundingBox()
+        const db = await eq.locator('.dev-painel').boundingBox()
+        const cruza = lb && db && lb.x < db.x + db.width && db.x < lb.x + lb.width && lb.y < db.y + db.height && db.y < lb.y + lb.height
+        if (!lb || !db || cruza) problems.push('equipamento: painel dev cobre o "Largar!" na largada ' + JSON.stringify({ lb, db }))
+      }
       await eq.locator('[data-acao="voltar"]').first().click()
       await eq.waitForSelector('#t-correr')
       await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()   // "Equipar" da aba Correr
@@ -758,12 +800,11 @@ try {
       if ((await st()).mounts[0].equip.sela !== 'i1') problems.push('equipamento: re-equipar i1 bloqueado com páreo aberto')
       const ratingL = S.powerRating(antes.mounts[0], GR.resolve({ equip: Object.assign({}, antes.mounts[0].equip, { sela: L }) }, Object.fromEntries(antes.items.map((it) => [it.uid, it]))))
       notes.equipamentoTrava = { pr, liga: S.leagueFor(pr).name, ratingComLendaria: ratingL, ligaComLendaria: S.leagueFor(ratingL).name }
-      // 10. sem rolagem horizontal; captura com o slot aberto
+      // 10. sem rolagem horizontal
       await sleep(300)
       await checkOverflow(eq, 'equipamento')
-      await eq.screenshot({ path: join(SHOTS, 'final-03-montaria.png') })
       // 11. vender a Lendária pela 3ª vez e sair: a venda fica e o "Desfazer" some
-      //     (depois da trava e da captura, que ainda usam a Lendária no inventário)
+      //     (depois da trava, que ainda usa a Lendária no inventário)
       const goldAntes3 = (await st()).gold
       await eq.locator('[data-acao="vender"][data-id="' + L + '"]').click()
       s = await st()
@@ -901,8 +942,11 @@ try {
   for (const [label, vp] of [['m360', { width: 360, height: 740 }], ['land', { width: 844, height: 390 }]]) {
     const p = await newPage(browser, vp, label)
     await p.getByRole('button', { name: 'Escolher Ipê' }).click()
+    await p.waitForSelector('#t-estabulo')
+    await checkOverflow(p, label + '-estabulo')   // telas com a casca (cabeçalho + barra de abas)
     await p.locator('[data-acao="aba"][data-id="correr"]').click()
     await p.waitForSelector('#t-correr')
+    await checkOverflow(p, label + '-correr')
     await p.getByRole('button', { name: 'Procurar corrida' }).click()
     await p.getByRole('button', { name: /^Largar/ }).click()
     await p.waitForSelector('#pista')

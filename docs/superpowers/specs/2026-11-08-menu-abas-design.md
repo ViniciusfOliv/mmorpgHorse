@@ -101,7 +101,7 @@ no Estábulo (retrato, nome, raridade, nível, elemento, habitat). Vira a tela r
 
 ### 5.5 💞 Haras (`haras`) e 🛒 Loja (`loja`)
 Conteúdo atual sem o botão "Voltar ao estábulo". `ui.haras` continua sendo recriado ao entrar na aba;
-`ui.loja` idem.
+`ui.loja` idem — exceto ao voltar de uma sub-tela (Perfil, Montaria) para a mesma aba (ver §10).
 
 ### 5.6 Perfil (`perfil`, sub-tela)
 Estatísticas (corridas, vitórias, pódios, prêmios em Ouro), saldo (Ouro, Pedras), nº de montarias e de
@@ -126,7 +126,7 @@ peças, e **Recomeçar com outro inicial** com a confirmação atual (`reset`/`r
   (`[data-acao="montaria-aba"][data-id="equip"]`); os seletores de conteúdo (`#t-haras`, `cruzar`,
   `comprar`, `equipar`, `melhorar`…) não mudam.
 - Novo contexto `menu`: (1) as 5 abas abrem e o `h1` certo tem o foco; (2) trocar de aba não empilha
-  histórico (`history.length` estável) e `page.goBack()` numa sub-tela volta à aba de origem; (3) ponto
+  histórico (`history.state` nulo nas abas e `{ galope: 1 }` em Montaria, Perfil e largada) e `page.goBack()` numa sub-tela volta à aba de origem; (3) ponto
   na aba Correr com páreo aberto e sem ele depois da corrida; (4) Montaria: as 3 sub-abas, Renomear e
   Liberar funcionando lá; (5) Perfil com estatísticas e Recomeçar; (6) sem rolagem horizontal em 360,
   390, 844×390 e 1280, barra embaixo até 899 px e à esquerda em 1280; (7) corrida sem cabeçalho nem
@@ -162,4 +162,5 @@ colunas no desktop · animações de transição · mudar regras de jogo ou de s
 - O painel `?dev=1` sobe acima da barra de abas.
 - No desktop, o marcador da aba ativa é uma barra à esquerda.
 - Bordas de 2 px.
-- Liberar pela Montaria volta ao Estábulo (`go(ui.tab)`) com o foco no título.
+- Liberar pela Montaria volta à aba de origem (`go(ui.tab)`) com o foco no título.
+- Voltar de uma sub-tela (Perfil, Montaria) para a mesma aba de origem preserva `ui.haras` e `ui.loja`.

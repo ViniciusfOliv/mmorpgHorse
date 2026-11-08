@@ -35,7 +35,7 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
     possuídos, arredondamento por maior resto na calculadora, snapshot dourado dos 3 potros de
     `docs/exemplos.md` §13 (compara o potro inteiro, inclusive paleta).
   - Verificação: `check.sh` em 5 etapas — 41 testes unitários, balanço 28/28, UI com o contexto
-    `cruzamento` determinístico (captura `final-06-haras.png`).
+    `cruzamento` determinístico (captura `final-08-haras.png`).
   - Painel `?dev=1` para dar Ouro e cruzar à vontade ao testar.
   - Limites conhecidos: status do potro não herdam dos pais (só grau e potencial); sem timer de
     gestação (`gestacao` fica null); `game.js` segue um arquivo só (descartável; o que sobrevive é
@@ -48,7 +48,7 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
     Sol/Chuva/Névoa (3/4/5 peças), Loja, Pedra Negra no pódio, save v4 com migração, bots equipados
     por liga, trava parcial com páreo aberto.
   - Verificação: `check.sh` em 5 etapas — 58 testes unitários, 34 metas de balanço, UI com os contextos
-    `equipamento` e `loja` (capturas `final-07-equipamento.png` e `final-08-loja.png`).
+    `equipamento` e `loja` (capturas `final-03-montaria.png` e `final-09-loja.png`).
   - Painel `?dev=1` com +5 Pedras e conjunto Lendário na ativa.
   - Limites conhecidos: sem durabilidade; sem limite de inventário; Lendário só via dev até as
     expedições; meta E2 reformulada em E2a/E2b e E3 rebaseada (ver spec §16); 34 metas, com a
