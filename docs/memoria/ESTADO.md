@@ -54,7 +54,8 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
     expedições; meta E2 reformulada em E2a/E2b e E3 rebaseada (ver spec §16); 34 metas, com a
     E3b (corrida de 3 com uma Água como agente do Dado, pino 60–80%, medido 73,0%). Bônus de 4 peças
     fixado em ×1,07 em 2026-11-08 (era ×1,10).
-- **Frente de interface — Menu de abas: concluída na branch `claude/menu-abas` (aguardando revisão final e integração).**
+- **Frente de interface — Menu de abas: concluída e integrada na `main` em 2026-11-08** (fast-forward;
+  revisão final por agente + onda de correções; branch `claude/menu-abas` pode ser apagada no GitHub).
   Spec: `docs/superpowers/specs/2026-11-08-menu-abas-design.md` (§10 = ajustes da implementação).
   - Entregue: casca com cabeçalho (saldo + Perfil) e barra de 5 abas (embaixo no celular, à esquerda
     no desktop), Estábulo só lista, tela da Montaria com sub-abas Status/Skills/Equipamento, abas
@@ -87,12 +88,15 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   `bestLevelFor`). `README.md` criado na raiz.
 
 ## Próximos passos
-0. Revisão final e integração da branch `claude/menu-abas`; depois expedições (subprojeto 4) e visuais.
-1. Vinicius joga os equipamentos (`prototype/dist/preview.html?dev=1` para Ouro, Pedras e conjunto Lendário)
-   (bônus de 4 peças já fixado em ×1,07; a skill de clima segue em ×1,10).
-2. Subprojeto 4 (expedições, batalha por turnos estilo Origem Fadas; dão Ouro, XP e moeda de pacotes) —
-   nova branch dedicada; o Vinicius descreve o sistema antes.
-3. Decidir a zebra (ruído ±3–5% por corrida) e o despertar Lendário→Mítico (depois das expedições).
+1. Subprojeto 4 — expedições (mundos por bioma, estágios X-1…X-10, batalha por turnos com modo
+   automático e manual, recompensas em Ouro, XP e moeda de pacotes; Lendário de equipamento) — nova
+   branch dedicada; brainstorming já iniciado (decidido: auto/manual; corrida PVP continua automática).
+2. Visuais pagos (PixelLab para sprites de montarias/inimigos e fundos; Canva para ícones e arte de
+   loja) — só depois de fechar a lista de telas, biomas e inimigos; cada geração pede confirmação do
+   Vinicius e entra em `docs/memoria/assets.md`. Os sprites PixelLab dos 3 iniciais já existem
+   (`prototype/comparativo.html`) e ainda não estão no jogo.
+3. Vinicius joga o menu novo e os equipamentos (`prototype/dist/preview.html?dev=1`).
+4. Decidir a zebra (ruído ±3–5% por corrida) e o despertar Lendário→Mítico (depois das expedições).
 
 ## Pendente no design (GDD seções 8+)
 Curvas de XP/level · expedições · economia (valores de entrada,
