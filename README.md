@@ -1,5 +1,7 @@
 # MMORPG Horse
 
+![Galope Elemental](docs/capa.png)
+
 Jogo em pixel art de corrida de cavalos **automática** com progressão RPG, elementos
 (🔥 Fogo / 💧 Água / 🌿 Grama) e PVP com apostas de moeda virtual. Alvo: web + Google Play.
 

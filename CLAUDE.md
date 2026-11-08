@@ -35,10 +35,11 @@ Nada de polimento, servidor, contas ou loja ainda. Fases e checklist de lançame
 |---|---|---|
 | Gerar o jogo (`prototype/dist/`) | `node prototype/build.mjs` | 1 s |
 | Testes unitários da simulação | `node prototype/tools/sim-test.js` | 5 s |
+| Testes dos moldes (cavalos e ícones gerados) | `node prototype/tools/moldes-test.mjs` | <1 s |
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~25 s |
 | Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~1,5 min |
 | Teste de interface (Playwright) + capturas em `prototype/screens/` | `node prototype/tools/ui-test.mjs` | ~1,5 min |
-| **Verificação completa** (build + testes unitários + balanço + UI, sem tocar nas capturas) | `./scripts/check.sh` | ~2,5 min |
+| **Verificação completa** (build + testes unitários + moldes + balanço + UI, sem tocar nas capturas) | `./scripts/check.sh` | ~2,5 min |
 
 Abrir o jogo localmente: `prototype/dist/preview.html` no navegador.
 Capturas oficiais em `prototype/screens/` só são atualizadas quando a interface muda de propósito
@@ -63,8 +64,9 @@ Leia no início de cada sessão e atualize ao final:
 
 ## 7. Ferramentas
 Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`.
-- **PixelLab** (sprites/animações): API v2 via `prototype/tools/pixellab-generate.mjs`.
-  **Gasta créditos — sempre pedir confirmação antes.**
+- **PixelLab** (moldes de cavalo e ícones): API v2 via `prototype/tools/pixellab-moldes.mjs` —
+  dry-run por padrão, `--gerar` para gastar, `--teto N` limita as gerações, `--reprocessar` refaz
+  sem rede. **Gasta créditos — sempre pedir confirmação antes.**
 - **Canva** (capa, ícone, imagens de loja) e **ElevenLabs** (sons/vozes) — quando conectados;
   também pedem confirmação antes de gastar créditos.
 - Todo asset gerado: salvar com nome descritivo e registrar em `docs/memoria/assets.md`.

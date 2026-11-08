@@ -81,6 +81,8 @@ Iniciais (Brasa, Maré, Ipê) são Raros e têm uma skill exclusiva do elemento.
 
 **Fluxo de telas.** O jogo tem uma barra de 5 abas (Estábulo, Correr, Expedição, Haras, Loja), embaixo no celular e à esquerda no desktop (≥ 900 px), e um cabeçalho com o saldo (Ouro e Pedras) e o botão Perfil (estatísticas e "Recomeçar"). O Estábulo só lista as montarias; cada uma abre a tela da Montaria, com as sub-abas Status, Skills e Equipamento. Largada, corrida e resultado são telas cheias, sem barra. A corrida PVP continua automática; a aba Expedição é um espaço reservado até o subprojeto 4.
 
+**Arte do protótipo.** Os cavalos não são mais desenhados por código: cada estilo de crina (chamas, ondas, folhas, lisa) tem um molde gerado no PixelLab (retrato, parado com jóquei e galope de 9 quadros), em cores naturais, e o jogo o recolore na hora com a paleta do cavalo (pelagem, crina, detalhe, seda e pele). A escala é inteira, igual para todos os estilos, para os pixels ficarem nítidos. Os ícones (abas, slots de equipamento, moedas, elementos) também vêm do PixelLab; o logotipo e a capa vêm do Canva. Pista, clima e interface continuam por código. Detalhes e ajustes: `docs/superpowers/specs/2026-11-08-visuais-design.md`.
+
 ## 6. Estábulo e cruzamento
 
 Spec completa e algoritmo: `docs/superpowers/specs/2026-11-06-cruzamento-design.md` (o código é `prototype/src/breed.js`). Números reais: `docs/exemplos.md` §13.

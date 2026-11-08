@@ -4,6 +4,13 @@ Formato: **data · decisão** — motivo. A mais nova fica no topo. Decisões de
 continuam no `docs/GDD.md`; aqui fica o registro de *quando* e *por quê*.
 
 ## 2026-11-08
+- **Cavalos com moldes do PixelLab recoloridos no jogo, no lugar dos desenhados por código** — qualidade de arte maior sem gerar um sprite por cavalo.
+- **Cores naturais + classificação local, sem paleta forçada** — com `color_image` o PixelLab pintava cada par num tom só e a validação rejeitava; o experimento de 4 gerações deu vitória à classificação por matiz/saturação com Otsu.
+- **Escala inteira única para todos os estilos** (`max(1, round(k × 40 / Lref))`) — pixels nítidos e cavalos do mesmo tamanho entre estilos.
+- **Âncoras por estado (chão = maior `footY`, horizontal = mediana do focinho)** — o rabo balança e quadro a quadro o cavalo tremia.
+- **Ícones em 32 px, abas a 1:1 e ícones menores com suavização, com halo claro** — o contorno escuro sumia no fundo escuro.
+- **Script `pixellab-moldes.mjs` com dry-run por padrão e `--teto`** — gasto de cota só com confirmação; `pixellab-generate.mjs` removido.
+- **Logotipo e capa feitos no Canva** (fundo do logo removido por chave de cor) — marca sem custo avulso; a capa vai no README e na futura página da loja.
 - **Menu de abas antes das expedições e dos visuais** (opção A do Vinicius) — a rolagem única do Estábulo não comportava as novas telas; a casca de navegação vem primeiro.
 - **5 abas (Estábulo, Correr, Expedição, Haras, Loja) + Perfil no cabeçalho** — Perfil guarda estatísticas e "Recomeçar", que não merecem uma aba.
 - **A casca fica dentro do `game.js`** — o protótipo é descartável; não vale separar arquivos antes de escolher a stack.

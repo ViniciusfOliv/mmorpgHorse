@@ -175,3 +175,29 @@ página da loja completa · trocar a pista por código.
 - **Canva sem fundo transparente** no plano: fundo na cor `--noite`.
 - **Custo por chamada maior que o estimado**: o script para no teto e eu mostro o parcial.
 - **Tamanho do build**: ~60 KB de moldes + ~20 KB de ícones + logotipo; aceitável para o protótipo.
+
+## 10. Histórico de ajustes (2026-11-08)
+
+**Decididos antes da execução (topo do plano):**
+1. Três imagens por estilo (`retrato`, `parado`, `montado`); o galope é animado a partir do `montado`.
+2. Paleta forçada (`color_image` + `reduce-colors`) em vez de "cor mais próxima" (revertido, ver abaixo).
+3. Escala inteira no jogo, em vez de `k × 0,5`.
+4. Ícones ficam em 32×32 no arquivo e aparecem menores no CSS.
+5. Teto de 60 gerações no lote (cota do plano; US$ 0 cobrado).
+
+**Mudanças durante a execução:**
+1. Paleta forçada descartada nos cavalos (o PixelLab pintava cada par num tom só): geração com cores naturais e classificação local por matiz/saturação, claro/sombra pelo limiar de Otsu.
+2. Um limiar de Otsu por geração (retrato, parado e um único para os 9 quadros do galope).
+3. Limpeza espacial do jóquei nos quadros montados (maior grupo e vizinhos em cadeia; sela pelo cinza logo abaixo).
+4. Par sem um dos tons (< 10 %): o par vira tom claro com sombreado procedural.
+5. Contorno procedural só no montado e no galope; retrato e parado mantêm a regra de silhueta.
+6. Prompt do jóquei com seda e capacete amarelos e sela cinza (o capacete vermelho virava pelagem).
+7. O script precisa de `NODE_USE_ENV_PROXY=1`; o PixelLab devolve 502 com frequência, sem cobrar.
+8. Gasto: 55 das 60 gerações aprovadas (saldo 1994 → 1939), US$ 0; repetidos: lisa, `slot-estribos`, `aba-expedicao`.
+9. `pixellab-moldes.mjs`: dry-run padrão, `--gerar`, `--teto`, `--only`, `--repetir`, `--reprocessar`; `pixellab-generate.mjs` removido.
+10. Âncoras no jogo por estado (chão = maior `footY`; horizontal = mediana do focinho), não por quadro.
+11. Escala única para todos os estilos: `max(1, round(k × 40 / Lref))`, limitada pela altura em quadro fixo.
+12. Cadência: um ciclo do galope do molde (9 quadros) dura o mesmo que um do sprite por código (6).
+13. Cache de canvases sem a escala na chave; `dist/moldes.js` para o `comparativo.html` via `file://`.
+14. Ícones: abas em 32 px (1:1), ícones de 16 px com `image-rendering: auto`, halo claro; sub-abas da Loja sem ícone.
+15. Marca: logotipo 640×125 sem fundo; capa 1024×500; título "Calope" corrigido no editor do Canva.

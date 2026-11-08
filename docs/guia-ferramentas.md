@@ -8,13 +8,17 @@ toda sessão. Os comandos do Claude Code mudam com frequência: confira na docum
 | Ferramenta | Para quê | Como acessar | Observações |
 |---|---|---|---|
 | Claude (Max) | planejamento, código, revisão | CLI, app, web | subagentes para tarefas isoladas |
-| PixelLab | sprites, animações, tilesets | API v2 (`prototype/tools/pixellab-generate.mjs`, variável `PIXELLAB_API_KEY`) ou MCP | gasta créditos/cota |
+| PixelLab | sprites, animações, tilesets | API v2 (`prototype/tools/pixellab-moldes.mjs`) ou MCP | gasta créditos/cota |
 | ElevenLabs | vozes, efeitos, música | MCP | gasta créditos |
 | Canva Pro | capa, ícone, imagens de loja, banners, trailer simples | MCP (conector do claude.ai) | — |
 
 Nas sessões na nuvem (claude.ai/code), a PixelLab pode estar liberada pelo proxy do ambiente,
-com a credencial injetada automaticamente — aí o script funciona com qualquer valor em
-`PIXELLAB_API_KEY`. Localmente, use a chave real numa variável de ambiente.
+com a credencial injetada automaticamente. Localmente, use a chave real em `PIXELLAB_API_KEY`.
+O `pixellab-moldes.mjs` roda em dry-run por padrão (mostra o que geraria e o custo, sem gastar);
+`--gerar` gasta, `--teto N` limita o número de gerações, `--reprocessar` refaz os moldes a partir
+das respostas cruas guardadas em `raw/`, sem rede e sem custo. Precisa de `NODE_USE_ENV_PROXY=1`
+(o `fetch` do Node 22 não usa o proxy sozinho; sem isso a API responde 401). O PixelLab devolve
+502 com frequência, sem cobrar.
 
 ## Subagentes
 - **Agente** = a IA trabalhando sozinha numa tarefa. A conversa principal já é um agente.

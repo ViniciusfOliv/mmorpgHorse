@@ -4,6 +4,21 @@ _Atualizado em 2026-11-08._
 
 **Fase:** Protótipo.
 
+## Em andamento — frente de visuais (2026-11-08)
+Pronta na branch `claude/visuais`, **aguardando revisão final e merge na `main`**. Spec:
+`docs/superpowers/specs/2026-11-08-visuais-design.md` (§10 = ajustes); plano:
+`docs/superpowers/plans/2026-11-08-visuais.md`.
+- Entregue: moldes PixelLab (retrato, parado e galope de 9 quadros) para os 4 estilos de crina,
+  recoloridos no jogo; 16 ícones (abas, slots, moedas, elementos); logotipo e capa do Canva; script
+  `pixellab-moldes.mjs`; testes `moldes-test.mjs` (etapa 3b do `check.sh`); capturas oficiais novas.
+- Gasto: 55 de 60 gerações aprovadas (saldo 1994 → 1939), US$ 0.
+- Pendências estacionadas: bússola (`aba-expedicao`) com agulha pouco nítida (refazer custa 1 geração);
+  retrato do estilo ondas sai uma escala abaixo dos outros em telas de densidade 1; estados parados
+  (retrato, largada, pódio) sem animação de respiração ou piscar.
+- Branches remotas antigas para o Vinicius apagar no GitHub: `claude/equipamentos`,
+  `claude/cruzamento`, `claude/nucleo-corrida-v2`, `claude/analise-regras-arquivo-3j3zv1`,
+  `claude/kind-thompson-gsqj7r`, `claude/menu-abas`.
+
 ## Em andamento — virada de design (2026-11-05/06)
 O jogo foi redesenhado em 6 subprojetos, nesta ordem (cada um em branch própria, integrado na `main`
 pela conversa principal): **1. Núcleo da corrida v2** → 2. Cavalos v2 (sexo, 5 raridades,
@@ -73,8 +88,8 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
 - **Simulação** (`prototype/src/sim.js`): determinística por seed; 28 metas de balanceamento
   v2 passando (`node prototype/tools/balance.js`).
 - **Teste de interface** com Playwright (`prototype/tools/ui-test.mjs`).
-- **Sprites PixelLab** dos 3 iniciais (base + galope de 9 quadros), comparados com os sprites por
-  código em `prototype/comparativo.html`. **Ainda não estão em uso no jogo.**
+- **Sprites PixelLab** dos 3 iniciais (base + galope de 9 quadros), só em `prototype/comparativo.html`;
+  no jogo os cavalos agora usam os moldes (ver "frente de visuais").
 - **Regras de trabalho**: `CLAUDE.md`, `scripts/check.sh`, `.claude/settings.json`, `.gitignore`
   e esta memória. **Integradas na `main`** em 2026-11-05; branches antigas já mergeadas podem ser
   apagadas no GitHub (`claude/analise-regras-arquivo-3j3zv1`, `claude/kind-thompson-gsqj7r`).
@@ -91,10 +106,9 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
 1. Subprojeto 4 — expedições (mundos por bioma, estágios X-1…X-10, batalha por turnos com modo
    automático e manual, recompensas em Ouro, XP e moeda de pacotes; Lendário de equipamento) — nova
    branch dedicada; brainstorming já iniciado (decidido: auto/manual; corrida PVP continua automática).
-2. Visuais pagos (PixelLab para sprites de montarias/inimigos e fundos; Canva para ícones e arte de
-   loja) — só depois de fechar a lista de telas, biomas e inimigos; cada geração pede confirmação do
-   Vinicius e entra em `docs/memoria/assets.md`. Os sprites PixelLab dos 3 iniciais já existem
-   (`prototype/comparativo.html`) e ainda não estão no jogo.
+2. Revisão final e merge da frente de visuais (`claude/visuais`). Depois: visuais de fundos, biomas e
+   inimigos, só após fechar a lista de telas; cada geração pede confirmação do Vinicius e entra em
+   `docs/memoria/assets.md`.
 3. Vinicius joga o menu novo e os equipamentos (`prototype/dist/preview.html?dev=1`).
 4. Decidir a zebra (ruído ±3–5% por corrida) e o despertar Lendário→Mítico (depois das expedições).
 
