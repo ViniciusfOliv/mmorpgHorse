@@ -10,6 +10,7 @@
 //   --repetir item[,item]  dá UMA tentativa a mais (seed + 30) a cada item citado (ex.: lisa/parado,
 //             icone/aba-loja): a repetição manual de item ruim (no máximo 2 itens por lote, plano Step 3).
 //   --reprocessar  refaz os finais só a partir de raw/, sem rede (nem /balance): falha se faltar imagem crua.
+//                  Não mexe em docs/memoria/assets.md (nada novo foi gerado).
 // Credencial: o proxy de rede injeta a chave (nunca no código nem em arquivo). O fetch do Node não lê
 // HTTPS_PROXY sozinho: na sessão na nuvem, rode com NODE_USE_ENV_PROXY=1 (Node ≥ 22.21), senão a API
 // responde 401 (a chamada sai sem passar pelo proxy e sem a chave).
@@ -208,6 +209,9 @@ function pngsCrus(dir, base, varios) {
 }
 
 function registrarAsset(arquivos, endpoint, prompt, seedTexto, geracoes, emUso) {
+  // --reprocessar não gera nada novo (só refaz os finais de raw/): o registro existente fica como está — senão
+  // a linha voltaria para a data de hoje e para o "Em uso" fixo da geração
+  if (REPROCESSAR) return;
   const linha = `| ${HOJE} | ${arquivos} | PixelLab API v2 ${endpoint} | ${prompt}; ${seedTexto} | ${fmt(geracoes)} ${geracoes === 1 ? 'geração' : 'gerações'} da cota | ${emUso} |`;
   const linhas = fs.readFileSync(ARQ_ASSETS, 'utf8').split('\n');
   // mesmo(s) arquivo(s) já registrado(s) (lote repetido ou retomado): substitui a linha

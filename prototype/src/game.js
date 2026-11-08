@@ -140,10 +140,15 @@
     return '<img class="icone icone--' + esc(nome) + '" src="' + esc(m[nome]) + '" alt="" width="' + t + '" height="' + t + '">';
   }
   // Logotipo do Canva (window.__MARCA.logo): <img> com o título como alt; sem arquivo, o texto de antes.
+  // width/height reservam o espaço antes de a imagem decodificar (sem salto de layout); o build manda o
+  // tamanho do PNG em __MARCA.w/h. Com `altura`, a largura sai na mesma proporção.
   function logoHtml(fallback, altura) {
     var m = window.__MARCA;
     if (!m || typeof m !== 'object' || typeof m.logo !== 'string' || !m.logo) return fallback;
-    return '<img class="logo-img" src="' + esc(m.logo) + '" alt="Galope Elemental"' + (altura ? ' height="' + altura + '"' : '') + '>';
+    var w = m.w > 0 ? m.w : 0, h = m.h > 0 ? m.h : 0, tam = '';
+    if (altura) tam = ' height="' + altura + '"' + (w && h ? ' width="' + Math.round(w * altura / h) + '"' : '');
+    else if (w && h) tam = ' width="' + w + '" height="' + h + '"';
+    return '<img class="logo-img" src="' + esc(m.logo) + '" alt="Galope Elemental"' + tam + '>';
   }
   function ouroHtml(n, extraClass) {
     return '<span class="ouro' + (extraClass ? ' ' + extraClass : '') + '">' + iconeHtml('moeda-ouro', COIN) + '<span>' + fmt(n) + '</span><span class="sr">Ouro</span></span>';
@@ -2252,9 +2257,17 @@
         var feetY = laneTop + (j + 1) * laneH - 3 * S - lift;
         var y = feetY - (SP.FOOT_Y + 1) * S;
         var x = Math.round(((st.pos[j] - cam) * ppm - an.nose[0] * S) / S) * S;
-        if (j === me) self.playerRect = { x: x, y: y, w: SP.HORSE_W * S, h: SP.HORSE_H * S, W: W, H: H };
-        if (x > W - 2 * S) { tagsR.push({ j: j, y: feetY - 12 * S, txt: '+' + Math.round(st.pos[j] - p) + 'm' }); continue; }
-        if (x + SP.HORSE_W * S < 2 * S) { tagsL.push({ j: j, y: feetY - 12 * S, txt: '-' + Math.round(p - st.pos[j]) + 'm' }); continue; }
+        var cavalo = {
+          // fase contínua do galope: o código usa o quadro inteiro; o molde mapeia o ciclo (mesma duração)
+          palette: r.horse.palette, element: r.horse.element, frame: self.gallop[j],
+          scale: S, silks: r.silks, t: tr, idle: standing
+        };
+        // caixa do que vai ser desenhado (molde ou código): o corte nas bordas e o monitor de câmera usam ela,
+        // então a cauda do molde (que passa do x do sprite) não some de uma vez na borda
+        var caixaCav = SP.horseBox(x, y, cavalo);
+        if (j === me) self.playerRect = { x: caixaCav.x, y: caixaCav.y, w: caixaCav.w, h: caixaCav.h, W: W, H: H };
+        if (caixaCav.x > W - 2 * S) { tagsR.push({ j: j, y: feetY - 12 * S, txt: '+' + Math.round(st.pos[j] - p) + 'm' }); continue; }
+        if (caixaCav.x + caixaCav.w < 2 * S) { tagsL.push({ j: j, y: feetY - 12 * S, txt: '-' + Math.round(p - st.pos[j]) + 'm' }); continue; }
         if (j === me) {
           // anel dourado no chão sob os cascos do jogador
           var ry = feetY - 2 * S;
@@ -2271,11 +2284,7 @@
           ctx.fillRect(x + (4 - dp) * S, feetY - (2 + dp) * S, 2 * S, S);
           ctx.fillRect(x + (1 + dp) * S, feetY - 4 * S, S, S);
         }
-        SP.drawHorse(ctx, x, y, {
-          // fase contínua do galope: o código usa o quadro inteiro; o molde mapeia o ciclo (mesma duração)
-          palette: r.horse.palette, element: r.horse.element, frame: self.gallop[j],
-          scale: S, silks: r.silks, t: tr, idle: standing
-        });
+        SP.drawHorse(ctx, x, y, cavalo);
         var finished = fTime[j] <= self.simT;
         if (j === me) youTag = { x: x + (an.nose[0] + 3) * S, y: y + 3 * S, place: finished ? rankOf[j] + 1 : 0 };
         else if (finished) badges.push({ x: x + 22 * S, y: y - 2 * S, j: j, place: rankOf[j] + 1 });
@@ -2429,13 +2438,16 @@
           R(bx, sl.top, bw, 1, C.brilho);
           R(bx, PODIUM_H - 7, bw, 3, C.escuro);
           SP.drawText(ctx, String(sl.place), sl.cx * k, (sl.top + 3) * k, { scale: 2 * k, color: C.tinta, align: 'center' });
-          SP.drawHorse(ctx, (sl.cx - 21) * k, (sl.top - 32) * k, {
+          var hx = (sl.cx - 21) * k, hy = (sl.top - 32) * k, cavalo = {
             palette: r.horse.palette, element: r.horse.element, idle: true, t: reduced() ? 0.5 : t + sl.place * 0.8,
             scale: k, silks: r.silks, shadow: false, quadro: { topo: 0, base: sl.top * k }   // em pé no bloco, sem sair do canvas
-          });
+          };
+          SP.drawHorse(ctx, hx, hy, cavalo);
           if (r.isPlayer) {
-            // seta dourada sobre o seu cavalo
-            R(sl.cx - 3, sl.top - 40, 7, 1, C.ouro); R(sl.cx - 2, sl.top - 39, 5, 1, C.ouro); R(sl.cx - 1, sl.top - 38, 3, 1, C.ouro); R(sl.cx, sl.top - 37, 1, 1, C.ouro);
+            // seta dourada sobre o seu cavalo: a ponta fica 4 px de arte acima do topo do desenho (o molde pode ser
+            // mais alto que o sprite por código, cujo topo dá a posição de antes, sl.top − 37)
+            var ponta = Math.min(sl.top - 37, Math.floor(SP.horseBox(hx, hy, cavalo).y / k) - 5);
+            R(sl.cx - 3, ponta - 3, 7, 1, C.ouro); R(sl.cx - 2, ponta - 2, 5, 1, C.ouro); R(sl.cx - 1, ponta - 1, 3, 1, C.ouro); R(sl.cx, ponta, 1, 1, C.ouro);
           }
         });
       }

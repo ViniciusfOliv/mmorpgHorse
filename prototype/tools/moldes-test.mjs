@@ -305,6 +305,14 @@ moldes.forEach(arq => {
       assert.ok(Math.abs(nx - n0) <= 6, 'galope-' + i + ' nose.x ' + nx + ' vs ' + n0);
     }
   });
+  // o jogo lê as âncoras e a larguraUtil do JSON (embutido pelo build): têm de bater com os PNGs
+  test(estilo + ': ancoras de cada quadro e larguraUtil do JSON = recalculadas dos PNGs', () => {
+    nomes.forEach(n => {
+      assert.ok(J.ancoras && J.ancoras[n], 'JSON sem ancoras["' + n + '"]');
+      assert.deepStrictEqual(J.ancoras[n], ancoras(quadros[n].idx, 64, 64), n);
+    });
+    assert.strictEqual(J.larguraUtil, ancoras(quadros.retrato.idx, 64, 64).bbox.w, 'larguraUtil');
+  });
 });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');

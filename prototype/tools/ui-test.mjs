@@ -47,7 +47,8 @@ async function newPage(browser, viewport, label, extra = {}) {
 }
 
 // Corrida até o resultado sem os moldes (queda para o desenho por código): moldsReady fica false, nenhum
-// canvas de molde é criado e o cache do desenho por código recebe os quadros.
+// canvas de molde é criado e o cache do desenho por código ganha entradas durante a corrida (os retratos
+// das telas anteriores já o deixam com algumas, então o que conta é crescer na corrida).
 async function corridaSemMoldes(browser, label, extra) {
   const pg = await newPage(browser, { width: 390, height: 844 }, label, { ...extra, moldes: false })
   try {
@@ -61,12 +62,14 @@ async function corridaSemMoldes(browser, label, extra) {
     await pg.waitForSelector('#t-correr')
     await pg.getByRole('button', { name: 'Procurar corrida' }).click()
     await pg.waitForSelector('#t-largada')
+    const antes = await pg.evaluate(() => window.Sprites.cacheStats().baseCount)
     await pg.getByRole('button', { name: /^Largar/ }).click()
     await pg.waitForSelector('#pista')
     await pg.getByRole('button', { name: 'x2' }).click()
     await sleep(2500)
     const meio = await pg.evaluate(() => ({ ready: window.Sprites.moldsReady, moldes: window.Sprites._cacheMoldes(), codigo: window.Sprites.cacheStats().baseCount }))
-    if (meio.ready !== false || meio.moldes !== 0 || !(meio.codigo > 0)) problems.push(`[${label}] corrida sem moldes não usou o desenho por código: ${JSON.stringify(meio)}`)
+    meio.codigoAntes = antes
+    if (meio.ready !== false || meio.moldes !== 0 || !(meio.codigo > antes)) problems.push(`[${label}] corrida sem moldes não usou o desenho por código: ${JSON.stringify(meio)}`)
     await pg.getByRole('button', { name: /Pular/ }).click()
     await pg.waitForSelector('#t-resultado')
     notes['queda-' + label] = meio
@@ -1024,9 +1027,16 @@ try {
           const Ss = ELS.map((el) => SP._layoutMolde(el, 'galope', 0, 0, k).S)
           if (new Set(Ss).size !== 1) erros.push(`pista k=${k}: escalas diferentes entre estilos ${Ss}`)
         }
-        for (const k of [3, 6, 9]) for (const el of ELS) for (const est of ['retrato', 'parado']) {   // baia 48×36 (retratos)
-          const L = SP._layoutMolde(el, est, 5 * k, 1 * k, k, { topo: 0, base: 36 * k })
-          if (L.topo < 0 || L.pe > 36 * k) erros.push(`retrato ${el}/${est} k=${k}: bbox ${L.topo}..${L.pe} fora de 0..${36 * k}`)
+        // baia 48×36 (retratos): a mesma escala para os 4 estilos; cascos dentro do quadro; o topo pode sair
+        // do quadro (crista de ondas) em no máximo 10 % da altura do bbox
+        for (const k of [3, 6, 9]) for (const est of ['retrato', 'parado']) {
+          const Ls = ELS.map((el) => SP._layoutMolde(el, est, 5 * k, 1 * k, k, { topo: 0, base: 36 * k }))
+          if (new Set(Ls.map((L) => L.S)).size !== 1) erros.push(`${est} k=${k}: escalas diferentes entre estilos ${Ls.map((L) => L.S)}`)
+          Ls.forEach((L, i) => {
+            const alt = L.pe - L.topo, corte = Math.max(0, -L.topo)
+            if (L.pe > 36 * k || L.pe < 33 * k) erros.push(`${est} ${ELS[i]} k=${k}: cascos em ${L.pe} (esperado ${33 * k}..${36 * k})`)
+            if (corte > 0.1 * alt) erros.push(`${est} ${ELS[i]} k=${k}: topo cortado em ${corte}px de ${alt} (> 10 %)`)
+          })
         }
         for (const k of [2, 4, 6]) for (const top of [49, 57, 63]) for (const el of ELS) {   // pódio: em pé no bloco
           const L = SP._layoutMolde(el, 'parado', (84 - 21) * k, (top - 32) * k, k, { topo: 0, base: top * k })

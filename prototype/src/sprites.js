@@ -16,7 +16,8 @@
  *   Sprites.PALETTES  // paletas de exemplo
  *   Moldes do PixelLab (recolor por paleta; sem eles, desenho por código):
  *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
- *   Sprites.anchorsFor(element, scale, estado), Sprites.limparCacheMoldes(), Sprites.drawHorseCodigo(...)
+ *   Sprites.anchorsFor(element, scale, estado), Sprites.horseBox(x, y, opts), Sprites.limparCacheMoldes(),
+ *   Sprites.drawHorseCodigo(...)
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -876,8 +877,9 @@
   //   • a última linha dos cascos (o maior footY entre os quadros do estado) termina em y + (FOOT_Y + 1)·k,
   //     a mesma linha de chão do sprite por código;
   //   • a coluna do focinho (mediana de nose.x entre os quadros do estado) fica em x + NOSE·k (NOSE = 38).
-  // Num quadro de altura fixa (opção `quadro`: retratos e pódio) o bbox inteiro do estado tem de caber: a
-  // escala vira min(S, floor(altura do quadro / altura do bbox)) e o cavalo fica centrado no x do sprite.
+  // Num quadro de altura fixa (opção `quadro`: retratos e pódio) vale a mesma escala única e o cavalo fica
+  // centrado no x do sprite; se o bbox do estado for mais alto que o quadro, os cascos ficam na base e o topo
+  // (crista, orelhas) é cortado em no máximo 10 % da altura do bbox (senão a escala desce um passo).
   // As referências são POR ESTADO, não por quadro: por quadro o cavalo tremeria no galope (cauda e patas
   // mudam rear e footY). Como o focinho cai no mesmo NOSE, a câmera e as etiquetas da corrida não mudam;
   // anchorsFor() converte rear/saddle do molde para as unidades do sprite por código.
@@ -890,6 +892,7 @@
   var moldsOk = false;
   var moldesLref = 0;      // maior larguraUtil entre os estilos carregados (escala única)
   var moldesGeracao = 0;   // descarta um carregamento antigo se loadMolds for chamado de novo
+  var CORTE_MAX = 0.1;     // fração da altura do bbox que pode ser cortada no topo de um quadro de altura fixa
   // 64×64×4 = 16 KB por entrada; o teto em bytes é só uma rede de segurança (go() limpa ao trocar de tela)
   var moldCache = new LruCanvasCache(8 * 1024 * 1024);
   LruCanvasCache.prototype.clear = function () { this.map.clear(); this.bytes = 0; };
@@ -901,15 +904,20 @@
     return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
   }
   function ponto(p) { return p && p.length === 2 && isFinite(p[0]) && isFinite(p[1]); }
+  function caixa(b) { return b && isFinite(b.x) && isFinite(b.y) && b.w > 0 && b.h > 0; }
+  function aviso(motivo) {
+    if (typeof console !== 'undefined' && console.warn) console.warn('Sprites: moldes desligados (' + motivo + '); os cavalos usam o desenho por código.');
+  }
 
   // Referência de um estado a partir das âncoras dos seus quadros (calculada uma vez, ao carregar).
   function refEstado(lista) {
-    var foot = -1, topo = Infinity, nx = [], ny = [], rx = [], ry = [], sx = [], sy = [], cx = [];
+    var foot = -1, topo = Infinity, esq = Infinity, dir = -Infinity, nx = [], ny = [], rx = [], ry = [], sx = [], sy = [], cx = [];
     for (var i = 0; i < lista.length; i++) {
       var a = lista[i];
-      if (!a || !isFinite(a.footY) || !ponto(a.nose) || !ponto(a.rear) || !a.bbox || !isFinite(a.bbox.y)) throw new Error('âncora inválida');
+      if (!a || !isFinite(a.footY) || !ponto(a.nose) || !ponto(a.rear) || !caixa(a.bbox)) throw new Error('âncora inválida');
       foot = Math.max(foot, a.footY);
       topo = Math.min(topo, a.bbox.y);
+      esq = Math.min(esq, a.bbox.x); dir = Math.max(dir, a.bbox.x + a.bbox.w);
       nx.push(a.nose[0]); ny.push(a.nose[1]); rx.push(a.rear[0]); ry.push(a.rear[1]);
       if (ponto(a.saddle)) { sx.push(a.saddle[0]); sy.push(a.saddle[1]); }
       cx.push(a.bbox.x + a.bbox.w / 2);
@@ -920,44 +928,51 @@
       rear: [Math.round(mediana(rx)), Math.round(mediana(ry))],
       saddle: sx.length ? [Math.round(mediana(sx)), Math.round(mediana(sy))] : null,
       centro: mediana(cx),       // centro horizontal do corpo (sombra e centralização no quadro)
-      altura: foot + 1 - topo    // linhas do bbox do estado (da linha mais alta à dos cascos)
+      altura: foot + 1 - topo,   // linhas do bbox do estado (da linha mais alta à dos cascos)
+      esq: esq, dir: dir         // colunas do bbox do estado (união dos quadros), para horseBox
     };
   }
 
-  // PNG em data: URL -> índices de papel (round(cinza / 25)); falha se o tamanho ou os tons não baterem.
+  // PNG em data: URL -> índices de papel (round(cinza / 25)); falha (com o motivo) se o tamanho ou os tons
+  // não baterem. ok/falha são chamados fora do try: um erro no pronto() do loadMolds aparece no console.
   function decodificaMolde(url, w, h, ok, falha) {
     var img = new Image();
     img.onload = function () {
+      var lido = null, motivo = '';
       try {
-        if (img.width !== w || img.height !== h) throw new Error('tamanho do molde');
+        if (img.width !== w || img.height !== h) throw new Error('tamanho ' + img.width + '×' + img.height + ', esperado ' + w + '×' + h);
         var c = makeCanvas(w, h), g = c.getContext('2d');
         g.drawImage(img, 0, 0);
         var d = g.getImageData(0, 0, w, h).data, idx = new Array(w * h);
         for (var i = 0; i < w * h; i++) {
           var r = d[i * 4], v = Math.round(r / 25);
           if (d[i * 4 + 3] < 128) v = 0;
-          else if (v > 9 || Math.abs(r - v * 25) > 3) throw new Error('tom de cinza fora dos papéis');
+          else if (v > 9 || Math.abs(r - v * 25) > 3) throw new Error('tom de cinza ' + r + ' fora dos papéis');
           idx[i] = v;
         }
-        ok(idx);
-      } catch (e) { falha(); }
+        lido = idx;
+      } catch (e) { motivo = e.message; }
+      if (lido) ok(lido); else falha(motivo);
     };
-    img.onerror = function () { falha(); };
+    img.onerror = function () { falha('a imagem não decodificou'); };
     img.src = url;
   }
 
   // tabela = { estilos: { chamas: { json, retrato, parado, galope: [...] }, ... } } (window.__MOLDES).
-  // Só liga os moldes quando os 4 estilos carregam; qualquer falha deixa moldsReady = false, sem exceção.
+  // Só liga os moldes quando os 4 estilos carregam; qualquer falha deixa moldsReady = false, sem exceção,
+  // com um console.warn do motivo (o jogo segue com o desenho por código).
   function loadMolds(tabela, pronto) {
     var geracao = ++moldesGeracao;
     moldsOk = false; api.moldsReady = false; moldes = null; moldCache.clear();
+    if (typeof Image === 'undefined' || typeof document === 'undefined') return;   // Node: sem canvas
     var est = tabela && tabela.estilos;
-    if (!est || typeof Image === 'undefined' || typeof document === 'undefined') return;
-    var novos = {}, pendentes = 1, falhou = false;   // 1 = o próprio laço abaixo (fecha no fim)
-    function falha() { falhou = true; }
+    if (!est) { aviso('a tabela de moldes não tem estilos'); return; }
+    var novos = {}, pendentes = 1, motivo = null;   // 1 = o próprio laço abaixo (fecha no fim)
+    function falha(m) { if (!motivo) motivo = m || 'falha'; }
     function fim() {
       pendentes--;
-      if (falhou || pendentes > 0 || geracao !== moldesGeracao) return;
+      if (pendentes > 0 || geracao !== moldesGeracao) return;
+      if (motivo) { aviso(motivo); return; }
       moldesLref = 0;
       ESTILOS_MOLDE.forEach(function (n) { moldesLref = Math.max(moldesLref, novos[n].larguraUtil); });
       moldes = novos; moldsOk = true; api.moldsReady = true;
@@ -967,24 +982,28 @@
       ESTILOS_MOLDE.forEach(function (nome) {
         var e = est[nome], J = e && e.json;
         if (!J || !e.retrato || !e.parado || !e.galope) throw new Error('estilo ausente: ' + nome);
+        function refDe(rotulo, lista) {
+          try { return refEstado(lista); } catch (x) { throw new Error(nome + '/' + rotulo + ': ' + x.message); }
+        }
         var frames = J.frames | 0, A = J.ancoras || {};
         if (!(frames > 0) || e.galope.length !== frames || !(J.w > 0) || !(J.h > 0) || !(J.larguraUtil > 0)) throw new Error('molde inválido: ' + nome);
         var lista = [];
         for (var f = 0; f < frames; f++) lista.push(A['galope-' + f]);
         var M = novos[nome] = {
           w: J.w, h: J.h, frames: frames, larguraUtil: J.larguraUtil, retrato: null, parado: null, galope: [],
-          estados: { retrato: refEstado([A.retrato]), parado: refEstado([A.parado]), galope: refEstado(lista) }
+          estados: { retrato: refDe('retrato', [A.retrato]), parado: refDe('parado', [A.parado]), galope: refDe('galope', lista) }
         };
-        function carrega(url, guarda) {
+        function carrega(url, rotulo, guarda) {
           pendentes++;
-          decodificaMolde(url, M.w, M.h, function (idx) { guarda(idx); fim(); }, function () { falha(); fim(); });
+          decodificaMolde(url, M.w, M.h, function (idx) { guarda(idx); fim(); },
+            function (m) { falha(nome + '/' + rotulo + ': ' + m); fim(); });
         }
-        carrega(e.retrato, function (idx) { M.retrato = idx; });
-        carrega(e.parado, function (idx) { M.parado = idx; });
-        e.galope.forEach(function (url, q) { carrega(url, function (idx) { M.galope[q] = idx; }); });
+        carrega(e.retrato, 'retrato', function (idx) { M.retrato = idx; });
+        carrega(e.parado, 'parado', function (idx) { M.parado = idx; });
+        e.galope.forEach(function (url, q) { carrega(url, 'galope-' + q, function (idx) { M.galope[q] = idx; }); });
       });
     } catch (ex) {
-      falhou = true;   // as decodificações já pedidas terminam sem ligar os moldes
+      falha(ex.message);   // as decodificações já pedidas terminam sem ligar os moldes
     }
     fim();
   }
@@ -1038,16 +1057,21 @@
   }
 
   // Posição do molde na tela para drawHorse(ctx, x, y, { scale: k, quadro }): escala S, canto (ox, oy),
-  // linha dos cascos (pe) e centro do corpo (cx), em px. Sem quadro: cascos no chão do sprite e focinho no
-  // NOSE. Com quadro { topo, base } (px; o bbox do estado tem de caber entre eles): a escala é limitada pela
-  // altura, o corpo fica centrado no x do sprite e os cascos ficam no chão do sprite — ou descem o necessário
-  // (até a base) para o cavalo ficar centrado na altura do quadro, quando ele é alto demais para o chão.
+  // linha dos cascos (pe), topo do bbox (topo) e centro do corpo (cx), em px. Sem quadro: cascos no chão do
+  // sprite e focinho no NOSE. Com quadro { topo, base } (px): a mesma escala única, o corpo centrado no x do
+  // sprite e
+  //   • se o bbox do estado cabe na altura do quadro: cascos no chão do sprite, ou mais baixos (até a base)
+  //     o necessário para o cavalo ficar centrado na altura do quadro;
+  //   • se não cabe: cascos na base e o topo cortado — no máximo CORTE_MAX da altura do bbox; acima disso a
+  //     escala desce um passo (rede de segurança: com os moldes atuais o corte é de ~4 % no retrato de ondas).
   function layoutMolde(nome, estado, x, y, k, quadro) {
     var M = moldes[nome], ref = M.estados[estado];
     var S = moldScale(k), pe = y + (FOOT_Y + 1) * k, ox;
     if (quadro && isFinite(quadro.topo) && isFinite(quadro.base) && quadro.base > quadro.topo) {
-      S = Math.max(1, Math.min(S, Math.floor((quadro.base - quadro.topo) / ref.altura)));
-      pe = Math.min(quadro.base, Math.max(pe, Math.round((quadro.topo + quadro.base + ref.altura * S) / 2)));
+      var livre = quadro.base - quadro.topo;
+      while (S > 1 && ref.altura * S - livre > CORTE_MAX * ref.altura * S) S--;
+      if (ref.altura * S > livre) pe = quadro.base;
+      else pe = Math.min(quadro.base, Math.max(pe, Math.round((quadro.topo + quadro.base + ref.altura * S) / 2)));
       ox = Math.round(x + HORSE_W / 2 * k - ref.centro * S);
     } else {
       ox = x + ANCHORS.nose[0] * k - ref.nose[0] * S;
@@ -1076,6 +1100,19 @@
     var estado = moldsOk ? estadoMolde(opts) : null;
     if (estado) drawHorseMolde(ctx, x, y, opts, estado);
     else drawHorseCodigo(ctx, x, y, opts);
+  }
+
+  // Caixa (px) do que drawHorse(ctx, x, y, opts) desenha: com molde, o bbox do estado (união dos quadros do
+  // galope) na posição do layout, inclusive a parte cortada pelo topo de um quadro; sem molde, o sprite 40×32.
+  function horseBox(x, y, opts) {
+    opts = opts || {};
+    var k = Math.max(1, Math.round(opts.scale || 1));
+    x = Math.round(x); y = Math.round(y);
+    var estado = moldsOk ? estadoMolde(opts) : null;
+    if (!estado) return { x: x, y: y, w: HORSE_W * k, h: HORSE_H * k };
+    var nome = estiloDe(opts.element), ref = moldes[nome].estados[estado];
+    var L = layoutMolde(nome, estado, x, y, k, opts.quadro);
+    return { x: L.ox + ref.esq * L.S, y: L.topo, w: (ref.dir - ref.esq) * L.S, h: L.pe - L.topo };
   }
 
   // Âncoras nas unidades do sprite por código (some x + v·escala, y + v·escala), para o estado pedido
@@ -1966,6 +2003,7 @@
     ELEMENTS: ['fogo', 'agua', 'grama', 'neutro'],
     drawHorse: drawHorse,
     drawHorseCodigo: drawHorseCodigo,
+    horseBox: horseBox,
     horseCanvas: horseCanvas,
     // moldes do PixelLab (ver a seção MOLDES)
     ESTILO_POR_ELEMENTO: ESTILO_POR_ELEMENTO,

@@ -683,4 +683,4 @@ img.icone { width: 16px; height: 16px; flex: none; image-rendering: auto; vertic
 .logo-img { display: block; max-width: 100%; height: auto; image-rendering: pixelated; }
 .logo .logo-img { width: 320px; }
 .app-topo .logo-mini { display: flex; align-items: center; }
-.app-topo .logo-img { height: 24px; width: auto; max-width: 100%; }
+.app-topo .logo-img { height: 24px; width: auto; max-width: 100%; image-rendering: auto; }   /* 63 -> 24 px: redução suavizada */

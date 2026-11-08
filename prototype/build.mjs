@@ -76,9 +76,13 @@ async function icones() {
   return out
 }
 
+// Logotipo: data: URL e o tamanho em px (lido do cabeçalho IHDR do PNG), para o <img> reservar o espaço.
 async function marca() {
   const logo = 'assets/marca/logo.png'
-  return { logo: existsSync(join(ROOT, logo)) ? await dataUrl(logo) : null }
+  if (!existsSync(join(ROOT, logo))) return { logo: null }
+  const buf = await readFile(join(ROOT, logo))
+  const png = buf.length > 24 && buf.toString('latin1', 12, 16) === 'IHDR'
+  return { logo: 'data:image/png;base64,' + buf.toString('base64'), w: png ? buf.readUInt32BE(16) : 0, h: png ? buf.readUInt32BE(20) : 0 }
 }
 
 // JSON seguro dentro de <script>: nada de "<" literal (fecharia a tag).
