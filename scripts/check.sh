@@ -28,6 +28,14 @@ else
   echo "ok"
 fi
 
+step "3b/5 Moldes"
+if compgen -G "prototype/assets/pixellab/molde-*.json" > /dev/null; then
+  node prototype/tools/moldes-test.mjs > "$SHOTS_DIR/moldes.txt" || { cat "$SHOTS_DIR/moldes.txt"; exit 1; }
+  tail -n 1 "$SHOTS_DIR/moldes.txt"
+else
+  echo "sem moldes — pulado"
+fi
+
 step "4/5 Balanceamento rápido"
 node prototype/tools/balance.js --quick > "$SHOTS_DIR/balance.txt" || { cat "$SHOTS_DIR/balance.txt"; exit 1; }
 grep -E 'metas passaram|❌' "$SHOTS_DIR/balance.txt" || true
