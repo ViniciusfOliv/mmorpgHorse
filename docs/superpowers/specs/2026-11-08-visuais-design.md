@@ -199,4 +199,4 @@ página da loja completa · trocar a pista por código.
 12. Cadência: um ciclo do galope do molde (9 quadros) dura o mesmo que um do sprite por código (6).
 13. Cache de canvases sem a escala na chave; `dist/moldes.js` para o `comparativo.html` via `file://`.
 14. Ícones: abas em 32 px (1:1), ícones de 16 px com `image-rendering: auto`, halo claro; sub-abas da Loja sem ícone.
-15. Marca: logotipo 640×125 sem fundo; capa 1024×500; título "Calope" corrigido no editor do Canva.
+15. Marca: logotipo sem fundo, reduzido na revisão final para 320×63 com 64 cores (~5 KB); capa 1024×500; título "Calope" corrigido no editor do Canva.
