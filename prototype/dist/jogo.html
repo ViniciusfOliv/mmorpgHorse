@@ -673,8 +673,11 @@ html.app-com-abas { scroll-padding: 56px 0 calc(72px + env(safe-area-inset-botto
 html.dev-ativo:not(.app-com-abas) .barra-acao { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
 
 /* ---------- ícones do PixelLab e logotipo do Canva ---------- */
-img.icone { width: 16px; height: 16px; flex: none; image-rendering: pixelated; vertical-align: middle; }
-.app-aba-icone img.icone { width: 24px; height: 24px; display: block; }
+/* 32x32 reduzido a 16px: suavizado (auto) lê melhor; pixelated só em escala 1x (barra de abas). Halo claro para
+   o contorno escuro não sumir no fundo escuro da interface. */
+img.icone { width: 16px; height: 16px; flex: none; image-rendering: auto; vertical-align: middle;
+  filter: drop-shadow(0 0 1px rgba(241, 233, 212, 0.6)) drop-shadow(0 0 1px rgba(241, 233, 212, 0.4)); }
+.app-aba-icone img.icone { width: 32px; height: 32px; display: block; image-rendering: pixelated; }
 .ouro img.icone { margin: 0; }
 .pedras { display: inline-flex; align-items: center; gap: 4px; }
 .slot { gap: 4px; }
@@ -5426,7 +5429,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAAB9
       var ativa = ui.tab === a.id;
       var cls = 'app-aba' + (ativa ? ' app-aba--ativa' : '') + (a.id === 'correr' && state.pending ? ' app-aba--ponto' : '');
       return '<button type="button" class="' + cls + '" data-acao="aba" data-id="' + esc(a.id) + '"' + (ativa ? ' aria-current="page"' : '') + '>' +
-        '<span class="app-aba-icone" aria-hidden="true">' + iconeHtml('aba-' + a.id, a.icone, 24) + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
+        '<span class="app-aba-icone" aria-hidden="true">' + iconeHtml('aba-' + a.id, a.icone, 32) + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
     }).join('') + '</nav>';
   }
   // Perfil: estatísticas, saldo, inventário e "Recomeçar com outro inicial"

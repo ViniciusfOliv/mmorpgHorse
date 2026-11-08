@@ -849,7 +849,7 @@
       var ativa = ui.tab === a.id;
       var cls = 'app-aba' + (ativa ? ' app-aba--ativa' : '') + (a.id === 'correr' && state.pending ? ' app-aba--ponto' : '');
       return '<button type="button" class="' + cls + '" data-acao="aba" data-id="' + esc(a.id) + '"' + (ativa ? ' aria-current="page"' : '') + '>' +
-        '<span class="app-aba-icone" aria-hidden="true">' + iconeHtml('aba-' + a.id, a.icone, 24) + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
+        '<span class="app-aba-icone" aria-hidden="true">' + iconeHtml('aba-' + a.id, a.icone, 32) + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
     }).join('') + '</nav>';
   }
   // Perfil: estatísticas, saldo, inventário e "Recomeçar com outro inicial"

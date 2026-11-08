@@ -670,8 +670,11 @@ html.app-com-abas { scroll-padding: 56px 0 calc(72px + env(safe-area-inset-botto
 html.dev-ativo:not(.app-com-abas) .barra-acao { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
 
 /* ---------- ícones do PixelLab e logotipo do Canva ---------- */
-img.icone { width: 16px; height: 16px; flex: none; image-rendering: pixelated; vertical-align: middle; }
-.app-aba-icone img.icone { width: 24px; height: 24px; display: block; }
+/* 32x32 reduzido a 16px: suavizado (auto) lê melhor; pixelated só em escala 1x (barra de abas). Halo claro para
+   o contorno escuro não sumir no fundo escuro da interface. */
+img.icone { width: 16px; height: 16px; flex: none; image-rendering: auto; vertical-align: middle;
+  filter: drop-shadow(0 0 1px rgba(241, 233, 212, 0.6)) drop-shadow(0 0 1px rgba(241, 233, 212, 0.4)); }
+.app-aba-icone img.icone { width: 32px; height: 32px; display: block; image-rendering: pixelated; }
 .ouro img.icone { margin: 0; }
 .pedras { display: inline-flex; align-items: center; gap: 4px; }
 .slot { gap: 4px; }
