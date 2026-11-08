@@ -643,6 +643,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 }
 .app-aba:focus-visible { outline-offset: -3px; }
 .app-com-abas .dev-painel { bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+/* o foco por teclado nunca fica atrás do cabeçalho fixo nem da barra de abas */
+html.app-com-abas { scroll-padding: 56px 0 calc(72px + env(safe-area-inset-bottom, 0px)); }
+/* o cartão inteiro da montaria abre a montaria */
+.montaria[data-acao] { cursor: pointer; }
 @media (min-width: 900px) {
   .app-abas {
     top: 0; bottom: 0; left: 0; right: auto; width: 200px; height: auto;
@@ -653,6 +657,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   .app-aba--ativa { box-shadow: inset 3px 0 0 var(--ouro); }
   .app-topo, .app-conteudo { margin-left: 200px; }
   .app-conteudo { padding-bottom: 16px; }
+  html.app-com-abas { scroll-padding-bottom: 16px; }
   .app-com-abas .dev-painel { bottom: 0; left: 200px; }
 }
 
@@ -4282,7 +4287,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
  * Fluxo: Escolha do inicial -> Estábulo -> Sala de largada -> Corrida -> Resultado.
  *
  * Sala de largada: o campo (seed, condições, rivais, entrada) é sorteado UMA vez e fica salvo em
- * state.pending até ser corrido. Voltar ao estábulo ou recarregar reabre a mesma sala (sem
+ * state.pending até ser corrido. Voltar à aba Correr ou recarregar reabre a mesma sala (sem
  * re-sorteio grátis). O equipamento (persistente, por montaria) entra no pareamento; com páreo aberto
  * só trocas que não passem do rating da sala.
  * A corrida é calculada por RaceSim.simulate (função pura da seed) só quando o jogador aperta
@@ -5070,6 +5075,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     var comCasca = kindOf(ui.screen) !== 'full';
     if (comCasca) html = appTopoHtml() + '<main class="app-conteudo">' + html + '</main>' + appAbasHtml();
     if (appEl) appEl.classList.toggle('app-com-abas', comCasca);
+    document.documentElement.classList.toggle('app-com-abas', comCasca);   // scroll-padding do foco (CSS)
     if (devAtivo() && ui.screen !== 'corrida') {
       html += '<div class="dev-espaco" style="height:56px" aria-hidden="true"></div><div class="dev-painel" role="group" aria-label="Painel de desenvolvimento"><span>dev</span>' +
         '<button type="button" class="btn btn--pequeno" data-acao="dev-niveis">+10 níveis (ativa)</button>' +
@@ -5103,14 +5109,11 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
         '<span class="app-aba-icone" aria-hidden="true">' + a.icone + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
     }).join('') + '</nav>';
   }
-  // Telas provisórias (preenchidas nas próximas tarefas)
-  function telaProvisoriaHtml(id, nome) {
-    return '<section class="tela" aria-labelledby="t-' + id + '"><h1 class="titulo titulo--tela" id="t-' + id + '" tabindex="-1" data-foco>' + esc(nome) + '</h1>' +
-      '<p class="nota">Em construção.</p></section>';
+  // Perfil provisório: por enquanto só o "Recomeçar" (estatísticas na próxima tarefa)
+  function renderPerfil() {
+    return '<section class="tela" aria-labelledby="t-perfil"><h1 class="titulo titulo--tela" id="t-perfil" tabindex="-1" data-foco>Perfil</h1>' +
+      '<p class="nota">Em construção.</p><footer class="caixa">' + resetHtml() + '</footer></section>';
   }
-  function renderCorrer() { return telaProvisoriaHtml('correr', 'Correr'); }
-  function renderExpedicao() { return telaProvisoriaHtml('expedicao', 'Expedição'); }
-  function renderPerfil() { return telaProvisoriaHtml('perfil', 'Perfil'); }
 
   // ===========================================================================
   // Tela 1 — Escolha do inicial (carrossel no celular)
@@ -5169,7 +5172,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   }
   function uidNum(uid) { return String(uid).replace(/\D+/g, ''); }
 
-  // opts.semAcoes: sem os botões ativar/renomear/liberar (ex.: card do potro no resultado do Haras)
+  // opts.semAcoes: sem os botões (ex.: card do potro no resultado do Haras).
+  // O cartão inteiro abre a montaria (data-acao="montaria"); os botões internos têm a própria ação.
   function mountCardHtml(m, isActive, opts) {
     var P = state.pending;
     var semAcoes = !!(opts && opts.semAcoes);
@@ -5182,11 +5186,13 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
         '<button type="button" class="btn btn--pequeno" data-acao="liberar-nao" data-id="' + esc(m.uid) + '">Cancelar</button></div>'
       : '<div class="montaria-acoes">' +
         '<button type="button" class="btn btn--pequeno" data-acao="ativar" data-id="' + esc(m.uid) + '"' + (isActive || P ? ' disabled' : '') + '>Tornar ativa</button>' +
+        // Renomear e Liberar ficam no cartão até a tela da Montaria existir (Task 3)
         '<button type="button" class="btn btn--pequeno" data-acao="renomear" data-id="' + esc(m.uid) + '">Renomear</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="liberar" data-id="' + esc(m.uid) + '"' + (canRelease ? '' : ' disabled') + '>Liberar</button>' +
-        '<button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(m.uid) + '">Equipar</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="montaria" data-id="' + esc(m.uid) + '">Ver</button>' +
         '</div>';
-    return '<article class="montaria' + (isActive ? ' montaria--ativa' : '') + '" data-uid="' + esc(m.uid) + '">' +
+    var abre = semAcoes ? '' : ' data-acao="montaria" data-id="' + esc(m.uid) + '"';
+    return '<article class="montaria' + (isActive ? ' montaria--ativa' : '') + '" data-uid="' + esc(m.uid) + '"' + abre + '>' +
       portraitHtml(m) +
       '<h3 class="cavalo-nome">' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h3>' +
       '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
@@ -5201,22 +5207,33 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   function montariasHtml() {
     var maxed = state.stableSlots >= BR.stableSlotsMax;
     var canExpand = !maxed && state.gold >= SLOT_PRICE;
-    return '<section class="caixa" aria-labelledby="t-montarias"><h2 class="titulo" id="t-montarias">Suas montarias <span class="nota">' +
-        state.mounts.length + '/' + state.stableSlots + ' vagas</span></h2>' +
-      '<div class="montarias">' + state.mounts.map(function (m) { return mountCardHtml(m, m.uid === state.activeId); }).join('') + '</div>' +
-      '<div class="acoes"><button type="button" data-acao="haras" class="btn btn--ouro">Haras</button>' +
-        '<button type="button" data-acao="loja" class="btn">Loja</button>' +
-        '<button type="button" data-acao="expandir" class="btn"' + (canExpand ? '' : ' disabled') + '>' +
-        (maxed ? 'Estábulo no máximo' : 'Expandir estábulo (' + fmt(SLOT_PRICE) + ')') + '</button></div>' +
-    '</section>';
+    return '<section class="caixa" aria-label="Suas montarias"><div class="montarias">' + state.mounts.map(function (m) { return mountCardHtml(m, m.uid === state.activeId); }).join('') + '</div>' +
+      '<div class="acoes"><button type="button" data-acao="expandir" class="btn"' + (canExpand ? '' : ' disabled') + '>' +
+        (maxed ? 'Estábulo no máximo' : 'Expandir estábulo (' + fmt(SLOT_PRICE) + ')') + '</button></div></section>';
   }
 
+  // aviso pendente (ex.: "Ouro insuficiente", save de outra aba): mostra uma vez e limpa
+  function noticeHtml() {
+    var html = ui.notice ? '<p class="aviso">' + esc(ui.notice) + '</p>' : '';
+    ui.notice = null;
+    return html;
+  }
+
+  // Aba Estábulo: só a lista de montarias
   function renderEstabulo() {
+    return '<section class="tela" aria-labelledby="t-estabulo">' +
+      '<h1 class="titulo titulo--tela" id="t-estabulo" tabindex="-1" data-foco>Estábulo <span class="nota">' +
+        state.mounts.length + '/' + state.stableSlots + ' vagas</span></h1>' + noticeHtml() +
+      montariasHtml() +
+      '</section>';
+  }
+
+  // ===========================================================================
+  // Aba Correr: montaria ativa, entrada e "Procurar corrida" (a sala aberta nunca é re-sorteada)
+  // ===========================================================================
+  function renderCorrer() {
     var h = playerHorse();
-    var gear = playerGear();
-    var stats = RS.computeStats(h, gear);
-    var baseStats = RS.computeStats(h, null);
-    var rating = RS.powerRating(h, gear);
+    var rating = RS.powerRating(h, playerGear());
     var broke = state.gold < MIN_ENTRY;
     var tier = effectiveTier();
     var P = state.pending;
@@ -5240,6 +5257,31 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       cta = '<button type="button" class="btn btn--ouro btn--grande" data-acao="procurar">Procurar corrida</button>';
     }
 
+    return '<section class="tela" aria-labelledby="t-correr">' +
+      '<h1 class="titulo titulo--tela" id="t-correr" tabindex="-1" data-foco>Correr</h1>' + noticeHtml() +
+      '<article class="caixa" aria-label="Montaria ativa">' +
+        '<div class="cavalo-cabeca">' + portraitHtml(h) +
+          '<div class="cavalo-info"><h2 class="cavalo-nome">' + esc(h.name) + '</h2>' +
+          '<div class="linha-meta">' + rarityHtml(h.rarity) + elementHtml(h.element) + '</div>' +
+          xpHtml(h.level, h.xp) +
+          '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
+        '</div></div>' +
+        '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
+          '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div></div>' +
+      '</article>' +
+      '<section class="caixa" aria-labelledby="r-entrada">' +
+        '<div class="tela-cabeca"><span class="rotulo" id="r-entrada">Entrada da corrida</span>' +
+          '<div class="opcoes opcoes--3 opcoes--tier" role="group" aria-labelledby="r-entrada">' + tierOpts + '</div>' +
+          '<p class="nota">Todos pagam a mesma entrada; a casa fica com 10% do pote. Com 4–5 corredores pagam 1º e 2º (70/30); com 6–7, 1º/2º/3º (50/30/20); com 8, 60/25/15. Quem leva prêmio nunca sai no prejuízo.</p></div>' +
+        cta +
+      '</section>' +
+      '</section>';
+  }
+
+  // ===========================================================================
+  // Aba Expedição (provisória): a vitrine dos cavalos selvagens
+  // ===========================================================================
+  function renderExpedicao() {
     var wild = WILD_SHOWCASE.map(horseById).filter(Boolean).map(function (w) {
       return '<div class="selvagem selvagem--' + esc(w.rarity) + '">' + portraitHtml(w) +
         '<b>' + esc(w.name) + '</b>' +
@@ -5247,47 +5289,23 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
         elementHtml(w.element) +
         '<span class="nota">' + esc(w.habitat || '') + '</span></div>';
     }).join('');
-
-    var reset = ui.confirmReset
-      ? '<div class="confirma" role="group" aria-label="Confirmar recomeço"><span>Apagar o progresso e escolher outro inicial?</span>' +
-        '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="reset-sim">Sim, recomeçar</button>' +
-        '<button type="button" class="btn btn--pequeno" data-acao="reset-nao">Cancelar</button></div>'
-      : '<button type="button" class="btn btn--texto" data-acao="reset">Recomeçar com outro inicial</button>';
-
-    var notice = ui.notice ? '<p class="aviso">' + esc(ui.notice) + '</p>' : '';
-    ui.notice = null;
-
-    return '<section class="tela" aria-labelledby="t-estabulo">' +
-      '<header class="topo"><span class="logo-mini">Galope Elemental</span><span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></header>' +
-      '<h1 class="titulo titulo--tela" id="t-estabulo" tabindex="-1" data-foco>Estábulo</h1>' + notice +
-      montariasHtml() +
-      '<article class="caixa">' +
-        '<div class="cavalo-cabeca">' + portraitHtml(h) +
-          '<div class="cavalo-info"><h2 class="cavalo-nome">' + esc(h.name) + '</h2>' +
-          '<div class="linha-meta">' + elementHtml(h.element) + rarityHtml(h.rarity) + '</div>' +
-          xpHtml(h.level, h.xp) +
-          '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
-          '<div class="linha-meta"><span>' + (h.sex === 'f' ? '♀ Fêmea' : '♂ Macho') + '</span>' +
-            '<span>Skills: <b>' + Math.round(RS.skillChance(h, stats, gear.special.skillChanceBonus) * 100) + '%</b> de ativar</span></div>' +
-        '</div></div>' +
-        statsHtml(stats, baseStats) +
-        h.skills.map(skillHtml).join('') +
-      '</article>' +
-      '<section class="caixa" aria-labelledby="t-preparar"><h2 class="titulo" id="t-preparar">Preparar corrida</h2>' +
-        '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
-          '<p class="nota">Troque as peças na tela Equipar.</p></div>' +
-        '<div class="tela-cabeca"><span class="rotulo" id="r-entrada">Entrada da corrida</span>' +
-          '<div class="opcoes opcoes--3 opcoes--tier" role="group" aria-labelledby="r-entrada">' + tierOpts + '</div>' +
-          '<p class="nota">Todos pagam a mesma entrada; a casa fica com 10% do pote. Com 4–5 corredores pagam 1º e 2º (70/30); com 6–7, 1º/2º/3º (50/30/20); com 8, 60/25/15. Quem leva prêmio nunca sai no prejuízo.</p></div>' +
-        cta +
-      '</section>' +
+    return '<section class="tela" aria-labelledby="t-expedicao">' +
+      '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>' +
+      '<p class="nota">Mundos com os biomas dos cavalos selvagens, batalhas por turnos e recompensas em Ouro, XP e moeda de pacotes. Em breve.</p>' +
       '<section class="caixa" aria-labelledby="t-selvagens"><h2 class="titulo" id="t-selvagens">Cavalos selvagens</h2>' +
         '<p class="nota">Exemplos de achados em expedições. A captura ainda não está neste protótipo.</p>' +
         '<div class="selvagens">' + wild + '</div>' +
       '</section>' +
-      '<footer class="caixa"><div class="linha-meta"><span>Corridas <b>' + state.races + '</b></span><span>Vitórias <b>' + state.wins + '</b></span>' +
-        '<span>Pódios <b>' + state.podiums + '</b></span><span>Prêmios ' + ouroHtml(state.goldWon) + '</span></div>' + reset + '</footer>' +
       '</section>';
+  }
+
+  // "Recomeçar com outro inicial" com confirmação (vai para o Perfil)
+  function resetHtml() {
+    return ui.confirmReset
+      ? '<div class="confirma" role="group" aria-label="Confirmar recomeço"><span>Apagar o progresso e escolher outro inicial?</span>' +
+        '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="reset-sim">Sim, recomeçar</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="reset-nao">Cancelar</button></div>'
+      : '<button type="button" class="btn btn--texto" data-acao="reset">Recomeçar com outro inicial</button>';
   }
 
   // ===========================================================================
@@ -5933,7 +5951,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     var label = L.training ? 'Largar treino!' : 'Largar! (−' + fmt(L.fee) + ' Ouro)';
 
     return '<section class="tela" aria-labelledby="t-largada">' +
-      '<header class="topo"><button type="button" class="btn btn--pequeno" data-acao="voltar">Voltar ao estábulo</button>' +
+      '<header class="topo"><button type="button" class="btn btn--pequeno" data-acao="voltar">Voltar</button>' +
         '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></header>' +
       '<header class="tela-cabeca placa"><span class="rotulo">Sala de largada · Páreo nº ' + L.counter + '</span>' +
         '<h1 class="titulo titulo--tela" id="t-largada" tabindex="-1" data-foco>' + esc(L.trackName) + '</h1>' +
@@ -6662,9 +6680,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     var actions = broke
       ? '<p class="aviso aviso--perda">Seu Ouro acabou abaixo da menor entrada (' + MIN_ENTRY + '). O treino gratuito não cobra nada e paga de 10 a 30 de Ouro.</p>' +
         '<div class="acoes"><button type="button" class="btn btn--ouro" data-acao="treino">Treino gratuito</button>' +
-        '<button type="button" class="btn" data-acao="voltar">Voltar ao estábulo</button></div>'
+        '<button type="button" class="btn" data-acao="voltar">Voltar</button></div>'
       : '<div class="acoes"><button type="button" class="btn btn--ouro" data-acao="denovo">Correr de novo</button>' +
-        '<button type="button" class="btn" data-acao="voltar">Voltar ao estábulo</button></div>';
+        '<button type="button" class="btn" data-acao="voltar">Voltar</button></div>';
 
     var prizeOf = {};
     if (R.payouts) R.payouts.prizes.forEach(function (p) { prizeOf[p.racer] = p.amount; });
@@ -6801,6 +6819,11 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
         ui.loja.msg = 'Comprou ' + pedrasTxt(pn) + ' negra' + (pn === 1 ? '' : 's') + '.';
         rerenderKeepScroll(); break;
       }
+      case 'montaria':
+        // provisório até a tela da Montaria (Task 3): "Ver" abre o equipamento da montaria.
+        // Cliques no texto da confirmação de liberar não abrem nada.
+        if (e.target.closest && e.target.closest('.confirma')) break;
+        // falls through
       case 'equipar-tela':
         if (!state || !mountByUid(id)) break;
         ui.equip = { uid: id, slot: null, confirm: null, undo: null, msg: null };
@@ -6914,13 +6937,13 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
       case 'treino':
         startLobby(true); break;
       case 'voltar':
-        go(ui.tab); break;
+        go('correr'); break;
       case 'largar': {
         var L = ui.lobby;
-        if (!L || L.sim) { go('estabulo'); break; }
+        if (!L || L.sim) { go('correr'); break; }
         persist();                    // sincroniza com outras abas antes de debitar
         if (ui.lobby !== L) break;    // save mais novo adotado: adoptExternal já navegou para um ponto seguro
-        if (!L.training && state.gold < L.fee) { ui.notice = 'Ouro insuficiente para esta entrada.'; state.pending = null; persist(); go('estabulo'); break; }
+        if (!L.training && state.gold < L.fee) { ui.notice = 'Ouro insuficiente para esta entrada.'; state.pending = null; persist(); go('correr'); break; }
         var sAntes = state;
         ui.result = settle(L);
         if (state !== sAntes) { ui.result = null; break; } // conflito no meio da liquidação: descarta o resultado misto

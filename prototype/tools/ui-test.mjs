@@ -131,13 +131,16 @@ try {
   await page.locator('.montaria--ativa [data-acao="renomear"]').click()
   if ((await page.evaluate(() => window.__galope.state.mounts[0].name)) !== 'Brasa') problems.push('renomear de volta para Brasa falhou')
   await page.evaluate(() => { window.__galope.state.gold = 2000 })
-  await page.locator('[data-acao="tier"][data-id="50"]').first().click()   // re-renderiza o estábulo
+  await page.locator('[data-acao="aba"][data-id="estabulo"]').click()   // re-renderiza o estábulo
   await page.locator('[data-acao="expandir"]').click()
   const exp = await page.evaluate(() => ({ slots: window.__galope.state.stableSlots, gold: window.__galope.state.gold }))
   if (exp.slots !== 4 || exp.gold !== 1700) problems.push('expandir estábulo: ' + JSON.stringify(exp))
   if (!(await page.locator('.montaria--ativa [data-acao="liberar"]').isDisabled())) problems.push('liberar da montaria ativa não está desabilitado')
 
   // sala de largada: voltar não re-sorteia, e nada de resultado antes de pagar
+  await page.locator('[data-acao="aba"][data-id="correr"]').click()
+  await page.waitForSelector('#t-correr')
+  await page.locator('[data-acao="tier"][data-id="50"]').first().click()   // re-renderiza a aba Correr
   await page.getByRole('button', { name: 'Procurar corrida' }).click()
   await page.waitForSelector('#t-largada')
   const lobbyA = await page.evaluate(() => ({ seed: window.__galope.ui.lobby.seed, counter: window.__galope.ui.lobby.counter, sim: !!window.__galope.ui.lobby.sim, gold: window.__galope.state.gold }))
@@ -154,9 +157,11 @@ try {
   notes.botGear = botGear
   if (!botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: nenhum bot com equipamento ' + JSON.stringify(botGear))
   await page.getByRole('button', { name: /^Voltar/ }).click()
-  await page.waitForSelector('#t-estabulo')
+  await page.waitForSelector('#t-correr')
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForSelector('#t-estabulo')
+  await page.locator('[data-acao="aba"][data-id="correr"]').click()
+  await page.waitForSelector('#t-correr')
   await page.getByRole('button', { name: /Voltar à sala/ }).click()
   await page.waitForSelector('#t-largada')
   const lobbyB = await page.evaluate(() => ({ seed: window.__galope.ui.lobby.seed, counter: window.__galope.ui.lobby.counter, gold: window.__galope.state.gold }))
@@ -226,7 +231,9 @@ try {
   const goldReload = await page.evaluate(() => window.__galope.state.gold)
   if (goldReload !== after.gold) problems.push(`persistência: ouro ${goldReload} != ${after.gold}`)
 
-  // recomeçar com o mesmo inicial: seed base nova
+  // recomeçar com o mesmo inicial (pelo Perfil): seed base nova
+  await page.locator('[data-acao="perfil"]').click()
+  await page.waitForSelector('#t-perfil')
   await page.getByRole('button', { name: 'Recomeçar com outro inicial' }).click()
   await page.getByRole('button', { name: 'Sim, recomeçar' }).click()
   await page.getByRole('button', { name: 'Escolher Brasa' }).click()
@@ -235,8 +242,9 @@ try {
 
   // sem Ouro: oferece treino gratuito
   await page.evaluate(() => { window.__galope.state.gold = 20 })
-  // re-renderiza o estábulo: sem Ouro para a menor entrada, "Procurar corrida" só redesenha (as entradas ficam desabilitadas)
-  await page.getByRole('button', { name: 'Procurar corrida' }).click()
+  // a aba Correr, aberta sem Ouro para a menor entrada, oferece o treino (as entradas ficam desabilitadas)
+  await page.locator('[data-acao="aba"][data-id="correr"]').click()
+  await page.waitForSelector('#t-correr')
   await page.waitForSelector('[data-acao="treino"]')
   await page.getByRole('button', { name: 'Treino gratuito' }).click()
   await page.waitForSelector('#t-largada')
@@ -351,7 +359,7 @@ try {
   {
     const cz = await newPage(browser, { width: 390, height: 844 }, 'cruzamento', { query: '?dev=1' })
     const avisos = async () => (await cz.locator('.aviso').allTextContents()).join(' | ')
-    const rerender = async () => { await cz.locator('[data-acao="tier"][data-id="50"]').first().click() }
+    const rerender = async () => { await cz.locator('[data-acao="aba"][data-id="correr"]').click(); await cz.locator('[data-acao="tier"][data-id="50"]').first().click() }
     await cz.getByRole('button', { name: 'Escolher Brasa' }).click()
     await cz.waitForSelector('#t-estabulo')
     if ((await cz.locator('.dev-painel').count()) !== 1) problems.push('cruzamento: painel dev ausente com ?dev=1')
@@ -388,9 +396,9 @@ try {
     if (await cz.locator('.montaria .montaria-acoes').count()) problems.push('cruzamento: card do potro no resultado com ativar/renomear/liberar')
     await cz.locator('[data-acao="haras-ativar"]').click()
     if ((await cz.evaluate(() => window.__galope.state.activeId)) !== 'm2') problems.push('cruzamento: haras-ativar não ativou m2')
-    await cz.locator('[data-acao="aba"][data-id="estabulo"]').click()
-    await cz.waitForSelector('#t-estabulo')
     // o potro corre
+    await cz.locator('[data-acao="aba"][data-id="correr"]').click()
+    await cz.waitForSelector('#t-correr')
     await cz.getByRole('button', { name: 'Procurar corrida' }).click()
     await cz.waitForSelector('#t-largada')
     await cz.getByRole('button', { name: /^Largar/ }).click()
@@ -400,7 +408,7 @@ try {
     const racedUid = await cz.evaluate(() => { const L = window.__galope.ui.lobby; return L.racers[L.playerIdx].horse.uid })
     if (racedUid !== 'm2') problems.push('cruzamento: quem correu foi ' + racedUid + ' (esperado m2)')
     await cz.getByRole('button', { name: /^Voltar/ }).click()
-    await cz.waitForSelector('#t-estabulo')
+    await cz.waitForSelector('#t-correr')
     // estábulo cheio
     await cz.evaluate(() => { const s = window.__galope.state; s.stableSlots = s.mounts.length })
     await rerender()
@@ -412,11 +420,13 @@ try {
     if (!/cheio/.test(await avisos())) problems.push('cruzamento: sem aviso de estábulo cheio: ' + await avisos())
     await cz.evaluate(() => { window.__galope.state.stableSlots = 3 })
     // páreo aberto bloqueia
-    await cz.locator('[data-acao="aba"][data-id="estabulo"]').click()
-    await cz.waitForSelector('#t-estabulo')
+    await cz.locator('[data-acao="aba"][data-id="correr"]').click()
+    await cz.waitForSelector('#t-correr')
     await cz.getByRole('button', { name: 'Procurar corrida' }).click()
     await cz.waitForSelector('#t-largada')
     await cz.getByRole('button', { name: /^Voltar/ }).click()
+    await cz.waitForSelector('#t-correr')
+    await cz.locator('[data-acao="aba"][data-id="estabulo"]').click()
     await cz.waitForSelector('#t-estabulo')
     if (!(await cz.locator('.montaria:not(.montaria--ativa) [data-acao="ativar"]').first().isDisabled())) problems.push('cruzamento: ativar habilitado com páreo aberto')
     await cz.locator('[data-acao="aba"][data-id="haras"]').click()
@@ -425,8 +435,8 @@ try {
     await cz.locator('[data-acao="haras-partner"][data-kind="rent"][data-id="w-faisca"]').click()
     if (!(await cz.locator('[data-acao="cruzar"]').isDisabled())) problems.push('cruzamento: cruzar habilitado com páreo aberto')
     if (!/páreo/.test(await avisos())) problems.push('cruzamento: sem aviso de páreo aberto: ' + await avisos())
-    await cz.locator('[data-acao="aba"][data-id="estabulo"]').click()
-    await cz.waitForSelector('#t-estabulo')
+    await cz.locator('[data-acao="aba"][data-id="correr"]').click()
+    await cz.waitForSelector('#t-correr')
     await cz.getByRole('button', { name: /Voltar à sala/ }).click()
     await cz.waitForSelector('#t-largada')
     await cz.getByRole('button', { name: /^Largar/ }).click()
@@ -434,7 +444,7 @@ try {
     await cz.getByRole('button', { name: /Pular/ }).click()
     await cz.waitForSelector('#t-resultado')
     await cz.getByRole('button', { name: /^Voltar/ }).click()
-    await cz.waitForSelector('#t-estabulo')
+    await cz.waitForSelector('#t-correr')
     // cruzamento próprio: Brasa (m1, ♂, 1 cruza) × potro (m2, ♀, 1 cruza), registro
     await cz.locator('[data-acao="aba"][data-id="haras"]').click()
     await cz.waitForSelector('#t-haras')
@@ -506,8 +516,8 @@ try {
       if (len1 !== len0) problems.push(`menu: history.length ${len0} -> ${len1} ao trocar de aba`)
       // 3. cabeçalho e barra presentes nas abas, ausentes na corrida
       if ((await mn.locator('.app-topo').count()) !== 1 || (await mn.locator('.app-abas').count()) !== 1) problems.push('menu: casca ausente numa aba')
-      await mn.locator('[data-acao="aba"][data-id="estabulo"]').click()
-      await mn.getByRole('button', { name: 'Procurar corrida' }).click()   // ainda no Estábulo até a Task 2
+      await mn.locator('[data-acao="aba"][data-id="correr"]').click()
+      await mn.getByRole('button', { name: 'Procurar corrida' }).click()
       await mn.waitForSelector('#t-largada')
       if ((await mn.locator('.app-abas').count()) !== 0) problems.push('menu: barra visível na largada')
       await mn.getByRole('button', { name: /^Largar/ }).click()
@@ -516,6 +526,31 @@ try {
       await mn.getByRole('button', { name: /Pular|Ver resultado/ }).click()
       await mn.waitForSelector('#t-resultado')
       await checkOverflow(mn, 'menu-390')
+      await mn.getByRole('button', { name: /^Voltar/ }).click()
+      await mn.waitForSelector('#t-correr')
+      // 4. ponto na aba Correr com páreo aberto; Voltar da largada volta à aba Correr com a mesma sala
+      await mn.locator('[data-acao="aba"][data-id="correr"]').click()
+      await mn.getByRole('button', { name: 'Procurar corrida' }).click()
+      await mn.waitForSelector('#t-largada')
+      const counter0 = await mn.evaluate(() => window.__galope.state.pending.counter)
+      await mn.goBack()
+      await mn.waitForSelector('#t-correr')
+      if ((await mn.locator('.app-aba--ponto[data-id="correr"]').count()) !== 1) problems.push('menu: sem ponto na aba Correr com páreo aberto')
+      const counter1 = await mn.evaluate(() => window.__galope.state.pending && window.__galope.state.pending.counter)
+      if (counter1 !== counter0) problems.push(`menu: sala re-sorteada ao voltar (${counter0} -> ${counter1})`)
+      // 5. recarregar com páreo aberto: abre no Estábulo, Correr mostra o ponto e "Voltar à sala"
+      await mn.reload(); await mn.waitForSelector('#t-estabulo')
+      if ((await mn.locator('.app-aba--ponto[data-id="correr"]').count()) !== 1) problems.push('menu: ponto sumiu após reload')
+      await mn.locator('[data-acao="aba"][data-id="correr"]').click()
+      if (!(await mn.getByRole('button', { name: 'Voltar à sala de largada' }).count())) problems.push('menu: Correr sem "Voltar à sala" com páreo aberto')
+      // 6. estábulo só lista: sem "Preparar corrida", sem selvagens, sem estatísticas
+      await mn.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      const estTxt = await mn.locator('#tela').textContent()
+      if (/Preparar corrida|Cavalos selvagens|Recomeçar/.test(estTxt)) problems.push('menu: estábulo ainda tem conteúdo das outras abas')
+      if ((await mn.locator('[data-acao="montaria"][data-id="m1"]').count()) < 1) problems.push('menu: cartão sem "Ver"')
+      // 7. expedição mostra a vitrine dos selvagens
+      await mn.locator('[data-acao="aba"][data-id="expedicao"]').click()
+      if ((await mn.locator('.selvagem').count()) < 3) problems.push('menu: expedição sem selvagens')
     } catch (e) {
       problems.push('menu: ' + e.message)
     }
@@ -545,7 +580,9 @@ try {
       const ids = GR.SLOTS.map((sl) => { const it = itemOf(s, s.mounts[0].equip[sl]); return it ? it.id : null })
       GR.SLOTS.forEach((sl, k) => { if (ids[k] !== sl + '-sol-lendario') problems.push('equipamento: dev-set ' + sl + ' = ' + ids[k]) })
       const L = s.mounts[0].equip.sela
-      // 3. tela de equipamento
+      // 3. tela de equipamento (pelo "Equipar" da aba Correr)
+      await eq.locator('[data-acao="aba"][data-id="correr"]').click()
+      await eq.waitForSelector('#t-correr')
       await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
       await eq.waitForSelector('#t-equipamento', { timeout: 5000 })
       if (!/Sol ×5/.test(await txt())) problems.push('equipamento: tela sem "Sol ×5"')
@@ -606,10 +643,12 @@ try {
         problems.push('equipamento: não persistiu ' + JSON.stringify({ equip: s.mounts[0].equip, plus: itemOf(s, 'i1').plus }))
       }
       // 9. trava parcial com páreo aberto
+      await eq.locator('[data-acao="aba"][data-id="correr"]').click()
+      await eq.waitForSelector('#t-correr')
       await eq.getByRole('button', { name: 'Procurar corrida' }).click()
       await eq.waitForSelector('#t-largada')
       await eq.locator('[data-acao="voltar"]').first().click()
-      await eq.waitForSelector('#t-estabulo')
+      await eq.waitForSelector('#t-correr')
       await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
       await eq.waitForSelector('#t-equipamento')
       await eq.locator('[data-acao="equip-slot"][data-id="sela"]').click()
@@ -647,6 +686,8 @@ try {
       if (gold3 !== goldAntes3 + 375 || s.items.length !== 6) problems.push('equipamento: 3ª venda ' + JSON.stringify({ gold: s.gold, goldAntes3, n: s.items.length }))
       await eq.locator('[data-acao="equip-voltar"]').click()
       await eq.waitForSelector('#t-estabulo')
+      await eq.locator('[data-acao="aba"][data-id="correr"]').click()
+      await eq.waitForSelector('#t-correr')
       await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
       await eq.waitForSelector('#t-equipamento')
       if (await eq.locator('[data-acao="vender-desfazer"]').count()) problems.push('equipamento: "Desfazer venda" continua depois de sair da tela')
@@ -706,8 +747,8 @@ try {
       await checkOverflow(lj, 'loja')
       await lj.screenshot({ path: join(SHOTS, 'final-08-loja.png') })
       // 6. equipar a sela comprada e ver o resumo + atalho na largada
-      await lj.locator('[data-acao="aba"][data-id="estabulo"]').click()
-      await lj.waitForSelector('#t-estabulo')
+      await lj.locator('[data-acao="aba"][data-id="correr"]').click()
+      await lj.waitForSelector('#t-correr')
       await lj.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
       await lj.waitForSelector('#t-equipamento')
       await lj.locator('[data-acao="equip-slot"][data-id="sela"]').click()
@@ -716,6 +757,8 @@ try {
       if (s.mounts[0].equip.sela !== 'i3') problems.push('loja: equipar i3 deixou sela ' + s.mounts[0].equip.sela)
       await lj.locator('[data-acao="equip-voltar"]').click()
       await lj.waitForSelector('#t-estabulo')
+      await lj.locator('[data-acao="aba"][data-id="correr"]').click()
+      await lj.waitForSelector('#t-correr')
       await lj.getByRole('button', { name: 'Procurar corrida' }).click()
       await lj.waitForSelector('#t-largada')
       const cheios = await lj.locator('#tela .slots .slot--cheio').count()
@@ -739,6 +782,8 @@ try {
   await sleep(300)
   await checkOverflow(desk, 'desktop-inicial')
   await desk.getByRole('button', { name: 'Escolher Maré' }).click()
+  await desk.locator('[data-acao="aba"][data-id="correr"]').click()
+  await desk.waitForSelector('#t-correr')
   await desk.getByRole('button', { name: 'Procurar corrida' }).click()
   await desk.getByRole('button', { name: /^Largar/ }).click()
   await desk.waitForSelector('#pista')
@@ -758,6 +803,8 @@ try {
   for (const [label, vp] of [['m360', { width: 360, height: 740 }], ['land', { width: 844, height: 390 }]]) {
     const p = await newPage(browser, vp, label)
     await p.getByRole('button', { name: 'Escolher Ipê' }).click()
+    await p.locator('[data-acao="aba"][data-id="correr"]').click()
+    await p.waitForSelector('#t-correr')
     await p.getByRole('button', { name: 'Procurar corrida' }).click()
     await p.getByRole('button', { name: /^Largar/ }).click()
     await p.waitForSelector('#pista')
@@ -775,6 +822,8 @@ try {
   }
   const rm = await newPage(browser, { width: 390, height: 844 }, 'reduced', { reducedMotion: 'reduce' })
   await rm.getByRole('button', { name: 'Escolher Brasa' }).click()
+  await rm.locator('[data-acao="aba"][data-id="correr"]').click()
+  await rm.waitForSelector('#t-correr')
   await rm.getByRole('button', { name: 'Procurar corrida' }).click()
   await rm.getByRole('button', { name: /^Largar/ }).click()
   await sleep(2500)

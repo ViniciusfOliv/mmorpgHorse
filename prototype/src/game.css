@@ -640,6 +640,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 }
 .app-aba:focus-visible { outline-offset: -3px; }
 .app-com-abas .dev-painel { bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+/* o foco por teclado nunca fica atrás do cabeçalho fixo nem da barra de abas */
+html.app-com-abas { scroll-padding: 56px 0 calc(72px + env(safe-area-inset-bottom, 0px)); }
+/* o cartão inteiro da montaria abre a montaria */
+.montaria[data-acao] { cursor: pointer; }
 @media (min-width: 900px) {
   .app-abas {
     top: 0; bottom: 0; left: 0; right: auto; width: 200px; height: auto;
@@ -650,6 +654,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   .app-aba--ativa { box-shadow: inset 3px 0 0 var(--ouro); }
   .app-topo, .app-conteudo { margin-left: 200px; }
   .app-conteudo { padding-bottom: 16px; }
+  html.app-com-abas { scroll-padding-bottom: 16px; }
   .app-com-abas .dev-painel { bottom: 0; left: 200px; }
 }
 
