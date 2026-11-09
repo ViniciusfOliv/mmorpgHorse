@@ -1,8 +1,9 @@
 /*
  * Galope Elemental — interface jogável do protótipo (descartável).
  *
- * Depende de window.GameData (data.js), window.RaceSim (sim.js), window.Gear (gear.js) e
- * window.Sprites (sprites.js); com ?dev=1, também de window.Dev (dev.js) — ver a seção "Modo DEV".
+ * Depende de window.GameData (data.js), window.RaceSim (sim.js), window.Gear (gear.js),
+ * window.Sprites (sprites.js) e window.RaceFx (fx.js, efeitos da corrida); com ?dev=1, também de
+ * window.Dev (dev.js) — ver a seção "Modo DEV".
  * Fluxo: Escolha do inicial -> Estábulo -> Sala de largada -> Corrida -> Resultado.
  *
  * Sala de largada: o campo (seed, condições, rivais, entrada) é sorteado UMA vez e fica salvo em
@@ -17,13 +18,13 @@
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, DV = window.Dev;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, DV = window.Dev, FX = window.RaceFx;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
   // Modo DEV: decidido uma vez, na carga. Com ?dev=1 o jogo só lê e grava o save de teste.
   var DEV_MODE = /[?&]dev=1(&|$)/.test(window.location.search);
-  if (!GD || !RS || !SP || !GR || !telaEl || (DEV_MODE && !DV)) {
-    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, sprites.js ou dev.js).';
+  if (!GD || !RS || !SP || !GR || !FX || !telaEl || (DEV_MODE && !DV)) {
+    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, sprites.js, fx.js ou dev.js).';
     return;
   }
 
@@ -2444,11 +2445,20 @@
     // mas é assistida em ~20 s (1000 m) a ~34 s (2400 m) em x1, com câmera lenta na chegada.
     var realTarget = 20 + 14 * clamp((D - 1000) / 1400, 0, 1);
     var ts = sim.duration / realTarget;
+    // Efeitos (fx.js): a linha do tempo é montada uma vez. Os Dados recebem a escala de reprodução
+    // (segundos de simulação por segundo real em x1): câmera lenta ~2 s, giro ~1 s e faixa ~4 s reais.
+    var fxTl = FX.timeline(sim, L.racers, ts);
+    var dadoItens = fxTl.filter(function (it) { return it.kind === 'dado'; });
+    function dadoAtivo(t) {
+      for (var q = 0; q < dadoItens.length; q++) if (t >= dadoItens[q].t0 && t < dadoItens[q].t1) return dadoItens[q];
+      return null;
+    }
+    FX.resetStats(true);
     var self = {
       simT: 0, tReal: 0, last: 0, mult: 1, phase: 'contagem', count: reduced() ? 1.2 : 2.4,
       gallop: new Array(n), S: 2, W: 0, H: 0, done: false, endTimer: 0,
       lastHud: {}, flash: 0, winnerSeen: false, finishCam: false, playerRect: null, crossed: false,
-      climaMsg: '', climaTimer: 0,
+      climaMsg: '', climaTimer: 0, climaDesde: 0, slowK: 1, fx: fxTl,
       lay: null
     };
     for (i = 0; i < n; i++) self.gallop[i] = i * 1.7;
@@ -2559,6 +2569,9 @@
         // virada de clima: anúncio por ~2 s (faixa no canvas + leitor de tela) e um clarão leve
         self.climaMsg = 'CLIMA: ' + GD.WEATHERS[ev.weather].name.toUpperCase();
         self.climaTimer = 2;
+        // a faixa do clima entra em seguida à do Dado (mesmo lugar, abaixo do HUD)
+        var di = dadoItens.filter(function (it) { return it.t0 === ev.t; })[0];
+        self.climaDesde = di ? di.t1 : ev.t;
         hud.anuncio.textContent = 'O clima virou: ' + GD.WEATHERS[ev.weather].name + '.';
         if (!reduced()) self.flash = Math.max(self.flash, 0.12);
       }
@@ -2674,7 +2687,7 @@
         surface: L.cond.surface, finishM: D, hills: hills, curves: curves, distanceMarkersEvery: D <= 1000 ? 100 : 200,
         t: reduced() ? 0 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift
       });
-      var tagsR = [], tagsL = [], badges = [], youTag = null;
+      var tagsR = [], tagsL = [], badges = [], youTag = null, vis = [];
       for (var j = 0; j < n; j++) {
         var r = L.racers[j];
         var standing = self.phase === 'contagem' || st.speed[j] < 0.4;
@@ -2713,6 +2726,7 @@
           ctx.fillRect(x + (1 + dp) * S, feetY - 4 * S, S, S);
         }
         SP.drawHorse(ctx, x, y, cavalo);
+        vis.push({ j: j, x: x, caixa: caixaCav, an: an });
         var finished = fTime[j] <= self.simT;
         if (j === me) youTag = { x: x + (an.nose[0] + 3) * S, y: y + 3 * S, place: finished ? rankOf[j] + 1 : 0 };
         else if (finished) badges.push({ x: x + 22 * S, y: y - 2 * S, j: j, place: rankOf[j] + 1 });
@@ -2733,12 +2747,16 @@
       layoutTags(tagsR, true); layoutTags(tagsL, false);
       SP.drawWeather(ctx, clima, reduced() ? 0 : tr, W, H, S);
       if (self.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + (0.55 * self.flash / 0.3).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
+      var dItem = self.phase === 'contagem' ? null : dadoAtivo(self.simT);
+      if (dItem) drawDadosNaPista(dItem, vis);
       drawHud(st, order);
       if (self.finishCam || (self.phase !== 'contagem' && Math.abs(self.simT - tWin) < 0.6)) {
         var bt = 'FOTO DE CHEGADA', bw = tw(bt) + 6, bx2 = Math.round(lay.artW / 2 - bw / 2), by2 = lay.hudH + 3;
         box(bx2, by2, bw, 9, C.sombra, C.ouro);
         text(bt, bx2 + 3, by2 + 2, C.ouro);
-      } else if (self.climaTimer > 0) {
+      } else if (dItem) {
+        FX.drawDiceStrip(ctx, dItem, L.racers, lay, S, self.simT, reduced());
+      } else if (self.climaTimer > 0 && self.simT >= self.climaDesde) {
         var ct = self.climaMsg, cw2 = tw(ct) + 6, cx3 = Math.round(lay.artW / 2 - cw2 / 2), cy3 = lay.hudH + 3;
         box(cx3, cy3, cw2, 9, C.sombra, GD.BLOCK_TYPES.curva.color);
         text(ct, cx3 + 3, cy3 + 2, C.texto);
@@ -2753,6 +2771,26 @@
         text(label, cx + 1, cy + 1, C.sombra, sc, 'center');
         text(label, cx, cy, C.ouro, sc, 'center');
       }
+    }
+
+    // Dado da Sorte sobre cada cavalo visível (fx.js): plaquinha centrada no jóquei, logo acima da caixa
+    // do desenho (molde ou código), arranjada sem sobreposição entre a faixa do Dado e o fim da pista
+    function drawDadosNaPista(item, vis) {
+      var S = self.S, lay = self.lay, red = reduced();
+      var faixa = FX.stripLayout(item, L.racers, lay);
+      var topo = faixa.y + faixa.h + 2;
+      var rects = vis.map(function (v) {
+        var sz = FX.badgeSize(item.rolls[v.j]);
+        var cx = v.an.saddle ? Math.round(v.x / S + v.an.saddle[0]) : Math.round((v.caixa.x + v.caixa.w / 2) / S);
+        return { j: v.j, x: cx - Math.floor(sz.w / 2), y: Math.floor(v.caixa.y / S) - 1 - sz.h - topo, w: sz.w, h: sz.h };
+      });
+      var arr = FX.layoutBadges(rects, lay.artW, lay.artH - topo);
+      arr.sort(function (a, b) { return (a.j === item.winner) - (b.j === item.winner); });   // vencedor por cima
+      arr.forEach(function (r) {
+        var est = FX.diceState(item, self.simT, red, r.j), win = r.j === item.winner;
+        var num = FX.drawDice(ctx, r.x * S, (r.y + topo) * S, S, item.rolls[r.j], est, win, self.simT, L.racers[r.j].silks);
+        FX._stats.placas.push({ racer: r.j, numero: num, vencedor: win, fase: est.fase });
+      });
     }
 
     // etiquetas de quem está fora da tela: coluna própria, sem se sobrepor, com nº da raia
@@ -2790,6 +2828,8 @@
       } else if (self.phase === 'corrida') {
         // câmera lenta quando o vencedor cruza a linha
         if (!reduced() && self.simT > tWin - 0.9 && self.simT < tWin + 0.5) slowK = 0.3;
+        // câmera lenta do Dado da Sorte (fx.js); compõe com a da chegada pelo mínimo
+        slowK = Math.min(slowK, FX.slowFactor(fxTl, self.simT, reduced()));
         self.simT += dtReal * ts * self.mult * slowK;
         if (self.simT >= endT) { self.phase = 'fim'; self.endTimer = 1.2; hud.pular.textContent = 'Ver resultado'; }
       } else if (self.phase === 'fim') {
@@ -2799,7 +2839,8 @@
       }
       if (!self.winnerSeen && self.simT >= tWin) { self.winnerSeen = true; if (!reduced()) self.flash = 0.3; }
       if (self.flash > 0) self.flash = Math.max(0, self.flash - dtReal);
-      if (self.climaTimer > 0) self.climaTimer = Math.max(0, self.climaTimer - dtReal);
+      self.slowK = slowK;
+      if (self.climaTimer > 0 && self.simT >= self.climaDesde) self.climaTimer = Math.max(0, self.climaTimer - dtReal);
       if (!self.crossed && self.simT >= fTime[me]) {
         self.crossed = true;
         hud.anuncio.textContent = 'Você cruzou a linha em ' + (rankOf[me] + 1) + 'º lugar.';
@@ -2810,7 +2851,11 @@
       // narração
       while (self.phase !== 'contagem' && feedPtr < feedEvents.length && feedEvents[feedPtr].t <= self.simT) pushFeed(feedEvents[feedPtr++]);
       var order = ranking(st, self.simT);
+      // tempo de desenho do quadro (média móvel em RaceFx._stats.msQuadro)
+      var tDes = window.performance.now();
+      FX.beginFrame();
       draw(st, order);
+      FX.endFrame(window.performance.now() - tDes);
     }
 
     // primeiro quadro estático
@@ -2822,7 +2867,7 @@
       frame: frame,
       setSpeed: function (m) { self.mult = m; },
       skip: function () { if (!self.done) { self.done = true; go('resultado'); } },
-      destroy: function () { window.removeEventListener('resize', onResize); },
+      destroy: function () { window.removeEventListener('resize', onResize); FX.resetStats(false); },
       _state: self
     };
   }

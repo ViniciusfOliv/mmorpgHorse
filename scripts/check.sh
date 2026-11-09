@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Verificação completa do protótipo: build + balanceamento rápido + teste de interface.
+# Verificação completa do protótipo: build + testes unitários (simulação e efeitos) + moldes +
+# balanceamento rápido + teste de interface.
 #   ./scripts/check.sh
 # Não altera as capturas oficiais (prototype/screens/): o teste de UI grava numa pasta temporária.
 # Sai com código diferente de zero se qualquer etapa falhar.
@@ -20,6 +21,10 @@ node prototype/build.mjs
 step "2/5 Testes unitários"
 node prototype/tools/sim-test.js > "$SHOTS_DIR/unit.txt" || { cat "$SHOTS_DIR/unit.txt"; exit 1; }
 tail -n 1 "$SHOTS_DIR/unit.txt"
+
+step "2b/5 Efeitos"
+node prototype/tools/fx-test.js > "$SHOTS_DIR/fx.txt" || { cat "$SHOTS_DIR/fx.txt"; exit 1; }
+tail -n 1 "$SHOTS_DIR/fx.txt"
 
 step "3/5 dist atualizado em relação ao src"
 if ! git diff --quiet -- prototype/dist; then

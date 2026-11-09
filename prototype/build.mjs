@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url'
 const ROOT = dirname(fileURLToPath(import.meta.url))
 const read = (p) => readFile(join(ROOT, p), 'utf8')
 
-const SCRIPTS = ['src/data.js', 'src/sim.js', 'src/breed.js', 'src/gear.js', 'src/sprites.js', 'src/dev.js', 'src/game.js']
+const SCRIPTS = ['src/data.js', 'src/sim.js', 'src/breed.js', 'src/gear.js', 'src/sprites.js', 'src/fx.js', 'src/dev.js', 'src/game.js']
 
 const index = await read('index.html')
 const m = index.match(/<!-- app:start -->([\s\S]*?)<!-- app:end -->/)

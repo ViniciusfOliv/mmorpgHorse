@@ -2,7 +2,8 @@
 //   node build.mjs && node tools/ui-test.mjs
 // Gera as capturas finais em prototype/screens/final-*.png (ou em $SHOTS_DIR) (deviceScaleFactor 2) e falha se houver
 // erro de console, rolagem horizontal, cavalo do jogador fora da tela, sala re-sorteada de graça,
-// resultado calculado antes de pagar, ou a tela de corrida não couber na altura da janela.
+// resultado calculado antes de pagar, a tela de corrida não couber na altura da janela, ou o Dado da Sorte
+// não aparecer na pista (plaquinhas, faixa, câmera lenta e "Pular" no meio dela).
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -70,7 +71,16 @@ async function corridaSemMoldes(browser, label, extra) {
     const meio = await pg.evaluate(() => ({ ready: window.Sprites.moldsReady, moldes: window.Sprites._cacheMoldes(), codigo: window.Sprites.cacheStats().baseCount }))
     meio.codigoAntes = antes
     if (meio.ready !== false || meio.moldes !== 0 || !(meio.codigo > antes)) problems.push(`[${label}] corrida sem moldes não usou o desenho por código: ${JSON.stringify(meio)}`)
-    await pg.getByRole('button', { name: /Pular/ }).click()
+    // o Dado da Sorte também aparece sobre o desenho por código (Sprites.horseBox devolve a caixa 40×32)
+    try {
+      meio.dado = await (await pg.waitForFunction(() => {
+        const st = window.RaceFx._stats
+        return st.faixaDado && st.dados >= 1 ? { dados: st.dados, placas: st.placas.length } : false
+      }, null, { timeout: 40000, polling: 'raf' })).jsonValue()
+    } catch (e) {
+      problems.push(`[${label}] sem moldes: o Dado da Sorte não apareceu na pista`)
+    }
+    await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
     await pg.waitForSelector('#t-resultado')
     notes['queda-' + label] = meio
   } catch (e) {
@@ -1073,6 +1083,94 @@ try {
       problems.push('dev: ' + e.message)
     }
     await dv.context().close()
+  }
+
+  // ---------------- Dado da Sorte na pista (DEV, seed fixa): plaquinhas, faixa, câmera lenta e "Pular" ----------------
+  // A seed 101 no perfil DEV novo (Brasa nível 1) dá 7 cavalos e o vencedor do 1º Dado na tela (390 e 1280 px).
+  // Se a corrida mudar (rivais, balanceamento), as seeds seguintes são tentadas até o vencedor aparecer.
+  {
+    const DADO_SEEDS = [101, 102, 103, 104, 105, 106]
+    // corre até o 1º Dado; devolve o quadro logo depois da revelação (vencedor dourado, ainda na câmera lenta)
+    const correAteDado = async (pg, seed, primeira) => {
+      await devArmar(pg, { seed })
+      if (primeira) {
+        await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+        await pg.waitForSelector('#t-correr')
+        await pg.getByRole('button', { name: 'Procurar corrida' }).click()
+      } else {
+        await pg.getByRole('button', { name: /Correr de novo|Treino gratuito/ }).click()
+      }
+      await pg.waitForSelector('#t-largada')
+      await pg.getByRole('button', { name: /^Largar/ }).click()
+      await pg.waitForSelector('#pista')
+      await pg.getByRole('button', { name: 'x2' }).click()
+      const dados = await pg.evaluate(() => window.__galope.race._state.fx.filter((x) => x.kind === 'dado')
+        .map((d) => ({ t0: d.t0, t1: d.t1, e: d.escala, winner: d.winner, best: d.rolls[d.winner].best })))
+      const it = dados[0]
+      const q = await (await pg.waitForFunction((it) => {
+        const s = window.__galope.race && window.__galope.race._state
+        if (!s || s.simT < it.t0 + 0.7 * it.e) return false
+        const st = window.RaceFx._stats
+        return { simT: s.simT, slowK: s.slowK, dados: st.dados, faixa: st.faixaDado, particulas: st.particulas, placas: st.placas.slice(), ms: st.msQuadro }
+      }, it, { timeout: 60000, polling: 'raf' })).jsonValue()
+      return { dados, it, q, seed }
+    }
+    const dadoNaPista = async (vp, label, shotName, testaPular) => {
+      const pg = await newPage(browser, vp, label, { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        let r = null
+        for (let k = 0; k < DADO_SEEDS.length; k++) {
+          r = await correAteDado(pg, DADO_SEEDS[k], k === 0)
+          if (r.q.placas.some((p) => p.racer === r.it.winner)) break
+          notes['dado-' + label + '-pulou-seed-' + r.seed] = 'vencedor do 1º Dado fora da tela'
+          await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+          await pg.waitForSelector('#t-resultado')
+          r = null
+        }
+        if (!r) { problems.push(`[${label}] Dado: nenhuma seed de ${DADO_SEEDS} deixou o vencedor do 1º Dado na tela`); return }
+        await pg.screenshot({ path: join(SHOTS, shotName) })
+        const { it, q } = r
+        const venc = q.placas.find((p) => p.racer === it.winner)
+        notes['dado-' + label] = { seed: r.seed, t0: it.t0, escala: +it.e.toFixed(3), winner: it.winner, best: it.best, slowK: q.slowK, dados: q.dados, faixa: q.faixa, particulas: q.particulas, placaVencedor: venc, msQuadro: +q.ms.toFixed(2) }
+        if (!(q.dados >= 1)) problems.push(`[${label}] Dado: RaceFx._stats.dados = ${q.dados} na janela do Dado`)
+        if (q.faixa !== true) problems.push(`[${label}] Dado: faixa "DADO DA SORTE" ausente na janela`)
+        if (!(q.slowK < 1)) problems.push(`[${label}] Dado: sem câmera lenta logo depois da revelação (slowK ${q.slowK})`)
+        if (!venc || venc.numero !== String(it.best) || !venc.vencedor || venc.fase !== 'mostra') problems.push(`[${label}] Dado: plaquinha do vencedor ${JSON.stringify(venc)} (esperado ${it.best})`)
+        if (!(q.particulas > 0)) problems.push(`[${label}] Dado: vencedor sem faíscas (particulas = ${q.particulas})`)
+        q.placas.forEach((p) => { if (p.fase !== 'mostra' || !/^\d+$/.test(p.numero)) problems.push(`[${label}] Dado: plaquinha ainda girando ou sem número ${JSON.stringify(p)}`) })
+        await checkOverflow(pg, label + '-dado')
+        if (testaPular) {
+          // Review Focus 2: "Pular" durante a câmera lenta do 2º Dado abre o resultado sem efeito preso nem erro
+          const it2 = r.dados[1]
+          if (!it2) { problems.push(`[${label}] Dado: corrida sem o 2º Dado`); return }
+          await pg.evaluate(() => {
+            document.addEventListener('click', (ev) => {
+              if (!ev.target.closest || !ev.target.closest('#btn-pular') || !window.__galope.race) return
+              const s = window.__galope.race._state
+              window.__pularEm = { simT: s.simT, slowK: s.slowK, faixa: window.RaceFx._stats.faixaDado }
+            }, true)
+          })
+          await pg.waitForFunction((it) => {
+            const s = window.__galope.race && window.__galope.race._state
+            return s && s.simT >= it.t0 + 0.05 * it.e && s.slowK < 1
+          }, it2, { timeout: 60000, polling: 'raf' })
+          await pg.getByRole('button', { name: /Pular/ }).click()
+          await pg.waitForSelector('#t-resultado')
+          await sleep(300)
+          const dep = await pg.evaluate(() => ({ em: window.__pularEm, race: !!window.__galope.race, st: { dados: window.RaceFx._stats.dados, faixa: window.RaceFx._stats.faixaDado, placas: window.RaceFx._stats.placas.length } }))
+          notes['dado-pular-' + label] = dep
+          if (!dep.em || !(dep.em.slowK < 1) || dep.em.faixa !== true) problems.push(`[${label}] Dado: o "Pular" não foi clicado durante a câmera lenta ${JSON.stringify(dep.em)}`)
+          if (dep.race || dep.st.dados !== 0 || dep.st.faixa !== false || dep.st.placas !== 0) problems.push(`[${label}] Dado: efeito preso depois do "Pular" ${JSON.stringify(dep)}`)
+        }
+      } catch (e) {
+        problems.push(`[${label}] Dado: ${e.message}`)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    await dadoNaPista({ width: 390, height: 844 }, 'dado390', 'final-12-dado.png', true)
+    await dadoNaPista({ width: 1280, height: 800 }, 'dado1280', 'final-desktop-dado.png', false)
   }
 
   // ---------------- loja: abas, comprar (com recusa sem Ouro), Pedras Negras e resumo na largada ----------------
