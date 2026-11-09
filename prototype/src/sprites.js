@@ -26,7 +26,8 @@
  *   Moldes do PixelLab (recolor por paleta; sem eles, desenho por código):
  *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
  *   Sprites.drawHorseSilhouette(ctx, x, y, opts, cor, alpha)  (contorno tingido, chamar antes de drawHorse),
- *   Sprites.anchorsFor(element, scale, estado), Sprites.horseBox(x, y, opts), Sprites.limparCacheMoldes(),
+ *   Sprites.anchorsFor(element, scale, estado), Sprites.horseBox(x, y, opts),
+ *   Sprites.limparCacheMoldes() (moldes recoloridos e silhuetas do contorno; o game.js chama ao trocar de tela),
  *   Sprites.drawHorseCodigo(...)
  */
 (function (root, factory) {
@@ -1114,15 +1115,23 @@
 
   // Silhueta do cavalo (com jóquei) tingida de uma cor, para o contorno de skill da corrida: o desenho
   // normal (molde ou código, sem sombra) vai para um canvas pequeno, é tingido com 'source-in' e fica no
-  // cache por estilo|quadro|parado|escala|cor. Desenha 4 cópias deslocadas 1 px de arte (= k px) para
-  // cima/baixo/esquerda/direita; chamar ANTES de drawHorse para o contorno ficar atrás.
-  var silCache = new Map();
+  // cache por estilo|estado|quadro|escala|cor. O quadro é o que drawHorse desenha de fato: com molde, o do
+  // molde (quadroGalope: 9 quadros no ciclo dos 6 do código; parado e retrato = 0); sem molde, o do código
+  // (e a pose parada). Desenha 4 cópias deslocadas 1 px de arte (= k px) para cima/baixo/esquerda/direita;
+  // chamar ANTES de drawHorse para o contorno ficar atrás. Cache LRU com teto em bytes (8 MB), limpo junto
+  // com o dos moldes (limparCacheMoldes, ao trocar de tela).
+  var silCache = new LruCanvasCache(8 * 1024 * 1024);
   function drawHorseSilhouette(ctx, x, y, opts, cor, alpha) {
     opts = opts || {};
     var k = Math.max(1, Math.round(opts.scale || 1));
-    var usaMolde = !!(moldsOk && estadoMolde(opts));
-    var key = (usaMolde ? 'm' : 'c') + '|' + (usaMolde ? estiloDe(opts.element) : opts.element) + '|' +
-      mod(Math.floor(opts.frame || 0), GALLOP.length) + '|' + (opts.idle ? 1 : 0) + '|' + k + '|' + cor;
+    var estado = moldsOk ? estadoMolde(opts) : null, key;
+    if (estado) {
+      var estilo = estiloDe(opts.element);
+      key = 'm|' + estilo + '|' + estado + '|' + (estado === 'galope' ? quadroGalope(moldes[estilo], opts.frame) : 0);
+    } else {
+      key = 'c|' + opts.element + '|' + mod(Math.floor(opts.frame || 0), GALLOP.length) + '|' + (opts.idle ? 1 : 0);
+    }
+    key += '|' + k + '|' + cor;
     var hit = silCache.get(key);
     if (!hit) {
       var b0 = horseBox(0, 0, opts), pad = 2 * k;
@@ -1137,8 +1146,8 @@
       cx.globalCompositeOperation = 'source-in';
       cx.fillStyle = cor;
       cx.fillRect(0, 0, c.width, c.height);
-      hit = { c: c, dx: b0.x - pad, dy: b0.y - pad };
-      if (silCache.size > 300) silCache.clear();
+      // width/height: o LruCanvasCache conta os bytes da entrada por eles
+      hit = { c: c, dx: b0.x - pad, dy: b0.y - pad, width: c.width, height: c.height };
       silCache.set(key, hit);
     }
     var prev = ctx.globalAlpha, bx = Math.round(x) + hit.dx, by = Math.round(y) + hit.dy;
@@ -1183,8 +1192,9 @@
   }
   function quadroGalopeTeste(element, frame) { return moldsOk ? quadroGalope(moldes[estiloDe(element)], frame) : null; }
 
-  function limparCacheMoldes() { moldCache.clear(); }
+  function limparCacheMoldes() { moldCache.clear(); silCache.clear(); }
   function cacheMoldes() { return moldCache.map.size; }
+  function cacheSilhuetas() { return { n: silCache.map.size, bytes: silCache.bytes, max: silCache.max }; }
 
   // Para o comparativo.html: um quadro do molde pintado com cores livres (índice -> cor), sem cache.
   function moldeCanvas(estilo, estado, quadro, cores) {
@@ -2140,6 +2150,7 @@
     limparCacheMoldes: limparCacheMoldes,
     moldeCanvas: moldeCanvas,
     _cacheMoldes: cacheMoldes,
+    _cacheSilhuetas: cacheSilhuetas,
     _layoutMolde: layoutTeste,
     _quadroGalope: quadroGalopeTeste,
     drawTrack: drawTrack,

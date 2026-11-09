@@ -1809,6 +1809,41 @@ try {
         return erros
       })
       enc.forEach((e) => problems.push('moldes-encaixe: ' + e))
+      // contorno de skill: a silhueta é a do quadro que drawHorse desenha. Os pares 0.1/0.9 (2.1/2.9, 4.1/4.9)
+      // caem no mesmo quadro do código e em quadros diferentes do molde: com a chave pelo quadro do código, a 2ª
+      // silhueta reaproveitava a 1ª ("pernas fantasmas"). Máscara esperada = a do drawHorse deslocada 1 px de
+      // arte nas 4 direções. limparCacheMoldes esvazia também este cache, que tem teto em bytes.
+      const sil = await mc.evaluate(() => {
+        const SP = window.Sprites, erros = [], k = 3, W = 200, H = 160, X = 40, Y = 30
+        const tela = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.imageSmoothingEnabled = false; return g }
+        const mascara = (g) => { const d = g.getImageData(0, 0, W, H).data, m = new Uint8Array(W * H); for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3] > 0 ? 1 : 0; return m }
+        SP.limparCacheMoldes()
+        let casos = 0
+        for (const el of ['fogo', 'agua', 'grama', 'neutro']) {
+          for (const [f, idle] of [[0.1, false], [0.9, false], [2.1, false], [2.9, false], [4.1, false], [4.9, false], [0.1, true], [3.9, true]]) {
+            const o = { palette: SP.PALETTES[el], element: el, frame: f, scale: k, silks: '#d8353b', t: 0, idle }
+            const a = tela(); SP.drawHorseSilhouette(a, X, Y, o, '#ff00ff', 1)
+            const b = tela(); SP.drawHorse(b, X, Y, Object.assign({}, o, { shadow: false }))
+            const ma = mascara(a), mb = mascara(b)
+            const em = (x, y) => x >= 0 && y >= 0 && x < W && y < H && mb[y * W + x] === 1
+            let dif = 0, tot = 0
+            for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+              const esp = em(x - k, y) || em(x + k, y) || em(x, y - k) || em(x, y + k) ? 1 : 0
+              tot += esp; if (esp !== ma[y * W + x]) dif++
+            }
+            casos++
+            if (!tot || dif) erros.push(`${el} quadro ${f}${idle ? ' parado' : ' (molde ' + SP._quadroGalope(el, f) + ')'}: ${dif} de ${tot} px da silhueta fora da máscara do drawHorse`)
+          }
+        }
+        const antes = SP._cacheSilhuetas()
+        SP.limparCacheMoldes()
+        const depois = SP._cacheSilhuetas()
+        if (!(antes.n > 0) || antes.bytes > antes.max || !(antes.max <= 8 * 1024 * 1024)) erros.push('cache das silhuetas ' + JSON.stringify(antes))
+        if (depois.n !== 0 || depois.bytes !== 0) erros.push('limparCacheMoldes não esvaziou o cache das silhuetas ' + JSON.stringify(depois))
+        return { erros, casos, cache: antes }
+      })
+      notes.silhueta = { casos: sil.casos, cache: sil.cache }
+      sil.erros.forEach((e) => problems.push('contorno da skill: ' + e))
       await mc.getByRole('button', { name: 'Escolher Ipê' }).click()
       await mc.waitForSelector('#t-estabulo')
       await mc.evaluate((sd) => { window.__galope.state.seedBase = sd }, SEED8)
