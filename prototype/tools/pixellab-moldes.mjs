@@ -11,6 +11,11 @@
 //             icone/aba-loja): a repetição manual de item ruim (no máximo 2 itens por lote, plano Step 3).
 //   --reprocessar  refaz os finais só a partir de raw/, sem rede (nem /balance): falha se faltar imagem crua.
 //                  Não mexe em docs/memoria/assets.md (nada novo foi gerado).
+//   --testar-crinas [--forca N]  rodada de crinas (2026-11-09): para os estilos com `testesCrina`, gera cada
+//                  variante (corrida com a crina reforçada no texto + galope) com UMA tentativa por etapa, só
+//                  anima se a corrida passar na pré-checagem e grava só em raw/ (nem finais, nem assets.md).
+//                  --forca N roda só a variante dessa força. A escolhida vira o `corrida` do estilo e os finais
+//                  saem num --gerar normal, que a reaproveita de raw/ sem custo.
 // Credencial: o proxy de rede injeta a chave (nunca no código nem em arquivo). O fetch do Node não lê
 // HTTPS_PROXY sozinho: na sessão na nuvem, rode com NODE_USE_ENV_PROXY=1 (Node ≥ 22.21), senão a API
 // responde 401 (a chamada sai sem passar pelo proxy e sem a chave).
@@ -79,14 +84,21 @@ const POSES = {
 // montado (opcional): seed e reforço próprios do montado — rodada 1 de correção: o montado da lisa saía
 // com crina e cauda marrom-escuras e o jóquei borrado (o reforço vale também para a corrida).
 // corrida (opcional): o montado deste estilo é a pose `corrida` (seed base da corrida e do galope; forca =
-// init_image_strength, 1–999). chamas não tem: o galope dele é o padrão e a guia da corrida.
+// init_image_strength, 1–999; reforcarCrina = a crina do estilo também no início do texto e repetida como
+// "clearly visible and distinct"). chamas não tem: o galope dele é o padrão e a guia da corrida.
+// testesCrina: variantes da rodada de crinas (--testar-crinas, 2026-11-09), só as que rodaram. A força 150 saiu
+// quase uma cópia da guia (pose e penacho de chamas); a 200 a guia pesa mais, então não foi tentada. ondas: a
+// seed 1801 deu HTTP 502 (sem imagem, não cobrado) e a tentativa a 150 foi refeita na 1811.
 const ESTILOS = [
   { id: 'chamas', seed: 1101, crina: 'mane and tail shaped like flickering flames' },
-  { id: 'ondas', seed: 1201, crina: 'mane and tail shaped like flowing water waves', corrida: { seed: 1501, forca: 300 } },
-  { id: 'folhas', seed: 1301, crina: 'mane and tail made of leaves', corrida: { seed: 1601, forca: 300 } },
+  { id: 'ondas', seed: 1201, crina: 'mane and tail shaped like flowing water waves', corrida: { seed: 1501, forca: 300 },
+    testesCrina: [{ seed: 1801, forca: 150, reforcarCrina: true }, { seed: 1811, forca: 150, reforcarCrina: true }] },
+  { id: 'folhas', seed: 1301, crina: 'mane and tail made of leaves', corrida: { seed: 1601, forca: 300 },
+    testesCrina: [{ seed: 1901, forca: 150, reforcarCrina: true }] },
   { id: 'lisa', seed: 1401, crina: 'long straight flowing mane and tail',
     montado: { seed: 1451, reforco: 'bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet' },
-    corrida: { seed: 1701, forca: 300 } },
+    corrida: { seed: 1701, forca: 300 },
+    testesCrina: [{ seed: 2001, forca: 150, reforcarCrina: true }] },
 ];
 const poseMontada = estilo => (estilo.corrida ? 'corrida' : 'montado');
 const posesDe = estilo => ['retrato', 'parado', poseMontada(estilo)];
@@ -135,8 +147,11 @@ function guiaCorrida() {
 }
 function pedidoPose(estilo, pose, seed) {
   const reforco = (pose === 'montado' || pose === 'corrida') && estilo.montado ? `, ${estilo.montado.reforco}` : '';
+  const forte = pose === 'corrida' && estilo.corrida.reforcarCrina;
   const corpo = {
-    description: `side view, facing right, ${POSES[pose]}, ${estilo.crina}${reforco}, ${COR}`,
+    description: forte
+      ? `side view, facing right, ${estilo.crina}, ${POSES[pose]}, ${estilo.crina} clearly visible and distinct${reforco}, ${COR}`
+      : `side view, facing right, ${POSES[pose]}, ${estilo.crina}${reforco}, ${COR}`,
     image_size: { width: LADO, height: LADO },
     view: 'side', direction: 'east',
     outline: 'single color black outline', shading: 'basic shading', detail: 'medium detail',
@@ -171,7 +186,7 @@ function pedidoIcone(icone, seed) {
 function sair(msg) { console.error(msg); process.exit(2); }
 
 function lerArgs(argv) {
-  const a = { lote: null, only: null, teto: 60, gerar: false, reprocessar: false, repetir: [] };
+  const a = { lote: null, only: null, teto: 60, gerar: false, reprocessar: false, repetir: [], testarCrinas: false, forca: null };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--gerar') a.gerar = true;
@@ -180,6 +195,8 @@ function lerArgs(argv) {
     else if (k === '--only') a.only = argv[++i];
     else if (k === '--teto') a.teto = Number(argv[++i]);
     else if (k === '--repetir') a.repetir = String(argv[++i] || '').split(',').filter(Boolean);
+    else if (k === '--testar-crinas') a.testarCrinas = true;
+    else if (k === '--forca') a.forca = Number(argv[++i]);
     else sair('argumento desconhecido: ' + k);
   }
   if (!['moldes', 'icones', 'tudo'].includes(a.lote)) {
@@ -187,6 +204,8 @@ function lerArgs(argv) {
   }
   if (!Number.isFinite(a.teto) || a.teto <= 0) sair('--teto precisa ser um número maior que zero');
   if (a.gerar && a.reprocessar) sair('--gerar e --reprocessar não andam juntos');
+  if (a.testarCrinas && (a.reprocessar || a.lote === 'icones' || a.repetir.length)) sair('--testar-crinas: só com --lote moldes|tudo, sem --reprocessar nem --repetir');
+  if (a.forca != null && !a.testarCrinas) sair('--forca só vale com --testar-crinas');
   a.estilos = a.lote === 'icones' ? [] : ESTILOS.filter(e => !a.only || e.id === a.only);
   a.icones = a.lote === 'moldes' ? [] : ICONES.filter(ic => !a.only || ic.id === a.only);
   if (a.only && !a.estilos.length && !a.icones.length) sair(`--only ${a.only}: não existe no lote "${a.lote}"`);
@@ -194,6 +213,11 @@ function lerArgs(argv) {
   const itens = [...ESTILOS.flatMap(e => [...posesDe(e), 'galope'].map(k => `${e.id}/${k}`)), ...ICONES.map(ic => `icone/${ic.id}`)];
   for (const r of a.repetir) if (!itens.includes(r)) sair(`--repetir ${r}: item desconhecido (ex.: lisa/parado, ondas/corrida, icone/aba-loja)`);
   REPETIR_EXTRA = a.repetir;
+  if (a.testarCrinas) {
+    a.icones = [];
+    a.estilos = a.estilos.filter(e => e.testesCrina);
+    if (!a.estilos.length) sair('--testar-crinas: nenhum estilo selecionado tem testesCrina');
+  }
   return a;
 }
 
@@ -264,8 +288,8 @@ function registrarAsset(arquivos, endpoint, prompt, seedTexto, geracoes, emUso) 
 // 1ª seed que o lote real usaria, sem rede: pula as com erro registrado ou rejeitadas à mão e, quando a imagem
 // crua já existe, também as que a pré-checagem (validar + aceite) reprova — como o lote real faria.
 // Devolve "cru" (e as imagens) se a seed escolhida já tiver a imagem em raw/.
-function seedPlanejada(dir, prefixo, seedBase, pedidoDe, rotulo, { varios = false, checar = null } = {}) {
-  for (let k = 0; k <= MAX_REPETICOES + (REPETIR_EXTRA.includes(rotulo) ? 1 : 0); k++) {
+function seedPlanejada(dir, prefixo, seedBase, pedidoDe, rotulo, { varios = false, checar = null, tentativas = null } = {}) {
+  for (let k = 0; k < (tentativas ?? MAX_REPETICOES + 1 + (REPETIR_EXTRA.includes(rotulo) ? 1 : 0)); k++) {
     const seed = seedBase + PASSO_SEED * k, corpo = pedidoDe(seed), base = `${prefixo}-s${seed}`, reg = lerCru(dir, base, corpo);
     if (reg && (reg.erro || reg.rejeitada)) continue;
     const bufs = reg && pngsCrus(dir, base, varios);
@@ -291,17 +315,37 @@ function planoEstilo(e) {
   }
   return plano;
 }
+// rodada de crinas: uma tentativa por etapa e por variante; o galope só existe se a corrida passar
+function planoTesteCrina(e, forca) {
+  const plano = [];
+  for (const v of e.testesCrina.filter(x => forca == null || x.forca === forca)) {
+    const ev = { ...e, corrida: v }, rot = `${e.id}/corrida-f${v.forca}`;
+    const c = seedPlanejada(DIR_MOLDES_RAW, prefixoPose(ev, 'corrida'), v.seed, seed => pedidoPose(ev, 'corrida', seed), rot,
+      { tentativas: 1, checar: bufs => checarPose(ev, 'corrida', bufs[0], rot) });
+    const cruOk = c.cru || !!(lerCru(DIR_MOLDES_RAW, `${prefixoPose(ev, 'corrida')}-s${v.seed}`, c.corpo));
+    plano.push({ item: rot, endpoint: PIXFLUX, seed: v.seed, texto: `${c.corpo.description} [init_image = raw/${GUIA_CORRIDA}; init_image_strength ${v.forca}]`, cru: c.cru || cruOk });
+    if (cruOk && !c.cru) continue; // já gerada e reprovada (ou com erro): sem galope
+    const rg = `${e.id}/galope-f${v.forca}`, sufixo = `[first_frame = ${rot} seed ${v.seed}; só se a corrida passar na pré-checagem]`;
+    if (!c.cru) { plano.push({ item: rg, endpoint: ANIMA, seed: v.seed, texto: `${ACAO_CORRIDA} ${sufixo}`, cru: false }); continue; }
+    const g = seedPlanejada(DIR_MOLDES_RAW, prefixoGalope(ev, v.seed), v.seed, seed => pedidoGalope(c.bufs[0], seed, ACAO_CORRIDA), rg,
+      { varios: true, tentativas: 1 });
+    plano.push({ item: rg, endpoint: ANIMA, seed: v.seed, texto: `${ACAO_CORRIDA} ${sufixo}`, cru: g.cru || !!lerCru(DIR_MOLDES_RAW, `${prefixoGalope(ev, v.seed)}-s${v.seed}`, g.corpo) });
+  }
+  return plano;
+}
 function planoIcone(ic) {
   const s = seedPlanejada(DIR_ICONES_RAW, ic.id, ic.seed, seed => pedidoIcone(ic, seed), `icone/${ic.id}`);
   return { item: `icone/${ic.id}`, endpoint: PIXFLUX, seed: s.seed, texto: `${s.corpo.description} [32×32; paleta ${coresIcone(ic).join(' ')}]`, cru: s.cru };
 }
 
 function dryRun(a) {
-  const plano = [...a.estilos.flatMap(planoEstilo), ...a.icones.map(planoIcone)];
-  console.log(`DRY-RUN (sem --gerar): nenhuma chamada à API. Lote "${a.lote}"${a.only ? ` (--only ${a.only})` : ''}; teto ${a.teto} gerações.`);
+  const plano = a.testarCrinas ? a.estilos.flatMap(e => planoTesteCrina(e, a.forca))
+    : [...a.estilos.flatMap(planoEstilo), ...a.icones.map(planoIcone)];
+  console.log(`DRY-RUN (sem --gerar): nenhuma chamada à API. Lote "${a.lote}"${a.only ? ` (--only ${a.only})` : ''}${a.testarCrinas ? `; rodada de crinas${a.forca != null ? ` (força ${a.forca})` : ''}` : ''}; teto ${a.teto} gerações.`);
   console.log('Estimativa: 1 geração por chamada (custo observado). Só os itens NOVOS aparecem em detalhe; os que já');
   console.log('têm imagem crua em raw/ com o mesmo pedido (e passam na pré-checagem) são reaproveitados sem custo.');
-  console.log('Repetições (até 2 por item) não entram na previsão.\n');
+  console.log(a.testarCrinas ? 'Rodada de crinas: uma tentativa por etapa; o galope só é pedido se a corrida passar (a previsão conta o máximo).\n'
+    : 'Repetições (até 2 por item) não entram na previsão.\n');
   let total = 0, n = 0;
   const crus = [];
   for (const [i, c] of plano.entries()) {
@@ -440,15 +484,16 @@ async function pago(ep, item, executar) {
 
 // ---------------------------------------------------------------- itens e repetições
 const ITENS = [];
-function novoItem(rotulo, seedBase) {
+function novoItem(rotulo, seedBase, tentativas = null) {
   // geracoes: gastas neste lote; anteriores: de imagens cruas reaproveitadas (gastas antes)
-  const it = { rotulo, seedBase, seeds: [], geracoes: 0, anteriores: 0, reaproveitadas: [], rejeicoes: [], extra: REPETIR_EXTRA.includes(rotulo) ? 1 : 0 };
+  const extra = REPETIR_EXTRA.includes(rotulo) ? 1 : 0;
+  const it = { rotulo, seedBase, seeds: [], geracoes: 0, anteriores: 0, reaproveitadas: [], rejeicoes: [], extra, tentativas: tentativas ?? MAX_REPETICOES + 1 + extra };
   ITENS.push(it);
   return it;
 }
 // próxima seed do item (base, base + 10, base + 20 [, base + 30 com --repetir]) ou null quando acabaram
 function proximaSeed(it) {
-  if (it.seeds.length > MAX_REPETICOES + it.extra) return null;
+  if (it.seeds.length >= it.tentativas) return null;
   const s = it.seedBase + PASSO_SEED * it.seeds.length;
   it.seeds.push(s);
   return s;
@@ -703,6 +748,25 @@ async function gerarEstilo(estilo) {
   return { estilo: estilo.id, ok: true, frames: galope.length, aceite: it.galope.aceite };
 }
 
+// Rodada de crinas: cada variante com UMA tentativa de corrida e, se ela passar na pré-checagem (validar +
+// aceite da pose), UMA de galope (validar + aceite). Grava só em raw/: a comparação da crina é visual, e a
+// variante escolhida vira o `corrida` do estilo (os finais saem num --gerar normal, reaproveitando raw/).
+async function testarCrinas(estilo, forca) {
+  const res = [];
+  for (const v of estilo.testesCrina.filter(x => forca == null || x.forca === forca)) {
+    const ev = { ...estilo, corrida: v };
+    console.log(`\n== Crina ${estilo.id}, força ${v.forca} (seed ${v.seed}; crina reforçada no texto) ==`);
+    const itC = novoItem(`${estilo.id}/corrida-f${v.forca}`, v.seed, 1), itG = novoItem(`${estilo.id}/galope-f${v.forca}`, v.seed, 1);
+    const montado = await gerarPose(ev, 'corrida', itC);
+    const base = { estilo: estilo.id, forca: v.forca, seed: v.seed };
+    if (!montado) { res.push({ ...base, ok: false, motivo: 'corrida reprovada (sem galope)' }); continue; }
+    const galope = await gerarGalope(ev, itG, montado, v.seed);
+    res.push(galope ? { ...base, ok: true, aceite: itG.aceite } : { ...base, ok: false, motivo: 'galope reprovado' });
+  }
+  for (const r of res) console.log(`  ${r.ok ? 'PASSOU' : 'REPROVOU'} ${r.estilo} força ${r.forca} seed ${r.seed}: ${r.ok ? r.aceite : r.motivo}`);
+  return res;
+}
+
 // ---------------------------------------------------------------- ícones
 async function gerarIcone(ic) {
   console.log(`\n== Ícone ${ic.id} ==`);
@@ -766,8 +830,11 @@ async function gerar(a) {
   const resultados = [];
   let parada = null;
   try {
-    for (const e of a.estilos) resultados.push(await gerarEstilo(e));
-    for (const ic of a.icones) resultados.push(await gerarIcone(ic));
+    if (a.testarCrinas) for (const e of a.estilos) for (const r of await testarCrinas(e, a.forca)) resultados.push({ ...r, teste: true });
+    else {
+      for (const e of a.estilos) resultados.push(await gerarEstilo(e));
+      for (const ic of a.icones) resultados.push(await gerarIcone(ic));
+    }
   } catch (e) {
     parada = e instanceof TetoAtingido ? `TETO: ${e.message}` : `ERRO FATAL: ${e instanceof ErroApi ? e.message : e.stack}`;
     console.log('\n' + parada);
@@ -779,7 +846,7 @@ async function gerar(a) {
     const reap = it.reaproveitadas.length ? `; reaproveitada(s) ${it.reaproveitadas.join(', ')} (${fmt(it.anteriores)} ger. anteriores)` : '';
     console.log(`  ${it.rotulo.padEnd(26)} ${fmt(it.geracoes)} ger.  seeds ${it.seeds.join(', ')}${reap}${it.rejeicoes.length ? `\n      rejeições: ${it.rejeicoes.join(' | ')}` : ''}`);
   }
-  const moldes = resultados.filter(r => r.estilo);
+  const moldes = resultados.filter(r => r.estilo && !r.teste);
   if (moldes.length) console.log('  Quadros de galope: ' + moldes.map(r => `${r.estilo} ${r.ok ? r.frames : 'falhou'}`).join(', '));
   if (moldes.some(r => r.aceite)) {
     const ref = referenciaCorrida();

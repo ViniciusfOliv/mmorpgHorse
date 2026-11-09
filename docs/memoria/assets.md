@@ -51,3 +51,14 @@ Em 2026-11-09 (galope de corrida e bússola, spec `2026-11-09-corrida-viva-desig
 bússola foram trocadas; as imagens substituídas continuam em `raw/` (montados e galopes antigos
 `ondas-montado-s1221`/`ondas-galope-m1221-s1201`, `folhas-montado-s1311`/`folhas-galope-m1311-s1301`,
 `lisa-montado-s1471`/`lisa-galope-m1471-s1401`; bússola `aba-expedicao-s2123`).
+Rodada de crinas (2026-11-09, `pixellab-moldes.mjs --testar-crinas`): corrida com a crina do estilo
+reforçada no texto e `init_image_strength` 150, uma tentativa por etapa, para a crina aparecer no galope. Foram
+4 gerações (1929 → 1925; o script contou 5 porque contou um HTTP 502):
+- ondas: seed 1801 deu HTTP 502 (sem imagem, não cobrado); a seed 1811 foi reprovada na pré-checagem por
+  falta da pele do jóquei (1 geração);
+- folhas: seed 1901 reprovada pelo mesmo motivo (1);
+- lisa: a corrida da seed 2001 passou e o galope reprovou na altura, 46 > 45,7 (2).
+
+Nenhuma variante passou, e nas que saíram a crina continuou parecida com a de chamas. Os galopes acima
+(força 300) ficaram. As tentativas estão em `raw/` (`*-corrida-f150-*`, `lisa-galope-c2001f150-s2001-*`) e
+não entram no jogo. Total do dia: 14 gerações (1939 → 1925).
