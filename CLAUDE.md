@@ -43,7 +43,8 @@ Nada de polimento, servidor, contas ou loja ainda. Fases e checklist de lançame
 | **Verificação completa** (build + simulação + efeitos + moldes + balanço + UI, sem tocar nas capturas) | `./scripts/check.sh` | ~5 min |
 
 Abrir o jogo localmente: `prototype/dist/preview.html` no navegador.
-Modo DEV: `preview.html?dev=1` — save separado (`galope-elemental:dev`) e gaveta "DEV" para montar cavalo, itens e condições da corrida.
+Modo DEV: `preview.html?dev=1` ou o build de teste `prototype/dist/jogo-dev.html` (liga sozinho, sem query) — save
+separado (`galope-elemental:dev`) e gaveta "DEV" para montar cavalo, itens e condições da corrida.
 Capturas oficiais em `prototype/screens/` só são atualizadas quando a interface muda de propósito
 (rodar `ui-test.mjs` direto e commitar as imagens).
 
@@ -71,6 +72,8 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
   sem rede. **Gasta créditos — sempre pedir confirmação antes.**
 - **Canva** (capa, ícone, imagens de loja) e **ElevenLabs** (sons/vozes) — quando conectados;
   também pedem confirmação antes de gastar créditos.
+- **Artefato do claude.ai** (onde o Vinicius joga): publicar `prototype/dist/jogo.html`; para o modo DEV, publicar
+  `prototype/dist/jogo-dev.html` como outro artefato (o artefato não repassa `?dev=1`).
 - Todo asset gerado: salvar com nome descritivo e registrar em `docs/memoria/assets.md`.
   Esse registro alimenta a declaração de IA da Steam (conteúdo que o jogador vê/ouve).
 

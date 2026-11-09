@@ -2,8 +2,8 @@
  * Galope Elemental — interface jogável do protótipo (descartável).
  *
  * Depende de window.GameData (data.js), window.RaceSim (sim.js), window.Gear (gear.js),
- * window.Sprites (sprites.js) e window.RaceFx (fx.js, efeitos da corrida); com ?dev=1, também de
- * window.Dev (dev.js) — ver a seção "Modo DEV".
+ * window.Sprites (sprites.js) e window.RaceFx (fx.js, efeitos da corrida); no modo DEV (?dev=1 ou o build
+ * de teste jogo-dev.html), também de window.Dev (dev.js) — ver a seção "Modo DEV".
  * Fluxo: Escolha do inicial -> Estábulo -> Sala de largada -> Corrida -> Resultado.
  *
  * Sala de largada: o campo (seed, condições, rivais, entrada) é sorteado UMA vez e fica salvo em
@@ -21,8 +21,12 @@
   var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, DV = window.Dev, FX = window.RaceFx;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
-  // Modo DEV: decidido uma vez, na carga. Com ?dev=1 o jogo só lê e grava o save de teste.
-  var DEV_MODE = /[?&]dev=1(&|$)/.test(window.location.search);
+  // Modo DEV: decidido uma vez, na carga — ?dev=1 ou o build de teste (prototype/dist/jogo-dev.html, que traz
+  // window.__GALOPE_DEV = true: o artefato do claude.ai não repassa a query). Nele o jogo só lê e grava o save
+  // de teste.
+  function devAtivo() { return /[?&]dev=1(&|$)/.test(window.location.search) || window.__GALOPE_DEV === true; }
+  var DEV_MODE = devAtivo();
+  var DEV_BUILD = window.__GALOPE_DEV === true;   // jogo-dev.html: não há "jogo real" para onde voltar
   if (!GD || !RS || !SP || !GR || !FX || !telaEl || (DEV_MODE && !DV)) {
     if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, sprites.js, fx.js ou dev.js).';
     return;
@@ -31,7 +35,7 @@
   // ===========================================================================
   // Constantes
   // ===========================================================================
-  // ?dev=1: só o save de teste (Dev.SAVE_KEY); o real ('galope-elemental:v1') não é lido nem gravado
+  // modo DEV (devAtivo): só o save de teste (Dev.SAVE_KEY); o real ('galope-elemental:v1') não é lido nem gravado
   var SAVE_KEY = DEV_MODE ? DV.SAVE_KEY : 'galope-elemental:v1';
   var E = GD.ECONOMY;
   var GE = E.gear;
@@ -603,8 +607,9 @@
   var state = null;
   var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null, montaria: null, tab: 'estabulo',
     motionKeep: null,   // "Recomeçar": a opção Animações passa para o save novo
-    // modo DEV (só com ?dev=1): gaveta e valores armados para a próxima corrida (ver a seção "Modo DEV")
-    dev: { aberto: false, ouroInf: true, msg: '', f: null }, devNext: null };
+    // modo DEV (só com devAtivo()): gaveta, confirmação do "Zerar" e valores armados para a próxima corrida
+    // (ver a seção "Modo DEV")
+    dev: { aberto: false, ouroInf: true, msg: '', f: null, confirmZerar: false }, devNext: null };
   var live = [];          // canvases animados da tela atual
   var raceView = null;
   var portraitQueue = [];
@@ -835,10 +840,13 @@
   }
 
   // ===========================================================================
-  // Modo DEV (?dev=1): perfil de teste, faixa no topo, botão "DEV" e gaveta
+  // Modo DEV (devAtivo(): ?dev=1 ou o build jogo-dev.html): perfil de teste, faixa no topo, botão "DEV" e gaveta
   // ---------------------------------------------------------------------------
   // - Save: SAVE_KEY = Dev.SAVE_KEY ('galope-elemental:dev'); o save real nunca é lido nem gravado.
-  //   Perfil novo (ou apagado) nasce com a Brasa, sem a escolha inicial (devNovoPerfil).
+  //   Perfil novo (ou apagado) nasce com a Brasa, sem a escolha inicial (devNovoPerfil). "Zerar perfil de
+  //   teste" (confirmação em dois passos na gaveta: window.confirm não abre num iframe sem allow-modals) e o
+  //   "Recomeçar" do Perfil fazem o mesmo (devZerarPerfil).
+  // - "Voltar ao jogo real" é um link para a página sem dev=1; no build jogo-dev.html vira um aviso curto.
   // - Ouro infinito (ui.dev.ouroInf, ligado por padrão): persist() chama Dev.refillGold.
   // - O painel cria cavalos fora das regras: sanitize aceita o templateId 'dev-<n>' e qualquer skill
   //   do catálogo (devTemplateId, validSkills); o estábulo cresce sem limite de vagas.
@@ -867,6 +875,17 @@
     var st = newState('brasa');
     if (ui.dev.ouroInf) DV.refillGold(st);
     return st;
+  }
+  // "Zerar perfil de teste" (gaveta) e "Recomeçar" (Perfil) no modo DEV: o save de teste volta à Brasa, sem a
+  // escolha inicial; a opção Animações continua. Quem chama navega.
+  function devZerarPerfil() {
+    var motion = motionPref();
+    wipeSave();
+    state = devNovoPerfil();
+    state.settings.motion = motion;
+    ui.lobby = null; ui.result = null; ui.devNext = null; ui.dev.f = null; ui.dev.confirmZerar = false; ui.confirmReset = false;
+    persist();
+    ui.dev.msg = 'Perfil de teste zerado: começa de novo com a Brasa.';
   }
 
   // condições da sala com o filtro do painel por cima; o que não foi forçado segue a sala normal
@@ -1075,12 +1094,23 @@
       '<p class="dev-armado' + (ui.devNext ? ' dev-armado--on' : '') + '" id="dev-armado">' + esc(devResumoArmado(ui.devNext)) + '</p>' +
       '<div class="dev-acoes">' + devBotao('dev-armar', 'Armar', 'btn--ouro') + devBotao('dev-limpar', 'Limpar') + '</div>');
 
-    var parts = window.location.search.replace(/^\?/, '').split('&').filter(function (q) { return q && q !== 'dev=1'; });
-    var realUrl = window.location.pathname + (parts.length ? '?' + parts.join('&') : '') + window.location.hash;
+    // Perfil: "Zerar perfil de teste" em dois passos, na própria gaveta (como o "Recomeçar" do Perfil), e
+    // "Voltar ao jogo real" (a página sem dev=1; no build de teste jogo-dev.html, um aviso: não há para onde voltar)
+    var acoes = [];
+    if (!ui.dev.confirmZerar) acoes.push(devBotao('dev-zerar', 'Zerar perfil de teste', 'btn--perigo'));
+    if (!DEV_BUILD) {
+      var parts = window.location.search.replace(/^\?/, '').split('&').filter(function (q) { return q && q !== 'dev=1'; });
+      var realUrl = window.location.pathname + (parts.length ? '?' + parts.join('&') : '') + window.location.hash;
+      acoes.push('<a class="btn btn--pequeno dev-real" href="' + esc(realUrl) + '">Voltar ao jogo real</a>');
+    }
     var perfil = devGrupo('perfil', 'Perfil',
       '<p class="nota">O perfil de teste fica em "' + esc(DV.SAVE_KEY) + '"; o save do jogo real não é lido nem gravado aqui.</p>' +
-      '<div class="dev-acoes">' + devBotao('dev-zerar', 'Zerar perfil de teste', 'btn--perigo') +
-        '<a class="btn btn--pequeno dev-real" href="' + esc(realUrl) + '">Voltar ao jogo real</a></div>');
+      (ui.dev.confirmZerar
+        ? '<div class="confirma" role="group" aria-label="Confirmar zerar o perfil de teste"><span>Zerar o perfil de teste? Cavalos, peças e progresso do save DEV voltam ao começo (o save do jogo real não é tocado).</span>' +
+          devBotao('dev-zerar-sim', 'Sim, zerar', 'btn--perigo') + devBotao('dev-zerar-nao', 'Cancelar') + '</div>'
+        : '') +
+      (acoes.length ? '<div class="dev-acoes">' + acoes.join('') + '</div>' : '') +
+      (DEV_BUILD ? '<p class="nota dev-real-aviso">Este é o build de teste; abra o jogo normal.</p>' : ''));
 
     return '<div class="dev-gaveta" id="dev-gaveta" role="region" aria-labelledby="dev-titulo">' +
       '<div class="dev-cabeca"><h2 class="titulo" id="dev-titulo" tabindex="-1">Modo DEV</h2>' + devBotao('dev-fechar', 'Fechar') + '</div>' +
@@ -1210,12 +1240,13 @@
         ui.dev.msg = devResumoArmado(null);
         rerenderKeepScroll(); break;
       case 'dev-zerar':
-        if (!window.confirm('Zerar o perfil de teste? Cavalos, peças e progresso do save DEV voltam ao começo (o save do jogo real não é tocado).')) break;
-        wipeSave();
-        state = devNovoPerfil();
-        ui.lobby = null; ui.result = null; ui.devNext = null; ui.dev.f = null;
-        persist();
-        ui.dev.msg = 'Perfil de teste zerado: começa de novo com a Brasa.';
+        ui.dev.confirmZerar = true; ui.dev.msg = '';
+        renderDev(); devFoca('[data-acao="dev-zerar-nao"]'); break;
+      case 'dev-zerar-nao':
+        ui.dev.confirmZerar = false;
+        renderDev(); devFoca('[data-acao="dev-zerar"]'); break;
+      case 'dev-zerar-sim':
+        devZerarPerfil();
         go('estabulo'); break;
     }
   }
@@ -1227,7 +1258,7 @@
       var acao = b.getAttribute('data-acao');
       if (acao === 'dev-abrir' || acao === 'dev-fechar') {
         ui.dev.aberto = acao === 'dev-abrir' ? !ui.dev.aberto : false;
-        ui.dev.msg = '';
+        ui.dev.msg = ''; ui.dev.confirmZerar = false;
         renderDev();
         devFoca(ui.dev.aberto ? '#dev-titulo' : '.dev-botao');
         return;
@@ -1247,7 +1278,7 @@
       if (k === 'raridade') renderDev();   // a nota das vagas de skill muda com a raridade
     });
     devEl.addEventListener('keydown', function (e) {
-      if ((e.key === 'Escape' || e.key === 'Esc') && ui.dev.aberto) { ui.dev.aberto = false; renderDev(); devFoca('.dev-botao'); }
+      if ((e.key === 'Escape' || e.key === 'Esc') && ui.dev.aberto) { ui.dev.aberto = false; ui.dev.confirmZerar = false; renderDev(); devFoca('.dev-botao'); }
     });
   }
 
@@ -1514,13 +1545,15 @@
       '</section>';
   }
 
-  // "Recomeçar com outro inicial" com confirmação (vai para o Perfil)
+  // "Recomeçar com outro inicial" com confirmação (vai para o Perfil). No modo DEV, zera o perfil de teste
+  // (volta à Brasa, sem a escolha inicial; o botão DEV continua), como o "Zerar" da gaveta.
   function resetHtml() {
     return ui.confirmReset
-      ? '<div class="confirma" role="group" aria-label="Confirmar recomeço"><span>Apagar o progresso e escolher outro inicial?</span>' +
-        '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="reset-sim">Sim, recomeçar</button>' +
+      ? '<div class="confirma" role="group" aria-label="Confirmar recomeço"><span>' +
+          (DEV_MODE ? 'Zerar o perfil de teste? Ele volta a começar com a Brasa (o save do jogo real não é tocado).' : 'Apagar o progresso e escolher outro inicial?') + '</span>' +
+        '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="reset-sim">' + (DEV_MODE ? 'Sim, zerar' : 'Sim, recomeçar') + '</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="reset-nao">Cancelar</button></div>'
-      : '<button type="button" class="btn btn--texto" data-acao="reset">Recomeçar com outro inicial</button>';
+      : '<button type="button" class="btn btn--texto" data-acao="reset">' + (DEV_MODE ? 'Recomeçar (zera o perfil de teste)' : 'Recomeçar com outro inicial') + '</button>';
   }
 
   // ===========================================================================
@@ -3491,6 +3524,7 @@
       case 'reset-nao':
         ui.confirmReset = false; rerenderKeepScroll(); focusAction('reset'); break;
       case 'reset-sim':
+        if (DEV_MODE) { devZerarPerfil(); go('estabulo'); break; }   // perfil de teste: volta à Brasa, sem a escolha
         ui.motionKeep = motionPref();
         guardaMotionKeep(ui.motionKeep);
         ui.confirmReset = false; wipeSave(); state = null; ui.lobby = null; ui.result = null; go('inicial'); break;

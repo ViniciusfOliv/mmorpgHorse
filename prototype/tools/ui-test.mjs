@@ -1093,20 +1093,75 @@ try {
       if (s.rev !== JSON.parse(salvo).rev) problems.push('dev: abrir o save DEV de novo gravou por cima (rev ' + s.rev + ')')
       await conferirReal('ao abrir o save de novo', dv2)
       await dv2.close()
-      // 8. "Voltar ao jogo real" aponta para a página sem dev=1; "Zerar perfil" (com confirmação) volta à Brasa
+      // 8. "Voltar ao jogo real" aponta para a página sem dev=1; "Zerar perfil" pede confirmação na própria gaveta
+      //    (window.confirm não abre num iframe sem allow-modals, como o do artefato): "Cancelar" não mexe em nada,
+      //    "Sim, zerar" volta à Brasa. Nenhum diálogo do navegador pode abrir.
+      dv.on('dialog', (d) => { problems.push('dev: diálogo do navegador aberto: ' + d.message()); d.dismiss().catch(() => {}) })
       await devAbrir(dv)
       const href = await dv.locator('.dev-real').getAttribute('href')
       if (!href || /dev=1/.test(href) || !/preview\.html/.test(href)) problems.push('dev: "Voltar ao jogo real" com href ' + href)
-      dv.once('dialog', (d) => d.accept())
+      if ((await dv.locator('.dev-real-aviso').count()) !== 0) problems.push('dev: aviso do build de teste com ?dev=1 no preview')
       await dv.locator('[data-acao="dev-zerar"]').click()
+      await dv.waitForSelector('.dev-gaveta [data-acao="dev-zerar-sim"]')
+      await dv.locator('[data-acao="dev-zerar-nao"]').click()
+      if ((await st()).mounts.length !== 2 || (await dv.locator('[data-acao="dev-zerar"]').count()) !== 1) problems.push('dev: "Cancelar" do Zerar perfil mexeu no perfil ou não voltou ao botão')
+      await dv.locator('[data-acao="dev-zerar"]').click()
+      await dv.locator('[data-acao="dev-zerar-sim"]').click()
       await dv.waitForSelector('#t-estabulo')
       s = await st()
       if (s.mounts.length !== 1 || s.mounts[0].templateId !== 'brasa' || s.items.length !== 2 || s.gold !== 999999) problems.push('dev: zerar perfil ' + JSON.stringify({ n: s.mounts.length, t: s.mounts[0].templateId, itens: s.items.length, gold: s.gold }))
       await conferirReal('depois de zerar')
+      // 9. no modo DEV o "Recomeçar" do Perfil zera o perfil de teste: Brasa nível 1, sem a escolha inicial, e o
+      //    botão DEV continua
+      await devAbrir(dv)
+      await dv.locator('[data-acao="dev-niveis"]').click()
+      await devFechar(dv)
+      const lv9 = (await st()).mounts[0].level
+      await dv.locator('[data-acao="perfil"]').click()
+      await dv.waitForSelector('#t-perfil')
+      await dv.locator('[data-acao="reset"]').click()
+      await dv.locator('[data-acao="reset-sim"]').click()
+      await dv.waitForSelector('#t-estabulo')
+      s = await st()
+      if (lv9 !== 11 || s.mounts.length !== 1 || s.mounts[0].templateId !== 'brasa' || s.mounts[0].level !== 1 || s.gold !== 999999) problems.push('dev: Recomeçar no modo DEV ' + JSON.stringify({ lv9, n: s.mounts.length, t: s.mounts[0].templateId, lv: s.mounts[0].level, gold: s.gold }))
+      if ((await dv.locator('.inicial').count()) !== 0 || (await dv.locator('.dev-botao').count()) !== 1) problems.push('dev: Recomeçar no modo DEV abriu a escolha inicial ou tirou o botão DEV')
+      await conferirReal('depois do Recomeçar')
     } catch (e) {
       problems.push('dev: ' + e.message)
     }
     await dv.context().close()
+  }
+
+  // ---------------- build de teste (jogo-dev.html) e jogo.html, sem query ----------------
+  // O artefato do claude.ai não repassa ?dev=1: o jogo-dev.html liga o modo DEV sozinho (window.__GALOPE_DEV), com o
+  // save de teste e um aviso no lugar de "Voltar ao jogo real". O jogo.html sem query não tem nada do DEV.
+  {
+    const jd = await newPage(browser, { width: 390, height: 844 }, 'jogo-dev', { pagina: 'jogo-dev.html' })
+    try {
+      await jd.waitForSelector('#t-estabulo', { timeout: 5000 })   // perfil DEV novo: Brasa, sem a escolha inicial
+      if (((await jd.locator('.dev-faixa').textContent()) || '').trim() !== 'MODO DEV — save de teste') problems.push('jogo-dev: sem a faixa "MODO DEV — save de teste"')
+      const ls = await jd.evaluate(() => ({ dev: localStorage.getItem('galope-elemental:dev'), real: localStorage.getItem('galope-elemental:v1'), query: location.search, gold: window.__galope.state.gold }))
+      if (!ls.dev || ls.real !== null || ls.query !== '' || ls.gold !== 999999) problems.push('jogo-dev: save ' + JSON.stringify({ dev: !!ls.dev, real: ls.real, query: ls.query, gold: ls.gold }))
+      await devAbrir(jd)
+      const aviso = (await jd.locator('.dev-real-aviso').count()) ? await jd.locator('.dev-real-aviso').textContent() : ''
+      if ((await jd.locator('.dev-real').count()) !== 0 || !/build de teste/.test(aviso)) problems.push('jogo-dev: "Voltar ao jogo real" deveria virar o aviso do build de teste (' + aviso + ')')
+      await checkOverflow(jd, 'jogo-dev-gaveta')
+    } catch (e) {
+      problems.push('jogo-dev: ' + e.message)
+    }
+    await jd.context().close()
+    const jr = await newPage(browser, { width: 390, height: 844 }, 'jogo', { pagina: 'jogo.html' })
+    try {
+      await jr.waitForSelector('.inicial', { timeout: 5000 })
+      if ((await jr.locator('.dev-painel, .dev-faixa, .dev-botao').count()) !== 0) problems.push('jogo: modo DEV no jogo.html sem query')
+      await jr.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await jr.waitForSelector('#t-estabulo')
+      const ls = await jr.evaluate(() => ({ dev: localStorage.getItem('galope-elemental:dev'), real: localStorage.getItem('galope-elemental:v1') }))
+      if (ls.dev !== null || !ls.real) problems.push('jogo: o jogo.html deveria gravar só o save real ' + JSON.stringify({ dev: ls.dev, real: !!ls.real }))
+    } catch (e) {
+      problems.push('jogo: ' + e.message)
+    }
+    await jr.context().close()
   }
 
   // ---------------- Dado da Sorte na pista (DEV, seed fixa): plaquinhas, faixa, câmera lenta e "Pular" ----------------

@@ -2,7 +2,10 @@
 //   node build.mjs
 // Saída:
 //   dist/jogo.html    -> conteúdo do artefato (sem doctype/html/head/body: o host embrulha)
-//   dist/preview.html -> o mesmo conteúdo embrulhado num documento completo, para testar localmente
+//   dist/jogo-dev.html -> o mesmo, com window.__GALOPE_DEV = true antes dos scripts: o build de teste (modo DEV,
+//                        save 'galope-elemental:dev') para o artefato do claude.ai, que não repassa ?dev=1
+//   dist/preview.html -> o conteúdo do jogo.html embrulhado num documento completo, para testar localmente
+//                        (com ?dev=1 abre o modo DEV)
 //   dist/moldes.js    -> só a tabela window.__MOLDES, para o comparativo.html (que abre por file://
 //                        e não pode ler PNG de arquivo num canvas)
 // A arte (moldes do PixelLab, ícones, logotipo) entra como data: num <script> antes dos scripts do jogo.
@@ -102,17 +105,23 @@ for (const file of SCRIPTS) {
   scripts.push(`<script>\n/* ${file} */\n${js}\n</script>`)
 }
 
-const body = [
+// extra: <script>s que entram antes dos do jogo (o build de teste liga o modo DEV assim)
+const pagina = (extra = []) => [
   '<title>Galope Elemental</title>',
   '<meta name="claude:viewport-fit-sides" content="cover">',
   `<style>\n${css}\n</style>`,
   markup,
+  ...extra,
   ...scripts,
   ''
 ].join('\n')
+const body = pagina()
+const bodyDev = pagina(['<script>window.__GALOPE_DEV = true;</script>'])
 
-for (const tag of [/<!doctype/i, /<html[\s>]/i, /<head[\s>]/i, /<body[\s>]/i]) {
-  if (tag.test(body)) throw new Error(`jogo.html não pode conter ${tag}`)
+for (const [nome, html] of [['jogo.html', body], ['jogo-dev.html', bodyDev]]) {
+  for (const tag of [/<!doctype/i, /<html[\s>]/i, /<head[\s>]/i, /<body[\s>]/i]) {
+    if (tag.test(html)) throw new Error(`${nome} não pode conter ${tag}`)
+  }
 }
 
 const preview = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">' +
@@ -124,11 +133,13 @@ const moldesJs = '// Gerado por build.mjs — não editar. Tabela dos moldes par
 
 await mkdir(join(ROOT, 'dist'), { recursive: true })
 await writeFile(join(ROOT, 'dist', 'jogo.html'), body)
+await writeFile(join(ROOT, 'dist', 'jogo-dev.html'), bodyDev)
 await writeFile(join(ROOT, 'dist', 'preview.html'), preview)
 await writeFile(join(ROOT, 'dist', 'moldes.js'), moldesJs)
 const kb = (s) => (Buffer.byteLength(s) / 1024).toFixed(1) + ' KB'
 for (const a of avisos) console.log('AVISO: ' + a)
 console.log(`moldes: ${Object.keys(MOLDES.estilos).join(', ') || 'nenhum'} · arte embutida ${kb(arteJs)}`)
 console.log(`dist/jogo.html    ${kb(body)}`)
+console.log(`dist/jogo-dev.html ${kb(bodyDev)}`)
 console.log(`dist/preview.html ${kb(preview)}`)
 console.log(`dist/moldes.js    ${kb(moldesJs)}`)
