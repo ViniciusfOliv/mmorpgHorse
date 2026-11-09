@@ -6,9 +6,10 @@
 // não aparecer na pista (plaquinhas, faixa, câmera lenta e "Pular" no meio dela), a chuva congelar com
 // movimento reduzido, a natureza custar demais por quadro ou um save antigo perder a opção "Animações".
 import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
-import { mkdir } from 'node:fs/promises'
+import { dirname, extname, join, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { mkdir, readFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
 
 const require = createRequire(import.meta.url)
 const { chromium } = require('playwright')
@@ -17,7 +18,27 @@ const S = require('../src/sim.js')
 const B = require('../src/breed.js')
 const GR = require('../src/gear.js')
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const URL = pathToFileURL(join(ROOT, 'dist', 'preview.html')).href
+// prototype/dist/ servido por http://127.0.0.1:<porta livre> (node:http, sem dependências; fecha no fim): em
+// file:// o localStorage deste Chromium às vezes some num reload e o check.sh falhava de vez em quando
+const DIST = join(ROOT, 'dist')
+const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.json': 'application/json' }
+const servidor = createServer(async (req, res) => {
+  try {
+    const caminho = decodeURIComponent(new globalThis.URL(req.url, 'http://127.0.0.1').pathname)
+    if (caminho === '/favicon.ico') { res.writeHead(204); res.end(); return }   // o navegador pede sozinho
+    const arq = resolve(DIST, '.' + caminho)
+    if (req.method !== 'GET' || !arq.startsWith(DIST + sep)) throw new Error('fora de dist/')
+    const corpo = await readFile(arq)
+    res.writeHead(200, { 'Content-Type': TIPOS[extname(arq)] || 'application/octet-stream', 'Cache-Control': 'no-store' })
+    res.end(corpo)
+  } catch (e) {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
+    res.end('não encontrado')
+  }
+})
+await new Promise((ok, falha) => { servidor.once('error', falha); servidor.listen(0, '127.0.0.1', ok) })
+const BASE = `http://127.0.0.1:${servidor.address().port}/`
+const URL = BASE + 'preview.html'
 const SHOTS = process.env.SHOTS_DIR || join(ROOT, 'screens') // SHOTS_DIR: usado pelo scripts/check.sh
 await mkdir(SHOTS, { recursive: true })
 
@@ -25,17 +46,18 @@ const problems = []
 const notes = {}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-// extra.query: sufixo da URL; extra.init: função para page.addInitScript (roda antes dos scripts da página);
+// extra.pagina: arquivo de dist/ (padrão preview.html); extra.query: sufixo da URL; extra.init: função para
+// page.addInitScript (roda antes dos scripts da página);
 // extra.moldes (padrão true): espera os moldes do PixelLab carregarem (Sprites.moldsReady === true) — o jogo
 // re-renderiza a tela quando eles chegam, e esperar evita clicar num botão que está sendo trocado.
 async function newPage(browser, viewport, label, extra = {}) {
-  const { query = '', init = null, moldes = true, ...ctxExtra } = extra
+  const { pagina = 'preview.html', query = '', init = null, moldes = true, ...ctxExtra } = extra
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2, ...ctxExtra })
   const page = await ctx.newPage()
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`[${label}] console: ${m.text()}`) })
   page.on('pageerror', (e) => problems.push(`[${label}] pageerror: ${e.message}`))
   if (init) await page.addInitScript(init)
-  await page.goto(URL + query, { waitUntil: 'domcontentloaded' })
+  await page.goto(BASE + pagina + query, { waitUntil: 'domcontentloaded' })
   await Promise.race([page.evaluate(() => document.fonts && document.fonts.ready), sleep(4000)])
   if (moldes) {
     try {
@@ -1056,8 +1078,7 @@ try {
       notes.dev = pago
       await conferirReal('depois da corrida')
       // 7. o save DEV gravado abre de novo com o cavalo DEV (template dev-2, skill exclusiva de outro elemento)
-      //    e a peça. Numa página nova que já começa com esse save: neste Chromium o localStorage de file://
-      //    às vezes some num reload (acontece também sem o modo DEV), e o caminho de carga é o mesmo.
+      //    e a peça. Numa página nova que já começa com esse save (o caminho de carga é o mesmo de um reload).
       const salvo = (await armazenado(dv)).dev
       const dv2 = await dv.context().newPage()
       dv2.on('pageerror', (e) => problems.push('[dev-2] pageerror: ' + e.message))
@@ -1438,10 +1459,13 @@ try {
       }
     }
 
-    // 2. Com o aparelho pedindo menos movimento (reducedMotion: 'reduce'): em "Completas" a chuva anda; em
-    //    "Reduzidas" também anda (mais devagar, metade dos pingos) — nada congela. Captura da chuva com ventania.
+    // 2. Em 360 px, com o aparelho pedindo menos movimento (reducedMotion: 'reduce'): em "Completas" a chuva anda;
+    //    em "Reduzidas" também anda (mais devagar, metade dos pingos) — nada congela. Em "Completas", uma corrida
+    //    com tudo ligado (chuva, ventania, "skills sempre ativam") até o 1º Dado na tela: selo do vento, chuva,
+    //    skill do jogador, sem rolagem horizontal e com o canvas dentro da tela (Review Focus 5); depois a
+    //    captura da chuva com ventania.
     {
-      const pg = await newPage(browser, { width: 390, height: 844 }, 'animacoes', { query: '?dev=1', reducedMotion: 'reduce' })
+      const pg = await newPage(browser, { width: 360, height: 780 }, 'animacoes', { query: '?dev=1', reducedMotion: 'reduce' })
       try {
         await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
         const r0 = await pg.evaluate(() => ({ motion: window.__galope.state.settings.motion, classe: document.documentElement.classList.contains('mov-reduzido') }))
@@ -1459,15 +1483,32 @@ try {
           else if (a.h === b.h) problems.push(`animacoes: a chuva congelou em "${modo}" (recortes iguais em t ${a.t} e ${b.t})`)
           await pular(pg)
           if (modo === 'completas') {
-            // captura da chuva com ventania (outra corrida: a do recorte é com vento calmo)
-            await largaDev(pg, { clima: 'chuva', vento: 'ventania', direcao: 1, seed: 4242 })
-            await ateMeio(pg, 0.35)
+            // tudo ligado (outra corrida: a do recorte é com vento calmo). Antes do 1º Dado o clima ainda é o
+            // forçado (só o Dado o vira): estado da natureza e captura da chuva com ventania; depois, no Dado
+            await largaDev(pg, { clima: 'chuva', vento: 'ventania', direcao: 1, sempre: true, seed: 4242 })
+            const t0 = await pg.evaluate(() => window.__galope.race._state.fx.filter((x) => x.kind === 'dado')[0].t0)
+            await pg.getByRole('button', { name: 'x2' }).click()
+            await pg.waitForFunction((t) => { const r = window.__galope.race; return r && r._state.simT >= t }, 0.85 * t0, { timeout: 60000, polling: 'raf' })
+            await pg.getByRole('button', { name: 'x1' }).click()
+            await sleep(200)
             const e = await estadoNat(pg)
             vistos.meio = e
             if (!(e.nat.pingos > 0 && e.nat.respingos > 0 && e.nat.folhas > 0)) problems.push('animacoes: chuva com ventania sem pingos, respingos ou folhas ' + JSON.stringify(e.nat))
-            if (!e.hud) problems.push('animacoes: selo do vento ausente no HUD em 390')
+            if (!e.hud) problems.push('animacoes: selo do vento ausente no HUD em 360')
             if (JSON.stringify(e.vento) !== JSON.stringify({ intensity: 'ventania', dir: 1 })) problems.push('animacoes: vento forçado não chegou à corrida ' + JSON.stringify(e.vento))
             await pg.screenshot({ path: join(SHOTS, 'final-14-chuva-vento.png') })
+            await pg.getByRole('button', { name: 'x2' }).click()
+            const q = await (await pg.waitForFunction(() => {
+              const st = window.RaceFx._stats
+              return st.faixaDado && st.dados >= 1 ? { dados: st.dados, hud: st.ventoHud, baloes: st.baloes } : false
+            }, null, { timeout: 60000, polling: 'raf' })).jsonValue()
+            const skills = await pg.evaluate(() => { const L = window.__galope.ui.lobby; return L.sim.events.filter((e) => e.type === 'skill' && e.racer === L.playerIdx).length })
+            vistos.tudo = { ...q, skillsJogador: skills }
+            if (!q.hud) problems.push('animacoes (tudo ligado): sem selo do vento no Dado ' + JSON.stringify(q))
+            if (!(skills > 0)) problems.push('animacoes (tudo ligado): "skills sempre ativam" sem skill do jogador')
+            await checkOverflow(pg, 'tudo360-dado')
+            const cv = await pg.evaluate(() => { const r = document.getElementById('pista').getBoundingClientRect(); return { right: r.right, vw: document.documentElement.clientWidth } })
+            if (cv.right > cv.vw + 0.5) problems.push('animacoes (tudo ligado): canvas passa da largura da tela ' + JSON.stringify(cv))
             await pular(pg)
           }
         }
@@ -1491,12 +1532,17 @@ try {
         for (const modo of ['completas', 'reduzidas']) {
           await animacoes(pg, modo, 'desempenho')
           await largaDev(pg, { clima: 'chuva', vento: 'ventania', tracado: 'curvas', seed: 4242 })
+          // amostras com 120 e 240 quadros de corrida (a média móvel cobre os 60 últimos: fora da contagem)
+          const q0 = await (await pg.waitForFunction(() => {
+            const r = window.__galope.race
+            return r && r._state.phase === 'corrida' ? window.RaceFx._stats.quadros : false
+          }, null, { timeout: 60000, polling: 'raf' })).jsonValue()
           const amostras = []
-          for (const q of [180, 300, 420]) {
+          for (const q of [120, 240]) {
             amostras.push(await (await pg.waitForFunction((q) => {
               const r = window.__galope.race, st = window.RaceFx._stats
               return r && r._state.phase === 'corrida' && st.quadros >= q ? st.msQuadro : false
-            }, q, { timeout: 60000, polling: 'raf' })).jsonValue())
+            }, q0 + q, { timeout: 60000, polling: 'raf' })).jsonValue())
           }
           const nat = await pg.evaluate(() => window.RaceFx._stats.natureza)
           ms[modo] = { media: +(amostras.reduce((a, b) => a + b, 0) / amostras.length).toFixed(2), amostras: amostras.map((x) => +x.toFixed(2)), pingos: nat.pingos }
@@ -1513,33 +1559,7 @@ try {
       }
     }
 
-    // 4. 360 px com tudo ligado: chuva, ventania, "skills sempre ativam" e um Dado na tela (Review Focus 5)
-    {
-      const pg = await newPage(browser, { width: 360, height: 780 }, 'tudo360', { query: '?dev=1' })
-      try {
-        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
-        await largaDev(pg, { clima: 'chuva', vento: 'ventania', direcao: -1, sempre: true, seed: 101 })
-        await pg.getByRole('button', { name: 'x2' }).click()
-        const q = await (await pg.waitForFunction(() => {
-          const st = window.RaceFx._stats
-          return st.faixaDado && st.dados >= 1 ? { dados: st.dados, hud: st.ventoHud, pingos: st.natureza.pingos, folhas: st.natureza.folhas } : false
-        }, null, { timeout: 60000, polling: 'raf' })).jsonValue()
-        const skills = await pg.evaluate(() => { const L = window.__galope.ui.lobby; return L.sim.events.filter((e) => e.type === 'skill' && e.racer === L.playerIdx).length })
-        notes.tudo360 = { ...q, skillsJogador: skills }
-        if (!q.hud || !(q.pingos > 0)) problems.push('tudo360: sem selo do vento ou sem chuva ' + JSON.stringify(q))
-        if (!(skills > 0)) problems.push('tudo360: "skills sempre ativam" sem skill do jogador')
-        await checkOverflow(pg, 'tudo360-dado')
-        const cv = await pg.evaluate(() => { const r = document.getElementById('pista').getBoundingClientRect(); return { right: r.right, vw: document.documentElement.clientWidth } })
-        if (cv.right > cv.vw + 0.5) problems.push('tudo360: canvas passa da largura da tela ' + JSON.stringify(cv))
-        await pular(pg)
-      } catch (e) {
-        problems.push('tudo360: ' + e.message)
-      } finally {
-        await pg.context().close()
-      }
-    }
-
-    // 5. Sol (piso de terra: poeira dos cascos, raios e calor) e névoa (camadas de trás e da frente) em 390
+    // 4. Sol (piso de terra: poeira dos cascos, raios e calor) e névoa (camadas de trás e da frente) em 390
     {
       const pg = await newPage(browser, { width: 390, height: 844 }, 'natureza390', { query: '?dev=1' })
       try {
@@ -1652,6 +1672,7 @@ try {
             arco: Math.round(6 * arcoK), cavalos: st.caixasCavalos.map((c) => c.y), S, cerca, votos, colunas }   // spec: 6 px de arte no meio
         }, faixa, { timeout: 60000, polling: 'raf' }).then((h) => h.jsonValue())
         const reta = await medir({ reta: true })
+        await pg.getByRole('button', { name: 'x2' }).click()   // até o meio da curva (a medida não depende do x1/x2)
         const curva = await medir({ reta: false })
         if (shotCorrida) await pg.screenshot({ path: join(SHOTS, shotCorrida) })
         const sobe = { cavalo: reta.y - curva.y, voce: reta.voce - curva.voce, cerca: reta.cerca != null && curva.cerca != null ? (reta.cerca - curva.cerca) / curva.S : null }
@@ -1970,9 +1991,12 @@ try {
   console.log(JSON.stringify({ goldBefore, after: { gold: after.gold, level: after.level, xp: after.xp, place: after.result.place, prize: after.result.prize, xpGain: after.result.xpGain }, trainGold, notes }, null, 1))
 } finally {
   await browser.close()
+  await new Promise((ok) => servidor.close(ok))
 }
 if (problems.length) {
   console.log('PROBLEMAS:\n' + problems.join('\n'))
   process.exit(1)
 }
-console.log('OK: fluxo completo sem erros de console, sem rolagem horizontal e com o cavalo sempre na tela')
+const dq = notes.desempenho
+console.log('OK: fluxo completo sem erros de console, sem rolagem horizontal e com o cavalo sempre na tela' +
+  (dq ? ` (desenho por quadro a 1280 com chuva e ventania: completas ${dq.completas.media} ms, reduzidas ${dq.reduzidas.media} ms)` : ''))
