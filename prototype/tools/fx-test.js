@@ -34,7 +34,7 @@ test('timeline tem um \'dado\' por evento com o vencedor do evento', function ()
   assert.strictEqual(dados.length, DADOS1.length);
   dados.forEach(function (it, k) {
     var ev = DADOS1[k];
-    assert.strictEqual(it.t0, ev.t); assert.strictEqual(it.t1, ev.t + 3);
+    assert.strictEqual(it.t0, ev.t); assert.strictEqual(it.t1, ev.t + 2.4);
     assert.strictEqual(it.racer, ev.winner); assert.strictEqual(it.winner, ev.winner);
     assert.deepStrictEqual(it.rolls, ev.rolls);
     assert.strictEqual(it.changed, ev.changed); assert.strictEqual(it.weather, ev.weather);
@@ -54,22 +54,22 @@ test('a mesma seed dá a mesma linha do tempo', function () {
 test('escala de apresentação multiplica as janelas do Dado (padrão 1)', function () {
   var tl = FX.timeline(C1.sim, C1.racers, 4);
   var it = tl.filter(function (x) { return x.kind === 'dado'; })[0];
-  assert.strictEqual(it.escala, 4); assert.strictEqual(it.t1, it.t0 + 12);
+  assert.strictEqual(it.escala, 4); assert.strictEqual(it.t1, it.t0 + 2.4 * 4);
   assert.strictEqual(FX.slowFactor(tl, it.t0 + 3.2, false), 0.4);
   assert.strictEqual(FX.slowFactor(tl, it.t0 + 3.21, false), 1);
   var semEmpate = it.rolls.map(function (r, i) { return r.rerolls ? -1 : i; }).filter(function (i) { return i >= 0; })[0];
   assert.strictEqual(FX.diceState(it, it.t0 + 1.59, false, semEmpate).fase, 'gira');
   assert.strictEqual(FX.diceState(it, it.t0 + 1.6, false, semEmpate).fase, 'mostra');
-  assert.strictEqual(FX.diceState(it, it.t0 + 11.99, false, semEmpate).fase, 'mostra');
-  assert.strictEqual(FX.diceState(it, it.t0 + 12, false, semEmpate).fase, 'fim');
+  assert.strictEqual(FX.diceState(it, it.t0 + 9.59, false, semEmpate).fase, 'mostra');
+  assert.strictEqual(FX.diceState(it, it.t0 + 9.6, false, semEmpate).fase, 'fim');
 });
 
 section('câmera lenta');
-var ITEM = { kind: 'dado', t0: 30, t1: 33, racer: 1, winner: 1, changed: false, weather: 'sol',
+var ITEM = { kind: 'dado', t0: 30, t1: 32.4, racer: 1, winner: 1, changed: false, weather: 'sol',
   rolls: [{ racer: 0, dice: [55], best: 55, rerolls: 0 }, { racer: 1, dice: [91, 40], best: 91, rerolls: 1 }, { racer: 2, dice: [12], best: 12, rerolls: 0 }] };
 test('slowFactor é 0.4 só na janela e 1 fora', function () {
   var tl = [ITEM];
-  [[29.99, 1], [30, 0.4], [30.4, 0.4], [30.8, 0.4], [30.81, 1], [32, 1], [33, 1], [0, 1]].forEach(function (c) {
+  [[29.99, 1], [30, 0.4], [30.4, 0.4], [30.8, 0.4], [30.81, 1], [32, 1], [32.4, 1], [0, 1]].forEach(function (c) {
     assert.strictEqual(FX.slowFactor(tl, c[0], false), c[1], 't=' + c[0]);
   });
   assert.strictEqual(FX.slowFactor([], 30.2, false), 1);
@@ -92,7 +92,7 @@ test('diceState percorre gira→mostra e regira só com rerolls', function () {
   assert.strictEqual(semEmpate(29.9), 'fim');
   assert.strictEqual(semEmpate(30), 'gira'); assert.strictEqual(semEmpate(30.39), 'gira');
   assert.strictEqual(semEmpate(30.4), 'mostra'); assert.strictEqual(semEmpate(30.5), 'mostra');
-  assert.strictEqual(semEmpate(32.99), 'mostra'); assert.strictEqual(semEmpate(33), 'fim');
+  assert.strictEqual(semEmpate(32.39), 'mostra'); assert.strictEqual(semEmpate(32.4), 'fim');
   assert.strictEqual(comEmpate(30.1), 'gira'); assert.strictEqual(comEmpate(30.4), 'regira');
   assert.strictEqual(comEmpate(30.63), 'regira'); assert.strictEqual(comEmpate(30.64), 'mostra');
   // sem o 4º argumento vale o corredor do item (o vencedor)
@@ -101,21 +101,29 @@ test('diceState percorre gira→mostra e regira só com rerolls', function () {
 test('diceState com movimento reduzido pula o giro', function () {
   assert.strictEqual(FX.diceState(ITEM, 30, true, 0).fase, 'mostra');
   assert.strictEqual(FX.diceState(ITEM, 30.5, true, 1).fase, 'mostra');
-  assert.strictEqual(FX.diceState(ITEM, 33, true, 1).fase, 'fim');
+  assert.strictEqual(FX.diceState(ITEM, 32.4, true, 1).fase, 'fim');
 });
-test('brilho só do vencedor, pulsando em [t0 + 0.64, t0 + 3]', function () {
+test('brilho só do vencedor, pulsando em [t0 + 0.64, t0 + 2.4]', function () {
   assert.strictEqual(FX.diceState(ITEM, 30.6, false, 1).brilho, 0);
   assert.strictEqual(FX.diceState(ITEM, 31, false, 0).brilho, 0, 'perdedor não brilha');
   var vals = [];
-  for (var t = 30.64; t < 33; t += 0.05) {
+  for (var t = 30.64; t < 32.4; t += 0.05) {
     var b = FX.diceState(ITEM, t, false, 1).brilho;
     assert.ok(b >= 0 && b <= 1, 'brilho em [0, 1]: ' + b);
     vals.push(b);
   }
   assert.ok(Math.max.apply(null, vals) - Math.min.apply(null, vals) > 0.5, 'pulsa');
-  assert.strictEqual(FX.diceState(ITEM, 33.01, false, 1).brilho, 0);
+  assert.strictEqual(FX.diceState(ITEM, 32.41, false, 1).brilho, 0);
   var red = FX.diceState(ITEM, 31, true, 1).brilho;
   assert.ok(red > 0 && red === FX.diceState(ITEM, 32, true, 1).brilho, 'reduzido: brilho fixo');
+});
+test('durações reais em x1 (escala da tela): giro ≈ 1 s, desempate até 0,6 s, brilho ≈ 2 s', function () {
+  // segundos reais = tempo de apresentação descontada a câmera lenta (0,4 até 0,8)
+  var e = 3.9, it = { kind: 'dado', t0: 10, t1: 10 + 2.4 * e, racer: 1, winner: 1, escala: e, rolls: ITEM.rolls };
+  function real(t) { return FX.diceState(it, t, false, 1).tempo; }
+  assert.ok(Math.abs(real(10 + 0.4 * e) - 1) < 1e-9, 'giro');
+  assert.ok(Math.abs(real(10 + 0.64 * e) - real(10 + 0.4 * e) - 0.6) < 1e-9, 'desempate');
+  assert.ok(Math.abs(real(it.t1 - 1e-3) - real(10 + 0.64 * e) - 2) < 1e-3, 'brilho do vencedor');
 });
 
 section('plaquinhas');
@@ -136,6 +144,15 @@ test('layoutBadges com 8 retângulos empilhados não deixa sobreposição nem sa
   confere(out, 200, 150);
   assert.deepStrictEqual(rects[0], { x: 60, y: 40, w: 17, h: 11, j: 0 }, 'entrada intacta');
 });
+test('layoutBadges desvia de obstáculos fixos (etiqueta VOCÊ) sem devolvê-los', function () {
+  var voce = { x: 52, y: 28, w: 30, h: 11 }, rects = [];
+  for (var i = 0; i < 4; i++) rects.push({ x: 60, y: 30, w: 17, h: 11 });
+  var out = FX.layoutBadges(rects, 200, 150, [voce]);
+  assert.strictEqual(out.length, 4);
+  confere(out.concat([voce]), 200, 150);
+  out.forEach(function (r) { assert.strictEqual(r.x, 60, 'só na vertical'); });
+  assert.deepStrictEqual(FX.layoutBadges([{ x: 10, y: 10, w: 13, h: 11 }], 200, 150, [voce]), [{ x: 10, y: 10, w: 13, h: 11 }]);
+});
 test('layoutBadges: raias vizinhas (8 cavalos lado a lado), bordas e caso sem conflito', function () {
   var viz = [];
   for (var i = 0; i < 8; i++) viz.push({ x: 40 + (i % 3) * 4, y: 8 + i * 6, w: 25, h: 11 });
@@ -150,17 +167,39 @@ test('layoutBadges: raias vizinhas (8 cavalos lado a lado), bordas e caso sem co
   confere(FX.layoutBadges(aperto, 187, 40), 187, 40);
 });
 test('tamanho da plaquinha e números (melhor em destaque, os outros depois)', function () {
-  assert.deepStrictEqual(FX.diceLabels({ dice: [42, 87], best: 87, rerolls: 0 }), { best: '87', outros: ['42'] });
-  assert.deepStrictEqual(FX.diceLabels({ dice: [100], best: 100, rerolls: 0 }), { best: '100', outros: [] });
-  assert.deepStrictEqual(FX.diceLabels({ dice: [30, 30, 7], best: 30, rerolls: 0 }), { best: '30', outros: ['30', '7'] });
+  assert.deepStrictEqual(FX.diceLabels({ dice: [42, 87], best: 87, rerolls: 0 }), { marca: '', best: '87', outros: ['42'] });
+  assert.deepStrictEqual(FX.diceLabels({ dice: [100], best: 100, rerolls: 0 }), { marca: '', best: '100', outros: [] });
+  assert.deepStrictEqual(FX.diceLabels({ dice: [30, 30, 7], best: 30, rerolls: 0 }), { marca: '', best: '30', outros: ['30', '7'] });
+  assert.deepStrictEqual(FX.diceLabels({ dice: [74], best: 74, rerolls: 1 }), { marca: '↻', best: '74', outros: [] });
   var s1 = FX.badgeSize({ dice: [87], best: 87 }), s2 = FX.badgeSize({ dice: [42, 87], best: 87 });
   assert.ok(s1.w >= 9 && s1.h >= 9, JSON.stringify(s1));
   assert.ok(s2.w > s1.w && s2.h === s1.h, 'outros dados alargam a plaquinha');
+  assert.strictEqual(FX.badgeSize({ dice: [87], best: 87, rerolls: 2 }).w, s1.w + 6, '↻ (5 px + 1) antes do número');
 });
 test('faixa do Dado em ordem decrescente', function () {
   assert.deepStrictEqual(FX.stripOrder(ITEM), [1, 0, 2]);
   var it = { rolls: [{ dice: [50], best: 50 }, { dice: [80], best: 80 }, { dice: [50], best: 50 }, { dice: [90], best: 90 }], winner: 3 };
   assert.deepStrictEqual(FX.stripOrder(it), [3, 1, 0, 2]);
+});
+test('faixa com desempate: vencedor em 1º, depois rerolls e best decrescentes (seed 2)', function () {
+  // o desempate reescreve dice/best dos empatados: o vencedor pode ter best menor que o de quem não empatou
+  var C2 = corrida(2);
+  var it = FX.timeline(C2.sim, C2.racers).filter(function (x) { return x.rolls.some(function (r) { return r.rerolls > 0; }); })[0];
+  assert.ok(it, 'a seed 2 tem um Dado com desempate');
+  var maior = Math.max.apply(null, it.rolls.map(function (r) { return r.best; }));
+  assert.ok(it.rolls[it.winner].best < maior, 'caso da revisão: vencedor com best menor que outro (' + it.rolls[it.winner].best + ' < ' + maior + ')');
+  var o = FX.stripOrder(it);
+  assert.strictEqual(o[0], it.winner, 'vencedor em 1º');
+  assert.strictEqual(o.length, it.rolls.length);
+  for (var k = 1; k < o.length; k++) {
+    var a = it.rolls[o[k - 1]], b = it.rolls[o[k]];
+    assert.ok(a.rerolls > b.rerolls || (a.rerolls === b.rerolls && a.best >= b.best), 'ordem em ' + k + ': ' + JSON.stringify([a, b]));
+  }
+  // em todas as corridas de 1–200: o vencedor sempre em 1º
+  for (var sd = 1; sd <= 200; sd++) {
+    var C = corrida(sd);
+    FX.timeline(C.sim, C.racers).forEach(function (d) { assert.strictEqual(FX.stripOrder(d)[0], d.winner, 'seed ' + sd); });
+  }
 });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');

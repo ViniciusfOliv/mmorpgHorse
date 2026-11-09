@@ -1111,7 +1111,7 @@ try {
         const s = window.__galope.race && window.__galope.race._state
         if (!s || s.simT < it.t0 + 0.7 * it.e) return false
         const st = window.RaceFx._stats
-        return { simT: s.simT, slowK: s.slowK, dados: st.dados, faixa: st.faixaDado, particulas: st.particulas, placas: st.placas.slice(), ms: st.msQuadro }
+        return { simT: s.simT, slowK: s.slowK, dados: st.dados, faixa: st.faixaDado, particulas: st.particulas, placas: st.placas.slice(), ms: st.msQuadro, voce: s.voceRect }
       }, it, { timeout: 60000, polling: 'raf' })).jsonValue()
       return { dados, it, q, seed }
     }
@@ -1139,6 +1139,13 @@ try {
         if (!venc || venc.numero !== String(it.best) || !venc.vencedor || venc.fase !== 'mostra') problems.push(`[${label}] Dado: plaquinha do vencedor ${JSON.stringify(venc)} (esperado ${it.best})`)
         if (!(q.particulas > 0)) problems.push(`[${label}] Dado: vencedor sem faíscas (particulas = ${q.particulas})`)
         q.placas.forEach((p) => { if (p.fase !== 'mostra' || !/^\d+$/.test(p.numero)) problems.push(`[${label}] Dado: plaquinha ainda girando ou sem número ${JSON.stringify(p)}`) })
+        // nenhuma plaquinha cobre a etiqueta "◀VOCÊ" nem outra plaquinha (pixels de arte)
+        const cruza = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+        if (!q.voce) problems.push(`[${label}] Dado: etiqueta VOCÊ não registrada como obstáculo`)
+        q.placas.forEach((p, i) => {
+          if (q.voce && cruza(p, q.voce)) problems.push(`[${label}] Dado: plaquinha da raia ${p.racer + 1} cobre o "◀VOCÊ" ${JSON.stringify([p, q.voce])}`)
+          q.placas.slice(i + 1).forEach((o) => { if (cruza(p, o)) problems.push(`[${label}] Dado: plaquinhas ${p.racer + 1} e ${o.racer + 1} sobrepostas`) })
+        })
         await checkOverflow(pg, label + '-dado')
         if (testaPular) {
           // Review Focus 2: "Pular" durante a câmera lenta do 2º Dado abre o resultado sem efeito preso nem erro

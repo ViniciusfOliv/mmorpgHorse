@@ -10,15 +10,15 @@
  *
  *   RaceFx.timeline(sim, racers, escala) -> [{ kind, t0, t1, racer, ... }] ordenada por t0 (estável).
  *     Uma lista de efeitos montada UMA vez por corrida a partir de sim.events. Hoje:
- *       'dado' { t0: ev.t, t1: ev.t + 3·escala, racer: winner, winner, rolls (cópia), changed,
+ *       'dado' { t0: ev.t, t1: ev.t + 2.4·escala, racer: winner, winner, rolls (cópia), changed,
  *                weather, escala }   — um por evento 'dado'.
  *     As próximas tarefas acrescentam 'skill', 'garra' e 'cansou' (racers serve para achar a
  *     skill pelo nome, como a tela faz hoje).
- *     escala (padrão 1) = segundos de simulação por segundo real em x1. As janelas do Dado (3 s,
+ *     escala (padrão 1) = segundos de simulação por segundo real em x1. As janelas do Dado (2,4 s,
  *     câmera lenta de 0,8 s, giro de 0,4 s, novo giro até 0,64 s) estão em "segundos de
  *     apresentação": com escala 1 são segundos de simulação; a tela passa a sua escala de
- *     reprodução (sim.duration / duração real alvo, ~3,6–4,8) para que a câmera lenta dure ~2 s
- *     reais, o giro ~1 s e o novo giro ~0,6 s, como pede a spec.
+ *     reprodução (sim.duration / duração real alvo, ~3,6–4,8). Em segundos reais (x1): câmera lenta
+ *     ~2 s, giro ~1 s, novo giro até 0,6 s, brilho do vencedor ~2 s e faixa ~3,6 s (spec §5).
  *
  *   RaceFx.slowFactor(tl, simT, reduced) -> 0.4 dentro de [t0, t0 + 0.8·escala] de cada 'dado'
  *     ([t0, t0 + 0.4·escala] se reduced), senão 1. A tela usa slowK = min(slowK, slowFactor).
@@ -27,20 +27,24 @@
  *     racer = índice do corredor (padrão: item.racer, o vencedor). Com d = (simT − t0) / escala:
  *       'gira'   em [0, 0.4)              (pulada se reduced)
  *       'regira' em [0.4, 0.64)           só para rolls[racer].rerolls > 0 (pulada se reduced)
- *       'mostra' até 3                     'fim' fora de [t0, t1)
- *     brilho (0..1) só do vencedor: pulsa em [0.64, 3] (fixo em 1 se reduced, desde t0);
+ *       'mostra' até 2.4                   'fim' fora de [t0, t1)
+ *     brilho (0..1) só do vencedor: pulsa em [0.64, 2.4] (fixo em 1 se reduced, desde t0);
  *     dourado = o vencedor já foi revelado (plaquinha dourada). tempo = segundos reais desde t0
  *     em x1 (a câmera lenta descontada): é o relógio das animações do dado e das faíscas.
  *
- *   RaceFx.diceLabels(roll) -> { best: '87', outros: ['42'] }  (outros = os demais dados, na ordem rolada)
+ *   RaceFx.diceLabels(roll) -> { marca, best: '87', outros: ['42'] }  (outros = os demais dados, na
+ *     ordem rolada; marca '↻' quando houve desempate: a simulação reescreve dice/best de quem empatou
+ *     no topo e o valor empatado não fica no evento, então o número mostrado é o da nova rolagem).
  *   RaceFx.badgeSize(roll)  -> { w, h } em pixels de arte do retângulo da plaquinha (com a pontinha).
- *   RaceFx.stripOrder(item) -> índices em ordem decrescente de best (empate: vencedor, depois raia).
+ *   RaceFx.stripOrder(item) -> índices da faixa: o vencedor primeiro, depois rerolls decrescente
+ *     (quem disputou o desempate empatou no topo) e best decrescente; por fim a raia.
  *   RaceFx.stripLayout(item, racers, lay) -> caixa da faixa "DADO DA SORTE" em pixels de arte
  *     ({ x, y, w, h, linhas, rotulo: {x, y}, entradas: {x, y} }); lay = layout da tela da corrida
  *     ({ artW, hudH, compact }). Uma linha quando cabe; senão o rótulo em cima e os números embaixo.
- *   RaceFx.layoutBadges(rects, W, H) -> rects (cópias, mesma ordem): cada um preso a [0, W] × [0, H]
- *     e, na ordem do y desejado, deslocado na vertical (para cima no empate) até não sobrepor os já
- *     colocados (com 1 px de folga). Sem altura para empilhar, vai para o lado. Unidade livre.
+ *   RaceFx.layoutBadges(rects, W, H, fixos) -> rects (cópias, mesma ordem): cada um preso a
+ *     [0, W] × [0, H] e, na ordem do y desejado, deslocado na vertical (para cima no empate) até não
+ *     sobrepor os já colocados nem os fixos (obstáculos que não se movem e não voltam, como a
+ *     etiqueta "◀VOCÊ"), com 1 px de folga. Sem altura para empilhar, vai para o lado. Unidade livre.
  *
  * ================================= DESENHO ==================================
  * Canvas 2D em pixel art (x, y em px do canvas; S = px por pixel de arte). Precisa de window.Sprites
@@ -48,13 +52,14 @@
  *
  *   RaceFx.drawDice(ctx, x, y, S, roll, estado, isWinner, simT, cor) -> texto desenhado ('' no giro)
  *     (x, y) = canto do retângulo de badgeSize. 'gira'/'regira': cubo de 9×9 girando (4 quadros) e
- *     quicando; 'mostra': plaquinha com o best e, depois de um traço, os outros dados em cinza; borda
- *     na cor da raia (cor). Vencedor revelado: plaquinha dourada, halo pulsando com o brilho e
+ *     quicando; 'mostra': plaquinha com o best (precedido de "↻" se houve desempate) e, depois de um
+ *     traço, os outros dados em cinza; borda na cor da raia (cor). Vencedor revelado: plaquinha dourada, halo pulsando com o brilho e
  *     faíscas em volta (omitidas em reduced).
  *   RaceFx.drawDiceStrip(ctx, item, racers, lay, S, simT, reduced) -> caixa (stripLayout) ou null
  *     Faixa "DADO DA SORTE" abaixo do HUD: chip na cor da raia (com o nº da raia) + número de cada
- *     cavalo. Enquanto os dados giram: ordem das raias e números rolando; depois da revelação
- *     (d ≥ 0.64, ou já em t0 se reduced): ordem decrescente, vencedor em dourado pulsante.
+ *     cavalo ("↻" antes do número de quem desempatou). Enquanto os dados giram: ordem das raias e
+ *     números rolando; depois da revelação (d ≥ 0.64, ou já em t0 se reduced): ordem de stripOrder,
+ *     vencedor em dourado pulsante.
  *
  *   RaceFx._stats = { dados, faixaDado, baloes, particulas, msQuadro, quadros, placas }
  *     Contadores do quadro atual (zerados por beginFrame) para o ui-test: dados desenhados, faixa
@@ -72,7 +77,7 @@
   // Constantes (segundos de apresentação; ver escala no topo)
   // ===========================================================================
   var DADO = {
-    dur: 3,            // plaquinhas e faixa ficam até t0 + 3
+    dur: 2.4,          // plaquinhas e faixa ficam até t0 + 2.4 (brilho do vencedor ~2 s reais)
     lento: 0.4,        // velocidade da corrida na câmera lenta
     janela: 0.8,       // câmera lenta em [t0, t0 + 0.8]
     janelaReduzida: 0.4,
@@ -82,6 +87,7 @@
   };
   var EPS = 1e-6;
   var PLACA_H = 9, PONTA_H = 2, GAP = 1;
+  var MARCA = '\u21bb', MARCA_W = 6;   // "↻" (glifo de 5 colunas na fonte do Sprites) + 1 de espaço
 
   // paleta (mesmos valores dos tokens de game.css)
   var COR = {
@@ -211,12 +217,12 @@
       if (!tirou && dice[i] === best) { tirou = true; continue; }
       outros.push(String(dice[i]));
     }
-    return { best: String(best), outros: outros };
+    return { marca: roll && roll.rerolls > 0 ? MARCA : '', best: String(best), outros: outros };
   }
 
-  // [borda 1][2][best][2]  e, com outros dados: [traço 1][2][o1][2][o2]…[2]  [borda 1]
+  // [borda 1][2][↻ 5 + 1 se desempate][best][2]  e, com outros dados: [traço 1][2][o1][2][o2]…[2]  [borda 1]
   function badgeSize(roll) {
-    var L = diceLabels(roll), w = numW(L.best) + 6;
+    var L = diceLabels(roll), w = numW(L.best) + 6 + (L.marca ? MARCA_W : 0);
     if (L.outros.length) {
       w += 5;
       for (var i = 0; i < L.outros.length; i++) w += numW(L.outros[i]) + (i ? 2 : 0);
@@ -228,13 +234,14 @@
     var rolls = item.rolls || [], idx = [];
     for (var i = 0; i < rolls.length; i++) idx.push(i);
     idx.sort(function (a, b) {
-      return (rolls[b].best - rolls[a].best) || ((b === item.winner) - (a === item.winner)) || (a - b);
+      return ((b === item.winner) - (a === item.winner)) || ((rolls[b].rerolls | 0) - (rolls[a].rerolls | 0)) ||
+        (rolls[b].best - rolls[a].best) || (a - b);
     });
     return idx;
   }
 
   // largura de uma entrada da faixa: chip 5 + espaço do número (fixo: os números rolando cabem)
-  function slotW(roll) { return (roll && roll.best >= 100 ? 11 : 7) + 2; }
+  function slotW(roll) { return (roll && roll.best >= 100 ? 11 : 7) + 2 + (roll && roll.rerolls > 0 ? MARCA_W : 0); }
   function entradaW(roll) { return 5 + slotW(roll); }
   var ROTULO = 'DADO DA SORTE', GAP_E = 2;
 
@@ -260,7 +267,7 @@
     return a.x < b.x + b.w + GAP && b.x < a.x + a.w + GAP && a.y < b.y + b.h + GAP && b.y < a.y + a.h + GAP;
   }
 
-  function layoutBadges(rects, W, H) {
+  function layoutBadges(rects, W, H, fixos) {
     var out = [], i, k;
     for (i = 0; i < rects.length; i++) {
       var c = {}, src = rects[i];
@@ -272,6 +279,10 @@
     var ordem = out.map(function (r, q) { return q; });
     ordem.sort(function (a, b) { return (out[a].y - out[b].y) || (out[a].x - out[b].x) || (a - b); });
     var postos = [];
+    for (i = 0; fixos && i < fixos.length; i++) {
+      var f = fixos[i];
+      if (f && f.w > 0 && f.h > 0) postos.push({ x: f.x, y: f.y, w: f.w, h: f.h });
+    }
     function livre(x, y, w, h) {
       if (x < 0 || y < 0 || x + w > W || y + h > H) return false;
       var cand = { x: x, y: y, w: w, h: h };
@@ -377,9 +388,14 @@
     if (ouro) R(-1, -1, w + 2, PLACA_H + 2, rgba(COR.ouroClaro, 0.3 + 0.55 * b));   // halo
     R(0, 0, w, PLACA_H, borda);
     R(1, 1, w - 2, PLACA_H - 2, fundo);
-    texto(ctx, L.best, x + 3 * S, y + 2 * S, S, tBest);
+    var bx = 3;
+    if (L.marca) {
+      texto(ctx, L.marca, x + bx * S, y + 2 * S, S, ouro ? COR.palha2 : COR.ouroClaro);
+      bx += MARCA_W;
+    }
+    texto(ctx, L.best, x + bx * S, y + 2 * S, S, tBest);
     if (L.outros.length) {
-      var sx = 3 + numW(L.best) + 2;
+      var sx = bx + numW(L.best) + 2;
       R(sx, 1, 1, PLACA_H - 2, borda);
       var ox = sx + 3;
       for (var i = 0; i < L.outros.length; i++) {
@@ -443,7 +459,13 @@
           cor = COR.tinta;
         }
       }
-      texto(ctx, num, (nx + Math.round((sw - numW(num)) / 2)) * S, (ey + 1) * S, S, cor);
+      var marca = est.fase === 'mostra' && roll.rerolls > 0;
+      var tx = nx + Math.round((sw - numW(num) - (marca ? MARCA_W : 0)) / 2);
+      if (marca) {
+        texto(ctx, MARCA, tx * S, (ey + 1) * S, S, cor === COR.tinta ? COR.palha2 : COR.ouroClaro);
+        tx += MARCA_W;
+      }
+      texto(ctx, num, tx * S, (ey + 1) * S, S, cor);
       ex += entradaW(roll) + GAP_E;
     }
     stats.faixaDado = true;

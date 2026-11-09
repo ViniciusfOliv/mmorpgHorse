@@ -2446,7 +2446,8 @@
     var realTarget = 20 + 14 * clamp((D - 1000) / 1400, 0, 1);
     var ts = sim.duration / realTarget;
     // Efeitos (fx.js): a linha do tempo é montada uma vez. Os Dados recebem a escala de reprodução
-    // (segundos de simulação por segundo real em x1): câmera lenta ~2 s, giro ~1 s e faixa ~4 s reais.
+    // (segundos de simulação por segundo real em x1): câmera lenta ~2 s, giro ~1 s, brilho do vencedor
+    // ~2 s e faixa ~3,6 s reais.
     var fxTl = FX.timeline(sim, L.racers, ts);
     var dadoItens = fxTl.filter(function (it) { return it.kind === 'dado'; });
     function dadoAtivo(t) {
@@ -2739,16 +2740,16 @@
         text(t, bx + 2, by + 1, digitColor(L.racers[b.j].silks));
       });
       if (youTag) {
-        var yt = '◀VOCÊ' + (youTag.place ? ' ' + youTag.place + 'º' : ''), yw = tw(yt) + 4;
-        var tx = Math.min(Math.round(youTag.x / S), lay.artW - yw - 2), ty = Math.round(youTag.y / S) - 2;
-        box(tx, ty, yw, 9, C.veu, C.ouro);
-        text(yt, tx + 2, ty + 3, C.ouro);
+        var yb = youTagBox(youTag);
+        box(yb.x, yb.y, yb.w, 9, C.veu, C.ouro);
+        text(yb.txt, yb.x + 2, yb.y + 3, C.ouro);
       }
       layoutTags(tagsR, true); layoutTags(tagsL, false);
       SP.drawWeather(ctx, clima, reduced() ? 0 : tr, W, H, S);
       if (self.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + (0.55 * self.flash / 0.3).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
       var dItem = self.phase === 'contagem' ? null : dadoAtivo(self.simT);
-      if (dItem) drawDadosNaPista(dItem, vis);
+      self.voceRect = null;
+      if (dItem) drawDadosNaPista(dItem, vis, youTag);
       drawHud(st, order);
       if (self.finishCam || (self.phase !== 'contagem' && Math.abs(self.simT - tWin) < 0.6)) {
         var bt = 'FOTO DE CHEGADA', bw = tw(bt) + 6, bx2 = Math.round(lay.artW / 2 - bw / 2), by2 = lay.hudH + 3;
@@ -2773,23 +2774,33 @@
       }
     }
 
+    // etiqueta "◀VOCÊ" (pixels de arte; caixa de 9 de altura, borda por fora): texto e posição
+    function youTagBox(yt) {
+      var s = '◀VOCÊ' + (yt.place ? ' ' + yt.place + 'º' : ''), w = tw(s) + 4;
+      return { txt: s, x: Math.min(Math.round(yt.x / self.S), self.lay.artW - w - 2), y: Math.round(yt.y / self.S) - 2, w: w };
+    }
+
     // Dado da Sorte sobre cada cavalo visível (fx.js): plaquinha centrada no jóquei, logo acima da caixa
-    // do desenho (molde ou código), arranjada sem sobreposição entre a faixa do Dado e o fim da pista
-    function drawDadosNaPista(item, vis) {
+    // do desenho (molde ou código), arranjada sem sobreposição entre a faixa do Dado e o fim da pista e
+    // desviando da etiqueta "◀VOCÊ" (obstáculo fixo)
+    function drawDadosNaPista(item, vis, youTag) {
       var S = self.S, lay = self.lay, red = reduced();
       var faixa = FX.stripLayout(item, L.racers, lay);
       var topo = faixa.y + faixa.h + 2;
+      var fixos = [];
+      if (youTag) { var yb = youTagBox(youTag); fixos.push({ x: yb.x - 1, y: yb.y - 1 - topo, w: yb.w + 2, h: 11 }); }
+      self.voceRect = fixos.length ? { x: fixos[0].x, y: fixos[0].y + topo, w: fixos[0].w, h: fixos[0].h } : null;
       var rects = vis.map(function (v) {
         var sz = FX.badgeSize(item.rolls[v.j]);
         var cx = v.an.saddle ? Math.round(v.x / S + v.an.saddle[0]) : Math.round((v.caixa.x + v.caixa.w / 2) / S);
         return { j: v.j, x: cx - Math.floor(sz.w / 2), y: Math.floor(v.caixa.y / S) - 1 - sz.h - topo, w: sz.w, h: sz.h };
       });
-      var arr = FX.layoutBadges(rects, lay.artW, lay.artH - topo);
+      var arr = FX.layoutBadges(rects, lay.artW, lay.artH - topo, fixos);
       arr.sort(function (a, b) { return (a.j === item.winner) - (b.j === item.winner); });   // vencedor por cima
       arr.forEach(function (r) {
         var est = FX.diceState(item, self.simT, red, r.j), win = r.j === item.winner;
         var num = FX.drawDice(ctx, r.x * S, (r.y + topo) * S, S, item.rolls[r.j], est, win, self.simT, L.racers[r.j].silks);
-        FX._stats.placas.push({ racer: r.j, numero: num, vencedor: win, fase: est.fase });
+        FX._stats.placas.push({ racer: r.j, numero: num, vencedor: win, fase: est.fase, x: r.x, y: r.y + topo, w: r.w, h: r.h });
       });
     }
 
