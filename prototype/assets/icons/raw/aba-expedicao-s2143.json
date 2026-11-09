@@ -1,0 +1,32 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-09T04:22:12.294Z",
+  "pedido": {
+    "description": "round navigation compass, top view, crisp red and white needle pointing straight up, gold rim, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 6dae6f54db438aea>",
+      "format": "png"
+    },
+    "seed": 2143
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 618 bytes, sha256 34bd9b85ce577fb1>",
+      "format": "png"
+    }
+  },
+  "rejeitada": "conferência visual (2026-11-09): agulha na diagonal (nordeste), não apontando para cima como pedido; aro com manchas vermelhas"
+}

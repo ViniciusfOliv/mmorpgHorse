@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePng, encodePng, encodeGray } from './png.mjs';
-import { PAPEIS, paletaPng, normalizar, validar, ancoras, paraCinza, deCinza, sombrearRegioes, limparJoquei, limiarOtsu, classificarFamilias, limiaresDeTons, posProcessar, contornar } from './moldes-lib.mjs';
+import { PAPEIS, paletaPng, normalizar, validar, ancoras, paraCinza, deCinza, sombrearRegioes, limparJoquei, limiarOtsu, classificarFamilias, limiaresDeTons, posProcessar, contornar, passada } from './moldes-lib.mjs';
 
 let fails = 0, count = 0;
 function section(t) { console.log('\n## ' + t); }
@@ -146,6 +146,22 @@ test('ancoras numa forma retangular conhecida', () => {
 test('ancoras sem papel 9 ⇒ saddle null', () => {
   const w = 4, h = 4, idx = new Uint8Array(w * h); idx[5] = 2; idx[6] = 2;
   assert.strictEqual(ancoras(idx, w, h).saddle, null);
+});
+test('passada numa forma conhecida: pernas contam (até a perna só de contorno), cauda não', () => {
+  // 30×20: corpo 8..22 × 4..9; bbox y 2..17 (h 16) ⇒ terço de baixo = 5 linhas (13..17)
+  const w = 30, h = 20, idx = new Uint8Array(w * h);
+  const set = (x, y, v) => { idx[y * w + x] = v; };
+  for (let y = 4; y <= 9; y++) for (let x = 8; x <= 22; x++) set(x, y, 2);
+  set(15, 2, 7); set(15, 3, 7);                                              // jóquei (topo do bbox)
+  for (let y = 10; y <= 15; y++) set(9, y, 3);                               // perna de trás (pelagem)…
+  set(8, 16, 1); set(7, 16, 1); set(6, 17, 1); set(5, 17, 1);                // …que termina fina, só contorno
+  for (let y = 10; y <= 14; y++) set(21, y, 2);                              // perna da frente…
+  set(22, 15, 1); set(23, 16, 1); set(24, 17, 6); set(25, 17, 6);            // …até o casco (6)
+  for (let y = 5; y <= 14; y++) for (let x = 1; x <= 3; x++) set(x, y, 4);   // cauda (crina) descendo até a faixa
+  set(0, 15, 1); set(0, 16, 1);                                              // ponta escura da cauda, sem pelagem
+  assert.strictEqual(ancoras(idx, w, h).bbox.h, 16);
+  assert.strictEqual(passada(idx, w, h), 25 - 5, 'do casco de trás (x 5) ao da frente (x 25); a cauda (x 0–3) fica fora');
+  assert.strictEqual(passada(new Uint8Array(w * h), w, h), 0, 'quadro vazio');
 });
 test('paraCinza/deCinza ida e volta', () => {
   const idx = Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -314,6 +330,39 @@ moldes.forEach(arq => {
     assert.strictEqual(J.larguraUtil, ancoras(quadros.retrato.idx, 64, 64).bbox.w, 'larguraUtil');
   });
 });
+
+// Aceite do galope de corrida (spec 2026-11-09 §4): o galope de chamas é o padrão. Para os outros estilos,
+// a maior passada ≥ 80 % da maior passada de chamas e, em cada quadro, a altura do contorno ≤ 110 % da
+// altura média do galope de chamas (meio-galope = corpo alto e patas recolhidas).
+section('galope de corrida');
+const galopeIdx = estilo => {
+  const J = JSON.parse(fs.readFileSync(path.join(DIR, 'molde-' + estilo + '.json'), 'utf8'));
+  return Array.from({ length: J.frames }, (_, i) => {
+    const d = decodePng(fs.readFileSync(path.join(DIR, 'molde-' + estilo + '-galope-' + i + '.png')));
+    const g = new Uint8Array(64 * 64);
+    for (let k = 0; k < g.length; k++) g[k] = d.rgba[k * 4];
+    return deCinza(g);
+  });
+};
+if (!moldes.includes('molde-chamas.json')) console.log('  sem o molde de chamas — bloco pulado');
+else {
+  const ch = galopeIdx('chamas');
+  const passadaRef = Math.max(...ch.map(q => passada(q, 64, 64)));
+  const alturaRef = ch.reduce((s, q) => s + ancoras(q, 64, 64).bbox.h, 0) / ch.length;
+  console.log('  chamas (padrão): maior passada ' + passadaRef + ' px, altura média ' + alturaRef.toFixed(2) + ' px'
+    + ' ⇒ exige passada ≥ ' + (0.8 * passadaRef).toFixed(1) + ' e altura ≤ ' + (1.1 * alturaRef).toFixed(1));
+  moldes.map(a => a.replace(/^molde-|\.json$/g, '')).filter(e => e !== 'chamas').forEach(estilo => {
+    test(estilo + ': galope de corrida (passada e altura contra chamas)', () => {
+      const qs = galopeIdx(estilo);
+      const ps = qs.map(q => passada(q, 64, 64)), hs = qs.map(q => ancoras(q, 64, 64).bbox.h);
+      const medidas = 'passadas ' + ps.join(' ') + '; alturas ' + hs.join(' ');
+      assert.ok(Math.max(...ps) >= 0.8 * passadaRef,
+        'maior passada ' + Math.max(...ps) + ' < ' + (0.8 * passadaRef).toFixed(1) + ' (80 % de ' + passadaRef + ') — ' + medidas);
+      hs.forEach((a, i) => assert.ok(a <= 1.1 * alturaRef,
+        'galope-' + i + ': altura ' + a + ' > ' + (1.1 * alturaRef).toFixed(1) + ' (110 % de ' + alturaRef.toFixed(2) + ') — ' + medidas));
+    });
+  });
+}
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

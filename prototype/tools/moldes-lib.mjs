@@ -108,6 +108,45 @@ export function ancoras(idx, w, h) {
   return { footY: y1, nose, rear, saddle: sn ? [Math.round(sx / sn), Math.round(sy / sn)] : null, bbox };
 }
 
+/**
+ * Passada de um quadro de galope (aceite do galope de corrida, spec 2026-11-09 §4): distância horizontal
+ * entre o pixel de perna/casco mais à esquerda e o mais à direita nas linhas do terço de baixo do contorno
+ * (as floor(bbox.h / 3) últimas linhas do bbox, no mínimo 1).
+ * Só conta perna/casco: pixels opacos que não são crina (4/5), agrupados em componentes 8-conexos DENTRO
+ * dessa faixa, e só os componentes com algum pixel de corpo (papéis 2, 3, 6–9). Assim a ponta da cauda que
+ * desce até a faixa (crina, ou contorno/sombra escura sem pelagem, como nas folhas) não conta, e a perna
+ * fina desenhada só com contorno (lisa) conta, porque se liga à pelagem da coxa ou da barriga na faixa.
+ * Com "qualquer pixel opaco" a cauda baixa de ondas, folhas e lisa passaria por passada longa.
+ * @param {Uint8Array} idx índices de papel (w × h)
+ * @returns {number} 0 se nada de perna cair na faixa
+ */
+export function passada(idx, w, h) {
+  const { bbox } = ancoras(idx, w, h);
+  if (!bbox.h) return 0;
+  const y1 = bbox.y + bbox.h - 1, y0 = y1 - Math.max(1, Math.floor(bbox.h / 3)) + 1;
+  const crina = v => v === 4 || v === 5;
+  const naFaixa = i => idx[i] && !crina(idx[i]);
+  const visto = new Uint8Array(w * h);
+  let xMin = w, xMax = -1;
+  for (let i = y0 * w; i < (y1 + 1) * w; i++) {
+    if (visto[i] || !naFaixa(i)) continue;
+    const pilha = [i], membros = [];
+    let temCorpo = false;
+    visto[i] = 1;
+    while (pilha.length) {
+      const j = pilha.pop(), x = j % w, y = (j / w) | 0;
+      membros.push(j);
+      if (idx[j] >= 2) temCorpo = true; // crina já ficou de fora: ≥ 2 aqui é pelagem, casco ou jóquei
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy, k = yy * w + xx;
+        if ((dx || dy) && xx >= 0 && xx < w && yy >= y0 && yy <= y1 && !visto[k] && naFaixa(k)) { visto[k] = 1; pilha.push(k); }
+      }
+    }
+    if (temCorpo) for (const j of membros) { const x = j % w; if (x < xMin) xMin = x; if (x > xMax) xMax = x; }
+  }
+  return xMax < 0 ? 0 : xMax - xMin;
+}
+
 /** Índices de papel → tons de cinza (valor = índice × 25), para enviar como imagem de cinza. */
 export function paraCinza(idx) {
   const out = new Uint8Array(idx.length);

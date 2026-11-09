@@ -26,6 +26,12 @@
 // A paleta forçada (color_image com as cores de papel + /reduce-colors) foi testada em 2026-11-08 e
 // descartada: o modelo pintava cada par num tom só (pelagem toda #800000, crina toda #008000) e punha
 // cores do jóquei na crina; com cores livres + classificação o resultado ficou melhor (relatório da Task 2).
+// Galope de corrida (spec 2026-11-09 §4): o galope de ondas, folhas e lisa saiu em meio-galope (corpo alto,
+// patas recolhidas). Nesses estilos (campo `corrida` em ESTILOS) o montado vira a pose `corrida`: pixflux com
+// init_image = 1º quadro cru do galope de chamas (o padrão), força `corrida.forca`, texto de corrida + crina
+// + COR; o galope usa ACAO_CORRIDA. A pré-checagem aplica o aceite (moldes-lib: passada; altura do contorno)
+// antes de gastar a etapa seguinte: corrida reprovada ⇒ nova seed da corrida (sem animar); galope reprovado
+// ⇒ nova seed só do galope. Referência = galope final de chamas (molde-chamas-galope-*.png).
 // Uma imagem crua já gravada em raw/ com o MESMO pedido (prompt, parâmetros, seed e imagens de entrada)
 // é reaproveitada sem nova chamada; uma tentativa que deu erro de API fica registrada (JSON com "erro") e
 // a seed é pulada ao retomar o lote. Uma imagem válida mas ruim na conferência visual é marcada à mão com
@@ -35,14 +41,14 @@
 //   prototype/assets/pixellab/molde-<estilo>.json        (âncoras, larguraUtil, limiares por geração, seeds)
 //   prototype/assets/pixellab/raw/  (PNGs crus e respostas JSON sem os base64)
 // Ícones: 16 × /create-image-pixflux 32×32 com a paleta da interface em color_image (pedido do plano) →
-// prototype/assets/icons/<nome>.png (RGBA) e icons/raw/. Cada arquivo final ganha uma linha em
-// docs/memoria/assets.md.
+// prototype/assets/icons/<nome>.png (RGBA) e icons/raw/. Cada arquivo final que MUDOU ganha (ou troca) sua
+// linha em docs/memoria/assets.md; o que só foi refeito igual a partir de raw/ não mexe no registro.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePng, encodePng, encodeGray } from './png.mjs';
-import { validar, ancoras, paraCinza, classificarFamilias, limiaresDeTons, posProcessar } from './moldes-lib.mjs';
+import { validar, ancoras, paraCinza, deCinza, classificarFamilias, limiaresDeTons, posProcessar, passada } from './moldes-lib.mjs';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DIR_MOLDES = path.join(RAIZ, 'prototype', 'assets', 'pixellab');
@@ -61,32 +67,51 @@ const LADO = 64;          // moldes 64×64
 
 // ---------------------------------------------------------------- o que gerar (plano, Task 2)
 const COR = 'pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing';
-const JOQUEI = 'with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins';
+const JOQUEI_CORES = 'jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins';
+const JOQUEI = 'with a small jockey riding, ' + JOQUEI_CORES;
+// corrida: o texto da spec 2026-11-09 §4 + as cores de papel do jóquei (o validar exige seda 7 e pele 8)
 const POSES = {
   retrato: 'standing still horse, no rider, no saddle',
   parado: 'horse standing still ' + JOQUEI,
   montado: 'racing horse in mid-gallop stride ' + JOQUEI,
+  corrida: 'racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, ' + JOQUEI_CORES,
 };
 // montado (opcional): seed e reforço próprios do montado — rodada 1 de correção: o montado da lisa saía
-// com crina e cauda marrom-escuras e o jóquei borrado.
+// com crina e cauda marrom-escuras e o jóquei borrado (o reforço vale também para a corrida).
+// corrida (opcional): o montado deste estilo é a pose `corrida` (seed base da corrida e do galope; forca =
+// init_image_strength, 1–999). chamas não tem: o galope dele é o padrão e a guia da corrida.
 const ESTILOS = [
   { id: 'chamas', seed: 1101, crina: 'mane and tail shaped like flickering flames' },
-  { id: 'ondas', seed: 1201, crina: 'mane and tail shaped like flowing water waves' },
-  { id: 'folhas', seed: 1301, crina: 'mane and tail made of leaves' },
+  { id: 'ondas', seed: 1201, crina: 'mane and tail shaped like flowing water waves', corrida: { seed: 1501, forca: 300 } },
+  { id: 'folhas', seed: 1301, crina: 'mane and tail made of leaves', corrida: { seed: 1601, forca: 300 } },
   { id: 'lisa', seed: 1401, crina: 'long straight flowing mane and tail',
-    montado: { seed: 1451, reforco: 'bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet' } },
+    montado: { seed: 1451, reforco: 'bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet' },
+    corrida: { seed: 1701, forca: 300 } },
 ];
-const seedBaseDe = (estilo, k) => (k === 'montado' && estilo.montado ? estilo.montado.seed : estilo.seed);
+const poseMontada = estilo => (estilo.corrida ? 'corrida' : 'montado');
+const posesDe = estilo => ['retrato', 'parado', poseMontada(estilo)];
+function seedBaseDe(estilo, k) {
+  if (estilo.corrida && (k === 'corrida' || k === 'galope')) return estilo.corrida.seed;
+  return k === 'montado' && estilo.montado ? estilo.montado.seed : estilo.seed;
+}
 const ACAO_GALOPE = 'galloping at full racing speed in a seamless loop, legs extending and gathering, mane and tail flowing back';
+const ACAO_CORRIDA = 'full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back';
+const acaoDe = estilo => (estilo.corrida ? ACAO_CORRIDA : ACAO_GALOPE);
+// guia da corrida: o 1º quadro cru (RGBA) do galope de chamas (= o montado de chamas, seed 1111)
+const GUIA_CORRIDA = 'chamas-galope-m1111-s1101-0.png';
+// nomes em raw/: a força entra no nome para uma força nova não sobrescrever a imagem crua de outra
+const prefixoPose = (estilo, pose) => (pose === 'corrida' ? `${estilo.id}-corrida-f${estilo.corrida.forca}` : `${estilo.id}-${pose}`);
+const prefixoGalope = (estilo, seedMontado) => `${estilo.id}-galope-${estilo.corrida ? `c${seedMontado}f${estilo.corrida.forca}` : `m${seedMontado}`}`;
 
 const SUFIXO_ICONE = 'pixel art game ui icon, centered, simple, readable at small size';
 const PALETA_ICONES = ['#000000', '#f2c230', '#ffe27a', '#9c7210', '#f1e9d4', '#16271f', '#335446'];
 // [nome, descrição, opções]; opções da rodada 1 de correção (bússola parecia timão, estribo parecia
 // ferradura): seed + 20 e descrição nova; `cor` = cor extra da paleta quando a descrição pede uma que a
-// paleta da interface não tem (agulha vermelha ⇒ --perda do jogo).
+// paleta da interface não tem (agulha vermelha ⇒ --perda do jogo). Bússola de novo em 2026-11-09 (spec da
+// corrida viva §4): a da seed 2123 tinha a agulha pouco nítida; descrição nova e seed nova.
 const ICONES = [
   ['aba-estabulo', 'horse head icon'], ['aba-correr', 'checkered racing flag icon'],
-  ['aba-expedicao', 'round navigation compass, top view, red and white needle pointing up, cardinal marks', { seed: 2123, cor: '#ff6b5e' }],
+  ['aba-expedicao', 'round navigation compass, top view, crisp red and white needle pointing straight up, gold rim', { seed: 2143, cor: '#ff6b5e' }],
   ['aba-haras', 'two hearts icon'], ['aba-loja', 'shopping cart icon'], ['slot-ferraduras', 'horseshoe icon'],
   ['slot-sela', 'horse saddle icon'],
   ['slot-estribos', 'single stirrup iron: D-shaped metal loop with a flat footplate at the bottom, hanging from a short leather strap', { seed: 2128 }],
@@ -99,18 +124,29 @@ const ICONES = [
 // ---------------------------------------------------------------- corpos das chamadas
 const imagem = buf => ({ type: 'base64', base64: buf.toString('base64'), format: 'png' });
 
+let guiaBuf = null;
+function guiaCorrida() {
+  if (!guiaBuf) {
+    const f = path.join(DIR_MOLDES_RAW, GUIA_CORRIDA);
+    if (!fs.existsSync(f)) throw new ErroApi(`falta a guia da corrida ${path.relative(RAIZ, f)}`, { fatal: true });
+    guiaBuf = fs.readFileSync(f);
+  }
+  return guiaBuf;
+}
 function pedidoPose(estilo, pose, seed) {
-  const reforco = pose === 'montado' && estilo.montado ? `, ${estilo.montado.reforco}` : '';
-  return {
+  const reforco = (pose === 'montado' || pose === 'corrida') && estilo.montado ? `, ${estilo.montado.reforco}` : '';
+  const corpo = {
     description: `side view, facing right, ${POSES[pose]}, ${estilo.crina}${reforco}, ${COR}`,
     image_size: { width: LADO, height: LADO },
     view: 'side', direction: 'east',
     outline: 'single color black outline', shading: 'basic shading', detail: 'medium detail',
     no_background: true, seed,
   };
+  if (pose === 'corrida') { corpo.init_image = imagem(guiaCorrida()); corpo.init_image_strength = estilo.corrida.forca; }
+  return corpo;
 }
-function pedidoGalope(montado, seed) {
-  return { first_frame: imagem(montado), action: ACAO_GALOPE, frame_count: 8, no_background: true, drift_threshold: 0, seed };
+function pedidoGalope(montado, seed, acao) {
+  return { first_frame: imagem(montado), action: acao, frame_count: 8, no_background: true, drift_threshold: 0, seed };
 }
 function coresIcone(icone) {
   const m = /\(#([0-9a-f]{6})\)/i.exec(icone.desc); // cor do tema, quando a descrição traz uma
@@ -155,8 +191,8 @@ function lerArgs(argv) {
   a.icones = a.lote === 'moldes' ? [] : ICONES.filter(ic => !a.only || ic.id === a.only);
   if (a.only && !a.estilos.length && !a.icones.length) sair(`--only ${a.only}: não existe no lote "${a.lote}"`);
   if (a.repetir.length > 2) sair('--repetir: no máximo 2 itens');
-  const itens = [...ESTILOS.flatMap(e => ['retrato', 'parado', 'montado', 'galope'].map(k => `${e.id}/${k}`)), ...ICONES.map(ic => `icone/${ic.id}`)];
-  for (const r of a.repetir) if (!itens.includes(r)) sair(`--repetir ${r}: item desconhecido (ex.: lisa/parado, icone/aba-loja)`);
+  const itens = [...ESTILOS.flatMap(e => [...posesDe(e), 'galope'].map(k => `${e.id}/${k}`)), ...ICONES.map(ic => `icone/${ic.id}`)];
+  for (const r of a.repetir) if (!itens.includes(r)) sair(`--repetir ${r}: item desconhecido (ex.: lisa/parado, ondas/corrida, icone/aba-loja)`);
   REPETIR_EXTRA = a.repetir;
   return a;
 }
@@ -225,21 +261,35 @@ function registrarAsset(arquivos, endpoint, prompt, seedTexto, geracoes, emUso) 
 }
 
 // ---------------------------------------------------------------- dry-run
-// 1ª seed que o lote real usaria: pula as com erro registrado; "cru" se já houver a imagem em raw/
-function seedPlanejada(dir, prefixo, seedBase, pedidoDe, rotulo) {
+// 1ª seed que o lote real usaria, sem rede: pula as com erro registrado ou rejeitadas à mão e, quando a imagem
+// crua já existe, também as que a pré-checagem (validar + aceite) reprova — como o lote real faria.
+// Devolve "cru" (e as imagens) se a seed escolhida já tiver a imagem em raw/.
+function seedPlanejada(dir, prefixo, seedBase, pedidoDe, rotulo, { varios = false, checar = null } = {}) {
   for (let k = 0; k <= MAX_REPETICOES + (REPETIR_EXTRA.includes(rotulo) ? 1 : 0); k++) {
-    const seed = seedBase + PASSO_SEED * k, corpo = pedidoDe(seed), reg = lerCru(dir, `${prefixo}-s${seed}`, corpo);
+    const seed = seedBase + PASSO_SEED * k, corpo = pedidoDe(seed), base = `${prefixo}-s${seed}`, reg = lerCru(dir, base, corpo);
     if (reg && (reg.erro || reg.rejeitada)) continue;
-    return { seed, corpo, cru: !!(reg && pngsCrus(dir, `${prefixo}-s${seed}`, false)) };
+    const bufs = reg && pngsCrus(dir, base, varios);
+    if (bufs && checar && !checar(bufs).ok) continue;
+    return { seed, corpo, cru: !!bufs, bufs };
   }
-  return { seed: seedBase, corpo: pedidoDe(seedBase), cru: false };
+  return { seed: seedBase, corpo: pedidoDe(seedBase), cru: false, bufs: null };
 }
 function planoEstilo(e) {
-  const poses = ['retrato', 'parado', 'montado'].map(p => {
-    const s = seedPlanejada(DIR_MOLDES_RAW, `${e.id}-${p}`, seedBaseDe(e, p), seed => pedidoPose(e, p, seed), `${e.id}/${p}`);
-    return { item: `${e.id}/${p}`, endpoint: PIXFLUX, seed: s.seed, texto: s.corpo.description, cru: s.cru };
+  const plano = posesDe(e).map(p => {
+    const s = seedPlanejada(DIR_MOLDES_RAW, prefixoPose(e, p), seedBaseDe(e, p), seed => pedidoPose(e, p, seed), `${e.id}/${p}`,
+      { checar: bufs => checarPose(e, p, bufs[0], `${e.id}/${p}`) });
+    const guia = p === 'corrida' ? ` [init_image = raw/${GUIA_CORRIDA}; init_image_strength ${e.corrida.forca}]` : '';
+    return { item: `${e.id}/${p}`, endpoint: PIXFLUX, seed: s.seed, texto: s.corpo.description + guia, cru: s.cru, bufs: s.bufs };
   });
-  return [...poses, { item: `${e.id}/galope`, endpoint: ANIMA, seed: e.seed, texto: `${ACAO_GALOPE} [first_frame = ${e.id}/montado; frame_count 8; drift_threshold 0; reaproveitável se o montado for o mesmo]`, cru: false }];
+  const montado = plano[plano.length - 1], rotulo = `${e.id}/galope`, sufixo = `[first_frame = ${montado.item} seed ${montado.seed}; frame_count 8; drift_threshold 0]`;
+  if (!montado.cru) {
+    plano.push({ item: rotulo, endpoint: ANIMA, seed: seedBaseDe(e, 'galope'), texto: `${acaoDe(e)} ${sufixo}`, cru: false });
+  } else { // montado já em raw/: o galope dele pode estar em raw/ também
+    const s = seedPlanejada(DIR_MOLDES_RAW, prefixoGalope(e, montado.seed), seedBaseDe(e, 'galope'), seed => pedidoGalope(montado.bufs[0], seed, acaoDe(e)), rotulo,
+      { varios: true, checar: bufs => checarGalope(e, bufs, rotulo) });
+    plano.push({ item: rotulo, endpoint: ANIMA, seed: s.seed, texto: `${acaoDe(e)} ${sufixo}`, cru: s.cru });
+  }
+  return plano;
 }
 function planoIcone(ic) {
   const s = seedPlanejada(DIR_ICONES_RAW, ic.id, ic.seed, seed => pedidoIcone(ic, seed), `icone/${ic.id}`);
@@ -249,20 +299,23 @@ function planoIcone(ic) {
 function dryRun(a) {
   const plano = [...a.estilos.flatMap(planoEstilo), ...a.icones.map(planoIcone)];
   console.log(`DRY-RUN (sem --gerar): nenhuma chamada à API. Lote "${a.lote}"${a.only ? ` (--only ${a.only})` : ''}; teto ${a.teto} gerações.`);
-  console.log('Estimativa: 1 geração por chamada (custo observado); "raw" = imagem crua com o mesmo pedido, reaproveitada sem custo.');
+  console.log('Estimativa: 1 geração por chamada (custo observado). Só os itens NOVOS aparecem em detalhe; os que já');
+  console.log('têm imagem crua em raw/ com o mesmo pedido (e passam na pré-checagem) são reaproveitados sem custo.');
   console.log('Repetições (até 2 por item) não entram na previsão.\n');
-  let total = 0, n = 0, crus = 0;
-  for (const c of plano) {
-    const custo = c.cru ? 0 : 1;
-    if (total + custo > a.teto) break;
-    total += custo; n++; if (c.cru) crus++;
-    console.log(`${String(n).padStart(3)}. POST ${c.endpoint.padEnd(22)} ${c.item.padEnd(24)} seed ${c.seed}  ${c.cru ? 'raw (0)' : '~1 geração'}`);
+  let total = 0, n = 0;
+  const crus = [];
+  for (const [i, c] of plano.entries()) {
+    if (c.cru) { crus.push(`${c.item} (seed ${c.seed})`); continue; }
+    if (total + 1 > a.teto) {
+      console.log(`AVISO: o teto de ${a.teto} gerações cortou os itens novos a partir de ${c.item} (${plano.slice(i).filter(x => !x.cru).length} sem previsão).`);
+      break;
+    }
+    total++; n++;
+    console.log(`${String(n).padStart(3)}. POST ${c.endpoint.padEnd(22)} ${c.item.padEnd(24)} seed ${c.seed}  ~1 geração`);
     console.log(`       ${c.texto}`);
   }
-  console.log(`\nTotal previsto: ${total} gerações em ${n - crus} chamadas (+ ${crus} reaproveitadas de raw/; teto ${a.teto}).`);
-  if (n < plano.length) {
-    console.log(`AVISO: o teto de ${a.teto} gerações cortou ${plano.length - n} de ${plano.length} itens planejados (a partir de ${plano[n].item}).`);
-  }
+  console.log(`\nReaproveitados de raw/ (0 geração): ${crus.length ? crus.join(', ') : 'nenhum'}.`);
+  console.log(`\nTotal previsto: ${total} gerações em ${n} chamadas novas (+ ${crus.length} reaproveitadas de raw/; teto ${a.teto}).`);
 }
 
 // ---------------------------------------------------------------- API, teto e erros
@@ -434,24 +487,75 @@ function decodificar64(buf, onde) {
 function preChecar(bufs, comJoquei, onde, contorno) {
   const fams = bufs.map((b, i) => classificarFamilias(decodificar64(b, `${onde} quadro ${i}`).rgba, LADO, LADO));
   const tons = limiaresDeTons(fams);
-  const ruins = [];
-  fams.forEach((f, i) => {
-    const v = validar(posProcessar(f, tons, { comJoquei, contorno }), { exigeJoquei: comJoquei });
+  const ruins = [], quadros = fams.map(f => posProcessar(f, tons, { comJoquei, contorno }));
+  quadros.forEach((q, i) => {
+    const v = validar(q, { exigeJoquei: comJoquei });
     if (!v.ok) ruins.push((bufs.length > 1 ? `galope-${i}: ` : '') + v.motivo);
   });
-  return ruins.length ? { ok: false, motivo: ruins.join('; ') } : { ok: true };
+  return ruins.length ? { ok: false, motivo: ruins.join('; ') } : { ok: true, quadros };
+}
+
+// ---------------------------------------------------------------- aceite do galope de corrida (spec 2026-11-09 §4)
+// Referência: o galope final de chamas. Galope: maior passada ≥ 80 % da maior de chamas; altura do contorno
+// de cada quadro ≤ 110 % da altura média de chamas; e o focinho não deriva mais de 6 px (o mesmo que o
+// moldes-test confere). Corrida (montado, 1 quadro): altura ≤ 110 % da média e passada ≥ 80 % da passada do
+// quadro-guia (o 1º de chamas) — a guia, que é corrida por definição, tem de passar no próprio filtro.
+const ACEITE = { passada: 0.8, altura: 1.1, derivaFocinho: 6 };
+let REF_CORRIDA = null;
+function referenciaCorrida() {
+  if (REF_CORRIDA) return REF_CORRIDA;
+  const arq = path.join(DIR_MOLDES, 'molde-chamas.json');
+  if (!fs.existsSync(arq)) throw new ErroApi('aceite da corrida: falta o molde de chamas (a referência)', { fatal: true });
+  const J = JSON.parse(fs.readFileSync(arq, 'utf8'));
+  const qs = Array.from({ length: J.frames }, (_, i) => {
+    const d = decodePng(fs.readFileSync(path.join(DIR_MOLDES, `molde-chamas-galope-${i}.png`)));
+    return deCinza(Uint8Array.from({ length: LADO * LADO }, (_, k) => d.rgba[k * 4]));
+  });
+  const ps = qs.map(q => passada(q, LADO, LADO)), hs = qs.map(q => ancoras(q, LADO, LADO).bbox.h);
+  REF_CORRIDA = { passadaMax: Math.max(...ps), passadaGuia: ps[0], alturaMedia: hs.reduce((s, v) => s + v, 0) / hs.length };
+  return REF_CORRIDA;
+}
+const medidas = qs => ({ passadas: qs.map(q => passada(q.idx, LADO, LADO)), alturas: qs.map(q => ancoras(q.idx, LADO, LADO).bbox.h) });
+function aceiteCorrida(q) {
+  const r = referenciaCorrida(), { passadas: [p], alturas: [h] } = medidas([q]);
+  const minP = ACEITE.passada * r.passadaGuia, maxH = ACEITE.altura * r.alturaMedia;
+  const txt = `passada ${p} (mín. ${fmt(minP)}), altura ${h} (máx. ${fmt(maxH)})`;
+  if (h > maxH) return { ok: false, motivo: `aceite da corrida: corpo alto — ${txt}` };
+  if (p < minP) return { ok: false, motivo: `aceite da corrida: patas recolhidas — ${txt}` };
+  return { ok: true, txt };
+}
+function aceiteGalope(qs) {
+  const r = referenciaCorrida(), m = medidas(qs);
+  const minP = ACEITE.passada * r.passadaMax, maxH = ACEITE.altura * r.alturaMedia;
+  const nx = qs.map(q => ancoras(q.idx, LADO, LADO).nose[0]), deriva = Math.max(...nx.map(x => Math.abs(x - nx[0])));
+  const txt = `passadas ${m.passadas.join(' ')} (maior ${Math.max(...m.passadas)}, mín. ${fmt(minP)}); alturas ${m.alturas.join(' ')} (máx. ${fmt(maxH)}); focinho deriva ${deriva} px (máx. ${ACEITE.derivaFocinho})`;
+  const altos = m.alturas.map((h, i) => (h > maxH ? `galope-${i}` : null)).filter(Boolean);
+  if (Math.max(...m.passadas) < minP) return { ok: false, motivo: `aceite do galope: passada curta — ${txt}` };
+  if (altos.length) return { ok: false, motivo: `aceite do galope: corpo alto em ${altos.join(', ')} — ${txt}` };
+  if (deriva > ACEITE.derivaFocinho) return { ok: false, motivo: `aceite do galope: focinho deriva — ${txt}` };
+  return { ok: true, txt };
+}
+// pré-checagem completa de um item (validar + aceite da corrida, quando o estilo tem corrida)
+function checarPose(estilo, pose, buf, rotulo) {
+  const v = preChecar([buf], pose !== 'retrato', rotulo, pose === 'montado' || pose === 'corrida');
+  return v.ok && pose === 'corrida' ? aceiteCorrida(v.quadros[0]) : v;
+}
+function checarGalope(estilo, bufs, rotulo) {
+  if (bufs.length !== 9 && bufs.length !== 8) return { ok: false, motivo: `veio com ${bufs.length} quadros (esperado 9, ou 8)` };
+  const v = preChecar(bufs, true, rotulo, true);
+  return v.ok && estilo.corrida ? aceiteGalope(v.quadros) : v;
 }
 
 // ---------------------------------------------------------------- moldes
 async function gerarPose(estilo, pose, it) {
   for (let seed; (seed = proximaSeed(it)) != null;) {
-    console.log(`  ${it.rotulo} seed ${seed}`);
-    const corpo = pedidoPose(estilo, pose, seed), base = `${estilo.id}-${pose}-s${seed}`;
+    console.log(`  ${it.rotulo} seed ${seed}${pose === 'corrida' ? ` (init_image raw/${GUIA_CORRIDA}, força ${estilo.corrida.forca})` : ''}`);
+    const corpo = pedidoPose(estilo, pose, seed), base = `${prefixoPose(estilo, pose)}-s${seed}`;
     const reg = lerCru(DIR_MOLDES_RAW, base, corpo), crus = reg && pngsCrus(DIR_MOLDES_RAW, base, false);
     if (reg && (reg.erro || reg.rejeitada)) { pular(it, seed, reg); continue; }
     let buf;
     if (crus) {
-      reaproveitar(it, seed, reg); buf = crus[0];
+      reaproveitar(it, seed, reg); buf = crus[0]; it.data = reg.data;
     } else {
       let resp;
       try {
@@ -462,9 +566,10 @@ async function gerarPose(estilo, pose, it) {
       }
       buf = bufDe(resp.image, it.rotulo);
       gravarCru(DIR_MOLDES_RAW, base, PIXFLUX, corpo, resp, [[base + '.png', buf]]);
+      it.data = new Date().toISOString();
     }
-    const v = preChecar([buf], pose !== 'retrato', it.rotulo, pose === 'montado');
-    if (v.ok) return buf;
+    const v = checarPose(estilo, pose, buf, it.rotulo);
+    if (v.ok) { if (v.txt) { it.aceite = v.txt; console.log(`    aceite ok: ${v.txt}`); } return buf; }
     rejeitar(it, seed, v.motivo);
   }
   return null;
@@ -473,12 +578,12 @@ async function gerarPose(estilo, pose, it) {
 async function gerarGalope(estilo, it, montado, seedMontado) {
   for (let seed; (seed = proximaSeed(it)) != null;) {
     console.log(`  ${it.rotulo} seed ${seed} (montado ${seedMontado}; job assíncrono; pode levar minutos)`);
-    const corpo = pedidoGalope(montado, seed), base = `${estilo.id}-galope-m${seedMontado}-s${seed}`;
+    const corpo = pedidoGalope(montado, seed, acaoDe(estilo)), base = `${prefixoGalope(estilo, seedMontado)}-s${seed}`;
     const reg = lerCru(DIR_MOLDES_RAW, base, corpo);
     if (reg && (reg.erro || reg.rejeitada)) { pular(it, seed, reg); continue; }
     let bufs = reg && pngsCrus(DIR_MOLDES_RAW, base, true);
     if (bufs) {
-      reaproveitar(it, seed, reg);
+      reaproveitar(it, seed, reg); it.data = reg.data;
     } else {
       let r;
       try {
@@ -498,30 +603,39 @@ async function gerarGalope(estilo, it, montado, seedMontado) {
         if (new RegExp(`^${base}-\\d+\\.png$`).test(f)) fs.unlinkSync(path.join(DIR_MOLDES_RAW, f));
       }
       gravarCru(DIR_MOLDES_RAW, base, ANIMA, corpo, r, bufs.map((b, i) => [`${base}-${i}.png`, b]));
+      it.data = new Date().toISOString();
     }
     if (bufs.length !== 9 && bufs.length !== 8) {
       throw new ErroApi(`${it.rotulo}: veio com ${bufs.length} quadros (esperado 9, ou 8)`, { fatal: true });
     }
     if (bufs.length === 8) console.log(`    AVISO ${it.rotulo}: vieram 8 quadros (não 9); usando 8`);
-    const v = preChecar(bufs, true, it.rotulo, true);
-    if (v.ok) return bufs;
+    const v = checarGalope(estilo, bufs, it.rotulo);
+    if (v.ok) { if (v.txt) { it.aceite = v.txt; console.log(`    aceite ok: ${v.txt}`); } return bufs; }
     rejeitar(it, seed, v.motivo);
   }
   return null;
 }
 
+// Grava um arquivo final e diz se o conteúdo mudou (um final refeito igual de raw/ não troca o registro).
+function gravarFinal(arq, buf) {
+  const igual = fs.existsSync(arq) && fs.readFileSync(arq).equals(buf);
+  if (!igual) fs.writeFileSync(arq, buf);
+  return !igual;
+}
+
 async function gerarEstilo(estilo) {
-  console.log(`\n== Molde ${estilo.id} (seed base ${estilo.seed}) ==`);
+  const poseM = poseMontada(estilo);
+  console.log(`\n== Molde ${estilo.id} (seed base ${estilo.seed}${estilo.corrida ? `; corrida e galope ${estilo.corrida.seed}` : ''}) ==`);
   const it = {};
-  for (const k of ['retrato', 'parado', 'montado', 'galope']) it[k] = novoItem(`${estilo.id}/${k}`, seedBaseDe(estilo, k));
+  for (const k of [...posesDe(estilo), 'galope']) it[k] = novoItem(`${estilo.id}/${k}`, seedBaseDe(estilo, k));
   const falhou = motivo => { console.log(`  FALHOU ${estilo.id}: ${motivo} — nada gravado como final (crus em raw/)`); return { estilo: estilo.id, ok: false, motivo }; };
 
   const fontes = {};
-  for (const pose of ['retrato', 'parado', 'montado']) {
+  for (const pose of posesDe(estilo)) {
     fontes[pose] = await gerarPose(estilo, pose, it[pose]);
     if (!fontes[pose]) return falhou(`${pose} rejeitado em todas as tentativas`);
   }
-  const galope = await gerarGalope(estilo, it.galope, fontes.montado, ultimaSeed(it.montado));
+  const galope = await gerarGalope(estilo, it.galope, fontes[poseM], ultimaSeed(it[poseM]));
   if (!galope) return falhou('galope rejeitado em todas as tentativas');
 
   // finais: limiares por geração (retrato, parado, galope) e contorno só no galope — o mesmo que a
@@ -535,42 +649,58 @@ async function gerarEstilo(estilo) {
   const invalidos = quadros.map((q, i) => [nomes[i], validar(q, { exigeJoquei: nomes[i] !== 'retrato' })]).filter(([, v]) => !v.ok);
   if (invalidos.length) return falhou('inconsistência entre pré-checagem e finais: ' + invalidos.map(([n, v]) => `${n}: ${v.motivo}`).join('; '));
 
-  // grava os finais (remove galopes antigos: um lote de 8 quadros não pode herdar um galope-8 velho)
-  for (const f of fs.readdirSync(DIR_MOLDES)) if (f.startsWith(`molde-${estilo.id}-galope-`)) fs.unlinkSync(path.join(DIR_MOLDES, f));
-  const anc = {};
+  // grava os finais (remove galopes antigos: um lote de 8 quadros não pode herdar um galope-8 velho); guarda o
+  // conteúdo antigo para saber o que mudou de fato
+  const antigos = {};
+  for (const f of fs.readdirSync(DIR_MOLDES)) {
+    if (!f.startsWith(`molde-${estilo.id}-galope-`)) continue;
+    antigos[f] = fs.readFileSync(path.join(DIR_MOLDES, f)); fs.unlinkSync(path.join(DIR_MOLDES, f));
+  }
+  const anc = {}, mudou = {};
   nomes.forEach((n, i) => {
-    fs.writeFileSync(path.join(DIR_MOLDES, `molde-${estilo.id}-${n}.png`), encodeGray({ width: LADO, height: LADO, data: paraCinza(quadros[i].idx) }));
+    const f = `molde-${estilo.id}-${n}.png`, buf = encodeGray({ width: LADO, height: LADO, data: paraCinza(quadros[i].idx) });
+    mudou[n] = n.startsWith('galope-') ? !(antigos[f] && antigos[f].equals(buf)) : gravarFinal(path.join(DIR_MOLDES, f), buf);
+    if (n.startsWith('galope-')) fs.writeFileSync(path.join(DIR_MOLDES, f), buf);
     anc[n] = ancoras(quadros[i].idx, LADO, LADO);
   });
+  // data da geração = a da imagem crua mais nova usada (refazer de raw/ não muda o JSON)
+  const gerado = Object.values(it).map(x => x.data || '').reduce((a, b) => (b > a ? b : a), '').slice(0, 10) || HOJE;
   const json = {
     estilo: estilo.id, w: LADO, h: LADO, footY: anc.retrato.footY, frames: galope.length,
     larguraUtil: anc.retrato.bbox.w,
     limiares: tons, // por geração; luminância ≤ limiar ⇒ sombra; procedural ⇒ sombreado por coluna
-    seeds: { retrato: ultimaSeed(it.retrato), parado: ultimaSeed(it.parado), montado: ultimaSeed(it.montado), galope: ultimaSeed(it.galope) },
-    gerado: HOJE,
+    seeds: { retrato: ultimaSeed(it.retrato), parado: ultimaSeed(it.parado), montado: ultimaSeed(it[poseM]), galope: ultimaSeed(it.galope) },
+    ...(estilo.corrida ? { corrida: { guia: `raw/${GUIA_CORRIDA}`, init_image_strength: estilo.corrida.forca } } : {}),
+    gerado,
   };
   // uma linha por quadro: âncoras e contagens (aproximados, remapeados pela limpeza, contorno acrescentado)
   const linhas = obj => nomes.map(n => `    "${n}": ${JSON.stringify(obj[n])}`).join(',\n');
   const cont = {};
   nomes.forEach((n, i) => { cont[n] = { aproximados: quadros[i].aproximados, remapeados: quadros[i].remapeados, contornados: quadros[i].contornados }; });
-  fs.writeFileSync(path.join(DIR_MOLDES, `molde-${estilo.id}.json`),
-    JSON.stringify(json, null, 2).replace(/\n}$/, `,\n  "contagens": {\n${linhas(cont)}\n  },\n  "ancoras": {\n${linhas(anc)}\n  }\n}\n`));
+  const jsonMudou = gravarFinal(path.join(DIR_MOLDES, `molde-${estilo.id}.json`), Buffer.from(
+    JSON.stringify(json, null, 2).replace(/\n}$/, `,\n  "contagens": {\n${linhas(cont)}\n  },\n  "ancoras": {\n${linhas(anc)}\n  }\n}\n`)));
+  const galopeMudou = jsonMudou || nomes.some(n => n.startsWith('galope-') && mudou[n]) || Object.keys(antigos).length !== galope.length;
 
-  const pre = `prototype/assets/pixellab/molde-${estilo.id}`, crina = `crina "${estilo.crina}"`, uso = 'Não (até a Task 3)';
+  const pre = `prototype/assets/pixellab/molde-${estilo.id}`, crina = `crina "${estilo.crina}"`, uso = 'Sim';
   const proc = 'cores de papel pedidas por texto (pelo #ff0000, crina #00ff00 …; sem paleta forçada); papéis por família de cor + Otsu do estilo';
-  registrarAsset(`\`${pre}-retrato.png\``, '`create-image-pixflux`',
+  const reforco = estilo.montado ? `, reforço "${estilo.montado.reforco}"` : '';
+  if (mudou.retrato) registrarAsset(`\`${pre}-retrato.png\``, '`create-image-pixflux`',
     `retrato 64×64: cavalo parado sem jóquei nem sela, ${crina}, ${proc}`, seedTxt(it.retrato), custoTotal(it.retrato), uso);
-  registrarAsset(`\`${pre}-parado.png\``, '`create-image-pixflux`',
+  if (mudou.parado) registrarAsset(`\`${pre}-parado.png\``, '`create-image-pixflux`',
     `parado 64×64: cavalo parado com jóquei (seda e capacete #ffff00, pele #ffc0cb, sela e manta #808080), ${crina}, ${proc}`,
     seedTxt(it.parado), custoTotal(it.parado), uso);
-  registrarAsset(`\`${pre}-galope-0..${galope.length - 1}.png\` e \`${pre}.json\``, '`create-image-pixflux` + `animate-with-text-v3`',
-    `montado (meio da passada, com jóquei, ${crina}${estilo.montado ? `, reforço "${estilo.montado.reforco}"` : ''}; ${seedTxt(it.montado)}) animado com "${ACAO_GALOPE}", frame_count 8 (${galope.length} quadros recebidos), drift_threshold 0`,
-    `galope ${seedTxt(it.galope)}`, custoTotal(it.montado) + custoTotal(it.galope), uso);
+  const montadoTxt = estilo.corrida
+    ? `corrida (pose de corrida guiada pelo 1º quadro cru do galope de chamas, init_image raw/${GUIA_CORRIDA}, init_image_strength ${estilo.corrida.forca}; "${POSES.corrida}", ${crina}${reforco}; ${seedTxt(it[poseM])}; aceite ${it[poseM].aceite})`
+    : `montado (meio da passada, com jóquei, ${crina}${reforco}; ${seedTxt(it[poseM])})`;
+  if (galopeMudou) registrarAsset(`\`${pre}-galope-0..${galope.length - 1}.png\` e \`${pre}.json\``, '`create-image-pixflux` + `animate-with-text-v3`',
+    `${montadoTxt} animado com "${acaoDe(estilo)}", frame_count 8 (${galope.length} quadros recebidos), drift_threshold 0`,
+    `galope ${seedTxt(it.galope)}${it.galope.aceite ? `; aceite ${it.galope.aceite}` : ''}`, custoTotal(it[poseM]) + custoTotal(it.galope), uso);
 
   const t = (g, k) => `${k} ${tons[g][k].procedural ? 'procedural' : tons[g][k].limiar}`;
   console.log(`  OK ${estilo.id}: ${nomes.length} quadros (${galope.length} de galope), larguraUtil ${json.larguraUtil}, footY ${json.footY}; `
-    + ['retrato', 'parado', 'galope'].map(g => `${g}: ${t(g, 'pelagem')}, ${t(g, 'crina')}`).join(' | '));
-  return { estilo: estilo.id, ok: true, frames: galope.length };
+    + ['retrato', 'parado', 'galope'].map(g => `${g}: ${t(g, 'pelagem')}, ${t(g, 'crina')}`).join(' | ')
+    + `; finais que mudaram: ${[mudou.retrato && 'retrato', mudou.parado && 'parado', galopeMudou && 'galope/json'].filter(Boolean).join(', ') || 'nenhum'}`);
+  return { estilo: estilo.id, ok: true, frames: galope.length, aceite: it.galope.aceite };
 }
 
 // ---------------------------------------------------------------- ícones
@@ -602,11 +732,11 @@ async function gerarIcone(ic) {
     for (let i = 3; i < d.rgba.length; i += 4) if (d.rgba[i] >= 128) opacos++;
     if (!opacos) { rejeitar(it, seed, 'ícone vazio (nenhum pixel opaco)'); continue; }
     fs.mkdirSync(DIR_ICONES, { recursive: true });
-    fs.writeFileSync(path.join(DIR_ICONES, `${ic.id}.png`), encodePng(d));
-    registrarAsset(`\`prototype/assets/icons/${ic.id}.png\``, '`create-image-pixflux`',
+    const mudou = gravarFinal(path.join(DIR_ICONES, `${ic.id}.png`), encodePng(d));
+    if (mudou) registrarAsset(`\`prototype/assets/icons/${ic.id}.png\``, '`create-image-pixflux`',
       `ícone 32×32 "${ic.desc}, ${SUFIXO_ICONE}", contorno preto, color_image = ${coresIcone(ic).join(' ')}`,
-      seedTxt(it), custoTotal(it), 'Não (até a Task 4)');
-    console.log(`  OK ${ic.id}: ${opacos} pixels opacos`);
+      seedTxt(it), custoTotal(it), 'Sim');
+    console.log(`  OK ${ic.id}: ${opacos} pixels opacos${mudou ? '' : ' (final igual ao que já estava)'}`);
     return { icone: ic.id, ok: true };
   }
   console.log(`  FALHOU ${ic.id}: rejeitado em todas as tentativas`);
@@ -651,6 +781,11 @@ async function gerar(a) {
   }
   const moldes = resultados.filter(r => r.estilo);
   if (moldes.length) console.log('  Quadros de galope: ' + moldes.map(r => `${r.estilo} ${r.ok ? r.frames : 'falhou'}`).join(', '));
+  if (moldes.some(r => r.aceite)) {
+    const ref = referenciaCorrida();
+    console.log(`  Aceite da corrida (chamas: maior passada ${ref.passadaMax}, passada da guia ${ref.passadaGuia}, altura média ${fmt(ref.alturaMedia)}):`);
+    for (const r of moldes) if (r.aceite) console.log(`    ${r.estilo}: ${r.aceite}`);
+  }
   const falhas = resultados.filter(r => !r.ok);
   console.log(`  Itens finais: ${resultados.length - falhas.length} ok, ${falhas.length} com falha${parada ? '; lote interrompido' : ''}`);
   console.log(`  Gerações gastas neste lote (soma do usage): ${fmt(orc.gasto)} de teto ${a.teto}, em ${orc.chamadas} chamadas pagas`);
