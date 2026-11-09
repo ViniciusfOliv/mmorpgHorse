@@ -612,10 +612,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   .cavalo-cabeca .retrato { align-self: center; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
-  .btn:active:not(:disabled) { transform: none; }
-}
+/* movimento reduzido: a classe vem do game.js (opção "Animações" do Perfil; "Seguir o sistema" usa
+   prefers-reduced-motion), então "Completas" vale mesmo com o aparelho pedindo menos movimento */
+html.mov-reduzido *, html.mov-reduzido *::before, html.mov-reduzido *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+html.mov-reduzido .btn:active:not(:disabled) { transform: none; }
 
 /* ---------- casca: cabeçalho fixo e barra de abas (abas e sub-telas) ---------- */
 .app-topo {
@@ -2648,8 +2648,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     frame pode ser fracionário (fase contínua do galope); quadro = { topo, base } em px: quadro de altura
  *     fixa onde o molde inteiro tem de caber (retratos, pódio) — o desenho por código o ignora
  *   Sprites.drawTrack(ctx, { width, height, cameraX, pxPerMeter, lanes, laneTop, laneH, surface,
- *                           finishM, hills, curves, distanceMarkersEvery, t, weather, pixel })
- *   Sprites.drawWeather(ctx, weather, t, width, height)
+ *                           finishM, hills, curves, distanceMarkersEvery, t, weather, pixel, wind })
+ *     wind = { intensity: 'calmo'|'brisa'|'ventania', dir: 1|-1 } (só visual; padrão brisa ←): bandeirinhas
+ *     da arquibancada, grama da borda e nuvens seguem o vento
+ *   Sprites.drawWeather(ctx, weather, t, width, height, pixel) — repasse para RaceFx.drawNature +
+ *     RaceFx.drawFogFront (fx.js; sem ele, não desenha nada). A corrida chama o fx.js direto.
+ *   Sprites.cloudCanvas(seed, P, tom) — nuvem de pixels em cache (usada pelo nublado do fx.js)
  *   Sprites.drawTrail(ctx, x, y, element, t, intensity, scale)
  *   Sprites.drawElementIcon(ctx, x, y, element, scale)
  *   Sprites.drawText(ctx, text, x, y, { scale, color, shadow, align })  // fonte pixel 3x5 com acentos
@@ -3897,6 +3901,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     '\u25b6': ['#..', '##.', '###', '##.', '#..'], '\u25b2': ['.....', '..#..', '.###.', '#####', '.....'],
     '\u21aa': ['.##..', '#....', '#..#.', '.####', '...#.'],
     '\u21bb': ['.##..', '#..##', '#..#.', '#...#', '.###.'],   // ↻: desempate do Dado da Sorte (fx.js)
+    '\u2192': ['..#..', '...#.', '#####', '...#.', '..#..'], '\u2190': ['..#..', '.#...', '#####', '.#...', '..#..'],   // → ← (vento)
     ' ': ['..', '..', '..', '..', '..']
   };
   var ACCENTS = { '́': ['..#', '.#.'], '̀': ['#..', '.#.'], '̂': ['.#.', '#.#'], '̃': ['.##', '##.'] };
@@ -4202,12 +4207,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         px(hx, by + 2, C(shade(bodyC, 0.3)));
       }
     }
-    // bandeirinhas
+    // mastros das bandeirinhas (o pano é desenhado a cada quadro em drawTrack, pelo vento: FLAGS)
     for (var fx = x0 + 8; fx < x1; fx += 16) {
       for (var fy = 0; fy < 6; fy++) px(fx, fy, C('#d8d2c6'));
-      var fc = crowd[(fx >> 4) % crowd.length];
-      var wv = frame ? 0 : 1;
-      px(fx + 1, 0 + wv, C(fc)); px(fx + 2, 0 + wv, C(fc)); px(fx + 3, 1, C(fc)); px(fx + 1, 1 + wv, C(fc)); px(fx + 2, 1, C(fc));
     }
     // árvores depois da arquibancada
     for (var tx = 94; tx < 118; tx += 9) {
@@ -4288,6 +4290,29 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return 0;
   }
 
+  // Vento (o.wind = { intensity: 'calmo'|'brisa'|'ventania', dir: 1|-1 }; padrão brisa ←, o visual de antes):
+  // bandeirinhas da arquibancada, grama da borda da pista e velocidade/sentido das nuvens.
+  var FLAGS = { x: [14, 30, 46, 62, 78], cores: ['#e84a4a', '#3a7ae0', '#f2c230', '#f0f0f0', '#38b25a', '#e07ab8', '#f08a2a', '#7a5ae0'] };
+  var VENTO_PISTA = {
+    calmo:    { pano: 0, onda: 0, freq: 1.5, grama: 0, nuvem: 0.5 },
+    brisa:    { pano: 3, onda: 1, freq: 5, grama: 1, nuvem: 1 },
+    ventania: { pano: 5, onda: 1, freq: 9, grama: 2, nuvem: 2.2 }
+  };
+  function ventoPista(w) {
+    var v = w && VENTO_PISTA[w.intensity] ? w : { intensity: 'brisa', dir: -1 };
+    return { k: VENTO_PISTA[v.intensity], dir: v.dir < 0 ? -1 : 1 };
+  }
+  // pano de uma bandeirinha (pixels de arte a partir do topo do mastro em (mx, my)): calmo pendurado,
+  // senão estendido no sentido do vento, ondulando mais rápido na ventania
+  function drawFlagCloth(ctx, mx, my, P, cor, vk, dir, t, fase) {
+    ctx.fillStyle = cor;
+    if (!vk.pano) { ctx.fillRect(mx + P, my, P, 3 * P); ctx.fillRect(mx + 2 * P, my, P, 2 * P); return; }
+    for (var c = 1; c <= vk.pano; c++) {
+      var dy = Math.round(Math.sin(t * vk.freq - c * 1.1 + fase) * vk.onda * Math.min(1, c / 2)) * P;
+      ctx.fillRect(mx + dir * c * P, my + dy, P, (c === vk.pano ? 1 : 2) * P);
+    }
+  }
+
   function drawTrack(ctx, o) {
     var W = o.width, Hh = o.height;
     var lanes = o.lanes || 6, laneH = o.laneH || 24, laneTop = o.laneTop || Math.round(Hh * 0.35);
@@ -4295,7 +4320,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var weather = skyKey(o.weather || 'sol'), surface = o.surface || 'grama';
     var P = o.pixel || Math.max(1, Math.round(laneH / 12));
     var trackH = lanes * laneH, trackBottom = laneTop + trackH;
-    var camPx = cam * ppm;
+    var camPx = cam * ppm, vento = ventoPista(o.wind);
     function sx(m) { return Math.round((m - cam) * ppm); }
     crisp(ctx);
 
@@ -4324,7 +4349,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     for (var ci = 0; ci < nClouds; ci++) {
       var cc = cloudCanvas(ci % 5, P, weather);
       var span = W + cc.width * 2;
-      var cxp = mod(hash(ci + 40) * span - camPx * 0.02 - t * (3 + ci % 3) * P, span) - cc.width;
+      var cxp = mod(hash(ci + 40) * span - camPx * 0.02 + vento.dir * t * (3 + ci % 3) * P * vento.k.nuvem, span) - cc.width;
       var cyp = Math.round((0.08 + 0.55 * hash(ci + 70)) * (horizon - 30 * P));
       if (weather !== 'sol') cyp = Math.round((hash(ci + 70) * 0.6) * (horizon - 30 * P));
       ctx.drawImage(cc, Math.round(cxp), Math.max(0, cyp));
@@ -4353,7 +4378,14 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var stW = st.width * P, stH = st.height * P;
     var stY = laneTop - 4 * P - stH;
     var stOff = mod(camPx * 0.35, stW);
-    for (var sxp = -stOff; sxp < W; sxp += stW) ctx.drawImage(st, Math.round(sxp), stY, stW, stH);
+    var flagDim = weather === 'chuva' ? 0.35 : isDim(weather) ? 0.15 : 0;
+    for (var sxp = -stOff; sxp < W; sxp += stW) {
+      ctx.drawImage(st, Math.round(sxp), stY, stW, stH);
+      for (var fi = 0; fi < FLAGS.x.length; fi++) {
+        var fc = FLAGS.cores[(FLAGS.x[fi] >> 4) % FLAGS.cores.length];
+        drawFlagCloth(ctx, Math.round(sxp) + FLAGS.x[fi] * P, stY, P, flagDim ? shade(fc, flagDim) : fc, vento.k, vento.dir, t, fi * 0.9);
+      }
+    }
 
     // gramado entre arquibancada e pista
     ctx.fillStyle = weather === 'chuva' ? '#3f6a3c' : isDim(weather) ? '#4a7c44' : '#58944a';
@@ -4549,7 +4581,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       var gy = trackBottom + 4 * P + Math.round(hash(gi + 400) * Math.max(1, (Hh - trackBottom - 8 * P) / P)) * P;
       if (gy > Hh - 2 * P) continue;
       ctx.fillStyle = weather === 'chuva' ? '#2c4c2e' : '#3a7238';
-      ctx.fillRect(Math.round(gx), gy, P, 2 * P); ctx.fillRect(Math.round(gx) + 2 * P, gy - P, P, 3 * P);
+      var tufo = Math.round(vento.k.grama * (0.55 + 0.45 * Math.sin(t * vento.k.freq * 0.6 + gi))) * vento.dir * P;
+      ctx.fillRect(Math.round(gx), gy, P, 2 * P); ctx.fillRect(Math.round(gx) + 2 * P, gy, P, 2 * P);
+      ctx.fillRect(Math.round(gx) + 2 * P + tufo, gy - P, P, P);
       if (gi % 4 === 0) { ctx.fillStyle = gi % 8 ? '#f2e04a' : '#f0f0f0'; ctx.fillRect(Math.round(gx) + P, gy - 2 * P, P, P); }
     }
     ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, trackBottom, W, P);
@@ -4560,6 +4594,22 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     }
     ctx.fillStyle = '#f6f2ea'; ctx.fillRect(0, trackBottom + P, W, 2 * P);
     ctx.fillStyle = '#1c1820'; ctx.fillRect(0, trackBottom + 3 * P, W, P);
+    // grama da borda: folhinhas logo abaixo da cerca interna, presas ao mundo, deitando com o vento
+    if (Hh - trackBottom >= 8 * P) {
+      var gBase = weather === 'chuva' ? '#4a7a48' : isDim(weather) ? '#5a8c52' : '#6aa85a';
+      var gPonta = weather === 'chuva' ? '#5f8f5a' : isDim(weather) ? '#76a468' : '#8cc46a';
+      var camArt = camPx / P, g0 = Math.floor(camArt / 5) * 5;
+      for (var gw2 = g0; (gw2 - camArt) * P < W; gw2 += 5) {
+        var gh = hash(gw2 * 7 + 3);
+        if (gh < 0.3) continue;
+        var gx2 = Math.round((gw2 - camArt) * P), alto = gh > 0.75 ? 3 : 2;
+        var ginga = Math.round(vento.k.grama * (0.55 + 0.45 * Math.sin(t * vento.k.freq * 0.6 + gw2 * 0.37))) * vento.dir;
+        var yb = trackBottom + 6 * P;
+        ctx.fillStyle = gBase; ctx.fillRect(gx2, yb, P, P);
+        ctx.fillRect(gx2 + Math.round(ginga / 2) * P, yb - P, P, P);
+        if (alto === 3) { ctx.fillStyle = gPonta; ctx.fillRect(gx2 + ginga * P, yb - 2 * P, P, P); }
+      }
+    }
     if (fx > -10 && fx < W + 10) { ctx.fillStyle = '#f6f2ea'; ctx.fillRect(fx, trackBottom, 2 * P, 8 * P); }
 
     // --- relevo das subidas: copia as colunas da faixa (da cerca externa para baixo) para cima
@@ -4582,95 +4632,21 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   }
 
   // ===================================================================
-  // CLIMA (sobreposição em tela)
+  // CLIMA (sobreposição em tela): repasse para RaceFx.drawNature (fx.js)
   // ===================================================================
+  // Assinatura antiga, mantida para quem só tem a tela inteira (sprite-preview): as duas camadas da
+  // natureza e a névoa da frente, sem a pista (laneTop = 35 % da altura). Sem fx.js carregado, nada.
+  function fxApi() {
+    if (typeof self !== 'undefined' && self.RaceFx) return self.RaceFx;
+    if (typeof global !== 'undefined' && global.RaceFx) return global.RaceFx;
+    return null;
+  }
   function drawWeather(ctx, weather, t, W, H, pixel) {
-    t = t || 0;
-    var P = pixel || Math.max(2, Math.round(Math.min(W, H) / 150));
-    if (weather === 'chuva') {
-      ctx.fillStyle = 'rgba(16,26,52,0.30)'; ctx.fillRect(0, 0, W, H);
-      var n = Math.round(W * H / (450 * P * P));   // densidade constante em pixels de arte (independe do DPR)
-      for (var i = 0; i < n; i++) {
-        var sp = 0.75 + 0.5 * hash(i * 3 + 2);
-        var yy = mod(hash(i * 3 + 1) * H * 1.3 + t * H * 1.4 * sp, H * 1.3) - H * 0.15;
-        var xx = mod(hash(i * 3) * (W + 120) - yy * 0.3 - t * 30, W + 120) - 60;
-        var near = hash(i * 5 + 9) > 0.7;
-        ctx.fillStyle = near ? 'rgba(210,228,255,0.55)' : 'rgba(180,200,235,0.35)';
-        var segs = near ? 4 : 3;
-        for (var k = 0; k < segs; k++) ctx.fillRect(Math.round(xx - k * P * 0.6), Math.round(yy - k * P * 2), P, P * 2);
-      }
-      // respingos
-      var ns = Math.round(W * H / (1500 * P * P));
-      for (var j = 0; j < ns; j++) {
-        var per = 0.5 + 0.4 * hash(j + 900);
-        var ph = frac(t / per + hash(j + 901));
-        if (ph > 0.25) continue;
-        var cyc = Math.floor(t / per + hash(j + 901));
-        var px = Math.round(hash(j * 7 + cyc * 13) * W), py = Math.round((0.4 + 0.6 * hash(j * 11 + cyc * 3)) * H);
-        ctx.fillStyle = 'rgba(220,235,255,0.6)';
-        var spread = ph < 0.12 ? 1 : 2;
-        ctx.fillRect(px - spread * P, py - P, P, P); ctx.fillRect(px + spread * P, py - P, P, P); ctx.fillRect(px, py - 2 * P, P, P);
-      }
-      // relâmpago raro
-      var lp = mod(t, 11.0);
-      if (lp < 0.06 || (lp > 0.14 && lp < 0.2)) { ctx.fillStyle = 'rgba(230,240,255,0.22)'; ctx.fillRect(0, 0, W, H); }
-    } else if (weather === 'nublado') {
-      ctx.fillStyle = 'rgba(70,92,125,0.16)'; ctx.fillRect(0, 0, W, H);
-      // sombras de nuvens passando
-      for (var s = 0; s < 3; s++) {
-        var cw = W * (0.5 + 0.3 * hash(s + 5));
-        var cx = mod(hash(s + 1) * (W + cw) - t * (14 + 6 * s) * P, W + cw) - cw / 2;
-        var cy = H * (0.35 + 0.4 * hash(s + 3));
-        ctx.fillStyle = 'rgba(10,20,40,0.05)';
-        for (var ring = 0; ring < 2; ring++) {
-          var rw = Math.round(cw * (ring ? 0.3 : 0.5) / P) * P, rh = Math.round(rw * 0.35 / P) * P;
-          ctx.fillRect(Math.round(cx / P) * P - rw, Math.round(cy / P) * P - rh, rw * 2, rh * 2);
-        }
-      }
-      // nuvens em primeiro plano no topo
-      for (var c = 0; c < 4; c++) {
-        var cc = cloudCanvas(10 + c, P * 2, 'nublado');
-        var span = W + cc.width * 2;
-        var x = mod(hash(c + 77) * span - t * (8 + 4 * c) * P, span) - cc.width;
-        ctx.globalAlpha = 0.85;
-        ctx.drawImage(cc, Math.round(x), Math.round(-cc.height * 0.35 + hash(c + 9) * H * 0.06));
-        ctx.globalAlpha = 1;
-      }
-    } else if (weather === 'nevoa') {
-      ctx.fillStyle = 'rgba(200,212,222,0.10)'; ctx.fillRect(0, 0, W, H);
-      // 3 faixas de névoa deslizando na horizontal
-      var bandH = 6 * P, rows = [0.3, 0.55, 0.8];
-      ctx.fillStyle = 'rgba(230,236,240,0.18)';
-      for (var bi = 0; bi < rows.length; bi++) {
-        var bw = Math.round(W * (0.55 + 0.25 * hash(bi + 21)) / P) * P;
-        var bspan = W + bw;
-        var bx = Math.round((mod(hash(bi + 31) * bspan + t * (10 + 5 * bi) * P, bspan) - bw) / P) * P;
-        var by = Math.round(H * rows[bi] / P) * P;
-        ctx.fillRect(bx, by, bw, bandH);
-      }
-    } else { // sol
-      ctx.fillStyle = 'rgba(255,196,110,0.06)'; ctx.fillRect(0, 0, W, H);
-      // brilho do sol em 3 degraus de pixel (sem gradiente suave)
-      var gx = Math.round(W * 0.86), R0 = Math.max(W, H) * 0.5;
-      var steps = [[1.0, 0.05], [0.62, 0.06], [0.32, 0.08]];
-      for (var gs = 0; gs < steps.length; gs++) {
-        var rr = Math.round(R0 * steps[gs][0] / P) * P;
-        ctx.fillStyle = 'rgba(255,240,190,' + steps[gs][1] + ')';
-        for (var ry = 0; ry < rr; ry += 2 * P) {
-          var hw = Math.round(Math.sqrt(Math.max(0, rr * rr - ry * ry)) / P) * P;
-          ctx.fillRect(gx - hw, ry, hw * 2, 2 * P);
-        }
-      }
-      // reflexos de lente em pixels
-      var pulse = 0.5 + 0.5 * Math.sin(t * 1.3);
-      var flares = [[0.62, 0.22, 5, 0.10], [0.48, 0.38, 3, 0.12], [0.3, 0.6, 7, 0.06]];
-      for (var f = 0; f < flares.length; f++) {
-        var fx = W * flares[f][0], fy = H * flares[f][1], fr = flares[f][2] * P;
-        ctx.fillStyle = 'rgba(255,250,220,' + (flares[f][3] * (0.7 + 0.3 * pulse)).toFixed(3) + ')';
-        ctx.fillRect(Math.round(fx - fr), Math.round(fy - fr / 2), Math.round(fr * 2), Math.round(fr));
-        ctx.fillRect(Math.round(fx - fr / 2), Math.round(fy - fr), Math.round(fr), Math.round(fr * 2));
-      }
-    }
+    var FX = fxApi();
+    if (!FX || !FX.drawNature) return;
+    var o = { weather: weather, t: t || 0, W: W, H: H, P: pixel || Math.max(2, Math.round(Math.min(W, H) / 150)) };
+    FX.drawNature(ctx, o);
+    if (FX.drawFogFront) FX.drawFogFront(ctx, o);
   }
 
   var api = {
@@ -4699,6 +4675,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     _quadroGalope: quadroGalopeTeste,
     drawTrack: drawTrack,
     drawWeather: drawWeather,
+    cloudCanvas: cloudCanvas,
     drawTrail: drawTrail,
     drawElementIcon: drawElementIcon,
     hillLiftAt: hillLiftAt,
@@ -4719,7 +4696,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *
  * Só apresentação. Nada daqui volta para a simulação (RaceSim): a tela lê o resultado pronto e
  * desenha por cima. Sem Math.random e sem estado sorteado: tudo é função do tempo de simulação
- * (simT), do índice do corredor e de hashes fixos. O módulo tem duas partes, nesta ordem:
+ * (simT; na natureza, o tempo real da tela), do índice (corredor ou partícula) e de hashes fixos da
+ * seed. O módulo tem duas partes, nesta ordem:
  *
  * ============================== FUNÇÕES PURAS ===============================
  * Sem DOM e sem canvas; testadas no Node por tools/fx-test.js.
@@ -4783,6 +4761,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     sobrepor os já colocados nem os fixos (obstáculos que não se movem e não voltam, como a
  *     etiqueta "◀VOCÊ"), com 1 px de folga. Sem altura para empilhar, vai para o lado. Unidade livre.
  *
+ *   RaceFx.wind(seed) -> { intensity: 'calmo'|'brisa'|'ventania', dir: 1 | -1 }   (vento, só visual)
+ *     Hash próprio da seed (sal fixo; não chama nenhum fluxo de números da simulação): calmo 35 %,
+ *     brisa 40 %, ventania 25 %; dir (1 = para a direita) por outro hash. O modo DEV pode forçar (L.dev.wind).
+ *   RaceFx.rainSlant(wind) -> dx por dy dos pingos (calmo 0,12 · brisa 0,35 · ventania 0,75, com o sinal de dir).
+ *   RaceFx.NATUREZA (tetos por tela), RaceFx.RAIN (velocidade, cores), RaceFx.SOMBRA_NUVEM (cor das sombras).
+ *
  * ================================= DESENHO ==================================
  * Canvas 2D em pixel art (x, y em px do canvas; S = px por pixel de arte). Precisa de window.Sprites
  * (fonte 3×5). Nenhuma imagem: dados, plaquinhas e faíscas saem de fillRect.
@@ -4811,7 +4795,31 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     em px do canvas. Linhas de vento atrás para vel/ace/Garra; "+" verde para folego; faíscas nos
  *     cascos para curva. Em reduced não desenha nada (são partículas); o contorno vem do glow.
  *
- *   RaceFx._stats = { dados, faixaDado, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos }
+ *   RaceFx.drawNature(ctx, o) — natureza por clima, função de o.t (segundos reais), do índice e da seed
+ *     (nada sorteado com estado). o = { weather, wind, t, W, H, P, laneTop, trackBottom, reduced, seed,
+ *     cam, camada, lift }: W×H e P em px do canvas; cam = px que a câmera andou (respingos presos ao chão);
+ *     lift(px) = quanto o chão sobe naquela coluna (relevo da subida); camada 'tras' (antes dos cavalos:
+ *     calor, respingos, névoa do fundo), 'frente' (depois: véus, sol, pingos, relâmpago, sombras, folhas)
+ *     ou omitida (as duas, nessa ordem).
+ *       sol: véu quente, brilho em degraus, 3 raios de luz descendo do sol e faixas de calor ondulando
+ *            sobre a pista (somem em reduced).
+ *       chuva: pingos inclinados pelo vento (rainSlant), em dois tons; respingos só em [laneTop,
+ *            trackBottom]; relâmpago raro (nunca em reduced). Em reduced: 40 % da velocidade e metade
+ *            dos pingos e respingos — anda, nunca congela.
+ *       névoa: véu claro e 3 faixas atrás; a camada da frente é drawFogFront. As duas andam com o vento.
+ *       nublado: véu, sombras de nuvem e nuvens do topo levadas pelo vento.
+ *       folhas (e poeira no tempo seco) no sentido do vento: calmo 0, brisa até 6, ventania até 18 por
+ *            tela (metade em reduced, e a 40 % da velocidade). Nuvens e névoa: ×0,5 / ×1 / ×2,2.
+ *     Tetos por tela em NATUREZA (pingos 240, respingos 48, ~2600 fillRect no pior caso).
+ *   RaceFx.drawFogFront(ctx, o) — faixas de névoa na frente dos cavalos (só weather 'nevoa').
+ *   RaceFx.drawHoofDust(ctx, x, y, S, t, surface, reduced) -> nº de nuvenzinhas (0 fora de terra/areia):
+ *     poeira atrás do casco (x, y); 3 por cavalo, 1 em reduced. A tela não chama na chuva.
+ *
+ *   RaceFx._stats = { dados, faixaDado, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
+ *                     natureza, ventoHud }
+ *     natureza = { pingos, respingos, relampago, raios, calor, nevoa, nevoaFrente, sombras, folhas, poeiraCascos }
+ *     do quadro (não entra em particulas, que é só dos efeitos de skill e do Dado); ventoHud = 'texto' |
+ *     'icone' | '' (o selo de vento que a tela desenhou no HUD).
  *     faixaSkill = texto da faixa central desenhada no quadro ('' se não há); caixasBaloes = [{ racer,
  *     kind, pilha, x, y, w, h, y0, y1 }] dos balões posicionados (pixels de arte; y0..y1 = faixa vertical da
  *     raia) e caixasCavalos = [{ racer, x, y, w, h }] dos cavalos visíveis. A tela anota os três.
@@ -4878,7 +4886,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   function rgba(hex, a) { var v = hexRgb(hex); return 'rgba(' + v[0] + ',' + v[1] + ',' + v[2] + ',' + a.toFixed(3) + ')'; }
   function lum(hex) { var v = hexRgb(hex); return (0.299 * v[0] + 0.587 * v[1] + 0.114 * v[2]) / 255; }
   function frac(x) { return x - Math.floor(x); }
-  // hash inteiro -> [0, 1) (o mesmo misturador do sprites.js); só para números "rolando" na faixa
+  function mod(a, n) { return ((a % n) + n) % n; }
+  function snap(v, P) { return Math.round(v / P) * P; }   // grade de pixels de arte
+  // hash inteiro -> [0, 1) (o mesmo misturador do sprites.js): números "rolando" na faixa, vento e natureza
   function hash(n) {
     n = n | 0;
     n = Math.imul(n ^ (n >>> 16), 0x7feb352d);
@@ -5186,13 +5196,42 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return out;
   }
 
+  // ---- vento (só visual) -----------------------------------------------------------------------
+  // Hash próprio da seed, com sal fixo: não chama nenhum fluxo de números da simulação (RaceSim).
+  var SAL_VENTO = 0x5f1e7a, SAL_DIRECAO = 0x51ed270b, SAL_NATUREZA = 0x3a7e11;
+  var VENTOS = ['calmo', 'brisa', 'ventania'];
+  // por intensidade: inclinação da chuva (dx por dy), fator de velocidade de nuvens e névoa, velocidade
+  // das folhas (pixels de arte por segundo)
+  var VENTO = {
+    calmo:    { chuva: 0.12, nuvem: 0.5, folha: 0 },
+    brisa:    { chuva: 0.35, nuvem: 1, folha: 22 },
+    ventania: { chuva: 0.75, nuvem: 2.2, folha: 52 }
+  };
+  function wind(seed) {
+    var s = Number(seed), u = isFinite(s) ? s >>> 0 : 0;
+    var a = hash(u ^ SAL_VENTO), b = hash(Math.imul(u, 0x2c1b3c6d) ^ SAL_DIRECAO);
+    return { intensity: a < 0.35 ? 'calmo' : a < 0.75 ? 'brisa' : 'ventania', dir: b < 0.5 ? 1 : -1 };
+  }
+  // vento válido (padrão: calmo, para a direita)
+  function ventoOk(w) {
+    return { intensity: w && VENTOS.indexOf(w.intensity) >= 0 ? w.intensity : 'calmo', dir: w && w.dir < 0 ? -1 : 1 };
+  }
+  function rainSlant(w) { var v = ventoOk(w); return VENTO[v.intensity].chuva * v.dir; }
+
   // ===========================================================================
   // Estatísticas do quadro (ui-test e teste de desempenho)
   // ===========================================================================
-  var stats = { dados: 0, faixaDado: false, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [] };
+  // natureza: contadores do quadro (drawNature, drawFogFront, drawHoofDust); NÃO entram em particulas
+  // (que conta só os efeitos de skill e do Dado: o ui-test de movimento reduzido exige particulas = 0)
+  function novaNatureza() {
+    return { pingos: 0, respingos: 0, relampago: 0, raios: 0, calor: 0, nevoa: 0, nevoaFrente: 0, sombras: 0, folhas: 0, poeiraCascos: 0 };
+  }
+  var stats = { dados: 0, faixaDado: false, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [],
+    natureza: novaNatureza(), ventoHud: '' };
   var JANELA_MS = 60, amostras = [], somaMs = 0;
   function beginFrame() {
     stats.dados = 0; stats.faixaDado = false; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = [];
+    stats.natureza = novaNatureza(); stats.ventoHud = '';
   }
   function endFrame(ms) {
     if (!(ms >= 0) || !isFinite(ms)) return;
@@ -5482,6 +5521,269 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return true;
   }
 
+  // ===========================================================================
+  // Natureza: sol, chuva, névoa, nublado, vento, folhas e poeira (spec §7)
+  // ===========================================================================
+  // Tetos por tela: a densidade é em pixels de arte (independe do DPR) e para em telas grandes.
+  var NATUREZA = {
+    pingosMax: 240, pingoArea: 380,            // 1 pingo a cada 380 px² de arte, no máximo 240
+    respingosMax: 48, respingoArea: 240,       // vagas de respingo no chão da pista (cada uma acende ~30 % do tempo)
+    respingoVagas: 160,
+    folhas: { calmo: 0, brisa: 6, ventania: 18 },   // folhas + poeira no ar (metade em reduced)
+    poeiraCasco: 3,                            // nuvenzinhas por cavalo (1 em reduced)
+    linhasMax: 50,                             // faixas por raio/brilho (o passo cresce em telas grandes)
+    retangulosMax: 2600                        // teto de fillRect por chamada (conferido no fx-test)
+  };
+  var RAIN = {
+    vel: 1.5,                                  // alturas de tela por segundo (× 0,8–1,25 por pingo)
+    velReduzida: 0.4,                          // em reduced: 40 % da velocidade e metade dos pingos
+    relampago: 11,                             // período do relâmpago (s); nunca em reduced
+    corLonge: 'rgba(182,204,240,0.50)', corPerto: 'rgba(222,238,255,0.78)',
+    corRespingo: 'rgba(220,235,255,0.70)', corVeu: 'rgba(16,26,52,0.26)', corClarao: 'rgba(230,240,255,0.22)'
+  };
+  var SOMBRA_NUVEM = 'rgba(10,20,40,0.06)';
+  var FOLHA_CORES = ['#7cb342', '#c9a227', '#d9772b', '#5e9a3a', '#a4c639'];
+  var POEIRA = { terra: [226, 202, 166], areia: [255, 248, 226] };   // bem mais claras que o piso (contraste)
+
+  function semente(seed) { var s = Number(seed); return Math.floor(hash((isFinite(s) ? s >>> 0 : 0) ^ SAL_NATUREZA) * 65536); }
+  // passo vertical das faixas: base·P, maior em telas grandes (no máximo linhasMax faixas)
+  function passo(total, P, base) { return Math.max(base * P, Math.ceil(total / NATUREZA.linhasMax / P) * P); }
+  // o mesmo sol do Sprites.drawTrack (canto de cima, à direita)
+  function solPos(c) { return { x: Math.round(c.W * 0.82), y: Math.round(Math.max(10 * c.P, (c.top - 22 * c.P) * 0.25)) }; }
+  function rgbaN(r, g, b, a) { return 'rgba(' + r + ',' + g + ',' + b + ',' + a.toFixed(3) + ')'; }
+
+  // ---- camada de trás (antes dos cavalos): coisas do chão ----
+  // faixas de calor ondulando sobre a pista (sol; nunca em reduced)
+  function calor(c) {
+    var ctx = c.ctx, P = c.P, alt = c.bot - c.top;
+    if (alt < 8 * P) return;
+    var seg = Math.max(7 * P, Math.ceil(c.W / 80 / P) * P), faixas = [0.12, 0.38, 0.66];
+    ctx.fillStyle = 'rgba(255,248,220,0.20)';
+    for (var b = 0; b < faixas.length; b++) {
+      var y0 = c.top + snap(alt * faixas[b], P), deriva = mod(c.t * (5 + 3 * b) * P, seg);
+      for (var x = deriva - seg; x < c.W; x += seg) {
+        var dy = Math.round(Math.sin(x / (9 * P) + c.t * 3.2 + b * 1.7) * 1.4) * P - (c.lift ? c.lift(x) : 0);
+        ctx.fillRect(snap(x, P), y0 + dy, 5 * P, P);
+        stats.natureza.calor++;
+      }
+    }
+  }
+  // respingos no chão da pista: só na faixa [laneTop, trackBottom], presos ao chão (cam)
+  function respingos(c) {
+    var ctx = c.ctx, P = c.P, alt = c.bot - c.top;
+    if (alt < 6 * P) return;
+    var linhas = Math.max(1, Math.floor((alt - 5 * P) / P));
+    var vagas = Math.min(NATUREZA.respingoVagas, Math.round((c.W / P) * (alt / P) / NATUREZA.respingoArea));
+    var span = c.W + 20 * P, lento = c.red ? RAIN.velReduzida : 1, n = 0;
+    ctx.fillStyle = RAIN.corRespingo;
+    for (var j = 0; j < vagas && n < NATUREZA.respingosMax; j++) {
+      if (c.red && (j & 1)) continue;
+      var per = (0.45 + 0.4 * hash(c.sd + j * 7 + 900)) / lento;
+      var u = c.t / per + hash(c.sd + j * 7 + 901), ph = frac(u);
+      if (ph >= 0.3) continue;
+      var cyc = Math.floor(u);
+      var px = snap(mod(hash(c.sd + j * 13 + cyc * 7919) * span - c.cam, span) - 10 * P, P);
+      var py = c.top + 4 * P + Math.floor(hash(c.sd + j * 11 + cyc * 104729) * linhas) * P;   // até trackBottom − 2P
+      if (c.lift) py -= c.lift(px);                        // no relevo da subida, o chão sobe junto
+      if (ph < 0.12) {          // gota batendo: coroa baixa e o anel no chão
+        ctx.fillRect(px - P, py - P, P, P); ctx.fillRect(px + P, py - P, P, P);
+        ctx.fillRect(px, py - 2 * P, P, P); ctx.fillRect(px - P, py, 3 * P, P);
+      } else {                  // gotinhas abrindo
+        ctx.fillRect(px - 2 * P, py - P, P, P); ctx.fillRect(px + 2 * P, py - P, P, P);
+        ctx.fillRect(px - P, py - 3 * P, P, P); ctx.fillRect(px + P, py - 3 * P, P, P);
+      }
+      n++;
+    }
+    stats.natureza.respingos += n;
+  }
+  // névoa: faixas em "pílula" de degraus, andando com o vento (atrás: alto e no fundo da pista; frente: sobre as raias)
+  function nevoa(c, frente) {
+    var ctx = c.ctx, P = c.P, W = c.W, alt = c.bot - c.top;
+    var v = VENTO[c.w.intensity].nuvem * c.w.dir * (c.red ? 0.4 : 1);
+    var linhas = frente ? [c.top + alt * 0.62, c.bot - 3 * P, c.top + alt * 0.22] : [c.top - 30 * P, c.top - 12 * P, c.top + alt * 0.4];
+    ctx.fillStyle = frente ? 'rgba(232,238,242,0.15)' : 'rgba(222,230,236,0.20)';
+    for (var b = 0; b < linhas.length; b++) {
+      var s0 = c.sd + b * 17 + (frente ? 300 : 200);
+      var bw = snap(W * (0.45 + 0.3 * hash(s0)), P), span = W + bw;
+      var vel = (frente ? 11 + 4 * b : 5 + 2 * b) * P * v;
+      var x = snap(mod(hash(s0 + 1) * span + c.t * vel, span) - bw, P), y = snap(linhas[b], P), e = (frente ? 5 : 6) * P;
+      ctx.fillRect(x + 4 * P, y - 2 * P, bw - 8 * P, 2 * P);
+      ctx.fillRect(x, y, bw, e);
+      ctx.fillRect(x + 3 * P, y + e, bw - 6 * P, 2 * P);
+      if (frente) stats.natureza.nevoaFrente++; else stats.natureza.nevoa++;
+    }
+  }
+
+  // ---- camada da frente (depois dos cavalos): véus, ar e luz ----
+  function sol(c) {
+    var ctx = c.ctx, P = c.P, W = c.W, H = c.H, s = solPos(c), k, y;
+    ctx.fillStyle = 'rgba(255,196,110,0.05)'; ctx.fillRect(0, 0, W, H);
+    // brilho do sol em 3 degraus de pixel (sem gradiente suave)
+    var R0 = Math.max(W, H) * 0.5, degraus = [[1.0, 0.045], [0.62, 0.055], [0.32, 0.07]];
+    for (k = 0; k < degraus.length; k++) {
+      var rr = snap(R0 * degraus[k][0], P), py = passo(rr, P, 2);
+      ctx.fillStyle = 'rgba(255,240,190,' + degraus[k][1] + ')';
+      for (var ry = 0; ry < rr; ry += py) {
+        var hw = snap(Math.sqrt(Math.max(0, rr * rr - ry * ry)), P);
+        ctx.fillRect(s.x - hw, ry, hw * 2, py);
+      }
+    }
+    // raios de luz descendo do sol para a esquerda: faixas em degraus que alargam e somem
+    var incl = [0.5, 0.95, 1.5], pY = passo(H - s.y, P, 4);
+    for (k = 0; k < incl.length; k++) {
+      var pulso = 0.8 + 0.2 * Math.sin(c.t * 0.5 + k * 2.1);
+      for (y = s.y + 4 * P; y < H; y += pY) {
+        var d = y - s.y, f = d / H, larg = snap((4 + 22 * f) * P, P), xc = s.x - d * incl[k];
+        if (xc + larg < 0) break;
+        ctx.fillStyle = 'rgba(255,244,200,' + (0.095 * (1 - 0.7 * f) * pulso).toFixed(3) + ')';
+        ctx.fillRect(snap(xc - larg / 2, P), y, larg, pY);
+      }
+      stats.natureza.raios++;
+    }
+    // reflexos de lente em pixels
+    var pl = 0.5 + 0.5 * Math.sin(c.t * 1.3), fl = [[0.62, 0.22, 5, 0.10], [0.48, 0.38, 3, 0.12], [0.3, 0.6, 7, 0.06]];
+    for (k = 0; k < fl.length; k++) {
+      var fx = W * fl[k][0], fy = H * fl[k][1], fr = fl[k][2] * P;
+      ctx.fillStyle = 'rgba(255,250,220,' + (fl[k][3] * (0.7 + 0.3 * pl)).toFixed(3) + ')';
+      ctx.fillRect(Math.round(fx - fr), Math.round(fy - fr / 2), Math.round(fr * 2), Math.round(fr));
+      ctx.fillRect(Math.round(fx - fr / 2), Math.round(fy - fr), Math.round(fr), Math.round(fr * 2));
+    }
+  }
+  // pingos inclinados pelo vento (dois tons: longe e perto) e relâmpago raro
+  function chuva(c) {
+    var ctx = c.ctx, P = c.P, W = c.W, H = c.H;
+    ctx.fillStyle = RAIN.corVeu; ctx.fillRect(0, 0, W, H);
+    var n = Math.min(NATUREZA.pingosMax, Math.round((W / P) * (H / P) / NATUREZA.pingoArea));
+    var s = rainSlant(c.w), vel = H * RAIN.vel * (c.red ? RAIN.velReduzida : 1);
+    // a tela se repete nas duas direções: o pingo que sai por um lado entra pelo outro, então a folga só
+    // precisa cobrir o comprimento do pingo (com folga grande, a maioria cairia fora da tela)
+    var topo = 12 * P, spanY = H + 2 * topo, pad = 12 * P * Math.abs(s) + 4 * P, spanX = W + 2 * pad, conta = 0;
+    for (var pass = 0; pass < 2; pass++) {
+      ctx.fillStyle = pass ? RAIN.corPerto : RAIN.corLonge;
+      for (var i = 0; i < n; i++) {
+        if (c.red && (i & 1)) continue;
+        var perto = hash(c.sd + i * 5 + 9) > 0.68;
+        if (perto !== (pass === 1)) continue;
+        var sp = (0.8 + 0.45 * hash(c.sd + i * 3 + 2)) * (perto ? 1.15 : 1);
+        var y = mod(hash(c.sd + i * 3 + 1) * spanY + c.t * vel * sp, spanY) - topo;
+        var x = mod(hash(c.sd + i * 3) * spanX + (y + topo) * s, spanX) - pad;
+        var segs = perto ? 5 : 3;
+        for (var k = 0; k < segs; k++) ctx.fillRect(snap(x - s * k * 2 * P, P), snap(y - k * 2 * P, P), P, 2 * P);
+        conta++;
+      }
+    }
+    stats.natureza.pingos += conta;
+    if (!c.red) {
+      var lp = mod(c.t + hash(c.sd + 5) * RAIN.relampago, RAIN.relampago);
+      if (lp < 0.06 || (lp > 0.14 && lp < 0.2)) { ctx.fillStyle = RAIN.corClarao; ctx.fillRect(0, 0, W, H); stats.natureza.relampago = 1; }
+    }
+  }
+  // nublado: véu, sombras de nuvem e nuvens da frente levadas pelo vento
+  function nublado(c) {
+    var ctx = c.ctx, P = c.P, W = c.W, H = c.H, v = VENTO[c.w.intensity].nuvem * c.w.dir * (c.red ? 0.4 : 1);
+    ctx.fillStyle = 'rgba(70,92,125,0.14)'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = SOMBRA_NUVEM;
+    for (var s = 0; s < 3; s++) {
+      var cw = W * (0.5 + 0.3 * hash(c.sd + s + 5)), span = W + cw;
+      var cx = mod(hash(c.sd + s + 1) * span + c.t * (14 + 6 * s) * P * v, span) - cw / 2;
+      var cy = H * (0.35 + 0.4 * hash(c.sd + s + 3));
+      for (var ring = 0; ring < 2; ring++) {
+        var rw = snap(cw * (ring ? 0.3 : 0.5), P), rh = snap(rw * 0.35, P);
+        ctx.fillRect(snap(cx, P) - rw, snap(cy, P) - rh, rw * 2, rh * 2);
+      }
+      stats.natureza.sombras++;
+    }
+    // nuvens no topo (canvas em cache do Sprites: só no browser)
+    var SP = sp();
+    if (!SP || !SP.cloudCanvas || typeof document === 'undefined') return;
+    var prev = ctx.globalAlpha;
+    for (var q = 0; q < 4; q++) {
+      var cc = SP.cloudCanvas(10 + q, P * 2, 'nublado'), sp2 = W + cc.width * 2;
+      var x = mod(hash(c.sd + q + 77) * sp2 + c.t * (8 + 4 * q) * P * v, sp2) - cc.width;
+      ctx.globalAlpha = prev * 0.85;
+      ctx.drawImage(cc, Math.round(x), Math.round(-cc.height * 0.35 + hash(c.sd + q + 9) * H * 0.06));
+    }
+    ctx.globalAlpha = prev;
+  }
+  // folhas (e poeira no tempo seco) atravessando a tela no sentido do vento
+  function folhas(c) {
+    var cap = NATUREZA.folhas[c.w.intensity] || 0;
+    if (c.red) cap = Math.floor(cap / 2);
+    if (!cap) return;
+    var ctx = c.ctx, P = c.P, W = c.W, H = c.H, lento = c.red ? 0.4 : 1;
+    var pad = 6 * P, span = W + 2 * pad, seco = c.clima !== 'chuva', vb = VENTO[c.w.intensity].folha;
+    for (var i = 0; i < cap; i++) {
+      var s0 = c.sd + i * 23 + 400;
+      var h1 = hash(s0), h2 = hash(s0 + 1), h3 = hash(s0 + 2), h4 = hash(s0 + 3);
+      var x = mod(h1 * span + c.w.dir * c.t * vb * (0.7 + 0.6 * h2) * P * lento, span) - pad;
+      var y = mod(h3 * H + c.t * (4 + 6 * h4) * P * lento, H) + Math.sin(c.t * lento * (1.6 + h4) + h1 * 6.283) * 5 * P;
+      if (x < -2 * P || x >= W || y < 0 || y >= H) continue;
+      var X = snap(x, P), Y = snap(y, P);
+      if (seco && i % 3 === 2) {                       // grão de poeira
+        ctx.fillStyle = 'rgba(214,190,140,0.60)'; ctx.fillRect(X, Y, P, P);
+      } else {                                          // folha girando: deitada (3 px) ou em pé (1×2)
+        ctx.fillStyle = FOLHA_CORES[Math.floor(h2 * FOLHA_CORES.length)];
+        if (frac(c.t * lento * (1.5 + 2 * h3) + h1) < 0.5) { ctx.fillRect(X, Y, 2 * P, P); ctx.fillRect(X + P, Y - P, P, P); }
+        else ctx.fillRect(X, Y, P, 2 * P);
+      }
+      stats.natureza.folhas++;
+    }
+  }
+
+  // o: { weather, wind, t, W, H, P, laneTop, trackBottom, reduced, seed, cam, camada, lift }
+  function natureza(o) {
+    o = o || {};
+    var H = +o.H || 0;
+    return {
+      W: +o.W || 0, H: H, P: Math.max(1, Math.round(o.P || 1)), t: +o.t || 0, red: !!o.reduced,
+      clima: o.weather || 'sol', w: ventoOk(o.wind), sd: semente(o.seed), cam: +o.cam || 0,
+      lift: typeof o.lift === 'function' ? o.lift : null,
+      top: o.laneTop != null ? o.laneTop : Math.round(H * 0.35), bot: o.trackBottom != null ? o.trackBottom : H
+    };
+  }
+  function drawNature(ctx, o) {
+    var c = natureza(o);
+    if (!ctx || !(c.W > 0 && c.H > 0)) return;
+    c.ctx = ctx;
+    var camada = o && (o.camada === 'tras' || o.camada === 'frente') ? o.camada : 'tudo';
+    if (camada !== 'frente') {
+      if (c.clima === 'sol' && !c.red) calor(c);
+      else if (c.clima === 'chuva') respingos(c);
+      else if (c.clima === 'nevoa') nevoa(c, false);
+    }
+    if (camada !== 'tras') {
+      if (c.clima === 'chuva') chuva(c);
+      else if (c.clima === 'nublado') nublado(c);
+      else if (c.clima === 'nevoa') { ctx.fillStyle = 'rgba(200,212,222,0.10)'; ctx.fillRect(0, 0, c.W, c.H); }
+      else sol(c);
+      folhas(c);
+    }
+  }
+  function drawFogFront(ctx, o) {
+    var c = natureza(o);
+    if (!ctx || c.clima !== 'nevoa' || !(c.W > 0 && c.H > 0)) return;
+    c.ctx = ctx;
+    nevoa(c, true);
+  }
+
+  // poeira dos cascos (terra ou areia; a tela não chama na chuva). (x, y) = casco de trás no chão.
+  function drawHoofDust(ctx, x, y, S, t, surface, reduced) {
+    var cor = POEIRA[surface];
+    if (!cor || !ctx) return 0;
+    var n = reduced ? 1 : NATUREZA.poeiraCasco, lento = reduced ? 0.4 : 1;
+    for (var k = 0; k < n; k++) {
+      // nuvenzinha que sobe do chão, cresce e some ficando para trás
+      var ph = frac((t || 0) * 2.4 * lento + k / n);
+      var px = Math.round(x - (1 + ph * 8) * S), py = Math.round(y - (1 + ph * 5) * S);
+      ctx.fillStyle = rgbaN(cor[0], cor[1], cor[2], 0.85 * (1 - ph));
+      if (ph < 0.3) { ctx.fillRect(px - S, py, 2 * S, S); ctx.fillRect(px, py - S, S, S); }
+      else if (ph < 0.7) { ctx.fillRect(px - S, py - S, 3 * S, 2 * S); ctx.fillRect(px, py - 2 * S, S, S); }
+      else ctx.fillRect(px - S, py, 2 * S, S);
+    }
+    stats.natureza.poeiraCascos += n;
+    return n;
+  }
+
   var RaceFx = {
     DADO: DADO,
     // puras
@@ -5499,11 +5801,19 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     iconeDe: iconeDe,
     glow: glow,
     BALAO: BALAO,
+    wind: wind,
+    rainSlant: rainSlant,
+    NATUREZA: NATUREZA,
+    RAIN: RAIN,
+    SOMBRA_NUVEM: SOMBRA_NUVEM,
     // desenho
     drawDice: drawDice,
     drawDiceStrip: drawDiceStrip,
     drawBalloon: drawBalloon,
     drawSkillAura: drawSkillAura,
+    drawNature: drawNature,
+    drawFogFront: drawFogFront,
+    drawHoofDust: drawHoofDust,
     // estatísticas
     _stats: stats,
     beginFrame: beginFrame,
@@ -5770,8 +6080,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   var BOT_SILKS = SP.SILKS.filter(function (c) { return c.toLowerCase() !== PLAYER_SILKS; });
   var PORTRAIT_SCALE = 3;        // escala única dos retratos em todas as telas
 
+  // Movimento: opção "Animações" do Perfil (state.settings.motion). 'sistema' (padrão) segue o
+  // prefers-reduced-motion do aparelho; 'completas' e 'reduzidas' mandam. Toda checagem de movimento do
+  // jogo passa por reduced() — também o CSS, pela classe html.mov-reduzido (syncMotionClass).
+  var MOTIONS = ['sistema', 'completas', 'reduzidas'];
   var motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
-  function reduced() { return !!(motionQuery && motionQuery.matches); }
+  function systemReduced() { return !!(motionQuery && motionQuery.matches); }
+  function motionPref() {
+    var m = state && state.settings && state.settings.motion;
+    return MOTIONS.indexOf(m) >= 0 ? m : 'sistema';
+  }
+  function reduced() { var m = motionPref(); return m === 'reduzidas' || (m === 'sistema' && systemReduced()); }
+  function syncMotionClass() { document.documentElement.classList.toggle('mov-reduzido', reduced()); }
   function dpr() { return Math.max(1, window.devicePixelRatio || 1); }
 
   // Cores de cena lidas dos tokens CSS (fonte única de verdade).
@@ -5989,7 +6309,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       items: [],
       nextItemUid: 1,
       pedras: 0,
-      enhanceCounter: 0
+      enhanceCounter: 0,
+      settings: { motion: 'sistema' }
     };
     // equipamento inicial (+0) já equipado no inicial
     GE.startGear.forEach(function (id) {
@@ -6151,6 +6472,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     base.stableSlots = stableSlots;
     base.breedCounter = breedCounter;
     sanitizeGear(s, v4, base, rawEquip);
+    // preferências (sem mudar a versão do save): save antigo sem settings, ou com valor inválido, segue o sistema
+    var mo = s.settings && typeof s.settings === 'object' ? s.settings.motion : null;
+    base.settings = { motion: MOTIONS.indexOf(mo) >= 0 ? mo : 'sistema' };
     return base;
   }
 
@@ -6297,6 +6621,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ===========================================================================
   var state = null;
   var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null, montaria: null, tab: 'estabulo',
+    motionKeep: null,   // "Recomeçar": a opção Animações passa para o save novo
     // modo DEV (só com ?dev=1): gaveta e valores armados para a próxima corrida (ver a seção "Modo DEV")
     dev: { aberto: false, ouroInf: true, msg: '', f: null }, devNext: null };
   var live = [];          // canvases animados da tela atual
@@ -6967,6 +7292,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (appEl) appEl.classList.toggle('app-com-abas', comCasca);
     document.documentElement.classList.toggle('app-com-abas', comCasca);   // scroll-padding do foco (CSS)
     document.documentElement.classList.toggle('dev-ativo', DEV_MODE);   // faixa no topo e botão DEV (seção "Modo DEV")
+    syncMotionClass();
     // folga no fim da tela para o conteúdo rolar acima do botão DEV fixo
     if (DEV_MODE && ui.screen !== 'corrida') html += '<div class="dev-espaco" aria-hidden="true"></div>';
     telaEl.innerHTML = ordFix(html);
@@ -7011,7 +7337,23 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         '<div class="linha-meta"><span>' + esc(state.mounts.length) + (state.mounts.length === 1 ? ' montaria' : ' montarias') + ' · ' +
           esc(state.items.length) + (state.items.length === 1 ? ' peça' : ' peças') + '</span></div>' +
       '</div>' +
+      animacoesHtml() +
       '<footer class="caixa">' + resetHtml() + '</footer></section>';
+  }
+  // opção "Animações": mesmo controle de escolhas (aria-pressed) da entrada e das abas internas
+  var MOTION_ROTULOS = { sistema: 'Seguir o sistema', completas: 'Completas', reduzidas: 'Reduzidas' };
+  function animacoesHtml() {
+    var m = motionPref();
+    var opts = MOTIONS.map(function (k) {
+      return '<button type="button" class="btn opcao opcao--centro" data-acao="motion" data-id="' + k + '" aria-pressed="' + (m === k) + '">' +
+        '<span class="opcao-nome">' + esc(MOTION_ROTULOS[k]) + '</span></button>';
+    }).join('');
+    var agora = m === 'sistema' ? ' Agora o aparelho pede animações ' + (systemReduced() ? 'reduzidas' : 'completas') + '.' : '';
+    return '<section class="caixa" aria-labelledby="r-animacoes"><div class="tela-cabeca">' +
+      '<span class="rotulo" id="r-animacoes">Animações</span>' +
+      '<div class="opcoes opcoes--3" role="group" aria-labelledby="r-animacoes">' + opts + '</div>' +
+      '<p class="nota">Reduzidas: a chuva cai mais devagar e mais rala; sem relâmpagos, clarões, faíscas nem giro dos dados.' + esc(agora) + '</p>' +
+      '</div></section>';
   }
 
   // ===========================================================================
@@ -7828,6 +8170,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       dev: dv ? { wind: dv.wind, skillsAlways: !!dv.skillsAlways } : null
     };
   }
+  // vento da corrida (só visual): o forçado no modo DEV (L.dev é null sem nada armado) ou o da seed da sala
+  function ventoDaSala(L) { return (L.dev && L.dev.wind) || FX.wind(L.seed); }
+  var VENTO_NOME = { calmo: 'Calmo', brisa: 'Brisa', ventania: 'Ventania' };
+  function ventoTxt(w) { return VENTO_NOME[w.intensity] + (w.intensity === 'calmo' ? '' : w.dir > 0 ? ' \u2192' : ' \u2190'); }
+  function ventoFala(w) { return VENTO_NOME[w.intensity].toLowerCase() + (w.intensity === 'calmo' ? '' : w.dir > 0 ? ' para a direita' : ' para a esquerda'); }
   // trechos de subida/curva derivados dos blocos (só para desenhar: a simulação lê os blocos)
   function withRanges(cond) {
     cond.hills = RS.hillsFromBlocks(cond.blocks);
@@ -8063,7 +8410,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     }).filter(Boolean).join(' · ') || 'reta pura';
     // o trecho do clima fica num span próprio: pushFeed troca o texto quando o Dado vira o clima
     var climaTxt = 'Clima: ' + GD.WEATHERS[L.cond.weather].name;
-    var condTxt = D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ' + climaTxt + ' · ' + tracado;
+    var condTxt = D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ' + climaTxt + ' · Vento: ' + ventoFala(ventoDaSala(L)) + ' · ' + tracado;
     return '<section class="tela tela--larga tela--corrida" aria-labelledby="t-corrida">' +
       '<header class="corrida-topo"><div class="corrida-titulo">' +
         '<h1 class="corrida-nome" id="t-corrida" tabindex="-1" data-foco>' + esc(L.trackName) + '</h1>' +
@@ -8171,7 +8518,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       gallop: new Array(n), S: 2, W: 0, H: 0, done: false, endTimer: 0,
       lastHud: {}, flash: 0, winnerSeen: false, finishCam: false, playerRect: null, crossed: false,
       climaMsg: '', climaTimer: 0, climaDesde: 0, slowK: 1, fx: fxTl,
-      lay: null
+      lay: null,
+      wind: ventoDaSala(L)   // só visual (RaceFx.wind da seed, ou o forçado no DEV)
     };
     for (i = 0; i < n; i++) self.gallop[i] = i * 1.7;
 
@@ -8335,10 +8683,35 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       // não há espaço (a CURVA/SUBIDA fica ali) e o cabeçalho da tela mostra o clima
       var wName = GD.WEATHERS[climaAtual(self.simT)].name.toUpperCase();
       var ww = Math.max(tw('CLIMA'), tw(wName)) + 4, wx = A - 2 - tw2 - 4 - ww;
-      if (!lay.compact && wx > sx + barW + 4 + 4) {
+      var livre = sx + barW + 4 + 4, climaVisivel = !lay.compact && wx > livre;
+      if (climaVisivel) {
         box(wx, 2, ww, 14, C.veu);
         text('CLIMA', wx + 2, 3, C.texto2);
         text(wName, wx + 2, 10, C.texto);
+      }
+      // vento (só visual) à esquerda do clima: "VENTO / BRISA →"; sem espaço, ou no layout compacto (onde
+      // o selo CURVA/SUBIDA ocupa o lugar do clima), só o ícone: seta (traço no calmo) e 1–3 barrinhas
+      var vw = self.wind, vNome = ventoTxt(vw).toUpperCase(), dir0 = climaVisivel ? wx : A - 2 - tw2;
+      var vbw = Math.max(tw('VENTO'), tw(vNome)) + 4, vx = dir0 - 4 - vbw;
+      if (!lay.compact && vx > livre) {
+        box(vx, 2, vbw, 14, C.veu);
+        text('VENTO', vx + 2, 3, C.texto2);
+        text(vNome, vx + 2, 10, C.texto);
+        FX._stats.ventoHud = 'texto';
+      } else {
+        var reserva = lay.compact ? Math.max(tw('\u25b2SUBIDA'), tw('\u21aaCURVA')) + 4 + 4 : 0;
+        var iw = 9, ix = dir0 - 4 - reserva - iw;
+        if (ix > livre) {
+          box(ix, 2, iw, 14, C.veu);
+          var seta = vw.intensity === 'calmo' ? '\u2013' : vw.dir > 0 ? '\u2192' : '\u2190';
+          text(seta, ix + Math.round((iw - tw(seta)) / 2), 3, C.texto);
+          var nivel = ['calmo', 'brisa', 'ventania'].indexOf(vw.intensity) + 1;
+          for (var vb = 0; vb < 3; vb++) {
+            ctx.fillStyle = vb < nivel ? C.texto : C.sombra;
+            ctx.fillRect((ix + 2 + vb * 2) * self.S, (13 - vb) * self.S, self.S, (vb + 1) * self.S);
+          }
+          FX._stats.ventoHud = 'icone';
+        }
       }
       // tipo do bloco do jogador: SUBIDA ou CURVA (nada na reta)
       var bType = blocks[RS.blockAt(blocks, st.pos[me])].type;
@@ -8393,13 +8766,24 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       self.finishCam = self.phase === 'corrida' && self.simT > tWin - 1.1 && self.simT < tWin + 0.7 && p < D - 2 && (lineX > 0.95 || lineX < 0.08);
       var cam = self.finishCam ? D - 0.62 * visM : follow;
       var laneH = lay.laneArt * S, laneTop = lay.laneTopArt * S;
-      var tr = self.tReal;
+      var tr = self.tReal, red = reduced();
       var clima = climaAtual(self.simT);
+      // em reduced nada congela: o cenário (nuvens, torcida, bandeiras, grama) anda a 40 % e a natureza
+      // (fx.js) recebe o tempo real com a marca reduced (chuva a 40 %, metade dos pingos, sem relâmpago)
       SP.drawTrack(ctx, {
         width: W, height: H, cameraX: cam, pxPerMeter: ppm, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: L.cond.surface, finishM: D, hills: hills, curves: curves, distanceMarkersEvery: D <= 1000 ? 100 : 200,
-        t: reduced() ? 0 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift
+        t: red ? tr * 0.4 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind
       });
+      // natureza, camada de trás (calor, respingos, névoa do fundo): antes dos cavalos. lift acompanha o
+      // relevo das subidas (os respingos e o calor ficam no chão levantado)
+      var natO = {
+        weather: clima, wind: self.wind, t: tr, W: W, H: H, P: S, laneTop: laneTop, trackBottom: laneTop + n * laneH,
+        reduced: red, seed: L.seed, cam: cam * ppm, camada: 'tras',
+        lift: hills.length ? function (px) { return SP.hillLiftAt(cam + px / ppm, hills, lay.maxLift) * S; } : null
+      };
+      FX.drawNature(ctx, natO);
+      var poeira = clima !== 'chuva' && (L.cond.surface === 'terra' || L.cond.surface === 'areia');
       var tagsR = [], tagsL = [], badges = [], youTag = null, vis = [];
       for (var j = 0; j < n; j++) {
         var r = L.racers[j];
@@ -8431,6 +8815,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         }
         var inten = standing ? 0 : boostIntensity(j, self.simT);
         if (inten > 0.02) SP.drawTrail(ctx, x + an.rear[0] * S, y + an.rear[1] * S, r.horse.element, tr + j * 0.31, inten, S);
+        // poeira dos cascos em terra ou areia (fora da chuva), atrás do cavalo
+        if (poeira && !standing) FX.drawHoofDust(ctx, x + (an.rear[0] + 4) * S, feetY, S, tr + j * 0.37, L.cond.surface, red);
         if (lift > 0 && !standing && !reduced()) {
           // poeira levantada na subida
           var dp = Math.floor(tr * 10 + j) % 3;
@@ -8470,7 +8856,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         text(yb.txt, yb.x + 2, yb.y + 3, C.ouro);
       }
       layoutTags(tagsR, true); layoutTags(tagsL, false);
-      SP.drawWeather(ctx, clima, reduced() ? 0 : tr, W, H, S);
+      // natureza, camada da frente (véu, pingos, relâmpago, sol, sombras, folhas) e a névoa da frente
+      natO.camada = 'frente';
+      FX.drawNature(ctx, natO);
+      FX.drawFogFront(ctx, natO);
       if (self.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + (0.55 * self.flash / 0.3).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
       var dItem = self.phase === 'contagem' ? null : dadoAtivo(self.simT);
       self.voceRect = null;
@@ -8992,6 +9381,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       }
       case 'escolher':
         state = newState(id);
+        if (ui.motionKeep) { state.settings.motion = ui.motionKeep; ui.motionKeep = null; }   // "Recomeçar" não apaga a preferência
         persist();
         go('estabulo');
         break;
@@ -9000,6 +9390,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         if (card) { try { card.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'nearest', inline: 'center' }); } catch (e2) { card.scrollIntoView(); } }
         break;
       }
+      case 'motion':
+        if (!state || MOTIONS.indexOf(id) < 0) break;
+        state.settings = { motion: id };
+        persist(); syncMotionClass(); rerenderKeepScroll(); break;
       case 'tier':
         if (state.pending) break;
         state.tier = Number(id); persist(); rerenderKeepScroll(); break;
@@ -9138,6 +9532,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       case 'reset-nao':
         ui.confirmReset = false; rerenderKeepScroll(); focusAction('reset'); break;
       case 'reset-sim':
+        ui.motionKeep = motionPref();
         ui.confirmReset = false; wipeSave(); state = null; ui.lobby = null; ui.result = null; go('inicial'); break;
     }
   });
@@ -9213,6 +9608,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         rerenderKeepScroll();
       }, 150);
     });
+    // a preferência de movimento do aparelho mudou: vale na hora para quem segue o sistema
+    if (motionQuery) {
+      var onMotion = function () { syncMotionClass(); if (ui.screen === 'perfil') rerenderKeepScroll(); };
+      if (motionQuery.addEventListener) motionQuery.addEventListener('change', onMotion);
+      else if (motionQuery.addListener) motionQuery.addListener(onMotion);
+    }
     // outra aba gravou: adota o save mais novo em vez de sobrescrevê-lo depois
     window.addEventListener('storage', function (ev) {
       if (ev.key !== SAVE_KEY && ev.key !== null) return;

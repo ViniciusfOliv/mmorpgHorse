@@ -48,8 +48,18 @@
   var BOT_SILKS = SP.SILKS.filter(function (c) { return c.toLowerCase() !== PLAYER_SILKS; });
   var PORTRAIT_SCALE = 3;        // escala única dos retratos em todas as telas
 
+  // Movimento: opção "Animações" do Perfil (state.settings.motion). 'sistema' (padrão) segue o
+  // prefers-reduced-motion do aparelho; 'completas' e 'reduzidas' mandam. Toda checagem de movimento do
+  // jogo passa por reduced() — também o CSS, pela classe html.mov-reduzido (syncMotionClass).
+  var MOTIONS = ['sistema', 'completas', 'reduzidas'];
   var motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
-  function reduced() { return !!(motionQuery && motionQuery.matches); }
+  function systemReduced() { return !!(motionQuery && motionQuery.matches); }
+  function motionPref() {
+    var m = state && state.settings && state.settings.motion;
+    return MOTIONS.indexOf(m) >= 0 ? m : 'sistema';
+  }
+  function reduced() { var m = motionPref(); return m === 'reduzidas' || (m === 'sistema' && systemReduced()); }
+  function syncMotionClass() { document.documentElement.classList.toggle('mov-reduzido', reduced()); }
   function dpr() { return Math.max(1, window.devicePixelRatio || 1); }
 
   // Cores de cena lidas dos tokens CSS (fonte única de verdade).
@@ -267,7 +277,8 @@
       items: [],
       nextItemUid: 1,
       pedras: 0,
-      enhanceCounter: 0
+      enhanceCounter: 0,
+      settings: { motion: 'sistema' }
     };
     // equipamento inicial (+0) já equipado no inicial
     GE.startGear.forEach(function (id) {
@@ -429,6 +440,9 @@
     base.stableSlots = stableSlots;
     base.breedCounter = breedCounter;
     sanitizeGear(s, v4, base, rawEquip);
+    // preferências (sem mudar a versão do save): save antigo sem settings, ou com valor inválido, segue o sistema
+    var mo = s.settings && typeof s.settings === 'object' ? s.settings.motion : null;
+    base.settings = { motion: MOTIONS.indexOf(mo) >= 0 ? mo : 'sistema' };
     return base;
   }
 
@@ -575,6 +589,7 @@
   // ===========================================================================
   var state = null;
   var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null, montaria: null, tab: 'estabulo',
+    motionKeep: null,   // "Recomeçar": a opção Animações passa para o save novo
     // modo DEV (só com ?dev=1): gaveta e valores armados para a próxima corrida (ver a seção "Modo DEV")
     dev: { aberto: false, ouroInf: true, msg: '', f: null }, devNext: null };
   var live = [];          // canvases animados da tela atual
@@ -1245,6 +1260,7 @@
     if (appEl) appEl.classList.toggle('app-com-abas', comCasca);
     document.documentElement.classList.toggle('app-com-abas', comCasca);   // scroll-padding do foco (CSS)
     document.documentElement.classList.toggle('dev-ativo', DEV_MODE);   // faixa no topo e botão DEV (seção "Modo DEV")
+    syncMotionClass();
     // folga no fim da tela para o conteúdo rolar acima do botão DEV fixo
     if (DEV_MODE && ui.screen !== 'corrida') html += '<div class="dev-espaco" aria-hidden="true"></div>';
     telaEl.innerHTML = ordFix(html);
@@ -1289,7 +1305,23 @@
         '<div class="linha-meta"><span>' + esc(state.mounts.length) + (state.mounts.length === 1 ? ' montaria' : ' montarias') + ' · ' +
           esc(state.items.length) + (state.items.length === 1 ? ' peça' : ' peças') + '</span></div>' +
       '</div>' +
+      animacoesHtml() +
       '<footer class="caixa">' + resetHtml() + '</footer></section>';
+  }
+  // opção "Animações": mesmo controle de escolhas (aria-pressed) da entrada e das abas internas
+  var MOTION_ROTULOS = { sistema: 'Seguir o sistema', completas: 'Completas', reduzidas: 'Reduzidas' };
+  function animacoesHtml() {
+    var m = motionPref();
+    var opts = MOTIONS.map(function (k) {
+      return '<button type="button" class="btn opcao opcao--centro" data-acao="motion" data-id="' + k + '" aria-pressed="' + (m === k) + '">' +
+        '<span class="opcao-nome">' + esc(MOTION_ROTULOS[k]) + '</span></button>';
+    }).join('');
+    var agora = m === 'sistema' ? ' Agora o aparelho pede animações ' + (systemReduced() ? 'reduzidas' : 'completas') + '.' : '';
+    return '<section class="caixa" aria-labelledby="r-animacoes"><div class="tela-cabeca">' +
+      '<span class="rotulo" id="r-animacoes">Animações</span>' +
+      '<div class="opcoes opcoes--3" role="group" aria-labelledby="r-animacoes">' + opts + '</div>' +
+      '<p class="nota">Reduzidas: a chuva cai mais devagar e mais rala; sem relâmpagos, clarões, faíscas nem giro dos dados.' + esc(agora) + '</p>' +
+      '</div></section>';
   }
 
   // ===========================================================================
@@ -2106,6 +2138,11 @@
       dev: dv ? { wind: dv.wind, skillsAlways: !!dv.skillsAlways } : null
     };
   }
+  // vento da corrida (só visual): o forçado no modo DEV (L.dev é null sem nada armado) ou o da seed da sala
+  function ventoDaSala(L) { return (L.dev && L.dev.wind) || FX.wind(L.seed); }
+  var VENTO_NOME = { calmo: 'Calmo', brisa: 'Brisa', ventania: 'Ventania' };
+  function ventoTxt(w) { return VENTO_NOME[w.intensity] + (w.intensity === 'calmo' ? '' : w.dir > 0 ? ' \u2192' : ' \u2190'); }
+  function ventoFala(w) { return VENTO_NOME[w.intensity].toLowerCase() + (w.intensity === 'calmo' ? '' : w.dir > 0 ? ' para a direita' : ' para a esquerda'); }
   // trechos de subida/curva derivados dos blocos (só para desenhar: a simulação lê os blocos)
   function withRanges(cond) {
     cond.hills = RS.hillsFromBlocks(cond.blocks);
@@ -2341,7 +2378,7 @@
     }).filter(Boolean).join(' · ') || 'reta pura';
     // o trecho do clima fica num span próprio: pushFeed troca o texto quando o Dado vira o clima
     var climaTxt = 'Clima: ' + GD.WEATHERS[L.cond.weather].name;
-    var condTxt = D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ' + climaTxt + ' · ' + tracado;
+    var condTxt = D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ' + climaTxt + ' · Vento: ' + ventoFala(ventoDaSala(L)) + ' · ' + tracado;
     return '<section class="tela tela--larga tela--corrida" aria-labelledby="t-corrida">' +
       '<header class="corrida-topo"><div class="corrida-titulo">' +
         '<h1 class="corrida-nome" id="t-corrida" tabindex="-1" data-foco>' + esc(L.trackName) + '</h1>' +
@@ -2449,7 +2486,8 @@
       gallop: new Array(n), S: 2, W: 0, H: 0, done: false, endTimer: 0,
       lastHud: {}, flash: 0, winnerSeen: false, finishCam: false, playerRect: null, crossed: false,
       climaMsg: '', climaTimer: 0, climaDesde: 0, slowK: 1, fx: fxTl,
-      lay: null
+      lay: null,
+      wind: ventoDaSala(L)   // só visual (RaceFx.wind da seed, ou o forçado no DEV)
     };
     for (i = 0; i < n; i++) self.gallop[i] = i * 1.7;
 
@@ -2613,10 +2651,35 @@
       // não há espaço (a CURVA/SUBIDA fica ali) e o cabeçalho da tela mostra o clima
       var wName = GD.WEATHERS[climaAtual(self.simT)].name.toUpperCase();
       var ww = Math.max(tw('CLIMA'), tw(wName)) + 4, wx = A - 2 - tw2 - 4 - ww;
-      if (!lay.compact && wx > sx + barW + 4 + 4) {
+      var livre = sx + barW + 4 + 4, climaVisivel = !lay.compact && wx > livre;
+      if (climaVisivel) {
         box(wx, 2, ww, 14, C.veu);
         text('CLIMA', wx + 2, 3, C.texto2);
         text(wName, wx + 2, 10, C.texto);
+      }
+      // vento (só visual) à esquerda do clima: "VENTO / BRISA →"; sem espaço, ou no layout compacto (onde
+      // o selo CURVA/SUBIDA ocupa o lugar do clima), só o ícone: seta (traço no calmo) e 1–3 barrinhas
+      var vw = self.wind, vNome = ventoTxt(vw).toUpperCase(), dir0 = climaVisivel ? wx : A - 2 - tw2;
+      var vbw = Math.max(tw('VENTO'), tw(vNome)) + 4, vx = dir0 - 4 - vbw;
+      if (!lay.compact && vx > livre) {
+        box(vx, 2, vbw, 14, C.veu);
+        text('VENTO', vx + 2, 3, C.texto2);
+        text(vNome, vx + 2, 10, C.texto);
+        FX._stats.ventoHud = 'texto';
+      } else {
+        var reserva = lay.compact ? Math.max(tw('\u25b2SUBIDA'), tw('\u21aaCURVA')) + 4 + 4 : 0;
+        var iw = 9, ix = dir0 - 4 - reserva - iw;
+        if (ix > livre) {
+          box(ix, 2, iw, 14, C.veu);
+          var seta = vw.intensity === 'calmo' ? '\u2013' : vw.dir > 0 ? '\u2192' : '\u2190';
+          text(seta, ix + Math.round((iw - tw(seta)) / 2), 3, C.texto);
+          var nivel = ['calmo', 'brisa', 'ventania'].indexOf(vw.intensity) + 1;
+          for (var vb = 0; vb < 3; vb++) {
+            ctx.fillStyle = vb < nivel ? C.texto : C.sombra;
+            ctx.fillRect((ix + 2 + vb * 2) * self.S, (13 - vb) * self.S, self.S, (vb + 1) * self.S);
+          }
+          FX._stats.ventoHud = 'icone';
+        }
       }
       // tipo do bloco do jogador: SUBIDA ou CURVA (nada na reta)
       var bType = blocks[RS.blockAt(blocks, st.pos[me])].type;
@@ -2671,13 +2734,24 @@
       self.finishCam = self.phase === 'corrida' && self.simT > tWin - 1.1 && self.simT < tWin + 0.7 && p < D - 2 && (lineX > 0.95 || lineX < 0.08);
       var cam = self.finishCam ? D - 0.62 * visM : follow;
       var laneH = lay.laneArt * S, laneTop = lay.laneTopArt * S;
-      var tr = self.tReal;
+      var tr = self.tReal, red = reduced();
       var clima = climaAtual(self.simT);
+      // em reduced nada congela: o cenário (nuvens, torcida, bandeiras, grama) anda a 40 % e a natureza
+      // (fx.js) recebe o tempo real com a marca reduced (chuva a 40 %, metade dos pingos, sem relâmpago)
       SP.drawTrack(ctx, {
         width: W, height: H, cameraX: cam, pxPerMeter: ppm, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: L.cond.surface, finishM: D, hills: hills, curves: curves, distanceMarkersEvery: D <= 1000 ? 100 : 200,
-        t: reduced() ? 0 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift
+        t: red ? tr * 0.4 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind
       });
+      // natureza, camada de trás (calor, respingos, névoa do fundo): antes dos cavalos. lift acompanha o
+      // relevo das subidas (os respingos e o calor ficam no chão levantado)
+      var natO = {
+        weather: clima, wind: self.wind, t: tr, W: W, H: H, P: S, laneTop: laneTop, trackBottom: laneTop + n * laneH,
+        reduced: red, seed: L.seed, cam: cam * ppm, camada: 'tras',
+        lift: hills.length ? function (px) { return SP.hillLiftAt(cam + px / ppm, hills, lay.maxLift) * S; } : null
+      };
+      FX.drawNature(ctx, natO);
+      var poeira = clima !== 'chuva' && (L.cond.surface === 'terra' || L.cond.surface === 'areia');
       var tagsR = [], tagsL = [], badges = [], youTag = null, vis = [];
       for (var j = 0; j < n; j++) {
         var r = L.racers[j];
@@ -2709,6 +2783,8 @@
         }
         var inten = standing ? 0 : boostIntensity(j, self.simT);
         if (inten > 0.02) SP.drawTrail(ctx, x + an.rear[0] * S, y + an.rear[1] * S, r.horse.element, tr + j * 0.31, inten, S);
+        // poeira dos cascos em terra ou areia (fora da chuva), atrás do cavalo
+        if (poeira && !standing) FX.drawHoofDust(ctx, x + (an.rear[0] + 4) * S, feetY, S, tr + j * 0.37, L.cond.surface, red);
         if (lift > 0 && !standing && !reduced()) {
           // poeira levantada na subida
           var dp = Math.floor(tr * 10 + j) % 3;
@@ -2748,7 +2824,10 @@
         text(yb.txt, yb.x + 2, yb.y + 3, C.ouro);
       }
       layoutTags(tagsR, true); layoutTags(tagsL, false);
-      SP.drawWeather(ctx, clima, reduced() ? 0 : tr, W, H, S);
+      // natureza, camada da frente (véu, pingos, relâmpago, sol, sombras, folhas) e a névoa da frente
+      natO.camada = 'frente';
+      FX.drawNature(ctx, natO);
+      FX.drawFogFront(ctx, natO);
       if (self.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + (0.55 * self.flash / 0.3).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
       var dItem = self.phase === 'contagem' ? null : dadoAtivo(self.simT);
       self.voceRect = null;
@@ -3270,6 +3349,7 @@
       }
       case 'escolher':
         state = newState(id);
+        if (ui.motionKeep) { state.settings.motion = ui.motionKeep; ui.motionKeep = null; }   // "Recomeçar" não apaga a preferência
         persist();
         go('estabulo');
         break;
@@ -3278,6 +3358,10 @@
         if (card) { try { card.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'nearest', inline: 'center' }); } catch (e2) { card.scrollIntoView(); } }
         break;
       }
+      case 'motion':
+        if (!state || MOTIONS.indexOf(id) < 0) break;
+        state.settings = { motion: id };
+        persist(); syncMotionClass(); rerenderKeepScroll(); break;
       case 'tier':
         if (state.pending) break;
         state.tier = Number(id); persist(); rerenderKeepScroll(); break;
@@ -3416,6 +3500,7 @@
       case 'reset-nao':
         ui.confirmReset = false; rerenderKeepScroll(); focusAction('reset'); break;
       case 'reset-sim':
+        ui.motionKeep = motionPref();
         ui.confirmReset = false; wipeSave(); state = null; ui.lobby = null; ui.result = null; go('inicial'); break;
     }
   });
@@ -3491,6 +3576,12 @@
         rerenderKeepScroll();
       }, 150);
     });
+    // a preferência de movimento do aparelho mudou: vale na hora para quem segue o sistema
+    if (motionQuery) {
+      var onMotion = function () { syncMotionClass(); if (ui.screen === 'perfil') rerenderKeepScroll(); };
+      if (motionQuery.addEventListener) motionQuery.addEventListener('change', onMotion);
+      else if (motionQuery.addListener) motionQuery.addListener(onMotion);
+    }
     // outra aba gravou: adota o save mais novo em vez de sobrescrevê-lo depois
     window.addEventListener('storage', function (ev) {
       if (ev.key !== SAVE_KEY && ev.key !== null) return;

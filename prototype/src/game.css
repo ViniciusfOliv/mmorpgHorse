@@ -609,10 +609,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   .cavalo-cabeca .retrato { align-self: center; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
-  .btn:active:not(:disabled) { transform: none; }
-}
+/* movimento reduzido: a classe vem do game.js (opção "Animações" do Perfil; "Seguir o sistema" usa
+   prefers-reduced-motion), então "Completas" vale mesmo com o aparelho pedindo menos movimento */
+html.mov-reduzido *, html.mov-reduzido *::before, html.mov-reduzido *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+html.mov-reduzido .btn:active:not(:disabled) { transform: none; }
 
 /* ---------- casca: cabeçalho fixo e barra de abas (abas e sub-telas) ---------- */
 .app-topo {

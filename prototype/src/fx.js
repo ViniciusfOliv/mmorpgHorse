@@ -3,7 +3,8 @@
  *
  * Só apresentação. Nada daqui volta para a simulação (RaceSim): a tela lê o resultado pronto e
  * desenha por cima. Sem Math.random e sem estado sorteado: tudo é função do tempo de simulação
- * (simT), do índice do corredor e de hashes fixos. O módulo tem duas partes, nesta ordem:
+ * (simT; na natureza, o tempo real da tela), do índice (corredor ou partícula) e de hashes fixos da
+ * seed. O módulo tem duas partes, nesta ordem:
  *
  * ============================== FUNÇÕES PURAS ===============================
  * Sem DOM e sem canvas; testadas no Node por tools/fx-test.js.
@@ -67,6 +68,12 @@
  *     sobrepor os já colocados nem os fixos (obstáculos que não se movem e não voltam, como a
  *     etiqueta "◀VOCÊ"), com 1 px de folga. Sem altura para empilhar, vai para o lado. Unidade livre.
  *
+ *   RaceFx.wind(seed) -> { intensity: 'calmo'|'brisa'|'ventania', dir: 1 | -1 }   (vento, só visual)
+ *     Hash próprio da seed (sal fixo; não chama nenhum fluxo de números da simulação): calmo 35 %,
+ *     brisa 40 %, ventania 25 %; dir (1 = para a direita) por outro hash. O modo DEV pode forçar (L.dev.wind).
+ *   RaceFx.rainSlant(wind) -> dx por dy dos pingos (calmo 0,12 · brisa 0,35 · ventania 0,75, com o sinal de dir).
+ *   RaceFx.NATUREZA (tetos por tela), RaceFx.RAIN (velocidade, cores), RaceFx.SOMBRA_NUVEM (cor das sombras).
+ *
  * ================================= DESENHO ==================================
  * Canvas 2D em pixel art (x, y em px do canvas; S = px por pixel de arte). Precisa de window.Sprites
  * (fonte 3×5). Nenhuma imagem: dados, plaquinhas e faíscas saem de fillRect.
@@ -95,7 +102,31 @@
  *     em px do canvas. Linhas de vento atrás para vel/ace/Garra; "+" verde para folego; faíscas nos
  *     cascos para curva. Em reduced não desenha nada (são partículas); o contorno vem do glow.
  *
- *   RaceFx._stats = { dados, faixaDado, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos }
+ *   RaceFx.drawNature(ctx, o) — natureza por clima, função de o.t (segundos reais), do índice e da seed
+ *     (nada sorteado com estado). o = { weather, wind, t, W, H, P, laneTop, trackBottom, reduced, seed,
+ *     cam, camada, lift }: W×H e P em px do canvas; cam = px que a câmera andou (respingos presos ao chão);
+ *     lift(px) = quanto o chão sobe naquela coluna (relevo da subida); camada 'tras' (antes dos cavalos:
+ *     calor, respingos, névoa do fundo), 'frente' (depois: véus, sol, pingos, relâmpago, sombras, folhas)
+ *     ou omitida (as duas, nessa ordem).
+ *       sol: véu quente, brilho em degraus, 3 raios de luz descendo do sol e faixas de calor ondulando
+ *            sobre a pista (somem em reduced).
+ *       chuva: pingos inclinados pelo vento (rainSlant), em dois tons; respingos só em [laneTop,
+ *            trackBottom]; relâmpago raro (nunca em reduced). Em reduced: 40 % da velocidade e metade
+ *            dos pingos e respingos — anda, nunca congela.
+ *       névoa: véu claro e 3 faixas atrás; a camada da frente é drawFogFront. As duas andam com o vento.
+ *       nublado: véu, sombras de nuvem e nuvens do topo levadas pelo vento.
+ *       folhas (e poeira no tempo seco) no sentido do vento: calmo 0, brisa até 6, ventania até 18 por
+ *            tela (metade em reduced, e a 40 % da velocidade). Nuvens e névoa: ×0,5 / ×1 / ×2,2.
+ *     Tetos por tela em NATUREZA (pingos 240, respingos 48, ~2600 fillRect no pior caso).
+ *   RaceFx.drawFogFront(ctx, o) — faixas de névoa na frente dos cavalos (só weather 'nevoa').
+ *   RaceFx.drawHoofDust(ctx, x, y, S, t, surface, reduced) -> nº de nuvenzinhas (0 fora de terra/areia):
+ *     poeira atrás do casco (x, y); 3 por cavalo, 1 em reduced. A tela não chama na chuva.
+ *
+ *   RaceFx._stats = { dados, faixaDado, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
+ *                     natureza, ventoHud }
+ *     natureza = { pingos, respingos, relampago, raios, calor, nevoa, nevoaFrente, sombras, folhas, poeiraCascos }
+ *     do quadro (não entra em particulas, que é só dos efeitos de skill e do Dado); ventoHud = 'texto' |
+ *     'icone' | '' (o selo de vento que a tela desenhou no HUD).
  *     faixaSkill = texto da faixa central desenhada no quadro ('' se não há); caixasBaloes = [{ racer,
  *     kind, pilha, x, y, w, h, y0, y1 }] dos balões posicionados (pixels de arte; y0..y1 = faixa vertical da
  *     raia) e caixasCavalos = [{ racer, x, y, w, h }] dos cavalos visíveis. A tela anota os três.
@@ -162,7 +193,9 @@
   function rgba(hex, a) { var v = hexRgb(hex); return 'rgba(' + v[0] + ',' + v[1] + ',' + v[2] + ',' + a.toFixed(3) + ')'; }
   function lum(hex) { var v = hexRgb(hex); return (0.299 * v[0] + 0.587 * v[1] + 0.114 * v[2]) / 255; }
   function frac(x) { return x - Math.floor(x); }
-  // hash inteiro -> [0, 1) (o mesmo misturador do sprites.js); só para números "rolando" na faixa
+  function mod(a, n) { return ((a % n) + n) % n; }
+  function snap(v, P) { return Math.round(v / P) * P; }   // grade de pixels de arte
+  // hash inteiro -> [0, 1) (o mesmo misturador do sprites.js): números "rolando" na faixa, vento e natureza
   function hash(n) {
     n = n | 0;
     n = Math.imul(n ^ (n >>> 16), 0x7feb352d);
@@ -470,13 +503,42 @@
     return out;
   }
 
+  // ---- vento (só visual) -----------------------------------------------------------------------
+  // Hash próprio da seed, com sal fixo: não chama nenhum fluxo de números da simulação (RaceSim).
+  var SAL_VENTO = 0x5f1e7a, SAL_DIRECAO = 0x51ed270b, SAL_NATUREZA = 0x3a7e11;
+  var VENTOS = ['calmo', 'brisa', 'ventania'];
+  // por intensidade: inclinação da chuva (dx por dy), fator de velocidade de nuvens e névoa, velocidade
+  // das folhas (pixels de arte por segundo)
+  var VENTO = {
+    calmo:    { chuva: 0.12, nuvem: 0.5, folha: 0 },
+    brisa:    { chuva: 0.35, nuvem: 1, folha: 22 },
+    ventania: { chuva: 0.75, nuvem: 2.2, folha: 52 }
+  };
+  function wind(seed) {
+    var s = Number(seed), u = isFinite(s) ? s >>> 0 : 0;
+    var a = hash(u ^ SAL_VENTO), b = hash(Math.imul(u, 0x2c1b3c6d) ^ SAL_DIRECAO);
+    return { intensity: a < 0.35 ? 'calmo' : a < 0.75 ? 'brisa' : 'ventania', dir: b < 0.5 ? 1 : -1 };
+  }
+  // vento válido (padrão: calmo, para a direita)
+  function ventoOk(w) {
+    return { intensity: w && VENTOS.indexOf(w.intensity) >= 0 ? w.intensity : 'calmo', dir: w && w.dir < 0 ? -1 : 1 };
+  }
+  function rainSlant(w) { var v = ventoOk(w); return VENTO[v.intensity].chuva * v.dir; }
+
   // ===========================================================================
   // Estatísticas do quadro (ui-test e teste de desempenho)
   // ===========================================================================
-  var stats = { dados: 0, faixaDado: false, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [] };
+  // natureza: contadores do quadro (drawNature, drawFogFront, drawHoofDust); NÃO entram em particulas
+  // (que conta só os efeitos de skill e do Dado: o ui-test de movimento reduzido exige particulas = 0)
+  function novaNatureza() {
+    return { pingos: 0, respingos: 0, relampago: 0, raios: 0, calor: 0, nevoa: 0, nevoaFrente: 0, sombras: 0, folhas: 0, poeiraCascos: 0 };
+  }
+  var stats = { dados: 0, faixaDado: false, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [],
+    natureza: novaNatureza(), ventoHud: '' };
   var JANELA_MS = 60, amostras = [], somaMs = 0;
   function beginFrame() {
     stats.dados = 0; stats.faixaDado = false; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = [];
+    stats.natureza = novaNatureza(); stats.ventoHud = '';
   }
   function endFrame(ms) {
     if (!(ms >= 0) || !isFinite(ms)) return;
@@ -766,6 +828,269 @@
     return true;
   }
 
+  // ===========================================================================
+  // Natureza: sol, chuva, névoa, nublado, vento, folhas e poeira (spec §7)
+  // ===========================================================================
+  // Tetos por tela: a densidade é em pixels de arte (independe do DPR) e para em telas grandes.
+  var NATUREZA = {
+    pingosMax: 240, pingoArea: 380,            // 1 pingo a cada 380 px² de arte, no máximo 240
+    respingosMax: 48, respingoArea: 240,       // vagas de respingo no chão da pista (cada uma acende ~30 % do tempo)
+    respingoVagas: 160,
+    folhas: { calmo: 0, brisa: 6, ventania: 18 },   // folhas + poeira no ar (metade em reduced)
+    poeiraCasco: 3,                            // nuvenzinhas por cavalo (1 em reduced)
+    linhasMax: 50,                             // faixas por raio/brilho (o passo cresce em telas grandes)
+    retangulosMax: 2600                        // teto de fillRect por chamada (conferido no fx-test)
+  };
+  var RAIN = {
+    vel: 1.5,                                  // alturas de tela por segundo (× 0,8–1,25 por pingo)
+    velReduzida: 0.4,                          // em reduced: 40 % da velocidade e metade dos pingos
+    relampago: 11,                             // período do relâmpago (s); nunca em reduced
+    corLonge: 'rgba(182,204,240,0.50)', corPerto: 'rgba(222,238,255,0.78)',
+    corRespingo: 'rgba(220,235,255,0.70)', corVeu: 'rgba(16,26,52,0.26)', corClarao: 'rgba(230,240,255,0.22)'
+  };
+  var SOMBRA_NUVEM = 'rgba(10,20,40,0.06)';
+  var FOLHA_CORES = ['#7cb342', '#c9a227', '#d9772b', '#5e9a3a', '#a4c639'];
+  var POEIRA = { terra: [226, 202, 166], areia: [255, 248, 226] };   // bem mais claras que o piso (contraste)
+
+  function semente(seed) { var s = Number(seed); return Math.floor(hash((isFinite(s) ? s >>> 0 : 0) ^ SAL_NATUREZA) * 65536); }
+  // passo vertical das faixas: base·P, maior em telas grandes (no máximo linhasMax faixas)
+  function passo(total, P, base) { return Math.max(base * P, Math.ceil(total / NATUREZA.linhasMax / P) * P); }
+  // o mesmo sol do Sprites.drawTrack (canto de cima, à direita)
+  function solPos(c) { return { x: Math.round(c.W * 0.82), y: Math.round(Math.max(10 * c.P, (c.top - 22 * c.P) * 0.25)) }; }
+  function rgbaN(r, g, b, a) { return 'rgba(' + r + ',' + g + ',' + b + ',' + a.toFixed(3) + ')'; }
+
+  // ---- camada de trás (antes dos cavalos): coisas do chão ----
+  // faixas de calor ondulando sobre a pista (sol; nunca em reduced)
+  function calor(c) {
+    var ctx = c.ctx, P = c.P, alt = c.bot - c.top;
+    if (alt < 8 * P) return;
+    var seg = Math.max(7 * P, Math.ceil(c.W / 80 / P) * P), faixas = [0.12, 0.38, 0.66];
+    ctx.fillStyle = 'rgba(255,248,220,0.20)';
+    for (var b = 0; b < faixas.length; b++) {
+      var y0 = c.top + snap(alt * faixas[b], P), deriva = mod(c.t * (5 + 3 * b) * P, seg);
+      for (var x = deriva - seg; x < c.W; x += seg) {
+        var dy = Math.round(Math.sin(x / (9 * P) + c.t * 3.2 + b * 1.7) * 1.4) * P - (c.lift ? c.lift(x) : 0);
+        ctx.fillRect(snap(x, P), y0 + dy, 5 * P, P);
+        stats.natureza.calor++;
+      }
+    }
+  }
+  // respingos no chão da pista: só na faixa [laneTop, trackBottom], presos ao chão (cam)
+  function respingos(c) {
+    var ctx = c.ctx, P = c.P, alt = c.bot - c.top;
+    if (alt < 6 * P) return;
+    var linhas = Math.max(1, Math.floor((alt - 5 * P) / P));
+    var vagas = Math.min(NATUREZA.respingoVagas, Math.round((c.W / P) * (alt / P) / NATUREZA.respingoArea));
+    var span = c.W + 20 * P, lento = c.red ? RAIN.velReduzida : 1, n = 0;
+    ctx.fillStyle = RAIN.corRespingo;
+    for (var j = 0; j < vagas && n < NATUREZA.respingosMax; j++) {
+      if (c.red && (j & 1)) continue;
+      var per = (0.45 + 0.4 * hash(c.sd + j * 7 + 900)) / lento;
+      var u = c.t / per + hash(c.sd + j * 7 + 901), ph = frac(u);
+      if (ph >= 0.3) continue;
+      var cyc = Math.floor(u);
+      var px = snap(mod(hash(c.sd + j * 13 + cyc * 7919) * span - c.cam, span) - 10 * P, P);
+      var py = c.top + 4 * P + Math.floor(hash(c.sd + j * 11 + cyc * 104729) * linhas) * P;   // até trackBottom − 2P
+      if (c.lift) py -= c.lift(px);                        // no relevo da subida, o chão sobe junto
+      if (ph < 0.12) {          // gota batendo: coroa baixa e o anel no chão
+        ctx.fillRect(px - P, py - P, P, P); ctx.fillRect(px + P, py - P, P, P);
+        ctx.fillRect(px, py - 2 * P, P, P); ctx.fillRect(px - P, py, 3 * P, P);
+      } else {                  // gotinhas abrindo
+        ctx.fillRect(px - 2 * P, py - P, P, P); ctx.fillRect(px + 2 * P, py - P, P, P);
+        ctx.fillRect(px - P, py - 3 * P, P, P); ctx.fillRect(px + P, py - 3 * P, P, P);
+      }
+      n++;
+    }
+    stats.natureza.respingos += n;
+  }
+  // névoa: faixas em "pílula" de degraus, andando com o vento (atrás: alto e no fundo da pista; frente: sobre as raias)
+  function nevoa(c, frente) {
+    var ctx = c.ctx, P = c.P, W = c.W, alt = c.bot - c.top;
+    var v = VENTO[c.w.intensity].nuvem * c.w.dir * (c.red ? 0.4 : 1);
+    var linhas = frente ? [c.top + alt * 0.62, c.bot - 3 * P, c.top + alt * 0.22] : [c.top - 30 * P, c.top - 12 * P, c.top + alt * 0.4];
+    ctx.fillStyle = frente ? 'rgba(232,238,242,0.15)' : 'rgba(222,230,236,0.20)';
+    for (var b = 0; b < linhas.length; b++) {
+      var s0 = c.sd + b * 17 + (frente ? 300 : 200);
+      var bw = snap(W * (0.45 + 0.3 * hash(s0)), P), span = W + bw;
+      var vel = (frente ? 11 + 4 * b : 5 + 2 * b) * P * v;
+      var x = snap(mod(hash(s0 + 1) * span + c.t * vel, span) - bw, P), y = snap(linhas[b], P), e = (frente ? 5 : 6) * P;
+      ctx.fillRect(x + 4 * P, y - 2 * P, bw - 8 * P, 2 * P);
+      ctx.fillRect(x, y, bw, e);
+      ctx.fillRect(x + 3 * P, y + e, bw - 6 * P, 2 * P);
+      if (frente) stats.natureza.nevoaFrente++; else stats.natureza.nevoa++;
+    }
+  }
+
+  // ---- camada da frente (depois dos cavalos): véus, ar e luz ----
+  function sol(c) {
+    var ctx = c.ctx, P = c.P, W = c.W, H = c.H, s = solPos(c), k, y;
+    ctx.fillStyle = 'rgba(255,196,110,0.05)'; ctx.fillRect(0, 0, W, H);
+    // brilho do sol em 3 degraus de pixel (sem gradiente suave)
+    var R0 = Math.max(W, H) * 0.5, degraus = [[1.0, 0.045], [0.62, 0.055], [0.32, 0.07]];
+    for (k = 0; k < degraus.length; k++) {
+      var rr = snap(R0 * degraus[k][0], P), py = passo(rr, P, 2);
+      ctx.fillStyle = 'rgba(255,240,190,' + degraus[k][1] + ')';
+      for (var ry = 0; ry < rr; ry += py) {
+        var hw = snap(Math.sqrt(Math.max(0, rr * rr - ry * ry)), P);
+        ctx.fillRect(s.x - hw, ry, hw * 2, py);
+      }
+    }
+    // raios de luz descendo do sol para a esquerda: faixas em degraus que alargam e somem
+    var incl = [0.5, 0.95, 1.5], pY = passo(H - s.y, P, 4);
+    for (k = 0; k < incl.length; k++) {
+      var pulso = 0.8 + 0.2 * Math.sin(c.t * 0.5 + k * 2.1);
+      for (y = s.y + 4 * P; y < H; y += pY) {
+        var d = y - s.y, f = d / H, larg = snap((4 + 22 * f) * P, P), xc = s.x - d * incl[k];
+        if (xc + larg < 0) break;
+        ctx.fillStyle = 'rgba(255,244,200,' + (0.095 * (1 - 0.7 * f) * pulso).toFixed(3) + ')';
+        ctx.fillRect(snap(xc - larg / 2, P), y, larg, pY);
+      }
+      stats.natureza.raios++;
+    }
+    // reflexos de lente em pixels
+    var pl = 0.5 + 0.5 * Math.sin(c.t * 1.3), fl = [[0.62, 0.22, 5, 0.10], [0.48, 0.38, 3, 0.12], [0.3, 0.6, 7, 0.06]];
+    for (k = 0; k < fl.length; k++) {
+      var fx = W * fl[k][0], fy = H * fl[k][1], fr = fl[k][2] * P;
+      ctx.fillStyle = 'rgba(255,250,220,' + (fl[k][3] * (0.7 + 0.3 * pl)).toFixed(3) + ')';
+      ctx.fillRect(Math.round(fx - fr), Math.round(fy - fr / 2), Math.round(fr * 2), Math.round(fr));
+      ctx.fillRect(Math.round(fx - fr / 2), Math.round(fy - fr), Math.round(fr), Math.round(fr * 2));
+    }
+  }
+  // pingos inclinados pelo vento (dois tons: longe e perto) e relâmpago raro
+  function chuva(c) {
+    var ctx = c.ctx, P = c.P, W = c.W, H = c.H;
+    ctx.fillStyle = RAIN.corVeu; ctx.fillRect(0, 0, W, H);
+    var n = Math.min(NATUREZA.pingosMax, Math.round((W / P) * (H / P) / NATUREZA.pingoArea));
+    var s = rainSlant(c.w), vel = H * RAIN.vel * (c.red ? RAIN.velReduzida : 1);
+    // a tela se repete nas duas direções: o pingo que sai por um lado entra pelo outro, então a folga só
+    // precisa cobrir o comprimento do pingo (com folga grande, a maioria cairia fora da tela)
+    var topo = 12 * P, spanY = H + 2 * topo, pad = 12 * P * Math.abs(s) + 4 * P, spanX = W + 2 * pad, conta = 0;
+    for (var pass = 0; pass < 2; pass++) {
+      ctx.fillStyle = pass ? RAIN.corPerto : RAIN.corLonge;
+      for (var i = 0; i < n; i++) {
+        if (c.red && (i & 1)) continue;
+        var perto = hash(c.sd + i * 5 + 9) > 0.68;
+        if (perto !== (pass === 1)) continue;
+        var sp = (0.8 + 0.45 * hash(c.sd + i * 3 + 2)) * (perto ? 1.15 : 1);
+        var y = mod(hash(c.sd + i * 3 + 1) * spanY + c.t * vel * sp, spanY) - topo;
+        var x = mod(hash(c.sd + i * 3) * spanX + (y + topo) * s, spanX) - pad;
+        var segs = perto ? 5 : 3;
+        for (var k = 0; k < segs; k++) ctx.fillRect(snap(x - s * k * 2 * P, P), snap(y - k * 2 * P, P), P, 2 * P);
+        conta++;
+      }
+    }
+    stats.natureza.pingos += conta;
+    if (!c.red) {
+      var lp = mod(c.t + hash(c.sd + 5) * RAIN.relampago, RAIN.relampago);
+      if (lp < 0.06 || (lp > 0.14 && lp < 0.2)) { ctx.fillStyle = RAIN.corClarao; ctx.fillRect(0, 0, W, H); stats.natureza.relampago = 1; }
+    }
+  }
+  // nublado: véu, sombras de nuvem e nuvens da frente levadas pelo vento
+  function nublado(c) {
+    var ctx = c.ctx, P = c.P, W = c.W, H = c.H, v = VENTO[c.w.intensity].nuvem * c.w.dir * (c.red ? 0.4 : 1);
+    ctx.fillStyle = 'rgba(70,92,125,0.14)'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = SOMBRA_NUVEM;
+    for (var s = 0; s < 3; s++) {
+      var cw = W * (0.5 + 0.3 * hash(c.sd + s + 5)), span = W + cw;
+      var cx = mod(hash(c.sd + s + 1) * span + c.t * (14 + 6 * s) * P * v, span) - cw / 2;
+      var cy = H * (0.35 + 0.4 * hash(c.sd + s + 3));
+      for (var ring = 0; ring < 2; ring++) {
+        var rw = snap(cw * (ring ? 0.3 : 0.5), P), rh = snap(rw * 0.35, P);
+        ctx.fillRect(snap(cx, P) - rw, snap(cy, P) - rh, rw * 2, rh * 2);
+      }
+      stats.natureza.sombras++;
+    }
+    // nuvens no topo (canvas em cache do Sprites: só no browser)
+    var SP = sp();
+    if (!SP || !SP.cloudCanvas || typeof document === 'undefined') return;
+    var prev = ctx.globalAlpha;
+    for (var q = 0; q < 4; q++) {
+      var cc = SP.cloudCanvas(10 + q, P * 2, 'nublado'), sp2 = W + cc.width * 2;
+      var x = mod(hash(c.sd + q + 77) * sp2 + c.t * (8 + 4 * q) * P * v, sp2) - cc.width;
+      ctx.globalAlpha = prev * 0.85;
+      ctx.drawImage(cc, Math.round(x), Math.round(-cc.height * 0.35 + hash(c.sd + q + 9) * H * 0.06));
+    }
+    ctx.globalAlpha = prev;
+  }
+  // folhas (e poeira no tempo seco) atravessando a tela no sentido do vento
+  function folhas(c) {
+    var cap = NATUREZA.folhas[c.w.intensity] || 0;
+    if (c.red) cap = Math.floor(cap / 2);
+    if (!cap) return;
+    var ctx = c.ctx, P = c.P, W = c.W, H = c.H, lento = c.red ? 0.4 : 1;
+    var pad = 6 * P, span = W + 2 * pad, seco = c.clima !== 'chuva', vb = VENTO[c.w.intensity].folha;
+    for (var i = 0; i < cap; i++) {
+      var s0 = c.sd + i * 23 + 400;
+      var h1 = hash(s0), h2 = hash(s0 + 1), h3 = hash(s0 + 2), h4 = hash(s0 + 3);
+      var x = mod(h1 * span + c.w.dir * c.t * vb * (0.7 + 0.6 * h2) * P * lento, span) - pad;
+      var y = mod(h3 * H + c.t * (4 + 6 * h4) * P * lento, H) + Math.sin(c.t * lento * (1.6 + h4) + h1 * 6.283) * 5 * P;
+      if (x < -2 * P || x >= W || y < 0 || y >= H) continue;
+      var X = snap(x, P), Y = snap(y, P);
+      if (seco && i % 3 === 2) {                       // grão de poeira
+        ctx.fillStyle = 'rgba(214,190,140,0.60)'; ctx.fillRect(X, Y, P, P);
+      } else {                                          // folha girando: deitada (3 px) ou em pé (1×2)
+        ctx.fillStyle = FOLHA_CORES[Math.floor(h2 * FOLHA_CORES.length)];
+        if (frac(c.t * lento * (1.5 + 2 * h3) + h1) < 0.5) { ctx.fillRect(X, Y, 2 * P, P); ctx.fillRect(X + P, Y - P, P, P); }
+        else ctx.fillRect(X, Y, P, 2 * P);
+      }
+      stats.natureza.folhas++;
+    }
+  }
+
+  // o: { weather, wind, t, W, H, P, laneTop, trackBottom, reduced, seed, cam, camada, lift }
+  function natureza(o) {
+    o = o || {};
+    var H = +o.H || 0;
+    return {
+      W: +o.W || 0, H: H, P: Math.max(1, Math.round(o.P || 1)), t: +o.t || 0, red: !!o.reduced,
+      clima: o.weather || 'sol', w: ventoOk(o.wind), sd: semente(o.seed), cam: +o.cam || 0,
+      lift: typeof o.lift === 'function' ? o.lift : null,
+      top: o.laneTop != null ? o.laneTop : Math.round(H * 0.35), bot: o.trackBottom != null ? o.trackBottom : H
+    };
+  }
+  function drawNature(ctx, o) {
+    var c = natureza(o);
+    if (!ctx || !(c.W > 0 && c.H > 0)) return;
+    c.ctx = ctx;
+    var camada = o && (o.camada === 'tras' || o.camada === 'frente') ? o.camada : 'tudo';
+    if (camada !== 'frente') {
+      if (c.clima === 'sol' && !c.red) calor(c);
+      else if (c.clima === 'chuva') respingos(c);
+      else if (c.clima === 'nevoa') nevoa(c, false);
+    }
+    if (camada !== 'tras') {
+      if (c.clima === 'chuva') chuva(c);
+      else if (c.clima === 'nublado') nublado(c);
+      else if (c.clima === 'nevoa') { ctx.fillStyle = 'rgba(200,212,222,0.10)'; ctx.fillRect(0, 0, c.W, c.H); }
+      else sol(c);
+      folhas(c);
+    }
+  }
+  function drawFogFront(ctx, o) {
+    var c = natureza(o);
+    if (!ctx || c.clima !== 'nevoa' || !(c.W > 0 && c.H > 0)) return;
+    c.ctx = ctx;
+    nevoa(c, true);
+  }
+
+  // poeira dos cascos (terra ou areia; a tela não chama na chuva). (x, y) = casco de trás no chão.
+  function drawHoofDust(ctx, x, y, S, t, surface, reduced) {
+    var cor = POEIRA[surface];
+    if (!cor || !ctx) return 0;
+    var n = reduced ? 1 : NATUREZA.poeiraCasco, lento = reduced ? 0.4 : 1;
+    for (var k = 0; k < n; k++) {
+      // nuvenzinha que sobe do chão, cresce e some ficando para trás
+      var ph = frac((t || 0) * 2.4 * lento + k / n);
+      var px = Math.round(x - (1 + ph * 8) * S), py = Math.round(y - (1 + ph * 5) * S);
+      ctx.fillStyle = rgbaN(cor[0], cor[1], cor[2], 0.85 * (1 - ph));
+      if (ph < 0.3) { ctx.fillRect(px - S, py, 2 * S, S); ctx.fillRect(px, py - S, S, S); }
+      else if (ph < 0.7) { ctx.fillRect(px - S, py - S, 3 * S, 2 * S); ctx.fillRect(px, py - 2 * S, S, S); }
+      else ctx.fillRect(px - S, py, 2 * S, S);
+    }
+    stats.natureza.poeiraCascos += n;
+    return n;
+  }
+
   var RaceFx = {
     DADO: DADO,
     // puras
@@ -783,11 +1108,19 @@
     iconeDe: iconeDe,
     glow: glow,
     BALAO: BALAO,
+    wind: wind,
+    rainSlant: rainSlant,
+    NATUREZA: NATUREZA,
+    RAIN: RAIN,
+    SOMBRA_NUVEM: SOMBRA_NUVEM,
     // desenho
     drawDice: drawDice,
     drawDiceStrip: drawDiceStrip,
     drawBalloon: drawBalloon,
     drawSkillAura: drawSkillAura,
+    drawNature: drawNature,
+    drawFogFront: drawFogFront,
+    drawHoofDust: drawHoofDust,
     // estatísticas
     _stats: stats,
     beginFrame: beginFrame,

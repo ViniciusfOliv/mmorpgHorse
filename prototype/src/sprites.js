@@ -8,8 +8,12 @@
  *     frame pode ser fracionário (fase contínua do galope); quadro = { topo, base } em px: quadro de altura
  *     fixa onde o molde inteiro tem de caber (retratos, pódio) — o desenho por código o ignora
  *   Sprites.drawTrack(ctx, { width, height, cameraX, pxPerMeter, lanes, laneTop, laneH, surface,
- *                           finishM, hills, curves, distanceMarkersEvery, t, weather, pixel })
- *   Sprites.drawWeather(ctx, weather, t, width, height)
+ *                           finishM, hills, curves, distanceMarkersEvery, t, weather, pixel, wind })
+ *     wind = { intensity: 'calmo'|'brisa'|'ventania', dir: 1|-1 } (só visual; padrão brisa ←): bandeirinhas
+ *     da arquibancada, grama da borda e nuvens seguem o vento
+ *   Sprites.drawWeather(ctx, weather, t, width, height, pixel) — repasse para RaceFx.drawNature +
+ *     RaceFx.drawFogFront (fx.js; sem ele, não desenha nada). A corrida chama o fx.js direto.
+ *   Sprites.cloudCanvas(seed, P, tom) — nuvem de pixels em cache (usada pelo nublado do fx.js)
  *   Sprites.drawTrail(ctx, x, y, element, t, intensity, scale)
  *   Sprites.drawElementIcon(ctx, x, y, element, scale)
  *   Sprites.drawText(ctx, text, x, y, { scale, color, shadow, align })  // fonte pixel 3x5 com acentos
@@ -1257,6 +1261,7 @@
     '\u25b6': ['#..', '##.', '###', '##.', '#..'], '\u25b2': ['.....', '..#..', '.###.', '#####', '.....'],
     '\u21aa': ['.##..', '#....', '#..#.', '.####', '...#.'],
     '\u21bb': ['.##..', '#..##', '#..#.', '#...#', '.###.'],   // ↻: desempate do Dado da Sorte (fx.js)
+    '\u2192': ['..#..', '...#.', '#####', '...#.', '..#..'], '\u2190': ['..#..', '.#...', '#####', '.#...', '..#..'],   // → ← (vento)
     ' ': ['..', '..', '..', '..', '..']
   };
   var ACCENTS = { '́': ['..#', '.#.'], '̀': ['#..', '.#.'], '̂': ['.#.', '#.#'], '̃': ['.##', '##.'] };
@@ -1562,12 +1567,9 @@
         px(hx, by + 2, C(shade(bodyC, 0.3)));
       }
     }
-    // bandeirinhas
+    // mastros das bandeirinhas (o pano é desenhado a cada quadro em drawTrack, pelo vento: FLAGS)
     for (var fx = x0 + 8; fx < x1; fx += 16) {
       for (var fy = 0; fy < 6; fy++) px(fx, fy, C('#d8d2c6'));
-      var fc = crowd[(fx >> 4) % crowd.length];
-      var wv = frame ? 0 : 1;
-      px(fx + 1, 0 + wv, C(fc)); px(fx + 2, 0 + wv, C(fc)); px(fx + 3, 1, C(fc)); px(fx + 1, 1 + wv, C(fc)); px(fx + 2, 1, C(fc));
     }
     // árvores depois da arquibancada
     for (var tx = 94; tx < 118; tx += 9) {
@@ -1648,6 +1650,29 @@
     return 0;
   }
 
+  // Vento (o.wind = { intensity: 'calmo'|'brisa'|'ventania', dir: 1|-1 }; padrão brisa ←, o visual de antes):
+  // bandeirinhas da arquibancada, grama da borda da pista e velocidade/sentido das nuvens.
+  var FLAGS = { x: [14, 30, 46, 62, 78], cores: ['#e84a4a', '#3a7ae0', '#f2c230', '#f0f0f0', '#38b25a', '#e07ab8', '#f08a2a', '#7a5ae0'] };
+  var VENTO_PISTA = {
+    calmo:    { pano: 0, onda: 0, freq: 1.5, grama: 0, nuvem: 0.5 },
+    brisa:    { pano: 3, onda: 1, freq: 5, grama: 1, nuvem: 1 },
+    ventania: { pano: 5, onda: 1, freq: 9, grama: 2, nuvem: 2.2 }
+  };
+  function ventoPista(w) {
+    var v = w && VENTO_PISTA[w.intensity] ? w : { intensity: 'brisa', dir: -1 };
+    return { k: VENTO_PISTA[v.intensity], dir: v.dir < 0 ? -1 : 1 };
+  }
+  // pano de uma bandeirinha (pixels de arte a partir do topo do mastro em (mx, my)): calmo pendurado,
+  // senão estendido no sentido do vento, ondulando mais rápido na ventania
+  function drawFlagCloth(ctx, mx, my, P, cor, vk, dir, t, fase) {
+    ctx.fillStyle = cor;
+    if (!vk.pano) { ctx.fillRect(mx + P, my, P, 3 * P); ctx.fillRect(mx + 2 * P, my, P, 2 * P); return; }
+    for (var c = 1; c <= vk.pano; c++) {
+      var dy = Math.round(Math.sin(t * vk.freq - c * 1.1 + fase) * vk.onda * Math.min(1, c / 2)) * P;
+      ctx.fillRect(mx + dir * c * P, my + dy, P, (c === vk.pano ? 1 : 2) * P);
+    }
+  }
+
   function drawTrack(ctx, o) {
     var W = o.width, Hh = o.height;
     var lanes = o.lanes || 6, laneH = o.laneH || 24, laneTop = o.laneTop || Math.round(Hh * 0.35);
@@ -1655,7 +1680,7 @@
     var weather = skyKey(o.weather || 'sol'), surface = o.surface || 'grama';
     var P = o.pixel || Math.max(1, Math.round(laneH / 12));
     var trackH = lanes * laneH, trackBottom = laneTop + trackH;
-    var camPx = cam * ppm;
+    var camPx = cam * ppm, vento = ventoPista(o.wind);
     function sx(m) { return Math.round((m - cam) * ppm); }
     crisp(ctx);
 
@@ -1684,7 +1709,7 @@
     for (var ci = 0; ci < nClouds; ci++) {
       var cc = cloudCanvas(ci % 5, P, weather);
       var span = W + cc.width * 2;
-      var cxp = mod(hash(ci + 40) * span - camPx * 0.02 - t * (3 + ci % 3) * P, span) - cc.width;
+      var cxp = mod(hash(ci + 40) * span - camPx * 0.02 + vento.dir * t * (3 + ci % 3) * P * vento.k.nuvem, span) - cc.width;
       var cyp = Math.round((0.08 + 0.55 * hash(ci + 70)) * (horizon - 30 * P));
       if (weather !== 'sol') cyp = Math.round((hash(ci + 70) * 0.6) * (horizon - 30 * P));
       ctx.drawImage(cc, Math.round(cxp), Math.max(0, cyp));
@@ -1713,7 +1738,14 @@
     var stW = st.width * P, stH = st.height * P;
     var stY = laneTop - 4 * P - stH;
     var stOff = mod(camPx * 0.35, stW);
-    for (var sxp = -stOff; sxp < W; sxp += stW) ctx.drawImage(st, Math.round(sxp), stY, stW, stH);
+    var flagDim = weather === 'chuva' ? 0.35 : isDim(weather) ? 0.15 : 0;
+    for (var sxp = -stOff; sxp < W; sxp += stW) {
+      ctx.drawImage(st, Math.round(sxp), stY, stW, stH);
+      for (var fi = 0; fi < FLAGS.x.length; fi++) {
+        var fc = FLAGS.cores[(FLAGS.x[fi] >> 4) % FLAGS.cores.length];
+        drawFlagCloth(ctx, Math.round(sxp) + FLAGS.x[fi] * P, stY, P, flagDim ? shade(fc, flagDim) : fc, vento.k, vento.dir, t, fi * 0.9);
+      }
+    }
 
     // gramado entre arquibancada e pista
     ctx.fillStyle = weather === 'chuva' ? '#3f6a3c' : isDim(weather) ? '#4a7c44' : '#58944a';
@@ -1909,7 +1941,9 @@
       var gy = trackBottom + 4 * P + Math.round(hash(gi + 400) * Math.max(1, (Hh - trackBottom - 8 * P) / P)) * P;
       if (gy > Hh - 2 * P) continue;
       ctx.fillStyle = weather === 'chuva' ? '#2c4c2e' : '#3a7238';
-      ctx.fillRect(Math.round(gx), gy, P, 2 * P); ctx.fillRect(Math.round(gx) + 2 * P, gy - P, P, 3 * P);
+      var tufo = Math.round(vento.k.grama * (0.55 + 0.45 * Math.sin(t * vento.k.freq * 0.6 + gi))) * vento.dir * P;
+      ctx.fillRect(Math.round(gx), gy, P, 2 * P); ctx.fillRect(Math.round(gx) + 2 * P, gy, P, 2 * P);
+      ctx.fillRect(Math.round(gx) + 2 * P + tufo, gy - P, P, P);
       if (gi % 4 === 0) { ctx.fillStyle = gi % 8 ? '#f2e04a' : '#f0f0f0'; ctx.fillRect(Math.round(gx) + P, gy - 2 * P, P, P); }
     }
     ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, trackBottom, W, P);
@@ -1920,6 +1954,22 @@
     }
     ctx.fillStyle = '#f6f2ea'; ctx.fillRect(0, trackBottom + P, W, 2 * P);
     ctx.fillStyle = '#1c1820'; ctx.fillRect(0, trackBottom + 3 * P, W, P);
+    // grama da borda: folhinhas logo abaixo da cerca interna, presas ao mundo, deitando com o vento
+    if (Hh - trackBottom >= 8 * P) {
+      var gBase = weather === 'chuva' ? '#4a7a48' : isDim(weather) ? '#5a8c52' : '#6aa85a';
+      var gPonta = weather === 'chuva' ? '#5f8f5a' : isDim(weather) ? '#76a468' : '#8cc46a';
+      var camArt = camPx / P, g0 = Math.floor(camArt / 5) * 5;
+      for (var gw2 = g0; (gw2 - camArt) * P < W; gw2 += 5) {
+        var gh = hash(gw2 * 7 + 3);
+        if (gh < 0.3) continue;
+        var gx2 = Math.round((gw2 - camArt) * P), alto = gh > 0.75 ? 3 : 2;
+        var ginga = Math.round(vento.k.grama * (0.55 + 0.45 * Math.sin(t * vento.k.freq * 0.6 + gw2 * 0.37))) * vento.dir;
+        var yb = trackBottom + 6 * P;
+        ctx.fillStyle = gBase; ctx.fillRect(gx2, yb, P, P);
+        ctx.fillRect(gx2 + Math.round(ginga / 2) * P, yb - P, P, P);
+        if (alto === 3) { ctx.fillStyle = gPonta; ctx.fillRect(gx2 + ginga * P, yb - 2 * P, P, P); }
+      }
+    }
     if (fx > -10 && fx < W + 10) { ctx.fillStyle = '#f6f2ea'; ctx.fillRect(fx, trackBottom, 2 * P, 8 * P); }
 
     // --- relevo das subidas: copia as colunas da faixa (da cerca externa para baixo) para cima
@@ -1942,95 +1992,21 @@
   }
 
   // ===================================================================
-  // CLIMA (sobreposição em tela)
+  // CLIMA (sobreposição em tela): repasse para RaceFx.drawNature (fx.js)
   // ===================================================================
+  // Assinatura antiga, mantida para quem só tem a tela inteira (sprite-preview): as duas camadas da
+  // natureza e a névoa da frente, sem a pista (laneTop = 35 % da altura). Sem fx.js carregado, nada.
+  function fxApi() {
+    if (typeof self !== 'undefined' && self.RaceFx) return self.RaceFx;
+    if (typeof global !== 'undefined' && global.RaceFx) return global.RaceFx;
+    return null;
+  }
   function drawWeather(ctx, weather, t, W, H, pixel) {
-    t = t || 0;
-    var P = pixel || Math.max(2, Math.round(Math.min(W, H) / 150));
-    if (weather === 'chuva') {
-      ctx.fillStyle = 'rgba(16,26,52,0.30)'; ctx.fillRect(0, 0, W, H);
-      var n = Math.round(W * H / (450 * P * P));   // densidade constante em pixels de arte (independe do DPR)
-      for (var i = 0; i < n; i++) {
-        var sp = 0.75 + 0.5 * hash(i * 3 + 2);
-        var yy = mod(hash(i * 3 + 1) * H * 1.3 + t * H * 1.4 * sp, H * 1.3) - H * 0.15;
-        var xx = mod(hash(i * 3) * (W + 120) - yy * 0.3 - t * 30, W + 120) - 60;
-        var near = hash(i * 5 + 9) > 0.7;
-        ctx.fillStyle = near ? 'rgba(210,228,255,0.55)' : 'rgba(180,200,235,0.35)';
-        var segs = near ? 4 : 3;
-        for (var k = 0; k < segs; k++) ctx.fillRect(Math.round(xx - k * P * 0.6), Math.round(yy - k * P * 2), P, P * 2);
-      }
-      // respingos
-      var ns = Math.round(W * H / (1500 * P * P));
-      for (var j = 0; j < ns; j++) {
-        var per = 0.5 + 0.4 * hash(j + 900);
-        var ph = frac(t / per + hash(j + 901));
-        if (ph > 0.25) continue;
-        var cyc = Math.floor(t / per + hash(j + 901));
-        var px = Math.round(hash(j * 7 + cyc * 13) * W), py = Math.round((0.4 + 0.6 * hash(j * 11 + cyc * 3)) * H);
-        ctx.fillStyle = 'rgba(220,235,255,0.6)';
-        var spread = ph < 0.12 ? 1 : 2;
-        ctx.fillRect(px - spread * P, py - P, P, P); ctx.fillRect(px + spread * P, py - P, P, P); ctx.fillRect(px, py - 2 * P, P, P);
-      }
-      // relâmpago raro
-      var lp = mod(t, 11.0);
-      if (lp < 0.06 || (lp > 0.14 && lp < 0.2)) { ctx.fillStyle = 'rgba(230,240,255,0.22)'; ctx.fillRect(0, 0, W, H); }
-    } else if (weather === 'nublado') {
-      ctx.fillStyle = 'rgba(70,92,125,0.16)'; ctx.fillRect(0, 0, W, H);
-      // sombras de nuvens passando
-      for (var s = 0; s < 3; s++) {
-        var cw = W * (0.5 + 0.3 * hash(s + 5));
-        var cx = mod(hash(s + 1) * (W + cw) - t * (14 + 6 * s) * P, W + cw) - cw / 2;
-        var cy = H * (0.35 + 0.4 * hash(s + 3));
-        ctx.fillStyle = 'rgba(10,20,40,0.05)';
-        for (var ring = 0; ring < 2; ring++) {
-          var rw = Math.round(cw * (ring ? 0.3 : 0.5) / P) * P, rh = Math.round(rw * 0.35 / P) * P;
-          ctx.fillRect(Math.round(cx / P) * P - rw, Math.round(cy / P) * P - rh, rw * 2, rh * 2);
-        }
-      }
-      // nuvens em primeiro plano no topo
-      for (var c = 0; c < 4; c++) {
-        var cc = cloudCanvas(10 + c, P * 2, 'nublado');
-        var span = W + cc.width * 2;
-        var x = mod(hash(c + 77) * span - t * (8 + 4 * c) * P, span) - cc.width;
-        ctx.globalAlpha = 0.85;
-        ctx.drawImage(cc, Math.round(x), Math.round(-cc.height * 0.35 + hash(c + 9) * H * 0.06));
-        ctx.globalAlpha = 1;
-      }
-    } else if (weather === 'nevoa') {
-      ctx.fillStyle = 'rgba(200,212,222,0.10)'; ctx.fillRect(0, 0, W, H);
-      // 3 faixas de névoa deslizando na horizontal
-      var bandH = 6 * P, rows = [0.3, 0.55, 0.8];
-      ctx.fillStyle = 'rgba(230,236,240,0.18)';
-      for (var bi = 0; bi < rows.length; bi++) {
-        var bw = Math.round(W * (0.55 + 0.25 * hash(bi + 21)) / P) * P;
-        var bspan = W + bw;
-        var bx = Math.round((mod(hash(bi + 31) * bspan + t * (10 + 5 * bi) * P, bspan) - bw) / P) * P;
-        var by = Math.round(H * rows[bi] / P) * P;
-        ctx.fillRect(bx, by, bw, bandH);
-      }
-    } else { // sol
-      ctx.fillStyle = 'rgba(255,196,110,0.06)'; ctx.fillRect(0, 0, W, H);
-      // brilho do sol em 3 degraus de pixel (sem gradiente suave)
-      var gx = Math.round(W * 0.86), R0 = Math.max(W, H) * 0.5;
-      var steps = [[1.0, 0.05], [0.62, 0.06], [0.32, 0.08]];
-      for (var gs = 0; gs < steps.length; gs++) {
-        var rr = Math.round(R0 * steps[gs][0] / P) * P;
-        ctx.fillStyle = 'rgba(255,240,190,' + steps[gs][1] + ')';
-        for (var ry = 0; ry < rr; ry += 2 * P) {
-          var hw = Math.round(Math.sqrt(Math.max(0, rr * rr - ry * ry)) / P) * P;
-          ctx.fillRect(gx - hw, ry, hw * 2, 2 * P);
-        }
-      }
-      // reflexos de lente em pixels
-      var pulse = 0.5 + 0.5 * Math.sin(t * 1.3);
-      var flares = [[0.62, 0.22, 5, 0.10], [0.48, 0.38, 3, 0.12], [0.3, 0.6, 7, 0.06]];
-      for (var f = 0; f < flares.length; f++) {
-        var fx = W * flares[f][0], fy = H * flares[f][1], fr = flares[f][2] * P;
-        ctx.fillStyle = 'rgba(255,250,220,' + (flares[f][3] * (0.7 + 0.3 * pulse)).toFixed(3) + ')';
-        ctx.fillRect(Math.round(fx - fr), Math.round(fy - fr / 2), Math.round(fr * 2), Math.round(fr));
-        ctx.fillRect(Math.round(fx - fr / 2), Math.round(fy - fr), Math.round(fr), Math.round(fr * 2));
-      }
-    }
+    var FX = fxApi();
+    if (!FX || !FX.drawNature) return;
+    var o = { weather: weather, t: t || 0, W: W, H: H, P: pixel || Math.max(2, Math.round(Math.min(W, H) / 150)) };
+    FX.drawNature(ctx, o);
+    if (FX.drawFogFront) FX.drawFogFront(ctx, o);
   }
 
   var api = {
@@ -2059,6 +2035,7 @@
     _quadroGalope: quadroGalopeTeste,
     drawTrack: drawTrack,
     drawWeather: drawWeather,
+    cloudCanvas: cloudCanvas,
     drawTrail: drawTrail,
     drawElementIcon: drawElementIcon,
     hillLiftAt: hillLiftAt,

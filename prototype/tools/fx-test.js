@@ -446,5 +446,172 @@ test('desenho é função do tempo: mesmo simT, mesmos retângulos', function ()
   FX.resetStats(true);
 });
 
+section('vento e natureza');
+test('wind é determinístico', function () {
+  [0, 1, 7, 4242, 101, 4294967295, 2147483648, 123456789].forEach(function (sd) {
+    var a = FX.wind(sd), b = FX.wind(sd);
+    assert.deepStrictEqual(a, b, 'seed ' + sd);
+    assert.ok(['calmo', 'brisa', 'ventania'].indexOf(a.intensity) >= 0, 'intensidade ' + a.intensity);
+    assert.ok(a.dir === 1 || a.dir === -1, 'direção ' + a.dir);
+  });
+  assert.deepStrictEqual(FX.wind('4242'), FX.wind(4242), 'seed em texto vira número');
+});
+test('wind segue a distribuição (10 000 seeds, ±3 p.p. de 35/40/25 %; direção ~50 %)', function () {
+  // duas famílias: seeds seguidas (o caso difícil para um hash fraco) e espalhadas por todo o uint32
+  [function (k) { return k + 1; }, function (k) { return (Math.imul(k + 1, 2654435761) >>> 0); }].forEach(function (gera, fam) {
+    var n = 10000, c = { calmo: 0, brisa: 0, ventania: 0 }, dir = 0;
+    for (var k = 0; k < n; k++) { var w = FX.wind(gera(k)); c[w.intensity]++; if (w.dir > 0) dir++; }
+    var alvo = { calmo: 0.35, brisa: 0.40, ventania: 0.25 };
+    Object.keys(alvo).forEach(function (q) {
+      assert.ok(Math.abs(c[q] / n - alvo[q]) <= 0.03, 'família ' + fam + ': ' + q + ' ' + (100 * c[q] / n).toFixed(1) + ' %');
+    });
+    assert.ok(Math.abs(dir / n - 0.5) <= 0.03, 'família ' + fam + ': direção → ' + (100 * dir / n).toFixed(1) + ' %');
+  });
+});
+test('rainSlant: o vento inclina a chuva no sentido dele, mais na ventania', function () {
+  var c = FX.rainSlant({ intensity: 'calmo', dir: 1 }), b = FX.rainSlant({ intensity: 'brisa', dir: 1 }), v = FX.rainSlant({ intensity: 'ventania', dir: 1 });
+  assert.ok(c >= 0 && b > c && v > b, JSON.stringify([c, b, v]));
+  assert.strictEqual(FX.rainSlant({ intensity: 'ventania', dir: -1 }), -v);
+  assert.strictEqual(FX.rainSlant(null), FX.rainSlant({ intensity: 'calmo', dir: 1 }), 'sem vento = calmo');
+});
+
+// contexto falso com drawImage (as nuvens da frente no nublado usam canvas do Sprites só no browser)
+function ctxNat() {
+  var c = ctxFalso();
+  c.drawImage = function () { c.imagens = (c.imagens || 0) + 1; };
+  return c;
+}
+var NAT = { W: 1200, H: 600, P: 3, laneTop: 270, trackBottom: 540, seed: 77 };
+function nat(extra) { var o = {}, k; for (k in NAT) o[k] = NAT[k]; for (k in extra) o[k] = extra[k]; return o; }
+var VENTANIA = { intensity: 'ventania', dir: 1 }, BRISA = { intensity: 'brisa', dir: -1 }, CALMO = { intensity: 'calmo', dir: 1 };
+function desenha(o) { FX.resetStats(true); var c = ctxNat(); FX.drawNature(c, o); var st = JSON.parse(JSON.stringify(FX._stats.natureza)); return { c: c, st: st }; }
+function cores(c) { var s = {}; c.rects.forEach(function (r) { s[r.cor] = true; }); return s; }
+
+test('drawNature: tudo é função do tempo, do índice e da seed (mesmo t ⇒ mesmos retângulos)', function () {
+  ['sol', 'chuva', 'nevoa', 'nublado'].forEach(function (w) {
+    var a = desenha(nat({ weather: w, wind: VENTANIA, t: 3.21 })), b = desenha(nat({ weather: w, wind: VENTANIA, t: 3.21 }));
+    assert.deepStrictEqual(a.c.rects, b.c.rects, w + ': mesmo t');
+    var d = desenha(nat({ weather: w, wind: VENTANIA, t: 3.61 }));
+    assert.notDeepStrictEqual(a.c.rects, d.c.rects, w + ': t diferente muda o quadro');
+    var e = desenha(nat({ weather: w, wind: VENTANIA, t: 3.21, seed: 78 }));
+    assert.notDeepStrictEqual(a.c.rects, e.c.rects, w + ': seed diferente muda o quadro');
+  });
+});
+test('chuva: em reduced cai a 40 % da velocidade e com metade dos pingos, sem congelar', function () {
+  var f = desenha(nat({ weather: 'chuva', wind: BRISA, t: 5 })), r = desenha(nat({ weather: 'chuva', wind: BRISA, t: 5, reduced: true }));
+  assert.ok(f.st.pingos > 40, 'pingos completos ' + f.st.pingos);
+  assert.ok(r.st.pingos > 0 && r.st.pingos <= Math.ceil(f.st.pingos / 2), 'reduced com metade: ' + r.st.pingos + ' de ' + f.st.pingos);
+  var r2 = desenha(nat({ weather: 'chuva', wind: BRISA, t: 5.2, reduced: true }));
+  assert.notDeepStrictEqual(r.c.rects, r2.c.rects, 'reduced não congela');
+  assert.ok(FX.RAIN.velReduzida === 0.4, '40 %');
+});
+test('chuva: respingos só na faixa do chão da pista [laneTop, trackBottom]', function () {
+  var vistos = 0;
+  for (var t = 0; t < 4; t += 0.13) {
+    var d = desenha(nat({ weather: 'chuva', wind: VENTANIA, t: t, camada: 'tras' }));
+    d.c.rects.filter(function (q) { return q.cor === FX.RAIN.corRespingo; }).forEach(function (q) {
+      vistos++;
+      assert.ok(q.y >= NAT.laneTop && q.y + q.h <= NAT.trackBottom, 'respingo em y ' + q.y + '..' + (q.y + q.h));
+    });
+    assert.ok(d.st.respingos <= FX.NATUREZA.respingosMax);
+  }
+  assert.ok(vistos > 20, 'houve respingos: ' + vistos);
+});
+test('chuva: relâmpago some em reduced', function () {
+  function clarao(red) {
+    var n = 0;
+    for (var t = 0; t < 34; t += 0.02) {
+      var d = desenha(nat({ weather: 'chuva', wind: CALMO, t: t, reduced: red }));
+      if (d.st.relampago) n++;
+    }
+    return n;
+  }
+  assert.ok(clarao(false) > 0, 'há relâmpago');
+  assert.strictEqual(clarao(true), 0, 'reduced sem relâmpago');
+});
+test('sol: raios de luz; faixas de calor somem em reduced', function () {
+  var f = desenha(nat({ weather: 'sol', wind: BRISA, t: 2 })), r = desenha(nat({ weather: 'sol', wind: BRISA, t: 2, reduced: true }));
+  assert.ok(f.st.raios > 0 && r.st.raios > 0, 'raios nos dois');
+  assert.ok(f.st.calor > 0, 'calor no completo');
+  assert.strictEqual(r.st.calor, 0, 'reduced sem calor');
+});
+test('névoa: camada de trás em drawNature e da frente em drawFogFront, andando com o vento', function () {
+  var a = desenha(nat({ weather: 'nevoa', wind: VENTANIA, t: 1, camada: 'tras' }));
+  assert.ok(a.st.nevoa > 0, 'camada de trás');
+  FX.resetStats(true);
+  var c1 = ctxNat(), c2 = ctxNat();
+  FX.drawFogFront(c1, nat({ weather: 'nevoa', wind: VENTANIA, t: 1 }));
+  assert.ok(FX._stats.natureza.nevoaFrente > 0 && c1.rects.length > 0, 'camada da frente');
+  FX.drawFogFront(c2, nat({ weather: 'nevoa', wind: VENTANIA, t: 1.5 }));
+  assert.notDeepStrictEqual(c1.rects, c2.rects, 'anda');
+  var c3 = ctxNat();
+  FX.drawFogFront(c3, nat({ weather: 'sol', wind: VENTANIA, t: 1 }));
+  assert.strictEqual(c3.rects.length, 0, 'só na névoa');
+});
+test('nublado: sombras de nuvem levadas pelo vento (direção do vento)', function () {
+  function xs(w, t) {
+    var d = desenha(nat({ weather: 'nublado', wind: w, t: t }));
+    return d.c.rects.filter(function (q) { return q.cor === FX.SOMBRA_NUVEM; }).map(function (q) { return q.x; });
+  }
+  var a = xs({ intensity: 'brisa', dir: 1 }, 1), b = xs({ intensity: 'brisa', dir: 1 }, 1.1);
+  var c = xs({ intensity: 'brisa', dir: -1 }, 1), d = xs({ intensity: 'brisa', dir: -1 }, 1.1);
+  assert.ok(a.length && a.length === b.length && c.length === d.length, 'sombras');
+  assert.ok(b[0] > a[0], '→ anda para a direita'); assert.ok(d[0] < c[0], '← anda para a esquerda');
+});
+test('folhas e poeira pela intensidade: calmo 0, brisa até 6, ventania até 18 por tela; metade em reduced', function () {
+  function max(w, red, weather) {
+    var m = 0, alguma = 0;
+    for (var t = 0; t < 20; t += 0.25) {
+      var d = desenha(nat({ weather: weather || 'sol', wind: w, t: t, reduced: red }));
+      m = Math.max(m, d.st.folhas); alguma += d.st.folhas;
+    }
+    return { m: m, alguma: alguma };
+  }
+  assert.strictEqual(max(CALMO, false).alguma, 0, 'calmo sem folhas');
+  var b = max(BRISA, false), v = max(VENTANIA, false), br = max(BRISA, true), vr = max(VENTANIA, true);
+  assert.ok(b.m > 0 && b.m <= 6, 'brisa ' + b.m);
+  assert.ok(v.m > 6 && v.m <= 18, 'ventania ' + v.m);
+  assert.ok(br.m > 0 && br.m <= 3, 'brisa reduzida ' + br.m);
+  assert.ok(vr.m > 3 && vr.m <= 9, 'ventania reduzida ' + vr.m);
+  assert.ok(max(VENTANIA, false, 'chuva').m > 0, 'na chuva também voam folhas');
+});
+test('teto de partículas por tela (tela enorme, P = 1)', function () {
+  ['sol', 'chuva', 'nevoa', 'nublado'].forEach(function (w) {
+    for (var t = 0; t < 3; t += 0.37) {
+      var d = desenha({ weather: w, wind: VENTANIA, t: t, W: 6000, H: 3000, P: 1, laneTop: 1000, trackBottom: 2800, seed: 5 });
+      assert.ok(d.st.pingos <= FX.NATUREZA.pingosMax, w + ' pingos ' + d.st.pingos);
+      assert.ok(d.st.respingos <= FX.NATUREZA.respingosMax, w + ' respingos ' + d.st.respingos);
+      assert.ok(d.st.folhas <= FX.NATUREZA.folhas.ventania, w + ' folhas ' + d.st.folhas);
+      assert.ok(d.c.rects.length <= FX.NATUREZA.retangulosMax, w + ' retângulos ' + d.c.rects.length);
+    }
+  });
+});
+test('drawNature não conta nas partículas de efeito (skills e Dado)', function () {
+  var d = desenha(nat({ weather: 'chuva', wind: VENTANIA, t: 2 }));
+  assert.ok(d.st.pingos > 0);
+  assert.strictEqual(FX._stats.particulas, 0);
+});
+test('drawHoofDust: só em terra ou areia; menos em reduced; função do tempo', function () {
+  FX.resetStats(true);
+  var g = ctxNat();
+  assert.strictEqual(FX.drawHoofDust(g, 100, 200, 3, 1.2, 'grama'), 0);
+  assert.strictEqual(g.rects.length, 0);
+  var a = ctxNat(), b = ctxNat(), r = ctxNat();
+  var na = FX.drawHoofDust(a, 100, 200, 3, 1.2, 'terra'), nb = FX.drawHoofDust(b, 100, 200, 3, 1.2, 'terra');
+  assert.ok(na > 0 && na === nb); assert.deepStrictEqual(a.rects, b.rects);
+  assert.ok(FX.drawHoofDust(ctxNat(), 100, 200, 3, 1.2, 'areia') > 0);
+  var nr = FX.drawHoofDust(r, 100, 200, 3, 1.2, 'terra', true);
+  assert.ok(nr > 0 && nr < na, 'reduced com menos ' + nr + ' < ' + na);
+  a.rects.forEach(function (q) { assert.ok(q.x < 100 + 3 * 3 && q.y <= 200, 'poeira atrás e acima do casco'); });
+});
+test('Sprites.drawWeather repassa para RaceFx.drawNature', function () {
+  var SP = require('../src/sprites.js');
+  var antes = global.RaceFx, chamou = null;
+  global.RaceFx = { drawNature: function (c, o) { chamou = o; }, drawFogFront: function () {} };
+  try { SP.drawWeather(ctxNat(), 'chuva', 2.5, 300, 200, 2); } finally { if (antes === undefined) delete global.RaceFx; else global.RaceFx = antes; }
+  assert.ok(chamou && chamou.weather === 'chuva' && chamou.t === 2.5 && chamou.W === 300 && chamou.H === 200 && chamou.P === 2, JSON.stringify(chamou));
+});
+FX.resetStats(true);
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

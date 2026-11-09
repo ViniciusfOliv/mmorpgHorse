@@ -2,8 +2,9 @@
 //   node build.mjs && node tools/ui-test.mjs
 // Gera as capturas finais em prototype/screens/final-*.png (ou em $SHOTS_DIR) (deviceScaleFactor 2) e falha se houver
 // erro de console, rolagem horizontal, cavalo do jogador fora da tela, sala re-sorteada de graça,
-// resultado calculado antes de pagar, a tela de corrida não couber na altura da janela, ou o Dado da Sorte
-// não aparecer na pista (plaquinhas, faixa, câmera lenta e "Pular" no meio dela).
+// resultado calculado antes de pagar, a tela de corrida não couber na altura da janela, o Dado da Sorte
+// não aparecer na pista (plaquinhas, faixa, câmera lenta e "Pular" no meio dela), a chuva congelar com
+// movimento reduzido, a natureza custar demais por quadro ou um save antigo perder a opção "Animações".
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -1301,6 +1302,240 @@ try {
     }
     await skillsNaPista({ width: 390, height: 844 }, 'skills390', 'final-13-skills.png')
     await skillsNaPista({ width: 390, height: 844 }, 'skills390-reduzido', 'final-13-skills-reduzido.png', { reducedMotion: 'reduce' })
+  }
+
+  // ---------------- Natureza, vento e opção "Animações" (Task 5) ----------------
+  {
+    // largada DEV com a próxima corrida armada: do resultado pelo "Correr de novo"; senão pela aba Correr
+    const largaDev = async (pg, arma) => {
+      await devArmar(pg, arma)
+      if (!(await pg.locator('#t-resultado').count())) {
+        await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+        await pg.waitForSelector('#t-correr')
+        await pg.getByRole('button', { name: 'Procurar corrida' }).click()
+      } else {
+        await pg.getByRole('button', { name: /Correr de novo|Treino gratuito/ }).click()
+      }
+      await pg.waitForSelector('#t-largada')
+      await pg.getByRole('button', { name: /^Largar/ }).click()
+      await pg.waitForSelector('#pista')
+    }
+    const pular = async (pg) => {
+      await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+      await pg.waitForSelector('#t-resultado')
+    }
+    // Perfil -> opção Animações -> volta; confere o botão marcado e a classe do CSS
+    const animacoes = async (pg, modo, label) => {
+      if (await pg.locator('#t-resultado').count()) {   // o resultado não tem a casca: "Voltar" leva à aba Correr
+        await pg.locator('[data-acao="voltar"]').click()
+        await pg.waitForSelector('#t-correr')
+      }
+      await pg.locator('[data-acao="perfil"]').click()
+      await pg.waitForSelector('#t-perfil')
+      await pg.locator(`[data-acao="motion"][data-id="${modo}"]`).click()
+      if ((await pg.locator(`[data-acao="motion"][data-id="${modo}"][aria-pressed="true"]`).count()) !== 1) problems.push(`[${label}] Animações: "${modo}" não ficou marcada`)
+      const r = await pg.evaluate(() => ({ motion: window.__galope.state.settings.motion, classe: document.documentElement.classList.contains('mov-reduzido') }))
+      if (r.motion !== modo) problems.push(`[${label}] Animações: state.settings.motion = ${r.motion} (esperado ${modo})`)
+      await pg.locator('[data-acao="perfil-voltar"]').click()
+      await pg.waitForSelector('#t-perfil', { state: 'detached' })
+      return r
+    }
+    // recorte do canvas que só a natureza muda durante a contagem: o gramado interno, abaixo da cerca de
+    // dentro (cavalos e câmera parados). Com a chuva congelada (t = 0), dois recortes seguidos são iguais.
+    const recorte = (pg) => pg.evaluate(() => {
+      const cv = document.getElementById('pista'), s = window.__galope.race._state, L = s.lay
+      const y0 = (L.laneTopArt + window.__galope.ui.lobby.n * L.laneArt + 5) * s.S
+      const d = cv.getContext('2d').getImageData(0, y0, cv.width, cv.height - y0).data
+      let h = 0
+      for (let i = 0; i < d.length; i += 3) h = (Math.imul(h, 31) + d[i]) >>> 0
+      return { h, fase: s.phase, t: +s.tReal.toFixed(2), pingos: window.RaceFx._stats.natureza.pingos }
+    })
+    const estadoNat = (pg) => pg.evaluate(() => ({
+      nat: JSON.parse(JSON.stringify(window.RaceFx._stats.natureza)), hud: window.RaceFx._stats.ventoHud,
+      vento: window.__galope.race._state.wind, ms: +window.RaceFx._stats.msQuadro.toFixed(2)
+    }))
+    const ateMeio = async (pg, frac) => {
+      await pg.getByRole('button', { name: 'x2' }).click()
+      await pg.waitForFunction((f) => {
+        const r = window.__galope.race, L = window.__galope.ui.lobby
+        return r && r._state.simT >= f * L.sim.finishTimes[L.playerIdx]
+      }, frac, { timeout: 60000, polling: 'raf' })
+      await pg.getByRole('button', { name: 'x1' }).click()
+      await sleep(200)
+    }
+
+    // 1. Save v4 antigo, sem settings (todo save real de hoje): carrega com "Seguir o sistema" sem perder
+    //    nada; a escolha grava no save e vale para o CSS (Review Focus 3)
+    {
+      const p1 = await newPage(browser, { width: 390, height: 844 }, 'save-antigo')
+      try {
+        await p1.getByRole('button', { name: 'Escolher Brasa' }).click()
+        await p1.waitForSelector('#t-estabulo')
+        const velho = await p1.evaluate(() => {
+          const s = JSON.parse(localStorage.getItem('galope-elemental:v1'))
+          delete s.settings
+          s.gold = 4321; s.races = 9; s.wins = 2
+          return s
+        })
+        if (velho.v !== 4 || 'settings' in velho) problems.push('save-antigo: o save montado não é um v4 sem settings ' + JSON.stringify({ v: velho.v }))
+        const ctx1 = p1.context()
+        await p1.close()
+        const p2 = await ctx1.newPage()
+        p2.on('pageerror', (e) => problems.push('[save-antigo] pageerror: ' + e.message))
+        p2.on('console', (m) => { if (m.type() === 'error') problems.push('[save-antigo] console: ' + m.text()) })
+        await p2.addInitScript({ content: `try { localStorage.setItem('galope-elemental:v1', ${JSON.stringify(JSON.stringify(velho))}) } catch (e) {}` })
+        await p2.goto(URL, { waitUntil: 'domcontentloaded' })
+        await p2.waitForSelector('#t-estabulo')
+        const s = await p2.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+        if (!s.settings || s.settings.motion !== 'sistema') problems.push('save-antigo: settings ' + JSON.stringify(s.settings) + ' (esperado { motion: "sistema" })')
+        if (s.v !== 4 || s.gold !== 4321 || s.races !== 9 || s.wins !== 2 || s.mounts.length !== velho.mounts.length || s.items.length !== velho.items.length || s.mounts[0].templateId !== 'brasa') {
+          problems.push('save-antigo: o save perdeu dados ao migrar ' + JSON.stringify({ v: s.v, gold: s.gold, races: s.races, wins: s.wins, mounts: s.mounts.length, items: s.items.length }))
+        }
+        await p2.locator('[data-acao="perfil"]').click()
+        await p2.waitForSelector('#t-perfil')
+        const marcado = ((await p2.locator('[data-acao="motion"][aria-pressed="true"]').textContent()) || '').trim()
+        if (marcado !== 'Seguir o sistema') problems.push('save-antigo: o Perfil marca "' + marcado + '" (esperado "Seguir o sistema")')
+        if ((await p2.locator('#r-animacoes').textContent()) !== 'Animações' || (await p2.locator('[data-acao="motion"]').count()) !== 3) problems.push('save-antigo: grupo "Animações" com 3 escolhas ausente no Perfil')
+        await checkOverflow(p2, 'perfil-animacoes')
+        await p2.screenshot({ path: join(SHOTS, 'final-17-perfil-animacoes.png') })
+        // gravar: Reduzidas vai para o save e liga a classe do CSS; Completas desliga
+        await p2.locator('[data-acao="motion"][data-id="reduzidas"]').click()
+        const g1 = await p2.evaluate(() => ({ salvo: JSON.parse(localStorage.getItem('galope-elemental:v1')).settings, classe: document.documentElement.classList.contains('mov-reduzido') }))
+        if (!g1.salvo || g1.salvo.motion !== 'reduzidas' || !g1.classe) problems.push('save-antigo: "Reduzidas" não gravou ou não ligou mov-reduzido ' + JSON.stringify(g1))
+        await p2.locator('[data-acao="motion"][data-id="completas"]').click()
+        const g2 = await p2.evaluate(() => ({ salvo: JSON.parse(localStorage.getItem('galope-elemental:v1')).settings, classe: document.documentElement.classList.contains('mov-reduzido') }))
+        if (!g2.salvo || g2.salvo.motion !== 'completas' || g2.classe) problems.push('save-antigo: "Completas" não gravou ou deixou mov-reduzido ' + JSON.stringify(g2))
+        notes.saveAntigo = { settings: s.settings, gravado: [g1, g2] }
+        await p2.context().close()
+      } catch (e) {
+        problems.push('save-antigo: ' + e.message)
+        await p1.context().close().catch(() => {})
+      }
+    }
+
+    // 2. Com o aparelho pedindo menos movimento (reducedMotion: 'reduce'): em "Completas" a chuva anda; em
+    //    "Reduzidas" também anda (mais devagar, metade dos pingos) — nada congela. Captura da chuva com ventania.
+    {
+      const pg = await newPage(browser, { width: 390, height: 844 }, 'animacoes', { query: '?dev=1', reducedMotion: 'reduce' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        const r0 = await pg.evaluate(() => ({ motion: window.__galope.state.settings.motion, classe: document.documentElement.classList.contains('mov-reduzido') }))
+        if (r0.motion !== 'sistema' || !r0.classe) problems.push('animacoes: perfil novo sem "sistema" ou sem mov-reduzido com o aparelho em reduce ' + JSON.stringify(r0))
+        const vistos = {}
+        for (const modo of ['completas', 'reduzidas']) {
+          const r = await animacoes(pg, modo, 'animacoes')
+          if (r.classe !== (modo === 'reduzidas')) problems.push(`animacoes: classe mov-reduzido = ${r.classe} em "${modo}"`)
+          await largaDev(pg, { clima: 'chuva', vento: 'ventania', direcao: 1, seed: 4242 })
+          const a = await recorte(pg)
+          await sleep(350)
+          const b = await recorte(pg)
+          vistos[modo] = { a, b }
+          if (a.fase !== 'contagem' || b.fase !== 'contagem') problems.push(`animacoes: recortes fora da contagem em "${modo}" ${JSON.stringify([a, b])}`)
+          else if (a.h === b.h) problems.push(`animacoes: a chuva congelou em "${modo}" (recortes iguais em t ${a.t} e ${b.t})`)
+          if (modo === 'completas') {
+            await ateMeio(pg, 0.35)
+            const e = await estadoNat(pg)
+            vistos.meio = e
+            if (!(e.nat.pingos > 0 && e.nat.respingos > 0 && e.nat.folhas > 0)) problems.push('animacoes: chuva com ventania sem pingos, respingos ou folhas ' + JSON.stringify(e.nat))
+            if (!e.hud) problems.push('animacoes: selo do vento ausente no HUD em 390')
+            if (JSON.stringify(e.vento) !== JSON.stringify({ intensity: 'ventania', dir: 1 })) problems.push('animacoes: vento forçado não chegou à corrida ' + JSON.stringify(e.vento))
+            await pg.screenshot({ path: join(SHOTS, 'final-14-chuva-vento.png') })
+          }
+          await pular(pg)
+        }
+        const pc = vistos.completas.a.pingos, pr = vistos.reduzidas.a.pingos
+        if (!(pr > 0 && pr <= Math.ceil(pc / 2))) problems.push(`animacoes: "Reduzidas" deveria ter metade dos pingos (${pr} de ${pc})`)
+        notes.animacoes = vistos
+      } catch (e) {
+        problems.push('animacoes: ' + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 3. Desempenho (1280, chuva + ventania, traçado "curvas": sem o relevo da subida, que é lento por si):
+    //    msQuadro médio em "Completas" menos o de "Reduzidas" ≤ 6 ms (meta da spec: 2 ms)
+    {
+      const pg = await newPage(browser, { width: 1280, height: 800 }, 'desempenho', { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        const ms = {}
+        for (const modo of ['completas', 'reduzidas']) {
+          await animacoes(pg, modo, 'desempenho')
+          await largaDev(pg, { clima: 'chuva', vento: 'ventania', tracado: 'curvas', seed: 4242 })
+          const amostras = []
+          for (const q of [180, 300, 420]) {
+            amostras.push(await (await pg.waitForFunction((q) => {
+              const r = window.__galope.race, st = window.RaceFx._stats
+              return r && r._state.phase === 'corrida' && st.quadros >= q ? st.msQuadro : false
+            }, q, { timeout: 60000, polling: 'raf' })).jsonValue())
+          }
+          const nat = await pg.evaluate(() => window.RaceFx._stats.natureza)
+          ms[modo] = { media: +(amostras.reduce((a, b) => a + b, 0) / amostras.length).toFixed(2), amostras: amostras.map((x) => +x.toFixed(2)), pingos: nat.pingos }
+          await pular(pg)
+        }
+        ms.diferenca = +(ms.completas.media - ms.reduzidas.media).toFixed(2)
+        notes.desempenho = ms
+        if (ms.diferenca > 6) problems.push(`desempenho: "Completas" ${ms.completas.media} ms contra "Reduzidas" ${ms.reduzidas.media} ms por quadro (diferença ${ms.diferenca} > 6)`)
+        if (!(ms.completas.pingos > ms.reduzidas.pingos)) problems.push('desempenho: "Reduzidas" sem menos pingos ' + JSON.stringify(ms))
+      } catch (e) {
+        problems.push('desempenho: ' + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 4. 360 px com tudo ligado: chuva, ventania, "skills sempre ativam" e um Dado na tela (Review Focus 5)
+    {
+      const pg = await newPage(browser, { width: 360, height: 780 }, 'tudo360', { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await largaDev(pg, { clima: 'chuva', vento: 'ventania', direcao: -1, sempre: true, seed: 101 })
+        await pg.getByRole('button', { name: 'x2' }).click()
+        const q = await (await pg.waitForFunction(() => {
+          const st = window.RaceFx._stats
+          return st.faixaDado && st.dados >= 1 ? { dados: st.dados, hud: st.ventoHud, pingos: st.natureza.pingos, folhas: st.natureza.folhas } : false
+        }, null, { timeout: 60000, polling: 'raf' })).jsonValue()
+        const skills = await pg.evaluate(() => { const L = window.__galope.ui.lobby; return L.sim.events.filter((e) => e.type === 'skill' && e.racer === L.playerIdx).length })
+        notes.tudo360 = { ...q, skillsJogador: skills }
+        if (!q.hud || !(q.pingos > 0)) problems.push('tudo360: sem selo do vento ou sem chuva ' + JSON.stringify(q))
+        if (!(skills > 0)) problems.push('tudo360: "skills sempre ativam" sem skill do jogador')
+        await checkOverflow(pg, 'tudo360-dado')
+        const cv = await pg.evaluate(() => { const r = document.getElementById('pista').getBoundingClientRect(); return { right: r.right, vw: document.documentElement.clientWidth } })
+        if (cv.right > cv.vw + 0.5) problems.push('tudo360: canvas passa da largura da tela ' + JSON.stringify(cv))
+        await pular(pg)
+      } catch (e) {
+        problems.push('tudo360: ' + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 5. Sol (piso de terra: poeira dos cascos, raios e calor) e névoa (camadas de trás e da frente) em 390
+    {
+      const pg = await newPage(browser, { width: 390, height: 844 }, 'natureza390', { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await largaDev(pg, { clima: 'sol', vento: 'brisa', direcao: -1, piso: 'terra', tracado: 'curvas', seed: 12 })
+        await ateMeio(pg, 0.25)
+        const sol = await estadoNat(pg)
+        await pg.screenshot({ path: join(SHOTS, 'final-15-sol.png') })
+        if (!(sol.nat.raios > 0 && sol.nat.calor > 0 && sol.nat.poeiraCascos > 0 && sol.nat.folhas > 0)) problems.push('natureza390: sol sem raios, calor, poeira dos cascos ou folhas ' + JSON.stringify(sol.nat))
+        if (JSON.stringify(sol.vento) !== JSON.stringify({ intensity: 'brisa', dir: -1 })) problems.push('natureza390: vento forçado (brisa ←) não chegou à corrida ' + JSON.stringify(sol.vento))
+        await pular(pg)
+        await largaDev(pg, { clima: 'nevoa', vento: 'ventania', direcao: -1, tracado: 'curvas', seed: 13 })
+        await ateMeio(pg, 0.25)
+        const nev = await estadoNat(pg)
+        await pg.screenshot({ path: join(SHOTS, 'final-16-nevoa.png') })
+        if (!(nev.nat.nevoa > 0 && nev.nat.nevoaFrente > 0 && nev.nat.folhas > 0)) problems.push('natureza390: névoa sem as duas camadas ou sem folhas ' + JSON.stringify(nev.nat))
+        notes.natureza390 = { sol, nevoa: nev }
+        await pular(pg)
+      } catch (e) {
+        problems.push('natureza390: ' + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
   }
 
   // ---------------- loja: abas, comprar (com recusa sem Ouro), Pedras Negras e resumo na largada ----------------
