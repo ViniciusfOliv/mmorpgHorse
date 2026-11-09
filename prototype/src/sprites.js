@@ -11,11 +11,14 @@
  *                           finishM, hills, curves, distanceMarkersEvery, t, weather, pixel, wind, curveScale })
  *     wind = { intensity: 'calmo'|'brisa'|'ventania', dir: 1|-1 } (só visual; padrão brisa ←): bandeirinhas
  *     da arquibancada, grama da borda e nuvens seguem o vento
- *     curves = [[a, b], …] (metros): com o fx.js carregado, dentro de uma curva a pista faz um arco ancorado
- *     no mundo — cerca externa, piso, raias, linhas e campo interno sobem round(−RaceFx.curveOffset) pixels
- *     de arte por coluna (até 6 no meio), a arquibancada até 10 e placas "CURVA" ficam presas à cerca; o
- *     chamador soma o mesmo deslocamento no y dos cavalos. Sem fx.js, a pista fica reta. curveScale (0..1)
- *     encolhe o arco quando falta espaço acima da pista (o y dos cavalos usa o mesmo fator).
+ *     curves = [[a, b], …] (metros): as SEQUÊNCIAS de curva (a corrida passa RaceFx.curveRuns(cond.curves):
+ *     blocos de curva colados viram um intervalo só). Com o fx.js carregado, dentro de uma curva a pista faz
+ *     um arco ancorado no mundo — cerca externa, piso, raias, linhas e campo interno sobem
+ *     round(−RaceFx.curveOffset) pixels de arte por coluna (até 6 no meio; numa curva longa, 6 em todo o
+ *     platô), a arquibancada até 10; por intervalo: tracejados de início e fim, placas CURVA (início) e FIM
+ *     nos postes e placas "CURVA" presas à cerca a cada 40 m. O chamador soma o mesmo deslocamento no y dos
+ *     cavalos. Sem fx.js, a pista fica reta. curveScale (0..1) encolhe o arco quando falta espaço acima da
+ *     pista (o y dos cavalos usa o mesmo fator).
  *   Sprites.drawWeather(ctx, weather, t, width, height, pixel) — repasse para RaceFx.drawNature +
  *     RaceFx.drawFogFront (fx.js; sem ele, não desenha nada). A corrida chama o fx.js direto.
  *   Sprites.cloudCanvas(seed, P, tom) — nuvem de pixels em cache (usada pelo nublado do fx.js)

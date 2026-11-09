@@ -2390,10 +2390,13 @@
   }
 
   function createRaceView(L, root) {
-    var sim = L.sim, n = L.n, D = L.cond.distance, hills = L.cond.hills, curves = L.cond.curves || [];
+    var sim = L.sim, n = L.n, D = L.cond.distance, hills = L.cond.hills;
     var blocks = L.cond.blocks;
     // curvas (só visual): o traçado de cima do minimapa e quanto a raia sobe (pixels de arte inteiros, ≥ 0)
-    // no metro m — o mesmo arredondamento do Sprites.drawTrack, então o cavalo fica em cima das linhas da raia
+    // no metro m — o mesmo arredondamento do Sprites.drawTrack, então o cavalo fica em cima das linhas da raia.
+    // No desenho, blocos de curva colados são UMA curva (RaceFx.curveRuns: arco, placas e tracejados por
+    // sequência); L.cond.curves continua por bloco (é o que a simulação usa e o selo ↪CURVA do HUD lê o bloco).
+    var curves = FX.curveRuns(L.cond.curves || []);
     var mapa = FX.trackPath(blocks);
     var pisoCor = (GD.SURFACES[L.cond.surface] || {}).color || C.palha;
     var silksCores = L.racers.map(function (r) { return r.silks; });

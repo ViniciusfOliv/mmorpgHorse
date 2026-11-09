@@ -1573,11 +1573,13 @@ try {
   }
 
   // ---------------- Curvas: traçado na sala, minimapa no HUD e arco na pista (Task 6) ----------------
-  // DEV, traçado "curvas" (1600 m em 7 blocos de ~230 m, os 5 do meio em curva). Sala: o mapa é o traçado
-  // visto de cima (pixels da cor da curva e o xadrez da chegada). Corrida: no meio de uma curva o cavalo do
-  // jogador e a etiqueta "◀VOCÊ" sobem o arco inteiro (round(6 · lay.arcoK) px de arte) em relação à reta,
-  // as caixas dos cavalos (usadas por balões e plaquinhas) sobem junto, o minimapa é desenhado fora do layout
-  // compacto e o cavalo nunca sai da tela (startCamMonitor, também na vertical).
+  // DEV, traçado "curvas" (1600 m em 7 blocos de ~230 m, os 5 do meio em curva: no desenho, uma curva só de
+  // 230 a 1370 m — RaceFx.curveRuns). Sala: o mapa é o traçado visto de cima (pixels da cor da curva e o xadrez
+  // da chegada). Corrida: no meio da curva o cavalo do jogador e a etiqueta "◀VOCÊ" sobem o arco inteiro
+  // (round(6 · lay.arcoK) px de arte) em relação à reta, a cerca externa desenhada no canvas sobe o mesmo
+  // (pixels: o trilho branco com a borda escura em cima), as caixas dos cavalos (usadas por balões e
+  // plaquinhas) sobem junto, o minimapa é desenhado fora do layout compacto e o cavalo nunca sai da tela
+  // (startCamMonitor, também na vertical).
   {
     const corCurva = G.BLOCK_TYPES.curva.color
     const curvas = async (vp, label, shotSala, shotCorrida) => {
@@ -1589,8 +1591,9 @@ try {
         await pg.waitForSelector('#t-correr')
         await pg.getByRole('button', { name: 'Procurar corrida' }).click()
         await pg.waitForSelector('#t-largada')
-        // 1) sala: o traçado visto de cima — as 5 curvas (~810°) dão uma volta, então a cor da curva aparece
-        //    em muitas linhas do mapa (a faixa reta antiga tinha 5 linhas + o rótulo) — e a chegada em xadrez
+        // 1) sala: o traçado visto de cima — os 5 blocos de curva colados são um U de 180°, então a cor da
+        //    curva aparece em muitas linhas do mapa (a faixa reta antiga tinha 5 linhas + o rótulo) — e a
+        //    chegada em xadrez
         const mapa = await pg.evaluate((cor) => {
           const cv = document.querySelector('canvas.perfil'), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
           const k = Math.round(cv.width / Math.max(1, Math.round(parseFloat(cv.style.width) / 2)))   // px do canvas por px de arte
@@ -1620,20 +1623,42 @@ try {
           const p = f.pos[me], cv = st.caixasCavalos.find((c) => c.racer === me)
           if (!cv || !s.voceRect || f.speed[me] < 3) return false
           if (fx.reta) { if (!(p > 60 && p < 180)) return false } else {
-            const c = (L.cond.curves || []).find((cc) => p > cc[0] && p < cc[1])
+            // o meio da SEQUÊNCIA de curva (blocos colados juntos, como o desenho)
+            const c = window.RaceFx.curveRuns(L.cond.curves || []).find((cc) => p > cc[0] && p < cc[1])
             if (!c || c[1] - c[0] < 150) return false
             const u = (p - c[0]) / (c[1] - c[0])
             if (u < 0.42 || u > 0.58) return false
           }
           const arcoK = s.lay.arcoK === undefined ? 1 : s.lay.arcoK
+          // cerca externa no canvas (o último quadro desenhado): em colunas a cada 3 px de arte, a 1ª linha, de
+          // baixo para cima a partir do topo da raia 1, em que o trilho branco (#f6f2ea) tem a borda escura
+          // (#1c1820) 1 px de arte acima; vale a linha mais comum (placas, cavalos e efeitos cobrem algumas
+          // colunas). Na reta, só os 40 % de trás da tela (a frente pode já estar na curva).
+          const cvEl = document.getElementById('pista'), g = cvEl.getContext('2d'), S = s.S, top = Math.round(s.lay.laneTopArt * S)
+          const y0 = Math.max(0, top - 24 * S), w = cvEl.width, d = g.getImageData(0, y0, w, top - y0).data
+          const px = (x, y) => { const i = ((y - y0) * w + x) * 4; return [d[i], d[i + 1], d[i + 2]] }
+          const conta = new Map()
+          let colunas = 0
+          for (let x = Math.floor(S / 2); x < (fx.reta ? Math.floor(w * 0.4) : w); x += 3 * S) {
+            colunas++
+            for (let y = top - 1; y - S >= y0; y--) {
+              const a = px(x, y), b = px(x, y - S)
+              if (Math.min(...a) >= 200 && Math.max(...a) - Math.min(...a) <= 40 && a.every((v, i) => v - b[i] >= 90)) { conta.set(y, (conta.get(y) || 0) + 1); break }
+            }
+          }
+          let cerca = null, votos = 0
+          conta.forEach((v, y) => { if (v > votos) { votos = v; cerca = y } })
           return { p: +p.toFixed(1), y: cv.y, h: cv.h, voce: s.voceRect.y, mini: !!st.minimapa, compact: s.lay.compact, arcoK, ms: +st.msQuadro.toFixed(2),
-            arco: Math.round(6 * arcoK), cavalos: st.caixasCavalos.map((c) => c.y) }   // spec: 6 px de arte no meio
+            arco: Math.round(6 * arcoK), cavalos: st.caixasCavalos.map((c) => c.y), S, cerca, votos, colunas }   // spec: 6 px de arte no meio
         }, faixa, { timeout: 60000, polling: 'raf' }).then((h) => h.jsonValue())
         const reta = await medir({ reta: true })
         const curva = await medir({ reta: false })
         if (shotCorrida) await pg.screenshot({ path: join(SHOTS, shotCorrida) })
-        const sobe = { cavalo: reta.y - curva.y, voce: reta.voce - curva.voce }
+        const sobe = { cavalo: reta.y - curva.y, voce: reta.voce - curva.voce, cerca: reta.cerca != null && curva.cerca != null ? (reta.cerca - curva.cerca) / curva.S : null }
         if (!(curva.arco >= 4) || sobe.cavalo !== curva.arco || sobe.voce !== curva.arco) problems.push(`[${label}] curva: o cavalo do jogador / ◀VOCÊ subiram ${JSON.stringify(sobe)} px de arte no meio da curva (esperado ${curva.arco}) ${JSON.stringify({ reta, curva })}`)
+        // a cerca desenhada sobe o mesmo arco (com Sprites.drawTrack sem o fx.js — curvaApi() nulo — fica em 0)
+        const votosOk = (m) => m.votos >= Math.max(5, 0.3 * m.colunas)
+        if (!votosOk(reta) || !votosOk(curva) || sobe.cerca !== curva.arco) problems.push(`[${label}] curva: a cerca externa no canvas subiu ${sobe.cerca} px de arte no meio da curva (esperado ${curva.arco}) ${JSON.stringify({ reta: [reta.cerca, reta.votos, reta.colunas], curva: [curva.cerca, curva.votos, curva.colunas] })}`)
         if (curva.mini === curva.compact || reta.mini === reta.compact) problems.push(`[${label}] minimapa ${curva.mini ? 'desenhado' : 'ausente'} com o layout ${curva.compact ? 'compacto' : 'normal'}`)
         await pg.getByRole('button', { name: 'x2' }).click()
         await sleep(2500)

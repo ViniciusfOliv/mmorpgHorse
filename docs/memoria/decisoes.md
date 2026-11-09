@@ -4,7 +4,7 @@ Formato: **data · decisão** — motivo. A mais nova fica no topo. Decisões de
 continuam no `docs/GDD.md`; aqui fica o registro de *quando* e *por quê*.
 
 ## 2026-11-09
-- **Curvas: blocos vizinhos de curva viram uma curva só no desenho** (a simulação continua por bloco) — duas curvas coladas desenhadas separadas pareciam um ziguezague falso.
+- **Curvas: blocos vizinhos de curva viram uma curva só no desenho** (a simulação continua por bloco) — duas curvas coladas desenhadas separadas pareciam um ziguezague falso; 32 % das pistas têm curvas coladas e 14 % passavam de 360° no mapa (2 % juntando). Como: `RaceFx.curveRuns` junta os intervalos colados; o traçado gira pela sequência (`clamp(L/150 × 90°, 45°, 180°)`, por metro) e o arco da pista lateral é por sequência, com platô (`R = min(L/2, 120 m)`; igual ao de antes até 240 m). Consequências: skills de `curve`/`curveExit` (Drift, Saída Rápida) podem mostrar o balão no meio da curva desenhada (o gatilho é o bloco da simulação); o traçado DEV "Mais curvas" vira um único U de 180° — para curvas separadas, usar a lista de blocos com retas entre elas.
 - **Relevo das subidas copiado uma vez para um canvas de rascunho** — de 123 para 10,6 ms por quadro a 1280 px (~10× mais barato).
 - **Natureza só visual: vento sorteado pela seed (35 % calmo, 40 % brisa, 25 % ventania), folhas também na chuva com vento, calor e poeira conforme o piso** — o vento não entra na regra; em "reduzidas" nada congela (chuva e cenário a 40 %).
 - **Opção "Animações" no Perfil (seguir o sistema, completas, reduzidas)** — respeita `prefers-reduced-motion` sem deixar a chuva parada.

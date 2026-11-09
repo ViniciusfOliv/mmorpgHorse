@@ -778,9 +778,68 @@ test('trackPath: o traçado do DEV "curvas" e uma corrida de verdade têm um pon
   var dv = DEV.conditions({ tracado: 'curvas', distance: 1600 });
   var pd = FX.trackPath(dv.blocks);
   assert.strictEqual(pd.pts.length, 161);
-  var somaDev = dv.blocks.filter(function (b) { return b.type === 'curva'; }).reduce(function (s, b) { return s + giroEsperado(b.to - b.from); }, 0);
+  // os 5 blocos de curva do meio são colados: no desenho viram UMA curva (um U de 180°, não 684°)
   assert.strictEqual(dv.blocks.filter(function (b) { return b.type === 'curva'; }).length, 5);
-  assert.ok(Math.abs(pd.giroTotal - somaDev) < 1e-6, 'DEV curvas: ' + pd.giroTotal + ' (esperado ' + somaDev + ')');
+  assert.ok(Math.abs(pd.giroTotal - 180) < 1e-6, 'DEV curvas: ' + pd.giroTotal + ' (esperado 180)');
+  assert.strictEqual(pd.segs.length, 7, 'segs continua um por bloco');
+});
+test('curveRuns: junta curvas coladas (|Δ| < 1e-6), separa as que têm reta no meio e não muta a entrada', function () {
+  var ent = [[100, 200], [200, 300], [300 + 1e-9, 360], [400, 500], [600, 700]];
+  var antes = JSON.stringify(ent);
+  var r = FX.curveRuns(ent);
+  assert.deepStrictEqual(r, [[100, 360], [400, 500], [600, 700]]);
+  assert.strictEqual(JSON.stringify(ent), antes, 'entrada intacta');
+  r.forEach(function (q) { ent.forEach(function (e) { assert.notStrictEqual(q, e, 'devolve cópias'); }); });
+  assert.deepStrictEqual(FX.curveRuns([[100, 200], [250, 300]]), [[100, 200], [250, 300]], 'reta de 50 m no meio');
+  assert.deepStrictEqual(FX.curveRuns([[100, 200], [200.001, 300]]), [[100, 200], [200.001, 300]], 'vão de 1 mm não junta');
+  assert.deepStrictEqual(FX.curveRuns([]), []);
+  assert.deepStrictEqual(FX.curveRuns(null), []);
+  assert.deepStrictEqual(FX.curveRuns(undefined), []);
+});
+test('trackPath: curvas coladas giram pela sequência — 2×60 m dão 72° (não 90°), 3×150 m dão 180° (não 270°)', function () {
+  var p2 = FX.trackPath(blocos([['reta', 0, 100], ['curva', 100, 160], ['curva', 160, 220], ['reta', 220, 300]]));
+  assert.ok(Math.abs(p2.giroTotal - 72) < 1e-9, '2×60 m: ' + p2.giroTotal);
+  // o giro é distribuído por metro na sequência: 72° em 120 m = 6° a cada passo de 10 m, nos dois blocos
+  var h = rumos(p2.pts);
+  for (var k = 11; k < 22; k++) assert.ok(Math.abs(giroEm(h, k) - 6) < 1e-6, 'giro no ponto ' + k + ': ' + giroEm(h, k));
+  assert.strictEqual(p2.segs.length, 4, 'segs: um por bloco');
+  var p3 = FX.trackPath(blocos([['reta', 0, 100], ['curva', 100, 250], ['curva', 250, 400], ['curva', 400, 550], ['reta', 550, 700]]));
+  assert.ok(Math.abs(p3.giroTotal - 180) < 1e-9, '3×150 m: ' + p3.giroTotal);
+  var h3 = rumos(p3.pts), ult = ((h3[h3.length - 1] % 360) + 360) % 360;
+  assert.ok(Math.abs(ult - 180) < 1e-6, 'sai na direção oposta: ' + ult);
+  // duas sequências separadas por uma reta contam cada uma (60 m ⇒ 45° pelo piso; 2×100 m ⇒ 120°)
+  var p4 = FX.trackPath(blocos([['curva', 0, 60], ['reta', 60, 100], ['curva', 100, 200], ['curva', 200, 300]]));
+  assert.ok(Math.abs(p4.giroTotal - (45 + 120)) < 1e-9, 'duas sequências: ' + p4.giroTotal);
+});
+test('curveOffset: curvas coladas são uma só — ≠ 0 e contínuo na fronteira interna, igual ao das sequências', function () {
+  var porBloco = [[100, 200], [200, 300]];
+  assert.ok(FX.curveOffset(porBloco, 200) < -5.99, 'na fronteira interna: ' + FX.curveOffset(porBloco, 200));
+  for (var e = 1; e <= 8; e *= 2) {
+    var a = FX.curveOffset(porBloco, 200 - e / 100), b = FX.curveOffset(porBloco, 200 + e / 100);
+    assert.ok(Math.abs(a - b) < 1e-3 && a < -5.9, 'contínuo em 200 ± ' + e / 100 + ': ' + a + ' / ' + b);
+  }
+  var runs = FX.curveRuns(porBloco);
+  for (var m = 90; m <= 310; m += 2.5) assert.strictEqual(FX.curveOffset(porBloco, m), FX.curveOffset(runs, m), 'em ' + m + ' m');
+  assert.strictEqual(FX.curveOffset(porBloco, 100), 0); assert.strictEqual(FX.curveOffset(porBloco, 300), 0);
+});
+test('curveOffset: platô em sequências longas (R = 120 m), igual a −6·sen(πu) até 240 m', function () {
+  var longa = [[100, 400], [400, 700]];   // sequência de 600 m
+  for (var m = 220; m <= 580; m += 10) assert.strictEqual(FX.curveOffset(longa, m), -6, 'platô em ' + m + ' m');
+  assert.ok(Math.abs(FX.curveOffset(longa, 160) - -6 * Math.sin(Math.PI / 4)) < 1e-9, 'meia rampa na entrada');
+  assert.ok(Math.abs(FX.curveOffset(longa, 640) - -6 * Math.sin(Math.PI / 4)) < 1e-9, 'meia rampa na saída');
+  for (var x = 0; x <= 120; x += 7.5) {
+    var ent = FX.curveOffset(longa, 100 + x), sai = FX.curveOffset(longa, 700 - x);
+    assert.ok(Math.abs(ent - sai) < 1e-9, 'simétrico em ±' + x);
+    if (x > 0) assert.ok(ent <= FX.curveOffset(longa, 100 + x - 7.5), 'a rampa só desce');
+  }
+  // até 240 m o perfil é o de sempre (R = metade da sequência)
+  [[0, 240], [0, 120], [50, 110]].forEach(function (c) {
+    for (var u = 0.05; u < 1; u += 0.1) {
+      var mm = c[0] + u * (c[1] - c[0]);
+      assert.ok(Math.abs(FX.curveOffset([c], mm) - -6 * Math.sin(Math.PI * u)) < 1e-9, JSON.stringify(c) + ' u=' + u);
+    }
+  });
+  assert.strictEqual(FX.CURVA.rampa, 120);
 });
 test('pathAt: posição no traçado por metro (pontas e meio de um passo)', function () {
   var p = FX.trackPath(MISTA);

@@ -74,18 +74,26 @@
  *   RaceFx.rainSlant(wind) -> dx por dy dos pingos (calmo 0,12 · brisa 0,35 · ventania 0,75, com o sinal de dir).
  *   RaceFx.NATUREZA (tetos por tela), RaceFx.RAIN (velocidade, cores), RaceFx.SOMBRA_NUVEM (cor das sombras).
  *
+ *   RaceFx.curveRuns(curves) -> [[a, b], …] (cópias): as sequências de curva do DESENHO — junta os intervalos
+ *     [a, b] (metros; cond.curves, um por bloco 'curva') em que a é o b do anterior (|Δ| < 1e-6). A simulação
+ *     continua por bloco; o mapa, o minimapa, a pista lateral e as placas tratam blocos de curva colados como
+ *     uma curva só. Não muta a entrada; null ⇒ [].
  *   RaceFx.trackPath(blocks) -> { pts: [[x, y], …], ms: [metros de cada ponto], giroTotal (graus),
  *                                 segs: [{ type, i0, i1 }], distance, bbox: { x0, y0, x1, y1, w, h } }
  *     O traçado visto de cima, em metros e coordenadas de tela (x para a direita, y para baixo). Um ponto a
  *     cada ~10 m (cada bloco em passos iguais; as pontas dos blocos são pontos). Rumo inicial 0° (para a
- *     direita); reta e subida em linha reta; cada bloco 'curva' gira no sentido anti-horário (na tela)
- *     clamp(comprimento / 150 × 90, 45, 180) graus, distribuídos igualmente pelos passos (meio giro antes e
- *     meio depois de cada passo). segs: um por bloco, com os índices dos pontos das pontas.
+ *     direita); reta e subida em linha reta; cada SEQUÊNCIA de blocos 'curva' colados (como curveRuns) gira no
+ *     sentido anti-horário (na tela) clamp(comprimento da sequência / 150 × 90, 45, 180) graus, distribuídos
+ *     por metro (cada passo de comprimento d gira g·d/L; meio giro antes e meio depois de cada passo).
+ *     giroTotal = soma dos giros das sequências. segs: um por bloco, com os índices dos pontos das pontas.
  *   RaceFx.pathAt(path, m) -> [x, y] no metro m (interpolado; preso entre a largada e a chegada).
- *   RaceFx.curveOffset(curves, m) -> px de arte = −6 × sen(π × u), u = (m − a)/(b − a) dentro de uma curva
- *     [a, b] (cond.curves: um intervalo por bloco); 0 fora e nas pontas. A pista lateral (Sprites.drawTrack)
- *     sobe −round(curveOffset) por coluna; a tela soma o mesmo no y dos cavalos.
- *   RaceFx.CURVA = { arco: 6, arquibancada: 10, … } (pixels de arte no meio da curva; giros do traçado).
+ *   RaceFx.curveOffset(curves, m) -> px de arte, por SEQUÊNCIA [a, b] (intervalos colados da lista, em ordem,
+ *     contam como um só): −6 × sen(π/2 × min(1, (m − a)/R, (b − m)/R)), R = min((b − a)/2, CURVA.rampa = 120 m)
+ *     — o mesmo −6·sen(πu) de sempre até 240 m; numa curva mais longa o arco fica inteiro no meio (platô).
+ *     0 fora e nas pontas. A pista lateral (Sprites.drawTrack) sobe −round(curveOffset) por coluna; a tela
+ *     soma o mesmo no y dos cavalos (as duas recebem curveRuns(cond.curves)).
+ *   RaceFx.CURVA = { arco: 6, arquibancada: 10, rampa: 120, … } (pixels de arte no meio da curva; metros da
+ *     rampa do arco; giros do traçado).
  *
  * ================================= DESENHO ==================================
  * Canvas 2D em pixel art (x, y em px do canvas; S = px por pixel de arte). Precisa de window.Sprites
@@ -554,23 +562,51 @@
 
   // ---- traçado de cima e curvas na pista (só visual) ----------------------------------------------
   // CURVA.arco: pixels de arte que a cerca e as raias sobem no meio de uma curva (pista lateral);
-  // CURVA.arquibancada: quanto a arquibancada sobe no mesmo ponto. giro*: graus por curva (traçado).
-  var CURVA = { arco: 6, arquibancada: 10, giroPor150m: 90, giroMin: 45, giroMax: 180, passoM: 10 };
+  // CURVA.arquibancada: quanto a arquibancada sobe no mesmo ponto; CURVA.rampa: metros da entrada (e da
+  // saída) até o arco inteiro numa curva longa. giro*: graus por curva (traçado).
+  var CURVA = { arco: 6, arquibancada: 10, rampa: 120, giroPor150m: 90, giroMin: 45, giroMax: 180, passoM: 10 };
   function giroCurva(len) { return Math.max(CURVA.giroMin, Math.min(CURVA.giroMax, len / 150 * CURVA.giroPor150m)); }
 
+  // Sequências de curva para o DESENHO: junta os intervalos [a, b] em que a é o b do anterior (|Δ| < EPS).
+  // A simulação continua por bloco (cond.curves); o mapa, a pista lateral e as placas usam as sequências.
+  function curveRuns(curves) {
+    var out = [];
+    if (!curves) return out;
+    for (var i = 0; i < curves.length; i++) {
+      var a = curves[i][0], b = curves[i][1], u = out[out.length - 1];
+      if (u && Math.abs(a - u[1]) < EPS) u[1] = b;
+      else out.push([a, b]);
+    }
+    return out;
+  }
+
   // Caminho visto de cima, em metros e em coordenadas de tela (x para a direita, y para baixo): rumo
-  // inicial 0° (para a direita); reta e subida seguem em linha reta; cada bloco 'curva' gira no sentido
-  // anti-horário (na tela) giroCurva(comprimento) graus, distribuídos igualmente pelos passos dela (meio
-  // giro antes e meio depois de cada passo, então os pontos das pontas da curva giram meio passo).
-  // Um ponto a cada ~10 m (cada bloco em passos iguais, as pontas dos blocos sempre são pontos).
+  // inicial 0° (para a direita); reta e subida seguem em linha reta; cada SEQUÊNCIA de blocos 'curva'
+  // colados (como curveRuns) gira no sentido anti-horário (na tela) giroCurva(comprimento da sequência)
+  // graus, distribuídos por metro: cada passo de comprimento d gira g·d/L (meio giro antes e meio depois do
+  // passo, então os pontos das pontas giram meio passo). Um ponto a cada ~10 m (cada bloco em passos
+  // iguais, as pontas dos blocos sempre são pontos); segs continua um por bloco.
   function trackPath(blocks) {
-    var pts = [[0, 0]], ms = [0], segs = [], giro = 0, th = 0, x = 0, y = 0, fim = 0;
     var lista = blocks || [];
-    for (var i = 0; i < lista.length; i++) {
-      var b = lista[i], a = b.from != null ? b.from : fim, len = b.to - a;
+    // 1ª passada: a sequência de curvas de cada bloco 'curva' (comprimento total) e o giro total
+    var seqDe = [], atual = null, fimAnt = 0, giro = 0, i, b, a, len;
+    for (i = 0; i < lista.length; i++) {
+      b = lista[i]; a = b.from != null ? b.from : fimAnt; len = b.to - a;
+      seqDe.push(null);
+      if (!(len > 0)) continue;
+      if (b.type === 'curva') {
+        if (!(atual && Math.abs(a - atual.fim) < EPS)) { if (atual) giro += giroCurva(atual.len); atual = { len: 0, fim: a }; }
+        atual.len += len; atual.fim = b.to; seqDe[i] = atual;
+      } else if (atual) { giro += giroCurva(atual.len); atual = null; }
+      fimAnt = b.to;
+    }
+    if (atual) giro += giroCurva(atual.len);
+    var pts = [[0, 0]], ms = [0], segs = [], th = 0, x = 0, y = 0, fim = 0;
+    for (i = 0; i < lista.length; i++) {
+      b = lista[i]; a = b.from != null ? b.from : fim; len = b.to - a;
       if (!(len > 0)) continue;
       var passos = Math.max(1, Math.round(len / CURVA.passoM)), d = len / passos;
-      var g = b.type === 'curva' ? giroCurva(len) : 0, gp = g / passos, i0 = pts.length - 1;
+      var sq = seqDe[i], g = sq ? giroCurva(sq.len) * len / sq.len : 0, gp = g / passos, i0 = pts.length - 1;
       for (var k = 0; k < passos; k++) {
         th += gp / 2;
         var r = th * Math.PI / 180;
@@ -578,7 +614,7 @@
         th += gp / 2;
         pts.push([x, y]); ms.push(k === passos - 1 ? b.to : a + d * (k + 1));
       }
-      giro += g; fim = b.to;
+      fim = b.to;
       segs.push({ type: b.type, i0: i0, i1: pts.length - 1 });
     }
     var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -601,13 +637,20 @@
   }
 
   // deslocamento vertical (pixels de arte, negativo = para cima) da cerca, das raias e dos cavalos no
-  // metro m: −6·sen(π·u) dentro de uma curva [a, b] (u = (m − a)/(b − a)); 0 fora e nas pontas.
-  // curves = cond.curves (um intervalo por bloco 'curva'; blocos de curva vizinhos são curvas separadas).
+  // metro m, por SEQUÊNCIA de curva [a, b] (intervalos colados da lista, em ordem, contam como um só, como
+  // curveRuns): −6·sen(π/2 · min(1, (m − a)/R, (b − m)/R)), R = min((b − a)/2, CURVA.rampa) — igual a
+  // −6·sen(π·u) até 240 m; numa curva longa o arco fica inteiro no meio (platô). 0 fora e nas pontas.
   function curveOffset(curves, m) {
     if (!curves) return 0;
     for (var i = 0; i < curves.length; i++) {
       var a = curves[i][0], b = curves[i][1];
-      if (m > a && m < b) return -CURVA.arco * Math.sin(Math.PI * (m - a) / (b - a));
+      if (!(m >= a && m <= b)) continue;
+      var j = i;
+      while (i > 0 && Math.abs(curves[i - 1][1] - a) < EPS) { i--; a = curves[i][0]; }
+      while (j + 1 < curves.length && Math.abs(curves[j + 1][0] - b) < EPS) { j++; b = curves[j][1]; }
+      if (!(m > a && m < b)) return 0;
+      var R = Math.min((b - a) / 2, CURVA.rampa);
+      return -CURVA.arco * Math.sin(Math.PI / 2 * Math.min(1, (m - a) / R, (b - m) / R));
     }
     return 0;
   }
@@ -1314,6 +1357,7 @@
     wind: wind,
     rainSlant: rainSlant,
     CURVA: CURVA,
+    curveRuns: curveRuns,
     trackPath: trackPath,
     pathAt: pathAt,
     curveOffset: curveOffset,
