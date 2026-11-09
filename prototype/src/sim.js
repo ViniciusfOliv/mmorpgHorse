@@ -97,6 +97,10 @@
  *   (pos === distance => chegou) e a velocidade cai a 0 em ~2 s. Simula até TODOS
  *   chegarem. config.recordFrames === false pula os frames (usado no balance.js).
  *
+ * MODO DEV (opcional): config.dev = { skillsAlways: true } faz toda tentativa de skill ativar. O
+ *   r.rng() da tentativa continua sendo chamado (os fluxos não se deslocam); só a comparação com a
+ *   chance é ignorada. Sem config.dev (ou com skillsAlways falso), o resultado é exatamente o de sempre.
+ *
  * RESULTADO: { seed, conditions (iniciais normalizadas), weatherFinal (clima depois dos
  *   Dados), dt, duration, frames, events, finishOrder, finishTimes,
  *   racerInfo[i] = { name, horseName, stats, skillChance } }.
@@ -548,6 +552,7 @@
     var n = entries.length;
     var dt = T.dt;
     var record = config.recordFrames !== false;
+    var skillsAlways = !!(config.dev && config.dev.skillsAlways);   // modo DEV (ver o cabeçalho)
     var surf = GameData.SURFACES[cond.surface];
     // efeitos gerais do clima vigente (recalculados quando o Dado vira o clima)
     var weatherDrain, weatherSlow;
@@ -592,7 +597,10 @@
       var key = e.blockScoped ? id + '#' + r.blockIdx : id;
       if (r.tried[key]) return;
       r.tried[key] = true;
-      if (!(r.rng() < r.skillChance)) return;
+      // o número é sempre sorteado (a ordem das chamadas não muda); com config.dev.skillsAlways
+      // (só o modo DEV) a skill ativa mesmo que ele saia acima da chance
+      var roll = r.rng();
+      if (!(roll < r.skillChance) && !skillsAlways) return;
       if (e.staminaRestore && !r.exhausted) r.stamina = Math.min(1, r.stamina + e.staminaRestore);
       if (e.extraDice) r.extraDice += e.extraDice;
       var reweather = false;

@@ -513,5 +513,165 @@ test('5 peças Chuva anulam a penalidade do Fogo na chuva; 4 Sol dobram o Sol', 
   assert.ok(wins(gearOf('sol', 4), mixed(4), 'sol') >= 110, 'dobra o Sol (≥55% de 200)');
 });
 
+section('dev');
+// Referência gravada com o sim.js de antes do parâmetro config.dev (seeds 1001…1020; os 3 iniciais + 5
+// aluguéis do Haras, com o equipamento de bot de cada liga). Mudou a simulação de propósito? Regrave a tabela.
+var crypto = require('crypto');
+var ALUGUEIS = G.WILD_HORSES.filter(function (h) { return h.rarity !== 'mitico' && B.rentalPrice(h) != null; }).slice(0, 5);
+var CAMPO_REF = G.STARTERS.concat(ALUGUEIS);
+function refRace(seed, dev) {
+  var cfg = { seed: seed, recordFrames: false, racers: CAMPO_REF.map(function (h, i) {
+    return { horse: cl(h), gear: GR.botGear(i % 6, h.element, 0.37), name: 'r' + i, isPlayer: i === 0 };
+  }) };
+  if (dev !== undefined) cfg.dev = dev;
+  return S.simulate(cfg);
+}
+function refHash(res) {
+  return crypto.createHash('sha1').update(JSON.stringify({ finishOrder: res.finishOrder, finishTimes: res.finishTimes, events: res.events })).digest('hex');
+}
+var REF_HASHES = ['c16103a975ab67d0aa9e1f0877f73405c6619869', '79e45d97f356745d6deee49708be718e3409ddd6', 'cb59a9c72a4bfd11b96a32fb7cbd26b3ff8796ce',
+  '67c660347e9513beb3b549b9c7f4dcaaf2ed733b', '46e412938e7e70252d8aa61f9cd7ee634ce17171', '18446830616f2bee462ff21e5f1af9c22a8f083b',
+  'd18aa910602f5bb81fb1ae8f038cc101faa0a2ce', 'f762502c5c1b75c51a79b6f5685936da6219a51e', 'e4a825535b7131a6b3593480ffa33a5e24c968d5',
+  '39f196cde374d9c98b0a82c534e5075039cc18ac', '255a92a89d99cb6b0a673b842e90ae025bdb17b4', '07501a0c97d089adabe8c6049626e0776a65c640',
+  'ace24e64c2d2475db4b8fefb812267525f9c8653', '5eb7a7717b99839212adb1343a5ceafb64d87ef0', '5d62b6d50a57a7e0eaf49133264d232d2e932c9c',
+  'baeb9938a08635dc5d4f92cd727855f2c5929381', 'ad208c2bd340deb0da1791c1df8d0122e71f7c02', '4583b1ebe60c0dd59c28f900e6304196207eb943',
+  '7354b6104f16159aaf2d157feef8d2af29686eda', 'c34309057ab03de7cd7592ae612d98104d81394a'];
+test('sem config.dev o resultado é o de antes', function () {
+  assert.deepStrictEqual(CAMPO_REF.map(function (h) { return h.id; }), ['brasa', 'mare', 'ipe', 'w-pangare', 'w-faisca', 'w-lambari', 'w-capim', 'w-ticao']);
+  var diff = [];
+  for (var k = 0; k < 20; k++) { var h = refHash(refRace(1001 + k)); if (h !== REF_HASHES[k]) diff.push((1001 + k) + ': ' + h); }
+  assert.deepStrictEqual(diff, [], 'hashes diferentes da referência');
+});
+test('config.dev vazio ou com skillsAlways false devolve exatamente o mesmo objeto', function () {
+  var a = JSON.stringify(refRace(1003)), b = JSON.stringify(refRace(1003, {})), c = JSON.stringify(refRace(1003, { skillsAlways: false }));
+  assert.strictEqual(b, a); assert.strictEqual(c, a);
+});
+// mapa com gatilho garantido para start (largada), straight (reta final de 600 m) e final (80%)
+var GATILHOS = { distance: 1200, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 300 }, { type: 'curva', from: 300, to: 600 }, { type: 'reta', from: 600, to: 1200 }] };
+function devRace(seed, horses, dev) {
+  var cfg = { seed: seed, conditions: GATILHOS, recordFrames: true, racers: horses.map(function (h, i) { return { horse: h, gear: null, name: 'r' + i, isPlayer: i === 0 }; }) };
+  if (dev) cfg.dev = dev;
+  return S.simulate(cfg);
+}
+function skillsPorCorredor(res, n) {
+  var c = []; for (var i = 0; i < n; i++) c.push(0);
+  res.events.forEach(function (e) { if (e.type === 'skill') c[e.racer]++; });
+  return c;
+}
+test('com skillsAlways toda tentativa de skill ativa', function () {
+  function fraco() { var h = mk({ sorte: 0 }); h.rarity = 'comum'; h.skills = ['arranque', 'sprint', 'arrancada-final']; return h; }
+  var semDev = 0;
+  for (var s = 1; s <= 10; s++) {
+    var hs = [fraco(), fraco(), fraco(), fraco()];
+    assert.deepStrictEqual(skillsPorCorredor(devRace(s, hs, { skillsAlways: true }), 4), [3, 3, 3, 3], 'seed ' + s);
+    semDev += skillsPorCorredor(devRace(s, hs), 4).reduce(function (a, x) { return a + x; }, 0);
+  }
+  assert.ok(semDev < 120, 'sem o parâmetro, a chance (0,35) falha às vezes: ' + semDev + '/120');
+  // r.rng() continua sendo chamado na tentativa: quando todas já ativariam, o resultado é idêntico
+  function forte() { var h = mk({ sorte: 100 }); h.level = 50; h.skills = ['arranque', 'sprint', 'arrancada-final']; return h; }
+  var iguais = 0;
+  for (s = 1; s <= 40; s++) {
+    var hf = [forte(), forte()], base = devRace(s, hf);
+    if (skillsPorCorredor(base, 2).join() !== '3,3') continue;
+    assert.strictEqual(JSON.stringify(devRace(s, hf, { skillsAlways: true })), JSON.stringify(base), 'seed ' + s + ': fluxo do rng deslocado');
+    iguais++;
+  }
+  assert.ok(iguais >= 5, 'poucas seeds com todas as skills ativas sem o parâmetro: ' + iguais);
+});
+
+var Dev = null;
+try { Dev = require('../src/dev.js'); } catch (e) { Dev = null; }
+function DV() { if (!Dev) throw new Error('Dev indefinido (prototype/src/dev.js)'); return Dev; }
+test('Dev: chave do save e Ouro infinito', function () {
+  assert.strictEqual(DV().SAVE_KEY, 'galope-elemental:dev'); assert.strictEqual(DV().GOLD_INF, 999999);
+  var st = { gold: 10 }; DV().refillGold(st); assert.strictEqual(st.gold, 999999);
+  st = { gold: 1000374 }; DV().refillGold(st); assert.strictEqual(st.gold, 1000374);
+  assert.deepStrictEqual(DV().wind({ intensity: 'brisa', dir: -1 }), { intensity: 'brisa', dir: -1 });
+  assert.deepStrictEqual(DV().wind({ intensity: 'ventania', dir: '1' }), { intensity: 'ventania', dir: 1 });
+  assert.strictEqual(DV().wind({ intensity: 'furacao', dir: 1 }), null); assert.strictEqual(DV().wind(null), null);
+  assert.strictEqual(DV().parseSeed('123'), 123); assert.strictEqual(DV().parseSeed(4294967295), 4294967295);
+  [null, '', '-1', '1.5', 'abc', '4294967296', true].forEach(function (v) { assert.strictEqual(DV().parseSeed(v), null, String(v)); });
+});
+test('Dev.horseTemplate respeita vagas e skills válidas', function () {
+  var pal = { coat: '#112233', coatShade: '#000000', mane: '#abcdef', accent: '#FFEE00' };
+  var t = DV().horseTemplate({ name: 'Teste', element: 'agua', rarity: 'comum', sex: 'f', potential: 12, skills: ['arranque', 'arranque', 'nao-existe', 'sprint'], palette: pal }, 7);
+  assert.strictEqual(t.id, 'dev-7'); assert.strictEqual(t.name, 'Teste'); assert.strictEqual(t.especie, 'cavalo'); assert.strictEqual(t.grau, 2);
+  assert.strictEqual(t.element, 'agua'); assert.strictEqual(t.rarity, 'comum'); assert.strictEqual(t.sex, 'f'); assert.strictEqual(t.level, 1); assert.strictEqual(t.xp, 0);
+  assert.deepStrictEqual(t.skills, ['arranque'], 'Comum: 1 vaga');
+  G.STAT_KEYS.forEach(function (k) { assert.strictEqual(t.base[k], 36, 'base ' + k); assert.strictEqual(t.potential[k], 12, 'pot ' + k); });
+  assert.deepStrictEqual(t.palette, pal);
+  Object.keys(G.STARTERS[0]).filter(function (k) { return k !== 'title' && k !== 'bio'; }).forEach(function (k) { assert.ok(k in t, 'campo ' + k); });
+  // Mítico: 5 vagas, qualquer skill do catálogo (inclusive exclusiva de outro elemento), na ordem pedida
+  var m = DV().horseTemplate({ name: 'X', element: 'agua', rarity: 'mitico', sex: 'm', potential: 'max', skills: ['labareda', 'mare-alta', 'drift', 'sprint', 'arranque', 'segundo-ar'] }, 1);
+  assert.deepStrictEqual(m.skills, ['labareda', 'mare-alta', 'drift', 'sprint', 'arranque']);
+  G.STAT_KEYS.forEach(function (k) { assert.strictEqual(m.base[k], 68); assert.strictEqual(m.potential[k], 31); });
+  assert.ok(/^#[0-9a-f]{6}$/i.test(m.palette.coat) && /^#[0-9a-f]{6}$/i.test(m.palette.accent), 'paleta padrão');
+  assert.strictEqual(DV().horseTemplate({ rarity: 'raro', potential: 99 }).potential.vel, 31);
+  assert.strictEqual(DV().horseTemplate({ rarity: 'raro', potential: -4 }).potential.vel, 0);
+  // campos inválidos: valores padrão válidos, e o template corre
+  var d = DV().horseTemplate({ element: 'lava', rarity: 'divino', sex: 'x', skills: 'arranque', name: ' ' });
+  assert.ok(G.ELEMENTS[d.element] && G.RARITIES[d.rarity] && (d.sex === 'm' || d.sex === 'f') && Array.isArray(d.skills) && d.name.length >= 2);
+  var res = S.simulate({ seed: 3, recordFrames: false, racers: [{ horse: m, gear: null, name: 'a' }, { horse: t, gear: null, name: 'b' }] });
+  assert.strictEqual(res.finishOrder.length, 2);
+});
+test('Dev.itemId devolve só ids do catálogo', function () {
+  assert.strictEqual(DV().itemId({ slot: 'sela', set: 'sol', rarity: 'lendario' }), 'sela-sol-lendario');
+  assert.strictEqual(DV().itemId({ slot: 'armadura', set: 'nevoa', rarity: 'raro' }), 'armadura-nevoa-raro');
+  assert.strictEqual(DV().itemId({ slot: 'sela', rarity: 'comum' }), 'sela-comum');
+  assert.strictEqual(DV().itemId({ slot: 'estribos', set: 'chuva', rarity: 'magico' }), 'estribos-magico', 'peça solta ignora o conjunto');
+  [{ slot: 'sela', rarity: 'raro' }, { slot: 'chapeu', rarity: 'comum' }, { slot: 'sela', set: 'lava', rarity: 'raro' },
+    { slot: 'sela', set: 'sol', rarity: 'mitico' }, {}, null].forEach(function (q) { assert.strictEqual(DV().itemId(q), null, JSON.stringify(q)); });
+  G.GEAR_SLOTS.concat(['x']).forEach(function (slot) {
+    [null, 'sol', 'chuva', 'nevoa', 'x'].forEach(function (set) {
+      Object.keys(G.RARITIES).concat(['x']).forEach(function (rarity) {
+        var id = DV().itemId({ slot: slot, set: set, rarity: rarity });
+        if (id !== null) { assert.ok(G.GEAR[id], id); assert.strictEqual(G.GEAR[id].slot, slot); assert.strictEqual(G.GEAR[id].rarity, rarity); }
+      });
+    });
+  });
+  assert.strictEqual(DV().itemId({ slot: 'testeira', set: 'chuva', rarity: 'lendario' }), 'testeira-chuva-lendario');
+});
+test('Dev.conditions corrige distância e omite campo inválido', function () {
+  assert.deepStrictEqual(DV().conditions({ distance: 1234 }), { distance: 1200 });
+  assert.deepStrictEqual(DV().conditions({ distance: 50 }), { distance: 1000 });
+  assert.deepStrictEqual(DV().conditions({ distance: 9999 }), { distance: 2400 });
+  assert.deepStrictEqual(DV().conditions({ distance: 'abc' }), {});
+  assert.deepStrictEqual(DV().conditions({ weather: 'granizo' }), {});
+  assert.deepStrictEqual(DV().conditions({ weather: 'nevoa', surface: 'lama' }), { weather: 'nevoa' });
+  assert.deepStrictEqual(DV().conditions({ surface: 'areia', tracado: 'normal' }), { surface: 'areia' });
+  assert.deepStrictEqual(DV().conditions({}), {}); assert.deepStrictEqual(DV().conditions(null), {});
+  function sete(c, D, meio) {
+    assert.strictEqual(c.blocks.length, 7);
+    var prev = 0;
+    c.blocks.forEach(function (b, i) {
+      assert.strictEqual(b.from, prev); assert.ok(b.to > b.from); assert.strictEqual(b.to % 10, 0, 'fronteira múltipla de 10 m');
+      assert.ok(Math.abs((b.to - b.from) - D / 7) <= 10, 'blocos de mesmo tamanho: ' + (b.to - b.from));
+      prev = b.to;
+    });
+    assert.strictEqual(prev, D);
+    assert.deepStrictEqual(c.blocks.map(function (b) { return b.type; }), ['reta'].concat(meio, ['reta']));
+  }
+  sete(DV().conditions({ tracado: 'curvas', distance: 1000 }), 1000, ['curva', 'curva', 'curva', 'curva', 'curva']);
+  sete(DV().conditions({ tracado: 'subidas', distance: 2400 }), 2400, ['subida', 'reta', 'subida', 'reta', 'subida']);
+  sete(DV().conditions({ tracado: 'curvas' }), 1600, ['curva', 'curva', 'curva', 'curva', 'curva']);   // sem distância: 1600 m
+  [{ distance: 1234 }, { weather: 'granizo' }, { tracado: 'curvas' }, {}].forEach(function (f) {
+    var n = S.normalizeConditions(DV().conditions(f));
+    assert.ok(n.distance >= 1000 && n.blocks.length >= 1 && G.WEATHERS[n.weather] && G.SURFACES[n.surface], JSON.stringify(f));
+    var ns = S.normalizeConditions(DV().conditions(f), 77);
+    assert.ok(ns.blocks[ns.blocks.length - 1].to === ns.distance, JSON.stringify(f) + ' com seed');
+  });
+  // com a sala normal (base): a distância forçada mantém o traçado dela, reescalado
+  var base = S.randomConditions(5), alvo = base.distance === 2000 ? 1500 : 2000;
+  var c = DV().conditions({ distance: alvo }, base), n2 = S.normalizeConditions(c, 5);
+  assert.strictEqual(n2.distance, alvo);
+  assert.deepStrictEqual(n2.blocks.map(function (b) { return b.type; }), base.blocks.map(function (b) { return b.type; }));
+  n2.blocks.forEach(function (b, i) { assert.strictEqual(b.to % 10, 0); if (i) assert.strictEqual(b.from, n2.blocks[i - 1].to); });
+  assert.strictEqual(DV().conditions({ tracado: 'subidas' }, base).blocks[6].to, base.distance, 'traçado sem distância usa a da sala');
+  // lista de blocos: tamanhos iguais na ordem dada; tipo inválido descarta a lista
+  assert.deepStrictEqual(DV().conditions({ tracado: ['reta', 'curva', 'subida', 'reta'], distance: 1200 }).blocks,
+    [{ type: 'reta', from: 0, to: 300 }, { type: 'curva', from: 300, to: 600 }, { type: 'subida', from: 600, to: 900 }, { type: 'reta', from: 900, to: 1200 }]);
+  assert.deepStrictEqual(DV().conditions({ tracado: ['reta', 'lava'], distance: 1200 }), { distance: 1200 });
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

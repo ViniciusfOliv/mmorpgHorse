@@ -79,6 +79,31 @@ async function corridaSemMoldes(browser, label, extra) {
   await pg.context().close()
 }
 
+// ---- modo DEV (?dev=1): gaveta do botão "DEV" (as tarefas seguintes reusam devArmar) ----
+async function devAbrir(page) {
+  if (!(await page.locator('.dev-gaveta').count())) await page.locator('.dev-botao').click()
+  await page.waitForSelector('.dev-gaveta')
+}
+async function devFechar(page) {
+  if (await page.locator('.dev-gaveta').count()) await page.locator('.dev-gaveta [data-acao="dev-fechar"]').click()
+  await page.waitForSelector('.dev-gaveta', { state: 'detached' })
+}
+// arma a próxima corrida pela gaveta; campo ausente = segue a sala normal
+// opts: { clima, piso, distancia, tracado: 'normal'|'curvas'|'subidas'|'lista', blocos, vento, direcao: 1|-1, seed, sempre }
+async function devArmar(page, opts = {}) {
+  await devAbrir(page)
+  const sel = {
+    clima: opts.clima || '', piso: opts.piso || '', distancia: opts.distancia ? String(opts.distancia) : '',
+    tracado: opts.tracado || 'normal', vento: opts.vento || '', direcao: String(opts.direcao || 1)
+  }
+  for (const [k, v] of Object.entries(sel)) await page.selectOption('#dev-' + k, v)
+  await page.fill('#dev-blocos', opts.blocos || '')
+  await page.fill('#dev-seed', opts.seed != null ? String(opts.seed) : '')
+  await page.setChecked('#dev-sempre', !!opts.sempre)
+  await page.locator('[data-acao="dev-armar"]').click()
+  await devFechar(page)
+}
+
 async function checkOverflow(page, label) {
   const o = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }))
   if (o.sw > o.cw) problems.push(`[${label}] rolagem horizontal: scrollWidth ${o.sw} > ${o.cw}`)
@@ -175,7 +200,7 @@ try {
   if ((await page.locator('.app-topo img.logo-img[alt="Galope Elemental"]').count()) !== 1) problems.push('ícones: cabeçalho sem img.logo-img')
   const quebradas = await page.evaluate(() => Array.prototype.filter.call(document.querySelectorAll('img.icone, img.logo-img'), (i) => !i.complete || i.naturalWidth === 0).length)
   if (quebradas) problems.push('ícones: ' + quebradas + ' imagem(ns) quebrada(s)')
-  if ((await page.locator('.dev-painel').count()) !== 0) problems.push('painel dev presente sem ?dev=1')
+  if ((await page.locator('.dev-painel, .dev-faixa, .dev-botao').count()) !== 0) problems.push('painel/faixa dev presente sem ?dev=1')
 
   // tela da Montaria (pelo "Ver" do cartão): renomear (escapado), a ativa não pode ser liberada; depois expandir o estábulo
   await page.locator('button[data-acao="montaria"][data-id="m1"]').click()
@@ -425,10 +450,13 @@ try {
     const cz = await newPage(browser, { width: 390, height: 844 }, 'cruzamento', { query: '?dev=1' })
     const avisos = async () => (await cz.locator('.aviso').allTextContents()).join(' | ')
     const rerender = async () => { await cz.locator('[data-acao="aba"][data-id="correr"]').click(); await cz.locator('[data-acao="tier"][data-id="50"]').first().click() }
-    await cz.getByRole('button', { name: 'Escolher Brasa' }).click()
-    await cz.waitForSelector('#t-estabulo')
+    await cz.waitForSelector('#t-estabulo')   // perfil DEV novo: nasce com a Brasa, sem a escolha inicial
     if ((await cz.locator('.dev-painel').count()) !== 1) problems.push('cruzamento: painel dev ausente com ?dev=1')
+    // este contexto confere o Ouro exato: desliga o Ouro infinito; +10 níveis pela gaveta
+    await devAbrir(cz)
+    await cz.setChecked('#dev-ouroinf', false)
     await cz.locator('[data-acao="dev-niveis"]').click()
+    await devFechar(cz)
     const lvDev = await cz.evaluate(() => window.__galope.state.mounts[0].level)
     if (lvDev !== 11) problems.push('cruzamento: dev-niveis deixou nível ' + lvDev + ' (esperado 11)')
     const m1 = await cz.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts[0])))
@@ -739,17 +767,23 @@ try {
       const st = () => eq.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
       const txt = async () => (await eq.locator('#tela').textContent()) || ''
       const itemOf = (s, uid) => s.items.find((it) => it.uid === uid)
-      // 1. inicial com o equipamento de partida
-      await eq.getByRole('button', { name: 'Escolher Brasa' }).click()
+      // 1. perfil DEV novo (Brasa, sem a escolha inicial) com o equipamento de partida
       await eq.waitForSelector('#t-estabulo')
       let s = await st()
       if (s.items.length !== 2 || s.mounts[0].equip.sela !== 'i1' || s.mounts[0].equip.ferraduras !== 'i2' || s.pedras !== 0) {
         problems.push('equipamento: estado inicial ' + JSON.stringify({ items: s.items, equip: s.mounts[0].equip, pedras: s.pedras }))
       }
-      // 2. painel dev: pedras e conjunto Lendário do Sol (Brasa é Fogo)
+      // 2. gaveta DEV: 5 Pedras e conjunto Lendário do Sol +0 equipado na ativa (Brasa é Fogo)
+      await devAbrir(eq)
+      await eq.fill('#dev-pedras', '5')
       await eq.locator('[data-acao="dev-pedras"]').click()
       if ((await st()).pedras !== 5) problems.push('equipamento: dev-pedras não deu 5 pedras')
-      await eq.locator('[data-acao="dev-set"]').click()
+      await eq.selectOption('#dev-conjunto', 'sol')
+      await eq.selectOption('#dev-rpeca', 'lendario')
+      await eq.selectOption('#dev-melhoria', '0')
+      await eq.setChecked('#dev-equipar', true)
+      await eq.locator('[data-acao="dev-conjunto"]').click()
+      await devFechar(eq)
       s = await st()
       if (s.items.length !== 7) problems.push('equipamento: dev-set deixou ' + s.items.length + ' peças (esperado 7)')
       const ids = GR.SLOTS.map((sl) => { const it = itemOf(s, s.mounts[0].equip[sl]); return it ? it.id : null })
@@ -816,10 +850,10 @@ try {
       if (JSON.stringify(s.mounts[0].equip) !== JSON.stringify(antes.mounts[0].equip) || itemOf(s, 'i1').plus !== itemOf(antes, 'i1').plus || s.items.length !== 7) {
         problems.push('equipamento: não persistiu ' + JSON.stringify({ equip: s.mounts[0].equip, plus: itemOf(s, 'i1').plus }))
       }
-      // 8b. painel dev inteiro acima da barra de abas; a aba ainda responde com o painel presente
-      const devBox = await eq.locator('.dev-painel').boundingBox()
+      // 8b. botão DEV inteiro acima da barra de abas; a aba ainda responde com o botão presente
+      const devBox = await eq.locator('.dev-botao').boundingBox()
       const abasBox = await eq.locator('.app-abas').boundingBox()
-      if (!devBox || !abasBox || devBox.y + devBox.height > abasBox.y + 1) problems.push('menu: painel dev cobre a barra ' + JSON.stringify({ devBox, abasBox }))
+      if (!devBox || !abasBox || devBox.y + devBox.height > abasBox.y + 1) problems.push('menu: botão DEV cobre a barra ' + JSON.stringify({ devBox, abasBox }))
       await eq.locator('[data-acao="aba"][data-id="loja"]').click()
       await eq.waitForSelector('#t-loja', { timeout: 5000 })
       await eq.locator('[data-acao="aba"][data-id="estabulo"]').click()
@@ -829,12 +863,12 @@ try {
       await eq.waitForSelector('#t-correr')
       await eq.getByRole('button', { name: 'Procurar corrida' }).click()
       await eq.waitForSelector('#t-largada')
-      // 9a. na largada (tela cheia, no topo) o painel dev não cobre o "Largar!"
+      // 9a. na largada (tela cheia, no topo) o botão DEV não cobre o "Largar!"
       {
         const lb = await eq.locator('.barra-acao .btn').boundingBox()
-        const db = await eq.locator('.dev-painel').boundingBox()
+        const db = await eq.locator('.dev-botao').boundingBox()
         const cruza = lb && db && lb.x < db.x + db.width && db.x < lb.x + lb.width && lb.y < db.y + db.height && db.y < lb.y + lb.height
-        if (!lb || !db || cruza) problems.push('equipamento: painel dev cobre o "Largar!" na largada ' + JSON.stringify({ lb, db }))
+        if (!lb || !db || cruza) problems.push('equipamento: botão DEV cobre o "Largar!" na largada ' + JSON.stringify({ lb, db }))
       }
       await eq.locator('[data-acao="voltar"]').first().click()
       await eq.waitForSelector('#t-correr')
@@ -899,6 +933,146 @@ try {
       problems.push('equipamento: ' + e.message)
     }
     await eq.context().close()
+  }
+
+  // ---------------- modo DEV: save separado, Ouro infinito, cavalo, peça e corrida forçada ----------------
+  {
+    // save real conhecido (v2) já gravado antes de a página carregar; uma espia anota toda chave que a página
+    // lê, grava ou apaga no localStorage (instalada depois da gravação, a cada carga; o teste lê pelo
+    // getItem original, __lsGet, para não entrar no registro)
+    const REAL = JSON.stringify({ v: 2, starterId: 'mare', level: 7, xp: 10, skills: ['mare-alta'], gold: 777, races: 3, wins: 1, podiums: 2, goldWon: 300, seedBase: 4242, raceCounter: 3 })
+    const init = { content: `(() => {
+      try { if (localStorage.getItem('galope-elemental:v1') === null) localStorage.setItem('galope-elemental:v1', ${JSON.stringify(REAL)}) } catch (e) {}
+      const log = window.__acessos = []
+      window.__lsGet = Storage.prototype.getItem
+      for (const fn of ['getItem', 'setItem', 'removeItem']) {
+        const orig = Storage.prototype[fn]
+        Storage.prototype[fn] = function (k) { log.push(fn + ':' + k); return orig.apply(this, arguments) }
+      }
+    })()` }
+    const dv = await newPage(browser, { width: 360, height: 780 }, 'dev', { query: '?dev=1', init })
+    const st = () => dv.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    const armazenado = (pg) => pg.evaluate(() => {
+      const get = window.__lsGet   // leitura do teste fora da espia: não entra no __acessos
+      return { real: get.call(localStorage, 'galope-elemental:v1'), dev: get.call(localStorage, 'galope-elemental:dev'), acessos: window.__acessos.slice() }
+    })
+    const conferirReal = async (quando, pg = dv) => {
+      const a = await armazenado(pg)
+      if (a.real !== REAL) problems.push('dev: save real mudou (' + quando + '): ' + a.real)
+      if (a.acessos.some((x) => /galope-elemental:v1$/.test(x))) problems.push('dev: a página tocou no save real (' + quando + '): ' + a.acessos.join(', '))
+      if (!a.dev || !a.acessos.some((x) => /:galope-elemental:dev$/.test(x))) problems.push('dev: save galope-elemental:dev ausente ou não usado (' + quando + ')')
+      return a
+    }
+    try {
+      // 1. perfil novo nasce com a Brasa, sem a escolha inicial; faixa e botão; Ouro infinito
+      await dv.waitForSelector('#t-estabulo', { timeout: 5000 })
+      let s = await st()
+      if (s.mounts.length !== 1 || s.mounts[0].templateId !== 'brasa' || s.gold !== 999999) problems.push('dev: perfil novo ' + JSON.stringify({ n: s.mounts.length, t: s.mounts[0].templateId, gold: s.gold }))
+      if (((await dv.locator('.dev-faixa').textContent()) || '').trim() !== 'MODO DEV — save de teste') problems.push('dev: faixa sem "MODO DEV — save de teste"')
+      if ((await dv.locator('.dev-painel').count()) !== 1 || (await dv.locator('.dev-botao').count()) !== 1) problems.push('dev: sem .dev-painel/.dev-botao')
+      // 2. gaveta em 360 px: sem rolagem horizontal na página nem dentro da gaveta
+      await devAbrir(dv)
+      await checkOverflow(dv, 'dev-gaveta')
+      const gv = await dv.evaluate(() => { const g = document.querySelector('.dev-gaveta'); return { sw: g.scrollWidth, cw: g.clientWidth } })
+      if (gv.sw > gv.cw) problems.push('dev: gaveta com rolagem horizontal ' + JSON.stringify(gv))
+      for (const g of ['moedas', 'cavalo', 'itens', 'corrida', 'perfil']) if ((await dv.locator('#dev-g-' + g).count()) !== 1) problems.push('dev: gaveta sem o grupo ' + g)
+      // 3. cavalo Mítico de Água nível 30 com 2 skills (uma exclusiva de outro elemento: o perfil DEV aceita)
+      await dv.fill('#dev-nome', 'Teste DEV')
+      await dv.selectOption('#dev-elemento', 'agua')
+      await dv.selectOption('#dev-raridade', 'mitico')
+      await dv.fill('#dev-nivel', '30')
+      const skillsDev = ['pe-na-chuva', 'labareda', '', '', '']
+      for (let k = 0; k < 5; k++) await dv.selectOption('#dev-skill' + k, skillsDev[k])
+      await dv.locator('[data-acao="dev-criar"]').click()
+      s = await st()
+      const novo = s.mounts.find((m) => m.uid === s.activeId)
+      if (s.mounts.length !== 2 || !novo || novo.uid !== 'm2' || novo.templateId !== 'dev-2' || novo.name !== 'Teste DEV' || novo.element !== 'agua' || novo.rarity !== 'mitico' || novo.level !== 30 || JSON.stringify(novo.skills) !== '["pe-na-chuva","labareda"]') {
+        problems.push('dev: cavalo criado ' + JSON.stringify(novo))
+      }
+      await devFechar(dv)
+      await dv.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await dv.waitForSelector('#t-estabulo')
+      const card = ((await dv.locator('.montaria--ativa').textContent()) || '').replace(/\s+/g, ' ')
+      if (!/Teste DEV/.test(card) || !/Mítico/i.test(card) || !/Nv 30/.test(card) || !/Água/.test(card)) problems.push('dev: estábulo sem o cavalo criado: ' + card)
+      // 4. peça Lendária +7 (Armadura da Chuva) no inventário
+      await devAbrir(dv)
+      await dv.selectOption('#dev-slot', 'armadura')
+      await dv.selectOption('#dev-conjunto', 'chuva')
+      await dv.selectOption('#dev-rpeca', 'lendario')
+      await dv.selectOption('#dev-melhoria', '7')
+      await dv.setChecked('#dev-equipar', false)
+      await dv.locator('[data-acao="dev-peca"]').click()
+      s = await st()
+      const peca = s.items[s.items.length - 1]
+      if (!peca || peca.id !== 'armadura-chuva-lendario' || peca.plus !== 7) problems.push('dev: peça dada ' + JSON.stringify(peca))
+      await devFechar(dv)
+      await dv.locator(`button[data-acao="montaria"][data-id="${s.activeId}"]`).click()
+      await dv.waitForSelector('#t-montaria')
+      await dv.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+      await dv.locator('[data-acao="equip-slot"][data-id="armadura"]').click()
+      if (!peca || (await dv.locator(`[data-acao="equipar"][data-id="${peca.uid}"]`).count()) !== 1) problems.push('dev: a peça Lendária não aparece no inventário da Armadura')
+      if (!/Armadura da Chuva/.test((await dv.locator('#tela').textContent()) || '')) problems.push('dev: inventário sem "Armadura da Chuva"')
+      // 5. próxima corrida: clima Névoa, vento brisa ←, seed fixa e skills sempre ativam
+      await devArmar(dv, { clima: 'nevoa', vento: 'brisa', direcao: -1, seed: 4321, sempre: true })
+      const nx = await dv.evaluate(() => window.__galope.ui.devNext)
+      if (JSON.stringify(nx) !== JSON.stringify({ seed: 4321, cond: { weather: 'nevoa' }, wind: { intensity: 'brisa', dir: -1 }, skillsAlways: true })) problems.push('dev: devNext ' + JSON.stringify(nx))
+      if ((await dv.locator('.dev-botao--armado').count()) !== 1) problems.push('dev: botão DEV sem a marca de armado')
+      await dv.locator('[data-acao="aba"][data-id="correr"]').click()
+      await dv.waitForSelector('#t-correr')
+      await dv.getByRole('button', { name: 'Procurar corrida' }).click()
+      await dv.waitForSelector('#t-largada')
+      const sala = await dv.evaluate(() => { const L = window.__galope.ui.lobby; return { seed: L.seed, weather: L.cond.weather, dev: L.dev, sim: !!L.sim, gold: window.__galope.state.gold } })
+      if (sala.seed !== 4321 || sala.weather !== 'nevoa' || sala.sim || JSON.stringify(sala.dev) !== JSON.stringify({ wind: { intensity: 'brisa', dir: -1 }, skillsAlways: true })) problems.push('dev: sala ' + JSON.stringify(sala))
+      if (!/Clima inicial\s*Névoa/.test((await dv.locator('[aria-label="Condições da pista"] .chips').textContent()) || '')) problems.push('dev: a sala não mostra o clima Névoa')
+      await dv.getByRole('button', { name: /^Largar/ }).click()
+      await dv.waitForSelector('#pista')
+      const corrida = await dv.evaluate(() => {
+        const L = window.__galope.ui.lobby
+        return { weather: L.sim.conditions.weather, clima: document.getElementById('clima-atual').textContent, devNext: window.__galope.ui.devNext,
+          labareda: L.sim.events.some((e) => e.type === 'skill' && e.racer === L.playerIdx && /Labareda/.test(e.text)) }
+      })
+      if (corrida.weather !== 'nevoa' || !/Névoa/.test(corrida.clima)) problems.push('dev: clima da corrida ' + JSON.stringify(corrida))
+      if (!corrida.labareda) problems.push('dev: com "skills sempre ativam" a Labareda (gatilho de largada) não ativou')
+      if (corrida.devNext !== null) problems.push('dev: devNext não foi limpo depois da corrida')
+      await dv.getByRole('button', { name: /Pular/ }).click()
+      await dv.waitForSelector('#t-resultado')
+      // 6. depois de pagar a entrada, o Ouro volta a 999 999 (acima disso só se o prêmio passar da entrada)
+      const pago = await dv.evaluate(() => ({ gold: window.__galope.state.gold, fee: window.__galope.ui.result.fee, prize: window.__galope.ui.result.prize }))
+      if (pago.fee <= 0 || pago.gold !== Math.max(999999, 999999 - pago.fee + pago.prize)) problems.push('dev: Ouro depois da corrida ' + JSON.stringify(pago))
+      if ((await dv.locator('.dev-botao--armado').count()) !== 0) problems.push('dev: botão DEV continua armado depois da corrida')
+      notes.dev = pago
+      await conferirReal('depois da corrida')
+      // 7. o save DEV gravado abre de novo com o cavalo DEV (template dev-2, skill exclusiva de outro elemento)
+      //    e a peça. Numa página nova que já começa com esse save: neste Chromium o localStorage de file://
+      //    às vezes some num reload (acontece também sem o modo DEV), e o caminho de carga é o mesmo.
+      const salvo = (await armazenado(dv)).dev
+      const dv2 = await dv.context().newPage()
+      dv2.on('pageerror', (e) => problems.push('[dev-2] pageerror: ' + e.message))
+      await dv2.addInitScript({ content: `try { localStorage.setItem('galope-elemental:dev', ${JSON.stringify(salvo)}) } catch (e) {}` })
+      await dv2.addInitScript(init)
+      await dv2.goto(URL + '?dev=1', { waitUntil: 'domcontentloaded' })
+      await dv2.waitForSelector('#t-estabulo')
+      s = await dv2.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+      const m2 = s.mounts.find((m) => m.uid === 'm2')
+      if (!m2 || m2.level !== 30 || m2.templateId !== 'dev-2' || JSON.stringify(m2.skills) !== '["pe-na-chuva","labareda"]' || s.activeId !== 'm2') problems.push('dev: cavalo DEV ao abrir o save de novo ' + JSON.stringify(m2))
+      if (!s.items.some((it) => it.id === 'armadura-chuva-lendario' && it.plus === 7)) problems.push('dev: peça Lendária sumiu ao abrir o save de novo')
+      if (s.rev !== JSON.parse(salvo).rev) problems.push('dev: abrir o save DEV de novo gravou por cima (rev ' + s.rev + ')')
+      await conferirReal('ao abrir o save de novo', dv2)
+      await dv2.close()
+      // 8. "Voltar ao jogo real" aponta para a página sem dev=1; "Zerar perfil" (com confirmação) volta à Brasa
+      await devAbrir(dv)
+      const href = await dv.locator('.dev-real').getAttribute('href')
+      if (!href || /dev=1/.test(href) || !/preview\.html/.test(href)) problems.push('dev: "Voltar ao jogo real" com href ' + href)
+      dv.once('dialog', (d) => d.accept())
+      await dv.locator('[data-acao="dev-zerar"]').click()
+      await dv.waitForSelector('#t-estabulo')
+      s = await st()
+      if (s.mounts.length !== 1 || s.mounts[0].templateId !== 'brasa' || s.items.length !== 2 || s.gold !== 999999) problems.push('dev: zerar perfil ' + JSON.stringify({ n: s.mounts.length, t: s.mounts[0].templateId, itens: s.items.length, gold: s.gold }))
+      await conferirReal('depois de zerar')
+    } catch (e) {
+      problems.push('dev: ' + e.message)
+    }
+    await dv.context().close()
   }
 
   // ---------------- loja: abas, comprar (com recusa sem Ouro), Pedras Negras e resumo na largada ----------------

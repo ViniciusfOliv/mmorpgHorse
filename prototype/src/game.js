@@ -2,7 +2,7 @@
  * Galope Elemental — interface jogável do protótipo (descartável).
  *
  * Depende de window.GameData (data.js), window.RaceSim (sim.js), window.Gear (gear.js) e
- * window.Sprites (sprites.js).
+ * window.Sprites (sprites.js); com ?dev=1, também de window.Dev (dev.js) — ver a seção "Modo DEV".
  * Fluxo: Escolha do inicial -> Estábulo -> Sala de largada -> Corrida -> Resultado.
  *
  * Sala de largada: o campo (seed, condições, rivais, entrada) é sorteado UMA vez e fica salvo em
@@ -17,18 +17,21 @@
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, DV = window.Dev;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
-  if (!GD || !RS || !SP || !GR || !telaEl) {
-    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js ou sprites.js).';
+  // Modo DEV: decidido uma vez, na carga. Com ?dev=1 o jogo só lê e grava o save de teste.
+  var DEV_MODE = /[?&]dev=1(&|$)/.test(window.location.search);
+  if (!GD || !RS || !SP || !GR || !telaEl || (DEV_MODE && !DV)) {
+    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, sprites.js ou dev.js).';
     return;
   }
 
   // ===========================================================================
   // Constantes
   // ===========================================================================
-  var SAVE_KEY = 'galope-elemental:v1';
+  // ?dev=1: só o save de teste (Dev.SAVE_KEY); o real ('galope-elemental:v1') não é lido nem gravado
+  var SAVE_KEY = DEV_MODE ? DV.SAVE_KEY : 'galope-elemental:v1';
   var E = GD.ECONOMY;
   var GE = E.gear;
   var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
@@ -195,6 +198,7 @@
   }
   function persist() {
     if (!state) return;
+    if (DEV_MODE && ui.dev.ouroInf) DV.refillGold(state);   // Ouro infinito do perfil DEV: repõe depois de cada gasto
     var sr = storedRev();
     if (sr > state.rev) { adoptExternal(loadSave()); return; }   // outra aba gravou depois: não sobrescreve
     state.rev = Math.max(state.rev, sr) + 1;
@@ -335,7 +339,7 @@
     if (m.sex !== 'm' && m.sex !== 'f') return null;
     var templateId = null;
     if (m.templateId != null) {
-      if (typeof m.templateId !== 'string' || !horseById(m.templateId)) return null;
+      if (typeof m.templateId !== 'string' || !(horseById(m.templateId) || devTemplateId(m.templateId))) return null;
       templateId = m.templateId;
     }
     var base = statBlock(m.base, 1, 100), potential = statBlock(m.potential, 0, 31);
@@ -397,7 +401,8 @@
       if (!mounts.length) { mounts.push(instanceFromTemplate(GD.STARTERS[0], 'm1')); maxUid = 1; }
       activeId = mounts.some(function (m) { return m.uid === s.activeId; }) ? s.activeId : mounts[0].uid;
       nextUid = Math.max(num(s.nextUid, 0, 0, 1e9), maxUid + 1);
-      stableSlots = clamp(num(s.stableSlots, start, 0, 1e9), Math.max(start, mounts.length), max);
+      // perfil DEV: o painel cria cavalos sem limite de vagas (o estábulo cresce junto)
+      stableSlots = clamp(num(s.stableSlots, start, 0, 1e9), Math.max(start, mounts.length), DEV_MODE ? Math.max(max, mounts.length) : max);
       breedCounter = num(s.breedCounter, 0, 0, 1e9);
     }
     var base = newState(GD.STARTERS[0].id);
@@ -489,6 +494,7 @@
   // Skills salvas de uma montaria: só ids que ela pode ter (mesmas regras do RaceSim.learnSkill:
   // elemento dela ou neutro; exclusiva só do template dono), sem repetir, até o nº de vagas da raridade.
   // Ausente/vazio/inválido -> as skills de nascença do template (potro sem template: nenhuma).
+  // Perfil DEV: qualquer skill do catálogo (o painel dá exclusivas e de outro elemento), ainda até as vagas.
   function validSkills(list, mount) {
     var st = mount.templateId ? horseById(mount.templateId) : null;
     var slots = (GD.RARITIES[mount.rarity] || GD.RARITIES.comum).skillSlots;
@@ -497,8 +503,10 @@
       list.forEach(function (id) {
         var sk = typeof id === 'string' && hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
         if (!sk || out.indexOf(id) >= 0 || out.length >= slots) return;
-        if (sk.exclusive && sk.exclusive !== mount.templateId) return;
-        if (sk.element !== 'neutro' && sk.element !== mount.element) return;
+        if (!DEV_MODE) {
+          if (sk.exclusive && sk.exclusive !== mount.templateId) return;
+          if (sk.element !== 'neutro' && sk.element !== mount.element) return;
+        }
         out.push(id);
       });
     }
@@ -565,7 +573,9 @@
   // Estado de UI (não persistido)
   // ===========================================================================
   var state = null;
-  var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null, montaria: null, tab: 'estabulo' };
+  var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null, montaria: null, tab: 'estabulo',
+    // modo DEV (só com ?dev=1): gaveta e valores armados para a próxima corrida (ver a seção "Modo DEV")
+    dev: { aberto: false, ouroInf: true, msg: '', f: null }, devNext: null };
   var live = [];          // canvases animados da tela atual
   var raceView = null;
   var portraitQueue = [];
@@ -573,6 +583,7 @@
   // Outra aba gravou um save mais novo: adota e volta para um ponto seguro.
   function adoptExternal(raw) {
     var s = sanitize(raw);
+    if (!s && DEV_MODE) s = devNovoPerfil();   // perfil DEV apagado em outra aba: nasce de novo com a Brasa
     if (!s) {
       state = null; ui.lobby = null; ui.result = null;
       go('inicial');
@@ -794,8 +805,421 @@
     syncHistory(screen);
   }
 
-  function devAtivo() {
-    return /[?&]dev=1(&|$)/.test(window.location.search);
+  // ===========================================================================
+  // Modo DEV (?dev=1): perfil de teste, faixa no topo, botão "DEV" e gaveta
+  // ---------------------------------------------------------------------------
+  // - Save: SAVE_KEY = Dev.SAVE_KEY ('galope-elemental:dev'); o save real nunca é lido nem gravado.
+  //   Perfil novo (ou apagado) nasce com a Brasa, sem a escolha inicial (devNovoPerfil).
+  // - Ouro infinito (ui.dev.ouroInf, ligado por padrão): persist() chama Dev.refillGold.
+  // - O painel cria cavalos fora das regras: sanitize aceita o templateId 'dev-<n>' e qualquer skill
+  //   do catálogo (devTemplateId, validSkills); o estábulo cresce sem limite de vagas.
+  // - Próxima corrida: ui.devNext = { seed, cond, wind, skillsAlways } (cond = filtro de Dev.conditions,
+  //   sem a sala; null = nada armado). buildLobby aplica seed e condições e grava L.dev = { wind,
+  //   skillsAlways } para a tela da corrida; settle passa skillsAlways ao RaceSim e limpa ui.devNext.
+  // - A gaveta mora em #dev (fora de #tela): re-renderizar a tela não perde a rolagem dela; os campos
+  //   ficam em ui.dev.f (lidos do DOM a cada mudança e antes de cada ação).
+  // As funções puras (cavalo, peça, condições, vento, seed, Ouro) estão em dev.js.
+  // ===========================================================================
+  var DEV_SKILL_VAGAS = 5;   // selects de skill na gaveta (o máximo de vagas, Mítico)
+  var devEl = null;
+  if (DEV_MODE) {
+    devEl = document.createElement('div');
+    devEl.className = 'dev-painel';
+    devEl.id = 'dev';
+    devEl.setAttribute('role', 'region');
+    devEl.setAttribute('aria-label', 'Modo DEV');
+    (appEl || document.body).appendChild(devEl);
+  }
+
+  function devTemplateId(id) { return DEV_MODE && /^dev-\d{1,9}$/.test(String(id)); }
+
+  // perfil de teste novo: a Brasa (com o Ouro infinito já aplicado); quem chama decide se grava
+  function devNovoPerfil() {
+    var st = newState('brasa');
+    if (ui.dev.ouroInf) DV.refillGold(st);
+    return st;
+  }
+
+  // condições da sala com o filtro do painel por cima; o que não foi forçado segue a sala normal
+  function devCondicoes(f, base, seed) {
+    var forced = DV.conditions(f, base), c = {}, k;
+    for (k in base) if (hasOwn(base, k)) c[k] = base[k];
+    for (k in forced) if (hasOwn(forced, k)) c[k] = forced[k];
+    return RS.normalizeConditions(c, seed);
+  }
+
+  // cavalos prontos que o painel copia: os iniciais e os aluguéis do Haras
+  function devProntos() {
+    return GD.STARTERS.concat(GD.WILD_HORSES.filter(function (h) { return h.rarity !== 'mitico' && BRD.rentalPrice(h) != null; }));
+  }
+
+  // campos da gaveta (strings, como no DOM; checkboxes como booleanos)
+  function devForm() {
+    if (!ui.dev.f) {
+      ui.dev.f = {
+        pedras: null, copiar: GD.STARTERS[0].id,
+        slot: GR.SLOTS[0], conjunto: 'sol', rpeca: 'lendario', melhoria: '0', equipar: false,
+        clima: '', piso: '', distancia: '', tracado: 'normal', blocos: '', vento: '', direcao: '1', seed: '', sempre: false
+      };
+      devCavaloDaAtiva();
+    }
+    return ui.dev.f;
+  }
+  // o grupo Cavalo mostra a ativa (ao abrir, depois de criar/copiar/aplicar e em "Carregar a ativa")
+  function devCavaloDaAtiva() {
+    var f = ui.dev.f, a = activeMount();
+    var pal = a.palette || DV.horseTemplate({ element: a.element }).palette;
+    f.nome = a.name; f.elemento = a.element; f.raridade = a.rarity; f.sexo = a.sex;
+    f.nivel = String(a.level); f.potencial = 'max';
+    for (var i = 0; i < DEV_SKILL_VAGAS; i++) f['skill' + i] = a.skills[i] || '';
+    f.coat = pal.coat.toLowerCase(); f.coatshade = pal.coatShade.toLowerCase();
+    f.mane = pal.mane.toLowerCase(); f.accent = pal.accent.toLowerCase();
+  }
+  function devLerCampos() {
+    var f = devForm();
+    if (!devEl) return f;
+    Array.prototype.forEach.call(devEl.querySelectorAll('[data-dev-campo]'), function (el) {
+      var k = el.getAttribute('data-dev-campo');
+      if (k !== 'ouroinf') f[k] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+    return f;
+  }
+  function devCavaloEscolhido(f) {
+    var skills = [];
+    for (var i = 0; i < DEV_SKILL_VAGAS; i++) if (f['skill' + i]) skills.push(f['skill' + i]);
+    return {
+      name: f.nome, element: f.elemento, rarity: f.raridade, sex: f.sexo,
+      potential: f.potencial === 'max' ? 'max' : Number(f.potencial), skills: skills,
+      palette: { coat: f.coat, coatShade: f.coatshade, mane: f.mane, accent: f.accent }
+    };
+  }
+  function devNivel(f) { return clamp(Math.floor(Number(f.nivel)) || 1, 1, MAX_LEVEL); }
+  function devDescreveCavalo(m) {
+    return m.name + ' (' + GD.RARITIES[m.rarity].name + ', ' + GD.ELEMENTS[m.element].name + ', Nv ' + m.level + ')';
+  }
+
+  // entra no estábulo (sem limite de vagas no perfil DEV) e vira a ativa
+  function devAdicionaCavalo(m) {
+    state.mounts.push(m);
+    state.stableSlots = Math.max(state.stableSlots, state.mounts.length);
+    state.activeId = m.uid;
+  }
+
+  // "Próxima corrida": filtro dos campos -> ui.devNext (ou null se nada foi pedido)
+  function devArmar(f) {
+    var cond = {}, erros = [];
+    if (f.clima) cond.weather = f.clima;
+    if (f.piso) cond.surface = f.piso;
+    if (f.distancia) cond.distance = Number(f.distancia);
+    if (f.tracado === 'curvas' || f.tracado === 'subidas') cond.tracado = f.tracado;
+    else if (f.tracado === 'lista') {
+      var lista = String(f.blocos || '').toLowerCase().split(/[\s,;]+/).filter(Boolean);
+      if (DV.conditions({ tracado: lista }).blocks) cond.tracado = lista;
+      else erros.push('lista de blocos inválida (use reta, curva e subida, até 12)');
+    }
+    var seed = DV.parseSeed(f.seed);
+    if (seed == null && String(f.seed || '').trim()) erros.push('seed inválida (inteiro de 0 a 4294967295)');
+    var wind = f.vento ? DV.wind({ intensity: f.vento, dir: Number(f.direcao) }) : null;
+    var hasCond = false;
+    for (var k in cond) if (hasOwn(cond, k)) hasCond = true;
+    var dv = (hasCond || seed != null || wind || f.sempre)
+      ? { seed: seed, cond: hasCond ? cond : null, wind: wind, skillsAlways: !!f.sempre } : null;
+    return { next: dv, erros: erros };
+  }
+  function devResumoArmado(dv) {
+    if (!dv) return 'Nada armado: a próxima sala segue o normal.';
+    var p = [], c = dv.cond || {};
+    if (c.weather) p.push('clima ' + GD.WEATHERS[c.weather].name);
+    if (c.surface) p.push('piso ' + GD.SURFACES[c.surface].name);
+    if (c.distance) p.push(DV.conditions({ distance: c.distance }).distance + ' m');
+    if (c.tracado === 'curvas') p.push('mais curvas');
+    else if (c.tracado === 'subidas') p.push('mais subidas');
+    else if (Array.isArray(c.tracado)) p.push('blocos ' + c.tracado.join(' '));
+    if (dv.wind) p.push('vento ' + dv.wind.intensity + (dv.wind.dir > 0 ? ' →' : ' ←'));
+    if (dv.seed != null) p.push('seed ' + dv.seed);
+    if (dv.skillsAlways) p.push('skills sempre ativam');
+    return 'Armado para a próxima corrida: ' + p.join(' · ') + '.';
+  }
+  // a sala aberta na tela reflete o que acabou de ser armado (o resultado ainda não existe)
+  function devAtualizaSala() {
+    if (ui.screen === 'largada' && ui.lobby && !ui.lobby.sim && state.pending) ui.lobby = buildLobby(state.pending);
+  }
+
+  // ---- HTML da gaveta ----
+  function devOpcoes(list, sel) {
+    return list.map(function (o) {
+      return '<option value="' + esc(o[0]) + '"' + (String(o[0]) === String(sel) ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+    }).join('');
+  }
+  function devSelect(campo, rotulo, list, sel) {
+    return '<label class="dev-campo" for="dev-' + campo + '"><span class="rotulo">' + esc(rotulo) + '</span>' +
+      '<select id="dev-' + campo + '" data-dev-campo="' + campo + '">' + devOpcoes(list, sel) + '</select></label>';
+  }
+  function devEntrada(campo, rotulo, attrs, val) {
+    return '<label class="dev-campo" for="dev-' + campo + '"><span class="rotulo">' + esc(rotulo) + '</span>' +
+      '<input id="dev-' + campo + '" data-dev-campo="' + campo + '" ' + attrs + ' value="' + esc(val == null ? '' : val) + '"></label>';
+  }
+  function devCheck(campo, rotulo, on) {
+    return '<label class="dev-check" for="dev-' + campo + '"><input type="checkbox" id="dev-' + campo + '" data-dev-campo="' + campo + '"' +
+      (on ? ' checked' : '') + '><span>' + esc(rotulo) + '</span></label>';
+  }
+  function devBotao(acao, texto, cls) {
+    return '<button type="button" class="btn btn--pequeno' + (cls ? ' ' + cls : '') + '" data-acao="' + acao + '">' + esc(texto) + '</button>';
+  }
+  function devGrupo(id, titulo, corpo) {
+    return '<section class="caixa dev-grupo" aria-labelledby="dev-g-' + id + '"><h3 class="titulo" id="dev-g-' + id + '">' + esc(titulo) + '</h3>' + corpo + '</section>';
+  }
+  function devListaDe(obj, nome) {
+    return Object.keys(obj).map(function (k) { return [k, nome ? nome(obj[k]) : obj[k].name]; });
+  }
+
+  function devGavetaHtml() {
+    var f = devForm();
+    var nomeDe = function (o) { return o.name; };
+    var elementos = devListaDe(GD.ELEMENTS, nomeDe), raridades = devListaDe(GD.RARITIES, nomeDe);
+    var vagas = GD.RARITIES[f.raridade] ? GD.RARITIES[f.raridade].skillSlots : 1;
+    var potenciais = [['max', 'Máximo (31)']];
+    for (var pv = 31; pv >= 0; pv--) potenciais.push([String(pv), String(pv)]);
+    var skillOpts = [['', '— vazia —']].concat(Object.keys(GD.SKILLS).map(function (id) {
+      var sk = GD.SKILLS[id];
+      return [id, sk.name + ' · ' + GD.ELEMENTS[sk.element].name + (sk.exclusive ? ' · exclusiva' : '')];
+    }));
+    var skillSel = '';
+    for (var i = 0; i < DEV_SKILL_VAGAS; i++) skillSel += devSelect('skill' + i, 'Skill ' + (i + 1), skillOpts, f['skill' + i]);
+    var prontos = devProntos().map(function (h) {
+      return [h.id, h.name + ' (' + GD.RARITIES[h.rarity].name + ', ' + GD.ELEMENTS[h.element].name + ', Nv ' + (h.level || 1) + ')'];
+    });
+    var raridadesPeca = Object.keys(GE.price).map(function (r) { return [r, GD.RARITIES[r].name]; });
+    var melhorias = [];
+    for (var mv = 0; mv <= GE.plusMax; mv++) melhorias.push([String(mv), '+' + mv]);
+    var distancias = [['', '— da sala —']];
+    for (var dd = 1000; dd <= 2400; dd += 100) distancias.push([String(dd), dd + ' m']);
+
+    var moedas = devGrupo('moedas', 'Moedas',
+      devCheck('ouroinf', 'Ouro infinito (volta a ' + fmt(DV.GOLD_INF) + ' depois de cada gasto)', ui.dev.ouroInf) +
+      '<div class="dev-campos">' + devEntrada('pedras', 'Pedras Negras', 'type="number" min="0" max="1000000" inputmode="numeric"', f.pedras != null ? f.pedras : state.pedras) +
+        '<div class="dev-acoes dev-acoes--base">' + devBotao('dev-pedras', 'Definir Pedras') + '</div></div>' +
+      '<div class="dev-acoes">' + devBotao('dev-ouro', '+' + fmt(1000) + ' Ouro') + '</div>');
+
+    var cavalo = devGrupo('cavalo', 'Cavalo',
+      '<p class="nota">Cria um cavalo novo (entra no estábulo sem limite de vagas e vira a ativa) ou substitui a ativa (status, skills e cores; mantém equipamento e cruzas).</p>' +
+      '<div class="dev-campos dev-campos--1">' + devEntrada('nome', 'Nome', 'type="text" maxlength="16" autocomplete="off"', f.nome) + '</div>' +
+      '<div class="dev-campos">' +
+        devSelect('elemento', 'Elemento', elementos, f.elemento) + devSelect('raridade', 'Raridade', raridades, f.raridade) +
+        devSelect('sexo', 'Sexo', [['m', '♂ Macho'], ['f', '♀ Fêmea']], f.sexo) +
+        devEntrada('nivel', 'Nível (1–' + MAX_LEVEL + ')', 'type="number" min="1" max="' + MAX_LEVEL + '" inputmode="numeric"', f.nivel) +
+        devSelect('potencial', 'Potencial', potenciais, f.potencial) +
+      '</div>' +
+      '<p class="nota">Skills: qualquer uma do catálogo; ' + GD.RARITIES[f.raridade in GD.RARITIES ? f.raridade : 'comum'].name + ' usa até ' + vagas + '.</p>' +
+      '<div class="dev-campos dev-campos--1">' + skillSel + '</div>' +
+      '<div class="dev-campos dev-campos--4">' +
+        devEntrada('coat', 'Pelagem', 'type="color"', f.coat) + devEntrada('coatshade', 'Sombra', 'type="color"', f.coatshade) +
+        devEntrada('mane', 'Crina', 'type="color"', f.mane) + devEntrada('accent', 'Detalhe', 'type="color"', f.accent) +
+      '</div>' +
+      '<div class="dev-acoes">' + devBotao('dev-criar', 'Criar cavalo', 'btn--ouro') + devBotao('dev-aplicar', 'Aplicar na ativa') + devBotao('dev-carregar', 'Carregar a ativa') + '</div>' +
+      '<div class="dev-campos dev-campos--1">' + devSelect('copiar', 'Copiar cavalo pronto (iniciais e aluguéis do Haras)', prontos, f.copiar) + '</div>' +
+      '<div class="dev-acoes">' + devBotao('dev-copiar', 'Copiar para o estábulo') + devBotao('dev-niveis', '+10 níveis (ativa)') + devBotao('dev-cruz', '+1 cruzamento (ativa)') + '</div>');
+
+    var itens = devGrupo('itens', 'Itens',
+      '<p class="nota">Qualquer peça do catálogo, inclusive Lendária (só no perfil DEV). Comum e Mágico são peças soltas; Raro e Lendário usam o conjunto.</p>' +
+      '<div class="dev-campos">' +
+        devSelect('slot', 'Slot', GR.SLOTS.map(function (sl) { return [sl, GD.GEAR_SLOT_INFO[sl].name]; }), f.slot) +
+        devSelect('conjunto', 'Conjunto', devListaDe(GD.GEAR_SETS, nomeDe), f.conjunto) +
+        devSelect('rpeca', 'Raridade', raridadesPeca, f.rpeca) + devSelect('melhoria', 'Melhoria', melhorias, f.melhoria) +
+      '</div>' + devCheck('equipar', 'Equipar na ativa', f.equipar) +
+      '<div class="dev-acoes">' + devBotao('dev-peca', 'Dar peça') + devBotao('dev-conjunto', 'Conjunto completo (5 peças)') + '</div>');
+
+    var corrida = devGrupo('corrida', 'Próxima corrida',
+      '<p class="nota">Vale só para a próxima corrida; campo vazio segue a sala normal.</p>' +
+      '<div class="dev-campos">' +
+        devSelect('clima', 'Clima inicial', [['', '— da sala —']].concat(devListaDe(GD.WEATHERS, nomeDe)), f.clima) +
+        devSelect('piso', 'Piso', [['', '— da sala —']].concat(devListaDe(GD.SURFACES, nomeDe)), f.piso) +
+        devSelect('distancia', 'Distância', distancias, f.distancia) +
+        devSelect('tracado', 'Traçado', [['normal', 'Da sala'], ['curvas', 'Mais curvas'], ['subidas', 'Mais subidas'], ['lista', 'Lista de blocos']], f.tracado) +
+      '</div>' +
+      '<div class="dev-campos dev-campos--1">' + devEntrada('blocos', 'Lista de blocos (traçado "Lista")', 'type="text" autocomplete="off" placeholder="reta curva subida reta"', f.blocos) + '</div>' +
+      '<div class="dev-campos">' +
+        devSelect('vento', 'Vento', [['', '— sorteado —']].concat(DV.WIND_INTENSITIES.map(function (w) { return [w, w.charAt(0).toUpperCase() + w.slice(1)]; })), f.vento) +
+        devSelect('direcao', 'Direção do vento', [['1', '→ Direita'], ['-1', '← Esquerda']], f.direcao) +
+        devEntrada('seed', 'Seed', 'type="text" inputmode="numeric" autocomplete="off" placeholder="da sala"', f.seed) +
+      '</div>' + devCheck('sempre', 'Skills sempre ativam', f.sempre) +
+      '<p class="dev-armado' + (ui.devNext ? ' dev-armado--on' : '') + '" id="dev-armado">' + esc(devResumoArmado(ui.devNext)) + '</p>' +
+      '<div class="dev-acoes">' + devBotao('dev-armar', 'Armar', 'btn--ouro') + devBotao('dev-limpar', 'Limpar') + '</div>');
+
+    var parts = window.location.search.replace(/^\?/, '').split('&').filter(function (q) { return q && q !== 'dev=1'; });
+    var realUrl = window.location.pathname + (parts.length ? '?' + parts.join('&') : '') + window.location.hash;
+    var perfil = devGrupo('perfil', 'Perfil',
+      '<p class="nota">O perfil de teste fica em "' + esc(DV.SAVE_KEY) + '"; o save do jogo real não é lido nem gravado aqui.</p>' +
+      '<div class="dev-acoes">' + devBotao('dev-zerar', 'Zerar perfil de teste', 'btn--perigo') +
+        '<a class="btn btn--pequeno dev-real" href="' + esc(realUrl) + '">Voltar ao jogo real</a></div>');
+
+    return '<div class="dev-gaveta" id="dev-gaveta" role="region" aria-labelledby="dev-titulo">' +
+      '<div class="dev-cabeca"><h2 class="titulo" id="dev-titulo" tabindex="-1">Modo DEV</h2>' + devBotao('dev-fechar', 'Fechar') + '</div>' +
+      '<p class="' + (ui.dev.msg ? 'aviso' : 'sr') + '" role="status" id="dev-msg">' + esc(ui.dev.msg) + '</p>' +
+      moedas + cavalo + itens + corrida + perfil +
+    '</div>';
+  }
+
+  // Faixa (sempre), botão DEV (fora da corrida) e gaveta (aberta). Guarda a rolagem e o foco da gaveta.
+  function renderDev() {
+    if (!devEl) return;
+    var semBotao = ui.screen === 'corrida' || !state;
+    if (semBotao) ui.dev.aberto = false;
+    var g = devEl.querySelector('.dev-gaveta'), top = g ? g.scrollTop : 0;
+    var ae = document.activeElement, foco = null;
+    if (ae && ae !== devEl && devEl.contains(ae)) {
+      foco = ae.id ? '#' + ae.id : (ae.getAttribute('data-acao') ? '[data-acao="' + ae.getAttribute('data-acao') + '"]' : null);
+    }
+    var armado = !!ui.devNext;
+    var html = '<div class="dev-faixa">MODO DEV — save de teste</div>';
+    if (!semBotao) {
+      html += '<button type="button" class="btn btn--pequeno dev-botao' + (armado ? ' dev-botao--armado' : '') + '" data-acao="dev-abrir"' +
+        ' aria-expanded="' + ui.dev.aberto + '" aria-controls="dev-gaveta">DEV' +
+        (armado ? '<span aria-hidden="true"> ●</span><span class="sr"> (próxima corrida armada)</span>' : '') + '</button>';
+      if (ui.dev.aberto) html += devGavetaHtml();
+    }
+    devEl.innerHTML = html;
+    g = devEl.querySelector('.dev-gaveta');
+    if (g) g.scrollTop = top;
+    var el = foco ? devEl.querySelector(foco) : null;
+    if (el) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } }
+  }
+  function devFoca(sel) {
+    var el = devEl && devEl.querySelector(sel);
+    if (el) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } }
+  }
+
+  // Ação do painel que mexeu no save: grava (com o Ouro infinito) e redesenha a tela e a gaveta.
+  function devGrava(msg) {
+    var s0 = state;
+    ui.dev.msg = msg;
+    persist();
+    if (state !== s0) return;   // outra aba gravou um save mais novo: adoptExternal já navegou
+    if (ui.lobby && !ui.lobby.sim) refreshPlayerEntry(ui.lobby);
+    rerenderKeepScroll();
+  }
+
+  function devAcao(acao) {
+    var f = devLerCampos(), a = activeMount(), m, tpl;
+    switch (acao) {
+      case 'dev-ouro':
+        state.gold += 1000;
+        devGrava('+' + fmt(1000) + ' Ouro.'); break;
+      case 'dev-pedras': {
+        var pv = Math.floor(Number(f.pedras));
+        if (String(f.pedras).trim() === '' || !isFinite(pv)) { ui.dev.msg = 'Pedras: digite um número.'; renderDev(); break; }
+        state.pedras = clamp(pv, 0, 1e6); f.pedras = null;
+        devGrava('Pedras Negras: ' + fmt(state.pedras) + '.'); break;
+      }
+      case 'dev-niveis': {
+        var alvo = Math.min(MAX_LEVEL, a.level + 10), need = 0;
+        for (var dl = a.level; dl < alvo; dl++) need += E.xpToLevel(dl);
+        need -= a.xp;
+        if (need > 0) applyXp(a, need, 9000000 + state.breedCounter);
+        devCavaloDaAtiva();
+        devGrava(a.name + ' está no nível ' + a.level + '.'); break;
+      }
+      case 'dev-cruz':
+        a.breedLeft = Math.min(4, a.breedLeft + 1);
+        devGrava(a.name + ' tem ' + a.breedLeft + ' cruza(s).'); break;
+      case 'dev-criar':
+        tpl = DV.horseTemplate(devCavaloEscolhido(f), state.nextUid);
+        m = instanceFromTemplate(tpl, 'm' + state.nextUid);
+        m.level = devNivel(f); m.xp = 0;
+        state.nextUid += 1;
+        devAdicionaCavalo(m);
+        devCavaloDaAtiva();
+        devGrava('Criado: ' + devDescreveCavalo(m) + '. Agora é a ativa.'); break;
+      case 'dev-aplicar':
+        tpl = DV.horseTemplate(devCavaloEscolhido(f), uidNum(a.uid));
+        a.name = tpl.name; a.element = tpl.element; a.rarity = tpl.rarity; a.sex = tpl.sex;
+        a.level = devNivel(f); a.xp = 0;
+        a.skills = tpl.skills.slice(); a.base = clone(tpl.base); a.potential = clone(tpl.potential); a.palette = clone(tpl.palette);
+        devCavaloDaAtiva();
+        devGrava('Ativa substituída: ' + devDescreveCavalo(a) + '.'); break;
+      case 'dev-carregar':
+        devCavaloDaAtiva();
+        ui.dev.msg = 'Campos com os dados da ativa.'; renderDev(); break;
+      case 'dev-copiar':
+        tpl = devProntos().filter(function (h) { return h.id === f.copiar; })[0];
+        if (!tpl) break;
+        m = instanceFromTemplate(tpl, 'm' + state.nextUid);
+        m.level = clamp(tpl.level || 1, 1, MAX_LEVEL); m.xp = 0;
+        state.nextUid += 1;
+        devAdicionaCavalo(m);
+        devCavaloDaAtiva();
+        devGrava('Copiado: ' + devDescreveCavalo(m) + '. Agora é a ativa.'); break;
+      case 'dev-peca':
+      case 'dev-conjunto': {
+        var slots = acao === 'dev-peca' ? [f.slot] : GR.SLOTS.slice();
+        if (acao === 'dev-conjunto' && (f.rpeca === 'comum' || f.rpeca === 'magico')) {
+          ui.dev.msg = 'Conjunto completo: escolha Raro ou Lendário (Comum e Mágico não têm conjunto).'; renderDev(); break;
+        }
+        var ids = slots.map(function (sl) { return DV.itemId({ slot: sl, set: f.conjunto, rarity: f.rpeca }); });
+        if (ids.some(function (id) { return !id; })) { ui.dev.msg = 'Essa peça não existe no catálogo.'; renderDev(); break; }
+        var plus = clamp(Math.floor(Number(f.melhoria)) || 0, 0, GE.plusMax);
+        if (!a.equip) a.equip = emptyEquip();
+        ids.forEach(function (id) {
+          var it = newItem(id);
+          it.plus = plus;
+          if (f.equipar) a.equip[GD.GEAR[id].slot] = it.uid;   // a peça que estava no slot volta ao inventário
+        });
+        devGrava((ids.length > 1 ? 'Conjunto: 5 peças ' : 'Peça: ' + GR.piece(ids[0]).name + ' ') + '+' + plus +
+          (f.equipar ? ', equipada(s) na ativa.' : ', no inventário.')); break;
+      }
+      case 'dev-armar': {
+        var r = devArmar(f);
+        if (r.erros.length) { ui.dev.msg = 'Não armado: ' + r.erros.join('; ') + '.'; renderDev(); break; }
+        ui.devNext = r.next;
+        devAtualizaSala();
+        ui.dev.msg = devResumoArmado(ui.devNext);
+        rerenderKeepScroll(); break;
+      }
+      case 'dev-limpar':
+        ui.devNext = null;
+        devAtualizaSala();
+        ui.dev.msg = devResumoArmado(null);
+        rerenderKeepScroll(); break;
+      case 'dev-zerar':
+        if (!window.confirm('Zerar o perfil de teste? Cavalos, peças e progresso do save DEV voltam ao começo (o save do jogo real não é tocado).')) break;
+        wipeSave();
+        state = devNovoPerfil();
+        ui.lobby = null; ui.result = null; ui.devNext = null; ui.dev.f = null;
+        persist();
+        ui.dev.msg = 'Perfil de teste zerado: começa de novo com a Brasa.';
+        go('estabulo'); break;
+    }
+  }
+
+  if (devEl) {
+    devEl.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-acao]') : null;
+      if (!b || b.disabled || !devEl.contains(b)) return;
+      var acao = b.getAttribute('data-acao');
+      if (acao === 'dev-abrir' || acao === 'dev-fechar') {
+        ui.dev.aberto = acao === 'dev-abrir' ? !ui.dev.aberto : false;
+        ui.dev.msg = '';
+        renderDev();
+        devFoca(ui.dev.aberto ? '#dev-titulo' : '.dev-botao');
+        return;
+      }
+      if (state) devAcao(acao);
+    });
+    devEl.addEventListener('change', function (e) {
+      var k = e.target && e.target.getAttribute ? e.target.getAttribute('data-dev-campo') : null;
+      if (!k || !state) return;
+      if (k === 'ouroinf') {
+        ui.dev.ouroInf = !!e.target.checked;
+        if (ui.dev.ouroInf) devGrava('Ouro infinito ligado.');
+        else { ui.dev.msg = 'Ouro infinito desligado.'; renderDev(); }
+        return;
+      }
+      devLerCampos();
+      if (k === 'raridade') renderDev();   // a nota das vagas de skill muda com a raridade
+    });
+    devEl.addEventListener('keydown', function (e) {
+      if ((e.key === 'Escape' || e.key === 'Esc') && ui.dev.aberto) { ui.dev.aberto = false; renderDev(); devFoca('.dev-botao'); }
+    });
   }
 
   function render() {
@@ -819,21 +1243,16 @@
     if (comCasca) html = appTopoHtml() + '<main class="app-conteudo">' + html + '</main>' + appAbasHtml();
     if (appEl) appEl.classList.toggle('app-com-abas', comCasca);
     document.documentElement.classList.toggle('app-com-abas', comCasca);   // scroll-padding do foco (CSS)
-    document.documentElement.classList.toggle('dev-ativo', devAtivo());     // telas cheias: barra de ação acima do painel dev
-    if (devAtivo() && ui.screen !== 'corrida') {
-      html += '<div class="dev-espaco" style="height:56px" aria-hidden="true"></div><div class="dev-painel" role="group" aria-label="Painel de desenvolvimento"><span>dev</span>' +
-        '<button type="button" class="btn btn--pequeno" data-acao="dev-niveis">+10 níveis (ativa)</button>' +
-        '<button type="button" class="btn btn--pequeno" data-acao="dev-ouro">+1000 Ouro</button>' +
-        '<button type="button" class="btn btn--pequeno" data-acao="dev-cruz">+1 cruzamento (ativa)</button>' +
-        '<button type="button" class="btn btn--pequeno" data-acao="dev-pedras">+5 Pedras</button>' +
-        '<button type="button" class="btn btn--pequeno" data-acao="dev-set">+ conjunto Lendário (ativa)</button></div>';
-    }
+    document.documentElement.classList.toggle('dev-ativo', DEV_MODE);   // faixa no topo e botão DEV (seção "Modo DEV")
+    // folga no fim da tela para o conteúdo rolar acima do botão DEV fixo
+    if (DEV_MODE && ui.screen !== 'corrida') html += '<div class="dev-espaco" aria-hidden="true"></div>';
     telaEl.innerHTML = ordFix(html);
     hydrate(telaEl);
     if (ui.screen === 'corrida') {
       if (raceView) raceView.destroy();
       raceView = createRaceView(ui.lobby, telaEl);
     }
+    if (DEV_MODE) renderDev();
   }
 
   // ===========================================================================
@@ -1616,10 +2035,14 @@
   function buildLobby(P) {
     var counter = P.counter;
     var seed = RS.hash2(state.seedBase, counter);
+    // modo DEV: seed e condições armadas no painel valem para esta sala (os campos vazios seguem a normal)
+    var dv = DEV_MODE ? ui.devNext : null;
+    if (dv && dv.seed != null) seed = dv.seed >>> 0;
     var rng = RS.mulberry32(RS.hash2(seed, 0xA11CE)); // aleatoriedade só de UI/matchmaking, derivada da seed
 
     // pista
     var cond = RS.randomConditions(seed), trackName = pick(TRACK_NAMES, rng), trackDesc = '';
+    if (dv && dv.cond) cond = devCondicoes(dv.cond, cond, seed);
     withRanges(cond);
 
     var n = (E.minRacers || 4) + Math.floor(rng() * ((E.maxRacers || 8) - (E.minRacers || 4) + 1));
@@ -1677,7 +2100,9 @@
     return {
       counter: counter, seed: seed, training: !!P.training, fee: P.fee || 0, n: n,
       cond: cond, trackName: trackName, trackDesc: trackDesc,
-      racers: racers, playerIdx: playerIdx, sim: null
+      racers: racers, playerIdx: playerIdx, sim: null,
+      // modo DEV: vento forçado (a tela da corrida o desenha) e "skills sempre ativam" (vai ao RaceSim)
+      dev: dv ? { wind: dv.wind, skillsAlways: !!dv.skillsAlways } : null
     };
   }
   // trechos de subida/curva derivados dos blocos (só para desenhar: a simulação lê os blocos)
@@ -1856,13 +2281,15 @@
   // ===========================================================================
   function settle(L) {
     refreshPlayerEntry(L);
-    L.sim = RS.simulate({
+    var cfg = {
       seed: L.seed,
       conditions: L.cond,
       racers: L.racers.map(function (r) {
         return { horse: r.horse, gear: r.gear, name: r.name, isPlayer: r.isPlayer };
       })
-    });
+    };
+    if (DEV_MODE && L.dev && L.dev.skillsAlways) cfg.dev = { skillsAlways: true };   // só o modo DEV
+    L.sim = RS.simulate(cfg);
     L.cond = withRanges(L.sim.conditions);
     var order = L.sim.finishOrder;
     var place = order.indexOf(L.playerIdx) + 1;
@@ -1891,6 +2318,7 @@
     if (!L.training) state.goldWon += prize;
     state.pending = null;
     persist();
+    if (DEV_MODE) ui.devNext = null;   // os valores armados no painel DEV valem só para esta corrida
 
     var hAfter = playerHorse();
     return {
@@ -2568,48 +2996,6 @@
     if (!b || b.disabled) return;
     var id = b.getAttribute('data-id');
     switch (b.getAttribute('data-acao')) {
-      case 'dev-niveis':
-        if (!devAtivo() || !state) break;
-        var dm = activeMount();
-        var alvo = Math.min(E.maxLevel || 50, dm.level + 10);
-        var need = 0;
-        for (var dl = dm.level; dl < alvo; dl++) need += E.xpToLevel(dl);
-        need -= dm.xp;
-        if (need > 0) applyXp(dm, need, 9000000 + state.breedCounter);
-        persist();
-        rerenderKeepScroll();
-        break;
-      case 'dev-ouro':
-        if (!devAtivo() || !state) break;
-        state.gold += 1000;
-        persist();
-        rerenderKeepScroll();
-        break;
-      case 'dev-cruz':
-        if (!devAtivo() || !state) break;
-        var dc = activeMount();
-        dc.breedLeft = Math.min(4, dc.breedLeft + 1);
-        persist();
-        rerenderKeepScroll();
-        break;
-      case 'dev-pedras':
-        if (!devAtivo() || !state) break;
-        state.pedras += 5;
-        persist();
-        rerenderKeepScroll();
-        break;
-      case 'dev-set': {
-        // 5 Lendárias +0 do conjunto do clima do elemento da ativa (Neutro: Sol); as peças antigas voltam ao inventário
-        if (!devAtivo() || !state) break;
-        var ds = activeMount();
-        var dw = GD.ELEMENTS[ds.element] ? GD.ELEMENTS[ds.element].weather : null;
-        var dSet = dw && hasOwn(GD.GEAR_SETS, dw) ? dw : 'sol';
-        if (!ds.equip) ds.equip = emptyEquip();
-        GR.SLOTS.forEach(function (sl) { ds.equip[sl] = newItem(sl + '-' + dSet + '-lendario').uid; });
-        persist();
-        rerenderKeepScroll();
-        break;
-      }
       case 'aba':
         if (state && hasOwn(SCREEN_KIND, id) && SCREEN_KIND[id] === 'aba') go(id);
         break;
@@ -2933,7 +3319,7 @@
   // ===========================================================================
   // start() ignora data.screen (sempre abre no Estábulo ou no inicial): o snapshot só leva o save
   function snapshot() {
-    return { save: state };
+    return { save: state, dev: DEV_MODE };   // o snapshot de um modo nunca é adotado pelo outro
   }
 
   var started = false;
@@ -2942,7 +3328,8 @@
     started = true;
     readTokens();
     data = data || {};
-    state = sanitize(data.save) || sanitize(loadSave());
+    state = sanitize(!!data.dev === DEV_MODE ? data.save : null) || sanitize(loadSave());
+    if (!state && DEV_MODE) { state = devNovoPerfil(); persist(); }   // perfil DEV novo: Brasa, sem a escolha inicial
     ui.screen = state ? 'estabulo' : 'inicial';
     // moldes do PixelLab (embutidos pelo build): decodificam em segundo plano; até lá (ou sem eles, ou
     // com ?semmoldes=1) os cavalos saem do desenho por código. Ao chegarem, a tela é redesenhada — menos

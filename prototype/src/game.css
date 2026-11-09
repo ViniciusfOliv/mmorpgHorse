@@ -645,7 +645,6 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   content: ''; position: absolute; top: -2px; right: -6px; width: 8px; height: 8px; background: var(--ouro);
 }
 .app-aba:focus-visible { outline-offset: -3px; }
-.app-com-abas .dev-painel { bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
 /* o foco por teclado nunca fica atrás do cabeçalho fixo nem da barra de abas */
 html.app-com-abas { scroll-padding: 56px 0 calc(72px + env(safe-area-inset-bottom, 0px)); }
 /* o cartão inteiro da montaria abre a montaria */
@@ -661,13 +660,61 @@ html.app-com-abas { scroll-padding: 56px 0 calc(72px + env(safe-area-inset-botto
   .app-topo, .app-conteudo { margin-left: 200px; }
   .app-conteudo { padding-bottom: 16px; }
   html.app-com-abas { scroll-padding-bottom: 16px; }
-  .app-com-abas .dev-painel { bottom: 0; left: 200px; }
 }
 
-.dev-painel { position: fixed; left: 0; right: 0; bottom: 0; display: flex; overflow-x: auto; gap: 6px; align-items: center; padding: 6px 10px; background: rgba(0,0,0,.85); color: #ddd; font-size: 12px; z-index: 50; }
-.dev-painel .btn { flex: none; }
-/* telas cheias (largada): a barra de ação fixa sobe acima do painel dev em vez de ficar coberta por ele */
+/* ---------- modo DEV (?dev=1): faixa fixa no topo, botão "DEV" e gaveta que sobe do rodapé ---------- */
+/* a faixa (24px) empurra o cabeçalho fixo, a barra lateral do desktop e o conteúdo (a corrida lê o padding do .app) */
+html.dev-ativo .app { padding-top: 40px; }
+html.dev-ativo .app--corrida { padding-top: 32px; }
+html.dev-ativo .app-topo { top: 24px; }
+html.dev-ativo.app-com-abas { scroll-padding-top: 80px; }
+.dev-faixa {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 60; height: 24px;
+  display: flex; align-items: center; justify-content: center; padding: 0 var(--gr) 0 var(--gl);
+  background: var(--perda); color: var(--tinta); font-family: var(--fonte-display); font-size: 8px; line-height: 1;
+  white-space: nowrap; overflow: hidden; box-shadow: 0 2px 0 0 var(--sombra);
+}
+.dev-botao {
+  position: fixed; right: var(--gr); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 55;
+  margin: 0; min-width: 64px; background: var(--perda); color: var(--tinta); font-family: var(--fonte-display); font-size: 8px;
+}
+.dev-botao:hover:not(:disabled) { background: var(--perda); filter: brightness(1.1); }
+.dev-botao--armado { box-shadow: 0 0 0 2px var(--sombra), 0 0 0 4px var(--ouro); }
+html.app-com-abas .dev-botao { bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
+.dev-espaco { height: 72px; }
+/* telas cheias (largada): a barra de ação fixa sobe acima do botão DEV em vez de ficar coberta por ele */
 html.dev-ativo:not(.app-com-abas) .barra-acao { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+.dev-gaveta {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; margin: 0 auto; max-width: 560px;
+  max-height: 82vh; max-height: 82dvh; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 12px var(--gr) calc(16px + env(safe-area-inset-bottom, 0px)) var(--gl);
+  background: var(--noite); box-shadow: 0 -2px 0 0 var(--perda), 0 -6px 0 0 var(--sombra);
+}
+.dev-cabeca { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dev-grupo { gap: 10px; }
+.dev-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: end; }
+.dev-campos--1 { grid-template-columns: minmax(0, 1fr); }
+.dev-campos--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.dev-campo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.dev-campo .rotulo { overflow-wrap: anywhere; }
+.dev-campo select, .dev-campo input {
+  width: 100%; min-width: 0; min-height: 44px; margin: 0; padding: 6px 8px; border: 2px solid var(--linha); border-radius: 0;
+  background: var(--painel-2); color: var(--texto); font-family: var(--fonte-ui); font-size: var(--t-s);
+}
+.dev-campo input[type="color"] { padding: 2px; cursor: pointer; }
+.dev-check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: var(--t-s); cursor: pointer; }
+.dev-check input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--ouro); }
+.dev-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.dev-acoes .btn { flex: 1 1 auto; min-width: 0; }
+.dev-acoes--base { align-self: end; }
+a.btn { text-decoration: none; }
+.dev-armado { margin: 0; font-size: var(--t-s); color: var(--texto-3); }
+.dev-armado--on { color: var(--ouro-claro); }
+@media (min-width: 900px) {
+  html.dev-ativo .app-abas { top: 24px; }
+  html.app-com-abas .dev-botao { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+}
 
 /* ---------- ícones do PixelLab e logotipo do Canva ---------- */
 /* 32x32 reduzido a 16px: suavizado (auto) lê melhor; pixelated só em escala 1x (barra de abas). Halo claro para
