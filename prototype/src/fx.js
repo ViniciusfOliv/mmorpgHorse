@@ -74,6 +74,19 @@
  *   RaceFx.rainSlant(wind) -> dx por dy dos pingos (calmo 0,12 · brisa 0,35 · ventania 0,75, com o sinal de dir).
  *   RaceFx.NATUREZA (tetos por tela), RaceFx.RAIN (velocidade, cores), RaceFx.SOMBRA_NUVEM (cor das sombras).
  *
+ *   RaceFx.trackPath(blocks) -> { pts: [[x, y], …], ms: [metros de cada ponto], giroTotal (graus),
+ *                                 segs: [{ type, i0, i1 }], distance, bbox: { x0, y0, x1, y1, w, h } }
+ *     O traçado visto de cima, em metros e coordenadas de tela (x para a direita, y para baixo). Um ponto a
+ *     cada ~10 m (cada bloco em passos iguais; as pontas dos blocos são pontos). Rumo inicial 0° (para a
+ *     direita); reta e subida em linha reta; cada bloco 'curva' gira no sentido anti-horário (na tela)
+ *     clamp(comprimento / 150 × 90, 45, 180) graus, distribuídos igualmente pelos passos (meio giro antes e
+ *     meio depois de cada passo). segs: um por bloco, com os índices dos pontos das pontas.
+ *   RaceFx.pathAt(path, m) -> [x, y] no metro m (interpolado; preso entre a largada e a chegada).
+ *   RaceFx.curveOffset(curves, m) -> px de arte = −6 × sen(π × u), u = (m − a)/(b − a) dentro de uma curva
+ *     [a, b] (cond.curves: um intervalo por bloco); 0 fora e nas pontas. A pista lateral (Sprites.drawTrack)
+ *     sobe −round(curveOffset) por coluna; a tela soma o mesmo no y dos cavalos.
+ *   RaceFx.CURVA = { arco: 6, arquibancada: 10, … } (pixels de arte no meio da curva; giros do traçado).
+ *
  * ================================= DESENHO ==================================
  * Canvas 2D em pixel art (x, y em px do canvas; S = px por pixel de arte). Precisa de window.Sprites
  * (fonte 3×5). Nenhuma imagem: dados, plaquinhas e faíscas saem de fillRect.
@@ -121,16 +134,25 @@
  *            escuro, girando em 4 quadros (RaceFx.FOLHA). Nuvens e névoa: ×0,5 / ×1 / ×2,2.
  *     Tetos por tela em NATUREZA (pingos 240, respingos 48, ~2600 fillRect no pior caso).
  *   RaceFx.drawFogFront(ctx, o) — faixas de névoa na frente dos cavalos (só weather 'nevoa').
+ *   RaceFx.drawTrackMap(ctx, path, box, opts) -> { largada: [x, y], chegada: [x, y], enc } (pixels de arte)
+ *     Mapa da pista (sala de largada): o traçado em escala única para caber em box = { x, y, w, h, P } (pixels
+ *     de arte; P = pixels do canvas por pixel de arte), linha de opts.linha (2 ou 3) pixels de arte em pixels
+ *     inteiros; retas na cor opts.piso, curvas e subidas na cor do tipo (GameData.BLOCK_TYPES); largada =
+ *     quadrado claro com borda escura, chegada = xadrez com borda; opts.fundo pinta a caixa antes.
+ *   RaceFx.drawMiniMap(ctx, path, posM, cores, me, box) -> [{ racer, x, y, tam, contorno }] (pixels de arte)
+ *     Minimapa do HUD: o traçado (linha 2) e um ponto por cavalo no metro posM[j] na cor cores[j] — 2×2 com
+ *     borda escura (não some sobre a linha da mesma cor); o seu (me) 3×3 com contorno claro, por cima.
+ *     box = { x, y, w, h, P, piso, fundo }. Marca _stats.minimapa.
  *   RaceFx.drawHoofDust(ctx, x, y, S, t, surface, reduced) -> nº de nuvenzinhas (0 fora de terra/areia):
  *     (x, y) = âncora rear do cavalo no chão; a nuvenzinha nasce atrás (x − 1 px de arte) e vai até x − 9,
  *     com o alfa cheio até a metade da vida; tom e alfa por piso (RaceFx.POEIRA), na areia com 1 px de
  *     borda mais escura. 3 por cavalo, 1 em reduced. A tela não chama na chuva.
  *
  *   RaceFx._stats = { dados, faixaDado, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
- *                     natureza, ventoHud }
+ *                     natureza, ventoHud, minimapa }
  *     natureza = { pingos, respingos, relampago, raios, calor, nevoa, nevoaFrente, sombras, folhas, poeiraCascos }
  *     do quadro (não entra em particulas, que é só dos efeitos de skill e do Dado); ventoHud = 'texto' |
- *     'icone' | '' (o selo de vento que a tela desenhou no HUD).
+ *     'icone' | '' (o selo de vento que a tela desenhou no HUD); minimapa = true se o minimapa foi desenhado.
  *     faixaSkill = texto da faixa central desenhada no quadro ('' se não há); caixasBaloes = [{ racer,
  *     kind, pilha, x, y, w, h, y0, y1 }] dos balões posicionados (pixels de arte; y0..y1 = faixa vertical da
  *     raia) e caixasCavalos = [{ racer, x, y, w, h }] dos cavalos visíveis. A tela anota os três.
@@ -234,13 +256,14 @@
 
   // catálogo de skills: window.GameData no browser; data.js no Node (carregado só se alguém pedir)
   var gdNode = null;
-  function skillsCatalogo() {
-    if (root && root.GameData) return root.GameData.SKILLS;
+  function gameData() {
+    if (root && root.GameData) return root.GameData;
     if (!gdNode && typeof module !== 'undefined' && module.exports) {
       try { gdNode = require('./data.js'); } catch (e) { gdNode = null; }
     }
-    return gdNode ? gdNode.SKILLS : {};
+    return gdNode;
   }
+  function skillsCatalogo() { var g = gameData(); return g ? g.SKILLS : {}; }
 
   // ---- skills ---------------------------------------------------------------------------------
   var ICON_ORDEM = [
@@ -529,6 +552,66 @@
   }
   function rainSlant(w) { var v = ventoOk(w); return VENTO[v.intensity].chuva * v.dir; }
 
+  // ---- traçado de cima e curvas na pista (só visual) ----------------------------------------------
+  // CURVA.arco: pixels de arte que a cerca e as raias sobem no meio de uma curva (pista lateral);
+  // CURVA.arquibancada: quanto a arquibancada sobe no mesmo ponto. giro*: graus por curva (traçado).
+  var CURVA = { arco: 6, arquibancada: 10, giroPor150m: 90, giroMin: 45, giroMax: 180, passoM: 10 };
+  function giroCurva(len) { return Math.max(CURVA.giroMin, Math.min(CURVA.giroMax, len / 150 * CURVA.giroPor150m)); }
+
+  // Caminho visto de cima, em metros e em coordenadas de tela (x para a direita, y para baixo): rumo
+  // inicial 0° (para a direita); reta e subida seguem em linha reta; cada bloco 'curva' gira no sentido
+  // anti-horário (na tela) giroCurva(comprimento) graus, distribuídos igualmente pelos passos dela (meio
+  // giro antes e meio depois de cada passo, então os pontos das pontas da curva giram meio passo).
+  // Um ponto a cada ~10 m (cada bloco em passos iguais, as pontas dos blocos sempre são pontos).
+  function trackPath(blocks) {
+    var pts = [[0, 0]], ms = [0], segs = [], giro = 0, th = 0, x = 0, y = 0, fim = 0;
+    var lista = blocks || [];
+    for (var i = 0; i < lista.length; i++) {
+      var b = lista[i], a = b.from != null ? b.from : fim, len = b.to - a;
+      if (!(len > 0)) continue;
+      var passos = Math.max(1, Math.round(len / CURVA.passoM)), d = len / passos;
+      var g = b.type === 'curva' ? giroCurva(len) : 0, gp = g / passos, i0 = pts.length - 1;
+      for (var k = 0; k < passos; k++) {
+        th += gp / 2;
+        var r = th * Math.PI / 180;
+        x += Math.cos(r) * d; y -= Math.sin(r) * d;
+        th += gp / 2;
+        pts.push([x, y]); ms.push(k === passos - 1 ? b.to : a + d * (k + 1));
+      }
+      giro += g; fim = b.to;
+      segs.push({ type: b.type, i0: i0, i1: pts.length - 1 });
+    }
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (var q = 0; q < pts.length; q++) {
+      x0 = Math.min(x0, pts[q][0]); x1 = Math.max(x1, pts[q][0]);
+      y0 = Math.min(y0, pts[q][1]); y1 = Math.max(y1, pts[q][1]);
+    }
+    return { pts: pts, ms: ms, giroTotal: giro, segs: segs, distance: fim, bbox: { x0: x0, y0: y0, x1: x1, y1: y1, w: x1 - x0, h: y1 - y0 } };
+  }
+
+  // ponto [x, y] do traçado no metro m (interpolado entre os pontos; preso entre a largada e a chegada)
+  function pathAt(path, m) {
+    var pts = path.pts, ms = path.ms, n = pts.length;
+    if (!(m > ms[0])) return pts[0].slice();
+    if (m >= ms[n - 1]) return pts[n - 1].slice();
+    var lo = 0, hi = n - 1;
+    while (hi - lo > 1) { var md = (lo + hi) >> 1; if (ms[md] <= m) lo = md; else hi = md; }
+    var u = (m - ms[lo]) / (ms[hi] - ms[lo]);
+    return [pts[lo][0] + (pts[hi][0] - pts[lo][0]) * u, pts[lo][1] + (pts[hi][1] - pts[lo][1]) * u];
+  }
+
+  // deslocamento vertical (pixels de arte, negativo = para cima) da cerca, das raias e dos cavalos no
+  // metro m: −6·sen(π·u) dentro de uma curva [a, b] (u = (m − a)/(b − a)); 0 fora e nas pontas.
+  // curves = cond.curves (um intervalo por bloco 'curva'; blocos de curva vizinhos são curvas separadas).
+  function curveOffset(curves, m) {
+    if (!curves) return 0;
+    for (var i = 0; i < curves.length; i++) {
+      var a = curves[i][0], b = curves[i][1];
+      if (m > a && m < b) return -CURVA.arco * Math.sin(Math.PI * (m - a) / (b - a));
+    }
+    return 0;
+  }
+
   // ===========================================================================
   // Estatísticas do quadro (ui-test e teste de desempenho)
   // ===========================================================================
@@ -538,11 +621,11 @@
     return { pingos: 0, respingos: 0, relampago: 0, raios: 0, calor: 0, nevoa: 0, nevoaFrente: 0, sombras: 0, folhas: 0, poeiraCascos: 0 };
   }
   var stats = { dados: 0, faixaDado: false, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [],
-    natureza: novaNatureza(), ventoHud: '' };
+    natureza: novaNatureza(), ventoHud: '', minimapa: false };
   var JANELA_MS = 60, amostras = [], somaMs = 0;
   function beginFrame() {
     stats.dados = 0; stats.faixaDado = false; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = [];
-    stats.natureza = novaNatureza(); stats.ventoHud = '';
+    stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false;
   }
   function endFrame(ms) {
     if (!(ms >= 0) || !isFinite(ms)) return;
@@ -1130,6 +1213,87 @@
     return n;
   }
 
+  // ---- traçado de cima: mapa da pista (sala) e minimapa (HUD da corrida) ---------------------------
+  // Cores: reta na cor do piso (opts.piso; sem ele, a cor da reta do catálogo), curva e subida na cor do
+  // tipo (GameData.BLOCK_TYPES). Largada: quadrado claro com borda escura; chegada: xadrez com borda.
+  var MAPA = { largada: '#f1e9d4', borda: '#060d0a', claro: '#f1e9d4', escuro: '#141218',
+    tipo: { reta: '#f6f2ea', curva: '#7ab8ff', subida: '#f2c230' } };
+  function corTipo(tipo) {
+    var g = gameData(), bt = g && g.BLOCK_TYPES && g.BLOCK_TYPES[tipo];
+    return bt ? bt.color : (MAPA.tipo[tipo] || MAPA.tipo.reta);
+  }
+  function corBloco(tipo, piso) { return tipo === 'reta' && piso ? piso : corTipo(tipo); }
+  // escala única (sem distorcer) para o traçado caber na caixa com `folga` pixels de arte de cada lado,
+  // centrado: ponto (x, y) em metros -> (ox + x·s, oy + y·s) em pixels de arte
+  function encaixe(path, box, folga) {
+    var bb = path.bbox, iw = Math.max(1, box.w - 2 * folga), ih = Math.max(1, box.h - 2 * folga);
+    var s = Math.min(bb.w > 0 ? iw / bb.w : Infinity, bb.h > 0 ? ih / bb.h : Infinity);
+    if (!isFinite(s)) s = 1;
+    return { s: s, ox: box.x + folga + (iw - bb.w * s) / 2 - bb.x0 * s, oy: box.y + folga + (ih - bb.h * s) / 2 - bb.y0 * s };
+  }
+  // linha grossa (t×t pixels de arte) de (ax, ay) a (bx, by), carimbada em pixels inteiros; ult guarda o
+  // último carimbo para não repetir o mesmo pixel
+  function carimbos(ctx, P, ax, ay, bx, by, t, cor, ult) {
+    var dx = bx - ax, dy = by - ay, n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy))));
+    ctx.fillStyle = cor;
+    for (var k = ult.x == null ? 0 : 1; k <= n; k++) {
+      var cx = Math.round(ax + dx * k / n - t / 2), cy = Math.round(ay + dy * k / n - t / 2);
+      if (cx === ult.x && cy === ult.y && cor === ult.cor) continue;
+      ult.x = cx; ult.y = cy; ult.cor = cor;
+      ctx.fillRect(cx * P, cy * P, t * P, t * P);
+    }
+  }
+  // drawTrackMap(ctx, path, box, opts) -> { largada: [x, y], chegada: [x, y], enc } (pixels de arte)
+  //   box = { x, y, w, h, P } em pixels de arte (P = pixels do canvas por pixel de arte);
+  //   opts = { piso: cor das retas, linha: 2 | 3 (espessura em pixels de arte; padrão 2), fundo: cor }.
+  function drawTrackMap(ctx, path, box, opts) {
+    opts = opts || {};
+    var P = box.P || 1, t = opts.linha === 3 ? 3 : 2, folga = t + 1;
+    if (opts.fundo) { ctx.fillStyle = opts.fundo; ctx.fillRect(box.x * P, box.y * P, box.w * P, box.h * P); }
+    var enc = encaixe(path, box, folga), pts = path.pts, ult = {};
+    function X(q) { return enc.ox + q[0] * enc.s; }
+    function Y(q) { return enc.oy + q[1] * enc.s; }
+    for (var g = 0; g < path.segs.length; g++) {
+      var sg = path.segs[g], cor = corBloco(sg.type, opts.piso);
+      for (var k = sg.i0; k < sg.i1; k++) carimbos(ctx, P, X(pts[k]), Y(pts[k]), X(pts[k + 1]), Y(pts[k + 1]), t, cor, ult);
+    }
+    // largada: quadrado claro (t + 2) com borda escura
+    var p0 = pts[0], pn = pts[pts.length - 1];
+    var lx = Math.round(X(p0) - (t + 4) / 2), ly = Math.round(Y(p0) - (t + 4) / 2);
+    ctx.fillStyle = MAPA.borda; ctx.fillRect(lx * P, ly * P, (t + 4) * P, (t + 4) * P);
+    ctx.fillStyle = MAPA.largada; ctx.fillRect((lx + 1) * P, (ly + 1) * P, (t + 2) * P, (t + 2) * P);
+    // chegada: xadrez de casas de 2 pixels (4×4 com linha 2; 6×6 com linha 3) com borda escura
+    var q = t === 3 ? 6 : 4, cx = Math.round(X(pn) - (q + 2) / 2), cy = Math.round(Y(pn) - (q + 2) / 2);
+    ctx.fillStyle = MAPA.borda; ctx.fillRect(cx * P, cy * P, (q + 2) * P, (q + 2) * P);
+    for (var a = 0; a < q; a += 2) for (var b = 0; b < q; b += 2) {
+      ctx.fillStyle = ((a + b) / 2) % 2 ? MAPA.escuro : MAPA.claro;
+      ctx.fillRect((cx + 1 + a) * P, (cy + 1 + b) * P, 2 * P, 2 * P);
+    }
+    return { largada: [X(p0), Y(p0)], chegada: [X(pn), Y(pn)], enc: enc };
+  }
+  // drawMiniMap(ctx, path, posM, cores, me, box) -> [{ racer, x, y, tam, contorno }] (pixels de arte)
+  //   O traçado (linha 2) e um ponto por cavalo no metro posM[j], na cor da raia (cores[j]): 2×2 com borda
+  //   escura de 1 px (não some sobre a linha da mesma cor); o seu (me) é 3×3 com contorno claro e vem por
+  //   último. box = { x, y, w, h, P, piso, fundo } como no drawTrackMap. Marca _stats.minimapa.
+  function drawMiniMap(ctx, path, posM, cores, me, box) {
+    var P = box.P || 1;
+    var enc = drawTrackMap(ctx, path, box, { piso: box.piso, fundo: box.fundo, linha: 2 }).enc;
+    var out = [], ordem = [];
+    for (var j = 0; j < posM.length; j++) if (j !== me) ordem.push(j);
+    if (me >= 0 && me < posM.length) ordem.push(me);
+    for (var o = 0; o < ordem.length; o++) {
+      var r = ordem[o], meu = r === me, tam = meu ? 5 : 4;
+      var pt = pathAt(path, posM[r] || 0);
+      var x = Math.round(enc.ox + pt[0] * enc.s - tam / 2), y = Math.round(enc.oy + pt[1] * enc.s - tam / 2);
+      x = Math.max(box.x, Math.min(box.x + box.w - tam, x)); y = Math.max(box.y, Math.min(box.y + box.h - tam, y));
+      ctx.fillStyle = meu ? MAPA.claro : MAPA.borda; ctx.fillRect(x * P, y * P, tam * P, tam * P);
+      ctx.fillStyle = cores[r] || MAPA.claro; ctx.fillRect((x + 1) * P, (y + 1) * P, (tam - 2) * P, (tam - 2) * P);
+      out.push({ racer: r, x: x, y: y, tam: tam, contorno: meu });
+    }
+    stats.minimapa = true;
+    return out;
+  }
+
   var RaceFx = {
     DADO: DADO,
     // puras
@@ -1149,6 +1313,10 @@
     BALAO: BALAO,
     wind: wind,
     rainSlant: rainSlant,
+    CURVA: CURVA,
+    trackPath: trackPath,
+    pathAt: pathAt,
+    curveOffset: curveOffset,
     NATUREZA: NATUREZA,
     RAIN: RAIN,
     SOMBRA_NUVEM: SOMBRA_NUVEM,
@@ -1163,6 +1331,8 @@
     drawNature: drawNature,
     drawFogFront: drawFogFront,
     drawHoofDust: drawHoofDust,
+    drawTrackMap: drawTrackMap,
+    drawMiniMap: drawMiniMap,
     // estatísticas
     _stats: stats,
     beginFrame: beginFrame,

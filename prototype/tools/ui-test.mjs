@@ -121,10 +121,11 @@ async function checkOverflow(page, label) {
   return o
 }
 
-// monitora, quadro a quadro, se o cavalo do jogador está inteiro na tela (fora da câmera de chegada)
+// monitora, quadro a quadro, se o cavalo do jogador está inteiro na tela (fora da câmera de chegada);
+// vfora = quadros em que a caixa do cavalo passa da borda de cima ou de baixo do canvas (arco das curvas)
 async function startCamMonitor(page) {
   await page.evaluate(() => {
-    const cc = window.__cc = { frames: 0, partial: 0, off: 0, x1: 0, x2: 0 }
+    const cc = window.__cc = { frames: 0, partial: 0, off: 0, x1: 0, x2: 0, vfora: 0 }
     const tick = () => {
       const r = window.__galope && window.__galope.race
       if (!r) return
@@ -135,6 +136,7 @@ async function startCamMonitor(page) {
         if (s.mult > 1) cc.x2++; else cc.x1++
         if (p.x < 0 || p.x + p.w > p.W) cc.partial++
         if (p.x + p.w <= 0 || p.x >= p.W) cc.off++
+        if (p.y < 0 || p.y + p.h > p.H) cc.vfora++
       }
       requestAnimationFrame(tick)
     }
@@ -1568,6 +1570,87 @@ try {
         await pg.context().close()
       }
     }
+  }
+
+  // ---------------- Curvas: traçado na sala, minimapa no HUD e arco na pista (Task 6) ----------------
+  // DEV, traçado "curvas" (1600 m em 7 blocos de ~230 m, os 5 do meio em curva). Sala: o mapa é o traçado
+  // visto de cima (pixels da cor da curva e o xadrez da chegada). Corrida: no meio de uma curva o cavalo do
+  // jogador e a etiqueta "◀VOCÊ" sobem o arco inteiro (round(6 · lay.arcoK) px de arte) em relação à reta,
+  // as caixas dos cavalos (usadas por balões e plaquinhas) sobem junto, o minimapa é desenhado fora do layout
+  // compacto e o cavalo nunca sai da tela (startCamMonitor, também na vertical).
+  {
+    const corCurva = G.BLOCK_TYPES.curva.color
+    const curvas = async (vp, label, shotSala, shotCorrida) => {
+      const pg = await newPage(browser, vp, label, { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await devArmar(pg, { clima: 'sol', vento: 'calmo', tracado: 'curvas', distancia: 1600, seed: 4242 })
+        await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+        await pg.waitForSelector('#t-correr')
+        await pg.getByRole('button', { name: 'Procurar corrida' }).click()
+        await pg.waitForSelector('#t-largada')
+        // 1) sala: o traçado visto de cima — as 5 curvas (~810°) dão uma volta, então a cor da curva aparece
+        //    em muitas linhas do mapa (a faixa reta antiga tinha 5 linhas + o rótulo) — e a chegada em xadrez
+        const mapa = await pg.evaluate((cor) => {
+          const cv = document.querySelector('canvas.perfil'), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
+          const k = Math.round(cv.width / Math.max(1, Math.round(parseFloat(cv.style.width) / 2)))   // px do canvas por px de arte
+          const rgb = [1, 3, 5].map((i) => parseInt(cor.slice(i, i + 2), 16))
+          let curva = 0, xadrez = 0
+          const linhas = new Set()
+          for (let i = 0; i < d.length; i += 4) {
+            if (d[i] === rgb[0] && d[i + 1] === rgb[1] && d[i + 2] === rgb[2]) { curva++; linhas.add(Math.floor(i / 4 / cv.width / k)) }
+            if (d[i] === 0x14 && d[i + 1] === 0x12 && d[i + 2] === 0x18) xadrez++
+          }
+          const r = cv.getBoundingClientRect(), pr = cv.parentElement.getBoundingClientRect()
+          return { curva, linhasCurva: linhas.size, xadrez, k, w: Math.round(r.width), h: Math.round(r.height), cabe: r.left >= pr.left - 0.5 && r.right <= pr.right + 0.5 }
+        }, corCurva)
+        if (!(mapa.linhasCurva >= 20 && mapa.xadrez > 0 && mapa.cabe)) problems.push(`[${label}] sala: mapa sem o traçado das curvas, sem a chegada ou fora da caixa ${JSON.stringify(mapa)}`)
+        await checkOverflow(pg, label + '-sala')
+        await pg.locator('canvas.perfil').scrollIntoViewIfNeeded()
+        if (shotSala) await pg.screenshot({ path: join(SHOTS, shotSala) })
+        // 2) corrida em x1: a referência na primeira reta, depois o meio da primeira curva
+        await pg.getByRole('button', { name: /^Largar/ }).click()
+        await pg.waitForSelector('#pista')
+        await startCamMonitor(pg)
+        const medir = (faixa) => pg.waitForFunction((fx) => {
+          const r = window.__galope.race, L = window.__galope.ui.lobby
+          if (!r || r._state.phase !== 'corrida') return false
+          const s = r._state, st = window.RaceFx._stats, me = L.playerIdx
+          const f = L.sim.frames[Math.min(L.sim.frames.length - 1, Math.round(s.simT / L.sim.dt))]
+          const p = f.pos[me], cv = st.caixasCavalos.find((c) => c.racer === me)
+          if (!cv || !s.voceRect || f.speed[me] < 3) return false
+          if (fx.reta) { if (!(p > 60 && p < 180)) return false } else {
+            const c = (L.cond.curves || []).find((cc) => p > cc[0] && p < cc[1])
+            if (!c || c[1] - c[0] < 150) return false
+            const u = (p - c[0]) / (c[1] - c[0])
+            if (u < 0.42 || u > 0.58) return false
+          }
+          const arcoK = s.lay.arcoK === undefined ? 1 : s.lay.arcoK
+          return { p: +p.toFixed(1), y: cv.y, h: cv.h, voce: s.voceRect.y, mini: !!st.minimapa, compact: s.lay.compact, arcoK, ms: +st.msQuadro.toFixed(2),
+            arco: Math.round(6 * arcoK), cavalos: st.caixasCavalos.map((c) => c.y) }   // spec: 6 px de arte no meio
+        }, faixa, { timeout: 60000, polling: 'raf' }).then((h) => h.jsonValue())
+        const reta = await medir({ reta: true })
+        const curva = await medir({ reta: false })
+        if (shotCorrida) await pg.screenshot({ path: join(SHOTS, shotCorrida) })
+        const sobe = { cavalo: reta.y - curva.y, voce: reta.voce - curva.voce }
+        if (!(curva.arco >= 4) || sobe.cavalo !== curva.arco || sobe.voce !== curva.arco) problems.push(`[${label}] curva: o cavalo do jogador / ◀VOCÊ subiram ${JSON.stringify(sobe)} px de arte no meio da curva (esperado ${curva.arco}) ${JSON.stringify({ reta, curva })}`)
+        if (curva.mini === curva.compact || reta.mini === reta.compact) problems.push(`[${label}] minimapa ${curva.mini ? 'desenhado' : 'ausente'} com o layout ${curva.compact ? 'compacto' : 'normal'}`)
+        await pg.getByRole('button', { name: 'x2' }).click()
+        await sleep(2500)
+        const cc = await pg.evaluate(() => window.__cc)
+        if (cc.partial > 0 || cc.off > 0 || cc.vfora > 0 || !(cc.frames > 30)) problems.push(`[${label}] cavalo do jogador saiu da tela na pista com curvas ${JSON.stringify(cc)}`)
+        notes['curvas-' + label] = { mapa, reta, curva, sobe, cam: cc }
+        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pg.waitForSelector('#t-resultado')
+      } catch (e) {
+        problems.push(`[${label}] curvas: ${e.message}`)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    await curvas({ width: 390, height: 844 }, 'curvas390', 'final-19-tracado.png', 'final-18-curva.png')
+    await curvas({ width: 1280, height: 800 }, 'curvas1280', 'final-desktop-tracado.png', 'final-desktop-curva.png')
+    await curvas({ width: 844, height: 390 }, 'curvas-paisagem', null, 'final-18b-curva-paisagem.png')
   }
 
   // ---------------- loja: abas, comprar (com recusa sem Ouro), Pedras Negras e resumo na largada ----------------

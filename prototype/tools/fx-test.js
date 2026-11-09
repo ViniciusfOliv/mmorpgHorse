@@ -706,5 +706,149 @@ test('Sprites.drawWeather repassa para RaceFx.drawNature', function () {
 });
 FX.resetStats(true);
 
+section('traçado de cima e curvas na pista');
+// blocos contíguos a partir de 0: [tipo, de, até]
+function blocos(lista) { return lista.map(function (b) { return { type: b[0], from: b[1], to: b[2] }; }); }
+function giroEsperado(len) { return Math.max(45, Math.min(180, len / 150 * 90)); }
+// rumo (graus, anti-horário na tela: y para baixo) de cada trecho entre pontos consecutivos
+function rumos(pts) {
+  var out = [];
+  for (var k = 0; k + 1 < pts.length; k++) out.push(Math.atan2(-(pts[k + 1][1] - pts[k][1]), pts[k + 1][0] - pts[k][0]) * 180 / Math.PI);
+  return out;
+}
+function giroEm(h, k) { var d = h[k] - h[k - 1]; while (d > 180) d -= 360; while (d <= -180) d += 360; return d; }
+// curva curta (45° pelo piso), média (90°), subida (não gira), longa (180° pelo teto) e retas
+var MISTA = blocos([['reta', 0, 100], ['curva', 100, 150], ['reta', 150, 300], ['curva', 300, 450], ['subida', 450, 600],
+  ['curva', 600, 1000], ['reta', 1000, 1100]]);
+
+test('trackPath: giroTotal = soma dos giros das curvas (45° a 180°) e o último rumo é esse giro', function () {
+  var p = FX.trackPath(MISTA);
+  var soma = MISTA.filter(function (b) { return b.type === 'curva'; }).reduce(function (s, b) { return s + giroEsperado(b.to - b.from); }, 0);
+  assert.strictEqual(soma, 45 + 90 + 180);
+  assert.ok(Math.abs(p.giroTotal - soma) < 1e-9, 'giroTotal ' + p.giroTotal + ' (esperado ' + soma + ')');
+  var h = rumos(p.pts), ultimo = ((h[h.length - 1] % 360) + 360) % 360;
+  assert.ok(Math.abs(ultimo - soma % 360) < 1e-6, 'último rumo ' + ultimo);
+  // um ponto a cada 10 m, a começar em (0, 0), rumo inicial 0° (para a direita)
+  assert.strictEqual(p.pts.length, 1100 / 10 + 1);
+  assert.deepStrictEqual(p.pts[0], [0, 0]);
+  assert.ok(Math.abs(h[0]) < 1e-9 && p.pts[1][0] > 0, 'rumo inicial 0°');
+  for (var k = 1; k < p.pts.length; k++) {
+    var d = Math.hypot(p.pts[k][0] - p.pts[k - 1][0], p.pts[k][1] - p.pts[k - 1][1]);
+    assert.ok(Math.abs(d - 10) < 1e-9, 'passo ' + k + ' de ' + d + ' m');
+  }
+  // segs: um por bloco, com o tipo e os índices dos pontos das pontas; bbox cobre todos os pontos
+  assert.deepStrictEqual(p.segs.map(function (s) { return [s.type, s.i0, s.i1]; }),
+    [['reta', 0, 10], ['curva', 10, 15], ['reta', 15, 30], ['curva', 30, 45], ['subida', 45, 60], ['curva', 60, 100], ['reta', 100, 110]]);
+  p.pts.forEach(function (q) { assert.ok(q[0] >= p.bbox.x0 - 1e-9 && q[0] <= p.bbox.x1 + 1e-9 && q[1] >= p.bbox.y0 - 1e-9 && q[1] <= p.bbox.y1 + 1e-9); });
+});
+test('trackPath: uma pista só de retas tem giroTotal 0 e pontos colineares', function () {
+  var p = FX.trackPath(blocos([['reta', 0, 400], ['reta', 400, 1000], ['reta', 1000, 1600]]));
+  assert.strictEqual(p.giroTotal, 0);
+  assert.strictEqual(p.pts.length, 161);
+  p.pts.forEach(function (q, k) { assert.ok(Math.abs(q[1]) < 1e-9 && Math.abs(q[0] - 10 * k) < 1e-9, 'ponto ' + k + ' = ' + q); });
+  assert.ok(Math.abs(p.bbox.y1 - p.bbox.y0) < 1e-9 && Math.abs(p.bbox.x1 - 1600) < 1e-9);
+});
+test('trackPath: os pontos que giram estão nos trechos de curva, e todo ponto de dentro da curva gira (anti-horário)', function () {
+  var p = FX.trackPath(MISTA), h = rumos(p.pts);
+  var curvas = MISTA.filter(function (b) { return b.type === 'curva'; });
+  var porCurva = curvas.map(function () { return 0; });
+  for (var k = 1; k < p.pts.length - 1; k++) {
+    var g = giroEm(h, k), m = p.ms[k];
+    var dentro = -1;
+    curvas.forEach(function (c, ci) { if (m >= c.from && m <= c.to) dentro = ci; });
+    if (Math.abs(g) > 1e-9) {
+      assert.ok(dentro >= 0, 'o ponto de ' + m + ' m gira ' + g.toFixed(3) + '° fora de uma curva');
+      assert.ok(g > 0, 'giro anti-horário em ' + m + ' m');
+      porCurva[dentro] += g;
+    }
+    curvas.forEach(function (c) { if (m > c.from && m < c.to) assert.ok(g > 1e-9, 'o ponto de ' + m + ' m (dentro da curva ' + c.from + '–' + c.to + ') não gira'); });
+  }
+  curvas.forEach(function (c, ci) { assert.ok(Math.abs(porCurva[ci] - giroEsperado(c.to - c.from)) < 1e-6, 'curva ' + c.from + '–' + c.to + ': ' + porCurva[ci]); });
+  // o giro de uma curva é distribuído igualmente pelos pontos dela
+  var c2 = p.segs[3], gs = [];
+  for (var q = c2.i0 + 1; q < c2.i1; q++) gs.push(giroEm(h, q));
+  gs.forEach(function (g) { assert.ok(Math.abs(g - 90 / 15) < 1e-6, 'giro por ponto ' + g); });
+});
+test('trackPath: o traçado do DEV "curvas" e uma corrida de verdade têm um ponto por 10 m até a chegada', function () {
+  var sim = C1.sim, bl = sim.conditions.blocks, D = sim.conditions.distance;
+  var p = FX.trackPath(bl);
+  assert.strictEqual(p.ms[0], 0); assert.strictEqual(p.ms[p.ms.length - 1], D);
+  assert.strictEqual(p.segs.length, bl.length);
+  var DEV = require('../src/dev.js');
+  var dv = DEV.conditions({ tracado: 'curvas', distance: 1600 });
+  var pd = FX.trackPath(dv.blocks);
+  assert.strictEqual(pd.pts.length, 161);
+  var somaDev = dv.blocks.filter(function (b) { return b.type === 'curva'; }).reduce(function (s, b) { return s + giroEsperado(b.to - b.from); }, 0);
+  assert.strictEqual(dv.blocks.filter(function (b) { return b.type === 'curva'; }).length, 5);
+  assert.ok(Math.abs(pd.giroTotal - somaDev) < 1e-6, 'DEV curvas: ' + pd.giroTotal + ' (esperado ' + somaDev + ')');
+});
+test('pathAt: posição no traçado por metro (pontas e meio de um passo)', function () {
+  var p = FX.trackPath(MISTA);
+  assert.deepStrictEqual(FX.pathAt(p, 0), p.pts[0]);
+  assert.deepStrictEqual(FX.pathAt(p, -50), p.pts[0], 'antes da largada fica na largada');
+  assert.deepStrictEqual(FX.pathAt(p, 1100), p.pts[p.pts.length - 1]);
+  assert.deepStrictEqual(FX.pathAt(p, 5000), p.pts[p.pts.length - 1], 'depois da chegada fica na chegada');
+  var a = FX.pathAt(p, 315), m0 = p.pts[31], m1 = p.pts[32];
+  assert.ok(Math.abs(a[0] - (m0[0] + m1[0]) / 2) < 1e-9 && Math.abs(a[1] - (m0[1] + m1[1]) / 2) < 1e-9);
+});
+test('curveOffset: 0 fora das curvas (e nas pontas), −6 no meio e simétrico', function () {
+  var curvas = [[100, 300], [600, 700]];
+  [0, 50, 99.9, 100, 300, 300.1, 450, 599, 600, 700, 1200].forEach(function (m) { assert.strictEqual(FX.curveOffset(curvas, m), 0, 'em ' + m + ' m'); });
+  assert.strictEqual(FX.curveOffset(curvas, 200), -6);
+  assert.strictEqual(FX.curveOffset(curvas, 650), -6);
+  assert.strictEqual(FX.curveOffset([], 200), 0);
+  assert.strictEqual(FX.curveOffset(null, 200), 0);
+  for (var x = 1; x < 100; x += 7.3) {
+    var a = FX.curveOffset(curvas, 100 + x), b = FX.curveOffset(curvas, 300 - x);
+    assert.ok(a < 0 && Math.abs(a - b) < 1e-9, 'simetria em ±' + x + ': ' + a + ' / ' + b);
+    assert.ok(a >= -6 && a > FX.curveOffset(curvas, 200) - 1e-12);
+    assert.ok(Math.abs(a - -6 * Math.sin(Math.PI * x / 200)) < 1e-9, 'forma −6·sen(πu)');
+  }
+  assert.strictEqual(FX.CURVA.arco, 6); assert.strictEqual(FX.CURVA.arquibancada, 10);
+});
+
+// desenho do traçado com o contexto falso (só fillRect)
+var BOX_MAPA = { x: 4, y: 3, w: 60, h: 30, P: 2 };
+function dentroDaCaixa(r, b) { return r.x >= b.x * b.P && r.y >= b.y * b.P && r.x + r.w <= (b.x + b.w) * b.P && r.y + r.h <= (b.y + b.h) * b.P; }
+test('drawTrackMap: o traçado cabe na caixa, com retas na cor do piso, curvas e subidas nas cores do tipo, largada e chegada', function () {
+  var p = FX.trackPath(MISTA), c = ctxFalso();
+  var r = FX.drawTrackMap(c, p, BOX_MAPA, { piso: '#9a6b3f' });
+  assert.ok(c.rects.length > 20);
+  c.rects.forEach(function (q) { assert.ok(dentroDaCaixa(q, BOX_MAPA), 'retângulo fora da caixa ' + JSON.stringify(q)); });
+  var cs = cores(c);
+  assert.ok(cs['#9a6b3f'] && cs[G.BLOCK_TYPES.curva.color] && cs[G.BLOCK_TYPES.subida.color], 'cores ' + Object.keys(cs));
+  // traçado em pixels inteiros (múltiplos de P) e a largada / chegada devolvidas em pixels de arte
+  c.rects.forEach(function (q) { assert.ok(q.x % 2 === 0 && q.y % 2 === 0 && q.w % 2 === 0 && q.h % 2 === 0, 'fora da grade ' + JSON.stringify(q)); });
+  assert.ok(r && r.largada && r.chegada, JSON.stringify(r));
+  assert.ok(Math.hypot(r.largada[0] - r.chegada[0], r.largada[1] - r.chegada[1]) > 5, 'largada e chegada separadas');
+  // linha de 2–3 px de arte (padrão 2; opts.linha 3)
+  var grosso = ctxFalso();
+  FX.drawTrackMap(grosso, p, BOX_MAPA, { piso: '#9a6b3f', linha: 3 });
+  assert.ok(grosso.rects.some(function (q) { return q.w === 6 && q.h === 6; }), 'linha de 3 px');
+});
+test('drawMiniMap: um ponto por cavalo na cor da raia, o seu maior e com contorno; marca _stats.minimapa', function () {
+  FX.resetStats(true);
+  assert.strictEqual(FX._stats.minimapa, false);
+  var p = FX.trackPath(MISTA), c = ctxFalso();
+  var posM = [120, 500, 500, 1050], me = 2;
+  var pts = FX.drawMiniMap(c, p, posM, CORES.slice(0, 4), me, BOX_MAPA);
+  assert.strictEqual(FX._stats.minimapa, true);
+  assert.strictEqual(pts.length, 4);
+  pts.forEach(function (q) { assert.ok(q.x >= BOX_MAPA.x && q.y >= BOX_MAPA.y && q.x + q.tam <= BOX_MAPA.x + BOX_MAPA.w && q.y + q.tam <= BOX_MAPA.y + BOX_MAPA.h, JSON.stringify(q)); });
+  var meu = pts.filter(function (q) { return q.racer === me; })[0], outro = pts.filter(function (q) { return q.racer === 1; })[0];
+  assert.ok(meu.tam > outro.tam, 'o seu é maior: ' + meu.tam + ' > ' + outro.tam);
+  assert.ok(meu.contorno && !outro.contorno);
+  for (var j = 0; j < 4; j++) assert.ok(c.rects.some(function (q) { return q.cor === CORES[j]; }), 'ponto do cavalo ' + j + ' na cor da raia');
+  // o seu é o último desenhado (por cima)
+  var ultimoCor = null;
+  c.rects.forEach(function (q) { if (CORES.slice(0, 4).indexOf(q.cor) >= 0) ultimoCor = q.cor; });
+  assert.strictEqual(ultimoCor, CORES[me]);
+  // mesma posição ⇒ mesmo lugar no mapa; quem está mais à frente fica onde o traçado leva
+  var o1 = pts.filter(function (q) { return q.racer === 1; })[0];
+  assert.ok(Math.abs((o1.x + o1.tam / 2) - (meu.x + meu.tam / 2)) <= 1 && Math.abs((o1.y + o1.tam / 2) - (meu.y + meu.tam / 2)) <= 1, 'cavalos no mesmo metro no mesmo ponto');
+  FX.resetStats(true);
+  assert.strictEqual(FX._stats.minimapa, false, 'beginFrame zera');
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

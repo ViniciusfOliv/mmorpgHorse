@@ -8,9 +8,14 @@
  *     frame pode ser fracionário (fase contínua do galope); quadro = { topo, base } em px: quadro de altura
  *     fixa onde o molde inteiro tem de caber (retratos, pódio) — o desenho por código o ignora
  *   Sprites.drawTrack(ctx, { width, height, cameraX, pxPerMeter, lanes, laneTop, laneH, surface,
- *                           finishM, hills, curves, distanceMarkersEvery, t, weather, pixel, wind })
+ *                           finishM, hills, curves, distanceMarkersEvery, t, weather, pixel, wind, curveScale })
  *     wind = { intensity: 'calmo'|'brisa'|'ventania', dir: 1|-1 } (só visual; padrão brisa ←): bandeirinhas
  *     da arquibancada, grama da borda e nuvens seguem o vento
+ *     curves = [[a, b], …] (metros): com o fx.js carregado, dentro de uma curva a pista faz um arco ancorado
+ *     no mundo — cerca externa, piso, raias, linhas e campo interno sobem round(−RaceFx.curveOffset) pixels
+ *     de arte por coluna (até 6 no meio), a arquibancada até 10 e placas "CURVA" ficam presas à cerca; o
+ *     chamador soma o mesmo deslocamento no y dos cavalos. Sem fx.js, a pista fica reta. curveScale (0..1)
+ *     encolhe o arco quando falta espaço acima da pista (o y dos cavalos usa o mesmo fator).
  *   Sprites.drawWeather(ctx, weather, t, width, height, pixel) — repasse para RaceFx.drawNature +
  *     RaceFx.drawFogFront (fx.js; sem ele, não desenha nada). A corrida chama o fx.js direto.
  *   Sprites.cloudCanvas(seed, P, tom) — nuvem de pixels em cache (usada pelo nublado do fx.js)
@@ -1673,6 +1678,45 @@
     }
   }
 
+  // Curvas: RaceFx (fx.js) dá o arco (curveOffset e CURVA); sem ele, a pista fica reta.
+  function curvaApi() { var FX = fxApi(); return FX && FX.curveOffset && FX.CURVA ? FX : null; }
+  var CURVA_PLACA_M = 40;   // placas "CURVA" na cerca a cada 40 m dentro da curva
+
+  // Relevo das subidas: desloca para cima as colunas da faixa [y0, Hh) (pixels do canvas), dyPx(x) ≥ 0 por
+  // coluna de P pixels, em trechos de mesmo deslocamento; o rodapé exposto de cada trecho recebe `fundo`.
+  // A faixa é copiada UMA vez para um canvas de rascunho e colada de lá: copiar o canvas sobre ele mesmo,
+  // trecho a trecho, faz o navegador tirar uma cópia da tela inteira a cada drawImage (~120 ms por quadro
+  // numa subida em 1280 px; ~11 ms assim). Sem document (Node), copia do próprio canvas. Devolve o nº de
+  // trechos. (O arco das curvas não copia pixels: cada peça da faixa já é desenhada no lugar — mais barato.)
+  var rascunho = null;
+  function deslocaFaixa(ctx, W, Hh, y0, P, dyPx, fundo) {
+    var trechos = [], xa = -1, dyA = 0;
+    for (var x = 0; x < W; x += P) {
+      var dy = dyPx(x);
+      if (dy !== dyA || xa < 0) { if (xa >= 0 && dyA > 0) trechos.push([xa, x, dyA]); xa = x; dyA = dy; }
+    }
+    if (xa >= 0 && dyA > 0) trechos.push([xa, W, dyA]);
+    if (!trechos.length) return 0;
+    var h = Hh - y0, src = ctx.canvas, sy = y0;
+    var c0 = trechos[0][0], c1 = trechos[trechos.length - 1][1];
+    if (typeof document !== 'undefined' && document.createElement) {
+      if (!rascunho) rascunho = document.createElement('canvas');
+      if (rascunho.width < W || rascunho.height < h) {
+        rascunho.width = Math.max(rascunho.width, W); rascunho.height = Math.max(rascunho.height, h);
+      }
+      var rc = rascunho.getContext('2d');
+      rc.imageSmoothingEnabled = false;
+      rc.drawImage(ctx.canvas, c0, y0, c1 - c0, h, c0, 0, c1 - c0, h);
+      src = rascunho; sy = 0;
+    }
+    for (var i = 0; i < trechos.length; i++) {
+      var tr = trechos[i], w = tr[1] - tr[0];
+      ctx.drawImage(src, tr[0], sy, w, h, tr[0], y0 - tr[2], w, h);
+      ctx.fillStyle = fundo; ctx.fillRect(tr[0], Hh - tr[2], w, tr[2]);
+    }
+    return trechos.length;
+  }
+
   function drawTrack(ctx, o) {
     var W = o.width, Hh = o.height;
     var lanes = o.lanes || 6, laneH = o.laneH || 24, laneTop = o.laneTop || Math.round(Hh * 0.35);
@@ -1732,31 +1776,103 @@
     // copas de árvores na colina próxima
     ridge(0.15, 2, 6, 0.08, HC.near, 90);
 
-    // arquibancada (tile repetido)
+    // --- curvas (o.curves): arco da pista lateral, ancorado no mundo. Dentro de uma curva a cerca, as raias
+    // e os cavalos (no game.js) sobem −RaceFx.curveOffset (até 6 px de arte no meio) e a arquibancada sobe
+    // até 10 px de arte; placas "CURVA" na cerca. Precisa do fx.js (RaceFx); sem ele a pista fica reta.
+    var curves = o.curves || [];
+    var FXc = curves.length ? curvaApi() : null, arco = false;
+    if (FXc) {
+      var mVis0 = cam - 60 * P / ppm, mVis1 = cam + (W + 60 * P) / ppm;
+      for (var cq = 0; cq < curves.length; cq++) if (curves[cq][1] > mVis0 && curves[cq][0] < mVis1) { arco = true; break; }
+    }
+    // quanto sobe (pixels de arte, ≥ 0) no metro m: k = 1 para a cerca e as raias, 10/6 para a arquibancada.
+    // o.curveScale (0..1, padrão 1) encolhe o arco quando falta espaço acima da pista (como hillMaxLift)
+    var escArco = o.curveScale >= 0 && o.curveScale < 1 ? o.curveScale : 1;
+    function arcoEm(m, k) { return arco ? Math.round(-FXc.curveOffset(curves, m) * (k * escArco)) || 0 : 0; }
+    // trechos de colunas com a mesma subida: [xa, xb, dy em pixels de arte]
+    function trechosArco(k) {
+      var out = [], xa = 0, dyA = null;
+      for (var x = 0; x < W; x += P) {
+        var dy = arcoEm(cam + (x + P / 2) / ppm, k);
+        if (dy !== dyA) { if (dyA !== null) out.push([xa, x, dyA]); xa = x; dyA = dy; }
+      }
+      out.push([xa, W, dyA || 0]);
+      return out;
+    }
+
+    // arquibancada (tile repetido). Atrás dela, abaixo do horizonte, o pé das colinas (as frestas entre as
+    // arquibancadas são transparentes; sem isso ficava o quadro anterior)
+    var HCn = (HILLS[weather] || HILLS.sol).near;
+    ctx.fillStyle = HCn; ctx.fillRect(0, horizon, W, laneTop - 4 * P - horizon);
     var frame = Math.floor(t * 3) % 2;
     var st = standTile(weather, frame);
     var stW = st.width * P, stH = st.height * P;
     var stY = laneTop - 4 * P - stH;
     var stOff = mod(camPx * 0.35, stW);
     var flagDim = weather === 'chuva' ? 0.35 : isDim(weather) ? 0.15 : 0;
-    for (var sxp = -stOff; sxp < W; sxp += stW) {
-      ctx.drawImage(st, Math.round(sxp), stY, stW, stH);
-      for (var fi = 0; fi < FLAGS.x.length; fi++) {
-        var fc = FLAGS.cores[(FLAGS.x[fi] >> 4) % FLAGS.cores.length];
-        drawFlagCloth(ctx, Math.round(sxp) + FLAGS.x[fi] * P, stY, P, flagDim ? shade(fc, flagDim) : fc, vento.k, vento.dir, t, fi * 0.9);
+    var gramC = weather === 'chuva' ? '#3f6a3c' : isDim(weather) ? '#4a7c44' : '#58944a';
+    // desenha as arquibancadas que tocam as colunas [xa, xb), dy pixels de arte acima do lugar
+    function arquibancadas(xa, xb, dy) {
+      var y = stY - dy * P;
+      for (var sxp = -stOff; sxp < W; sxp += stW) {
+        var x0s = Math.round(sxp);
+        if (x0s + stW + 8 * P <= xa || x0s - 8 * P >= xb) continue;
+        ctx.drawImage(st, x0s, y, stW, stH);
+        for (var fi = 0; fi < FLAGS.x.length; fi++) {
+          var fxm = x0s + FLAGS.x[fi] * P;
+          if (fxm + 7 * P < xa || fxm - 7 * P > xb) continue;
+          var fc = FLAGS.cores[(FLAGS.x[fi] >> 4) % FLAGS.cores.length];
+          drawFlagCloth(ctx, fxm, y, P, flagDim ? shade(fc, flagDim) : fc, vento.k, vento.dir, t, fi * 0.9);
+        }
+      }
+    }
+    var stTrechos = arco ? trechosArco(FXc.CURVA.arquibancada / FXc.CURVA.arco) : null;
+    if (!stTrechos || (stTrechos.length === 1 && !stTrechos[0][2])) arquibancadas(0, W, 0);
+    else {
+      // na curva, cada trecho de colunas desliza para cima (recortado); o vão que sobra embaixo é gramado
+      for (var sti = 0; sti < stTrechos.length; sti++) {
+        var tr = stTrechos[sti];
+        ctx.save();
+        ctx.beginPath(); ctx.rect(tr[0], 0, tr[1] - tr[0], laneTop - 4 * P); ctx.clip();
+        if (tr[2]) { ctx.fillStyle = HCn; ctx.fillRect(tr[0], horizon - tr[2] * P, tr[1] - tr[0], tr[2] * P); }
+        arquibancadas(tr[0], tr[1], tr[2]);
+        if (tr[2]) { ctx.fillStyle = gramC; ctx.fillRect(tr[0], laneTop - 4 * P - tr[2] * P, tr[1] - tr[0], tr[2] * P); }
+        ctx.restore();
       }
     }
 
     // gramado entre arquibancada e pista
-    ctx.fillStyle = weather === 'chuva' ? '#3f6a3c' : isDim(weather) ? '#4a7c44' : '#58944a';
+    ctx.fillStyle = gramC;
     ctx.fillRect(0, laneTop - 4 * P, W, 4 * P);
+
+    // --- faixa da pista no arco das curvas: da cerca externa à interna, tudo sobe dyX(x) pixels do canvas na
+    // coluna x (0 fora das curvas). Peças por coluna (postes, tracejados, placas) usam dyX; faixas de largura
+    // total são desenhadas por trecho de colunas (faixaLarga); o piso, recortado por trecho.
+    var trA = arco ? trechosArco(1) : null;
+    if (trA && trA.length === 1 && !trA[0][2]) trA = null;
+    function dyX(x) { return trA ? arcoEm(cam + (Math.floor(x / P) * P + P / 2) / ppm, 1) * P : 0; }
+    function faixaLarga(y, h) {
+      if (!trA) { ctx.fillRect(0, y, W, h); return; }
+      for (var i = 0; i < trA.length; i++) ctx.fillRect(trA[i][0], y - trA[i][2] * P, trA[i][1] - trA[i][0], h);
+    }
 
     // --- superfície da pista
     var artH = Math.ceil(trackH / P);
     var tile = surfaceTile(surface, weather, artH);
     var tw = tile.width * P;
     var tOff = mod(camPx, tw);
-    for (var tx = -tOff; tx < W; tx += tw) ctx.drawImage(tile, Math.round(tx), laneTop, tw, artH * P);
+    function piso(xa, xb, dy) {
+      for (var tx = -tOff; tx < W; tx += tw) if (tx + tw > xa && tx < xb) ctx.drawImage(tile, Math.round(tx), laneTop - dy, tw, artH * P);
+    }
+    if (!trA) piso(0, W, 0);
+    else {
+      for (var pti = 0; pti < trA.length; pti++) {
+        var ptr = trA[pti];
+        ctx.save(); ctx.beginPath(); ctx.rect(ptr[0], 0, ptr[1] - ptr[0], Hh); ctx.clip();
+        piso(ptr[0], ptr[1], ptr[2] * P);
+        ctx.restore();
+      }
+    }
 
     // divisórias de raia
     var SC = SURF[surface] || SURF.grama;
@@ -1764,18 +1880,21 @@
       var ly = laneTop + l * laneH;
       ctx.fillStyle = rgba('#ffffff', surface === 'areia' ? 0.28 : 0.16);
       var dash = 6 * P, gap = 4 * P, dOff = mod(camPx, dash + gap);
-      for (var dx = -dOff; dx < W; dx += dash + gap) ctx.fillRect(Math.round(dx), ly - Math.floor(P / 2), dash, Math.max(1, Math.floor(P / 2) || 1));
+      for (var dx = -dOff; dx < W; dx += dash + gap) ctx.fillRect(Math.round(dx), ly - Math.floor(P / 2) - dyX(dx + dash / 2), dash, Math.max(1, Math.floor(P / 2) || 1));
     }
     // borda escura no topo da pista (sombra da cerca)
-    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(0, laneTop, W, P);
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; faixaLarga(laneTop, P);
     // raia destacada (a do jogador): faixa dourada translúcida com bordas tracejadas
     var hl = o.highlightLane;
     if (hl != null && hl >= 0 && hl < lanes) {
       var hly = laneTop + hl * laneH;
-      ctx.fillStyle = 'rgba(242,194,48,0.12)'; ctx.fillRect(0, hly, W, laneH);
+      ctx.fillStyle = 'rgba(242,194,48,0.12)'; faixaLarga(hly, laneH);
       ctx.fillStyle = 'rgba(242,194,48,0.6)';
       var hd = 4 * P, hOff = mod(camPx, hd * 2);
-      for (var hlx = -hOff; hlx < W; hlx += hd * 2) { ctx.fillRect(Math.round(hlx), hly, hd, P); ctx.fillRect(Math.round(hlx), hly + laneH - P, hd, P); }
+      for (var hlx = -hOff; hlx < W; hlx += hd * 2) {
+        var hdy = dyX(hlx + hd / 2);
+        ctx.fillRect(Math.round(hlx), hly - hdy, hd, P); ctx.fillRect(Math.round(hlx), hly + laneH - P - hdy, hd, P);
+      }
     }
 
     // --- subidas
@@ -1802,13 +1921,10 @@
       }
     }
 
-    // --- curvas: tinta azulada sobre as raias e setas ↪ ao longo da cerca externa (ancoradas no mundo)
-    var curves = o.curves || [];
+    // --- curvas: linhas tracejadas de início e fim (o arco e as placas na cerca dizem que é curva)
     for (var cvi = 0; cvi < curves.length; cvi++) {
       var ca = sx(curves[cvi][0]), cb = sx(curves[cvi][1]);
       if (cb < -60 * P || ca > W + 60 * P) continue;
-      var cx0 = Math.max(0, ca), cx1 = Math.min(W, cb);
-      if (cx1 > cx0) { ctx.fillStyle = 'rgba(30,60,120,0.18)'; ctx.fillRect(cx0, laneTop, cx1 - cx0, trackH); }
       ctx.fillStyle = '#7ab8ff';
       for (var ly3 = laneTop; ly3 < trackBottom; ly3 += 4 * P) {
         if (ca >= 0 && ca < W) ctx.fillRect(ca, ly3, P, 2 * P);
@@ -1823,22 +1939,22 @@
     var mEnd = cam + (W + 80) / ppm;
     for (var mm = mStart; mm <= mEnd; mm += ev) {
       if (mm >= finishM) break;
-      var mx = sx(mm);
+      var mx = sx(mm), mdy = dyX(mx);
       ctx.fillStyle = 'rgba(255,255,255,0.28)';
-      for (var my = laneTop; my < trackBottom; my += 3 * P) ctx.fillRect(mx, my, P, P * 2);
+      for (var my = laneTop; my < trackBottom; my += 3 * P) ctx.fillRect(mx, my - mdy, P, P * 2);
     }
     // largada
     var sx0 = sx(0);
-    if (sx0 > -10 && sx0 < W + 10) { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(sx0, laneTop, P, trackH); }
+    if (sx0 > -10 && sx0 < W + 10) { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(sx0, laneTop - dyX(sx0), P, trackH); }
 
     // --- linha de chegada quadriculada
     var fx = sx(finishM);
     if (fx > -40 * P && fx < W + 40 * P) {
-      var sq = 2 * P;
+      var sq = 2 * P, fdy = dyX(fx);
       for (var fy = laneTop, k = 0; fy < trackBottom; fy += sq, k++) {
         for (var col = 0; col < 2; col++) {
           ctx.fillStyle = (k + col) % 2 ? '#ffffff' : '#141218';
-          ctx.fillRect(fx + col * sq, fy, sq, Math.min(sq, trackBottom - fy));
+          ctx.fillRect(fx + col * sq, fy - fdy, sq, Math.min(sq, trackBottom - fy));
         }
       }
     }
@@ -1850,23 +1966,71 @@
       for (var pm = ps; pm < cam + W / ppm + 8; pm += every) {
         var pxp = sx(pm);
         ctx.fillStyle = '#c9c2b6';
-        ctx.fillRect(pxp, y - (postsUp ? 6 * P : 0), P, 6 * P);
+        ctx.fillRect(pxp, y - (postsUp ? 6 * P : 0) - dyX(pxp), P, 6 * P);
       }
-      ctx.fillStyle = '#1c1820'; ctx.fillRect(0, y - 6 * P - P, W, P);
-      ctx.fillStyle = '#f6f2ea'; ctx.fillRect(0, y - 6 * P, W, 2 * P);
-      ctx.fillStyle = '#c9c2b6'; ctx.fillRect(0, y - 4 * P, W, P);
-      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, y - 3 * P, W, P);
+      ctx.fillStyle = '#1c1820'; faixaLarga(y - 6 * P - P, P);
+      ctx.fillStyle = '#f6f2ea'; faixaLarga(y - 6 * P, 2 * P);
+      ctx.fillStyle = '#c9c2b6'; faixaLarga(y - 4 * P, P);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; faixaLarga(y - 3 * P, P);
     }
     rail(laneTop, true);
 
+    // --- cerca interna e gramado interno (na curva o gramado começa mais acima: o rodapé fica maior)
+    var innerC = weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
+    ctx.fillStyle = innerC;
+    if (!trA) ctx.fillRect(0, trackBottom, W, Hh - trackBottom);
+    else for (var iti = 0; iti < trA.length; iti++) ctx.fillRect(trA[iti][0], trackBottom - trA[iti][2] * P, trA[iti][1] - trA[iti][0], Hh - trackBottom + trA[iti][2] * P);
+    // tufos e flores do gramado interno
+    var inOff = camPx;
+    for (var gi = 0; gi < 40; gi++) {
+      var gw = 1200;
+      var gx = mod(hash(gi + 300) * gw - inOff, gw);
+      if (gx > W) continue;
+      var gy = trackBottom + 4 * P + Math.round(hash(gi + 400) * Math.max(1, (Hh - trackBottom - 8 * P) / P)) * P;
+      if (gy > Hh - 2 * P) continue;
+      gy -= dyX(gx);
+      ctx.fillStyle = weather === 'chuva' ? '#2c4c2e' : '#3a7238';
+      var tufo = Math.round(vento.k.grama * (0.55 + 0.45 * Math.sin(t * vento.k.freq * 0.6 + gi))) * vento.dir * P;
+      ctx.fillRect(Math.round(gx), gy, P, 2 * P); ctx.fillRect(Math.round(gx) + 2 * P, gy, P, 2 * P);
+      ctx.fillRect(Math.round(gx) + 2 * P + tufo, gy - P, P, P);
+      if (gi % 4 === 0) { ctx.fillStyle = gi % 8 ? '#f2e04a' : '#f0f0f0'; ctx.fillRect(Math.round(gx) + P, gy - 2 * P, P, P); }
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; faixaLarga(trackBottom, P);
+    // cerca interna (postes para baixo)
+    var every2 = 4, ps2 = Math.floor((cam - 8) / every2) * every2;
+    for (var pm2 = ps2; pm2 < cam + W / ppm + 8; pm2 += every2) {
+      var px2 = sx(pm2);
+      ctx.fillStyle = '#c9c2b6'; ctx.fillRect(px2, trackBottom + P - dyX(px2), P, 4 * P);
+    }
+    ctx.fillStyle = '#f6f2ea'; faixaLarga(trackBottom + P, 2 * P);
+    ctx.fillStyle = '#1c1820'; faixaLarga(trackBottom + 3 * P, P);
+    // grama da borda: folhinhas logo abaixo da cerca interna, presas ao mundo, deitando com o vento
+    if (Hh - trackBottom >= 8 * P) {
+      var gBase = weather === 'chuva' ? '#4a7a48' : isDim(weather) ? '#5a8c52' : '#6aa85a';
+      var gPonta = weather === 'chuva' ? '#5f8f5a' : isDim(weather) ? '#76a468' : '#8cc46a';
+      var camArt = camPx / P, g0 = Math.floor(camArt / 5) * 5;
+      for (var gw2 = g0; (gw2 - camArt) * P < W; gw2 += 5) {
+        var gh = hash(gw2 * 7 + 3);
+        if (gh < 0.3) continue;
+        var gx2 = Math.round((gw2 - camArt) * P), alto = gh > 0.75 ? 3 : 2;
+        var ginga = Math.round(vento.k.grama * (0.55 + 0.45 * Math.sin(t * vento.k.freq * 0.6 + gw2 * 0.37))) * vento.dir;
+        var yb = trackBottom + 6 * P - dyX(gx2);
+        ctx.fillStyle = gBase; ctx.fillRect(gx2, yb, P, P);
+        ctx.fillRect(gx2 + Math.round(ginga / 2) * P, yb - P, P, P);
+        if (alto === 3) { ctx.fillStyle = gPonta; ctx.fillRect(gx2 + ginga * P, yb - 2 * P, P, P); }
+      }
+    }
+    if (fx > -10 && fx < W + 10) { ctx.fillStyle = '#f6f2ea'; ctx.fillRect(fx, trackBottom - dyX(fx), 2 * P, 8 * P); }
+
+    // --- placas (depois do campo interno; nenhuma passa da cerca para baixo), acompanhando a cerca no arco
     // placas de distância sobre a cerca externa
     for (var m2 = mStart; m2 <= mEnd; m2 += ev) {
       if (m2 >= finishM) break;
-      var bx = sx(m2);
-      ctx.fillStyle = '#e8e2d6'; ctx.fillRect(bx, laneTop - 18 * P, P, 18 * P);
+      var bx = sx(m2), bdy = dyX(bx);
+      ctx.fillStyle = '#e8e2d6'; ctx.fillRect(bx, laneTop - 18 * P - bdy, P, 18 * P);
       ctx.fillStyle = '#c83c3c';
-      for (var sy2 = laneTop - 18 * P; sy2 < laneTop - 6 * P; sy2 += 4 * P) ctx.fillRect(bx, sy2, P, 2 * P);
-      drawBoard(ctx, bx, laneTop - 28 * P, m2 + 'm', P, '#f6f2ea', '#1c1820');
+      for (var sy2 = laneTop - 18 * P; sy2 < laneTop - 6 * P; sy2 += 4 * P) ctx.fillRect(bx, sy2 - bdy, P, 2 * P);
+      drawBoard(ctx, bx, laneTop - 28 * P - bdy, m2 + 'm', P, '#f6f2ea', '#1c1820');
     }
     // placas de subida
     for (var h2 = 0; h2 < hills.length; h2++) {
@@ -1883,17 +2047,18 @@
         drawBoard(ctx, hb, laneTop - 22 * P, 'FIM', P, '#f2c230', '#1c1820');
       }
     }
-    // placas de curva e setas ↪ (chevron de 3 pixels) a cada 40·P sobre a cerca externa
+    // placas de curva: CURVA no poste do início, FIM no do fim e, ao longo da curva, placas "CURVA" presas
+    // à cerca a cada CURVA_PLACA_M (ancoradas no mundo; longe das pontas e dos postes de distância)
     for (var c2 = 0; c2 < curves.length; c2++) {
       var ka = sx(curves[c2][0]), kb = sx(curves[c2][1]);
       if (kb < -40 * P || ka > W + 40 * P) continue;
-      var aStep = 40 * P, aFrom = ka + aStep / 2;
-      if (aFrom < 0) aFrom += Math.ceil(-aFrom / aStep) * aStep;
-      ctx.fillStyle = '#7ab8ff';
-      for (var ax = aFrom; ax < Math.min(kb - 4 * P, W); ax += aStep) {
-        var ay = laneTop - 10 * P;
-        ctx.fillRect(ax, ay, P, P); ctx.fillRect(ax + P, ay + P, P, P); ctx.fillRect(ax, ay + 2 * P, P, P);
-        ctx.fillRect(ax + 2 * P, ay, P, P); ctx.fillRect(ax + 3 * P, ay + P, P, P); ctx.fillRect(ax + 2 * P, ay + 2 * P, P, P);
+      var c2a = curves[c2][0], c2b = curves[c2][1];
+      var mp0 = Math.ceil(Math.max(c2a + 15, cam - 30 * P / ppm) / CURVA_PLACA_M) * CURVA_PLACA_M;
+      for (var mp = mp0; mp < c2b - 15 && mp < cam + (W + 30 * P) / ppm; mp += CURVA_PLACA_M) {
+        var dm = mod(mp, ev);
+        if (dm < 8 || dm > ev - 8) continue;
+        var mpx = sx(mp);
+        drawBoard(ctx, mpx, laneTop - 12 * P - dyX(mpx), 'CURVA', P, '#7ab8ff', '#1c1820');
       }
       if (ka > -40 * P && ka < W + 40 * P) {
         ctx.fillStyle = '#2a4a78'; ctx.fillRect(ka, laneTop - 16 * P, P, 16 * P);
@@ -1929,65 +2094,9 @@
       drawBoard(ctx, fx + P, postTop - 19 * P, 'CHEGADA', P, '#141218', '#ffffff');
     }
 
-    // --- cerca interna e gramado interno
-    ctx.fillStyle = weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
-    ctx.fillRect(0, trackBottom, W, Hh - trackBottom);
-    // tufos e flores do gramado interno
-    var inOff = camPx;
-    for (var gi = 0; gi < 40; gi++) {
-      var gw = 1200;
-      var gx = mod(hash(gi + 300) * gw - inOff, gw);
-      if (gx > W) continue;
-      var gy = trackBottom + 4 * P + Math.round(hash(gi + 400) * Math.max(1, (Hh - trackBottom - 8 * P) / P)) * P;
-      if (gy > Hh - 2 * P) continue;
-      ctx.fillStyle = weather === 'chuva' ? '#2c4c2e' : '#3a7238';
-      var tufo = Math.round(vento.k.grama * (0.55 + 0.45 * Math.sin(t * vento.k.freq * 0.6 + gi))) * vento.dir * P;
-      ctx.fillRect(Math.round(gx), gy, P, 2 * P); ctx.fillRect(Math.round(gx) + 2 * P, gy, P, 2 * P);
-      ctx.fillRect(Math.round(gx) + 2 * P + tufo, gy - P, P, P);
-      if (gi % 4 === 0) { ctx.fillStyle = gi % 8 ? '#f2e04a' : '#f0f0f0'; ctx.fillRect(Math.round(gx) + P, gy - 2 * P, P, P); }
-    }
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, trackBottom, W, P);
-    // cerca interna (postes para baixo)
-    var every2 = 4, ps2 = Math.floor((cam - 8) / every2) * every2;
-    for (var pm2 = ps2; pm2 < cam + W / ppm + 8; pm2 += every2) {
-      ctx.fillStyle = '#c9c2b6'; ctx.fillRect(sx(pm2), trackBottom + P, P, 4 * P);
-    }
-    ctx.fillStyle = '#f6f2ea'; ctx.fillRect(0, trackBottom + P, W, 2 * P);
-    ctx.fillStyle = '#1c1820'; ctx.fillRect(0, trackBottom + 3 * P, W, P);
-    // grama da borda: folhinhas logo abaixo da cerca interna, presas ao mundo, deitando com o vento
-    if (Hh - trackBottom >= 8 * P) {
-      var gBase = weather === 'chuva' ? '#4a7a48' : isDim(weather) ? '#5a8c52' : '#6aa85a';
-      var gPonta = weather === 'chuva' ? '#5f8f5a' : isDim(weather) ? '#76a468' : '#8cc46a';
-      var camArt = camPx / P, g0 = Math.floor(camArt / 5) * 5;
-      for (var gw2 = g0; (gw2 - camArt) * P < W; gw2 += 5) {
-        var gh = hash(gw2 * 7 + 3);
-        if (gh < 0.3) continue;
-        var gx2 = Math.round((gw2 - camArt) * P), alto = gh > 0.75 ? 3 : 2;
-        var ginga = Math.round(vento.k.grama * (0.55 + 0.45 * Math.sin(t * vento.k.freq * 0.6 + gw2 * 0.37))) * vento.dir;
-        var yb = trackBottom + 6 * P;
-        ctx.fillStyle = gBase; ctx.fillRect(gx2, yb, P, P);
-        ctx.fillRect(gx2 + Math.round(ginga / 2) * P, yb - P, P, P);
-        if (alto === 3) { ctx.fillStyle = gPonta; ctx.fillRect(gx2 + ginga * P, yb - 2 * P, P, P); }
-      }
-    }
-    if (fx > -10 && fx < W + 10) { ctx.fillStyle = '#f6f2ea'; ctx.fillRect(fx, trackBottom, 2 * P, 8 * P); }
-
     // --- relevo das subidas: copia as colunas da faixa (da cerca externa para baixo) para cima
     if (hills.length && o.hillRelief !== false) {
-      var y0 = laneTop - 8 * P, innerC = weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
-      var spanX = -1, spanDy = 0;
-      var flush = function (xEnd) {
-        if (spanX < 0 || spanDy <= 0) return;
-        var w = xEnd - spanX;
-        ctx.drawImage(ctx.canvas, spanX, y0, w, Hh - y0, spanX, y0 - spanDy, w, Hh - y0);
-        // encosta: faixa de terra escura sob a cerca levantada e gramado no rodapé exposto
-        ctx.fillStyle = innerC; ctx.fillRect(spanX, Hh - spanDy, w, spanDy);
-      };
-      for (var cx2 = 0; cx2 < W; cx2 += P) {
-        var dy = hillLiftAt(cam + (cx2 + P / 2) / ppm, hills, o.hillMaxLift) * P;
-        if (dy !== spanDy || spanX < 0) { flush(cx2); spanX = cx2; spanDy = dy; }
-      }
-      flush(W);
+      deslocaFaixa(ctx, W, Hh, laneTop - 8 * P, P, function (x) { return hillLiftAt(cam + (x + P / 2) / ppm, hills, o.hillMaxLift) * P; }, innerC);
     }
   }
 

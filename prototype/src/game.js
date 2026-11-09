@@ -2258,7 +2258,7 @@
         '<h1 class="titulo titulo--tela" id="t-largada" tabindex="-1" data-foco>' + esc(L.trackName) + '</h1>' +
         (L.trackDesc ? '<p class="nota">' + esc(L.trackDesc) + '</p>' : '') + '</header>' +
       '<section class="caixa" aria-label="Condições da pista">' + conditionChips(L.cond) +
-        '<canvas class="perfil" data-perfil="1" role="img" aria-label="' + esc('Mapa da pista de ' + D + ' metros em ' + L.cond.blocks.length + ' trechos: ' +
+        '<canvas class="perfil" data-perfil="1" role="img" aria-label="' + esc('Mapa da pista visto de cima, ' + D + ' metros em ' + L.cond.blocks.length + ' trechos: ' +
           L.cond.blocks.map(function (bl) { return GD.BLOCK_TYPES[bl.type].name.toLowerCase(); }).join(', ')) + '"></canvas>' +
         climaHints(L) + '</section>' +
       '<section class="caixa" aria-labelledby="t-estrategia"><h2 class="titulo" id="t-estrategia">Sua estratégia</h2>' +
@@ -2273,9 +2273,9 @@
       '</section>';
   }
 
-  // Mapa da pista: faixa colorida por bloco (reta na cor do piso, curva e subida na cor do tipo), morros nas
-  // subidas, marcas de distância, largada e chegada.
-  // Os rótulos de distância ficam abaixo da faixa, sobre o painel, com contraste de texto.
+  // Mapa da pista: o traçado visto de cima (RaceFx.trackPath / drawTrackMap), com retas na cor do piso, curvas e
+  // subidas na cor do tipo, largada (quadrado claro) e chegada (xadrez). A altura do canvas acompanha o formato
+  // do traçado (escala única, sem distorcer); embaixo, a legenda dos tipos presentes e a distância.
   function drawProfileCanvas(cv) {
     var L = ui.lobby; if (!L) return;
     var cond = L.cond, D = cond.distance;
@@ -2284,47 +2284,25 @@
       var pcs = getComputedStyle(par);
       avail = par.clientWidth - (parseFloat(pcs.paddingLeft) || 0) - (parseFloat(pcs.paddingRight) || 0);
     }
-    var artW = clamp(Math.floor(avail / 2), 120, 240), artH = 36;
+    var artW = clamp(Math.floor(avail / 2), 120, 240);
+    var path = FX.trackPath(cond.blocks), bb = path.bbox, folga = 4;   // folga = a do drawTrackMap com linha 3
+    var sW = bb.w > 0 ? (artW - 2 * folga) / bb.w : 0;
+    var mapH = clamp(Math.ceil(bb.h * sW) + 2 * folga, 28, 84), artH = mapH + 11;
     var s = setupCanvas(cv, artW, artH, 2), ctx = s.ctx, k = s.k;
     function R(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x * k, y * k, w * k, h * k); }
     R(0, 0, artW, artH, C.painel2);
-    var x0 = 8, x1 = artW - 10, base = 22, bandBottom = 27;
     var surf = (GD.SURFACES[cond.surface] || {}).color || C.palha;
-    function hillH(m) {
-      for (var i = 0; i < cond.hills.length; i++) {
-        var a = cond.hills[i][0], b = cond.hills[i][1];
-        if (m >= a && m <= b) return Math.round(8 * (SP.hillShape ? SP.hillShape(m, a, b) : Math.sin(Math.PI * (m - a) / (b - a))));
-      }
-      return 0;
-    }
-    for (var x = x0; x <= x1; x++) {
-      var m = (x - x0) / (x1 - x0) * D, hh = hillH(m);
-      var bt = cond.blocks[RS.blockAt(cond.blocks, m)].type;
-      R(x, base - hh, 1, bandBottom - (base - hh), bt === 'reta' ? surf : GD.BLOCK_TYPES[bt].color);
-      R(x, base - hh, 1, 1, hh > 0 ? C.ouro : C.texto);
-    }
-    var every = D <= 1000 ? 100 : 200;
-    for (var mm = every; mm < D; mm += every) {
-      var xm = Math.round(x0 + mm / D * (x1 - x0));
-      R(xm, bandBottom, 1, 2, C.texto3);
-    }
-    // largada e chegada
-    R(x0, 6, 1, bandBottom - 6, C.texto); R(x0 + 1, 6, 4, 3, C.texto);
-    for (var fy = 4; fy < bandBottom; fy += 2) { R(x1, fy, 2, 1, (fy / 2) % 2 ? C.sombra : C.texto); R(x1 + 2, fy, 2, 1, (fy / 2) % 2 ? C.texto : C.sombra); }
-    SP.drawText(ctx, '0', x0 * k, 30 * k, { scale: k, color: C.texto });
-    SP.drawText(ctx, D + 'm', (x1 + 3) * k, 30 * k, { scale: k, color: C.texto, align: 'right' });
-    // rótulos sobre os trechos; um rótulo que encostaria no anterior da mesma linha é omitido (a cor já diz o tipo)
-    function labels(ranges, text, y, color) {
-      var tw = SP.measureText ? SP.measureText(text, 1) : text.length * 4, lastRight = -Infinity;
-      ranges.forEach(function (rg) {
-        var cx = Math.round(x0 + (rg[0] + rg[1]) / 2 / D * (x1 - x0));
-        if (cx - tw / 2 < lastRight + 3) return;
-        lastRight = cx + tw / 2;
-        SP.drawText(ctx, text, cx * k, y * k, { scale: k, color: color, align: 'center' });
-      });
-    }
-    labels(cond.hills, 'SUBIDA', 3, C.ouro);
-    labels(cond.curves, 'CURVA', 10, GD.BLOCK_TYPES.curva.color);
+    FX.drawTrackMap(ctx, path, { x: 0, y: 0, w: artW, h: mapH, P: k }, { piso: surf, linha: 3 });
+    // legenda: tipos presentes (amostra da cor + nome) e a distância à direita
+    var ly = mapH + 3, lx = 4;
+    ['reta', 'curva', 'subida'].forEach(function (tp) {
+      if (!cond.blocks.some(function (bl) { return bl.type === tp; })) return;
+      var nome = GD.BLOCK_TYPES[tp].name.toUpperCase();
+      R(lx, ly + 1, 5, 3, tp === 'reta' ? surf : GD.BLOCK_TYPES[tp].color);
+      SP.drawText(ctx, nome, (lx + 7) * k, ly * k, { scale: k, color: C.texto2 });
+      lx += 7 + SP.measureText(nome, 1) + 5;
+    });
+    SP.drawText(ctx, D + 'm', (artW - 4) * k, ly * k, { scale: k, color: C.texto, align: 'right' });
   }
 
   // ===========================================================================
@@ -2414,6 +2392,13 @@
   function createRaceView(L, root) {
     var sim = L.sim, n = L.n, D = L.cond.distance, hills = L.cond.hills, curves = L.cond.curves || [];
     var blocks = L.cond.blocks;
+    // curvas (só visual): o traçado de cima do minimapa e quanto a raia sobe (pixels de arte inteiros, ≥ 0)
+    // no metro m — o mesmo arredondamento do Sprites.drawTrack, então o cavalo fica em cima das linhas da raia
+    var mapa = FX.trackPath(blocks);
+    var pisoCor = (GD.SURFACES[L.cond.surface] || {}).color || C.palha;
+    var silksCores = L.racers.map(function (r) { return r.silks; });
+    // (o fator lay.arcoK encolhe o arco quando falta espaço acima da raia 1, como o maxLift das subidas)
+    function arcoArt(m) { return curves.length ? Math.round(-FX.curveOffset(curves, m) * self.lay.arcoK) || 0 : 0; }
     // clima em cada instante: o inicial, trocado por cada evento 'clima' (Dado da Sorte) já ocorrido
     var climaEvs = sim.events.filter(function (ev) { return ev.type === 'clima'; });
     function climaAtual(simT) {
@@ -2504,6 +2489,12 @@
     };
     for (i = 0; i < n; i++) self.gallop[i] = i * 1.7;
 
+    // minimapa do HUD (fora do layout compacto): caixa em pixels de arte logo abaixo da linha de cima
+    function miniCaixa(artW) {
+      var w = clamp(Math.round(artW * 0.2), 40, 72);
+      return { x: 2, y: 18, w: w, h: clamp(Math.round(w * 0.45), 22, 30) };
+    }
+
     // ---- layout: o canvas ocupa a altura que sobra na tela (sem rolagem), escala inteira
     function layout() {
       var r = dpr();
@@ -2519,7 +2510,8 @@
         var S = Math.max(1, Math.round(k * r));
         var artW = Math.floor(cssW * r / S), artH = Math.floor(cssH * r / S);
         var compact = artH < 190;
-        var hudH = compact ? 15 : 20 + n;
+        var mini = compact ? null : miniCaixa(artW);
+        var hudH = compact ? 15 : Math.max(20 + n, mini.y + mini.h + 2);
         var bottom = compact ? 8 : 14;
         var minTop = hudH + (compact ? 12 : 30);
         var lane = Math.floor((artH - bottom - minTop) / n);
@@ -2527,8 +2519,11 @@
         lane = clamp(lane, compact ? 12 : 13, 26);
         var top = Math.max(minTop, Math.min(artH - bottom - n * lane, minTop + 70));
         pick = {
-          k: k, S: S, artW: artW, artH: top + n * lane + bottom, laneArt: lane, laneTopArt: top, hudH: hudH, compact: compact,
-          maxLift: clamp(top - hudH - 12, 4, 24)   // a subida não invade o HUD
+          k: k, S: S, artW: artW, artH: top + n * lane + bottom, laneArt: lane, laneTopArt: top, hudH: hudH, compact: compact, mini: mini,
+          maxLift: clamp(top - hudH - 12, 4, 24),   // a subida não invade o HUD
+          // arco da curva: o cavalo da raia 1 (pés em top + lane − 3, sprite de FOOT_Y + 1 de altura) não sai
+          // por cima do canvas; só o layout compacto (raias de 12) fica abaixo dos 6 px de arte
+          arcoK: clamp(top + lane - 3 - (SP.FOOT_Y + 1), 0, FX.CURVA.arco) / FX.CURVA.arco
         };
       });
       var S = pick.S;
@@ -2697,43 +2692,19 @@
       // tipo do bloco do jogador: SUBIDA ou CURVA (nada na reta)
       var bType = blocks[RS.blockAt(blocks, st.pos[me])].type;
       var lbl = bType === 'subida' ? '▲SUBIDA' : bType === 'curva' ? '↪CURVA' : '';
+      var mc = lay.mini;
       if (lbl && self.phase !== 'contagem') {
         var lw = tw(lbl) + 4;
-        var hy = lay.compact ? 6 : 18 + n + 4;
-        var hx = lay.compact ? A - 2 - tw2 - 4 - lw : 2;
+        var hy = lay.compact ? 6 : mc.y + 1;
+        var hx = lay.compact ? A - 2 - tw2 - 4 - lw : mc.x + mc.w + 4;
         box(hx, hy, lw, 7, bType === 'curva' ? GD.BLOCK_TYPES.curva.color : C.ouro, C.sombra);
         text(lbl, hx + 2, hy + 1, C.tinta);
       }
       if (lay.compact) return;
-      // faixa de progresso: uma linha por raia (pontos nunca se escondem atrás do seu marcador)
-      var x0 = 4, x1 = A - 9, y0 = 19;
-      box(x0 - 1, y0 - 1, x1 - x0 + 3, n + 2, C.veu);
-      ctx.fillStyle = C.linha; ctx.fillRect(x0 * self.S, y0 * self.S, (x1 - x0 + 1) * self.S, n * self.S);
-      ctx.fillStyle = C.brilho;   // curvas: a faixa clareada
-      curves.forEach(function (cl) {
-        var ca = Math.round(x0 + cl[0] / D * (x1 - x0)), cb = Math.round(x0 + cl[1] / D * (x1 - x0));
-        ctx.fillRect(ca * self.S, y0 * self.S, Math.max(1, cb - ca) * self.S, n * self.S);
-      });
-      ctx.fillStyle = C.ouroEscuro;
-      hills.forEach(function (hl) {
-        var ha = Math.round(x0 + hl[0] / D * (x1 - x0)), hb = Math.round(x0 + hl[1] / D * (x1 - x0));
-        ctx.fillRect(ha * self.S, y0 * self.S, Math.max(1, hb - ha) * self.S, n * self.S);
-      });
-      for (var fy = 0; fy < n + 2; fy++) for (var fx = 0; fx < 3; fx++) {
-        ctx.fillStyle = (fx + fy) % 2 ? C.texto : C.sombra;
-        ctx.fillRect((x1 + 2 + fx) * self.S, (y0 - 1 + fy) * self.S, self.S, self.S);
-      }
-      for (var j = 0; j < n; j++) {
-        if (j === me) continue;
-        var px = Math.round(x0 + clamp(st.pos[j] / D, 0, 1) * (x1 - x0));
-        ctx.fillStyle = L.racers[j].silks;
-        ctx.fillRect((px - 1) * self.S, (y0 + j) * self.S, 3 * self.S, self.S);
-      }
-      var mx = Math.round(x0 + clamp(st.pos[me] / D, 0, 1) * (x1 - x0));
-      ctx.fillStyle = C.ouro;
-      ctx.fillRect((mx - 1) * self.S, (y0 - 1) * self.S, 3 * self.S, (n + 2) * self.S);
-      ctx.fillStyle = C.sombra;
-      ctx.fillRect(mx * self.S, (y0 + me) * self.S, self.S, self.S);
+      // minimapa: o traçado visto de cima (curvas na cor da curva, subidas em ouro, retas na cor do piso) com
+      // um ponto por cavalo na cor da raia; o seu é maior, com contorno claro, e vem por cima
+      box(mc.x, mc.y, mc.w, mc.h, C.veu);
+      FX.drawMiniMap(ctx, mapa, st.pos, silksCores, me, { x: mc.x, y: mc.y, w: mc.w, h: mc.h, P: self.S, piso: pisoCor });
     }
 
     function draw(st, order) {
@@ -2754,14 +2725,15 @@
       SP.drawTrack(ctx, {
         width: W, height: H, cameraX: cam, pxPerMeter: ppm, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: L.cond.surface, finishM: D, hills: hills, curves: curves, distanceMarkersEvery: D <= 1000 ? 100 : 200,
-        t: red ? tr * 0.4 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind
+        t: red ? tr * 0.4 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind,
+        curveScale: lay.arcoK
       });
       // natureza, camada de trás (calor, respingos, névoa do fundo): antes dos cavalos. lift acompanha o
-      // relevo das subidas (os respingos e o calor ficam no chão levantado)
+      // relevo das subidas e o arco das curvas (os respingos e o calor ficam no chão levantado)
       var natO = {
         weather: clima, wind: self.wind, t: tr, W: W, H: H, P: S, laneTop: laneTop, trackBottom: laneTop + n * laneH,
         reduced: red, seed: L.seed, cam: cam * ppm, camada: 'tras', surface: L.cond.surface,
-        lift: hills.length ? function (px) { return SP.hillLiftAt(cam + px / ppm, hills, lay.maxLift) * S; } : null
+        lift: hills.length || curves.length ? function (px) { var m = cam + px / ppm; return (SP.hillLiftAt(m, hills, lay.maxLift) + arcoArt(m)) * S; } : null
       };
       FX.drawNature(ctx, natO);
       var poeira = clima !== 'chuva' && (L.cond.surface === 'terra' || L.cond.surface === 'areia');
@@ -2773,7 +2745,9 @@
         var an = SP.anchorsFor(r.horse.element, S, standing ? 'parado' : 'galope');
         var hoofM = st.pos[j] - (an.nose[0] - 20) / self.ppmArt;
         var lift = SP.hillLiftAt ? SP.hillLiftAt(hoofM, hills, lay.maxLift) * S : 0;
-        var feetY = laneTop + (j + 1) * laneH - 3 * S - lift;
+        // na curva a raia sobe com a cerca (RaceFx.curveOffset no meio do cavalo, como as colunas da pista)
+        var arcoJ = arcoArt(hoofM);
+        var feetY = laneTop + (j + 1) * laneH - 3 * S - lift - arcoJ * S;
         var y = feetY - (SP.FOOT_Y + 1) * S;
         var x = Math.round(((st.pos[j] - cam) * ppm - an.nose[0] * S) / S) * S;
         var cavalo = {
@@ -2819,7 +2793,7 @@
         for (var ei = 0; ei < efeitoItens.length; ei++) {
           if (efeitoItens[ei].racer === j) FX.drawSkillAura(ctx, { x: caixaCav.x, y: caixaCav.y, w: caixaCav.w, h: caixaCav.h, S: S }, efeitoItens[ei], self.simT, reduced());
         }
-        vis.push({ j: j, x: x, y: y, caixa: caixaCav, an: an });
+        vis.push({ j: j, x: x, y: y, caixa: caixaCav, an: an, sobe: Math.round(lift / S) + arcoJ });
         var finished = fTime[j] <= self.simT;
         if (j === me) youTag = { x: x + (an.nose[0] + 3) * S, y: y + 3 * S, place: finished ? rankOf[j] + 1 : 0 };
         else if (finished) badges.push({ x: x + 22 * S, y: y - 2 * S, j: j, place: rankOf[j] + 1 });
@@ -2917,7 +2891,7 @@
         var lista = porCavalo[v.j];
         if (!lista) return;
         lista = lista.slice(-3);
-        var y0 = lay.laneTopArt + v.j * lay.laneArt, y1 = y0 + lay.laneArt;
+        var y0 = lay.laneTopArt + v.j * lay.laneArt - (v.sobe || 0), y1 = y0 + lay.laneArt;
         // na altura do jóquei (como o "◀VOCÊ"), mas sempre dentro da faixa da raia
         var by = Math.max(y0 + 3, Math.min(y1 - 11 - 1, Math.round(v.y / S) + 1));
         var bx;
