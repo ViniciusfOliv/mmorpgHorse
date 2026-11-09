@@ -78,7 +78,7 @@ O clima também mexe nos status durante a corrida: o multiplicador m do clima (v
 
 ## Level e XP
 
-Level máximo: **50**. Para subir do level L para L + 1 são 50 + 25 × L de XP. Do level 1 ao 50 são 33.075 de XP no total. No level máximo o XP para de acumular.
+Level máximo: **50**. Para subir do level L para L + 1 são 50 + 25 × L de XP. Do level 1 ao 50 são 33.075 de XP no total. No level máximo o XP ainda acumula até 1.300 (o valor de um level 50 → 51) e aí trava.
 
 ### XP por colocação e treino
 
@@ -153,13 +153,15 @@ Level máximo: **50**. Para subir do level L para L + 1 são 50 + 25 × L de XP.
 
 A cada level, cada status ganha (0,5 + 0,65 × pot / 31) × crescimento da raridade, até o teto da raridade. O potencial também soma 0,1 × pot fixo desde o level 1.
 
-| Raridade | Crescimento | Ganho/level (pot 0) | Ganho/level (pot 31) | Ganho do Nv 1 ao 50 (pot 31) | Teto |
+| Raridade | Crescimento | Ganho/level (pot 0) | Ganho/level (pot 31) | Ganho do Nv 1 ao 50, sem o teto (pot 31) | Teto |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Comum | ×0,8 | 0,4 | 0,92 | 45,1 | 60 |
 | Mágico | ×0,9 | 0,45 | 1,035 | 50,7 | 70 |
 | Raro | ×1 | 0,5 | 1,15 | 56,4 | 80 |
 | Lendário | ×1,1 | 0,55 | 1,265 | 62 | 90 |
 | Mítico | ×1,2 | 0,6 | 1,38 | 67,6 | 100 |
+
+O ganho real para no teto: status = min(base + 0,1 × pot + ganho, teto). Exemplo: Pangaré (Comum), Força base 48 e pot 15, chegaria a 81,4 no Nv 50 sem o teto, mas fica em 60 (teto 60).
 
 ### Aprender skill ao subir de level
 
@@ -271,19 +273,21 @@ Cada sala tem um vento sorteado pela seed: calmo 35%, brisa 40% e ventania 25%, 
 
 São 18 skills. Cada uma tem um gatilho; quando ele acontece, a montaria faz **uma** tentativa contra a chance de skill (uma por corrida, ou uma por bloco nas skills de curva e subida marcadas "em cada bloco"). Se acertar, o efeito vale pelo tempo ou pela distância indicados.
 
+**Skills de largada** disparam no sinal (t = 0), antes do atraso de reação do cavalo (até 0,6 s, menor com ACE alta). A duração conta desde o sinal, então esse atraso consome parte dela.
+
 ```text
 chance de skill = min(95%, chance base da raridade + 0,5 p.p. × (level − 1) + 0,1 p.p. × SOR + bônus de equipamento)
 ```
 
-**Chance de ativar com SOR 50 (sem equipamento / com 3+ peças de conjunto)**
+**Chance de ativar: sem equipamento (SOR 50) / com 3+ peças de um conjunto (SOR 50 + 5 do conjunto = 55, e +5 p.p. de chance)**
 
 | Raridade | Nv 1 | Nv 25 | Nv 50 |
 | --- | ---: | ---: | ---: |
-| Comum | 40% / 45% | 52% / 57% | 64,5% / 69,5% |
-| Mágico | 50% / 55% | 62% / 67% | 74,5% / 79,5% |
-| Raro | 60% / 65% | 72% / 77% | 84,5% / 89,5% |
-| Lendário | 70% / 75% | 82% / 87% | 94,5% / 95% |
-| Mítico | 80% / 85% | 92% / 95% | 95% / 95% |
+| Comum | 40% / 45,5% | 52% / 57,5% | 64,5% / 70% |
+| Mágico | 50% / 55,5% | 62% / 67,5% | 74,5% / 80% |
+| Raro | 60% / 65,5% | 72% / 77,5% | 84,5% / 90% |
+| Lendário | 70% / 75,5% | 82% / 87,5% | 94,5% / 95% |
+| Mítico | 80% / 85,5% | 92% / 95% | 95% / 95% |
 
 **Quem pode ter:** skills Neutro servem para qualquer elemento; as de elemento, só para aquele elemento; as exclusivas, só para a montaria inicial dona (não se aprendem nem se herdam). O número de skills é limitado pelas vagas da raridade.
 
@@ -300,7 +304,7 @@ chance de skill = min(95%, chance base da raridade + 0,5 p.p. × (level − 1) +
 | **Fôlego de Montanha** | Entra numa subida | gasto extra da subida ×0,7 (−30%), em cada bloco, até o fim dele | Em cada subida: gasta 30% menos estamina. | qualquer elemento | Jequitibá | 12 | FÔLEGO MONT. |
 | **Segundo Ar** | Estamina cai a 20% ou menos | recupera 15% do tanque na hora | Quando a estamina cai a 20%, recupera 15%. | qualquer elemento | Capim, Garoa, Jequitibá | 16 | SEGUNDO AR |
 | **Arrancada Final** | Cruza 80% da pista (reta final) | chance de Garra +15 p.p.; impulso da Garra +3 p.p. | Na reta final: +15% de chance de Garra e +3% de força na arrancada. | qualquer elemento | Ventania | 20 | ARR. FINAL |
-| **Dado Viciado** | Antes de cada Dado da Sorte | +1 dado no Dado da Sorte (até o fim da corrida) | Rola 1 dado extra nos eventos de Sorte. | qualquer elemento | — | 20 | DADO VICIADO |
+| **Dado Viciado** | Antes do 1º Dado da Sorte (uma tentativa por corrida; se ativar, vale para todos os Dados) | +1 dado no Dado da Sorte (até o fim da corrida) | Rola 1 dado extra nos eventos de Sorte. | qualquer elemento | — | 20 | DADO VICIADO |
 
 ### Fogo (3)
 
@@ -335,7 +339,7 @@ Quando o líder cruza 1/3 e 2/3 da distância, **todos** rolam o Dado da Sorte (
 
 1. Cada montaria rola um dado de 1 a 100.
 2. Com chance igual à sua Sorte (SOR%), rola um 2º dado e fica com o melhor.
-3. Dado Viciado (gatilho "antes de cada Dado da Sorte") soma um dado extra: no máximo 3 dados.
+3. Dado Viciado tenta ativar uma vez por corrida, antes do 1º Dado. Se ativar, soma um dado extra nos 2 Dados (no máximo 3 dados); se falhar, não tenta de novo.
 4. O maior dado vence. Empate no topo: só os empatados rolam de novo.
 5. O clima vira o do elemento do vencedor. Se já for esse clima, ou se o vencedor for Neutro, o clima "segura".
 
@@ -439,7 +443,7 @@ O mapa da pista é desenhado dos blocos: retas e subidas em linha reta, e cada s
 
 ## Montarias
 
-Há 3 montarias iniciais e 13 selvagens. Todas são da espécie cavalo. As selvagens aparecem como bots nas corridas, como reprodutores de aluguel no Haras (menos as de raridade Mítico) e 6 delas na vitrine da Expedição. Bots usam o modelo com level ajustado ao seu Poder.
+Há 3 montarias iniciais e 13 selvagens. Todas são da espécie cavalo. As selvagens aparecem como bots nas corridas, como reprodutores de aluguel no Haras (menos as de raridade Mítico) e 6 delas na vitrine da Expedição. As iniciais também aparecem como bots quando não são suas. Como o level dos bots é escolhido: ver Economia, Rivais da sala.
 
 **Potencial** (0 a 31 por status) é **oculto no jogo**; aparece aqui para referência. Os status "no level" são sem equipamento, com o bônus do elemento.
 
@@ -894,13 +898,15 @@ Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela see
 | Chuva | Chuva | Água | Ferraduras da Chuva (Raro), Ferraduras da Chuva (Lendário), Sela da Chuva (Raro), Sela da Chuva (Lendário), Estribos da Chuva (Raro), Estribos da Chuva (Lendário), Testeira da Chuva (Raro), Testeira da Chuva (Lendário), Armadura da Chuva (Raro), Armadura da Chuva (Lendário) |
 | Névoa | Névoa | Grama | Ferraduras da Névoa (Raro), Ferraduras da Névoa (Lendário), Sela da Névoa (Raro), Sela da Névoa (Lendário), Estribos da Névoa (Raro), Estribos da Névoa (Lendário), Testeira da Névoa (Raro), Testeira da Névoa (Lendário), Armadura da Névoa (Raro), Armadura da Névoa (Lendário) |
 
-**Bônus por número de peças do mesmo conjunto (acumulam)**
+**Bônus total por número de peças do mesmo conjunto (cada linha já é o total)**
 
 | Peças | Bônus |
 | ---: | --- |
 | 3 | +5 Sorte; chance de ativar skills +5 p.p.; +10 de Poder |
 | 4 | +5 Sorte; chance de ativar skills +5 p.p.; no clima do conjunto, o bônus do elemento dono sobe de ×1,03 para ×1,07 (não soma com a skill de clima, que dá ×1,10); +15 de Poder |
 | 5 | +5 Sorte; chance de ativar skills +5 p.p.; no clima do conjunto, o bônus do elemento dono sobe de ×1,03 para ×1,07 (não soma com a skill de clima, que dá ×1,10); anula a penalidade de clima (×0,97 vira ×1); +20 de Poder |
+
+Cada linha é o total daquele patamar, não soma com as de cima: +5 Sorte e +5 p.p. de chance valem uma vez a partir de 3 peças, e os pontos de Poder são 10 com 3, 15 com 4, 20 com 5 (não 10 + 15).
 
 Vale o conjunto com mais peças equipadas (empate: Sol, Chuva e Névoa, nessa ordem). O reforço de ×1,07 só age se o elemento da montaria for o dono do clima do conjunto.
 
@@ -965,7 +971,7 @@ Poder = 2,2·VEL + 1,8·ACE + 1,6·MAN + 1,6·FOR + 1,8·EST + 1,6·GAR + 0,8·S
 | Entra numa subida | 0,6 | 12 |
 | Estamina cai a 20% ou menos | 0,8 | 16 |
 | Cruza 80% da pista (reta final) | 1 | 20 |
-| Antes de cada Dado da Sorte | 1 | 20 |
+| Antes do 1º Dado da Sorte (uma tentativa por corrida; se ativar, vale para todos os Dados) | 1 | 20 |
 | Clima (qualquer) | 0,4 | 8 |
 
 | Liga | Poder | Cor |
@@ -977,7 +983,7 @@ Poder = 2,2·VEL + 1,8·ACE + 1,6·MAN + 1,6·FOR + 1,8·EST + 1,6·GAR + 0,8·S
 | Diamante | 980–1.099 | #7ab8ff |
 | Lenda | 1.100 ou mais | #ff7a3d |
 
-**Rivais da sala:** cada bot mira um Poder entre −8,5% e +11,5% do seu (leve viés para cima) e entra se ficar a até 6% do alvo; nenhum bot usa o modelo de uma montaria que você tem.
+**Rivais da sala:** cada bot mira um Poder entre −8,5% e +11,5% do seu (leve viés para cima), com o equipamento da liga desse alvo. Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de 10 levels abaixo a 20 acima do level dele, entre 1 e 50. O modelo só entra se ficar a até 6% do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos 3 modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem.
 
 **Poder das iniciais**
 

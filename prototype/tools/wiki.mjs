@@ -64,6 +64,8 @@ function lerFonte() {
     botAlvo: [Number(alvo[1]), Number(alvo[2])],
     botFaixa: numDe(game, /c\.fit\.diff <= target \* ([\d.]+)/, 'a tolerância de Poder dos bots'),
     devVagas: numDe(game, /var DEV_SKILL_VAGAS = (\d+);/, 'DEV_SKILL_VAGAS'),
+    botFaixaNivel: extrair(game, /return \[Math\.max\(1, L0 - (\d+)\), Math\.min\(E\.maxLevel \|\| 50, L0 \+ (\d+)\)\];/, 'a faixa de level dos bots (levelBand)').slice(1, 3).map(Number),
+    botReserva: numDe(game, /cands = all\.slice\(0, (\d+)\);/, 'quantos modelos o bot considera sem candidato na faixa'),
     vento: { calmo: Number(ventos[1]), brisa: Number(ventos[2]) - Number(ventos[1]), ventania: 1 - Number(ventos[2]) },
     subidaForca: numDe(sim, /T\.hillDrain \* \(1 - ([\d.]+) \* nf\) \* hillDrainMult/, 'o alívio de Força no gasto da subida'),
     largadaAcel: numDe(sim, /T\.startDelayMax \* \(1 - ([\d.]+) \* clamp\(statsN\.acel/, 'o alívio de Aceleração na largada'),
@@ -148,7 +150,7 @@ export function descreverGatilho(trigger) {
     case 'hill': return 'Entra numa subida'
     case 'lowStamina': return `Estamina cai a ${pct(T.lowStaminaAt, 0)} ou menos`
     case 'final': return `Cruza ${pct(T.garraZone, 0)} da pista (reta final)`
-    case 'dice': return 'Antes de cada Dado da Sorte'
+    case 'dice': return 'Antes do 1º Dado da Sorte (uma tentativa por corrida; se ativar, vale para todos os Dados)'
     default: throw new Error(`wiki: gatilho de skill desconhecido "${trigger}" — descreva-o em descreverGatilho (prototype/tools/wiki.mjs)`)
   }
 }
@@ -446,8 +448,17 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
   const rarIds = Object.keys(G.RARITIES)
   const crescimento = (r, pot) => (T.growthBase + T.growthPot * pot / 31) * G.RARITIES[r].growth
   const niveisEx = [1, 10, 25, E.maxLevel]
+  // exemplo do teto: o primeiro selvagem Comum Neutro (sem bônus de elemento), no status de maior potencial
+  const exemploTeto = () => {
+    const h = G.WILD_HORSES.find((x) => x.rarity === 'comum' && x.element === 'neutro') || G.WILD_HORSES.find((x) => x.rarity === 'comum')
+    const k = G.STAT_KEYS.reduce((m, x) => (h.potential[x] > h.potential[m] ? x : m), G.STAT_KEYS[0])
+    const pot = h.potential[k], R_ = G.RARITIES[h.rarity]
+    const semTeto = h.base[k] + pot * T.potFlat + (E.maxLevel - 1) * (T.growthBase + T.growthPot * pot / 31) * R_.growth
+    const real = S.computeStats({ ...h, element: 'neutro', level: E.maxLevel }, null)[k]
+    return { t: 'p', txt: `O ganho real para no teto: status = min(base + ${num(T.potFlat)} × pot + ganho, teto). Exemplo: ${h.name} (${nomeRar(h.rarity)}), ${nomeStat(k)} base ${h.base[k]} e pot ${pot}, chegaria a ${num(semTeto, 1)} no Nv ${E.maxLevel} sem o teto, mas fica em ${real} (teto ${R_.statCap}).` }
+  }
   add('level', 'Level e XP', 'Level e XP', [
-    { t: 'p', txt: `Level máximo: **${E.maxLevel}**. ${xpLin ? `Para subir do level L para L + 1 são ${num(xpLin.a)} + ${num(xpLin.b)} × L de XP.` : 'XP por level na tabela.'} Do level 1 ao ${E.maxLevel} são ${num(acum)} de XP no total. No level máximo o XP para de acumular.` },
+    { t: 'p', txt: `Level máximo: **${E.maxLevel}**. ${xpLin ? `Para subir do level L para L + 1 são ${num(xpLin.a)} + ${num(xpLin.b)} × L de XP.` : 'XP por level na tabela.'} Do level 1 ao ${E.maxLevel} são ${num(acum)} de XP no total. No level máximo o XP ainda acumula até ${num(E.xpToLevel(E.maxLevel))} (o valor de um level ${E.maxLevel} → ${E.maxLevel + 1}) e aí trava.` },
     { t: 'h3', txt: 'XP por colocação e treino' },
     { t: 'tabela', rotulo: 'XP por colocação', cab: ['Colocação', 'XP (corrida valendo)', 'XP (treino)', 'Ouro do treino'], linhas: E.xpPerPlace.map((x, i) => [ordinal(i + 1), N(num(x)), N(num(Math.round(x / F.treinoXpDiv))), ouroCel(F.treinoOuro[i] != null ? F.treinoOuro[i] : F.treinoOuro[F.treinoOuro.length - 1])]) },
     { t: 'p', txt: `**Treino gratuito:** aparece quando seu Ouro não cobre a menor entrada (${num(minE)}). Não cobra entrada, rende 1/${F.treinoXpDiv} do XP e de ${num(Math.min(...F.treinoOuro))} a ${num(Math.max(...F.treinoOuro))} de Ouro pela colocação, e não dá Pedra Negra.` },
@@ -455,7 +466,8 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
     { t: 'grade', classe: 'grade--xp', cab: ['Level', 'XP', 'Acumulado'], linhas: xpLinhas },
     { t: 'h3', txt: 'Crescimento por level' },
     { t: 'p', txt: `A cada level, cada status ganha (${num(T.growthBase)} + ${num(T.growthPot)} × pot / 31) × crescimento da raridade, até o teto da raridade. O potencial também soma ${num(T.potFlat)} × pot fixo desde o level 1.` },
-    { t: 'tabela', rotulo: 'Crescimento por level', cab: ['Raridade', 'Crescimento', 'Ganho/level (pot 0)', 'Ganho/level (pot 31)', `Ganho do Nv 1 ao ${E.maxLevel} (pot 31)`, 'Teto'], linhas: rarIds.map((r) => [rarCel(r), N(mult(G.RARITIES[r].growth, 2)), N(num(crescimento(r, 0), 3)), N(num(crescimento(r, 31), 3)), N(num(crescimento(r, 31) * (E.maxLevel - 1), 1)), N(num(G.RARITIES[r].statCap))]) },
+    { t: 'tabela', rotulo: 'Crescimento por level', cab: ['Raridade', 'Crescimento', 'Ganho/level (pot 0)', 'Ganho/level (pot 31)', `Ganho do Nv 1 ao ${E.maxLevel}, sem o teto (pot 31)`, 'Teto'], linhas: rarIds.map((r) => [rarCel(r), N(mult(G.RARITIES[r].growth, 2)), N(num(crescimento(r, 0), 3)), N(num(crescimento(r, 31), 3)), N(num(crescimento(r, 31) * (E.maxLevel - 1), 1)), N(num(G.RARITIES[r].statCap))]) },
+    exemploTeto(),
     { t: 'h3', txt: 'Aprender skill ao subir de level' },
     { t: 'p', txt: `A cada level ganho há ${pct(T.learnChance, 0)} de chance de aprender uma skill nova (sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: ${nomeEl('neutro')} ou do próprio elemento, nunca exclusiva de outra montaria, nunca repetida.` },
     { t: 'h3', txt: 'Exemplo: as iniciais por level (sem equipamento)' },
@@ -540,8 +552,9 @@ Força, Manobra e Garra efetivas = n(x) × m` },
   const lvEx = [1, 25, E.maxLevel]
   add('skills', 'Skills', 'Skills', [
     { t: 'p', txt: `São ${skIds.length} skills. Cada uma tem um gatilho; quando ele acontece, a montaria faz **uma** tentativa contra a chance de skill (uma por corrida, ou uma por bloco nas skills de curva e subida marcadas "em cada bloco"). Se acertar, o efeito vale pelo tempo ou pela distância indicados.` },
+    { t: 'p', txt: `**Skills de largada** disparam no sinal (t = 0), antes do atraso de reação do cavalo (até ${num(T.startDelayMax)} s, menor com ACE alta). A duração conta desde o sinal, então esse atraso consome parte dela.` },
     { t: 'formula', txt: `chance de skill = min(${pct(T.skillChanceMax, 0)}, chance base da raridade + ${pp(T.skillPerLevel)} × (level − 1) + ${pp(T.skillPerSorte)} × SOR + bônus de equipamento)` },
-    { t: 'tabela', rotulo: 'Chance de skill', titulo: `Chance de ativar com SOR ${sorteEx} (sem equipamento / com ${EG.setBonus.pieces[0]}+ peças de conjunto)`, cab: ['Raridade', ...lvEx.map((l) => `Nv ${l}`)], linhas: rarIds.map((r) => [rarCel(r), ...lvEx.map((l) => N(`${pct(S.skillChance({ rarity: r, level: l }, { sorte: sorteEx }), 1)} / ${pct(S.skillChance({ rarity: r, level: l }, { sorte: sorteEx }, EG.setBonus.skillChance), 1)}`))]) },
+    { t: 'tabela', rotulo: 'Chance de skill', titulo: `Chance de ativar: sem equipamento (SOR ${sorteEx}) / com ${EG.setBonus.pieces[0]}+ peças de um conjunto (SOR ${sorteEx} + ${EG.setBonus.sorte} do conjunto = ${sorteEx + EG.setBonus.sorte}, e ${'+' + pp(EG.setBonus.skillChance, 0)} de chance)`, cab: ['Raridade', ...lvEx.map((l) => `Nv ${l}`)], linhas: rarIds.map((r) => [rarCel(r), ...lvEx.map((l) => N(`${pct(S.skillChance({ rarity: r, level: l }, { sorte: sorteEx }), 1)} / ${pct(S.skillChance({ rarity: r, level: l }, { sorte: sorteEx + EG.setBonus.sorte }, EG.setBonus.skillChance), 1)}`))]) },
     { t: 'p', txt: `**Quem pode ter:** skills ${nomeEl('neutro')} servem para qualquer elemento; as de elemento, só para aquele elemento; as exclusivas, só para a montaria inicial dona (não se aprendem nem se herdam). O número de skills é limitado pelas vagas da raridade.` },
     { t: 'p', txt: `**Pontos no Poder:** cada skill soma 20 × o peso do gatilho no Poder (gatilhos que nem sempre acontecem valem menos). **Balão:** o texto que aparece na pista quando a skill ativa.` },
     { t: 'custom', md: skillMd, html: skillHtml }
@@ -555,7 +568,7 @@ Força, Manobra e Garra efetivas = n(x) × m` },
     { t: 'passos', itens: [
       `Cada montaria rola um dado de ${ld.min} a ${ld.max}.`,
       'Com chance igual à sua Sorte (SOR%), rola um 2º dado e fica com o melhor.',
-      `${dadoViciado.length ? lista(dadoViciado) : 'A skill de dado extra'} (gatilho "antes de cada Dado da Sorte") soma um dado extra: no máximo ${ld.maxDados} dados.`,
+      `${dadoViciado.length ? lista(dadoViciado) : 'A skill de dado extra'} tenta ativar uma vez por corrida, antes do 1º Dado. Se ativar, soma um dado extra nos ${T.diceAt.length} Dados (no máximo ${ld.maxDados} dados); se falhar, não tenta de novo.`,
       'O maior dado vence. Empate no topo: só os empatados rolam de novo.',
       `O clima vira o do elemento do vencedor. Se já for esse clima, ou se o vencedor for ${nomeEl('neutro')}, o clima "segura".`
     ] },
@@ -605,7 +618,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
 
   // 9. Montarias -----------------------------------------------------------------------------------------
   add('montarias', 'Montarias', 'Montarias', [
-    { t: 'p', txt: `Há ${G.STARTERS.length} montarias iniciais e ${G.WILD_HORSES.length} selvagens. Todas são da espécie cavalo. As selvagens aparecem como bots nas corridas, como reprodutores de aluguel no Haras (menos as de raridade ${nomeRar('mitico')}) e ${F.vitrine.length} delas na vitrine da Expedição. Bots usam o modelo com level ajustado ao seu Poder.` },
+    { t: 'p', txt: `Há ${G.STARTERS.length} montarias iniciais e ${G.WILD_HORSES.length} selvagens. Todas são da espécie cavalo. As selvagens aparecem como bots nas corridas, como reprodutores de aluguel no Haras (menos as de raridade ${nomeRar('mitico')}) e ${F.vitrine.length} delas na vitrine da Expedição. As iniciais também aparecem como bots quando não são suas. Como o level dos bots é escolhido: ver Economia, Rivais da sala.` },
     { t: 'p', txt: `**Potencial** (0 a 31 por status) é **oculto no jogo**; aparece aqui para referência. Os status "no level" são sem equipamento, com o bônus do elemento.` },
     { t: 'custom', md: montariasMd(F), html: montariasHtml(F) }
   ])
@@ -700,7 +713,8 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `**Pedra Negra do pódio:** só em corrida valendo (entrada paga), sorteada pela seed da sala: ${E.xpPerPlace.slice(0, EG.podiumStone.length).map((x, i) => `${ordinal(i + 1)} lugar ${pct(EG.podiumStone[i], 0)}`).join(', ')}.` },
     { t: 'h3', txt: 'Conjuntos', id: 'conjuntos' },
     { t: 'tabela', rotulo: 'Conjuntos', cab: ['Conjunto', 'Clima', 'Elemento favorecido', 'Peças'], linhas: setIds.map((s) => { const w = G.GEAR_SETS[s].weather; return [nomeConjunto(s), nomeClima(w), G.WEATHERS[w].element ? elCel(G.WEATHERS[w].element) : '—', gearIds.filter((id) => peca(id).set === s).map((id) => `${peca(id).name} (${nomeRar(peca(id).rarity)})`).join(', ')] }) },
-    { t: 'tabela', rotulo: 'Bônus de conjunto', titulo: 'Bônus por número de peças do mesmo conjunto (acumulam)', cab: ['Peças', 'Bônus'], linhas: EG.setBonus.pieces.map((n) => [N(String(n)), bonusTxt(n)]) },
+    { t: 'tabela', rotulo: 'Bônus de conjunto', titulo: 'Bônus total por número de peças do mesmo conjunto (cada linha já é o total)', cab: ['Peças', 'Bônus'], linhas: EG.setBonus.pieces.map((n) => [N(String(n)), bonusTxt(n)]) },
+    { t: 'p', txt: `Cada linha é o total daquele patamar, não soma com as de cima: +${EG.setBonus.sorte} ${nomeStat('sorte')} e ${'+' + pp(EG.setBonus.skillChance, 0)} de chance valem uma vez a partir de ${EG.setBonus.pieces[0]} peças, e os pontos de Poder são ${EG.setBonus.pieces.map((n) => `${GR.ratingPts(n)} com ${n}`).join(', ')} (não ${GR.ratingPts(EG.setBonus.pieces[0])} + ${GR.ratingPts(EG.setBonus.pieces[1])}).` },
     { t: 'p', txt: `Vale o conjunto com mais peças equipadas (empate: ${lista(setIds.map(nomeConjunto))}, nessa ordem). O reforço de ${multF(T.weatherMultSet)} só age se o elemento da montaria for o dono do clima do conjunto.` },
     { t: 'h3', txt: 'Equipamento dos bots por liga' },
     { t: 'tabela', rotulo: 'Equipamento dos bots', cab: ['Liga do alvo', 'Peças do bot'], linhas: G.LEAGUES.map((L, i) => { const r = GR.botGear(i, 'fogo', 0); return [L.name, r.pieces.length ? r.pieces.map((p) => `${peca(p.id).name} +${p.plus}`).join(', ') : 'nada'] }) },
@@ -737,7 +751,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
       + ${EG.setBonus.pieces.map((n, i) => `${EG.setBonus.ratingPts[i]} (${n} peças)`).join(' / ')} de conjunto` },
     { t: 'tabela', rotulo: 'Peso do gatilho', titulo: 'Peso do gatilho no Poder', cab: ['Gatilho', 'Peso', 'Pontos por skill'], linhas: Object.keys(pesos).map((t) => [t === 'weather:*' ? 'Clima (qualquer)' : descreverGatilho(t), N(num(pesos[t], 2)), N(num(pesos[t] * 20))]) },
     { t: 'tabela', rotulo: 'Ligas', cab: ['Liga', 'Poder', 'Cor'], linhas: G.LEAGUES.map((L) => { const f = S.leagueFor(L.min); return [{ md: L.name, html: `<span class="liga" style="--c:${L.color}">${esc(L.name)}</span>` }, N(f.max == null ? `${num(L.min)} ou mais` : `${num(L.min)}–${num(f.max)}`), { md: L.color, html: `<code>${L.color}</code>` }] }) },
-    { t: 'p', txt: `**Rivais da sala:** cada bot mira um Poder entre ${sinalPct(F.botAlvo[0] - 1, 1)} e ${sinalPct(F.botAlvo[0] + F.botAlvo[1] - 1, 1)} do seu (leve viés para cima) e entra se ficar a até ${pct(F.botFaixa, 0)} do alvo; nenhum bot usa o modelo de uma montaria que você tem.` },
+    { t: 'p', txt: `**Rivais da sala:** cada bot mira um Poder entre ${sinalPct(F.botAlvo[0] - 1, 1)} e ${sinalPct(F.botAlvo[0] + F.botAlvo[1] - 1, 1)} do seu (leve viés para cima), com o equipamento da liga desse alvo. Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de ${F.botFaixaNivel[0]} levels abaixo a ${F.botFaixaNivel[1]} acima do level dele, entre 1 e ${E.maxLevel}. O modelo só entra se ficar a até ${pct(F.botFaixa, 0)} do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos ${F.botReserva} modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem.` },
     { t: 'tabela', rotulo: 'Poder das iniciais', titulo: 'Poder das iniciais', cab: ['Montaria', 'Nv 1 sem peças', 'Nv 1 com o equipamento inicial', `Nv ${E.maxLevel} sem peças`], linhas: G.STARTERS.map((h) => [h.name, N(num(S.powerRating(h, null))), N(num(S.powerRating(h, ini))), N(num(S.powerRating({ ...h, level: E.maxLevel }, null)))]) }
   ])
 

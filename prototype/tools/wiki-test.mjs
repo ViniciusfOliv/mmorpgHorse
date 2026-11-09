@@ -47,6 +47,9 @@ for (const [tipo, nome] of nomes) {
 for (const id in G.GEAR) confere(a.html.includes(`id="peca-${id}"`), `peça ${id} sem linha própria no html`)
 for (const id in G.SKILLS) confere(a.html.includes(`id="skill-${id}"`), `skill ${id} sem cartão no html`)
 
+// chance de skill com conjunto: SOR + bônus de Sorte do conjunto e + bônus de chance (Comum Nv 1)
+confere(/\| Comum \| 40% \/ 45,5% \|/.test(a.md), 'tabela de chance de skill: Comum Nv 1 com conjunto devia mostrar 45,5%')
+
 // 3. chave desconhecida quebra
 lanca(() => descreverEfeito({ speedMult: 1.1, chaveInventada: 3 }), 'effect com chave inventada')
 lanca(() => descreverGatilho('gatilhoInventado'), 'gatilho inventado')
