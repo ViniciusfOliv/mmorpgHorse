@@ -184,7 +184,7 @@ test('faixa do Dado em ordem decrescente', function () {
 test('faixa com desempate: vencedor em 1º, depois rerolls e best decrescentes (seed 2)', function () {
   // o desempate reescreve dice/best dos empatados: o vencedor pode ter best menor que o de quem não empatou
   var C2 = corrida(2);
-  var it = FX.timeline(C2.sim, C2.racers).filter(function (x) { return x.rolls.some(function (r) { return r.rerolls > 0; }); })[0];
+  var it = FX.timeline(C2.sim, C2.racers).filter(function (x) { return x.kind === 'dado' && x.rolls.some(function (r) { return r.rerolls > 0; }); })[0];
   assert.ok(it, 'a seed 2 tem um Dado com desempate');
   var maior = Math.max.apply(null, it.rolls.map(function (r) { return r.best; }));
   assert.ok(it.rolls[it.winner].best < maior, 'caso da revisão: vencedor com best menor que outro (' + it.rolls[it.winner].best + ' < ' + maior + ')');
@@ -198,8 +198,203 @@ test('faixa com desempate: vencedor em 1º, depois rerolls e best decrescentes (
   // em todas as corridas de 1–200: o vencedor sempre em 1º
   for (var sd = 1; sd <= 200; sd++) {
     var C = corrida(sd);
-    FX.timeline(C.sim, C.racers).forEach(function (d) { assert.strictEqual(FX.stripOrder(d)[0], d.winner, 'seed ' + sd); });
+    FX.timeline(C.sim, C.racers).filter(function (d) { return d.kind === 'dado'; }).forEach(function (d) { assert.strictEqual(FX.stripOrder(d)[0], d.winner, 'seed ' + sd); });
   }
+});
+
+section('skills, Garra e cansaço');
+// corrida com todas as skills do catálogo distribuídas pelos cavalos e "skills sempre ativam" (modo DEV da simulação)
+function corridaSkills(seed, escala) {
+  var ids = Object.keys(G.SKILLS), hs = G.STARTERS.concat(G.WILD_HORSES.slice(0, 5));
+  var racers = hs.map(function (h, i) {
+    var c = cl(h);
+    c.skills = ids.filter(function (id, q) { return q % hs.length === i && (!G.SKILLS[id].exclusive || G.SKILLS[id].exclusive === c.id); });
+    return { horse: c, gear: null, name: 'r' + i, isPlayer: i === 0, silks: CORES[i] };
+  });
+  var sim = S.simulate({ seed: seed, recordFrames: true, racers: racers, conditions: { distance: 2400 }, dev: { skillsAlways: true } });
+  return { sim: sim, racers: racers, tl: FX.timeline(sim, racers, escala) };
+}
+test('skillIcon segue a ordem (5 skills reais do catálogo)', function () {
+  assert.strictEqual(FX.skillIcon(G.SKILLS['arranque']), 'ace');          // accelMult
+  assert.strictEqual(FX.skillIcon(G.SKILLS['drift']), 'curva');           // curveBonus
+  assert.strictEqual(FX.skillIcon(G.SKILLS['segundo-ar']), 'folego');     // staminaRestore
+  assert.strictEqual(FX.skillIcon(G.SKILLS['dado-viciado']), 'dado');     // extraDice
+  assert.strictEqual(FX.skillIcon(G.SKILLS['sol-a-pino']), 'clima');      // weatherDouble
+});
+test('skillIcon: primeira chave da lista vence; drainMult só conta se < 1', function () {
+  assert.strictEqual(FX.skillIcon(G.SKILLS['labareda']), 'vel', 'accelMult + speedMult => speedMult primeiro');
+  assert.strictEqual(FX.skillIcon(G.SKILLS['mare-alta']), 'vel', 'staminaRestore + speedMult => speedMult primeiro');
+  assert.strictEqual(FX.skillIcon(G.SKILLS['sprint']), 'vel', 'drainMult 1.15 (gasta mais) não é fôlego');
+  assert.strictEqual(FX.skillIcon({ effect: { drainMult: 1.15 } }), 'vel', 'só drainMult > 1: cai no padrão');
+  assert.strictEqual(FX.skillIcon({ effect: { drainMult: 0.7 } }), 'folego');
+  assert.strictEqual(FX.skillIcon(G.SKILLS['folego-de-montanha']), 'subida');
+  assert.strictEqual(FX.skillIcon(G.SKILLS['casco-firme']), 'subida');
+  assert.strictEqual(FX.skillIcon(G.SKILLS['arrancada-final']), 'garra');
+  assert.strictEqual(FX.skillIcon({ effect: { garraBoostBonus: 0.02 } }), 'garra');
+  assert.strictEqual(FX.skillIcon({ effect: {} }), 'vel');
+  assert.strictEqual(FX.skillIcon(null), 'vel');
+  Object.keys(G.SKILLS).forEach(function (id) {
+    assert.ok(['vel', 'ace', 'folego', 'curva', 'subida', 'dado', 'clima', 'garra'].indexOf(FX.skillIcon(G.SKILLS[id])) >= 0, id);
+  });
+});
+test('nomeCurto cabe em 11 letras maiúsculas', function () {
+  assert.strictEqual(FX.nomeCurto('Labareda'), 'LABAREDA');
+  assert.strictEqual(FX.nomeCurto('Arrancada Final'), 'ARRANCADA');
+  assert.strictEqual(FX.nomeCurto('Canto da Iara'), 'CANTO IARA');
+  Object.keys(G.SKILLS).forEach(function (id) { assert.ok(FX.nomeCurto(G.SKILLS[id].name).length <= 11, id); });
+});
+test('timeline tem um item por evento skill/garra/cansou', function () {
+  var visto = { skill: 0, garra: 0, cansou: 0 };
+  for (var sd = 1; sd <= 40; sd++) {   // 2400 m: com 1000 m ninguém se cansa
+    var C = corridaSkills(sd);
+    ['skill', 'garra', 'cansou'].forEach(function (tipo) {
+      var evs = C.sim.events.filter(function (e) { return e.type === tipo; });
+      var its = C.tl.filter(function (it) { return it.kind === tipo; });
+      assert.strictEqual(its.length, evs.length, 'seed ' + sd + ' ' + tipo);
+      evs.forEach(function (ev, k) {
+        assert.strictEqual(its[k].t0, ev.t); assert.strictEqual(its[k].racer, ev.racer);
+      });
+      visto[tipo] += evs.length;
+    });
+    for (var q = 1; q < C.tl.length; q++) assert.ok(C.tl[q - 1].t0 <= C.tl[q].t0, 'ordenada por t0');
+  }
+  assert.ok(visto.skill > 20 && visto.garra > 0 && visto.cansou > 0, 'as corridas exercitam os três tipos ' + JSON.stringify(visto));
+});
+test('cada item de skill acha a skill pelo nome do evento e o ícone dela', function () {
+  var sks = [], C = null, sd;
+  for (sd = 1; sd <= 6; sd++) {
+    C = corridaSkills(sd);
+    C.tl.filter(function (it) { return it.kind === 'skill'; }).forEach(function (it) { sks.push({ it: it, C: C }); });
+  }
+  assert.ok(sks.length >= 30, 'itens de skill nas 6 corridas: ' + sks.length);
+  sks.forEach(function (par) {
+    var it = par.it, C = par.C;
+    var ev = C.sim.events.filter(function (e) { return e.type === 'skill' && e.t === it.t0 && e.racer === it.racer; })[0];
+    var sk = G.SKILLS[it.skillId];
+    assert.ok(sk && C.racers[it.racer].horse.skills.indexOf(it.skillId) >= 0, 'skill do cavalo');
+    assert.ok(ev.text.indexOf(sk.name) >= 0);
+    assert.strictEqual(it.icon, FX.skillIcon(sk)); assert.strictEqual(it.element, sk.element);
+    assert.strictEqual(it.nome, sk.name);
+  });
+});
+test('duração da skill fica em [1.5, 7] (e durationS/distância/bloco valem dentro do intervalo)', function () {
+  var vistas = {};
+  for (var sd = 1; sd <= 30; sd++) {
+    var C = corridaSkills(sd);
+    C.tl.filter(function (it) { return it.kind === 'skill'; }).forEach(function (it) {
+      var d = it.t1 - it.t0;
+      assert.ok(d >= 1.5 - 1e-9 && d <= 7 + 1e-9, 'seed ' + sd + ' ' + it.skillId + ' duração ' + d);
+      var ef = G.SKILLS[it.skillId].effect;
+      if (ef.durationS) assert.ok(Math.abs(d - Math.min(7, Math.max(1.5, ef.durationS))) < 1e-9, it.skillId + ' usa durationS');
+      vistas[it.skillId] = true;
+    });
+  }
+  assert.ok(Object.keys(vistas).length >= 14, 'a maioria do catálogo foi exercitada: ' + Object.keys(vistas).length);
+});
+test('duração por distância e por bloco segue os frames da simulação', function () {
+  var ok = { dist: 0, bloco: 0 };
+  for (var sd = 1; sd <= 8; sd++) {
+  var C = corridaSkills(sd);
+  C.tl.filter(function (it) { return it.kind === 'skill'; }).forEach(function (it) {
+    var ef = G.SKILLS[it.skillId].effect, fr = C.sim.frames, dt = C.sim.dt;
+    var i0 = Math.round(it.t0 / dt), p0 = fr[i0].pos[it.racer];
+    if (ef.distanceM && !ef.durationS) {
+      var alvo = p0 + ef.distanceM, f = i0;
+      while (f < fr.length && fr[f].pos[it.racer] < alvo) f++;
+      var esperado = f < fr.length ? fr[f].t - it.t0 : C.sim.finishTimes[it.racer] - it.t0;
+      assert.ok(Math.abs((it.t1 - it.t0) - Math.min(7, Math.max(1.5, esperado))) < 1e-9, it.skillId + ' distância');
+      ok.dist++;
+    } else if (ef.blockScoped) {
+      var bl = C.sim.conditions.blocks.filter(function (b) { return p0 < b.to; })[0] || C.sim.conditions.blocks[C.sim.conditions.blocks.length - 1];
+      var g = i0;
+      while (g < fr.length && fr[g].pos[it.racer] < bl.to) g++;
+      var esp2 = g < fr.length ? fr[g].t - it.t0 : C.sim.finishTimes[it.racer] - it.t0;
+      assert.ok(Math.abs((it.t1 - it.t0) - Math.min(7, Math.max(1.5, esp2))) < 1e-9, it.skillId + ' bloco');
+      ok.bloco++;
+    }
+  });
+  }
+  assert.ok(ok.dist >= 1 && ok.bloco >= 1, 'exercitou distância e bloco ' + JSON.stringify(ok));
+});
+test('Garra vai até finishTime + 0.6 e cansou dura 1.5; escala multiplica os limites', function () {
+  var visto = { garra: 0, cansou: 0 };
+  for (var sd = 1; sd <= 30 && (!visto.garra || !visto.cansou); sd++) {
+    var C = corridaSkills(sd, 1), C3 = corridaSkills(sd, 3);
+    C.tl.forEach(function (it) {
+      if (it.kind === 'garra') { assert.ok(Math.abs(it.t1 - (C.sim.finishTimes[it.racer] + 0.6)) < 1e-9); visto.garra++; }
+      if (it.kind === 'cansou') { assert.strictEqual(it.t1, it.t0 + 1.5); visto.cansou++; }
+    });
+    C3.tl.forEach(function (it) {
+      if (it.kind === 'cansou') assert.strictEqual(it.t1, it.t0 + 4.5);
+      if (it.kind === 'skill') { var d = it.t1 - it.t0; assert.ok(d >= 4.5 - 1e-9 && d <= 21 + 1e-9); }
+    });
+  }
+  assert.ok(visto.garra && visto.cansou, 'achou Garra e cansou ' + JSON.stringify(visto));
+});
+test('a linha do tempo de skills é a mesma para a mesma seed e não mexe na simulação', function () {
+  var a = corridaSkills(9), antes = JSON.stringify(a.sim.events), b = corridaSkills(9);
+  assert.deepStrictEqual(a.tl, b.tl);
+  FX.timeline(a.sim, a.racers, 3);
+  assert.strictEqual(JSON.stringify(a.sim.events), antes);
+});
+
+section('balão e contorno (desenho com contexto falso)');
+// contexto que só registra fillRect/estilo: o suficiente para contar o que foi desenhado
+function ctxFalso() {
+  var c = { rects: [], fillStyle: '', globalAlpha: 1 };
+  c.fillRect = function (x, y, w, h) { c.rects.push({ x: x, y: y, w: w, h: h, cor: c.fillStyle, a: c.globalAlpha }); };
+  c.save = function () {}; c.restore = function () {};
+  return c;
+}
+var ITEM_SKILL = { kind: 'skill', t0: 10, t1: 15, racer: 0, skillId: 'labareda', icon: 'vel', element: 'fogo', cavalo: 'fogo', nome: 'Labareda', nomeCurto: 'LABAREDA', escala: 1 };
+test('balão: aparece em [t0, t0 + 1.5), conta em _stats.baloes e some depois', function () {
+  FX.resetStats(true);
+  var c = ctxFalso();
+  assert.strictEqual(FX.drawBalloon(c, 10, 10, 2, ITEM_SKILL, 9.9, 0), false, 'antes');
+  assert.strictEqual(FX.drawBalloon(c, 10, 10, 2, ITEM_SKILL, 10.5, 0), true);
+  assert.strictEqual(FX.drawBalloon(c, 10, 10, 2, ITEM_SKILL, 11.4, 1), true);
+  assert.strictEqual(FX.drawBalloon(c, 10, 10, 2, ITEM_SKILL, 11.5, 0), false, 'depois');
+  assert.strictEqual(FX._stats.baloes, 2);
+  assert.ok(c.rects.length > 20, 'ícone e texto saem de fillRect');
+  FX.resetStats(true);
+});
+test('balão de Garra e de cansou: tamanho e cores próprios', function () {
+  var g = { kind: 'garra', t0: 10, t1: 30, racer: 0, icon: 'garra', element: 'fogo', escala: 1 };
+  var z = { kind: 'cansou', t0: 10, t1: 11.5, racer: 0, escala: 1 };
+  var cg = ctxFalso(), cz = ctxFalso();
+  assert.ok(FX.drawBalloon(cg, 0, 0, 2, g, 10.2, 0) && FX.drawBalloon(cz, 0, 0, 2, z, 10.2, 0));
+  assert.ok(cg.rects.some(function (r) { return r.cor === '#f2c230'; }), 'Garra em dourado');
+  assert.ok(cz.rects.every(function (r) { return r.cor !== '#f2c230'; }), 'cansou sem dourado (cinza)');
+  var sz = FX.balloonSize(ITEM_SKILL), sg = FX.balloonSize(g), sc = FX.balloonSize(z);
+  assert.ok(sz.w > 20 && sz.h >= 12 && sg.w > 20 && sc.w > 20);
+  FX.resetStats(true);
+});
+test('contorno: dura t0..t1; vento só fora do reduzido; sem partículas em reduced', function () {
+  var box = { x: 100, y: 100, w: 80, h: 64, S: 2 };
+  FX.resetStats(true);
+  var c1 = ctxFalso();
+  assert.strictEqual(FX.drawSkillAura(c1, box, ITEM_SKILL, 9, false), false);
+  assert.strictEqual(FX.drawSkillAura(c1, box, ITEM_SKILL, 15, false), false);
+  assert.strictEqual(FX.drawSkillAura(c1, box, ITEM_SKILL, 12, false), true);
+  assert.ok(FX._stats.particulas > 0, 'vento conta como partícula');
+  var p = FX._stats.particulas; FX.resetStats(true);
+  var c2 = ctxFalso();
+  assert.strictEqual(FX.drawSkillAura(c2, box, ITEM_SKILL, 12, true), true, 'reduced ainda desenha o contorno');
+  assert.strictEqual(FX._stats.particulas, 0, 'reduced: nada de vento');
+  assert.ok(c2.rects.length > 0 && c2.rects.length < c1.rects.length, 'reduced desenha menos (' + c2.rects.length + ' < ' + c1.rects.length + ')');
+  var curva = { kind: 'skill', t0: 10, t1: 15, racer: 0, icon: 'curva', element: 'neutro', cavalo: 'agua', escala: 1 };
+  var fol = { kind: 'skill', t0: 10, t1: 15, racer: 0, icon: 'folego', element: 'agua', cavalo: 'agua', escala: 1 };
+  FX.resetStats(true); FX.drawSkillAura(ctxFalso(), box, curva, 12, false); assert.ok(FX._stats.particulas > 0, 'faíscas da curva');
+  FX.resetStats(true); FX.drawSkillAura(ctxFalso(), box, fol, 12, false); assert.ok(FX._stats.particulas > 0, '+ do fôlego');
+  FX.resetStats(true); FX.drawSkillAura(ctxFalso(), box, curva, 12, true); assert.strictEqual(FX._stats.particulas, 0);
+  FX.resetStats(true); FX.drawSkillAura(ctxFalso(), box, fol, 12, true); assert.strictEqual(FX._stats.particulas, 0);
+  assert.ok(p > 0);
+});
+test('desenho é função do tempo: mesmo simT, mesmos retângulos', function () {
+  var box = { x: 100, y: 100, w: 80, h: 64, S: 2 }, a = ctxFalso(), b = ctxFalso();
+  FX.drawSkillAura(a, box, ITEM_SKILL, 12.3, false); FX.drawSkillAura(b, box, ITEM_SKILL, 12.3, false);
+  assert.deepStrictEqual(a.rects, b.rects);
+  FX.resetStats(true);
 });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');

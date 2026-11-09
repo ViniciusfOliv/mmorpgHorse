@@ -2403,20 +2403,6 @@
     }
     function afterSpeed(j, ta) { return Math.max(CANTER * vFin[j], vFin[j] - DEC * ta); }
 
-    // rastros de elemento: habilidades e garra
-    var boosts = [];
-    sim.events.forEach(function (ev) {
-      var r = L.racers[ev.racer];
-      if (!r) return;
-      if (ev.type === 'skill') {
-        var sk = r.horse.skills.map(function (id) { return GD.SKILLS[id]; }).filter(function (s) { return s && ev.text.indexOf(s.name) >= 0; })[0];
-        var dur = sk && sk.effect && sk.effect.durationS ? Math.min(sk.effect.durationS, 7) : 2.5;
-        boosts.push({ i: ev.racer, from: ev.t, to: ev.t + dur, strong: 1 });
-      } else if (ev.type === 'garra') {
-        boosts.push({ i: ev.racer, from: ev.t, to: fTime[ev.racer] + 0.6, strong: 1 });
-      }
-    });
-
     var feedEvents = [{ t: 0, racer: -1, type: 'largada', text: 'Foi dada a largada!' }].concat(sim.events, narration());
     feedEvents.sort(function (a, b) { return a.t - b.t; });
     var feedPtr = 0, feedShown = [];
@@ -2450,6 +2436,9 @@
     // ~2 s e faixa ~3,6 s reais.
     var fxTl = FX.timeline(sim, L.racers, ts);
     var dadoItens = fxTl.filter(function (it) { return it.kind === 'dado'; });
+    // skills e Garra: rastro de elemento e contorno enquanto duram; balões (skill, Garra, cansou) por ~1,5 s
+    var efeitoItens = fxTl.filter(function (it) { return it.kind === 'skill' || it.kind === 'garra'; });
+    var balaoItens = fxTl.filter(function (it) { return it.kind === 'skill' || it.kind === 'garra' || it.kind === 'cansou'; });
     function dadoAtivo(t) {
       for (var q = 0; q < dadoItens.length; q++) if (t >= dadoItens[q].t0 && t < dadoItens[q].t1) return dadoItens[q];
       return null;
@@ -2544,13 +2533,14 @@
       return idx;
     }
 
+    // rastro de elemento: vem da linha do tempo (skill e Garra); mais forte nos primeiros 1,5 s reais
     function boostIntensity(j, t) {
       var best = 0;
-      for (var b = 0; b < boosts.length; b++) {
-        var B = boosts[b];
-        if (B.i !== j || t < B.from || t > B.to) continue;
-        var age = t - B.from, left = B.to - t;
-        var v = Math.min(1, age / 0.3) * (age < 1.5 ? 1 : 0.65) * Math.min(1, left / 0.6 + 0.2);
+      for (var b = 0; b < efeitoItens.length; b++) {
+        var B = efeitoItens[b];
+        if (B.racer !== j || t < B.t0 || t > B.t1) continue;
+        var e = B.escala || 1, age = t - B.t0, left = B.t1 - t;
+        var v = Math.min(1, age / (0.3 * e)) * (age < FX.BALAO.dur * e ? 1 : 0.65) * Math.min(1, left / (0.6 * e) + 0.2);
         if (v > best) best = v;
       }
       return best;
@@ -2727,6 +2717,10 @@
           ctx.fillRect(x + (1 + dp) * S, feetY - 4 * S, S, S);
         }
         SP.drawHorse(ctx, x, y, cavalo);
+        // contorno e efeito da skill / Garra no próprio cavalo (fx.js)
+        for (var ei = 0; ei < efeitoItens.length; ei++) {
+          if (efeitoItens[ei].racer === j) FX.drawSkillAura(ctx, { x: caixaCav.x, y: caixaCav.y, w: caixaCav.w, h: caixaCav.h, S: S }, efeitoItens[ei], self.simT, reduced());
+        }
         vis.push({ j: j, x: x, caixa: caixaCav, an: an });
         var finished = fTime[j] <= self.simT;
         if (j === me) youTag = { x: x + (an.nose[0] + 3) * S, y: y + 3 * S, place: finished ? rankOf[j] + 1 : 0 };
@@ -2762,6 +2756,7 @@
         box(cx3, cy3, cw2, 9, C.sombra, GD.BLOCK_TYPES.curva.color);
         text(ct, cx3 + 3, cy3 + 2, C.texto);
       }
+      if (self.phase !== 'contagem') drawSkillsNaPista(vis, youTag, dItem, !!(self.finishCam || Math.abs(self.simT - tWin) < 0.6 || dItem || (self.climaTimer > 0 && self.simT >= self.climaDesde)));
       if (self.phase === 'contagem') {
         var c = Math.ceil(self.count / (reduced() ? 0.4 : 0.8));
         var label = c >= 3 ? '3' : c === 2 ? '2' : c === 1 ? '1' : 'JÁ!';
@@ -2772,6 +2767,67 @@
         text(label, cx + 1, cy + 1, C.sombra, sc, 'center');
         text(label, cx, cy, C.ouro, sc, 'center');
       }
+    }
+
+    // Balões de skill / Garra / cansou sobre os cavalos (até 3 empilhados por cavalo, os mais novos embaixo)
+    // e a faixa grande no centro com o nome da skill do jogador. Os balões desviam do "◀VOCÊ", das
+    // plaquinhas do Dado, da faixa do Dado e da faixa central (layoutBadges com obstáculos fixos).
+    function drawSkillsNaPista(vis, youTag, dItem, topoOcupado) {
+      var S = self.S, lay = self.lay, t = self.simT, k;
+      // faixa central do jogador: a skill ativada agora (1,5 s)
+      var fx0 = null;
+      for (k = 0; k < balaoItens.length; k++) {
+        var bi = balaoItens[k];
+        if (bi.kind === 'skill' && bi.racer === me && t >= bi.t0 && t < bi.t0 + FX.BALAO.dur * bi.escala) fx0 = bi;
+      }
+      var faixa = null;
+      if (fx0 && fx0.nome) {
+        var ft = fx0.nome.toUpperCase() + '!', fs = tw(ft, 2) + 8 <= lay.artW - 6 ? 2 : 1;
+        var fw = tw(ft, fs) + 8, fh = 5 * fs + 6;
+        var fxx = Math.round(lay.artW / 2 - fw / 2), fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
+        var esc0 = (t - fx0.t0) / fx0.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
+        var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.element] || C.ouro;
+        ctx.globalAlpha = af;
+        box(fxx, fyy, fw, fh, C.veu, cor);
+        text(ft, Math.round(lay.artW / 2), fyy + 3, C.texto, fs, 'center', C.sombra);
+        ctx.globalAlpha = 1;
+        faixa = { x: fxx - 1, y: fyy - 1, w: fw + 2, h: fh + 2 };
+        FX._stats.faixaSkill = ft;
+      }
+      // balões ativos por cavalo (visível): no máximo os 3 mais novos
+      var porCavalo = {};
+      for (k = 0; k < balaoItens.length; k++) {
+        var it = balaoItens[k];
+        if (t >= it.t0 && t < it.t0 + FX.BALAO.dur * it.escala) (porCavalo[it.racer] = porCavalo[it.racer] || []).push(it);
+      }
+      var topo = lay.compact ? lay.hudH + 2 : lay.hudH + 14;
+      var rects = [];
+      vis.forEach(function (v) {
+        var lista = porCavalo[v.j];
+        if (!lista) return;
+        lista = lista.slice(-3);
+        var cx = v.an.saddle ? Math.round(v.x / S + v.an.saddle[0]) : Math.round((v.caixa.x + v.caixa.w / 2) / S);
+        for (var q = 0; q < lista.length; q++) {
+          var item = lista[lista.length - 1 - q], sz = FX.balloonSize(item);
+          rects.push({ item: item, pilha: q, x: cx - Math.floor(sz.w / 2), y: Math.floor(v.caixa.y / S) - 1 - sz.h - q * (sz.h + 1) - topo, w: sz.w, h: sz.h });
+        }
+      });
+      if (!rects.length) return;
+      var fixos = [];
+      function fixo(r) { if (r) fixos.push({ x: r.x, y: r.y - topo, w: r.w, h: r.h }); }
+      if (youTag) { var yb = youTagBox(youTag); fixo({ x: yb.x - 1, y: yb.y - 1, w: yb.w + 2, h: 11 }); }
+      fixo(faixa);
+      if (dItem) {
+        fixo(FX.stripLayout(dItem, L.racers, lay));
+        FX._stats.placas.forEach(function (p) { fixo(p); });
+      }
+      var arr = FX.layoutBadges(rects, lay.artW, lay.artH - topo, fixos);
+      if (youTag && !self.voceRect) { var yb2 = youTagBox(youTag); self.voceRect = { x: yb2.x - 1, y: yb2.y - 1, w: yb2.w + 2, h: 11 }; }
+      arr.forEach(function (r) {
+        if (FX.drawBalloon(ctx, r.x * S, (r.y + topo) * S, S, r.item, t, r.pilha)) {
+          FX._stats.caixasBaloes.push({ racer: r.item.racer, kind: r.item.kind, x: r.x, y: r.y + topo, w: r.w, h: r.h });
+        }
+      });
     }
 
     // etiqueta "◀VOCÊ" (pixels de arte; caixa de 9 de altura, borda por fora): texto e posição
