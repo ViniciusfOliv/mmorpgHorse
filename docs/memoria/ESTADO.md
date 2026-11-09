@@ -19,7 +19,9 @@ para a `main` (mergear nessa ordem). Spec:
 - Verificação: `./scripts/check.sh` termina em `VERIFICAÇÃO COMPLETA: OK` (testes de simulação, de efeitos,
   de moldes, balanço e ui-test; o ui-test serve `prototype/dist/` por http local).
 - **Como usar o modo DEV:** abrir `prototype/dist/preview.html?dev=1` ou, no artefato do claude.ai (que não
-  repassa `?dev=1`), publicar `prototype/dist/jogo-dev.html`, que já abre no modo DEV. O save é separado
+  repassa `?dev=1`), publicar `prototype/dist/jogo-dev.html`, que já abre no modo DEV. Artefatos privados
+  publicados em 2026-11-09: jogo https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn e build DEV
+  https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (cópia do `jogo-dev.html` com o título "Galope Elemental DEV"). O save é separado
   (`galope-elemental:dev`), então o jogo real não é tocado. A gaveta "DEV" tem Moedas (Ouro infinito só em
   memória; recarregar religa), Cavalo, Itens, Próxima corrida (condições da sala: pista, clima, vento,
   skills sempre) e Perfil ("Zerar" com confirmação na própria gaveta; o "Recomeçar" do Perfil faz o mesmo).
