@@ -54,3 +54,13 @@ Achados que **podem esperar** (triagem da revisão final da frente "corrida viva
 
 ## Desempenho
 - O ui-test não tem teto absoluto de `msQuadro` (o Dado a 1280 custa ~9,7 ms por causa do relevo da subida); o valor da corrida de chuva com ventania sai na última linha do ui-test — `prototype/tools/ui-test.mjs`.
+
+## Dados do jogo (achados ao gerar o wiki, 2026-11-09)
+- Sol a Pino, Pé na Chuva e Névoa Amiga dizem que o bônus do clima é "dobrado", mas o código leva de ×1,03 para ×1,10 — `prototype/src/data.js` (descrições) e `prototype/src/sim.js` (`weatherMultDouble`).
+- `bornSkills` está comentado como "máximo ao nascer", mas o cruzamento usa como mínimo (completa até esse número, limitado às vagas) — `prototype/src/data.js` (comentário) e `prototype/src/breed.js`.
+- Prêmio com 4 corredores e entrada 100 paga 251 + 109 em vez de 252 + 108 (arredondamento de ponto flutuante em 360 × 0,7) — `prototype/src/sim.js` (`payouts`).
+- O bônus de 4 peças só age se o elemento da montaria for o dono do clima do conjunto; o cabeçalho não diz isso — `prototype/src/gear.js` (cabeçalho) e `prototype/src/sim.js` (`applyWeather`).
+- A peça Rara e a Lendária do mesmo slot e conjunto têm o mesmo nome (ex.: "Ferraduras do Sol") — `prototype/src/data.js` (`GEAR`).
+- Sprint, Nascente e Raízes Firmes dizem "numa reta", mas o gatilho exige reta de 150 m ou mais e ignora a da largada — `prototype/src/data.js` (descrições).
+- A calculadora do Haras fala em Mítico "só por despertar", recurso que não existe no protótipo — `prototype/src/game.js`.
+- A tabela de pesos de gatilho do Poder não é exportada; um gatilho novo sem peso vale 1 sem aviso — `prototype/src/sim.js` (`skillWeight`).

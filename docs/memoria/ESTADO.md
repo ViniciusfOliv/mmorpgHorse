@@ -8,6 +8,8 @@ _Atualizado em 2026-11-09._
 `prototype/tools/wiki.mjs` gera `docs/wiki.md` e `prototype/dist/wiki.html` (artefato com retratos, busca e filtros)
 direto dos dados e das fórmulas de `prototype/src/`; o `build.mjs` regera junto e o `check.sh` testa (etapa 3c,
 `wiki-test.mjs`). Chave nova sem tradução (gatilho, efeito, clima, bloco…) quebra o build de propósito.
+Artefato privado do wiki: https://claude.ai/artifact/Bp47f9qE3tSswu1A9zdF2y (republicar `prototype/dist/wiki.html`
+nesse endereço quando o conteúdo mudar). Inconsistências dos dados do jogo achadas ao gerar o wiki: `docs/memoria/bugs.md`.
 
 ## Em andamento — frente "corrida viva e modo DEV" (2026-11-09)
 Pronta na branch `claude/corrida-viva`: **revisão final feita** ("pronto para merge, com correções"; a onda
