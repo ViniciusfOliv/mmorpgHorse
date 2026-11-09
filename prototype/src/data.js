@@ -103,6 +103,7 @@
   //     staminaRestore: recupera fração do tanque (instantâneo);
   //     garraChanceBonus / garraBoostBonus: reforça a arrancada de Garra;
   //     extraDice: dados extras; weatherDouble: dobra o bônus do clima.
+  //   short (opcional): nome de até 12 letras para o balão da corrida (só apresentação, não é regra);
   //   exclusive: id da montaria inicial dona (só ela pode ter).
   // ---------------------------------------------------------------------------
   var SKILLS = {
@@ -128,7 +129,7 @@
       effect: { accelMult: 1.4, durationS: 4 }
     },
     'folego-de-montanha': {
-      id: 'folego-de-montanha', name: 'Fôlego de Montanha', element: 'neutro', trigger: 'hill',
+      id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'neutro', trigger: 'hill',
       desc: 'Em cada subida: gasta 30% menos estamina.',
       effect: { hillDrainMult: 0.7, blockScoped: true }
     },
@@ -138,7 +139,7 @@
       effect: { staminaRestore: 0.15 }
     },
     'arrancada-final': {
-      id: 'arrancada-final', name: 'Arrancada Final', element: 'neutro', trigger: 'final',
+      id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'neutro', trigger: 'final',
       desc: 'Na reta final: +15% de chance de Garra e +3% de força na arrancada.',
       effect: { garraChanceBonus: 0.15, garraBoostBonus: 0.03 }
     },
@@ -175,7 +176,7 @@
       effect: { staminaRestore: 0.20, speedMult: 1.03, durationS: 8 }
     },
     'canto-da-iara': {
-      id: 'canto-da-iara', name: 'Canto da Iara', element: 'agua', trigger: 'final',
+      id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
       desc: 'Na reta final, +6% de velocidade por 5s e gasta 30% menos estamina.',
       effect: { speedMult: 1.06, drainMult: 0.7, durationS: 5 }
     },
@@ -196,7 +197,7 @@
       effect: { hillBonus: 0.06, blockScoped: true }
     },
     'raizes-firmes': {
-      id: 'raizes-firmes', name: 'Raízes Firmes', element: 'grama', exclusive: 'ipe', trigger: 'straight',
+      id: 'raizes-firmes', name: 'Raízes Firmes', short: 'RAÍZES FIRM.', element: 'grama', exclusive: 'ipe', trigger: 'straight',
       desc: 'Numa reta, finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s.',
       effect: { staminaRestore: 0.05, speedMult: 1.02, durationS: 8 }
     }

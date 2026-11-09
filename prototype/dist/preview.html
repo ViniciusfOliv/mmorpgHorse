@@ -854,6 +854,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   //     staminaRestore: recupera fração do tanque (instantâneo);
   //     garraChanceBonus / garraBoostBonus: reforça a arrancada de Garra;
   //     extraDice: dados extras; weatherDouble: dobra o bônus do clima.
+  //   short (opcional): nome de até 12 letras para o balão da corrida (só apresentação, não é regra);
   //   exclusive: id da montaria inicial dona (só ela pode ter).
   // ---------------------------------------------------------------------------
   var SKILLS = {
@@ -879,7 +880,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       effect: { accelMult: 1.4, durationS: 4 }
     },
     'folego-de-montanha': {
-      id: 'folego-de-montanha', name: 'Fôlego de Montanha', element: 'neutro', trigger: 'hill',
+      id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'neutro', trigger: 'hill',
       desc: 'Em cada subida: gasta 30% menos estamina.',
       effect: { hillDrainMult: 0.7, blockScoped: true }
     },
@@ -889,7 +890,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       effect: { staminaRestore: 0.15 }
     },
     'arrancada-final': {
-      id: 'arrancada-final', name: 'Arrancada Final', element: 'neutro', trigger: 'final',
+      id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'neutro', trigger: 'final',
       desc: 'Na reta final: +15% de chance de Garra e +3% de força na arrancada.',
       effect: { garraChanceBonus: 0.15, garraBoostBonus: 0.03 }
     },
@@ -926,7 +927,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       effect: { staminaRestore: 0.20, speedMult: 1.03, durationS: 8 }
     },
     'canto-da-iara': {
-      id: 'canto-da-iara', name: 'Canto da Iara', element: 'agua', trigger: 'final',
+      id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
       desc: 'Na reta final, +6% de velocidade por 5s e gasta 30% menos estamina.',
       effect: { speedMult: 1.06, drainMult: 0.7, durationS: 5 }
     },
@@ -947,7 +948,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       effect: { hillBonus: 0.06, blockScoped: true }
     },
     'raizes-firmes': {
-      id: 'raizes-firmes', name: 'Raízes Firmes', element: 'grama', exclusive: 'ipe', trigger: 'straight',
+      id: 'raizes-firmes', name: 'Raízes Firmes', short: 'RAÍZES FIRM.', element: 'grama', exclusive: 'ipe', trigger: 'straight',
       desc: 'Numa reta, finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s.',
       effect: { staminaRestore: 0.05, speedMult: 1.02, durationS: 8 }
     }
@@ -2656,6 +2657,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   Sprites.PALETTES  // paletas de exemplo
  *   Moldes do PixelLab (recolor por paleta; sem eles, desenho por código):
  *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
+ *   Sprites.drawHorseSilhouette(ctx, x, y, opts, cor, alpha)  (contorno tingido, chamar antes de drawHorse),
  *   Sprites.anchorsFor(element, scale, estado), Sprites.horseBox(x, y, opts), Sprites.limparCacheMoldes(),
  *   Sprites.drawHorseCodigo(...)
  */
@@ -3742,6 +3744,45 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     else drawHorseCodigo(ctx, x, y, opts);
   }
 
+  // Silhueta do cavalo (com jóquei) tingida de uma cor, para o contorno de skill da corrida: o desenho
+  // normal (molde ou código, sem sombra) vai para um canvas pequeno, é tingido com 'source-in' e fica no
+  // cache por estilo|quadro|parado|escala|cor. Desenha 4 cópias deslocadas 1 px de arte (= k px) para
+  // cima/baixo/esquerda/direita; chamar ANTES de drawHorse para o contorno ficar atrás.
+  var silCache = new Map();
+  function drawHorseSilhouette(ctx, x, y, opts, cor, alpha) {
+    opts = opts || {};
+    var k = Math.max(1, Math.round(opts.scale || 1));
+    var usaMolde = !!(moldsOk && estadoMolde(opts));
+    var key = (usaMolde ? 'm' : 'c') + '|' + (usaMolde ? estiloDe(opts.element) : opts.element) + '|' +
+      mod(Math.floor(opts.frame || 0), GALLOP.length) + '|' + (opts.idle ? 1 : 0) + '|' + k + '|' + cor;
+    var hit = silCache.get(key);
+    if (!hit) {
+      var b0 = horseBox(0, 0, opts), pad = 2 * k;
+      var c = document.createElement('canvas');
+      c.width = Math.max(1, b0.w + 2 * pad); c.height = Math.max(1, b0.h + 2 * pad);
+      var cx = c.getContext('2d');
+      cx.imageSmoothingEnabled = false;
+      var o2 = {};
+      for (var q in opts) if (Object.prototype.hasOwnProperty.call(opts, q)) o2[q] = opts[q];
+      o2.shadow = false;
+      drawHorse(cx, pad - b0.x, pad - b0.y, o2);
+      cx.globalCompositeOperation = 'source-in';
+      cx.fillStyle = cor;
+      cx.fillRect(0, 0, c.width, c.height);
+      hit = { c: c, dx: b0.x - pad, dy: b0.y - pad };
+      if (silCache.size > 300) silCache.clear();
+      silCache.set(key, hit);
+    }
+    var prev = ctx.globalAlpha, bx = Math.round(x) + hit.dx, by = Math.round(y) + hit.dy;
+    ctx.globalAlpha = prev * Math.max(0, Math.min(1, alpha == null ? 1 : alpha));
+    crisp(ctx);
+    ctx.drawImage(hit.c, bx - k, by);
+    ctx.drawImage(hit.c, bx + k, by);
+    ctx.drawImage(hit.c, bx, by - k);
+    ctx.drawImage(hit.c, bx, by + k);
+    ctx.globalAlpha = prev;
+  }
+
   // Caixa (px) do que drawHorse(ctx, x, y, opts) desenha: com molde, o bbox do estado (união dos quadros do
   // galope) na posição do layout, inclusive a parte cortada pelo topo de um quadro; sem molde, o sprite 40×32.
   function horseBox(x, y, opts) {
@@ -4646,6 +4687,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     drawHorseCodigo: drawHorseCodigo,
     horseBox: horseBox,
     horseCanvas: horseCanvas,
+    drawHorseSilhouette: drawHorseSilhouette,
     // moldes do PixelLab (ver a seção MOLDES)
     ESTILO_POR_ELEMENTO: ESTILO_POR_ELEMENTO,
     moldsReady: false,
@@ -4687,14 +4729,17 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     Uma lista de efeitos montada UMA vez por corrida a partir de sim.events. Hoje:
  *       'dado' { t0: ev.t, t1: ev.t + 2.4·escala, racer: winner, winner, rolls (cópia), changed,
  *                weather, escala }   — um por evento 'dado'.
- *       'skill' { t0: ev.t, t1, racer, skillId, icon, element, nome, nomeCurto, escala } — um por
+ *       'skill' { t0: ev.t, t1, racer, skillId, icon, clima, element, cavalo, nome, nomeCurto, silks, raia,
+ *                escala } — um por
  *                evento 'skill'. t1 = t0 + duração do efeito real da simulação (durationS; ou o
  *                tempo para o cavalo andar distanceM pelos frames; ou até sair do bloco se
  *                blockScoped; sem duração, o mínimo), limitada a [1.5, 7]·escala. A skill é achada
- *                pelo nome no texto do evento entre as skills do cavalo (racers[i].horse.skills).
- *                element = o da skill (corAura/corBalao caem no do cavalo se for 'neutro').
- *       'garra' { t0: ev.t, t1: finishTime + 0.6, racer, escala }   — um por evento 'garra'.
- *       'cansou' { t0: ev.t, t1: t0 + 1.5·escala, racer, escala }   — um por evento 'cansou'.
+ *                pelo trecho ' ativou <Nome>!' do texto do evento entre as skills do cavalo
+ *                (racers[i].horse.skills). element = o da skill; no desenho, 'neutro' usa o elemento do
+ *                cavalo (campo cavalo). clima = 'sol'|'chuva'|'nevoa' (do trigger weather:*) para o ícone.
+ *                silks e raia (1..n) vêm de racers e servem ao balão (borda e número na cor da raia).
+ *       'garra' { t0: ev.t, t1: finishTime + 0.6, racer, icon, element, silks, raia, escala }   — um por evento 'garra'.
+ *       'cansou' { t0: ev.t, t1: t0 + 1.5·escala, racer, silks, raia, escala }   — um por evento 'cansou'.
  *     Balão, faixa central do jogador e "CANSOU" duram 1.5·escala a partir de t0 (BALAO.dur).
  *     escala (padrão 1) = segundos de simulação por segundo real em x1. As janelas do Dado (2,4 s,
  *     câmera lenta de 0,8 s, giro de 0,4 s, novo giro até 0,64 s) estão em "segundos de
@@ -4707,8 +4752,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     staminaRestore→folego, drainMult(<1)→folego, curveBonus→curva, hillBonus→subida,
  *     hillDrainMult→subida, extraDice→dado, weatherDouble→clima, garraChanceBonus→garra,
  *     garraBoostBonus→garra; nenhuma (ou sem skill) ⇒ 'vel'.
- *   RaceFx.nomeCurto(nome) -> nome da skill em até 11 letras maiúsculas (sem "de/da/a…", e só a
- *     primeira palavra se ainda passar de 11).
+ *   RaceFx.nomeCurto(nome, short) -> texto do balão: o nome inteiro em maiúsculas se couber em 12
+ *     letras; senão o campo opcional `short` do catálogo (data.js), ou, sem ele, o nome cortado
+ *     em palavras inteiras seguidas de "." na última que sobrar.
+ *   RaceFx.iconeDe(item) -> nome do ícone desenhado: item.icon, mas 'clima' vira 'sol'|'gota'|'nevoa'
+ *     pelo trigger da skill (weather:sol, weather:chuva, weather:nevoa).
  *
  *   RaceFx.slowFactor(tl, simT, reduced) -> 0.4 dentro de [t0, t0 + 0.8·escala] de cada 'dado'
  *     ([t0, t0 + 0.4·escala] se reduced), senão 1. A tela usa slowK = min(slowK, slowFactor).
@@ -4751,22 +4799,25 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     números rolando; depois da revelação (d ≥ 0.64, ou já em t0 se reduced): ordem de stripOrder,
  *     vencedor em dourado pulsante.
  *
- *   RaceFx.balloonSize(item) -> { w, h } em pixels de arte (h inclui a pontinha de 2).
- *   RaceFx.drawBalloon(ctx, x, y, S, item, simT, pilha) -> true se desenhou. (x, y) = canto do
- *     retângulo de balloonSize. Sobe 3 px e some em 1.5·escala (item.t0..); ícone de 8×8 (por código,
- *     no estilo dos ícones de status) + nome curto, na cor do elemento; Garra dourada; cansou cinza,
- *     "CANSOU". pilha 0..2 (0 = o mais novo, com a pontinha; os de cima ficam mais apagados).
- *   RaceFx.drawSkillAura(ctx, box, item, simT, reduced) -> true se desenhou. box = { x, y, w, h, S }
- *     em px do canvas (caixa do cavalo + px por pixel de arte). Cantoneiras brilhantes na cor do
- *     elemento enquanto durar o efeito (pulsam; paradas em reduced). Linhas de vento atrás para
- *     vel/ace/Garra; "+" verde subindo para folego; faíscas nos cascos para curva. Em reduced só o
- *     contorno: nada de vento, "+" ou faíscas.
+ *   RaceFx.balloonSize(item, pilha) -> { w, h } em pixels de arte do corpo do balão (altura 11; a pontinha
+ *     de 3 px fica à esquerda, fora de w). pilha > 0 é a versão compacta (chip + ícone).
+ *   RaceFx.drawBalloon(ctx, x, y, S, item, simT, pilha) -> true se desenhou. (x, y) = canto do corpo.
+ *     Preso à raia do cavalo (a tela põe à frente do focinho): borda e pontinha na cor da seda, chip
+ *     com o número da raia, ícone de 8×8 (por código, no estilo dos ícones de status) e o nome curto
+ *     na cor do elemento; Garra dourada; cansou cinza ("CANSOU"). Entra subindo 2 px, some em
+ *     1.5·escala. pilha 0..2: 0 = o mais novo (texto + pontinha); os outros crescem para a frente.
+ *   RaceFx.glow(item, simT, reduced) -> { cor, alpha } | null: brilho do contorno da silhueta
+ *     (a tela desenha Sprites.drawHorseSilhouette atrás do cavalo, 1 px de arte nas 4 direções).
+ *   RaceFx.drawSkillAura(ctx, box, item, simT, reduced) -> true se está ativo. box = { x, y, w, h, S }
+ *     em px do canvas. Linhas de vento atrás para vel/ace/Garra; "+" verde para folego; faíscas nos
+ *     cascos para curva. Em reduced não desenha nada (são partículas); o contorno vem do glow.
  *
- *   RaceFx._stats = { dados, faixaDado, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes }
+ *   RaceFx._stats = { dados, faixaDado, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos }
  *     faixaSkill = texto da faixa central desenhada no quadro ('' se não há); caixasBaloes = [{ racer,
- *     kind, x, y, w, h }] dos balões posicionados no quadro (pixels de arte). A tela anota os dois.
+ *     kind, pilha, x, y, w, h, y0, y1 }] dos balões posicionados (pixels de arte; y0..y1 = faixa vertical da
+ *     raia) e caixasCavalos = [{ racer, x, y, w, h }] dos cavalos visíveis. A tela anota os três.
  *     Contadores do quadro atual (zerados por beginFrame) para o ui-test: dados desenhados, faixa
- *     visível, balões (próximas tarefas), partículas, e placas = [{ racer, numero, vencedor, fase }]
+ *     visível, balões, partículas, e placas = [{ racer, numero, vencedor, fase }]
  *     (a tela anota o que desenhou). msQuadro = média do tempo de desenho dos últimos 60 quadros
  *     (endFrame(ms), medido pela tela com performance.now()); quadros = quadros medidos.
  *   RaceFx.beginFrame(), RaceFx.endFrame(ms), RaceFx.resetStats(tudo) (tudo: também a média).
@@ -4793,7 +4844,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     efeitoMin: 1.5,    // contorno/efeito da skill: [1.5, 7]
     efeitoMax: 7,
     garraFim: 0.6,     // a Garra segue até finishTime + 0.6
-    sobe: 3            // pixels de arte que o balão sobe
+    sobe: 2            // pixels de arte que o balão sobe ao entrar
   };
   var EPS = 1e-6;
   var PLACA_H = 9, PONTA_H = 2, GAP = 1;
@@ -4889,19 +4940,30 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return 'vel';
   }
 
-  function nomeCurto(nome) {
-    var ws = String(nome || '').toUpperCase().split(' ').filter(function (w) { return w.length > 2; });
-    var t = ws.join(' ');
-    if (t.length > 11) t = ws[0] || t;
-    return t.slice(0, 11);
+  var CURTO_MAX = 12;
+  function nomeCurto(nome, short) {
+    var n = String(nome || '').toUpperCase();
+    if (n.length <= CURTO_MAX) return n;
+    if (short) return String(short).toUpperCase();
+    var ws = n.split(' '), out = '';
+    for (var i = 0; i < ws.length; i++) {      // palavras inteiras; a última que sobra vira abreviatura com "."
+      var tent = out ? out + ' ' + ws[i] : ws[i];
+      if (tent.length <= CURTO_MAX) { out = tent; continue; }
+      var sobra = CURTO_MAX - (out ? out.length + 1 : 0) - 1;
+      if (sobra >= 2) out = (out ? out + ' ' : '') + ws[i].slice(0, sobra) + '.';
+      break;
+    }
+    out = out.replace(/ \S{1,2}$/, '');          // não termina em "de", "da"…
+    return out || n.slice(0, CURTO_MAX);
   }
 
-  // a skill do evento: pelo nome no texto, a de nome mais longo entre as do cavalo (como a tela faz)
+  // a skill do evento: o texto é '<rótulo> ativou <Nome>!'; casa só esse trecho (o rótulo pode ter o nome
+  // de outra skill, como um cavalo chamado "Sprint"). Em empate de trechos, a de nome mais longo.
   function acharSkill(horse, texto, catalogo) {
     var melhor = null, ids = (horse && horse.skills) || [];
     for (var k = 0; k < ids.length; k++) {
       var s = catalogo && catalogo[ids[k]];
-      if (s && String(texto).indexOf(s.name) >= 0 && (!melhor || s.name.length > melhor.name.length)) melhor = s;
+      if (s && String(texto).indexOf(' ativou ' + s.name + '!') >= 0 && (!melhor || s.name.length > melhor.name.length)) melhor = s;
     }
     return melhor;
   }
@@ -4945,19 +5007,23 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var r = racers && racers[ev.racer], horse = r && r.horse;
         var sk = acharSkill(horse, ev.text, catalogo);
         var dur = Math.max(BALAO.efeitoMin * e, Math.min(BALAO.efeitoMax * e, duracaoSkill(sim, ev, sk)));
+        var trig = sk && sk.trigger && String(sk.trigger).indexOf('weather:') === 0 ? String(sk.trigger).slice(8) : '';
         out.push({
-          kind: 'skill', t0: ev.t, t1: ev.t + dur, racer: ev.racer, skillId: sk ? sk.id : null, icon: skillIcon(sk),
+          kind: 'skill', t0: ev.t, t1: ev.t + dur, racer: ev.racer, skillId: sk ? sk.id : null, icon: skillIcon(sk), clima: trig,
           element: sk ? sk.element : (horse && horse.element) || 'neutro', cavalo: (horse && horse.element) || 'neutro',
-          nome: sk ? sk.name : '', nomeCurto: nomeCurto(sk ? sk.name : ''), escala: e
+          nome: sk ? sk.name : '', nomeCurto: nomeCurto(sk ? sk.name : '', sk && sk.short),
+          silks: (r && r.silks) || null, raia: ev.racer + 1, escala: e
         });
       } else if (ev.type === 'garra') {
         var fim = sim.finishTimes && sim.finishTimes[ev.racer];
         out.push({
           kind: 'garra', t0: ev.t, t1: (fim != null ? fim : ev.t + BALAO.dur * e) + BALAO.garraFim, racer: ev.racer,
-          icon: 'garra', element: (racers && racers[ev.racer] && racers[ev.racer].horse.element) || 'neutro', escala: e
+          icon: 'garra', element: (racers && racers[ev.racer] && racers[ev.racer].horse.element) || 'neutro',
+          silks: (racers && racers[ev.racer] && racers[ev.racer].silks) || null, raia: ev.racer + 1, escala: e
         });
       } else if (ev.type === 'cansou') {
-        out.push({ kind: 'cansou', t0: ev.t, t1: ev.t + BALAO.dur * e, racer: ev.racer, escala: e });
+        out.push({ kind: 'cansou', t0: ev.t, t1: ev.t + BALAO.dur * e, racer: ev.racer,
+          silks: (racers && racers[ev.racer] && racers[ev.racer].silks) || null, raia: ev.racer + 1, escala: e });
       }
     }
     // ordem por t0, estável (o sort do motor nem sempre é)
@@ -5124,10 +5190,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ===========================================================================
   // Estatísticas do quadro (ui-test e teste de desempenho)
   // ===========================================================================
-  var stats = { dados: 0, faixaDado: false, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [] };
+  var stats = { dados: 0, faixaDado: false, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [] };
   var JANELA_MS = 60, amostras = [], somaMs = 0;
   function beginFrame() {
-    stats.dados = 0; stats.faixaDado = false; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = [];
+    stats.dados = 0; stats.faixaDado = false; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = [];
   }
   function endFrame(ms) {
     if (!(ms >= 0) || !isFinite(ms)) return;
@@ -5283,6 +5349,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     dado:   ['.######.', '#......#', '#.#..#.#', '#......#', '#..##..#', '#......#', '#.#..#.#', '.######.'],
     clima:  ['..#..#..', '#..##..#', '.######.', '.######.', '#.####.#', '..####..', '.#....#.', '........'],
     garra:  ['...#..#.', '..#..#..', '..#..#.#', '.#..#..#', '.#..#.#.', '#..#..#.', '#..#.#..', '........'],
+    sol:    ['#..#..#.', '.#.##.#.', '..####..', '#.####.#', '#.####.#', '..####..', '.#.##.#.', '#..#..#.'],
+    nevoa:  ['........', '.##.##..', '#######.', '........', '.######.', '........', '######..', '........'],
     gota:   ['...#....', '...#....', '..###...', '.#####..', '.#####..', '.#####..', '..###...', '........']
   };
   function desenhaIcone(ctx, nome, x, y, S, cor) {
@@ -5310,92 +5378,105 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (item.kind === 'cansou') return 'CANSOU';
     return item.nomeCurto || nomeCurto(item.nome);
   }
-  var BAL_H = 13, BAL_PONTA = 2;
-  function balloonSize(item) {
-    return { w: 8 + 2 + textW(textoBalao(item)) + 6, h: BAL_H + BAL_PONTA };   // ícone 8 + espaço + texto + bordas
+  // Balão preso à raia do cavalo: à frente do focinho, com chip do número e borda na cor da seda.
+  // Altura 11 (cabe duas vezes na raia de 26 px); pilha > 0 vira só o chip + ícone (cresce para a frente).
+  var BAL_H = 11, BAL_ICONE_X = 9;
+  function iconeDe(item) {
+    if (item.kind === 'cansou') return 'gota';
+    if (item.icon === 'clima') return item.clima === 'chuva' ? 'gota' : item.clima === 'nevoa' ? 'nevoa' : 'sol';
+    return item.icon || 'vel';
+  }
+  function balloonSize(item, pilha) {
+    if (pilha > 0) return { w: BAL_ICONE_X + 8 + 2, h: BAL_H };
+    return { w: BAL_ICONE_X + 8 + 2 + textW(textoBalao(item)) + 3, h: BAL_H };
   }
 
+  // (x, y) = canto do corpo do balão em px do canvas; a pontinha (1..2 px à esquerda) aponta para o cavalo
   function drawBalloon(ctx, x, y, S, item, simT, pilha) {
     if (!item) return false;
     var e = item.escala || 1, dur = BALAO.dur * e, age = simT - item.t0;
     if (age < -EPS || age >= dur - EPS * e) return false;
     var d = age / e;                                   // segundos reais em x1
-    var sz = balloonSize(item), w = sz.w;
+    var sz = balloonSize(item, pilha), w = sz.w;
     var alpha = d > BALAO.dur - 0.4 ? Math.max(0, (BALAO.dur - d) / 0.4) : 1;
-    if (pilha > 0) alpha *= 0.9 - 0.1 * (pilha - 1);
-    var sobe = Math.round(Math.min(1, d / BALAO.dur) * BALAO.sobe);
-    var y0 = y - sobe * S;
+    if (pilha > 0) alpha *= 0.9;
+    var sobe = Math.round(Math.min(1, d / 0.4) * BALAO.sobe);
+    var y0 = y + (BALAO.sobe - sobe) * S;              // entra 2 px mais baixo e sobe até o lugar
     var cansou = item.kind === 'cansou', garra = item.kind === 'garra';
+    var seda = item.silks || COR.texto3;
     var cor = cansou ? COR.cinza : garra ? COR.ouro : corElemento(item);
     var fundo = cansou ? COR.fundoCinza : COR.painel;
     var txt = cansou ? COR.cinzaClaro : mix(cor, '#ffffff', 0.35);
     var prev = ctx.globalAlpha;
     ctx.globalAlpha = prev * alpha;
     function R(dx, dy, ww, hh, col) { ctx.fillStyle = col; ctx.fillRect(x + dx * S, y0 + dy * S, ww * S, hh * S); }
-    R(0, 0, w, BAL_H, COR.sombra);                    // contorno escuro (1 px por fora do colorido)
-    R(1, 1, w - 2, BAL_H - 2, cor);
-    R(2, 2, w - 4, BAL_H - 4, fundo);
-    desenhaIcone(ctx, cansou ? 'gota' : item.icon, x + 3 * S, y0 + 3 * S, S, txt);
-    texto(ctx, textoBalao(item), x + 13 * S, y0 + 4 * S, S, txt);
-    if (!pilha) {                                      // pontinha para o cavalo
-      var mx = Math.floor(w / 2);
-      R(mx - 1, BAL_H, 3, 1, COR.sombra); R(mx, BAL_H + 1, 1, 1, COR.sombra);
-      R(mx, BAL_H, 1, 1, cor);
+    R(-1, -1, w + 2, BAL_H + 2, COR.sombra);            // contorno escuro por fora da seda
+    R(0, 0, w, BAL_H, seda);
+    R(1, 1, w - 2, BAL_H - 2, fundo);
+    R(1, 1, 7, BAL_H - 2, seda);                        // chip com o número da raia
+    texto(ctx, String(item.raia || ''), x + (item.raia > 9 ? 1 : 3) * S, y0 + 3 * S, S, lum(seda) > 0.5 ? COR.tinta : COR.texto);
+    desenhaIcone(ctx, iconeDe(item), x + BAL_ICONE_X * S, y0 + 1 * S, S, txt);
+    if (!pilha) texto(ctx, textoBalao(item), x + (BAL_ICONE_X + 10) * S, y0 + 3 * S, S, txt);
+    if (!pilha) {                                      // pontinha para o cavalo (na cor da seda)
+      R(-3, 4, 3, 3, COR.sombra); R(-2, 4, 2, 3, seda); R(-1, 3, 1, 5, seda); R(-2, 5, 1, 1, seda);
     }
     ctx.globalAlpha = prev;
     stats.baloes++;
     return true;
   }
 
-  // Contorno e efeito enquanto a skill (ou a Garra) dura. box = caixa do cavalo em px do canvas + S.
+  // Brilho do contorno da silhueta: { cor, alpha } enquanto a skill/Garra dura, senão null. Quem desenha
+  // é a tela (Sprites.drawHorseSilhouette, atrás do cavalo, deslocada 1 px de arte nas 4 direções).
+  // Em reduced o brilho fica fixo (sem pulsar).
+  function glow(item, simT, reduced) {
+    if (!item || (item.kind !== 'skill' && item.kind !== 'garra')) return null;
+    var e = item.escala || 1;
+    if (simT < item.t0 - EPS || simT >= item.t1 - EPS * e) return null;
+    var d = (simT - item.t0) / e, sai = (item.t1 - simT) / e;
+    var amp = Math.max(0, Math.min(1, d / 0.15, sai / 0.3));
+    var pulso = reduced ? 0.5 : 0.5 + 0.5 * Math.sin(d * 2 * Math.PI / 0.7);
+    return { cor: mix(corElemento(item), '#ffffff', 0.25), alpha: amp * (0.55 + 0.4 * pulso) };
+  }
+
+  // Efeitos de movimento enquanto a skill (ou a Garra) dura. box = caixa do cavalo em px do canvas + S.
+  // O contorno é a silhueta (glow). Em reduced não desenha nada (vento, "+" e faíscas são partículas).
   function drawSkillAura(ctx, box, item, simT, reduced) {
     if (!item || !box || (item.kind !== 'skill' && item.kind !== 'garra')) return false;
     var e = item.escala || 1;
     if (simT < item.t0 - EPS || simT >= item.t1 - EPS * e) return false;
+    if (reduced) return true;
     var S = box.S, cor = corElemento(item), claro = mix(cor, '#ffffff', 0.45);
-    var d = (simT - item.t0) / e;                      // segundos reais desde o início
-    var sai = (item.t1 - simT) / e;
-    var amp = Math.max(0, Math.min(1, d / 0.15, sai / 0.3));
-    var pulso = reduced ? 0.5 : 0.5 + 0.5 * Math.sin(d * 2 * Math.PI / 0.7);
+    var d = (simT - item.t0) / e;
+    var amp = Math.max(0, Math.min(1, d / 0.15, ((item.t1 - simT) / e) / 0.3));
     var prev = ctx.globalAlpha;
     function R(ax, ay, ww, hh, col, a) {
       ctx.globalAlpha = prev * amp * a; ctx.fillStyle = col; ctx.fillRect(ax * S, ay * S, ww * S, hh * S);
     }
     var bx = Math.round(box.x / S), by = Math.round(box.y / S), bw = Math.round(box.w / S), bh = Math.round(box.h / S);
-    // véu leve na cor do elemento e cantoneiras brilhantes (pulsam)
-    R(bx, by, bw, bh, cor, 0.07 + 0.06 * pulso);
-    var L = 5, aC = 0.55 + 0.4 * pulso;
-    [[bx, by, 1, 1], [bx + bw - 1, by, -1, 1], [bx, by + bh - 1, 1, -1], [bx + bw - 1, by + bh - 1, -1, -1]].forEach(function (c) {
-      var hx = c[2] > 0 ? c[0] : c[0] - L + 1, vy = c[3] > 0 ? c[1] : c[1] - L + 1;
-      R(hx, c[1], L, 1, claro, aC); R(c[0], vy, 1, L, claro, aC);
-      R(hx, c[1] + (c[3] > 0 ? 1 : -1), L - 1 > 0 ? L - 1 : 1, 1, cor, aC * 0.7);
-    });
-    if (!reduced) {
-      var tipo = item.kind === 'garra' ? 'vel' : item.icon, k, ph;
-      if (tipo === 'vel' || tipo === 'ace') {          // linhas de vento atrás do cavalo
-        for (k = 0; k < 5; k++) {
-          ph = frac(d * 1.9 + k * 0.37);
-          var ly = by + 4 + Math.round(((k * 7) % 5) / 4 * (bh - 12)), len = 6 + (k % 3) * 3;
-          R(bx + 3 - Math.round(ph * 22) - len, ly, len, 1, claro, 0.85 * (1 - ph));
-          stats.particulas++;
-        }
-      } else if (tipo === 'folego') {                  // "+" verdes subindo
-        for (k = 0; k < 3; k++) {
-          ph = frac(d * 0.9 + k * 0.33);
-          var px = bx + Math.round(bw * (0.3 + 0.2 * k)), py = by + Math.round(bh * 0.55) - Math.round(ph * 16);
-          R(px - 1, py, 3, 1, COR.ganho, 1 - ph); R(px, py - 1, 1, 3, COR.ganho, 1 - ph);
-          stats.particulas++;
-        }
-      } else if (tipo === 'curva') {                   // faíscas nos cascos
-        for (k = 0; k < 6; k++) {
-          ph = frac(d * 3 + k * 0.29);
-          if (ph > 0.6) continue;
-          var sx = bx + Math.round(bw * (0.25 + 0.45 * ((k * 5) % 3) / 2)) - Math.round(ph * 6);
-          var sy = by + bh - 4 - Math.round(ph * 7);
-          R(sx, sy, 1, 1, COR.faisca, 1 - ph);
-          R(sx - 1, sy, 1, 1, '#ffb347', 0.6 * (1 - ph));
-          stats.particulas++;
-        }
+    var tipo = item.kind === 'garra' ? 'vel' : item.icon, k, ph;
+    if (tipo === 'vel' || tipo === 'ace') {            // linhas de vento atrás do cavalo
+      for (k = 0; k < 5; k++) {
+        ph = frac(d * 1.9 + k * 0.37);
+        var ly = by + 4 + Math.round(((k * 7) % 5) / 4 * (bh - 12)), len = 6 + (k % 3) * 3;
+        R(bx + 3 - Math.round(ph * 22) - len, ly, len, 1, claro, 0.85 * (1 - ph));
+        stats.particulas++;
+      }
+    } else if (tipo === 'folego') {                    // "+" verdes subindo
+      for (k = 0; k < 3; k++) {
+        ph = frac(d * 0.9 + k * 0.33);
+        var px = bx + Math.round(bw * (0.3 + 0.2 * k)), py = by + Math.round(bh * 0.55) - Math.round(ph * 16);
+        R(px - 1, py, 3, 1, COR.ganho, 1 - ph); R(px, py - 1, 1, 3, COR.ganho, 1 - ph);
+        stats.particulas++;
+      }
+    } else if (tipo === 'curva') {                     // faíscas nos cascos
+      for (k = 0; k < 6; k++) {
+        ph = frac(d * 3 + k * 0.29);
+        if (ph > 0.6) continue;
+        var sx = bx + Math.round(bw * (0.25 + 0.45 * ((k * 5) % 3) / 2)) - Math.round(ph * 6);
+        var sy = by + bh - 4 - Math.round(ph * 7);
+        R(sx, sy, 1, 1, COR.faisca, 1 - ph);
+        R(sx - 1, sy, 1, 1, '#ffb347', 0.6 * (1 - ph));
+        stats.particulas++;
       }
     }
     ctx.globalAlpha = prev;
@@ -5416,6 +5497,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     stripLayout: stripLayout,
     layoutBadges: layoutBadges,
     balloonSize: balloonSize,
+    iconeDe: iconeDe,
+    glow: glow,
     BALAO: BALAO,
     // desenho
     drawDice: drawDice,
@@ -8356,12 +8439,21 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           ctx.fillRect(x + (4 - dp) * S, feetY - (2 + dp) * S, 2 * S, S);
           ctx.fillRect(x + (1 + dp) * S, feetY - 4 * S, S, S);
         }
+        // contorno da silhueta (skill / Garra) atrás do cavalo: o de brilho mais forte, na cor do elemento
+        var gl = null;
+        for (var gi = 0; gi < efeitoItens.length; gi++) {
+          if (efeitoItens[gi].racer !== j) continue;
+          var g1 = FX.glow(efeitoItens[gi], self.simT, reduced());
+          if (g1 && (!gl || g1.alpha > gl.alpha)) gl = g1;
+        }
+        if (gl) SP.drawHorseSilhouette(ctx, x, y, cavalo, gl.cor, gl.alpha);
         SP.drawHorse(ctx, x, y, cavalo);
-        // contorno e efeito da skill / Garra no próprio cavalo (fx.js)
+        FX._stats.caixasCavalos.push({ racer: j, x: Math.round(caixaCav.x / S), y: Math.round(caixaCav.y / S), w: Math.round(caixaCav.w / S), h: Math.round(caixaCav.h / S) });
+        // vento, "+" e faíscas da skill / Garra no próprio cavalo (fx.js)
         for (var ei = 0; ei < efeitoItens.length; ei++) {
           if (efeitoItens[ei].racer === j) FX.drawSkillAura(ctx, { x: caixaCav.x, y: caixaCav.y, w: caixaCav.w, h: caixaCav.h, S: S }, efeitoItens[ei], self.simT, reduced());
         }
-        vis.push({ j: j, x: x, caixa: caixaCav, an: an });
+        vis.push({ j: j, x: x, y: y, caixa: caixaCav, an: an });
         var finished = fTime[j] <= self.simT;
         if (j === me) youTag = { x: x + (an.nose[0] + 3) * S, y: y + 3 * S, place: finished ? rankOf[j] + 1 : 0 };
         else if (finished) badges.push({ x: x + 22 * S, y: y - 2 * S, j: j, place: rankOf[j] + 1 });
@@ -8409,24 +8501,30 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       }
     }
 
-    // Balões de skill / Garra / cansou sobre os cavalos (até 3 empilhados por cavalo, os mais novos embaixo)
-    // e a faixa grande no centro com o nome da skill do jogador. Os balões desviam do "◀VOCÊ", das
-    // plaquinhas do Dado, da faixa do Dado e da faixa central (layoutBadges com obstáculos fixos).
+    // Faixa grande no centro com o nome da skill do jogador (1,5·escala cada; duas ao mesmo tempo entram em
+    // sequência) e balões de skill / Garra / cansou presos à raia de cada cavalo: à frente do focinho (do
+    // "◀VOCÊ", no jogador), na altura do jóquei e dentro da faixa vertical da própria raia. O balão mais novo
+    // tem texto; até 2 mais antigos viram chip + ícone, crescendo para a frente.
+    var faixasJogador = [];
+    (function () {
+      var fim = -1e9;
+      balaoItens.forEach(function (it) {
+        if (it.kind !== 'skill' || it.racer !== me || !it.nome) return;
+        var a0 = Math.max(it.t0, fim);
+        fim = a0 + FX.BALAO.dur * it.escala;
+        faixasJogador.push({ item: it, a: a0, b: fim });
+      });
+    })();
     function drawSkillsNaPista(vis, youTag, dItem, topoOcupado) {
       var S = self.S, lay = self.lay, t = self.simT, k;
-      // faixa central do jogador: a skill ativada agora (1,5 s)
-      var fx0 = null;
-      for (k = 0; k < balaoItens.length; k++) {
-        var bi = balaoItens[k];
-        if (bi.kind === 'skill' && bi.racer === me && t >= bi.t0 && t < bi.t0 + FX.BALAO.dur * bi.escala) fx0 = bi;
-      }
-      var faixa = null;
-      if (fx0 && fx0.nome) {
-        var ft = fx0.nome.toUpperCase() + '!', fs = tw(ft, 2) + 8 <= lay.artW - 6 ? 2 : 1;
+      var faixa = null, fx0 = null;
+      for (k = 0; k < faixasJogador.length; k++) if (t >= faixasJogador[k].a && t < faixasJogador[k].b) fx0 = faixasJogador[k];
+      if (fx0) {
+        var ft = fx0.item.nome.toUpperCase() + '!', fs = tw(ft, 2) + 8 <= lay.artW - 6 ? 2 : 1;
         var fw = tw(ft, fs) + 8, fh = 5 * fs + 6;
         var fxx = Math.round(lay.artW / 2 - fw / 2), fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
-        var esc0 = (t - fx0.t0) / fx0.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
-        var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.element] || C.ouro;
+        var esc0 = (t - fx0.a) / fx0.item.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
+        var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
         box(fxx, fyy, fw, fh, C.veu, cor);
         text(ft, Math.round(lay.artW / 2), fyy + 3, C.texto, fs, 'center', C.sombra);
@@ -8434,38 +8532,46 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         faixa = { x: fxx - 1, y: fyy - 1, w: fw + 2, h: fh + 2 };
         FX._stats.faixaSkill = ft;
       }
-      // balões ativos por cavalo (visível): no máximo os 3 mais novos
+      // balões ativos por cavalo visível: no máximo os 3 mais novos
       var porCavalo = {};
       for (k = 0; k < balaoItens.length; k++) {
         var it = balaoItens[k];
         if (t >= it.t0 && t < it.t0 + FX.BALAO.dur * it.escala) (porCavalo[it.racer] = porCavalo[it.racer] || []).push(it);
       }
-      var topo = lay.compact ? lay.hudH + 2 : lay.hudH + 14;
-      var rects = [];
+      var obst = [];
+      if (faixa) obst.push(faixa);
+      if (dItem) { obst.push(FX.stripLayout(dItem, L.racers, lay)); FX._stats.placas.forEach(function (p) { obst.push(p); }); }
+      function bate(a, o) { return a.x < o.x + o.w + 1 && o.x < a.x + a.w + 1 && a.y < o.y + o.h + 1 && o.y < a.y + a.h + 1; }
+      if (youTag && !self.voceRect) { var yb2 = youTagBox(youTag); self.voceRect = { x: yb2.x - 1, y: yb2.y - 1, w: yb2.w + 2, h: 11 }; }
+      if (self.voceRect) obst.push(self.voceRect);
       vis.forEach(function (v) {
         var lista = porCavalo[v.j];
         if (!lista) return;
         lista = lista.slice(-3);
-        var cx = v.an.saddle ? Math.round(v.x / S + v.an.saddle[0]) : Math.round((v.caixa.x + v.caixa.w / 2) / S);
+        var y0 = lay.laneTopArt + v.j * lay.laneArt, y1 = y0 + lay.laneArt;
+        // na altura do jóquei (como o "◀VOCÊ"), mas sempre dentro da faixa da raia
+        var by = Math.max(y0 + 3, Math.min(y1 - 11 - 1, Math.round(v.y / S) + 1));
+        var bx;
+        if (v.j === me && youTag) { var yb = youTagBox(youTag); bx = yb.x + yb.w + 4; }
+        else bx = Math.round((v.x + (v.an.nose[0] + 3) * S) / S) + 4;
         for (var q = 0; q < lista.length; q++) {
-          var item = lista[lista.length - 1 - q], sz = FX.balloonSize(item);
-          rects.push({ item: item, pilha: q, x: cx - Math.floor(sz.w / 2), y: Math.floor(v.caixa.y / S) - 1 - sz.h - q * (sz.h + 1) - topo, w: sz.w, h: sz.h });
-        }
-      });
-      if (!rects.length) return;
-      var fixos = [];
-      function fixo(r) { if (r) fixos.push({ x: r.x, y: r.y - topo, w: r.w, h: r.h }); }
-      if (youTag) { var yb = youTagBox(youTag); fixo({ x: yb.x - 1, y: yb.y - 1, w: yb.w + 2, h: 11 }); }
-      fixo(faixa);
-      if (dItem) {
-        fixo(FX.stripLayout(dItem, L.racers, lay));
-        FX._stats.placas.forEach(function (p) { fixo(p); });
-      }
-      var arr = FX.layoutBadges(rects, lay.artW, lay.artH - topo, fixos);
-      if (youTag && !self.voceRect) { var yb2 = youTagBox(youTag); self.voceRect = { x: yb2.x - 1, y: yb2.y - 1, w: yb2.w + 2, h: 11 }; }
-      arr.forEach(function (r) {
-        if (FX.drawBalloon(ctx, r.x * S, (r.y + topo) * S, S, r.item, t, r.pilha)) {
-          FX._stats.caixasBaloes.push({ racer: r.item.racer, kind: r.item.kind, x: r.x, y: r.y + topo, w: r.w, h: r.h });
+          var item = lista[lista.length - 1 - q], sz = FX.balloonSize(item, q);
+          var r = { x: bx, y: by, w: sz.w, h: sz.h };
+          // desvia para a frente do que estiver no caminho: faixas do topo, plaquinhas do Dado e a caixa dos
+          // outros cavalos (a de um cavalo da raia de baixo invade a de cima em até ~17 px)
+          var cavalos = vis.filter(function (o2) { return o2.j !== v.j; }).map(function (o2) {
+            return { x: Math.round(o2.caixa.x / S), y: Math.round(o2.caixa.y / S), w: Math.round(o2.caixa.w / S), h: Math.round(o2.caixa.h / S) };
+          });
+          for (var passo = 0; passo < 3; passo++) {
+            var movido = false;
+            obst.concat(cavalos).forEach(function (ob) { if (bate(r, ob)) { r.x = ob.x + ob.w + 2; movido = true; } });
+            if (!movido) break;
+          }
+          r.x = Math.max(0, Math.min(lay.artW - r.w, r.x));
+          if (FX.drawBalloon(ctx, r.x * S, r.y * S, S, item, t, q)) {
+            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
+          }
+          bx = r.x + r.w + 2;
         }
       });
     }

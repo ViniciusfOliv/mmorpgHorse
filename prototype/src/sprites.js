@@ -16,6 +16,7 @@
  *   Sprites.PALETTES  // paletas de exemplo
  *   Moldes do PixelLab (recolor por paleta; sem eles, desenho por código):
  *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
+ *   Sprites.drawHorseSilhouette(ctx, x, y, opts, cor, alpha)  (contorno tingido, chamar antes de drawHorse),
  *   Sprites.anchorsFor(element, scale, estado), Sprites.horseBox(x, y, opts), Sprites.limparCacheMoldes(),
  *   Sprites.drawHorseCodigo(...)
  */
@@ -1102,6 +1103,45 @@
     else drawHorseCodigo(ctx, x, y, opts);
   }
 
+  // Silhueta do cavalo (com jóquei) tingida de uma cor, para o contorno de skill da corrida: o desenho
+  // normal (molde ou código, sem sombra) vai para um canvas pequeno, é tingido com 'source-in' e fica no
+  // cache por estilo|quadro|parado|escala|cor. Desenha 4 cópias deslocadas 1 px de arte (= k px) para
+  // cima/baixo/esquerda/direita; chamar ANTES de drawHorse para o contorno ficar atrás.
+  var silCache = new Map();
+  function drawHorseSilhouette(ctx, x, y, opts, cor, alpha) {
+    opts = opts || {};
+    var k = Math.max(1, Math.round(opts.scale || 1));
+    var usaMolde = !!(moldsOk && estadoMolde(opts));
+    var key = (usaMolde ? 'm' : 'c') + '|' + (usaMolde ? estiloDe(opts.element) : opts.element) + '|' +
+      mod(Math.floor(opts.frame || 0), GALLOP.length) + '|' + (opts.idle ? 1 : 0) + '|' + k + '|' + cor;
+    var hit = silCache.get(key);
+    if (!hit) {
+      var b0 = horseBox(0, 0, opts), pad = 2 * k;
+      var c = document.createElement('canvas');
+      c.width = Math.max(1, b0.w + 2 * pad); c.height = Math.max(1, b0.h + 2 * pad);
+      var cx = c.getContext('2d');
+      cx.imageSmoothingEnabled = false;
+      var o2 = {};
+      for (var q in opts) if (Object.prototype.hasOwnProperty.call(opts, q)) o2[q] = opts[q];
+      o2.shadow = false;
+      drawHorse(cx, pad - b0.x, pad - b0.y, o2);
+      cx.globalCompositeOperation = 'source-in';
+      cx.fillStyle = cor;
+      cx.fillRect(0, 0, c.width, c.height);
+      hit = { c: c, dx: b0.x - pad, dy: b0.y - pad };
+      if (silCache.size > 300) silCache.clear();
+      silCache.set(key, hit);
+    }
+    var prev = ctx.globalAlpha, bx = Math.round(x) + hit.dx, by = Math.round(y) + hit.dy;
+    ctx.globalAlpha = prev * Math.max(0, Math.min(1, alpha == null ? 1 : alpha));
+    crisp(ctx);
+    ctx.drawImage(hit.c, bx - k, by);
+    ctx.drawImage(hit.c, bx + k, by);
+    ctx.drawImage(hit.c, bx, by - k);
+    ctx.drawImage(hit.c, bx, by + k);
+    ctx.globalAlpha = prev;
+  }
+
   // Caixa (px) do que drawHorse(ctx, x, y, opts) desenha: com molde, o bbox do estado (união dos quadros do
   // galope) na posição do layout, inclusive a parte cortada pelo topo de um quadro; sem molde, o sprite 40×32.
   function horseBox(x, y, opts) {
@@ -2006,6 +2046,7 @@
     drawHorseCodigo: drawHorseCodigo,
     horseBox: horseBox,
     horseCanvas: horseCanvas,
+    drawHorseSilhouette: drawHorseSilhouette,
     // moldes do PixelLab (ver a seção MOLDES)
     ESTILO_POR_ELEMENTO: ESTILO_POR_ELEMENTO,
     moldsReady: false,

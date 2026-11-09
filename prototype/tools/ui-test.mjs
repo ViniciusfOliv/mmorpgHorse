@@ -1181,9 +1181,10 @@ try {
   }
 
   // ---------------- Skills visíveis (DEV): balão, faixa central, contorno e "skills sempre ativam" ----------------
-  // Cavalo Mágico (chance de skill 0,45; a Comum só tem 1 vaga) com Arranque (largada) e Arrancada Final (reta
-  // final, gatilho certo). Primeiro acha uma seed em que, SEM armar, as duas não ativam; depois repete a mesma
-  // seed armada com "skills sempre ativam" e confere que as duas ativam, com balões e faixa na tela.
+  // Cavalo Raro (chance de skill 0,55; a Comum só tem 1 vaga, o Mágico 2) com Arranque e Labareda (largada, as duas
+  // juntas em t = 0) e Arrancada Final (reta final, gatilho certo). Primeiro acha uma seed em que, SEM armar, as três
+  // não ativam; depois repete a mesma seed armada com "skills sempre ativam" e confere que as três ativam, com
+  // balões presos à raia, faixa central em sequência e contorno da silhueta.
   {
     const SK_SEEDS = [301, 302, 303, 304, 305, 306, 307, 308]
     const preparar = async (pg) => {
@@ -1191,9 +1192,9 @@ try {
       await devAbrir(pg)
       await pg.fill('#dev-nome', 'Skill DEV')
       await pg.selectOption('#dev-elemento', 'fogo')
-      await pg.selectOption('#dev-raridade', 'magico')
+      await pg.selectOption('#dev-raridade', 'raro')
       await pg.fill('#dev-nivel', '1')
-      const sks = ['arranque', 'arrancada-final', '', '', '']
+      const sks = ['arranque', 'labareda', 'arrancada-final', '', '']
       for (let k = 0; k < 5; k++) await pg.selectOption('#dev-skill' + k, sks[k])
       await pg.locator('[data-acao="dev-criar"]').click()
       await devFechar(pg)
@@ -1216,17 +1217,25 @@ try {
       return L.sim.events.filter((e) => e.type === 'skill' && e.racer === L.playerIdx).map((e) => e.text)
     })
     const gravador = (pg) => pg.evaluate(() => {
-      const g = window.__sk = { faixas: [], baloesMax: 0, partMax: 0, baloesTipos: {}, cobriuVoce: 0, quadros: 0 }
+      const g = window.__sk = { faixas: [], faixasT: [], baloesMax: 0, partMax: 0, baloesTipos: {}, cobriuVoce: 0, forasDaRaia: 0, cruzaOutro: 0, quadros: 0 }
       const cruza = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
       const tick = () => {
         const r = window.__galope.race
         if (!r) return
         const st = window.RaceFx._stats
         g.quadros++
-        if (st.faixaSkill && !g.faixas.includes(st.faixaSkill)) g.faixas.push(st.faixaSkill)
+        if (st.faixaSkill && !g.faixas.includes(st.faixaSkill)) { g.faixas.push(st.faixaSkill); g.faixasT.push(r._state.simT) }
         g.baloesMax = Math.max(g.baloesMax, st.baloes); g.partMax = Math.max(g.partMax, st.particulas)
         const voce = r._state.voceRect
-        st.caixasBaloes.forEach((b) => { g.baloesTipos[b.kind] = (g.baloesTipos[b.kind] || 0) + 1; if (voce && cruza(b, voce)) g.cobriuVoce++ })
+        st.caixasBaloes.forEach((b) => {
+          g.baloesTipos[b.kind] = (g.baloesTipos[b.kind] || 0) + 1
+          if (voce && cruza(b, voce)) g.cobriuVoce++
+          if (b.pilha !== 0) return
+          // o balão mais novo fica na faixa vertical da própria raia e não cruza a caixa de nenhum OUTRO cavalo
+          if (b.y < b.y0 || b.y + b.h > b.y1) g.forasDaRaia++
+          const o = st.caixasCavalos.find((c) => c.racer !== b.racer && cruza(b, c))
+          if (o) { g.cruzaOutro++; g.exemplo = g.exemplo || { balao: b, cavalo: o, simT: r._state.simT } }
+        })
         requestAnimationFrame(tick)
       }
       requestAnimationFrame(tick)
@@ -1242,13 +1251,13 @@ try {
           semArmar = await skillsDoJogador(pg)
           await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
           await pg.waitForSelector('#t-resultado')
-          if (semArmar.length < 2) { seed = SK_SEEDS[k]; break }
+          if (semArmar.length < 3) { seed = SK_SEEDS[k]; break }
         }
-        if (seed == null) { problems.push(`[${label}] skills: nenhuma seed de ${SK_SEEDS} deixa o cavalo Mágico sem as duas skills`); return }
+        if (seed == null) { problems.push(`[${label}] skills: nenhuma seed de ${SK_SEEDS} deixa o cavalo Raro sem as três skills`); return }
         // 2) a mesma seed, armada: as duas ativam
         await largar(pg, seed, true, false)
         const armada = await skillsDoJogador(pg)
-        if (armada.length !== 2 || !/Arranque/.test(armada[0]) || !/Arrancada Final/.test(armada.join(' '))) problems.push(`[${label}] skills: sempre ativam deu ${JSON.stringify(armada)} (sem armar: ${JSON.stringify(semArmar)})`)
+        if (armada.length !== 3 || !/Arranque/.test(armada.join(' ')) || !/Labareda/.test(armada.join(' ')) || !/Arrancada Final/.test(armada.join(' '))) problems.push(`[${label}] skills: sempre ativam deu ${JSON.stringify(armada)} (sem armar: ${JSON.stringify(semArmar)})`)
         await gravador(pg)
         // logo depois da largada: balão + faixa central com o nome da skill do jogador
         const q = await (await pg.waitForFunction(() => {
@@ -1256,15 +1265,26 @@ try {
           return st.baloes >= 1 && st.faixaSkill && s ? { baloes: st.baloes, faixa: st.faixaSkill, simT: s.simT, part: st.particulas, ms: st.msQuadro } : false
         }, null, { timeout: 30000, polling: 'raf' })).jsonValue()
         await pg.screenshot({ path: join(SHOTS, shotName) })
-        if (!/ARRANQUE/.test(q.faixa)) problems.push(`[${label}] skills: faixa central ${JSON.stringify(q.faixa)} (esperado ARRANQUE!)`)
+        if (!/ARRANQUE|LABAREDA/.test(q.faixa)) problems.push(`[${label}] skills: faixa central ${JSON.stringify(q.faixa)} (esperado ARRANQUE! ou LABAREDA!)`)
         notes['skills-' + label] = { seed, semArmar: semArmar.length, armada: armada.length, baloes: q.baloes, faixa: q.faixa, simT: +q.simT.toFixed(2), msQuadro: +q.ms.toFixed(2) }
-        // 3) até a reta final: a segunda skill também aparece
+        // meio do efeito (contorno aceso): 2 s reais depois da largada, a Labareda/Arranque ainda duram
+        await pg.waitForFunction(() => { const s = window.__galope.race && window.__galope.race._state; return s && s.simT >= 0.5 * (s.fx.find((x) => x.kind === 'skill').escala) * 2 && s.simT < 3 * s.fx.find((x) => x.kind === 'skill').escala }, null, { timeout: 30000, polling: 'raf' })
+        await pg.screenshot({ path: join(SHOTS, shotName.replace('.png', '-contorno.png')) })
+        // 3) até a reta final: a terceira skill também aparece
         await pg.getByRole('button', { name: 'x2' }).click()
         const fim = await pg.evaluate(() => window.__galope.race._state.fx.filter((x) => x.kind === 'skill').map((x) => ({ t0: x.t0, e: x.escala, icon: x.icon })))
         const ult = fim[fim.length - 1]
         await pg.waitForFunction((u) => { const s = window.__galope.race && window.__galope.race._state; return !s || s.simT >= u.t0 + 1.7 * u.e }, ult, { timeout: 90000, polling: 'raf' })
         const g = await pg.evaluate(() => window.__sk)
         if (!g.faixas.some((f) => /ARRANCADA FINAL/.test(f))) problems.push(`[${label}] skills: faixa da Arrancada Final nunca apareceu ${JSON.stringify(g.faixas)}`)
+        if (!['ARRANQUE!', 'LABAREDA!'].every((f) => g.faixas.includes(f))) problems.push(`[${label}] skills: as duas skills de t = 0 não ganharam faixa ${JSON.stringify(g.faixas)}`)
+        else {
+          const esc = await pg.evaluate(() => window.__galope.race._state.fx.find((x) => x.kind === 'skill').escala)
+          const t1 = g.faixasT[g.faixas.indexOf('ARRANQUE!')], t2 = g.faixasT[g.faixas.indexOf('LABAREDA!')]
+          if (Math.abs(t2 - t1) < 1.3 * esc) problems.push(`[${label}] skills: faixas das duas skills de t = 0 não entram em sequência (${t1.toFixed(2)} e ${t2.toFixed(2)}, escala ${esc.toFixed(2)})`)
+        }
+        if (g.forasDaRaia) problems.push(`[${label}] skills: balão fora da faixa vertical da própria raia em ${g.forasDaRaia} quadro(s)`)
+        if (g.cruzaOutro) problems.push(`[${label}] skills: balão cruzou a caixa de outro cavalo em ${g.cruzaOutro} quadro(s) ${JSON.stringify(g.exemplo)}`)
         if (g.cobriuVoce) problems.push(`[${label}] skills: balão cobriu o "◀VOCÊ" em ${g.cobriuVoce} quadro(s)`)
         if (!g.baloesTipos.skill) problems.push(`[${label}] skills: nenhum balão de skill posicionado ${JSON.stringify(g.baloesTipos)}`)
         notes['skills-' + label + '-corrida'] = g

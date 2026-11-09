@@ -2716,12 +2716,21 @@
           ctx.fillRect(x + (4 - dp) * S, feetY - (2 + dp) * S, 2 * S, S);
           ctx.fillRect(x + (1 + dp) * S, feetY - 4 * S, S, S);
         }
+        // contorno da silhueta (skill / Garra) atrás do cavalo: o de brilho mais forte, na cor do elemento
+        var gl = null;
+        for (var gi = 0; gi < efeitoItens.length; gi++) {
+          if (efeitoItens[gi].racer !== j) continue;
+          var g1 = FX.glow(efeitoItens[gi], self.simT, reduced());
+          if (g1 && (!gl || g1.alpha > gl.alpha)) gl = g1;
+        }
+        if (gl) SP.drawHorseSilhouette(ctx, x, y, cavalo, gl.cor, gl.alpha);
         SP.drawHorse(ctx, x, y, cavalo);
-        // contorno e efeito da skill / Garra no próprio cavalo (fx.js)
+        FX._stats.caixasCavalos.push({ racer: j, x: Math.round(caixaCav.x / S), y: Math.round(caixaCav.y / S), w: Math.round(caixaCav.w / S), h: Math.round(caixaCav.h / S) });
+        // vento, "+" e faíscas da skill / Garra no próprio cavalo (fx.js)
         for (var ei = 0; ei < efeitoItens.length; ei++) {
           if (efeitoItens[ei].racer === j) FX.drawSkillAura(ctx, { x: caixaCav.x, y: caixaCav.y, w: caixaCav.w, h: caixaCav.h, S: S }, efeitoItens[ei], self.simT, reduced());
         }
-        vis.push({ j: j, x: x, caixa: caixaCav, an: an });
+        vis.push({ j: j, x: x, y: y, caixa: caixaCav, an: an });
         var finished = fTime[j] <= self.simT;
         if (j === me) youTag = { x: x + (an.nose[0] + 3) * S, y: y + 3 * S, place: finished ? rankOf[j] + 1 : 0 };
         else if (finished) badges.push({ x: x + 22 * S, y: y - 2 * S, j: j, place: rankOf[j] + 1 });
@@ -2769,24 +2778,30 @@
       }
     }
 
-    // Balões de skill / Garra / cansou sobre os cavalos (até 3 empilhados por cavalo, os mais novos embaixo)
-    // e a faixa grande no centro com o nome da skill do jogador. Os balões desviam do "◀VOCÊ", das
-    // plaquinhas do Dado, da faixa do Dado e da faixa central (layoutBadges com obstáculos fixos).
+    // Faixa grande no centro com o nome da skill do jogador (1,5·escala cada; duas ao mesmo tempo entram em
+    // sequência) e balões de skill / Garra / cansou presos à raia de cada cavalo: à frente do focinho (do
+    // "◀VOCÊ", no jogador), na altura do jóquei e dentro da faixa vertical da própria raia. O balão mais novo
+    // tem texto; até 2 mais antigos viram chip + ícone, crescendo para a frente.
+    var faixasJogador = [];
+    (function () {
+      var fim = -1e9;
+      balaoItens.forEach(function (it) {
+        if (it.kind !== 'skill' || it.racer !== me || !it.nome) return;
+        var a0 = Math.max(it.t0, fim);
+        fim = a0 + FX.BALAO.dur * it.escala;
+        faixasJogador.push({ item: it, a: a0, b: fim });
+      });
+    })();
     function drawSkillsNaPista(vis, youTag, dItem, topoOcupado) {
       var S = self.S, lay = self.lay, t = self.simT, k;
-      // faixa central do jogador: a skill ativada agora (1,5 s)
-      var fx0 = null;
-      for (k = 0; k < balaoItens.length; k++) {
-        var bi = balaoItens[k];
-        if (bi.kind === 'skill' && bi.racer === me && t >= bi.t0 && t < bi.t0 + FX.BALAO.dur * bi.escala) fx0 = bi;
-      }
-      var faixa = null;
-      if (fx0 && fx0.nome) {
-        var ft = fx0.nome.toUpperCase() + '!', fs = tw(ft, 2) + 8 <= lay.artW - 6 ? 2 : 1;
+      var faixa = null, fx0 = null;
+      for (k = 0; k < faixasJogador.length; k++) if (t >= faixasJogador[k].a && t < faixasJogador[k].b) fx0 = faixasJogador[k];
+      if (fx0) {
+        var ft = fx0.item.nome.toUpperCase() + '!', fs = tw(ft, 2) + 8 <= lay.artW - 6 ? 2 : 1;
         var fw = tw(ft, fs) + 8, fh = 5 * fs + 6;
         var fxx = Math.round(lay.artW / 2 - fw / 2), fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
-        var esc0 = (t - fx0.t0) / fx0.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
-        var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.element] || C.ouro;
+        var esc0 = (t - fx0.a) / fx0.item.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
+        var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
         box(fxx, fyy, fw, fh, C.veu, cor);
         text(ft, Math.round(lay.artW / 2), fyy + 3, C.texto, fs, 'center', C.sombra);
@@ -2794,38 +2809,46 @@
         faixa = { x: fxx - 1, y: fyy - 1, w: fw + 2, h: fh + 2 };
         FX._stats.faixaSkill = ft;
       }
-      // balões ativos por cavalo (visível): no máximo os 3 mais novos
+      // balões ativos por cavalo visível: no máximo os 3 mais novos
       var porCavalo = {};
       for (k = 0; k < balaoItens.length; k++) {
         var it = balaoItens[k];
         if (t >= it.t0 && t < it.t0 + FX.BALAO.dur * it.escala) (porCavalo[it.racer] = porCavalo[it.racer] || []).push(it);
       }
-      var topo = lay.compact ? lay.hudH + 2 : lay.hudH + 14;
-      var rects = [];
+      var obst = [];
+      if (faixa) obst.push(faixa);
+      if (dItem) { obst.push(FX.stripLayout(dItem, L.racers, lay)); FX._stats.placas.forEach(function (p) { obst.push(p); }); }
+      function bate(a, o) { return a.x < o.x + o.w + 1 && o.x < a.x + a.w + 1 && a.y < o.y + o.h + 1 && o.y < a.y + a.h + 1; }
+      if (youTag && !self.voceRect) { var yb2 = youTagBox(youTag); self.voceRect = { x: yb2.x - 1, y: yb2.y - 1, w: yb2.w + 2, h: 11 }; }
+      if (self.voceRect) obst.push(self.voceRect);
       vis.forEach(function (v) {
         var lista = porCavalo[v.j];
         if (!lista) return;
         lista = lista.slice(-3);
-        var cx = v.an.saddle ? Math.round(v.x / S + v.an.saddle[0]) : Math.round((v.caixa.x + v.caixa.w / 2) / S);
+        var y0 = lay.laneTopArt + v.j * lay.laneArt, y1 = y0 + lay.laneArt;
+        // na altura do jóquei (como o "◀VOCÊ"), mas sempre dentro da faixa da raia
+        var by = Math.max(y0 + 3, Math.min(y1 - 11 - 1, Math.round(v.y / S) + 1));
+        var bx;
+        if (v.j === me && youTag) { var yb = youTagBox(youTag); bx = yb.x + yb.w + 4; }
+        else bx = Math.round((v.x + (v.an.nose[0] + 3) * S) / S) + 4;
         for (var q = 0; q < lista.length; q++) {
-          var item = lista[lista.length - 1 - q], sz = FX.balloonSize(item);
-          rects.push({ item: item, pilha: q, x: cx - Math.floor(sz.w / 2), y: Math.floor(v.caixa.y / S) - 1 - sz.h - q * (sz.h + 1) - topo, w: sz.w, h: sz.h });
-        }
-      });
-      if (!rects.length) return;
-      var fixos = [];
-      function fixo(r) { if (r) fixos.push({ x: r.x, y: r.y - topo, w: r.w, h: r.h }); }
-      if (youTag) { var yb = youTagBox(youTag); fixo({ x: yb.x - 1, y: yb.y - 1, w: yb.w + 2, h: 11 }); }
-      fixo(faixa);
-      if (dItem) {
-        fixo(FX.stripLayout(dItem, L.racers, lay));
-        FX._stats.placas.forEach(function (p) { fixo(p); });
-      }
-      var arr = FX.layoutBadges(rects, lay.artW, lay.artH - topo, fixos);
-      if (youTag && !self.voceRect) { var yb2 = youTagBox(youTag); self.voceRect = { x: yb2.x - 1, y: yb2.y - 1, w: yb2.w + 2, h: 11 }; }
-      arr.forEach(function (r) {
-        if (FX.drawBalloon(ctx, r.x * S, (r.y + topo) * S, S, r.item, t, r.pilha)) {
-          FX._stats.caixasBaloes.push({ racer: r.item.racer, kind: r.item.kind, x: r.x, y: r.y + topo, w: r.w, h: r.h });
+          var item = lista[lista.length - 1 - q], sz = FX.balloonSize(item, q);
+          var r = { x: bx, y: by, w: sz.w, h: sz.h };
+          // desvia para a frente do que estiver no caminho: faixas do topo, plaquinhas do Dado e a caixa dos
+          // outros cavalos (a de um cavalo da raia de baixo invade a de cima em até ~17 px)
+          var cavalos = vis.filter(function (o2) { return o2.j !== v.j; }).map(function (o2) {
+            return { x: Math.round(o2.caixa.x / S), y: Math.round(o2.caixa.y / S), w: Math.round(o2.caixa.w / S), h: Math.round(o2.caixa.h / S) };
+          });
+          for (var passo = 0; passo < 3; passo++) {
+            var movido = false;
+            obst.concat(cavalos).forEach(function (ob) { if (bate(r, ob)) { r.x = ob.x + ob.w + 2; movido = true; } });
+            if (!movido) break;
+          }
+          r.x = Math.max(0, Math.min(lay.artW - r.w, r.x));
+          if (FX.drawBalloon(ctx, r.x * S, r.y * S, S, item, t, q)) {
+            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
+          }
+          bx = r.x + r.w + 2;
         }
       });
     }

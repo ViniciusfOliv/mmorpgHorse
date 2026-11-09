@@ -237,11 +237,25 @@ test('skillIcon: primeira chave da lista vence; drainMult só conta se < 1', fun
     assert.ok(['vel', 'ace', 'folego', 'curva', 'subida', 'dado', 'clima', 'garra'].indexOf(FX.skillIcon(G.SKILLS[id])) >= 0, id);
   });
 });
-test('nomeCurto cabe em 11 letras maiúsculas', function () {
+test('nomeCurto: nome inteiro até 12 letras; campo short nos longos; nenhum corte no meio da palavra', function () {
   assert.strictEqual(FX.nomeCurto('Labareda'), 'LABAREDA');
-  assert.strictEqual(FX.nomeCurto('Arrancada Final'), 'ARRANCADA');
-  assert.strictEqual(FX.nomeCurto('Canto da Iara'), 'CANTO IARA');
-  Object.keys(G.SKILLS).forEach(function (id) { assert.ok(FX.nomeCurto(G.SKILLS[id].name).length <= 11, id); });
+  assert.strictEqual(FX.nomeCurto('Saída Rápida'), 'SAÍDA RÁPIDA');
+  assert.strictEqual(FX.nomeCurto('Fôlego de Montanha', 'FÔLEGO MONT.'), 'FÔLEGO MONT.');
+  Object.keys(G.SKILLS).forEach(function (id) {
+    var sk = G.SKILLS[id], n = FX.nomeCurto(sk.name, sk.short), nome = sk.name.toUpperCase();
+    assert.ok(n.length <= 12, id + ' "' + n + '" passa de 12');
+    if (nome.length <= 12) { assert.strictEqual(n, nome, id + ' cabe inteiro'); assert.ok(!sk.short, id + ' não precisa de short'); }
+    else assert.ok(sk.short, id + ' (' + nome.length + ' letras) precisa de short no catálogo');
+    var palavras = nome.split(' ');
+    n.split(' ').forEach(function (tok) {
+      var ok = palavras.indexOf(tok) >= 0 ||
+        (/\.$/.test(tok) && palavras.some(function (w) { return tok.length > 2 && w.indexOf(tok.slice(0, -1)) === 0; }));
+      assert.ok(ok, id + ': "' + tok + '" corta a palavra no meio');
+    });
+    assert.ok(n.split(' ').length >= nome.split(' ').filter(function (w) { return w.length > 2; }).length, id + ' perdeu palavra de peso: ' + n);
+  });
+  // sem short, o corte do nome é por palavras inteiras
+  assert.strictEqual(FX.nomeCurto('Fôlego de Montanha'), 'FÔLEGO');
 });
 test('timeline tem um item por evento skill/garra/cansou', function () {
   var visto = { skill: 0, garra: 0, cansou: 0 };
@@ -346,7 +360,7 @@ function ctxFalso() {
   c.save = function () {}; c.restore = function () {};
   return c;
 }
-var ITEM_SKILL = { kind: 'skill', t0: 10, t1: 15, racer: 0, skillId: 'labareda', icon: 'vel', element: 'fogo', cavalo: 'fogo', nome: 'Labareda', nomeCurto: 'LABAREDA', escala: 1 };
+var ITEM_SKILL = { kind: 'skill', t0: 10, t1: 15, racer: 0, skillId: 'labareda', icon: 'vel', element: 'fogo', cavalo: 'fogo', nome: 'Labareda', nomeCurto: 'LABAREDA', silks: '#d8353b', raia: 1, escala: 1 };
 test('balão: aparece em [t0, t0 + 1.5), conta em _stats.baloes e some depois', function () {
   FX.resetStats(true);
   var c = ctxFalso();
@@ -359,36 +373,71 @@ test('balão: aparece em [t0, t0 + 1.5), conta em _stats.baloes e some depois', 
   FX.resetStats(true);
 });
 test('balão de Garra e de cansou: tamanho e cores próprios', function () {
-  var g = { kind: 'garra', t0: 10, t1: 30, racer: 0, icon: 'garra', element: 'fogo', escala: 1 };
-  var z = { kind: 'cansou', t0: 10, t1: 11.5, racer: 0, escala: 1 };
+  var g = { kind: 'garra', t0: 10, t1: 30, racer: 0, icon: 'garra', element: 'fogo', silks: '#d8353b', raia: 1, escala: 1 };
+  var z = { kind: 'cansou', t0: 10, t1: 11.5, racer: 0, silks: '#2f6fd8', raia: 2, escala: 1 };
   var cg = ctxFalso(), cz = ctxFalso();
   assert.ok(FX.drawBalloon(cg, 0, 0, 2, g, 10.2, 0) && FX.drawBalloon(cz, 0, 0, 2, z, 10.2, 0));
-  assert.ok(cg.rects.some(function (r) { return r.cor === '#f2c230'; }), 'Garra em dourado');
-  assert.ok(cz.rects.every(function (r) { return r.cor !== '#f2c230'; }), 'cansou sem dourado (cinza)');
-  var sz = FX.balloonSize(ITEM_SKILL), sg = FX.balloonSize(g), sc = FX.balloonSize(z);
-  assert.ok(sz.w > 20 && sz.h >= 12 && sg.w > 20 && sc.w > 20);
+  assert.ok(cg.rects.some(function (r) { return r.cor === '#f7d778'; }), 'Garra em dourado (ícone e texto)');
+  assert.ok(cz.rects.every(function (r) { return r.cor !== '#f7d778'; }), 'cansou sem dourado');
+  assert.ok(cz.rects.some(function (r) { return r.cor === '#c3cac6'; }) && cz.rects.some(function (r) { return r.cor === '#2b2f2d'; }), 'cansou em cinza');
+  assert.ok(cg.rects.some(function (r) { return r.cor === '#d8353b'; }), 'borda e chip na cor da seda da raia');
+  var sz = FX.balloonSize(ITEM_SKILL, 0), sg = FX.balloonSize(g, 0), sc = FX.balloonSize(z, 0), sp1 = FX.balloonSize(ITEM_SKILL, 1);
+  assert.ok(sz.w > 20 && sz.h === 11 && sg.w > 20 && sc.w > 20);
+  assert.ok(sp1.w < sz.w, 'pilha > 0 é compacta');
   FX.resetStats(true);
 });
-test('contorno: dura t0..t1; vento só fora do reduzido; sem partículas em reduced', function () {
+test('efeitos: dura t0..t1; vento só fora do reduzido; reduced não desenha nem conta partículas', function () {
   var box = { x: 100, y: 100, w: 80, h: 64, S: 2 };
   FX.resetStats(true);
   var c1 = ctxFalso();
   assert.strictEqual(FX.drawSkillAura(c1, box, ITEM_SKILL, 9, false), false);
   assert.strictEqual(FX.drawSkillAura(c1, box, ITEM_SKILL, 15, false), false);
   assert.strictEqual(FX.drawSkillAura(c1, box, ITEM_SKILL, 12, false), true);
-  assert.ok(FX._stats.particulas > 0, 'vento conta como partícula');
-  var p = FX._stats.particulas; FX.resetStats(true);
+  assert.ok(FX._stats.particulas > 0 && c1.rects.length > 0, 'vento conta como partícula');
+  FX.resetStats(true);
   var c2 = ctxFalso();
-  assert.strictEqual(FX.drawSkillAura(c2, box, ITEM_SKILL, 12, true), true, 'reduced ainda desenha o contorno');
+  assert.strictEqual(FX.drawSkillAura(c2, box, ITEM_SKILL, 12, true), true);
   assert.strictEqual(FX._stats.particulas, 0, 'reduced: nada de vento');
-  assert.ok(c2.rects.length > 0 && c2.rects.length < c1.rects.length, 'reduced desenha menos (' + c2.rects.length + ' < ' + c1.rects.length + ')');
+  assert.strictEqual(c2.rects.length, 0, 'reduced: nenhum retângulo de efeito (o contorno é a silhueta)');
   var curva = { kind: 'skill', t0: 10, t1: 15, racer: 0, icon: 'curva', element: 'neutro', cavalo: 'agua', escala: 1 };
   var fol = { kind: 'skill', t0: 10, t1: 15, racer: 0, icon: 'folego', element: 'agua', cavalo: 'agua', escala: 1 };
   FX.resetStats(true); FX.drawSkillAura(ctxFalso(), box, curva, 12, false); assert.ok(FX._stats.particulas > 0, 'faíscas da curva');
   FX.resetStats(true); FX.drawSkillAura(ctxFalso(), box, fol, 12, false); assert.ok(FX._stats.particulas > 0, '+ do fôlego');
   FX.resetStats(true); FX.drawSkillAura(ctxFalso(), box, curva, 12, true); assert.strictEqual(FX._stats.particulas, 0);
   FX.resetStats(true); FX.drawSkillAura(ctxFalso(), box, fol, 12, true); assert.strictEqual(FX._stats.particulas, 0);
-  assert.ok(p > 0);
+});
+test('glow do contorno: some fora de [t0, t1), pulsa e fica parado em reduced; neutro usa o elemento do cavalo', function () {
+  assert.strictEqual(FX.glow(ITEM_SKILL, 9.9, false), null);
+  assert.strictEqual(FX.glow(ITEM_SKILL, 15, false), null);
+  assert.strictEqual(FX.glow({ kind: 'dado', t0: 0, t1: 9 }, 5, false), null);
+  var vistos = {};
+  for (var t = 11; t < 13; t += 0.05) vistos[FX.glow(ITEM_SKILL, t, false).alpha.toFixed(2)] = true;
+  assert.ok(Object.keys(vistos).length > 5, 'pulsa');
+  var r = {};
+  for (t = 11; t < 13; t += 0.05) r[FX.glow(ITEM_SKILL, t, true).alpha.toFixed(2)] = true;
+  assert.strictEqual(Object.keys(r).length, 1, 'reduced fica parado');
+  var g1 = FX.glow(ITEM_SKILL, 12, false), g2 = FX.glow({ kind: 'skill', t0: 10, t1: 15, icon: 'vel', element: 'neutro', cavalo: 'agua', escala: 1 }, 12, false);
+  assert.notStrictEqual(g1.cor, g2.cor);
+  assert.ok(FX.glow(ITEM_SKILL, 10.01, false).alpha < FX.glow(ITEM_SKILL, 12, false).alpha + 1e-9, 'entra suave');
+});
+test('ícone de clima pelo trigger da skill (sol, gota, névoa)', function () {
+  var C = corridaSkills(4);
+  var porId = {};
+  C.tl.filter(function (it) { return it.kind === 'skill'; }).forEach(function (it) { porId[it.skillId] = it; });
+  ['sol-a-pino', 'pe-na-chuva', 'nevoa-amiga'].forEach(function (id) { assert.ok(porId[id], 'seed 4 tem ' + id); assert.strictEqual(porId[id].icon, 'clima'); });
+  assert.strictEqual(FX.iconeDe(porId['sol-a-pino']), 'sol');
+  assert.strictEqual(FX.iconeDe(porId['pe-na-chuva']), 'gota');
+  assert.strictEqual(FX.iconeDe(porId['nevoa-amiga']), 'nevoa');
+  assert.strictEqual(FX.iconeDe({ kind: 'skill', icon: 'dado' }), 'dado');
+  assert.strictEqual(FX.iconeDe({ kind: 'cansou' }), 'gota');
+});
+test('acharSkill casa " ativou <Nome>!" (cavalo chamado "Sprint" com Drift e Sprint)', function () {
+  var racers = [{ horse: { name: 'Sprint', element: 'neutro', skills: ['drift', 'sprint'] }, silks: '#d8353b' }];
+  var sim = { events: [{ t: 5, racer: 0, type: 'skill', text: 'Sprint ativou Drift!' }, { t: 9, racer: 0, type: 'skill', text: 'Sprint ativou Sprint!' }], frames: [], dt: 0.1 };
+  var tl = FX.timeline(sim, racers);
+  assert.strictEqual(tl[0].skillId, 'drift'); assert.strictEqual(tl[1].skillId, 'sprint');
+  assert.strictEqual(tl[0].icon, 'curva'); assert.strictEqual(tl[1].icon, 'vel');
+  assert.strictEqual(tl[0].raia, 1); assert.strictEqual(tl[0].silks, '#d8353b');
 });
 test('desenho é função do tempo: mesmo simT, mesmos retângulos', function () {
   var box = { x: 100, y: 100, w: 80, h: 64, S: 2 }, a = ctxFalso(), b = ctxFalso();
