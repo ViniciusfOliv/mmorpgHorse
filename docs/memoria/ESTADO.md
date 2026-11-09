@@ -5,23 +5,27 @@ _Atualizado em 2026-11-09._
 **Fase:** Protótipo.
 
 ## Em andamento — frente "corrida viva e modo DEV" (2026-11-09)
-Pronta na branch `claude/corrida-viva`, **aguardando revisão final e merge**. Ela está em cima da
-`claude/visuais`, que também ainda não foi para a `main` (mergear nessa ordem). Spec:
+Pronta na branch `claude/corrida-viva`: **revisão final feita** ("pronto para merge, com correções"; a onda
+de correções já entrou), **aguardando merge**. Ela está em cima da `claude/visuais`, que também ainda não foi
+para a `main` (mergear nessa ordem). Spec:
 `docs/superpowers/specs/2026-11-09-corrida-viva-design.md` (§12 = ajustes); plano em `docs/superpowers/plans/`.
 - Entregue: galope de corrida nos 4 estilos (ondas, folhas e lisa refeitos no PixelLab); dado girando sobre
   cada cavalo com brilho no maior e desempate; skills, Garra e cansaço visíveis (balão na raia, contorno
   na cor do elemento, faixa central); vento, folhas, chuva com respingos, calor e poeira por piso; curvas
-  no mapa, minimapa e arco na pista; opção "Animações" no Perfil; bússola nova; modo DEV; `fx-test.js`
-  (etapa 2b do `check.sh`).
+  no mapa, minimapa e arco na pista (blocos de curva colados viram uma curva só no desenho); opção
+  "Animações" no Perfil; bússola nova; modo DEV (também no build `jogo-dev.html`); `fx-test.js` (etapa 2b
+  do `check.sh`).
 - Gasto no PixelLab: 14 de 30 gerações (saldo 1939 → 1925), US$ 0. Simulação intacta (só `config.dev.skillsAlways`).
-- Verificação: `./scripts/check.sh` termina em `VERIFICAÇÃO COMPLETA: OK` (~5 min); 60 testes de efeitos.
-- **Como usar o modo DEV:** abrir `prototype/dist/preview.html?dev=1`. O save é separado
+- Verificação: `./scripts/check.sh` termina em `VERIFICAÇÃO COMPLETA: OK` (testes de simulação, de efeitos,
+  de moldes, balanço e ui-test; o ui-test serve `prototype/dist/` por http local).
+- **Como usar o modo DEV:** abrir `prototype/dist/preview.html?dev=1` ou, no artefato do claude.ai (que não
+  repassa `?dev=1`), publicar `prototype/dist/jogo-dev.html`, que já abre no modo DEV. O save é separado
   (`galope-elemental:dev`), então o jogo real não é tocado. A gaveta "DEV" tem Moedas (Ouro infinito só em
   memória; recarregar religa), Cavalo, Itens, Próxima corrida (condições da sala: pista, clima, vento,
-  skills sempre) e Perfil.
+  skills sempre) e Perfil ("Zerar" com confirmação na própria gaveta; o "Recomeçar" do Perfil faz o mesmo).
 - Pendências: crina própria de cada estilo no galope (precisaria de um quadro-guia por estilo, ~6–10
-  gerações); achados menores estacionados no ledger (`.superpowers/sdd/2026-11-09-corrida-viva/progress.md`)
-  para a revisão final; estados parados (retrato, largada, pódio) ainda sem respiração ou piscar.
+  gerações); estados parados (retrato, largada, pódio) ainda sem respiração ou piscar; achados menores que
+  podem esperar em `docs/memoria/bugs.md`.
 
 ## Em andamento — frente de visuais (2026-11-08)
 Pronta na branch `claude/visuais`, **aguardando revisão final e merge na `main`**. Spec:
@@ -122,14 +126,14 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   `bestLevelFor`). `README.md` criado na raiz.
 
 ## Próximos passos
-0. Revisão final e merge: primeiro `claude/visuais`, depois `claude/corrida-viva` na `main`; o Vinicius
-   joga a corrida nova (`preview.html?dev=1` para montar condições) e apaga as branches antigas no GitHub.
+0. Merge na `main`, nesta ordem: `claude/visuais` (revisão final pendente) e depois `claude/corrida-viva`
+   (revisão final feita e corrigida); o Vinicius joga a corrida nova (`preview.html?dev=1` ou o artefato
+   `jogo-dev.html` para montar condições) e apaga as branches antigas no GitHub.
 1. Subprojeto 4 — expedições (mundos por bioma, estágios X-1…X-10, batalha por turnos com modo
    automático e manual, recompensas em Ouro, XP e moeda de pacotes; Lendário de equipamento) — nova
    branch dedicada; brainstorming já iniciado (decidido: auto/manual; corrida PVP continua automática).
-2. Revisão final e merge da frente de visuais (`claude/visuais`). Depois: visuais de fundos, biomas e
-   inimigos, só após fechar a lista de telas; cada geração pede confirmação do Vinicius e entra em
-   `docs/memoria/assets.md`.
+2. Visuais de fundos, biomas e inimigos, só após fechar a lista de telas; cada geração pede confirmação do
+   Vinicius e entra em `docs/memoria/assets.md`.
 3. Vinicius joga o menu novo e os equipamentos (`prototype/dist/preview.html?dev=1`).
 4. Decidir a zebra (ruído ±3–5% por corrida) e o despertar Lendário→Mítico (depois das expedições).
 

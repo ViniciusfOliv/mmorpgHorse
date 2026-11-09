@@ -49,7 +49,7 @@ arte final); expedições.
 
 ## 3. Modo DEV
 
-**Acesso.** `?dev=1`, como hoje. Com ele, o jogo usa o save `galope-elemental:dev` (o real é
+**Acesso.** `?dev=1`, como hoje (ou o build de teste `jogo-dev.html`, §12 item 11). Com ele, o jogo usa o save `galope-elemental:dev` (o real é
 `galope-elemental:v1` e não é lido nem gravado nessa sessão). Faixa fixa no topo:
 "MODO DEV — save de teste". Sem `?dev=1`, o painel, o perfil de teste e as opções abaixo não existem.
 Se o perfil DEV ainda não existe, ele nasce com a Brasa (sem passar pela escolha inicial).
@@ -242,3 +242,4 @@ Nada muda na simulação (curvas já existem como blocos e pesam na Manobra).
 8. **Curvas:** mapa da sala desenhado de cima; minimapa no HUD; na pista, cerca, raias, cavalos e etiquetas sobem em arco (6 px de arte; 4 px na paisagem compacta); blocos de curva vizinhos viram uma curva só no desenho (a simulação continua por bloco).
 9. **Desempenho:** relevo das subidas ~10× mais barato (123 → 10,6 ms por quadro a 1280 px): a faixa é copiada uma vez para um canvas de rascunho.
 10. **Testes:** novo `prototype/tools/fx-test.js` (etapa 2b do `check.sh`); o `check.sh` passou a levar ~5 min porque o ui-test cresceu.
+11. **Onda final (revisão final):** contorno de skill com a silhueta do quadro certo do molde (cache LRU de 8 MB); curvas coladas juntas de fato no desenho (`RaceFx.curveRuns`; giro e arco por sequência, arco com platô de `R = min(L/2, 120 m)`; o DEV "Mais curvas" vira um U de 180°); build de teste `prototype/dist/jogo-dev.html` (`window.__GALOPE_DEV`) para o artefato, que não repassa `?dev=1`, com "Zerar" em dois passos na gaveta e "Recomeçar" = "Zerar" no modo DEV; o ui-test serve `dist/` por http local; achados menores em `docs/memoria/bugs.md`.
