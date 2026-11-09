@@ -13,6 +13,7 @@ para `docs/` e aqui fica só o caminho, entre crases (sem `@`, para não carrega
   puro, sem dependências, em `prototype/` — descartável, não é a base final.
 - **Fonte da verdade:** `docs/GDD.md`. Números reais do protótipo: `docs/exemplos.md`.
   Fórmulas da simulação: comentário no topo de `prototype/src/sim.js`.
+- Wiki gerado do código: `docs/wiki.md` e `prototype/dist/wiki.html` (regenerados pelo build; não editar).
 
 ## 2. Fase atual: **Protótipo**
 Foco: descobrir se a corrida automática + estratégia pré-corrida + aposta é divertida.
@@ -33,14 +34,15 @@ Nada de polimento, servidor, contas ou loja ainda. Fases e checklist de lançame
 ## 4. Comandos
 | Para quê | Comando | Tempo |
 |---|---|---|
-| Gerar o jogo (`prototype/dist/`) | `node prototype/build.mjs` | 1 s |
+| Gerar o jogo e o wiki (`prototype/dist/`, `docs/wiki.md`) | `node prototype/build.mjs` | 1 s |
 | Testes unitários da simulação | `node prototype/tools/sim-test.js` | 5 s |
 | Testes dos efeitos da corrida (dados, skills, clima, vento, curvas) | `node prototype/tools/fx-test.js` | 2 s |
 | Testes dos moldes de cavalo (PNGs e âncoras gerados) | `node prototype/tools/moldes-test.mjs` | <1 s |
+| Wiki: regerar (`--check` só confere) / testar (determinismo, cobertura, navegador) | `node prototype/tools/wiki.mjs` / `node prototype/tools/wiki-test.mjs` | <1 s / 2 s |
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~25 s |
 | Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~1,5 min |
 | Teste de interface (Playwright) + capturas em `prototype/screens/` | `node prototype/tools/ui-test.mjs` | ~5 min |
-| **Verificação completa** (build + simulação + efeitos + moldes + balanço + UI, sem tocar nas capturas) | `./scripts/check.sh` | ~5 min |
+| **Verificação completa** (build + simulação + efeitos + moldes + wiki + balanço + UI, sem tocar nas capturas) | `./scripts/check.sh` | ~5 min |
 
 Abrir o jogo localmente: `prototype/dist/preview.html` no navegador.
 Modo DEV: `preview.html?dev=1` ou o build de teste `prototype/dist/jogo-dev.html` (liga sozinho, sem query) — save

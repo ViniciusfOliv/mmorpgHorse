@@ -4,6 +4,11 @@ _Atualizado em 2026-11-09._
 
 **Fase:** Protótipo.
 
+## Wiki gerado do código (2026-11-09, branch `claude/corrida-viva`)
+`prototype/tools/wiki.mjs` gera `docs/wiki.md` e `prototype/dist/wiki.html` (artefato com retratos, busca e filtros)
+direto dos dados e das fórmulas de `prototype/src/`; o `build.mjs` regera junto e o `check.sh` testa (etapa 3c,
+`wiki-test.mjs`). Chave nova sem tradução (gatilho, efeito, clima, bloco…) quebra o build de propósito.
+
 ## Em andamento — frente "corrida viva e modo DEV" (2026-11-09)
 Pronta na branch `claude/corrida-viva`: **revisão final feita** ("pronto para merge, com correções"; a onda
 de correções já entrou), **aguardando merge**. Ela está em cima da `claude/visuais`, que também ainda não foi

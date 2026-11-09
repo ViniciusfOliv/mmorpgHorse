@@ -8,13 +8,15 @@
 //                        (com ?dev=1 abre o modo DEV)
 //   dist/moldes.js    -> só a tabela window.__MOLDES, para o comparativo.html (que abre por file://
 //                        e não pode ler PNG de arquivo num canvas)
+//   dist/wiki.html e ../docs/wiki.md -> o wiki gerado do código (tools/wiki.mjs), no fim
 // A arte (moldes do PixelLab, ícones, logotipo) entra como data: num <script> antes dos scripts do jogo.
 // Arquivo de arte ausente nunca falha o build: a parte correspondente fica vazia e o jogo cai no
 // desenho por código / no texto.
-import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { lerMoldes, lerIcones, lerMarca, jsonJs } from './tools/arte-embutida.mjs'
+import { gravarWiki } from './tools/wiki.mjs'
 
 const ROOT = dirname(fileURLToPath(import.meta.url))
 const read = (p) => readFile(join(ROOT, p), 'utf8')
@@ -30,71 +32,14 @@ const css = (await read('src/game.css')).trim()
 if (/<\/style/i.test(css)) throw new Error('game.css contém "</style"')
 
 // ---------------------------------------------------------------------------
-// Arte embutida
+// Arte embutida (moldes, ícones, logotipo): tools/arte-embutida.mjs, a mesma que o wiki usa
 // ---------------------------------------------------------------------------
-const dataUrl = async (rel) => 'data:image/png;base64,' + (await readFile(join(ROOT, rel))).toString('base64')
-const listar = async (rel) => (existsSync(join(ROOT, rel)) ? (await readdir(join(ROOT, rel))).sort() : [])
 const avisos = []
-
-// Moldes: assets/pixellab/molde-<estilo>.json + -retrato.png, -parado.png, -galope-0..N-1.png.
-// Do JSON vão só os campos que o jogo lê (o resto — seeds, limiares, contagens — fica no arquivo).
-async function moldes() {
-  const estilos = {}
-  const dir = 'assets/pixellab'
-  for (const nome of await listar(dir)) {
-    const mm = nome.match(/^molde-([a-z]+)\.json$/)
-    if (!mm) continue
-    const estilo = mm[1]
-    try {
-      const J = JSON.parse(await read(join(dir, nome)))
-      const frames = J.frames | 0
-      if (!(frames > 0) || !J.ancoras || !(J.larguraUtil > 0)) throw new Error('JSON sem frames, ancoras ou larguraUtil')
-      const png = (q) => join(dir, `molde-${estilo}-${q}.png`)
-      const quadros = ['retrato', 'parado']
-      for (let i = 0; i < frames; i++) quadros.push('galope-' + i)
-      const faltam = quadros.filter((q) => !existsSync(join(ROOT, png(q))))
-      if (faltam.length) throw new Error('faltam ' + faltam.map((q) => `molde-${estilo}-${q}.png`).join(', '))
-      const galope = []
-      for (let i = 0; i < frames; i++) galope.push(await dataUrl(png('galope-' + i)))
-      estilos[estilo] = {
-        json: { estilo, w: J.w, h: J.h, footY: J.footY, frames, larguraUtil: J.larguraUtil, ancoras: J.ancoras },
-        retrato: await dataUrl(png('retrato')),
-        parado: await dataUrl(png('parado')),
-        galope
-      }
-    } catch (e) {
-      avisos.push(`molde "${estilo}" ignorado: ${e.message}`)
-    }
-  }
-  return { estilos }
-}
-
-// Ícones: assets/icons/<nome>.png (a pasta raw/ fica de fora).
-async function icones() {
-  const out = {}
-  for (const nome of await listar('assets/icons')) {
-    const mm = nome.match(/^([a-z0-9-]+)\.png$/)
-    if (mm) out[mm[1]] = await dataUrl(join('assets/icons', nome))
-  }
-  return out
-}
-
-// Logotipo: data: URL e o tamanho em px (lido do cabeçalho IHDR do PNG), para o <img> reservar o espaço.
-async function marca() {
-  const logo = 'assets/marca/logo.png'
-  if (!existsSync(join(ROOT, logo))) return { logo: null }
-  const buf = await readFile(join(ROOT, logo))
-  const png = buf.length > 24 && buf.toString('latin1', 12, 16) === 'IHDR'
-  return { logo: 'data:image/png;base64,' + buf.toString('base64'), w: png ? buf.readUInt32BE(16) : 0, h: png ? buf.readUInt32BE(20) : 0 }
-}
-
-// JSON seguro dentro de <script>: nada de "<" literal (fecharia a tag).
-const jsonJs = (v) => JSON.stringify(v).replace(/</g, '\\u003c')
-const MOLDES = await moldes()
+const MOLDES = await lerMoldes(ROOT, avisos)
 const arteJs = [
   `window.__MOLDES = ${jsonJs(MOLDES)};`,
-  `window.__ICONES = ${jsonJs(await icones())};`,
-  `window.__MARCA = ${jsonJs(await marca())};`
+  `window.__ICONES = ${jsonJs(await lerIcones(ROOT))};`,
+  `window.__MARCA = ${jsonJs(await lerMarca(ROOT))};`
 ].join('\n')
 
 const scripts = [`<script>\n/* arte embutida (moldes, ícones, marca) */\n${arteJs}\n</script>`]
@@ -143,3 +88,8 @@ console.log(`dist/jogo.html    ${kb(body)}`)
 console.log(`dist/jogo-dev.html ${kb(bodyDev)}`)
 console.log(`dist/preview.html ${kb(preview)}`)
 console.log(`dist/moldes.js    ${kb(moldesJs)}`)
+
+// Wiki gerado do código (docs/wiki.md e dist/wiki.html): sempre junto, para nunca ficar para trás do jogo
+const wiki = await gravarWiki()
+console.log(`dist/wiki.html    ${kb(wiki.html)}`)
+console.log(`docs/wiki.md      ${kb(wiki.md)}`)

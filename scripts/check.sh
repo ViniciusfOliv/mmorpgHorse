@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Verificação completa do protótipo: build + testes unitários (simulação e efeitos) + moldes +
-# balanceamento rápido + teste de interface.
+# Verificação completa do protótipo: build (jogo e wiki) + testes unitários (simulação e efeitos) + moldes +
+# wiki + balanceamento rápido + teste de interface.
 #   ./scripts/check.sh
 # Não altera as capturas oficiais (prototype/screens/): o teste de UI grava numa pasta temporária.
 # Sai com código diferente de zero se qualquer etapa falhar.
@@ -15,7 +15,7 @@ trap 'rm -rf "$SHOTS_DIR"' EXIT
 
 step() { printf '\n== %s ==\n' "$1"; }
 
-step "1/5 Build (prototype/dist)"
+step "1/5 Build (prototype/dist e docs/wiki.md)"
 node prototype/build.mjs
 
 step "2/5 Testes unitários"
@@ -26,9 +26,9 @@ step "2b/5 Efeitos"
 node prototype/tools/fx-test.js > "$SHOTS_DIR/fx.txt" || { cat "$SHOTS_DIR/fx.txt"; exit 1; }
 tail -n 1 "$SHOTS_DIR/fx.txt"
 
-step "3/5 dist atualizado em relação ao src"
-if ! git diff --quiet -- prototype/dist; then
-  echo "AVISO: o build mudou prototype/dist/ — lembre de commitar junto com o src."
+step "3/5 dist e wiki atualizados em relação ao src"
+if ! git diff --quiet -- prototype/dist docs/wiki.md || [ -n "$(git ls-files --others --exclude-standard -- prototype/dist docs/wiki.md)" ]; then
+  echo "AVISO: o build mudou prototype/dist/ ou docs/wiki.md — lembre de commitar junto com o src."
 else
   echo "ok"
 fi
@@ -40,6 +40,10 @@ if compgen -G "prototype/assets/pixellab/molde-*.json" > /dev/null; then
 else
   echo "sem moldes — pulado"
 fi
+
+step "3c/5 Wiki"
+node prototype/tools/wiki-test.mjs > "$SHOTS_DIR/wiki.txt" 2>&1 || { cat "$SHOTS_DIR/wiki.txt"; exit 1; }
+tail -n 1 "$SHOTS_DIR/wiki.txt"
 
 step "4/5 Balanceamento rápido"
 node prototype/tools/balance.js --quick > "$SHOTS_DIR/balance.txt" || { cat "$SHOTS_DIR/balance.txt"; exit 1; }
