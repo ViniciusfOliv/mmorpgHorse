@@ -1,6 +1,6 @@
 # Spec — Corrida viva e modo DEV
 
-Status: aguardando revisão do Vinicius · Data: 2026-11-09 · Branch: `claude/corrida-viva` (a partir de `claude/visuais`)
+Status: aprovada; implementada na branch `claude/corrida-viva` · Data: 2026-11-09 · Branch: `claude/corrida-viva` (a partir de `claude/visuais`)
 
 ## 1. Objetivo
 
@@ -229,3 +229,16 @@ Nada muda na simulação (curvas já existem como blocos e pesam na Manobra).
 5. Natureza, vento e opção Animações.
 6. Curvas (mapa, minimapa, pista).
 7. Docs, capturas e memória.
+
+## 12. Histórico de ajustes (implementação)
+
+1. **Modo DEV:** interfaces finais `Dev.horseTemplate(c, n)` e `Dev.conditions(f, base)` (a sala normal é a base opcional; aceita lista de blocos); `L.dev` é `null` sem nada armado; Ouro infinito fica em memória; os 5 botões antigos do painel viraram a gaveta "DEV" (Moedas, Cavalo, Itens, Próxima corrida, Perfil).
+2. **Simulação:** única mudança `config.dev.skillsAlways`; sem ele, 20 corridas de referência seguem idênticas (hash de ordem, tempos e eventos).
+3. **Galope:** ondas, folhas e lisa guiados pelo 1º quadro do galope de chamas (`init_image_strength` 300), com aceite de passada e altura; a rodada de crina própria (força 150) não passou. Bússola nova (seed 2153). Gasto: 14 de 30 gerações (1939 → 1925), US$ 0.
+4. **Escala de tempo:** em x1 a simulação anda ~4× o tempo real; os efeitos usam um fator `escala` para durar segundos reais (câmera lenta do Dado ~2 s, giro ~1 s, desempate até 0,6 s, brilho do vencedor ~2 s, plaquinhas e faixa ~3,6 s).
+5. **Desempate do Dado:** a simulação guarda só o número da nova rolagem; a faixa ordena por desempates e depois pelo número (o vencedor sempre em 1º); quem desempatou ganha "↻".
+6. **Skills:** balão preso à raia, à frente do focinho (do jogador, depois do "◀VOCÊ"), com borda na cor da seda e número da raia; contorno da silhueta na cor do elemento; nomes curtos (campo opcional `short` em 4 skills); ícone de clima conforme a skill; duas skills do jogador juntas aparecem em sequência na faixa central.
+7. **Natureza:** vento sorteado pela seed (35 % calmo, 40 % brisa, 25 % ventania; direção → ou ←); folhas também na chuva quando há vento; no sol, calor e poeira dependem do piso; opção "Animações" no Perfil (seguir o sistema, completas, reduzidas), sem congelar nada em reduzidas (chuva e cenário a 40 %).
+8. **Curvas:** mapa da sala desenhado de cima; minimapa no HUD; na pista, cerca, raias, cavalos e etiquetas sobem em arco (6 px de arte; 4 px na paisagem compacta); blocos de curva vizinhos viram uma curva só no desenho (a simulação continua por bloco).
+9. **Desempenho:** relevo das subidas ~10× mais barato (123 → 10,6 ms por quadro a 1280 px): a faixa é copiada uma vez para um canvas de rascunho.
+10. **Testes:** novo `prototype/tools/fx-test.js` (etapa 2b do `check.sh`); o `check.sh` passou a levar ~5 min porque o ui-test cresceu.

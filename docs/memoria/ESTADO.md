@@ -1,8 +1,27 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-08._
+_Atualizado em 2026-11-09._
 
 **Fase:** Protótipo.
+
+## Em andamento — frente "corrida viva e modo DEV" (2026-11-09)
+Pronta na branch `claude/corrida-viva`, **aguardando revisão final e merge**. Ela está em cima da
+`claude/visuais`, que também ainda não foi para a `main` (mergear nessa ordem). Spec:
+`docs/superpowers/specs/2026-11-09-corrida-viva-design.md` (§12 = ajustes); plano em `docs/superpowers/plans/`.
+- Entregue: galope de corrida nos 4 estilos (ondas, folhas e lisa refeitos no PixelLab); dado girando sobre
+  cada cavalo com brilho no maior e desempate; skills, Garra e cansaço visíveis (balão na raia, contorno
+  na cor do elemento, faixa central); vento, folhas, chuva com respingos, calor e poeira por piso; curvas
+  no mapa, minimapa e arco na pista; opção "Animações" no Perfil; bússola nova; modo DEV; `fx-test.js`
+  (etapa 2b do `check.sh`).
+- Gasto no PixelLab: 14 de 30 gerações (saldo 1939 → 1925), US$ 0. Simulação intacta (só `config.dev.skillsAlways`).
+- Verificação: `./scripts/check.sh` termina em `VERIFICAÇÃO COMPLETA: OK` (~5 min); 60 testes de efeitos.
+- **Como usar o modo DEV:** abrir `prototype/dist/preview.html?dev=1`. O save é separado
+  (`galope-elemental:dev`), então o jogo real não é tocado. A gaveta "DEV" tem Moedas (Ouro infinito só em
+  memória; recarregar religa), Cavalo, Itens, Próxima corrida (condições da sala: pista, clima, vento,
+  skills sempre) e Perfil.
+- Pendências: crina própria de cada estilo no galope (precisaria de um quadro-guia por estilo, ~6–10
+  gerações); achados menores estacionados no ledger (`.superpowers/sdd/2026-11-09-corrida-viva/progress.md`)
+  para a revisão final; estados parados (retrato, largada, pódio) ainda sem respiração ou piscar.
 
 ## Em andamento — frente de visuais (2026-11-08)
 Pronta na branch `claude/visuais`, **aguardando revisão final e merge na `main`**. Spec:
@@ -12,8 +31,7 @@ Pronta na branch `claude/visuais`, **aguardando revisão final e merge na `main`
   recoloridos no jogo; 16 ícones (abas, slots, moedas, elementos); logotipo e capa do Canva; script
   `pixellab-moldes.mjs`; testes `moldes-test.mjs` (etapa 3b do `check.sh`); capturas oficiais novas.
 - Gasto: 55 de 60 gerações aprovadas (saldo 1994 → 1939), US$ 0.
-- Pendências estacionadas: bússola (`aba-expedicao`) com agulha pouco nítida (refazer custa 1 geração);
-  estados parados (retrato, largada, pódio) sem animação de respiração ou piscar.
+- Pendências estacionadas: estados parados (retrato, largada, pódio) sem animação de respiração ou piscar.
 - Branches remotas antigas para o Vinicius apagar no GitHub: `claude/equipamentos`,
   `claude/cruzamento`, `claude/nucleo-corrida-v2`, `claude/analise-regras-arquivo-3j3zv1`,
   `claude/kind-thompson-gsqj7r`, `claude/menu-abas`.
@@ -104,6 +122,8 @@ cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo B
   `bestLevelFor`). `README.md` criado na raiz.
 
 ## Próximos passos
+0. Revisão final e merge: primeiro `claude/visuais`, depois `claude/corrida-viva` na `main`; o Vinicius
+   joga a corrida nova (`preview.html?dev=1` para montar condições) e apaga as branches antigas no GitHub.
 1. Subprojeto 4 — expedições (mundos por bioma, estágios X-1…X-10, batalha por turnos com modo
    automático e manual, recompensas em Ouro, XP e moeda de pacotes; Lendário de equipamento) — nova
    branch dedicada; brainstorming já iniciado (decidido: auto/manual; corrida PVP continua automática).

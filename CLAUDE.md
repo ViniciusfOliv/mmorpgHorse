@@ -35,13 +35,15 @@ Nada de polimento, servidor, contas ou loja ainda. Fases e checklist de lançame
 |---|---|---|
 | Gerar o jogo (`prototype/dist/`) | `node prototype/build.mjs` | 1 s |
 | Testes unitários da simulação | `node prototype/tools/sim-test.js` | 5 s |
+| Testes dos efeitos da corrida (dados, skills, clima, vento, curvas) | `node prototype/tools/fx-test.js` | 2 s |
 | Testes dos moldes de cavalo (PNGs e âncoras gerados) | `node prototype/tools/moldes-test.mjs` | <1 s |
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~25 s |
 | Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~1,5 min |
-| Teste de interface (Playwright) + capturas em `prototype/screens/` | `node prototype/tools/ui-test.mjs` | ~2 min |
-| **Verificação completa** (build + testes unitários + moldes + balanço + UI, sem tocar nas capturas) | `./scripts/check.sh` | ~2,5 min |
+| Teste de interface (Playwright) + capturas em `prototype/screens/` | `node prototype/tools/ui-test.mjs` | ~4,5 min |
+| **Verificação completa** (build + simulação + efeitos + moldes + balanço + UI, sem tocar nas capturas) | `./scripts/check.sh` | ~5 min |
 
 Abrir o jogo localmente: `prototype/dist/preview.html` no navegador.
+Modo DEV: `preview.html?dev=1` — save separado (`galope-elemental:dev`) e gaveta "DEV" para montar cavalo, itens e condições da corrida.
 Capturas oficiais em `prototype/screens/` só são atualizadas quando a interface muda de propósito
 (rodar `ui-test.mjs` direto e commitar as imagens).
 

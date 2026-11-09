@@ -3,6 +3,18 @@
 Formato: **data · decisão** — motivo. A mais nova fica no topo. Decisões de design detalhadas
 continuam no `docs/GDD.md`; aqui fica o registro de *quando* e *por quê*.
 
+## 2026-11-09
+- **Curvas: blocos vizinhos de curva viram uma curva só no desenho** (a simulação continua por bloco) — duas curvas coladas desenhadas separadas pareciam um ziguezague falso.
+- **Relevo das subidas copiado uma vez para um canvas de rascunho** — de 123 para 10,6 ms por quadro a 1280 px (~10× mais barato).
+- **Natureza só visual: vento sorteado pela seed (35 % calmo, 40 % brisa, 25 % ventania), folhas também na chuva com vento, calor e poeira conforme o piso** — o vento não entra na regra; em "reduzidas" nada congela (chuva e cenário a 40 %).
+- **Opção "Animações" no Perfil (seguir o sistema, completas, reduzidas)** — respeita `prefers-reduced-motion` sem deixar a chuva parada.
+- **Skills visíveis: balão preso à raia (borda na cor da seda e número), contorno do cavalo na cor do elemento, nomes curtos (`short` em 4 skills)** — dá para ver quem ativou sem ler o texto embaixo; duas skills do jogador ao mesmo tempo entram em sequência na faixa central.
+- **Desempate do Dado: a simulação guarda só o número da nova rolagem** — a faixa ordena por desempates e depois pelo número (o vencedor sempre em 1º), e quem desempatou ganha "↻".
+- **Efeitos em segundos reais por um fator `escala`** — em x1 a simulação anda ~4× o tempo real; sem o fator, o giro e o brilho do Dado passavam rápido demais.
+- **Galope de corrida de ondas, folhas e lisa guiado pelo 1º quadro do galope de chamas (`init_image_strength` 300)** — aceite por passada (≥ 80 % da maior de chamas) e altura (≤ 110 % da média); crina própria por estilo (força 150) não passou e ficou como pendência. Gasto: 14 de 30 gerações.
+- **Modo DEV com save separado e gaveta "DEV"; Ouro infinito só em memória; `L.dev` é `null` sem nada armado** — testar sem tocar no save real; recarregar religa tudo ao normal.
+- **Única mudança na simulação: `config.dev.skillsAlways`** — sem ele, 20 corridas de referência (hash de ordem, tempos e eventos) seguem idênticas; o determinismo da corrida real não muda.
+
 ## 2026-11-08
 - **Galope do molde: os 9 quadros duram um ciclo dos 6 do sprite por código** (índice = ⌊(fase mod 6) × 9 / 6⌋,
   com a fase contínua do contador da corrida) — com o mesmo contador a passada do molde ficava 1,5× mais lenta.

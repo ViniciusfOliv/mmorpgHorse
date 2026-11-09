@@ -83,6 +83,8 @@ Iniciais (Brasa, Maré, Ipê) são Raros e têm uma skill exclusiva do elemento.
 
 **Arte do protótipo.** Os cavalos não são mais desenhados por código: cada estilo de crina (chamas, ondas, folhas, lisa) tem um molde gerado no PixelLab (retrato, parado com jóquei e galope de 9 quadros), em cores naturais, e o jogo o recolore na hora com a paleta do cavalo (pelagem, crina, detalhe, seda e pele). A escala é inteira, igual para todos os estilos, para os pixels ficarem nítidos. Os ícones (abas, slots de equipamento, moedas, elementos) também vêm do PixelLab; o logotipo e a capa vêm do Canva. Pista, clima e interface continuam por código. Detalhes e ajustes: `docs/superpowers/specs/2026-11-08-visuais-design.md`.
 
+**Arte da corrida viva.** Todos os cavalos galopam em velocidade de corrida. Quando o Dado da Sorte rola, cada cavalo mostra o seu dado girando em cima e o maior resultado brilha (com a marca "↻" em quem precisou desempatar). Skills, Garra e cansaço aparecem no próprio cavalo: balão com o nome da skill preso à raia, contorno na cor do elemento e aviso na faixa central. O clima se vê na pista (chuva com respingos, calor e poeira no sol, névoa, nuvens), e o vento, só visual, balança folhas e a cena. As curvas aparecem no mapa da sala, no minimapa e na pista, que sobe em arco. No Perfil, a opção "Animações" (seguir o sistema, completas, reduzidas) controla o movimento. Detalhes e ajustes: `docs/superpowers/specs/2026-11-09-corrida-viva-design.md`.
+
 ## 6. Estábulo e cruzamento
 
 Spec completa e algoritmo: `docs/superpowers/specs/2026-11-06-cruzamento-design.md` (o código é `prototype/src/breed.js`). Números reais: `docs/exemplos.md` §13.
