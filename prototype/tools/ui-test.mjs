@@ -1340,8 +1340,10 @@ try {
       await pg.waitForSelector('#t-perfil', { state: 'detached' })
       return r
     }
-    // recorte do canvas que só a natureza muda durante a contagem: o gramado interno, abaixo da cerca de
-    // dentro (cavalos e câmera parados). Com a chuva congelada (t = 0), dois recortes seguidos são iguais.
+    // recorte do canvas que só a chuva muda durante a contagem: o gramado interno, abaixo da cerca de dentro
+    // (cavalos e câmera parados). Com vento CALMO a grama da borda e os tufos não balançam e não há folhas,
+    // e os respingos ficam na pista (fora do recorte): sobra só a chuva. Com a chuva congelada (drawNature
+    // com t = 0), dois recortes seguidos são iguais — mesmo que o cenário (drawTrack) continue andando.
     const recorte = (pg) => pg.evaluate(() => {
       const cv = document.getElementById('pista'), s = window.__galope.race._state, L = s.lay
       const y0 = (L.laneTopArt + window.__galope.ui.lobby.n * L.laneArt + 5) * s.S
@@ -1405,8 +1407,29 @@ try {
         await p2.locator('[data-acao="motion"][data-id="completas"]').click()
         const g2 = await p2.evaluate(() => ({ salvo: JSON.parse(localStorage.getItem('galope-elemental:v1')).settings, classe: document.documentElement.classList.contains('mov-reduzido') }))
         if (!g2.salvo || g2.salvo.motion !== 'completas' || g2.classe) problems.push('save-antigo: "Completas" não gravou ou deixou mov-reduzido ' + JSON.stringify(g2))
-        notes.saveAntigo = { settings: s.settings, gravado: [g1, g2] }
-        await p2.context().close()
+        // "Recomeçar": na tela de escolha (sem save) a opção continua valendo, sobrevive a fechar a aba e
+        // passa para o save novo
+        await p2.locator('[data-acao="motion"][data-id="reduzidas"]').click()
+        await p2.locator('[data-acao="reset"]').click()
+        await p2.locator('[data-acao="reset-sim"]').click()
+        await p2.waitForSelector('.inicial')
+        const e1 = await p2.evaluate(() => ({ classe: document.documentElement.classList.contains('mov-reduzido'), save: localStorage.getItem('galope-elemental:v1') }))
+        if (!e1.classe || e1.save !== null) problems.push('save-antigo: na escolha inicial depois de Recomeçar, "Reduzidas" não vale ' + JSON.stringify(e1))
+        await p2.close()
+        const p3 = await ctx1.newPage()
+        p3.on('pageerror', (e) => problems.push('[save-antigo-3] pageerror: ' + e.message))
+        await p3.goto(URL, { waitUntil: 'domcontentloaded' })
+        // como newPage: espera o jogo e os moldes (a tela é redesenhada quando eles chegam)
+        await p3.waitForFunction(() => window.__galope && window.Sprites && window.Sprites.moldsReady === true, null, { timeout: 8000 })
+        await p3.waitForFunction(() => window.__galope.ui.screen === 'inicial' && !!document.querySelector('.inicial'), null, { timeout: 10000 })
+        const e2 = await p3.evaluate(() => document.documentElement.classList.contains('mov-reduzido'))
+        if (!e2) problems.push('save-antigo: "Reduzidas" se perdeu ao fechar a aba na escolha inicial')
+        await p3.getByRole('button', { name: 'Escolher Ipê' }).click()
+        await p3.waitForSelector('#t-estabulo')
+        const e3 = await p3.evaluate(() => ({ motion: window.__galope.state.settings.motion, salvo: JSON.parse(localStorage.getItem('galope-elemental:v1')).settings }))
+        if (e3.motion !== 'reduzidas' || !e3.salvo || e3.salvo.motion !== 'reduzidas') problems.push('save-antigo: o save novo não herdou "Reduzidas" ' + JSON.stringify(e3))
+        notes.saveAntigo = { settings: s.settings, gravado: [g1, g2], escolha: { e1: e1.classe, e2, e3 } }
+        await p3.context().close()
       } catch (e) {
         problems.push('save-antigo: ' + e.message)
         await p1.context().close().catch(() => {})
@@ -1425,14 +1448,17 @@ try {
         for (const modo of ['completas', 'reduzidas']) {
           const r = await animacoes(pg, modo, 'animacoes')
           if (r.classe !== (modo === 'reduzidas')) problems.push(`animacoes: classe mov-reduzido = ${r.classe} em "${modo}"`)
-          await largaDev(pg, { clima: 'chuva', vento: 'ventania', direcao: 1, seed: 4242 })
+          await largaDev(pg, { clima: 'chuva', vento: 'calmo', seed: 4242 })
           const a = await recorte(pg)
           await sleep(350)
           const b = await recorte(pg)
           vistos[modo] = { a, b }
           if (a.fase !== 'contagem' || b.fase !== 'contagem') problems.push(`animacoes: recortes fora da contagem em "${modo}" ${JSON.stringify([a, b])}`)
           else if (a.h === b.h) problems.push(`animacoes: a chuva congelou em "${modo}" (recortes iguais em t ${a.t} e ${b.t})`)
+          await pular(pg)
           if (modo === 'completas') {
+            // captura da chuva com ventania (outra corrida: a do recorte é com vento calmo)
+            await largaDev(pg, { clima: 'chuva', vento: 'ventania', direcao: 1, seed: 4242 })
             await ateMeio(pg, 0.35)
             const e = await estadoNat(pg)
             vistos.meio = e
@@ -1440,8 +1466,8 @@ try {
             if (!e.hud) problems.push('animacoes: selo do vento ausente no HUD em 390')
             if (JSON.stringify(e.vento) !== JSON.stringify({ intensity: 'ventania', dir: 1 })) problems.push('animacoes: vento forçado não chegou à corrida ' + JSON.stringify(e.vento))
             await pg.screenshot({ path: join(SHOTS, 'final-14-chuva-vento.png') })
+            await pular(pg)
           }
-          await pular(pg)
         }
         const pc = vistos.completas.a.pingos, pr = vistos.reduzidas.a.pingos
         if (!(pr > 0 && pr <= Math.ceil(pc / 2))) problems.push(`animacoes: "Reduzidas" deveria ter metade dos pingos (${pr} de ${pc})`)
@@ -1523,12 +1549,18 @@ try {
         if (!(sol.nat.raios > 0 && sol.nat.calor > 0 && sol.nat.poeiraCascos > 0 && sol.nat.folhas > 0)) problems.push('natureza390: sol sem raios, calor, poeira dos cascos ou folhas ' + JSON.stringify(sol.nat))
         if (JSON.stringify(sol.vento) !== JSON.stringify({ intensity: 'brisa', dir: -1 })) problems.push('natureza390: vento forçado (brisa ←) não chegou à corrida ' + JSON.stringify(sol.vento))
         await pular(pg)
+        await largaDev(pg, { clima: 'sol', vento: 'brisa', direcao: 1, piso: 'areia', tracado: 'curvas', seed: 12 })
+        await ateMeio(pg, 0.25)
+        const areia = await estadoNat(pg)
+        await pg.screenshot({ path: join(SHOTS, 'final-15b-sol-areia.png') })
+        if (!(areia.nat.raios > 0 && areia.nat.calor > 0 && areia.nat.poeiraCascos > 0)) problems.push('natureza390: sol na areia sem raios, calor ou poeira dos cascos ' + JSON.stringify(areia.nat))
+        await pular(pg)
         await largaDev(pg, { clima: 'nevoa', vento: 'ventania', direcao: -1, tracado: 'curvas', seed: 13 })
         await ateMeio(pg, 0.25)
         const nev = await estadoNat(pg)
         await pg.screenshot({ path: join(SHOTS, 'final-16-nevoa.png') })
         if (!(nev.nat.nevoa > 0 && nev.nat.nevoaFrente > 0 && nev.nat.folhas > 0)) problems.push('natureza390: névoa sem as duas camadas ou sem folhas ' + JSON.stringify(nev.nat))
-        notes.natureza390 = { sol, nevoa: nev }
+        notes.natureza390 = { sol, areia, nevoa: nev }
         await pular(pg)
       } catch (e) {
         problems.push('natureza390: ' + e.message)

@@ -497,13 +497,12 @@ test('drawNature: tudo é função do tempo, do índice e da seed (mesmo t ⇒ m
     assert.notDeepStrictEqual(a.c.rects, e.c.rects, w + ': seed diferente muda o quadro');
   });
 });
-test('chuva: em reduced cai a 40 % da velocidade e com metade dos pingos, sem congelar', function () {
+test('chuva: em reduced tem metade dos pingos e não congela (a velocidade de 40 % é medida no teste do deslocamento)', function () {
   var f = desenha(nat({ weather: 'chuva', wind: BRISA, t: 5 })), r = desenha(nat({ weather: 'chuva', wind: BRISA, t: 5, reduced: true }));
   assert.ok(f.st.pingos > 40, 'pingos completos ' + f.st.pingos);
   assert.ok(r.st.pingos > 0 && r.st.pingos <= Math.ceil(f.st.pingos / 2), 'reduced com metade: ' + r.st.pingos + ' de ' + f.st.pingos);
   var r2 = desenha(nat({ weather: 'chuva', wind: BRISA, t: 5.2, reduced: true }));
   assert.notDeepStrictEqual(r.c.rects, r2.c.rects, 'reduced não congela');
-  assert.ok(FX.RAIN.velReduzida === 0.4, '40 %');
 });
 test('chuva: respingos só na faixa do chão da pista [laneTop, trackBottom]', function () {
   var vistos = 0;
@@ -558,7 +557,7 @@ test('nublado: sombras de nuvem levadas pelo vento (direção do vento)', functi
   assert.ok(a.length && a.length === b.length && c.length === d.length, 'sombras');
   assert.ok(b[0] > a[0], '→ anda para a direita'); assert.ok(d[0] < c[0], '← anda para a esquerda');
 });
-test('folhas e poeira pela intensidade: calmo 0, brisa até 6, ventania até 18 por tela; metade em reduced', function () {
+test('folhas e poeira pela intensidade: calmo 0, brisa até 10, ventania até 18 por tela; metade em reduced', function () {
   function max(w, red, weather) {
     var m = 0, alguma = 0;
     for (var t = 0; t < 20; t += 0.25) {
@@ -569,11 +568,105 @@ test('folhas e poeira pela intensidade: calmo 0, brisa até 6, ventania até 18 
   }
   assert.strictEqual(max(CALMO, false).alguma, 0, 'calmo sem folhas');
   var b = max(BRISA, false), v = max(VENTANIA, false), br = max(BRISA, true), vr = max(VENTANIA, true);
-  assert.ok(b.m > 0 && b.m <= 6, 'brisa ' + b.m);
-  assert.ok(v.m > 6 && v.m <= 18, 'ventania ' + v.m);
-  assert.ok(br.m > 0 && br.m <= 3, 'brisa reduzida ' + br.m);
-  assert.ok(vr.m > 3 && vr.m <= 9, 'ventania reduzida ' + vr.m);
+  assert.ok(b.m > 6 && b.m <= 10, 'brisa ' + b.m);
+  assert.ok(v.m > 10 && v.m <= 18, 'ventania ' + v.m);
+  assert.ok(br.m > 0 && br.m <= 5, 'brisa reduzida ' + br.m);
+  assert.ok(vr.m > 5 && vr.m <= 9, 'ventania reduzida ' + vr.m);
   assert.ok(max(VENTANIA, false, 'chuva').m > 0, 'na chuva também voam folhas');
+});
+test('folha de 3×2 px de arte com 1 px mais escuro, girando por função do tempo', function () {
+  FX.FOLHA.quadros.forEach(function (q, k) {
+    assert.strictEqual(q.length, 2, 'quadro ' + k + ': 2 linhas');
+    q.forEach(function (l) { assert.strictEqual(l.length, 3, 'quadro ' + k + ': 3 colunas'); });
+    assert.strictEqual(q.join('').split('d').length - 1, 1, 'quadro ' + k + ': 1 px escuro');
+  });
+  var escuras = {}; FX.FOLHA.escuras.forEach(function (c) { escuras[c] = true; });
+  var claras = {}; FX.FOLHA.cores.forEach(function (c) { claras[c] = true; });
+  var assinaturas = {};
+  for (var t = 0; t < 3; t += 0.05) {
+    var d = desenha(nat({ weather: 'chuva', wind: BRISA, t: t, camada: 'frente' }));   // na chuva não há grão de poeira: só folhas
+    var nEsc = d.c.rects.filter(function (q) { return escuras[q.cor]; }).length;
+    assert.strictEqual(nEsc, d.st.folhas, 't ' + t.toFixed(2) + ': um px escuro por folha (' + nEsc + ' de ' + d.st.folhas + ')');
+    // a primeira folha desenhada: os retângulos claros até o escuro, relativos ao escuro
+    var rs = d.c.rects.filter(function (q) { return claras[q.cor] || escuras[q.cor]; }), fim = 0;
+    while (fim < rs.length && !escuras[rs[fim].cor]) fim++;
+    if (fim < rs.length) {
+      var e = rs[fim];
+      assinaturas[rs.slice(0, fim).map(function (q) { return [(q.x - e.x) / 3, (q.y - e.y) / 3, q.w / 3, q.h / 3].join(','); }).join('|')] = true;
+      rs.slice(0, fim + 1).forEach(function (q) {   // dentro de uma caixa de 3×2 px de arte (P = 3)
+        assert.ok(Math.abs(q.x - e.x) <= 6 && Math.abs(q.y - e.y) <= 3 && q.w <= 9 && q.h <= 6, 'folha maior que 3×2: ' + JSON.stringify(q));
+      });
+    }
+  }
+  assert.ok(Object.keys(assinaturas).length >= 3, 'a folha gira (quadros vistos: ' + Object.keys(assinaturas).length + ')');
+});
+// pingos agrupados como a tela desenha: longe = 3 retângulos, perto = 5; cabeça = o 1º de cada grupo
+function pingos(rects) {
+  var out = [];
+  for (var i = 0; i < rects.length; i++) {
+    var q = rects[i], n = q.cor === FX.RAIN.corLonge ? 3 : q.cor === FX.RAIN.corPerto ? 5 : 0;
+    if (!n) continue;
+    out.push({ x: q.x, y: q.y, cor: q.cor }); i += n - 1;
+  }
+  return out;
+}
+test('chuva: em reduced cada pingo anda 40 % do que anda em completas (deslocamento medido)', function () {
+  var o = { weather: 'chuva', wind: VENTANIA, W: 1200, H: 900, P: 1, laneTop: 400, trackBottom: 880, seed: 31, camada: 'frente' };
+  function em(t, red) { var x = {}, k; for (k in o) x[k] = o[k]; x.t = t; x.reduced = red; var c = ctxNat(); FX.drawNature(c, x); return pingos(c.rects); }
+  var dt = 0.04;
+  var f0 = em(0, false), f1 = em(dt, false), r0 = em(0, true), r1 = em(dt, true);
+  assert.strictEqual(f0.length, f1.length); assert.strictEqual(r0.length, r1.length);
+  // em t = 0 o mesmo pingo está no mesmo lugar nos dois modos: casa os do reduced com os do completo
+  var porLugar = {};
+  f0.forEach(function (p, i) { porLugar[p.x + ',' + p.y + ',' + p.cor] = i; });
+  var razoes = [], incl = [];
+  r0.forEach(function (p, i) {
+    var j = porLugar[p.x + ',' + p.y + ',' + p.cor];
+    if (j == null) return;
+    var dyF = f1[j].y - f0[j].y, dyR = r1[i].y - r0[i].y;
+    if (dyF <= 0 || dyR <= 0) return;                 // passou pela borda (a tela se repete): fora da conta
+    razoes.push(dyR / dyF); incl.push((f1[j].x - f0[j].x) / dyF);
+  });
+  assert.ok(razoes.length > 40, 'pingos casados: ' + razoes.length);
+  razoes.sort(function (a, b) { return a - b; }); incl.sort(function (a, b) { return a - b; });
+  var med = razoes[razoes.length >> 1], medI = incl[incl.length >> 1];
+  assert.ok(Math.abs(med - 0.4) <= 0.03, 'reduced anda ' + (100 * med).toFixed(1) + ' % do completo');
+  assert.ok(Math.abs(medI - FX.rainSlant(VENTANIA)) <= 0.05, 'cai inclinado pelo vento: dx/dy ' + medI.toFixed(3));
+});
+test('sol por piso: calor e poeira com tom e alfa próprios; na areia a poeira tem borda mais escura', function () {
+  function cor1(surface) {
+    var d = desenha(nat({ weather: 'sol', wind: CALMO, t: 1, camada: 'tras', surface: surface }));
+    assert.ok(d.st.calor > 0, surface + ': calor');
+    return d.c.rects[0].cor;
+  }
+  var ca = cor1('areia'), ct = cor1('terra');
+  assert.notStrictEqual(ca, ct, 'calor da areia ≠ da terra');
+  var aA = Number(ca.replace(/.*,([\d.]+)\)$/, '$1')), aT = Number(ct.replace(/.*,([\d.]+)\)$/, '$1'));
+  assert.ok(aA >= 0.3, 'calor na areia mais forte: ' + ca);
+  function lum(c) { var m = c.match(/rgba\((\d+),(\d+),(\d+)/); return 0.299 * m[1] + 0.587 * m[2] + 0.114 * m[3]; }
+  var a = ctxNat(), t = ctxNat();
+  FX.drawHoofDust(a, 100, 200, 3, 0.4, 'areia'); FX.drawHoofDust(t, 100, 200, 3, 0.4, 'terra');
+  var cores = {}; a.rects.forEach(function (q) { cores[q.cor.replace(/,[\d.]+\)$/, ')')] = true; });
+  var cs = Object.keys(cores);
+  assert.strictEqual(cs.length, 2, 'areia: miolo e borda ' + cs.join(' '));
+  cs.sort(function (x, y) { return lum(x) - lum(y); });
+  assert.ok(lum(cs[1]) - lum(cs[0]) > 60, 'borda bem mais escura que o miolo ' + cs.join(' '));
+  assert.ok(t.rects.length < a.rects.length, 'terra sem a borda');
+  assert.ok(aT > 0, 'terra com calor');
+});
+test('poeira: nasce atrás do casco (x − 1 px de arte) e só desbota da metade da vida em diante', function () {
+  var S = 3, alfas = [];
+  for (var k = 0; k < 20; k++) {
+    var c = ctxNat(), t = k / 20 / 2.4;              // uma volta do ciclo da nuvenzinha 0 (ph = k/20)
+    FX.drawHoofDust(c, 100, 200, S, t, 'terra', true);   // reduced: uma só (ph = frac(t·2,4·0,4))
+    var q = c.rects[c.rects.length - 1];
+    alfas.push({ ph: frac04(t), a: Number(q.cor.replace(/.*,([\d.]+)\)$/, '$1')), x: q.x + q.w });
+  }
+  function frac04(t) { var v = t * 2.4 * 0.4; return v - Math.floor(v); }
+  alfas.forEach(function (p) {
+    assert.ok(p.x <= 100, 'a nuvenzinha não passa do casco (borda direita ' + p.x + ')');
+    if (p.ph < 0.5) assert.ok(Math.abs(p.a - alfas[0].a) < 1e-9, 'alfa cheio até a metade (ph ' + p.ph.toFixed(2) + ': ' + p.a + ')');
+  });
 });
 test('teto de partículas por tela (tela enorme, P = 1)', function () {
   ['sol', 'chuva', 'nevoa', 'nublado'].forEach(function (w) {

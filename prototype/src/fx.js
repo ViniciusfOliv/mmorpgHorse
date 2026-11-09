@@ -104,23 +104,27 @@
  *
  *   RaceFx.drawNature(ctx, o) — natureza por clima, função de o.t (segundos reais), do índice e da seed
  *     (nada sorteado com estado). o = { weather, wind, t, W, H, P, laneTop, trackBottom, reduced, seed,
- *     cam, camada, lift }: W×H e P em px do canvas; cam = px que a câmera andou (respingos presos ao chão);
+ *     cam, camada, lift, surface }: W×H e P em px do canvas; cam = px que a câmera andou (respingos presos ao chão);
+ *     surface = piso ('grama'|'terra'|'areia'; tom e alfa do calor por piso, RaceFx.CALOR);
  *     lift(px) = quanto o chão sobe naquela coluna (relevo da subida); camada 'tras' (antes dos cavalos:
  *     calor, respingos, névoa do fundo), 'frente' (depois: véus, sol, pingos, relâmpago, sombras, folhas)
  *     ou omitida (as duas, nessa ordem).
- *       sol: véu quente, brilho em degraus, 3 raios de luz descendo do sol e faixas de calor ondulando
- *            sobre a pista (somem em reduced).
+ *       sol: véu quente, brilho em degraus, 3 raios de luz (alfa até 0,15) descendo do sol e faixas de
+ *            calor ondulando sobre a pista, traço branco-azulado de miragem (somem em reduced).
  *       chuva: pingos inclinados pelo vento (rainSlant), em dois tons; respingos só em [laneTop,
  *            trackBottom]; relâmpago raro (nunca em reduced). Em reduced: 40 % da velocidade e metade
  *            dos pingos e respingos — anda, nunca congela.
  *       névoa: véu claro e 3 faixas atrás; a camada da frente é drawFogFront. As duas andam com o vento.
  *       nublado: véu, sombras de nuvem e nuvens do topo levadas pelo vento.
- *       folhas (e poeira no tempo seco) no sentido do vento: calmo 0, brisa até 6, ventania até 18 por
- *            tela (metade em reduced, e a 40 % da velocidade). Nuvens e névoa: ×0,5 / ×1 / ×2,2.
+ *       folhas (e poeira no tempo seco) no sentido do vento: calmo 0, brisa até 10, ventania até 18 por
+ *            tela (metade em reduced, e a 40 % da velocidade). Folha de 3×2 px de arte com 1 px mais
+ *            escuro, girando em 4 quadros (RaceFx.FOLHA). Nuvens e névoa: ×0,5 / ×1 / ×2,2.
  *     Tetos por tela em NATUREZA (pingos 240, respingos 48, ~2600 fillRect no pior caso).
  *   RaceFx.drawFogFront(ctx, o) — faixas de névoa na frente dos cavalos (só weather 'nevoa').
  *   RaceFx.drawHoofDust(ctx, x, y, S, t, surface, reduced) -> nº de nuvenzinhas (0 fora de terra/areia):
- *     poeira atrás do casco (x, y); 3 por cavalo, 1 em reduced. A tela não chama na chuva.
+ *     (x, y) = âncora rear do cavalo no chão; a nuvenzinha nasce atrás (x − 1 px de arte) e vai até x − 9,
+ *     com o alfa cheio até a metade da vida; tom e alfa por piso (RaceFx.POEIRA), na areia com 1 px de
+ *     borda mais escura. 3 por cavalo, 1 em reduced. A tela não chama na chuva.
  *
  *   RaceFx._stats = { dados, faixaDado, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
  *                     natureza, ventoHud }
@@ -836,7 +840,7 @@
     pingosMax: 240, pingoArea: 380,            // 1 pingo a cada 380 px² de arte, no máximo 240
     respingosMax: 48, respingoArea: 240,       // vagas de respingo no chão da pista (cada uma acende ~30 % do tempo)
     respingoVagas: 160,
-    folhas: { calmo: 0, brisa: 6, ventania: 18 },   // folhas + poeira no ar (metade em reduced)
+    folhas: { calmo: 0, brisa: 10, ventania: 18 },  // folhas + poeira no ar (metade em reduced)
     poeiraCasco: 3,                            // nuvenzinhas por cavalo (1 em reduced)
     linhasMax: 50,                             // faixas por raio/brilho (o passo cresce em telas grandes)
     retangulosMax: 2600                        // teto de fillRect por chamada (conferido no fx-test)
@@ -849,8 +853,21 @@
     corRespingo: 'rgba(220,235,255,0.70)', corVeu: 'rgba(16,26,52,0.26)', corClarao: 'rgba(230,240,255,0.22)'
   };
   var SOMBRA_NUVEM = 'rgba(10,20,40,0.06)';
-  var FOLHA_CORES = ['#7cb342', '#c9a227', '#d9772b', '#5e9a3a', '#a4c639'];
-  var POEIRA = { terra: [226, 202, 166], areia: [255, 248, 226] };   // bem mais claras que o piso (contraste)
+  // folha voando: 3×2 px de arte com 1 px mais escuro (talo/sombra), 4 quadros girando por função do tempo
+  // ('l' = cor da folha, 'd' = a mesma mais escura); espelhada quando o vento sopra para a esquerda
+  var FOLHA = {
+    cores:   ['#7cb342', '#c9a227', '#d9772b', '#5e9a3a', '#a4c639'],
+    escuras: ['#4b7424', '#836412', '#94461a', '#365e22', '#66801c'],
+    quadros: [['ll.', '.ld'], ['.ll', 'dl.'], ['lld', '...'], ['.dl', 'll.']]
+  };
+  // Tom e alfa por piso, para o sol não sumir no pontilhado claro do piso (contraste medido no navegador):
+  // calor = traço da miragem; poeira = miolo (cor, alfa) e, na areia, 1 px de borda mais escura
+  // (o creme antigo dava a mesma cor do pontilhado claro do piso: o traço da miragem é branco-azulado)
+  var CALOR = { areia: 'rgba(220,238,255,0.50)', terra: 'rgba(220,238,255,0.40)', grama: 'rgba(240,255,224,0.24)' };
+  var POEIRA = {
+    terra: { cor: [236, 218, 188], a: 0.9, borda: null },
+    areia: { cor: [255, 255, 250], a: 0.95, borda: [128, 96, 58] }
+  };
 
   function semente(seed) { var s = Number(seed); return Math.floor(hash((isFinite(s) ? s >>> 0 : 0) ^ SAL_NATUREZA) * 65536); }
   // passo vertical das faixas: base·P, maior em telas grandes (no máximo linhasMax faixas)
@@ -865,7 +882,7 @@
     var ctx = c.ctx, P = c.P, alt = c.bot - c.top;
     if (alt < 8 * P) return;
     var seg = Math.max(7 * P, Math.ceil(c.W / 80 / P) * P), faixas = [0.12, 0.38, 0.66];
-    ctx.fillStyle = 'rgba(255,248,220,0.20)';
+    ctx.fillStyle = CALOR[c.piso] || CALOR.grama;
     for (var b = 0; b < faixas.length; b++) {
       var y0 = c.top + snap(alt * faixas[b], P), deriva = mod(c.t * (5 + 3 * b) * P, seg);
       for (var x = deriva - seg; x < c.W; x += seg) {
@@ -942,7 +959,7 @@
       for (y = s.y + 4 * P; y < H; y += pY) {
         var d = y - s.y, f = d / H, larg = snap((4 + 22 * f) * P, P), xc = s.x - d * incl[k];
         if (xc + larg < 0) break;
-        ctx.fillStyle = 'rgba(255,244,200,' + (0.095 * (1 - 0.7 * f) * pulso).toFixed(3) + ')';
+        ctx.fillStyle = 'rgba(255,244,200,' + (0.15 * (1 - 0.7 * f) * pulso).toFixed(3) + ')';
         ctx.fillRect(snap(xc - larg / 2, P), y, larg, pY);
       }
       stats.natureza.raios++;
@@ -1012,6 +1029,23 @@
     }
     ctx.globalAlpha = prev;
   }
+  // uma folha: as corridas de 'l' na cor da folha e, por último, o px 'd' escuro
+  function desenhaFolha(ctx, X, Y, P, q, espelha, clara, escura) {
+    var dx = 0, dy = 0, r, k;
+    ctx.fillStyle = clara;
+    for (r = 0; r < 2; r++) {
+      var linha = espelha ? q[r].split('').reverse().join('') : q[r];
+      for (k = 0; k < 3; k++) {
+        if (linha.charAt(k) === 'd') { dx = k; dy = r; continue; }
+        if (linha.charAt(k) !== 'l') continue;
+        var k0 = k;
+        while (k + 1 < 3 && linha.charAt(k + 1) === 'l') k++;
+        ctx.fillRect(X + k0 * P, Y + r * P, (k - k0 + 1) * P, P);
+      }
+    }
+    ctx.fillStyle = escura;
+    ctx.fillRect(X + dx * P, Y + dy * P, P, P);
+  }
   // folhas (e poeira no tempo seco) atravessando a tela no sentido do vento
   function folhas(c) {
     var cap = NATUREZA.folhas[c.w.intensity] || 0;
@@ -1026,25 +1060,24 @@
       var y = mod(h3 * H + c.t * (4 + 6 * h4) * P * lento, H) + Math.sin(c.t * lento * (1.6 + h4) + h1 * 6.283) * 5 * P;
       if (x < -2 * P || x >= W || y < 0 || y >= H) continue;
       var X = snap(x, P), Y = snap(y, P);
-      if (seco && i % 3 === 2) {                       // grão de poeira
+      if (seco && i % 4 === 3) {                       // grão de poeira
         ctx.fillStyle = 'rgba(214,190,140,0.60)'; ctx.fillRect(X, Y, P, P);
-      } else {                                          // folha girando: deitada (3 px) ou em pé (1×2)
-        ctx.fillStyle = FOLHA_CORES[Math.floor(h2 * FOLHA_CORES.length)];
-        if (frac(c.t * lento * (1.5 + 2 * h3) + h1) < 0.5) { ctx.fillRect(X, Y, 2 * P, P); ctx.fillRect(X + P, Y - P, P, P); }
-        else ctx.fillRect(X, Y, P, 2 * P);
+      } else {
+        var cor = Math.floor(h2 * FOLHA.cores.length);
+        desenhaFolha(ctx, X, Y, P, FOLHA.quadros[Math.floor(frac(c.t * lento * (1.5 + 2 * h3) + h1) * 4)], c.w.dir < 0, FOLHA.cores[cor], FOLHA.escuras[cor]);
       }
       stats.natureza.folhas++;
     }
   }
 
-  // o: { weather, wind, t, W, H, P, laneTop, trackBottom, reduced, seed, cam, camada, lift }
+  // o: { weather, wind, t, W, H, P, laneTop, trackBottom, reduced, seed, cam, camada, lift, surface }
   function natureza(o) {
     o = o || {};
     var H = +o.H || 0;
     return {
       W: +o.W || 0, H: H, P: Math.max(1, Math.round(o.P || 1)), t: +o.t || 0, red: !!o.reduced,
       clima: o.weather || 'sol', w: ventoOk(o.wind), sd: semente(o.seed), cam: +o.cam || 0,
-      lift: typeof o.lift === 'function' ? o.lift : null,
+      lift: typeof o.lift === 'function' ? o.lift : null, piso: o.surface || 'grama',
       top: o.laneTop != null ? o.laneTop : Math.round(H * 0.35), bot: o.trackBottom != null ? o.trackBottom : H
     };
   }
@@ -1073,19 +1106,25 @@
     nevoa(c, true);
   }
 
-  // poeira dos cascos (terra ou areia; a tela não chama na chuva). (x, y) = casco de trás no chão.
+  // poeira dos cascos (terra ou areia; a tela não chama na chuva). (x, y) = casco de trás no chão (a tela
+  // passa a âncora rear do cavalo). A nuvenzinha nasce atrás do casco (borda direita em x − 1 px de arte),
+  // vai até x − 9 subindo e crescendo, com o alfa cheio até a metade da vida e depois some.
   function drawHoofDust(ctx, x, y, S, t, surface, reduced) {
-    var cor = POEIRA[surface];
-    if (!cor || !ctx) return 0;
+    var pe = POEIRA[surface];
+    if (!pe || !ctx) return 0;
     var n = reduced ? 1 : NATUREZA.poeiraCasco, lento = reduced ? 0.4 : 1;
     for (var k = 0; k < n; k++) {
-      // nuvenzinha que sobe do chão, cresce e some ficando para trás
       var ph = frac((t || 0) * 2.4 * lento + k / n);
-      var px = Math.round(x - (1 + ph * 8) * S), py = Math.round(y - (1 + ph * 5) * S);
-      ctx.fillStyle = rgbaN(cor[0], cor[1], cor[2], 0.85 * (1 - ph));
-      if (ph < 0.3) { ctx.fillRect(px - S, py, 2 * S, S); ctx.fillRect(px, py - S, S, S); }
-      else if (ph < 0.7) { ctx.fillRect(px - S, py - S, 3 * S, 2 * S); ctx.fillRect(px, py - 2 * S, S, S); }
-      else ctx.fillRect(px - S, py, 2 * S, S);
+      var a = pe.a * (ph < 0.5 ? 1 : Math.max(0, (1 - ph) / 0.5));
+      var w = ph < 0.3 ? 2 : 3, h = ph < 0.3 || ph >= 0.7 ? 1 : 2;
+      var px = Math.round(x - (1 + ph * 8) * S), py = Math.round(y - (1 + ph * 5) * S);   // canto de baixo, à direita
+      var bx = px - w * S, by = py - h * S;
+      if (pe.borda) {
+        ctx.fillStyle = rgbaN(pe.borda[0], pe.borda[1], pe.borda[2], a);
+        ctx.fillRect(bx - S, by - S, (w + 2) * S, (h + 2) * S);
+      }
+      ctx.fillStyle = rgbaN(pe.cor[0], pe.cor[1], pe.cor[2], a);
+      ctx.fillRect(bx, by, w * S, h * S);
     }
     stats.natureza.poeiraCascos += n;
     return n;
@@ -1113,6 +1152,9 @@
     NATUREZA: NATUREZA,
     RAIN: RAIN,
     SOMBRA_NUVEM: SOMBRA_NUVEM,
+    FOLHA: FOLHA,
+    CALOR: CALOR,
+    POEIRA: POEIRA,
     // desenho
     drawDice: drawDice,
     drawDiceStrip: drawDiceStrip,

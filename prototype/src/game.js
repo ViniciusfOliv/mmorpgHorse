@@ -54,8 +54,9 @@
   var MOTIONS = ['sistema', 'completas', 'reduzidas'];
   var motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function systemReduced() { return !!(motionQuery && motionQuery.matches); }
+  // sem save (tela de escolha depois de "Recomeçar"), vale a escolha guardada em ui.motionKeep
   function motionPref() {
-    var m = state && state.settings && state.settings.motion;
+    var m = state ? state.settings && state.settings.motion : ui.motionKeep;
     return MOTIONS.indexOf(m) >= 0 ? m : 'sistema';
   }
   function reduced() { var m = motionPref(); return m === 'reduzidas' || (m === 'sistema' && systemReduced()); }
@@ -217,6 +218,18 @@
   }
   function wipeSave() {
     try { window.localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignora */ }
+  }
+  // Opção "Animações" enquanto não há save (de "Recomeçar" até escolher o inicial): numa chave própria,
+  // para não se perder se a aba fechar na tela de escolha. Só existe nesse intervalo.
+  var MOTION_KEY = SAVE_KEY + ':animacoes';
+  function guardaMotionKeep(m) {
+    try {
+      if (m && m !== 'sistema') window.localStorage.setItem(MOTION_KEY, m);
+      else window.localStorage.removeItem(MOTION_KEY);
+    } catch (e) { /* sem armazenamento: vale só nesta aba */ }
+  }
+  function leMotionKeep() {
+    try { var m = window.localStorage.getItem(MOTION_KEY); return MOTIONS.indexOf(m) >= 0 ? m : null; } catch (e) { return null; }
   }
 
   // Save v4: várias montarias (instâncias) e uma ativa; peças de equipamento como instâncias em
@@ -2747,7 +2760,7 @@
       // relevo das subidas (os respingos e o calor ficam no chão levantado)
       var natO = {
         weather: clima, wind: self.wind, t: tr, W: W, H: H, P: S, laneTop: laneTop, trackBottom: laneTop + n * laneH,
-        reduced: red, seed: L.seed, cam: cam * ppm, camada: 'tras',
+        reduced: red, seed: L.seed, cam: cam * ppm, camada: 'tras', surface: L.cond.surface,
         lift: hills.length ? function (px) { return SP.hillLiftAt(cam + px / ppm, hills, lay.maxLift) * S; } : null
       };
       FX.drawNature(ctx, natO);
@@ -2784,7 +2797,7 @@
         var inten = standing ? 0 : boostIntensity(j, self.simT);
         if (inten > 0.02) SP.drawTrail(ctx, x + an.rear[0] * S, y + an.rear[1] * S, r.horse.element, tr + j * 0.31, inten, S);
         // poeira dos cascos em terra ou areia (fora da chuva), atrás do cavalo
-        if (poeira && !standing) FX.drawHoofDust(ctx, x + (an.rear[0] + 4) * S, feetY, S, tr + j * 0.37, L.cond.surface, red);
+        if (poeira && !standing) FX.drawHoofDust(ctx, x + an.rear[0] * S, feetY, S, tr + j * 0.37, L.cond.surface, red);
         if (lift > 0 && !standing && !reduced()) {
           // poeira levantada na subida
           var dp = Math.floor(tr * 10 + j) % 3;
@@ -3351,6 +3364,7 @@
         state = newState(id);
         if (ui.motionKeep) { state.settings.motion = ui.motionKeep; ui.motionKeep = null; }   // "Recomeçar" não apaga a preferência
         persist();
+        guardaMotionKeep(null);   // a preferência agora está no save
         go('estabulo');
         break;
       case 'ver-inicial': {
@@ -3501,6 +3515,7 @@
         ui.confirmReset = false; rerenderKeepScroll(); focusAction('reset'); break;
       case 'reset-sim':
         ui.motionKeep = motionPref();
+        guardaMotionKeep(ui.motionKeep);
         ui.confirmReset = false; wipeSave(); state = null; ui.lobby = null; ui.result = null; go('inicial'); break;
     }
   });
@@ -3550,6 +3565,7 @@
     data = data || {};
     state = sanitize(!!data.dev === DEV_MODE ? data.save : null) || sanitize(loadSave());
     if (!state && DEV_MODE) { state = devNovoPerfil(); persist(); }   // perfil DEV novo: Brasa, sem a escolha inicial
+    if (!state) ui.motionKeep = leMotionKeep();   // "Recomeçar" e a aba fechou na escolha: a opção continua
     ui.screen = state ? 'estabulo' : 'inicial';
     // moldes do PixelLab (embutidos pelo build): decodificam em segundo plano; até lá (ou sem eles, ou
     // com ?semmoldes=1) os cavalos saem do desenho por código. Ao chegarem, a tela é redesenhada — menos
