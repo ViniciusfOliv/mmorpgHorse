@@ -953,5 +953,56 @@ test('hachura das subidas: os limites (org, ini, fim) dão os mesmos retângulos
   assert.strictEqual(casos, 4000);
 });
 
+test('hachura das subidas: a pintura com padrão (fillRect + translate) cobre os mesmos pixels do laço antigo, uma vez cada', function () {
+  function mod(a, n) { return ((a % n) + n) % n; }
+  // contexto falso: grava fillRect, translate e fillStyle; o padrão guarda o canvas do ladrilho
+  function ctxGrava() {
+    var c = { fillStyle: '', tx: 0, ty: 0, ops: [], rects: [] };
+    c.fillRect = function (x, y, w, h) { c.rects.push({ x: x + c.tx, y: y + c.ty, w: w, h: h, est: c.fillStyle, ox: c.tx, oy: c.ty }); c.ops.push('fillRect'); };
+    c.translate = function (x, y) { c.tx += x; c.ty += y; c.ops.push('translate'); };
+    c.createPattern = function (cv, rep) { assert.strictEqual(rep, 'repeat'); return { ladrilho: cv }; };
+    return c;
+  }
+  var antes = global.OffscreenCanvas;
+  global.OffscreenCanvas = function (w, h) { this.width = w; this.height = h; var g = ctxGrava(); this.getContext = function () { return g; }; };
+  try {
+    // pixels de um ladrilho (os fillRect gravados no canvas dele)
+    function pixelsLadrilho(cv) {
+      var m = {};
+      cv.getContext('2d').rects.forEach(function (r) { assert.strictEqual(r.est, 'rgba(255,255,255,0.07)'); for (var y = r.y; y < r.y + r.h; y++) for (var x = r.x; x < r.x + r.w; x++) m[x + ',' + y] = true; });
+      return m;
+    }
+    var casos = [[37, 913, 1234.56, 2], [0, 400, 0, 3], [120, 150, 77.5, 2], [5, 640, -321.25, 4], [0, 1120, 8000.2, 2], [300, 306, 9.7, 1]];
+    casos.forEach(function (cs) {
+      var x0 = cs[0], x1 = cs[1], camPx = cs[2], P = cs[3], y = 50, linhas = 23, alt = linhas * P, step = 10 * P;
+      var esperado = {};
+      for (var r = 0; r < linhas; r++) {
+        var shift = mod(-(r * P) + camPx, step);
+        for (var hx = x0 - shift + step; hx < x1; hx += step) for (var dy = 0; dy < P; dy++) for (var dx = 0; dx < 3 * P; dx++) esperado[(Math.round(hx) + dx) + ',' + (y + r * P + dy)] = true;
+      }
+      var c = ctxGrava();
+      SPR._hachura(c, SPR._hachuraFaixa(x0, x1, camPx, P), y, alt, P);
+      assert.strictEqual(c.tx, 0, 'translate desfeito (x)'); assert.strictEqual(c.ty, 0, 'translate desfeito (y)');
+      assert.ok(c.rects.length <= 6 * P + 1, 'até 6P + 1 fillRect: ' + c.rects.length);
+      var pintado = {}, dobro = 0;
+      c.rects.forEach(function (q) {
+        assert.ok(q.est && q.est.ladrilho, 'fillRect com padrão');
+        var lad = q.est.ladrilho, px = pixelsLadrilho(lad);
+        assert.strictEqual(lad.width, step); assert.strictEqual(lad.height, step);
+        for (var yy = q.y; yy < q.y + q.h; yy++) for (var xx = q.x; xx < q.x + q.w; xx++) {
+          if (!px[mod(xx - q.ox, step) + ',' + mod(yy - q.oy, step)]) continue;
+          var k = xx + ',' + yy;
+          if (pintado[k]) dobro++;
+          pintado[k] = true;
+        }
+      });
+      assert.strictEqual(dobro, 0, 'nenhum pixel pintado duas vezes (o alfa somaria)');
+      var a = Object.keys(esperado).sort(), b = Object.keys(pintado).sort();
+      assert.strictEqual(b.length, a.length, 'mesmo número de pixels ' + JSON.stringify(cs));
+      assert.deepStrictEqual(b, a, JSON.stringify(cs));
+    });
+  } finally { if (antes === undefined) delete global.OffscreenCanvas; else global.OffscreenCanvas = antes; }
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

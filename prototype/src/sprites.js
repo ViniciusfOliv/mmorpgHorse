@@ -2223,6 +2223,7 @@
     drawElementIcon: drawElementIcon,
     hillLiftAt: hillLiftAt,
     _hachuraFaixa: hachuraFaixa,
+    _hachura: hachura,
     hillShape: hillShape,
     HILL_AMP: HILL_AMP,
     cacheStats: cacheStats,
