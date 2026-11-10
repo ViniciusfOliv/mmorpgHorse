@@ -778,6 +778,21 @@ test('enhanceOdds/enhance exigem plus inteiro 0–10', function () {
   assert.strictEqual(GR.enhance(null, 1, 0), null);
   assert.deepStrictEqual(GR.enhanceOdds(3), { chance: 0.7, cost: 1, dropTo: 3 });
 });
+test('foal/rentalPrice/odds com grau e level malformados', function () {
+  var f = mk2({ sex: 'f' }), m = mk2({}); delete f.grau; m.grau = undefined;
+  var x = B.foal({ f: f, m: m, seedBase: 1, breedCounter: 0, nextUid: 1 });
+  assert.ok(x.grau >= 1 && x.grau <= 3);
+  var g0 = mk2({ rarity: 'comum' }); g0.grau = 0;   // mk2 troca grau 0 por 2
+  assert.strictEqual(B.rentalPrice(g0), B.rentalPrice(mk2({ rarity: 'comum', grau: 1 })));
+  assert.strictEqual(B.rentalPrice(mk2({ rarity: 'comum', grau: 4 })), B.rentalPrice(mk2({ rarity: 'comum', grau: 3 })));
+  var semGrau = mk2({ rarity: 'comum' }); delete semGrau.grau; assert.strictEqual(B.rentalPrice(semGrau), 125, 'sem grau vale ★★');
+  assert.strictEqual(B.rentalPrice(mk2({ rarity: 'comum', grau: 'x' })), 125);
+  assert.deepStrictEqual(B.rarityOdds(mk2({ sex: 'f', level: 'x' }), mk2({ level: 'x' })), B.rarityOdds(mk2({ sex: 'f', level: 1 }), mk2({ level: 1 })));
+  assert.strictEqual(B.levelFactor(mk2({ sex: 'f', level: 1e9 }), mk2({ level: 1e9 })), 1);
+  assert.ok(isFinite(B.levelFactor(mk2({ sex: 'f', level: NaN }), mk2({ level: 'abc' }))));
+  assert.strictEqual(B.hexMix, undefined, 'hexMix não é exportado');
+});
+test('Dev.TRACADOS removido', function () { assert.strictEqual(DV().TRACADOS, undefined); });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
