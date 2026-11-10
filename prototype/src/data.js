@@ -46,7 +46,8 @@
   // Raridades
   //   statCap: teto de cada status por level (antes de elemento e equipamento).
   //   growth: multiplicador do crescimento por level.
-  //   skillSlots: nº máximo de habilidades; bornSkills: nº máximo ao nascer;
+  //   skillSlots: nº máximo de habilidades; bornSkills: nº MÍNIMO ao nascer (o potro completa
+  //   com skills compatíveis até esse número, limitado às vagas);
   //   skillChance: chance base de ativar cada skill quando o gatilho acontece.
   //   baseLo: início da faixa de 16 pontos onde nascem os status base de um potro.
   // ---------------------------------------------------------------------------
@@ -93,8 +94,9 @@
 
   // ---------------------------------------------------------------------------
   // Habilidades
-  //   trigger: 'start' | 'straight' | 'curve' | 'curveExit' | 'hill' | 'lowStamina' (<=30%)
-  //            | 'final' (últimos 20%) | 'dice' | 'weather:<sol|chuva|nevoa>'
+  //   trigger: 'start' | 'straight' (reta de 150 m ou mais, fora a da largada) | 'curve' | 'curveExit'
+  //            | 'hill' | 'lowStamina' (<=30%) | 'final' (últimos 20%) | 'dice' (uma tentativa,
+  //            antes do 1º Dado) | 'weather:<sol|chuva|nevoa>'
   //   effect (chaves usadas):
   //     accelMult / speedMult: multiplicadores; drainMult: gasto de estamina;
   //     distanceM / durationS: duração do efeito em metros ou segundos;
@@ -102,7 +104,7 @@
   //     blockScoped: vale uma vez por bloco (curva/subida), não uma vez por corrida;
   //     staminaRestore: recupera fração do tanque (instantâneo);
   //     garraChanceBonus / garraBoostBonus: reforça a arrancada de Garra;
-  //     extraDice: dados extras; weatherDouble: dobra o bônus do clima.
+  //     extraDice: dados extras; weatherDouble: o bônus do clima vira T.weatherMultDouble (×1,08 no lugar de ×1,03).
   //   short (opcional): nome de até 12 letras para o balão da corrida (só apresentação, não é regra);
   //   exclusive: id da montaria inicial dona (só ela pode ter).
   // ---------------------------------------------------------------------------
@@ -115,7 +117,7 @@
     },
     'sprint': {
       id: 'sprint', name: 'Sprint', element: 'neutro', trigger: 'straight',
-      desc: 'Numa reta: +6% de velocidade por 150 m.',
+      desc: 'Numa reta de 150 m ou mais (fora a da largada): +6% de velocidade por 150 m.',
       effect: { speedMult: 1.06, drainMult: 1.0, distanceM: 150 }
     },
     'drift': {
@@ -145,13 +147,13 @@
     },
     'dado-viciado': {
       id: 'dado-viciado', name: 'Dado Viciado', element: 'neutro', trigger: 'dice',
-      desc: 'Rola 1 dado extra nos eventos de Sorte.',
+      desc: 'Uma tentativa por corrida, antes do 1º Dado da Sorte: se ativar, rola 1 dado extra em todos os Dados da corrida.',
       effect: { extraDice: 1 }
     },
     // --- Fogo ---
     'sol-a-pino': {
       id: 'sol-a-pino', name: 'Sol a Pino', element: 'fogo', trigger: 'weather:sol',
-      desc: 'Com sol: o bônus do clima para o Fogo é dobrado.',
+      desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +8%.',
       effect: { weatherDouble: true }
     },
     'labareda': {
@@ -167,7 +169,7 @@
     // --- Água ---
     'pe-na-chuva': {
       id: 'pe-na-chuva', name: 'Pé na Chuva', element: 'agua', trigger: 'weather:chuva',
-      desc: 'Com chuva: o bônus do clima para a Água é dobrado.',
+      desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +8%.',
       effect: { weatherDouble: true }
     },
     'mare-alta': {
@@ -182,13 +184,13 @@
     },
     'nascente': {
       id: 'nascente', name: 'Nascente', element: 'agua', trigger: 'straight',
-      desc: 'Numa reta, recupera 12% de estamina.',
+      desc: 'Numa reta de 150 m ou mais (fora a da largada), recupera 12% de estamina.',
       effect: { staminaRestore: 0.12 }
     },
     // --- Grama ---
     'nevoa-amiga': {
       id: 'nevoa-amiga', name: 'Névoa Amiga', element: 'grama', trigger: 'weather:nevoa',
-      desc: 'Com névoa: o bônus do clima para a Grama é dobrado.',
+      desc: 'Com névoa: o bônus do clima para a Grama sobe de +3% para +8%.',
       effect: { weatherDouble: true }
     },
     'casco-firme': {
@@ -198,7 +200,7 @@
     },
     'raizes-firmes': {
       id: 'raizes-firmes', name: 'Raízes Firmes', short: 'RAÍZES FIRM.', element: 'grama', exclusive: 'ipe', trigger: 'straight',
-      desc: 'Numa reta, finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s.',
+      desc: 'Numa reta de 150 m ou mais (fora a da largada), finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s.',
       effect: { staminaRestore: 0.05, speedMult: 1.02, durationS: 8 }
     }
   };

@@ -32,7 +32,7 @@
  *     Força, Manobra e Garra efetivas = n(x)*m;  chance/força da Garra (abaixo).
  *   O tanque NÃO depende do clima: tanque = 66 + 20*n(est).
  *   Efeitos gerais: sol => gasto ×1,04; chuva => todos −1,5% de velocidade.
- *   É chamada de novo quando o clima vira, quando uma skill de clima dobra o bônus e quando
+ *   É chamada de novo quando o clima vira, quando uma skill de clima reforça o bônus e quando
  *   uma skill mexe na Garra; o que já foi gasto não muda.
  *
  * MAPA EM BLOCOS (randomConditions(seed)). Ordem das chamadas de rng():
@@ -527,10 +527,10 @@
   }
 
   // (Re)calcula os números do corredor que dependem do clima. Pode ser chamada de novo no meio da
-  // corrida (troca de clima, skill que dobra o bônus, bônus de Garra): só lê statsN e os totais.
+  // corrida (troca de clima, skill que reforça o bônus, bônus de Garra): só lê statsN e os totais.
   function applyWeather(r, weather) {
     var m = weatherMult(r.element, weather, r.weatherDouble);
-    // 4 peças do conjunto do clima: ×1,07 no lugar de ×1,03 (só se a skill de clima não estiver dobrando)
+    // 4 peças do conjunto do clima: ×1,07 no lugar de ×1,03 (só se a skill de clima não estiver ativa)
     if (!r.weatherDouble && r.gearDoubleClimate === weather && m === T.weatherMult) m = T.weatherMultSet;
     if (m < 1 && r.ignoreWeatherPenalty) m = 1;   // equipamento: anula a penalidade
     var sn = r.statsN;
