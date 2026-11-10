@@ -759,6 +759,25 @@ test('payouts: valores exatos com porcentagens inteiras (4–8 corredores × 50/
   [1, 3, 7].forEach(function (fee) { for (var nr = 4; nr <= 8; nr++) { var am = S.payouts(fee, nr, [0, 1, 2, 3, 4, 5, 6, 7].slice(0, nr)).prizes.map(function (x) { return x.amount; });
     am.forEach(function (x, k) { if (k) assert.ok(x <= am[k - 1], 'crescente ' + fee + '×' + nr + ': ' + am); }); } });
 });
+test('podiumStone sorteia cada lugar de forma independente', function () {
+  var sem1 = 0, tem3sem1 = 0, tem2sem1 = 0, ambos = 0, N = 4000;
+  for (var s = 1; s <= N; s++) {
+    var p1 = GR.podiumStone(s, 1, 50), p2 = GR.podiumStone(s, 2, 50), p3 = GR.podiumStone(s, 3, 50);
+    if (!p1) { sem1++; tem3sem1 += p3; tem2sem1 += p2; }
+    if (p1 && p3) ambos++;
+  }
+  near(100 * tem3sem1 / sem1, 25, 3, '3º ganha pedra quando o 1º não ganha');
+  near(100 * tem2sem1 / sem1, 40, 3, '2º ganha pedra quando o 1º não ganha');
+  near(100 * ambos / N, 15, 2, '1º e 3º juntos (0,6 × 0,25)');
+});
+test('enhanceOdds/enhance exigem plus inteiro 0–10', function () {
+  [1.5, '3', NaN, -1, 10, 11, null, undefined, Infinity].forEach(function (p) {
+    assert.strictEqual(GR.enhanceOdds(p), null, String(p));
+    assert.strictEqual(GR.enhance({ uid: 'x', id: 'sela-comum', plus: p }, 1, 0), null, String(p));
+  });
+  assert.strictEqual(GR.enhance(null, 1, 0), null);
+  assert.deepStrictEqual(GR.enhanceOdds(3), { chance: 0.7, cost: 1, dropTo: 3 });
+});
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
