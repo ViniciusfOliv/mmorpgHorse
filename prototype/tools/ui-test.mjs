@@ -5,6 +5,9 @@
 // resultado calculado antes de pagar, a tela de corrida não couber na altura da janela, o Dado da Sorte
 // não aparecer na pista (plaquinhas, faixa, câmera lenta e "Pular" no meio dela), a chuva congelar com
 // movimento reduzido, a natureza custar demais por quadro ou um save antigo perder a opção "Animações".
+// Também confere a entrada reservada do páreo aberto, a gravação que falha, o save adulterado ou corrompido,
+// o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo e o tamanho mínimo do texto.
+//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao node tools/ui-test.mjs  -> só esses
 import { createRequire } from 'node:module'
 import { dirname, extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -459,6 +462,72 @@ try {
       problems.push('corrompido: ' + e.message)
     }
     await cp.context().close()
+  }
+
+  // ---------------- área segura do topo: com inset, o cabeçalho e o conteúdo descem; sem inset, nada muda ----------------
+  // O Chromium do teste não simula entalhe: o inset entra pela variável --sat (que no jogo vale env(safe-area-inset-top)).
+  if (quer('areasegura')) {
+    for (const [label, query, inset] of [['areasegura-0', '', 0], ['areasegura-30', '', 30], ['areasegura-dev', '?dev=1', 30]]) {
+      const pg = await newPage(browser, { width: 390, height: 844 }, label, { query })
+      try {
+        if (inset) await pg.addStyleTag({ content: `:root { --sat: ${inset}px !important; }` })
+        if (!query) { await pg.getByRole('button', { name: 'Escolher Brasa' }).click() }
+        await pg.waitForSelector('#t-estabulo')
+        const r = await pg.evaluate(() => {
+          const box = (sel) => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { top: Math.round(b.top), bottom: Math.round(b.bottom) } }
+          const topo = document.querySelector('.app-topo'), cs = getComputedStyle(topo)
+          return { topo: box('.app-topo'), logo: box('.app-topo .logo-mini'), titulo: box('#t-estabulo'), faixa: box('.dev-faixa'), padTopo: parseFloat(cs.paddingTop) }
+        })
+        const faixa = query ? 24 : 0
+        // o conteúdo do cabeçalho começa abaixo do inset (e da faixa DEV), o título abaixo do cabeçalho
+        if (r.logo.top < inset + faixa) problems.push(`[${label}] cabeçalho sob a área segura: ` + JSON.stringify(r))
+        if (r.titulo.top < r.topo.bottom) problems.push(`[${label}] título da tela atrás do cabeçalho: ` + JSON.stringify(r))
+        if (!inset && (r.topo.top !== 0 || r.topo.bottom !== 48 || r.padTopo !== 0)) problems.push(`[${label}] sem inset o cabeçalho mudou: ` + JSON.stringify(r))
+        if (query && (!r.faixa || r.faixa.top !== 0 || r.faixa.bottom !== 24 + inset || r.topo.top !== 24 + inset)) problems.push(`[${label}] faixa DEV e cabeçalho com inset: ` + JSON.stringify(r))
+        notes[label] = r
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      }
+      await pg.context().close()
+    }
+  }
+
+  // ---------------- texto legível em 360x640: Poder, Nv, VOCÊ e rótulos das abas ----------------
+  if (quer('texto')) {
+    const tx = await newPage(browser, { width: 360, height: 640 }, 'texto')
+    const tamanhos = (sels) => tx.evaluate((ss) => ss.map((sel) => {
+      const els = Array.from(document.querySelectorAll(sel))
+      return { sel, n: els.length, min: els.length ? Math.min(...els.map((e) => parseFloat(getComputedStyle(e).fontSize))) : null }
+    }), sels)
+    const confere = (lista, onde) => lista.forEach((t) => {
+      if (!t.n) problems.push(`texto: nenhum ${t.sel} em ${onde}`)
+      else if (t.min < 11) problems.push(`texto: ${t.sel} com ${t.min}px em ${onde} (mínimo 11)`)
+    })
+    try {
+      await tx.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await tx.waitForSelector('#t-estabulo')
+      confere(await tamanhos(['.montaria .nivel', '.app-aba-rotulo']), 'estábulo')
+      await checkOverflow(tx, 'texto-estabulo')
+      if (process.env.SHOTS_DIR) await tx.screenshot({ path: join(SHOTS, 'texto-360-estabulo.png') })   // só na pasta temporária
+      await abrirSala(tx)
+      confere(await tamanhos(['.programa .poder b', '.programa .tag-voce']), 'largada')
+      await checkOverflow(tx, 'texto-largada')
+      // a linha de cada corredor não quebra o Poder em duas linhas
+      const quebra = await tx.evaluate(() => Array.from(document.querySelectorAll('.programa .poder b')).filter((b) => b.getBoundingClientRect().height > parseFloat(getComputedStyle(b).fontSize) * 1.6).length)
+      if (quebra) problems.push('texto: ' + quebra + ' Poder(es) quebrado(s) em duas linhas na largada')
+      await tx.locator('.programa').scrollIntoViewIfNeeded()
+      if (process.env.SHOTS_DIR) await tx.screenshot({ path: join(SHOTS, 'texto-360-largada.png') })   // só na pasta temporária
+      await tx.getByRole('button', { name: /^Largar/ }).click()
+      await tx.getByRole('button', { name: /Pular/ }).click()
+      await tx.waitForSelector('#t-resultado')
+      confere(await tamanhos(['.tabela .tag-voce']), 'resultado')
+      await checkOverflow(tx, 'texto-resultado')
+      await tx.locator('.tabela').scrollIntoViewIfNeeded()
+      if (process.env.SHOTS_DIR) await tx.screenshot({ path: join(SHOTS, 'texto-360-resultado.png') })   // só na pasta temporária
+    } catch (e) {
+      problems.push('texto: ' + e.message)
+    }
+    await tx.context().close()
   }
 
   // ---------------- produção (jogo.html, o que vai para o jogador): sem DEV e sem gancho de teste ----------------

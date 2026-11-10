@@ -80,6 +80,7 @@
   --t-l: 1.625rem;
   /* contorno em pixel (cantos recortados) */
   --px: 2px;
+  --sat: env(safe-area-inset-top, 0px);   /* área segura do topo (entalhe/barra de status com viewport-fit=cover) */
   --gl: max(16px, env(safe-area-inset-left, 0px));
   --gr: max(16px, env(safe-area-inset-right, 0px));
 }
@@ -113,10 +114,10 @@ canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: bloc
   min-height: 100%;
   padding-left: var(--gl);
   padding-right: var(--gr);
-  padding-block: 16px 40px;
+  padding-block: calc(16px + var(--sat)) 40px;
   overflow-x: clip;
 }
-.app--corrida { padding-block: 8px max(8px, env(safe-area-inset-bottom, 0px)); }
+.app--corrida { padding-block: calc(8px + var(--sat)) max(8px, env(safe-area-inset-bottom, 0px)); }
 
 /* ---------- telas ---------- */
 .tela { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
@@ -396,7 +397,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .cavalo-nome { font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; color: var(--texto); text-shadow: 2px 2px 0 var(--sombra); }
 .cavalo-titulo { color: var(--texto-2); font-size: var(--t-s); margin: 0; }
 .linha-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: var(--t-s); }
-.nivel { font-family: var(--fonte-display); font-size: 8px; color: var(--texto); }
+.nivel { font-family: var(--fonte-display); font-size: 12px; line-height: 1.2; color: var(--texto); white-space: nowrap; }
 
 .habilidade { display: flex; flex-direction: column; gap: 2px; background: var(--painel-2); padding: 8px 10px; box-shadow: inset 4px 0 0 0 var(--ouro-escuro); }
 .habilidade b { display: flex; align-items: center; gap: 6px; }
@@ -507,9 +508,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .corredor b .nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .corredor small { color: var(--texto-2); font-size: var(--t-xs); display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; }
 .poder { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.poder b { font-family: var(--fonte-display); font-size: 8px; font-variant-numeric: tabular-nums; }
+.poder b { font-family: var(--fonte-display); font-size: 12px; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .poder small { font-size: var(--t-xs); color: var(--texto-2); }
-.tag-voce { font-family: var(--fonte-display); font-size: 8px; line-height: 1; color: var(--tinta); background: var(--ouro); padding: 3px 4px; flex: none; }
+.tag-voce { font-family: var(--fonte-display); font-size: 11px; line-height: 1; color: var(--tinta); background: var(--ouro); padding: 3px 4px; flex: none; }
 
 .pote { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; font-variant-numeric: tabular-nums; }
 .pote dt { color: var(--texto-2); }
@@ -623,7 +624,8 @@ html.mov-reduzido .btn:active:not(:disabled) { transform: none; }
 
 /* ---------- casca: cabeçalho fixo e barra de abas (abas e sub-telas) ---------- */
 .app-topo {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 40; height: 48px;
+  /* o fundo cobre a área segura do topo; o conteúdo do cabeçalho fica nos 48px abaixo dela */
+  position: fixed; top: 0; left: 0; right: 0; z-index: 40; height: calc(48px + var(--sat)); padding-top: var(--sat);
   display: flex; align-items: center; gap: 8px;
   padding-left: var(--gl); padding-right: var(--gr);
   background: var(--painel); border-bottom: 2px solid var(--linha);
@@ -633,7 +635,7 @@ html.mov-reduzido .btn:active:not(:disabled) { transform: none; }
 .app-topo .ouro, .app-topo .pedras { font-size: 12px; }
 .app-topo .ouro svg { width: 12px; height: 12px; }
 .app-perfil { flex: none; min-width: 40px; }
-.app-conteudo { display: block; padding-top: 56px; padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+.app-conteudo { display: block; padding-top: calc(56px + var(--sat)); padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 .app-abas {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
   height: calc(56px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -643,7 +645,7 @@ html.mov-reduzido .btn:active:not(:disabled) { transform: none; }
 .app-aba {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   min-width: 0; min-height: 48px; padding: 4px 2px; margin: 0;
-  background: none; border: 0; color: var(--texto-2); cursor: pointer; font-size: 11px; line-height: 1;
+  background: none; border: 0; color: var(--texto-2); cursor: pointer; font-size: 12px; line-height: 1;
 }
 .app-aba-icone { position: relative; font-size: 20px; line-height: 1; }
 .app-aba-rotulo { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -653,14 +655,14 @@ html.mov-reduzido .btn:active:not(:disabled) { transform: none; }
 }
 .app-aba:focus-visible { outline-offset: -3px; }
 /* o foco por teclado nunca fica atrás do cabeçalho fixo nem da barra de abas */
-html.app-com-abas { scroll-padding: 56px 0 calc(72px + env(safe-area-inset-bottom, 0px)); }
+html.app-com-abas { scroll-padding: calc(56px + var(--sat)) 0 calc(72px + env(safe-area-inset-bottom, 0px)); }
 /* o cartão inteiro da montaria abre a montaria */
 .montaria[data-acao] { cursor: pointer; }
 @media (min-width: 900px) {
   .app-abas {
     top: 0; bottom: 0; left: 0; right: auto; width: 200px; height: auto;
     grid-template-columns: 1fr; grid-auto-rows: 56px; align-content: start;
-    border-top: 0; border-right: 2px solid var(--linha);
+    border-top: 0; border-right: 2px solid var(--linha); padding-top: var(--sat);
   }
   .app-aba { flex-direction: row; gap: 10px; justify-content: flex-start; padding-left: 16px; font-size: 14px; }
   .app-aba--ativa { box-shadow: inset 3px 0 0 var(--ouro); }
@@ -671,13 +673,14 @@ html.app-com-abas { scroll-padding: 56px 0 calc(72px + env(safe-area-inset-botto
 
 /* ---------- modo DEV (?dev=1): faixa fixa no topo, botão "DEV" e gaveta que sobe do rodapé ---------- */
 /* a faixa (24px) empurra o cabeçalho fixo, a barra lateral do desktop e o conteúdo (a corrida lê o padding do .app) */
-html.dev-ativo .app { padding-top: 40px; }
-html.dev-ativo .app--corrida { padding-top: 32px; }
-html.dev-ativo .app-topo { top: 24px; }
-html.dev-ativo.app-com-abas { scroll-padding-top: 80px; }
+/* com área segura no topo, a faixa a cobre e o cabeçalho desce para baixo das duas */
+html.dev-ativo .app { padding-top: calc(40px + var(--sat)); }
+html.dev-ativo .app--corrida { padding-top: calc(32px + var(--sat)); }
+html.dev-ativo .app-topo { top: calc(24px + var(--sat)); height: 48px; padding-top: 0; }
+html.dev-ativo.app-com-abas { scroll-padding-top: calc(80px + var(--sat)); }
 .dev-faixa {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 60; height: 24px;
-  display: flex; align-items: center; justify-content: center; padding: 0 var(--gr) 0 var(--gl);
+  position: fixed; top: 0; left: 0; right: 0; z-index: 60; height: calc(24px + var(--sat));
+  display: flex; align-items: center; justify-content: center; padding: var(--sat) var(--gr) 0 var(--gl);
   background: var(--perda); color: var(--tinta); font-family: var(--fonte-display); font-size: 8px; line-height: 1;
   white-space: nowrap; overflow: hidden; box-shadow: 0 2px 0 0 var(--sombra);
 }
@@ -719,7 +722,7 @@ a.btn { text-decoration: none; }
 .dev-armado { margin: 0; font-size: var(--t-s); color: var(--texto-3); }
 .dev-armado--on { color: var(--ouro-claro); }
 @media (min-width: 900px) {
-  html.dev-ativo .app-abas { top: 24px; }
+  html.dev-ativo .app-abas { top: calc(24px + var(--sat)); padding-top: 0; }
   html.app-com-abas .dev-botao { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 }
 
