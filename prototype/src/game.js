@@ -1382,6 +1382,7 @@
   /*@dev:fim*/
 
   function render() {
+    ui.avisoNaTela = null;   // noticeHtml() o preenche se a tela desenhar um aviso
     live = [];
     portraitQueue = [];
     var html;
@@ -1574,8 +1575,10 @@
   }
 
   // aviso pendente (ex.: "Ouro insuficiente", save de outra aba): mostra uma vez e limpa
+  // (ui.avisoNaTela guarda o aviso desenhado agora: um redesenho passivo, sem ação do jogador, o mostra de novo)
   function noticeHtml() {
     var html = ui.notice ? '<p class="aviso">' + esc(ui.notice) + '</p>' : '';
+    ui.avisoNaTela = ui.notice;
     ui.notice = null;
     return html;
   }
@@ -3742,6 +3745,11 @@
     var el = telaEl.querySelector(sel);
     if (el) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } }
   }
+  // Redesenho que não vem do jogador (moldes carregados, largura da janela mudou): o aviso da tela continua.
+  function redesenhoPassivo() {
+    if (ui.avisoNaTela && !ui.notice) ui.notice = ui.avisoNaTela;
+    rerenderKeepScroll();
+  }
   function rerenderKeepScroll() {
     var y = window.scrollY;
     var active = document.activeElement;
@@ -3792,7 +3800,7 @@
     // com ?semmoldes=1) os cavalos saem do desenho por código. Ao chegarem, a tela é redesenhada — menos
     // a corrida, que redesenha sozinha a cada quadro (re-renderizar recriaria a corrida).
     if (!/[?&]semmoldes=1(&|$)/.test(window.location.search) && window.__MOLDES) {
-      SP.loadMolds(window.__MOLDES, function () { if (ui.screen !== 'corrida') rerenderKeepScroll(); });
+      SP.loadMolds(window.__MOLDES, function () { if (ui.screen !== 'corrida') redesenhoPassivo(); });
     }
     try {
       var hot = window.claude && window.claude.hot;
@@ -3810,7 +3818,7 @@
       resizeTimer = setTimeout(function () {
         if (ui.screen === 'corrida') return;
         lastW = window.innerWidth; lastDpr = dpr();
-        rerenderKeepScroll();
+        redesenhoPassivo();
       }, 150);
     });
     // a preferência de movimento do aparelho mudou: vale na hora para quem segue o sistema

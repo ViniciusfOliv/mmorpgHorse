@@ -337,6 +337,35 @@ try {
     await tr.context().close()
   }
 
+  // ---------------- aviso sobrevive ao redesenho passivo (moldes carregando, largura mudando) ----------------
+  if (quer('aviso')) {
+    const av = await newPage(browser, { width: 390, height: 844 }, 'aviso')
+    const RES = /250 de Ouro reservados para a entrada do páreo aberto/
+    const avisos = async () => (await av.locator('#tela .aviso').allTextContents()).join(' | ')
+    try {
+      await av.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await av.waitForSelector('#t-estabulo')
+      await abrirSala(av, 250)
+      await av.getByRole('button', { name: /^Voltar/ }).click()
+      await av.evaluate(() => { window.__galope.state.gold = 500 })
+      await av.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await av.waitForSelector('#t-estabulo')
+      // vaga do estábulo (300) com só 250 livres: clique forçado, o aviso aparece
+      await av.evaluate(() => { const b = document.querySelector('[data-acao="expandir"]'); b.disabled = false; b.click() })
+      if (!RES.test(await avisos())) problems.push('aviso: recusa da vaga sem o aviso de Ouro reservado: ' + await avisos())
+      // redesenho passivo (o mesmo dos moldes chegando): mudar a largura da janela
+      await av.setViewportSize({ width: 380, height: 844 })
+      await sleep(600)
+      if (!RES.test(await avisos())) problems.push('aviso: o aviso sumiu no redesenho passivo: ' + await avisos())
+      // a próxima ação do jogador limpa o aviso
+      await av.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      if (RES.test(await avisos())) problems.push('aviso: o aviso continuou depois de uma ação do jogador')
+    } catch (e) {
+      problems.push('aviso: ' + e.message)
+    }
+    await av.context().close()
+  }
+
   // ---------------- gravação que falha: nada de resultado nem débito sem o save gravado ----------------
   if (quer('gravacao')) {
     const gv = await newPage(browser, { width: 390, height: 844 }, 'gravacao')
