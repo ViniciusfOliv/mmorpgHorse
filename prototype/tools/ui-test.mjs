@@ -205,7 +205,93 @@ async function pickShotTime(page) {
 }
 
 const browser = await chromium.launch()
+// UI_SO=reserva,gravacao,...: roda só os contextos com esses nomes (para desenvolver um teste sem esperar os
+// ~5 min do resto); sem UI_SO (o check.sh), roda tudo.
+const SO = (process.env.UI_SO || '').split(',').map((x) => x.trim()).filter(Boolean)
+const quer = (nome) => !SO.length || SO.includes(nome)
+// abre a sala na entrada pedida (tier) a partir do estábulo e devolve o que identifica a sala
+async function abrirSala(pg, tier) {
+  await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+  await pg.waitForSelector('#t-correr')
+  if (tier) await pg.locator(`[data-acao="tier"][data-id="${tier}"]`).click()
+  await pg.locator('[data-acao="procurar"]').click()
+  await pg.waitForSelector('#t-largada')
+  return salaAtual(pg)
+}
+const salaAtual = (pg) => pg.evaluate(() => {
+  const L = window.__galope.ui.lobby
+  return { seed: L.seed, counter: L.counter, fee: L.fee, training: L.training, sim: !!L.sim, track: L.trackName,
+    blocks: JSON.stringify(L.cond.blocks), weather: L.cond.weather, rivais: L.racers.map((r) => r.name + ':' + r.horse.id + ':' + r.horse.level).join('|'),
+    gold: window.__galope.state.gold }
+})
 try {
+  // ---------------- entrada reservada: com sala valendo aberta, nenhum gasto re-sorteia a sala ----------------
+  if (quer('reserva')) {
+    const rv = await newPage(browser, { width: 390, height: 844 }, 'reserva')
+    const st = () => rv.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    try {
+      await rv.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await rv.waitForSelector('#t-estabulo')
+      // 1. Ouro 500, sala de 250 aberta
+      const salaA = await abrirSala(rv, 250)
+      if (salaA.fee !== 250 || salaA.gold !== 500) problems.push('reserva: sala inicial ' + JSON.stringify(salaA))
+      await rv.getByRole('button', { name: /^Voltar/ }).click()
+      await rv.waitForSelector('#t-correr')
+      // 2. Loja: as pedras só podem gastar o Ouro acima da entrada reservada (500 - 250 = 250 livres)
+      await rv.locator('[data-acao="aba"][data-id="loja"]').click()
+      await rv.waitForSelector('#t-loja')
+      await rv.locator('[data-acao="loja-tab"][data-id="pedras"]').click()
+      if (!/250 de Ouro reservados para a entrada do páreo aberto/.test((await rv.locator('#tela').textContent()) || '')) problems.push('reserva: a Loja não avisa o Ouro reservado')
+      await rv.locator('[data-acao="comprar-pedra"][data-id="5"]').click()   // 200 -> 300
+      await rv.locator('[data-acao="comprar-pedra"][data-id="1"]').click()   // 40 -> 260
+      let s = await st()
+      if (s.gold !== 260 || s.pedras !== 6) problems.push('reserva: compras dentro do livre ' + JSON.stringify({ gold: s.gold, pedras: s.pedras }))
+      if (!(await rv.locator('[data-acao="comprar-pedra"][data-id="1"]').isDisabled())) problems.push('reserva: comprar pedra habilitado com o Ouro livre abaixo do preço')
+      // clique forçado: o handler também recusa
+      for (let k = 0; k < 2; k++) await rv.evaluate(() => { const b = document.querySelector('[data-acao="comprar-pedra"][data-id="1"]'); b.disabled = false; b.click() })
+      await rv.locator('[data-acao="loja-tab"][data-id="sela"]').click()
+      await rv.evaluate(() => { const b = document.querySelector('[data-acao="comprar"][data-id="sela-comum"]'); b.disabled = false; b.click() })
+      s = await st()
+      if (s.gold < 250) problems.push('reserva: gasto passou da entrada reservada (Ouro ' + s.gold + ')')
+      // 3. vaga do estábulo (300) com 260: recusada mesmo forçando o clique
+      await rv.evaluate(() => { window.__galope.state.gold = 500 })
+      await rv.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await rv.waitForSelector('#t-estabulo')
+      if (!(await rv.locator('[data-acao="expandir"]').isDisabled())) problems.push('reserva: expandir o estábulo habilitado com só 250 livres')
+      await rv.evaluate(() => { const b = document.querySelector('[data-acao="expandir"]'); b.disabled = false; b.click() })
+      s = await st()
+      if (s.gold !== 500 || s.stableSlots !== 3) problems.push('reserva: expandir com a entrada reservada ' + JSON.stringify({ gold: s.gold, slots: s.stableSlots }))
+      await rv.evaluate(() => { window.__galope.state.gold = 260 })
+      // 4. procurar de novo: a MESMA sala
+      const salaB = await abrirSala(rv)
+      for (const k of ['seed', 'counter', 'fee', 'track', 'blocks', 'weather', 'rivais']) if (salaA[k] !== salaB[k]) problems.push(`reserva: a sala mudou depois das compras (${k}: ${salaA[k]} -> ${salaB[k]})`)
+      // 5. save adulterado (Ouro abaixo da entrada): a mesma sala corre como treino, sem entrada nem prêmio de aposta
+      await rv.getByRole('button', { name: /^Voltar/ }).click()
+      await rv.waitForSelector('#t-correr')
+      await rv.evaluate(() => { window.__galope.state.gold = 100 })
+      await rv.reload({ waitUntil: 'domcontentloaded' })
+      await rv.waitForSelector('#t-estabulo')
+      await rv.evaluate(() => { window.__galope.state.gold = 100 })
+      const salaC = await abrirSala(rv)
+      for (const k of ['seed', 'counter', 'track', 'blocks', 'weather', 'rivais']) if (salaA[k] !== salaC[k]) problems.push(`reserva: com o Ouro abaixo da entrada a sala mudou (${k}: ${salaA[k]} -> ${salaC[k]})`)
+      if (!salaC.training || salaC.fee !== 0) problems.push('reserva: com o Ouro abaixo da entrada a sala deveria correr como treino ' + JSON.stringify({ training: salaC.training, fee: salaC.fee }))
+      // voltar e procurar de novo (com Ouro acima da menor entrada) não troca o treino por uma sala nova
+      await rv.getByRole('button', { name: /^Voltar/ }).click()
+      await rv.waitForSelector('#t-correr')
+      const salaD = await abrirSala(rv)
+      if (salaD.seed !== salaA.seed || salaD.counter !== salaA.counter || !salaD.training) problems.push('reserva: o treino da sala rebaixada foi re-sorteado ' + JSON.stringify(salaD))
+      await rv.getByRole('button', { name: /^Largar treino/ }).click()
+      await rv.getByRole('button', { name: /Pular/ }).click()
+      await rv.waitForSelector('#t-resultado')
+      const r = await rv.evaluate(() => ({ gold: window.__galope.state.gold, res: window.__galope.ui.result, pending: window.__galope.state.pending, seed: window.__galope.ui.lobby.seed }))
+      if (!r.res.training || r.res.fee !== 0 || r.res.stone !== 0 || r.gold !== 100 + r.res.prize || r.res.prize > 30 || r.pending || r.seed !== salaA.seed) problems.push('reserva: treino da sala rebaixada ' + JSON.stringify({ gold: r.gold, res: { training: r.res.training, fee: r.res.fee, prize: r.res.prize, stone: r.res.stone }, pending: r.pending }))
+    } catch (e) {
+      problems.push('reserva: ' + e.message)
+    }
+    await rv.context().close()
+  }
+
+  if (!SO.length) {   // o resto do teste (fluxo completo e contextos antigos) só roda sem UI_SO
   // ---------------- celular 390x844 ----------------
   // newPage já espera Sprites.moldsReady === true (moldes do PixelLab embutidos pelo build e decodificados)
   const page = await newPage(browser, { width: 390, height: 844 }, 'mobile')
@@ -2044,6 +2130,8 @@ try {
     if (c && (c.partial > 0 || c.off > 0)) problems.push(`${k}: cavalo do jogador saiu da tela (${c.partial} quadros parciais, ${c.off} fora de ${c.frames})`)
   }
   console.log(JSON.stringify({ goldBefore, after: { gold: after.gold, level: after.level, xp: after.xp, place: after.result.place, prize: after.result.prize, xpGain: after.result.xpGain }, trainGold, notes }, null, 1))
+  }   // fim do if (!SO.length)
+  if (SO.length) console.log(JSON.stringify({ so: SO, notes }, null, 1))
 } finally {
   await browser.close()
   await new Promise((ok) => servidor.close(ok))

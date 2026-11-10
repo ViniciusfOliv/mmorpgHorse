@@ -445,6 +445,7 @@
       var fee = num(p.fee, 0, 0, 1e6);
       if (p.training ? fee === 0 : E.entryTiers.indexOf(fee) >= 0) {
         base.pending = { counter: num(p.counter, 1, 1, 1e9), training: !!p.training, fee: fee, pr: num(p.pr, 600, 1, 1e5) };
+        if (p.training && p.rebaixada === true) base.pending.rebaixada = true;   // sala valendo que virou treino (openLobby)
       }
     }
     base.races = num(s.races, 0, 0, 1e9);
@@ -1417,6 +1418,19 @@
   // state.tier é a preferência; a entrada efetiva é calculada na hora (sem regravar a preferência).
   function effectiveTier() { return affordableTier(state.gold, state.tier); }
 
+  // Entrada reservada: com uma sala valendo aberta (state.pending, ainda não corrida), a entrada dela fica
+  // separada; nenhum gasto de Ouro pode deixar o saldo abaixo dela (senão a sala teria de ser descartada e
+  // outra sorteada de graça). ouroLivre() é o que se pode gastar; podeGastar(v) confere um gasto.
+  function ouroReservado() {
+    var P = state && state.pending;
+    return P && !P.training ? P.fee : 0;
+  }
+  function ouroLivre() { return Math.max(0, state.gold - ouroReservado()); }
+  function podeGastar(valor) { return valor <= ouroLivre(); }
+  function reservaTxt() { return fmt(ouroReservado()) + ' de Ouro reservados para a entrada do páreo aberto'; }
+  // aviso da reserva (Loja, Estábulo), só quando há Ouro reservado
+  function reservaHtml() { return ouroReservado() ? '<p class="nota nota--reserva">' + esc(reservaTxt()) + '.</p>' : ''; }
+
   var SLOT_PRICE = BR.stableSlotPrice;
   function estrelasHtml(grau) {
     var g = clamp(Math.floor(Number(grau) || 0), 0, 3), txt = '';
@@ -1452,10 +1466,12 @@
 
   function montariasHtml() {
     var maxed = state.stableSlots >= BR.stableSlotsMax;
-    var canExpand = !maxed && state.gold >= SLOT_PRICE;
+    var canExpand = !maxed && podeGastar(SLOT_PRICE);
+    var reservaBloqueia = !maxed && state.gold >= SLOT_PRICE && !canExpand;
     return '<section class="caixa" aria-label="Suas montarias"><div class="montarias">' + state.mounts.map(function (m) { return mountCardHtml(m, m.uid === state.activeId); }).join('') + '</div>' +
       '<div class="acoes"><button type="button" data-acao="expandir" class="btn"' + (canExpand ? '' : ' disabled') + '>' +
-        (maxed ? 'Estábulo no máximo' : 'Expandir estábulo (' + fmt(SLOT_PRICE) + ')') + '</button></div></section>';
+        (maxed ? 'Estábulo no máximo' : 'Expandir estábulo (' + fmt(SLOT_PRICE) + ')') + '</button></div>' +
+      (reservaBloqueia ? reservaHtml() : '') + '</section>';
   }
 
   // aviso pendente (ex.: "Ouro insuficiente", save de outra aba): mostra uma vez e limpa
@@ -1622,7 +1638,7 @@
     if (!P.mine) out.push('Nenhuma montaria sua pode cruzar agora');
     else if (!P.partner) out.push('Escolha um parceiro');
     if (mode === 'cruzar' && state.mounts.length >= state.stableSlots) out.push('Estábulo cheio: libere uma montaria ou expanda');
-    if (P.price != null && state.gold < P.price) out.push('Ouro insuficiente');
+    if (P.price != null && !podeGastar(P.price)) out.push(state.gold >= P.price ? reservaTxt() : 'Ouro insuficiente');
     if (P.partner && mode === 'cruzar' && (P.mine.breedLeft < 1 || (P.kind === 'own' && P.partner.breedLeft < 1))) out.push('Uma das montarias não pode mais cruzar');
     if (P.partner && mode === 'troca' && P.kind !== 'own') out.push('A Troca é só entre duas montarias suas');
     return out;
@@ -2019,9 +2035,10 @@
     return (d > 0 ? '+' : '−') + Math.abs(d) + ' ' + GD.STATS[info.main].short + ' em relação à equipada';
   }
   function lojaBotaoHtml(acao, id, price) {
-    var pode = state.gold >= price;
+    var pode = podeGastar(price);
+    var rotulo = pode ? 'Comprar' : state.gold >= price ? 'Reservado' : 'Sem Ouro';
     return '<button type="button" class="btn btn--ouro btn--pequeno" data-acao="' + acao + '" data-id="' + esc(id) + '"' + (pode ? '' : ' disabled') + '>' +
-      (pode ? 'Comprar' : 'Sem Ouro') + ' (' + fmt(price) + ')</button>';
+      rotulo + ' (' + fmt(price) + ')</button>';
   }
   function produtoHtml(def) {
     var chip = def.set && hasOwn(GD.GEAR_SETS, def.set) ? '<span class="chip">' + esc(GD.GEAR_SETS[def.set].name) + '</span>' : '';
@@ -2059,7 +2076,7 @@
     }
     var nota = Q.tab === 'pedras' ? 'Pedras Negras melhoram peças (+1 a +10) na aba Equipamento da montaria.'
       : 'A diferença compara com a peça que ' + activeMount().name + ' (ativa) usa neste slot. Comprar não equipa.';
-    return '<section class="tela" aria-labelledby="t-loja">' + head + msg +
+    return '<section class="tela" aria-labelledby="t-loja">' + head + msg + reservaHtml() +
       '<section class="caixa">' + abas + '<p class="nota">' + esc(nota) + '</p>' +
         '<div class="loja-grade">' + produtos + '</div></section>' +
     '</section>';
@@ -2093,8 +2110,14 @@
   // Abre a sala pendente ou sorteia uma nova (contador +1). Voltar/recarregar não sorteia de novo.
   function openLobby(training) {
     var P = state.pending;
-    if (P && !P.training && state.gold < P.fee) P = null;          // não dá mais para pagar (ex.: save editado)
-    if (P && P.training && !training && state.gold >= MIN_ENTRY) P = null; // treino pendente vira corrida valendo
+    // Ouro abaixo da entrada da sala aberta (só com save adulterado: a entrada fica reservada): a MESMA sala
+    // (mesma seed, rivais e condições) corre como treino, sem entrada e sem prêmio de aposta. Nunca é
+    // descartada, senão seria um re-sorteio de graça. 'rebaixada' impede que vire uma sala nova depois.
+    if (P && !P.training && state.gold < P.fee) {
+      P.training = true; P.fee = 0; P.rebaixada = true;
+      persist();
+    }
+    if (P && P.training && !P.rebaixada && !training && state.gold >= MIN_ENTRY) P = null; // treino pendente vira corrida valendo
     if (!P) {
       var fee = training ? 0 : effectiveTier();
       if (fee == null) { training = true; fee = 0; } // sem Ouro para nenhuma entrada (ex.: save editado): vira treino
@@ -2289,7 +2312,7 @@
         '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></header>' +
       '<header class="tela-cabeca placa"><span class="rotulo">Sala de largada · Páreo nº ' + L.counter + '</span>' +
         '<h1 class="titulo titulo--tela" id="t-largada" tabindex="-1" data-foco>' + esc(L.trackName) + '</h1>' +
-        (L.trackDesc ? '<p class="nota">' + esc(L.trackDesc) + '</p>' : '') + '</header>' +
+        (L.trackDesc ? '<p class="nota">' + esc(L.trackDesc) + '</p>' : '') + '</header>' + noticeHtml() +
       '<section class="caixa" aria-label="Condições da pista">' + conditionChips(L.cond) +
         '<canvas class="perfil" data-perfil="1" role="img" aria-label="' + esc('Mapa da pista visto de cima, ' + D + ' metros em ' + L.cond.blocks.length + ' trechos: ' +
           L.cond.blocks.map(function (bl) { return GD.BLOCK_TYPES[bl.type].name.toLowerCase(); }).join(', ')) + '"></canvas>' +
@@ -3250,7 +3273,10 @@
         persist();                    // sincroniza com outras abas antes de debitar
         if (state !== sC) break;
         var pd = hasOwn(GD.GEAR, id) ? GD.GEAR[id] : null;
-        if (!pd || !pd.shop || !(pd.price > 0) || state.gold < pd.price) { rerenderKeepScroll(); break; }
+        if (!pd || !pd.shop || !(pd.price > 0) || !podeGastar(pd.price)) {
+          if (pd && state.gold >= pd.price) ui.loja.msg = reservaTxt() + '.';
+          rerenderKeepScroll(); break;
+        }
         state.gold -= pd.price;
         newItem(id);
         persist();
@@ -3265,7 +3291,7 @@
         persist();
         if (state !== sP) break;
         var pc = pn * GE.stonePrice;
-        if (state.gold < pc) { rerenderKeepScroll(); break; }
+        if (!podeGastar(pc)) { if (state.gold >= pc) ui.loja.msg = reservaTxt() + '.'; rerenderKeepScroll(); break; }
         state.gold -= pc;
         state.pedras += pn;
         persist();
@@ -3361,7 +3387,7 @@
         persist();
         if (state !== sU) break;
         ui.montaria.equip.undo = null;
-        if (state.gold < un.price) { ui.montaria.equip.msg = 'Sem Ouro para desfazer a venda.'; rerenderKeepScroll(); break; }
+        if (!podeGastar(un.price)) { ui.montaria.equip.msg = state.gold >= un.price ? reservaTxt() + '.' : 'Sem Ouro para desfazer a venda.'; rerenderKeepScroll(); break; }
         if (itemByUid(un.item.uid)) { rerenderKeepScroll(); break; }
         state.items.push(un.item);
         state.gold -= un.price;
@@ -3401,7 +3427,12 @@
         if (!L || L.sim) { go('correr'); break; }
         persist();                    // sincroniza com outras abas antes de debitar
         if (ui.lobby !== L) break;    // save mais novo adotado: adoptExternal já navegou para um ponto seguro
-        if (!L.training && state.gold < L.fee) { ui.notice = 'Ouro insuficiente para esta entrada.'; state.pending = null; persist(); go('correr'); break; }
+        if (!L.training && state.gold < L.fee) {
+          // Ouro abaixo da entrada (outra aba, save adulterado): a mesma sala vira treino e a tela mostra isso
+          ui.lobby = openLobby(false);
+          ui.notice = 'Seu Ouro ficou abaixo da entrada: este páreo corre como treino, sem aposta.';
+          go('largada'); break;
+        }
         var sAntes = state;
         ui.result = settle(L);
         if (state !== sAntes) { ui.result = null; break; } // conflito no meio da liquidação: descarta o resultado misto
@@ -3450,7 +3481,10 @@
         if (ui.screen === 'montaria') go(ui.tab); else rerenderKeepScroll();
         break;
       case 'expandir':
-        if (state.stableSlots >= BR.stableSlotsMax || state.gold < SLOT_PRICE) { rerenderKeepScroll(); break; }
+        if (state.stableSlots >= BR.stableSlotsMax || !podeGastar(SLOT_PRICE)) {
+          if (state.gold >= SLOT_PRICE) ui.notice = reservaTxt() + '.';
+          rerenderKeepScroll(); break;
+        }
         state.gold -= SLOT_PRICE; state.stableSlots += 1; persist(); rerenderKeepScroll(); break;
       case 'haras-mine':
         if (!ui.haras || !mountByUid(id)) break;
