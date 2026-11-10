@@ -2726,9 +2726,11 @@
           arcoK: clamp(top + lane - 3 - (SP.FOOT_Y + 1), 0, FX.CURVA.arco) / FX.CURVA.arco
         };
       });
-      // escala de trabalho: em telas densas (DPR 3) o canvas passaria de 2 milhões de pixels; desenha em S/d
-      // (d inteiro) e o CSS amplia d vezes com image-rendering: pixelated — cada pixel de arte continua quadrado
-      // e do mesmo tamanho na tela (S/d·d = S pixels do aparelho). Só quando os moldes também dividem certinho.
+      // escala de trabalho: com o canvas acima de CANVAS_MAX_PX, desenha em S/d (d inteiro) e o CSS amplia d vezes
+      // com image-rendering: pixelated — cada pixel de arte continua quadrado e do mesmo tamanho na tela (S/d·d = S
+      // pixels do aparelho). Só quando a escala dos moldes também divide certinho: com os moldes atuais, S = 6, 9 ou
+      // 12 (d = 2, 3 ou 2). S = 6 sai de DPR 2 com k = 3 (janela larga e alta o bastante, ex.: 1280×800@2 conforme a
+      // sala) e de DPR 3 com k = 2 (celular); S = 4 (DPR 2 com k = 2) nunca reduz.
       var d = reducaoEscala(pick.S, pick.artW * pick.artH), S = pick.S / d;
       self.S = S; self.lay = pick; pick.reducao = d;
       self.W = pick.artW * S; self.H = pick.artH * S;

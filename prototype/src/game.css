@@ -104,7 +104,8 @@ body {
 button { font: inherit; color: inherit; }
 b, strong { font-weight: 400; color: var(--texto); }
 .ord { font-size: 0.5em; vertical-align: 0.8em; line-height: 0; }
-canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+/* pixelated por último: é o que o Chrome aplica (crisp-edges fica de reserva); a corrida pode ser ampliada pelo CSS */
+canvas { image-rendering: crisp-edges; image-rendering: pixelated; display: block; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 3px solid var(--foco); outline-offset: 3px; }
 [tabindex="-1"]:focus { outline: none; }
