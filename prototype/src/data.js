@@ -46,7 +46,8 @@
   // Raridades
   //   statCap: teto de cada status por level (antes de elemento e equipamento).
   //   growth: multiplicador do crescimento por level.
-  //   skillSlots: nº máximo de habilidades; bornSkills: nº máximo ao nascer;
+  //   skillSlots: nº máximo de habilidades; bornSkills: nº MÍNIMO ao nascer (o potro completa
+  //   com skills compatíveis até esse número, limitado às vagas);
   //   skillChance: chance base de ativar cada skill quando o gatilho acontece.
   //   baseLo: início da faixa de 16 pontos onde nascem os status base de um potro.
   // ---------------------------------------------------------------------------
@@ -93,8 +94,9 @@
 
   // ---------------------------------------------------------------------------
   // Habilidades
-  //   trigger: 'start' | 'straight' | 'curve' | 'curveExit' | 'hill' | 'lowStamina' (<=20%)
-  //            | 'final' (últimos 20%) | 'dice' | 'weather:<sol|chuva|nevoa>'
+  //   trigger: 'start' | 'straight' (reta de 150 m ou mais, fora a da largada) | 'curve' | 'curveExit'
+  //            | 'hill' | 'lowStamina' (<=30%) | 'final' (últimos 20%) | 'dice' (uma tentativa,
+  //            antes do 1º Dado) | 'weather:<sol|chuva|nevoa>'
   //   effect (chaves usadas):
   //     accelMult / speedMult: multiplicadores; drainMult: gasto de estamina;
   //     distanceM / durationS: duração do efeito em metros ou segundos;
@@ -102,7 +104,7 @@
   //     blockScoped: vale uma vez por bloco (curva/subida), não uma vez por corrida;
   //     staminaRestore: recupera fração do tanque (instantâneo);
   //     garraChanceBonus / garraBoostBonus: reforça a arrancada de Garra;
-  //     extraDice: dados extras; weatherDouble: dobra o bônus do clima.
+  //     extraDice: dados extras; weatherDouble: o bônus do clima vira T.weatherMultDouble (×1,08 no lugar de ×1,03).
   //   short (opcional): nome de até 12 letras para o balão da corrida (só apresentação, não é regra);
   //   exclusive: id da montaria inicial dona (só ela pode ter).
   // ---------------------------------------------------------------------------
@@ -110,33 +112,33 @@
     // --- Genéricas (neutro) ---
     'arranque': {
       id: 'arranque', name: 'Arranque', element: 'neutro', trigger: 'start',
-      desc: 'Largada explosiva: +30% de aceleração nos primeiros 100 m.',
-      effect: { accelMult: 1.3, distanceM: 100 }
+      desc: 'Largada explosiva: +20% de aceleração nos primeiros 100 m.',
+      effect: { accelMult: 1.2, distanceM: 100 }
     },
     'sprint': {
       id: 'sprint', name: 'Sprint', element: 'neutro', trigger: 'straight',
-      desc: 'Numa reta: +4% de velocidade por 150 m, gastando 15% mais estamina.',
-      effect: { speedMult: 1.04, drainMult: 1.15, distanceM: 150 }
+      desc: 'Numa reta de 150 m ou mais (fora a da largada): +6% de velocidade por 150 m.',
+      effect: { speedMult: 1.06, drainMult: 1.0, distanceM: 150 }
     },
     'drift': {
       id: 'drift', name: 'Drift', element: 'neutro', trigger: 'curve',
-      desc: 'Em cada curva: +5% de rendimento na curva.',
-      effect: { curveBonus: 0.05, blockScoped: true }
+      desc: 'Em cada curva: +3% de rendimento na curva.',
+      effect: { curveBonus: 0.03, blockScoped: true }
     },
     'saida-rapida': {
       id: 'saida-rapida', name: 'Saída Rápida', element: 'neutro', trigger: 'curveExit',
-      desc: 'Ao sair da curva: +40% de aceleração por 4s.',
-      effect: { accelMult: 1.4, durationS: 4 }
+      desc: 'Ao sair da curva: +40% de aceleração e +6% de velocidade por 6s.',
+      effect: { accelMult: 1.4, speedMult: 1.06, durationS: 6 }
     },
     'folego-de-montanha': {
       id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'neutro', trigger: 'hill',
-      desc: 'Em cada subida: gasta 30% menos estamina.',
-      effect: { hillDrainMult: 0.7, blockScoped: true }
+      desc: 'Em cada subida: gasta 80% menos estamina extra da subida.',
+      effect: { hillDrainMult: 0.2, blockScoped: true }
     },
     'segundo-ar': {
       id: 'segundo-ar', name: 'Segundo Ar', element: 'neutro', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 20%, recupera 15%.',
-      effect: { staminaRestore: 0.15 }
+      desc: 'Quando a estamina cai a 30%, recupera 15% e ganha +5% de velocidade por 8s.',
+      effect: { staminaRestore: 0.15, speedMult: 1.05, durationS: 8 }
     },
     'arrancada-final': {
       id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'neutro', trigger: 'final',
@@ -145,13 +147,13 @@
     },
     'dado-viciado': {
       id: 'dado-viciado', name: 'Dado Viciado', element: 'neutro', trigger: 'dice',
-      desc: 'Rola 1 dado extra nos eventos de Sorte.',
+      desc: 'Uma tentativa por corrida, antes do 1º Dado da Sorte: se ativar, rola 1 dado extra em todos os Dados da corrida.',
       effect: { extraDice: 1 }
     },
     // --- Fogo ---
     'sol-a-pino': {
       id: 'sol-a-pino', name: 'Sol a Pino', element: 'fogo', trigger: 'weather:sol',
-      desc: 'Com sol: o bônus do clima para o Fogo é dobrado.',
+      desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +8%.',
       effect: { weatherDouble: true }
     },
     'labareda': {
@@ -161,44 +163,44 @@
     },
     'chama-final': {
       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
-      desc: 'Na reta final, +5% de velocidade por 5s.',
-      effect: { speedMult: 1.05, durationS: 5 }
+      desc: 'Na reta final, +5% de velocidade por 8s.',
+      effect: { speedMult: 1.05, durationS: 8 }
     },
     // --- Água ---
     'pe-na-chuva': {
       id: 'pe-na-chuva', name: 'Pé na Chuva', element: 'agua', trigger: 'weather:chuva',
-      desc: 'Com chuva: o bônus do clima para a Água é dobrado.',
+      desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +8%.',
       effect: { weatherDouble: true }
     },
     'mare-alta': {
       id: 'mare-alta', name: 'Maré Alta', element: 'agua', exclusive: 'mare', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 20%, a maré sobe: recupera 20% de estamina e ganha +3% de velocidade por 8s.',
-      effect: { staminaRestore: 0.20, speedMult: 1.03, durationS: 8 }
+      desc: 'Quando a estamina cai a 30%, a maré sobe: recupera 20% de estamina e ganha +5% de velocidade por 8s.',
+      effect: { staminaRestore: 0.20, speedMult: 1.05, durationS: 8 }
     },
     'canto-da-iara': {
       id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
-      desc: 'Na reta final, +6% de velocidade por 5s e gasta 30% menos estamina.',
-      effect: { speedMult: 1.06, drainMult: 0.7, durationS: 5 }
+      desc: 'Na reta final, +6% de velocidade por 7s e gasta 30% menos estamina.',
+      effect: { speedMult: 1.06, drainMult: 0.7, durationS: 7 }
     },
     'nascente': {
       id: 'nascente', name: 'Nascente', element: 'agua', trigger: 'straight',
-      desc: 'Numa reta, recupera 12% de estamina.',
+      desc: 'Numa reta de 150 m ou mais (fora a da largada), recupera 12% de estamina.',
       effect: { staminaRestore: 0.12 }
     },
     // --- Grama ---
     'nevoa-amiga': {
       id: 'nevoa-amiga', name: 'Névoa Amiga', element: 'grama', trigger: 'weather:nevoa',
-      desc: 'Com névoa: o bônus do clima para a Grama é dobrado.',
+      desc: 'Com névoa: o bônus do clima para a Grama sobe de +3% para +8%.',
       effect: { weatherDouble: true }
     },
     'casco-firme': {
       id: 'casco-firme', name: 'Casco Firme', element: 'grama', trigger: 'hill',
-      desc: 'Em cada subida: +6% de rendimento na subida.',
-      effect: { hillBonus: 0.06, blockScoped: true }
+      desc: 'Em cada subida: +2% de rendimento na subida.',
+      effect: { hillBonus: 0.02, blockScoped: true }
     },
     'raizes-firmes': {
       id: 'raizes-firmes', name: 'Raízes Firmes', short: 'RAÍZES FIRM.', element: 'grama', exclusive: 'ipe', trigger: 'straight',
-      desc: 'Numa reta, finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s.',
+      desc: 'Numa reta de 150 m ou mais (fora a da largada), finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s.',
       effect: { staminaRestore: 0.05, speedMult: 1.02, durationS: 8 }
     }
   };
@@ -417,7 +419,7 @@
       enhanceChance: [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25],
       enhanceCost: [1, 1, 1, 1, 1, 1, 2, 2, 2, 2],
       enhanceDropFrom: 6,
-      setBonus: { pieces: [3, 4, 5], skillChance: 0.05, sorte: 5, ratingPts: [10, 15, 20] },
+      setBonus: { pieces: [3, 4, 5], skillChance: 0.05, sorte: 5, ratingPts: [3, 15, 20] },
       podiumStone: [0.6, 0.4, 0.25],
       startGear: ['sela-comum', 'ferraduras-comum']
     }

@@ -93,10 +93,27 @@ function checkBool(id, label, ok, detail) {
 var out = [];
 function log(s) { out.push(s == null ? '' : s); }
 
+// Metas S1/A1/P1/P2/Em1 (seção A abaixo) rodam em worker_threads (módulo do próprio Node, sem
+// dependência) enquanto o resto do relatório roda aqui. Cada worker calcula uma faixa fixa de k; o
+// resultado é somado no fim, então não depende de quantos núcleos a máquina tem.
+var WT = require('worker_threads');
+var AUD_EL4 = ['fogo', 'agua', 'grama', 'neutro'];
+var AUD_SKILLS = Object.keys(G.SKILLS);
+var AUD_STATS = G.STAT_KEYS;                                   // os 7; Sorte fica isenta da meta A1
+var AUD_RACE_STATS = ['vel', 'acel', 'man', 'forca', 'est', 'garra'];
+if (!WT.isMainThread) {
+  var job = WT.workerData;
+  WT.parentPort.postMessage(job.kind === 'pareado' ? pairedChunk(job.a, job.b) : lobbyChunk(job.a, job.b));
+  return;
+}
+
 // ---------------------------------------------------------------------------
 if (args.indexOf('--exemplo') >= 0) { exemplo(); process.exit(0); }
 
 var t0 = Date.now(); // só para medir o tempo do relatório (não entra na simulação)
+var AUD_NS = QUICK ? 1500 : 6000;   // corridas pareadas por variante (S1/A1)
+var AUD_NP = QUICK ? 1500 : 5000;   // salas montadas como no jogo (P1/P2/Em1)
+var audJobs = startAuditWorkers();
 
 // ---------------------------------------------------------------------------
 // 1) Iniciais no mesmo level, mapas aleatórios
@@ -142,7 +159,8 @@ log('## Relatório de balanceamento v2');
 log('');
 log('Gerado por `node tools/balance.js`' + (QUICK ? ' --quick' : '') + '. Mapas aleatórios em blocos (`randomConditions`), sem equipamento, salvo indicação. ' +
   'Dado da Sorte ligado (1/3 e 2/3 da pista), exceto na seção 2. ' +
-  'Metas E1–E4 (E2 em a/b) medem o equipamento (`gear.js`).');
+  'Metas E1–E4 (E2 em a/b) medem o equipamento (`gear.js`); S1, A1, P1, P2 e Em1 (seção A) vêm da auditoria de balanceamento ' +
+  '(P1 só no modo completo).');
 log('');
 log('### 1. Iniciais no mesmo level, mapas aleatórios (meta: 28%–39% cada)');
 log('');
@@ -163,6 +181,7 @@ log('');
 // ---------------------------------------------------------------------------
 var N2 = n(3000);
 var savedDiceAt = S.TUNING.diceAt;
+try {
 S.TUNING.diceAt = [];   // isola do Dado: o clima não vira durante a corrida
 log('### 2. Inicial com o clima do seu elemento fixo, sem Dado (meta: 45%–65%)');
 log('');
@@ -185,7 +204,9 @@ STARTERS.forEach(function (h, i) {
   var mults = STARTERS.map(function (x) { return '×' + f2(S.weatherMult(x.element, w, false)); }).join(' · ');
   log('| ' + h.name + ' | ' + G.WEATHERS[w].name + ' | ' + mults + ' | **' + f1(v) + '%** |');
 });
-S.TUNING.diceAt = savedDiceAt;   // restaura o Dado da Sorte
+} finally {
+  S.TUNING.diceAt = savedDiceAt;   // restaura o Dado da Sorte (mesmo se algo lançar no meio)
+}
 log('');
 
 // ---------------------------------------------------------------------------
@@ -340,7 +361,10 @@ var vE2a = pct(e2aW, e2aN), vE2b = pct(e2bW, e2bN);
 check('E2a', 'Comum lv30 com conjunto Raro +10 vence Mágico lv30 sem nada', vE2a, 60, 85);
 check('E2b', 'Comum lv30 com conjunto Raro +10 vence Raro lv30 sem nada', vE2b, 10, 40);
 var brasa = byId.brasa;
-var vE3 = pct(duelGear(clone(brasa, 10), setGear('sol', 'raro', 0, 4), clone(brasa, 10), mixedGear('raro', 0, ['sol', 'sol', 'chuva', 'nevoa']), NE, 1300, 'sol'), NE);
+// E3 sem n(): com o pacote de balanceamento, as 100 corridas do --quick davam 64% (o completo, 75%);
+// 400 duelos de 2 corredores custam menos de 1 s
+var NE3 = 400;
+var vE3 = pct(duelGear(clone(brasa, 10), setGear('sol', 'raro', 0, 4), clone(brasa, 10), mixedGear('raro', 0, ['sol', 'sol', 'chuva', 'nevoa']), NE3, 1300, 'sol'), NE3);
 check('E3', '4 Raras do Sol × 4 Raras misturadas, com Sol', vE3, 65, 85);
 // E3b: os dois Brasas do E3 + uma Maré (Água, sem equipamento) como agente do Dado; Sol só no início e
 // Dado ligado. Com só dois Fogos o Dado sempre cairia no Sol; a Maré, quando vence um Dado, vira o clima
@@ -367,10 +391,10 @@ var vE4 = pct(duelGear(clone(brasa, 10), setGear('chuva', 'raro', 0, 5), clone(b
 check('E4', 'Fogo com 5 Raras da Chuva × misturadas, na chuva', vE4, 60, 75);
 log('### E. Equipamento (metas E1–E4, E2 em a/b, + E3b)');
 log('');
-log('Duelos de 2 corredores (' + NE + ' corridas por duelo, largada alternada), mapas aleatórios; clima fixo nas metas com clima (Dado desligado), exceto E3b (3 corredores, Sol inicial, Dado ligado). Peças de `gear.js`.');
+log('Duelos de 2 corredores (' + NE + ' corridas por duelo; E3 sempre ' + NE3 + '; largada alternada), mapas aleatórios; clima fixo nas metas com clima (Dado desligado), exceto E3b (3 corredores, Sol inicial, Dado ligado). Peças de `gear.js`.');
 log('');
 log('E2a/E2b: no lv30 o salto Comum→Raro vale ~20 pontos por status (statCap 60 contra 80) mais duas skills extras; um conjunto Raro +10 completo (+14) fecha um degrau (vence o Mágico) mas não dois (perde do Raro): "fecha um degrau, não dois". ' +
-  'E3 (65–85%): o bônus de 4 peças reforça o clima do conjunto para ×1,07 (a skill de clima dá ×1,10 e vale mais, sem acumular); num duelo de clima fixo entre cavalos idênticos vale ~77%, porque a simulação é quase determinística e qualquer vantagem constante vira vitória. ' +
+  'E3 (65–85%): o bônus de 4 peças reforça o clima do conjunto para ×1,07 (a skill de clima dá ×' + f2(S.TUNING.weatherMultDouble) + ' e vale mais, sem acumular); num duelo de clima fixo entre cavalos idênticos vale ~77%, porque a simulação é quase determinística e qualquer vantagem constante vira vitória. ' +
   'E3b mede essa vantagem real: os dois Brasas do E3 mais uma Maré (Água, sem equipamento) na pista, Sol só no início e o Dado ligado; conta quantas vezes a Brasa do Sol chega à frente da misturada. ' +
   'A terceira montaria de outro elemento é necessária porque o Dado vira o clima para o elemento de quem o vence: com só dois Fogos ele sempre cairia no Sol e o clima nunca viraria. ' +
   'A faixa 60–80% é um pino de regressão em torno do valor medido: o bônus de 4 peças é forte sempre que a previsão se mantém (o clima virou em ~28% das corridas desta meta), e as duas Brasas empatam quando o clima vira.');
@@ -581,6 +605,214 @@ WILD.forEach(function (h) { leagueRow(h, null); });
 log('');
 
 // ---------------------------------------------------------------------------
+// A) Metas da auditoria (comparação pareada: mesma seed e campo, com e sem a mudança)
+// ---------------------------------------------------------------------------
+// S1/A1: campo de 6 Raros lv20 sintéticos (status base 54–66, potencial 0, sem skills, elementos
+// sorteados entre Fogo/Água/Grama/Neutro), mapa aleatório, Dado ligado. O corredor-alvo é k % 6; com
+// skill de elemento ele passa a ser desse elemento (nas duas corridas do par). Constantes AUD_* no topo.
+function audSynth(el, stats) {
+  var h = clone(WILD[0], 20);
+  h.id = 'syn'; h.name = 'S'; h.rarity = 'raro'; h.element = el; h.skills = [];
+  G.STAT_KEYS.forEach(function (k) { h.base[k] = stats[k]; h.potential[k] = 0; });
+  return h;
+}
+function pairedChunk(a, b) {
+  var acc = { skill: {}, stat: {} };
+  AUD_SKILLS.forEach(function (id) { acc.skill[id] = [0, 0, 0]; });   // soma dVitória, soma dVitória², ativou
+  AUD_STATS.forEach(function (k) { acc.stat[k] = [0, 0]; });
+  for (var k = a; k < b; k++) {
+    var seed = S.hash2(777, k);
+    var r = S.mulberry32(S.hash2(seed, 31));
+    var field = [];
+    for (var q = 0; q < 6; q++) {
+      var el = AUD_EL4[Math.floor(r() * 4)], st = {};
+      G.STAT_KEYS.forEach(function (key) { st[key] = Math.round(54 + 12 * r()); });
+      field.push(audSynth(el, st));
+    }
+    pairedOne(seed, field, k % 6, S.randomConditions(seed), acc);
+  }
+  return acc;
+}
+function pairedOne(seed, field, subj, cond, acc) {
+  var base = {};
+  function runWith(h) {
+    var f = field.slice(); f[subj] = h;
+    return run(seed, cond, f.map(function (x) { return racer(x); }));
+  }
+  function baseWin(el) {   // corrida sem a mudança, com o alvo no elemento el (guardada por elemento)
+    if (!(el in base)) { var h0 = clone(field[subj]); h0.element = el; base[el] = runWith(h0).finishOrder[0] === subj ? 1 : 0; }
+    return base[el];
+  }
+  AUD_SKILLS.forEach(function (id) {
+    var sk = G.SKILLS[id], el = sk.element === 'neutro' ? field[subj].element : sk.element;
+    var h = clone(field[subj]); h.element = el; h.skills = [id];
+    var res = runWith(h), d = (res.finishOrder[0] === subj ? 1 : 0) - baseWin(el), A = acc.skill[id];
+    A[0] += d; A[1] += d * d;
+    if (countType(res, 'skill', subj) > 0) A[2]++;
+  });
+  AUD_STATS.forEach(function (key) {
+    var h = clone(field[subj]); h.base[key] += 10;
+    var d = (runWith(h).finishOrder[0] === subj ? 1 : 0) - baseWin(field[subj].element);
+    acc.stat[key][0] += d; acc.stat[key][1] += d * d;
+  });
+}
+// Sala como o jogo monta (buildLobby de game.js, sem o filtro de montarias do jogador): bots de rating
+// 91,5%–111,5% do jogador, nível ajustado ao alvo, equipamento de bot da liga do alvo.
+function audBestLevel(tpl, gear, target, lo, hi) {
+  var h = clone(tpl), best = lo, bestD = Infinity;
+  for (var L = lo; L <= hi; L++) { h.level = L; var d = Math.abs(S.powerRating(h, gear) - target); if (d < bestD - 0.5) { bestD = d; best = L; } }
+  return { level: best, diff: bestD };
+}
+function audLeagueIdx(rt) { var id = S.leagueFor(rt).id; for (var i = 0; i < G.LEAGUES.length; i++) if (G.LEAGUES[i].id === id) return i; return 0; }
+function audLobby(seed, playerTpl, playerLevel) {
+  var r = S.mulberry32(S.hash2(seed, 0xA11CE));
+  var cond = S.randomConditions(seed);
+  var nR = 4 + Math.floor(r() * 5);
+  var pl = clone(playerTpl, playerLevel);
+  var racers = [{ horse: pl, gear: null, rating: S.powerRating(pl, null), tpl: playerTpl.id }];
+  var used = {}, pr = racers[0].rating;
+  for (var bI = 0; bI < nR - 1; bI++) {
+    var target = pr * (0.915 + 0.2 * r()), gpick = r(), li = audLeagueIdx(target);
+    var inBand = ALL.map(function (tpl) {
+      var lo = Math.max(1, (tpl.level || 1) - 10), hi = Math.min(50, (tpl.level || 1) + 20), bg = GR.botGear(li, tpl.element, gpick);
+      return { tpl: tpl, gear: bg, fit: audBestLevel(tpl, bg, target, lo, hi) };
+    }).filter(function (c) { return c.fit.diff <= target * 0.06; });
+    var fresh = inBand.filter(function (c) { return !used[c.tpl.id]; });
+    var cands = fresh.length ? fresh : inBand;
+    if (!cands.length) {
+      cands = ALL.map(function (tpl) { var bg = GR.botGear(li, tpl.element, gpick); return { tpl: tpl, gear: bg, fit: audBestLevel(tpl, bg, target, 1, 50) }; })
+        .sort(function (x, y) { return x.fit.diff - y.fit.diff; }).slice(0, 3);
+    }
+    var ch = cands[Math.floor(r() * cands.length)];
+    used[ch.tpl.id] = true;
+    var h = clone(ch.tpl, ch.fit.level);
+    racers.push({ horse: h, gear: ch.gear, rating: S.powerRating(h, ch.gear), tpl: ch.tpl.id });
+  }
+  return { cond: cond, racers: racers };
+}
+function lobbyChunk(a, b) {
+  var o = { n: 0, fav: 0, lead13: 0, close: 0, recs: [] };
+  for (var k = a; k < b; k++) {
+    var seed = S.hash2(1234, k), r = S.mulberry32(S.hash2(seed, 5));
+    var tpl = ALL[Math.floor(r() * ALL.length)];
+    var lv = Math.max(1, Math.min(50, (tpl.level || 1) + Math.floor(r() * 25) - 5));
+    var lb = audLobby(seed, tpl, lv);
+    var res = S.simulate({ seed: seed, conditions: lb.cond, recordFrames: true,
+      racers: lb.racers.map(function (x, i) { return { horse: x.horse, gear: x.gear, name: 'r' + i }; }) });
+    var nR = lb.racers.length, D = lb.cond.distance, rt = lb.racers.map(function (x) { return x.rating; });
+    var place = []; res.finishOrder.forEach(function (ri, p) { place[ri] = p; });
+    var best = 0, i;
+    for (i = 1; i < nR; i++) if (rt[i] > rt[best]) best = i;
+    o.n++; if (place[best] === 0) o.fav++;
+    var w = res.finishOrder[0];
+    for (var f = 0; f < res.frames.length; f++) {   // líder no primeiro frame em que alguém passa de 1/3
+      var P = res.frames[f].pos, m = 0;
+      for (var j = 1; j < nR; j++) if (P[j] > P[m]) m = j;
+      if (P[m] >= D / 3) { if (m === w) o.lead13++; break; }
+    }
+    var fw = Math.min(res.frames.length - 1, Math.ceil(res.finishTimes[w] * 10));   // margem em metros quando o 1º cruza
+    var P2 = res.frames[fw].pos.slice().sort(function (x, y) { return y - x; });
+    if (D - P2[1] < 1) o.close++;
+    for (i = 0; i < nR; i++) for (var j2 = i + 1; j2 < nR; j2++) o.recs.push([lb.racers[i].tpl, lb.racers[j2].tpl, rt[i] - rt[j2], place[i] < place[j2] ? 1 : 0]);
+  }
+  return o;
+}
+function startAuditWorkers() {
+  var jobs = [], CH = 4, c;
+  for (c = 0; c < CH; c++) jobs.push({ kind: 'pareado', a: Math.floor(AUD_NS * c / CH), b: Math.floor(AUD_NS * (c + 1) / CH) });
+  for (c = 0; c < 2; c++) jobs.push({ kind: 'salas', a: Math.floor(AUD_NP * c / 2), b: Math.floor(AUD_NP * (c + 1) / 2) });
+  return Promise.all(jobs.map(function (job) {
+    return new Promise(function (resolve, reject) {
+      var w = new WT.Worker(__filename, { workerData: job, argv: args });
+      w.once('message', function (m) { resolve({ job: job, data: m }); });
+      w.once('error', reject);
+      w.once('exit', function (code) { if (code) reject(new Error('worker saiu com código ' + code)); });
+    });
+  }));
+}
+function audCi(sum, sum2, N) {   // média e IC 95% de uma diferença pareada (−1/0/+1), em p.p.
+  var m = sum / N, v = (sum2 - N * m * m) / Math.max(1, N - 1);
+  return [100 * m, 100 * 1.96 * Math.sqrt(Math.max(0, v) / N)];
+}
+function auditSection(parts) {
+  var sk = {}, st = {}, L = { n: 0, fav: 0, lead13: 0, close: 0, recs: [] };
+  AUD_SKILLS.forEach(function (id) { sk[id] = [0, 0, 0]; });
+  AUD_STATS.forEach(function (k) { st[k] = [0, 0]; });
+  parts.forEach(function (p) {
+    var d = p.data;
+    if (p.job.kind === 'pareado') {
+      AUD_SKILLS.forEach(function (id) { for (var q = 0; q < 3; q++) sk[id][q] += d.skill[id][q]; });
+      AUD_STATS.forEach(function (k) { st[k][0] += d.stat[k][0]; st[k][1] += d.stat[k][1]; });
+    } else {
+      L.n += d.n; L.fav += d.fav; L.lead13 += d.lead13; L.close += d.close; L.recs = L.recs.concat(d.recs);
+    }
+  });
+  log('### A. Metas da auditoria (S1, A1, P1, P2, Em1; comparação pareada)');
+  log('');
+  log('S1/A1: ' + AUD_NS + ' pares por variante; mesma seed e campo com e sem a mudança. Campo de 6 Raros lv20 sintéticos (status base 54–66, sem skills, elementos sorteados), mapa aleatório, Dado ligado; ' +
+    'o alvo é o corredor k % 6 (com skill de elemento, ele passa a ser desse elemento nas duas corridas). Ganho = vitórias com − vitórias sem, em p.p.' +
+    (QUICK ? ' No --quick as amostras são menores (IC maior); os números de referência são os do modo completo.' : ''));
+  log('');
+  log('| Skill | Gatilho | Ativou | Ganho de vitória (p.p., IC 95%) | Meta S1 |');
+  log('|---|---|---|---|---|');
+  AUD_SKILLS.forEach(function (id) {
+    var c = audCi(sk[id][0], sk[id][1], AUD_NS), isenta = id === 'dado-viciado';
+    if (!isenta) check('S1', 'Ganho pareado de vitória: ' + G.SKILLS[id].name, c[0], 3, 13, ' p.p.');
+    log('| ' + G.SKILLS[id].name + ' | ' + G.SKILLS[id].trigger + ' | ' + f1(pct(sk[id][2], AUD_NS)) + '% | ' + f1(c[0]) + ' ± ' + f1(c[1]) + ' | ' +
+      (isenta ? 'isenta (decisão de design pendente)' : '3–13') + ' |');
+  });
+  log('');
+  var gains = {};
+  AUD_STATS.forEach(function (k) { gains[k] = audCi(st[k][0], st[k][1], AUD_NS); });
+  var six = AUD_RACE_STATS.map(function (k) { return gains[k][0]; }).sort(function (x, y) { return x - y; });
+  var med = (six[2] + six[3]) / 2;
+  log('A1: +10 pontos de status base no alvo. Meta: nenhum dos seis status de corrida acima de 3,2× a mediana deles (' + f1(med) + ' p.p. → teto ' + f1(3.2 * med) + ') nem abaixo de 3 p.p.; Sorte isenta (decisão de design pendente).');
+  log('');
+  log('| Status | Ganho de vitória (p.p., IC 95%) | ÷ mediana |');
+  log('|---|---|---|');
+  AUD_STATS.slice().sort(function (x, y) { return gains[y][0] - gains[x][0]; }).forEach(function (k) {
+    var g = gains[k];
+    if (k !== 'sorte') {
+      check('A1', '+10 de ' + G.STATS[k].name + ': ganho pareado ≥ 3 p.p.', g[0], 3, 100, ' p.p.');
+      check('A1', '+10 de ' + G.STATS[k].name + ': ganho ÷ mediana dos seis', g[0] / med, 0, 3.2, '×');
+    }
+    log('| ' + G.STATS[k].name + (k === 'sorte' ? ' (isenta)' : '') + ' | ' + f1(g[0]) + ' ± ' + f1(g[1]) + ' | ' + f2(g[0] / med) + '× |');
+  });
+  log('');
+  // P1: curva empírica P(maior rating à frente) por |diferença| em faixas de 20; resíduo por montaria
+  function bucket(d) { return Math.max(-150, Math.min(150, Math.round(d / 20) * 20)); }
+  var pairs = {}, resid = {};
+  L.recs.forEach(function (x) { var bk = bucket(Math.abs(x[2])), P = pairs[bk] = pairs[bk] || [0, 0]; P[1]++; if ((x[2] >= 0) === (x[3] === 1)) P[0]++; });
+  L.recs.forEach(function (x) {
+    var P = pairs[bucket(Math.abs(x[2]))], p = P[0] / P[1], pi = x[2] >= 0 ? p : 1 - p;
+    (resid[x[0]] = resid[x[0]] || [0, 0])[0] += x[3] - pi; resid[x[0]][1]++;
+    (resid[x[1]] = resid[x[1]] || [0, 0])[0] += (1 - x[3]) - (1 - pi); resid[x[1]][1]++;
+  });
+  var vFav = pct(L.fav, L.n), vLead = pct(L.lead13, L.n), vClose = pct(L.close, L.n);
+  log('P1/P2/Em1: ' + L.n + ' salas de 4–8 corredores montadas como o jogo monta (bots de rating 91,5%–111,5% do jogador, nível ajustado ao alvo, equipamento de bot da liga), mapa aleatório, Dado ligado. ' +
+    'P1 compara cada par da sala com a curva empírica "maior Poder à frente" por diferença de rating (faixas de 20).' +
+    (QUICK ? ' **P1 só conta como meta no modo completo**: com ' + L.n + ' salas o IC do resíduo (~±2 p.p.) é largo demais para a faixa ±5; a tabela abaixo é só informativa.' : ''));
+  log('');
+  log('| Montaria | Resíduo P1 (vitória no par − previsto pelo Poder, p.p.; meta |x| ≤ 5) | Pares |');
+  log('|---|---|---|');
+  ALL.forEach(function (h) {
+    var x = resid[h.id], v = x ? 100 * x[0] / x[1] : NaN;
+    if (!QUICK) check('P1', 'Resíduo por montaria: ' + h.name, v, -5, 5, ' p.p.');
+    log('| ' + h.name + ' | ' + f1(v) + ' | ' + (x ? x[1] : 0) + ' |');
+  });
+  log('');
+  check('P2', 'Favorito do Poder vence na sala pareada', vFav, 35, 55);
+  check('Em1', 'Quem lidera em 1/3 da pista vence', vLead, 0, 55);
+  check('Em1', 'Corridas com menos de 1 m entre o 1º e o 2º', vClose, 5, 100);
+  log('| Métrica | Valor | Faixa |');
+  log('|---|---|---|');
+  log('| P2: favorito do Poder vence | **' + f1(vFav) + '%** | 35–55% |');
+  log('| Em1: líder em 1/3 da pista vence | **' + f1(vLead) + '%** | ≤ 55% |');
+  log('| Em1: margem do 1º para o 2º abaixo de 1 m | **' + f1(vClose) + '%** | ≥ 5% |');
+  log('');
+}
+
+// ---------------------------------------------------------------------------
 // Info extra
 // ---------------------------------------------------------------------------
 log('### Outros números (corridas do teste 1: iniciais lv1, mapas aleatórios)');
@@ -595,6 +827,8 @@ log('| Viradas de clima por corrida | ' + f2(info.clima / info.races) + ' |');
 log('| Skills ativadas por corrida | ' + f2(info.skills / info.races) + ' (a simulação não expõe as tentativas; só as ativações) |');
 log('');
 
+audJobs.then(function (parts) { auditSection(parts); finish(); }, function (e) { console.error('[balance] worker falhou: ' + (e && e.stack || e)); process.exit(1); });
+function finish() {
 log('### Resultado das metas');
 log('');
 log('| # | Meta | Valor | Faixa | OK |');
@@ -612,6 +846,7 @@ log(failed.length ? ('**' + failed.length + ' meta(s) falharam.**') : '**Todas a
 console.log(out.join('\n'));
 console.error('[balance] ' + ((Date.now() - t0) / 1000).toFixed(1) + 's, ' + (failed.length ? failed.length + ' FALHA(S)' : 'OK'));
 process.exit(failed.length ? 1 : 0);
+}
 
 // ---------------------------------------------------------------------------
 // Corrida de exemplo (docs/exemplos.md)

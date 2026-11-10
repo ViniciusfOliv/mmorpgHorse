@@ -48,7 +48,6 @@
   var SAVE_KEY = 'galope-elemental:dev';
   var GOLD_INF = 999999;
   var WIND_INTENSITIES = ['calmo', 'brisa', 'ventania'];
-  var TRACADOS = ['normal', 'curvas', 'subidas'];
   var PALETTE_KEYS = ['coat', 'coatShade', 'mane', 'accent'];
   var NEUTRAL_DISTANCE = 1600;   // o mesmo padrão de RaceSim.normalizeConditions sem seed
   var MAX_LIST = 12;
@@ -186,7 +185,6 @@
     SAVE_KEY: SAVE_KEY,
     GOLD_INF: GOLD_INF,
     WIND_INTENSITIES: WIND_INTENSITIES,
-    TRACADOS: TRACADOS,
     horseTemplate: horseTemplate,
     itemId: itemId,
     conditions: conditions,

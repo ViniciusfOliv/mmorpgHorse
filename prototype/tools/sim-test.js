@@ -121,9 +121,9 @@ test('especialista de reta vence o de curva em reta pura; de subida vence em sub
   for (var s = 0; s < 80; s++) { if (race(s, RETA, [mk({ vel: 90 }), mk({ man: 90 })]).finishOrder[0] === 0) w++; if (race(s, SUBIDA, [mk({ forca: 90 }), mk({ vel: 90 })]).finishOrder[0] === 0) h++; }
   assert.ok(w >= 44 && h >= 44, 'reta ' + w + ', subida ' + h);
 });
-test('weatherMult: dono T.weatherMult (1,03–1,07), dobrado 1.10, penalizado 2 − T.weatherMult, neutro 1', function () {
+test('weatherMult: dono T.weatherMult (1,03–1,07), dobrado T.weatherMultDouble (1,08), penalizado 2 − T.weatherMult, neutro 1', function () {
   var wm = S.TUNING.weatherMult; assert.ok(wm >= 1.03 && wm <= 1.07, 'weatherMult ' + wm);
-  assert.strictEqual(S.weatherMult('fogo', 'sol', false), wm); assert.strictEqual(S.weatherMult('fogo', 'sol', true), 1.10);
+  assert.strictEqual(S.weatherMult('fogo', 'sol', false), wm); assert.strictEqual(S.weatherMult('fogo', 'sol', true), S.TUNING.weatherMultDouble); assert.strictEqual(S.TUNING.weatherMultDouble, 1.08);
   assert.ok(Math.abs(S.weatherMult('grama', 'sol', false) - (2 - wm)) < 1e-9); assert.strictEqual(S.weatherMult('agua', 'sol', false), 1); assert.strictEqual(S.weatherMult('neutro', 'chuva', false), 1);
 });
 test('skills disparam pela chance: mítico lv50 sorte 100 ativa Arranque ≥ 85% das vezes; comum lv1 sorte 0 ≤ 50%', function () {
@@ -359,7 +359,7 @@ test('ECONOMY.gear', function () {
   assert.deepStrictEqual(g.enhanceChance, [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25]);
   assert.deepStrictEqual(g.enhanceCost, [1, 1, 1, 1, 1, 1, 2, 2, 2, 2]);
   assert.strictEqual(g.enhanceDropFrom, 6);
-  assert.deepStrictEqual(g.setBonus, { pieces: [3, 4, 5], skillChance: 0.05, sorte: 5, ratingPts: [10, 15, 20] });
+  assert.deepStrictEqual(g.setBonus, { pieces: [3, 4, 5], skillChance: 0.05, sorte: 5, ratingPts: [3, 15, 20] });
   assert.deepStrictEqual(g.podiumStone, [0.6, 0.4, 0.25]);
   assert.deepStrictEqual(g.startGear, ['sela-comum', 'ferraduras-comum']);
 });
@@ -441,7 +441,7 @@ test('botGear por liga', function () {
 });
 test('sellPrice e ratingPts', function () {
   assert.strictEqual(GR.sellPrice('sela-magico'), 63); assert.strictEqual(GR.sellPrice('armadura-sol-lendario'), 375); assert.strictEqual(GR.sellPrice('nada'), 0);
-  assert.deepStrictEqual([0, 1, 2, 3, 4, 5, 6].map(GR.ratingPts), [0, 0, 0, 10, 15, 20, 0]);
+  assert.deepStrictEqual([0, 1, 2, 3, 4, 5, 6].map(GR.ratingPts), [0, 0, 0, 3, 15, 20, 0]);
 });
 
 section('equipamento: simulação');
@@ -472,7 +472,7 @@ test('powerRating conta mods e pontos de conjunto', function () {
   assert.ok(r5 > r0 + 20, 'rating sobe com 5 Raras: ' + r0 + ' -> ' + r5);
   var g3 = GR.resolve({ equip: { ferraduras: 'i0', sela: 'i1', estribos: 'i2' } }, items);
   var statsOnly = S.powerRating(h, { mods: g3.mods, special: {}, set: { id: null, count: 0 }, pieces: [] });
-  assert.strictEqual(S.powerRating(h, g3) - statsOnly, 10);
+  assert.strictEqual(S.powerRating(h, g3) - statsOnly, 3);
 });
 test('equipamento nunca baixa o rating; tirar uma peça nunca o sobe (premissa da trava do páreo)', function () {
   var SL = ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'];
@@ -514,7 +514,7 @@ test('5 peças Chuva anulam a penalidade do Fogo na chuva; 4 Sol dobram o Sol', 
 });
 
 section('dev');
-// Referência gravada com o sim.js de antes do parâmetro config.dev (seeds 1001…1020; os 3 iniciais + 5
+// Referência regravada com o pacote de balanceamento da auditoria (seeds 1001…1020; os 3 iniciais + 5
 // aluguéis do Haras, com o equipamento de bot de cada liga). Mudou a simulação de propósito? Regrave a tabela.
 var crypto = require('crypto');
 var ALUGUEIS = G.WILD_HORSES.filter(function (h) { return h.rarity !== 'mitico' && B.rentalPrice(h) != null; }).slice(0, 5);
@@ -529,13 +529,13 @@ function refRace(seed, dev) {
 function refHash(res) {
   return crypto.createHash('sha1').update(JSON.stringify({ finishOrder: res.finishOrder, finishTimes: res.finishTimes, events: res.events })).digest('hex');
 }
-var REF_HASHES = ['c16103a975ab67d0aa9e1f0877f73405c6619869', '79e45d97f356745d6deee49708be718e3409ddd6', 'cb59a9c72a4bfd11b96a32fb7cbd26b3ff8796ce',
-  '67c660347e9513beb3b549b9c7f4dcaaf2ed733b', '46e412938e7e70252d8aa61f9cd7ee634ce17171', '18446830616f2bee462ff21e5f1af9c22a8f083b',
-  'd18aa910602f5bb81fb1ae8f038cc101faa0a2ce', 'f762502c5c1b75c51a79b6f5685936da6219a51e', 'e4a825535b7131a6b3593480ffa33a5e24c968d5',
-  '39f196cde374d9c98b0a82c534e5075039cc18ac', '255a92a89d99cb6b0a673b842e90ae025bdb17b4', '07501a0c97d089adabe8c6049626e0776a65c640',
-  'ace24e64c2d2475db4b8fefb812267525f9c8653', '5eb7a7717b99839212adb1343a5ceafb64d87ef0', '5d62b6d50a57a7e0eaf49133264d232d2e932c9c',
-  'baeb9938a08635dc5d4f92cd727855f2c5929381', 'ad208c2bd340deb0da1791c1df8d0122e71f7c02', '4583b1ebe60c0dd59c28f900e6304196207eb943',
-  '7354b6104f16159aaf2d157feef8d2af29686eda', 'c34309057ab03de7cd7592ae612d98104d81394a'];
+var REF_HASHES = ['7ca78bece9d78556809efae25dd7162eab7d40cc', 'eb1de6577af765496cf7db9960a46426a72fd527', 'fd2736a810021adfb7a2c1435247935792ffa096',
+  '0eced70bacb2eb596c745c8f939a9e1a8d44337b', 'ba60c6134300938bd75e1390d1618bf0da524f49', 'ea9aaee2e9e1b644723b52da17ccebf424970b61',
+  '48444d71e09ab9784ce1d8c07b165ef490203b1e', '0289f773ff99e90bb9ed355eb85c79c3fc227c85', 'ce8c09eb2c3c82bc5ed8eb71cb671aaab96d270e',
+  '13321e4232c48c81759eb99b3374a9f950ea7e95', '5e4b62cbdbbae74bd999be8ddfcaaef2f3843d86', '288080097ee5ec09f2a491e5335f8e973c15d565',
+  'e4077f04f7634edbcf13ef93ec9c33f4d33503c9', '45d979760d8f36a84f36ecc8f6517dd1f97da67c', 'f6398dba4c8bc84ce80904ec712853261ebfaaff',
+  'd64e7c020ee4b44a002dc772d4fa77697e302ae5', 'b7c44ea737a877651124d845e272261fd0cf7229', 'b1c1a1071067112167c78e32bef8bcd4147272a3',
+  '4b01401d5c8977d1f824c754c20bcb25927b56b0', 'a17da841ebf2718b98238d2771787aa62b7339de'];
 test('sem config.dev o resultado é o de antes', function () {
   assert.deepStrictEqual(CAMPO_REF.map(function (h) { return h.id; }), ['brasa', 'mare', 'ipe', 'w-pangare', 'w-faisca', 'w-lambari', 'w-capim', 'w-ticao']);
   var diff = [];
@@ -672,6 +672,127 @@ test('Dev.conditions corrige distância e omite campo inválido', function () {
     [{ type: 'reta', from: 0, to: 300 }, { type: 'curva', from: 300, to: 600 }, { type: 'subida', from: 600, to: 900 }, { type: 'reta', from: 900, to: 1200 }]);
   assert.deepStrictEqual(DV().conditions({ tracado: ['reta', 'lava'], distance: 1200 }), { distance: 1200 });
 });
+
+section('auditoria: entradas malformadas e regras do núcleo');
+function campo2(h0) { return [h0 || mk({}), mk({ vel: 70 })]; }
+function semNaN(res) { return res.finishTimes.every(function (t) { return typeof t === 'number' && isFinite(t) && t > 0 && t < S.TUNING.maxTime; }); }
+test('normalizeConditions: distância fora de 1000–2400 ou não numérica usa a da seed', function () {
+  var rnd = S.randomConditions(7);
+  [-100, 0, 'abc', '1600', 1e6, 999, 2401, NaN, Infinity, 1234.5, null, true].forEach(function (d) {
+    var c = S.normalizeConditions({ distance: d }, 7);
+    assert.strictEqual(c.distance, rnd.distance, String(d));
+    assert.deepStrictEqual(c.blocks, rnd.blocks, String(d) + ' blocos');
+  });
+  [-100, 'abc', 1e6].forEach(function (d) { assert.strictEqual(S.normalizeConditions({ distance: d }).distance, 1600, 'sem seed: ' + d); });
+  // distância válida diferente da seed: uma reta única do tamanho pedido
+  var alvo = rnd.distance === 2000 ? 1500 : 2000, c2 = S.normalizeConditions({ distance: alvo }, 7);
+  assert.strictEqual(c2.distance, alvo); assert.deepStrictEqual(c2.blocks, [{ type: 'reta', from: 0, to: alvo }]);
+  assert.strictEqual(S.normalizeConditions({ distance: 1000 }, 7).distance, 1000); assert.strictEqual(S.normalizeConditions({ distance: 2400 }, 7).distance, 2400);
+  // blocos que terminam fora da faixa são descartados
+  var curto = S.normalizeConditions({ blocks: [{ type: 'reta', from: 0, to: 50 }] }, 7);
+  assert.strictEqual(curto.distance, rnd.distance);
+});
+test('simulate com distância malformada corre na distância da seed, com tempos válidos', function () {
+  [-100, 'abc', 1e6].forEach(function (d) {
+    var res = race(11, { distance: d }, campo2());
+    assert.strictEqual(res.conditions.distance, S.randomConditions(11).distance, String(d));
+    assert.ok(semNaN(res), String(d) + ': ' + res.finishTimes.join());
+  });
+});
+test('level e potencial malformados: status finitos, corrida termina, skillChance limita o level como computeStats', function () {
+  var h = mk({}); h.level = 'x'; h.potential = { vel: 'abc', acel: NaN, man: -5, forca: 99, est: null, garra: undefined, sorte: '7' };
+  var st = S.computeStats(h, null);
+  G.STAT_KEYS.forEach(function (k) { assert.ok(typeof st[k] === 'number' && isFinite(st[k]), k + ' = ' + st[k]); });
+  var h1 = mk({}); h1.level = 1; h1.potential = { vel: 0, acel: 0, man: 0, forca: 31, est: 0, garra: 0, sorte: 7 };
+  assert.deepStrictEqual(st, S.computeStats(h1, null), 'level "x" vale 1; potencial vira número (inválido vale 0), preso a 0–31');
+  var hb = mk({}); hb.base.vel = 'rápido'; assert.strictEqual(typeof S.computeStats(hb, null).vel, 'number');
+  var res = race(3, RETA, campo2(h));
+  assert.ok(semNaN(res), res.finishTimes.join());
+  assert.ok(!res.events.some(function (e) { return e.type === 'chegada' && /900/.test(e.text); }), 'ninguém "chega" em 900 s');
+  var c1 = S.skillChance({ rarity: 'raro', level: 1 }, { sorte: 0 }), c50 = S.skillChance({ rarity: 'raro', level: 50 }, { sorte: 0 });
+  assert.strictEqual(S.skillChance({ rarity: 'raro', level: -200 }, { sorte: 0 }), c1);
+  assert.strictEqual(S.skillChance({ rarity: 'raro', level: 'x' }, { sorte: 0 }), c1);
+  assert.strictEqual(S.skillChance({ rarity: 'raro', level: 1e9 }, { sorte: 0 }), c50);
+  assert.strictEqual(S.sanitizeLevel(10.7), 10); assert.strictEqual(S.sanitizeLevel(undefined), 1); assert.strictEqual(S.sanitizePotential('x'), 0); assert.strictEqual(S.sanitizePotential(40), 31);
+});
+test('simulate não muta a config recebida', function () {
+  var cfg = { seed: 99, conditions: { distance: 1600, blocks: [{ type: 'reta', from: 0, to: 400 }, { type: 'curva', from: 400, to: 1200 }, { type: 'reta', from: 1200, to: 1600 }] },
+    racers: [{ horse: cl(G.STARTERS[0]), gear: GR.botGear(5, 'fogo', 0.5), name: 'a' }, { horse: cl(G.STARTERS[1]), gear: null, name: 'b' }], dev: { skillsAlways: true } };
+  var antes = JSON.stringify(cfg);
+  S.simulate(cfg); assert.strictEqual(JSON.stringify(cfg), antes);
+});
+test('resultado traz simVersion e tuningHash; o hash muda com o TUNING e com as skills', function () {
+  assert.strictEqual(typeof S.VERSION, 'string'); assert.ok(S.VERSION.length > 0);
+  var a = race(5, RETA, campo2());
+  assert.strictEqual(a.simVersion, S.VERSION); assert.ok(/^[0-9a-f]{16}$/.test(a.tuningHash), a.tuningHash);
+  assert.strictEqual(race(6, CURVA, campo2()).tuningHash, a.tuningHash, 'não depende da seed nem do mapa');
+  assert.strictEqual(S.tuningHash(), a.tuningHash);
+  var old = S.TUNING.vBase; S.TUNING.vBase = old + 0.01;
+  try { assert.notStrictEqual(S.tuningHash(), a.tuningHash, 'TUNING'); } finally { S.TUNING.vBase = old; }
+  var sk = G.SKILLS.sprint.effect, sm = sk.speedMult; sk.speedMult = sm + 0.01;
+  try { assert.notStrictEqual(S.tuningHash(), a.tuningHash, 'skills'); } finally { sk.speedMult = sm; }
+  assert.strictEqual(S.tuningHash(), a.tuningHash);
+});
+test('todo gatilho usado em SKILLS tem peso no Poder (SKILL_TRIGGER_WEIGHT)', function () {
+  var W = S.SKILL_TRIGGER_WEIGHT; assert.ok(W && typeof W === 'object');
+  Object.keys(G.SKILLS).forEach(function (id) {
+    var trig = G.SKILLS[id].trigger, key = trig.indexOf('weather:') === 0 ? 'weather' : trig;
+    assert.strictEqual(typeof W[key], 'number', id + ': gatilho ' + trig + ' sem peso');
+    assert.strictEqual(S.skillWeight(id), W[key], id);
+  });
+});
+test('payouts: valores exatos com porcentagens inteiras (4–8 corredores × 50/100/250)', function () {
+  var esperado = {
+    50: { 4: [126, 54], 5: [158, 67], 6: [135, 81, 54], 7: [158, 94, 63], 8: [216, 90, 54] },
+    100: { 4: [252, 108], 5: [315, 135], 6: [270, 162, 108], 7: [315, 189, 126], 8: [432, 180, 108] },
+    250: { 4: [630, 270], 5: [788, 337], 6: [675, 405, 270], 7: [788, 472, 315], 8: [1080, 450, 270] }
+  };
+  Object.keys(esperado).forEach(function (fee) {
+    Object.keys(esperado[fee]).forEach(function (nr) {
+      var order = []; for (var q = 0; q < +nr; q++) order.push(q);
+      var p = S.payouts(+fee, +nr, order), am = p.prizes.map(function (x) { return x.amount; });
+      assert.deepStrictEqual(am, esperado[fee][nr], fee + '×' + nr);
+      assert.strictEqual(am.reduce(function (s, x) { return s + x; }, 0), p.pot - p.fee, fee + '×' + nr + ' soma');
+      am.forEach(function (x, k) { if (k) assert.ok(x <= am[k - 1], 'crescente ' + fee + '×' + nr); });
+    });
+  });
+  [1, 3, 7].forEach(function (fee) { for (var nr = 4; nr <= 8; nr++) { var am = S.payouts(fee, nr, [0, 1, 2, 3, 4, 5, 6, 7].slice(0, nr)).prizes.map(function (x) { return x.amount; });
+    am.forEach(function (x, k) { if (k) assert.ok(x <= am[k - 1], 'crescente ' + fee + '×' + nr + ': ' + am); }); } });
+});
+test('podiumStone sorteia cada lugar de forma independente', function () {
+  var sem1 = 0, tem3sem1 = 0, tem2sem1 = 0, ambos = 0, N = 4000;
+  for (var s = 1; s <= N; s++) {
+    var p1 = GR.podiumStone(s, 1, 50), p2 = GR.podiumStone(s, 2, 50), p3 = GR.podiumStone(s, 3, 50);
+    if (!p1) { sem1++; tem3sem1 += p3; tem2sem1 += p2; }
+    if (p1 && p3) ambos++;
+  }
+  near(100 * tem3sem1 / sem1, 25, 3, '3º ganha pedra quando o 1º não ganha');
+  near(100 * tem2sem1 / sem1, 40, 3, '2º ganha pedra quando o 1º não ganha');
+  near(100 * ambos / N, 15, 2, '1º e 3º juntos (0,6 × 0,25)');
+});
+test('enhanceOdds/enhance exigem plus inteiro 0–10', function () {
+  [1.5, '3', NaN, -1, 10, 11, null, undefined, Infinity].forEach(function (p) {
+    assert.strictEqual(GR.enhanceOdds(p), null, String(p));
+    assert.strictEqual(GR.enhance({ uid: 'x', id: 'sela-comum', plus: p }, 1, 0), null, String(p));
+  });
+  assert.strictEqual(GR.enhance(null, 1, 0), null);
+  assert.deepStrictEqual(GR.enhanceOdds(3), { chance: 0.7, cost: 1, dropTo: 3 });
+});
+test('foal/rentalPrice/odds com grau e level malformados', function () {
+  var f = mk2({ sex: 'f' }), m = mk2({}); delete f.grau; m.grau = undefined;
+  var x = B.foal({ f: f, m: m, seedBase: 1, breedCounter: 0, nextUid: 1 });
+  assert.ok(x.grau >= 1 && x.grau <= 3);
+  var g0 = mk2({ rarity: 'comum' }); g0.grau = 0;   // mk2 troca grau 0 por 2
+  assert.strictEqual(B.rentalPrice(g0), B.rentalPrice(mk2({ rarity: 'comum', grau: 1 })));
+  assert.strictEqual(B.rentalPrice(mk2({ rarity: 'comum', grau: 4 })), B.rentalPrice(mk2({ rarity: 'comum', grau: 3 })));
+  var semGrau = mk2({ rarity: 'comum' }); delete semGrau.grau; assert.strictEqual(B.rentalPrice(semGrau), 125, 'sem grau vale ★★');
+  assert.strictEqual(B.rentalPrice(mk2({ rarity: 'comum', grau: 'x' })), 125);
+  assert.deepStrictEqual(B.rarityOdds(mk2({ sex: 'f', level: 'x' }), mk2({ level: 'x' })), B.rarityOdds(mk2({ sex: 'f', level: 1 }), mk2({ level: 1 })));
+  assert.strictEqual(B.levelFactor(mk2({ sex: 'f', level: 1e9 }), mk2({ level: 1e9 })), 1);
+  assert.ok(isFinite(B.levelFactor(mk2({ sex: 'f', level: NaN }), mk2({ level: 'abc' }))));
+  assert.strictEqual(B.hexMix, undefined, 'hexMix não é exportado');
+});
+test('Dev.TRACADOS removido', function () { assert.strictEqual(DV().TRACADOS, undefined); });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

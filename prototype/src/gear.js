@@ -5,8 +5,10 @@
  * ORDEM DE CHAMADAS DE rng():
  *   - enhance(item, seedBase, counter): UMA chamada por tentativa,
  *     rng = mulberry32(hash2(seedBase, 0xE4A0 + counter)); sucesso se roll < chance do passo.
- *   - podiumStone(seed, place, fee): UMA chamada por prêmio, rng = mulberry32(hash2(seed, 0xB1AC)),
- *     só se fee > 0 e place em 1–3 (senão devolve 0 sem sortear).
+ *   - podiumStone(seed, place, fee): UMA chamada por prêmio, rng = mulberry32(hash2(seed, 0xB1AC + place)),
+ *     só se fee > 0 e place em 1–3 (senão devolve 0 sem sortear). Cada lugar tem o seu sorteio, então
+ *     as chances (60/40/25%) são independentes entre os lugares.
+ *   - enhance/enhanceOdds só aceitam plus inteiro 0–9 (no +10 não melhora); fora disso, null.
  *   - resolve/botGear/enhanceOdds/sellPrice/ratingPts: não sorteiam.
  *
  * OBJETO RESOLVIDO (resolve e botGear):
@@ -16,7 +18,9 @@
  *     pieces: [{ slot, uid, id, plus }] }                         // ordem de GEAR_SLOTS, só peças válidas
  * Cada peça soma main + plus no status principal do slot e sub no secundário.
  * Conjunto = o que tem mais peças (empate: ordem sol/chuva/nevoa). Bônus acumulam:
- *   >= 3: sorte +5 e skillChanceBonus 0,05 · >= 4: weatherDoubleClimate = set.id · >= 5: ignoreWeatherPenalty.
+ *   >= 3: sorte +5 e skillChanceBonus 0,05 · >= 4: weatherDoubleClimate = set.id (o bônus do clima
+ *   sobe para ×1,07 só se a montaria for do elemento dono do clima do conjunto; para os outros não
+ *   muda nada) · >= 5: ignoreWeatherPenalty.
  *
  * BOTS por liga (botGear), conjunto = clima do elemento (Neutro: floor(pick*3) em sol/chuva/nevoa):
  *   0 nada · 1 ferraduras-comum, sela-comum +0 · 2 cinco Comuns +2 · 3 cinco Mágicas +3 ·
@@ -60,7 +64,7 @@
       var def = item ? piece(item.id) : null;
       if (!def || def.slot !== slot) return;
       var plus = item.plus;
-      if (!(typeof plus === 'number' && plus === Math.floor(plus) && plus >= 0 && plus <= EG.plusMax)) return;
+      if (!validPlus(plus)) return;
       var info = G.GEAR_SLOT_INFO[slot];
       mods[info.main] += def.main + plus;
       mods[info.sub] += def.sub;
@@ -78,8 +82,12 @@
     return { mods: mods, special: special, set: { id: setId, count: count }, pieces: pieces };
   }
 
+  // plus precisa ser inteiro em 0–(plusMax−1) (no +10 não melhora mais); fracionário, texto etc. => null
+  function validPlus(plus) {
+    return typeof plus === 'number' && plus === Math.floor(plus) && plus >= 0 && plus <= EG.plusMax;
+  }
   function enhanceOdds(plus) {
-    if (typeof plus !== 'number' || plus < 0 || plus >= EG.plusMax) return null;
+    if (!validPlus(plus) || plus >= EG.plusMax) return null;
     return {
       chance: EG.enhanceChance[plus],
       cost: EG.enhanceCost[plus],
@@ -88,6 +96,7 @@
   }
 
   function enhance(item, seedBase, counter) {
+    if (!item) return null;
     var odds = enhanceOdds(item.plus);
     if (!odds) return null;
     var roll = S.mulberry32(S.hash2(seedBase, 0xE4A0 + counter))();
@@ -97,7 +106,7 @@
 
   function podiumStone(seed, place, fee) {
     if (!(fee > 0) || place < 1 || place > 3) return 0;
-    var roll = S.mulberry32(S.hash2(seed, 0xB1AC))();
+    var roll = S.mulberry32(S.hash2(seed, 0xB1AC + place))();   // um sorteio por lugar (independentes)
     return roll < EG.podiumStone[place - 1] ? 1 : 0;
   }
 

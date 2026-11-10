@@ -19,6 +19,8 @@
  * se DESCEU, ★3 (sem sorteio de grau).
  *
  * ALUGUEL: Math.round(rentalBase[raridade] · grauMult[grau−1]); Mítico não se aluga (null).
+ * ENTRADAS: grau inválido (ausente, não numérico, fora de 1–3) vira ★★ ou é preso a 1–3; level não
+ * numérico vale 1 e é preso a 0–50 (grauOf/levelOf).
  * CORCEL: montaria que já tem todas as skills "de linha" da sua raridade (CORCEL_SETS).
  *
  * ORDEM DE CHAMADAS DE rng() em foal() (rng = mulberry32(hash2(seedBase>>>0, 0xB0B0 + breedCounter))):
@@ -70,10 +72,24 @@
   function clamp(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
   function order(m) { return G.RARITIES[m.rarity].order; }
 
+  // Saneamento das entradas (save antigo, montaria montada à mão): grau inteiro 1–3 (sem grau ou
+  // não numérico vale ★★, o grau padrão das montarias do catálogo); level número 0–maxLevel (não
+  // numérico vale 1). Não muda nada para entradas válidas.
+  function grauOf(mount) {
+    var g = Number(mount && mount.grau);
+    if (!isFinite(g) || (mount && mount.grau == null)) return 2;
+    return clamp(Math.round(g), 1, 3);
+  }
+  function levelOf(mount) {
+    var l = Number(mount && mount.level);
+    if (!isFinite(l) || (mount && mount.level == null)) return 1;
+    return clamp(l, 0, G.ECONOMY.maxLevel || 50);
+  }
+
   // f = égua, m = garanhão (quem chama garante)
   function levelFactor(f, m) {
     var E = G.ECONOMY.breeding;
-    return clamp((E.mareWeight * f.level + (1 - E.mareWeight) * m.level) / E.levelSaturation, 0, 1);
+    return clamp((E.mareWeight * levelOf(f) + (1 - E.mareWeight) * levelOf(m)) / E.levelSaturation, 0, 1);
   }
 
   function lerpCols(a, b, L) {
@@ -101,7 +117,7 @@
 
   function grauBase(f, m) {
     var w = G.ECONOMY.breeding.mareWeight;
-    return Math.round(w * f.grau + (1 - w) * m.grau);
+    return Math.round(w * grauOf(f) + (1 - w) * grauOf(m));
   }
 
   // u ≥ soma das colunas (só por erro de arredondamento no topo): cai na última coluna com p > 0
@@ -154,7 +170,7 @@
   function rentalPrice(mount) {
     var E = G.ECONOMY.breeding, base = E.rentalBase[mount.rarity];
     if (base === undefined || mount.rarity === 'mitico') return null;
-    return Math.round(base * E.grauMult[mount.grau - 1]);
+    return Math.round(base * E.grauMult[grauOf(mount) - 1]);
   }
 
   function isCorcel(mount) {
@@ -291,7 +307,6 @@
     isCorcel: isCorcel,
     GRAU_WINDOW: GRAU_WINDOW,
     GRAU_POT_FLOOR: GRAU_POT_FLOOR,
-    hexMix: hexMix,
     skillCandidates: skillCandidates,
     foal: foal
   };
