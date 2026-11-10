@@ -279,10 +279,15 @@ try {
       // 5. save adulterado (Ouro abaixo da entrada): a mesma sala corre como treino, sem entrada nem prêmio de aposta
       await rv.getByRole('button', { name: /^Voltar/ }).click()
       await rv.waitForSelector('#t-correr')
-      await rv.evaluate(() => { window.__galope.state.gold = 100 })
+      // o Ouro vai para 100 no próprio save gravado (como um save editado), e a página recarrega a partir dele
+      await rv.evaluate(() => {
+        const raw = JSON.parse(localStorage.getItem('galope-elemental:v1'))
+        raw.gold = 100
+        localStorage.setItem('galope-elemental:v1', JSON.stringify(raw))
+      })
       await rv.reload({ waitUntil: 'domcontentloaded' })
       await rv.waitForSelector('#t-estabulo')
-      await rv.evaluate(() => { window.__galope.state.gold = 100 })
+      if ((await rv.evaluate(() => window.__galope.state.gold)) !== 100) problems.push('reserva: o save editado não abriu com 100 de Ouro')
       const salaC = await abrirSala(rv)
       for (const k of ['seed', 'counter', 'track', 'blocks', 'weather', 'rivais']) if (salaA[k] !== salaC[k]) problems.push(`reserva: com o Ouro abaixo da entrada a sala mudou (${k}: ${salaA[k]} -> ${salaC[k]})`)
       if (!salaC.training || salaC.fee !== 0) problems.push('reserva: com o Ouro abaixo da entrada a sala deveria correr como treino ' + JSON.stringify({ training: salaC.training, fee: salaC.fee }))
@@ -431,8 +436,9 @@ try {
       await av.evaluate(() => { const b = document.querySelector('[data-acao="expandir"]'); b.disabled = false; b.click() })
       if (!RES.test(await avisos())) problems.push('aviso: recusa da vaga sem o aviso de Ouro reservado: ' + await avisos())
       // redesenho passivo (o mesmo dos moldes chegando): mudar a largura da janela
+      await av.evaluate(() => { document.getElementById('t-estabulo').dataset.antigo = '1' })
       await av.setViewportSize({ width: 380, height: 844 })
-      await sleep(600)
+      await av.waitForSelector('#t-estabulo:not([data-antigo])', { timeout: 5000 })   // a tela foi redesenhada
       if (!RES.test(await avisos())) problems.push('aviso: o aviso sumiu no redesenho passivo: ' + await avisos())
       // a próxima ação do jogador limpa o aviso
       await av.locator('[data-acao="aba"][data-id="estabulo"]').click()
