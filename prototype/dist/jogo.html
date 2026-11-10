@@ -1295,7 +1295,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   skillChance = min(0.95, raridade.skillChance + 0.005*(level−1) + 0.001*sorte)
  *   (por corrida; por bloco se effect.blockScoped). Gatilhos: start (largada), straight (entrou
  *   numa reta ≥150 m que não é a da largada), curve, curveExit, hill (entrou no bloco),
- *   lowStamina (estamina ≤30%), final (cruzou 80%), dice (antes de cada Dado da Sorte),
+ *   lowStamina (estamina ≤30%), final (cruzou 80%), dice (uma tentativa por corrida, antes do 1º Dado da Sorte),
  *   weather:<clima> (checado a cada tick com o clima vigente). Chaves de effect: accelMult,
  *   speedMult, drainMult (por distanceM ou durationS), curveBonus, hillBonus, hillDrainMult
  *   (até o fim do bloco), staminaRestore, garraChanceBonus, garraBoostBonus, extraDice,
@@ -1522,9 +1522,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   }
 
   // Rating de Poder: soma ponderada dos status efetivos + habilidades + pontos de conjunto.
-  // Cada habilidade vale 20 × a chance de o gatilho disparar numa corrida típica: clima, piso e
-  // subida só acontecem em ~1/3 das corridas, então valem ~1/3 (antes valiam 20 cheios e
-  // inflavam o rating de Garoa, Mandacaru etc.).
+  // Cada habilidade vale 20 × o peso do seu gatilho. Para curva, subida e estamina baixa o peso segue a
+  // chance de o gatilho acontecer numa corrida típica; clima (0.8) e dice (0.2) são pesos calibrados no
+  // pacote de balanceamento, não chances: o gatilho 'dice' acontece em toda corrida (o Dado extra só mexe
+  // na virada de clima, por isso vale pouco), e o de clima vale 0.8 mesmo sem acontecer sempre.
   // Exposto como RaceSim.SKILL_TRIGGER_WEIGHT; 'weather' vale para todo gatilho 'weather:<clima>'.
   // O sim-test confere que todo gatilho usado em GameData.SKILLS tem peso aqui (o fallback 1 é só defesa).
   var SKILL_TRIGGER_WEIGHT = { start: 1, straight: 1, curve: 0.8, curveExit: 0.8, hill: 0.6, lowStamina: 0.8, final: 1, dice: 0.2, weather: 0.8 };
@@ -2608,7 +2609,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return { mods: mods, special: special, set: { id: setId, count: count }, pieces: pieces };
   }
 
-  // plus precisa ser inteiro em 0–(plusMax−1) (no +10 não melhora mais); fracionário, texto etc. => null
+  // plus válido: inteiro em 0–plusMax (fracionário, texto etc. => inválido). enhanceOdds só melhora até plusMax−1:
+  // no +10 (plusMax) devolve null, porque não há mais o que melhorar
   function validPlus(plus) {
     return typeof plus === 'number' && plus === Math.floor(plus) && plus >= 0 && plus <= EG.plusMax;
   }
@@ -6781,7 +6783,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       breedLeft: num(m.breedLeft, GD.BREED_LEFT[m.sex], 0, 4),
       parents: validParents(m.parents),
       born: num(m.born, 0, 0, 1e9),
-      equip: GR.emptyEquip()      // ('gestacao', gravado por saves antigos e nunca lido, fica de fora)      // preenchido em sanitize(), que conhece as peças válidas
+      // ('gestacao', gravado por saves antigos e nunca lido, fica de fora)
+      equip: GR.emptyEquip()      // preenchido em sanitize(), que conhece as peças válidas
     };
     out.skills = validSkills(m.skills, out);
     return out;

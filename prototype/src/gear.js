@@ -82,7 +82,8 @@
     return { mods: mods, special: special, set: { id: setId, count: count }, pieces: pieces };
   }
 
-  // plus precisa ser inteiro em 0–(plusMax−1) (no +10 não melhora mais); fracionário, texto etc. => null
+  // plus válido: inteiro em 0–plusMax (fracionário, texto etc. => inválido). enhanceOdds só melhora até plusMax−1:
+  // no +10 (plusMax) devolve null, porque não há mais o que melhorar
   function validPlus(plus) {
     return typeof plus === 'number' && plus === Math.floor(plus) && plus >= 0 && plus <= EG.plusMax;
   }

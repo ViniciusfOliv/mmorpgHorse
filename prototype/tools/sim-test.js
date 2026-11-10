@@ -285,7 +285,7 @@ test('uid distinto mesmo com nomes iguais', function () {
 });
 
 test('snapshot dourado dos potros de exemplos.md', function () {
-  // docs/exemplos.md §13 "Três potros de exemplo": seedBase 20261106, nextUid 2, breedCounter 0/1/2.
+  // docs/exemplos.md §4 "Três potros de exemplo": seedBase 20261106, nextUid 2, breedCounter 0/1/2.
   // Compara o potro INTEIRO (inclusive a paleta, passo 9 da RNG): qualquer chamada de rng a mais,
   // a menos ou fora de ordem em breed.js muda algum campo e derruba este teste.
   function par(id, level, uid) {
@@ -770,7 +770,7 @@ test('podiumStone sorteia cada lugar de forma independente', function () {
   near(100 * tem2sem1 / sem1, 40, 3, '2º ganha pedra quando o 1º não ganha');
   near(100 * ambos / N, 15, 2, '1º e 3º juntos (0,6 × 0,25)');
 });
-test('enhanceOdds/enhance exigem plus inteiro 0–10', function () {
+test('enhanceOdds/enhance exigem plus inteiro 0–9 (o +10 já está no máximo)', function () {
   [1.5, '3', NaN, -1, 10, 11, null, undefined, Infinity].forEach(function (p) {
     assert.strictEqual(GR.enhanceOdds(p), null, String(p));
     assert.strictEqual(GR.enhance({ uid: 'x', id: 'sela-comum', plus: p }, 1, 0), null, String(p));

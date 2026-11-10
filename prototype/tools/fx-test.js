@@ -224,7 +224,7 @@ test('skillIcon segue a ordem (5 skills reais do catálogo)', function () {
 test('skillIcon: primeira chave da lista vence; drainMult só conta se < 1', function () {
   assert.strictEqual(FX.skillIcon(G.SKILLS['labareda']), 'vel', 'accelMult + speedMult => speedMult primeiro');
   assert.strictEqual(FX.skillIcon(G.SKILLS['mare-alta']), 'vel', 'staminaRestore + speedMult => speedMult primeiro');
-  assert.strictEqual(FX.skillIcon(G.SKILLS['sprint']), 'vel', 'drainMult 1.15 (gasta mais) não é fôlego');
+  assert.strictEqual(FX.skillIcon(G.SKILLS['sprint']), 'vel', 'drainMult 1.0 (gasto normal) não é fôlego');
   assert.strictEqual(FX.skillIcon({ effect: { drainMult: 1.15 } }), 'vel', 'só drainMult > 1: cai no padrão');
   assert.strictEqual(FX.skillIcon({ effect: { drainMult: 0.7 } }), 'folego');
   assert.strictEqual(FX.skillIcon(G.SKILLS['folego-de-montanha']), 'subida');

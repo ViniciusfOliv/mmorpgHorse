@@ -457,7 +457,8 @@
       breedLeft: num(m.breedLeft, GD.BREED_LEFT[m.sex], 0, 4),
       parents: validParents(m.parents),
       born: num(m.born, 0, 0, 1e9),
-      equip: GR.emptyEquip()      // ('gestacao', gravado por saves antigos e nunca lido, fica de fora)      // preenchido em sanitize(), que conhece as peças válidas
+      // ('gestacao', gravado por saves antigos e nunca lido, fica de fora)
+      equip: GR.emptyEquip()      // preenchido em sanitize(), que conhece as peças válidas
     };
     out.skills = validSkills(m.skills, out);
     return out;
