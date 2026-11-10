@@ -1,8 +1,8 @@
 # MMORPG Horse — GDD (rascunho v0.1)
 
-> Fonte da verdade do design. Números concretos do protótipo: `docs/exemplos.md`. Decisões com data e motivo: `docs/memoria/decisoes.md`.
+> Fonte da verdade do design. Números reais do protótipo: `docs/wiki.md` (gerado do código). Exemplos de corrida e de potros: `docs/exemplos.md`. Decisões com data e motivo: `docs/memoria/decisoes.md`.
 
-Status: **rascunho em construção**. Seções 1–5 aprovadas; §3–4 reescritas em 2026-11-06 com o Núcleo v2 (`docs/superpowers/specs/2026-11-06-nucleo-corrida-v2-design.md`). Seções 6+ ainda serão discutidas.
+Status: **rascunho em construção**. Seções 1–7 escritas e aprovadas (cada frente tem a spec em `docs/superpowers/specs/`); as seções 8+ estão pendentes. O caminho até o lançamento e o roteiro de evolução ficam em `docs/cronograma.md`.
 
 ## 1. Visão
 
@@ -14,9 +14,9 @@ Jogo em pixel art (web + Play Store) de corrida de cavalos com progressão estil
 |---|---|
 | Jogabilidade da corrida | **Automática.** Estratégia acontece antes: escolher a montaria e o equipamento para o mapa e o clima da corrida. Servidor simula com *seed*; cliente só anima. |
 | "MMO" | **Hub social**: cidade/estábulo compartilhado (chat, ranking, haras/guildas, mercado). Resto por menus. |
-| Obter cavalos | **Breeding + Expedições PVE** (núcleo) + **Ovos/gacha** (opcional, monetização). |
-| Monetização | **Duas moedas**: 🪙 Ouro (só ganho jogando, é apostável) / 💎 Gemas (compradas; cosméticos, passe, ovos). Gemas **nunca** viram Ouro. Evita classificação como jogo de azar. |
-| PVP | Corridas de **4–8 jogadores**, entrada igual, pote dividido 1º/2º/3º (menos taxa da casa). Bots completam vagas. **Espectadores apostam** (fase 2). |
+| Obter cavalos | **Cruzamento + Expedições PVE** (núcleo) + **pacotes de montaria** comprados só com moeda ganha jogando (nunca com Gemas: caixa de recompensa paga é vedada no Brasil para menores). |
+| Monetização | **Duas moedas**: 🪙 Ouro (só ganho jogando, é apostável) / 💎 Gemas (compradas; cosméticos e passe). Gemas **nunca** viram Ouro. Evita classificação como jogo de azar. |
+| PVP | Corridas de **4–8 jogadores**, entrada igual, pote dividido 1º/2º/3º (menos taxa da casa). Bots completam vagas. **Espectadores apostam** (fase 2; em reavaliação pelo risco de classificação 18+, ver `docs/cronograma.md`). |
 | Matchmaking | **Ligas por Rating de Poder do cavalo** + **MMR do jogador** dentro da liga. Modo opcional **Copa Nivelada** (status normalizados). |
 
 ## 3. Status base (1–100)
@@ -81,9 +81,7 @@ Iniciais (Brasa, Maré, Ipê) são Raros e têm uma skill exclusiva do elemento.
 
 **Fluxo de telas.** O jogo tem uma barra de 5 abas (Estábulo, Correr, Expedição, Haras, Loja), embaixo no celular e à esquerda no desktop (≥ 900 px), e um cabeçalho com o saldo (Ouro e Pedras) e o botão Perfil (estatísticas e "Recomeçar"). O Estábulo só lista as montarias; cada uma abre a tela da Montaria, com as sub-abas Status, Skills e Equipamento. Largada, corrida e resultado são telas cheias, sem barra. A corrida PVP continua automática; a aba Expedição é um espaço reservado até o subprojeto 4.
 
-**Arte do protótipo.** Os cavalos não são mais desenhados por código: cada estilo de crina (chamas, ondas, folhas, lisa) tem um molde gerado no PixelLab (retrato, parado com jóquei e galope de 9 quadros), em cores naturais, e o jogo o recolore na hora com a paleta do cavalo (pelagem, crina, detalhe, seda e pele). A escala é inteira, igual para todos os estilos, para os pixels ficarem nítidos. Os ícones (abas, slots de equipamento, moedas, elementos) também vêm do PixelLab; o logotipo e a capa vêm do Canva. Pista, clima e interface continuam por código. Detalhes e ajustes: `docs/superpowers/specs/2026-11-08-visuais-design.md`.
-
-**Arte da corrida viva.** Todos os cavalos galopam em velocidade de corrida. Quando o Dado da Sorte rola, cada cavalo mostra o seu dado girando em cima e o maior resultado brilha (com a marca "↻" em quem precisou desempatar). Skills, Garra e cansaço aparecem no próprio cavalo: balão com o nome da skill preso à raia, contorno na cor do elemento e aviso na faixa central. O clima se vê na pista (chuva com respingos, calor e poeira no sol, névoa, nuvens), e o vento, só visual, balança folhas e a cena. As curvas aparecem no mapa da sala, no minimapa e na pista, que sobe em arco. No Perfil, a opção "Animações" (seguir o sistema, completas, reduzidas) controla o movimento. Detalhes e ajustes: `docs/superpowers/specs/2026-11-09-corrida-viva-design.md`.
+**Arte do protótipo.** Os cavalos usam moldes gerados no PixelLab (retrato, parado e galope de 9 quadros por estilo de crina), recoloridos na hora com a paleta de cada montaria; ícones também do PixelLab, logotipo e capa do Canva; pista, clima e interface por código. Na corrida, o Dado da Sorte, as skills, a Garra e o cansaço aparecem no próprio cavalo, e o clima e o vento (só visual) aparecem na pista. Detalhes: `docs/superpowers/specs/2026-11-08-visuais-design.md` e `docs/superpowers/specs/2026-11-09-corrida-viva-design.md`.
 
 ## 6. Estábulo e cruzamento
 
@@ -192,4 +190,4 @@ Conjuntos: **Sol** (clima do Fogo), **Chuva** (Água), **Névoa** (Grama). Além
 
 ## 8+. Seções pendentes
 
-Curvas de XP/level · Expedições · Economia (valores de entrada, taxa da casa, sinks de Ouro) · Stack técnica (cliente, servidor, Android) · Anti-cheat · Roadmap MVP.
+Expedições · Economia (entradas, taxa da casa, sumidouros de Ouro) · Tecnologia final (cliente, servidor, Android) · Anti-trapaça · PVP assíncrono, circuito ocioso e ranqueada (propostas em `docs/cronograma.md`).
