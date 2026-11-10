@@ -217,7 +217,7 @@ function corridaSkills(seed, escala) {
 test('skillIcon segue a ordem (5 skills reais do catálogo)', function () {
   assert.strictEqual(FX.skillIcon(G.SKILLS['arranque']), 'ace');          // accelMult
   assert.strictEqual(FX.skillIcon(G.SKILLS['drift']), 'curva');           // curveBonus
-  assert.strictEqual(FX.skillIcon(G.SKILLS['segundo-ar']), 'folego');     // staminaRestore
+  assert.strictEqual(FX.skillIcon(G.SKILLS['segundo-ar']), 'vel');        // speedMult vem antes de staminaRestore (pacote de balanço)
   assert.strictEqual(FX.skillIcon(G.SKILLS['dado-viciado']), 'dado');     // extraDice
   assert.strictEqual(FX.skillIcon(G.SKILLS['sol-a-pino']), 'clima');      // weatherDouble
 });

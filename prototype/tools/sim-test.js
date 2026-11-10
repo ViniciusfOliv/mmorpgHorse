@@ -121,9 +121,9 @@ test('especialista de reta vence o de curva em reta pura; de subida vence em sub
   for (var s = 0; s < 80; s++) { if (race(s, RETA, [mk({ vel: 90 }), mk({ man: 90 })]).finishOrder[0] === 0) w++; if (race(s, SUBIDA, [mk({ forca: 90 }), mk({ vel: 90 })]).finishOrder[0] === 0) h++; }
   assert.ok(w >= 44 && h >= 44, 'reta ' + w + ', subida ' + h);
 });
-test('weatherMult: dono T.weatherMult (1,03–1,07), dobrado 1.10, penalizado 2 − T.weatherMult, neutro 1', function () {
+test('weatherMult: dono T.weatherMult (1,03–1,07), dobrado T.weatherMultDouble (1,08), penalizado 2 − T.weatherMult, neutro 1', function () {
   var wm = S.TUNING.weatherMult; assert.ok(wm >= 1.03 && wm <= 1.07, 'weatherMult ' + wm);
-  assert.strictEqual(S.weatherMult('fogo', 'sol', false), wm); assert.strictEqual(S.weatherMult('fogo', 'sol', true), 1.10);
+  assert.strictEqual(S.weatherMult('fogo', 'sol', false), wm); assert.strictEqual(S.weatherMult('fogo', 'sol', true), S.TUNING.weatherMultDouble); assert.strictEqual(S.TUNING.weatherMultDouble, 1.08);
   assert.ok(Math.abs(S.weatherMult('grama', 'sol', false) - (2 - wm)) < 1e-9); assert.strictEqual(S.weatherMult('agua', 'sol', false), 1); assert.strictEqual(S.weatherMult('neutro', 'chuva', false), 1);
 });
 test('skills disparam pela chance: mítico lv50 sorte 100 ativa Arranque ≥ 85% das vezes; comum lv1 sorte 0 ≤ 50%', function () {
@@ -359,7 +359,7 @@ test('ECONOMY.gear', function () {
   assert.deepStrictEqual(g.enhanceChance, [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25]);
   assert.deepStrictEqual(g.enhanceCost, [1, 1, 1, 1, 1, 1, 2, 2, 2, 2]);
   assert.strictEqual(g.enhanceDropFrom, 6);
-  assert.deepStrictEqual(g.setBonus, { pieces: [3, 4, 5], skillChance: 0.05, sorte: 5, ratingPts: [10, 15, 20] });
+  assert.deepStrictEqual(g.setBonus, { pieces: [3, 4, 5], skillChance: 0.05, sorte: 5, ratingPts: [3, 15, 20] });
   assert.deepStrictEqual(g.podiumStone, [0.6, 0.4, 0.25]);
   assert.deepStrictEqual(g.startGear, ['sela-comum', 'ferraduras-comum']);
 });
@@ -441,7 +441,7 @@ test('botGear por liga', function () {
 });
 test('sellPrice e ratingPts', function () {
   assert.strictEqual(GR.sellPrice('sela-magico'), 63); assert.strictEqual(GR.sellPrice('armadura-sol-lendario'), 375); assert.strictEqual(GR.sellPrice('nada'), 0);
-  assert.deepStrictEqual([0, 1, 2, 3, 4, 5, 6].map(GR.ratingPts), [0, 0, 0, 10, 15, 20, 0]);
+  assert.deepStrictEqual([0, 1, 2, 3, 4, 5, 6].map(GR.ratingPts), [0, 0, 0, 3, 15, 20, 0]);
 });
 
 section('equipamento: simulação');
@@ -472,7 +472,7 @@ test('powerRating conta mods e pontos de conjunto', function () {
   assert.ok(r5 > r0 + 20, 'rating sobe com 5 Raras: ' + r0 + ' -> ' + r5);
   var g3 = GR.resolve({ equip: { ferraduras: 'i0', sela: 'i1', estribos: 'i2' } }, items);
   var statsOnly = S.powerRating(h, { mods: g3.mods, special: {}, set: { id: null, count: 0 }, pieces: [] });
-  assert.strictEqual(S.powerRating(h, g3) - statsOnly, 10);
+  assert.strictEqual(S.powerRating(h, g3) - statsOnly, 3);
 });
 test('equipamento nunca baixa o rating; tirar uma peça nunca o sobe (premissa da trava do páreo)', function () {
   var SL = ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'];
@@ -514,7 +514,7 @@ test('5 peças Chuva anulam a penalidade do Fogo na chuva; 4 Sol dobram o Sol', 
 });
 
 section('dev');
-// Referência gravada com o sim.js de antes do parâmetro config.dev (seeds 1001…1020; os 3 iniciais + 5
+// Referência regravada com o pacote de balanceamento da auditoria (seeds 1001…1020; os 3 iniciais + 5
 // aluguéis do Haras, com o equipamento de bot de cada liga). Mudou a simulação de propósito? Regrave a tabela.
 var crypto = require('crypto');
 var ALUGUEIS = G.WILD_HORSES.filter(function (h) { return h.rarity !== 'mitico' && B.rentalPrice(h) != null; }).slice(0, 5);
@@ -529,13 +529,13 @@ function refRace(seed, dev) {
 function refHash(res) {
   return crypto.createHash('sha1').update(JSON.stringify({ finishOrder: res.finishOrder, finishTimes: res.finishTimes, events: res.events })).digest('hex');
 }
-var REF_HASHES = ['c16103a975ab67d0aa9e1f0877f73405c6619869', '79e45d97f356745d6deee49708be718e3409ddd6', 'cb59a9c72a4bfd11b96a32fb7cbd26b3ff8796ce',
-  '67c660347e9513beb3b549b9c7f4dcaaf2ed733b', '46e412938e7e70252d8aa61f9cd7ee634ce17171', '18446830616f2bee462ff21e5f1af9c22a8f083b',
-  'd18aa910602f5bb81fb1ae8f038cc101faa0a2ce', 'f762502c5c1b75c51a79b6f5685936da6219a51e', 'e4a825535b7131a6b3593480ffa33a5e24c968d5',
-  '39f196cde374d9c98b0a82c534e5075039cc18ac', '255a92a89d99cb6b0a673b842e90ae025bdb17b4', '07501a0c97d089adabe8c6049626e0776a65c640',
-  'ace24e64c2d2475db4b8fefb812267525f9c8653', '5eb7a7717b99839212adb1343a5ceafb64d87ef0', '5d62b6d50a57a7e0eaf49133264d232d2e932c9c',
-  'baeb9938a08635dc5d4f92cd727855f2c5929381', 'ad208c2bd340deb0da1791c1df8d0122e71f7c02', '4583b1ebe60c0dd59c28f900e6304196207eb943',
-  '7354b6104f16159aaf2d157feef8d2af29686eda', 'c34309057ab03de7cd7592ae612d98104d81394a'];
+var REF_HASHES = ['7ca78bece9d78556809efae25dd7162eab7d40cc', 'eb1de6577af765496cf7db9960a46426a72fd527', 'fd2736a810021adfb7a2c1435247935792ffa096',
+  '0eced70bacb2eb596c745c8f939a9e1a8d44337b', 'ba60c6134300938bd75e1390d1618bf0da524f49', 'ea9aaee2e9e1b644723b52da17ccebf424970b61',
+  '48444d71e09ab9784ce1d8c07b165ef490203b1e', '0289f773ff99e90bb9ed355eb85c79c3fc227c85', 'ce8c09eb2c3c82bc5ed8eb71cb671aaab96d270e',
+  '13321e4232c48c81759eb99b3374a9f950ea7e95', '5e4b62cbdbbae74bd999be8ddfcaaef2f3843d86', '288080097ee5ec09f2a491e5335f8e973c15d565',
+  'e4077f04f7634edbcf13ef93ec9c33f4d33503c9', '45d979760d8f36a84f36ecc8f6517dd1f97da67c', 'f6398dba4c8bc84ce80904ec712853261ebfaaff',
+  'd64e7c020ee4b44a002dc772d4fa77697e302ae5', 'b7c44ea737a877651124d845e272261fd0cf7229', 'b1c1a1071067112167c78e32bef8bcd4147272a3',
+  '4b01401d5c8977d1f824c754c20bcb25927b56b0', 'a17da841ebf2718b98238d2771787aa62b7339de'];
 test('sem config.dev o resultado é o de antes', function () {
   assert.deepStrictEqual(CAMPO_REF.map(function (h) { return h.id; }), ['brasa', 'mare', 'ipe', 'w-pangare', 'w-faisca', 'w-lambari', 'w-capim', 'w-ticao']);
   var diff = [];
