@@ -24,15 +24,16 @@ fechado obrigatório.
 ## Caminho até o Play (estimativa para uma pessoa; semanas corridas)
 | Etapa | O que fazer | Duração | Depende de |
 |---|---|---|---|
-| 0. Fechar o protótipo | 5 a 10 pessoas jogam; decidir o escopo da 1ª versão e o empacotador (branches integradas e tecnologia escolhida em 2026-11-10) | 1–2 | decisões do Vinicius |
+| 0. Fechar o protótipo | 5 a 10 pessoas jogam; decidir o empacotador e a ordem das frentes (branches integradas, tecnologia e escopo da 1ª versão decididos em 2026-11-10) | 1–2 | decisões do Vinicius |
 | 1. MVP | tutorial, som, um modo para jogar sozinho (expedições ou circuito ocioso), economia calibrada, save robusto | 4–8 | etapa 0 |
 | 2. Empacotar e documentar | pacote Android (TWA ou Capacitor), alvo de API vigente, AAB, ícone e capturas, política de privacidade, questionário de classificação, Segurança dos dados | 2–3 | pode correr junto com a 1 |
 | 3. Teste fechado | 12 testadores inscritos por 14 dias seguidos, depois pedido de acesso à produção | 3 | conta criada e etapa 2 |
 | 4. Online | servidor que simula a corrida, contas, PVP assíncrono, ranqueada por temporada | 8–12 | etapa 1 |
 | 5. Loja e social | Gemas (cosméticos e passe), chat com moderação | 4–6 | etapa 4 |
 
-O teste fechado mais cedo possível fica a **5–7 semanas** se a 1ª versão for offline (sem contas nem
-compras), ou a **7–10 semanas ou mais** se já sair com servidor. A conta de
+**Decidido em 2026-11-10:** o teste fechado sai com o jogo offline (contra bots, sem contas nem
+compras), em cerca de **5–7 semanas**, e o lançamento público espera o PVP assíncrono (etapa 4). As
+etapas 1 a 3 valem para o teste fechado; a 4 corre em paralelo com ele. A conta de
 desenvolvedor e o recrutamento dos 12 testadores podem começar já: são o que mais atrasa.
 
 ## Checklist de publicação

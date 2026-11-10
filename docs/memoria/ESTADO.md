@@ -45,9 +45,11 @@ e uma revisão final por frente. Resumo; os motivos estão em `docs/memoria/deci
 - **Normas:** veredito e checklist em `docs/cronograma.md`.
 
 ## O que falta
-- **Decisões do Vinicius:** o que entra na 1ª versão do Play, o empacotador (TWA ou Capacitor), e
-  as decisões de design de `docs/exemplos.md` §5 (Sorte, Neutro, conjunto de 3 peças, "Cansou",
-  Garra, zebra).
+- **Decidido em 2026-11-10:** o teste fechado do Play sai com o jogo offline; o lançamento público
+  espera o PVP assíncrono.
+- **Decisões do Vinicius ainda abertas:** qual frente começa agora, o empacotador (TWA ou
+  Capacitor), e as decisões de design de `docs/exemplos.md` §5 (Sorte, Neutro, conjunto de 3 peças,
+  "Cansou", Garra, zebra).
 - **Arte:** crina própria de cada estilo no galope (6 a 10 gerações); retrato, largada e pódio sem
   respiração nem piscar.
 - **Pendências menores:** `docs/memoria/bugs.md`.
@@ -55,7 +57,7 @@ e uma revisão final por frente. Resumo; os motivos estão em `docs/memoria/deci
 
 ## Próximos passos
 1. O Vinicius apaga as branches antigas no GitHub (lista abaixo).
-2. Etapa 0 do cronograma: decidir o escopo da 1ª versão e o empacotador; 5 a 10 pessoas jogam.
+2. Etapa 0 do cronograma: decidir o empacotador e a ordem das frentes; 5 a 10 pessoas jogam.
 3. Abrir a conta de desenvolvedor do Play e começar a juntar os 12 testadores (é o que mais atrasa).
 4. Próximo subprojeto, a escolher: expedições (já desenhadas em parte) ou circuito ocioso com PVP
    assíncrono (propostas em `docs/cronograma.md`). Cada um começa por brainstorming e spec.
