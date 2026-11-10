@@ -301,6 +301,42 @@ try {
     await rv.context().close()
   }
 
+  // ---------------- treino aberto: só some depois de corrido (vender peça e subir o Ouro não troca a sala) ----------------
+  if (quer('treino')) {
+    const tr = await newPage(browser, { width: 390, height: 844 }, 'treino')
+    const st = () => tr.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    try {
+      await tr.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await tr.waitForSelector('#t-estabulo')
+      await tr.evaluate(() => { window.__galope.state.gold = 30 })
+      await tr.locator('[data-acao="aba"][data-id="correr"]').click()
+      await tr.waitForSelector('[data-acao="treino"]')
+      await tr.locator('[data-acao="treino"]').click()
+      await tr.waitForSelector('#t-largada')
+      const salaA = await salaAtual(tr)
+      if (!salaA.training) problems.push('treino: a sala aberta não é treino')
+      await tr.getByRole('button', { name: /^Voltar/ }).click()
+      // tira e vende a sela inicial (+25 de Ouro): 55, acima da menor entrada
+      const s0 = await st()
+      const sela = s0.mounts[0].equip.sela
+      await tr.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await tr.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await tr.waitForSelector('#t-montaria')
+      await tr.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+      await tr.locator('[data-acao="equip-slot"][data-id="sela"]').click()
+      await tr.locator('[data-acao="tirar"][data-id="sela"]').click()
+      await tr.locator(`[data-acao="vender"][data-id="${sela}"]`).click()
+      const g = (await st()).gold
+      if (g < 50) problems.push('treino: Ouro depois da venda ' + g + ' (o teste precisa passar de 50)')
+      await tr.locator('[data-acao="montaria-voltar"]').click()
+      const salaB = await abrirSala(tr)
+      if (salaB.seed !== salaA.seed || salaB.counter !== salaA.counter || !salaB.training) problems.push('treino: o treino aberto virou outra sala ' + JSON.stringify({ antes: [salaA.seed, salaA.counter], depois: [salaB.seed, salaB.counter, salaB.training] }))
+    } catch (e) {
+      problems.push('treino: ' + e.message)
+    }
+    await tr.context().close()
+  }
+
   // ---------------- gravação que falha: nada de resultado nem débito sem o save gravado ----------------
   if (quer('gravacao')) {
     const gv = await newPage(browser, { width: 390, height: 844 }, 'gravacao')

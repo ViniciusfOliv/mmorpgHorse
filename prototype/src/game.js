@@ -502,7 +502,6 @@
       var fee = num(p.fee, 0, 0, 1e6);
       if (p.training ? fee === 0 : E.entryTiers.indexOf(fee) >= 0) {
         base.pending = { counter: num(p.counter, 1, 1, 1e9), training: !!p.training, fee: fee, pr: num(p.pr, 600, 1, 1e5) };
-        if (p.training && p.rebaixada === true) base.pending.rebaixada = true;   // sala valendo que virou treino (openLobby)
         base.pending.gear = validGearSnapshot(p.gear);   // null: save de antes do retrato (preenchido abaixo)
       }
     }
@@ -2222,12 +2221,12 @@
     var P = state.pending;
     // Ouro abaixo da entrada da sala aberta (só com save adulterado: a entrada fica reservada): a MESMA sala
     // (mesma seed, rivais e condições) corre como treino, sem entrada e sem prêmio de aposta. Nunca é
-    // descartada, senão seria um re-sorteio de graça. 'rebaixada' impede que vire uma sala nova depois.
+    // descartada, senão seria um re-sorteio de graça. Treino aberto também só some depois de corrido (mesmo que
+    // o Ouro volte a cobrir uma entrada, por exemplo vendendo uma peça).
     if (P && !P.training && state.gold < P.fee) {
-      P.training = true; P.fee = 0; P.rebaixada = true;
+      P.training = true; P.fee = 0;
       persist();
     }
-    if (P && P.training && !P.rebaixada && !training && state.gold >= MIN_ENTRY) P = null; // treino pendente vira corrida valendo
     if (!P) {
       var s0 = state, antes = clone(state);
       var fee = training ? 0 : effectiveTier();
