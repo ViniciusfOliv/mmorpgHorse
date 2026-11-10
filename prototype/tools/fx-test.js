@@ -909,6 +909,24 @@ test('drawMiniMap: um ponto por cavalo na cor da raia, o seu maior e com contorn
   assert.strictEqual(FX._stats.minimapa, false, 'beginFrame zera');
 });
 
+section('medição do quadro');
+test('endFrame(ms, agora): msQuadro é a média do JS; intervalo dá mediana e p95 do intervalo real entre quadros', function () {
+  FX.resetStats(true);
+  assert.deepStrictEqual(FX._stats.intervalo, { med: 0, p95: 0, n: 0 });
+  var t = 1000;
+  for (var k = 0; k < 100; k++) { t += k % 10 === 9 ? 50 : 16; FX.endFrame(2, t); }
+  FX.endFrame(2, t + 5000);   // pausa (aba escondida): fora da conta
+  var iv = FX._stats.intervalo;
+  assert.strictEqual(iv.n, 60, 'janela de 60');
+  assert.strictEqual(iv.med, 16);
+  assert.strictEqual(iv.p95, 50);
+  assert.strictEqual(FX._stats.msQuadro, 2);
+  FX.endFrame(3);   // sem relógio: só o JS
+  assert.strictEqual(FX._stats.intervalo.n, 60);
+  FX.resetStats(true);
+  assert.strictEqual(FX._stats.intervalo.n, 0);
+});
+
 section('desenho da pista (Sprites)');
 var SPR = require('../src/sprites.js');
 test('hachura das subidas: os limites (org, ini, fim) dão os mesmos retângulos do laço antigo (um fillRect por linha e listra)', function () {

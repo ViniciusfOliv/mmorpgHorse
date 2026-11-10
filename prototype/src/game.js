@@ -3211,7 +3211,7 @@
       var tDes = window.performance.now();
       FX.beginFrame();
       draw(st, order);
-      FX.endFrame(window.performance.now() - tDes);
+      FX.endFrame(window.performance.now() - tDes, now);
     }
 
     // primeiro quadro estático

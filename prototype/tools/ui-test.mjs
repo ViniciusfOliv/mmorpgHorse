@@ -6,8 +6,9 @@
 // não aparecer na pista (plaquinhas, faixa, câmera lenta e "Pular" no meio dela), a chuva congelar com
 // movimento reduzido, a natureza custar demais por quadro ou um save antigo perder a opção "Animações".
 // Também confere a entrada reservada do páreo aberto, a gravação que falha, o save adulterado ou corrompido,
-// o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo e o tamanho mínimo do texto.
-//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao node tools/ui-test.mjs  -> só esses
+// o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo, o tamanho mínimo do texto e o teto
+// de chamadas de canvas por quadro na corrida mais cara.
+//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,teto node tools/ui-test.mjs  -> só esses
 import { createRequire } from 'node:module'
 import { dirname, extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -637,6 +638,62 @@ try {
         problems.push(`[${label}] ` + e.message)
       }
       await pd.context().close()
+    }
+  }
+
+  // ---------------- teto do desenho no pior caso ----------------
+  // 1280, 1600 m com subidas e curvas, chuva + ventania, skills sempre: conta as chamadas de canvas de um quadro
+  // em instantes fixos da simulação (determinístico; o tempo varia com a carga da máquina e fica só como
+  // informação). Pega quem reintroduzir um desenho caro (ex.: a hachura das subidas com um fillRect por listra
+  // eram 4 a 11 mil por quadro; hoje o máximo fica perto de 4 mil).
+  if (quer('teto')) {
+    const TETO = { fillRect: 7000, drawImage: 300 }
+    const pg = await newPage(browser, { width: 1280, height: 800 }, 'teto-desenho', { query: '?dev=1' })
+    try {
+      await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+      await devArmar(pg, { clima: 'chuva', vento: 'ventania', direcao: 1, sempre: true, tracado: 'lista', blocos: 'reta,subida,curva,subida,curva,subida,reta', distancia: 1600, seed: 4242 })
+      await abrirSala(pg)
+      await pg.getByRole('button', { name: /^Largar/ }).click()
+      await pg.waitForSelector('#pista')
+      // tempo (informação): 120 quadros reais de corrida — JS do desenho e intervalo real entre quadros
+      const q0 = await (await pg.waitForFunction(() => {
+        const r = window.__galope.race
+        return r && r._state.phase === 'corrida' ? window.RaceFx._stats.quadros : false
+      }, null, { timeout: 60000, polling: 'raf' })).jsonValue()
+      const tempo = await (await pg.waitForFunction((q) => {
+        const st = window.RaceFx._stats
+        return st.quadros >= q ? { msJs: +st.msQuadro.toFixed(2), intervalo: st.intervalo } : false
+      }, q0 + 120, { timeout: 60000, polling: 'raf' })).jsonValue()
+      // chamadas: congela a corrida (o laço passa a chamar um frame vazio) e desenha à mão a cada 2 s de simulação
+      const r = await pg.evaluate(() => {
+        const rv = window.__galope.race, s = rv._state, L = window.__galope.ui.lobby, desenha = rv.frame
+        rv.frame = function () {}
+        const P = CanvasRenderingContext2D.prototype, nomes = ['fillRect', 'drawImage'], orig = {}, cont = {}
+        nomes.forEach((n) => { orig[n] = P[n]; P[n] = function () { cont[n]++; return orig[n].apply(this, arguments) } })
+        const fim = Math.max(...L.sim.finishTimes), por = []
+        try {
+          for (let T = 1; T < fim; T += 2) {
+            s.phase = 'corrida'; s.simT = T; s.tReal = T * 0.3; s.last = 0; s.flash = 0; s.winnerSeen = true; s.mult = 1
+            nomes.forEach((n) => { cont[n] = 0 })
+            desenha(1)
+            por.push({ T, fillRect: cont.fillRect, drawImage: cont.drawImage })
+          }
+        } finally { nomes.forEach((n) => { P[n] = orig[n] }); rv.frame = desenha }
+        return { por, canvas: [s.W, s.H, s.S] }
+      })
+      const max = (k) => r.por.reduce((m, q) => (q[k] > m[k] ? q : m), r.por[0])
+      const med = (k) => { const v = r.por.map((q) => q[k]).sort((a, b) => a - b); return v[v.length >> 1] }
+      notes.tetoDesenho = { canvas: r.canvas, quadros: r.por.length, fillRect: { med: med('fillRect'), max: max('fillRect').fillRect, em: max('fillRect').T },
+        drawImage: { med: med('drawImage'), max: max('drawImage').drawImage, em: max('drawImage').T }, teto: TETO, tempo }
+      if (r.por.length < 30) problems.push('teto-desenho: poucos quadros amostrados ' + r.por.length)
+      for (const k of Object.keys(TETO)) {
+        const m = max(k)
+        if (m[k] > TETO[k]) problems.push(`teto-desenho: ${m[k]} ${k} num quadro (simT ${m.T} s) > teto ${TETO[k]} — algum desenho ficou caro de novo`)
+      }
+    } catch (e) {
+      problems.push('teto-desenho: ' + e.message)
+    } finally {
+      await pg.context().close()
     }
   }
 

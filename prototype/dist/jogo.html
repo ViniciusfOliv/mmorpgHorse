@@ -5126,8 +5126,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     Contadores do quadro atual (zerados por beginFrame) para o ui-test: dados desenhados, faixa
  *     visível, balões, partículas, e placas = [{ racer, numero, vencedor, fase }]
  *     (a tela anota o que desenhou). msQuadro = média do tempo de desenho dos últimos 60 quadros
- *     (endFrame(ms), medido pela tela com performance.now()); quadros = quadros medidos.
- *   RaceFx.beginFrame(), RaceFx.endFrame(ms), RaceFx.resetStats(tudo) (tudo: também a média).
+ *     (endFrame(ms), medido pela tela com performance.now()); quadros = quadros medidos. msQuadro conta só o
+ *     JavaScript do desenho (a rasterização do canvas vem depois e costuma custar mais): intervalo =
+ *     { med, p95, n } dos intervalos reais entre os últimos 60 quadros (endFrame(ms, agora), agora = o
+ *     relógio do requestAnimationFrame; pausas acima de 1 s ficam fora), calculado ao ler.
+ *   RaceFx.beginFrame(), RaceFx.endFrame(ms, agora), RaceFx.resetStats(tudo) (tudo: também as médias).
  *
  * UMD: no browser vira window.RaceFx (carregar depois de sprites.js); no Node, module.exports.
  */
@@ -5624,12 +5627,25 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   }
   var stats = { dados: 0, faixaDado: false, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [],
     natureza: novaNatureza(), ventoHud: '', minimapa: false };
-  var JANELA_MS = 60, amostras = [], somaMs = 0;
+  var JANELA_MS = 60, amostras = [], somaMs = 0, intervalos = [], ultimoQuadro = null;
+  // intervalo real entre quadros (mediana e p95 da janela), calculado só quando alguém lê
+  Object.defineProperty(stats, 'intervalo', { enumerable: true, get: function () {
+    if (!intervalos.length) return { med: 0, p95: 0, n: 0 };
+    var v = intervalos.slice().sort(function (a, b) { return a - b; }), n = v.length;
+    return { med: v[Math.floor(n * 0.5)], p95: v[Math.min(n - 1, Math.floor(n * 0.95))], n: n };
+  } });
   function beginFrame() {
     stats.dados = 0; stats.faixaDado = false; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = [];
     stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false;
   }
-  function endFrame(ms) {
+  function endFrame(ms, agora) {
+    if (agora != null && isFinite(agora)) {
+      if (ultimoQuadro != null && agora > ultimoQuadro && agora - ultimoQuadro <= 1000) {
+        intervalos.push(agora - ultimoQuadro);
+        if (intervalos.length > JANELA_MS) intervalos.shift();
+      }
+      ultimoQuadro = agora;
+    }
     if (!(ms >= 0) || !isFinite(ms)) return;
     amostras.push(ms); somaMs += ms;
     if (amostras.length > JANELA_MS) somaMs -= amostras.shift();
@@ -5638,7 +5654,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   }
   function resetStats(tudo) {
     beginFrame();
-    if (tudo) { amostras = []; somaMs = 0; stats.msQuadro = 0; stats.quadros = 0; }
+    if (tudo) { amostras = []; somaMs = 0; stats.msQuadro = 0; stats.quadros = 0; intervalos = []; ultimoQuadro = null; }
   }
 
   // ===========================================================================
@@ -9101,7 +9117,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       var tDes = window.performance.now();
       FX.beginFrame();
       draw(st, order);
-      FX.endFrame(window.performance.now() - tDes);
+      FX.endFrame(window.performance.now() - tDes, now);
     }
 
     // primeiro quadro estático
