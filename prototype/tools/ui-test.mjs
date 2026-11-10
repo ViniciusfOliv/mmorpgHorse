@@ -302,6 +302,82 @@ try {
     await rv.context().close()
   }
 
+  // ---------------- gravação que falha (2): cruzar, Troca, vender, desfazer venda, vaga e sala rebaixada ----------------
+  if (quer('gravacao2')) {
+    const g2 = await newPage(browser, { width: 390, height: 844 }, 'gravacao2')
+    const st = () => g2.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    const quebrar = () => g2.evaluate(() => {
+      if (!window.__setOrig) window.__setOrig = Storage.prototype.setItem
+      Storage.prototype.setItem = function () { throw new DOMException('cheio', 'QuotaExceededError') }
+    })
+    const consertar = () => g2.evaluate(() => { Storage.prototype.setItem = window.__setOrig })
+    const FALHA = 'Não foi possível salvar. Libere espaço e tente de novo.'
+    const temAviso = async () => ((await g2.locator('#tela').textContent()) || '').includes(FALHA)
+    // a ação com a gravação quebrada não pode mudar o save em memória e tem de avisar
+    const semMudar = async (nome, acao, campos) => {
+      const a = await st()
+      await quebrar()
+      await acao()
+      const d = await st()
+      await consertar()
+      for (const k of campos) if (JSON.stringify(a[k]) !== JSON.stringify(d[k])) problems.push(`gravacao2: ${nome} sem gravar mudou ${k}`)
+      if (!(await temAviso())) problems.push(`gravacao2: ${nome} sem gravar não avisou`)
+    }
+    try {
+      await g2.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await g2.waitForSelector('#t-estabulo')
+      // seed do save em que Brasa × Faísca dá potra (a Troca precisa de sexos opostos)
+      const m1 = (await st()).mounts[0], faisca = G.WILD_HORSES.find((h) => h.id === 'w-faisca')
+      let SEED = 0
+      for (let sd = 1; sd <= 300 && !SEED; sd++) if (B.foal({ f: faisca, m: m1, seedBase: sd, breedCounter: 0, nextUid: 2 }).sex === 'f') SEED = sd
+      await g2.evaluate((seed) => { const s = window.__galope.state; s.gold = 5000; s.seedBase = seed }, SEED)
+      // 1. cruzar
+      await g2.locator('[data-acao="aba"][data-id="haras"]').click()
+      await g2.waitForSelector('#t-haras')
+      await g2.locator('[data-acao="haras-partner"][data-kind="rent"][data-id="w-faisca"]').click()
+      await semMudar('cruzar', () => g2.locator('[data-acao="cruzar"]').click(), ['gold', 'mounts', 'breedCounter', 'nextUid'])
+      if (await g2.locator('#t-nasceu').count()) problems.push('gravacao2: cruzar sem gravar mostrou o potro')
+      await g2.locator('[data-acao="haras-partner"][data-kind="rent"][data-id="w-faisca"]').click()
+      await g2.locator('[data-acao="cruzar"]').click()
+      await g2.waitForSelector('#t-nasceu')
+      // 2. Troca
+      await g2.locator('[data-acao="haras-denovo"]').click()
+      await g2.locator('[data-acao="haras-mode"][data-id="troca"]').click()
+      await g2.locator('[data-acao="haras-mine"][data-id="m1"]').click()
+      await g2.locator('[data-acao="haras-partner"][data-kind="own"][data-id="m2"]').click()
+      await g2.locator('[data-acao="troca"]').click()
+      await semMudar('Troca', () => g2.locator('[data-acao="troca-sim"]').click(), ['gold', 'mounts', 'activeId', 'breedCounter'])
+      // 3. vender e desfazer venda
+      await g2.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await g2.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await g2.waitForSelector('#t-montaria')
+      await g2.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+      await g2.locator('[data-acao="equip-slot"][data-id="sela"]').click()
+      const sela = (await st()).mounts[0].equip.sela
+      await g2.locator('[data-acao="tirar"][data-id="sela"]').click()
+      await semMudar('vender', () => g2.locator(`[data-acao="vender"][data-id="${sela}"]`).click(), ['gold', 'items'])
+      await g2.locator(`[data-acao="vender"][data-id="${sela}"]`).click()
+      await g2.waitForSelector('[data-acao="vender-desfazer"]')
+      await semMudar('desfazer venda', () => g2.locator('[data-acao="vender-desfazer"]').click(), ['gold', 'items'])
+      // 4. vaga do estábulo
+      await g2.locator('[data-acao="montaria-voltar"]').click()
+      await g2.waitForSelector('#t-estabulo')
+      await semMudar('expandir', () => g2.locator('[data-acao="expandir"]').click(), ['gold', 'stableSlots'])
+      // 5. sala valendo rebaixada a treino (Ouro abaixo da entrada): sem gravar, continua valendo e não abre
+      await abrirSala(g2, 250)
+      await g2.getByRole('button', { name: /^Voltar/ }).click()
+      await g2.waitForSelector('#t-correr')
+      await g2.evaluate(() => { window.__galope.state.gold = 100 })
+      await semMudar('rebaixar a sala', () => g2.locator('[data-acao="procurar"]').click(), ['pending'])
+      if (await g2.locator('#t-largada').count()) problems.push('gravacao2: a sala rebaixada abriu sem gravar')
+      const sala = await abrirSala(g2)
+      if (!sala.training || sala.fee !== 0) problems.push('gravacao2: com a gravação de volta a sala não virou treino ' + JSON.stringify(sala))
+    } catch (e) {
+      problems.push('gravacao2: ' + e.message)
+    }
+    await g2.context().close()
+  }
+
   // ---------------- treino aberto: só some depois de corrido (vender peça e subir o Ouro não troca a sala) ----------------
   if (quer('treino')) {
     const tr = await newPage(browser, { width: 390, height: 844 }, 'treino')

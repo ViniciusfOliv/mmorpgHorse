@@ -2234,9 +2234,13 @@
     // (mesma seed, rivais e condições) corre como treino, sem entrada e sem prêmio de aposta. Nunca é
     // descartada, senão seria um re-sorteio de graça. Treino aberto também só some depois de corrido (mesmo que
     // o Ouro volte a cobrir uma entrada, por exemplo vendendo uma peça).
+    // Como os gastos, só vale se gravou: senão a memória teria treino e o disco a sala valendo.
     if (P && !P.training && state.gold < P.fee) {
+      var sR = state, antesR = clone(state);
       P.training = true; P.fee = 0;
-      persist();
+      var gR = gravaGasto(sR, antesR);
+      if (gR === 'falhou') ui.notice = FALHA_SALVAR;
+      if (gR !== 'ok') return null;
     }
     if (!P) {
       var s0 = state, antes = clone(state);
@@ -3593,7 +3597,9 @@
         if (ui.lobby !== L) break;    // save mais novo adotado: adoptExternal já navegou para um ponto seguro
         if (!L.training && state.gold < L.fee) {
           // Ouro abaixo da entrada (outra aba, save adulterado): a mesma sala vira treino e a tela mostra isso
-          ui.lobby = openLobby(false);
+          var LR = openLobby(false);
+          if (!LR) { if (ui.notice === FALHA_SALVAR) rerenderKeepScroll(); break; }   // não gravou (ou outra aba)
+          ui.lobby = LR;
           ui.notice = 'Seu Ouro ficou abaixo da entrada: este páreo corre como treino, sem aposta.';
           go('largada'); break;
         }
