@@ -25,15 +25,17 @@ fechado obrigatório.
 | Etapa | O que fazer | Duração | Depende de |
 |---|---|---|---|
 | 0. Fechar o protótipo | 5 a 10 pessoas jogam; decidir o empacotador e a ordem das frentes (branches integradas, tecnologia e escopo da 1ª versão decididos em 2026-11-10) | 1–2 | decisões do Vinicius |
-| 1. MVP | tutorial, som, um modo para jogar sozinho (expedições ou circuito ocioso), economia calibrada, save robusto | 4–8 | etapa 0 |
+| 1. MVP | blocos 1 e 2 do redesenho (`docs/GDD.md` §8: status e tipo; pista e preparação), tutorial e som | 4–8 | etapa 0 |
 | 2. Empacotar e documentar | pacote Android (TWA ou Capacitor), alvo de API vigente, AAB, ícone e capturas, política de privacidade, questionário de classificação, Segurança dos dados | 2–3 | pode correr junto com a 1 |
 | 3. Teste fechado | 12 testadores inscritos por 14 dias seguidos, depois pedido de acesso à produção | 3 | conta criada e etapa 2 |
 | 4. Online | servidor que simula a corrida, contas, PVP assíncrono, ranqueada por temporada | 8–12 | etapa 1 |
-| 5. Loja e social | Gemas (cosméticos e passe), chat com moderação | 4–6 | etapa 4 |
+| 5. Loja e social | compra de Gemas, mercado entre jogadores em Ouro, chat com moderação | 4–6 | etapa 4 |
 
 **Decidido em 2026-11-10:** o teste fechado sai com o jogo offline (contra bots, sem contas nem
 compras), em cerca de **5–7 semanas**, e o lançamento público espera o PVP assíncrono (etapa 4). As
-etapas 1 a 3 valem para o teste fechado; a 4 corre em paralelo com ele. A conta de
+etapas 1 a 3 valem para o teste fechado; a 4 corre em paralelo com ele. Durante o teste entram, como
+atualizações, os blocos 4 a 6 do redesenho (itens de treino e gastos de Ouro; cruza com relógio,
+circuito ocioso e aluguel; loja de Gemas sem compra real). A conta de
 desenvolvedor e o recrutamento dos 12 testadores podem começar já: são o que mais atrasa.
 
 ## Checklist de publicação
@@ -86,16 +88,14 @@ console. Vale para o protótipo, não para PVP nem ranking. No servidor:
 - cada sorteio usa uma seed de domínio próprio (corrida, potro, melhoria, pedra do pódio);
 - o resultado guarda a versão da simulação (`simVersion`, `tuningHash`) para auditar corridas antigas.
 
-## Roteiro de evolução (proposta; cada item vira um subprojeto com design próprio)
+## Roteiro de evolução
+O redesenho dos cavalos e da economia foi aprovado em 2026-11-10 e está no `docs/GDD.md` §8, com a
+ordem dos sete blocos. Além dele, ficam como propostas para a fase online:
 1. **PVP assíncrono.** Como a corrida é automática e sai da seed, o rival pode ser o "fantasma" do
    cavalo de outro jogador: sem sala de espera, sem tempo real, servidor simples.
-2. **Circuito ocioso (AFK).** Montarias fora da ativa correm treinos sozinhas enquanto o jogador está
-   fora; ao voltar ele recebe um resumo e pode rever a melhor corrida. Sem entrada, prêmio menor, teto de horas.
-3. **Ranqueada com Elo por temporada.** Elo em pares adaptado a 4–8 corredores, dentro de uma Copa
-   Nivelada (status normalizados), para medir a escolha de montaria e equipamento, não o tamanho da conta.
-4. **Mais skills.** Gatilhos novos por posição (vácuo, perseguidor, líder), por piso e por virada de
-   clima; níveis de skill; um papel para o Neutro e para a Sorte, que hoje valem quase nada.
-5. **Balanceamento contínuo.** Metas automáticas por skill, por status e por montaria no `balance.js`;
-   depois, telemetria real e ajuste por temporada.
-6. **Economia e retenção.** Missões diárias, temporada com passe só de cosméticos, sumidouros de Ouro.
-7. **Expedições** (já planejadas): mundos por bioma, batalha por turnos com modo automático e manual.
+2. **Ranqueada com Elo por temporada.** Elo em pares adaptado a 4–8 corredores, com todos no mesmo
+   nível, para medir a escolha de cavalo e de build, não o tamanho da conta. Sem entrada em Ouro.
+3. **Skills que olham os rivais** (vácuo, perseguidor, líder) e skills que atrapalham: só depois do
+   teste fechado, com dados de jogadores.
+4. **Balanceamento contínuo.** Metas automáticas no `balance.js`; depois, telemetria real e ajuste por temporada.
+5. **Expedições** (já planejadas): mundos por bioma, batalha por turnos com modo automático e manual.

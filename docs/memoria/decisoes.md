@@ -3,10 +3,28 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
-## 2026-11-10 — empacotamento (em desenho)
+## 2026-11-10 — redesenho dos cavalos e da economia (desenho aprovado, a construir em blocos)
+Resumo completo no `docs/GDD.md` §8. Tudo decidido em conversa com o Vinicius, parte por parte.
+- **Crescimento híbrido:** automático pela genética e um ponto livre por nível para a build — mantém o forte do cavalo visível e dá escolha ao jogador; só com pontos livres todos iriam para Velocidade.
+- **Genética visível (C a S por status) no lugar do "potencial" escondido** — o jogador precisa ver por que um cavalo é melhor que outro.
+- **Estrelas multiplicam os pontos livres e sobem com item raro de treino** — é o "cavalo bem cuidado"; um cavalo de uma estrela deixa de ser fraco para sempre.
+- **Iniciais passam a Comuns, com o mesmo total de pontos** — a escada fica mais longa e a diferença entre eles vem só do tipo.
+- **Skill de tipo para todo cavalo, em vaga própria, sempre ativa no terço da pista que é do tipo** — medição de 6.000 corridas: a Brasa vencia 67% das pistas curtas e 11% das longas, e a skill dela rendia 4,5 pontos contra 8 das outras; ligar a skill a um momento que toda pista tem tira a sorte do terreno.
+- **Sai o bônus fixo do tipo (+8) e sai o Neutro, por enquanto** — +8 de Força rendia mais que +8 de Estamina; o Neutro vencia metade do justo.
+- **Skill que atrapalha rival fica fora** — o valor dela depende de quantos rivais há e de que tipo, e cada skill nova reabriria o balanço; rever depois do teste fechado.
+- **Pistas sem extremos e preparação com relógio de 12 segundos** (ideia do Vinicius, para parecer partida online): trocar de cavalo e de ferradura com um toque, com Poder até o da sala.
+- **A Gema compra tempo, espaço, conveniência e aparência; nunca poder nem Ouro** — o Vinicius precisa de receita na loja, e a regra "Gemas nunca viram Ouro" fica de pé.
+- **Ouro nunca é vendido por Gemas; mercado entre jogadores só em Ouro, com servidor** — o Vinicius propôs mercado em Gemas com venda de Ouro; como o Ouro é o que se aposta, isso tornaria a ficha de aposta comprável com dinheiro (cassino social, classificação 18 anos, risco pela Lei 14.790/2023 e pelo precedente Big Fish). Ele escolheu manter a regra.
+- **Item de Gema tem resultado garantido; a versão sorteada é a ganha jogando ou por Ouro** — item pago com resultado sorteado é caixa de recompensa.
+- **Gemas também caem de graça, em pouca quantidade, por missões.**
+- **Cruza de 12 a 24 horas, circuito ocioso que rende mais para cavalos de Poder maior, e aluguel de cavalo** — cada cavalo tem um trabalho por vez; estábulo grande e bem cuidado rende mais.
+- **Ração (bônus de XP) no lugar de cansaço** — o mesmo gasto recorrente de Ouro, sem punir quem joga muito.
+- **Ordem dos blocos:** status e tipo, pista e preparação, empacotamento, itens e gastos de Ouro, tempo e estábulo ativo, loja de Gemas, online — os dois primeiros mudam o save e a sensação da corrida, então vêm antes dos testadores.
+
+## 2026-11-10 — empacotamento (em pausa: volta como bloco 3)
 - **O nome do jogo é "Galope Elemental", agora definitivo** (escolha do Vinicius, depois de avaliar nomes em inglês) — a ficha do Play é traduzida por idioma, então a marca fica em português e a descrição vai no idioma de cada loja; o logotipo e a capa já existem. Identificador previsto para o Play: `com.galopeelemental.game` (não pode mudar depois da primeira publicação).
 - **Durante o teste fechado o jogo existe só dentro do aplicativo** (escolha do Vinicius) — os arquivos vão dentro do pacote, funciona sem rede desde a primeira abertura e ninguém joga fora do teste.
-- **Ordem das frentes: empacotamento, depois primeira experiência (tutorial e som), depois circuito ocioso; expedições depois do teste fechado** (escolha do Vinicius).
+- **Ordem das frentes** (trocada no mesmo dia pelo redesenho acima): o empacotamento vira o bloco 3; tutorial e som entram junto dele; expedições depois do teste fechado. A pergunta sobre usar o Capacitor ficou sem resposta.
 
 ## 2026-11-10 — pente fino
 - **Primeira versão do Play: teste fechado com o jogo offline, lançamento público só com PVP** (escolha do Vinicius) — o teste fechado (12 testadores, 14 dias) é exigido antes da produção e o app pode mudar entre um e outro; assim o retorno de jogadores chega cedo e o jogo só estreia ao público com o pilar do design.

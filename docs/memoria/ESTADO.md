@@ -7,8 +7,10 @@ durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (
 protótipo vira o jogo, a mesma base web empacotada para Android, com os módulos de regra no servidor.
 
 ## Onde estamos
-- **Branches:** tudo está na `main` desde 2026-11-10 (pente fino, corrida viva, visuais e wiki,
-  integrados de uma vez por fast-forward). Trabalho novo sai da `main`, uma branch por frente.
+- **Branches:** a `main` tem tudo até o pente fino (2026-11-10). Em aberto: `claude/cavalos-v3`
+  (redesenho dos cavalos e da economia: desenho aprovado e registrado no `docs/GDD.md` §8; a spec do
+  bloco 1 está em preparação, sem código ainda) e `claude/empacotamento` (em pausa, só com as decisões
+  iniciais; volta como bloco 3).
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
   - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
@@ -47,20 +49,25 @@ e uma revisão final por frente. Resumo; os motivos estão em `docs/memoria/deci
 ## O que falta
 - **Decidido em 2026-11-10:** o teste fechado do Play sai com o jogo offline; o lançamento público
   espera o PVP assíncrono.
-- **Decisões do Vinicius ainda abertas:** qual frente começa agora, o empacotador (TWA ou
-  Capacitor), e as decisões de design de `docs/exemplos.md` §5 (Sorte, Neutro, conjunto de 3 peças,
-  "Cansou", Garra, zebra).
+- **Redesenho aprovado em 2026-11-10** (`docs/GDD.md` §8 e `docs/memoria/decisoes.md`): status com
+  genética visível, pontos livres e estrelas; skill de tipo sempre ativa; pistas sem extremos e
+  preparação com relógio; itens de treino; duas lojas; circuito ocioso e aluguel. Falta construir,
+  em sete blocos.
+- **Decisões do Vinicius ainda abertas:** o empacotador (a pergunta sobre o Capacitor ficou sem
+  resposta) e, de `docs/exemplos.md` §5, o papel da Sorte, o conjunto de 3 peças, o "Cansou", a Garra
+  e a zebra (o Neutro foi resolvido: sai do jogo por enquanto).
 - **Arte:** crina própria de cada estilo no galope (6 a 10 gerações); retrato, largada e pódio sem
   respiração nem piscar.
 - **Pendências menores:** `docs/memoria/bugs.md`.
-- **GDD §8+:** expedições, economia, tecnologia, anti-trapaça, PVP assíncrono, circuito ocioso e ranqueada.
+- **GDD §9+:** expedições, tecnologia do servidor, anti-trapaça, PVP assíncrono e ranqueada.
 
 ## Próximos passos
 1. O Vinicius apaga as branches antigas no GitHub (lista abaixo).
-2. Etapa 0 do cronograma: decidir o empacotador e a ordem das frentes; 5 a 10 pessoas jogam.
-3. Abrir a conta de desenvolvedor do Play e começar a juntar os 12 testadores (é o que mais atrasa).
-4. Próximo subprojeto, a escolher: expedições (já desenhadas em parte) ou circuito ocioso com PVP
-   assíncrono (propostas em `docs/cronograma.md`). Cada um começa por brainstorming e spec.
+2. **Bloco 1, status e tipo:** fechar a spec com os números da calibração por simulação, o Vinicius
+   revisa, depois plano e execução por subagentes. Em seguida o bloco 2 (pista e preparação).
+3. **Bloco 3, empacotamento:** retomar pela pergunta do Capacitor; o teste fechado começa aqui.
+4. Abrir a conta de desenvolvedor do Play e começar a juntar os 12 testadores (é o que mais atrasa).
+5. Blocos 4 a 6 chegam como atualizações durante o teste fechado; o bloco 7 (online) vem depois.
 
 ## Branches para apagar no GitHub
 Todas já integradas na `main`: `claude/equipamentos`, `claude/cruzamento`, `claude/nucleo-corrida-v2`,

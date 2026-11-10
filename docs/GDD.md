@@ -15,7 +15,7 @@ Jogo em pixel art (web + Play Store) de corrida de cavalos com progressão estil
 | Jogabilidade da corrida | **Automática.** Estratégia acontece antes: escolher a montaria e o equipamento para o mapa e o clima da corrida. Servidor simula com *seed*; cliente só anima. |
 | "MMO" | **Hub social**: cidade/estábulo compartilhado (chat, ranking, haras/guildas, mercado). Resto por menus. |
 | Obter cavalos | **Cruzamento + Expedições PVE** (núcleo) + **pacotes de montaria** comprados só com moeda ganha jogando (nunca com Gemas: caixa de recompensa paga é vedada no Brasil para menores). |
-| Monetização | **Duas moedas**: 🪙 Ouro (só ganho jogando, é apostável) / 💎 Gemas (compradas; cosméticos e passe). Gemas **nunca** viram Ouro. Evita classificação como jogo de azar. |
+| Monetização | **Duas moedas**: 🪙 Ouro (só ganho jogando, é apostável) / 💎 Gemas (compradas; compram tempo, espaço, conveniência e aparência, nunca poder nem Ouro). Gemas **nunca** viram Ouro. Evita classificação como jogo de azar. |
 | PVP | Corridas de **4–8 jogadores**, entrada igual, pote dividido 1º/2º/3º (menos taxa da casa). Bots completam vagas. **Espectadores apostam** (fase 2; em reavaliação pelo risco de classificação 18+, ver `docs/cronograma.md`). |
 | Matchmaking | **Ligas por Rating de Poder do cavalo** + **MMR do jogador** dentro da liga. Modo opcional **Copa Nivelada** (status normalizados). |
 
@@ -188,6 +188,87 @@ Conjuntos: **Sol** (clima do Fogo), **Chuva** (Água), **Névoa** (Grama). Além
 
 **Depois (fora do protótipo):** durabilidade e reparo · limite de vagas no inventário · Lendário na loja (hoje só pelo painel `?dev=1`, até as expedições) · peça Mítica · mercado entre jogadores · cosméticos por Gemas · desmanche · expedições e pacotes como fonte de peças · transferência de peças entre contas.
 
-## 8+. Seções pendentes
+## 8. Redesenho aprovado em 2026-11-10 (ainda não implementado)
 
-Expedições · Economia (entradas, taxa da casa, sumidouros de Ouro) · Tecnologia final (cliente, servidor, Android) · Anti-trapaça · PVP assíncrono, circuito ocioso e ranqueada (propostas em `docs/cronograma.md`).
+> Aprovado em conversa com o Vinicius, parte por parte. Entra em blocos, cada um com spec própria em
+> `docs/superpowers/specs/`. Enquanto um bloco não é implementado, vale o que as seções 3 a 7 e o
+> `docs/wiki.md` descrevem. Os números saem de simulação e ficam na spec de cada bloco.
+
+### 8.1 Como o status de um cavalo é formado (bloco 1)
+- **Raridade:** a faixa em que os status nascem, o teto de cada status e as vagas de skill. Só muda por cruza.
+- **Genética:** uma nota por status (C, B, A, S), visível. Define onde o status nasce dentro da faixa e
+  quanto ele cresce sozinho por nível. Metade vem dos pais, metade é sorteada (é o "potencial" de hoje, à mostra).
+- **Nível:** os status sobem sozinhos conforme a genética e o jogador ganha um ponto livre por nível
+  para a build, até o teto da raridade.
+- **Estrelas:** multiplicam os pontos livres. O cavalo nasce com uma a três e sobe com um item raro de treino.
+- **Regras:** os pontos nunca enchem tudo (no nível máximo, três estrelas enchem cerca de 5 dos 7
+  status); o bônus fixo do tipo (+8 num status) sai; os três iniciais passam a Comuns de duas estrelas,
+  com a mesma soma de status e de genética e distribuição diferente; o tipo Neutro sai do jogo por enquanto.
+- **Metas:** cada inicial vence de 30% a 37% no geral e de 22% a 45% em qualquer tamanho de pista; 10
+  níveis a mais vencem 70% ou mais; uma raridade acima perto de 80%, duas acima 95% ou mais; três
+  estrelas contra uma, de 65% a 75%.
+
+### 8.2 Skill de tipo (bloco 1)
+Todo cavalo tem a skill do seu tipo, em vaga própria, **sempre ativa** (sem sorteio) no terço da pista
+que é do tipo; o terço é proporcional à distância. A força cresce com nível e raridade, igual para os três.
+
+| Tipo | Skill | Terço | Efeito |
+|---|---|---|---|
+| 🔥 Fogo | Labareda | primeiro | aceleração e velocidade |
+| 🌿 Grama | Raízes Firmes | do meio | perde menos em curva, subida e piso pesado; gasta menos fôlego |
+| 💧 Água | Maré Alta | último | recupera fôlego e ganha velocidade |
+
+As três rendem o mesmo ganho de vitória (tolerância de 1 ponto percentual, vigiada por meta). As oito
+skills gerais continuam por sorteio nas vagas normais; as que só um tipo aprende também, três por tipo.
+Skill que atrapalha rival fica fora por enquanto (rever depois do teste fechado, com dados de jogadores).
+
+### 8.3 Pista e preparação (bloco 2)
+- **Pistas sem extremos:** faixa de distância menor (em torno de 1.400 a 2.000 m), toda pista com
+  curva e subida, nenhum tipo de trecho com mais da metade do percurso.
+- **Preparação com relógio:** a sala abre, a pista aparece e o jogador tem 12 segundos (ajustável) para
+  trocar de cavalo e de ferradura com um toque. No zero a corrida larga sozinha; fechar o jogo não segura a sala.
+- **Limite:** o cavalo escolhido não pode ter Poder acima do que a sala viu. Nada é re-sorteado.
+- **Ferradura de tração:** família nova, reduz a perda em terra e areia.
+
+### 8.4 Itens de treino e as duas lojas (blocos 4 e 6)
+A Gema compra tempo, espaço, conveniência e aparência; nunca poder nem Ouro. Tudo que fortalece o
+cavalo existe de graça, jogando. Item comprado com Gema nunca tem resultado sorteado.
+
+| Item | Por Ouro ou jogando | Por Gemas |
+|---|---|---|
+| Torrão de açúcar (um ponto livre a mais, limite por cavalo) | sim | não |
+| Estrela de treino (sobe uma estrela) | sim, rara | não |
+| Rédea nova (redistribui os pontos) | sim | sim |
+| Cupom de troca de skill | sim, skill sorteada | sim, skill escolhida numa lista |
+| Manual de doma | sim, aumenta a chance de aprender | sim, garante aprender |
+| Acelerador de cruza · vaga extra de estábulo (até 3) · redefinir cruzas · mudar aparência | não | sim |
+
+Gemas também caem de graça, em pouca quantidade, por missões. A skill de tipo nunca troca.
+
+### 8.5 Ouro, circuito e aluguel (blocos 4 e 5)
+- **O Ouro entra devagar** (prêmio de corrida, circuito, aluguel, missões, venda de peça) **e sai por
+  muitas portas:** entrada, registro de cruza que cresce com a raridade, taxa por tentativa de melhoria,
+  itens de treino, subir estrela, vagas com preço crescente, ração (bônus de XP) e, no futuro, despertar,
+  taxa do mercado e inscrição em copas.
+- **Cruza demora de 12 a 24 horas;** a égua fica ocupada.
+- **Circuito ocioso:** cavalos fora da ativa correm treinos sozinhos com o jogo fechado, até 8 horas
+  acumuladas. Rende pouco Ouro, XP e chance de item, mais para cavalos de Poder maior. Sem entrada nem
+  pote. O número de cavalos no circuito depende das vagas do estábulo.
+- **Aluguel:** o cavalo fica no haras da vila por 4, 8 ou 12 horas e volta com Ouro conforme a
+  qualidade. Com servidor, o aluguel passa a ser entre jogadores.
+- **Um trabalho por vez:** cada cavalo corre valendo, corre no circuito, fica de aluguel ou cruza.
+- Gema nunca acelera o que paga Ouro (circuito e aluguel).
+
+### 8.6 Mercado entre jogadores (bloco 7, com servidor)
+Só em Ouro, no modelo do Black Desert: sem troca direta, mercado anônimo, preço dentro de faixa e taxa
+da casa. O Ouro nunca é vendido por Gemas: ele é o que se aposta.
+
+### 8.7 Ordem dos blocos
+1. Status e tipo · 2. Pista e preparação · 3. Empacotamento e início do teste fechado · 4. Itens de
+treino e gastos de Ouro · 5. Tempo e estábulo ativo (cruza com relógio, circuito, aluguel, missões,
+tela de cruza com os dois pais e a faixa do potro) · 6. Loja de Gemas (sem compra real no teste
+fechado) · 7. Online.
+
+## 9+. Seções pendentes
+
+Expedições · Tecnologia final do servidor e do empacotamento · Anti-trapaça · PVP assíncrono e ranqueada (propostas em `docs/cronograma.md`).
