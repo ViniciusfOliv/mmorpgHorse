@@ -8,7 +8,7 @@
 // Também confere a entrada reservada do páreo aberto, a gravação que falha, o save adulterado ou corrompido,
 // o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo, o tamanho mínimo do texto e o teto
 // de chamadas de canvas por quadro na corrida mais cara.
-//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,teto node tools/ui-test.mjs  -> só esses
+//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,teto node tools/ui-test.mjs  -> só esses
 import { createRequire } from 'node:module'
 import { dirname, extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -791,6 +791,34 @@ try {
   // em instantes fixos da simulação (determinístico; o tempo varia com a carga da máquina e fica só como
   // informação). Pega quem reintroduzir um desenho caro (ex.: a hachura das subidas com um fillRect por listra
   // eram 4 a 11 mil por quadro; hoje o máximo fica perto de 4 mil).
+  // ---------------- corrida redimensionada: continua cabendo na altura da janela ----------------
+  // no meio da corrida a janela encolhe 100 a 110 px só na altura (abaixo do limite que ignora a barra do
+  // navegador crescendo): o layout tem de ser refeito, sem rolagem e com os controles visíveis
+  if (quer('redimensiona')) {
+    for (const [de, para] of [[{ width: 390, height: 844 }, { width: 390, height: 744 }], [{ width: 1280, height: 800 }, { width: 1280, height: 690 }]]) {
+      const label = `redimensiona-${de.width}x${de.height}-${para.height}`
+      const pg = await newPage(browser, de, label, { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await devArmar(pg, { distancia: 1600, seed: 4242 })
+        await abrirSala(pg)
+        await pg.getByRole('button', { name: /^Largar/ }).click()
+        await pg.waitForSelector('#pista')
+        await pg.waitForFunction(() => window.__galope.race && window.__galope.race._state.phase === 'corrida', null, { timeout: 20000 })
+        await pg.setViewportSize(para)
+        await sleep(500)
+        const f = await checkRaceFits(pg, label)
+        const sh = await pg.evaluate(() => ({ sh: document.documentElement.scrollHeight, vh: window.innerHeight }))
+        notes[label] = { ...f, ...sh }
+        if (sh.sh > sh.vh + 1) problems.push(`[${label}] a corrida não cabe na altura da janela depois de encolher: scrollHeight ${sh.sh} > ${sh.vh}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+  }
+
   if (quer('teto')) {
     const TETO = { fillRect: 7000, drawImage: 300 }
     const pg = await newPage(browser, { width: 1280, height: 800 }, 'teto-desenho', { query: '?dev=1' })

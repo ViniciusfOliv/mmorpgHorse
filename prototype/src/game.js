@@ -3219,14 +3219,15 @@
 
     // primeiro quadro estático
     frame(performance.now());
-    // redimensionar: espera 150 ms parar; mudança só de altura pequena (a barra do navegador do celular
-    // aparecendo e sumindo) não refaz o layout
+    // redimensionar: espera 150 ms parar; a altura CRESCENDO menos de 120 px (a barra do navegador do celular
+    // sumindo) não refaz o layout — sobra um pouco de espaço embaixo. Encolher refaz sempre: senão o canvas
+    // fica mais alto que a janela, a página rola e os controles somem.
     var rzTimer = null, rzW = window.innerWidth, rzH = window.innerHeight, rzDpr = dpr();
     var onResize = function () {
       clearTimeout(rzTimer);
       rzTimer = setTimeout(function () {
         var w = window.innerWidth, h = window.innerHeight, r = dpr();
-        if (w === rzW && r === rzDpr && Math.abs(h - rzH) < 120) return;
+        if (w === rzW && r === rzDpr && h >= rzH && h - rzH < 120) return;
         rzW = w; rzH = h; rzDpr = r;
         layout();
       }, 150);
