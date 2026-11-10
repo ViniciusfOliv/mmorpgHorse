@@ -2726,7 +2726,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
  *   Sprites.drawHorseSilhouette(ctx, x, y, opts, cor, alpha)  (contorno tingido, chamar antes de drawHorse),
  *   Sprites.anchorsFor(element, scale, estado), Sprites.horseBox(x, y, opts),
- *   Sprites.limparCacheMoldes() (moldes recoloridos e silhuetas do contorno; o game.js chama ao trocar de tela),
+ *   Sprites.limparCacheMoldes() (moldes recoloridos, silhuetas do contorno e textos prontos; o game.js chama ao
+ *     trocar de tela),
  *   Sprites.drawHorseCodigo(...)
  */
 (function (root, factory) {
@@ -3891,7 +3892,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   }
   function quadroGalopeTeste(element, frame) { return moldsOk ? quadroGalope(moldes[estiloDe(element)], frame) : null; }
 
-  function limparCacheMoldes() { moldCache.clear(); silCache.clear(); }
+  function limparCacheMoldes() { moldCache.clear(); silCache.clear(); textoCache.clear(); glifosCache.clear(); }
   function cacheMoldes() { return moldCache.map.size; }
   function cacheSilhuetas() { return { n: silCache.map.size, bytes: silCache.bytes, max: silCache.max }; }
 
@@ -3980,7 +3981,17 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   };
   var ACCENTS = { '́': ['..#', '.#.'], '̀': ['#..', '.#.'], '̂': ['.#.', '#.#'], '̃': ['.##', '##.'] };
 
+  // glifos por texto: o HUD mede e desenha as mesmas strings a cada quadro (normalize('NFD') não é de graça)
+  var glifosCache = new Map();
   function textGlyphs(text) {
+    var k = String(text), out = glifosCache.get(k);
+    if (out) return out;
+    out = textGlyphsNovo(k);
+    if (glifosCache.size >= 512) glifosCache.clear();
+    glifosCache.set(k, out);
+    return out;
+  }
+  function textGlyphsNovo(text) {
     var out = [];
     var s = String(text).normalize ? String(text).normalize('NFD') : String(text);
     for (var i = 0; i < s.length; i++) {
@@ -3997,6 +4008,42 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     for (var i = 0; i < gl.length; i++) w += (gl[i].g[0].length + 1);
     return Math.max(0, w - 1) * scale;
   }
+  // pinta os glifos de text, de uma cor, com o canto de cima da linha de base em (x, y)
+  function pintaTexto(ctx, gl, x, y, s, col) {
+    ctx.fillStyle = col;
+    var cx = x;
+    for (var i = 0; i < gl.length; i++) {
+      var g = gl[i].g, gw = g[0].length;
+      for (var r = 0; r < 5; r++) for (var c = 0; c < gw; c++) if (g[r][c] === '#') ctx.fillRect(cx + c * s, y + r * s, s, s);
+      for (var m = 0; m < gl[i].marks.length; m++) {
+        var mk = gl[i].marks[m], off = Math.floor((gw - 3) / 2);
+        if (mk === '̧') { ctx.fillRect(cx + Math.floor(gw / 2) * s, y + 5 * s, s, s); continue; }
+        var am = ACCENTS[mk];
+        for (var rr = 0; rr < 2; rr++) for (var cc = 0; cc < 3; cc++) if (am[rr][cc] === '#') ctx.fillRect(cx + (cc + off) * s, y + (rr - 3) * s, s, s);
+      }
+      cx += (gw + 1) * s;
+    }
+  }
+  // Texto pronto em canvas, por (escala, cor, texto): o HUD repete as mesmas strings a cada quadro e cada uma
+  // eram 50 a 100 fillRect. A sombra é o mesmo texto em outra cor (outra entrada), colada antes — pixel a pixel
+  // igual a pintar as duas passadas (só cores opacas com globalAlpha 1; senão pinta direto). LRU com teto de
+  // 4 MB, limpo com os outros caches (limparCacheMoldes). Sem canvas (Node), pinta direto.
+  var textoCache = new LruCanvasCache(4 * 1024 * 1024);
+  var podeCanvas = (typeof document !== 'undefined' && !!document.createElement) || typeof OffscreenCanvas !== 'undefined';
+  function opaca(col) { return typeof col === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(col); }
+  function textoCanvas(text, gl, w, s, col) {
+    var k = s + '|' + col + '|' + text, c = textoCache.get(k);
+    if (c) return c;
+    var acima = 0, abaixo = 5;
+    for (var i = 0; i < gl.length; i++) for (var m = 0; m < gl[i].marks.length; m++) {
+      if (gl[i].marks[m] === '̧') abaixo = 6; else acima = 3;
+    }
+    c = makeCanvas(w, (acima + abaixo) * s);
+    c.acima = acima * s;
+    pintaTexto(c.getContext('2d'), gl, 0, acima * s, s, col);
+    textoCache.set(k, c);
+    return c;
+  }
   function drawText(ctx, text, x, y, o) {
     o = o || {};
     var s = o.scale || 1, color = o.color || '#ffffff';
@@ -4004,24 +4051,17 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (o.align === 'center') x -= Math.round(w / 2);
     else if (o.align === 'right') x -= w;
     x = Math.round(x); y = Math.round(y);
-    function pass(dx, dy, col) {
-      ctx.fillStyle = col;
-      var cx = x + dx;
-      var gl = textGlyphs(text);
-      for (var i = 0; i < gl.length; i++) {
-        var g = gl[i].g, gw = g[0].length;
-        for (var r = 0; r < 5; r++) for (var c = 0; c < gw; c++) if (g[r][c] === '#') ctx.fillRect(cx + c * s, y + dy + r * s, s, s);
-        for (var m = 0; m < gl[i].marks.length; m++) {
-          var mk = gl[i].marks[m], off = Math.floor((gw - 3) / 2);
-          if (mk === '̧') { ctx.fillRect(cx + Math.floor(gw / 2) * s, y + dy + 5 * s, s, s); continue; }
-          var am = ACCENTS[mk];
-          for (var rr = 0; rr < 2; rr++) for (var cc = 0; cc < 3; cc++) if (am[rr][cc] === '#') ctx.fillRect(cx + (cc + off) * s, y + dy + (rr - 3) * s, s, s);
-        }
-        cx += (gw + 1) * s;
-      }
+    var gl = textGlyphs(text);
+    // cor translúcida ou globalAlpha < 1: colar o canvas arredonda diferente (±1 no canal); pinta direto
+    if (!podeCanvas || w <= 0 || !ctx.drawImage || ctx.globalAlpha !== 1 || !opaca(color) || (o.shadow && !opaca(o.shadow))) {
+      if (o.shadow) pintaTexto(ctx, gl, x + s, y + s, s, o.shadow);
+      pintaTexto(ctx, gl, x, y, s, color);
+      return w;
     }
-    if (o.shadow) pass(s, s, o.shadow);
-    pass(0, 0, color);
+    var c;
+    if (o.shadow) { c = textoCanvas(text, gl, w, s, o.shadow); ctx.drawImage(c, x + s, y + s - c.acima); }
+    c = textoCanvas(text, gl, w, s, color);
+    ctx.drawImage(c, x, y - c.acima);
     return w;
   }
 
@@ -4901,6 +4941,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     hillShape: hillShape,
     HILL_AMP: HILL_AMP,
     cacheStats: cacheStats,
+    _cacheTexto: function () { return { n: textoCache.map.size, bytes: textoCache.bytes, max: textoCache.max }; },
     drawText: drawText,
     measureText: measureText,
     _debug: { compose: compose, horseLayers: horseLayers, horseState: horseState, outlineAndColor: outlineAndColor, buildColors: buildColors }
