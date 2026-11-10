@@ -697,13 +697,6 @@ test('drawHoofDust: só em terra ou areia; menos em reduced; função do tempo',
   assert.ok(nr > 0 && nr < na, 'reduced com menos ' + nr + ' < ' + na);
   a.rects.forEach(function (q) { assert.ok(q.x < 100 + 3 * 3 && q.y <= 200, 'poeira atrás e acima do casco'); });
 });
-test('Sprites.drawWeather repassa para RaceFx.drawNature', function () {
-  var SP = require('../src/sprites.js');
-  var antes = global.RaceFx, chamou = null;
-  global.RaceFx = { drawNature: function (c, o) { chamou = o; }, drawFogFront: function () {} };
-  try { SP.drawWeather(ctxNat(), 'chuva', 2.5, 300, 200, 2); } finally { if (antes === undefined) delete global.RaceFx; else global.RaceFx = antes; }
-  assert.ok(chamou && chamou.weather === 'chuva' && chamou.t === 2.5 && chamou.W === 300 && chamou.H === 200 && chamou.P === 2, JSON.stringify(chamou));
-});
 FX.resetStats(true);
 
 section('traçado de cima e curvas na pista');

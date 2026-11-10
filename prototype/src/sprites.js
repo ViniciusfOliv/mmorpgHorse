@@ -19,8 +19,6 @@
  *     nos postes e placas "CURVA" presas à cerca a cada 40 m. O chamador soma o mesmo deslocamento no y dos
  *     cavalos. Sem fx.js, a pista fica reta. curveScale (0..1) encolhe o arco quando falta espaço acima da
  *     pista (o y dos cavalos usa o mesmo fator).
- *   Sprites.drawWeather(ctx, weather, t, width, height, pixel) — repasse para RaceFx.drawNature +
- *     RaceFx.drawFogFront (fx.js; sem ele, não desenha nada). A corrida chama o fx.js direto.
  *   Sprites.cloudCanvas(seed, P, tom) — nuvem de pixels em cache (usada pelo nublado do fx.js)
  *   Sprites.drawTrail(ctx, x, y, element, t, intensity, scale)
  *   Sprites.drawElementIcon(ctx, x, y, element, scale)
@@ -800,7 +798,6 @@
     }
   };
   var baseCache = new LruCanvasCache(12 * 1024 * 1024);    // ~2400 quadros de 40x32
-  var scaledCache = new LruCanvasCache(24 * 1024 * 1024);  // só para quem chama horseCanvas() direto
   function palKey(p) { return [p.coat, p.coatShade, p.mane, p.accent].join(','); }
 
   function horseState(opts) {
@@ -848,18 +845,6 @@
     return { canvas: base, key: baseKey };
   }
 
-  function horseCanvas(opts) {
-    var scale = Math.max(1, Math.round(opts.scale || 1));
-    var b = horseBase(opts);
-    if (scale === 1) return b.canvas;
-    var key = b.key + '|x' + scale;
-    var hit = scaledCache.get(key);
-    if (hit) return hit;
-    var scaled = scaleCanvas(b.canvas, scale);
-    scaledCache.set(key, scaled);
-    return scaled;
-  }
-
   // Desenho por código (sempre disponível): usado quando os moldes não carregaram ou a pose não tem molde.
   function drawHorseCodigo(ctx, x, y, opts) {
     opts = opts || {};
@@ -874,7 +859,7 @@
     }
     ctx.drawImage(horseBase(opts).canvas, x, y, HORSE_W * s, HORSE_H * s);
   }
-  function cacheStats() { return { baseBytes: baseCache.bytes, baseCount: baseCache.map.size, scaledBytes: scaledCache.bytes, scaledCount: scaledCache.map.size }; }
+  function cacheStats() { return { baseBytes: baseCache.bytes, baseCount: baseCache.map.size }; }
 
   // ===================================================================
   // MOLDES DO PIXELLAB — recolor por paleta em tempo de execução
@@ -2197,22 +2182,11 @@
     }
   }
 
-  // ===================================================================
-  // CLIMA (sobreposição em tela): repasse para RaceFx.drawNature (fx.js)
-  // ===================================================================
-  // Assinatura antiga, mantida para quem só tem a tela inteira (sprite-preview): as duas camadas da
-  // natureza e a névoa da frente, sem a pista (laneTop = 35 % da altura). Sem fx.js carregado, nada.
+  // RaceFx (fx.js) carregado no navegador ou no Node; sem ele, null (a pista fica reta)
   function fxApi() {
     if (typeof self !== 'undefined' && self.RaceFx) return self.RaceFx;
     if (typeof global !== 'undefined' && global.RaceFx) return global.RaceFx;
     return null;
-  }
-  function drawWeather(ctx, weather, t, W, H, pixel) {
-    var FX = fxApi();
-    if (!FX || !FX.drawNature) return;
-    var o = { weather: weather, t: t || 0, W: W, H: H, P: pixel || Math.max(2, Math.round(Math.min(W, H) / 150)) };
-    FX.drawNature(ctx, o);
-    if (FX.drawFogFront) FX.drawFogFront(ctx, o);
   }
 
   var api = {
@@ -2227,7 +2201,6 @@
     drawHorse: drawHorse,
     drawHorseCodigo: drawHorseCodigo,
     horseBox: horseBox,
-    horseCanvas: horseCanvas,
     drawHorseSilhouette: drawHorseSilhouette,
     // moldes do PixelLab (ver a seção MOLDES)
     ESTILO_POR_ELEMENTO: ESTILO_POR_ELEMENTO,
@@ -2242,7 +2215,6 @@
     _layoutMolde: layoutTeste,
     _quadroGalope: quadroGalopeTeste,
     drawTrack: drawTrack,
-    drawWeather: drawWeather,
     cloudCanvas: cloudCanvas,
     drawTrail: drawTrail,
     drawElementIcon: drawElementIcon,
@@ -2253,8 +2225,7 @@
     cacheStats: cacheStats,
     _cacheTexto: function () { return { n: textoCache.map.size, bytes: textoCache.bytes, max: textoCache.max }; },
     drawText: drawText,
-    measureText: measureText,
-    _debug: { compose: compose, horseLayers: horseLayers, horseState: horseState, outlineAndColor: outlineAndColor, buildColors: buildColors }
+    measureText: measureText
   };
   return api;
 }));
