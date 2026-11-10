@@ -17,7 +17,7 @@ estão em `docs/cronograma.md`.
 - **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Cavalo, Itens,
   Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
 - **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (76 testes
-  de simulação, 65 de efeitos, 46 de moldes, 290 conferências do wiki, 66 metas de balanço no modo
+  de simulação, 66 de efeitos, 46 de moldes, 290 conferências do wiki, 66 metas de balanço no modo
   rápido e 82 no completo, e o teste de interface).
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
