@@ -651,6 +651,22 @@ try {
       problems.push('corrompido: ' + e.message)
     }
     await cp.context().close()
+    // sem espaço para a cópia: o aviso não pode dizer que ela foi guardada
+    const cp2 = await newPage(browser, { width: 390, height: 844 }, 'corrompido-sem-copia', {
+      init: { content: `try {
+        localStorage.setItem('galope-elemental:v1', ${JSON.stringify(BRUTO)})
+        const orig = Storage.prototype.setItem
+        Storage.prototype.setItem = function (k) { if (/:corrompido$/.test(k)) throw new DOMException('cheio', 'QuotaExceededError'); return orig.apply(this, arguments) }
+      } catch (e) {}` }
+    })
+    try {
+      await cp2.waitForSelector('.inicial')
+      const aviso = (await cp2.locator('#tela .aviso').allTextContents()).join(' ')
+      if (/cópia do arquivo antigo foi guardada/.test(aviso) || !/não foi possível guardar uma cópia/i.test(aviso)) problems.push('corrompido: sem espaço para a cópia, o aviso diz: ' + aviso)
+    } catch (e) {
+      problems.push('corrompido-sem-copia: ' + e.message)
+    }
+    await cp2.context().close()
   }
 
   // ---------------- área segura do topo: com inset, o cabeçalho e o conteúdo descem; sem inset, nada muda ----------------

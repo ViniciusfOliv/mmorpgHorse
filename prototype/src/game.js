@@ -221,10 +221,9 @@
   // Save que não se lê (JSON inválido): antes de o jogo recomeçar e gravar por cima, o texto bruto vai para
   // SAVE_KEY + ':corrompido' (uma cópia só, a mais recente) e a tela inicial avisa (start).
   var CORROMPIDO_KEY = SAVE_KEY + ':corrompido';
-  var saveCorrompido = false;
+  var saveCorrompido = false;   // false | 'guardado' (a cópia foi gravada) | 'sem-copia' (não coube)
   function guardaCorrompido(raw) {
-    saveCorrompido = true;
-    try { window.localStorage.setItem(CORROMPIDO_KEY, String(raw)); } catch (e) { /* sem espaço: segue */ }
+    try { window.localStorage.setItem(CORROMPIDO_KEY, String(raw)); saveCorrompido = 'guardado'; } catch (e) { saveCorrompido = 'sem-copia'; }
   }
   function loadSave() {
     var raw = null;
@@ -1507,7 +1506,8 @@
     }).join('');
     return '<section class="tela tela--larga" aria-labelledby="t-inicial">' +
       '<header class="tela-cabeca"><h1 class="logo" id="t-inicial" tabindex="-1" data-foco>' + logoHtml('Galope Elemental') + '</h1>' +
-      (saveCorrompido ? '<p class="aviso" role="status">Não foi possível ler o seu progresso salvo (o arquivo está corrompido). O jogo recomeçou; uma cópia do arquivo antigo foi guardada.</p>' : '') +
+      (saveCorrompido ? '<p class="aviso" role="status">Não foi possível ler o seu progresso salvo (o arquivo está corrompido). O jogo recomeçou; ' +
+        (saveCorrompido === 'guardado' ? 'uma cópia do arquivo antigo foi guardada.' : 'não foi possível guardar uma cópia do arquivo antigo.') + '</p>' : '') +
       '<p class="sub">Escolha seu primeiro cavalo. Ele corre sozinho nas corridas valendo Ouro: você decide o item e a aposta antes da largada.</p></header>' +
       '<div class="iniciais-nav" role="group" aria-label="Comparar os 3 iniciais">' + nav + '<span class="nota">Deslize para comparar</span></div>' +
       '<div class="iniciais">' + cards + '</div>' +
