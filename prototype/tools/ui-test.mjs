@@ -376,6 +376,91 @@ try {
     await gv.context().close()
   }
 
+  // ---------------- save adulterado: Poder da sala, status base e campo morto ----------------
+  if (quer('adulterado')) {
+    const ad = await newPage(browser, { width: 390, height: 844 }, 'adulterado')
+    const st = () => ad.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    const bruto = () => ad.evaluate(() => JSON.parse(localStorage.getItem('galope-elemental:v1')))
+    const grava = (raw) => ad.evaluate((r) => localStorage.setItem('galope-elemental:v1', JSON.stringify(r)), raw)
+    const poderReal = () => ad.evaluate(() => {
+      const s = window.__galope.state, m = s.mounts.find((x) => x.uid === s.activeId), it = {}
+      s.items.forEach((x) => { it[x.uid] = x })
+      return window.RaceSim.powerRating(m, window.Gear.resolve(m, it))
+    })
+    try {
+      await ad.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await ad.waitForSelector('#t-estabulo')
+      const sala = await abrirSala(ad)
+      const s0 = await st()
+      if (!s0.pending || !Array.isArray(s0.pending.gear) || !s0.pending.gear.length) problems.push('adulterado: a sala aberta não guardou o retrato do equipamento ' + JSON.stringify(s0.pending))
+      // 1. save legítimo: recarregar não muda nada
+      await ad.reload({ waitUntil: 'domcontentloaded' })
+      await ad.waitForSelector('#t-estabulo')
+      let s = await st()
+      if (s.pending.pr !== s0.pending.pr || JSON.stringify(s.mounts[0].base) !== JSON.stringify(s0.mounts[0].base)) problems.push('adulterado: o save legítimo mudou ao recarregar ' + JSON.stringify({ pr: [s0.pending.pr, s.pending.pr] }))
+      // 2. adulterado: Poder da sala 99 999, status base 100, gestacao 1e300 e uma peça Lendária +10 (fica: pode vir do painel antigo)
+      const raw = await bruto()
+      raw.pending.pr = 99999
+      for (const k of Object.keys(raw.mounts[0].base)) raw.mounts[0].base[k] = 100
+      raw.mounts[0].gestacao = 1e300
+      raw.items.push({ uid: 'i99', id: 'armadura-chuva-lendario', plus: 10 })
+      await grava(raw)
+      await ad.reload({ waitUntil: 'domcontentloaded' })
+      await ad.waitForSelector('#t-estabulo')
+      s = await st()
+      const m = s.mounts[0]
+      if (Math.max(...Object.values(m.base)) > 66) problems.push('adulterado: status base acima da faixa Raro ★★ ' + JSON.stringify(m.base))
+      if ('gestacao' in m) problems.push('adulterado: campo gestacao continua no save')
+      if (!s.items.some((x) => x.uid === 'i99' && x.plus === 10)) problems.push('adulterado: a peça Lendária foi descartada')
+      const real = await poderReal()
+      if (s.pending.pr !== real) problems.push(`adulterado: Poder da sala ${s.pending.pr} != Poder real ${real}`)
+      // a trava continua: com o Poder da sala real, a Lendária não pode ser equipada
+      await ad.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await ad.waitForSelector('#t-montaria')
+      await ad.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+      await ad.locator('[data-acao="equip-slot"][data-id="armadura"]').click()
+      if (!(await ad.locator('[data-acao="equipar"][data-id="i99"]').isDisabled())) problems.push('adulterado: a peça Lendária pode ser equipada com o páreo aberto')
+      const sala2 = await salaAtual(ad).catch(() => null)
+      if (sala2 && sala2.seed !== sala.seed) problems.push('adulterado: seed da sala mudou')
+      // 3. retrato adulterado (peça inexistente): cai para o equipamento atual
+      const raw2 = await bruto()
+      raw2.pending.gear = [{ slot: 'sela', id: 'nao-existe', plus: 99 }]
+      raw2.pending.pr = 99999
+      await grava(raw2)
+      await ad.reload({ waitUntil: 'domcontentloaded' })
+      await ad.waitForSelector('#t-estabulo')
+      s = await st()
+      if (s.pending.pr !== (await poderReal())) problems.push('adulterado: retrato inválido deixou o Poder da sala em ' + s.pending.pr)
+    } catch (e) {
+      problems.push('adulterado: ' + e.message)
+    }
+    await ad.context().close()
+  }
+
+  // ---------------- save corrompido: cópia do texto bruto e aviso na tela inicial ----------------
+  if (quer('corrompido')) {
+    const BRUTO = '{"v":4,"gold":12345,"mounts":[{"uid":"m1"'   // JSON cortado no meio
+    const cp = await newPage(browser, { width: 390, height: 844 }, 'corrompido', {
+      init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(BRUTO)}) } } catch (e) {}` }
+    })
+    try {
+      await cp.waitForSelector('.inicial')
+      const aviso = (await cp.locator('#tela .aviso').allTextContents()).join(' ')
+      if (!/corrompido/.test(aviso)) problems.push('corrompido: a tela inicial não avisa do save corrompido: ' + aviso)
+      await cp.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await cp.waitForSelector('#t-estabulo')
+      const ls = await cp.evaluate(() => ({ copia: localStorage.getItem('galope-elemental:v1:corrompido'), real: localStorage.getItem('galope-elemental:v1') }))
+      if (ls.copia !== BRUTO) problems.push('corrompido: cópia do save bruto ' + JSON.stringify(ls.copia))
+      if (!ls.real || ls.real === BRUTO) problems.push('corrompido: o jogo novo não gravou o save')
+      await cp.reload({ waitUntil: 'domcontentloaded' })
+      await cp.waitForSelector('#t-estabulo')
+      if ((await cp.evaluate(() => localStorage.getItem('galope-elemental:v1:corrompido'))) !== BRUTO) problems.push('corrompido: a cópia sumiu depois de recarregar')
+    } catch (e) {
+      problems.push('corrompido: ' + e.message)
+    }
+    await cp.context().close()
+  }
+
   // ---------------- produção (jogo.html, o que vai para o jogador): sem DEV e sem gancho de teste ----------------
   if (quer('producao')) {
     for (const query of ['', '?dev=1']) {

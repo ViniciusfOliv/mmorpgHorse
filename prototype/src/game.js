@@ -211,11 +211,19 @@
   // Persistência (localStorage é opcional: tudo funciona sem ele)
   // Cada gravação leva uma revisão (state.rev): uma aba antiga não sobrescreve a mais nova.
   // ===========================================================================
+  // Save que não se lê (JSON inválido): antes de o jogo recomeçar e gravar por cima, o texto bruto vai para
+  // SAVE_KEY + ':corrompido' (uma cópia só, a mais recente) e a tela inicial avisa (start).
+  var CORROMPIDO_KEY = SAVE_KEY + ':corrompido';
+  var saveCorrompido = false;
+  function guardaCorrompido(raw) {
+    saveCorrompido = true;
+    try { window.localStorage.setItem(CORROMPIDO_KEY, String(raw)); } catch (e) { /* sem espaço: segue */ }
+  }
   function loadSave() {
-    try {
-      var raw = window.localStorage.getItem(SAVE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (e) { return null; }
+    var raw = null;
+    try { raw = window.localStorage.getItem(SAVE_KEY); } catch (e) { return null; }
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch (e2) { guardaCorrompido(raw); return null; }
   }
   function storedRev() {
     try {
@@ -298,7 +306,6 @@
       breedLeft: tpl.breedLeftMax || GD.BREED_LEFT[tpl.sex],
       parents: null,
       born: 0,
-      gestacao: null,
       equip: GR.emptyEquip()
     };
   }
@@ -395,6 +402,20 @@
     return f && m ? { f: f, m: m } : null;
   }
 
+  // Teto do status base de uma montaria pela raridade e pelo grau: o maior entre a janela em que um potro
+  // desse grau nasce (Breed: baseLo + GRAU_WINDOW) e o maior status base de um cavalo pronto (iniciais e
+  // selvagens) da mesma raridade. Status acima disso só vêm de save adulterado e são cortados (a montaria
+  // fica). Status mais baixos não dão vantagem: o piso continua 1.
+  var BASE_TPL_MAX = {};
+  allHorses().forEach(function (h) {
+    STAT_KEYS.forEach(function (k) { BASE_TPL_MAX[h.rarity] = Math.max(BASE_TPL_MAX[h.rarity] || 0, Number(h.base[k]) || 0); });
+  });
+  function baseMax(rarity, grau) {
+    var R = GD.RARITIES[rarity], win = window.Breed && window.Breed.GRAU_WINDOW;
+    var foal = R && win && win[grau - 1] ? R.baseLo + win[grau - 1][1] : 100;
+    return clamp(Math.max(foal, BASE_TPL_MAX[rarity] || 0), 1, 100);
+  }
+
   // Uma montaria do save v3: tipos e faixas; campo essencial ausente ou status inválidos -> null.
   function sanitizeMount(m) {
     if (!m || typeof m !== 'object') return null;
@@ -407,7 +428,8 @@
       if (typeof m.templateId !== 'string' || !(horseById(m.templateId) || (devHooks && devHooks.templateId(m.templateId)))) return null;
       templateId = m.templateId;
     }
-    var base = statBlock(m.base, 1, 100), potential = statBlock(m.potential, 0, 31);
+    var grau = num(m.grau, 2, 1, 3);
+    var base = statBlock(m.base, 1, baseMax(m.rarity, grau)), potential = statBlock(m.potential, 0, 31);
     if (!base || !potential) return null;
     var name = typeof m.name === 'string' ? String(m.name).replace(/\s+/g, ' ').trim().slice(0, 16) : '';
     if (name.length < 2) name = 'Montaria';
@@ -418,7 +440,7 @@
       especie: 'cavalo',
       element: m.element,
       rarity: m.rarity,
-      grau: num(m.grau, 2, 1, 3),
+      grau: grau,
       sex: m.sex,
       level: num(m.level, 1, 1, MAX_LEVEL),
       xp: num(m.xp, 0, 0, 1e7),
@@ -429,8 +451,7 @@
       breedLeft: num(m.breedLeft, GD.BREED_LEFT[m.sex], 0, 4),
       parents: validParents(m.parents),
       born: num(m.born, 0, 0, 1e9),
-      gestacao: (typeof m.gestacao === 'number' && isFinite(m.gestacao) && m.gestacao >= 0) ? m.gestacao : null,
-      equip: GR.emptyEquip()      // preenchido em sanitize(), que conhece as peças válidas
+      equip: GR.emptyEquip()      // ('gestacao', gravado por saves antigos e nunca lido, fica de fora)      // preenchido em sanitize(), que conhece as peças válidas
     };
     out.skills = validSkills(m.skills, out);
     return out;
@@ -482,6 +503,7 @@
       if (p.training ? fee === 0 : E.entryTiers.indexOf(fee) >= 0) {
         base.pending = { counter: num(p.counter, 1, 1, 1e9), training: !!p.training, fee: fee, pr: num(p.pr, 600, 1, 1e5) };
         if (p.training && p.rebaixada === true) base.pending.rebaixada = true;   // sala valendo que virou treino (openLobby)
+        base.pending.gear = validGearSnapshot(p.gear);   // null: save de antes do retrato (preenchido abaixo)
       }
     }
     base.races = num(s.races, 0, 0, 1e9);
@@ -494,10 +516,45 @@
     base.stableSlots = stableSlots;
     base.breedCounter = breedCounter;
     sanitizeGear(s, v4, base, rawEquip);
+    // Poder da sala: nunca acima do Poder real da montaria ativa com o equipamento de quando a sala abriu
+    // (pending.gear, retrato tirado em openLobby). Sem o retrato (save anterior), vale o equipamento atual.
+    if (base.pending) {
+      var act = null;
+      base.mounts.forEach(function (m) { if (m.uid === base.activeId) act = m; });
+      var byUid = {};
+      base.items.forEach(function (it) { byUid[it.uid] = it; });
+      if (!base.pending.gear) base.pending.gear = gearSnapshot(GR.resolve(act, byUid));
+      base.pending.pr = Math.min(base.pending.pr, RS.powerRating(act, gearFromSnapshot(base.pending.gear)));
+    }
     // preferências (sem mudar a versão do save): save antigo sem settings, ou com valor inválido, segue o sistema
     var mo = s.settings && typeof s.settings === 'object' ? s.settings.motion : null;
     base.settings = { motion: MOTIONS.indexOf(mo) >= 0 ? mo : 'sistema' };
     return base;
+  }
+
+  // Retrato do equipamento da montaria ativa quando a sala abre (state.pending.gear): [{ slot, id, plus }].
+  // Não aponta para as peças do inventário (que podem ser vendidas ou melhoradas depois), só copia.
+  function gearSnapshot(gear) {
+    return gear.pieces.map(function (p) { return { slot: p.slot, id: p.id, plus: p.plus }; });
+  }
+  function gearFromSnapshot(snap) {
+    var equip = {}, items = {};
+    snap.forEach(function (p, i) { equip[p.slot] = 's' + i; items['s' + i] = { uid: 's' + i, id: p.id, plus: p.plus }; });
+    return GR.resolve({ equip: equip }, items);
+  }
+  // retrato salvo: peças do catálogo no slot certo, +N válido, um por slot; qualquer coisa fora disso -> null
+  function validGearSnapshot(arr) {
+    if (!Array.isArray(arr) || arr.length > GR.SLOTS.length) return null;
+    var out = [], seen = {};
+    for (var i = 0; i < arr.length; i++) {
+      var p = arr[i];
+      if (!p || typeof p !== 'object' || GR.SLOTS.indexOf(p.slot) < 0 || seen[p.slot]) return null;
+      if (typeof p.id !== 'string' || !hasOwn(GD.GEAR, p.id) || GD.GEAR[p.id].slot !== p.slot) return null;
+      if (!(typeof p.plus === 'number' && p.plus === Math.floor(p.plus) && p.plus >= 0 && p.plus <= GE.plusMax)) return null;
+      seen[p.slot] = true;
+      out.push({ slot: p.slot, id: p.id, plus: p.plus });
+    }
+    return out;
   }
 
   // Peças, pedras e equipamento (sobrescreve o equipamento inicial de newState). v4: lê s.items;
@@ -1440,6 +1497,7 @@
     }).join('');
     return '<section class="tela tela--larga" aria-labelledby="t-inicial">' +
       '<header class="tela-cabeca"><h1 class="logo" id="t-inicial" tabindex="-1" data-foco>' + logoHtml('Galope Elemental') + '</h1>' +
+      (saveCorrompido ? '<p class="aviso" role="status">Não foi possível ler o seu progresso salvo (o arquivo está corrompido). O jogo recomeçou; uma cópia do arquivo antigo foi guardada.</p>' : '') +
       '<p class="sub">Escolha seu primeiro cavalo. Ele corre sozinho nas corridas valendo Ouro: você decide o item e a aposta antes da largada.</p></header>' +
       '<div class="iniciais-nav" role="group" aria-label="Comparar os 3 iniciais">' + nav + '<span class="nota">Deslize para comparar</span></div>' +
       '<div class="iniciais">' + cards + '</div>' +
@@ -1827,6 +1885,7 @@
   function harasFoal(P) {
     var foal = BRD.foal({ f: P.f, m: P.m, seedBase: state.seedBase, breedCounter: state.breedCounter, nextUid: state.nextUid });
     foal.equip = GR.emptyEquip();   // entra no estábulo sem peças (Breed.foal não sabe de equipamento)
+    delete foal.gestacao;           // campo que o Breed.foal ainda devolve e o jogo nunca lê
     state.nextUid += 1;
     state.breedCounter += 1;
     return foal;
@@ -2167,7 +2226,8 @@
         // pareamento pelo cavalo COM o equipamento: ele é persistente (não é escolha de sala), então entra
         // no rating que atrai os rivais; com o páreo aberto, trocas não podem passar deste rating
         counter: state.raceCounter, training: !!training, fee: fee,
-        pr: RS.powerRating(playerHorse(), playerGear())
+        pr: RS.powerRating(playerHorse(), playerGear()),
+        gear: gearSnapshot(playerGear())   // retrato do equipamento: o sanitize limita pr por ele
       };
       state.pending = P;
       // a sala só abre se ficou gravada: sem isso, recarregar a sortearia de novo
@@ -3452,6 +3512,7 @@
         rerenderKeepScroll(); break;
       }
       case 'escolher':
+        saveCorrompido = false;   // o aviso da tela inicial vale até o jogo recomeçar
         state = newState(id);
         if (ui.motionKeep) { state.settings.motion = ui.motionKeep; ui.motionKeep = null; }   // "Recomeçar" não apaga a preferência
         persist();
@@ -3680,7 +3741,11 @@
     started = true;
     readTokens();
     data = data || {};
-    state = sanitize(!!data.dev === DEV_MODE ? data.save : null) || sanitize(loadSave());
+    var lido = loadSave();
+    state = sanitize(!!data.dev === DEV_MODE ? data.save : null) || sanitize(lido);
+    // JSON válido mas que não vira save (sanitize null): também guarda a cópia antes de recomeçar
+    if (!state && lido != null && !saveCorrompido) { try { guardaCorrompido(window.localStorage.getItem(SAVE_KEY)); } catch (e) { /* ignora */ } }
+
     if (!state && devHooks) { state = devHooks.novoPerfil(); persist(); }   // perfil DEV novo: Brasa, sem a escolha inicial
     if (!state) ui.motionKeep = leMotionKeep();   // "Recomeçar" e a aba fechou na escolha: a opção continua
     ui.screen = state ? 'estabulo' : 'inicial';
