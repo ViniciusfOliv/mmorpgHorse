@@ -3,7 +3,8 @@
  *
  * Depende de window.GameData (data.js), window.RaceSim (sim.js), window.Gear (gear.js),
  * window.Sprites (sprites.js) e window.RaceFx (fx.js, efeitos da corrida); no modo DEV (?dev=1 ou o build
- * de teste jogo-dev.html), também de window.Dev (dev.js) — ver a seção "Modo DEV".
+ * de teste jogo-dev.html), também do script do modo DEV — ver a seção "Modo DEV" (o jogo de produção,
+ * dist/jogo.html, sai sem ela: ver build.mjs).
  * Fluxo: Escolha do inicial -> Estábulo -> Sala de largada -> Corrida -> Resultado.
  *
  * Sala de largada: o campo (seed, condições, rivais, entrada) é sorteado UMA vez e fica salvo em
@@ -18,25 +19,37 @@
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, DV = window.Dev, FX = window.RaceFx;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
-  // Modo DEV: decidido uma vez, na carga — ?dev=1 ou o build de teste (prototype/dist/jogo-dev.html, que traz
-  // window.__GALOPE_DEV = true: o artefato do claude.ai não repassa a query). Nele o jogo só lê e grava o save
-  // de teste.
-  function devAtivo() { return /[?&]dev=1(&|$)/.test(window.location.search) || window.__GALOPE_DEV === true; }
-  var DEV_MODE = devAtivo();
-  var DEV_BUILD = window.__GALOPE_DEV === true;   // jogo-dev.html: não há "jogo real" para onde voltar
-  if (!GD || !RS || !SP || !GR || !FX || !telaEl || (DEV_MODE && !DV)) {
-    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, sprites.js, fx.js ou dev.js).';
+  if (!GD || !RS || !SP || !GR || !FX || !telaEl) {
+    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, sprites.js ou fx.js).';
     return;
   }
+  // Modo DEV: decidido uma vez, na carga. O código DEV fica entre marcadores de bloco "@dev" (e o gancho de
+  // teste entre "@teste"), que o build tira do jogo de produção (dist/jogo.html, ver build.mjs): lá estas
+  // variáveis ficam como abaixo e devHooks continua null. Fora dos blocos, nada chama código de dentro deles
+  // a não ser por devHooks.
+  var DV = null, DEV_MODE = false, DEV_BUILD = false, devHooks = null;
+  /*@dev:inicio*/
+  // ?dev=1 ou o build de teste (prototype/dist/jogo-dev.html, que traz window.__GALOPE_DEV = true: o artefato do
+  // claude.ai não repassa a query). Nele o jogo só lê e grava o save de teste.
+  DV = window.Dev;
+  DEV_MODE = /[?&]dev=1(&|$)/.test(window.location.search) || window.__GALOPE_DEV === true;
+  DEV_BUILD = window.__GALOPE_DEV === true;   // jogo-dev.html: não há "jogo real" para onde voltar
+  if (DEV_MODE && !DV) {
+    telaEl.textContent = 'Não foi possível carregar o jogo (falta dev.js).';
+    return;
+  }
+  /*@dev:fim*/
 
   // ===========================================================================
   // Constantes
   // ===========================================================================
-  // modo DEV (devAtivo): só o save de teste (Dev.SAVE_KEY); o real ('galope-elemental:v1') não é lido nem gravado
-  var SAVE_KEY = DEV_MODE ? DV.SAVE_KEY : 'galope-elemental:v1';
+  var SAVE_KEY = 'galope-elemental:v1';
+  /*@dev:inicio*/
+  if (DEV_MODE) SAVE_KEY = DV.SAVE_KEY;   // modo DEV: só o save de teste; o real ('galope-elemental:v1') não é lido nem gravado
+  /*@dev:fim*/
   var E = GD.ECONOMY;
   var GE = E.gear;
   var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
@@ -222,7 +235,9 @@
   // gravação falhou ou se outra aba tinha gravado depois (aí o state já é o adotado: quem chama compara).
   function persist() {
     if (!state) return true;
+    /*@dev:inicio*/
     if (DEV_MODE && ui.dev.ouroInf) DV.refillGold(state);   // Ouro infinito do perfil DEV: repõe depois de cada gasto
+    /*@dev:fim*/
     var sr = storedRev();
     if (sr > state.rev) { adoptExternal(loadSave()); return false; }   // outra aba gravou depois: não sobrescreve
     state.rev = Math.max(state.rev, sr) + 1;
@@ -389,7 +404,7 @@
     if (m.sex !== 'm' && m.sex !== 'f') return null;
     var templateId = null;
     if (m.templateId != null) {
-      if (typeof m.templateId !== 'string' || !(horseById(m.templateId) || devTemplateId(m.templateId))) return null;
+      if (typeof m.templateId !== 'string' || !(horseById(m.templateId) || (devHooks && devHooks.templateId(m.templateId)))) return null;
       templateId = m.templateId;
     }
     var base = statBlock(m.base, 1, 100), potential = statBlock(m.potential, 0, 31);
@@ -629,7 +644,7 @@
   var state = null;
   var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null, montaria: null, tab: 'estabulo',
     motionKeep: null,   // "Recomeçar": a opção Animações passa para o save novo
-    // modo DEV (só com devAtivo()): gaveta, confirmação do "Zerar" e valores armados para a próxima corrida
+    // modo DEV (só com DEV_MODE): gaveta, confirmação do "Zerar" e valores armados para a próxima corrida
     // (ver a seção "Modo DEV")
     dev: { aberto: false, ouroInf: true, msg: '', f: null, confirmZerar: false }, devNext: null };
   var live = [];          // canvases animados da tela atual
@@ -639,7 +654,7 @@
   // Outra aba gravou um save mais novo: adota e volta para um ponto seguro.
   function adoptExternal(raw) {
     var s = sanitize(raw);
-    if (!s && DEV_MODE) s = devNovoPerfil();   // perfil DEV apagado em outra aba: nasce de novo com a Brasa
+    if (!s && devHooks) s = devHooks.novoPerfil();   // perfil DEV apagado em outra aba: nasce de novo com a Brasa
     if (!s) {
       state = null; ui.lobby = null; ui.result = null;
       go('inicial');
@@ -861,8 +876,9 @@
     syncHistory(screen);
   }
 
+  /*@dev:inicio*/
   // ===========================================================================
-  // Modo DEV (devAtivo(): ?dev=1 ou o build jogo-dev.html): perfil de teste, faixa no topo, botão "DEV" e gaveta
+  // Modo DEV (DEV_MODE: ?dev=1 ou o build jogo-dev.html): perfil de teste, faixa no topo, botão "DEV" e gaveta
   // ---------------------------------------------------------------------------
   // - Save: SAVE_KEY = Dev.SAVE_KEY ('galope-elemental:dev'); o save real nunca é lido nem gravado.
   //   Perfil novo (ou apagado) nasce com a Brasa, sem a escolha inicial (devNovoPerfil). "Zerar perfil de
@@ -1303,6 +1319,9 @@
       if ((e.key === 'Escape' || e.key === 'Esc') && ui.dev.aberto) { ui.dev.aberto = false; ui.dev.confirmZerar = false; renderDev(); devFoca('.dev-botao'); }
     });
   }
+  // o que o resto do jogo chama do modo DEV (no jogo de produção, devHooks fica null)
+  if (DEV_MODE) devHooks = { templateId: devTemplateId, novoPerfil: devNovoPerfil, zerarPerfil: devZerarPerfil, condicoes: devCondicoes, render: renderDev };
+  /*@dev:fim*/
 
   function render() {
     live = [];
@@ -1335,7 +1354,7 @@
       if (raceView) raceView.destroy();
       raceView = createRaceView(ui.lobby, telaEl);
     }
-    if (DEV_MODE) renderDev();
+    if (devHooks) devHooks.render();
   }
 
   // ===========================================================================
@@ -2169,7 +2188,7 @@
 
     // pista
     var cond = RS.randomConditions(seed), trackName = pick(TRACK_NAMES, rng), trackDesc = '';
-    if (dv && dv.cond) cond = devCondicoes(dv.cond, cond, seed);
+    if (dv && dv.cond && devHooks) cond = devHooks.condicoes(dv.cond, cond, seed);
     withRanges(cond);
 
     var n = (E.minRacers || 4) + Math.floor(rng() * ((E.maxRacers || 8) - (E.minRacers || 4) + 1));
@@ -3611,7 +3630,7 @@
       case 'reset-nao':
         ui.confirmReset = false; rerenderKeepScroll(); focusAction('reset'); break;
       case 'reset-sim':
-        if (DEV_MODE) { devZerarPerfil(); go('estabulo'); break; }   // perfil de teste: volta à Brasa, sem a escolha
+        if (devHooks) { devHooks.zerarPerfil(); go('estabulo'); break; }   // perfil de teste: volta à Brasa, sem a escolha
         ui.motionKeep = motionPref();
         guardaMotionKeep(ui.motionKeep);
         ui.confirmReset = false; wipeSave(); state = null; ui.lobby = null; ui.result = null; go('inicial'); break;
@@ -3662,7 +3681,7 @@
     readTokens();
     data = data || {};
     state = sanitize(!!data.dev === DEV_MODE ? data.save : null) || sanitize(loadSave());
-    if (!state && DEV_MODE) { state = devNovoPerfil(); persist(); }   // perfil DEV novo: Brasa, sem a escolha inicial
+    if (!state && devHooks) { state = devHooks.novoPerfil(); persist(); }   // perfil DEV novo: Brasa, sem a escolha inicial
     if (!state) ui.motionKeep = leMotionKeep();   // "Recomeçar" e a aba fechou na escolha: a opção continua
     ui.screen = state ? 'estabulo' : 'inicial';
     // moldes do PixelLab (embutidos pelo build): decodificam em segundo plano; até lá (ou sem eles, ou
@@ -3704,10 +3723,12 @@
       if (raw && state && Number(raw.rev) <= state.rev) return;
       adoptExternal(raw);
     });
-    // ganchos para testes automatizados
+    /*@teste:inicio*/
+    // ganchos para testes automatizados (fora do jogo de produção)
     window.__galope = {
       get state() { return state; }, get ui() { return ui; }, get race() { return raceView; }
     };
+    /*@teste:fim*/
   }
 
   var hotApi = window.claude && window.claude.hot;

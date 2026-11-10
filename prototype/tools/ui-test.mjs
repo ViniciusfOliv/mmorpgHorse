@@ -26,6 +26,13 @@ const servidor = createServer(async (req, res) => {
   try {
     const caminho = decodeURIComponent(new globalThis.URL(req.url, 'http://127.0.0.1').pathname)
     if (caminho === '/favicon.ico') { res.writeHead(204); res.end(); return }   // o navegador pede sozinho
+    // producao.html: o jogo.html (fragmento sem doctype, como o artefato o recebe) num documento mínimo
+    if (caminho === '/producao.html') {
+      const frag = await readFile(join(DIST, 'jogo.html'), 'utf8')
+      res.writeHead(200, { 'Content-Type': TIPOS['.html'], 'Cache-Control': 'no-store' })
+      res.end('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>\n' + frag + '</body></html>\n')
+      return
+    }
     const arq = resolve(DIST, '.' + caminho)
     if (req.method !== 'GET' || !arq.startsWith(DIST + sep)) throw new Error('fora de dist/')
     const corpo = await readFile(arq)
@@ -367,6 +374,44 @@ try {
       problems.push('gravacao: ' + e.message)
     }
     await gv.context().close()
+  }
+
+  // ---------------- produção (jogo.html, o que vai para o jogador): sem DEV e sem gancho de teste ----------------
+  if (quer('producao')) {
+    for (const query of ['', '?dev=1']) {
+      const label = 'producao' + query
+      const pd = await newPage(browser, { width: 390, height: 844 }, label, { pagina: 'producao.html', query })
+      try {
+        await pd.waitForSelector('.inicial', { timeout: 5000 })
+        const g = await pd.evaluate(() => ({ galope: typeof window.__galope, dev: typeof window.Dev, flag: typeof window.__GALOPE_DEV,
+          html: document.documentElement.outerHTML.length, temDev: /dev\.js|galope-elemental:dev/.test(document.documentElement.outerHTML) }))
+        if (g.galope !== 'undefined' || g.dev !== 'undefined' || g.temDev) problems.push(`[${label}] produção com DEV ou gancho de teste: ` + JSON.stringify(g))
+        if ((await pd.locator('.dev-painel, .dev-faixa, .dev-botao, .dev-gaveta').count()) !== 0) problems.push(`[${label}] produção mostra o modo DEV`)
+        // uma corrida inteira só com cliques
+        await pd.getByRole('button', { name: 'Escolher Brasa' }).click()
+        await pd.waitForSelector('#t-estabulo')
+        if ((await pd.locator('.dev-painel, .dev-faixa, .dev-botao').count()) !== 0) problems.push(`[${label}] produção mostra o modo DEV no estábulo`)
+        await pd.locator('[data-acao="aba"][data-id="correr"]').click()
+        await pd.waitForSelector('#t-correr')
+        await pd.getByRole('button', { name: 'Procurar corrida' }).click()
+        await pd.waitForSelector('#t-largada')
+        await pd.getByRole('button', { name: /^Largar/ }).click()
+        await pd.waitForSelector('#pista')
+        await pd.getByRole('button', { name: 'x2' }).click()
+        await sleep(1500)
+        await pd.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pd.waitForSelector('#t-resultado')
+        const fim = ((await pd.locator('#t-resultado').textContent()) || '')
+        if (!/Vitória|Você chegou em/.test(fim)) problems.push(`[${label}] resultado estranho: ` + fim)
+        const ls = await pd.evaluate(() => ({ dev: localStorage.getItem('galope-elemental:dev'), real: localStorage.getItem('galope-elemental:v1') }))
+        if (ls.dev !== null || !ls.real) problems.push(`[${label}] produção deveria gravar só o save real ` + JSON.stringify({ dev: ls.dev, real: !!ls.real }))
+        await pd.getByRole('button', { name: 'Correr de novo' }).click()
+        await pd.waitForSelector('#t-largada')
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      }
+      await pd.context().close()
+    }
   }
 
   if (!SO.length) {   // o resto do teste (fluxo completo e contextos antigos) só roda sem UI_SO
