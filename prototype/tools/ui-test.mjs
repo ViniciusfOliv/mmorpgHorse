@@ -534,8 +534,12 @@ try {
   // tela da Montaria (pelo "Ver" do cartão): renomear (escapado), a ativa não pode ser liberada; depois expandir o estábulo
   await page.locator('button[data-acao="montaria"][data-id="m1"]').click()
   await page.waitForSelector('#t-montaria')
-  await page.evaluate(() => { window.prompt = () => '<b>x</b>' })
+  // renomear num campo da própria tela (window.prompt não abre no iframe do artefato): Enter confirma, Esc cancela
+  page.on('dialog', (d) => { problems.push('renomear: diálogo do navegador aberto: ' + d.message()); d.dismiss().catch(() => {}) })
   await page.locator('[data-acao="renomear"][data-id="m1"]').click()
+  await page.fill('#renomear-campo', '<b>x</b>')
+  await page.press('#renomear-campo', 'Enter')
+  if (await page.locator('#renomear-campo').count()) problems.push('renomear: o campo continuou aberto depois do Enter')
   const ren = await page.evaluate(() => ({
     name: window.__galope.state.mounts[0].name,
     html: document.querySelector('#t-montaria').innerHTML,
@@ -544,8 +548,16 @@ try {
   if (ren.name !== '<b>x</b>') problems.push('renomear: nome salvo ' + JSON.stringify(ren.name))
   if (!ren.html.includes('&lt;b&gt;') || ren.html.includes('<b>')) problems.push('renomear: nome sem escapar: ' + ren.html)
   if (!ren.text.includes('#1')) problems.push('tela da montaria sem o #1: ' + ren.text)
-  await page.evaluate(() => { window.prompt = () => 'Brasa' })
   await page.locator('[data-acao="renomear"][data-id="m1"]').click()
+  await page.fill('#renomear-campo', 'Outro Nome')
+  await page.press('#renomear-campo', 'Escape')
+  if ((await page.evaluate(() => window.__galope.state.mounts[0].name)) !== '<b>x</b>' || (await page.locator('#renomear-campo').count())) problems.push('renomear: Esc não cancelou')
+  await page.locator('[data-acao="renomear"][data-id="m1"]').click()
+  await page.fill('#renomear-campo', 'x')
+  await page.locator('[data-acao="renomear-ok"]').click()
+  if ((await page.evaluate(() => window.__galope.state.mounts[0].name)) !== '<b>x</b>' || !(await page.locator('#renomear-campo').count())) problems.push('renomear: aceitou nome de 1 letra ou fechou o campo')
+  await page.fill('#renomear-campo', '  Brasa  ')
+  await page.locator('[data-acao="renomear-ok"]').click()
   if ((await page.evaluate(() => window.__galope.state.mounts[0].name)) !== 'Brasa') problems.push('renomear de volta para Brasa falhou')
   if (!(await page.locator('[data-acao="liberar"][data-id="m1"]').isDisabled())) problems.push('liberar da montaria ativa não está desabilitado')
   await page.locator('[data-acao="montaria-voltar"]').click()
@@ -811,7 +823,9 @@ try {
     if (c1.breedCounter !== 1) problems.push('cruzamento: breedCounter ' + c1.breedCounter)
     if (c1.mounts[0].breedLeft !== 1) problems.push('cruzamento: breedLeft de Brasa ' + c1.mounts[0].breedLeft)
     // o potro entra no estábulo com o equipamento vazio (Breed.foal não sabe de equipamento)
-    if (c1.mounts.length > 1 && JSON.stringify(c1.mounts[1]) !== JSON.stringify(Object.assign({}, esperado, { equip: GR.emptyEquip() }))) {
+    const esperadoJogo = Object.assign({}, esperado, { equip: GR.emptyEquip() })
+    delete esperadoJogo.gestacao   // o jogo não guarda o campo (o Breed.foal ainda devolve gestacao: null)
+    if (c1.mounts.length > 1 && JSON.stringify(c1.mounts[1]) !== JSON.stringify(esperadoJogo)) {
       problems.push('cruzamento: potro diferente do calculado no Node\n  jogo: ' + JSON.stringify(c1.mounts[1]) + '\n  node: ' + JSON.stringify(esperado))
     }
     if (!/Nasceu/.test(await cz.locator('#tela').textContent())) problems.push('cruzamento: resultado sem "Nasceu"')
@@ -1026,8 +1040,9 @@ try {
         if ((await mn.locator(`[data-acao="montaria-aba"][data-id="${aba}"][aria-pressed="true"]`).count()) !== 1) problems.push('menu: sub-aba ' + aba + ' não ativou')
       }
       if ((await mn.locator('.slots').count()) < 1) problems.push('menu: resumo do equipamento ausente na cabeça da Montaria')   // .slots vem do gearSummaryHtml da cabeça, visível em qualquer sub-aba
-      await mn.evaluate(() => { window.prompt = () => 'Trovão' })   // renomear usa window.prompt, como o teste principal já faz
-      await mn.locator('[data-acao="renomear"][data-id="m1"]').click()
+      await mn.locator('[data-acao="renomear"][data-id="m1"]').click()   // campo na própria tela, como no teste principal
+      await mn.fill('#renomear-campo', 'Trovão')
+      await mn.locator('[data-acao="renomear-ok"]').click()
       if ((await mn.evaluate(() => window.__galope.state.mounts[0].name)) !== 'Trovão') problems.push('menu: renomear na Montaria não aplicou')
       if (!/Trovão/.test(await mn.locator('#t-montaria').textContent())) problems.push('menu: h1 da Montaria não mostra o nome novo')
       // Liberar desabilitado na ativa/única

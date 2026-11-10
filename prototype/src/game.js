@@ -2033,7 +2033,7 @@
   // abre a Montaria numa sub-aba; o estado do equipamento (confirmação, Desfazer) começa zerado
   function goMontaria(uid, aba) {
     if (!state || !mountByUid(uid)) return;
-    ui.montaria = { uid: uid, aba: aba, equip: { slot: null, confirm: null, undo: null, msg: null } };
+    ui.montaria = { uid: uid, aba: aba, renomear: null, equip: { slot: null, confirm: null, undo: null, msg: null } };
     go('montaria');
   }
 
@@ -2063,7 +2063,16 @@
       ? '<span class="corcel" title="Corcel: herança garantida">⚑ Corcel</span>' : '';
     var canRelease = !isActive && state.mounts.length > 1 && !P;
 
-    var acoes = ui.confirmLiberar === m.uid && canRelease
+    // renomear: campo na própria tela (window.prompt não abre num iframe sem allow-modals, como o do artefato)
+    var R = M.renomear;
+    var acoes = R
+      ? '<div class="renomear" role="group" aria-label="Renomear montaria">' +
+          '<label class="rotulo" for="renomear-campo">Novo nome (2–16 letras)</label>' +
+          '<input type="text" id="renomear-campo" class="campo" maxlength="16" autocomplete="off" enterkeyhint="done" value="' + esc(R.valor) + '">' +
+          (R.erro ? '<p class="aviso" role="status">' + esc(R.erro) + '</p>' : '') +
+          '<div class="montaria-acoes"><button type="button" class="btn btn--pequeno btn--ouro" data-acao="renomear-ok" data-id="' + uid + '">Salvar</button>' +
+          '<button type="button" class="btn btn--pequeno" data-acao="renomear-nao" data-id="' + uid + '">Cancelar</button></div></div>'
+      : ui.confirmLiberar === m.uid && canRelease
       ? '<div class="confirma" role="group" aria-label="Confirmar liberação"><span>Liberar ' + esc(m.name) + '? Ela deixa o estábulo para sempre, sem Ouro de volta.</span>' +
         '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="liberar-sim" data-id="' + uid + '">Sim, liberar</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="liberar-nao" data-id="' + uid + '">Cancelar</button></div>'
@@ -3584,14 +3593,14 @@
         }
         break;
       case 'renomear': {
-        var rm = mountByUid(id);
-        if (!rm) break;
-        var nome = window.prompt('Novo nome (2–16 letras)', rm.name);
-        if (nome == null) break;
-        nome = String(nome).replace(/\s+/g, ' ').trim().slice(0, 16);
-        if (nome.length < 2) break;
-        rm.name = nome; persist(); rerenderKeepScroll(); break;
+        if (!ui.montaria || !mountByUid(id)) break;
+        ui.montaria.renomear = { valor: mountByUid(id).name, erro: null };
+        render(); focaRenomear(); break;
       }
+      case 'renomear-ok':
+        renomearConfirma(); break;
+      case 'renomear-nao':
+        renomearCancela(); break;
       case 'liberar':
         ui.confirmLiberar = id; rerenderKeepScroll(); focusAction('liberar-nao', id); break;
       case 'liberar-nao':
@@ -3696,6 +3705,35 @@
         guardaMotionKeep(ui.motionKeep);
         ui.confirmReset = false; wipeSave(); state = null; ui.lobby = null; ui.result = null; go('inicial'); break;
     }
+  });
+
+  // campo de renomear (tela da Montaria): mesmas regras de antes (espaços juntados, 2 a 16 letras; o nome é
+  // escapado ao desenhar). Enter confirma, Esc cancela.
+  function focaRenomear() {
+    var el = document.getElementById('renomear-campo');
+    if (el) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } el.select(); }
+  }
+  function renomearConfirma() {
+    var M = ui.montaria, rm = M && M.renomear ? mountByUid(M.uid) : null;
+    if (!rm) return;
+    var el = document.getElementById('renomear-campo');
+    var nome = String(el ? el.value : M.renomear.valor).replace(/\s+/g, ' ').trim().slice(0, 16);
+    if (nome.length < 2) {
+      M.renomear = { valor: el ? el.value : '', erro: 'O nome precisa ter de 2 a 16 letras.' };
+      rerenderKeepScroll(); focaRenomear(); return;
+    }
+    rm.name = nome; M.renomear = null; persist();
+    rerenderKeepScroll(); focusAction('renomear', rm.uid);
+  }
+  function renomearCancela() {
+    if (!ui.montaria || !ui.montaria.renomear) return;
+    ui.montaria.renomear = null;
+    rerenderKeepScroll(); focusAction('renomear', ui.montaria.uid);
+  }
+  telaEl.addEventListener('keydown', function (e) {
+    if (!e.target || e.target.id !== 'renomear-campo') return;
+    if (e.key === 'Enter') { e.preventDefault(); renomearConfirma(); }
+    else if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); e.stopPropagation(); renomearCancela(); }
   });
 
   function focusAction(acao, id) {
