@@ -885,6 +885,7 @@ try {
     await cz.locator('[data-acao="haras-partner"][data-kind="rent"][data-id="w-faisca"]').click()
     const calcTxt = await cz.locator('.calc').textContent()
     if (!/125/.test(calcTxt)) problems.push('cruzamento: calculadora sem o preço 125: ' + calcTxt)
+    if (!/Mítico 0% \(Mítico não nasce de cruzamento\)/.test(calcTxt) || /despertar/.test(calcTxt)) problems.push('cruzamento: calculadora com o texto antigo do Mítico: ' + calcTxt)
     await cz.locator('[data-acao="cruzar"]').click()
     const c1 = await cz.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
     if (c1.gold !== 4875) problems.push('cruzamento: ouro ' + c1.gold + ' (esperado 4875)')
@@ -1487,6 +1488,8 @@ try {
       await dv.locator('[data-acao="dev-zerar-sim"]').click()
       await dv.waitForSelector('#t-estabulo')
       s = await st()
+      if ((await dv.locator('.dev-gaveta').count()) !== 0) problems.push('dev: a gaveta continuou aberta depois de "Zerar perfil" (cobre a barra de abas)')
+      if (!/Perfil de teste zerado/.test((await dv.locator('#tela .aviso').allTextContents()).join(' '))) problems.push('dev: sem o aviso de perfil zerado no estábulo')
       if (s.mounts.length !== 1 || s.mounts[0].templateId !== 'brasa' || s.items.length !== 2 || s.gold !== 999999) problems.push('dev: zerar perfil ' + JSON.stringify({ n: s.mounts.length, t: s.mounts[0].templateId, itens: s.items.length, gold: s.gold }))
       await conferirReal('depois de zerar')
       // 9. no modo DEV o "Recomeçar" do Perfil zera o perfil de teste: Brasa nível 1, sem a escolha inicial, e o

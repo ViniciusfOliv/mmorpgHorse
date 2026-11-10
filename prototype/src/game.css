@@ -484,7 +484,6 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .dicas li::before { content: ""; flex: none; width: 8px; height: 8px; background: var(--texto-3); transform: translateY(-1px); }
 .dicas li.bom::before { background: var(--ganho); }
 .dicas li.ruim::before { background: var(--perda); }
-.dicas li.anulado::before { background: var(--agua); }
 .dicas li.dica { color: var(--texto-2); }
 .dicas li.dica::before { background: var(--ouro); }
 

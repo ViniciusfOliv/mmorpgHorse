@@ -981,6 +981,8 @@
     ui.lobby = null; ui.result = null; ui.devNext = null; ui.dev.f = null; ui.dev.confirmZerar = false; ui.confirmReset = false;
     persist();
     ui.dev.msg = 'Perfil de teste zerado: começa de novo com a Brasa.';
+    ui.dev.aberto = false;        // a gaveta fecha (senão cobre a barra de abas); o aviso aparece no estábulo
+    ui.notice = ui.dev.msg;
   }
 
   // condições da sala com o filtro do painel por cima; o que não foi forçado segue a sala normal
@@ -1771,7 +1773,7 @@
     var bars = BRD.RARITY_IDS.map(function (id) {
       var p = o.rarity[id] || 0, pct = Math.round(p * 100);
       if (p <= 0 && id !== 'mitico') return '';
-      var label = GD.RARITIES[id].name + ' ' + (p > 0 && pct === 0 ? '<1' : pct) + '%' + (p <= 0 ? ' (só por despertar)' : '');
+      var label = GD.RARITIES[id].name + ' ' + (p > 0 && pct === 0 ? '<1' : pct) + '%' + (p <= 0 ? ' (Mítico não nasce de cruzamento)' : '');
       return '<div class="calc-linha"><span>' + esc(label) + '</span>' +
         '<span class="calc-barra calc-barra--' + esc(id) + '"><i style="width:' + (p * 100).toFixed(1) + '%"></i></span></div>';
     }).join('');
@@ -2256,7 +2258,7 @@
     var rng = RS.mulberry32(RS.hash2(seed, 0xA11CE)); // aleatoriedade só de UI/matchmaking, derivada da seed
 
     // pista
-    var cond = RS.randomConditions(seed), trackName = pick(TRACK_NAMES, rng), trackDesc = '';
+    var cond = RS.randomConditions(seed), trackName = pick(TRACK_NAMES, rng);
     if (dv && dv.cond && devHooks) cond = devHooks.condicoes(dv.cond, cond, seed);
     withRanges(cond);
 
@@ -2314,7 +2316,7 @@
 
     return {
       counter: counter, seed: seed, training: !!P.training, fee: P.fee || 0, n: n,
-      cond: cond, trackName: trackName, trackDesc: trackDesc,
+      cond: cond, trackName: trackName,
       racers: racers, playerIdx: playerIdx, sim: null,
       // modo DEV: vento forçado (a tela da corrida o desenha) e "skills sempre ativam" (vai ao RaceSim)
       dev: dv ? { wind: dv.wind, skillsAlways: !!dv.skillsAlways } : null
@@ -2425,7 +2427,7 @@
         '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></header>' +
       '<header class="tela-cabeca placa"><span class="rotulo">Sala de largada · Páreo nº ' + L.counter + '</span>' +
         '<h1 class="titulo titulo--tela" id="t-largada" tabindex="-1" data-foco>' + esc(L.trackName) + '</h1>' +
-        (L.trackDesc ? '<p class="nota">' + esc(L.trackDesc) + '</p>' : '') + '</header>' + noticeHtml() +
+        '</header>' + noticeHtml() +
       '<section class="caixa" aria-label="Condições da pista">' + conditionChips(L.cond) +
         '<canvas class="perfil" data-perfil="1" role="img" aria-label="' + esc('Mapa da pista visto de cima, ' + D + ' metros em ' + L.cond.blocks.length + ' trechos: ' +
           L.cond.blocks.map(function (bl) { return GD.BLOCK_TYPES[bl.type].name.toLowerCase(); }).join(', ')) + '"></canvas>' +
