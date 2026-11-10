@@ -1,163 +1,67 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-09._
+_Atualizado em 2026-11-10._
 
-**Fase:** Protótipo.
+**Fase:** Protótipo. **Ainda não é hora de publicar no Play**; o caminho, as durações e o checklist
+estão em `docs/cronograma.md`.
 
-## Wiki gerado do código (2026-11-09, branch `claude/corrida-viva`)
-`prototype/tools/wiki.mjs` gera `docs/wiki.md` e `prototype/dist/wiki.html` (artefato com retratos, busca e filtros)
-direto dos dados e das fórmulas de `prototype/src/`; o `build.mjs` regera junto e o `check.sh` testa (etapa 3c,
-`wiki-test.mjs`). Chave nova sem tradução (gatilho, efeito, clima, bloco…) quebra o build de propósito.
-Artefato privado do wiki: https://claude.ai/artifact/Bp47f9qE3tSswu1A9zdF2y (republicar `prototype/dist/wiki.html`
-nesse endereço quando o conteúdo mudar). Inconsistências dos dados do jogo achadas ao gerar o wiki: `docs/memoria/bugs.md`.
+## Onde estamos
+- **Branches:** `claude/pente-fino` está em cima de `claude/corrida-viva`, que está em cima de
+  `claude/visuais`. Nenhuma das três foi para a `main`; integrar a `claude/pente-fino` leva as três de
+  uma vez (a `main` é ancestral, então é fast-forward).
+- **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build):
+  - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
+  - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
+  - wiki: https://claude.ai/artifact/Bp47f9qE3tSswu1A9zdF2y (`prototype/dist/wiki.html`)
+  - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
+- **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Cavalo, Itens,
+  Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
+- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (76 testes
+  de simulação, 65 de efeitos, 46 de moldes, 290 conferências do wiki, 66 metas de balanço no modo
+  rápido e 82 no completo, e o teste de interface).
 
-## Em andamento — frente "corrida viva e modo DEV" (2026-11-09)
-Pronta na branch `claude/corrida-viva`: **revisão final feita** ("pronto para merge, com correções"; a onda
-de correções já entrou), **aguardando merge**. Ela está em cima da `claude/visuais`, que também ainda não foi
-para a `main` (mergear nessa ordem). Spec:
-`docs/superpowers/specs/2026-11-09-corrida-viva-design.md` (§12 = ajustes); plano em `docs/superpowers/plans/`.
-- Entregue: galope de corrida nos 4 estilos (ondas, folhas e lisa refeitos no PixelLab); dado girando sobre
-  cada cavalo com brilho no maior e desempate; skills, Garra e cansaço visíveis (balão na raia, contorno
-  na cor do elemento, faixa central); vento, folhas, chuva com respingos, calor e poeira por piso; curvas
-  no mapa, minimapa e arco na pista (blocos de curva colados viram uma curva só no desenho); opção
-  "Animações" no Perfil; bússola nova; modo DEV (também no build `jogo-dev.html`); `fx-test.js` (etapa 2b
-  do `check.sh`).
-- Gasto no PixelLab: 14 de 30 gerações (saldo 1939 → 1925), US$ 0. Simulação intacta (só `config.dev.skillsAlways`).
-- Verificação: `./scripts/check.sh` termina em `VERIFICAÇÃO COMPLETA: OK` (testes de simulação, de efeitos,
-  de moldes, balanço e ui-test; o ui-test serve `prototype/dist/` por http local).
-- **Como usar o modo DEV:** abrir `prototype/dist/preview.html?dev=1` ou, no artefato do claude.ai (que não
-  repassa `?dev=1`), publicar `prototype/dist/jogo-dev.html`, que já abre no modo DEV. Artefatos privados
-  publicados em 2026-11-09: jogo https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn e build DEV
-  https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (cópia do `jogo-dev.html` com o título "Galope Elemental DEV"). O save é separado
-  (`galope-elemental:dev`), então o jogo real não é tocado. A gaveta "DEV" tem Moedas (Ouro infinito só em
-  memória; recarregar religa), Cavalo, Itens, Próxima corrida (condições da sala: pista, clima, vento,
-  skills sempre) e Perfil ("Zerar" com confirmação na própria gaveta; o "Recomeçar" do Perfil faz o mesmo).
-- Pendências: crina própria de cada estilo no galope (precisaria de um quadro-guia por estilo, ~6–10
-  gerações); estados parados (retrato, largada, pódio) ainda sem respiração ou piscar; achados menores que
-  podem esperar em `docs/memoria/bugs.md`.
+## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
+| Frente | Entrega | Spec |
+|---|---|---|
+| Núcleo da corrida v2 | 7 atributos, 5 raridades, mapa em blocos, clima, Dado da Sorte, skills | `2026-11-06-nucleo-corrida-v2-design.md` |
+| Estábulo, Haras e cruzamento | várias montarias, grau, potro pela seed, aluguel e Troca | `2026-11-06-cruzamento-design.md` |
+| Equipamentos | 5 slots, 40 peças, melhoria +10, conjuntos, Loja, Pedra Negra | `2026-11-06-equipamentos-design.md` |
+| Menu de abas | 5 abas, tela da Montaria com sub-abas, Perfil | `2026-11-08-menu-abas-design.md` |
+| Visuais | moldes PixelLab recoloridos, 16 ícones, logotipo e capa | `2026-11-08-visuais-design.md` |
+| Corrida viva e modo DEV | galope, dado por cavalo, skills visíveis, natureza, curvas, DEV | `2026-11-09-corrida-viva-design.md` |
+| Wiki | `docs/wiki.md` e `prototype/dist/wiki.html` gerados do código | — |
 
-## Em andamento — frente de visuais (2026-11-08)
-Pronta na branch `claude/visuais`, **aguardando revisão final e merge na `main`**. Spec:
-`docs/superpowers/specs/2026-11-08-visuais-design.md` (§10 = ajustes); plano:
-`docs/superpowers/plans/2026-11-08-visuais.md`.
-- Entregue: moldes PixelLab (retrato, parado e galope de 9 quadros) para os 4 estilos de crina,
-  recoloridos no jogo; 16 ícones (abas, slots, moedas, elementos); logotipo e capa do Canva; script
-  `pixellab-moldes.mjs`; testes `moldes-test.mjs` (etapa 3b do `check.sh`); capturas oficiais novas.
-- Gasto: 55 de 60 gerações aprovadas (saldo 1994 → 1939), US$ 0.
-- Pendências estacionadas: estados parados (retrato, largada, pódio) sem animação de respiração ou piscar.
-- Branches remotas antigas para o Vinicius apagar no GitHub: `claude/equipamentos`,
-  `claude/cruzamento`, `claude/nucleo-corrida-v2`, `claude/analise-regras-arquivo-3j3zv1`,
-  `claude/kind-thompson-gsqj7r`, `claude/menu-abas`.
+## Pente fino de 2026-11-10
+Seis auditorias (regras, interface e save, desenho, balanceamento, arquivos, normas do Play), correções
+e uma revisão final por frente. Resumo; os motivos estão em `docs/memoria/decisoes.md`:
+- **Regras e segurança:** as seis regras invioláveis estavam cumpridas, menos uma brecha no re-sorteio
+  da sala, fechada (entrada reservada, sala aberta nunca trocada). Gasto só vale se a gravação der
+  certo; save corrompido vira cópia de segurança; `jogo.html` sai sem modo DEV.
+- **Balanceamento:** pacote medido (skills entre 4,8 e 11,9 p.p. de ganho; o Poder erra no máximo
+  3,8 p.p. por montaria) e cinco metas novas. Medições em `docs/exemplos.md`.
+- **Desempenho:** o desenho das subidas era o gargalo. No pior caso com CPU 4× mais lenta, os quadros
+  perdidos caíram de 33% para 5% em 1280 px e de 52% para 1% em celular de tela densa.
+- **Limpeza:** 404 → 255 arquivos; documentos encurtados (este tinha 163 linhas).
+- **Normas:** veredito e checklist em `docs/cronograma.md`.
 
-## Em andamento — virada de design (2026-11-05/06)
-O jogo foi redesenhado em 6 subprojetos, nesta ordem (cada um em branch própria, integrado na `main`
-pela conversa principal): **1. Núcleo da corrida v2** → 2. Cavalos v2 (sexo, 5 raridades,
-cruzamento no nível máximo) → 3. Inventário e set de equipamentos (modelo Black Desert) →
-4. Expedições (estágios 1-1…, batalha por turnos estilo Pokémon; dão Ouro, XP e moeda de pacotes)
-→ 5. Montarias novas (tigre, dragão…) → 6. Economia.
-
-- **Subprojeto 1 — Núcleo da corrida v2: concluído e integrado na `main` em 2026-11-06**
-  (revisão final por agente feita; correções aplicadas; branch `claude/nucleo-corrida-v2` pode ser
-  apagada no GitHub). Spec: `docs/superpowers/specs/2026-11-06-nucleo-corrida-v2-design.md`.
-  - Entregue: 7 atributos (+ Manobra, Sorte), 5 raridades, mapa aleatório em blocos
-    (reta/curva/subida), clima + triângulo de elementos, Dado da Sorte (1/3 e 2/3 da pista), skills
-    com chance e aprendizado por nível; sem tática e sem Disposição do dia.
-  - Verificação: `check.sh` em 5 etapas (build, 26 testes unitários, balanço 28/28, UI Playwright).
-  - Calibração: constantes e iniciais ajustados (decisoes.md); metas 3b/4a/4b rebaseadas porque, sem
-    Disposição do dia, o modelo é quase determinístico. Iniciais 33/34/33% e 52–63% no próprio clima.
-  - Pergunta aberta: sem ruído por corrida, campos desiguais são previsíveis — decidir se queremos
-    zebra (ruído ±3–5%).
-  - Margens frágeis: 4b em 25,9% (piso 25); meta 3 a 3 p.p. do teto.
-- **Subprojeto 2 — Cavalos v2 (Estábulo, Haras e Cruzamento): concluído e integrado na `main`
-  em 2026-11-06** (fast-forward; branch `claude/cruzamento` pode ser apagada no GitHub). Spec:
-  `docs/superpowers/specs/2026-11-06-cruzamento-design.md` (§14 = ajustes da implementação).
-  - Entregue: estábulo com várias montarias (3 vagas, até 8), grau ★–★★★, `breed.js` determinístico,
-    Haras (aluguel, cruzar dois seus, Troca, calculadora de chances), save v3, skills com Corcel.
-  - Revisão final por agente (modelo forte) + onda de correções (commit `4700533`) + re-revisão:
-    calculadora do Corcel honesta (min(garantidas, candidatas, vagas)), teste de ponta a ponta do
-    cruzamento com montaria própria, `sanitize` mais duro (v3 com `mounts` inválido ⇒ `[]`, uid
-    `/^m\d{1,9}$/`), cartão do recém-nascido sem ações, pool de bots exclui todos os modelos
-    possuídos, arredondamento por maior resto na calculadora, snapshot dourado dos 3 potros de
-    `docs/exemplos.md` §13 (compara o potro inteiro, inclusive paleta).
-  - Verificação: `check.sh` em 5 etapas — 41 testes unitários, balanço 28/28, UI com o contexto
-    `cruzamento` determinístico (captura `final-08-haras.png`).
-  - Painel `?dev=1` para dar Ouro e cruzar à vontade ao testar.
-  - Limites conhecidos: status do potro não herdam dos pais (só grau e potencial); sem timer de
-    gestação (`gestacao` fica null); `game.js` segue um arquivo só (descartável; o que sobrevive é
-    `breed.js`).
-- **Subprojeto 3 — Equipamentos: concluído e integrado na `main` em 2026-11-06** (fast-forward;
-  revisão final por agente + onda de correções; branch `claude/equipamentos` pode ser apagada no
-  GitHub). Spec:
-  `docs/superpowers/specs/2026-11-06-equipamentos-design.md` (§16 = ajustes da implementação).
-  - Entregue: 5 slots por montaria, catálogo de 40 peças, `gear.js` puro, melhoria +0…+10, conjuntos
-    Sol/Chuva/Névoa (3/4/5 peças), Loja, Pedra Negra no pódio, save v4 com migração, bots equipados
-    por liga, trava parcial com páreo aberto.
-  - Verificação: `check.sh` em 5 etapas — 58 testes unitários, 34 metas de balanço, UI com os contextos
-    `equipamento` e `loja` (capturas `final-03-montaria.png` e `final-09-loja.png`).
-  - Painel `?dev=1` com +5 Pedras e conjunto Lendário na ativa.
-  - Limites conhecidos: sem durabilidade; sem limite de inventário; Lendário só via dev até as
-    expedições; meta E2 reformulada em E2a/E2b e E3 rebaseada (ver spec §16); 34 metas, com a
-    E3b (corrida de 3 com uma Água como agente do Dado, pino 60–80%, medido 73,0%). Bônus de 4 peças
-    fixado em ×1,07 em 2026-11-08 (era ×1,10).
-- **Frente de interface — Menu de abas: concluída e integrada na `main` em 2026-11-08** (fast-forward;
-  revisão final por agente + onda de correções; branch `claude/menu-abas` pode ser apagada no GitHub).
-  Spec: `docs/superpowers/specs/2026-11-08-menu-abas-design.md` (§10 = ajustes da implementação).
-  - Entregue: casca com cabeçalho (saldo + Perfil) e barra de 5 abas (embaixo no celular, à esquerda
-    no desktop), Estábulo só lista, tela da Montaria com sub-abas Status/Skills/Equipamento, abas
-    Correr/Expedição/Haras/Loja, Perfil com estatísticas e Recomeçar, histórico do navegador sem
-    empilhar abas, painel `?dev=1` acima da barra.
-  - Verificação: `check.sh` em 5 etapas, 58 testes unitários, 34 metas, UI com o contexto `menu`,
-    12 capturas novas em `prototype/screens/`.
-  - Limites: ícones por caracteres até os visuais; a aba Expedição é um placeholder.
-- A economia virou o subprojeto 6 (a branch vazia `claude/economia-gdd` foi removida).
-
-## Pronto
-- **Design v0.1** (`docs/GDD.md`): seções 1–5 aprovadas (visão, pilares, status, elementos, protótipo).
-- **Protótipo jogável** (`prototype/`): telas inicial → estábulo → largada → corrida animada →
-  resultado; economia de aposta com pote 60/25/15 e taxa de 10%; cavalos com os moldes PixelLab
-  recoloridos pela paleta da montaria (com queda para o desenho por código se os moldes não carregarem).
-- **Simulação** (`prototype/src/sim.js`): determinística por seed; 28 metas de balanceamento
-  v2 passando (`node prototype/tools/balance.js`).
-- **Teste de interface** com Playwright (`prototype/tools/ui-test.mjs`).
-- **Sprites PixelLab** dos 3 iniciais (base + galope de 9 quadros, 2026-11-05): só no repositório, sem uso
-  (o `prototype/comparativo.html` atual compara os moldes e não os carrega); no jogo os cavalos usam os
-  moldes (ver "frente de visuais").
-- **Regras de trabalho**: `CLAUDE.md`, `scripts/check.sh`, `.claude/settings.json`, `.gitignore`
-  e esta memória. **Integradas na `main`** em 2026-11-05; branches antigas já mergeadas podem ser
-  apagadas no GitHub (`claude/analise-regras-arquivo-3j3zv1`, `claude/kind-thompson-gsqj7r`).
-- **Pente fino (2026-11-05)**: revisão completa do protótipo + varredura de segredos no histórico
-  git (nada vazado; chave PixelLab só por variável de ambiente). Sem XSS (tudo passa por `esc()`
-  + `sanitize()` com whitelist); regras invioláveis verificadas (determinismo, pagar antes do
-  resultado, sem re-sorteio grátis). Corrigidos: crash/da liquidação descartada em conflito
-  multi-aba no "Largar!", sala valendo com entrada 0 via save adulterado (agora vira treino),
-  inversão de prêmios com fees minúsculos em `payouts`, texto do estábulo ("quem leva prêmio"
-  em vez de "pódio"), e matchmaking ~10 ms mais rápido por sala (um clone por template em
-  `bestLevelFor`). `README.md` criado na raiz.
+## O que falta
+- **Decisões do Vinicius:** tecnologia final (o protótipo vira o jogo, empacotado, ou é reescrito?),
+  o que entra na 1ª versão do Play, e as decisões de design de `docs/exemplos.md` §5 (Sorte, Neutro,
+  conjunto de 3 peças, "Cansou", Garra, zebra).
+- **Arte:** crina própria de cada estilo no galope (6 a 10 gerações); retrato, largada e pódio sem
+  respiração nem piscar.
+- **Pendências menores:** `docs/memoria/bugs.md`.
+- **GDD §8+:** expedições, economia, tecnologia, anti-trapaça, PVP assíncrono, circuito ocioso e ranqueada.
 
 ## Próximos passos
-0. Merge na `main`, nesta ordem: `claude/visuais` (revisão final pendente) e depois `claude/corrida-viva`
-   (revisão final feita e corrigida); o Vinicius joga a corrida nova (`preview.html?dev=1` ou o artefato
-   `jogo-dev.html` para montar condições) e apaga as branches antigas no GitHub.
-1. Subprojeto 4 — expedições (mundos por bioma, estágios X-1…X-10, batalha por turnos com modo
-   automático e manual, recompensas em Ouro, XP e moeda de pacotes; Lendário de equipamento) — nova
-   branch dedicada; brainstorming já iniciado (decidido: auto/manual; corrida PVP continua automática).
-2. Visuais de fundos, biomas e inimigos, só após fechar a lista de telas; cada geração pede confirmação do
-   Vinicius e entra em `docs/memoria/assets.md`.
-3. Vinicius joga o menu novo e os equipamentos (`prototype/dist/preview.html?dev=1`).
-4. Decidir a zebra (ruído ±3–5% por corrida) e o despertar Lendário→Mítico (depois das expedições).
+1. Integrar a `claude/pente-fino` na `main` e apagar as branches antigas no GitHub.
+2. Etapa 0 do cronograma: decidir tecnologia e escopo da 1ª versão; 5 a 10 pessoas jogam o protótipo.
+3. Abrir a conta de desenvolvedor do Play e começar a juntar os 12 testadores (é o que mais atrasa).
+4. Próximo subprojeto, a escolher: expedições (já desenhadas em parte) ou circuito ocioso com PVP
+   assíncrono (propostas em `docs/cronograma.md`). Cada um começa por brainstorming e spec.
 
-## Pendente no design (GDD seções 8+)
-Curvas de XP/level · expedições · economia (valores de entrada,
-taxa da casa, sinks de Ouro) · stack técnica (cliente, servidor, Android) · anti-cheat · roadmap MVP.
-
-## Para revisar no balanceamento (de `docs/exemplos.md` §12)
-- **4b colado no piso:** Comum lv25 vence Raro lv1 em 25,9% (piso 25%); qualquer ajuste que ajude
-  os Raros pode quebrar essa meta.
-- **Meta 3 perto do teto:** especialista de curva vence o de reta em 71,8% (teto 75%); subida 68,3%.
-- **"Cansou" quase não acontece:** 0,5% dos corredores; aumentar o erro de leitura do jóquei dá drama.
-- **Garra dispara em 52%** dos corredores: comum demais para ser momento especial?
-- **Skills:** 1,66 ativações por corrida de 3 corredores; a simulação não expõe as tentativas.
-- **Zebra:** sem ruído por corrida, campos desiguais são previsíveis (Mítico lv1 × Comum lv1 = 100%).
-  Proposta se quisermos: ruído de ±3–5%, não a volta da Disposição de ±10%.
-- **E3b / 4 peças do conjunto:** com ×1,07 a Brasa com 4 Raras do Sol fica à frente da misturada em 73,0%
-  com o Dado ligado (pino 60–80%); era 82,5% com ×1,10.
+## Branches para apagar no GitHub
+Já integradas na `main`: `claude/equipamentos`, `claude/cruzamento`, `claude/nucleo-corrida-v2`,
+`claude/analise-regras-arquivo-3j3zv1`, `claude/kind-thompson-gsqj7r`, `claude/menu-abas`. Depois de
+integrar o pente fino: `claude/visuais`, `claude/corrida-viva`, `claude/pente-fino` e
+`claude/nifty-newton-e8u133`. A sessão não consegue apagar branch remota (o proxy bloqueia).
