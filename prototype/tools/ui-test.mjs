@@ -786,11 +786,6 @@ try {
     }
   }
 
-  // ---------------- teto do desenho no pior caso ----------------
-  // 1280, 1600 m com subidas e curvas, chuva + ventania, skills sempre: conta as chamadas de canvas de um quadro
-  // em instantes fixos da simulação (determinístico; o tempo varia com a carga da máquina e fica só como
-  // informação). Pega quem reintroduzir um desenho caro (ex.: a hachura das subidas com um fillRect por listra
-  // eram 4 a 11 mil por quadro; hoje o máximo fica perto de 4 mil).
   // ---------------- corrida redimensionada: continua cabendo na altura da janela ----------------
   // no meio da corrida a janela encolhe 100 a 110 px só na altura (abaixo do limite que ignora a barra do
   // navegador crescendo): o layout tem de ser refeito, sem rolagem e com os controles visíveis
@@ -857,8 +852,13 @@ try {
     }
   }
 
+  // ---------------- teto do desenho no pior caso ----------------
+  // 1280, 1600 m com subidas e curvas, chuva + ventania, skills sempre: conta as chamadas de canvas de um quadro
+  // em instantes fixos da simulação (determinístico; o tempo varia com a carga da máquina e fica só como
+  // informação). Pega quem reintroduzir um desenho caro (ex.: a hachura das subidas com um fillRect por listra
+  // eram 4 a 11 mil por quadro; as serras do fundo coluna a coluna, +1,4 mil; hoje o máximo fica perto de 3,9 mil).
   if (quer('teto')) {
-    const TETO = { fillRect: 7000, drawImage: 300 }
+    const TETO = { fillRect: 4500, drawImage: 300 }
     const pg = await newPage(browser, { width: 1280, height: 800 }, 'teto-desenho', { query: '?dev=1' })
     try {
       await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
