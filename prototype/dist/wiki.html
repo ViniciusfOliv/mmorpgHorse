@@ -2194,15 +2194,18 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
 
     // montanhas distantes e colinas
     var HC = HILLS[weather] || HILLS.sol;
+    // uma coluna de P pixels por pixel de arte; colunas vizinhas de mesma altura saem num fillRect só
+    // (~240 por quadro nas três serras em vez de 3 × W/P)
     function ridge(par, base, amp, freq, col, seedOff) {
       ctx.fillStyle = col;
-      var off = camPx * par;
-      for (var x = 0; x < W; x += P) {
+      var off = camPx * par, xa = 0, ha = 0, x;
+      for (x = 0; x < W; x += P) {
         var wx = (x + off) / P;
         var hgt = base + amp * (0.65 * vnoise(wx * freq + seedOff) + 0.35 * vnoise(wx * freq * 3.1 + seedOff * 2));
         hgt = Math.round(hgt) * P;
-        ctx.fillRect(x, horizon - hgt, P, hgt);
+        if (hgt !== ha) { if (x > xa) ctx.fillRect(xa, horizon - ha, x - xa, ha); xa = x; ha = hgt; }
       }
+      if (x > xa) ctx.fillRect(xa, horizon - ha, x - xa, ha);
     }
     ridge(0.03, 8, 22, 0.012, HC.far, 10);
     ridge(0.08, 4, 14, 0.02, HC.mid, 50);
