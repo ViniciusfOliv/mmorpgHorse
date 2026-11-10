@@ -5,8 +5,10 @@ oficial antes de publicar. Itens marcados "(conferir)" vieram de busca, não do 
 
 ## Onde estamos
 Fase **2, Protótipo**. **Ainda não é hora de publicar no Google Play.** O jogo roda offline contra
-bots, com save no navegador. Para publicar faltam: escolher a tecnologia final, empacotar para
-Android, documentos legais, conta de desenvolvedor e o teste fechado obrigatório.
+bots, com save no navegador. A tecnologia está escolhida (2026-11-10): o protótipo vira o jogo, a
+mesma base web empacotada para Android, com os módulos de regra indo para o servidor. Para publicar
+faltam: fechar o escopo da 1ª versão, empacotar, documentos legais, conta de desenvolvedor e o teste
+fechado obrigatório.
 
 ## Fases
 | # | Fase | O que sai dela | Situação |
@@ -22,15 +24,15 @@ Android, documentos legais, conta de desenvolvedor e o teste fechado obrigatóri
 ## Caminho até o Play (estimativa para uma pessoa; semanas corridas)
 | Etapa | O que fazer | Duração | Depende de |
 |---|---|---|---|
-| 0. Fechar o protótipo | integrar as branches, 5 a 10 pessoas jogam, decidir tecnologia e escopo da 1ª versão | 1–2 | decisões do Vinicius |
+| 0. Fechar o protótipo | 5 a 10 pessoas jogam; decidir o escopo da 1ª versão e o empacotador (branches integradas e tecnologia escolhida em 2026-11-10) | 1–2 | decisões do Vinicius |
 | 1. MVP | tutorial, som, um modo para jogar sozinho (expedições ou circuito ocioso), economia calibrada, save robusto | 4–8 | etapa 0 |
 | 2. Empacotar e documentar | pacote Android (TWA ou Capacitor), alvo de API vigente, AAB, ícone e capturas, política de privacidade, questionário de classificação, Segurança dos dados | 2–3 | pode correr junto com a 1 |
 | 3. Teste fechado | 12 testadores inscritos por 14 dias seguidos, depois pedido de acesso à produção | 3 | conta criada e etapa 2 |
 | 4. Online | servidor que simula a corrida, contas, PVP assíncrono, ranqueada por temporada | 8–12 | etapa 1 |
 | 5. Loja e social | Gemas (cosméticos e passe), chat com moderação | 4–6 | etapa 4 |
 
-O teste fechado mais cedo possível fica a **5–7 semanas** da decisão de tecnologia se a 1ª versão for
-offline (sem contas nem compras), ou a **7–10 semanas ou mais** se já sair com servidor. A conta de
+O teste fechado mais cedo possível fica a **5–7 semanas** se a 1ª versão for offline (sem contas nem
+compras), ou a **7–10 semanas ou mais** se já sair com servidor. A conta de
 desenvolvedor e o recrutamento dos 12 testadores podem começar já: são o que mais atrasa.
 
 ## Checklist de publicação

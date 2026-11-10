@@ -2,13 +2,13 @@
 
 _Atualizado em 2026-11-10._
 
-**Fase:** Protótipo. **Ainda não é hora de publicar no Play**; o caminho, as durações e o checklist
-estão em `docs/cronograma.md`.
+**Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
+durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o
+protótipo vira o jogo, a mesma base web empacotada para Android, com os módulos de regra no servidor.
 
 ## Onde estamos
-- **Branches:** `claude/pente-fino` está em cima de `claude/corrida-viva`, que está em cima de
-  `claude/visuais`. Nenhuma das três foi para a `main`; integrar a `claude/pente-fino` leva as três de
-  uma vez (a `main` é ancestral, então é fast-forward).
+- **Branches:** tudo está na `main` desde 2026-11-10 (pente fino, corrida viva, visuais e wiki,
+  integrados de uma vez por fast-forward). Trabalho novo sai da `main`, uma branch por frente.
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
   - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
@@ -45,23 +45,23 @@ e uma revisão final por frente. Resumo; os motivos estão em `docs/memoria/deci
 - **Normas:** veredito e checklist em `docs/cronograma.md`.
 
 ## O que falta
-- **Decisões do Vinicius:** tecnologia final (o protótipo vira o jogo, empacotado, ou é reescrito?),
-  o que entra na 1ª versão do Play, e as decisões de design de `docs/exemplos.md` §5 (Sorte, Neutro,
-  conjunto de 3 peças, "Cansou", Garra, zebra).
+- **Decisões do Vinicius:** o que entra na 1ª versão do Play, o empacotador (TWA ou Capacitor), e
+  as decisões de design de `docs/exemplos.md` §5 (Sorte, Neutro, conjunto de 3 peças, "Cansou",
+  Garra, zebra).
 - **Arte:** crina própria de cada estilo no galope (6 a 10 gerações); retrato, largada e pódio sem
   respiração nem piscar.
 - **Pendências menores:** `docs/memoria/bugs.md`.
 - **GDD §8+:** expedições, economia, tecnologia, anti-trapaça, PVP assíncrono, circuito ocioso e ranqueada.
 
 ## Próximos passos
-1. Integrar a `claude/pente-fino` na `main` e apagar as branches antigas no GitHub.
-2. Etapa 0 do cronograma: decidir tecnologia e escopo da 1ª versão; 5 a 10 pessoas jogam o protótipo.
+1. O Vinicius apaga as branches antigas no GitHub (lista abaixo).
+2. Etapa 0 do cronograma: decidir o escopo da 1ª versão e o empacotador; 5 a 10 pessoas jogam.
 3. Abrir a conta de desenvolvedor do Play e começar a juntar os 12 testadores (é o que mais atrasa).
 4. Próximo subprojeto, a escolher: expedições (já desenhadas em parte) ou circuito ocioso com PVP
    assíncrono (propostas em `docs/cronograma.md`). Cada um começa por brainstorming e spec.
 
 ## Branches para apagar no GitHub
-Já integradas na `main`: `claude/equipamentos`, `claude/cruzamento`, `claude/nucleo-corrida-v2`,
-`claude/analise-regras-arquivo-3j3zv1`, `claude/kind-thompson-gsqj7r`, `claude/menu-abas`. Depois de
-integrar o pente fino: `claude/visuais`, `claude/corrida-viva`, `claude/pente-fino` e
-`claude/nifty-newton-e8u133`. A sessão não consegue apagar branch remota (o proxy bloqueia).
+Todas já integradas na `main`: `claude/equipamentos`, `claude/cruzamento`, `claude/nucleo-corrida-v2`,
+`claude/analise-regras-arquivo-3j3zv1`, `claude/kind-thompson-gsqj7r`, `claude/menu-abas`,
+`claude/visuais`, `claude/corrida-viva` e `claude/pente-fino`. A `claude/nifty-newton-e8u133` é a
+branch desta sessão e acompanha a `main`. A sessão não consegue apagar branch remota (o proxy bloqueia).

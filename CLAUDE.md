@@ -9,8 +9,9 @@ para `docs/` e aqui fica só o caminho, entre crases (sem `@`, para não carrega
 - **Plataformas:** web + Google Play.
 - **Monetização:** duas moedas — 🪙 Ouro (só se ganha jogando; é o que se aposta) e 💎 Gemas
   (compradas; cosméticos e passe). Pacote de montaria só com moeda ganha jogando.
-- **Tecnologia:** stack final **a definir** (seção pendente do GDD). O protótipo atual é HTML/CSS/JS
-  puro, sem dependências, em `prototype/` — descartável, não é a base final.
+- **Tecnologia:** base web (HTML/CSS/JS puro, sem dependências), em `prototype/`. Decidido em
+  2026-11-10: o protótipo **vira o jogo**, empacotado para Android, e os módulos de regra (`sim.js`,
+  `data.js`, `breed.js`, `gear.js`) vão para o servidor. Empacotador e servidor ainda a definir.
 - **Fonte da verdade:** `docs/GDD.md`. Números reais do protótipo: `docs/wiki.md` e
   `prototype/dist/wiki.html` (gerados do código pelo build; não editar). Medições de balanceamento:
   `docs/exemplos.md`. Fórmulas da simulação: comentário no topo de `prototype/src/sim.js`.
@@ -95,6 +96,6 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
 - Não editar `prototype/dist/` à mão.
 - Não adicionar dependências (npm etc.) sem perguntar — o protótipo é propositalmente sem deps.
 - Não rodar geração paga (PixelLab, ElevenLabs, Canva) sem confirmação explícita.
-- Não reorganizar `prototype/` na estrutura final (`src/ assets/ tests/ scripts/`) antes de a
-  stack ser escolhida.
+- Não reorganizar `prototype/` na estrutura final (`src/ assets/ tests/ scripts/`) sem um plano
+  aprovado: a base web foi escolhida, e a reorganização é um subprojeto próprio.
 - Não colar tokens/chaves na conversa ou no código; usar variáveis de ambiente.

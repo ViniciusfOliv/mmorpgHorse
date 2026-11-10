@@ -19,7 +19,7 @@ Jogo em pixel art de corrida de cavalos **automática** com progressão RPG, ele
 | Registro de assets gerados (IA) | `docs/memoria/assets.md` |
 | Cronograma, fases e checklist de lançamento | `docs/cronograma.md` |
 | Regras de trabalho (Claude Code) | `CLAUDE.md` |
-| Protótipo jogável (descartável) | `prototype/` |
+| O jogo (protótipo que virou a base, decisão de 2026-11-10) | `prototype/` |
 
 ## Rodar o protótipo
 

@@ -77,7 +77,7 @@ Iniciais (Brasa, Maré, Ipê) são Raros e têm uma skill exclusiva do elemento.
 
 ## 5. Protótipo
 
-`prototype/` contém um protótipo web descartável para visualizar sprites, simulação e o fluxo de aposta. Não é a base de código final.
+`prototype/` contém o protótipo web (sprites, simulação e fluxo de aposta). Em 2026-11-10 ficou decidido que ele vira a base do jogo: a mesma base web empacotada para Android, com os módulos de regra indo para o servidor.
 
 **Fluxo de telas.** O jogo tem uma barra de 5 abas (Estábulo, Correr, Expedição, Haras, Loja), embaixo no celular e à esquerda no desktop (≥ 900 px), e um cabeçalho com o saldo (Ouro e Pedras) e o botão Perfil (estatísticas e "Recomeçar"). O Estábulo só lista as montarias; cada uma abre a tela da Montaria, com as sub-abas Status, Skills e Equipamento. Largada, corrida e resultado são telas cheias, sem barra. A corrida PVP continua automática; a aba Expedição é um espaço reservado até o subprojeto 4.
 
