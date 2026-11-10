@@ -58,8 +58,8 @@ test('encodeGray/decodePng ida e volta (cinza vira RGBA com R=G=B)', () => {
     assert.deepStrictEqual([d.rgba[i * 4], d.rgba[i * 4 + 1], d.rgba[i * 4 + 2], d.rgba[i * 4 + 3]], [data[i], data[i], data[i], 255]);
   }
 });
-test('decodePng lê o PNG real brasa.png (64x64 RGBA)', () => {
-  const d = decodePng(fs.readFileSync(path.join(DIR, 'brasa.png')));
+test('decodePng lê um PNG real do PixelLab (64x64 RGBA)', () => {
+  const d = decodePng(fs.readFileSync(path.join(DIR, 'raw', 'chamas-retrato-s1101.png')));
   assert.strictEqual(d.width, 64); assert.strictEqual(d.height, 64);
   assert.strictEqual(d.rgba.length, 64 * 64 * 4);
   let opacos = 0; for (let i = 3; i < d.rgba.length; i += 4) if (d.rgba[i] > 0) opacos++;
