@@ -1202,7 +1202,7 @@
   }
   function quadroGalopeTeste(element, frame) { return moldsOk ? quadroGalope(moldes[estiloDe(element)], frame) : null; }
 
-  function limparCacheMoldes() { moldCache.clear(); silCache.clear(); textoCache.clear(); glifosCache.clear(); }
+  function limparCacheMoldes() { moldCache.clear(); silCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
   function cacheMoldes() { return moldCache.map.size; }
   function cacheSilhuetas() { return { n: silCache.map.size, bytes: silCache.bytes, max: silCache.max }; }
 
@@ -1801,9 +1801,8 @@
     var c0 = trechos[0][0], c1 = trechos[trechos.length - 1][1];
     if (typeof document !== 'undefined' && document.createElement) {
       if (!rascunho) rascunho = document.createElement('canvas');
-      if (rascunho.width < W || rascunho.height < h) {
-        rascunho.width = Math.max(rascunho.width, W); rascunho.height = Math.max(rascunho.height, h);
-      }
+      // do tamanho exato da faixa: troca de tamanho (girar o celular) também encolhe
+      if (rascunho.width !== W || rascunho.height !== h) { rascunho.width = W; rascunho.height = h; }
       var rc = rascunho.getContext('2d');
       rc.imageSmoothingEnabled = false;
       rc.drawImage(ctx.canvas, c0, y0, c1 - c0, h, c0, 0, c1 - c0, h);

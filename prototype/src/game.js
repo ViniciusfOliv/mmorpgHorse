@@ -77,7 +77,13 @@
     var m = state ? state.settings && state.settings.motion : ui.motionKeep;
     return MOTIONS.indexOf(m) >= 0 ? m : 'sistema';
   }
-  function reduced() { var m = motionPref(); return m === 'reduzidas' || (m === 'sistema' && systemReduced()); }
+  // dentro do laço de animação vale a leitura do começo do quadro (reducedQuadro): a corrida pergunta várias
+  // vezes por cavalo por quadro e matchMedia não é de graça
+  var reducedQuadro = null;
+  function reduced() {
+    if (reducedQuadro !== null) return reducedQuadro;
+    var m = motionPref(); return m === 'reduzidas' || (m === 'sistema' && systemReduced());
+  }
   function syncMotionClass() { document.documentElement.classList.toggle('mov-reduzido', reduced()); }
   function dpr() { return Math.max(1, window.devicePixelRatio || 1); }
 
@@ -802,7 +808,7 @@
           }
         };
         item.draw(0);
-        live.push(item);
+        vivo(item, cv);
       })(ps[j]);
     }
     var perfis = root.querySelectorAll('canvas[data-perfil]');
@@ -1384,6 +1390,7 @@
 
   function render() {
     ui.avisoNaTela = null;   // noticeHtml() o preenche se a tela desenhar um aviso
+    if (visObs) visObs.disconnect();
     live = [];
     portraitQueue = [];
     var html;
@@ -1415,6 +1422,7 @@
       raceView = createRaceView(ui.lobby, telaEl);
     }
     if (devHooks) devHooks.render();
+    acordaLaco();
   }
 
   // ===========================================================================
@@ -3208,7 +3216,18 @@
 
     // primeiro quadro estático
     frame(performance.now());
-    var onResize = function () { layout(); };
+    // redimensionar: espera 150 ms parar; mudança só de altura pequena (a barra do navegador do celular
+    // aparecendo e sumindo) não refaz o layout
+    var rzTimer = null, rzW = window.innerWidth, rzH = window.innerHeight, rzDpr = dpr();
+    var onResize = function () {
+      clearTimeout(rzTimer);
+      rzTimer = setTimeout(function () {
+        var w = window.innerWidth, h = window.innerHeight, r = dpr();
+        if (w === rzW && r === rzDpr && Math.abs(h - rzH) < 120) return;
+        rzW = w; rzH = h; rzDpr = r;
+        layout();
+      }, 150);
+    };
     window.addEventListener('resize', onResize);
 
     return {
@@ -3216,7 +3235,7 @@
       setSpeed: function (m) { self.mult = m; },
       relayout: function () { layout(); },
       skip: function () { if (!self.done) { self.done = true; go('resultado'); } },
-      destroy: function () { window.removeEventListener('resize', onResize); FX.resetStats(false); },
+      destroy: function () { clearTimeout(rzTimer); window.removeEventListener('resize', onResize); FX.resetStats(false); },
       _state: self
     };
   }
@@ -3275,7 +3294,7 @@
       }
     };
     item.draw(0);
-    live.push(item);
+    vivo(item, cv);
   }
 
   function renderResultado() {
@@ -3780,15 +3799,43 @@
   // ===========================================================================
   // Laço de animação
   // ===========================================================================
-  var lastIdle = 0;
-  function loop(now) {
+  // Só roda com corrida na tela ou retrato animado visível (IntersectionObserver); parado nos menus sem
+  // animação e no resultado depois do pódio sair da tela. acordaLaco() religa (render, rolagem, preferência).
+  var lastIdle = 0, lacoAtivo = false;
+  var visObs = window.IntersectionObserver ? new window.IntersectionObserver(function (ents) {
+    for (var e = 0; e < ents.length; e++) ents[e].target.__visivel = ents[e].isIntersecting;
+    acordaLaco();
+  }) : null;
+  function vivo(item, cv) {
+    item.cv = cv;
+    cv.__visivel = !visObs;
+    if (visObs) visObs.observe(cv);
+    live.push(item);
+  }
+  function precisaLaco() {
+    if (raceView) return true;
+    if (reduced()) return false;   // em movimento reduzido os retratos ficam parados (já desenhados)
+    for (var i = 0; i < live.length; i++) if (live[i].cv.__visivel) return true;
+    return false;
+  }
+  function acordaLaco() {
+    if (lacoAtivo || !precisaLaco()) return;
+    lacoAtivo = true;
     window.requestAnimationFrame(loop);
-    if (raceView) raceView.frame(now);
-    if (live.length && !reduced() && now - lastIdle > 70) {
-      lastIdle = now;
-      var t = now / 1000;
-      for (var i = 0; i < live.length; i++) live[i].draw(t);
-    }
+  }
+  function loop(now) {
+    reducedQuadro = null;
+    reducedQuadro = reduced();
+    try {
+      if (!precisaLaco()) { lacoAtivo = false; return; }
+      window.requestAnimationFrame(loop);
+      if (raceView) raceView.frame(now);
+      if (live.length && !reducedQuadro && now - lastIdle > 70) {
+        lastIdle = now;
+        var t = now / 1000;
+        for (var i = 0; i < live.length; i++) if (live[i].cv.__visivel) live[i].draw(t);
+      }
+    } finally { reducedQuadro = null; }
   }
 
   // ===========================================================================
@@ -3824,8 +3871,7 @@
       var hot = window.claude && window.claude.hot;
       if (hot && typeof hot.snapshot === 'function') hot.snapshot(snapshot);
     } catch (e) { /* opcional */ }
-    render();
-    window.requestAnimationFrame(loop);
+    render();   // liga o laço de animação se a tela tiver o que animar
     // só a largura (ou a densidade) muda o layout fora da corrida: a barra de endereço do celular
     // mudando a altura não reconstrói a tela no meio da rolagem
     var resizeTimer = null, lastW = window.innerWidth, lastDpr = dpr();
@@ -3841,7 +3887,7 @@
     });
     // a preferência de movimento do aparelho mudou: vale na hora para quem segue o sistema
     if (motionQuery) {
-      var onMotion = function () { syncMotionClass(); if (ui.screen === 'perfil') rerenderKeepScroll(); };
+      var onMotion = function () { syncMotionClass(); if (ui.screen === 'perfil') rerenderKeepScroll(); acordaLaco(); };
       if (motionQuery.addEventListener) motionQuery.addEventListener('change', onMotion);
       else if (motionQuery.addListener) motionQuery.addListener(onMotion);
     }
