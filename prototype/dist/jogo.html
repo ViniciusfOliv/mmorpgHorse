@@ -3610,6 +3610,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 
   function estiloDe(element) { return ESTILO_POR_ELEMENTO[element] || 'lisa'; }
   function moldScale(k) { return Math.max(1, Math.round(k * 40 / moldesLref)); }
+  // A corrida pode desenhar numa escala de trabalho k/d e deixar o CSS ampliar d vezes (pixelated): os moldes
+  // continuam do mesmo tamanho na tela só se a escala deles também dividir certinho. Sem moldes (ainda), não.
+  function escalaMoldeCompativel(k, kTrabalho) {
+    if (!moldsOk || !(kTrabalho > 0) || k % kTrabalho) return false;
+    return moldScale(kTrabalho) * (k / kTrabalho) === moldScale(k);
+  }
   function mediana(v) {
     var s = v.slice().sort(function (a, b) { return a - b; }), n = s.length;
     return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
@@ -4925,6 +4931,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     moldsReady: false,
     loadMolds: loadMolds,
     anchorsFor: anchorsFor,
+    escalaMoldeCompativel: escalaMoldeCompativel,
     limparCacheMoldes: limparCacheMoldes,
     moldeCanvas: moldeCanvas,
     _cacheMoldes: cacheMoldes,
@@ -6397,6 +6404,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   var PLAYER_SILKS = '#f2c230';
   var BOT_SILKS = SP.SILKS.filter(function (c) { return c.toLowerCase() !== PLAYER_SILKS; });
   var PORTRAIT_SCALE = 3;        // escala única dos retratos em todas as telas
+  var CANVAS_MAX_PX = 1500000;   // teto (pixels) do canvas da corrida antes de desenhar numa escala menor
 
   // Movimento: opção "Animações" do Perfil (state.settings.motion). 'sistema' (padrão) segue o
   // prefers-reduced-motion do aparelho; 'completas' e 'reduzidas' mandam. Toda checagem de movimento do
@@ -8555,6 +8563,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       return { x: 2, y: 18, w: w, h: clamp(Math.round(w * 0.45), 22, 30) };
     }
 
+    // maior redutor d (divisor de S, com S/d ≥ 2 e os moldes compatíveis) até o canvas caber em CANVAS_MAX_PX
+    function reducaoEscala(S, artPx) {
+      var melhor = 1;
+      if (artPx * S * S <= CANVAS_MAX_PX) return 1;
+      for (var dd = 2; S / dd >= 2; dd++) {
+        if (S % dd || !SP.escalaMoldeCompativel(S, S / dd)) continue;
+        melhor = dd;
+        if (artPx * (S / dd) * (S / dd) <= CANVAS_MAX_PX) break;
+      }
+      return melhor;
+    }
+
     // ---- layout: o canvas ocupa a altura que sobra na tela (sem rolagem), escala inteira
     function layout() {
       var r = dpr();
@@ -8586,13 +8606,16 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           arcoK: clamp(top + lane - 3 - (SP.FOOT_Y + 1), 0, FX.CURVA.arco) / FX.CURVA.arco
         };
       });
-      var S = pick.S;
-      self.S = S; self.lay = pick;
+      // escala de trabalho: em telas densas (DPR 3) o canvas passaria de 2 milhões de pixels; desenha em S/d
+      // (d inteiro) e o CSS amplia d vezes com image-rendering: pixelated — cada pixel de arte continua quadrado
+      // e do mesmo tamanho na tela (S/d·d = S pixels do aparelho). Só quando os moldes também dividem certinho.
+      var d = reducaoEscala(pick.S, pick.artW * pick.artH), S = pick.S / d;
+      self.S = S; self.lay = pick; pick.reducao = d;
       self.W = pick.artW * S; self.H = pick.artH * S;
       cv.width = self.W; cv.height = self.H;
-      cv.style.width = (self.W / r) + 'px';
-      cv.style.height = (self.H / r) + 'px';
-      palco.style.height = (self.H / r) + 'px';
+      cv.style.width = (self.W * d / r) + 'px';
+      cv.style.height = (self.H * d / r) + 'px';
+      palco.style.height = (self.H * d / r) + 'px';
       ctx.imageSmoothingEnabled = false;
       self.ppmArt = pick.artW < 260 ? 2 : 2.5;
       // a narração ocupa a altura que sobrar (campos pequenos): nada de faixa vazia sob os botões
@@ -9082,6 +9105,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return {
       frame: frame,
       setSpeed: function (m) { self.mult = m; },
+      relayout: function () { layout(); },
       skip: function () { if (!self.done) { self.done = true; go('resultado'); } },
       destroy: function () { window.removeEventListener('resize', onResize); FX.resetStats(false); },
       _state: self
@@ -9684,7 +9708,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     // com ?semmoldes=1) os cavalos saem do desenho por código. Ao chegarem, a tela é redesenhada — menos
     // a corrida, que redesenha sozinha a cada quadro (re-renderizar recriaria a corrida).
     if (!/[?&]semmoldes=1(&|$)/.test(window.location.search) && window.__MOLDES) {
-      SP.loadMolds(window.__MOLDES, function () { if (ui.screen !== 'corrida') redesenhoPassivo(); });
+      // (na corrida, refaz só o layout: a escala de trabalho do canvas depende da escala dos moldes)
+      SP.loadMolds(window.__MOLDES, function () { if (ui.screen !== 'corrida') redesenhoPassivo(); else if (raceView) raceView.relayout(); });
     }
     try {
       var hot = window.claude && window.claude.hot;

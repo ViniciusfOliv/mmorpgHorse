@@ -914,6 +914,12 @@
 
   function estiloDe(element) { return ESTILO_POR_ELEMENTO[element] || 'lisa'; }
   function moldScale(k) { return Math.max(1, Math.round(k * 40 / moldesLref)); }
+  // A corrida pode desenhar numa escala de trabalho k/d e deixar o CSS ampliar d vezes (pixelated): os moldes
+  // continuam do mesmo tamanho na tela só se a escala deles também dividir certinho. Sem moldes (ainda), não.
+  function escalaMoldeCompativel(k, kTrabalho) {
+    if (!moldsOk || !(kTrabalho > 0) || k % kTrabalho) return false;
+    return moldScale(kTrabalho) * (k / kTrabalho) === moldScale(k);
+  }
   function mediana(v) {
     var s = v.slice().sort(function (a, b) { return a - b; }), n = s.length;
     return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
@@ -2229,6 +2235,7 @@
     moldsReady: false,
     loadMolds: loadMolds,
     anchorsFor: anchorsFor,
+    escalaMoldeCompativel: escalaMoldeCompativel,
     limparCacheMoldes: limparCacheMoldes,
     moldeCanvas: moldeCanvas,
     _cacheMoldes: cacheMoldes,
