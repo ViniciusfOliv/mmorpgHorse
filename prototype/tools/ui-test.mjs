@@ -1661,7 +1661,7 @@ try {
       const pg = await newPage(browser, vp, label, { query: '?dev=1' })
       try {
         await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
-        await devArmar(pg, { clima: 'sol', vento: 'calmo', tracado: 'curvas', distancia: 1600, seed: 4242 })
+        await devArmar(pg, { clima: 'sol', vento: 'calmo', tracado: 'curvas', distancia: 1600, seed: 4247 })
         await pg.locator('[data-acao="aba"][data-id="correr"]').click()
         await pg.waitForSelector('#t-correr')
         await pg.getByRole('button', { name: 'Procurar corrida' }).click()
