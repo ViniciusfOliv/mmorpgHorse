@@ -509,7 +509,7 @@
       var fee = num(p.fee, 0, 0, 1e6);
       if (p.training ? fee === 0 : E.entryTiers.indexOf(fee) >= 0) {
         base.pending = { counter: num(p.counter, 1, 1, 1e9), training: !!p.training, fee: fee, pr: num(p.pr, 600, 1, 1e5) };
-        base.pending.gear = validGearSnapshot(p.gear);   // null: save de antes do retrato (preenchido abaixo)
+        base.pending.gear = validGearSnapshot(p.gear);   // null: save de antes do retrato, ou retrato inválido
       }
     }
     base.races = num(s.races, 0, 0, 1e9);
@@ -522,15 +522,14 @@
     base.stableSlots = stableSlots;
     base.breedCounter = breedCounter;
     sanitizeGear(s, v4, base, rawEquip);
-    // Poder da sala: nunca acima do Poder real da montaria ativa com o equipamento de quando a sala abriu
-    // (pending.gear, retrato tirado em openLobby). Sem o retrato (save anterior), vale o equipamento atual.
-    if (base.pending) {
+    // Poder da sala = Poder da montaria ativa com o equipamento de quando a sala abriu (pending.gear, retrato
+    // tirado em openLobby), nem mais (liberaria trocas de peça) nem menos (os rivais sairiam mais fracos).
+    // Sem retrato (save de antes dele) o pr gravado fica como está: recalcular pelo equipamento atual mudaria
+    // os rivais da mesma sala.
+    if (base.pending && base.pending.gear) {
       var act = null;
       base.mounts.forEach(function (m) { if (m.uid === base.activeId) act = m; });
-      var byUid = {};
-      base.items.forEach(function (it) { byUid[it.uid] = it; });
-      if (!base.pending.gear) base.pending.gear = gearSnapshot(GR.resolve(act, byUid));
-      base.pending.pr = Math.min(base.pending.pr, RS.powerRating(act, gearFromSnapshot(base.pending.gear)));
+      base.pending.pr = RS.powerRating(act, gearFromSnapshot(base.pending.gear));
     }
     // preferências (sem mudar a versão do save): save antigo sem settings, ou com valor inválido, segue o sistema
     var mo = s.settings && typeof s.settings === 'object' ? s.settings.motion : null;

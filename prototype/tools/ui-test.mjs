@@ -491,19 +491,66 @@ try {
       if (!(await ad.locator('[data-acao="equipar"][data-id="i99"]').isDisabled())) problems.push('adulterado: a peça Lendária pode ser equipada com o páreo aberto')
       const sala2 = await salaAtual(ad).catch(() => null)
       if (sala2 && sala2.seed !== sala.seed) problems.push('adulterado: seed da sala mudou')
-      // 3. retrato adulterado (peça inexistente): cai para o equipamento atual
+      // 3. retrato inválido (peça inexistente) vale como save sem retrato: é descartado e o pr gravado fica
+      //    (recalcular pelo equipamento atual mudaria os rivais da sala; ver o contexto "retrato")
       const raw2 = await bruto()
+      const prGravado = raw2.pending.pr
       raw2.pending.gear = [{ slot: 'sela', id: 'nao-existe', plus: 99 }]
-      raw2.pending.pr = 99999
       await grava(raw2)
       await ad.reload({ waitUntil: 'domcontentloaded' })
       await ad.waitForSelector('#t-estabulo')
       s = await st()
-      if (s.pending.pr !== (await poderReal())) problems.push('adulterado: retrato inválido deixou o Poder da sala em ' + s.pending.pr)
+      if (s.pending.gear !== null || s.pending.pr !== prGravado) problems.push('adulterado: retrato inválido ' + JSON.stringify({ gear: s.pending.gear, pr: s.pending.pr, prGravado }))
     } catch (e) {
       problems.push('adulterado: ' + e.message)
     }
     await ad.context().close()
+  }
+
+  // ---------------- retrato do equipamento: save sem retrato não mexe na sala; pr adulterado volta ao do retrato ----------------
+  if (quer('retrato')) {
+    const rt = await newPage(browser, { width: 390, height: 844 }, 'retrato')
+    const st = () => rt.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    const bruto = () => rt.evaluate(() => JSON.parse(localStorage.getItem('galope-elemental:v1')))
+    const grava = (raw) => rt.evaluate((r) => localStorage.setItem('galope-elemental:v1', JSON.stringify(r)), raw)
+    const recarregaSala = async () => {
+      await rt.reload({ waitUntil: 'domcontentloaded' })
+      await rt.waitForSelector('#t-estabulo')
+      return abrirSala(rt)
+    }
+    try {
+      await rt.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await rt.waitForSelector('#t-estabulo')
+      const salaA = await abrirSala(rt)
+      const prA = (await st()).pending.pr
+      // 1. tira sela e ferraduras com a sala aberta (o Poder cai), apaga o retrato do save (save de antes dele)
+      await rt.locator('[data-acao="equipar-tela"]').click()
+      await rt.waitForSelector('#t-montaria')
+      for (const slot of ['sela', 'ferraduras']) {
+        await rt.locator(`[data-acao="equip-slot"][data-id="${slot}"]`).click()
+        await rt.locator(`[data-acao="tirar"][data-id="${slot}"]`).click()
+      }
+      const raw = await bruto()
+      if (raw.mounts[0].equip.sela || raw.mounts[0].equip.ferraduras) problems.push('retrato: as peças não saíram')
+      delete raw.pending.gear
+      await grava(raw)
+      const salaB = await recarregaSala()
+      const sB = await st()
+      if (sB.pending.pr !== prA) problems.push(`retrato: save sem retrato mudou o Poder da sala (${prA} -> ${sB.pending.pr})`)
+      for (const k of ['seed', 'counter', 'rivais', 'blocks']) if (salaA[k] !== salaB[k]) problems.push(`retrato: save sem retrato mudou a sala (${k}: ${salaA[k]} -> ${salaB[k]})`)
+      // 2. com retrato válido, pr adulterado para baixo volta ao Poder do retrato (e os rivais aos de antes)
+      const raw2 = await bruto()
+      raw2.pending.gear = [{ slot: 'sela', id: 'sela-comum', plus: 0 }, { slot: 'ferraduras', id: 'ferraduras-comum', plus: 0 }]
+      raw2.pending.pr = 500
+      await grava(raw2)
+      const salaC = await recarregaSala()
+      const sC = await st()
+      if (sC.pending.pr !== prA) problems.push(`retrato: pr adulterado para baixo ficou em ${sC.pending.pr} (Poder do retrato ${prA})`)
+      if (salaC.rivais !== salaA.rivais) problems.push('retrato: pr adulterado para baixo trouxe outros rivais')
+    } catch (e) {
+      problems.push('retrato: ' + e.message)
+    }
+    await rt.context().close()
   }
 
   // ---------------- save corrompido: cópia do texto bruto e aviso na tela inicial ----------------
