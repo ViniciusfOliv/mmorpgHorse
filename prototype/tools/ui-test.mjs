@@ -611,6 +611,8 @@ try {
           html: document.documentElement.outerHTML.length, temDev: /dev\.js|galope-elemental:dev/.test(document.documentElement.outerHTML) }))
         if (g.galope !== 'undefined' || g.dev !== 'undefined' || g.temDev) problems.push(`[${label}] produção com DEV ou gancho de teste: ` + JSON.stringify(g))
         if ((await pd.locator('.dev-painel, .dev-faixa, .dev-botao, .dev-gaveta').count()) !== 0) problems.push(`[${label}] produção mostra o modo DEV`)
+        const cssDev = await pd.evaluate(() => Array.from(document.styleSheets).flatMap((sh) => Array.from(sh.cssRules)).map((r) => r.cssText).filter((t) => /\.dev-/.test(t)).length)
+        if (cssDev) problems.push(`[${label}] produção com ${cssDev} regra(s) de CSS do modo DEV`)
         // uma corrida inteira só com cliques
         await pd.getByRole('button', { name: 'Escolher Brasa' }).click()
         await pd.waitForSelector('#t-estabulo')

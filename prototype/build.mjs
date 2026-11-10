@@ -55,8 +55,10 @@ const m = index.match(/<!-- app:start -->([\s\S]*?)<!-- app:end -->/)
 if (!m) throw new Error('index.html: marcadores <!-- app:start --> / <!-- app:end --> não encontrados')
 const markup = m[1].trim()
 
-const css = (await read('src/game.css')).trim()
-if (/<\/style/i.test(css)) throw new Error('game.css contém "</style"')
+const cssFonte = await read('src/game.css')
+if (/<\/style/i.test(cssFonte)) throw new Error('game.css contém "</style"')
+const css = blocos(cssFonte, 'src/game.css', false).trim()
+const cssProd = blocos(cssFonte, 'src/game.css', true).trim()   // sem o bloco @dev (faixa, botão e gaveta DEV)
 
 // ---------------------------------------------------------------------------
 // Arte embutida (moldes, ícones, logotipo): tools/arte-embutida.mjs, a mesma que o wiki usa
@@ -80,16 +82,16 @@ for (const file of SCRIPTS) {
 }
 
 // extra: <script>s que entram antes dos do jogo (o build de teste liga o modo DEV assim)
-const pagina = (extra, js) => [
+const pagina = (extra, js, estilo = css) => [
   '<title>Galope Elemental</title>',
   '<meta name="claude:viewport-fit-sides" content="cover">',
-  `<style>\n${css}\n</style>`,
+  `<style>\n${estilo}\n</style>`,
   markup,
   ...extra,
   ...js,
   ''
 ].join('\n')
-const body = pagina([], scriptsProd)                    // produção
+const body = pagina([], scriptsProd, cssProd)           // produção
 const bodyDev = pagina(['<script>window.__GALOPE_DEV = true;</script>'], scripts)
 const bodyPreview = pagina([], scripts)
 
@@ -99,7 +101,7 @@ for (const [nome, html] of [['jogo.html', body], ['jogo-dev.html', bodyDev]]) {
   }
 }
 // produção: nada do modo DEV nem do gancho de teste pode sobrar
-for (const [proibido, o_que] of [[/__galope/i, 'o gancho de teste (__galope / __GALOPE_DEV)'], [/\bDev\./, 'referência a Dev. (dev.js)'], [/galope-elemental:dev/, "a chave do save DEV ('galope-elemental:dev')"]]) {
+for (const [proibido, o_que] of [[/__galope/i, 'o gancho de teste (__galope / __GALOPE_DEV)'], [/\bDev\./, 'referência a Dev. (dev.js)'], [/galope-elemental:dev/, "a chave do save DEV ('galope-elemental:dev')"], [/\.dev-[a-z]/, 'seletor .dev- (CSS do modo DEV)']]) {
   const m = body.match(proibido)
   if (m) {
     const linha = body.slice(0, m.index).split('\n').length

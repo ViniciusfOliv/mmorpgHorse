@@ -674,7 +674,11 @@ html.app-com-abas { scroll-padding: calc(56px + var(--sat)) 0 calc(72px + env(sa
   html.app-com-abas { scroll-padding-bottom: 16px; }
 }
 
+a.btn { text-decoration: none; }
+
 /* ---------- modo DEV (?dev=1): faixa fixa no topo, botão "DEV" e gaveta que sobe do rodapé ---------- */
+/* Fora do jogo de produção: o build.mjs tira o bloco @dev do dist/jogo.html. */
+/*@dev:inicio*/
 /* a faixa (24px) empurra o cabeçalho fixo, a barra lateral do desktop e o conteúdo (a corrida lê o padding do .app) */
 /* com área segura no topo, a faixa a cobre e o cabeçalho desce para baixo das duas */
 html.dev-ativo .app { padding-top: calc(40px + var(--sat)); }
@@ -721,13 +725,13 @@ html.dev-ativo:not(.app-com-abas) .barra-acao { bottom: calc(64px + env(safe-are
 .dev-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
 .dev-acoes .btn { flex: 1 1 auto; min-width: 0; }
 .dev-acoes--base { align-self: end; }
-a.btn { text-decoration: none; }
 .dev-armado { margin: 0; font-size: var(--t-s); color: var(--texto-3); }
 .dev-armado--on { color: var(--ouro-claro); }
 @media (min-width: 900px) {
   html.dev-ativo .app-abas { top: calc(24px + var(--sat)); padding-top: 0; }
   html.app-com-abas .dev-botao { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 }
+/*@dev:fim*/
 
 /* ---------- ícones do PixelLab e logotipo do Canva ---------- */
 /* 32x32 reduzido a 16px: suavizado (auto) lê melhor; pixelated só em escala 1x (barra de abas). Halo claro para
