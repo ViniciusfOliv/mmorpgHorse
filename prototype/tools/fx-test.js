@@ -909,5 +909,38 @@ test('drawMiniMap: um ponto por cavalo na cor da raia, o seu maior e com contorn
   assert.strictEqual(FX._stats.minimapa, false, 'beginFrame zera');
 });
 
+section('desenho da pista (Sprites)');
+var SPR = require('../src/sprites.js');
+test('hachura das subidas: os limites (org, ini, fim) dão os mesmos retângulos do laço antigo (um fillRect por linha e listra)', function () {
+  function mod(a, n) { return ((a % n) + n) % n; }
+  // o laço que a pista usava, linha a linha: [linha, coluna] de cada retângulo de 3P × P
+  function antigo(x0, x1, camPx, P, linhas) {
+    var out = [], step = 10 * P;
+    for (var r = 0; r < linhas; r++) {
+      var shift = mod(-(r * P) + camPx, step);
+      for (var hx = x0 - shift + step; hx < x1; hx += step) out.push(r + ',' + Math.round(hx));
+    }
+    return out;
+  }
+  function novo(x0, x1, camPx, P, linhas) {
+    var h = SPR._hachuraFaixa(x0, x1, camPx, P), out = [];
+    for (var r = 0; r < linhas; r++) {
+      var o = mod(h.org + r * P, h.passo), s = h.ini + mod(o - h.ini, h.passo);
+      for (; s < h.fim; s += h.passo) out.push(r + ',' + s);
+    }
+    return out;
+  }
+  var semente = 7, casos = 0;
+  function rnd() { semente = (Math.imul(semente, 1103515245) + 12345) >>> 0; return semente / 4294967296; }
+  for (var k = 0; k < 4000; k++) {
+    var P = 1 + Math.floor(rnd() * 6), x0 = Math.floor(rnd() * 400), x1 = x0 + 1 + Math.floor(rnd() * 900);
+    var camPx = k % 5 === 0 ? Math.floor(rnd() * 5000) - 300 : k % 5 === 1 ? Math.floor(rnd() * 5000) + 0.5 : rnd() * 9000 - 500;
+    var a = antigo(x0, x1, camPx, P, 40).sort(), b = novo(x0, x1, camPx, P, 40).sort();
+    assert.deepStrictEqual(b, a, 'x0 ' + x0 + ' x1 ' + x1 + ' camPx ' + camPx + ' P ' + P);
+    casos++;
+  }
+  assert.strictEqual(casos, 4000);
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

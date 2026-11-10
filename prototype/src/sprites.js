@@ -1695,6 +1695,47 @@
   function curvaApi() { var FX = fxApi(); return FX && FX.curveOffset && FX.CURVA ? FX : null; }
   var CURVA_PLACA_M = 40;   // placas "CURVA" na cerca a cada 40 m dentro da curva
 
+  // Hachura diagonal das subidas: em cada linha de arte r (y = laneTop + r·P) da faixa, retângulos de 3P × P
+  // que começam nas colunas s ≡ org + r·P (mód. 10P), para os começos s em [ini, fim). É o mesmo desenho do
+  // laço antigo (um fillRect por retângulo, 4 a 11 mil por quadro): a 1ª coluna de cada linha era
+  // round(x0 − mod(camPx − r·P, 10P) + 10P) e iam enquanto o valor sem arredondar ficasse abaixo de x1; como
+  // todos têm a mesma parte fracionária fr, isso vira os limites inteiros ini e fim abaixo.
+  function hachuraFaixa(x0, x1, camPx, P) {
+    var step = 10 * P, hx = x0 - mod(camPx, step) + step, fr = hx - Math.floor(hx);
+    return { passo: step, org: mod(Math.round(hx), step), ini: x0 + (fr >= 0.5 || fr === 0 ? 1 : 0), fim: x1 + (fr >= 0.5 ? 1 : 0) };
+  }
+  // padrões (por P) de 10P × 10P: listras inteiras (3P de largura) e só a 1ª coluna de pixel de cada listra
+  var hachuraPadroes = {};
+  function hachuraPadrao(ctx, P, coluna) {
+    var k = P + (coluna ? 'c' : 'l'), p = hachuraPadroes[k];
+    if (p) return p;
+    var step = 10 * P, c = makeCanvas(step, step), g = c.getContext('2d');
+    g.fillStyle = 'rgba(255,255,255,0.07)';
+    for (var r = 0; r < 10; r++) {
+      if (coluna) g.fillRect(r * P, r * P, 1, P);
+      else for (var q = 0; q < 3; q++) g.fillRect(((r + q) % 10) * P, r * P, P, P);
+    }
+    return (hachuraPadroes[k] = ctx.createPattern(c, 'repeat'));
+  }
+  // pinta a hachura h (de hachuraFaixa) nas linhas [y, y + alt) com no máximo 6P + 1 fillRect: o miolo, onde toda
+  // listra é inteira, de uma vez; nas pontas, a coluna j de cada listra (j = 0..3P−1) vale para os começos em
+  // [ini, fim), ou seja, para x em [ini + j, fim + j) — a listra que começa antes de ini não aparece e a que
+  // começa antes de fim sai inteira (passa de x1, como antes)
+  function hachura(ctx, h, y, alt, P) {
+    var L = 3 * P, m0 = h.ini + L - 1, m1 = h.fim, j;
+    var lis = hachuraPadrao(ctx, P, false), col = hachuraPadrao(ctx, P, true);
+    function faixa(pat, dx, xa, xb) {
+      if (xb <= xa) return;
+      var ox = h.org + dx;
+      ctx.fillStyle = pat;
+      ctx.translate(ox, y); ctx.fillRect(xa - ox, 0, xb - xa, alt); ctx.translate(-ox, -y);
+    }
+    if (m1 > m0) {
+      faixa(lis, 0, m0, m1);
+      for (j = 0; j < L; j++) { faixa(col, j, h.ini + j, m0); faixa(col, j, m1, h.fim + j); }
+    } else for (j = 0; j < L; j++) faixa(col, j, h.ini + j, h.fim + j);
+  }
+
   // Relevo das subidas: desloca para cima as colunas da faixa [y0, Hh) (pixels do canvas), dyPx(x) ≥ 0 por
   // coluna de P pixels, em trechos de mesmo deslocamento; o rodapé exposto de cada trecho recebe `fundo`.
   // A faixa é copiada UMA vez para um canvas de rascunho e colada de lá: copiar o canvas sobre ele mesmo,
@@ -1919,12 +1960,7 @@
       if (x1 > x0) {
         ctx.fillStyle = 'rgba(40,20,10,0.22)'; ctx.fillRect(x0, laneTop, x1 - x0, trackH);
         // hachura diagonal ancorada no mundo
-        ctx.fillStyle = 'rgba(255,255,255,0.07)';
-        var step = 10 * P;
-        for (var yy = laneTop; yy < trackBottom; yy += P) {
-          var shift = mod(-(yy - laneTop) + camPx, step);
-          for (var hx = x0 - shift + step; hx < x1; hx += step) ctx.fillRect(Math.round(hx), yy, 3 * P, P);
-        }
+        hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P);
       }
       // linhas amarelas de início/fim
       ctx.fillStyle = '#f2c230';
@@ -2162,6 +2198,7 @@
     drawTrail: drawTrail,
     drawElementIcon: drawElementIcon,
     hillLiftAt: hillLiftAt,
+    _hachuraFaixa: hachuraFaixa,
     hillShape: hillShape,
     HILL_AMP: HILL_AMP,
     cacheStats: cacheStats,
