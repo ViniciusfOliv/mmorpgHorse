@@ -15,7 +15,7 @@ Jogo em pixel art de corrida de cavalos **automática** com progressão RPG, ele
 | Estado do projeto / próximos passos | `docs/memoria/ESTADO.md` |
 | Decisões e motivos | `docs/memoria/decisoes.md` |
 | Registro de assets gerados (IA) | `docs/memoria/assets.md` |
-| Fases e checklist de lançamento | `docs/checklist-lancamento.md` |
+| Cronograma, fases e checklist de lançamento | `docs/cronograma.md` |
 | Regras de trabalho (Claude Code) | `CLAUDE.md` |
 | Protótipo jogável (descartável) | `prototype/` |
 

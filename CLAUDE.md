@@ -18,7 +18,7 @@ para `docs/` e aqui fica só o caminho, entre crases (sem `@`, para não carrega
 ## 2. Fase atual: **Protótipo**
 Foco: descobrir se a corrida automática + estratégia pré-corrida + aposta é divertida.
 Nada de polimento, servidor, contas ou loja ainda. Fases e checklist de lançamento:
-`docs/checklist-lancamento.md`.
+`docs/cronograma.md`.
 
 ## 3. Como trabalhar
 - Responda em **português**.
