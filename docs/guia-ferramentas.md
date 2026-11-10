@@ -1,64 +1,32 @@
-# Guia de ferramentas — Claude Code, subagentes, MCP e permissões
+# Guia de ferramentas
 
-Material de consulta para o desenvolvedor, separado do `CLAUDE.md` para não pesar no contexto de
-toda sessão. Os comandos do Claude Code mudam com frequência: confira na documentação oficial
-(https://code.claude.com/docs) antes de copiar.
+Consulta rápida, separada do `CLAUDE.md` para não pesar em toda sessão. Comandos e telas do Claude
+Code mudam: na dúvida, vale a documentação oficial (https://code.claude.com/docs).
 
-## Ferramentas e serviços
-| Ferramenta | Para quê | Como acessar | Observações |
+| Ferramenta | Para quê | Como acessar | Custo |
 |---|---|---|---|
-| Claude (Max) | planejamento, código, revisão | CLI, app, web | subagentes para tarefas isoladas |
-| PixelLab | sprites, animações, tilesets | API v2 (`prototype/tools/pixellab-moldes.mjs`) ou MCP | gasta créditos/cota |
-| ElevenLabs | vozes, efeitos, música | MCP | gasta créditos |
-| Canva Pro | capa, ícone, imagens de loja, banners, trailer simples | MCP (conector do claude.ai) | — |
+| Claude Code | planejamento, código, revisão; subagentes para tarefas isoladas | CLI, app, web | plano |
+| PixelLab | moldes de cavalo, ícones, futuros cenários | `prototype/tools/pixellab-moldes.mjs` (API v2) | cota do plano |
+| Canva | capa, ícone, imagens de loja | conector do claude.ai | plano |
+| ElevenLabs | sons e vozes (ainda não usado) | conector, quando ligado | créditos |
 
-Nas sessões na nuvem (claude.ai/code), a PixelLab pode estar liberada pelo proxy do ambiente,
-com a credencial injetada automaticamente. Localmente, use a chave real em `PIXELLAB_API_KEY`.
-O `pixellab-moldes.mjs` roda em dry-run por padrão (mostra o que geraria e o custo, sem gastar);
-`--gerar` gasta, `--teto N` limita o número de gerações, `--reprocessar` refaz os moldes a partir
-das respostas cruas guardadas em `raw/`, sem rede e sem custo. Precisa de `NODE_USE_ENV_PROXY=1`
-(o `fetch` do Node 22 não usa o proxy sozinho; sem isso a API responde 401). O PixelLab devolve
-502 com frequência, sem cobrar.
+## PixelLab
+- `node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|tudo` mostra o que geraria e o custo,
+  sem gastar. `--gerar` gasta; `--teto N` limita as gerações; `--reprocessar` refaz os arquivos finais
+  a partir das respostas guardadas em `raw/`, sem rede e sem custo.
+- Na nuvem, a credencial é injetada pelo proxy do ambiente; rode com `NODE_USE_ENV_PROXY=1` (sem isso
+  a API responde 401). Localmente, a chave fica em `PIXELLAB_API_KEY`.
+- A API devolve HTTP 502 com frequência, sem cobrar.
+- Toda geração paga pede confirmação antes e entra em `docs/memoria/assets.md`.
 
-## Subagentes
-- **Agente** = a IA trabalhando sozinha numa tarefa. A conversa principal já é um agente.
-- **Subagente** = ajudante especializado que o Claude chama para uma tarefa específica. Roda em
-  contexto separado e devolve só o resultado.
-- Criar com `/agents` (salva em `.claude/agents/`).
-- Ideias para quando fizer falta (os plugins instalados já cobrem revisão de código e testes):
-  - `assets` — gera sprites/sons e registra em `docs/memoria/assets.md`
-  - `balanceador` — roda `balance.js --tune ...` e propõe ajustes de constantes
-- Tarefas simples podem usar um modelo mais rápido/barato no subagente.
+## Segredos e permissões
+- Tokens e chaves nunca vão para a conversa nem para o código: use variáveis de ambiente ou `.env`
+  (que está no `.gitignore`).
+- Os comandos frequentes e seguros estão liberados em `.claude/settings.json`; ajustes pessoais vão
+  em `.claude/settings.local.json` (fora do Git).
+- Pedem confirmação: apagar arquivos, `git push --force`, ações fora da pasta do projeto e tudo que
+  gaste créditos.
 
-## Conexões MCP
-- `claude mcp add` roda no **terminal**, fora da conversa (o Claude pode rodá-lo com permissão).
-- Escopos:
-  - `--scope user` → todos os seus projetos (recomendado para PixelLab e ElevenLabs)
-  - padrão (`local`) → só este projeto, só você
-  - `--scope project` → compartilhado via Git (`.mcp.json`)
-- Exemplo (confira a URL e o formato no site do serviço):
-  ```bash
-  claude mcp add --scope user --transport http pixellab https://api.pixellab.ai/mcp --header "Authorization: Bearer $PIXELLAB_TOKEN"
-  ```
-  Atenção: o shell expande `$PIXELLAB_TOKEN` na hora, e o **valor** fica gravado em texto puro
-  na sua configuração de usuário (`~/.claude.json`). Aceitável no escopo de usuário; nunca faça
-  isso no escopo `project`.
-- No `.mcp.json` (escopo `project`), use a expansão do próprio Claude Code, que lê a variável em
-  tempo de execução e não grava o segredo no Git:
-  ```json
-  { "mcpServers": { "pixellab": { "type": "http", "url": "https://api.pixellab.ai/mcp",
-      "headers": { "Authorization": "Bearer ${PIXELLAB_TOKEN}" } } } }
-  ```
-- Depois de adicionar: abra uma **nova conversa** e confira com `/mcp`.
-
-## Permissões
-- Modos (Shift+Tab): **normal** (pergunta tudo) · **aceitar edições** (edita sem perguntar;
-  comandos ainda perguntam) · **plano** (só lê e planeja) · **automático** (decide sozinho o que
-  é seguro, quando disponível na sua conta).
-- Comandos seguros e frequentes já estão liberados em `.claude/settings.json` (build, balanço,
-  teste de UI, `scripts/check.sh`, `git status/diff/log/show`). Ajustes pessoais vão em
-  `.claude/settings.local.json` (fora do Git).
-- Sempre pedir confirmação para: apagar arquivos, `git push --force`, ações fora da pasta do
-  projeto e qualquer coisa que gaste créditos.
-- **Tokens e chaves:** nunca colar na conversa nem no código. Usar `.env` (no `.gitignore`) ou
-  variáveis de ambiente.
+## Teste de interface
+`prototype/tools/ui-test.mjs` usa o Playwright com Chromium. O projeto não tem `package.json`: o
+Playwright precisa estar instalado no ambiente (nas sessões na nuvem já vem instalado).
