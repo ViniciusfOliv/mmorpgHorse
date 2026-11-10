@@ -22,7 +22,8 @@
  *   Sprites.cloudCanvas(seed, P, tom) — nuvem de pixels em cache (usada pelo nublado do fx.js)
  *   Sprites.drawTrail(ctx, x, y, element, t, intensity, scale)
  *   Sprites.drawElementIcon(ctx, x, y, element, scale)
- *   Sprites.drawText(ctx, text, x, y, { scale, color, shadow, align })  // fonte pixel 3x5 com acentos
+ *   Sprites.drawText(ctx, text, x, y, { scale, color, shadow, align, volatil })  // fonte pixel 3x5 com acentos;
+ *     volatil: texto que muda quase a cada quadro, pintado direto (fora do cache de texto pronto)
  *   Sprites.PALETTES  // paletas de exemplo
  *   Moldes do PixelLab (recolor por paleta; sem eles, desenho por código):
  *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
@@ -1347,8 +1348,10 @@
     else if (o.align === 'right') x -= w;
     x = Math.round(x); y = Math.round(y);
     var gl = textGlyphs(text);
-    // cor translúcida ou globalAlpha < 1: colar o canvas arredonda diferente (±1 no canal); pinta direto
-    if (!podeCanvas || w <= 0 || !ctx.drawImage || ctx.globalAlpha !== 1 || !opaca(color) || (o.shadow && !opaca(o.shadow))) {
+    // cor translúcida ou globalAlpha < 1: colar o canvas arredonda diferente (±1 no canal); pinta direto. Texto
+    // volátil (o.volatil: relógio, km/h, distâncias, números do Dado girando) muda quase a cada quadro: no cache
+    // viraria um canvas novo por valor, então também pinta direto
+    if (o.volatil || !podeCanvas || w <= 0 || !ctx.drawImage || ctx.globalAlpha !== 1 || !opaca(color) || (o.shadow && !opaca(o.shadow))) {
       if (o.shadow) pintaTexto(ctx, gl, x + s, y + s, s, o.shadow);
       pintaTexto(ctx, gl, x, y, s, color);
       return w;

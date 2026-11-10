@@ -2825,8 +2825,9 @@
       if (border) { ctx.fillStyle = border; ctx.fillRect(x * S, (y - 1) * S, w * S, S); ctx.fillRect(x * S, (y + h) * S, w * S, S); ctx.fillRect((x - 1) * S, y * S, S, h * S); ctx.fillRect((x + w) * S, y * S, S, h * S); }
       ctx.fillStyle = bg; ctx.fillRect(x * S, y * S, w * S, h * S);
     }
-    function text(str, x, y, color, scale, align, shadow) {
-      SP.drawText(ctx, str, x * self.S, y * self.S, { scale: (scale || 1) * self.S, color: color, align: align, shadow: shadow });
+    // volatil: texto que muda quase a cada quadro (relógio, km/h, distâncias), pintado fora do cache de texto
+    function text(str, x, y, color, scale, align, shadow, volatil) {
+      SP.drawText(ctx, str, x * self.S, y * self.S, { scale: (scale || 1) * self.S, color: color, align: align, shadow: shadow, volatil: volatil });
     }
     function tw(str, scale) { return SP.measureText(str, scale || 1); }
     function digitColor(silk) { return hexLum(silk) > 0.5 ? C.tinta : C.texto; }
@@ -2858,8 +2859,8 @@
       var tTxt = fmtClock(tShown), kmh = Math.round(st.speed[me] * 3.6) + ' KM/H';
       var tw2 = Math.max(tw(tTxt), tw(kmh)) + 4;
       box(A - 2 - tw2, 2, tw2, 14, C.veu);
-      text(tTxt, A - 4, 3, C.texto, 1, 'right');
-      text(kmh, A - 4, 10, C.texto2, 1, 'right');
+      text(tTxt, A - 4, 3, C.texto, 1, 'right', null, true);
+      text(kmh, A - 4, 10, C.texto2, 1, 'right', null, true);
       // clima atual (vira com o Dado da Sorte), à esquerda do relógio; no layout compacto
       // não há espaço (a CURVA/SUBIDA fica ali) e o cabeçalho da tela mostra o clima
       var wName = GD.WEATHERS[climaAtual(self.simT)].name.toUpperCase();
@@ -3171,7 +3172,7 @@
         box(bx, y, w, 8, C.veu);
         box(bx + 1, y + 1, 5, 6, r.silks);
         text(num, bx + 2, y + 1, digitColor(r.silks));
-        text(t.txt, bx + 8, y + 1, C.texto);
+        text(t.txt, bx + 8, y + 1, C.texto, 1, null, null, true);
         ctx.fillStyle = C.texto2;
         var ax = right ? bx + w : bx - 1;
         ctx.fillRect(ax * S, (y + 3) * S, S, 2 * S);

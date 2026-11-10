@@ -711,9 +711,10 @@
     ['..ooooo..', '.osswwwo.', '.osswwwo.', '.opswrwo.', '.osswwwo.', '.osswwwo.', '.osswwwo.', '.odddddo.', '..ooooo..']
   ];
 
-  function texto(ctx, s, x, y, S, color) {
+  // volatil: números que trocam a cada quadro (o Dado girando), fora do cache de texto do Sprites
+  function texto(ctx, s, x, y, S, color, volatil) {
     var SP = sp();
-    if (SP) SP.drawText(ctx, s, x, y, { scale: S, color: color });
+    if (SP) SP.drawText(ctx, s, x, y, { scale: S, color: color, volatil: volatil });
   }
 
   function drawDice(ctx, x, y, S, roll, estado, isWinner, simT, cor) {
@@ -749,13 +750,13 @@
       texto(ctx, L.marca, x + bx * S, y + 2 * S, S, ouro ? COR.palha2 : COR.ouroClaro);
       bx += MARCA_W;
     }
-    texto(ctx, L.best, x + bx * S, y + 2 * S, S, tBest);
+    texto(ctx, L.best, x + bx * S, y + 2 * S, S, tBest, true);
     if (L.outros.length) {
       var sx = bx + numW(L.best) + 2;
       R(sx, 1, 1, PLACA_H - 2, borda);
       var ox = sx + 3;
       for (var i = 0; i < L.outros.length; i++) {
-        texto(ctx, L.outros[i], x + ox * S, y + 2 * S, S, tOutros);
+        texto(ctx, L.outros[i], x + ox * S, y + 2 * S, S, tOutros, true);
         ox += numW(L.outros[i]) + 2;
       }
     }
@@ -821,7 +822,7 @@
         texto(ctx, MARCA, tx * S, (ey + 1) * S, S, cor === COR.tinta ? COR.palha2 : COR.ouroClaro);
         tx += MARCA_W;
       }
-      texto(ctx, num, tx * S, (ey + 1) * S, S, cor);
+      texto(ctx, num, tx * S, (ey + 1) * S, S, cor, true);
       ex += entradaW(roll) + GAP_E;
     }
     stats.faixaDado = true;

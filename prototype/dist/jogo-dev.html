@@ -2775,7 +2775,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   Sprites.cloudCanvas(seed, P, tom) — nuvem de pixels em cache (usada pelo nublado do fx.js)
  *   Sprites.drawTrail(ctx, x, y, element, t, intensity, scale)
  *   Sprites.drawElementIcon(ctx, x, y, element, scale)
- *   Sprites.drawText(ctx, text, x, y, { scale, color, shadow, align })  // fonte pixel 3x5 com acentos
+ *   Sprites.drawText(ctx, text, x, y, { scale, color, shadow, align, volatil })  // fonte pixel 3x5 com acentos;
+ *     volatil: texto que muda quase a cada quadro, pintado direto (fora do cache de texto pronto)
  *   Sprites.PALETTES  // paletas de exemplo
  *   Moldes do PixelLab (recolor por paleta; sem eles, desenho por código):
  *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
@@ -4100,8 +4101,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     else if (o.align === 'right') x -= w;
     x = Math.round(x); y = Math.round(y);
     var gl = textGlyphs(text);
-    // cor translúcida ou globalAlpha < 1: colar o canvas arredonda diferente (±1 no canal); pinta direto
-    if (!podeCanvas || w <= 0 || !ctx.drawImage || ctx.globalAlpha !== 1 || !opaca(color) || (o.shadow && !opaca(o.shadow))) {
+    // cor translúcida ou globalAlpha < 1: colar o canvas arredonda diferente (±1 no canal); pinta direto. Texto
+    // volátil (o.volatil: relógio, km/h, distâncias, números do Dado girando) muda quase a cada quadro: no cache
+    // viraria um canvas novo por valor, então também pinta direto
+    if (o.volatil || !podeCanvas || w <= 0 || !ctx.drawImage || ctx.globalAlpha !== 1 || !opaca(color) || (o.shadow && !opaca(o.shadow))) {
       if (o.shadow) pintaTexto(ctx, gl, x + s, y + s, s, o.shadow);
       pintaTexto(ctx, gl, x, y, s, color);
       return w;
@@ -5698,9 +5701,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     ['..ooooo..', '.osswwwo.', '.osswwwo.', '.opswrwo.', '.osswwwo.', '.osswwwo.', '.osswwwo.', '.odddddo.', '..ooooo..']
   ];
 
-  function texto(ctx, s, x, y, S, color) {
+  // volatil: números que trocam a cada quadro (o Dado girando), fora do cache de texto do Sprites
+  function texto(ctx, s, x, y, S, color, volatil) {
     var SP = sp();
-    if (SP) SP.drawText(ctx, s, x, y, { scale: S, color: color });
+    if (SP) SP.drawText(ctx, s, x, y, { scale: S, color: color, volatil: volatil });
   }
 
   function drawDice(ctx, x, y, S, roll, estado, isWinner, simT, cor) {
@@ -5736,13 +5740,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       texto(ctx, L.marca, x + bx * S, y + 2 * S, S, ouro ? COR.palha2 : COR.ouroClaro);
       bx += MARCA_W;
     }
-    texto(ctx, L.best, x + bx * S, y + 2 * S, S, tBest);
+    texto(ctx, L.best, x + bx * S, y + 2 * S, S, tBest, true);
     if (L.outros.length) {
       var sx = bx + numW(L.best) + 2;
       R(sx, 1, 1, PLACA_H - 2, borda);
       var ox = sx + 3;
       for (var i = 0; i < L.outros.length; i++) {
-        texto(ctx, L.outros[i], x + ox * S, y + 2 * S, S, tOutros);
+        texto(ctx, L.outros[i], x + ox * S, y + 2 * S, S, tOutros, true);
         ox += numW(L.outros[i]) + 2;
       }
     }
@@ -5808,7 +5812,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         texto(ctx, MARCA, tx * S, (ey + 1) * S, S, cor === COR.tinta ? COR.palha2 : COR.ouroClaro);
         tx += MARCA_W;
       }
-      texto(ctx, num, tx * S, (ey + 1) * S, S, cor);
+      texto(ctx, num, tx * S, (ey + 1) * S, S, cor, true);
       ex += entradaW(roll) + GAP_E;
     }
     stats.faixaDado = true;
@@ -9421,8 +9425,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       if (border) { ctx.fillStyle = border; ctx.fillRect(x * S, (y - 1) * S, w * S, S); ctx.fillRect(x * S, (y + h) * S, w * S, S); ctx.fillRect((x - 1) * S, y * S, S, h * S); ctx.fillRect((x + w) * S, y * S, S, h * S); }
       ctx.fillStyle = bg; ctx.fillRect(x * S, y * S, w * S, h * S);
     }
-    function text(str, x, y, color, scale, align, shadow) {
-      SP.drawText(ctx, str, x * self.S, y * self.S, { scale: (scale || 1) * self.S, color: color, align: align, shadow: shadow });
+    // volatil: texto que muda quase a cada quadro (relógio, km/h, distâncias), pintado fora do cache de texto
+    function text(str, x, y, color, scale, align, shadow, volatil) {
+      SP.drawText(ctx, str, x * self.S, y * self.S, { scale: (scale || 1) * self.S, color: color, align: align, shadow: shadow, volatil: volatil });
     }
     function tw(str, scale) { return SP.measureText(str, scale || 1); }
     function digitColor(silk) { return hexLum(silk) > 0.5 ? C.tinta : C.texto; }
@@ -9454,8 +9459,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       var tTxt = fmtClock(tShown), kmh = Math.round(st.speed[me] * 3.6) + ' KM/H';
       var tw2 = Math.max(tw(tTxt), tw(kmh)) + 4;
       box(A - 2 - tw2, 2, tw2, 14, C.veu);
-      text(tTxt, A - 4, 3, C.texto, 1, 'right');
-      text(kmh, A - 4, 10, C.texto2, 1, 'right');
+      text(tTxt, A - 4, 3, C.texto, 1, 'right', null, true);
+      text(kmh, A - 4, 10, C.texto2, 1, 'right', null, true);
       // clima atual (vira com o Dado da Sorte), à esquerda do relógio; no layout compacto
       // não há espaço (a CURVA/SUBIDA fica ali) e o cabeçalho da tela mostra o clima
       var wName = GD.WEATHERS[climaAtual(self.simT)].name.toUpperCase();
@@ -9767,7 +9772,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         box(bx, y, w, 8, C.veu);
         box(bx + 1, y + 1, 5, 6, r.silks);
         text(num, bx + 2, y + 1, digitColor(r.silks));
-        text(t.txt, bx + 8, y + 1, C.texto);
+        text(t.txt, bx + 8, y + 1, C.texto, 1, null, null, true);
         ctx.fillStyle = C.texto2;
         var ax = right ? bx + w : bx - 1;
         ctx.fillRect(ax * S, (y + 3) * S, S, 2 * S);
