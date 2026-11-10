@@ -3,6 +3,11 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-10 — empacotamento (em desenho)
+- **O nome do jogo é "Galope Elemental", agora definitivo** (escolha do Vinicius, depois de avaliar nomes em inglês) — a ficha do Play é traduzida por idioma, então a marca fica em português e a descrição vai no idioma de cada loja; o logotipo e a capa já existem. Identificador previsto para o Play: `com.galopeelemental.game` (não pode mudar depois da primeira publicação).
+- **Durante o teste fechado o jogo existe só dentro do aplicativo** (escolha do Vinicius) — os arquivos vão dentro do pacote, funciona sem rede desde a primeira abertura e ninguém joga fora do teste.
+- **Ordem das frentes: empacotamento, depois primeira experiência (tutorial e som), depois circuito ocioso; expedições depois do teste fechado** (escolha do Vinicius).
+
 ## 2026-11-10 — pente fino
 - **Primeira versão do Play: teste fechado com o jogo offline, lançamento público só com PVP** (escolha do Vinicius) — o teste fechado (12 testadores, 14 dias) é exigido antes da produção e o app pode mudar entre um e outro; assim o retorno de jogadores chega cedo e o jogo só estreia ao público com o pilar do design.
 - **O protótipo vira o jogo final** (escolha do Vinicius): a mesma base web, empacotada para Android, com os módulos de regra (`sim.js`, `data.js`, `breed.js`, `gear.js`) indo para o servidor — é o caminho mais curto até o teste fechado e aproveita os testes que já existem; reescrever num motor custaria meses.
@@ -76,4 +81,4 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 - **Não reorganizar `prototype/` antes de escolher a tecnologia final.**
 - **Prêmios nunca crescentes por colocação; sem Ouro para a entrada, a sala vira treino** — correções do primeiro pente fino.
 - **Pilares do GDD §2 aprovados** — corrida automática por seed, duas moedas (Gemas nunca viram Ouro), PVP de 4 a 8 com pote, ligas por Poder.
-- **Nome do projeto "MMORPG Horse"; título provisório do jogo "Galope Elemental".**
+- **Nome do projeto "MMORPG Horse"; título do jogo "Galope Elemental"** (provisório até 2026-11-10, quando virou definitivo).
