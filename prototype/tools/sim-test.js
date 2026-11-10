@@ -673,5 +673,92 @@ test('Dev.conditions corrige distância e omite campo inválido', function () {
   assert.deepStrictEqual(DV().conditions({ tracado: ['reta', 'lava'], distance: 1200 }), { distance: 1200 });
 });
 
+section('auditoria: entradas malformadas e regras do núcleo');
+function campo2(h0) { return [h0 || mk({}), mk({ vel: 70 })]; }
+function semNaN(res) { return res.finishTimes.every(function (t) { return typeof t === 'number' && isFinite(t) && t > 0 && t < S.TUNING.maxTime; }); }
+test('normalizeConditions: distância fora de 1000–2400 ou não numérica usa a da seed', function () {
+  var rnd = S.randomConditions(7);
+  [-100, 0, 'abc', '1600', 1e6, 999, 2401, NaN, Infinity, 1234.5, null, true].forEach(function (d) {
+    var c = S.normalizeConditions({ distance: d }, 7);
+    assert.strictEqual(c.distance, rnd.distance, String(d));
+    assert.deepStrictEqual(c.blocks, rnd.blocks, String(d) + ' blocos');
+  });
+  [-100, 'abc', 1e6].forEach(function (d) { assert.strictEqual(S.normalizeConditions({ distance: d }).distance, 1600, 'sem seed: ' + d); });
+  // distância válida diferente da seed: uma reta única do tamanho pedido
+  var alvo = rnd.distance === 2000 ? 1500 : 2000, c2 = S.normalizeConditions({ distance: alvo }, 7);
+  assert.strictEqual(c2.distance, alvo); assert.deepStrictEqual(c2.blocks, [{ type: 'reta', from: 0, to: alvo }]);
+  assert.strictEqual(S.normalizeConditions({ distance: 1000 }, 7).distance, 1000); assert.strictEqual(S.normalizeConditions({ distance: 2400 }, 7).distance, 2400);
+  // blocos que terminam fora da faixa são descartados
+  var curto = S.normalizeConditions({ blocks: [{ type: 'reta', from: 0, to: 50 }] }, 7);
+  assert.strictEqual(curto.distance, rnd.distance);
+});
+test('simulate com distância malformada corre na distância da seed, com tempos válidos', function () {
+  [-100, 'abc', 1e6].forEach(function (d) {
+    var res = race(11, { distance: d }, campo2());
+    assert.strictEqual(res.conditions.distance, S.randomConditions(11).distance, String(d));
+    assert.ok(semNaN(res), String(d) + ': ' + res.finishTimes.join());
+  });
+});
+test('level e potencial malformados: status finitos, corrida termina, skillChance limita o level como computeStats', function () {
+  var h = mk({}); h.level = 'x'; h.potential = { vel: 'abc', acel: NaN, man: -5, forca: 99, est: null, garra: undefined, sorte: '7' };
+  var st = S.computeStats(h, null);
+  G.STAT_KEYS.forEach(function (k) { assert.ok(typeof st[k] === 'number' && isFinite(st[k]), k + ' = ' + st[k]); });
+  var h1 = mk({}); h1.level = 1; h1.potential = { vel: 0, acel: 0, man: 0, forca: 31, est: 0, garra: 0, sorte: 7 };
+  assert.deepStrictEqual(st, S.computeStats(h1, null), 'level "x" vale 1; potencial vira número (inválido vale 0), preso a 0–31');
+  var hb = mk({}); hb.base.vel = 'rápido'; assert.strictEqual(typeof S.computeStats(hb, null).vel, 'number');
+  var res = race(3, RETA, campo2(h));
+  assert.ok(semNaN(res), res.finishTimes.join());
+  assert.ok(!res.events.some(function (e) { return e.type === 'chegada' && /900/.test(e.text); }), 'ninguém "chega" em 900 s');
+  var c1 = S.skillChance({ rarity: 'raro', level: 1 }, { sorte: 0 }), c50 = S.skillChance({ rarity: 'raro', level: 50 }, { sorte: 0 });
+  assert.strictEqual(S.skillChance({ rarity: 'raro', level: -200 }, { sorte: 0 }), c1);
+  assert.strictEqual(S.skillChance({ rarity: 'raro', level: 'x' }, { sorte: 0 }), c1);
+  assert.strictEqual(S.skillChance({ rarity: 'raro', level: 1e9 }, { sorte: 0 }), c50);
+  assert.strictEqual(S.sanitizeLevel(10.7), 10); assert.strictEqual(S.sanitizeLevel(undefined), 1); assert.strictEqual(S.sanitizePotential('x'), 0); assert.strictEqual(S.sanitizePotential(40), 31);
+});
+test('simulate não muta a config recebida', function () {
+  var cfg = { seed: 99, conditions: { distance: 1600, blocks: [{ type: 'reta', from: 0, to: 400 }, { type: 'curva', from: 400, to: 1200 }, { type: 'reta', from: 1200, to: 1600 }] },
+    racers: [{ horse: cl(G.STARTERS[0]), gear: GR.botGear(5, 'fogo', 0.5), name: 'a' }, { horse: cl(G.STARTERS[1]), gear: null, name: 'b' }], dev: { skillsAlways: true } };
+  var antes = JSON.stringify(cfg);
+  S.simulate(cfg); assert.strictEqual(JSON.stringify(cfg), antes);
+});
+test('resultado traz simVersion e tuningHash; o hash muda com o TUNING e com as skills', function () {
+  assert.strictEqual(typeof S.VERSION, 'string'); assert.ok(S.VERSION.length > 0);
+  var a = race(5, RETA, campo2());
+  assert.strictEqual(a.simVersion, S.VERSION); assert.ok(/^[0-9a-f]{16}$/.test(a.tuningHash), a.tuningHash);
+  assert.strictEqual(race(6, CURVA, campo2()).tuningHash, a.tuningHash, 'não depende da seed nem do mapa');
+  assert.strictEqual(S.tuningHash(), a.tuningHash);
+  var old = S.TUNING.vBase; S.TUNING.vBase = old + 0.01;
+  try { assert.notStrictEqual(S.tuningHash(), a.tuningHash, 'TUNING'); } finally { S.TUNING.vBase = old; }
+  var sk = G.SKILLS.sprint.effect, sm = sk.speedMult; sk.speedMult = sm + 0.01;
+  try { assert.notStrictEqual(S.tuningHash(), a.tuningHash, 'skills'); } finally { sk.speedMult = sm; }
+  assert.strictEqual(S.tuningHash(), a.tuningHash);
+});
+test('todo gatilho usado em SKILLS tem peso no Poder (SKILL_TRIGGER_WEIGHT)', function () {
+  var W = S.SKILL_TRIGGER_WEIGHT; assert.ok(W && typeof W === 'object');
+  Object.keys(G.SKILLS).forEach(function (id) {
+    var trig = G.SKILLS[id].trigger, key = trig.indexOf('weather:') === 0 ? 'weather' : trig;
+    assert.strictEqual(typeof W[key], 'number', id + ': gatilho ' + trig + ' sem peso');
+    assert.strictEqual(S.skillWeight(id), W[key], id);
+  });
+});
+test('payouts: valores exatos com porcentagens inteiras (4–8 corredores × 50/100/250)', function () {
+  var esperado = {
+    50: { 4: [126, 54], 5: [158, 67], 6: [135, 81, 54], 7: [158, 94, 63], 8: [216, 90, 54] },
+    100: { 4: [252, 108], 5: [315, 135], 6: [270, 162, 108], 7: [315, 189, 126], 8: [432, 180, 108] },
+    250: { 4: [630, 270], 5: [788, 337], 6: [675, 405, 270], 7: [788, 472, 315], 8: [1080, 450, 270] }
+  };
+  Object.keys(esperado).forEach(function (fee) {
+    Object.keys(esperado[fee]).forEach(function (nr) {
+      var order = []; for (var q = 0; q < +nr; q++) order.push(q);
+      var p = S.payouts(+fee, +nr, order), am = p.prizes.map(function (x) { return x.amount; });
+      assert.deepStrictEqual(am, esperado[fee][nr], fee + '×' + nr);
+      assert.strictEqual(am.reduce(function (s, x) { return s + x; }, 0), p.pot - p.fee, fee + '×' + nr + ' soma');
+      am.forEach(function (x, k) { if (k) assert.ok(x <= am[k - 1], 'crescente ' + fee + '×' + nr); });
+    });
+  });
+  [1, 3, 7].forEach(function (fee) { for (var nr = 4; nr <= 8; nr++) { var am = S.payouts(fee, nr, [0, 1, 2, 3, 4, 5, 6, 7].slice(0, nr)).prizes.map(function (x) { return x.amount; });
+    am.forEach(function (x, k) { if (k) assert.ok(x <= am[k - 1], 'crescente ' + fee + '×' + nr + ': ' + am); }); } });
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

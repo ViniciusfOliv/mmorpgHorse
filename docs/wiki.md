@@ -935,7 +935,7 @@ Entradas: 50, 100 ou 250 de Ouro. Todos pagam a mesma entrada; a casa fica com 1
 
 | Corredores | Divisão | Exemplo com entrada 100: pote / casa / prêmios |
 | ---: | --- | --- |
-| 4 | 1º 70% · 2º 30% | 400 / 40 / 251 + 109 |
+| 4 | 1º 70% · 2º 30% | 400 / 40 / 252 + 108 |
 | 5 | 1º 70% · 2º 30% | 500 / 50 / 315 + 135 |
 | 6 | 1º 50% · 2º 30% · 3º 20% | 600 / 60 / 270 + 162 + 108 |
 | 7 | 1º 50% · 2º 30% · 3º 20% | 700 / 70 / 315 + 189 + 126 |

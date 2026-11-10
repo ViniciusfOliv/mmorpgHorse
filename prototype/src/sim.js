@@ -41,7 +41,9 @@
  *   fecha em D);  4) tipo de cada bloco do meio (B−2, uniforme reta/curva/subida; o 1º e o
  *   último são sempre reta);  5) piso (grama/terra/areia);  6) clima inicial (4 climas).
  *   conditions = { distance, surface, weather, blocks: [{ type, from, to }] }. Campos ausentes
- *   em config.conditions são sorteados pela seed (normalizeConditions).
+ *   ou inválidos em config.conditions são sorteados pela seed (normalizeConditions). Distância
+ *   aceita: inteiro em 1000–2400 m; fora disso vale a da seed. Com distância dada diferente da
+ *   seed e sem blocos válidos, a pista vira uma reta única dessa distância.
  *
  * FATOR DO BLOCO (multiplica a velocidade-alvo; teto 1):
  *   reta 1;  curva = min(1, 0.826 + 0.14*n(man) + bônus de skill)   (0,826–0,966);
@@ -101,9 +103,13 @@
  *   r.rng() da tentativa continua sendo chamado (os fluxos não se deslocam); só a comparação com a
  *   chance é ignorada. Sem config.dev (ou com skillsAlways falso), o resultado é exatamente o de sempre.
  *
- * RESULTADO: { seed, conditions (iniciais normalizadas), weatherFinal (clima depois dos
- *   Dados), dt, duration, frames, events, finishOrder, finishTimes,
+ * RESULTADO: { seed, simVersion (RaceSim.VERSION), tuningHash (impressão digital do TUNING e dos
+ *   dados de skills/raridades/clima usados), conditions (iniciais normalizadas), weatherFinal (clima
+ *   depois dos Dados), dt, duration, frames, events, finishOrder, finishTimes,
  *   racerInfo[i] = { name, horseName, stats, skillChance } }.
+ *
+ * ENTRADAS MALFORMADAS: level e potencial passam por sanitizeLevel/sanitizePotential (Number;
+ *   não finito vale 1 / 0; level inteiro 1–50, potencial 0–31), em computeStats e skillChance.
  *
  * ORDEM DAS CHAMADAS DE r.rng() (fluxo de cada corredor; manter estável):
  *   montagem: 1) startDelay, 2) jockeyErr; por tick: 3) tentativas de skill (só quando um
@@ -121,6 +127,10 @@
   if (!GameData) throw new Error('RaceSim: GameData não encontrado (carregue data.js antes de sim.js).');
 
   var STAT_KEYS = GameData.STAT_KEYS;
+
+  // Versão das regras da simulação: suba a cada mudança que altere resultados (exposta como
+  // RaceSim.VERSION e gravada em cada resultado como simVersion, junto do tuningHash).
+  var VERSION = '2.1.0';
 
   // Constantes de balanceamento (ajustadas por tools/balance.js). Exposto como RaceSim.TUNING.
   var T = {
@@ -223,6 +233,36 @@
     }
     return nthRoot(powi(x, exp[0]), exp[1]);
   }
+  // Impressão digital das regras: FNV-1a de 32 bits (duas bases, 16 hex) sobre o JSON do TUNING, dos
+  // pesos de gatilho e dos dados de jogo que a simulação lê (skills: gatilho e efeito; raridades:
+  // teto, crescimento e chance de skill; elementos, pisos e climas; level máximo). Recalculada a cada
+  // simulate (o TUNING pode ser trocado em teste/ajuste); um servidor pode guardar o par
+  // simVersion + tuningHash para auditar corridas antigas depois de um rebalanceamento.
+  function fnv1a(str, h) {
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return h >>> 0;
+  }
+  function hex8(x) { var s = (x >>> 0).toString(16); while (s.length < 8) s = '0' + s; return s; }
+  function pick(obj, keys) {
+    var out = {};
+    Object.keys(obj).forEach(function (id) {
+      var o = {}; keys.forEach(function (k) { o[k] = obj[id][k]; }); out[id] = o;
+    });
+    return out;
+  }
+  function tuningHash() {
+    var str = JSON.stringify({
+      T: T, w: SKILL_TRIGGER_WEIGHT,
+      skills: pick(GameData.SKILLS, ['element', 'trigger', 'effect']),
+      rarities: pick(GameData.RARITIES, ['statCap', 'growth', 'skillChance']),
+      elements: pick(GameData.ELEMENTS, ['statBonus', 'weather']),
+      surfaces: pick(GameData.SURFACES, ['slow', 'drain']),
+      weathers: pick(GameData.WEATHERS, ['element', 'penalizes']),
+      maxLevel: GameData.ECONOMY.maxLevel
+    });
+    return hex8(fnv1a(str, 0x811C9DC5)) + hex8(fnv1a(str, 0x2B992DDF));
+  }
+
   function r2(x) { return Math.round(x * 100) / 100; }
   function r3(x) { return Math.round(x * 1000) / 1000; }
   function fmtTime(s) { return s.toFixed(2).replace('.', ',') + 's'; }
@@ -230,17 +270,29 @@
   // ---------------------------------------------------------------------------
   // Status
   // ---------------------------------------------------------------------------
+  // Saneamento único de level e potencial (computeStats, skillChance): vira número; não finito
+  // vale o mínimo; level inteiro em 1–maxLevel, potencial em 0–31.
+  function sanitizeLevel(v) {
+    var x = Number(v);
+    if (!isFinite(x)) return 1;
+    return clamp(Math.floor(x), 1, GameData.ECONOMY.maxLevel || 50);
+  }
+  function sanitizePotential(v) {
+    var x = Number(v);
+    return isFinite(x) ? clamp(x, 0, 31) : 0;
+  }
   function computeStats(horse, gear) {
     var rar = GameData.RARITIES[horse.rarity] || GameData.RARITIES.comum;
-    var lvl = clamp(Math.floor(horse.level || 1), 1, GameData.ECONOMY.maxLevel || 50);
+    var lvl = sanitizeLevel(horse.level);
     var el = GameData.ELEMENTS[horse.element];
     // gear que não seja objeto com mods (null, string de save antigo) vale null
     var mods = (gear && typeof gear === 'object' && gear.mods) ? gear.mods : null;
     var out = {};
     for (var i = 0; i < STAT_KEYS.length; i++) {
       var k = STAT_KEYS[i];
-      var base = (horse.base && horse.base[k]) || 1;
-      var pot = clamp((horse.potential && horse.potential[k]) || 0, 0, 31);
+      var base = Number(horse.base && horse.base[k]);
+      if (!isFinite(base) || !base) base = 1;
+      var pot = sanitizePotential(horse.potential && horse.potential[k]);
       var growth = (T.growthBase + T.growthPot * pot / 31) * (rar.growth || 1);
       var v = base + pot * T.potFlat + (lvl - 1) * growth;
       v = Math.min(v, rar.statCap);
@@ -255,18 +307,20 @@
   // Cada habilidade vale 20 × a chance de o gatilho disparar numa corrida típica: clima, piso e
   // subida só acontecem em ~1/3 das corridas, então valem ~1/3 (antes valiam 20 cheios e
   // inflavam o rating de Garoa, Mandacaru etc.).
-  var SKILL_TRIGGER_WEIGHT = { start: 1, straight: 1, curve: 0.8, curveExit: 0.8, hill: 0.6, lowStamina: 0.8, final: 1, dice: 0.2 };
+  // Exposto como RaceSim.SKILL_TRIGGER_WEIGHT; 'weather' vale para todo gatilho 'weather:<clima>'.
+  // O sim-test confere que todo gatilho usado em GameData.SKILLS tem peso aqui (o fallback 1 é só defesa).
+  var SKILL_TRIGGER_WEIGHT = { start: 1, straight: 1, curve: 0.8, curveExit: 0.8, hill: 0.6, lowStamina: 0.8, final: 1, dice: 0.2, weather: 0.8 };
   function skillWeight(id) {
     var sk = GameData.SKILLS[id];
     if (!sk) return 0;
     var trig = sk.trigger || '';
-    if (trig.indexOf('weather:') === 0) return 0.8;
+    if (trig.indexOf('weather:') === 0) trig = 'weather';
     return SKILL_TRIGGER_WEIGHT[trig] != null ? SKILL_TRIGGER_WEIGHT[trig] : 1;
   }
   // Chance de uma skill disparar quando o gatilho acontece.
   function skillChance(horse, stats, bonus) {
     var rar = GameData.RARITIES[horse.rarity] || GameData.RARITIES.comum;
-    var c = rar.skillChance + T.skillPerLevel * ((horse.level || 1) - 1) + T.skillPerSorte * ((stats && stats.sorte) || 0) + (bonus || 0);
+    var c = rar.skillChance + T.skillPerLevel * (sanitizeLevel(horse.level) - 1) + T.skillPerSorte * ((stats && stats.sorte) || 0) + (bonus || 0);
     return Math.min(T.skillChanceMax, c);
   }
   // Sorteia uma skill nova ao subir de nível (ou null). Não muta a montaria.
@@ -351,20 +405,28 @@
     return distance == null || prev === distance;
   }
 
-  // Campos ausentes (ex.: pista de exemplo sem `weather`) são sorteados pela seed;
-  // sem seed (dicas de UI) ficam neutros (1600 m, grama, nublado, uma reta única).
+  // Distância aceita: inteiro dentro da faixa do sorteio de pista (randomConditions, 1000–2400 m).
+  var DIST_MIN = 1000, DIST_MAX = 2400;
+  function validDistance(d) {
+    return typeof d === 'number' && isFinite(d) && d === Math.floor(d) && d >= DIST_MIN && d <= DIST_MAX;
+  }
+
+  // Campos ausentes ou inválidos (ex.: pista de exemplo sem `weather`, distância fora de 1000–2400 m
+  // ou não numérica) são sorteados pela seed; sem seed (dicas de UI) ficam neutros (1600 m, grama,
+  // nublado, uma reta única). Distância válida sem blocos válidos: se for a da seed, usa os blocos da
+  // seed; se for outra, a pista vira uma reta única dessa distância. Blocos que terminam fora da
+  // faixa são descartados.
   function normalizeConditions(c, seed) {
     c = c || {};
     var rnd = (seed == null) ? null : randomConditions(seed);
-    var given = c.distance || null;
+    var given = validDistance(c.distance) ? c.distance : null;
     var blocks;
-    if (validBlocks(c.blocks, given)) {
+    if (validBlocks(c.blocks, given) && validDistance(c.blocks[c.blocks.length - 1].to)) {
       blocks = c.blocks;
       if (!given) given = blocks[blocks.length - 1].to;
     } else {
       if (!given) given = rnd ? rnd.distance : 1600;
-      if (rnd && rnd.distance === given) blocks = rnd.blocks;
-      else blocks = rnd && !c.distance ? rnd.blocks : [{ type: 'reta', from: 0, to: given }];
+      blocks = (rnd && rnd.distance === given) ? rnd.blocks : [{ type: 'reta', from: 0, to: given }];
     }
     return {
       distance: given,
@@ -403,7 +465,7 @@
     var E = GameData.ECONOMY;
     entryFee = Math.max(0, Math.floor(entryFee));
     var pot = entryFee * numRacers;
-    var fee = Math.round(pot * E.houseFee);
+    var fee = Math.round(pot * Math.round(E.houseFee * 100) / 100);
     var dist = pot - fee;
     var order = finishOrder || [];
     var places = Math.min(E.payoutSplit.length, order.length, numRacers);
@@ -413,17 +475,17 @@
     // posições, para que todo lugar premiado receba pelo menos a entrada de volta.
     var full = (typeof E.payoutSplitFor === 'function' ? E.payoutSplitFor(numRacers) : null) || E.payoutSplit;
     places = Math.min(places, full.length);
-    var split = full.slice(0, places);
-    var tot = 0, i;
-    for (i = 0; i < split.length; i++) tot += split[i];
+    // porcentagens inteiras (0,7 → 70): Math.floor(dist * 0.7) errava por ponto flutuante (360 × 0,7 = 251,99…)
+    var pcts = [], tot = 0, i;
+    for (i = 0; i < places; i++) { pcts.push(Math.round(full[i] * 100)); tot += pcts[i]; }
     var given = 0;
     for (i = 0; i < places; i++) {
-      var amount = (i === places - 1) ? dist - given : Math.floor(dist * split[i] / tot);
+      var amount = Math.floor(dist * pcts[i] / tot);
       given += amount;
       prizes.push({ racer: order[i], place: i + 1, amount: amount });
     }
-    // o resto do arredondamento cai no último pago e, com fees minúsculos, invertia prêmios
-    // (ex.: fee 1, n=6 → [2, 1, 2]); reordena os valores para nunca pagar mais a quem chega depois
+    prizes[0].amount += dist - given;   // o resto do arredondamento vai para o 1º
+    // defesa: reordena os valores para nunca pagar mais a quem chega depois
     var amounts = prizes.map(function (p) { return p.amount; }).sort(function (a, b) { return b - a; });
     for (i = 0; i < places; i++) prizes[i].amount = amounts[i];
     return { pot: pot, fee: fee, prizes: prizes };
@@ -877,6 +939,8 @@
 
     return {
       seed: seed,
+      simVersion: VERSION,
+      tuningHash: tuningHash(),
       conditions: cond,
       weatherFinal: weatherFinal,
       dt: dt,
@@ -890,7 +954,13 @@
   }
 
   var RaceSim = {
+    VERSION: VERSION,
     TUNING: T,
+    SKILL_TRIGGER_WEIGHT: SKILL_TRIGGER_WEIGHT,
+    skillWeight: skillWeight,
+    tuningHash: tuningHash,
+    sanitizeLevel: sanitizeLevel,
+    sanitizePotential: sanitizePotential,
     STAT_KEYS: STAT_KEYS,
     mulberry32: mulberry32,
     hash2: hash2,

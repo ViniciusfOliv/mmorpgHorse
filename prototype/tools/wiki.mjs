@@ -246,13 +246,8 @@ export function descreverAba(rotulo, F) {
 // ---------------------------------------------------------------------------------------------------------
 // Cálculos derivados
 // ---------------------------------------------------------------------------------------------------------
-const STAT10 = () => Object.fromEntries(G.STAT_KEYS.map((k) => [k, 10]))
-// Peso de cada skill no Poder (o sim.js não exporta SKILL_TRIGGER_WEIGHT): diferença de powerRating num cavalo
-// cuja soma ponderada é inteira (todos os status 10, Comum, Neutro, Nv 1, sem potencial).
-function pesoSkill(id) {
-  const h = (sk) => ({ rarity: 'comum', element: 'neutro', level: 1, base: STAT10(), potential: {}, skills: sk })
-  return (S.powerRating(h([id])) - S.powerRating(h([]))) / 20
-}
+// Peso de cada skill no Poder: lido do export do sim.js (RaceSim.skillWeight / SKILL_TRIGGER_WEIGHT).
+function pesoSkill(id) { return S.skillWeight(id) }
 // teto e piso de cada status depois de tudo (computeStats prende o resultado)
 function limitesStatus() {
   const k = G.STAT_KEYS[0]

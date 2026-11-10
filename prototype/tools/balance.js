@@ -163,6 +163,7 @@ log('');
 // ---------------------------------------------------------------------------
 var N2 = n(3000);
 var savedDiceAt = S.TUNING.diceAt;
+try {
 S.TUNING.diceAt = [];   // isola do Dado: o clima não vira durante a corrida
 log('### 2. Inicial com o clima do seu elemento fixo, sem Dado (meta: 45%–65%)');
 log('');
@@ -185,7 +186,9 @@ STARTERS.forEach(function (h, i) {
   var mults = STARTERS.map(function (x) { return '×' + f2(S.weatherMult(x.element, w, false)); }).join(' · ');
   log('| ' + h.name + ' | ' + G.WEATHERS[w].name + ' | ' + mults + ' | **' + f1(v) + '%** |');
 });
-S.TUNING.diceAt = savedDiceAt;   // restaura o Dado da Sorte
+} finally {
+  S.TUNING.diceAt = savedDiceAt;   // restaura o Dado da Sorte (mesmo se algo lançar no meio)
+}
 log('');
 
 // ---------------------------------------------------------------------------
