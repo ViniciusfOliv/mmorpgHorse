@@ -12,6 +12,8 @@ Jogo em pixel art de corrida de cavalos **automática** com progressão RPG, ele
 | O quê | Onde |
 |---|---|
 | Design (fonte da verdade) | `docs/GDD.md` |
+| Wiki do jogo, gerado do código | `docs/wiki.md` |
+| Medições de balanceamento | `docs/exemplos.md` |
 | Estado do projeto / próximos passos | `docs/memoria/ESTADO.md` |
 | Decisões e motivos | `docs/memoria/decisoes.md` |
 | Registro de assets gerados (IA) | `docs/memoria/assets.md` |
@@ -25,8 +27,9 @@ Sem dependências: abra `prototype/dist/preview.html` no navegador.
 
 ```bash
 node prototype/build.mjs          # regenera prototype/dist/ a partir de prototype/src/
-./scripts/check.sh                # verificação completa: build + balanceamento + teste de UI
+./scripts/check.sh                # verificação completa: build, todos os testes e a interface (~6 min)
 ```
 
 `prototype/dist/` é **gerado e versionado** — nunca editar à mão; sempre regenerar e commitar
-junto com as mudanças em `prototype/src/`.
+junto com as mudanças em `prototype/src/`. O teste de interface usa o Playwright, que precisa estar
+instalado no ambiente (o projeto não tem `package.json`).

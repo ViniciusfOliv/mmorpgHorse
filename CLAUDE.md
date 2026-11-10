@@ -8,17 +8,17 @@ para `docs/` e aqui fica só o caminho, entre crases (sem `@`, para não carrega
   (Fogo/Água/Grama) e foco em PVP com apostas de moeda virtual.
 - **Plataformas:** web + Google Play.
 - **Monetização:** duas moedas — 🪙 Ouro (só se ganha jogando; é o que se aposta) e 💎 Gemas
-  (compradas; cosméticos, passe, ovos).
+  (compradas; cosméticos e passe). Pacote de montaria só com moeda ganha jogando.
 - **Tecnologia:** stack final **a definir** (seção pendente do GDD). O protótipo atual é HTML/CSS/JS
   puro, sem dependências, em `prototype/` — descartável, não é a base final.
-- **Fonte da verdade:** `docs/GDD.md`. Números reais do protótipo: `docs/exemplos.md`.
-  Fórmulas da simulação: comentário no topo de `prototype/src/sim.js`.
-- Wiki gerado do código: `docs/wiki.md` e `prototype/dist/wiki.html` (regenerados pelo build; não editar).
+- **Fonte da verdade:** `docs/GDD.md`. Números reais do protótipo: `docs/wiki.md` e
+  `prototype/dist/wiki.html` (gerados do código pelo build; não editar). Medições de balanceamento:
+  `docs/exemplos.md`. Fórmulas da simulação: comentário no topo de `prototype/src/sim.js`.
 
 ## 2. Fase atual: **Protótipo**
 Foco: descobrir se a corrida automática + estratégia pré-corrida + aposta é divertida.
-Nada de polimento, servidor, contas ou loja ainda. Fases e checklist de lançamento:
-`docs/cronograma.md`.
+Nada de servidor, contas ou pagamento real ainda. Cronograma até o Play, fases e checklist de
+lançamento: `docs/cronograma.md`.
 
 ## 3. Como trabalhar
 - Responda em **português**.
@@ -35,16 +35,17 @@ Nada de polimento, servidor, contas ou loja ainda. Fases e checklist de lançame
 | Para quê | Comando | Tempo |
 |---|---|---|
 | Gerar o jogo e o wiki (`prototype/dist/`, `docs/wiki.md`) | `node prototype/build.mjs` | 1 s |
-| Testes unitários da simulação | `node prototype/tools/sim-test.js` | 5 s |
+| Testes unitários da simulação | `node prototype/tools/sim-test.js` | 3 s |
 | Testes dos efeitos da corrida (dados, skills, clima, vento, curvas) | `node prototype/tools/fx-test.js` | 2 s |
 | Testes dos moldes de cavalo (PNGs e âncoras gerados) | `node prototype/tools/moldes-test.mjs` | <1 s |
 | Wiki: regerar (`--check` só confere) / testar (determinismo, cobertura, navegador) | `node prototype/tools/wiki.mjs` / `node prototype/tools/wiki-test.mjs` | <1 s / 2 s |
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~25 s |
 | Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~1,5 min |
 | Teste de interface (Playwright) + capturas em `prototype/screens/` | `node prototype/tools/ui-test.mjs` | ~5 min |
-| **Verificação completa** (build + simulação + efeitos + moldes + wiki + balanço + UI, sem tocar nas capturas) | `./scripts/check.sh` | ~5 min |
+| **Verificação completa** (8 etapas: build, simulação, efeitos, dist, moldes, wiki, balanço, UI; não toca nas capturas) | `./scripts/check.sh` | ~6 min |
 
-Abrir o jogo localmente: `prototype/dist/preview.html` no navegador.
+Abrir o jogo localmente: `prototype/dist/preview.html` no navegador. O `prototype/dist/jogo.html` é o
+build de produção: sai sem modo DEV e sem gancho de teste (o build falha se sobrar algum).
 Modo DEV: `preview.html?dev=1` ou o build de teste `prototype/dist/jogo-dev.html` (liga sozinho, sem query) — save
 separado (`galope-elemental:dev`) e gaveta "DEV" para montar cavalo, itens e condições da corrida.
 Capturas oficiais em `prototype/screens/` só são atualizadas quando a interface muda de propósito
@@ -69,9 +70,9 @@ Leia no início de cada sessão e atualize ao final:
 
 ## 7. Ferramentas
 Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`.
-- **PixelLab** (moldes de cavalo e ícones): API v2 via `prototype/tools/pixellab-moldes.mjs` —
-  dry-run por padrão, `--gerar` para gastar, `--teto N` limita as gerações, `--reprocessar` refaz
-  sem rede. **Gasta créditos — sempre pedir confirmação antes.**
+- **PixelLab** (moldes de cavalo e ícones): API v2 via `prototype/tools/pixellab-moldes.mjs --lote
+  moldes|icones|tudo` — dry-run por padrão, `--gerar` para gastar, `--teto N` limita as gerações,
+  `--reprocessar` refaz sem rede. **Gasta créditos — sempre pedir confirmação antes.**
 - **Canva** (capa, ícone, imagens de loja) e **ElevenLabs** (sons/vozes) — quando conectados;
   também pedem confirmação antes de gastar créditos.
 - **Artefato do claude.ai** (onde o Vinicius joga): publicar `prototype/dist/jogo.html`; para o modo DEV, publicar
