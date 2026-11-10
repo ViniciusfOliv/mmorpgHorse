@@ -291,6 +291,84 @@ try {
     await rv.context().close()
   }
 
+  // ---------------- gravação que falha: nada de resultado nem débito sem o save gravado ----------------
+  if (quer('gravacao')) {
+    const gv = await newPage(browser, { width: 390, height: 844 }, 'gravacao')
+    const st = () => gv.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    const quebrar = () => gv.evaluate(() => {
+      if (!window.__setOrig) window.__setOrig = Storage.prototype.setItem
+      Storage.prototype.setItem = function () { throw new DOMException('cheio', 'QuotaExceededError') }
+    })
+    const consertar = () => gv.evaluate(() => { Storage.prototype.setItem = window.__setOrig })
+    const FALHA = 'Não foi possível salvar. Libere espaço e tente de novo.'
+    const temAviso = async () => ((await gv.locator('#tela').textContent()) || '').includes(FALHA)
+    try {
+      await gv.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await gv.waitForSelector('#t-estabulo')
+      // 1. melhoria de peça: pedras, +N e contador intactos
+      await gv.evaluate(() => { window.__galope.state.pedras = 10 })
+      let s0 = await st()
+      const slot = Object.keys(s0.mounts[0].equip).find((k) => s0.mounts[0].equip[k])
+      const uid = s0.mounts[0].equip[slot]
+      await gv.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await gv.waitForSelector('#t-montaria')
+      await gv.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+      await gv.locator(`[data-acao="equip-slot"][data-id="${slot}"]`).click()
+      await gv.locator(`[data-acao="melhorar"][data-id="${uid}"]`).click()
+      await quebrar()
+      await gv.locator(`[data-acao="melhorar-sim"][data-id="${uid}"]`).click()
+      let s = await st()
+      const it0 = s0.items.find((x) => x.uid === uid), it1 = s.items.find((x) => x.uid === uid)
+      if (s.pedras !== 10 || s.enhanceCounter !== s0.enhanceCounter || it1.plus !== it0.plus) problems.push('gravacao: melhoria sem gravar mudou o save ' + JSON.stringify({ pedras: s.pedras, cont: s.enhanceCounter, plus: it1.plus }))
+      if (!(await temAviso())) problems.push('gravacao: melhoria sem gravar não avisou')
+      if (/Sucesso!|Falhou/.test((await gv.locator('#tela').textContent()) || '')) problems.push('gravacao: melhoria sem gravar mostrou o resultado')
+      await consertar()
+      await gv.locator('[data-acao="montaria-voltar"]').click()
+      await gv.waitForSelector('#t-estabulo')
+      // 2. abrir a sala: sem gravar, a sala não abre (recarregar a sortearia de novo)
+      await gv.locator('[data-acao="aba"][data-id="correr"]').click()
+      await gv.waitForSelector('#t-correr')
+      await quebrar()
+      await gv.locator('[data-acao="procurar"]').click()
+      s = await st()
+      if (s.pending || s.raceCounter !== 0 || (await gv.locator('#t-largada').count())) problems.push('gravacao: a sala abriu sem gravar ' + JSON.stringify({ pending: s.pending, counter: s.raceCounter }))
+      if (!(await temAviso())) problems.push('gravacao: abrir a sala sem gravar não avisou')
+      await consertar()
+      await gv.locator('[data-acao="procurar"]').click()
+      await gv.waitForSelector('#t-largada')
+      // 3. "Largar!" sem gravar: nada de corrida nem de resultado, Ouro intacto, a sala continua
+      const g0 = (await st()).gold
+      await quebrar()
+      await gv.getByRole('button', { name: /^Largar/ }).click()
+      await sleep(300)
+      s = await st()
+      const lob = await gv.evaluate(() => ({ sim: !!window.__galope.ui.lobby.sim, result: !!window.__galope.ui.result, screen: window.__galope.ui.screen }))
+      if (s.gold !== g0 || !s.pending || s.races !== 0 || lob.sim || lob.result || lob.screen !== 'largada' || (await gv.locator('#pista, #t-resultado').count())) problems.push('gravacao: Largar sem gravar ' + JSON.stringify({ gold: s.gold, g0, pending: !!s.pending, races: s.races, ...lob }))
+      if (!(await temAviso())) problems.push('gravacao: Largar sem gravar não avisou')
+      // 4. compra na Loja sem gravar
+      await gv.getByRole('button', { name: /^Voltar/ }).click()
+      await gv.locator('[data-acao="aba"][data-id="loja"]').click()
+      await gv.waitForSelector('#t-loja')
+      await gv.locator('[data-acao="loja-tab"][data-id="pedras"]').click()
+      const s1 = await st()
+      await gv.locator('[data-acao="comprar-pedra"][data-id="1"]').click()
+      s = await st()
+      if (s.gold !== s1.gold || s.pedras !== s1.pedras) problems.push('gravacao: compra sem gravar ' + JSON.stringify({ gold: s.gold, pedras: s.pedras }))
+      if (!(await temAviso())) problems.push('gravacao: compra sem gravar não avisou')
+      // 5. gravação de volta: a mesma sala larga normalmente
+      await consertar()
+      await gv.locator('[data-acao="aba"][data-id="correr"]').click()
+      await gv.locator('[data-acao="procurar"]').click()
+      await gv.waitForSelector('#t-largada')
+      await gv.getByRole('button', { name: /^Largar/ }).click()
+      await gv.waitForSelector('#pista')
+      if ((await st()).gold >= g0 + 1000) problems.push('gravacao: Ouro estranho depois de largar')
+    } catch (e) {
+      problems.push('gravacao: ' + e.message)
+    }
+    await gv.context().close()
+  }
+
   if (!SO.length) {   // o resto do teste (fluxo completo e contextos antigos) só roda sem UI_SO
   // ---------------- celular 390x844 ----------------
   // newPage já espera Sprites.moldsReady === true (moldes do PixelLab embutidos pelo build e decodificados)

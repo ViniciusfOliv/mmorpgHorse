@@ -6624,13 +6624,34 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       return s && isFinite(s.rev) ? Number(s.rev) : 0;
     } catch (e) { return -1; }
   }
+  // Há armazenamento? Sem ele (iframe sem localStorage, acesso bloqueado) o jogo roda só em memória e
+  // persist() não tem o que gravar. Com ele, uma gravação que lança (cota cheia) é uma FALHA: quem gasta
+  // desfaz a ação (gravaGasto).
+  var STORAGE_OK = (function () {
+    try { var ls = window.localStorage; if (!ls) return false; ls.getItem(SAVE_KEY); return true; } catch (e) { return false; }
+  })();
+  // Grava o state. Devolve true se gravou (ou se não há armazenamento: tudo segue em memória) e false se a
+  // gravação falhou ou se outra aba tinha gravado depois (aí o state já é o adotado: quem chama compara).
   function persist() {
-    if (!state) return;
+    if (!state) return true;
     if (DEV_MODE && ui.dev.ouroInf) DV.refillGold(state);   // Ouro infinito do perfil DEV: repõe depois de cada gasto
     var sr = storedRev();
-    if (sr > state.rev) { adoptExternal(loadSave()); return; }   // outra aba gravou depois: não sobrescreve
+    if (sr > state.rev) { adoptExternal(loadSave()); return false; }   // outra aba gravou depois: não sobrescreve
     state.rev = Math.max(state.rev, sr) + 1;
-    try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) { /* sem armazenamento: segue em memória */ }
+    if (!STORAGE_OK) return true;
+    try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(state)); return true; } catch (e) { return false; }
+  }
+  var FALHA_SALVAR = 'Não foi possível salvar. Libere espaço e tente de novo.';
+  // Grava uma ação que gasta (o débito e o resultado vão juntos na mesma gravação). s0: o state de antes da
+  // ação (para saber se outra aba gravou por cima); antes: clone(state) tirado antes da mudança.
+  // 'ok'; 'outra-aba' (adoptExternal já navegou); 'falhou' (o state volta a ser o de antes; quem chama avisa
+  // com FALHA_SALVAR e não mostra resultado nenhum).
+  function gravaGasto(s0, antes) {
+    var ok = persist();
+    if (state !== s0) return 'outra-aba';
+    if (ok) return 'ok';
+    state = antes;
+    return 'falhou';
   }
   function wipeSave() {
     try { window.localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignora */ }
@@ -8134,7 +8155,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 
   function renderHaras() {
     var H = harasNormalize();
-    var head = '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>';
+    var head = '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>' + noticeHtml();
     var foal = H.result ? mountByUid(H.result) : null;
     if (foal) return '<section class="tela" aria-labelledby="t-haras">' + head + harasResultHtml(foal) + '</section>';
 
@@ -8531,6 +8552,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     }
     if (P && P.training && !P.rebaixada && !training && state.gold >= MIN_ENTRY) P = null; // treino pendente vira corrida valendo
     if (!P) {
+      var s0 = state, antes = clone(state);
       var fee = training ? 0 : effectiveTier();
       if (fee == null) { training = true; fee = 0; } // sem Ouro para nenhuma entrada (ex.: save editado): vira treino
       state.raceCounter += 1;
@@ -8541,7 +8563,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         pr: RS.powerRating(playerHorse(), playerGear())
       };
       state.pending = P;
-      persist();
+      // a sala só abre se ficou gravada: sem isso, recarregar a sortearia de novo
+      var g = gravaGasto(s0, antes);
+      if (g === 'falhou') ui.notice = FALHA_SALVAR;
+      if (g !== 'ok') return null;
     }
     return buildLobby(P);
   }
@@ -8814,8 +8839,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (place <= 3) state.podiums += 1;
     if (!L.training) state.goldWon += prize;
     state.pending = null;
-    persist();
-    if (DEV_MODE) ui.devNext = null;   // os valores armados no painel DEV valem só para esta corrida
+    // quem chama grava (gravaGasto) e, se gravou, limpa ui.devNext (os valores armados no painel DEV valem
+    // só para esta corrida)
 
     var hAfter = playerHorse();
     return {
@@ -9658,7 +9683,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   function startLobby(training) {
     var s = state;
     var lobby = openLobby(training);
-    if (state !== s) return; // outra aba gravou um save mais novo durante o persist: adoptExternal já navegou
+    // sem sala: não gravou (o aviso está em ui.notice) ou outra aba gravou um save mais novo (adoptExternal já navegou)
+    if (!lobby) { if (ui.notice === FALHA_SALVAR) rerenderKeepScroll(); return; }
+    if (state !== s) return;
     ui.lobby = lobby;
     go('largada');
   }
@@ -9689,10 +9716,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           if (pd && state.gold >= pd.price) ui.loja.msg = reservaTxt() + '.';
           rerenderKeepScroll(); break;
         }
+        var antesC = clone(state);
         state.gold -= pd.price;
         newItem(id);
-        persist();
-        if (state !== sC) break;
+        var gC = gravaGasto(sC, antesC);
+        if (gC === 'outra-aba') break;
+        if (gC === 'falhou') { ui.loja.msg = FALHA_SALVAR; rerenderKeepScroll(); break; }
         ui.loja.msg = 'Comprou ' + pd.name + '. Equipe na aba Equipamento da montaria.';
         rerenderKeepScroll(); break;
       }
@@ -9704,10 +9733,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         if (state !== sP) break;
         var pc = pn * GE.stonePrice;
         if (!podeGastar(pc)) { if (state.gold >= pc) ui.loja.msg = reservaTxt() + '.'; rerenderKeepScroll(); break; }
+        var antesP = clone(state);
         state.gold -= pc;
         state.pedras += pn;
-        persist();
-        if (state !== sP) break;
+        var gP = gravaGasto(sP, antesP);
+        if (gP === 'outra-aba') break;
+        if (gP === 'falhou') { ui.loja.msg = FALHA_SALVAR; rerenderKeepScroll(); break; }
         ui.loja.msg = 'Comprou ' + pedrasTxt(pn) + ' negra' + (pn === 1 ? '' : 's') + '.';
         rerenderKeepScroll(); break;
       }
@@ -9762,14 +9793,16 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var mo = mi ? GR.enhanceOdds(mi.plus) : null;
         if (!mo || state.pedras < mo.cost || enhanceLocked(id)) { rerenderKeepScroll(); break; }
         // paga antes de ver: debita as pedras e avança o contador, só então sorteia (um sorteio por tentativa)
+        var antesM = clone(state);
         state.pedras -= mo.cost;
         var mc = state.enhanceCounter;
         state.enhanceCounter += 1;
         var mr = GR.enhance(mi, state.seedBase, mc);
         var mAntes = mi.plus;
         mi.plus = mr.plus;
-        persist();
-        if (state !== sM) break;
+        var gM = gravaGasto(sM, antesM);
+        if (gM === 'outra-aba') break;
+        if (gM === 'falhou') { ui.montaria.equip.msg = FALHA_SALVAR; rerenderKeepScroll(); break; }
         var mNome = GR.piece(mi.id).name;
         ui.montaria.equip.msg = mr.success ? 'Sucesso! ' + mNome + ' agora é +' + mr.plus
           : mr.plus < mAntes ? 'Falhou e ' + mNome + ' caiu para +' + mr.plus : 'Falhou. ' + mNome + ' continua +' + mr.plus;
@@ -9782,11 +9815,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         if (state !== sV) break;
         var vi = itemByUid(id);
         if (!vi || isEquipped(id)) { rerenderKeepScroll(); break; }
-        var vp = GR.sellPrice(vi.id);
+        var vp = GR.sellPrice(vi.id), antesV = clone(state);
         state.gold += vp;
         state.items = state.items.filter(function (x) { return x.uid !== id; });
-        persist();
-        if (state !== sV) break;
+        var gV = gravaGasto(sV, antesV);
+        if (gV === 'outra-aba') break;
+        if (gV === 'falhou') { ui.montaria.equip.msg = FALHA_SALVAR; rerenderKeepScroll(); break; }
         ui.montaria.equip.undo = { item: vi, price: vp };
         ui.montaria.equip.confirm = null;
         ui.montaria.equip.msg = 'Vendida por ' + fmt(vp) + ' de Ouro';
@@ -9801,10 +9835,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         ui.montaria.equip.undo = null;
         if (!podeGastar(un.price)) { ui.montaria.equip.msg = state.gold >= un.price ? reservaTxt() + '.' : 'Sem Ouro para desfazer a venda.'; rerenderKeepScroll(); break; }
         if (itemByUid(un.item.uid)) { rerenderKeepScroll(); break; }
+        var antesU = clone(state);
         state.items.push(un.item);
         state.gold -= un.price;
-        persist();
-        if (state !== sU) break;
+        var gU = gravaGasto(sU, antesU);
+        if (gU === 'outra-aba') break;
+        if (gU === 'falhou') { ui.montaria.equip.undo = un; ui.montaria.equip.msg = FALHA_SALVAR; rerenderKeepScroll(); break; }
         ui.montaria.equip.msg = 'Venda desfeita: ' + GR.piece(un.item.id).name + ' voltou ao inventário';
         rerenderKeepScroll(); break;
       }
@@ -9845,9 +9881,17 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           ui.notice = 'Seu Ouro ficou abaixo da entrada: este páreo corre como treino, sem aposta.';
           go('largada'); break;
         }
-        var sAntes = state;
-        ui.result = settle(L);
-        if (state !== sAntes) { ui.result = null; break; } // conflito no meio da liquidação: descarta o resultado misto
+        var sAntes = state, antesL = clone(state), condAntes = L.cond;
+        var resL = settle(L);
+        var gL = gravaGasto(sAntes, antesL);
+        if (gL === 'outra-aba') { ui.result = null; break; } // conflito no meio da liquidação: descarta o resultado misto
+        if (gL === 'falhou') {   // sem gravar o débito, nada de resultado: a sala continua aberta como estava
+          L.sim = null; L.cond = condAntes;
+          ui.notice = FALHA_SALVAR;
+          rerenderKeepScroll(); break;
+        }
+        if (DEV_MODE) ui.devNext = null;
+        ui.result = resL;
         go('corrida');
         break;
       }
@@ -9897,7 +9941,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           if (state.gold >= SLOT_PRICE) ui.notice = reservaTxt() + '.';
           rerenderKeepScroll(); break;
         }
-        state.gold -= SLOT_PRICE; state.stableSlots += 1; persist(); rerenderKeepScroll(); break;
+        var sE = state, antesE = clone(state);
+        state.gold -= SLOT_PRICE; state.stableSlots += 1;
+        var gE = gravaGasto(sE, antesE);
+        if (gE === 'outra-aba') break;
+        if (gE === 'falhou') ui.notice = FALHA_SALVAR;
+        rerenderKeepScroll(); break;
       case 'haras-mine':
         if (!ui.haras || !mountByUid(id)) break;
         ui.haras.mine = id; ui.haras.partner = null; ui.haras.confirmTroca = false; rerenderKeepScroll(); break;
@@ -9921,13 +9970,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         if (state !== sC) break;      // save mais novo adotado: adoptExternal já navegou
         var PC = harasPair();
         if (!PC.f || harasProblems(PC).length) { rerenderKeepScroll(); break; }
+        var antesCz = clone(state);
         state.gold -= PC.price;
         var potro = harasFoal(PC);
         PC.mine.breedLeft -= 1;
         if (PC.kind === 'own') PC.partner.breedLeft -= 1;
         state.mounts.push(potro);
-        persist();
-        if (state !== sC) break;
+        var gCz = gravaGasto(sC, antesCz);
+        if (gCz === 'outra-aba') break;
+        if (gCz === 'falhou') { ui.notice = FALHA_SALVAR; rerenderKeepScroll(); break; }
         ui.haras.result = potro.uid; ui.haras.partner = null;
         rerenderKeepScroll(); break;
       }
@@ -9948,14 +9999,16 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         if (state !== sT) break;
         var PX = harasPair();
         if (!PX.f || PX.kind !== 'own' || harasProblems(PX).length) { rerenderKeepScroll(); break; }
+        var antesT = clone(state);
         state.gold -= BR.exchange;
         var potroT = harasFoal(PX);
         var gone = [PX.mine.uid, PX.partner.uid];
         state.mounts = state.mounts.filter(function (m) { return gone.indexOf(m.uid) < 0; });
         state.mounts.push(potroT);
         if (gone.indexOf(state.activeId) >= 0) state.activeId = potroT.uid;
-        persist();
-        if (state !== sT) break;
+        var gT = gravaGasto(sT, antesT);
+        if (gT === 'outra-aba') break;
+        if (gT === 'falhou') { ui.notice = FALHA_SALVAR; rerenderKeepScroll(); break; }
         ui.haras.result = potroT.uid; ui.haras.partner = null;
         rerenderKeepScroll(); break;
       }
