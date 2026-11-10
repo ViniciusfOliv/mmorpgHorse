@@ -356,7 +356,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 
 /* ---------- status ---------- */
 .status { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 10px; align-items: center; margin: 0; }
-.status dt { font-family: var(--fonte-display); font-size: 8px; color: var(--texto-2); display: flex; align-items: center; gap: 6px; min-width: 52px; }
+.status dt { font-family: var(--fonte-display); font-size: 11px; color: var(--texto-2); display: flex; align-items: center; gap: 6px; min-width: 52px; }
 .status dd { margin: 0; }
 .status .valor { font-family: var(--fonte-display); font-size: 16px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 3ch; }
 .status .delta { font-family: var(--fonte-ui); font-size: var(--t-s); font-weight: 700; margin-left: 4px; }
@@ -412,7 +412,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .inicial > .btn--grande { margin-top: auto; }
 @media (min-width: 960px) { .inicial .cavalo-titulo { min-height: 4.2em; } .iniciais-nav { display: none; } }
 .inicial .retrato-palco { position: relative; display: flex; justify-content: center; background: var(--painel-2); padding: 8px 0 10px; margin: -14px -14px 0; box-shadow: inset 0 -2px 0 0 var(--linha); }
-.inicial .contador { position: absolute; right: 8px; top: 8px; font-family: var(--fonte-display); font-size: 8px; color: var(--texto-2); background: var(--sombra); padding: 4px 6px; }
+.inicial .contador { position: absolute; right: 8px; top: 8px; font-family: var(--fonte-display); font-size: 11px; color: var(--texto-2); background: var(--sombra); padding: 4px 6px; }
 .inicial .cavalo-nome { font-size: 24px; }
 .inicial-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .iniciais-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -439,7 +439,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .montaria--ativa { box-shadow: inset 0 0 0 2px var(--ouro); }
 .estrelas { color: var(--ouro); letter-spacing: 1px; }
 .corcel { color: var(--ouro); font-size: var(--t-xs); }
-.badge-ativa { font-family: var(--fonte-display); font-size: 8px; line-height: 1; color: var(--tinta); background: var(--ouro); padding: 3px 4px; }
+.badge-ativa { font-family: var(--fonte-display); font-size: 11px; line-height: 1; color: var(--tinta); background: var(--ouro); padding: 3px 4px; }
 .montaria-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
 .montaria-acoes .btn { flex: 1 1 auto; }
 /* tela da Montaria: cabeça (retrato, nome, ações) e sub-abas Status / Skills / Equipamento */
@@ -500,7 +500,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 }
 /* dígito escuro sobre sedas claras (contraste) */
 .raia.seda-2, .raia.seda-4, .raia.seda-5, .raia.seda-6, .raia.seda-7, .raia.seda-voce { color: var(--tinta); text-shadow: none; }
-.raia--mini { width: 20px; height: 20px; font-size: 8px; text-shadow: none; box-shadow: 0 0 0 2px var(--sombra); }
+.raia--mini { width: 20px; height: 20px; font-size: 11px; text-shadow: none; box-shadow: 0 0 0 2px var(--sombra); }
 .raia--mini:not(.seda-2):not(.seda-4):not(.seda-5):not(.seda-6):not(.seda-7):not(.seda-voce) { text-shadow: 1px 1px 0 var(--sombra); }
 .corredor { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .corredor b { display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -579,7 +579,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .balanco .final dt, .balanco .final dd { color: var(--texto); padding-top: 6px; border-top: 2px solid var(--linha); }
 .balanco .final dt { margin-right: -12px; padding-right: 12px; }
 .levelup { background: var(--painel-2); padding: 10px 12px; box-shadow: inset 0 0 0 2px var(--ouro); display: flex; flex-direction: column; gap: 6px; }
-.levelup b { font-family: var(--fonte-display); font-size: 8px; line-height: 2; color: var(--ouro); }
+.levelup b { font-family: var(--fonte-display); font-size: 11px; line-height: 1.6; color: var(--ouro); }
 .ganhos { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--t-s); }
 .ganhos span { font-variant-numeric: tabular-nums; }
 .rolagem { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }

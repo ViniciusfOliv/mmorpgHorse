@@ -569,9 +569,13 @@ try {
       else if (t.min < 11) problems.push(`texto: ${t.sel} com ${t.min}px em ${onde} (mínimo 11)`)
     })
     try {
+      await tx.waitForSelector('.inicial')
+      confere(await tamanhos(['.inicial .contador', '.inicial .status dt']), 'tela inicial')
+      await checkOverflow(tx, 'texto-inicial')
+      if (process.env.SHOTS_DIR) { await tx.locator('.inicial .status').first().scrollIntoViewIfNeeded(); await tx.screenshot({ path: join(SHOTS, 'texto-360-inicial.png') }) }   // só na pasta temporária
       await tx.getByRole('button', { name: 'Escolher Brasa' }).click()
       await tx.waitForSelector('#t-estabulo')
-      confere(await tamanhos(['.montaria .nivel', '.app-aba-rotulo']), 'estábulo')
+      confere(await tamanhos(['.montaria .nivel', '.app-aba-rotulo', '.badge-ativa']), 'estábulo')
       await checkOverflow(tx, 'texto-estabulo')
       if (process.env.SHOTS_DIR) await tx.screenshot({ path: join(SHOTS, 'texto-360-estabulo.png') })   // só na pasta temporária
       await abrirSala(tx)
@@ -582,10 +586,11 @@ try {
       if (quebra) problems.push('texto: ' + quebra + ' Poder(es) quebrado(s) em duas linhas na largada')
       await tx.locator('.programa').scrollIntoViewIfNeeded()
       if (process.env.SHOTS_DIR) await tx.screenshot({ path: join(SHOTS, 'texto-360-largada.png') })   // só na pasta temporária
+      await tx.evaluate(() => { const m = window.__galope.state.mounts[0]; m.xp = 10000 })   // sobe de nível nesta corrida
       await tx.getByRole('button', { name: /^Largar/ }).click()
       await tx.getByRole('button', { name: /Pular/ }).click()
       await tx.waitForSelector('#t-resultado')
-      confere(await tamanhos(['.tabela .tag-voce']), 'resultado')
+      confere(await tamanhos(['.tabela .tag-voce', '.tabela .raia--mini', '.levelup b']), 'resultado')
       await checkOverflow(tx, 'texto-resultado')
       await tx.locator('.tabela').scrollIntoViewIfNeeded()
       if (process.env.SHOTS_DIR) await tx.screenshot({ path: join(SHOTS, 'texto-360-resultado.png') })   // só na pasta temporária
