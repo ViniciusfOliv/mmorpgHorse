@@ -1162,7 +1162,6 @@ try {
     if (c1.mounts[0].breedLeft !== 1) problems.push('cruzamento: breedLeft de Brasa ' + c1.mounts[0].breedLeft)
     // o potro entra no estábulo com o equipamento vazio (Breed.foal não sabe de equipamento)
     const esperadoJogo = Object.assign({}, esperado, { equip: GR.emptyEquip() })
-    delete esperadoJogo.gestacao   // o jogo não guarda o campo (o Breed.foal ainda devolve gestacao: null)
     if (c1.mounts.length > 1 && JSON.stringify(c1.mounts[1]) !== JSON.stringify(esperadoJogo)) {
       problems.push('cruzamento: potro diferente do calculado no Node\n  jogo: ' + JSON.stringify(c1.mounts[1]) + '\n  node: ' + JSON.stringify(esperado))
     }

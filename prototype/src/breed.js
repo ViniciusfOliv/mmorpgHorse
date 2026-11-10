@@ -289,7 +289,7 @@
       uid: 'm' + opts.nextUid, templateId: null, name: name, especie: 'cavalo', element: element, rarity: rarity, grau: grau, sex: sex,
       level: 1, xp: 0, skills: inherited, base: base, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
       parents: { f: { uid: f.uid || null, name: f.name }, m: { uid: m.uid || null, name: m.name } },
-      born: breedCounter, gestacao: null
+      born: breedCounter
     };
   }
 

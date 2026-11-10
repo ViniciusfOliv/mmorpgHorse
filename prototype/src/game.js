@@ -1898,7 +1898,6 @@
   function harasFoal(P) {
     var foal = BRD.foal({ f: P.f, m: P.m, seedBase: state.seedBase, breedCounter: state.breedCounter, nextUid: state.nextUid });
     foal.equip = GR.emptyEquip();   // entra no estábulo sem peças (Breed.foal não sabe de equipamento)
-    delete foal.gestacao;           // campo que o Breed.foal ainda devolve e o jogo nunca lê
     state.nextUid += 1;
     state.breedCounter += 1;
     return foal;

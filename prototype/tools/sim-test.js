@@ -241,7 +241,7 @@ test('foal é determinístico e tem o formato da spec', function () {
   var a = B.foal({ f: f, m: m, seedBase: 123, breedCounter: 0, nextUid: 3 }), b = B.foal({ f: f, m: m, seedBase: 123, breedCounter: 0, nextUid: 3 });
   assert.strictEqual(JSON.stringify(a), JSON.stringify(b)); assert.strictEqual(a.uid, 'm3'); assert.strictEqual(a.templateId, null); assert.strictEqual(a.level, 1);
   assert.ok(a.element === 'agua' || a.element === 'fogo'); assert.ok(a.sex === 'm' || a.sex === 'f'); assert.strictEqual(a.breedLeft, G.BREED_LEFT[a.sex]);
-  assert.deepStrictEqual(a.parents, { f: { uid: 'm1', name: 'Maré' }, m: { uid: 'm2', name: 'Brasa' } }); assert.strictEqual(a.born, 0); assert.strictEqual(a.gestacao, null);
+  assert.deepStrictEqual(a.parents, { f: { uid: 'm1', name: 'Maré' }, m: { uid: 'm2', name: 'Brasa' } }); assert.strictEqual(a.born, 0); assert.ok(!('gestacao' in a), 'sem o campo gestacao');
   assert.ok(G.FOAL_NAMES.indexOf(a.name) >= 0); assert.ok(/^#[0-9a-f]{6}$/.test(a.palette.coat));
   assert.notStrictEqual(JSON.stringify(a), JSON.stringify(B.foal({ f: f, m: m, seedBase: 123, breedCounter: 1, nextUid: 3 })));
 });
@@ -310,7 +310,7 @@ test('snapshot dourado dos potros de exemplos.md', function () {
       uid: 'm2', templateId: null, name: c.name, especie: 'cavalo', element: c.element, rarity: c.rarity, grau: c.grau, sex: c.sex,
       level: 1, xp: 0, skills: c.skills, base: st(c.base), potential: st(c.potential), palette: c.palette, breedLeft: c.breedLeft,
       parents: { f: { uid: null, name: c.f.name }, m: { uid: null, name: c.m.name } },
-      born: i, gestacao: null
+      born: i
     }, 'potro ' + i);
   });
 });
