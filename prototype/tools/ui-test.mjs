@@ -52,6 +52,9 @@ await new Promise((ok, falha) => { servidor.once('error', falha); servidor.liste
 const BASE = `http://127.0.0.1:${servidor.address().port}/`
 const URL = BASE + 'preview.html'
 const SHOTS = process.env.SHOTS_DIR || join(ROOT, 'screens') // SHOTS_DIR: usado pelo scripts/check.sh
+// SHOTS_T6: pasta (fora do repositório) para as capturas de conferência das telas da build; sem ela, não captura
+const SHOTS_T6 = process.env.SHOTS_T6 || null
+const capT6 = (pg, nome, full = false) => (SHOTS_T6 ? pg.screenshot({ path: join(SHOTS_T6, nome), fullPage: full }).catch(() => {}) : null)
 await mkdir(SHOTS, { recursive: true })
 
 const problems = []
@@ -709,6 +712,35 @@ try {
       problems.push('migracao-dev: ' + e.message)
     }
     await md.context().close()
+    // save v4 sem o retrato do equipamento (pending.gear ausente): o pr da sala é recalculado uma vez pelo
+    // equipamento vestido, no modelo v3, e a sala fica igual depois de duas recargas
+    const SEM_RETRATO = JSON.parse(JSON.stringify(MIG_V4))
+    delete SEM_RETRATO.pending.gear
+    const mr = await newPage(browser, { width: 390, height: 844 }, 'migracao-sem-retrato', {
+      init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(JSON.stringify(SEM_RETRATO))}) } } catch (e) {}` }
+    })
+    try {
+      await mr.waitForSelector('#t-estabulo')
+      const s = await mr.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+      const m1 = s.mounts[0], its = Object.fromEntries(s.items.map((x) => [x.uid, x]))
+      const prV3 = S.powerRating(m1, GR.resolve(m1, its))
+      if (!s.pending || s.pending.pr !== prV3 || s.pending.pr === 777) problems.push(`migracao-sem-retrato: pr da sala ${s.pending && s.pending.pr} (Poder v3 com o equipamento vestido: ${prV3})`)
+      if (s.pending && s.pending.gear !== null) problems.push('migracao-sem-retrato: retrato inventado ' + JSON.stringify(s.pending.gear))
+      const salaA = await abrirSala(mr)
+      for (let k = 1; k <= 2; k++) {
+        await mr.reload({ waitUntil: 'domcontentloaded' })
+        await mr.waitForSelector('#t-estabulo')
+        const sk = await mr.evaluate(() => window.__galope.state.pending.pr)
+        if (sk !== prV3) problems.push(`migracao-sem-retrato: recarga ${k} mudou o pr (${prV3} -> ${sk})`)
+        const salaK = await abrirSala(mr)
+        for (const c of ['seed', 'counter', 'fee', 'training', 'track', 'blocks', 'weather', 'rivais', 'gold']) {
+          if (salaA[c] !== salaK[c]) problems.push(`migracao-sem-retrato: recarga ${k} mudou a sala (${c}: ${salaA[c]} -> ${salaK[c]})`)
+        }
+      }
+    } catch (e) {
+      problems.push('migracao-sem-retrato: ' + e.message)
+    }
+    await mr.context().close()
   }
 
   // ---------------- save v5 adulterado: alloc com 999, negativo, texto e soma acima dos pontos livres; Neutro ----------------
@@ -905,7 +937,7 @@ try {
       if (process.env.SHOTS_DIR) { await tx.locator('.inicial .status').first().scrollIntoViewIfNeeded(); await tx.screenshot({ path: join(SHOTS, 'texto-360-inicial.png') }) }   // só na pasta temporária
       await tx.getByRole('button', { name: 'Escolher Brasa' }).click()
       await tx.waitForSelector('#t-estabulo')
-      confere(await tamanhos(['.montaria .nivel', '.app-aba-rotulo', '.badge-ativa']), 'estábulo')
+      confere(await tamanhos(['.montaria .selo-nivel', '.app-aba-rotulo', '.badge-ativa']), 'estábulo')
       await checkOverflow(tx, 'texto-estabulo')
       if (process.env.SHOTS_DIR) await tx.screenshot({ path: join(SHOTS, 'texto-360-estabulo.png') })   // só na pasta temporária
       await abrirSala(tx)
@@ -1089,6 +1121,329 @@ try {
       problems.push('teto-desenho: ' + e.message)
     } finally {
       await pg.context().close()
+    }
+  }
+
+  // ---------------- telas da build, do nível e da skill de tipo (Tarefa 6 do bloco 1 do v3) ----------------
+  // Monta um save v5 a partir do jogo novo (Brasa) com o que cada contexto pede e recarrega a página.
+  const SAVE_REAL = 'galope-elemental:v1'
+  const montaSave = async (pg, mexe) => {
+    const raw = await pg.evaluate((k) => JSON.parse(localStorage.getItem(k)), SAVE_REAL)
+    mexe(raw)
+    await pg.evaluate(([k, r]) => localStorage.setItem(k, JSON.stringify(r)), [SAVE_REAL, raw])
+    await pg.reload({ waitUntil: 'domcontentloaded' })
+    await pg.waitForSelector('#t-estabulo')
+  }
+  // tamanho mínimo das fontes (11 px) dos seletores pedidos e sem rolagem horizontal
+  const confereLegivel = async (pg, sels, onde) => {
+    const t = await pg.evaluate((ss) => ss.map((sel) => {
+      const els = Array.from(document.querySelectorAll(sel))
+      const tam = []
+      els.forEach((e) => { tam.push(parseFloat(getComputedStyle(e).fontSize)); e.querySelectorAll('*').forEach((f) => { if ((f.textContent || '').trim()) tam.push(parseFloat(getComputedStyle(f).fontSize)) }) })
+      return { sel, n: els.length, min: tam.length ? Math.min(...tam) : null }
+    }), sels)
+    for (const x of t) {
+      if (!x.n) problems.push(`${onde}: nenhum ${x.sel}`)
+      else if (x.min < 11) problems.push(`${onde}: ${x.sel} com texto de ${x.min}px (mínimo 11)`)
+    }
+    await checkOverflow(pg, onde)
+  }
+  const nota = (g) => (g >= 24 ? 'S' : g >= 16 ? 'A' : g >= 8 ? 'B' : 'C')
+  const poderNaCabeca = (pg) => pg.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('.montaria-cabeca .linha-meta span')).find((s) => /^Poder/.test(s.textContent.trim()))
+    return b ? Number(b.querySelector('b').textContent) : null
+  })
+  // cavalo de teste no teto: Comum nível 50 com genética 31 (natural 74,6: só 6 pontos até o teto de 80)
+  const TETO_M2 = { uid: 'm2', templateId: null, name: 'Teto', especie: 'cavalo', element: 'agua', rarity: 'comum', grau: 2, sex: 'f', level: 50, xp: 0, skills: [],
+    potential: { vel: 31, acel: 31, man: 31, forca: 31, est: 31, garra: 31, sorte: 31 }, alloc: { vel: 6, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 },
+    palette: null, breedLeft: 2, parents: null, born: 0, equip: {} }
+
+  if (quer('build')) {
+    const bd = await newPage(browser, { width: 360, height: 780 }, 'build', { init: { content: 'window.confirm = function () { window.__confirmou = true; return true }; window.alert = function () { window.__confirmou = true }' } })
+    const st = () => bd.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    const disco = () => bd.evaluate((k) => JSON.parse(localStorage.getItem(k)), SAVE_REAL)
+    const rascunho = () => bd.evaluate(() => { const r = window.__galope.ui.rascunho; return r ? JSON.parse(JSON.stringify(r)) : null })
+    const mais = (k) => bd.locator(`[data-acao="ponto-mais"][data-id="${k}"]`)
+    const quebrar = () => bd.evaluate(() => { if (!window.__setOrig) window.__setOrig = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new DOMException('cheio', 'QuotaExceededError') } })
+    const consertar = () => bd.evaluate(() => { Storage.prototype.setItem = window.__setOrig })
+    const FALHA = 'Não foi possível salvar. Libere espaço e tente de novo.'
+    const abreMontaria = async (uid) => {
+      await bd.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await bd.waitForSelector('#t-estabulo')
+      await bd.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click()
+      await bd.waitForSelector('#t-montaria')
+    }
+    try {
+      await bd.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await bd.waitForSelector('#t-estabulo')
+      // Brasa Comum ★★ nível 12: 13 pontos livres, até 5 por status; m2 no teto (Comum nível 50, genética 31)
+      await montaSave(bd, (raw) => { raw.mounts[0].level = 12; raw.mounts.push(JSON.parse(JSON.stringify(TETO_M2))); raw.nextUid = 3; raw.stableSlots = 3 })
+      await abreMontaria('m1')
+      const txt = ((await bd.locator('.pontos-livres').first().textContent()) || '').replace(/\s+/g, ' ')
+      if (!/pontos livres:? 13\b/i.test(txt)) problems.push('build: topo da aba Status sem "pontos livres: 13": ' + txt)
+      const s0 = await st(), d0 = await disco(), m0 = s0.mounts[0]
+      // uma linha por status com nota de genética, barra e "+"
+      const linhas = await bd.evaluate(() => Array.from(document.querySelectorAll('[data-status]')).map((l) => ({
+        k: l.getAttribute('data-status'), nota: (l.querySelector('.nota-genetica') || {}).textContent, barra: !!l.querySelector('.barra'), mais: !!l.querySelector('[data-acao="ponto-mais"]')
+      })))
+      if (linhas.length !== 7) problems.push('build: ' + linhas.length + ' linhas de status (esperado 7)')
+      for (const l of linhas) {
+        if (l.nota !== nota(m0.potential[l.k])) problems.push(`build: nota de genética de ${l.k} = ${l.nota} (genética ${m0.potential[l.k]}: ${nota(m0.potential[l.k])})`)
+        if (!l.barra || !l.mais) problems.push('build: linha sem barra ou sem "+" ' + JSON.stringify(l))
+      }
+      await confereLegivel(bd, ['.pontos-livres', '.nota-genetica', '.selo-nivel', '[data-status]'], 'build-360')
+      const poder0 = await poderNaCabeca(bd)
+      // limite por status: 5 pontos em Velocidade e o "+" some
+      for (let i = 0; i < 5; i++) await mais('vel').click()
+      if ((await mais('vel').count()) !== 0) problems.push('build: o "+" de Velocidade continua depois de 5 pontos (limite por status)')
+      let r = await rascunho()
+      if (!r || r.vel !== 5) problems.push('build: rascunho depois de 5 pontos ' + JSON.stringify(r))
+      if (JSON.stringify((await st()).mounts[0].alloc) !== JSON.stringify(m0.alloc) || JSON.stringify(await disco()) !== JSON.stringify(d0)) problems.push('build: o rascunho chegou ao save antes de confirmar')
+      if ((await poderNaCabeca(bd)) !== poder0) problems.push('build: o Poder da cabeça mudou com o rascunho')
+      await capT6(bd, 'build-360-rascunho.png', true)
+      if (!/pontos livres:? 8\b/i.test(((await bd.locator('.pontos-livres').first().textContent()) || '').replace(/\s+/g, ' '))) problems.push('build: os pontos livres não descontam o rascunho')
+      // Desfazer limpa o rascunho
+      await bd.locator('[data-acao="pontos-desfazer"]').click()
+      r = await rascunho()
+      if (r && G.STAT_KEYS.some((k) => r[k])) problems.push('build: Desfazer não limpou o rascunho ' + JSON.stringify(r))
+      if ((await mais('vel').count()) !== 1) problems.push('build: o "+" de Velocidade não voltou depois de Desfazer')
+      // Confirmar: o primeiro toque só avisa; com a gravação falhando, nada muda
+      await mais('vel').click(); await mais('vel').click(); await mais('acel').click()
+      await bd.locator('[data-acao="pontos-confirmar"]').click()
+      const aviso = ((await bd.locator('#tela').textContent()) || '')
+      await capT6(bd, 'build-360-confirma.png', true)
+      if (!/não dá para voltar atrás/i.test(aviso)) problems.push('build: o primeiro "Confirmar" não avisou que não dá para voltar atrás')
+      if (JSON.stringify((await st()).mounts[0].alloc) !== JSON.stringify(m0.alloc)) problems.push('build: o primeiro "Confirmar" já gravou')
+      await quebrar()
+      await bd.locator('[data-acao="pontos-confirmar"]').click()
+      let s = await st()
+      if (JSON.stringify(s.mounts[0].alloc) !== JSON.stringify(m0.alloc)) problems.push('build: gravação que falhou deixou os pontos na memória ' + JSON.stringify(s.mounts[0].alloc))
+      if (!((await bd.locator('#tela').textContent()) || '').includes(FALHA)) problems.push('build: gravação que falhou não avisou')
+      if ((await poderNaCabeca(bd)) !== poder0) problems.push('build: gravação que falhou mudou o Poder')
+      if ((await bd.locator(`[data-status="vel"] .valor`).textContent()).trim().split(/\D/)[0] !== String(S.computeStats(m0, GR.resolve(m0, Object.fromEntries(s0.items.map((x) => [x.uid, x])))).vel)) problems.push('build: gravação que falhou deixou o status da tela com o rascunho')
+      await consertar()
+      // de novo, agora gravando: status e Poder sobem
+      await mais('vel').click(); await mais('vel').click(); await mais('acel').click()
+      await bd.locator('[data-acao="pontos-confirmar"]').click()
+      await bd.locator('[data-acao="pontos-confirmar"]').click()
+      s = await st()
+      const d1 = await disco()
+      const alvo = { vel: 2, acel: 1, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 }
+      if (JSON.stringify(s.mounts[0].alloc) !== JSON.stringify(alvo) || JSON.stringify(d1.mounts[0].alloc) !== JSON.stringify(alvo)) problems.push('build: pontos confirmados ' + JSON.stringify({ mem: s.mounts[0].alloc, disco: d1.mounts[0].alloc }))
+      const its = Object.fromEntries(s.items.map((x) => [x.uid, x]))
+      const st0 = S.computeStats(m0, null), st1 = S.computeStats(s.mounts[0], null)
+      if (st1.vel !== st0.vel + 2 || st1.acel !== st0.acel + 1) problems.push('build: os status não subiram com os pontos ' + JSON.stringify({ st0, st1 }))
+      const poder1 = await poderNaCabeca(bd)
+      if (!(poder1 > poder0) || poder1 !== S.powerRating(s.mounts[0], GR.resolve(s.mounts[0], its))) problems.push(`build: Poder depois de confirmar ${poder0} -> ${poder1}`)
+      if (await rascunho()) problems.push('build: o rascunho ficou depois de gravar')
+      // sair da tela descarta o rascunho
+      await mais('man').click()
+      await bd.locator('[data-acao="montaria-voltar"]').click()
+      await bd.waitForSelector('#t-estabulo')
+      await abreMontaria('m1')
+      if (await rascunho()) problems.push('build: o rascunho voltou depois de sair da tela')
+      if ((await st()).mounts[0].alloc.man !== 0) problems.push('build: sair da tela gravou o rascunho')
+      // teto da raridade: m2 já tem 6 em Velocidade (no teto de 80): sem "+"; Aceleração aceita só 6 pontos
+      await abreMontaria('m2')
+      if ((await mais('vel').count()) !== 0) problems.push('build: status no teto ainda oferece "+"')
+      for (let i = 0; i < 6; i++) await mais('acel').click()
+      if ((await mais('acel').count()) !== 0) problems.push('build: o "+" de Aceleração continua depois de chegar ao teto')
+      if ((await rascunho() || {}).acel !== 6) problems.push('build: rascunho no teto ' + JSON.stringify(await rascunho()))
+      await bd.locator('[data-acao="pontos-desfazer"]').click()
+      // sala aberta: na ativa, o "+" que passaria do Poder da sala não vale; na outra, segue livre
+      const sala = await abrirSala(bd)
+      const pr = (await st()).pending.pr
+      await bd.getByRole('button', { name: /^Voltar/ }).click()
+      await abreMontaria('m1')
+      if (!/Páreo aberto/.test((await bd.locator('#tela').textContent()) || '')) problems.push('build: sala aberta sem o aviso do Poder da sala na aba Status')
+      // cada "+" habilitado tem de caber no Poder da sala (ponto num status de peso baixo pode não mudar o Poder
+      // arredondado); o de Velocidade, não
+      const sAb = await st(), mAb = sAb.mounts[0], itAb = Object.fromEntries(sAb.items.map((x) => [x.uid, x]))
+      const habilitados = await bd.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]:not([disabled])')).map((b) => b.getAttribute('data-id')))
+      for (const k of habilitados) {
+        const h2 = JSON.parse(JSON.stringify(mAb)); h2.alloc[k] += 1
+        if (S.powerRating(h2, GR.resolve(h2, itAb)) > pr) problems.push(`build: com a sala aberta, o "+" de ${k} habilitado passaria do Poder ${pr}`)
+      }
+      if (!(await mais('vel').isDisabled())) problems.push('build: com a sala aberta, o "+" de Velocidade da ativa está habilitado')
+      await bd.evaluate(() => { const b = document.querySelector('[data-acao="ponto-mais"][data-id="vel"]'); if (b) { b.disabled = false; b.click() } })   // botão forçado: a regra vale no clique
+      if (await rascunho()) problems.push('build: com a sala aberta, o clique forçado entrou no rascunho')
+      // tirar ferraduras baixa o Poder: aí cabe ponto até o Poder da sala
+      await bd.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+      await bd.locator('[data-acao="equip-slot"][data-id="ferraduras"]').click()
+      await bd.locator('[data-acao="tirar"][data-id="ferraduras"]').click()
+      await bd.locator('[data-acao="montaria-aba"][data-id="status"]').click()
+      let n = 0
+      while (n < 13 && (await bd.locator('[data-acao="ponto-mais"]:not([disabled])').count())) { await bd.locator('[data-acao="ponto-mais"]:not([disabled])').first().click(); n++ }
+      if (!n) problems.push('build: sem as ferraduras, nenhum ponto cabe no Poder da sala')
+      if (n) {
+        await bd.locator('[data-acao="pontos-confirmar"]').click()
+        await bd.locator('[data-acao="pontos-confirmar"]').click()
+        s = await st()
+        const a = s.mounts[0], it2 = Object.fromEntries(s.items.map((x) => [x.uid, x]))
+        if (S.powerRating(a, GR.resolve(a, it2)) > pr) problems.push('build: pontos com a sala aberta passaram do Poder da sala')
+        if (G.STAT_KEYS.reduce((t, k) => t + a.alloc[k], 0) !== 3 + n) problems.push('build: pontos com a sala aberta não gravaram ' + JSON.stringify(a.alloc))
+      }
+      // outra montaria (não é a ativa): livre com a sala aberta
+      await abreMontaria('m2')
+      if ((await mais('acel').count()) !== 1 || (await mais('acel').isDisabled())) problems.push('build: com a sala aberta, a montaria que não é a ativa não aceita ponto')
+      await mais('acel').click()
+      await bd.locator('[data-acao="pontos-confirmar"]').click()
+      await bd.locator('[data-acao="pontos-confirmar"]').click()
+      s = await st()
+      if (s.mounts[1].alloc.acel !== 1) problems.push('build: ponto na montaria que não é a ativa, com sala aberta ' + JSON.stringify(s.mounts[1].alloc))
+      if (s.pending.pr !== pr) problems.push(`build: o Poder da sala mudou (${pr} -> ${s.pending.pr})`)
+      const sala2 = await abrirSala(bd)
+      for (const k of ['seed', 'counter', 'rivais', 'blocks']) if (sala[k] !== sala2[k]) problems.push(`build: a sala mudou (${k})`)
+      if (await bd.evaluate(() => !!window.__confirmou)) problems.push('build: usou window.confirm/alert')
+    } catch (e) {
+      problems.push('build: ' + e.message)
+    }
+    await bd.context().close()
+  }
+
+  if (quer('build-nivel1')) {
+    const b1 = await newPage(browser, { width: 360, height: 780 }, 'build-nivel1')
+    try {
+      await b1.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await b1.waitForSelector('#t-estabulo')
+      if ((await b1.locator('.montaria .pontos-livres').count()) !== 0) problems.push('build-nivel1: o cartão do Estábulo avisa pontos no nível 1')
+      await b1.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await b1.waitForSelector('#t-montaria')
+      const txt = ((await b1.locator('.pontos-livres').first().textContent()) || '').replace(/\s+/g, ' ')
+      if (!/pontos livres:? 0\b/i.test(txt)) problems.push('build-nivel1: topo sem "pontos livres: 0": ' + txt)
+      if ((await b1.locator('[data-acao="ponto-mais"]').count()) !== 0) problems.push('build-nivel1: nível 1 oferece "+"')
+      if ((await b1.locator('[data-acao="pontos-confirmar"]').count()) !== 0) problems.push('build-nivel1: nível 1 oferece "Confirmar"')
+      if ((await b1.locator('[data-status] .nota-genetica').count()) !== 7) problems.push('build-nivel1: sem as 7 notas de genética')
+      await confereLegivel(b1, ['.pontos-livres', '.nota-genetica'], 'build-nivel1-360')
+    } catch (e) {
+      problems.push('build-nivel1: ' + e.message)
+    }
+    await b1.context().close()
+  }
+
+  if (quer('selo')) {
+    for (const vp of [{ width: 360, height: 780 }, { width: 1280, height: 800 }]) {
+      const tag = 'selo-' + vp.width
+      const sl = await newPage(browser, vp, tag)
+      const seloEm = async (sel) => ((await sl.locator(sel).first().textContent().catch(() => '')) || '').replace(/\s+/g, ' ').trim()
+      try {
+        await sl.getByRole('button', { name: 'Escolher Brasa' }).click()
+        await sl.waitForSelector('#t-estabulo')
+        await montaSave(sl, (raw) => { raw.mounts[0].level = 12; raw.mounts[0].xp = 40; raw.mounts.push(Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { sex: 'f', level: 7 })); raw.nextUid = 3; raw.stableSlots = 3 })
+        // Estábulo: selo no retrato, barra de XP, "+N" e sem "Nv" na fileira de etiquetas
+        if ((await seloEm('.montaria[data-uid="m1"] .retrato-moldura .selo-nivel')) !== 'Nv 12') problems.push(`${tag}: selo do cartão do Estábulo = "${await seloEm('.montaria[data-uid="m1"] .selo-nivel')}"`)
+        if ((await sl.locator('.montaria[data-uid="m1"] .barra--xp').count()) !== 1) problems.push(tag + ': cartão do Estábulo sem barra de XP')
+        if ((await seloEm('.montaria[data-uid="m1"] .pontos-livres')) !== '+13') problems.push(`${tag}: aviso de pontos do cartão = "${await seloEm('.montaria[data-uid="m1"] .pontos-livres')}"`)
+        const etiquetas = await sl.evaluate(() => Array.from(document.querySelectorAll('.montaria .linha-meta')).map((e) => e.textContent).join(' | '))
+        if (/Nv\s*\d/.test(etiquetas)) problems.push(tag + ': "Nv" continua na fileira de etiquetas do cartão: ' + etiquetas)
+        await confereLegivel(sl, ['.montaria .selo-nivel', '.montaria .pontos-livres'], tag + '-estabulo')
+        if (vp.width === 360) await capT6(sl, tag + '-estabulo.png')
+        // Montaria
+        await sl.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await sl.waitForSelector('#t-montaria')
+        if ((await seloEm('.montaria-cabeca .retrato-moldura .selo-nivel')) !== 'Nv 12') problems.push(tag + ': Montaria sem o selo "Nv 12"')
+        await confereLegivel(sl, ['.montaria-cabeca .selo-nivel'], tag + '-montaria')
+        if (vp.width === 360 || vp.width === 1280) await capT6(sl, tag + '-montaria.png', true)
+        await sl.locator('[data-acao="montaria-voltar"]').click()
+        // Correr
+        await sl.locator('[data-acao="aba"][data-id="correr"]').click()
+        await sl.waitForSelector('#t-correr')
+        if ((await seloEm('#tela .retrato-moldura .selo-nivel')) !== 'Nv 12') problems.push(tag + ': Correr sem o selo "Nv 12"')
+        await confereLegivel(sl, ['.selo-nivel'], tag + '-correr')
+        // Haras (a Brasa é macho: a montaria dele aparece em "Sua montaria")
+        await sl.locator('[data-acao="aba"][data-id="haras"]').click()
+        await sl.waitForSelector('#t-haras')
+        if ((await seloEm('.haras-card[data-id="m1"] .retrato-moldura .selo-nivel')) !== 'Nv 12') problems.push(tag + ': Haras sem o selo "Nv 12" no cartão da Brasa')
+        const harasMeta = await sl.evaluate(() => Array.from(document.querySelectorAll('.haras-card .linha-meta')).map((e) => e.textContent).join(' | '))
+        if (/Nv\s*\d/.test(harasMeta)) problems.push(tag + ': "Nv" continua nas etiquetas do Haras')
+        await confereLegivel(sl, ['.haras-card .selo-nivel'], tag + '-haras')
+        const calcTxt = ((await sl.locator('#tela').textContent()) || '')
+        await sl.locator('[data-acao="haras-partner"]').first().click()
+        const calc = ((await sl.locator('.calc').textContent().catch(() => '')) || '')
+        if (!/metade herdada/i.test(calc)) problems.push(tag + ': calculadora do Haras sem "a genética é metade herdada": ' + calc)
+        if (/janela/i.test(calc + calcTxt)) problems.push(tag + ': Haras ainda fala em janela de status')
+        // sala de largada
+        await sl.locator('[data-acao="aba"][data-id="correr"]').click()
+        await sl.locator('[data-acao="procurar"]').click()
+        await sl.waitForSelector('#t-largada')
+        if ((await seloEm('#tela .retrato-moldura .selo-nivel')) !== 'Nv 12') problems.push(tag + ': sala de largada sem o selo "Nv 12" no retrato')
+        await confereLegivel(sl, ['.selo-nivel'], tag + '-sala')
+        if (/Neutro/i.test((await sl.locator('#tela').textContent()) || '')) problems.push(tag + ': "Neutro" na sala')
+      } catch (e) {
+        problems.push(tag + ': ' + e.message)
+      }
+      await sl.context().close()
+    }
+  }
+
+  if (quer('vaga-tipo')) {
+    const vt = await newPage(browser, { width: 360, height: 780 }, 'vaga-tipo')
+    const num1 = (x) => x.toFixed(1).replace('.', ',')
+    // o efeito que a tela tem de mostrar, na força atual P (os números do RaceSim.typeSkill)
+    const efeitoEsperado = (m) => {
+      const ts = S.typeSkill(m), P = ts.power, e = G.TYPE_SKILLS[m.element].effect
+      if (m.element === 'fogo') return { terco: 'primeiro terço', nums: ['+' + num1(e.accelMult * P * 100) + '%'] }
+      if (m.element === 'grama') return { terco: 'terço do meio', nums: ['+' + num1(e.forcaAdd * P * 100), '−' + num1(e.drainCut * P * 100) + '%'] }
+      return { terco: 'último terço', nums: ['+' + num1(e.speedMult * P * 100) + '%', num1(e.staminaRestore * P * 100) + '%'] }
+    }
+    try {
+      await vt.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await vt.waitForSelector('#t-estabulo')
+      await montaSave(vt, (raw) => {
+        raw.mounts[0].level = 12
+        raw.mounts.push(Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { uid: 'm2', rarity: 'raro', level: 30, skills: ['pe-na-chuva'] }))
+        raw.mounts.push(Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { uid: 'm3', element: 'grama', rarity: 'lendario', level: 50, alloc: null }))
+        raw.nextUid = 4; raw.stableSlots = 3
+      })
+      const s = await vt.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+      for (const m of s.mounts) {
+        await vt.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await vt.locator(`button[data-acao="montaria"][data-id="${m.uid}"]`).click()
+        await vt.waitForSelector('#t-montaria')
+        await vt.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+        const ts = S.typeSkill(m), esp = efeitoEsperado(m)
+        const vaga = ((await vt.locator('.vaga-tipo').textContent().catch(() => '')) || '').replace(/\s+/g, ' ')
+        if ((await vt.locator('.vaga-tipo').count()) !== 1) problems.push(`vaga-tipo: ${m.uid} com ${await vt.locator('.vaga-tipo').count()} vagas de tipo`)
+        if (!vaga.includes(ts.name) || !vaga.toLowerCase().includes(esp.terco)) problems.push(`vaga-tipo: ${m.uid} sem nome/terço (${ts.name}, ${esp.terco}): ${vaga}`)
+        for (const nn of esp.nums) if (!vaga.includes(nn)) problems.push(`vaga-tipo: ${m.uid} sem o efeito na força atual ${nn}: ${vaga}`)
+        // a vaga de tipo vem antes das vagas normais
+        const ordem = await vt.evaluate(() => { const sec = document.querySelector('.vaga-tipo').closest('section'); const all = Array.from(sec.querySelectorAll('.vaga-tipo, .habilidade, .nota')); return all.map((e) => e.className.split(' ')[0]) })
+        if (ordem[0] !== 'vaga-tipo') problems.push(`vaga-tipo: ${m.uid} a vaga de tipo não é a primeira: ${ordem.join(',')}`)
+        if (m.skills.length && !(await vt.locator('.habilidade').count())) problems.push(`vaga-tipo: ${m.uid} sem as vagas normais`)
+        await confereLegivel(vt, ['.vaga-tipo'], 'vaga-tipo-' + m.uid)
+        if (m.uid === 'm2') await capT6(vt, 'vaga-tipo-360.png', true)
+        await vt.locator('[data-acao="montaria-voltar"]').click()
+      }
+    } catch (e) {
+      problems.push('vaga-tipo: ' + e.message)
+    }
+    await vt.context().close()
+  }
+
+  if (quer('inicial')) {
+    for (const vp of [{ width: 360, height: 780 }, { width: 1280, height: 800 }]) {
+      const tag = 'inicial-' + vp.width
+      const ini = await newPage(browser, vp, tag)
+      try {
+        await ini.waitForSelector('.inicial')
+        const corpo = (await ini.locator('#tela').textContent()) || ''
+        if (/Neutro/i.test(corpo)) problems.push(tag + ': a tela inicial cita Neutro')
+        for (const h of G.STARTERS) {
+          const card = ini.locator('#ini-' + h.id)
+          const t = ((await card.textContent()) || '').replace(/\s+/g, ' ')
+          const ts = S.typeSkill(h), terco = h.element === 'fogo' ? 'primeiro terço' : h.element === 'grama' ? 'terço do meio' : 'último terço'
+          const fortes = G.STAT_KEYS.slice().sort((a, b) => h.potential[b] - h.potential[a]).slice(0, 2).map((k) => G.STATS[k].name)
+          if (!/Comum/.test(t)) problems.push(`${tag}: ${h.name} sem "Comum"`)
+          if ((await card.locator('.vaga-tipo').count()) !== 1 || !t.includes(ts.name) || !t.toLowerCase().includes(terco)) problems.push(`${tag}: ${h.name} sem a skill de tipo e o terço (${ts.name}, ${terco})`)
+          const fortesTxt = (await card.locator('.inicial-fortes').count()) ? await card.locator('.inicial-fortes').textContent() : ''
+          for (const f of fortes) if (!fortesTxt.includes(f)) problems.push(`${tag}: ${h.name} sem o status forte ${f}`)
+        }
+        await confereLegivel(ini, ['.inicial .vaga-tipo', '.inicial .inicial-fortes'], tag)
+        await capT6(ini, tag + '.png', vp.width > 400)
+      } catch (e) {
+        problems.push(tag + ': ' + e.message)
+      }
+      await ini.context().close()
     }
   }
 
@@ -1920,6 +2275,9 @@ try {
       await dv.selectOption('#dev-elemento', 'agua')
       await dv.selectOption('#dev-raridade', 'mitico')
       await dv.fill('#dev-nivel', '30')
+      // a gaveta abre com a ativa (Brasa, genética que não é toda 31): "por status"; o cavalo novo pede o Máximo
+      if ((await dv.locator('#dev-potencial').inputValue()) !== 'cada') problems.push('dev: a gaveta abriu a genética da Brasa como "Máximo"')
+      await dv.selectOption('#dev-potencial', 'max')
       const skillsDev = ['pe-na-chuva', 'chama-final', '', '', '']
       for (let k = 0; k < 5; k++) await dv.selectOption('#dev-skill' + k, skillsDev[k])
       await dv.locator('[data-acao="dev-criar"]').click()
@@ -1942,6 +2300,14 @@ try {
       ap = (await st()).mounts.find((m) => m.uid === 'm2')
       if (G.STAT_KEYS.some((k) => ap.alloc[k] !== 0) || ap.grau !== 3) problems.push('dev: devolver pontos ' + JSON.stringify(ap.alloc))
       if ((await dv.locator('#dev-pt-acel').inputValue()) !== '0') problems.push('dev: os campos de pontos não voltaram a 0 depois de devolver')
+      // a genética da ativa não é toda 31: os campos ficam em "por status" e trocar só as estrelas não a apaga
+      if ((await dv.locator('#dev-potencial').inputValue()) !== 'cada') problems.push('dev: depois de devolver, a genética da ativa voltou para "Máximo" ' + (await dv.locator('#dev-potencial').inputValue()))
+      await dv.selectOption('#dev-estrelas', '1')
+      await dv.locator('[data-acao="dev-aplicar"]').click()
+      ap = (await st()).mounts.find((m) => m.uid === 'm2')
+      if (ap.grau !== 1 || ap.potential.vel !== 7 || ap.potential.man !== 0 || ap.potential.acel !== 31) problems.push('dev: trocar só as estrelas apagou a genética ' + JSON.stringify({ grau: ap.grau, potential: ap.potential }))
+      await dv.locator('[data-acao="dev-carregar"]').click()
+      if ((await dv.locator('#dev-potencial').inputValue()) !== 'cada' || (await dv.locator('#dev-gen-vel').inputValue()) !== '7') problems.push('dev: "Carregar a ativa" não manteve a genética por status')
       await dv.selectOption('#dev-potencial', 'max')
       await dv.selectOption('#dev-estrelas', '2')
       await dv.locator('[data-acao="dev-aplicar"]').click()

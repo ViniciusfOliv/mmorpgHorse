@@ -764,12 +764,17 @@
   // Retrato: baia com parede de tábuas e palha; cavalo parado (respira, pisca, abana o rabo,
   // descansa um posterior e abaixa a cabeça de vez em quando).
   var PORTRAIT_W = 48, PORTRAIT_H = 36;
+  // opts.selo: moldura com o selo "Nv N" no canto (e, com opts.pontos > 0, o aviso "+N" de pontos livres)
   function portraitHtml(horse, opts) {
     opts = opts || {};
     var id = portraitQueue.length;
     portraitQueue.push({ horse: horse, opts: opts });
-    return '<canvas class="retrato" data-retrato="' + id + '" role="img" aria-label="' +
+    var cv = '<canvas class="retrato" data-retrato="' + id + '" role="img" aria-label="' +
       esc('Retrato de ' + horse.name) + '"></canvas>';
+    if (!opts.selo) return cv;
+    var pts = opts.pontos > 0 ? '<span class="pontos-livres pontos-livres--selo" title="' +
+      esc(opts.pontos + (opts.pontos === 1 ? ' ponto livre' : ' pontos livres') + ' para distribuir') + '">+' + esc(opts.pontos) + '</span>' : '';
+    return '<span class="retrato-moldura">' + cv + '<span class="selo-nivel">Nv ' + esc(horse.level) + '</span>' + pts + '</span>';
   }
 
   function drawStall(ctx, k, w, h, seed) {
@@ -848,16 +853,19 @@
     var L = RS.leagueFor(rating);
     return '<span class="liga liga--' + esc(L.id) + '">Liga ' + esc(L.name) + '</span>';
   }
-  // Barras em 20 segmentos inteiros (cada um = 5 pontos): nada de meio segmento.
-  function barHtml(v, b) {
+  // Barras em 20 segmentos inteiros (cada um = 5 pontos): nada de meio segmento. teto (opcional): os
+  // segmentos vazios acima do teto da raridade ficam marcados (.teto).
+  function barHtml(v, b, teto) {
     var SEG = 20;
     var fill = clamp(Math.round(v / 5), 0, SEG), base = b == null ? fill : clamp(Math.round(b / 5), 0, SEG);
+    var lim = teto == null ? SEG : clamp(Math.round(teto / 5), 0, SEG);
     var out = '';
     for (var i = 0; i < SEG; i++) {
       var cls = '';
       if (i < Math.min(fill, base)) cls = 'on';
       else if (i < fill) cls = 'on extra';
       else if (i < base) cls = 'menos';
+      else if (i >= lim) cls = 'teto';
       out += '<i' + (cls ? ' class="' + cls + '"' : '') + '></i>';
     }
     return out;
@@ -874,11 +882,12 @@
     });
     return out + '</dl>';
   }
-  function xpHtml(level, xp) {
+  // semNivel: o nível já está no selo do retrato (a linha diz só "XP")
+  function xpHtml(level, xp, semNivel) {
     var need = E.xpToLevel(level);
     var maxed = level >= (E.maxLevel || 50);
     var pct = maxed ? 100 : clamp(xp / need * 100, 0, 100);
-    return '<div class="xp"><div class="xp-linha"><span class="nivel">Nv ' + level + '</span><span>' +
+    return '<div class="xp"><div class="xp-linha">' + (semNivel ? '<span>XP</span>' : '<span class="nivel">Nv ' + level + '</span>') + '<span>' +
       (maxed ? 'Nível máximo' : fmt(xp) + ' / ' + fmt(need) + ' XP') + '</span></div>' +
       '<div class="barra barra--xp" role="img" aria-label="' + esc('Experiência ' + Math.round(pct) + '%') + '"><i style="width:' + (Math.round(pct / 5) * 5) + '%"></i></div></div>';
   }
@@ -886,6 +895,29 @@
     var sk = GD.SKILLS[id];
     if (!sk) return '';
     return '<div class="habilidade"><b>' + iconHtml(sk.element) + esc(sk.name) + '</b><span>' + esc(sk.desc) + '</span></div>';
+  }
+  // Skill de tipo: vaga própria, sempre ativa, num terço da pista; o efeito já multiplicado pela força P
+  // (RaceSim.typeSkill), os mesmos números que a simulação usa.
+  var TERCOS = ['primeiro terço', 'terço do meio', 'último terço'];
+  function num1(x) { return (Math.round(x * 10) / 10).toFixed(1).replace('.', ','); }
+  function tercoTxt(ts) { return TERCOS[clamp(Math.round(ts.zone[0] * 3), 0, 2)]; }
+  function efeitoTipoTxt(ts) {
+    var e = ts.effect, P = ts.power, out = [];
+    if (e.accelMult) out.push('+' + num1(e.accelMult * P * 100) + '% de aceleração');
+    if (e.forcaAdd) out.push('+' + num1(e.forcaAdd * P * 100) + ' de Força' + (e.manAdd ? ' e de Manobra' : ''));
+    if (e.drainCut) out.push('−' + num1(e.drainCut * P * 100) + '% de gasto de fôlego');
+    if (e.speedMult) out.push('+' + num1(e.speedMult * P * 100) + '% de velocidade');
+    if (e.staminaRestore) out.push('recupera ' + num1(e.staminaRestore * P * 100) + '% do fôlego ao entrar');
+    return out.join(' · ');
+  }
+  function vagaTipoHtml(horse) {
+    var ts = RS.typeSkill(horse);
+    if (!ts) return '';
+    var el = elementOf(horse.element);
+    return '<div class="vaga-tipo vaga-tipo--' + esc(el.id) + '"><span class="vaga-tipo-rotulo">Skill de tipo · sempre ativa</span>' +
+      '<b>' + iconHtml(el.id) + esc(ts.name) + '</b>' +
+      '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts) + '.') + '</span>' +
+      '<span class="vaga-tipo-forca">' + esc('Força ×' + ts.power.toFixed(2).replace('.', ',') + ': cresce com o nível e a raridade') + '</span></div>';
   }
   function silkClass(r) { return r.isPlayer ? 'seda-voce' : 'seda-' + r.silkIdx; }
   function laneChip(r, i, extra) {
@@ -1037,7 +1069,9 @@
     var f = ui.dev.f, a = activeMount();
     var pal = a.palette || DV.horseTemplate({ element: a.element }).palette;
     f.nome = a.name; f.elemento = a.element; f.raridade = a.rarity; f.sexo = a.sex;
-    f.nivel = String(a.level); f.potencial = 'max'; f.estrelas = String(RS.starsOf(a));
+    // genética toda 31: "Máximo"; senão "Por status" (trocar só as estrelas ou o nível não a apaga)
+    var todo31 = STAT_KEYS.every(function (k) { return a.potential[k] === 31; });
+    f.nivel = String(a.level); f.potencial = todo31 ? 'max' : 'cada'; f.estrelas = String(RS.starsOf(a));
     // genética por status (vale com "Genética: por status") e pontos distribuídos, da ativa
     var al = RS.validAlloc(a, a.alloc);
     STAT_KEYS.forEach(function (k) { f['gen-' + k] = String(a.potential[k]); f['pt-' + k] = String(al[k]); });
@@ -1527,15 +1561,22 @@
       var best = el.weather && GD.WEATHERS[el.weather] ? GD.WEATHERS[el.weather].name + ' (+' + wPct + '%)' : '—';
       var worst = Object.keys(GD.WEATHERS).filter(function (w) { return GD.WEATHERS[w].penalizes === h.element; })
         .map(function (w) { return GD.WEATHERS[w].name + ' (−' + wPct + '%)'; }).join(', ') || '—';
-      var ts = RS.typeSkill(h), bonus = ts ? ts.name : '—';   // a tela nova do inicial é da Tarefa 6
+      // os dois status de genética mais alta (empate: a ordem de STAT_KEYS)
+      var fortes = [];
+      for (var f = 0; f < 2; f++) {
+        var best1 = null;
+        STAT_KEYS.forEach(function (k) { if (fortes.indexOf(k) < 0 && (best1 == null || h.potential[k] > h.potential[best1])) best1 = k; });
+        fortes.push(best1);
+      }
       return '<article class="caixa inicial" id="ini-' + esc(h.id) + '" aria-label="' + esc(h.name + ', ' + (idx + 1) + ' de ' + GD.STARTERS.length) + '">' +
         '<div class="retrato-palco">' + portraitHtml(h) + '<span class="contador">' + (idx + 1) + '/' + GD.STARTERS.length + '</span></div>' +
         '<div class="inicial-topo"><h2 class="cavalo-nome">' + esc(h.name) + '</h2>' + elementHtml(h.element) + '</div>' +
         '<p class="cavalo-titulo"><b>' + esc(h.title) + '.</b> ' + esc(h.bio) + '</p>' +
-        '<div class="linha-meta">' + rarityHtml(h.rarity) + '<span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
+        '<div class="linha-meta">' + rarityHtml(h.rarity) + estrelasHtml(h.grau) + '<span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
+        '<p class="inicial-fortes">Fortes: <b>' + esc(GD.STATS[fortes[0]].name) + '</b> e <b>' + esc(GD.STATS[fortes[1]].name) + '</b></p>' +
         statsHtml(stats) +
-        skillHtml(h.skills[0]) +
-        '<dl class="afinidade"><dt>Skill de tipo</dt><dd>' + esc(bonus) + '</dd><dt>Clima bom</dt><dd class="mais">' + esc(best) +
+        vagaTipoHtml(h) +
+        '<dl class="afinidade"><dt>Clima bom</dt><dd class="mais">' + esc(best) +
         '</dd><dt>Clima ruim</dt><dd class="menos-t">' + esc(worst) + '</dd></dl>' +
         '<button type="button" class="btn btn--ouro btn--grande" data-acao="escolher" data-id="' + esc(h.id) + '">Escolher ' + esc(h.name) + '</button>' +
         '</article>';
@@ -1601,14 +1642,13 @@
         '</div>';
     var abre = semAcoes ? '' : ' data-acao="montaria" data-id="' + esc(m.uid) + '"';
     return '<article class="montaria' + (isActive ? ' montaria--ativa' : '') + '" data-uid="' + esc(m.uid) + '"' + abre + '>' +
-      portraitHtml(m) +
+      portraitHtml(m, { selo: true, pontos: RS.allocInfo(m).left }) +
       '<h3 class="cavalo-nome">' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h3>' +
       '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
         '<span>' + (m.sex === 'f' ? '♀ Fêmea' : '♂ Macho') + '</span>' +
-        '<span class="nivel">Nv ' + esc(m.level) + '</span>' +
         '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
         (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
-      '</div>' + gearSummaryHtml(m) + acoes +
+      '</div>' + xpHtml(m.level, m.xp, true) + gearSummaryHtml(m) + acoes +
     '</article>';
   }
 
@@ -1672,10 +1712,10 @@
     return '<section class="tela" aria-labelledby="t-correr">' +
       '<h1 class="titulo titulo--tela" id="t-correr" tabindex="-1" data-foco>Correr</h1>' + noticeHtml() +
       '<article class="caixa" aria-label="Montaria ativa">' +
-        '<div class="cavalo-cabeca">' + portraitHtml(h) +
+        '<div class="cavalo-cabeca">' + portraitHtml(h, { selo: true }) +
           '<div class="cavalo-info"><h2 class="cavalo-nome">' + esc(h.name) + '</h2>' +
           '<div class="linha-meta">' + rarityHtml(h.rarity) + elementHtml(h.element) + '</div>' +
-          xpHtml(h.level, h.xp) +
+          xpHtml(h.level, h.xp, true) +
           '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
         '</div></div>' +
         '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
@@ -1810,11 +1850,11 @@
   function harasCardHtml(h, acao, kind, id, on, extra) {
     return '<button type="button" class="btn opcao haras-card' + (on ? ' sel--on' : '') + '" data-acao="' + acao + '"' +
         (kind ? ' data-kind="' + kind + '"' : '') + ' data-id="' + esc(id) + '" aria-pressed="' + on + '">' +
-      portraitHtml(h) +
+      portraitHtml(h, { selo: true }) +
       '<b class="haras-nome">' + esc(h.name) + '</b>' +
       '<span class="linha-meta">' + rarityHtml(h.rarity) + estrelasHtml(h.grau) + '</span>' +
       '<span class="linha-meta">' + elementHtml(h.element) + '</span>' +
-      '<span class="linha-meta"><span>' + (h.sex === 'f' ? '♀' : '♂') + ' Nv ' + esc(h.level) + '</span>' + extra + '</span>' +
+      '<span class="linha-meta"><span>' + (h.sex === 'f' ? '♀ Fêmea' : '♂ Macho') + '</span>' + extra + '</span>' +
     '</button>';
   }
 
@@ -1828,8 +1868,10 @@
         '<span class="calc-barra calc-barra--' + esc(id) + '"><i style="width:' + (p * 100).toFixed(1) + '%"></i></span></div>';
     }).join('');
     var gp = pctRound([o.grau[1] * 100, o.grau[2] * 100, o.grau[3] * 100]);
-    var grau = 'Se mantiver a raridade: ★ ' + gp[0] + '% · ★★ ' + gp[1] + '% · ★★★ ' + gp[2] +
+    var grau = 'Estrelas (multiplicam os pontos livres do treino). Se mantiver a raridade: ★ ' + gp[0] + '% · ★★ ' + gp[1] + '% · ★★★ ' + gp[2] +
       '%; se subir, nasce ★; se descer, ★★★';
+    var genTxt = 'Genética: metade herdada. Cada status tem ' + Math.round(BRD.TUNING.potInherit * 100) +
+      '% de chance de vir de um dos pais (meio a meio entre os dois); senão, nasce sorteada de 0 a 31.';
     var elName = function (e) { return elementOf(e).name; };
     var els = P.f.element === P.m.element ? [P.f.element] : [P.f.element, P.m.element];
     var elTxt = 'Elemento: ' + (els.length === 1 ? elName(els[0]) : elName(els[0]) + ' ou ' + elName(els[1]) + ' (50/50)');
@@ -1853,6 +1895,7 @@
       '<p class="nota">' + esc(P.f.name + ' ♀ × ' + P.m.name + ' ♂') + '</p>' +
       '<div class="calc-barras">' + bars + '</div>' +
       '<p>' + esc(grau) + '</p>' +
+      '<p>' + esc(genTxt) + '</p>' +
       '<p>' + esc(elTxt) + '</p>' +
       '<p>' + esc(skTxt) + '</p>' + corcel +
       '<p>' + esc('Nível efetivo: ' + Math.round(o.L * 100) + '% do máximo') + '</p>' +
@@ -2082,10 +2125,97 @@
   // ===========================================================================
   var MONTARIA_ABAS = [{ id: 'status', rotulo: 'Status' }, { id: 'skills', rotulo: 'Skills' }, { id: 'equip', rotulo: 'Equipamento' }];
 
+  // ---- Aba Status: distribuir os pontos livres (spec v3 §10) ----
+  // O rascunho (ui.montaria.rascunho: pontos a somar por status, ou null) fica só na memória da tela: sair da
+  // tela ou trocar de sub-aba o descarta. Ele nunca passa do que RaceSim.allocInfo aceita (limite por status,
+  // pontos que sobram e teto da raridade). "Confirmar" pede um segundo toque e grava como um gasto (gravaGasto:
+  // se a gravação falha, nada muda). Com páreo aberto, a ativa segue a trava das peças: o Poder não passa do
+  // da sala (state.pending.pr); as outras montarias ficam livres.
+  function rascunhoMais(r, k) {
+    var out = {};
+    STAT_KEYS.forEach(function (j) { out[j] = (r ? r[j] : 0) + (j === k ? 1 : 0); });
+    return out;
+  }
+  function rascunhoSoma(r) {
+    var t = 0;
+    if (r) STAT_KEYS.forEach(function (k) { t += r[k]; });
+    return t;
+  }
+  // o rascunho cabe nos pontos da montaria (cada status no que ainda aceita e a soma nos pontos que sobram)?
+  function rascunhoOk(m, r) {
+    if (!r) return true;
+    var info = RS.allocInfo(m), soma = 0;
+    for (var i = 0; i < STAT_KEYS.length; i++) {
+      var v = r[STAT_KEYS[i]];
+      if (!(typeof v === 'number' && v >= 0 && v === Math.floor(v) && v <= info.room[STAT_KEYS[i]])) return false;
+      soma += v;
+    }
+    return soma <= info.left;
+  }
+  // os pontos gravados com o rascunho por cima
+  function allocComRascunho(m, r) {
+    var a = RS.validAlloc(m, m.alloc), out = {};
+    STAT_KEYS.forEach(function (k) { out[k] = a[k] + (r ? r[k] : 0); });
+    return out;
+  }
+  function travaPontos(m, alloc) {
+    var P = state.pending;
+    if (!P || m.uid !== state.activeId) return { ok: true, limit: null };
+    var h = clone(m);
+    h.alloc = alloc;
+    return { ok: RS.powerRating(h, gearOf(m)) <= P.pr, limit: P.pr };
+  }
+  function notaGenetica(g) { return g >= 24 ? 'S' : g >= 16 ? 'A' : g >= 8 ? 'B' : 'C'; }
+  function montariaStatusHtml(m, gear) {
+    var M = ui.montaria;
+    if (M.rascunho && (!rascunhoSoma(M.rascunho) || !rascunhoOk(m, M.rascunho))) { M.rascunho = null; M.confirmaPontos = false; }
+    var r = M.rascunho, soma = rascunhoSoma(r);
+    var info = RS.allocInfo(m), livres = info.left - soma;
+    var cap = (GD.RARITIES[m.rarity] || GD.RARITIES.comum).statCap;
+    var h = clone(m);
+    h.alloc = allocComRascunho(m, r);
+    var stats = RS.computeStats(h, gear), puro = RS.computeStats(h, null), antes = RS.computeStats(m, gear);
+    var P = state.pending, trava = P && m.uid === state.activeId;
+    var linhas = STAT_KEYS.map(function (k) {
+      var st = GD.STATS[k], g = m.potential[k], nota = notaGenetica(g);
+      var v = stats[k], d = v - puro[k], rk = r ? r[k] : 0;
+      var delta = d ? '<span class="delta ' + (d > 0 ? 'mais' : 'menos-t') + '">' + (d > 0 ? '+' : '−') + Math.abs(d) + '</span>' : '';
+      var botao = '';
+      var r2 = rascunhoMais(r, k);
+      if (rascunhoOk(m, r2)) {
+        var lock = travaPontos(m, allocComRascunho(m, r2));
+        botao = '<button type="button" class="btn btn--pequeno build-mais" data-acao="ponto-mais" data-id="' + k + '" aria-label="' +
+          esc('Mais um ponto em ' + st.name) + '"' + (lock.ok ? '' : ' disabled title="' + esc('Páreo aberto: passaria do Poder ' + lock.limit) + '"') + '>+</button>';
+      }
+      return '<li class="build-linha" data-status="' + k + '">' +
+        '<span class="build-nome" title="' + esc(st.name + ': ' + st.desc) + '">' + statIcon(k) + '<span>' + esc(st.short) + '</span></span>' +
+        '<span class="nota-genetica nota-genetica--' + nota.toLowerCase() + '" title="' + esc('Genética ' + g + ' de 31') + '" aria-label="' + esc('Genética ' + nota + ' (' + g + ' de 31)') + '">' + nota + '</span>' +
+        '<div class="barra barra--seg build-barra" role="img" aria-label="' + esc(st.name + ' ' + v + ' (teto ' + cap + ')') + '">' + barHtml(v, antes[k], cap) + '</div>' +
+        '<span class="valor' + (rk ? ' valor--rascunho' : '') + '">' + v + delta + (rk ? '<span class="sr"> (+' + rk + ' no rascunho)</span>' : '') + '</span>' +
+        '<span class="build-acao">' + botao + '</span></li>';
+    }).join('');
+    var avisos = '';
+    if (M.pontosMsg) avisos += '<p class="aviso" role="status">' + esc(M.pontosMsg) + '</p>';
+    if (trava && info.left > 0) avisos += '<p class="aviso">' + esc('Páreo aberto: os pontos da montaria ativa não podem passar o Poder de ' + P.pr + ' que a sala viu.') + '</p>';
+    var topo = '<div class="build-topo"><p class="pontos-livres">Pontos livres: <b>' + livres + '</b></p>' +
+      '<span class="nota">' + esc(info.free ? 'de ' + info.free + ' · até ' + info.perStat + ' por status' : 'cada nível ganho dá pontos para distribuir') + '</span>' +
+      (soma ? '<span class="nota">' + esc('Poder ' + RS.powerRating(clone(m), gear) + ' → ' + RS.powerRating(h, gear)) + '</span>' : '') + '</div>';
+    var acoes = '';
+    if (soma) {
+      acoes = (M.confirmaPontos ? '<p class="aviso" role="status">' + esc('Os pontos ficam para sempre: não dá para voltar atrás. Toque em Confirmar de novo para gravar.') + '</p>' : '') +
+        '<div class="acoes build-acoes"><button type="button" class="btn btn--pequeno" data-acao="pontos-desfazer">Desfazer</button>' +
+        '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="pontos-confirmar">Confirmar</button></div>';
+    }
+    return avisos + '<section class="caixa" aria-label="Status">' + topo +
+      '<ul class="build">' + linhas + '</ul>' + acoes +
+      '<p class="nota">' + esc('Nota de genética (C, B, A ou S): vem do nascimento. Valores com o equipamento; a barra marca o teto de ' + cap + ' da raridade.') + '</p></section>';
+  }
+
   // abre a Montaria numa sub-aba; o estado do equipamento (confirmação, Desfazer) começa zerado
   function goMontaria(uid, aba) {
     if (!state || !mountByUid(uid)) return;
-    ui.montaria = { uid: uid, aba: aba, renomear: null, equip: { slot: null, confirm: null, undo: null, msg: null } };
+    ui.montaria = { uid: uid, aba: aba, renomear: null, equip: { slot: null, confirm: null, undo: null, msg: null },
+      rascunho: null, confirmaPontos: false, pontosMsg: null };   // rascunho dos pontos livres (só na memória da tela)
     go('montaria');
   }
 
@@ -2108,7 +2238,7 @@
     var uid = esc(m.uid);
     var h = clone(m);
     var gear = gearOf(m);
-    var stats = RS.computeStats(h, gear), baseStats = RS.computeStats(h, null);
+    var stats = RS.computeStats(h, gear);
     var rating = RS.powerRating(h, gear);
     var skillPct = Math.round(RS.skillChance(h, stats, gear.special.skillChanceBonus) * 100);
     var corcel = window.Breed && window.Breed.isCorcel(m)
@@ -2135,7 +2265,7 @@
         '</div>';
 
     var cabeca = '<article class="caixa montaria-cabeca" aria-label="Montaria">' +
-      '<div class="cavalo-cabeca">' + portraitHtml(m) +
+      '<div class="cavalo-cabeca">' + portraitHtml(m, { selo: true }) +
         '<div class="cavalo-info">' +
           '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco>' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h1>' +
           '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
@@ -2143,7 +2273,7 @@
             '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
             (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
           '</div>' +
-          xpHtml(m.level, m.xp) +
+          xpHtml(m.level, m.xp, true) +
           '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) +
             '<span>Skills: <b>' + skillPct + '%</b> de ativar</span></div>' +
           gearSummaryHtml(m) +
@@ -2156,15 +2286,15 @@
     var corpo;
     if (M.aba === 'skills') {
       var vagas = (GD.RARITIES[m.rarity] || GD.RARITIES.comum).skillSlots - m.skills.length;
-      corpo = '<section class="caixa" aria-label="Skills">' + (m.skills.length ? m.skills.map(skillHtml).join('') : '<p class="nota">Nenhuma skill ainda.</p>') +
+      corpo = '<section class="caixa" aria-label="Skills">' + vagaTipoHtml(m) +
+        (m.skills.length ? m.skills.map(skillHtml).join('') : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
         '<p class="nota">' + (vagas > 0
           ? vagas + (vagas === 1 ? ' vaga livre' : ' vagas livres') + ' · ' + Math.round(RS.TUNING.learnChance * 100) + '% de chance de aprender uma skill nova a cada nível'
           : 'Sem vagas livres') + '</p></section>';
     } else if (M.aba === 'equip') {
       corpo = montariaEquipHtml(m);
     } else {
-      corpo = '<section class="caixa" aria-label="Status">' + statsHtml(stats, baseStats) +
-        '<p class="nota">Valores com o equipamento; a diferença para o valor puro aparece ao lado.</p></section>';
+      corpo = montariaStatusHtml(m, gear);
     }
 
     return '<section class="tela" aria-labelledby="t-montaria">' +
@@ -2434,7 +2564,7 @@
     var w = GD.WEATHERS[L.cond.weather];
     var m = RS.weatherMult(h.element, L.cond.weather, false);
     var pct = Math.round((m - 1) * 100);
-    var eff = pct > 0 ? '+' + pct + '% para ' + el.name : pct < 0 ? '−' + Math.abs(pct) + '% para ' + el.name : 'neutro para ' + el.name;
+    var eff = pct > 0 ? '+' + pct + '% para ' + el.name : pct < 0 ? '−' + Math.abs(pct) + '% para ' + el.name : 'sem efeito para ' + el.name;
     var sorte = RS.computeStats(h, playerGear()).sorte;
     var items = '<li' + (pct > 0 ? ' class="bom"' : pct < 0 ? ' class="ruim"' : '') + '>' + esc('Clima inicial ' + w.name + ': ' + eff) + '</li>' +
       '<li class="dica">' + esc('Dado da Sorte a 1/3 e 2/3 da pista: quem tira o maior dado puxa o clima para o seu elemento. Sua Sorte: ' + Math.min(100, sorte) + '% de rolar dois dados.') + '</li>';
@@ -2457,6 +2587,7 @@
   function renderLargada() {
     var L = ui.lobby;
     refreshPlayerEntry(L);
+    var eu = L.racers[L.playerIdx];
     var D = L.cond.distance;
     var pay = L.training ? null : RS.payouts(L.fee, L.n, L.racers.map(function (r, i) { return i; }));
     var pote;
@@ -2490,6 +2621,10 @@
           L.cond.blocks.map(function (bl) { return GD.BLOCK_TYPES[bl.type].name.toLowerCase(); }).join(', ')) + '"></canvas>' +
         climaHints(L) + '</section>' +
       '<section class="caixa" aria-labelledby="t-estrategia"><h2 class="titulo" id="t-estrategia">Sua estratégia</h2>' +
+        '<div class="cavalo-cabeca">' + portraitHtml(eu.horse, { selo: true }) +
+          '<div class="cavalo-info"><b class="cavalo-nome">' + esc(eu.horse.name) + '</b>' +
+          '<div class="linha-meta">' + rarityHtml(eu.horse.rarity) + elementHtml(eu.horse.element) +
+            '<span>Poder <b>' + RS.powerRating(eu.horse, eu.gear) + '</b></span></div></div></div>' +
         '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
           '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div>' +
           (state.pending ? '<p class="nota">' + esc('Com o páreo aberto, só trocas que não passem do rating da sala (' + state.pending.pr + ').') + '</p>' : '') +
@@ -3514,7 +3649,48 @@
         goMontaria(id, 'equip'); break;
       case 'montaria-aba':
         if (!ui.montaria || !MONTARIA_ABAS.some(function (a) { return a.id === id; })) break;
-        ui.montaria.aba = id; rerenderKeepScroll(); break;
+        ui.montaria.aba = id;
+        ui.montaria.rascunho = null; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null;   // o rascunho não sai da aba Status
+        rerenderKeepScroll(); break;
+      case 'ponto-mais': {
+        var pm = ui.montaria ? mountByUid(ui.montaria.uid) : null;
+        if (!pm || STAT_KEYS.indexOf(id) < 0) break;
+        var pr2 = rascunhoMais(ui.montaria.rascunho, id);
+        if (!rascunhoOk(pm, pr2) || !travaPontos(pm, allocComRascunho(pm, pr2)).ok) break;   // nunca confia no botão
+        ui.montaria.rascunho = pr2; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null;
+        rerenderKeepScroll();
+        if (!telaEl.contains(document.activeElement)) focusAction('pontos-confirmar');   // o "+" sumiu (limite ou teto)
+        break;
+      }
+      case 'pontos-desfazer':
+        if (!ui.montaria) break;
+        ui.montaria.rascunho = null; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null;
+        rerenderKeepScroll(); focusAction('ponto-mais', 'vel'); break;
+      case 'pontos-confirmar': {
+        var MQ = ui.montaria, cq = MQ ? mountByUid(MQ.uid) : null;
+        if (!cq || !rascunhoSoma(MQ.rascunho)) break;
+        if (!MQ.confirmaPontos) {   // primeiro toque: só o aviso de que não dá para voltar atrás
+          MQ.confirmaPontos = true; MQ.pontosMsg = null;
+          rerenderKeepScroll(); focusAction('pontos-confirmar'); break;
+        }
+        MQ.confirmaPontos = false;
+        var sQ = state;
+        persist();                    // sincroniza com outras abas antes de gravar
+        if (state !== sQ) break;      // save mais novo adotado: adoptExternal já navegou
+        cq = mountByUid(MQ.uid);
+        var rq = MQ.rascunho;
+        MQ.rascunho = null;
+        if (!cq || !rascunhoOk(cq, rq) || !travaPontos(cq, allocComRascunho(cq, rq)).ok) {
+          MQ.pontosMsg = 'Os pontos não cabem mais nesta montaria; o rascunho foi descartado.';
+          rerenderKeepScroll(); break;
+        }
+        var antesQ = clone(state);
+        cq.alloc = allocComRascunho(cq, rq);
+        var gQ = gravaGasto(sQ, antesQ);
+        if (gQ === 'outra-aba') break;
+        MQ.pontosMsg = gQ === 'falhou' ? FALHA_SALVAR : 'Pontos distribuídos.';
+        rerenderKeepScroll(); break;
+      }
       case 'montaria-voltar':
       case 'perfil-voltar':
         go(ui.tab); break;
@@ -3959,6 +4135,8 @@
     window.__galope = {
       get state() { return state; }, get ui() { return ui; }, get race() { return raceView; }
     };
+    // rascunho dos pontos livres da tela da Montaria (null sem rascunho), para o teste ler
+    Object.defineProperty(ui, 'rascunho', { configurable: true, get: function () { return ui.montaria ? ui.montaria.rascunho : null; } });
     /*@teste:fim*/
   }
 
