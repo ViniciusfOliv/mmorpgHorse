@@ -1232,14 +1232,16 @@ try {
       await confereLegivel(bd, ['.pontos-livres', '.nota-genetica', '.selo-nivel', '[data-status]'], 'build-360')
       // capturas oficiais (só na rodada completa): aba Status com os 13 pontos livres e aba Skills com a vaga de tipo
       if (!SO.length) {
-        await bd.evaluate(() => window.scrollTo(0, 0))
+        // janela de 360 px com as sub-abas no topo (página inteira deixaria a barra de abas fixa no meio)
+        const subabasNoTopo = () => bd.evaluate(() => { const e = document.querySelector('.subabas'); window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - 8) })
+        await subabasNoTopo()
         await sleep(300)
-        await bd.screenshot({ path: join(SHOTS, 'final-03b-montaria-status.png'), fullPage: true })
+        await bd.screenshot({ path: join(SHOTS, 'final-03b-montaria-status.png') })
         await bd.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
         if ((await bd.locator('.vaga-tipo').count()) !== 1) problems.push('build: aba Skills sem a vaga de tipo na captura')
-        await bd.evaluate(() => window.scrollTo(0, 0))
+        await subabasNoTopo()
         await sleep(300)
-        await bd.screenshot({ path: join(SHOTS, 'final-03c-montaria-skills.png'), fullPage: true })
+        await bd.screenshot({ path: join(SHOTS, 'final-03c-montaria-skills.png') })
         await bd.locator('[data-acao="montaria-aba"][data-id="status"]').click()
       }
       const poder0 = await poderNaCabeca(bd)
