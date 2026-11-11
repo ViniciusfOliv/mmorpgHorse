@@ -903,6 +903,171 @@ test('drawMiniMap: um ponto por cavalo na cor da raia, o seu maior e com contorn
   assert.strictEqual(FX._stats.minimapa, false, 'beginFrame zera');
 });
 
+section('skill de tipo na pista (aura, balão e terços do minimapa)');
+var TS_MEIO = { id: 'raizes-firmes', name: 'Raízes Firmes', from: 1400 / 3, to: 2800 / 3 };
+test('typeZone: null antes e depois do terço; 0, 0,5 e perto de 1 dentro dele', function () {
+  var a = TS_MEIO.from, b = TS_MEIO.to;
+  assert.strictEqual(FX.typeZone(TS_MEIO, a - 0.01), null, 'antes');
+  assert.strictEqual(FX.typeZone(TS_MEIO, 0), null, 'na largada');
+  assert.strictEqual(FX.typeZone(TS_MEIO, b), null, 'no fim (o terço é [from, to))');
+  assert.strictEqual(FX.typeZone(TS_MEIO, b + 50), null, 'depois');
+  assert.strictEqual(FX.typeZone(TS_MEIO, a), 0, 'na entrada');
+  assert.ok(Math.abs(FX.typeZone(TS_MEIO, (a + b) / 2) - 0.5) < 1e-9, 'no meio');
+  var quase = FX.typeZone(TS_MEIO, b - 0.01);
+  assert.ok(quase > 0.99 && quase < 1, 'perto do fim ' + quase);
+  // sem skill de tipo, ou dado torto: nunca dentro
+  [null, undefined, {}, { from: 10, to: 10 }, { from: 20, to: 10 }, { from: 'x', to: 50 }].forEach(function (ts) {
+    assert.strictEqual(FX.typeZone(ts, 15), null, JSON.stringify(ts));
+  });
+  assert.strictEqual(FX.typeZone(TS_MEIO, NaN), null, 'posição inválida');
+});
+test('timeline: o evento typeSkill vira balão de skill com o nome curto e o elemento da skill de tipo', function () {
+  var C = corrida(4242), tl = FX.timeline(C.sim, C.racers, 3);
+  var evs = C.sim.events.filter(function (e) { return e.type === 'skill' && e.typeSkill; });
+  var its = tl.filter(function (it) { return it.kind === 'skill' && it.typeSkill; });
+  assert.ok(evs.length >= 3, 'a corrida tem skills de tipo: ' + evs.length);
+  assert.strictEqual(its.length, evs.length);
+  var vistos = {};
+  its.forEach(function (it, k) {
+    var ev = evs[k], el = C.racers[it.racer].horse.element, def = G.TYPE_SKILLS[el];
+    assert.strictEqual(it.t0, ev.t); assert.strictEqual(it.racer, ev.racer);
+    assert.strictEqual(it.skillId, def.id); assert.strictEqual(it.nome, def.name);
+    assert.strictEqual(it.nomeCurto, def.short, 'nome curto do catálogo: ' + it.nomeCurto);
+    assert.strictEqual(it.element, el); assert.strictEqual(it.cavalo, el);
+    assert.strictEqual(it.icon, { fogo: 'chama', grama: 'folha', agua: 'onda' }[el]);
+    assert.ok(it.t1 > it.t0, 'dura algo');
+    vistos[el] = true;
+  });
+  assert.deepStrictEqual(Object.keys(vistos).sort(), ['agua', 'fogo', 'grama'], 'os três tipos');
+  // quem não tem skill de tipo (racerInfo.typeSkill null) não ganha item
+  C.sim.racerInfo.forEach(function (ri, i) {
+    var n = its.filter(function (it) { return it.racer === i; }).length;
+    assert.strictEqual(n, ri.typeSkill ? 1 : 0, 'corredor ' + i);
+  });
+  // o balão desenha o nome curto
+  FX.resetStats(true);
+  var c = ctxFalso();
+  assert.ok(FX.drawBalloon(c, 10, 10, 2, its[0], its[0].t0 + 0.2, 0));
+  assert.ok(c.rects.length > 20, 'ícone e texto');
+  assert.strictEqual(FX.balloonSize(its[0], 0).w, FX.balloonSize({ kind: 'skill', nomeCurto: G.TYPE_SKILLS[its[0].element].short }, 0).w, 'largura do nome curto');
+  FX.resetStats(true);
+});
+test('timeline: cavalo de elemento desconhecido não ganha skill de tipo nem item (sem erro)', function () {
+  var hs = G.STARTERS.slice(0, 2).map(cl);
+  hs[1].element = 'neutro';
+  var racers = hs.map(function (h, i) { return { horse: h, gear: null, name: 'r' + i, isPlayer: i === 0, silks: CORES[i] }; });
+  var sim = S.simulate({ seed: 7, recordFrames: true, racers: racers });
+  assert.strictEqual(sim.racerInfo[1].typeSkill, null);
+  var tl = FX.timeline(sim, racers, 1);
+  assert.strictEqual(tl.filter(function (it) { return it.typeSkill && it.racer === 1; }).length, 0);
+  assert.strictEqual(tl.filter(function (it) { return it.typeSkill && it.racer === 0; }).length, 1);
+});
+function auraEm(el, t, red, S0) {
+  var c = ctxFalso(), S2 = S0 || 2, antes = Math.random;
+  Math.random = function () { throw new Error('Math.random na aura'); };
+  var ok;
+  try { ok = FX.drawTypeAura(c, el, 100, 60, S2, t, red); } finally { Math.random = antes; }
+  c.ok = ok;
+  return c;
+}
+test('drawTypeAura: até 30 fillRect por cavalo, na cor do elemento, em pixels inteiros, sem transparência nem Math.random', function () {
+  ['fogo', 'grama', 'agua'].forEach(function (el) {
+    var formas = {};
+    for (var t = 0; t < 6; t += 0.05) {
+      FX.resetStats(true);
+      var c = auraEm(el, t, false, 2);
+      assert.strictEqual(c.ok, true, el + ' desenhou');
+      assert.strictEqual(FX._stats.auras, 1, el + ' conta em _stats.auras');
+      assert.strictEqual(FX._stats.particulas, 0, el + ' não conta como partícula de skill de vaga');
+      assert.ok(c.rects.length > 4 && c.rects.length <= 30, el + ' t=' + t.toFixed(2) + ': ' + c.rects.length + ' fillRect');
+      assert.ok(c.rects.some(function (r) { return r.cor === FX.ELEM[el]; }), el + ' usa a cor do elemento');
+      c.rects.forEach(function (r) {
+        assert.ok(r.a === 1, el + ' sem transparência parcial');
+        assert.ok(/^#[0-9a-f]{6}$/i.test(r.cor), el + ' cor sólida: ' + r.cor);
+        assert.ok(r.x % 2 === 0 && r.y % 2 === 0 && r.w % 2 === 0 && r.h % 2 === 0 && r.w > 0 && r.h > 0, el + ' fora da grade ' + JSON.stringify(r));
+      });
+      formas[JSON.stringify(c.rects)] = true;
+    }
+    assert.ok(Object.keys(formas).length > 10, el + ' anima com o tempo: ' + Object.keys(formas).length + ' formas');
+    // função do tempo: mesmo t, mesmos retângulos
+    assert.deepStrictEqual(auraEm(el, 2.37, false).rects, auraEm(el, 2.37, false).rects, el + ' determinístico');
+  });
+  FX.resetStats(true);
+});
+test('drawTypeAura: cada elemento tem a sua forma (chamas nos cascos, folhas e raízes por baixo, onda atrás)', function () {
+  var S2 = 2, x0 = 100, y0 = 60, chao = y0 + 32 * S2;
+  function caixa(c) {
+    var b = { x0: 1e9, x1: -1e9, y0: 1e9, y1: -1e9 };
+    c.rects.forEach(function (r) { b.x0 = Math.min(b.x0, r.x); b.x1 = Math.max(b.x1, r.x + r.w); b.y0 = Math.min(b.y0, r.y); b.y1 = Math.max(b.y1, r.y + r.h); });
+    return b;
+  }
+  var fogo = auraEm('fogo', 1.3, false), grama = auraEm('grama', 1.3, false), agua = auraEm('agua', 1.3, false);
+  // nada sobe até o corpo e o jóquei (metade de cima do sprite) e nada passa das 3 linhas da raia abaixo dos cascos
+  [fogo, grama, agua].forEach(function (c) {
+    var b = caixa(c);
+    assert.ok(b.y1 <= chao + 3 * S2, 'cabe na raia: ' + JSON.stringify(b));
+  });
+  assert.ok(caixa(fogo).y0 >= y0 + 16 * S2, 'fogo fica nos cascos');
+  // a onda é atrás do cavalo: a maior parte dela à esquerda do casco de trás
+  var atras = agua.rects.filter(function (r) { return r.x + r.w <= x0 + 6 * S2; }).length;
+  assert.ok(atras >= agua.rects.length / 2, 'onda atrás: ' + atras + ' de ' + agua.rects.length);
+  // raízes: algo abaixo da linha dos cascos
+  assert.ok(grama.rects.some(function (r) { return r.y >= chao && r.cor !== FX.ELEM.grama; }), 'raízes sob os cascos');
+  assert.notDeepStrictEqual(fogo.rects.map(function (r) { return r.cor; }), agua.rects.map(function (r) { return r.cor; }));
+});
+test('drawTypeAura: movimento reduzido desenha só o contorno na cor do elemento, parado', function () {
+  ['fogo', 'grama', 'agua'].forEach(function (el) {
+    FX.resetStats(true);
+    var a = auraEm(el, 0.5, true), b = auraEm(el, 4.1, true);
+    assert.strictEqual(a.ok, true);
+    assert.ok(a.rects.length >= 2 && a.rects.length <= 8, el + ' só o contorno: ' + a.rects.length);
+    a.rects.forEach(function (r) { assert.strictEqual(r.cor, FX.ELEM[el], el + ' contorno na cor do elemento'); });
+    assert.deepStrictEqual(a.rects, b.rects, el + ' sem animação');
+    assert.strictEqual(FX._stats.particulas, 0);
+    assert.strictEqual(FX._stats.auras, 2);
+    // o contorno também está no modo normal (o reduzido só tira o que se mexe)
+    var cheio = auraEm(el, 0.5, false);
+    a.rects.forEach(function (r) { assert.ok(cheio.rects.some(function (q) { return JSON.stringify(q) === JSON.stringify(r); }), el + ' contorno no normal'); });
+  });
+  FX.resetStats(true);
+});
+test('drawTypeAura: elemento desconhecido não desenha nada nem conta (sem erro)', function () {
+  FX.resetStats(true);
+  ['neutro', 'geral', 'xyz', '', null, undefined].forEach(function (el) {
+    var c = auraEm(el, 1, false);
+    assert.strictEqual(c.ok, false, String(el));
+    assert.strictEqual(c.rects.length, 0, String(el));
+  });
+  assert.strictEqual(FX._stats.auras, 0);
+  FX.resetStats(true);
+});
+test('drawMiniMap: os três terços numa faixa fina (Fogo, Grama, Água nessa ordem), por baixo da linha e dos cavalos', function () {
+  FX.resetStats(true);
+  var p = FX.trackPath(MISTA), c = ctxFalso();
+  var posM = [120, 500, 700, 1050], me = 2;
+  FX.drawMiniMap(c, p, posM, CORES.slice(0, 4), me, BOX_MAPA);
+  assert.strictEqual(FX._stats.tercos, 3, 'marca os três terços');
+  var ordem = [];
+  c.rects.forEach(function (q) {
+    var el = ['fogo', 'grama', 'agua'].filter(function (e) { return q.cor === FX.ELEM[e]; })[0];
+    if (el && ordem[ordem.length - 1] !== el) ordem.push(el);
+  });
+  assert.deepStrictEqual(ordem, ['fogo', 'grama', 'agua'], 'na ordem da pista');
+  // a faixa vem antes do traçado (fica por baixo) e os cavalos vêm por último
+  var ultimaFaixa = -1, primeiraLinha = -1, primeiroCavalo = -1;
+  c.rects.forEach(function (q, k) {
+    if (['fogo', 'grama', 'agua'].some(function (e) { return q.cor === FX.ELEM[e]; })) ultimaFaixa = k;
+    if (primeiraLinha < 0 && q.cor === G.BLOCK_TYPES.curva.color) primeiraLinha = k;
+    if (primeiroCavalo < 0 && CORES.slice(0, 4).indexOf(q.cor) >= 0) primeiroCavalo = k;
+  });
+  assert.ok(ultimaFaixa < primeiraLinha && primeiraLinha < primeiroCavalo, 'faixa < traçado < cavalos: ' + [ultimaFaixa, primeiraLinha, primeiroCavalo]);
+  // fina: a faixa só aparece 1 pixel de arte para fora da linha (4 px de largura contra os 2 da linha)
+  c.rects.filter(function (q) { return q.cor === FX.ELEM.fogo; }).forEach(function (q) { assert.strictEqual(q.w, 4 * BOX_MAPA.P); });
+  c.rects.forEach(function (q) { assert.ok(dentroDaCaixa(q, BOX_MAPA), 'fora da caixa ' + JSON.stringify(q)); });
+  FX.resetStats(true);
+  assert.strictEqual(FX._stats.tercos, 0, 'beginFrame zera');
+});
+
 section('medição do quadro');
 test('endFrame(ms, agora): msQuadro é a média do JS; intervalo dá mediana e p95 do intervalo real entre quadros', function () {
   FX.resetStats(true);

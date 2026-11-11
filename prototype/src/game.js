@@ -2837,8 +2837,11 @@
     // ~2 s e faixa ~3,6 s reais.
     var fxTl = FX.timeline(sim, L.racers, ts);
     var dadoItens = fxTl.filter(function (it) { return it.kind === 'dado'; });
-    // skills e Garra: rastro de elemento e contorno enquanto duram; balões (skill, Garra, cansou) por ~1,5 s
-    var efeitoItens = fxTl.filter(function (it) { return it.kind === 'skill' || it.kind === 'garra'; });
+    // skills e Garra: rastro de elemento e contorno enquanto duram; balões (skill, Garra, cansou) por ~1,5 s.
+    // A skill de tipo só entra nos balões (e na faixa do jogador): o efeito dela é a aura do terço inteiro
+    // (RaceFx.drawTypeAura, pela posição em racerInfo[j].typeSkill)
+    var efeitoItens = fxTl.filter(function (it) { return (it.kind === 'skill' && !it.typeSkill) || it.kind === 'garra'; });
+    var tipoTerco = L.racers.map(function (r, q) { return (sim.racerInfo && sim.racerInfo[q] && sim.racerInfo[q].typeSkill) || null; });
     var balaoItens = fxTl.filter(function (it) { return it.kind === 'skill' || it.kind === 'garra' || it.kind === 'cansou'; });
     function dadoAtivo(t) {
       for (var q = 0; q < dadoItens.length; q++) if (t >= dadoItens[q].t0 && t < dadoItens[q].t1) return dadoItens[q];
@@ -3145,6 +3148,12 @@
         if (j === me) self.playerRect = { x: caixaCav.x, y: caixaCav.y, w: caixaCav.w, h: caixaCav.h, W: W, H: H };
         if (caixaCav.x > W - 2 * S) { tagsR.push({ j: j, y: feetY - 12 * S, txt: '+' + Math.round(st.pos[j] - p) + 'm' }); continue; }
         if (caixaCav.x + caixaCav.w < 2 * S) { tagsL.push({ j: j, y: feetY - 12 * S, txt: '-' + Math.round(p - st.pos[j]) + 'm' }); continue; }
+        // aura da skill de tipo enquanto o cavalo está no terço dela (antes do anel e do cavalo: não cobre nada);
+        // relógio = segundos de apresentação (simT / ts), deslocado por raia
+        if (self.phase !== 'contagem' && FX.typeZone(tipoTerco[j], st.pos[j]) != null &&
+            FX.drawTypeAura(ctx, r.horse.element, x, y, S, self.simT / ts + j * 0.37, red)) {
+          FX._stats.tipoAuras.push({ racer: j, element: r.horse.element });
+        }
         if (j === me) {
           // anel dourado no chão sob os cascos do jogador
           var ry = feetY - 2 * S;
@@ -3296,7 +3305,7 @@
           }
           r.x = Math.max(0, Math.min(lay.artW - r.w, r.x));
           if (FX.drawBalloon(ctx, r.x * S, r.y * S, S, item, t, q)) {
-            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
+            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, tipo: !!item.typeSkill, texto: q ? '' : (item.nomeCurto || ''), pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
           }
           bx = r.x + r.w + 2;
         }

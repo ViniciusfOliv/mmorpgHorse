@@ -1072,7 +1072,8 @@ try {
   // 1280, 1600 m com subidas e curvas, chuva + ventania, skills sempre: conta as chamadas de canvas de um quadro
   // em instantes fixos da simulação (determinístico; o tempo varia com a carga da máquina e fica só como
   // informação). Pega quem reintroduzir um desenho caro (ex.: a hachura das subidas com um fillRect por listra
-  // eram 4 a 11 mil por quadro; as serras do fundo coluna a coluna, +1,4 mil; hoje o máximo fica perto de 3,9 mil).
+  // eram 4 a 11 mil por quadro; as serras do fundo coluna a coluna, +1,4 mil; hoje, com as auras da skill de tipo e os
+  // terços do minimapa, o máximo fica perto de 4,1 mil; 8 auras no mesmo quadro somariam ~150 a mais).
   if (quer('teto')) {
     const TETO = { fillRect: 4500, drawImage: 300 }
     const pg = await newPage(browser, { width: 1280, height: 800 }, 'teto-desenho', { query: '?dev=1' })
@@ -1103,7 +1104,7 @@ try {
             s.phase = 'corrida'; s.simT = T; s.tReal = T * 0.3; s.last = 0; s.flash = 0; s.winnerSeen = true; s.mult = 1
             nomes.forEach((n) => { cont[n] = 0 })
             desenha(1)
-            por.push({ T, fillRect: cont.fillRect, drawImage: cont.drawImage })
+            por.push({ T, fillRect: cont.fillRect, drawImage: cont.drawImage, auras: window.RaceFx._stats.auras })
           }
         } finally { nomes.forEach((n) => { P[n] = orig[n] }); rv.frame = desenha }
         return { por, canvas: [s.W, s.H, s.S] }
@@ -1112,7 +1113,10 @@ try {
       const med = (k) => { const v = r.por.map((q) => q[k]).sort((a, b) => a - b); return v[v.length >> 1] }
       notes.tetoDesenho = { canvas: r.canvas, quadros: r.por.length, fillRect: { med: med('fillRect'), max: max('fillRect').fillRect, em: max('fillRect').T },
         drawImage: { med: med('drawImage'), max: max('drawImage').drawImage, em: max('drawImage').T }, teto: TETO, tempo }
+      notes.tetoDesenho.auras = { max: max('auras').auras, quadrosCom: r.por.filter((q) => q.auras > 0).length, noPiorQuadro: max('fillRect').auras }
       if (r.por.length < 30) problems.push('teto-desenho: poucos quadros amostrados ' + r.por.length)
+      // a skill de tipo (aura do terço) entra na conta: o pior caso tem de ter auras ligadas
+      if (!(max('auras').auras >= 3)) problems.push('teto-desenho: o pior caso não mediu com as auras da skill de tipo ' + JSON.stringify(notes.tetoDesenho.auras))
       for (const k of Object.keys(TETO)) {
         const m = max(k)
         if (m[k] > TETO[k]) problems.push(`teto-desenho: ${m[k]} ${k} num quadro (simT ${m.T} s) > teto ${TETO[k]} — algum desenho ficou caro de novo`)
@@ -1445,6 +1449,229 @@ try {
       }
       await ini.context().close()
     }
+  }
+
+  // ---------------- skill de tipo na pista (Tarefa 7 do bloco 1 do v3): aura, balão e terços do minimapa ----------------
+  // Corrida DEV (seed 4242, 1600 m) com cavalos dos três tipos. Congela a corrida e desenha à mão em instantes
+  // escolhidos (como o teto): cada cavalo com aura está no terço da própria skill de tipo e todo cavalo visível
+  // nesse terço tem aura; com o pelotão no primeiro terço só os de Fogo, no do meio só os de Grama, no último só
+  // os de Água; o balão com o nome curto entra na entrada de cada terço; o minimapa pinta os três terços; o mesmo
+  // instante desenha o mesmo quadro; em movimento reduzido a aura continua (só o contorno), sem partículas.
+  if (quer('aura')) {
+    const corridaAura = async (vp, label, extra) => {
+      const pg = await newPage(browser, vp, label, { query: '?dev=1', ...extra })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await devArmar(pg, { seed: 4242, distancia: 1600 })
+        await abrirSala(pg)
+        await pg.getByRole('button', { name: /^Largar/ }).click()
+        await pg.waitForSelector('#pista')
+        await pg.waitForFunction(() => window.__galope.race && window.__galope.race._state.phase === 'corrida', null, { timeout: 20000 })
+        const r = await pg.evaluate((fracs) => {
+          const rv = window.__galope.race, s = rv._state, L = window.__galope.ui.lobby, sim = L.sim, FX = window.RaceFx
+          const desenha = rv.frame
+          rv.frame = function () {}
+          const D = L.cond.distance, els = L.racers.map((x) => x.horse.element), me = L.playerIdx
+          const TS = sim.racerInfo.map((x) => x.typeSkill)
+          const quadro = (T) => {
+            s.phase = 'corrida'; s.simT = T; s.tReal = 7; s.last = 0; s.flash = 0; s.winnerSeen = true; s.mult = 1; s.climaTimer = 0
+            desenha(performance.now())
+            const st = FX._stats, fr = sim.frames[Math.min(sim.frames.length - 1, Math.round(T / sim.dt))]
+            return { T, pos: fr.pos.slice(), auras: st.auras, quem: st.tipoAuras.map((a) => ({ ...a })), vis: st.caixasCavalos.map((c) => c.racer),
+              baloes: st.caixasBaloes.map((b) => ({ racer: b.racer, tipo: b.tipo, texto: b.texto, pilha: b.pilha })), tercos: st.tercos, part: st.particulas }
+          }
+          const tDe = (f) => { for (const q of sim.frames) if (q.pos[me] >= f * D) return q.t; return 0 }
+          const amostras = fracs.map((f) => ({ f, ...quadro(tDe(f)) }))
+          // balão na entrada de cada terço: 0,2 s reais depois do evento da skill de tipo
+          const entradas = s.fx.filter((it) => it.typeSkill).map((it) => {
+            const q = quadro(it.t0 + 0.2 * it.escala)
+            return { racer: it.racer, el: it.element, curto: it.nomeCurto, visivel: q.vis.includes(it.racer), balao: q.baloes.find((b) => b.racer === it.racer && b.tipo) || null }
+          })
+          // minimapa: pixels exatos das três cores dos elementos dentro da caixa
+          const cv = document.getElementById('pista'), mc = s.lay.mini, S = s.S
+          const img = cv.getContext('2d').getImageData(mc.x * S, mc.y * S, mc.w * S, mc.h * S).data
+          const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]
+          const mini = {}
+          for (const el of ['fogo', 'grama', 'agua']) {
+            const c = hex(FX.ELEM[el]); let n = 0
+            for (let i = 0; i < img.length; i += 4) if (img[i] === c[0] && img[i + 1] === c[1] && img[i + 2] === c[2]) n++
+            mini[el] = n
+          }
+          // o mesmo instante desenha o mesmo quadro (aura animada pelo relógio da corrida)
+          const hash = () => { const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let h = 0; for (let i = 0; i < d.length; i += 7) h = (Math.imul(h, 31) + d[i]) >>> 0; return h }
+          const tm = tDe(0.5)
+          quadro(tm); const h1 = hash(); quadro(tm + 3); quadro(tm); const h2 = hash()
+          rv.frame = desenha
+          return { D, els, me, TS: TS.map((x) => x && [x.from, x.to]), amostras, entradas, mini, mesmoQuadro: h1 === h2 }
+        }, [0.17, 0.5, 0.83])
+        const zona = (j, p) => r.TS[j] && p >= r.TS[j][0] && p < r.TS[j][1]
+        const esperado = { 0.17: 'fogo', 0.5: 'grama', 0.83: 'agua' }
+        for (const a of r.amostras) {
+          const comAura = a.quem.map((q) => q.racer)
+          if (a.auras !== a.quem.length) problems.push(`[${label}] aura: _stats.auras ${a.auras} ≠ anotadas ${a.quem.length}`)
+          for (const q of a.quem) {
+            if (!zona(q.racer, a.pos[q.racer])) problems.push(`[${label}] aura: raia ${q.racer + 1} (${q.element}) com aura fora do terço em ${a.f} (pos ${a.pos[q.racer].toFixed(1)})`)
+            if (q.element !== r.els[q.racer]) problems.push(`[${label}] aura: elemento trocado na raia ${q.racer + 1}`)
+          }
+          for (const j of a.vis) if (zona(j, a.pos[j]) && !comAura.includes(j)) problems.push(`[${label}] aura: raia ${j + 1} (${r.els[j]}) no terço sem aura em ${a.f}`)
+          const tipos = [...new Set(a.quem.map((q) => q.element))]
+          if (tipos.length !== 1 || tipos[0] !== esperado[a.f]) problems.push(`[${label}] aura: com o pelotão em ${a.f}·D, auras de ${JSON.stringify(tipos)} (esperado só ${esperado[a.f]})`)
+          if (a.tercos !== 3) problems.push(`[${label}] aura: minimapa sem os três terços (${a.tercos})`)
+          if (extra && extra.reducedMotion === 'reduce' && a.part !== 0) problems.push(`[${label}] aura: movimento reduzido com ${a.part} partículas`)
+        }
+        const porEl = {}
+        for (const e of r.entradas) {
+          if (!e.visivel) continue
+          if (!e.balao) problems.push(`[${label}] aura: raia ${e.racer + 1} entrou no terço (${e.el}) sem balão`)
+          else if (e.balao.pilha === 0 && e.balao.texto !== e.curto) problems.push(`[${label}] aura: balão da raia ${e.racer + 1} com "${e.balao.texto}" (esperado ${e.curto})`)
+          if (e.balao) porEl[e.el] = (porEl[e.el] || 0) + 1
+        }
+        for (const el of ['fogo', 'grama', 'agua']) {
+          if (!porEl[el]) problems.push(`[${label}] aura: nenhum balão de skill de tipo de ${el} na entrada do terço ${JSON.stringify(r.entradas)}`)
+          if (!(r.mini[el] > 0)) problems.push(`[${label}] aura: minimapa sem a faixa de ${el} ${JSON.stringify(r.mini)}`)
+        }
+        if (!r.mesmoQuadro) problems.push(`[${label}] aura: o mesmo instante desenhou quadros diferentes`)
+        notes['aura-' + label] = { els: r.els, auras: r.amostras.map((a) => a.f + ':' + a.quem.map((q) => q.racer + 1 + q.element[0]).join(',')), balões: porEl, mini: r.mini }
+        await capT6(pg, label + '.png')
+        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pg.waitForSelector('#t-resultado')
+      } catch (e) {
+        problems.push(`[${label}] aura: ${e.message}`)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    await corridaAura({ width: 1280, height: 800 }, 'aura1280')
+    await corridaAura({ width: 360, height: 780 }, 'aura360-reduzido', { reducedMotion: 'reduce' })
+  }
+
+  // ---------------- Skills visíveis (DEV): balão, faixa central, contorno e "skills sempre ativam" ----------------
+  // Cavalo Raro de Fogo (chance de skill 0,55) com Arranque (largada) e Arrancada Final (reta final, gatilho certo);
+  // a Labareda, skill de tipo do Fogo, entra sozinha em t = 0 junto com o Arranque (sem sorteio). Primeiro acha uma seed em que, SEM armar, as três
+  // não ativam; depois repete a mesma seed armada com "skills sempre ativam" e confere que as três ativam, com
+  // balões presos à raia, faixa central em sequência e contorno da silhueta.
+  if (quer('skills')) {
+    const SK_SEEDS = [301, 302, 303, 304, 305, 306, 307, 308]
+    const preparar = async (pg) => {
+      await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+      await devAbrir(pg)
+      await pg.fill('#dev-nome', 'Skill DEV')
+      await pg.selectOption('#dev-elemento', 'fogo')
+      await pg.selectOption('#dev-raridade', 'raro')
+      await pg.fill('#dev-nivel', '1')
+      const sks = ['arranque', 'arrancada-final', '', '', '']
+      for (let k = 0; k < 5; k++) await pg.selectOption('#dev-skill' + k, sks[k])
+      await pg.locator('[data-acao="dev-criar"]').click()
+      await devFechar(pg)
+    }
+    const largar = async (pg, seed, sempre, primeira) => {
+      await devArmar(pg, { seed, sempre })
+      if (primeira) {
+        await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+        await pg.waitForSelector('#t-correr')
+        await pg.getByRole('button', { name: 'Procurar corrida' }).click()
+      } else {
+        await pg.getByRole('button', { name: /Correr de novo|Treino gratuito/ }).click()
+      }
+      await pg.waitForSelector('#t-largada')
+      await pg.getByRole('button', { name: /^Largar/ }).click()
+      await pg.waitForSelector('#pista')
+    }
+    const skillsDoJogador = (pg) => pg.evaluate(() => {
+      const L = window.__galope.ui.lobby
+      return L.sim.events.filter((e) => e.type === 'skill' && e.racer === L.playerIdx).map((e) => e.text)
+    })
+    const gravador = (pg) => pg.evaluate(() => {
+      const g = window.__sk = { faixas: [], faixasT: [], baloesMax: 0, partMax: 0, baloesTipos: {}, cobriuVoce: 0, forasDaRaia: 0, cruzaOutro: 0, quadros: 0 }
+      const cruza = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+      const tick = () => {
+        const r = window.__galope.race
+        if (!r) return
+        const st = window.RaceFx._stats
+        g.quadros++
+        if (st.faixaSkill && !g.faixas.includes(st.faixaSkill)) { g.faixas.push(st.faixaSkill); g.faixasT.push(r._state.simT) }
+        g.baloesMax = Math.max(g.baloesMax, st.baloes); g.partMax = Math.max(g.partMax, st.particulas)
+        const voce = r._state.voceRect
+        st.caixasBaloes.forEach((b) => {
+          g.baloesTipos[b.kind] = (g.baloesTipos[b.kind] || 0) + 1
+          if (b.tipo) g.baloesTipo = (g.baloesTipo || 0) + 1
+          if (voce && cruza(b, voce)) g.cobriuVoce++
+          if (b.pilha !== 0) return
+          // o balão mais novo fica na faixa vertical da própria raia e não cruza a caixa de nenhum OUTRO cavalo
+          if (b.y < b.y0 || b.y + b.h > b.y1) g.forasDaRaia++
+          const o = st.caixasCavalos.find((c) => c.racer !== b.racer && cruza(b, c))
+          if (o) { g.cruzaOutro++; g.exemplo = g.exemplo || { balao: b, cavalo: o, simT: r._state.simT } }
+        })
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    const skillsNaPista = async (vp, label, shotName, extra) => {
+      const pg = await newPage(browser, vp, label, { query: '?dev=1', ...extra })
+      try {
+        await preparar(pg)
+        // 1) uma seed em que, sem armar, as duas skills não ativam
+        let seed = null, semArmar = null
+        for (let k = 0; k < SK_SEEDS.length; k++) {
+          await largar(pg, SK_SEEDS[k], false, k === 0)
+          semArmar = await skillsDoJogador(pg)
+          await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+          await pg.waitForSelector('#t-resultado')
+          if (semArmar.length < 3) { seed = SK_SEEDS[k]; break }
+        }
+        if (seed == null) { problems.push(`[${label}] skills: nenhuma seed de ${SK_SEEDS} deixa o cavalo Raro sem as três skills`); return }
+        // 2) a mesma seed, armada: as duas ativam
+        await largar(pg, seed, true, false)
+        const armada = await skillsDoJogador(pg)
+        // o Raro tem 3 vagas e só 2 vêm da gaveta: subindo de nível entre as corridas ele pode aprender uma
+        // terceira, que também ativa armada
+        const vagasUsadas = await pg.evaluate(() => { const s = window.__galope.state; return s.mounts.find((m) => m.uid === s.activeId).skills.length })
+        if (armada.length !== 1 + vagasUsadas || !/Arranque/.test(armada.join(' ')) || !/Labareda/.test(armada.join(' ')) || !/Arrancada Final/.test(armada.join(' '))) problems.push(`[${label}] skills: sempre ativam deu ${JSON.stringify(armada)} (sem armar: ${JSON.stringify(semArmar)})`)
+        await gravador(pg)
+        // logo depois da largada: balão + faixa central com o nome da skill do jogador
+        const q = await (await pg.waitForFunction(() => {
+          const st = window.RaceFx._stats, s = window.__galope.race && window.__galope.race._state
+          return st.baloes >= 1 && st.faixaSkill && s ? { baloes: st.baloes, faixa: st.faixaSkill, simT: s.simT, part: st.particulas, ms: st.msQuadro } : false
+        }, null, { timeout: 30000, polling: 'raf' })).jsonValue()
+        await pg.screenshot({ path: join(SHOTS, shotName) })
+        if (!/ARRANQUE|LABAREDA/.test(q.faixa)) problems.push(`[${label}] skills: faixa central ${JSON.stringify(q.faixa)} (esperado ARRANQUE! ou LABAREDA!)`)
+        notes['skills-' + label] = { seed, semArmar: semArmar.length, armada: armada.length, baloes: q.baloes, faixa: q.faixa, simT: +q.simT.toFixed(2), msQuadro: +q.ms.toFixed(2) }
+        // meio do efeito (contorno aceso): 2 s reais depois da largada, a Labareda/Arranque ainda duram
+        await pg.waitForFunction(() => { const s = window.__galope.race && window.__galope.race._state; return s && s.simT >= 0.5 * (s.fx.find((x) => x.kind === 'skill').escala) * 2 && s.simT < 3 * s.fx.find((x) => x.kind === 'skill').escala }, null, { timeout: 30000, polling: 'raf' })
+        await pg.screenshot({ path: join(SHOTS, shotName.replace('.png', '-contorno.png')) })
+        // 3) até a reta final: a terceira skill também aparece
+        await pg.getByRole('button', { name: 'x2' }).click()
+        const fim = await pg.evaluate(() => window.__galope.race._state.fx.filter((x) => x.kind === 'skill').map((x) => ({ t0: x.t0, e: x.escala, icon: x.icon })))
+        const ult = fim[fim.length - 1]
+        await pg.waitForFunction((u) => { const s = window.__galope.race && window.__galope.race._state; return !s || s.simT >= u.t0 + 1.7 * u.e }, ult, { timeout: 90000, polling: 'raf' })
+        const g = await pg.evaluate(() => window.__sk)
+        if (!g.faixas.some((f) => /ARRANCADA FINAL/.test(f))) problems.push(`[${label}] skills: faixa da Arrancada Final nunca apareceu ${JSON.stringify(g.faixas)}`)
+        // Arranque (vaga) e Labareda (skill de tipo) entram juntos em t = 0: as duas faixas, uma depois da outra
+        if (!['ARRANQUE!', 'LABAREDA!'].every((f) => g.faixas.includes(f))) problems.push(`[${label}] skills: as duas skills de t = 0 não ganharam faixa ${JSON.stringify(g.faixas)}`)
+        else {
+          const esc = await pg.evaluate(() => window.__galope.race._state.fx.find((x) => x.kind === 'skill').escala)
+          const t1 = g.faixasT[g.faixas.indexOf('ARRANQUE!')], t2 = g.faixasT[g.faixas.indexOf('LABAREDA!')]
+          if (Math.abs(t2 - t1) < 1.3 * esc) problems.push(`[${label}] skills: faixas das duas skills de t = 0 não entram em sequência (${t1.toFixed(2)} e ${t2.toFixed(2)}, escala ${esc.toFixed(2)})`)
+        }
+        if (!g.baloesTipo) problems.push(`[${label}] skills: a Labareda (skill de tipo) não ganhou balão`)
+        if (g.forasDaRaia) problems.push(`[${label}] skills: balão fora da faixa vertical da própria raia em ${g.forasDaRaia} quadro(s)`)
+        if (g.cruzaOutro) problems.push(`[${label}] skills: balão cruzou a caixa de outro cavalo em ${g.cruzaOutro} quadro(s) ${JSON.stringify(g.exemplo)}`)
+        if (g.cobriuVoce) problems.push(`[${label}] skills: balão cobriu o "◀VOCÊ" em ${g.cobriuVoce} quadro(s)`)
+        if (!g.baloesTipos.skill) problems.push(`[${label}] skills: nenhum balão de skill posicionado ${JSON.stringify(g.baloesTipos)}`)
+        notes['skills-' + label + '-corrida'] = g
+        if (extra && extra.reducedMotion === 'reduce' && g.partMax !== 0) problems.push(`[${label}] skills: movimento reduzido com ${g.partMax} partículas`)
+        if (!(extra && extra.reducedMotion === 'reduce') && !(g.partMax > 0)) problems.push(`[${label}] skills: sem partículas de efeito (vento/faíscas) no modo normal`)
+        await checkOverflow(pg, label)
+        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pg.waitForSelector('#t-resultado')
+      } catch (e) {
+        problems.push(`[${label}] skills: ${e.message}`)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    await skillsNaPista({ width: 390, height: 844 }, 'skills390', 'final-13-skills.png')
+    await skillsNaPista({ width: 390, height: 844 }, 'skills390-reduzido', 'final-13-skills-reduzido.png', { reducedMotion: 'reduce' })
   }
 
   if (!SO.length) {   // o resto do teste (fluxo completo e contextos antigos) só roda sem UI_SO
@@ -2548,129 +2775,6 @@ try {
     }
     await dadoNaPista({ width: 390, height: 844 }, 'dado390', 'final-12-dado.png', true)
     await dadoNaPista({ width: 1280, height: 800 }, 'dado1280', 'final-desktop-dado.png', false)
-  }
-
-  // ---------------- Skills visíveis (DEV): balão, faixa central, contorno e "skills sempre ativam" ----------------
-  // Cavalo Raro de Fogo (chance de skill 0,55) com Arranque (largada) e Arrancada Final (reta final, gatilho certo);
-  // a Labareda, skill de tipo do Fogo, entra sozinha em t = 0 junto com o Arranque (sem sorteio). Primeiro acha uma seed em que, SEM armar, as três
-  // não ativam; depois repete a mesma seed armada com "skills sempre ativam" e confere que as três ativam, com
-  // balões presos à raia, faixa central em sequência e contorno da silhueta.
-  {
-    const SK_SEEDS = [301, 302, 303, 304, 305, 306, 307, 308]
-    const preparar = async (pg) => {
-      await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
-      await devAbrir(pg)
-      await pg.fill('#dev-nome', 'Skill DEV')
-      await pg.selectOption('#dev-elemento', 'fogo')
-      await pg.selectOption('#dev-raridade', 'raro')
-      await pg.fill('#dev-nivel', '1')
-      const sks = ['arranque', 'arrancada-final', '', '', '']
-      for (let k = 0; k < 5; k++) await pg.selectOption('#dev-skill' + k, sks[k])
-      await pg.locator('[data-acao="dev-criar"]').click()
-      await devFechar(pg)
-    }
-    const largar = async (pg, seed, sempre, primeira) => {
-      await devArmar(pg, { seed, sempre })
-      if (primeira) {
-        await pg.locator('[data-acao="aba"][data-id="correr"]').click()
-        await pg.waitForSelector('#t-correr')
-        await pg.getByRole('button', { name: 'Procurar corrida' }).click()
-      } else {
-        await pg.getByRole('button', { name: /Correr de novo|Treino gratuito/ }).click()
-      }
-      await pg.waitForSelector('#t-largada')
-      await pg.getByRole('button', { name: /^Largar/ }).click()
-      await pg.waitForSelector('#pista')
-    }
-    const skillsDoJogador = (pg) => pg.evaluate(() => {
-      const L = window.__galope.ui.lobby
-      return L.sim.events.filter((e) => e.type === 'skill' && e.racer === L.playerIdx).map((e) => e.text)
-    })
-    const gravador = (pg) => pg.evaluate(() => {
-      const g = window.__sk = { faixas: [], faixasT: [], baloesMax: 0, partMax: 0, baloesTipos: {}, cobriuVoce: 0, forasDaRaia: 0, cruzaOutro: 0, quadros: 0 }
-      const cruza = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
-      const tick = () => {
-        const r = window.__galope.race
-        if (!r) return
-        const st = window.RaceFx._stats
-        g.quadros++
-        if (st.faixaSkill && !g.faixas.includes(st.faixaSkill)) { g.faixas.push(st.faixaSkill); g.faixasT.push(r._state.simT) }
-        g.baloesMax = Math.max(g.baloesMax, st.baloes); g.partMax = Math.max(g.partMax, st.particulas)
-        const voce = r._state.voceRect
-        st.caixasBaloes.forEach((b) => {
-          g.baloesTipos[b.kind] = (g.baloesTipos[b.kind] || 0) + 1
-          if (voce && cruza(b, voce)) g.cobriuVoce++
-          if (b.pilha !== 0) return
-          // o balão mais novo fica na faixa vertical da própria raia e não cruza a caixa de nenhum OUTRO cavalo
-          if (b.y < b.y0 || b.y + b.h > b.y1) g.forasDaRaia++
-          const o = st.caixasCavalos.find((c) => c.racer !== b.racer && cruza(b, c))
-          if (o) { g.cruzaOutro++; g.exemplo = g.exemplo || { balao: b, cavalo: o, simT: r._state.simT } }
-        })
-        requestAnimationFrame(tick)
-      }
-      requestAnimationFrame(tick)
-    })
-    const skillsNaPista = async (vp, label, shotName, extra) => {
-      const pg = await newPage(browser, vp, label, { query: '?dev=1', ...extra })
-      try {
-        await preparar(pg)
-        // 1) uma seed em que, sem armar, as duas skills não ativam
-        let seed = null, semArmar = null
-        for (let k = 0; k < SK_SEEDS.length; k++) {
-          await largar(pg, SK_SEEDS[k], false, k === 0)
-          semArmar = await skillsDoJogador(pg)
-          await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
-          await pg.waitForSelector('#t-resultado')
-          if (semArmar.length < 3) { seed = SK_SEEDS[k]; break }
-        }
-        if (seed == null) { problems.push(`[${label}] skills: nenhuma seed de ${SK_SEEDS} deixa o cavalo Raro sem as três skills`); return }
-        // 2) a mesma seed, armada: as duas ativam
-        await largar(pg, seed, true, false)
-        const armada = await skillsDoJogador(pg)
-        // o Raro tem 3 vagas e só 2 vêm da gaveta: subindo de nível entre as corridas ele pode aprender uma
-        // terceira, que também ativa armada
-        const vagasUsadas = await pg.evaluate(() => { const s = window.__galope.state; return s.mounts.find((m) => m.uid === s.activeId).skills.length })
-        if (armada.length !== 1 + vagasUsadas || !/Arranque/.test(armada.join(' ')) || !/Labareda/.test(armada.join(' ')) || !/Arrancada Final/.test(armada.join(' '))) problems.push(`[${label}] skills: sempre ativam deu ${JSON.stringify(armada)} (sem armar: ${JSON.stringify(semArmar)})`)
-        await gravador(pg)
-        // logo depois da largada: balão + faixa central com o nome da skill do jogador
-        const q = await (await pg.waitForFunction(() => {
-          const st = window.RaceFx._stats, s = window.__galope.race && window.__galope.race._state
-          return st.baloes >= 1 && st.faixaSkill && s ? { baloes: st.baloes, faixa: st.faixaSkill, simT: s.simT, part: st.particulas, ms: st.msQuadro } : false
-        }, null, { timeout: 30000, polling: 'raf' })).jsonValue()
-        await pg.screenshot({ path: join(SHOTS, shotName) })
-        if (!/ARRANQUE|LABAREDA/.test(q.faixa)) problems.push(`[${label}] skills: faixa central ${JSON.stringify(q.faixa)} (esperado ARRANQUE! ou LABAREDA!)`)
-        notes['skills-' + label] = { seed, semArmar: semArmar.length, armada: armada.length, baloes: q.baloes, faixa: q.faixa, simT: +q.simT.toFixed(2), msQuadro: +q.ms.toFixed(2) }
-        // meio do efeito (contorno aceso): 2 s reais depois da largada, a Labareda/Arranque ainda duram
-        await pg.waitForFunction(() => { const s = window.__galope.race && window.__galope.race._state; return s && s.simT >= 0.5 * (s.fx.find((x) => x.kind === 'skill').escala) * 2 && s.simT < 3 * s.fx.find((x) => x.kind === 'skill').escala }, null, { timeout: 30000, polling: 'raf' })
-        await pg.screenshot({ path: join(SHOTS, shotName.replace('.png', '-contorno.png')) })
-        // 3) até a reta final: a terceira skill também aparece
-        await pg.getByRole('button', { name: 'x2' }).click()
-        const fim = await pg.evaluate(() => window.__galope.race._state.fx.filter((x) => x.kind === 'skill').map((x) => ({ t0: x.t0, e: x.escala, icon: x.icon })))
-        const ult = fim[fim.length - 1]
-        await pg.waitForFunction((u) => { const s = window.__galope.race && window.__galope.race._state; return !s || s.simT >= u.t0 + 1.7 * u.e }, ult, { timeout: 90000, polling: 'raf' })
-        const g = await pg.evaluate(() => window.__sk)
-        if (!g.faixas.some((f) => /ARRANCADA FINAL/.test(f))) problems.push(`[${label}] skills: faixa da Arrancada Final nunca apareceu ${JSON.stringify(g.faixas)}`)
-        // (a Labareda, skill de tipo, ainda não ganha balão nem faixa: a apresentação dela na pista vem depois; até
-        // lá não há duas skills de vaga com gatilho em t = 0, e a conferência das faixas em sequência fica de fora)
-        if (!g.faixas.includes('ARRANQUE!')) problems.push(`[${label}] skills: o Arranque (t = 0) não ganhou faixa ${JSON.stringify(g.faixas)}`)
-        if (g.forasDaRaia) problems.push(`[${label}] skills: balão fora da faixa vertical da própria raia em ${g.forasDaRaia} quadro(s)`)
-        if (g.cruzaOutro) problems.push(`[${label}] skills: balão cruzou a caixa de outro cavalo em ${g.cruzaOutro} quadro(s) ${JSON.stringify(g.exemplo)}`)
-        if (g.cobriuVoce) problems.push(`[${label}] skills: balão cobriu o "◀VOCÊ" em ${g.cobriuVoce} quadro(s)`)
-        if (!g.baloesTipos.skill) problems.push(`[${label}] skills: nenhum balão de skill posicionado ${JSON.stringify(g.baloesTipos)}`)
-        notes['skills-' + label + '-corrida'] = g
-        if (extra && extra.reducedMotion === 'reduce' && g.partMax !== 0) problems.push(`[${label}] skills: movimento reduzido com ${g.partMax} partículas`)
-        if (!(extra && extra.reducedMotion === 'reduce') && !(g.partMax > 0)) problems.push(`[${label}] skills: sem partículas de efeito (vento/faíscas) no modo normal`)
-        await checkOverflow(pg, label)
-        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
-        await pg.waitForSelector('#t-resultado')
-      } catch (e) {
-        problems.push(`[${label}] skills: ${e.message}`)
-      } finally {
-        await pg.context().close()
-      }
-    }
-    await skillsNaPista({ width: 390, height: 844 }, 'skills390', 'final-13-skills.png')
-    await skillsNaPista({ width: 390, height: 844 }, 'skills390-reduzido', 'final-13-skills-reduzido.png', { reducedMotion: 'reduce' })
   }
 
   // ---------------- Natureza, vento e opção "Animações" (Task 5) ----------------

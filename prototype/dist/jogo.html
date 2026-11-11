@@ -5200,6 +5200,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *                (racers[i].horse.skills). element = o da skill; no desenho, 'geral' usa o elemento do
  *                cavalo (campo cavalo). clima = 'sol'|'chuva'|'nevoa' (do trigger weather:*) para o ícone.
  *                silks e raia (1..n) vêm de racers e servem ao balão (borda e número na cor da raia).
+ *       'skill' com typeSkill: true — um por evento de skill de TIPO (ev.typeSkill, entrada no terço): o
+ *              balão (e a faixa central do jogador) dessa entrada. skillId/nome = GameData.TYPE_SKILLS do corredor
+ *              (achada pelo id de sim.racerInfo[i].typeSkill; sem id, pelo elemento do cavalo), nomeCurto = o
+ *              `short` do catálogo, element = o tipo, icon = 'chama' | 'folha' | 'onda', from/to = o terço (m),
+ *              t1 = t0 + 1.5·escala. Corredor sem racerInfo.typeSkill: nenhum item. A tela não usa esse item
+ *              para contorno nem rastro: o efeito do terço inteiro é a drawTypeAura (pela typeZone).
  *       'garra' { t0: ev.t, t1: finishTime + 0.6, racer, icon, element, silks, raia, escala }   — um por evento 'garra'.
  *       'cansou' { t0: ev.t, t1: t0 + 1.5·escala, racer, silks, raia, escala }   — um por evento 'cansou'.
  *     Balão, faixa central do jogador e "CANSOU" duram 1.5·escala a partir de t0 (BALAO.dur).
@@ -5209,7 +5215,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     reprodução (sim.duration / duração real alvo, ~3,6–4,8). Em segundos reais (x1): câmera lenta
  *     ~2 s, giro ~1 s, novo giro até 0,6 s, brilho do vencedor ~2 s e faixa ~3,6 s (spec §5).
  *
- *   RaceFx.skillIcon(skill) -> 'vel'|'ace'|'folego'|'curva'|'subida'|'dado'|'clima'|'garra'
+ *   RaceFx.skillIcon(skill) -> 'vel'|'ace'|'folego'|'curva'|'subida'|'dado'|'clima'|'garra' (os itens de skill de
+ *     tipo usam 'chama' | 'folha' | 'onda', desenhados como os outros ícones de 8×8)
  *     Primeira chave presente em skill.effect, nesta ordem: speedMult→vel, accelMult→ace,
  *     staminaRestore→folego, drainMult(<1)→folego, curveBonus→curva, hillBonus→subida,
  *     hillDrainMult→subida, extraDice→dado, weatherDouble→clima, garraChanceBonus→garra,
@@ -5217,6 +5224,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   RaceFx.nomeCurto(nome, short) -> texto do balão: o nome inteiro em maiúsculas se couber em 12
  *     letras; senão o campo opcional `short` do catálogo (data.js), ou, sem ele, o nome cortado
  *     em palavras inteiras seguidas de "." na última que sobrar.
+ *   RaceFx.typeZone(typeSkill, pos) -> fração (0..1) já percorrida do terço [from, to) da skill de tipo
+ *     (sim.racerInfo[i].typeSkill = { id, name, from, to }, metros fracionários) no metro pos, ou null fora
+ *     dele, sem skill de tipo ou com dado torto (from/to não numéricos, to ≤ from, pos inválido).
+ *   RaceFx.ELEM -> cores claras dos elementos (balão, contorno, aura e terços do minimapa).
  *   RaceFx.iconeDe(item) -> nome do ícone desenhado: item.icon, mas 'clima' vira 'sol'|'gota'|'nevoa'
  *     pelo trigger da skill (weather:sol, weather:chuva, weather:nevoa).
  *
@@ -5301,6 +5312,17 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     em px do canvas. Linhas de vento atrás para vel/ace/Garra; "+" verde para folego; faíscas nos
  *     cascos para curva. Em reduced não desenha nada (são partículas); o contorno vem do glow.
  *
+ *   RaceFx.drawTypeAura(ctx, elemento, x, y, escala, t, reduzido) -> true se desenhou (conta em _stats.auras).
+ *     Aura da skill de tipo enquanto o cavalo está no terço (a tela chama quando typeZone ≠ null, fora da
+ *     contagem, ANTES do anel dourado e do cavalo: nada cobre o cavalo, o jóquei, o número da raia ou os balões).
+ *     (x, y) = canto do sprite em px do canvas (o de Sprites.drawHorse), escala = px do canvas por pixel de arte,
+ *     t = relógio em segundos de apresentação (a tela passa simT / escala de reprodução + 0,37·raia). Só
+ *     fillRect de cor sólida em pixels de arte inteiros; nada de alfa, gradiente, arco, Math.random ou Date
+ *     (tremor das chamas pelo hash). Sempre um contorno parado no chão em volta dos cascos (4 retângulos na
+ *     cor do elemento); fora do reduzido, por cima dele: Fogo = 5 chamas que nascem nos cascos e ficam para
+ *     trás + 2 brasas; Grama = raízes sob os cascos, brotos e folhas 3×3 subindo atrás; Água = onda alta atrás
+ *     do casco de trás (crista que sobe e desce, espuma), marolas e gotas. No máximo 30 fillRect (AURA.max).
+ *     Elemento sem skill de tipo (neutro, geral, desconhecido): false, nada desenhado.
  *   RaceFx.drawNature(ctx, o) — natureza por clima, função de o.t (segundos reais), do índice e da seed
  *     (nada sorteado com estado). o = { weather, wind, t, W, H, P, laneTop, trackBottom, reduced, seed,
  *     cam, camada, lift, surface }: W×H e P em px do canvas; cam = px que a câmera andou (respingos presos ao chão);
@@ -5325,22 +5347,28 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     de arte; P = pixels do canvas por pixel de arte), linha de opts.linha (2 ou 3) pixels de arte em pixels
  *     inteiros; retas na cor opts.piso, curvas e subidas na cor do tipo (GameData.BLOCK_TYPES); largada =
  *     quadrado claro com borda escura, chegada = xadrez com borda; opts.fundo pinta a caixa antes.
+ *     opts.tercos = [{ from, to, cor }] (metros): faixa fina por baixo da linha (linha + 2, 1 pixel de arte
+ *     para cada lado), na cor de cada trecho.
  *   RaceFx.drawMiniMap(ctx, path, posM, cores, me, box) -> [{ racer, x, y, tam, contorno }] (pixels de arte)
- *     Minimapa do HUD: o traçado (linha 2) e um ponto por cavalo no metro posM[j] na cor cores[j] — 2×2 com
- *     borda escura (não some sobre a linha da mesma cor); o seu (me) 3×3 com contorno claro, por cima.
- *     box = { x, y, w, h, P, piso, fundo }. Marca _stats.minimapa.
+ *     Minimapa do HUD: os três terços das skills de tipo (TYPE_SKILLS.zone × D, Fogo, Grama, Água na ordem da
+ *     pista) numa faixa fina na cor de cada tipo por baixo do traçado (linha 2) e um ponto por cavalo no metro
+ *     posM[j] na cor cores[j] — 2×2 com borda escura (não some sobre a linha da mesma cor); o seu (me) 3×3 com
+ *     contorno claro, por cima. box = { x, y, w, h, P, piso, fundo }. Marca _stats.minimapa e _stats.tercos.
  *   RaceFx.drawHoofDust(ctx, x, y, S, t, surface, reduced) -> nº de nuvenzinhas (0 fora de terra/areia):
  *     (x, y) = âncora rear do cavalo no chão; a nuvenzinha nasce atrás (x − 1 px de arte) e vai até x − 9,
  *     com o alfa cheio até a metade da vida; tom e alfa por piso (RaceFx.POEIRA), na areia com 1 px de
  *     borda mais escura. 3 por cavalo, 1 em reduced. A tela não chama na chuva.
  *
  *   RaceFx._stats = { dados, faixaDado, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
- *                     natureza, ventoHud, minimapa }
+ *                     natureza, ventoHud, minimapa, auras, tipoAuras, tercos }
+ *     auras = auras de skill de tipo desenhadas no quadro (drawTypeAura; não entram em particulas);
+ *     tipoAuras = [{ racer, element }] dessas auras (a tela anota); tercos = trechos pintados no minimapa (3).
  *     natureza = { pingos, respingos, relampago, raios, calor, nevoa, nevoaFrente, sombras, folhas, poeiraCascos }
  *     do quadro (não entra em particulas, que é só dos efeitos de skill e do Dado); ventoHud = 'texto' |
  *     'icone' | '' (o selo de vento que a tela desenhou no HUD); minimapa = true se o minimapa foi desenhado.
  *     faixaSkill = texto da faixa central desenhada no quadro ('' se não há); caixasBaloes = [{ racer,
- *     kind, pilha, x, y, w, h, y0, y1 }] dos balões posicionados (pixels de arte; y0..y1 = faixa vertical da
+ *     kind, tipo, texto, pilha, x, y, w, h, y0, y1 }] dos balões posicionados (tipo = skill de tipo; texto = o nome
+ *     curto no balão de texto, '' nos compactos) (pixels de arte; y0..y1 = faixa vertical da
  *     raia) e caixasCavalos = [{ racer, x, y, w, h }] dos cavalos visíveis. A tela anota os três.
  *     Contadores do quadro atual (zerados por beginFrame) para o ui-test: dados desenhados, faixa
  *     visível, balões, partículas, e placas = [{ racer, numero, vencedor, fase }]
@@ -5523,6 +5551,28 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return fim != null ? fim - ev.t : BALAO.efeitoMax;
   }
 
+  // ---- skill de tipo ---------------------------------------------------------------------------
+  var ICONE_TIPO = { fogo: 'chama', grama: 'folha', agua: 'onda' };
+  // a skill de tipo de um corredor: o terço vem da simulação (racerInfo[i].typeSkill) e o nome curto e o
+  // elemento, do catálogo (GameData.TYPE_SKILLS, achado pelo id; sem id conhecido, pelo elemento do cavalo)
+  function tipoDoCorredor(sim, i, horse) {
+    var info = sim && sim.racerInfo && sim.racerInfo[i] && sim.racerInfo[i].typeSkill;
+    if (!info) return null;
+    var g = gameData(), cat = (g && g.TYPE_SKILLS) || {}, el = null;
+    for (var k in cat) if (Object.prototype.hasOwnProperty.call(cat, k) && cat[k].id === info.id) el = k;
+    if (!el && horse && cat[horse.element]) el = horse.element;
+    if (!el) return null;
+    return { el: el, id: cat[el].id, name: info.name || cat[el].name, short: cat[el].short, from: info.from, to: info.to };
+  }
+  // fração percorrida do terço [from, to) no metro pos, ou null fora dele (ou sem skill de tipo)
+  function typeZone(ts, pos) {
+    if (!ts) return null;
+    var a = ts.from, b = ts.to;
+    if (typeof a !== 'number' || typeof b !== 'number' || !isFinite(a) || !isFinite(b) || !(b > a)) return null;
+    if (typeof pos !== 'number' || !(pos >= a) || !(pos < b)) return null;
+    return (pos - a) / (b - a);
+  }
+
   function timeline(sim, racers, escala) {
     var e = escala > 0 ? escala : 1;
     var out = [];
@@ -5534,6 +5584,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         out.push({
           kind: 'dado', t0: ev.t, t1: ev.t + DADO.dur * e, racer: ev.winner, winner: ev.winner,
           rolls: copiaRolls(ev.rolls), changed: !!ev.changed, weather: ev.weather, escala: e
+        });
+      } else if (ev.type === 'skill' && ev.typeSkill) {
+        // skill de tipo: sempre ativa no terço; o item é só o balão (e a faixa do jogador) da entrada. A aura
+        // do terço inteiro é a drawTypeAura, que a tela chama pela posição (typeZone).
+        var rT = racers && racers[ev.racer], hT = rT && rT.horse;
+        var tp = tipoDoCorredor(sim, ev.racer, hT);
+        if (!tp) continue;
+        out.push({
+          kind: 'skill', typeSkill: true, t0: ev.t, t1: ev.t + BALAO.efeitoMin * e, racer: ev.racer, skillId: tp.id,
+          icon: ICONE_TIPO[tp.el] || 'vel', clima: '', element: tp.el, cavalo: (hT && hT.element) || tp.el,
+          nome: tp.name, nomeCurto: nomeCurto(tp.name, tp.short), from: tp.from, to: tp.to,
+          silks: (rT && rT.silks) || null, raia: ev.racer + 1, escala: e
         });
       } else if (ev.type === 'skill') {
         var r = racers && racers[ev.racer], horse = r && r.horse;
@@ -5845,7 +5907,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return { pingos: 0, respingos: 0, relampago: 0, raios: 0, calor: 0, nevoa: 0, nevoaFrente: 0, sombras: 0, folhas: 0, poeiraCascos: 0 };
   }
   var stats = { dados: 0, faixaDado: false, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [],
-    natureza: novaNatureza(), ventoHud: '', minimapa: false };
+    natureza: novaNatureza(), ventoHud: '', minimapa: false, auras: 0, tipoAuras: [], tercos: 0 };
   var JANELA_MS = 60, amostras = [], somaMs = 0, intervalos = [], ultimoQuadro = null;
   // intervalo real entre quadros (mediana e p95 da janela), calculado só quando alguém lê
   Object.defineProperty(stats, 'intervalo', { enumerable: true, get: function () {
@@ -5855,7 +5917,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   } });
   function beginFrame() {
     stats.dados = 0; stats.faixaDado = false; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = [];
-    stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false;
+    stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false; stats.auras = 0; stats.tipoAuras = []; stats.tercos = 0;
   }
   function endFrame(ms, agora) {
     if (agora != null && isFinite(agora)) {
@@ -6021,7 +6083,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     garra:  ['...#..#.', '..#..#..', '..#..#.#', '.#..#..#', '.#..#.#.', '#..#..#.', '#..#.#..', '........'],
     sol:    ['#..#..#.', '.#.##.#.', '..####..', '#.####.#', '#.####.#', '..####..', '.#.##.#.', '#..#..#.'],
     nevoa:  ['........', '.##.##..', '#######.', '........', '.######.', '........', '######..', '........'],
-    gota:   ['...#....', '...#....', '..###...', '.#####..', '.#####..', '.#####..', '..###...', '........']
+    gota:   ['...#....', '...#....', '..###...', '.#####..', '.#####..', '.#####..', '..###...', '........'],
+    // skills de tipo: chama (Labareda), folha (Raízes Firmes), onda (Maré Alta)
+    chama:  ['...#....', '..##....', '..###.#.', '.####.#.', '.######.', '########', '.######.', '..####..'],
+    folha:  ['.....###', '...#####', '..######', '.######.', '.####.#.', '.##.##..', '.#.#....', '#.......'],
+    onda:   ['........', '..###...', '.#...#..', '#..#..#.', '..###..#', '.......#', '##..##..', '..##..##']
   };
   function desenhaIcone(ctx, nome, x, y, S, cor) {
     var rows = ICONES[nome] || ICONES.vel;
@@ -6150,6 +6216,106 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       }
     }
     ctx.globalAlpha = prev;
+    return true;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Skill de tipo: aura do terço inteiro (chamas nos cascos, folhas e raízes por baixo, onda atrás).
+  // Pixels de arte relativos ao canto do sprite (0..39 × 0..31, cascos na linha AURA.chao = Sprites.FOOT_Y);
+  // a tela desenha ANTES do cavalo e do anel dourado do jogador, então nada cobre o cavalo, o jóquei, o
+  // número da raia nem os balões. Só fillRect de cor sólida (nada de alfa, gradiente ou arco).
+  // ---------------------------------------------------------------------------
+  var AURA = {
+    chao: 31, max: 30,
+    fogo: { cerne: '#ffe27a', ponta: '#e8492b' },
+    grama: { raiz: '#5a3a1a', raizClara: '#9a7840', folha: '#dcfa9c', folhaEscura: '#24501a' },
+    agua: { fundo: '#2f7fd0', espuma: '#eaf7ff', gota: '#bfe6ff' }
+  };
+  // contorno no chão, em volta dos cascos (o que fica em movimento reduzido): 4 retângulos parados
+  function auraContorno(R, cor) {
+    var g = AURA.chao;
+    R(8, g - 1, 24, 1, cor); R(8, g + 2, 24, 1, cor);
+    R(6, g, 2, 2, cor); R(32, g, 2, 2, cor);
+  }
+  // Fogo: 5 chamas que nascem nos cascos da frente e ficam para trás (até ~16 px atrás do cavalo),
+  // encolhendo; cada uma com base larga, ponta estreita, miolo amarelo e uma faísca vermelha; 2 brasas
+  function auraFogo(R, t) {
+    var g = AURA.chao, c = AURA.fogo, k, ph;
+    for (k = 0; k < 5; k++) {
+      var u = t * 1.5 + k / 5;
+      ph = frac(u);
+      var tremor = hash(k * 977 + Math.floor(t * 9) * 131 + Math.floor(u) * 7);
+      var x = 28 - Math.round(ph * 44), h = Math.max(3, Math.round((1 - ph) * 7 + 2 + tremor * 2));
+      R(x, g - h + 3, 4, h - 2, ELEM.fogo);                   // corpo (base larga)
+      R(x + 1, g - h + 1, 2, 2, ELEM.fogo);                   // ponta estreita
+      if (h >= 5) R(x + 1, g - h + 4, 2, h - 4, c.cerne);     // miolo
+      R(x + (tremor < 0.5 ? 1 : 2), g - h, 1, 1, c.ponta);    // faísca na ponta
+    }
+    for (k = 0; k < 2; k++) {
+      ph = frac(t * 1.1 + k * 0.5);
+      if (ph > 0.7) continue;
+      R(2 - k * 10 - Math.round(ph * 8), g - 9 - Math.round(ph * 8), 1, 1, c.cerne);
+    }
+  }
+  // Grama: raízes sob os cascos (crescem e encolhem), brotos que nascem nos cascos e ficam para trás e folhas
+  // de 2×2 subindo em espiral atrás do cavalo
+  function auraGrama(R, t) {
+    var g = AURA.chao, c = AURA.grama, k, ph, xs = [10, 19, 28];
+    for (k = 0; k < 3; k++) {
+      var L = Math.max(1, Math.min(3, 2 + Math.round(Math.sin(t * 2.2 + k * 2.1))));
+      R(xs[k], g + 1, 1, L, c.raiz);
+      R(xs[k] + (k % 2 ? 1 : -1), g + 2, 1, 1, c.raizClara);
+    }
+    for (k = 0; k < 3; k++) {
+      ph = frac(t * 1.3 + k / 3);
+      var bx = 26 - Math.round(ph * 36), bh = 2 + Math.round(Math.sin(ph * Math.PI) * 5);
+      R(bx, g - bh + 1, 1, bh, ELEM.grama);
+      if (bh >= 3) R(bx + 1, g - bh + 3, 1, bh - 2, c.folhaEscura);
+    }
+    for (k = 0; k < 5; k++) {
+      ph = frac(t * 0.8 + k / 5);
+      if (ph > 0.85) continue;
+      var fx = 4 - k * 3 - Math.round(ph * 12) + Math.round(Math.sin(ph * 2 * Math.PI + k) * 3);
+      var fy = g - 3 - Math.round(ph * 18), q = (Math.floor(t * 5) + k) % 2;
+      R(fx, fy, 3, 3, c.folhaEscura);                         // folha virando: escura com o lado claro
+      R(fx + q, fy + q, 2, 2, c.folha);
+    }
+  }
+  // Água: uma onda alta que corre atrás do casco de trás (crista subindo e descendo e se curvando para o
+  // cavalo, espuma), marolas que ficam para trás e 3 gotas
+  function auraAgua(R, t) {
+    var g = AURA.chao, c = AURA.agua, k, ph;
+    var b = Math.round(Math.sin(t * 5)), o = Math.round(frac(t * 1.2) * 4);
+    R(-18, g - 2, 24, 3, c.fundo);
+    R(-11, g - 5, 14, 3, ELEM.agua);
+    R(-6, g - 8 + b, 10, 3, ELEM.agua);
+    R(-3, g - 11 + b, 7, 3, ELEM.agua);
+    R(1, g - 13 + b, 5, 2, ELEM.agua);                        // a crista se curva para o cavalo
+    R(-1, g - 12 + b, 3, 1, c.espuma);
+    R(4, g - 14 + b, 3, 1, c.espuma);
+    R(-6, g - 9 + b, 3, 1, c.espuma);
+    R(-11, g - 6, 4, 1, c.espuma);
+    R(-17, g - 3, 4, 1, c.espuma);
+    R(-26 - o, g - 1, 6, 2, ELEM.agua);
+    R(-33 - o, g, 5, 1, c.fundo);
+    for (k = 0; k < 3; k++) {
+      ph = frac(t * 1.5 + k / 3);
+      if (ph > 0.8) continue;
+      R(5 - k * 4 - Math.round(ph * 9), g - 14 + b - Math.round(Math.sin(ph * Math.PI) * 5), 1, 1, c.gota);
+    }
+  }
+  var AURA_DESENHO = { fogo: auraFogo, grama: auraGrama, agua: auraAgua };
+  // (x, y) = canto do sprite em px do canvas (o mesmo de Sprites.drawHorse), escala = px do canvas por pixel
+  // de arte, t = relógio (segundos de apresentação; a tela soma um deslocamento por raia). Em reduzido, só o
+  // contorno. true se desenhou (e conta em _stats.auras); elemento sem skill de tipo: false, nada desenhado.
+  function drawTypeAura(ctx, elemento, x, y, escala, t, reduzido) {
+    var desenho = AURA_DESENHO[elemento];
+    if (!ctx || !desenho || !Object.prototype.hasOwnProperty.call(AURA_DESENHO, elemento)) return false;
+    var S = escala > 0 ? escala : 1, tt = isFinite(t) ? t : 0;
+    function R(dx, dy, w, h, col) { ctx.fillStyle = col; ctx.fillRect(x + dx * S, y + dy * S, w * S, h * S); }
+    auraContorno(R, ELEM[elemento]);
+    if (!reduzido) desenho(R, tt);
+    stats.auras++;
     return true;
   }
 
@@ -6491,6 +6657,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var enc = encaixe(path, box, folga), pts = path.pts, ult = {};
     function X(q) { return enc.ox + q[0] * enc.s; }
     function Y(q) { return enc.oy + q[1] * enc.s; }
+    // faixa fina por baixo da linha (t + 2: 1 pixel de arte para cada lado), na cor de cada trecho de opts.tercos
+    var faixas = opts.tercos || [], ultF = {};
+    if (faixas.length && path.ms) {
+      for (var f = 0; f + 1 < pts.length; f++) {
+        var mm = (path.ms[f] + path.ms[f + 1]) / 2, corF = null;
+        for (var z = 0; z < faixas.length; z++) if (mm >= faixas[z].from && mm < faixas[z].to) corF = faixas[z].cor;
+        if (corF) carimbos(ctx, P, X(pts[f]), Y(pts[f]), X(pts[f + 1]), Y(pts[f + 1]), t + 2, corF, ultF);
+      }
+    }
     for (var g = 0; g < path.segs.length; g++) {
       var sg = path.segs[g], cor = corBloco(sg.type, opts.piso);
       for (var k = sg.i0; k < sg.i1; k++) carimbos(ctx, P, X(pts[k]), Y(pts[k]), X(pts[k + 1]), Y(pts[k + 1]), t, cor, ult);
@@ -6513,9 +6688,22 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   //   O traçado (linha 2) e um ponto por cavalo no metro posM[j], na cor da raia (cores[j]): 2×2 com borda
   //   escura de 1 px (não some sobre a linha da mesma cor); o seu (me) é 3×3 com contorno claro e vem por
   //   último. box = { x, y, w, h, P, piso, fundo } como no drawTrackMap. Marca _stats.minimapa.
+  // os terços das skills de tipo (GameData.TYPE_SKILLS: zone × D) na cor de cada elemento, na ordem da pista
+  function tercosDaPista(D) {
+    var g = gameData(), cat = (g && g.TYPE_SKILLS) || {}, out = [];
+    if (!(D > 0)) return out;
+    for (var el in cat) {
+      if (!Object.prototype.hasOwnProperty.call(cat, el) || !ELEM[el] || !cat[el].zone) continue;
+      out.push({ from: cat[el].zone[0] * D, to: cat[el].zone[1] * D + (cat[el].zone[1] >= 1 ? EPS : 0), cor: ELEM[el], element: el });
+    }
+    out.sort(function (a, b) { return a.from - b.from; });
+    return out;
+  }
   function drawMiniMap(ctx, path, posM, cores, me, box) {
     var P = box.P || 1;
-    var enc = drawTrackMap(ctx, path, box, { piso: box.piso, fundo: box.fundo, linha: 2 }).enc;
+    var tercos = tercosDaPista(path.distance);
+    var enc = drawTrackMap(ctx, path, box, { piso: box.piso, fundo: box.fundo, linha: 2, tercos: tercos }).enc;
+    stats.tercos = tercos.length;
     var out = [], ordem = [];
     for (var j = 0; j < posM.length; j++) if (j !== me) ordem.push(j);
     if (me >= 0 && me < posM.length) ordem.push(me);
@@ -6548,6 +6736,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     balloonSize: balloonSize,
     iconeDe: iconeDe,
     glow: glow,
+    typeZone: typeZone,
+    ELEM: ELEM,
     BALAO: BALAO,
     wind: wind,
     rainSlant: rainSlant,
@@ -6567,6 +6757,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     drawDiceStrip: drawDiceStrip,
     drawBalloon: drawBalloon,
     drawSkillAura: drawSkillAura,
+    drawTypeAura: drawTypeAura,
     drawNature: drawNature,
     drawFogFront: drawFogFront,
     drawHoofDust: drawHoofDust,
@@ -8939,8 +9130,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     // ~2 s e faixa ~3,6 s reais.
     var fxTl = FX.timeline(sim, L.racers, ts);
     var dadoItens = fxTl.filter(function (it) { return it.kind === 'dado'; });
-    // skills e Garra: rastro de elemento e contorno enquanto duram; balões (skill, Garra, cansou) por ~1,5 s
-    var efeitoItens = fxTl.filter(function (it) { return it.kind === 'skill' || it.kind === 'garra'; });
+    // skills e Garra: rastro de elemento e contorno enquanto duram; balões (skill, Garra, cansou) por ~1,5 s.
+    // A skill de tipo só entra nos balões (e na faixa do jogador): o efeito dela é a aura do terço inteiro
+    // (RaceFx.drawTypeAura, pela posição em racerInfo[j].typeSkill)
+    var efeitoItens = fxTl.filter(function (it) { return (it.kind === 'skill' && !it.typeSkill) || it.kind === 'garra'; });
+    var tipoTerco = L.racers.map(function (r, q) { return (sim.racerInfo && sim.racerInfo[q] && sim.racerInfo[q].typeSkill) || null; });
     var balaoItens = fxTl.filter(function (it) { return it.kind === 'skill' || it.kind === 'garra' || it.kind === 'cansou'; });
     function dadoAtivo(t) {
       for (var q = 0; q < dadoItens.length; q++) if (t >= dadoItens[q].t0 && t < dadoItens[q].t1) return dadoItens[q];
@@ -9247,6 +9441,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         if (j === me) self.playerRect = { x: caixaCav.x, y: caixaCav.y, w: caixaCav.w, h: caixaCav.h, W: W, H: H };
         if (caixaCav.x > W - 2 * S) { tagsR.push({ j: j, y: feetY - 12 * S, txt: '+' + Math.round(st.pos[j] - p) + 'm' }); continue; }
         if (caixaCav.x + caixaCav.w < 2 * S) { tagsL.push({ j: j, y: feetY - 12 * S, txt: '-' + Math.round(p - st.pos[j]) + 'm' }); continue; }
+        // aura da skill de tipo enquanto o cavalo está no terço dela (antes do anel e do cavalo: não cobre nada);
+        // relógio = segundos de apresentação (simT / ts), deslocado por raia
+        if (self.phase !== 'contagem' && FX.typeZone(tipoTerco[j], st.pos[j]) != null &&
+            FX.drawTypeAura(ctx, r.horse.element, x, y, S, self.simT / ts + j * 0.37, red)) {
+          FX._stats.tipoAuras.push({ racer: j, element: r.horse.element });
+        }
         if (j === me) {
           // anel dourado no chão sob os cascos do jogador
           var ry = feetY - 2 * S;
@@ -9398,7 +9598,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           }
           r.x = Math.max(0, Math.min(lay.artW - r.w, r.x));
           if (FX.drawBalloon(ctx, r.x * S, r.y * S, S, item, t, q)) {
-            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
+            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, tipo: !!item.typeSkill, texto: q ? '' : (item.nomeCurto || ''), pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
           }
           bx = r.x + r.w + 2;
         }
