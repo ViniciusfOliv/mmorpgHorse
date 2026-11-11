@@ -22,7 +22,7 @@
 
 ## Visão geral
 
-**Galope Elemental** é um jogo de corrida de cavalos automática em pixel art. Você não controla o cavalo durante a corrida: decide antes (montaria, equipamento e entrada) e assiste. Os cavalos têm elemento (Fogo, Água e Grama, além de Neutro), raridade, level e skills.
+**Galope Elemental** é um jogo de corrida de cavalos automática em pixel art. Você não controla o cavalo durante a corrida: decide antes (montaria, equipamento e entrada) e assiste. Os cavalos têm elemento (Fogo, Água e Grama), raridade, level e skills.
 
 ### Ciclo de uma corrida
 
@@ -163,7 +163,7 @@ O ganho real para no teto: status = min(natural + pontos, teto). Exemplo: Brasa 
 
 ### Aprender skill ao subir de level
 
-A cada level ganho há 8% de chance de aprender uma skill nova (sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: Neutro ou do próprio elemento, nunca exclusiva de outra montaria, nunca repetida.
+A cada level ganho há 8% de chance de aprender uma skill nova (sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: geral ou do próprio elemento, nunca repetida.
 
 ### Exemplo: as iniciais por level (sem equipamento)
 
@@ -190,7 +190,7 @@ São 5 raridades, da mais comum à mais rara: Comum, Mágico, Raro, Lendário e 
 
 | Raridade | Cor | Teto de status | Vagas de skill | Skills do potro (mínimo) | Chance base de skill | Status base do potro | Preço da peça | Aluguel base | Montarias no jogo |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: |
-| Comum | #9e9e9e | 80 | 1 | 1 | 35% | 40–56 | 100 | 100 | 7 |
+| Comum | #9e9e9e | 80 | 1 | 1 | 35% | 40–56 | 100 | 100 | 6 |
 | Mágico | #4caf50 | 85 | 2 | 1 | 45% | 45–61 | 250 | 250 | 3 |
 | Raro | #2196f3 | 90 | 3 | 2 | 55% | 50–66 | 600 | 600 | 2 |
 | Lendário | #ff9800 | 95 | 4 | 2 | 65% | 55–71 | 1.500 | 1.500 | 2 |
@@ -224,14 +224,13 @@ Uma montaria é **Corcel** quando já tem todas as skills "de linha" da sua rari
 
 ## Elementos e clima
 
-Cada elemento dá um bônus fixo num status e tem um clima "dono", que o favorece. Cada clima também penaliza um elemento. Neutro não ganha nem perde.
+Cada elemento tem um clima "dono", que o favorece. Cada clima também penaliza um elemento.
 
-| Elemento | Bônus de status | Clima dono | Penalizado por | Descrição |
-| --- | --- | --- | --- | --- |
-| Fogo | +8 Aceleração | Sol | Chuva | Explosivo na largada. Brilha no sol; sofre com chuva. |
-| Água | +8 Estamina | Chuva | Névoa | Fôlego de sobra. Cresce na chuva; sofre na névoa. |
-| Grama | +8 Força | Névoa | Sol | Firme como raiz. Domina a névoa e as subidas; murcha no sol. |
-| Neutro | — | — | — | Sem bônus nem penalidade. Rende igual em qualquer clima. |
+| Elemento | Clima dono | Penalizado por | Descrição |
+| --- | --- | --- | --- |
+| Fogo | Sol | Chuva | Explosivo na largada. Brilha no sol; sofre com chuva. |
+| Água | Chuva | Névoa | Fôlego de sobra. Cresce na chuva; sofre na névoa. |
+| Grama | Névoa | Sol | Firme como raiz. Domina a névoa e as subidas; murcha no sol. |
 
 ### Climas
 
@@ -251,7 +250,6 @@ Elemento dono do clima: ×1,03; com a skill de clima ativa, ×1,08; com 4 peças
 | Fogo | ×1,03 | ×0,97 | ×1,00 | ×1,00 |
 | Água | ×1,00 | ×1,03 | ×0,97 | ×1,00 |
 | Grama | ×0,97 | ×1,00 | ×1,03 | ×1,00 |
-| Neutro | ×1,00 | ×1,00 | ×1,00 | ×1,00 |
 
 ```text
 vMax       = (17,81 + 1,2 × n(VEL) × m) × (1 + 0,1 × (m − 1))
@@ -269,7 +267,7 @@ Cada sala tem um vento sorteado pela seed: calmo 35%, brisa 40% e ventania 25%, 
 
 ## Skills
 
-São 18 skills. Cada uma tem um gatilho; quando ele acontece, a montaria faz **uma** tentativa contra a chance de skill (uma por corrida, ou uma por bloco nas skills de curva e subida marcadas "em cada bloco"). Se acertar, o efeito vale pelo tempo ou pela distância indicados.
+São 15 skills. Cada uma tem um gatilho; quando ele acontece, a montaria faz **uma** tentativa contra a chance de skill (uma por corrida, ou uma por bloco nas skills de curva e subida marcadas "em cada bloco"). Se acertar, o efeito vale pelo tempo ou pela distância indicados.
 
 **Skills de largada** disparam no sinal (t = 0), antes do atraso de reação do cavalo (até 0,6 s, menor com ACE alta). A duração conta desde o sinal, então esse atraso consome parte dela.
 
@@ -287,11 +285,11 @@ chance de skill = min(95%, chance base da raridade + 0,5 p.p. × (level − 1) +
 | Lendário | 70% / 75,5% | 82% / 87,5% | 94,5% / 95% |
 | Mítico | 80% / 85,5% | 92% / 95% | 95% / 95% |
 
-**Quem pode ter:** skills Neutro servem para qualquer elemento; as de elemento, só para aquele elemento; as exclusivas, só para a montaria inicial dona (não se aprendem nem se herdam). O número de skills é limitado pelas vagas da raridade.
+**Quem pode ter:** as skills gerais servem para qualquer elemento; as de elemento, só para aquele elemento. O número de skills é limitado pelas vagas da raridade.
 
 **Pontos no Poder:** cada skill soma 20 × o peso do gatilho no Poder (gatilhos que nem sempre acontecem valem menos). **Balão:** o texto que aparece na pista quando a skill ativa.
 
-### Neutras (8)
+### Gerais (8)
 
 | Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
 | --- | --- | --- | --- | --- | --- | ---: | --- |
@@ -304,30 +302,27 @@ chance de skill = min(95%, chance base da raridade + 0,5 p.p. × (level − 1) +
 | **Arrancada Final** | Cruza 80% da pista (reta final) | chance de Garra +15 p.p.; impulso da Garra +3 p.p. | Na reta final: +15% de chance de Garra e +3% de força na arrancada. | qualquer elemento | Ventania | 20 | ARR. FINAL |
 | **Dado Viciado** | Antes do 1º Dado da Sorte (uma tentativa por corrida; se ativar, vale para todos os Dados) | +1 dado no Dado da Sorte (até o fim da corrida) | Uma tentativa por corrida, antes do 1º Dado da Sorte: se ativar, rola 1 dado extra em todos os Dados da corrida. | qualquer elemento | — | 4 | DADO VICIADO |
 
-### Fogo (3)
+### Fogo (2)
 
 | Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
 | --- | --- | --- | --- | --- | --- | ---: | --- |
 | **Sol a Pino** | Clima Sol valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,08 (até o fim da corrida) | Com sol: o bônus do clima para o Fogo sobe de +3% para +8%. | só Fogo | Fogaréu, Boitatá | 16 | SOL A PINO |
-| **Labareda** | Largada | aceleração ×1,15 (+15%); velocidade ×1,01 (+1%), por 5 s | Largada em chamas: +15% de aceleração e +1% de velocidade por 5s. | só Brasa (exclusiva) | — | 20 | LABAREDA |
 | **Chama Final** | Cruza 80% da pista (reta final) | velocidade ×1,05 (+5%), por 8 s | Na reta final, +5% de velocidade por 8s. | só Fogo | Tição, Fogaréu, Boitatá | 20 | CHAMA FINAL |
 
-### Água (4)
+### Água (3)
 
 | Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
 | --- | --- | --- | --- | --- | --- | ---: | --- |
 | **Pé na Chuva** | Clima Chuva valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,08 (até o fim da corrida) | Com chuva: o bônus do clima para a Água sobe de +3% para +8%. | só Água | Garoa, Pororoca, Iara | 16 | PÉ NA CHUVA |
-| **Maré Alta** | Estamina cai a 30% ou menos | recupera 20% do tanque na hora; velocidade ×1,05 (+5%), por 8 s | Quando a estamina cai a 30%, a maré sobe: recupera 20% de estamina e ganha +5% de velocidade por 8s. | só Maré (exclusiva) | — | 16 | MARÉ ALTA |
 | **Canto da Iara** | Cruza 80% da pista (reta final) | velocidade ×1,06 (+6%); gasto de estamina ×0,7 (−30%), por 7 s | Na reta final, +6% de velocidade por 7s e gasta 30% menos estamina. | só Água | Iara | 20 | CANTO IARA |
 | **Nascente** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | recupera 12% do tanque na hora | Numa reta de 150 m ou mais (fora a da largada), recupera 12% de estamina. | só Água | Pororoca, Iara | 20 | NASCENTE |
 
-### Grama (3)
+### Grama (2)
 
 | Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
 | --- | --- | --- | --- | --- | --- | ---: | --- |
 | **Névoa Amiga** | Clima Névoa valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,08 (até o fim da corrida) | Com névoa: o bônus do clima para a Grama sobe de +3% para +8%. | só Grama | — | 16 | NÉVOA AMIGA |
 | **Casco Firme** | Entra numa subida | fator da subida +2% (somado, teto 1), em cada bloco, até o fim dele | Em cada subida: +2% de rendimento na subida. | só Grama | Mandacaru, Jequitibá | 12 | CASCO FIRME |
-| **Raízes Firmes** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | recupera 5% do tanque na hora; velocidade ×1,02 (+2%), por 8 s | Numa reta de 150 m ou mais (fora a da largada), finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s. | só Ipê (exclusiva) | — | 20 | RAÍZES FIRM. |
 
 <a id="dado"></a>
 
@@ -339,14 +334,13 @@ Quando o líder cruza 1/3 e 2/3 da distância, **todos** rolam o Dado da Sorte (
 2. Com chance igual à sua Sorte (SOR%), rola um 2º dado e fica com o melhor.
 3. Dado Viciado tenta ativar uma vez por corrida, antes do 1º Dado. Se ativar, soma um dado extra nos 2 Dados (no máximo 3 dados); se falhar, não tenta de novo.
 4. O maior dado vence. Empate no topo: só os empatados rolam de novo.
-5. O clima vira o do elemento do vencedor. Se já for esse clima, ou se o vencedor for Neutro, o clima "segura".
+5. O clima vira o do elemento do vencedor. Se já for esse clima, o clima "segura".
 
 | Elemento do vencedor | Clima depois do Dado |
 | --- | --- |
 | Fogo | Sol |
 | Água | Chuva |
 | Grama | Névoa |
-| Neutro | não muda |
 
 **Chance de rolar o 2º dado**
 
@@ -362,14 +356,14 @@ Quando o líder cruza 1/3 e 2/3 da distância, **todos** rolam o Dado da Sorte (
 
 ## Pista e simulação
 
-A pista de cada sala sai da seed: distância de 1.000 a 2.400 m (de 100 em 100 m), de 5 a 9 blocos de tamanhos variados (fronteiras de 10 em 10 m), piso e clima inicial. O primeiro e o último bloco são sempre reta; os do meio são sorteados entre reta, curva e subida.
+A pista de cada sala sai da seed: distância de 1.400 a 2.000 m (de 50 em 50 m), de 5 a 9 blocos de tamanhos variados (fronteiras de 10 em 10 m), piso e clima inicial. O primeiro e o último bloco são sempre reta; os do meio são sorteados entre reta, curva e subida.
 
 **Frequência em 20.000 seeds**
 
 | Item | Valores |
 | --- | --- |
-| Blocos do meio | Reta 33% · Curva 33% · Subida 34% |
-| Piso | Grama 33% · Terra 33% · Areia 34% |
+| Blocos do meio | Reta 19% · Curva 41% · Subida 41% |
+| Piso | Grama 33% · Terra 34% · Areia 33% |
 | Clima inicial | Sol 25% · Chuva 25% · Névoa 25% · Nublado 25% |
 
 ### Blocos
@@ -441,7 +435,7 @@ O mapa da pista é desenhado dos blocos: retas e subidas em linha reta, e cada s
 
 ## Montarias
 
-Há 3 montarias iniciais e 13 selvagens. Todas são da espécie cavalo. As selvagens aparecem como bots nas corridas, como reprodutores de aluguel no Haras (menos as de raridade Mítico) e 6 delas na vitrine da Expedição. As iniciais também aparecem como bots quando não são suas. Como o level dos bots é escolhido: ver Economia, Rivais da sala.
+Há 3 montarias iniciais e 12 selvagens. Todas são da espécie cavalo. As selvagens aparecem como bots nas corridas, como reprodutores de aluguel no Haras (menos as de raridade Mítico) e 6 delas na vitrine da Expedição. As iniciais também aparecem como bots quando não são suas. Como o level dos bots é escolhido: ver Economia, Rivais da sala.
 
 **Potencial** (0 a 31 por status) é **oculto no jogo**; aparece aqui para referência. Os status "no level" são sem equipamento e sem pontos livres distribuídos.
 
@@ -489,21 +483,7 @@ Skills: nenhuma · Onde aparece: montaria inicial, bot nas corridas (quando não
 | Potencial (oculto no jogo) | 16 | 12 | 24 | 24 | 14 | 12 | 10 |
 | No Nv 1 | 48 | 46 | 52 | 52 | 47 | 46 | 45 |
 
-### Selvagens (13)
-
-#### Pangaré
-
-Neutro · Comum · ★ · ♂ macho · Nv 1 · Poder 525 (Bronze) · 2 cruza(s)
-
-Habitat: Pasto da fazenda.
-
-Skills: nenhuma · Onde aparece: bot nas corridas, aluguel no Haras (100 de Ouro), vitrine da Expedição
-
-|  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Nv 1 | 45 | 46 | 46 | 48 | 47 | 45 | 45 |
-| Potencial (oculto no jogo) | 10 | 12 | 11 | 15 | 14 | 9 | 10 |
-| No Nv 1 | 45 | 46 | 46 | 48 | 47 | 45 | 45 |
+### Selvagens (12)
 
 #### Faísca
 
@@ -591,7 +571,7 @@ Skills: Casco Firme · Onde aparece: bot nas corridas, aluguel no Haras (313 de 
 
 #### Ventania
 
-Neutro · Raro · ★★★ · ♀ fêmea · Nv 15 · Poder 767 (Prata) · 1 cruza(s)
+Grama · Raro · ★★★ · ♀ fêmea · Nv 15 · Poder 767 (Prata) · 1 cruza(s)
 
 Habitat: Pampa gaúcho.
 
@@ -701,14 +681,13 @@ No Haras uma égua (♀) e um garanhão (♂) geram um potro. O sorteio é deter
 
 | Montaria | Sexo | Elemento | Raridade | Grau | Level | Aluguel |
 | --- | --- | --- | --- | ---: | ---: | --- |
-| Pangaré | ♂ macho | Neutro | Comum | ★ | 1 | 100 |
 | Faísca | ♀ fêmea | Fogo | Comum | ★★ | 3 | 125 |
 | Lambari | ♂ macho | Água | Comum | ★ | 2 | 100 |
 | Capim | ♀ fêmea | Grama | Comum | ★★ | 4 | 125 |
 | Tição | ♂ macho | Fogo | Mágico | ★★ | 8 | 313 |
 | Garoa | ♀ fêmea | Água | Mágico | ★★ | 10 | 313 |
 | Mandacaru | ♂ macho | Grama | Mágico | ★★ | 7 | 313 |
-| Ventania | ♀ fêmea | Neutro | Raro | ★★★ | 15 | 900 |
+| Ventania | ♀ fêmea | Grama | Raro | ★★★ | 15 | 900 |
 | Pororoca | ♂ macho | Água | Raro | ★★ | 18 | 750 |
 | Fogaréu | ♀ fêmea | Fogo | Lendário | ★★★ | 22 | 2.250 |
 | Jequitibá | ♂ macho | Grama | Lendário | ★★★ | 25 | 2.250 |
@@ -919,7 +898,7 @@ Vale o conjunto com mais peças equipadas (empate: Sol, Chuva e Névoa, nessa or
 | Diamante | Ferraduras do Sol +4, Sela do Sol +4, Estribos do Sol +4, Testeira de Couro +3, Capa Impermeável +3 |
 | Lenda | Ferraduras do Sol +7, Sela do Sol +7, Estribos do Sol +7, Testeira do Sol +7, Armadura do Sol +7 |
 
-O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, Fogo); bot Neutro sorteia o conjunto.
+O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, Fogo).
 
 <a id="economia"></a>
 

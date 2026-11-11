@@ -11,9 +11,9 @@
  *     c = { name, element, rarity, sex, potential: 0..31 | 'max' | { vel..sorte }, skills: [ids],
  *           palette: { coat, coatShade, mane, accent } }; n = nº do cavalo (id 'dev-' + n; padrão 1).
  *     base de cada status = RARITIES[rarity].baseLo; level 1, xp 0, grau 2, espécie 'cavalo'.
- *     Skills: qualquer uma do catálogo (inclusive exclusivas e de outro elemento); inexistentes ou
+ *     Skills: qualquer uma do catálogo (inclusive de outro elemento); inexistentes ou
  *     repetidas saem; no máximo RARITIES[rarity].skillSlots, na ordem pedida.
- *     Campo inválido vira o padrão: elemento Neutro, raridade Comum, sexo macho, nome "Teste",
+ *     Campo inválido vira o padrão: elemento Fogo, raridade Comum, sexo macho, nome "Teste",
  *     potencial 0, cores de um cavalo pronto do mesmo elemento (cor a cor).
  *     O nível (1 até o máximo) é aplicado pelo game.js na instância (level direto, xp 0).
  *
@@ -70,7 +70,7 @@
 
   function horseTemplate(c, n) {
     c = c || {};
-    var element = hasOwn(G.ELEMENTS, c.element) ? c.element : 'neutro';
+    var element = hasOwn(G.ELEMENTS, c.element) ? c.element : 'fogo';
     var rarity = hasOwn(G.RARITIES, c.rarity) ? c.rarity : 'comum';
     var sex = c.sex === 'f' ? 'f' : 'm';
     var name = typeof c.name === 'string' ? c.name.replace(/\s+/g, ' ').trim().slice(0, 16) : '';

@@ -197,7 +197,7 @@
 
   function compatible(id, element) {
     var sk = G.SKILLS[id];
-    return !!sk && !sk.exclusive && (sk.element === 'neutro' || sk.element === element);
+    return !!sk && (sk.element === 'geral' || sk.element === element);
   }
 
   // ids das skills dos pais (égua depois garanhão) que o potro pode herdar

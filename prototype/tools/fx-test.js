@@ -203,15 +203,16 @@ test('faixa com desempate: vencedor em 1º, depois rerolls e best decrescentes (
 });
 
 section('skills, Garra e cansaço');
-// corrida com todas as skills do catálogo distribuídas pelos cavalos e "skills sempre ativam" (modo DEV da simulação)
+// corrida com todas as skills do catálogo distribuídas pelos cavalos e "skills sempre ativam" (modo DEV da simulação);
+// sem a skill de tipo (noTypeSkill): aqui só as skills de vaga (a skill de tipo na pista é outra tarefa)
 function corridaSkills(seed, escala) {
   var ids = Object.keys(G.SKILLS), hs = G.STARTERS.concat(G.WILD_HORSES.slice(0, 5));
   var racers = hs.map(function (h, i) {
     var c = cl(h);
-    c.skills = ids.filter(function (id, q) { return q % hs.length === i && (!G.SKILLS[id].exclusive || G.SKILLS[id].exclusive === c.id); });
-    return { horse: c, gear: null, name: 'r' + i, isPlayer: i === 0, silks: CORES[i] };
+    c.skills = ids.filter(function (id, q) { return q % hs.length === i; });
+    return { horse: c, gear: null, name: 'r' + i, isPlayer: i === 0, silks: CORES[i], noTypeSkill: true };
   });
-  var sim = S.simulate({ seed: seed, recordFrames: true, racers: racers, conditions: { distance: 2400 }, dev: { skillsAlways: true } });
+  var sim = S.simulate({ seed: seed, recordFrames: true, racers: racers, conditions: { distance: 2000 }, dev: { skillsAlways: true } });
   return { sim: sim, racers: racers, tl: FX.timeline(sim, racers, escala) };
 }
 test('skillIcon segue a ordem (5 skills reais do catálogo)', function () {
@@ -222,8 +223,8 @@ test('skillIcon segue a ordem (5 skills reais do catálogo)', function () {
   assert.strictEqual(FX.skillIcon(G.SKILLS['sol-a-pino']), 'clima');      // weatherDouble
 });
 test('skillIcon: primeira chave da lista vence; drainMult só conta se < 1', function () {
-  assert.strictEqual(FX.skillIcon(G.SKILLS['labareda']), 'vel', 'accelMult + speedMult => speedMult primeiro');
-  assert.strictEqual(FX.skillIcon(G.SKILLS['mare-alta']), 'vel', 'staminaRestore + speedMult => speedMult primeiro');
+  assert.strictEqual(FX.skillIcon(G.SKILLS['saida-rapida']), 'vel', 'accelMult + speedMult => speedMult primeiro');
+  assert.strictEqual(FX.skillIcon(G.SKILLS['segundo-ar']), 'vel', 'staminaRestore + speedMult => speedMult primeiro');
   assert.strictEqual(FX.skillIcon(G.SKILLS['sprint']), 'vel', 'drainMult 1.0 (gasto normal) não é fôlego');
   assert.strictEqual(FX.skillIcon({ effect: { drainMult: 1.15 } }), 'vel', 'só drainMult > 1: cai no padrão');
   assert.strictEqual(FX.skillIcon({ effect: { drainMult: 0.7 } }), 'folego');
@@ -259,7 +260,7 @@ test('nomeCurto: nome inteiro até 12 letras; campo short nos longos; nenhum cor
 });
 test('timeline tem um item por evento skill/garra/cansou', function () {
   var visto = { skill: 0, garra: 0, cansou: 0 };
-  for (var sd = 1; sd <= 40; sd++) {   // 2400 m: com 1000 m ninguém se cansa
+  for (var sd = 1; sd <= 40; sd++) {   // 2000 m (a mais longa do sorteio): com 1000 m ninguém se cansa
     var C = corridaSkills(sd);
     ['skill', 'garra', 'cansou'].forEach(function (tipo) {
       var evs = C.sim.events.filter(function (e) { return e.type === tipo; });
@@ -399,14 +400,14 @@ test('efeitos: dura t0..t1; vento só fora do reduzido; reduced não desenha nem
   assert.strictEqual(FX.drawSkillAura(c2, box, ITEM_SKILL, 12, true), true);
   assert.strictEqual(FX._stats.particulas, 0, 'reduced: nada de vento');
   assert.strictEqual(c2.rects.length, 0, 'reduced: nenhum retângulo de efeito (o contorno é a silhueta)');
-  var curva = { kind: 'skill', t0: 10, t1: 15, racer: 0, icon: 'curva', element: 'neutro', cavalo: 'agua', escala: 1 };
+  var curva = { kind: 'skill', t0: 10, t1: 15, racer: 0, icon: 'curva', element: 'geral', cavalo: 'agua', escala: 1 };
   var fol = { kind: 'skill', t0: 10, t1: 15, racer: 0, icon: 'folego', element: 'agua', cavalo: 'agua', escala: 1 };
   FX.resetStats(true); FX.drawSkillAura(ctxFalso(), box, curva, 12, false); assert.ok(FX._stats.particulas > 0, 'faíscas da curva');
   FX.resetStats(true); FX.drawSkillAura(ctxFalso(), box, fol, 12, false); assert.ok(FX._stats.particulas > 0, '+ do fôlego');
   FX.resetStats(true); FX.drawSkillAura(ctxFalso(), box, curva, 12, true); assert.strictEqual(FX._stats.particulas, 0);
   FX.resetStats(true); FX.drawSkillAura(ctxFalso(), box, fol, 12, true); assert.strictEqual(FX._stats.particulas, 0);
 });
-test('glow do contorno: some fora de [t0, t1), pulsa e fica parado em reduced; neutro usa o elemento do cavalo', function () {
+test('glow do contorno: some fora de [t0, t1), pulsa e fica parado em reduced; skill geral usa o elemento do cavalo', function () {
   assert.strictEqual(FX.glow(ITEM_SKILL, 9.9, false), null);
   assert.strictEqual(FX.glow(ITEM_SKILL, 15, false), null);
   assert.strictEqual(FX.glow({ kind: 'dado', t0: 0, t1: 9 }, 5, false), null);
@@ -416,15 +417,15 @@ test('glow do contorno: some fora de [t0, t1), pulsa e fica parado em reduced; n
   var r = {};
   for (t = 11; t < 13; t += 0.05) r[FX.glow(ITEM_SKILL, t, true).alpha.toFixed(2)] = true;
   assert.strictEqual(Object.keys(r).length, 1, 'reduced fica parado');
-  var g1 = FX.glow(ITEM_SKILL, 12, false), g2 = FX.glow({ kind: 'skill', t0: 10, t1: 15, icon: 'vel', element: 'neutro', cavalo: 'agua', escala: 1 }, 12, false);
+  var g1 = FX.glow(ITEM_SKILL, 12, false), g2 = FX.glow({ kind: 'skill', t0: 10, t1: 15, icon: 'vel', element: 'geral', cavalo: 'agua', escala: 1 }, 12, false);
   assert.notStrictEqual(g1.cor, g2.cor);
   assert.ok(FX.glow(ITEM_SKILL, 10.01, false).alpha < FX.glow(ITEM_SKILL, 12, false).alpha + 1e-9, 'entra suave');
 });
 test('ícone de clima pelo trigger da skill (sol, gota, névoa)', function () {
-  var C = corridaSkills(4);
+  var C = corridaSkills(21);   // seed com sol, chuva e névoa (as três skills de clima ativam)
   var porId = {};
   C.tl.filter(function (it) { return it.kind === 'skill'; }).forEach(function (it) { porId[it.skillId] = it; });
-  ['sol-a-pino', 'pe-na-chuva', 'nevoa-amiga'].forEach(function (id) { assert.ok(porId[id], 'seed 4 tem ' + id); assert.strictEqual(porId[id].icon, 'clima'); });
+  ['sol-a-pino', 'pe-na-chuva', 'nevoa-amiga'].forEach(function (id) { assert.ok(porId[id], 'seed 21 tem ' + id); assert.strictEqual(porId[id].icon, 'clima'); });
   assert.strictEqual(FX.iconeDe(porId['sol-a-pino']), 'sol');
   assert.strictEqual(FX.iconeDe(porId['pe-na-chuva']), 'gota');
   assert.strictEqual(FX.iconeDe(porId['nevoa-amiga']), 'nevoa');

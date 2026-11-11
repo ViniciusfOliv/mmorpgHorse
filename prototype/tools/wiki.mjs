@@ -122,7 +122,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 // ---------------------------------------------------------------------------------------------------------
 const nomeStat = (k) => { if (!G.STATS[k]) throw new Error(`wiki: status desconhecido "${k}"`); return G.STATS[k].name }
 const siglaStat = (k) => { if (!G.STATS[k]) throw new Error(`wiki: status desconhecido "${k}"`); return G.STATS[k].short }
-const nomeEl = (id) => { if (!G.ELEMENTS[id]) throw new Error(`wiki: elemento desconhecido "${id}"`); return G.ELEMENTS[id].name }
+const nomeEl = (id) => { if (id === 'geral') return 'Geral'; if (!G.ELEMENTS[id]) throw new Error(`wiki: elemento desconhecido "${id}"`); return G.ELEMENTS[id].name }
 const nomeRar = (id) => { if (!G.RARITIES[id]) throw new Error(`wiki: raridade desconhecida "${id}"`); return G.RARITIES[id].name }
 const nomeClima = (id) => { if (!G.WEATHERS[id]) throw new Error(`wiki: clima desconhecido "${id}"`); return G.WEATHERS[id].name }
 const nomeSlot = (id) => { if (!G.GEAR_SLOT_INFO[id]) throw new Error(`wiki: slot desconhecido "${id}"`); return G.GEAR_SLOT_INFO[id].name }
@@ -401,7 +401,7 @@ function secoes(F, A) {
 
   // 1. Visão geral ---------------------------------------------------------------------------------------
   add('visao', 'Visão geral', 'Visão geral', [
-    { t: 'p', txt: `**Galope Elemental** é um jogo de corrida de cavalos automática em pixel art. Você não controla o cavalo durante a corrida: decide antes (montaria, equipamento e entrada) e assiste. Os cavalos têm elemento (${lista(Object.keys(G.ELEMENTS).filter((e) => G.ELEMENTS[e].weather).map(nomeEl))}, além de ${nomeEl('neutro')}), raridade, level e skills.` },
+    { t: 'p', txt: `**Galope Elemental** é um jogo de corrida de cavalos automática em pixel art. Você não controla o cavalo durante a corrida: decide antes (montaria, equipamento e entrada) e assiste. Os cavalos têm elemento (${lista(Object.keys(G.ELEMENTS).map(nomeEl))}), raridade, level e skills.` },
     { t: 'h3', txt: 'Ciclo de uma corrida' },
     { t: 'passos', itens: [
       `**Escolher a montaria.** No começo você escolhe uma das ${G.STARTERS.length} iniciais (${lista(G.STARTERS.map((h) => h.name))}) e recebe ${num(E.startingGold)} de Ouro e o equipamento inicial (${lista(EG.startGear.map((id) => G.GEAR[id].name))}, já equipado).`,
@@ -461,7 +461,7 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
     { t: 'tabela', rotulo: 'Crescimento por level', cab: ['Raridade', 'Ganho/level (pot 0)', 'Ganho/level (pot 31)', `Ganho do Nv 1 ao ${E.maxLevel}, sem o teto (pot 31)`, 'Teto'], linhas: rarIds.map((r) => [rarCel(r), N(num(crescimento(r, 0), 3)), N(num(crescimento(r, 31), 3)), N(num(crescimento(r, 31) * (E.maxLevel - 1), 1)), N(num(G.RARITIES[r].statCap))]) },
     exemploTeto(),
     { t: 'h3', txt: 'Aprender skill ao subir de level' },
-    { t: 'p', txt: `A cada level ganho há ${pct(T.learnChance, 0)} de chance de aprender uma skill nova (sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: ${nomeEl('neutro')} ou do próprio elemento, nunca exclusiva de outra montaria, nunca repetida.` },
+    { t: 'p', txt: `A cada level ganho há ${pct(T.learnChance, 0)} de chance de aprender uma skill nova (sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: geral ou do próprio elemento, nunca repetida.` },
     { t: 'h3', txt: 'Exemplo: as iniciais por level (sem equipamento)' },
     { t: 'tabela', rotulo: 'Iniciais por level', cab: ['Montaria', 'Level', ...G.STAT_KEYS.map(siglaStat), 'Poder'], linhas: G.STARTERS.flatMap((h) => niveisEx.map((l) => { const x = { ...h, level: l }; const st = S.computeStats(x, null); return [h.name, N(String(l)), ...G.STAT_KEYS.map((k) => N(String(st[k]))), N(num(S.powerRating(x, null)))] })) }
   ])
@@ -491,10 +491,10 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
   const penalizadoPor = (el) => clIds.filter((w) => G.WEATHERS[w].penalizes === el)
   const amostraVento = F.vento
   add('elementos', 'Elementos e clima', 'Elementos', [
-    { t: 'p', txt: `Cada elemento dá um bônus fixo num status e tem um clima "dono", que o favorece. Cada clima também penaliza um elemento. ${nomeEl('neutro')} não ganha nem perde.` },
-    { t: 'tabela', rotulo: 'Elementos', cab: ['Elemento', 'Bônus de status', 'Clima dono', 'Penalizado por', 'Descrição'], linhas: elIds.map((e) => {
+    { t: 'p', txt: `Cada elemento tem um clima "dono", que o favorece. Cada clima também penaliza um elemento.` },
+    { t: 'tabela', rotulo: 'Elementos', cab: ['Elemento', 'Clima dono', 'Penalizado por', 'Descrição'], linhas: elIds.map((e) => {
       const el = G.ELEMENTS[e], pen = penalizadoPor(e)
-      return [elCel(e), el.statBonus ? `+${el.statBonus.amount} ${nomeStat(el.statBonus.stat)}` : '—', el.weather ? nomeClima(el.weather) : '—', pen.length ? pen.map(nomeClima).join(', ') : '—', el.desc]
+      return [elCel(e), el.weather ? nomeClima(el.weather) : '—', pen.length ? pen.map(nomeClima).join(', ') : '—', el.desc]
     }) },
     { t: 'h3', txt: 'Climas' },
     { t: 'tabela', rotulo: 'Climas', cab: ['Clima', 'Favorece', 'Penaliza', 'Efeito geral', 'Descrição'], linhas: clIds.map((w) => {
@@ -515,18 +515,18 @@ Força, Manobra e Garra efetivas = n(x) × m` },
   // 6. Skills --------------------------------------------------------------------------------------------
   const skIds = Object.keys(G.SKILLS)
   const quemTem = (id) => todasMontarias().filter((h) => h.skills.indexOf(id) >= 0).map((h) => h.name)
-  const quemPode = (sk) => sk.exclusive ? `só ${nomeMontaria(sk.exclusive)} (exclusiva)` : sk.element === 'neutro' ? 'qualquer elemento' : `só ${nomeEl(sk.element)}`
-  const ordemEl = ['neutro', ...elIds.filter((e) => e !== 'neutro')]
+  const quemPode = (sk) => sk.element === 'geral' ? 'qualquer elemento' : `só ${nomeEl(sk.element)}`
+  const ordemEl = ['geral', ...elIds]
   const skillMd = ordemEl.filter((e) => skIds.some((id) => G.SKILLS[id].element === e)).map((e) => {
     const ids = skIds.filter((id) => G.SKILLS[id].element === e)
-    return `### ${e === 'neutro' ? 'Neutras' : nomeEl(e)} (${ids.length})\n\n` + blocoMd({ t: 'tabela', cab: ['Skill', 'Gatilho', 'Efeito', 'Descrição no jogo', 'Quem pode ter', 'Começa em', 'Pontos no Poder', 'Balão'], linhas: ids.map((id) => {
+    return `### ${e === 'geral' ? 'Gerais' : nomeEl(e)} (${ids.length})\n\n` + blocoMd({ t: 'tabela', cab: ['Skill', 'Gatilho', 'Efeito', 'Descrição no jogo', 'Quem pode ter', 'Começa em', 'Pontos no Poder', 'Balão'], linhas: ids.map((id) => {
       const sk = G.SKILLS[id], qt = quemTem(id)
       return [`**${sk.name}**`, descreverGatilho(sk.trigger), descreverEfeito(sk.effect), sk.desc, quemPode(sk), qt.length ? qt.join(', ') : '—', N(num(pesoSkill(id) * 20)), FX.nomeCurto(sk.name, sk.short)]
     }) })
   }).join('\n\n')
   const skillHtml = ordemEl.filter((e) => skIds.some((id) => G.SKILLS[id].element === e)).map((e) => {
     const ids = skIds.filter((id) => G.SKILLS[id].element === e)
-    return `<section class="grupo" data-grupo="skill"><h3 id="skills-${e}">${icone('el-' + e)}${esc(e === 'neutro' ? 'Neutras' : nomeEl(e))} <span class="conta">${ids.length}</span></h3><div class="cartoes cartoes--skills">` +
+    return `<section class="grupo" data-grupo="skill"><h3 id="skills-${e}">${icone('el-' + e)}${esc(e === 'geral' ? 'Gerais' : nomeEl(e))} <span class="conta">${ids.length}</span></h3><div class="cartoes cartoes--skills">` +
       ids.map((id) => {
         const sk = G.SKILLS[id], qt = quemTem(id)
         return `<article${entradaAttrs({ id: 'skill-' + id, tipo: 'skill', busca: [sk.name, nomeEl(sk.element), 'skill'], el: sk.element })}>` +
@@ -547,7 +547,7 @@ Força, Manobra e Garra efetivas = n(x) × m` },
     { t: 'p', txt: `**Skills de largada** disparam no sinal (t = 0), antes do atraso de reação do cavalo (até ${num(T.startDelayMax)} s, menor com ACE alta). A duração conta desde o sinal, então esse atraso consome parte dela.` },
     { t: 'formula', txt: `chance de skill = min(${pct(T.skillChanceMax, 0)}, chance base da raridade + ${pp(T.skillPerLevel)} × (level − 1) + ${pp(T.skillPerSorte)} × SOR + bônus de equipamento)` },
     { t: 'tabela', rotulo: 'Chance de skill', titulo: `Chance de ativar: sem equipamento (SOR ${sorteEx}) / com ${EG.setBonus.pieces[0]}+ peças de um conjunto (SOR ${sorteEx} + ${EG.setBonus.sorte} do conjunto = ${sorteEx + EG.setBonus.sorte}, e ${'+' + pp(EG.setBonus.skillChance, 0)} de chance)`, cab: ['Raridade', ...lvEx.map((l) => `Nv ${l}`)], linhas: rarIds.map((r) => [rarCel(r), ...lvEx.map((l) => N(`${pct(S.skillChance({ rarity: r, level: l }, { sorte: sorteEx }), 1)} / ${pct(S.skillChance({ rarity: r, level: l }, { sorte: sorteEx + EG.setBonus.sorte }, EG.setBonus.skillChance), 1)}`))]) },
-    { t: 'p', txt: `**Quem pode ter:** skills ${nomeEl('neutro')} servem para qualquer elemento; as de elemento, só para aquele elemento; as exclusivas, só para a montaria inicial dona (não se aprendem nem se herdam). O número de skills é limitado pelas vagas da raridade.` },
+    { t: 'p', txt: `**Quem pode ter:** as skills gerais servem para qualquer elemento; as de elemento, só para aquele elemento. O número de skills é limitado pelas vagas da raridade.` },
     { t: 'p', txt: `**Pontos no Poder:** cada skill soma 20 × o peso do gatilho no Poder (gatilhos que nem sempre acontecem valem menos). **Balão:** o texto que aparece na pista quando a skill ativa.` },
     { t: 'custom', md: skillMd, html: skillHtml }
   ])
@@ -562,7 +562,7 @@ Força, Manobra e Garra efetivas = n(x) × m` },
       'Com chance igual à sua Sorte (SOR%), rola um 2º dado e fica com o melhor.',
       `${dadoViciado.length ? lista(dadoViciado) : 'A skill de dado extra'} tenta ativar uma vez por corrida, antes do 1º Dado. Se ativar, soma um dado extra nos ${T.diceAt.length} Dados (no máximo ${ld.maxDados} dados); se falhar, não tenta de novo.`,
       'O maior dado vence. Empate no topo: só os empatados rolam de novo.',
-      `O clima vira o do elemento do vencedor. Se já for esse clima, ou se o vencedor for ${nomeEl('neutro')}, o clima "segura".`
+      `O clima vira o do elemento do vencedor. Se já for esse clima, o clima "segura".`
     ] },
     { t: 'tabela', rotulo: 'Vencedor e clima', cab: ['Elemento do vencedor', 'Clima depois do Dado'], linhas: elIds.map((e) => [elCel(e), G.ELEMENTS[e].weather ? nomeClima(G.ELEMENTS[e].weather) : 'não muda']) },
     { t: 'tabela', rotulo: 'Sorte e dados', titulo: 'Chance de rolar o 2º dado', cab: ['SOR', 'Chance do 2º dado'], linhas: [0, 25, 50, 75, 100].map((s) => [N(String(s)), N(pct(s / 100, 0))]) }
@@ -710,7 +710,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `Vale o conjunto com mais peças equipadas (empate: ${lista(setIds.map(nomeConjunto))}, nessa ordem). O reforço de ${multF(T.weatherMultSet)} só age se o elemento da montaria for o dono do clima do conjunto.` },
     { t: 'h3', txt: 'Equipamento dos bots por liga' },
     { t: 'tabela', rotulo: 'Equipamento dos bots', cab: ['Liga do alvo', 'Peças do bot'], linhas: G.LEAGUES.map((L, i) => { const r = GR.botGear(i, 'fogo', 0); return [L.name, r.pieces.length ? r.pieces.map((p) => `${peca(p.id).name} +${p.plus}`).join(', ') : 'nada'] }) },
-    { t: 'p', txt: `O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, ${nomeEl('fogo')}); bot ${nomeEl('neutro')} sorteia o conjunto.` }
+    { t: 'p', txt: `O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, ${nomeEl('fogo')}).` }
   ])
 
   // 12. Economia -----------------------------------------------------------------------------------------
@@ -932,7 +932,7 @@ td.n, tbody th.n { font: 400 var(--t-num)/1.1 var(--fonte-rotulo); font-variant-
 
 .el, .rar, .slot, .ouro, .selo, .liga { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .el { font-weight: 700; }
-.el--fogo { color: var(--fogo); } .el--agua { color: var(--agua); } .el--grama { color: var(--grama); } .el--neutro { color: var(--neutro); }
+.el--fogo { color: var(--fogo); } .el--agua { color: var(--agua); } .el--grama { color: var(--grama); } .el--neutro, .el--geral { color: var(--neutro); }
 .rar { font: 400 1.125rem/1 var(--fonte-rotulo); color: var(--tinta); background: var(--c, var(--texto-3)); padding: 3px 6px 2px; }
 .rar--comum { --c: var(--r-comum); } .rar--magico { --c: var(--r-magico); } .rar--raro { --c: var(--r-raro); } .rar--lendario { --c: var(--r-lendario); } .rar--mitico { --c: var(--r-mitico); }
 .rar--raro, .rar--mitico, .rar--magico { color: var(--texto); }

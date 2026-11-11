@@ -66,13 +66,13 @@ test('powerRating usa os 7 pesos', function () {
   assert.strictEqual(S.powerRating(h, null), Math.round(sum));   // os iniciais nascem sem skill
   h.skills = ['arranque']; assert.strictEqual(S.powerRating(h, null), Math.round(sum + 20 * 1));   // arranque: start = 1
 });
-test('learnSkill não estoura vagas e respeita elemento/exclusividade', function () {
+test('learnSkill não estoura vagas e respeita o elemento', function () {
   var full = { id: 'x', element: 'fogo', rarity: 'comum', skills: ['arranque'] };
   assert.strictEqual(S.learnSkill(full, function () { return 0; }), null);
   var m = { id: 'x', element: 'fogo', rarity: 'mitico', skills: [] }, seen = {};
   for (var i = 0; i < 400; i++) { var id = S.learnSkill(m, S.mulberry32(i)); if (id) seen[id] = 1; }
-  assert.ok(seen.arranque && seen['sol-a-pino'], 'aprende neutras e do elemento');
-  assert.ok(!seen['pe-na-chuva'] && !seen.labareda, 'não aprende de outro elemento nem exclusiva alheia');
+  assert.ok(seen.arranque && seen['sol-a-pino'], 'aprende gerais e do elemento');
+  assert.ok(!seen['pe-na-chuva'], 'não aprende de outro elemento');
 });
 
 section('status v3');
@@ -143,13 +143,19 @@ test('v3: estrelas, status natural, alloc saneado na ordem de STAT_KEYS e allocI
   h.alloc = { vel: 20, acel: 20, man: 18 };
   assert.deepStrictEqual(Object.keys(S.allocInfo(h).room).map(function (k) { return S.allocInfo(h).room[k]; }), [0, 0, 0, 0, 0, 0, 0]);
 });
+test('v3: no nível 1 limite, alloc e allocInfo dão zero (nunca −0)', function () {
+  var h = { rarity: 'comum', level: 1, grau: 3, potential: {}, alloc: { vel: 5, acel: 2 } }, zeros = { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 };
+  assert.strictEqual(S.statLimit(h), 0);
+  assert.deepStrictEqual(S.validAlloc(h, h.alloc), zeros);
+  assert.deepStrictEqual(S.allocInfo(h), { free: 0, used: 0, left: 0, perStat: 0, room: zeros });
+});
 
 section('mapa');
 test('mapa é determinístico e bem formado', function () {
   for (var seed = 1; seed <= 500; seed++) {
     var c = S.randomConditions(seed), d = S.randomConditions(seed);
     assert.deepStrictEqual(c, d);
-    assert.ok(c.distance >= 1000 && c.distance <= 2400 && c.distance % 100 === 0, 'distância');
+    assert.ok(c.distance >= 1400 && c.distance <= 2000 && c.distance % 50 === 0, 'distância');
     assert.ok(c.blocks.length >= 5 && c.blocks.length <= 9, 'nº de blocos');
     assert.strictEqual(c.blocks[0].type, 'reta'); assert.strictEqual(c.blocks[c.blocks.length - 1].type, 'reta');
     assert.strictEqual(c.blocks[0].from, 0); assert.strictEqual(c.blocks[c.blocks.length - 1].to, c.distance);
@@ -175,6 +181,7 @@ test('normalizeConditions aceita blocos explícitos e completa o resto pela seed
 section('corrida');
 // Corredor de teste: Mítico nível 1 com genética 0 (todo status natural = 60). Os valores de `over`
 // viram mods de equipamento (testMods, entregues por eq(h)) para fixar o status exato no nível 1.
+// Elemento 'neutro' (desconhecido desde a v3): sem clima e sem skill de tipo, para isolar o status.
 function mk(over) { var h = clone(G.WILD_HORSES[0]); h.rarity = 'mitico'; h.level = 1; h.element = 'neutro'; h.skills = []; h.testMods = {};
   G.STAT_KEYS.forEach(function (k) { h.potential[k] = 0; h.testMods[k] = (over && k in over ? over[k] : 60) - 60; }); return h; }
 function eq(h) { return h.testMods ? { mods: h.testMods } : null; }
@@ -222,6 +229,163 @@ test('straight só dispara em reta de 150 m ou mais (e dispara na reta final lon
     if (res.events.some(function (e) { return e.type === 'skill' && e.racer === 0 && e.t >= t600 - 0.1; })) fired++;
   }
   assert.ok(fired >= 15, 'Sprint disparou na reta final em só ' + fired + '/20 seeds');
+});
+
+section('tipo e pista v3');
+var TIPOS = ['fogo', 'agua', 'grama'];
+test('v3: três tipos sem bônus fixo e uma skill de tipo para cada', function () {
+  assert.deepStrictEqual(Object.keys(G.ELEMENTS), TIPOS);
+  TIPOS.forEach(function (e) { assert.ok(!('statBonus' in G.ELEMENTS[e]), e + ' sem statBonus'); });
+  var TS = G.TYPE_SKILLS;
+  assert.deepStrictEqual(Object.keys(TS).sort(), TIPOS.slice().sort());
+  assert.strictEqual(TS.fogo.id, 'labareda'); assert.deepStrictEqual(TS.fogo.zone, [0, 1 / 3]); assert.deepStrictEqual(TS.fogo.effect, { accelMult: 0.23 });
+  assert.strictEqual(TS.grama.id, 'raizes-firmes'); assert.deepStrictEqual(TS.grama.zone, [1 / 3, 2 / 3]);
+  assert.deepStrictEqual(TS.grama.effect, { forcaAdd: 0.07, manAdd: 0.07, drainCut: 0.012 });
+  assert.strictEqual(TS.agua.id, 'mare-alta'); assert.deepStrictEqual(TS.agua.zone, [2 / 3, 1]); assert.deepStrictEqual(TS.agua.effect, { speedMult: 0.018, staminaRestore: 0.012 });
+  TIPOS.forEach(function (e) { var t = TS[e]; assert.ok(t.name && t.short && t.short.length <= 12 && t.desc, e + ' nome, nome curto e descrição'); });
+  ['labareda', 'mare-alta', 'raizes-firmes'].forEach(function (id) { assert.strictEqual(G.SKILLS[id], undefined, id + ' fora das skills de vaga'); });
+  var T = S.TUNING;
+  assert.deepStrictEqual([T.typeBase, T.typeLevel, T.typeRar, T.distMin, T.distMax, T.distStep, T.trackMaxShare, T.trackTries], [1, 0.4, 0.4, 1400, 2000, 50, 0.5, 60]);
+});
+test('v3: catálogo sem Pangaré e com Ventania de Grama', function () {
+  var todos = G.STARTERS.concat(G.WILD_HORSES);
+  assert.ok(!todos.some(function (h) { return h.id === 'w-pangare'; }), 'Pangaré saiu');
+  assert.strictEqual(todos.filter(function (h) { return h.id === 'w-ventania'; })[0].element, 'grama');
+  todos.forEach(function (h) { assert.ok(G.ELEMENTS[h.element], h.id + ' tipo ' + h.element); });
+});
+test('v3: força da skill de tipo', function () {
+  assert.strictEqual(S.typePower({ rarity: 'comum', level: 1 }), 1);
+  assert.ok(Math.abs(S.typePower({ rarity: 'raro', level: 30 }) - 1.4367) < 1e-3);
+  assert.ok(Math.abs(S.typePower({ rarity: 'lendario', level: 50 }) - 1.7) < 1e-9);
+  assert.ok(Math.abs(S.typePower({ rarity: 'mitico', level: 50 }) - 1.8) < 1e-9);
+  assert.strictEqual(S.typePower({ rarity: 'comum', level: 'x' }), 1, 'nível malformado vale 1');
+  var ts = S.typeSkill({ element: 'agua', rarity: 'lendario', level: 50 });
+  assert.strictEqual(ts.id, 'mare-alta'); assert.strictEqual(ts.name, 'Maré Alta'); assert.ok(Math.abs(ts.power - 1.7) < 1e-9); assert.deepStrictEqual(ts.zone, [2 / 3, 1]);
+});
+// campo dos três tipos com skills de gatilho garantido (largada, Dado, 80%) e o modo "skills sempre ativam"
+function campoTipos() {
+  return TIPOS.map(function (e) { var h = mk({ sorte: 40 }); h.element = e; h.level = 20; h.rarity = 'raro'; h.skills = ['arranque', 'dado-viciado', 'arrancada-final']; return h; });
+}
+function raceTipos(seed, cond, hs, semTipo) {
+  return S.simulate({ seed: seed, conditions: cond, recordFrames: true, dev: { skillsAlways: true }, racers: hs.map(function (h, i) {
+    var r = { horse: h, gear: eq(h), name: 'r' + i }; if (semTipo) r.noTypeSkill = true; return r;
+  }) });
+}
+function porCorredor(res, filtro) {
+  var out = [[], [], []]; res.events.forEach(function (e) { if (filtro(e)) out[e.racer].push(e.text); }); return out;
+}
+test('v3: skill de tipo sempre ativa no terço, sem consumir RNG', function () {
+  for (var s = 1; s <= 12; s++) {
+    var cond = S.randomConditions(s), D = cond.distance, hs = campoTipos();
+    var com = raceTipos(s, cond, hs), sem = raceTipos(s, cond, hs, true);
+    var sorteio = function (e) { return e.type === 'skill' && !e.typeSkill; };
+    assert.deepStrictEqual(porCorredor(com, sorteio), porCorredor(sem, sorteio), 'seed ' + s + ': skills por sorteio');
+    var dc = com.events.filter(function (e) { return e.type === 'dado'; }), ds = sem.events.filter(function (e) { return e.type === 'dado'; });
+    assert.strictEqual(dc.length, 2);
+    assert.deepStrictEqual(dc.map(function (d) { return [d.at, d.winner, d.rolls]; }), ds.map(function (d) { return [d.at, d.winner, d.rolls]; }), 'seed ' + s + ': Dados');
+    assert.ok(!sem.events.some(function (e) { return e.typeSkill; }), 'noTypeSkill: nenhum evento de tipo');
+    sem.racerInfo.forEach(function (ri) { assert.strictEqual(ri.typeSkill, null); });
+    hs.forEach(function (h, i) {
+      var tz = G.TYPE_SKILLS[h.element], ri = com.racerInfo[i].typeSkill;
+      assert.deepStrictEqual(ri, { id: tz.id, name: tz.name, from: tz.zone[0] * D, to: tz.zone[1] * D });
+      var evs = com.events.filter(function (e) { return e.typeSkill && e.racer === i; });
+      assert.strictEqual(evs.length, 1, 'seed ' + s + ' corredor ' + i + ': 1 evento de tipo');
+      assert.deepStrictEqual(Object.keys(evs[0]).sort(), ['racer', 't', 'text', 'type', 'typeSkill']);
+      assert.strictEqual(evs[0].type, 'skill'); assert.ok(evs[0].text.indexOf(tz.name) >= 0, evs[0].text);
+      // o evento sai no primeiro tick com o cavalo dentro do terço
+      var f = Math.round(evs[0].t * 10);
+      assert.ok(com.frames[f].pos[i] >= ri.from - 1e-9, 'evento dentro do terço');
+      if (ri.from > 0) assert.ok(com.frames[f - 1].pos[i] < ri.from, 'evento na entrada do terço');
+    });
+  }
+});
+test('v3: skill de tipo com efeito nulo dá exatamente a mesma corrida (prova de que não mexe na RNG)', function () {
+  var salvo = {};
+  TIPOS.forEach(function (e) { salvo[e] = G.TYPE_SKILLS[e].effect; G.TYPE_SKILLS[e].effect = {}; });
+  try {
+    for (var s = 1; s <= 6; s++) {
+      var cond = S.randomConditions(s), hs = campoTipos(), com = raceTipos(s, cond, hs), sem = raceTipos(s, cond, hs, true);
+      com.events = com.events.filter(function (e) { return !e.typeSkill; });
+      com.racerInfo.forEach(function (ri) { ri.typeSkill = null; });
+      assert.strictEqual(JSON.stringify(com), JSON.stringify(sem), 'seed ' + s);
+    }
+  } finally { TIPOS.forEach(function (e) { G.TYPE_SKILLS[e].effect = salvo[e]; }); }
+});
+test('v3: cada skill de tipo ajuda o próprio cavalo no seu terço (média de 30 seeds, sozinho na pista)', function () {
+  function solo(e, s, cond, semTipo) { var h = mk({}); h.element = e; return raceTipos(s, cond, [h], semTipo); }
+  function tempoAte(res, x) { for (var f = 0; f < res.frames.length; f++) if (res.frames[f].pos[0] >= x) return res.frames[f].t; return Infinity; }
+  var ladeira = { distance: 1500, surface: 'areia', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 500 }, { type: 'subida', from: 500, to: 1000 }, { type: 'reta', from: 1000, to: 1500 }] };
+  var m = { lab: [0, 0], raiz: [0, 0], mare: [0, 0] };
+  for (var s = 0; s < 30; s++) {
+    [false, true].forEach(function (semTipo, q) {
+      m.lab[q] += tempoAte(solo('fogo', s, RETA, semTipo), 100);                                  // Labareda: largada mais rápida
+      var g = solo('grama', s, ladeira, semTipo); m.raiz[q] += tempoAte(g, 1000) - tempoAte(g, 500);   // Raízes Firmes: sobe melhor no meio
+      m.mare[q] += solo('agua', s, RETA, semTipo).finishTimes[0];                              // Maré Alta: termina antes
+    });
+  }
+  Object.keys(m).forEach(function (k) { assert.ok(m[k][0] < m[k][1], k + ': ' + m[k][0].toFixed(1) + ' com, ' + m[k][1].toFixed(1) + ' sem'); });
+  // Maré Alta recupera estamina ao entrar no último terço
+  var mc = solo('agua', 3, RETA), fz = Math.round(mc.events.filter(function (e) { return e.typeSkill; })[0].t * 10);
+  assert.ok(mc.frames[fz + 1].stamina[0] > mc.frames[fz].stamina[0], 'recuperou na entrada');
+});
+test('v3: elemento desconhecido corre sem skill de tipo', function () {
+  ['neutro', undefined, 'lava'].forEach(function (e) {
+    var h = mk({}); h.element = e;
+    assert.strictEqual(S.typeSkill(h), null, String(e));
+    var res = race(4, RETA, [h, mk({})]);
+    assert.strictEqual(res.finishOrder.length, 2); assert.ok(semNaN(res), String(e));
+    res.racerInfo.forEach(function (ri) { assert.strictEqual(ri.typeSkill, null); });
+    assert.ok(!res.events.some(function (ev) { return ev.typeSkill; }), String(e) + ': sem evento de tipo');
+  });
+});
+test('v3: pista sem extremos', function () {
+  for (var k = 0; k < 3000; k++) {
+    var c = S.randomConditions(S.hash2(31, k)), tot = { reta: 0, curva: 0, subida: 0 };
+    assert.ok(c.distance >= 1400 && c.distance <= 2000 && c.distance % 50 === 0);
+    c.blocks.forEach(function (b) { tot[b.type] += b.to - b.from; });
+    assert.ok(tot.curva > 0 && tot.subida > 0);
+    ['reta', 'curva', 'subida'].forEach(function (t) { assert.ok(tot[t] <= c.distance / 2); });
+    assert.strictEqual(c.blocks[0].type, 'reta'); assert.strictEqual(c.blocks[c.blocks.length - 1].type, 'reta');
+  }
+});
+test('v3: as 13 distâncias saem do sorteio e, sem pista válida em 60 tentativas, entra o molde fixo', function () {
+  var vistas = {};
+  for (var k = 0; k < 2000; k++) vistas[S.randomConditions(k).distance] = 1;
+  assert.strictEqual(Object.keys(vistas).length, 13);
+  var old = S.TUNING.trackTries; S.TUNING.trackTries = 0;
+  try {
+    [1, 2, 3].forEach(function (s) {
+      var c = S.randomConditions(s), prev = 0;
+      assert.deepStrictEqual(c.blocks.map(function (b) { return b.type; }), ['reta', 'curva', 'reta', 'subida', 'reta']);
+      c.blocks.forEach(function (b) { assert.strictEqual(b.from, prev); assert.ok(b.to > b.from && b.to % 10 === 0); prev = b.to; });
+      assert.strictEqual(prev, c.distance);
+    });
+  } finally { S.TUNING.trackTries = old; }
+});
+test('v3: distância explícita antiga continua aceita', function () {
+  var rnd = S.randomConditions(7);
+  [1000, 2400].forEach(function (d) {
+    assert.strictEqual(S.normalizeConditions({ distance: d }, 7).distance, d);
+    var res = race(7, { distance: d }, campo2());
+    assert.strictEqual(res.conditions.distance, d); assert.ok(semNaN(res), String(d));
+  });
+  [900, 2500].forEach(function (d) { assert.strictEqual(S.normalizeConditions({ distance: d }, 7).distance, rnd.distance, String(d)); });
+});
+test('v3: nenhuma skill é exclusiva e as gerais servem a qualquer tipo', function () {
+  var gerais = Object.keys(G.SKILLS).filter(function (id) { return G.SKILLS[id].element === 'geral'; });
+  assert.deepStrictEqual(gerais, ['arranque', 'sprint', 'drift', 'saida-rapida', 'folego-de-montanha', 'segundo-ar', 'arrancada-final', 'dado-viciado']);
+  Object.keys(G.SKILLS).forEach(function (id) {
+    var sk = G.SKILLS[id];
+    assert.ok(!('exclusive' in sk), id + ' sem exclusive');
+    assert.ok(sk.element === 'geral' || TIPOS.indexOf(sk.element) >= 0, id + ' elemento ' + sk.element);
+  });
+  TIPOS.forEach(function (e) {
+    var m = { id: 'brasa', element: e, rarity: 'mitico', skills: [] }, seen = {};
+    for (var i = 0; i < 600; i++) { var id = S.learnSkill(m, S.mulberry32(i)); if (id) seen[id] = 1; }
+    Object.keys(seen).forEach(function (id) { assert.ok(G.SKILLS[id].element === 'geral' || G.SKILLS[id].element === e, e + ' aprendeu ' + id); });
+    assert.ok(Object.keys(seen).some(function (id) { return G.SKILLS[id].element === 'geral'; }), e + ': aprende geral');
+    assert.ok(Object.keys(seen).some(function (id) { return G.SKILLS[id].element === e; }), e + ': aprende do tipo');
+  });
 });
 
 section('dado');
@@ -323,12 +487,12 @@ test('foal é determinístico e tem o formato da spec', function () {
 });
 test('status na janela do grau, potencial ≥ piso, skills dentro das vagas e compatíveis', function () {
   for (var s = 0; s < 2000; s++) {
-    var f = mk2({ sex: 'f', skills: ['labareda', 'sprint'], element: 'fogo' }), m = mk2({ skills: ['pe-na-chuva', 'drift'], element: 'agua' });
+    var f = mk2({ sex: 'f', skills: ['chama-final', 'sprint'], element: 'fogo' }), m = mk2({ skills: ['pe-na-chuva', 'drift'], element: 'agua' });
     var c = B.foal({ f: f, m: m, seedBase: s, breedCounter: 0, nextUid: 1 });
     var lo = G.RARITIES[c.rarity].baseLo, w = B.GRAU_WINDOW[c.grau - 1];
     G.STAT_KEYS.forEach(function (k) { assert.ok(c.base[k] >= lo + w[0] && c.base[k] <= lo + w[1], 'base ' + k); assert.ok(c.potential[k] >= B.GRAU_POT_FLOOR[c.grau - 1] && c.potential[k] <= 31, 'pot ' + k); });
     var R = G.RARITIES[c.rarity]; assert.ok(c.skills.length <= R.skillSlots && c.skills.length >= Math.min(R.bornSkills, R.skillSlots), 'skills ' + c.skills.join());
-    c.skills.forEach(function (id) { var sk = G.SKILLS[id]; assert.ok(sk && !sk.exclusive, 'exclusiva ' + id); assert.ok(sk.element === 'neutro' || sk.element === c.element, 'elemento ' + id); });
+    c.skills.forEach(function (id) { var sk = G.SKILLS[id]; assert.ok(sk, 'existe ' + id); assert.ok(sk.element === 'geral' || sk.element === c.element, 'elemento ' + id); });
     assert.strictEqual(new Set(c.skills).size, c.skills.length); assert.notStrictEqual(c.rarity, 'mitico');
   }
 });
@@ -362,7 +526,8 @@ test('uid distinto mesmo com nomes iguais', function () {
 
 test('snapshot dourado dos potros de exemplos.md', function () {
   // docs/exemplos.md §4 "Três potros de exemplo": seedBase 20261106, nextUid 2, breedCounter 0/1/2.
-  // Regravado no modelo v3 (iniciais Comuns e baseLo novo); o exemplos.md acompanha na tarefa da documentação.
+  // Regravado no modelo v3 (iniciais Comuns e baseLo novo; Pangaré saiu do catálogo e deu lugar a Lambari,
+  // Ventania virou Grama); o exemplos.md acompanha na tarefa da documentação.
   // Compara o potro INTEIRO (inclusive a paleta, passo 9 da RNG): qualquer chamada de rng a mais,
   // a menos ou fora de ordem em breed.js muda algum campo e derruba este teste.
   function par(id, level, uid) {
@@ -374,12 +539,12 @@ test('snapshot dourado dos potros de exemplos.md', function () {
     { f: par('mare', 30, null), m: par('brasa', 30, null), name: 'Serena', rarity: 'comum', grau: 2, element: 'fogo', sex: 'f',
       base: [50, 49, 51, 50, 45, 49, 50], potential: [8, 12, 13, 12, 20, 14, 12], skills: ['dado-viciado'],
       palette: { coat: '#ac8077', coatShade: '#6f5351', mane: '#a0c8a1', accent: '#f0ecbf' }, breedLeft: 1 },
-    { f: par('w-faisca', 1, null), m: par('w-pangare', 1, null), name: 'Quimera', rarity: 'comum', grau: 2, element: 'neutro', sex: 'f',
-      base: [51, 46, 47, 48, 50, 50, 48], potential: [10, 12, 15, 10, 20, 27, 10], skills: ['arranque'],
-      palette: { coat: '#b4733e', coatShade: '#7c4924', mane: '#9b7f55', accent: '#e59d65' }, breedLeft: 1 },
-    { f: par('w-ventania', 30, null), m: par('w-jequitiba', 30, null), name: 'Estrela', rarity: 'lendario', grau: 1, element: 'grama', sex: 'm',
-      base: [60, 57, 56, 55, 57, 59, 56], potential: [28, 25, 17, 27, 21, 19, 16], skills: ['sprint', 'arrancada-final'],
-      palette: { coat: '#ac9e8d', coatShade: '#7f7466', mane: '#5a7b5b', accent: '#94cab1' }, breedLeft: 2 }
+    { f: par('w-faisca', 1, null), m: par('w-lambari', 1, null), name: 'Quimera', rarity: 'comum', grau: 2, element: 'agua', sex: 'f',
+      base: [51, 46, 47, 48, 50, 50, 48], potential: [9, 11, 15, 10, 20, 27, 10], skills: ['arranque'],
+      palette: { coat: '#ad8e76', coatShade: '#756053', mane: '#f0e2c1', accent: '#b1a589' }, breedLeft: 1 },
+    { f: par('w-ventania', 30, null), m: par('w-jequitiba', 30, null), name: 'Saci', rarity: 'lendario', grau: 1, element: 'grama', sex: 'm',
+      base: [61, 60, 57, 56, 55, 57, 59], potential: [17, 30, 11, 5, 29, 14, 8], skills: ['arrancada-final', 'casco-firme'],
+      palette: { coat: '#9f8f7d', coatShade: '#74675a', mane: '#537c55', accent: '#92c9a1' }, breedLeft: 2 }
   ];
   casos.forEach(function (c, i) {
     var x = B.foal({ f: c.f, m: c.m, seedBase: 20261106, breedCounter: i, nextUid: 2 });
@@ -591,7 +756,7 @@ test('5 peças Chuva anulam a penalidade do Fogo na chuva; 4 Sol dobram o Sol', 
 });
 
 section('dev');
-// Referência regravada no modelo de status v3 (seeds 1001…1020; os 3 iniciais + 5
+// Referência regravada no modelo v3 com a skill de tipo e a pista nova (seeds 1001…1020; os 3 iniciais + 5
 // aluguéis do Haras, com o equipamento de bot de cada liga). Mudou a simulação de propósito? Regrave a tabela.
 var crypto = require('crypto');
 var ALUGUEIS = G.WILD_HORSES.filter(function (h) { return h.rarity !== 'mitico' && B.rentalPrice(h) != null; }).slice(0, 5);
@@ -606,15 +771,15 @@ function refRace(seed, dev) {
 function refHash(res) {
   return crypto.createHash('sha1').update(JSON.stringify({ finishOrder: res.finishOrder, finishTimes: res.finishTimes, events: res.events })).digest('hex');
 }
-var REF_HASHES = ['3126ad0c3e5be987cdcd232a73080136842ae999', 'b7c2c9c1ccdd56f15e470412971d8ef32d89b94f', '92a8c52056160c701301102bb6b4bd144bad8268',
-  '051ac78e484c7ca7afcfd979f514ae4708ed7bbc', '1322b3794a1238a0ef75047f17b7769a3cc2f11b', '078fd7969465cc291833ec2741e8e23551bbdec2',
-  '8092c74f848968c9dec7510189a1c6f30a5b5a6b', '4eedf78cde5a91817b9caacc552c196b9155a379', '0d17782296821c599fee5a77a84ca762ba5af828',
-  '0cc2b411bcddafb1a14a5c492eef6717c93ae091', '023b7748de72efa024710aad15b7ea4896f916e9', '6cb1fa14eeb58931569f6f47a6d4f4382bc2f47e',
-  'c505098046ced582d58dbae1646d211c66bdb103', '18659d87a0307c2a5eebff6d7279f712cdebd084', '3481cd656b4475d720af375c33aae52c8571b558',
-  'b70c32d2d9525d79eebe365aac66dc4fa81e209f', 'c306aa761e987368a0ec4b445002a8858fde097a', '7bbfa5b1038aa89b1eebb7fd6bf37bc5a73a4634',
-  'df3cf1a5454c251d1083b56338edafd6510d8835', 'b1118807cd2f88c96ec0175e36ef767e67fa8197'];
+var REF_HASHES = ['0b37d495dda55ad84071a9db572e9f9f6d15e73c', 'e8cc20a499db412f27fd12ec918df1941d3fbcb0', '54dc3e7c91bd356fc1e7587d798ec89c77941940',
+  '2b800a4ad17aebcd543915daf0f8bda55ecb644c', 'a8241e7f65392d1507a9ee050fba227dfb8c2757', '35874e25f18a56f73402a5d4a823123f6517c98f',
+  '8baa74edd86f31b87d3d4083ad4294aeea282005', '676c91de9e7aa0be1ab375f3d9a7753e31b31f80', 'bdd59ecf6c7bf880bb39fc738ec031de18a5c48c',
+  'ebe247bfdc4096a3c22b6cd46061a777126ababf', '838a3d5d48736c0bd9d522d938804df469a2dbaf', 'e18054c0a2ddced63a815911df41e5ff198946cf',
+  'ae11f4ec48993ee381b283769a21c6a915a58f29', 'b4c39a11dc17bc746e7dc3c7001e06f0bf088c6b', '0e49baf947a3f043fe8facb81d24c8bdb42176e8',
+  'f8a62dd9fe53ae8b765e2aaaa9772e90628ca334', '39d39ab0564f2ad9e3f8e7eb3685776b7b87033f', '8f74327bc25c511f88cc0933e9340e9300c96368',
+  '5b29724e62188185b710c54e952f3dfb11ccfae6', '947e2a54f0e9ddbcb103dfb320b87845e27aae62'];
 test('sem config.dev o resultado é o de antes', function () {
-  assert.deepStrictEqual(CAMPO_REF.map(function (h) { return h.id; }), ['brasa', 'mare', 'ipe', 'w-pangare', 'w-faisca', 'w-lambari', 'w-capim', 'w-ticao']);
+  assert.deepStrictEqual(CAMPO_REF.map(function (h) { return h.id; }), ['brasa', 'mare', 'ipe', 'w-faisca', 'w-lambari', 'w-capim', 'w-ticao', 'w-garoa']);
   var diff = [];
   for (var k = 0; k < 20; k++) { var h = refHash(refRace(1001 + k)); if (h !== REF_HASHES[k]) diff.push((1001 + k) + ': ' + h); }
   assert.deepStrictEqual(diff, [], 'hashes diferentes da referência');
@@ -678,9 +843,9 @@ test('Dev.horseTemplate respeita vagas e skills válidas', function () {
   G.STAT_KEYS.forEach(function (k) { assert.strictEqual(t.potential[k], 12, 'pot ' + k); });
   assert.deepStrictEqual(t.palette, pal);
   Object.keys(G.STARTERS[0]).filter(function (k) { return k !== 'title' && k !== 'bio'; }).forEach(function (k) { assert.ok(k in t, 'campo ' + k); });
-  // Mítico: 5 vagas, qualquer skill do catálogo (inclusive exclusiva de outro elemento), na ordem pedida
-  var m = DV().horseTemplate({ name: 'X', element: 'agua', rarity: 'mitico', sex: 'm', potential: 'max', skills: ['labareda', 'mare-alta', 'drift', 'sprint', 'arranque', 'segundo-ar'] }, 1);
-  assert.deepStrictEqual(m.skills, ['labareda', 'mare-alta', 'drift', 'sprint', 'arranque']);
+  // Mítico: 5 vagas, qualquer skill do catálogo (inclusive de outro elemento), na ordem pedida
+  var m = DV().horseTemplate({ name: 'X', element: 'agua', rarity: 'mitico', sex: 'm', potential: 'max', skills: ['sol-a-pino', 'nevoa-amiga', 'labareda', 'drift', 'sprint', 'arranque', 'segundo-ar'] }, 1);
+  assert.deepStrictEqual(m.skills, ['sol-a-pino', 'nevoa-amiga', 'drift', 'sprint', 'arranque'], 'a skill de tipo não é skill de vaga');
   G.STAT_KEYS.forEach(function (k) { assert.strictEqual(m.potential[k], 31); });
   assert.ok(/^#[0-9a-f]{6}$/i.test(m.palette.coat) && /^#[0-9a-f]{6}$/i.test(m.palette.accent), 'paleta padrão');
   assert.strictEqual(DV().horseTemplate({ rarity: 'raro', potential: 99 }).potential.vel, 31);
@@ -799,7 +964,7 @@ test('simulate não muta a config recebida', function () {
   var antes = JSON.stringify(cfg);
   S.simulate(cfg); assert.strictEqual(JSON.stringify(cfg), antes);
 });
-test('resultado traz simVersion e tuningHash; o hash muda com o TUNING e com as skills', function () {
+test('resultado traz simVersion e tuningHash; o hash muda com o TUNING, as skills e as skills de tipo', function () {
   assert.strictEqual(typeof S.VERSION, 'string'); assert.ok(S.VERSION.length > 0);
   var a = race(5, RETA, campo2());
   assert.strictEqual(a.simVersion, S.VERSION); assert.ok(/^[0-9a-f]{16}$/.test(a.tuningHash), a.tuningHash);
@@ -809,6 +974,8 @@ test('resultado traz simVersion e tuningHash; o hash muda com o TUNING e com as 
   try { assert.notStrictEqual(S.tuningHash(), a.tuningHash, 'TUNING'); } finally { S.TUNING.vBase = old; }
   var sk = G.SKILLS.sprint.effect, sm = sk.speedMult; sk.speedMult = sm + 0.01;
   try { assert.notStrictEqual(S.tuningHash(), a.tuningHash, 'skills'); } finally { sk.speedMult = sm; }
+  var te = G.TYPE_SKILLS.fogo.effect, ta = te.accelMult; te.accelMult = ta + 0.01;
+  try { assert.notStrictEqual(S.tuningHash(), a.tuningHash, 'skills de tipo'); } finally { te.accelMult = ta; }
   assert.strictEqual(S.tuningHash(), a.tuningHash);
 });
 test('todo gatilho usado em SKILLS tem peso no Poder (SKILL_TRIGGER_WEIGHT)', function () {

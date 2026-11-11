@@ -19,7 +19,7 @@
  *                tempo para o cavalo andar distanceM pelos frames; ou até sair do bloco se
  *                blockScoped; sem duração, o mínimo), limitada a [1.5, 7]·escala. A skill é achada
  *                pelo trecho ' ativou <Nome>!' do texto do evento entre as skills do cavalo
- *                (racers[i].horse.skills). element = o da skill; no desenho, 'neutro' usa o elemento do
+ *                (racers[i].horse.skills). element = o da skill; no desenho, 'geral' usa o elemento do
  *                cavalo (campo cavalo). clima = 'sol'|'chuva'|'nevoa' (do trigger weather:*) para o ícone.
  *                silks e raia (1..n) vêm de racers e servem ao balão (borda e número na cor da raia).
  *       'garra' { t0: ev.t, t1: finishTime + 0.6, racer, icon, element, silks, raia, escala }   — um por evento 'garra'.
@@ -859,10 +859,10 @@
     }
   }
 
-  // cor do elemento para desenhar: neutro usa o elemento do cavalo (se for elemental)
+  // cor do elemento para desenhar: skill geral (ou elemento sem cor) usa o elemento do cavalo
   function corElemento(item) {
     var el = item.element;
-    if (el === 'neutro' || !ELEM[el]) el = item.cavalo && ELEM[item.cavalo] ? item.cavalo : 'neutro';
+    if (el === 'geral' || !ELEM[el]) el = item.cavalo && ELEM[item.cavalo] ? item.cavalo : 'neutro';
     return ELEM[el] || ELEM.neutro;
   }
   function textoBalao(item) {

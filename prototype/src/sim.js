@@ -42,14 +42,18 @@
  *   uma skill mexe na Garra; o que já foi gasto não muda.
  *
  * MAPA EM BLOCOS (randomConditions(seed)). Ordem das chamadas de rng():
- *   1) distância D = 1000 + 100*floor(rng*15)  (1 000–2 400 m);  2) nº de blocos B = 5..9;
- *   3) B pesos w = 0.5 + rng (fronteiras acumuladas D·Σw/total arredondadas a 10 m, o último
- *   fecha em D);  4) tipo de cada bloco do meio (B−2, uniforme reta/curva/subida; o 1º e o
- *   último são sempre reta);  5) piso (grama/terra/areia);  6) clima inicial (4 climas).
+ *   1) distância D = 1400 + 50*floor(rng*13)  (1 400–2 000 m);  depois, a cada tentativa:
+ *   2) nº de blocos B = 5..9;  3) B pesos w = 0.5 + rng (fronteiras acumuladas D·Σw/total
+ *   arredondadas a 10 m, o último fecha em D);  4) tipo de cada bloco do meio (B−2, uniforme
+ *   reta/curva/subida; o 1º e o último são sempre reta). A tentativa vale se a pista tem pelo
+ *   menos uma curva e uma subida e nenhum tipo passa de metade de D (T.trackMaxShare); senão,
+ *   2–4 se repetem no mesmo fluxo (2,9 tentativas em média). Depois de 60 (T.trackTries), molde
+ *   fixo: reta, curva, reta, subida, reta (quintos de D). Por fim 5) piso (grama/terra/areia)
+ *   e 6) clima inicial (4 climas).
  *   conditions = { distance, surface, weather, blocks: [{ type, from, to }] }. Campos ausentes
  *   ou inválidos em config.conditions são sorteados pela seed (normalizeConditions). Distância
- *   aceita: inteiro em 1000–2400 m; fora disso vale a da seed. Com distância dada diferente da
- *   seed e sem blocos válidos, a pista vira uma reta única dessa distância.
+ *   dada aceita: inteiro em 1000–2400 m (mais larga que o sorteio); fora disso vale a da seed.
+ *   Com distância dada diferente da seed e sem blocos válidos, a pista vira uma reta única.
  *
  * FATOR DO BLOCO (multiplica a velocidade-alvo; teto 1):
  *   reta 1;  curva = min(1, 0.826 + 0.14*n(man) + bônus de skill)   (0,826–0,966);
@@ -90,12 +94,23 @@
  *   weatherDouble. Equipamento: mods + special (skillChanceBonus,
  *   weatherDoubleClimate, ignoreWeatherPenalty), vindo de Gear.resolve. Evento 'skill'.
  *
+ * SKILL DE TIPO (GameData.TYPE_SKILLS, uma por elemento; typeSkill/typePower). Sempre ativa, sem
+ *   sorteio e sem consumir a RNG, no terço [zone[0]·D, zone[1]·D) da pista, com força
+ *   P = 1 + 0,4·(level − 1)/49 + 0,4·ordemDaRaridade/4:
+ *     Labareda (Fogo, 0–D/3): aceleração ×(1 + 0,23·P);
+ *     Raízes Firmes (Grama, D/3–2D/3): n(Força) e n(Manobra) + 0,07·P (presos a 1,2), gasto ×(1 − 0,012·P);
+ *     Maré Alta (Água, 2D/3–D): velocidade ×(1 + 0,018·P); recupera 1,2%·P do tanque ao entrar
+ *     (se não estiver exausto).
+ *   Vira um efeito com fromPos/untilPos em buildRacer. Na entrada do terço sai um evento
+ *   { t, racer, type: 'skill', text, typeSkill: true }. Elemento desconhecido: sem skill de tipo.
+ *   entry.noTypeSkill: true desliga (comparações do balance.js).
+ *
  * DADO DA SORTE: quando o líder cruza 1/3 e 2/3 de D (T.diceAt), todos rolam (inclusive quem
  *   já chegou), no fluxo próprio do Dado. rollDice: d1 = 1..100; Sorte = chance de rolar um
  *   segundo dado (sorte/100) e ficar com o melhor; Dado Viciado soma um dado extra (até 3).
  *   Maior dado vence; empate no topo => re-rola só os empatados. O clima vira o do elemento do
- *   vencedor (Fogo sol, Água chuva, Grama névoa); se já for esse ou o vencedor for Neutro, o
- *   clima "segura". Eventos 'dado' { at, rolls, winner, weather, changed } e, se virou, 'clima'.
+ *   vencedor (Fogo sol, Água chuva, Grama névoa); se já for esse (ou o elemento for desconhecido),
+ *   o clima "segura". Eventos 'dado' { at, rolls, winner, weather, changed } e, se virou, 'clima'.
  *
  * EVENTOS: 'skill', 'garra', 'cansou' (estamina zerou faltando >2%), 'ultrapassagem'
  *   (troca de líder confirmada por 1,5 s, intervalo mínimo 4 s, após 12% da pista,
@@ -112,7 +127,7 @@
  * RESULTADO: { seed, simVersion (RaceSim.VERSION), tuningHash (impressão digital do TUNING e dos
  *   dados de skills/raridades/clima usados), conditions (iniciais normalizadas), weatherFinal (clima
  *   depois dos Dados), dt, duration, frames, events, finishOrder, finishTimes,
- *   racerInfo[i] = { name, horseName, stats, skillChance } }.
+ *   racerInfo[i] = { name, horseName, stats, skillChance, typeSkill: { id, name, from, to } (metros) | null } }.
  *
  * ENTRADAS MALFORMADAS: level e potencial passam por sanitizeLevel/sanitizePotential (Number;
  *   não finito vale 1 / 0; level inteiro 1–50, potencial 0–31), em computeStats e skillChance;
@@ -121,7 +136,8 @@
  * ORDEM DAS CHAMADAS DE r.rng() (fluxo de cada corredor; manter estável):
  *   montagem: 1) startDelay, 2) jockeyErr; por tick: 3) tentativas de skill (só quando um
  *   gatilho acontece), 4) sorteio da Garra (uma vez, em 80%), 5) jitter; depois do movimento,
- *   quando o Dado vai rolar: tentativa do gatilho 'dice'. Detalhes junto de buildRacer.
+ *   quando o Dado vai rolar: tentativa do gatilho 'dice'. A skill de tipo não chama r.rng().
+ *   Detalhes junto de buildRacer.
  * ============================================================================
  *
  * UMD: no browser vira window.RaceSim (precisa de window.GameData antes);
@@ -147,6 +163,11 @@
     gBand: 16, gGrowBase: 0.30, gGrowRange: 0.08,
     starMult: [1, 1.2, 1.5],
     freeCapShare: 0.34,
+    // skill de tipo: força P = typeBase + typeLevel·(nível − 1)/49 + typeRar·ordemDaRaridade/4
+    typeBase: 1, typeLevel: 0.4, typeRar: 0.4,
+    // pista: D = distMin + distStep·k (até distMax); blocos re-sorteados até ter curva e subida e nenhum
+    // tipo acima de trackMaxShare de D; depois de trackTries tentativas, molde fixo
+    distMin: 1400, distMax: 2000, distStep: 50, trackMaxShare: 0.5, trackTries: 60,
     // velocidade / aceleração
     vBase: 17.805, vRange: 1.2,
     aBase: 0.6, aRange: 2.4,
@@ -245,7 +266,8 @@
   }
   // Impressão digital das regras: FNV-1a de 32 bits (duas bases, 16 hex) sobre o JSON do TUNING, dos
   // pesos de gatilho e dos dados de jogo que a simulação lê (skills: gatilho e efeito; raridades:
-  // teto, início da faixa de nascimento e chance de skill; elementos, pisos e climas; level máximo). Recalculada a cada
+  // teto, início da faixa de nascimento e chance de skill; skills de tipo: terço e efeito; elementos,
+  // pisos e climas; level máximo). Recalculada a cada
   // simulate (o TUNING pode ser trocado em teste/ajuste); um servidor pode guardar o par
   // simVersion + tuningHash para auditar corridas antigas depois de um rebalanceamento.
   function fnv1a(str, h) {
@@ -266,6 +288,7 @@
       skills: pick(GameData.SKILLS, ['element', 'trigger', 'effect']),
       rarities: pick(GameData.RARITIES, ['statCap', 'baseLo', 'skillChance']),
       elements: pick(GameData.ELEMENTS, ['weather']),
+      typeSkills: pick(GameData.TYPE_SKILLS, ['zone', 'effect']),
       surfaces: pick(GameData.SURFACES, ['slow', 'drain']),
       weathers: pick(GameData.WEATHERS, ['element', 'penalizes']),
       maxLevel: GameData.ECONOMY.maxLevel
@@ -305,7 +328,7 @@
   }
   // Limite de pontos num mesmo status: teto(freeCapShare · pontos livres).
   function statLimit(horse) {
-    return Math.ceil(T.freeCapShare * freePoints(horse) - 1e-9);
+    return Math.max(0, Math.ceil(T.freeCapShare * freePoints(horse) - 1e-9));   // max: nunca −0 (nível 1)
   }
   // Status natural (sem pontos, sem teto, sem equipamento): sai só da genética, da raridade e do nível.
   function naturalStat(horse, k) {
@@ -358,6 +381,18 @@
     return out;
   }
 
+  // Força da skill de tipo: P = 1 + 0,4·(nível − 1)/49 + 0,4·ordemDaRaridade/4
+  // (Comum 1 = 1,00 · Raro 30 ≈ 1,44 · Lendário 50 = 1,70 · Mítico 50 = 1,80).
+  function typePower(horse) {
+    return T.typeBase + T.typeLevel * (sanitizeLevel(horse.level) - 1) / 49 + T.typeRar * (rarityOf(horse).order || 0) / 4;
+  }
+  // Skill de tipo da montaria (a do elemento dela) ou null para elemento desconhecido.
+  function typeSkill(horse) {
+    var ts = horse && Object.prototype.hasOwnProperty.call(GameData.TYPE_SKILLS, horse.element) ? GameData.TYPE_SKILLS[horse.element] : null;
+    if (!ts) return null;
+    return { id: ts.id, name: ts.name, power: typePower(horse), zone: [ts.zone[0], ts.zone[1]] };
+  }
+
   // Rating de Poder: soma ponderada dos status efetivos + habilidades + pontos de conjunto.
   // Cada habilidade vale 20 × o peso do seu gatilho. Para curva, subida e estamina baixa o peso segue a
   // chance de o gatilho acontecer numa corrida típica; clima (0.8) e dice (0.2) são pesos calibrados no
@@ -389,8 +424,7 @@
     var cands = [];
     Object.keys(GameData.SKILLS).forEach(function (id) {
       var sk = GameData.SKILLS[id];
-      if (sk.element !== 'neutro' && sk.element !== mount.element) return;
-      if (sk.exclusive && sk.exclusive !== mount.id) return;
+      if (sk.element !== 'geral' && sk.element !== mount.element) return;
       if (owned.indexOf(id) >= 0) return;
       cands.push(id);
     });
@@ -425,26 +459,44 @@
   var WEATHER_LIST = ['sol', 'chuva', 'nevoa', 'nublado'];
   var BLOCK_LIST = ['reta', 'curva', 'subida'];
 
-  // Pista em blocos, toda derivada da seed. Ordem das chamadas de rng:
-  // distância, nº de blocos B, pesos (B), tipos (B-2), superfície, clima.
+  // Pista em blocos, toda derivada da seed. Ordem das chamadas de rng: distância; depois, a cada
+  // tentativa, nº de blocos B, pesos (B) e tipos (B-2); por fim superfície e clima.
   function randomConditions(seed) {
     var rng = mulberry32(hash2(seed, 0xC0FFEE));
-    var distance = 1000 + 100 * Math.floor(rng() * 15);
-    var B = 5 + Math.floor(rng() * 5);
-    var weights = [], total = 0, i;
-    for (i = 0; i < B; i++) { weights.push(0.5 + rng()); total += weights[i]; }
-    var blocks = [], acc = 0, from = 0, to;
-    for (i = 0; i < B; i++) {
-      acc += weights[i];
-      // fronteiras acumuladas arredondadas a 10 m; o último bloco fecha em `distance`
-      to = (i === B - 1) ? distance : Math.round(distance * acc / total / 10) * 10;
-      var type = (i === 0 || i === B - 1) ? 'reta' : BLOCK_LIST[Math.floor(rng() * 3)];
-      blocks.push({ type: type, from: from, to: to });
-      from = to;
+    var nd = Math.floor((T.distMax - T.distMin) / T.distStep) + 1;
+    var distance = T.distMin + T.distStep * Math.floor(rng() * nd);
+    // re-sorteia os blocos (no mesmo fluxo) até a pista ter curva e subida e nenhum tipo acima de
+    // trackMaxShare; sem sucesso em trackTries tentativas, entra o molde fixo
+    var blocks = null;
+    for (var tr = 0; tr < T.trackTries && !blocks; tr++) {
+      var B = 5 + Math.floor(rng() * 5);
+      var weights = [], total = 0, i;
+      for (i = 0; i < B; i++) { weights.push(0.5 + rng()); total += weights[i]; }
+      var bl = [], acc = 0, from = 0, to;
+      for (i = 0; i < B; i++) {
+        acc += weights[i];
+        // fronteiras acumuladas arredondadas a 10 m; o último bloco fecha em `distance`
+        to = (i === B - 1) ? distance : Math.round(distance * acc / total / 10) * 10;
+        var type = (i === 0 || i === B - 1) ? 'reta' : BLOCK_LIST[Math.floor(rng() * 3)];
+        bl.push({ type: type, from: from, to: to });
+        from = to;
+      }
+      if (trackOk(bl)) blocks = bl;
+    }
+    if (!blocks) {
+      // molde fixo: reta, curva, reta, subida, reta (quintos de D arredondados a 10 m)
+      var q = Math.round(distance / 50) * 10;
+      blocks = [{ type: 'reta', from: 0, to: q }, { type: 'curva', from: q, to: 2 * q }, { type: 'reta', from: 2 * q, to: 3 * q },
+        { type: 'subida', from: 3 * q, to: 4 * q }, { type: 'reta', from: 4 * q, to: distance }];
     }
     var surface = SURF_LIST[Math.floor(rng() * 3)];
     var weather = WEATHER_LIST[Math.floor(rng() * 4)];
     return { distance: distance, surface: surface, weather: weather, blocks: blocks };
+  }
+  // Pista sem extremos: pelo menos uma curva e uma subida, nenhum tipo acima de trackMaxShare.
+  function trackOk(bl) {
+    var c = blockShare(bl, 'curva'), h = blockShare(bl, 'subida'), r = blockShare(bl, 'reta');
+    return c > 0 && h > 0 && c <= T.trackMaxShare && h <= T.trackMaxShare && r <= T.trackMaxShare;
   }
 
   // Blocos são válidos se contíguos a partir de 0 e (quando dada) terminam em `distance`.
@@ -461,7 +513,8 @@
     return distance == null || prev === distance;
   }
 
-  // Distância aceita: inteiro dentro da faixa do sorteio de pista (randomConditions, 1000–2400 m).
+  // Distância aceita quando dada: inteiro em 1000–2400 m (a faixa antiga do sorteio, mais larga que a
+  // de hoje, T.distMin–T.distMax), para pistas explícitas e o modo DEV.
   var DIST_MIN = 1000, DIST_MAX = 2400;
   function validDistance(d) {
     return typeof d === 'number' && isFinite(d) && d === Math.floor(d) && d >= DIST_MIN && d <= DIST_MAX;
@@ -605,6 +658,7 @@
   //   por tick: 3) tentativas de skill (só quando um gatilho acontece; na ordem dos gatilhos
   //   start/bloco/clima/lowStamina/final e, dentro de cada gatilho, na ordem da lista de skills),
   //   4) sorteio da Garra (uma vez, ao cruzar garraZone), 5) jitter.
+  //   A skill de tipo não consome a RNG.
   function buildRacer(entry, index, cond, rng) {
     var horse = entry.horse;
     var gear = (entry.gear && typeof entry.gear === 'object' && entry.gear.mods) ? entry.gear : null;
@@ -638,8 +692,26 @@
       effects: [],
       pos: 0, v: 0, stamina: 1,
       exhausted: false, finished: false, finishTime: null,
-      garraRolled: false, garraMult: 1
+      garraRolled: false, garraMult: 1,
+      typeSkill: null
     };
+    // skill de tipo: sempre ativa no terço [zone[0]·D, zone[1]·D), força typePower; montada sem RNG.
+    // entry.noTypeSkill desliga (comparações do balance.js).
+    var ts = entry.noTypeSkill ? null : typeSkill(horse);
+    if (ts) {
+      var te = GameData.TYPE_SKILLS[horse.element].effect || {}, P = ts.power, D = cond.distance;
+      var from = ts.zone[0] * D, to = ts.zone[1] * D;
+      r.typeSkill = { id: ts.id, name: ts.name, from: from, to: to, restore: (te.staminaRestore || 0) * P, entered: false };
+      r.effects.push({
+        untilT: null, fromPos: from, untilPos: ts.zone[1] >= 1 ? null : to,
+        speedMult: 1 + (te.speedMult || 0) * P,
+        accelMult: 1 + (te.accelMult || 0) * P,
+        drainMult: Math.max(0.05, 1 - (te.drainCut || 0) * P),
+        curveBonus: 0, hillBonus: 0, hillDrainMult: 1,
+        forcaAdd: (te.forcaAdd || 0) * P,
+        manAdd: (te.manAdd || 0) * P
+      });
+    }
     applyWeather(r, cond.weather);
     return r;
   }
@@ -792,13 +864,23 @@
         if (r.stamina <= T.lowStaminaAt && !r.exhausted) trigger(r, 'lowStamina', tPrev, pos, blk.to);
         if (p >= T.garraZone) trigger(r, 'final', tPrev, pos, blk.to);
 
-        // efeitos ativos
-        var effSpeed = 1, effAccel = 1, effDrain = 1, curveBonus = 0, hillBonus = 0, hillDrainMult = 1;
+        // skill de tipo: entrada no terço (uma vez): recupera estamina (se não estiver exausto) e narra
+        var tsk = r.typeSkill;
+        if (tsk && !tsk.entered && pos >= tsk.from) {
+          tsk.entered = true;
+          if (tsk.restore && !r.exhausted) r.stamina = Math.min(1, r.stamina + tsk.restore);
+          events.push({ t: r2(tPrev), racer: r.index, type: 'skill', text: r.label + ' ativou ' + tsk.name + '!', typeSkill: true });
+        }
+
+        // efeitos ativos (fromPos/untilPos: trecho da pista onde valem)
+        var effSpeed = 1, effAccel = 1, effDrain = 1, curveBonus = 0, hillBonus = 0, hillDrainMult = 1, forcaAdd = 0, manAdd = 0;
         for (var e = 0; e < r.effects.length; e++) {
           var fx = r.effects[e];
-          if ((fx.untilT == null || tPrev < fx.untilT) && (fx.untilPos == null || pos < fx.untilPos)) {
+          if ((fx.untilT == null || tPrev < fx.untilT) && (fx.untilPos == null || pos < fx.untilPos) && (fx.fromPos == null || pos >= fx.fromPos)) {
             effSpeed *= fx.speedMult; effAccel *= fx.accelMult; effDrain *= fx.drainMult;
             curveBonus += fx.curveBonus; hillBonus += fx.hillBonus; hillDrainMult *= fx.hillDrainMult;
+            if (fx.forcaAdd) forcaAdd += fx.forcaAdd;
+            if (fx.manAdd) manAdd += fx.manAdd;
           }
         }
 
@@ -812,7 +894,7 @@
         }
 
         // terreno e bloco
-        var nf = clamp(r.nf, 0, 1.2), nm = clamp(r.nm, 0, 1.2);
+        var nf = clamp(r.nf + forcaAdd, 0, 1.2), nm = clamp(r.nm + manAdd, 0, 1.2);
         var speedMod = weatherSlow;
         var drainMod = surf.drain * weatherDrain * distDrain * effDrain;
         speedMod *= 1 - surf.slow * (1 - T.forcaSurfRelief * nf);
@@ -986,7 +1068,8 @@
     // Extra (fora do contrato mínimo): resumo por corredor para dicas na UI.
     var racerInfo = R.map(function (r) {
       return {
-        name: r.name, horseName: r.horseName, stats: r.stats, skillChance: r.skillChance
+        name: r.name, horseName: r.horseName, stats: r.stats, skillChance: r.skillChance,
+        typeSkill: r.typeSkill ? { id: r.typeSkill.id, name: r.typeSkill.name, from: r.typeSkill.from, to: r.typeSkill.to } : null
       };
     });
 
@@ -1027,6 +1110,8 @@
     naturalStat: naturalStat,
     validAlloc: validAlloc,
     allocInfo: allocInfo,
+    typePower: typePower,
+    typeSkill: typeSkill,
     powerRating: powerRating,
     skillChance: skillChance,
     weatherMult: weatherMult,

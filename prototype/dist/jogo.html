@@ -723,33 +723,24 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 
   // ---------------------------------------------------------------------------
   // Elementos
-  //   statBonus: bônus fixo antigo (o modelo v3 não soma mais; sai dos dados num passo seguinte).
-  //   weather: clima "dono" do elemento (WEATHERS[w].element aponta de volta); null = nenhum.
+  // Três tipos (v3). Sem bônus fixo de status: o que distingue o tipo é o clima e a skill de tipo.
+  //   weather: clima "dono" do elemento (WEATHERS[w].element aponta de volta).
   // ---------------------------------------------------------------------------
   var ELEMENTS = {
     fogo: {
       id: 'fogo', name: 'Fogo', color: '#e8541e', icon: 'fire',
-      statBonus: { stat: 'acel', amount: 8 },
       weather: 'sol',
       desc: 'Explosivo na largada. Brilha no sol; sofre com chuva.'
     },
     agua: {
       id: 'agua', name: 'Água', color: '#2f8fd8', icon: 'water',
-      statBonus: { stat: 'est', amount: 8 },
       weather: 'chuva',
       desc: 'Fôlego de sobra. Cresce na chuva; sofre na névoa.'
     },
     grama: {
       id: 'grama', name: 'Grama', color: '#4caf3a', icon: 'leaf',
-      statBonus: { stat: 'forca', amount: 8 },
       weather: 'nevoa',
       desc: 'Firme como raiz. Domina a névoa e as subidas; murcha no sol.'
-    },
-    neutro: {
-      id: 'neutro', name: 'Neutro', color: '#9e9a8e', icon: 'circle',
-      statBonus: null,
-      weather: null,
-      desc: 'Sem bônus nem penalidade. Rende igual em qualquer clima.'
     }
   };
 
@@ -804,6 +795,33 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   };
 
   // ---------------------------------------------------------------------------
+  // Skill de tipo (v3): uma por elemento, em vaga própria, sempre ativa e sem sorteio no terço
+  // `zone` da distância ([início, fim] em fração de D). Os valores valem com força P = 1 e são
+  // multiplicados por P = RaceSim.typePower (cresce com nível e raridade):
+  //   accelMult / speedMult: somam x·P ao multiplicador; drainCut: corta x·P do gasto de estamina;
+  //   forcaAdd / manAdd: somam x·P a n(Força) / n(Manobra) (curva, subida, piso, pelotão);
+  //   staminaRestore: recupera x·P do tanque uma vez, ao entrar no terço.
+  //   short: nome de até 12 letras para o balão da corrida.
+  // ---------------------------------------------------------------------------
+  var TYPE_SKILLS = {
+    fogo: {
+      id: 'labareda', name: 'Labareda', short: 'LABAREDA', zone: [0, 1 / 3],
+      effect: { accelMult: 0.23 },
+      desc: 'No primeiro terço da pista, a largada pega fogo: +23% de aceleração (cresce com nível e raridade).'
+    },
+    grama: {
+      id: 'raizes-firmes', name: 'Raízes Firmes', short: 'RAÍZES FIRM.', zone: [1 / 3, 2 / 3],
+      effect: { forcaAdd: 0.07, manAdd: 0.07, drainCut: 0.012 },
+      desc: 'No terço do meio, finca os cascos: +7 de Força e de Manobra e gasta 1,2% menos estamina (cresce com nível e raridade).'
+    },
+    agua: {
+      id: 'mare-alta', name: 'Maré Alta', short: 'MARÉ ALTA', zone: [2 / 3, 1],
+      effect: { speedMult: 0.018, staminaRestore: 0.012 },
+      desc: 'No último terço, a maré sobe: recupera 1,2% de estamina ao entrar e corre +1,8% mais rápido (cresce com nível e raridade).'
+    }
+  };
+
+  // ---------------------------------------------------------------------------
   // Habilidades
   //   trigger: 'start' | 'straight' (reta de 150 m ou mais, fora a da largada) | 'curve' | 'curveExit'
   //            | 'hill' | 'lowStamina' (<=30%) | 'final' (últimos 20%) | 'dice' (uma tentativa,
@@ -816,48 +834,48 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   //     staminaRestore: recupera fração do tanque (instantâneo);
   //     garraChanceBonus / garraBoostBonus: reforça a arrancada de Garra;
   //     extraDice: dados extras; weatherDouble: o bônus do clima vira T.weatherMultDouble (×1,08 no lugar de ×1,03).
-  //   short (opcional): nome de até 12 letras para o balão da corrida (só apresentação, não é regra);
-  //   exclusive: id da montaria inicial dona (só ela pode ter).
+  //   short (opcional): nome de até 12 letras para o balão da corrida (só apresentação, não é regra).
+  //   element: 'geral' (qualquer tipo aprende) ou o tipo que aprende.
   // ---------------------------------------------------------------------------
   var SKILLS = {
-    // --- Genéricas (neutro) ---
+    // --- Gerais (qualquer tipo) ---
     'arranque': {
-      id: 'arranque', name: 'Arranque', element: 'neutro', trigger: 'start',
+      id: 'arranque', name: 'Arranque', element: 'geral', trigger: 'start',
       desc: 'Largada explosiva: +20% de aceleração nos primeiros 100 m.',
       effect: { accelMult: 1.2, distanceM: 100 }
     },
     'sprint': {
-      id: 'sprint', name: 'Sprint', element: 'neutro', trigger: 'straight',
+      id: 'sprint', name: 'Sprint', element: 'geral', trigger: 'straight',
       desc: 'Numa reta de 150 m ou mais (fora a da largada): +6% de velocidade por 150 m.',
       effect: { speedMult: 1.06, drainMult: 1.0, distanceM: 150 }
     },
     'drift': {
-      id: 'drift', name: 'Drift', element: 'neutro', trigger: 'curve',
+      id: 'drift', name: 'Drift', element: 'geral', trigger: 'curve',
       desc: 'Em cada curva: +3% de rendimento na curva.',
       effect: { curveBonus: 0.03, blockScoped: true }
     },
     'saida-rapida': {
-      id: 'saida-rapida', name: 'Saída Rápida', element: 'neutro', trigger: 'curveExit',
+      id: 'saida-rapida', name: 'Saída Rápida', element: 'geral', trigger: 'curveExit',
       desc: 'Ao sair da curva: +40% de aceleração e +6% de velocidade por 6s.',
       effect: { accelMult: 1.4, speedMult: 1.06, durationS: 6 }
     },
     'folego-de-montanha': {
-      id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'neutro', trigger: 'hill',
+      id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'geral', trigger: 'hill',
       desc: 'Em cada subida: gasta 80% menos estamina extra da subida.',
       effect: { hillDrainMult: 0.2, blockScoped: true }
     },
     'segundo-ar': {
-      id: 'segundo-ar', name: 'Segundo Ar', element: 'neutro', trigger: 'lowStamina',
+      id: 'segundo-ar', name: 'Segundo Ar', element: 'geral', trigger: 'lowStamina',
       desc: 'Quando a estamina cai a 30%, recupera 15% e ganha +5% de velocidade por 8s.',
       effect: { staminaRestore: 0.15, speedMult: 1.05, durationS: 8 }
     },
     'arrancada-final': {
-      id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'neutro', trigger: 'final',
+      id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'geral', trigger: 'final',
       desc: 'Na reta final: +15% de chance de Garra e +3% de força na arrancada.',
       effect: { garraChanceBonus: 0.15, garraBoostBonus: 0.03 }
     },
     'dado-viciado': {
-      id: 'dado-viciado', name: 'Dado Viciado', element: 'neutro', trigger: 'dice',
+      id: 'dado-viciado', name: 'Dado Viciado', element: 'geral', trigger: 'dice',
       desc: 'Uma tentativa por corrida, antes do 1º Dado da Sorte: se ativar, rola 1 dado extra em todos os Dados da corrida.',
       effect: { extraDice: 1 }
     },
@@ -866,11 +884,6 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       id: 'sol-a-pino', name: 'Sol a Pino', element: 'fogo', trigger: 'weather:sol',
       desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +8%.',
       effect: { weatherDouble: true }
-    },
-    'labareda': {
-      id: 'labareda', name: 'Labareda', element: 'fogo', exclusive: 'brasa', trigger: 'start',
-      desc: 'Largada em chamas: +15% de aceleração e +1% de velocidade por 5s.',
-      effect: { accelMult: 1.15, speedMult: 1.01, durationS: 5 }
     },
     'chama-final': {
       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
@@ -882,11 +895,6 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       id: 'pe-na-chuva', name: 'Pé na Chuva', element: 'agua', trigger: 'weather:chuva',
       desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +8%.',
       effect: { weatherDouble: true }
-    },
-    'mare-alta': {
-      id: 'mare-alta', name: 'Maré Alta', element: 'agua', exclusive: 'mare', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 30%, a maré sobe: recupera 20% de estamina e ganha +5% de velocidade por 8s.',
-      effect: { staminaRestore: 0.20, speedMult: 1.05, durationS: 8 }
     },
     'canto-da-iara': {
       id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
@@ -908,11 +916,6 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       id: 'casco-firme', name: 'Casco Firme', element: 'grama', trigger: 'hill',
       desc: 'Em cada subida: +2% de rendimento na subida.',
       effect: { hillBonus: 0.02, blockScoped: true }
-    },
-    'raizes-firmes': {
-      id: 'raizes-firmes', name: 'Raízes Firmes', short: 'RAÍZES FIRM.', element: 'grama', exclusive: 'ipe', trigger: 'straight',
-      desc: 'Numa reta de 150 m ou mais (fora a da largada), finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s.',
-      effect: { staminaRestore: 0.05, speedMult: 1.02, durationS: 8 }
     }
   };
 
@@ -953,11 +956,6 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   ];
 
   var WILD_HORSES = [
-    mount('w-pangare', 'Pangaré', 'neutro', 'comum', 'm', 1,
-      { vel: 10, acel: 12, man: 11, forca: 15, est: 14, garra: 9, sorte: 10 },
-      [],
-      { coat: '#8d6e52', coatShade: '#5c4532', mane: '#3b2a1e', accent: '#c9b28f' },
-      { habitat: 'Pasto da fazenda', grau: 1 }),
     mount('w-faisca', 'Faísca', 'fogo', 'comum', 'f', 3,
       { vel: 14, acel: 16, man: 15, forca: 10, est: 8, garra: 12, sorte: 10 },
       ['arranque'],
@@ -988,7 +986,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       ['casco-firme'],
       { coat: '#b48a5a', coatShade: '#7d5c38', mane: '#3f6b2a', accent: '#e85d9a' },
       { habitat: 'Caatinga', grau: 2 }),
-    mount('w-ventania', 'Ventania', 'neutro', 'raro', 'f', 15,
+    mount('w-ventania', 'Ventania', 'grama', 'raro', 'f', 15,
       { vel: 21, acel: 18, man: 20, forca: 13, est: 15, garra: 17, sorte: 14 },
       ['sprint', 'arrancada-final'],
       { coat: '#e9e4da', coatShade: '#b6aea0', mane: '#7a7a7a', accent: '#9ad0ff' },
@@ -1180,6 +1178,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     STATS: STATS,
     ELEMENTS: ELEMENTS,
     RARITIES: RARITIES,
+    TYPE_SKILLS: TYPE_SKILLS,
     SURFACES: SURFACES,
     WEATHERS: WEATHERS,
     BLOCK_TYPES: BLOCK_TYPES,
@@ -1247,14 +1246,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   uma skill mexe na Garra; o que já foi gasto não muda.
  *
  * MAPA EM BLOCOS (randomConditions(seed)). Ordem das chamadas de rng():
- *   1) distância D = 1000 + 100*floor(rng*15)  (1 000–2 400 m);  2) nº de blocos B = 5..9;
- *   3) B pesos w = 0.5 + rng (fronteiras acumuladas D·Σw/total arredondadas a 10 m, o último
- *   fecha em D);  4) tipo de cada bloco do meio (B−2, uniforme reta/curva/subida; o 1º e o
- *   último são sempre reta);  5) piso (grama/terra/areia);  6) clima inicial (4 climas).
+ *   1) distância D = 1400 + 50*floor(rng*13)  (1 400–2 000 m);  depois, a cada tentativa:
+ *   2) nº de blocos B = 5..9;  3) B pesos w = 0.5 + rng (fronteiras acumuladas D·Σw/total
+ *   arredondadas a 10 m, o último fecha em D);  4) tipo de cada bloco do meio (B−2, uniforme
+ *   reta/curva/subida; o 1º e o último são sempre reta). A tentativa vale se a pista tem pelo
+ *   menos uma curva e uma subida e nenhum tipo passa de metade de D (T.trackMaxShare); senão,
+ *   2–4 se repetem no mesmo fluxo (2,9 tentativas em média). Depois de 60 (T.trackTries), molde
+ *   fixo: reta, curva, reta, subida, reta (quintos de D). Por fim 5) piso (grama/terra/areia)
+ *   e 6) clima inicial (4 climas).
  *   conditions = { distance, surface, weather, blocks: [{ type, from, to }] }. Campos ausentes
  *   ou inválidos em config.conditions são sorteados pela seed (normalizeConditions). Distância
- *   aceita: inteiro em 1000–2400 m; fora disso vale a da seed. Com distância dada diferente da
- *   seed e sem blocos válidos, a pista vira uma reta única dessa distância.
+ *   dada aceita: inteiro em 1000–2400 m (mais larga que o sorteio); fora disso vale a da seed.
+ *   Com distância dada diferente da seed e sem blocos válidos, a pista vira uma reta única.
  *
  * FATOR DO BLOCO (multiplica a velocidade-alvo; teto 1):
  *   reta 1;  curva = min(1, 0.826 + 0.14*n(man) + bônus de skill)   (0,826–0,966);
@@ -1295,12 +1298,23 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   weatherDouble. Equipamento: mods + special (skillChanceBonus,
  *   weatherDoubleClimate, ignoreWeatherPenalty), vindo de Gear.resolve. Evento 'skill'.
  *
+ * SKILL DE TIPO (GameData.TYPE_SKILLS, uma por elemento; typeSkill/typePower). Sempre ativa, sem
+ *   sorteio e sem consumir a RNG, no terço [zone[0]·D, zone[1]·D) da pista, com força
+ *   P = 1 + 0,4·(level − 1)/49 + 0,4·ordemDaRaridade/4:
+ *     Labareda (Fogo, 0–D/3): aceleração ×(1 + 0,23·P);
+ *     Raízes Firmes (Grama, D/3–2D/3): n(Força) e n(Manobra) + 0,07·P (presos a 1,2), gasto ×(1 − 0,012·P);
+ *     Maré Alta (Água, 2D/3–D): velocidade ×(1 + 0,018·P); recupera 1,2%·P do tanque ao entrar
+ *     (se não estiver exausto).
+ *   Vira um efeito com fromPos/untilPos em buildRacer. Na entrada do terço sai um evento
+ *   { t, racer, type: 'skill', text, typeSkill: true }. Elemento desconhecido: sem skill de tipo.
+ *   entry.noTypeSkill: true desliga (comparações do balance.js).
+ *
  * DADO DA SORTE: quando o líder cruza 1/3 e 2/3 de D (T.diceAt), todos rolam (inclusive quem
  *   já chegou), no fluxo próprio do Dado. rollDice: d1 = 1..100; Sorte = chance de rolar um
  *   segundo dado (sorte/100) e ficar com o melhor; Dado Viciado soma um dado extra (até 3).
  *   Maior dado vence; empate no topo => re-rola só os empatados. O clima vira o do elemento do
- *   vencedor (Fogo sol, Água chuva, Grama névoa); se já for esse ou o vencedor for Neutro, o
- *   clima "segura". Eventos 'dado' { at, rolls, winner, weather, changed } e, se virou, 'clima'.
+ *   vencedor (Fogo sol, Água chuva, Grama névoa); se já for esse (ou o elemento for desconhecido),
+ *   o clima "segura". Eventos 'dado' { at, rolls, winner, weather, changed } e, se virou, 'clima'.
  *
  * EVENTOS: 'skill', 'garra', 'cansou' (estamina zerou faltando >2%), 'ultrapassagem'
  *   (troca de líder confirmada por 1,5 s, intervalo mínimo 4 s, após 12% da pista,
@@ -1317,7 +1331,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  * RESULTADO: { seed, simVersion (RaceSim.VERSION), tuningHash (impressão digital do TUNING e dos
  *   dados de skills/raridades/clima usados), conditions (iniciais normalizadas), weatherFinal (clima
  *   depois dos Dados), dt, duration, frames, events, finishOrder, finishTimes,
- *   racerInfo[i] = { name, horseName, stats, skillChance } }.
+ *   racerInfo[i] = { name, horseName, stats, skillChance, typeSkill: { id, name, from, to } (metros) | null } }.
  *
  * ENTRADAS MALFORMADAS: level e potencial passam por sanitizeLevel/sanitizePotential (Number;
  *   não finito vale 1 / 0; level inteiro 1–50, potencial 0–31), em computeStats e skillChance;
@@ -1326,7 +1340,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  * ORDEM DAS CHAMADAS DE r.rng() (fluxo de cada corredor; manter estável):
  *   montagem: 1) startDelay, 2) jockeyErr; por tick: 3) tentativas de skill (só quando um
  *   gatilho acontece), 4) sorteio da Garra (uma vez, em 80%), 5) jitter; depois do movimento,
- *   quando o Dado vai rolar: tentativa do gatilho 'dice'. Detalhes junto de buildRacer.
+ *   quando o Dado vai rolar: tentativa do gatilho 'dice'. A skill de tipo não chama r.rng().
+ *   Detalhes junto de buildRacer.
  * ============================================================================
  *
  * UMD: no browser vira window.RaceSim (precisa de window.GameData antes);
@@ -1352,6 +1367,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     gBand: 16, gGrowBase: 0.30, gGrowRange: 0.08,
     starMult: [1, 1.2, 1.5],
     freeCapShare: 0.34,
+    // skill de tipo: força P = typeBase + typeLevel·(nível − 1)/49 + typeRar·ordemDaRaridade/4
+    typeBase: 1, typeLevel: 0.4, typeRar: 0.4,
+    // pista: D = distMin + distStep·k (até distMax); blocos re-sorteados até ter curva e subida e nenhum
+    // tipo acima de trackMaxShare de D; depois de trackTries tentativas, molde fixo
+    distMin: 1400, distMax: 2000, distStep: 50, trackMaxShare: 0.5, trackTries: 60,
     // velocidade / aceleração
     vBase: 17.805, vRange: 1.2,
     aBase: 0.6, aRange: 2.4,
@@ -1450,7 +1470,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   }
   // Impressão digital das regras: FNV-1a de 32 bits (duas bases, 16 hex) sobre o JSON do TUNING, dos
   // pesos de gatilho e dos dados de jogo que a simulação lê (skills: gatilho e efeito; raridades:
-  // teto, início da faixa de nascimento e chance de skill; elementos, pisos e climas; level máximo). Recalculada a cada
+  // teto, início da faixa de nascimento e chance de skill; skills de tipo: terço e efeito; elementos,
+  // pisos e climas; level máximo). Recalculada a cada
   // simulate (o TUNING pode ser trocado em teste/ajuste); um servidor pode guardar o par
   // simVersion + tuningHash para auditar corridas antigas depois de um rebalanceamento.
   function fnv1a(str, h) {
@@ -1471,6 +1492,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       skills: pick(GameData.SKILLS, ['element', 'trigger', 'effect']),
       rarities: pick(GameData.RARITIES, ['statCap', 'baseLo', 'skillChance']),
       elements: pick(GameData.ELEMENTS, ['weather']),
+      typeSkills: pick(GameData.TYPE_SKILLS, ['zone', 'effect']),
       surfaces: pick(GameData.SURFACES, ['slow', 'drain']),
       weathers: pick(GameData.WEATHERS, ['element', 'penalizes']),
       maxLevel: GameData.ECONOMY.maxLevel
@@ -1510,7 +1532,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   }
   // Limite de pontos num mesmo status: teto(freeCapShare · pontos livres).
   function statLimit(horse) {
-    return Math.ceil(T.freeCapShare * freePoints(horse) - 1e-9);
+    return Math.max(0, Math.ceil(T.freeCapShare * freePoints(horse) - 1e-9));   // max: nunca −0 (nível 1)
   }
   // Status natural (sem pontos, sem teto, sem equipamento): sai só da genética, da raridade e do nível.
   function naturalStat(horse, k) {
@@ -1563,6 +1585,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return out;
   }
 
+  // Força da skill de tipo: P = 1 + 0,4·(nível − 1)/49 + 0,4·ordemDaRaridade/4
+  // (Comum 1 = 1,00 · Raro 30 ≈ 1,44 · Lendário 50 = 1,70 · Mítico 50 = 1,80).
+  function typePower(horse) {
+    return T.typeBase + T.typeLevel * (sanitizeLevel(horse.level) - 1) / 49 + T.typeRar * (rarityOf(horse).order || 0) / 4;
+  }
+  // Skill de tipo da montaria (a do elemento dela) ou null para elemento desconhecido.
+  function typeSkill(horse) {
+    var ts = horse && Object.prototype.hasOwnProperty.call(GameData.TYPE_SKILLS, horse.element) ? GameData.TYPE_SKILLS[horse.element] : null;
+    if (!ts) return null;
+    return { id: ts.id, name: ts.name, power: typePower(horse), zone: [ts.zone[0], ts.zone[1]] };
+  }
+
   // Rating de Poder: soma ponderada dos status efetivos + habilidades + pontos de conjunto.
   // Cada habilidade vale 20 × o peso do seu gatilho. Para curva, subida e estamina baixa o peso segue a
   // chance de o gatilho acontecer numa corrida típica; clima (0.8) e dice (0.2) são pesos calibrados no
@@ -1594,8 +1628,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var cands = [];
     Object.keys(GameData.SKILLS).forEach(function (id) {
       var sk = GameData.SKILLS[id];
-      if (sk.element !== 'neutro' && sk.element !== mount.element) return;
-      if (sk.exclusive && sk.exclusive !== mount.id) return;
+      if (sk.element !== 'geral' && sk.element !== mount.element) return;
       if (owned.indexOf(id) >= 0) return;
       cands.push(id);
     });
@@ -1630,26 +1663,44 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   var WEATHER_LIST = ['sol', 'chuva', 'nevoa', 'nublado'];
   var BLOCK_LIST = ['reta', 'curva', 'subida'];
 
-  // Pista em blocos, toda derivada da seed. Ordem das chamadas de rng:
-  // distância, nº de blocos B, pesos (B), tipos (B-2), superfície, clima.
+  // Pista em blocos, toda derivada da seed. Ordem das chamadas de rng: distância; depois, a cada
+  // tentativa, nº de blocos B, pesos (B) e tipos (B-2); por fim superfície e clima.
   function randomConditions(seed) {
     var rng = mulberry32(hash2(seed, 0xC0FFEE));
-    var distance = 1000 + 100 * Math.floor(rng() * 15);
-    var B = 5 + Math.floor(rng() * 5);
-    var weights = [], total = 0, i;
-    for (i = 0; i < B; i++) { weights.push(0.5 + rng()); total += weights[i]; }
-    var blocks = [], acc = 0, from = 0, to;
-    for (i = 0; i < B; i++) {
-      acc += weights[i];
-      // fronteiras acumuladas arredondadas a 10 m; o último bloco fecha em `distance`
-      to = (i === B - 1) ? distance : Math.round(distance * acc / total / 10) * 10;
-      var type = (i === 0 || i === B - 1) ? 'reta' : BLOCK_LIST[Math.floor(rng() * 3)];
-      blocks.push({ type: type, from: from, to: to });
-      from = to;
+    var nd = Math.floor((T.distMax - T.distMin) / T.distStep) + 1;
+    var distance = T.distMin + T.distStep * Math.floor(rng() * nd);
+    // re-sorteia os blocos (no mesmo fluxo) até a pista ter curva e subida e nenhum tipo acima de
+    // trackMaxShare; sem sucesso em trackTries tentativas, entra o molde fixo
+    var blocks = null;
+    for (var tr = 0; tr < T.trackTries && !blocks; tr++) {
+      var B = 5 + Math.floor(rng() * 5);
+      var weights = [], total = 0, i;
+      for (i = 0; i < B; i++) { weights.push(0.5 + rng()); total += weights[i]; }
+      var bl = [], acc = 0, from = 0, to;
+      for (i = 0; i < B; i++) {
+        acc += weights[i];
+        // fronteiras acumuladas arredondadas a 10 m; o último bloco fecha em `distance`
+        to = (i === B - 1) ? distance : Math.round(distance * acc / total / 10) * 10;
+        var type = (i === 0 || i === B - 1) ? 'reta' : BLOCK_LIST[Math.floor(rng() * 3)];
+        bl.push({ type: type, from: from, to: to });
+        from = to;
+      }
+      if (trackOk(bl)) blocks = bl;
+    }
+    if (!blocks) {
+      // molde fixo: reta, curva, reta, subida, reta (quintos de D arredondados a 10 m)
+      var q = Math.round(distance / 50) * 10;
+      blocks = [{ type: 'reta', from: 0, to: q }, { type: 'curva', from: q, to: 2 * q }, { type: 'reta', from: 2 * q, to: 3 * q },
+        { type: 'subida', from: 3 * q, to: 4 * q }, { type: 'reta', from: 4 * q, to: distance }];
     }
     var surface = SURF_LIST[Math.floor(rng() * 3)];
     var weather = WEATHER_LIST[Math.floor(rng() * 4)];
     return { distance: distance, surface: surface, weather: weather, blocks: blocks };
+  }
+  // Pista sem extremos: pelo menos uma curva e uma subida, nenhum tipo acima de trackMaxShare.
+  function trackOk(bl) {
+    var c = blockShare(bl, 'curva'), h = blockShare(bl, 'subida'), r = blockShare(bl, 'reta');
+    return c > 0 && h > 0 && c <= T.trackMaxShare && h <= T.trackMaxShare && r <= T.trackMaxShare;
   }
 
   // Blocos são válidos se contíguos a partir de 0 e (quando dada) terminam em `distance`.
@@ -1666,7 +1717,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return distance == null || prev === distance;
   }
 
-  // Distância aceita: inteiro dentro da faixa do sorteio de pista (randomConditions, 1000–2400 m).
+  // Distância aceita quando dada: inteiro em 1000–2400 m (a faixa antiga do sorteio, mais larga que a
+  // de hoje, T.distMin–T.distMax), para pistas explícitas e o modo DEV.
   var DIST_MIN = 1000, DIST_MAX = 2400;
   function validDistance(d) {
     return typeof d === 'number' && isFinite(d) && d === Math.floor(d) && d >= DIST_MIN && d <= DIST_MAX;
@@ -1810,6 +1862,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   //   por tick: 3) tentativas de skill (só quando um gatilho acontece; na ordem dos gatilhos
   //   start/bloco/clima/lowStamina/final e, dentro de cada gatilho, na ordem da lista de skills),
   //   4) sorteio da Garra (uma vez, ao cruzar garraZone), 5) jitter.
+  //   A skill de tipo não consome a RNG.
   function buildRacer(entry, index, cond, rng) {
     var horse = entry.horse;
     var gear = (entry.gear && typeof entry.gear === 'object' && entry.gear.mods) ? entry.gear : null;
@@ -1843,8 +1896,26 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       effects: [],
       pos: 0, v: 0, stamina: 1,
       exhausted: false, finished: false, finishTime: null,
-      garraRolled: false, garraMult: 1
+      garraRolled: false, garraMult: 1,
+      typeSkill: null
     };
+    // skill de tipo: sempre ativa no terço [zone[0]·D, zone[1]·D), força typePower; montada sem RNG.
+    // entry.noTypeSkill desliga (comparações do balance.js).
+    var ts = entry.noTypeSkill ? null : typeSkill(horse);
+    if (ts) {
+      var te = GameData.TYPE_SKILLS[horse.element].effect || {}, P = ts.power, D = cond.distance;
+      var from = ts.zone[0] * D, to = ts.zone[1] * D;
+      r.typeSkill = { id: ts.id, name: ts.name, from: from, to: to, restore: (te.staminaRestore || 0) * P, entered: false };
+      r.effects.push({
+        untilT: null, fromPos: from, untilPos: ts.zone[1] >= 1 ? null : to,
+        speedMult: 1 + (te.speedMult || 0) * P,
+        accelMult: 1 + (te.accelMult || 0) * P,
+        drainMult: Math.max(0.05, 1 - (te.drainCut || 0) * P),
+        curveBonus: 0, hillBonus: 0, hillDrainMult: 1,
+        forcaAdd: (te.forcaAdd || 0) * P,
+        manAdd: (te.manAdd || 0) * P
+      });
+    }
     applyWeather(r, cond.weather);
     return r;
   }
@@ -1997,13 +2068,23 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         if (r.stamina <= T.lowStaminaAt && !r.exhausted) trigger(r, 'lowStamina', tPrev, pos, blk.to);
         if (p >= T.garraZone) trigger(r, 'final', tPrev, pos, blk.to);
 
-        // efeitos ativos
-        var effSpeed = 1, effAccel = 1, effDrain = 1, curveBonus = 0, hillBonus = 0, hillDrainMult = 1;
+        // skill de tipo: entrada no terço (uma vez): recupera estamina (se não estiver exausto) e narra
+        var tsk = r.typeSkill;
+        if (tsk && !tsk.entered && pos >= tsk.from) {
+          tsk.entered = true;
+          if (tsk.restore && !r.exhausted) r.stamina = Math.min(1, r.stamina + tsk.restore);
+          events.push({ t: r2(tPrev), racer: r.index, type: 'skill', text: r.label + ' ativou ' + tsk.name + '!', typeSkill: true });
+        }
+
+        // efeitos ativos (fromPos/untilPos: trecho da pista onde valem)
+        var effSpeed = 1, effAccel = 1, effDrain = 1, curveBonus = 0, hillBonus = 0, hillDrainMult = 1, forcaAdd = 0, manAdd = 0;
         for (var e = 0; e < r.effects.length; e++) {
           var fx = r.effects[e];
-          if ((fx.untilT == null || tPrev < fx.untilT) && (fx.untilPos == null || pos < fx.untilPos)) {
+          if ((fx.untilT == null || tPrev < fx.untilT) && (fx.untilPos == null || pos < fx.untilPos) && (fx.fromPos == null || pos >= fx.fromPos)) {
             effSpeed *= fx.speedMult; effAccel *= fx.accelMult; effDrain *= fx.drainMult;
             curveBonus += fx.curveBonus; hillBonus += fx.hillBonus; hillDrainMult *= fx.hillDrainMult;
+            if (fx.forcaAdd) forcaAdd += fx.forcaAdd;
+            if (fx.manAdd) manAdd += fx.manAdd;
           }
         }
 
@@ -2017,7 +2098,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         }
 
         // terreno e bloco
-        var nf = clamp(r.nf, 0, 1.2), nm = clamp(r.nm, 0, 1.2);
+        var nf = clamp(r.nf + forcaAdd, 0, 1.2), nm = clamp(r.nm + manAdd, 0, 1.2);
         var speedMod = weatherSlow;
         var drainMod = surf.drain * weatherDrain * distDrain * effDrain;
         speedMod *= 1 - surf.slow * (1 - T.forcaSurfRelief * nf);
@@ -2191,7 +2272,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     // Extra (fora do contrato mínimo): resumo por corredor para dicas na UI.
     var racerInfo = R.map(function (r) {
       return {
-        name: r.name, horseName: r.horseName, stats: r.stats, skillChance: r.skillChance
+        name: r.name, horseName: r.horseName, stats: r.stats, skillChance: r.skillChance,
+        typeSkill: r.typeSkill ? { id: r.typeSkill.id, name: r.typeSkill.name, from: r.typeSkill.from, to: r.typeSkill.to } : null
       };
     });
 
@@ -2232,6 +2314,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     naturalStat: naturalStat,
     validAlloc: validAlloc,
     allocInfo: allocInfo,
+    typePower: typePower,
+    typeSkill: typeSkill,
     powerRating: powerRating,
     skillChance: skillChance,
     weatherMult: weatherMult,
@@ -2453,7 +2537,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 
   function compatible(id, element) {
     var sk = G.SKILLS[id];
-    return !!sk && !sk.exclusive && (sk.element === 'neutro' || sk.element === element);
+    return !!sk && (sk.element === 'geral' || sk.element === element);
   }
 
   // ids das skills dos pais (égua depois garanhão) que o potro pode herdar
@@ -5004,7 +5088,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *                tempo para o cavalo andar distanceM pelos frames; ou até sair do bloco se
  *                blockScoped; sem duração, o mínimo), limitada a [1.5, 7]·escala. A skill é achada
  *                pelo trecho ' ativou <Nome>!' do texto do evento entre as skills do cavalo
- *                (racers[i].horse.skills). element = o da skill; no desenho, 'neutro' usa o elemento do
+ *                (racers[i].horse.skills). element = o da skill; no desenho, 'geral' usa o elemento do
  *                cavalo (campo cavalo). clima = 'sol'|'chuva'|'nevoa' (do trigger weather:*) para o ícone.
  *                silks e raia (1..n) vêm de racers e servem ao balão (borda e número na cor da raia).
  *       'garra' { t0: ev.t, t1: finishTime + 0.6, racer, icon, element, silks, raia, escala }   — um por evento 'garra'.
@@ -5844,10 +5928,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     }
   }
 
-  // cor do elemento para desenhar: neutro usa o elemento do cavalo (se for elemental)
+  // cor do elemento para desenhar: skill geral (ou elemento sem cor) usa o elemento do cavalo
   function corElemento(item) {
     var el = item.element;
-    if (el === 'neutro' || !ELEM[el]) el = item.cavalo && ELEM[item.cavalo] ? item.cavalo : 'neutro';
+    if (el === 'geral' || !ELEM[el]) el = item.cavalo && ELEM[item.cavalo] ? item.cavalo : 'neutro';
     return ELEM[el] || ELEM.neutro;
   }
   function textoBalao(item) {

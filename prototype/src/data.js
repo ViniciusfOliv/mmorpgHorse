@@ -12,33 +12,24 @@
 
   // ---------------------------------------------------------------------------
   // Elementos
-  //   statBonus: bônus fixo antigo (o modelo v3 não soma mais; sai dos dados num passo seguinte).
-  //   weather: clima "dono" do elemento (WEATHERS[w].element aponta de volta); null = nenhum.
+  // Três tipos (v3). Sem bônus fixo de status: o que distingue o tipo é o clima e a skill de tipo.
+  //   weather: clima "dono" do elemento (WEATHERS[w].element aponta de volta).
   // ---------------------------------------------------------------------------
   var ELEMENTS = {
     fogo: {
       id: 'fogo', name: 'Fogo', color: '#e8541e', icon: 'fire',
-      statBonus: { stat: 'acel', amount: 8 },
       weather: 'sol',
       desc: 'Explosivo na largada. Brilha no sol; sofre com chuva.'
     },
     agua: {
       id: 'agua', name: 'Água', color: '#2f8fd8', icon: 'water',
-      statBonus: { stat: 'est', amount: 8 },
       weather: 'chuva',
       desc: 'Fôlego de sobra. Cresce na chuva; sofre na névoa.'
     },
     grama: {
       id: 'grama', name: 'Grama', color: '#4caf3a', icon: 'leaf',
-      statBonus: { stat: 'forca', amount: 8 },
       weather: 'nevoa',
       desc: 'Firme como raiz. Domina a névoa e as subidas; murcha no sol.'
-    },
-    neutro: {
-      id: 'neutro', name: 'Neutro', color: '#9e9a8e', icon: 'circle',
-      statBonus: null,
-      weather: null,
-      desc: 'Sem bônus nem penalidade. Rende igual em qualquer clima.'
     }
   };
 
@@ -93,6 +84,33 @@
   };
 
   // ---------------------------------------------------------------------------
+  // Skill de tipo (v3): uma por elemento, em vaga própria, sempre ativa e sem sorteio no terço
+  // `zone` da distância ([início, fim] em fração de D). Os valores valem com força P = 1 e são
+  // multiplicados por P = RaceSim.typePower (cresce com nível e raridade):
+  //   accelMult / speedMult: somam x·P ao multiplicador; drainCut: corta x·P do gasto de estamina;
+  //   forcaAdd / manAdd: somam x·P a n(Força) / n(Manobra) (curva, subida, piso, pelotão);
+  //   staminaRestore: recupera x·P do tanque uma vez, ao entrar no terço.
+  //   short: nome de até 12 letras para o balão da corrida.
+  // ---------------------------------------------------------------------------
+  var TYPE_SKILLS = {
+    fogo: {
+      id: 'labareda', name: 'Labareda', short: 'LABAREDA', zone: [0, 1 / 3],
+      effect: { accelMult: 0.23 },
+      desc: 'No primeiro terço da pista, a largada pega fogo: +23% de aceleração (cresce com nível e raridade).'
+    },
+    grama: {
+      id: 'raizes-firmes', name: 'Raízes Firmes', short: 'RAÍZES FIRM.', zone: [1 / 3, 2 / 3],
+      effect: { forcaAdd: 0.07, manAdd: 0.07, drainCut: 0.012 },
+      desc: 'No terço do meio, finca os cascos: +7 de Força e de Manobra e gasta 1,2% menos estamina (cresce com nível e raridade).'
+    },
+    agua: {
+      id: 'mare-alta', name: 'Maré Alta', short: 'MARÉ ALTA', zone: [2 / 3, 1],
+      effect: { speedMult: 0.018, staminaRestore: 0.012 },
+      desc: 'No último terço, a maré sobe: recupera 1,2% de estamina ao entrar e corre +1,8% mais rápido (cresce com nível e raridade).'
+    }
+  };
+
+  // ---------------------------------------------------------------------------
   // Habilidades
   //   trigger: 'start' | 'straight' (reta de 150 m ou mais, fora a da largada) | 'curve' | 'curveExit'
   //            | 'hill' | 'lowStamina' (<=30%) | 'final' (últimos 20%) | 'dice' (uma tentativa,
@@ -105,48 +123,48 @@
   //     staminaRestore: recupera fração do tanque (instantâneo);
   //     garraChanceBonus / garraBoostBonus: reforça a arrancada de Garra;
   //     extraDice: dados extras; weatherDouble: o bônus do clima vira T.weatherMultDouble (×1,08 no lugar de ×1,03).
-  //   short (opcional): nome de até 12 letras para o balão da corrida (só apresentação, não é regra);
-  //   exclusive: id da montaria inicial dona (só ela pode ter).
+  //   short (opcional): nome de até 12 letras para o balão da corrida (só apresentação, não é regra).
+  //   element: 'geral' (qualquer tipo aprende) ou o tipo que aprende.
   // ---------------------------------------------------------------------------
   var SKILLS = {
-    // --- Genéricas (neutro) ---
+    // --- Gerais (qualquer tipo) ---
     'arranque': {
-      id: 'arranque', name: 'Arranque', element: 'neutro', trigger: 'start',
+      id: 'arranque', name: 'Arranque', element: 'geral', trigger: 'start',
       desc: 'Largada explosiva: +20% de aceleração nos primeiros 100 m.',
       effect: { accelMult: 1.2, distanceM: 100 }
     },
     'sprint': {
-      id: 'sprint', name: 'Sprint', element: 'neutro', trigger: 'straight',
+      id: 'sprint', name: 'Sprint', element: 'geral', trigger: 'straight',
       desc: 'Numa reta de 150 m ou mais (fora a da largada): +6% de velocidade por 150 m.',
       effect: { speedMult: 1.06, drainMult: 1.0, distanceM: 150 }
     },
     'drift': {
-      id: 'drift', name: 'Drift', element: 'neutro', trigger: 'curve',
+      id: 'drift', name: 'Drift', element: 'geral', trigger: 'curve',
       desc: 'Em cada curva: +3% de rendimento na curva.',
       effect: { curveBonus: 0.03, blockScoped: true }
     },
     'saida-rapida': {
-      id: 'saida-rapida', name: 'Saída Rápida', element: 'neutro', trigger: 'curveExit',
+      id: 'saida-rapida', name: 'Saída Rápida', element: 'geral', trigger: 'curveExit',
       desc: 'Ao sair da curva: +40% de aceleração e +6% de velocidade por 6s.',
       effect: { accelMult: 1.4, speedMult: 1.06, durationS: 6 }
     },
     'folego-de-montanha': {
-      id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'neutro', trigger: 'hill',
+      id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'geral', trigger: 'hill',
       desc: 'Em cada subida: gasta 80% menos estamina extra da subida.',
       effect: { hillDrainMult: 0.2, blockScoped: true }
     },
     'segundo-ar': {
-      id: 'segundo-ar', name: 'Segundo Ar', element: 'neutro', trigger: 'lowStamina',
+      id: 'segundo-ar', name: 'Segundo Ar', element: 'geral', trigger: 'lowStamina',
       desc: 'Quando a estamina cai a 30%, recupera 15% e ganha +5% de velocidade por 8s.',
       effect: { staminaRestore: 0.15, speedMult: 1.05, durationS: 8 }
     },
     'arrancada-final': {
-      id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'neutro', trigger: 'final',
+      id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'geral', trigger: 'final',
       desc: 'Na reta final: +15% de chance de Garra e +3% de força na arrancada.',
       effect: { garraChanceBonus: 0.15, garraBoostBonus: 0.03 }
     },
     'dado-viciado': {
-      id: 'dado-viciado', name: 'Dado Viciado', element: 'neutro', trigger: 'dice',
+      id: 'dado-viciado', name: 'Dado Viciado', element: 'geral', trigger: 'dice',
       desc: 'Uma tentativa por corrida, antes do 1º Dado da Sorte: se ativar, rola 1 dado extra em todos os Dados da corrida.',
       effect: { extraDice: 1 }
     },
@@ -155,11 +173,6 @@
       id: 'sol-a-pino', name: 'Sol a Pino', element: 'fogo', trigger: 'weather:sol',
       desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +8%.',
       effect: { weatherDouble: true }
-    },
-    'labareda': {
-      id: 'labareda', name: 'Labareda', element: 'fogo', exclusive: 'brasa', trigger: 'start',
-      desc: 'Largada em chamas: +15% de aceleração e +1% de velocidade por 5s.',
-      effect: { accelMult: 1.15, speedMult: 1.01, durationS: 5 }
     },
     'chama-final': {
       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
@@ -171,11 +184,6 @@
       id: 'pe-na-chuva', name: 'Pé na Chuva', element: 'agua', trigger: 'weather:chuva',
       desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +8%.',
       effect: { weatherDouble: true }
-    },
-    'mare-alta': {
-      id: 'mare-alta', name: 'Maré Alta', element: 'agua', exclusive: 'mare', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 30%, a maré sobe: recupera 20% de estamina e ganha +5% de velocidade por 8s.',
-      effect: { staminaRestore: 0.20, speedMult: 1.05, durationS: 8 }
     },
     'canto-da-iara': {
       id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
@@ -197,11 +205,6 @@
       id: 'casco-firme', name: 'Casco Firme', element: 'grama', trigger: 'hill',
       desc: 'Em cada subida: +2% de rendimento na subida.',
       effect: { hillBonus: 0.02, blockScoped: true }
-    },
-    'raizes-firmes': {
-      id: 'raizes-firmes', name: 'Raízes Firmes', short: 'RAÍZES FIRM.', element: 'grama', exclusive: 'ipe', trigger: 'straight',
-      desc: 'Numa reta de 150 m ou mais (fora a da largada), finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s.',
-      effect: { staminaRestore: 0.05, speedMult: 1.02, durationS: 8 }
     }
   };
 
@@ -242,11 +245,6 @@
   ];
 
   var WILD_HORSES = [
-    mount('w-pangare', 'Pangaré', 'neutro', 'comum', 'm', 1,
-      { vel: 10, acel: 12, man: 11, forca: 15, est: 14, garra: 9, sorte: 10 },
-      [],
-      { coat: '#8d6e52', coatShade: '#5c4532', mane: '#3b2a1e', accent: '#c9b28f' },
-      { habitat: 'Pasto da fazenda', grau: 1 }),
     mount('w-faisca', 'Faísca', 'fogo', 'comum', 'f', 3,
       { vel: 14, acel: 16, man: 15, forca: 10, est: 8, garra: 12, sorte: 10 },
       ['arranque'],
@@ -277,7 +275,7 @@
       ['casco-firme'],
       { coat: '#b48a5a', coatShade: '#7d5c38', mane: '#3f6b2a', accent: '#e85d9a' },
       { habitat: 'Caatinga', grau: 2 }),
-    mount('w-ventania', 'Ventania', 'neutro', 'raro', 'f', 15,
+    mount('w-ventania', 'Ventania', 'grama', 'raro', 'f', 15,
       { vel: 21, acel: 18, man: 20, forca: 13, est: 15, garra: 17, sorte: 14 },
       ['sprint', 'arrancada-final'],
       { coat: '#e9e4da', coatShade: '#b6aea0', mane: '#7a7a7a', accent: '#9ad0ff' },
@@ -469,6 +467,7 @@
     STATS: STATS,
     ELEMENTS: ELEMENTS,
     RARITIES: RARITIES,
+    TYPE_SKILLS: TYPE_SKILLS,
     SURFACES: SURFACES,
     WEATHERS: WEATHERS,
     BLOCK_TYPES: BLOCK_TYPES,
