@@ -1224,11 +1224,12 @@ try {
       if (JSON.stringify(s.mounts[0].alloc) !== JSON.stringify(m0.alloc)) problems.push('build: gravação que falhou deixou os pontos na memória ' + JSON.stringify(s.mounts[0].alloc))
       if (!((await bd.locator('#tela').textContent()) || '').includes(FALHA)) problems.push('build: gravação que falhou não avisou')
       if ((await poderNaCabeca(bd)) !== poder0) problems.push('build: gravação que falhou mudou o Poder')
-      if ((await bd.locator(`[data-status="vel"] .valor`).textContent()).trim().split(/\D/)[0] !== String(S.computeStats(m0, GR.resolve(m0, Object.fromEntries(s0.items.map((x) => [x.uid, x])))).vel)) problems.push('build: gravação que falhou deixou o status da tela com o rascunho')
+      // o rascunho continua (não precisa refazer os pontos) e a tela o mostra como rascunho
+      r = await rascunho()
+      if (!r || r.vel !== 2 || r.acel !== 1) problems.push('build: gravação que falhou perdeu o rascunho ' + JSON.stringify(r))
+      if ((await bd.locator('[data-status="vel"] .valor--rascunho').count()) !== 1) problems.push('build: depois da falha, a linha de Velocidade não mostra o rascunho')
       await consertar()
-      // de novo, agora gravando: status e Poder sobem
-      await mais('vel').click(); await mais('vel').click(); await mais('acel').click()
-      await bd.locator('[data-acao="pontos-confirmar"]').click()
+      // de novo, agora gravando: só "Confirmar" (o aviso já foi dado), e status e Poder sobem
       await bd.locator('[data-acao="pontos-confirmar"]').click()
       s = await st()
       const d1 = await disco()
@@ -1240,6 +1241,20 @@ try {
       const poder1 = await poderNaCabeca(bd)
       if (!(poder1 > poder0) || poder1 !== S.powerRating(s.mounts[0], GR.resolve(s.mounts[0], its))) problems.push(`build: Poder depois de confirmar ${poder0} -> ${poder1}`)
       if (await rascunho()) problems.push('build: o rascunho ficou depois de gravar')
+      // clique forjado fora da aba Status: "+" e "Confirmar" não fazem nada
+      await bd.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+      const forja = (acao, idf) => bd.evaluate(([a, i]) => {
+        const b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-acao', a); if (i) b.setAttribute('data-id', i)
+        document.getElementById('tela').appendChild(b); b.click(); b.remove()
+      }, [acao, idf])
+      await forja('ponto-mais', 'man')
+      if (await rascunho()) problems.push('build: "+" forjado fora da aba Status entrou no rascunho ' + JSON.stringify(await rascunho()))
+      const allocAntes = JSON.stringify((await st()).mounts[0].alloc)
+      await bd.evaluate(() => { const M = window.__galope.ui.montaria; M.rascunho = { vel: 0, acel: 0, man: 1, forca: 0, est: 0, garra: 0, sorte: 0 }; M.confirmaPontos = true })
+      await forja('pontos-confirmar')
+      if (JSON.stringify((await st()).mounts[0].alloc) !== allocAntes) problems.push('build: "Confirmar" forjado fora da aba Status gravou pontos')
+      await bd.evaluate(() => { const M = window.__galope.ui.montaria; M.rascunho = null; M.confirmaPontos = false })
+      await bd.locator('[data-acao="montaria-aba"][data-id="status"]').click()
       // sair da tela descarta o rascunho
       await mais('man').click()
       await bd.locator('[data-acao="montaria-voltar"]').click()
@@ -1409,6 +1424,8 @@ try {
         const vaga = ((await vt.locator('.vaga-tipo').textContent().catch(() => '')) || '').replace(/\s+/g, ' ')
         if ((await vt.locator('.vaga-tipo').count()) !== 1) problems.push(`vaga-tipo: ${m.uid} com ${await vt.locator('.vaga-tipo').count()} vagas de tipo`)
         if (!vaga.includes(ts.name) || !vaga.toLowerCase().includes(esp.terco)) problems.push(`vaga-tipo: ${m.uid} sem nome/terço (${ts.name}, ${esp.terco}): ${vaga}`)
+        const inten = 'Intensidade ×' + ts.power.toFixed(2).replace('.', ',')
+        if (!vaga.includes(inten) || /Força ×/.test(vaga)) problems.push(`vaga-tipo: ${m.uid} sem o rótulo "${inten}" (ou ainda com "Força ×"): ${vaga}`)
         for (const nn of esp.nums) if (!vaga.includes(nn)) problems.push(`vaga-tipo: ${m.uid} sem o efeito na força atual ${nn}: ${vaga}`)
         // a vaga de tipo vem antes das vagas normais
         const ordem = await vt.evaluate(() => { const sec = document.querySelector('.vaga-tipo').closest('section'); const all = Array.from(sec.querySelectorAll('.vaga-tipo, .habilidade, .nota')); return all.map((e) => e.className.split(' ')[0]) })
@@ -1438,6 +1455,8 @@ try {
           const ts = S.typeSkill(h), terco = h.element === 'fogo' ? 'primeiro terço' : h.element === 'grama' ? 'terço do meio' : 'último terço'
           const fortes = G.STAT_KEYS.slice().sort((a, b) => h.potential[b] - h.potential[a]).slice(0, 2).map((k) => G.STATS[k].name)
           if (!/Comum/.test(t)) problems.push(`${tag}: ${h.name} sem "Comum"`)
+          const est = ((await card.locator('.estrelas').first().textContent().catch(() => '')) || '').trim()
+          if (est !== '★★☆' || h.grau !== 2) problems.push(`${tag}: ${h.name} sem as ★★ (estrelas "${est}", grau ${h.grau})`)
           if ((await card.locator('.vaga-tipo').count()) !== 1 || !t.includes(ts.name) || !t.toLowerCase().includes(terco)) problems.push(`${tag}: ${h.name} sem a skill de tipo e o terço (${ts.name}, ${terco})`)
           const fortesTxt = (await card.locator('.inicial-fortes').count()) ? await card.locator('.inicial-fortes').textContent() : ''
           for (const f of fortes) if (!fortesTxt.includes(f)) problems.push(`${tag}: ${h.name} sem o status forte ${f}`)

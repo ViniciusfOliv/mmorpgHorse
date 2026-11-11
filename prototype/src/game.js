@@ -917,7 +917,7 @@
     return '<div class="vaga-tipo vaga-tipo--' + esc(el.id) + '"><span class="vaga-tipo-rotulo">Skill de tipo · sempre ativa</span>' +
       '<b>' + iconHtml(el.id) + esc(ts.name) + '</b>' +
       '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts) + '.') + '</span>' +
-      '<span class="vaga-tipo-forca">' + esc('Força ×' + ts.power.toFixed(2).replace('.', ',') + ': cresce com o nível e a raridade') + '</span></div>';
+      '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',') + ': cresce com o nível e a raridade') + '</span></div>';
   }
   function silkClass(r) { return r.isPlayer ? 'seda-voce' : 'seda-' + r.silkIdx; }
   function laneChip(r, i, extra) {
@@ -3663,7 +3663,7 @@
         rerenderKeepScroll(); break;
       case 'ponto-mais': {
         var pm = ui.montaria ? mountByUid(ui.montaria.uid) : null;
-        if (!pm || STAT_KEYS.indexOf(id) < 0) break;
+        if (!pm || ui.montaria.aba !== 'status' || STAT_KEYS.indexOf(id) < 0) break;   // só na aba Status
         var pr2 = rascunhoMais(ui.montaria.rascunho, id);
         if (!rascunhoOk(pm, pr2) || !travaPontos(pm, allocComRascunho(pm, pr2)).ok) break;   // nunca confia no botão
         ui.montaria.rascunho = pr2; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null;
@@ -3677,7 +3677,7 @@
         rerenderKeepScroll(); focusAction('ponto-mais', 'vel'); break;
       case 'pontos-confirmar': {
         var MQ = ui.montaria, cq = MQ ? mountByUid(MQ.uid) : null;
-        if (!cq || !rascunhoSoma(MQ.rascunho)) break;
+        if (!cq || MQ.aba !== 'status' || !rascunhoSoma(MQ.rascunho)) break;   // só na aba Status
         if (!MQ.confirmaPontos) {   // primeiro toque: só o aviso de que não dá para voltar atrás
           MQ.confirmaPontos = true; MQ.pontosMsg = null;
           rerenderKeepScroll(); focusAction('pontos-confirmar'); break;
@@ -3697,6 +3697,8 @@
         cq.alloc = allocComRascunho(cq, rq);
         var gQ = gravaGasto(sQ, antesQ);
         if (gQ === 'outra-aba') break;
+        // gravação que falhou: o rascunho volta (o jogador só toca "Confirmar" de novo, o aviso já foi dado)
+        if (gQ === 'falhou') { MQ.rascunho = rq; MQ.confirmaPontos = true; }
         MQ.pontosMsg = gQ === 'falhou' ? FALHA_SALVAR : 'Pontos distribuídos.';
         rerenderKeepScroll(); break;
       }
