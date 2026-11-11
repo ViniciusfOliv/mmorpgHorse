@@ -9774,7 +9774,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var order = L.sim.finishOrder;
     var place = order.indexOf(L.playerIdx) + 1;
     var hBefore = playerHorse();
-    var before = { level: hBefore.level, xp: hBefore.xp, gold: state.gold, stats: RS.computeStats(hBefore, null) };
+    var before = { level: hBefore.level, xp: hBefore.xp, gold: state.gold, stats: RS.computeStats(hBefore, null), free: RS.freePoints(hBefore) };
     var pay = null, prize;
     if (L.training) {
       prize = TRAINING_GOLD[place - 1] || 10;
@@ -9805,8 +9805,14 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone,
       xpGain: xpGain, levels: levels, learned: learned,
       before: before,
-      after: { level: hAfter.level, xp: hAfter.xp, gold: state.gold, stats: RS.computeStats(hAfter, null) }
+      after: { level: hAfter.level, xp: hAfter.xp, gold: state.gold, stats: RS.computeStats(hAfter, null),
+        free: RS.freePoints(hAfter), allCap: todosNoTeto(hAfter) }
     };
+  }
+  // os sete status no teto da raridade (natural + pontos distribuídos, sem equipamento)?
+  function todosNoTeto(h) {
+    var cap = (GD.RARITIES[h.rarity] || GD.RARITIES.comum).statCap, a = RS.validAlloc(h, h.alloc);
+    return STAT_KEYS.every(function (k) { return RS.naturalStat(h, k) + a[k] >= cap - 1e-9; });
   }
 
   // ===========================================================================
@@ -10616,8 +10622,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var d = R.after.stats[k] - R.before.stats[k];
         return d ? '<span>' + esc(GD.STATS[k].short) + ' ' + R.before.stats[k] + ' → ' + R.after.stats[k] + ' <b class="mais">+' + d + '</b></span>' : '';
       }).join('');
+      // pontos livres ganhos (subir mais de um nível soma); com os sete status no teto, nenhum ponto rende:
+      // aí só a frase do teto. Sem status que mude e fora do teto, não diz nada sobre teto.
+      var ganhos = R.after.free - R.before.free;
+      var pontos = ganhos > 0 && !R.after.allCap
+        ? '<span>' + esc('+' + ganhos + (ganhos === 1 ? ' ponto livre' : ' pontos livres') + ' para distribuir na aba Status da Montaria.') + '</span>' : '';
+      var teto = R.after.allCap ? '<span>Os status já estão no teto da raridade.</span>' : '';
+      var corpoNivel = ups + pontos + teto;
       lvl = '<div class="levelup" role="status"><b>Subiu para o nível ' + R.after.level + '!</b>' +
-        '<div class="ganhos">' + (ups || '<span>Os status já estão no teto da raridade.</span>') + '</div></div>';
+        (corpoNivel ? '<div class="ganhos">' + corpoNivel + '</div>' : '') + '</div>';
     }
     if (R.learned && R.learned.length) {
       var skNames = R.learned.map(function (id) { return GD.SKILLS[id] ? GD.SKILLS[id].name : id; }).join(', ');

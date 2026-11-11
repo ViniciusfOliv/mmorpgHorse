@@ -1436,6 +1436,42 @@ try {
     await vp.context().close()
   }
 
+  // ---------------- subida de nível na tela de resultado: pontos livres ganhos; "teto" só no teto de verdade ----------------
+  if (quer('nivel-pontos')) {
+    const np = await newPage(browser, { width: 390, height: 844 }, 'nivel-pontos')
+    const corre = async () => {
+      await abrirSala(np)
+      await np.getByRole('button', { name: /^Largar/ }).click()
+      await np.waitForSelector('#pista')
+      await np.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+      await np.waitForSelector('#t-resultado')
+      return np.evaluate(() => Array.from(document.querySelectorAll('.levelup')).map((e) => e.textContent.replace(/\s+/g, ' ').trim()).join(' | '))
+    }
+    try {
+      await np.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await np.waitForSelector('#t-estabulo')
+      // Brasa ★★ 2 -> 3: nenhum status arredondado muda, mas ganha 1 ponto livre (1 -> 2)
+      await montaSave(np, (raw) => { raw.mounts[0].level = 2; raw.mounts[0].xp = G.ECONOMY.xpToLevel(2) - 1 })
+      const t1 = await corre()
+      if (!/Subiu para o nível 3/.test(t1)) problems.push('nivel-pontos: sem o aviso de nível 3: ' + t1)
+      if (!/\+1 ponto livre\b/.test(t1) || !/aba Status/.test(t1)) problems.push('nivel-pontos: 2 -> 3 não fala do ponto livre ganho nem da aba Status: ' + t1)
+      if (/teto/i.test(t1)) problems.push('nivel-pontos: 2 -> 3 fala em teto sem estar no teto: ' + t1)
+      // Comum de genética 31 com 6 pontos em cada status: os sete no teto de 80 (natural 74,2 + 6) já no nível 49
+      await montaSave(np, (raw) => {
+        const m = raw.mounts[0]
+        m.level = 49; m.xp = G.ECONOMY.xpToLevel(49) - 1
+        m.potential = Object.fromEntries(G.STAT_KEYS.map((k) => [k, 31]))
+        m.alloc = Object.fromEntries(G.STAT_KEYS.map((k) => [k, 6]))
+      })
+      const t2 = await corre()
+      if (!/Subiu para o nível 50/.test(t2) || !/teto da raridade/.test(t2)) problems.push('nivel-pontos: cavalo no teto sem a frase do teto: ' + t2)
+      if (/ponto livre/.test(t2)) problems.push('nivel-pontos: cavalo com os sete status no teto convidado a distribuir pontos: ' + t2)
+    } catch (e) {
+      problems.push('nivel-pontos: ' + e.message)
+    }
+    await np.context().close()
+  }
+
   if (quer('build-nivel1')) {
     const b1 = await newPage(browser, { width: 360, height: 780 }, 'build-nivel1')
     try {
