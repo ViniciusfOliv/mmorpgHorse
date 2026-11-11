@@ -423,6 +423,28 @@ test('v3: elemento desconhecido corre sem skill de tipo', function () {
     assert.ok(!res.events.some(function (ev) { return ev.typeSkill; }), String(e) + ': sem evento de tipo');
   });
 });
+test('raridade herdada do Object.prototype vale Comum (sem NaN em status, Poder e chance de skill)', function () {
+  var base = cl(G.STARTERS[0]); base.rarity = 'comum';
+  var ref = { stats: S.computeStats(base, null), pr: S.powerRating(base, null), sc: S.skillChance(base, S.computeStats(base, null)) };
+  ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf'].forEach(function (r) {
+    var h = cl(base); h.rarity = r;
+    var st = S.computeStats(h, null);
+    G.STAT_KEYS.forEach(function (k) { assert.ok(isFinite(st[k]), r + ': ' + k + ' = ' + st[k]); });
+    assert.deepStrictEqual(st, ref.stats, r + ': status');
+    assert.strictEqual(S.powerRating(h, null), ref.pr, r + ': Poder');
+    assert.strictEqual(S.skillChance(h, st), ref.sc, r + ': chance de skill');
+    assert.ok(isFinite(S.allocInfo(h).room.vel), r + ': allocInfo');
+    var ba = S.botAlloc(h);
+    assert.ok(G.STAT_KEYS.every(function (k) { return isFinite(ba[k]); }), r + ': botAlloc');
+    assert.doesNotThrow(function () { S.learnSkill({ element: 'fogo', rarity: r, skills: [] }, S.mulberry32(1)); }, r + ': learnSkill');
+  });
+});
+test('tuningHash cobre a ordem das raridades (entra na força da skill de tipo)', function () {
+  var h0 = S.tuningHash(), rr = G.RARITIES.raro, o = rr.order;
+  rr.order = o + 1;
+  try { assert.notStrictEqual(S.tuningHash(), h0, 'order'); } finally { rr.order = o; }
+  assert.strictEqual(S.tuningHash(), h0);
+});
 test('v3: pista sem extremos', function () {
   for (var k = 0; k < 3000; k++) {
     var c = S.randomConditions(S.hash2(31, k)), tot = { reta: 0, curva: 0, subida: 0 };

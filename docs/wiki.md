@@ -200,7 +200,7 @@ São 5 raridades, da mais comum à mais rara: Comum, Mágico, Raro, Lendário e 
 
 Raridade mais alta que nasce de cruzamento: **Lendário**. Mítico nunca nasce de cruzamento e não se aluga.
 
-### Estrelas (grau)
+### Estrelas
 
 Cada montaria tem de ★ a ★★★. As estrelas multiplicam os pontos livres ganhos por level e mudam o preço do aluguel; não mexem na genética. O potro recebe as estrelas no nascimento (ver Cruzamento); as iniciais e os selvagens têm as estrelas definidas nos dados. Ainda não existe item que sobe estrela.
 
@@ -690,7 +690,7 @@ No Haras uma égua (♀) e um garanhão (♂) geram um potro. O sorteio é deter
 - **Estábulo:** cruzar exige vaga livre (o potro ocupa uma). Vagas: 3 no começo, até 8, a 300 de Ouro cada.
 - Não dá para cruzar com um páreo aberto (sala paga ou não).
 
-**Preço do aluguel (base × grau)**
+**Preço do aluguel (base × estrelas)**
 
 | Raridade | ★ | ★★ | ★★★ |
 | --- | --- | --- | --- |
@@ -701,7 +701,7 @@ No Haras uma égua (♀) e um garanhão (♂) geram um potro. O sorteio é deter
 
 **Reprodutores de aluguel**
 
-| Montaria | Sexo | Elemento | Raridade | Grau | Level | Aluguel |
+| Montaria | Sexo | Elemento | Raridade | Estrelas | Level | Aluguel |
 | --- | --- | --- | --- | ---: | ---: | --- |
 | Faísca | ♀ fêmea | Fogo | Comum | ★★ | 3 | 125 |
 | Lambari | ♂ macho | Água | Comum | ★ | 2 | 100 |
@@ -763,11 +763,11 @@ A base é a **menor** raridade entre os pais. O potro pode nascer 1 abaixo, igua
 | Raro × Lendário | — | 20% | 50% | 30% | — |
 | Lendário × Lendário | — | — | 30% | 70% | — |
 
-### Grau do potro
+### Estrelas do potro
 
-As estrelas do potro multiplicam os pontos livres dele (ver Raridades). Grau base = arredondar(0,6 × grau da égua + 0,4 × grau do garanhão). Se a raridade **subiu**, o potro nasce ★; se **desceu**, nasce ★★★. Se manteve, sorteia desce/mantém/sobe (fora de 1–3 soma em "mantém").
+As estrelas do potro multiplicam os pontos livres dele (ver Raridades). Estrelas base = arredondar(0,6 × estrelas da égua + 0,4 × estrelas do garanhão). Se a raridade **subiu**, o potro nasce ★; se **desceu**, nasce ★★★. Se manteve, sorteia desce/mantém/sobe (fora de 1–3 soma em "mantém").
 
-| Grau base | L | ★ | ★★ | ★★★ |
+| Estrelas base | L | ★ | ★★ | ★★★ |
 | ---: | --- | ---: | ---: | ---: |
 | ★ | L = 0 | 80% | 20% | — |
 | ★ | L = 1 | 60% | 40% | — |

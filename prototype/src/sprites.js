@@ -2200,7 +2200,7 @@
     PALETTES: PALETTES,
     SILKS: SILKS,
     randomPalette: randomPalette,
-    ELEMENTS: ['fogo', 'agua', 'grama', 'neutro'],
+    ELEMENTS: ['fogo', 'agua', 'grama'],   // os três tipos do v3 (a paleta e o estilo 'neutro' ficam como queda)
     drawHorse: drawHorse,
     drawHorseCodigo: drawHorseCodigo,
     horseBox: horseBox,

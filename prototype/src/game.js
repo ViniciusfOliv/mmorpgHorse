@@ -10,7 +10,7 @@
  * Sala de largada: o campo (seed, condições, rivais, entrada) é sorteado UMA vez e fica salvo em
  * state.pending até ser corrido. Voltar à aba Correr ou recarregar reabre a mesma sala (sem
  * re-sorteio grátis). O equipamento (persistente, por montaria) entra no pareamento; com páreo aberto
- * só trocas que não passem do rating da sala.
+ * só trocas que não passem do Poder da sala.
  * A corrida é calculada por RaceSim.simulate (função pura da seed) só quando o jogador aperta
  * "Largar!", depois de pagar a entrada, como um servidor faria; a tela de corrida só anima os
  * frames. Ouro e XP são liquidados nesse momento: recarregar no meio da corrida não muda nada.
@@ -1654,7 +1654,7 @@
         '</div>';
     var abre = semAcoes ? '' : ' data-acao="montaria" data-id="' + esc(m.uid) + '"';
     return '<article class="montaria' + (isActive ? ' montaria--ativa' : '') + '" data-uid="' + esc(m.uid) + '"' + abre + '>' +
-      portraitHtml(m, { selo: true, pontos: RS.allocInfo(m).left }) +
+      portraitHtml(m, { selo: true, pontos: pontosQueCabem(m) }) +
       '<h3 class="cavalo-nome">' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h3>' +
       '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
         '<span>' + (m.sex === 'f' ? '♀ Fêmea' : '♂ Macho') + '</span>' +
@@ -2089,7 +2089,7 @@
           (semPedras ? 'Sem pedras' : 'Tentar') + '</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="melhorar-nao" data-id="' + uid + '">Cancelar</button></div>';
     } else {
-      var limite = lock.ok ? '' : ' disabled title="' + esc('Páreo aberto: passaria do rating ' + lock.limit) + '"';
+      var limite = lock.ok ? '' : ' disabled title="' + esc('Páreo aberto: passaria do Poder ' + lock.limit) + '"';
       var mel = '<button type="button" class="btn btn--pequeno" data-acao="melhorar" data-id="' + uid + '"' +
         (!odds ? ' disabled title="Já está no máximo"' : travada ? ' disabled title="Páreo aberto"' : '') + '>Melhorar</button>';
       acoes = '<div class="acoes-peca">' + (equipped
@@ -2116,7 +2116,7 @@
       avisos += '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="vender-desfazer">' +
         esc('Desfazer venda de ' + (GR.piece(Q.undo.item.id) || { name: '?' }).name + ' (−' + fmt(Q.undo.price) + ' de Ouro)') + '</button></div>';
     }
-    if (P && m.uid === state.activeId) avisos += '<p class="aviso">' + esc('Páreo aberto: o rating não pode passar de ' + P.pr) + '</p>';
+    if (P && m.uid === state.activeId) avisos += '<p class="aviso">' + esc('Páreo aberto: o Poder não pode passar de ' + P.pr) + '</p>';
 
     var bySlot = {};
     gear.pieces.forEach(function (p) { bySlot[p.slot] = p; });
@@ -2182,6 +2182,13 @@
     STAT_KEYS.forEach(function (k) { out[k] = a[k] + (r ? r[k] : 0); });
     return out;
   }
+  // pontos livres que ainda cabem em algum status (o selo "+N" do Estábulo): com tudo no teto ou no limite
+  // por status, os que sobram não rendem e o selo some
+  function pontosQueCabem(m) {
+    var info = RS.allocInfo(m), room = 0;
+    STAT_KEYS.forEach(function (k) { room += info.room[k]; });
+    return Math.min(info.left, room);
+  }
   function travaPontos(m, alloc) {
     var P = state.pending;
     if (!P || m.uid !== state.activeId) return { ok: true, limit: null };
@@ -2220,6 +2227,8 @@
     }).join('');
     var avisos = '';
     if (M.pontosMsg) avisos += '<p class="aviso" role="status">' + esc(M.pontosMsg) + '</p>';
+    var algumMais = STAT_KEYS.some(function (k) { return rascunhoOk(m, rascunhoMais(r, k)); });
+    if (livres > 0 && !algumMais) avisos += '<p class="nota">' + esc((livres === 1 ? 'Sobra 1 ponto' : 'Sobram ' + livres + ' pontos') + ': todos os status estão no teto ou no limite.') + '</p>';
     if (trava && info.left > 0) avisos += '<p class="aviso">' + esc('Páreo aberto: os pontos da montaria ativa não podem passar o Poder de ' + P.pr + ' que a sala viu.') + '</p>';
     var topo = '<div class="build-topo"><p class="pontos-livres">Pontos livres: <b>' + livres + '</b></p>' +
       '<span class="nota">' + esc(info.free ? 'de ' + info.free + ' · até ' + info.perStat + ' por status' : 'cada nível ganho dá pontos para distribuir') + '</span>' +
@@ -2575,7 +2584,7 @@
     var sh = sharePct(L.cond);
     if (sh.curva >= 40) tips.push('Muitas curvas: Manobra segura a velocidade na curva e na saída dela.');
     if (sh.subida >= 30) tips.push('Muitas subidas: Força ajuda a não perder ritmo (a Armadura dá Força).');
-    if (L.cond.distance >= 2000) tips.push('Pista longa: Estamina segura o ritmo até o fim.');
+    if (L.cond.distance >= 1800) tips.push('Pista longa: Estamina segura o ritmo até o fim.');   // longa a partir de 1.800 m, como no balance.js (distGroup)
     var h = playerHorse();
     if (RS.weatherMult(h.element, L.cond.weather, false) < 1 && !playerGear().special.ignoreWeatherPenalty) {
       tips.push('Um conjunto completo (5 peças) anula a penalidade de clima.');
@@ -2652,7 +2661,7 @@
             '<span>Poder <b>' + RS.powerRating(eu.horse, eu.gear) + '</b></span></div></div></div>' +
         '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
           '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div>' +
-          (state.pending ? '<p class="nota">' + esc('Com o páreo aberto, só trocas que não passem do rating da sala (' + state.pending.pr + ').') + '</p>' : '') +
+          (state.pending ? '<p class="nota">' + esc('Com o páreo aberto, só trocas que não passem do Poder da sala (' + state.pending.pr + ').') + '</p>' : '') +
         '</div></section>' +
       '<section class="caixa" aria-labelledby="t-corredores"><h2 class="titulo" id="t-corredores">Corredores<span class="nota">' + L.n + ' na raia</span></h2>' +
         '<ol class="programa">' + L.racers.map(racerRow).join('') + '</ol></section>' +

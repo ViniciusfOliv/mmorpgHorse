@@ -294,7 +294,7 @@
     var str = JSON.stringify({
       T: T, w: SKILL_TRIGGER_WEIGHT,
       skills: pick(GameData.SKILLS, ['element', 'trigger', 'effect']),
-      rarities: pick(GameData.RARITIES, ['statCap', 'baseLo', 'skillChance']),
+      rarities: pick(GameData.RARITIES, ['statCap', 'baseLo', 'skillChance', 'order']),
       elements: pick(GameData.ELEMENTS, ['weather']),
       typeSkills: pick(GameData.TYPE_SKILLS, ['zone', 'effect']),
       surfaces: pick(GameData.SURFACES, ['slow', 'drain']),
@@ -329,7 +329,11 @@
     if (!horse || horse.grau == null || !isFinite(g)) return 2;
     return clamp(Math.round(g), 1, 3);
   }
-  function rarityOf(horse) { return GameData.RARITIES[horse.rarity] || GameData.RARITIES.comum; }
+  // Raridade da montaria; desconhecida (ou nome herdado do Object.prototype, como 'constructor') vale Comum.
+  function rarityOf(horse) {
+    var r = horse && horse.rarity;
+    return typeof r === 'string' && Object.prototype.hasOwnProperty.call(GameData.RARITIES, r) ? GameData.RARITIES[r] : GameData.RARITIES.comum;
+  }
   // Pontos livres ganhos até o nível: piso((nível − 1) · multiplicador das estrelas).
   function freePoints(horse) {
     return Math.floor((sanitizeLevel(horse.level) - 1) * T.starMult[starsOf(horse) - 1] + 1e-9);
@@ -447,14 +451,14 @@
   }
   // Chance de uma skill disparar quando o gatilho acontece.
   function skillChance(horse, stats, bonus) {
-    var rar = GameData.RARITIES[horse.rarity] || GameData.RARITIES.comum;
+    var rar = rarityOf(horse);
     var c = rar.skillChance + T.skillPerLevel * (sanitizeLevel(horse.level) - 1) + T.skillPerSorte * ((stats && stats.sorte) || 0) + (bonus || 0);
     return Math.min(T.skillChanceMax, c);
   }
   // Sorteia uma skill nova ao subir de nível (ou null). Não muta a montaria.
   // Ordem das chamadas de rng: 1) portão de T.learnChance, 2) escolha do candidato.
   function learnSkill(mount, rng) {
-    var rar = GameData.RARITIES[mount.rarity] || GameData.RARITIES.comum;
+    var rar = rarityOf(mount);
     var owned = mount.skills || [];
     if (owned.length >= rar.skillSlots) return null;
     if (rng() >= T.learnChance) return null;

@@ -23,7 +23,8 @@
  *   sobe para ×1,07 só se a montaria for do elemento dono do clima do conjunto; para os outros não
  *   muda nada) · >= 5: ignoreWeatherPenalty.
  *
- * BOTS por liga (botGear), conjunto = clima do elemento (Neutro: floor(pick*3) em sol/chuva/nevoa):
+ * BOTS por liga (botGear), conjunto = clima do elemento (elemento sem clima ou desconhecido: floor(pick*3)
+ *   em sol/chuva/nevoa):
  *   0 nada · 1 ferraduras-comum, sela-comum +0 · 2 cinco Comuns +2 · 3 cinco Mágicas +3 ·
  *   4 três Raras +4 do conjunto (ferraduras, sela, estribos) + testeira-magico, armadura-magico +3 ·
  *   5 cinco Raras +7 do conjunto.

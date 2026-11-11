@@ -1472,6 +1472,33 @@ try {
     await np.context().close()
   }
 
+  // ---------------- selo "+N": só os pontos que ainda cabem; no teto, a aba Status explica a sobra ----------------
+  if (quer('selo-teto')) {
+    const sq = await newPage(browser, { width: 360, height: 780 }, 'selo-teto')
+    try {
+      await sq.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await sq.waitForSelector('#t-estabulo')
+      // m2: Comum nível 50 de genética 31 com 6 pontos em cada status: os sete no teto, 16 dos 58 pontos sobrando
+      const CHEIO = Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { alloc: Object.fromEntries(G.STAT_KEYS.map((k) => [k, 6])) })
+      await montaSave(sq, (raw) => { raw.mounts.push(CHEIO); raw.nextUid = 3; raw.stableSlots = 3 })
+      const m2 = (await sq.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts))))[1]
+      const info = S.allocInfo(m2)
+      if (info.left !== 16 || G.STAT_KEYS.some((k) => info.room[k])) problems.push('selo-teto: montaria de teste ' + JSON.stringify(info))
+      if (await sq.locator('.montaria[data-uid="m2"] .pontos-livres').count()) problems.push('selo-teto: o cartão do Estábulo mostra "+N" com os sete status no teto: ' + await sq.locator('.montaria[data-uid="m2"] .pontos-livres').first().textContent())
+      await sq.locator('button[data-acao="montaria"][data-id="m2"]').click()
+      await sq.waitForSelector('#t-montaria')
+      if (await sq.locator('.montaria-cabeca .pontos-livres').count()) problems.push('selo-teto: o retrato da Montaria mostra "+N" com os sete status no teto')
+      const tx = ((await sq.locator('#tela').textContent()) || '').replace(/\s+/g, ' ')
+      if (!/Sobram 16 pontos: todos os status estão no teto ou no limite/.test(tx)) problems.push('selo-teto: a aba Status não explica os 16 pontos que sobram')
+      // a Brasa nível 12 (13 pontos, nada no teto) continua com o "+13"
+      await montaSave(sq, (raw) => { raw.mounts[0].level = 12 })
+      if (((await sq.locator('.montaria[data-uid="m1"] .pontos-livres').first().textContent().catch(() => '')) || '').trim() !== '+13') problems.push('selo-teto: a Brasa nível 12 perdeu o "+13"')
+    } catch (e) {
+      problems.push('selo-teto: ' + e.message)
+    }
+    await sq.context().close()
+  }
+
   if (quer('build-nivel1')) {
     const b1 = await newPage(browser, { width: 360, height: 780 }, 'build-nivel1')
     try {
