@@ -582,9 +582,9 @@ job('e3b', 'e3b', { seed: 1302 }, N_GEAR, 2);
 job('pvp8', 'pvp8', {}, N_PVP, 4);
 job('flips', 'flips', {}, N_FLIPS, 2);
 var SPEC = [
-  ['3', 'De curva (MAN 90) × de reta (VEL 90)', 'CURVA', 'man', 'vel', 'curva', 55, 75],
+  ['3', 'De curva (MAN 90) × de reta (VEL 90)', 'CURVA', 'man', 'vel', 'curva', 65, 85],
   ['3b', 'De reta (VEL 90) × de curva (MAN 90) em reta pura', 'RETA', 'vel', 'man', 'reta', 70, 100],
-  ['3c', 'De subida (FOR 90) × de reta (VEL 90)', 'SUBIDA', 'forca', 'vel', 'subida', 55, 75]
+  ['3c', 'De subida (FOR 90) × de reta (VEL 90)', 'SUBIDA', 'forca', 'vel', 'subida', 75, 93]
 ];
 SPEC.forEach(function (sp, si) { job('spec-' + sp[0], 'spec', { map: sp[2], statA: sp[3], statB: sp[4], test: 300 + si }, N_SPEC, 2); });
 var miticos = G.WILD_HORSES.filter(function (h) { return h.rarity === 'mitico'; });
@@ -618,7 +618,8 @@ function report(R) {
     'Dado da Sorte ligado (1/3 e 2/3 da pista), exceto nas seções com clima fixo. ' +
     'Cavalos sintéticos das metas M (como na calibração): genética de 0 a 31 sorteada pela seed, skills normais sorteadas (as nascidas mais as aprendidas esperadas pelo nível) e pontos livres pela build dos bots (`RaceSim.botAlloc`), salvo indicação. ' +
     'Duelos com largada alternada.' +
-    (QUICK ? ' **--quick:** amostras menores; M6, M9, P1, S1 e A1 só contam como meta no modo completo (com poucas amostras o ruído passa da margem da faixa).' : ''));
+    (QUICK ? ' Amostras menores no --quick.' : ''));
+  if (QUICK) { log(''); log('> **--quick: as metas M6, M9, P1, S1 e A1 só contam no completo** (aqui aparecem só como informação, porque com poucas amostras o ruído passa da margem da faixa). Para medi-las: `node prototype/tools/balance.js`.'); }
   log('');
 
   // -------------------------------------------------------------------------
@@ -657,9 +658,10 @@ function report(R) {
   // -------------------------------------------------------------------------
   // 3) Especialistas por trecho
   // -------------------------------------------------------------------------
-  log('### 3. Especialistas por trecho (Mítico nível 1 de Fogo sem skill de tipo, status 60 e um 90 por equipamento sintético; meta: o especialista do trecho vence 55%–75%; 3b: 70%–100%)');
+  log('### 3. Especialistas por trecho (Mítico nível 1 de Fogo sem skill de tipo, status 60 e um 90 por equipamento sintético; metas: 3 de 65% a 85%, 3b de 70% a 100%, 3c de 75% a 93%)');
   log('');
-  log('3b rebaseada para 70%–100%: sem Disposição do dia (intencional no v2) não há ruído por corrida, e em reta pura VEL 90 contra 60 decide quase sempre. ' +
+  log('3 e 3c rebaseadas no v3 (antes 55%–75%): a Velocidade passou a pesar menos de propósito (`vRange` 1,7 → 1,2), então o especialista vence mais na pista dele; e pistas com 75% de um trecho só existem neste teste (o sorteio limita cada tipo a 50%), em pista sorteada quem vigia é a M6. ' +
+    '3b rebaseada para 70%–100%: sem Disposição do dia (intencional no v2) não há ruído por corrida, e em reta pura VEL 90 contra 60 decide quase sempre. ' +
     'Os dois corredores são do mesmo tipo e correm sem a skill de tipo (`noTypeSkill`), para o duelo medir só o status.');
   log('');
   log('| # | Duelo | Mapa | Vitórias do 1º (' + N_SPEC + ', largada alternada) |');
