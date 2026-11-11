@@ -936,6 +936,9 @@ test('timeline: o evento typeSkill vira balão de skill com o nome curto e o ele
     assert.strictEqual(it.element, el); assert.strictEqual(it.cavalo, el);
     assert.strictEqual(it.icon, { fogo: 'chama', grama: 'folha', agua: 'onda' }[el]);
     assert.ok(it.t1 > it.t0, 'dura algo');
+    // a tela usa a mesma resolução para a aura (typeSkillOf): mesmo elemento e mesmo terço do balão
+    var tso = FX.typeSkillOf(C.sim, it.racer, C.racers[it.racer].horse);
+    assert.strictEqual(tso.el, it.element); assert.strictEqual(tso.from, it.from); assert.strictEqual(tso.to, it.to);
     vistos[el] = true;
   });
   assert.deepStrictEqual(Object.keys(vistos).sort(), ['agua', 'fogo', 'grama'], 'os três tipos');
@@ -960,6 +963,7 @@ test('timeline: cavalo de elemento desconhecido não ganha skill de tipo nem ite
   assert.strictEqual(sim.racerInfo[1].typeSkill, null);
   var tl = FX.timeline(sim, racers, 1);
   assert.strictEqual(tl.filter(function (it) { return it.typeSkill && it.racer === 1; }).length, 0);
+  assert.strictEqual(FX.typeSkillOf(sim, 1, racers[1].horse), null, 'sem skill de tipo, sem aura');
   assert.strictEqual(tl.filter(function (it) { return it.typeSkill && it.racer === 0; }).length, 1);
 });
 function auraEm(el, t, red, S0) {
@@ -1021,7 +1025,10 @@ test('drawTypeAura: movimento reduzido desenha só o contorno na cor do elemento
     var a = auraEm(el, 0.5, true), b = auraEm(el, 4.1, true);
     assert.strictEqual(a.ok, true);
     assert.ok(a.rects.length >= 2 && a.rects.length <= 8, el + ' só o contorno: ' + a.rects.length);
-    a.rects.forEach(function (r) { assert.strictEqual(r.cor, FX.ELEM[el], el + ' contorno na cor do elemento'); });
+    // a cor que identifica o tipo: Fogo e Água na cor do elemento; Grama no marrom da raiz com realce claro
+    // (o verde do elemento some no gramado)
+    var permitidas = el === 'grama' ? [FX.AURA.grama.raiz, FX.AURA.grama.raizClara] : [FX.ELEM[el]];
+    a.rects.forEach(function (r) { assert.ok(permitidas.indexOf(r.cor) >= 0, el + ' contorno na cor do tipo: ' + r.cor); });
     assert.deepStrictEqual(a.rects, b.rects, el + ' sem animação');
     assert.strictEqual(FX._stats.particulas, 0);
     assert.strictEqual(FX._stats.auras, 2);
@@ -1029,6 +1036,43 @@ test('drawTypeAura: movimento reduzido desenha só o contorno na cor do elemento
     var cheio = auraEm(el, 0.5, false);
     a.rects.forEach(function (r) { assert.ok(cheio.rects.some(function (q) { return JSON.stringify(q) === JSON.stringify(r); }), el + ' contorno no normal'); });
   });
+  FX.resetStats(true);
+});
+// contraste (WCAG) contra os pisos em que a pista aparece: GameData.SURFACES e os tons das faixas do gramado,
+// da terra e da areia (Sprites, SURF: a, b, dark, lite)
+function lumRel(h) {
+  var v = [1, 3, 5].map(function (i) { var c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+}
+function contraste(a, b) { var x = lumRel(a), y = lumRel(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+var PISOS = Object.keys(G.SURFACES).map(function (k) { return G.SURFACES[k].color; })
+  .concat(['#5cb44a', '#4ea640', '#3f8f36', '#7ccc5c', '#a46c3e', '#9a6337', '#6e4324', '#c08a58', '#e2c98f', '#d9be82', '#bf9f62', '#f4e4b8']);
+var GRAMADO = ['#5fa34a', '#5cb44a', '#4ea640', '#3f8f36', '#7ccc5c'];
+test('drawTypeAura Grama: a raiz marrom domina e se destaca em todos os pisos; folhas mais claras que o gramado', function () {
+  var A = FX.AURA.grama, area = { raiz: 0, folha: 0, verde: 0 };
+  // em todo piso, a raiz (escura com realce claro) tem um dos dois tons a 3:1 ou mais; no gramado, a escura
+  PISOS.forEach(function (p) {
+    var m = Math.max(contraste(A.raiz, p), contraste(A.raizClara, p));
+    assert.ok(m >= 3, 'raiz (escura ou realce) contra ' + p + ': ' + m.toFixed(2));
+  });
+  GRAMADO.forEach(function (p) { assert.ok(contraste(A.raiz, p) >= 3, 'raiz escura contra o gramado ' + p + ': ' + contraste(A.raiz, p).toFixed(2)); });
+  GRAMADO.forEach(function (p) {
+    assert.ok(lumRel(A.folha) > lumRel(p) && contraste(A.folha, p) >= 1.8, 'folha mais clara que o gramado ' + p + ': ' + contraste(A.folha, p).toFixed(2));
+    assert.ok(contraste(A.raizClara, p) >= 1.6, 'realce da raiz contra ' + p + ': ' + contraste(A.raizClara, p).toFixed(2));
+    assert.ok(contraste(A.sombra, p) >= 3, 'sombra da folha contra ' + p);
+  });
+  for (var t = 0; t < 6; t += 0.1) {
+    auraEm('grama', t, false).rects.forEach(function (r) {
+      var a = (r.w / 2) * (r.h / 2);
+      if (r.cor === A.raiz || r.cor === A.raizClara) area.raiz += a;
+      else if (r.cor === A.folha || r.cor === A.sombra) area.folha += a;
+      else if (r.cor === FX.ELEM.grama) area.verde += a;
+    });
+  }
+  assert.ok(area.raiz > area.folha + area.verde, 'a raiz é o desenho dominante ' + JSON.stringify(area));
+  assert.ok(area.verde > 0, 'o verde do elemento aparece (nas folhas)');
+  // o contorno parado (movimento reduzido) tem a raiz escura: contraste ≥ 3 em todos os pisos
+  assert.ok(auraEm('grama', 0, true).rects.some(function (r) { return r.cor === A.raiz; }), 'contorno reduzido com a raiz escura');
   FX.resetStats(true);
 });
 test('drawTypeAura: elemento desconhecido não desenha nada nem conta (sem erro)', function () {

@@ -2841,7 +2841,9 @@
     // A skill de tipo só entra nos balões (e na faixa do jogador): o efeito dela é a aura do terço inteiro
     // (RaceFx.drawTypeAura, pela posição em racerInfo[j].typeSkill)
     var efeitoItens = fxTl.filter(function (it) { return (it.kind === 'skill' && !it.typeSkill) || it.kind === 'garra'; });
-    var tipoTerco = L.racers.map(function (r, q) { return (sim.racerInfo && sim.racerInfo[q] && sim.racerInfo[q].typeSkill) || null; });
+    // skill de tipo de cada corredor ({ el, from, to, ... }), resolvida como no balão (RaceFx.typeSkillOf): o
+    // elemento da aura é o mesmo do balão
+    var tipoTerco = L.racers.map(function (r, q) { return FX.typeSkillOf(sim, q, r.horse); });
     var balaoItens = fxTl.filter(function (it) { return it.kind === 'skill' || it.kind === 'garra' || it.kind === 'cansou'; });
     function dadoAtivo(t) {
       for (var q = 0; q < dadoItens.length; q++) if (t >= dadoItens[q].t0 && t < dadoItens[q].t1) return dadoItens[q];
@@ -3151,8 +3153,8 @@
         // aura da skill de tipo enquanto o cavalo está no terço dela (antes do anel e do cavalo: não cobre nada);
         // relógio = segundos de apresentação (simT / ts), deslocado por raia
         if (self.phase !== 'contagem' && FX.typeZone(tipoTerco[j], st.pos[j]) != null &&
-            FX.drawTypeAura(ctx, r.horse.element, x, y, S, self.simT / ts + j * 0.37, red)) {
-          FX._stats.tipoAuras.push({ racer: j, element: r.horse.element });
+            FX.drawTypeAura(ctx, tipoTerco[j].el, x, y, S, self.simT / ts + j * 0.37, red)) {
+          FX._stats.tipoAuras.push({ racer: j, element: tipoTerco[j].el });
         }
         if (j === me) {
           // anel dourado no chão sob os cascos do jogador

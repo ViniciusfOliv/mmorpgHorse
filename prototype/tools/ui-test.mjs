@@ -1116,7 +1116,8 @@ try {
       notes.tetoDesenho.auras = { max: max('auras').auras, quadrosCom: r.por.filter((q) => q.auras > 0).length, noPiorQuadro: max('fillRect').auras }
       if (r.por.length < 30) problems.push('teto-desenho: poucos quadros amostrados ' + r.por.length)
       // a skill de tipo (aura do terço) entra na conta: o pior caso tem de ter auras ligadas
-      if (!(max('auras').auras >= 3)) problems.push('teto-desenho: o pior caso não mediu com as auras da skill de tipo ' + JSON.stringify(notes.tetoDesenho.auras))
+      if (!(max('fillRect').auras > 0)) problems.push('teto-desenho: o pior caso não mediu com as auras da skill de tipo ' + JSON.stringify(notes.tetoDesenho.auras))
+      if (!r.por.some((q) => q.auras > 0)) problems.push('teto-desenho: nenhum quadro amostrado teve aura da skill de tipo ' + JSON.stringify(notes.tetoDesenho.auras))
       for (const k of Object.keys(TETO)) {
         const m = max(k)
         if (m[k] > TETO[k]) problems.push(`teto-desenho: ${m[k]} ${k} num quadro (simT ${m.T} s) > teto ${TETO[k]} — algum desenho ficou caro de novo`)
@@ -1486,6 +1487,8 @@ try {
         await pg.getByRole('button', { name: /^Largar/ }).click()
         await pg.waitForSelector('#pista')
         await pg.waitForFunction(() => window.__galope.race && window.__galope.race._state.phase === 'corrida', null, { timeout: 20000 })
+        // os instantes saem da posição do JOGADOR (0,17·D, 0,5·D e 0,83·D) e contam com o pelotão junto dele:
+        // trocar a seed ou a distância pode exigir reajustar as frações (ou o conjunto de tipos esperado)
         const r = await pg.evaluate((fracs) => {
           const rv = window.__galope.race, s = rv._state, L = window.__galope.ui.lobby, sim = L.sim, FX = window.RaceFx
           const desenha = rv.frame

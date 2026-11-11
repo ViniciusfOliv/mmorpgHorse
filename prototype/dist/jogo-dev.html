@@ -5281,6 +5281,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   RaceFx.typeZone(typeSkill, pos) -> fração (0..1) já percorrida do terço [from, to) da skill de tipo
  *     (sim.racerInfo[i].typeSkill = { id, name, from, to }, metros fracionários) no metro pos, ou null fora
  *     dele, sem skill de tipo ou com dado torto (from/to não numéricos, to ≤ from, pos inválido).
+ *   RaceFx.typeSkillOf(sim, i, horse) -> { el, id, name, short, from, to } | null: a skill de tipo do corredor i,
+ *     resolvida como no item da timeline (terço de sim.racerInfo[i].typeSkill; elemento e nome curto do catálogo
+ *     pelo id, ou pelo elemento do cavalo). A tela usa o mesmo el para a aura (uma fonte só).
  *   RaceFx.ELEM -> cores claras dos elementos (balão, contorno, aura e terços do minimapa).
  *   RaceFx.iconeDe(item) -> nome do ícone desenhado: item.icon, mas 'clima' vira 'sol'|'gota'|'nevoa'
  *     pelo trigger da skill (weather:sol, weather:chuva, weather:nevoa).
@@ -5372,9 +5375,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     (x, y) = canto do sprite em px do canvas (o de Sprites.drawHorse), escala = px do canvas por pixel de arte,
  *     t = relógio em segundos de apresentação (a tela passa simT / escala de reprodução + 0,37·raia). Só
  *     fillRect de cor sólida em pixels de arte inteiros; nada de alfa, gradiente, arco, Math.random ou Date
- *     (tremor das chamas pelo hash). Sempre um contorno parado no chão em volta dos cascos (4 retângulos na
- *     cor do elemento); fora do reduzido, por cima dele: Fogo = 5 chamas que nascem nos cascos e ficam para
- *     trás + 2 brasas; Grama = raízes sob os cascos, brotos e folhas 3×3 subindo atrás; Água = onda alta atrás
+ *     (tremor das chamas pelo hash). Sempre um contorno parado no chão em volta dos cascos: Fogo e Água = anel de
+ *     4 retângulos na cor do elemento; Grama = faixa de raiz marrom-escura com 2 realces claros curtos e as pontas
+ *     subindo (5 retângulos; o verde sumiria no gramado). Cores da Grama (AURA.grama) escolhidas pelo contraste
+ *     com todos os pisos (o fx-test confere). Fora do reduzido, por cima dele: Fogo = 5 chamas que nascem nos cascos e ficam para
+ *     trás + 2 brasas; Grama ("Raízes Firmes") = raiz marrom dominante — 3 raízes que se esticam pelo chão
+ *     para trás descendo em degrau, com a ponta clara, uma para a frente e 3 que agarram para cima entre as patas — e 4 folhas claras
+ *     de 2×2 com sombra escura e um pixel verde, subindo atrás; Água = onda alta atrás
  *     do casco de trás (crista que sobe e desce, espuma), marolas e gotas. No máximo 30 fillRect (AURA.max).
  *     Elemento sem skill de tipo (neutro, geral, desconhecido): false, nada desenhado.
  *   RaceFx.drawNature(ctx, o) — natureza por clima, função de o.t (segundos reais), do índice e da seed
@@ -6282,12 +6289,22 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   var AURA = {
     chao: 31, max: 30,
     fogo: { cerne: '#ffe27a', ponta: '#e8492b' },
-    grama: { raiz: '#5a3a1a', raizClara: '#9a7840', folha: '#dcfa9c', folhaEscura: '#24501a' },
+    // Grama: cores escolhidas pelo contraste contra os pisos (gramado, terra, areia, com as faixas claras e
+    // escuras): a raiz escura passa de 3:1 em todos; o realce e a folha são mais claros que o gramado
+    grama: { raiz: '#2a1708', raizClara: '#ffe8b0', folha: '#eaff9a', sombra: '#1e3a10' },
     agua: { fundo: '#2f7fd0', espuma: '#eaf7ff', gota: '#bfe6ff' }
   };
-  // contorno no chão, em volta dos cascos (o que fica em movimento reduzido): 4 retângulos parados
-  function auraContorno(R, cor) {
-    var g = AURA.chao;
+  // contorno no chão, em volta dos cascos (o que fica em movimento reduzido), parado: Fogo e Água = anel de
+  // 4 retângulos na cor do elemento; Grama = faixa de raiz marrom-escura (2 px) com dois realces claros e as
+  // pontas subindo (5 retângulos) — o verde do elemento sumiria no gramado
+  function auraContorno(R, elemento) {
+    var g = AURA.chao, c = AURA.grama, cor = ELEM[elemento];
+    if (elemento === 'grama') {
+      R(7, g + 1, 26, 2, c.raiz);
+      R(10, g + 1, 4, 1, c.raizClara); R(23, g + 1, 5, 1, c.raizClara);
+      R(5, g - 1, 2, 3, c.raiz); R(33, g - 1, 2, 3, c.raiz);
+      return;
+    }
     R(8, g - 1, 24, 1, cor); R(8, g + 2, 24, 1, cor);
     R(6, g, 2, 2, cor); R(32, g, 2, 2, cor);
   }
@@ -6311,28 +6328,34 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       R(2 - k * 10 - Math.round(ph * 8), g - 9 - Math.round(ph * 8), 1, 1, c.cerne);
     }
   }
-  // Grama: raízes sob os cascos (crescem e encolhem), brotos que nascem nos cascos e ficam para trás e folhas
-  // de 2×2 subindo em espiral atrás do cavalo
+  // Grama ("Raízes Firmes"): a raiz marrom é o desenho dominante. Por cima da faixa do contorno: 3 raízes que
+  // saem dos cascos de trás e se esticam pelo chão para trás descendo em degrau (crescem e encolhem, cada uma
+  // com a ponta clara), uma
+  // para a frente e 3 que agarram para cima entre as patas; e 4 folhas claras de 2×2 com sombra escura
+  // embaixo e um pixel verde do elemento, subindo em espiral atrás do cavalo
   function auraGrama(R, t) {
-    var g = AURA.chao, c = AURA.grama, k, ph, xs = [10, 19, 28];
-    for (k = 0; k < 3; k++) {
-      var L = Math.max(1, Math.min(3, 2 + Math.round(Math.sin(t * 2.2 + k * 2.1))));
-      R(xs[k], g + 1, 1, L, c.raiz);
-      R(xs[k] + (k % 2 ? 1 : -1), g + 2, 1, 1, c.raizClara);
+    var g = AURA.chao, c = AURA.grama, k, ph;
+    for (k = 0; k < 3; k++) {          // cada raiz desce em degrau (dois trechos) e tem a ponta clara
+      var cresce = 0.5 + 0.5 * Math.sin(t * 1.7 + k * 2.1);
+      var a = 2 + k + Math.round(cresce * 3), b = 2 + Math.round(cresce * 6), ry = g + 1 + (k === 2 ? 1 : 0);
+      R(6 - a, ry, a, 1, c.raiz);
+      R(6 - a - b, ry + 1, b + 1, 1, c.raiz);
+      R(5 - a - b, ry + 1, 1, 1, c.raizClara);
     }
+    R(35, g + 1, 2 + Math.round((0.5 + 0.5 * Math.sin(t * 2.3)) * 4), 1, c.raiz);
+    var xs = [13, 18, 24];
     for (k = 0; k < 3; k++) {
-      ph = frac(t * 1.3 + k / 3);
-      var bx = 26 - Math.round(ph * 36), bh = 2 + Math.round(Math.sin(ph * Math.PI) * 5);
-      R(bx, g - bh + 1, 1, bh, ELEM.grama);
-      if (bh >= 3) R(bx + 1, g - bh + 3, 1, bh - 2, c.folhaEscura);
+      var h = 1 + Math.round((0.5 + 0.5 * Math.sin(t * 2.6 + k * 1.9)) * 3);
+      R(xs[k], g - h + 1, 1, h, c.raiz);
     }
-    for (k = 0; k < 5; k++) {
-      ph = frac(t * 0.8 + k / 5);
+    for (k = 0; k < 4; k++) {
+      ph = frac(t * 0.8 + k / 4);
       if (ph > 0.85) continue;
-      var fx = 4 - k * 3 - Math.round(ph * 12) + Math.round(Math.sin(ph * 2 * Math.PI + k) * 3);
-      var fy = g - 3 - Math.round(ph * 18), q = (Math.floor(t * 5) + k) % 2;
-      R(fx, fy, 3, 3, c.folhaEscura);                         // folha virando: escura com o lado claro
-      R(fx + q, fy + q, 2, 2, c.folha);
+      var fx = 3 - k * 3 - Math.round(ph * 12) + Math.round(Math.sin(ph * 2 * Math.PI + k) * 3);
+      var fy = g - 4 - Math.round(ph * 18), q = (Math.floor(t * 5) + k) % 2;
+      R(fx, fy + 2, 2, 1, c.sombra);
+      R(fx, fy, 2, 2, c.folha);
+      R(fx + q, fy + 1 - q, 1, 1, ELEM.grama);
     }
   }
   // Água: uma onda alta que corre atrás do casco de trás (crista subindo e descendo e se curvando para o
@@ -6367,7 +6390,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (!ctx || !desenho || !Object.prototype.hasOwnProperty.call(AURA_DESENHO, elemento)) return false;
     var S = escala > 0 ? escala : 1, tt = isFinite(t) ? t : 0;
     function R(dx, dy, w, h, col) { ctx.fillStyle = col; ctx.fillRect(x + dx * S, y + dy * S, w * S, h * S); }
-    auraContorno(R, ELEM[elemento]);
+    auraContorno(R, elemento);
     if (!reduzido) desenho(R, tt);
     stats.auras++;
     return true;
@@ -6791,6 +6814,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     iconeDe: iconeDe,
     glow: glow,
     typeZone: typeZone,
+    typeSkillOf: tipoDoCorredor,
     ELEM: ELEM,
     BALAO: BALAO,
     wind: wind,
@@ -6806,6 +6830,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     FOLHA: FOLHA,
     CALOR: CALOR,
     POEIRA: POEIRA,
+    AURA: AURA,
     // desenho
     drawDice: drawDice,
     drawDiceStrip: drawDiceStrip,
@@ -9879,7 +9904,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     // A skill de tipo só entra nos balões (e na faixa do jogador): o efeito dela é a aura do terço inteiro
     // (RaceFx.drawTypeAura, pela posição em racerInfo[j].typeSkill)
     var efeitoItens = fxTl.filter(function (it) { return (it.kind === 'skill' && !it.typeSkill) || it.kind === 'garra'; });
-    var tipoTerco = L.racers.map(function (r, q) { return (sim.racerInfo && sim.racerInfo[q] && sim.racerInfo[q].typeSkill) || null; });
+    // skill de tipo de cada corredor ({ el, from, to, ... }), resolvida como no balão (RaceFx.typeSkillOf): o
+    // elemento da aura é o mesmo do balão
+    var tipoTerco = L.racers.map(function (r, q) { return FX.typeSkillOf(sim, q, r.horse); });
     var balaoItens = fxTl.filter(function (it) { return it.kind === 'skill' || it.kind === 'garra' || it.kind === 'cansou'; });
     function dadoAtivo(t) {
       for (var q = 0; q < dadoItens.length; q++) if (t >= dadoItens[q].t0 && t < dadoItens[q].t1) return dadoItens[q];
@@ -10189,8 +10216,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         // aura da skill de tipo enquanto o cavalo está no terço dela (antes do anel e do cavalo: não cobre nada);
         // relógio = segundos de apresentação (simT / ts), deslocado por raia
         if (self.phase !== 'contagem' && FX.typeZone(tipoTerco[j], st.pos[j]) != null &&
-            FX.drawTypeAura(ctx, r.horse.element, x, y, S, self.simT / ts + j * 0.37, red)) {
-          FX._stats.tipoAuras.push({ racer: j, element: r.horse.element });
+            FX.drawTypeAura(ctx, tipoTerco[j].el, x, y, S, self.simT / ts + j * 0.37, red)) {
+          FX._stats.tipoAuras.push({ racer: j, element: tipoTerco[j].el });
         }
         if (j === me) {
           // anel dourado no chão sob os cascos do jogador
