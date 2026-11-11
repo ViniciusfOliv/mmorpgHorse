@@ -17,7 +17,7 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
 - **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Cavalo, Itens,
   Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
-- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (106 testes
+- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (108 testes
   de simulação, 75 de efeitos, 46 de moldes, 301 conferências do wiki, 77 metas de balanço no modo
   rápido e 126 no completo, e o teste de interface).
 
@@ -48,6 +48,9 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   nível e barra de XP, escolha do inicial, animação da skill de tipo e terços no minimapa.
 - **Save v5** com migração do v4 (pontos devolvidos para distribuir, Neutro convertido).
 - **Balanço:** as 126 metas do `balance.js` completo passam.
+- **Revisão final (2026-11-11):** fechou a trava do páreo aberto (a sala guarda o retrato dos pontos,
+  R16), o valor da peça na tela (meio ponto por melhoria, como na simulação) e o aviso de pontos livres
+  ao subir de nível.
 
 ## O que falta
 - **Decidido em 2026-11-10:** o teste fechado do Play sai com o jogo offline; o lançamento público
