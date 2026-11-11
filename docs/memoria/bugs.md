@@ -14,7 +14,7 @@ empacotamento está em `docs/cronograma.md`; as decisões de design em aberto, e
 - `validSkills` repete as regras de `learnSkill`, e `Gear.ratingPts` repete os pontos de conjunto de `powerRating` — `prototype/src/game.js`, `prototype/src/gear.js`, `prototype/src/sim.js`.
 
 ## Save
-- Quem apaga `pending.gear` e aumenta o Poder no save troca peças com a sala aberta (os rivais ficam mais fortes na mesma medida); só o servidor fecha — `prototype/src/game.js` (`sanitize`).
+- Quem apaga `pending.gear` e **aumenta** o Poder no save troca peças com a sala aberta (os rivais ficam mais fortes na mesma medida); só o servidor fecha. O caminho inverso (retrato rebaixado à mão para atrair rivais fracos) está fechado desde a R16: o Poder da sala nunca fica abaixo do da ativa — `prototype/src/game.js` (`sanitize`).
 
 ## PixelLab
 - O script conta HTTP 502 como geração cobrada (corrigir antes da próxima geração paga) — `prototype/tools/pixellab-moldes.mjs`.

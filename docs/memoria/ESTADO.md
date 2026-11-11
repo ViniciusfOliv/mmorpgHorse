@@ -65,6 +65,11 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   e a zebra.
 - **Arte:** crina própria de cada estilo no galope (6 a 10 gerações); retrato, largada e pódio sem
   respiração nem piscar.
+- **Ponto distribuído pode perder o efeito** quando o crescimento natural encosta no teto (pior caso
+  medido: 5 de 58 pontos no nível 50 para quem enche o status forte assim que a tela deixa). Decisão de
+  desenho em aberto para o Vinicius: aviso na tela, trava, ou devolução pelo item do bloco 4.
+- **Antes do próximo aumento de versão do save:** pôr uma guarda para save de versão maior que a do
+  código (não adotar nem gravar por cima, e avisar para atualizar a página).
 - **Pendências menores:** `docs/memoria/bugs.md`.
 - **GDD §9+:** expedições, tecnologia do servidor, anti-trapaça, PVP assíncrono e ranqueada.
 

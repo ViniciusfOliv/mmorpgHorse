@@ -181,6 +181,9 @@ Migração do v4, uma vez, sem perder Ouro, peças nem cavalos:
 - Labareda, Maré Alta e Raízes Firmes saem da lista de skills de quem as tinha;
 - raridade, nível, XP, estrelas, cruzas, paleta e nome ficam como estão;
 - uma sala aberta sobrevive com a mesma seed e os mesmos rivais; o Poder dela é recalculado.
+  *Emenda de 2026-11-11:* a sala sobrevive com a mesma seed e a entrada reservada; o Poder é
+  recalculado, e a pista e os rivais são refeitos uma vez pelas regras novas (o save v4 não guarda a
+  pista).
 
 Jogo novo começa com inicial Comum. O save do modo DEV migra pela mesma regra.
 
