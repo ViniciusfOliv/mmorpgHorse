@@ -354,11 +354,17 @@ test('v3: as 13 distâncias saem do sorteio e, sem pista válida em 60 tentativa
   assert.strictEqual(Object.keys(vistas).length, 13);
   var old = S.TUNING.trackTries; S.TUNING.trackTries = 0;
   try {
-    [1, 2, 3].forEach(function (s) {
-      var c = S.randomConditions(s), prev = 0;
+    // o molde nas 13 distâncias: mesma regra da pista sem extremos (curva e subida, nenhum tipo > D/2)
+    var moldes = {};
+    for (var s = 0; s < 2000 && Object.keys(moldes).length < 13; s++) { var cs = S.randomConditions(s); moldes[cs.distance] = cs; }
+    assert.strictEqual(Object.keys(moldes).length, 13);
+    Object.keys(moldes).forEach(function (d) {
+      var c = moldes[d], prev = 0, tot = { reta: 0, curva: 0, subida: 0 };
       assert.deepStrictEqual(c.blocks.map(function (b) { return b.type; }), ['reta', 'curva', 'reta', 'subida', 'reta']);
-      c.blocks.forEach(function (b) { assert.strictEqual(b.from, prev); assert.ok(b.to > b.from && b.to % 10 === 0); prev = b.to; });
+      c.blocks.forEach(function (b) { assert.strictEqual(b.from, prev); assert.ok(b.to > b.from && b.to % 10 === 0); prev = b.to; tot[b.type] += b.to - b.from; });
       assert.strictEqual(prev, c.distance);
+      assert.ok(tot.curva > 0 && tot.subida > 0, d + ' m: curva e subida');
+      ['reta', 'curva', 'subida'].forEach(function (t) { assert.ok(tot[t] <= c.distance / 2, d + ' m: ' + t + ' ' + tot[t]); });
     });
   } finally { S.TUNING.trackTries = old; }
 });

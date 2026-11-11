@@ -1252,7 +1252,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   reta/curva/subida; o 1º e o último são sempre reta). A tentativa vale se a pista tem pelo
  *   menos uma curva e uma subida e nenhum tipo passa de metade de D (T.trackMaxShare); senão,
  *   2–4 se repetem no mesmo fluxo (2,9 tentativas em média). Depois de 60 (T.trackTries), molde
- *   fixo: reta, curva, reta, subida, reta (quintos de D). Por fim 5) piso (grama/terra/areia)
+ *   fixo: reta 15%, curva 30%, reta 10%, subida 30%, reta 15% de D. Por fim 5) piso (grama/terra/areia)
  *   e 6) clima inicial (4 climas).
  *   conditions = { distance, surface, weather, blocks: [{ type, from, to }] }. Campos ausentes
  *   ou inválidos em config.conditions são sorteados pela seed (normalizeConditions). Distância
@@ -1688,10 +1688,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       if (trackOk(bl)) blocks = bl;
     }
     if (!blocks) {
-      // molde fixo: reta, curva, reta, subida, reta (quintos de D arredondados a 10 m)
-      var q = Math.round(distance / 50) * 10;
-      blocks = [{ type: 'reta', from: 0, to: q }, { type: 'curva', from: q, to: 2 * q }, { type: 'reta', from: 2 * q, to: 3 * q },
-        { type: 'subida', from: 3 * q, to: 4 * q }, { type: 'reta', from: 4 * q, to: distance }];
+      // molde fixo: reta 15%, curva 30%, reta 10%, subida 30%, reta 15% de D (retas 40%, curva e subida
+      // 30% cada); fronteiras acumuladas arredondadas a 10 m, o último bloco fecha em D
+      var corte = function (f) { return Math.round(distance * f / 10) * 10; };
+      var c1 = corte(0.15), c2 = corte(0.45), c3 = corte(0.55), c4 = corte(0.85);
+      blocks = [{ type: 'reta', from: 0, to: c1 }, { type: 'curva', from: c1, to: c2 }, { type: 'reta', from: c2, to: c3 },
+        { type: 'subida', from: c3, to: c4 }, { type: 'reta', from: c4, to: distance }];
     }
     var surface = SURF_LIST[Math.floor(rng() * 3)];
     var weather = WEATHER_LIST[Math.floor(rng() * 4)];
