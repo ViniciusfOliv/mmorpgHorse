@@ -2,7 +2,7 @@
 
 > Fonte da verdade do design. Números reais do protótipo: `docs/wiki.md` (gerado do código). Exemplos de corrida e de potros: `docs/exemplos.md`. Decisões com data e motivo: `docs/memoria/decisoes.md`.
 
-Status: **rascunho em construção**. Seções 1–7 escritas e aprovadas (cada frente tem a spec em `docs/superpowers/specs/`); as seções 8+ estão pendentes. O caminho até o lançamento e o roteiro de evolução ficam em `docs/cronograma.md`.
+Status: **rascunho em construção**. Seções 1–7 escritas e aprovadas (cada frente tem a spec em `docs/superpowers/specs/`); a seção 8 é o redesenho aprovado, em blocos; as seções 9+ estão pendentes. O caminho até o lançamento e o roteiro de evolução ficam em `docs/cronograma.md`.
 
 ## 1. Visão
 
@@ -19,9 +19,11 @@ Jogo em pixel art (web + Play Store) de corrida de cavalos com progressão estil
 | PVP | Corridas de **4–8 jogadores**, entrada igual, pote dividido 1º/2º/3º (menos taxa da casa). Bots completam vagas. **Espectadores apostam** (fase 2; em reavaliação pelo risco de classificação 18+, ver `docs/cronograma.md`). |
 | Matchmaking | **Ligas por Rating de Poder do cavalo** + **MMR do jogador** dentro da liga. Modo opcional **Copa Nivelada** (status normalizados). |
 
-## 3. Status base (1–100)
+## 3. Status (1–100)
 
-Sete atributos. Sem tática pré-corrida: a corrida é decidida por **status + terreno + sorte**.
+Sete atributos. Sem tática pré-corrida: a corrida é decidida por **status + terreno + sorte**. O
+modelo existe para o jogador **ver por que um cavalo é melhor que outro**, montar a build e sentir a
+progressão de nível, estrelas e raridade. Fórmulas e tabelas completas: `docs/wiki.md` (Status, Level e XP, Raridades).
 
 | Atributo | O que faz |
 |---|---|
@@ -33,30 +35,52 @@ Sete atributos. Sem tática pré-corrida: a corrida é decidida por **status + t
 | Garra (GAR) | Chance e força da arrancada final (últimos 20%) |
 | Sorte (SOR) | Chance de rolar um segundo dado no Dado da Sorte e de ativar skills |
 
-Cada montaria também tem:
-- **Raridade** (5 níveis): teto de cada status, vagas de skill e chance base de a skill disparar.
+O status de um cavalo sai de quatro coisas:
+- **Raridade** (5 níveis): a faixa em que os status nascem, o teto de cada status, as vagas de skill,
+  a chance base de skill e a força da skill de tipo. Só muda por cruza.
 
-  | Raridade | Teto por status | Vagas de skill | Chance base de skill |
-  |---|---|---|---|
-  | Comum | 60 | 1 | 35% |
-  | Mágico | 70 | 2 | 45% |
-  | Raro | 80 | 3 | 55% |
-  | Lendário | 90 | 4 | 65% |
-  | Mítico | 100 | 5 | 75% |
+  | Raridade | Status nasce entre | Teto por status | Vagas de skill | Chance base de skill |
+  |---|---|---|---|---|
+  | Comum | 40 e 56 | 80 | 1 + a do tipo | 35% |
+  | Mágico | 45 e 61 | 85 | 2 + a do tipo | 45% |
+  | Raro | 50 e 66 | 90 | 3 + a do tipo | 55% |
+  | Lendário | 55 e 71 | 95 | 4 + a do tipo | 65% |
+  | Mítico | 60 e 76 | 100 | 5 + a do tipo | 75% |
+- **Genética:** de 0 a 31 por status, à mostra como nota (C, B, A, S). Define onde o status nasce
+  na faixa e quanto ele cresce sozinho por nível. Só vem do nascimento.
+- **Nível** 1–50: os status sobem sozinhos conforme a genética, e cada nível dá **pontos livres** que o
+  jogador distribui na aba Status e confirma. Um ponto vale +1 num status, até o teto da raridade.
+- **Estrelas** (1 a 3): multiplicam os pontos livres (×1 / ×1,2 / ×1,5: 49, 58 ou 73 no nível 50).
+  Não mexem na genética. O item que sobe estrela chega no bloco 4.
 
-  A chance de uma skill disparar quando o gatilho acontece = base da raridade + 0,5 p.p. por level + 0,1 p.p. por ponto de Sorte (teto 95%). A cada level ganho há 8% de chance de aprender uma skill nova, se houver vaga.
-- **Sexo** (macho/fêmea), para o cruzamento.
-- **Potencial** oculto 0–31 por status (revelação fica para depois).
-- **Level** 1–50 (status crescem conforme potencial e raridade, até o teto).
+**Regras da build.** No máximo 34% dos pontos livres num mesmo status (sem esse limite, "tudo em
+Velocidade" ou "tudo em Força" vencia até 72% dos duelos). Os pontos nunca enchem tudo: no nível 50,
+três estrelas enchem cerca de 5 dos 7 status. Ponto confirmado não volta até existir o item que
+redistribui (bloco 4). O equipamento soma depois do teto.
 
-## 4. Elementos, clima e Dado da Sorte
+A chance de uma skill disparar quando o gatilho acontece = base da raridade + 0,5 p.p. por nível + 0,1
+p.p. por ponto de Sorte (teto 95%). A cada nível ganho há 8% de chance de aprender uma skill nova, se
+houver vaga. Cada montaria também tem **sexo** (macho/fêmea), para o cruzamento.
 
-| Elemento | Bônus de status | Clima dono |
-|---|---|---|
-| 🔥 Fogo | +8 Aceleração | Sol |
-| 💧 Água | +8 Estamina | Chuva |
-| 🌿 Grama | +8 Força | Névoa |
-| ⚪ Neutro | — | — |
+## 4. Tipos, clima e Dado da Sorte
+
+Três tipos: 🔥 Fogo, 💧 Água e 🌿 Grama. O tipo age só pela **skill de tipo** e pelo clima; ele não
+soma pontos de status.
+
+**Skill de tipo.** Todo cavalo tem a do seu tipo, em vaga própria, **sempre ativa** (sem sorteio) no
+terço da pista que é do tipo; o terço é proporcional à distância. A força cresce com nível e raridade
+(de 1,0 no Comum nível 1 a 1,8 no Mítico nível 50). Ela nunca troca.
+
+| Tipo | Skill | Terço | Efeito |
+|---|---|---|---|
+| 🔥 Fogo | Labareda | primeiro | aceleração |
+| 🌿 Grama | Raízes Firmes | do meio | Força e Manobra na curva, na subida, no piso pesado e no pelotão; gasta menos fôlego |
+| 💧 Água | Maré Alta | último | velocidade e um pouco de fôlego ao entrar |
+
+As três não rendem o mesmo ganho de vitória de propósito: Força vale tanto quanto Velocidade, então a
+da Grama é menor. A meta que vale é o **equilíbrio dos tipos** num campo misto (cada tipo vence perto
+do justo). As oito skills **gerais** servem a qualquer tipo; as de um tipo só ele aprende (Fogo 2, Água
+3, Grama 2). Skill que atrapalha rival fica fora por enquanto (rever depois do teste fechado).
 
 O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima**. O dono do clima tem os status ×1,03 (×1,07 com 4 peças do conjunto do clima; ×1,08 com a skill de clima do elemento); o penalizado, ×0,97.
 
@@ -65,15 +89,22 @@ O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima**. O dono do cli
 | ☀️ Sol | Fogo | Grama | gasto de estamina +4% |
 | 🌧️ Chuva | Água | Fogo | todos −1,5% de velocidade |
 | 🌫️ Névoa | Grama | Água | — |
-| ☁️ Nublado | — | — | neutro |
+| ☁️ Nublado | — | — | ninguém é favorecido |
 
 **Dado da Sorte:** quando o líder cruza 1/3 e 2/3 da pista, todas as montarias rolam um dado de 1 a 100; a Sorte é a chance (em %) de rolar um segundo dado e ficar com o melhor.
-O maior dado vence (empate: só os empatados rolam de novo) e o clima vira o do elemento do vencedor; se já for esse, ou o vencedor for Neutro, o clima segura.
+O maior dado vence (empate: só os empatados rolam de novo) e o clima vira o do tipo do vencedor; se já for esse, o clima segura.
 Tudo sai da seed da corrida: a sorte vicia o dado, não o decide.
 
-**Mapa aleatório:** cada corrida sorteia pela seed uma pista de 1 000 a 2 400 m dividida em 5 a 9 blocos de **reta** (Velocidade), **curva** (Manobra) ou **subida** (Força); o primeiro e o último bloco são sempre reta. Também sorteia o piso (grama, terra ou areia) e o clima inicial. Detalhes na spec do Núcleo v2 e no topo de `prototype/src/sim.js`.
+**Mapa aleatório, sem extremos:** cada corrida sorteia pela seed uma pista de 1.400 a 2.000 m (de 50 em
+50) dividida em 5 a 9 blocos de **reta** (Velocidade), **curva** (Manobra) ou **subida** (Força); o
+primeiro e o último bloco são sempre reta. Toda pista tem curva e subida, e nenhum tipo de bloco passa
+de metade da distância: assim o sorteio da pista não decide a corrida. Também sorteia o piso (grama,
+terra ou areia) e o clima inicial.
 
-Iniciais (Brasa, Maré, Ipê) são Raros e têm uma skill exclusiva do elemento.
+**Iniciais:** Brasa (Fogo), Maré (Água) e Ipê (Grama) são Comuns de duas estrelas, nível 1, sem skill
+de vaga, com a mesma soma de genética. Cada um é forte nos dois status do seu tipo (Brasa em VEL e ACE,
+Maré em EST e GAR, Ipê em MAN e FOR) e vence de 30% a 37% contra os outros dois (de 22% a 45% em
+cada faixa de distância).
 
 ## 5. Protótipo
 
@@ -85,19 +116,11 @@ Iniciais (Brasa, Maré, Ipê) são Raros e têm uma skill exclusiva do elemento.
 
 ## 6. Estábulo e cruzamento
 
-Spec completa e algoritmo: `docs/superpowers/specs/2026-11-06-cruzamento-design.md` (o código é `prototype/src/breed.js`). Números reais: `docs/exemplos.md` §13.
+Spec completa e algoritmo: `docs/superpowers/specs/2026-11-06-cruzamento-design.md` (o código é `prototype/src/breed.js`). Números reais: `docs/wiki.md` (Cruzamento); potros de exemplo em `docs/exemplos.md` §4.
 
-**Estábulo:** começa com 3 vagas; +1 vaga por 300 Ouro, até 8. Cada montaria tem nome, raridade + grau, elemento, sexo, nível e cruzamentos restantes (♂ 2 / ♀ 1). Uma delas é a ativa (a que corre). Liberar não devolve Ouro; a ativa e a última montaria não podem ser liberadas.
+**Estábulo:** começa com 3 vagas; +1 vaga por 300 Ouro, até 8. Cada montaria tem nome, raridade + estrelas, tipo, sexo, nível e cruzamentos restantes (♂ 2 / ♀ 1). Uma delas é a ativa (a que corre). Liberar não devolve Ouro; a ativa e a última montaria não podem ser liberadas.
 
-**Grau (★/★★/★★★):** sub-tier dentro da raridade. Define a janela dos 7 status base do potro e o piso do potencial (cada status é sorteado de forma independente na janela):
-
-| Raridade | Faixa | ★ | ★★ | ★★★ | Piso de potencial (★/★★/★★★) |
-|---|---|---|---|---|---|
-| Comum | 36–52 | 36–44 | 41–47 | 44–52 | 0 / 8 / 16 |
-| Mágico | 44–60 | 44–52 | 49–55 | 52–60 | 0 / 8 / 16 |
-| Raro | 52–68 | 52–60 | 57–63 | 60–68 | 0 / 8 / 16 |
-| Lendário | 60–76 | 60–68 | 65–71 | 68–76 | 0 / 8 / 16 |
-| Mítico | 68–84 | 68–76 | 73–79 | 76–84 | 0 / 8 / 16 |
+**Estrelas (★/★★/★★★):** saem do cruzamento (regra abaixo) e multiplicam os pontos livres do potro (§3). O status do potro sai só da genética e da raridade; as estrelas não mexem nele.
 
 **Haras:** o jogador escolhe uma montaria sua e um parceiro de sexo oposto: outra sua ou um reprodutor de aluguel (selvagens não Míticos). Aluguel = base da raridade (Comum 100 · Mágico 250 · Raro 600 · Lendário 1500) × grau (×1 / ×1,25 / ×1,5), arredondado. Dois seus: 50 Ouro. **Troca:** dois seus de sexos opostos, 50 Ouro, qualquer número de cruzamentos restantes; os dois pais somem e o potro ocupa a vaga de um deles. A calculadora mostra chances de raridade e grau antes de pagar. Resultado instantâneo (gestação com timer fica para depois).
 
@@ -112,9 +135,9 @@ A base é a menor raridade entre os pais. **Grau do potro:** se a raridade subiu
 
 **Chances saturam no nível 30; a égua pesa 60%:** L = (0,6·nível da égua + 0,4·nível do garanhão) / 30, limitado a 1. **Mítico nunca nasce de cruzamento — só por despertar** (Lendário → Mítico, depois das expedições).
 
-**Elemento e sexo:** pais com o mesmo elemento passam o elemento; diferentes, 50/50 (Neutro conta como elemento). Sexo 50/50. Status base do potro são sorteados na janela do grau (não são herdados); o potencial herda de um pai com 50% de chance por status, senão sorteia 0–31, sempre respeitando o piso do grau.
+**Tipo, sexo e genética:** pais do mesmo tipo passam o tipo; diferentes, 50/50. Sexo 50/50. A genética é **metade herdada**: por status, 50% de chance de vir de um dos pais (sorteado), senão sai de 0 a 31. O potro nasce no nível 1, sem pontos livres.
 
-**Skills e Corcel:** o potro herda cada skill não exclusiva e compatível com o seu elemento com 35% de chance, até as vagas da raridade; completa até o mínimo de nascimento com skills sorteadas. Corcel é a montaria com todas as skills "de linha" da sua raridade; garante herança de skill:
+**Skills e Corcel:** a skill de tipo vem sempre, com o tipo. O potro herda cada skill de vaga dos pais compatível com o seu tipo com 35% de chance, até as vagas da raridade; completa até o mínimo de nascimento com skills sorteadas. Corcel é a montaria com todas as skills "de linha" da sua raridade; garante herança de skill:
 
 | Raridade | Conjunto do Corcel | Skills garantidas |
 |---|---|---|
@@ -138,16 +161,16 @@ Cada montaria usa um **set de 5 peças** (modelo do equipamento de cavalo do Bla
 | Testeira | Aceleração | Garra |
 | Armadura | Força | Estamina |
 
-**Raridade da peça** (Mítico não tem peça; vem do despertar, no futuro). O principal vale o valor da raridade **mais o nível de melhoria**; o secundário é fixo. Comum não tem secundário. O preço de Lendário é só referência de venda: **não está à venda**.
+**Raridade da peça** (Mítico não tem peça; vem do despertar, no futuro). O principal vale o valor da raridade **mais meio ponto por nível de melhoria** (uma peça +10 soma +5); o secundário é fixo. Comum não tem secundário. Os valores são pequenos porque a distância entre duas raridades é de 5 pontos por status. O preço de Lendário é só referência de venda: **não está à venda**.
 
 | Raridade | Principal | Secundário | Preço | Venda (25%) |
 |---|---|---|---|---|
 | Comum | +2 | — | 100 | 25 |
-| Mágico | +3 | +2 | 250 | 63 |
-| Raro | +4 | +3 | 600 | 150 |
-| Lendário | +6 | +4 | 1.500 | 375 |
+| Mágico | +2 | +1 | 250 | 63 |
+| Raro | +3 | +2 | 600 | 150 |
+| Lendário | +4 | +3 | 1.500 | 375 |
 
-Peças Comum e Mágica são soltas; Raro e Lendário vêm em **conjuntos** (Sol, Chuva, Névoa), com o mesmo nome nas duas raridades. São 40 peças no catálogo; 25 estão à venda. Os bônus entram na corrida depois do crescimento por nível e do bônus de elemento, e podem passar do limite de status da raridade (como o elemento já passa). Um conjunto Raro completo em +10 soma cerca de +14 nos cinco status de pista: pouco mais de um degrau de raridade.
+Peças Comum e Mágica são soltas; Raro e Lendário vêm em **conjuntos** (Sol, Chuva, Névoa), com o mesmo nome nas duas raridades. São 40 peças no catálogo; 25 estão à venda. Os bônus entram na corrida depois do teto da raridade e podem passar dele. Um conjunto Raro completo em +10 soma de +8 a +10 nos cinco status principais: pouco mais de um degrau de raridade.
 
 **Melhoria (+0 a +10).** Cada tentativa gasta Pedras Negras e tem chance de sucesso decrescente. A partir de +6, falhar faz a peça **cair um nível**. A pedra é paga e o resultado sorteado pela seed antes de ser mostrado, e o sorteio não se repete ao recarregar.
 
@@ -175,7 +198,7 @@ Conjuntos: **Sol** (clima do Fogo), **Chuva** (Água), **Névoa** (Grama). Além
 
 **Pareamento e trava parcial.** O equipamento entra no Rating de Poder que forma a sala. Com páreo aberto, a montaria ativa só aceita trocar de peça se o rating resultante **não passar do que a sala viu**: dá para trocar Sol por Chuva de mesma força depois de ver a previsão do clima, mas não dá para abrir a sala fraco e equipar forte.
 
-**Bots por liga.** Os bots entram equipados conforme a liga do alvo, com o conjunto do clima do próprio elemento (Neutro sorteia um):
+**Bots por liga.** Os bots entram equipados conforme a liga do alvo, com o conjunto do clima do próprio tipo:
 
 | Liga | Equipamento do bot |
 |---|---|
@@ -188,49 +211,20 @@ Conjuntos: **Sol** (clima do Fogo), **Chuva** (Água), **Névoa** (Grama). Além
 
 **Depois (fora do protótipo):** durabilidade e reparo · limite de vagas no inventário · Lendário na loja (hoje só pelo painel `?dev=1`, até as expedições) · peça Mítica · mercado entre jogadores · cosméticos por Gemas · desmanche · expedições e pacotes como fonte de peças · transferência de peças entre contas.
 
-## 8. Redesenho aprovado em 2026-11-10 (ainda não implementado)
+## 8. Redesenho aprovado em 2026-11-10 (blocos 2 a 7 ainda não implementados)
 
 > Aprovado em conversa com o Vinicius, parte por parte. Entra em blocos, cada um com spec própria em
-> `docs/superpowers/specs/`. Enquanto um bloco não é implementado, vale o que as seções 3 a 7 e o
-> `docs/wiki.md` descrevem. Os números saem de simulação e ficam na spec de cada bloco.
+> `docs/superpowers/specs/`. **O bloco 1 (status, tipo e pistas sem extremos) está implementado desde
+> 2026-11-11** e já é a regra das seções 3, 4, 6 e 7. Enquanto um bloco não é implementado, vale o que
+> as seções 3 a 7 e o `docs/wiki.md` descrevem. Os números saem de simulação e ficam na spec de cada bloco.
 
-### 8.1 Como o status de um cavalo é formado (bloco 1)
-- **Raridade:** a faixa em que os status nascem, o teto de cada status e as vagas de skill. Só muda por cruza.
-- **Genética:** uma nota por status (C, B, A, S), visível. Define onde o status nasce dentro da faixa e
-  quanto ele cresce sozinho por nível. Metade vem dos pais, metade é sorteada (é o "potencial" de hoje, à mostra).
-- **Nível:** os status sobem sozinhos conforme a genética e o jogador ganha um ponto livre por nível
-  para a build, até o teto da raridade.
-- **Estrelas:** multiplicam os pontos livres. O cavalo nasce com uma a três e sobe com um item raro de treino.
-- **Regras:** os pontos nunca enchem tudo (no nível máximo, três estrelas enchem cerca de 5 dos 7
-  status); o bônus fixo do tipo (+8 num status) sai; os três iniciais passam a Comuns de duas estrelas,
-  com a mesma soma de status e de genética e distribuição diferente; o tipo Neutro sai do jogo por enquanto.
-- **Metas:** cada inicial vence de 30% a 37% no geral e de 22% a 45% em qualquer tamanho de pista; 10
-  níveis a mais vencem 70% ou mais; uma raridade acima perto de 80%, duas acima 95% ou mais; três
-  estrelas contra uma, de 65% a 75%.
-
-### 8.2 Skill de tipo (bloco 1)
-Todo cavalo tem a skill do seu tipo, em vaga própria, **sempre ativa** (sem sorteio) no terço da pista
-que é do tipo; o terço é proporcional à distância. A força cresce com nível e raridade, igual para os três.
-
-| Tipo | Skill | Terço | Efeito |
-|---|---|---|---|
-| 🔥 Fogo | Labareda | primeiro | aceleração e velocidade |
-| 🌿 Grama | Raízes Firmes | do meio | perde menos em curva, subida e piso pesado; gasta menos fôlego |
-| 💧 Água | Maré Alta | último | recupera fôlego e ganha velocidade |
-
-As três rendem o mesmo ganho de vitória (tolerância de 1 ponto percentual, vigiada por meta). As oito
-skills gerais continuam por sorteio nas vagas normais; as que só um tipo aprende também, três por tipo.
-Skill que atrapalha rival fica fora por enquanto (rever depois do teste fechado, com dados de jogadores).
-
-### 8.3 Pista e preparação (bloco 2)
-- **Pistas sem extremos:** faixa de distância menor (em torno de 1.400 a 2.000 m), toda pista com
-  curva e subida, nenhum tipo de trecho com mais da metade do percurso.
+### 8.1 Preparação (bloco 2)
 - **Preparação com relógio:** a sala abre, a pista aparece e o jogador tem 12 segundos (ajustável) para
   trocar de cavalo e de ferradura com um toque. No zero a corrida larga sozinha; fechar o jogo não segura a sala.
 - **Limite:** o cavalo escolhido não pode ter Poder acima do que a sala viu. Nada é re-sorteado.
 - **Ferradura de tração:** família nova, reduz a perda em terra e areia.
 
-### 8.4 Itens de treino e as duas lojas (blocos 4 e 6)
+### 8.2 Itens de treino e as duas lojas (blocos 4 e 6)
 A Gema compra tempo, espaço, conveniência e aparência; nunca poder nem Ouro. Tudo que fortalece o
 cavalo existe de graça, jogando. Item comprado com Gema nunca tem resultado sorteado.
 
@@ -245,7 +239,7 @@ cavalo existe de graça, jogando. Item comprado com Gema nunca tem resultado sor
 
 Gemas também caem de graça, em pouca quantidade, por missões. A skill de tipo nunca troca.
 
-### 8.5 Ouro, circuito e aluguel (blocos 4 e 5)
+### 8.3 Ouro, circuito e aluguel (blocos 4 e 5)
 - **O Ouro entra devagar** (prêmio de corrida, circuito, aluguel, missões, venda de peça) **e sai por
   muitas portas:** entrada, registro de cruza que cresce com a raridade, taxa por tentativa de melhoria,
   itens de treino, subir estrela, vagas com preço crescente, ração (bônus de XP) e, no futuro, despertar,
@@ -259,12 +253,12 @@ Gemas também caem de graça, em pouca quantidade, por missões. A skill de tipo
 - **Um trabalho por vez:** cada cavalo corre valendo, corre no circuito, fica de aluguel ou cruza.
 - Gema nunca acelera o que paga Ouro (circuito e aluguel).
 
-### 8.6 Mercado entre jogadores (bloco 7, com servidor)
+### 8.4 Mercado entre jogadores (bloco 7, com servidor)
 Só em Ouro, no modelo do Black Desert: sem troca direta, mercado anônimo, preço dentro de faixa e taxa
 da casa. O Ouro nunca é vendido por Gemas: ele é o que se aposta.
 
-### 8.7 Ordem dos blocos
-1. Status e tipo · 2. Pista e preparação · 3. Empacotamento e início do teste fechado · 4. Itens de
+### 8.5 Ordem dos blocos
+1. Status e tipo (implementado) · 2. Preparação · 3. Empacotamento e início do teste fechado · 4. Itens de
 treino e gastos de Ouro · 5. Tempo e estábulo ativo (cruza com relógio, circuito, aluguel, missões,
 tela de cruza com os dois pais e a faixa do potro) · 6. Loja de Gemas (sem compra real no teste
 fechado) · 7. Online.

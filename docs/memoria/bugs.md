@@ -5,14 +5,11 @@ apague a linha (e registre em `decisoes.md` se virar decisão). O que depende de
 empacotamento está em `docs/cronograma.md`; as decisões de design em aberto, em `docs/exemplos.md` §5.
 
 ## Modo DEV
-- "Carregar a ativa" põe o potencial em "Máximo" e "Aplicar" troca a base pelo `baseLo` da raridade — `prototype/src/game.js` (`devCavaloDaAtiva`, `dev-aplicar`).
-- A gaveta tem um potencial só para todos os status, mas `Dev.horseTemplate` aceita por status — `prototype/src/game.js` e `prototype/src/dev.js`.
 - O redesenho assíncrono da gaveta (moldes chegando, outra aba) apaga texto digitado e não confirmado — `prototype/src/game.js` (`renderDev`).
 
 ## Simulação e balanço
 - O hash de referência das 20 corridas não cobre `racerInfo`, `conditions`, `weatherFinal` e `duration` (o teste do objeto inteiro cobre) — `prototype/tools/sim-test.js`.
-- A meta P1 (erro do Poder por montaria) só roda no `balance.js` completo; o `check.sh` usa o rápido — `prototype/tools/balance.js`.
-- A meta A1 passa perto do teto (Velocidade 2,7× a 3,0× a mediana dos status; teto 3,2×) — `prototype/tools/balance.js`.
+- As metas M6, M9, P1, S1 e A1 só contam no `balance.js` completo; o `check.sh` usa o rápido — `prototype/tools/balance.js`.
 - O Poder ainda pontua Sorte e Dado Viciado, que não rendem vitória (espera as decisões de `docs/exemplos.md` §5) — `prototype/src/sim.js`.
 - `validSkills` repete as regras de `learnSkill`, e `Gear.ratingPts` repete os pontos de conjunto de `powerRating` — `prototype/src/game.js`, `prototype/src/gear.js`, `prototype/src/sim.js`.
 

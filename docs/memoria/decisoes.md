@@ -3,6 +3,28 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-11 — cavalos v3, bloco 1 (status, tipo e pista; implementado)
+Spec: `docs/superpowers/specs/2026-11-10-cavalos-v3-status-e-tipo-design.md`. As seis primeiras saíram da calibração por simulação e diferem do que foi dito na conversa (o Vinicius pode vetar).
+- **Tabela de raridade nova: nasce de 40–56 (Comum) a 60–76 (Mítico), tetos de 80 a 100** — com os números antigos uma raridade acima vencia de 89% a 96% e não sobrava espaço para a build; agora vence cerca de 84%.
+- **Equipamento com cerca de metade dos valores e +0,5 por melhoria** — a distância entre raridades caiu de 8 para 5 pontos; o conjunto Raro +10 continua valendo pouco mais de um degrau.
+- **Estrelas valem 1 / 1,2 / 1,5** (na conversa, 1 / 1,25 / 1,5) — recomendação da calibração; com eles três estrelas vencem uma em 71–73% e duas vencem uma em 59–61%.
+- **No máximo 34% dos pontos livres num mesmo status** — sem limite, "tudo em Velocidade" ou "tudo em Força" vencia até 72% dos duelos.
+- **As três skills de tipo não rendem o mesmo; a meta é o equilíbrio dos tipos (M9)** — Força vale tanto quanto Velocidade; com rendimentos iguais a Grama vencia 20,5% e a Água 14,2% num campo de seis.
+- **Pistas sem extremos entram no bloco 1, não no 2** — as metas dos iniciais só fecham com a regra nova de pista.
+- **Os bots do jogo usam a genética do catálogo; genética sorteada só nos cavalos sintéticos das medições** — a spec dizia as duas coisas (§2 × §7).
+- **Estrelas fora da faixa são presas a 1–3; ausente ou não numérico vale 2** — save adulterado ou antigo nunca quebra a conta.
+- **Molde fixo da pista depois de 60 sorteios falhos: reta 15%, curva 30%, reta 10%, subida 30%, reta 15%** — respeita a regra de nenhum tipo passar de metade.
+- **O bot para no teto ao encher o status do tipo; ligas 0 / 810 / 910 / 1.010 / 1.110 / 1.220** — ponto acima do teto não rende; o inicial de nível 1 começa na Bronze.
+- **Metas 3 e 3c rebaseadas (65–85% e 75–93%)** — a Velocidade pesa menos de propósito, então o especialista vence mais na pista dele; em pista sorteada quem vigia é a M6.
+- **Durações aceitas: curta 88–104 s, longa 116–138 s** — em volta dos 96 e 127 s da calibração.
+- **No `--quick`, M6, M9, P1, S1 e A1 são só informação; contam como meta no `balance.js` completo** — o `check.sh` fica rápido; mudança de número pede o completo.
+- **Sala aberta na migração v4 → v5 sobrevive com a mesma seed e a entrada reservada, mas a pista e os rivais são refeitos pelas regras novas** — o save v4 não guarda a pista; acontece uma vez por save.
+- **Montaria cujo modelo saiu do catálogo (Pangaré) fica no save, sem modelo e com a própria paleta; o Neutro converte por `hash2(seedBase, nº do uid) % 3`, em qualquer versão de save** — ninguém perde cavalo, e a conversão não usa a RNG do jogo.
+- **Saves v1 e v2 recriam o inicial pelo catálogo novo (Comum ★★)** — esses saves não têm o que migrar.
+- **O ícone do Neutro virou o das skills gerais (`el-geral.png`)** — reaproveita a arte, sem geração nova.
+- **Na vaga da skill de tipo, a força aparece como "Intensidade ×N"** — "Força" já é o nome de um status.
+- **Com páreo aberto, distribuir pontos no cavalo ativo só vale se o Poder não passar do que a sala viu** — a mesma regra das peças: não dá para abrir a sala fraco e ficar forte.
+
 ## 2026-11-10 — redesenho dos cavalos e da economia (desenho aprovado, a construir em blocos)
 Resumo completo no `docs/GDD.md` §8. Tudo decidido em conversa com o Vinicius, parte por parte.
 - **Crescimento híbrido:** automático pela genética e um ponto livre por nível para a build — mantém o forte do cavalo visível e dá escolha ao jogador; só com pontos livres todos iriam para Velocidade.
