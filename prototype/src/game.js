@@ -521,6 +521,8 @@
       if (p.training ? fee === 0 : E.entryTiers.indexOf(fee) >= 0) {
         base.pending = { counter: num(p.counter, 1, 1, 1e9), training: !!p.training, fee: fee, pr: num(p.pr, 600, 1, 1e5) };
         base.pending.gear = validGearSnapshot(p.gear);   // null: save de antes do retrato, ou retrato inválido
+        // retrato dos pontos: saneado abaixo, quando a montaria ativa já está pronta (null: sala de antes dele)
+        base.pending.alloc = p.alloc && typeof p.alloc === 'object' && !Array.isArray(p.alloc) ? p.alloc : null;
       }
     }
     base.races = num(s.races, 0, 0, 1e9);
@@ -533,16 +535,26 @@
     base.stableSlots = stableSlots;
     base.breedCounter = breedCounter;
     sanitizeGear(s, v4, base, rawEquip);
-    // Poder da sala = Poder da montaria ativa com o equipamento de quando a sala abriu (pending.gear, retrato
-    // tirado em openLobby), nem mais (liberaria trocas de peça) nem menos (os rivais sairiam mais fracos).
-    // Sem retrato (save de antes dele) o pr gravado fica como está: recalcular pelo equipamento atual mudaria
-    // os rivais da mesma sala. Exceção: save de antes da v5 (o pr é do modelo de status antigo), recalculado
-    // uma vez pelo equipamento atual; o save migrado é gravado logo ao abrir e daí em diante o pr fica.
-    if (base.pending && (base.pending.gear || !v5)) {
+    // Poder da sala = Poder da montaria ativa com o equipamento e os pontos de quando a sala abriu (retratos
+    // pending.gear e pending.alloc, tirados em openLobby), nem mais (liberaria trocas de peça e de pontos) nem
+    // menos (os rivais sairiam mais fracos). Sem o retrato do equipamento (save de antes dele) o pr gravado fica
+    // como está: recalcular pelo equipamento atual mudaria os rivais da mesma sala. Exceção: save de antes da
+    // v5 (o pr é do modelo de status antigo), recalculado uma vez pelo equipamento atual; o save migrado é
+    // gravado logo ao abrir e daí em diante o pr fica. Sem o retrato dos pontos (sala de antes dele, ou lixo
+    // que não é objeto) vale o alloc atual, uma vez: o retrato passa a existir e vai na próxima gravação.
+    // Em qualquer caso o pr nunca fica abaixo do Poder com que a ativa corre agora (R16): pelas travas da tela
+    // ele nunca passa do pr, então só um retrato adulterado para baixo é corrigido.
+    if (base.pending) {
       var act = null, its = {};
       base.mounts.forEach(function (m) { if (m.uid === base.activeId) act = m; });
       base.items.forEach(function (it) { its[it.uid] = it; });
-      base.pending.pr = RS.powerRating(act, base.pending.gear ? gearFromSnapshot(base.pending.gear) : GR.resolve(act, its));
+      base.pending.alloc = RS.validAlloc(act, base.pending.alloc || act.alloc);
+      if (base.pending.gear || !v5) {
+        var retrato = clone(act);
+        retrato.alloc = base.pending.alloc;
+        base.pending.pr = RS.powerRating(retrato, base.pending.gear ? gearFromSnapshot(base.pending.gear) : GR.resolve(act, its));
+      }
+      base.pending.pr = Math.max(base.pending.pr, RS.powerRating(act, GR.resolve(act, its)));
     }
     // preferências (sem mudar a versão do save): save antigo sem settings, ou com valor inválido, segue o sistema
     var mo = s.settings && typeof s.settings === 'object' ? s.settings.motion : null;
@@ -2424,7 +2436,8 @@
         // no rating que atrai os rivais; com o páreo aberto, trocas não podem passar deste rating
         counter: state.raceCounter, training: !!training, fee: fee,
         pr: RS.powerRating(playerHorse(), playerGear()),
-        gear: gearSnapshot(playerGear())   // retrato do equipamento: o sanitize limita pr por ele
+        gear: gearSnapshot(playerGear()),   // retrato do equipamento: o sanitize limita pr por ele
+        alloc: RS.validAlloc(activeMount(), activeMount().alloc)   // e o retrato dos pontos (R16), pelo mesmo motivo
       };
       state.pending = P;
       // a sala só abre se ficou gravada: sem isso, recarregar a sortearia de novo

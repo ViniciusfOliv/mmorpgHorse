@@ -792,6 +792,39 @@ try {
       await av.waitForSelector('#t-estabulo')
       const s2 = await st()
       if (JSON.stringify(s2.mounts) !== JSON.stringify(s.mounts)) problems.push('adulterado-v5: recarregar mudou as montarias')
+      // sala adulterada (R16): o retrato dos pontos (pending.alloc) zerado, com lixo ou ausente carrega saneado
+      // e o Poder da sala nunca fica abaixo do Poder com que a ativa corre
+      const bruto = () => av.evaluate(() => JSON.parse(localStorage.getItem('galope-elemental:v1')))
+      const grava = async (r) => {
+        await av.evaluate((x) => localStorage.setItem('galope-elemental:v1', JSON.stringify(x)), r)
+        await av.reload({ waitUntil: 'domcontentloaded' })
+        await av.waitForSelector('#t-estabulo')
+      }
+      const poderAtivo = (x) => { const m = x.mounts.find((y) => y.uid === x.activeId); return S.powerRating(m, GR.resolve(m, Object.fromEntries(x.items.map((it) => [it.uid, it])))) }
+      await abrirSala(av)
+      await av.getByRole('button', { name: /^Voltar/ }).click()
+      const sA = await st()
+      if (JSON.stringify(sA.pending.alloc) !== JSON.stringify(a1.alloc)) problems.push('adulterado-v5: a sala não guardou o retrato dos pontos ' + JSON.stringify(sA.pending.alloc))
+      if (JSON.stringify((await bruto()).pending.alloc) !== JSON.stringify(a1.alloc)) problems.push('adulterado-v5: o retrato dos pontos não foi gravado ao abrir a sala')
+      const ZERO = Object.fromEntries(G.STAT_KEYS.map((k) => [k, 0]))
+      const LIXOS = [['zerado', ZERO], ['lixo', { vel: 'abc', acel: -3, man: 999, forca: 2.5, est: null, garra: '7', sorte: 1e300 }], ['texto', 'tudo'], ['lista', [8, 8, 8]], ['ausente', undefined]]
+      for (const [nome, lixo] of LIXOS) {
+        const r = await bruto()
+        if (lixo === undefined) delete r.pending.alloc; else r.pending.alloc = lixo
+        await grava(r)
+        const x = await st(), p = x.pending, m = x.mounts.find((y) => y.uid === x.activeId)
+        if (!p) { problems.push(`adulterado-v5: retrato dos pontos ${nome} fechou a sala`); continue }
+        const lim = S.statLimit(m), free = S.freePoints(m)
+        if (!p.alloc || G.STAT_KEYS.some((k) => !(Number.isInteger(p.alloc[k]) && p.alloc[k] >= 0 && p.alloc[k] <= lim)) || G.STAT_KEYS.reduce((t, k) => t + p.alloc[k], 0) > free) problems.push(`adulterado-v5: retrato dos pontos ${nome} não foi saneado ` + JSON.stringify(p.alloc))
+        if (p.pr < poderAtivo(x)) problems.push(`adulterado-v5: retrato dos pontos ${nome} baixou o Poder da sala para ${p.pr} (a ativa corre com ${poderAtivo(x)})`)
+        // retrato com lixo pode SUBIR o Poder da sala (rivais mais fortes: só atrapalha quem adulterou); os outros não mudam
+        if (nome !== 'lixo' && p.pr !== sA.pending.pr) problems.push(`adulterado-v5: retrato dos pontos ${nome} mudou o Poder da sala (${sA.pending.pr} -> ${p.pr})`)
+      }
+      // sala que abriu sem o retrato dos pontos: vale o alloc atual e o retrato passa a existir
+      if (JSON.stringify((await st()).pending.alloc) !== JSON.stringify(a1.alloc)) problems.push('adulterado-v5: sala sem retrato dos pontos não ganhou o retrato')
+      const semSala = await bruto()
+      semSala.pending = null
+      await grava(semSala)
       // o cavalo convertido corre sem erro
       await av.evaluate(() => { window.__galope.state.activeId = 'm2' })
       await abrirSala(av)
@@ -1302,6 +1335,33 @@ try {
         const a = s.mounts[0], it2 = Object.fromEntries(s.items.map((x) => [x.uid, x]))
         if (S.powerRating(a, GR.resolve(a, it2)) > pr) problems.push('build: pontos com a sala aberta passaram do Poder da sala')
         if (G.STAT_KEYS.reduce((t, k) => t + a.alloc[k], 0) !== 3 + n) problems.push('build: pontos com a sala aberta não gravaram ' + JSON.stringify(a.alloc))
+        // recarregar (duas vezes) não muda a sala: o Poder dela sai do retrato dos pontos e do equipamento de
+        // quando abriu, não dos pontos novos sem as ferraduras (R16)
+        const salaFina = () => bd.evaluate(() => {
+          const L = window.__galope.ui.lobby
+          return JSON.stringify({ seed: L.seed, counter: L.counter, pr: window.__galope.state.pending.pr, dist: L.cond.distance,
+            rivais: L.racers.map((x) => (x.isPlayer ? 'VOCE' : x.horse.id + ':Nv' + x.horse.level + ':P' + x.rating)) })
+        })
+        await abrirSala(bd)
+        const fina0 = await salaFina()
+        for (let i = 1; i <= 2; i++) {
+          await bd.reload({ waitUntil: 'domcontentloaded' })
+          await bd.waitForSelector('#t-estabulo')
+          await abrirSala(bd)
+          const fina = await salaFina()
+          if (fina !== fina0) problems.push(`build: recarregar (${i}ª vez) depois dos pontos sem as ferraduras mudou a sala: ${fina0} -> ${fina}`)
+        }
+        if ((await st()).pending.pr !== pr) problems.push(`build: depois de recarregar, o Poder da sala ${(await st()).pending.pr} != ${pr}`)
+        await bd.getByRole('button', { name: /^Voltar/ }).click()
+        // e as ferraduras não voltam: passariam do Poder da sala
+        await abreMontaria('m1')
+        await bd.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+        await bd.locator('[data-acao="equip-slot"][data-id="ferraduras"]').click()
+        const eqBtn = bd.locator('[data-acao="equipar"]').first()
+        if (!(await eqBtn.count()) || !(await eqBtn.isDisabled())) problems.push('build: depois dos pontos sem as ferraduras, reequipar não está barrado')
+        await bd.evaluate(() => { const b = document.querySelector('[data-acao="equipar"]'); if (b) { b.disabled = false; b.click() } })   // botão forçado
+        if ((await st()).mounts[0].equip.ferraduras) problems.push('build: reequipar as ferraduras passou da trava da sala')
+        await bd.locator('[data-acao="montaria-aba"][data-id="status"]').click()
       }
       // outra montaria (não é a ativa): livre com a sala aberta
       await abreMontaria('m2')
