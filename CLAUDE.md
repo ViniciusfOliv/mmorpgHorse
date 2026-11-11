@@ -40,10 +40,13 @@ lançamento: `docs/cronograma.md`.
 | Testes dos efeitos da corrida (dados, skills, clima, vento, curvas) | `node prototype/tools/fx-test.js` | 2 s |
 | Testes dos moldes de cavalo (PNGs e âncoras gerados) | `node prototype/tools/moldes-test.mjs` | <1 s |
 | Wiki: regerar (`--check` só confere) / testar (determinismo, cobertura, navegador) | `node prototype/tools/wiki.mjs` / `node prototype/tools/wiki-test.mjs` | <1 s / 2 s |
-| Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~25 s |
-| Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~1,5 min |
+| Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~30 s |
+| Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~2,5 min |
 | Teste de interface (Playwright) + capturas em `prototype/screens/` | `node prototype/tools/ui-test.mjs` | ~5 min |
 | **Verificação completa** (8 etapas: build, simulação, efeitos, dist, moldes, wiki, balanço, UI; não toca nas capturas) | `./scripts/check.sh` | ~6 min |
+
+Mudou número de regra (status, skill, pista, peça, Poder)? Rode também o `balance.js` completo: as metas
+M6, M9, P1, S1 e A1 só contam nele (no `--quick`, que o `check.sh` usa, são só informação).
 
 Abrir o jogo localmente: `prototype/dist/preview.html` no navegador. O `prototype/dist/jogo.html` é o
 build de produção: sai sem modo DEV e sem gancho de teste (o build falha se sobrar algum).
@@ -87,7 +90,8 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
 - Corrida **determinística**: mesma seed + configuração ⇒ mesmo resultado (servidor simula,
   cliente só anima). O `balance.js` verifica.
 - Resultado nunca é calculado/mostrado antes de a entrada ser paga; sala não pode ser re-sorteada
-  de graça (o `ui-test.mjs` verifica).
+  de graça; com páreo aberto, peça ou ponto que suba o Poder do cavalo ativo acima do que a sala viu
+  não entra (o `ui-test.mjs` verifica).
 - Dado da Sorte e viradas de clima só com a RNG da seed (nada de `Math.random`).
 - Potro gerado só pela RNG da seed (`prototype/src/breed.js`); Mítico nunca nasce de cruzamento.
 - Melhoria de peça e Pedra Negra do pódio só pela RNG da seed (`prototype/src/gear.js`); Lendário nunca à venda.
