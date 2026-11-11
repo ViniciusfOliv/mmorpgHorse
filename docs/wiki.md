@@ -491,7 +491,7 @@ Fogo · Comum · ★★ · ♀ fêmea · Nv 3 · Poder 716 (Bronze) · 1 cruza(s
 
 Habitat: Cerrado seco.
 
-Skills: Arranque · Onde aparece: bot nas corridas, aluguel no Haras (125 de Ouro)
+Skills: Arranque · Onde aparece: bot nas corridas, aluguel no Haras (125 de Ouro), vitrine da Expedição
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |

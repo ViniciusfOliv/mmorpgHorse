@@ -972,6 +972,16 @@ test('Dev.horseTemplate respeita vagas e skills válidas', function () {
   var res = S.simulate({ seed: 3, recordFrames: false, racers: [{ horse: m, gear: null, name: 'a' }, { horse: t, gear: null, name: 'b' }] });
   assert.strictEqual(res.finishOrder.length, 2);
 });
+test('Dev.horseTemplate v3: sem base, genética por status, estrelas e alloc', function () {
+  var t = DV().horseTemplate({ rarity: 'raro', potential: { vel: 31, acel: 0, man: 7, forca: 40, est: -2, garra: 'x', sorte: 15 }, grau: 3, alloc: { vel: 5, acel: -1, man: 2.7, forca: 'abc', est: 999 } }, 2);
+  assert.ok(!('base' in t), 'sem base');
+  assert.deepStrictEqual(t.potential, { vel: 31, acel: 0, man: 7, forca: 31, est: 0, garra: 0, sorte: 15 });
+  assert.strictEqual(t.grau, 3);
+  assert.deepStrictEqual(t.alloc, { vel: 5, acel: 0, man: 2, forca: 0, est: 999, garra: 0, sorte: 0 }, 'inteiros ≥ 0 (o limite fica para RaceSim.validAlloc)');
+  [0, 4, 'x', null, 2.4].forEach(function (g) { var e = DV().horseTemplate({ grau: g }).grau; assert.ok(e >= 1 && e <= 3 && e === Math.floor(e), String(g) + ' -> ' + e); });
+  assert.strictEqual(DV().horseTemplate({ grau: 1 }).grau, 1); assert.strictEqual(DV().horseTemplate({}).grau, 2);
+  G.STAT_KEYS.forEach(function (k) { assert.strictEqual(DV().horseTemplate({}).alloc[k], 0); });
+});
 test('Dev.itemId devolve só ids do catálogo', function () {
   assert.strictEqual(DV().itemId({ slot: 'sela', set: 'sol', rarity: 'lendario' }), 'sela-sol-lendario');
   assert.strictEqual(DV().itemId({ slot: 'armadura', set: 'nevoa', rarity: 'raro' }), 'armadura-nevoa-raro');

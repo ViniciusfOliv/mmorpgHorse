@@ -8,9 +8,11 @@
  *   Dev.GOLD_INF   999 999. "Ouro infinito": refillGold(state) depois de cada gasto.
  *
  *   Dev.horseTemplate(c, n) -> template no formato de GameData.STARTERS (o game.js faz a instância):
- *     c = { name, element, rarity, sex, potential: 0..31 | 'max' | { vel..sorte }, skills: [ids],
+ *     c = { name, element, rarity, sex, potential: 0..31 | 'max' | { vel..sorte } (genética por status),
+ *           grau: 1..3 (estrelas; padrão 2), alloc: { vel..sorte } (pontos distribuídos), skills: [ids],
  *           palette: { coat, coatShade, mane, accent } }; n = nº do cavalo (id 'dev-' + n; padrão 1).
- *     base de cada status = RARITIES[rarity].baseLo; level 1, xp 0, grau 2, espécie 'cavalo'.
+ *     Sem status base (v3: sai da genética). level 1, xp 0, espécie 'cavalo'. alloc: inteiros ≥ 0
+ *     (o limite por status e o total ficam para RaceSim.validAlloc, que depende do nível).
  *     Skills: qualquer uma do catálogo (inclusive de outro elemento); inexistentes ou
  *     repetidas saem; no máximo RARITIES[rarity].skillSlots, na ordem pedida.
  *     Campo inválido vira o padrão: elemento Fogo, raridade Comum, sexo macho, nome "Teste",
@@ -78,13 +80,16 @@
     var num = Math.floor(Number(n));
     if (!(num >= 1)) num = 1;
     var R = G.RARITIES[rarity];
-    var base = {}, potential = {};
+    var potential = {}, alloc = {};
     var potObj = c.potential && typeof c.potential === 'object' ? c.potential : null;
+    var allocObj = c.alloc && typeof c.alloc === 'object' ? c.alloc : {};
     for (var i = 0; i < G.STAT_KEYS.length; i++) {
-      var k = G.STAT_KEYS[i];
-      base[k] = R.baseLo;
+      var k = G.STAT_KEYS[i], a = Number(allocObj[k]);
       potential[k] = pot(potObj ? potObj[k] : c.potential);
+      alloc[k] = isFinite(a) && a > 0 ? Math.floor(a) : 0;
     }
+    var g = Number(c.grau);
+    var grau = (c.grau == null || c.grau === '' || !isFinite(g)) ? 2 : clamp(Math.round(g), 1, 3);
     var skills = [];
     var list = Array.isArray(c.skills) ? c.skills : [];
     for (i = 0; i < list.length && skills.length < R.skillSlots; i++) {
@@ -98,7 +103,7 @@
     }
     return {
       id: 'dev-' + num, name: name, especie: 'cavalo', element: element, rarity: rarity, sex: sex,
-      level: 1, xp: 0, base: base, potential: potential, skills: skills, palette: palette, grau: 2
+      level: 1, xp: 0, potential: potential, alloc: alloc, skills: skills, palette: palette, grau: grau
     };
   }
 

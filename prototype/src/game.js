@@ -55,7 +55,7 @@
   var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
   var TRAINING_GOLD = [30, 22, 16, 12, 10, 10, 10, 10];
   var MIN_ENTRY = Math.min.apply(null, E.entryTiers);
-  var WILD_SHOWCASE = ['w-pangare', 'w-mandacaru', 'w-ventania', 'w-fogareu', 'w-iara', 'w-boitata'];
+  var WILD_SHOWCASE = ['w-faisca', 'w-mandacaru', 'w-ventania', 'w-fogareu', 'w-iara', 'w-boitata'];
   var TRACK_NAMES = [
     'Prado do Cerrado', 'Hipódromo da Lagoa', 'Raia do Engenho', 'Prado Beira-Rio',
     'Hipódromo do Planalto', 'Raia da Ventania', 'Prado das Palmeiras', 'Hipódromo do Sertão Velho'
@@ -286,10 +286,18 @@
     try { var m = window.localStorage.getItem(MOTION_KEY); return MOTIONS.indexOf(m) >= 0 ? m : null; } catch (e) { return null; }
   }
 
-  // Save v4: várias montarias (instâncias) e uma ativa; peças de equipamento como instâncias em
+  // Save v5: várias montarias (instâncias) e uma ativa; peças de equipamento como instâncias em
   // state.items ({ uid: 'i<n>', id, plus }) e equipadas por montaria em mount.equip (slot -> uid|null).
+  // Montaria v5: genética em potential (0–31), estrelas em grau (1–3) e pontos livres distribuídos em
+  // alloc (as 7 chaves; RaceSim.validAlloc); não há status base guardado (sai da genética).
   // Saves v1/v2 (um inicial com level/xp/skills na raiz) são migrados em sanitize(): o inicial vira
   // mounts[0] ('m1'); o inventário de itens antigos (v1–v3) vira peças pelo OLD_ITEM_MAP.
+  // v4 -> v5 (também em sanitize, e gravado logo ao abrir): o status base é descartado; alloc zerado (os
+  // pontos dos níveis já ganhos ficam para distribuir); Neutro vira Fogo/Água/Grama pela seed do save e pelo
+  // número do uid (neutroParaTipo); as skills de tipo (Labareda, Maré Alta, Raízes Firmes) saem da lista;
+  // modelo que saiu do catálogo (ex.: Pangaré) fica com templateId null e a própria paleta; a sala aberta
+  // fica (mesma seed, entrada e treino) com o Poder recalculado.
+  var SAVE_VERSION = 5;
   var BR = E.breeding;
   var MAX_LEVEL = E.maxLevel || 50;
 
@@ -306,14 +314,20 @@
       level: 1,
       xp: 0,
       skills: tpl.skills.slice(),
-      base: clone(tpl.base),
       potential: clone(tpl.potential),
+      alloc: zeroAlloc(),
       palette: tpl.palette ? clone(tpl.palette) : null,
       breedLeft: tpl.breedLeftMax || GD.BREED_LEFT[tpl.sex],
       parents: null,
       born: 0,
       equip: GR.emptyEquip()
     };
+  }
+
+  function zeroAlloc() {
+    var a = {};
+    STAT_KEYS.forEach(function (k) { a[k] = 0; });
+    return a;
   }
 
   // cria uma peça +0 no save st (uid 'i' + nextItemUid) e devolve a instância
@@ -327,7 +341,7 @@
   function newState(starterId) {
     var idx = Math.max(0, GD.STARTERS.map(function (h) { return h.id; }).indexOf(starterId));
     var st = {
-      v: 4,
+      v: SAVE_VERSION,
       rev: 0,
       gold: E.startingGold,
       tier: E.entryTiers[0],
@@ -408,35 +422,29 @@
     return f && m ? { f: f, m: m } : null;
   }
 
-  // Teto do status base de uma montaria pela raridade e pelo grau: o maior entre a janela em que um potro
-  // desse grau nasce (Breed: baseLo + GRAU_WINDOW) e o maior status base de um cavalo pronto (iniciais e
-  // selvagens) da mesma raridade. Status acima disso só vêm de save adulterado e são cortados (a montaria
-  // fica). Status mais baixos não dão vantagem: o piso continua 1.
-  var BASE_TPL_MAX = {};
-  allHorses().forEach(function (h) {
-    STAT_KEYS.forEach(function (k) { BASE_TPL_MAX[h.rarity] = Math.max(BASE_TPL_MAX[h.rarity] || 0, Number(h.base[k]) || 0); });
-  });
-  function baseMax(rarity, grau) {
-    var R = GD.RARITIES[rarity], win = window.Breed && window.Breed.GRAU_WINDOW;
-    var foal = R && win && win[grau - 1] ? R.baseLo + win[grau - 1][1] : 100;
-    return clamp(Math.max(foal, BASE_TPL_MAX[rarity] || 0), 1, 100);
+  // Cavalo Neutro (o tipo saiu na v3) vira Fogo, Água ou Grama: sorteio fixo pela seed do save e pelo
+  // número do uid, sem RNG de jogo. Vale para save de qualquer versão; o convertido não é mais Neutro.
+  var NEUTRO_PARA = ['fogo', 'agua', 'grama'];
+  function neutroParaTipo(seedBase, uid) {
+    return NEUTRO_PARA[(RS.hash2(seedBase >>> 0, Number(uid.slice(1))) >>> 0) % NEUTRO_PARA.length];
   }
 
-  // Uma montaria do save v3: tipos e faixas; campo essencial ausente ou status inválidos -> null.
-  function sanitizeMount(m) {
+  // Uma montaria do save v3+: tipos e faixas; campo essencial ausente ou genética inválida -> null.
+  // seedBase: a seed do save (converte o Neutro); v5: o save já é v5 (antes dele, os pontos vêm zerados).
+  // Modelo fora do catálogo: a montaria fica, sem modelo.
+  function sanitizeMount(m, seedBase, v5) {
     if (!m || typeof m !== 'object') return null;
     if (typeof m.uid !== 'string' || !/^m\d{1,9}$/.test(m.uid)) return null;
-    if (typeof m.element !== 'string' || !hasOwn(GD.ELEMENTS, m.element)) return null;
+    var element = m.element === 'neutro' ? neutroParaTipo(seedBase, m.uid) : m.element;
+    if (typeof element !== 'string' || !hasOwn(GD.ELEMENTS, element)) return null;
     if (typeof m.rarity !== 'string' || !hasOwn(GD.RARITIES, m.rarity)) return null;
     if (m.sex !== 'm' && m.sex !== 'f') return null;
+    // modelo que não existe mais (ou id inválido): fica sem modelo, como um potro (aparência pela paleta)
     var templateId = null;
-    if (m.templateId != null) {
-      if (typeof m.templateId !== 'string' || !(horseById(m.templateId) || (devHooks && devHooks.templateId(m.templateId)))) return null;
-      templateId = m.templateId;
-    }
+    if (typeof m.templateId === 'string' && (horseById(m.templateId) || (devHooks && devHooks.templateId(m.templateId)))) templateId = m.templateId;
     var grau = num(m.grau, 2, 1, 3);
-    var base = statBlock(m.base, 1, baseMax(m.rarity, grau)), potential = statBlock(m.potential, 0, 31);
-    if (!base || !potential) return null;
+    var potential = statBlock(m.potential, 0, 31);
+    if (!potential) return null;
     var name = typeof m.name === 'string' ? String(m.name).replace(/\s+/g, ' ').trim().slice(0, 16) : '';
     if (name.length < 2) name = 'Montaria';
     var out = {
@@ -444,15 +452,15 @@
       templateId: templateId,
       name: name,
       especie: 'cavalo',
-      element: m.element,
+      element: element,
       rarity: m.rarity,
       grau: grau,
       sex: m.sex,
       level: num(m.level, 1, 1, MAX_LEVEL),
       xp: num(m.xp, 0, 0, 1e7),
       skills: [],
-      base: base,
       potential: potential,
+      alloc: null,
       palette: validPalette(m.palette),
       breedLeft: num(m.breedLeft, GD.BREED_LEFT[m.sex], 0, 4),
       parents: validParents(m.parents),
@@ -460,6 +468,7 @@
       // ('gestacao', gravado por saves antigos e nunca lido, fica de fora)
       equip: GR.emptyEquip()      // preenchido em sanitize(), que conhece as peças válidas
     };
+    out.alloc = RS.validAlloc(out, v5 ? m.alloc : null);   // save antigo: zerado; inválido: saneado pelos pontos livres
     out.skills = validSkills(m.skills, out);
     return out;
   }
@@ -468,7 +477,9 @@
     if (!s || typeof s !== 'object') return null;
     var mounts, activeId, nextUid, stableSlots, breedCounter;
     var start = BR.stableSlotsStart, max = BR.stableSlotsMax;
-    var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4;
+    var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4, v5 = Number(s.v) >= SAVE_VERSION;
+    var seedBase = num(s.seedBase, null, 0, 4294967295);
+    if (seedBase == null) seedBase = freshSeedBase(0);
     var rawEquip = {};   // uid da montaria -> equip cru do save (validado depois das peças)
     if (!v3 && !Array.isArray(s.mounts)) {
       // v1/v2: um inicial com level/xp/skills na raiz (v1 tinha tática e não tinha skills: ignorados)
@@ -484,7 +495,7 @@
       mounts = [];
       var seen = {}, maxUid = 0;
       (Array.isArray(s.mounts) ? s.mounts : []).forEach(function (raw) {
-        var m = sanitizeMount(raw);
+        var m = sanitizeMount(raw, seedBase, v5);
         if (!m || seen[m.uid]) return;
         seen[m.uid] = true;
         mounts.push(m);
@@ -502,7 +513,7 @@
     base.rev = num(s.rev, 0, 0, 1e12);
     base.gold = num(s.gold, E.startingGold, 0, 1e9);
     base.tier = E.entryTiers.indexOf(s.tier) >= 0 ? s.tier : E.entryTiers[0];
-    base.seedBase = num(s.seedBase, base.seedBase, 0, 4294967295);
+    base.seedBase = seedBase;
     base.raceCounter = num(s.raceCounter, 0, 0, 1e9);
     var p = s.pending;
     if (p && typeof p === 'object' && isFinite(p.counter) && p.counter >= 1 && p.counter <= base.raceCounter) {
@@ -525,11 +536,13 @@
     // Poder da sala = Poder da montaria ativa com o equipamento de quando a sala abriu (pending.gear, retrato
     // tirado em openLobby), nem mais (liberaria trocas de peça) nem menos (os rivais sairiam mais fracos).
     // Sem retrato (save de antes dele) o pr gravado fica como está: recalcular pelo equipamento atual mudaria
-    // os rivais da mesma sala.
-    if (base.pending && base.pending.gear) {
-      var act = null;
+    // os rivais da mesma sala. Exceção: save de antes da v5 (o pr é do modelo de status antigo), recalculado
+    // uma vez pelo equipamento atual; o save migrado é gravado logo ao abrir e daí em diante o pr fica.
+    if (base.pending && (base.pending.gear || !v5)) {
+      var act = null, its = {};
       base.mounts.forEach(function (m) { if (m.uid === base.activeId) act = m; });
-      base.pending.pr = RS.powerRating(act, gearFromSnapshot(base.pending.gear));
+      base.items.forEach(function (it) { its[it.uid] = it; });
+      base.pending.pr = RS.powerRating(act, base.pending.gear ? gearFromSnapshot(base.pending.gear) : GR.resolve(act, its));
     }
     // preferências (sem mudar a versão do save): save antigo sem settings, ou com valor inválido, segue o sistema
     var mo = s.settings && typeof s.settings === 'object' ? s.settings.motion : null;
@@ -623,9 +636,12 @@
   }
 
   // Skills salvas de uma montaria: só ids que ela pode ter (mesmas regras do RaceSim.learnSkill:
-  // elemento dela ou neutro; exclusiva só do template dono), sem repetir, até o nº de vagas da raridade.
+  // elemento dela ou geral), sem repetir, até o nº de vagas da raridade.
   // Ausente/vazio/inválido -> as skills de nascença do template (potro sem template: nenhuma).
-  // Perfil DEV: qualquer skill do catálogo (o painel dá exclusivas e de outro elemento), ainda até as vagas.
+  // As skills de tipo de saves antigos (Labareda, Maré Alta, Raízes Firmes) não são de vaga e saem da lista;
+  // uma lista que só tinha elas fica vazia (não volta para as de nascença).
+  // Perfil DEV: qualquer skill do catálogo (o painel dá de outro elemento), ainda até as vagas.
+  var TYPE_SKILL_IDS = Object.keys(GD.TYPE_SKILLS).map(function (e) { return GD.TYPE_SKILLS[e].id; });
   function validSkills(list, mount) {
     var st = mount.templateId ? horseById(mount.templateId) : null;
     var slots = (GD.RARITIES[mount.rarity] || GD.RARITIES.comum).skillSlots;
@@ -634,14 +650,12 @@
       list.forEach(function (id) {
         var sk = typeof id === 'string' && hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
         if (!sk || out.indexOf(id) >= 0 || out.length >= slots) return;
-        if (!DEV_MODE) {
-          if (sk.exclusive && sk.exclusive !== mount.templateId) return;
-          if (sk.element !== 'neutro' && sk.element !== mount.element) return;
-        }
+        if (!DEV_MODE && sk.element !== 'geral' && sk.element !== mount.element) return;
         out.push(id);
       });
     }
-    return out.length ? out : (st ? st.skills.slice() : []);
+    var tinhaTipo = Array.isArray(list) && list.some(function (id) { return TYPE_SKILL_IDS.indexOf(id) >= 0; });
+    return out.length || tinhaTipo ? out : (st ? st.skills.slice() : []);
   }
 
   // Montaria ativa: a instância viva (para mutar). playerHorse() devolve um clone dela.
@@ -693,7 +707,6 @@
     if (mount.level >= MAX_LEVEL) mount.xp = Math.min(mount.xp, E.xpToLevel(mount.level));
     for (var k = 1; k <= levels; k++) {
       var lrng = RS.mulberry32(RS.hash2(state.seedBase, seedTag * 100 + (mount.level - levels + k)));
-      // learnSkill confere a exclusiva por .id: a instância usa o id do template de origem
       var sid = RS.learnSkill({ id: mount.templateId, element: mount.element, rarity: mount.rarity, skills: mount.skills }, lrng);
       if (sid) { mount.skills.push(sid); learned.push(sid); }
     }
@@ -819,8 +832,12 @@
   // ===========================================================================
   // Fragmentos de UI
   // ===========================================================================
+  // Elemento para mostrar: o do catálogo ou, para as skills gerais (element 'geral') e qualquer valor
+  // desconhecido, o grupo "Geral" (ícone el-geral).
+  var EL_GERAL = { id: 'geral', name: 'Geral' };
+  function elementOf(element) { return hasOwn(GD.ELEMENTS, element) ? GD.ELEMENTS[element] : EL_GERAL; }
   function elementHtml(element) {
-    var el = GD.ELEMENTS[element] || GD.ELEMENTS.neutro;
+    var el = elementOf(element);
     return '<span class="el el--' + esc(el.id) + '">' + iconHtml(el.id) + esc(el.name) + '</span>';
   }
   function rarityHtml(rarity) {
@@ -1020,7 +1037,10 @@
     var f = ui.dev.f, a = activeMount();
     var pal = a.palette || DV.horseTemplate({ element: a.element }).palette;
     f.nome = a.name; f.elemento = a.element; f.raridade = a.rarity; f.sexo = a.sex;
-    f.nivel = String(a.level); f.potencial = 'max';
+    f.nivel = String(a.level); f.potencial = 'max'; f.estrelas = String(RS.starsOf(a));
+    // genética por status (vale com "Genética: por status") e pontos distribuídos, da ativa
+    var al = RS.validAlloc(a, a.alloc);
+    STAT_KEYS.forEach(function (k) { f['gen-' + k] = String(a.potential[k]); f['pt-' + k] = String(al[k]); });
     for (var i = 0; i < DEV_SKILL_VAGAS; i++) f['skill' + i] = a.skills[i] || '';
     f.coat = pal.coat.toLowerCase(); f.coatshade = pal.coatShade.toLowerCase();
     f.mane = pal.mane.toLowerCase(); f.accent = pal.accent.toLowerCase();
@@ -1037,12 +1057,17 @@
   function devCavaloEscolhido(f) {
     var skills = [];
     for (var i = 0; i < DEV_SKILL_VAGAS; i++) if (f['skill' + i]) skills.push(f['skill' + i]);
+    var gen = {}, pts = {};
+    STAT_KEYS.forEach(function (k) { gen[k] = f['gen-' + k]; pts[k] = f['pt-' + k]; });
     return {
       name: f.nome, element: f.elemento, rarity: f.raridade, sex: f.sexo,
-      potential: f.potencial === 'max' ? 'max' : Number(f.potencial), skills: skills,
+      potential: f.potencial === 'max' ? 'max' : f.potencial === 'cada' ? gen : Number(f.potencial), skills: skills,
+      grau: f.estrelas, alloc: pts,
       palette: { coat: f.coat, coatShade: f.coatshade, mane: f.mane, accent: f.accent }
     };
   }
+  // pontos do template (inteiros ≥ 0) cortados pelo limite e pelos pontos livres do nível da instância
+  function devAplicaPontos(m, tpl) { m.alloc = RS.validAlloc(m, tpl.alloc); }
   function devNivel(f) { return clamp(Math.floor(Number(f.nivel)) || 1, 1, MAX_LEVEL); }
   function devDescreveCavalo(m) {
     return m.name + ' (' + GD.RARITIES[m.rarity].name + ', ' + GD.ELEMENTS[m.element].name + ', Nv ' + m.level + ')';
@@ -1128,11 +1153,11 @@
     var nomeDe = function (o) { return o.name; };
     var elementos = devListaDe(GD.ELEMENTS, nomeDe), raridades = devListaDe(GD.RARITIES, nomeDe);
     var vagas = GD.RARITIES[f.raridade] ? GD.RARITIES[f.raridade].skillSlots : 1;
-    var potenciais = [['max', 'Máximo (31)']];
+    var potenciais = [['max', 'Máximo (31)'], ['cada', 'Por status (abaixo)']];
     for (var pv = 31; pv >= 0; pv--) potenciais.push([String(pv), String(pv)]);
     var skillOpts = [['', '— vazia —']].concat(Object.keys(GD.SKILLS).map(function (id) {
       var sk = GD.SKILLS[id];
-      return [id, sk.name + ' · ' + GD.ELEMENTS[sk.element].name + (sk.exclusive ? ' · exclusiva' : '')];
+      return [id, sk.name + ' · ' + elementOf(sk.element).name];
     }));
     var skillSel = '';
     for (var i = 0; i < DEV_SKILL_VAGAS; i++) skillSel += devSelect('skill' + i, 'Skill ' + (i + 1), skillOpts, f['skill' + i]);
@@ -1158,8 +1183,16 @@
         devSelect('elemento', 'Elemento', elementos, f.elemento) + devSelect('raridade', 'Raridade', raridades, f.raridade) +
         devSelect('sexo', 'Sexo', [['m', '♂ Macho'], ['f', '♀ Fêmea']], f.sexo) +
         devEntrada('nivel', 'Nível (1–' + MAX_LEVEL + ')', 'type="number" min="1" max="' + MAX_LEVEL + '" inputmode="numeric"', f.nivel) +
-        devSelect('potencial', 'Potencial', potenciais, f.potencial) +
+        devSelect('potencial', 'Genética', potenciais, f.potencial) +
+        devSelect('estrelas', 'Estrelas', [['1', '★'], ['2', '★★'], ['3', '★★★']], f.estrelas) +
       '</div>' +
+      '<p class="nota">Genética por status (0–31, com "Genética: por status") e pontos distribuídos (cortados pelo limite por status e pelos pontos livres do nível).</p>' +
+      '<div class="dev-campos dev-campos--4">' + STAT_KEYS.map(function (k) {
+        return devEntrada('gen-' + k, 'Gen. ' + GD.STATS[k].short, 'type="number" min="0" max="31" inputmode="numeric"', f['gen-' + k]);
+      }).join('') + '</div>' +
+      '<div class="dev-campos dev-campos--4">' + STAT_KEYS.map(function (k) {
+        return devEntrada('pt-' + k, 'Pontos ' + GD.STATS[k].short, 'type="number" min="0" max="' + MAX_LEVEL * 2 + '" inputmode="numeric"', f['pt-' + k]);
+      }).join('') + '</div>' +
       '<p class="nota">Skills: qualquer uma do catálogo; ' + GD.RARITIES[f.raridade in GD.RARITIES ? f.raridade : 'comum'].name + ' usa até ' + vagas + '.</p>' +
       '<div class="dev-campos dev-campos--1">' + skillSel + '</div>' +
       '<div class="dev-campos dev-campos--4">' +
@@ -1168,7 +1201,7 @@
       '</div>' +
       '<div class="dev-acoes">' + devBotao('dev-criar', 'Criar cavalo', 'btn--ouro') + devBotao('dev-aplicar', 'Aplicar na ativa') + devBotao('dev-carregar', 'Carregar a ativa') + '</div>' +
       '<div class="dev-campos dev-campos--1">' + devSelect('copiar', 'Copiar cavalo pronto (iniciais e aluguéis do Haras)', prontos, f.copiar) + '</div>' +
-      '<div class="dev-acoes">' + devBotao('dev-copiar', 'Copiar para o estábulo') + devBotao('dev-niveis', '+10 níveis (ativa)') + devBotao('dev-cruz', '+1 cruzamento (ativa)') + '</div>');
+      '<div class="dev-acoes">' + devBotao('dev-copiar', 'Copiar para o estábulo') + devBotao('dev-niveis', '+10 níveis (ativa)') + devBotao('dev-cruz', '+1 cruzamento (ativa)') + devBotao('dev-devolver', 'Devolver pontos (ativa)') + '</div>');
 
     var itens = devGrupo('itens', 'Itens',
       '<p class="nota">Qualquer peça do catálogo, inclusive Lendária (só no perfil DEV). Comum e Mágico são peças soltas; Raro e Lendário usam o conjunto.</p>' +
@@ -1283,19 +1316,25 @@
       case 'dev-cruz':
         a.breedLeft = Math.min(4, a.breedLeft + 1);
         devGrava(a.name + ' tem ' + a.breedLeft + ' cruza(s).'); break;
+      case 'dev-devolver':
+        a.alloc = zeroAlloc();
+        devCavaloDaAtiva();
+        devGrava(a.name + ': ' + RS.freePoints(a) + ' ponto(s) livre(s) para distribuir.'); break;
       case 'dev-criar':
         tpl = DV.horseTemplate(devCavaloEscolhido(f), state.nextUid);
         m = instanceFromTemplate(tpl, 'm' + state.nextUid);
         m.level = devNivel(f); m.xp = 0;
+        devAplicaPontos(m, tpl);
         state.nextUid += 1;
         devAdicionaCavalo(m);
         devCavaloDaAtiva();
         devGrava('Criado: ' + devDescreveCavalo(m) + '. Agora é a ativa.'); break;
       case 'dev-aplicar':
         tpl = DV.horseTemplate(devCavaloEscolhido(f), uidNum(a.uid));
-        a.name = tpl.name; a.element = tpl.element; a.rarity = tpl.rarity; a.sex = tpl.sex;
+        a.name = tpl.name; a.element = tpl.element; a.rarity = tpl.rarity; a.sex = tpl.sex; a.grau = tpl.grau;
         a.level = devNivel(f); a.xp = 0;
-        a.skills = tpl.skills.slice(); a.base = clone(tpl.base); a.potential = clone(tpl.potential); a.palette = clone(tpl.palette);
+        a.skills = tpl.skills.slice(); a.potential = clone(tpl.potential); a.palette = clone(tpl.palette);
+        devAplicaPontos(a, tpl);
         devCavaloDaAtiva();
         devGrava('Ativa substituída: ' + devDescreveCavalo(a) + '.'); break;
       case 'dev-carregar':
@@ -1488,7 +1527,7 @@
       var best = el.weather && GD.WEATHERS[el.weather] ? GD.WEATHERS[el.weather].name + ' (+' + wPct + '%)' : '—';
       var worst = Object.keys(GD.WEATHERS).filter(function (w) { return GD.WEATHERS[w].penalizes === h.element; })
         .map(function (w) { return GD.WEATHERS[w].name + ' (−' + wPct + '%)'; }).join(', ') || '—';
-      var bonus = el.statBonus ? '+' + el.statBonus.amount + ' de ' + GD.STATS[el.statBonus.stat].name : '—';
+      var ts = RS.typeSkill(h), bonus = ts ? ts.name : '—';   // a tela nova do inicial é da Tarefa 6
       return '<article class="caixa inicial" id="ini-' + esc(h.id) + '" aria-label="' + esc(h.name + ', ' + (idx + 1) + ' de ' + GD.STARTERS.length) + '">' +
         '<div class="retrato-palco">' + portraitHtml(h) + '<span class="contador">' + (idx + 1) + '/' + GD.STARTERS.length + '</span></div>' +
         '<div class="inicial-topo"><h2 class="cavalo-nome">' + esc(h.name) + '</h2>' + elementHtml(h.element) + '</div>' +
@@ -1496,7 +1535,7 @@
         '<div class="linha-meta">' + rarityHtml(h.rarity) + '<span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
         statsHtml(stats) +
         skillHtml(h.skills[0]) +
-        '<dl class="afinidade"><dt>Bônus</dt><dd>' + esc(bonus) + '</dd><dt>Clima bom</dt><dd class="mais">' + esc(best) +
+        '<dl class="afinidade"><dt>Skill de tipo</dt><dd>' + esc(bonus) + '</dd><dt>Clima bom</dt><dd class="mais">' + esc(best) +
         '</dd><dt>Clima ruim</dt><dd class="menos-t">' + esc(worst) + '</dd></dl>' +
         '<button type="button" class="btn btn--ouro btn--grande" data-acao="escolher" data-id="' + esc(h.id) + '">Escolher ' + esc(h.name) + '</button>' +
         '</article>';
@@ -1791,7 +1830,7 @@
     var gp = pctRound([o.grau[1] * 100, o.grau[2] * 100, o.grau[3] * 100]);
     var grau = 'Se mantiver a raridade: ★ ' + gp[0] + '% · ★★ ' + gp[1] + '% · ★★★ ' + gp[2] +
       '%; se subir, nasce ★; se descer, ★★★';
-    var elName = function (e) { return (GD.ELEMENTS[e] || GD.ELEMENTS.neutro).name; };
+    var elName = function (e) { return elementOf(e).name; };
     var els = P.f.element === P.m.element ? [P.f.element] : [P.f.element, P.m.element];
     var elTxt = 'Elemento: ' + (els.length === 1 ? elName(els[0]) : elName(els[0]) + ' ou ' + elName(els[1]) + ' (50/50)');
     var cands = [];
@@ -1898,6 +1937,7 @@
   function harasFoal(P) {
     var foal = BRD.foal({ f: P.f, m: P.m, seedBase: state.seedBase, breedCounter: state.breedCounter, nextUid: state.nextUid });
     foal.equip = GR.emptyEquip();   // entra no estábulo sem peças (Breed.foal não sabe de equipamento)
+    foal.alloc = zeroAlloc();       // e sem pontos distribuídos (nasce no nível 1: nenhum ponto livre)
     state.nextUid += 1;
     state.breedCounter += 1;
     return foal;
@@ -2205,11 +2245,13 @@
   // ===========================================================================
   // Sala de largada: campo sorteado uma vez (state.pending) e simulado só no "Largar!"
   // ===========================================================================
+  // O Poder de cada nível já conta os pontos livres distribuídos pela build fixa dos bots (botAlloc).
   function bestLevelFor(template, gear, target, lo, hi) {
-    var h = clone(template); // um clone por template, mudando só o level (clonar a cada nível custava ~10 ms por sala)
+    var h = clone(template); // um clone por template, mudando só o level e o alloc (clonar a cada nível custava ~10 ms por sala)
     var best = lo || 1, bestD = Infinity;
     for (var L = (lo || 1); L <= (hi || E.maxLevel || 50); L++) {
       h.level = L;
+      h.alloc = RS.botAlloc(h);
       var d = Math.abs(RS.powerRating(h, gear) - target);
       if (d < bestD - 0.5) { bestD = d; best = L; }
     }
@@ -2294,7 +2336,7 @@
       // alvo em torno do rating do jogador (−8,5%..+11,5%); o rating já pesa cada habilidade pela chance
       // do gatilho. O leve viés para cima mantém a margem da casa (~10%) também contra bots.
       var target = pr * (0.915 + 0.2 * rng());
-      // equipamento do bot pela liga do alvo e pelo elemento do template (Neutro: conjunto pelo pick)
+      // equipamento do bot pela liga do alvo e pelo elemento do template
       var gpick = rng();
       var leagueIdx = leagueIndex(target);
       var inBand = pool.map(function (tpl) {
@@ -2315,8 +2357,9 @@
       }
       var choice = pick(cands, rng);
       used[choice.tpl.id] = true;
-      var horse = clone(choice.tpl);
+      var horse = clone(choice.tpl);   // genética do catálogo; os pontos livres pela build fixa
       horse.level = choice.fit.level;
+      horse.alloc = RS.botAlloc(horse);
       horse.id = choice.tpl.id + '-b' + b;
       var silkIdx = SP.SILKS.indexOf(BOT_SILKS[silkOrder[b % silkOrder.length]]);
       bots.push({
@@ -2387,7 +2430,7 @@
 
   function climaHints(L) {
     var h = playerHorse();
-    var el = GD.ELEMENTS[h.element] || GD.ELEMENTS.neutro;
+    var el = elementOf(h.element);
     var w = GD.WEATHERS[L.cond.weather];
     var m = RS.weatherMult(h.element, L.cond.weather, false);
     var pct = Math.round((m - 1) * 100);
@@ -3866,6 +3909,9 @@
     // JSON válido mas que não vira save (sanitize null): também guarda a cópia antes de recomeçar
     if (!state && lido != null && !saveCorrompido) { try { guardaCorrompido(window.localStorage.getItem(SAVE_KEY)); } catch (e) { /* ignora */ } }
 
+    // save de versão anterior migrado: grava já a versão nova (a migração acontece uma vez só; o Neutro
+    // convertido e o Poder da sala recalculado ficam no disco)
+    if (state && lido && typeof lido === 'object' && !(Number(lido.v) >= SAVE_VERSION)) persist();
     if (!state && devHooks) { state = devHooks.novoPerfil(); persist(); }   // perfil DEV novo: Brasa, sem a escolha inicial
     if (!state) ui.motionKeep = leMotionKeep();   // "Recomeçar" e a aba fechou na escolha: a opção continua
     ui.screen = state ? 'estabulo' : 'inicial';

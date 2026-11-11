@@ -21,6 +21,7 @@ const G = require('../src/data.js')
 const S = require('../src/sim.js')
 const B = require('../src/breed.js')
 const GR = require('../src/gear.js')
+const G_ELS = Object.keys(G.ELEMENTS)
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // prototype/dist/ servido por http://127.0.0.1:<porta livre> (node:http, sem dependências; fecha no fim): em
 // file:// o localStorage deste Chromium às vezes some num reload e o check.sh falhava de vez em quando
@@ -527,7 +528,7 @@ try {
     await gv.context().close()
   }
 
-  // ---------------- save adulterado: Poder da sala, status base e campo morto ----------------
+  // ---------------- save adulterado: Poder da sala, status base (campo que saiu na v5) e campo morto ----------------
   if (quer('adulterado')) {
     const ad = await newPage(browser, { width: 390, height: 844 }, 'adulterado')
     const st = () => ad.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
@@ -548,11 +549,12 @@ try {
       await ad.reload({ waitUntil: 'domcontentloaded' })
       await ad.waitForSelector('#t-estabulo')
       let s = await st()
-      if (s.pending.pr !== s0.pending.pr || JSON.stringify(s.mounts[0].base) !== JSON.stringify(s0.mounts[0].base)) problems.push('adulterado: o save legítimo mudou ao recarregar ' + JSON.stringify({ pr: [s0.pending.pr, s.pending.pr] }))
-      // 2. adulterado: Poder da sala 99 999, status base 100, gestacao 1e300 e uma peça Lendária +10 (fica: pode vir do painel antigo)
+      if (s.pending.pr !== s0.pending.pr || JSON.stringify(s.mounts[0]) !== JSON.stringify(s0.mounts[0])) problems.push('adulterado: o save legítimo mudou ao recarregar ' + JSON.stringify({ pr: [s0.pending.pr, s.pending.pr] }))
+      // 2. adulterado: Poder da sala 99 999, status base 100 (não existe mais: é descartado), gestacao 1e300 e uma
+      //    peça Lendária +10 (fica: pode vir do painel antigo)
       const raw = await bruto()
       raw.pending.pr = 99999
-      for (const k of Object.keys(raw.mounts[0].base)) raw.mounts[0].base[k] = 100
+      raw.mounts[0].base = { vel: 100, acel: 100, man: 100, forca: 100, est: 100, garra: 100, sorte: 100 }
       raw.mounts[0].gestacao = 1e300
       raw.items.push({ uid: 'i99', id: 'armadura-chuva-lendario', plus: 10 })
       await grava(raw)
@@ -560,7 +562,8 @@ try {
       await ad.waitForSelector('#t-estabulo')
       s = await st()
       const m = s.mounts[0]
-      if (Math.max(...Object.values(m.base)) > 66) problems.push('adulterado: status base acima da faixa Raro ★★ ' + JSON.stringify(m.base))
+      if ('base' in m) problems.push('adulterado: o status base adulterado continua no save ' + JSON.stringify(m.base))
+      if (JSON.stringify(S.computeStats(m, null)) !== JSON.stringify(S.computeStats(s0.mounts[0], null))) problems.push('adulterado: o status base adulterado mudou os status')
       if ('gestacao' in m) problems.push('adulterado: campo gestacao continua no save')
       if (!s.items.some((x) => x.uid === 'i99' && x.plus === 10)) problems.push('adulterado: a peça Lendária foi descartada')
       const real = await poderReal()
@@ -587,6 +590,187 @@ try {
       problems.push('adulterado: ' + e.message)
     }
     await ad.context().close()
+  }
+
+  // ---------------- migração v4 -> v5: status base sai, pontos livres para distribuir, Neutro vira tipo ----------------
+  // Save v4 de exemplo: Brasa Raro nível 12 com status base e Labareda; Ventania Neutro; Pangaré (modelo que saiu do
+  // catálogo, também Neutro); peças (uma +2 equipada, uma solta) e uma sala aberta valendo com retrato do equipamento.
+  // A pista da sala sai da seed pelas regras v3 (o v4 não guardava a pista): o que tem de valer é a mesma seed,
+  // entrada e treino, e a sala nunca mais mudar ao recarregar.
+  const MIG_SEED = 4242
+  const MIG_V4 = {
+    v: 4, rev: 10, gold: 900, tier: 100, seedBase: MIG_SEED, raceCounter: 7,
+    pending: { counter: 7, training: false, fee: 100, pr: 777, gear: [{ slot: 'sela', id: 'sela-comum', plus: 0 }, { slot: 'ferraduras', id: 'ferraduras-comum', plus: 2 }] },
+    races: 6, wins: 2, podiums: 3, goldWon: 400,
+    mounts: [
+      { uid: 'm1', templateId: 'brasa', name: 'Brasa', especie: 'cavalo', element: 'fogo', rarity: 'raro', grau: 2, sex: 'm', level: 12, xp: 30,
+        skills: ['labareda', 'sprint'], base: { vel: 64, acel: 62, man: 60, forca: 52, est: 58, garra: 62, sorte: 50 },
+        potential: { vel: 22, acel: 24, man: 18, forca: 14, est: 12, garra: 18, sorte: 14 },
+        palette: { coat: '#c4471d', coatShade: '#7f2a0e', mane: '#ffb02e', accent: '#ffe066' }, breedLeft: 2, parents: null, born: 0,
+        equip: { sela: 'i1', ferraduras: 'i2' } },
+      { uid: 'm2', templateId: 'w-ventania', name: 'Ventania', especie: 'cavalo', element: 'neutro', rarity: 'raro', grau: 3, sex: 'f', level: 15, xp: 5,
+        skills: ['sprint', 'arrancada-final'], base: { vel: 62, acel: 58, man: 56, forca: 52, est: 56, garra: 57, sorte: 50 },
+        potential: { vel: 21, acel: 18, man: 20, forca: 13, est: 15, garra: 17, sorte: 14 },
+        palette: { coat: '#e9e4da', coatShade: '#b6aea0', mane: '#7a7a7a', accent: '#9ad0ff' }, breedLeft: 3, parents: null, born: 0, equip: {} },
+      { uid: 'm3', templateId: 'w-pangare', name: 'Pangaré', especie: 'cavalo', element: 'neutro', rarity: 'comum', grau: 1, sex: 'm', level: 4, xp: 0,
+        skills: [], base: { vel: 44, acel: 42, man: 39, forca: 48, est: 46, garra: 40, sorte: 40 },
+        potential: { vel: 10, acel: 12, man: 11, forca: 15, est: 14, garra: 9, sorte: 10 },
+        palette: { coat: '#8d6e52', coatShade: '#5c4532', mane: '#3b2a1e', accent: '#c9b28f' }, breedLeft: 2, parents: null, born: 0, equip: {} }
+    ],
+    activeId: 'm1', nextUid: 4, stableSlots: 3, breedCounter: 0,
+    items: [{ uid: 'i1', id: 'sela-comum', plus: 0 }, { uid: 'i2', id: 'ferraduras-comum', plus: 2 }, { uid: 'i3', id: 'armadura-magico', plus: 1 }],
+    nextItemUid: 4, pedras: 4, enhanceCounter: 2, settings: { motion: 'sistema' }
+  }
+  const TIPOS_V3 = ['fogo', 'agua', 'grama']
+  const neutroVira = (seedBase, uid) => TIPOS_V3[(S.hash2(seedBase, Number(uid.slice(1))) >>> 0) % 3]
+  const SKILLS_DE_TIPO = Object.keys(G.TYPE_SKILLS).map((e) => G.TYPE_SKILLS[e].id)
+  // problemas de um save já carregado (state do jogo) depois da migração
+  const conferirMigrado = (s, rotulo) => {
+    const out = []
+    if (s.v !== 5) out.push(`${rotulo}: versão ${s.v}`)
+    if (s.mounts.length !== 3) out.push(`${rotulo}: ${s.mounts.length} montarias (eram 3)`)
+    for (const m of s.mounts) {
+      if ('base' in m) out.push(`${rotulo}: ${m.uid} ainda tem base`)
+      if (!G.ELEMENTS[m.element]) out.push(`${rotulo}: ${m.uid} com elemento ${m.element}`)
+      if (m.skills.some((id) => SKILLS_DE_TIPO.includes(id))) out.push(`${rotulo}: ${m.uid} ainda tem skill de tipo na lista ${m.skills}`)
+      if (!m.alloc || G.STAT_KEYS.some((k) => m.alloc[k] !== 0) || Object.keys(m.alloc).length !== 7) out.push(`${rotulo}: ${m.uid} veio com pontos distribuídos ${JSON.stringify(m.alloc)}`)
+    }
+    const [m1, m2, m3] = s.mounts
+    if (m1.rarity !== 'raro' || m1.level !== 12 || m1.xp !== 30 || m1.grau !== 2 || m1.name !== 'Brasa' || JSON.stringify(m1.skills) !== '["sprint"]') out.push(`${rotulo}: Brasa mudou ` + JSON.stringify(m1))
+    if (m2.element !== neutroVira(MIG_SEED, 'm2') || m2.grau !== 3 || m2.level !== 15) out.push(`${rotulo}: Ventania ${m2.element} (esperado ${neutroVira(MIG_SEED, 'm2')})`)
+    if (m3.templateId !== null || m3.element !== neutroVira(MIG_SEED, 'm3') || JSON.stringify(m3.palette) !== JSON.stringify(MIG_V4.mounts[2].palette) || m3.name !== 'Pangaré') out.push(`${rotulo}: Pangaré ` + JSON.stringify(m3))
+    if (s.gold !== 900 || s.pedras !== 4 || JSON.stringify(s.items) !== JSON.stringify(MIG_V4.items)) out.push(`${rotulo}: Ouro/peças mudaram ` + JSON.stringify({ gold: s.gold, pedras: s.pedras, items: s.items }))
+    if (m1.equip.sela !== 'i1' || m1.equip.ferraduras !== 'i2') out.push(`${rotulo}: equipamento da Brasa ` + JSON.stringify(m1.equip))
+    const p = s.pending
+    if (!p || p.counter !== 7 || p.fee !== 100 || p.training !== false) out.push(`${rotulo}: sala aberta ` + JSON.stringify(p))
+    else {
+      const its = {}; p.gear.forEach((x, i) => { its['s' + i] = { uid: 's' + i, id: x.id, plus: x.plus } })
+      const eq = {}; p.gear.forEach((x, i) => { eq[x.slot] = 's' + i })
+      const pr = S.powerRating(m1, GR.resolve({ equip: eq }, its))
+      if (p.pr !== pr) out.push(`${rotulo}: Poder da sala ${p.pr} (v3 com o retrato: ${pr})`)
+    }
+    return out
+  }
+  if (quer('migracao')) {
+    const mg = await newPage(browser, { width: 390, height: 844 }, 'migracao', {
+      init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(JSON.stringify(MIG_V4))}) } } catch (e) {}` }
+    })
+    const st = () => mg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    try {
+      await mg.waitForSelector('#t-estabulo')
+      const s1 = await st()
+      problems.push(...conferirMigrado(s1, 'migracao'))
+      const info = await mg.evaluate(() => { const m = window.__galope.state.mounts[0]; return window.RaceSim.allocInfo(m) })
+      const livres = Math.floor(11 * 1.2)
+      if (info.free !== livres || info.left !== livres || info.used !== 0) problems.push('migracao: pontos livres do nível 12 ' + JSON.stringify(info))
+      const gravado = await mg.evaluate(() => JSON.parse(localStorage.getItem('galope-elemental:v1')))
+      if (gravado.v !== 5) problems.push('migracao: o save migrado não foi gravado (v ' + gravado.v + ')')
+      // o Pangaré (sem modelo) aparece no estábulo sem erro, com retrato
+      if ((await mg.locator('canvas.retrato').count()) < 3) problems.push('migracao: o estábulo não mostra os três cavalos')
+      // a sala: mesma seed, e recarregar duas vezes dá exatamente a mesma sala
+      const sala = async () => {
+        const a = await abrirSala(mg)
+        a.distance = await mg.evaluate(() => window.__galope.ui.lobby.cond.distance)
+        return a
+      }
+      const salaA = await sala()
+      if (salaA.counter !== 7 || salaA.seed !== (S.hash2(MIG_SEED, 7) >>> 0) || salaA.fee !== 100 || salaA.training) problems.push('migracao: sala ' + JSON.stringify(salaA))
+      if (!(salaA.distance >= 1400 && salaA.distance <= 2000)) problems.push('migracao: distância da sala ' + salaA.distance)
+      const mounts1 = JSON.stringify((await st()).mounts)
+      for (let k = 1; k <= 2; k++) {
+        await mg.reload({ waitUntil: 'domcontentloaded' })
+        await mg.waitForSelector('#t-estabulo')
+        const salaK = await sala()
+        for (const c of ['seed', 'counter', 'fee', 'training', 'track', 'blocks', 'weather', 'rivais', 'distance', 'gold']) {
+          if (salaA[c] !== salaK[c]) problems.push(`migracao: recarga ${k} mudou a sala (${c}: ${salaA[c]} -> ${salaK[c]})`)
+        }
+      }
+      const s3 = await st()
+      // idempotente: o save v5 recarregado não muda nada (fora o rev)
+      if (JSON.stringify(s3.mounts) !== mounts1) problems.push('migracao: recarregar o save v5 mudou as montarias')
+      problems.push(...conferirMigrado(s3, 'migracao (recarregado)'))
+      if (s3.gold !== 900) problems.push('migracao: Ouro mudou para ' + s3.gold)
+    } catch (e) {
+      problems.push('migracao: ' + e.message)
+    }
+    await mg.context().close()
+    // modo DEV: o save de teste migra pela mesma regra, e o save real não é lido nem gravado
+    const md = await newPage(browser, { width: 390, height: 844 }, 'migracao-dev', {
+      pagina: 'jogo-dev.html',
+      init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:dev', ${JSON.stringify(JSON.stringify(MIG_V4))}) } } catch (e) {}` }
+    })
+    try {
+      await md.waitForSelector('#t-estabulo')
+      const s = await md.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+      if (s.v !== 5 || s.mounts.some((m) => 'base' in m || !G_ELS.includes(m.element))) problems.push('migracao-dev: save de teste não migrou ' + JSON.stringify(s.mounts.map((m) => [m.uid, m.element, 'base' in m])))
+      if (s.mounts.length !== 3 || s.mounts[1].element !== neutroVira(MIG_SEED, 'm2')) problems.push('migracao-dev: montarias ' + JSON.stringify(s.mounts.map((m) => m.element)))
+      if ((await md.evaluate(() => localStorage.getItem('galope-elemental:v1'))) !== null) problems.push('migracao-dev: o modo DEV gravou o save real')
+    } catch (e) {
+      problems.push('migracao-dev: ' + e.message)
+    }
+    await md.context().close()
+  }
+
+  // ---------------- save v5 adulterado: alloc com 999, negativo, texto e soma acima dos pontos livres; Neutro ----------------
+  // e o jogo novo: inicial Comum ★★, sem pontos distribuídos, save versão 5
+  if (quer('adulterado-v5')) {
+    const av = await newPage(browser, { width: 390, height: 844 }, 'adulterado-v5')
+    const st = () => av.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    try {
+      await av.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await av.waitForSelector('#t-estabulo')
+      const s0 = await st()
+      const m0 = s0.mounts[0]
+      if (s0.v !== 5 || m0.templateId !== 'brasa' || m0.rarity !== 'comum' || m0.grau !== 2 || 'base' in m0 || !m0.alloc || G.STAT_KEYS.some((k) => m0.alloc[k] !== 0)) problems.push('adulterado-v5: jogo novo ' + JSON.stringify({ v: s0.v, m0 }))
+      const raw = await av.evaluate(() => JSON.parse(localStorage.getItem('galope-elemental:v1')))
+      raw.mounts[0].level = 20
+      raw.mounts[0].alloc = { vel: 999, acel: -5, man: 'abc', forca: 3.7, est: 1e300, garra: null, sorte: '4' }
+      raw.mounts[0].base = { vel: 100, acel: 100, man: 100, forca: 100, est: 100, garra: 100, sorte: 100 }
+      raw.mounts.push({ uid: 'm2', templateId: null, name: 'Velho', element: 'neutro', rarity: 'magico', grau: 3, sex: 'f', level: 30, xp: 0, skills: ['sprint', 'raizes-firmes'],
+        potential: { vel: 5, acel: 5, man: 5, forca: 5, est: 5, garra: 5, sorte: 5 }, alloc: 'tudo', palette: null, breedLeft: 2, parents: null, born: 0, equip: {} })
+      raw.mounts.push({ uid: 'm3', templateId: null, name: 'Guloso', element: 'agua', rarity: 'comum', grau: 1, sex: 'm', level: 11, xp: 0, skills: [],
+        potential: { vel: 5, acel: 5, man: 5, forca: 5, est: 5, garra: 5, sorte: 5 }, alloc: { vel: 4, acel: 4, man: 4, forca: 4, est: 4, garra: 4, sorte: 4 }, palette: null, breedLeft: 2, parents: null, born: 0, equip: {} })
+      raw.nextUid = 4; raw.stableSlots = 3
+      await av.evaluate((r) => localStorage.setItem('galope-elemental:v1', JSON.stringify(r)), raw)
+      await av.reload({ waitUntil: 'domcontentloaded' })
+      await av.waitForSelector('#t-estabulo')
+      const s = await st()
+      if (s.mounts.length !== 3) problems.push('adulterado-v5: montarias ' + s.mounts.length)
+      for (const m of s.mounts) {
+        const lim = S.statLimit(m), free = S.freePoints(m)
+        let soma = 0
+        for (const k of G.STAT_KEYS) {
+          const a = m.alloc && m.alloc[k]
+          if (!(Number.isInteger(a) && a >= 0 && a <= lim)) problems.push(`adulterado-v5: ${m.uid} alloc.${k} = ${a} (limite ${lim})`)
+          soma += a
+        }
+        if (soma > free) problems.push(`adulterado-v5: ${m.uid} soma ${soma} > ${free} pontos livres`)
+        if ('base' in m) problems.push(`adulterado-v5: ${m.uid} com base`)
+        if (!G.ELEMENTS[m.element]) problems.push(`adulterado-v5: ${m.uid} elemento ${m.element}`)
+        const cap = G.RARITIES[m.rarity].statCap, stt = S.computeStats(m, null)
+        if (G.STAT_KEYS.some((k) => stt[k] > cap)) problems.push(`adulterado-v5: ${m.uid} passou do teto ` + JSON.stringify(stt))
+      }
+      const [a1, a2, a3] = s.mounts
+      // nível 20 ★★: 22 livres, limite 8 por status; vel 999 -> 8, forca 3,7 -> 3, sorte '4' -> 4
+      if (JSON.stringify(a1.alloc) !== JSON.stringify({ vel: 8, acel: 0, man: 0, forca: 3, est: 8, garra: 0, sorte: 3 })) problems.push('adulterado-v5: alloc saneado da Brasa ' + JSON.stringify(a1.alloc))
+      if (a2.element !== neutroVira(s.seedBase, 'm2') || a2.skills.includes('raizes-firmes') || G.STAT_KEYS.some((k) => a2.alloc[k] !== 0)) problems.push('adulterado-v5: Neutro ' + JSON.stringify(a2))
+      if (G.STAT_KEYS.reduce((t, k) => t + a3.alloc[k], 0) !== 10) problems.push('adulterado-v5: soma acima dos pontos livres não foi cortada em 10 ' + JSON.stringify(a3.alloc))
+      // idempotente: recarregar o save saneado não muda nada
+      await av.reload({ waitUntil: 'domcontentloaded' })
+      await av.waitForSelector('#t-estabulo')
+      const s2 = await st()
+      if (JSON.stringify(s2.mounts) !== JSON.stringify(s.mounts)) problems.push('adulterado-v5: recarregar mudou as montarias')
+      // o cavalo convertido corre sem erro
+      await av.evaluate(() => { window.__galope.state.activeId = 'm2' })
+      await abrirSala(av)
+      await av.getByRole('button', { name: /^Largar/ }).click()
+      await av.waitForSelector('#pista')
+      await av.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+      await av.waitForSelector('#t-resultado')
+    } catch (e) {
+      problems.push('adulterado-v5: ' + e.message)
+    }
+    await av.context().close()
   }
 
   // ---------------- retrato do equipamento: save sem retrato não mexe na sala; pr adulterado volta ao do retrato ----------------
@@ -988,14 +1172,16 @@ try {
   const mapa = await page.evaluate(() => ({ blocks: window.__galope.ui.lobby.cond.blocks ? window.__galope.ui.lobby.cond.blocks.length : 0, perfil: !!document.querySelector('.perfil') }))
   if (mapa.blocks < 5 || mapa.blocks > 9) problems.push('sala: mapa com ' + mapa.blocks + ' blocos (esperado 5–9)')
   if (!mapa.perfil) problems.push('sala: sem o desenho do mapa (.perfil)')
-  // bots recebem equipamento pela liga do alvo (o rating do jogador já fica em Prata ou acima)
+  // bots recebem equipamento pela liga do alvo: com o jogador em Bronze (o inicial v3 ainda é Bronze aqui) e o
+  // alvo sem chance de chegar a Prata, nenhum bot tem peça; senão, algum tem
   const botGear = await page.evaluate(() => {
     const L = window.__galope.ui.lobby
     return { pr: window.__galope.state.pending.pr, bots: L.racers.filter((r) => !r.isPlayer).map((r) => ({ rating: r.rating, pieces: r.gear ? r.gear.pieces.length : -1, set: r.gear && r.gear.set ? r.gear.set.id + '×' + r.gear.set.count : null })) }
   })
   botGear.bots.forEach((b) => { b.league = S.leagueFor(b.rating).id })
   notes.botGear = botGear
-  if (!botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: nenhum bot com equipamento ' + JSON.stringify(botGear))
+  const alvoMax = S.leagueFor(botGear.pr * 1.115).id
+  if (alvoMax === 'bronze' ? botGear.bots.some((b) => b.pieces !== 0) : !botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: equipamento dos bots fora da liga do alvo (' + alvoMax + ') ' + JSON.stringify(botGear))
   await page.getByRole('button', { name: /^Voltar/ }).click()
   await page.waitForSelector('#t-correr')
   await page.reload({ waitUntil: 'domcontentloaded' })
@@ -1107,8 +1293,8 @@ try {
   const mig = await old.evaluate(() => {
     const s = window.__galope.state
     return {
-      ok: s.mounts.length === 1 && s.mounts[0].templateId === 'mare' && JSON.stringify(s.mounts[0].skills) === '["mare-alta"]' && s.activeId === 'm1' && s.gold === 777 && s.level === undefined &&
-        s.v === 4 && s.items.length === 1 && s.items[0].id === 'sela-comum' && s.mounts[0].equip.sela === null && s.pedras === 0 &&
+      ok: s.mounts.length === 1 && s.mounts[0].templateId === 'mare' && JSON.stringify(s.mounts[0].skills) === '[]' && s.activeId === 'm1' && s.gold === 777 && s.level === undefined &&
+        s.v === 5 && !('base' in s.mounts[0]) && s.items.length === 1 && s.items[0].id === 'sela-comum' && s.mounts[0].equip.sela === null && s.pedras === 0 &&
         s.inventory === undefined && s.equipped === undefined,
       tactic: s.tactic, save: JSON.stringify(s)
     }
@@ -1116,7 +1302,7 @@ try {
   if (!mig.ok || mig.tactic !== undefined) problems.push('save antigo não migrou: ' + mig.save)
   await oldCtx.close()
 
-  // save v2 (um inicial com nível, XP e skills na raiz) vira v3 com mounts[0]
+  // save v2 (um inicial com nível, XP e skills na raiz) vira v5 com mounts[0] (a Labareda, agora skill de tipo, sai da lista)
   const v2Ctx = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const v2 = await v2Ctx.newPage()
   v2.on('console', (m) => { if (m.type() === 'error') problems.push(`[save-v2] console: ${m.text()}`) })
@@ -1128,7 +1314,7 @@ try {
   const migV2 = await v2.evaluate(() => {
     const s = window.__galope.state, m = s.mounts[0]
     return {
-      ok: m.templateId === 'brasa' && m.level === 7 && m.xp === 40 && JSON.stringify(m.skills) === '["labareda","sprint"]' &&
+      ok: m.templateId === 'brasa' && m.level === 7 && m.xp === 40 && JSON.stringify(m.skills) === '["sprint"]' && !('base' in m) &&
         s.items.length === 1 && s.mounts[0].equip.sela === s.items[0].uid && s.equipped === undefined && s.gold === 321 && s.tier === 100,
       save: JSON.stringify(s)
     }
@@ -1175,7 +1361,7 @@ try {
   {
     const s = await openSave('save-v3-completo', V3_FULL)
     const arm = s.items.filter((it) => it.id === 'armadura-magico')[0]
-    const ok = s.v === 4 && s.items.length === 9 && s.pedras === 3 && arm && s.mounts[0].equip.armadura === arm.uid &&
+    const ok = s.v === 5 && s.items.length === 9 && s.pedras === 3 && arm && s.mounts[0].equip.armadura === arm.uid &&
       s.gold === 999 && s.nextItemUid === 10 && s.inventory === undefined && s.equipped === undefined
     if (!ok) problems.push('save v3 completo não migrou os itens: ' + JSON.stringify({ items: s.items, equip: s.mounts[0] && s.mounts[0].equip, pedras: s.pedras, gold: s.gold, nextItemUid: s.nextItemUid }))
   }
@@ -1233,7 +1419,7 @@ try {
     if (c1.breedCounter !== 1) problems.push('cruzamento: breedCounter ' + c1.breedCounter)
     if (c1.mounts[0].breedLeft !== 1) problems.push('cruzamento: breedLeft de Brasa ' + c1.mounts[0].breedLeft)
     // o potro entra no estábulo com o equipamento vazio (Breed.foal não sabe de equipamento)
-    const esperadoJogo = Object.assign({}, esperado, { equip: GR.emptyEquip() })
+    const esperadoJogo = Object.assign({}, esperado, { equip: GR.emptyEquip(), alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } })
     if (c1.mounts.length > 1 && JSON.stringify(c1.mounts[1]) !== JSON.stringify(esperadoJogo)) {
       problems.push('cruzamento: potro diferente do calculado no Node\n  jogo: ' + JSON.stringify(c1.mounts[1]) + '\n  node: ' + JSON.stringify(esperado))
     }
@@ -1729,19 +1915,38 @@ try {
       const gv = await dv.evaluate(() => { const g = document.querySelector('.dev-gaveta'); return { sw: g.scrollWidth, cw: g.clientWidth } })
       if (gv.sw > gv.cw) problems.push('dev: gaveta com rolagem horizontal ' + JSON.stringify(gv))
       for (const g of ['moedas', 'cavalo', 'itens', 'corrida', 'perfil']) if ((await dv.locator('#dev-g-' + g).count()) !== 1) problems.push('dev: gaveta sem o grupo ' + g)
-      // 3. cavalo Mítico de Água nível 30 com 2 skills (uma exclusiva de outro elemento: o perfil DEV aceita)
+      // 3. cavalo Mítico de Água nível 30 com 2 skills (uma de outro elemento: o perfil DEV aceita)
       await dv.fill('#dev-nome', 'Teste DEV')
       await dv.selectOption('#dev-elemento', 'agua')
       await dv.selectOption('#dev-raridade', 'mitico')
       await dv.fill('#dev-nivel', '30')
-      const skillsDev = ['pe-na-chuva', 'labareda', '', '', '']
+      const skillsDev = ['pe-na-chuva', 'chama-final', '', '', '']
       for (let k = 0; k < 5; k++) await dv.selectOption('#dev-skill' + k, skillsDev[k])
       await dv.locator('[data-acao="dev-criar"]').click()
       s = await st()
       const novo = s.mounts.find((m) => m.uid === s.activeId)
-      if (s.mounts.length !== 2 || !novo || novo.uid !== 'm2' || novo.templateId !== 'dev-2' || novo.name !== 'Teste DEV' || novo.element !== 'agua' || novo.rarity !== 'mitico' || novo.level !== 30 || JSON.stringify(novo.skills) !== '["pe-na-chuva","labareda"]') {
+      if (s.mounts.length !== 2 || !novo || novo.uid !== 'm2' || novo.templateId !== 'dev-2' || novo.name !== 'Teste DEV' || novo.element !== 'agua' || novo.rarity !== 'mitico' || novo.level !== 30 || JSON.stringify(novo.skills) !== '["pe-na-chuva","chama-final"]') {
         problems.push('dev: cavalo criado ' + JSON.stringify(novo))
       }
+      // 3b. genética por status, estrelas e pontos ("Aplicar na ativa"), "Devolver pontos" e de volta ao Máximo ★★
+      await dv.selectOption('#dev-potencial', 'cada')
+      await dv.fill('#dev-gen-vel', '7'); await dv.fill('#dev-gen-acel', '40'); await dv.fill('#dev-gen-man', '-3')
+      await dv.selectOption('#dev-estrelas', '3')
+      await dv.fill('#dev-pt-vel', '10'); await dv.fill('#dev-pt-acel', '999'); await dv.fill('#dev-pt-man', '-4')
+      await dv.locator('[data-acao="dev-aplicar"]').click()
+      let ap = (await st()).mounts.find((m) => m.uid === 'm2')
+      // nível 30 ★★★: 43 pontos livres, até 15 num status
+      if (ap.grau !== 3 || ap.potential.vel !== 7 || ap.potential.acel !== 31 || ap.potential.man !== 0 || ap.potential.forca !== 31 ||
+        JSON.stringify(ap.alloc) !== JSON.stringify({ vel: 10, acel: 15, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 }) || 'base' in ap) problems.push('dev: aplicar genética/estrelas/pontos ' + JSON.stringify(ap))
+      await dv.locator('[data-acao="dev-devolver"]').click()
+      ap = (await st()).mounts.find((m) => m.uid === 'm2')
+      if (G.STAT_KEYS.some((k) => ap.alloc[k] !== 0) || ap.grau !== 3) problems.push('dev: devolver pontos ' + JSON.stringify(ap.alloc))
+      if ((await dv.locator('#dev-pt-acel').inputValue()) !== '0') problems.push('dev: os campos de pontos não voltaram a 0 depois de devolver')
+      await dv.selectOption('#dev-potencial', 'max')
+      await dv.selectOption('#dev-estrelas', '2')
+      await dv.locator('[data-acao="dev-aplicar"]').click()
+      ap = (await st()).mounts.find((m) => m.uid === 'm2')
+      if (ap.grau !== 2 || G.STAT_KEYS.some((k) => ap.potential[k] !== 31) || JSON.stringify(ap.skills) !== '["pe-na-chuva","chama-final"]' || ap.level !== 30) problems.push('dev: voltar ao Máximo ★★ ' + JSON.stringify(ap))
       await devFechar(dv)
       await dv.locator('[data-acao="aba"][data-id="estabulo"]').click()
       await dv.waitForSelector('#t-estabulo')
@@ -1782,10 +1987,10 @@ try {
       const corrida = await dv.evaluate(() => {
         const L = window.__galope.ui.lobby
         return { weather: L.sim.conditions.weather, clima: document.getElementById('clima-atual').textContent, devNext: window.__galope.ui.devNext,
-          labareda: L.sim.events.some((e) => e.type === 'skill' && e.racer === L.playerIdx && /Labareda/.test(e.text)) }
+          chamaFinal: L.sim.events.some((e) => e.type === 'skill' && e.racer === L.playerIdx && /Chama Final/.test(e.text)) }
       })
       if (corrida.weather !== 'nevoa' || !/Névoa/.test(corrida.clima)) problems.push('dev: clima da corrida ' + JSON.stringify(corrida))
-      if (!corrida.labareda) problems.push('dev: com "skills sempre ativam" a Labareda (gatilho de largada) não ativou')
+      if (!corrida.chamaFinal) problems.push('dev: com "skills sempre ativam" a Chama Final (de outro elemento) não ativou')
       if (corrida.devNext !== null) problems.push('dev: devNext não foi limpo depois da corrida')
       await dv.getByRole('button', { name: /Pular/ }).click()
       await dv.waitForSelector('#t-resultado')
@@ -1795,7 +2000,7 @@ try {
       if ((await dv.locator('.dev-botao--armado').count()) !== 0) problems.push('dev: botão DEV continua armado depois da corrida')
       notes.dev = pago
       await conferirReal('depois da corrida')
-      // 7. o save DEV gravado abre de novo com o cavalo DEV (template dev-2, skill exclusiva de outro elemento)
+      // 7. o save DEV gravado abre de novo com o cavalo DEV (template dev-2, skill de outro elemento)
       //    e a peça. Numa página nova que já começa com esse save (o caminho de carga é o mesmo de um reload).
       const salvo = (await armazenado(dv)).dev
       const dv2 = await dv.context().newPage()
@@ -1806,7 +2011,7 @@ try {
       await dv2.waitForSelector('#t-estabulo')
       s = await dv2.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
       const m2 = s.mounts.find((m) => m.uid === 'm2')
-      if (!m2 || m2.level !== 30 || m2.templateId !== 'dev-2' || JSON.stringify(m2.skills) !== '["pe-na-chuva","labareda"]' || s.activeId !== 'm2') problems.push('dev: cavalo DEV ao abrir o save de novo ' + JSON.stringify(m2))
+      if (!m2 || m2.level !== 30 || m2.templateId !== 'dev-2' || JSON.stringify(m2.skills) !== '["pe-na-chuva","chama-final"]' || s.activeId !== 'm2') problems.push('dev: cavalo DEV ao abrir o save de novo ' + JSON.stringify(m2))
       if (!s.items.some((it) => it.id === 'armadura-chuva-lendario' && it.plus === 7)) problems.push('dev: peça Lendária sumiu ao abrir o save de novo')
       if (s.rev !== JSON.parse(salvo).rev) problems.push('dev: abrir o save DEV de novo gravou por cima (rev ' + s.rev + ')')
       await conferirReal('ao abrir o save de novo', dv2)
@@ -1980,8 +2185,8 @@ try {
   }
 
   // ---------------- Skills visíveis (DEV): balão, faixa central, contorno e "skills sempre ativam" ----------------
-  // Cavalo Raro (chance de skill 0,55; a Comum só tem 1 vaga, o Mágico 2) com Arranque e Labareda (largada, as duas
-  // juntas em t = 0) e Arrancada Final (reta final, gatilho certo). Primeiro acha uma seed em que, SEM armar, as três
+  // Cavalo Raro de Fogo (chance de skill 0,55) com Arranque (largada) e Arrancada Final (reta final, gatilho certo);
+  // a Labareda, skill de tipo do Fogo, entra sozinha em t = 0 junto com o Arranque (sem sorteio). Primeiro acha uma seed em que, SEM armar, as três
   // não ativam; depois repete a mesma seed armada com "skills sempre ativam" e confere que as três ativam, com
   // balões presos à raia, faixa central em sequência e contorno da silhueta.
   {
@@ -1993,7 +2198,7 @@ try {
       await pg.selectOption('#dev-elemento', 'fogo')
       await pg.selectOption('#dev-raridade', 'raro')
       await pg.fill('#dev-nivel', '1')
-      const sks = ['arranque', 'labareda', 'arrancada-final', '', '']
+      const sks = ['arranque', 'arrancada-final', '', '', '']
       for (let k = 0; k < 5; k++) await pg.selectOption('#dev-skill' + k, sks[k])
       await pg.locator('[data-acao="dev-criar"]').click()
       await devFechar(pg)
@@ -2056,7 +2261,10 @@ try {
         // 2) a mesma seed, armada: as duas ativam
         await largar(pg, seed, true, false)
         const armada = await skillsDoJogador(pg)
-        if (armada.length !== 3 || !/Arranque/.test(armada.join(' ')) || !/Labareda/.test(armada.join(' ')) || !/Arrancada Final/.test(armada.join(' '))) problems.push(`[${label}] skills: sempre ativam deu ${JSON.stringify(armada)} (sem armar: ${JSON.stringify(semArmar)})`)
+        // o Raro tem 3 vagas e só 2 vêm da gaveta: subindo de nível entre as corridas ele pode aprender uma
+        // terceira, que também ativa armada
+        const vagasUsadas = await pg.evaluate(() => { const s = window.__galope.state; return s.mounts.find((m) => m.uid === s.activeId).skills.length })
+        if (armada.length !== 1 + vagasUsadas || !/Arranque/.test(armada.join(' ')) || !/Labareda/.test(armada.join(' ')) || !/Arrancada Final/.test(armada.join(' '))) problems.push(`[${label}] skills: sempre ativam deu ${JSON.stringify(armada)} (sem armar: ${JSON.stringify(semArmar)})`)
         await gravador(pg)
         // logo depois da largada: balão + faixa central com o nome da skill do jogador
         const q = await (await pg.waitForFunction(() => {
@@ -2076,12 +2284,9 @@ try {
         await pg.waitForFunction((u) => { const s = window.__galope.race && window.__galope.race._state; return !s || s.simT >= u.t0 + 1.7 * u.e }, ult, { timeout: 90000, polling: 'raf' })
         const g = await pg.evaluate(() => window.__sk)
         if (!g.faixas.some((f) => /ARRANCADA FINAL/.test(f))) problems.push(`[${label}] skills: faixa da Arrancada Final nunca apareceu ${JSON.stringify(g.faixas)}`)
-        if (!['ARRANQUE!', 'LABAREDA!'].every((f) => g.faixas.includes(f))) problems.push(`[${label}] skills: as duas skills de t = 0 não ganharam faixa ${JSON.stringify(g.faixas)}`)
-        else {
-          const esc = await pg.evaluate(() => window.__galope.race._state.fx.find((x) => x.kind === 'skill').escala)
-          const t1 = g.faixasT[g.faixas.indexOf('ARRANQUE!')], t2 = g.faixasT[g.faixas.indexOf('LABAREDA!')]
-          if (Math.abs(t2 - t1) < 1.3 * esc) problems.push(`[${label}] skills: faixas das duas skills de t = 0 não entram em sequência (${t1.toFixed(2)} e ${t2.toFixed(2)}, escala ${esc.toFixed(2)})`)
-        }
+        // (a Labareda, skill de tipo, ainda não ganha balão nem faixa: a apresentação dela na pista vem depois; até
+        // lá não há duas skills de vaga com gatilho em t = 0, e a conferência das faixas em sequência fica de fora)
+        if (!g.faixas.includes('ARRANQUE!')) problems.push(`[${label}] skills: o Arranque (t = 0) não ganhou faixa ${JSON.stringify(g.faixas)}`)
         if (g.forasDaRaia) problems.push(`[${label}] skills: balão fora da faixa vertical da própria raia em ${g.forasDaRaia} quadro(s)`)
         if (g.cruzaOutro) problems.push(`[${label}] skills: balão cruzou a caixa de outro cavalo em ${g.cruzaOutro} quadro(s) ${JSON.stringify(g.exemplo)}`)
         if (g.cobriuVoce) problems.push(`[${label}] skills: balão cobriu o "◀VOCÊ" em ${g.cobriuVoce} quadro(s)`)
@@ -2164,7 +2369,7 @@ try {
       await sleep(200)
     }
 
-    // 1. Save v4 antigo, sem settings (todo save real de hoje): carrega com "Seguir o sistema" sem perder
+    // 1. Save sem settings (como os saves de antes da opção): carrega com "Seguir o sistema" sem perder
     //    nada; a escolha grava no save e vale para o CSS (Review Focus 3)
     {
       const p1 = await newPage(browser, { width: 390, height: 844 }, 'save-antigo')
@@ -2177,7 +2382,7 @@ try {
           s.gold = 4321; s.races = 9; s.wins = 2
           return s
         })
-        if (velho.v !== 4 || 'settings' in velho) problems.push('save-antigo: o save montado não é um v4 sem settings ' + JSON.stringify({ v: velho.v }))
+        if (velho.v !== 5 || 'settings' in velho) problems.push('save-antigo: o save montado não é um v5 sem settings ' + JSON.stringify({ v: velho.v }))
         const ctx1 = p1.context()
         await p1.close()
         const p2 = await ctx1.newPage()
@@ -2188,7 +2393,7 @@ try {
         await p2.waitForSelector('#t-estabulo')
         const s = await p2.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
         if (!s.settings || s.settings.motion !== 'sistema') problems.push('save-antigo: settings ' + JSON.stringify(s.settings) + ' (esperado { motion: "sistema" })')
-        if (s.v !== 4 || s.gold !== 4321 || s.races !== 9 || s.wins !== 2 || s.mounts.length !== velho.mounts.length || s.items.length !== velho.items.length || s.mounts[0].templateId !== 'brasa') {
+        if (s.v !== 5 || s.gold !== 4321 || s.races !== 9 || s.wins !== 2 || s.mounts.length !== velho.mounts.length || s.items.length !== velho.items.length || s.mounts[0].templateId !== 'brasa') {
           problems.push('save-antigo: o save perdeu dados ao migrar ' + JSON.stringify({ v: s.v, gold: s.gold, races: s.races, wins: s.wins, mounts: s.mounts.length, items: s.items.length }))
         }
         await p2.locator('[data-acao="perfil"]').click()

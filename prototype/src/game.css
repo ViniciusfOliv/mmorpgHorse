@@ -330,7 +330,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .el--fogo { color: var(--fogo); }
 .el--agua { color: var(--agua); }
 .el--grama { color: var(--grama); }
-.el--neutro { color: var(--neutro); }
+.el--geral { color: var(--neutro); }   /* skills gerais (o tipo Neutro saiu na v3) */
 
 .raridade {
   display: inline-block; font-size: 0.875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
