@@ -75,8 +75,8 @@ function lerFonte() {
     elementoPotro: numDe(breed, /rng\(\) < ([\d.]+) \? f\.element : m\.element/, 'o sorteio do elemento do potro'),
     sexoPotro: numDe(breed, /var sex = rng\(\) < ([\d.]+) \? 'f' : 'm'/, 'o sorteio do sexo do potro'),
     corcelDois: numDe(breed, /if \(g === 1 && rng\(\) < ([\d.]+)\) g = 2/, 'a chance de 2 skills garantidas do Corcel'),
-    potValores: numDe(breed, /v = Math\.floor\(rng\(\) \* (\d+)\);/, 'a faixa do potencial sorteado'),
-    potroPai: numDe(breed, /v = potOf\(rng\(\) < ([\d.]+) \? f : m, k\)/, 'a escolha do pai no potencial herdado')
+    potValores: numDe(breed, /potential\[k\] = Math\.floor\(rng\(\) \* (\d+)\);/, 'a faixa do potencial sorteado'),
+    potroPai: numDe(breed, /potential\[k\] = potOf\(rng\(\) < ([\d.]+) \? f : m, k\)/, 'a escolha do pai no potencial herdado')
   }
 }
 
@@ -470,17 +470,15 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
   const contaRar = (r) => todasMontarias().filter((h) => h.rarity === r).length
   add('raridades', 'Raridades', 'Raridades', [
     { t: 'p', txt: `São ${rarIds.length} raridades, da mais comum à mais rara: ${lista(rarIds.map(nomeRar))}. A raridade define a faixa onde o status nasce, o teto de status, as vagas de skill e a chance de ativar skills.` },
-    { t: 'tabela', rotulo: 'Raridades', cab: ['Raridade', 'Cor', 'Teto de status', 'Vagas de skill', 'Skills do potro (mínimo)', 'Chance base de skill', 'Status base do potro', 'Preço da peça', 'Aluguel base', 'Montarias no jogo'], linhas: rarIds.map((r) => {
+    { t: 'tabela', rotulo: 'Raridades', cab: ['Raridade', 'Cor', 'Teto de status', 'Vagas de skill', 'Skills do potro (mínimo)', 'Chance base de skill', 'Preço da peça', 'Aluguel base', 'Montarias no jogo'], linhas: rarIds.map((r) => {
       const R = G.RARITIES[r]
-      const w = B.GRAU_WINDOW
-      const lo = R.baseLo + Math.min(...w.map((x) => x[0])), hi = R.baseLo + Math.max(...w.map((x) => x[1]))
-      return [rarCel(r), { md: R.color, html: `<span class="amostra" style="--c:${R.color}"></span><code>${R.color}</code>` }, N(num(R.statCap)), N(String(R.skillSlots)), N(String(R.bornSkills)), N(pct(R.skillChance, 0)), N(`${lo}–${hi}`),
+      return [rarCel(r), { md: R.color, html: `<span class="amostra" style="--c:${R.color}"></span><code>${R.color}</code>` }, N(num(R.statCap)), N(String(R.skillSlots)), N(String(R.bornSkills)), N(pct(R.skillChance, 0)),
         EG.price[r] != null ? ouroCel(EG.price[r]) : 'não existe', BR.rentalBase[r] != null ? ouroCel(BR.rentalBase[r]) : 'não se aluga', N(String(contaRar(r)))]
     }) },
     { t: 'p', txt: `Raridade mais alta que nasce de cruzamento: **${nomeRar(B.RARITY_IDS[B.TUNING.maxRarityOrder])}**. ${nomeRar('mitico')} nunca nasce de cruzamento e não se aluga.` },
     { t: 'h3', txt: 'Grau (estrelas)' },
-    { t: 'p', txt: `Cada montaria tem um grau de ${estrelas(1)} a ${estrelas(B.GRAU_WINDOW.length)}: a qualidade do cruzamento. Ele muda a faixa dos status base do potro, o piso do potencial e o preço do aluguel. As iniciais e os selvagens têm o grau definido nos dados.` },
-    { t: 'tabela', rotulo: 'Graus', cab: ['Grau', 'Status base do potro', 'Piso do potencial', 'Multiplicador do aluguel'], linhas: B.GRAU_WINDOW.map((w, i) => [N(estrelas(i + 1)), `base da raridade + ${w[0]} a + ${w[1]}`, N(String(B.GRAU_POT_FLOOR[i])), N(mult(BR.grauMult[i], 2))]) },
+    { t: 'p', txt: `Cada montaria tem um grau de ${estrelas(1)} a ${estrelas(BR.grauMult.length)}: a qualidade do cruzamento. Ele muda os pontos livres do treino e o preço do aluguel. As iniciais e os selvagens têm o grau definido nos dados.` },
+    { t: 'tabela', rotulo: 'Graus', cab: ['Grau', 'Multiplicador do aluguel'], linhas: BR.grauMult.map((x, i) => [N(estrelas(i + 1)), N(mult(x, 2))]) },
     { t: 'h3', txt: 'Corcel' },
     { t: 'p', txt: `Uma montaria é **Corcel** quando já tem todas as skills "de linha" da sua raridade. Corcel garante herança de skill no cruzamento (ver Cruzamento).` },
     { t: 'tabela', rotulo: 'Corcel', cab: ['Raridade', 'Skills de linha'], linhas: Object.keys(B.CORCEL_SETS).map((r) => [rarCel(r), B.CORCEL_SETS[r].map(nomeSkill).join(', ')]) }
@@ -636,7 +634,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
       `**Estábulo:** cruzar exige vaga livre (o potro ocupa uma). Vagas: ${BR.stableSlotsStart} no começo, até ${BR.stableSlotsMax}, a ${num(BR.stableSlotPrice)} de Ouro cada.`,
       'Não dá para cruzar com um páreo aberto (sala paga ou não).'
     ] },
-    { t: 'tabela', rotulo: 'Aluguel', titulo: 'Preço do aluguel (base × grau)', cab: ['Raridade', ...B.GRAU_WINDOW.map((w, i) => estrelas(i + 1))], linhas: Object.keys(BR.rentalBase).map((r) => [rarCel(r), ...B.GRAU_WINDOW.map((w, i) => ouroCel(B.rentalPrice({ rarity: r, grau: i + 1 })))]) },
+    { t: 'tabela', rotulo: 'Aluguel', titulo: 'Preço do aluguel (base × grau)', cab: ['Raridade', ...BR.grauMult.map((w, i) => estrelas(i + 1))], linhas: Object.keys(BR.rentalBase).map((r) => [rarCel(r), ...BR.grauMult.map((w, i) => ouroCel(B.rentalPrice({ rarity: r, grau: i + 1 })))]) },
     { t: 'tabela', rotulo: 'Reprodutores de aluguel', titulo: 'Reprodutores de aluguel', cab: ['Montaria', 'Sexo', 'Elemento', 'Raridade', 'Grau', 'Level', 'Aluguel'], linhas: alugaveis.map((h) => [h.name, h.sex === 'f' ? '♀ fêmea' : '♂ macho', elCel(h.element), rarCel(h.rarity), N(estrelas(h.grau)), N(String(h.level)), ouroCel(B.rentalPrice(h))]) },
     { t: 'h3', txt: 'Fator de nível (L)' },
     { t: 'formula', txt: `L = clamp((${num(BR.mareWeight)} × level da égua + ${num(1 - BR.mareWeight)} × level do garanhão) / ${BR.levelSaturation}, 0, 1)` },
@@ -647,18 +645,16 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     tabelaPares(0),
     tabelaPares(BR.levelSaturation),
     { t: 'h3', txt: 'Grau do potro' },
-    { t: 'p', txt: `Grau base = arredondar(${num(BR.mareWeight)} × grau da égua + ${num(1 - BR.mareWeight)} × grau do garanhão). Se a raridade **subiu**, o potro nasce ${estrelas(1)}; se **desceu**, nasce ${estrelas(B.GRAU_WINDOW.length)}. Se manteve, sorteia desce/mantém/sobe (fora de 1–3 soma em "mantém").` },
-    { t: 'tabela', rotulo: 'Grau do potro', cab: ['Grau base', 'L', ...B.GRAU_WINDOW.map((w, i) => estrelas(i + 1))], linhas: B.GRAU_WINDOW.flatMap((w, i) => [0, BR.levelSaturation].map((lv) => { const o = gO(i + 1, lv); return [N(estrelas(i + 1)), lv ? 'L = 1' : 'L = 0', ...B.GRAU_WINDOW.map((x, j) => N(o[j + 1] > 0 ? pct(o[j + 1], 0) : '—'))] })) },
+    { t: 'p', txt: `Grau base = arredondar(${num(BR.mareWeight)} × grau da égua + ${num(1 - BR.mareWeight)} × grau do garanhão). Se a raridade **subiu**, o potro nasce ${estrelas(1)}; se **desceu**, nasce ${estrelas(BR.grauMult.length)}. Se manteve, sorteia desce/mantém/sobe (fora de 1–3 soma em "mantém").` },
+    { t: 'tabela', rotulo: 'Grau do potro', cab: ['Grau base', 'L', ...BR.grauMult.map((w, i) => estrelas(i + 1))], linhas: BR.grauMult.flatMap((w, i) => [0, BR.levelSaturation].map((lv) => { const o = gO(i + 1, lv); return [N(estrelas(i + 1)), lv ? 'L = 1' : 'L = 0', ...BR.grauMult.map((x, j) => N(o[j + 1] > 0 ? pct(o[j + 1], 0) : '—'))] })) },
     { t: 'h3', txt: 'Elemento, sexo, status e potencial' },
     { t: 'lista', itens: [
       `**Elemento:** se os pais têm o mesmo, o potro herda; senão, ${pct(F.elementoPotro, 0)} de chance de cada um.`,
       `**Sexo:** ${pct(F.sexoPotro, 0)} fêmea, ${pct(1 - F.sexoPotro, 0)} macho.`,
-      '**Status base:** sorteados na faixa da raridade e do grau do potro (tabela abaixo); não herdam dos pais.',
-      `**Potencial:** para cada status, ${pct(B.TUNING.potInherit, 0)} de chance de herdar o de um dos pais (${pct(F.potroPai, 0)} para cada); senão sai de 0 a ${F.potValores - 1}. Depois aplica o piso do grau.`,
+      `**Potencial:** para cada status, ${pct(B.TUNING.potInherit, 0)} de chance de herdar o de um dos pais (${pct(F.potroPai, 0)} para cada); senão sai de 0 a ${F.potValores - 1}.`,
       `**Nome:** sorteado entre ${G.FOAL_NAMES.length}: ${lista(G.FOAL_NAMES)}.`,
       '**Cores:** mistura das cores dos pais.'
     ] },
-    { t: 'tabela', rotulo: 'Status base do potro', titulo: 'Faixa dos status base do potro', cab: ['Raridade', ...B.GRAU_WINDOW.map((w, i) => estrelas(i + 1))], linhas: breedRar.map((r) => [rarCel(r), ...B.GRAU_WINDOW.map((w) => N(`${G.RARITIES[r].baseLo + w[0]}–${G.RARITIES[r].baseLo + w[1]}`))]) },
     { t: 'h3', txt: 'Skills do potro' },
     { t: 'passos', itens: [
       'Candidatas: as skills dos pais que servem para o elemento do potro (exclusivas nunca passam).',
@@ -739,9 +735,10 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'h3', txt: 'Poder e ligas', id: 'poder' },
     { t: 'p', txt: 'O **Poder** resume a montaria com o equipamento: soma ponderada dos status efetivos + skills + pontos de conjunto. Ele define a liga e os rivais da sala.' },
     { t: 'formula', txt: `Poder = ${G.STAT_KEYS.map((k) => `${num(T.ratingW[k], 2)}·${siglaStat(k)}`).join(' + ')}
-      + 20 × peso do gatilho, por skill
+      + ${num(T.ratingSkillPts)} × peso do gatilho, por skill
+      + ${num(T.ratingTypeW)} × força da skill de tipo
       + ${EG.setBonus.pieces.map((n, i) => `${EG.setBonus.ratingPts[i]} (${n} peças)`).join(' / ')} de conjunto` },
-    { t: 'tabela', rotulo: 'Peso do gatilho', titulo: 'Peso do gatilho no Poder', cab: ['Gatilho', 'Peso', 'Pontos por skill'], linhas: Object.keys(pesos).map((t) => [t === 'weather:*' ? 'Clima (qualquer)' : descreverGatilho(t), N(num(pesos[t], 2)), N(num(pesos[t] * 20))]) },
+    { t: 'tabela', rotulo: 'Peso do gatilho', titulo: 'Peso do gatilho no Poder', cab: ['Gatilho', 'Peso', 'Pontos por skill'], linhas: Object.keys(pesos).map((t) => [t === 'weather:*' ? 'Clima (qualquer)' : descreverGatilho(t), N(num(pesos[t], 2)), N(num(pesos[t] * T.ratingSkillPts))]) },
     { t: 'tabela', rotulo: 'Ligas', cab: ['Liga', 'Poder', 'Cor'], linhas: G.LEAGUES.map((L) => { const f = S.leagueFor(L.min); return [{ md: L.name, html: `<span class="liga" style="--c:${L.color}">${esc(L.name)}</span>` }, N(f.max == null ? `${num(L.min)} ou mais` : `${num(L.min)}–${num(f.max)}`), { md: L.color, html: `<code>${L.color}</code>` }] }) },
     { t: 'p', txt: `**Rivais da sala:** cada bot mira um Poder entre ${sinalPct(F.botAlvo[0] - 1, 1)} e ${sinalPct(F.botAlvo[0] + F.botAlvo[1] - 1, 1)} do seu (leve viés para cima), com o equipamento da liga desse alvo. Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de ${F.botFaixaNivel[0]} levels abaixo a ${F.botFaixaNivel[1]} acima do level dele, entre 1 e ${E.maxLevel}. O modelo só entra se ficar a até ${pct(F.botFaixa, 0)} do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos ${F.botReserva} modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem.` },
     { t: 'tabela', rotulo: 'Poder das iniciais', titulo: 'Poder das iniciais', cab: ['Montaria', 'Nv 1 sem peças', 'Nv 1 com o equipamento inicial', `Nv ${E.maxLevel} sem peças`], linhas: G.STARTERS.map((h) => [h.name, N(num(S.powerRating(h, null))), N(num(S.powerRating(h, ini))), N(num(S.powerRating({ ...h, level: E.maxLevel }, null)))]) }

@@ -63,8 +63,12 @@ test('skillChance: comum lv1 sorte 0 = 0.35; mítico lv50 sorte 100 = 0.95 (teto
 test('powerRating usa os 7 pesos', function () {
   var h = JSON.parse(JSON.stringify(G.STARTERS[0])); var s = S.computeStats(h, null), w = S.TUNING.ratingW, sum = 0;
   G.STAT_KEYS.forEach(function (k) { sum += s[k] * w[k]; });
-  assert.strictEqual(S.powerRating(h, null), Math.round(sum));   // os iniciais nascem sem skill
-  h.skills = ['arranque']; assert.strictEqual(S.powerRating(h, null), Math.round(sum + 20 * 1));   // arranque: start = 1
+  assert.deepStrictEqual(w, { vel: 3.1, acel: 1.4, man: 1.45, est: 2.4, forca: 3.3, garra: 1.3, sorte: 0.2 });
+  // os iniciais nascem sem skill; a skill de tipo vale 80 × P (Comum nível 1: P = 1)
+  assert.strictEqual(S.powerRating(h, null), Math.round(sum + 80 * 1));
+  h.skills = ['arranque']; assert.strictEqual(S.powerRating(h, null), Math.round(sum + 18 * 1 + 80 * 1));   // arranque: start = 1
+  h.level = 50; s = S.computeStats(h, null); sum = 0; G.STAT_KEYS.forEach(function (k) { sum += s[k] * w[k]; });
+  assert.strictEqual(S.powerRating(h, null), Math.round(sum + 18 + 80 * S.typePower(h)));
 });
 test('learnSkill não estoura vagas e respeita o elemento', function () {
   var full = { id: 'x', element: 'fogo', rarity: 'comum', skills: ['arranque'] };
@@ -148,6 +152,66 @@ test('v3: no nível 1 limite, alloc e allocInfo dão zero (nunca −0)', functio
   assert.strictEqual(S.statLimit(h), 0);
   assert.deepStrictEqual(S.validAlloc(h, h.alloc), zeros);
   assert.deepStrictEqual(S.allocInfo(h), { free: 0, used: 0, left: 0, perStat: 0, room: zeros });
+});
+
+section('Poder, bots e ligas v3');
+function refBot(el, rarity, level, g, grau) {
+  var h = { id: 'ref', name: 'Ref', element: el, rarity: rarity, level: level, grau: grau || 2, potential: {}, skills: [] };
+  G.STAT_KEYS.forEach(function (k) { h.potential[k] = g; });
+  h.alloc = S.botAlloc(h); return h;
+}
+function somaAlloc(a) { var t = 0; G.STAT_KEYS.forEach(function (k) { t += a[k]; }); return t; }
+test('botAlloc: soma os pontos livres, respeita limite e teto, é fixa', function () {
+  var casos = [];
+  G.STARTERS.concat(G.WILD_HORSES).forEach(function (h0) { [1, 2, 11, 30, 50].forEach(function (lv) { var h = clone(h0); h.level = lv; casos.push(h); }); });
+  ['fogo', 'agua', 'grama'].forEach(function (el) { ['comum', 'raro', 'mitico'].forEach(function (r) { [0, 16, 31].forEach(function (g) { [1, 2, 3].forEach(function (st) { casos.push(refBot(el, r, 50, g, st)); }); }); }); });
+  casos.forEach(function (h) {
+    delete h.alloc;
+    var a = S.botAlloc(h), lim = S.statLimit(h), tag = h.id + ' ' + h.element + ' ' + h.rarity + ' nv' + h.level + ' ★' + h.grau;
+    assert.deepStrictEqual(Object.keys(a), G.STAT_KEYS, tag);
+    assert.strictEqual(somaAlloc(a), S.freePoints(h), tag + ' soma');
+    G.STAT_KEYS.forEach(function (k) { assert.ok(a[k] >= 0 && a[k] <= lim && a[k] === Math.floor(a[k]), tag + ' ' + k); });
+    assert.deepStrictEqual(S.validAlloc(h, a), a, tag + ' válida');
+    assert.deepStrictEqual(S.botAlloc(h), a, tag + ' fixa');
+    assert.strictEqual(h.alloc, undefined, tag + ' não muta');
+  });
+});
+test('botAlloc: Comum ★★ de genética 16 no nível 50 põe o limite no status do tipo', function () {
+  // 58 pontos, limite 20: Velocidade para Fogo e Água, Força para Grama; o resto em rodízio
+  // Aceleração → Manobra → Força → Estamina → Garra → Velocidade, pulando o do primeiro passo
+  var fogo = refBot('fogo', 'comum', 50, 16).alloc, agua = refBot('agua', 'comum', 50, 16).alloc, grama = refBot('grama', 'comum', 50, 16).alloc;
+  assert.strictEqual(fogo.vel, 20); assert.strictEqual(agua.vel, 20); assert.strictEqual(grama.forca, 20);
+  assert.deepStrictEqual(fogo, { vel: 20, acel: 8, man: 8, forca: 8, est: 7, garra: 7, sorte: 0 });
+  assert.deepStrictEqual(agua, fogo);
+  assert.deepStrictEqual(grama, { vel: 7, acel: 8, man: 8, forca: 20, est: 8, garra: 7, sorte: 0 });
+  // no nível 1 não há ponto
+  assert.strictEqual(somaAlloc(refBot('fogo', 'comum', 1, 16).alloc), 0);
+});
+test('botAlloc: rodízio pula o status no teto e a sobra vai para Sorte', function () {
+  // Mítico ★★★ de genética 31 no nível 50: tudo nasce perto do teto 100, os pontos sobram para Sorte
+  var h = refBot('fogo', 'mitico', 50, 31, 3), a = h.alloc, cap = G.RARITIES.mitico.statCap;
+  ['acel', 'man', 'forca', 'est', 'garra'].forEach(function (k) {
+    assert.ok(S.naturalStat(h, k) + a[k] >= cap - 1e-9, k + ' no teto');
+    assert.ok(S.naturalStat(h, k) + a[k] - 1 < cap, k + ' sem ponto a mais que o necessário');
+  });
+  assert.strictEqual(a.vel, S.statLimit(h)); assert.ok(a.sorte > 0, 'sobra em Sorte');
+});
+test('powerRating: mais pontos distribuídos dão mais Poder', function () {
+  var h = refBot('agua', 'raro', 30, 16), sem = clone(h); sem.alloc = null;
+  assert.ok(S.powerRating(h, null) > S.powerRating(sem, null), S.powerRating(h, null) + ' > ' + S.powerRating(sem, null));
+  var meio = clone(h); meio.alloc = { vel: 5 };
+  assert.ok(S.powerRating(meio, null) > S.powerRating(sem, null)); assert.ok(S.powerRating(h, null) > S.powerRating(meio, null));
+});
+test('ligas: seis faixas iguais entre o Comum nível 1 e o Lendário nível 50 de referência', function () {
+  var lo = S.powerRating(refBot('fogo', 'comum', 1, 16), null), hi = S.powerRating(refBot('fogo', 'lendario', 50, 16), null);
+  var L = G.LEAGUES;
+  assert.deepStrictEqual(L.map(function (x) { return x.id; }), ['bronze', 'prata', 'ouro', 'platina', 'diamante', 'lenda']);
+  assert.strictEqual(L[0].min, 0);
+  for (var k = 1; k < 6; k++) assert.strictEqual(L[k].min, Math.round((lo + k * (hi - lo) / 6) / 10) * 10, L[k].id + ' (lo ' + lo + ', hi ' + hi + ')');
+  assert.strictEqual(S.leagueFor(hi).id, 'lenda');
+});
+test('ligas: cada inicial de nível 1 começa na Bronze', function () {
+  G.STARTERS.forEach(function (h) { assert.strictEqual(h.level, 1); assert.strictEqual(S.leagueFor(S.powerRating(h, null)).id, 'bronze', h.id); });
 });
 
 section('mapa');
@@ -442,7 +506,7 @@ test('nomes de potro e economia do cruzamento', function () {
 
 section('cruzamento');
 function mk2(o) { return { uid: o.uid || 'x', name: o.name || 'X', element: o.element || 'fogo', rarity: o.rarity || 'raro', grau: o.grau || 2, sex: o.sex || 'm', level: o.level == null ? 30 : o.level,
-  skills: o.skills || [], base: { vel: 60, acel: 60, man: 60, forca: 60, est: 60, garra: 60, sorte: 60 }, potential: o.potential || { vel: 10, acel: 10, man: 10, forca: 10, est: 10, garra: 10, sorte: 10 },
+  skills: o.skills || [], potential: o.potential || { vel: 10, acel: 10, man: 10, forca: 10, est: 10, garra: 10, sorte: 10 },
   palette: o.palette || { coat: '#c4471d', coatShade: '#7f2a0e', mane: '#ffb02e', accent: '#ffe066' } }; }
 function near(a, b, tol, msg) { assert.ok(Math.abs(a - b) <= tol, msg + ': ' + a + ' vs ' + b); }
 test('levelFactor satura no 30 e pesa a égua', function () {
@@ -491,12 +555,13 @@ test('foal é determinístico e tem o formato da spec', function () {
   assert.ok(G.FOAL_NAMES.indexOf(a.name) >= 0); assert.ok(/^#[0-9a-f]{6}$/.test(a.palette.coat));
   assert.notStrictEqual(JSON.stringify(a), JSON.stringify(B.foal({ f: f, m: m, seedBase: 123, breedCounter: 1, nextUid: 3 })));
 });
-test('status na janela do grau, potencial ≥ piso, skills dentro das vagas e compatíveis', function () {
+test('potro v3: sem base nem alloc, genética inteira de 0 a 31, tipo dos pais, skills dentro das vagas', function () {
   for (var s = 0; s < 2000; s++) {
     var f = mk2({ sex: 'f', skills: ['chama-final', 'sprint'], element: 'fogo' }), m = mk2({ skills: ['pe-na-chuva', 'drift'], element: 'agua' });
     var c = B.foal({ f: f, m: m, seedBase: s, breedCounter: 0, nextUid: 1 });
-    var lo = G.RARITIES[c.rarity].baseLo, w = B.GRAU_WINDOW[c.grau - 1];
-    G.STAT_KEYS.forEach(function (k) { assert.ok(c.base[k] >= lo + w[0] && c.base[k] <= lo + w[1], 'base ' + k); assert.ok(c.potential[k] >= B.GRAU_POT_FLOOR[c.grau - 1] && c.potential[k] <= 31, 'pot ' + k); });
+    assert.ok(!('base' in c), 'sem base'); assert.ok(!('alloc' in c), 'nasce sem alloc');
+    assert.ok(c.element === 'fogo' || c.element === 'agua', 'tipo de um dos pais: ' + c.element); assert.ok(G.ELEMENTS[c.element] && c.element !== 'neutro');
+    G.STAT_KEYS.forEach(function (k) { var p = c.potential[k]; assert.ok(p >= 0 && p <= 31 && p === Math.floor(p), 'pot ' + k + ' = ' + p); });
     var R = G.RARITIES[c.rarity]; assert.ok(c.skills.length <= R.skillSlots && c.skills.length >= Math.min(R.bornSkills, R.skillSlots), 'skills ' + c.skills.join());
     c.skills.forEach(function (id) { var sk = G.SKILLS[id]; assert.ok(sk, 'existe ' + id); assert.ok(sk.element === 'geral' || sk.element === c.element, 'elemento ' + id); });
     assert.strictEqual(new Set(c.skills).size, c.skills.length); assert.notStrictEqual(c.rarity, 'mitico');
@@ -524,6 +589,29 @@ test('corcel garante herança; odds() bate com a frequência', function () {
   for (s = 0; s < 20000; s++) n[B.foal({ f: f, m: m, seedBase: 31, breedCounter: s, nextUid: 1 }).rarity]++;
   ['magico', 'raro', 'lendario'].forEach(function (r) { near(n[r] / 200, o.rarity[r] * 100, 2, r); });
 });
+test('potro v3: genética 50% herdada, senão uniforme de 0 a 31, sem piso por estrela', function () {
+  // pais com genética 0 e ★★★: sem piso, P(0) = 0,5 + 0,5/32 e a média dos sorteados é 15,5
+  var z = { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 }, zeros = 0, soma = 0, n = 0, N = 5000;
+  for (var s = 0; s < N; s++) {
+    var c = B.foal({ f: mk2({ sex: 'f', grau: 3, potential: z }), m: mk2({ grau: 3, potential: z }), seedBase: 41, breedCounter: s, nextUid: 1 });
+    G.STAT_KEYS.forEach(function (k) { n++; soma += c.potential[k]; if (c.potential[k] === 0) zeros++; });
+  }
+  near(zeros / n, 0.5 + 0.5 / 32, 0.01, 'genética 0'); near(soma / n, 0.5 * 15.5, 0.25, 'média');
+  // pais diferentes: o herdado vem de um dos dois, 50/50
+  var a = { vel: 31, acel: 31, man: 31, forca: 31, est: 31, garra: 31, sorte: 31 }, de31 = 0, de0 = 0;
+  for (s = 0; s < N; s++) {
+    var d = B.foal({ f: mk2({ sex: 'f', potential: a }), m: mk2({ potential: z }), seedBase: 43, breedCounter: s, nextUid: 1 });
+    G.STAT_KEYS.forEach(function (k) { if (d.potential[k] === 31) de31++; if (d.potential[k] === 0) de0++; });
+  }
+  near(de31 / n, 0.25 + 0.5 / 32, 0.01, 'herda da égua'); near(de0 / n, 0.25 + 0.5 / 32, 0.01, 'herda do garanhão');
+});
+test('Mítico nunca nasce de cruzamento (5.000 cruzas de Míticos)', function () {
+  for (var s = 0; s < 5000; s++) {
+    var c = B.foal({ f: mk2({ sex: 'f', rarity: 'mitico', level: 50, grau: 3 }), m: mk2({ rarity: 'mitico', level: 50, grau: 3 }), seedBase: 47, breedCounter: s, nextUid: 1 });
+    assert.notStrictEqual(c.rarity, 'mitico');
+  }
+  assert.strictEqual(B.GRAU_POT_FLOOR, undefined, 'sem piso de genética'); assert.strictEqual(B.GRAU_WINDOW, undefined, 'sem janela de status base');
+});
 test('uid distinto mesmo com nomes iguais', function () {
   var saved = G.FOAL_NAMES; G.FOAL_NAMES = ['Xodó'];
   var a = B.foal({ f: mk2({ sex: 'f' }), m: mk2({}), seedBase: 1, breedCounter: 0, nextUid: 5 }), b = B.foal({ f: mk2({ sex: 'f' }), m: mk2({}), seedBase: 1, breedCounter: 1, nextUid: 6 });
@@ -532,9 +620,9 @@ test('uid distinto mesmo com nomes iguais', function () {
 
 test('snapshot dourado dos potros de exemplos.md', function () {
   // docs/exemplos.md §4 "Três potros de exemplo": seedBase 20261106, nextUid 2, breedCounter 0/1/2.
-  // Regravado no modelo v3 (iniciais Comuns e baseLo novo; Pangaré saiu do catálogo e deu lugar a Lambari,
-  // Ventania virou Grama); o exemplos.md acompanha na tarefa da documentação.
-  // Compara o potro INTEIRO (inclusive a paleta, passo 9 da RNG): qualquer chamada de rng a mais,
+  // Regravado no modelo v3 da Tarefa 3: sem status base sorteado nem piso de genética por estrela
+  // (a ordem das chamadas de rng mudou); o exemplos.md acompanha na tarefa da documentação.
+  // Compara o potro INTEIRO (inclusive a paleta, passo 8 da RNG): qualquer chamada de rng a mais,
   // a menos ou fora de ordem em breed.js muda algum campo e derruba este teste.
   function par(id, level, uid) {
     var h = JSON.parse(JSON.stringify(G.STARTERS.concat(G.WILD_HORSES).filter(function (x) { return x.id === id; })[0]));
@@ -542,24 +630,25 @@ test('snapshot dourado dos potros de exemplos.md', function () {
   }
   function st(a) { var o = {}; G.STAT_KEYS.forEach(function (k, i) { o[k] = a[i]; }); return o; }
   var casos = [
-    { f: par('mare', 30, null), m: par('brasa', 30, null), name: 'Serena', rarity: 'comum', grau: 2, element: 'fogo', sex: 'f',
-      base: [50, 49, 51, 50, 45, 49, 50], potential: [8, 12, 13, 12, 20, 14, 12], skills: ['dado-viciado'],
-      palette: { coat: '#ac8077', coatShade: '#6f5351', mane: '#a0c8a1', accent: '#f0ecbf' }, breedLeft: 1 },
-    { f: par('w-faisca', 1, null), m: par('w-lambari', 1, null), name: 'Quimera', rarity: 'comum', grau: 2, element: 'agua', sex: 'f',
-      base: [51, 46, 47, 48, 50, 50, 48], potential: [9, 11, 15, 10, 20, 27, 10], skills: ['arranque'],
-      palette: { coat: '#ad8e76', coatShade: '#756053', mane: '#f0e2c1', accent: '#b1a589' }, breedLeft: 1 },
-    { f: par('w-ventania', 30, null), m: par('w-jequitiba', 30, null), name: 'Saci', rarity: 'lendario', grau: 1, element: 'grama', sex: 'm',
-      base: [61, 60, 57, 56, 55, 57, 59], potential: [17, 30, 11, 5, 29, 14, 8], skills: ['arrancada-final', 'casco-firme'],
-      palette: { coat: '#9f8f7d', coatShade: '#74675a', mane: '#537c55', accent: '#92c9a1' }, breedLeft: 2 }
+    { f: par('mare', 30, null), m: par('brasa', 30, null), name: 'Jurema', rarity: 'comum', grau: 2, element: 'fogo', sex: 'f',
+      potential: [20, 26, 14, 21, 24, 14, 12], stats: [50, 53, 47, 51, 52, 47, 46], skills: ['sol-a-pino'],
+      palette: { coat: '#b27261', coatShade: '#734940', mane: '#b7c284', accent: '#f4e9a9' }, breedLeft: 1 },
+    { f: par('w-faisca', 1, null), m: par('w-lambari', 1, null), name: 'Jurema', rarity: 'comum', grau: 2, element: 'agua', sex: 'f',
+      potential: [8, 11, 25, 10, 8, 5, 10], stats: [44, 46, 53, 45, 44, 43, 45], skills: ['arranque'],
+      palette: { coat: '#9b9895', coatShade: '#66696d', mane: '#ede9d8', accent: '#90b1a9' }, breedLeft: 1 },
+    { f: par('w-ventania', 30, null), m: par('w-jequitiba', 30, null), name: 'Trovão', rarity: 'lendario', grau: 1, element: 'grama', sex: 'm',
+      potential: [19, 18, 20, 13, 28, 25, 16], stats: [65, 64, 65, 62, 69, 68, 63], skills: ['sprint', 'arrancada-final'],
+      palette: { coat: '#8e7d68', coatShade: '#65584b', mane: '#4a7c4c', accent: '#90c88c' }, breedLeft: 2 }
   ];
   casos.forEach(function (c, i) {
     var x = B.foal({ f: c.f, m: c.m, seedBase: 20261106, breedCounter: i, nextUid: 2 });
     assert.deepStrictEqual(x, {
       uid: 'm2', templateId: null, name: c.name, especie: 'cavalo', element: c.element, rarity: c.rarity, grau: c.grau, sex: c.sex,
-      level: 1, xp: 0, skills: c.skills, base: st(c.base), potential: st(c.potential), palette: c.palette, breedLeft: c.breedLeft,
+      level: 1, xp: 0, skills: c.skills, potential: st(c.potential), palette: c.palette, breedLeft: c.breedLeft,
       parents: { f: { uid: null, name: c.f.name }, m: { uid: null, name: c.m.name } },
       born: i
     }, 'potro ' + i);
+    assert.deepStrictEqual(S.computeStats(x, null), st(c.stats), 'status do potro ' + i + ' no nível 1');
   });
 });
 

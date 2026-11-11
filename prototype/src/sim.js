@@ -24,8 +24,14 @@
  *   computeStats: status = round(min(natural + pontos, raridade.statCap) + mods do equipamento),
  *   limitado a 1–120 (teto Comum 80 … Mítico 100; o arredondamento é um só, no fim). n(x) = status/100.
  *   allocInfo(horse) resume a distribuição para a tela: { free, used, left, perStat, room }.
- *   powerRating = 3,1·VEL + 1,4·ACE + 1,4·MAN + 1,5·EST + 2,2·FOR + 1,4·GAR + 0,4·SOR
- *   + 20 × peso do gatilho (skillWeight) por skill + pontos de conjunto 3/4/5 peças (3/15/20; ligas em GameData.LEAGUES).
+ *   powerRating = round(3,1·VEL + 1,4·ACE + 1,45·MAN + 2,4·EST + 3,3·FOR + 1,3·GAR + 0,2·SOR
+ *   + 18 × peso do gatilho (skillWeight) por skill + 80 × typePower + pontos de conjunto 3/4/5 peças (3/15/20));
+ *   ligas em GameData.LEAGUES.
+ *   botAlloc(horse): build fixa dos bots, sem RNG. 1) o limite (statLimit) vai para o status mais valioso
+ *   do tipo (vel; forca na Grama); 2) o resto, um ponto por vez, em acel → man → forca → est → garra → vel,
+ *   pulando o do passo 1 e os que já estão no teto (natural + pontos ≥ teto da raridade) ou no limite;
+ *   3) a sobra vai para sorte até o limite; 4) se ainda sobrar (tudo no teto), completa o rodízio até o
+ *   limite, para a soma ser sempre a dos pontos livres (ponto acima do teto fica guardado e não rende).
  *
  * CLIMA (sol / chuva / nevoa / nublado). weatherMult(elemento, clima, dobrado):
  *   dono do clima ×1,03 (T.weatherMult; ×1,08 = T.weatherMultDouble com a skill de clima
@@ -203,8 +209,10 @@
     straightMinM: 150,   // gatilho 'straight' só em reta com pelo menos esse comprimento
     // ritmo único do jóquei (fração s da vMax): mid até spurtStart, depois sprint até spurtCap
     pace: { mid: 0.97, spurtStart: 0.72, spurtCap: 1.03 },
-    // Rating de Poder: peso de cada status efetivo (cada skill soma 20 × peso do gatilho)
-    ratingW: { vel: 3.1, acel: 1.4, man: 1.4, est: 1.5, forca: 2.2, garra: 1.4, sorte: 0.4 },
+    // Rating de Poder: peso de cada status efetivo; cada skill soma ratingSkillPts × peso do gatilho e a
+    // skill de tipo soma ratingTypeW × typePower
+    ratingW: { vel: 3.1, acel: 1.4, man: 1.45, est: 2.4, forca: 3.3, garra: 1.3, sorte: 0.2 },
+    ratingSkillPts: 18, ratingTypeW: 80,
     // chance de a skill disparar no gatilho: base da raridade + nível + sorte (teto 95%)
     skillPerLevel: 0.005, skillPerSorte: 0.001, skillChanceMax: 0.95,
     learnChance: 0.08,   // chance de aprender uma skill nova ao subir de nível
@@ -390,11 +398,39 @@
   function typeSkill(horse) {
     var ts = horse && Object.prototype.hasOwnProperty.call(GameData.TYPE_SKILLS, horse.element) ? GameData.TYPE_SKILLS[horse.element] : null;
     if (!ts) return null;
-    return { id: ts.id, name: ts.name, power: typePower(horse), zone: [ts.zone[0], ts.zone[1]] };
+    var effect = {};
+    for (var k in ts.effect) if (Object.prototype.hasOwnProperty.call(ts.effect, k)) effect[k] = ts.effect[k];
+    return { id: ts.id, name: ts.name, power: typePower(horse), zone: [ts.zone[0], ts.zone[1]], effect: effect };
   }
 
-  // Rating de Poder: soma ponderada dos status efetivos + habilidades + pontos de conjunto.
-  // Cada habilidade vale 20 × o peso do seu gatilho. Para curva, subida e estamina baixa o peso segue a
+  // Build fixa dos bots (sem RNG): devolve um alloc com as 7 chaves que soma exatamente freePoints.
+  // Passos no cabeçalho do arquivo. Não muta a montaria (ignora o horse.alloc que ela tiver).
+  var BOT_ROTATION = ['acel', 'man', 'forca', 'est', 'garra', 'vel'];
+  function botAlloc(horse) {
+    var left = freePoints(horse), lim = statLimit(horse), cap = rarityOf(horse).statCap;
+    var top = horse.element === 'grama' ? 'forca' : 'vel';
+    var rot = BOT_ROTATION.filter(function (k) { return k !== top; });
+    var a = {}, i;
+    for (i = 0; i < STAT_KEYS.length; i++) a[STAT_KEYS[i]] = 0;
+    function give(k, n) { n = Math.min(n, lim - a[k], left); a[k] += n; left -= n; }
+    // um ponto por vez no rodízio, enquanto algum status aceitar (open(k): k ainda aceita ponto)
+    function rotate(open) {
+      var moved = true;
+      while (left > 0 && moved) {
+        moved = false;
+        for (var j = 0; j < rot.length && left > 0; j++) if (open(rot[j])) { give(rot[j], 1); moved = true; }
+      }
+    }
+    give(top, lim);
+    rotate(function (k) { return a[k] < lim && naturalStat(horse, k) + a[k] < cap; });
+    give('sorte', lim);
+    rotate(function (k) { return a[k] < lim; });
+    return a;
+  }
+
+  // Rating de Poder: soma ponderada dos status efetivos + habilidades + skill de tipo + pontos de conjunto.
+  // Cada habilidade vale T.ratingSkillPts (18) × o peso do seu gatilho; a de tipo, T.ratingTypeW (80) × typePower.
+  // Para curva, subida e estamina baixa o peso segue a
   // chance de o gatilho acontecer numa corrida típica; clima (0.8) e dice (0.2) são pesos calibrados no
   // pacote de balanceamento, não chances: o gatilho 'dice' acontece em toda corrida (o Dado extra só mexe
   // na virada de clima, por isso vale pouco), e o de clima vale 0.8 mesmo sem acontecer sempre.
@@ -434,14 +470,14 @@
   function powerRating(horse, gear) {
     var s = computeStats(horse, gear);
     var skillPts = 0;
-    (horse.skills || []).forEach(function (id) { skillPts += 20 * skillWeight(id); });
+    (horse.skills || []).forEach(function (id) { skillPts += T.ratingSkillPts * skillWeight(id); });
     var w = T.ratingW, sum = 0;
     for (var i = 0; i < STAT_KEYS.length; i++) sum += s[STAT_KEYS[i]] * w[STAT_KEYS[i]];
     var setPts = 0;
     if (gear && typeof gear === 'object' && gear.set && gear.set.count >= 3) {
       setPts = GameData.ECONOMY.gear.setBonus.ratingPts[gear.set.count - 3] || 0;
     }
-    return Math.round(sum + skillPts + setPts);
+    return Math.round(sum + skillPts + setPts + T.ratingTypeW * typePower(horse));
   }
 
   function leagueFor(rating) {
@@ -701,7 +737,7 @@
     // entry.noTypeSkill desliga (comparações do balance.js).
     var ts = entry.noTypeSkill ? null : typeSkill(horse);
     if (ts) {
-      var te = GameData.TYPE_SKILLS[horse.element].effect || {}, P = ts.power, D = cond.distance;
+      var te = ts.effect, P = ts.power, D = cond.distance;
       var from = ts.zone[0] * D, to = ts.zone[1] * D;
       r.typeSkill = { id: ts.id, name: ts.name, from: from, to: to, restore: (te.staminaRestore || 0) * P, entered: false };
       r.effects.push({
@@ -1115,6 +1151,7 @@
     typePower: typePower,
     typeSkill: typeSkill,
     powerRating: powerRating,
+    botAlloc: botAlloc,
     skillChance: skillChance,
     weatherMult: weatherMult,
     learnSkill: learnSkill,

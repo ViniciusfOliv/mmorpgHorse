@@ -16,7 +16,12 @@
  *
  * GRAU (1–3 estrelas): gb = round(mareWeight·grau da égua + (1−mareWeight)·grau do garanhão); desce/mantém/sobe
  * interpolados por L; alvo fora de 1–3 soma em "mantém". Se a raridade SUBIU o potro nasce ★1;
- * se DESCEU, ★3 (sem sorteio de grau).
+ * se DESCEU, ★3 (sem sorteio de grau). No modelo v3 as estrelas só dão os pontos livres do treino
+ * (RaceSim.freePoints): não há piso de genética por estrela nem status base sorteado.
+ *
+ * GENÉTICA (potential, 0–31 por status): por status, potInherit (50%) de herdar a de um dos pais
+ * (escolhido por sorteio, 50/50); senão inteiro uniforme de 0 a 31. TIPO: o dos pais se for igual;
+ * senão 50% de cada. O potro nasce sem alloc (pontos livres zerados) e sem o campo base.
  *
  * ALUGUEL: Math.round(rentalBase[raridade] · grauMult[grau−1]); Mítico não se aluga (null).
  * ENTRADAS: grau inválido (ausente, não numérico, fora de 1–3) vira ★★ ou é preso a 1–3; level não
@@ -28,15 +33,15 @@
  *   2. grau (1 chamada, só se a raridade não mudou; subiu ⇒ ★1, desceu ⇒ ★3)
  *   3. elemento (1 chamada, só se os pais têm elementos diferentes: < 0,5 ⇒ égua)
  *   4. sexo (1 chamada: < 0,5 ⇒ fêmea)
- *   5. status base: 1 chamada por chave de STAT_KEYS, na janela baseLo + GRAU_WINDOW[grau−1]
- *   6. potencial: 2 chamadas por chave, nos dois ramos. 1ª = porta (< potInherit ⇒ herda).
+ *   5. genética: 2 chamadas por chave de STAT_KEYS, nos dois ramos. 1ª = porta (< potInherit ⇒ herda).
  *      Herda: 2ª escolhe o pai (< 0,5 ⇒ égua). Não herda: 2ª é o valor floor(rng()·32).
- *      Depois aplica o piso do grau (GRAU_POT_FLOOR) com Math.max.
- *   7. skills: se corcel com 1 pai só (g=1): 1 chamada (< 0,5 ⇒ g=2); depois min(g, candidatas) chamadas
+ *   6. skills: se corcel com 1 pai só (g=1): 1 chamada (< 0,5 ⇒ g=2); depois min(g, candidatas) chamadas
  *      de índice (garantidas, sem reposição); 1 chamada (< skillInherit) por candidata restante, na
  *      ordem égua→garanhão; corte em skillSlots; preenchimento até bornSkills: 1 chamada de índice cada.
- *   8. nome (1 chamada: índice em FOAL_NAMES)
- *   9. paleta (1 chamada t = 0,3 + 0,4·rng(), só se os dois pais têm paleta)
+ *   7. nome (1 chamada: índice em FOAL_NAMES)
+ *   8. paleta (1 chamada t = 0,3 + 0,4·rng(), só se os dois pais têm paleta)
+ * (v3: saiu o antigo passo 5, uma chamada por status para o status base; o piso de genética por
+ * estrela saiu sem mudar o número de chamadas.)
  */
 (function (root) {
   'use strict';
@@ -180,9 +185,6 @@
     return true;
   }
 
-  // offsets sobre RARITIES[r].baseLo por grau (★1, ★★, ★★★) e piso do potencial por grau
-  var GRAU_WINDOW = [[0, 8], [5, 11], [8, 16]];
-  var GRAU_POT_FLOOR = [0, 8, 16];
   var PAL_KEYS = ['coat', 'coatShade', 'mane', 'accent'];
 
   function hexMix(a, b, t) {
@@ -212,9 +214,10 @@
     return out;
   }
 
+  // genética herdada de um pai, saneada para inteiro 0–31 (save antigo ou montaria montada à mão)
   function potOf(mount, k) {
-    var v = mount.potential && mount.potential[k];
-    return typeof v === 'number' ? v : 0;
+    var v = Number(mount.potential && mount.potential[k]);
+    return isFinite(v) ? clamp(Math.floor(v), 0, 31) : 0;
   }
 
   function foal(opts) {
@@ -233,24 +236,18 @@
     var element = f.element === m.element ? f.element : (rng() < 0.5 ? f.element : m.element);
     var sex = rng() < 0.5 ? 'f' : 'm';
 
-    // 5. status base
-    var win = GRAU_WINDOW[grau - 1], lo = R.baseLo + win[0], hi = R.baseLo + win[1];
-    var base = {};
-    for (i = 0; i < keys.length; i++) base[keys[i]] = lo + Math.floor(rng() * (hi - lo + 1));
-
-    // 6. potencial (2 chamadas por chave)
-    var potential = {}, v;
+    // 5. genética (2 chamadas por chave)
+    var potential = {};
     for (i = 0; i < keys.length; i++) {
       k = keys[i];
       if (rng() < TUNING.potInherit) {
-        v = potOf(rng() < 0.5 ? f : m, k);
+        potential[k] = potOf(rng() < 0.5 ? f : m, k);
       } else {
-        v = Math.floor(rng() * 32);
+        potential[k] = Math.floor(rng() * 32);
       }
-      potential[k] = Math.max(GRAU_POT_FLOOR[grau - 1], v);
     }
 
-    // 7. skills
+    // 6. skills
     var cands = skillCandidates(f, m, element), inherited = [];
     var g = (isCorcel(f) ? 1 : 0) + (isCorcel(m) ? 1 : 0);
     if (g === 1 && rng() < 0.5) g = 2;
@@ -270,10 +267,10 @@
       inherited.push(pool.splice(idx, 1)[0]);
     }
 
-    // 8. nome
+    // 7. nome
     var name = G.FOAL_NAMES[Math.floor(rng() * G.FOAL_NAMES.length)];
 
-    // 9. paleta
+    // 8. paleta
     var palette = null;
     if (f.palette && m.palette) {
       var t = 0.3 + 0.4 * rng();
@@ -287,7 +284,7 @@
 
     return {
       uid: 'm' + opts.nextUid, templateId: null, name: name, especie: 'cavalo', element: element, rarity: rarity, grau: grau, sex: sex,
-      level: 1, xp: 0, skills: inherited, base: base, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
+      level: 1, xp: 0, skills: inherited, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
       parents: { f: { uid: f.uid || null, name: f.name }, m: { uid: m.uid || null, name: m.name } },
       born: breedCounter
     };
@@ -305,8 +302,6 @@
     rollGrau: rollGrau,
     rentalPrice: rentalPrice,
     isCorcel: isCorcel,
-    GRAU_WINDOW: GRAU_WINDOW,
-    GRAU_POT_FLOOR: GRAU_POT_FLOOR,
     skillCandidates: skillCandidates,
     foal: foal
   };

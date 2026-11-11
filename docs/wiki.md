@@ -169,18 +169,18 @@ A cada level ganho há 8% de chance de aprender uma skill nova (sorteio pela see
 
 | Montaria | Level | VEL | ACE | MAN | FOR | EST | GAR | SOR | Poder |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Brasa | 1 | 52 | 52 | 47 | 46 | 46 | 47 | 46 | 554 |
-| Brasa | 10 | 56 | 56 | 50 | 49 | 49 | 50 | 49 | 593 |
-| Brasa | 25 | 61 | 61 | 55 | 54 | 54 | 55 | 54 | 650 |
-| Brasa | 50 | 70 | 70 | 64 | 62 | 62 | 64 | 62 | 748 |
-| Maré | 1 | 47 | 46 | 46 | 47 | 52 | 52 | 46 | 547 |
-| Maré | 10 | 50 | 49 | 49 | 50 | 56 | 56 | 49 | 584 |
-| Maré | 25 | 55 | 54 | 54 | 55 | 61 | 61 | 54 | 641 |
-| Maré | 50 | 64 | 62 | 62 | 64 | 70 | 70 | 62 | 741 |
-| Ipê | 1 | 48 | 46 | 52 | 52 | 47 | 46 | 45 | 553 |
-| Ipê | 10 | 51 | 49 | 56 | 56 | 50 | 49 | 48 | 591 |
-| Ipê | 25 | 56 | 54 | 61 | 61 | 55 | 54 | 53 | 648 |
-| Ipê | 50 | 65 | 62 | 70 | 70 | 64 | 62 | 61 | 747 |
+| Brasa | 1 | 52 | 52 | 47 | 46 | 46 | 47 | 46 | 715 |
+| Brasa | 10 | 56 | 56 | 50 | 49 | 49 | 50 | 49 | 764 |
+| Brasa | 25 | 61 | 61 | 55 | 54 | 54 | 55 | 54 | 840 |
+| Brasa | 50 | 70 | 70 | 64 | 62 | 62 | 64 | 62 | 969 |
+| Maré | 1 | 47 | 46 | 46 | 47 | 52 | 52 | 46 | 714 |
+| Maré | 10 | 50 | 49 | 49 | 50 | 56 | 56 | 49 | 763 |
+| Maré | 25 | 55 | 54 | 54 | 55 | 61 | 61 | 54 | 838 |
+| Maré | 50 | 64 | 62 | 62 | 64 | 70 | 70 | 62 | 970 |
+| Ipê | 1 | 48 | 46 | 52 | 52 | 47 | 46 | 45 | 722 |
+| Ipê | 10 | 51 | 49 | 56 | 56 | 50 | 49 | 48 | 772 |
+| Ipê | 25 | 56 | 54 | 61 | 61 | 55 | 54 | 53 | 847 |
+| Ipê | 50 | 65 | 62 | 70 | 70 | 64 | 62 | 61 | 979 |
 
 <a id="raridades"></a>
 
@@ -188,25 +188,25 @@ A cada level ganho há 8% de chance de aprender uma skill nova (sorteio pela see
 
 São 5 raridades, da mais comum à mais rara: Comum, Mágico, Raro, Lendário e Mítico. A raridade define a faixa onde o status nasce, o teto de status, as vagas de skill e a chance de ativar skills.
 
-| Raridade | Cor | Teto de status | Vagas de skill | Skills do potro (mínimo) | Chance base de skill | Status base do potro | Preço da peça | Aluguel base | Montarias no jogo |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: |
-| Comum | #9e9e9e | 80 | 1 | 1 | 35% | 40–56 | 100 | 100 | 6 |
-| Mágico | #4caf50 | 85 | 2 | 1 | 45% | 45–61 | 250 | 250 | 3 |
-| Raro | #2196f3 | 90 | 3 | 2 | 55% | 50–66 | 600 | 600 | 2 |
-| Lendário | #ff9800 | 95 | 4 | 2 | 65% | 55–71 | 1.500 | 1.500 | 2 |
-| Mítico | #9c27b0 | 100 | 5 | 3 | 75% | 60–76 | não existe | não se aluga | 2 |
+| Raridade | Cor | Teto de status | Vagas de skill | Skills do potro (mínimo) | Chance base de skill | Preço da peça | Aluguel base | Montarias no jogo |
+| --- | --- | ---: | ---: | ---: | ---: | --- | --- | ---: |
+| Comum | #9e9e9e | 80 | 1 | 1 | 35% | 100 | 100 | 6 |
+| Mágico | #4caf50 | 85 | 2 | 1 | 45% | 250 | 250 | 3 |
+| Raro | #2196f3 | 90 | 3 | 2 | 55% | 600 | 600 | 2 |
+| Lendário | #ff9800 | 95 | 4 | 2 | 65% | 1.500 | 1.500 | 2 |
+| Mítico | #9c27b0 | 100 | 5 | 3 | 75% | não existe | não se aluga | 2 |
 
 Raridade mais alta que nasce de cruzamento: **Lendário**. Mítico nunca nasce de cruzamento e não se aluga.
 
 ### Grau (estrelas)
 
-Cada montaria tem um grau de ★ a ★★★: a qualidade do cruzamento. Ele muda a faixa dos status base do potro, o piso do potencial e o preço do aluguel. As iniciais e os selvagens têm o grau definido nos dados.
+Cada montaria tem um grau de ★ a ★★★: a qualidade do cruzamento. Ele muda os pontos livres do treino e o preço do aluguel. As iniciais e os selvagens têm o grau definido nos dados.
 
-| Grau | Status base do potro | Piso do potencial | Multiplicador do aluguel |
-| ---: | --- | ---: | ---: |
-| ★ | base da raridade + 0 a + 8 | 0 | ×1 |
-| ★★ | base da raridade + 5 a + 11 | 8 | ×1,25 |
-| ★★★ | base da raridade + 8 a + 16 | 16 | ×1,5 |
+| Grau | Multiplicador do aluguel |
+| ---: | ---: |
+| ★ | ×1 |
+| ★★ | ×1,25 |
+| ★★★ | ×1,5 |
 
 ### Corcel
 
@@ -443,7 +443,7 @@ Há 3 montarias iniciais e 12 selvagens. Todas são da espécie cavalo. As selva
 
 #### Brasa — A fagulha veloz
 
-Fogo · Comum · ★★ · ♂ macho · Nv 1 · Poder 554 (Bronze) · 2 cruza(s)
+Fogo · Comum · ★★ · ♂ macho · Nv 1 · Poder 715 (Bronze) · 2 cruza(s)
 
 Potro alazão de crina dourada. Larga como um rojão.
 
@@ -457,7 +457,7 @@ Skills: nenhuma · Onde aparece: montaria inicial, bot nas corridas (quando não
 
 #### Maré — O fôlego do oceano
 
-Água · Comum · ★★ · ♀ fêmea · Nv 1 · Poder 547 (Bronze) · 1 cruza(s)
+Água · Comum · ★★ · ♀ fêmea · Nv 1 · Poder 714 (Bronze) · 1 cruza(s)
 
 Égua tordilha de crina cor do mar. Quanto mais longa a pista, mais perigosa.
 
@@ -471,7 +471,7 @@ Skills: nenhuma · Onde aparece: montaria inicial, bot nas corridas (quando não
 
 #### Ipê — A raiz que não verga
 
-Grama · Comum · ★★ · ♂ macho · Nv 1 · Poder 553 (Bronze) · 2 cruza(s)
+Grama · Comum · ★★ · ♂ macho · Nv 1 · Poder 722 (Bronze) · 2 cruza(s)
 
 Castanho robusto de crina amarela como ipê florido. Não teme subida.
 
@@ -487,7 +487,7 @@ Skills: nenhuma · Onde aparece: montaria inicial, bot nas corridas (quando não
 
 #### Faísca
 
-Fogo · Comum · ★★ · ♀ fêmea · Nv 3 · Poder 558 (Bronze) · 1 cruza(s)
+Fogo · Comum · ★★ · ♀ fêmea · Nv 3 · Poder 716 (Bronze) · 1 cruza(s)
 
 Habitat: Cerrado seco.
 
@@ -501,7 +501,7 @@ Skills: Arranque · Onde aparece: bot nas corridas, aluguel no Haras (125 de Our
 
 #### Lambari
 
-Água · Comum · ★ · ♂ macho · Nv 2 · Poder 528 (Bronze) · 2 cruza(s)
+Água · Comum · ★ · ♂ macho · Nv 2 · Poder 693 (Bronze) · 2 cruza(s)
 
 Habitat: Beira de rio.
 
@@ -515,7 +515,7 @@ Skills: nenhuma · Onde aparece: bot nas corridas, aluguel no Haras (100 de Ouro
 
 #### Capim
 
-Grama · Comum · ★★ · ♀ fêmea · Nv 4 · Poder 554 (Bronze) · 1 cruza(s)
+Grama · Comum · ★★ · ♀ fêmea · Nv 4 · Poder 721 (Bronze) · 1 cruza(s)
 
 Habitat: Campos gerais.
 
@@ -529,7 +529,7 @@ Skills: Segundo Ar · Onde aparece: bot nas corridas, aluguel no Haras (125 de O
 
 #### Tição
 
-Fogo · Mágico · ★★ · ♂ macho · Nv 8 · Poder 649 (Bronze) · 2 cruza(s)
+Fogo · Mágico · ★★ · ♂ macho · Nv 8 · Poder 832 (Prata) · 2 cruza(s)
 
 Habitat: Carvoaria abandonada.
 
@@ -543,7 +543,7 @@ Skills: Chama Final · Onde aparece: bot nas corridas, aluguel no Haras (313 de 
 
 #### Garoa
 
-Água · Mágico · ★★ · ♀ fêmea · Nv 10 · Poder 663 (Prata) · 1 cruza(s)
+Água · Mágico · ★★ · ♀ fêmea · Nv 10 · Poder 853 (Prata) · 1 cruza(s)
 
 Habitat: Serra enevoada.
 
@@ -557,7 +557,7 @@ Skills: Pé na Chuva, Segundo Ar · Onde aparece: bot nas corridas, aluguel no H
 
 #### Mandacaru
 
-Grama · Mágico · ★★ · ♂ macho · Nv 7 · Poder 634 (Bronze) · 2 cruza(s)
+Grama · Mágico · ★★ · ♂ macho · Nv 7 · Poder 825 (Prata) · 2 cruza(s)
 
 Habitat: Caatinga.
 
@@ -571,7 +571,7 @@ Skills: Casco Firme · Onde aparece: bot nas corridas, aluguel no Haras (313 de 
 
 #### Ventania
 
-Grama · Raro · ★★★ · ♀ fêmea · Nv 15 · Poder 767 (Prata) · 1 cruza(s)
+Grama · Raro · ★★★ · ♀ fêmea · Nv 15 · Poder 975 (Ouro) · 1 cruza(s)
 
 Habitat: Pampa gaúcho.
 
@@ -585,7 +585,7 @@ Skills: Sprint, Arrancada Final · Onde aparece: bot nas corridas, aluguel no Ha
 
 #### Pororoca
 
-Água · Raro · ★★ · ♂ macho · Nv 18 · Poder 774 (Prata) · 2 cruza(s)
+Água · Raro · ★★ · ♂ macho · Nv 18 · Poder 995 (Ouro) · 2 cruza(s)
 
 Habitat: Foz do Amazonas.
 
@@ -599,7 +599,7 @@ Skills: Nascente, Pé na Chuva · Onde aparece: bot nas corridas, aluguel no Har
 
 #### Fogaréu
 
-Fogo · Lendário · ★★★ · ♀ fêmea · Nv 22 · Poder 891 (Platina) · 1 cruza(s)
+Fogo · Lendário · ★★★ · ♀ fêmea · Nv 22 · Poder 1.125 (Diamante) · 1 cruza(s)
 
 Habitat: Chapada em chamas.
 
@@ -613,7 +613,7 @@ Skills: Sol a Pino, Chama Final, Arranque · Onde aparece: bot nas corridas, alu
 
 #### Jequitibá
 
-Grama · Lendário · ★★★ · ♂ macho · Nv 25 · Poder 877 (Ouro) · 2 cruza(s)
+Grama · Lendário · ★★★ · ♂ macho · Nv 25 · Poder 1.127 (Diamante) · 2 cruza(s)
 
 Habitat: Mata Atlântica.
 
@@ -627,7 +627,7 @@ Skills: Casco Firme, Fôlego de Montanha, Segundo Ar · Onde aparece: bot nas co
 
 #### Boitatá
 
-Fogo · Mítico · ★★★ · ♀ fêmea · Nv 30 · Poder 1.005 (Diamante) · 1 cruza(s)
+Fogo · Mítico · ★★★ · ♀ fêmea · Nv 30 · Poder 1.273 (Lenda) · 1 cruza(s)
 
 Habitat: Só aparece em noites de queimada. A cobra de fogo do folclore, em forma de cavalo.
 
@@ -641,7 +641,7 @@ Skills: Sol a Pino, Chama Final, Drift · Onde aparece: bot nas corridas, vitrin
 
 #### Iara
 
-Água · Mítico · ★★★ · ♂ macho · Nv 28 · Poder 985 (Diamante) · 2 cruza(s)
+Água · Mítico · ★★★ · ♂ macho · Nv 28 · Poder 1.255 (Lenda) · 2 cruza(s)
 
 Habitat: Rios encantados. A mãe-d'água que encanta quem a ouve.
 
@@ -758,19 +758,9 @@ Grau base = arredondar(0,6 × grau da égua + 0,4 × grau do garanhão). Se a ra
 
 - **Elemento:** se os pais têm o mesmo, o potro herda; senão, 50% de chance de cada um.
 - **Sexo:** 50% fêmea, 50% macho.
-- **Status base:** sorteados na faixa da raridade e do grau do potro (tabela abaixo); não herdam dos pais.
-- **Potencial:** para cada status, 50% de chance de herdar o de um dos pais (50% para cada); senão sai de 0 a 31. Depois aplica o piso do grau.
+- **Potencial:** para cada status, 50% de chance de herdar o de um dos pais (50% para cada); senão sai de 0 a 31.
 - **Nome:** sorteado entre 32: Tufão, Canela, Baio, Pitanga, Jaguar, Serena, Relâmpago, Mimosa, Trovão, Lua, Corisco, Pérola, Faísca II, Aroeira, Bugre, Catira, Dourado, Estrela, Furacão, Guará, Jurema, Malhado, Nuvem, Onça, Pampa, Quimera, Rio, Saci, Tempestade, Umbu, Vaqueiro e Xodó.
 - **Cores:** mistura das cores dos pais.
-
-**Faixa dos status base do potro**
-
-| Raridade | ★ | ★★ | ★★★ |
-| --- | ---: | ---: | ---: |
-| Comum | 40–48 | 45–51 | 48–56 |
-| Mágico | 45–53 | 50–56 | 53–61 |
-| Raro | 50–58 | 55–61 | 58–66 |
-| Lendário | 55–63 | 60–66 | 63–71 |
 
 ### Skills do potro
 
@@ -932,8 +922,9 @@ Treino (quando o Ouro não cobre 50): sem entrada, 1º 30, 2º 22, 3º 16, 4º 1
 O **Poder** resume a montaria com o equipamento: soma ponderada dos status efetivos + skills + pontos de conjunto. Ele define a liga e os rivais da sala.
 
 ```text
-Poder = 3,1·VEL + 1,4·ACE + 1,4·MAN + 2,2·FOR + 1,5·EST + 1,4·GAR + 0,4·SOR
-      + 20 × peso do gatilho, por skill
+Poder = 3,1·VEL + 1,4·ACE + 1,45·MAN + 3,3·FOR + 2,4·EST + 1,3·GAR + 0,2·SOR
+      + 18 × peso do gatilho, por skill
+      + 80 × força da skill de tipo
       + 3 (3 peças) / 15 (4 peças) / 20 (5 peças) de conjunto
 ```
 
@@ -941,24 +932,24 @@ Poder = 3,1·VEL + 1,4·ACE + 1,4·MAN + 2,2·FOR + 1,5·EST + 1,4·GAR + 0,4·S
 
 | Gatilho | Peso | Pontos por skill |
 | --- | ---: | ---: |
-| Largada | 1 | 20 |
-| Entra numa reta de 150 m ou mais (a reta da largada não conta) | 1 | 20 |
-| Entra numa curva | 0,8 | 16 |
-| Sai de uma curva | 0,8 | 16 |
-| Entra numa subida | 0,6 | 12 |
-| Estamina cai a 30% ou menos | 0,8 | 16 |
-| Cruza 80% da pista (reta final) | 1 | 20 |
-| Antes do 1º Dado da Sorte (uma tentativa por corrida; se ativar, vale para todos os Dados) | 0,2 | 4 |
-| Clima (qualquer) | 0,8 | 16 |
+| Largada | 1 | 18 |
+| Entra numa reta de 150 m ou mais (a reta da largada não conta) | 1 | 18 |
+| Entra numa curva | 0,8 | 14,4 |
+| Sai de uma curva | 0,8 | 14,4 |
+| Entra numa subida | 0,6 | 10,8 |
+| Estamina cai a 30% ou menos | 0,8 | 14,4 |
+| Cruza 80% da pista (reta final) | 1 | 18 |
+| Antes do 1º Dado da Sorte (uma tentativa por corrida; se ativar, vale para todos os Dados) | 0,2 | 3,6 |
+| Clima (qualquer) | 0,8 | 14,4 |
 
 | Liga | Poder | Cor |
 | --- | ---: | --- |
-| Bronze | 0–659 | #b0703c |
-| Prata | 660–779 | #b8c2cc |
-| Ouro | 780–879 | #f2c230 |
-| Platina | 880–979 | #5fd3c8 |
-| Diamante | 980–1.099 | #7ab8ff |
-| Lenda | 1.100 ou mais | #ff7a3d |
+| Bronze | 0–809 | #b0703c |
+| Prata | 810–909 | #b8c2cc |
+| Ouro | 910–1.009 | #f2c230 |
+| Platina | 1.010–1.109 | #5fd3c8 |
+| Diamante | 1.110–1.209 | #7ab8ff |
+| Lenda | 1.210 ou mais | #ff7a3d |
 
 **Rivais da sala:** cada bot mira um Poder entre −8,5% e +11,5% do seu (leve viés para cima), com o equipamento da liga desse alvo. Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de 10 levels abaixo a 20 acima do level dele, entre 1 e 50. O modelo só entra se ficar a até 6% do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos 3 modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem.
 
@@ -966,9 +957,9 @@ Poder = 3,1·VEL + 1,4·ACE + 1,4·MAN + 2,2·FOR + 1,5·EST + 1,4·GAR + 0,4·S
 
 | Montaria | Nv 1 sem peças | Nv 1 com o equipamento inicial | Nv 50 sem peças |
 | --- | ---: | ---: | ---: |
-| Brasa | 554 | 563 | 748 |
-| Maré | 547 | 556 | 741 |
-| Ipê | 553 | 563 | 747 |
+| Brasa | 715 | 726 | 969 |
+| Maré | 714 | 725 | 970 |
+| Ipê | 722 | 733 | 979 |
 
 <a id="dev"></a>
 

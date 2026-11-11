@@ -1027,13 +1027,19 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   ];
 
   // Ligas por Rating de Poder (RaceSim.powerRating). min inclusivo.
+  // Seis faixas iguais entre dois cavalos de referência: Fogo, genética 16 em todos os status, ★★,
+  // sem peças e sem skills de vaga, com alloc = RaceSim.botAlloc(cavalo).
+  //   lo = Poder do Comum de nível 1 = 711;  hi = Poder do Lendário de nível 50 = 1310.
+  //   Bronze começa em 0; a liga k (1 a 5) em lo + k·(hi − lo)/6, arredondado para a dezena:
+  //   810,8 → 810 · 910,7 → 910 · 1010,5 → 1010 · 1110,3 → 1110 · 1210,2 → 1210.
+  // O sim-test refaz a conta: mudou peso do Poder, status ou build dos bots, recalcule aqui.
   var LEAGUES = [
     { id: 'bronze',   name: 'Bronze',   min: 0,    color: '#b0703c' },
-    { id: 'prata',    name: 'Prata',    min: 660,  color: '#b8c2cc' },
-    { id: 'ouro',     name: 'Ouro',     min: 780,  color: '#f2c230' },
-    { id: 'platina',  name: 'Platina',  min: 880,  color: '#5fd3c8' },
-    { id: 'diamante', name: 'Diamante', min: 980,  color: '#7ab8ff' },
-    { id: 'lenda',    name: 'Lenda',    min: 1100, color: '#ff7a3d' }
+    { id: 'prata',    name: 'Prata',    min: 810,  color: '#b8c2cc' },
+    { id: 'ouro',     name: 'Ouro',     min: 910,  color: '#f2c230' },
+    { id: 'platina',  name: 'Platina',  min: 1010, color: '#5fd3c8' },
+    { id: 'diamante', name: 'Diamante', min: 1110, color: '#7ab8ff' },
+    { id: 'lenda',    name: 'Lenda',    min: 1210, color: '#ff7a3d' }
   ];
 
   var FOAL_NAMES = [
@@ -1228,8 +1234,14 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   computeStats: status = round(min(natural + pontos, raridade.statCap) + mods do equipamento),
  *   limitado a 1–120 (teto Comum 80 … Mítico 100; o arredondamento é um só, no fim). n(x) = status/100.
  *   allocInfo(horse) resume a distribuição para a tela: { free, used, left, perStat, room }.
- *   powerRating = 3,1·VEL + 1,4·ACE + 1,4·MAN + 1,5·EST + 2,2·FOR + 1,4·GAR + 0,4·SOR
- *   + 20 × peso do gatilho (skillWeight) por skill + pontos de conjunto 3/4/5 peças (3/15/20; ligas em GameData.LEAGUES).
+ *   powerRating = round(3,1·VEL + 1,4·ACE + 1,45·MAN + 2,4·EST + 3,3·FOR + 1,3·GAR + 0,2·SOR
+ *   + 18 × peso do gatilho (skillWeight) por skill + 80 × typePower + pontos de conjunto 3/4/5 peças (3/15/20));
+ *   ligas em GameData.LEAGUES.
+ *   botAlloc(horse): build fixa dos bots, sem RNG. 1) o limite (statLimit) vai para o status mais valioso
+ *   do tipo (vel; forca na Grama); 2) o resto, um ponto por vez, em acel → man → forca → est → garra → vel,
+ *   pulando o do passo 1 e os que já estão no teto (natural + pontos ≥ teto da raridade) ou no limite;
+ *   3) a sobra vai para sorte até o limite; 4) se ainda sobrar (tudo no teto), completa o rodízio até o
+ *   limite, para a soma ser sempre a dos pontos livres (ponto acima do teto fica guardado e não rende).
  *
  * CLIMA (sol / chuva / nevoa / nublado). weatherMult(elemento, clima, dobrado):
  *   dono do clima ×1,03 (T.weatherMult; ×1,08 = T.weatherMultDouble com a skill de clima
@@ -1407,8 +1419,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     straightMinM: 150,   // gatilho 'straight' só em reta com pelo menos esse comprimento
     // ritmo único do jóquei (fração s da vMax): mid até spurtStart, depois sprint até spurtCap
     pace: { mid: 0.97, spurtStart: 0.72, spurtCap: 1.03 },
-    // Rating de Poder: peso de cada status efetivo (cada skill soma 20 × peso do gatilho)
-    ratingW: { vel: 3.1, acel: 1.4, man: 1.4, est: 1.5, forca: 2.2, garra: 1.4, sorte: 0.4 },
+    // Rating de Poder: peso de cada status efetivo; cada skill soma ratingSkillPts × peso do gatilho e a
+    // skill de tipo soma ratingTypeW × typePower
+    ratingW: { vel: 3.1, acel: 1.4, man: 1.45, est: 2.4, forca: 3.3, garra: 1.3, sorte: 0.2 },
+    ratingSkillPts: 18, ratingTypeW: 80,
     // chance de a skill disparar no gatilho: base da raridade + nível + sorte (teto 95%)
     skillPerLevel: 0.005, skillPerSorte: 0.001, skillChanceMax: 0.95,
     learnChance: 0.08,   // chance de aprender uma skill nova ao subir de nível
@@ -1594,11 +1608,39 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   function typeSkill(horse) {
     var ts = horse && Object.prototype.hasOwnProperty.call(GameData.TYPE_SKILLS, horse.element) ? GameData.TYPE_SKILLS[horse.element] : null;
     if (!ts) return null;
-    return { id: ts.id, name: ts.name, power: typePower(horse), zone: [ts.zone[0], ts.zone[1]] };
+    var effect = {};
+    for (var k in ts.effect) if (Object.prototype.hasOwnProperty.call(ts.effect, k)) effect[k] = ts.effect[k];
+    return { id: ts.id, name: ts.name, power: typePower(horse), zone: [ts.zone[0], ts.zone[1]], effect: effect };
   }
 
-  // Rating de Poder: soma ponderada dos status efetivos + habilidades + pontos de conjunto.
-  // Cada habilidade vale 20 × o peso do seu gatilho. Para curva, subida e estamina baixa o peso segue a
+  // Build fixa dos bots (sem RNG): devolve um alloc com as 7 chaves que soma exatamente freePoints.
+  // Passos no cabeçalho do arquivo. Não muta a montaria (ignora o horse.alloc que ela tiver).
+  var BOT_ROTATION = ['acel', 'man', 'forca', 'est', 'garra', 'vel'];
+  function botAlloc(horse) {
+    var left = freePoints(horse), lim = statLimit(horse), cap = rarityOf(horse).statCap;
+    var top = horse.element === 'grama' ? 'forca' : 'vel';
+    var rot = BOT_ROTATION.filter(function (k) { return k !== top; });
+    var a = {}, i;
+    for (i = 0; i < STAT_KEYS.length; i++) a[STAT_KEYS[i]] = 0;
+    function give(k, n) { n = Math.min(n, lim - a[k], left); a[k] += n; left -= n; }
+    // um ponto por vez no rodízio, enquanto algum status aceitar (open(k): k ainda aceita ponto)
+    function rotate(open) {
+      var moved = true;
+      while (left > 0 && moved) {
+        moved = false;
+        for (var j = 0; j < rot.length && left > 0; j++) if (open(rot[j])) { give(rot[j], 1); moved = true; }
+      }
+    }
+    give(top, lim);
+    rotate(function (k) { return a[k] < lim && naturalStat(horse, k) + a[k] < cap; });
+    give('sorte', lim);
+    rotate(function (k) { return a[k] < lim; });
+    return a;
+  }
+
+  // Rating de Poder: soma ponderada dos status efetivos + habilidades + skill de tipo + pontos de conjunto.
+  // Cada habilidade vale T.ratingSkillPts (18) × o peso do seu gatilho; a de tipo, T.ratingTypeW (80) × typePower.
+  // Para curva, subida e estamina baixa o peso segue a
   // chance de o gatilho acontecer numa corrida típica; clima (0.8) e dice (0.2) são pesos calibrados no
   // pacote de balanceamento, não chances: o gatilho 'dice' acontece em toda corrida (o Dado extra só mexe
   // na virada de clima, por isso vale pouco), e o de clima vale 0.8 mesmo sem acontecer sempre.
@@ -1638,14 +1680,14 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   function powerRating(horse, gear) {
     var s = computeStats(horse, gear);
     var skillPts = 0;
-    (horse.skills || []).forEach(function (id) { skillPts += 20 * skillWeight(id); });
+    (horse.skills || []).forEach(function (id) { skillPts += T.ratingSkillPts * skillWeight(id); });
     var w = T.ratingW, sum = 0;
     for (var i = 0; i < STAT_KEYS.length; i++) sum += s[STAT_KEYS[i]] * w[STAT_KEYS[i]];
     var setPts = 0;
     if (gear && typeof gear === 'object' && gear.set && gear.set.count >= 3) {
       setPts = GameData.ECONOMY.gear.setBonus.ratingPts[gear.set.count - 3] || 0;
     }
-    return Math.round(sum + skillPts + setPts);
+    return Math.round(sum + skillPts + setPts + T.ratingTypeW * typePower(horse));
   }
 
   function leagueFor(rating) {
@@ -1905,7 +1947,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     // entry.noTypeSkill desliga (comparações do balance.js).
     var ts = entry.noTypeSkill ? null : typeSkill(horse);
     if (ts) {
-      var te = GameData.TYPE_SKILLS[horse.element].effect || {}, P = ts.power, D = cond.distance;
+      var te = ts.effect, P = ts.power, D = cond.distance;
       var from = ts.zone[0] * D, to = ts.zone[1] * D;
       r.typeSkill = { id: ts.id, name: ts.name, from: from, to: to, restore: (te.staminaRestore || 0) * P, entered: false };
       r.effects.push({
@@ -2319,6 +2361,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     typePower: typePower,
     typeSkill: typeSkill,
     powerRating: powerRating,
+    botAlloc: botAlloc,
     skillChance: skillChance,
     weatherMult: weatherMult,
     learnSkill: learnSkill,
@@ -2358,7 +2401,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *
  * GRAU (1–3 estrelas): gb = round(mareWeight·grau da égua + (1−mareWeight)·grau do garanhão); desce/mantém/sobe
  * interpolados por L; alvo fora de 1–3 soma em "mantém". Se a raridade SUBIU o potro nasce ★1;
- * se DESCEU, ★3 (sem sorteio de grau).
+ * se DESCEU, ★3 (sem sorteio de grau). No modelo v3 as estrelas só dão os pontos livres do treino
+ * (RaceSim.freePoints): não há piso de genética por estrela nem status base sorteado.
+ *
+ * GENÉTICA (potential, 0–31 por status): por status, potInherit (50%) de herdar a de um dos pais
+ * (escolhido por sorteio, 50/50); senão inteiro uniforme de 0 a 31. TIPO: o dos pais se for igual;
+ * senão 50% de cada. O potro nasce sem alloc (pontos livres zerados) e sem o campo base.
  *
  * ALUGUEL: Math.round(rentalBase[raridade] · grauMult[grau−1]); Mítico não se aluga (null).
  * ENTRADAS: grau inválido (ausente, não numérico, fora de 1–3) vira ★★ ou é preso a 1–3; level não
@@ -2370,15 +2418,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   2. grau (1 chamada, só se a raridade não mudou; subiu ⇒ ★1, desceu ⇒ ★3)
  *   3. elemento (1 chamada, só se os pais têm elementos diferentes: < 0,5 ⇒ égua)
  *   4. sexo (1 chamada: < 0,5 ⇒ fêmea)
- *   5. status base: 1 chamada por chave de STAT_KEYS, na janela baseLo + GRAU_WINDOW[grau−1]
- *   6. potencial: 2 chamadas por chave, nos dois ramos. 1ª = porta (< potInherit ⇒ herda).
+ *   5. genética: 2 chamadas por chave de STAT_KEYS, nos dois ramos. 1ª = porta (< potInherit ⇒ herda).
  *      Herda: 2ª escolhe o pai (< 0,5 ⇒ égua). Não herda: 2ª é o valor floor(rng()·32).
- *      Depois aplica o piso do grau (GRAU_POT_FLOOR) com Math.max.
- *   7. skills: se corcel com 1 pai só (g=1): 1 chamada (< 0,5 ⇒ g=2); depois min(g, candidatas) chamadas
+ *   6. skills: se corcel com 1 pai só (g=1): 1 chamada (< 0,5 ⇒ g=2); depois min(g, candidatas) chamadas
  *      de índice (garantidas, sem reposição); 1 chamada (< skillInherit) por candidata restante, na
  *      ordem égua→garanhão; corte em skillSlots; preenchimento até bornSkills: 1 chamada de índice cada.
- *   8. nome (1 chamada: índice em FOAL_NAMES)
- *   9. paleta (1 chamada t = 0,3 + 0,4·rng(), só se os dois pais têm paleta)
+ *   7. nome (1 chamada: índice em FOAL_NAMES)
+ *   8. paleta (1 chamada t = 0,3 + 0,4·rng(), só se os dois pais têm paleta)
+ * (v3: saiu o antigo passo 5, uma chamada por status para o status base; o piso de genética por
+ * estrela saiu sem mudar o número de chamadas.)
  */
 (function (root) {
   'use strict';
@@ -2522,9 +2570,6 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return true;
   }
 
-  // offsets sobre RARITIES[r].baseLo por grau (★1, ★★, ★★★) e piso do potencial por grau
-  var GRAU_WINDOW = [[0, 8], [5, 11], [8, 16]];
-  var GRAU_POT_FLOOR = [0, 8, 16];
   var PAL_KEYS = ['coat', 'coatShade', 'mane', 'accent'];
 
   function hexMix(a, b, t) {
@@ -2554,9 +2599,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return out;
   }
 
+  // genética herdada de um pai, saneada para inteiro 0–31 (save antigo ou montaria montada à mão)
   function potOf(mount, k) {
-    var v = mount.potential && mount.potential[k];
-    return typeof v === 'number' ? v : 0;
+    var v = Number(mount.potential && mount.potential[k]);
+    return isFinite(v) ? clamp(Math.floor(v), 0, 31) : 0;
   }
 
   function foal(opts) {
@@ -2575,24 +2621,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var element = f.element === m.element ? f.element : (rng() < 0.5 ? f.element : m.element);
     var sex = rng() < 0.5 ? 'f' : 'm';
 
-    // 5. status base
-    var win = GRAU_WINDOW[grau - 1], lo = R.baseLo + win[0], hi = R.baseLo + win[1];
-    var base = {};
-    for (i = 0; i < keys.length; i++) base[keys[i]] = lo + Math.floor(rng() * (hi - lo + 1));
-
-    // 6. potencial (2 chamadas por chave)
-    var potential = {}, v;
+    // 5. genética (2 chamadas por chave)
+    var potential = {};
     for (i = 0; i < keys.length; i++) {
       k = keys[i];
       if (rng() < TUNING.potInherit) {
-        v = potOf(rng() < 0.5 ? f : m, k);
+        potential[k] = potOf(rng() < 0.5 ? f : m, k);
       } else {
-        v = Math.floor(rng() * 32);
+        potential[k] = Math.floor(rng() * 32);
       }
-      potential[k] = Math.max(GRAU_POT_FLOOR[grau - 1], v);
     }
 
-    // 7. skills
+    // 6. skills
     var cands = skillCandidates(f, m, element), inherited = [];
     var g = (isCorcel(f) ? 1 : 0) + (isCorcel(m) ? 1 : 0);
     if (g === 1 && rng() < 0.5) g = 2;
@@ -2612,10 +2652,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       inherited.push(pool.splice(idx, 1)[0]);
     }
 
-    // 8. nome
+    // 7. nome
     var name = G.FOAL_NAMES[Math.floor(rng() * G.FOAL_NAMES.length)];
 
-    // 9. paleta
+    // 8. paleta
     var palette = null;
     if (f.palette && m.palette) {
       var t = 0.3 + 0.4 * rng();
@@ -2629,7 +2669,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 
     return {
       uid: 'm' + opts.nextUid, templateId: null, name: name, especie: 'cavalo', element: element, rarity: rarity, grau: grau, sex: sex,
-      level: 1, xp: 0, skills: inherited, base: base, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
+      level: 1, xp: 0, skills: inherited, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
       parents: { f: { uid: f.uid || null, name: f.name }, m: { uid: m.uid || null, name: m.name } },
       born: breedCounter
     };
@@ -2647,8 +2687,6 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     rollGrau: rollGrau,
     rentalPrice: rentalPrice,
     isCorcel: isCorcel,
-    GRAU_WINDOW: GRAU_WINDOW,
-    GRAU_POT_FLOOR: GRAU_POT_FLOOR,
     skillCandidates: skillCandidates,
     foal: foal
   };
