@@ -948,8 +948,8 @@ Poder = 3,1·VEL + 1,4·ACE + 1,45·MAN + 3,3·FOR + 2,4·EST + 1,3·GAR + 0,2·
 | Prata | 810–909 | #b8c2cc |
 | Ouro | 910–1.009 | #f2c230 |
 | Platina | 1.010–1.109 | #5fd3c8 |
-| Diamante | 1.110–1.209 | #7ab8ff |
-| Lenda | 1.210 ou mais | #ff7a3d |
+| Diamante | 1.110–1.219 | #7ab8ff |
+| Lenda | 1.220 ou mais | #ff7a3d |
 
 **Rivais da sala:** cada bot mira um Poder entre −8,5% e +11,5% do seu (leve viés para cima), com o equipamento da liga desse alvo. Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de 10 levels abaixo a 20 acima do level dele, entre 1 e 50. O modelo só entra se ficar a até 6% do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos 3 modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem.
 

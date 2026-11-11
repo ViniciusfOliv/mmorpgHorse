@@ -1083,9 +1083,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // Ligas por Rating de Poder (RaceSim.powerRating). min inclusivo.
   // Seis faixas iguais entre dois cavalos de referência: Fogo, genética 16 em todos os status, ★★,
   // sem peças e sem skills de vaga, com alloc = RaceSim.botAlloc(cavalo).
-  //   lo = Poder do Comum de nível 1 = 711;  hi = Poder do Lendário de nível 50 = 1310.
+  //   lo = Poder do Comum de nível 1 = 711;  hi = Poder do Lendário de nível 50 = 1316.
   //   Bronze começa em 0; a liga k (1 a 5) em lo + k·(hi − lo)/6, arredondado para a dezena:
-  //   810,8 → 810 · 910,7 → 910 · 1010,5 → 1010 · 1110,3 → 1110 · 1210,2 → 1210.
+  //   811,8 → 810 · 912,7 → 910 · 1013,5 → 1010 · 1114,3 → 1110 · 1215,2 → 1220.
   // O sim-test refaz a conta: mudou peso do Poder, status ou build dos bots, recalcule aqui.
   var LEAGUES = [
     { id: 'bronze',   name: 'Bronze',   min: 0,    color: '#b0703c' },
@@ -1093,7 +1093,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     { id: 'ouro',     name: 'Ouro',     min: 910,  color: '#f2c230' },
     { id: 'platina',  name: 'Platina',  min: 1010, color: '#5fd3c8' },
     { id: 'diamante', name: 'Diamante', min: 1110, color: '#7ab8ff' },
-    { id: 'lenda',    name: 'Lenda',    min: 1210, color: '#ff7a3d' }
+    { id: 'lenda',    name: 'Lenda',    min: 1220, color: '#ff7a3d' }
   ];
 
   var FOAL_NAMES = [
@@ -1291,8 +1291,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   powerRating = round(3,1·VEL + 1,4·ACE + 1,45·MAN + 2,4·EST + 3,3·FOR + 1,3·GAR + 0,2·SOR
  *   + 18 × peso do gatilho (skillWeight) por skill + 80 × typePower + pontos de conjunto 3/4/5 peças (3/15/20));
  *   ligas em GameData.LEAGUES.
- *   botAlloc(horse): build fixa dos bots, sem RNG. 1) o limite (statLimit) vai para o status mais valioso
- *   do tipo (vel; forca na Grama); 2) o resto, um ponto por vez, em acel → man → forca → est → garra → vel,
+ *   botAlloc(horse): build fixa dos bots, sem RNG. 1) o status mais valioso do tipo (vel; forca na Grama)
+ *   recebe o mínimo entre o limite (statLimit) e o que cabe até o teto (arredondado para cima); 2) o resto, um ponto por vez, em acel → man → forca → est → garra → vel,
  *   pulando o do passo 1 e os que já estão no teto (natural + pontos ≥ teto da raridade) ou no limite;
  *   3) a sobra vai para sorte até o limite; 4) se ainda sobrar (tudo no teto), completa o rodízio até o
  *   limite, para a soma ser sempre a dos pontos livres (ponto acima do teto fica guardado e não rende).
@@ -1685,7 +1685,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         for (var j = 0; j < rot.length && left > 0; j++) if (open(rot[j])) { give(rot[j], 1); moved = true; }
       }
     }
-    give(top, lim);
+    give(top, Math.max(0, Math.ceil(cap - naturalStat(horse, top) - 1e-9)));   // até o teto (give corta no limite)
     rotate(function (k) { return a[k] < lim && naturalStat(horse, k) + a[k] < cap; });
     give('sorte', lim);
     rotate(function (k) { return a[k] < lim; });

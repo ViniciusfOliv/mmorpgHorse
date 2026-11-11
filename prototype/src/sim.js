@@ -27,8 +27,8 @@
  *   powerRating = round(3,1·VEL + 1,4·ACE + 1,45·MAN + 2,4·EST + 3,3·FOR + 1,3·GAR + 0,2·SOR
  *   + 18 × peso do gatilho (skillWeight) por skill + 80 × typePower + pontos de conjunto 3/4/5 peças (3/15/20));
  *   ligas em GameData.LEAGUES.
- *   botAlloc(horse): build fixa dos bots, sem RNG. 1) o limite (statLimit) vai para o status mais valioso
- *   do tipo (vel; forca na Grama); 2) o resto, um ponto por vez, em acel → man → forca → est → garra → vel,
+ *   botAlloc(horse): build fixa dos bots, sem RNG. 1) o status mais valioso do tipo (vel; forca na Grama)
+ *   recebe o mínimo entre o limite (statLimit) e o que cabe até o teto (arredondado para cima); 2) o resto, um ponto por vez, em acel → man → forca → est → garra → vel,
  *   pulando o do passo 1 e os que já estão no teto (natural + pontos ≥ teto da raridade) ou no limite;
  *   3) a sobra vai para sorte até o limite; 4) se ainda sobrar (tudo no teto), completa o rodízio até o
  *   limite, para a soma ser sempre a dos pontos livres (ponto acima do teto fica guardado e não rende).
@@ -421,7 +421,7 @@
         for (var j = 0; j < rot.length && left > 0; j++) if (open(rot[j])) { give(rot[j], 1); moved = true; }
       }
     }
-    give(top, lim);
+    give(top, Math.max(0, Math.ceil(cap - naturalStat(horse, top) - 1e-9)));   // até o teto (give corta no limite)
     rotate(function (k) { return a[k] < lim && naturalStat(horse, k) + a[k] < cap; });
     give('sorte', lim);
     rotate(function (k) { return a[k] < lim; });

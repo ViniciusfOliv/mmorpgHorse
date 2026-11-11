@@ -318,9 +318,9 @@
   // Ligas por Rating de Poder (RaceSim.powerRating). min inclusivo.
   // Seis faixas iguais entre dois cavalos de referência: Fogo, genética 16 em todos os status, ★★,
   // sem peças e sem skills de vaga, com alloc = RaceSim.botAlloc(cavalo).
-  //   lo = Poder do Comum de nível 1 = 711;  hi = Poder do Lendário de nível 50 = 1310.
+  //   lo = Poder do Comum de nível 1 = 711;  hi = Poder do Lendário de nível 50 = 1316.
   //   Bronze começa em 0; a liga k (1 a 5) em lo + k·(hi − lo)/6, arredondado para a dezena:
-  //   810,8 → 810 · 910,7 → 910 · 1010,5 → 1010 · 1110,3 → 1110 · 1210,2 → 1210.
+  //   811,8 → 810 · 912,7 → 910 · 1013,5 → 1010 · 1114,3 → 1110 · 1215,2 → 1220.
   // O sim-test refaz a conta: mudou peso do Poder, status ou build dos bots, recalcule aqui.
   var LEAGUES = [
     { id: 'bronze',   name: 'Bronze',   min: 0,    color: '#b0703c' },
@@ -328,7 +328,7 @@
     { id: 'ouro',     name: 'Ouro',     min: 910,  color: '#f2c230' },
     { id: 'platina',  name: 'Platina',  min: 1010, color: '#5fd3c8' },
     { id: 'diamante', name: 'Diamante', min: 1110, color: '#7ab8ff' },
-    { id: 'lenda',    name: 'Lenda',    min: 1210, color: '#ff7a3d' }
+    { id: 'lenda',    name: 'Lenda',    min: 1220, color: '#ff7a3d' }
   ];
 
   var FOAL_NAMES = [

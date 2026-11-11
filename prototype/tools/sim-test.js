@@ -176,25 +176,37 @@ test('botAlloc: soma os pontos livres, respeita limite e teto, é fixa', functio
     assert.strictEqual(h.alloc, undefined, tag + ' não muta');
   });
 });
-test('botAlloc: Comum ★★ de genética 16 no nível 50 põe o limite no status do tipo', function () {
-  // 58 pontos, limite 20: Velocidade para Fogo e Água, Força para Grama; o resto em rodízio
+test('botAlloc: Comum ★★ de genética 16 no nível 50 enche o status do tipo até o teto', function () {
+  // 58 pontos, limite 20; o natural é 64,98, então cabem 16 até o teto 80 (o espaço arredondado para cima):
+  // Velocidade para Fogo e Água, Força para Grama; o resto em rodízio
   // Aceleração → Manobra → Força → Estamina → Garra → Velocidade, pulando o do primeiro passo
-  var fogo = refBot('fogo', 'comum', 50, 16).alloc, agua = refBot('agua', 'comum', 50, 16).alloc, grama = refBot('grama', 'comum', 50, 16).alloc;
-  assert.strictEqual(fogo.vel, 20); assert.strictEqual(agua.vel, 20); assert.strictEqual(grama.forca, 20);
-  assert.deepStrictEqual(fogo, { vel: 20, acel: 8, man: 8, forca: 8, est: 7, garra: 7, sorte: 0 });
+  var hf = refBot('fogo', 'comum', 50, 16), hg = refBot('grama', 'comum', 50, 16);
+  var fogo = hf.alloc, agua = refBot('agua', 'comum', 50, 16).alloc, grama = hg.alloc;
+  assert.strictEqual(fogo.vel, 16); assert.strictEqual(agua.vel, 16); assert.strictEqual(grama.forca, 16);
+  assert.deepStrictEqual(fogo, { vel: 16, acel: 9, man: 9, forca: 8, est: 8, garra: 8, sorte: 0 });
   assert.deepStrictEqual(agua, fogo);
-  assert.deepStrictEqual(grama, { vel: 7, acel: 8, man: 8, forca: 20, est: 8, garra: 7, sorte: 0 });
+  assert.deepStrictEqual(grama, { vel: 8, acel: 9, man: 9, forca: 16, est: 8, garra: 8, sorte: 0 });
+  // nenhum ponto desperdiçado: o status do tipo fica exatamente no teto e a soma é a dos pontos livres
+  assert.strictEqual(S.computeStats(hf, null).vel, 80); assert.strictEqual(S.computeStats(hg, null).forca, 80);
+  assert.strictEqual(somaAlloc(fogo), 58); assert.strictEqual(somaAlloc(grama), 58);
+  G.STAT_KEYS.forEach(function (k) { assert.ok(S.naturalStat(hf, k) + fogo[k] - 1 < 80, 'sem ponto acima do teto em ' + k); });
   // no nível 1 não há ponto
   assert.strictEqual(somaAlloc(refBot('fogo', 'comum', 1, 16).alloc), 0);
 });
 test('botAlloc: rodízio pula o status no teto e a sobra vai para Sorte', function () {
-  // Mítico ★★★ de genética 31 no nível 50: tudo nasce perto do teto 100, os pontos sobram para Sorte
-  var h = refBot('fogo', 'mitico', 50, 31, 3), a = h.alloc, cap = G.RARITIES.mitico.statCap;
-  ['acel', 'man', 'forca', 'est', 'garra'].forEach(function (k) {
+  // Mítico ★ de genética 31 no nível 50 (49 pontos, limite 17): os seis status de corrida nascem a 6 pontos
+  // do teto 100 (natural 94,62); 36 pontos os enchem e os 13 que sobram vão para Sorte
+  var h = refBot('fogo', 'mitico', 50, 31, 1), a = h.alloc, cap = G.RARITIES.mitico.statCap;
+  ['vel', 'acel', 'man', 'forca', 'est', 'garra'].forEach(function (k) {
     assert.ok(S.naturalStat(h, k) + a[k] >= cap - 1e-9, k + ' no teto');
     assert.ok(S.naturalStat(h, k) + a[k] - 1 < cap, k + ' sem ponto a mais que o necessário');
   });
-  assert.strictEqual(a.vel, S.statLimit(h)); assert.ok(a.sorte > 0, 'sobra em Sorte');
+  assert.strictEqual(a.vel, 6); assert.ok(a.vel < S.statLimit(h), 'para no teto antes do limite');
+  assert.strictEqual(a.sorte, 13, 'sobra em Sorte');
+  // ★★★ (73 pontos, limite 25): Sorte enche o limite e o resto completa o rodízio acima do teto (passo 4)
+  var h3 = refBot('fogo', 'mitico', 50, 31, 3);
+  assert.strictEqual(h3.alloc.sorte, 25); assert.strictEqual(somaAlloc(h3.alloc), 73);
+  assert.strictEqual(h3.alloc.vel, 6, 'o status do tipo não entra no passo 4');
 });
 test('powerRating: mais pontos distribuídos dão mais Poder', function () {
   var h = refBot('agua', 'raro', 30, 16), sem = clone(h); sem.alloc = null;
