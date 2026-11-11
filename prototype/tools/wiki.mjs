@@ -251,8 +251,8 @@ function pesoSkill(id) { return S.skillWeight(id) }
 // teto e piso de cada status depois de tudo (computeStats prende o resultado)
 function limitesStatus() {
   const k = G.STAT_KEYS[0]
-  const alto = S.computeStats({ rarity: 'mitico', element: 'neutro', level: 1, base: { [k]: 1e6 } }, { mods: { [k]: 1e6 } })[k]
-  const baixo = S.computeStats({ rarity: 'comum', element: 'neutro', level: 1, base: { [k]: 1 } }, { mods: { [k]: -1e6 } })[k]
+  const alto = S.computeStats({ rarity: 'mitico', element: 'neutro', level: 1, potential: { [k]: 31 } }, { mods: { [k]: 1e6 } })[k]
+  const baixo = S.computeStats({ rarity: 'comum', element: 'neutro', level: 1, potential: { [k]: 0 } }, { mods: { [k]: -1e6 } })[k]
   return { alto, baixo }
 }
 // faixa do dado e nº máximo de dados (rollDice com rng nas pontas)
@@ -421,12 +421,10 @@ function secoes(F, A) {
     { t: 'p', txt: `Cada montaria tem ${G.STAT_KEYS.length} status na escala de 1 a 100. Na corrida o motor usa n(x) = status / 100. Depois de elemento e equipamento o valor é arredondado e preso entre ${lim.baixo} e ${lim.alto}.` },
     { t: 'tabela', rotulo: 'Status', cab: ['Sigla', 'Status', 'Descrição no jogo', 'Na corrida'], linhas: G.STAT_KEYS.map((k) => [N(siglaStat(k)), nomeStat(k), G.STATS[k].desc, papelDoStatus(k, F)]) },
     { t: 'h3', txt: 'Como o status é calculado' },
-    { t: 'formula', txt: `status = base + pot × ${num(T.potFlat)} + (level − 1) × (${num(T.growthBase)} + ${num(T.growthPot)} × pot / 31) × crescimento da raridade
-         (preso ao teto da raridade)
-       + bônus do elemento (+${num(G.ELEMENTS.fogo.statBonus.amount)} no status do elemento)
-       + equipamento
+    { t: 'formula', txt: `natural = início da faixa da raridade + ${num(T.gBand)} × pot / 31 + (level − 1) × (${num(T.gGrowBase)} + ${num(T.gGrowRange)} × pot / 31)
+status  = min(natural + pontos livres, teto da raridade) + equipamento
 arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
-    { t: 'p', txt: 'base = status no level 1; pot = potencial (0 a 31, oculto no jogo). O teto da raridade vale antes do elemento e do equipamento, então eles podem passar do teto.' },
+    { t: 'p', txt: `pot = potencial (genética, 0 a 31). Pontos livres = piso((level − 1) × ${T.starMult.map((x) => num(x)).join(' / ')} conforme as estrelas), no máximo ${pct(T.freeCapShare, 0)} deles (arredondado para cima) num mesmo status. O teto da raridade vale antes do equipamento, então ele pode passar do teto.` },
     { t: 'p', txt: `O clima também mexe nos status durante a corrida: o multiplicador m do clima (ver Elementos e clima) entra em VEL, ACE, MAN, FOR e GAR (não em EST nem em SOR).` }
   ])
 
@@ -441,16 +439,15 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
   for (let l = 1; l < E.maxLevel; l++) { acum += E.xpToLevel(l); xpLinhas.push([`Nv ${l} → ${l + 1}`, N(num(E.xpToLevel(l))), N(num(acum))]) }
   const nPlaces = E.xpPerPlace.length
   const rarIds = Object.keys(G.RARITIES)
-  const crescimento = (r, pot) => (T.growthBase + T.growthPot * pot / 31) * G.RARITIES[r].growth
+  const crescimento = (r, pot) => T.gGrowBase + T.gGrowRange * pot / 31
   const niveisEx = [1, 10, 25, E.maxLevel]
-  // exemplo do teto: o primeiro selvagem Comum Neutro (sem bônus de elemento), no status de maior potencial
+  // exemplo do teto: o primeiro inicial no Nv máximo, no status de maior potencial, com o limite de pontos nele
   const exemploTeto = () => {
-    const h = G.WILD_HORSES.find((x) => x.rarity === 'comum' && x.element === 'neutro') || G.WILD_HORSES.find((x) => x.rarity === 'comum')
+    const h = G.STARTERS[0]
     const k = G.STAT_KEYS.reduce((m, x) => (h.potential[x] > h.potential[m] ? x : m), G.STAT_KEYS[0])
-    const pot = h.potential[k], R_ = G.RARITIES[h.rarity]
-    const semTeto = h.base[k] + pot * T.potFlat + (E.maxLevel - 1) * (T.growthBase + T.growthPot * pot / 31) * R_.growth
-    const real = S.computeStats({ ...h, element: 'neutro', level: E.maxLevel }, null)[k]
-    return { t: 'p', txt: `O ganho real para no teto: status = min(base + ${num(T.potFlat)} × pot + ganho, teto). Exemplo: ${h.name} (${nomeRar(h.rarity)}), ${nomeStat(k)} base ${h.base[k]} e pot ${pot}, chegaria a ${num(semTeto, 1)} no Nv ${E.maxLevel} sem o teto, mas fica em ${real} (teto ${R_.statCap}).` }
+    const x = { ...h, level: E.maxLevel }, lim_ = S.statLimit(x), R_ = G.RARITIES[h.rarity]
+    const nat = S.naturalStat(x, k), real = S.computeStats({ ...x, alloc: { [k]: lim_ } }, null)[k]
+    return { t: 'p', txt: `O ganho real para no teto: status = min(natural + pontos, teto). Exemplo: ${h.name} (${nomeRar(h.rarity)}), ${nomeStat(k)} com pot ${h.potential[k]}, chega sozinha a ${num(nat, 1)} no Nv ${E.maxLevel}; com ${lim_} pontos chegaria a ${num(nat + lim_, 1)}, mas fica em ${real} (teto ${R_.statCap}).` }
   }
   add('level', 'Level e XP', 'Level e XP', [
     { t: 'p', txt: `Level máximo: **${E.maxLevel}**. ${xpLin ? `Para subir do level L para L + 1 são ${num(xpLin.a)} + ${num(xpLin.b)} × L de XP.` : 'XP por level na tabela.'} Do level 1 ao ${E.maxLevel} são ${num(acum)} de XP no total. No level máximo o XP ainda acumula até ${num(E.xpToLevel(E.maxLevel))} (o valor de um level ${E.maxLevel} → ${E.maxLevel + 1}) e aí trava.` },
@@ -460,8 +457,8 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
     { t: 'h3', txt: 'XP necessário por level' },
     { t: 'grade', classe: 'grade--xp', cab: ['Level', 'XP', 'Acumulado'], linhas: xpLinhas },
     { t: 'h3', txt: 'Crescimento por level' },
-    { t: 'p', txt: `A cada level, cada status ganha (${num(T.growthBase)} + ${num(T.growthPot)} × pot / 31) × crescimento da raridade, até o teto da raridade. O potencial também soma ${num(T.potFlat)} × pot fixo desde o level 1.` },
-    { t: 'tabela', rotulo: 'Crescimento por level', cab: ['Raridade', 'Crescimento', 'Ganho/level (pot 0)', 'Ganho/level (pot 31)', `Ganho do Nv 1 ao ${E.maxLevel}, sem o teto (pot 31)`, 'Teto'], linhas: rarIds.map((r) => [rarCel(r), N(mult(G.RARITIES[r].growth, 2)), N(num(crescimento(r, 0), 3)), N(num(crescimento(r, 31), 3)), N(num(crescimento(r, 31) * (E.maxLevel - 1), 1)), N(num(G.RARITIES[r].statCap))]) },
+    { t: 'p', txt: `A cada level, cada status ganha sozinho ${num(T.gGrowBase)} + ${num(T.gGrowRange)} × pot / 31, até o teto da raridade (igual em todas as raridades).` },
+    { t: 'tabela', rotulo: 'Crescimento por level', cab: ['Raridade', 'Ganho/level (pot 0)', 'Ganho/level (pot 31)', `Ganho do Nv 1 ao ${E.maxLevel}, sem o teto (pot 31)`, 'Teto'], linhas: rarIds.map((r) => [rarCel(r), N(num(crescimento(r, 0), 3)), N(num(crescimento(r, 31), 3)), N(num(crescimento(r, 31) * (E.maxLevel - 1), 1)), N(num(G.RARITIES[r].statCap))]) },
     exemploTeto(),
     { t: 'h3', txt: 'Aprender skill ao subir de level' },
     { t: 'p', txt: `A cada level ganho há ${pct(T.learnChance, 0)} de chance de aprender uma skill nova (sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: ${nomeEl('neutro')} ou do próprio elemento, nunca exclusiva de outra montaria, nunca repetida.` },
@@ -472,12 +469,12 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
   // 4. Raridades -----------------------------------------------------------------------------------------
   const contaRar = (r) => todasMontarias().filter((h) => h.rarity === r).length
   add('raridades', 'Raridades', 'Raridades', [
-    { t: 'p', txt: `São ${rarIds.length} raridades, da mais comum à mais rara: ${lista(rarIds.map(nomeRar))}. A raridade define o teto de status, o crescimento, as vagas de skill e a chance de ativar skills.` },
-    { t: 'tabela', rotulo: 'Raridades', cab: ['Raridade', 'Cor', 'Teto de status', 'Crescimento', 'Vagas de skill', 'Skills do potro (mínimo)', 'Chance base de skill', 'Status base do potro', 'Preço da peça', 'Aluguel base', 'Montarias no jogo'], linhas: rarIds.map((r) => {
+    { t: 'p', txt: `São ${rarIds.length} raridades, da mais comum à mais rara: ${lista(rarIds.map(nomeRar))}. A raridade define a faixa onde o status nasce, o teto de status, as vagas de skill e a chance de ativar skills.` },
+    { t: 'tabela', rotulo: 'Raridades', cab: ['Raridade', 'Cor', 'Teto de status', 'Vagas de skill', 'Skills do potro (mínimo)', 'Chance base de skill', 'Status base do potro', 'Preço da peça', 'Aluguel base', 'Montarias no jogo'], linhas: rarIds.map((r) => {
       const R = G.RARITIES[r]
       const w = B.GRAU_WINDOW
       const lo = R.baseLo + Math.min(...w.map((x) => x[0])), hi = R.baseLo + Math.max(...w.map((x) => x[1]))
-      return [rarCel(r), { md: R.color, html: `<span class="amostra" style="--c:${R.color}"></span><code>${R.color}</code>` }, N(num(R.statCap)), N(mult(R.growth, 2)), N(String(R.skillSlots)), N(String(R.bornSkills)), N(pct(R.skillChance, 0)), N(`${lo}–${hi}`),
+      return [rarCel(r), { md: R.color, html: `<span class="amostra" style="--c:${R.color}"></span><code>${R.color}</code>` }, N(num(R.statCap)), N(String(R.skillSlots)), N(String(R.bornSkills)), N(pct(R.skillChance, 0)), N(`${lo}–${hi}`),
         EG.price[r] != null ? ouroCel(EG.price[r]) : 'não existe', BR.rentalBase[r] != null ? ouroCel(BR.rentalBase[r]) : 'não se aluga', N(String(contaRar(r)))]
     }) },
     { t: 'p', txt: `Raridade mais alta que nasce de cruzamento: **${nomeRar(B.RARITY_IDS[B.TUNING.maxRarityOrder])}**. ${nomeRar('mitico')} nunca nasce de cruzamento e não se aluga.` },
@@ -614,7 +611,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
   // 9. Montarias -----------------------------------------------------------------------------------------
   add('montarias', 'Montarias', 'Montarias', [
     { t: 'p', txt: `Há ${G.STARTERS.length} montarias iniciais e ${G.WILD_HORSES.length} selvagens. Todas são da espécie cavalo. As selvagens aparecem como bots nas corridas, como reprodutores de aluguel no Haras (menos as de raridade ${nomeRar('mitico')}) e ${F.vitrine.length} delas na vitrine da Expedição. As iniciais também aparecem como bots quando não são suas. Como o level dos bots é escolhido: ver Economia, Rivais da sala.` },
-    { t: 'p', txt: `**Potencial** (0 a 31 por status) é **oculto no jogo**; aparece aqui para referência. Os status "no level" são sem equipamento, com o bônus do elemento.` },
+    { t: 'p', txt: `**Potencial** (0 a 31 por status) é **oculto no jogo**; aparece aqui para referência. Os status "no level" são sem equipamento e sem pontos livres distribuídos.` },
     { t: 'custom', md: montariasMd(F), html: montariasHtml(F) }
   ])
 
@@ -703,7 +700,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
       return { id: 'peca-' + id, tipo: 'peca', busca: [p.name, nomeSlot(p.slot), nomeRar(p.rarity), p.set ? 'conjunto ' + nomeConjunto(p.set) : '', p.set && G.WEATHERS[G.GEAR_SETS[p.set].weather].element ? nomeEl(G.WEATHERS[G.GEAR_SETS[p.set].weather].element) : ''], rar: p.rarity, el: p.set ? G.WEATHERS[G.GEAR_SETS[p.set].weather].element : null }
     }), vazio: { tipo: 'peca', txt: 'Nenhuma peça casa com a busca e os filtros.' } },
     { t: 'h3', txt: 'Melhoria (+1 a +' + EG.plusMax + ')', id: 'melhoria' },
-    { t: 'p', txt: `Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela seed do save). A partir de +${EG.enhanceDropFrom}, a falha **derruba** a peça 1 nível. Cada + soma 1 no status principal. Pedra Negra: ${num(EG.stonePrice)} de Ouro na loja (pacote de ${EG.stoneBundle} = ${num(EG.stonePrice * EG.stoneBundle)}).` },
+    { t: 'p', txt: `Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela seed do save). A partir de +${EG.enhanceDropFrom}, a falha **derruba** a peça 1 nível. Cada + soma ${num(EG.plusStep)} no status principal (uma peça +${EG.plusMax} soma +${num(EG.plusStep * EG.plusMax)}). Pedra Negra: ${num(EG.stonePrice)} de Ouro na loja (pacote de ${EG.stoneBundle} = ${num(EG.stonePrice * EG.stoneBundle)}).` },
     { t: 'tabela', rotulo: 'Melhoria', cab: ['Passo', 'Chance', 'Custo (pedras)', 'Se falhar', 'Pedras esperadas no passo', 'Pedras esperadas desde +0'], linhas: pedras.map((p) => [`+${p.de} → +${p.de + 1}`, N(pct(p.chance, 0)), N(String(p.custo)), p.cai < p.de ? `cai para +${p.cai}` : `fica em +${p.de}`, N(num(p.esperado, 1)), N(num(p.acumulado, 1))]) },
     { t: 'p', txt: `**Pedra Negra do pódio:** só em corrida valendo (entrada paga), sorteada pela seed da sala: ${E.xpPerPlace.slice(0, EG.podiumStone.length).map((x, i) => `${ordinal(i + 1)} lugar ${pct(EG.podiumStone[i], 0)}`).join(', ')}.` },
     { t: 'h3', txt: 'Conjuntos', id: 'conjuntos' },
@@ -769,7 +766,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
 // Montarias (Markdown e cartões HTML)
 // ---------------------------------------------------------------------------------------------------------
 function infoMontaria(h, F) {
-  const st = S.computeStats(h, null)
+  const st = S.computeStats(h, null), st1 = S.computeStats({ ...h, level: 1 }, null)
   const poder = S.powerRating(h, null)
   const liga = S.leagueFor(poder)
   const aluguel = B.rentalPrice(h)
@@ -781,7 +778,7 @@ function infoMontaria(h, F) {
     if (aluguel != null) onde.push(`aluguel no Haras (${num(aluguel)} de Ouro)`)
     if (F.vitrine.indexOf(h.id) >= 0) onde.push('vitrine da Expedição')
   }
-  return { st, poder, liga, aluguel, onde, inicial, cruzas: h.breedLeftMax || G.BREED_LEFT[h.sex] }
+  return { st, st1, poder, liga, aluguel, onde, inicial, cruzas: h.breedLeftMax || G.BREED_LEFT[h.sex] }
 }
 const sexoTxt = (s) => (s === 'f' ? '♀ fêmea' : s === 'm' ? '♂ macho' : (() => { throw new Error(`wiki: sexo desconhecido "${s}"`) })())
 function montariasMd(F) {
@@ -793,7 +790,7 @@ function montariasMd(F) {
       [h.bio, h.habitat ? `Habitat: ${h.habitat}.` : '', h.lore].filter(Boolean).join(' '), '',
       `Skills: ${h.skills.length ? h.skills.map(nomeSkill).join(', ') : 'nenhuma'} · Onde aparece: ${i.onde.join(', ')}`, '']
     const tab = blocoMd({ t: 'tabela', cab: ['', ...G.STAT_KEYS.map(siglaStat)], linhas: [
-      ['Base (Nv 1)', ...G.STAT_KEYS.map((k) => N(String(h.base[k])))],
+      ['Nv 1', ...G.STAT_KEYS.map((k) => N(String(i.st1[k])))],
       ['Potencial (oculto no jogo)', ...G.STAT_KEYS.map((k) => N(String(h.potential[k])))],
       [`No Nv ${h.level}`, ...G.STAT_KEYS.map((k) => N(String(i.st[k])))]
     ] })
@@ -812,7 +809,7 @@ function montariasHtml(F) {
       `<p class="mont-poder">Poder <b>${num(i.poder)}</b> <span class="liga" style="--c:${i.liga.color}">${esc(i.liga.name)}</span></p></div></div>` +
       (texto ? `<p class="mont-bio">${esc(texto)}</p>` : '') +
       `<div class="rolagem" tabindex="0" role="region" aria-label="${esc('Status de ' + h.name)}"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th>${G.STAT_KEYS.map((k) => `<th scope="col" class="n" title="${esc(nomeStat(k))}">${esc(siglaStat(k))}</th>`).join('')}</tr></thead><tbody>` +
-      `<tr><th scope="row">Base</th>${G.STAT_KEYS.map((k) => `<td class="n">${h.base[k]}</td>`).join('')}</tr>` +
+      `<tr><th scope="row">Nv 1</th>${G.STAT_KEYS.map((k) => `<td class="n">${i.st1[k]}</td>`).join('')}</tr>` +
       `<tr class="oculto"><th scope="row">Potencial <small>oculto no jogo</small></th>${G.STAT_KEYS.map((k) => `<td class="n">${h.potential[k]}</td>`).join('')}</tr>` +
       `<tr><th scope="row">No Nv ${h.level}</th>${G.STAT_KEYS.map((k) => `<td class="n">${i.st[k]}</td>`).join('')}</tr></tbody></table></div>` +
       `<dl class="pares pares--mont"><dt>Skills</dt><dd>${h.skills.length ? h.skills.map((id) => `<a class="skill-chip" href="#skill-${id}">${esc(nomeSkill(id))}</a>`).join(' ') : 'nenhuma'}</dd>` +

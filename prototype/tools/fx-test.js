@@ -181,11 +181,11 @@ test('faixa do Dado em ordem decrescente', function () {
   var it = { rolls: [{ dice: [50], best: 50 }, { dice: [80], best: 80 }, { dice: [50], best: 50 }, { dice: [90], best: 90 }], winner: 3 };
   assert.deepStrictEqual(FX.stripOrder(it), [3, 1, 0, 2]);
 });
-test('faixa com desempate: vencedor em 1º, depois rerolls e best decrescentes (seed 2)', function () {
+test('faixa com desempate: vencedor em 1º, depois rerolls e best decrescentes (seed 19)', function () {
   // o desempate reescreve dice/best dos empatados: o vencedor pode ter best menor que o de quem não empatou
-  var C2 = corrida(2);
+  var C2 = corrida(19);   // seed escolhida no modelo de status v3 (antes era a 2)
   var it = FX.timeline(C2.sim, C2.racers).filter(function (x) { return x.kind === 'dado' && x.rolls.some(function (r) { return r.rerolls > 0; }); })[0];
-  assert.ok(it, 'a seed 2 tem um Dado com desempate');
+  assert.ok(it, 'a seed 19 tem um Dado com desempate');
   var maior = Math.max.apply(null, it.rolls.map(function (r) { return r.best; }));
   assert.ok(it.rolls[it.winner].best < maior, 'caso da revisão: vencedor com best menor que outro (' + it.rolls[it.winner].best + ' < ' + maior + ')');
   var o = FX.stripOrder(it);
@@ -332,7 +332,7 @@ test('duração por distância e por bloco segue os frames da simulação', func
 });
 test('Garra vai até finishTime + 0.6 e cansou dura 1.5; escala multiplica os limites', function () {
   var visto = { garra: 0, cansou: 0 };
-  for (var sd = 1; sd <= 30 && (!visto.garra || !visto.cansou); sd++) {
+  for (var sd = 1; sd <= 60 && (!visto.garra || !visto.cansou); sd++) {   // v3: o 1º cansaço vem na seed 36
     var C = corridaSkills(sd, 1), C3 = corridaSkills(sd, 3);
     C.tl.forEach(function (it) {
       if (it.kind === 'garra') { assert.ok(Math.abs(it.t1 - (C.sim.finishTimes[it.racer] + 0.6)) < 1e-9); visto.garra++; }

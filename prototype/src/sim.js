@@ -1,5 +1,5 @@
 /*
- * MMORPG Horse — simulação de corrida (protótipo descartável). Modelo v2 ("núcleo v2").
+ * MMORPG Horse — simulação de corrida (protótipo descartável). Núcleo v2, status v3.
  *
  * RaceSim.simulate(config) é uma FUNÇÃO PURA e DETERMINÍSTICA de (config, seed):
  * sem Math.random, sem Date, sem estado global. O servidor simularia; o cliente só
@@ -14,10 +14,16 @@
  * tools/balance.js). Corrida = status + terreno + RNG, sem ruído escondido por
  * corredor (a sorte "grande" é o Dado da Sorte, visível na pista).
  *
- * STATUS (7, escala 1–100): vel, acel, man (Manobra), forca, est, garra, sorte.
- *   computeStats: status = base + pot*0.1 + (level-1) * (0.50 + 0.65*pot/31) * raridade.growth,
- *   limitado a raridade.statCap (Comum 60 … Mítico 100); depois + bônus do elemento (+8 no
- *   status dele) e + mods do equipamento; arredondado e limitado a 1–120. n(x) = status/100.
+ * STATUS v3 (7, escala 1–100): vel, acel, man (Manobra), forca, est, garra, sorte.
+ *   g = genética (horse.potential[k], 0–31); estrelas = horse.grau (1–3; starsOf);
+ *   natural(k)   = raridade.baseLo + 16*g/31 + (level-1) * (0.30 + 0.08*g/31)   (naturalStat)
+ *   pontosLivres = floor((level-1) * starMult[estrelas-1]), starMult = 1 / 1,2 / 1,5   (freePoints)
+ *   limite       = ceil(0.34 * pontosLivres) pontos num mesmo status   (statLimit)
+ *   horse.alloc  = pontos distribuídos; validAlloc saneia (inteiros ≥ 0, corta pelo limite e depois
+ *                  pelo total, na ordem de STAT_KEYS). Ponto acima do teto fica guardado e não rende.
+ *   computeStats: status = round(min(natural + pontos, raridade.statCap) + mods do equipamento),
+ *   limitado a 1–120 (teto Comum 80 … Mítico 100; o arredondamento é um só, no fim). n(x) = status/100.
+ *   allocInfo(horse) resume a distribuição para a tela: { free, used, left, perStat, room }.
  *   powerRating = 3,1·VEL + 1,4·ACE + 1,4·MAN + 1,5·EST + 2,2·FOR + 1,4·GAR + 0,4·SOR
  *   + 20 × peso do gatilho (skillWeight) por skill + pontos de conjunto 3/4/5 peças (3/15/20; ligas em GameData.LEAGUES).
  *
@@ -27,7 +33,7 @@
  *   pode anular o ×0,97 (ignoreWeatherPenalty) ou reforçar o bônus de um clima para ×1,07
  *   (T.weatherMultSet, 4 peças do conjunto; a skill, ×1,08, vale mais e não acumula).
  *   applyWeather(r, clima) recalcula, com m = weatherMult:
- *     vMax  = (17.53 + 1.7*n(vel)*m) * (1 + 0.10*(m-1))   (weatherVel: um extra direto na vMax)
+ *     vMax  = (17.805 + 1.2*n(vel)*m) * (1 + 0.10*(m-1))   (weatherVel: um extra direto na vMax)
  *     accel = 0.6 + 2.4*n(acel)*m  m/s²   (largada e retomadas)
  *     Força, Manobra e Garra efetivas = n(x)*m;  chance/força da Garra (abaixo).
  *   O tanque NÃO depende do clima: tanque = 66 + 20*n(est).
@@ -109,7 +115,8 @@
  *   racerInfo[i] = { name, horseName, stats, skillChance } }.
  *
  * ENTRADAS MALFORMADAS: level e potencial passam por sanitizeLevel/sanitizePotential (Number;
- *   não finito vale 1 / 0; level inteiro 1–50, potencial 0–31), em computeStats e skillChance.
+ *   não finito vale 1 / 0; level inteiro 1–50, potencial 0–31), em computeStats e skillChance;
+ *   grau por starsOf (não numérico vale 2, fora da faixa é preso a 1–3); alloc por validAlloc.
  *
  * ORDEM DAS CHAMADAS DE r.rng() (fluxo de cada corredor; manter estável):
  *   montagem: 1) startDelay, 2) jockeyErr; por tick: 3) tentativas de skill (só quando um
@@ -130,15 +137,18 @@
 
   // Versão das regras da simulação: suba a cada mudança que altere resultados (exposta como
   // RaceSim.VERSION e gravada em cada resultado como simVersion, junto do tuningHash).
-  var VERSION = '2.1.0';
+  var VERSION = '3.0.0';
 
   // Constantes de balanceamento (ajustadas por tools/balance.js). Exposto como RaceSim.TUNING.
   var T = {
     dt: 0.1,
-    // crescimento por level
-    growthBase: 0.50, growthPot: 0.65, potFlat: 0.1,
+    // status v3: natural = baseLo + gBand·g/31 + (nível − 1)·(gGrowBase + gGrowRange·g/31);
+    // pontos livres = piso((nível − 1)·starMult[estrelas − 1]); até teto(freeCapShare·livres) por status
+    gBand: 16, gGrowBase: 0.30, gGrowRange: 0.08,
+    starMult: [1, 1.2, 1.5],
+    freeCapShare: 0.34,
     // velocidade / aceleração
-    vBase: 17.53, vRange: 1.7,
+    vBase: 17.805, vRange: 1.2,
     aBase: 0.6, aRange: 2.4,
     decel: 1.2,
     // estamina
@@ -235,7 +245,7 @@
   }
   // Impressão digital das regras: FNV-1a de 32 bits (duas bases, 16 hex) sobre o JSON do TUNING, dos
   // pesos de gatilho e dos dados de jogo que a simulação lê (skills: gatilho e efeito; raridades:
-  // teto, crescimento e chance de skill; elementos, pisos e climas; level máximo). Recalculada a cada
+  // teto, início da faixa de nascimento e chance de skill; elementos, pisos e climas; level máximo). Recalculada a cada
   // simulate (o TUNING pode ser trocado em teste/ajuste); um servidor pode guardar o par
   // simVersion + tuningHash para auditar corridas antigas depois de um rebalanceamento.
   function fnv1a(str, h) {
@@ -254,8 +264,8 @@
     var str = JSON.stringify({
       T: T, w: SKILL_TRIGGER_WEIGHT,
       skills: pick(GameData.SKILLS, ['element', 'trigger', 'effect']),
-      rarities: pick(GameData.RARITIES, ['statCap', 'growth', 'skillChance']),
-      elements: pick(GameData.ELEMENTS, ['statBonus', 'weather']),
+      rarities: pick(GameData.RARITIES, ['statCap', 'baseLo', 'skillChance']),
+      elements: pick(GameData.ELEMENTS, ['weather']),
       surfaces: pick(GameData.SURFACES, ['slow', 'drain']),
       weathers: pick(GameData.WEATHERS, ['element', 'penalizes']),
       maxLevel: GameData.ECONOMY.maxLevel
@@ -281,22 +291,67 @@
     var x = Number(v);
     return isFinite(x) ? clamp(x, 0, 31) : 0;
   }
+  // Estrelas (grau) de 1 a 3, com o mesmo saneamento do Breed.grauOf: ausente ou não numérico
+  // vale 2 (★★); número fora da faixa é arredondado e preso a 1–3.
+  function starsOf(horse) {
+    var g = Number(horse && horse.grau);
+    if (!horse || horse.grau == null || !isFinite(g)) return 2;
+    return clamp(Math.round(g), 1, 3);
+  }
+  function rarityOf(horse) { return GameData.RARITIES[horse.rarity] || GameData.RARITIES.comum; }
+  // Pontos livres ganhos até o nível: piso((nível − 1) · multiplicador das estrelas).
+  function freePoints(horse) {
+    return Math.floor((sanitizeLevel(horse.level) - 1) * T.starMult[starsOf(horse) - 1] + 1e-9);
+  }
+  // Limite de pontos num mesmo status: teto(freeCapShare · pontos livres).
+  function statLimit(horse) {
+    return Math.ceil(T.freeCapShare * freePoints(horse) - 1e-9);
+  }
+  // Status natural (sem pontos, sem teto, sem equipamento): sai só da genética, da raridade e do nível.
+  function naturalStat(horse, k) {
+    var g = sanitizePotential(horse.potential && horse.potential[k]);
+    return rarityOf(horse).baseLo + T.gBand * g / 31 + (sanitizeLevel(horse.level) - 1) * (T.gGrowBase + T.gGrowRange * g / 31);
+  }
+  // Pontos distribuídos saneados: as 7 chaves, inteiros ≥ 0, cortados pelo limite por status e
+  // depois pelo total, na ordem de STAT_KEYS. Não corta pelo teto da raridade: o ponto acima do
+  // teto fica guardado e não rende (quem corta é computeStats).
+  function validAlloc(horse, alloc) {
+    var src = (alloc && typeof alloc === 'object') ? alloc : {};
+    var left = freePoints(horse), lim = statLimit(horse), out = {};
+    for (var i = 0; i < STAT_KEYS.length; i++) {
+      var k = STAT_KEYS[i], a = Number(src[k]);
+      a = isFinite(a) && a > 0 ? Math.floor(a) : 0;
+      if (a > lim) a = lim;
+      if (a > left) a = left;
+      left -= a;
+      out[k] = a;
+    }
+    return out;
+  }
+  // Resumo para a tela de distribuição: room[k] = quantos pontos o status k ainda aceita agora
+  // (mínimo entre o limite por status que sobra, os pontos que sobram e o que falta até o teto).
+  function allocInfo(horse) {
+    var a = validAlloc(horse, horse.alloc), free = freePoints(horse), perStat = statLimit(horse);
+    var cap = rarityOf(horse).statCap, used = 0, room = {}, i, k;
+    for (i = 0; i < STAT_KEYS.length; i++) used += a[STAT_KEYS[i]];
+    var left = free - used;
+    for (i = 0; i < STAT_KEYS.length; i++) {
+      k = STAT_KEYS[i];
+      var toCap = Math.max(0, Math.ceil(cap - naturalStat(horse, k) - a[k] - 1e-9));
+      room[k] = Math.max(0, Math.min(perStat - a[k], left, toCap));
+    }
+    return { free: free, used: used, left: left, perStat: perStat, room: room };
+  }
+  // status(k) = arredonda(min(natural + pontos, teto da raridade) + equipamento), preso a 1–120.
   function computeStats(horse, gear) {
-    var rar = GameData.RARITIES[horse.rarity] || GameData.RARITIES.comum;
-    var lvl = sanitizeLevel(horse.level);
-    var el = GameData.ELEMENTS[horse.element];
+    var cap = rarityOf(horse).statCap;
     // gear que não seja objeto com mods (null, string de save antigo) vale null
     var mods = (gear && typeof gear === 'object' && gear.mods) ? gear.mods : null;
+    var alloc = validAlloc(horse, horse.alloc);
     var out = {};
     for (var i = 0; i < STAT_KEYS.length; i++) {
       var k = STAT_KEYS[i];
-      var base = Number(horse.base && horse.base[k]);
-      if (!isFinite(base) || !base) base = 1;
-      var pot = sanitizePotential(horse.potential && horse.potential[k]);
-      var growth = (T.growthBase + T.growthPot * pot / 31) * (rar.growth || 1);
-      var v = base + pot * T.potFlat + (lvl - 1) * growth;
-      v = Math.min(v, rar.statCap);
-      if (el && el.statBonus && el.statBonus.stat === k) v += el.statBonus.amount;
+      var v = Math.min(naturalStat(horse, k) + alloc[k], cap);
       if (mods && mods[k]) v += mods[k];
       out[k] = clamp(Math.round(v), 1, 120);
     }
@@ -966,6 +1021,12 @@
     mulberry32: mulberry32,
     hash2: hash2,
     computeStats: computeStats,
+    starsOf: starsOf,
+    freePoints: freePoints,
+    statLimit: statLimit,
+    naturalStat: naturalStat,
+    validAlloc: validAlloc,
+    allocInfo: allocInfo,
     powerRating: powerRating,
     skillChance: skillChance,
     weatherMult: weatherMult,

@@ -52,7 +52,7 @@ Cada montaria tem 7 status na escala de 1 a 100. Na corrida o motor usa n(x) = s
 
 | Sigla | Status | Descrição no jogo | Na corrida |
 | ---: | --- | --- | --- |
-| VEL | Velocidade | Velocidade máxima. | Velocidade máxima: vMax = 17,53 + 1,7 × n(VEL) m/s (VEL 50 → 18,38 m/s; VEL 100 → 19,23 m/s). Ritmo, piso, bloco e boosts multiplicam esse teto. |
+| VEL | Velocidade | Velocidade máxima. | Velocidade máxima: vMax = 17,805 + 1,2 × n(VEL) m/s (VEL 50 → 18,41 m/s; VEL 100 → 19,01 m/s). Ritmo, piso, bloco e boosts multiplicam esse teto. |
 | ACE | Aceleração | Rapidez até a velocidade máxima (largada e retomadas). | Aceleração = 0,6 + 2,4 × n(ACE) m/s², na largada e nas retomadas (saída de curva e de subida). Também encurta a reação à largada: atraso sorteado de até 0,6 s × (1 − 0,5 × n(ACE)). |
 | MAN | Manobra | Agilidade nas curvas e na saída delas. | Fator da curva = min(1, 0,826 + 0,14 × n(MAN)): de 83% a 97% da velocidade dentro da curva. |
 | FOR | Força | Subidas, terreno pesado e disputa no pelotão. | Fator da subida = min(1, 0,86 + 0,13 × n(FOR)). Alivia o piso pesado (50% × n(FOR) da perda), o aperto do pelotão (80% × n(FOR)) e o gasto extra da subida (+30% × (1 − 0,5 × n(FOR))). |
@@ -63,14 +63,12 @@ Cada montaria tem 7 status na escala de 1 a 100. Na corrida o motor usa n(x) = s
 ### Como o status é calculado
 
 ```text
-status = base + pot × 0,1 + (level − 1) × (0,5 + 0,65 × pot / 31) × crescimento da raridade
-         (preso ao teto da raridade)
-       + bônus do elemento (+8 no status do elemento)
-       + equipamento
+natural = início da faixa da raridade + 16 × pot / 31 + (level − 1) × (0,3 + 0,08 × pot / 31)
+status  = min(natural + pontos livres, teto da raridade) + equipamento
 arredondado e preso entre 1 e 120
 ```
 
-base = status no level 1; pot = potencial (0 a 31, oculto no jogo). O teto da raridade vale antes do elemento e do equipamento, então eles podem passar do teto.
+pot = potencial (genética, 0 a 31). Pontos livres = piso((level − 1) × 1 / 1,2 / 1,5 conforme as estrelas), no máximo 34% deles (arredondado para cima) num mesmo status. O teto da raridade vale antes do equipamento, então ele pode passar do teto.
 
 O clima também mexe nos status durante a corrida: o multiplicador m do clima (ver Elementos e clima) entra em VEL, ACE, MAN, FOR e GAR (não em EST nem em SOR).
 
@@ -151,17 +149,17 @@ Level máximo: **50**. Para subir do level L para L + 1 são 50 + 25 × L de XP.
 
 ### Crescimento por level
 
-A cada level, cada status ganha (0,5 + 0,65 × pot / 31) × crescimento da raridade, até o teto da raridade. O potencial também soma 0,1 × pot fixo desde o level 1.
+A cada level, cada status ganha sozinho 0,3 + 0,08 × pot / 31, até o teto da raridade (igual em todas as raridades).
 
-| Raridade | Crescimento | Ganho/level (pot 0) | Ganho/level (pot 31) | Ganho do Nv 1 ao 50, sem o teto (pot 31) | Teto |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Comum | ×0,8 | 0,4 | 0,92 | 45,1 | 60 |
-| Mágico | ×0,9 | 0,45 | 1,035 | 50,7 | 70 |
-| Raro | ×1 | 0,5 | 1,15 | 56,4 | 80 |
-| Lendário | ×1,1 | 0,55 | 1,265 | 62 | 90 |
-| Mítico | ×1,2 | 0,6 | 1,38 | 67,6 | 100 |
+| Raridade | Ganho/level (pot 0) | Ganho/level (pot 31) | Ganho do Nv 1 ao 50, sem o teto (pot 31) | Teto |
+| --- | ---: | ---: | ---: | ---: |
+| Comum | 0,3 | 0,38 | 18,6 | 80 |
+| Mágico | 0,3 | 0,38 | 18,6 | 85 |
+| Raro | 0,3 | 0,38 | 18,6 | 90 |
+| Lendário | 0,3 | 0,38 | 18,6 | 95 |
+| Mítico | 0,3 | 0,38 | 18,6 | 100 |
 
-O ganho real para no teto: status = min(base + 0,1 × pot + ganho, teto). Exemplo: Pangaré (Comum), Força base 48 e pot 15, chegaria a 81,4 no Nv 50 sem o teto, mas fica em 60 (teto 60).
+O ganho real para no teto: status = min(natural + pontos, teto). Exemplo: Brasa (Comum), Velocidade com pot 24, chega sozinha a 70,1 no Nv 50; com 20 pontos chegaria a 90,1, mas fica em 80 (teto 80).
 
 ### Aprender skill ao subir de level
 
@@ -171,32 +169,32 @@ A cada level ganho há 8% de chance de aprender uma skill nova (sorteio pela see
 
 | Montaria | Level | VEL | ACE | MAN | FOR | EST | GAR | SOR | Poder |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Brasa | 1 | 66 | 72 | 62 | 53 | 59 | 64 | 51 | 727 |
-| Brasa | 10 | 75 | 81 | 70 | 61 | 66 | 72 | 59 | 822 |
-| Brasa | 25 | 80 | 88 | 80 | 72 | 77 | 80 | 70 | 917 |
-| Brasa | 50 | 80 | 88 | 80 | 80 | 80 | 80 | 80 | 943 |
-| Maré | 1 | 68 | 59 | 55 | 58 | 76 | 60 | 48 | 731 |
-| Maré | 10 | 75 | 66 | 62 | 66 | 85 | 68 | 56 | 818 |
-| Maré | 25 | 80 | 77 | 73 | 79 | 88 | 80 | 69 | 919 |
-| Maré | 50 | 80 | 80 | 80 | 80 | 88 | 80 | 80 | 940 |
-| Ipê | 1 | 64 | 55 | 51 | 74 | 66 | 54 | 55 | 726 |
-| Ipê | 10 | 71 | 63 | 58 | 83 | 74 | 62 | 63 | 815 |
-| Ipê | 25 | 80 | 74 | 69 | 88 | 80 | 75 | 74 | 916 |
-| Ipê | 50 | 80 | 80 | 80 | 88 | 80 | 80 | 80 | 950 |
+| Brasa | 1 | 52 | 52 | 47 | 46 | 46 | 47 | 46 | 554 |
+| Brasa | 10 | 56 | 56 | 50 | 49 | 49 | 50 | 49 | 593 |
+| Brasa | 25 | 61 | 61 | 55 | 54 | 54 | 55 | 54 | 650 |
+| Brasa | 50 | 70 | 70 | 64 | 62 | 62 | 64 | 62 | 748 |
+| Maré | 1 | 47 | 46 | 46 | 47 | 52 | 52 | 46 | 547 |
+| Maré | 10 | 50 | 49 | 49 | 50 | 56 | 56 | 49 | 584 |
+| Maré | 25 | 55 | 54 | 54 | 55 | 61 | 61 | 54 | 641 |
+| Maré | 50 | 64 | 62 | 62 | 64 | 70 | 70 | 62 | 741 |
+| Ipê | 1 | 48 | 46 | 52 | 52 | 47 | 46 | 45 | 553 |
+| Ipê | 10 | 51 | 49 | 56 | 56 | 50 | 49 | 48 | 591 |
+| Ipê | 25 | 56 | 54 | 61 | 61 | 55 | 54 | 53 | 648 |
+| Ipê | 50 | 65 | 62 | 70 | 70 | 64 | 62 | 61 | 747 |
 
 <a id="raridades"></a>
 
 ## Raridades
 
-São 5 raridades, da mais comum à mais rara: Comum, Mágico, Raro, Lendário e Mítico. A raridade define o teto de status, o crescimento, as vagas de skill e a chance de ativar skills.
+São 5 raridades, da mais comum à mais rara: Comum, Mágico, Raro, Lendário e Mítico. A raridade define a faixa onde o status nasce, o teto de status, as vagas de skill e a chance de ativar skills.
 
-| Raridade | Cor | Teto de status | Crescimento | Vagas de skill | Skills do potro (mínimo) | Chance base de skill | Status base do potro | Preço da peça | Aluguel base | Montarias no jogo |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: |
-| Comum | #9e9e9e | 60 | ×0,8 | 1 | 1 | 35% | 36–52 | 100 | 100 | 4 |
-| Mágico | #4caf50 | 70 | ×0,9 | 2 | 1 | 45% | 44–60 | 250 | 250 | 3 |
-| Raro | #2196f3 | 80 | ×1 | 3 | 2 | 55% | 52–68 | 600 | 600 | 5 |
-| Lendário | #ff9800 | 90 | ×1,1 | 4 | 2 | 65% | 60–76 | 1.500 | 1.500 | 2 |
-| Mítico | #9c27b0 | 100 | ×1,2 | 5 | 3 | 75% | 68–84 | não existe | não se aluga | 2 |
+| Raridade | Cor | Teto de status | Vagas de skill | Skills do potro (mínimo) | Chance base de skill | Status base do potro | Preço da peça | Aluguel base | Montarias no jogo |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: |
+| Comum | #9e9e9e | 80 | 1 | 1 | 35% | 40–56 | 100 | 100 | 7 |
+| Mágico | #4caf50 | 85 | 2 | 1 | 45% | 45–61 | 250 | 250 | 3 |
+| Raro | #2196f3 | 90 | 3 | 2 | 55% | 50–66 | 600 | 600 | 2 |
+| Lendário | #ff9800 | 95 | 4 | 2 | 65% | 55–71 | 1.500 | 1.500 | 2 |
+| Mítico | #9c27b0 | 100 | 5 | 3 | 75% | 60–76 | não existe | não se aluga | 2 |
 
 Raridade mais alta que nasce de cruzamento: **Lendário**. Mítico nunca nasce de cruzamento e não se aluga.
 
@@ -256,7 +254,7 @@ Elemento dono do clima: ×1,03; com a skill de clima ativa, ×1,08; com 4 peças
 | Neutro | ×1,00 | ×1,00 | ×1,00 | ×1,00 |
 
 ```text
-vMax       = (17,53 + 1,7 × n(VEL) × m) × (1 + 0,1 × (m − 1))
+vMax       = (17,81 + 1,2 × n(VEL) × m) × (1 + 0,1 × (m − 1))
 aceleração = 0,6 + 2,4 × n(ACE) × m
 Força, Manobra e Garra efetivas = n(x) × m
 ```
@@ -311,7 +309,7 @@ chance de skill = min(95%, chance base da raridade + 0,5 p.p. × (level − 1) +
 | Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
 | --- | --- | --- | --- | --- | --- | ---: | --- |
 | **Sol a Pino** | Clima Sol valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,08 (até o fim da corrida) | Com sol: o bônus do clima para o Fogo sobe de +3% para +8%. | só Fogo | Fogaréu, Boitatá | 16 | SOL A PINO |
-| **Labareda** | Largada | aceleração ×1,15 (+15%); velocidade ×1,01 (+1%), por 5 s | Largada em chamas: +15% de aceleração e +1% de velocidade por 5s. | só Brasa (exclusiva) | Brasa | 20 | LABAREDA |
+| **Labareda** | Largada | aceleração ×1,15 (+15%); velocidade ×1,01 (+1%), por 5 s | Largada em chamas: +15% de aceleração e +1% de velocidade por 5s. | só Brasa (exclusiva) | — | 20 | LABAREDA |
 | **Chama Final** | Cruza 80% da pista (reta final) | velocidade ×1,05 (+5%), por 8 s | Na reta final, +5% de velocidade por 8s. | só Fogo | Tição, Fogaréu, Boitatá | 20 | CHAMA FINAL |
 
 ### Água (4)
@@ -319,7 +317,7 @@ chance de skill = min(95%, chance base da raridade + 0,5 p.p. × (level − 1) +
 | Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
 | --- | --- | --- | --- | --- | --- | ---: | --- |
 | **Pé na Chuva** | Clima Chuva valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,08 (até o fim da corrida) | Com chuva: o bônus do clima para a Água sobe de +3% para +8%. | só Água | Garoa, Pororoca, Iara | 16 | PÉ NA CHUVA |
-| **Maré Alta** | Estamina cai a 30% ou menos | recupera 20% do tanque na hora; velocidade ×1,05 (+5%), por 8 s | Quando a estamina cai a 30%, a maré sobe: recupera 20% de estamina e ganha +5% de velocidade por 8s. | só Maré (exclusiva) | Maré | 16 | MARÉ ALTA |
+| **Maré Alta** | Estamina cai a 30% ou menos | recupera 20% do tanque na hora; velocidade ×1,05 (+5%), por 8 s | Quando a estamina cai a 30%, a maré sobe: recupera 20% de estamina e ganha +5% de velocidade por 8s. | só Maré (exclusiva) | — | 16 | MARÉ ALTA |
 | **Canto da Iara** | Cruza 80% da pista (reta final) | velocidade ×1,06 (+6%); gasto de estamina ×0,7 (−30%), por 7 s | Na reta final, +6% de velocidade por 7s e gasta 30% menos estamina. | só Água | Iara | 20 | CANTO IARA |
 | **Nascente** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | recupera 12% do tanque na hora | Numa reta de 150 m ou mais (fora a da largada), recupera 12% de estamina. | só Água | Pororoca, Iara | 20 | NASCENTE |
 
@@ -329,7 +327,7 @@ chance de skill = min(95%, chance base da raridade + 0,5 p.p. × (level − 1) +
 | --- | --- | --- | --- | --- | --- | ---: | --- |
 | **Névoa Amiga** | Clima Névoa valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,08 (até o fim da corrida) | Com névoa: o bônus do clima para a Grama sobe de +3% para +8%. | só Grama | — | 16 | NÉVOA AMIGA |
 | **Casco Firme** | Entra numa subida | fator da subida +2% (somado, teto 1), em cada bloco, até o fim dele | Em cada subida: +2% de rendimento na subida. | só Grama | Mandacaru, Jequitibá | 12 | CASCO FIRME |
-| **Raízes Firmes** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | recupera 5% do tanque na hora; velocidade ×1,02 (+2%), por 8 s | Numa reta de 150 m ou mais (fora a da largada), finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s. | só Ipê (exclusiva) | Ipê | 20 | RAÍZES FIRM. |
+| **Raízes Firmes** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | recupera 5% do tanque na hora; velocidade ×1,02 (+2%), por 8 s | Numa reta de 150 m ou mais (fora a da largada), finca os cascos: recupera 5% de estamina e +2% de velocidade por 8s. | só Ipê (exclusiva) | — | 20 | RAÍZES FIRM. |
 
 <a id="dado"></a>
 
@@ -445,57 +443,57 @@ O mapa da pista é desenhado dos blocos: retas e subidas em linha reta, e cada s
 
 Há 3 montarias iniciais e 13 selvagens. Todas são da espécie cavalo. As selvagens aparecem como bots nas corridas, como reprodutores de aluguel no Haras (menos as de raridade Mítico) e 6 delas na vitrine da Expedição. As iniciais também aparecem como bots quando não são suas. Como o level dos bots é escolhido: ver Economia, Rivais da sala.
 
-**Potencial** (0 a 31 por status) é **oculto no jogo**; aparece aqui para referência. Os status "no level" são sem equipamento, com o bônus do elemento.
+**Potencial** (0 a 31 por status) é **oculto no jogo**; aparece aqui para referência. Os status "no level" são sem equipamento e sem pontos livres distribuídos.
 
 ### Iniciais (3)
 
 #### Brasa — A fagulha veloz
 
-Fogo · Raro · ★★ · ♂ macho · Nv 1 · Poder 727 (Prata) · 2 cruza(s)
+Fogo · Comum · ★★ · ♂ macho · Nv 1 · Poder 554 (Bronze) · 2 cruza(s)
 
 Potro alazão de crina dourada. Larga como um rojão.
 
-Skills: Labareda · Onde aparece: montaria inicial, bot nas corridas (quando não é a sua)
+Skills: nenhuma · Onde aparece: montaria inicial, bot nas corridas (quando não é a sua)
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 64 | 62 | 60 | 52 | 58 | 62 | 50 |
-| Potencial (oculto no jogo) | 22 | 24 | 18 | 14 | 12 | 18 | 14 |
-| No Nv 1 | 66 | 72 | 62 | 53 | 59 | 64 | 51 |
+| Nv 1 | 52 | 52 | 47 | 46 | 46 | 47 | 46 |
+| Potencial (oculto no jogo) | 24 | 24 | 14 | 12 | 12 | 14 | 12 |
+| No Nv 1 | 52 | 52 | 47 | 46 | 46 | 47 | 46 |
 
 #### Maré — O fôlego do oceano
 
-Água · Raro · ★★ · ♀ fêmea · Nv 1 · Poder 731 (Prata) · 1 cruza(s)
+Água · Comum · ★★ · ♀ fêmea · Nv 1 · Poder 547 (Bronze) · 1 cruza(s)
 
 Égua tordilha de crina cor do mar. Quanto mais longa a pista, mais perigosa.
 
-Skills: Maré Alta · Onde aparece: montaria inicial, bot nas corridas (quando não é a sua)
+Skills: nenhuma · Onde aparece: montaria inicial, bot nas corridas (quando não é a sua)
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 66 | 58 | 54 | 56 | 66 | 58 | 46 |
-| Potencial (oculto no jogo) | 16 | 12 | 12 | 18 | 24 | 20 | 18 |
-| No Nv 1 | 68 | 59 | 55 | 58 | 76 | 60 | 48 |
+| Nv 1 | 47 | 46 | 46 | 47 | 52 | 52 | 46 |
+| Potencial (oculto no jogo) | 14 | 12 | 12 | 14 | 24 | 24 | 12 |
+| No Nv 1 | 47 | 46 | 46 | 47 | 52 | 52 | 46 |
 
 #### Ipê — A raiz que não verga
 
-Grama · Raro · ★★ · ♂ macho · Nv 1 · Poder 726 (Prata) · 2 cruza(s)
+Grama · Comum · ★★ · ♂ macho · Nv 1 · Poder 553 (Bronze) · 2 cruza(s)
 
 Castanho robusto de crina amarela como ipê florido. Não teme subida.
 
-Skills: Raízes Firmes · Onde aparece: montaria inicial, bot nas corridas (quando não é a sua)
+Skills: nenhuma · Onde aparece: montaria inicial, bot nas corridas (quando não é a sua)
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 62 | 54 | 50 | 64 | 64 | 52 | 54 |
-| Potencial (oculto no jogo) | 16 | 14 | 12 | 24 | 18 | 18 | 14 |
-| No Nv 1 | 64 | 55 | 51 | 74 | 66 | 54 | 55 |
+| Nv 1 | 48 | 46 | 52 | 52 | 47 | 46 | 45 |
+| Potencial (oculto no jogo) | 16 | 12 | 24 | 24 | 14 | 12 | 10 |
+| No Nv 1 | 48 | 46 | 52 | 52 | 47 | 46 | 45 |
 
 ### Selvagens (13)
 
 #### Pangaré
 
-Neutro · Comum · ★ · ♂ macho · Nv 1 · Poder 510 (Bronze) · 2 cruza(s)
+Neutro · Comum · ★ · ♂ macho · Nv 1 · Poder 525 (Bronze) · 2 cruza(s)
 
 Habitat: Pasto da fazenda.
 
@@ -503,13 +501,13 @@ Skills: nenhuma · Onde aparece: bot nas corridas, aluguel no Haras (100 de Ouro
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 44 | 42 | 39 | 48 | 46 | 40 | 40 |
+| Nv 1 | 45 | 46 | 46 | 48 | 47 | 45 | 45 |
 | Potencial (oculto no jogo) | 10 | 12 | 11 | 15 | 14 | 9 | 10 |
-| No Nv 1 | 45 | 43 | 40 | 50 | 47 | 41 | 41 |
+| No Nv 1 | 45 | 46 | 46 | 48 | 47 | 45 | 45 |
 
 #### Faísca
 
-Fogo · Comum · ★★ · ♀ fêmea · Nv 3 · Poder 572 (Bronze) · 1 cruza(s)
+Fogo · Comum · ★★ · ♀ fêmea · Nv 3 · Poder 558 (Bronze) · 1 cruza(s)
 
 Habitat: Cerrado seco.
 
@@ -517,13 +515,13 @@ Skills: Arranque · Onde aparece: bot nas corridas, aluguel no Haras (125 de Our
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 48 | 50 | 45 | 42 | 38 | 46 | 40 |
+| Nv 1 | 47 | 48 | 48 | 45 | 44 | 46 | 45 |
 | Potencial (oculto no jogo) | 14 | 16 | 15 | 10 | 8 | 12 | 10 |
-| No Nv 3 | 51 | 61 | 48 | 44 | 40 | 48 | 42 |
+| No Nv 3 | 48 | 49 | 48 | 46 | 45 | 47 | 46 |
 
 #### Lambari
 
-Água · Comum · ★ · ♂ macho · Nv 2 · Poder 526 (Bronze) · 2 cruza(s)
+Água · Comum · ★ · ♂ macho · Nv 2 · Poder 528 (Bronze) · 2 cruza(s)
 
 Habitat: Beira de rio.
 
@@ -531,13 +529,13 @@ Skills: nenhuma · Onde aparece: bot nas corridas, aluguel no Haras (100 de Ouro
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 42 | 44 | 39 | 42 | 52 | 44 | 40 |
+| Nv 1 | 45 | 46 | 45 | 46 | 49 | 47 | 45 |
 | Potencial (oculto no jogo) | 9 | 11 | 10 | 12 | 17 | 13 | 10 |
-| No Nv 2 | 43 | 46 | 41 | 44 | 62 | 46 | 42 |
+| No Nv 2 | 45 | 46 | 45 | 47 | 49 | 47 | 45 |
 
 #### Capim
 
-Grama · Comum · ★★ · ♀ fêmea · Nv 4 · Poder 570 (Bronze) · 1 cruza(s)
+Grama · Comum · ★★ · ♀ fêmea · Nv 4 · Poder 554 (Bronze) · 1 cruza(s)
 
 Habitat: Campos gerais.
 
@@ -545,13 +543,13 @@ Skills: Segundo Ar · Onde aparece: bot nas corridas, aluguel no Haras (125 de O
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 42 | 42 | 38 | 52 | 46 | 42 | 40 |
+| Nv 1 | 45 | 45 | 45 | 49 | 47 | 46 | 45 |
 | Potencial (oculto no jogo) | 10 | 10 | 10 | 18 | 13 | 12 | 10 |
-| No Nv 4 | 45 | 45 | 41 | 64 | 49 | 45 | 43 |
+| No Nv 4 | 46 | 46 | 46 | 50 | 48 | 47 | 46 |
 
 #### Tição
 
-Fogo · Mágico · ★★ · ♂ macho · Nv 8 · Poder 679 (Prata) · 2 cruza(s)
+Fogo · Mágico · ★★ · ♂ macho · Nv 8 · Poder 649 (Bronze) · 2 cruza(s)
 
 Habitat: Carvoaria abandonada.
 
@@ -559,13 +557,13 @@ Skills: Chama Final · Onde aparece: bot nas corridas, aluguel no Haras (313 de 
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 54 | 56 | 51 | 46 | 42 | 52 | 45 |
+| Nv 1 | 54 | 55 | 54 | 51 | 50 | 53 | 51 |
 | Potencial (oculto no jogo) | 17 | 19 | 18 | 12 | 10 | 15 | 12 |
-| No Nv 8 | 61 | 72 | 58 | 52 | 47 | 59 | 51 |
+| No Nv 8 | 56 | 57 | 57 | 54 | 52 | 55 | 54 |
 
 #### Garoa
 
-Água · Mágico · ★★ · ♀ fêmea · Nv 10 · Poder 689 (Prata) · 1 cruza(s)
+Água · Mágico · ★★ · ♀ fêmea · Nv 10 · Poder 663 (Prata) · 1 cruza(s)
 
 Habitat: Serra enevoada.
 
@@ -573,13 +571,13 @@ Skills: Pé na Chuva, Segundo Ar · Onde aparece: bot nas corridas, aluguel no H
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 48 | 46 | 43 | 48 | 58 | 50 | 45 |
+| Nv 1 | 52 | 51 | 52 | 52 | 55 | 53 | 51 |
 | Potencial (oculto no jogo) | 13 | 12 | 13 | 14 | 20 | 15 | 12 |
-| No Nv 10 | 56 | 53 | 51 | 56 | 75 | 58 | 52 |
+| No Nv 10 | 55 | 54 | 55 | 55 | 58 | 56 | 54 |
 
 #### Mandacaru
 
-Grama · Mágico · ★★ · ♂ macho · Nv 7 · Poder 651 (Bronze) · 2 cruza(s)
+Grama · Mágico · ★★ · ♂ macho · Nv 7 · Poder 634 (Bronze) · 2 cruza(s)
 
 Habitat: Caatinga.
 
@@ -587,13 +585,13 @@ Skills: Casco Firme · Onde aparece: bot nas corridas, aluguel no Haras (313 de 
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 46 | 48 | 43 | 58 | 52 | 46 | 45 |
+| Nv 1 | 51 | 52 | 52 | 56 | 53 | 52 | 51 |
 | Potencial (oculto no jogo) | 12 | 13 | 13 | 21 | 16 | 13 | 12 |
-| No Nv 7 | 51 | 53 | 48 | 73 | 58 | 51 | 50 |
+| No Nv 7 | 53 | 54 | 54 | 58 | 55 | 54 | 53 |
 
 #### Ventania
 
-Neutro · Raro · ★★★ · ♀ fêmea · Nv 15 · Poder 848 (Ouro) · 1 cruza(s)
+Neutro · Raro · ★★★ · ♀ fêmea · Nv 15 · Poder 767 (Prata) · 1 cruza(s)
 
 Habitat: Pampa gaúcho.
 
@@ -601,13 +599,13 @@ Skills: Sprint, Arrancada Final · Onde aparece: bot nas corridas, aluguel no Ha
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 62 | 58 | 56 | 52 | 56 | 57 | 50 |
+| Nv 1 | 61 | 59 | 60 | 57 | 58 | 59 | 57 |
 | Potencial (oculto no jogo) | 21 | 18 | 20 | 13 | 15 | 17 | 14 |
-| No Nv 15 | 77 | 72 | 71 | 64 | 69 | 71 | 63 |
+| No Nv 15 | 66 | 64 | 65 | 61 | 62 | 64 | 62 |
 
 #### Pororoca
 
-Água · Raro · ★★ · ♂ macho · Nv 18 · Poder 859 (Ouro) · 2 cruza(s)
+Água · Raro · ★★ · ♂ macho · Nv 18 · Poder 774 (Prata) · 2 cruza(s)
 
 Habitat: Foz do Amazonas.
 
@@ -615,13 +613,13 @@ Skills: Nascente, Pé na Chuva · Onde aparece: bot nas corridas, aluguel no Har
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 55 | 53 | 50 | 57 | 64 | 56 | 50 |
+| Nv 1 | 58 | 57 | 58 | 59 | 62 | 58 | 57 |
 | Potencial (oculto no jogo) | 15 | 14 | 15 | 17 | 24 | 16 | 14 |
-| No Nv 18 | 70 | 68 | 65 | 73 | 88 | 72 | 65 |
+| No Nv 18 | 64 | 63 | 64 | 65 | 69 | 64 | 63 |
 
 #### Fogaréu
 
-Fogo · Lendário · ★★★ · ♀ fêmea · Nv 22 · Poder 1.016 (Diamante) · 1 cruza(s)
+Fogo · Lendário · ★★★ · ♀ fêmea · Nv 22 · Poder 891 (Platina) · 1 cruza(s)
 
 Habitat: Chapada em chamas.
 
@@ -629,13 +627,13 @@ Skills: Sol a Pino, Chama Final, Arranque · Onde aparece: bot nas corridas, alu
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 66 | 68 | 63 | 54 | 52 | 60 | 55 |
+| Nv 1 | 67 | 68 | 68 | 63 | 63 | 65 | 63 |
 | Potencial (oculto no jogo) | 24 | 26 | 25 | 16 | 15 | 20 | 16 |
-| No Nv 22 | 90 | 98 | 89 | 75 | 72 | 83 | 76 |
+| No Nv 22 | 75 | 76 | 76 | 70 | 70 | 73 | 70 |
 
 #### Jequitibá
 
-Grama · Lendário · ★★★ · ♂ macho · Nv 25 · Poder 1.001 (Diamante) · 2 cruza(s)
+Grama · Lendário · ★★★ · ♂ macho · Nv 25 · Poder 877 (Ouro) · 2 cruza(s)
 
 Habitat: Mata Atlântica.
 
@@ -643,13 +641,13 @@ Skills: Casco Firme, Fôlego de Montanha, Segundo Ar · Onde aparece: bot nas co
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 56 | 54 | 51 | 70 | 62 | 58 | 55 |
+| Nv 1 | 64 | 63 | 64 | 69 | 66 | 65 | 63 |
 | Potencial (oculto no jogo) | 17 | 16 | 17 | 27 | 21 | 19 | 16 |
-| No Nv 25 | 80 | 78 | 75 | 98 | 89 | 84 | 79 |
+| No Nv 25 | 72 | 71 | 72 | 78 | 74 | 73 | 71 |
 
 #### Boitatá
 
-Fogo · Mítico · ★★★ · ♀ fêmea · Nv 30 · Poder 1.170 (Lenda) · 1 cruza(s)
+Fogo · Mítico · ★★★ · ♀ fêmea · Nv 30 · Poder 1.005 (Diamante) · 1 cruza(s)
 
 Habitat: Só aparece em noites de queimada. A cobra de fogo do folclore, em forma de cavalo.
 
@@ -657,13 +655,13 @@ Skills: Sol a Pino, Chama Final, Drift · Onde aparece: bot nas corridas, vitrin
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 70 | 72 | 67 | 58 | 56 | 64 | 60 |
+| Nv 1 | 74 | 75 | 75 | 71 | 70 | 73 | 69 |
 | Potencial (oculto no jogo) | 28 | 29 | 29 | 21 | 20 | 26 | 18 |
-| No Nv 30 | 100 | 108 | 100 | 93 | 90 | 100 | 92 |
+| No Nv 30 | 85 | 86 | 86 | 81 | 81 | 84 | 79 |
 
 #### Iara
 
-Água · Mítico · ★★★ · ♂ macho · Nv 28 · Poder 1.150 (Lenda) · 2 cruza(s)
+Água · Mítico · ★★★ · ♂ macho · Nv 28 · Poder 985 (Diamante) · 2 cruza(s)
 
 Habitat: Rios encantados. A mãe-d'água que encanta quem a ouve.
 
@@ -671,9 +669,9 @@ Skills: Canto da Iara, Pé na Chuva, Nascente · Onde aparece: bot nas corridas,
 
 |  | VEL | ACE | MAN | FOR | EST | GAR | SOR |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Base (Nv 1) | 64 | 60 | 58 | 58 | 72 | 66 | 60 |
+| Nv 1 | 71 | 71 | 71 | 70 | 75 | 73 | 69 |
 | Potencial (oculto no jogo) | 22 | 21 | 22 | 20 | 30 | 25 | 18 |
-| No Nv 28 | 97 | 93 | 91 | 90 | 108 | 100 | 90 |
+| No Nv 28 | 81 | 80 | 81 | 80 | 86 | 83 | 79 |
 
 <a id="cruzamento"></a>
 
@@ -790,10 +788,10 @@ Grau base = arredondar(0,6 × grau da égua + 0,4 × grau do garanhão). Se a ra
 
 | Raridade | ★ | ★★ | ★★★ |
 | --- | ---: | ---: | ---: |
-| Comum | 36–44 | 41–47 | 44–52 |
-| Mágico | 44–52 | 49–55 | 52–60 |
-| Raro | 52–60 | 57–63 | 60–68 |
-| Lendário | 60–68 | 65–71 | 68–76 |
+| Comum | 40–48 | 45–51 | 48–56 |
+| Mágico | 45–53 | 50–56 | 53–61 |
+| Raro | 50–58 | 55–61 | 58–66 |
+| Lendário | 55–63 | 60–66 | 63–71 |
 
 ### Skills do potro
 
@@ -820,9 +818,9 @@ Cada montaria tem 5 slots. Cada peça soma um status principal (o valor da rarid
 | Raridade | Principal | Secundário | Preço | Venda | Na loja |
 | --- | ---: | ---: | --- | --- | --- |
 | Comum | +2 | +0 | 100 | 25 | sim |
-| Mágico | +3 | +2 | 250 | 63 | sim |
-| Raro | +4 | +3 | 600 | 150 | sim |
-| Lendário | +6 | +4 | 1.500 | 375 | **nunca à venda** |
+| Mágico | +2 | +1 | 250 | 63 | sim |
+| Raro | +3 | +2 | 600 | 150 | sim |
+| Lendário | +4 | +3 | 1.500 | 375 | **nunca à venda** |
 
 Venda devolve 25% do preço. Peças Lendário nunca estão à venda. Equipamento inicial: Sela de Couro Cru e Ferradura Leve.
 
@@ -831,49 +829,49 @@ Venda devolve 25% do preço. Peças Lendário nunca estão à venda. Equipamento
 | Peça | Slot | Raridade | Conjunto | Principal | Secundário | Preço | Loja |
 | --- | --- | --- | --- | ---: | ---: | --- | --- |
 | **Ferradura Leve** | Ferraduras | Comum | — | +2 VEL | — | 100 | sim |
-| **Ferradura com Cravos** | Ferraduras | Mágico | — | +3 VEL | +2 ACE | 250 | sim |
-| **Ferraduras do Sol** | Ferraduras | Raro | Sol | +4 VEL | +3 ACE | 600 | sim |
-| **Ferraduras do Sol** | Ferraduras | Lendário | Sol | +6 VEL | +4 ACE | 1.500 | não |
-| **Ferraduras da Chuva** | Ferraduras | Raro | Chuva | +4 VEL | +3 ACE | 600 | sim |
-| **Ferraduras da Chuva** | Ferraduras | Lendário | Chuva | +6 VEL | +4 ACE | 1.500 | não |
-| **Ferraduras da Névoa** | Ferraduras | Raro | Névoa | +4 VEL | +3 ACE | 600 | sim |
-| **Ferraduras da Névoa** | Ferraduras | Lendário | Névoa | +6 VEL | +4 ACE | 1.500 | não |
+| **Ferradura com Cravos** | Ferraduras | Mágico | — | +2 VEL | +1 ACE | 250 | sim |
+| **Ferraduras do Sol** | Ferraduras | Raro | Sol | +3 VEL | +2 ACE | 600 | sim |
+| **Ferraduras do Sol** | Ferraduras | Lendário | Sol | +4 VEL | +3 ACE | 1.500 | não |
+| **Ferraduras da Chuva** | Ferraduras | Raro | Chuva | +3 VEL | +2 ACE | 600 | sim |
+| **Ferraduras da Chuva** | Ferraduras | Lendário | Chuva | +4 VEL | +3 ACE | 1.500 | não |
+| **Ferraduras da Névoa** | Ferraduras | Raro | Névoa | +3 VEL | +2 ACE | 600 | sim |
+| **Ferraduras da Névoa** | Ferraduras | Lendário | Névoa | +4 VEL | +3 ACE | 1.500 | não |
 | **Sela de Couro Cru** | Sela | Comum | — | +2 EST | — | 100 | sim |
-| **Sela Acolchoada** | Sela | Mágico | — | +3 EST | +2 GAR | 250 | sim |
-| **Sela do Sol** | Sela | Raro | Sol | +4 EST | +3 GAR | 600 | sim |
-| **Sela do Sol** | Sela | Lendário | Sol | +6 EST | +4 GAR | 1.500 | não |
-| **Sela da Chuva** | Sela | Raro | Chuva | +4 EST | +3 GAR | 600 | sim |
-| **Sela da Chuva** | Sela | Lendário | Chuva | +6 EST | +4 GAR | 1.500 | não |
-| **Sela da Névoa** | Sela | Raro | Névoa | +4 EST | +3 GAR | 600 | sim |
-| **Sela da Névoa** | Sela | Lendário | Névoa | +6 EST | +4 GAR | 1.500 | não |
+| **Sela Acolchoada** | Sela | Mágico | — | +2 EST | +1 GAR | 250 | sim |
+| **Sela do Sol** | Sela | Raro | Sol | +3 EST | +2 GAR | 600 | sim |
+| **Sela do Sol** | Sela | Lendário | Sol | +4 EST | +3 GAR | 1.500 | não |
+| **Sela da Chuva** | Sela | Raro | Chuva | +3 EST | +2 GAR | 600 | sim |
+| **Sela da Chuva** | Sela | Lendário | Chuva | +4 EST | +3 GAR | 1.500 | não |
+| **Sela da Névoa** | Sela | Raro | Névoa | +3 EST | +2 GAR | 600 | sim |
+| **Sela da Névoa** | Sela | Lendário | Névoa | +4 EST | +3 GAR | 1.500 | não |
 | **Estribos de Corda** | Estribos | Comum | — | +2 MAN | — | 100 | sim |
-| **Esporas de Prata** | Estribos | Mágico | — | +3 MAN | +2 SOR | 250 | sim |
-| **Estribos do Sol** | Estribos | Raro | Sol | +4 MAN | +3 SOR | 600 | sim |
-| **Estribos do Sol** | Estribos | Lendário | Sol | +6 MAN | +4 SOR | 1.500 | não |
-| **Estribos da Chuva** | Estribos | Raro | Chuva | +4 MAN | +3 SOR | 600 | sim |
-| **Estribos da Chuva** | Estribos | Lendário | Chuva | +6 MAN | +4 SOR | 1.500 | não |
-| **Estribos da Névoa** | Estribos | Raro | Névoa | +4 MAN | +3 SOR | 600 | sim |
-| **Estribos da Névoa** | Estribos | Lendário | Névoa | +6 MAN | +4 SOR | 1.500 | não |
+| **Esporas de Prata** | Estribos | Mágico | — | +2 MAN | +1 SOR | 250 | sim |
+| **Estribos do Sol** | Estribos | Raro | Sol | +3 MAN | +2 SOR | 600 | sim |
+| **Estribos do Sol** | Estribos | Lendário | Sol | +4 MAN | +3 SOR | 1.500 | não |
+| **Estribos da Chuva** | Estribos | Raro | Chuva | +3 MAN | +2 SOR | 600 | sim |
+| **Estribos da Chuva** | Estribos | Lendário | Chuva | +4 MAN | +3 SOR | 1.500 | não |
+| **Estribos da Névoa** | Estribos | Raro | Névoa | +3 MAN | +2 SOR | 600 | sim |
+| **Estribos da Névoa** | Estribos | Lendário | Névoa | +4 MAN | +3 SOR | 1.500 | não |
 | **Antolhos** | Testeira | Comum | — | +2 ACE | — | 100 | sim |
-| **Testeira de Couro** | Testeira | Mágico | — | +3 ACE | +2 GAR | 250 | sim |
-| **Testeira do Sol** | Testeira | Raro | Sol | +4 ACE | +3 GAR | 600 | sim |
-| **Testeira do Sol** | Testeira | Lendário | Sol | +6 ACE | +4 GAR | 1.500 | não |
-| **Testeira da Chuva** | Testeira | Raro | Chuva | +4 ACE | +3 GAR | 600 | sim |
-| **Testeira da Chuva** | Testeira | Lendário | Chuva | +6 ACE | +4 GAR | 1.500 | não |
-| **Testeira da Névoa** | Testeira | Raro | Névoa | +4 ACE | +3 GAR | 600 | sim |
-| **Testeira da Névoa** | Testeira | Lendário | Névoa | +6 ACE | +4 GAR | 1.500 | não |
+| **Testeira de Couro** | Testeira | Mágico | — | +2 ACE | +1 GAR | 250 | sim |
+| **Testeira do Sol** | Testeira | Raro | Sol | +3 ACE | +2 GAR | 600 | sim |
+| **Testeira do Sol** | Testeira | Lendário | Sol | +4 ACE | +3 GAR | 1.500 | não |
+| **Testeira da Chuva** | Testeira | Raro | Chuva | +3 ACE | +2 GAR | 600 | sim |
+| **Testeira da Chuva** | Testeira | Lendário | Chuva | +4 ACE | +3 GAR | 1.500 | não |
+| **Testeira da Névoa** | Testeira | Raro | Névoa | +3 ACE | +2 GAR | 600 | sim |
+| **Testeira da Névoa** | Testeira | Lendário | Névoa | +4 ACE | +3 GAR | 1.500 | não |
 | **Manta de Lã** | Armadura | Comum | — | +2 FOR | — | 100 | sim |
-| **Capa Impermeável** | Armadura | Mágico | — | +3 FOR | +2 EST | 250 | sim |
-| **Armadura do Sol** | Armadura | Raro | Sol | +4 FOR | +3 EST | 600 | sim |
-| **Armadura do Sol** | Armadura | Lendário | Sol | +6 FOR | +4 EST | 1.500 | não |
-| **Armadura da Chuva** | Armadura | Raro | Chuva | +4 FOR | +3 EST | 600 | sim |
-| **Armadura da Chuva** | Armadura | Lendário | Chuva | +6 FOR | +4 EST | 1.500 | não |
-| **Armadura da Névoa** | Armadura | Raro | Névoa | +4 FOR | +3 EST | 600 | sim |
-| **Armadura da Névoa** | Armadura | Lendário | Névoa | +6 FOR | +4 EST | 1.500 | não |
+| **Capa Impermeável** | Armadura | Mágico | — | +2 FOR | +1 EST | 250 | sim |
+| **Armadura do Sol** | Armadura | Raro | Sol | +3 FOR | +2 EST | 600 | sim |
+| **Armadura do Sol** | Armadura | Lendário | Sol | +4 FOR | +3 EST | 1.500 | não |
+| **Armadura da Chuva** | Armadura | Raro | Chuva | +3 FOR | +2 EST | 600 | sim |
+| **Armadura da Chuva** | Armadura | Lendário | Chuva | +4 FOR | +3 EST | 1.500 | não |
+| **Armadura da Névoa** | Armadura | Raro | Névoa | +3 FOR | +2 EST | 600 | sim |
+| **Armadura da Névoa** | Armadura | Lendário | Névoa | +4 FOR | +3 EST | 1.500 | não |
 
 ### Melhoria (+1 a +10)
 
-Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela seed do save). A partir de +6, a falha **derruba** a peça 1 nível. Cada + soma 1 no status principal. Pedra Negra: 40 de Ouro na loja (pacote de 5 = 200).
+Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela seed do save). A partir de +6, a falha **derruba** a peça 1 nível. Cada + soma 0,5 no status principal (uma peça +10 soma +5). Pedra Negra: 40 de Ouro na loja (pacote de 5 = 200).
 
 | Passo | Chance | Custo (pedras) | Se falhar | Pedras esperadas no passo | Pedras esperadas desde +0 |
 | --- | ---: | ---: | --- | ---: | ---: |
@@ -989,9 +987,9 @@ Poder = 3,1·VEL + 1,4·ACE + 1,4·MAN + 2,2·FOR + 1,5·EST + 1,4·GAR + 0,4·S
 
 | Montaria | Nv 1 sem peças | Nv 1 com o equipamento inicial | Nv 50 sem peças |
 | --- | ---: | ---: | ---: |
-| Brasa | 727 | 737 | 943 |
-| Maré | 731 | 740 | 940 |
-| Ipê | 726 | 735 | 950 |
+| Brasa | 554 | 563 | 748 |
+| Maré | 547 | 556 | 741 |
+| Ipê | 553 | 563 | 747 |
 
 <a id="dev"></a>
 

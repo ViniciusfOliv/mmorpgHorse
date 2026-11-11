@@ -16,7 +16,8 @@
  *     special: { skillChanceBonus, weatherDoubleClimate, ignoreWeatherPenalty },
  *     set: { id, count },                                         // id null e count 0 sem peças de conjunto
  *     pieces: [{ slot, uid, id, plus }] }                         // ordem de GEAR_SLOTS, só peças válidas
- * Cada peça soma main + plus no status principal do slot e sub no secundário.
+ * Cada peça soma main + plus × plusStep (0,5) no status principal do slot e sub no secundário; os mods
+ * podem ser fracionários (RaceSim.computeStats arredonda uma vez só, no fim).
  * Conjunto = o que tem mais peças (empate: ordem sol/chuva/nevoa). Bônus acumulam:
  *   >= 3: sorte +5 e skillChanceBonus 0,05 · >= 4: weatherDoubleClimate = set.id (o bônus do clima
  *   sobe para ×1,07 só se a montaria for do elemento dono do clima do conjunto; para os outros não
@@ -66,7 +67,7 @@
       var plus = item.plus;
       if (!validPlus(plus)) return;
       var info = G.GEAR_SLOT_INFO[slot];
-      mods[info.main] += def.main + plus;
+      mods[info.main] += def.main + plus * EG.plusStep;   // cada +N vale plusStep (0,5) no principal
       mods[info.sub] += def.sub;
       if (def.set) counts[def.set] = (counts[def.set] || 0) + 1;
       pieces.push({ slot: slot, uid: uid, id: def.id, plus: plus });

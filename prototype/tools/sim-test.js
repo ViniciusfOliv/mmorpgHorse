@@ -30,9 +30,10 @@ test('climas e donos', function () {
   assert.strictEqual(G.ELEMENTS.agua.weather, 'chuva'); assert.strictEqual(G.ELEMENTS.fogo.affinity, undefined);
 });
 test('sem tática, distâncias fixas e pistas de exemplo', function () { assert.ok(!G.TACTICS && !G.DISTANCES && !G.TRACK_EXAMPLES); });
-test('toda montaria tem 7 base + 7 potencial, sexo, raridade válida e skills ≤ vagas', function () {
+test('toda montaria tem 7 de genética (sem status base), sexo, raridade válida e skills ≤ vagas', function () {
   G.STARTERS.concat(G.WILD_HORSES).forEach(function (h) {
-    G.STAT_KEYS.forEach(function (k) { assert.ok(h.base[k] >= 1 && h.base[k] <= 100, h.id + ' base ' + k); assert.ok(h.potential[k] >= 0 && h.potential[k] <= 31, h.id + ' pot ' + k); });
+    assert.ok(!('base' in h), h.id + ' sem base');
+    G.STAT_KEYS.forEach(function (k) { assert.ok(h.potential[k] >= 0 && h.potential[k] <= 31 && h.potential[k] === Math.floor(h.potential[k]), h.id + ' pot ' + k); });
     assert.ok(h.sex === 'm' || h.sex === 'f', h.id + ' sexo'); assert.ok(G.RARITIES[h.rarity], h.id + ' raridade');
     assert.ok(h.skills.length <= G.RARITIES[h.rarity].skillSlots, h.id + ' vagas');
     h.skills.forEach(function (s) { assert.ok(G.SKILLS[s], h.id + ' skill ' + s); });
@@ -48,10 +49,10 @@ test('catálogo de skills', function () {
 
 section('status');
 test('computeStats devolve 7 chaves e respeita o teto da raridade', function () {
-  var h = JSON.parse(JSON.stringify(G.STARTERS[0])); h.level = 50;
+  var h = JSON.parse(JSON.stringify(G.STARTERS[0])); h.level = 50; h.alloc = { vel: 20, acel: 20 };
   var s = S.computeStats(h, null);
   assert.deepStrictEqual(Object.keys(s), G.STAT_KEYS);
-  assert.ok(s.vel <= 80, 'raro teto 80'); assert.strictEqual(s.acel <= 88, true, 'teto + bônus de elemento 8');
+  assert.strictEqual(s.vel, 80, 'comum teto 80'); assert.strictEqual(s.acel, 80, 'sem bônus fixo de elemento');
 });
 test('skillChance: comum lv1 sorte 0 = 0.35; mítico lv50 sorte 100 = 0.95 (teto); raro lv10 sorte 50 ≈ 0.645', function () {
   var mk = function (r, lv) { return { rarity: r, level: lv }; };
@@ -62,7 +63,8 @@ test('skillChance: comum lv1 sorte 0 = 0.35; mítico lv50 sorte 100 = 0.95 (teto
 test('powerRating usa os 7 pesos', function () {
   var h = JSON.parse(JSON.stringify(G.STARTERS[0])); var s = S.computeStats(h, null), w = S.TUNING.ratingW, sum = 0;
   G.STAT_KEYS.forEach(function (k) { sum += s[k] * w[k]; });
-  assert.strictEqual(S.powerRating(h, null), Math.round(sum + 20 * 1));   // labareda: start = 1
+  assert.strictEqual(S.powerRating(h, null), Math.round(sum));   // os iniciais nascem sem skill
+  h.skills = ['arranque']; assert.strictEqual(S.powerRating(h, null), Math.round(sum + 20 * 1));   // arranque: start = 1
 });
 test('learnSkill não estoura vagas e respeita elemento/exclusividade', function () {
   var full = { id: 'x', element: 'fogo', rarity: 'comum', skills: ['arranque'] };
@@ -71,6 +73,75 @@ test('learnSkill não estoura vagas e respeita elemento/exclusividade', function
   for (var i = 0; i < 400; i++) { var id = S.learnSkill(m, S.mulberry32(i)); if (id) seen[id] = 1; }
   assert.ok(seen.arranque && seen['sol-a-pino'], 'aprende neutras e do elemento');
   assert.ok(!seen['pe-na-chuva'] && !seen.labareda, 'não aprende de outro elemento nem exclusiva alheia');
+});
+
+section('status v3');
+function clone(x) { return JSON.parse(JSON.stringify(x)); }
+test('v3: status nasce da genética na faixa da raridade', function () {
+  var h = { rarity: 'comum', level: 1, grau: 2, potential: { vel: 24, acel: 24, man: 14, forca: 12, est: 12, garra: 14, sorte: 12 } };
+  assert.deepStrictEqual(S.computeStats(h, null), { vel: 52, acel: 52, man: 47, forca: 46, est: 46, garra: 47, sorte: 46 });
+});
+test('v3: pontos livres e limite por status seguem as estrelas', function () {
+  [[1, 49, 17], [2, 58, 20], [3, 73, 25]].forEach(function (c) {
+    var h = { rarity: 'comum', level: 50, grau: c[0], potential: {} };
+    assert.strictEqual(S.freePoints(h), c[1]); assert.strictEqual(S.statLimit(h), c[2]);
+  });
+  assert.strictEqual(S.freePoints({ rarity: 'comum', level: 1, grau: 3, potential: {} }), 0);
+});
+test('v3: Brasa nível 50 chega ao teto com 10 pontos em Velocidade', function () {
+  var h = clone(G.STARTERS[0]); h.level = 50; h.alloc = { vel: 10 };
+  assert.strictEqual(S.computeStats(h, null).vel, 80);
+  h.alloc = { vel: 0 }; assert.strictEqual(S.computeStats(h, null).vel, 70);
+});
+test('v3: alloc inválido nunca passa do teto nem do limite', function () {
+  var h = clone(G.STARTERS[0]); h.level = 50;
+  [{ vel: 999 }, { vel: -5 }, { vel: 'x' }, { vel: 2.7 }, null, { vel: 20, acel: 20, man: 20, forca: 20 }].forEach(function (a) {
+    h.alloc = a; var s = S.computeStats(h, null), v = S.validAlloc(h, a), soma = 0;
+    G.STAT_KEYS.forEach(function (k) { assert.ok(s[k] <= 80); assert.ok(v[k] >= 0 && v[k] <= 20 && v[k] === Math.floor(v[k])); soma += v[k]; });
+    assert.ok(soma <= 58);
+  });
+});
+test('v3: iniciais são Comuns ★★ com a mesma soma de genética e de status', function () {
+  G.STARTERS.forEach(function (h) {
+    var g = 0, s = 0, st = S.computeStats(h, null);
+    G.STAT_KEYS.forEach(function (k) { g += h.potential[k]; s += st[k]; });
+    assert.strictEqual(h.rarity, 'comum'); assert.strictEqual(h.grau, 2); assert.strictEqual(g, 112); assert.strictEqual(s, 336);
+    assert.strictEqual(h.base, undefined);
+  });
+});
+test('v3: melhoria de peça vale meio ponto por nível', function () {
+  assert.strictEqual(G.ECONOMY.gear.plusStep, 0.5);
+  // uma peça Rara +3 soma 3 + 3 × 0,5 = 4,5 ao status principal; o secundário não muda com o +N
+  var g = GR.resolve({ equip: { ferraduras: 'i1' } }, { i1: { uid: 'i1', id: 'ferraduras-sol-raro', plus: 3 } });
+  assert.strictEqual(g.mods.vel, 4.5); assert.strictEqual(g.mods.acel, 2);
+  var g10 = GR.resolve({ equip: { ferraduras: 'i1' } }, { i1: { uid: 'i1', id: 'ferraduras-sol-raro', plus: 10 } });
+  assert.strictEqual(g10.mods.vel, 8);
+  // natural 40 + 16/31 = 40,516: arredondar no fim dá round(45,016) = 45 (arredondar antes daria 41 + 5 = 46)
+  var h = { rarity: 'comum', level: 1, grau: 2, potential: { vel: 1 } };
+  assert.strictEqual(S.computeStats(h, g).vel, 45);
+  assert.strictEqual(S.computeStats(h, null).vel, 41);
+});
+test('v3: estrelas, status natural, alloc saneado na ordem de STAT_KEYS e allocInfo', function () {
+  assert.strictEqual(S.starsOf({ grau: 1 }), 1); assert.strictEqual(S.starsOf({ grau: 3 }), 3);
+  [undefined, null, 'x', NaN, Infinity].forEach(function (g) { assert.strictEqual(S.starsOf({ grau: g }), 2, String(g)); });
+  assert.strictEqual(S.starsOf(null), 2); assert.strictEqual(S.starsOf({}), 2);
+  // como Breed.grauOf: fora da faixa é preso a 1–3
+  assert.strictEqual(S.starsOf({ grau: 0 }), 1); assert.strictEqual(S.starsOf({ grau: 7 }), 3); assert.strictEqual(S.starsOf({ grau: '3' }), 3);
+  var h = clone(G.STARTERS[0]); h.level = 50;   // ★★: 58 pontos, até 20 por status
+  assert.ok(Math.abs(S.naturalStat(h, 'vel') - (40 + 16 * 24 / 31 + 49 * (0.30 + 0.08 * 24 / 31))) < 1e-9);
+  assert.deepStrictEqual(S.validAlloc(h, { vel: 25, acel: 20, man: 20, forca: 20 }), { vel: 20, acel: 20, man: 18, forca: 0, est: 0, garra: 0, sorte: 0 });
+  assert.deepStrictEqual(S.validAlloc(h, null), { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 });
+  h.alloc = { vel: 4, est: 10 };
+  var info = S.allocInfo(h);
+  assert.strictEqual(info.free, 58); assert.strictEqual(info.used, 14); assert.strictEqual(info.left, 44); assert.strictEqual(info.perStat, 20);
+  // vel natural 70,12 + 4 = 74,12: faltam 5,88 até o teto 80 → aceita min(20 − 4, 44, teto(5,88)) = 6
+  assert.strictEqual(info.room.vel, 6);
+  // est natural 62,41 + 10 = 72,41: faltam 7,59 → 8 (limite 20 − 10 = 10)
+  assert.strictEqual(info.room.est, 8);
+  // sorte natural 62,41: faltam 17,59 → 18 (limite 20)
+  assert.strictEqual(info.room.sorte, 18);
+  h.alloc = { vel: 20, acel: 20, man: 18 };
+  assert.deepStrictEqual(Object.keys(S.allocInfo(h).room).map(function (k) { return S.allocInfo(h).room[k]; }), [0, 0, 0, 0, 0, 0, 0]);
 });
 
 section('mapa');
@@ -102,9 +173,12 @@ test('normalizeConditions aceita blocos explícitos e completa o resto pela seed
 });
 
 section('corrida');
-function mk(over) { var h = JSON.parse(JSON.stringify(G.WILD_HORSES[0])); h.rarity = 'mitico'; h.level = 1; h.element = 'neutro'; h.skills = [];
-  G.STAT_KEYS.forEach(function (k) { h.base[k] = 60; h.potential[k] = 0; }); for (var k in over) h.base[k] = over[k]; return h; }
-function race(seed, cond, horses) { return S.simulate({ seed: seed, conditions: cond, recordFrames: false, racers: horses.map(function (h, i) { return { horse: h, gear: null, name: 'r' + i, isPlayer: i === 0 }; }) }); }
+// Corredor de teste: Mítico nível 1 com genética 0 (todo status natural = 60). Os valores de `over`
+// viram mods de equipamento (testMods, entregues por eq(h)) para fixar o status exato no nível 1.
+function mk(over) { var h = clone(G.WILD_HORSES[0]); h.rarity = 'mitico'; h.level = 1; h.element = 'neutro'; h.skills = []; h.testMods = {};
+  G.STAT_KEYS.forEach(function (k) { h.potential[k] = 0; h.testMods[k] = (over && k in over ? over[k] : 60) - 60; }); return h; }
+function eq(h) { return h.testMods ? { mods: h.testMods } : null; }
+function race(seed, cond, horses) { return S.simulate({ seed: seed, conditions: cond, recordFrames: false, racers: horses.map(function (h, i) { return { horse: h, gear: eq(h), name: 'r' + i, isPlayer: i === 0 }; }) }); }
 var CURVA = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 200 }, { type: 'curva', from: 200, to: 1400 }, { type: 'reta', from: 1400, to: 1600 }] };
 var RETA = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 1600 }] };
 var SUBIDA = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 200 }, { type: 'subida', from: 200, to: 1400 }, { type: 'reta', from: 1400, to: 1600 }] };
@@ -142,7 +216,7 @@ test('straight só dispara em reta de 150 m ou mais (e dispara na reta final lon
   var h = mk({ sorte: 100 }); h.level = 50; h.skills = ['sprint'];
   var fired = 0;
   for (var s = 0; s < 20; s++) {
-    var res = S.simulate({ seed: s, conditions: cond, recordFrames: true, racers: [h, mk({})].map(function (x, i) { return { horse: x, gear: null, name: 'r' + i }; }) });
+    var res = S.simulate({ seed: s, conditions: cond, recordFrames: true, racers: [h, mk({})].map(function (x, i) { return { horse: x, gear: eq(x), name: 'r' + i }; }) });
     var t600 = null; for (var f = 0; f < res.frames.length; f++) if (res.frames[f].pos[0] >= 600) { t600 = res.frames[f].t; break; }
     res.events.forEach(function (e) { if (e.type === 'skill' && e.racer === 0) assert.ok(e.t >= t600 - 0.1, 'seed ' + s + ': Sprint em t=' + e.t + ' antes de 600 m (t=' + t600 + ')'); });
     if (res.events.some(function (e) { return e.type === 'skill' && e.racer === 0 && e.t >= t600 - 0.1; })) fired++;
@@ -182,7 +256,9 @@ test('dado: clima segura quando todos são do mesmo elemento', function () {
 
 section('dados v3');
 test('baseLo por raridade e grau em todas as montarias', function () {
-  assert.deepStrictEqual(['comum','magico','raro','lendario','mitico'].map(function (r) { return G.RARITIES[r].baseLo; }), [36, 44, 52, 60, 68]);
+  assert.deepStrictEqual(['comum','magico','raro','lendario','mitico'].map(function (r) { return G.RARITIES[r].baseLo; }), [40, 45, 50, 55, 60]);
+  assert.deepStrictEqual(['comum','magico','raro','lendario','mitico'].map(function (r) { return G.RARITIES[r].statCap; }), [80, 85, 90, 95, 100]);
+  Object.keys(G.RARITIES).forEach(function (r) { assert.strictEqual(G.RARITIES[r].growth, undefined, r + ' sem growth'); });
   G.STARTERS.concat(G.WILD_HORSES).forEach(function (h) { assert.ok(h.grau >= 1 && h.grau <= 3, h.id + ' grau'); });
   assert.strictEqual(G.STARTERS[0].grau, 2); assert.strictEqual(G.WILD_HORSES.filter(function (h) { return h.id === 'w-boitata'; })[0].grau, 3);
 });
@@ -286,6 +362,7 @@ test('uid distinto mesmo com nomes iguais', function () {
 
 test('snapshot dourado dos potros de exemplos.md', function () {
   // docs/exemplos.md §4 "Três potros de exemplo": seedBase 20261106, nextUid 2, breedCounter 0/1/2.
+  // Regravado no modelo v3 (iniciais Comuns e baseLo novo); o exemplos.md acompanha na tarefa da documentação.
   // Compara o potro INTEIRO (inclusive a paleta, passo 9 da RNG): qualquer chamada de rng a mais,
   // a menos ou fora de ordem em breed.js muda algum campo e derruba este teste.
   function par(id, level, uid) {
@@ -294,14 +371,14 @@ test('snapshot dourado dos potros de exemplos.md', function () {
   }
   function st(a) { var o = {}; G.STAT_KEYS.forEach(function (k, i) { o[k] = a[i]; }); return o; }
   var casos = [
-    { f: par('mare', 30, null), m: par('brasa', 30, null), name: 'Quimera', rarity: 'magico', grau: 3, element: 'agua', sex: 'm',
-      base: [53, 59, 57, 60, 59, 52, 57], potential: [21, 16, 18, 18, 20, 16, 16], skills: ['pe-na-chuva'],
-      palette: { coat: '#aa837c', coatShade: '#6e5555', mane: '#9ac9a7', accent: '#efedc4' }, breedLeft: 2 },
+    { f: par('mare', 30, null), m: par('brasa', 30, null), name: 'Serena', rarity: 'comum', grau: 2, element: 'fogo', sex: 'f',
+      base: [50, 49, 51, 50, 45, 49, 50], potential: [8, 12, 13, 12, 20, 14, 12], skills: ['dado-viciado'],
+      palette: { coat: '#ac8077', coatShade: '#6f5351', mane: '#a0c8a1', accent: '#f0ecbf' }, breedLeft: 1 },
     { f: par('w-faisca', 1, null), m: par('w-pangare', 1, null), name: 'Quimera', rarity: 'comum', grau: 2, element: 'neutro', sex: 'f',
-      base: [47, 42, 43, 44, 46, 46, 44], potential: [10, 12, 15, 10, 20, 27, 10], skills: ['arranque'],
+      base: [51, 46, 47, 48, 50, 50, 48], potential: [10, 12, 15, 10, 20, 27, 10], skills: ['arranque'],
       palette: { coat: '#b4733e', coatShade: '#7c4924', mane: '#9b7f55', accent: '#e59d65' }, breedLeft: 1 },
     { f: par('w-ventania', 30, null), m: par('w-jequitiba', 30, null), name: 'Estrela', rarity: 'lendario', grau: 1, element: 'grama', sex: 'm',
-      base: [65, 62, 61, 60, 62, 64, 61], potential: [28, 25, 17, 27, 21, 19, 16], skills: ['sprint', 'arrancada-final'],
+      base: [60, 57, 56, 55, 57, 59, 56], potential: [28, 25, 17, 27, 21, 19, 16], skills: ['sprint', 'arrancada-final'],
       palette: { coat: '#ac9e8d', coatShade: '#7f7466', mane: '#5a7b5b', accent: '#94cab1' }, breedLeft: 2 }
   ];
   casos.forEach(function (c, i) {
@@ -339,23 +416,23 @@ test('40 peças, 25 à venda, ids e nomes', function () {
     else assert.ok(p.rarity === 'comum' || p.rarity === 'magico', id + ' solta só Comum/Mágico');
     assert.strictEqual(p.shop, p.rarity !== 'lendario');
   });
-  assert.deepStrictEqual(G.GEAR['sela-sol-raro'], { id: 'sela-sol-raro', name: 'Sela do Sol', slot: 'sela', rarity: 'raro', set: 'sol', main: 4, sub: 3, price: 600, shop: true });
+  assert.deepStrictEqual(G.GEAR['sela-sol-raro'], { id: 'sela-sol-raro', name: 'Sela do Sol', slot: 'sela', rarity: 'raro', set: 'sol', main: 3, sub: 2, price: 600, shop: true });
   assert.deepStrictEqual(G.GEAR['ferraduras-comum'], { id: 'ferraduras-comum', name: 'Ferradura Leve', slot: 'ferraduras', rarity: 'comum', set: null, main: 2, sub: 0, price: 100, shop: true });
   assert.strictEqual(G.GEAR['armadura-chuva-lendario'].name, 'Armadura da Chuva');
-  assert.strictEqual(G.GEAR['armadura-chuva-lendario'].main, 6);
-  assert.strictEqual(G.GEAR['armadura-chuva-lendario'].sub, 4);
+  assert.strictEqual(G.GEAR['armadura-chuva-lendario'].main, 4);
+  assert.strictEqual(G.GEAR['armadura-chuva-lendario'].sub, 3);
   assert.strictEqual(G.GEAR['armadura-chuva-lendario'].price, 1500);
   assert.strictEqual(G.GEAR['estribos-magico'].name, 'Esporas de Prata');
-  assert.strictEqual(G.GEAR['estribos-magico'].sub, 2);
+  assert.strictEqual(G.GEAR['estribos-magico'].sub, 1);
   assert.strictEqual(G.GEAR['testeira-nevoa-raro'].name, 'Testeira da Névoa');
 });
 test('ECONOMY.gear', function () {
   var g = G.ECONOMY.gear;
   assert.deepStrictEqual(g.price, { comum: 100, magico: 250, raro: 600, lendario: 1500 });
   assert.strictEqual(g.sellRate, 0.25); assert.strictEqual(g.stonePrice, 40); assert.strictEqual(g.stoneBundle, 5);
-  assert.deepStrictEqual(g.main, { comum: 2, magico: 3, raro: 4, lendario: 6 });
-  assert.deepStrictEqual(g.sub, { comum: 0, magico: 2, raro: 3, lendario: 4 });
-  assert.strictEqual(g.plusMax, 10);
+  assert.deepStrictEqual(g.main, { comum: 2, magico: 2, raro: 3, lendario: 4 });
+  assert.deepStrictEqual(g.sub, { comum: 0, magico: 1, raro: 2, lendario: 3 });
+  assert.strictEqual(g.plusStep, 0.5); assert.strictEqual(g.plusMax, 10);
   assert.deepStrictEqual(g.enhanceChance, [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25]);
   assert.deepStrictEqual(g.enhanceCost, [1, 1, 1, 1, 1, 1, 2, 2, 2, 2]);
   assert.strictEqual(g.enhanceDropFrom, 6);
@@ -368,10 +445,10 @@ section('equipamento: gear.js');
 function gm(equip) { return { equip: equip }; }
 function gi(uid, id, plus) { return { uid: uid, id: id, plus: plus || 0 }; }
 function byUid(list) { var o = {}; list.forEach(function (it) { o[it.uid] = it; }); return o; }
-test('resolve soma principal+plus e secundário; sem equip zera', function () {
+test('resolve soma principal + plus × 0,5 e secundário; sem equip zera', function () {
   var items = byUid([gi('i1', 'sela-sol-raro', 3), gi('i2', 'ferraduras-comum')]);
   var g = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2' }), items);
-  assert.deepStrictEqual(g.mods, { vel: 2, acel: 0, man: 0, forca: 0, est: 7, garra: 3, sorte: 0 });
+  assert.deepStrictEqual(g.mods, { vel: 2, acel: 0, man: 0, forca: 0, est: 4.5, garra: 2, sorte: 0 });
   assert.deepStrictEqual(g.set, { id: 'sol', count: 1 });
   assert.deepStrictEqual(g.special, { skillChanceBonus: 0, weatherDoubleClimate: null, ignoreWeatherPenalty: false });
   assert.deepStrictEqual(g.pieces.map(function (p) { return p.uid; }), ['i2', 'i1']);
@@ -387,13 +464,13 @@ test('resolve ignora uid inexistente, slot errado e plus inválido', function ()
 test('conjunto: 3/4/5 peças com raridades misturadas; 2+2+1 não ativa', function () {
   var items = byUid([gi('i1', 'sela-chuva-raro'), gi('i2', 'ferraduras-chuva-lendario', 2), gi('i3', 'estribos-chuva-raro'), gi('i4', 'testeira-chuva-raro'), gi('i5', 'armadura-chuva-lendario'), gi('i6', 'testeira-sol-raro'), gi('i7', 'armadura-nevoa-raro')]);
   var g3 = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', estribos: 'i3' }), items);
-  assert.deepStrictEqual(g3.set, { id: 'chuva', count: 3 }); assert.strictEqual(g3.mods.sorte, 8); // 3 (sub do estribo Raro) + 5 (conjunto)
+  assert.deepStrictEqual(g3.set, { id: 'chuva', count: 3 }); assert.strictEqual(g3.mods.sorte, 7); // 2 (sub do estribo Raro) + 5 (conjunto)
   assert.deepStrictEqual(g3.special, { skillChanceBonus: 0.05, weatherDoubleClimate: null, ignoreWeatherPenalty: false });
   var g4 = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', estribos: 'i3', testeira: 'i4' }), items);
   assert.strictEqual(g4.special.weatherDoubleClimate, 'chuva'); assert.strictEqual(g4.special.ignoreWeatherPenalty, false);
   var g5 = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', estribos: 'i3', testeira: 'i4', armadura: 'i5' }), items);
   assert.deepStrictEqual(g5.set, { id: 'chuva', count: 5 }); assert.strictEqual(g5.special.ignoreWeatherPenalty, true);
-  assert.strictEqual(g5.mods.vel, 8); // lendário 6 + 2
+  assert.strictEqual(g5.mods.vel, 5); // lendário 4 + 2 × 0,5
   var gx = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', testeira: 'i6', armadura: 'i7' }), items);
   assert.strictEqual(gx.set.count, 2); assert.strictEqual(gx.mods.sorte, 0); assert.strictEqual(gx.special.skillChanceBonus, 0);
 });
@@ -434,7 +511,7 @@ test('botGear por liga', function () {
   assert.strictEqual(GR.botGear(0, 'fogo', 0.5).set.count, 0);
   var p = GR.botGear(1, 'agua', 0.5); assert.deepStrictEqual(p.pieces.map(function (x) { return x.id; }), ['ferraduras-comum', 'sela-comum']);
   var l = GR.botGear(5, 'fogo', 0.5);
-  assert.deepStrictEqual(l.set, { id: 'sol', count: 5 }); assert.strictEqual(l.mods.vel, 11); assert.strictEqual(l.mods.sorte, 8); // 3 sub + 5 conjunto
+  assert.deepStrictEqual(l.set, { id: 'sol', count: 5 }); assert.strictEqual(l.mods.vel, 6.5); assert.strictEqual(l.mods.sorte, 7); // vel: Raro 3 + 7 × 0,5; sorte: 2 sub + 5 conjunto
   assert.strictEqual(l.special.ignoreWeatherPenalty, true);
   assert.strictEqual(GR.botGear(5, 'neutro', 0.0).set.id, 'sol'); assert.strictEqual(GR.botGear(5, 'neutro', 0.5).set.id, 'chuva'); assert.strictEqual(GR.botGear(5, 'neutro', 0.9).set.id, 'nevoa');
   var d = GR.botGear(4, 'grama', 0.5); assert.deepStrictEqual(d.set, { id: 'nevoa', count: 3 }); assert.strictEqual(d.pieces.length, 5);
@@ -451,7 +528,7 @@ test('computeStats soma mods do equipamento e limita a 120; string vale null', f
   var base = S.computeStats(h, null);
   var g = GR.resolve({ equip: { sela: 'i1' } }, { i1: { uid: 'i1', id: 'sela-sol-raro', plus: 10 } });
   var s = S.computeStats(h, g);
-  assert.strictEqual(s.est, base.est + 14); assert.strictEqual(s.garra, base.garra + 3); assert.strictEqual(s.vel, base.vel);
+  assert.strictEqual(s.est, base.est + 8); assert.strictEqual(s.garra, base.garra + 2); assert.strictEqual(s.vel, base.vel);   // Raro 3 + 10 × 0,5; sub 2
   assert.deepStrictEqual(S.computeStats(h, 'sela-couro'), base);
   var big = { mods: { vel: 200, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 }, special: {}, set: { id: null, count: 0 }, pieces: [] };
   assert.strictEqual(S.computeStats(h, big).vel, 120);
@@ -514,7 +591,7 @@ test('5 peças Chuva anulam a penalidade do Fogo na chuva; 4 Sol dobram o Sol', 
 });
 
 section('dev');
-// Referência regravada com o pacote de balanceamento da auditoria (seeds 1001…1020; os 3 iniciais + 5
+// Referência regravada no modelo de status v3 (seeds 1001…1020; os 3 iniciais + 5
 // aluguéis do Haras, com o equipamento de bot de cada liga). Mudou a simulação de propósito? Regrave a tabela.
 var crypto = require('crypto');
 var ALUGUEIS = G.WILD_HORSES.filter(function (h) { return h.rarity !== 'mitico' && B.rentalPrice(h) != null; }).slice(0, 5);
@@ -529,13 +606,13 @@ function refRace(seed, dev) {
 function refHash(res) {
   return crypto.createHash('sha1').update(JSON.stringify({ finishOrder: res.finishOrder, finishTimes: res.finishTimes, events: res.events })).digest('hex');
 }
-var REF_HASHES = ['7ca78bece9d78556809efae25dd7162eab7d40cc', 'eb1de6577af765496cf7db9960a46426a72fd527', 'fd2736a810021adfb7a2c1435247935792ffa096',
-  '0eced70bacb2eb596c745c8f939a9e1a8d44337b', 'ba60c6134300938bd75e1390d1618bf0da524f49', 'ea9aaee2e9e1b644723b52da17ccebf424970b61',
-  '48444d71e09ab9784ce1d8c07b165ef490203b1e', '0289f773ff99e90bb9ed355eb85c79c3fc227c85', 'ce8c09eb2c3c82bc5ed8eb71cb671aaab96d270e',
-  '13321e4232c48c81759eb99b3374a9f950ea7e95', '5e4b62cbdbbae74bd999be8ddfcaaef2f3843d86', '288080097ee5ec09f2a491e5335f8e973c15d565',
-  'e4077f04f7634edbcf13ef93ec9c33f4d33503c9', '45d979760d8f36a84f36ecc8f6517dd1f97da67c', 'f6398dba4c8bc84ce80904ec712853261ebfaaff',
-  'd64e7c020ee4b44a002dc772d4fa77697e302ae5', 'b7c44ea737a877651124d845e272261fd0cf7229', 'b1c1a1071067112167c78e32bef8bcd4147272a3',
-  '4b01401d5c8977d1f824c754c20bcb25927b56b0', 'a17da841ebf2718b98238d2771787aa62b7339de'];
+var REF_HASHES = ['3126ad0c3e5be987cdcd232a73080136842ae999', 'b7c2c9c1ccdd56f15e470412971d8ef32d89b94f', '92a8c52056160c701301102bb6b4bd144bad8268',
+  '051ac78e484c7ca7afcfd979f514ae4708ed7bbc', '1322b3794a1238a0ef75047f17b7769a3cc2f11b', '078fd7969465cc291833ec2741e8e23551bbdec2',
+  '8092c74f848968c9dec7510189a1c6f30a5b5a6b', '4eedf78cde5a91817b9caacc552c196b9155a379', '0d17782296821c599fee5a77a84ca762ba5af828',
+  '0cc2b411bcddafb1a14a5c492eef6717c93ae091', '023b7748de72efa024710aad15b7ea4896f916e9', '6cb1fa14eeb58931569f6f47a6d4f4382bc2f47e',
+  'c505098046ced582d58dbae1646d211c66bdb103', '18659d87a0307c2a5eebff6d7279f712cdebd084', '3481cd656b4475d720af375c33aae52c8571b558',
+  'b70c32d2d9525d79eebe365aac66dc4fa81e209f', 'c306aa761e987368a0ec4b445002a8858fde097a', '7bbfa5b1038aa89b1eebb7fd6bf37bc5a73a4634',
+  'df3cf1a5454c251d1083b56338edafd6510d8835', 'b1118807cd2f88c96ec0175e36ef767e67fa8197'];
 test('sem config.dev o resultado é o de antes', function () {
   assert.deepStrictEqual(CAMPO_REF.map(function (h) { return h.id; }), ['brasa', 'mare', 'ipe', 'w-pangare', 'w-faisca', 'w-lambari', 'w-capim', 'w-ticao']);
   var diff = [];
@@ -549,7 +626,7 @@ test('config.dev vazio ou com skillsAlways false devolve exatamente o mesmo obje
 // mapa com gatilho garantido para start (largada), straight (reta final de 600 m) e final (80%)
 var GATILHOS = { distance: 1200, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 300 }, { type: 'curva', from: 300, to: 600 }, { type: 'reta', from: 600, to: 1200 }] };
 function devRace(seed, horses, dev) {
-  var cfg = { seed: seed, conditions: GATILHOS, recordFrames: true, racers: horses.map(function (h, i) { return { horse: h, gear: null, name: 'r' + i, isPlayer: i === 0 }; }) };
+  var cfg = { seed: seed, conditions: GATILHOS, recordFrames: true, racers: horses.map(function (h, i) { return { horse: h, gear: eq(h), name: 'r' + i, isPlayer: i === 0 }; }) };
   if (dev) cfg.dev = dev;
   return S.simulate(cfg);
 }
@@ -598,13 +675,13 @@ test('Dev.horseTemplate respeita vagas e skills válidas', function () {
   assert.strictEqual(t.id, 'dev-7'); assert.strictEqual(t.name, 'Teste'); assert.strictEqual(t.especie, 'cavalo'); assert.strictEqual(t.grau, 2);
   assert.strictEqual(t.element, 'agua'); assert.strictEqual(t.rarity, 'comum'); assert.strictEqual(t.sex, 'f'); assert.strictEqual(t.level, 1); assert.strictEqual(t.xp, 0);
   assert.deepStrictEqual(t.skills, ['arranque'], 'Comum: 1 vaga');
-  G.STAT_KEYS.forEach(function (k) { assert.strictEqual(t.base[k], 36, 'base ' + k); assert.strictEqual(t.potential[k], 12, 'pot ' + k); });
+  G.STAT_KEYS.forEach(function (k) { assert.strictEqual(t.potential[k], 12, 'pot ' + k); });
   assert.deepStrictEqual(t.palette, pal);
   Object.keys(G.STARTERS[0]).filter(function (k) { return k !== 'title' && k !== 'bio'; }).forEach(function (k) { assert.ok(k in t, 'campo ' + k); });
   // Mítico: 5 vagas, qualquer skill do catálogo (inclusive exclusiva de outro elemento), na ordem pedida
   var m = DV().horseTemplate({ name: 'X', element: 'agua', rarity: 'mitico', sex: 'm', potential: 'max', skills: ['labareda', 'mare-alta', 'drift', 'sprint', 'arranque', 'segundo-ar'] }, 1);
   assert.deepStrictEqual(m.skills, ['labareda', 'mare-alta', 'drift', 'sprint', 'arranque']);
-  G.STAT_KEYS.forEach(function (k) { assert.strictEqual(m.base[k], 68); assert.strictEqual(m.potential[k], 31); });
+  G.STAT_KEYS.forEach(function (k) { assert.strictEqual(m.potential[k], 31); });
   assert.ok(/^#[0-9a-f]{6}$/i.test(m.palette.coat) && /^#[0-9a-f]{6}$/i.test(m.palette.accent), 'paleta padrão');
   assert.strictEqual(DV().horseTemplate({ rarity: 'raro', potential: 99 }).potential.vel, 31);
   assert.strictEqual(DV().horseTemplate({ rarity: 'raro', potential: -4 }).potential.vel, 0);
@@ -705,7 +782,8 @@ test('level e potencial malformados: status finitos, corrida termina, skillChanc
   G.STAT_KEYS.forEach(function (k) { assert.ok(typeof st[k] === 'number' && isFinite(st[k]), k + ' = ' + st[k]); });
   var h1 = mk({}); h1.level = 1; h1.potential = { vel: 0, acel: 0, man: 0, forca: 31, est: 0, garra: 0, sorte: 7 };
   assert.deepStrictEqual(st, S.computeStats(h1, null), 'level "x" vale 1; potencial vira número (inválido vale 0), preso a 0–31');
-  var hb = mk({}); hb.base.vel = 'rápido'; assert.strictEqual(typeof S.computeStats(hb, null).vel, 'number');
+  var hb = mk({}); hb.alloc = { vel: 'rápido', acel: -3, man: Infinity }; assert.deepStrictEqual(S.computeStats(hb, null), S.computeStats(mk({}), null));
+  hb.alloc = 'tudo'; assert.deepStrictEqual(S.computeStats(hb, null), S.computeStats(mk({}), null));
   var res = race(3, RETA, campo2(h));
   assert.ok(semNaN(res), res.finishTimes.join());
   assert.ok(!res.events.some(function (e) { return e.type === 'chegada' && /900/.test(e.text); }), 'ninguém "chega" em 900 s');
