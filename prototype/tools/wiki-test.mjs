@@ -8,7 +8,7 @@
 import { createRequire } from 'node:module'
 import { mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { gerarWiki, descreverEfeito, descreverGatilho, descreverEspecial, descreverBloco, efeitoGeralClima, papelDoStatus } from './wiki.mjs'
+import { gerarWiki, descreverEfeito, descreverEfeitoTipo, descreverGatilho, descreverEspecial, descreverBloco, efeitoGeralClima, papelDoStatus } from './wiki.mjs'
 
 const require = createRequire(import.meta.url)
 const G = require('../src/data.js')
@@ -50,6 +50,31 @@ for (const id in G.SKILLS) confere(a.html.includes(`id="skill-${id}"`), `skill $
 // chance de skill com conjunto: SOR + bônus de Sorte do conjunto e + bônus de chance (Comum Nv 1)
 confere(/\| Comum \| 40% \/ 45,5% \|/.test(a.md), 'tabela de chance de skill: Comum Nv 1 com conjunto devia mostrar 45,5%')
 
+// modelo v3 (cavalos v3, bloco 1): fórmula do status, raridades, estrelas, skill de tipo, sem Neutro
+confere(a.md.includes('natural = início da faixa da raridade + 16 × g / 31 + (level − 1) × (0,3 + 0,08 × g / 31)'), 'seção Status sem a fórmula v3 com a genética g')
+confere(/nota da genética[^\n]*C 0–7 · B 8–15 · A 16–23 · S 24–31/i.test(a.md), 'seção Status sem as notas de genética (C 0–7 … S 24–31)')
+for (const [rar, lo, hi, teto] of [['Comum', 40, 56, 80], ['Mágico', 45, 61, 85], ['Raro', 50, 66, 90], ['Lendário', 55, 71, 95], ['Mítico', 60, 76, 100]]) {
+  confere(new RegExp(`\\| ${rar} \\|[^\\n]*\\| ${lo}–${hi} \\| ${teto} \\|`).test(a.md), `tabela de raridades: ${rar} devia nascer entre ${lo} e ${hi} com teto ${teto}`)
+}
+for (const [est, m, livres, lim] of [['★', '×1', 49, 17], ['★★', '×1,2', 58, 20], ['★★★', '×1,5', 73, 25]]) {
+  confere(new RegExp(`\\| ${est} \\| ${m} \\| ${livres} \\| ${lim} \\|`).test(a.md), `tabela de estrelas: ${est} devia ter ${m}, ${livres} pontos livres e limite ${lim} no Nv 50`)
+}
+confere(/### Skill de tipo/.test(a.md) && a.html.includes('id="skills-tipo"'), 'falta a seção da skill de tipo (md e html)')
+confere(a.md.includes('P = 1 + 0,4 × (level − 1) / 49 + 0,4 × ordem da raridade / 4'), 'skill de tipo sem a fórmula da força P')
+for (const [nome, el, terco, efeito] of [
+  ['Labareda', 'Fogo', 'primeiro terço (da largada a 1/3)', 'aceleração +23%'],
+  ['Raízes Firmes', 'Grama', 'terço do meio (de 1/3 a 2/3)', 'Força efetiva +7; Manobra efetiva +7; gasto de estamina −1,2%'],
+  ['Maré Alta', 'Água', 'último terço (de 2/3 à chegada)', 'velocidade +1,8%; recupera 1,2% do tanque ao entrar no terço']
+]) {
+  confere(a.md.includes(`| **${nome}** | ${el} | ${terco} | ${efeito} |`), `skill de tipo ${nome}: linha com elemento, terço e efeito (P = 1) não confere`)
+}
+confere(!/neutro/i.test(a.md), 'md ainda fala de "Neutro"')
+confere(!/neutro/i.test(a.html.replace(/<script>\n\/\* src\/sprites\.js \*\/[\s\S]*?<\/script>/, '')), 'html ainda fala de "Neutro" (fora do sprites.js embutido)')
+confere(!/oculto no jogo|status base|bônus fixo|janela do grau|exclusivas/i.test(a.md), 'md com redação do modelo antigo (oculto, status base, bônus fixo, janela, exclusivas)')
+confere(a.html.includes('<li><b>15</b> skills</li>') && a.html.includes('<li><b>15</b> montarias</li>') && a.html.includes('<li><b>3</b> elementos</li>'), 'contagens do topo: 15 skills, 15 montarias, 3 elementos')
+confere(/id="filtro-el-geral"[^>]*>(<img[^>]*>)?Gerais</.test(a.html), 'falta o filtro "Gerais" (skills gerais)')
+confere(/<span class="el el--geral"><img /.test(a.html), 'skills gerais sem o ícone el-geral')
+
 // 3. chave desconhecida quebra
 lanca(() => descreverEfeito({ speedMult: 1.1, chaveInventada: 3 }), 'effect com chave inventada')
 lanca(() => descreverGatilho('gatilhoInventado'), 'gatilho inventado')
@@ -58,6 +83,10 @@ lanca(() => descreverEspecial('bonusInventado', 1), 'bônus especial inventado')
 lanca(() => descreverBloco('tunel', {}), 'tipo de bloco inventado')
 lanca(() => efeitoGeralClima('granizo'), 'clima inventado')
 lanca(() => papelDoStatus('carisma', {}), 'status inventado')
+lanca(() => descreverEfeitoTipo({ accelMult: 0.2, chaveInventada: 1 }, 1), 'efeito de skill de tipo com chave inventada')
+for (const el in G.TYPE_SKILLS) {
+  try { descreverEfeitoTipo(G.TYPE_SKILLS[el].effect, 1) } catch (e) { problemas.push(`skill de tipo ${el}: ${e.message}`) }
+}
 for (const id in G.SKILLS) {
   try { descreverEfeito(G.SKILLS[id].effect); descreverGatilho(G.SKILLS[id].trigger) } catch (e) { problemas.push(`skill ${id}: ${e.message}`) }
 }
@@ -142,6 +171,15 @@ try {
     await page.click('#filtro-el-fogo')
     const fe = await page.evaluate(() => [...document.querySelectorAll('[data-entrada="skill"], [data-entrada="montaria"]')].filter((e) => !e.hidden).every((e) => e.getAttribute('data-el') === 'fogo'))
     confere(fe, `[${largura}] filtro Fogo deixou passar outro elemento`)
+    // filtro Gerais: só as skills gerais (nenhuma montaria é "geral")
+    if (await page.$('#filtro-el-geral')) await page.click('#filtro-el-geral')
+    const fg = await page.evaluate(() => {
+      const vis = [...document.querySelectorAll('[data-entrada="skill"], [data-entrada="montaria"]')].filter((e) => !e.hidden)
+      return { n: vis.length, todas: vis.every((e) => e.getAttribute('data-entrada') === 'skill' && e.getAttribute('data-el') === 'geral') }
+    })
+    const nGerais = Object.keys(G.SKILLS).filter((id) => G.SKILLS[id].element === 'geral').length
+    confere(fg.todas && fg.n === nGerais, `[${largura}] filtro Gerais: ${fg.n} visíveis (esperado ${nGerais} skills gerais), só gerais: ${fg.todas}`)
+    await page.click('#filtro-el-todos')
     confere(!erros.length, `[${largura}] erros de console: ${erros.join(' | ')}`)
     await ctx.close()
   }

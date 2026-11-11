@@ -76,7 +76,10 @@ function lerFonte() {
     sexoPotro: numDe(breed, /var sex = rng\(\) < ([\d.]+) \? 'f' : 'm'/, 'o sorteio do sexo do potro'),
     corcelDois: numDe(breed, /if \(g === 1 && rng\(\) < ([\d.]+)\) g = 2/, 'a chance de 2 skills garantidas do Corcel'),
     potValores: numDe(breed, /potential\[k\] = Math\.floor\(rng\(\) \* (\d+)\);/, 'a faixa do potencial sorteado'),
-    potroPai: numDe(breed, /potential\[k\] = potOf\(rng\(\) < ([\d.]+) \? f : m, k\)/, 'a escolha do pai no potencial herdado')
+    potroPai: numDe(breed, /potential\[k\] = potOf\(rng\(\) < ([\d.]+) \? f : m, k\)/, 'a escolha do pai no potencial herdado'),
+    notas: extrair(game, /function notaGenetica\(g\) \{ return g >= (\d+) \? 'S' : g >= (\d+) \? 'A' : g >= (\d+) \? 'B' : 'C'; \}/, 'as notas de genética (notaGenetica)').slice(1, 4).map(Number),
+    moldePista: extrair(sim, /var c1 = corte\(([\d.]+)\), c2 = corte\(([\d.]+)\), c3 = corte\(([\d.]+)\), c4 = corte\(([\d.]+)\);/, 'o molde fixo da pista').slice(1, 5).map(Number),
+    botRodizio: listaJs(extrair(sim, /var BOT_ROTATION = (\[[^\]]*\]);/, 'BOT_ROTATION')[1])
   }
 }
 
@@ -185,6 +188,25 @@ export function descreverEfeito(effect) {
   return partes.join('; ') + (fim.length ? ', ' + fim.join(', ') : '')
 }
 
+/** Efeito da skill de tipo (GameData.TYPE_SKILLS[el].effect) com a força P aplicada. Lança erro em chave desconhecida. */
+export function descreverEfeitoTipo(effect, P) {
+  const partes = []
+  for (const k of Object.keys(effect || {})) {
+    const v = effect[k] * P
+    switch (k) {
+      case 'accelMult': partes.push(`aceleração +${pct(v, 0)}`); break
+      case 'speedMult': partes.push(`velocidade +${pct(v, 1)}`); break
+      case 'forcaAdd': partes.push(`Força efetiva +${num(v * 100, 1)}`); break
+      case 'manAdd': partes.push(`Manobra efetiva +${num(v * 100, 1)}`); break
+      case 'drainCut': partes.push(`gasto de estamina −${pct(v, 1)}`); break
+      case 'staminaRestore': partes.push(`recupera ${pct(v, 1)} do tanque ao entrar no terço`); break
+      default: throw new Error(`wiki: chave de efeito da skill de tipo desconhecida "${k}" — descreva-a em descreverEfeitoTipo (prototype/tools/wiki.mjs)`)
+    }
+  }
+  if (!partes.length) throw new Error('wiki: skill de tipo sem efeito conhecido: ' + JSON.stringify(effect))
+  return partes.join('; ')
+}
+
 /** Bônus especial de equipamento (Gear.resolve().special) em português. Lança erro em chave desconhecida. */
 export function descreverEspecial(chave, valor) {
   switch (chave) {
@@ -251,8 +273,8 @@ function pesoSkill(id) { return S.skillWeight(id) }
 // teto e piso de cada status depois de tudo (computeStats prende o resultado)
 function limitesStatus() {
   const k = G.STAT_KEYS[0]
-  const alto = S.computeStats({ rarity: 'mitico', element: 'neutro', level: 1, potential: { [k]: 31 } }, { mods: { [k]: 1e6 } })[k]
-  const baixo = S.computeStats({ rarity: 'comum', element: 'neutro', level: 1, potential: { [k]: 0 } }, { mods: { [k]: -1e6 } })[k]
+  const alto = S.computeStats({ rarity: 'mitico', element: 'fogo', level: 1, potential: { [k]: 31 } }, { mods: { [k]: 1e6 } })[k]
+  const baixo = S.computeStats({ rarity: 'comum', element: 'fogo', level: 1, potential: { [k]: 0 } }, { mods: { [k]: -1e6 } })[k]
   return { alto, baixo }
 }
 // faixa do dado e nº máximo de dados (rollDice com rng nas pontas)
@@ -265,9 +287,9 @@ function limitesDado() {
 // Amostra de pistas: frequências das condições sorteadas pela seed
 const AMOSTRA = 20000
 function amostraPistas() {
-  const dist = new Map(), nb = new Map(), tipos = {}, pisos = {}, climas = {}
+  const dist = new Map(), nb = new Map(), tipos = {}, pisos = {}, climas = {}, compos = {}, maxShare = {}
   let meio = 0
-  for (const k of Object.keys(G.BLOCK_TYPES)) tipos[k] = 0
+  for (const k of Object.keys(G.BLOCK_TYPES)) { tipos[k] = 0; compos[k] = 0; maxShare[k] = 0 }
   for (const k of Object.keys(G.SURFACES)) pisos[k] = 0
   for (const k of Object.keys(G.WEATHERS)) climas[k] = 0
   for (let s = 0; s < AMOSTRA; s++) {
@@ -278,6 +300,7 @@ function amostraPistas() {
       if (!(b.type in tipos)) throw new Error(`wiki: tipo de bloco desconhecido "${b.type}"`)
       if (i > 0 && i < c.blocks.length - 1) { tipos[b.type]++; meio++ }
     })
+    for (const k of Object.keys(compos)) { const x = S.blockShare(c.blocks, k); compos[k] += x / AMOSTRA; if (x > maxShare[k]) maxShare[k] = x }
     pisos[c.surface]++
     climas[c.weather]++
   }
@@ -288,7 +311,7 @@ function amostraPistas() {
     const c = S.randomConditions(1)
     return [c.blocks[0].type, c.blocks[c.blocks.length - 1].type]
   })()
-  return { dMin: ds[0], dMax: ds[ds.length - 1], passo, bMin: bs[0], bMax: bs[bs.length - 1], tipos, meio, pisos, climas, primeiraUltima }
+  return { dMin: ds[0], dMax: ds[ds.length - 1], passo, bMin: bs[0], bMax: bs[bs.length - 1], tipos, meio, pisos, climas, primeiraUltima, compos, maxShare }
 }
 // Pedras esperadas para cada passo da melhoria (falha pode derrubar; ver Gear.enhanceOdds)
 function pedrasEsperadas() {
@@ -401,7 +424,7 @@ function secoes(F, A) {
 
   // 1. Visão geral ---------------------------------------------------------------------------------------
   add('visao', 'Visão geral', 'Visão geral', [
-    { t: 'p', txt: `**Galope Elemental** é um jogo de corrida de cavalos automática em pixel art. Você não controla o cavalo durante a corrida: decide antes (montaria, equipamento e entrada) e assiste. Os cavalos têm elemento (${lista(Object.keys(G.ELEMENTS).map(nomeEl))}), raridade, level e skills.` },
+    { t: 'p', txt: `**Galope Elemental** é um jogo de corrida de cavalos automática em pixel art. Você não controla o cavalo durante a corrida: decide antes (montaria, equipamento e entrada) e assiste. Os cavalos têm tipo (${lista(Object.keys(G.ELEMENTS).map(nomeEl))}), raridade, estrelas, genética, level e skills; a cada level o jogador distribui pontos livres nos status.` },
     { t: 'h3', txt: 'Ciclo de uma corrida' },
     { t: 'passos', itens: [
       `**Escolher a montaria.** No começo você escolhe uma das ${G.STARTERS.length} iniciais (${lista(G.STARTERS.map((h) => h.name))}) e recebe ${num(E.startingGold)} de Ouro e o equipamento inicial (${lista(EG.startGear.map((id) => G.GEAR[id].name))}, já equipado).`,
@@ -418,13 +441,17 @@ function secoes(F, A) {
 
   // 2. Status --------------------------------------------------------------------------------------------
   add('status', 'Status', 'Status', [
-    { t: 'p', txt: `Cada montaria tem ${G.STAT_KEYS.length} status na escala de 1 a 100. Na corrida o motor usa n(x) = status / 100. Depois de elemento e equipamento o valor é arredondado e preso entre ${lim.baixo} e ${lim.alto}.` },
+    { t: 'p', txt: `Cada montaria tem ${G.STAT_KEYS.length} status na escala de 1 a 100. Na corrida o motor usa n(x) = status / 100. Depois do equipamento o valor é arredondado e preso entre ${lim.baixo} e ${lim.alto}.` },
     { t: 'tabela', rotulo: 'Status', cab: ['Sigla', 'Status', 'Descrição no jogo', 'Na corrida'], linhas: G.STAT_KEYS.map((k) => [N(siglaStat(k)), nomeStat(k), G.STATS[k].desc, papelDoStatus(k, F)]) },
     { t: 'h3', txt: 'Como o status é calculado' },
-    { t: 'formula', txt: `natural = início da faixa da raridade + ${num(T.gBand)} × pot / 31 + (level − 1) × (${num(T.gGrowBase)} + ${num(T.gGrowRange)} × pot / 31)
-status  = min(natural + pontos livres, teto da raridade) + equipamento
+    { t: 'formula', txt: `natural = início da faixa da raridade + ${num(T.gBand)} × g / 31 + (level − 1) × (${num(T.gGrowBase)} + ${num(T.gGrowRange)} × g / 31)
+status  = min(natural + pontos distribuídos, teto da raridade) + equipamento
 arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
-    { t: 'p', txt: `pot = potencial (genética, 0 a 31). Pontos livres = piso((level − 1) × ${T.starMult.map((x) => num(x)).join(' / ')} conforme as estrelas), no máximo ${pct(T.freeCapShare, 0)} deles (arredondado para cima) num mesmo status. O teto da raridade vale antes do equipamento, então ele pode passar do teto.` },
+    { t: 'lista', itens: [
+      `**Genética (g):** de 0 a 31 por status, só do nascimento. Define onde o status nasce dentro da faixa da raridade (${num(T.gBand)} pontos de largura) e acelera o crescimento por level. Nota da genética no jogo: C 0–${F.notas[2] - 1} · B ${F.notas[2]}–${F.notas[1] - 1} · A ${F.notas[1]}–${F.notas[0] - 1} · S ${F.notas[0]}–31.`,
+      `**Pontos livres:** piso((level − 1) × ${T.starMult.map((x) => num(x)).join(' / ')}, conforme as estrelas). O jogador distribui na aba Status e confirma; ponto confirmado não volta. No máximo ${pct(T.freeCapShare, 0)} dos pontos livres (arredondado para cima) num mesmo status, e ponto acima do teto não rende.`,
+      `**Teto da raridade:** vale antes do equipamento, então a peça pode passar dele. Ver Raridades.`
+    ] },
     { t: 'p', txt: `O clima também mexe nos status durante a corrida: o multiplicador m do clima (ver Elementos e clima) entra em VEL, ACE, MAN, FOR e GAR (não em EST nem em SOR).` }
   ])
 
@@ -439,7 +466,8 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
   for (let l = 1; l < E.maxLevel; l++) { acum += E.xpToLevel(l); xpLinhas.push([`Nv ${l} → ${l + 1}`, N(num(E.xpToLevel(l))), N(num(acum))]) }
   const nPlaces = E.xpPerPlace.length
   const rarIds = Object.keys(G.RARITIES)
-  const crescimento = (r, pot) => T.gGrowBase + T.gGrowRange * pot / 31
+  const crescimento = (g) => T.gGrowBase + T.gGrowRange * g / 31
+  const genEx = [0, F.notas[2], F.notas[1], F.notas[0], 31]
   const niveisEx = [1, 10, 25, E.maxLevel]
   // exemplo do teto: o primeiro inicial no Nv máximo, no status de maior potencial, com o limite de pontos nele
   const exemploTeto = () => {
@@ -447,7 +475,7 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
     const k = G.STAT_KEYS.reduce((m, x) => (h.potential[x] > h.potential[m] ? x : m), G.STAT_KEYS[0])
     const x = { ...h, level: E.maxLevel }, lim_ = S.statLimit(x), R_ = G.RARITIES[h.rarity]
     const nat = S.naturalStat(x, k), real = S.computeStats({ ...x, alloc: { [k]: lim_ } }, null)[k]
-    return { t: 'p', txt: `O ganho real para no teto: status = min(natural + pontos, teto). Exemplo: ${h.name} (${nomeRar(h.rarity)}), ${nomeStat(k)} com pot ${h.potential[k]}, chega sozinha a ${num(nat, 1)} no Nv ${E.maxLevel}; com ${lim_} pontos chegaria a ${num(nat + lim_, 1)}, mas fica em ${real} (teto ${R_.statCap}).` }
+    return { t: 'p', txt: `O ganho real para no teto: status = min(natural + pontos, teto). Exemplo: ${h.name} (${nomeRar(h.rarity)} ${estrelas(S.starsOf(h))}), ${nomeStat(k)} com genética ${h.potential[k]}, chega sozinha a ${num(nat, 1)} no Nv ${E.maxLevel}; com ${lim_} pontos (o limite num status) chegaria a ${num(nat + lim_, 1)}, mas fica em ${real} (teto ${R_.statCap}).` }
   }
   add('level', 'Level e XP', 'Level e XP', [
     { t: 'p', txt: `Level máximo: **${E.maxLevel}**. ${xpLin ? `Para subir do level L para L + 1 são ${num(xpLin.a)} + ${num(xpLin.b)} × L de XP.` : 'XP por level na tabela.'} Do level 1 ao ${E.maxLevel} são ${num(acum)} de XP no total. No level máximo o XP ainda acumula até ${num(E.xpToLevel(E.maxLevel))} (o valor de um level ${E.maxLevel} → ${E.maxLevel + 1}) e aí trava.` },
@@ -457,28 +485,29 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
     { t: 'h3', txt: 'XP necessário por level' },
     { t: 'grade', classe: 'grade--xp', cab: ['Level', 'XP', 'Acumulado'], linhas: xpLinhas },
     { t: 'h3', txt: 'Crescimento por level' },
-    { t: 'p', txt: `A cada level, cada status ganha sozinho ${num(T.gGrowBase)} + ${num(T.gGrowRange)} × pot / 31, até o teto da raridade (igual em todas as raridades).` },
-    { t: 'tabela', rotulo: 'Crescimento por level', cab: ['Raridade', 'Ganho/level (pot 0)', 'Ganho/level (pot 31)', `Ganho do Nv 1 ao ${E.maxLevel}, sem o teto (pot 31)`, 'Teto'], linhas: rarIds.map((r) => [rarCel(r), N(num(crescimento(r, 0), 3)), N(num(crescimento(r, 31), 3)), N(num(crescimento(r, 31) * (E.maxLevel - 1), 1)), N(num(G.RARITIES[r].statCap))]) },
+    { t: 'p', txt: `A cada level, cada status ganha sozinho ${num(T.gGrowBase)} + ${num(T.gGrowRange)} × g / 31, igual em todas as raridades, até o teto da raridade. Além disso, cada level dá pontos livres para distribuir (ver Raridades, Estrelas).` },
+    { t: 'tabela', rotulo: 'Crescimento por level', cab: ['Genética', 'Ganho por level', `Ganho do Nv 1 ao ${E.maxLevel}, sem o teto`], linhas: genEx.map((g) => [N(String(g)), N(num(crescimento(g), 3)), N(num(crescimento(g) * (E.maxLevel - 1), 1))]) },
     exemploTeto(),
     { t: 'h3', txt: 'Aprender skill ao subir de level' },
     { t: 'p', txt: `A cada level ganho há ${pct(T.learnChance, 0)} de chance de aprender uma skill nova (sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: geral ou do próprio elemento, nunca repetida.` },
-    { t: 'h3', txt: 'Exemplo: as iniciais por level (sem equipamento)' },
+    { t: 'h3', txt: 'Exemplo: as iniciais por level (sem equipamento e sem pontos distribuídos)' },
     { t: 'tabela', rotulo: 'Iniciais por level', cab: ['Montaria', 'Level', ...G.STAT_KEYS.map(siglaStat), 'Poder'], linhas: G.STARTERS.flatMap((h) => niveisEx.map((l) => { const x = { ...h, level: l }; const st = S.computeStats(x, null); return [h.name, N(String(l)), ...G.STAT_KEYS.map((k) => N(String(st[k]))), N(num(S.powerRating(x, null)))] })) }
   ])
 
   // 4. Raridades -----------------------------------------------------------------------------------------
   const contaRar = (r) => todasMontarias().filter((h) => h.rarity === r).length
   add('raridades', 'Raridades', 'Raridades', [
-    { t: 'p', txt: `São ${rarIds.length} raridades, da mais comum à mais rara: ${lista(rarIds.map(nomeRar))}. A raridade define a faixa onde o status nasce, o teto de status, as vagas de skill e a chance de ativar skills.` },
-    { t: 'tabela', rotulo: 'Raridades', cab: ['Raridade', 'Cor', 'Teto de status', 'Vagas de skill', 'Skills do potro (mínimo)', 'Chance base de skill', 'Preço da peça', 'Aluguel base', 'Montarias no jogo'], linhas: rarIds.map((r) => {
+    { t: 'p', txt: `São ${rarIds.length} raridades, da mais comum à mais rara: ${lista(rarIds.map(nomeRar))}. A raridade define a faixa onde o status nasce (pela genética), o teto de cada status, as vagas de skill, a chance de ativar skills e a força da skill de tipo. Só muda por cruzamento.` },
+    { t: 'tabela', rotulo: 'Raridades', cab: ['Raridade', 'Cor', 'Status nasce entre', 'Teto de status', 'Vagas de skill (além da de tipo)', 'Skills do potro (mínimo)', 'Chance base de skill', `Força da skill de tipo (Nv 1 / Nv ${E.maxLevel})`, 'Preço da peça', 'Aluguel base', 'Montarias no jogo'], linhas: rarIds.map((r) => {
       const R = G.RARITIES[r]
-      return [rarCel(r), { md: R.color, html: `<span class="amostra" style="--c:${R.color}"></span><code>${R.color}</code>` }, N(num(R.statCap)), N(String(R.skillSlots)), N(String(R.bornSkills)), N(pct(R.skillChance, 0)),
+      return [rarCel(r), { md: R.color, html: `<span class="amostra" style="--c:${R.color}"></span><code>${R.color}</code>` }, N(`${num(R.baseLo)}–${num(R.baseLo + T.gBand)}`), N(num(R.statCap)), N(String(R.skillSlots)), N(String(R.bornSkills)), N(pct(R.skillChance, 0)),
+        N(`${num(S.typePower({ rarity: r, level: 1 }))} / ${num(S.typePower({ rarity: r, level: E.maxLevel }))}`),
         EG.price[r] != null ? ouroCel(EG.price[r]) : 'não existe', BR.rentalBase[r] != null ? ouroCel(BR.rentalBase[r]) : 'não se aluga', N(String(contaRar(r)))]
     }) },
     { t: 'p', txt: `Raridade mais alta que nasce de cruzamento: **${nomeRar(B.RARITY_IDS[B.TUNING.maxRarityOrder])}**. ${nomeRar('mitico')} nunca nasce de cruzamento e não se aluga.` },
-    { t: 'h3', txt: 'Grau (estrelas)' },
-    { t: 'p', txt: `Cada montaria tem um grau de ${estrelas(1)} a ${estrelas(BR.grauMult.length)}: a qualidade do cruzamento. Ele muda os pontos livres do treino e o preço do aluguel. As iniciais e os selvagens têm o grau definido nos dados.` },
-    { t: 'tabela', rotulo: 'Graus', cab: ['Grau', 'Multiplicador do aluguel'], linhas: BR.grauMult.map((x, i) => [N(estrelas(i + 1)), N(mult(x, 2))]) },
+    { t: 'h3', txt: 'Estrelas (grau)' },
+    { t: 'p', txt: `Cada montaria tem de ${estrelas(1)} a ${estrelas(T.starMult.length)}. As estrelas multiplicam os pontos livres ganhos por level e mudam o preço do aluguel; não mexem na genética. O potro recebe as estrelas no nascimento (ver Cruzamento); as iniciais e os selvagens têm as estrelas definidas nos dados. Ainda não existe item que sobe estrela.` },
+    { t: 'tabela', rotulo: 'Estrelas', cab: ['Estrelas', 'Multiplicador dos pontos livres', `Pontos livres no Nv ${E.maxLevel}`, `Limite por status no Nv ${E.maxLevel}`, 'Multiplicador do aluguel'], linhas: T.starMult.map((x, i) => { const h = { level: E.maxLevel, grau: i + 1 }; return [N(estrelas(i + 1)), N(mult(x, 2)), N(String(S.freePoints(h))), N(String(S.statLimit(h))), N(mult(BR.grauMult[i], 2))] }) },
     { t: 'h3', txt: 'Corcel' },
     { t: 'p', txt: `Uma montaria é **Corcel** quando já tem todas as skills "de linha" da sua raridade. Corcel garante herança de skill no cruzamento (ver Cruzamento).` },
     { t: 'tabela', rotulo: 'Corcel', cab: ['Raridade', 'Skills de linha'], linhas: Object.keys(B.CORCEL_SETS).map((r) => [rarCel(r), B.CORCEL_SETS[r].map(nomeSkill).join(', ')]) }
@@ -489,7 +518,7 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
   const penalizadoPor = (el) => clIds.filter((w) => G.WEATHERS[w].penalizes === el)
   const amostraVento = F.vento
   add('elementos', 'Elementos e clima', 'Elementos', [
-    { t: 'p', txt: `Cada elemento tem um clima "dono", que o favorece. Cada clima também penaliza um elemento.` },
+    { t: 'p', txt: `São ${elIds.length} tipos (elementos). Cada um tem a sua skill de tipo, sempre ativa num terço da pista (ver Skills), e um clima "dono", que o favorece. Cada clima também penaliza um tipo. Fora do clima e da skill, o tipo não mexe nos status.` },
     { t: 'tabela', rotulo: 'Elementos', cab: ['Elemento', 'Clima dono', 'Penalizado por', 'Descrição'], linhas: elIds.map((e) => {
       const el = G.ELEMENTS[e], pen = penalizadoPor(e)
       return [elCel(e), el.weather ? nomeClima(el.weather) : '—', pen.length ? pen.map(nomeClima).join(', ') : '—', el.desc]
@@ -513,8 +542,12 @@ Força, Manobra e Garra efetivas = n(x) × m` },
   // 6. Skills --------------------------------------------------------------------------------------------
   const skIds = Object.keys(G.SKILLS)
   const quemTem = (id) => todasMontarias().filter((h) => h.skills.indexOf(id) >= 0).map((h) => h.name)
-  const quemPode = (sk) => sk.element === 'geral' ? 'qualquer elemento' : `só ${nomeEl(sk.element)}`
+  const quemPode = (sk) => sk.element === 'geral' ? 'qualquer tipo' : `só ${nomeEl(sk.element)}`
   const ordemEl = ['geral', ...elIds]
+  const tercoTxt = (z) => {
+    const nome = z[0] === 0 ? 'primeiro terço' : z[1] === 1 ? 'último terço' : 'terço do meio'
+    return `${nome} (${z[0] === 0 ? 'da largada' : 'de ' + fracao(z[0])} ${z[1] === 1 ? 'à chegada' : 'a ' + fracao(z[1])})`
+  }
   const skillMd = ordemEl.filter((e) => skIds.some((id) => G.SKILLS[id].element === e)).map((e) => {
     const ids = skIds.filter((id) => G.SKILLS[id].element === e)
     return `### ${e === 'geral' ? 'Gerais' : nomeEl(e)} (${ids.length})\n\n` + blocoMd({ t: 'tabela', cab: ['Skill', 'Gatilho', 'Efeito', 'Descrição no jogo', 'Quem pode ter', 'Começa em', 'Pontos no Poder', 'Balão'], linhas: ids.map((id) => {
@@ -541,11 +574,20 @@ Força, Manobra e Garra efetivas = n(x) × m` },
   const sorteEx = 50
   const lvEx = [1, 25, E.maxLevel]
   add('skills', 'Skills', 'Skills', [
-    { t: 'p', txt: `São ${skIds.length} skills. Cada uma tem um gatilho; quando ele acontece, a montaria faz **uma** tentativa contra a chance de skill (uma por corrida, ou uma por bloco nas skills de curva e subida marcadas "em cada bloco"). Se acertar, o efeito vale pelo tempo ou pela distância indicados.` },
+    { t: 'p', txt: `Toda montaria tem a **skill de tipo** do seu elemento, em vaga própria e sempre ativa (abaixo). Além dela, há ${skIds.length} skills de vaga normal. Cada uma tem um gatilho; quando ele acontece, a montaria faz **uma** tentativa contra a chance de skill (uma por corrida, ou uma por bloco nas skills de curva e subida marcadas "em cada bloco"). Se acertar, o efeito vale pelo tempo ou pela distância indicados.` },
     { t: 'p', txt: `**Skills de largada** disparam no sinal (t = 0), antes do atraso de reação do cavalo (até ${num(T.startDelayMax)} s, menor com ACE alta). A duração conta desde o sinal, então esse atraso consome parte dela.` },
     { t: 'formula', txt: `chance de skill = min(${pct(T.skillChanceMax, 0)}, chance base da raridade + ${pp(T.skillPerLevel)} × (level − 1) + ${pp(T.skillPerSorte)} × SOR + bônus de equipamento)` },
     { t: 'tabela', rotulo: 'Chance de skill', titulo: `Chance de ativar: sem equipamento (SOR ${sorteEx}) / com ${EG.setBonus.pieces[0]}+ peças de um conjunto (SOR ${sorteEx} + ${EG.setBonus.sorte} do conjunto = ${sorteEx + EG.setBonus.sorte}, e ${'+' + pp(EG.setBonus.skillChance, 0)} de chance)`, cab: ['Raridade', ...lvEx.map((l) => `Nv ${l}`)], linhas: rarIds.map((r) => [rarCel(r), ...lvEx.map((l) => N(`${pct(S.skillChance({ rarity: r, level: l }, { sorte: sorteEx }), 1)} / ${pct(S.skillChance({ rarity: r, level: l }, { sorte: sorteEx + EG.setBonus.sorte }, EG.setBonus.skillChance), 1)}`))]) },
-    { t: 'p', txt: `**Quem pode ter:** as skills gerais servem para qualquer elemento; as de elemento, só para aquele elemento. O número de skills é limitado pelas vagas da raridade.` },
+    { t: 'h3', txt: 'Skill de tipo', id: 'skills-tipo' },
+    { t: 'p', txt: `Sem sorteio e sem chance: age sempre, no terço da distância que é do tipo (o terço é proporcional à distância da pista). Os números abaixo valem com força P = 1 e são multiplicados por P, que cresce com o level e a raridade. No início do terço aparece o balão da skill.` },
+    { t: 'formula', txt: `P = ${num(T.typeBase)} + ${num(T.typeLevel)} × (level − 1) / 49 + ${num(T.typeRar)} × ordem da raridade / 4      (ordem: ${rarIds.map((r) => `${nomeRar(r)} ${G.RARITIES[r].order}`).join(', ')})` },
+    { t: 'tabela', rotulo: 'Skills de tipo', cab: ['Skill', 'Tipo', 'Terço', 'Efeito (P = 1)', `${nomeRar('lendario')} Nv ${E.maxLevel} (P = ${num(S.typePower({ rarity: 'lendario', level: E.maxLevel }))})`, 'Pontos no Poder (P = 1)', 'Balão'], linhas: elIds.filter((e) => G.TYPE_SKILLS[e]).map((e) => {
+      const ts = G.TYPE_SKILLS[e]
+      return [`**${ts.name}**`, elCel(e), tercoTxt(ts.zone), descreverEfeitoTipo(ts.effect, 1), descreverEfeitoTipo(ts.effect, S.typePower({ rarity: 'lendario', level: E.maxLevel })), N(num(T.ratingTypeW)), FX.nomeCurto(ts.name, ts.short)]
+    }) },
+    { t: 'p', txt: `"Força efetiva +7" soma 7 pontos à Força (e à Manobra) usada na curva, na subida, no piso pesado e no pelotão. Elemento sem skill de tipo corre sem ela. A skill de tipo não troca e não conta nas vagas.` },
+    { t: 'h3', txt: 'Skills de vaga' },
+    { t: 'p', txt: `**Quem pode ter:** as skills gerais servem para qualquer tipo; as de um tipo, só para aquele tipo. O número de skills é limitado pelas vagas da raridade.` },
     { t: 'p', txt: `**Pontos no Poder:** cada skill soma 20 × o peso do gatilho no Poder (gatilhos que nem sempre acontecem valem menos). **Balão:** o texto que aparece na pista quando a skill ativa.` },
     { t: 'custom', md: skillMd, html: skillHtml }
   ])
@@ -571,8 +613,9 @@ Força, Manobra e Garra efetivas = n(x) × m` },
   const btIds = Object.keys(G.BLOCK_TYPES)
   add('pista', 'Pista e simulação', 'Pista', [
     { t: 'p', txt: `A pista de cada sala sai da seed: distância de ${num(P.dMin)} a ${num(P.dMax)} m (de ${num(P.passo)} em ${num(P.passo)} m), de ${P.bMin} a ${P.bMax} blocos de tamanhos variados (fronteiras de 10 em 10 m), piso e clima inicial. O primeiro e o último bloco são sempre ${G.BLOCK_TYPES[P.primeiraUltima[0]].name.toLowerCase()}; os do meio são sorteados entre ${lista(btIds.map((b) => G.BLOCK_TYPES[b].name.toLowerCase()))}.` },
+    { t: 'p', txt: `**Pista sem extremos:** toda pista tem pelo menos uma curva e uma subida, e nenhum tipo de bloco passa de ${pct(T.trackMaxShare, 0)} da distância. Se o sorteio não cumpre, os blocos são sorteados de novo (na mesma seed); depois de ${T.trackTries} tentativas entra um molde fixo: ${(() => { const c = [0, ...F.moldePista, 1], tp = ['reta', 'curva', 'reta', 'subida', 'reta']; return tp.map((t, i) => `${t} ${pct(c[i + 1] - c[i], 0)}`).join(', ') })()}.` },
     { t: 'tabela', rotulo: 'Frequências da pista', titulo: `Frequência em ${num(AMOSTRA)} seeds`, cab: ['Item', 'Valores'], linhas: [
-      ['Blocos do meio', btIds.map((b) => `${G.BLOCK_TYPES[b].name} ${pct(P.tipos[b] / P.meio, 0)}`).join(' · ')],
+      ['Composição média (da distância)', btIds.map((b) => `${G.BLOCK_TYPES[b].name} ${pct(P.compos[b], 0)} (no máximo ${pct(P.maxShare[b], 0)})`).join(' · ')],
       ['Piso', Object.keys(G.SURFACES).map((s) => `${G.SURFACES[s].name} ${pct(P.pisos[s] / AMOSTRA, 0)}`).join(' · ')],
       ['Clima inicial', clIds.map((w) => `${nomeClima(w)} ${pct(P.climas[w] / AMOSTRA, 0)}`).join(' · ')]
     ] },
@@ -609,7 +652,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
   // 9. Montarias -----------------------------------------------------------------------------------------
   add('montarias', 'Montarias', 'Montarias', [
     { t: 'p', txt: `Há ${G.STARTERS.length} montarias iniciais e ${G.WILD_HORSES.length} selvagens. Todas são da espécie cavalo. As selvagens aparecem como bots nas corridas, como reprodutores de aluguel no Haras (menos as de raridade ${nomeRar('mitico')}) e ${F.vitrine.length} delas na vitrine da Expedição. As iniciais também aparecem como bots quando não são suas. Como o level dos bots é escolhido: ver Economia, Rivais da sala.` },
-    { t: 'p', txt: `**Potencial** (0 a 31 por status) é **oculto no jogo**; aparece aqui para referência. Os status "no level" são sem equipamento e sem pontos livres distribuídos.` },
+    { t: 'p', txt: `**Genética** (0 a 31 por status, nota C a S) aparece no jogo, na aba Status da montaria. Os status são sem equipamento e sem pontos livres distribuídos. Os bots usam a genética do modelo e distribuem os pontos pela build fixa (ver Economia, Poder e ligas).` },
     { t: 'custom', md: montariasMd(F), html: montariasHtml(F) }
   ])
 
@@ -645,23 +688,23 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     tabelaPares(0),
     tabelaPares(BR.levelSaturation),
     { t: 'h3', txt: 'Grau do potro' },
-    { t: 'p', txt: `Grau base = arredondar(${num(BR.mareWeight)} × grau da égua + ${num(1 - BR.mareWeight)} × grau do garanhão). Se a raridade **subiu**, o potro nasce ${estrelas(1)}; se **desceu**, nasce ${estrelas(BR.grauMult.length)}. Se manteve, sorteia desce/mantém/sobe (fora de 1–3 soma em "mantém").` },
+    { t: 'p', txt: `As estrelas do potro multiplicam os pontos livres dele (ver Raridades). Grau base = arredondar(${num(BR.mareWeight)} × grau da égua + ${num(1 - BR.mareWeight)} × grau do garanhão). Se a raridade **subiu**, o potro nasce ${estrelas(1)}; se **desceu**, nasce ${estrelas(BR.grauMult.length)}. Se manteve, sorteia desce/mantém/sobe (fora de 1–3 soma em "mantém").` },
     { t: 'tabela', rotulo: 'Grau do potro', cab: ['Grau base', 'L', ...BR.grauMult.map((w, i) => estrelas(i + 1))], linhas: BR.grauMult.flatMap((w, i) => [0, BR.levelSaturation].map((lv) => { const o = gO(i + 1, lv); return [N(estrelas(i + 1)), lv ? 'L = 1' : 'L = 0', ...BR.grauMult.map((x, j) => N(o[j + 1] > 0 ? pct(o[j + 1], 0) : '—'))] })) },
-    { t: 'h3', txt: 'Elemento, sexo, status e potencial' },
+    { t: 'h3', txt: 'Tipo, sexo e genética' },
     { t: 'lista', itens: [
-      `**Elemento:** se os pais têm o mesmo, o potro herda; senão, ${pct(F.elementoPotro, 0)} de chance de cada um.`,
+      `**Tipo:** se os pais têm o mesmo, o potro herda; senão, ${pct(F.elementoPotro, 0)} de chance de cada um. A skill de tipo vem com o tipo.`,
       `**Sexo:** ${pct(F.sexoPotro, 0)} fêmea, ${pct(1 - F.sexoPotro, 0)} macho.`,
-      `**Potencial:** para cada status, ${pct(B.TUNING.potInherit, 0)} de chance de herdar o de um dos pais (${pct(F.potroPai, 0)} para cada); senão sai de 0 a ${F.potValores - 1}.`,
+      `**Genética:** para cada status, ${pct(B.TUNING.potInherit, 0)} de chance de herdar a de um dos pais (${pct(F.potroPai, 0)} para cada); senão sai de 0 a ${F.potValores - 1}. Os status do potro saem da genética e da raridade; ele nasce no level 1, sem pontos livres.`,
       `**Nome:** sorteado entre ${G.FOAL_NAMES.length}: ${lista(G.FOAL_NAMES)}.`,
       '**Cores:** mistura das cores dos pais.'
     ] },
     { t: 'h3', txt: 'Skills do potro' },
     { t: 'passos', itens: [
-      'Candidatas: as skills dos pais que servem para o elemento do potro (exclusivas nunca passam).',
+      'Candidatas: as skills de vaga dos pais que servem para o tipo do potro.',
       `Corcel: com 1 pai Corcel, 1 skill garantida (${pct(F.corcelDois, 0)} de chance de 2); com os 2 pais Corcel, 2 garantidas.`,
       `Cada candidata restante passa com ${pct(B.TUNING.skillInherit, 0)} de chance.`,
       'Corte nas vagas da raridade do potro.',
-      'Se ficou abaixo das skills ao nascer da raridade, completa com skills sorteadas que servem para o elemento.'
+      'Se ficou abaixo das skills ao nascer da raridade, completa com skills sorteadas que servem para o tipo.'
     ] }
   ])
 
@@ -733,7 +776,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
       ['Cruza', `aluguel ${num(Math.min(...alugaveis.map((h) => B.rentalPrice(h))))} a ${num(Math.max(...alugaveis.map((h) => B.rentalPrice(h))))}; registro ${num(BR.ownRegistration)}; Troca ${num(BR.exchange)}`]
     ] },
     { t: 'h3', txt: 'Poder e ligas', id: 'poder' },
-    { t: 'p', txt: 'O **Poder** resume a montaria com o equipamento: soma ponderada dos status efetivos + skills + pontos de conjunto. Ele define a liga e os rivais da sala.' },
+    { t: 'p', txt: 'O **Poder** resume a montaria com o equipamento: soma ponderada dos status efetivos (com os pontos distribuídos) + skills + skill de tipo + pontos de conjunto. Ele define a liga e os rivais da sala.' },
     { t: 'formula', txt: `Poder = ${G.STAT_KEYS.map((k) => `${num(T.ratingW[k], 2)}·${siglaStat(k)}`).join(' + ')}
       + ${num(T.ratingSkillPts)} × peso do gatilho, por skill
       + ${num(T.ratingTypeW)} × força da skill de tipo
@@ -741,7 +784,8 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'tabela', rotulo: 'Peso do gatilho', titulo: 'Peso do gatilho no Poder', cab: ['Gatilho', 'Peso', 'Pontos por skill'], linhas: Object.keys(pesos).map((t) => [t === 'weather:*' ? 'Clima (qualquer)' : descreverGatilho(t), N(num(pesos[t], 2)), N(num(pesos[t] * T.ratingSkillPts))]) },
     { t: 'tabela', rotulo: 'Ligas', cab: ['Liga', 'Poder', 'Cor'], linhas: G.LEAGUES.map((L) => { const f = S.leagueFor(L.min); return [{ md: L.name, html: `<span class="liga" style="--c:${L.color}">${esc(L.name)}</span>` }, N(f.max == null ? `${num(L.min)} ou mais` : `${num(L.min)}–${num(f.max)}`), { md: L.color, html: `<code>${L.color}</code>` }] }) },
     { t: 'p', txt: `**Rivais da sala:** cada bot mira um Poder entre ${sinalPct(F.botAlvo[0] - 1, 1)} e ${sinalPct(F.botAlvo[0] + F.botAlvo[1] - 1, 1)} do seu (leve viés para cima), com o equipamento da liga desse alvo. Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de ${F.botFaixaNivel[0]} levels abaixo a ${F.botFaixaNivel[1]} acima do level dele, entre 1 e ${E.maxLevel}. O modelo só entra se ficar a até ${pct(F.botFaixa, 0)} do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos ${F.botReserva} modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem.` },
-    { t: 'tabela', rotulo: 'Poder das iniciais', titulo: 'Poder das iniciais', cab: ['Montaria', 'Nv 1 sem peças', 'Nv 1 com o equipamento inicial', `Nv ${E.maxLevel} sem peças`], linhas: G.STARTERS.map((h) => [h.name, N(num(S.powerRating(h, null))), N(num(S.powerRating(h, ini))), N(num(S.powerRating({ ...h, level: E.maxLevel }, null)))]) }
+    { t: 'p', txt: `**Build dos bots** (fixa, sem sorteio): o limite por status vai para ${nomeStat('vel')} (${lista(elIds.filter((e) => e !== 'grama').map(nomeEl))}) ou ${nomeStat('forca')} (${nomeEl('grama')}); o resto vai de um em um para ${lista(F.botRodizio.map(nomeStat))}, pulando o que está no limite ou no teto; a sobra vai para ${nomeStat('sorte')}.` },
+    { t: 'tabela', rotulo: 'Poder das iniciais', titulo: 'Poder das iniciais', cab: ['Montaria', 'Nv 1 sem peças', 'Nv 1 com o equipamento inicial', `Nv ${E.maxLevel} sem peças nem pontos`, `Nv ${E.maxLevel} sem peças, build dos bots`], linhas: G.STARTERS.map((h) => { const h50 = { ...h, level: E.maxLevel }; return [h.name, N(num(S.powerRating(h, null))), N(num(S.powerRating(h, ini))), N(num(S.powerRating(h50, null))), N(num(S.powerRating({ ...h50, alloc: S.botAlloc(h50) }, null)))] }) }
   ])
 
   // 13. Modo DEV -----------------------------------------------------------------------------------------
@@ -749,7 +793,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `Para testar: abra \`prototype/dist/preview.html?dev=1\` ou o build de teste \`prototype/dist/jogo-dev.html\` (liga sozinho; é o que vai para o artefato, que não repassa \`?dev=1\`). O save é separado (\`${DV.SAVE_KEY}\`): o jogo real não é lido nem gravado.` },
     { t: 'dl', itens: [
       ['Moedas', `Ouro infinito (volta a ${num(DV.GOLD_INF)} depois de cada gasto) e Pedras Negras à vontade.`],
-      ['Cavalo', `cria ou substitui um cavalo com qualquer elemento, raridade, sexo, level (1–${E.maxLevel}), potencial e até ${F.devVagas} skills (inclusive exclusivas); copia iniciais e aluguéis; +10 levels; +1 cruza.`],
+      ['Cavalo', `cria ou substitui um cavalo com qualquer tipo, raridade, sexo, estrelas, level (1–${E.maxLevel}), genética (máxima ou por status), pontos distribuídos e até ${F.devVagas} skills (inclusive de outro tipo); copia iniciais e aluguéis; +10 levels; +1 cruza; devolve os pontos da ativa.`],
       ['Itens', 'qualquer peça do catálogo, inclusive Lendária, com qualquer melhoria; conjunto completo de uma vez.'],
       ['Próxima corrida', 'clima inicial, piso, distância, traçado (mais curvas, mais subidas ou lista de blocos), vento, seed e "skills sempre ativam".'],
       ['Perfil', 'zerar o perfil de teste (volta à Brasa).']
@@ -785,10 +829,10 @@ function montariasMd(F) {
     const cab = [`#### ${h.name}${h.title ? ' — ' + h.title : ''}`, '',
       `${nomeEl(h.element)} · ${nomeRar(h.rarity)} · ${estrelas(h.grau || 2)} · ${sexoTxt(h.sex)} · Nv ${h.level} · Poder ${num(i.poder)} (${i.liga.name}) · ${i.cruzas} cruza(s)`, '',
       [h.bio, h.habitat ? `Habitat: ${h.habitat}.` : '', h.lore].filter(Boolean).join(' '), '',
-      `Skills: ${h.skills.length ? h.skills.map(nomeSkill).join(', ') : 'nenhuma'} · Onde aparece: ${i.onde.join(', ')}`, '']
+      `Skill de tipo: ${G.TYPE_SKILLS[h.element] ? G.TYPE_SKILLS[h.element].name : 'nenhuma'} · Skills: ${h.skills.length ? h.skills.map(nomeSkill).join(', ') : 'nenhuma'} · Onde aparece: ${i.onde.join(', ')}`, '']
     const tab = blocoMd({ t: 'tabela', cab: ['', ...G.STAT_KEYS.map(siglaStat)], linhas: [
       ['Nv 1', ...G.STAT_KEYS.map((k) => N(String(i.st1[k])))],
-      ['Potencial (oculto no jogo)', ...G.STAT_KEYS.map((k) => N(String(h.potential[k])))],
+      ['Genética', ...G.STAT_KEYS.map((k) => N(String(h.potential[k])))],
       [`No Nv ${h.level}`, ...G.STAT_KEYS.map((k) => N(String(i.st[k])))]
     ] })
     return cab.filter((x, j) => x !== '' || j > 0).join('\n') + '\n' + tab
@@ -807,9 +851,9 @@ function montariasHtml(F) {
       (texto ? `<p class="mont-bio">${esc(texto)}</p>` : '') +
       `<div class="rolagem" tabindex="0" role="region" aria-label="${esc('Status de ' + h.name)}"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th>${G.STAT_KEYS.map((k) => `<th scope="col" class="n" title="${esc(nomeStat(k))}">${esc(siglaStat(k))}</th>`).join('')}</tr></thead><tbody>` +
       `<tr><th scope="row">Nv 1</th>${G.STAT_KEYS.map((k) => `<td class="n">${i.st1[k]}</td>`).join('')}</tr>` +
-      `<tr class="oculto"><th scope="row">Potencial <small>oculto no jogo</small></th>${G.STAT_KEYS.map((k) => `<td class="n">${h.potential[k]}</td>`).join('')}</tr>` +
+      `<tr class="oculto"><th scope="row">Genética</th>${G.STAT_KEYS.map((k) => `<td class="n">${h.potential[k]}</td>`).join('')}</tr>` +
       `<tr><th scope="row">No Nv ${h.level}</th>${G.STAT_KEYS.map((k) => `<td class="n">${i.st[k]}</td>`).join('')}</tr></tbody></table></div>` +
-      `<dl class="pares pares--mont"><dt>Skills</dt><dd>${h.skills.length ? h.skills.map((id) => `<a class="skill-chip" href="#skill-${id}">${esc(nomeSkill(id))}</a>`).join(' ') : 'nenhuma'}</dd>` +
+      `<dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>${G.TYPE_SKILLS[h.element] ? esc(G.TYPE_SKILLS[h.element].name) : 'nenhuma'}</dd><dt>Skills</dt><dd>${h.skills.length ? h.skills.map((id) => `<a class="skill-chip" href="#skill-${id}">${esc(nomeSkill(id))}</a>`).join(' ') : 'nenhuma'}</dd>` +
       `<dt>Cruzas</dt><dd>${i.cruzas}</dd><dt>Onde aparece</dt><dd>${esc(i.onde.join(', '))}</dd></dl></article>`
   }).join('') + `</div></section>`).join('') + `<p class="vazio" data-vazio="montaria" hidden>Nenhuma montaria casa com a busca e os filtros.</p>`
 }
@@ -826,7 +870,7 @@ const CSS = `
   --linha: #335446; --sombra: #060d0a;
   --texto: #f1e9d4; --texto-2: #b3c2b2; --texto-3: #95a99b; --tinta: #1a1405;
   --ouro: #f2c230; --ouro-claro: #ffe27a; --ouro-escuro: #9c7210; --foco: #62e6ff;
-  --fogo: #ff8a4c; --agua: #62b8ff; --grama: #86d86a; --neutro: #cfc8b4;
+  --fogo: #ff8a4c; --agua: #62b8ff; --grama: #86d86a; --geral: #cfc8b4;
   --tabua: #243a31; --palha: #a5823f; --palha-2: #6f5526; --escuro-25: rgb(0 0 0 / 0.25);
   --fonte-display: 'Press Start 2P', ui-monospace, 'Courier New', monospace;
   --fonte-rotulo: 'Jersey 10', 'Arial Narrow', 'Roboto Condensed', system-ui, sans-serif;
@@ -929,7 +973,7 @@ td.n, tbody th.n { font: 400 var(--t-num)/1.1 var(--fonte-rotulo); font-variant-
 
 .el, .rar, .slot, .ouro, .selo, .liga { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .el { font-weight: 700; }
-.el--fogo { color: var(--fogo); } .el--agua { color: var(--agua); } .el--grama { color: var(--grama); } .el--neutro, .el--geral { color: var(--neutro); }
+.el--fogo { color: var(--fogo); } .el--agua { color: var(--agua); } .el--grama { color: var(--grama); } .el--geral { color: var(--geral); }
 .rar { font: 400 1.125rem/1 var(--fonte-rotulo); color: var(--tinta); background: var(--c, var(--texto-3)); padding: 3px 6px 2px; }
 .rar--comum { --c: var(--r-comum); } .rar--magico { --c: var(--r-magico); } .rar--raro { --c: var(--r-raro); } .rar--lendario { --c: var(--r-lendario); } .rar--mitico { --c: var(--r-mitico); }
 .rar--raro, .rar--mitico, .rar--magico { color: var(--texto); }
@@ -1144,9 +1188,9 @@ function paginaHtml(SEC, A, F) {
     '<div class="lateral">',
     `<div class="ferramentas" role="search"><label for="busca">Buscar</label>` +
       `<input id="busca" type="search" placeholder="Skill, montaria ou peça" autocomplete="off" spellcheck="false">` +
-      `<fieldset class="filtro"><legend>Elemento</legend><div class="chips">${chip('el', '', 'Todos')}${Object.keys(G.ELEMENTS).map((e) => chip('el', e, nomeEl(e), icone('el-' + e))).join('')}</div></fieldset>` +
+      `<fieldset class="filtro"><legend>Elemento</legend><div class="chips">${chip('el', '', 'Todos')}${Object.keys(G.ELEMENTS).map((e) => chip('el', e, nomeEl(e), icone('el-' + e))).join('')}${chip('el', 'geral', 'Gerais', icone('el-geral'))}</div></fieldset>` +
       `<fieldset class="filtro"><legend>Raridade</legend><div class="chips">${chip('rar', '', 'Todas')}${Object.keys(G.RARITIES).map((r) => chip('rar', r, nomeRar(r))).join('')}</div></fieldset>` +
-      `<p class="filtro-nota">A busca e os filtros valem para skills, montarias e peças. Elemento de peça = o do clima do conjunto; skills não têm raridade.</p>` +
+      `<p class="filtro-nota">A busca e os filtros valem para skills, montarias e peças. Elemento de peça = o do clima do conjunto; "Gerais" = skills que qualquer tipo aprende; skills não têm raridade.</p>` +
       `<p id="busca-resultado" aria-live="polite"></p></div>`,
     `<nav class="indice" aria-label="Seções"><ol>${SEC.map((s) => `<li><a href="#${s.id}">${esc(s.curto)}</a></li>`).join('')}</ol></nav>`,
     '</div>',
