@@ -9096,10 +9096,22 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       return def && def.slot === slot && !isEquipped(it.uid);
     }).sort(function (a, b) { return (rarityRank(b.id) - rarityRank(a.id)) || (b.plus - a.plus); });
   }
+  // Os mods de UMA peça, pelo mesmo cálculo da simulação (Gear.resolve: main + plus × plusStep no principal);
+  // a tela nunca refaz a conta. Peça sozinha não forma conjunto, então só entram principal e secundário.
+  function pieceMods(id, plus) {
+    var equip = {};
+    equip[GR.piece(id).slot] = 'x';
+    return GR.resolve({ equip: equip }, { x: { uid: 'x', id: id, plus: plus } }).mods;
+  }
+  // valor de status para a tela: inteiro sem casa ("8"), meio ponto com uma casa e vírgula ("4,5")
+  function statNum(v) {
+    var r = Math.round(v * 10) / 10;
+    return r === Math.floor(r) ? String(r) : String(r).replace('.', ',');
+  }
   function pieceModsText(item) {
-    var def = GR.piece(item.id), info = GD.GEAR_SLOT_INFO[def.slot];
-    var t = '+' + (def.main + item.plus) + ' ' + GD.STATS[info.main].short;
-    if (def.sub) t += ', +' + def.sub + ' ' + GD.STATS[info.sub].short;
+    var def = GR.piece(item.id), info = GD.GEAR_SLOT_INFO[def.slot], mods = pieceMods(item.id, item.plus);
+    var t = '+' + statNum(mods[info.main]) + ' ' + GD.STATS[info.main].short;
+    if (def.sub) t += ', +' + statNum(mods[info.sub]) + ' ' + GD.STATS[info.sub].short;
     return t;
   }
   function pieceLabel(item) {
@@ -9395,9 +9407,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     gear.pieces.forEach(function (p) { if (p.slot === def.slot) cur = p; });
     if (!cur) return 'slot vazio';
     var info = GD.GEAR_SLOT_INFO[def.slot];
-    var d = def.main - (GD.GEAR[cur.id].main + cur.plus);
+    var d = pieceMods(def.id, 0)[info.main] - pieceMods(cur.id, cur.plus)[info.main];
     if (!d) return 'igual à equipada';
-    return (d > 0 ? '+' : '−') + Math.abs(d) + ' ' + GD.STATS[info.main].short + ' em relação à equipada';
+    return (d > 0 ? '+' : '−') + statNum(Math.abs(d)) + ' ' + GD.STATS[info.main].short + ' em relação à equipada';
   }
   function lojaBotaoHtml(acao, id, price) {
     var pode = podeGastar(price);

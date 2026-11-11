@@ -1381,6 +1381,61 @@ try {
     await bd.context().close()
   }
 
+  // ---------------- valor da peça: a tela mostra o mesmo número que a simulação usa (Gear.resolve, plusStep 0,5) ----------------
+  if (quer('valor-peca')) {
+    const vp = await newPage(browser, { width: 360, height: 780 }, 'valor-peca')
+    const numTxt = (v) => (Number.isInteger(v) ? String(v) : String(Math.round(v * 10) / 10).replace('.', ','))
+    const modsDe = (id, plus) => GR.resolve({ equip: { [G.GEAR[id].slot]: 'x' } }, { x: { uid: 'x', id, plus } }).mods
+    try {
+      await vp.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await vp.waitForSelector('#t-estabulo')
+      const PLUS = { ferraduras: 3, sela: 4 }   // melhoria ímpar (meio ponto) e par
+      await montaSave(vp, (raw) => {
+        raw.gold = 5000
+        for (const slot of Object.keys(PLUS)) {
+          const it = raw.items.find((x) => x.uid === raw.mounts[0].equip[slot])
+          it.plus = PLUS[slot]
+        }
+      })
+      const s = await vp.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+      const equipados = {}
+      for (const slot of Object.keys(PLUS)) equipados[slot] = s.items.find((x) => x.uid === s.mounts[0].equip[slot]).id
+      await vp.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await vp.waitForSelector('#t-montaria')
+      await vp.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+      for (const slot of Object.keys(PLUS)) {
+        const id = equipados[slot], info = G.GEAR_SLOT_INFO[slot], m = modsDe(id, PLUS[slot])
+        let esperado = '+' + numTxt(m[info.main]) + ' ' + G.STATS[info.main].short
+        if (G.GEAR[id].sub) esperado += ', +' + numTxt(m[info.sub]) + ' ' + G.STATS[info.sub].short
+        const rotulo = ((await vp.locator(`[data-acao="equip-slot"][data-id="${slot}"] .slot-peca`).textContent()) || '').trim()
+        if (!rotulo.endsWith('· ' + esperado)) problems.push(`valor-peca: rótulo do slot ${slot} +${PLUS[slot]} = "${rotulo}" (a simulação usa ${esperado})`)
+        await vp.locator(`[data-acao="equip-slot"][data-id="${slot}"]`).click()
+        const linha = ((await vp.locator('.peca--equipada .linha-meta').first().textContent()) || '').replace(/\s+/g, ' ')
+        if (!linha.includes(esperado)) problems.push(`valor-peca: peça equipada ${slot} +${PLUS[slot]} mostra "${linha}" (a simulação usa ${esperado})`)
+      }
+      // Loja: a diferença do principal para a equipada sai dos mesmos mods
+      await vp.locator('[data-acao="montaria-voltar"]').click()
+      await vp.locator('[data-acao="aba"][data-id="loja"]').click()
+      await vp.waitForSelector('#t-loja')
+      for (const slot of Object.keys(PLUS)) {
+        await vp.locator(`[data-acao="loja-tab"][data-id="${slot}"]`).click()
+        const info = G.GEAR_SLOT_INFO[slot], cur = modsDe(equipados[slot], PLUS[slot])[info.main]
+        const prods = await vp.evaluate(() => Array.from(document.querySelectorAll('.produto')).map((p) => ({
+          id: (p.querySelector('[data-acao="comprar"]') || {}).getAttribute ? p.querySelector('[data-acao="comprar"]').getAttribute('data-id') : null,
+          diff: ((p.querySelector('.produto-diff') || {}).textContent || '').trim() })))
+        if (!prods.length) problems.push('valor-peca: Loja sem produtos em ' + slot)
+        for (const p of prods) {
+          const d = modsDe(p.id, 0)[info.main] - cur
+          const esperado = d === 0 ? 'igual à equipada' : (d > 0 ? '+' : '−') + numTxt(Math.abs(d)) + ' ' + G.STATS[info.main].short + ' em relação à equipada'
+          if (p.diff !== esperado) problems.push(`valor-peca: Loja ${p.id} contra ${equipados[slot]} +${PLUS[slot]} diz "${p.diff}" (real: "${esperado}")`)
+        }
+      }
+    } catch (e) {
+      problems.push('valor-peca: ' + e.message)
+    }
+    await vp.context().close()
+  }
+
   if (quer('build-nivel1')) {
     const b1 = await newPage(browser, { width: 360, height: 780 }, 'build-nivel1')
     try {
