@@ -70,6 +70,15 @@ test('powerRating usa os 7 pesos', function () {
   h.level = 50; s = S.computeStats(h, null); sum = 0; G.STAT_KEYS.forEach(function (k) { sum += s[k] * w[k]; });
   assert.strictEqual(S.powerRating(h, null), Math.round(sum + 18 + 80 * S.typePower(h)));
 });
+test('powerRating: elemento sem skill de tipo não soma os 80 × P', function () {
+  ['neutro', 'lava', undefined].forEach(function (e) {
+    var h = JSON.parse(JSON.stringify(G.STARTERS[0])); h.element = e; h.skills = [];
+    var s = S.computeStats(h, null), w = S.TUNING.ratingW, sum = 0;
+    G.STAT_KEYS.forEach(function (k) { sum += s[k] * w[k]; });
+    assert.strictEqual(S.typeSkill(h), null, String(e));
+    assert.strictEqual(S.powerRating(h, null), Math.round(sum), String(e));
+  });
+});
 test('learnSkill não estoura vagas e respeita o elemento', function () {
   var full = { id: 'x', element: 'fogo', rarity: 'comum', skills: ['arranque'] };
   assert.strictEqual(S.learnSkill(full, function () { return 0; }), null);
@@ -572,7 +581,7 @@ test('potro v3: sem base nem alloc, genética inteira de 0 a 31, tipo dos pais, 
     var f = mk2({ sex: 'f', skills: ['chama-final', 'sprint'], element: 'fogo' }), m = mk2({ skills: ['pe-na-chuva', 'drift'], element: 'agua' });
     var c = B.foal({ f: f, m: m, seedBase: s, breedCounter: 0, nextUid: 1 });
     assert.ok(!('base' in c), 'sem base'); assert.ok(!('alloc' in c), 'nasce sem alloc');
-    assert.ok(c.element === 'fogo' || c.element === 'agua', 'tipo de um dos pais: ' + c.element); assert.ok(G.ELEMENTS[c.element] && c.element !== 'neutro');
+    assert.ok(c.element === 'fogo' || c.element === 'agua', 'tipo de um dos pais: ' + c.element);
     G.STAT_KEYS.forEach(function (k) { var p = c.potential[k]; assert.ok(p >= 0 && p <= 31 && p === Math.floor(p), 'pot ' + k + ' = ' + p); });
     var R = G.RARITIES[c.rarity]; assert.ok(c.skills.length <= R.skillSlots && c.skills.length >= Math.min(R.bornSkills, R.skillSlots), 'skills ' + c.skills.join());
     c.skills.forEach(function (id) { var sk = G.SKILLS[id]; assert.ok(sk, 'existe ' + id); assert.ok(sk.element === 'geral' || sk.element === c.element, 'elemento ' + id); });
@@ -1129,6 +1138,21 @@ test('enhanceOdds/enhance exigem plus inteiro 0–9 (o +10 já está no máximo)
   });
   assert.strictEqual(GR.enhance(null, 1, 0), null);
   assert.deepStrictEqual(GR.enhanceOdds(3), { chance: 0.7, cost: 1, dropTo: 3 });
+});
+test('potro nunca nasce com elemento fora de GameData.ELEMENTS (pais com neutro ou lixo)', function () {
+  var vistos = {};
+  for (var s = 0; s < 600; s++) {
+    var casos = [['neutro', 'fogo'], ['agua', 'neutro'], ['neutro', 'neutro'], ['lava', undefined], ['grama', 'xyz']];
+    casos.forEach(function (par) {
+      var f = mk2({ sex: 'f', element: par[0], skills: [] }), m = mk2({ element: par[1], skills: [] });
+      var c = B.foal({ f: f, m: m, seedBase: s, breedCounter: 0, nextUid: 1 });
+      assert.ok(Object.prototype.hasOwnProperty.call(G.ELEMENTS, c.element), par.join('+') + ' deu ' + c.element);
+      var validos = par.filter(function (e) { return Object.prototype.hasOwnProperty.call(G.ELEMENTS, e); });
+      if (validos.length) assert.strictEqual(c.element, validos[0], 'herda o do pai válido');
+      else vistos[c.element] = 1;
+    });
+  }
+  assert.deepStrictEqual(Object.keys(vistos).sort(), ['agua', 'fogo', 'grama'], 'dois inválidos: os três tipos saem pela seed');
 });
 test('foal/rentalPrice/odds com grau e level malformados', function () {
   var f = mk2({ sex: 'f' }), m = mk2({}); delete f.grau; m.grau = undefined;

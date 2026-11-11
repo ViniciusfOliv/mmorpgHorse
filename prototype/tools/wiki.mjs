@@ -72,7 +72,7 @@ function lerFonte() {
     pelotaoMax: numDe(sim, /Math\.min\(neighbors, (\d+)\)/, 'o teto de vizinhos do pelotão'),
     cansouFalta: numDe(sim, /if \(rem > D \* ([\d.]+)\) ev\(t, i, 'cansou'/, 'a folga do evento "cansou"'),
     chegadaFreio: numDe(sim, /r\.v = Math\.max\(0, r\.v - (\d+) \* dt\)/, 'a frenagem depois da chegada'),
-    elementoPotro: numDe(breed, /rng\(\) < ([\d.]+) \? f\.element : m\.element/, 'o sorteio do elemento do potro'),
+    elementoPotro: numDe(breed, /rng\(\) < ([\d.]+) \? ef : em/, 'o sorteio do elemento do potro'),
     sexoPotro: numDe(breed, /var sex = rng\(\) < ([\d.]+) \? 'f' : 'm'/, 'o sorteio do sexo do potro'),
     corcelDois: numDe(breed, /if \(g === 1 && rng\(\) < ([\d.]+)\) g = 2/, 'a chance de 2 skills garantidas do Corcel'),
     potValores: numDe(breed, /potential\[k\] = Math\.floor\(rng\(\) \* (\d+)\);/, 'a faixa do potencial sorteado'),

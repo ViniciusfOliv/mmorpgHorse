@@ -31,7 +31,9 @@
  * ORDEM DE CHAMADAS DE rng() em foal() (rng = mulberry32(hash2(seedBase>>>0, 0xB0B0 + breedCounter))):
  *   1. raridade (1 chamada); rarityChanged = sinal(ordem do resultado − menor ordem dos pais)
  *   2. grau (1 chamada, só se a raridade não mudou; subiu ⇒ ★1, desceu ⇒ ★3)
- *   3. elemento (1 chamada, só se os pais têm elementos diferentes: < 0,5 ⇒ égua)
+ *   3. elemento (1 chamada, só se os pais têm elementos diferentes: < 0,5 ⇒ égua). Pai com elemento
+ *      fora de GameData.ELEMENTS: fica o do outro, sem chamada; os dois inválidos: 1 chamada escolhe
+ *      um dos elementos do catálogo (foalElement)
  *   4. sexo (1 chamada: < 0,5 ⇒ fêmea)
  *   5. genética: 2 chamadas por chave de STAT_KEYS, nos dois ramos. 1ª = porta (< potInherit ⇒ herda).
  *      Herda: 2ª escolhe o pai (< 0,5 ⇒ égua). Não herda: 2ª é o valor floor(rng()·32).
@@ -197,6 +199,17 @@
     return out;
   }
 
+  // Elemento do potro. Pais válidos: igual ao de sempre (1 chamada só se diferem). Um pai com
+  // elemento fora de GameData.ELEMENTS: fica o do outro, sem chamada. Os dois inválidos: 1 chamada
+  // escolhe entre os elementos do catálogo (ordem de Object.keys).
+  function foalElement(rng, ef, em) {
+    var okF = Object.prototype.hasOwnProperty.call(G.ELEMENTS, ef), okM = Object.prototype.hasOwnProperty.call(G.ELEMENTS, em);
+    if (okF && okM) return ef === em ? ef : (rng() < 0.5 ? ef : em);
+    if (okF) return ef;
+    if (okM) return em;
+    var all = Object.keys(G.ELEMENTS);
+    return all[Math.floor(rng() * all.length)];
+  }
   function compatible(id, element) {
     var sk = G.SKILLS[id];
     return !!sk && (sk.element === 'geral' || sk.element === element);
@@ -233,7 +246,7 @@
     var R = G.RARITIES[rarity];
 
     // 3-4. elemento e sexo
-    var element = f.element === m.element ? f.element : (rng() < 0.5 ? f.element : m.element);
+    var element = foalElement(rng, f.element, m.element);
     var sex = rng() < 0.5 ? 'f' : 'm';
 
     // 5. genética (2 chamadas por chave)

@@ -429,7 +429,8 @@
   }
 
   // Rating de Poder: soma ponderada dos status efetivos + habilidades + skill de tipo + pontos de conjunto.
-  // Cada habilidade vale T.ratingSkillPts (18) × o peso do seu gatilho; a de tipo, T.ratingTypeW (80) × typePower.
+  // Cada habilidade vale T.ratingSkillPts (18) × o peso do seu gatilho; a de tipo, T.ratingTypeW (80) × typePower
+  // (só quando o elemento tem skill de tipo).
   // Para curva, subida e estamina baixa o peso segue a
   // chance de o gatilho acontecer numa corrida típica; clima (0.8) e dice (0.2) são pesos calibrados no
   // pacote de balanceamento, não chances: o gatilho 'dice' acontece em toda corrida (o Dado extra só mexe
@@ -477,7 +478,8 @@
     if (gear && typeof gear === 'object' && gear.set && gear.set.count >= 3) {
       setPts = GameData.ECONOMY.gear.setBonus.ratingPts[gear.set.count - 3] || 0;
     }
-    return Math.round(sum + skillPts + setPts + T.ratingTypeW * typePower(horse));
+    var typePts = typeSkill(horse) ? T.ratingTypeW * typePower(horse) : 0;   // elemento desconhecido: sem skill de tipo
+    return Math.round(sum + skillPts + setPts + typePts);
   }
 
   function leagueFor(rating) {
