@@ -130,7 +130,7 @@ const ICONES = [
   ['slot-testeira', 'horse head armor chamfron icon'],
   ['slot-armadura', 'horse barding armor icon'], ['moeda-ouro', 'gold coin icon'], ['pedra-negra', 'black polished stone gem icon'],
   ['el-fogo', 'flame icon (#ff8a4c)'], ['el-agua', 'water drop icon (#62b8ff)'], ['el-grama', 'green leaf icon (#7be07a)'],
-  ['el-neutro', 'grey circle rune icon (#cfc8b4)'],
+  ['el-geral', 'grey circle rune icon (#cfc8b4)'],   // ex-el-neutro (2026-11-11: virou o ícone das skills gerais)
 ].map(([id, desc, op = {}], i) => ({ id, desc, seed: op.seed || 2101 + i, cor: op.cor || null }));
 
 // ---------------------------------------------------------------- corpos das chamadas

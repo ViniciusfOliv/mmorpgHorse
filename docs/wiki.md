@@ -230,9 +230,9 @@ São 3 tipos (elementos). Cada um tem a sua skill de tipo, sempre ativa num ter�
 
 | Elemento | Clima dono | Penalizado por | Descrição |
 | --- | --- | --- | --- |
-| Fogo | Sol | Chuva | Explosivo na largada. Brilha no sol; sofre com chuva. |
-| Água | Chuva | Névoa | Fôlego de sobra. Cresce na chuva; sofre na névoa. |
-| Grama | Névoa | Sol | Firme como raiz. Domina a névoa e as subidas; murcha no sol. |
+| Fogo | Sol | Chuva | Explosivo na largada: a Labareda acelera o primeiro terço. Brilha no sol; sofre com chuva. |
+| Água | Chuva | Névoa | Forte no fim: a Maré Alta empurra o último terço. Cresce na chuva; sofre na névoa. |
+| Grama | Névoa | Sol | Firme como raiz: as Raízes Firmes seguram o terço do meio. Domina a névoa; murcha no sol. |
 
 ### Climas
 
