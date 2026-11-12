@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T13:02:38.600Z",
+  "pedido": {
+    "description": "three horizontal wavy fog bands, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 bec49718a2ff5420>",
+      "format": "png"
+    },
+    "seed": 2235
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 366 bytes, sha256 36f61846bf1b3369>",
+      "format": "png"
+    }
+  }
+}

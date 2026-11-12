@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T13:09:48.581Z",
+  "pedido": {
+    "description": "bronze medal hanging from a ribbon, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 1c1462982e67e5db>",
+      "format": "png"
+    },
+    "seed": 2253
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 578 bytes, sha256 b67e8d19d0b5326e>",
+      "format": "png"
+    }
+  }
+}

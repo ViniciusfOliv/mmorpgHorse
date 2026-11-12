@@ -1,0 +1,21 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T12:55:08.734Z",
+  "pedido": {
+    "description": "four-leaf clover, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 3bdb8f6341cbcc60>",
+      "format": "png"
+    },
+    "seed": 2214
+  },
+  "erro": "POST /create-image-pixflux → HTTP 502: upstream request failed"
+}

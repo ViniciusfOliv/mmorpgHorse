@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T12:52:21.674Z",
+  "pedido": {
+    "description": "five-pointed star outline only, hollow dark center, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 8f6e9f5c1c3a3cac>",
+      "format": "png"
+    },
+    "seed": 2206
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 280 bytes, sha256 1371d7831e269bad>",
+      "format": "png"
+    }
+  }
+}
