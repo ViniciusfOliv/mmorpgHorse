@@ -1038,7 +1038,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   //   acelera o crescimento (RaceSim.computeStats). Não há status base guardado.
   //   alloc (no save, não no catálogo) = pontos livres distribuídos por status.
   //   sex: 'm' | 'f'.
-  //   extra (opcional): title, bio, habitat, lore, grau (1–3 estrelas: multiplicam os pontos livres),
+  //   extra (opcional): marcas { cara, patas, corpo }, title, bio, habitat, lore, grau (1–3 estrelas: multiplicam os pontos livres),
   //   breedLeftMax (cruzas restantes ao nascer; padrão BREED_LEFT[sex]).
   // ---------------------------------------------------------------------------
   function mount(id, name, element, rarity, sex, level, potential, skills, palette, extra) {
@@ -1050,22 +1050,39 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return h;
   }
 
+  // Marcas na pelagem (spec 2026-11-12-cavalos-marcas §2). Genes herdáveis (breed.js); não entram em status, Poder nem corrida.
+  var MARCAS = {
+    cara: ['nenhuma', 'estrela', 'listra', 'frente'],
+    patas: [0, 1, 2, 3, 4],
+    corpo: ['liso', 'malhado', 'pintado', 'ruao'],
+    mutacao: 0.10,
+    branco: '#f1e9d4'
+  };
+
+  // Jóquei do jogador (spec §4): padrão da seda e cor do capacete.
+  var JOQUEI = {
+    padroes: ['liso', 'listras', 'faixa', 'xadrez', 'estrelas', 'losangos'],
+    capacetes: ['#f2c230', '#ff6b5e', '#62b8ff', '#86d86a', '#c77dff', '#ff9f43', '#f1e9d4', '#2a2a2a'],
+    padrao: 'liso',
+    capacete: '#f2c230'
+  };
+
   var STARTERS = [
     mount('brasa', 'Brasa', 'fogo', 'comum', 'm', 1,
       { vel: 24, acel: 24, man: 14, forca: 12, est: 12, garra: 14, sorte: 12 },
       [],
       { coat: '#c4471d', coatShade: '#7f2a0e', mane: '#ffb02e', accent: '#ffe066' },
-      { title: 'A fagulha veloz', bio: 'Potro alazão de crina dourada. Larga como um rojão.', grau: 2 }),
+      { title: 'A fagulha veloz', bio: 'Potro alazão de crina dourada. Larga como um rojão.', marcas: { cara: 'estrela', patas: 1, corpo: 'liso' }, grau: 2 }),
     mount('mare', 'Maré', 'agua', 'comum', 'f', 1,
       { vel: 14, acel: 12, man: 12, forca: 14, est: 24, garra: 24, sorte: 12 },
       [],
       { coat: '#9ba7b4', coatShade: '#646f7e', mane: '#5fd8ee', accent: '#e6f4fb' },
-      { title: 'O fôlego do oceano', bio: 'Égua tordilha de crina cor do mar. Quanto mais longa a pista, mais perigosa.', grau: 2 }),
+      { title: 'O fôlego do oceano', bio: 'Égua tordilha de crina cor do mar. Quanto mais longa a pista, mais perigosa.', marcas: { cara: 'listra', patas: 0, corpo: 'ruao' }, grau: 2 }),
     mount('ipe', 'Ipê', 'grama', 'comum', 'm', 1,
       { vel: 16, acel: 12, man: 24, forca: 24, est: 14, garra: 12, sorte: 10 },
       [],
       { coat: '#7a4a2a', coatShade: '#4c2b18', mane: '#f5c518', accent: '#f2e6c8' },
-      { title: 'A raiz que não verga', bio: 'Castanho robusto de crina amarela como ipê florido. Não teme subida.', grau: 2 })
+      { title: 'A raiz que não verga', bio: 'Castanho robusto de crina amarela como ipê florido. Não teme subida.', marcas: { cara: 'frente', patas: 2, corpo: 'liso' }, grau: 2 })
   ];
 
   var WILD_HORSES = [
@@ -1073,62 +1090,62 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       { vel: 14, acel: 16, man: 15, forca: 10, est: 8, garra: 12, sorte: 10 },
       ['arranque'],
       { coat: '#d9772b', coatShade: '#9a4d16', mane: '#f7d08a', accent: '#ff8a3d' },
-      { habitat: 'Cerrado seco', grau: 2 }),
+      { habitat: 'Cerrado seco', marcas: { cara: 'estrela', patas: 2, corpo: 'pintado' }, grau: 2 }),
     mount('w-lambari', 'Lambari', 'agua', 'comum', 'm', 2,
       { vel: 9, acel: 11, man: 10, forca: 12, est: 17, garra: 13, sorte: 10 },
       [],
       { coat: '#7fa6c4', coatShade: '#4f7594', mane: '#e8f4fb', accent: '#5ec2d9' },
-      { habitat: 'Beira de rio', grau: 1 }),
+      { habitat: 'Beira de rio', marcas: { cara: 'nenhuma', patas: 0, corpo: 'malhado' }, grau: 1 }),
     mount('w-capim', 'Capim', 'grama', 'comum', 'f', 4,
       { vel: 10, acel: 10, man: 10, forca: 18, est: 13, garra: 12, sorte: 10 },
       ['segundo-ar'],
       { coat: '#9a8a4a', coatShade: '#6a5e2e', mane: '#5b7d2a', accent: '#b9d46a' },
-      { habitat: 'Campos gerais', grau: 2 }),
+      { habitat: 'Campos gerais', marcas: { cara: 'listra', patas: 4, corpo: 'liso' }, grau: 2 }),
     mount('w-ticao', 'Tição', 'fogo', 'magico', 'm', 8,
       { vel: 17, acel: 19, man: 18, forca: 12, est: 10, garra: 15, sorte: 12 },
       ['chama-final'],
       { coat: '#3a2a26', coatShade: '#1e1513', mane: '#ff5a1f', accent: '#ffb347' },
-      { habitat: 'Carvoaria abandonada', grau: 2 }),
+      { habitat: 'Carvoaria abandonada', marcas: { cara: 'frente', patas: 1, corpo: 'liso' }, grau: 2 }),
     mount('w-garoa', 'Garoa', 'agua', 'magico', 'f', 10,
       { vel: 13, acel: 12, man: 13, forca: 14, est: 20, garra: 15, sorte: 12 },
       ['pe-na-chuva', 'segundo-ar'],
       { coat: '#a9b8c6', coatShade: '#73879a', mane: '#f2f6fa', accent: '#6fb7e8' },
-      { habitat: 'Serra enevoada', grau: 2 }),
+      { habitat: 'Serra enevoada', marcas: { cara: 'estrela', patas: 0, corpo: 'ruao' }, grau: 2 }),
     mount('w-mandacaru', 'Mandacaru', 'grama', 'magico', 'm', 7,
       { vel: 12, acel: 13, man: 13, forca: 21, est: 16, garra: 13, sorte: 12 },
       ['casco-firme'],
       { coat: '#b48a5a', coatShade: '#7d5c38', mane: '#3f6b2a', accent: '#e85d9a' },
-      { habitat: 'Caatinga', grau: 2 }),
+      { habitat: 'Caatinga', marcas: { cara: 'nenhuma', patas: 3, corpo: 'pintado' }, grau: 2 }),
     mount('w-ventania', 'Ventania', 'grama', 'raro', 'f', 15,
       { vel: 21, acel: 18, man: 20, forca: 13, est: 15, garra: 17, sorte: 14 },
       ['sprint', 'arrancada-final'],
       { coat: '#e9e4da', coatShade: '#b6aea0', mane: '#7a7a7a', accent: '#9ad0ff' },
-      { habitat: 'Pampa gaúcho', grau: 3 }),
+      { habitat: 'Pampa gaúcho', marcas: { cara: 'listra', patas: 2, corpo: 'malhado' }, grau: 3 }),
     mount('w-pororoca', 'Pororoca', 'agua', 'raro', 'm', 18,
       { vel: 15, acel: 14, man: 15, forca: 17, est: 24, garra: 16, sorte: 14 },
       ['nascente', 'pe-na-chuva'],
       { coat: '#2e5f73', coatShade: '#1a3b49', mane: '#9ee7e0', accent: '#2fd6c5' },
-      { habitat: 'Foz do Amazonas', grau: 2 }),
+      { habitat: 'Foz do Amazonas', marcas: { cara: 'estrela', patas: 4, corpo: 'liso' }, grau: 2 }),
     mount('w-fogareu', 'Fogaréu', 'fogo', 'lendario', 'f', 22,
       { vel: 24, acel: 26, man: 25, forca: 16, est: 15, garra: 20, sorte: 16 },
       ['sol-a-pino', 'chama-final', 'arranque'],
       { coat: '#b3201a', coatShade: '#6e110d', mane: '#ffd23f', accent: '#ff7b00' },
-      { habitat: 'Chapada em chamas', grau: 3 }),
+      { habitat: 'Chapada em chamas', marcas: { cara: 'frente', patas: 0, corpo: 'pintado' }, grau: 3 }),
     mount('w-jequitiba', 'Jequitibá', 'grama', 'lendario', 'm', 25,
       { vel: 17, acel: 16, man: 17, forca: 27, est: 21, garra: 19, sorte: 16 },
       ['casco-firme', 'folego-de-montanha', 'segundo-ar'],
       { coat: '#5a4127', coatShade: '#36261a', mane: '#2f7d32', accent: '#8bc34a' },
-      { habitat: 'Mata Atlântica', grau: 3 }),
+      { habitat: 'Mata Atlântica', marcas: { cara: 'listra', patas: 1, corpo: 'ruao' }, grau: 3 }),
     mount('w-boitata', 'Boitatá', 'fogo', 'mitico', 'f', 30,
       { vel: 28, acel: 29, man: 29, forca: 21, est: 20, garra: 26, sorte: 18 },
       ['sol-a-pino', 'chama-final', 'drift'],
       { coat: '#2a1a3a', coatShade: '#140b1e', mane: '#3cf0ff', accent: '#ff4fd8' },
-      { habitat: 'Só aparece em noites de queimada', lore: 'A cobra de fogo do folclore, em forma de cavalo.', grau: 3 }),
+      { habitat: 'Só aparece em noites de queimada', lore: 'A cobra de fogo do folclore, em forma de cavalo.', marcas: { cara: 'estrela', patas: 2, corpo: 'malhado' }, grau: 3 }),
     mount('w-iara', 'Iara', 'agua', 'mitico', 'm', 28,
       { vel: 22, acel: 21, man: 22, forca: 20, est: 30, garra: 25, sorte: 18 },
       ['canto-da-iara', 'pe-na-chuva', 'nascente'],
       { coat: '#1f6f78', coatShade: '#0f3f45', mane: '#b8fff1', accent: '#ffd36e' },
-      { habitat: 'Rios encantados', lore: 'A mãe-d\'água que encanta quem a ouve.', grau: 3 })
+      { habitat: 'Rios encantados', lore: 'A mãe-d\'água que encanta quem a ouve.', marcas: { cara: 'nenhuma', patas: 4, corpo: 'ruao' }, grau: 3 })
   ];
 
   var BOT_NAMES = [
@@ -1306,6 +1323,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     GEAR_SLOT_INFO: GEAR_SLOT_INFO,
     GEAR_SETS: GEAR_SETS,
     GEAR: GEAR,
+    MARCAS: MARCAS,
+    JOQUEI: JOQUEI,
     STARTERS: STARTERS,
     WILD_HORSES: WILD_HORSES,
     BOT_NAMES: BOT_NAMES,
@@ -2546,6 +2565,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *      ordem égua→garanhão; corte em skillSlots; preenchimento até bornSkills: 1 chamada de índice cada.
  *   7. nome (1 chamada: índice em FOAL_NAMES)
  *   8. paleta (1 chamada t = 0,3 + 0,4·rng(), só se os dois pais têm paleta)
+ *   9. marcas (sequência própria, mulberry32(hash2(seedBase>>>0, 0x4D410000 + breedCounter)); não muda os passos 1–8):
+ *      por gene, na ordem cara, patas, corpo, 2 chamadas: 1ª < GameData.MARCAS.mutacao ⇒ mutação; 2ª com mutação é o índice
+ *      uniforme na lista do gene; sem mutação, < 0,5 ⇒ gene da égua, senão do garanhão. Pai sem marcas válidas vale pelo
+ *      modelo do catálogo (templateId) ou por marcasDoId(uid): FNV-1a 32 bits da chave (hashChave) → mulberry32 → 3 sorteios.
  * (v3: saiu o antigo passo 5, uma chamada por status para o status base; o piso de genética por
  * estrela saiu sem mudar o número de chamadas.)
  */
@@ -2737,6 +2760,54 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return isFinite(v) ? clamp(Math.floor(v), 0, 31) : 0;
   }
 
+  // ---- marcas (spec 2026-11-12-cavalos-marcas §2) ----
+  var MARCA_GENES = ['cara', 'patas', 'corpo'];
+
+  // FNV-1a de 32 bits sobre os code units da string
+  function hashChave(chave) {
+    var h = 0x811c9dc5, str = String(chave), i;
+    for (i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+
+  function marcasValidas(m) {
+    if (!m || typeof m !== 'object') return false;
+    for (var i = 0; i < MARCA_GENES.length; i++) {
+      if (G.MARCAS[MARCA_GENES[i]].indexOf(m[MARCA_GENES[i]]) < 0) return false;
+    }
+    return true;
+  }
+
+  function marcasDoId(chave) {
+    var r = S.mulberry32(hashChave(chave)), out = {}, i, lista;
+    for (i = 0; i < MARCA_GENES.length; i++) {
+      lista = G.MARCAS[MARCA_GENES[i]];
+      out[MARCA_GENES[i]] = lista[Math.floor(r() * lista.length)];
+    }
+    return out;
+  }
+
+  function marcasDe(p) {
+    if (marcasValidas(p.marcas)) return p.marcas;
+    var cat = G.STARTERS.concat(G.WILD_HORSES), i;
+    if (p.templateId != null) {
+      for (i = 0; i < cat.length; i++) if (cat[i].id === p.templateId && marcasValidas(cat[i].marcas)) return cat[i].marcas;
+    }
+    return marcasDoId(p.uid != null ? p.uid : (p.id != null ? p.id : p.name));
+  }
+
+  function rollMarcas(opts) {
+    var r = S.mulberry32(S.hash2(opts.seedBase >>> 0, 0x4D410000 + opts.breedCounter));
+    var mf = marcasDe(opts.f), mm = marcasDe(opts.m), out = {}, i, g, lista, mut, pick;
+    for (i = 0; i < MARCA_GENES.length; i++) {
+      g = MARCA_GENES[i]; lista = G.MARCAS[g];
+      mut = r() < G.MARCAS.mutacao;
+      pick = r();
+      out[g] = mut ? lista[Math.floor(pick * lista.length)] : (pick < 0.5 ? mf[g] : mm[g]);
+    }
+    return out;
+  }
+
   function foal(opts) {
     var f = opts.f, m = opts.m, breedCounter = opts.breedCounter;
     var rng = S.mulberry32(S.hash2(opts.seedBase >>> 0, 0xB0B0 + breedCounter));
@@ -2803,7 +2874,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       uid: 'm' + opts.nextUid, templateId: null, name: name, especie: 'cavalo', element: element, rarity: rarity, grau: grau, sex: sex,
       level: 1, xp: 0, skills: inherited, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
       parents: { f: { uid: f.uid || null, name: f.name }, m: { uid: m.uid || null, name: m.name } },
-      born: breedCounter
+      born: breedCounter,
+      marcas: rollMarcas(opts)
     };
   }
 
@@ -2820,6 +2892,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     rentalPrice: rentalPrice,
     isCorcel: isCorcel,
     skillCandidates: skillCandidates,
+    hashChave: hashChave,
+    marcasDoId: marcasDoId,
+    marcasValidas: marcasValidas,
     foal: foal
   };
 

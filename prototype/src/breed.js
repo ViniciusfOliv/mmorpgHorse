@@ -42,6 +42,10 @@
  *      ordem égua→garanhão; corte em skillSlots; preenchimento até bornSkills: 1 chamada de índice cada.
  *   7. nome (1 chamada: índice em FOAL_NAMES)
  *   8. paleta (1 chamada t = 0,3 + 0,4·rng(), só se os dois pais têm paleta)
+ *   9. marcas (sequência própria, mulberry32(hash2(seedBase>>>0, 0x4D410000 + breedCounter)); não muda os passos 1–8):
+ *      por gene, na ordem cara, patas, corpo, 2 chamadas: 1ª < GameData.MARCAS.mutacao ⇒ mutação; 2ª com mutação é o índice
+ *      uniforme na lista do gene; sem mutação, < 0,5 ⇒ gene da égua, senão do garanhão. Pai sem marcas válidas vale pelo
+ *      modelo do catálogo (templateId) ou por marcasDoId(uid): FNV-1a 32 bits da chave (hashChave) → mulberry32 → 3 sorteios.
  * (v3: saiu o antigo passo 5, uma chamada por status para o status base; o piso de genética por
  * estrela saiu sem mudar o número de chamadas.)
  */
@@ -233,6 +237,54 @@
     return isFinite(v) ? clamp(Math.floor(v), 0, 31) : 0;
   }
 
+  // ---- marcas (spec 2026-11-12-cavalos-marcas §2) ----
+  var MARCA_GENES = ['cara', 'patas', 'corpo'];
+
+  // FNV-1a de 32 bits sobre os code units da string
+  function hashChave(chave) {
+    var h = 0x811c9dc5, str = String(chave), i;
+    for (i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+
+  function marcasValidas(m) {
+    if (!m || typeof m !== 'object') return false;
+    for (var i = 0; i < MARCA_GENES.length; i++) {
+      if (G.MARCAS[MARCA_GENES[i]].indexOf(m[MARCA_GENES[i]]) < 0) return false;
+    }
+    return true;
+  }
+
+  function marcasDoId(chave) {
+    var r = S.mulberry32(hashChave(chave)), out = {}, i, lista;
+    for (i = 0; i < MARCA_GENES.length; i++) {
+      lista = G.MARCAS[MARCA_GENES[i]];
+      out[MARCA_GENES[i]] = lista[Math.floor(r() * lista.length)];
+    }
+    return out;
+  }
+
+  function marcasDe(p) {
+    if (marcasValidas(p.marcas)) return p.marcas;
+    var cat = G.STARTERS.concat(G.WILD_HORSES), i;
+    if (p.templateId != null) {
+      for (i = 0; i < cat.length; i++) if (cat[i].id === p.templateId && marcasValidas(cat[i].marcas)) return cat[i].marcas;
+    }
+    return marcasDoId(p.uid != null ? p.uid : (p.id != null ? p.id : p.name));
+  }
+
+  function rollMarcas(opts) {
+    var r = S.mulberry32(S.hash2(opts.seedBase >>> 0, 0x4D410000 + opts.breedCounter));
+    var mf = marcasDe(opts.f), mm = marcasDe(opts.m), out = {}, i, g, lista, mut, pick;
+    for (i = 0; i < MARCA_GENES.length; i++) {
+      g = MARCA_GENES[i]; lista = G.MARCAS[g];
+      mut = r() < G.MARCAS.mutacao;
+      pick = r();
+      out[g] = mut ? lista[Math.floor(pick * lista.length)] : (pick < 0.5 ? mf[g] : mm[g]);
+    }
+    return out;
+  }
+
   function foal(opts) {
     var f = opts.f, m = opts.m, breedCounter = opts.breedCounter;
     var rng = S.mulberry32(S.hash2(opts.seedBase >>> 0, 0xB0B0 + breedCounter));
@@ -299,7 +351,8 @@
       uid: 'm' + opts.nextUid, templateId: null, name: name, especie: 'cavalo', element: element, rarity: rarity, grau: grau, sex: sex,
       level: 1, xp: 0, skills: inherited, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
       parents: { f: { uid: f.uid || null, name: f.name }, m: { uid: m.uid || null, name: m.name } },
-      born: breedCounter
+      born: breedCounter,
+      marcas: rollMarcas(opts)
     };
   }
 
@@ -316,6 +369,9 @@
     rentalPrice: rentalPrice,
     isCorcel: isCorcel,
     skillCandidates: skillCandidates,
+    hashChave: hashChave,
+    marcasDoId: marcasDoId,
+    marcasValidas: marcasValidas,
     foal: foal
   };
 
