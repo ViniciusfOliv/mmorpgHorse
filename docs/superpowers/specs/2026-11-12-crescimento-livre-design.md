@@ -402,15 +402,29 @@ diff completo de `data.js`, `sim.js` e `balance.js` contra o bloco 1.
 
 ## 15. Riscos e pendências
 
-1. **Margens do tamanho do ruído** na seed do `balance.js`: M6 máximo no Raro 50 (59,9% contra 60), `inc:acel`
-   nos níveis 11 e 30 (47,2 e 47,4 contra 47) e M4 dois degraus no 50 (95,5 contra 95). O `balance.js` é
-   determinístico (passa igual depois de implementado), mas qualquer mudança que mexa na ordem da RNG pode
-   virar uma delas. Teste com outras seeds: `anexos/…-robustez.md`.
-2. **Dominância da build equilibrada nas pontas:** com os seis status valendo o mesmo e o custo crescente,
-   a melhor build é a equilibrada com leve inclinação no tipo (o bot, e o "Distribuir sugerido"). No Raro
-   ★★ fica no limite de 60%; no Comum ★★ 50 o bot chega a 61,4% e no Mítico ★★★ 50 a 64,9% (equilibrada
-   59,3% e 63,6%). As inclinadas ficam em 44–54%. Decisão pedida ao Vinicius: aceitar e manter informativo,
-   ou buscar outra alavanca.
+1. **Duas metas estão no limite de fato.** Medidas com a seed do `balance.js` e mais três bases de seed
+   (anexo `…-robustez.md`):
+   - M6 máximo no Raro 50: 59,5–60,6%, média 60,1 (reprovaria em 2 de 4);
+   - `inc:acel` no nível 30: 46,1–47,8% (reprovaria em 1 de 4).
+
+   As outras apertadas passam nas quatro: M4 dois degraus 95,0–95,8%, M3 40→50 75,0–77,4%, `tipo` no 50
+   47,3–49,4%. O `balance.js` é determinístico (passa igual depois de implementado), mas qualquer mudança
+   que mexa na RNG pode virar uma das duas.
+2. **A build equilibrada domina nas pontas.** Com os seis status valendo o mesmo e o custo crescente,
+   espalhar os pontos é o melhor; o bot (e o "Distribuir sugerido") é a equilibrada com leve inclinação no
+   tipo e ganha dela por pouco (51–55% no duelo direto). Médias nas quatro bases de seed:
+
+   | Classe no nível 50 | Bot contra todas | Equilibrada contra as inclinadas |
+   |---|---|---|
+   | Raro ★★ | 60,1% | 57,8% |
+   | Comum ★★ | 61,6% | 61,7% |
+   | Mítico ★★★ | 64,8% | 64,2% |
+
+   - As inclinadas ficam em 44–54%.
+   - No Raro 50 são as duplas (43–45%) que levam o bot a 60%; sem elas, ele fica em 58,4%.
+
+   Decisão pedida ao Vinicius: aceitar, com as metas rebaseadas ao medido, ou fazer mais uma rodada atrás de
+   outra alavanca.
 3. **A skill de tipo mudou de natureza** (seção 5): a Maré Alta perdeu a recuperação de tanque, a Raízes o
    desconto de gasto, e a Labareda passou a dar Velocidade também. Textos, wiki e a aba Skills mudam junto.
 4. **A corrida muda de sensação** (seção 3). Olhar a animação no artefato antes de integrar na `main`.
