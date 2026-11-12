@@ -17,6 +17,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { lerMoldes, lerIcones, lerMarca, jsonJs } from './arte-embutida.mjs'
+import { ICONES_NOVOS, RESERVADOS } from './icones-catalogo.mjs'
 
 const require = createRequire(import.meta.url)
 const PROTO = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -350,12 +351,17 @@ const celHtml = (c) => (typeof c === 'string' ? inlineHtml(c) : c.html != null ?
 const celNum = (c) => typeof c === 'object' && c.n != null
 
 let ICONES = {}
-function icone(nome, alt = '', cls = 'ic') {
+function icone(nome, alt = '', cls = 'ic', px = 16) {
   const src = ICONES[nome]
-  return src ? `<img class="${cls}" src="${src}" alt="${esc(alt)}" width="16" height="16">` : ''
+  return src ? `<img class="${cls}" src="${src}" alt="${esc(alt)}" width="${px}" height="${px}">` : ''
 }
+// No md o ícone é um link para o PNG da pasta (o md fica em docs/). Sem arquivo: só o nome, sem <img> nem link.
+const DIR_ICONES_MD = '../prototype/assets/icons/'
+const icMd = (nome) => (ICONES[nome] ? `![](${DIR_ICONES_MD}${nome}.png) ` : '')
+// célula "ícone + nome" (md e html); `html` = nome já formatado, se não for texto puro
+const comIcone = (nome, txt, html) => ({ md: icMd(nome) + txt, html: icone(nome) + (html != null ? html : esc(txt)) })
 const elCel = (id) => ({ md: nomeEl(id), html: `<span class="el el--${id}">${icone('el-' + id)}${esc(nomeEl(id))}</span>` })
-const rarCel = (id) => ({ md: nomeRar(id), html: `<span class="rar rar--${id}">${esc(nomeRar(id))}</span>` })
+const rarCel = (id, mdIcone = false) => ({ md: (mdIcone ? icMd('rar-' + id) : '') + nomeRar(id), html: `<span class="rar rar--${id}">${icone('rar-' + id)}${esc(nomeRar(id))}</span>` })
 const ouroCel = (n) => ({ md: num(n), html: `<span class="ouro">${icone('moeda-ouro')}${esc(num(n))}</span>` })
 const slotCel = (s) => ({ md: nomeSlot(s), html: `<span class="slot">${icone('slot-' + s)}${esc(nomeSlot(s))}</span>` })
 const N = (x) => ({ n: x })
@@ -397,7 +403,7 @@ function blocoHtml(b) {
         const ent = b.entradas ? b.entradas[li] : null
         const attrs = ent ? entradaAttrs(ent) : ''
         // célula curta não quebra linha (no celular a tabela rola dentro do contêiner); longa tem largura mínima
-        const cls = (c, i) => (numCol[i] ? ' class="n"' : celMd(c).replace(/\*\*/g, '').length <= 26 ? ' class="cu"' : ' class="cl"')
+        const cls = (c, i) => (numCol[i] ? ' class="n"' : celMd(c).replace(/!\[\]\([^)]*\) /g, '').replace(/\*\*/g, '').length <= 26 ? ' class="cu"' : ' class="cl"')
         return `<tr${attrs}>${l.map((c, i) => (i === 0 ? `<th scope="row"${cls(c, i)}>${celHtml(c)}</th>` : `<td${cls(c, i)}>${celHtml(c)}</td>`)).join('')}</tr>`
       }).join('')
       const vazio = b.vazio ? `<p class="vazio" data-vazio="${b.vazio.tipo}" hidden>${esc(b.vazio.txt)}</p>` : ''
@@ -442,7 +448,7 @@ function secoes(F, A) {
   // 2. Status --------------------------------------------------------------------------------------------
   add('status', 'Status', 'Status', [
     { t: 'p', txt: `Cada montaria tem ${G.STAT_KEYS.length} status na escala de 1 a 100. Na corrida o motor usa n(x) = status / 100. Depois do equipamento o valor é arredondado e preso entre ${lim.baixo} e ${lim.alto}.` },
-    { t: 'tabela', rotulo: 'Status', cab: ['Sigla', 'Status', 'Descrição no jogo', 'Na corrida'], linhas: G.STAT_KEYS.map((k) => [N(siglaStat(k)), nomeStat(k), G.STATS[k].desc, papelDoStatus(k, F)]) },
+    { t: 'tabela', rotulo: 'Status', cab: ['Sigla', 'Status', 'Descrição no jogo', 'Na corrida'], linhas: G.STAT_KEYS.map((k) => [N(siglaStat(k)), comIcone('st-' + k, nomeStat(k)), G.STATS[k].desc, papelDoStatus(k, F)]) },
     { t: 'h3', txt: 'Como o status é calculado' },
     { t: 'formula', txt: `natural = início da faixa da raridade + ${num(T.gBand)} × g / 31 + (level − 1) × (${num(T.gGrowBase)} + ${num(T.gGrowRange)} × g / 31)
 status  = min(natural + pontos distribuídos, teto da raridade) + equipamento
@@ -500,7 +506,7 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
     { t: 'p', txt: `São ${rarIds.length} raridades, da mais comum à mais rara: ${lista(rarIds.map(nomeRar))}. A raridade define a faixa onde o status nasce (pela genética), o teto de cada status, as vagas de skill, a chance de ativar skills e a força da skill de tipo. Só muda por cruzamento.` },
     { t: 'tabela', rotulo: 'Raridades', cab: ['Raridade', 'Cor', 'Status nasce entre', 'Teto de status', 'Vagas de skill (além da de tipo)', 'Skills do potro (mínimo)', 'Chance base de skill', `Força da skill de tipo (Nv 1 / Nv ${E.maxLevel})`, 'Preço da peça', 'Aluguel base', 'Montarias no jogo'], linhas: rarIds.map((r) => {
       const R = G.RARITIES[r]
-      return [rarCel(r), { md: R.color, html: `<span class="amostra" style="--c:${R.color}"></span><code>${R.color}</code>` }, N(`${num(R.baseLo)}–${num(R.baseLo + T.gBand)}`), N(num(R.statCap)), N(String(R.skillSlots)), N(String(R.bornSkills)), N(pct(R.skillChance, 0)),
+      return [rarCel(r, true), { md: R.color, html: `<span class="amostra" style="--c:${R.color}"></span><code>${R.color}</code>` }, N(`${num(R.baseLo)}–${num(R.baseLo + T.gBand)}`), N(num(R.statCap)), N(String(R.skillSlots)), N(String(R.bornSkills)), N(pct(R.skillChance, 0)),
         N(`${num(S.typePower({ rarity: r, level: 1 }))} / ${num(S.typePower({ rarity: r, level: E.maxLevel }))}`),
         EG.price[r] != null ? ouroCel(EG.price[r]) : 'não existe', BR.rentalBase[r] != null ? ouroCel(BR.rentalBase[r]) : 'não se aluga', N(String(contaRar(r)))]
     }) },
@@ -526,7 +532,7 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
     { t: 'h3', txt: 'Climas' },
     { t: 'tabela', rotulo: 'Climas', cab: ['Clima', 'Favorece', 'Penaliza', 'Efeito geral', 'Descrição'], linhas: clIds.map((w) => {
       const W = G.WEATHERS[w]
-      return [nomeClima(w), W.element ? elCel(W.element) : '—', W.penalizes ? elCel(W.penalizes) : '—', efeitoGeralClima(w), W.desc]
+      return [comIcone('cl-' + w, nomeClima(w)), W.element ? elCel(W.element) : '—', W.penalizes ? elCel(W.penalizes) : '—', efeitoGeralClima(w), W.desc]
     }) },
     { t: 'h3', txt: 'Multiplicador de clima (m)' },
     { t: 'p', txt: `Elemento dono do clima: ${multF(T.weatherMult)}; com a skill de clima ativa, ${multF(T.weatherMultDouble)}; com ${EG.setBonus.pieces[1]} peças do conjunto daquele clima (sem a skill), ${multF(T.weatherMultSet)}. Elemento penalizado: ${multF(2 - T.weatherMult)} (o equipamento de ${EG.setBonus.pieces[2]} peças anula). O resto, e todos no ${nomeClima('nublado')}, ×1.` },
@@ -552,7 +558,7 @@ Força, Manobra e Garra efetivas = n(x) × m` },
     const ids = skIds.filter((id) => G.SKILLS[id].element === e)
     return `### ${e === 'geral' ? 'Gerais' : nomeEl(e)} (${ids.length})\n\n` + blocoMd({ t: 'tabela', cab: ['Skill', 'Gatilho', 'Efeito', 'Descrição no jogo', 'Quem pode ter', 'Começa em', 'Pontos no Poder', 'Balão'], linhas: ids.map((id) => {
       const sk = G.SKILLS[id], qt = quemTem(id)
-      return [`**${sk.name}**`, descreverGatilho(sk.trigger), descreverEfeito(sk.effect), sk.desc, quemPode(sk), qt.length ? qt.join(', ') : '—', N(num(pesoSkill(id) * 20)), FX.nomeCurto(sk.name, sk.short)]
+      return [{ md: icMd('sk-' + id) + `**${sk.name}**`, html: icone('sk-' + id) + `<strong>${esc(sk.name)}</strong>` }, descreverGatilho(sk.trigger), descreverEfeito(sk.effect), sk.desc, quemPode(sk), qt.length ? qt.join(', ') : '—', N(num(pesoSkill(id) * 20)), FX.nomeCurto(sk.name, sk.short)]
     }) })
   }).join('\n\n')
   const skillHtml = ordemEl.filter((e) => skIds.some((id) => G.SKILLS[id].element === e)).map((e) => {
@@ -561,7 +567,7 @@ Força, Manobra e Garra efetivas = n(x) × m` },
       ids.map((id) => {
         const sk = G.SKILLS[id], qt = quemTem(id)
         return `<article${entradaAttrs({ id: 'skill-' + id, tipo: 'skill', busca: [sk.name, nomeEl(sk.element), 'skill'], el: sk.element })}>` +
-          `<header><h4>${esc(sk.name)}</h4>${elCel(sk.element).html}</header>` +
+          `<header><h4>${icone('sk-' + id)}${esc(sk.name)}</h4>${elCel(sk.element).html}</header>` +
           `<p class="desc">${esc(sk.desc)}</p>` +
           `<dl class="pares pares--skill"><dt>Gatilho</dt><dd>${inlineHtml(descreverGatilho(sk.trigger))}</dd>` +
           `<dt>Efeito</dt><dd>${inlineHtml(descreverEfeito(sk.effect))}</dd>` +
@@ -583,7 +589,7 @@ Força, Manobra e Garra efetivas = n(x) × m` },
     { t: 'formula', txt: `P = ${num(T.typeBase)} + ${num(T.typeLevel)} × (level − 1) / 49 + ${num(T.typeRar)} × ordem da raridade / 4      (ordem: ${rarIds.map((r) => `${nomeRar(r)} ${G.RARITIES[r].order}`).join(', ')})` },
     { t: 'tabela', rotulo: 'Skills de tipo', cab: ['Skill', 'Tipo', 'Terço', 'Efeito (P = 1)', `${nomeRar('lendario')} Nv ${E.maxLevel} (P = ${num(S.typePower({ rarity: 'lendario', level: E.maxLevel }))})`, 'Pontos no Poder (P = 1)', 'Balão'], linhas: elIds.filter((e) => G.TYPE_SKILLS[e]).map((e) => {
       const ts = G.TYPE_SKILLS[e]
-      return [`**${ts.name}**`, elCel(e), tercoTxt(ts.zone), descreverEfeitoTipo(ts.effect, 1), descreverEfeitoTipo(ts.effect, S.typePower({ rarity: 'lendario', level: E.maxLevel })), N(num(T.ratingTypeW)), FX.nomeCurto(ts.name, ts.short)]
+      return [{ md: icMd('sk-tipo-' + e) + `**${ts.name}**`, html: icone('sk-tipo-' + e) + `<strong>${esc(ts.name)}</strong>` }, elCel(e), tercoTxt(ts.zone), descreverEfeitoTipo(ts.effect, 1), descreverEfeitoTipo(ts.effect, S.typePower({ rarity: 'lendario', level: E.maxLevel })), N(num(T.ratingTypeW)), FX.nomeCurto(ts.name, ts.short)]
     }) },
     { t: 'p', txt: `"Força efetiva +7" soma 7 pontos à Força (e à Manobra) usada na curva, na subida, no piso pesado e no pelotão. Elemento sem skill de tipo corre sem ela. A skill de tipo não troca e não conta nas vagas.` },
     { t: 'h3', txt: 'Skills de vaga' },
@@ -622,7 +628,7 @@ Força, Manobra e Garra efetivas = n(x) × m` },
     { t: 'h3', txt: 'Blocos' },
     { t: 'tabela', rotulo: 'Blocos', cab: ['Bloco', 'Fator de velocidade', 'Gasto de estamina', 'Observação'], linhas: btIds.map((b) => { const d = descreverBloco(b, F); return [G.BLOCK_TYPES[b].name, d.fator, d.gasto, d.mais] }) },
     { t: 'h3', txt: 'Pisos' },
-    { t: 'tabela', rotulo: 'Pisos', cab: ['Piso', 'Perda de velocidade', 'Gasto de estamina', 'Descrição'], linhas: Object.keys(G.SURFACES).map((s) => { const x = G.SURFACES[s]; return [x.name, N(x.slow ? sinalPct(-x.slow, 0) : '0%'), N(mult(x.drain, 2)), x.desc] }) },
+    { t: 'tabela', rotulo: 'Pisos', cab: ['Piso', 'Perda de velocidade', 'Gasto de estamina', 'Descrição'], linhas: Object.keys(G.SURFACES).map((s) => { const x = G.SURFACES[s]; return [comIcone('pi-' + s, x.name), N(x.slow ? sinalPct(-x.slow, 0) : '0%'), N(mult(x.drain, 2)), x.desc] }) },
     { t: 'p', txt: `A perda de velocidade do piso é aliviada pela Força: perda × (1 − ${num(T.forcaSurfRelief)} × n(FOR)).` },
     { t: 'p', txt: `Nomes de hipódromo sorteados para a sala (só o nome): ${lista(F.pistas)}.` },
     { t: 'h3', txt: 'Como a corrida é simulada' },
@@ -782,13 +788,25 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
       + ${num(T.ratingTypeW)} × força da skill de tipo
       + ${EG.setBonus.pieces.map((n, i) => `${EG.setBonus.ratingPts[i]} (${n} peças)`).join(' / ')} de conjunto` },
     { t: 'tabela', rotulo: 'Peso do gatilho', titulo: 'Peso do gatilho no Poder', cab: ['Gatilho', 'Peso', 'Pontos por skill'], linhas: Object.keys(pesos).map((t) => [t === 'weather:*' ? 'Clima (qualquer)' : descreverGatilho(t), N(num(pesos[t], 2)), N(num(pesos[t] * T.ratingSkillPts))]) },
-    { t: 'tabela', rotulo: 'Ligas', cab: ['Liga', 'Poder', 'Cor'], linhas: G.LEAGUES.map((L) => { const f = S.leagueFor(L.min); return [{ md: L.name, html: `<span class="liga" style="--c:${L.color}">${esc(L.name)}</span>` }, N(f.max == null ? `${num(L.min)} ou mais` : `${num(L.min)}–${num(f.max)}`), { md: L.color, html: `<code>${L.color}</code>` }] }) },
+    { t: 'tabela', rotulo: 'Ligas', cab: ['Liga', 'Poder', 'Cor'], linhas: G.LEAGUES.map((L) => { const f = S.leagueFor(L.min); return [{ md: icMd('liga-' + L.id) + L.name, html: `<span class="liga" style="--c:${L.color}">${icone('liga-' + L.id)}${esc(L.name)}</span>` }, N(f.max == null ? `${num(L.min)} ou mais` : `${num(L.min)}–${num(f.max)}`), { md: L.color, html: `<code>${L.color}</code>` }] }) },
     { t: 'p', txt: `**Rivais da sala:** cada bot mira um Poder entre ${sinalPct(F.botAlvo[0] - 1, 1)} e ${sinalPct(F.botAlvo[0] + F.botAlvo[1] - 1, 1)} do seu (leve viés para cima), com o equipamento da liga desse alvo. Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de ${F.botFaixaNivel[0]} levels abaixo a ${F.botFaixaNivel[1]} acima do level dele, entre 1 e ${E.maxLevel}. O modelo só entra se ficar a até ${pct(F.botFaixa, 0)} do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos ${F.botReserva} modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem.` },
     { t: 'p', txt: `**Build dos bots** (fixa, sem sorteio): o limite por status vai para ${nomeStat('vel')} (${lista(elIds.filter((e) => e !== 'grama').map(nomeEl))}) ou ${nomeStat('forca')} (${nomeEl('grama')}); o resto vai de um em um para ${lista(F.botRodizio.map(nomeStat))}, pulando o que está no limite ou no teto; a sobra vai para ${nomeStat('sorte')}.` },
     { t: 'tabela', rotulo: 'Poder das iniciais', titulo: 'Poder das iniciais', cab: ['Montaria', 'Nv 1 sem peças', 'Nv 1 com o equipamento inicial', `Nv ${E.maxLevel} sem peças nem pontos`, `Nv ${E.maxLevel} sem peças, build dos bots`], linhas: G.STARTERS.map((h) => { const h50 = { ...h, level: E.maxLevel }; return [h.name, N(num(S.powerRating(h, null))), N(num(S.powerRating(h, ini))), N(num(S.powerRating(h50, null))), N(num(S.powerRating({ ...h50, alloc: S.botAlloc(h50) }, null)))] }) }
   ])
 
-  // 13. Modo DEV -----------------------------------------------------------------------------------------
+  // 13. Ícones reservados --------------------------------------------------------------------------------
+  // Os 5 da spec (2.6): já existem como arquivo, mas só entram nas telas com recursos que ainda vão chegar.
+  const reservados = RESERVADOS.map((id) => {
+    const ic = ICONES_NOVOS.find((x) => x.id === id)
+    if (!ic) throw new Error(`wiki: reservado "${id}" fora do catálogo de ícones`)
+    return [{ md: icMd(id) + `\`${id}\``, html: icone(id, '', 'ic ic32', 32) + `<code>${esc(id)}</code>` }, ic.desc, ic.cor]
+  })
+  add('icones-reservados', 'Ícones reservados', 'Ícones reservados', [
+    { t: 'p', txt: 'Estes cinco ícones já estão em `prototype/assets/icons/`, mas ainda não aparecem no jogo: esperam os recursos que vão usá-los (Rédeas, loja de Gemas, insígnias dos ginásios). Até lá, só o wiki os mostra.' },
+    { t: 'tabela', rotulo: 'Ícones reservados', cab: ['Ícone', 'Descrição', 'Cor'], linhas: reservados.map(([c, d, cor]) => [c, d, { md: `\`${cor}\``, html: `<span class="amostra" style="--c:${cor}"></span><code>${esc(cor)}</code>` }]) }
+  ])
+
+  // 14. Modo DEV -----------------------------------------------------------------------------------------
   add('dev', 'Modo DEV', 'Modo DEV', [
     { t: 'p', txt: `Para testar: abra \`prototype/dist/preview.html?dev=1\` ou o build de teste \`prototype/dist/jogo-dev.html\` (liga sozinho; é o que vai para o artefato, que não repassa \`?dev=1\`). O save é separado (\`${DV.SAVE_KEY}\`): o jogo real não é lido nem gravado.` },
     { t: 'dl', itens: [
@@ -898,6 +916,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 a { color: var(--ouro-claro); text-underline-offset: 3px; }
 code { font-family: var(--fonte-mono); font-size: 0.88em; background: var(--noite-2); border: 1px solid var(--linha); padding: 0 4px; color: var(--texto); overflow-wrap: anywhere; }
 strong, b { font-weight: 700; color: var(--texto); }
+img.ic.ic32 { width: 32px; height: 32px; }
 img.ic { width: 16px; height: 16px; image-rendering: pixelated; vertical-align: -2px; flex: none; }
 canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -937,6 +956,7 @@ main { min-width: 0; display: flex; flex-direction: column; gap: 56px; }
 .secao h2 { font: 400 18px/1.5 var(--fonte-display); color: var(--ouro); text-shadow: 3px 3px 0 var(--sombra); text-wrap: balance; padding-bottom: 10px; border-bottom: 2px dashed var(--linha); margin-bottom: 4px; }
 .secao h3 { font: 400 1.875rem/1.1 var(--fonte-rotulo); color: var(--texto); margin-top: 18px; text-wrap: balance; display: flex; align-items: center; gap: 8px; scroll-margin-top: calc(var(--topo) + 16px); }
 .secao h3 img.ic { width: 24px; height: 24px; }
+.secao h4 img.ic { width: 24px; height: 24px; margin-right: 6px; }
 .secao h4 { font: 400 1.5rem/1.1 var(--fonte-rotulo); color: var(--ouro-claro); margin-top: 8px; }
 .secao p, .secao li, .secao dd { max-width: 70ch; }
 .secao ul, .secao ol { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 6px; }

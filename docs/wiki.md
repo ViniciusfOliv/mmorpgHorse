@@ -16,6 +16,7 @@
 - [Cruzamento (Haras)](#cruzamento)
 - [Equipamento](#equipamento)
 - [Economia](#economia)
+- [Ícones reservados](#icones-reservados)
 - [Modo DEV](#dev)
 
 <a id="visao"></a>
@@ -52,13 +53,13 @@ Cada montaria tem 7 status na escala de 1 a 100. Na corrida o motor usa n(x) = s
 
 | Sigla | Status | Descrição no jogo | Na corrida |
 | ---: | --- | --- | --- |
-| VEL | Velocidade | Velocidade máxima. | Velocidade máxima: vMax = 17,805 + 1,2 × n(VEL) m/s (VEL 50 → 18,41 m/s; VEL 100 → 19,01 m/s). Ritmo, piso, bloco e boosts multiplicam esse teto. |
-| ACE | Aceleração | Rapidez até a velocidade máxima (largada e retomadas). | Aceleração = 0,6 + 2,4 × n(ACE) m/s², na largada e nas retomadas (saída de curva e de subida). Também encurta a reação à largada: atraso sorteado de até 0,6 s × (1 − 0,5 × n(ACE)). |
-| MAN | Manobra | Agilidade nas curvas e na saída delas. | Fator da curva = min(1, 0,826 + 0,14 × n(MAN)): de 83% a 97% da velocidade dentro da curva. |
-| FOR | Força | Subidas, terreno pesado e disputa no pelotão. | Fator da subida = min(1, 0,86 + 0,13 × n(FOR)). Alivia o piso pesado (50% × n(FOR) da perda), o aperto do pelotão (80% × n(FOR)) e o gasto extra da subida (+30% × (1 − 0,5 × n(FOR))). |
-| EST | Estamina | Quanto tempo mantém o ritmo. | Tanque = 66 + 20 × n(EST) (EST 50 → 76). O clima não mexe no tanque. |
-| GAR | Garra | Chance e força da arrancada final (últimos 20%). | Ao cruzar 80% da pista: chance = min(95%, 10% + 70% × n(GAR)). Se sair, o teto de velocidade vai a ×1,02 + 0,16 × n(GAR) até a chegada. |
-| SOR | Sorte | Chance de rolar um 2º dado no Dado da Sorte e bônus para ativar skills. | No Dado da Sorte, SOR% é a chance de rolar um 2º dado e ficar com o melhor. Na chance de skill soma 0,1 p.p. por ponto (SOR 50 → +5 p.p.). |
+| VEL | ![](../prototype/assets/icons/st-vel.png) Velocidade | Velocidade máxima. | Velocidade máxima: vMax = 17,805 + 1,2 × n(VEL) m/s (VEL 50 → 18,41 m/s; VEL 100 → 19,01 m/s). Ritmo, piso, bloco e boosts multiplicam esse teto. |
+| ACE | ![](../prototype/assets/icons/st-acel.png) Aceleração | Rapidez até a velocidade máxima (largada e retomadas). | Aceleração = 0,6 + 2,4 × n(ACE) m/s², na largada e nas retomadas (saída de curva e de subida). Também encurta a reação à largada: atraso sorteado de até 0,6 s × (1 − 0,5 × n(ACE)). |
+| MAN | ![](../prototype/assets/icons/st-man.png) Manobra | Agilidade nas curvas e na saída delas. | Fator da curva = min(1, 0,826 + 0,14 × n(MAN)): de 83% a 97% da velocidade dentro da curva. |
+| FOR | ![](../prototype/assets/icons/st-forca.png) Força | Subidas, terreno pesado e disputa no pelotão. | Fator da subida = min(1, 0,86 + 0,13 × n(FOR)). Alivia o piso pesado (50% × n(FOR) da perda), o aperto do pelotão (80% × n(FOR)) e o gasto extra da subida (+30% × (1 − 0,5 × n(FOR))). |
+| EST | ![](../prototype/assets/icons/st-est.png) Estamina | Quanto tempo mantém o ritmo. | Tanque = 66 + 20 × n(EST) (EST 50 → 76). O clima não mexe no tanque. |
+| GAR | ![](../prototype/assets/icons/st-garra.png) Garra | Chance e força da arrancada final (últimos 20%). | Ao cruzar 80% da pista: chance = min(95%, 10% + 70% × n(GAR)). Se sair, o teto de velocidade vai a ×1,02 + 0,16 × n(GAR) até a chegada. |
+| SOR | ![](../prototype/assets/icons/st-sorte.png) Sorte | Chance de rolar um 2º dado no Dado da Sorte e bônus para ativar skills. | No Dado da Sorte, SOR% é a chance de rolar um 2º dado e ficar com o melhor. Na chance de skill soma 0,1 p.p. por ponto (SOR 50 → +5 p.p.). |
 
 ### Como o status é calculado
 
@@ -192,11 +193,11 @@ São 5 raridades, da mais comum à mais rara: Comum, Mágico, Raro, Lendário e 
 
 | Raridade | Cor | Status nasce entre | Teto de status | Vagas de skill (além da de tipo) | Skills do potro (mínimo) | Chance base de skill | Força da skill de tipo (Nv 1 / Nv 50) | Preço da peça | Aluguel base | Montarias no jogo |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: |
-| Comum | #9e9e9e | 40–56 | 80 | 1 | 1 | 35% | 1 / 1,4 | 100 | 100 | 6 |
-| Mágico | #4caf50 | 45–61 | 85 | 2 | 1 | 45% | 1,1 / 1,5 | 250 | 250 | 3 |
-| Raro | #2196f3 | 50–66 | 90 | 3 | 2 | 55% | 1,2 / 1,6 | 600 | 600 | 2 |
-| Lendário | #ff9800 | 55–71 | 95 | 4 | 2 | 65% | 1,3 / 1,7 | 1.500 | 1.500 | 2 |
-| Mítico | #9c27b0 | 60–76 | 100 | 5 | 3 | 75% | 1,4 / 1,8 | não existe | não se aluga | 2 |
+| ![](../prototype/assets/icons/rar-comum.png) Comum | #9e9e9e | 40–56 | 80 | 1 | 1 | 35% | 1 / 1,4 | 100 | 100 | 6 |
+| ![](../prototype/assets/icons/rar-magico.png) Mágico | #4caf50 | 45–61 | 85 | 2 | 1 | 45% | 1,1 / 1,5 | 250 | 250 | 3 |
+| ![](../prototype/assets/icons/rar-raro.png) Raro | #2196f3 | 50–66 | 90 | 3 | 2 | 55% | 1,2 / 1,6 | 600 | 600 | 2 |
+| ![](../prototype/assets/icons/rar-lendario.png) Lendário | #ff9800 | 55–71 | 95 | 4 | 2 | 65% | 1,3 / 1,7 | 1.500 | 1.500 | 2 |
+| ![](../prototype/assets/icons/rar-mitico.png) Mítico | #9c27b0 | 60–76 | 100 | 5 | 3 | 75% | 1,4 / 1,8 | não existe | não se aluga | 2 |
 
 Raridade mais alta que nasce de cruzamento: **Lendário**. Mítico nunca nasce de cruzamento e não se aluga.
 
@@ -238,10 +239,10 @@ São 3 tipos (elementos). Cada um tem a sua skill de tipo, sempre ativa num ter�
 
 | Clima | Favorece | Penaliza | Efeito geral | Descrição |
 | --- | --- | --- | --- | --- |
-| Sol | Fogo | Grama | gasto de estamina ×1,04 para todos | Favorece Fogo; Grama murcha. |
-| Chuva | Água | Fogo | velocidade −1,5% para todos | Favorece Água; Fogo apaga. |
-| Névoa | Grama | Água | nenhum efeito geral | Favorece Grama; Água perde o rumo. |
-| Nublado | — | — | nenhum efeito geral | Condição neutra: ninguém é favorecido. |
+| ![](../prototype/assets/icons/cl-sol.png) Sol | Fogo | Grama | gasto de estamina ×1,04 para todos | Favorece Fogo; Grama murcha. |
+| ![](../prototype/assets/icons/cl-chuva.png) Chuva | Água | Fogo | velocidade −1,5% para todos | Favorece Água; Fogo apaga. |
+| ![](../prototype/assets/icons/cl-nevoa.png) Névoa | Grama | Água | nenhum efeito geral | Favorece Grama; Água perde o rumo. |
+| ![](../prototype/assets/icons/cl-nublado.png) Nublado | — | — | nenhum efeito geral | Condição neutra: ninguém é favorecido. |
 
 ### Multiplicador de clima (m)
 
@@ -297,9 +298,9 @@ P = 1 + 0,4 × (level − 1) / 49 + 0,4 × ordem da raridade / 4      (ordem: Co
 
 | Skill | Tipo | Terço | Efeito (P = 1) | Lendário Nv 50 (P = 1,7) | Pontos no Poder (P = 1) | Balão |
 | --- | --- | --- | --- | --- | ---: | --- |
-| **Labareda** | Fogo | primeiro terço (da largada a 1/3) | aceleração +23% | aceleração +39% | 80 | LABAREDA |
-| **Maré Alta** | Água | último terço (de 2/3 à chegada) | velocidade +1,8%; recupera 1,2% do tanque ao entrar no terço | velocidade +3,1%; recupera 2% do tanque ao entrar no terço | 80 | MARÉ ALTA |
-| **Raízes Firmes** | Grama | terço do meio (de 1/3 a 2/3) | Força efetiva +7; Manobra efetiva +7; gasto de estamina −1,2% | Força efetiva +11,9; Manobra efetiva +11,9; gasto de estamina −2% | 80 | RAÍZES FIRM. |
+| ![](../prototype/assets/icons/sk-tipo-fogo.png) **Labareda** | Fogo | primeiro terço (da largada a 1/3) | aceleração +23% | aceleração +39% | 80 | LABAREDA |
+| ![](../prototype/assets/icons/sk-tipo-agua.png) **Maré Alta** | Água | último terço (de 2/3 à chegada) | velocidade +1,8%; recupera 1,2% do tanque ao entrar no terço | velocidade +3,1%; recupera 2% do tanque ao entrar no terço | 80 | MARÉ ALTA |
+| ![](../prototype/assets/icons/sk-tipo-grama.png) **Raízes Firmes** | Grama | terço do meio (de 1/3 a 2/3) | Força efetiva +7; Manobra efetiva +7; gasto de estamina −1,2% | Força efetiva +11,9; Manobra efetiva +11,9; gasto de estamina −2% | 80 | RAÍZES FIRM. |
 
 "Força efetiva +7" soma 7 pontos à Força (e à Manobra) usada na curva, na subida, no piso pesado e no pelotão. Elemento sem skill de tipo corre sem ela. A skill de tipo não troca e não conta nas vagas.
 
@@ -313,36 +314,36 @@ P = 1 + 0,4 × (level − 1) / 49 + 0,4 × ordem da raridade / 4      (ordem: Co
 
 | Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
 | --- | --- | --- | --- | --- | --- | ---: | --- |
-| **Arranque** | Largada | aceleração ×1,2 (+20%), por 100 m | Largada explosiva: +20% de aceleração nos primeiros 100 m. | qualquer tipo | Faísca, Fogaréu | 20 | ARRANQUE |
-| **Sprint** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | velocidade ×1,06 (+6%); gasto de estamina ×1 (+0%), por 150 m | Numa reta de 150 m ou mais (fora a da largada): +6% de velocidade por 150 m. | qualquer tipo | Ventania | 20 | SPRINT |
-| **Drift** | Entra numa curva | fator da curva +3% (somado, teto 1), em cada bloco, até o fim dele | Em cada curva: +3% de rendimento na curva. | qualquer tipo | Boitatá | 16 | DRIFT |
-| **Saída Rápida** | Sai de uma curva | aceleração ×1,4 (+40%); velocidade ×1,06 (+6%), por 6 s | Ao sair da curva: +40% de aceleração e +6% de velocidade por 6s. | qualquer tipo | — | 16 | SAÍDA RÁPIDA |
-| **Fôlego de Montanha** | Entra numa subida | gasto extra da subida ×0,2 (−80%), em cada bloco, até o fim dele | Em cada subida: gasta 80% menos estamina extra da subida. | qualquer tipo | Jequitibá | 12 | FÔLEGO MONT. |
-| **Segundo Ar** | Estamina cai a 30% ou menos | recupera 15% do tanque na hora; velocidade ×1,05 (+5%), por 8 s | Quando a estamina cai a 30%, recupera 15% e ganha +5% de velocidade por 8s. | qualquer tipo | Capim, Garoa, Jequitibá | 16 | SEGUNDO AR |
-| **Arrancada Final** | Cruza 80% da pista (reta final) | chance de Garra +15 p.p.; impulso da Garra +3 p.p. | Na reta final: +15% de chance de Garra e +3% de força na arrancada. | qualquer tipo | Ventania | 20 | ARR. FINAL |
-| **Dado Viciado** | Antes do 1º Dado da Sorte (uma tentativa por corrida; se ativar, vale para todos os Dados) | +1 dado no Dado da Sorte (até o fim da corrida) | Uma tentativa por corrida, antes do 1º Dado da Sorte: se ativar, rola 1 dado extra em todos os Dados da corrida. | qualquer tipo | — | 4 | DADO VICIADO |
+| ![](../prototype/assets/icons/sk-arranque.png) **Arranque** | Largada | aceleração ×1,2 (+20%), por 100 m | Largada explosiva: +20% de aceleração nos primeiros 100 m. | qualquer tipo | Faísca, Fogaréu | 20 | ARRANQUE |
+| ![](../prototype/assets/icons/sk-sprint.png) **Sprint** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | velocidade ×1,06 (+6%); gasto de estamina ×1 (+0%), por 150 m | Numa reta de 150 m ou mais (fora a da largada): +6% de velocidade por 150 m. | qualquer tipo | Ventania | 20 | SPRINT |
+| ![](../prototype/assets/icons/sk-drift.png) **Drift** | Entra numa curva | fator da curva +3% (somado, teto 1), em cada bloco, até o fim dele | Em cada curva: +3% de rendimento na curva. | qualquer tipo | Boitatá | 16 | DRIFT |
+| ![](../prototype/assets/icons/sk-saida-rapida.png) **Saída Rápida** | Sai de uma curva | aceleração ×1,4 (+40%); velocidade ×1,06 (+6%), por 6 s | Ao sair da curva: +40% de aceleração e +6% de velocidade por 6s. | qualquer tipo | — | 16 | SAÍDA RÁPIDA |
+| ![](../prototype/assets/icons/sk-folego-de-montanha.png) **Fôlego de Montanha** | Entra numa subida | gasto extra da subida ×0,2 (−80%), em cada bloco, até o fim dele | Em cada subida: gasta 80% menos estamina extra da subida. | qualquer tipo | Jequitibá | 12 | FÔLEGO MONT. |
+| ![](../prototype/assets/icons/sk-segundo-ar.png) **Segundo Ar** | Estamina cai a 30% ou menos | recupera 15% do tanque na hora; velocidade ×1,05 (+5%), por 8 s | Quando a estamina cai a 30%, recupera 15% e ganha +5% de velocidade por 8s. | qualquer tipo | Capim, Garoa, Jequitibá | 16 | SEGUNDO AR |
+| ![](../prototype/assets/icons/sk-arrancada-final.png) **Arrancada Final** | Cruza 80% da pista (reta final) | chance de Garra +15 p.p.; impulso da Garra +3 p.p. | Na reta final: +15% de chance de Garra e +3% de força na arrancada. | qualquer tipo | Ventania | 20 | ARR. FINAL |
+| ![](../prototype/assets/icons/sk-dado-viciado.png) **Dado Viciado** | Antes do 1º Dado da Sorte (uma tentativa por corrida; se ativar, vale para todos os Dados) | +1 dado no Dado da Sorte (até o fim da corrida) | Uma tentativa por corrida, antes do 1º Dado da Sorte: se ativar, rola 1 dado extra em todos os Dados da corrida. | qualquer tipo | — | 4 | DADO VICIADO |
 
 ### Fogo (2)
 
 | Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
 | --- | --- | --- | --- | --- | --- | ---: | --- |
-| **Sol a Pino** | Clima Sol valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,08 (até o fim da corrida) | Com sol: o bônus do clima para o Fogo sobe de +3% para +8%. | só Fogo | Fogaréu, Boitatá | 16 | SOL A PINO |
-| **Chama Final** | Cruza 80% da pista (reta final) | velocidade ×1,05 (+5%), por 8 s | Na reta final, +5% de velocidade por 8s. | só Fogo | Tição, Fogaréu, Boitatá | 20 | CHAMA FINAL |
+| ![](../prototype/assets/icons/sk-sol-a-pino.png) **Sol a Pino** | Clima Sol valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,08 (até o fim da corrida) | Com sol: o bônus do clima para o Fogo sobe de +3% para +8%. | só Fogo | Fogaréu, Boitatá | 16 | SOL A PINO |
+| ![](../prototype/assets/icons/sk-chama-final.png) **Chama Final** | Cruza 80% da pista (reta final) | velocidade ×1,05 (+5%), por 8 s | Na reta final, +5% de velocidade por 8s. | só Fogo | Tição, Fogaréu, Boitatá | 20 | CHAMA FINAL |
 
 ### Água (3)
 
 | Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
 | --- | --- | --- | --- | --- | --- | ---: | --- |
-| **Pé na Chuva** | Clima Chuva valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,08 (até o fim da corrida) | Com chuva: o bônus do clima para a Água sobe de +3% para +8%. | só Água | Garoa, Pororoca, Iara | 16 | PÉ NA CHUVA |
-| **Canto da Iara** | Cruza 80% da pista (reta final) | velocidade ×1,06 (+6%); gasto de estamina ×0,7 (−30%), por 7 s | Na reta final, +6% de velocidade por 7s e gasta 30% menos estamina. | só Água | Iara | 20 | CANTO IARA |
-| **Nascente** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | recupera 12% do tanque na hora | Numa reta de 150 m ou mais (fora a da largada), recupera 12% de estamina. | só Água | Pororoca, Iara | 20 | NASCENTE |
+| ![](../prototype/assets/icons/sk-pe-na-chuva.png) **Pé na Chuva** | Clima Chuva valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,08 (até o fim da corrida) | Com chuva: o bônus do clima para a Água sobe de +3% para +8%. | só Água | Garoa, Pororoca, Iara | 16 | PÉ NA CHUVA |
+| ![](../prototype/assets/icons/sk-canto-da-iara.png) **Canto da Iara** | Cruza 80% da pista (reta final) | velocidade ×1,06 (+6%); gasto de estamina ×0,7 (−30%), por 7 s | Na reta final, +6% de velocidade por 7s e gasta 30% menos estamina. | só Água | Iara | 20 | CANTO IARA |
+| ![](../prototype/assets/icons/sk-nascente.png) **Nascente** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | recupera 12% do tanque na hora | Numa reta de 150 m ou mais (fora a da largada), recupera 12% de estamina. | só Água | Pororoca, Iara | 20 | NASCENTE |
 
 ### Grama (2)
 
 | Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
 | --- | --- | --- | --- | --- | --- | ---: | --- |
-| **Névoa Amiga** | Clima Névoa valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,08 (até o fim da corrida) | Com névoa: o bônus do clima para a Grama sobe de +3% para +8%. | só Grama | — | 16 | NÉVOA AMIGA |
-| **Casco Firme** | Entra numa subida | fator da subida +2% (somado, teto 1), em cada bloco, até o fim dele | Em cada subida: +2% de rendimento na subida. | só Grama | Mandacaru, Jequitibá | 12 | CASCO FIRME |
+| ![](../prototype/assets/icons/sk-nevoa-amiga.png) **Névoa Amiga** | Clima Névoa valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,08 (até o fim da corrida) | Com névoa: o bônus do clima para a Grama sobe de +3% para +8%. | só Grama | — | 16 | NÉVOA AMIGA |
+| ![](../prototype/assets/icons/sk-casco-firme.png) **Casco Firme** | Entra numa subida | fator da subida +2% (somado, teto 1), em cada bloco, até o fim dele | Em cada subida: +2% de rendimento na subida. | só Grama | Mandacaru, Jequitibá | 12 | CASCO FIRME |
 
 <a id="dado"></a>
 
@@ -400,9 +401,9 @@ A pista de cada sala sai da seed: distância de 1.400 a 2.000 m (de 50 em 50 m),
 
 | Piso | Perda de velocidade | Gasto de estamina | Descrição |
 | --- | ---: | ---: | --- |
-| Grama | 0% | ×1 | Pista leve. |
-| Terra | −3% | ×1,05 | Pista média: Força ajuda. |
-| Areia | −6% | ×1,12 | Pista pesada: Força ajuda muito. |
+| ![](../prototype/assets/icons/pi-grama.png) Grama | 0% | ×1 | Pista leve. |
+| ![](../prototype/assets/icons/pi-terra.png) Terra | −3% | ×1,05 | Pista média: Força ajuda. |
+| ![](../prototype/assets/icons/pi-areia.png) Areia | −6% | ×1,12 | Pista pesada: Força ajuda muito. |
 
 A perda de velocidade do piso é aliviada pela Força: perda × (1 − 0,5 × n(FOR)).
 
@@ -966,12 +967,12 @@ Poder = 3,1·VEL + 1,4·ACE + 1,45·MAN + 3,3·FOR + 2,4·EST + 1,3·GAR + 0,2·
 
 | Liga | Poder | Cor |
 | --- | ---: | --- |
-| Bronze | 0–809 | #b0703c |
-| Prata | 810–909 | #b8c2cc |
-| Ouro | 910–1.009 | #f2c230 |
-| Platina | 1.010–1.109 | #5fd3c8 |
-| Diamante | 1.110–1.219 | #7ab8ff |
-| Lenda | 1.220 ou mais | #ff7a3d |
+| ![](../prototype/assets/icons/liga-bronze.png) Bronze | 0–809 | #b0703c |
+| ![](../prototype/assets/icons/liga-prata.png) Prata | 810–909 | #b8c2cc |
+| ![](../prototype/assets/icons/liga-ouro.png) Ouro | 910–1.009 | #f2c230 |
+| ![](../prototype/assets/icons/liga-platina.png) Platina | 1.010–1.109 | #5fd3c8 |
+| ![](../prototype/assets/icons/liga-diamante.png) Diamante | 1.110–1.219 | #7ab8ff |
+| ![](../prototype/assets/icons/liga-lenda.png) Lenda | 1.220 ou mais | #ff7a3d |
 
 **Rivais da sala:** cada bot mira um Poder entre −8,5% e +11,5% do seu (leve viés para cima), com o equipamento da liga desse alvo. Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de 10 levels abaixo a 20 acima do level dele, entre 1 e 50. O modelo só entra se ficar a até 6% do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos 3 modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem.
 
@@ -984,6 +985,20 @@ Poder = 3,1·VEL + 1,4·ACE + 1,45·MAN + 3,3·FOR + 2,4·EST + 1,3·GAR + 0,2·
 | Brasa | 715 | 726 | 969 | 1.095 |
 | Maré | 714 | 725 | 970 | 1.100 |
 | Ipê | 722 | 733 | 979 | 1.104 |
+
+<a id="icones-reservados"></a>
+
+## Ícones reservados
+
+Estes cinco ícones já estão em `prototype/assets/icons/`, mas ainda não aparecem no jogo: esperam os recursos que vão usá-los (Rédeas, loja de Gemas, insígnias dos ginásios). Até lá, só o wiki os mostra.
+
+| Ícone | Descrição | Cor |
+| --- | --- | --- |
+| ![](../prototype/assets/icons/item-redea.png) `item-redea` | coiled leather horse reins with a metal buckle | `#9a6b3f` |
+| ![](../prototype/assets/icons/moeda-gema.png) `moeda-gema` | faceted cut gemstone with a sparkle | `#5fd3c8` |
+| ![](../prototype/assets/icons/ins-fogo.png) `ins-fogo` | round pin badge with a flame emblem inside a ring | `#ff8a4c` |
+| ![](../prototype/assets/icons/ins-agua.png) `ins-agua` | round pin badge with a water drop emblem inside a ring | `#62b8ff` |
+| ![](../prototype/assets/icons/ins-grama.png) `ins-grama` | round pin badge with a leaf emblem inside a ring | `#86d86a` |
 
 <a id="dev"></a>
 
