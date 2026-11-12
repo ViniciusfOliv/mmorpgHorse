@@ -239,3 +239,14 @@ Nada disso toca a simulação.
    funções pequenas para o merge ser simples; quem integrar depois resolve.
 4. **Teto de 100 gerações:** 58 itens deixam 42 para refações. Se acabar, os itens que faltarem ficam
    para uma rodada nova, com nova confirmação.
+
+## 8. Notas da execução (2026-11-12)
+- §2.1: a "nota do Dado na sala" era a nota do resultado (a dica da sala nunca teve o emoji); o 🎲 da narração da corrida (texto do `sim.js`) virou ícone só na tela.
+- §2.5: não existe tela de histórico; as medalhas entraram na "Ordem de chegada" do resultado.
+- §2.5: o selo de liga entrou só onde a liga já aparece (o cabeçalho e o Perfil não mostram liga hoje).
+- §2.5: o medalhão de raridade aparece também nas peças e nos selvagens (mesma função).
+- §3: a refação começou pela descrição reescrita (cor por extenso, seed base + 100) antes de seeds novas.
+- §3: `ui-macho` e `sk-arranque` tiveram uma 2ª reescrita (base + 200); gasto total de 79 gerações.
+- §4: o `jogo.html` cresceu ~34,5 KB (não ~70).
+- §5: o teste "todo PNG é usado pelo código" virou "todo PNG está no catálogo ou nos 16 de hoje".
+- §5: o teste da faixa de skill foi feito depois da revisão final (F2, `RaceFx.skillBannerLayout`).

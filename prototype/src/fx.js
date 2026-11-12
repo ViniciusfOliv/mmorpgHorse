@@ -64,6 +64,13 @@
  *     só se estiver no cache e lado·S >= 16; senão não desenha nada e devolve false (quem chama usa o
  *     desenho em código de sempre). Só desenho: a simulação não depende disso.
  *
+ *   RaceFx.skillBannerLayout(texto, artW, S, temImg, textW) -> { fs, icone, x, w, h, iconX, iconDy, textX, textDy }:
+ *     geometria (em px lógicos) da faixa de skill do jogador no centro da pista; textW(str, escala) mede o texto.
+ *     fs = 2 se couber (contando o ícone, quando ele vai ser desenhado), senão 1; se nem assim couber com
+ *     ícone, o ícone sai. icone = temImg && 8·fs·S >= 16 (mesma guarda do drawIconPng): só então a largura
+ *     8·fs + 2 é reservada. Sem ícone é a faixa de sempre (w = textW + 8, h = 5·fs + 6). x é a borda esquerda
+ *     da caixa; iconX = x + 4; textX é o centro do texto; iconDy/textDy são os recuos verticais dentro da caixa.
+ *
  *   RaceFx.slowFactor(tl, simT, reduced) -> 0.4 dentro de [t0, t0 + 0.8·escala] de cada 'dado'
  *     ([t0, t0 + 0.4·escala] se reduced), senão 1. A tela usa slowK = min(slowK, slowFactor).
  *
@@ -976,6 +983,25 @@
     ctx.drawImage(img, x, y, lado * S, lado * S);
     return true;
   }
+  function skillBannerLayout(texto, artW, S, temImg, textW) {
+    function medida(fs, comIcone) {
+      var skW = comIcone ? 8 * fs + 2 : 0;
+      return { fs: fs, icone: comIcone, skW: skW, w: textW(texto, fs) + 8 + skW };
+    }
+    function icoOk(fs) { return !!temImg && 8 * fs * S >= 16; }
+    var m = medida(2, icoOk(2));
+    if (m.w > artW - 6) {
+      // sem ícone vale a regra de sempre (tw(texto, 2) + 8 <= artW - 6); com ícone ele entra na conta
+      m = medida(1, icoOk(1));
+      if (m.w > artW - 6 && m.icone) m = medida(1, false);
+    }
+    var fs = m.fs, h = Math.max(5 * fs + 6, m.icone ? 8 * fs + 2 : 0), x = Math.round(artW / 2 - m.w / 2);
+    return {
+      fs: fs, icone: m.icone, x: x, w: m.w, h: h,
+      iconX: x + 4, iconDy: Math.floor((h - 8 * fs) / 2),
+      textX: Math.round(artW / 2) + Math.round(m.skW / 2), textDy: Math.floor((h - 5 * fs) / 2)
+    };
+  }
   function balloonSize(item, pilha) {
     if (pilha > 0) return { w: BAL_ICONE_X + 8 + 2, h: BAL_H };
     return { w: BAL_ICONE_X + 8 + 2 + textW(textoBalao(item)) + 3, h: BAL_H };
@@ -1632,6 +1658,7 @@
     drawDiceStrip: drawDiceStrip,
     drawBalloon: drawBalloon,
     drawIconPng: drawIconPng,
+    skillBannerLayout: skillBannerLayout,
     drawSkillAura: drawSkillAura,
     drawTypeAura: drawTypeAura,
     drawNature: drawNature,

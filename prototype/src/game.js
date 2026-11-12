@@ -261,12 +261,12 @@
   function ligaIcone(id) { return iconeHtml('liga-' + id, '', 16); }
   function raridadeIcone(id) { return iconeHtml('rar-' + id, '', 16); }
   function podioIcone(lugar) { return lugar >= 1 && lugar <= 3 ? iconeHtml('podio-' + lugar, '', 16) : ''; }
-  // texto de evento da simulação (narração e momentos): o "🎲 " do Dado da Sorte vira o ícone ui-dado
+  // texto de evento da simulação (narração e momentos): o "🎲 " dos eventos do tipo 'dado' vira o ícone ui-dado
   // (sem o arquivo, fica o emoji); o resto passa por esc
   var DADO_PREFIXO = '🎲 ';
-  function eventoHtml(txt) {
-    var s = String(txt);
-    if (s.indexOf(DADO_PREFIXO) === 0) return iconeHtml('ui-dado', '🎲', 16) + ' ' + esc(s.slice(DADO_PREFIXO.length));
+  function eventoHtml(txt, tipo) {
+    var s = txt == null ? '' : String(txt);
+    if (tipo === 'dado' && s.indexOf(DADO_PREFIXO) === 0) return iconeHtml('ui-dado', '🎲', 16) + ' ' + esc(s.slice(DADO_PREFIXO.length));
     return esc(s);
   }
   // "Clima: X" do painel da corrida, montado por DOM (o nome vem do catálogo; nada de innerHTML)
@@ -3095,7 +3095,7 @@
       hud.feed.innerHTML = ordFix(feedShown.map(function (e) {
         var mine = e.racer === me;
         var chip = e.racer >= 0 && L.racers[e.racer] ? laneChip(L.racers[e.racer], e.racer, 'raia--mini') : '';
-        return '<li class="tipo-' + esc(e.type) + (mine ? ' voce' : '') + '"><time>' + fmtClock(e.t) + '</time>' + chip + '<span>' + eventoHtml(e.text) + '</span></li>';
+        return '<li class="tipo-' + esc(e.type) + (mine ? ' voce' : '') + '"><time>' + fmtClock(e.t) + '</time>' + chip + '<span>' + eventoHtml(e.text, e.type) + '</span></li>';
       }).join(''));
       if (ev.racer === me && (ev.type === 'chegada' || ev.type === 'garra' || ev.type === 'skill')) hud.anuncio.textContent = ev.text;
       if (ev.type === 'clima') climaNoPainel(hud.clima, ev.weather);
@@ -3370,16 +3370,15 @@
       var faixa = null, fx0 = null;
       for (k = 0; k < faixasJogador.length; k++) if (t >= faixasJogador[k].a && t < faixasJogador[k].b) fx0 = faixasJogador[k];
       if (fx0) {
-        var ft = fx0.item.nome.toUpperCase() + '!', fs = tw(ft, 2) + 8 <= lay.artW - 6 ? 2 : 1;
-        var skId = FX.iconNameOf(fx0.item), skIco = !!FX.iconImage(skId) && 8 * fs * S >= 16, skW = skIco ? 8 * fs + 2 : 0;
-        var fw = tw(ft, fs) + 8 + skW, fh = Math.max(5 * fs + 6, skIco ? 8 * fs + 2 : 0);
-        var fxx = Math.round(lay.artW / 2 - fw / 2), fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
+        var ft = fx0.item.nome.toUpperCase() + '!', skId = FX.iconNameOf(fx0.item);
+        var bl = FX.skillBannerLayout(ft, lay.artW, S, !!FX.iconImage(skId), tw), fs = bl.fs, fw = bl.w, fh = bl.h;
+        var fxx = bl.x, fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
         var esc0 = (t - fx0.a) / fx0.item.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
         var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
         box(fxx, fyy, fw, fh, C.veu, cor);
-        if (skIco) FX.drawIconPng(ctx, skId, (fxx + 4) * S, (fyy + Math.floor((fh - 8 * fs) / 2)) * S, 8 * fs, S);
-        text(ft, Math.round(lay.artW / 2) + Math.round(skW / 2), fyy + Math.floor((fh - 5 * fs) / 2), C.texto, fs, 'center', C.sombra);
+        if (bl.icone) FX.drawIconPng(ctx, skId, bl.iconX * S, (fyy + bl.iconDy) * S, 8 * fs, S);
+        text(ft, bl.textX, fyy + bl.textDy, C.texto, fs, 'center', C.sombra);
         ctx.globalAlpha = 1;
         faixa = { x: fxx - 1, y: fyy - 1, w: fw + 2, h: fh + 2 };
         FX._stats.faixaSkill = ft;
@@ -3666,7 +3665,7 @@
         if (mine) txt += ' · você tirou ' + mine.best + (mine.dice.length > 1 ? ' (' + mine.dice.join(', ') + ')' : '') + (mine.rerolls > 0 ? ' (desempate)' : '');
       }
       var chip = ev.racer >= 0 && L.racers[ev.racer] ? laneChip(L.racers[ev.racer], ev.racer, 'raia--mini') : '';
-      return '<li class="tipo-' + esc(ev.type) + (ev.racer === L.playerIdx ? ' voce' : '') + '"><time>' + esc(fmtClock(ev.t)) + '</time>' + chip + '<span>' + eventoHtml(txt) + '</span></li>';
+      return '<li class="tipo-' + esc(ev.type) + (ev.racer === L.playerIdx ? ' voce' : '') + '"><time>' + esc(fmtClock(ev.t)) + '</time>' + chip + '<span>' + eventoHtml(txt, ev.type) + '</span></li>';
     }).join('');
 
     var broke = state.gold < MIN_ENTRY;

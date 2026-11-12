@@ -1309,5 +1309,61 @@ test('simulação não muda: mesmo resultado com e sem ícones', function () {
   assert.strictEqual(JSON.stringify(b.sim), antes);
 });
 
+section('faixa de skill do jogador (skillBannerLayout)');
+var SPR2 = require('../src/sprites.js');
+function nomesFaixa() {
+  var out = [], k;
+  for (k in G.SKILLS) if (Object.prototype.hasOwnProperty.call(G.SKILLS, k)) out.push(G.SKILLS[k].name.toUpperCase() + '!');
+  for (k in G.TYPE_SKILLS) if (Object.prototype.hasOwnProperty.call(G.TYPE_SKILLS, k)) out.push(G.TYPE_SKILLS[k].name.toUpperCase() + '!');
+  return out;
+}
+function twFaixa(str, sc) { return SPR2.measureText(str, sc || 1); }
+test('faixa de skill: a caixa cabe em [3, artW - 3] para todo nome, com e sem ícone, em S 1 e 2', function () {
+  var nomes = nomesFaixa();
+  assert.ok(nomes.length >= 10 && nomes.indexOf('FÔLEGO DE MONTANHA!') >= 0, 'nomes do jogo: ' + nomes.length);
+  [160, 164, 170, 200, 240].forEach(function (artW) {
+    [1, 2, 3].forEach(function (Sx) {
+      [false, true].forEach(function (img) {
+        nomes.forEach(function (n) {
+          var b = FX.skillBannerLayout(n, artW, Sx, img, twFaixa);
+          assert.ok(b.x >= 3 && b.x + b.w <= artW - 3, n + ' artW ' + artW + ' S ' + Sx + ' img ' + img + ': x ' + b.x + ' w ' + b.w);
+          assert.ok(b.textX - twFaixa(n, b.fs) / 2 >= b.x && b.textX + twFaixa(n, b.fs) / 2 <= b.x + b.w, 'texto dentro da caixa: ' + n);
+        });
+      });
+    });
+  });
+});
+test('faixa de skill: a largura do ícone só é reservada quando o ícone vai ser desenhado (imagem no cache e 8·fs·S ≥ 16)', function () {
+  var n = 'ARRANQUE!';
+  var com = FX.skillBannerLayout(n, 240, 2, true, twFaixa), sem = FX.skillBannerLayout(n, 240, 2, false, twFaixa);
+  assert.strictEqual(com.icone, true);
+  assert.strictEqual(com.fs, 2);
+  assert.strictEqual(com.w, sem.w + 8 * 2 + 2, 'ícone soma 8·fs + 2');
+  assert.strictEqual(sem.icone, false);
+  // S = 1 e fs = 2: 8·2·1 = 16, desenha; S = 1 e fs = 1 (tela estreita): 8 < 16, não desenha nem reserva
+  var estreito = FX.skillBannerLayout('FÔLEGO DE MONTANHA!', 164, 1, true, twFaixa);
+  assert.strictEqual(estreito.fs, 1);
+  assert.strictEqual(estreito.icone, false);
+  assert.strictEqual(estreito.w, twFaixa('FÔLEGO DE MONTANHA!', 1) + 8);
+  // com S = 2 em tela estreita, cai para fs = 1 e o ícone (8·1·2 = 16) continua, se couber
+  var s2 = FX.skillBannerLayout('FÔLEGO DE MONTANHA!', 164, 2, true, twFaixa);
+  assert.strictEqual(s2.fs, 1);
+  assert.strictEqual(s2.icone, true);
+  assert.strictEqual(s2.w, twFaixa('FÔLEGO DE MONTANHA!', 1) + 8 + 8 + 2);
+});
+test('faixa de skill: sem ícone a geometria é a de antes (fs por tw(ft, 2) + 8 <= artW - 6, fh = 5·fs + 6, w = tw + 8)', function () {
+  nomesFaixa().forEach(function (n) {
+    [160, 164, 170, 200, 240].forEach(function (artW) {
+      var fs = twFaixa(n, 2) + 8 <= artW - 6 ? 2 : 1, fw = twFaixa(n, fs) + 8;
+      var b = FX.skillBannerLayout(n, artW, 2, false, twFaixa);
+      assert.strictEqual(b.fs, fs, n);
+      assert.strictEqual(b.w, fw, n);
+      assert.strictEqual(b.h, 5 * fs + 6, n);
+      assert.strictEqual(b.x, Math.round(artW / 2 - fw / 2), n);
+      assert.strictEqual(b.textX, Math.round(artW / 2), n);
+    });
+  });
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

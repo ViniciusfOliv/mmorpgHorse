@@ -46,7 +46,7 @@
 //   prototype/assets/pixellab/molde-<estilo>-{retrato,parado,galope-N}.png  (cinza = papel × 25)
 //   prototype/assets/pixellab/molde-<estilo>.json        (âncoras, larguraUtil, limiares por geração, seeds)
 //   prototype/assets/pixellab/raw/  (PNGs crus e respostas JSON sem os base64)
-// Ícones: 16 × /create-image-pixflux 32×32 com a paleta da interface em color_image (pedido do plano) →
+// Ícones: dois lotes (16 de `icones` + 58 de `icones2`), cada um com /create-image-pixflux 32×32 com a paleta da interface em color_image (pedido do plano) →
 // prototype/assets/icons/<nome>.png (RGBA) e icons/raw/. Cada arquivo final que MUDOU ganha (ou troca) sua
 // linha em docs/memoria/assets.md; o que só foi refeito igual a partir de raw/ não mexe no registro.
 import crypto from 'node:crypto';
