@@ -1068,7 +1068,7 @@ test('Dev.horseTemplate respeita vagas e skills válidas', function () {
   assert.deepStrictEqual(t.skills, ['arranque'], 'Comum: 1 vaga');
   G.STAT_KEYS.forEach(function (k) { assert.strictEqual(t.potential[k], 12, 'pot ' + k); });
   assert.deepStrictEqual(t.palette, pal);
-  Object.keys(G.STARTERS[0]).filter(function (k) { return k !== 'title' && k !== 'bio' && k !== 'marcas'; }).forEach(function (k) { assert.ok(k in t, 'campo ' + k); }); // `marcas`: o template de teste não traz; vale marcasDoId
+  Object.keys(G.STARTERS[0]).filter(function (k) { return k !== 'title' && k !== 'bio'; }).forEach(function (k) { assert.ok(k in t, 'campo ' + k); });
   // Mítico: 5 vagas, qualquer skill do catálogo (inclusive de outro elemento), na ordem pedida
   var m = DV().horseTemplate({ name: 'X', element: 'agua', rarity: 'mitico', sex: 'm', potential: 'max', skills: ['sol-a-pino', 'nevoa-amiga', 'labareda', 'drift', 'sprint', 'arranque', 'segundo-ar'] }, 1);
   assert.deepStrictEqual(m.skills, ['sol-a-pino', 'nevoa-amiga', 'drift', 'sprint', 'arranque'], 'a skill de tipo não é skill de vaga');
@@ -1091,6 +1091,18 @@ test('Dev.horseTemplate v3: sem base, genética por status, estrelas e alloc', f
   [0, 4, 'x', null, 2.4].forEach(function (g) { var e = DV().horseTemplate({ grau: g }).grau; assert.ok(e >= 1 && e <= 3 && e === Math.floor(e), String(g) + ' -> ' + e); });
   assert.strictEqual(DV().horseTemplate({ grau: 1 }).grau, 1); assert.strictEqual(DV().horseTemplate({}).grau, 2);
   G.STAT_KEYS.forEach(function (k) { assert.strictEqual(DV().horseTemplate({}).alloc[k], 0); });
+});
+test('Dev.horseTemplate: marcas da gaveta (patas também em texto, como no select); inválidas viram nenhuma/0/liso', function () {
+  assert.deepStrictEqual(DV().horseTemplate({ marcas: { cara: 'listra', patas: 3, corpo: 'malhado' } }).marcas, { cara: 'listra', patas: 3, corpo: 'malhado' });
+  assert.deepStrictEqual(DV().horseTemplate({ marcas: { cara: 'frente', patas: '4', corpo: 'ruao' } }).marcas, { cara: 'frente', patas: 4, corpo: 'ruao' });
+  [undefined, null, 'x', {}, { cara: 'x', patas: 7, corpo: 2 }, { cara: 'estrela', patas: '2.5', corpo: 'liso' }, { patas: ' 1' }, { patas: true }].forEach(function (mc) {
+    var t = DV().horseTemplate({ marcas: mc });
+    assert.ok(B.marcasValidas(t.marcas), JSON.stringify(mc) + ' -> ' + JSON.stringify(t.marcas));
+    if (!mc || typeof mc !== 'object' || mc.cara !== 'estrela') assert.strictEqual(t.marcas.cara, 'nenhuma', JSON.stringify(mc));
+    assert.strictEqual(t.marcas.patas, 0, JSON.stringify(mc));
+  });
+  // cada gene vale por si: um gene inválido não apaga os outros
+  assert.deepStrictEqual(DV().horseTemplate({ marcas: { cara: 'estrela', patas: 9, corpo: 'pintado' } }).marcas, { cara: 'estrela', patas: 0, corpo: 'pintado' });
 });
 test('Dev.itemId devolve só ids do catálogo', function () {
   assert.strictEqual(DV().itemId({ slot: 'sela', set: 'sol', rarity: 'lendario' }), 'sela-sol-lendario');

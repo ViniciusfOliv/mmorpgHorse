@@ -41,6 +41,8 @@
  *   Sprites.anchorsFor(element, scale, estado), Sprites.horseBox(x, y, opts),
  *   Sprites.limparCacheMoldes() (moldes recoloridos, silhuetas do contorno, máscaras do brilho da crina e textos
  *     prontos; o game.js chama ao trocar de tela),
+ *   Sprites.prepararCavalo(opts) -> n: recolore já, no cache dos moldes, os quadros que drawHorse(…, opts) usa (parado
+ *     e todo o galope; sem jóquei, o retrato), para a corrida montar cada cavalo uma vez na largada; 0 sem moldes,
  *   Sprites.drawHorseCodigo(...)
  *   Dependências: Marcas (marcas.js) e GameData (data.js) — require no Node, globais no navegador (procurados na
  *   hora do desenho). Sem eles (o wiki embute só este arquivo), marcas, jóquei e raridade não desenham nada.
@@ -1131,6 +1133,25 @@
       moldCache.set(key, c);
     }
     return c;
+  }
+
+  // Monta agora, no cache dos moldes, todos os quadros recoloridos que drawHorse(…, opts) usa com estas opções
+  // (o parado e os quadros do galope; sem jóquei, o retrato), para a corrida não recolorir no 1º ciclo do
+  // galope (~0,8 ms por quadro com marcas e jóquei; spec 2026-11-12-cavalos-marcas §3: cada cavalo montado uma
+  // vez na largada). Só o número de quadros do molde decide o laço, e ele mora aqui. Devolve quantos quadros
+  // ficaram prontos (0 sem moldes).
+  function prepararCavalo(opts) {
+    opts = opts || {};
+    if (!moldsOk) return 0;
+    var nome = estiloDe(opts.element), M = moldes[nome], n = 0, feitos = {}, q;
+    [true, false].forEach(function (idle) {
+      var estado = estadoMolde({ idle: idle, jockey: opts.jockey, retrato: opts.retrato });
+      if (!estado || feitos[estado]) return;
+      feitos[estado] = true;
+      var quadros = estado === 'galope' ? M.frames : 1;
+      for (q = 0; q < quadros; q++) { moldeRecolorido(nome, estado, q, opts); n++; }
+    });
+    return n;
   }
 
   // Quadro do galope do molde para o contador do sprite por código (pode ser fracionário).
@@ -2445,6 +2466,7 @@
     anchorsFor: anchorsFor,
     escalaMoldeCompativel: escalaMoldeCompativel,
     limparCacheMoldes: limparCacheMoldes,
+    prepararCavalo: prepararCavalo,
     moldeCanvas: moldeCanvas,
     _cacheMoldes: cacheMoldes,
     _cacheSilhuetas: cacheSilhuetas,

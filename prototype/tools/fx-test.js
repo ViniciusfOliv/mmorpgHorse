@@ -1675,6 +1675,30 @@ test('com moldes: marcas e jóquei nas cores das camadas; a chave do cache leva 
   });
 });
 
+// Task 4 da 2a: a corrida monta cada cavalo uma vez na largada (spec §3), sem esperar o 1º ciclo do galope
+test('prepararCavalo: recolore de uma vez o parado e todos os quadros do galope; depois, desenhar não recolore', function () {
+  assert.strictEqual(SPR.prepararCavalo(com(CAVM, { marcas: { cara: 'listra', patas: 2, corpo: 'malhado' }, semente: 9 })), 0, 'sem moldes: nada a preparar');
+  comMoldes(function () {
+    var V = { marcas: { cara: 'listra', patas: 2, corpo: 'malhado' }, semente: 9, joquei: { padrao: 'xadrez', capacete: '#62b8ff' }, raridade: 'mitico', rastro: true };
+    SPR.limparCacheMoldes();
+    assert.strictEqual(SPR.prepararCavalo(com(CAVM, V)), 10, 'parado + 9 quadros do galope');
+    assert.strictEqual(SPR._cacheMoldes(), 10);
+    for (var f = 0; f < SPR.GALLOP_FRAMES; f += 0.125) { desenhaCav(com(CAVM, V, { frame: f })); desenhaCav(com(CAVM, V, { frame: f, idle: true })); }
+    assert.strictEqual(SPR._cacheMoldes(), 10, 'galope e parado já estavam prontos');
+    assert.strictEqual(SPR.prepararCavalo(com(CAVM, V)), 10);
+    assert.strictEqual(SPR._cacheMoldes(), 10, 'preparar de novo não cria entradas');
+    // os mesmos canvases que o drawHorse usa (a chave é a do desenho, com escala, tempo e raridade fora dela)
+    var antes = desenhaCav(com(CAVM, V, { frame: 4.4, scale: 5, t: 9 })).imgs[0].args[0];
+    assert.strictEqual(SPR._cacheMoldes(), 10);
+    assert.strictEqual(desenhaCav(com(CAVM, V, { frame: 4.4 })).imgs[0].args[0], antes);
+    // outro cavalo (outra semente) é outro conjunto de entradas; sem jóquei, só o retrato tem molde
+    assert.strictEqual(SPR.prepararCavalo(com(CAVM, V, { semente: 10 })), 10);
+    assert.strictEqual(SPR._cacheMoldes(), 20);
+    assert.strictEqual(SPR.prepararCavalo(com(CAVM, V, { jockey: false })), 1, 'sem jóquei: o retrato (o galope é o desenho por código)');
+    assert.strictEqual(SPR._cacheMoldes(), 21);
+  });
+});
+
 test('com moldes: brilho da crina (papéis 4 e 5) em cache por quadro, faixa a cada 1,2 s, parada com reduzido', function () {
   comMoldes(function () {
     function rar(o) { var c = ctxAlfa(); SPR.drawRaridade(c, SPR.horseBox(50, 40, o), o); return c; }

@@ -8,7 +8,7 @@
 // Também confere a entrada reservada do páreo aberto, a gravação que falha, o save adulterado ou corrompido,
 // o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo, o tamanho mínimo do texto e o teto
 // de chamadas de canvas por quadro na corrida mais cara.
-//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto node tools/ui-test.mjs  -> só esses
+//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,marcas node tools/ui-test.mjs  -> só esses
 import { createRequire } from 'node:module'
 import { dirname, extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -2087,6 +2087,319 @@ try {
       problems.push('icones-falta: ' + e.message)
     }
     await fa.context().close()
+  }
+
+  // ---------------- Marcas e jóquei: dados (Visuais 2, parte 2a, Task 4) ----------------
+  // O save sem marcas e sem jóquei abre com as marcas calculadas (as do modelo do catálogo, senão marcasDoId do uid)
+  // e o jóquei inicial; lixo nos dois (Review Focus 1) e o alugado de antes da 2a (Review Focus 4) também. Cada
+  // drawHorse (retrato, sala, corrida e pódio) recebe as marcas, a semente (Breed.hashChave da chave), o jóquei e a
+  // raridade do cavalo; o dos rivais sai da seed da sala e da raia, sem mudar a sala salva. A gaveta DEV escolhe as
+  // marcas da montaria (3 seletores, texto sem símbolos); o potro nasce com marcas que ficam no save. A corrida DEV
+  // com 8 Míticos (Review Focus 5) monta os quadros de cada cavalo na largada (o cache dos moldes não cresce depois)
+  // e fica abaixo dos 6 ms por quadro que o teste de desempenho usa de teto. Nada quebra nem rola de lado a 360 px.
+  if (quer('marcas')) {
+    const JQ0 = { padrao: G.JOQUEI.padrao, capacete: G.JOQUEI.capacete }
+    const TETO_MS = 6   // o mesmo teto do teste de desempenho (Completas − Reduzidas)
+    const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+    const doCatalogo = (id) => { const h = G.STARTERS.concat(G.WILD_HORSES).find((x) => x.id === id); return h ? h.marcas : null }
+    const mStr = (m) => (m && typeof m === 'object' ? m.cara + '/' + m.patas + '/' + m.corpo : String(m))
+    // jóquei de um rival: 1 sorteio para o padrão e 1 para o capacete, da seed da sala e da raia (índice em L.racers)
+    const joqueiRival = (seed, j) => {
+      const r = S.mulberry32(S.hash2(seed, 0x4A4F0000 + j))
+      const padrao = G.JOQUEI.padroes[Math.floor(r() * G.JOQUEI.padroes.length)]
+      return { padrao, capacete: G.JOQUEI.capacetes[Math.floor(r() * G.JOQUEI.capacetes.length)] }
+    }
+    // espia do Sprites.drawHorse (o jogo chama SP.drawHorse a cada desenho): guarda as opções das primeiras 400
+    // chamadas desde a última ligação em window.__desenhos; ligar = false devolve o original
+    const espia = (pg, ligar = true) => pg.evaluate((on) => {
+      const SP = window.Sprites
+      if (!SP.__drawOrig) SP.__drawOrig = SP.drawHorse
+      window.__desenhos = []
+      const campos = ['element', 'idle', 'jockey', 'silks', 'marcas', 'semente', 'joquei', 'raridade', 'rastro', 'reduzido']
+      SP.drawHorse = !on ? SP.__drawOrig : function (ctx, x, y, o) {
+        if (window.__desenhos.length < 400) {
+          const c = { quadro: !!(o && o.quadro) }
+          campos.forEach((k) => { const v = o ? o[k] : undefined; c[k] = v === undefined ? '(ausente)' : (v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v) })
+          window.__desenhos.push(c)
+        }
+        return SP.__drawOrig.apply(this, arguments)
+      }
+    }, ligar)
+    const desenhos = (pg) => pg.evaluate(() => window.__desenhos.slice())
+    // para cada cavalo esperado ({ chave, marcas, joquei, raridade }): uma chamada com a semente da chave e os valores
+    // certos; filtro escolhe as chamadas da tela (ex.: só as com quadro, as dos retratos e do pódio)
+    const confereDesenhos = (lista, esperados, onde, filtro = () => true, extra = {}) => {
+      const daTela = lista.filter(filtro)
+      for (const e of esperados) {
+        const sem = B.hashChave(e.chave)
+        const dela = daTela.filter((d) => d.semente === sem)
+        if (!dela.length) {
+          problems.push(`marcas (${onde}): nenhum drawHorse com a semente de ${e.chave} (${sem}); sementes: ${[...new Set(daTela.map((d) => d.semente))].join(', ')}`)
+          continue
+        }
+        const d = dela[dela.length - 1], erros = []
+        if (!igual(d.marcas, e.marcas)) erros.push(`marcas ${mStr(d.marcas)} (esperado ${mStr(e.marcas)})`)
+        if (!igual(d.joquei, e.joquei)) erros.push(`joquei ${JSON.stringify(d.joquei)} (esperado ${JSON.stringify(e.joquei)})`)
+        if (d.raridade !== e.raridade) erros.push(`raridade ${d.raridade} (esperado ${e.raridade})`)
+        if (typeof d.reduzido !== 'boolean') erros.push('reduzido ' + d.reduzido)
+        for (const [k, v] of Object.entries(extra)) if (d[k] !== v) erros.push(`${k} ${d[k]} (esperado ${v})`)
+        if (erros.length) problems.push(`marcas (${onde}): ${e.chave}: ${erros.join('; ')}`)
+      }
+    }
+    // nenhuma imagem quebrada e nenhuma rolagem horizontal
+    const semQuebra = async (pg, onde) => {
+      await pg.waitForFunction(() => Array.prototype.every.call(document.images, (i) => i.complete), null, { timeout: 5000 }).catch(() => {})
+      const q = await pg.evaluate(() => Array.prototype.filter.call(document.images, (i) => i.naturalWidth === 0).map((i) => i.className || 'img'))
+      if (q.length) problems.push(`${onde}: imagens quebradas ${JSON.stringify(q)}`)
+      await checkOverflow(pg, onde)
+    }
+    const estado = (pg) => pg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    const daAtiva = (s) => s.mounts.find((m) => m.uid === s.activeId)
+
+    // 1. save real sem marcas e sem jóquei, com lixo e com o alugado de antes da 2a (360 px)
+    {
+      const label = 'marcas-save'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label)
+      try {
+        await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+        await pg.waitForSelector('#t-estabulo')
+        const garoa = G.WILD_HORSES.find((h) => h.id === 'w-garoa')
+        const outro = (uid, o) => Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { uid, name: 'Cavalo ' + uid.slice(1) }, o)
+        await montaSave(pg, (raw) => {
+          delete raw.joquei
+          delete raw.mounts[0].marcas                                                      // Brasa: as do modelo
+          raw.mounts.push(outro('m2', {}))                                                  // sem modelo: marcasDoId('m2')
+          raw.mounts.push(outro('m3', { templateId: 'w-garoa', element: garoa.element, rarity: garoa.rarity, name: 'Garoa' }))   // RF4
+          raw.mounts.push(outro('m4', { marcas: { cara: 'x', patas: 7 } }))                  // RF1: lixo, sem modelo
+          raw.mounts.push(outro('m5', { templateId: 'w-garoa', marcas: { cara: 'frente', patas: 3, corpo: 'pintado' } }))   // válidas: ficam
+          raw.mounts.push(outro('m6', { templateId: 'w-garoa', marcas: { cara: 'listra', patas: '2', corpo: 'liso' } }))     // patas em texto: o modelo
+          raw.nextUid = 7; raw.stableSlots = 6
+        })
+        const esperadas = {
+          m1: doCatalogo('brasa'), m2: B.marcasDoId('m2'), m3: doCatalogo('w-garoa'), m4: B.marcasDoId('m4'),
+          m5: { cara: 'frente', patas: 3, corpo: 'pintado' }, m6: doCatalogo('w-garoa')
+        }
+        if (mStr(esperadas.m3) !== 'estrela/0/ruao') problems.push(`${label}: as marcas da Garoa no catálogo mudaram (${mStr(esperadas.m3)})`)
+        let s = await estado(pg)
+        for (const [uid, m] of Object.entries(esperadas)) {
+          const got = (s.mounts.find((x) => x.uid === uid) || {}).marcas
+          if (!igual(got, m) || !B.marcasValidas(got)) problems.push(`${label}: ${uid} abriu com marcas ${JSON.stringify(got)} (esperado ${mStr(m)})`)
+        }
+        if (!igual(s.joquei, JQ0)) problems.push(`${label}: save sem joquei abriu com ${JSON.stringify(s.joquei)} (esperado ${JSON.stringify(JQ0)})`)
+        // retratos do estábulo: as marcas, a semente e a raridade de cada montaria (o retrato não tem jóquei)
+        await espia(pg)
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.waitForSelector('#t-estabulo')
+        confereDesenhos(await desenhos(pg), s.mounts.map((m) => ({ chave: m.uid, marcas: esperadas[m.uid], joquei: null, raridade: m.rarity })), 'estábulo', (d) => d.quadro)
+        await semQuebra(pg, label + '-estabulo')
+        // RF1: jóquei com lixo volta ao inicial; válido fica (capacete sem diferença de maiúsculas)
+        for (const [joq, esp] of [[{ capacete: 'red' }, JQ0], ['lixo', JQ0], [{ padrao: 'xadrez', capacete: '#123456' }, JQ0],
+          [{ padrao: 'nada', capacete: '#62b8ff' }, JQ0], [{ padrao: 'xadrez', capacete: '#62B8FF' }, { padrao: 'xadrez', capacete: '#62b8ff' }]]) {
+          await montaSave(pg, (raw) => { raw.joquei = joq })
+          s = await estado(pg)
+          if (!igual(s.joquei, esp)) problems.push(`${label}: joquei ${JSON.stringify(joq)} abriu como ${JSON.stringify(s.joquei)} (esperado ${JSON.stringify(esp)})`)
+        }
+        // ficha da Garoa alugada antes da 2a (RF4): o retrato com as marcas do modelo
+        await espia(pg)
+        await pg.locator('button[data-acao="montaria"][data-id="m3"]').click()
+        await pg.waitForSelector('#t-montaria')
+        confereDesenhos(await desenhos(pg), [{ chave: 'm3', marcas: esperadas.m3, joquei: null, raridade: garoa.rarity }], 'ficha', (d) => d.quadro)
+        await semQuebra(pg, label + '-montaria')
+        // sala de largada: o retrato da ativa; a sala gravada não ganha campo de jóquei nem de marcas
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.waitForSelector('#t-estabulo')
+        await espia(pg)
+        await abrirSala(pg)
+        confereDesenhos(await desenhos(pg), [{ chave: 'm1', marcas: esperadas.m1, joquei: null, raridade: 'comum' }], 'sala', (d) => d.quadro)
+        await semQuebra(pg, label + '-largada')
+        await espia(pg, false)
+        const disco = await pg.evaluate((k) => JSON.parse(localStorage.getItem(k)), SAVE_REAL)
+        if (disco.v !== 5) problems.push(`${label}: a versão do save mudou para ${disco.v}`)
+        if (!igual(disco.joquei, { padrao: 'xadrez', capacete: '#62b8ff' })) problems.push(`${label}: o save gravado tem joquei ${JSON.stringify(disco.joquei)}`)
+        for (const m of disco.mounts) if (!igual(m.marcas, esperadas[m.uid])) problems.push(`${label}: ${m.uid} gravado com marcas ${JSON.stringify(m.marcas)} (esperado ${mStr(esperadas[m.uid])})`)
+        const chaves = Object.keys(disco.pending || {}).sort().join(',')
+        if (chaves !== 'alloc,counter,fee,gear,pr,training') problems.push(`${label}: a sala gravada mudou de forma: ${chaves}`)
+      } catch (e) {
+        problems.push(`${label}: ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 2. gaveta DEV (marcas da montaria) e corrida DEV com 8 Míticos (1280: o canvas maior)
+    {
+      const label = 'marcas-corrida'
+      // 8 corredores numa sala DEV: a seed armada é a da sala; o nº de corredores é o 2º sorteio do rng da sala
+      let SEED8_DEV = 0
+      for (let sd = 1; sd <= 2000 && !SEED8_DEV; sd++) {
+        const rng = S.mulberry32(S.hash2(sd, 0xA11CE))
+        rng()
+        if (4 + Math.floor(rng() * 5) === 8) SEED8_DEV = sd
+      }
+      const pg = await newPage(browser, { width: 1280, height: 800 }, label, { query: '?dev=1' })
+      const ativa = async () => daAtiva(await estado(pg))
+      const seletores = () => pg.evaluate(() => ['cara', 'patas', 'corpo'].map((k) => { const el = document.getElementById('dev-' + k); return el ? el.value : '(sem seletor)' }).join('/'))
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await devAbrir(pg)
+        const opc = await pg.evaluate(() => ['cara', 'patas', 'corpo'].map((k) => {
+          const el = document.getElementById('dev-' + k)
+          return { k, valores: el ? Array.from(el.options).map((o) => o.value) : null, textos: el ? Array.from(el.options).map((o) => o.textContent) : [] }
+        }))
+        const listas = { cara: G.MARCAS.cara, patas: G.MARCAS.patas.map(String), corpo: G.MARCAS.corpo }
+        let temSeletores = true
+        for (const o of opc) {
+          if (!o.valores) { problems.push(`${label}: a gaveta DEV não tem o seletor de ${o.k}`); temSeletores = false; continue }
+          if (!igual(o.valores, listas[o.k])) problems.push(`${label}: seletor de ${o.k} com ${o.valores.join(',')} (esperado ${listas[o.k].join(',')})`)
+          const sujos = o.textos.filter((t) => !/^[A-Za-zÀ-ÿ0-9 ]+$/.test(t))
+          if (sujos.length) problems.push(`${label}: opções de ${o.k} com símbolos: ${sujos.join(' | ')}`)
+        }
+        if (temSeletores && (await seletores()) !== mStr(doCatalogo('brasa'))) problems.push(`${label}: a gaveta abriu com as marcas ${await seletores()} (as da Brasa: ${mStr(doCatalogo('brasa'))})`)
+        const escolhe = async (rar, m) => {
+          await pg.selectOption('#dev-raridade', rar)
+          if (temSeletores) for (const k of ['cara', 'patas', 'corpo']) await pg.selectOption('#dev-' + k, String(m[k]))
+        }
+        // aplicar na ativa (m1), copiar um pronto (m2, as marcas do modelo) e criar (m3)
+        await escolhe('mitico', { cara: 'listra', patas: 3, corpo: 'malhado' })
+        await pg.locator('[data-acao="dev-aplicar"]').click()
+        let a = await ativa()
+        if (a.rarity !== 'mitico' || mStr(a.marcas) !== 'listra/3/malhado') problems.push(`${label}: "Aplicar na ativa" deixou ${a.rarity} ${mStr(a.marcas)} (esperado mitico listra/3/malhado)`)
+        await pg.selectOption('#dev-copiar', 'w-garoa')
+        await pg.locator('[data-acao="dev-copiar"]').click()
+        a = await ativa()
+        if (a.uid !== 'm2' || mStr(a.marcas) !== 'estrela/0/ruao') problems.push(`${label}: cópia da Garoa ${a.uid} com marcas ${mStr(a.marcas)} (esperado m2 estrela/0/ruao)`)
+        if (temSeletores && (await seletores()) !== 'estrela/0/ruao') problems.push(`${label}: a gaveta não carregou as marcas da ativa (${await seletores()})`)
+        await escolhe('mitico', { cara: 'frente', patas: 4, corpo: 'pintado' })
+        await pg.locator('[data-acao="dev-criar"]').click()
+        a = await ativa()
+        if (a.uid !== 'm3' || a.rarity !== 'mitico' || mStr(a.marcas) !== 'frente/4/pintado') problems.push(`${label}: "Criar cavalo" deixou ${a.uid} ${a.rarity} ${mStr(a.marcas)} (esperado m3 mitico frente/4/pintado)`)
+        await devFechar(pg)
+        // as marcas escolhidas ficam no save DEV
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        await pg.waitForFunction(() => window.Sprites && window.Sprites.moldsReady === true, null, { timeout: 8000 })
+        let s = await estado(pg)
+        const salvas = s.mounts.map((m) => m.uid + ':' + mStr(m.marcas)).join(' ')
+        if (salvas !== 'm1:listra/3/malhado m2:estrela/0/ruao m3:frente/4/pintado') problems.push(`${label}: depois de recarregar, marcas ${salvas}`)
+
+        // corrida com 8 Míticos: a ativa (m3) já é; os rivais viram Míticos na sala aberta (só neste teste)
+        await devArmar(pg, { seed: SEED8_DEV })
+        await abrirSala(pg)
+        const sala = await pg.evaluate(() => {
+          const L = window.__galope.ui.lobby
+          L.racers.forEach((r) => { r.horse.rarity = 'mitico' })
+          return { n: L.n, seed: L.seed, racers: L.racers.map((r) => ({ isPlayer: r.isPlayer, chave: r.horse.uid || r.horse.id, id: r.horse.id, element: r.horse.element })) }
+        })
+        if (sala.n !== 8) problems.push(`${label}: a sala da seed ${SEED8_DEV} tem ${sala.n} corredores (esperado 8)`)
+        s = await estado(pg)
+        const esperados = sala.racers.map((r, j) => ({
+          chave: r.chave, raridade: 'mitico',
+          marcas: r.isPlayer ? daAtiva(s).marcas : doCatalogo(r.id.replace(/-b\d+$/, '')),
+          joquei: r.isPlayer ? s.joquei : joqueiRival(sala.seed, j)
+        }))
+        // quadros do galope por estilo (Sprites._quadroGalope), para o tamanho do cache depois da largada
+        const nQuadros = await pg.evaluate((els) => els.map((el) => {
+          const q = new Set()
+          for (let f = 0; f < window.Sprites.GALLOP_FRAMES; f += 1 / 16) q.add(window.Sprites._quadroGalope(el, f))
+          return q.size
+        }), sala.racers.map((r) => r.element))
+        await espia(pg)
+        await pg.evaluate(() => {
+          const m = window.__mc8 = { inicio: null, max: 0, primeiros: [] }
+          const FX = window.RaceFx, fim = FX.endFrame
+          FX.endFrame = function (ms) {
+            const r = window.__galope.race
+            if (r && r._state.phase === 'corrida' && m.primeiros.length < 90) m.primeiros.push(ms)
+            return fim.apply(this, arguments)
+          }
+          const tick = () => {
+            if (window.__galope.ui.screen === 'corrida') {
+              const c = window.Sprites._cacheMoldes()
+              if (m.inicio == null) m.inicio = c
+              m.max = Math.max(m.max, c)
+            }
+            if (window.__galope.ui.screen !== 'resultado') requestAnimationFrame(tick)
+          }
+          requestAnimationFrame(tick)
+        })
+        await pg.getByRole('button', { name: /^Largar/ }).click()
+        await pg.waitForSelector('#pista')
+        const q0 = await (await pg.waitForFunction(() => {
+          const r = window.__galope.race
+          return r && r._state.phase === 'corrida' ? window.RaceFx._stats.quadros : false
+        }, null, { timeout: 60000, polling: 'raf' })).jsonValue()
+        // a sala não ganhou o jóquei dos rivais (calculado ao desenhar)
+        const comJoquei = await pg.evaluate(() => window.__galope.ui.lobby.racers.filter((r) => 'joquei' in r || 'joquei' in r.horse).length)
+        if (comJoquei) problems.push(`${label}: ${comJoquei} corredor(es) da sala com o campo joquei`)
+        confereDesenhos(await desenhos(pg), esperados, 'corrida', (d) => !d.quadro, { rastro: true })
+        await espia(pg, false)
+        // desenho por quadro com os 8 Míticos (média dos últimos 60 de 120 quadros de corrida)
+        const ms = await (await pg.waitForFunction((q) => {
+          const st = window.RaceFx._stats
+          return st.quadros >= q ? st.msQuadro : false
+        }, q0 + 120, { timeout: 60000, polling: 'raf' })).jsonValue()
+        const mc = await pg.evaluate(() => JSON.parse(JSON.stringify(window.__mc8)))
+        const primeiros = mc.primeiros.length ? { max: +Math.max(...mc.primeiros).toFixed(2), media: +(mc.primeiros.reduce((x, y) => x + y, 0) / mc.primeiros.length).toFixed(2), n: mc.primeiros.length } : null
+        const montados = nQuadros.reduce((x, q) => x + 1 + q, 0)   // parado + quadros do galope de cada corredor
+        notes.marcas8 = { seed: SEED8_DEV, msQuadro: +ms.toFixed(2), teto: TETO_MS, primeiros90: primeiros, cache: { largada: mc.inicio, max: mc.max, esperado: montados } }
+        if (ms > TETO_MS) problems.push(`${label}: ${ms.toFixed(2)} ms por quadro com 8 Míticos (teto ${TETO_MS})`)
+        if (!(mc.inicio >= montados)) problems.push(`${label}: na largada o cache dos moldes tinha ${mc.inicio} quadros (esperado ${montados}: cada cavalo montado uma vez na largada)`)
+        if (mc.max !== mc.inicio) problems.push(`${label}: o cache dos moldes cresceu durante a corrida (${mc.inicio} -> ${mc.max})`)
+        // pódio: os 3 primeiros com marcas, jóquei e raridade
+        await espia(pg)
+        const top3 = await pg.evaluate(() => window.__galope.ui.lobby.sim.finishOrder.slice(0, 3))
+        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pg.waitForSelector('#t-resultado')
+        await sleep(300)
+        confereDesenhos(await desenhos(pg), top3.map((j) => esperados[j]), 'pódio', (d) => d.quadro && d.idle === true)
+        await espia(pg, false)
+      } catch (e) {
+        problems.push(`${label}: ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 3. cruzar no DEV (360): o potro nasce com marcas válidas (as do Breed.foal) e elas ficam no save
+    {
+      const label = 'marcas-potro'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        const s0 = await estado(pg)
+        const faisca = G.WILD_HORSES.find((h) => h.id === 'w-faisca')
+        const potroNode = B.foal({ f: faisca, m: s0.mounts[0], seedBase: s0.seedBase, breedCounter: s0.breedCounter, nextUid: s0.nextUid })
+        await pg.locator('[data-acao="aba"][data-id="haras"]').click()
+        await pg.waitForSelector('#t-haras')
+        await espia(pg)
+        await pg.locator('[data-acao="haras-partner"][data-kind="rent"][data-id="w-faisca"]').click()
+        await sleep(150)
+        confereDesenhos(await desenhos(pg), [{ chave: 'w-faisca', marcas: faisca.marcas, joquei: null, raridade: faisca.rarity }], 'haras', (d) => d.quadro)
+        await semQuebra(pg, label + '-haras')
+        await espia(pg)
+        await pg.locator('[data-acao="cruzar"]').click()
+        await pg.waitForSelector('#t-nasceu')
+        const uid = 'm' + s0.nextUid
+        const potro = (await estado(pg)).mounts.find((m) => m.uid === uid)
+        if (!potro || !B.marcasValidas(potro.marcas) || !igual(potro.marcas, potroNode.marcas)) problems.push(`${label}: potro com marcas ${JSON.stringify(potro && potro.marcas)} (no Node: ${mStr(potroNode.marcas)})`)
+        confereDesenhos(await desenhos(pg), [{ chave: uid, marcas: potroNode.marcas, joquei: null, raridade: potroNode.rarity }], 'potro', (d) => d.quadro)
+        await espia(pg, false)
+        await semQuebra(pg, label + '-nasceu')
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        const depois = (await estado(pg)).mounts.find((m) => m.uid === uid)
+        const disco = await pg.evaluate(() => JSON.parse(localStorage.getItem('galope-elemental:dev')))
+        const noDisco = (disco.mounts || []).find((m) => m.uid === uid)
+        if (!depois || !igual(depois.marcas, potroNode.marcas)) problems.push(`${label}: depois de recarregar, o potro ficou com marcas ${JSON.stringify(depois && depois.marcas)} (esperado ${mStr(potroNode.marcas)})`)
+        if (!noDisco || !igual(noDisco.marcas, potroNode.marcas)) problems.push(`${label}: o save DEV gravou o potro com marcas ${JSON.stringify(noDisco && noDisco.marcas)}`)
+        await semQuebra(pg, label + '-estabulo')
+        notes.marcasPotro = { uid, marcas: mStr(potroNode.marcas) }
+      } catch (e) {
+        problems.push(`${label}: ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
   }
 
   if (!SO.length) {   // o resto do teste (fluxo completo e contextos antigos) só roda sem UI_SO
