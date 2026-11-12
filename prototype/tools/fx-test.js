@@ -1365,5 +1365,385 @@ test('faixa de skill: sem ícone a geometria é a de antes (fs por tw(ft, 2) + 8
   });
 });
 
+section('Raridade e marcas no desenho');
+// O desenho por código pinta o sprite com createImageData/putImageData: no Node, um canvas falso (OffscreenCanvas)
+// guarda os pixels em .px. A 2ª parte da seção carrega um molde sintético com Image e document falsos.
+var MK = require('../src/marcas.js');
+var RAR = ['comum', 'magico', 'raro', 'lendario', 'mitico'];
+function CanvasFalso(w, h) {
+  var cv = this, g = ctxFalso(), grava = g.drawImage;
+  cv.width = w || 0; cv.height = h || 0; cv.px = null;
+  g.canvas = cv;
+  g.createImageData = function (a, b) { return { width: a, height: b, data: new Uint8ClampedArray(a * b * 4) }; };
+  g.putImageData = function (img) { cv.px = img.data; };
+  g.drawImage = function (src) { g.fonte = src; grava.apply(g, arguments); };
+  g.getImageData = function (x, y, a, b) {   // decodificaMolde lê os tons da Image falsa (papel × 25)
+    var d = new Uint8ClampedArray(a * b * 4), idx = g.fonte && g.fonte._idx;
+    for (var i = 0; idx && i < a * b; i++) { d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = idx[i] * 25; d[i * 4 + 3] = idx[i] ? 255 : 0; }
+    return { data: d };
+  };
+  cv.getContext = function () { return g; };
+}
+function comCanvas(fn) {
+  var antes = global.OffscreenCanvas;
+  global.OffscreenCanvas = CanvasFalso;
+  try { return fn(); } finally { if (antes === undefined) delete global.OffscreenCanvas; else global.OffscreenCanvas = antes; }
+}
+// contexto falso que também guarda o globalAlpha de cada drawImage
+function ctxAlfa() {
+  var c = ctxFalso(), grava = c.drawImage;
+  c.alfas = [];
+  c.drawImage = function () { c.alfas.push(c.globalAlpha); grava.apply(c, arguments); };
+  return c;
+}
+function fnvBytes(b) { var h = 0x811c9dc5; for (var i = 0; i < b.length; i++) { h ^= b[i]; h = Math.imul(h, 16777619); } return (h >>> 0).toString(16); }
+function fnvTexto(s) { var h = 0x811c9dc5; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16); }
+// tudo o que um contexto falso recebeu, com cada canvas trocado pelo tamanho e o hash dos pixels
+function assinatura(c) {
+  return JSON.stringify({
+    rects: c.rects,
+    imgs: c.imgs.map(function (im) {
+      return [im.liso].concat(im.args.map(function (a) { return a && typeof a === 'object' ? 'cv' + a.width + 'x' + a.height + ':' + (a.px ? fnvBytes(a.px) : '-') : a; }));
+    })
+  });
+}
+function com() {
+  var o = {};
+  for (var i = 0; i < arguments.length; i++) for (var k in arguments[i]) if (Object.prototype.hasOwnProperty.call(arguments[i], k)) o[k] = arguments[i][k];
+  return o;
+}
+function desenhaCav(o, x, y) { var c = ctxFalso(); SPR.drawHorse(c, x == null ? 40 : x, y == null ? 30 : y, o); return c; }
+// cruzes de 1 px de arte (u px): uma barra deitada (3u × u) e uma em pé (u × 3u) com o mesmo centro
+function cruzes(c, cor, u) {
+  var deitadas = c.rects.filter(function (r) { return r.cor === cor && r.w === 3 * u && r.h === u; });
+  var empe = c.rects.filter(function (r) { return r.cor === cor && r.w === u && r.h === 3 * u; });
+  assert.strictEqual(empe.length, deitadas.length, 'cada cruz tem as duas barras');
+  deitadas.forEach(function (r) {
+    assert.ok(empe.some(function (q) { return q.x === r.x + u && q.y === r.y - u; }), 'barras da cruz com o mesmo centro');
+  });
+  return deitadas;
+}
+var PAL = SPR.PALETTES;
+var CAV = [
+  { palette: PAL.fogo, element: 'fogo', frame: 2, scale: 3, silks: '#d8353b', t: 1.3 },
+  { palette: PAL.agua, element: 'agua', frame: 4.6, scale: 2, silks: '#2f6fd8', t: 0.2, shadow: false },
+  { palette: PAL.grama, element: 'grama', idle: true, scale: 3, t: 2.7 },
+  { palette: PAL.neutro, element: 'neutro', idle: true, jockey: false, scale: 1, t: 0 }
+];
+var NOVAS = { marcas: { cara: 'estrela', patas: 2, corpo: 'malhado' }, semente: 12345, joquei: { padrao: 'xadrez', capacete: '#62b8ff' } };
+
+test('drawHorse sem marcas/joquei/raridade: as mesmas chamadas de hoje', function () {
+  assert.strictEqual(SPR.moldsReady, false, 'no Node: sem moldes, desenho por código');
+  comCanvas(function () {
+    CAV.forEach(function (o, i) {
+      var a = desenhaCav(o, 17, 23), b = ctxFalso();
+      SPR.drawHorseCodigo(b, 17, 23, o);
+      assert.strictEqual(assinatura(a), assinatura(b), 'caso ' + i);
+      // no desenho por código as marcas e o jóquei não aparecem, e Comum não desenha efeito
+      var c = desenhaCav(com(o, NOVAS, { raridade: 'comum', rastro: true }), 17, 23);
+      assert.strictEqual(assinatura(c), assinatura(b), 'caso ' + i + ' com marcas, jóquei e Comum');
+    });
+  });
+});
+
+test('faíscas por raridade: 0 / 0 / 3 / 5 / 5 cruzes', function () {
+  comCanvas(function () {
+    var o = com(CAV[0], NOVAS), k = 3, box = SPR.horseBox(40, 30, o);
+    var ns = RAR.map(function (r) {
+      var c = desenhaCav(com(o, { raridade: r })), cz = cruzes(c, G.RARITIES[r].color, k);
+      cz.forEach(function (q) {   // em volta da caixa do cavalo (margem de alguns px de arte)
+        assert.ok(q.x + k >= box.x - 4 * k && q.x + 2 * k <= box.x + box.w + 4 * k, r + ': x da faísca ' + q.x);
+        assert.ok(q.y >= box.y - 4 * k && q.y + k <= box.y + box.h + 4 * k, r + ': y da faísca ' + q.y);
+        assert.strictEqual((q.x + k - box.x) % k, 0, 'no grid de arte (x)');
+        assert.strictEqual((q.y - box.y) % k, 0, 'no grid de arte (y)');
+      });
+      return cz.length;
+    });
+    assert.deepStrictEqual(ns, [0, 0, 3, 5, 5]);
+    // sem molde, Mágico não tem nada a desenhar (o brilho da crina só existe com molde)
+    assert.strictEqual(assinatura(desenhaCav(com(o, { raridade: 'magico' }))), assinatura(desenhaCav(o)));
+    // posições da semente: a mesma semente dá as mesmas faíscas, outra semente dá outras
+    var p1 = JSON.stringify(cruzes(desenhaCav(com(o, { raridade: 'raro' })), G.RARITIES.raro.color, k));
+    var p2 = JSON.stringify(cruzes(desenhaCav(com(o, { raridade: 'raro' })), G.RARITIES.raro.color, k));
+    var p3 = JSON.stringify(cruzes(desenhaCav(com(o, { raridade: 'raro', semente: 999 })), G.RARITIES.raro.color, k));
+    assert.strictEqual(p1, p2);
+    assert.notStrictEqual(p1, p3);
+  });
+});
+
+test('rastro só com raridade mitico e rastro: true', function () {
+  comCanvas(function () {
+    var g = com(CAV[0], NOVAS), k = 3;
+    var sem = desenhaCav(com(g, { raridade: 'mitico' })), comR = desenhaCav(com(g, { raridade: 'mitico', rastro: true }));
+    var antes = sem.rects.map(function (r) { return JSON.stringify(r); });
+    var novos = comR.rects.filter(function (r) { var j = antes.indexOf(JSON.stringify(r)); if (j < 0) return true; antes.splice(j, 1); return false; });
+    assert.ok(novos.length >= 3, 'mítico na corrida: 3 faixas ou mais (' + novos.length + ' retângulos)');
+    assert.strictEqual(antes.length, 0, 'o resto do desenho é o mesmo');
+    // atrás da âncora traseira (sprite por código: x + rear·k), em até 3 linhas perto dela
+    var rx = 40 + SPR.ANCHORS.rear[0] * k, linhas = {};
+    novos.forEach(function (r) {
+      assert.ok(r.x + r.w <= rx, 'faixa termina na traseira: ' + JSON.stringify(r));
+      assert.ok(Math.abs(r.y - (30 + SPR.ANCHORS.rear[1] * k)) <= 3 * k, 'faixa perto da linha da traseira: ' + r.y);
+      assert.ok(r.a > 0 && r.a < 1, 'faixa translúcida');
+      linhas[r.y] = true;
+    });
+    assert.strictEqual(Object.keys(linhas).length, 3, '3 faixas');
+    ['comum', 'magico', 'raro', 'lendario'].forEach(function (r) {
+      assert.strictEqual(assinatura(desenhaCav(com(g, { raridade: r, rastro: true }))), assinatura(desenhaCav(com(g, { raridade: r }))), r + ' não tem rastro');
+    });
+    // só no galope: parado (sala, pódio) e retrato não têm rastro
+    [CAV[2], CAV[3]].forEach(function (p, i) {
+      var pm = com(p, NOVAS, { raridade: 'mitico' });
+      assert.strictEqual(assinatura(desenhaCav(com(pm, { rastro: true }))), assinatura(desenhaCav(pm)), 'parado ' + i);
+    });
+  });
+});
+
+test('reduzido: dois tempos diferentes ⇒ chamadas iguais', function () {
+  comCanvas(function () {
+    var o = com(CAV[1], NOVAS, { raridade: 'mitico', rastro: true });
+    var a = desenhaCav(com(o, { reduzido: true, t: 0.3 })), b = desenhaCav(com(o, { reduzido: true, t: 2.15 }));
+    assert.strictEqual(assinatura(a), assinatura(b));
+    assert.strictEqual(cruzes(a, G.RARITIES.mitico.color, 2).length, 5, 'faíscas fixas, mas visíveis');
+    // com movimento reduzido não há rastro
+    assert.strictEqual(assinatura(a), assinatura(desenhaCav(com(o, { reduzido: true, rastro: false, t: 0.3 }))));
+    // sem reduzido, o tempo anima (as faíscas piscam e o rastro tremula)
+    assert.notStrictEqual(assinatura(desenhaCav(com(o, { t: 0.3 }))), assinatura(desenhaCav(com(o, { t: 2.15 }))));
+    // direto no drawRaridade, também com a crina de fogo do código (que anima com o tempo)
+    var f = com(CAV[0], NOVAS, { raridade: 'lendario', reduzido: true }), box = SPR.horseBox(40, 30, f);
+    var c1 = ctxFalso(), c2 = ctxFalso();
+    SPR.drawRaridade(c1, box, com(f, { t: 0 })); SPR.drawRaridade(c2, box, com(f, { t: 7.77 }));
+    assert.strictEqual(assinatura(c1), assinatura(c2));
+  });
+});
+
+test('Review Focus 3: sem moldes (Node), drawHorse com marcas, joquei e raridade não lança e desenha as faíscas', function () {
+  assert.strictEqual(SPR.moldsReady, false);
+  comCanvas(function () {
+    [['lendario', 5], ['raro', 3], ['mitico', 5]].forEach(function (p) {
+      CAV.forEach(function (o) {
+        var u = o.scale, c = desenhaCav(com(o, NOVAS, { raridade: p[0], rastro: true }));
+        assert.strictEqual(cruzes(c, G.RARITIES[p[0]].color, u).length, p[1], p[0]);
+        assert.ok(c.imgs.length === 1, 'o cavalo por código, sem marcas nem brilho de molde');
+      });
+    });
+    // lixo nas opções: não lança
+    [{ marcas: { cara: 'x', patas: 7, corpo: null }, semente: 'abc', joquei: { padrao: 'zz', capacete: 'red' }, raridade: 'lendario' },
+      { marcas: 5, joquei: 'x', raridade: 'nada' }, { raridade: 'constructor' }, { raridade: '__proto__', rastro: 1 },
+      { marcas: null, joquei: null, raridade: null, semente: -1 }, { raridade: 'mitico', rastro: true, t: NaN, semente: Infinity }
+    ].forEach(function (x, i) {
+      assert.doesNotThrow(function () { desenhaCav(com(CAV[0], x)); }, 'lixo ' + i);
+    });
+  });
+  // sem canvas nenhum: as faíscas e o rastro (só fillRect) saem do drawRaridade sozinho
+  var c = ctxFalso(), o = com(CAV[0], NOVAS, { raridade: 'mitico', rastro: true });
+  SPR.drawRaridade(c, SPR.horseBox(10, 10, o), o);
+  assert.strictEqual(cruzes(c, G.RARITIES.mitico.color, 3).length, 5);
+  assert.strictEqual(c.globalAlpha, 1, 'globalAlpha restaurado');
+});
+
+// ---- com moldes: um molde sintético 32×24 (os 4 estilos iguais), carregado com Image e document falsos ----
+var SINT = (function () {
+  var w = 32, h = 24;
+  function quadro(comJoquei, q) {
+    var idx = new Uint8Array(w * h);
+    function r(x0, y0, x1, y1, v) { for (var y = y0; y <= y1; y++) for (var x = x0; x <= x1; x++) idx[y * w + x] = v; }
+    r(6, 10, 23, 13, 2); r(6, 14, 23, 15, 3);                 // corpo e barriga (sombra)
+    r(22, 5, 27, 10, 2); r(26, 4, 29, 8, 2);                  // pescoço e cabeça
+    r(20, 4 + q % 2, 23, 9, 4); r(20, 6 + q % 2, 21, 9, 5);   // crina (desce 1 px nos quadros ímpares)
+    r(3, 10, 5, 14, 4); r(3, 13, 4, 14, 5);                   // cauda
+    [7, 10, 19, 22].forEach(function (x, i) {                 // pernas (as de longe na sombra) e cascos
+      var d = i >= 2 ? (q % 3) - 1 : 0;
+      r(x + d, 16, x + d + 1, 21, i % 2 ? 3 : 2); r(x + d, 22, x + d + 1, 22, 1);
+    });
+    if (comJoquei) { r(13, 1, 15, 2, 7); r(14, 3, 15, 4, 8); r(12, 5, 16, 8, 7); r(12, 9, 16, 9, 9); }
+    return idx;
+  }
+  // âncoras como tools/moldes-lib.mjs (ancoras)
+  function ancoras(idx) {
+    var x0 = w, y0 = h, x1 = -1, y1 = -1, sx = 0, sy = 0, sn = 0, x, y;
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+      var v = idx[y * w + x];
+      if (!v) continue;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      if (v === 9) { sx += x; sy += y; sn++; }
+    }
+    var bbox = { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }, nose = null, rear = null;
+    for (y = y0; y <= y0 + Math.floor(bbox.h / 2); y++) for (x = x0; x <= x1; x++) {
+      if (!idx[y * w + x]) continue;
+      if (!nose || x > nose[0]) nose = [x, y];
+      if (!rear || x < rear[0]) rear = [x, y];
+    }
+    return { footY: y1, nose: nose, rear: rear, saddle: sn ? [Math.round(sx / sn), Math.round(sy / sn)] : null, bbox: bbox };
+  }
+  var idx = { retrato: quadro(false, 0), parado: quadro(true, 0), galope: [] }, fontes = {}, A = {}, q;
+  for (q = 0; q < 9; q++) idx.galope.push(quadro(true, q));
+  A.retrato = ancoras(idx.retrato); A.parado = ancoras(idx.parado);
+  for (q = 0; q < 9; q++) A['galope-' + q] = ancoras(idx.galope[q]);
+  var J = { estilo: 'sint', w: w, h: h, footY: A.retrato.footY, frames: 9, larguraUtil: A.retrato.bbox.w, ancoras: A };
+  fontes['s:retrato'] = idx.retrato; fontes['s:parado'] = idx.parado;
+  var galope = [];
+  for (q = 0; q < 9; q++) { fontes['s:galope-' + q] = idx.galope[q]; galope.push('s:galope-' + q); }
+  var estilos = {};
+  ['chamas', 'ondas', 'folhas', 'lisa'].forEach(function (n) { estilos[n] = { json: J, retrato: 's:retrato', parado: 's:parado', galope: galope }; });
+  return {
+    w: w, h: h, idx: idx, fontes: fontes, tabela: { estilos: estilos },
+    ancora: function (estado, q) { return com(estado === 'galope' ? A['galope-' + q] : A[estado], { larguraUtil: J.larguraUtil }); }
+  };
+})();
+function comMoldes(fn) {
+  var antes = { Image: global.Image, document: global.document };
+  global.Image = function () {};
+  Object.defineProperty(global.Image.prototype, 'src', {
+    set: function (u) { this.width = SINT.w; this.height = SINT.h; this._idx = SINT.fontes[u]; this.onload(); }
+  });
+  global.document = { createElement: function () { return new CanvasFalso(0, 0); } };
+  try {
+    var pronto = false;
+    SPR.loadMolds(SINT.tabela, function () { pronto = true; });
+    assert.ok(pronto && SPR.moldsReady, 'moldes sintéticos carregados');
+    return fn();
+  } finally {
+    ['Image', 'document'].forEach(function (n) { if (antes[n] === undefined) delete global[n]; else global[n] = antes[n]; });
+    SPR.loadMolds(null);   // volta ao desenho por código (moldsReady = false)
+  }
+}
+function hexPx(px, i) { return '#' + [px[i * 4], px[i * 4 + 1], px[i * 4 + 2]].map(function (v) { return (v < 16 ? '0' : '') + v.toString(16); }).join(''); }
+function lumHex(c) { var n = parseInt(c.slice(1), 16); return (0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; }
+var CAVM = { palette: PAL.fogo, element: 'fogo', frame: 2, scale: 3, silks: '#d8353b', t: 0.4 };
+
+test('com moldes (sintéticos): sem as opções novas, o mesmo desenho de hoje (pixels e chamadas)', function () {
+  comMoldes(function () {
+    var casos = [];
+    [0, 0.7, 1.5, 2, 3.2, 4.4, 5.9].forEach(function (f) { casos.push(com(CAVM, { frame: f })); });
+    casos.push(com(CAVM, { scale: 5, silks: '#30b060', palette: PAL.agua, element: 'agua' }));
+    casos.push(com(CAVM, { idle: true }), com(CAVM, { idle: true, jockey: false }), com(CAVM, { retrato: true, shadow: false }));
+    casos.push(com(CAVM, { idle: true, element: 'grama', palette: PAL.grama, quadro: { topo: 0, base: 108 } }));
+    var sig = casos.map(function (o) { return assinatura(desenhaCav(o, 50, 40)); }).join('\n');
+    // assinatura do desenho de antes da parte 2a (sprites.js em 91c48ab), com este mesmo molde sintético
+    assert.strictEqual(fnvTexto(sig), 'b16463ea');
+  });
+});
+
+test('com moldes: marcas e jóquei nas cores das camadas; a chave do cache leva marcas, semente, padrão e capacete', function () {
+  comMoldes(function () {
+    var q = SPR._quadroGalope('fogo', CAVM.frame), idx = SINT.idx.galope[q], n = SINT.w * SINT.h;
+    var M1 = { cara: 'frente', patas: 4, corpo: 'pintado' };
+    [['#2f6fd8', '#ff6b5e', 'listras'], ['#f2c230', '#2a2a2a', 'faixa']].forEach(function (cs) {
+      var o = com(CAVM, { silks: cs[0] }), J1 = { padrao: cs[2], capacete: cs[1] };
+      var base = desenhaCav(o).imgs[0].args[0].px, vis = desenhaCav(com(o, { marcas: M1, semente: 77, joquei: J1 })).imgs[0].args[0].px;
+      var anc = SINT.ancora('galope', q);
+      var cm = MK.camadaMarcas(idx, SINT.w, SINT.h, anc, M1, 77), cj = MK.camadaJoquei(idx, SINT.w, SINT.h, anc, cs[2]);
+      var cores = { m1: {}, m2: {}, m3: {}, j1: {}, j2: {}, j3: {} }, conta = { m1: 0, m2: 0, m3: 0, j1: 0, j2: 0, j3: 0 }, i, nome;
+      for (i = 0; i < n; i++) {
+        nome = cm[i] ? 'm' + cm[i] : (cj[i] ? 'j' + cj[i] : null);
+        if (!nome) { assert.strictEqual(hexPx(vis, i), hexPx(base, i), 'fora das camadas, a cor de hoje (pixel ' + i + ')'); continue; }
+        assert.ok(!cm[i] || (idx[i] === 2 || idx[i] === 3), 'marca só na pelagem');
+        cores[nome][hexPx(vis, i)] = true; conta[nome]++;
+      }
+      Object.keys(conta).forEach(function (k) {
+        assert.ok(conta[k] > 0, 'o molde sintético tem pixels na camada ' + k);
+        assert.strictEqual(Object.keys(cores[k]).length, 1, 'uma cor só na camada ' + k + ': ' + Object.keys(cores[k]));
+      });
+      function c1(k) { return Object.keys(cores[k])[0]; }
+      assert.strictEqual(c1('m1'), G.MARCAS.branco, 'branco das marcas');
+      assert.ok(lumHex(c1('m2')) < lumHex(G.MARCAS.branco), 'branco sombreado mais escuro que o branco');
+      var sombra = hexPx(base, Array.prototype.indexOf.call(idx, 3));
+      assert.ok(lumHex(c1('m3')) < lumHex(sombra), 'pinta escura mais escura que a sombra da pelagem');
+      if (lumHex(cs[0]) < 0.5) assert.ok(lumHex(c1('j1')) > lumHex(cs[0]), 'seda escura: tom 2 mais claro');
+      else assert.ok(lumHex(c1('j1')) < lumHex(cs[0]), 'seda clara: tom 2 mais escuro');
+      assert.strictEqual(c1('j2'), cs[1], 'capacete na cor escolhida');
+      assert.ok(lumHex(c1('j3')) < lumHex(cs[1]) || cs[1] === '#2a2a2a' && lumHex(c1('j3')) <= lumHex(cs[1]), 'manta: o capacete escurecido');
+    });
+    // chave do cache: as mesmas opções reaproveitam; marcas, semente, padrão e capacete fazem entradas novas
+    SPR.limparCacheMoldes();
+    var V = { marcas: M1, semente: 77, joquei: { padrao: 'listras', capacete: '#ff6b5e' } };
+    function entradas(o) { desenhaCav(o); return SPR._cacheMoldes(); }
+    var hoje = desenhaCav(CAVM).imgs[0].args[0];
+    assert.strictEqual(SPR._cacheMoldes(), 1);
+    assert.strictEqual(entradas(CAVM), 1, 'sem opções novas: a entrada de hoje');
+    assert.strictEqual(entradas(com(CAVM, V)), 2);
+    assert.strictEqual(entradas(com(CAVM, V, { raridade: 'lendario', rastro: true, reduzido: true, t: 3 })), 2, 'raridade não entra na recoloração');
+    assert.strictEqual(entradas(com(CAVM, V, { semente: 78 })), 3, 'semente');
+    assert.strictEqual(entradas(com(CAVM, V, { marcas: { cara: 'estrela', patas: 4, corpo: 'pintado' } })), 4, 'cara');
+    assert.strictEqual(entradas(com(CAVM, V, { joquei: { padrao: 'xadrez', capacete: '#ff6b5e' } })), 5, 'padrão');
+    assert.strictEqual(entradas(com(CAVM, V, { joquei: { padrao: 'listras', capacete: '#62b8ff' } })), 6, 'capacete');
+    assert.strictEqual(desenhaCav(CAVM).imgs[0].args[0], hoje, 'o canvas de hoje continua no cache, com a mesma chave');
+    // o retrato (sem sela) também recebe as marcas, presas ao centro da caixa
+    var r0 = desenhaCav(com(CAVM, { retrato: true })).imgs[0].args[0].px, r1 = desenhaCav(com(CAVM, { retrato: true }, V)).imgs[0].args[0].px;
+    assert.notStrictEqual(fnvBytes(r0), fnvBytes(r1), 'retrato com marcas');
+  });
+});
+
+test('com moldes: brilho da crina (papéis 4 e 5) em cache por quadro, faixa a cada 1,2 s, parada com reduzido', function () {
+  comMoldes(function () {
+    function rar(o) { var c = ctxAlfa(); SPR.drawRaridade(c, SPR.horseBox(50, 40, o), o); return c; }
+    var o = com(CAVM, { raridade: 'magico', semente: 5 }), cor = G.RARITIES.magico.color;
+    assert.strictEqual(assinatura(rar(com(o, { raridade: 'comum' }))), assinatura(ctxFalso()), 'Comum não desenha nada');
+    // t = 0,2 s: a fatia está na crina do pescoço do molde sintético (colunas 20–23)
+    var a = rar(com(o, { t: 0.2 }));
+    assert.ok(a.imgs.length >= 1, 'a faixa passa pela crina');
+    assert.strictEqual(a.rects.length, 0, 'Mágico: só o brilho, sem faíscas');
+    var mk = a.imgs[0].args[0], q = SPR._quadroGalope('fogo', o.frame), idx = SINT.idx.galope[q], x0 = 99, y0 = 99, x1 = -1, y1 = -1, i;
+    for (i = 0; i < idx.length; i++) if (idx[i] === 4 || idx[i] === 5) { var x = i % SINT.w, y = (i / SINT.w) | 0; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    assert.strictEqual(mk.width, x1 - x0 + 1, 'máscara recortada na crina (largura)');
+    assert.strictEqual(mk.height, y1 - y0 + 1, 'máscara recortada na crina (altura)');
+    for (var yy = 0; yy < mk.height; yy++) for (var xx = 0; xx < mk.width; xx++) {
+      var v = idx[(y0 + yy) * SINT.w + x0 + xx], j = yy * mk.width + xx, crina = v === 4 || v === 5;
+      assert.strictEqual(mk.px[j * 4 + 3] > 0, crina, 'máscara só nos papéis 4 e 5');
+      if (crina) assert.strictEqual(hexPx(mk.px, j), cor, 'na cor da raridade');
+    }
+    a.imgs.forEach(function (im) {
+      var sx = im.args[1], sw = im.args[3];
+      assert.strictEqual(im.args[0], mk, 'uma máscara por quadro');
+      assert.ok(sx >= 0 && sw > 0 && sx + sw <= mk.width, 'fatia dentro da máscara');
+    });
+    assert.ok(Math.max.apply(null, a.alfas) === MK.BRILHO.magico && Math.min.apply(null, a.alfas) > 0, 'alfa BRILHO.magico: ' + a.alfas);
+    assert.strictEqual(rar(com(o, { t: 0.2 })).imgs[0].args[0], mk, 'máscara no cache');
+    assert.strictEqual(assinatura(rar(com(o, { t: 1.4 }))), assinatura(a), 'período de 1,2 s');
+    assert.notStrictEqual(assinatura(rar(com(o, { t: 0.3 }))), assinatura(a), 'a faixa anda');
+    var outro = rar(com(o, { frame: 3, t: 0.2 }));
+    assert.notStrictEqual(SPR._quadroGalope('fogo', 3), q);
+    assert.notStrictEqual(outro.imgs[0].args[0], mk, 'outro quadro, outra máscara');
+    var r1 = rar(com(o, { reduzido: true, t: 0.1 })), r2 = rar(com(o, { reduzido: true, t: 0.95 }));
+    assert.strictEqual(assinatura(r1), assinatura(r2), 'reduzido: faixa parada');
+    assert.ok(r1.imgs.length >= 1, 'reduzido: o brilho parado continua na crina');
+    assert.ok(r1.imgs.every(function (im) { return im.args[1] >= (mk.width >> 1) - 2; }), 'reduzido: na crina do pescoço (metade da cabeça), não na cauda');
+    [['raro', 3], ['lendario', 5], ['mitico', 5]].forEach(function (p) {
+      var c = rar(com(o, { raridade: p[0], t: 0.2 }));
+      assert.strictEqual(Math.max.apply(null, c.alfas), MK.BRILHO[p[0]], p[0] + ': alfa do brilho');
+      assert.strictEqual(cruzes(c, G.RARITIES[p[0]].color, SPR._layoutMolde('fogo', 'galope', 50, 40, 3).S).length, p[1], p[0] + ': faíscas');
+    });
+    // parado e retrato também brilham
+    assert.ok(rar(com(o, { idle: true, t: 0.2 })).imgs.length >= 1, 'parado');
+    assert.ok(rar(com(o, { idle: true, jockey: false, reduzido: true })).imgs.length >= 1, 'retrato');
+  });
+});
+
+test('com moldes: rastro atrás da traseira do molde; a silhueta da skill não leva a raridade', function () {
+  comMoldes(function () {
+    var o = com(CAVM, NOVAS, { raridade: 'mitico' }), L = SPR._layoutMolde('fogo', 'galope', 50, 40, 3);
+    var sem = desenhaCav(o, 50, 40), comR = desenhaCav(com(o, { rastro: true }), 50, 40);
+    var antes = sem.rects.map(function (r) { return JSON.stringify(r); });
+    var novos = comR.rects.filter(function (r) { var j = antes.indexOf(JSON.stringify(r)); if (j < 0) return true; antes.splice(j, 1); return false; });
+    var rx = [], ry = [];
+    for (var q = 0; q < 9; q++) { rx.push(SINT.ancora('galope', q).rear[0]); ry.push(SINT.ancora('galope', q).rear[1]); }
+    var tx = L.ox + rx.sort()[4] * L.S, ty = L.oy + ry.sort()[4] * L.S;
+    assert.ok(novos.length >= 3, 'rastro com molde');
+    novos.forEach(function (r) {
+      assert.ok(r.x + r.w <= tx, 'atrás da traseira: ' + JSON.stringify(r) + ' traseira ' + tx);
+      assert.ok(Math.abs(r.y - ty) <= 3 * L.S, 'perto da linha da traseira');
+    });
+    assert.strictEqual(assinatura(desenhaCav(com(o, { rastro: true, idle: true }), 50, 40)), assinatura(desenhaCav(com(o, { idle: true }), 50, 40)), 'parado: sem rastro');
+    // silhueta (contorno da skill): o mesmo desenho, sem faíscas, brilho nem rastro
+    SPR.limparCacheMoldes();
+    var c = ctxFalso();
+    SPR.drawHorseSilhouette(c, 50, 40, com(o, { rastro: true }), '#ff00ff', 1);
+    var sil = c.imgs[0].args[0].getContext('2d');
+    assert.ok(sil.rects.every(function (r) { return r.cor === '#ff00ff'; }), 'só o tingido da silhueta: ' + JSON.stringify(sil.rects.map(function (r) { return r.cor; })));
+    assert.strictEqual(sil.imgs.length, 1, 'só o cavalo no canvas da silhueta');
+  });
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
