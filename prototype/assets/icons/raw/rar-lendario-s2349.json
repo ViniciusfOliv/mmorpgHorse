@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T13:19:19.317Z",
+  "pedido": {
+    "description": "orange round medallion with a white horse head, orange sparkles and a glowing orange rim, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 3ea4259333e3a6b7>",
+      "format": "png"
+    },
+    "seed": 2349
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 656 bytes, sha256 2b7a0f2a4152d456>",
+      "format": "png"
+    }
+  }
+}

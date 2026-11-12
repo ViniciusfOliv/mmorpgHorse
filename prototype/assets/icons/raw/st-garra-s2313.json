@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T13:15:55.099Z",
+  "pedido": {
+    "description": "three bright blue diagonal claw scratch marks with white highlights, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 b9c4f4ef5ae0b2fb>",
+      "format": "png"
+    },
+    "seed": 2313
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 568 bytes, sha256 1653cec40e2f5f77>",
+      "format": "png"
+    }
+  }
+}

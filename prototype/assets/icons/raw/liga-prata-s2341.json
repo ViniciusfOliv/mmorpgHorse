@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T13:17:45.150Z",
+  "pedido": {
+    "description": "metallic silver gray shield badge with a dark horse head silhouette and one small star, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 409daa043e1c7980>",
+      "format": "png"
+    },
+    "seed": 2341
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 591 bytes, sha256 67eea91f54be1689>",
+      "format": "png"
+    }
+  }
+}

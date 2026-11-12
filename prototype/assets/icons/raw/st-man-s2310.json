@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T13:15:38.890Z",
+  "pedido": {
+    "description": "thick teal curved arrow sweeping around a bend from the bottom left to the top right, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 989996ed8536a617>",
+      "format": "png"
+    },
+    "seed": 2310
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 376 bytes, sha256 12b17eb3f3db54e8>",
+      "format": "png"
+    }
+  }
+}
