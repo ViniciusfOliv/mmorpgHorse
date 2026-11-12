@@ -59,7 +59,11 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, **aguardando a revisão do Vinicius**,
   com decisões abertas na seção 15: dominância da build equilibrada nas pontas e skill de tipo nova.
   Depois: plano e execução na branch `claude/cavalos-v3`, **antes** de integrar o bloco 1 na `main`.
-- **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b.
+- **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b. Cada ginásio tem o
+  foco num elemento.
+- **Visuais 2** (branch `claude/visuais-2`, criada da `claude/cavalos-v3`): três partes, ícones →
+  cavalos → interface. Spec dos ícones (58 novos) em `docs/superpowers/specs/2026-11-12-icones-design.md`,
+  **aguardando a revisão do Vinicius**. Geração só com confirmação explícita (teto de 100 gerações).
 
 ## O que falta
 - **Decidido em 2026-11-10:** o teste fechado do Play sai com o jogo offline; o lançamento público
