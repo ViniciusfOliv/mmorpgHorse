@@ -401,8 +401,34 @@ section('Catálogo de ícones');
       assert.ok(!/\d/.test(i.desc), i.id + ': dígito na descrição');
     }
   });
-  test('seeds 2201..2258 na ordem da tabela (sem refação ainda)', () => {
-    ICONES_NOVOS.forEach((i, k) => assert.strictEqual(i.seed, 2201 + k));
+  // Seed base 2201 + índice; item refeito (linha com { seed }) usa a base + 100.
+  test('seeds 2201..2258 na ordem da tabela (refeitos: base + 100)', () => {
+    let refeitos = 0;
+    ICONES_NOVOS.forEach((i, k) => {
+      const base = 2201 + k;
+      assert.ok(i.seed === base || i.seed === base + 100, i.id + ': seed ' + i.seed + ' (esperado ' + base + ' ou ' + (base + 100) + ')');
+      if (i.seed !== base) refeitos++;
+    });
+    assert.ok(refeitos > 0, 'nenhum item refeito encontrado');
+  });
+  // Todo PNG de assets/icons (fora raw/) é conhecido, 32x32, de canto transparente e com algo desenhado.
+  test('PNGs de assets/icons: conhecidos, 32x32, fundo transparente, ao menos um pixel opaco', () => {
+    const dirIcons = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'icons');
+    const conhecidos = new Set([...ids, ...ANTIGOS]);
+    const arquivos = fs.readdirSync(dirIcons).filter(f => f.endsWith('.png'));
+    for (const f of arquivos) {
+      const id = f.slice(0, -4);
+      assert.ok(conhecidos.has(id), f + ': fora do catálogo e dos 16 antigos');
+      const { width, height, rgba } = decodePng(fs.readFileSync(path.join(dirIcons, f)));
+      assert.strictEqual(width + 'x' + height, '32x32', f + ': tamanho');
+      assert.strictEqual(rgba[3], 0, f + ': canto superior esquerdo não é transparente');
+      let opaco = false;
+      for (let p = 3; p < rgba.length; p += 4) if (rgba[p] >= 128) { opaco = true; break; }
+      assert.ok(opaco, f + ': sem pixel opaco');
+    }
+    // Ícone sem arquivo (ainda não gerado/refeito) é só aviso.
+    const tem = new Set(arquivos.map(f => f.slice(0, -4)));
+    for (const id of conhecidos) if (!tem.has(id)) console.log('  aviso: sem arquivo: ' + id);
   });
   test('RESERVADOS são os 5 da spec §2.6 e estão no catálogo', () => {
     assert.deepStrictEqual(RESERVADOS, ['item-redea', 'moeda-gema', 'ins-fogo', 'ins-agua', 'ins-grama']);
