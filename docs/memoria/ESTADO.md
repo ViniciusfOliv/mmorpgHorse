@@ -53,9 +53,11 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   ao subir de nível.
 
 ## Em andamento (2026-11-12)
-- **Crescimento livre (bloco 1b):** desenho aprovado (`docs/GDD.md` §8.5); calibração feita (128 metas
-  passam; anexos em `docs/superpowers/specs/anexos/`); spec em
-  `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, **aguardando a revisão do Vinicius**.
+- **Crescimento livre (bloco 1b):** desenho aprovado (`docs/GDD.md` §8.5); duas rodadas de calibração.
+  A rodada 2, com os quatro ajustes pedidos, passa nas 161 metas. Anexos em
+  `docs/superpowers/specs/anexos/`; a rodada 1 está no commit 78e61cd. Spec em
+  `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, **aguardando a revisão do Vinicius**,
+  com decisões abertas na seção 15: dominância da build equilibrada nas pontas e skill de tipo nova.
   Depois: plano e execução na branch `claude/cavalos-v3`, **antes** de integrar o bloco 1 na `main`.
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b.
 

@@ -1,6 +1,6 @@
 diff -ru src-orig/data.js src/data.js
 --- src-orig/data.js	2026-11-12 00:12:53.191061165 +0000
-+++ src/data.js	2026-11-12 01:57:30.983812937 +0000
++++ src/data.js	2026-11-12 03:24:31.867677419 +0000
 @@ -35,7 +35,7 @@
  
    // ---------------------------------------------------------------------------
@@ -20,36 +20,60 @@ diff -ru src-orig/data.js src/data.js
 -    lendario: { id: 'lendario', name: 'Lendário', color: '#ff9800', statCap: 95,  skillSlots: 4, bornSkills: 2, skillChance: 0.65, order: 3, baseLo: 55 },
 -    mitico:   { id: 'mitico',   name: 'Mítico',   color: '#9c27b0', statCap: 100, skillSlots: 5, bornSkills: 3, skillChance: 0.75, order: 4, baseLo: 60 }
 +    comum:    { id: 'comum',    name: 'Comum',    color: '#9e9e9e', ptsMult: 1.00, skillSlots: 1, bornSkills: 1, skillChance: 0.35, order: 0, baseLo: 40 },
-+    magico:   { id: 'magico',   name: 'Mágico',   color: '#4caf50', ptsMult: 1.03, skillSlots: 2, bornSkills: 1, skillChance: 0.45, order: 1, baseLo: 44 },
-+    raro:     { id: 'raro',     name: 'Raro',     color: '#2196f3', ptsMult: 1.06, skillSlots: 3, bornSkills: 2, skillChance: 0.55, order: 2, baseLo: 49 },
-+    lendario: { id: 'lendario', name: 'Lendário', color: '#ff9800', ptsMult: 1.09, skillSlots: 4, bornSkills: 2, skillChance: 0.65, order: 3, baseLo: 54 },
-+    mitico:   { id: 'mitico',   name: 'Mítico',   color: '#9c27b0', ptsMult: 1.12, skillSlots: 5, bornSkills: 3, skillChance: 0.75, order: 4, baseLo: 59 }
++    magico:   { id: 'magico',   name: 'Mágico',   color: '#4caf50', ptsMult: 1.05, skillSlots: 2, bornSkills: 1, skillChance: 0.45, order: 1, baseLo: 44 },
++    raro:     { id: 'raro',     name: 'Raro',     color: '#2196f3', ptsMult: 1.10, skillSlots: 3, bornSkills: 2, skillChance: 0.55, order: 2, baseLo: 49 },
++    lendario: { id: 'lendario', name: 'Lendário', color: '#ff9800', ptsMult: 1.15, skillSlots: 4, bornSkills: 2, skillChance: 0.65, order: 3, baseLo: 54 },
++    mitico:   { id: 'mitico',   name: 'Mítico',   color: '#9c27b0', ptsMult: 1.20, skillSlots: 5, bornSkills: 3, skillChance: 0.75, order: 4, baseLo: 60 }
    };
  
    var STAT_KEYS = ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
-@@ -95,8 +95,8 @@
+@@ -87,26 +87,25 @@
+   // Skill de tipo (v3): uma por elemento, em vaga própria, sempre ativa e sem sorteio no terço
+   // `zone` da distância ([início, fim] em fração de D). Os valores valem com força P = 1 e são
+   // multiplicados por P = RaceSim.typePower (cresce com nível e raridade):
+-  //   accelMult / speedMult: somam x·P ao multiplicador; drainCut: corta x·P do gasto de estamina;
+-  //   forcaAdd / manAdd: somam x·P a n(Força) / n(Manobra) (curva, subida, piso, pelotão);
+-  //   staminaRestore: recupera x·P do tanque uma vez, ao entrar no terço.
++  //   statMul: no terço, os dois status do tipo (Fogo Vel/Ace, Água Est/Gar, Grama For/Man) valem × (1 + x·P);
++  //   (chaves antigas ainda aceitas pela corrida: accelMult, speedMult, drainCut, forcaAdd, manAdd, staminaRestore).
+   //   short: nome de até 12 letras para o balão da corrida.
+   // ---------------------------------------------------------------------------
    var TYPE_SKILLS = {
      fogo: {
        id: 'labareda', name: 'Labareda', short: 'LABAREDA', zone: [0, 1 / 3],
 -      effect: { accelMult: 0.23 },
 -      desc: 'No primeiro terço da pista, a largada pega fogo: +23% de aceleração (cresce com nível e raridade).'
-+      effect: { accelMult: 0.16 },
-+      desc: 'No primeiro terço da pista, a largada pega fogo: +16% de aceleração (cresce com nível e raridade).'
++      effect: { statMul: 0.19 },
++      desc: 'No primeiro terço da pista, a largada pega fogo: Velocidade e Aceleração valem +19% (varia com nível e raridade).'
      },
      grama: {
        id: 'raizes-firmes', name: 'Raízes Firmes', short: 'RAÍZES FIRM.', zone: [1 / 3, 2 / 3],
-@@ -105,8 +105,8 @@
+-      effect: { forcaAdd: 0.07, manAdd: 0.07, drainCut: 0.012 },
+-      desc: 'No terço do meio, finca os cascos: +7 de Força e de Manobra e gasta 1,2% menos estamina (cresce com nível e raridade).'
++      effect: { statMul: 0.15 },
++      desc: 'No terço do meio, finca os cascos: Força e Manobra valem +15% (cresce com nível e raridade).'
      },
      agua: {
        id: 'mare-alta', name: 'Maré Alta', short: 'MARÉ ALTA', zone: [2 / 3, 1],
 -      effect: { speedMult: 0.018, staminaRestore: 0.012 },
 -      desc: 'No último terço, a maré sobe: recupera 1,2% de estamina ao entrar e corre +1,8% mais rápido (cresce com nível e raridade).'
-+      effect: { speedMult: 0.020, staminaRestore: 0.012 },
-+      desc: 'No último terço, a maré sobe: recupera 1,2% de estamina ao entrar e corre +2% mais rápido (cresce com nível e raridade).'
++      effect: { statMul: 0.33 },
++      desc: 'No último terço, a maré sobe: Estamina e Garra valem +33% (cresce com a raridade).'
      }
    };
  
-@@ -140,8 +140,8 @@
+@@ -130,8 +129,8 @@
+     // --- Gerais (qualquer tipo) ---
+     'arranque': {
+       id: 'arranque', name: 'Arranque', element: 'geral', trigger: 'start',
+-      desc: 'Largada explosiva: +20% de aceleração nos primeiros 100 m.',
+-      effect: { accelMult: 1.2, distanceM: 100 }
++      desc: 'Largada explosiva: +18% de aceleração nos primeiros 100 m.',
++      effect: { accelMult: 1.18, distanceM: 100 }
+     },
+     'sprint': {
+       id: 'sprint', name: 'Sprint', element: 'geral', trigger: 'straight',
+@@ -140,8 +139,8 @@
      },
      'drift': {
        id: 'drift', name: 'Drift', element: 'geral', trigger: 'curve',
@@ -60,17 +84,39 @@ diff -ru src-orig/data.js src/data.js
      },
      'saida-rapida': {
        id: 'saida-rapida', name: 'Saída Rápida', element: 'geral', trigger: 'curveExit',
-@@ -317,18 +317,18 @@
+@@ -176,8 +175,8 @@
+     },
+     'chama-final': {
+       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
+-      desc: 'Na reta final, +5% de velocidade por 8s.',
+-      effect: { speedMult: 1.05, durationS: 8 }
++      desc: 'Na reta final, +5% de velocidade por 9,5s.',
++      effect: { speedMult: 1.05, durationS: 9.5 }
+     },
+     // --- Água ---
+     'pe-na-chuva': {
+@@ -187,8 +186,8 @@
+     },
+     'canto-da-iara': {
+       id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
+-      desc: 'Na reta final, +6% de velocidade por 7s e gasta 30% menos estamina.',
+-      effect: { speedMult: 1.06, drainMult: 0.7, durationS: 7 }
++      desc: 'Na reta final, +6% de velocidade por 9s e gasta 30% menos estamina.',
++      effect: { speedMult: 1.06, drainMult: 0.7, durationS: 9 }
+     },
+     'nascente': {
+       id: 'nascente', name: 'Nascente', element: 'agua', trigger: 'straight',
+@@ -317,18 +316,18 @@
  
    // Ligas por Rating de Poder (RaceSim.powerRating). min inclusivo.
    // Seis faixas iguais entre dois cavalos de referência: Fogo, genética 16 em todos os status, ★★,
 -  // sem peças e sem skills de vaga, com alloc = RaceSim.botAlloc(cavalo).
 -  //   lo = Poder do Comum de nível 1 = 711;  hi = Poder do Lendário de nível 50 = 1316.
 +  // sem skills de vaga, com alloc = RaceSim.botAlloc(cavalo).
-+  //   lo = Poder do Comum de nível 1 = 624;  hi = Poder do Lendário de nível 50 = 1149.
++  //   lo = Poder do Comum de nível 1 = 624;  hi = Poder do Lendário de nível 50 = 1154.
    //   Bronze começa em 0; a liga k (1 a 5) em lo + k·(hi − lo)/6, arredondado para a dezena:
 -  //   811,8 → 810 · 912,7 → 910 · 1013,5 → 1010 · 1114,3 → 1110 · 1215,2 → 1220.
-+  //   711,5 → 710 · 799,0 → 800 · 886,5 → 890 · 974,0 → 970 · 1061,5 → 1060.
++  //   712,3 → 710 · 800,7 → 800 · 889,0 → 890 · 977,3 → 980 · 1065,7 → 1070.
    // O sim-test refaz a conta: mudou peso do Poder, status ou build dos bots, recalcule aqui.
    var LEAGUES = [
      { id: 'bronze',   name: 'Bronze',   min: 0,    color: '#b0703c' },
@@ -82,14 +128,14 @@ diff -ru src-orig/data.js src/data.js
 +    { id: 'prata',    name: 'Prata',    min: 710,  color: '#b8c2cc' },
 +    { id: 'ouro',     name: 'Ouro',     min: 800,  color: '#f2c230' },
 +    { id: 'platina',  name: 'Platina',  min: 890,  color: '#5fd3c8' },
-+    { id: 'diamante', name: 'Diamante', min: 970,  color: '#7ab8ff' },
-+    { id: 'lenda',    name: 'Lenda',    min: 1060, color: '#ff7a3d' }
++    { id: 'diamante', name: 'Diamante', min: 980,  color: '#7ab8ff' },
++    { id: 'lenda',    name: 'Lenda',    min: 1070, color: '#ff7a3d' }
    ];
  
    var FOAL_NAMES = [
 diff -ru src-orig/sim.js src/sim.js
 --- src-orig/sim.js	2026-11-12 00:12:53.191228241 +0000
-+++ src/sim.js	2026-11-12 02:06:41.247368368 +0000
++++ src/sim.js	2026-11-12 03:31:10.543968415 +0000
 @@ -1,5 +1,5 @@
  /*
 - * MMORPG Horse — simulação de corrida (protótipo descartável). Núcleo v2, status v3.
@@ -97,7 +143,7 @@ diff -ru src-orig/sim.js src/sim.js
   *
   * RaceSim.simulate(config) é uma FUNÇÃO PURA e DETERMINÍSTICA de (config, seed):
   * sem Math.random, sem Date, sem estado global. O servidor simularia; o cliente só
-@@ -14,34 +14,33 @@
+@@ -14,34 +14,36 @@
   * tools/balance.js). Corrida = status + terreno + RNG, sem ruído escondido por
   * corredor (a sorte "grande" é o Dado da Sorte, visível na pista).
   *
@@ -120,9 +166,10 @@ diff -ru src-orig/sim.js src/sim.js
 - *   pulando o do passo 1 e os que já estão no teto (natural + pontos ≥ teto da raridade) ou no limite;
 - *   3) a sobra vai para sorte até o limite; 4) se ainda sobrar (tudo no teto), completa o rodízio até o
 - *   limite, para a soma ser sempre a dos pontos livres (ponto acima do teto fica guardado e não rende).
-+ *   base(k)  = raridade.baseLo + 16*g/31   (naturalStat; baseLo 40/44/49/54/59)
-+ *   pontos   = floor((level-1) * 4,0 * raridade.ptsMult * starMult[estrelas-1])   (freePoints)
-+ *              ptsMult 1,00/1,03/1,06/1,09/1,12; starMult 1 / 1,10 / 1,26
++ *   base(k)  = raridade.baseLo + 16*g/31   (naturalStat; baseLo 40/44/49/54/60)
++ *   pontos   = floor(ptsMult * starMult[estrelas-1] * [(L-1)*2 + 4*(L-1)(L-2)/96])   (freePoints: a taxa
++ *              por nível sobe de 2 no nível 2 a 6 no 50, média 4); ptsMult 1,00/1,05/1,10/1,15/1,20; starMult 1 / 1,09 / 1,22
++ *   Sorte não recebe pontos (T.noBuy): fica só com a base, 40–76.
 + *   custo    = o i-ésimo ponto comprado num status (i = 0, 1, …) custa 1 + floor(i/10) (pointCost);
 + *              comprar a pontos custa costOf(a) = 10·q(q+1)/2 + r(q+1), a = 10q + r.
 + *   horse.alloc = pontos de status comprados em cada status; validAlloc saneia (inteiros ≥ 0, corta pelo
@@ -130,10 +177,10 @@ diff -ru src-orig/sim.js src/sim.js
 + *   computeStats: status = round(base + a), limitado a 1–150. O equipamento não entra (por enquanto).
 + *   n(x) = status/100. allocInfo(horse): { free, used (custo gasto), left, perStat, next (custo do
 + *   próximo ponto), room (quantos pontos ainda cabem) }.
-+ *   powerRating = round(2,6·VEL + 1,9·ACE + 2,2·MAN + 2,2·FOR + 2,7·EST + 1,4·GAR + 0·SOR
-+ *   + 9 × peso do gatilho (skillWeight) por skill + 19·(nível−1)/49 + 27·ordemDaRaridade/4); ligas em GameData.LEAGUES.
++ *   powerRating = round(2,5·VEL + 2,0·ACE + 2,2·MAN + 2,4·FOR + 2,4·EST + 1,5·GAR + 0·SOR
++ *   + 14 × peso do gatilho (skillWeight) por skill + 20·(nível−1)/49 + 28·ordemDaRaridade/4); ligas em GameData.LEAGUES.
 + *   weightedAlloc(horse, w, from): um ponto por vez no status de menor (a+1)/w que ainda cabe.
-+ *   botAlloc(horse, from): weightedAlloc com T.botW[tipo] (pesos de valor × 1,3 nos dois status do tipo);
++ *   botAlloc(horse, from): weightedAlloc com T.botW[tipo] (os seis valem 1; × 1,2 nos dois status do tipo);
 + *   sem RNG; com `from` continua a distribuição do jogador ("Distribuir sugerido").
 + *   entry.statAdd (gancho de teste do balance.js, como noTypeSkill): soma ao status, preso a 1–150.
   *
@@ -149,13 +196,15 @@ diff -ru src-orig/sim.js src/sim.js
 + *   ativa), elemento penalizado ×0,97 (2 − weatherMult), resto e Nublado ×1.
 + *   applyWeather(r, clima) recalcula, com m = weatherMult e o clima somado a n: nc(x) = n(x) + (m−1)·0,5
 + *   (o mesmo efeito do inicial em qualquer nível):
-+ *     vMax  = (17.805 + 1.0*nc(vel)) * (1 + 0.10*(m-1))   (weatherVel: um extra direto na vMax)
-+ *     accel = 1 / max(0,05, 1,2 − 0,7*nc(acel))  m/s²   (1/accel cai em linha reta: cada ponto encurta a largada igual)
++ *     vMax  = (19.0 + 1.13*nc(vel)) * (1 + 0.10*(m-1))   (weatherVel: um extra direto na vMax)
++ *     accel = 1 / max(0,044, 1,158 − 0,66*nc(acel))  m/s²   (1/accel cai em linha reta: cada ponto encurta a largada igual)
++ *     (valores de tempo da v3b ×1,067 na escala de tempo; no terço da skill de tipo os mesmos valores com os
++ *     dois status do tipo × (1 + statMul·P) ficam em r.Z)
 + *     Força, Manobra e Garra efetivas = nc(x);  chance/força da Garra (abaixo).
   *   O tanque NÃO depende do clima: tanque = 66 + 20*n(est).
   *   Efeitos gerais: sol => gasto ×1,04; chuva => todos −1,5% de velocidade.
   *   É chamada de novo quando o clima vira, quando uma skill de clima reforça o bônus e quando
-@@ -61,19 +60,20 @@
+@@ -61,19 +63,20 @@
   *   dada aceita: inteiro em 1000–2400 m (mais larga que o sorteio); fora disso vale a da seed.
   *   Com distância dada diferente da seed e sem blocos válidos, a pista vira uma reta única.
   *
@@ -163,7 +212,7 @@ diff -ru src-orig/sim.js src/sim.js
 - *   reta 1;  curva = min(1, 0.826 + 0.14*n(man) + bônus de skill)   (0,826–0,966);
 - *   subida = min(1, 0.86 + 0.13*n(forca) + bônus de skill)          (0,86–0,99).
 + * FATOR DO BLOCO (multiplica a velocidade-alvo; teto 1, alcançado só em n = 1,6):
-+ *   reta 1;  curva = min(1, 0.728 + 0.17*n(man) + bônus de skill);
++ *   reta 1;  curva = min(1, 0.704 + 0.185*n(man) + bônus de skill);
 + *   subida = min(1, 0.824 + 0.11*n(forca) + bônus de skill). n(Força) e n(Manobra) efetivos presos a 0–2.
   *   Ao sair da curva/subida a velocidade volta com accel (Aceleração manda na retomada).
   *
@@ -178,20 +227,20 @@ diff -ru src-orig/sim.js src/sim.js
 - *   affordablePace); o jóquei lê o tanque com erro −2%..+6% (às vezes cansa) e guarda 3%.
 - *   s = min(0.97, aff) até 72% da pista, depois min(1.03, aff) (sprint); mínimo voluntário 0,80.
 + *   affordablePace); o jóquei lê o tanque com erro −0,5%..+2,5% e guarda 3%.
-+ *   s = min(0.97 + 0.04*(n(est) − 0.5), aff) até 72% da pista, depois min(1.03 + 0.075*(n(est) − 0.5), aff)
++ *   s = min(0.97 + 0.035*(n(est) − 0.5), aff) até 72% da pista, depois min(1.03 + 0.065*(n(est) − 0.5), aff)
 + *   (sprint): a Estamina sobe o teto do ritmo, então rende também quando o tanque sobra; mínimo voluntário 0,80.
   *   Na estimativa o jóquei prevê a subida restante: lá o trecho dura 1/fatorSubida a mais e
   *   gasta ×(1 + 0.30*(1 − 0.5*n(forca))).
   *
-@@ -86,26 +86,27 @@
+@@ -86,34 +89,36 @@
   *   Boosts (Garra, skills) elevam o teto SEM custo extra. Pistas longas apertam mais o tanque.
   *   Estamina 0 => ritmo cai para 0,75 até o fim + evento 'cansou'.
   *
 - * GARRA: ao cruzar 80%, rola chance = min(0.95, 0.10 + 0.70*n(garra)*m + bônus de item/skill).
 - *   Sucesso: teto ×(1.02 + 0.16*n(garra)*m + bônus de skill) até a chegada. Evento 'garra'.
-+ * GARRA: a arrancada começa em garraFrom = 0.80 − 0.10*(n(garra) − 0.5) da pista (mais Garra, mais cedo;
++ * GARRA: a arrancada começa em garraFrom = 0.80 − 0.14*(n(garra) − 0.5) da pista (mais Garra, mais cedo;
 + *   o gatilho 'final' das skills vale no mesmo ponto). Lá rola chance = min(0.95, 0.50 + 0.15*nc(garra) + bônus de skill).
-+ *   Sucesso: teto ×(1.02 + 0.22*nc(garra) + bônus de skill) até a chegada. Evento 'garra'.
++ *   Sucesso: teto ×(1.02 + 0.26*nc(garra) + bônus de skill) até a chegada. Evento 'garra'.
   *
   * SKILLS (gatilhos e efeitos em data.js). Quando o gatilho acontece, UMA tentativa contra
   *   skillChance = min(0.95, raridade.skillChance + 0.005*(level−1) + 0.001*sorte)
@@ -207,29 +256,32 @@ diff -ru src-orig/sim.js src/sim.js
 + *   weatherDouble. O equipamento (Gear.resolve) não entra na corrida por enquanto. Evento 'skill'.
   *
   * SKILL DE TIPO (GameData.TYPE_SKILLS, uma por elemento; typeSkill/typePower). Sempre ativa, sem
-  *   sorteio e sem consumir a RNG, no terço [zone[0]·D, zone[1]·D) da pista, com força
+- *   sorteio e sem consumir a RNG, no terço [zone[0]·D, zone[1]·D) da pista, com força
 - *   P = 1 + 0,4·(level − 1)/49 + 0,4·ordemDaRaridade/4:
 - *     Labareda (Fogo, 0–D/3): aceleração ×(1 + 0,23·P);
 - *     Raízes Firmes (Grama, D/3–2D/3): n(Força) e n(Manobra) + 0,07·P (presos a 1,2), gasto ×(1 − 0,012·P);
 - *     Maré Alta (Água, 2D/3–D): velocidade ×(1 + 0,018·P); recupera 1,2%·P do tanque ao entrar
+- *     (se não estiver exausto).
++ *   sorteio e sem consumir a RNG, no terço [zone[0]·D, zone[1]·D) da pista: os dois status do tipo valem
++ *   × (1 + statMul·P) (sinergia: rende mais para quem investe neles), com
 + *   P = 1 + nívelT·(level − 1)/49 + raridadeT·ordemDaRaridade/4, por tipo (T.typeLevel / T.typeRar):
-+ *   Fogo 0,70/0,55 · Água 0,65/0,50 · Grama 0,85/0,65 (Comum nível 1 = 1 para todos):
-+ *     Labareda (Fogo, 0–D/3): aceleração ×(1 + 0,16·P);
-+ *     Raízes Firmes (Grama, D/3–2D/3): n(Força) e n(Manobra) + 0,07·P (presos a 2), gasto ×(1 − 0,012·P);
-+ *     Maré Alta (Água, 2D/3–D): velocidade ×(1 + 0,020·P); recupera 1,2%·P do tanque ao entrar
-  *     (se não estiver exausto).
++ *   Fogo −0,15/0,15 · Água 0/0,15 · Grama 0,25/0,40 (Comum nível 1 = 1 para todos; o efeito cresce também
++ *   com os status, por isso o P quase não cresce):
++ *     Labareda (Fogo, 0–D/3): Velocidade e Aceleração × (1 + 0,19·P);
++ *     Raízes Firmes (Grama, D/3–2D/3): Força e Manobra × (1 + 0,15·P);
++ *     Maré Alta (Água, 2D/3–D): Estamina (teto do ritmo) e Garra × (1 + 0,33·P).
   *   Vira um efeito com fromPos/untilPos em buildRacer. Na entrada do terço sai um evento
   *   { t, racer, type: 'skill', text, typeSkill: true }. Elemento desconhecido: sem skill de tipo.
-@@ -113,7 +114,7 @@
+  *   entry.noTypeSkill: true desliga (comparações do balance.js).
   *
   * DADO DA SORTE: quando o líder cruza 1/3 e 2/3 de D (T.diceAt), todos rolam (inclusive quem
   *   já chegou), no fluxo próprio do Dado. rollDice: d1 = 1..100; Sorte = chance de rolar um
 - *   segundo dado (sorte/100) e ficar com o melhor; Dado Viciado soma um dado extra (até 3).
-+ *   segundo dado (sorte/150) e ficar com o melhor; Dado Viciado soma um dado extra (até 3).
++ *   segundo dado ((sorte − 40)/40) e ficar com o melhor; Dado Viciado soma um dado extra (até 3).
   *   Maior dado vence; empate no topo => re-rola só os empatados. O clima vira o do elemento do
   *   vencedor (Fogo sol, Água chuva, Grama névoa); se já for esse (ou o elemento for desconhecido),
   *   o clima "segura". Eventos 'dado' { at, rolls, winner, weather, changed } e, se virou, 'clima'.
-@@ -141,7 +142,7 @@
+@@ -141,7 +146,7 @@
   *
   * ORDEM DAS CHAMADAS DE r.rng() (fluxo de cada corredor; manter estável):
   *   montagem: 1) startDelay, 2) jockeyErr; por tick: 3) tentativas de skill (só quando um
@@ -238,7 +290,16 @@ diff -ru src-orig/sim.js src/sim.js
   *   quando o Dado vai rolar: tentativa do gatilho 'dice'. A skill de tipo não chama r.rng().
   *   Detalhes junto de buildRacer.
   * ============================================================================
-@@ -164,55 +165,72 @@
+@@ -156,6 +161,8 @@
+   if (!GameData) throw new Error('RaceSim: GameData não encontrado (carregue data.js antes de sim.js).');
+ 
+   var STAT_KEYS = GameData.STAT_KEYS;
++  // os dois status de cada tipo (identidade: bot, skill de tipo)
++  var TYPE_STATS = { fogo: ['vel', 'acel'], agua: ['est', 'garra'], grama: ['forca', 'man'] };
+ 
+   // Versão das regras da simulação: suba a cada mudança que altere resultados (exposta como
+   // RaceSim.VERSION e gravada em cada resultado como simVersion, junto do tuningHash).
+@@ -164,55 +171,77 @@
    // Constantes de balanceamento (ajustadas por tools/balance.js). Exposto como RaceSim.TUNING.
    var T = {
      dt: 0.1,
@@ -250,30 +311,38 @@ diff -ru src-orig/sim.js src/sim.js
 -    // skill de tipo: força P = typeBase + typeLevel·(nível − 1)/49 + typeRar·ordemDaRaridade/4
 -    typeBase: 1, typeLevel: 0.4, typeRar: 0.4,
 +    // status v3b: base = baseLo + gBand·g/31 (nada cresce sozinho); status = base + pontos comprados.
-+    // pontos(L) = piso((L − 1)·ptsRate·raridade.ptsMult·starMult[estrelas − 1]);
-+    // o i-ésimo ponto comprado num status (i = 0, 1, …) custa 1 + piso(i / costStep); teto statMax
++    // pontos(L) = piso(raridade.ptsMult·starMult[estrelas − 1]·[(L − 1)·r0 + (r1 − r0)·(L − 1)(L − 2)/96]):
++    // a taxa por nível sobe de ptsRate0 (nível 2) a ptsRate1 (nível 50), média 4.
++    // o i-ésimo ponto comprado num status (i = 0, 1, …) custa 1 + piso(i / costStep); teto statMax;
++    // noBuy: status que não recebem pontos (a Sorte fica só com a base)
 +    gBand: 16,
-+    ptsRate: 4.0,
-+    starMult: [1, 1.10, 1.26],
++    ptsRate0: 2, ptsRate1: 6,
++    starMult: [1, 1.09, 1.22],
 +    costStep: 10,
 +    statMax: 150,
-+    // skill de tipo: força P = typeBase + typeLevel[tipo]·(nível − 1)/49 + typeRar[tipo]·ordemDaRaridade/4
++    noBuy: ['sorte'],
++    // skill de tipo: força P = typeBase + typeLevel[tipo]·(nível − 1)/49 + typeRar[tipo]·ordemDaRaridade/4;
++    // no seu terço, os dois status do tipo valem × (1 + statMul·P) (GameData.TYPE_SKILLS)
 +    typeBase: 1,
-+    typeLevel: { fogo: 0.70, agua: 0.65, grama: 0.85 },
-+    typeRar: { fogo: 0.55, agua: 0.50, grama: 0.65 },
++    typeLevel: { fogo: -0.15, agua: 0, grama: 0.25 },
++    typeRar: { fogo: 0.15, agua: 0.15, grama: 0.40 },
      // pista: D = distMin + distStep·k (até distMax); blocos re-sorteados até ter curva e subida e nenhum
      // tipo acima de trackMaxShare de D; depois de trackTries tentativas, molde fixo
      distMin: 1400, distMax: 2000, distStep: 50, trackMaxShare: 0.5, trackTries: 60,
 -    // velocidade / aceleração
 -    vBase: 17.805, vRange: 1.2,
 -    aBase: 0.6, aRange: 2.4,
-+    // velocidade; aceleração: 1/accel = aInv0 − aInv1·n(acel) (cada ponto encurta a largada igual), piso aInvMin
-+    vBase: 17.805, vRange: 1.0,
-+    aInv0: 1.2, aInv1: 0.7, aInvMin: 0.05,
-     decel: 1.2,
+-    decel: 1.2,
++    // velocidade; aceleração: 1/accel = aInv0 − aInv1·n(acel) (cada ponto encurta a largada igual), piso aInvMin.
++    // Os valores de tempo (vBase, vRange, aInv*, decel, drainK, startDelayMax) são os da v3b ×1,067 na
++    // escala de tempo (velocidade ×k, acelerações ×k², gasto por segundo ×k): mesma corrida em metros, ~6% mais curta.
++    vBase: 19.0, vRange: 1.13,
++    aInv0: 1.158, aInv1: 0.66, aInvMin: 0.044,
++    decel: 1.37,
      // estamina
      poolBase: 66, poolEst: 20,
-     drainK: 1.0, drainExp: 4, drainDistExp: [2, 5], drainRefDist: 1600,   // drainDistExp = 2/5 (fração p/ evitar Math.pow)
+-    drainK: 1.0, drainExp: 4, drainDistExp: [2, 5], drainRefDist: 1600,   // drainDistExp = 2/5 (fração p/ evitar Math.pow)
++    drainK: 1.07, drainExp: 4, drainDistExp: [2, 5], drainRefDist: 1600,   // drainDistExp = 2/5 (fração p/ evitar Math.pow)
      rationReserve: 0.03,
 -    jockeyErrMin: -0.02, jockeyErrMax: 0.06,   // otimismo do jóquei ao ler o tanque (às vezes cansa no fim)
 +    jockeyErrMin: -0.005, jockeyErrMax: 0.025,   // otimismo do jóquei ao ler o tanque (às vezes cansa no fim)
@@ -289,9 +358,9 @@ diff -ru src-orig/sim.js src/sim.js
 -    // terreno / pelotão
 -    forcaSurfRelief: 0.5,
 -    crowdRange: 2.5, crowdSlow: 0.03, forcaCrowdRelief: 0.8,
-+    startDelayMax: 0.6, startAcelK: 1 / 3, startAcelMax: 1.5,
++    startDelayMax: 0.56, startAcelK: 1 / 3, startAcelMax: 1.5,
 +    // blocos: rendimento na curva (Manobra) e na subida (Força), teto 1 só em n = 1,6; subida gasta mais
-+    curveBase: 0.728, curveRange: 0.17,
++    curveBase: 0.704, curveRange: 0.185,
 +    hillBase: 0.824, hillRange: 0.11, hillDrain: 0.30,
 +    nEffMax: 2,   // teto de n(Força) e n(Manobra) efetivos (com a Raízes Firmes); defesa, fora do alcance
 +    // terreno / pelotão (o alívio do pelotão zera só em n(Força) = 1/0,6)
@@ -311,11 +380,11 @@ diff -ru src-orig/sim.js src/sim.js
 -    garraBoostBase: 0.02, garraBoostRange: 0.16,
 +    weatherMult: 1.03, weatherMultDouble: 1.08, weatherVel: 0.10, weatherAdd: 0.5,
 +    // garra: a arrancada começa em garraZone − garraZoneK·(n − 0,5) da pista; chance e força crescem com n
-+    garraZone: 0.8, garraZoneK: 0.10,
++    garraZone: 0.8, garraZoneK: 0.14,
 +    garraChanceBase: 0.50, garraChanceRange: 0.15, garraChanceMax: 0.95,
-+    garraBoostBase: 0.02, garraBoostRange: 0.22,
-+    // Dado da Sorte: chance do 2º dado = sorte / sorteDiceFull
-+    sorteDiceFull: 150,
++    garraBoostBase: 0.02, garraBoostRange: 0.26,
++    // Dado da Sorte: chance do 2º dado = (sorte − sorteDiceLo) / (sorteDiceFull − sorteDiceLo); Sorte real 40–75
++    sorteDiceLo: 40, sorteDiceFull: 80,
      // skills
      lowStaminaAt: 0.30,
      straightMinM: 150,   // gatilho 'straight' só em reta com pelo menos esse comprimento
@@ -327,23 +396,22 @@ diff -ru src-orig/sim.js src/sim.js
 -    ratingSkillPts: 18, ratingTypeW: 80,
 +    // ritmo único do jóquei (fração s da vMax): mid até spurtStart, depois sprint até spurtCap; os tetos
 +    // sobem com a Estamina: + midEst/spurtEst·(n(est) − 0,5)
-+    pace: { mid: 0.97, spurtStart: 0.72, spurtCap: 1.03, midEst: 0.04, spurtEst: 0.075 },
++    pace: { mid: 0.97, spurtStart: 0.72, spurtCap: 1.03, midEst: 0.035, spurtEst: 0.065 },
 +    // Rating de Poder: peso de cada status; cada skill soma ratingSkillPts × peso do gatilho; nível e
 +    // raridade somam ratingLevel·(nível − 1)/49 + ratingRar·ordemDaRaridade/4
-+    ratingW: { vel: 2.6, acel: 1.9, man: 2.2, est: 2.7, forca: 2.2, garra: 1.4, sorte: 0 },
-+    ratingSkillPts: 9, ratingLevel: 19, ratingRar: 27,
++    ratingW: { vel: 2.5, acel: 2.0, man: 2.2, est: 2.4, forca: 2.4, garra: 1.5, sorte: 0 },
++    ratingSkillPts: 14, ratingLevel: 20, ratingRar: 28,
 +    // build dos bots e "Distribuir sugerido": proporção de pontos comprados por status (weightedAlloc);
-+    // pesos de valor (Vel 0,9 · Ace 0,75 · Man 0,9 · For 1 · Est 1 · Gar 0,7) × 1,3 nos dois status do tipo;
-+    // Sorte só recebe a sobra
++    // os seis valem o mesmo (A1), × 1,2 nos dois status do tipo; a Sorte não recebe pontos
 +    botW: {
-+      fogo:  { vel: 1.17, acel: 0.975, man: 0.9, forca: 1, est: 1, garra: 0.7, sorte: 0.01 },
-+      agua:  { vel: 0.9, acel: 0.75, man: 0.9, forca: 1, est: 1.3, garra: 0.91, sorte: 0.01 },
-+      grama: { vel: 0.9, acel: 0.75, man: 1.17, forca: 1.3, est: 1, garra: 0.7, sorte: 0.01 }
++      fogo:  { vel: 1.2, acel: 1.2, man: 1, forca: 1, est: 1, garra: 1 },
++      agua:  { vel: 1, acel: 1, man: 1, forca: 1, est: 1.2, garra: 1.2 },
++      grama: { vel: 1, acel: 1, man: 1.2, forca: 1.2, est: 1, garra: 1 }
 +    },
      // chance de a skill disparar no gatilho: base da raridade + nível + sorte (teto 95%)
      skillPerLevel: 0.005, skillPerSorte: 0.001, skillChanceMax: 0.95,
      learnChance: 0.08,   // chance de aprender uma skill nova ao subir de nível
-@@ -294,7 +312,7 @@
+@@ -294,7 +323,7 @@
      var str = JSON.stringify({
        T: T, w: SKILL_TRIGGER_WEIGHT,
        skills: pick(GameData.SKILLS, ['element', 'trigger', 'effect']),
@@ -352,20 +420,21 @@ diff -ru src-orig/sim.js src/sim.js
        elements: pick(GameData.ELEMENTS, ['weather']),
        typeSkills: pick(GameData.TYPE_SKILLS, ['zone', 'effect']),
        surfaces: pick(GameData.SURFACES, ['slow', 'drain']),
-@@ -334,61 +352,62 @@
+@@ -334,61 +363,69 @@
      var r = horse && horse.rarity;
      return typeof r === 'string' && Object.prototype.hasOwnProperty.call(GameData.RARITIES, r) ? GameData.RARITIES[r] : GameData.RARITIES.comum;
    }
 -  // Pontos livres ganhos até o nível: piso((nível − 1) · multiplicador das estrelas).
 +  // Pontos ganhos até o nível: piso((nível − 1) · ptsRate · fator da raridade · fator das estrelas).
++  // A taxa cresce em linha reta do nível 2 (ptsRate0) ao último (ptsRate1):
++  //   soma até L = (L − 1)·r0 + (r1 − r0)·(L − 1)(L − 2)/(2·(maxLevel − 2)).
    function freePoints(horse) {
 -    return Math.floor((sanitizeLevel(horse.level) - 1) * T.starMult[starsOf(horse) - 1] + 1e-9);
-+    var fr = rarityOf(horse).ptsMult || 1;
-+    return Math.floor((sanitizeLevel(horse.level) - 1) * T.ptsRate * fr * T.starMult[starsOf(horse) - 1] + 1e-9);
-   }
--  // Limite de pontos num mesmo status: teto(freeCapShare · pontos livres).
--  function statLimit(horse) {
--    return Math.max(0, Math.ceil(T.freeCapShare * freePoints(horse) - 1e-9));   // max: nunca −0 (nível 1)
++    var fr = rarityOf(horse).ptsMult || 1, L = sanitizeLevel(horse.level), M = GameData.ECONOMY.maxLevel || 50;
++    var r0 = T.ptsRate0, r1 = T.ptsRate1;
++    var base = (L - 1) * r0 + (r1 - r0) * (L - 1) * (L - 2) / (2 * (M - 2));
++    return Math.floor(base * fr * T.starMult[starsOf(horse) - 1] + 1e-9);
++  }
 +  // Custo do i-ésimo ponto (i = 0, 1, …) num mesmo status: 1 + piso(i / costStep).
 +  function pointCost(i) { return 1 + Math.floor(i / T.costStep); }
 +  // Custo total de comprar `a` pontos num status: com a = q·step + r, step·q(q+1)/2 + r·(q+1).
@@ -373,18 +442,25 @@ diff -ru src-orig/sim.js src/sim.js
 +    var st = T.costStep, q = Math.floor(a / st), r = a - q * st;
 +    return st * q * (q + 1) / 2 + r * (q + 1);
    }
+-  // Limite de pontos num mesmo status: teto(freeCapShare · pontos livres).
+-  function statLimit(horse) {
+-    return Math.max(0, Math.ceil(T.freeCapShare * freePoints(horse) - 1e-9));   // max: nunca −0 (nível 1)
+-  }
 -  // Status natural (sem pontos, sem teto, sem equipamento): sai só da genética, da raridade e do nível.
 +  // Status sem pontos (base): sai só da raridade e da genética. Nada cresce sozinho com o nível.
    function naturalStat(horse, k) {
      var g = sanitizePotential(horse.potential && horse.potential[k]);
 -    return rarityOf(horse).baseLo + T.gBand * g / 31 + (sanitizeLevel(horse.level) - 1) * (T.gGrowBase + T.gGrowRange * g / 31);
 +    return rarityOf(horse).baseLo + T.gBand * g / 31;
++  }
++  // Máximo de pontos num status: base + pontos ≤ statMax.
++  function maxBuy(horse, k) {
++    if (T.noBuy && T.noBuy.indexOf(k) >= 0) return 0;   // Sorte fica só com a base (não recebe pontos)
++    return Math.max(0, Math.floor(T.statMax - naturalStat(horse, k) + 1e-9));
    }
 -  // Pontos distribuídos saneados: as 7 chaves, inteiros ≥ 0, cortados pelo limite por status e
 -  // depois pelo total, na ordem de STAT_KEYS. Não corta pelo teto da raridade: o ponto acima do
 -  // teto fica guardado e não rende (quem corta é computeStats).
-+  // Máximo de pontos num status: base + pontos ≤ statMax.
-+  function maxBuy(horse, k) { return Math.max(0, Math.floor(T.statMax - naturalStat(horse, k) + 1e-9)); }
 +  // Pontos comprados saneados: as 7 chaves, inteiros ≥ 0, cortados pelo teto (statMax) e depois pelo
 +  // custo total (soma dos custos ≤ pontos ganhos), na ordem de STAT_KEYS.
    function validAlloc(horse, alloc) {
@@ -445,7 +521,7 @@ diff -ru src-orig/sim.js src/sim.js
      }
      return out;
    }
-@@ -396,7 +415,9 @@
+@@ -396,7 +433,9 @@
    // Força da skill de tipo: P = 1 + 0,4·(nível − 1)/49 + 0,4·ordemDaRaridade/4
    // (Comum 1 = 1,00 · Raro 30 ≈ 1,44 · Lendário 50 = 1,70 · Mítico 50 = 1,80).
    function typePower(horse) {
@@ -456,7 +532,7 @@ diff -ru src-orig/sim.js src/sim.js
    }
    // Skill de tipo da montaria (a do elemento dela) ou null para elemento desconhecido.
    function typeSkill(horse) {
-@@ -407,34 +428,37 @@
+@@ -407,34 +446,37 @@
      return { id: ts.id, name: ts.name, power: typePower(horse), zone: [ts.zone[0], ts.zone[1]], effect: effect };
    }
  
@@ -517,7 +593,7 @@ diff -ru src-orig/sim.js src/sim.js
    // Para curva, subida e estamina baixa o peso segue a
    // chance de o gatilho acontecer numa corrida típica; clima (0.8) e dice (0.2) são pesos calibrados no
    // pacote de balanceamento, não chances: o gatilho 'dice' acontece em toda corrida (o Dado extra só mexe
-@@ -472,18 +496,15 @@
+@@ -472,18 +514,15 @@
      if (!cands.length) return null;
      return cands[Math.floor(rng() * cands.length)];
    }
@@ -541,33 +617,44 @@ diff -ru src-orig/sim.js src/sim.js
    }
  
    function leagueFor(rating) {
-@@ -683,16 +704,17 @@
+@@ -683,31 +722,45 @@
    // corrida (troca de clima, skill que reforça o bônus, bônus de Garra): só lê statsN e os totais.
    function applyWeather(r, weather) {
      var m = weatherMult(r.element, weather, r.weatherDouble);
 -    // 4 peças do conjunto do clima: ×1,07 no lugar de ×1,03 (só se a skill de clima não estiver ativa)
 -    if (!r.weatherDouble && r.gearDoubleClimate === weather && m === T.weatherMult) m = T.weatherMultSet;
 -    if (m < 1 && r.ignoreWeatherPenalty) m = 1;   // equipamento: anula a penalidade
-     var sn = r.statsN;
+-    var sn = r.statsN;
      r.weatherM = m;
 -    r.vMax = (T.vBase + T.vRange * sn.vel * m) * (1 + T.weatherVel * (m - 1));
 -    r.accel = T.aBase + T.aRange * sn.acel * m;
 -    r.nf = sn.forca * m;
 -    r.nm = sn.man * m;
 -    var ng = sn.garra * m;
-+    // clima: soma (m − 1)·weatherAdd a n (o mesmo efeito em qualquer nível)
-+    var wd = (m - 1) * T.weatherAdd;
-+    var nv = sn.vel + wd, na = sn.acel + wd;
-+    r.vMax = (T.vBase + T.vRange * nv) * (1 + T.weatherVel * (m - 1));
-+    // aceleração: com aInv1 > 0, 1/accel cai em linha reta com n (cada ponto rende o mesmo na largada)
-+    r.accel = 1 / Math.max(T.aInvMin, T.aInv0 - T.aInv1 * na);
-+    r.nf = sn.forca + wd;
-+    r.nm = sn.man + wd;
-+    var ng = sn.garra + wd;
-     r.garraChance = clamp(T.garraChanceBase + T.garraChanceRange * ng + r.garraBonusTotal, 0, T.garraChanceMax);
-     r.garraBoost = 1 + T.garraBoostBase + T.garraBoostRange * ng + r.garraBoostBonusTotal;
+-    r.garraChance = clamp(T.garraChanceBase + T.garraChanceRange * ng + r.garraBonusTotal, 0, T.garraChanceMax);
+-    r.garraBoost = 1 + T.garraBoostBase + T.garraBoostRange * ng + r.garraBoostBonusTotal;
++    derive(r, r, m, null);
++    // skill de tipo com statMul: no seu terço, os dois status do tipo valem × (1 + mul) (valores em r.Z)
++    var tsk = r.typeSkill;
++    if (tsk && tsk.mul) { var mm = {}; for (var q = 0; q < tsk.keys.length; q++) mm[tsk.keys[q]] = 1 + tsk.mul; r.Z = r.Z || {}; derive(r, r.Z, m, mm); }
++  }
++  // Valores do corredor que saem dos status: o clima soma (m − 1)·weatherAdd a n (o mesmo efeito em
++  // qualquer nível); `mul` multiplica o n de alguns status antes disso.
++  function derive(r, o, m, mul) {
++    var sn = r.statsN, wd = (m - 1) * T.weatherAdd;
++    function nx(k) { return sn[k] * (mul && mul[k] ? mul[k] : 1) + wd; }
++    o.vMax = (T.vBase + T.vRange * nx('vel')) * (1 + T.weatherVel * (m - 1));
++    // aceleração: 1/accel cai em linha reta com n (cada ponto rende o mesmo na largada)
++    o.accel = 1 / Math.max(T.aInvMin, T.aInv0 - T.aInv1 * nx('acel'));
++    o.nf = nx('forca');
++    o.nm = nx('man');
++    o.estN = sn.est * (mul && mul.est ? mul.est : 1);
++    var ng = nx('garra');
++    o.garraChance = clamp(T.garraChanceBase + T.garraChanceRange * ng + r.garraBonusTotal, 0, T.garraChanceMax);
++    o.garraBoost = 1 + T.garraBoostBase + T.garraBoostRange * ng + r.garraBoostBonusTotal;
    }
-@@ -701,13 +723,19 @@
+ 
+   // Ordem das chamadas de r.rng() (fluxo próprio de cada corredor; manter estável):
    //   montagem: 1) startDelay, 2) jockeyErr;
    //   por tick: 3) tentativas de skill (só quando um gatilho acontece; na ordem dos gatilhos
    //   start/bloco/clima/lowStamina/final e, dentro de cada gatilho, na ordem da lista de skills),
@@ -591,7 +678,7 @@ diff -ru src-orig/sim.js src/sim.js
      var statsN = {};
      for (var i = 0; i < STAT_KEYS.length; i++) statsN[STAT_KEYS[i]] = stats[STAT_KEYS[i]] / 100;
      var skills = (horse.skills || []).filter(function (id) { return !!GameData.SKILLS[id]; });
-@@ -718,15 +746,13 @@
+@@ -718,15 +771,13 @@
        element: horse.element,
        stats: stats,
        statsN: statsN,
@@ -609,7 +696,7 @@ diff -ru src-orig/sim.js src/sim.js
        jockeyErr: T.jockeyErrMin + rng() * (T.jockeyErrMax - T.jockeyErrMin),
        rng: rng,
        skills: skills,
-@@ -737,6 +763,8 @@
+@@ -737,6 +788,8 @@
        pos: 0, v: 0, stamina: 1,
        exhausted: false, finished: false, finishTime: null,
        garraRolled: false, garraMult: 1,
@@ -618,16 +705,26 @@ diff -ru src-orig/sim.js src/sim.js
        typeSkill: null
      };
      // skill de tipo: sempre ativa no terço [zone[0]·D, zone[1]·D), força typePower; montada sem RNG.
-@@ -765,7 +793,7 @@
+@@ -745,7 +798,8 @@
+     if (ts) {
+       var te = ts.effect, P = ts.power, D = cond.distance;
+       var from = ts.zone[0] * D, to = ts.zone[1] * D;
+-      r.typeSkill = { id: ts.id, name: ts.name, from: from, to: to, restore: (te.staminaRestore || 0) * P, entered: false };
++      r.typeSkill = { id: ts.id, name: ts.name, from: from, to: to, restore: (te.staminaRestore || 0) * P, entered: false,
++        mul: (te.statMul || 0) * P, keys: te.statKeys || TYPE_STATS[horse.element] };
+       r.effects.push({
+         untilT: null, fromPos: from, untilPos: ts.zone[1] >= 1 ? null : to,
+         speedMult: 1 + (te.speedMult || 0) * P,
+@@ -765,7 +819,7 @@
    // Sorte = chance, em %, de rolar dois dados e ficar com o melhor; extraDice limitado a 1 (até 3 dados).
    function rollDice(rng, sorte, extraDice) {
      var dice = [1 + Math.floor(rng() * 100)];
 -    var p = clamp((sorte || 0) / 100, 0, 1);
-+    var p = clamp((sorte || 0) / T.sorteDiceFull, 0, 1);
++    var p = clamp(((sorte || 0) - T.sorteDiceLo) / (T.sorteDiceFull - T.sorteDiceLo), 0, 1);
      if (rng() < p) dice.push(1 + Math.floor(rng() * 100));
      var extra = clamp(Math.floor(extraDice || 0), 0, 1);
      for (var k = 0; k < extra; k++) dice.push(1 + Math.floor(rng() * 100));
-@@ -906,7 +934,7 @@
+@@ -906,7 +960,7 @@
          // clima (checado a cada tick: pode passar a valer quando o clima mudar)
          trigger(r, 'weather:' + cond.weatherAtual, tPrev, pos, blk.to);
          if (r.stamina <= T.lowStaminaAt && !r.exhausted) trigger(r, 'lowStamina', tPrev, pos, blk.to);
@@ -636,25 +733,37 @@ diff -ru src-orig/sim.js src/sim.js
  
          // skill de tipo: entrada no terço (uma vez): recupera estamina (se não estiver exausto) e narra
          var tsk = r.typeSkill;
-@@ -929,7 +957,7 @@
+@@ -915,6 +969,8 @@
+           if (tsk.restore && !r.exhausted) r.stamina = Math.min(1, r.stamina + tsk.restore);
+           events.push({ t: r2(tPrev), racer: r.index, type: 'skill', text: r.label + ' ativou ' + tsk.name + '!', typeSkill: true });
+         }
++        // no terço da skill de tipo (statMul), os valores dos dois status do tipo vêm de r.Z
++        var Z = (tsk && tsk.mul && pos >= tsk.from && pos < tsk.to) ? r.Z : r;
+ 
+         // efeitos ativos (fromPos/untilPos: trecho da pista onde valem)
+         var effSpeed = 1, effAccel = 1, effDrain = 1, curveBonus = 0, hillBonus = 0, hillDrainMult = 1, forcaAdd = 0, manAdd = 0;
+@@ -929,16 +985,16 @@
          }
  
          // Garra
 -        if (!r.garraRolled && p >= T.garraZone) {
 +        if (!r.garraRolled && p >= r.garraFrom) {
            r.garraRolled = true;
-           if (r.rng() < r.garraChance) {
-             r.garraMult = r.garraBoost;
-@@ -938,7 +966,7 @@
+-          if (r.rng() < r.garraChance) {
+-            r.garraMult = r.garraBoost;
++          if (r.rng() < Z.garraChance) {
++            r.garraMult = Z.garraBoost;
+             ev(tPrev, i, 'garra', r.label + ' mostrou GARRA na reta final!');
+           }
          }
  
          // terreno e bloco
 -        var nf = clamp(r.nf + forcaAdd, 0, 1.2), nm = clamp(r.nm + manAdd, 0, 1.2);
-+        var nf = clamp(r.nf + forcaAdd, 0, T.nEffMax), nm = clamp(r.nm + manAdd, 0, T.nEffMax);
++        var nf = clamp(Z.nf + forcaAdd, 0, T.nEffMax), nm = clamp(Z.nm + manAdd, 0, T.nEffMax);
          var speedMod = weatherSlow;
          var drainMod = surf.drain * weatherDrain * distDrain * effDrain;
          speedMod *= 1 - surf.slow * (1 - T.forcaSurfRelief * nf);
-@@ -958,7 +986,7 @@
+@@ -958,7 +1014,7 @@
            if (gap >= T.draftMin && gap <= T.draftRange) drafting = true;
          }
          if (neighbors > 0) {
@@ -663,18 +772,39 @@ diff -ru src-orig/sim.js src/sim.js
          }
          if (drafting) drainMod *= 1 - T.draftSave;
  
-@@ -974,7 +1002,9 @@
+@@ -972,24 +1028,26 @@
+           // dura 1/fatorSubida a mais: o jóquei prevê isso na fração de subida restante
+           var fsH = Math.min(1, T.hillBase + T.hillRange * nf);
            var cEst = surf.drain * weatherDrain * distDrain * (1 + hf * ((1 + T.hillDrain * (1 - 0.5 * nf)) / fsH - 1));
-           var vRef = r.vMax * speedMod;
+-          var vRef = r.vMax * speedMod;
++          var vRef = Z.vMax * speedMod;
            var aff = affordablePace(r.stamina + r.jockeyErr - T.rationReserve, rem, vRef, r.pool, cEst);
 -          s = Math.min(p < T.pace.spurtStart ? T.pace.mid : T.pace.spurtCap, aff);
 +          // teto do ritmo: o da fase, mais o da Estamina (centrado em 50: midEst/spurtEst por unidade de n)
-+          var capS = p < T.pace.spurtStart ? T.pace.mid + T.pace.midEst * (r.statsN.est - 0.5) : T.pace.spurtCap + T.pace.spurtEst * (r.statsN.est - 0.5);
++          var capS = p < T.pace.spurtStart ? T.pace.mid + T.pace.midEst * (Z.estN - 0.5) : T.pace.spurtCap + T.pace.spurtEst * (Z.estN - 0.5);
 +          s = Math.min(capS, aff);
            s = Math.max(s, T.minPace);
          }
  
-@@ -1150,7 +1180,10 @@
+         var boost = effSpeed * r.garraMult;
+         var jitter = 1 + (r.rng() - 0.5) * T.tickJitter;
+-        var vTarget = s * r.vMax * speedMod * fatorBloco * boost * jitter;
++        var vTarget = s * Z.vMax * speedMod * fatorBloco * boost * jitter;
+ 
+-        if (r.v < vTarget) r.v = Math.min(vTarget, r.v + r.accel * effAccel * dt);
++        if (r.v < vTarget) r.v = Math.min(vTarget, r.v + Z.accel * effAccel * dt);
+         else r.v = Math.max(vTarget, r.v - T.decel * dt);
+ 
+         // gasto de estamina (boosts não custam)
+         if (!r.exhausted) {
+           // na subida o fatorBloco é esforço, não descanso: sem dividir por ele, quem é lento na
+           // subida gasta menos estamina e recupera no fim (o especialista de Força perdia na subida)
+-          var sEff = r.v / (r.vMax * boost * (blk.type === 'subida' ? fatorBloco : 1));
++          var sEff = r.v / (Z.vMax * boost * (blk.type === 'subida' ? fatorBloco : 1));
+           r.stamina -= T.drainK * powi(sEff, T.drainExp) * drainMod * dt / r.pool;
+           if (r.stamina <= 0) {
+             r.stamina = 0;
+@@ -1150,7 +1208,10 @@
      computeStats: computeStats,
      starsOf: starsOf,
      freePoints: freePoints,
@@ -688,7 +818,7 @@ diff -ru src-orig/sim.js src/sim.js
      allocInfo: allocInfo,
 diff -ru tools-orig/balance.js tools/balance.js
 --- tools-orig/balance.js	2026-11-12 00:12:53.193155302 +0000
-+++ tools/balance.js	2026-11-12 02:06:41.248045179 +0000
++++ tools/balance.js	2026-11-12 03:19:43.450602433 +0000
 @@ -1,7 +1,8 @@
  #!/usr/bin/env node
  /*
@@ -849,7 +979,7 @@ diff -ru tools-orig/balance.js tools/balance.js
        o.stat[kk][0] += d; o.stat[kk][1] += d * d;
      });
      // S1 mede como sempre mediu: rivais sem skills normais (com elas, o alvo sem skill fica abaixo do
-@@ -396,55 +365,32 @@
+@@ -396,56 +365,36 @@
    }
    return o;
  }
@@ -910,18 +1040,24 @@ diff -ru tools-orig/balance.js tools/balance.js
  // PVP de 8 (duração): raridade e nível sorteados para a sala; 8 sintéticos dessa raridade e nível
  // (estrelas e genética sorteadas, build de bot).
 +// P: { rarity, level, grau } fixa a sala (nível alto); sem eles, sorteia como antes.
++// A liga da sala é a do Poder médio dos 8; as durações vão também para lists['<liga><faixa>'].
  function tPvp8(P, a, b) {
-   var o = { lists: { dur0: [], dur1: [], dur2: [] } };
+-  var o = { lists: { dur0: [], dur1: [], dur2: [] } };
++  var o = { lists: { dur0: [], dur1: [], dur2: [] }, league: {} };
++  G.LEAGUES.forEach(function (lg) { [0, 1, 2].forEach(function (g) { o.lists[lg.id + g] = []; }); o.league[lg.id] = 0; });
    for (var k = a; k < b; k++) {
      var seed = seedOf(600, k), rng = rngOf(seed, 4242), cond = S.randomConditions(seed);
 -    var rar = pickRar(rng), lv = 1 + Math.floor(rng() * 50), rs = [];
 -    for (var q = 0; q < 8; q++) rs.push(racer(build({ rarity: rar, level: lv, grau: 1 + Math.floor(rng() * 3), policy: 'bot' }, rng, {}, G.BOT_NAMES[q]).h));
-+    var rar = P.rarity || pickRar(rng), lv = P.level || 1 + Math.floor(rng() * 50), rs = [];
-+    for (var q = 0; q < 8; q++) rs.push(racer(build({ rarity: rar, level: lv, grau: P.grau || 1 + Math.floor(rng() * 3), policy: 'bot' }, rng, {}, G.BOT_NAMES[q]).h));
-     o.lists['dur' + distGroup(cond.distance)].push(run(seed, cond, rs).duration);
+-    o.lists['dur' + distGroup(cond.distance)].push(run(seed, cond, rs).duration);
++    var rar = P.rarity || pickRar(rng), lv = P.level || 1 + Math.floor(rng() * 50), rs = [], pw = 0;
++    for (var q = 0; q < 8; q++) { var h = build({ rarity: rar, level: lv, grau: P.grau || 1 + Math.floor(rng() * 3), policy: 'bot' }, rng, {}, G.BOT_NAMES[q]).h; pw += S.powerRating(h); rs.push(racer(h)); }
++    var d = run(seed, cond, rs).duration, gi = distGroup(cond.distance), lg = S.leagueFor(pw / 8).id;
++    o.lists['dur' + gi].push(d); o.lists[lg + gi].push(d); o.league[lg]++;
    }
    return o;
-@@ -472,7 +418,7 @@
+ }
+@@ -472,7 +421,7 @@
    return o;
  }
  var TASKS = { starters: tStarters, duel: tDuel, catDuel: tCatDuel, spec: tSpec, typeGain: tTypeGain, audit: tAudit,
@@ -930,7 +1066,7 @@ diff -ru tools-orig/balance.js tools/balance.js
  
  if (!WT.isMainThread) {
    WT.parentPort.on('message', function (m) { WT.parentPort.postMessage({ id: m.id, data: TASKS[m.task](m.params, m.a, m.b) }); });
-@@ -542,22 +488,18 @@
+@@ -542,22 +491,21 @@
  // nos dois modos (duelos são baratos); M6, M9, P1, S1 e A1 só contam no completo.
  function NN(full, quick) { return QUICK ? quick : full; }
  var N_M1 = 15000, N_CLIMA = n(3000), N_SPEC = n(2000), N_4A = n(1500);
@@ -955,10 +1091,13 @@ diff -ru tools-orig/balance.js tools/balance.js
 +// M6: rodízio das builds realistas (POLICIES) e das "tudo num status" (POLICIES_ALL, só informação), Raro ★★
 +var M6_LV = [11, 30, 50], M6_B = POLICIES.concat(POLICIES_ALL);
 +if (!QUICK) M6_LV.forEach(function (lv) { job('m6-' + lv, 'robin', { builds: M6_B, spec: { rarity: 'raro', level: lv, grau: 2 }, seed: 61 + lv }, N_M6, 8); });
++// informativo: as pontas da progressão (Comum ★★ 50 e Mítico ★★★ 50), só as builds realistas
++var M6_X = [['comum', 50, 2], ['mitico', 50, 3]];
++if (!QUICK) M6_X.forEach(function (c) { job('m6x-' + c[0], 'robin', { builds: POLICIES, spec: { rarity: c[0], level: c[1], grau: c[2] }, seed: 161 }, N_M6, 8); });
  job('m1', 'starters', { s0: 13, level: 1 }, N_M1, 8);
  STARTERS.forEach(function (h, i) { job('clima-' + h.id, 'starters', { s0: (200 + i) * 7919 + 13, level: 1, weather: G.ELEMENTS[h.element].weather, noDice: true }, N_CLIMA, 2); });
  var M3_RAR = ['comum', 'raro', 'lendario'], M3_LV = [1, 20, 40];
-@@ -569,22 +511,15 @@
+@@ -569,22 +517,15 @@
    job('m5-31-' + rar, 'duel', { A: { rarity: rar, level: 50, grau: 3 }, B: { rarity: rar, level: 50, grau: 1 }, sameG: true, seed: 52 }, N_M5, 2);
    job('m5-21-' + rar, 'duel', { A: { rarity: rar, level: 50, grau: 2 }, B: { rarity: rar, level: 50, grau: 1 }, sameG: true, seed: 53 }, N_M5, 2);
  });
@@ -986,7 +1125,7 @@ diff -ru tools-orig/balance.js tools/balance.js
  ];
  SPEC.forEach(function (sp, si) { job('spec-' + sp[0], 'spec', { map: sp[2], statA: sp[3], statB: sp[4], test: 300 + si }, N_SPEC, 2); });
  var miticos = G.WILD_HORSES.filter(function (h) { return h.rarity === 'mitico'; });
-@@ -641,7 +576,7 @@
+@@ -641,7 +582,7 @@
    // -------------------------------------------------------------------------
    // 2) Inicial com o clima do seu elemento fixo (Dado desligado)
    // -------------------------------------------------------------------------
@@ -995,7 +1134,7 @@ diff -ru tools-orig/balance.js tools/balance.js
    log('');
    log('Mapas aleatórios com o clima trocado pelo do elemento do inicial, fixo durante toda a corrida (`diceAt = []` nesta seção).');
    log('');
-@@ -649,7 +584,7 @@
+@@ -649,7 +590,7 @@
    log('|---|---|---|---|');
    STARTERS.forEach(function (h, i) {
      var w = G.ELEMENTS[h.element].weather, rc = R['clima-' + h.id], v = pct(rc.w[i], rc.n);
@@ -1004,7 +1143,7 @@ diff -ru tools-orig/balance.js tools/balance.js
      var mults = STARTERS.map(function (x) { return '×' + f2(S.weatherMult(x.element, w, false)); }).join(' · ');
      log('| ' + h.name + ' | ' + G.WEATHERS[w].name + ' | ' + mults + ' | **' + f1(v) + '%** |');
    });
-@@ -658,9 +593,9 @@
+@@ -658,9 +599,9 @@
    // -------------------------------------------------------------------------
    // 3) Especialistas por trecho
    // -------------------------------------------------------------------------
@@ -1016,7 +1155,7 @@ diff -ru tools-orig/balance.js tools/balance.js
      '3b rebaseada para 70%–100%: sem Disposição do dia (intencional no v2) não há ruído por corrida, e em reta pura VEL 90 contra 60 decide quase sempre. ' +
      'Os dois corredores são do mesmo tipo e correm sem a skill de tipo (`noTypeSkill`), para o duelo medir só o status.');
    log('');
-@@ -724,58 +659,58 @@
+@@ -724,58 +665,67 @@
    // -------------------------------------------------------------------------
    // M6) Nenhuma build dominante
    // -------------------------------------------------------------------------
@@ -1054,8 +1193,17 @@ diff -ru tools-orig/balance.js tools/balance.js
 +      var mx = Math.max.apply(null, avg6[lv].slice(0, nb6)), in45 = avg6[lv].slice(0, nb6).filter(function (v) { return v >= 45 && v <= 60; }).length;
 +      check('M6', 'Maior média de build realista, nível ' + lv, mx, 0, 60);
 +      check('M6', 'Builds realistas entre 45% e 60%, nível ' + lv, in45, 4, 99, '');
++      // v3b rodada 2: toda inclinada num status de corrida e a `tipo` com pelo menos 47% de média
++      POLICIES.forEach(function (pol, i) { if (pol.indexOf('inc:') === 0 || pol === 'tipo') check('M6', 'Build `' + pol + '` (média), nível ' + lv, avg6[lv][i], 47, 100); });
 +      return '**' + f1(mx) + '%** (' + in45 + ' em 45–60)';
 +    }).join(' | ') + ' |');
++    log('');
++    log('Informativo (pontas da progressão, só as builds realistas; meta desejada ≤ 60%, não cobrada): ' + M6_X.map(function (c) {
++      var r = R['m6x-' + c[0]], av = POLICIES.map(function (pol, i) { var w = 0, nn = 0; for (var j = 0; j < nb6; j++) if (j !== i) { w += r.w[i][j]; nn += r.n[i][j]; } return pct(w, nn); });
++      var mx = 0, mi = 0; av.forEach(function (v, i) { if (v > mx) { mx = v; mi = i; } });
++      return G.RARITIES[c[0]].name + ' ' + '★★★'.slice(0, c[2]) + ' ' + c[1] + ': maior média ' + f1(mx) + '% (`' + POLICIES[mi] + '`); ' +
++        POLICIES.map(function (pol, i) { return '`' + pol + '` ' + f1(av[i]); }).join(' · ');
++    }).join('. ') + '.');
    }
    log('');
  
@@ -1113,7 +1261,7 @@ diff -ru tools-orig/balance.js tools/balance.js
    log('');
  
    // -------------------------------------------------------------------------
-@@ -813,33 +748,13 @@
+@@ -813,45 +763,47 @@
    log('');
  
    // -------------------------------------------------------------------------
@@ -1145,54 +1293,96 @@ diff -ru tools-orig/balance.js tools/balance.js
    // 5) Duração das corridas
    // -------------------------------------------------------------------------
 -  log('### 5. Duração (tempo de simulação até o último cruzar a linha; meta: curta 88–104 s, longa 116–138 s, em volta dos 96 e 127 s da calibração)');
-+  log('### 5. Duração (tempo de simulação até o último cruzar a linha; meta: curta 88–104 s, longa 116–138 s, para os iniciais, o PVP sorteado e as salas de nível 50)');
-   log('');
-   log('Iniciais: as ' + r1.n + ' corridas da M1. PVP de 8: ' + N_PVP + ' salas de 8 sintéticos da mesma raridade e nível (sorteados por sala), estrelas e genética sorteadas, build de bot.');
-   log('');
-@@ -854,6 +769,18 @@
-       f1(mean(m)) + ' s (' + f1(quant(m, 0.05)) + '–' + f1(quant(m, 0.95)) + ') | ' + meta + ' |');
-   });
-   log('');
-+  log('Nível alto: salas de 8 sintéticos de nível 50 (' + N_HI + ' por linha), genética sorteada, build de bot. Média do último a chegar (e do vencedor).');
++  // faixas por liga (média do último a chegar; curta 1.400–1.599 m, longa 1.800–2.000 m)
++  var DUR_BANDS = { bronze: [92, 104, 121, 136], prata: [90, 102, 119, 133], ouro: [88, 100, 117, 131],
++    platina: [86, 98, 114, 128], diamante: [84, 96, 112, 126], lenda: [80, 94, 106, 122] };
++  function bandTxt(b) { return b[0] + '–' + b[1] + ' / ' + b[2] + '–' + b[3] + ' s'; }
++  log('### 5. Duração por liga (tempo até o último cruzar a linha; meta: a média de cada liga dentro da faixa dela; a corrida mais rápida, Mítico ★★★ 50, a no máximo 20% abaixo dos iniciais)');
 +  log('');
-+  log('| Sala | Curta | Média | Longa |');
-+  log('|---|---|---|---|');
-+  HI.forEach(function (c) {
-+    var x = R['hi-' + c.join('-')];
-+    var lab = G.RARITIES[c[0]].name + ' ' + '★★★'.slice(0, c[2]) + ' nível ' + c[1];
-+    check('5', 'Duração curta, ' + lab, mean(x.lists.dur0), 88, 104, ' s');
-+    check('5', 'Duração longa, ' + lab, mean(x.lists.dur2), 116, 138, ' s');
-+    log('| ' + lab + ' | ' + [0, 1, 2].map(function (g) { return f1(mean(x.lists['dur' + g])) + ' s'; }).join(' | ') + ' |');
++  log('Iniciais: as ' + r1.n + ' corridas da M1 (Bronze). PVP de 8: ' + N_PVP + ' salas de 8 sintéticos da mesma raridade e nível (sorteados por sala), estrelas e genética sorteadas, build de bot; a liga da sala é a do Poder médio.');
++  log('');
++  log('| Liga | Faixa curta / longa | Salas | Curta: média (p5–p95) | Longa: média (p5–p95) |');
++  log('|---|---|---|---|---|');
++  G.LEAGUES.forEach(function (lg) {
++    var b = DUR_BANDS[lg.id], c = R.pvp8.lists[lg.id + 0], l = R.pvp8.lists[lg.id + 2];
++    if (c.length) check('5', 'Duração curta, PVP de 8 na liga ' + lg.name, mean(c), b[0], b[1], ' s');
++    if (l.length) check('5', 'Duração longa, PVP de 8 na liga ' + lg.name, mean(l), b[2], b[3], ' s');
++    log('| ' + lg.name + ' | ' + bandTxt(b) + ' | ' + R.pvp8.league[lg.id] + ' | ' + (c.length ? f1(mean(c)) + ' s (' + f1(quant(c, 0.05)) + '–' + f1(quant(c, 0.95)) + ')' : '—') + ' | ' +
++      (l.length ? f1(mean(l)) + ' s (' + f1(quant(l, 0.05)) + '–' + f1(quant(l, 0.95)) + ')' : '—') + ' |');
 +  });
 +  log('');
- 
-   // -------------------------------------------------------------------------
-   // 6) Pagamentos
-@@ -894,19 +821,19 @@
-   // -------------------------------------------------------------------------
-   var N7 = 4000, rng7 = S.mulberry32(seedOf(750, 0)), w7 = 0, sum100 = 0, sum0 = 0, n0 = 0;
-   for (var i7 = 0; i7 < N7; i7++) {
--    var me = S.rollDice(rng7, 100, 0).best, top = 0;
-+    var me = S.rollDice(rng7, S.TUNING.sorteDiceFull, 0).best, top = 0;
-     sum100 += me;
-     for (var j7 = 0; j7 < 7; j7++) { var b7 = S.rollDice(rng7, 0, 0).best; sum0 += b7; n0++; if (b7 > top) top = b7; }
-     if (me > top) w7++;
-   }
-   var v7 = pct(w7, N7);
--  check('7', 'Sorte 100 contra sete de Sorte 0 vence o dado', v7, 18, 28, '%');
-+  check('7', 'Sorte ' + S.TUNING.sorteDiceFull + ' contra sete de Sorte 0 vence o dado', v7, 18, 28, '%');
-   log('### 7. Dado da Sorte (`rollDice`, ' + N7 + ' rodadas; meta: 18%–28%; sem viés seria 12,5%)');
++  var bz = DUR_BANDS.bronze, sc = mean(r1.lists.dur0), sl = mean(r1.lists.dur2);
++  check('5', 'Duração curta, iniciais nível 1 (Bronze)', sc, bz[0], bz[1], ' s');
++  check('5', 'Duração longa, iniciais nível 1 (Bronze)', sl, bz[2], bz[3], ' s');
++  log('Iniciais nível 1: curta ' + f1(sc) + ' s · média ' + f1(mean(r1.lists.dur1)) + ' s · longa ' + f1(sl) + ' s (vencedor: ' + [0, 1, 2].map(function (g) { return f1(mean(r1.lists['win' + g])); }).join(' / ') + ' s).');
    log('');
-   log('| Métrica | Valor |');
+-  log('Iniciais: as ' + r1.n + ' corridas da M1. PVP de 8: ' + N_PVP + ' salas de 8 sintéticos da mesma raridade e nível (sorteados por sala), estrelas e genética sorteadas, build de bot.');
++  log('Nível alto: salas de 8 sintéticos de nível 50 (' + N_HI + ' por linha), genética sorteada, build de bot; cada sala contra a faixa da liga do Poder médio dela.');
+   log('');
+-  log('| Distância | Iniciais nível 1: média (p5–p95) | Vencedor: média | PVP de 8: média (p5–p95) | Meta |');
++  log('| Sala | Liga | Curta | Média | Longa |');
+   log('|---|---|---|---|---|');
+-  [0, 1, 2].forEach(function (g) {
+-    var a = r1.lists['dur' + g], m = R.pvp8.lists['dur' + g];
+-    var meta = g === 0 ? '88–104 s' : (g === 2 ? '116–138 s' : '—');
+-    if (g === 0) { check('5', 'Duração curta (1.400–1.599 m), iniciais', mean(a), 88, 104, ' s'); check('5', 'Duração curta (1.400–1.599 m), PVP 8', mean(m), 88, 104, ' s'); }
+-    if (g === 2) { check('5', 'Duração longa (1.800–2.000 m), iniciais', mean(a), 116, 138, ' s'); check('5', 'Duração longa (1.800–2.000 m), PVP 8', mean(m), 116, 138, ' s'); }
+-    log('| ' + GROUP_LABEL[g] + ' | ' + f1(mean(a)) + ' s (' + f1(quant(a, 0.05)) + '–' + f1(quant(a, 0.95)) + ') | ' + f1(mean(r1.lists['win' + g])) + ' s | ' +
+-      f1(mean(m)) + ' s (' + f1(quant(m, 0.05)) + '–' + f1(quant(m, 0.95)) + ') | ' + meta + ' |');
++  HI.forEach(function (c) {
++    var x = R['hi-' + c.join('-')], lab = G.RARITIES[c[0]].name + ' ' + '★★★'.slice(0, c[2]) + ' nível ' + c[1];
++    var lgId = Object.keys(x.league).filter(function (id) { return x.league[id] > 0; }).sort(function (p, q) { return x.league[q] - x.league[p]; })[0];
++    var b = DUR_BANDS[lgId];
++    check('5', 'Duração curta, ' + lab + ' (' + lgId + ')', mean(x.lists.dur0), b[0], b[1], ' s');
++    check('5', 'Duração longa, ' + lab + ' (' + lgId + ')', mean(x.lists.dur2), b[2], b[3], ' s');
++    if (c[0] === 'mitico') check('5', 'Corrida mais rápida (Mítico ★★★ 50, curta) ÷ iniciais (curta)', mean(x.lists.dur0) / sc, 0.8, 1, '×');
++    log('| ' + lab + ' | ' + lgId + ' | ' + [0, 1, 2].map(function (g) { return f1(mean(x.lists['dur' + g])) + ' s'; }).join(' | ') + ' |');
+   });
+   log('');
+ 
+@@ -892,22 +844,27 @@
+   // -------------------------------------------------------------------------
+   // 7) Dado da Sorte (rollDice direto, sem simulação)
+   // -------------------------------------------------------------------------
+-  var N7 = 4000, rng7 = S.mulberry32(seedOf(750, 0)), w7 = 0, sum100 = 0, sum0 = 0, n0 = 0;
+-  for (var i7 = 0; i7 < N7; i7++) {
+-    var me = S.rollDice(rng7, 100, 0).best, top = 0;
+-    sum100 += me;
+-    for (var j7 = 0; j7 < 7; j7++) { var b7 = S.rollDice(rng7, 0, 0).best; sum0 += b7; n0++; if (b7 > top) top = b7; }
+-    if (me > top) w7++;
+-  }
+-  var v7 = pct(w7, N7);
+-  check('7', 'Sorte 100 contra sete de Sorte 0 vence o dado', v7, 18, 28, '%');
+-  log('### 7. Dado da Sorte (`rollDice`, ' + N7 + ' rodadas; meta: 18%–28%; sem viés seria 12,5%)');
++  // Sorte real: só a base (raridade + genética), de 40 (Comum, g 0) a 76 (Mítico, g 31). Vitória no Dado
++  // (empate no topo conta meio).
++  var N7 = 20000, SORTE_LO = G.RARITIES.comum.baseLo, SORTE_HI = Math.round(G.RARITIES.mitico.baseLo + S.TUNING.gBand), SORTE_C31 = Math.round(G.RARITIES.comum.baseLo + S.TUNING.gBand);
++  function diceWin(me, them, salt) {
++    var rng7 = S.mulberry32(seedOf(750, salt)), w = 0;
++    for (var i7 = 0; i7 < N7; i7++) {
++      var a7 = S.rollDice(rng7, me, 0).best, top = 0;
++      for (var j7 = 0; j7 < 7; j7++) { var b7 = S.rollDice(rng7, them, 0).best; if (b7 > top) top = b7; }
++      if (a7 > top) w++; else if (a7 === top) w += 0.5;
++    }
++    return pct(w, N7);
++  }
++  var v7 = diceWin(SORTE_HI, SORTE_LO, 0), v7b = diceWin(SORTE_C31, SORTE_LO, 1), v7c = diceWin(SORTE_LO, SORTE_LO, 2);
++  check('7', 'Sorte ' + SORTE_HI + ' (Mítico, genética 31) contra sete de Sorte ' + SORTE_LO + ' (Comum, genética 0) vence o Dado', v7, 17, 25, '%');
++  log('### 7. Dado da Sorte (`rollDice`, ' + N7 + ' rodadas por linha; chance do 2º dado = (Sorte − ' + S.TUNING.sorteDiceLo + ')/' + (S.TUNING.sorteDiceFull - S.TUNING.sorteDiceLo) + '; meta: Mítico g31 × sete Comum g0 entre 17% e 25%; sem viés seria 12,5%)');
+   log('');
+-  log('| Métrica | Valor |');
++  log('| Duelo de dados (1 contra 7) | Vence |');
    log('|---|---|');
 -  log('| Sorte 100 tira mais que os sete de Sorte 0 | **' + f1(v7) + '%** |');
 -  log('| Média do dado com Sorte 100 | ' + f1(sum100 / N7) + ' |');
-+  log('| Sorte ' + S.TUNING.sorteDiceFull + ' tira mais que os sete de Sorte 0 | **' + f1(v7) + '%** |');
-+  log('| Média do dado com Sorte ' + S.TUNING.sorteDiceFull + ' | ' + f1(sum100 / N7) + ' |');
-   log('| Média do dado com Sorte 0 | ' + f1(sum0 / n0) + ' |');
+-  log('| Média do dado com Sorte 0 | ' + f1(sum0 / n0) + ' |');
++  log('| Sorte ' + SORTE_HI + ' (Mítico, g 31) × sete de Sorte ' + SORTE_LO + ' (Comum, g 0) | **' + f1(v7) + '%** |');
++  log('| Sorte ' + SORTE_C31 + ' (Comum, g 31) × sete de Sorte ' + SORTE_LO + ' (Comum, g 0) | ' + f1(v7b) + '% |');
++  log('| Sorte ' + SORTE_LO + ' × sete de Sorte ' + SORTE_LO + ' (referência) | ' + f1(v7c) + '% |');
    log('');
  
-@@ -947,7 +874,7 @@
+   // -------------------------------------------------------------------------
+@@ -947,7 +904,7 @@
    var framesOk = sample.frames.length > 10 && sample.frames[0].t === 0 &&
      sample.frames.every(function (f, i) { return Math.abs(f.t - i * sample.dt) < 1e-9 && f.pos.length === sample.finishOrder.length; }) &&
      sample.finishOrder.slice().sort().join() === sample.finishOrder.map(function (x, i) { return i; }).join();
@@ -1201,12 +1391,15 @@ diff -ru tools-orig/balance.js tools/balance.js
      detOk && framesOk, framesOk ? '' : 'frames inválidos');
    checkBool('9', 'Seeds diferentes => corridas diferentes', JSON.stringify(S.simulate(detConfig(seedOf(900, 1)))) !== JSON.stringify(S.simulate(detConfig(seedOf(900, 2)))));
  
-@@ -1008,7 +935,7 @@
+@@ -1008,7 +965,10 @@
    KEYS.forEach(function (k) { gains[k] = ci(AU.stat[k][0], AU.stat[k][1], N_AUD); });
    var six = RACE.map(function (k) { return gains[k][0]; }).sort(function (x, y) { return x - y; });
    var med = (six[2] + six[3]) / 2;
 -  log('A1: +10 num status (equipamento sintético) no alvo. Meta: nenhum dos seis status de corrida acima de 3,2× a mediana deles (' + f1(med) + ' p.p. → teto ' + f1(3.2 * med) + ') nem abaixo de 3 p.p.; Sorte isenta (decisão de design pendente).');
-+  log('A1: +10 num status (gancho `statAdd`) no alvo. Meta: nenhum dos seis status de corrida acima de 3,2× a mediana deles (' + f1(med) + ' p.p. → teto ' + f1(3.2 * med) + ') nem abaixo de 3 p.p.; Sorte isenta (decisão de design pendente).');
++  var sixV = RACE.map(function (k) { return gains[k][0]; });
++  var ratio6 = Math.max.apply(null, sixV) / Math.min.apply(null, sixV);
++  if (!QUICK) check('A1', 'Maior ÷ menor ganho entre os seis status de corrida (alvo 1,25; IC de cada ganho ±1,4 p.p.)', ratio6, 0, 1.3, '×');
++  log('A1: +10 num status (gancho `statAdd`) no alvo. Maior ÷ menor entre os seis: ' + f2(ratio6) + '×. Meta: nenhum dos seis status de corrida acima de 3,2× a mediana deles (' + f1(med) + ' p.p. → teto ' + f1(3.2 * med) + ') nem abaixo de 3 p.p.; Sorte isenta (decisão de design pendente).');
    log('');
    log('| Status | Ganho de vitória (p.p., IC 95%) | ÷ mediana |');
    log('|---|---|---|');

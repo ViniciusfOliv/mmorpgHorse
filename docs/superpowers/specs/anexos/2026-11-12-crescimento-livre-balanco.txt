@@ -6,9 +6,9 @@ Gerado por `node tools/balance.js`. Mapas aleatórios em blocos (`randomConditio
 
 | Inicial | Vitórias (15000 corridas) | curta (1.400–1.599 m) | média (1.600–1.799 m) | longa (1.800–2.000 m) |
 |---|---|---|---|---|
-| Brasa | **32,6%** | 42,5% | 32,5% | 24,5% |
-| Maré | **34,9%** | 28,7% | 34,9% | 39,9% |
-| Ipê | **32,6%** | 28,8% | 32,6% | 35,6% |
+| Brasa | **31,8%** | 38,9% | 30,8% | 26,7% |
+| Maré | **33,3%** | 29,9% | 33,8% | 35,7% |
+| Ipê | **34,9%** | 31,2% | 35,4% | 37,6% |
 
 ### 2. Inicial com o clima do seu elemento fixo, sem Dado (meta: 45%–68%; v3b: a corrida ficou menos ruidosa, a vantagem fixa de clima pesa um pouco mais)
 
@@ -16,19 +16,19 @@ Mapas aleatórios com o clima trocado pelo do elemento do inicial, fixo durante 
 
 | Inicial | Clima | Multiplicadores (Brasa · Maré · Ipê) | Vitórias (3000) |
 |---|---|---|---|
-| Brasa | Sol | ×1,03 · ×1,00 · ×0,97 | **60,4%** |
-| Maré | Chuva | ×0,97 · ×1,03 · ×1,00 | **65,7%** |
-| Ipê | Névoa | ×1,00 · ×0,97 · ×1,03 | **63,3%** |
+| Brasa | Sol | ×1,03 · ×1,00 · ×0,97 | **62,8%** |
+| Maré | Chuva | ×0,97 · ×1,03 · ×1,00 | **61,6%** |
+| Ipê | Névoa | ×1,00 · ×0,97 · ×1,03 | **66,8%** |
 
 ### 3. Especialistas por trecho (Mítico nível 1 de Fogo sem skill de tipo, status 60 e um 90 pelo gancho statAdd; metas: 3 de 65% a 100%, 3b de 70% a 100%, 3c de 65% a 100%)
 
-3 e 3c rebaseadas no v3 (antes 55%–75%): a Velocidade passou a pesar menos de propósito (`vRange` 1,7 → 1,2), então o especialista vence mais na pista dele; e pistas com 75% de um trecho só existem neste teste (o sorteio limita cada tipo a 50%), em pista sorteada quem vigia é a M6. 3b rebaseada para 70%–100%: sem Disposição do dia (intencional no v2) não há ruído por corrida, e em reta pura VEL 90 contra 60 decide quase sempre. Os dois corredores são do mesmo tipo e correm sem a skill de tipo (`noTypeSkill`), para o duelo medir só o status.
+v3b: 3 e 3c rebaseadas para 65%–100% (na v3, 65–85 e 75–93): a curva ganhou inclinação (0,14 → 0,17) e a corrida ficou menos ruidosa, então o especialista vence quase sempre na pista dele; e pistas com 75% de um trecho só existem neste teste (o sorteio limita cada tipo a 50%), em pista sorteada quem vigia é a M6. 3b rebaseada para 70%–100%: sem Disposição do dia (intencional no v2) não há ruído por corrida, e em reta pura VEL 90 contra 60 decide quase sempre. Os dois corredores são do mesmo tipo e correm sem a skill de tipo (`noTypeSkill`), para o duelo medir só o status.
 
 | # | Duelo | Mapa | Vitórias do 1º (2000, largada alternada) |
 |---|---|---|---|
 | 3 | De curva (MAN 90) × de reta (VEL 90) | 1600 m, 75% curva | **100,0%** |
-| 3b | De reta (VEL 90) × de curva (MAN 90) em reta pura | 1600 m, 100% reta | **74,5%** |
-| 3c | De subida (FOR 90) × de reta (VEL 90) | 1600 m, 75% subida | **75,5%** |
+| 3b | De reta (VEL 90) × de curva (MAN 90) em reta pura | 1600 m, 100% reta | **77,5%** |
+| 3c | De subida (FOR 90) × de reta (VEL 90) | 1600 m, 75% subida | **76,5%** |
 
 ### 4. Raridade, nível e estrelas (duelos 1v1, mapa aleatório)
 
@@ -38,25 +38,25 @@ Mapas aleatórios com o clima trocado pelo do elemento do inicial, fixo durante 
 
 | Raridade | 1 → 11 | 20 → 30 | 40 → 50 |
 |---|---|---|---|
-| Comum | **93,7%** | **76,3%** | **72,4%** |
-| Raro | **90,5%** | **75,8%** | **72,3%** |
-| Lendário | **88,8%** | **79,4%** | **72,1%** |
+| Comum | **78,5%** | **76,1%** | **75,0%** |
+| Raro | **78,4%** | **77,1%** | **77,0%** |
+| Lendário | **78,0%** | **77,8%** | **76,2%** |
 
 **M4.** Raridade acima, mesmo nível, mesma genética, ★★ e build de bot (um degrau: meta 72%–88%; dois degraus: meta ≥ 95%; 3000 duelos cada).
 
 | Nível | Mágico × Comum | Raro × Mágico | Lendário × Raro | Mítico × Lendário | Raro × Comum | Mítico × Raro |
 |---|---|---|---|---|---|---|
-| 1 | **79,5%** | **86,3%** | **81,0%** | **83,9%** | **98,4%** | **98,6%** |
-| 30 | **81,2%** | **84,4%** | **82,5%** | **83,2%** | **98,4%** | **98,7%** |
-| 50 | **80,1%** | **83,1%** | **81,7%** | **82,0%** | **98,5%** | **97,0%** |
+| 1 | **78,7%** | **84,6%** | **80,8%** | **85,0%** | **97,7%** | **98,7%** |
+| 30 | **79,0%** | **82,7%** | **81,9%** | **85,0%** | **97,0%** | **98,5%** |
+| 50 | **78,1%** | **80,5%** | **82,1%** | **81,4%** | **95,4%** | **95,5%** |
 
 **M5.** Estrelas no nível 50, mesma raridade e mesma genética, build de bot (★★★ × ★: meta 65%–75%; ★★ × ★: meta 55%–63%; 3000 duelos cada).
 
 | Raridade | ★★★ × ★ | ★★ × ★ |
 |---|---|---|
-| Comum | **71,3%** | **61,1%** |
-| Raro | **70,8%** | **59,8%** |
-| Mítico | **71,3%** | **60,7%** |
+| Comum | **69,5%** | **59,6%** |
+| Raro | **68,7%** | **60,0%** |
+| Mítico | **70,5%** | **62,3%** |
 
 ### M6. Nenhuma build dominante (Raro ★★, mesma genética e elemento, rodízio de duelos; meta: nenhuma build realista acima de 60% de média e pelo menos 4 entre 45% e 60%)
 
@@ -64,25 +64,27 @@ Builds realistas (custo por faixa): `bot` (`botAlloc`), `eq` (equilibrada), `inc
 
 | Build | nível 11 | nível 30 | nível 50 |
 |---|---|---|---|
-| `bot` | 55,3% | 56,9% | 58,4% |
-| `eq` | 53,7% | 52,9% | 56,4% |
-| `inc:vel` | 48,4% | 48,2% | 49,9% |
-| `inc:acel` | 43,3% | 43,9% | 45,2% |
-| `inc:man` | 52,1% | 49,6% | 46,9% |
-| `inc:forca` | 48,3% | 49,7% | 50,5% |
-| `inc:est` | 51,4% | 51,6% | 56,1% |
-| `inc:garra` | 45,0% | 40,6% | 42,1% |
-| `dup:vel+est` | 52,3% | 53,8% | 52,7% |
-| `dup:vel+forca` | 49,3% | 51,8% | 49,6% |
-| `dup:forca+est` | 51,8% | 54,1% | 50,4% |
-| `tipo` | 49,3% | 46,9% | 41,8% |
-| `all:vel` (info) | 29,1% | 14,3% | 7,1% |
-| `all:acel` (info) | 24,5% | 7,8% | 3,8% |
-| `all:man` (info) | 29,4% | 11,0% | 5,6% |
-| `all:forca` (info) | 31,3% | 15,0% | 8,8% |
-| `all:est` (info) | 31,5% | 17,4% | 10,1% |
-| `all:garra` (info) | 23,8% | 6,5% | 2,2% |
-| **maior média (realistas)** | **55,3%** (10 em 45–60) | **56,9%** (10 em 45–60) | **58,4%** (10 em 45–60) |
+| `bot` | 50,8% | 53,0% | 59,9% |
+| `eq` | 50,3% | 52,0% | 57,9% |
+| `inc:vel` | 50,9% | 49,2% | 49,3% |
+| `inc:acel` | 47,2% | 47,4% | 50,2% |
+| `inc:man` | 53,7% | 49,9% | 50,5% |
+| `inc:forca` | 48,5% | 48,5% | 50,6% |
+| `inc:est` | 50,3% | 48,9% | 50,7% |
+| `inc:garra` | 50,9% | 47,9% | 49,9% |
+| `dup:vel+est` | 50,2% | 49,9% | 43,3% |
+| `dup:vel+forca` | 48,1% | 48,8% | 45,2% |
+| `dup:forca+est` | 48,5% | 51,1% | 44,5% |
+| `tipo` | 50,7% | 53,2% | 47,9% |
+| `all:vel` (info) | 35,3% | 18,7% | 8,3% |
+| `all:acel` (info) | 30,9% | 15,9% | 7,1% |
+| `all:man` (info) | 40,9% | 15,6% | 7,4% |
+| `all:forca` (info) | 37,0% | 17,1% | 8,5% |
+| `all:est` (info) | 36,6% | 18,2% | 7,7% |
+| `all:garra` (info) | 31,6% | 17,7% | 8,9% |
+| **maior média (realistas)** | **53,7%** (12 em 45–60) | **53,2%** (12 em 45–60) | **59,9%** (10 em 45–60) |
+
+Informativo (pontas da progressão, só as builds realistas; meta desejada ≤ 60%, não cobrada): Comum ★★ 50: maior média 61,4% (`bot`); `bot` 61,4 · `eq` 59,3 · `inc:vel` 49,8 · `inc:acel` 44,3 · `inc:man` 50,1 · `inc:forca` 48,9 · `inc:est` 48,9 · `inc:garra` 46,0 · `dup:vel+est` 46,1 · `dup:vel+forca` 47,9 · `dup:forca+est` 48,5 · `tipo` 48,9. Mítico ★★★ 50: maior média 64,9% (`bot`); `bot` 64,9 · `eq` 63,6 · `inc:vel` 46,8 · `inc:acel` 54,3 · `inc:man` 47,2 · `inc:forca` 48,2 · `inc:est` 44,9 · `inc:garra` 52,3 · `dup:vel+est` 40,9 · `dup:vel+forca` 43,0 · `dup:forca+est` 42,5 · `tipo` 51,4.
 
 ### M7. Maior status no nível 50 (Fogo; meta: o pior caso, Mítico ★★★ com genética 31 e tudo num status, abaixo de 150)
 
@@ -90,45 +92,50 @@ Cálculo exato. "Tudo num status": genética 31 e todos os pontos em Velocidade.
 
 | Raridade | ★ tudo / inclinada | ★★ tudo / inclinada | ★★★ tudo / inclinada |
 |---|---|---|---|
-| Comum | 113 / 82 (196) | 116 / 84 (215) | 121 / 88 (246) |
-| Mágico | 118 / 87 (201) | 121 / 90 (222) | 126 / 92 (254) |
-| Raro | 124 / 93 (207) | 127 / 95 (228) | 132 / 99 (261) |
-| Lendário | 130 / 98 (213) | 133 / 100 (235) | 138 / 104 (269) |
-| Mítico | 136 / 104 (219) | 139 / 107 (241) | 144 / 109 (276) |
+| Comum | 113 / 82 (196) | 116 / 84 (213) | 120 / 87 (239) |
+| Mágico | 119 / 88 (205) | 122 / 90 (224) | 125 / 92 (251) |
+| Raro | 125 / 93 (215) | 128 / 95 (235) | 132 / 99 (263) |
+| Lendário | 132 / 100 (225) | 135 / 102 (245) | 139 / 104 (274) |
+| Mítico | 139 / 106 (235) | 142 / 109 (256) | 146 / 112 (286) |
 
 ### M9. Tipos em campo misto de 6 (cavalos equivalentes: mesma raridade, nível, ★★ e a mesma genética na forma do tipo; justo = 16,7%; meta: 15,3%–18,0% por corredor de cada tipo)
 
 | Configuração | Fogo | Água | Grama |
 |---|---|---|---|
-| Comum nível 1 (18000 campos) | **16,7%** ± 0,4 | **16,0%** ± 0,4 | **17,3%** ± 0,4 |
-| Raro nível 30 (18000 campos) | **17,2%** ± 0,4 | **15,7%** ± 0,4 | **17,1%** ± 0,4 |
-| Lendário nível 50 (18000 campos) | **16,6%** ± 0,4 | **16,2%** ± 0,4 | **17,2%** ± 0,4 |
+| Comum nível 1 (18000 campos) | **16,5%** ± 0,4 | **16,3%** ± 0,4 | **17,2%** ± 0,4 |
+| Raro nível 30 (18000 campos) | **16,4%** ± 0,4 | **16,8%** ± 0,4 | **16,9%** ± 0,4 |
+| Lendário nível 50 (18000 campos) | **17,2%** ± 0,4 | **16,3%** ± 0,4 | **16,4%** ± 0,4 |
 
 **M2 (informativo, não é meta).** Ganho pareado de vitória da skill de tipo: campo de 6 sintéticos, o alvo com e sem a skill de tipo (`noTypeSkill`), mesma seed e mesmos rivais; 4000 pares por configuração. Os ganhos são diferentes de propósito: o M9 tem prioridade (spec, seção 12).
 
 | Configuração | Fogo (Labareda) | Água (Maré Alta) | Grama (Raízes Firmes) | Diferença (maior − menor) |
 |---|---|---|---|---|
-| Comum nível 1 | 11,6 ± 2,3 p.p. | 8,2 ± 2,0 p.p. | 8,0 ± 2,0 p.p. | 3,6 p.p. |
-| Raro nível 30 | 13,6 ± 2,2 p.p. | 9,1 ± 1,9 p.p. | 9,5 ± 2,1 p.p. | 4,5 p.p. |
-| Lendário nível 50 | 12,1 ± 2,0 p.p. | 12,1 ± 2,0 p.p. | 12,2 ± 2,0 p.p. | 0,2 p.p. |
+| Comum nível 1 | 6,8 ± 2,1 p.p. | 9,0 ± 1,8 p.p. | 9,4 ± 2,0 p.p. | 2,6 p.p. |
+| Raro nível 30 | 10,1 ± 2,0 p.p. | 12,2 ± 1,9 p.p. | 11,2 ± 2,1 p.p. | 2,1 p.p. |
+| Lendário nível 50 | 11,3 ± 1,9 p.p. | 12,9 ± 1,9 p.p. | 12,0 ± 2,1 p.p. | 1,6 p.p. |
 
-### 5. Duração (tempo de simulação até o último cruzar a linha; meta: curta 88–104 s, longa 116–138 s, para os iniciais, o PVP sorteado e as salas de nível 50)
+### 5. Duração por liga (tempo até o último cruzar a linha; meta: a média de cada liga dentro da faixa dela; a corrida mais rápida, Mítico ★★★ 50, a no máximo 20% abaixo dos iniciais)
 
-Iniciais: as 15000 corridas da M1. PVP de 8: 1500 salas de 8 sintéticos da mesma raridade e nível (sorteados por sala), estrelas e genética sorteadas, build de bot.
+Iniciais: as 15000 corridas da M1 (Bronze). PVP de 8: 1500 salas de 8 sintéticos da mesma raridade e nível (sorteados por sala), estrelas e genética sorteadas, build de bot; a liga da sala é a do Poder médio.
 
-| Distância | Iniciais nível 1: média (p5–p95) | Vencedor: média | PVP de 8: média (p5–p95) | Meta |
+| Liga | Faixa curta / longa | Salas | Curta: média (p5–p95) | Longa: média (p5–p95) |
 |---|---|---|---|---|
-| curta (1.400–1.599 m) | 103,5 s (95,2–112,0) | 101,7 s | 97,6 s (88,7–107,6) | 88–104 s |
-| média (1.600–1.799 m) | 118,3 s (109,2–127,9) | 116,3 s | 111,8 s (101,9–121,7) | — |
-| longa (1.800–2.000 m) | 135,8 s (124,6–147,8) | 133,4 s | 128,5 s (115,3–142,0) | 116–138 s |
+| Bronze | 92–104 / 121–136 s | 168 | 98,7 s (89,8–108,1) | 129,0 s (117,9–138,3) |
+| Prata | 90–102 / 119–133 s | 246 | 96,5 s (88,1–103,9) | 127,2 s (117,2–138,5) |
+| Ouro | 88–100 / 117–131 s | 355 | 94,3 s (88,2–102,2) | 123,6 s (113,5–134,1) |
+| Platina | 86–98 / 114–128 s | 345 | 92,6 s (85,5–102,0) | 120,7 s (110,7–131,8) |
+| Diamante | 84–96 / 112–126 s | 212 | 89,0 s (83,3–96,9) | 119,8 s (110,1–128,1) |
+| Lenda | 80–94 / 106–122 s | 174 | 87,8 s (81,1–93,5) | 113,9 s (102,0–123,5) |
 
-Nível alto: salas de 8 sintéticos de nível 50 (800 por linha), genética sorteada, build de bot. Média do último a chegar (e do vencedor).
+Iniciais nível 1: curta 98,2 s · média 112,1 s · longa 128,6 s (vencedor: 96,3 / 109,9 / 126,0 s).
 
-| Sala | Curta | Média | Longa |
-|---|---|---|---|
-| Comum ★★ nível 50 | 97,1 s | 111,1 s | 127,8 s |
-| Lendário ★★ nível 50 | 91,6 s | 104,7 s | 120,5 s |
-| Mítico ★★★ nível 50 | 89,3 s | 101,9 s | 117,4 s |
+Nível alto: salas de 8 sintéticos de nível 50 (800 por linha), genética sorteada, build de bot; cada sala contra a faixa da liga do Poder médio dela.
+
+| Sala | Liga | Curta | Média | Longa |
+|---|---|---|---|---|
+| Comum ★★ nível 50 | platina | 92,3 s | 105,5 s | 121,4 s |
+| Lendário ★★ nível 50 | lenda | 86,7 s | 98,9 s | 113,9 s |
+| Mítico ★★★ nível 50 | lenda | 84,1 s | 95,9 s | 110,3 s |
 
 ### 6. Pagamentos (pote = entrada × corredores; taxa 10%; 4–5 corredores 70/30, 6–7 50/30/20, 8 60/25/15)
 
@@ -150,22 +157,22 @@ Nível alto: salas de 8 sintéticos de nível 50 (800 por linha), genética sort
 | 250 | 7 | 1750 | 175 | 788 | 472 | 315 |
 | 250 | 8 | 2000 | 200 | 1080 | 450 | 270 |
 
-### 7. Dado da Sorte (`rollDice`, 4000 rodadas; meta: 18%–28%; sem viés seria 12,5%)
+### 7. Dado da Sorte (`rollDice`, 20000 rodadas por linha; chance do 2º dado = (Sorte − 40)/40; meta: Mítico g31 × sete Comum g0 entre 17% e 25%; sem viés seria 12,5%)
 
-| Métrica | Valor |
+| Duelo de dados (1 contra 7) | Vence |
 |---|---|
-| Sorte 150 tira mais que os sete de Sorte 0 | **20,6%** |
-| Média do dado com Sorte 150 | 67,3 |
-| Média do dado com Sorte 0 | 50,7 |
+| Sorte 76 (Mítico, g 31) × sete de Sorte 40 (Comum, g 0) | **20,8%** |
+| Sorte 56 (Comum, g 31) × sete de Sorte 40 (Comum, g 0) | 16,2% |
+| Sorte 40 × sete de Sorte 40 (referência) | 12,6% |
 
 ### 8. Viradas de clima por corrida (PVP 8 sintético, Mítico nível 1 com status 60, elementos sorteados entre Fogo/Água/Grama, skill de tipo ligada; meta: média 0,8–1,6)
 
 | Métrica (1000 corridas) | Valor |
 |---|---|
-| Média de viradas por corrida | **1,29** |
-| Corridas com 0 viradas | 12,7% |
-| Corridas com 1 virada | 45,8% |
-| Corridas com 2 viradas | 41,5% |
+| Média de viradas por corrida | **1,31** |
+| Corridas com 0 viradas | 12,0% |
+| Corridas com 1 virada | 44,8% |
+| Corridas com 2 viradas | 43,2% |
 
 ### 10. Chance de skill: observada × calculada (nível 1, Sorte 50, `Arranque`, 2000 corridas em reta de 1600 m; meta: diferença ≤ 3 p.p.)
 
@@ -175,32 +182,32 @@ Nível alto: salas de 8 sintéticos de nível 50 (800 por linha), genética sort
 | Mágico | 49,4% | 50,5% | 1,1 p.p. |
 | Raro | 59,9% | 58,3% | 1,6 p.p. |
 | Lendário | 70,4% | 68,0% | 2,4 p.p. |
-| Mítico | 80,9% | 79,3% | 1,6 p.p. |
+| Mítico | 81,0% | 79,3% | 1,7 p.p. |
 
 ### Ligas (Rating de Poder sem equipamento, build de bot)
 
-Limites: Bronze ≥ 0 · Prata ≥ 710 · Ouro ≥ 800 · Platina ≥ 890 · Diamante ≥ 970 · Lenda ≥ 1060.
+Limites: Bronze ≥ 0 · Prata ≥ 710 · Ouro ≥ 800 · Platina ≥ 890 · Diamante ≥ 980 · Lenda ≥ 1070.
 
 | Montaria | Raridade | Lv | Rating | Liga |
 |---|---|---|---|---|
 | Brasa | Comum | 1 | 629 | Bronze |
-| Maré | Comum | 1 | 627 | Bronze |
-| Ipê | Comum | 1 | 632 | Bronze |
-| Brasa | Comum | 25 | 820 | Ouro |
-| Maré | Comum | 25 | 818 | Ouro |
-| Ipê | Comum | 25 | 823 | Ouro |
-| Faísca | Comum | 3 | 629 | Bronze |
-| Lambari | Comum | 2 | 612 | Bronze |
-| Capim | Comum | 4 | 638 | Bronze |
-| Tição | Mágico | 8 | 759 | Prata |
-| Garoa | Mágico | 10 | 784 | Prata |
-| Mandacaru | Mágico | 7 | 747 | Prata |
-| Ventania | Raro | 15 | 935 | Platina |
-| Pororoca | Raro | 18 | 941 | Platina |
-| Fogaréu | Lendário | 22 | 1087 | Lenda |
-| Jequitibá | Lendário | 25 | 1094 | Lenda |
-| Boitatá | Mítico | 30 | 1241 | Lenda |
-| Iara | Mítico | 28 | 1214 | Lenda |
+| Maré | Comum | 1 | 626 | Bronze |
+| Ipê | Comum | 1 | 633 | Bronze |
+| Brasa | Comum | 25 | 787 | Prata |
+| Maré | Comum | 25 | 782 | Prata |
+| Ipê | Comum | 25 | 791 | Prata |
+| Faísca | Comum | 3 | 626 | Bronze |
+| Lambari | Comum | 2 | 606 | Bronze |
+| Capim | Comum | 4 | 626 | Bronze |
+| Tição | Mágico | 8 | 736 | Prata |
+| Garoa | Mágico | 10 | 755 | Prata |
+| Mandacaru | Mágico | 7 | 723 | Prata |
+| Ventania | Raro | 15 | 904 | Platina |
+| Pororoca | Raro | 18 | 913 | Platina |
+| Fogaréu | Lendário | 22 | 1063 | Diamante |
+| Jequitibá | Lendário | 25 | 1066 | Diamante |
+| Boitatá | Mítico | 30 | 1235 | Lenda |
+| Iara | Mítico | 28 | 1205 | Lenda |
 
 ### A. Metas da auditoria (S1, A1, P1, P2, M8)
 
@@ -208,63 +215,63 @@ S1/A1: 4000 pares por variante; mesma seed e campo com e sem a mudança. Campo d
 
 | Skill | Gatilho | Ativou | Ganho de vitória (p.p., IC 95%) | Meta S1 |
 |---|---|---|---|---|
-| Arranque | start | 70,3% | 11,9 ± 1,5 | 3–13 |
-| Sprint | straight | 68,3% | 5,4 ± 1,2 | 3–13 |
-| Drift | curve | 88,5% | 12,3 ± 1,5 | 3–13 |
-| Saída Rápida | curveExit | 70,5% | 5,8 ± 1,3 | 3–13 |
-| Fôlego de Montanha | hill | 88,2% | 6,1 ± 1,3 | 3–13 |
-| Segundo Ar | lowStamina | 70,0% | 5,9 ± 0,8 | 3–13 |
-| Arrancada Final | final | 71,4% | 9,8 ± 1,2 | 3–13 |
-| Dado Viciado | dice | 69,8% | -0,1 ± 1,2 | isenta (decisão de design pendente) |
-| Sol a Pino | weather:sol | 52,8% | 6,8 ± 1,3 | 3–13 |
-| Chama Final | final | 70,1% | 4,2 ± 1,3 | 3–13 |
-| Pé na Chuva | weather:chuva | 53,0% | 8,0 ± 1,3 | 3–13 |
-| Canto da Iara | final | 71,9% | 5,0 ± 1,3 | 3–13 |
-| Nascente | straight | 68,2% | 7,3 ± 1,2 | 3–13 |
-| Névoa Amiga | weather:nevoa | 52,3% | 7,1 ± 1,3 | 3–13 |
-| Casco Firme | hill | 88,4% | 11,5 ± 1,4 | 3–13 |
+| Arranque | start | 70,3% | 12,4 ± 1,5 | 3–13 |
+| Sprint | straight | 69,0% | 4,9 ± 1,1 | 3–13 |
+| Drift | curve | 88,4% | 12,7 ± 1,5 | 3–13 |
+| Saída Rápida | curveExit | 69,1% | 5,1 ± 1,3 | 3–13 |
+| Fôlego de Montanha | hill | 88,0% | 5,7 ± 1,3 | 3–13 |
+| Segundo Ar | lowStamina | 69,0% | 5,3 ± 0,8 | 3–13 |
+| Arrancada Final | final | 71,4% | 8,8 ± 1,2 | 3–13 |
+| Dado Viciado | dice | 70,5% | 0,7 ± 1,2 | isenta (decisão de design pendente) |
+| Sol a Pino | weather:sol | 52,5% | 6,3 ± 1,3 | 3–13 |
+| Chama Final | final | 70,9% | 4,0 ± 1,3 | 3–13 |
+| Pé na Chuva | weather:chuva | 52,5% | 8,1 ± 1,3 | 3–13 |
+| Canto da Iara | final | 69,0% | 5,4 ± 1,3 | 3–13 |
+| Nascente | straight | 69,5% | 7,8 ± 1,2 | 3–13 |
+| Névoa Amiga | weather:nevoa | 52,4% | 6,3 ± 1,3 | 3–13 |
+| Casco Firme | hill | 87,5% | 9,3 ± 1,4 | 3–13 |
 
-A1: +10 num status (gancho `statAdd`) no alvo. Meta: nenhum dos seis status de corrida acima de 3,2× a mediana deles (11,0 p.p. → teto 35,3) nem abaixo de 3 p.p.; Sorte isenta (decisão de design pendente).
+A1: +10 num status (gancho `statAdd`) no alvo. Maior ÷ menor entre os seis: 1,15×. Meta: nenhum dos seis status de corrida acima de 3,2× a mediana deles (10,5 p.p. → teto 33,7) nem abaixo de 3 p.p.; Sorte isenta (decisão de design pendente).
 
 | Status | Ganho de vitória (p.p., IC 95%) | ÷ mediana |
 |---|---|---|
-| Estamina | 12,6 ± 1,5 | 1,14× |
-| Força | 11,8 ± 1,5 | 1,07× |
-| Manobra | 11,2 ± 1,5 | 1,01× |
-| Velocidade | 10,9 ± 1,5 | 0,99× |
-| Aceleração | 8,7 ± 1,5 | 0,79× |
-| Garra | 8,6 ± 1,3 | 0,78× |
-| Sorte (isenta) | 0,1 ± 0,4 | 0,00× |
+| Manobra | 11,0 ± 1,5 | 1,05× |
+| Velocidade | 10,8 ± 1,5 | 1,02× |
+| Aceleração | 10,7 ± 1,5 | 1,02× |
+| Estamina | 10,3 ± 1,5 | 0,98× |
+| Força | 10,1 ± 1,5 | 0,95× |
+| Garra | 9,6 ± 1,4 | 0,91× |
+| Sorte (isenta) | 0,7 ± 0,6 | 0,07× |
 
 P1/P2/M8: 5000 salas de 4–8 corredores sintéticos (jogador com raridade, nível 1–50 e estrelas sorteados; bots de Poder 91,5%–111,5% do jogador, nível ajustado ao alvo; todos com a build de bot, sem equipamento), mapa aleatório, Dado ligado. P1 compara cada par da sala (79686 pares) com a curva empírica "maior Poder à frente" por diferença de Poder (faixas de 20) e soma o resíduo por categoria.
 
 | Categoria | Resíduo P1 (vitória no par − previsto pelo Poder, p.p.; meta |x| ≤ 5) | Registros |
 |---|---|---|
-| Fogo | 0,9 | 53338 |
-| Água | 0,0 | 52651 |
-| Grama | -1,0 | 53383 |
-| Comum | -0,4 | 47731 |
-| Mágico | -0,2 | 41987 |
-| Raro | 0,2 | 35569 |
-| Lendário | 0,6 | 23180 |
-| Mítico | 0,5 | 10905 |
-| ★ | 0,4 | 50260 |
-| ★★ | 0,1 | 53105 |
-| ★★★ | -0,4 | 56007 |
+| Fogo | 0,4 | 53343 |
+| Água | -0,4 | 52140 |
+| Grama | 0,0 | 53889 |
+| Comum | -0,1 | 51424 |
+| Mágico | -0,1 | 43123 |
+| Raro | -0,6 | 34189 |
+| Lendário | 1,1 | 21090 |
+| Mítico | 1,0 | 9546 |
+| ★ | -0,1 | 50785 |
+| ★★ | 0,2 | 53465 |
+| ★★★ | -0,1 | 55122 |
 
 | Métrica | Valor | Faixa |
 |---|---|---|
-| P2: favorito do Poder vence | **53,2%** | 35–55% |
-| M8: líder em 1/3 da pista vence | **39,9%** | ≤ 55% |
-| M8: margem do 1º para o 2º abaixo de 1 m | **5,9%** | ≥ 5% |
+| P2: favorito do Poder vence | **52,1%** | 35–55% |
+| M8: líder em 1/3 da pista vence | **38,1%** | ≤ 55% |
+| M8: margem do 1º para o 2º abaixo de 1 m | **5,6%** | ≥ 5% |
 
 ### Outros números (corridas da M1: iniciais nível 1, mapas aleatórios)
 
 | Métrica | Valor |
 |---|---|
-| Garra disparou | 57,0% dos corredores |
+| Garra disparou | 58,0% dos corredores |
 | "Cansou" (estamina zerou antes dos últimos 2%) | 0,0% dos corredores |
-| Trocas de liderança narradas por corrida | 1,12 |
+| Trocas de liderança narradas por corrida | 1,14 |
 | Viradas de clima por corrida | 1,41 |
 | Skills de tipo ativadas por corrida | 3,00 (uma por corredor: a skill de tipo é sempre ativa) |
 | Skills normais ativadas por corrida | 0,00 (os iniciais nascem sem skill normal) |
@@ -273,133 +280,166 @@ P1/P2/M8: 5000 salas de 4–8 corredores sintéticos (jogador com raridade, nív
 
 | # | Meta | Valor | Faixa | OK |
 |---|---|---|---|---|
-| M1 | Brasa nível 1 | 32,6% | 30–37% | ✅ |
-| M1 | Brasa, distância curta | 42,5% | 22–45% | ✅ |
-| M1 | Brasa, distância media | 32,5% | 22–45% | ✅ |
-| M1 | Brasa, distância longa | 24,5% | 22–45% | ✅ |
-| M1 | Maré nível 1 | 34,9% | 30–37% | ✅ |
-| M1 | Maré, distância curta | 28,7% | 22–45% | ✅ |
-| M1 | Maré, distância media | 34,9% | 22–45% | ✅ |
-| M1 | Maré, distância longa | 39,9% | 22–45% | ✅ |
-| M1 | Ipê nível 1 | 32,6% | 30–37% | ✅ |
-| M1 | Ipê, distância curta | 28,8% | 22–45% | ✅ |
-| M1 | Ipê, distância media | 32,6% | 22–45% | ✅ |
-| M1 | Ipê, distância longa | 35,6% | 22–45% | ✅ |
-| 2 | Brasa no seu clima | 60,4% | 45–68% | ✅ |
-| 2 | Maré no seu clima | 65,7% | 45–68% | ✅ |
-| 2 | Ipê no seu clima | 63,3% | 45–68% | ✅ |
+| M1 | Brasa nível 1 | 31,8% | 30–37% | ✅ |
+| M1 | Brasa, distância curta | 38,9% | 22–45% | ✅ |
+| M1 | Brasa, distância media | 30,8% | 22–45% | ✅ |
+| M1 | Brasa, distância longa | 26,7% | 22–45% | ✅ |
+| M1 | Maré nível 1 | 33,3% | 30–37% | ✅ |
+| M1 | Maré, distância curta | 29,9% | 22–45% | ✅ |
+| M1 | Maré, distância media | 33,8% | 22–45% | ✅ |
+| M1 | Maré, distância longa | 35,7% | 22–45% | ✅ |
+| M1 | Ipê nível 1 | 34,9% | 30–37% | ✅ |
+| M1 | Ipê, distância curta | 31,2% | 22–45% | ✅ |
+| M1 | Ipê, distância media | 35,4% | 22–45% | ✅ |
+| M1 | Ipê, distância longa | 37,6% | 22–45% | ✅ |
+| 2 | Brasa no seu clima | 62,8% | 45–68% | ✅ |
+| 2 | Maré no seu clima | 61,6% | 45–68% | ✅ |
+| 2 | Ipê no seu clima | 66,8% | 45–68% | ✅ |
 | 3 | De curva (MAN 90) × de reta (VEL 90) | 100,0% | 65–100% | ✅ |
-| 3b | De reta (VEL 90) × de curva (MAN 90) em reta pura | 74,5% | 70–100% | ✅ |
-| 3c | De subida (FOR 90) × de reta (VEL 90) | 75,5% | 65–100% | ✅ |
+| 3b | De reta (VEL 90) × de curva (MAN 90) em reta pura | 77,5% | 70–100% | ✅ |
+| 3c | De subida (FOR 90) × de reta (VEL 90) | 76,5% | 65–100% | ✅ |
 | 4a | Mítico nível 1 vence Comum nível 1 (catálogo) | 100,0% | 90–100% | ✅ |
-| M3 | Comum nível 11 × nível 1 | 93,7% | 70–100% | ✅ |
-| M3 | Comum nível 30 × nível 20 | 76,3% | 70–100% | ✅ |
-| M3 | Comum nível 50 × nível 40 | 72,4% | 70–100% | ✅ |
-| M3 | Raro nível 11 × nível 1 | 90,5% | 70–100% | ✅ |
-| M3 | Raro nível 30 × nível 20 | 75,8% | 70–100% | ✅ |
-| M3 | Raro nível 50 × nível 40 | 72,3% | 70–100% | ✅ |
-| M3 | Lendário nível 11 × nível 1 | 88,8% | 70–100% | ✅ |
-| M3 | Lendário nível 30 × nível 20 | 79,4% | 70–100% | ✅ |
-| M3 | Lendário nível 50 × nível 40 | 72,1% | 70–100% | ✅ |
-| M4 | Um degrau, nível 1: Mágico × Comum | 79,5% | 72–88% | ✅ |
-| M4 | Um degrau, nível 1: Raro × Mágico | 86,3% | 72–88% | ✅ |
-| M4 | Um degrau, nível 1: Lendário × Raro | 81,0% | 72–88% | ✅ |
-| M4 | Um degrau, nível 1: Mítico × Lendário | 83,9% | 72–88% | ✅ |
-| M4 | Dois degraus, nível 1: Raro × Comum | 98,4% | 95–100% | ✅ |
-| M4 | Dois degraus, nível 1: Mítico × Raro | 98,6% | 95–100% | ✅ |
-| M4 | Um degrau, nível 30: Mágico × Comum | 81,2% | 72–88% | ✅ |
-| M4 | Um degrau, nível 30: Raro × Mágico | 84,4% | 72–88% | ✅ |
-| M4 | Um degrau, nível 30: Lendário × Raro | 82,5% | 72–88% | ✅ |
-| M4 | Um degrau, nível 30: Mítico × Lendário | 83,2% | 72–88% | ✅ |
-| M4 | Dois degraus, nível 30: Raro × Comum | 98,4% | 95–100% | ✅ |
-| M4 | Dois degraus, nível 30: Mítico × Raro | 98,7% | 95–100% | ✅ |
-| M4 | Um degrau, nível 50: Mágico × Comum | 80,1% | 72–88% | ✅ |
-| M4 | Um degrau, nível 50: Raro × Mágico | 83,1% | 72–88% | ✅ |
-| M4 | Um degrau, nível 50: Lendário × Raro | 81,7% | 72–88% | ✅ |
-| M4 | Um degrau, nível 50: Mítico × Lendário | 82,0% | 72–88% | ✅ |
-| M4 | Dois degraus, nível 50: Raro × Comum | 98,5% | 95–100% | ✅ |
-| M4 | Dois degraus, nível 50: Mítico × Raro | 97,0% | 95–100% | ✅ |
-| M5 | ★★★ × ★, Comum nível 50 | 71,3% | 65–75% | ✅ |
-| M5 | ★★ × ★, Comum nível 50 | 61,1% | 55–63% | ✅ |
-| M5 | ★★★ × ★, Raro nível 50 | 70,8% | 65–75% | ✅ |
-| M5 | ★★ × ★, Raro nível 50 | 59,8% | 55–63% | ✅ |
-| M5 | ★★★ × ★, Mítico nível 50 | 71,3% | 65–75% | ✅ |
-| M5 | ★★ × ★, Mítico nível 50 | 60,7% | 55–63% | ✅ |
-| M6 | Maior média de build realista, nível 11 | 55,3% | 0–60% | ✅ |
-| M6 | Builds realistas entre 45% e 60%, nível 11 | 10,00 | 4–99 | ✅ |
-| M6 | Maior média de build realista, nível 30 | 56,9% | 0–60% | ✅ |
-| M6 | Builds realistas entre 45% e 60%, nível 30 | 10,00 | 4–99 | ✅ |
-| M6 | Maior média de build realista, nível 50 | 58,4% | 0–60% | ✅ |
+| M3 | Comum nível 11 × nível 1 | 78,5% | 70–100% | ✅ |
+| M3 | Comum nível 30 × nível 20 | 76,1% | 70–100% | ✅ |
+| M3 | Comum nível 50 × nível 40 | 75,0% | 70–100% | ✅ |
+| M3 | Raro nível 11 × nível 1 | 78,4% | 70–100% | ✅ |
+| M3 | Raro nível 30 × nível 20 | 77,1% | 70–100% | ✅ |
+| M3 | Raro nível 50 × nível 40 | 77,0% | 70–100% | ✅ |
+| M3 | Lendário nível 11 × nível 1 | 78,0% | 70–100% | ✅ |
+| M3 | Lendário nível 30 × nível 20 | 77,8% | 70–100% | ✅ |
+| M3 | Lendário nível 50 × nível 40 | 76,2% | 70–100% | ✅ |
+| M4 | Um degrau, nível 1: Mágico × Comum | 78,7% | 72–88% | ✅ |
+| M4 | Um degrau, nível 1: Raro × Mágico | 84,6% | 72–88% | ✅ |
+| M4 | Um degrau, nível 1: Lendário × Raro | 80,8% | 72–88% | ✅ |
+| M4 | Um degrau, nível 1: Mítico × Lendário | 85,0% | 72–88% | ✅ |
+| M4 | Dois degraus, nível 1: Raro × Comum | 97,7% | 95–100% | ✅ |
+| M4 | Dois degraus, nível 1: Mítico × Raro | 98,7% | 95–100% | ✅ |
+| M4 | Um degrau, nível 30: Mágico × Comum | 79,0% | 72–88% | ✅ |
+| M4 | Um degrau, nível 30: Raro × Mágico | 82,7% | 72–88% | ✅ |
+| M4 | Um degrau, nível 30: Lendário × Raro | 81,9% | 72–88% | ✅ |
+| M4 | Um degrau, nível 30: Mítico × Lendário | 85,0% | 72–88% | ✅ |
+| M4 | Dois degraus, nível 30: Raro × Comum | 97,0% | 95–100% | ✅ |
+| M4 | Dois degraus, nível 30: Mítico × Raro | 98,5% | 95–100% | ✅ |
+| M4 | Um degrau, nível 50: Mágico × Comum | 78,1% | 72–88% | ✅ |
+| M4 | Um degrau, nível 50: Raro × Mágico | 80,5% | 72–88% | ✅ |
+| M4 | Um degrau, nível 50: Lendário × Raro | 82,1% | 72–88% | ✅ |
+| M4 | Um degrau, nível 50: Mítico × Lendário | 81,4% | 72–88% | ✅ |
+| M4 | Dois degraus, nível 50: Raro × Comum | 95,4% | 95–100% | ✅ |
+| M4 | Dois degraus, nível 50: Mítico × Raro | 95,5% | 95–100% | ✅ |
+| M5 | ★★★ × ★, Comum nível 50 | 69,5% | 65–75% | ✅ |
+| M5 | ★★ × ★, Comum nível 50 | 59,6% | 55–63% | ✅ |
+| M5 | ★★★ × ★, Raro nível 50 | 68,7% | 65–75% | ✅ |
+| M5 | ★★ × ★, Raro nível 50 | 60,0% | 55–63% | ✅ |
+| M5 | ★★★ × ★, Mítico nível 50 | 70,5% | 65–75% | ✅ |
+| M5 | ★★ × ★, Mítico nível 50 | 62,3% | 55–63% | ✅ |
+| M6 | Maior média de build realista, nível 11 | 53,7% | 0–60% | ✅ |
+| M6 | Builds realistas entre 45% e 60%, nível 11 | 12,00 | 4–99 | ✅ |
+| M6 | Build `inc:vel` (média), nível 11 | 50,9% | 47–100% | ✅ |
+| M6 | Build `inc:acel` (média), nível 11 | 47,2% | 47–100% | ✅ |
+| M6 | Build `inc:man` (média), nível 11 | 53,7% | 47–100% | ✅ |
+| M6 | Build `inc:forca` (média), nível 11 | 48,5% | 47–100% | ✅ |
+| M6 | Build `inc:est` (média), nível 11 | 50,3% | 47–100% | ✅ |
+| M6 | Build `inc:garra` (média), nível 11 | 50,9% | 47–100% | ✅ |
+| M6 | Build `tipo` (média), nível 11 | 50,7% | 47–100% | ✅ |
+| M6 | Maior média de build realista, nível 30 | 53,2% | 0–60% | ✅ |
+| M6 | Builds realistas entre 45% e 60%, nível 30 | 12,00 | 4–99 | ✅ |
+| M6 | Build `inc:vel` (média), nível 30 | 49,2% | 47–100% | ✅ |
+| M6 | Build `inc:acel` (média), nível 30 | 47,4% | 47–100% | ✅ |
+| M6 | Build `inc:man` (média), nível 30 | 49,9% | 47–100% | ✅ |
+| M6 | Build `inc:forca` (média), nível 30 | 48,5% | 47–100% | ✅ |
+| M6 | Build `inc:est` (média), nível 30 | 48,9% | 47–100% | ✅ |
+| M6 | Build `inc:garra` (média), nível 30 | 47,9% | 47–100% | ✅ |
+| M6 | Build `tipo` (média), nível 30 | 53,2% | 47–100% | ✅ |
+| M6 | Maior média de build realista, nível 50 | 59,9% | 0–60% | ✅ |
 | M6 | Builds realistas entre 45% e 60%, nível 50 | 10,00 | 4–99 | ✅ |
-| M7 | Pior caso no nível 50 (Mítico ★★★, genética 31, tudo num status) | 144,00 | 1–149 | ✅ |
-| M9 | Vitória por corredor de Fogo, Comum nível 1 | 16,7% | 15,3–18% | ✅ |
-| M9 | Vitória por corredor de Água, Comum nível 1 | 16,0% | 15,3–18% | ✅ |
-| M9 | Vitória por corredor de Grama, Comum nível 1 | 17,3% | 15,3–18% | ✅ |
-| M9 | Vitória por corredor de Fogo, Raro nível 30 | 17,2% | 15,3–18% | ✅ |
-| M9 | Vitória por corredor de Água, Raro nível 30 | 15,7% | 15,3–18% | ✅ |
-| M9 | Vitória por corredor de Grama, Raro nível 30 | 17,1% | 15,3–18% | ✅ |
-| M9 | Vitória por corredor de Fogo, Lendário nível 50 | 16,6% | 15,3–18% | ✅ |
-| M9 | Vitória por corredor de Água, Lendário nível 50 | 16,2% | 15,3–18% | ✅ |
-| M9 | Vitória por corredor de Grama, Lendário nível 50 | 17,2% | 15,3–18% | ✅ |
-| 5 | Duração curta (1.400–1.599 m), iniciais | 103,5 s | 88–104 s | ✅ |
-| 5 | Duração curta (1.400–1.599 m), PVP 8 | 97,6 s | 88–104 s | ✅ |
-| 5 | Duração longa (1.800–2.000 m), iniciais | 135,8 s | 116–138 s | ✅ |
-| 5 | Duração longa (1.800–2.000 m), PVP 8 | 128,5 s | 116–138 s | ✅ |
-| 5 | Duração curta, Comum ★★ nível 50 | 97,1 s | 88–104 s | ✅ |
-| 5 | Duração longa, Comum ★★ nível 50 | 127,8 s | 116–138 s | ✅ |
-| 5 | Duração curta, Lendário ★★ nível 50 | 91,6 s | 88–104 s | ✅ |
-| 5 | Duração longa, Lendário ★★ nível 50 | 120,5 s | 116–138 s | ✅ |
-| 5 | Duração curta, Mítico ★★★ nível 50 | 89,3 s | 88–104 s | ✅ |
-| 5 | Duração longa, Mítico ★★★ nível 50 | 117,4 s | 116–138 s | ✅ |
+| M6 | Build `inc:vel` (média), nível 50 | 49,3% | 47–100% | ✅ |
+| M6 | Build `inc:acel` (média), nível 50 | 50,2% | 47–100% | ✅ |
+| M6 | Build `inc:man` (média), nível 50 | 50,5% | 47–100% | ✅ |
+| M6 | Build `inc:forca` (média), nível 50 | 50,6% | 47–100% | ✅ |
+| M6 | Build `inc:est` (média), nível 50 | 50,7% | 47–100% | ✅ |
+| M6 | Build `inc:garra` (média), nível 50 | 49,9% | 47–100% | ✅ |
+| M6 | Build `tipo` (média), nível 50 | 47,9% | 47–100% | ✅ |
+| M7 | Pior caso no nível 50 (Mítico ★★★, genética 31, tudo num status) | 146,00 | 1–149 | ✅ |
+| M9 | Vitória por corredor de Fogo, Comum nível 1 | 16,5% | 15,3–18% | ✅ |
+| M9 | Vitória por corredor de Água, Comum nível 1 | 16,3% | 15,3–18% | ✅ |
+| M9 | Vitória por corredor de Grama, Comum nível 1 | 17,2% | 15,3–18% | ✅ |
+| M9 | Vitória por corredor de Fogo, Raro nível 30 | 16,4% | 15,3–18% | ✅ |
+| M9 | Vitória por corredor de Água, Raro nível 30 | 16,8% | 15,3–18% | ✅ |
+| M9 | Vitória por corredor de Grama, Raro nível 30 | 16,9% | 15,3–18% | ✅ |
+| M9 | Vitória por corredor de Fogo, Lendário nível 50 | 17,2% | 15,3–18% | ✅ |
+| M9 | Vitória por corredor de Água, Lendário nível 50 | 16,3% | 15,3–18% | ✅ |
+| M9 | Vitória por corredor de Grama, Lendário nível 50 | 16,4% | 15,3–18% | ✅ |
+| 5 | Duração curta, PVP de 8 na liga Bronze | 98,7 s | 92–104 s | ✅ |
+| 5 | Duração longa, PVP de 8 na liga Bronze | 129,0 s | 121–136 s | ✅ |
+| 5 | Duração curta, PVP de 8 na liga Prata | 96,5 s | 90–102 s | ✅ |
+| 5 | Duração longa, PVP de 8 na liga Prata | 127,2 s | 119–133 s | ✅ |
+| 5 | Duração curta, PVP de 8 na liga Ouro | 94,3 s | 88–100 s | ✅ |
+| 5 | Duração longa, PVP de 8 na liga Ouro | 123,6 s | 117–131 s | ✅ |
+| 5 | Duração curta, PVP de 8 na liga Platina | 92,6 s | 86–98 s | ✅ |
+| 5 | Duração longa, PVP de 8 na liga Platina | 120,7 s | 114–128 s | ✅ |
+| 5 | Duração curta, PVP de 8 na liga Diamante | 89,0 s | 84–96 s | ✅ |
+| 5 | Duração longa, PVP de 8 na liga Diamante | 119,8 s | 112–126 s | ✅ |
+| 5 | Duração curta, PVP de 8 na liga Lenda | 87,8 s | 80–94 s | ✅ |
+| 5 | Duração longa, PVP de 8 na liga Lenda | 113,9 s | 106–122 s | ✅ |
+| 5 | Duração curta, iniciais nível 1 (Bronze) | 98,2 s | 92–104 s | ✅ |
+| 5 | Duração longa, iniciais nível 1 (Bronze) | 128,6 s | 121–136 s | ✅ |
+| 5 | Duração curta, Comum ★★ nível 50 (platina) | 92,3 s | 86–98 s | ✅ |
+| 5 | Duração longa, Comum ★★ nível 50 (platina) | 121,4 s | 114–128 s | ✅ |
+| 5 | Duração curta, Lendário ★★ nível 50 (lenda) | 86,7 s | 80–94 s | ✅ |
+| 5 | Duração longa, Lendário ★★ nível 50 (lenda) | 113,9 s | 106–122 s | ✅ |
+| 5 | Duração curta, Mítico ★★★ nível 50 (lenda) | 84,1 s | 80–94 s | ✅ |
+| 5 | Duração longa, Mítico ★★★ nível 50 (lenda) | 110,3 s | 106–122 s | ✅ |
+| 5 | Corrida mais rápida (Mítico ★★★ 50, curta) ÷ iniciais (curta) | 0,9× | 0,8–1× | ✅ |
 | 6 | Pagamentos: soma(prêmios)+taxa == pote, inteiros, prêmios não crescentes, pódio ≥ entrada (4..8 corredores × 50/100/250; não crescentes também com entrada 1/3/7) | sim | — | ✅ |
-| 7 | Sorte 150 contra sete de Sorte 0 vence o dado | 20,6% | 18–28% | ✅ |
-| 8 | Viradas de clima por corrida (PVP 8) | 1,29 | 0,8–1,6 | ✅ |
+| 7 | Sorte 76 (Mítico, genética 31) contra sete de Sorte 40 (Comum, genética 0) vence o Dado | 20,8% | 17–25% | ✅ |
+| 8 | Viradas de clima por corrida (PVP 8) | 1,31 | 0,8–1,6 | ✅ |
 | 9 | Determinismo: mesma seed+config => mesmo mapa, mesmos dados, mesmo resultado (25 configs com equipamento de bot, ignorado pela corrida, e mapas aleatórios, reexecução em ordem inversa) | sim | — | ✅ |
 | 9 | Seeds diferentes => corridas diferentes | sim | — | ✅ |
 | 10 | Skill Comum: observada 38,1% × calculada 39,0% (diferença) | 0,8 p.p. | 0–3 p.p. | ✅ |
 | 10 | Skill Mágico: observada 50,5% × calculada 49,4% (diferença) | 1,1 p.p. | 0–3 p.p. | ✅ |
 | 10 | Skill Raro: observada 58,3% × calculada 59,9% (diferença) | 1,6 p.p. | 0–3 p.p. | ✅ |
 | 10 | Skill Lendário: observada 68,0% × calculada 70,4% (diferença) | 2,4 p.p. | 0–3 p.p. | ✅ |
-| 10 | Skill Mítico: observada 79,3% × calculada 80,9% (diferença) | 1,6 p.p. | 0–3 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Arranque | 11,9 p.p. | 3–13 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Sprint | 5,4 p.p. | 3–13 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Drift | 12,3 p.p. | 3–13 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Saída Rápida | 5,8 p.p. | 3–13 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Fôlego de Montanha | 6,1 p.p. | 3–13 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Segundo Ar | 5,9 p.p. | 3–13 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Arrancada Final | 9,8 p.p. | 3–13 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Sol a Pino | 6,8 p.p. | 3–13 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Chama Final | 4,2 p.p. | 3–13 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Pé na Chuva | 8,0 p.p. | 3–13 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Canto da Iara | 5,0 p.p. | 3–13 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Nascente | 7,3 p.p. | 3–13 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Névoa Amiga | 7,1 p.p. | 3–13 p.p. | ✅ |
-| S1 | Ganho pareado de vitória: Casco Firme | 11,5 p.p. | 3–13 p.p. | ✅ |
-| A1 | +10 de Estamina: ganho pareado ≥ 3 p.p. | 12,6 p.p. | 3–100 p.p. | ✅ |
-| A1 | +10 de Estamina: ganho ÷ mediana dos seis | 1,1× | 0–3,2× | ✅ |
-| A1 | +10 de Força: ganho pareado ≥ 3 p.p. | 11,8 p.p. | 3–100 p.p. | ✅ |
-| A1 | +10 de Força: ganho ÷ mediana dos seis | 1,1× | 0–3,2× | ✅ |
-| A1 | +10 de Manobra: ganho pareado ≥ 3 p.p. | 11,2 p.p. | 3–100 p.p. | ✅ |
+| 10 | Skill Mítico: observada 79,3% × calculada 81,0% (diferença) | 1,7 p.p. | 0–3 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Arranque | 12,4 p.p. | 3–13 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Sprint | 4,9 p.p. | 3–13 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Drift | 12,7 p.p. | 3–13 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Saída Rápida | 5,1 p.p. | 3–13 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Fôlego de Montanha | 5,7 p.p. | 3–13 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Segundo Ar | 5,3 p.p. | 3–13 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Arrancada Final | 8,8 p.p. | 3–13 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Sol a Pino | 6,3 p.p. | 3–13 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Chama Final | 4,0 p.p. | 3–13 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Pé na Chuva | 8,1 p.p. | 3–13 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Canto da Iara | 5,4 p.p. | 3–13 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Nascente | 7,8 p.p. | 3–13 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Névoa Amiga | 6,3 p.p. | 3–13 p.p. | ✅ |
+| S1 | Ganho pareado de vitória: Casco Firme | 9,3 p.p. | 3–13 p.p. | ✅ |
+| A1 | Maior ÷ menor ganho entre os seis status de corrida (alvo 1,25; IC de cada ganho ±1,4 p.p.) | 1,2× | 0–1,3× | ✅ |
+| A1 | +10 de Manobra: ganho pareado ≥ 3 p.p. | 11,0 p.p. | 3–100 p.p. | ✅ |
 | A1 | +10 de Manobra: ganho ÷ mediana dos seis | 1,0× | 0–3,2× | ✅ |
-| A1 | +10 de Velocidade: ganho pareado ≥ 3 p.p. | 10,9 p.p. | 3–100 p.p. | ✅ |
+| A1 | +10 de Velocidade: ganho pareado ≥ 3 p.p. | 10,8 p.p. | 3–100 p.p. | ✅ |
 | A1 | +10 de Velocidade: ganho ÷ mediana dos seis | 1,0× | 0–3,2× | ✅ |
-| A1 | +10 de Aceleração: ganho pareado ≥ 3 p.p. | 8,7 p.p. | 3–100 p.p. | ✅ |
-| A1 | +10 de Aceleração: ganho ÷ mediana dos seis | 0,8× | 0–3,2× | ✅ |
-| A1 | +10 de Garra: ganho pareado ≥ 3 p.p. | 8,6 p.p. | 3–100 p.p. | ✅ |
-| A1 | +10 de Garra: ganho ÷ mediana dos seis | 0,8× | 0–3,2× | ✅ |
-| P1 | Resíduo do Poder: Fogo | 0,9 p.p. | -5–5 p.p. | ✅ |
-| P1 | Resíduo do Poder: Água | 0,0 p.p. | -5–5 p.p. | ✅ |
-| P1 | Resíduo do Poder: Grama | -1,0 p.p. | -5–5 p.p. | ✅ |
-| P1 | Resíduo do Poder: Comum | -0,4 p.p. | -5–5 p.p. | ✅ |
-| P1 | Resíduo do Poder: Mágico | -0,2 p.p. | -5–5 p.p. | ✅ |
-| P1 | Resíduo do Poder: Raro | 0,2 p.p. | -5–5 p.p. | ✅ |
-| P1 | Resíduo do Poder: Lendário | 0,6 p.p. | -5–5 p.p. | ✅ |
-| P1 | Resíduo do Poder: Mítico | 0,5 p.p. | -5–5 p.p. | ✅ |
-| P1 | Resíduo do Poder: ★ | 0,4 p.p. | -5–5 p.p. | ✅ |
-| P1 | Resíduo do Poder: ★★ | 0,1 p.p. | -5–5 p.p. | ✅ |
-| P1 | Resíduo do Poder: ★★★ | -0,4 p.p. | -5–5 p.p. | ✅ |
-| P2 | Favorito do Poder vence na sala pareada | 53,2% | 35–55% | ✅ |
-| M8 | Quem lidera em 1/3 da pista vence | 39,9% | 0–55% | ✅ |
-| M8 | Corridas com menos de 1 m entre o 1º e o 2º | 5,9% | 5–100% | ✅ |
+| A1 | +10 de Aceleração: ganho pareado ≥ 3 p.p. | 10,7 p.p. | 3–100 p.p. | ✅ |
+| A1 | +10 de Aceleração: ganho ÷ mediana dos seis | 1,0× | 0–3,2× | ✅ |
+| A1 | +10 de Estamina: ganho pareado ≥ 3 p.p. | 10,3 p.p. | 3–100 p.p. | ✅ |
+| A1 | +10 de Estamina: ganho ÷ mediana dos seis | 1,0× | 0–3,2× | ✅ |
+| A1 | +10 de Força: ganho pareado ≥ 3 p.p. | 10,1 p.p. | 3–100 p.p. | ✅ |
+| A1 | +10 de Força: ganho ÷ mediana dos seis | 1,0× | 0–3,2× | ✅ |
+| A1 | +10 de Garra: ganho pareado ≥ 3 p.p. | 9,6 p.p. | 3–100 p.p. | ✅ |
+| A1 | +10 de Garra: ganho ÷ mediana dos seis | 0,9× | 0–3,2× | ✅ |
+| P1 | Resíduo do Poder: Fogo | 0,4 p.p. | -5–5 p.p. | ✅ |
+| P1 | Resíduo do Poder: Água | -0,4 p.p. | -5–5 p.p. | ✅ |
+| P1 | Resíduo do Poder: Grama | 0,0 p.p. | -5–5 p.p. | ✅ |
+| P1 | Resíduo do Poder: Comum | -0,1 p.p. | -5–5 p.p. | ✅ |
+| P1 | Resíduo do Poder: Mágico | -0,1 p.p. | -5–5 p.p. | ✅ |
+| P1 | Resíduo do Poder: Raro | -0,6 p.p. | -5–5 p.p. | ✅ |
+| P1 | Resíduo do Poder: Lendário | 1,1 p.p. | -5–5 p.p. | ✅ |
+| P1 | Resíduo do Poder: Mítico | 1,0 p.p. | -5–5 p.p. | ✅ |
+| P1 | Resíduo do Poder: ★ | -0,1 p.p. | -5–5 p.p. | ✅ |
+| P1 | Resíduo do Poder: ★★ | 0,2 p.p. | -5–5 p.p. | ✅ |
+| P1 | Resíduo do Poder: ★★★ | -0,1 p.p. | -5–5 p.p. | ✅ |
+| P2 | Favorito do Poder vence na sala pareada | 52,1% | 35–55% | ✅ |
+| M8 | Quem lidera em 1/3 da pista vence | 38,1% | 0–55% | ✅ |
+| M8 | Corridas com menos de 1 m entre o 1º e o 2º | 5,6% | 5–100% | ✅ |
 
-**Todas as 128 metas passaram.**
+**Todas as 161 metas passaram.**

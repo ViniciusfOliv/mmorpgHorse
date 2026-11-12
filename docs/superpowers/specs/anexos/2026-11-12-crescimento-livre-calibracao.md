@@ -1,280 +1,267 @@
-# Cavalos v3, bloco 1b: crescimento livre — calibração por simulação
+> Anexo da spec `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`: relatório da rodada 2 da calibração (`proposta2.md` na área de trabalho). Arquivos guardados: `calib2.diff` → `2026-11-12-crescimento-livre-calib.diff`, `out_final2_full.txt` → `2026-11-12-crescimento-livre-balanco.txt`. Os outros nomes citados (`proposta.md`, `src-r1/`, `cfg_*.json`, `out_*.txt`) são da área de trabalho e não foram guardados; a rodada 1 está no commit 78e61cd.
 
-2026-11-12. Medido numa cópia de `prototype/src` e `prototype/tools` (base babd236; o commit 9c37be3 que
-entrou depois só mexe em docs). O repositório não foi tocado. Código da configuração recomendada em
-`calib.diff` (`diff -ru src-orig src` + `diff -ru tools-orig tools`): `sim.js`, `data.js` e o `balance.js`
-adaptado. Saída final do `balance.js` completo em `out_final_full.txt` (**128 metas, todas passam**).
+# Cavalos v3, bloco 1b: crescimento livre — calibração, rodada 2
 
-**Método.** Igual ao do bloco 1: comparação pareada (mesma seed, mesmo mapa e mesmos rivais, com e sem a
-mudança), duelos 1×1 com largada alternada em pista sorteada e campos de 6. Margem = IC de 95%. Cavalos
-sintéticos com genética 0–31 sorteada por status, skills normais sorteadas (nascidas + aprendidas
-esperadas pelo nível) e pontos pela build do bot. Para explorar usei um harness próprio
-(`xlib.js`, `xtasks.js`, workers persistentes; `xsuite.sh` roda M1, A1, M9, M6 e M3–M5 de uma vez),
-com cerca de 20 configurações (`cfg_g1.json` … `cfg_g17.json`, `cfg_FINAL.json`; saídas `out_suite_g*.txt`).
-Status fixos de teste (montarias planas, A1) usam um gancho novo da corrida, `entry.statAdd`, no lugar
-do "equipamento sintético" (que deixou de existir porque a corrida ignora as peças).
+2026-11-12. Mesma cópia e mesmo harness da rodada 1 (`proposta.md`), partindo de `cfg_FINAL.json`. O
+repositório não foi tocado (HEAD 78e61cd, só docs). A rodada 1 continua intacta: `proposta.md`,
+`calib.diff`, `out_final_full.txt`, e o código dela em `src-r1/` e `tools-r1/`.
 
----
+Nesta rodada: código em `calib2.diff` (completo: `diff -ru src-orig src` + `diff -ru tools-orig tools`).
+Configuração em `cfg_FINAL2.json`, que é igual aos padrões do código (conferido com `xcheck_defaults.js`).
+Relatório completo em `out_final2_full.txt`: **161 metas, todas passam** (eram 128).
+
+## 0. O que mudou da rodada 1
+
+| Ajuste | O que fiz | Efeito principal |
+|---|---|---|
+| **1. Seis status como foco** | Aceleração mais inclinada (largada um pouco mais lenta), curva mais inclinada, Garra com arrancada mais cedo e mais forte, menos reforço da Estamina no ritmo, um pouco mais de Velocidade. **A skill de tipo passou a multiplicar os dois status do tipo no seu terço** (seção 3). Bot: os seis valem 1, × 1,2 no tipo. Poder reajustado. | A1 no Raro 20: 9,6–11,0 p.p., maior/menor = **1,15** (era 1,46). Toda `inc:*` ≥ 47,2% e `tipo` ≥ 47,9% no Raro 11/30/50 |
+| **2. Pontos crescendo com o nível** | Taxa de 2 (nível 2) a 6 (nível 50), média 4: o total no 50 não muda | 10 níveis dão +25 / +24 / +25 pontos de status (1→11 / 20→30 / 40→50; antes +44 / +22 / +16). **M3 40→50 = 75,0–77,0%** |
+| **3. Sorte fora da distribuição** | Sorte não recebe pontos (`noBuy`); 2º dado = (Sorte − 40)/40 | Mítico g31 × sete Comum g0: 20,8% no Dado (com a fórmula antiga, 14,5%). Na corrida, +16 de Sorte = 0,7 p.p. |
+| **4. Durações** | Reescala do tempo ×1,067 (velocidades ×k, acelerações ×k², gasto por segundo ×k: mesma corrida em metros) e faixas por liga | Iniciais curta 98,2 s / longa 128,6 s (era 103,5 / 135,8). Mais rápida: Mítico ★★★ 50, 84,1 s (14% abaixo) |
+
+Subir só `vBase` desmontava os iniciais (Brasa 41,9%): a largada fica relativamente mais longa. A
+reescala completa mantém tudo em metros.
 
 ## 1. Fórmulas finais
 
 ```text
-g ∈ 0..31 por status (genética); nada cresce sozinho
-base(k)    = baseLo[raridade] + 16·g/31                       baseLo = 40 / 44 / 49 / 54 / 59
-pontos(L)  = piso((L − 1) · 4,0 · fatorRaridade · fatorEstrelas)
-             fatorRaridade = 1,00 / 1,03 / 1,06 / 1,09 / 1,12   fatorEstrelas = 1 / 1,10 / 1,26
-custo      = o i-ésimo ponto num status (i = 0, 1, …) custa 1 + piso(i/10)
-             comprar a = 10q + r pontos custa 5q(q+1) + r(q+1)   (10 → 10, 20 → 30, 30 → 60, 50 → 150, 70 → 280)
-válida     = soma dos custos ≤ pontos(L) e base + a ≤ 150 em cada status
-status(k)  = arredonda(base + a), preso a 1–150. Equipamento fora da corrida e do Poder.
+base(k)    = baseLo[raridade] + 16·g/31                       baseLo = 40 / 44 / 49 / 54 / 60
+pontos(L)  = piso(fatorRaridade · fatorEstrelas · [(L − 1)·2 + 4·(L − 1)(L − 2)/96])
+             (taxa por nível: 2 no nível 2, sobe em linha reta até 6 no nível 50; no 50 = 196 × fatores)
+             fatorRaridade = 1,00 / 1,05 / 1,10 / 1,15 / 1,20   fatorEstrelas = 1 / 1,09 / 1,22
+custo      = o i-ésimo ponto num status custa 1 + piso(i/10)   (igual)
+Sorte      = só a base (40–76); não recebe pontos
+status(k)  = arredonda(base + a), 1–150
+skill de tipo (no seu terço): os dois status do tipo valem × (1 + m·P)
+             Labareda (Fogo, 1º terço): Vel e Ace, m = 0,19
+             Raízes Firmes (Grama, 2º terço): For e Man, m = 0,15
+             Maré Alta (Água, 3º terço): Est (teto do ritmo) e Gar, m = 0,33
+             P = 1 + nívelT·(L − 1)/49 + raridadeT·ordem/4:  Fogo −0,15/0,15 · Água 0/0,15 · Grama 0,25/0,40
+Dado       = chance do 2º dado (Sorte − 40)/40
 ```
 
-No nível 50 (genética média, build do bot): Comum ★★ tem 215 pontos e status de corrida entre 61 e 78;
-Mítico ★★★ tem 276 pontos. Dez níveis dão +43 pontos de status (1→11), +23 (20→30) e +17 (40→50): pelo
-custo, o status cresce com a raiz dos pontos.
+Comum ★★ de genética média com a build do bot: 25 pontos no nível 11, 100 no 30, 152 no 40, 213 no 50
+(rodada 1: 44 / 127 / 171 / 215).
 
-## 2. Constantes: hoje → proposto
+## 2. Constantes: rodada 1 → rodada 2
 
-| Nome | Hoje | Proposto |
+| Nome | Rodada 1 | Rodada 2 |
 |---|---|---|
-| Crescimento por nível `gGrowBase/gGrowRange` | 0,30 + 0,08·g/31 | **sai** |
-| `baseLo` C/M/R/L/Mí | 40 / 45 / 50 / 55 / 60 | **40 / 44 / 49 / 54 / 59** |
-| `statCap` | 80 / 85 / 90 / 95 / 100 | **sai**; teto único `statMax` **150** |
-| Pontos | piso((L−1)·starMult) | **piso((L−1)·`ptsRate`·`ptsMult`·`starMult`)** |
-| `ptsRate` | — | **4,0** |
-| `ptsMult` (raridade, novo) | — | **1,00 / 1,03 / 1,06 / 1,09 / 1,12** |
-| `starMult` | 1 / 1,2 / 1,5 | **1 / 1,10 / 1,26** |
-| `freeCapShare` (34%) | 0,34 | **sai**; `costStep` **10** |
-| Equipamento na corrida e no Poder | mods, conjunto, anula penalidade, ×1,07 | **sai** (`weatherMultSet` sai) |
-| `vRange` | 1,2 | **1,0** |
-| Aceleração | 0,6 + 2,4·n | **1 / max(0,05; 1,2 − 0,7·n)** |
-| Curva | min(1; 0,826 + 0,14·n) | **min(1; 0,728 + 0,17·n)** |
-| Subida | min(1; 0,86 + 0,13·n) | **min(1; 0,824 + 0,11·n)** |
-| Teto de n(Força)/n(Manobra) efetivos | 1,2 | **2** |
-| `forcaSurfRelief` / `forcaCrowdRelief` | 0,5 / 0,8 (ficava negativo acima de 125) | **0,2 / 0,6**, com piso 0 |
-| Clima nos status | n·m | **n + (m − 1)·0,5** (`weatherAdd`) |
-| Teto do ritmo (meio / sprint) | 0,97 / 1,03 | **+0,04 / +0,075 × (n(est) − 0,5)** |
-| Erro do jóquei | −2% … +6% | **−0,5% … +2,5%** |
-| Atraso de largada | ×(1 − 0,5·min(n, 1)) | **×(1 − min(n, 1,5)/3)** |
-| Garra: início da arrancada | 80% | **80% − 10%·(n − 0,5)** (o gatilho `final` vale no mesmo ponto) |
-| Garra: chance / força | 0,10 + 0,70·n / 0,02 + 0,16·n | **0,50 + 0,15·n / 0,02 + 0,22·n** |
-| Dado: chance do 2º dado | sorte/100 | **sorte/150** |
-| Força da skill de tipo P | 1 + 0,4·(L−1)/49 + 0,4·ordem/4 | **por tipo** (nível / raridade): Fogo 0,70 / 0,55 · Água 0,65 / 0,50 · Grama 0,85 / 0,65 |
-| Labareda / Maré Alta / Raízes | 0,23 / 1,8% + 1,2% / 0,07 + 1,2% | **0,16** / **2,0%** + 1,2% / igual |
-| Drift (`curveBonus`) | 0,03 | **0,025** |
-| Poder, pesos VEL/ACE/MAN/FOR/EST/GAR/SOR | 3,1 / 1,4 / 1,45 / 3,3 / 2,4 / 1,3 / 0,2 | **2,6 / 1,9 / 2,2 / 2,2 / 2,7 / 1,4 / 0** |
-| Poder, skill | 18 × peso do gatilho | **9 ×** |
-| Poder, tipo e conjunto | 80·P + 3/15/20 | **19·(L−1)/49 + 27·ordem/4** |
-| Ligas (Prata…Lenda) | 810 / 910 / 1010 / 1110 / 1220 | **710 / 800 / 890 / 970 / 1060** |
-| `botAlloc` | limite no status do tipo + rodízio | **por pesos** (seção 4) |
+| Pontos | piso((L−1)·4,0·fatores) | **piso(fatores·[(L−1)·2 + 4·(L−1)(L−2)/96])** (`ptsRate0` 2, `ptsRate1` 6) |
+| `ptsMult` | 1,00/1,03/1,06/1,09/1,12 | **1,00/1,05/1,10/1,15/1,20** |
+| `starMult` | 1/1,10/1,26 | **1/1,09/1,22** |
+| `baseLo` | 40/44/49/54/59 | **40/44/49/54/60** |
+| Sorte | recebia pontos | **`noBuy: ['sorte']`** |
+| Dado | sorte/150 | **(sorte − 40)/40** (`sorteDiceLo` 40, `sorteDiceFull` 80) |
+| `vBase` / `vRange` | 17,805 / 1,0 | **19,0 / 1,13** (×1,067 de escala e +6% em `vRange`) |
+| Aceleração `aInv0` / `aInv1` / piso | 1,2 / 0,7 / 0,05 | **1,158 / 0,66 / 0,044** (antes da escala: 1,32 − 0,75·n) |
+| `decel` / `drainK` / `startDelayMax` | 1,2 / 1,0 / 0,6 | **1,37 / 1,07 / 0,56** (escala de tempo) |
+| Curva | 0,728 + 0,17·n | **0,704 + 0,185·n** (teto 1 ainda em n = 1,6) |
+| Teto do ritmo pela Estamina | +0,04 / +0,075 | **+0,035 / +0,065** |
+| Garra: início / força | −0,10·(n−0,5) / 0,02 + 0,22·n | **−0,14·(n−0,5) / 0,02 + 0,26·n** |
+| Skill de tipo | Labareda ace ×(1+0,16P); Raízes +0,07P For/Man e −1,2%P gasto; Maré +2%P vel e +1,2%P tanque | **multiplica os dois status do tipo: 0,19 / 0,15 / 0,33** (`statMul`) |
+| P por tipo (nível/raridade) | Fogo 0,70/0,55 · Água 0,65/0,50 · Grama 0,85/0,65 | **Fogo −0,15/0,15 · Água 0/0,15 · Grama 0,25/0,40** |
+| Bot (`botW`) | valor (0,9/0,75/0,9/1/1/0,7) × 1,3 no tipo | **1 em todos × 1,2 no tipo** |
+| Poder VEL/ACE/MAN/FOR/EST/GAR/SOR | 2,6/1,9/2,2/2,2/2,7/1,4/0 | **2,5/2,0/2,2/2,4/2,4/1,5/0** |
+| Poder: skill / nível / raridade | 9 / 19 / 27 | **14 / 20 / 28** |
+| Ligas Prata…Lenda | 710/800/890/970/1060 | **710/800/890/980/1070** |
+| Arranque | ace ×1,2 por 100 m | **×1,18** (S1 13,2 → 12,4) |
+| Canto da Iara / Chama Final | 7 s / 8 s | **9 s / 9,5 s** (S1 2,8 / 3,5 → 5,4 / 4,0) |
 
-Sem mudança: `gBand` 16, tanque 66 + 20·n, gasto, piso, chuva, sol, vácuo, pelotão (raio e −3%),
-`weatherMult` 1,03 / 1,08, Dado (1/3 e 2/3), skills (exceto Drift), chance de skill, vagas, pista.
+Sem mudança: custo por faixa, teto 150, `gBand`, subida, tanque, clima somado a n (0,5), chance da Garra,
+erro do jóquei, pista, skills restantes.
 
-## 3. A física acima de 100
+## 3. Ajuste 1: os seis status, e por que a skill de tipo mudou
 
-Princípio: **toda fórmula é linear em n até 150** e o custo por faixa é o único retorno decrescente.
-Medido em campos planos de 6 (todos os status em X, alvo com +10 num status, sem skills;
-`out_x_hoje.txt` e `out_x_final.txt`), ganho pareado em p.p.:
+**Alavancas.** Aceleração: a inclinação de 1/a subiu 7% (e a largada ficou um pouco mais lenta, para o
+piso continuar fora do alcance). Garra: a arrancada começa mais cedo (0,14) e é mais forte (0,26), tudo
+linear até 150. Manobra: curva mais inclinada. Estamina: menos reforço no ritmo. Velocidade: +6%.
 
-| X | Hoje: VEL / ACE / MAN / FOR / EST / GAR | Proposto: VEL / ACE / MAN / FOR / EST / GAR |
-|---|---|---|
-| 50 | 18,5 / 7,2 / 9,4 / 19,6 / 13,3 / 8,0 | 23,0 / 17,4 / 23,3 / 26,4 / 27,8 / 13,4 |
-| 80 | 24,2 / 10,5 / 14,9 / 26,2 / 9,5 / 10,5 | 26,8 / 23,5 / 26,0 / 27,2 / 29,8 / 19,9 |
-| 110 | 40,8 / 18,0 / 26,0 / 20,7 / 6,6 / 20,4 | 28,1 / 29,2 / 27,4 / 30,9 / 29,0 / 28,4 |
-| 140 | 53,2 / 24,4 / **0,0 / 0,0** / 2,5 / 27,2 | 32,7 / 35,0 / 30,3 / 31,8 / 31,7 / 39,4 |
+**A1 (+10 num status, campo de 6 Raros nível 20; `out_final2_full.txt`):**
 
-O que estava errado e o que mudou:
-1. **Saturação.** Curva, subida e o teto de 1,2 zeravam Manobra e Força acima de ~110–120; o alívio do
-   pelotão virava aceleração acima de 125; a chance da Garra travava em 121; o Dado em Sorte 100.
-   Curva e subida mantêm a inclinação (subiu um pouco na curva) com a base rebaixada para o teto 1 cair
-   em n = 1,6; o resto foi reescalado para não travar antes de 150.
-2. **A Estamina morria no topo.** Com tanque e velocidade altos, o teto fixo do ritmo (0,97 / 1,03) limita
-   antes do tanque, e ponto de Estamina deixa de render (13,3 → 2,5). Agora a Estamina também sobe o
-   teto do ritmo (centrado em 50, então o inicial médio não muda) e rende em qualquer nível.
-3. **A Aceleração rendia ∝ 1/a².** A largada perde v²/2a metros, então cada ponto valia menos quanto mais
-   alto. Com 1/a em linha reta, cada ponto encurta a largada igual (o piso 0,05 só entra em n = 1,64, acima de 150 com clima). Custa uma
-   largada mais lenta (1,16 m/s² no inicial, hoje 1,75).
-4. **A Garra rendia metade.** Uma arrancada sorteada só nos últimos 20% precisava de +45% de força para
-   empatar com a Velocidade. Agora a Garra também adianta a arrancada, e a chance passou a depender
-   menos do status (menos variância). Ela ainda é a mais convexa (13 → 39).
-5. **O clima pesava mais no topo** (n·1,03 cresce com n). Como soma fixa vale o mesmo em qualquer nível.
-
-Resíduo: com a Raízes Firmes (+0,07·P, até +0,175) e Manobra/Força ≥ ~143, a curva/subida bate o teto 1
-dentro do terço do meio. O ponto continua rendendo nos outros dois terços.
-
-## 4. Build dos bots e "Distribuir sugerido"
-
-`weightedAlloc(cavalo, pesos, de)`: um ponto por vez no status de menor (pontos + 1)/peso cujo próximo
-ponto ainda cabe; empate na ordem de `STAT_KEYS`; sem RNG. `botAlloc(cavalo, de)` usa os pesos de valor
-(medidos no A1) **× 1,3 nos dois status do tipo**:
-
-| Tipo | VEL | ACE | MAN | FOR | EST | GAR | SOR |
+| | VEL | ACE | MAN | FOR | EST | GAR | maior ÷ menor |
 |---|---|---|---|---|---|---|---|
-| Fogo | **1,17** | **0,975** | 0,9 | 1 | 1 | 0,7 | 0,01 |
-| Água | 0,9 | 0,75 | 0,9 | 1 | **1,3** | **0,91** | 0,01 |
-| Grama | 0,9 | 0,75 | **1,17** | **1,3** | 1 | 0,7 | 0,01 |
+| Rodada 1 | 10,9 | 8,7 | 11,2 | 11,8 | 12,6 | 8,6 | 1,46 |
+| **Rodada 2** | **10,8** | **10,7** | **11,0** | **10,1** | **10,3** | **9,6** | **1,15** |
 
-Sorte só recebe sobra. Com `de` (o alloc do jogador), continua a partir do que já foi comprado: é o
-botão "Distribuir sugerido". É a build mais forte medida em quase todos os pontos (M6), então o jogador
-não vence o bot só distribuindo melhor.
+Fora do Raro 20 a forma se mantém (`out_a1_r2i.txt`): Raro 20 com N = 6.000, 10,8–12,6 (1,17); Lendário 40,
+10,5–12,4 (1,18). Sorte: 0,7 p.p.
 
-## 5. Poder e ligas
+**Por que `tipo` não passava de 43%.** Medi as builds por elemento (`out_r2_*`). Cada skill de tipo
+*substituía* os status do próprio tipo:
+- para o Fogo, `inc:acel` dava 45%, porque a Labareda já acelera;
+- para a Água, Estamina e Garra rendiam menos, porque a Maré recuperava tanque e acelerava;
+- para a Grama, a mesma coisa com Força e Manobra.
 
-```text
-Poder = 2,6·VEL + 1,9·ACE + 2,2·MAN + 2,2·FOR + 2,7·EST + 1,4·GAR + 0·SOR
-        + 9 × peso do gatilho, por skill + 19·(nível − 1)/49 + 27·ordemDaRaridade/4
-```
+Investir no tipo tinha rendimento decrescente. Com o custo convexo e os status de valor igual, dobrar
+dois status perde por ineficiência (as `dup:*` ficam em 43–45%). **A skill passou a multiplicar os dois
+status do tipo no seu terço.** Agora investir no tipo tem sinergia, e é isso que dá identidade ao bot
+(× 1,2) e leva `tipo` de 42% para 48–53%.
+- **Calibração:** no nível 1 (P = 1) cada m reproduz o M1 e o M9 de antes.
+- **Crescimento de P:** quase zero, porque o efeito já cresce com os status. O Fogo tem nível −0,15: a
+  Velocidade multiplicada vale cada vez mais em status alto. Em pontos absolutos a Labareda ainda cresce
+  (nível 1: +10 em Vel e Ace; Lendário 50: cerca de +20).
+- **Alternativa descartada:** reforçar P com os status do tipo, sem mudar o efeito. `tipo` foi só a 45,8%
+  e desequilibrou o M9.
 
-Regressão logística (sem intercepto) em 48.644 pares de 3.000 salas (`out_fit0.txt`); o reajuste em
-79.686 pares de 5.000 salas com os pesos novos ficou no ruído (`out_fit1.txt`). O termo de tipo saiu de 80·P porque P agora difere por
-tipo e o Poder não deve diferir: nível e raridade entram como termos próprios. Sorte deu −0,1 (ruído) e
-fica 0. **Resíduo P1 máximo 1,0 p.p.** (Grama).
+## 4. Ajuste 2: pontos crescendo com o nível
 
-Ligas, pelo método de hoje (Fogo, genética 16, ★★, sem skills, build do bot; seis faixas iguais entre
-Comum 1 = 624 e Lendário 50 = 1.149): **Bronze 0 · Prata 710 · Ouro 800 · Platina 890 · Diamante 970 ·
-Lenda 1060**. Iniciais nível 1: 627–632 (Bronze); nível 25: 818–823 (Ouro); Mítico ★★★ 50 g31: 1.356.
+| r0 / r1 | Pontos Comum ★★ (11 / 30 / 40 / 50) | M3 1→11 | 20→30 | 40→50 |
+|---|---|---|---|---|
+| 4 / 4 (rodada 1) | 44 / 127 / 171 / 215 | 88,8–93,7 | 75,8–79,4 | 72,1–72,4 |
+| **2 / 6** | **25 / 100 / 152 / 213** | **78,0–78,5** | **76,1–77,8** | **75,0–77,0** |
 
-## 6. Metas (balance.js completo final, `out_final_full.txt`)
+Fiquei com 2/6, o extremo pedido: com 3/5 o Comum ★★ ganha +52 pontos do 40 ao 50 (2/6: +61; rodada 1:
++44), metade do ganho extra; pela sensibilidade medida, ~+1,5 p.p. no M3, abaixo do alvo de 74
+(estimativa, não rodei 3/5 isolado). O 1→11 segue com folga de 8 p.p. M6 no nível
+11: máximo 53,7%, com 12 builds entre 45 e 60%.
+
+## 5. Ajuste 3: Sorte
+
+Sorte vai de 40 (Comum g0) a 76 (Mítico g31) e não recebe pontos (`validAlloc` zera, `allocInfo.room` = 0,
+`weightedAlloc`/`botAlloc` ignoram). Com sorte/150 a diferença no Dado era quase invisível (Mítico g31 ×
+sete Comum g0: 14,5%). Com **(Sorte − 40)/40**:
+
+| Dado (1 contra 7, empate = meio) | Vence |
+|---|---|
+| Sorte 76 (Mítico, g31) × sete de 40 (Comum, g0) | **20,8%** (meta nova 17–25%) |
+| Sorte 56 (Comum, g31) × sete de 40 | 16,2% |
+| Sorte 40 × sete de 40 | 12,6% |
+
+Na corrida, +16 de Sorte (genética 0 → 31) vale **0,7 ± 0,6 p.p.** de vitória (Raro 20, campo de 6): ela
+só mexe no Dado (o clima) e na chance de skill. A Sorte continua com peso 0 no Poder (a regressão deu
+0,08).
+
+## 6. Ajuste 4: durações e faixas por liga
+
+Salas de 8 sorteadas como no PVP (1.500), liga = a do Poder médio da sala:
+
+| Liga | Faixa curta / longa | Curta (média) | Longa (média) |
+|---|---|---|---|
+| Bronze (e iniciais nível 1) | 92–104 / 121–136 s | 98,7 (iniciais 98,2) | 129,0 (iniciais 128,6) |
+| Prata | 90–102 / 119–133 s | 96,5 | 127,2 |
+| Ouro | 88–100 / 117–131 s | 94,3 | 123,6 |
+| Platina | 86–98 / 114–128 s | 92,6 (Comum ★★ 50: 92,3) | 120,7 (121,4) |
+| Diamante | 84–96 / 112–126 s | 89,0 | 119,8 |
+| Lenda | 80–94 / 106–122 s | 87,8 (Lendário ★★ 50: 86,7; Mítico ★★★ 50: **84,1**) | 113,9 (113,9; 110,3) |
+
+Corrida mais rápida ÷ iniciais = 0,86 (meta ≥ 0,80). A v3 tinha 95,9 / 127,1 s nos iniciais.
+
+## 7. Bot, Poder e ligas
+
+- **Bot:** os seis valem o mesmo no A1, então o peso de valor é 1 em todos, × **1,2** nos dois do tipo.
+  Pedido era × 1,3. Com 1,3, 1,2 e 1,1 o bot mede 60,2 / 59,9 / 60,0% no M6 do Raro 50; a vantagem sobre
+  a equilibrada vem da sinergia com a skill de tipo, não da força da inclinação. Usei 1,2 porque com 1,3
+  o completo reprovava (60,2%).
+- **Poder:** regressão logística em 64.318 pares de 4.000 salas (`out_fit2.txt`). Pesos 2,5 / 2,0 / 2,2 /
+  2,4 / 2,4 / 1,5 / 0; skill 14 × peso do gatilho; 20·(L−1)/49 + 28·ordem/4. **P1 máximo 1,1 p.p.**
+  (alvo ≤ 2).
+- **Ligas:** Comum 1 = 624, Lendário 50 = 1.154 → **710 / 800 / 890 / 980 / 1070**. Os iniciais no nível 25
+  caem da Ouro para a Prata (782–791), porque o meio da progressão tem menos pontos.
+
+## 8. Metas (`out_final2_full.txt`, completo)
 
 | Meta | Faixa | Medido | Margem |
 |---|---|---|---|
-| M1 iniciais | 30–37%; terços 22–45% | 32,6 / 34,9 / 32,6%; terços 24,5–42,5% | ±0,8; mais apertado: Brasa curta 42,5 e longa 24,5 |
-| M3 +10 níveis | ≥ 70% | 1→11: 88,8–93,7 · 20→30: 75,8–79,4 · **40→50: 72,1–72,4** | 40→50 com seeds independentes: 71,4–72,8 (±1,4) |
-| M4 um degrau | 72–88% | 79,5–86,3% | máximo Raro×Mágico nível 1, 86,3 |
-| M4 dois degraus | ≥ 95% | 97,0–98,7% | mínimo Mítico×Raro nível 50, 97,0 |
-| M5 ★★★×★ / ★★×★ | 65–75 / 55–63% | 70,8–71,3 / 59,8–61,1% | seeds independentes: 71,5–72,4 / 61,6–62,1 |
-| M6 builds (Raro ★★, 11/30/50) | ≤ 60% de média; ≥ 4 em 45–60 | máximo 55,3 / 56,9 / 58,4% (bot); 10 builds em 45–60 nos três | ±1,0 |
-| M7 pior caso | < 150 | **144** (Mítico ★★★, g31, tudo num status) | — |
-| M8 corrida viva | líder 1/3 ≤ 55%; ≥ 5% com < 1 m | 39,9% · **5,9%** | ±0,7 no segundo |
-| M9 tipos (justo 16,7%) | 15,3–18,0% | 15,7–17,3% | ±0,4 |
-| P1 resíduo do Poder | ≤ 5 p.p. | máximo 1,0 | — |
-| P2 favorito vence | 35–55% | 53,2% | ±1,4 |
-| A1 (+10 num status, Raro 20) | ≥ 3 p.p. e ≤ 3,2× a mediana | EST 12,6 · FOR 11,8 · MAN 11,2 · VEL 10,9 · ACE 8,7 · GAR 8,6 · SOR 0,1; maior = 1,14× a mediana (v3: 1,9×) | ±1,5 |
-| S1 (14 skills) | 3–13 p.p. | 4,2 (Chama Final) a 12,3 (Drift) | Drift e Arranque (11,9) perto do teto |
-| 2 inicial no seu clima, sem Dado | **45–68%** (era 45–65) | 60,4 / 65,7 / 63,3% | — |
-| 3 / 3b / 3c especialistas | **65–100** / 70–100 / **65–100** | 100,0 / 74,5 / 75,5% | — |
-| 5 durações | curta 88–104 s, longa 116–138 s | seção 9 | pouca folga |
-| 7 Dado (Sorte 150 × 0) | 18–28% | 20,6% | — |
-| 8 viradas / 9 determinismo / 10 chance de skill | iguais | 1,29 · ok · ≤ 2,4 p.p. | — |
+| M1 iniciais | 30–37%; terços 22–45% | 31,8 / 33,3 / 34,9%; terços 26,7–38,9% | folgada |
+| M3 +10 níveis | ≥ 70% (alvo 40→50 ≥ 74) | 1→11: 78,0–78,5 · 20→30: 76,1–77,8 · **40→50: 75,0–77,0** | 40→50: +1,0 sobre o alvo 74 |
+| M4 um / dois degraus | 72–88 / ≥ 95% | 78,1–85,0 / **95,4–98,7** | dois degraus no 50: **+0,4** |
+| M5 ★★★×★ / ★★×★ | 65–75 / 55–63% | 68,7–70,5 / 59,6–62,3% | ★★ Mítico +0,7 |
+| M6 máximo (Raro 11/30/50) | ≤ 60% | 53,7 / 53,2 / **59,9%** (bot) | **+0,1** |
+| M6 `inc:*` (6) e `tipo` | **≥ 47% (nova)** | mínimo `inc:acel` 47,2% (nível 11), `tipo` 47,9% (nível 50) | **+0,2** |
+| M6 builds em 45–60% | ≥ 4 | 12 / 12 / 10 | — |
+| M6 Comum ★★ 50 / Mítico ★★★ 50 (informativo) | ≤ 60% desejado | **61,4% / 64,9%** (bot) | não passa |
+| M7 pior caso | < 150 | 146 | — |
+| M8 corrida viva | líder 1/3 ≤ 55%; ≥ 5% com < 1 m | 38,1% · 5,6% | +0,6 |
+| M9 tipos | 15,3–18,0% | 16,3–17,2% | folgada |
+| P1 / P2 | ≤ 5 (alvo 2) / 35–55% | 1,1 / 52,1% | — |
+| A1 | ≥ 3 p.p.; maior ÷ menor **≤ 1,3 (nova; alvo 1,25)** | 9,6–11,0; 1,15× | — |
+| S1 | 3–13 p.p. | 4,0 (Chama Final) a 12,7 (Drift) | Drift e Arranque (12,4) perto do teto |
+| 2 / 3 / 3b / 3c | 45–68 / 65–100 / 70–100 / 65–100 | 61,6–66,8 / 100 / 77,5 / 76,5 | — |
+| 5 durações por liga (21, nova) | seção 6 | todas dentro | ≥ 4 s (a menor: Mítico ★★★ 50, 84,1 s para o piso 80) |
+| 7 Dado (reescrita) | 17–25% | 20,8% | — |
+| 8 / 9 / 10 | iguais | 1,31 · ok · ≤ 2,4 p.p. | — |
 
-## 7. Builds (M6)
+## 9. M6 (Raro ★★; 800 duelos por par)
 
-Rodízio de duelos entre builds com a mesma genética e o mesmo elemento; 800 duelos por par; média =
-vitórias contra as builds realistas. `all:k` só informa. Raro ★★ no `balance.js`; as duas últimas colunas
-em `out_m6_final_extra.txt`.
-
-| Build | Raro 11 | Raro 30 | Raro 50 | Comum ★★ 50 | Mítico ★★★ 50 |
-|---|---|---|---|---|---|
-| `bot` | **55,3** | **56,9** | **58,4** | **60,7** | 59,8 |
-| `eq` (equilibrada) | 53,7 | 52,9 | 56,4 | 57,1 | **61,0** |
-| `inc:vel` | 48,4 | 48,2 | 49,9 | 49,7 | 51,4 |
-| `inc:acel` | 43,3 | 43,9 | 45,2 | 43,3 | 45,6 |
-| `inc:man` | 52,1 | 49,6 | 46,9 | 48,6 | 46,2 |
-| `inc:forca` | 48,3 | 49,7 | 50,5 | 49,6 | 49,9 |
-| `inc:est` | 51,4 | 51,6 | 56,1 | 55,0 | 53,3 |
-| `inc:garra` | 45,0 | 40,6 | 42,1 | 37,6 | 41,9 |
-| `dup:vel+est` | 52,3 | 53,8 | 52,7 | 52,3 | 51,5 |
-| `dup:vel+forca` | 49,3 | 51,8 | 49,6 | 48,4 | 48,8 |
-| `dup:forca+est` | 51,8 | 54,1 | 50,4 | 54,2 | 50,1 |
-| `tipo` (o dobro nos dois do tipo) | 49,3 | 46,9 | 41,8 | 43,6 | 40,5 |
-| `all:vel` | 29,1 | 14,3 | 7,1 | 5,0 | 6,9 |
-| `all:acel` | 24,5 | 7,8 | 3,8 | 1,6 | 4,1 |
-| `all:man` | 29,4 | 11,0 | 5,6 | 5,2 | 5,2 |
-| `all:forca` | 31,3 | 15,0 | 8,8 | 8,4 | 7,5 |
-| `all:est` | 31,5 | 17,4 | 10,1 | 8,3 | 9,3 |
-| `all:garra` | 23,8 | 6,5 | 2,2 | 1,0 | 2,6 |
-
-**"Tudo num status" vence 1–10% no nível 50 e 24–32% no 11.** A Estamina precisou do ajuste da seção 3:
-inclinada em Estamina é a terceira melhor no nível 50 (56,1%; na sonda do dono era a mais fraca, 47%).
-As builds fracas são as inclinadas nos dois status de menor valor (Garra, Aceleração) e a `tipo`, que
-dobra um deles para Fogo e Água.
-
-## 8. M7: maior status no nível 50 (Fogo)
-
-"Tudo": genética 31, todos os pontos em Velocidade. "Inclinada": genética 15, `inc:vel`. Entre parênteses, os pontos.
-
-| Raridade | ★ | ★★ | ★★★ |
+| Build | Nível 11 | Nível 30 | Nível 50 |
 |---|---|---|---|
-| Comum | 113 / 82 (196) | 116 / 84 (215) | 121 / 88 (246) |
-| Mágico | 118 / 87 (201) | 121 / 90 (222) | 126 / 92 (254) |
-| Raro | 124 / 93 (207) | 127 / 95 (228) | 132 / 99 (261) |
-| Lendário | 130 / 98 (213) | 133 / 100 (235) | 138 / 104 (269) |
-| Mítico | 136 / 104 (219) | 139 / 107 (241) | **144** / 109 (276) |
+| `bot` | 50,8 | 53,0 | **59,9** |
+| `eq` | 50,3 | 52,0 | 57,9 |
+| `inc:vel` / `acel` / `man` | 50,9 / **47,2** / 53,7 | 49,2 / 47,4 / 49,9 | 49,3 / 50,2 / 50,5 |
+| `inc:forca` / `est` / `garra` | 48,5 / 50,3 / 50,9 | 48,5 / 48,9 / 47,9 | 50,6 / 50,7 / 49,9 |
+| `dup:vel+est` / `vel+forca` / `forca+est` | 50,2 / 48,1 / 48,5 | 49,9 / 48,8 / 51,1 | 43,3 / 45,2 / 44,5 |
+| `tipo` | 50,7 | 53,2 | **47,9** |
+| `all:*` (informação) | 30,9–40,9 | 15,6–18,7 | 7,1–8,9 |
 
-## 9. Durações (média do último a chegar)
+Informativo (pontas): Comum ★★ 50, bot 61,4 e equilibrada 59,3; Mítico ★★★ 50, bot 64,9 e equilibrada
+63,6, com as duplas em 41–43%.
 
-| Corrida | Curta (1.400–1.599) | Média | Longa (1.800–2.000) |
+## 10. M7 e iniciais
+
+| Nível 50, Fogo ("tudo" g31 / inclinada g15) | ★ | ★★ | ★★★ |
 |---|---|---|---|
-| Iniciais nível 1 (hoje 95,9 / 110,2 / 127,1) | **103,5** | 118,3 | 135,8 |
-| PVP de 8 sorteado | 97,6 | 111,8 | 128,5 |
-| Comum ★★ nível 50 | 97,1 | 111,1 | 127,8 |
-| Lendário ★★ nível 50 | 91,6 | 104,7 | 120,5 |
-| Mítico ★★★ nível 50 | **89,3** | 101,9 | 117,4 |
+| Comum | 113 / 82 | 116 / 84 | 120 / 87 |
+| Raro | 125 / 93 | 128 / 95 | 132 / 99 |
+| Mítico | 139 / 106 | 142 / 109 | **146** / 112 |
 
-Tudo dentro das faixas, com pouca folga nas duas pontas: os iniciais ficaram cerca de 7% mais lentos
-(curvas e subidas mais lentas, largada mais lenta) e o Mítico ★★★ 50 é 14% mais rápido que eles. Não
-proponho correção. Se o dono preferir os iniciais em ~96 s, a saída é subir `vBase`; aí o topo cai para
-~83 s e as faixas de duração precisam passar a valer por liga.
+Iniciais: genética e status no nível 1 iguais aos da rodada 1 (Comum `baseLo` 40). Poder 626–633 (Bronze).
 
-## 10. Iniciais (não mudam)
+## 11. O que mudou no `balance.js`
 
-A base no nível 1 do Comum é a de hoje (40 + 16·g/31). Genética e status iguais ao bloco 1:
-
-| Inicial | | VEL | ACE | MAN | FOR | EST | GAR | SOR |
-|---|---|---|---|---|---|---|---|---|
-| Brasa (Fogo) | g | 24 | 24 | 14 | 12 | 12 | 14 | 12 |
-| | status | 52 | 52 | 47 | 46 | 46 | 47 | 46 |
-| Maré (Água) | g | 14 | 12 | 12 | 14 | 24 | 24 | 12 |
-| | status | 47 | 46 | 46 | 47 | 52 | 52 | 46 |
-| Ipê (Grama) | g | 16 | 12 | 24 | 24 | 14 | 12 | 10 |
-| | status | 48 | 46 | 52 | 52 | 47 | 46 | 45 |
-
-## 11. O que muda no `balance.js` (no diff)
-
-- **Saem:** E1, E2a, E2b, E3, E4 e E3b (equipamento; `gearOf`, `tGearDuel`, `tE3b`); o M6 antigo (seis
-  políticas, maior par) e o M7 antigo (status cheios).
-- **Entram:** M6 novo (rodízio de 12 builds realistas + 6 "tudo num status"; meta "nenhuma média acima
-  de 60%" e "≥ 4 em 45–60%"); M7 novo (tabela de máximos, pior caso < 150); durações das salas de nível 50
-  (6 checagens). Total: 128 metas (hoje 126).
-- **Rebaseadas:** 2 (45–65 → 45–68%), 3 (65–85 → 65–100%), 3c (75–93 → 65–100%), 7 (Sorte 100 → Sorte 150).
-  Corrida menos ruidosa e curva mais inclinada: o especialista e o clima fixo decidem mais.
-- **Políticas** por `weightedAlloc`; montarias planas e A1 pelo gancho `statAdd` no lugar dos mods de equipamento.
+- **Novas:**
+  - M6 `inc:*` e `tipo` ≥ 47% nos níveis 11, 30 e 50 (21 checagens);
+  - A1 maior ÷ menor ≤ 1,3 (alvo 1,25; o IC de cada ganho é ±1,4 p.p., então o teto tem folga de ruído);
+  - durações por liga: 12 checagens de PVP + 2 dos iniciais (Bronze) + 6 das salas de nível 50 na liga
+    delas + "mais rápida ≥ 80% dos iniciais".
+- **Reescrita:** a 7 (Mítico g31 × sete Comum g0, 17–25%).
+- **Informativo:** M6 no Comum ★★ 50 e no Mítico ★★★ 50.
+- **Saiu:** a faixa única de duração (10 checagens).
+- **Total:** 161 metas. Tempo do completo: 197 s.
 
 ## 12. Riscos e dúvidas para o dono do projeto
 
-1. **M3 40→50 fica 2 p.p. acima do piso (72%).** É o limite real: no topo, 10 níveis dão só +17 pontos de
-   status. Subir a taxa rende pouco (3,9 → 4,5 deu +1 p.p.) e estoura o M7; tirar ruído estoura M4, M5 e M6.
-2. **M6 fora do Raro ★★ fica no limite:** bot 60,7% no Comum ★★ 50 e equilibrada 61,0% no Mítico ★★★ 50
-   (IC ±1). Com muitos pontos, o custo crescente premia espalhar. Se for preciso folga, a alavanca é dar
-   um pouco mais de valor a Aceleração e Garra (as builds fracas sobem e as médias caem); não medido.
-3. **A corrida mudou de sensação:** largada mais lenta, curvas e subidas mais lentas, iniciais ~7% mais
-   demorados; "cansou" foi a 0% (o jóquei erra menos; hoje ~1%); a Garra dispara em 57% (hoje 43%) e mais
-   cedo para quem tem mais Garra. Vale olhar a animação antes de fechar.
-4. **Força da skill de tipo diferente por tipo** (a da Grama cresce mais): é o que fecha o M9. No Comum 1
-   a Labareda rende 11,6 p.p. e as outras ~8 (M2, informativo).
-5. **Equipamento sem efeito:** as peças continuam no jogo e na loja. A tela fica escondida (GDD §8.5);
-   a especificação precisa dizer o que acontece com peças compradas, Pedra Negra e o bônus de conjunto.
-6. **Sorte segue sem valor** (A1 0,1; peso 0 no Poder; o bot não compra Sorte).
-7. **Gancho `statAdd`** é de teste e fica no `sim.js` de produção, como `noTypeSkill`. O servidor monta as entradas, então o cliente não o usa; a checagem do build (`__galope`, `Dev.`) não o pega.
-8. **Quem implementa:** `game.js`, `dev.js`, `sim-test.js`, `ui-test.mjs` e `wiki.mjs` usam `statCap`,
-   `statLimit`, `freeCapShare`, `powerRating(h, gear)` e `allocInfo().perStat/room` (agora `perStat` = alloc,
-   `next` = custo do próximo ponto, `room` = quantos ainda cabem); `RaceSim.VERSION` deve subir. A ordem
-   da RNG não mudou (o sorteio da Garra continua uma vez por corrida, agora em `garraFrom`).
+1. **Várias metas passam com margem de ruído:**
+   - M6 máximo no Raro 50: 59,9% (bot);
+   - `inc:acel` 47,2–47,4% nos níveis 11 e 30 (piso 47);
+   - M4 de dois degraus no 50: 95,4–95,5%.
 
-## 13. Histórico: o que foi testado e descartado
+   Nada disso é estrutural, mas uma rodada com outras seeds pode reprovar uma delas.
+2. **O Ajuste 1 briga com o "nenhuma acima de 60%".** Com os seis status de valor igual e o custo
+   convexo, a melhor build é a equilibrada com leve inclinação no tipo, e as inclinadas pagam ~9% dos
+   pontos. No Raro ★★ fica no limite; nas pontas não fecha (Comum ★★ 50 61,4%, Mítico ★★★ 50 64,9%; com
+   286 pontos e status altos a corrida é mais afiada). Pela prioridade 1 > 2 > 4 > 3, mantive o achatamento.
+   Saídas possíveis, nenhuma medida: aceitar ~62% nas pontas; ou definir as inclinadas como 1,5:1 em vez de
+   2:1. Não mudei a definição das builds.
+3. **A skill de tipo mudou de natureza** (multiplica status em vez de dar efeito próprio). A Labareda
+   agora também dá Velocidade; a Maré Alta perdeu a recuperação de tanque e o +2% de velocidade; a Raízes
+   perdeu o −1,2% de gasto. O P da Labareda *cai* com o nível (−0,15), embora o efeito em pontos cresça.
+   Textos, wiki e a tela da aba Skills precisam mostrar o efeito em pontos, não em %.
+4. **Cansou continua em 0%** e a Garra dispara em 58% (era 43% na v3).
+5. **Os iniciais no nível 25 caem para a Prata** (o meio da progressão ficou mais lento).
+6. **Escala de tempo:** seis constantes mudaram juntas (`vBase`, `vRange`, `aInv*`, `decel`, `drainK`,
+   `startDelayMax`). As durações das skills em segundos (Chama Final, Canto da Iara) não foram escaladas
+   e por isso precisaram de ajuste.
+7. **Quem implementa:** além do que a rodada 1 listou:
+   - `allocInfo().room.sorte` = 0 e a tela de status precisa travar a Sorte;
+   - o efeito novo da skill de tipo (`statMul`, valores em `r.Z` no terço);
+   - `GameData.TYPE_SKILLS[*].effect` passa a ter `statMul`.
 
-| Alternativa | Resultado |
+   As chaves antigas de efeito continuam aceitas, sem uso. A ordem da RNG não mudou.
+
+## 13. Histórico da rodada 2 (configurações em `cfg_r2*.json`, saídas `out_suite_r2*.txt` e `out_r2_*`)
+
+| Tentativa | Resultado |
 |---|---|
-| Física de hoje com o modelo novo | Força/Manobra 0 acima de ~120; Estamina 13 → 2,5; +10 de Vel decidia 53 p.p. em 140 |
-| Gasto pelo esforço (o ritmo, não a velocidade, gasta) | Brasa 26,9%, corridas +8%, cansou 13% |
-| Tetos de ritmo altos para todos (1,04 / 1,10) | Estamina boa, mas Brasa 27,7% (M1) e Aceleração ~0 |
-| Curva tratada como subida no gasto (com tetos de ritmo altos) | Brasa 21,0% |
-| Aceleração 1/a linear com largada rápida (1/a = 0,83 − 0,45·n) | Aceleração 3 p.p. no nível 1; Fogo 15,0% no M9 |
-| Bot inclinado ×1,5 nos dois do tipo | 49–50% no M6 (fraco) e M9 desequilibrado |
-| Bot por valor puro (sem tipo) | 62,5% no M6 com a física intermediária |
-| Garra quase certa (0,80 + 0,10·n) | ainda 4–6 p.p.; M4 até 93%, M5 até 79% |
-| Garra com início adiantado forte (0,15) e força 0,34 | Garra a mais forte (12,6), inclinada em Garra 62% |
-| Menos ruído (largada, jitter) e mais crescimento da skill de tipo (×2) | M3 40→50 não mexe |
-| `baseLo` em degraus de 4 (40/44/48/52/56) | M4 dois degraus 94,9% no nível 1 |
-| Taxa 3,2 e estrelas 1 / 1,07 / 1,15 (física intermediária) | M3 40→50 67–72%; M5 ★★★×★ 61–65% |
+| Subir só `vBase` | Brasa 41,9% (a largada pesa mais) |
+| Aceleração mais inclinada + Garra 0,26 (r2a) | Ace ok; Garra 7–9; Fogo 19% no M9; `tipo` 42,6% |
+| Labareda menor e arrancada adiantando 0,14 (r2b) | A1 ok no Raro; `tipo` 43,2% |
+| Sinergia por P (P += K·(n dos status do tipo − 0,5)) | K = 4: `tipo` 45,8%, M9 Fogo 13,7 / Água 19,8 |
+| Skill multiplicando os status, com o P de antes | Fogo 30% no Lendário 50: o efeito já cresce com os status |
+| Labareda só na Aceleração | Brasa 44,7% e o Fogo ainda crescia com o nível |
+| Bot × 1,3 / × 1,1 | 60,2 / 60,0% no M6 do Raro 50 |
+| Pontos 3/5 | não medido isolado; o 2/6 já tem só +1 p.p. de folga no 40→50 |
+
+Observação de método: no meio da rodada o `mkcfg.py` mesclou efeitos antigos e novos da skill de tipo
+(o dicionário é mesclado, não trocado). Os testes com a mistura foram descartados e refeitos com a troca
+limpa; a tabela acima só tem os válidos.

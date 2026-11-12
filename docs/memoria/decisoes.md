@@ -3,6 +3,16 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-12 — crescimento livre: rodada 2 da calibração (a revisar na spec)
+O Vinicius pediu os quatro ajustes sugeridos depois da rodada 1 ("Pode incluir os quatro"). Números e
+motivos na spec `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`.
+- **Seis status valendo como foco** — na rodada 1, Aceleração e Garra rendiam pouco (A1 8,6 p.p.) e as builds inclinadas nelas ficavam em 37–49%.
+- **Pontos por nível crescentes (2 → 6), com o mesmo total no 50** — com a taxa fixa, dez níveis no topo davam só +16 de status e o M3 40→50 tinha 2 p.p. de folga.
+- **Sorte só de nascimento; 2º dado = (Sorte − 40)/40** — ponto na Sorte não valia nada (A1 0,1 p.p.).
+- **Corridas mais curtas por uma escala de tempo inteira (×1,067)** — subir só a velocidade base desmontava os iniciais.
+- **Skill de tipo multiplica os dois status do tipo** (decisão da calibração, a confirmar) — com efeito próprio, investir no tipo rendia menos e a build "forte no tipo" não passava de 43%.
+- **Bot × 1,2 no tipo, não × 1,3** (decisão da calibração) — com 1,3 o M6 do Raro 50 reprovava.
+
 ## 2026-11-12 — crescimento livre e ginásios (desenho aprovado; a implementar)
 Conversa com o Vinicius; regras em `docs/GDD.md` §8.5 e §8.6. A calibração e a spec vêm depois.
 - **Crescimento 100% por pontos (abordagem A)** — liberdade de build; também acaba com o ponto que perdia o efeito quando o crescimento automático alcançava o teto.
