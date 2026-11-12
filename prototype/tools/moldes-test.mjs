@@ -401,12 +401,12 @@ section('Catálogo de ícones');
       assert.ok(!/\d/.test(i.desc), i.id + ': dígito na descrição');
     }
   });
-  // Seed base 2201 + índice; item refeito (linha com { seed }) usa a base + 100.
-  test('seeds 2201..2258 na ordem da tabela (refeitos: base + 100)', () => {
+  // Seed base 2201 + índice; item refeito (linha com { seed }) usa a base + 100 (refação) ou + 200 (2ª refação).
+  test('seeds 2201..2258 na ordem da tabela (refeitos: base + 100 ou + 200)', () => {
     let refeitos = 0;
     ICONES_NOVOS.forEach((i, k) => {
       const base = 2201 + k;
-      assert.ok(i.seed === base || i.seed === base + 100, i.id + ': seed ' + i.seed + ' (esperado ' + base + ' ou ' + (base + 100) + ')');
+      assert.ok(i.seed === base || i.seed === base + 100 || i.seed === base + 200, i.id + ': seed ' + i.seed + ' (esperado ' + base + ', ' + (base + 100) + ' ou ' + (base + 200) + ')');
       if (i.seed !== base) refeitos++;
     });
     assert.ok(refeitos > 0, 'nenhum item refeito encontrado');
