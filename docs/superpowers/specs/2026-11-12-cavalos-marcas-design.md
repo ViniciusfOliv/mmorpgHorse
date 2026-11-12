@@ -69,12 +69,13 @@ nem na corrida.
 | Boitatá | estrela | 2 | malhado |
 | Iara | nenhuma | 4 | ruão |
 
-**Rivais das salas:** marcas de `hash2(seedDaSala, 0x4D420000 + raia)`, com 3 sorteios uniformes (cara,
-patas, corpo). São calculadas ao desenhar, e a sala salva não muda.
+**Rivais das salas:** são cópias dos cavalos do catálogo (`clone` do modelo) e usam as marcas fixas do modelo.
+Só o jóquei deles sai da seed da sala (seção 4). A sala salva não muda.
 
 **Cavalos que já existem no save** (potros, alugados, qualquer um sem `marcas`):
-- `Breed.marcasDoId(chave)` calcula as marcas do identificador (`uid`, ou `id` do modelo): hash FNV-1a de 32 bits
-  da chave, `mulberry32` e 3 sorteios uniformes;
+- com modelo do catálogo (`templateId`, por exemplo um alugado), vale a marca fixa do modelo;
+- sem modelo, `Breed.marcasDoId(chave)` calcula as marcas do `uid`: hash FNV-1a de 32 bits da chave
+  (`Breed.hashChave`), `mulberry32` e 3 sorteios uniformes;
 - o mesmo cavalo sempre fica igual, sem sorteio novo;
 - a versão do save não muda. O `sanitize` aceita `marcas` só com os três valores válidos; qualquer outra coisa
   vira `marcasDoId`.
@@ -161,7 +162,8 @@ Efeitos na cor da raridade (`RARITIES[*].color`). O contorno brilhante continua 
 |---|---|
 | `prototype/src/data.js` | `MARCAS` (listas e `mutacao`), `JOQUEI` (padrões e capacetes), `marcas` dos iniciais e dos selvagens |
 | `prototype/src/breed.js` | marcas do potro (sequência própria), `marcasDoId(chave)`; cabeçalho de documentação |
-| `prototype/src/sprites.js` | zonas por quadro, pintura das marcas, jóquei (padrão, capacete, manta), efeitos de raridade, cache |
+| `prototype/src/marcas.js` (novo, puro, sem DOM) | zonas por quadro, pintura das marcas e do jóquei como camadas de índices, posições das faíscas; testável no Node |
+| `prototype/src/sprites.js` | âncoras por quadro, recoloração com as camadas do `marcas.js`, efeitos de raridade, cache |
 | `prototype/src/fx.js` | rastro do Mítico na corrida (se ficar melhor ao lado dos outros efeitos da corrida) |
 | `prototype/src/game.js` | `sanitize` de `marcas` e `joquei`, ficha, Haras, editor do Perfil, rivais pela seed, ligação com o desenho |
 | `prototype/src/dev.js` | gaveta DEV: marcas e raridade do cavalo montado |
