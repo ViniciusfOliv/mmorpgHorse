@@ -53,9 +53,10 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   ao subir de nível.
 
 ## Em andamento (2026-11-12)
-- **Crescimento livre (bloco 1b):** desenho aprovado (`docs/GDD.md` §8.5); calibração por simulação
-  rodando no servidor; depois spec, plano e execução na branch `claude/cavalos-v3`, **antes** de
-  integrar o bloco 1 na `main`.
+- **Crescimento livre (bloco 1b):** desenho aprovado (`docs/GDD.md` §8.5); calibração feita (128 metas
+  passam; anexos em `docs/superpowers/specs/anexos/`); spec em
+  `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, **aguardando a revisão do Vinicius**.
+  Depois: plano e execução na branch `claude/cavalos-v3`, **antes** de integrar o bloco 1 na `main`.
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b.
 
 ## O que falta
