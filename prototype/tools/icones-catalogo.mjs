@@ -16,12 +16,12 @@ export const FAMILIAS = [
 // Fogo #ff8a4c, Água #62b8ff, Grama #86d86a, gerais #f2c230
 const FOGO = '#ff8a4c', AGUA = '#62b8ff', GRAMA = '#86d86a', GERAL = '#f2c230';
 
-// [familia, id, descrição, cor, opções]; opções.seed = seed própria (refação: descrição reescrita, seed base + 100)
+// [familia, id, descrição, cor, opções]; opções.seed = seed própria (refação: descrição reescrita, seed base + 100; 2ª refação, base + 200)
 const TABELA = [
   // §2.1
   ['ui', 'ui-perfil', 'jockey riding helmet with a short visor, side view', '#ff6b5e'],
   ['ui', 'ui-dado', 'white six-sided die showing three pips, slight three-quarter view', '#ffffff'],
-  ['ui', 'ui-macho', 'bold blue male gender symbol: a thick blue ring with a short arrow pointing diagonally up and to the right', '#62b8ff', { seed: 2303 }],  // refação 2026-11-12: era "male symbol: a circle with an arrow pointing to the upper right"
+  ['ui', 'ui-macho', 'blue Mars symbol: a thick blue ring with a short arrow attached at its upper right edge, the arrow pointing diagonally outward to the upper right, nothing below the ring', '#62b8ff', { seed: 2403 }],  // 2ª refação 2026-11-12 (seed base + 200): era "bold blue male gender symbol: a thick blue ring with a short arrow pointing diagonally up and to the right"; antes "male symbol: a circle with an arrow pointing to the upper right"
   ['ui', 'ui-femea', 'female symbol: a circle with a small cross below it', '#ff8ad8'],
   ['ui', 'ui-estrela', 'five-pointed star, filled solid gold', null],
   ['ui', 'ui-estrela-vazia', 'hollow five-pointed star: thick light gray star outline with an empty transparent center', '#a9b5ae', { seed: 2306 }],  // refação 2026-11-12: era "five-pointed star outline only, hollow dark center" ('#5a6b63')
@@ -35,7 +35,7 @@ const TABELA = [
   ['st', 'st-garra', 'three bright blue diagonal claw scratch marks with white highlights', '#62b8ff', { seed: 2313 }],  // refação 2026-11-12: era "three diagonal claw slash marks"
   ['st', 'st-sorte', 'four-leaf clover', '#7be07a'],
   // §2.3 (cor pelo elemento da skill)
-  ['sk', 'sk-arranque', 'yellow explosive burst star with three speed lines trailing to the left', GERAL, { seed: 2315 }],  // refação 2026-11-12: era "horseshoe with a speed burst behind it"
+  ['sk', 'sk-arranque', 'small yellow rocket launching to the right with a flame burst behind it', GERAL, { seed: 2415 }],  // 2ª refação 2026-11-12 (seed base + 200): era "yellow explosive burst star with three speed lines trailing to the left"; antes "horseshoe with a speed burst behind it"
   ['sk', 'sk-sprint', 'double chevron arrow pointing right', GERAL],
   ['sk', 'sk-drift', 'yellow curved tire skid mark swooping in an arc, with small gray dust puffs at the end', GERAL, { seed: 2317 }],  // refação 2026-11-12: era "curved skid trail with small dust puffs"
   ['sk', 'sk-saida-rapida', 'arrow curving out of a bend and shooting forward', GERAL],
