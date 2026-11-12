@@ -184,7 +184,9 @@ Na gaveta DEV, os `<option>` não aceitam imagem: o sexo vira "Macho"/"Fêmea", 
 - no aviso de clima;
 - no balão do Dado.
 
-Enquanto um ícone não carrega (ou se faltar), fica o desenho de hoje. Nada disso toca a simulação.
+Enquanto um ícone não carrega (ou se faltar), fica o desenho de hoje. O ícone só é desenhado quando ocupa
+pelo menos 16 px do canvas: reduzir 32×32 a menos que isso apaga o desenho, e aí também fica o de hoje.
+Nada disso toca a simulação.
 
 **Wiki** (`prototype/tools/wiki.mjs`):
 - `wiki.html` mostra o ícone ao lado de cada skill, status, clima, piso, liga e raridade, e lista os
