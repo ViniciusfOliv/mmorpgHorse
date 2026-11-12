@@ -23,7 +23,8 @@ fonte); qualquer regra do jogo. Só a aparência muda: a corrida dá o mesmo res
 
 Descrição = o pedido ao PixelLab (em inglês, como os 16 de hoje), sempre um objeto simples e sem letras
 nem números. Cor = a cor do tema que se soma à paleta da interface (seção 3). Seeds a partir de 2201, na
-ordem da tabela.
+ordem da tabela. As tabelas trazem o pedido original; as descrições refeitas estão em
+`prototype/tools/icones-catalogo.mjs`, com a anterior em comentário.
 
 ### 2.1 No lugar dos emojis e símbolos (7)
 
@@ -34,7 +35,7 @@ ordem da tabela.
 | `ui-macho` | male symbol: a circle with an arrow pointing to the upper right | `#62b8ff` | ♂ | fichas, Haras |
 | `ui-femea` | female symbol: a circle with a small cross below it | `#ff8ad8` | ♀ | fichas, Haras |
 | `ui-estrela` | five-pointed star, filled solid gold | — | ★ | grau do cavalo (estrelas) em todo lugar |
-| `ui-estrela-vazia` | five-pointed star outline only, hollow dark center | `#5a6b63` | ☆ | idem |
+| `ui-estrela-vazia` | five-pointed star outline only, hollow dark center | `#a9b5ae` | ☆ | idem |
 | `ui-corcel` | small pennant flag on a short pole with a horseshoe emblem | — | ⚑ | selo de Corcel (herança garantida) |
 
 ### 2.2 Status (7)

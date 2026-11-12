@@ -12,6 +12,7 @@ e `prototype/assets/icons/raw/`. Com elas, `--reprocessar` refaz os arquivos fin
 |---|---|---|---|---|---|
 | Moldes de cavalo (2026-11-08 e 09) | `prototype/assets/pixellab/molde-{chamas,ondas,folhas,lisa}-{retrato,parado,galope-0..8}.png` e `molde-*.json` | PixelLab API v2: `create-image-pixflux` (retrato, parado, pose de corrida) e `animate-with-text-v3` (galope de 9 quadros) | 64×64, vista lateral, cores de papel pedidas por texto e classificadas no script (matiz e Otsu); o galope de ondas, folhas e lisa foi guiado pelo 1º quadro do galope de chamas (`init_image_strength` 300) | chamas 1101, 1111 · ondas 1201, 1511 · folhas 1301, 1601 · lisa 1411, 1421, 1721 | Sim |
 | Ícones (2026-11-08 e 09) | `prototype/assets/icons/*.png` (16: 5 abas, 5 slots, Ouro, Pedra Negra, 3 tipos e `el-geral`, o das skills gerais: era `el-neutro`, renomeado em 2026-11-11 com o cru em `raw/` e o nome de saída no script, sem gerar de novo) | PixelLab `create-image-pixflux` | 32×32, "<objeto> icon, pixel art game ui icon, centered, simple, readable at small size", contorno preto, paleta do jogo em `color_image` | 2101 a 2116; trocados: expedição 2153, estribos 2128 | Sim |
+| Ícones 2 (2026-11-12) | `prototype/assets/icons/*.png` (58 novos: 7 no lugar de emojis, 7 status, 18 skills, 7 clima e piso, 14 ligas/raridades/pódio, 5 reservados; crus em `raw/`; uma linha por ícone mais abaixo) | PixelLab API v2 `create-image-pixflux` | 32×32, receita dos 16 anteriores (descrição em inglês + sufixo de ícone, contorno preto, paleta do jogo e cor do tema em `color_image`); 18 refeitos com a descrição reescrita (cor por extenso); catálogo em `prototype/tools/icones-catalogo.mjs`; folha aprovada pelo Vinicius em 2026-11-12 | 2201 a 2258; refeitos: base + 100 (18), base + 200 (`ui-macho`, `sk-arranque`), `ui-macho` 2423 | Sim (reservados sem tela por enquanto: `item-redea`, `moeda-gema`, `ins-fogo`, `ins-agua`, `ins-grama`) |
 | Logotipo (2026-11-08) | `prototype/assets/marca/logo.png` (320×63, 64 cores) | Canva `create-design` (design DAHaWgeoGqw) | logotipo pixel art "Galope Elemental"; fundo removido por chave de cor e redimensionado | — | Sim |
 | Capa (2026-11-08) | `docs/capa.png` (1024×500) | Canva `create-design` (design DAHaWnkxNO4) | capa noturna com 3 cavalos de Fogo, Água e Grama; título corrigido à mão (a IA escreveu "Calope") | — | README e futura página da loja |
 | Pista, clima, efeitos e interface | `prototype/src/sprites.js`, `prototype/src/fx.js`, `prototype/src/game.css` | código, feito à mão | — | — | Sim |
@@ -78,6 +79,10 @@ e `prototype/assets/icons/raw/`. Com elas, `--reprocessar` refaz os arquivos fin
 - **PixelLab:** 69 gerações da cota do plano entre 2026-11-08 e 09 (saldo 1994 → 1925), US$ 0 avulso.
   O número inclui o experimento de paleta, tentativas rejeitadas e a rodada de crinas próprias por
   estilo, que não passou nos critérios (os galopes guiados pelo de chamas ficaram).
+- **PixelLab, lote `icones2` (2026-11-12):** 79 gerações da cota do plano (saldo 1925 → 1846), US$ 0 avulso.
+  Foram 85 chamadas: 6 deram HTTP 502 e não foram cobradas. Rodadas: inicial 58; 1ª refação 18 (descrição
+  reescrita, seed base + 100); 2ª refação de `ui-macho` e `sk-arranque` 2 (base + 200); mais 1 seed do `ui-macho`.
+  Nenhum item ficou sem ícone.
 - **Canva:** plano pago, sem custo avulso.
 - Em 2026-11-05 foram 6 gerações para sprites prontos dos 3 iniciais; o jogo passou a usar os moldes
   e esses arquivos saíram do repositório em 2026-11-10 (estão no histórico do git).
