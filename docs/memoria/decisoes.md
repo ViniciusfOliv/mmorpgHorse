@@ -3,7 +3,7 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
-## 2026-11-12 — crescimento livre: rodada 2 da calibração (a revisar na spec)
+## 2026-11-12 — crescimento livre: rodadas 2 e 3 da calibração (a revisar na spec)
 O Vinicius pediu os quatro ajustes sugeridos depois da rodada 1 ("Pode incluir os quatro"). Números e
 motivos na spec `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`.
 - **Seis status valendo como foco** — na rodada 1, Aceleração e Garra rendiam pouco (A1 8,6 p.p.) e as builds inclinadas nelas ficavam em 37–49%.
@@ -12,6 +12,8 @@ motivos na spec `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`.
 - **Corridas mais curtas por uma escala de tempo inteira (×1,067)** — subir só a velocidade base desmontava os iniciais.
 - **Skill de tipo multiplica os dois status do tipo** (decisão da calibração, a confirmar) — com efeito próprio, investir no tipo rendia menos e a build "forte no tipo" não passava de 43%.
 - **Bot × 1,2 no tipo, não × 1,3** (decisão da calibração) — com 1,3 o M6 do Raro 50 reprovava.
+- **Custo continua subindo a cada 10 pontos (rodada 3, pedida pelo Vinicius, testou 12 e 15)** — inclinar perde ~5% dos pontos com qualquer degrau; degrau maior afiou a corrida e piorou o domínio da equilibrada.
+- **Equilibrada fica como a build mais forte; metas apertadas = pior caso de 4 seeds + ~1 p.p.** (M6 até 62/64/67%, inclinadas ≥ 45%) — tirar o domínio pede mudar a regra (custo que para de subir ou retorno por concentrar); fica para depois do teste no artefato.
 
 ## 2026-11-12 — crescimento livre e ginásios (desenho aprovado; a implementar)
 Conversa com o Vinicius; regras em `docs/GDD.md` §8.5 e §8.6. A calibração e a spec vêm depois.

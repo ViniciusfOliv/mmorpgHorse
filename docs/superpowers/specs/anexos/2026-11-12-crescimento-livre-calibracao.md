@@ -1,4 +1,4 @@
-> Anexo da spec `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`: relatório da rodada 2 da calibração (`proposta2.md` na área de trabalho). Arquivos guardados: `calib2.diff` → `2026-11-12-crescimento-livre-calib.diff`, `out_final2_full.txt` → `2026-11-12-crescimento-livre-balanco.txt`. Os outros nomes citados (`proposta.md`, `src-r1/`, `cfg_*.json`, `out_*.txt`) são da área de trabalho e não foram guardados; a rodada 1 está no commit 78e61cd.
+> Anexo da spec `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`: relatório da rodada 2 da calibração (`proposta2.md` na área de trabalho), que define o modelo final. O diff e o balanço guardados são os da rodada 3 (mesmo código; só o `balance.js` mudou): ver `2026-11-12-crescimento-livre-calibracao-r3.md`. Os outros nomes citados (`proposta.md`, `src-r1/`, `cfg_*.json`, `out_*.txt`) são da área de trabalho e não foram guardados; a rodada 1 está no commit 78e61cd.
 
 # Cavalos v3, bloco 1b: crescimento livre — calibração, rodada 2
 

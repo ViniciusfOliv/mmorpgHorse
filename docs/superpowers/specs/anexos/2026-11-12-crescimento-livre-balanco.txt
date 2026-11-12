@@ -42,7 +42,7 @@ v3b: 3 e 3c rebaseadas para 65%–100% (na v3, 65–85 e 75–93): a curva ganho
 | Raro | **78,4%** | **77,1%** | **77,0%** |
 | Lendário | **78,0%** | **77,8%** | **76,2%** |
 
-**M4.** Raridade acima, mesmo nível, mesma genética, ★★ e build de bot (um degrau: meta 72%–88%; dois degraus: meta ≥ 95%; 3000 duelos cada).
+**M4.** Raridade acima, mesmo nível, mesma genética, ★★ e build de bot (um degrau: meta 72%–88%; dois degraus: meta ≥ 94%; 3000 duelos cada).
 
 | Nível | Mágico × Comum | Raro × Mágico | Lendário × Raro | Mítico × Lendário | Raro × Comum | Mítico × Raro |
 |---|---|---|---|---|---|---|
@@ -50,7 +50,7 @@ v3b: 3 e 3c rebaseadas para 65%–100% (na v3, 65–85 e 75–93): a curva ganho
 | 30 | **79,0%** | **82,7%** | **81,9%** | **85,0%** | **97,0%** | **98,5%** |
 | 50 | **78,1%** | **80,5%** | **82,1%** | **81,4%** | **95,4%** | **95,5%** |
 
-**M5.** Estrelas no nível 50, mesma raridade e mesma genética, build de bot (★★★ × ★: meta 65%–75%; ★★ × ★: meta 55%–63%; 3000 duelos cada).
+**M5.** Estrelas no nível 50, mesma raridade e mesma genética, build de bot (★★★ × ★: meta 65%–75%; ★★ × ★: meta 55%–64%; 3000 duelos cada).
 
 | Raridade | ★★★ × ★ | ★★ × ★ |
 |---|---|---|
@@ -58,7 +58,7 @@ v3b: 3 e 3c rebaseadas para 65%–100% (na v3, 65–85 e 75–93): a curva ganho
 | Raro | **68,7%** | **60,0%** |
 | Mítico | **70,5%** | **62,3%** |
 
-### M6. Nenhuma build dominante (Raro ★★, mesma genética e elemento, rodízio de duelos; meta: nenhuma build realista acima de 60% de média e pelo menos 4 entre 45% e 60%)
+### M6. Nenhuma build dominante (Raro ★★ e as pontas Comum ★★ 50 e Mítico ★★★ 50; mesma genética e elemento, rodízio de duelos; metas da v3b rodada 3, rebaseadas ao medido em 4 bases de seed: maior média ≤ 62% no Raro, ≤ 64% no Comum ★★ 50, ≤ 67% no Mítico ★★★ 50; toda `inc:*` e a `tipo` ≥ 45%; pelo menos 4 builds entre 45% e 60%; `all:*` < 35% nos níveis 30 e 50)
 
 Builds realistas (custo por faixa): `bot` (`botAlloc`), `eq` (equilibrada), `inc:k` (o dobro de pontos em k), `dup:k1+k2` (o dobro em dois), `tipo` (o dobro nos dois do tipo). `all:k` (tudo num status) entra no rodízio só como informação. Média = vitórias contra as outras builds realistas.
 
@@ -84,7 +84,7 @@ Builds realistas (custo por faixa): `bot` (`botAlloc`), `eq` (equilibrada), `inc
 | `all:garra` (info) | 31,6% | 17,7% | 8,9% |
 | **maior média (realistas)** | **53,7%** (12 em 45–60) | **53,2%** (12 em 45–60) | **59,9%** (10 em 45–60) |
 
-Informativo (pontas da progressão, só as builds realistas; meta desejada ≤ 60%, não cobrada): Comum ★★ 50: maior média 61,4% (`bot`); `bot` 61,4 · `eq` 59,3 · `inc:vel` 49,8 · `inc:acel` 44,3 · `inc:man` 50,1 · `inc:forca` 48,9 · `inc:est` 48,9 · `inc:garra` 46,0 · `dup:vel+est` 46,1 · `dup:vel+forca` 47,9 · `dup:forca+est` 48,5 · `tipo` 48,9. Mítico ★★★ 50: maior média 64,9% (`bot`); `bot` 64,9 · `eq` 63,6 · `inc:vel` 46,8 · `inc:acel` 54,3 · `inc:man` 47,2 · `inc:forca` 48,2 · `inc:est` 44,9 · `inc:garra` 52,3 · `dup:vel+est` 40,9 · `dup:vel+forca` 43,0 · `dup:forca+est` 42,5 · `tipo` 51,4.
+Pontas da progressão (só as builds realistas; meta: maior média ≤ 64% no Comum ★★ 50 e ≤ 67% no Mítico ★★★ 50): Comum ★★ 50: maior média 61,4% (`bot`); `bot` 61,4 · `eq` 59,3 · `inc:vel` 49,8 · `inc:acel` 44,3 · `inc:man` 50,1 · `inc:forca` 48,9 · `inc:est` 48,9 · `inc:garra` 46,0 · `dup:vel+est` 46,1 · `dup:vel+forca` 47,9 · `dup:forca+est` 48,5 · `tipo` 48,9. Mítico ★★★ 50: maior média 64,9% (`bot`); `bot` 64,9 · `eq` 63,6 · `inc:vel` 46,8 · `inc:acel` 54,3 · `inc:man` 47,2 · `inc:forca` 48,2 · `inc:est` 44,9 · `inc:garra` 52,3 · `dup:vel+est` 40,9 · `dup:vel+forca` 43,0 · `dup:forca+est` 42,5 · `tipo` 51,4.
 
 ### M7. Maior status no nível 50 (Fogo; meta: o pior caso, Mítico ★★★ com genética 31 e tudo num status, abaixo de 150)
 
@@ -312,53 +312,57 @@ P1/P2/M8: 5000 salas de 4–8 corredores sintéticos (jogador com raridade, nív
 | M4 | Um degrau, nível 1: Raro × Mágico | 84,6% | 72–88% | ✅ |
 | M4 | Um degrau, nível 1: Lendário × Raro | 80,8% | 72–88% | ✅ |
 | M4 | Um degrau, nível 1: Mítico × Lendário | 85,0% | 72–88% | ✅ |
-| M4 | Dois degraus, nível 1: Raro × Comum | 97,7% | 95–100% | ✅ |
-| M4 | Dois degraus, nível 1: Mítico × Raro | 98,7% | 95–100% | ✅ |
+| M4 | Dois degraus, nível 1: Raro × Comum | 97,7% | 94–100% | ✅ |
+| M4 | Dois degraus, nível 1: Mítico × Raro | 98,7% | 94–100% | ✅ |
 | M4 | Um degrau, nível 30: Mágico × Comum | 79,0% | 72–88% | ✅ |
 | M4 | Um degrau, nível 30: Raro × Mágico | 82,7% | 72–88% | ✅ |
 | M4 | Um degrau, nível 30: Lendário × Raro | 81,9% | 72–88% | ✅ |
 | M4 | Um degrau, nível 30: Mítico × Lendário | 85,0% | 72–88% | ✅ |
-| M4 | Dois degraus, nível 30: Raro × Comum | 97,0% | 95–100% | ✅ |
-| M4 | Dois degraus, nível 30: Mítico × Raro | 98,5% | 95–100% | ✅ |
+| M4 | Dois degraus, nível 30: Raro × Comum | 97,0% | 94–100% | ✅ |
+| M4 | Dois degraus, nível 30: Mítico × Raro | 98,5% | 94–100% | ✅ |
 | M4 | Um degrau, nível 50: Mágico × Comum | 78,1% | 72–88% | ✅ |
 | M4 | Um degrau, nível 50: Raro × Mágico | 80,5% | 72–88% | ✅ |
 | M4 | Um degrau, nível 50: Lendário × Raro | 82,1% | 72–88% | ✅ |
 | M4 | Um degrau, nível 50: Mítico × Lendário | 81,4% | 72–88% | ✅ |
-| M4 | Dois degraus, nível 50: Raro × Comum | 95,4% | 95–100% | ✅ |
-| M4 | Dois degraus, nível 50: Mítico × Raro | 95,5% | 95–100% | ✅ |
+| M4 | Dois degraus, nível 50: Raro × Comum | 95,4% | 94–100% | ✅ |
+| M4 | Dois degraus, nível 50: Mítico × Raro | 95,5% | 94–100% | ✅ |
 | M5 | ★★★ × ★, Comum nível 50 | 69,5% | 65–75% | ✅ |
-| M5 | ★★ × ★, Comum nível 50 | 59,6% | 55–63% | ✅ |
+| M5 | ★★ × ★, Comum nível 50 | 59,6% | 55–64% | ✅ |
 | M5 | ★★★ × ★, Raro nível 50 | 68,7% | 65–75% | ✅ |
-| M5 | ★★ × ★, Raro nível 50 | 60,0% | 55–63% | ✅ |
+| M5 | ★★ × ★, Raro nível 50 | 60,0% | 55–64% | ✅ |
 | M5 | ★★★ × ★, Mítico nível 50 | 70,5% | 65–75% | ✅ |
-| M5 | ★★ × ★, Mítico nível 50 | 62,3% | 55–63% | ✅ |
-| M6 | Maior média de build realista, nível 11 | 53,7% | 0–60% | ✅ |
+| M5 | ★★ × ★, Mítico nível 50 | 62,3% | 55–64% | ✅ |
+| M6 | Maior média de build realista, nível 11 | 53,7% | 0–62% | ✅ |
 | M6 | Builds realistas entre 45% e 60%, nível 11 | 12,00 | 4–99 | ✅ |
-| M6 | Build `inc:vel` (média), nível 11 | 50,9% | 47–100% | ✅ |
-| M6 | Build `inc:acel` (média), nível 11 | 47,2% | 47–100% | ✅ |
-| M6 | Build `inc:man` (média), nível 11 | 53,7% | 47–100% | ✅ |
-| M6 | Build `inc:forca` (média), nível 11 | 48,5% | 47–100% | ✅ |
-| M6 | Build `inc:est` (média), nível 11 | 50,3% | 47–100% | ✅ |
-| M6 | Build `inc:garra` (média), nível 11 | 50,9% | 47–100% | ✅ |
-| M6 | Build `tipo` (média), nível 11 | 50,7% | 47–100% | ✅ |
-| M6 | Maior média de build realista, nível 30 | 53,2% | 0–60% | ✅ |
+| M6 | Build `inc:vel` (média), nível 11 | 50,9% | 45–100% | ✅ |
+| M6 | Build `inc:acel` (média), nível 11 | 47,2% | 45–100% | ✅ |
+| M6 | Build `inc:man` (média), nível 11 | 53,7% | 45–100% | ✅ |
+| M6 | Build `inc:forca` (média), nível 11 | 48,5% | 45–100% | ✅ |
+| M6 | Build `inc:est` (média), nível 11 | 50,3% | 45–100% | ✅ |
+| M6 | Build `inc:garra` (média), nível 11 | 50,9% | 45–100% | ✅ |
+| M6 | Build `tipo` (média), nível 11 | 50,7% | 45–100% | ✅ |
+| M6 | Maior média de build realista, nível 30 | 53,2% | 0–62% | ✅ |
 | M6 | Builds realistas entre 45% e 60%, nível 30 | 12,00 | 4–99 | ✅ |
-| M6 | Build `inc:vel` (média), nível 30 | 49,2% | 47–100% | ✅ |
-| M6 | Build `inc:acel` (média), nível 30 | 47,4% | 47–100% | ✅ |
-| M6 | Build `inc:man` (média), nível 30 | 49,9% | 47–100% | ✅ |
-| M6 | Build `inc:forca` (média), nível 30 | 48,5% | 47–100% | ✅ |
-| M6 | Build `inc:est` (média), nível 30 | 48,9% | 47–100% | ✅ |
-| M6 | Build `inc:garra` (média), nível 30 | 47,9% | 47–100% | ✅ |
-| M6 | Build `tipo` (média), nível 30 | 53,2% | 47–100% | ✅ |
-| M6 | Maior média de build realista, nível 50 | 59,9% | 0–60% | ✅ |
+| M6 | Build `inc:vel` (média), nível 30 | 49,2% | 45–100% | ✅ |
+| M6 | Build `inc:acel` (média), nível 30 | 47,4% | 45–100% | ✅ |
+| M6 | Build `inc:man` (média), nível 30 | 49,9% | 45–100% | ✅ |
+| M6 | Build `inc:forca` (média), nível 30 | 48,5% | 45–100% | ✅ |
+| M6 | Build `inc:est` (média), nível 30 | 48,9% | 45–100% | ✅ |
+| M6 | Build `inc:garra` (média), nível 30 | 47,9% | 45–100% | ✅ |
+| M6 | Build `tipo` (média), nível 30 | 53,2% | 45–100% | ✅ |
+| M6 | Maior "tudo num status" (`all:*`), nível 30 | 18,7% | 0–35% | ✅ |
+| M6 | Maior média de build realista, nível 50 | 59,9% | 0–62% | ✅ |
 | M6 | Builds realistas entre 45% e 60%, nível 50 | 10,00 | 4–99 | ✅ |
-| M6 | Build `inc:vel` (média), nível 50 | 49,3% | 47–100% | ✅ |
-| M6 | Build `inc:acel` (média), nível 50 | 50,2% | 47–100% | ✅ |
-| M6 | Build `inc:man` (média), nível 50 | 50,5% | 47–100% | ✅ |
-| M6 | Build `inc:forca` (média), nível 50 | 50,6% | 47–100% | ✅ |
-| M6 | Build `inc:est` (média), nível 50 | 50,7% | 47–100% | ✅ |
-| M6 | Build `inc:garra` (média), nível 50 | 49,9% | 47–100% | ✅ |
-| M6 | Build `tipo` (média), nível 50 | 47,9% | 47–100% | ✅ |
+| M6 | Build `inc:vel` (média), nível 50 | 49,3% | 45–100% | ✅ |
+| M6 | Build `inc:acel` (média), nível 50 | 50,2% | 45–100% | ✅ |
+| M6 | Build `inc:man` (média), nível 50 | 50,5% | 45–100% | ✅ |
+| M6 | Build `inc:forca` (média), nível 50 | 50,6% | 45–100% | ✅ |
+| M6 | Build `inc:est` (média), nível 50 | 50,7% | 45–100% | ✅ |
+| M6 | Build `inc:garra` (média), nível 50 | 49,9% | 45–100% | ✅ |
+| M6 | Build `tipo` (média), nível 50 | 47,9% | 45–100% | ✅ |
+| M6 | Maior "tudo num status" (`all:*`), nível 50 | 8,9% | 0–35% | ✅ |
+| M6 | Maior média de build realista, Comum ★★ nível 50 | 61,4% | 0–64% | ✅ |
+| M6 | Maior média de build realista, Mítico ★★★ nível 50 | 64,9% | 0–67% | ✅ |
 | M7 | Pior caso no nível 50 (Mítico ★★★, genética 31, tudo num status) | 146,00 | 1–149 | ✅ |
 | M9 | Vitória por corredor de Fogo, Comum nível 1 | 16,5% | 15,3–18% | ✅ |
 | M9 | Vitória por corredor de Água, Comum nível 1 | 16,3% | 15,3–18% | ✅ |
@@ -442,4 +446,4 @@ P1/P2/M8: 5000 salas de 4–8 corredores sintéticos (jogador com raridade, nív
 | M8 | Quem lidera em 1/3 da pista vence | 38,1% | 0–55% | ✅ |
 | M8 | Corridas com menos de 1 m entre o 1º e o 2º | 5,6% | 5–100% | ✅ |
 
-**Todas as 161 metas passaram.**
+**Todas as 165 metas passaram.**

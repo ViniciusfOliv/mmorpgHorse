@@ -2,10 +2,12 @@
 
 Especificação do bloco 1b, desenho aprovado em 2026-11-12 (`docs/GDD.md` §8.5). Depois de aprovada pelo
 Vinicius vira plano de implementação, executado na branch `claude/cavalos-v3`, em cima do bloco 1 e antes
-de integrar na `main`. Os números vêm de duas rodadas de calibração por simulação numa cópia isolada do
+de integrar na `main`. Os números vêm de três rodadas de calibração por simulação numa cópia isolada do
 jogo (dezenas de milhares de corridas por medida). A rodada 2 aplicou os quatro ajustes pedidos depois da
 rodada 1: seis status valendo como foco, pontos crescendo com o nível, Sorte fora da distribuição e
-corridas mais curtas. Relatório, código de referência, saída do balanço e teste com outras seeds em
+corridas mais curtas. A rodada 3 testou um custo mais suave (degrau a cada 12 e a cada 15 pontos) contra o
+domínio da build equilibrada. Não resolveu, e ficou o degrau 10, com as metas apertadas ajustadas ao pior
+caso medido em 4 seeds (seção 15). Relatório, código de referência, saída do balanço e teste com outras seeds em
 `docs/superpowers/specs/anexos/2026-11-12-crescimento-livre-*`. A rodada 1 (relatório, código e balanço)
 está no commit 78e61cd. Os arquivos de exploração citados nos relatórios não foram guardados.
 
@@ -307,13 +309,17 @@ diff completo de `data.js`, `sim.js` e `balance.js` contra o bloco 1.
 
 ## 13. Metas e testes
 
-**`balance.js` (161 metas; todas passaram na calibração):**
+**`balance.js` (165 metas; todas passaram na calibração).** As faixas das metas apertadas são o pior caso
+medido em 4 bases de seed mais ~1 p.p. de folga de ruído.
 - **Saem:** E1, E2a, E2b, E3, E4 e E3b (equipamento); o M6 antigo (seis políticas); o M7 antigo (status
   cheios); a faixa única de duração.
 - **Entram:**
-  - M6 novo: rodízio de 12 builds realistas e 6 "tudo num status", Raro ★★ nos níveis 11/30/50. Nenhuma
-    build realista acima de 60% de média, pelo menos 4 entre 45% e 60%, e cada `inc:*` e a `tipo` com pelo
-    menos 47%.
+  - M6 novo: rodízio de 12 builds realistas e 6 "tudo num status", Raro ★★ nos níveis 11/30/50, mais o
+    Comum ★★ 50 e o Mítico ★★★ 50.
+    - Maior média das builds realistas: até 62% no Raro ★★, 64% no Comum ★★ 50 e 67% no Mítico ★★★ 50.
+    - Pelo menos 4 builds entre 45% e 60%.
+    - Cada `inc:*` e a `tipo` com pelo menos 45%.
+    - "Tudo num status" (`all:*`) abaixo de 35% nos níveis 30 e 50.
   - A1: além do ganho ≥ 3 p.p. por status, maior ÷ menor ≤ 1,3 (alvo 1,25).
   - M7 novo: pior caso no nível 50 abaixo de 150.
   - Durações por liga (seção 3): média de cada liga na faixa dela, curta e longa, mais as salas de nível
@@ -330,19 +336,22 @@ diff completo de `data.js`, `sim.js` e `balance.js` contra o bloco 1.
 - **Rebaseadas:**
   - seção 2 (inicial no seu clima): 45–65 → 45–68%;
   - seções 3 e 3c: 65–85 / 75–93 → 65–100%;
-  - seção 7 (Dado): Mítico g31 contra sete Comum g0, 17–25%.
-- **Informativo (não reprova):** M6 do Comum ★★ 50 e do Mítico ★★★ 50 (seção 15, item 2); M2 (ganho da
-  skill de tipo).
-- **Medido:**
+  - seção 7 (Dado): Mítico g31 contra sete Comum g0, 17–25%;
+  - M4 dois degraus: ≥ 95% → ≥ 94% (pior caso 94,97%, Raro × Comum no 50);
+  - M5 ★★ × ★: 55–63% → 55–64% (pior caso 63,1%, Mítico).
+- **Informativo (não reprova):** M2 (ganho da skill de tipo).
+- **Medido** (seed do `balance.js`; entre parênteses, o pior caso nas 4 bases):
 
   | Meta | Medido | Faixa |
   |---|---|---|
   | M1 iniciais | 31,8 / 33,3 / 34,9%; terços 26,7–38,9% | 30–37%; 22–45% |
-  | M3 +10 níveis | 1→11 78,0–78,5% · 20→30 76,1–77,8% · 40→50 75,0–77,0% | ≥ 70% (alvo 40→50 ≥ 74%) |
-  | M4 um / dois degraus | 78,1–85,0% / 95,4–98,7% | 72–88% / ≥ 95% |
-  | M5 ★★★×★ / ★★×★ | 68,7–70,5% / 59,6–62,3% | 65–75% / 55–63% |
-  | M6 máximo (níveis 11/30/50) | 53,7 / 53,2 / 59,9% (bot) | ≤ 60% |
-  | M6 menor `inc:*` / `tipo` | 47,2% (`inc:acel`, nível 11) / 47,9% (nível 50) | ≥ 47% |
+  | M3 +10 níveis | 1→11 78,0–78,5% · 20→30 76,1–77,8% · 40→50 75,0–77,0% (75,0) | ≥ 70% (alvo 40→50 ≥ 74%) |
+  | M4 um / dois degraus | 78,1–85,0% / 95,4–98,7% (94,97) | 72–88% / ≥ 94% |
+  | M5 ★★★×★ / ★★×★ | 68,7–70,5% / 59,6–62,3% (63,1) | 65–75% / 55–64% |
+  | M6 máximo, Raro ★★ 11/30/50 | 53,7 / 53,2 / 59,9% (60,6), sempre o bot | ≤ 62% |
+  | M6 máximo, Comum ★★ 50 / Mítico ★★★ 50 | 61,4% (62,3) / 64,9% (65,4), o bot | ≤ 64% / ≤ 67% |
+  | M6 menor `inc:*` / `tipo` | 47,2% (46,1; `inc:acel`, nível 30) / 47,9% | ≥ 45% |
+  | M6 "tudo num status", níveis 30 e 50 | no máximo 18,9% | < 35% |
   | M7 pior caso | 146 | < 150 |
   | M8 líder em 1/3 vence / chegada com < 1 m | 38,1% / 5,6% | ≤ 55% / ≥ 5% |
   | M9 tipos | 16,3–17,2% | 15,3–18,0% |
@@ -394,7 +403,9 @@ diff completo de `data.js`, `sim.js` e `balance.js` contra o bloco 1.
 | "Custo por faixa resolve" | custo por faixa **e** física linear até 150 | sem a física nova, Manobra e Força acima de 120 rendem 0 e a Estamina morre |
 | Skill de tipo igual para os três | multiplica os dois status do tipo, força por tipo | com efeito próprio, investir no tipo rendia menos (seção 5) |
 | Ajuste 1: bot × 1,3 no tipo | × 1,2 | com 1,3 o M6 do Raro 50 reprovava (60,2%) |
-| Ajuste 1: M6 ≤ 60% também no Comum ★★ 50 e no Mítico ★★★ 50 | informativo (61,4% / 64,9%) | não fecha com os seis status valendo o mesmo (seção 15, item 2) |
+| Ajuste 1: M6 ≤ 60% também no Comum ★★ 50 e no Mítico ★★★ 50 | meta de até 64% e 67%; Raro até 62% | não fecha com os seis status valendo o mesmo e o custo convexo (seção 15, item 1) |
+| Ajuste 1: toda `inc:*` e a `tipo` ≥ 47% | ≥ 45% | pior caso 46,1% nas 4 bases de seed |
+| Rodada 3: custo subindo a cada 12 ou 15 pontos | a cada 10, como antes | inclinar perde ~5% dos pontos de status com qualquer degrau; degrau maior só sobe os status e afia a corrida (M6 Raro 50: 63,8% e 64,4%) |
 | Ajuste 1: maior ÷ menor ≤ 1,25 | meta ≤ 1,3, alvo 1,25 (medido 1,15) | o intervalo de cada ganho é ±1,4 p.p.; o teto precisa de folga de ruído |
 | Ajuste 2: testar 3→5 e 2→6 | 2→6 | o 2→6 só tem 1 p.p. de folga no 40→50; o 3→5 ficaria abaixo de 74% (estimado, não medido) |
 | Ajuste 3: rever o Dado | (Sorte − 40)/40 | com Sorte de 40 a 76, a fórmula começa onde a Sorte começa |
@@ -402,17 +413,9 @@ diff completo de `data.js`, `sim.js` e `balance.js` contra o bloco 1.
 
 ## 15. Riscos e pendências
 
-1. **Duas metas estão no limite de fato.** Medidas com a seed do `balance.js` e mais três bases de seed
-   (anexo `…-robustez.md`):
-   - M6 máximo no Raro 50: 59,5–60,6%, média 60,1 (reprovaria em 2 de 4);
-   - `inc:acel` no nível 30: 46,1–47,8% (reprovaria em 1 de 4).
-
-   As outras apertadas passam nas quatro: M4 dois degraus 95,0–95,8%, M3 40→50 75,0–77,4%, `tipo` no 50
-   47,3–49,4%. O `balance.js` é determinístico (passa igual depois de implementado), mas qualquer mudança
-   que mexa na RNG pode virar uma das duas.
-2. **A build equilibrada domina nas pontas.** Com os seis status valendo o mesmo e o custo crescente,
-   espalhar os pontos é o melhor; o bot (e o "Distribuir sugerido") é a equilibrada com leve inclinação no
-   tipo e ganha dela por pouco (51–55% no duelo direto). Médias nas quatro bases de seed:
+1. **A build equilibrada é a mais forte, e fica assim.** Com os seis status valendo o mesmo e o custo
+   crescente, espalhar os pontos é o melhor. O bot (e o "Distribuir sugerido") é a equilibrada com leve
+   inclinação no tipo e ganha dela por pouco (51–55% no duelo direto). Médias nas 4 bases de seed:
 
    | Classe no nível 50 | Bot contra todas | Equilibrada contra as inclinadas |
    |---|---|---|
@@ -420,11 +423,21 @@ diff completo de `data.js`, `sim.js` e `balance.js` contra o bloco 1.
    | Comum ★★ | 61,6% | 61,7% |
    | Mítico ★★★ | 64,8% | 64,2% |
 
-   - As inclinadas ficam em 44–54%.
-   - No Raro 50 são as duplas (43–45%) que levam o bot a 60%; sem elas, ele fica em 58,4%.
+   As inclinadas ficam em 44–54%: são uma escolha de estilo que custa poucos pontos percentuais, não uma
+   armadilha.
+   - **Rodada 3 (custo subindo a cada 12 ou 15 pontos) não resolveu.** Enquanto um status passa do degrau,
+     o custo é quase quadrático, e uma inclinação 2:1 compra ~5% menos status que a equilibrada com
+     qualquer degrau. Um degrau maior só sobe os status, e a corrida, mais afiada, transforma a mesma perda
+     em mais vitórias. No Mítico ★★★ 50, o domínio vem também de os status deixarem de valer o mesmo no
+     topo.
+   - **Para tirar o domínio, só mudando a regra** (nada disso foi medido):
+     - um custo que para de subir (o "tudo num status" volta a ser opção);
+     - um retorno extra por concentrar (por exemplo, a skill de tipo render mais com status alto).
 
-   Decisão pedida ao Vinicius: aceitar, com as metas rebaseadas ao medido, ou fazer mais uma rodada atrás de
-   outra alavanca.
+     Fica para depois, se o teste no artefato mostrar que a equilibrada incomoda.
+2. **Folga de ~1 p.p.** nas metas rebaseadas (seção 13) sobre o pior caso de 4 bases de seed. O
+   `balance.js` é determinístico (passa igual depois de implementado); uma mudança que mexa na RNG pode
+   pedir a faixa de novo.
 3. **A skill de tipo mudou de natureza** (seção 5): a Maré Alta perdeu a recuperação de tanque, a Raízes o
    desconto de gasto, e a Labareda passou a dar Velocidade também. Textos, wiki e a aba Skills mudam junto.
 4. **A corrida muda de sensação** (seção 3). Olhar a animação no artefato antes de integrar na `main`.
