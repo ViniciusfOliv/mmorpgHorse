@@ -3,6 +3,17 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-12 — crescimento livre e ginásios (desenho aprovado; a implementar)
+Conversa com o Vinicius; regras em `docs/GDD.md` §8.5 e §8.6. A calibração e a spec vêm depois.
+- **Crescimento 100% por pontos (abordagem A)** — liberdade de build; também acaba com o ponto que perdia o efeito quando o crescimento automático alcançava o teto.
+- **Custo por faixa: +1 a cada 10 pontos num status, no lugar do limite de 34%** — sonda: sem regra, "tudo em Velocidade" vencia 86%; com "até 10 custa 1, depois sempre 2" ainda vencia 63%; com o custo subindo sempre, cinco builds ficaram entre 47% e 62%.
+- **Escala até 150, sem teto por raridade** — o custo crescente já impede chegar ao máximo; com 200 as barras ficariam com dois terços vazios.
+- **Raridade define nascimento e pontos por nível; estrelas multiplicam os pontos com valores menores** — se multiplicassem todo o crescimento com 1 / 1,2 / 1,5, três estrelas venceriam quase sempre.
+- **Redistribuição: a primeira de cada cavalo é grátis; depois, Rédea nova, ganha jogando ou por Gemas e nunca por Ouro** — vendida pelos dois, a Gema substituiria Ouro (regra do `CLAUDE.md` §8).
+- **Equipamento sem status por enquanto, escondido, peças guardadas** — tira uma variável do balanço enquanto o crescimento muda; validar depois, talvez como cosmético.
+- **Ginásios: 2 básicos de dificuldade comum na Expedição primeiro; os online (Fogo, Água, Grama e o trono) são extras do bloco 7** — conteúdo offline para o teste fechado.
+- **Insígnias com bônus de conta pequenos (% de Ouro, % de XP, % de skill nova)** — não mexem na corrida, então o Poder e o PVP ficam limpos.
+
 ## 2026-11-11 — cavalos v3, bloco 1 (status, tipo e pista; implementado)
 Spec: `docs/superpowers/specs/2026-11-10-cavalos-v3-status-e-tipo-design.md`. As seis primeiras saíram da calibração por simulação e diferem do que foi dito na conversa (o Vinicius pode vetar).
 - **R16: a sala aberta guarda o retrato dos pontos (`pending.alloc`, como já guarda o do equipamento) e o Poder da sala nunca fica abaixo do Poder com que a ativa corre** — tirar peça, distribuir pontos e recarregar subia o Poder da sala e refazia os rivais (re-sorteio de graça); o piso também desfaz o retrato rebaixado à mão. Sala aberta antes disso usa os pontos atuais uma vez.

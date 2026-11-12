@@ -52,6 +52,12 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   R16), o valor da peça na tela (meio ponto por melhoria, como na simulação) e o aviso de pontos livres
   ao subir de nível.
 
+## Em andamento (2026-11-12)
+- **Crescimento livre (bloco 1b):** desenho aprovado (`docs/GDD.md` §8.5); calibração por simulação
+  rodando no servidor; depois spec, plano e execução na branch `claude/cavalos-v3`, **antes** de
+  integrar o bloco 1 na `main`.
+- **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b.
+
 ## O que falta
 - **Decidido em 2026-11-10:** o teste fechado do Play sai com o jogo offline; o lançamento público
   espera o PVP assíncrono.
@@ -68,9 +74,8 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   e a zebra.
 - **Arte:** crina própria de cada estilo no galope (6 a 10 gerações); retrato, largada e pódio sem
   respiração nem piscar.
-- **Ponto distribuído pode perder o efeito** quando o crescimento natural encosta no teto (pior caso
-  medido: 5 de 58 pontos no nível 50 para quem enche o status forte assim que a tela deixa). Decisão de
-  desenho em aberto para o Vinicius: aviso na tela, trava, ou devolução pelo item do bloco 4.
+- **Ponto distribuído pode perder o efeito** quando o crescimento natural encosta no teto: resolvido
+  pelo crescimento livre (bloco 1b), que tira o crescimento automático.
 - **Antes do próximo aumento de versão do save:** pôr uma guarda para save de versão maior que a do
   código (não adotar nem gravar por cima, e avisar para atualizar a página).
 - **Pendências menores:** `docs/memoria/bugs.md`.

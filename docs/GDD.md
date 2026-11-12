@@ -232,7 +232,7 @@ cavalo existe de graça, jogando. Item comprado com Gema nunca tem resultado sor
 |---|---|---|
 | Torrão de açúcar (um ponto livre a mais, limite por cavalo) | sim | não |
 | Estrela de treino (sobe uma estrela) | sim, rara | não |
-| Rédea nova (redistribui os pontos) | sim | sim |
+| Rédea nova (redistribui os pontos; a primeira de cada cavalo é grátis) | jogando (ginásios, missões), **nunca por Ouro** | sim |
 | Cupom de troca de skill | sim, skill sorteada | sim, skill escolhida numa lista |
 | Manual de doma | sim, aumenta a chance de aprender | sim, garante aprender |
 | Acelerador de cruza · vaga extra de estábulo (até 3) · redefinir cruzas · mudar aparência | não | sim |
@@ -257,12 +257,39 @@ Gemas também caem de graça, em pouca quantidade, por missões. A skill de tipo
 Só em Ouro, no modelo do Black Desert: sem troca direta, mercado anônimo, preço dentro de faixa e taxa
 da casa. O Ouro nunca é vendido por Gemas: ele é o que se aposta.
 
-### 8.5 Ordem dos blocos
-1. Status e tipo (implementado) · 2. Preparação · 3. Empacotamento e início do teste fechado · 4. Itens de
+### 8.5 Crescimento livre (aprovado em 2026-11-12, bloco 1b, em calibração)
+Substitui a regra de status da seção 3 quando for implementado, na mesma branch do bloco 1.
+- **Nada cresce sozinho:** cada nível dá pontos e o jogador distribui todos. A raridade define o status
+  de nascimento e quantos pontos o cavalo ganha por nível; as estrelas multiplicam os pontos.
+- **Custo por faixa:** num mesmo status, os 10 primeiros pontos custam 1, do 11º ao 20º custam 2, do
+  21º ao 30º custam 3, e assim por diante. A genética não entra no custo. Substitui o limite de 34%.
+  Numa sonda, sem regra "tudo em Velocidade" vencia 86% dos duelos; com o custo crescente cinco builds
+  diferentes ficaram entre 47% e 62%.
+- **Escala até 150,** sem teto por raridade; nenhum cavalo chega a 150.
+- **Distribuir:** botões +1, +5 e +10, custo mostrado antes de confirmar, e "Distribuir sugerido".
+- **Redistribuir:** a primeira é grátis em cada cavalo; as seguintes usam a Rédea nova (8.2).
+- **Equipamento sem status por enquanto:** a corrida e o Poder ignoram as peças; a tela fica escondida
+  e as peças ficam guardadas. Volta a ser validado depois (talvez como cosmético).
+- **Explicações na tela:** cada status, nota, estrela, raridade, skill de tipo, Poder, liga, clima, piso
+  e Dado ganham uma explicação curta (mouse no computador, toque no celular).
+
+### 8.6 Ginásios (Expedição; online no bloco 7)
+- **Expedição:** começa com 2 ginásios básicos de dificuldade comum. O líder tem até 3 cavalos e o
+  jogador leva até 3; cada corrida é um duelo, quem vence continua e quem perde sai; perde quem ficar
+  sem cavalos. A vitória dá uma insígnia com bônus de conta pequeno (% de Ouro, % de XP, % de chance de
+  skill nova), que não mexe na corrida.
+- **A decidir:** o cansaço de quem vence (proposta: começar a próxima com 15% menos fôlego por vitória
+  seguida, valendo para os dois lados), quais são os 2 primeiros, entrada e prêmio.
+- **Online (extra, bloco 7):** quatro ginásios dominados por jogadores (Fogo, Água, Grama e um acima dos
+  três), desafiáveis pelo trono. Riscos a tratar na spec: um jogador segurar o trono para sempre
+  (proposta: um conjunto por liga e temporadas) e conluio entre contas.
+
+### 8.7 Ordem dos blocos
+1. Status e tipo (implementado) · 1b. Crescimento livre · 2. Preparação · 3. Empacotamento e início do teste fechado · 4. Itens de
 treino e gastos de Ouro · 5. Tempo e estábulo ativo (cruza com relógio, circuito, aluguel, missões,
 tela de cruza com os dois pais e a faixa do potro) · 6. Loja de Gemas (sem compra real no teste
 fechado) · 7. Online.
 
 ## 9+. Seções pendentes
 
-Expedições · Tecnologia final do servidor e do empacotamento · Anti-trapaça · PVP assíncrono e ranqueada (propostas em `docs/cronograma.md`).
+Expedições (fora os ginásios, 8.6) · Tecnologia final do servidor e do empacotamento · Anti-trapaça · PVP assíncrono e ranqueada (propostas em `docs/cronograma.md`).
