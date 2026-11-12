@@ -178,6 +178,20 @@
     if (!m || typeof m !== 'object' || !hasOwn(m, nome) || typeof m[nome] !== 'string' || !m[nome]) return '';
     return m[nome];
   }
+  // Ícones da corrida (canvas): uma Image por ícone sk-*, cl-* e ui-dado; a cada onload o RaceFx recebe os que já
+  // carregaram (ele só desenha o PNG quando está no cache; antes disso fica o desenho em código). Sem Image (Node): nada.
+  function carregarIconesCorrida() {
+    var m = window.__ICONES;
+    if (typeof Image !== 'function' || !m || typeof m !== 'object') return;
+    var prontas = {};
+    Object.keys(m).forEach(function (nome) {
+      if (!/^(sk-|cl-|ui-dado$)/.test(nome) || !iconeSrc(nome)) return;
+      var img = new Image();
+      img.onload = function () { prontas[nome] = img; FX.setIconImages(prontas); };
+      img.src = iconeSrc(nome);
+    });
+  }
+  carregarIconesCorrida();
   function iconeHtml(nome, fallback, tam) {
     var src = iconeSrc(nome);
     if (!src) return fallback || '';
@@ -3088,6 +3102,7 @@
       if (ev.type === 'dado' && ev.changed && GD.WEATHERS[ev.weather]) {
         // virada de clima: anúncio por ~2 s (faixa no canvas + leitor de tela) e um clarão leve
         self.climaMsg = 'CLIMA: ' + GD.WEATHERS[ev.weather].name.toUpperCase();
+        self.climaIcone = 'cl-' + ev.weather;
         self.climaTimer = 2;
         // a faixa do clima entra em seguida à do Dado (mesmo lugar, abaixo do HUD)
         var di = dadoItens.filter(function (it) { return it.t0 === ev.t; })[0];
@@ -3317,9 +3332,11 @@
       } else if (dItem) {
         FX.drawDiceStrip(ctx, dItem, L.racers, lay, S, self.simT, reduced());
       } else if (self.climaTimer > 0 && self.simT >= self.climaDesde) {
-        var ct = self.climaMsg, cw2 = tw(ct) + 6, cx3 = Math.round(lay.artW / 2 - cw2 / 2), cy3 = lay.hudH + 3;
+        var ct = self.climaMsg, clIco = !!FX.iconImage(self.climaIcone) && 8 * S >= 16, cw2 = tw(ct) + 6 + (clIco ? 10 : 0);
+        var cx3 = Math.round(lay.artW / 2 - cw2 / 2), cy3 = lay.hudH + 3;
         box(cx3, cy3, cw2, 9, C.sombra, GD.BLOCK_TYPES.curva.color);
-        text(ct, cx3 + 3, cy3 + 2, C.texto);
+        if (clIco) FX.drawIconPng(ctx, self.climaIcone, (cx3 + 2) * S, cy3 * S + Math.round(S / 2), 8, S);
+        text(ct, cx3 + 3 + (clIco ? 10 : 0), cy3 + 2, C.texto);
       }
       if (self.phase !== 'contagem') drawSkillsNaPista(vis, youTag, dItem, !!(self.finishCam || Math.abs(self.simT - tWin) < 0.6 || dItem || (self.climaTimer > 0 && self.simT >= self.climaDesde)));
       if (self.phase === 'contagem') {
@@ -3354,13 +3371,15 @@
       for (k = 0; k < faixasJogador.length; k++) if (t >= faixasJogador[k].a && t < faixasJogador[k].b) fx0 = faixasJogador[k];
       if (fx0) {
         var ft = fx0.item.nome.toUpperCase() + '!', fs = tw(ft, 2) + 8 <= lay.artW - 6 ? 2 : 1;
-        var fw = tw(ft, fs) + 8, fh = 5 * fs + 6;
+        var skId = FX.iconNameOf(fx0.item), skIco = !!FX.iconImage(skId) && 8 * fs * S >= 16, skW = skIco ? 8 * fs + 2 : 0;
+        var fw = tw(ft, fs) + 8 + skW, fh = Math.max(5 * fs + 6, skIco ? 8 * fs + 2 : 0);
         var fxx = Math.round(lay.artW / 2 - fw / 2), fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
         var esc0 = (t - fx0.a) / fx0.item.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
         var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
         box(fxx, fyy, fw, fh, C.veu, cor);
-        text(ft, Math.round(lay.artW / 2), fyy + 3, C.texto, fs, 'center', C.sombra);
+        if (skIco) FX.drawIconPng(ctx, skId, (fxx + 4) * S, (fyy + Math.floor((fh - 8 * fs) / 2)) * S, 8 * fs, S);
+        text(ft, Math.round(lay.artW / 2) + Math.round(skW / 2), fyy + Math.floor((fh - 5 * fs) / 2), C.texto, fs, 'center', C.sombra);
         ctx.globalAlpha = 1;
         faixa = { x: fxx - 1, y: fyy - 1, w: fw + 2, h: fh + 2 };
         FX._stats.faixaSkill = ft;

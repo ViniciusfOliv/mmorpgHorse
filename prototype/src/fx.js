@@ -56,6 +56,14 @@
  *   RaceFx.iconeDe(item) -> nome do ícone desenhado: item.icon, mas 'clima' vira 'sol'|'gota'|'nevoa'
  *     pelo trigger da skill (weather:sol, weather:chuva, weather:nevoa).
  *
+ *   RaceFx.setIconImages(mapa) -> troca o cache de ícones PNG ({ nome: imagem já carregada }); {} esvazia.
+ *   RaceFx.iconImage(nome) -> a imagem do cache ou null.
+ *   RaceFx.iconNameOf(item) -> nome do ícone PNG de um item de balão: 'sk-tipo-<elemento>' (skill de tipo),
+ *     'sk-<skillId>', 'cl-<clima>', ou null (Garra, cansou, sem id: ficam com o ícone em código).
+ *   RaceFx.drawIconPng(ctx, nome, x, y, lado, S) -> boolean: desenha o PNG em lado·S px (sem suavização)
+ *     só se estiver no cache e lado·S >= 16; senão não desenha nada e devolve false (quem chama usa o
+ *     desenho em código de sempre). Só desenho: a simulação não depende disso.
+ *
  *   RaceFx.slowFactor(tl, simT, reduced) -> 0.4 dentro de [t0, t0 + 0.8·escala] de cada 'dado'
  *     ([t0, t0 + 0.4·escala] se reduced), senão 1. A tela usa slowK = min(slowK, slowFactor).
  *
@@ -863,6 +871,8 @@
     R(L.x - 1, L.y - 1, L.w + 2, L.h + 2, COR.ouro);
     R(L.x, L.y, L.w, L.h, COR.sombra);
     texto(ctx, ROTULO, L.rotulo.x * S, L.rotulo.y * S, S, COR.ouro);
+    // dado em PNG logo à esquerda da faixa (fora da caixa: o layout não muda); sem espaço ou sem imagem, nada
+    if (L.x >= 10) drawIconPng(ctx, 'ui-dado', (L.x - 10) * S, L.y * S, 8, S);
     var ordem = revelado ? stripOrder(item) : item.rolls.map(function (r, q) { return q; });
     var ex = L.entradas.x, ey = L.entradas.y;
     for (var k = 0; k < ordem.length; k++) {
@@ -951,6 +961,21 @@
     if (item.icon === 'clima') return item.clima === 'chuva' ? 'gota' : item.clima === 'nevoa' ? 'nevoa' : 'sol';
     return item.icon || 'vel';
   }
+  // Ícones PNG (window.__ICONES carregados em Image pelo game.js): cache { nome: imagem }
+  var iconImgs = {};
+  function setIconImages(mapa) { iconImgs = {}; if (mapa) for (var k in mapa) if (Object.prototype.hasOwnProperty.call(mapa, k) && mapa[k]) iconImgs[k] = mapa[k]; }
+  function iconImage(nome) { return nome && Object.prototype.hasOwnProperty.call(iconImgs, nome) ? iconImgs[nome] : null; }
+  function iconNameOf(item) {
+    if (!item) return null;
+    return item.typeSkill ? 'sk-tipo-' + item.element : item.skillId ? 'sk-' + item.skillId : item.clima ? 'cl-' + item.clima : null;
+  }
+  function drawIconPng(ctx, nome, x, y, lado, S) {
+    var img = iconImage(nome);
+    if (!img || !(lado * S >= 16) || !ctx.drawImage) return false;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, x, y, lado * S, lado * S);
+    return true;
+  }
   function balloonSize(item, pilha) {
     if (pilha > 0) return { w: BAL_ICONE_X + 8 + 2, h: BAL_H };
     return { w: BAL_ICONE_X + 8 + 2 + textW(textoBalao(item)) + 3, h: BAL_H };
@@ -980,7 +1005,7 @@
     R(1, 1, w - 2, BAL_H - 2, fundo);
     R(1, 1, 7, BAL_H - 2, seda);                        // chip com o número da raia
     texto(ctx, String(item.raia || ''), x + (item.raia > 9 ? 1 : 3) * S, y0 + 3 * S, S, lum(seda) > 0.5 ? COR.tinta : COR.texto);
-    desenhaIcone(ctx, iconeDe(item), x + BAL_ICONE_X * S, y0 + 1 * S, S, txt);
+    if (!drawIconPng(ctx, iconNameOf(item), x + BAL_ICONE_X * S, y0 + 1 * S, 8, S)) desenhaIcone(ctx, iconeDe(item), x + BAL_ICONE_X * S, y0 + 1 * S, S, txt);
     if (!pilha) texto(ctx, textoBalao(item), x + (BAL_ICONE_X + 10) * S, y0 + 3 * S, S, txt);
     if (!pilha) {                                      // pontinha para o cavalo (na cor da seda)
       R(-3, 4, 3, 3, COR.sombra); R(-2, 4, 2, 3, seda); R(-1, 3, 1, 5, seda); R(-2, 5, 1, 1, seda);
@@ -1580,6 +1605,9 @@
     layoutBadges: layoutBadges,
     balloonSize: balloonSize,
     iconeDe: iconeDe,
+    iconNameOf: iconNameOf,
+    setIconImages: setIconImages,
+    iconImage: iconImage,
     glow: glow,
     typeZone: typeZone,
     typeSkillOf: tipoDoCorredor,
@@ -1603,6 +1631,7 @@
     drawDice: drawDice,
     drawDiceStrip: drawDiceStrip,
     drawBalloon: drawBalloon,
+    drawIconPng: drawIconPng,
     drawSkillAura: drawSkillAura,
     drawTypeAura: drawTypeAura,
     drawNature: drawNature,
