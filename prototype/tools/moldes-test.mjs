@@ -5,6 +5,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePng, encodePng, encodeGray } from './png.mjs';
+import { createRequire } from 'node:module';
+import { ICONES_NOVOS, FAMILIAS, RESERVADOS, ANTIGOS } from './icones-catalogo.mjs';
+import { htmlFolhaIcones } from './folha-icones.mjs';
 import { PAPEIS, paletaPng, normalizar, validar, ancoras, paraCinza, deCinza, sombrearRegioes, limparJoquei, limiarOtsu, classificarFamilias, limiaresDeTons, posProcessar, contornar, passada } from './moldes-lib.mjs';
 
 let fails = 0, count = 0;
@@ -361,6 +364,61 @@ else {
       hs.forEach((a, i) => assert.ok(a <= 1.1 * alturaRef,
         'galope-' + i + ': altura ' + a + ' > ' + (1.1 * alturaRef).toFixed(1) + ' (110 % de ' + alturaRef.toFixed(2) + ') — ' + medidas));
     });
+  });
+}
+
+// ---------------------------------------------------------------- Catálogo de ícones
+section('Catálogo de ícones');
+{
+  const GameData = createRequire(import.meta.url)('../src/data.js');
+  const ids = ICONES_NOVOS.map(i => i.id);
+  test('catálogo tem 58 ícones, ids únicos, só [a-z0-9-]', () => {
+    assert.strictEqual(ICONES_NOVOS.length, 58);
+    assert.strictEqual(new Set(ids).size, 58);
+    for (const i of ICONES_NOVOS) assert.match(i.id, /^[a-z0-9-]+$/);
+  });
+  test('nenhum id novo repete um dos 16 de hoje', () => {
+    assert.strictEqual(ANTIGOS.length, 16);
+    for (const i of ICONES_NOVOS) assert.ok(!ANTIGOS.includes(i.id), i.id);
+  });
+  test('cobre o jogo: st- por STAT_KEYS, sk- por SKILLS, sk-tipo- por TYPE_SKILLS, cl- por WEATHERS, pi- por SURFACES, liga- por LEAGUES, rar- por RARITIES', () => {
+    const esperados = [
+      ...GameData.STAT_KEYS.map(k => 'st-' + k),
+      ...Object.keys(GameData.SKILLS).map(k => 'sk-' + k),
+      ...Object.keys(GameData.TYPE_SKILLS).map(k => 'sk-tipo-' + k),
+      ...Object.keys(GameData.WEATHERS).map(k => 'cl-' + k),
+      ...Object.keys(GameData.SURFACES).map(k => 'pi-' + k),
+      ...GameData.LEAGUES.map(l => 'liga-' + l.id),
+      ...Object.keys(GameData.RARITIES).map(k => 'rar-' + k),
+    ];
+    for (const e of esperados) assert.ok(ids.includes(e), 'falta ' + e);
+  });
+  test('famílias válidas; cor nula ou #rrggbb; descrição sem dígitos', () => {
+    assert.deepStrictEqual(FAMILIAS.map(f => f.id), ['ui', 'st', 'sk', 'cl-pi', 'liga-rar-podio', 'reservado']);
+    for (const i of ICONES_NOVOS) {
+      assert.ok(FAMILIAS.some(f => f.id === i.familia), i.id + ': família ' + i.familia);
+      assert.ok(i.cor === null || /^#[0-9a-f]{6}$/.test(i.cor), i.id + ': cor ' + i.cor);
+      assert.ok(!/\d/.test(i.desc), i.id + ': dígito na descrição');
+    }
+  });
+  test('seeds 2201..2258 na ordem da tabela (sem refação ainda)', () => {
+    ICONES_NOVOS.forEach((i, k) => assert.strictEqual(i.seed, 2201 + k));
+  });
+  test('RESERVADOS são os 5 da spec §2.6 e estão no catálogo', () => {
+    assert.deepStrictEqual(RESERVADOS, ['item-redea', 'moeda-gema', 'ins-fogo', 'ins-agua', 'ins-grama']);
+    for (const r of RESERVADOS) assert.strictEqual(ICONES_NOVOS.find(i => i.id === r).familia, 'reservado', r);
+  });
+  test('folha: cada id do catálogo e dos 16 aparece; sem arquivo vira "falta"; reservado marcado', () => {
+    const html = htmlFolhaIcones({ 'st-vel': 'data:image/png;base64,AA==' }, ICONES_NOVOS, ANTIGOS);
+    for (const i of [...ids, ...ANTIGOS]) assert.ok(html.includes(i), i);
+    assert.ok(html.includes('>falta<'));
+    assert.ok(html.includes('>reservado<'));
+    assert.ok(html.startsWith('<!doctype html>'));
+    assert.ok(html.includes('alt="st-vel"'));
+  });
+  test('folha é determinística', () => {
+    const f = () => htmlFolhaIcones({ 'st-vel': 'data:image/png;base64,AA==' }, ICONES_NOVOS, ANTIGOS);
+    assert.strictEqual(f(), f());
   });
 }
 

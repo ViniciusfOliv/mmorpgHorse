@@ -19,6 +19,8 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { lerMoldes, lerIcones, lerMarca, jsonJs } from './tools/arte-embutida.mjs'
+import { htmlFolhaIcones } from './tools/folha-icones.mjs'
+import { ICONES_NOVOS, ANTIGOS } from './tools/icones-catalogo.mjs'
 import { gravarWiki } from './tools/wiki.mjs'
 
 const ROOT = dirname(fileURLToPath(import.meta.url))
@@ -121,6 +123,7 @@ await writeFile(join(ROOT, 'dist', 'jogo.html'), body)
 await writeFile(join(ROOT, 'dist', 'jogo-dev.html'), bodyDev)
 await writeFile(join(ROOT, 'dist', 'preview.html'), preview)
 await writeFile(join(ROOT, 'dist', 'moldes.js'), moldesJs)
+await writeFile(join(ROOT, 'dist', 'icones.html'), htmlFolhaIcones(await lerIcones(ROOT), ICONES_NOVOS, ANTIGOS))
 const kb = (s) => (Buffer.byteLength(s) / 1024).toFixed(1) + ' KB'
 for (const a of avisos) console.log('AVISO: ' + a)
 console.log(`moldes: ${Object.keys(MOLDES.estilos).join(', ') || 'nenhum'} · arte embutida ${kb(arteJs)}`)
