@@ -68,8 +68,10 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   no wiki; 79 gerações (spec em `docs/superpowers/specs/2026-11-12-icones-design.md`). Revisão final da
   branch limpa e `check.sh` OK (598977e). Build de teste num artefato separado:
   https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch. A confirmar com o Vinicius: selo de liga só onde a
-  liga já aparece, e medalhão de raridade também nas peças. **Próxima parte: os cavalos** (spec a
-  desenhar). Geração só com confirmação explícita.
+  liga já aparece, e medalhão de raridade também nas peças. **Parte 2 (cavalos)** dividida em 2a (marcas,
+  jóquei e raridade, em código), 2b (portes no PixelLab) e 2c (animações). Spec da 2a em
+  `docs/superpowers/specs/2026-11-12-cavalos-marcas-design.md`, **aguardando a revisão do Vinicius**, na
+  branch `claude/visuais-2` (recriada da `claude/cavalos-v3`). Geração só com confirmação explícita.
 
 ## O que falta
 - **Decidido em 2026-11-10:** o teste fechado do Play sai com o jogo offline; o lançamento público
