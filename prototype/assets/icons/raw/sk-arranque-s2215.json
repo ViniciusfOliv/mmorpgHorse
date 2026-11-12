@@ -1,0 +1,32 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T12:55:51.879Z",
+  "pedido": {
+    "description": "horseshoe with a speed burst behind it, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 96 bytes, sha256 57ba4a99f3f47452>",
+      "format": "png"
+    },
+    "seed": 2215
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 491 bytes, sha256 2352dfd1c08d3ca8>",
+      "format": "png"
+    }
+  },
+  "rejeitada": "conferência visual 2026-11-12: só uma ferradura, igual ao slot-ferraduras"
+}

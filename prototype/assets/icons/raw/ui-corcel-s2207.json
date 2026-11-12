@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T12:52:39.689Z",
+  "pedido": {
+    "description": "small pennant flag on a short pole with a horseshoe emblem, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 97 bytes, sha256 a1bf1739709c2562>",
+      "format": "png"
+    },
+    "seed": 2207
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 489 bytes, sha256 e9d6d2e434bca6eb>",
+      "format": "png"
+    }
+  }
+}

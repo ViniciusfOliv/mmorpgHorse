@@ -3,6 +3,17 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-12 — Visuais 2: ícones, cavalos e interface (branch `claude/visuais-2`)
+Conversa com o Vinicius. Spec da parte 1 em `docs/superpowers/specs/2026-11-12-icones-design.md`.
+- **Três partes, cada uma com spec, plano e execução: ícones, cavalos, interface** — o pedido inteiro era grande demais para uma spec; os ícones são os mais baratos e independentes.
+- **Interface por último, depois do bloco 1b implementado** — mexe nas mesmas telas (Status, Skills) que o 1b muda.
+- **Branch criada da `claude/cavalos-v3`** — a frente visual entra depois do bloco 1; da `main`, daria conflito no `game.js` e no `fx.js`.
+- **Cavalos novos para variedade entre cavalos, raridade visível e animações novas** — escolha do Vinicius; os retratos maiores ficaram de fora.
+- **58 ícones com a mesma receita dos 16 de hoje; folha aprovada pelo Vinicius antes de entrar nas telas; teto de 100 gerações da cota** — a receita já foi testada e combina com o que existe.
+- **Cada ginásio tem o foco num elemento (Fogo, Água, Grama); as insígnias seguem esse foco** — dito pelo Vinicius; vale para o desenho dos ginásios.
+- **Refação dos ícones começa pela descrição (cor por extenso), não pela seed** — o PixelLab ignorava a cor do tema.
+- **Estrela vazia em cinza-claro (#a9b5ae), não cinza-escuro** — sumia no painel.
+
 ## 2026-11-12 — crescimento livre: rodadas 2 e 3 da calibração (a revisar na spec)
 O Vinicius pediu os quatro ajustes sugeridos depois da rodada 1 ("Pode incluir os quatro"). Números e
 motivos na spec `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`.

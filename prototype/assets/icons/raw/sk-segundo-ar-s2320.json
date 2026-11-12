@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T13:16:46.465Z",
+  "pedido": {
+    "description": "yellow spiral wind gust swirl with a small plus sign next to it, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 96 bytes, sha256 57ba4a99f3f47452>",
+      "format": "png"
+    },
+    "seed": 2320
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 482 bytes, sha256 ae57c1186cc3e926>",
+      "format": "png"
+    }
+  }
+}

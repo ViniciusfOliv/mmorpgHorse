@@ -60,7 +60,16 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, **aguardando a revisão do Vinicius**
   (seção 15: equilibrada como a build mais forte; skill de tipo nova).
   Depois: plano e execução na branch `claude/cavalos-v3`, **antes** de integrar o bloco 1 na `main`.
-- **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b.
+- **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b. Cada ginásio tem o
+  foco num elemento.
+- **Visuais 2** (branch `claude/visuais-2`, criada da `claude/cavalos-v3`; a parte 1 foi integrada na
+  `claude/cavalos-v3` em 2026-11-12): três partes, ícones →
+  cavalos → interface. **Parte 1 (ícones) pronta na `claude/visuais-2`:** 58 ícones nas telas, na corrida e
+  no wiki; 79 gerações (spec em `docs/superpowers/specs/2026-11-12-icones-design.md`). Revisão final da
+  branch limpa e `check.sh` OK (598977e). Build de teste num artefato separado:
+  https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch. A confirmar com o Vinicius: selo de liga só onde a
+  liga já aparece, e medalhão de raridade também nas peças. **Próxima parte: os cavalos** (spec a
+  desenhar). Geração só com confirmação explícita.
 
 ## O que falta
 - **Decidido em 2026-11-10:** o teste fechado do Play sai com o jogo offline; o lançamento público

@@ -6,7 +6,7 @@
 // navegador (390 e 1280 px, dentro do esqueleto que o host usa): sem erro de console, sem rolagem horizontal,
 // retratos desenhados, busca filtrando e todo link do índice apontando para uma seção que existe.
 import { createRequire } from 'node:module'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { gerarWiki, descreverEfeito, descreverEfeitoTipo, descreverGatilho, descreverEspecial, descreverBloco, efeitoGeralClima, papelDoStatus } from './wiki.mjs'
 
@@ -54,7 +54,7 @@ confere(/\| Comum \| 40% \/ 45,5% \|/.test(a.md), 'tabela de chance de skill: Co
 confere(a.md.includes('natural = início da faixa da raridade + 16 × g / 31 + (level − 1) × (0,3 + 0,08 × g / 31)'), 'seção Status sem a fórmula v3 com a genética g')
 confere(/nota da genética[^\n]*C 0–7 · B 8–15 · A 16–23 · S 24–31/i.test(a.md), 'seção Status sem as notas de genética (C 0–7 … S 24–31)')
 for (const [rar, lo, hi, teto] of [['Comum', 40, 56, 80], ['Mágico', 45, 61, 85], ['Raro', 50, 66, 90], ['Lendário', 55, 71, 95], ['Mítico', 60, 76, 100]]) {
-  confere(new RegExp(`\\| ${rar} \\|[^\\n]*\\| ${lo}–${hi} \\| ${teto} \\|`).test(a.md), `tabela de raridades: ${rar} devia nascer entre ${lo} e ${hi} com teto ${teto}`)
+  confere(new RegExp(`\\| (?:!\\[\\]\\([^)]*\\) )?${rar} \\|[^\\n]*\\| ${lo}–${hi} \\| ${teto} \\|`).test(a.md), `tabela de raridades: ${rar} devia nascer entre ${lo} e ${hi} com teto ${teto}`)
 }
 for (const [est, m, livres, lim] of [['★', '×1', 49, 17], ['★★', '×1,2', 58, 20], ['★★★', '×1,5', 73, 25]]) {
   confere(new RegExp(`\\| ${est} \\| ${m} \\| ${livres} \\| ${lim} \\|`).test(a.md), `tabela de estrelas: ${est} devia ter ${m}, ${livres} pontos livres e limite ${lim} no Nv 50`)
@@ -66,7 +66,7 @@ for (const [nome, el, terco, efeito] of [
   ['Raízes Firmes', 'Grama', 'terço do meio (de 1/3 a 2/3)', 'Força efetiva +7; Manobra efetiva +7; gasto de estamina −1,2%'],
   ['Maré Alta', 'Água', 'último terço (de 2/3 à chegada)', 'velocidade +1,8%; recupera 1,2% do tanque ao entrar no terço']
 ]) {
-  confere(a.md.includes(`| **${nome}** | ${el} | ${terco} | ${efeito} |`), `skill de tipo ${nome}: linha com elemento, terço e efeito (P = 1) não confere`)
+  confere(a.md.includes(`| ![](../prototype/assets/icons/sk-tipo-${{ Fogo: 'fogo', Água: 'agua', Grama: 'grama' }[el]}.png) **${nome}** | ${el} | ${terco} | ${efeito} |`), `skill de tipo ${nome}: linha com elemento, terço e efeito (P = 1) não confere`)
 }
 confere(!/neutro/i.test(a.md), 'md ainda fala de "Neutro"')
 confere(!/neutro/i.test(a.html.replace(/<script>\n\/\* src\/sprites\.js \*\/[\s\S]*?<\/script>/, '')), 'html ainda fala de "Neutro" (fora do sprites.js embutido)')
@@ -74,6 +74,40 @@ confere(!/oculto no jogo|status base|bônus fixo|janela do grau|exclusivas/i.tes
 confere(a.html.includes('<li><b>15</b> skills</li>') && a.html.includes('<li><b>15</b> montarias</li>') && a.html.includes('<li><b>3</b> elementos</li>'), 'contagens do topo: 15 skills, 15 montarias, 3 elementos')
 confere(/id="filtro-el-geral"[^>]*>(<img[^>]*>)?Gerais</.test(a.html), 'falta o filtro "Gerais" (skills gerais)')
 confere(/<span class="el el--geral"><img /.test(a.html), 'skills gerais sem o ícone el-geral')
+
+// 2b. ícones: skill (e skill de tipo), status, clima, piso, liga e raridade que têm arquivo ganham o <img> antes do nome
+const DIR_ICONES = resolve(import.meta.dirname, '..', 'assets', 'icons')
+const temIcone = (id) => existsSync(join(DIR_ICONES, id + '.png'))
+const IMG = '<img class="ic" src="data:image/png;base64,[A-Za-z0-9+/=]+" alt="" width="16" height="16">'
+const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const comIconeHtml = (nome) => new RegExp(IMG + '(?:<[^>]+>)*' + reEsc(escHtml(nome))).test(a.html)
+const comIconeMd = (id, nome) => new RegExp('!\\[\\]\\(\\.\\./prototype/assets/icons/' + id + '\\.png\\) (?:\\*\\*)?' + reEsc(nome)).test(a.md)
+const alvos = []
+for (const id in G.SKILLS) alvos.push(['sk-' + id, G.SKILLS[id].name])
+for (const el in G.TYPE_SKILLS) alvos.push(['sk-tipo-' + el, G.TYPE_SKILLS[el].name])
+for (const k of G.STAT_KEYS) alvos.push(['st-' + k, G.STATS[k].name])
+for (const id in G.WEATHERS) alvos.push(['cl-' + id, G.WEATHERS[id].name])
+for (const id in G.SURFACES) alvos.push(['pi-' + id, G.SURFACES[id].name])
+for (const L of G.LEAGUES) alvos.push(['liga-' + L.id, L.name])
+for (const id in G.RARITIES) alvos.push(['rar-' + id, G.RARITIES[id].name])
+let comArquivo = 0
+for (const [id, nome] of alvos) {
+  if (!temIcone(id)) { confere(!a.md.includes(`icons/${id}.png`), `${id}: sem arquivo, mas o md tem link`); continue }
+  comArquivo++
+  confere(comIconeHtml(nome), `ícone ${id} não aparece antes de "${nome}" no html`)
+  confere(comIconeMd(id, nome), `ícone ${id} não aparece antes de "${nome}" no md`)
+}
+confere(comArquivo === alvos.length, `só ${comArquivo} de ${alvos.length} dos ícones de skill/status/clima/piso/liga/raridade têm arquivo`)
+// todo link de imagem do md aponta para um PNG que existe (nada de link quebrado)
+const linksImg = [...a.md.matchAll(/!\[\]\(\.\.\/prototype\/assets\/icons\/([a-z0-9-]+)\.png\)/g)].map((m) => m[1])
+confere(linksImg.length >= 40, `md com só ${linksImg.length} imagens de ícone`)
+for (const id of linksImg) confere(temIcone(id), `link do md para ícone que não existe: ${id}`)
+// seção de reservados: os 5 da spec §2.6, em 32 px no html e com link no md
+confere(a.html.includes('id="icones-reservados"') && /## Ícones reservados/.test(a.md), 'falta a seção "Ícones reservados"')
+for (const id of ['item-redea', 'moeda-gema', 'ins-fogo', 'ins-agua', 'ins-grama']) {
+  confere(a.md.includes(`![](../prototype/assets/icons/${id}.png)`) && a.md.includes('`' + id + '`'), `reservado ${id} sem imagem/nome no md`)
+  confere(new RegExp('<img class="ic ic32" src="data:image/png;base64,[A-Za-z0-9+/=]+" alt="" width="32" height="32">(?:<[^>]+>)*<code>' + id + '</code>').test(a.html), `reservado ${id} sem <img> de 32 px no html`)
+}
 
 // 3. chave desconhecida quebra
 lanca(() => descreverEfeito({ speedMult: 1.1, chaveInventada: 3 }), 'effect com chave inventada')

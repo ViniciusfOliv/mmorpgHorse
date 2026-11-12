@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T13:17:16.079Z",
+  "pedido": {
+    "description": "orange fire blaze streaking horizontally to the right with a long flame trail, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 12f695cc3c7c910d>",
+      "format": "png"
+    },
+    "seed": 2330
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 365 bytes, sha256 e892e0de355077f3>",
+      "format": "png"
+    }
+  }
+}

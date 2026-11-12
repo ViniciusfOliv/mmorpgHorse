@@ -1,0 +1,32 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T13:07:10.989Z",
+  "pedido": {
+    "description": "round medallion with a horse head and four small sparkles, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 4d50a1c51ac15adf>",
+      "format": "png"
+    },
+    "seed": 2248
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 695 bytes, sha256 ccb900be260461d9>",
+      "format": "png"
+    }
+  },
+  "rejeitada": "conferência visual 2026-11-12: saiu verde-escuro e dourada, não azul"
+}

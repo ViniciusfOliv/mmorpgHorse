@@ -1,6 +1,7 @@
 // prototype/tools/pixellab-moldes.mjs — gera no PixelLab (API v2) os moldes de cavalo e os ícones.
 //
-// Uso:  NODE_USE_ENV_PROXY=1 node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|tudo [--only <id>] [--teto 60] [--gerar]
+// Uso:  NODE_USE_ENV_PROXY=1 node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|icones2|tudo [--only <id>] [--teto 60] [--gerar]
+//   (icones2 = os 58 ícones novos de icones-catalogo.mjs; tudo = moldes + os 16 + os 58)
 //   Sem --gerar é SEMPRE dry-run: lista as chamadas planejadas (endpoint, item, seed, prompt) e o total
 //   de gerações, sem tocar na rede (nem /balance).
 //   --gerar   gasta a cota do PixelLab — só com confirmação do dono do projeto (CLAUDE.md §7).
@@ -45,7 +46,7 @@
 //   prototype/assets/pixellab/molde-<estilo>-{retrato,parado,galope-N}.png  (cinza = papel × 25)
 //   prototype/assets/pixellab/molde-<estilo>.json        (âncoras, larguraUtil, limiares por geração, seeds)
 //   prototype/assets/pixellab/raw/  (PNGs crus e respostas JSON sem os base64)
-// Ícones: 16 × /create-image-pixflux 32×32 com a paleta da interface em color_image (pedido do plano) →
+// Ícones: dois lotes (16 de `icones` + 58 de `icones2`), cada um com /create-image-pixflux 32×32 com a paleta da interface em color_image (pedido do plano) →
 // prototype/assets/icons/<nome>.png (RGBA) e icons/raw/. Cada arquivo final que MUDOU ganha (ou troca) sua
 // linha em docs/memoria/assets.md; o que só foi refeito igual a partir de raw/ não mexe no registro.
 import crypto from 'node:crypto';
@@ -53,6 +54,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePng, encodePng, encodeGray } from './png.mjs';
+import { ICONES_NOVOS } from './icones-catalogo.mjs';
 import { validar, ancoras, paraCinza, deCinza, classificarFamilias, limiaresDeTons, posProcessar, passada } from './moldes-lib.mjs';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -199,18 +201,18 @@ function lerArgs(argv) {
     else if (k === '--forca') a.forca = Number(argv[++i]);
     else sair('argumento desconhecido: ' + k);
   }
-  if (!['moldes', 'icones', 'tudo'].includes(a.lote)) {
-    sair('uso: node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|tudo [--only <id>] [--teto 60] [--gerar]');
+  if (!['moldes', 'icones', 'icones2', 'tudo'].includes(a.lote)) {
+    sair('uso: node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|icones2|tudo [--only <id>] [--teto 60] [--gerar]');
   }
   if (!Number.isFinite(a.teto) || a.teto <= 0) sair('--teto precisa ser um número maior que zero');
   if (a.gerar && a.reprocessar) sair('--gerar e --reprocessar não andam juntos');
-  if (a.testarCrinas && (a.reprocessar || a.lote === 'icones' || a.repetir.length)) sair('--testar-crinas: só com --lote moldes|tudo, sem --reprocessar nem --repetir');
+  if (a.testarCrinas && (a.reprocessar || ['icones', 'icones2'].includes(a.lote) || a.repetir.length)) sair('--testar-crinas: só com --lote moldes|tudo, sem --reprocessar nem --repetir');
   if (a.forca != null && !a.testarCrinas) sair('--forca só vale com --testar-crinas');
-  a.estilos = a.lote === 'icones' ? [] : ESTILOS.filter(e => !a.only || e.id === a.only);
-  a.icones = a.lote === 'moldes' ? [] : ICONES.filter(ic => !a.only || ic.id === a.only);
+  a.estilos = ['icones', 'icones2'].includes(a.lote) ? [] : ESTILOS.filter(e => !a.only || e.id === a.only);
+  a.icones = a.lote === 'moldes' ? [] : ({ icones: ICONES, icones2: ICONES_NOVOS, tudo: [...ICONES, ...ICONES_NOVOS] })[a.lote].filter(ic => !a.only || ic.id === a.only);
   if (a.only && !a.estilos.length && !a.icones.length) sair(`--only ${a.only}: não existe no lote "${a.lote}"`);
   if (a.repetir.length > 2) sair('--repetir: no máximo 2 itens');
-  const itens = [...ESTILOS.flatMap(e => [...posesDe(e), 'galope'].map(k => `${e.id}/${k}`)), ...ICONES.map(ic => `icone/${ic.id}`)];
+  const itens = [...ESTILOS.flatMap(e => [...posesDe(e), 'galope'].map(k => `${e.id}/${k}`)), ...ICONES.concat(ICONES_NOVOS).map(ic => `icone/${ic.id}`)];
   for (const r of a.repetir) if (!itens.includes(r)) sair(`--repetir ${r}: item desconhecido (ex.: lisa/parado, ondas/corrida, icone/aba-loja)`);
   REPETIR_EXTRA = a.repetir;
   if (a.testarCrinas) {

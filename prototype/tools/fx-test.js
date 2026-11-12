@@ -359,6 +359,8 @@ function ctxFalso() {
   var c = { rects: [], fillStyle: '', globalAlpha: 1 };
   c.fillRect = function (x, y, w, h) { c.rects.push({ x: x, y: y, w: w, h: h, cor: c.fillStyle, a: c.globalAlpha }); };
   c.save = function () {}; c.restore = function () {};
+  c.imgs = [];
+  c.drawImage = function () { c.imgs.push({ args: Array.prototype.slice.call(arguments), liso: c.imageSmoothingEnabled }); };
   return c;
 }
 var ITEM_SKILL = { kind: 'skill', t0: 10, t1: 15, racer: 0, skillId: 'labareda', icon: 'vel', element: 'fogo', cavalo: 'fogo', nome: 'Labareda', nomeCurto: 'LABAREDA', silks: '#d8353b', raia: 1, escala: 1 };
@@ -479,7 +481,8 @@ test('rainSlant: o vento inclina a chuva no sentido dele, mais na ventania', fun
 // contexto falso com drawImage (as nuvens da frente no nublado usam canvas do Sprites só no browser)
 function ctxNat() {
   var c = ctxFalso();
-  c.drawImage = function () { c.imagens = (c.imagens || 0) + 1; };
+  var grava = c.drawImage;
+  c.drawImage = function () { c.imagens = (c.imagens || 0) + 1; grava.apply(c, arguments); };
   return c;
 }
 var NAT = { W: 1200, H: 600, P: 3, laneTop: 270, trackBottom: 540, seed: 77 };
@@ -1212,6 +1215,154 @@ test('hachura das subidas: a pintura com padrão (fillRect + translate) cobre os
       assert.deepStrictEqual(b, a, JSON.stringify(cs));
     });
   } finally { if (antes === undefined) delete global.OffscreenCanvas; else global.OffscreenCanvas = antes; }
+});
+
+section('Ícones PNG na corrida');
+var IMG = { fake: 'img' };
+function itemIcone(extra) { var o = {}, k; for (k in ITEM_SKILL) o[k] = ITEM_SKILL[k]; for (k in extra) o[k] = extra[k]; return o; }
+test('drawIconPng: no cache e lado·S ≥ 16 ⇒ drawImage(img, x, y, 16, 16) sem suavização', function () {
+  FX.setIconImages({ 'sk-arranque': IMG });
+  var c = ctxFalso();
+  assert.strictEqual(FX.iconImage('sk-arranque'), IMG);
+  assert.strictEqual(FX.drawIconPng(c, 'sk-arranque', 5, 7, 8, 2), true);
+  assert.deepStrictEqual(c.imgs[0].args, [IMG, 5, 7, 16, 16]);
+  assert.strictEqual(c.imgs[0].liso, false);
+  assert.strictEqual(FX.drawIconPng(c, 'sk-outro', 5, 7, 8, 2), false, 'fora do cache');
+  FX.setIconImages({});
+  assert.strictEqual(FX.iconImage('sk-arranque'), null, 'setIconImages troca o cache inteiro');
+});
+test('drawIconPng: lado·S < 16 ⇒ não desenha e devolve false', function () {
+  FX.setIconImages({ 'sk-arranque': IMG });
+  var c = ctxFalso();
+  assert.strictEqual(FX.drawIconPng(c, 'sk-arranque', 0, 0, 8, 1), false);
+  assert.strictEqual(c.imgs.length, 0);
+  FX.setIconImages({});
+});
+test('balão de skill com ícone no cache desenha a imagem e não o 8×8 em código', function () {
+  FX.setIconImages({});
+  var sem = ctxFalso(), com = ctxFalso(), it = itemIcone({ skillId: 'arranque' });
+  FX.drawBalloon(sem, 10, 10, 2, it, 10.5, 0);
+  FX.setIconImages({ 'sk-arranque': IMG });
+  FX.drawBalloon(com, 10, 10, 2, it, 10.5, 0);
+  assert.strictEqual(com.imgs.length, 1);
+  assert.strictEqual(com.imgs[0].args[3], 16);
+  assert.ok(com.rects.length < sem.rects.length, 'sem os retângulos do ícone em código');
+  FX.setIconImages({});
+});
+test('Review Focus 3: balão com skillId nulo usa o ícone em código, sem exceção', function () {
+  FX.setIconImages({ 'sk-null': IMG, 'sk-undefined': IMG });
+  var c = ctxFalso(), it = itemIcone({ skillId: null });
+  assert.doesNotThrow(function () { FX.drawBalloon(c, 10, 10, 2, it, 10.5, 0); });
+  assert.strictEqual(c.imgs.length, 0);
+  assert.ok(c.rects.length > 0);
+  FX.setIconImages({});
+});
+test('Review Focus 4: sem setIconImages (imagem não carregada) o balão é idêntico ao de hoje', function () {
+  FX.setIconImages({});
+  var a = ctxFalso(), b = ctxFalso(), it = itemIcone({ skillId: 'arranque' });
+  FX.drawBalloon(a, 10, 10, 2, it, 10.5, 0);
+  FX.setIconImages({ 'sk-arranque': IMG }); FX.setIconImages({});
+  FX.drawBalloon(b, 10, 10, 2, it, 10.5, 0);
+  assert.deepStrictEqual(b.rects, a.rects);
+  assert.strictEqual(b.imgs.length, 0);
+  // e com S = 1 (ícone < 16 px) também cai no código, mesmo com imagem no cache
+  FX.setIconImages({ 'sk-arranque': IMG });
+  var c = ctxFalso(), d = ctxFalso();
+  FX.drawBalloon(c, 10, 10, 1, it, 10.5, 0);
+  FX.setIconImages({});
+  FX.drawBalloon(d, 10, 10, 1, it, 10.5, 0);
+  assert.deepStrictEqual(c.rects, d.rects);
+  assert.strictEqual(c.imgs.length, 0);
+});
+test('skill de tipo usa sk-tipo-<elemento>; clima usa cl-<clima>', function () {
+  assert.strictEqual(FX.iconNameOf(itemIcone({ typeSkill: true, element: 'agua', skillId: 'mare' })), 'sk-tipo-agua');
+  assert.strictEqual(FX.iconNameOf(itemIcone({ skillId: null, clima: 'chuva' })), 'cl-chuva');
+  assert.strictEqual(FX.iconNameOf(itemIcone({ skillId: null })), null);
+  FX.setIconImages({ 'sk-tipo-fogo': IMG, 'cl-nevoa': IMG });
+  var a = ctxFalso(), b = ctxFalso();
+  FX.drawBalloon(a, 10, 10, 2, itemIcone({ typeSkill: true, element: 'fogo' }), 10.5, 0);
+  FX.drawBalloon(b, 10, 10, 2, itemIcone({ skillId: null, clima: 'nevoa' }), 10.5, 0);
+  assert.strictEqual(a.imgs.length, 1); assert.strictEqual(b.imgs.length, 1);
+  FX.setIconImages({});
+});
+test('faixa do Dado com ui-dado no cache desenha a imagem', function () {
+  var dado = { kind: 'dado', t0: 10, t1: 15, escala: 1, winner: 0, rolls: [{ best: 12, rerolls: 0 }, { best: 7, rerolls: 0 }] };
+  var racers = [{ silks: '#d8353b' }, { silks: '#2f6fd8' }];
+  var lay = { artW: 400, hudH: 12, compact: false };
+  FX.setIconImages({});
+  var sem = ctxFalso(); FX.drawDiceStrip(sem, dado, racers, lay, 2, 11, false);
+  FX.setIconImages({ 'ui-dado': IMG });
+  var c = ctxFalso(); FX.drawDiceStrip(c, dado, racers, lay, 2, 11, false);
+  FX.setIconImages({});
+  assert.strictEqual(sem.imgs.length, 0);
+  assert.strictEqual(c.imgs.length, 1);
+  assert.strictEqual(c.imgs[0].args[3], 16);
+  assert.deepStrictEqual(c.rects, sem.rects, 'o resto da faixa é o mesmo');
+});
+test('simulação não muda: mesmo resultado com e sem ícones', function () {
+  FX.setIconImages({});
+  var a = corridaSkills(9), antes = JSON.stringify(a.sim);
+  FX.setIconImages({ 'sk-arranque': IMG, 'cl-sol': IMG, 'ui-dado': IMG });
+  var b = corridaSkills(9);
+  FX.timeline(b.sim, b.racers, 3);
+  FX.setIconImages({});
+  assert.strictEqual(JSON.stringify(b.sim), antes);
+});
+
+section('faixa de skill do jogador (skillBannerLayout)');
+var SPR2 = require('../src/sprites.js');
+function nomesFaixa() {
+  var out = [], k;
+  for (k in G.SKILLS) if (Object.prototype.hasOwnProperty.call(G.SKILLS, k)) out.push(G.SKILLS[k].name.toUpperCase() + '!');
+  for (k in G.TYPE_SKILLS) if (Object.prototype.hasOwnProperty.call(G.TYPE_SKILLS, k)) out.push(G.TYPE_SKILLS[k].name.toUpperCase() + '!');
+  return out;
+}
+function twFaixa(str, sc) { return SPR2.measureText(str, sc || 1); }
+test('faixa de skill: a caixa cabe em [3, artW - 3] para todo nome, com e sem ícone, em S 1 e 2', function () {
+  var nomes = nomesFaixa();
+  assert.ok(nomes.length >= 10 && nomes.indexOf('FÔLEGO DE MONTANHA!') >= 0, 'nomes do jogo: ' + nomes.length);
+  [160, 164, 170, 200, 240].forEach(function (artW) {
+    [1, 2, 3].forEach(function (Sx) {
+      [false, true].forEach(function (img) {
+        nomes.forEach(function (n) {
+          var b = FX.skillBannerLayout(n, artW, Sx, img, twFaixa);
+          assert.ok(b.x >= 3 && b.x + b.w <= artW - 3, n + ' artW ' + artW + ' S ' + Sx + ' img ' + img + ': x ' + b.x + ' w ' + b.w);
+          assert.ok(b.textX - twFaixa(n, b.fs) / 2 >= b.x && b.textX + twFaixa(n, b.fs) / 2 <= b.x + b.w, 'texto dentro da caixa: ' + n);
+        });
+      });
+    });
+  });
+});
+test('faixa de skill: a largura do ícone só é reservada quando o ícone vai ser desenhado (imagem no cache e 8·fs·S ≥ 16)', function () {
+  var n = 'ARRANQUE!';
+  var com = FX.skillBannerLayout(n, 240, 2, true, twFaixa), sem = FX.skillBannerLayout(n, 240, 2, false, twFaixa);
+  assert.strictEqual(com.icone, true);
+  assert.strictEqual(com.fs, 2);
+  assert.strictEqual(com.w, sem.w + 8 * 2 + 2, 'ícone soma 8·fs + 2');
+  assert.strictEqual(sem.icone, false);
+  // S = 1 e fs = 2: 8·2·1 = 16, desenha; S = 1 e fs = 1 (tela estreita): 8 < 16, não desenha nem reserva
+  var estreito = FX.skillBannerLayout('FÔLEGO DE MONTANHA!', 164, 1, true, twFaixa);
+  assert.strictEqual(estreito.fs, 1);
+  assert.strictEqual(estreito.icone, false);
+  assert.strictEqual(estreito.w, twFaixa('FÔLEGO DE MONTANHA!', 1) + 8);
+  // com S = 2 em tela estreita, cai para fs = 1 e o ícone (8·1·2 = 16) continua, se couber
+  var s2 = FX.skillBannerLayout('FÔLEGO DE MONTANHA!', 164, 2, true, twFaixa);
+  assert.strictEqual(s2.fs, 1);
+  assert.strictEqual(s2.icone, true);
+  assert.strictEqual(s2.w, twFaixa('FÔLEGO DE MONTANHA!', 1) + 8 + 8 + 2);
+});
+test('faixa de skill: sem ícone a geometria é a de antes (fs por tw(ft, 2) + 8 <= artW - 6, fh = 5·fs + 6, w = tw + 8)', function () {
+  nomesFaixa().forEach(function (n) {
+    [160, 164, 170, 200, 240].forEach(function (artW) {
+      var fs = twFaixa(n, 2) + 8 <= artW - 6 ? 2 : 1, fw = twFaixa(n, fs) + 8;
+      var b = FX.skillBannerLayout(n, artW, 2, false, twFaixa);
+      assert.strictEqual(b.fs, fs, n);
+      assert.strictEqual(b.w, fw, n);
+      assert.strictEqual(b.h, 5 * fs + 6, n);
+      assert.strictEqual(b.x, Math.round(artW / 2 - fw / 2), n);
+      assert.strictEqual(b.textX, Math.round(artW / 2), n);
+    });
+  });
 });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');

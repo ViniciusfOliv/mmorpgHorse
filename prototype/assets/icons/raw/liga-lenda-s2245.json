@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T13:06:15.140Z",
+  "pedido": {
+    "description": "shield badge with a horse head silhouette, a crown on top and flames around it, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 bae6648e2bc02f1e>",
+      "format": "png"
+    },
+    "seed": 2245
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 628 bytes, sha256 5517ac97e0cc998d>",
+      "format": "png"
+    }
+  }
+}

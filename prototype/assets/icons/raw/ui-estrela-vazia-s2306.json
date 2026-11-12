@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T13:14:54.515Z",
+  "pedido": {
+    "description": "hollow five-pointed star: thick light gray star outline with an empty transparent center, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 9a9ef8c22ec5080c>",
+      "format": "png"
+    },
+    "seed": 2306
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 423 bytes, sha256 1bb8b23e7323bb47>",
+      "format": "png"
+    }
+  }
+}

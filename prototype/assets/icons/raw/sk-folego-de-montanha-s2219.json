@@ -1,0 +1,21 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T12:57:03.694Z",
+  "pedido": {
+    "description": "small mountain with a puff of breath, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 96 bytes, sha256 57ba4a99f3f47452>",
+      "format": "png"
+    },
+    "seed": 2219
+  },
+  "erro": "POST /create-image-pixflux → HTTP 502: upstream request failed"
+}

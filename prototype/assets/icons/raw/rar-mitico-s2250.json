@@ -1,0 +1,21 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T13:08:26.545Z",
+  "pedido": {
+    "description": "round medallion with a horse head, sparkles and a radiant aura, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 fa9e91280f5650f3>",
+      "format": "png"
+    },
+    "seed": 2250
+  },
+  "erro": "POST /create-image-pixflux → HTTP 502: upstream request failed"
+}

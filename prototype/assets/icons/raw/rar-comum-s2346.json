@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T13:18:40.805Z",
+  "pedido": {
+    "description": "plain dull gray stone round medallion with a gray horse head, no sparkles, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 5710b100a8f54bf8>",
+      "format": "png"
+    },
+    "seed": 2346
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 685 bytes, sha256 f9178c1fabe3fcd2>",
+      "format": "png"
+    }
+  }
+}

@@ -172,11 +172,31 @@
     '<path style="fill:var(--ouro-escuro)" d="M4 3h1v3h-1z"/></svg>';
   // Ícone do PixelLab (window.__ICONES, embutido pelo build): <img> pixelado e decorativo. Sem o ícone
   // (ou sem o mapa), devolve o fallback (o caractere/SVG de antes), nunca um <img> quebrado.
-  function iconeHtml(nome, fallback, tam) {
+  // Em 32 px leva também a classe icone--32 (tamanho cheio, sem redução).
+  function iconeSrc(nome) {
     var m = window.__ICONES;
-    if (!m || typeof m !== 'object' || !hasOwn(m, nome) || typeof m[nome] !== 'string' || !m[nome]) return fallback || '';
+    if (!m || typeof m !== 'object' || !hasOwn(m, nome) || typeof m[nome] !== 'string' || !m[nome]) return '';
+    return m[nome];
+  }
+  // Ícones da corrida (canvas): uma Image por ícone sk-*, cl-* e ui-dado; a cada onload o RaceFx recebe os que já
+  // carregaram (ele só desenha o PNG quando está no cache; antes disso fica o desenho em código). Sem Image (Node): nada.
+  function carregarIconesCorrida() {
+    var m = window.__ICONES;
+    if (typeof Image !== 'function' || !m || typeof m !== 'object') return;
+    var prontas = {};
+    Object.keys(m).forEach(function (nome) {
+      if (!/^(sk-|cl-|ui-dado$)/.test(nome) || !iconeSrc(nome)) return;
+      var img = new Image();
+      img.onload = function () { prontas[nome] = img; FX.setIconImages(prontas); };
+      img.src = iconeSrc(nome);
+    });
+  }
+  carregarIconesCorrida();
+  function iconeHtml(nome, fallback, tam) {
+    var src = iconeSrc(nome);
+    if (!src) return fallback || '';
     var t = tam || 16;
-    return '<img class="icone icone--' + esc(nome) + '" src="' + esc(m[nome]) + '" alt="" width="' + t + '" height="' + t + '">';
+    return '<img class="icone icone--' + esc(nome) + (t === 32 ? ' icone--32' : '') + '" src="' + esc(src) + '" alt="" width="' + t + '" height="' + t + '">';
   }
   // Logotipo do Canva (window.__MARCA.logo): <img> com o título como alt; sem arquivo, o texto de antes.
   // width/height reservam o espaço antes de a imagem decodificar (sem salto de layout); o build manda o
@@ -212,7 +232,56 @@
     man: ['..####..', '.#....#.', '#......#', '#.......', '#.....#.', '.#...###', '..#..#.#', '........'],
     sorte: ['.##..##.', '#..##..#', '#..##..#', '.######.', '.######.', '#..##..#', '#..##..#', '.##..##.']
   };
-  function statIcon(k) { return pixelSvg(STAT_ICON_ROWS[k] || STAT_ICON_ROWS.vel, 'icone-status icone-status--' + k); }
+  // ---- Ícones das telas (spec 2026-11-12-icones §4): cada função cai na reserva de hoje sem o arquivo ----
+  // O ícone é decorativo (alt=""): o texto fica ao lado (ou no aria-label do pai, como nas estrelas).
+  function statIcon(k) {
+    return iconeHtml('st-' + k, pixelSvg(STAT_ICON_ROWS[k] || STAT_ICON_ROWS.vel, 'icone-status icone-status--' + k), 16);
+  }
+  // grau do cavalo: três estrelas, cheias e vazias (reserva ★/☆), lidas como "N de 3 estrelas"
+  function estrelasHtml(grau) {
+    var g = clamp(Math.floor(Number(grau) || 0), 0, 3), out = '';
+    for (var i = 0; i < 3; i++) out += i < g ? iconeHtml('ui-estrela', '★', 16) : iconeHtml('ui-estrela-vazia', '☆', 16);
+    return '<span class="estrelas" role="img" aria-label="' + g + ' de 3 estrelas">' + out + '</span>';
+  }
+  function sexoHtml(sexo) {
+    return sexo === 'f' ? iconeHtml('ui-femea', '♀', 16) + ' Fêmea' : iconeHtml('ui-macho', '♂', 16) + ' Macho';
+  }
+  function corcelHtml() { return iconeHtml('ui-corcel', '⚑', 16) + ' Corcel'; }
+  // skill de vaga (sk-<id>) ou de tipo (sk-tipo-<elemento>); reserva: o selo do elemento da skill
+  function skillIcone(id, tam) {
+    if (hasOwn(GD.SKILLS, id)) return iconeHtml('sk-' + id, iconHtml(GD.SKILLS[id].element), tam || 16);
+    for (var e in GD.TYPE_SKILLS) {
+      if (hasOwn(GD.TYPE_SKILLS, e) && GD.TYPE_SKILLS[e].id === id) return iconeHtml('sk-tipo-' + e, iconHtml(e), tam || 16);
+    }
+    return '';
+  }
+  // clima, piso, liga, raridade e pódio: o nome já está ao lado, então sem arquivo não fica nada no lugar
+  function climaIcone(id) { return iconeHtml('cl-' + id, '', 16); }
+  function pisoIcone(id) { return iconeHtml('pi-' + id, '', 16); }
+  function ligaIcone(id) { return iconeHtml('liga-' + id, '', 16); }
+  function raridadeIcone(id) { return iconeHtml('rar-' + id, '', 16); }
+  function podioIcone(lugar) { return lugar >= 1 && lugar <= 3 ? iconeHtml('podio-' + lugar, '', 16) : ''; }
+  // texto de evento da simulação (narração e momentos): o "🎲 " dos eventos do tipo 'dado' vira o ícone ui-dado
+  // (sem o arquivo, fica o emoji); o resto passa por esc
+  var DADO_PREFIXO = '🎲 ';
+  function eventoHtml(txt, tipo) {
+    var s = txt == null ? '' : String(txt);
+    if (tipo === 'dado' && s.indexOf(DADO_PREFIXO) === 0) return iconeHtml('ui-dado', '🎲', 16) + ' ' + esc(s.slice(DADO_PREFIXO.length));
+    return esc(s);
+  }
+  // "Clima: X" do painel da corrida, montado por DOM (o nome vem do catálogo; nada de innerHTML)
+  function climaNoPainel(el, id) {
+    if (!el || !hasOwn(GD.WEATHERS, id)) return;
+    while (el.firstChild) el.removeChild(el.firstChild);
+    var src = iconeSrc('cl-' + id);
+    if (src) {
+      var img = document.createElement('img');
+      img.className = 'icone icone--cl-' + id;
+      img.src = src; img.alt = ''; img.width = 16; img.height = 16;
+      el.appendChild(img);
+    }
+    el.appendChild(document.createTextNode('Clima: ' + GD.WEATHERS[id].name));
+  }
 
   // ===========================================================================
   // Persistência (localStorage é opcional: tudo funciona sem ele)
@@ -859,11 +928,12 @@
   }
   function rarityHtml(rarity) {
     var r = GD.RARITIES[rarity] || GD.RARITIES.comum;
-    return '<span class="raridade raridade--' + esc(r.id) + '">' + esc(r.name) + '</span>';
+    return '<span class="raridade raridade--' + esc(r.id) + '">' + raridadeIcone(r.id) + esc(r.name) + '</span>';
   }
   function leagueHtml(rating) {
-    var L = RS.leagueFor(rating);
-    return '<span class="liga liga--' + esc(L.id) + '">Liga ' + esc(L.name) + '</span>';
+    var L = RS.leagueFor(rating), ic = ligaIcone(L.id);
+    // com o ícone, o quadradinho colorido (::before) sai: o escudo faz o papel dele
+    return '<span class="liga liga--' + esc(L.id) + (ic ? ' liga--icone' : '') + '">' + ic + 'Liga ' + esc(L.name) + '</span>';
   }
   // Barras em 20 segmentos inteiros (cada um = 5 pontos): nada de meio segmento. teto (opcional): os
   // segmentos vazios acima do teto da raridade ficam marcados (.teto).
@@ -903,10 +973,11 @@
       (maxed ? 'Nível máximo' : fmt(xp) + ' / ' + fmt(need) + ' XP') + '</span></div>' +
       '<div class="barra barra--xp" role="img" aria-label="' + esc('Experiência ' + Math.round(pct) + '%') + '"><i style="width:' + (Math.round(pct / 5) * 5) + '%"></i></div></div>';
   }
-  function skillHtml(id) {
-    var sk = GD.SKILLS[id];
+  // tam: tamanho do ícone (32 na aba Skills; 16 no resto)
+  function skillHtml(id, tam) {
+    var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
     if (!sk) return '';
-    return '<div class="habilidade"><b>' + iconHtml(sk.element) + esc(sk.name) + '</b><span>' + esc(sk.desc) + '</span></div>';
+    return '<div class="habilidade"><b>' + skillIcone(id, tam) + esc(sk.name) + '</b><span>' + esc(sk.desc) + '</span></div>';
   }
   // Skill de tipo: vaga própria, sempre ativa, num terço da pista; o efeito já multiplicado pela força P
   // (RaceSim.typeSkill), os mesmos números que a simulação usa.
@@ -927,7 +998,7 @@
     if (!ts) return '';
     var el = elementOf(horse.element);
     return '<div class="vaga-tipo vaga-tipo--' + esc(el.id) + '"><span class="vaga-tipo-rotulo">Skill de tipo · sempre ativa</span>' +
-      '<b>' + iconHtml(el.id) + esc(ts.name) + '</b>' +
+      '<b>' + skillIcone(ts.id, 32) + esc(ts.name) + '</b>' +
       '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts) + '.') + '</span>' +
       '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',') + ': cresce com o nível e a raridade') + '</span></div>';
   }
@@ -1227,10 +1298,10 @@
       '<div class="dev-campos dev-campos--1">' + devEntrada('nome', 'Nome', 'type="text" maxlength="16" autocomplete="off"', f.nome) + '</div>' +
       '<div class="dev-campos">' +
         devSelect('elemento', 'Elemento', elementos, f.elemento) + devSelect('raridade', 'Raridade', raridades, f.raridade) +
-        devSelect('sexo', 'Sexo', [['m', '♂ Macho'], ['f', '♀ Fêmea']], f.sexo) +
+        devSelect('sexo', 'Sexo', [['m', 'Macho'], ['f', 'Fêmea']], f.sexo) +
         devEntrada('nivel', 'Nível (1–' + MAX_LEVEL + ')', 'type="number" min="1" max="' + MAX_LEVEL + '" inputmode="numeric"', f.nivel) +
         devSelect('potencial', 'Genética', potenciais, f.potencial) +
-        devSelect('estrelas', 'Estrelas', [['1', '★'], ['2', '★★'], ['3', '★★★']], f.estrelas) +
+        devSelect('estrelas', 'Estrelas', [['1', '1 estrela'], ['2', '2 estrelas'], ['3', '3 estrelas']], f.estrelas) +
       '</div>' +
       '<p class="nota">Genética por status (0–31, com "Genética: por status") e pontos distribuídos (cortados pelo limite por status e pelos pontos livres do nível).</p>' +
       '<div class="dev-campos dev-campos--4">' + STAT_KEYS.map(function (k) {
@@ -1516,7 +1587,7 @@
     return '<header class="app-topo"><span class="logo-mini">' + logoHtml('Galope Elemental', 24) + '</span>' +
       '<span class="topo-saldos">' + pedrasSaldoHtml() +
       '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></span>' +
-      '<button type="button" class="btn btn--pequeno app-perfil" data-acao="perfil" aria-label="Perfil">👤</button></header>';
+      '<button type="button" class="btn btn--pequeno app-perfil" data-acao="perfil" aria-label="Perfil">' + iconeHtml('ui-perfil', '👤', 16) + '</button></header>';
   }
   // saldo de Pedras Negras ("🪨 N"), igual no cabeçalho e no Perfil
   function pedrasSaldoHtml() {
@@ -1570,9 +1641,10 @@
       var el = GD.ELEMENTS[h.element];
       var rating = RS.powerRating(h, null);
       var wPct = Math.round((RS.TUNING.weatherMult - 1) * 100);
-      var best = el.weather && GD.WEATHERS[el.weather] ? GD.WEATHERS[el.weather].name + ' (+' + wPct + '%)' : '—';
+      // melhor e pior clima, cada um com o ícone (HTML pronto: o texto passa por esc)
+      var best = el.weather && GD.WEATHERS[el.weather] ? climaIcone(el.weather) + esc(GD.WEATHERS[el.weather].name + ' (+' + wPct + '%)') : '—';
       var worst = Object.keys(GD.WEATHERS).filter(function (w) { return GD.WEATHERS[w].penalizes === h.element; })
-        .map(function (w) { return GD.WEATHERS[w].name + ' (−' + wPct + '%)'; }).join(', ') || '—';
+        .map(function (w) { return climaIcone(w) + esc(GD.WEATHERS[w].name + ' (−' + wPct + '%)'); }).join(', ') || '—';
       // os dois status de genética mais alta (empate: a ordem de STAT_KEYS)
       var fortes = [];
       for (var f = 0; f < 2; f++) {
@@ -1588,8 +1660,8 @@
         '<p class="inicial-fortes">Fortes: <b>' + esc(GD.STATS[fortes[0]].name) + '</b> e <b>' + esc(GD.STATS[fortes[1]].name) + '</b></p>' +
         statsHtml(stats) +
         vagaTipoHtml(h) +
-        '<dl class="afinidade"><dt>Clima bom</dt><dd class="mais">' + esc(best) +
-        '</dd><dt>Clima ruim</dt><dd class="menos-t">' + esc(worst) + '</dd></dl>' +
+        '<dl class="afinidade"><dt>Clima bom</dt><dd class="mais">' + best +
+        '</dd><dt>Clima ruim</dt><dd class="menos-t">' + worst + '</dd></dl>' +
         '<button type="button" class="btn btn--ouro btn--grande" data-acao="escolher" data-id="' + esc(h.id) + '">Escolher ' + esc(h.name) + '</button>' +
         '</article>';
     }).join('');
@@ -1633,11 +1705,6 @@
   function reservaHtml() { return ouroReservado() ? '<p class="nota nota--reserva">' + esc(reservaTxt()) + '.</p>' : ''; }
 
   var SLOT_PRICE = BR.stableSlotPrice;
-  function estrelasHtml(grau) {
-    var g = clamp(Math.floor(Number(grau) || 0), 0, 3), txt = '';
-    for (var i = 0; i < 3; i++) txt += i < g ? '★' : '☆';
-    return '<span class="estrelas" aria-label="Grau ' + g + '">' + txt + '</span>';
-  }
   function uidNum(uid) { return String(uid).replace(/\D+/g, ''); }
 
   // opts.semAcoes: sem os botões (ex.: card do potro no resultado do Haras).
@@ -1647,7 +1714,7 @@
     var P = state.pending;
     var semAcoes = !!(opts && opts.semAcoes);
     var corcel = window.Breed && window.Breed.isCorcel(m)
-      ? '<span class="corcel" title="Corcel: herança garantida">⚑ Corcel</span>' : '';
+      ? '<span class="corcel" title="Corcel: herança garantida">' + corcelHtml() + '</span>' : '';
     var acoes = semAcoes ? '' : '<div class="montaria-acoes">' +
         '<button type="button" class="btn btn--pequeno" data-acao="ativar" data-id="' + esc(m.uid) + '"' + (isActive || P ? ' disabled' : '') + '>Tornar ativa</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="montaria" data-id="' + esc(m.uid) + '">Ver</button>' +
@@ -1657,7 +1724,7 @@
       portraitHtml(m, { selo: true, pontos: pontosQueCabem(m) }) +
       '<h3 class="cavalo-nome">' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h3>' +
       '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
-        '<span>' + (m.sex === 'f' ? '♀ Fêmea' : '♂ Macho') + '</span>' +
+        '<span>' + sexoHtml(m.sex) + '</span>' +
         '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
         (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
       '</div>' + xpHtml(m.level, m.xp, true) + gearSummaryHtml(m) + acoes +
@@ -1866,7 +1933,7 @@
       '<b class="haras-nome">' + esc(h.name) + '</b>' +
       '<span class="linha-meta">' + rarityHtml(h.rarity) + estrelasHtml(h.grau) + '</span>' +
       '<span class="linha-meta">' + elementHtml(h.element) + '</span>' +
-      '<span class="linha-meta"><span>' + (h.sex === 'f' ? '♀ Fêmea' : '♂ Macho') + '</span>' + extra + '</span>' +
+      '<span class="linha-meta"><span>' + sexoHtml(h.sex) + '</span>' + extra + '</span>' +
     '</button>';
   }
 
@@ -1880,8 +1947,10 @@
         '<span class="calc-barra calc-barra--' + esc(id) + '"><i style="width:' + (p * 100).toFixed(1) + '%"></i></span></div>';
     }).join('');
     var gp = pctRound([o.grau[1] * 100, o.grau[2] * 100, o.grau[3] * 100]);
-    var grau = 'Estrelas (multiplicam os pontos livres do treino). Se mantiver a raridade: ★ ' + gp[0] + '% · ★★ ' + gp[1] + '% · ★★★ ' + gp[2] +
-      '%; se subir, nasce ★; se descer, ★★★';
+    // estrelas do potro com o mesmo selo das fichas (HTML pronto: o texto passa por esc)
+    var grau = esc('Estrelas (multiplicam os pontos livres do treino). Se mantiver a raridade: ') +
+      estrelasHtml(1) + ' ' + gp[0] + '% · ' + estrelasHtml(2) + ' ' + gp[1] + '% · ' + estrelasHtml(3) + ' ' + gp[2] +
+      '%; ' + esc('se subir, nasce com ') + estrelasHtml(1) + esc('; se descer, com ') + estrelasHtml(3);
     var genTxt = 'Genética: metade herdada. Cada status tem ' + Math.round(BRD.TUNING.potInherit * 100) +
       '% de chance de vir de um dos pais (meio a meio entre os dois); senão, nasce sorteada de 0 a 31.';
     var elName = function (e) { return elementOf(e).name; };
@@ -1899,14 +1968,14 @@
     var nMax = Math.min(2, cands.length), nTxt;
     if (nc === 1 && nMax === 2) nTxt = '1 skill (50% de chance de 2)';
     else { var nG = Math.min(nc, cands.length); nTxt = nG + (nG === 1 ? ' skill' : ' skills'); }
-    var corcel = !nc ? '' : '<p class="corcel">' + esc(cands.length
-      ? '⚑ Corcel: herança garantida de até ' + nTxt + ' dos pais (limitado às vagas da raridade do potro)'
-      : '⚑ Corcel, mas nenhuma skill herdável') + '</p>';
+    var corcel = !nc ? '' : '<p class="corcel">' + corcelHtml() + esc(cands.length
+      ? ': herança garantida de até ' + nTxt + ' dos pais (limitado às vagas da raridade do potro)'
+      : ', mas nenhuma skill herdável') + '</p>';
     var custoNome = ui.haras.mode === 'troca' ? 'Troca' : (P.kind === 'rent' ? 'Aluguel' : 'Registro');
     return '<section class="caixa calc" aria-labelledby="t-calc"><h2 class="titulo" id="t-calc">Calculadora</h2>' +
-      '<p class="nota">' + esc(P.f.name + ' ♀ × ' + P.m.name + ' ♂') + '</p>' +
+      '<p class="nota">' + esc(P.f.name) + ' (' + sexoHtml('f') + ') × ' + esc(P.m.name) + ' (' + sexoHtml('m') + ')</p>' +
       '<div class="calc-barras">' + bars + '</div>' +
-      '<p>' + esc(grau) + '</p>' +
+      '<p>' + grau + '</p>' +
       '<p>' + esc(genTxt) + '</p>' +
       '<p>' + esc(elTxt) + '</p>' +
       '<p>' + esc(skTxt) + '</p>' + corcel +
@@ -2275,7 +2344,7 @@
     var rating = RS.powerRating(h, gear);
     var skillPct = Math.round(RS.skillChance(h, stats, gear.special.skillChanceBonus) * 100);
     var corcel = window.Breed && window.Breed.isCorcel(m)
-      ? '<span class="corcel" title="Corcel: herança garantida">⚑ Corcel</span>' : '';
+      ? '<span class="corcel" title="Corcel: herança garantida">' + corcelHtml() + '</span>' : '';
     var canRelease = !isActive && state.mounts.length > 1 && !P;
 
     // renomear: campo na própria tela (window.prompt não abre num iframe sem allow-modals, como o do artefato)
@@ -2302,7 +2371,7 @@
         '<div class="cavalo-info">' +
           '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco>' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h1>' +
           '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
-            '<span>' + (m.sex === 'f' ? '♀ Fêmea' : '♂ Macho') + '</span>' +
+            '<span>' + sexoHtml(m.sex) + '</span>' +
             '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
             (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
           '</div>' +
@@ -2320,7 +2389,7 @@
     if (M.aba === 'skills') {
       var vagas = (GD.RARITIES[m.rarity] || GD.RARITIES.comum).skillSlots - m.skills.length;
       corpo = '<section class="caixa" aria-label="Skills">' + vagaTipoHtml(m) +
-        (m.skills.length ? m.skills.map(skillHtml).join('') : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
+        (m.skills.length ? m.skills.map(function (id) { return skillHtml(id, 32); }).join('') : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
         '<p class="nota">' + (vagas > 0
           ? vagas + (vagas === 1 ? ' vaga livre' : ' vagas livres') + ' · ' + Math.round(RS.TUNING.learnChance * 100) + '% de chance de aprender uma skill nova a cada nível'
           : 'Sem vagas livres') + '</p></section>';
@@ -2574,8 +2643,8 @@
     var sh = sharePct(cond);
     return '<div class="chips">' +
       '<span class="chip"><span class="rotulo">Distância</span><b>' + esc(cond.distance + ' m') + '</b></span>' +
-      '<span class="chip"><span class="rotulo">Piso</span><b>' + esc(GD.SURFACES[cond.surface].name) + '</b></span>' +
-      '<span class="chip"><span class="rotulo">Clima inicial</span><b>' + esc(GD.WEATHERS[cond.weather].name) + '</b></span>' +
+      '<span class="chip"><span class="rotulo">Piso</span>' + pisoIcone(cond.surface) + '<b>' + esc(GD.SURFACES[cond.surface].name) + '</b></span>' +
+      '<span class="chip"><span class="rotulo">Clima inicial</span>' + climaIcone(cond.weather) + '<b>' + esc(GD.WEATHERS[cond.weather].name) + '</b></span>' +
       '<span class="chip"><span class="rotulo">Traçado</span><b>' + esc(sh.reta + '% reta · ' + sh.curva + '% curva · ' + sh.subida + '% subida') + '</b></span></div>';
   }
 
@@ -2629,7 +2698,7 @@
       pote = '<section class="caixa" aria-labelledby="t-pote"><h2 class="titulo" id="t-pote">Treino gratuito</h2>' +
         '<p class="nota">Sem aposta e sem pote. Você ganha metade do XP normal e um pouco de Ouro pela colocação.</p>' +
         '<div class="premios">' + [0, 1, 2].map(function (p) {
-          return '<div class="premio premio--' + (p + 1) + '"><span class="lugar">' + (p + 1) + 'º</span>' + ouroHtml(TRAINING_GOLD[p]) + '</div>';
+          return '<div class="premio premio--' + (p + 1) + '"><span class="lugar">' + podioIcone(p + 1) + (p + 1) + 'º</span>' + ouroHtml(TRAINING_GOLD[p]) + '</div>';
         }).join('') + '</div></section>';
     } else {
       pote = '<section class="caixa" aria-labelledby="t-pote"><h2 class="titulo" id="t-pote">Pote</h2>' +
@@ -2637,7 +2706,7 @@
         '<dt>Taxa da casa (' + Math.round(E.houseFee * 100) + '%)</dt><dd>−' + fmt(pay.fee) + '</dd>' +
         '<div class="total" style="display:contents"><dt>Prêmios</dt><dd>' + ouroHtml(pay.pot - pay.fee) + '</dd></div></dl>' +
         '<div class="premios premios--' + pay.prizes.length + '">' + pay.prizes.map(function (p) {
-          return '<div class="premio premio--' + p.place + '"><span class="lugar">' + p.place + 'º</span>' + ouroHtml(p.amount) + '</div>';
+          return '<div class="premio premio--' + p.place + '"><span class="lugar">' + podioIcone(p.place) + p.place + 'º</span>' + ouroHtml(p.amount) + '</div>';
         }).join('') + '</div>' +
         '<p class="nota">' + (pay.prizes.length < 3 ? 'Com ' + L.n + ' corredores só 1º e 2º são pagos. ' : '') +
         'Ao largar, ' + fmt(L.fee) + ' de Ouro saem do seu saldo (fica ' + fmt(state.gold - L.fee) + ').</p></section>';
@@ -2777,7 +2846,7 @@
       '<header class="corrida-topo"><div class="corrida-titulo">' +
         '<h1 class="corrida-nome" id="t-corrida" tabindex="-1" data-foco>' + esc(L.trackName) + '</h1>' +
         '<span class="rotulo">' + esc(D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ') +
-          '<span id="clima-atual">' + esc(climaTxt) + '</span>' + esc(' · ' + tracado) + '</span></div>' +
+          '<span id="clima-atual">' + climaIcone(L.cond.weather) + esc(climaTxt) + '</span>' + esc(' · ' + tracado) + '</span></div>' +
         '<span class="saldo saldo--pote">' + (L.training ? '<span class="rotulo">Treino</span>' : '<span class="rotulo">Pote</span>' + ouroHtml(L.fee * L.n)) + '</span></header>' +
       '<div class="palco"><canvas id="pista" role="img" aria-label="' + esc('Corrida em ' + L.trackName + ', ' + condTxt) + '"></canvas></div>' +
       '<div class="corrida-baixo">' +
@@ -3026,13 +3095,14 @@
       hud.feed.innerHTML = ordFix(feedShown.map(function (e) {
         var mine = e.racer === me;
         var chip = e.racer >= 0 && L.racers[e.racer] ? laneChip(L.racers[e.racer], e.racer, 'raia--mini') : '';
-        return '<li class="tipo-' + esc(e.type) + (mine ? ' voce' : '') + '"><time>' + fmtClock(e.t) + '</time>' + chip + '<span>' + esc(e.text) + '</span></li>';
+        return '<li class="tipo-' + esc(e.type) + (mine ? ' voce' : '') + '"><time>' + fmtClock(e.t) + '</time>' + chip + '<span>' + eventoHtml(e.text, e.type) + '</span></li>';
       }).join(''));
       if (ev.racer === me && (ev.type === 'chegada' || ev.type === 'garra' || ev.type === 'skill')) hud.anuncio.textContent = ev.text;
-      if (ev.type === 'clima' && hud.clima && GD.WEATHERS[ev.weather]) hud.clima.textContent = 'Clima: ' + GD.WEATHERS[ev.weather].name;
+      if (ev.type === 'clima') climaNoPainel(hud.clima, ev.weather);
       if (ev.type === 'dado' && ev.changed && GD.WEATHERS[ev.weather]) {
         // virada de clima: anúncio por ~2 s (faixa no canvas + leitor de tela) e um clarão leve
         self.climaMsg = 'CLIMA: ' + GD.WEATHERS[ev.weather].name.toUpperCase();
+        self.climaIcone = 'cl-' + ev.weather;
         self.climaTimer = 2;
         // a faixa do clima entra em seguida à do Dado (mesmo lugar, abaixo do HUD)
         var di = dadoItens.filter(function (it) { return it.t0 === ev.t; })[0];
@@ -3262,9 +3332,11 @@
       } else if (dItem) {
         FX.drawDiceStrip(ctx, dItem, L.racers, lay, S, self.simT, reduced());
       } else if (self.climaTimer > 0 && self.simT >= self.climaDesde) {
-        var ct = self.climaMsg, cw2 = tw(ct) + 6, cx3 = Math.round(lay.artW / 2 - cw2 / 2), cy3 = lay.hudH + 3;
+        var ct = self.climaMsg, clIco = !!FX.iconImage(self.climaIcone) && 8 * S >= 16, cw2 = tw(ct) + 6 + (clIco ? 10 : 0);
+        var cx3 = Math.round(lay.artW / 2 - cw2 / 2), cy3 = lay.hudH + 3;
         box(cx3, cy3, cw2, 9, C.sombra, GD.BLOCK_TYPES.curva.color);
-        text(ct, cx3 + 3, cy3 + 2, C.texto);
+        if (clIco) FX.drawIconPng(ctx, self.climaIcone, (cx3 + 2) * S, cy3 * S + Math.round(S / 2), 8, S);
+        text(ct, cx3 + 3 + (clIco ? 10 : 0), cy3 + 2, C.texto);
       }
       if (self.phase !== 'contagem') drawSkillsNaPista(vis, youTag, dItem, !!(self.finishCam || Math.abs(self.simT - tWin) < 0.6 || dItem || (self.climaTimer > 0 && self.simT >= self.climaDesde)));
       if (self.phase === 'contagem') {
@@ -3298,14 +3370,15 @@
       var faixa = null, fx0 = null;
       for (k = 0; k < faixasJogador.length; k++) if (t >= faixasJogador[k].a && t < faixasJogador[k].b) fx0 = faixasJogador[k];
       if (fx0) {
-        var ft = fx0.item.nome.toUpperCase() + '!', fs = tw(ft, 2) + 8 <= lay.artW - 6 ? 2 : 1;
-        var fw = tw(ft, fs) + 8, fh = 5 * fs + 6;
-        var fxx = Math.round(lay.artW / 2 - fw / 2), fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
+        var ft = fx0.item.nome.toUpperCase() + '!', skId = FX.iconNameOf(fx0.item);
+        var bl = FX.skillBannerLayout(ft, lay.artW, S, !!FX.iconImage(skId), tw), fs = bl.fs, fw = bl.w, fh = bl.h;
+        var fxx = bl.x, fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
         var esc0 = (t - fx0.a) / fx0.item.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
         var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
         box(fxx, fyy, fw, fh, C.veu, cor);
-        text(ft, Math.round(lay.artW / 2), fyy + 3, C.texto, fs, 'center', C.sombra);
+        if (bl.icone) FX.drawIconPng(ctx, skId, bl.iconX * S, (fyy + bl.iconDy) * S, 8 * fs, S);
+        text(ft, bl.textX, fyy + bl.textDy, C.texto, fs, 'center', C.sombra);
         ctx.globalAlpha = 1;
         faixa = { x: fxx - 1, y: fyy - 1, w: fw + 2, h: fh + 2 };
         FX._stats.faixaSkill = ft;
@@ -3592,7 +3665,7 @@
         if (mine) txt += ' · você tirou ' + mine.best + (mine.dice.length > 1 ? ' (' + mine.dice.join(', ') + ')' : '') + (mine.rerolls > 0 ? ' (desempate)' : '');
       }
       var chip = ev.racer >= 0 && L.racers[ev.racer] ? laneChip(L.racers[ev.racer], ev.racer, 'raia--mini') : '';
-      return '<li class="tipo-' + esc(ev.type) + (ev.racer === L.playerIdx ? ' voce' : '') + '"><time>' + esc(fmtClock(ev.t)) + '</time>' + chip + '<span>' + esc(txt) + '</span></li>';
+      return '<li class="tipo-' + esc(ev.type) + (ev.racer === L.playerIdx ? ' voce' : '') + '"><time>' + esc(fmtClock(ev.t)) + '</time>' + chip + '<span>' + eventoHtml(txt, ev.type) + '</span></li>';
     }).join('');
 
     var broke = state.gold < MIN_ENTRY;
@@ -3610,7 +3683,7 @@
       var t = sim.finishTimes[ri];
       var gap = k === 0 ? 'vencedor' : '+' + (t - winT).toFixed(2).replace('.', ',') + 's';
       var prize = R.training ? (r.isPlayer ? '+' + R.prize : '—') : (prizeOf[ri] ? fmt(prizeOf[ri]) : '—');
-      return '<tr class="' + (r.isPlayer ? 'voce' : '') + '"><td class="pos" aria-label="' + (k + 1) + ' lugar">' + (k + 1) + 'º</td>' +
+      return '<tr class="' + (r.isPlayer ? 'voce' : '') + '"><td class="pos" aria-label="' + (k + 1) + ' lugar">' + podioIcone(k + 1) + (k + 1) + 'º</td>' +
         '<td><div class="quem"><b>' + laneChip(r, ri, 'raia--mini') + esc(r.horse.name) +
         (r.isPlayer ? ' <span class="tag-voce">VOCÊ</span>' : '') + '</b>' +
         (r.isPlayer ? '' : '<small>' + esc(r.name) + '</small>') +
@@ -3631,7 +3704,7 @@
       '<section class="caixa" aria-labelledby="t-chegada"><h2 class="titulo" id="t-chegada">Ordem de chegada</h2>' +
         '<div class="rolagem"><table class="tabela"><thead><tr><th>Pos</th><th>Cavalo</th><th class="num">Tempo</th><th class="num">Prêmio</th></tr></thead>' +
         '<tbody>' + rows + '</tbody></table></div>' +
-        '<p class="nota">🎲 Dado da Sorte: a 1/3 e 2/3 da pista o maior dado puxa o clima para o elemento de quem tirou.</p>' +
+        '<p class="nota">' + iconeHtml('ui-dado', '🎲', 16) + ' Dado da Sorte: a 1/3 e 2/3 da pista o maior dado puxa o clima para o elemento de quem tirou.</p>' +
         '</section>' +
       '</section>';
   }

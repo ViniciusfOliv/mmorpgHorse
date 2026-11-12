@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T12:51:44.639Z",
+  "pedido": {
+    "description": "female symbol: a circle with a small cross below it, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 a7ff41056dcbc784>",
+      "format": "png"
+    },
+    "seed": 2204
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 536 bytes, sha256 c1809335bc44ff9a>",
+      "format": "png"
+    }
+  }
+}

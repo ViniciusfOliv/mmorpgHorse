@@ -1648,8 +1648,9 @@ try {
           const ts = S.typeSkill(h), terco = h.element === 'fogo' ? 'primeiro terço' : h.element === 'grama' ? 'terço do meio' : 'último terço'
           const fortes = G.STAT_KEYS.slice().sort((a, b) => h.potential[b] - h.potential[a]).slice(0, 2).map((k) => G.STATS[k].name)
           if (!/Comum/.test(t)) problems.push(`${tag}: ${h.name} sem "Comum"`)
-          const est = ((await card.locator('.estrelas').first().textContent().catch(() => '')) || '').trim()
-          if (est !== '★★☆' || h.grau !== 2) problems.push(`${tag}: ${h.name} sem as ★★ (estrelas "${est}", grau ${h.grau})`)
+          // estrelas: o aria-label diz o grau; dentro, os ícones (ou ★/☆ de reserva, sem o arquivo)
+          const est = await card.locator('.estrelas').first().getAttribute('aria-label').catch(() => '')
+          if (est !== '2 de 3 estrelas' || h.grau !== 2) problems.push(`${tag}: ${h.name} sem as ★★ (estrelas "${est}", grau ${h.grau})`)
           if ((await card.locator('.vaga-tipo').count()) !== 1 || !t.includes(ts.name) || !t.toLowerCase().includes(terco)) problems.push(`${tag}: ${h.name} sem a skill de tipo e o terço (${ts.name}, ${terco})`)
           const fortesTxt = (await card.locator('.inicial-fortes').count()) ? await card.locator('.inicial-fortes').textContent() : ''
           for (const f of fortes) if (!fortesTxt.includes(f)) problems.push(`${tag}: ${h.name} sem o status forte ${f}`)
@@ -1888,6 +1889,206 @@ try {
     await skillsNaPista({ width: 390, height: 844 }, 'skills390-reduzido', 'final-13-skills-reduzido.png', { reducedMotion: 'reduce' })
   }
 
+  // ---------------- ícones nas telas (Visuais 2, parte 1: spec 2026-11-12-icones §4 e §5) ----------------
+  // Em cada tela principal (Estábulo, Montaria: Status e Skills, Haras, Perfil, sala aberta, corrida, resultado e a
+  // escolha do inicial), no celular (360) e no computador (1280): os símbolos trocados (👤 🎲 ♂ ♀ ★ ☆ ⚑) somem do
+  // texto visível quando o ícone deles existe (sem o arquivo, a reserva volta); cada ícone novo é decorativo
+  // (alt="") e tem texto ao lado (ou o aria-label do pai: botão do Perfil e estrelas); as estrelas dizem "N de 3
+  // estrelas"; nenhuma imagem quebrada; o cartão de skill com o ícone de 32 px não cria rolagem horizontal; o
+  // "Clima: X" da corrida troca o ícone junto quando o Dado vira o clima.
+  // Depois, Review Focus 1: sem 'st-vel' e 'sk-arranque' no mapa, só esses dois voltam à reserva.
+  if (quer('icones')) {
+    const TROCA = { 'ui-perfil': '👤', 'ui-dado': '🎲', 'ui-macho': '♂', 'ui-femea': '♀', 'ui-estrela': '★', 'ui-estrela-vazia': '☆', 'ui-corcel': '⚑' }
+    // a tela aberta: confere as regras gerais e devolve os nomes dos ícones novos que ela mostra
+    const confereTela = async (pg, tela) => {
+      await pg.waitForFunction(() => Array.prototype.every.call(document.images, (i) => i.complete), null, { timeout: 5000 }).catch(() => {})
+      const r = await pg.evaluate((troca) => {
+        const m = window.__ICONES || {}
+        const txt = document.body.innerText
+        const nome = (i) => { const c = Array.prototype.find.call(i.classList, (x) => /^icone--[a-z]/.test(x)); return c ? c.slice(7) : '' }
+        const imgs = Array.prototype.filter.call(document.querySelectorAll('img.icone'), (i) => /^(ui|st|sk|cl|pi|liga|rar|podio)-/.test(nome(i)))
+        return {
+          simbolos: Object.keys(troca).filter((n) => Object.prototype.hasOwnProperty.call(m, n) && txt.includes(troca[n])).map((n) => troca[n]),
+          semAlt: imgs.filter((i) => i.getAttribute('alt') !== '').map(nome),
+          semTexto: imgs.filter((i) => { const p = i.parentElement; return !((p.innerText || '').trim() || (p.getAttribute('aria-label') || '').trim()) }).map(nome),
+          quebradas: Array.prototype.filter.call(document.images, (i) => !i.complete || i.naturalWidth === 0).map((i) => i.className),
+          estrelas: Array.prototype.map.call(document.querySelectorAll('.estrelas'), (e) => e.getAttribute('aria-label')),
+          nomes: imgs.map(nome)
+        }
+      }, TROCA)
+      for (const s of r.simbolos) problems.push(`${tela}: o símbolo ${s} continua no texto da tela (o ícone dele existe)`)
+      if (r.semAlt.length) problems.push(`${tela}: ícones sem alt="": ${r.semAlt.join(', ')}`)
+      if (r.semTexto.length) problems.push(`${tela}: ícones sem texto ao lado: ${r.semTexto.join(', ')}`)
+      if (r.quebradas.length) problems.push(`${tela}: imagens quebradas: ${r.quebradas.join(' | ')}`)
+      const malEstrelas = r.estrelas.filter((a) => !/^[0-3] de 3 estrelas$/.test(a || ''))
+      if (malEstrelas.length) problems.push(`${tela}: estrelas com aria-label fora de "N de 3 estrelas": ${JSON.stringify(malEstrelas)}`)
+      return r
+    }
+    // a corrida na tela tem virada de clima? Pula até ela e confere o "Clima: X" (texto e ícone novos)
+    const confereViradaClima = async (pg, tag, ICONES) => {
+      const ev = await pg.evaluate(() => { const e = window.__galope.ui.lobby.sim.events.find((x) => x.type === 'clima'); return e ? { t: e.t, weather: e.weather } : null })
+      if (!ev) return false
+      const antes = await pg.evaluate(() => window.__galope.ui.lobby.cond.weather)
+      await pg.evaluate((t) => { const s = window.__galope.race._state; s.phase = 'corrida'; s.simT = Math.max(s.simT, t + 0.01) }, ev.t)
+      const nome = G.WEATHERS[ev.weather].name
+      try {
+        await pg.waitForFunction((w) => { const el = document.getElementById('clima-atual'); return !!el && el.textContent === 'Clima: ' + w }, nome, { timeout: 5000 })
+      } catch (e) {
+        problems.push(`${tag} corrida: "Clima: ${nome}" não apareceu na virada (ficou "${await pg.locator('#clima-atual').textContent()}")`)
+        return true
+      }
+      // só o ícone do clima novo (o antigo sai), decorativo
+      const hud = await pg.evaluate(() => Array.prototype.map.call(document.querySelectorAll('#clima-atual img'), (i) => ((/icone--(cl-[a-z]+)/.exec(i.className) || [])[1] || i.className) + '|' + i.getAttribute('alt')))
+      const esperado = ICONES.includes('cl-' + ev.weather) ? ['cl-' + ev.weather + '|'] : []
+      if (JSON.stringify(hud) !== JSON.stringify(esperado)) problems.push(`${tag} corrida: ícone do clima depois da virada ${antes} -> ${ev.weather}: ${JSON.stringify(hud)}`)
+      // a narração já mostra o Dado que virou o clima: o 🎲 dela também vira ícone
+      const rv = await confereTela(pg, tag + ' corrida (virada)')
+      if (ICONES.includes('ui-dado') && !rv.nomes.includes('ui-dado')) problems.push(`${tag} corrida: a linha do Dado na narração sem o ícone ui-dado`)
+      notes['icones-virada-' + tag] = { de: antes, para: ev.weather, t: ev.t }
+      return true
+    }
+    for (const vp of [{ width: 360, height: 780 }, { width: 1280, height: 800 }]) {
+      const tag = 'icones-' + vp.width
+      const pg = await newPage(browser, vp, tag)
+      try {
+        const ICONES = await pg.evaluate(() => Object.keys(window.__ICONES || {}))
+        // nomes (ou prefixos terminados em '-') que a tela tem de mostrar, só os que têm arquivo
+        const espera = (r, tela, nomes) => {
+          for (const n of nomes) {
+            const tem = n.endsWith('-') ? ICONES.some((x) => x.startsWith(n)) : ICONES.includes(n)
+            const viu = n.endsWith('-') ? r.nomes.some((x) => x.startsWith(n)) : r.nomes.includes(n)
+            if (tem && !viu) problems.push(`${tag} ${tela}: sem o ícone ${n}`)
+          }
+        }
+        await pg.waitForSelector('.inicial')
+        espera(await confereTela(pg, tag + ' inicial'), 'inicial', ['ui-estrela', 'ui-estrela-vazia', 'rar-comum', 'liga-', 'st-vel', 'sk-tipo-fogo', 'sk-tipo-agua', 'sk-tipo-grama', 'cl-sol', 'cl-chuva', 'cl-nevoa'])
+        await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+        await pg.waitForSelector('#t-estabulo')
+        // Brasa (macho, Comum ★★) com a skill de linha da Comum: Corcel; m2 fêmea Rara ★★★, Corcel da Rara; Ouro para várias corridas
+        await montaSave(pg, (raw) => {
+          raw.gold = 99999; raw.seedBase = 7   // salas fixas: a busca pela virada de clima (abaixo) é sempre a mesma
+          raw.mounts[0].skills = ['arranque']
+          raw.mounts.push(Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { uid: 'm2', rarity: 'raro', grau: 3, level: 30, skills: ['arranque', 'sprint', 'drift'] }))
+          raw.nextUid = 3; raw.stableSlots = 3
+        })
+        const est = await confereTela(pg, tag + ' estábulo')
+        espera(est, 'estábulo', ['ui-perfil', 'ui-macho', 'ui-femea', 'ui-corcel', 'ui-estrela', 'ui-estrela-vazia', 'rar-comum', 'rar-raro'])
+        const estTxt = ((await pg.locator('.montarias').textContent()) || '').replace(/\s+/g, ' ')
+        for (const p of ['Macho', 'Fêmea', 'Corcel']) if (!estTxt.includes(p)) problems.push(`${tag} estábulo: sem o texto "${p}" ao lado do ícone`)
+        const rotPerfil = await pg.locator('.app-perfil').getAttribute('aria-label')
+        if (rotPerfil !== 'Perfil') problems.push(`${tag} estábulo: botão do Perfil com aria-label "${rotPerfil}"`)
+        // Montaria m1: aba Status (os 7 status) e aba Skills (ícones de 32 px)
+        await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await pg.waitForSelector('#t-montaria')
+        espera(await confereTela(pg, tag + ' montaria-status'), 'montaria-status', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-', 'ui-corcel', 'ui-macho']))
+        for (const uid of ['m1', 'm2']) {
+          if (uid === 'm2') {
+            await pg.locator('[data-acao="montaria-voltar"]').click()
+            await pg.locator('button[data-acao="montaria"][data-id="m2"]').click()
+            await pg.waitForSelector('#t-montaria')
+          }
+          await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+          await pg.waitForSelector('.vaga-tipo')
+          const sk = await confereTela(pg, `${tag} skills ${uid}`)
+          espera(sk, 'skills ' + uid, uid === 'm1' ? ['sk-arranque', 'sk-tipo-fogo'] : ['sk-arranque', 'sk-sprint', 'sk-drift', 'sk-tipo-agua', 'ui-femea'])
+          const tam = await pg.evaluate(() => Array.prototype.map.call(document.querySelectorAll('.habilidade img.icone, .vaga-tipo img.icone'), (i) => {
+            const b = i.getBoundingClientRect()
+            return { c: i.className, w: i.getAttribute('width'), h: i.getAttribute('height'), rw: Math.round(b.width), rh: Math.round(b.height) }
+          }))
+          const sk32 = tam.filter((t) => /icone--sk-/.test(t.c))
+          if (ICONES.some((x) => x.startsWith('sk-')) && !sk32.length) problems.push(`${tag} skills ${uid}: nenhum img.icone--sk-* no cartão`)
+          for (const t of sk32) if (t.w !== '32' || t.h !== '32' || t.rw !== 32 || t.rh !== 32) problems.push(`${tag} skills ${uid}: ícone de skill fora de 32 px ${JSON.stringify(t)}`)
+          await checkOverflow(pg, `skills ${vp.width} ${uid}`)
+        }
+        await pg.locator('[data-acao="montaria-voltar"]').click()
+        // Haras: cartões (sexo, estrelas) e calculadora (estrelas do potro, Corcel, "Fêmea × Macho")
+        await pg.locator('[data-acao="aba"][data-id="haras"]').click()
+        await pg.waitForSelector('#t-haras')
+        await pg.locator('[data-acao="haras-partner"]').first().click()
+        await pg.waitForSelector('.calc')
+        espera(await confereTela(pg, tag + ' haras'), 'haras', ['ui-macho', 'ui-femea', 'ui-corcel', 'ui-estrela', 'ui-estrela-vazia'])
+        const calcEst = await pg.locator('.calc .estrelas').count()
+        if (calcEst < 3) problems.push(`${tag} haras: a calculadora mostra ${calcEst} grupos de estrelas (esperado 1, 2 e 3 estrelas)`)
+        // Perfil
+        await pg.locator('[data-acao="perfil"]').click()
+        await pg.waitForSelector('#t-perfil')
+        espera(await confereTela(pg, tag + ' perfil'), 'perfil', ['ui-perfil'])
+        await pg.locator('[data-acao="perfil-voltar"]').click()
+        // sala aberta: chips de Piso e Clima, prêmios do 1º ao 3º
+        await abrirSala(pg)
+        const sala = await pg.evaluate(() => { const L = window.__galope.ui.lobby; return { piso: L.cond.surface, clima: L.cond.weather, premios: document.querySelectorAll('.premio').length } })
+        const rs = await confereTela(pg, tag + ' sala')
+        espera(rs, 'sala', ['pi-' + sala.piso, 'cl-' + sala.clima, 'podio-1', 'podio-2'].concat(sala.premios >= 3 ? ['podio-3'] : []))
+        const chips = await pg.evaluate(() => Array.prototype.map.call(document.querySelectorAll('[aria-label="Condições da pista"] .chip img.icone'), (i) => i.className))
+        if (ICONES.includes('pi-' + sala.piso) && !chips.some((c) => c.includes('icone--pi-' + sala.piso))) problems.push(`${tag} sala: chip do Piso sem ícone ${JSON.stringify(chips)}`)
+        if (ICONES.includes('cl-' + sala.clima) && !chips.some((c) => c.includes('icone--cl-' + sala.clima))) problems.push(`${tag} sala: chip do Clima sem ícone ${JSON.stringify(chips)}`)
+        // corrida: "Clima: X" com o ícone; virada de clima troca os dois
+        await pg.getByRole('button', { name: /^Largar/ }).click()
+        await pg.waitForSelector('#pista')
+        const rc = await confereTela(pg, tag + ' corrida')
+        espera(rc, 'corrida', ['cl-' + sala.clima])
+        const climaHud = ((await pg.locator('#clima-atual').textContent()) || '')
+        if (climaHud !== 'Clima: ' + G.WEATHERS[sala.clima].name) problems.push(`${tag} corrida: painel com "${climaHud}"`)
+        let virou = await confereViradaClima(pg, tag, ICONES)
+        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pg.waitForSelector('#t-resultado')
+        // resultado: medalhas na ordem de chegada e a nota do Dado
+        espera(await confereTela(pg, tag + ' resultado'), 'resultado', ['podio-1', 'podio-2', 'podio-3', 'ui-dado'])
+        const pos = await pg.evaluate(() => Array.prototype.map.call(document.querySelectorAll('.tabela td.pos'), (td) => (td.querySelector('img.icone') || {}).className || ''))
+        for (let k = 0; k < Math.min(3, pos.length); k++) if (ICONES.includes('podio-' + (k + 1)) && !pos[k].includes('icone--podio-' + (k + 1))) problems.push(`${tag} resultado: ${k + 1}º lugar da tabela sem a medalha (${pos[k]})`)
+        if (pos.slice(3).some(Boolean)) problems.push(`${tag} resultado: medalha depois do 3º lugar ${JSON.stringify(pos)}`)
+        // sem virada na 1ª corrida: corre de novo (a seed do save muda a cada sala) até achar uma
+        for (let i = 0; i < 8 && !virou; i++) {
+          await pg.getByRole('button', { name: 'Correr de novo' }).click()
+          await pg.waitForSelector('#t-largada')
+          await pg.getByRole('button', { name: /^Largar/ }).click()
+          await pg.waitForSelector('#pista')
+          virou = await confereViradaClima(pg, tag, ICONES)
+          await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+          await pg.waitForSelector('#t-resultado')
+        }
+        if (!virou) problems.push(`${tag}: nenhuma das 9 corridas virou o clima (a troca do "Clima: X" ficou sem teste)`)
+      } catch (e) {
+        problems.push(tag + ': ' + e.message)
+      }
+      await pg.context().close()
+    }
+
+    // Review Focus 1: um ícone faltando mostra a reserva daquele item e o ícone dos outros, sem <img> quebrado
+    const fa = await newPage(browser, { width: 360, height: 780 }, 'icones-falta', {
+      init: () => {
+        let v
+        Object.defineProperty(window, '__ICONES', { configurable: true, get: () => v, set: (x) => { v = Object.assign({}, x); delete v['st-vel']; delete v['sk-arranque'] } })
+      }
+    })
+    try {
+      await fa.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await fa.waitForSelector('#t-estabulo')
+      await montaSave(fa, (raw) => { raw.mounts[0].skills = ['arranque'] })
+      await fa.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await fa.waitForSelector('#t-montaria')
+      const st = await fa.evaluate((ks) => ks.map((k) => {
+        const nm = document.querySelector('.build-linha[data-status="' + k + '"] .build-nome')
+        return { k, svg: nm ? nm.querySelectorAll('svg.icone-status').length : -1, img: nm ? Array.prototype.map.call(nm.querySelectorAll('img'), (i) => i.className) : [] }
+      }), G.STAT_KEYS)
+      for (const s of st) {
+        const ok = s.k === 'vel' ? s.svg === 1 && !s.img.length : s.svg === 0 && s.img.length === 1 && s.img[0].includes('icone--st-' + s.k)
+        if (!ok) problems.push('icones-falta: aba Status, ' + s.k + ' ' + JSON.stringify(s))
+      }
+      await fa.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+      await fa.waitForSelector('.habilidade')
+      const hab = await fa.evaluate(() => Array.prototype.map.call(document.querySelectorAll('.habilidade b img, .habilidade b canvas'), (i) => i.tagName + ':' + i.className))
+      if (hab.some((c) => /icone--sk-arranque/.test(c)) || !hab.some((c) => /icone--el-geral|^CANVAS/.test(c))) problems.push('icones-falta: Arranque sem a reserva (selo do elemento) ' + JSON.stringify(hab))
+      if (!(await fa.locator('.vaga-tipo img.icone--sk-tipo-fogo').count())) problems.push('icones-falta: a skill de tipo perdeu o próprio ícone')
+      await fa.waitForFunction(() => Array.prototype.every.call(document.images, (i) => i.complete), null, { timeout: 5000 }).catch(() => {})
+      const queb = await fa.evaluate(() => Array.prototype.filter.call(document.images, (i) => i.naturalWidth === 0).map((i) => i.className))
+      if (queb.length) problems.push('icones-falta: imagens quebradas ' + JSON.stringify(queb))
+    } catch (e) {
+      problems.push('icones-falta: ' + e.message)
+    }
+    await fa.context().close()
+  }
+
   if (!SO.length) {   // o resto do teste (fluxo completo e contextos antigos) só roda sem UI_SO
   // ---------------- celular 390x844 ----------------
   // newPage já espera Sprites.moldsReady === true (moldes do PixelLab embutidos pelo build e decodificados)
@@ -1997,13 +2198,14 @@ try {
   await page.screenshot({ path: join(SHOTS, 'final-05-largada.png') })
 
   const goldBefore = await page.evaluate(() => window.__galope.state.gold)
-  // a narração só mostra as 6 últimas linhas: um observador registra se o 🎲 apareceu em algum momento
+  // a narração só mostra as 6 últimas linhas: um observador registra se o Dado apareceu em algum momento
+  // (a linha do Dado leva o ícone ui-dado no lugar do 🎲; sem o arquivo, o emoji)
   await page.evaluate(() => {
     window.__sawDice = false
     const tela = document.getElementById('tela')
     const obs = new MutationObserver(() => {
       if (window.__sawDice) return
-      for (const li of document.querySelectorAll('#feed li')) if (li.textContent.includes('🎲')) { window.__sawDice = true; obs.disconnect(); return }
+      for (const li of document.querySelectorAll('#feed li.tipo-dado')) if (li.querySelector('img.icone--ui-dado[alt=""]') || li.textContent.includes('🎲')) { window.__sawDice = true; obs.disconnect(); return }
     })
     obs.observe(tela, { subtree: true, childList: true, characterData: true })
   })
@@ -3607,6 +3809,37 @@ try {
       if (!/🪨/.test((await sem.locator('.app-topo .pedras').textContent()) || '')) problems.push('sem-icones: saldo de Pedras sem o emoji')
       if ((await sem.locator('.app-topo .saldo svg').count()) !== 1) problems.push('sem-icones: saldo de Ouro sem a moeda em SVG')
       if (((await sem.locator('.app-topo .logo-mini').textContent()) || '').trim() !== 'Galope Elemental') problems.push('sem-icones: cabeçalho sem o texto da marca')
+      // ícones novos (spec 2026-11-12-icones): sem o mapa, as telas abrem com a reserva de hoje (★/☆, ♂ Macho, 👤,
+      // o status em SVG, o selo do elemento na skill, o texto dos chips e do "Clima: X", 🎲), sem nenhum img.icone
+      const semImg = async (tela) => {
+        const n = await sem.evaluate(() => ({ icones: document.querySelectorAll('img.icone').length, quebradas: Array.prototype.filter.call(document.images, (i) => i.complete && i.naturalWidth === 0).length }))
+        if (n.icones || n.quebradas) problems.push(`sem-icones: ${tela} com ${n.icones} img.icone e ${n.quebradas} imagem(ns) quebrada(s)`)
+      }
+      const estTxt = (await sem.locator('.montarias').textContent()) || ''
+      if (!/★★☆/.test(estTxt) || !/♂ Macho/.test(estTxt)) problems.push('sem-icones: estábulo sem a reserva das estrelas e do sexo: ' + estTxt.replace(/\s+/g, ' ').slice(0, 200))
+      if ((await sem.locator('.montaria .estrelas').first().getAttribute('aria-label')) !== '2 de 3 estrelas') problems.push('sem-icones: estrelas sem o aria-label')
+      if (((await sem.locator('.app-perfil').textContent()) || '').trim() !== '👤') problems.push('sem-icones: botão do Perfil sem o emoji')
+      await sem.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await sem.waitForSelector('#t-montaria')
+      if ((await sem.locator('.build-nome svg.icone-status').count()) !== 7) problems.push('sem-icones: aba Status sem os 7 status em SVG')
+      await semImg('Montaria (Status)')
+      await sem.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+      await sem.waitForSelector('.vaga-tipo')
+      if ((await sem.locator('.vaga-tipo b canvas[data-icon]').count()) !== 1) problems.push('sem-icones: skill de tipo sem o selo do elemento de reserva')
+      await semImg('Montaria (Skills)')
+      await sem.locator('[data-acao="montaria-voltar"]').click()
+      await abrirSala(sem)
+      const chips = ((await sem.locator('[aria-label="Condições da pista"] .chips').textContent()) || '')
+      if (!/Piso\s*(Grama|Terra|Areia)/.test(chips) || !/Clima inicial\s*(Sol|Chuva|Névoa|Nublado)/.test(chips)) problems.push('sem-icones: chips da sala sem o texto: ' + chips)
+      await semImg('sala')
+      await sem.getByRole('button', { name: /^Largar/ }).click()
+      await sem.waitForSelector('#pista')
+      if (!/^Clima: (Sol|Chuva|Névoa|Nublado)$/.test((await sem.locator('#clima-atual').textContent()) || '')) problems.push('sem-icones: painel da corrida sem "Clima: X"')
+      await semImg('corrida')
+      await sem.getByRole('button', { name: /Pular/ }).click()
+      await sem.waitForSelector('#t-resultado')
+      if (!/🎲 Dado da Sorte/.test((await sem.locator('#tela').textContent()) || '')) problems.push('sem-icones: resultado sem a nota do Dado com o emoji')
+      await semImg('resultado')
     } catch (e) {
       problems.push('sem-icones: ' + e.message)
     }

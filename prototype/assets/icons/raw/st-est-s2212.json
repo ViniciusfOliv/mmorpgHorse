@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T12:54:21.211Z",
+  "pedido": {
+    "description": "heart with a pulse line across it, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 6dae6f54db438aea>",
+      "format": "png"
+    },
+    "seed": 2212
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 447 bytes, sha256 5143e04b02ae1b76>",
+      "format": "png"
+    }
+  }
+}

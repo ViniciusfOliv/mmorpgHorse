@@ -333,7 +333,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .el--geral { color: var(--geral); }   /* skills gerais */
 
 .raridade {
-  display: inline-block; font-size: 0.875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  display: inline-flex; align-items: center; gap: 4px; font-size: 0.875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
   padding: 1px 6px; color: var(--tinta); background: var(--r-comum); line-height: 1.5;
   box-shadow: inset 0 -2px 0 0 var(--escuro-25);
 }
@@ -350,6 +350,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .liga--platina { color: var(--l-platina); }
 .liga--diamante { color: var(--l-diamante); }
 .liga--lenda { color: var(--l-lenda); }
+.liga--icone::before { content: none; }   /* com o escudo (liga-*), sem o quadradinho */
 
 .seda-0 { background: var(--seda-0); } .seda-1 { background: var(--seda-1); } .seda-2 { background: var(--seda-2); } .seda-3 { background: var(--seda-3); }
 .seda-4 { background: var(--seda-4); } .seda-5 { background: var(--seda-5); } .seda-6 { background: var(--seda-6); } .seda-7 { background: var(--seda-7); }
@@ -490,7 +491,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .montaria .cavalo-nome { overflow-wrap: anywhere; }
 .montaria .cavalo-nome small { color: var(--texto-2); font-size: var(--t-xs); text-shadow: none; }
 .montaria--ativa { box-shadow: inset 0 0 0 2px var(--ouro); }
-.estrelas { color: var(--ouro); letter-spacing: 1px; }
+.estrelas { color: var(--ouro); letter-spacing: 1px; display: inline-flex; align-items: center; gap: 1px; vertical-align: middle; }
 .corcel { color: var(--ouro); font-size: var(--t-xs); }
 .badge-ativa { font-family: var(--fonte-display); font-size: 11px; line-height: 1; color: var(--tinta); background: var(--ouro); padding: 3px 4px; }
 .montaria-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -790,6 +791,10 @@ html.dev-ativo:not(.app-com-abas) .barra-acao { bottom: calc(64px + env(safe-are
 img.icone { width: 16px; height: 16px; flex: none; image-rendering: auto; vertical-align: middle;
   filter: drop-shadow(0 0 1px rgba(241, 233, 212, 0.6)) drop-shadow(0 0 1px rgba(241, 233, 212, 0.4)); }
 .app-aba-icone img.icone { width: 32px; height: 32px; display: block; image-rendering: pixelated; }
+img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }   /* tamanho cheio (cartão de skill) */
+.estrelas img.icone { margin: 0; }
+/* ícone em linha antes do texto (sem gap de flex) */
+.afinidade dd img.icone, #clima-atual img.icone, .lugar img.icone, .tabela .pos img.icone { margin-right: 4px; }
 .ouro img.icone { margin: 0; }
 .pedras { display: inline-flex; align-items: center; gap: 4px; }
 .slot { gap: 4px; }

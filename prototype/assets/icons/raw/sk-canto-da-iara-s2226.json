@@ -1,0 +1,31 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-12T12:59:44.749Z",
+  "pedido": {
+    "description": "seashell with two music notes, pixel art game ui icon, centered, simple, readable at small size",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "color_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 101 bytes, sha256 b9c4f4ef5ae0b2fb>",
+      "format": "png"
+    },
+    "seed": 2226
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 574 bytes, sha256 d04f822ea8855c35>",
+      "format": "png"
+    }
+  }
+}
