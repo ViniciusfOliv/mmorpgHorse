@@ -813,6 +813,6 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   box-shadow:
     0 calc(-1 * var(--px)) 0 0 var(--ouro), 0 var(--px) 0 0 var(--ouro),
     calc(-1 * var(--px)) 0 0 0 var(--ouro), var(--px) 0 0 0 var(--ouro);
-  outline: 3px solid var(--ouro); outline-offset: 2px;
+  /* sem outline próprio: o anel de foco (:focus-visible, --foco) continua valendo no botão selecionado */
 }
 @media (min-width: 640px) { .capacetes { grid-template-columns: repeat(8, minmax(0, 1fr)); } }

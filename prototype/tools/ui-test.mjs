@@ -2472,6 +2472,17 @@ try {
           await sleep(200)
           if ((await pressionado(pg, 'joquei-padrao')).indexOf('xadrez=true') < 0 || (await pressionado(pg, 'joquei-padrao')).indexOf('liso=false') < 0) problems.push(`${tag}: Xadrez não ficou marcado: ${await pressionado(pg, 'joquei-padrao')}`)
           if ((await pg.locator('[data-acao="joquei-capacete"][aria-pressed="true"]').getAttribute('data-v')) !== '#62b8ff') problems.push(`${tag}: Azul não ficou marcado`)
+          // foco do teclado no capacete selecionado: o anel de foco (--foco) aparece mesmo com o contorno dourado de selecionado
+          await pg.keyboard.press('Shift+Tab'); await pg.keyboard.press('Tab')
+          const foco = await pg.evaluate(() => {
+            const a = document.activeElement
+            const sonda = document.createElement('i'); sonda.style.color = 'var(--foco)'; document.body.appendChild(sonda)
+            const cor = getComputedStyle(sonda).color; sonda.remove()
+            const cs = a && getComputedStyle(a)
+            return { v: a && a.getAttribute('data-v'), p: a && a.getAttribute('aria-pressed'), oc: cs && cs.outlineColor, ow: cs && cs.outlineWidth, cor }
+          })
+          if (foco.v !== '#62b8ff' || foco.p !== 'true') problems.push(`${tag}: foco do teclado não voltou ao capacete selecionado (${JSON.stringify(foco)})`)
+          else if (foco.oc !== foco.cor || parseFloat(foco.ow) < 2) problems.push(`${tag}: capacete selecionado e focado sem o anel --foco (${JSON.stringify(foco)})`)
           const lista = await desenhos(pg)
           const prev = lista.filter((d) => d.quadro && d.jockey === true && d.joquei && d.joquei.padrao === 'xadrez' && d.joquei.capacete === '#62b8ff')
           if (!prev.length) problems.push(`${tag}: a prévia não foi redesenhada com o jóquei xadrez/azul (${lista.length} desenhos)`)
