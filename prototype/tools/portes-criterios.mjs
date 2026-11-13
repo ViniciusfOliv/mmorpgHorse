@@ -43,6 +43,7 @@ export const LIMITES = Object.freeze({
   esguioAltura: 1.10,   // (altura/comprimento do esguio) ÷ (a do padrão) ≥ 1,10
   robustoAltura: 0.92,  // (altura/comprimento do robusto) ÷ (a do padrão) ≤ 0,92
   robustoEspessura: 1.15, // (espessura/comprimento do robusto) ÷ (a do padrão) ≥ 1,15
+  quadros: 9,           // galope: exatamente 9 quadros (galope-0…8; o molde e o "4 em 5 dos 9" contam com eles)
   lombo: 3,             // galope: o lombo na coluna da sela varia no máximo 3 px
   nose: 6,              // galope: nose.x a ±6 px do da pose de corrida (o critério do primeiro lote)
   comprimento: 4,       // galope: o comprimento varia no máximo 4 px
@@ -186,8 +187,9 @@ export function criterioPortes({ esguio, padrao, robusto } = {}) {
 }
 
 /**
- * Galope estável: nos quadros do galope, o lombo na coluna da sela varia ≤ 3 px; o nose.x (da âncora) fica a ±6 px
- * do da pose de corrida; o comprimento do corpo varia ≤ 4 px. O porte não pode mudar no meio do galope.
+ * Galope estável: exatamente 9 quadros; nos quadros do galope, o lombo na coluna da sela varia ≤ 3 px; o nose.x (da
+ * âncora) fica a ±6 px do da pose de corrida; o comprimento do corpo varia ≤ 4 px. O porte não pode mudar no meio do
+ * galope. Um galope com outro número de quadros é medido do mesmo jeito, mas reprova no primeiro critério.
  */
 export function criterioGalope(molde) {
   const g = galopeDe(molde);
@@ -200,6 +202,7 @@ export function criterioGalope(molde) {
   const deriva = x0 == null || nx.some(x => x == null) ? null : Math.max(...nx.map(x => Math.abs(x - x0)));
   const vl = varia(lombos), vc = varia(comps);
   return [
+    { criterio: `galope: ${LIMITES.quadros} quadros`, ok: g.length === LIMITES.quadros, valor: g.length, limite: `= ${LIMITES.quadros}` },
     { criterio: 'galope: lombo na coluna da sela', ok: vl != null && vl <= LIMITES.lombo, valor: vl, limite: `varia ≤ ${LIMITES.lombo} px`, quadros: lombos },
     { criterio: 'galope: nose.x contra a pose de corrida', ok: deriva != null && deriva <= LIMITES.nose, valor: deriva, limite: `±${LIMITES.nose} px`, quadros: nx },
     { criterio: 'galope: comprimento do corpo', ok: vc != null && vc <= LIMITES.comprimento, valor: vc, limite: `varia ≤ ${LIMITES.comprimento} px`, quadros: comps },

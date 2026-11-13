@@ -129,11 +129,7 @@ small, .suave { color: var(--suave); }
 .linha { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 figure { margin: 0; }
 figcaption { font-size: 11px; color: var(--suave); margin-top: 2px; }
-.anim { background-repeat: no-repeat; animation-timing-function: steps(9); animation-iteration-count: infinite; animation-duration: .5s; }
-.g1 { width: 64px; height: 64px; animation-name: g1; }
-.g4 { width: 256px; height: 256px; animation-name: g4; }
-@keyframes g1 { to { background-position: -576px 0; } }
-@keyframes g4 { to { background-position: -2304px 0; } }
+.anim { background-repeat: no-repeat; animation-iteration-count: infinite; animation-duration: .5s; }
 ul.crit { list-style: none; padding: 0; margin: 8px 0 0; font-size: 12px; }
 ul.crit li { padding: 2px 0; border-top: 1px solid var(--borda); }
 .ok { color: var(--ok); font-weight: 600; }
@@ -143,7 +139,14 @@ ul.crit li { padding: 2px 0; border-top: 1px solid var(--borda); }
 .legenda { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; margin: 8px 0 14px; }
 .legenda span::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 4px; border: 1px solid var(--borda); background: var(--c); vertical-align: -1px; }
 `;
+// O galope animado desliza a faixa de N quadros em steps(N): cada figura diz no style quanto desliza (desliza<px>), e
+// aqui sai um @keyframes por distância usada — um galope de 8 quadros não mostra um 9º quadro vazio.
+function quadrosChave(corpo) {
+  const ds = [...new Set([...corpo.matchAll(/animation-name:desliza(\d+)/g)].map(m => Number(m[1])))].sort((a, b) => a - b);
+  return ds.map(d => `@keyframes desliza${d} { to { background-position: -${d}px 0; } }`).join('\n');
+}
 function pagina(titulo, corpo, { extraCss = '', scripts = '' } = {}) {
+  extraCss = quadrosChave(corpo) + '\n' + extraCss;
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -178,9 +181,10 @@ function registroTxt(reg) {
 function desenhoDireto(m, chave) {
   const est = (nome, idx) => `<figure><div class="linha"><div class="palco"><img src="${faixa([idx], m.w, m.h, 1)}" width="${m.w}" height="${m.h}" alt="${esc(chave)} ${nome} em 1×"></div>`
     + `<div class="palco"><img src="${faixa([idx], m.w, m.h, 4)}" width="${4 * m.w}" height="${4 * m.h}" alt="${esc(chave)} ${nome} em 4×"></div></div><figcaption>${nome} · 1× e 4×</figcaption></figure>`;
-  const g1 = faixa(m.galope, m.w, m.h, 1), g4 = faixa(m.galope, m.w, m.h, 4);
-  const galope = `<figure><div class="linha"><div class="palco"><div class="anim g1" style="background-image:url(${g1})" role="img" aria-label="${esc(chave)} galope animado em 1×"></div></div>`
-    + `<div class="palco"><div class="anim g4" style="background-image:url(${g4})" role="img" aria-label="${esc(chave)} galope animado em 4×"></div></div></div><figcaption>galope animado (${m.galope.length} quadros) · 1× e 4×</figcaption></figure>`;
+  const n = m.galope.length, g1 = faixa(m.galope, m.w, m.h, 1), g4 = faixa(m.galope, m.w, m.h, 4);
+  const anim = (k, url) => `<div class="anim g${k}" style="width:${k * m.w}px;height:${k * m.h}px;background-image:url(${url});animation-name:desliza${k * m.w * n};animation-timing-function:steps(${n})" role="img" aria-label="${esc(chave)} galope animado em ${k}×"></div>`;
+  const galope = `<figure><div class="linha"><div class="palco">${anim(1, g1)}</div><div class="palco">${anim(4, g4)}</div></div>`
+    + `<figcaption>galope animado (${n} quadros${n !== LIMITES.quadros ? `; o molde precisa de ${LIMITES.quadros}` : ''}) · 1× e 4×</figcaption></figure>`;
   const quadros = `<figure><div class="linha">${m.galope.map((q, i) => `<div class="palco"><img src="${faixa([q], m.w, m.h, 2)}" width="${2 * m.w}" height="${2 * m.h}" alt="${esc(chave)} galope quadro ${i}"></div>`).join('')}</div><figcaption>os ${m.galope.length} quadros do galope · 2×</figcaption></figure>`;
   return est('retrato', m.retrato) + est('parado', m.parado) + galope + quadros;
 }

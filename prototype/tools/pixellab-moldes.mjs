@@ -2,6 +2,7 @@
 //
 // Uso:  NODE_USE_ENV_PROXY=1 node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|icones2|tudo [--only <id>] [--teto 60] [--gerar]
 //       NODE_USE_ENV_PROXY=1 node prototype/tools/pixellab-moldes.mjs --lote portes --fase mestres|piloto|versoes [--only <porte>[-<estilo>]] [--teto 90] [--gerar]
+//         [--sem-guia <porte>-<estilo>]… [--guia-galope-mestre <porte>-<estilo>]…   (ver o topo do pixellab-portes.mjs)
 //   (icones2 = os 58 ícones novos de icones-catalogo.mjs; tudo = moldes + os 16 + os 58; portes = os 12 moldes dos
 //   portes da spec 2026-11-13-cavalos-portes, no pixellab-portes.mjs: fases, seeds 3101–3959, critérios, teto somado
 //   entre rodadas em novos/gasto.json e saída na pasta de espera assets/pixellab/novos/, que o build não lê)
@@ -177,7 +178,7 @@ function pedidoIcone(icone, seed) {
 function sair(msg) { console.error(msg); process.exit(2); }
 
 function lerArgs(argv) {
-  const a = { lote: null, fase: null, only: null, teto: null, gerar: false, reprocessar: false, repetir: [], testarCrinas: false, forca: null };
+  const a = { lote: null, fase: null, only: null, teto: null, gerar: false, reprocessar: false, repetir: [], semGuia: [], guiaGalope: [], testarCrinas: false, forca: null };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--gerar') a.gerar = true;
@@ -185,6 +186,8 @@ function lerArgs(argv) {
     else if (k === '--lote') a.lote = argv[++i];
     else if (k === '--only') a.only = argv[++i];
     else if (k === '--fase') a.fase = argv[++i];
+    else if (k === '--sem-guia') a.semGuia.push(...String(argv[++i] || '').split(',').filter(Boolean));
+    else if (k === '--guia-galope-mestre') a.guiaGalope.push(...String(argv[++i] || '').split(',').filter(Boolean));
     else if (k === '--teto') a.teto = Number(argv[++i]);
     else if (k === '--repetir') a.repetir = String(argv[++i] || '').split(',').filter(Boolean);
     else if (k === '--testar-crinas') a.testarCrinas = true;
@@ -193,18 +196,20 @@ function lerArgs(argv) {
   }
   if (!['moldes', 'icones', 'icones2', 'tudo', 'portes'].includes(a.lote)) {
     sair('uso: node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|icones2|tudo [--only <id>] [--teto 60] [--gerar]\n'
-      + '     node prototype/tools/pixellab-moldes.mjs --lote portes --fase mestres|piloto|versoes [--only <porte>[-<estilo>]] [--teto 90] [--gerar]');
+      + '     node prototype/tools/pixellab-moldes.mjs --lote portes --fase mestres|piloto|versoes [--only <porte>[-<estilo>]] [--teto 90] [--gerar]\n'
+      + '       [--sem-guia <porte>-<estilo>]… [--guia-galope-mestre <porte>-<estilo>]…');
   }
   if (a.teto == null) a.teto = a.lote === 'portes' ? TETO_PORTES : 60;
   if (!Number.isFinite(a.teto) || a.teto <= 0) sair('--teto precisa ser um número maior que zero');
   if (a.gerar && a.reprocessar) sair('--gerar e --reprocessar não andam juntos');
   if (a.lote === 'portes') {
     if (a.testarCrinas || a.forca != null) sair('--testar-crinas e --forca não valem no lote portes');
+    a.semGuia = [...new Set(a.semGuia)]; a.guiaGalope = [...new Set(a.guiaGalope)];
     const erro = validarArgsPortes(a);
     if (erro) sair(erro);
     return a;
   }
-  if (a.fase != null) sair('--fase só vale com --lote portes');
+  if (a.fase != null || a.semGuia.length || a.guiaGalope.length) sair('--fase, --sem-guia e --guia-galope-mestre só valem com --lote portes');
   if (a.testarCrinas && (a.reprocessar || ['icones', 'icones2'].includes(a.lote) || a.repetir.length)) sair('--testar-crinas: só com --lote moldes|tudo, sem --reprocessar nem --repetir');
   if (a.forca != null && !a.testarCrinas) sair('--forca só vale com --testar-crinas');
   a.estilos = ['icones', 'icones2'].includes(a.lote) ? [] : ESTILOS.filter(e => !a.only || e.id === a.only);
@@ -642,8 +647,12 @@ async function gerar(a) {
 async function gerarPortes(a) {
   estado.reprocessar = a.reprocessar;
   estado.redeLiberada = !a.reprocessar;
-  const gastoAntes = lerGasto().geracoes, sobra = a.teto - gastoAntes;
-  console.log(`${a.reprocessar ? 'REPROCESSAMENTO a partir de raw/ (sem rede)' : 'GERAÇÃO REAL'} — lote "portes", fase "${a.fase}"${a.only ? ` (--only ${a.only})` : ''}; teto ${a.teto} gerações no lote todo (já gastas ${fmt(gastoAntes)}, sobram ${fmt(sobra)}).`);
+  // gasto.json ilegível: o --gerar para aqui, antes do saldo e de qualquer chamada (lerGasto lança); o --reprocessar não
+  // paga nem grava o gasto, então segue com o aviso
+  let gastoAntes = null;
+  try { gastoAntes = lerGasto().geracoes; } catch (e) { if (!a.reprocessar) throw e; console.log('AVISO: ' + e.message); }
+  const sobra = gastoAntes == null ? null : a.teto - gastoAntes;
+  console.log(`${a.reprocessar ? 'REPROCESSAMENTO a partir de raw/ (sem rede)' : 'GERAÇÃO REAL'} — lote "portes", fase "${a.fase}"${a.only ? ` (--only ${a.only})` : ''}; teto ${a.teto} gerações no lote todo (já gastas ${gastoAntes == null ? '?' : fmt(gastoAntes)}, sobram ${sobra == null ? '?' : fmt(sobra)}).`);
   let antes = null;
   if (!a.reprocessar) {
     antes = await saldo('antes');
@@ -652,7 +661,7 @@ async function gerarPortes(a) {
       throw new ErroApi(`saldo do plano (${disponivel}) menor que o que sobra do teto (${fmt(sobra)}): o resto sairia dos créditos em US$; abortado`, { fatal: true });
     }
   }
-  const r = await rodarPortes({ fase: a.fase, only: a.only, teto: a.teto, repetir: a.repetir, modo: a.reprocessar ? 'reprocessar' : 'gerar', executar: executarReal });
+  const r = await rodarPortes({ fase: a.fase, only: a.only, teto: a.teto, repetir: a.repetir, semGuia: a.semGuia, guiaGalope: a.guiaGalope, modo: a.reprocessar ? 'reprocessar' : 'gerar', executar: executarReal });
   if (!a.reprocessar) {
     try {
       const depois = await saldo('depois');

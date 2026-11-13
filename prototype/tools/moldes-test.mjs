@@ -891,10 +891,11 @@ const Pc = () => { if (portesCrit.erro) throw portesCrit.erro; return portesCrit
 // y 12–21 e orelha x 44 × y 10–11; crina x 36–39 × y 14–19 ('grande': x 32–39 × y 4–19); cauda x 4–9 × y 20–30;
 // pernas de pelagem x 12–13, 17–18 (coladas: 14–15), 31–32 e 36–37, de y 32 até y 41, casco (6) em y 42.
 // joquei: sela x 22–27 × y 20–21, seda x 23–26 × y 12–19, rosto x 24–25 × y 10–11, capacete x 23–26 × y 8–9.
-// dx/dy deslocam tudo. Medidas esperadas (corpo = pelagem + contorno encostado nela): topo 9 (contorno da orelha),
+// dx/dy deslocam tudo; furos abre 6 buracos isolados no tronco (reprova na forma, "silhueta aberta", sem mudar o
+// corpo medido). Medidas esperadas (corpo = pelagem + contorno encostado nela): topo 9 (contorno da orelha),
 // footY 43 (contorno do casco) ⇒ altura 35; corpo de x 9 a x 46 ⇒ comprimento 38; nose [46, 12]; espessura 14 na
 // coluna 28 (meio do corpo: contorno do lombo em y 19 até o da barriga em y 32).
-function sintPorte({ esp = 12, perna = 10, comp = 30, coladas = false, joquei = false, crina = 'normal', dx = 0, dy = 0, top = 20 } = {}) {
+function sintPorte({ esp = 12, perna = 10, comp = 30, coladas = false, joquei = false, crina = 'normal', dx = 0, dy = 0, top = 20, furos = false } = {}) {
   const w = 64, h = 64, idx = new Uint8Array(w * h);
   const ret = (x0, y0, x1, y1, v) => {
     for (let y = y0 + dy; y <= y1 + dy; y++) for (let x = x0 + dx; x <= x1 + dx; x++) if (x >= 0 && y >= 0 && x < w && y < h) idx[y * w + x] = v;
@@ -913,6 +914,7 @@ function sintPorte({ esp = 12, perna = 10, comp = 30, coladas = false, joquei = 
     if (base[y * w + x]) continue;
     if ((x > 0 && base[y * w + x - 1]) || (x < w - 1 && base[y * w + x + 1]) || (y > 0 && base[(y - 1) * w + x]) || (y < h - 1 && base[(y + 1) * w + x])) idx[y * w + x] = 1;
   }
+  if (furos) for (const [x, y] of [[14, 3], [18, 5], [22, 3], [26, 6], [30, 4], [34, 7]]) idx[(top + y + dy) * w + x + dx] = 0;
   return idx;
 }
 // molde no formato dos critérios: retrato sem jóquei, parado com jóquei e 9 quadros de galope (parado deslocado)
@@ -1010,7 +1012,7 @@ test('criterioPortes: esguio ≥ 1,10 × a altura/comprimento do padrão; robust
 
 test('criterioGalope: lombo estável passa; o lombo pulando 4 px reprova', () => {
   const ok = Pc().criterioGalope(moldeSint());
-  assert.strictEqual(ok.length, 3, 'lombo, nose.x contra a pose de corrida e comprimento'); assert.ok(ok.every(formaCriterio));
+  assert.strictEqual(ok.length, 4, '9 quadros, lombo, nose.x contra a pose de corrida e comprimento'); assert.ok(ok.every(formaCriterio));
   assert.deepStrictEqual(falhos(ok), [], JSON.stringify(ok));
   const pulo = Pc().criterioGalope(moldeSint({}, [0, 0, 0, 0, 4, 0, 0, 0, 0]));
   assert.deepStrictEqual(falhos(pulo).length, 1); assert.match(falhos(pulo)[0], /lombo/);
@@ -1094,7 +1096,7 @@ function apiFalsa(regras = {}) {
       const porte = /Mangalarga/.test(d) ? 'esguio' : /Crioulo/.test(d) ? 'robusto' : 'padrao';
       const estilo = /flames/.test(d) ? 'chamas' : /waves/.test(d) ? 'ondas' : /leaves/.test(d) ? 'folhas' : 'lisa';
       const etapa = /no rider/.test(d) ? 'retrato' : /full gallop/.test(d) ? 'corrida' : 'parado';
-      chamadas.push({ ep, porte, estilo, etapa, seed: corpo.seed, guia: !!corpo.init_image, forca: corpo.init_image_strength });
+      chamadas.push({ ep, porte, estilo, etapa, seed: corpo.seed, guia: !!corpo.init_image, forca: corpo.init_image_strength, init: corpo.init_image ? corpo.init_image.base64 : null });
       const op = Object.assign({}, CORPO_FALSO[porte], { joquei: etapa !== 'retrato', crina: estilo === 'lisa' ? 'normal' : 'grande' },
         regras.parada ? regras.parada({ porte, estilo, etapa, seed: corpo.seed }) : {});
       const r = { image: { type: 'base64', base64: b64png(rgbaDeIdx(sintPorte(op), 64, 64)) }, usage: { type: 'generations', generations: 1 } };
@@ -1102,7 +1104,7 @@ function apiFalsa(regras = {}) {
     }
     chamadas.push({ ep, seed: corpo.seed, frames: corpo.frame_count });
     const f0 = decodePng(Buffer.from(corpo.first_frame.base64, 'base64')).rgba;
-    const dys = regras.pula && regras.pula(corpo.seed) ? [0, 0, 0, 0, 4, 0, 0, 0, 0] : [0, 1, 2, 1, 0, 1, 2, 1, 0];
+    const dys = (regras.pula && regras.pula(corpo.seed) ? [0, 0, 0, 0, 4, 0, 0, 0, 0] : [0, 1, 2, 1, 0, 1, 2, 1, 0]).slice(0, regras.quadros ? regras.quadros(corpo.seed) : 9);
     const post = { background_job_id: 'falso', usage: { type: 'generations', generations: 1 } };
     const job = { status: 'completed', last_response: { images: dys.map(dy => ({ type: 'base64', base64: b64png(descer(f0, dy)) })), usage: { type: 'generations', generations: 1 } } };
     return { resultado: { post, job }, respostas: [post, job] };
@@ -1310,6 +1312,157 @@ await testA('--reprocessar refaz os finais de novos/ só de raw/, sem chamada e 
   assert.strictEqual(C.itens['padrao-lisa'].ok, true);
 });
 fs.rmSync(A.raiz, { recursive: true, force: true });
+
+// ---------------------------------------------------------------- Portes: rodada de correção 1 (revisão da Task 4)
+section('Portes: rodada de correção 1');
+
+await testA('gasto.json ilegível: o --gerar para antes de qualquer chamada, o arquivo não é sobrescrito e o dry-run avisa em destaque', async () => {
+  const D = pastaTemp(), arq = path.join(D.dirs.novos, 'gasto.json');
+  fs.mkdirSync(D.dirs.novos, { recursive: true });
+  const conflito = '<<<<<<< HEAD\n{ "geracoes": 80, "chamadas": 80, "rodadas": [] }\n=======\n{ "geracoes": 12 }\n>>>>>>> outra\n';
+  fs.writeFileSync(arq, conflito);
+  assert.throws(() => Pl().lerGasto(D.dirs.novos), e => e instanceof Pl().GastoIlegivel && e.fatal && /não é JSON/.test(e.message));
+  const api = apiFalsa(CENARIO);
+  await assert.rejects(semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: api.executar, dirs: D.dirs, log: () => {} })), /gasto\.json ilegível/);
+  assert.strictEqual(api.chamadas.length, 0, 'nenhuma chamada');
+  assert.strictEqual(fs.readFileSync(arq, 'utf8'), conflito, 'o gasto.json ilegível não é sobrescrito');
+  const linhas = [];
+  await Pl().dryRunPortes({ fase: 'mestres', dirs: D.dirs }, l => linhas.push(l));
+  const txt = linhas.join('\n');
+  assert.match(txt, /^!!! AVISO: .*gasto\.json ilegível/m); assert.match(txt, /já gastas DESCONHECIDO \(gasto\.json ilegível\), sobram \?/);
+  assert.ok(!/já gastas 0/.test(txt)); assert.match(txt, /o --gerar recusa rodar/);
+  // outros jeitos de estar ilegível; os válidos passam; sem arquivo, nada foi gasto
+  for (const [conteudo, motivo] of [['{"geracoes":"80"}', /"geracoes" = "80"/], ['{"geracoes":-1}', /= -1/], ['{"geracoes":null}', /= null/],
+    ['[]', /não é um objeto/], ['{"geracoes":5,"chamadas":"x"}', /"chamadas"/], ['{"geracoes":5,"rodadas":{}}', /"rodadas"/]]) {
+    fs.writeFileSync(arq, conteudo);
+    assert.throws(() => Pl().lerGasto(D.dirs.novos), motivo, conteudo);
+  }
+  fs.writeFileSync(arq, '{"geracoes":7.5}');
+  assert.deepStrictEqual(Pl().lerGasto(D.dirs.novos), { geracoes: 7.5, chamadas: 0, rodadas: [] });
+  fs.unlinkSync(arq);
+  assert.strictEqual(Pl().lerGasto(D.dirs.novos).geracoes, 0);
+  // o --reprocessar não paga nem grava o gasto: segue com o aviso e deixa o arquivo como está
+  fs.writeFileSync(arq, conflito);
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', dirs: D.dirs, log: () => {} }));
+  assert.ok(r.avisos.some(a => /ilegível/.test(a))); assert.strictEqual(fs.readFileSync(arq, 'utf8'), conflito);
+  fs.rmSync(D.raiz, { recursive: true, force: true });
+});
+
+// Pasta E: galope de 8 quadros nos mestres (o padrão acerta na 2ª seed, o robusto nunca); no piloto, o retrato do padrão
+// passa no mesmo corpo na seed A (3402) mas reprova na forma, e as seeds B e C reprovam só no nose.x.
+const E = pastaTemp();
+const CENARIO_E = {
+  parada: ({ porte, estilo, etapa, seed }) => (porte === 'padrao' && estilo === 'chamas' && etapa === 'retrato'
+    ? (seed === 3402 ? { furos: true } : { dx: 3 }) : {}),
+  quadros: seed => ([3102, 3103, 3203, 3303].includes(seed) ? 8 : 9),
+};
+
+await testA('galope com 8 quadros reprova no critério dos 9 (fica como o melhor, marcado); a folha anima 8 sem quadro vazio', async () => {
+  const api = apiFalsa(CENARIO_E);
+  await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: api.executar, dirs: E.dirs, log: () => {} }));
+  const C = lerJ(path.join(E.dirs.novos, 'criterios.json'));
+  const gp = C.itens['padrao-lisa'].etapas.galope;
+  assert.deepStrictEqual([gp.escolhida, gp.tentativas.length], [3202, 2]);
+  assert.ok(gp.tentativas[0].criterios.some(c => c.criterio === 'galope: 9 quadros' && !c.ok && c.valor === 8), 'a 1ª, com 8, reprova');
+  const rob = C.itens['robusto-lisa'];
+  assert.deepStrictEqual([rob.ok, rob.final, rob.etapas.galope.tentativas.length, rob.etapas.galope.escolhida], [false, true, 3, 3103]);
+  assert.ok(rob.falhas.includes('galope: 9 quadros = 8 (= 9)'), rob.falhas.join(' | '));
+  assert.strictEqual(lerJ(path.join(E.dirs.novos, 'molde-robusto-lisa.json')).frames, 8);
+  assert.ok(!fs.existsSync(path.join(E.dirs.novos, 'molde-robusto-lisa-galope-8.png')));
+  const F = await import('./folha-portes.mjs'), html = F.htmlFolhaMestres(F.dadosMestres(E.dirs.novos));
+  const fig = ch => html.slice(html.indexOf('id="' + ch + '"'), html.indexOf('</article>', html.indexOf('id="' + ch + '"')));
+  assert.match(fig('robusto-lisa'), /animation-name:desliza512;animation-timing-function:steps\(8\)/);
+  assert.match(fig('robusto-lisa'), /animation-name:desliza2048;animation-timing-function:steps\(8\)/);
+  assert.ok(!/desliza576|steps\(9\)/.test(fig('robusto-lisa')), 'sem o 9º quadro vazio');
+  assert.match(fig('padrao-lisa'), /animation-name:desliza576;animation-timing-function:steps\(9\)/);
+  for (const d of [512, 2048, 576, 2304]) assert.ok(html.includes(`@keyframes desliza${d} { to { background-position: -${d}px 0; } }`), 'keyframes ' + d);
+  assert.match(fig('robusto-lisa'), /NÃO<\/span> galope: 9 quadros: 8/);
+});
+
+await testA('piloto: passa no mesmo corpo se QUALQUER seed passar (A passa no corpo e reprova na forma; B e C só no nose.x)', async () => {
+  const api = apiFalsa(CENARIO_E);
+  await semRede(() => Pl().rodarPortes({ fase: 'piloto', modo: 'gerar', executar: api.executar, dirs: E.dirs, log: () => {} }));
+  const C = lerJ(path.join(E.dirs.novos, 'criterios.json'));
+  const ret = C.itens['padrao-chamas'].etapas.retrato;
+  assert.deepStrictEqual(ret.tentativas.map(t => t.seed), [3402, 3502, 3602]);
+  const mc = t => t.criterios.filter(c => /^mesmo corpo/.test(c.criterio));
+  assert.ok(mc(ret.tentativas[0]).every(c => c.ok) && ret.tentativas[0].criterios.some(c => c.criterio === 'forma (retrato)' && !c.ok), 'A: corpo ok, forma não');
+  assert.ok(ret.tentativas.slice(1).every(t => mc(t).filter(c => !c.ok).map(c => c.criterio).join() === 'mesmo corpo no retrato: nose.x'), 'B e C: só o nose.x');
+  assert.strictEqual(ret.escolhida, 3502, 'a escolhida (a melhor) é a B: o veredito não pode olhar só para ela');
+  assert.deepStrictEqual([C.piloto.padrao.mesmoCorpo, C.piloto.padrao.retrato, C.piloto.padrao.parado.ok], [true, { ok: true, seed: 3402 }, true]);
+  assert.deepStrictEqual([C.piloto.esguio.mesmoCorpo, C.piloto.robusto.mesmoCorpo], [true, true]);
+  assert.ok(Pl().itensDaFase('versoes', { piloto: C.piloto }).every(i => i.guia), 'as versões do padrão continuam com init_image');
+});
+
+await testA('--sem-guia: aquela versão sai sem init_image (3701+), o piloto não muda e a entrada anterior vai para o histórico', async () => {
+  // argumentos
+  const v = (o, n = E.dirs.novos) => Pl().validarArgsPortes(Object.assign({ fase: 'versoes' }, o), n);
+  assert.match(v({ fase: 'mestres', semGuia: ['padrao-ondas'] }), /só nas fases piloto e versoes/);
+  assert.match(v({ semGuia: ['padrao-xx'] }), /use <porte>-<estilo>/);
+  assert.match(v({ semGuia: ['padrao-ondas-1'] }), /use <porte>-<estilo>/);
+  assert.match(v({ fase: 'piloto', semGuia: ['padrao-ondas'] }), /só tem as versões de chamas/);
+  assert.strictEqual(v({ semGuia: ['padrao-ondas', 'padrao-chamas'] }), null);
+  const C0 = lerJ(path.join(E.dirs.novos, 'criterios.json'));
+  const it = Pl().itensDaFase('versoes', { piloto: C0.piloto, semGuia: ['padrao-ondas', 'padrao-chamas'] });
+  assert.deepStrictEqual(it.filter(i => i.porte === 'padrao').map(i => i.chave + (i.guia ? '+' : '') + ' ' + i.seedBase), ['padrao-chamas 3702', 'padrao-ondas 3705', 'padrao-folhas+ 3408']);
+  // versões guiadas primeiro; depois a padrao-ondas sem guia
+  await semRede(() => Pl().rodarPortes({ fase: 'versoes', modo: 'gerar', executar: apiFalsa(CENARIO_E).executar, dirs: E.dirs, log: () => {} }));
+  const C1 = lerJ(path.join(E.dirs.novos, 'criterios.json')), piloto = JSON.stringify(C1.piloto), gasto1 = lerJ(path.join(E.dirs.novos, 'gasto.json')).geracoes;
+  assert.strictEqual(C1.itens['padrao-ondas'].variante, 'init_image do mestre');
+  const linhas = [];
+  await Pl().dryRunPortes({ fase: 'versoes', only: 'padrao-ondas', semGuia: ['padrao-ondas'], dirs: E.dirs }, l => linhas.push(l));
+  assert.match(linhas.join('\n'), /AVISO: --sem-guia padrao-ondas: sai sem init_image \(receita do primeiro lote, seed base 3705\); o registro do piloto não muda/);
+  assert.match(linhas.join('\n'), /Total previsto: 4 gerações em 4 chamadas novas/);
+  const api = apiFalsa(CENARIO_E), log = [];
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'versoes', only: 'padrao-ondas', semGuia: ['padrao-ondas'], modo: 'gerar', executar: api.executar, dirs: E.dirs, log: m => log.push(m) }));
+  assert.strictEqual(r.parada, null);
+  assert.deepStrictEqual(api.chamadas.map(c => (c.etapa || 'galope') + ' ' + c.seed + (c.guia ? ' guiada' : '')), ['retrato 3705', 'parado 3705', 'corrida 3705', 'galope 3705']);
+  const C2 = lerJ(path.join(E.dirs.novos, 'criterios.json')), e = C2.itens['padrao-ondas'];
+  assert.deepStrictEqual([e.variante, e.guia, e.seedBase, e.ok], ['sem init_image', null, 3705, true]);
+  assert.strictEqual(e.historico.length, 1); assert.strictEqual(e.historico[0].variante, 'init_image do mestre');
+  assert.strictEqual(e.historico[0].etapas.retrato.tentativas[0].seed, 3405, 'as tentativas da receita anterior ficam');
+  assert.strictEqual(JSON.stringify(C2.piloto), piloto, 'o registro do piloto não muda');
+  assert.deepStrictEqual(lerJ(path.join(E.dirs.novos, 'molde-padrao-ondas.json')).seeds, { retrato: 3705, parado: 3705, montado: 3705, galope: 3705 });
+  assert.strictEqual(lerJ(path.join(E.dirs.novos, 'gasto.json')).geracoes, gasto1 + 4);
+  // de novo: nada novo a gerar e o histórico não duplica
+  await semRede(() => Pl().rodarPortes({ fase: 'versoes', only: 'padrao-ondas', semGuia: ['padrao-ondas'], modo: 'gerar', executar: apiFalsa(CENARIO_E).executar, dirs: E.dirs, log: () => {} }));
+  assert.strictEqual(lerJ(path.join(E.dirs.novos, 'criterios.json')).itens['padrao-ondas'].historico.length, 1);
+  // na fase piloto: o chamas sem guia não reescreve o veredito do piloto
+  await semRede(() => Pl().rodarPortes({ fase: 'piloto', only: 'esguio-chamas', semGuia: ['esguio-chamas'], modo: 'gerar', executar: apiFalsa(CENARIO_E).executar, dirs: E.dirs, log: () => {} }));
+  const C3 = lerJ(path.join(E.dirs.novos, 'criterios.json'));
+  assert.strictEqual(JSON.stringify(C3.piloto), piloto);
+  assert.deepStrictEqual([C3.itens['esguio-chamas'].variante, C3.itens['esguio-chamas'].historico[0].variante], ['sem init_image', 'init_image do mestre']);
+});
+
+await testA('--guia-galope-mestre: a corrida sai guiada pelo 1º quadro cru do galope do mestre (força 300) e o galope parte dela', async () => {
+  const v = o => Pl().validarArgsPortes(Object.assign({ fase: 'versoes' }, o), E.dirs.novos);
+  assert.match(v({ guiaGalope: ['padrao-chamas'] }), /não está na fase "versoes"/);
+  assert.match(v({ fase: 'mestres', guiaGalope: ['padrao-lisa'] }), /só nas fases piloto e versoes/);
+  assert.strictEqual(v({ guiaGalope: ['robusto-folhas'] }), null);
+  const quadro0 = 'portes-robusto-lisa-galope-c3103-s3103-0.png'; // o galope escolhido do mestre (8 quadros, o melhor)
+  const linhas = [];
+  await Pl().dryRunPortes({ fase: 'versoes', only: 'robusto-folhas', guiaGalope: ['robusto-folhas'], dirs: E.dirs }, l => linhas.push(l));
+  const txt = linhas.join('\n');
+  assert.match(txt, new RegExp('robusto-folhas/corrida +seed 3409[^\\n]*\\n[^\\n]*\\[init_image = raw/' + quadro0.replace(/\./g, '\\.') + '; init_image_strength 300\\]'));
+  assert.match(txt, /Total previsto: 2 gerações em 2 chamadas novas \(\+ 2 reaproveitadas de raw\/\)/, 'retrato e parado vêm de raw/');
+  const gasto0 = lerJ(path.join(E.dirs.novos, 'gasto.json')).geracoes, api = apiFalsa(CENARIO_E);
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'versoes', only: 'robusto-folhas', guiaGalope: ['robusto-folhas'], modo: 'gerar', executar: api.executar, dirs: E.dirs, log: () => {} }));
+  assert.strictEqual(r.parada, null);
+  assert.deepStrictEqual(api.chamadas.map(c => (c.etapa || 'galope') + ' ' + c.seed), ['corrida 3409', 'galope 3409']);
+  const cor = api.chamadas[0];
+  assert.deepStrictEqual([cor.guia, cor.forca], [true, Pl().FORCA_GUIA_GALOPE]); assert.strictEqual(Pl().FORCA_GUIA_GALOPE, 300);
+  assert.strictEqual(cor.init, fs.readFileSync(path.join(E.dirs.raw, quadro0)).toString('base64'), 'init_image = o 1º quadro cru do galope do mestre');
+  const e = lerJ(path.join(E.dirs.novos, 'criterios.json')).itens['robusto-folhas'];
+  assert.deepStrictEqual([e.variante, e.guiaGalope, e.ok], ['init_image do mestre + corrida guiada pelo galope do mestre', { init_image_strength: 300, quadro: 'raw/' + quadro0 }, true]);
+  const tc = e.etapas.corrida.tentativas[0];
+  assert.deepStrictEqual([tc.init_image, tc.init_image_strength], ['raw/' + quadro0, 300]);
+  assert.match(tc.arquivo, /^raw\/portes-robusto-folhas-corrida-gm300c3103s3103-s3409\.png$/);
+  assert.match(e.etapas.galope.tentativas[0].arquivo, /^raw\/portes-robusto-folhas-galope-c3409gm300c3103s3103-s3409-0\.\.8\.png$/);
+  assert.strictEqual(e.etapas.retrato.tentativas[0].init_image_strength, Pl().FORCA_GUIA, 'retrato e parado continuam guiados pelo mestre no mesmo estado');
+  assert.strictEqual(e.historico[0].variante, 'init_image do mestre');
+  assert.strictEqual(lerJ(path.join(E.dirs.novos, 'gasto.json')).geracoes, gasto0 + 2);
+});
+fs.rmSync(E.raiz, { recursive: true, force: true });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
