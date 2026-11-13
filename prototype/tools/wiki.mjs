@@ -672,7 +672,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
   const efeitoRar = (id) => {
     if (!(id in MK.N_FAISCAS) || !(id in MK.BRILHO)) throw new Error(`wiki: raridade sem efeito em marcas.js: ${id}`)
     const n = MK.N_FAISCAS[id], b = MK.BRILHO[id], t = []
-    if (b > 0) t.push(`brilho na crina (mistura de ${pct(b, 0)} da cor da raridade)`)
+    if (b > 0) t.push(`brilho na crina (mistura de ${pct(b, 0)} da cor da raridade clareada)`)
     if (n > 0) t.push(`${n} faíscas piscando em volta`)
     if (id === 'mitico') t.push('rastro de luz atrás do cavalo no galope da corrida')
     return t.length ? t.join(' e ') : 'nada'

@@ -4810,8 +4810,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // arte = u: com molde, a escala do molde (S = caixa.w ÷ colunas do bbox do estado, o inverso do horseBox);
   // sem molde, a escala k do sprite por código.
   //   • brilho da crina (Marcas.BRILHO; só com molde): a máscara dos papéis 4 e 5 do quadro, recortada na
-  //     crina e pintada na cor (brilhoCache, uma por estilo|estado|quadro|cor). Uma fatia de 3 colunas (alfa
-  //     BRILHO[raridade]: a mistura de 25/30/45 % da cor), com 1 coluna a meio alfa de cada lado, atravessa a
+  //     crina e pintada na cor da raridade CLAREADA (light(cor, RARIDADE_CLARO), a mesma do rastro; a cor pura some
+  //     numa crina da mesma cor, como o verde do Mágico na crina da Grama) (brilhoCache, uma por estilo|estado|quadro|cor). Uma fatia de 3 colunas (alfa
+  //     BRILHO[raridade]: a mistura de 25/30/45 % da cor clareada), com 1 coluna a meio alfa de cada lado, atravessa a
   //     crina da cabeça para a cauda a cada BRILHO_CICLO (1,2 s); fatia sem crina não desenha. Com o.reduzido,
   //     a fatia fica parada na coluna com mais crina da metade da cabeça (a crina do pescoço, não a cauda).
   //   • faíscas: Marcas.faiscas(o.semente, Marcas.N_FAISCAS[raridade]) (0/0/3/5/5), na caixa com margem de
@@ -4820,11 +4821,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   //     fase da faísca, num ciclo de FAISCA_CICLO s. Com o.reduzido, alfa fixo.
   //   • rastro (o.rastro, só Mítico, só no galope, nunca com o.reduzido): 3 faixas de 1 px de arte que acabam
   //     na âncora traseira do estado (sem molde, ANCHORS.rear) e somem para trás em 3 trechos; comprimento =
-  //     a passada (RASTRO_PASSO da largura da caixa), tremulando com o tempo; cor = a da raridade clareada.
+  //     a passada (RASTRO_PASSO da largura da caixa), tremulando com o tempo; cor = a da raridade clareada. As
+  //     faíscas ficam na cor pura da raridade.
   // Ordem: rastro, brilho, faíscas. Comum (ou raridade fora de GameData.RARITIES) não desenha nada; nada de
   // Math.random; o globalAlpha volta ao que era. Sem o marcas.js ou o GameData (o wiki só embute o
   // sprites.js), não desenha nada.
   var BRILHO_CICLO = 1.2;
+  var RARIDADE_CLARO = 0.35;   // quanto a cor da raridade é clareada (light) no brilho da crina e no rastro
   var FAISCA_MARGEM = 3, FAISCA_CICLO = 1.6, FAISCA_REDUZIDO = 0.85;
   var RASTRO_PASSO = 0.45;
   var RASTRO_FAIXAS = [{ dy: -2, alfa: 0.45, l: 0.8 }, { dy: 0, alfa: 0.6, l: 1 }, { dy: 2, alfa: 0.45, l: 0.65 }];
@@ -4897,7 +4900,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   }
 
   function desenhaBrilho(ctx, Lm, R, t, reduzido, a0) {
-    var mk = mascaraCrina(Lm, R.cor);
+    var mk = mascaraCrina(Lm, light(R.cor, RARIDADE_CLARO));
     if (!mk) return;
     // centro da fatia, em colunas do recorte: entra pela direita (cabeça) e sai pela esquerda a cada ciclo
     var c = reduzido ? mk.pico : Math.round(mk.w + 1 - frac(t / BRILHO_CICLO) * (mk.w + 3));
@@ -4934,7 +4937,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 
   function desenhaRastro(ctx, caixa, L, R, t, a0) {
     var u = L.u, passo = Math.max(6, Math.round(RASTRO_PASSO * caixa.w / u)), x1 = L.rear[0], nT = RASTRO_TRECHOS.length;
-    ctx.fillStyle = light(R.cor, 0.35);
+    ctx.fillStyle = light(R.cor, RARIDADE_CLARO);
     for (var i = 0; i < RASTRO_FAIXAS.length; i++) {
       var F = RASTRO_FAIXAS[i], y = L.rear[1] + F.dy * u, fim = x1;
       var len = Math.max(nT, Math.round(passo * F.l * (0.85 + 0.15 * Math.sin(2 * Math.PI * (t * 2.5 + i / 3)))));

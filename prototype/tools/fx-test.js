@@ -1608,6 +1608,20 @@ function comMoldes(fn) {
     SPR.loadMolds(null);   // volta ao desenho por código (moldsReady = false)
   }
 }
+// a cor da raridade clareada do brilho e do rastro: mistura de 35% com o creme #fff4d6 (sprites.js: light, RARIDADE_CLARO)
+function clareia(hex) {
+  var n = parseInt(hex.slice(1), 16), B = [255, 244, 214], A = [n >> 16 & 255, n >> 8 & 255, n & 255];
+  return '#' + A.map(function (v, i) { var r = Math.round(v + (B[i] - v) * 0.35); return (r < 16 ? '0' : '') + r.toString(16); }).join('');
+}
+// luminância relativa (WCAG) de #rrggbb
+function lumRel(hex) {
+  var n = parseInt(hex.slice(1), 16), c = [n >> 16 & 255, n >> 8 & 255, n & 255].map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function misturaHex(base, topo, a) {
+  var A = parseInt(base.slice(1), 16), B = parseInt(topo.slice(1), 16);
+  return '#' + [16, 8, 0].map(function (sh) { var r = Math.round((A >> sh & 255) + ((B >> sh & 255) - (A >> sh & 255)) * a); return (r < 16 ? '0' : '') + r.toString(16); }).join('');
+}
 function hexPx(px, i) { return '#' + [px[i * 4], px[i * 4 + 1], px[i * 4 + 2]].map(function (v) { return (v < 16 ? '0' : '') + v.toString(16); }).join(''); }
 function lumHex(c) { var n = parseInt(c.slice(1), 16); return (0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; }
 var CAVM = { palette: PAL.fogo, element: 'fogo', frame: 2, scale: 3, silks: '#d8353b', t: 0.4 };
@@ -1715,7 +1729,7 @@ test('com moldes: brilho da crina (papéis 4 e 5) em cache por quadro, faixa a c
     for (var yy = 0; yy < mk.height; yy++) for (var xx = 0; xx < mk.width; xx++) {
       var v = idx[(y0 + yy) * SINT.w + x0 + xx], j = yy * mk.width + xx, crina = v === 4 || v === 5;
       assert.strictEqual(mk.px[j * 4 + 3] > 0, crina, 'máscara só nos papéis 4 e 5');
-      if (crina) assert.strictEqual(hexPx(mk.px, j), cor, 'na cor da raridade');
+      if (crina) assert.strictEqual(hexPx(mk.px, j), clareia(cor), 'na cor da raridade clareada (a do rastro)');
     }
     a.imgs.forEach(function (im) {
       var sx = im.args[1], sw = im.args[3];
@@ -1744,6 +1758,30 @@ test('com moldes: brilho da crina (papéis 4 e 5) em cache por quadro, faixa a c
   });
 });
 
+test('com moldes: o brilho do Mágico aparece na crina verde dos cavalos de Grama (contraste mínimo de 0,05)', function () {
+  // limiar: diferença de luminância relativa entre a crina e a crina com o brilho no alfa de pico do Mágico. Medido nas
+  // crinas de Grama do catálogo (Capim #5b7d2a, Mandacaru #3f6b2a): cor pura #4caf50 = 0,034 e 0,041 (falha);
+  // clareada #8bc77f = 0,061 e 0,064 (passa).
+  var LIMIAR = 0.05;
+  comMoldes(function () {
+    // as crinas verdes de Grama (o caso do Mágico verde sobre crina verde): Capim e Mandacaru (o Jequitibá é Lendário)
+    var gramas = G.STARTERS.concat(G.WILD_HORSES).filter(function (h) { return h.id === 'w-capim' || h.id === 'w-mandacaru'; });
+    assert.strictEqual(gramas.length, 2, 'Capim e Mandacaru no catálogo');
+    gramas.forEach(function (h) {
+      var o = com(CAVM, { element: 'grama', palette: h.palette, raridade: 'magico', semente: 5, t: 0.2 });
+      var c = ctxAlfa(); SPR.drawRaridade(c, SPR.horseBox(50, 40, o), o);
+      assert.ok(c.imgs.length >= 1, h.name + ': brilho desenhado');
+      var mk = c.imgs[0].args[0], i, j = -1;
+      for (i = 0; i < mk.width * mk.height; i++) if (mk.px[i * 4 + 3] > 0) { j = i; break; }
+      var corBrilho = hexPx(mk.px, j), pico = Math.max.apply(null, c.alfas);
+      [h.palette.mane].forEach(function (crina) {
+        var com = misturaHex(crina, corBrilho, pico), d = Math.abs(lumRel(com) - lumRel(crina));
+        assert.ok(d >= LIMIAR, h.name + ': brilho do Mágico quase invisível na crina ' + crina + ' (cor ' + corBrilho + ', dif. de luminância ' + d.toFixed(3) + ' < ' + LIMIAR + ')');
+      });
+    });
+  });
+});
+
 test('com moldes: rastro atrás da traseira do molde; a silhueta da skill não leva a raridade', function () {
   comMoldes(function () {
     var o = com(CAVM, NOVAS, { raridade: 'mitico' }), L = SPR._layoutMolde('fogo', 'galope', 50, 40, 3);
@@ -1752,7 +1790,7 @@ test('com moldes: rastro atrás da traseira do molde; a silhueta da skill não l
     var novos = comR.rects.filter(function (r) { var j = antes.indexOf(JSON.stringify(r)); if (j < 0) return true; antes.splice(j, 1); return false; });
     var rx = [], ry = [];
     for (var q = 0; q < 9; q++) { rx.push(SINT.ancora('galope', q).rear[0]); ry.push(SINT.ancora('galope', q).rear[1]); }
-    var tx = L.ox + rx.sort()[4] * L.S, ty = L.oy + ry.sort()[4] * L.S;
+    var tx = L.ox + rx.sort(function (a, b) { return a - b; })[4] * L.S, ty = L.oy + ry.sort(function (a, b) { return a - b; })[4] * L.S;
     assert.ok(novos.length >= 3, 'rastro com molde');
     novos.forEach(function (r) {
       assert.ok(r.x + r.w <= tx, 'atrás da traseira: ' + JSON.stringify(r) + ' traseira ' + tx);

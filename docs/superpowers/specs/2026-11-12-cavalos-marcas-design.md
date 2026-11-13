@@ -157,7 +157,7 @@ Efeitos na cor da raridade (`RARITIES[*].color`). O contorno brilhante continua 
 | Raridade | Efeito |
 |---|---|
 | Comum | nada |
-| Mágico | uma faixa de brilho corre pela crina a cada 1,2 s (mistura de 25% da cor) |
+| Mágico | uma faixa de brilho corre pela crina a cada 1,2 s (mistura de 25% da cor da raridade clareada, a mesma do rastro; a cor pura sumia na crina verde da Grama) |
 | Raro | o brilho na crina (30%) e 3 faíscas piscando em volta |
 | Lendário | o brilho mais forte (45%) e 5 faíscas |
 | Mítico | o mesmo do Lendário e um rastro de luz atrás do cavalo no galope da corrida |

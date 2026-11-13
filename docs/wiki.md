@@ -711,10 +711,10 @@ Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada 1,2 s.
 | Raridade | Efeito |
 | --- | --- |
 | Comum | nada |
-| Mágico | brilho na crina (mistura de 25% da cor da raridade) |
-| Raro | brilho na crina (mistura de 30% da cor da raridade) e 3 faíscas piscando em volta |
-| Lendário | brilho na crina (mistura de 45% da cor da raridade) e 5 faíscas piscando em volta |
-| Mítico | brilho na crina (mistura de 45% da cor da raridade) e 5 faíscas piscando em volta e rastro de luz atrás do cavalo no galope da corrida |
+| Mágico | brilho na crina (mistura de 25% da cor da raridade clareada) |
+| Raro | brilho na crina (mistura de 30% da cor da raridade clareada) e 3 faíscas piscando em volta |
+| Lendário | brilho na crina (mistura de 45% da cor da raridade clareada) e 5 faíscas piscando em volta |
+| Mítico | brilho na crina (mistura de 45% da cor da raridade clareada) e 5 faíscas piscando em volta e rastro de luz atrás do cavalo no galope da corrida |
 
 ### Marcas dos iniciais e selvagens
 
