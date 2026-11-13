@@ -12,8 +12,8 @@ node prototype/tools/balance.js --exemplo  # uma corrida narrada
 
 ## 1. Os três iniciais (Comuns ★★, nível 1, mapas aleatórios)
 
-Meta M1: 30% a 37% no geral e 22% a 45% em cada faixa de distância. Medido: **31,8%, 33,3% e 34,9%**
-(terços de 26,7% a 38,9%). Duração com os iniciais: **98,2 s** nas curtas e **128,6 s** nas longas
+Meta M1: 30% a 37% no geral e 22% a 45% em cada faixa de distância. Medido: **Brasa 31,8%, Maré 33,3% e Ipê 34,9%**
+(curta/média/longa: Brasa 38,9/30,8/26,7%, Maré 29,9/33,8/35,7%, Ipê 31,2/35,4/37,6%). Duração com os iniciais: **98,2 s** nas curtas e **128,6 s** nas longas
 (antes do bloco 1b: 95,9 s e 127,1 s; a física ficou mais rápida por proporção e a corrida inteira, mais curta).
 Nível 25: os três caem na Prata (Poder 782–791; nível 1: 626–633, Bronze).
 
@@ -58,23 +58,32 @@ do que o Poder prevê.
 ## 3. Quanto vale cada skill e cada status
 
 Comparação pareada: a mesma corrida (seed e rivais) com e sem a mudança, 6 Raros nível 20, mapa
-aleatório, Dado ligado. O número é o ganho na taxa de vitória (a base é ~17%).
+aleatório, Dado ligado. O número é o ganho na taxa de vitória (a base é ~17%). Meta S1: 3 a 13 p.p.
 
 | Skill | Ganho (p.p.) | | Skill | Ganho (p.p.) | | Skill | Ganho (p.p.) |
 |---|---|---|---|---|---|---|---|
-| Drift | 10,7 | | Névoa Amiga | 7,1 | | Canto da Iara | 5,8 |
-| Casco Firme | 9,0 | | Segundo Ar | 6,8 | | Sprint | 5,7 |
-| Arrancada Final | 8,8 | | Nascente | 6,4 | | Fôlego de Montanha | 4,4 |
-| Pé na Chuva | 8,3 | | Arranque | 6,1 | | Saída Rápida | 4,3 |
-| Sol a Pino | 8,2 | | Chama Final | 6,0 | | Dado Viciado | 1,3 |
+| Drift | 12,7 | | Casco Firme | 9,3 | | Fôlego de Montanha | 5,7 |
+| Arranque | 12,4 | | Arrancada Final | 8,8 | | Canto da Iara | 5,4 |
+| Pé na Chuva | 8,1 | | Nascente | 7,8 | | Segundo Ar | 5,3 |
+| Sol a Pino | 6,3 | | Névoa Amiga | 6,3 | | Saída Rápida | 5,1 |
+| Sprint | 4,9 | | Chama Final | 4,0 | | | |
 
-| +10 pontos em | Força | Velocidade | Estamina | Manobra | Garra | Aceleração | Sorte |
+| +10 pontos em | Manobra | Velocidade | Aceleração | Estamina | Força | Garra | Sorte |
 |---|---|---|---|---|---|---|---|
-| Ganho (p.p.) | 13,7 | 13,2 | 7,6 | 6,8 | 4,8 | 4,6 | 0,5 |
+| Ganho (p.p.) | 11,0 | 10,8 | 10,7 | 10,3 | 10,1 | 9,6 | só nasce (0,7 entre os extremos) |
 
-A Velocidade deixou de dominar (era 18,8 p.p., 2,7× a mediana; agora 1,8×, empatada com a Força).
-Ganho da skill de tipo, campo de 6 com e sem ela: Labareda 8,1 a 10,6 p.p., Maré Alta 9,7 a 12,1 e
-Raízes Firmes 4,4 a 7,4. A diferença é de propósito: o que a meta vigia é o equilíbrio dos tipos (M9).
+Com a física linear até 150 e o custo por faixa, os seis status de corrida rendem quase o mesmo (maior ÷
+menor 1,15; meta ≤ 1,3): a escolha da build é de estilo, não de "o status que vale". A Sorte não recebe pontos.
+
+Ganho da skill de tipo (M2, informativo), campo de 6 com e sem ela:
+
+| Configuração | Fogo (Labareda) | Água (Maré Alta) | Grama (Raízes Firmes) |
+|---|---|---|---|
+| Comum nível 1 | 6,8 p.p. | 9,0 | 9,4 |
+| Raro nível 30 | 10,1 | 12,2 | 11,2 |
+| Lendário nível 50 | 11,3 | 12,9 | 12,0 |
+
+A diferença é de propósito: o que a meta vigia é o equilíbrio dos tipos (M9, 16,3% a 17,2%).
 
 ## 4. Três potros de exemplo
 
@@ -85,21 +94,26 @@ e contador sempre dão o mesmo potro; o `sim-test.js` compara os três por intei
 |---|---|---|---|---|---|---|---|---|
 | 0 | Maré × Brasa (30) | Jurema | Comum ★★ | Fogo | F | 50/53/47/51/52/47/46 | 20/26/14/21/24/14/12 | Sol a Pino |
 | 1 | Faísca × Lambari (1) | Jurema | Comum ★★ | Água | F | 44/46/53/45/44/43/45 | 8/11/25/10/8/5/10 | Arranque |
-| 2 | Ventania × Jequitibá (30) | Trovão | Lendário ★ | Grama | M | 65/64/65/62/69/68/63 | 19/18/20/13/28/25/16 | Sprint, Arrancada Final |
+| 2 | Ventania × Jequitibá (30) | Trovão | Lendário ★ | Grama | M | 64/63/64/61/68/67/62 | 19/18/20/13/28/25/16 | Sprint, Arrancada Final |
 
 O potro 2 nasceu Lendário de pais Raro e Lendário e por isso tem ★: a raridade subiu. A genética é
-metade herdada: o status no nível 1 sai dela e da raridade, sem faixa por estrela.
+metade herdada: o status no nível 1 sai dela e da raridade (base = início da faixa + 16·genética/31), sem
+faixa por estrela. No bloco 1b o início da faixa do Lendário passou de 55 para 54, e por isso o Trovão perdeu 1
+ponto em cada status (era 65/64/65/62/69/68/63); os Comuns não mudaram. O potro nasce sem pontos comprados.
 
 ## 5. Para revisar (decisões de design em aberto)
 
-- **Sorte quase não vale na corrida** (+10 de Sorte rende 0,5 p.p.) e o **Dado Viciado** vale 1,3.
-  Proposta: a Sorte pesar mais na chance de skill, com a chance base de cada raridade compensada para baixo.
-- **Metas no limite:** a Grama no Lendário nível 50 vence 15,4% na M9 (piso 15,3%) e a Água no Raro
-  nível 30, 15,6%; a Grama no Raro nível 30 fica em 17,9% (teto 18%).
-- **Conjunto de 3 peças** valia +1 p.p. e o salto para 4 peças +14 (medição de 2026-11-10, antes do v3).
-  Ou ganha um efeito real, ou fica assumido como degrau.
-- **"Cansou" quase não acontece** (0,8% dos corredores). Subir o erro do jóquei deixaria o cansaço visível.
-- **Garra dispara em 43,5% dos corredores.** Para ser momento raro, a chance teria de cair e as metas, ser medidas de novo.
+Do bloco 1b (spec §15; detalhes no `docs/memoria/ESTADO.md`), **ainda em aberto** até o Vinicius jogar:
+- **A build equilibrada é a mais forte** (o bot a 60–65% no nível 50; as inclinadas em 44–54%). Mudar a regra
+  (custo que para de subir, retorno extra por concentrar) não foi medido.
+- **A corrida mudou de sensação** (mais curta, "Cansou" some, a Garra dispara em 58% das corridas): olhar a animação.
+- **Iniciais no nível 25 caem para a Prata** (eram Ouro).
+- **A Sorte vale pouco** (0,7 p.p.; o Dado Viciado, 1,3 p.p. no modelo anterior): é só de nascimento, por desenho.
+  Proposta antiga ainda aberta: a Sorte pesar mais na chance de skill, com a base de cada raridade compensada para baixo.
+- **Sem fonte de Rédea nova** no jogo normal até os ginásios; **menos uso para o Ouro** com a loja suspensa.
+- **Conjunto de 3 peças:** medido em 2026-11-10 (+1 p.p., e +14 no salto para 4 peças); com o equipamento
+  suspenso, a decisão (efeito real ou degrau assumido) espera o equipamento voltar.
+- **Garra e "Cansou":** a Garra agora dispara em 58% (não é momento raro); o erro do jóquei caiu e "Cansou" quase some.
 - **Zebra por ruído na velocidade: testada em 2026-11-10 e não recomendada.** Com ±2% o favorito caía de
   49% para 41%, mas a corrida ficava decidida mais cedo. Zebra boa vem do fim da corrida (Garra, cansaço).
-- **Os números saíram de simulação:** o Vinicius ainda não jogou o modelo v3.
+- **Os números saíram de simulação:** o Vinicius ainda não jogou o modelo do crescimento livre.
