@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { ICONES_NOVOS, FAMILIAS, RESERVADOS, ANTIGOS } from './icones-catalogo.mjs';
 import { htmlFolhaIcones } from './folha-icones.mjs';
-import { PAPEIS, paletaPng, normalizar, validar, ancoras, paraCinza, deCinza, sombrearRegioes, limparJoquei, limiarOtsu, classificarFamilias, limiaresDeTons, posProcessar, contornar, passada } from './moldes-lib.mjs';
+import { PAPEIS, paletaPng, normalizar, validar, ancoras, paraCinza, deCinza, sombrearRegioes, limparJoquei, limiarOtsu, classificarFamilias, limiaresDeTons, posProcessar, contornar, passada, sombraMagenta, sedaNaPelagem, crinaEscura, corrigirGrupo, modoNatural } from './moldes-lib.mjs';
 
 let fails = 0, count = 0;
 function section(t) { console.log('\n## ' + t); }
@@ -285,6 +285,185 @@ test('magenta que a limpeza tira do jóquei conta como aproximado', () => {
   assert.strictEqual(fam.aproximados, 0); assert.strictEqual(fam.magenta[4], 1);
   const q = posProcessar(fam, limiaresDeTons([fam]), { comJoquei: false });
   assert.strictEqual(q.aproximados, 1); assert.notStrictEqual(q.idx[4], 7);
+});
+
+section('correções de grupo (tarefa 6a: seda no corpo, crina escura e jóquei no cru de cores naturais)');
+// Imagem RGBA a partir de um mapa de letras (cada linha uma string; '.' = transparente) e das cores de cada letra.
+function rgbaDeMapa(linhas, cores) {
+  const w = linhas[0].length, h = linhas.length, rgba = new Uint8Array(w * h * 4);
+  linhas.forEach((l, y) => [...l].forEach((ch, x) => {
+    if (ch === '.') return;
+    rgba.set(hex(cores[ch]), (y * w + x) * 4); rgba[(y * w + x) * 4 + 3] = 255;
+  }));
+  return { rgba, w, h };
+}
+const famDe = (linhas, cores) => { const m = rgbaDeMapa(linhas, cores); return classificarFamilias(m.rgba, m.w, m.h); };
+// o caminho antigo (sem correção de grupo) e o novo, para um grupo de quadros com jóquei
+const papeisSem = (fams, opts) => { const t = limiaresDeTons(fams); return fams.map(f => posProcessar(f, t, opts).idx); };
+const papeisCom = (fams, opts) => { const g = corrigirGrupo(fams, opts); return papeisSem(g.fams, opts); };
+const pos = (linhas, ch) => { const r = []; linhas.forEach((l, y) => [...l].forEach((c, x) => { if (c === ch) r.push(y * linhas[0].length + x); })); return r; };
+// pelagem carmim (#bc0254, 334°) com a sombra puxando para o roxo (#3c0229, 320°: cai na faixa magenta), seda amarela
+const CORES_CARMIM = { C: '#bc0254', d: '#3c0229', Y: '#ffff00', P: '#ffc0cb', k: '#050203' };
+const MAPA_CARMIM = [
+  '....kYYYk.....',
+  '....kYPYk.....',
+  '....kYYYk.....',
+  'kkkkddddCCCCkk',
+  'kCCCddddCCCCCk',
+  'kCCddddddCCCCk',
+  'kCCCCCCCCCCCCk',
+  'kkkkkkkkkkkkkk',
+];
+test('sombraMagenta: a sombra roxa da pelagem carmim vira pelagem (antes: seda no corpo, a listra do galope da Maré)', () => {
+  const f = famDe(MAPA_CARMIM, CORES_CARMIM), ds = pos(MAPA_CARMIM, 'd');
+  assert.ok(ds.every(i => f.idx[i] === 7 && f.magenta[i] === 1), 'a sombra cai na faixa magenta (seda)');
+  const antes = papeisSem([f], { comJoquei: true })[0];
+  assert.ok(ds.every(i => antes[i] === 7), 'sem a correção, encostada no jóquei, a limpeza a mantinha como seda');
+  const sm = sombraMagenta([f]);
+  assert.deepStrictEqual([sm.cores, sm.pixels], [[0x3c0229], ds.length]);
+  assert.ok(ds.every(i => sm.fams[0].idx[i] === 2 && !sm.fams[0].magenta[i]), 'vira família 2, sem a marca de magenta');
+  assert.strictEqual(f.idx[ds[0]], 7, 'pura: não altera a entrada');
+  const depois = papeisCom([f], { comJoquei: true })[0];
+  assert.ok(ds.every(i => depois[i] === 3), 'e sai como sombra da pelagem pelo Otsu (lum 24 × 67)');
+  assert.ok(pos(MAPA_CARMIM, 'Y').every(i => depois[i] === 7), 'a seda continua seda');
+});
+test('sombraMagenta: a sombra escura da seda rosa (encosta no jóquei) e a sela magenta clara continuam seda', () => {
+  // P = seda rosa clara (#e254a4, magenta clara: não é candidata), m = sombra dela (#78184d, escura: candidata), S = sela
+  // magenta clara (#fc0898) em cima da pelagem castanha (#85363b)
+  const L = ['..PPPP....', '..PmmP....', '..PmmP....', '..YYYY....', 'CCSSSSCCCC', 'CCCSSCCCCC', 'CCCCCCCCCC'];
+  const f = famDe(L, { P: '#e254a4', m: '#78184d', Y: '#ffff00', S: '#fc0898', C: '#85363b' });
+  const sm = sombraMagenta([f]);
+  assert.deepStrictEqual([sm.cores, sm.pixels], [[], 0]);
+  assert.strictEqual(sm.fams[0], f, 'nada a mudar: o mesmo quadro');
+});
+test('sombraMagenta: decide por cor no grupo todo (o galope não pisca) e em cadeia', () => {
+  // quadro 1: a sombra d (#3c0229) só encosta na seda e em e; no quadro 0 ela encosta mais na pelagem, e no grupo a
+  // pelagem ganha ⇒ pelagem nos dois quadros. e (#4b012c) só encosta em d: vira pelagem em cadeia, depois que d virou.
+  const cores = { C: '#bc0254', d: '#3c0229', e: '#4b012c', Y: '#ffff00' };
+  const q0 = famDe(['CCCCCCCCCC', 'CddddddddC', 'CCCCCCCCCC', 'CddddddddC', 'CCCCCCCCCC'], cores);
+  const q1 = famDe(['YYYYY', 'YdddY', 'YdedY', 'YdddY', 'YYYYY'], cores);
+  const sm = sombraMagenta([q0, q1]);
+  assert.deepStrictEqual(sm.cores, [0x3c0229, 0x4b012c]);
+  assert.strictEqual(Array.from(sm.fams[1].idx).join(''), '7777772227722277222777777', 'no quadro 1 também, cercada de seda');
+  // sozinho, o quadro 1 não converte nada (só encosta na seda); sem o quadro 1, e não aparece
+  assert.deepStrictEqual(sombraMagenta([q1]).cores, []);
+  assert.deepStrictEqual(sombraMagenta([q0]).cores, [0x3c0229]);
+});
+// cavalo de cores naturais (o robusto de 2026-11-13): pelagem castanha, crina e cauda pretas grossas, contorno preto
+// fino, patas pretas, jóquei de seda carmim (a mesma família da pelagem) com capacete amarelo, rosto e calça branca
+const CORES_NATURAL = { k: '#090605', c: '#885035', s: '#54251d', n: '#181626', Y: '#fbd26e', P: '#f9b799', J: '#90274c', H: '#ec578e', W: '#fcfbfb', b: '#0b0808' };
+const MAPA_NATURAL = [
+  '.........kYYk..........',
+  '.........kPPk.....kk...',
+  '........kJHJk....knnk..',
+  '........kJJJk...knnnck.',
+  '........kJHJk..knnnccck',
+  '.......kWWWWWkknnnccck.',
+  '..kk..kYWbbWYknnncck...',
+  '.knnkkkYYbbYYknnncck...',
+  '.knnkcckYbbYkccccck....',
+  '.knnkccckYYkcccccck....',
+  '.knnkcccccccccccsck....',
+  '.knnkcsssssssssssck....',
+  '..knkkkkkkkkkkkkkk.....',
+  '..knk.kbbk...kbbk......',
+  '..knk.kbbk...kbbk......',
+  '...k..kbbk...kbbk......',
+  '......kbbk...kbbk......',
+  '......kkkk...kkkk......',
+];
+test('modo natural: grupo sem nenhum pixel da família crina; com crina pedida, nada muda', () => {
+  const f = famDe(MAPA_NATURAL, CORES_NATURAL);
+  assert.strictEqual(modoNatural([f]), true);
+  const verde = famDe(MAPA_NATURAL, Object.assign({}, CORES_NATURAL, { n: '#008000' }));
+  assert.strictEqual(modoNatural([verde]), false);
+  const g = corrigirGrupo([verde], { comJoquei: true });
+  assert.deepStrictEqual([g.natural, g.seda.pixels, g.crina], [false, 0, [0]]);
+  assert.strictEqual(g.fams[0], verde, 'grupo com crina pedida passa sem mudança');
+});
+test('sedaNaPelagem: a seda carmim que caiu na família da pelagem volta a ser seda (o jóquei escuro do robusto-folhas)', () => {
+  const f = famDe(MAPA_NATURAL, CORES_NATURAL), J = pos(MAPA_NATURAL, 'J'), H = pos(MAPA_NATURAL, 'H');
+  assert.ok([...J, ...H].every(i => f.idx[i] === 2), 'a seda carmim (#90274c, #ec578e) cai na família 2, como a pelagem');
+  const antes = papeisSem([f], { comJoquei: true })[0];
+  const capacete = pos(MAPA_NATURAL, 'Y').filter(i => i < MAPA_NATURAL[0].length);
+  assert.ok(capacete.every(i => antes[i] !== 7), 'sem a correção: o capacete fica solto e a limpeza o apaga');
+  const sp = sedaNaPelagem([f]);
+  assert.deepStrictEqual(sp.cores, [0x90274c, 0xec578e], 'o brilho #ec578e entra em cadeia (só encosta na sombra da seda)');
+  assert.ok(pos(MAPA_NATURAL, 'c').every(i => sp.fams[0].idx[i] === 2), 'a pelagem fica pelagem');
+  const depois = papeisCom([f], { comJoquei: true })[0];
+  assert.ok([...J, ...H, ...capacete].every(i => depois[i] === 7), 'tronco e capacete de seda');
+  assert.ok(pos(MAPA_NATURAL, 'P').every(i => depois[i] === 8), 'o rosto fica (pele)');
+});
+test('crinaEscura: a crina e a cauda pretas grossas viram crina; contorno fino, patas, bota sob o jóquei e borda ficam', () => {
+  const f = sedaNaPelagem([famDe(MAPA_NATURAL, CORES_NATURAL)]).fams[0], L = MAPA_NATURAL[0].length;
+  const r = crinaEscura(f, { comJoquei: true, evitar: new Set([0x90274c, 0xec578e]) });
+  const no = (x, y) => r.fam.idx[y * L + x];
+  assert.ok(r.pixels > 0);
+  assert.strictEqual(no(17, 4), 4, 'crina (miolo da mancha no pescoço)'); assert.strictEqual(no(2, 8), 4, 'cauda');
+  assert.strictEqual(no(3, 14), 4, 'a cauda inteira, também abaixo da metade (o componente começa no alto)');
+  assert.strictEqual(no(1, 8), 1, 'a borda da cauda (encosta no fundo) fica contorno');
+  assert.strictEqual(no(7, 14), 1, 'a pata preta (começa embaixo da barriga) fica');
+  assert.strictEqual(no(9, 7), 1, 'a bota entre a calça e a manta (dentro da caixa do jóquei) fica');
+  assert.strictEqual(no(10, 8), 1);
+  assert.strictEqual(no(9, 12), 1, 'a linha fina do contorno da barriga fica');
+  assert.strictEqual(f.idx[4 * L + 17], 1, 'pura');
+  // sem jóquei (retrato), a mesma imagem não tem caixa: a bota vira crina — o retrato natural não tem jóquei
+  assert.strictEqual(crinaEscura(f).fam.idx[7 * L + 9], 4);
+});
+test('corrigirGrupo no cru natural: crina e jóquei de volta, e a forma passa (papéis 4, 7 e 8)', () => {
+  const f = famDe(MAPA_NATURAL, CORES_NATURAL), m = rgbaDeMapa(MAPA_NATURAL, CORES_NATURAL);
+  const sem = posProcessar(f, limiaresDeTons([f]), { comJoquei: true });
+  assert.match(validar(sem, { exigeJoquei: true }).motivo, /faltam papéis: 4 \(crina\)/);
+  const g = corrigirGrupo([f], { comJoquei: true }), q = posProcessar(g.fams[0], limiaresDeTons(g.fams), { comJoquei: true });
+  assert.deepStrictEqual([g.natural, g.seda.cores.length > 0, g.crina[0] > 0], [true, true, true]);
+  assert.ok([4, 7, 8].every(p => q.papeis.has(p)), [...q.papeis].join(','));
+  assert.strictEqual(m.w, MAPA_NATURAL[0].length);
+});
+// Os crus de verdade (raw/ é versionado): os defeitos da folha final de 2026-11-13 e os crus do lote antigo.
+const RAW = path.join(DIR, 'raw');
+const lerCruRaw = nome => decodePng(fs.readFileSync(path.join(RAW, nome)));
+const grupoCru = (base, n) => (n ? Array.from({ length: n }, (_, i) => `${base}-${i}.png`) : [base + '.png']).map(f => classificarFamilias(lerCruRaw(f).rgba, 64, 64));
+const temCru = nome => fs.existsSync(path.join(RAW, nome));
+if (!temCru('portes-padrao-ondas-galope-c3505g100m4102-s3405-0.png')) console.log('  sem os crus dos portes — bloco pulado');
+else {
+  test('cru padrao-ondas (galope 3405): a sombra carmim não sobra como seda no corpo; antes, 2005 pixels', () => {
+    const fams = grupoCru('portes-padrao-ondas-galope-c3505g100m4102-s3405', 9), sombra = new Set([0x3c0229, 0x4b012c, 0x6a0238, 0x76013c]);
+    const conta = papeis => papeis.reduce((n, q, k) => n + q.filter((v, i) => v === 7 && sombra.has(fams[k].cor[i])).length, 0);
+    assert.strictEqual(conta(papeisSem(fams, { comJoquei: true, contorno: true })), 2005);
+    assert.strictEqual(conta(papeisCom(fams, { comJoquei: true, contorno: true })), 0);
+  });
+  test('crus do robusto (parado das 4 versões): crina achada e a forma passa; no folhas, o jóquei de seda e pele', () => {
+    for (const [base, falta] of [['portes-robusto-lisa-parado-g35padrao3102-s5103', /faltam papéis: 4/], ['portes-robusto-chamas-parado-g100m5103-s3503', /fora da paleta/],
+      ['portes-robusto-ondas-parado-g100m5103-s3406', /fora da paleta/], ['portes-robusto-folhas-parado-g100m5103-s3609', /faltam papéis: 4 \(crina\), 8/]]) {
+      const fams = grupoCru(base), t0 = limiaresDeTons(fams), q0 = posProcessar(fams[0], t0, { comJoquei: true });
+      assert.ok(!q0.papeis.has(4) && !q0.papeis.has(5), base + ': antes, sem crina (a crina preta saía como contorno)');
+      assert.match(validar(q0, { exigeJoquei: true }).motivo, falta);
+      const g = corrigirGrupo(fams, { comJoquei: true }), q = posProcessar(g.fams[0], limiaresDeTons(g.fams), { comJoquei: true });
+      const crina = q.idx.filter(v => v === 4 || v === 5).length;
+      assert.ok(g.natural && crina >= 80, `${base}: ${crina} pixels de crina`);
+      if (/folhas/.test(base)) {
+        assert.strictEqual(validar(q, { exigeJoquei: true }).ok, true, validar(q, { exigeJoquei: true }).motivo);
+        assert.deepStrictEqual(g.seda.cores, [0x7d273c, 0x90274c, 0xa9496f, 0xd95480, 0xec578e]);
+        assert.ok(q.idx.filter(v => v === 7).length >= 100 && q.idx.filter(v => v === 8).length >= 5, 'seda e rosto de volta');
+      }
+    }
+  });
+}
+test('crus do lote antigo (os 4 moldes do jogo e as tentativas deles): nenhuma correção de grupo se aplica', () => {
+  const crus = fs.existsSync(RAW) ? fs.readdirSync(RAW).filter(f => f.endsWith('.png') && !f.startsWith('portes-')) : [];
+  const grupos = new Map();
+  for (const f of crus) { const m = /^(.*-galope-.*)-\d+\.png$/.exec(f), k = m ? m[1] : f; grupos.set(k, [...(grupos.get(k) || []), f]); }
+  let n = 0;
+  for (const [k, arqs] of grupos) {
+    const fams = arqs.map(f => lerCruRaw(f)).filter(d => d.width === 64).map(d => classificarFamilias(d.rgba, 64, 64));
+    if (!fams.length) continue;
+    n++;
+    for (const comJoquei of [false, true]) {
+      const g = corrigirGrupo(fams, { comJoquei });
+      assert.ok(!g.natural && !g.sombraMagenta.pixels && g.fams.every((f, i) => f === fams[i]), k);
+    }
+  }
+  if (crus.length) assert.ok(n >= 16, 'grupos: ' + n);
 });
 
 section('moldes reais');
@@ -1577,6 +1756,41 @@ await testA('escolha que continua valendo não muda: a corrida reavaliada não t
   await semRede(() => Pl().dryRunPortes({ fase: 'mestres', dirs: F.dirs }, l => l2.push(l)));
   assert.match(l2.join('\n'), /esguio-lisa\/galope +seed 3101[^\n]*\n[^\n]*first_frame = esguio-lisa\/corrida seed 3101/);
   fs.writeFileSync(arq, guardado);
+});
+
+await testA('--manter-escolhas (só no --reprocessar): a escolha gravada fica, mesmo reprovada, e a etapa grava a que seria escolhida', async () => {
+  // a folha já revista não troca de desenho num reprocessamento depois de mudar a classificação (tarefa 6a)
+  const G = pastaTemp(), sem = () => { throw new Error('chamou a API'); };
+  await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: apiFalsa(CENARIO).executar, dirs: G.dirs, log: () => {} }));
+  // padrão/retrato: a 3102 reprovou (pernas coladas) e a 3202 foi escolhida; o registro passa a ter a 3102 escolhida
+  const arq = path.join(G.dirs.novos, 'criterios.json'), C0 = lerJ(arq);
+  assert.deepStrictEqual(C0.itens['padrao-lisa'].etapas.retrato.tentativas.map(t => t.seed + (t.ok ? '✓' : '✗')), ['3102✗', '3202✓']);
+  C0.itens['padrao-lisa'].etapas.retrato.escolhida = 3102; fs.writeFileSync(arq, JSON.stringify(C0, null, 2) + '\n');
+  const linhas = [];
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', manterEscolhas: true, executar: sem, dirs: G.dirs, log: l => linhas.push(l) }));
+  assert.strictEqual(r.parada, null);
+  const ret = lerJ(arq).itens['padrao-lisa'].etapas.retrato;
+  assert.deepStrictEqual([ret.escolhida, ret.ok, ret.mantida], [3102, false, { seria: 3202, seriaOk: true }]);
+  assert.deepStrictEqual(r.mantidas, [{ rotulo: 'padrao-lisa/retrato', seed: 3102, ok: false, seria: 3202, seriaOk: true }]);
+  assert.match(linhas.join('\n'), /retrato: escolha mantida \(--manter-escolhas\): seed 3102; pelos critérios de hoje seria a seed 3202 \(aprovada\)/);
+  const J = lerJ(path.join(G.dirs.novos, 'molde-padrao-lisa.json'));
+  assert.strictEqual(J.seeds.retrato, 3102, 'o final é regravado com a escolha mantida');
+  // as etapas em que a escolhida já é a melhor não ganham `mantida`
+  assert.ok(Object.values(lerJ(arq).itens['esguio-lisa'].etapas).every(x => !('mantida' in x)));
+  const Fo = await import('./folha-portes.mjs');
+  assert.match(Fo.htmlFolhaMestres(Fo.dadosMestres(G.dirs.novos)), /retrato 3102: escolha mantida no reprocessamento \(--manter-escolhas\); pelos critérios de hoje seria a seed 3202 \(aprovada\)/);
+  // sem a opção, a regra de sempre: a anterior reprovada perde para a aprovada
+  await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', executar: sem, dirs: G.dirs, log: () => {} }));
+  const ret2 = lerJ(arq).itens['padrao-lisa'].etapas.retrato;
+  assert.deepStrictEqual([ret2.escolhida, ret2.ok, 'mantida' in ret2], [3202, true, false]);
+  // erros de uso: só com --reprocessar
+  await assert.rejects(() => Pl().rodarPortes({ fase: 'mestres', modo: 'plano', manterEscolhas: true, dirs: G.dirs }), /--manter-escolhas só anda com --reprocessar/);
+  assert.match(Pl().validarArgsPortes({ fase: 'mestres', manterEscolhas: true }, G.dirs.novos), /--manter-escolhas só anda com --reprocessar/);
+  assert.strictEqual(Pl().validarArgsPortes({ fase: 'mestres', manterEscolhas: true, reprocessar: true }, G.dirs.novos), null);
+  const cli = cliPortes(['--fase', 'mestres', '--manter-escolhas']);
+  assert.deepStrictEqual([cli.status, /--manter-escolhas só anda com --reprocessar/.test(cli.stderr), /REDE PROIBIDA/.test(cli.stderr)], [2, true, false]);
+  const cliM = spawnSync(process.execPath, ['--import', BLOQUEIO_REDE, path.join(path.dirname(fileURLToPath(import.meta.url)), 'pixellab-moldes.mjs'), '--lote', 'moldes', '--manter-escolhas'], { encoding: 'utf8' });
+  assert.deepStrictEqual([cliM.status, /--manter-escolhas só vale com --lote portes/.test(cliM.stderr)], [2, true]);
 });
 
 await testA('--refazer padrao-lisa:corrida: corrida e galope em seeds novas (4102+); retrato e parado intactos; histórico, teto e retomada', async () => {

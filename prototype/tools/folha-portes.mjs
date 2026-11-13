@@ -13,7 +13,8 @@
 // Os critérios são recalculados dos arquivos (portes-criterios.mjs); do criterios.json do lote vêm as seeds, o número
 // de tentativas, o que reprovou na forma, a guia de outro mestre (--guia-mestre) e as escolhas manuais (--escolher).
 // Item reprovado sai marcado com o critério que falhou; o critério que uma escolha manual aceitou sai como "aceito"
-// (não reprova o cartão), com a linha "escolha manual — aceito na folha: <motivo>".
+// (não reprova o cartão), com a linha "escolha manual — aceito na folha: <motivo>". A etapa que um --reprocessar
+// --manter-escolhas manteve sai com a seed que os critérios de hoje escolheriam.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -206,8 +207,11 @@ function registroTxt(reg) {
   const guiaTxt = guias.length ? `<p class="suave">Guia de outro mestre: ${guias.map(([e, gm]) => `${e} com init_image = ${esc(gm.arquivo || '?')} (${esc(forcasTxt(e, gm))})`).join('; ')} · reforço "${esc(guias[0][1].reforco)}"</p>` : '';
   const escolhas = ['retrato', 'parado', 'corrida', 'galope'].map(e => [e, reg.etapas && reg.etapas[e] && reg.etapas[e].escolha]).filter(([, x]) => x && x.manual);
   const escolhaTxt = escolhas.map(([e, x]) => `<p class="aceito">${esc(e)} ${esc(x.seed)}: escolha manual — aceito na folha: ${esc(x.motivo)}${x.aceitos && x.aceitos.length ? ` <small>(${esc(x.aceitos.join('; '))})</small>` : ''}${x.automatico ? ` <small>(${esc(x.automatico)})</small>` : ''}</p>`).join('');
+  // --reprocessar --manter-escolhas: a escolha revista ficou, e pelos critérios de hoje a escolhida seria outra seed
+  const mantidas = ['retrato', 'parado', 'corrida', 'galope'].map(e => [e, reg.etapas && reg.etapas[e]]).filter(([, x]) => x && x.mantida);
+  const mantidaTxt = mantidas.map(([e, x]) => `<p class="suave">${esc(e)} ${esc(x.escolhida)}: escolha mantida no reprocessamento (--manter-escolhas); pelos critérios de hoje seria a seed ${esc(x.mantida.seria)}${x.mantida.seriaOk ? ' (aprovada)' : ''}</p>`).join('');
   return `<p class="suave">Seeds: ${esc(seeds.join(' · '))}${reg.guia ? ` · init_image do mestre, força ${esc(reg.guia.init_image_strength)}` : ''}</p>`
-    + guiaTxt + escolhaTxt + (forma.length ? `<p class="nao">${forma.map(esc).join('<br>')}</p>` : '');
+    + guiaTxt + escolhaTxt + mantidaTxt + (forma.length ? `<p class="nao">${forma.map(esc).join('<br>')}</p>` : '');
 }
 // o molde desenhado direto: retrato, parado e galope animado em 1× e 4×, e os quadros do galope parados em 2×
 function desenhoDireto(m, chave) {

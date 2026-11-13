@@ -3,7 +3,7 @@
 // Uso:  NODE_USE_ENV_PROXY=1 node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|icones2|tudo [--only <id>] [--teto 60] [--gerar]
 //       NODE_USE_ENV_PROXY=1 node prototype/tools/pixellab-moldes.mjs --lote portes --fase mestres|piloto|versoes [--only <porte>[-<estilo>]] [--teto 90] [--gerar]
 //         [--sem-guia <porte>-<estilo>]… [--guia-galope-mestre <porte>-<estilo>]… [--refazer <porte>-<estilo>:<etapa>[,…]]…
-//         [--nova-refacao] [--guia-mestre <porte>-lisa=<porte>-lisa]…
+//         [--nova-refacao] [--guia-mestre <porte>-lisa=<porte>-lisa]… [--reprocessar [--manter-escolhas]]
 //         (ver o topo do pixellab-portes.mjs; no portes, sai 0 com item só reprovado num critério)
 //       node prototype/tools/pixellab-moldes.mjs --lote portes --fase … --escolher <porte>-<estilo>:<etapa>=<seed>… --motivo "<texto>"
 //         (escolha manual de uma tentativa já paga: sem rede e sem custo, só raw/; regrava novos/)
@@ -36,8 +36,11 @@
 // por TEXTO, galope em /animate-with-text-v3 a partir do montado. Cada quadro é classificado por família de
 // cor (moldes-lib: classificarFamilias); claro × sombra da pelagem e da crina usam um limiar de Otsu por
 // geração — retrato, parado e os quadros do galope juntos (para o galope não piscar); juntar as três
-// gerações não serve, porque cada uma vem com um brilho diferente. Depois limpa os papéis do jóquei,
-// sombreia por procedimento o par desequilibrado, fecha o contorno só no montado e no galope (o animate
+// gerações não serve, porque cada uma vem com um brilho diferente. Antes dos limiares, as correções de grupo
+// (moldes-lib: corrigirGrupo, 2026-11-13): a sombra roxa da pelagem que caía na faixa magenta da seda volta à
+// pelagem, e no cru de cores naturais (grupo sem nenhum pixel da família crina) a crina escura é achada pela forma e
+// a seda que caiu na pelagem volta ao jóquei; os crus dos 4 moldes de hoje não passam por nenhuma delas. Depois limpa
+// os papéis do jóquei, sombreia por procedimento o par desequilibrado, fecha o contorno só no montado e no galope (o animate
 // devolve sem borda; no retrato e no parado a regra de silhueta do validar continua valendo) e valida.
 // Quadro inválido refaz o item com seed + 10 (até 2 repetições por item, contando no teto).
 // A paleta forçada (color_image com as cores de papel + /reduce-colors) foi testada em 2026-11-08 e
@@ -182,11 +185,12 @@ function pedidoIcone(icone, seed) {
 function sair(msg) { console.error(msg); process.exit(2); }
 
 function lerArgs(argv) {
-  const a = { lote: null, fase: null, only: null, teto: null, gerar: false, reprocessar: false, repetir: [], semGuia: [], guiaGalope: [], refazer: [], novaRefacao: false, guiaMestre: [], escolher: [], motivo: null, testarCrinas: false, forca: null };
+  const a = { lote: null, fase: null, only: null, teto: null, gerar: false, reprocessar: false, manterEscolhas: false, repetir: [], semGuia: [], guiaGalope: [], refazer: [], novaRefacao: false, guiaMestre: [], escolher: [], motivo: null, testarCrinas: false, forca: null };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--gerar') a.gerar = true;
     else if (k === '--reprocessar') a.reprocessar = true;
+    else if (k === '--manter-escolhas') a.manterEscolhas = true;
     else if (k === '--lote') a.lote = argv[++i];
     else if (k === '--only') a.only = argv[++i];
     else if (k === '--fase') a.fase = argv[++i];
@@ -207,7 +211,7 @@ function lerArgs(argv) {
     sair('uso: node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|icones2|tudo [--only <id>] [--teto 60] [--gerar]\n'
       + '     node prototype/tools/pixellab-moldes.mjs --lote portes --fase mestres|piloto|versoes [--only <porte>[-<estilo>]] [--teto 90] [--gerar]\n'
       + '       [--sem-guia <porte>-<estilo>]… [--guia-galope-mestre <porte>-<estilo>]… [--refazer <porte>-<estilo>:<etapa>[,<etapa>…]]… [--nova-refacao]\n'
-      + '       [--guia-mestre <porte>-lisa=<porte>-lisa]…\n'
+      + '       [--guia-mestre <porte>-lisa=<porte>-lisa]… [--reprocessar [--manter-escolhas]]\n'
       + '     node prototype/tools/pixellab-moldes.mjs --lote portes --fase mestres|piloto|versoes --escolher <porte>-<estilo>:<etapa>=<seed>… --motivo "<texto>"');
   }
   if (a.teto == null) a.teto = a.lote === 'portes' ? TETO_PORTES : 60;
@@ -223,6 +227,7 @@ function lerArgs(argv) {
   if (a.fase != null || a.semGuia.length || a.guiaGalope.length || a.refazer.length || a.novaRefacao || a.guiaMestre.length || a.escolher.length || a.motivo != null) {
     sair('--fase, --sem-guia, --guia-galope-mestre, --refazer, --nova-refacao, --guia-mestre, --escolher e --motivo só valem com --lote portes');
   }
+  if (a.manterEscolhas) sair('--manter-escolhas só vale com --lote portes (o lote moldes não guarda escolhas para manter)');
   if (a.testarCrinas && (a.reprocessar || ['icones', 'icones2'].includes(a.lote) || a.repetir.length)) sair('--testar-crinas: só com --lote moldes|tudo, sem --reprocessar nem --repetir');
   if (a.forca != null && !a.testarCrinas) sair('--forca só vale com --testar-crinas');
   a.estilos = ['icones', 'icones2'].includes(a.lote) ? [] : ESTILOS.filter(e => !a.only || e.id === a.only);
@@ -674,7 +679,7 @@ async function gerarPortes(a) {
       throw new ErroApi(`saldo do plano (${disponivel}) menor que o que sobra do teto (${fmt(sobra)}): o resto sairia dos créditos em US$; abortado`, { fatal: true });
     }
   }
-  const r = await rodarPortes({ fase: a.fase, only: a.only, teto: a.teto, repetir: a.repetir, semGuia: a.semGuia, guiaGalope: a.guiaGalope, refazer: a.refazer, novaRefacao: a.novaRefacao, guiaMestre: a.guiaMestre, modo: a.reprocessar ? 'reprocessar' : 'gerar', executar: executarReal });
+  const r = await rodarPortes({ fase: a.fase, only: a.only, teto: a.teto, repetir: a.repetir, semGuia: a.semGuia, guiaGalope: a.guiaGalope, refazer: a.refazer, novaRefacao: a.novaRefacao, guiaMestre: a.guiaMestre, modo: a.reprocessar ? 'reprocessar' : 'gerar', executar: executarReal, manterEscolhas: a.manterEscolhas });
   if (!a.reprocessar) {
     try {
       const depois = await saldo('depois');

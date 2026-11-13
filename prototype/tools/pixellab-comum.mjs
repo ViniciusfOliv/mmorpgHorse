@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePng, encodeGray } from './png.mjs';
-import { validar, ancoras, paraCinza, classificarFamilias, limiaresDeTons, posProcessar } from './moldes-lib.mjs';
+import { validar, ancoras, paraCinza, classificarFamilias, corrigirGrupo, limiaresDeTons, posProcessar } from './moldes-lib.mjs';
 
 export const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const DIR_MOLDES = path.join(RAIZ, 'prototype', 'assets', 'pixellab');
@@ -258,11 +258,11 @@ export function decodificar64(buf, onde) {
   }
   return d;
 }
-// Classifica um grupo de quadros com os limiares do próprio grupo (como nos finais: retrato, parado e o
-// galope inteiro), limpa e valida. Devolve os quadros e as falhas (o lote portes guarda a melhor tentativa
+// Classifica um grupo de quadros com as correções de grupo (corrigirGrupo) e os limiares do próprio grupo (como nos
+// finais: retrato, parado e o galope inteiro), limpa e valida. Devolve os quadros e as falhas (o lote portes guarda a melhor tentativa
 // mesmo reprovada); preChecar() é a forma antiga, com a 1ª falha.
 export function classificarGrupo(bufs, comJoquei, onde, contorno) {
-  const fams = bufs.map((b, i) => classificarFamilias(decodificar64(b, `${onde} quadro ${i}`).rgba, LADO, LADO));
+  const { fams } = corrigirGrupo(bufs.map((b, i) => classificarFamilias(decodificar64(b, `${onde} quadro ${i}`).rgba, LADO, LADO)), { comJoquei });
   const tons = limiaresDeTons(fams);
   const ruins = [], quadros = fams.map(f => posProcessar(f, tons, { comJoquei, contorno }));
   quadros.forEach((q, i) => {
@@ -290,6 +290,11 @@ export function quadrosDoMolde(retrato, parado, galope) {
   const grupoDe = n => (n.startsWith('galope-') ? 'galope' : n);
   const fonte = n => (n.startsWith('galope-') ? galope[Number(n.slice(7))] : n === 'retrato' ? retrato : parado);
   const fams = nomes.map(n => classificarFamilias(decodificar64(fonte(n), n).rgba, LADO, LADO));
+  // as correções de grupo (corrigirGrupo) e os limiares, uma vez por geração, como na pré-checagem
+  for (const g of ['retrato', 'parado', 'galope']) {
+    const is = nomes.map((n, i) => (grupoDe(n) === g ? i : -1)).filter(i => i >= 0);
+    corrigirGrupo(is.map(i => fams[i]), { comJoquei: g !== 'retrato' }).fams.forEach((f, k) => { fams[is[k]] = f; });
+  }
   const tons = {};
   for (const g of ['retrato', 'parado', 'galope']) tons[g] = limiaresDeTons(fams.filter((_, i) => grupoDe(nomes[i]) === g));
   const quadros = fams.map((f, i) => posProcessar(f, tons[grupoDe(nomes[i])], { comJoquei: nomes[i] !== 'retrato', contorno: grupoDe(nomes[i]) === 'galope' }));
