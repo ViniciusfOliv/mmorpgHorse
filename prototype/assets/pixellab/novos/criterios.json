@@ -1,5 +1,49 @@
 {
-  "piloto": {},
+  "piloto": {
+    "esguio": {
+      "chave": "esguio-chamas",
+      "mesmoCorpo": false,
+      "retrato": {
+        "ok": false,
+        "falhas": [
+          "seed 3401: mesmo corpo no retrato: nose.y = 10 (|Δ| ≤ 2 px)",
+          "seed 3501: mesmo corpo no retrato: nose.y = 10 (|Δ| ≤ 2 px)",
+          "seed 3601: mesmo corpo no retrato: nose.x = 3 (|Δ| ≤ 2 px); mesmo corpo no retrato: nose.y = 13 (|Δ| ≤ 2 px); mesmo corpo no retrato: comprimento = 3 (|Δ| ≤ 2 px)"
+        ]
+      },
+      "parado": {
+        "ok": true,
+        "seed": 3401
+      },
+      "atualizado": "2026-11-13T13:27:37.400Z"
+    },
+    "padrao": {
+      "chave": "padrao-chamas",
+      "mesmoCorpo": true,
+      "retrato": {
+        "ok": true,
+        "seed": 3402
+      },
+      "parado": {
+        "ok": true,
+        "seed": 3402
+      },
+      "atualizado": "2026-11-13T13:27:37.400Z"
+    },
+    "robusto": {
+      "chave": "robusto-chamas",
+      "mesmoCorpo": true,
+      "retrato": {
+        "ok": true,
+        "seed": 3403
+      },
+      "parado": {
+        "ok": true,
+        "seed": 3503
+      },
+      "atualizado": "2026-11-13T13:27:37.400Z"
+    }
+  },
   "portes": {
     "faltam": [],
     "criterios": [
@@ -2956,6 +3000,2013 @@
           }
         }
       ]
+    },
+    "esguio-chamas": {
+      "fase": "piloto",
+      "porte": "esguio",
+      "estilo": "chamas",
+      "mestre": "esguio-lisa",
+      "variante": "init_image do mestre",
+      "guia": {
+        "init_image_strength": 100
+      },
+      "guiaGalope": null,
+      "seedBase": 3401,
+      "refacoes": {
+        "retrato": 0,
+        "parado": 0,
+        "corrida": 0,
+        "galope": 0
+      },
+      "completo": true,
+      "final": true,
+      "ok": false,
+      "falhas": [
+        "retrato: pernas no retrato = 3 (= 4)",
+        "retrato: mesmo corpo no retrato: nose.y = 10 (|Δ| ≤ 2 px)",
+        "parado: pernas no parado = 2 (= 4)",
+        "galope: forma (galope) = 5 (paleta, papéis obrigatórios e silhueta fechada (validar))",
+        "galope: lombo na coluna da sela = 8 (varia ≤ 3 px)"
+      ],
+      "etapas": {
+        "retrato": {
+          "escolhida": 3501,
+          "ok": false,
+          "terminada": true,
+          "refacao": 0,
+          "tentativas": [
+            {
+              "seed": 3401,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, standing still horse, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, no rider, no saddle, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-esguio-chamas-retrato-g100m3101-s3401.png",
+              "geracoes": 1,
+              "marca": "g100m3101",
+              "init_image": "raw/portes-esguio-lisa-retrato-s3101.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:07:51.626Z",
+              "criterios": [
+                {
+                  "criterio": "forma (retrato)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no retrato",
+                  "ok": false,
+                  "valor": 2,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: footY",
+                  "ok": true,
+                  "valor": -1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.x",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.y",
+                  "ok": false,
+                  "valor": 10,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: altura",
+                  "ok": true,
+                  "valor": -1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: comprimento",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": false
+            },
+            {
+              "seed": 3501,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, standing still horse, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, no rider, no saddle, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-esguio-chamas-retrato-g100m3101-s3501.png",
+              "geracoes": 1,
+              "marca": "g100m3101",
+              "init_image": "raw/portes-esguio-lisa-retrato-s3101.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:08:02.302Z",
+              "criterios": [
+                {
+                  "criterio": "forma (retrato)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no retrato",
+                  "ok": false,
+                  "valor": 3,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: footY",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.x",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.y",
+                  "ok": false,
+                  "valor": 10,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: altura",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: comprimento",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": false
+            },
+            {
+              "seed": 3601,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, standing still horse, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, no rider, no saddle, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-esguio-chamas-retrato-g100m3101-s3601.png",
+              "geracoes": 1,
+              "marca": "g100m3101",
+              "init_image": "raw/portes-esguio-lisa-retrato-s3101.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:08:24.278Z",
+              "criterios": [
+                {
+                  "criterio": "forma (retrato)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no retrato",
+                  "ok": false,
+                  "valor": 2,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: footY",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.x",
+                  "ok": false,
+                  "valor": 3,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.y",
+                  "ok": false,
+                  "valor": 13,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: altura",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: comprimento",
+                  "ok": false,
+                  "valor": 3,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": false
+            }
+          ]
+        },
+        "parado": {
+          "escolhida": 3401,
+          "ok": false,
+          "terminada": true,
+          "refacao": 0,
+          "tentativas": [
+            {
+              "seed": 3401,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-esguio-chamas-parado-g100m3101-s3401.png",
+              "geracoes": 1,
+              "marca": "g100m3101",
+              "init_image": "raw/portes-esguio-lisa-parado-s3101.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:08:43.109Z",
+              "criterios": [
+                {
+                  "criterio": "forma (parado)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no parado",
+                  "ok": false,
+                  "valor": 2,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: footY",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.x",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.y",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: altura",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: comprimento",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": false
+            },
+            {
+              "seed": 3501,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-esguio-chamas-parado-g100m3101-s3501.png",
+              "geracoes": 1,
+              "marca": "g100m3101",
+              "init_image": "raw/portes-esguio-lisa-parado-s3101.png",
+              "init_image_strength": 100,
+              "ok": false,
+              "motivo": "POST /create-image-pixflux → HTTP 502: upstream request failed"
+            },
+            {
+              "seed": 3601,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-esguio-chamas-parado-g100m3101-s3601.png",
+              "geracoes": 1,
+              "marca": "g100m3101",
+              "init_image": "raw/portes-esguio-lisa-parado-s3101.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:09:33.596Z",
+              "criterios": [
+                {
+                  "criterio": "forma (parado)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no parado",
+                  "ok": false,
+                  "valor": 2,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: footY",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.x",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.y",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: altura",
+                  "ok": false,
+                  "valor": -3,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: comprimento",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": false
+            }
+          ]
+        },
+        "corrida": {
+          "escolhida": 3401,
+          "ok": true,
+          "terminada": true,
+          "refacao": 0,
+          "tentativas": [
+            {
+              "seed": 3401,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-esguio-chamas-corrida-g100m3201-s3401.png",
+              "geracoes": 1,
+              "marca": "g100m3201",
+              "init_image": "raw/portes-esguio-lisa-corrida-s3201.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:09:53.201Z",
+              "criterios": [
+                {
+                  "criterio": "forma (corrida)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "≥ 2"
+                }
+              ],
+              "ok": true
+            }
+          ]
+        },
+        "galope": {
+          "escolhida": 3501,
+          "ok": false,
+          "terminada": true,
+          "refacao": 0,
+          "tentativas": [
+            {
+              "seed": 3401,
+              "endpoint": "/animate-with-text-v3",
+              "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+              "first_frame": "esguio-chamas/corrida seed 3401",
+              "geracoes": 1,
+              "arquivo": "raw/portes-esguio-chamas-galope-c3401g100m3201-s3401-0..8.png",
+              "data": "2026-11-13T13:15:16.781Z",
+              "criterios": [
+                {
+                  "criterio": "forma (galope)",
+                  "ok": false,
+                  "valor": 6,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "galope-1: faltam papéis: 8 (jóquei-pele); galope-2: faltam papéis: 8 (jóquei-pele); galope-3: faltam papéis: 8 (jóquei-pele); galope-4: faltam papéis: 8 (jóquei-pele); galope-7: faltam papéis: 8 (jóquei-pele); galope-8: faltam papéis: 8 (jóquei-pele)"
+                },
+                {
+                  "criterio": "pernas no galope (todo quadro)",
+                  "ok": false,
+                  "valor": 1,
+                  "limite": "≥ 2",
+                  "quadros": [
+                    2,
+                    2,
+                    1,
+                    1,
+                    1,
+                    2,
+                    2,
+                    2,
+                    2
+                  ]
+                },
+                {
+                  "criterio": "galope: 9 quadros",
+                  "ok": true,
+                  "valor": 9,
+                  "limite": "= 9"
+                },
+                {
+                  "criterio": "galope: lombo na coluna da sela",
+                  "ok": false,
+                  "valor": 8,
+                  "limite": "varia ≤ 3 px",
+                  "quadros": [
+                    26,
+                    26,
+                    31,
+                    31,
+                    25,
+                    26,
+                    33,
+                    31,
+                    31
+                  ]
+                },
+                {
+                  "criterio": "galope: nose.x contra a pose de corrida",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "±6 px",
+                  "quadros": [
+                    59,
+                    59,
+                    58,
+                    58,
+                    58,
+                    59,
+                    59,
+                    58,
+                    58
+                  ]
+                },
+                {
+                  "criterio": "galope: comprimento do corpo",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "varia ≤ 4 px",
+                  "quadros": [
+                    41,
+                    41,
+                    40,
+                    40,
+                    40,
+                    41,
+                    41,
+                    41,
+                    42
+                  ]
+                }
+              ],
+              "ok": false,
+              "quadros": 9
+            },
+            {
+              "seed": 3501,
+              "endpoint": "/animate-with-text-v3",
+              "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+              "first_frame": "esguio-chamas/corrida seed 3401",
+              "geracoes": 1,
+              "arquivo": "raw/portes-esguio-chamas-galope-c3401g100m3201-s3501-0..8.png",
+              "data": "2026-11-13T13:16:24.845Z",
+              "criterios": [
+                {
+                  "criterio": "forma (galope)",
+                  "ok": false,
+                  "valor": 5,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "galope-3: faltam papéis: 8 (jóquei-pele); galope-4: faltam papéis: 8 (jóquei-pele); galope-5: faltam papéis: 8 (jóquei-pele); galope-7: faltam papéis: 8 (jóquei-pele); galope-8: faltam papéis: 8 (jóquei-pele)"
+                },
+                {
+                  "criterio": "pernas no galope (todo quadro)",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "≥ 2",
+                  "quadros": [
+                    2,
+                    2,
+                    3,
+                    2,
+                    2,
+                    2,
+                    2,
+                    2,
+                    2
+                  ]
+                },
+                {
+                  "criterio": "galope: 9 quadros",
+                  "ok": true,
+                  "valor": 9,
+                  "limite": "= 9"
+                },
+                {
+                  "criterio": "galope: lombo na coluna da sela",
+                  "ok": false,
+                  "valor": 8,
+                  "limite": "varia ≤ 3 px",
+                  "quadros": [
+                    26,
+                    27,
+                    26,
+                    32,
+                    32,
+                    33,
+                    34,
+                    28,
+                    32
+                  ]
+                },
+                {
+                  "criterio": "galope: nose.x contra a pose de corrida",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "±6 px",
+                  "quadros": [
+                    59,
+                    59,
+                    58,
+                    57,
+                    58,
+                    59,
+                    59,
+                    58,
+                    57
+                  ]
+                },
+                {
+                  "criterio": "galope: comprimento do corpo",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "varia ≤ 4 px",
+                  "quadros": [
+                    41,
+                    41,
+                    40,
+                    39,
+                    40,
+                    41,
+                    41,
+                    40,
+                    39
+                  ]
+                }
+              ],
+              "ok": false,
+              "quadros": 9
+            },
+            {
+              "seed": 3601,
+              "endpoint": "/animate-with-text-v3",
+              "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+              "first_frame": "esguio-chamas/corrida seed 3401",
+              "geracoes": 1,
+              "arquivo": "raw/portes-esguio-chamas-galope-c3401g100m3201-s3601-0..8.png",
+              "data": "2026-11-13T13:17:43.795Z",
+              "criterios": [
+                {
+                  "criterio": "forma (galope)",
+                  "ok": false,
+                  "valor": 5,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "galope-4: faltam papéis: 8 (jóquei-pele); galope-5: faltam papéis: 8 (jóquei-pele); galope-6: faltam papéis: 8 (jóquei-pele); galope-7: faltam papéis: 8 (jóquei-pele); galope-8: faltam papéis: 8 (jóquei-pele)"
+                },
+                {
+                  "criterio": "pernas no galope (todo quadro)",
+                  "ok": false,
+                  "valor": 1,
+                  "limite": "≥ 2",
+                  "quadros": [
+                    2,
+                    2,
+                    2,
+                    1,
+                    2,
+                    3,
+                    2,
+                    2,
+                    2
+                  ]
+                },
+                {
+                  "criterio": "galope: 9 quadros",
+                  "ok": true,
+                  "valor": 9,
+                  "limite": "= 9"
+                },
+                {
+                  "criterio": "galope: lombo na coluna da sela",
+                  "ok": false,
+                  "valor": 11,
+                  "limite": "varia ≤ 3 px",
+                  "quadros": [
+                    26,
+                    34,
+                    32,
+                    32,
+                    23,
+                    26,
+                    34,
+                    33,
+                    32
+                  ]
+                },
+                {
+                  "criterio": "galope: nose.x contra a pose de corrida",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "±6 px",
+                  "quadros": [
+                    59,
+                    59,
+                    58,
+                    58,
+                    58,
+                    59,
+                    59,
+                    59,
+                    58
+                  ]
+                },
+                {
+                  "criterio": "galope: comprimento do corpo",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "varia ≤ 4 px",
+                  "quadros": [
+                    41,
+                    42,
+                    40,
+                    40,
+                    40,
+                    41,
+                    41,
+                    41,
+                    41
+                  ]
+                }
+              ],
+              "ok": false,
+              "quadros": 9
+            }
+          ]
+        }
+      },
+      "historico": []
+    },
+    "padrao-chamas": {
+      "fase": "piloto",
+      "porte": "padrao",
+      "estilo": "chamas",
+      "mestre": "padrao-lisa",
+      "variante": "init_image do mestre",
+      "guia": {
+        "init_image_strength": 100
+      },
+      "guiaGalope": null,
+      "seedBase": 3402,
+      "refacoes": {
+        "retrato": 0,
+        "parado": 0,
+        "corrida": 0,
+        "galope": 0
+      },
+      "completo": true,
+      "final": true,
+      "ok": true,
+      "falhas": [],
+      "etapas": {
+        "retrato": {
+          "escolhida": 3402,
+          "ok": true,
+          "terminada": true,
+          "refacao": 0,
+          "tentativas": [
+            {
+              "seed": 3402,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body, standing still horse, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, no rider, no saddle, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-padrao-chamas-retrato-g100m3102-s3402.png",
+              "geracoes": 1,
+              "marca": "g100m3102",
+              "init_image": "raw/portes-padrao-lisa-retrato-s3102.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:10:08.465Z",
+              "criterios": [
+                {
+                  "criterio": "forma (retrato)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no retrato",
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: footY",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.x",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.y",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: altura",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: comprimento",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": true
+            }
+          ]
+        },
+        "parado": {
+          "escolhida": 3502,
+          "ok": true,
+          "terminada": true,
+          "refacao": 0,
+          "tentativas": [
+            {
+              "seed": 3402,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-padrao-chamas-parado-g100m3102-s3402.png",
+              "geracoes": 1,
+              "marca": "g100m3102",
+              "init_image": "raw/portes-padrao-lisa-parado-s3102.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:10:26.385Z",
+              "criterios": [
+                {
+                  "criterio": "forma (parado)",
+                  "ok": false,
+                  "valor": 1,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "fora da paleta: 54 de 1207 pixels (4.5%) acima de 2%"
+                },
+                {
+                  "criterio": "pernas no parado",
+                  "ok": false,
+                  "valor": 3,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: footY",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.x",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.y",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: altura",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: comprimento",
+                  "ok": true,
+                  "valor": -1,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": false
+            },
+            {
+              "seed": 3502,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-padrao-chamas-parado-g100m3102-s3502.png",
+              "geracoes": 1,
+              "marca": "g100m3102",
+              "init_image": "raw/portes-padrao-lisa-parado-s3102.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:10:38.768Z",
+              "criterios": [
+                {
+                  "criterio": "forma (parado)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no parado",
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: footY",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.x",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.y",
+                  "ok": true,
+                  "valor": -1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: altura",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: comprimento",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": true
+            }
+          ]
+        },
+        "corrida": {
+          "escolhida": 3502,
+          "ok": true,
+          "terminada": true,
+          "refacao": 0,
+          "tentativas": [
+            {
+              "seed": 3402,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-padrao-chamas-corrida-g100m4102-s3402.png",
+              "geracoes": 1,
+              "marca": "g100m4102",
+              "init_image": "raw/portes-padrao-lisa-corrida-s4102.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:10:55.770Z",
+              "criterios": [
+                {
+                  "criterio": "forma (corrida)",
+                  "ok": false,
+                  "valor": 1,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "fora da paleta: 29 de 913 pixels (3.2%) acima de 2%"
+                },
+                {
+                  "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "≥ 2"
+                }
+              ],
+              "ok": false
+            },
+            {
+              "seed": 3502,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-padrao-chamas-corrida-g100m4102-s3502.png",
+              "geracoes": 1,
+              "marca": "g100m4102",
+              "init_image": "raw/portes-padrao-lisa-corrida-s4102.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:11:10.959Z",
+              "criterios": [
+                {
+                  "criterio": "forma (corrida)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "≥ 2"
+                }
+              ],
+              "ok": true
+            }
+          ]
+        },
+        "galope": {
+          "escolhida": 3602,
+          "ok": true,
+          "terminada": true,
+          "refacao": 0,
+          "tentativas": [
+            {
+              "seed": 3402,
+              "endpoint": "/animate-with-text-v3",
+              "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+              "first_frame": "padrao-chamas/corrida seed 3502",
+              "geracoes": 1,
+              "arquivo": "raw/portes-padrao-chamas-galope-c3502g100m4102-s3402-0..8.png",
+              "data": "2026-11-13T13:18:57.032Z",
+              "criterios": [
+                {
+                  "criterio": "forma (galope)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no galope (todo quadro)",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "≥ 2",
+                  "quadros": [
+                    4,
+                    3,
+                    2,
+                    4,
+                    3,
+                    3,
+                    3,
+                    2,
+                    4
+                  ]
+                },
+                {
+                  "criterio": "galope: 9 quadros",
+                  "ok": true,
+                  "valor": 9,
+                  "limite": "= 9"
+                },
+                {
+                  "criterio": "galope: lombo na coluna da sela",
+                  "ok": false,
+                  "valor": 4,
+                  "limite": "varia ≤ 3 px",
+                  "quadros": [
+                    25,
+                    24,
+                    26,
+                    23,
+                    22,
+                    23,
+                    23,
+                    22,
+                    24
+                  ]
+                },
+                {
+                  "criterio": "galope: nose.x contra a pose de corrida",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "±6 px",
+                  "quadros": [
+                    60,
+                    60,
+                    59,
+                    60,
+                    60,
+                    61,
+                    61,
+                    61,
+                    60
+                  ]
+                },
+                {
+                  "criterio": "galope: comprimento do corpo",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "varia ≤ 4 px",
+                  "quadros": [
+                    46,
+                    46,
+                    45,
+                    45,
+                    47,
+                    47,
+                    46,
+                    46,
+                    45
+                  ]
+                }
+              ],
+              "ok": false,
+              "quadros": 9
+            },
+            {
+              "seed": 3502,
+              "endpoint": "/animate-with-text-v3",
+              "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+              "first_frame": "padrao-chamas/corrida seed 3502",
+              "geracoes": 1,
+              "arquivo": "raw/portes-padrao-chamas-galope-c3502g100m4102-s3502-0..8.png",
+              "data": "2026-11-13T13:21:12.985Z",
+              "criterios": [
+                {
+                  "criterio": "forma (galope)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no galope (todo quadro)",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "≥ 2",
+                  "quadros": [
+                    4,
+                    2,
+                    3,
+                    3,
+                    4,
+                    4,
+                    4,
+                    3,
+                    4
+                  ]
+                },
+                {
+                  "criterio": "galope: 9 quadros",
+                  "ok": true,
+                  "valor": 9,
+                  "limite": "= 9"
+                },
+                {
+                  "criterio": "galope: lombo na coluna da sela",
+                  "ok": false,
+                  "valor": 5,
+                  "limite": "varia ≤ 3 px",
+                  "quadros": [
+                    25,
+                    22,
+                    23,
+                    27,
+                    26,
+                    26,
+                    25,
+                    25,
+                    23
+                  ]
+                },
+                {
+                  "criterio": "galope: nose.x contra a pose de corrida",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "±6 px",
+                  "quadros": [
+                    60,
+                    59,
+                    59,
+                    59,
+                    59,
+                    59,
+                    59,
+                    59,
+                    59
+                  ]
+                },
+                {
+                  "criterio": "galope: comprimento do corpo",
+                  "ok": true,
+                  "valor": 3,
+                  "limite": "varia ≤ 4 px",
+                  "quadros": [
+                    46,
+                    45,
+                    45,
+                    46,
+                    47,
+                    46,
+                    45,
+                    44,
+                    45
+                  ]
+                }
+              ],
+              "ok": false,
+              "quadros": 9
+            },
+            {
+              "seed": 3602,
+              "endpoint": "/animate-with-text-v3",
+              "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+              "first_frame": "padrao-chamas/corrida seed 3502",
+              "geracoes": 1,
+              "arquivo": "raw/portes-padrao-chamas-galope-c3502g100m4102-s3602-0..8.png",
+              "data": "2026-11-13T13:22:29.588Z",
+              "criterios": [
+                {
+                  "criterio": "forma (galope)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no galope (todo quadro)",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "≥ 2",
+                  "quadros": [
+                    4,
+                    3,
+                    2,
+                    4,
+                    4,
+                    4,
+                    4,
+                    3,
+                    3
+                  ]
+                },
+                {
+                  "criterio": "galope: 9 quadros",
+                  "ok": true,
+                  "valor": 9,
+                  "limite": "= 9"
+                },
+                {
+                  "criterio": "galope: lombo na coluna da sela",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "varia ≤ 3 px",
+                  "quadros": [
+                    25,
+                    24,
+                    24,
+                    25,
+                    24,
+                    24,
+                    25,
+                    25,
+                    24
+                  ]
+                },
+                {
+                  "criterio": "galope: nose.x contra a pose de corrida",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "±6 px",
+                  "quadros": [
+                    60,
+                    60,
+                    59,
+                    58,
+                    58,
+                    58,
+                    60,
+                    60,
+                    60
+                  ]
+                },
+                {
+                  "criterio": "galope: comprimento do corpo",
+                  "ok": true,
+                  "valor": 3,
+                  "limite": "varia ≤ 4 px",
+                  "quadros": [
+                    46,
+                    46,
+                    45,
+                    45,
+                    43,
+                    44,
+                    45,
+                    45,
+                    45
+                  ]
+                }
+              ],
+              "ok": true,
+              "quadros": 9
+            }
+          ]
+        }
+      },
+      "historico": []
+    },
+    "robusto-chamas": {
+      "fase": "piloto",
+      "porte": "robusto",
+      "estilo": "chamas",
+      "mestre": "robusto-lisa",
+      "variante": "init_image do mestre",
+      "guia": {
+        "init_image_strength": 100
+      },
+      "guiaGalope": null,
+      "seedBase": 3403,
+      "refacoes": {
+        "retrato": 0,
+        "parado": 0,
+        "corrida": 0,
+        "galope": 0
+      },
+      "completo": true,
+      "final": true,
+      "ok": false,
+      "falhas": [
+        "retrato: pernas no retrato = 3 (= 4)",
+        "parado: forma (parado) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))",
+        "corrida: forma (corrida) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))",
+        "galope: forma (galope) = 9 (paleta, papéis obrigatórios e silhueta fechada (validar))"
+      ],
+      "etapas": {
+        "retrato": {
+          "escolhida": 3403,
+          "ok": false,
+          "terminada": true,
+          "refacao": 0,
+          "tentativas": [
+            {
+              "seed": 3403,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, very short stocky heavy draft-type horse inspired by the Crioulo breed, massive barrel-shaped body that is very wide and very deep, very short thick sturdy legs that are shorter than the depth of the body, short very thick muscular neck, broad wide chest, low heavy stance close to the ground, large heavy head, full thick mane, clearly much lower, wider and heavier than an average horse, standing still horse, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, no rider, no saddle, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 2,
+              "arquivo": "raw/portes-robusto-chamas-retrato-g100m5303-s3403.png",
+              "geracoes": 1,
+              "marca": "g100m5303",
+              "init_image": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:11:26.852Z",
+              "criterios": [
+                {
+                  "criterio": "forma (retrato)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no retrato",
+                  "ok": false,
+                  "valor": 3,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: footY",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.x",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.y",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: altura",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: comprimento",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": false
+            },
+            {
+              "seed": 3503,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, very short stocky heavy draft-type horse inspired by the Crioulo breed, massive barrel-shaped body that is very wide and very deep, very short thick sturdy legs that are shorter than the depth of the body, short very thick muscular neck, broad wide chest, low heavy stance close to the ground, large heavy head, full thick mane, clearly much lower, wider and heavier than an average horse, standing still horse, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, no rider, no saddle, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 2,
+              "arquivo": "raw/portes-robusto-chamas-retrato-g100m5303-s3503.png",
+              "geracoes": 1,
+              "marca": "g100m5303",
+              "init_image": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:11:42.704Z",
+              "criterios": [
+                {
+                  "criterio": "forma (retrato)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no retrato",
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: footY",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.x",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.y",
+                  "ok": false,
+                  "valor": 3,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: altura",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: comprimento",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": false
+            },
+            {
+              "seed": 3603,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, very short stocky heavy draft-type horse inspired by the Crioulo breed, massive barrel-shaped body that is very wide and very deep, very short thick sturdy legs that are shorter than the depth of the body, short very thick muscular neck, broad wide chest, low heavy stance close to the ground, large heavy head, full thick mane, clearly much lower, wider and heavier than an average horse, standing still horse, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, no rider, no saddle, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 2,
+              "arquivo": "raw/portes-robusto-chamas-retrato-g100m5303-s3603.png",
+              "geracoes": 1,
+              "marca": "g100m5303",
+              "init_image": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:11:58.448Z",
+              "criterios": [
+                {
+                  "criterio": "forma (retrato)",
+                  "ok": false,
+                  "valor": 1,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "fora da paleta: 46 de 1414 pixels (3.3%) acima de 2%"
+                },
+                {
+                  "criterio": "pernas no retrato",
+                  "ok": false,
+                  "valor": 3,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: footY",
+                  "ok": true,
+                  "valor": -2,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.x",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: nose.y",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: altura",
+                  "ok": false,
+                  "valor": -3,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no retrato: comprimento",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": false
+            }
+          ]
+        },
+        "parado": {
+          "escolhida": 3503,
+          "ok": false,
+          "terminada": true,
+          "refacao": 0,
+          "tentativas": [
+            {
+              "seed": 3403,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, very short stocky heavy draft-type horse inspired by the Crioulo breed, massive barrel-shaped body that is very wide and very deep, very short thick sturdy legs that are shorter than the depth of the body, short very thick muscular neck, broad wide chest, low heavy stance close to the ground, large heavy head, full thick mane, clearly much lower, wider and heavier than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 2,
+              "arquivo": "raw/portes-robusto-chamas-parado-g100m5103-s3403.png",
+              "geracoes": 1,
+              "marca": "g100m5103",
+              "init_image": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:12:13.927Z",
+              "criterios": [
+                {
+                  "criterio": "forma (parado)",
+                  "ok": false,
+                  "valor": 1,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "fora da paleta: 81 de 1363 pixels (5.9%) acima de 2%"
+                },
+                {
+                  "criterio": "pernas no parado",
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: footY",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.x",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.y",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: altura",
+                  "ok": false,
+                  "valor": 3,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: comprimento",
+                  "ok": true,
+                  "valor": -1,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": false
+            },
+            {
+              "seed": 3503,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, very short stocky heavy draft-type horse inspired by the Crioulo breed, massive barrel-shaped body that is very wide and very deep, very short thick sturdy legs that are shorter than the depth of the body, short very thick muscular neck, broad wide chest, low heavy stance close to the ground, large heavy head, full thick mane, clearly much lower, wider and heavier than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 2,
+              "arquivo": "raw/portes-robusto-chamas-parado-g100m5103-s3503.png",
+              "geracoes": 1,
+              "marca": "g100m5103",
+              "init_image": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:12:29.094Z",
+              "criterios": [
+                {
+                  "criterio": "forma (parado)",
+                  "ok": false,
+                  "valor": 1,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "fora da paleta: 33 de 1375 pixels (2.4%) acima de 2%"
+                },
+                {
+                  "criterio": "pernas no parado",
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: footY",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.x",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.y",
+                  "ok": true,
+                  "valor": -1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: altura",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: comprimento",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": false
+            },
+            {
+              "seed": 3603,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, very short stocky heavy draft-type horse inspired by the Crioulo breed, massive barrel-shaped body that is very wide and very deep, very short thick sturdy legs that are shorter than the depth of the body, short very thick muscular neck, broad wide chest, low heavy stance close to the ground, large heavy head, full thick mane, clearly much lower, wider and heavier than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 2,
+              "arquivo": "raw/portes-robusto-chamas-parado-g100m5103-s3603.png",
+              "geracoes": 1,
+              "marca": "g100m5103",
+              "init_image": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:12:44.706Z",
+              "criterios": [
+                {
+                  "criterio": "forma (parado)",
+                  "ok": false,
+                  "valor": 1,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "faltam papéis: 4 (crina)"
+                },
+                {
+                  "criterio": "pernas no parado",
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "= 4"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: footY",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.x",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: nose.y",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: altura",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "|Δ| ≤ 2 px"
+                },
+                {
+                  "criterio": "mesmo corpo no parado: comprimento",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "|Δ| ≤ 2 px"
+                }
+              ],
+              "ok": false
+            }
+          ]
+        },
+        "corrida": {
+          "escolhida": 3403,
+          "ok": false,
+          "terminada": true,
+          "refacao": 0,
+          "tentativas": [
+            {
+              "seed": 3403,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, very short stocky heavy draft-type horse inspired by the Crioulo breed, massive barrel-shaped body that is very wide and very deep, very short thick sturdy legs that are shorter than the depth of the body, short very thick muscular neck, broad wide chest, low heavy stance close to the ground, large heavy head, full thick mane, clearly much lower, wider and heavier than an average horse, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 2,
+              "arquivo": "raw/portes-robusto-chamas-corrida-g100m5103-s3403.png",
+              "geracoes": 1,
+              "marca": "g100m5103",
+              "init_image": "raw/portes-robusto-lisa-corrida-g35padrao4102-s5103.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:13:06.503Z",
+              "criterios": [
+                {
+                  "criterio": "forma (corrida)",
+                  "ok": false,
+                  "valor": 1,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "faltam papéis: 4 (crina)"
+                },
+                {
+                  "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "≥ 2"
+                }
+              ],
+              "ok": false
+            },
+            {
+              "seed": 3503,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, very short stocky heavy draft-type horse inspired by the Crioulo breed, massive barrel-shaped body that is very wide and very deep, very short thick sturdy legs that are shorter than the depth of the body, short very thick muscular neck, broad wide chest, low heavy stance close to the ground, large heavy head, full thick mane, clearly much lower, wider and heavier than an average horse, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 2,
+              "arquivo": "raw/portes-robusto-chamas-corrida-g100m5103-s3503.png",
+              "geracoes": 1,
+              "marca": "g100m5103",
+              "init_image": "raw/portes-robusto-lisa-corrida-g35padrao4102-s5103.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:13:21.606Z",
+              "criterios": [
+                {
+                  "criterio": "forma (corrida)",
+                  "ok": false,
+                  "valor": 1,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "fora da paleta: 35 de 1142 pixels (3.1%) acima de 2%"
+                },
+                {
+                  "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "≥ 2"
+                }
+              ],
+              "ok": false
+            },
+            {
+              "seed": 3603,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, mane and tail shaped like flickering flames, very short stocky heavy draft-type horse inspired by the Crioulo breed, massive barrel-shaped body that is very wide and very deep, very short thick sturdy legs that are shorter than the depth of the body, short very thick muscular neck, broad wide chest, low heavy stance close to the ground, large heavy head, full thick mane, clearly much lower, wider and heavier than an average horse, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 2,
+              "arquivo": "raw/portes-robusto-chamas-corrida-g100m5103-s3603.png",
+              "geracoes": 1,
+              "marca": "g100m5103",
+              "init_image": "raw/portes-robusto-lisa-corrida-g35padrao4102-s5103.png",
+              "init_image_strength": 100,
+              "data": "2026-11-13T13:13:32.254Z",
+              "criterios": [
+                {
+                  "criterio": "forma (corrida)",
+                  "ok": false,
+                  "valor": 1,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "fora da paleta: 133 de 1102 pixels (12.1%) acima de 2%"
+                },
+                {
+                  "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "≥ 2"
+                }
+              ],
+              "ok": false
+            }
+          ]
+        },
+        "galope": {
+          "escolhida": 3403,
+          "ok": false,
+          "terminada": true,
+          "refacao": 0,
+          "tentativas": [
+            {
+              "seed": 3403,
+              "endpoint": "/animate-with-text-v3",
+              "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+              "first_frame": "robusto-chamas/corrida seed 3403",
+              "geracoes": 1,
+              "arquivo": "raw/portes-robusto-chamas-galope-c3403g100m5103-s3403-0..8.png",
+              "data": "2026-11-13T13:24:19.111Z",
+              "criterios": [
+                {
+                  "criterio": "forma (galope)",
+                  "ok": false,
+                  "valor": 9,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "galope-0: faltam papéis: 4 (crina); galope-1: faltam papéis: 4 (crina); galope-2: faltam papéis: 4 (crina); galope-3: faltam papéis: 4 (crina); galope-4: faltam papéis: 4 (crina); galope-5: faltam papéis: 4 (crina); galope-6: faltam papéis: 4 (crina); galope-7: faltam papéis: 4 (crina); galope-8: faltam papéis: 4 (crina)"
+                },
+                {
+                  "criterio": "pernas no galope (todo quadro)",
+                  "ok": true,
+                  "valor": 3,
+                  "limite": "≥ 2",
+                  "quadros": [
+                    4,
+                    4,
+                    4,
+                    4,
+                    4,
+                    3,
+                    4,
+                    3,
+                    4
+                  ]
+                },
+                {
+                  "criterio": "galope: 9 quadros",
+                  "ok": true,
+                  "valor": 9,
+                  "limite": "= 9"
+                },
+                {
+                  "criterio": "galope: lombo na coluna da sela",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "varia ≤ 3 px",
+                  "quadros": [
+                    13,
+                    12,
+                    12,
+                    13,
+                    14,
+                    14,
+                    13,
+                    12,
+                    13
+                  ]
+                },
+                {
+                  "criterio": "galope: nose.x contra a pose de corrida",
+                  "ok": true,
+                  "valor": 3,
+                  "limite": "±6 px",
+                  "quadros": [
+                    63,
+                    62,
+                    61,
+                    61,
+                    60,
+                    61,
+                    62,
+                    63,
+                    63
+                  ]
+                },
+                {
+                  "criterio": "galope: comprimento do corpo",
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "varia ≤ 4 px",
+                  "quadros": [
+                    48,
+                    47,
+                    46,
+                    46,
+                    45,
+                    46,
+                    47,
+                    49,
+                    48
+                  ]
+                }
+              ],
+              "ok": false,
+              "quadros": 9
+            },
+            {
+              "seed": 3503,
+              "endpoint": "/animate-with-text-v3",
+              "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+              "first_frame": "robusto-chamas/corrida seed 3403",
+              "geracoes": 1,
+              "arquivo": "raw/portes-robusto-chamas-galope-c3403g100m5103-s3503-0..8.png",
+              "data": "2026-11-13T13:26:09.073Z",
+              "criterios": [
+                {
+                  "criterio": "forma (galope)",
+                  "ok": false,
+                  "valor": 9,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "galope-0: faltam papéis: 4 (crina); galope-1: faltam papéis: 4 (crina); galope-2: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-3: faltam papéis: 4 (crina); galope-4: faltam papéis: 4 (crina); galope-5: faltam papéis: 4 (crina); galope-6: faltam papéis: 4 (crina); galope-7: faltam papéis: 4 (crina); galope-8: faltam papéis: 4 (crina)"
+                },
+                {
+                  "criterio": "pernas no galope (todo quadro)",
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "≥ 2",
+                  "quadros": [
+                    4,
+                    4,
+                    4,
+                    4,
+                    4,
+                    4,
+                    4,
+                    4,
+                    4
+                  ]
+                },
+                {
+                  "criterio": "galope: 9 quadros",
+                  "ok": true,
+                  "valor": 9,
+                  "limite": "= 9"
+                },
+                {
+                  "criterio": "galope: lombo na coluna da sela",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "varia ≤ 3 px",
+                  "quadros": [
+                    13,
+                    12,
+                    12,
+                    13,
+                    14,
+                    13,
+                    12,
+                    12,
+                    13
+                  ]
+                },
+                {
+                  "criterio": "galope: nose.x contra a pose de corrida",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "±6 px",
+                  "quadros": [
+                    63,
+                    63,
+                    62,
+                    62,
+                    63,
+                    63,
+                    63,
+                    62,
+                    62
+                  ]
+                },
+                {
+                  "criterio": "galope: comprimento do corpo",
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "varia ≤ 4 px",
+                  "quadros": [
+                    48,
+                    48,
+                    47,
+                    47,
+                    49,
+                    51,
+                    49,
+                    47,
+                    47
+                  ]
+                }
+              ],
+              "ok": false,
+              "quadros": 9
+            },
+            {
+              "seed": 3603,
+              "endpoint": "/animate-with-text-v3",
+              "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+              "first_frame": "robusto-chamas/corrida seed 3403",
+              "geracoes": 1,
+              "arquivo": "raw/portes-robusto-chamas-galope-c3403g100m5103-s3603-0..8.png",
+              "data": "2026-11-13T13:27:37.375Z",
+              "criterios": [
+                {
+                  "criterio": "forma (galope)",
+                  "ok": false,
+                  "valor": 9,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "galope-0: faltam papéis: 4 (crina); galope-1: faltam papéis: 4 (crina); galope-2: faltam papéis: 4 (crina); galope-3: faltam papéis: 4 (crina); galope-4: faltam papéis: 4 (crina); galope-5: faltam papéis: 4 (crina); galope-6: faltam papéis: 4 (crina); galope-7: faltam papéis: 4 (crina); galope-8: faltam papéis: 4 (crina)"
+                },
+                {
+                  "criterio": "pernas no galope (todo quadro)",
+                  "ok": true,
+                  "valor": 3,
+                  "limite": "≥ 2",
+                  "quadros": [
+                    4,
+                    4,
+                    4,
+                    4,
+                    3,
+                    3,
+                    3,
+                    4,
+                    4
+                  ]
+                },
+                {
+                  "criterio": "galope: 9 quadros",
+                  "ok": true,
+                  "valor": 9,
+                  "limite": "= 9"
+                },
+                {
+                  "criterio": "galope: lombo na coluna da sela",
+                  "ok": true,
+                  "valor": 3,
+                  "limite": "varia ≤ 3 px",
+                  "quadros": [
+                    13,
+                    12,
+                    12,
+                    13,
+                    15,
+                    13,
+                    12,
+                    12,
+                    13
+                  ]
+                },
+                {
+                  "criterio": "galope: nose.x contra a pose de corrida",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "±6 px",
+                  "quadros": [
+                    63,
+                    62,
+                    62,
+                    63,
+                    63,
+                    63,
+                    63,
+                    62,
+                    62
+                  ]
+                },
+                {
+                  "criterio": "galope: comprimento do corpo",
+                  "ok": true,
+                  "valor": 3,
+                  "limite": "varia ≤ 4 px",
+                  "quadros": [
+                    48,
+                    47,
+                    47,
+                    48,
+                    48,
+                    50,
+                    48,
+                    47,
+                    47
+                  ]
+                }
+              ],
+              "ok": false,
+              "quadros": 9
+            }
+          ]
+        }
+      },
+      "historico": []
     }
   },
   "limites": {
@@ -2970,5 +5021,5 @@
     "nose": 6,
     "comprimento": 4
   },
-  "atualizado": "2026-11-13T13:06:11.196Z"
+  "atualizado": "2026-11-13T13:27:37.401Z"
 }
