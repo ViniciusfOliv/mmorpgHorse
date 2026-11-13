@@ -21,14 +21,18 @@ a{color:#f2c14e}
 </style></head><body>
 <h1>Galope Elemental · Moldes do PixelLab × sprite por código</h1>
 <p>Para cada estilo: o molde no mapa de papéis, o galope em 1× e 3× (código à esquerda, molde à direita, mesma
-linha de chão e mesmo focinho; escala única para os 4 estilos; o ciclo do galope dura o mesmo nos dois) e o recolor
-com as paletas das 16 montarias e as 8 sedas.
-Os moldes vêm de <code>dist/moldes.js</code> (gerado por <code>node prototype/build.mjs</code>).</p>
-<p>Parte 2a: <a href="#marcas">Marcas, jóquei e raridade</a> (no fim da página). Só essa seção:
+linha de chão e mesmo focinho; escala única para os 12 moldes; o ciclo do galope dura o mesmo nos dois) e o recolor
+com as paletas das montarias e as 8 sedas.
+Os moldes vêm de <code>dist/moldes.js</code> (gerado por <code>node prototype/build.mjs</code>): os 12 da parte 2b,
+<code>&lt;porte&gt;-&lt;estilo&gt;</code>, com porte esguio, padrão ou robusto.</p>
+<p id="portes-links"></p>
+<p>Parte 2b: <a href="?so=portes#portes">os 3 portes lado a lado</a> (<code>?so=portes</code>). Parte 2a: <a href="#marcas">Marcas,
+jóquei e raridade</a> (no fim da página; no porte escolhido). Só essa seção:
 <a href="?so=marcas#marcas"><code>?so=marcas</code></a>; um estilo só: <code>&amp;estilo=chamas</code>; tempo parado (capturas da
 página inteira; sem ele, só anima o que está perto da tela): <code>&amp;t=0.4</code>; ampliação: <code>&amp;zoom=1</code> (padrão 2).</p>
 <p id="aviso"></p>
 <div class="legenda" id="legenda"></div>
+<section id="portes"></section>
 <div id="estilos"></div>
 <section id="marcas"></section>
 <script src="dist/moldes.js"></script>
@@ -43,9 +47,15 @@ página inteira; sem ele, só anima o que está perto da tela): <code>&amp;t=0.4
 const PAPEIS = [null, '#000000', '#ff0000', '#800000', '#00ff00', '#008000', '#0000ff', '#ffff00', '#ffc0cb', '#808080']
 const NOMES = ['', 'contorno', 'pelo', 'sombra do pelo', 'crina', 'sombra da crina', 'detalhe', 'seda', 'pele', 'sela']
 const ELEMENTO = { chamas: 'fogo', ondas: 'agua', folhas: 'grama', lisa: 'neutro' }
-const MONTARIAS = GameData.STARTERS.concat(GameData.WILD_HORSES)   // as 16 montarias
+const MONTARIAS = GameData.STARTERS.concat(GameData.WILD_HORSES)   // as montarias do catálogo
 const SEDAS = Sprites.SILKS                                          // as 8 sedas
 const aviso = document.getElementById('aviso')
+// Porte dos desenhos das seções por estilo e das marcas: ?porte=esguio|padrao|robusto (padrão: padrao). Cada molde é
+// '<porte>-<estilo>' (spec 2026-11-13-cavalos-portes §4); o drawHorse recebe o porte nas opções, como no jogo.
+const Q = new URLSearchParams(location.search)
+const PORTES = GameData.PORTES.valores, NOME_PORTE = GameData.PORTES.nomes
+const PORTE = PORTES.indexOf(Q.get('porte')) >= 0 ? Q.get('porte') : 'padrao'
+const chaveDe = (estilo, porte) => (porte || PORTE) + '-' + estilo
 // o estilo lisa é o do 'neutro', que não é mais um elemento do jogo (GameData.ELEMENTS só tem os 3 tipos)
 const nomeElemento = (el) => (GameData.ELEMENTS[el] && GameData.ELEMENTS[el].name) || 'sem elemento'
 const animados = []   // { c (canvas), draw(t) }
@@ -93,6 +103,17 @@ function par(k, opts) {
   return c
 }
 
+function linksPortes() {
+  const p = document.getElementById('portes-links'), resto = new URLSearchParams(location.search)
+  p.append('Porte: ')
+  PORTES.forEach((v, i) => {
+    resto.set('porte', v)
+    const a = document.createElement('a'); a.href = '?' + resto.toString(); a.textContent = NOME_PORTE[v]
+    if (v === PORTE) { a.style.fontWeight = 'bold'; a.textContent += ' (este)' }
+    p.append(a); if (i < PORTES.length - 1) p.append(' · ')
+  })
+}
+
 function legenda() {
   const d = document.getElementById('legenda')
   for (let i = 1; i <= 9; i++) {
@@ -103,11 +124,11 @@ function legenda() {
 }
 
 function secao(estilo) {
-  const el = ELEMENTO[estilo]
-  const info = window.__MOLDES.estilos[estilo].json
+  const el = ELEMENTO[estilo], chave = chaveDe(estilo)
+  const info = window.__MOLDES.estilos[chave].json
   const sec = document.createElement('section')
   const h = document.createElement('h2')
-  h.textContent = `${estilo} · ${nomeElemento(el)} — ${info.frames} quadros de galope, larguraUtil ${info.larguraUtil}`
+  h.textContent = `${chave} · ${nomeElemento(el)} · ${NOME_PORTE[PORTE]} — ${info.frames} quadros de galope, larguraUtil ${info.larguraUtil}`
   sec.append(h)
   document.getElementById('estilos').append(sec)
 
@@ -115,16 +136,16 @@ function secao(estilo) {
   const l1 = linha(sec, 'Mapa de papéis (molde cru, 3×)')
   for (const estado of ['retrato', 'parado']) {
     const { c, g } = canvas(192, 192, true)
-    g.drawImage(Sprites.moldeCanvas(estilo, estado, 0, PAPEIS), 0, 0, 192, 192)
+    g.drawImage(Sprites.moldeCanvas(chave, estado, 0, PAPEIS), 0, 0, 192, 192)
     figura(l1, c, estado)
   }
   const ga = canvas(192, 192, true)
-  anima(ga.c, function (t) { ga.g.clearRect(0, 0, 192, 192); ga.g.drawImage(Sprites.moldeCanvas(estilo, 'galope', Sprites._quadroGalope(el, t * 12), PAPEIS), 0, 0, 192, 192) })
+  anima(ga.c, function (t) { ga.g.clearRect(0, 0, 192, 192); ga.g.drawImage(Sprites.moldeCanvas(chave, 'galope', Sprites._quadroGalope(el, t * 12, PORTE), PAPEIS), 0, 0, 192, 192) })
   figura(l1, ga.c, 'galope (animado)')
 
   // 2. galope em 1× e 3× e os estados parados em 3×, com a montaria de referência do elemento
   const ref = MONTARIAS.filter((m) => m.element === el)[0] || { name: 'paleta neutra', palette: Sprites.PALETTES.neutro }   // lisa: nenhuma montaria é neutra
-  const base = { palette: ref.palette, element: el, silks: SEDAS[0] }
+  const base = { palette: ref.palette, element: el, silks: SEDAS[0], porte: PORTE }
   const l2 = linha(sec, `Código × molde — ${ref.name} (${ref.palette.coat}), seda ${SEDAS[0]}`)
   figura(l2, par(1, base), 'galope 1×')
   figura(l2, par(3, base), 'galope 3×')
@@ -132,10 +153,10 @@ function secao(estilo) {
   figura(l2, par(3, Object.assign({ idle: true, jockey: false }, base)), 'retrato 3× (estábulo)')
 
   // 3. as 16 montarias, cada uma com uma das 8 sedas, galope 2×
-  const h3 = document.createElement('h3'); h3.textContent = 'Recolor: 16 montarias × 8 sedas (galope 2×; código | molde)'; sec.append(h3)
+  const h3 = document.createElement('h3'); h3.textContent = `Recolor: ${MONTARIAS.length} montarias × 8 sedas (galope 2×; código | molde ${chave})`; sec.append(h3)
   const grade = document.createElement('div'); grade.className = 'grade'; sec.append(grade)
   MONTARIAS.forEach((m, i) => {
-    figura(grade, par(2, { palette: m.palette, element: el, silks: SEDAS[i % SEDAS.length] }), `${m.name} · seda ${i % SEDAS.length + 1}`)
+    figura(grade, par(2, { palette: m.palette, element: el, silks: SEDAS[i % SEDAS.length], porte: PORTE }), `${m.name} · seda ${i % SEDAS.length + 1}`)
   })
 }
 
@@ -143,9 +164,8 @@ function secao(estilo) {
 // Marcas, jóquei e raridade (Visuais 2, parte 2a; spec docs/superpowers/specs/2026-11-12-cavalos-marcas-design.md).
 // Usa o marcas.js e o sprites.js do src/ (as opções novas do drawHorse) e a semente de cada montaria pela
 // Breed.hashChave do id dela, como o jogo. Cada célula diz: molde (estilo) · quadro · marca/efeito · valor · paleta.
-const Q = new URLSearchParams(location.search)
 const T_FIXO = Q.has('t') && isFinite(Number(Q.get('t'))) ? Number(Q.get('t')) : null
-const SO_MARCAS = Q.get('so') === 'marcas'
+const SO_MARCAS = Q.get('so') === 'marcas', SO_PORTES = Q.get('so') === 'portes'
 const ESTILOS_2A = ['chamas', 'ondas', 'folhas', 'lisa'].filter((e) => !Q.get('estilo') || Q.get('estilo') === e)
 const K2A = 3                                                   // escala do sprite por código (o molde fica em S = 2)
 const ZOOM_2A = Math.max(1, Math.min(4, Math.round(Number(Q.get('zoom')) || 2)))   // ampliação só no CSS (pixelated)
@@ -161,7 +181,7 @@ function rotuloMarca(gene, v) {
   if (gene === 'patas') return v === 1 ? '1 meia' : v + ' meias'
   return { ruao: 'ruão', frente: 'frente branca' }[v] || v
 }
-function quadroDoGalope(q) { return (q + 0.5) * Sprites.GALLOP_FRAMES / window.__MOLDES.estilos.chamas.json.frames }
+function quadroDoGalope(q) { return (q + 0.5) * Sprites.GALLOP_FRAMES / window.__MOLDES.estilos[chaveDe('chamas')].json.frames }
 
 // Uma célula: o cavalo inteiro (caixa do horseBox + margem para as faíscas e, com rastro, para trás) num canvas.
 // cfg.anima: galope animado (frame pelo tempo); cfg.efeitos: redesenha a cada quadro (faíscas e brilho).
@@ -202,26 +222,26 @@ function titulo(pai, tag, texto, cls) {
 
 function secaoMarcas() {
   const sec = document.getElementById('marcas'), M = GameData.MARCAS, LIM = Marcas.LIMITES
-  titulo(sec, 'h2', 'Marcas, jóquei e raridade (parte 2a)')
+  titulo(sec, 'h2', `Marcas, jóquei e raridade (parte 2a) · porte ${NOME_PORTE[PORTE]}`)
   const p = document.createElement('p')
   p.innerHTML = 'Procure: estrela ou listra no pescoço, meias fora das patas (ou trocando de perna) e manchas que ' +
     '"nadam" no galope (os 9 quadros lado a lado). Paletas: ' + PALETAS_2A.map((m) => `${m.name} (${m.palette.coat})`).join(', ') +
     `; semente = <code>Breed.hashChave(id)</code>. Limites das zonas (<code>Marcas.LIMITES</code>): raio da cara ` +
     `${LIM.caraRaio} × larguraUtil, cara até ${LIM.caraBaixo} px abaixo do focinho, linha da barriga = footY − ${LIM.barriga} × altura. ` +
-    `Escala do código ${K2A} (molde em S = ${Sprites._layoutMolde('fogo', 'galope', 0, 0, K2A).S}).`
+    `Escala do código ${K2A} (molde em S = ${Sprites._layoutMolde('fogo', 'galope', 0, 0, K2A, null, PORTE).S}). Outro porte: ?porte=esguio ou ?porte=robusto.`
   sec.append(p)
   const marcasDe = (gene, v) => Object.assign({}, MARCA_VAZIA, { [gene]: v })
   const genes = [['cara', M.cara], ['patas', M.patas], ['corpo', M.corpo]]
   for (const estilo of ESTILOS_2A) {
     const el = ELEMENTO[estilo]
-    titulo(sec, 'h3', `${estilo} · ${nomeElemento(el)}`, 'estilo')
+    titulo(sec, 'h3', `${chaveDe(estilo)} · ${nomeElemento(el)}`, 'estilo')
 
     // 1. cada valor de cada gene, sobre 3 paletas, parado e galope animado
     titulo(sec, 'h4', `${estilo} · marcas sobre 3 paletas: parado e galope (animado)`)
     for (const [gene, valores] of genes) for (const v of valores) {
       const l = linha(sec)
       for (const m of PALETAS_2A) {
-        const base = { palette: m.palette, element: el, silks: SEDA_2A, scale: K2A, marcas: marcasDe(gene, v), semente: Breed.hashChave(m.id) }
+        const base = { palette: m.palette, element: el, silks: SEDA_2A, scale: K2A, marcas: marcasDe(gene, v), semente: Breed.hashChave(m.id), porte: PORTE }
         cel(l, Object.assign({ idle: true }, base), [`${estilo} · parado`, `${gene}: ${rotuloMarca(gene, v)}`, m.name])
         cel(l, base, [`${estilo} · galope animado`, `${gene}: ${rotuloMarca(gene, v)}`, m.name], { anima: true })
       }
@@ -232,7 +252,7 @@ function secaoMarcas() {
     for (const [gene, valores] of genes) for (const v of valores) {
       if (v === MARCA_VAZIA[gene]) continue
       const l = linha(sec)
-      const base = { palette: REF_2A.palette, element: el, silks: SEDA_2A, scale: K2A, marcas: marcasDe(gene, v), semente: Breed.hashChave(REF_2A.id) }
+      const base = { palette: REF_2A.palette, element: el, silks: SEDA_2A, scale: K2A, marcas: marcasDe(gene, v), semente: Breed.hashChave(REF_2A.id), porte: PORTE }
       const val = `${gene}: ${rotuloMarca(gene, v)}`
       cel(l, Object.assign({ idle: true, jockey: false }, base), [`${estilo} · retrato`, val])
       cel(l, Object.assign({ idle: true }, base), [`${estilo} · parado`, val])
@@ -244,7 +264,7 @@ function secaoMarcas() {
     for (const J of JOQ_2A) {
       const l = linha(sec)
       for (const padrao of GameData.JOQUEI.padroes) {
-        const base = { palette: REF_2A.palette, element: el, silks: J.seda, scale: K2A, joquei: { padrao, capacete: J.capacete } }
+        const base = { palette: REF_2A.palette, element: el, silks: J.seda, scale: K2A, joquei: { padrao, capacete: J.capacete }, porte: PORTE }
         const val = [`padrão: ${padrao}`, `${J.nome} ${J.seda} · capacete ${J.capacete}`]
         cel(l, Object.assign({ idle: true }, base), [`${estilo} · parado`].concat(val))
         cel(l, base, [`${estilo} · galope animado`].concat(val), { anima: true })
@@ -263,11 +283,44 @@ function secaoMarcas() {
       const l = linha(sec)
       for (const r of RAR_2A) {
         const o = Object.assign({ palette: REF_2A.palette, element: el, silks: SEDA_2A, scale: K2A, raridade: r,
-          semente: Breed.hashChave(REF_2A.id), marcas: REF_2A.marcas }, extra)
+          semente: Breed.hashChave(REF_2A.id), marcas: REF_2A.marcas, porte: PORTE }, extra)
         const rot = [`${estilo} · ${nomeEst}`, `raridade: ${GameData.RARITIES[r].name}`]
         if (modo === 'baia') celBaia(l, o, rot)
         else cel(l, o, rot, { anima: modo === 'anima', efeitos: true })
       }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Os 3 portes lado a lado (Visuais 2, parte 2b; spec docs/superpowers/specs/2026-11-13-cavalos-portes-design.md):
+// para cada estilo, o mapa de papéis dos 3 portes (retrato, parado e galope animado, 3×) e o cavalo recolorido com a
+// montaria de referência do elemento, na escala única do jogo (retrato, parado e galope animado).
+function secaoPortes() {
+  const sec = document.getElementById('portes')
+  titulo(sec, 'h2', 'Portes lado a lado (parte 2b): esguio, padrão e robusto')
+  for (const estilo of ['chamas', 'ondas', 'folhas', 'lisa'].filter((e) => !Q.get('estilo') || Q.get('estilo') === e)) {
+    const el = ELEMENTO[estilo]
+    titulo(sec, 'h3', `${estilo} · ${nomeElemento(el)}`)
+    const l1 = linha(sec)
+    for (const p of PORTES) {
+      const chave = chaveDe(estilo, p)
+      for (const estado of ['retrato', 'parado']) {
+        const { c, g } = canvas(192, 192, true)
+        g.drawImage(Sprites.moldeCanvas(chave, estado, 0, PAPEIS), 0, 0, 192, 192)
+        figura(l1, c, `${chave} · ${estado}`)
+      }
+      const ga = canvas(192, 192, true)
+      anima(ga.c, function (t) { ga.g.clearRect(0, 0, 192, 192); ga.g.drawImage(Sprites.moldeCanvas(chave, 'galope', Sprites._quadroGalope(el, t * 12, p), PAPEIS), 0, 0, 192, 192) })
+      figura(l1, ga.c, `${chave} · galope`)
+    }
+    const ref = MONTARIAS.filter((m) => m.element === el)[0] || { name: 'paleta neutra', palette: Sprites.PALETTES.neutro }
+    const l2 = linha(sec, `recolor ${ref.name}, seda ${SEDAS[0]} (3×)`)
+    for (const p of PORTES) {
+      const o = { palette: ref.palette, element: el, silks: SEDAS[0], scale: 3, porte: p }
+      cel(l2, Object.assign({ idle: true, jockey: false }, o), [`${chaveDe(estilo, p)} · retrato`])
+      cel(l2, Object.assign({ idle: true }, o), [`${chaveDe(estilo, p)} · parado`])
+      cel(l2, o, [`${chaveDe(estilo, p)} · galope`], { anima: true })
     }
   }
 }
@@ -284,12 +337,16 @@ if (!window.__MOLDES || !window.__MOLDES.estilos || !Object.keys(window.__MOLDES
 } else {
   setTimeout(() => { if (!Sprites.moldsReady) aviso.textContent = 'Os moldes não carregaram (veja o console).' }, 3000)
   Sprites.loadMolds(window.__MOLDES, () => {
-    if (!SO_MARCAS) {
-      legenda()
-      for (const estilo of ['chamas', 'ondas', 'folhas', 'lisa']) secao(estilo)
+    linksPortes()
+    if (SO_PORTES) secaoPortes()
+    else {
+      if (!SO_MARCAS) {
+        legenda()
+        for (const estilo of ['chamas', 'ondas', 'folhas', 'lisa']) secao(estilo)
+      }
+      secaoMarcas()
     }
-    secaoMarcas()
-    if (location.hash === '#marcas') document.getElementById('marcas').scrollIntoView()
+    if (location.hash === '#marcas' || location.hash === '#portes') document.getElementById(location.hash.slice(1)).scrollIntoView()
     requestAnimationFrame(loop)
     window.__comparativoPronto = true
   })

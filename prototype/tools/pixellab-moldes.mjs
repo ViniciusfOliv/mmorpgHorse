@@ -56,6 +56,10 @@
 // é reaproveitada sem nova chamada; uma tentativa que deu erro de API fica registrada (JSON com "erro") e
 // a seed é pulada ao retomar o lote. Uma imagem válida mas ruim na conferência visual é marcada à mão com
 // "rejeitada": "<motivo>" no JSON cru, e a seed também é pulada.
+// O lote `moldes` (os 4 moldes molde-<estilo>, 2026-11-08) foi SUBSTITUÍDO pelo lote `portes` na T7 da 2b
+// (2026-11-13): os moldes dele saíram de assets/pixellab (ficam no histórico do git) e o build ignora o nome
+// molde-<estilo>.json com aviso. Rodá-lo de novo regrava os 4 lá, sem efeito no jogo; o aceite da corrida dele lê o
+// galope de chamas antigo (molde-chamas-*), que não existe mais, e para com erro.
 // Saídas:
 //   prototype/assets/pixellab/molde-<estilo>-{retrato,parado,galope-N}.png  (cinza = papel × 25)
 //   prototype/assets/pixellab/molde-<estilo>.json        (âncoras, larguraUtil, limiares por geração, seeds)

@@ -100,8 +100,8 @@ Só nos desenhos do PixelLab (os moldes), em todas as telas: retrato, parado, ga
 
 As zonas valem para qualquer molde, inclusive os portes da 2b.
 
-**Limite conhecido (aceito até a 2b).** Nos moldes atuais, pernas que se encostam no desenho contam como uma, e
-por quadro se acham de 2 a 4 pernas. Medição da revisão final:
+**Limite conhecido (aceito até a 2b; resolvido na 2b em 2026-11-13, ver abaixo).** Nos moldes de 2026-11-08, pernas
+que se encostam no desenho contam como uma, e por quadro se acham de 2 a 4 pernas. Medição da revisão final:
 
 | Molde  | Retrato | Parado | Galope |
 |--------|---------|--------|--------|
@@ -112,6 +112,13 @@ por quadro se acham de 2 a 4 pernas. Medição da revisão final:
 Por isso 3 e 4 meias podem aparecer como 2 ou 3 num quadro, e no galope a 3ª e a 4ª meia aparecem e somem
 conforme as pernas se cruzam. 1 e 2 meias são estáveis. O código das pernas não muda na 2a; separar as 4 pernas
 nos moldes novos (retrato e parado) é requisito da 2b, com um teste de contagem de meias por molde.
+
+**Resolvido na 2b (T7, 2026-11-13).** Os 4 moldes acima saíram; os 12 moldes dos portes têm 4 pernas no retrato e no
+parado, fora as contagens que o Vinicius aceitou na folha (esguio-lisa e esguio-ondas no parado, 2; padrao-folhas no
+parado, robusto-lisa e robusto-chamas no retrato, 3). No galope, pelo menos 2 em todo quadro. O `moldes-test` confere
+isso e conta as meias por molde (N meias = N manchas brancas no retrato e no parado). Ficaram fora dessa conta, medidos
+e listados no teste (`PENDENTES_2A.meias`) para decisão: 6 dos 24 retratos e parados, por meias de pernas vizinhas que se
+encostam (viram uma mancha) ou pela ponta do casco separada pelo contorno (uma mancha a mais).
 
 **Pintura** (só sobre pixels de pelagem e pelagem-sombra; contorno, crina, jóquei e sela não mudam):
 

@@ -115,6 +115,14 @@
 //   galope do mestre e g<força><porte do guia><seed do guia> no mestre guiado por outro, ex. g60padrao3102);
 //   o relatório dos critérios em novos/criterios.json (toda tentativa: seed, prompt, init_image, custo e critérios).
 //   O docs/memoria/assets.md fica para depois da aprovação nas folhas (folha-portes.mjs).
+// novos/ é a PASTA DE ESPERA. Desde a T7 da 2b (2026-11-13, folha final aprovada) os 12 moldes moram em
+//   prototype/assets/pixellab/ (o build lê de lá) e novos/ guarda só o registro do lote: criterios.json, gasto.json e
+//   as folhas (folha-mestres.html, folha-final.html). O lote continua lendo e gravando os moldes em novos/: para mexer
+//   nele de novo (retomar, --refazer, --escolher, --guia-mestre, as folhas), refaça antes os moldes em novos/ com
+//   --reprocessar --manter-escolhas nas 3 fases (só de raw/, sem rede e sem custo; o moldes-test confere que saem
+//   iguais, byte a byte, aos do jogo). Depois de qualquer --reprocessar ou geração nova, MOVA os moldes de novos/ para
+//   prototype/assets/pixellab/ de novo (git mv dos molde-*): senão o jogo segue com os de antes, e o moldes-test
+//   acusa um molde de novos/ diferente do do jogo.
 import fs from 'node:fs';
 import path from 'node:path';
 import { decodePng } from './png.mjs';
