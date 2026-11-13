@@ -42,6 +42,8 @@
 //   paga); a chamada que passaria do teto (padrão 90) não sai. Um gasto.json que existe mas não se lê (JSON quebrado,
 //   "geracoes" que não é número finito ≥ 0) para o --gerar antes de qualquer chamada e nunca é sobrescrito; o dry-run
 //   avisa em destaque.
+// Crus: um cru em raw/ é reaproveitado quando o pedido é o mesmo, também com um texto de porte anterior
+//   (TEXTOS_PORTE): os crus de um texto antigo nunca são refeitos por cima com o texto novo na mesma seed.
 // Saídas: os finais em prototype/assets/pixellab/novos/ (molde-<porte>-<estilo>.json e -<estado>.png, no formato que o
 //   build lê, mas numa pasta que ele NÃO lê); os crus em raw/ (portes-<chave>-<etapa>[-g<força>m<seed do mestre>]-s<seed>);
 //   o relatório dos critérios em novos/criterios.json (toda tentativa: seed, prompt, init_image, custo e critérios).
@@ -73,11 +75,25 @@ export const FORCA_GUIA = 100;
 export const FORCA_GUIA_GALOPE = 300;
 
 // ---------------------------------------------------------------- textos (spec §4: tabela de aparência, exagerada)
-export const TEXTO_PORTE = {
-  esguio: 'tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse',
-  padrao: 'balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body',
-  robusto: 'short stocky robust horse inspired by the Crioulo breed, low and wide, deep thick chest, short thick muscular neck, short strong sturdy legs, full thick mane, compact heavy body, clearly shorter and wider than an average horse',
+// Cada porte guarda as versões do seu texto; a última sai nos pedidos novos. As anteriores ficam para reconhecer os crus
+// que já estão em raw/ (mesmo pedido ⇒ reaproveitado, nunca refeito por cima) e para o assets.md saber qual texto gerou
+// qual cru: cada tentativa no criterios.json grava a `versaoTexto` do pedido dela.
+export const TEXTOS_PORTE = {
+  esguio: [{ versao: 1, texto: 'tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse' }],
+  padrao: [{ versao: 1, texto: 'balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body' }],
+  robusto: [
+    // v1 gerou os mestres de 2026-11-13 (seeds 3103, 3203, 3303): na folha, altura/comprimento 1,023 × a do padrão (alvo
+    // ≤ 0,92) e espessura/comprimento 0,965 × (alvo ≥ 1,15) — não se distinguia do padrão
+    { versao: 1, texto: 'short stocky robust horse inspired by the Crioulo breed, low and wide, deep thick chest, short thick muscular neck, short strong sturdy legs, full thick mane, compact heavy body, clearly shorter and wider than an average horse' },
+    // v2 (decisão do Vinicius na folha dos mestres, 2026-11-13): exagera o cavalo de tração em barril, com as pernas mais
+    // curtas que a altura do corpo
+    { versao: 2, texto: 'very short stocky heavy draft-type horse inspired by the Crioulo breed, massive barrel-shaped body that is very wide and very deep, very short thick sturdy legs that are shorter than the depth of the body, short very thick muscular neck, broad wide chest, low heavy stance close to the ground, large heavy head, full thick mane, clearly much lower, wider and heavier than an average horse' },
+  ],
 };
+const ultimaVersao = porte => TEXTOS_PORTE[porte][TEXTOS_PORTE[porte].length - 1].versao;
+const textoPorte = (porte, versao) => (TEXTOS_PORTE[porte].find(v => v.versao === versao) || {}).texto;
+// o texto atual (a última versão) de cada porte
+export const TEXTO_PORTE = Object.fromEntries(PORTES.map(p => [p, textoPorte(p, ultimaVersao(p))]));
 // o critério das pernas (Marcas.zonas) só acha perna que aparece separada: pedir as 4 à mostra nas poses paradas
 const PERNAS_SEPARADAS = 'all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs';
 export const POSES_PORTES = {
@@ -91,8 +107,9 @@ export const ACAO_PORTES = `${ACAO_CORRIDA}, the same horse with the same body p
 
 // Pedido do create-image-pixflux de uma etapa parada. Mestre: porte + pose + crina lisa + COR. Versão: a crina do
 // elemento no começo e repetida como "clearly visible and distinct" (o reforço da rodada de crinas de 2026-11-09).
-export function pedidoPorte(item, etapa, seed, guiaBuf, forca = FORCA_GUIA) {
-  const crina = CRINAS[item.estilo], pose = POSES_PORTES[etapa], porte = TEXTO_PORTE[item.porte];
+// versao = a do texto do porte (TEXTOS_PORTE); sem ela, a última.
+export function pedidoPorte(item, etapa, seed, guiaBuf, forca = FORCA_GUIA, versao = ultimaVersao(item.porte)) {
+  const crina = CRINAS[item.estilo], pose = POSES_PORTES[etapa], porte = textoPorte(item.porte, versao);
   const reforco = item.mestre && etapa !== 'retrato' ? `, ${REFORCO_MESTRE}` : '';
   const corpo = {
     description: item.mestre
@@ -390,6 +407,16 @@ export async function rodarPortes(op) {
     if (t.planejada) return;
     log(t.ok ? `    aprovada seed ${t.seed}` : `    REPROVADA seed ${t.seed}: ${[...falhasDe(t).map(resumoCrit), ...(t.motivo && !t.criterios ? [t.motivo] : [])].join('; ')}`);
   };
+  // o pedido de uma seed parada: com o texto atual do porte; se o cru dessa seed em raw/ saiu de um texto anterior
+  // (TEXTOS_PORTE), vale aquele — o cru é reaproveitado, nunca refeito por cima (o nome dele não leva o texto)
+  const pedidoDaSeed = (item, etapa, seed, base, guiaBuf, forca) => {
+    const vs = TEXTOS_PORTE[item.porte];
+    for (let k = vs.length - 1; k >= 0; k--) {
+      const corpo = pedidoPorte(item, etapa, seed, guiaBuf, forca, vs[k].versao), reg = lerCru(raw, base, corpo);
+      if (reg) return { corpo, reg, versao: vs[k].versao };
+    }
+    return { corpo: pedidoPorte(item, etapa, seed, guiaBuf, forca), reg: null, versao: ultimaVersao(item.porte) };
+  };
 
   // ------------------------------------------------ etapa parada (retrato, parado, corrida)
   function avaliarParada(item, etapa, buf, t, mestre) {
@@ -436,13 +463,12 @@ export async function rodarPortes(op) {
   }
   async function tentarParada(item, etapa, rotulo, mestre, g, tentativas) {
     for (const seed of seedsDoItem(item, etapa, repetir)) {
-      const corpo = pedidoPorte(item, etapa, seed, g && g.guia && g.guia.buf, g ? g.forca : FORCA_GUIA);
       const base = `${prefixoEtapa(item, etapa, g && g.marca)}-s${seed}`;
-      const t = { seed, endpoint: PIXFLUX, prompt: corpo.description, arquivo: `raw/${base}.png`, geracoes: 0, marca: g ? g.marca : '' };
+      const { corpo, reg, versao } = pedidoDaSeed(item, etapa, seed, base, g && g.guia && g.guia.buf, g ? g.forca : FORCA_GUIA);
+      const t = { seed, endpoint: PIXFLUX, prompt: corpo.description, versaoTexto: versao, arquivo: `raw/${base}.png`, geracoes: 0, marca: g ? g.marca : '' };
       if (g) { t.init_image = g.descricao; t.init_image_strength = g.forca; }
       tentativas.push(t);
       log(`  ${rotulo} seed ${seed}${g ? ` (init_image ${t.init_image}, força ${g.forca})` : ''}`);
-      const reg = lerCru(raw, base, corpo);
       if (reg && (reg.erro || reg.rejeitada)) { pular(t, reg); continue; }
       const crus = reg && pngsCrus(raw, base, false);
       let buf;

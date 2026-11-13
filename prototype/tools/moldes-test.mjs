@@ -1474,5 +1474,42 @@ await testA('--guia-galope-mestre: a corrida sai guiada pelo 1º quadro cru do g
 });
 fs.rmSync(E.raiz, { recursive: true, force: true });
 
+// ---------------------------------------------------------------- Portes: pedido do robusto (folha dos mestres, 2026-11-13)
+section('Portes: pedido do robusto');
+const crusDe = dir => Object.fromEntries((fs.existsSync(dir) ? fs.readdirSync(dir) : []).map(f => [f, fs.readFileSync(path.join(dir, f))]));
+const iguaisAntes = (antes, dir) => Object.keys(antes).filter(f => !fs.existsSync(path.join(dir, f)) || !fs.readFileSync(path.join(dir, f)).equals(antes[f]));
+await testA('pedido do robusto: o texto novo sai nos pedidos; o antigo (versão 1) reconhece os crus dele, sem refazer por cima', async () => {
+  const T = Pl().TEXTOS_PORTE;
+  assert.deepStrictEqual(T.robusto.map(v => v.versao), [1, 2]);
+  assert.strictEqual(T.robusto[0].texto, 'short stocky robust horse inspired by the Crioulo breed, low and wide, deep thick chest, short thick muscular neck, short strong sturdy legs, full thick mane, compact heavy body, clearly shorter and wider than an average horse');
+  assert.strictEqual(Pl().TEXTO_PORTE.robusto, T.robusto[1].texto);
+  for (const k of ['Crioulo', 'barrel', 'draft', 'shorter than the depth of the body', 'large heavy head', 'low heavy stance']) assert.ok(T.robusto[1].texto.includes(k), k);
+  // esguio e padrão não mudam
+  assert.deepStrictEqual([T.esguio.length, T.padrao.length], [1, 1]);
+  assert.strictEqual(Pl().TEXTO_PORTE.esguio, 'tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse');
+  assert.strictEqual(Pl().TEXTO_PORTE.padrao, 'balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body');
+  // as 4 pernas separadas continuam nas poses paradas do robusto
+  assert.match(Pl().pedidoPorte({ porte: 'robusto', estilo: 'lisa', mestre: true }, 'parado', 1).description, /barrel-shaped.*all four legs clearly visible and separated/);
+  // dry-run numa pasta vazia: os 12 de sempre, e o robusto com o texto novo
+  const H = pastaTemp(), linhas = [];
+  await semRede(() => Pl().dryRunPortes({ fase: 'mestres', dirs: H.dirs }, l => linhas.push(l)));
+  const txt = linhas.join('\n');
+  assert.match(txt, /Total previsto: 12 gerações em 12 chamadas novas/);
+  const rob = txt.split('\n').filter((l, i, a) => /POST \S+ +robusto-lisa\/(retrato|parado|corrida) /.test(a[i - 1] || ''));
+  assert.strictEqual(rob.length, 3); assert.ok(rob.every(l => l.includes(T.robusto[1].texto) && !l.includes(T.robusto[0].texto)));
+  // crus do robusto pedidos com o texto antigo: reaproveitados (versaoTexto 1), sem chamada nem sobrescrita
+  const v2 = T.robusto.pop();
+  try {
+    await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: apiFalsa().executar, dirs: H.dirs, log: () => {} }));
+  } finally { T.robusto.push(v2); }
+  const crus = crusDe(H.dirs.raw), api = apiFalsa();
+  await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: api.executar, dirs: H.dirs, log: () => {} }));
+  assert.strictEqual(api.chamadas.length, 0); assert.deepStrictEqual(iguaisAntes(crus, H.dirs.raw), []);
+  const rt = lerJ(path.join(H.dirs.novos, 'criterios.json')).itens['robusto-lisa'].etapas.retrato.tentativas[0];
+  assert.deepStrictEqual([rt.versaoTexto, rt.prompt.includes(T.robusto[0].texto)], [1, true]);
+  assert.strictEqual(lerJ(path.join(H.dirs.novos, 'criterios.json')).itens['padrao-lisa'].etapas.retrato.tentativas[0].versaoTexto, 1);
+  fs.rmSync(H.raiz, { recursive: true, force: true });
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
