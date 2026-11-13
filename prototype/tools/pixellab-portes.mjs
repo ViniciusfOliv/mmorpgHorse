@@ -583,7 +583,7 @@ export async function rodarPortes(op) {
       : ant.variante !== it.variante ? `a receita no criterios.json é "${ant.variante}", não "${it.variante}"` : acharTentativa(raw, ant, x.etapa, x.seed).erro;
     if (erro) throw new ErroApi(`--escolher ${x.chave}:${x.etapa}=${x.seed}: ${erro}`, { fatal: true });
   }
-  const res = { itens: itens.map(i => i.chave), chamadas: [], reaproveitadas: [], manuais: [], mantidas: [], naoGravados: [], guiaPerdida: [], avisos, falhas: 0, incompletos: 0, parada: null, gastoAntes: gasto.geracoes, gastoIlegivel, refacaoTerminada: [], gasto: 0, previstas: 0 };
+  const res = { itens: itens.map(i => i.chave), chamadas: [], reaproveitadas: [], manuais: [], mantidas: [], trocas: [], naoGravados: [], guiaPerdida: [], avisos, falhas: 0, incompletos: 0, parada: null, gastoAntes: gasto.geracoes, gastoIlegivel, refacaoTerminada: [], gasto: 0, previstas: 0 };
   // as entradas de antes desta rodada (o histórico de um item refeito com outra receita é guardado, não sobrescrito)
   const anteriores = {};
   for (const it of itens) if (crit.itens[it.chave]) anteriores[it.chave] = crit.itens[it.chave];
@@ -633,7 +633,15 @@ export async function rodarPortes(op) {
   };
   for (const it of itens) {
     const ant = anteriores[it.chave], mesma = !!ant && ant.variante === it.variante, b = guias[it.chave];
-    it.guiasMestre = {}; it.manuais = {};
+    it.guiasMestre = {}; it.manuais = {}; it.mantidas = {};
+    // escolha mantida por um --reprocessar --manter-escolhas: vale em toda rodada seguinte (reprocessar, gerar, escolher
+    // outra etapa), na mesma receita e refação, até um --escolher ou um --refazer daquela etapa
+    if (mesma) {
+      for (const e of ETAPAS) {
+        const x = ant.etapas && ant.etapas[e];
+        if (x && x.mantida && !it.refazendo.includes(e) && (x.refacao || 0) === it.refacoes[e]) it.mantidas[e] = x.mantida;
+      }
+    }
     for (const e of ETAPAS_PARADAS) {
       const gAnt = mesma && ant.guiaMestre && ant.guiaMestre[e];
       // a refação de antes desta etapa saiu guiada por outro mestre e esta sai sem guia: aviso em destaque (dry-run e log)
@@ -810,9 +818,9 @@ export async function rodarPortes(op) {
   const pular = (t, reg, item, etapa) => {
     t.ok = false;
     if (reg.rejeitada) t.geracoes = geracoesDe(reg.resposta, reg.resposta && reg.resposta.job) ?? 1;
-    // --manter-escolhas: o erro de API de uma rodada anterior guarda o custo que foi contado nela (o cru de erro não o
-    // registra; sem a opção, a tentativa pulada sai com 0, como sempre)
-    else if (manterEscolhas) {
+    // --manter-escolhas (ou etapa com escolha mantida): o erro de API de uma rodada anterior guarda o custo que foi
+    // contado nela (o cru de erro não o registra; sem a opção, a tentativa pulada sai com 0, como sempre)
+    else if (manterEtapa(item, etapa)) {
       const a = tentativasDoRegistro(anteriores[item.chave], etapa).find(x => x.t.seed === t.seed && baseDoArquivo(x.t.arquivo) === t._base && x.t.motivo);
       if (a && a.t.geracoes) t.geracoes = a.t.geracoes;
     }
@@ -921,7 +929,8 @@ export async function rodarPortes(op) {
       st.etapas[etapa].terminada = true;
     } finally {
       // também quando o teto interrompe no meio: fica a melhor tentativa que já tem imagem
-      const esc = st.etapas[etapa].escolhida = escolherTentativa(rotulo, st.etapas[etapa], tentativas, pref);
+      const esc = st.etapas[etapa].escolhida = escolherTentativa(item, etapa, st.etapas[etapa], tentativas, pref);
+      if (st.etapas[etapa].terminada) avisarTroca(item, etapa, esc);
       if (esc && !esc.ok && !esc.planejada && st.etapas[etapa].terminada) log(`    ${rotulo}: reprovada nas ${tentativas.length} seeds; fica a melhor, a seed ${esc.seed}`);
       if (item.mestre && item.porte === 'padrao' && etapa === 'retrato' && esc && esc._quadro) {
         refPadrao = { w: LADO, h: LADO, retrato: esc._quadro.idx, ancoras: { retrato: esc._quadro.ancora } };
@@ -931,21 +940,43 @@ export async function rodarPortes(op) {
   // A escolha da etapa: a melhor tentativa (melhorTentativa). Com --manter-escolhas (só no --reprocessar), a escolha
   // anterior (pref) fica, aprovada ou não, enquanto tiver imagem em raw/: a rodada reavalia os critérios e regrava os
   // finais com as MESMAS tentativas — a folha já revista não troca de desenho porque uma classificação nova fez outra
-  // seed passar (tarefa 6a). Quando a melhor seria outra, a etapa grava `mantida` (a seed que seria escolhida) e o
-  // Resumo avisa; um --reprocessar sem a opção faz a troca.
-  function escolherTentativa(rotulo, x, tentativas, pref) {
-    const melhor = melhorTentativa(tentativas, pref);
-    const ant = manterEscolhas && pref != null ? tentativas.find(t => t._base === pref && (t._buf || t._bufs)) : null;
-    if (!ant || ant === melhor) return melhor;
-    x.mantida = { seria: melhor ? melhor.seed : null, seriaOk: !!(melhor && melhor.ok) };
-    res.mantidas.push({ rotulo, seed: ant.seed, ok: !!ant.ok, seria: x.mantida.seria, seriaOk: x.mantida.seriaOk });
-    log(`    ${rotulo}: escolha mantida (--manter-escolhas), a seed ${ant.seed}${ant.ok ? '' : ' (reprovada)'}; pelos critérios de hoje seria a seed ${x.mantida.seria}${x.mantida.seriaOk ? ' (aprovada)' : ''}`);
+  // seed passar (tarefa 6a). Quando a melhor seria outra, a etapa grava `mantida` ({ seria, seriaOk, data }) e o Resumo
+  // avisa. A marca é durável: nas rodadas seguintes, com ou sem a opção (--reprocessar, --gerar da fase, --escolher de
+  // outra etapa), a etapa marcada continua com a escolha dela (item.mantidas), até um --escolher ou um --refazer dela.
+  const manterEtapa = (item, etapa) => manterEscolhas || !!item.mantidas[etapa];
+  function escolherTentativa(item, etapa, x, tentativas, pref) {
+    const melhor = melhorTentativa(tentativas, pref), duravel = item.mantidas[etapa];
+    const ant = manterEtapa(item, etapa) && pref != null ? tentativas.find(t => t._base === pref && (t._buf || t._bufs)) : null;
+    if (!ant || (ant === melhor && !duravel)) return melhor;
+    x.mantida = { seria: melhor ? melhor.seed : null, seriaOk: !!(melhor && melhor.ok), data: (duravel && duravel.data) || rodada.data };
+    if (ant !== melhor) {
+      const rotulo = `${item.chave}/${etapa}`;
+      res.mantidas.push({ rotulo, seed: ant.seed, ok: !!ant.ok, seria: x.mantida.seria, seriaOk: x.mantida.seriaOk });
+      log(`    ${rotulo}: escolha mantida (${duravel ? `marcada em ${String(x.mantida.data).slice(0, 10)}` : '--manter-escolhas'}), a seed ${ant.seed}${ant.ok ? '' : ' (reprovada)'}; pelos critérios de hoje seria a seed ${x.mantida.seria}${x.mantida.seriaOk ? ' (aprovada)' : ''}`);
+    }
     return ant;
+  }
+  // A escolha de uma etapa que mudou sem ser pedida (sem --escolher nem --refazer dela): um critério ou a classificação
+  // mudou e outra seed passou a ser a melhor, a receita do item mudou, ou o cru da escolha anterior sumiu. A troca muda o
+  // desenho já visto na folha: AVISO em destaque no log e no Resumo (res.trocas; o dry-run também mostra).
+  function avisarTroca(item, etapa, esc) {
+    const ant = anteriores[item.chave], x = ant && ant.etapas && ant.etapas[etapa];
+    if (!x || x.escolhida == null || !esc || esc.planejada || item.refazendo.includes(etapa)) return;
+    const pin = item.manuais[etapa];
+    if (pin && pin.nova) return; // --escolher desta etapa nesta rodada (ou o galope que fica junto com a corrida escolhida)
+    const tAnt = (x.tentativas || []).find(t => t.seed === x.escolhida && (!x.escolha || !x.escolha.arquivo || t.arquivo === x.escolha.arquivo));
+    const mesmaBase = !tAnt || !tAnt.arquivo || !esc.arquivo || baseDoArquivo(tAnt.arquivo) === baseDoArquivo(esc.arquivo);
+    if (esc.seed === x.escolhida && mesmaBase) return;
+    const porque = ant.variante !== item.variante ? `a receita mudou ("${ant.variante}" → "${item.variante}")`
+      : 'os critérios de hoje escolhem outra tentativa (ou a escolhida de antes não está mais em raw/)';
+    const msg = `${item.chave}/${etapa}: a escolha mudou da seed ${x.escolhida} para a ${esc.seed} sem --escolher nem --refazer — ${porque}. O desenho visto na folha muda; para voltar: --escolher ${item.chave}:${etapa}=${x.escolhida}.`;
+    res.trocas.push(msg);
+    log(`${'!'.repeat(112)}\n!!! AVISO: ${msg}\n${'!'.repeat(112)}`);
   }
   // --manter-escolhas: o laço reavalia todas as tentativas que já estão em raw/, as de erro incluídas (não para na 1ª
   // aprovada: as tentativas pagas continuam no registro), e para no 1º cru que falta depois da escolha anterior (nada a
   // pagar no --reprocessar)
-  const passouDaEscolha = (k, ate) => manterEscolhas && ate >= 0 && k > ate;
+  const passouDaEscolha = (manter, k, ate) => manter && ate >= 0 && k > ate;
   // pref = o cru da escolha anterior (preferida): depois de uma aprovada, o laço só segue até ela, e só pelo que já
   // está em raw/ (sem pagar); a escolha fica com ela se continuar aprovada
   async function tentarParada(item, etapa, rotulo, mestre, g, tentativas, pref) {
@@ -955,7 +986,7 @@ export async function rodarPortes(op) {
       const seed = seeds[k], base = bases[k], forca = g ? g.forca(k) : FORCA_GUIA;
       const { corpo, reg, versao } = pedidoDaSeed(item, etapa, seed, base, g && g.guia && g.guia.buf, forca, g && g.proporcao);
       const crus = reg && !reg.erro && !reg.rejeitada ? pngsCrus(raw, base, false) : null;
-      if (!crus && !(manterEscolhas && reg) && (tentativas.some(x => x.ok) || passouDaEscolha(k, ate))) break;
+      if (!crus && !(manterEtapa(item, etapa) && reg) && (tentativas.some(x => x.ok) || passouDaEscolha(manterEtapa(item, etapa), k, ate))) break;
       const t = { seed, endpoint: PIXFLUX, prompt: corpo.description, versaoTexto: versao, arquivo: `raw/${base}.png`, geracoes: 0, marca: g ? g.marca(k) : '', _base: base };
       if (g) { t.init_image = g.descricao; t.init_image_strength = forca; }
       if (g && g.tipo === 'mestre') t.guiaMestre = g.mestre;
@@ -984,7 +1015,7 @@ export async function rodarPortes(op) {
       }
       avaliarParada(item, etapa, buf, t, mestre);
       relatar(rotulo, t);
-      if (t.ok && k >= ate && !manterEscolhas) break;
+      if (t.ok && k >= ate && !manterEtapa(item, etapa)) break;
     }
   }
 
@@ -1072,7 +1103,8 @@ export async function rodarPortes(op) {
       await tentarGalope(item, rotulo, tc, tentativas, pref);
       st.etapas.galope.terminada = true;
     } finally {
-      const esc = st.etapas.galope.escolhida = escolherTentativa(rotulo, st.etapas.galope, tentativas, pref);
+      const esc = st.etapas.galope.escolhida = escolherTentativa(item, 'galope', st.etapas.galope, tentativas, pref);
+      if (st.etapas.galope.terminada) avisarTroca(item, 'galope', esc);
       if (esc && !esc.ok && !esc.planejada && st.etapas.galope.terminada) log(`    ${rotulo}: reprovado nas ${tentativas.length} seeds; fica o melhor galope, a seed ${esc.seed}`);
     }
   }
@@ -1086,7 +1118,7 @@ export async function rodarPortes(op) {
       if (tc.planejada) { tentativas.push(t); await pagar(ANIMA, { rotulo, seed, geracoes: 0 }, null, texto); t.planejada = true; break; }
       const corpo = pedidoGalope(tc._buf, seed, ACAO_PORTES), reg = lerCru(raw, base, corpo);
       let bufs = reg && !reg.erro && !reg.rejeitada ? pngsCrus(raw, base, true) : null;
-      if (!bufs && !(manterEscolhas && reg) && (tentativas.some(x => x.ok) || passouDaEscolha(k, ate))) break;
+      if (!bufs && !(manterEtapa(item, 'galope') && reg) && (tentativas.some(x => x.ok) || passouDaEscolha(manterEtapa(item, 'galope'), k, ate))) break;
       tentativas.push(t);
       t.arquivo = `raw/${base}-N.png`;
       log(`  ${rotulo} seed ${seed} (corrida ${tc.seed}; job assíncrono; pode levar minutos)`);
@@ -1116,7 +1148,7 @@ export async function rodarPortes(op) {
       if (bufs.length !== LIMITES.quadros) log(`    AVISO ${rotulo}: vieram ${bufs.length} quadros (o molde precisa de ${LIMITES.quadros})`);
       avaliarGalope(item, bufs, t, tc);
       relatar(rotulo, t);
-      if (t.ok && k >= ate && !manterEscolhas) break;
+      if (t.ok && k >= ate && !manterEtapa(item, 'galope')) break;
     }
   }
 
@@ -1203,10 +1235,11 @@ export async function rodarPortes(op) {
       }
       for (const f of e.aceitos || []) log(`      aceito: ${f}`);
       for (const x of ETAPAS.filter(x => e.etapas[x] && e.etapas[x].mantida)) {
-        const m = e.etapas[x].mantida;
-        log(`      ${x}: escolha mantida (--manter-escolhas): seed ${e.etapas[x].escolhida}; pelos critérios de hoje seria a seed ${m.seria}${m.seriaOk ? ' (aprovada)' : ''}`);
+        const m = e.etapas[x].mantida, outra = m.seria != null && m.seria !== e.etapas[x].escolhida;
+        log(`      ${x}: escolha mantida (desde ${String(m.data || '').slice(0, 10) || '?'}; vale até um --escolher ou --refazer dela): seed ${e.etapas[x].escolhida}${outra ? `; pelos critérios de hoje seria a seed ${m.seria}${m.seriaOk ? ' (aprovada)' : ''}` : ''}`);
       }
     }
+    for (const m of res.trocas) log(`  ${'!'.repeat(110)}\n  !!! AVISO: ${m}\n  ${'!'.repeat(110)}`);
     if (fase === 'mestres' && crit.portes) {
       log(crit.portes.faltam.length ? `  Portes distintos: faltam ${crit.portes.faltam.join(', ')}` : `  Portes distintos: ${crit.portes.criterios.map(c => `${c.ok ? 'ok' : 'NÃO'} ${resumoCrit(c)}`).join('; ')}`);
     }
@@ -1232,6 +1265,12 @@ export async function dryRunPortes({ fase, only = null, teto = TETO_PADRAO, repe
     log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
   }
   for (const m of r.guiaPerdida) {
+    log('!'.repeat(112));
+    log(`!!! AVISO: ${m}`);
+    log('!'.repeat(112));
+  }
+  // escolha que trocaria sozinha (sem --escolher nem --refazer): o --gerar mudaria o desenho já visto na folha
+  for (const m of r.trocas) {
     log('!'.repeat(112));
     log(`!!! AVISO: ${m}`);
     log('!'.repeat(112));

@@ -200,21 +200,28 @@ export function sombrearRegioes(idx, w, h, { regioes = [2, 4] } = {}) {
   return { idx: out, alterados };
 }
 
+// limparJoquei(): seda e pele separadas do jóquei SÓ por contorno — até `passos` pixels andando só por contorno a partir
+// do que fica (no máximo passos − 1 pixels de contorno no meio) — e encostadas na caixa do maior componente + `margem`
+// px ficam (tarefa 6a: o capacete do galope do robusto-chamas, separado do tronco por 2 px de contorno do rosto).
+export const JOQUEI_CONTORNO = Object.freeze({ passos: 3, margem: 2 });
 /**
  * Limpeza espacial dos papéis do jóquei (7/8/9). Sem jóquei (retrato): todo pixel 7/8/9 é remapeado.
  * Com jóquei: fica o maior componente conexo (8-vizinhança) de pixels {7,8,9} e os componentes "junto do
  * jóquei", em cadeia: a até 2 px (Chebyshev) de um componente que já fica (capacete → rosto → seda); e, se
  * o componente for majoritariamente cinza (9), também a até 4 px ou embaixo do jóquei (sobrepõe a faixa x
  * do maior componente ± 2 e começa até 8 linhas abaixo do fim dele) — a sela fica sob a calça e o contorno,
- * a 3–6 px da seda; rédea na cabeça e casco cinza saem.
+ * a 3–6 px da seda; rédea na cabeça e casco cinza saem. E, se o componente não for majoritariamente cinza, também
+ * quando ele só está separado dos que ficam por contorno (até JOQUEI_CONTORNO.passos andando só por pixels 1) e
+ * encosta na caixa do maior componente + JOQUEI_CONTORNO.margem: o capacete separado do tronco pela linha do rosto.
  * Os demais 7/8/9 são remapeados para o papel 1–6
  * mais comum entre os 8 vizinhos (desempate 4, 2, 6, 1, depois 3, 5), em passadas simultâneas até
  * resolver os pixels cercados só por jóquei; sem vizinho nenhum ⇒ 1 (contorno).
  * @param {Uint8Array} idx
- * @param {{ comJoquei?: boolean }} opts
+ * @param {{ comJoquei?: boolean, porContorno?: boolean }} opts porContorno: false desliga a regra do "separado só
+ *        por contorno" (é o que a caixa do jóquei da crinaEscura usa)
  * @returns {{ idx: Uint8Array, remapeados: number }}
  */
-export function limparJoquei(idx, w, h, { comJoquei = false } = {}) {
+export function limparJoquei(idx, w, h, { comJoquei = false, porContorno = true } = {}) {
   const out = Uint8Array.from(idx), pendente = new Uint8Array(w * h);
   const viz = i => {
     const x = i % w, y = (i / w) | 0, r = [];
@@ -255,8 +262,24 @@ export function limparJoquei(idx, w, h, { comJoquei = false } = {}) {
         }
         const perto = new Array(tamanhos.length).fill(99);
         for (let i = 0; i < w * h; i++) if (comp[i] >= 0 && dist[i] >= 0) perto[comp[i]] = Math.min(perto[comp[i]], dist[i]);
+        // separado só por contorno: distância andando só por pixels de contorno (1) a partir dos que ficam
+        const distC = new Int8Array(w * h).fill(-1);
+        fila = [];
+        for (let i = 0; i < w * h; i++) if (comp[i] >= 0 && fica[comp[i]]) { distC[i] = 0; fila.push(i); }
+        const pertoC = new Array(tamanhos.length).fill(99);
+        for (let d = 1; d <= JOQUEI_CONTORNO.passos && fila.length; d++) {
+          const prox = [];
+          for (const i of fila) for (const n of viz(i)) {
+            if (distC[n] >= 0) continue;
+            if (comp[n] >= 0 && !fica[comp[n]]) pertoC[comp[n]] = Math.min(pertoC[comp[n]], d);
+            else if (idx[n] === 1) { distC[n] = d; prox.push(n); }
+          }
+          fila = prox;
+        }
+        const naCaixa = c => { const [x0, y0, x1, y1] = caixas[c], m = JOQUEI_CONTORNO.margem; return x1 >= mx0 - m && y1 >= my0 - m && x0 <= mx1 + m && y0 <= my1 + m; };
         perto.forEach((d, c) => {
-          if (fica[c] || !(d <= 2 || (cinzas[c] * 2 > tamanhos[c] && (d <= 4 || embaixo(c))))) return;
+          const soContorno = porContorno && cinzas[c] * 2 <= tamanhos[c] && pertoC[c] <= JOQUEI_CONTORNO.passos && naCaixa(c);
+          if (fica[c] || !(d <= 2 || soContorno || (cinzas[c] * 2 > tamanhos[c] && (d <= 4 || embaixo(c))))) return;
           fica[c] = true; mudou = true;
         });
       }
@@ -548,7 +571,9 @@ export function crinaEscura(f, { evitar = new Set(), comJoquei = false } = {}) {
   const yTopo = y0 + CRINA_ESCURA.topo * (y1 - y0 + 1);
   let cx0 = w, cy0 = h, cx1 = -1, cy1 = -1;
   if (comJoquei) {
-    const lj = limparJoquei(idx, w, h, { comJoquei: true }).idx;
+    // a caixa de sempre (sem a regra do "separado só por contorno"): com o capacete do galope dentro, ela subia até a
+    // cabeça do jóquei, que fica em cima do pescoço, e cortava a crina
+    const lj = limparJoquei(idx, w, h, { comJoquei: true, porContorno: false }).idx;
     for (let j = 0; j < n; j++) {
       if (!(idx[j] === 7 || idx[j] === 8) || !JOQUEI(lj[j])) continue;
       const x = j % w, y = (j / w) | 0;

@@ -432,6 +432,20 @@ else {
     assert.strictEqual(conta(papeisSem(fams, { comJoquei: true, contorno: true })), 2005);
     assert.strictEqual(conta(papeisCom(fams, { comJoquei: true, contorno: true })), 0);
   });
+  test('cru robusto-chamas (galope 3403, recorte do jóquei): o capacete separado do tronco pelo contorno do rosto fica seda', () => {
+    const fams = corrigirGrupo(grupoCru('portes-robusto-chamas-galope-c3403g100m5103-s3403', 9), { comJoquei: true }).fams;
+    // recorte x 24–50, y 8–34 do quadro 0: o jóquei, o capacete (#cf1a79 e #fbe48d nas linhas 10–13) e o pescoço
+    const x0 = 24, y0 = 8, W = 27, H = 27, f = fams[0], rec = new Uint8Array(W * H), cor = new Uint32Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { rec[y * W + x] = f.idx[(y0 + y) * 64 + x0 + x]; cor[y * W + x] = f.cor[(y0 + y) * 64 + x0 + x]; }
+    const capacete = [...rec.keys()].filter(i => rec[i] === 7 && (cor[i] === 0xcf1a79 || cor[i] === 0xfbe48d) && ((i / W) | 0) + y0 <= 13);
+    assert.ok(capacete.length >= 12, 'pixels do capacete: ' + capacete.length);
+    const com = limparJoquei(rec, W, H, { comJoquei: true }).idx, sem = limparJoquei(rec, W, H, { comJoquei: true, porContorno: false }).idx;
+    assert.ok(capacete.every(i => sem[i] !== 7), 'antes: o capacete ia para a pelagem e o contorno vizinhos');
+    assert.ok(capacete.every(i => com[i] === 7), 'agora: fica seda');
+    // e nos 9 quadros, pelo caminho do lote (classificação, limiares e limpeza)
+    const papeis = papeisSem(fams, { comJoquei: true, contorno: true });
+    assert.ok(papeis.every((q, k) => q.filter((v, i) => v === 7 && (fams[k].cor[i] === 0xcf1a79 || fams[k].cor[i] === 0xfbe48d) && i < 14 * 64).length >= 12));
+  });
   test('crus do robusto (parado das 4 versões): crina achada e a forma passa; no folhas, o jóquei de seda e pele', () => {
     for (const [base, falta] of [['portes-robusto-lisa-parado-g35padrao3102-s5103', /faltam papéis: 4/], ['portes-robusto-chamas-parado-g100m5103-s3503', /fora da paleta/],
       ['portes-robusto-ondas-parado-g100m5103-s3406', /fora da paleta/], ['portes-robusto-folhas-parado-g100m5103-s3609', /faltam papéis: 4 \(crina\), 8/]]) {
@@ -449,6 +463,20 @@ else {
     }
   });
 }
+test('limparJoquei: seda separada do jóquei só por contorno (até 2 px de contorno no meio) e encostada na caixa dele fica', () => {
+  // 7 = seda (o maior componente é o de baixo, em L), 1 = contorno, 2 = pelagem. O "capacete" (os 7 de cima) fica a 3 px
+  // (Chebyshev) do tronco — a regra de sempre (até 2 px) o tirava — e só encosta nele por 2 px de contorno
+  const no = (linhas, x, y, porContorno = true) => {
+    const w = linhas[0].length, h = linhas.length, idx = Uint8Array.from(linhas.join('').split('').map(c => (c === '.' ? 0 : Number(c))));
+    return limparJoquei(idx, w, h, { comJoquei: true, porContorno }).idx[y * w + x];
+  };
+  const PERTO = ['......77.', '......17.', '.....1...', '.7777....', '.77777777'];
+  assert.strictEqual(no(PERTO, 7, 1), 7, '2 px de contorno no meio e encostado na caixa: fica');
+  assert.strictEqual(no(PERTO, 7, 1, false), 1, 'sem a regra (a de sempre: a 3 px, sai)');
+  assert.strictEqual(no(['......77.', '......17.', '.....1...', '....1....', '.777.....', '.77777777'], 7, 1), 1, '3 px de contorno no meio: sai');
+  assert.notStrictEqual(no(['......77.', '......17.', '.....2...', '.7777....', '.77777777'], 7, 1), 7, 'separado por pelagem: sai');
+  assert.strictEqual(no(['77.......', '771......', '...1.....', '....7777.', '....77777'], 1, 1), 1, 'pelo contorno, mas longe da caixa do jóquei (> 2 px): sai');
+});
 test('crus do lote antigo (os 4 moldes do jogo e as tentativas deles): nenhuma correção de grupo se aplica', () => {
   const crus = fs.existsSync(RAW) ? fs.readdirSync(RAW).filter(f => f.endsWith('.png') && !f.startsWith('portes-')) : [];
   const grupos = new Map();
@@ -1782,9 +1810,10 @@ await testA('--manter-escolhas (só no --reprocessar): a escolha gravada fica, m
   const r = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', manterEscolhas: true, executar: sem, dirs: G.dirs, log: l => linhas.push(l) }));
   assert.strictEqual(r.parada, null);
   const ret = lerJ(arq).itens['padrao-lisa'].etapas.retrato;
-  assert.deepStrictEqual([ret.escolhida, ret.ok, ret.mantida], [3102, false, { seria: 3202, seriaOk: true }]);
+  assert.deepStrictEqual([ret.escolhida, ret.ok, ret.mantida.seria, ret.mantida.seriaOk, typeof ret.mantida.data], [3102, false, 3202, true, 'string']);
   assert.deepStrictEqual(r.mantidas, [{ rotulo: 'padrao-lisa/retrato', seed: 3102, ok: false, seria: 3202, seriaOk: true }]);
-  assert.match(linhas.join('\n'), /retrato: escolha mantida \(--manter-escolhas\): seed 3102; pelos critérios de hoje seria a seed 3202 \(aprovada\)/);
+  assert.match(linhas.join('\n'), /retrato: escolha mantida \(desde \d{4}-\d\d-\d\d; vale até um --escolher ou --refazer dela\): seed 3102; pelos critérios de hoje seria a seed 3202 \(aprovada\)/);
+  assert.deepStrictEqual(r.trocas, [], 'nada trocou');
   const J = lerJ(path.join(G.dirs.novos, 'molde-padrao-lisa.json'));
   assert.strictEqual(J.seeds.retrato, 3102, 'o final é regravado com a escolha mantida');
   // as etapas em que a escolhida já é a melhor não ganham `mantida`
@@ -1794,12 +1823,37 @@ await testA('--manter-escolhas (só no --reprocessar): a escolha gravada fica, m
   assert.deepStrictEqual([gal1.escolhida, 'mantida' in gal1, gal1.tentativas.map(t => `${t.seed}${t.ok ? '✓' : '✗'}${t.geracoes}`).join(' ')], [3103, false, '3103✓1 3203✗1 3303✗1']);
   const Fo = await import('./folha-portes.mjs');
   assert.match(Fo.htmlFolhaMestres(Fo.dadosMestres(G.dirs.novos)), /retrato 3102: escolha mantida no reprocessamento \(--manter-escolhas\); pelos critérios de hoje seria a seed 3202 \(aprovada\)/);
-  // sem a opção, a regra de sempre: a anterior reprovada perde para a aprovada
-  await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', executar: sem, dirs: G.dirs, log: () => {} }));
+  // a marca é durável (revisão da 6a): sem a opção, num --escolher de outra etapa do item e num --gerar da fase, a
+  // escolha mantida fica (antes, só o --reprocessar com a opção a segurava)
+  const l2 = [];
+  const r2 = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', executar: sem, dirs: G.dirs, log: l => l2.push(l) }));
   const ret2 = lerJ(arq).itens['padrao-lisa'].etapas.retrato;
-  assert.deepStrictEqual([ret2.escolhida, ret2.ok, 'mantida' in ret2], [3202, true, false]);
-  // (e, como sempre, o laço para na 1ª aprovada: o registro do galope fica só com a 3103)
+  assert.deepStrictEqual([ret2.escolhida, ret2.mantida && ret2.mantida.seria, ret2.mantida && ret2.mantida.data, r2.trocas], [3102, 3202, ret.mantida.data, []], 'reprocessar sem a opção');
+  assert.match(l2.join('\n'), /padrao-lisa\/retrato: escolha mantida \(marcada em \d{4}-\d\d-\d\d\), a seed 3102 \(reprovada\); pelos critérios de hoje seria a seed 3202/);
+  const r3 = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'escolher', escolher: ['padrao-lisa:galope=3102'], motivo: 'teste', dirs: G.dirs, log: () => {} }));
+  const it3 = lerJ(arq).itens['padrao-lisa'];
+  assert.deepStrictEqual([it3.etapas.retrato.escolhida, !!it3.etapas.retrato.mantida, it3.etapas.galope.escolha.manual, r3.trocas], [3102, true, true, []], '--escolher de outra etapa');
+  assert.strictEqual(lerJ(path.join(G.dirs.novos, 'molde-padrao-lisa.json')).seeds.retrato, 3102);
+  const api4 = apiFalsa(CENARIO);
+  const r4 = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: api4.executar, dirs: G.dirs, log: () => {} }));
+  assert.deepStrictEqual([api4.chamadas.length, lerJ(arq).itens['padrao-lisa'].etapas.retrato.escolhida, r4.trocas], [0, 3102, []], '--gerar da fase: nada pago, a escolha fica');
+  // a troca que não foi pedida avisa em destaque: o galope do robusto gravado na 3303 (reprovada, sem marca) volta à
+  // 3103 (aprovada) num --reprocessar comum; o dry-run mostra o mesmo aviso antes
+  const C5 = lerJ(arq); C5.itens['robusto-lisa'].etapas.galope.escolhida = 3303; fs.writeFileSync(arq, JSON.stringify(C5, null, 2) + '\n');
+  const l5 = [];
+  await semRede(() => Pl().dryRunPortes({ fase: 'mestres', dirs: G.dirs }, l => l5.push(l)));
+  assert.match(l5.join('\n'), /!!! AVISO: robusto-lisa\/galope: a escolha mudou da seed 3303 para a 3103 sem --escolher nem --refazer/);
+  const l6 = [];
+  const r6 = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', executar: sem, dirs: G.dirs, log: l => l6.push(l) }));
+  assert.strictEqual(r6.trocas.length, 1);
+  assert.match(r6.trocas[0], /^robusto-lisa\/galope: a escolha mudou da seed 3303 para a 3103 sem --escolher nem --refazer — os critérios de hoje escolhem outra tentativa .* para voltar: --escolher robusto-lisa:galope=3303\.$/);
+  assert.ok(l6.filter(l => /!!! AVISO: robusto-lisa\/galope: a escolha mudou/.test(l)).length >= 2, 'no log da etapa e no Resumo');
+  // (e, como sempre, o laço da etapa sem marca para na 1ª aprovada: o registro do galope fica só com a 3103)
   assert.deepStrictEqual(lerJ(arq).itens['robusto-lisa'].etapas.galope.tentativas.map(t => t.seed), [3103]);
+  // --escolher da própria etapa tira a marca, sem aviso de troca (foi pedida)
+  const r7 = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'escolher', escolher: ['padrao-lisa:retrato=3202'], motivo: 'teste', dirs: G.dirs, log: () => {} }));
+  const ret7 = lerJ(arq).itens['padrao-lisa'].etapas.retrato;
+  assert.deepStrictEqual([ret7.escolhida, 'mantida' in ret7, ret7.escolha.manual, r7.trocas], [3202, false, true, []]);
   // erros de uso: só com --reprocessar
   await assert.rejects(() => Pl().rodarPortes({ fase: 'mestres', modo: 'plano', manterEscolhas: true, dirs: G.dirs }), /--manter-escolhas só anda com --reprocessar/);
   assert.match(Pl().validarArgsPortes({ fase: 'mestres', manterEscolhas: true }, G.dirs.novos), /--manter-escolhas só anda com --reprocessar/);
@@ -1808,6 +1862,21 @@ await testA('--manter-escolhas (só no --reprocessar): a escolha gravada fica, m
   assert.deepStrictEqual([cli.status, /--manter-escolhas só anda com --reprocessar/.test(cli.stderr), /REDE PROIBIDA/.test(cli.stderr)], [2, true, false]);
   const cliM = spawnSync(process.execPath, ['--import', BLOQUEIO_REDE, path.join(path.dirname(fileURLToPath(import.meta.url)), 'pixellab-moldes.mjs'), '--lote', 'moldes', '--manter-escolhas'], { encoding: 'utf8' });
   assert.deepStrictEqual([cliM.status, /--manter-escolhas só vale com --lote portes/.test(cliM.stderr)], [2, true]);
+});
+
+await testA('o caso da revisão nos dados de verdade (cópia de novos/): --escolher robusto-ondas:galope=3506 mantém o parado na 3406', async () => {
+  const novosReal = path.join(DIR, 'novos'), C = fs.existsSync(path.join(novosReal, 'criterios.json')) && lerJ(path.join(novosReal, 'criterios.json'));
+  const par = C && C.itens['robusto-ondas'] && C.itens['robusto-ondas'].etapas.parado;
+  if (!par || !par.mantida || par.escolhida !== 3406) { console.log('       (sem a escolha mantida do robusto-ondas em novos/: caso pulado)'); return; }
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'portes-revisao-')), novos = path.join(tmp, 'novos');
+  fs.cpSync(novosReal, novos, { recursive: true });
+  const antes = fs.readFileSync(path.join(novos, 'molde-robusto-ondas-parado.png')), linhas = [];
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'versoes', modo: 'escolher', escolher: ['robusto-ondas:galope=3506'], motivo: 'teste', dirs: { raw: path.join(DIR, 'raw'), novos }, log: l => linhas.push(l) }));
+  const it = lerJ(path.join(novos, 'criterios.json')).itens['robusto-ondas'];
+  assert.deepStrictEqual([it.etapas.parado.escolhida, !!it.etapas.parado.mantida, it.etapas.galope.escolhida, r.trocas], [3406, true, 3506, []]);
+  assert.ok(fs.readFileSync(path.join(novos, 'molde-robusto-ondas-parado.png')).equals(antes), 'o parado não é regravado com outra seed');
+  assert.ok(!linhas.some(l => /a escolha mudou/.test(l)));
+  fs.rmSync(tmp, { recursive: true, force: true });
 });
 
 await testA('--refazer padrao-lisa:corrida: corrida e galope em seeds novas (4102+); retrato e parado intactos; histórico, teto e retomada', async () => {

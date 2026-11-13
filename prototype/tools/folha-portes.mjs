@@ -209,7 +209,7 @@ function registroTxt(reg) {
   const escolhaTxt = escolhas.map(([e, x]) => `<p class="aceito">${esc(e)} ${esc(x.seed)}: escolha manual — aceito na folha: ${esc(x.motivo)}${x.aceitos && x.aceitos.length ? ` <small>(${esc(x.aceitos.join('; '))})</small>` : ''}${x.automatico ? ` <small>(${esc(x.automatico)})</small>` : ''}</p>`).join('');
   // --reprocessar --manter-escolhas: a escolha revista ficou, e pelos critérios de hoje a escolhida seria outra seed
   const mantidas = ['retrato', 'parado', 'corrida', 'galope'].map(e => [e, reg.etapas && reg.etapas[e]]).filter(([, x]) => x && x.mantida);
-  const mantidaTxt = mantidas.map(([e, x]) => `<p class="suave">${esc(e)} ${esc(x.escolhida)}: escolha mantida no reprocessamento (--manter-escolhas); pelos critérios de hoje seria a seed ${esc(x.mantida.seria)}${x.mantida.seriaOk ? ' (aprovada)' : ''}</p>`).join('');
+  const mantidaTxt = mantidas.map(([e, x]) => `<p class="suave">${esc(e)} ${esc(x.escolhida)}: escolha mantida no reprocessamento (--manter-escolhas)${x.mantida.seria != null && x.mantida.seria !== x.escolhida ? `; pelos critérios de hoje seria a seed ${esc(x.mantida.seria)}${x.mantida.seriaOk ? ' (aprovada)' : ''}` : ''}</p>`).join('');
   return `<p class="suave">Seeds: ${esc(seeds.join(' · '))}${reg.guia ? ` · init_image do mestre, força ${esc(reg.guia.init_image_strength)}` : ''}</p>`
     + guiaTxt + escolhaTxt + mantidaTxt + (forma.length ? `<p class="nao">${forma.map(esc).join('<br>')}</p>` : '');
 }
