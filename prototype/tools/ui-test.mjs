@@ -1247,17 +1247,45 @@ try {
     const b = Array.from(document.querySelectorAll('.montaria-cabeca .linha-meta span')).find((s) => /^Poder/.test(s.textContent.trim()))
     return b ? Number(b.querySelector('b').textContent) : null
   })
-  // cavalo de teste no teto: Comum nível 50 com genética 31 (natural 74,6: só 6 pontos até o teto de 80)
+  // cavalo de teste: Comum ★★ nível 50 com genética 31 (base 56 em cada status; 213 pontos, 6 deles em Velocidade).
+  // Era o do teto da raridade (80) no bloco 1; no 1b o teto é 150 para todos e ninguém chega lá com os pontos.
   const TETO_M2 = { uid: 'm2', templateId: null, name: 'Teto', especie: 'cavalo', element: 'agua', rarity: 'comum', grau: 2, sex: 'f', level: 50, xp: 0, skills: [],
     potential: { vel: 31, acel: 31, man: 31, forca: 31, est: 31, garra: 31, sorte: 31 }, alloc: { vel: 6, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 },
     palette: null, breedLeft: 2, parents: null, born: 0, equip: {} }
+  // pontos de status que ainda dá para comprar com o que sobra (o selo "+N" do Estábulo, spec 1b §11), contados aqui sem
+  // o jogo: o ponto mais barato primeiro, entre os status abaixo do teto (maxBuy) e fora da Sorte, até nada caber
+  const podeComprar = (m) => {
+    const info = S.allocInfo(m), a = { ...info.perStat }, nb = S.TUNING.noBuy || []
+    let left = info.left, n = 0
+    for (;;) {
+      let best = null
+      for (const k of G.STAT_KEYS) {
+        if (nb.includes(k) || a[k] >= S.maxBuy(m, k)) continue
+        if (S.pointCost(a[k]) <= left && (best === null || S.pointCost(a[k]) < S.pointCost(a[best]))) best = k
+      }
+      if (!best) return n
+      left -= S.pointCost(a[best]); a[best]++; n++
+    }
+  }
+  // o efeito da skill de tipo em pontos para o cavalo (spec 1b §5): status × statMul·P nos dois status do tipo, dos status
+  // atuais; "Velocidade e Aceleração +N no 1º terço" (um número para cada status quando os dois diferem)
+  const efeitoTipoPontos = (m) => {
+    const ts = S.typeSkill(m), e = G.TYPE_SKILLS[m.element].effect, keys = e.statKeys || S.TYPE_STATS[m.element]
+    const st = S.computeStats(m), g = keys.map((k) => Math.round(st[k] * e.statMul * ts.power)), nomes = keys.map((k) => G.STATS[k].name)
+    const onde = ` no ${['1º', '2º', '3º'][Math.round(ts.zone[0] * 3)]} terço`
+    return g[0] === g[1] ? `${nomes.join(' e ')} +${g[0]}${onde}` : `${nomes[0]} +${g[0]} e ${nomes[1]} +${g[1]}${onde}`
+  }
+  // o title e o aria-label de um botão "+N" (spec 1b §11): "+5 em Velocidade: custa 15 pontos", a partir dos pontos a
+  const tituloMais = (a, k, n) => { const c = S.costOf(a[k] + n) - S.costOf(a[k]); return `+${n} em ${G.STATS[k].name}: custa ${c} ${c === 1 ? 'ponto' : 'pontos'}` }
 
   if (quer('build')) {
     const bd = await newPage(browser, { width: 360, height: 780 }, 'build', { init: { content: 'window.confirm = function () { window.__confirmou = true; return true }; window.alert = function () { window.__confirmou = true }' } })
     const st = () => bd.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
     const disco = () => bd.evaluate((k) => JSON.parse(localStorage.getItem(k)), SAVE_REAL)
     const rascunho = () => bd.evaluate(() => { const r = window.__galope.ui.rascunho; return r ? JSON.parse(JSON.stringify(r)) : null })
-    const mais = (k) => bd.locator(`[data-acao="ponto-mais"][data-id="${k}"]`)
+    // +N de um status (bloco 1b: +1, +5 e +10)
+    const mais = (k, n = 1) => bd.locator(`[data-acao="ponto-mais"][data-id="${k}"][data-n="${n}"]`)
+    const topoTxt = async () => ((await bd.locator('.build-topo').textContent().catch(() => '')) || '').replace(/\s+/g, ' ')
     const quebrar = () => bd.evaluate(() => { if (!window.__setOrig) window.__setOrig = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new DOMException('cheio', 'QuotaExceededError') } })
     const consertar = () => bd.evaluate(() => { Storage.prototype.setItem = window.__setOrig })
     const FALHA = 'Não foi possível salvar. Libere espaço e tente de novo.'
@@ -1270,23 +1298,24 @@ try {
     try {
       await bd.getByRole('button', { name: 'Escolher Brasa' }).click()
       await bd.waitForSelector('#t-estabulo')
-      // Brasa Comum ★★ nível 12: 13 pontos livres, até 5 por status; m2 no teto (Comum nível 50, genética 31)
+      // Brasa Comum ★★ nível 12: 28 pontos, todos a 1 (nenhum status com 10 comprados); m2: Comum ★★ nível 50 (213 pontos)
       await montaSave(bd, (raw) => { raw.mounts[0].level = 12; raw.mounts.push(JSON.parse(JSON.stringify(TETO_M2))); raw.nextUid = 3; raw.stableSlots = 3 })
       await abreMontaria('m1')
-      const txt = ((await bd.locator('.pontos-livres').first().textContent()) || '').replace(/\s+/g, ' ')
-      if (!/pontos livres:? 13\b/i.test(txt)) problems.push('build: topo da aba Status sem "pontos livres: 13": ' + txt)
-      const s0 = await st(), d0 = await disco(), m0 = s0.mounts[0]
-      // uma linha por status com nota de genética, barra e "+"
+      const s0 = await st(), d0 = await disco(), m0 = s0.mounts[0], livres0 = S.freePoints(m0)
+      if (livres0 !== 28) problems.push('build: a Brasa nível 12 de teste tem ' + livres0 + ' pontos (esperado 28)')
+      if (!(await topoTxt()).includes(`Pontos: sobram ${livres0} de ${livres0}`)) problems.push(`build: topo da aba Status sem "Pontos: sobram ${livres0} de ${livres0}": ` + await topoTxt())
+      // uma linha por status com nota de genética e barra; +1, +5 e +10 nos seis de corrida; a Sorte sem botões
       const linhas = await bd.evaluate(() => Array.from(document.querySelectorAll('[data-status]')).map((l) => ({
-        k: l.getAttribute('data-status'), nota: (l.querySelector('.nota-genetica') || {}).textContent, barra: !!l.querySelector('.barra'), mais: !!l.querySelector('[data-acao="ponto-mais"]')
+        k: l.getAttribute('data-status'), nota: (l.querySelector('.nota-genetica') || {}).textContent, barra: !!l.querySelector('.barra'),
+        mais: Array.from(l.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => b.getAttribute('data-n')).join(',')
       })))
       if (linhas.length !== 7) problems.push('build: ' + linhas.length + ' linhas de status (esperado 7)')
       for (const l of linhas) {
         if (l.nota !== nota(m0.potential[l.k])) problems.push(`build: nota de genética de ${l.k} = ${l.nota} (genética ${m0.potential[l.k]}: ${nota(m0.potential[l.k])})`)
-        if (!l.barra || !l.mais) problems.push('build: linha sem barra ou sem "+" ' + JSON.stringify(l))
+        if (!l.barra || l.mais !== (l.k === 'sorte' ? '' : '1,5,10')) problems.push('build: linha sem barra ou com os botões errados ' + JSON.stringify(l))
       }
       await confereLegivel(bd, ['.pontos-livres', '.nota-genetica', '.selo-nivel', '[data-status]'], 'build-360')
-      // capturas oficiais (só na rodada completa): aba Status com os 13 pontos livres e aba Skills com a vaga de tipo
+      // capturas oficiais (só na rodada completa): aba Status com os pontos e aba Skills com a vaga de tipo
       if (!SO.length) {
         // janela de 360 px com as sub-abas no topo (página inteira deixaria a barra de abas fixa no meio)
         const subabasNoTopo = () => bd.evaluate(() => { const e = document.querySelector('.subabas'); window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - 8) })
@@ -1301,26 +1330,31 @@ try {
         await bd.locator('[data-acao="montaria-aba"][data-id="status"]').click()
       }
       const poder0 = await poderNaCabeca(bd)
-      // limite por status: 5 pontos em Velocidade e o "+" some
-      for (let i = 0; i < 5; i++) await mais('vel').click()
-      if ((await mais('vel').count()) !== 0) problems.push('build: o "+" de Velocidade continua depois de 5 pontos (limite por status)')
+      // custo por faixa (no lugar do limite de 34% por status): +10 em Velocidade custa 10; o +10 seguinte custaria 20 e
+      // não cabe nos 18 que sobram (desabilitado, "Faltam pontos"); o +5 custa 10 e cabe
+      await mais('vel', 10).click()
+      if (!(await mais('vel', 10).isDisabled()) || !/custa 20 pontos\. Faltam pontos: sobram 18\./.test((await mais('vel', 10).getAttribute('title')) || '')) problems.push('build: o 2º +10 em Velocidade (custa 20, sobram 18) não está desabilitado com o motivo: ' + await mais('vel', 10).getAttribute('title'))
+      if (await mais('vel', 5).isDisabled()) problems.push('build: +5 em Velocidade (custa 10, sobram 18) desabilitado')
+      await mais('vel', 5).click()
       let r = await rascunho()
-      if (!r || r.vel !== 5) problems.push('build: rascunho depois de 5 pontos ' + JSON.stringify(r))
+      if (!r || r.vel !== 15) problems.push('build: rascunho depois de +10 e +5 ' + JSON.stringify(r))
       if (JSON.stringify((await st()).mounts[0].alloc) !== JSON.stringify(m0.alloc) || JSON.stringify(await disco()) !== JSON.stringify(d0)) problems.push('build: o rascunho chegou ao save antes de confirmar')
       if ((await poderNaCabeca(bd)) !== poder0) problems.push('build: o Poder da cabeça mudou com o rascunho')
       await capT6(bd, 'build-360-rascunho.png', true)
-      if (!/pontos livres:? 8\b/i.test(((await bd.locator('.pontos-livres').first().textContent()) || '').replace(/\s+/g, ' '))) problems.push('build: os pontos livres não descontam o rascunho')
+      if (!(await topoTxt()).includes(`sobram 8 de ${livres0}`)) problems.push('build: os pontos que sobram não descontam o custo do rascunho (10 + 10): ' + await topoTxt())
+      if (!/próximo ponto custa\s2$/.test(await bd.locator('[data-status="vel"] .build-custo').textContent())) problems.push('build: com 15 em Velocidade, o próximo ponto não custa 2')
       // Desfazer limpa o rascunho
       await bd.locator('[data-acao="pontos-desfazer"]').click()
       r = await rascunho()
       if (r && G.STAT_KEYS.some((k) => r[k])) problems.push('build: Desfazer não limpou o rascunho ' + JSON.stringify(r))
-      if ((await mais('vel').count()) !== 1) problems.push('build: o "+" de Velocidade não voltou depois de Desfazer')
-      // Confirmar: o primeiro toque só avisa; com a gravação falhando, nada muda
+      if ((await mais('vel', 10).isDisabled())) problems.push('build: o +10 de Velocidade não voltou depois de Desfazer')
+      // Confirmar: o primeiro toque só avisa (como mudar depois); com a gravação falhando, nada muda
       await mais('vel').click(); await mais('vel').click(); await mais('acel').click()
       await bd.locator('[data-acao="pontos-confirmar"]').click()
       const aviso = ((await bd.locator('#tela').textContent()) || '')
       await capT6(bd, 'build-360-confirma.png', true)
-      if (!/não dá para voltar atrás/i.test(aviso)) problems.push('build: o primeiro "Confirmar" não avisou que não dá para voltar atrás')
+      if (!aviso.includes('Para mudar depois, use Redistribuir (a primeira deste cavalo é grátis).')) problems.push('build: o primeiro "Confirmar" não avisou como mudar depois (Redistribuir)')
+      if (/não dá para voltar atrás/i.test(aviso)) problems.push('build: o primeiro "Confirmar" ainda diz que não dá para voltar atrás')
       if (JSON.stringify((await st()).mounts[0].alloc) !== JSON.stringify(m0.alloc)) problems.push('build: o primeiro "Confirmar" já gravou')
       await quebrar()
       await bd.locator('[data-acao="pontos-confirmar"]').click()
@@ -1339,26 +1373,29 @@ try {
       const d1 = await disco()
       const alvo = { vel: 2, acel: 1, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 }
       if (JSON.stringify(s.mounts[0].alloc) !== JSON.stringify(alvo) || JSON.stringify(d1.mounts[0].alloc) !== JSON.stringify(alvo)) problems.push('build: pontos confirmados ' + JSON.stringify({ mem: s.mounts[0].alloc, disco: d1.mounts[0].alloc }))
-      const its = Object.fromEntries(s.items.map((x) => [x.uid, x]))
-      const st0 = S.computeStats(m0, null), st1 = S.computeStats(s.mounts[0], null)
+      const st0 = S.computeStats(m0), st1 = S.computeStats(s.mounts[0])
       if (st1.vel !== st0.vel + 2 || st1.acel !== st0.acel + 1) problems.push('build: os status não subiram com os pontos ' + JSON.stringify({ st0, st1 }))
       const poder1 = await poderNaCabeca(bd)
-      if (!(poder1 > poder0) || poder1 !== S.powerRating(s.mounts[0], GR.resolve(s.mounts[0], its))) problems.push(`build: Poder depois de confirmar ${poder0} -> ${poder1}`)
+      if (!(poder1 > poder0) || poder1 !== S.powerRating(s.mounts[0])) problems.push(`build: Poder depois de confirmar ${poder0} -> ${poder1}`)
       if (await rascunho()) problems.push('build: o rascunho ficou depois de gravar')
-      // clique forjado fora da aba Status: "+" e "Confirmar" não fazem nada
-      await bd.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
-      const forja = (acao, idf) => bd.evaluate(([a, i]) => {
-        const b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-acao', a); if (i) b.setAttribute('data-id', i)
+      // clique forjado fora da aba Status (na aba Skills; a Equipamento está suspensa): +N, sugerido e Confirmar não fazem nada
+      await bd.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+      const forja = (acao, idf, n) => bd.evaluate(([a, i, nn]) => {
+        const b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-acao', a); if (i) b.setAttribute('data-id', i); if (nn) b.setAttribute('data-n', nn)
         document.getElementById('tela').appendChild(b); b.click(); b.remove()
-      }, [acao, idf])
-      await forja('ponto-mais', 'man')
-      if (await rascunho()) problems.push('build: "+" forjado fora da aba Status entrou no rascunho ' + JSON.stringify(await rascunho()))
+      }, [acao, idf, n])
+      await forja('ponto-mais', 'man', '1')
+      await forja('pontos-sugerir')
+      if (await rascunho()) problems.push('build: +N ou "Distribuir sugerido" forjado fora da aba Status entrou no rascunho ' + JSON.stringify(await rascunho()))
       const allocAntes = JSON.stringify((await st()).mounts[0].alloc)
       await bd.evaluate(() => { const M = window.__galope.ui.montaria; M.rascunho = { vel: 0, acel: 0, man: 1, forca: 0, est: 0, garra: 0, sorte: 0 }; M.confirmaPontos = true })
       await forja('pontos-confirmar')
       if (JSON.stringify((await st()).mounts[0].alloc) !== allocAntes) problems.push('build: "Confirmar" forjado fora da aba Status gravou pontos')
       await bd.evaluate(() => { const M = window.__galope.ui.montaria; M.rascunho = null; M.confirmaPontos = false })
       await bd.locator('[data-acao="montaria-aba"][data-id="status"]').click()
+      // +N forjado com N fora de 1, 5 e 10 (ou sem N) não faz nada
+      for (const nf of ['3', '100', '']) await forja('ponto-mais', 'man', nf)
+      if (await rascunho()) problems.push('build: +N forjado com N fora de 1/5/10 entrou no rascunho ' + JSON.stringify(await rascunho()))
       // sair da tela descarta o rascunho
       await mais('man').click()
       await bd.locator('[data-acao="montaria-voltar"]').click()
@@ -1366,73 +1403,68 @@ try {
       await abreMontaria('m1')
       if (await rascunho()) problems.push('build: o rascunho voltou depois de sair da tela')
       if ((await st()).mounts[0].alloc.man !== 0) problems.push('build: sair da tela gravou o rascunho')
-      // teto da raridade: m2 já tem 6 em Velocidade (no teto de 80): sem "+"; Aceleração aceita só 6 pontos
+      // sem o teto da raridade (bloco 1b): m2, Comum de genética 31 com 6 pontos em Velocidade (62, que era o teto 80 de
+      // 74,6), passa de 80 em Aceleração (56 + 30) e o custo sobe a cada 10 pontos (1, 2, 3 e o 31º a 4)
       await abreMontaria('m2')
-      if ((await mais('vel').count()) !== 0) problems.push('build: status no teto ainda oferece "+"')
-      for (let i = 0; i < 6; i++) await mais('acel').click()
-      if ((await mais('acel').count()) !== 0) problems.push('build: o "+" de Aceleração continua depois de chegar ao teto')
-      if ((await rascunho() || {}).acel !== 6) problems.push('build: rascunho no teto ' + JSON.stringify(await rascunho()))
+      for (let i = 0; i < 3; i++) await mais('acel', 10).click()
+      if ((await rascunho() || {}).acel !== 30) problems.push('build: m2 sem o teto da raridade não aceitou +30 em Aceleração ' + JSON.stringify(await rascunho()))
+      const valorAcel = ((await bd.locator('[data-status="acel"] .valor').textContent()) || ''), custoAcel = ((await bd.locator('[data-status="acel"] .build-custo').textContent()) || '')
+      if (!/^86\D/.test(valorAcel) || !/próximo ponto custa\s4$/.test(custoAcel)) problems.push(`build: m2 com +30 em Aceleração: "${valorAcel}", "${custoAcel}" (esperado 86 e o próximo ponto a 4)`)
       await bd.locator('[data-acao="pontos-desfazer"]').click()
-      // sala aberta: na ativa, o "+" que passaria do Poder da sala não vale; na outra, segue livre
+      // sala aberta: na ativa, o +N que passaria do Poder da sala não vale; na outra, segue livre
       const sala = await abrirSala(bd)
-      const pr = (await st()).pending.pr
+      let pr = (await st()).pending.pr
       await bd.getByRole('button', { name: /^Voltar/ }).click()
       await abreMontaria('m1')
       if (!/Páreo aberto/.test((await bd.locator('#tela').textContent()) || '')) problems.push('build: sala aberta sem o aviso do Poder da sala na aba Status')
-      // cada "+" habilitado tem de caber no Poder da sala (ponto num status de peso baixo pode não mudar o Poder
-      // arredondado); o de Velocidade, não
-      const sAb = await st(), mAb = sAb.mounts[0], itAb = Object.fromEntries(sAb.items.map((x) => [x.uid, x]))
-      const habilitados = await bd.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]:not([disabled])')).map((b) => b.getAttribute('data-id')))
-      for (const k of habilitados) {
-        const h2 = JSON.parse(JSON.stringify(mAb)); h2.alloc[k] += 1
-        if (S.powerRating(h2, GR.resolve(h2, itAb)) > pr) problems.push(`build: com a sala aberta, o "+" de ${k} habilitado passaria do Poder ${pr}`)
-      }
-      if (!(await mais('vel').isDisabled())) problems.push('build: com a sala aberta, o "+" de Velocidade da ativa está habilitado')
-      await bd.evaluate(() => { const b = document.querySelector('[data-acao="ponto-mais"][data-id="vel"]'); if (b) { b.disabled = false; b.click() } })   // botão forçado: a regra vale no clique
-      if (await rascunho()) problems.push('build: com a sala aberta, o clique forçado entrou no rascunho')
-      // tirar ferraduras baixa o Poder: aí cabe ponto até o Poder da sala
-      await bd.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
-      await bd.locator('[data-acao="equip-slot"][data-id="ferraduras"]').click()
-      await bd.locator('[data-acao="tirar"][data-id="ferraduras"]').click()
-      await bd.locator('[data-acao="montaria-aba"][data-id="status"]').click()
-      let n = 0
-      while (n < 13 && (await bd.locator('[data-acao="ponto-mais"]:not([disabled])').count())) { await bd.locator('[data-acao="ponto-mais"]:not([disabled])').first().click(); n++ }
-      if (!n) problems.push('build: sem as ferraduras, nenhum ponto cabe no Poder da sala')
-      if (n) {
-        await bd.locator('[data-acao="pontos-confirmar"]').click()
-        await bd.locator('[data-acao="pontos-confirmar"]').click()
-        s = await st()
-        const a = s.mounts[0], it2 = Object.fromEntries(s.items.map((x) => [x.uid, x]))
-        if (S.powerRating(a, GR.resolve(a, it2)) > pr) problems.push('build: pontos com a sala aberta passaram do Poder da sala')
-        if (G.STAT_KEYS.reduce((t, k) => t + a.alloc[k], 0) !== 3 + n) problems.push('build: pontos com a sala aberta não gravaram ' + JSON.stringify(a.alloc))
-        // recarregar (duas vezes) não muda a sala: o Poder dela sai do retrato dos pontos e do equipamento de
-        // quando abriu, não dos pontos novos sem as ferraduras (R16)
-        const salaFina = () => bd.evaluate(() => {
-          const L = window.__galope.ui.lobby
-          return JSON.stringify({ seed: L.seed, counter: L.counter, pr: window.__galope.state.pending.pr, dist: L.cond.distance,
-            rivais: L.racers.map((x) => (x.isPlayer ? 'VOCE' : x.horse.id + ':Nv' + x.horse.level + ':P' + x.rating)) })
-        })
-        await abrirSala(bd)
-        const fina0 = await salaFina()
-        for (let i = 1; i <= 2; i++) {
-          await bd.reload({ waitUntil: 'domcontentloaded' })
-          await bd.waitForSelector('#t-estabulo')
-          await abrirSala(bd)
-          const fina = await salaFina()
-          if (fina !== fina0) problems.push(`build: recarregar (${i}ª vez) depois dos pontos sem as ferraduras mudou a sala: ${fina0} -> ${fina}`)
+      // cada +N habilitado tem de caber no Poder da sala; o +1 de Velocidade, não (todo ponto sobe o Poder arredondado)
+      const confereSala = async (onde) => {
+        const mAb = (await st()).mounts[0]
+        const bs = await bd.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({ k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), off: b.disabled, title: b.getAttribute('title') })))
+        for (const b of bs) {
+          const h2 = JSON.parse(JSON.stringify(mAb)); h2.alloc[b.k] += b.n
+          if (!b.off && S.powerRating(h2) > pr) problems.push(`build: ${onde}: o +${b.n} de ${b.k} habilitado passaria do Poder ${pr}`)
+          if (b.off && S.powerRating(h2) > pr && !/Páreo aberto: passaria do Poder/.test(b.title || '')) problems.push(`build: ${onde}: o +${b.n} de ${b.k} desabilitado sem o motivo do páreo: ${b.title}`)
         }
-        if ((await st()).pending.pr !== pr) problems.push(`build: depois de recarregar, o Poder da sala ${(await st()).pending.pr} != ${pr}`)
-        await bd.getByRole('button', { name: /^Voltar/ }).click()
-        // e as ferraduras não voltam: passariam do Poder da sala
-        await abreMontaria('m1')
-        await bd.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
-        await bd.locator('[data-acao="equip-slot"][data-id="ferraduras"]').click()
-        const eqBtn = bd.locator('[data-acao="equipar"]').first()
-        if (!(await eqBtn.count()) || !(await eqBtn.isDisabled())) problems.push('build: depois dos pontos sem as ferraduras, reequipar não está barrado')
-        await bd.evaluate(() => { const b = document.querySelector('[data-acao="equipar"]'); if (b) { b.disabled = false; b.click() } })   // botão forçado
-        if ((await st()).mounts[0].equip.ferraduras) problems.push('build: reequipar as ferraduras passou da trava da sala')
-        await bd.locator('[data-acao="montaria-aba"][data-id="status"]').click()
       }
+      await confereSala('sala aberta')
+      if (!(await mais('vel').isDisabled())) problems.push('build: com a sala aberta, o +1 de Velocidade da ativa está habilitado')
+      await bd.evaluate(() => { const b = document.querySelector('[data-acao="ponto-mais"][data-id="vel"][data-n="1"]'); if (b) { b.disabled = false; b.click() } })   // botão forçado: a regra vale no clique
+      if (await rascunho()) problems.push('build: com a sala aberta, o clique forçado entrou no rascunho')
+      // o Poder da sala sai do retrato dos pontos (R16). Sem equipamento, não há como baixar o Poder da ativa com a sala
+      // aberta; o teste monta um retrato com +5 em Velocidade (no lugar das ferraduras do bloco 1): aí cabem até 5 pontos
+      // em Velocidade, e o +10 continua barrado
+      await montaSave(bd, (raw) => { raw.pending.alloc = Object.assign({}, raw.mounts[0].alloc, { vel: raw.mounts[0].alloc.vel + 5 }) })
+      pr = (await st()).pending.pr
+      const mRet = (await st()).mounts[0], hRet = JSON.parse(JSON.stringify(mRet)); hRet.alloc.vel += 5
+      if (pr !== S.powerRating(hRet)) problems.push(`build: o Poder da sala ${pr} não é o do retrato com +5 em Velocidade (${S.powerRating(hRet)})`)
+      await abreMontaria('m1')
+      await confereSala('retrato com +5')
+      if (await mais('vel', 5).isDisabled()) problems.push('build: com o retrato de +5, o +5 de Velocidade está desabilitado')
+      if (!(await mais('vel', 10).isDisabled())) problems.push('build: com o retrato de +5, o +10 de Velocidade está habilitado')
+      await mais('vel', 5).click()
+      await bd.locator('[data-acao="pontos-confirmar"]').click()
+      await bd.locator('[data-acao="pontos-confirmar"]').click()
+      s = await st()
+      if (S.powerRating(s.mounts[0]) > pr) problems.push('build: pontos com a sala aberta passaram do Poder da sala')
+      if (s.mounts[0].alloc.vel !== 7) problems.push('build: pontos com a sala aberta não gravaram ' + JSON.stringify(s.mounts[0].alloc))
+      // recarregar (duas vezes) não muda a sala: o Poder dela sai do retrato dos pontos de quando abriu (R16)
+      const salaFina = () => bd.evaluate(() => {
+        const L = window.__galope.ui.lobby
+        return JSON.stringify({ seed: L.seed, counter: L.counter, pr: window.__galope.state.pending.pr, dist: L.cond.distance,
+          rivais: L.racers.map((x) => (x.isPlayer ? 'VOCE' : x.horse.id + ':Nv' + x.horse.level + ':P' + x.rating)) })
+      })
+      await abrirSala(bd)
+      const fina0 = await salaFina()
+      for (let i = 1; i <= 2; i++) {
+        await bd.reload({ waitUntil: 'domcontentloaded' })
+        await bd.waitForSelector('#t-estabulo')
+        await abrirSala(bd)
+        const fina = await salaFina()
+        if (fina !== fina0) problems.push(`build: recarregar (${i}ª vez) depois dos pontos com a sala aberta mudou a sala: ${fina0} -> ${fina}`)
+      }
+      if ((await st()).pending.pr !== pr) problems.push(`build: depois de recarregar, o Poder da sala ${(await st()).pending.pr} != ${pr}`)
+      await bd.getByRole('button', { name: /^Voltar/ }).click()
       // outra montaria (não é a ativa): livre com a sala aberta
       await abreMontaria('m2')
       if ((await mais('acel').count()) !== 1 || (await mais('acel').isDisabled())) problems.push('build: com a sala aberta, a montaria que não é a ativa não aceita ponto')
@@ -1443,7 +1475,8 @@ try {
       if (s.mounts[1].alloc.acel !== 1) problems.push('build: ponto na montaria que não é a ativa, com sala aberta ' + JSON.stringify(s.mounts[1].alloc))
       if (s.pending.pr !== pr) problems.push(`build: o Poder da sala mudou (${pr} -> ${s.pending.pr})`)
       const sala2 = await abrirSala(bd)
-      for (const k of ['seed', 'counter', 'rivais', 'blocks']) if (sala[k] !== sala2[k]) problems.push(`build: a sala mudou (${k})`)
+      // mesma sala (seed, páreo e mapa); os rivais mudaram uma vez, com o retrato montado pelo teste (o Poder da sala subiu)
+      for (const k of ['seed', 'counter', 'blocks']) if (sala[k] !== sala2[k]) problems.push(`build: a sala mudou (${k})`)
       if (await bd.evaluate(() => !!window.__confirmou)) problems.push('build: usou window.confirm/alert')
     } catch (e) {
       problems.push('build: ' + e.message)
@@ -1523,49 +1556,69 @@ try {
     try {
       await np.getByRole('button', { name: 'Escolher Brasa' }).click()
       await np.waitForSelector('#t-estabulo')
-      // Brasa ★★ 2 -> 3: nenhum status arredondado muda, mas ganha 1 ponto livre (1 -> 2)
+      // Brasa ★★ 2 -> 3: nada cresce sozinho (nenhum status muda), mas ganha os pontos do nível (2 -> 4: +2)
+      const brasa = G.STARTERS.find((h) => h.id === 'brasa')
+      const ganho3 = S.freePoints({ ...brasa, level: 3 }) - S.freePoints({ ...brasa, level: 2 })
       await montaSave(np, (raw) => { raw.mounts[0].level = 2; raw.mounts[0].xp = G.ECONOMY.xpToLevel(2) - 1 })
       const t1 = await corre()
       if (!/Subiu para o nível 3/.test(t1)) problems.push('nivel-pontos: sem o aviso de nível 3: ' + t1)
-      if (!/\+1 ponto livre\b/.test(t1) || !/aba Status/.test(t1)) problems.push('nivel-pontos: 2 -> 3 não fala do ponto livre ganho nem da aba Status: ' + t1)
+      if (ganho3 !== 2 || !t1.includes(`+${ganho3} pontos livres`) || !/aba Status/.test(t1)) problems.push(`nivel-pontos: 2 -> 3 não fala dos ${ganho3} pontos livres ganhos nem da aba Status: ` + t1)
+      if (/→/.test(t1)) problems.push('nivel-pontos: 2 -> 3 mostra status subindo sozinho: ' + t1)
       if (/teto/i.test(t1)) problems.push('nivel-pontos: 2 -> 3 fala em teto sem estar no teto: ' + t1)
-      // Comum de genética 31 com 6 pontos em cada status: os sete no teto de 80 (natural 74,2 + 6) já no nível 49
+      // sem o teto da raridade (bloco 1b): Comum ★★ de genética 31 com a build do bot inteira no nível 49 (o bloco 1 punha
+      // os sete status no teto de 80 aqui). No 50 ganha os pontos do nível e é convidado a distribuí-los; nada de teto,
+      // porque ninguém chega a 150 com os pontos
+      const g31 = Object.fromEntries(G.STAT_KEYS.map((k) => [k, 31]))
+      const h49 = { ...brasa, level: 49, potential: g31 }, a49 = S.botAlloc(h49)
+      const ganho50 = S.freePoints({ ...h49, level: 50 }) - S.freePoints(h49)
       await montaSave(np, (raw) => {
         const m = raw.mounts[0]
         m.level = 49; m.xp = G.ECONOMY.xpToLevel(49) - 1
-        m.potential = Object.fromEntries(G.STAT_KEYS.map((k) => [k, 31]))
-        m.alloc = Object.fromEntries(G.STAT_KEYS.map((k) => [k, 6]))
+        m.potential = g31
+        m.alloc = a49
       })
+      if (JSON.stringify((await np.evaluate(() => window.__galope.state.mounts[0].alloc))) !== JSON.stringify(a49)) problems.push('nivel-pontos: a build do bot no nível 49 não ficou no save')
       const t2 = await corre()
-      if (!/Subiu para o nível 50/.test(t2) || !/teto da raridade/.test(t2)) problems.push('nivel-pontos: cavalo no teto sem a frase do teto: ' + t2)
-      if (/ponto livre/.test(t2)) problems.push('nivel-pontos: cavalo com os sete status no teto convidado a distribuir pontos: ' + t2)
+      if (!/Subiu para o nível 50/.test(t2) || !t2.includes(`+${ganho50} pontos livres`)) problems.push(`nivel-pontos: nível 50 com a build cheia sem os +${ganho50} pontos livres: ` + t2)
+      if (/teto/i.test(t2)) problems.push('nivel-pontos: nível 50 fala em teto (o teto da raridade saiu; 150 ninguém alcança): ' + t2)
     } catch (e) {
       problems.push('nivel-pontos: ' + e.message)
     }
     await np.context().close()
   }
 
-  // ---------------- selo "+N": só os pontos que ainda cabem; no teto, a aba Status explica a sobra ----------------
+  // ---------------- selo "+N": os pontos de status que ainda dá para comprar (não o custo); quando nada cabe, ele some e
+  // a aba Status explica a sobra (bloco 1b: no lugar do teto da raridade, o custo por faixa) ----------------
   if (quer('selo-teto')) {
     const sq = await newPage(browser, { width: 360, height: 780 }, 'selo-teto')
+    const seloDe = async (uid) => ((await sq.locator(`.montaria[data-uid="${uid}"] .pontos-livres`).first().textContent({ timeout: 500 }).catch(() => '')) || '').trim()
     try {
       await sq.getByRole('button', { name: 'Escolher Brasa' }).click()
       await sq.waitForSelector('#t-estabulo')
-      // m2: Comum nível 50 de genética 31 com 6 pontos em cada status: os sete no teto, 16 dos 58 pontos sobrando
-      const CHEIO = Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { alloc: Object.fromEntries(G.STAT_KEYS.map((k) => [k, 6])) })
-      await montaSave(sq, (raw) => { raw.mounts.push(CHEIO); raw.nextUid = 3; raw.stableSlots = 3 })
-      const m2 = (await sq.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts))))[1]
-      const info = S.allocInfo(m2)
-      if (info.left !== 16 || G.STAT_KEYS.some((k) => info.room[k])) problems.push('selo-teto: montaria de teste ' + JSON.stringify(info))
-      if (await sq.locator('.montaria[data-uid="m2"] .pontos-livres').count()) problems.push('selo-teto: o cartão do Estábulo mostra "+N" com os sete status no teto: ' + await sq.locator('.montaria[data-uid="m2"] .pontos-livres').first().textContent())
-      await sq.locator('button[data-acao="montaria"][data-id="m2"]').click()
+      // Comum ★★ nível 24 de genética 31: 73 pontos. m2 com 10 em cada status de corrida (custo 60): sobram 13 e o próximo
+      // ponto custa 2 em todos, então dá para comprar 6 (o selo é "+6", não "+13"). m3 com 11 em cada (custo 72): sobra 1,
+      // que não paga nenhum ponto: sem selo
+      const cada = (n) => Object.fromEntries(G.STAT_KEYS.map((k) => [k, k === 'sorte' ? 0 : n]))
+      const M2 = Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { level: 24, alloc: cada(10) })
+      const M3 = Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { uid: 'm3', level: 24, alloc: cada(11) })
+      await montaSave(sq, (raw) => { raw.mounts.push(M2, M3); raw.nextUid = 4; raw.stableSlots = 3 })
+      const ms = await sq.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts)))
+      const i2 = S.allocInfo(ms[1]), i3 = S.allocInfo(ms[2])
+      if (i2.left !== 13 || podeComprar(ms[1]) !== 6 || i3.left !== 1 || podeComprar(ms[2]) !== 0) problems.push('selo-teto: montarias de teste ' + JSON.stringify({ m2: [i2.left, podeComprar(ms[1])], m3: [i3.left, podeComprar(ms[2])] }))
+      if ((await seloDe('m2')) !== '+6') problems.push(`selo-teto: com 13 sobrando e o ponto a 2, o selo é "${await seloDe('m2')}" (esperado "+6": conta pontos, não custo)`)
+      if (await seloDe('m3')) problems.push('selo-teto: o cartão do Estábulo mostra "+N" sem nenhum ponto que caiba: ' + await seloDe('m3'))
+      await sq.locator('button[data-acao="montaria"][data-id="m3"]').click()
       await sq.waitForSelector('#t-montaria')
-      if (await sq.locator('.montaria-cabeca .pontos-livres').count()) problems.push('selo-teto: o retrato da Montaria mostra "+N" com os sete status no teto')
+      if (await sq.locator('.montaria-cabeca .pontos-livres').count()) problems.push('selo-teto: o retrato da Montaria mostra "+N" sem nenhum ponto que caiba')
       const tx = ((await sq.locator('#tela').textContent()) || '').replace(/\s+/g, ' ')
-      if (!/Sobram 16 pontos: todos os status estão no teto ou no limite/.test(tx)) problems.push('selo-teto: a aba Status não explica os 16 pontos que sobram')
-      // a Brasa nível 12 (13 pontos, nada no teto) continua com o "+13"
+      if (!/Sobra 1 ponto: não pagam o próximo ponto de nenhum status/.test(tx)) problems.push('selo-teto: a aba Status não explica o ponto que sobra')
+      if (!tx.includes('Pontos: sobram 1 de 73')) problems.push('selo-teto: topo da m3 sem "Pontos: sobram 1 de 73"')
+      const habil = await sq.locator('[data-acao="ponto-mais"]:not([disabled])').count()
+      if (habil) problems.push(`selo-teto: ${habil} botões +N habilitados sem nenhum ponto que caiba`)
+      // a Brasa nível 12 (28 pontos, todos a 1) continua com o selo de todos os pontos
       await montaSave(sq, (raw) => { raw.mounts[0].level = 12 })
-      if (((await sq.locator('.montaria[data-uid="m1"] .pontos-livres').first().textContent().catch(() => '')) || '').trim() !== '+13') problems.push('selo-teto: a Brasa nível 12 perdeu o "+13"')
+      const m1 = (await sq.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts[0]))))
+      if ((await seloDe('m1')) !== '+' + podeComprar(m1) || podeComprar(m1) !== 28) problems.push(`selo-teto: a Brasa nível 12 com o selo "${await seloDe('m1')}" (esperado "+28")`)
     } catch (e) {
       problems.push('selo-teto: ' + e.message)
     }
@@ -1580,12 +1633,16 @@ try {
       if ((await b1.locator('.montaria .pontos-livres').count()) !== 0) problems.push('build-nivel1: o cartão do Estábulo avisa pontos no nível 1')
       await b1.locator('button[data-acao="montaria"][data-id="m1"]').click()
       await b1.waitForSelector('#t-montaria')
-      const txt = ((await b1.locator('.pontos-livres').first().textContent()) || '').replace(/\s+/g, ' ')
-      if (!/pontos livres:? 0\b/i.test(txt)) problems.push('build-nivel1: topo sem "pontos livres: 0": ' + txt)
-      if ((await b1.locator('[data-acao="ponto-mais"]').count()) !== 0) problems.push('build-nivel1: nível 1 oferece "+"')
+      const txt = ((await b1.locator('.build-topo').first().textContent()) || '').replace(/\s+/g, ' ')
+      if (!txt.includes('Pontos: sobram 0 de 0') || !txt.includes('Cada nível ganho dá pontos para distribuir.')) problems.push('build-nivel1: topo sem "Pontos: sobram 0 de 0" e a explicação: ' + txt)
+      // os +1, +5 e +10 aparecem, todos desabilitados com o motivo (faltam pontos); a Sorte sem botões
+      const bs = await b1.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({ k: b.getAttribute('data-id'), off: b.disabled, title: b.getAttribute('title') })))
+      if (bs.length !== 18 || bs.some((b) => b.k === 'sorte' || !b.off || !/: custa \d+ pontos?\. Faltam pontos: sobram 0\.$/.test(b.title || ''))) problems.push('build-nivel1: nível 1 com +N habilitado ou sem o motivo ' + JSON.stringify(bs.filter((b) => !b.off || !/Faltam pontos/.test(b.title || '')).slice(0, 3)))
       if ((await b1.locator('[data-acao="pontos-confirmar"]').count()) !== 0) problems.push('build-nivel1: nível 1 oferece "Confirmar"')
+      if ((await b1.locator('[data-acao="pontos-sugerir"]').count()) !== 0) problems.push('build-nivel1: nível 1 oferece "Distribuir sugerido"')
+      if ((await b1.locator('[data-acao="redistribuir"]').count()) !== 0) problems.push('build-nivel1: nível 1 oferece "Redistribuir pontos"')
       if ((await b1.locator('[data-status] .nota-genetica').count()) !== 7) problems.push('build-nivel1: sem as 7 notas de genética')
-      await confereLegivel(b1, ['.pontos-livres', '.nota-genetica'], 'build-nivel1-360')
+      await confereLegivel(b1, ['.pontos-livres', '.nota-genetica', '.build-custo'], 'build-nivel1-360')
     } catch (e) {
       problems.push('build-nivel1: ' + e.message)
     }
@@ -1604,7 +1661,10 @@ try {
         // Estábulo: selo no retrato, barra de XP, "+N" e sem "Nv" na fileira de etiquetas
         if ((await seloEm('.montaria[data-uid="m1"] .retrato-moldura .selo-nivel')) !== 'Nv 12') problems.push(`${tag}: selo do cartão do Estábulo = "${await seloEm('.montaria[data-uid="m1"] .selo-nivel')}"`)
         if ((await sl.locator('.montaria[data-uid="m1"] .barra--xp').count()) !== 1) problems.push(tag + ': cartão do Estábulo sem barra de XP')
-        if ((await seloEm('.montaria[data-uid="m1"] .pontos-livres')) !== '+13') problems.push(`${tag}: aviso de pontos do cartão = "${await seloEm('.montaria[data-uid="m1"] .pontos-livres')}"`)
+        // os pontos de status que ainda dá para comprar: a Brasa nível 12 tem 28, todos a 1 (era "+13" no bloco 1)
+        const espSelo = '+' + podeComprar(await sl.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts[0]))))
+        if (espSelo !== '+28' || (await seloEm('.montaria[data-uid="m1"] .pontos-livres')) !== espSelo) problems.push(`${tag}: aviso de pontos do cartão = "${await seloEm('.montaria[data-uid="m1"] .pontos-livres')}" (esperado "${espSelo}")`)
+        if (!/^Dá para comprar mais 28 pontos de status/.test((await sl.locator('.montaria[data-uid="m1"] .pontos-livres').first().getAttribute('title')) || '')) problems.push(`${tag}: o title do selo não diz os pontos que dá para comprar`)
         const etiquetas = await sl.evaluate(() => Array.from(document.querySelectorAll('.montaria .linha-meta')).map((e) => e.textContent).join(' | '))
         if (/Nv\s*\d/.test(etiquetas)) problems.push(tag + ': "Nv" continua na fileira de etiquetas do cartão: ' + etiquetas)
         await confereLegivel(sl, ['.montaria .selo-nivel', '.montaria .pontos-livres'], tag + '-estabulo')
@@ -1649,14 +1709,8 @@ try {
 
   if (quer('vaga-tipo')) {
     const vt = await newPage(browser, { width: 360, height: 780 }, 'vaga-tipo')
-    const num1 = (x) => x.toFixed(1).replace('.', ',')
-    // o efeito que a tela tem de mostrar, na força atual P (os números do RaceSim.typeSkill)
-    const efeitoEsperado = (m) => {
-      const ts = S.typeSkill(m), P = ts.power, e = G.TYPE_SKILLS[m.element].effect
-      if (m.element === 'fogo') return { terco: 'primeiro terço', nums: ['+' + num1(e.accelMult * P * 100) + '%'] }
-      if (m.element === 'grama') return { terco: 'terço do meio', nums: ['+' + num1(e.forcaAdd * P * 100), '−' + num1(e.drainCut * P * 100) + '%'] }
-      return { terco: 'último terço', nums: ['+' + num1(e.speedMult * P * 100) + '%', num1(e.staminaRestore * P * 100) + '%'] }
-    }
+    // o terço de cada tipo, como a descrição da skill de tipo diz (GameData.TYPE_SKILLS[el].desc)
+    const tercoDe = (m) => ({ fogo: 'primeiro terço', grama: 'terço do meio', agua: 'último terço' })[m.element]
     try {
       await vt.getByRole('button', { name: 'Escolher Brasa' }).click()
       await vt.waitForSelector('#t-estabulo')
@@ -1672,13 +1726,17 @@ try {
         await vt.locator(`button[data-acao="montaria"][data-id="${m.uid}"]`).click()
         await vt.waitForSelector('#t-montaria')
         await vt.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
-        const ts = S.typeSkill(m), esp = efeitoEsperado(m)
+        const ts = S.typeSkill(m), terco = tercoDe(m)
         const vaga = ((await vt.locator('.vaga-tipo').textContent().catch(() => '')) || '').replace(/\s+/g, ' ')
         if ((await vt.locator('.vaga-tipo').count()) !== 1) problems.push(`vaga-tipo: ${m.uid} com ${await vt.locator('.vaga-tipo').count()} vagas de tipo`)
-        if (!vaga.includes(ts.name) || !vaga.toLowerCase().includes(esp.terco)) problems.push(`vaga-tipo: ${m.uid} sem nome/terço (${ts.name}, ${esp.terco}): ${vaga}`)
-        const inten = 'Intensidade ×' + ts.power.toFixed(2).replace('.', ',')
+        if (!vaga.includes(ts.name) || !vaga.toLowerCase().includes(terco)) problems.push(`vaga-tipo: ${m.uid} sem nome/terço (${ts.name}, ${terco}): ${vaga}`)
+        // a força P: a da Água só cresce com a raridade (spec 1b §5); a do Fogo e a da Grama variam com o nível e a raridade
+        const inten = 'Intensidade ×' + ts.power.toFixed(2).replace('.', ',') + ': ' + (m.element === 'agua' ? 'cresce com a raridade' : 'varia com o nível e a raridade')
         if (!vaga.includes(inten) || /Força ×/.test(vaga)) problems.push(`vaga-tipo: ${m.uid} sem o rótulo "${inten}" (ou ainda com "Força ×"): ${vaga}`)
-        for (const nn of esp.nums) if (!vaga.includes(nn)) problems.push(`vaga-tipo: ${m.uid} sem o efeito na força atual ${nn}: ${vaga}`)
+        // bloco 1b: o efeito em pontos para o cavalo (status × statMul·P nos dois status do tipo) e a descrição com o %
+        const pts = efeitoTipoPontos(m).replace(/º/g, 'o')   // o "º" vira um "o" sobrescrito na tela (ordFix)
+        if (!vaga.includes(pts) || !vaga.includes(G.TYPE_SKILLS[m.element].desc)) problems.push(`vaga-tipo: ${m.uid} sem o efeito em pontos "${pts}" ou a descrição: ${vaga}`)
+        if (/NaN|undefined/.test(vaga)) problems.push(`vaga-tipo: ${m.uid} com NaN/undefined: ${vaga}`)
         // a vaga de tipo vem antes das vagas normais
         const ordem = await vt.evaluate(() => { const sec = document.querySelector('.vaga-tipo').closest('section'); const all = Array.from(sec.querySelectorAll('.vaga-tipo, .habilidade, .nota')); return all.map((e) => e.className.split(' ')[0]) })
         if (ordem[0] !== 'vaga-tipo') problems.push(`vaga-tipo: ${m.uid} a vaga de tipo não é a primeira: ${ordem.join(',')}`)
@@ -3482,6 +3540,207 @@ try {
         const ac = await pg.evaluate(() => ({ real: window.__lsGet.call(localStorage, 'galope-elemental:v1'), acessos: window.__acessos.slice() }))
         if (ac.real !== REAL) problems.push(`${label}: o save real mudou: ${ac.real}`)
         if (ac.acessos.some((x) => /galope-elemental:v1(:|$)/.test(x))) problems.push(`${label}: a página tocou no save real: ` + ac.acessos.filter((x) => /galope-elemental:v1/.test(x)).join(', '))
+      } catch (e) {
+        problems.push(`${label}: ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 4. abas Status e Skills da spec §11 (jogo real, 360 px): cada linha com o custo do próximo ponto e +1, +5 e +10 (o
+    //    custo no title e no aria-label; desabilitado com o motivo quando não cabe: pontos, 150 ou trava do páreo), a Sorte
+    //    de nascimento, o topo "sobram X de Y" e "Poder A → B", a barra até 150, "Distribuir sugerido" (e RF3: com páreo
+    //    aberto, o rascunho sugerido passa do Poder da sala, o Confirmar fica bloqueado e nada é gravado), os dois avisos do
+    //    Confirmar, o rodapé, a skill de tipo em pontos e o selo "+N" do Estábulo
+    {
+      const label = 'crescimento-status'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label)
+      const rascunho = () => pg.evaluate(() => { const r = window.__galope.ui.rascunho; return r ? JSON.parse(JSON.stringify(r)) : null })
+      const mais = (k, n) => pg.locator(`[data-acao="ponto-mais"][data-id="${k}"][data-n="${n}"]`)
+      const limpo = (t) => (t || '').replace(/\s+/g, ' ').trim()
+      const custoLinha = async (k) => limpo(await pg.locator(`[data-status="${k}"] .build-custo`).textContent().catch(() => ''))
+      const topo = async () => limpo(await pg.locator('.build-topo').textContent().catch(() => ''))
+      const somaR = (a, r) => Object.fromEntries(G.STAT_KEYS.map((k) => [k, a[k] + (r ? r[k] || 0 : 0)]))
+      const livresDe = (m, a) => S.freePoints(m) - custo(a)
+      const sugerido = (m, de) => { const b = S.botAlloc(m, de); return Object.fromEntries(G.STAT_KEYS.map((k) => [k, b[k] - m.alloc[k]])) }
+      const botoes = () => pg.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({
+        k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), txt: b.textContent.trim(), title: b.getAttribute('title'), aria: b.getAttribute('aria-label'), off: b.disabled })))
+      // os 18 botões a partir dos pontos a (gravados + rascunho) com `livres` sobrando, longe do teto e sem páreo:
+      // desabilitado só quando o custo de N passa do que sobra, com "Faltam pontos" no title
+      const confereBotoes = async (a, livres, onde) => {
+        const bs = await botoes()
+        if (bs.length !== 18 || bs.some((b) => b.k === 'sorte')) problems.push(`${label}: ${onde}: ${bs.length} botões +N (esperado 18, nenhum na Sorte)`)
+        for (const b of bs) {
+          const c = S.costOf(a[b.k] + b.n) - S.costOf(a[b.k]), off = c > livres
+          const esp = tituloMais(a, b.k, b.n) + (off ? `. Faltam pontos: ${livres === 1 ? 'sobra 1.' : `sobram ${livres}.`}` : '')
+          if (b.txt !== '+' + b.n || b.off !== off || b.title !== esp || b.aria !== esp) problems.push(`${label}: ${onde}: botão ${JSON.stringify(b)} (esperado "${esp}", ${off ? 'desabilitado' : 'habilitado'})`)
+        }
+      }
+      const abre = async (uid, aba = 'status') => {
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.waitForSelector('#t-estabulo')
+        await pg.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click()
+        await pg.waitForSelector('#t-montaria')
+        if (aba !== 'status') await pg.locator(`[data-acao="montaria-aba"][data-id="${aba}"]`).click()
+      }
+      const seloDe = async (uid) => limpo(await pg.locator(`.montaria[data-uid="${uid}"] .pontos-livres`).first().textContent({ timeout: 500 }).catch(() => ''))
+      try {
+        await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+        await pg.waitForSelector('#t-estabulo')
+        // m1: Brasa nível 30 (100 pontos) com 12 em Velocidade e 8 em Aceleração; m2: Maré nível 20 sem a redistribuição
+        // grátis; m3: Lendário de Grama ★★★ nível 50 sem pontos
+        await montaSave(pg, (raw) => {
+          Object.assign(raw.mounts[0], { level: 30, alloc: Object.assign({}, ZERO, { vel: 12, acel: 8 }) })
+          raw.mounts.push(deModelo(G.STARTERS.find((h) => h.id === 'mare'), { uid: 'm2', level: 20, alloc: ZERO, respecFree: false }))
+          raw.mounts.push(Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { uid: 'm3', element: 'grama', rarity: 'lendario', grau: 3, level: 50, alloc: ZERO }))
+          raw.nextUid = 4; raw.stableSlots = 3
+        })
+        let s = await estado(pg)
+        const m1 = s.mounts[0]
+        if (m1.level !== 30 || !igual(m1.alloc, somaR(ZERO, { vel: 12, acel: 8 })) || s.mounts.length !== 3 || s.mounts[1].respecFree !== false) problems.push(`${label}: preparo ` + JSON.stringify(s.mounts.map((m) => [m.uid, m.level, m.alloc, m.respecFree])))
+        // selo "+N" do Estábulo: os pontos de status que ainda dá para comprar (m1: 4 status com o ponto a 1, depois a 2)
+        for (const m of s.mounts) {
+          const esp = podeComprar(m)
+          if ((await seloDe(m.uid)) !== (esp ? '+' + esp : '')) problems.push(`${label}: selo de ${m.uid} "${await seloDe(m.uid)}" (esperado ${esp ? '+' + esp : 'nenhum'})`)
+        }
+        if (podeComprar(m1) === S.allocInfo(m1).left) problems.push(`${label}: a m1 de teste não separa pontos de custo (${podeComprar(m1)})`)
+        await abre('m1')
+        const info = S.allocInfo(m1)
+        // topo: "Pontos: sobram X de Y", sem "Poder A → B" enquanto não há rascunho
+        let tp = await topo()
+        if (!tp.includes(`Pontos: sobram ${info.left} de ${info.free}`) || /Poder/.test(tp)) problems.push(`${label}: topo "${tp}" (esperado "Pontos: sobram ${info.left} de ${info.free}", sem Poder)`)
+        // cada linha: "próximo ponto custa C"; a Sorte, "de nascimento" e sem botões; barra até 150 em 30 segmentos
+        const st1 = S.computeStats(m1)
+        for (const k of G.STAT_KEYS) {
+          const c = await custoLinha(k), esp = k === 'sorte' ? 'de nascimento' : 'próximo ponto custa ' + S.pointCost(m1.alloc[k])
+          if (c !== esp) problems.push(`${label}: linha de ${k} diz "${c}" (esperado "${esp}")`)
+        }
+        await confereBotoes(m1.alloc, info.left, 'sem rascunho')
+        const barras = await pg.evaluate(() => Array.from(document.querySelectorAll('[data-status]')).map((l) => ({ k: l.getAttribute('data-status'),
+          n: l.querySelectorAll('.build-barra i').length, on: l.querySelectorAll('.build-barra i.on').length, aria: l.querySelector('.build-barra').getAttribute('aria-label') })))
+        for (const b of barras) if (b.n !== 30 || b.on !== Math.round(st1[b.k] / 5) || !b.aria.endsWith(`${st1[b.k]} de 150`)) problems.push(`${label}: barra de ${b.k} ${JSON.stringify(b)} (status ${st1[b.k]}: ${Math.round(st1[b.k] / 5)} de 30 segmentos, até 150)`)
+        if (!limpo(await textoTela(pg)).includes('A barra vai até 150. O custo do ponto sobe a cada 10 pontos no mesmo status.')) problems.push(`${label}: sem o rodapé "A barra vai até 150. O custo do ponto sobe a cada 10 pontos no mesmo status."`)
+        await confereLegivel(pg, ['.build-topo', '.build-custo', '.build-mais'], label)
+
+        // teto de 150: com os pontos de verdade ninguém chega lá (spec §2), então o teste baixa o teto na página
+        // (RaceSim.TUNING.statMax) até a Velocidade da Brasa: "no teto" e os três botões desabilitados com o motivo
+        const tetoV = Math.ceil(S.naturalStat(m1, 'vel') + m1.alloc.vel), tetoOrig = await pg.evaluate(() => window.RaceSim.TUNING.statMax)
+        await pg.evaluate((t) => { window.RaceSim.TUNING.statMax = t }, tetoV)
+        await pg.locator('[data-acao="montaria-aba"][data-id="status"]').click()   // redesenha a aba
+        const bt = (await botoes()).filter((b) => b.k === 'vel')
+        if ((await custoLinha('vel')) !== 'no teto de ' + tetoV || bt.length !== 3 || bt.some((b) => !b.off || b.title !== tituloMais(m1.alloc, 'vel', b.n) + `. Passaria de ${tetoV}.`)) problems.push(`${label}: no teto (${tetoV} na página): "${await custoLinha('vel')}" ` + JSON.stringify(bt))
+        await pg.evaluate((t) => { window.RaceSim.TUNING.statMax = t }, tetoOrig)
+        await pg.locator('[data-acao="montaria-aba"][data-id="status"]').click()
+        if (tetoOrig !== 150 || (await custoLinha('vel')) !== 'próximo ponto custa 2') problems.push(`${label}: o teto não voltou a 150 (${tetoOrig})`)
+
+        // +1, +5 e +10 somam exatamente N ao rascunho; o topo, o "Poder A → B" e o custo da linha seguem o rascunho
+        const s0 = await estado(pg), d0 = await disco(pg), poder0 = await poderNaCabeca(pg)
+        const esp = { ...ZERO }
+        for (const [k, n] of [['vel', 10], ['garra', 5], ['man', 1], ['est', 10], ['est', 10]]) {
+          await mais(k, n).click()
+          esp[k] += n
+          if (!igual(await rascunho(), esp)) problems.push(`${label}: +${n} em ${k}: rascunho ${JSON.stringify(await rascunho())} (esperado ${JSON.stringify(esp)})`)
+        }
+        const comR = somaR(m1.alloc, esp), livres = livresDe(m1, comR)
+        tp = await topo()
+        const poderTxt = `Poder ${S.powerRating(m1)} → ${S.powerRating({ ...m1, alloc: comR })}`
+        if (!tp.includes(`Pontos: sobram ${livres} de ${info.free}`) || !tp.includes(poderTxt)) problems.push(`${label}: topo com rascunho "${tp}" (esperado "sobram ${livres} de ${info.free}" e "${poderTxt}")`)
+        if ((await custoLinha('est')) !== 'próximo ponto custa ' + S.pointCost(comR.est)) problems.push(`${label}: o custo da Estamina não segue o rascunho: "${await custoLinha('est')}"`)
+        // com 20 sobrando, +10 em Estamina custa 30 (desabilitado, "Faltam pontos") e +5 custa 15 (habilitado)
+        if (livres !== 20 || S.costOf(comR.est + 10) - S.costOf(comR.est) !== 30) problems.push(`${label}: conta do teste mudou (sobram ${livres})`)
+        await confereBotoes(comR, livres, 'com rascunho')
+        await pg.evaluate(() => { const b = document.querySelector('[data-acao="ponto-mais"][data-id="est"][data-n="10"]'); b.disabled = false; b.click() })   // clique forçado
+        if (!igual(await rascunho(), esp)) problems.push(`${label}: o +10 forçado sem pontos mudou o rascunho ` + JSON.stringify(await rascunho()))
+        if (!igual((await estado(pg)).mounts, s0.mounts) || !igual(await disco(pg), d0)) problems.push(`${label}: o rascunho chegou ao save antes de confirmar`)
+        if ((await poderNaCabeca(pg)) !== poder0) problems.push(`${label}: o Poder da cabeça mudou com o rascunho`)
+        // Desfazer limpa
+        await pg.locator('[data-acao="pontos-desfazer"]').click()
+        if (await rascunho()) problems.push(`${label}: Desfazer não limpou o rascunho ` + JSON.stringify(await rascunho()))
+        await confereBotoes(m1.alloc, info.left, 'depois de Desfazer')
+
+        // "Distribuir sugerido": o rascunho é o botAlloc a partir dos pontos gravados (e do rascunho), sem gravar
+        await pg.locator('[data-acao="pontos-sugerir"]').click()
+        let r = await rascunho()
+        if (!igual(r, sugerido(m1, m1.alloc)) || r.sorte !== 0) problems.push(`${label}: sugerido ${JSON.stringify(r)} (esperado ${JSON.stringify(sugerido(m1, m1.alloc))})`)
+        if (!(await pg.locator('[data-acao="pontos-sugerir"]').isDisabled())) problems.push(`${label}: "Distribuir sugerido" continua habilitado sem nada a somar`)
+        const comS = somaR(m1.alloc, r)
+        tp = await topo()
+        if (!tp.includes(`sobram ${livresDe(m1, comS)} de ${info.free}`) || !tp.includes(`Poder ${S.powerRating(m1)} → ${S.powerRating({ ...m1, alloc: comS })}`)) problems.push(`${label}: topo depois do sugerido "${tp}"`)
+        if (!igual((await estado(pg)).mounts, s0.mounts) || !igual(await disco(pg), d0)) problems.push(`${label}: "Distribuir sugerido" gravou sem Confirmar`)
+        await pg.locator('[data-acao="pontos-desfazer"]').click()
+        await mais('vel', 10).click()
+        await pg.locator('[data-acao="pontos-sugerir"]').click()
+        r = await rascunho()
+        const espS = sugerido(m1, somaR(m1.alloc, { vel: 10 }))
+        if (!igual(r, espS) || r.vel < 10) problems.push(`${label}: sugerido depois de +10 em Velocidade ${JSON.stringify(r)} (esperado ${JSON.stringify(espS)})`)
+        // Confirmar em dois toques: o 1º só avisa (redistribuição grátis), o 2º grava
+        await pg.locator('[data-acao="pontos-confirmar"]').click()
+        if (!(await avisos(pg)).includes('Para mudar depois, use Redistribuir (a primeira deste cavalo é grátis).')) problems.push(`${label}: o 1º Confirmar não disse "Para mudar depois, use Redistribuir (a primeira deste cavalo é grátis).": ` + await avisos(pg))
+        if (/voltar atrás/.test(await textoTela(pg))) problems.push(`${label}: o aviso antigo ("não dá para voltar atrás") continua`)
+        if (!igual((await estado(pg)).mounts, s0.mounts)) problems.push(`${label}: o 1º Confirmar já gravou`)
+        await pg.locator('[data-acao="pontos-confirmar"]').click()
+        s = await estado(pg)
+        const gravado = somaR(m1.alloc, espS)
+        if (!igual(s.mounts[0].alloc, gravado) || !igual((await disco(pg)).mounts[0].alloc, gravado) || await rascunho()) problems.push(`${label}: Confirmar ${JSON.stringify({ mem: s.mounts[0].alloc, esperado: gravado })}`)
+        if ((await poderNaCabeca(pg)) !== S.powerRating(s.mounts[0])) problems.push(`${label}: o Poder da cabeça depois de confirmar`)
+        // "Redistribuir pontos" embaixo, separado dos botões de compra
+        const ordem = await pg.evaluate(() => {
+          const sec = document.querySelector('section[aria-label="Status"]'), todos = Array.from(sec.querySelectorAll('*'))
+          return ['.build', '.build-acoes', '.redistribuir'].map((q) => todos.indexOf(sec.querySelector(q)))
+        })
+        if (!(ordem[0] >= 0 && ordem[0] < ordem[1] && ordem[1] < ordem[2])) problems.push(`${label}: ordem lista / ações / Redistribuir ${JSON.stringify(ordem)}`)
+
+        // m2 já usou a redistribuição grátis: o aviso do Confirmar fala da Rédea nova
+        await abre('m2')
+        await mais('est', 1).click()
+        await pg.locator('[data-acao="pontos-confirmar"]').click()
+        if (!(await avisos(pg)).includes('Para mudar depois, use Redistribuir (gasta uma Rédea nova).')) problems.push(`${label}: sem a grátis, o 1º Confirmar não disse "(gasta uma Rédea nova)": ` + await avisos(pg))
+        await pg.locator('[data-acao="pontos-desfazer"]').click()
+
+        // RF3: m2 ativa com páreo aberto. Os +N que passariam do Poder da sala ficam desabilitados com o motivo; o sugerido
+        // passa do Poder da sala, o Confirmar fica bloqueado com o motivo (na tela e no title) e nada é gravado, nem forçando
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.locator('[data-acao="ativar"][data-id="m2"]').click()
+        await abrirSala(pg)
+        s = await estado(pg)
+        const m2 = s.mounts.find((m) => m.uid === 'm2'), pr = s.pending.pr
+        if (s.activeId !== 'm2' || pr !== S.powerRating(m2)) problems.push(`${label}: páreo da m2 ${JSON.stringify({ ativa: s.activeId, pr, poder: S.powerRating(m2) })}`)
+        await pg.getByRole('button', { name: /^Voltar/ }).click()
+        await abre('m2')
+        for (const b of await botoes()) {
+          const h2 = JSON.parse(JSON.stringify(m2)); h2.alloc[b.k] += b.n
+          const passa = S.powerRating(h2) > pr
+          if (passa !== b.off || (passa && b.title !== tituloMais(m2.alloc, b.k, b.n) + `. Páreo aberto: passaria do Poder ${pr} que a sala viu.`)) problems.push(`${label}: páreo aberto, botão ${JSON.stringify(b)} (passa do Poder ${pr}: ${passa})`)
+        }
+        const dA = await disco(pg)
+        await pg.locator('[data-acao="pontos-sugerir"]').click()
+        r = await rascunho()
+        if (!igual(r, sugerido(m2, m2.alloc))) problems.push(`${label}: páreo aberto, sugerido ${JSON.stringify(r)} (esperado ${JSON.stringify(sugerido(m2, m2.alloc))})`)
+        const conf = pg.locator('[data-acao="pontos-confirmar"]')
+        const motivo = `Páreo aberto: com este rascunho o Poder iria a ${S.powerRating({ ...m2, alloc: somaR(m2.alloc, r) })}, e a sala viu ${pr}.`
+        if (!(await conf.isDisabled()) || !((await conf.getAttribute('title')) || '').startsWith(motivo)) problems.push(`${label}: RF3: Confirmar ${await conf.isDisabled() ? '' : 'habilitado '}com title "${await conf.getAttribute('title')}" (esperado "${motivo}…")`)
+        if (!(await avisos(pg)).includes(motivo)) problems.push(`${label}: RF3: o motivo do Confirmar bloqueado não aparece na tela: ` + await avisos(pg))
+        for (let k = 0; k < 2; k++) await pg.evaluate(() => { const b = document.querySelector('[data-acao="pontos-confirmar"]'); b.disabled = false; b.click() })
+        s = await estado(pg)
+        if (!igual(s.mounts.find((m) => m.uid === 'm2').alloc, m2.alloc) || !igual(await disco(pg), dA) || s.pending.pr !== pr) problems.push(`${label}: RF3: o Confirmar forçado gravou acima do Poder da sala ` + JSON.stringify(s.mounts.find((m) => m.uid === 'm2').alloc))
+        if (/Para mudar depois/.test(await avisos(pg)) || !igual(await rascunho(), r)) problems.push(`${label}: RF3: o Confirmar forçado armou o 2º toque ou perdeu o rascunho`)
+        await pg.locator('[data-acao="pontos-desfazer"]').click()
+        await checkOverflow(pg, label)
+
+        // aba Skills: a skill de tipo em pontos para o cavalo, dos status atuais (Fogo, Água e Grama)
+        for (const m of s.mounts) {
+          await abre(m.uid, 'skills')
+          // o "º" vira um "o" sobrescrito na tela (ordFix do game.js): o textContent traz "1o"
+          const t = limpo(await pg.locator('.vaga-tipo-pontos').textContent().catch(() => '')), espT = efeitoTipoPontos(m).replace(/º/g, 'o')
+          if (t !== espT) problems.push(`${label}: aba Skills de ${m.uid} diz "${t}" (esperado "${espT}")`)
+        }
+        // o selo depois de gastar: a m1 sem nada que caiba (some), as outras como antes
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        for (const m of s.mounts) {
+          const e2 = podeComprar(m)
+          if ((await seloDe(m.uid)) !== (e2 ? '+' + e2 : '')) problems.push(`${label}: selo de ${m.uid} depois de gastar "${await seloDe(m.uid)}" (esperado ${e2 ? '+' + e2 : 'nenhum'})`)
+        }
+        if (podeComprar(s.mounts[0]) !== 0) problems.push(`${label}: o sugerido deixou pontos que cabem na m1 (${podeComprar(s.mounts[0])})`)
       } catch (e) {
         problems.push(`${label}: ` + e.message)
       } finally {
