@@ -687,6 +687,8 @@ test('snapshot dourado dos potros de exemplos.md', function () {
     var x = B.foal({ f: c.f, m: c.m, seedBase: 20261106, breedCounter: i, nextUid: 2 });
     // `marcas` usa sequência própria (spec 2a §2) e é conferida na seção "Marcas"; aqui só se confirma que existe e é válida
     assert.ok(B.marcasValidas(x.marcas), 'marcas do potro ' + i); delete x.marcas;
+    // `porte` também tem fluxo próprio (spec 2b §3), conferido na seção "Portes"
+    assert.ok(B.porteValido(x.porte), 'porte do potro ' + i); delete x.porte;
     assert.deepStrictEqual(x, {
       uid: 'm2', templateId: null, name: c.name, especie: 'cavalo', element: c.element, rarity: c.rarity, grau: c.grau, sex: c.sex,
       level: 1, xp: 0, skills: c.skills, potential: st(c.potential), palette: c.palette, breedLeft: c.breedLeft,
@@ -781,6 +783,65 @@ test('iniciais e selvagens com as marcas da tabela da spec §2', function () {
     assert.strictEqual(typeof h.marcas.patas, 'number', h.id);
     assert.strictEqual(h.marcas.cara + '/' + h.marcas.patas + '/' + h.marcas.corpo, T[h.id], h.id); assert.ok(B.marcasValidas(h.marcas));
   });
+});
+
+section('Portes');
+// Impressão dos 200 potros de antes do porte (HEAD da parte 2a): com o campo `porte` apagado, os sorteios antigos têm de dar o mesmo número.
+var IMPRESSAO_FOAL_2A = 1583205096;
+test('portes: catálogo', function () {
+  var T = { brasa: 'padrao', mare: 'padrao', ipe: 'padrao', 'w-faisca': 'esguio', 'w-ticao': 'robusto', 'w-fogareu': 'robusto', 'w-boitata': 'esguio',
+    'w-lambari': 'esguio', 'w-garoa': 'padrao', 'w-pororoca': 'robusto', 'w-iara': 'esguio', 'w-capim': 'esguio', 'w-mandacaru': 'robusto',
+    'w-ventania': 'esguio', 'w-jequitiba': 'robusto' };
+  assert.deepStrictEqual(G.PORTES, { valores: ['esguio', 'padrao', 'robusto'], nomes: { esguio: 'Esguio', padrao: 'Padrão', robusto: 'Robusto' }, mutacao: 0.10, padrao: 'padrao' });
+  var todos = G.STARTERS.concat(G.WILD_HORSES); assert.strictEqual(todos.length, 15);
+  todos.forEach(function (h) { assert.strictEqual(h.porte, T[h.id], h.id); assert.ok(B.porteValido(h.porte)); });
+});
+test('portes: sorteios antigos intactos', function () {
+  var cat = G.STARTERS.concat(G.WILD_HORSES), lista = [];
+  for (var i = 1; i <= 200; i++) {
+    var f = JSON.parse(JSON.stringify(cat[i % cat.length])), m = JSON.parse(JSON.stringify(cat[(i * 7 + 3) % cat.length]));
+    f.sex = 'f'; m.sex = 'm'; f.level = 30; m.level = 30; f.uid = 'f' + i; m.uid = null;
+    var x = B.foal({ f: f, m: m, seedBase: i, breedCounter: i % 7, nextUid: i });
+    assert.ok(B.porteValido(x.porte)); delete x.porte; lista.push(x);
+  }
+  assert.strictEqual(B.hashChave(JSON.stringify(lista)), IMPRESSAO_FOAL_2A);
+});
+test('portes: herança (4.000 potros de égua esguia × garanhão robusto)', function () {
+  var f = mk2({ sex: 'f' }), m = mk2({}); f.porte = 'esguio'; m.porte = 'robusto';
+  var N = 4000, mut = 0, semMut = 0, deF = 0;
+  for (var s = 0; s < N; s++) {
+    var c = B.foal({ f: f, m: m, seedBase: 91, breedCounter: s, nextUid: 1 }).porte;
+    var r = S.mulberry32(S.hash2(91 >>> 0, 0x504F0000 + s)), houve = r() < G.PORTES.mutacao;
+    if (houve) { mut++; assert.ok(B.porteValido(c)); continue; }
+    semMut++;
+    assert.ok(c === 'esguio' || c === 'robusto', 'sem mutação só sai de um dos pais: ' + c);
+    if (c === 'esguio') deF++;
+  }
+  var pm = mut / N; assert.ok(pm >= 0.085 && pm <= 0.115, 'mutação ' + pm);
+  var pF = deF / semMut; assert.ok(pF >= 0.47 && pF <= 0.53, 'égua ' + pF);
+});
+test('portes: porteDoId', function () {
+  var cont = { esguio: 0, padrao: 0, robusto: 0 };
+  for (var i = 0; i < 1000; i++) {
+    var a = B.porteDoId('k' + i); assert.strictEqual(a, B.porteDoId('k' + i)); assert.ok(B.porteValido(a)); cont[a]++;
+  }
+  G.PORTES.valores.forEach(function (v) { assert.ok(cont[v] >= 280 && cont[v] <= 390, v + ' ' + cont[v]); });
+});
+test('portes: escada (RF1, RF4)', function () {
+  G.PORTES.valores.forEach(function (v) { assert.strictEqual(B.porteDe(v, 'w-ticao', 'k'), v); });
+  [2, 'Robusto', null, {}, '__proto__', undefined].forEach(function (lixo) {
+    assert.strictEqual(B.porteDe(lixo, 'w-ticao', 'k'), 'robusto', String(lixo));
+    assert.strictEqual(B.porteDe(lixo, null, 'k7'), B.porteDoId('k7'), String(lixo));
+    assert.strictEqual(B.porteDe(lixo, 'inexistente', 'k7'), B.porteDoId('k7'), String(lixo));
+  });
+  assert.ok(!B.porteValido('Robusto') && !B.porteValido(null) && !B.porteValido('__proto__') && B.porteValido('padrao'));
+  // pai sem campo `porte` herda pela escada
+  var modelo = mk2({ sex: 'f' }); modelo.templateId = 'w-ticao';
+  var semNada = mk2({ uid: 'm7' }), ref = mk2({ sex: 'f' }); ref.porte = 'robusto';
+  var ref2 = mk2({ uid: 'm7' }); ref2.porte = B.porteDoId('m7');
+  for (var s = 0; s < 100; s++) {
+    assert.strictEqual(B.foal({ f: modelo, m: semNada, seedBase: 3, breedCounter: s, nextUid: 1 }).porte, B.foal({ f: ref, m: ref2, seedBase: 3, breedCounter: s, nextUid: 1 }).porte);
+  }
 });
 
 section('equipamento: catálogo');

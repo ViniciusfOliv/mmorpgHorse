@@ -46,6 +46,10 @@
  *      por gene, na ordem cara, patas, corpo, 2 chamadas: 1ª < GameData.MARCAS.mutacao ⇒ mutação; 2ª com mutação é o índice
  *      uniforme na lista do gene; sem mutação, < 0,5 ⇒ gene da égua, senão do garanhão. Pai sem marcas válidas vale pelo
  *      modelo do catálogo (templateId) ou por marcasDoId(uid): FNV-1a 32 bits da chave (hashChave) → mulberry32 → 3 sorteios.
+ *  10. porte (sequência própria, mulberry32(hash2(seedBase>>>0, 0x504F0000 + breedCounter)); não muda os passos 1–9, vem depois):
+ *      2 chamadas: 1ª < GameData.PORTES.mutacao ⇒ mutação; 2ª com mutação é o índice uniforme em PORTES.valores; sem mutação,
+ *      < 0,5 ⇒ porte da égua, senão do garanhão. Pai sem porte válido vale pelo modelo do catálogo (templateId) ou por
+ *      porteDoId(uid): hash2(hashChave(chave), 0x504F5254) → mulberry32 → 1 sorteio.
  * (v3: saiu o antigo passo 5, uma chamada por status para o status base; o piso de genética por
  * estrela saiu sem mudar o número de chamadas.)
  */
@@ -293,6 +297,34 @@
     return out;
   }
 
+  // ---- porte (spec 2026-11-13-cavalos-portes §3) ----
+  function porteValido(p) { return G.PORTES.valores.indexOf(p) >= 0; }
+
+  // fluxo diferente do de marcasDoId, para o porte não acompanhar as marcas
+  function porteDoId(chave) {
+    var r = S.mulberry32(S.hash2(hashChave(chave), 0x504F5254));
+    return G.PORTES.valores[Math.floor(r() * G.PORTES.valores.length)];
+  }
+
+  // Porte de um cavalo (só desenho): o dele, se válido; senão o do modelo do catálogo (templateId); senão porteDoId(chave).
+  function porteDe(porte, templateId, chave) {
+    var cat, i;
+    if (porteValido(porte)) return porte;
+    if (templateId != null) {
+      cat = G.STARTERS.concat(G.WILD_HORSES);
+      for (i = 0; i < cat.length; i++) if (cat[i].id === templateId && porteValido(cat[i].porte)) return cat[i].porte;
+    }
+    return porteDoId(chave);
+  }
+  function porteDePai(p) { return porteDe(p.porte, p.templateId, p.uid != null ? p.uid : (p.id != null ? p.id : p.name)); }
+
+  function rollPorte(opts) {
+    var r = S.mulberry32(S.hash2(opts.seedBase >>> 0, 0x504F0000 + opts.breedCounter));
+    var mut = r() < G.PORTES.mutacao, pick = r(), lista = G.PORTES.valores;
+    if (mut) return lista[Math.floor(pick * lista.length)];
+    return pick < 0.5 ? porteDePai(opts.f) : porteDePai(opts.m);
+  }
+
   function foal(opts) {
     var f = opts.f, m = opts.m, breedCounter = opts.breedCounter;
     var rng = S.mulberry32(S.hash2(opts.seedBase >>> 0, 0xB0B0 + breedCounter));
@@ -360,7 +392,8 @@
       level: 1, xp: 0, skills: inherited, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
       parents: { f: { uid: f.uid || null, name: f.name }, m: { uid: m.uid || null, name: m.name } },
       born: breedCounter,
-      marcas: rollMarcas(opts)
+      marcas: rollMarcas(opts),
+      porte: rollPorte(opts)
     };
   }
 
@@ -381,6 +414,9 @@
     marcasDoId: marcasDoId,
     marcasDe: marcasDe,
     marcasValidas: marcasValidas,
+    porteValido: porteValido,
+    porteDoId: porteDoId,
+    porteDe: porteDe,
     foal: foal
   };
 
