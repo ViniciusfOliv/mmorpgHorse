@@ -670,9 +670,10 @@
       },
       "completo": true,
       "final": true,
-      "ok": false,
-      "falhas": [
-        "parado: forma (parado) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))"
+      "ok": true,
+      "falhas": [],
+      "aceitos": [
+        "parado: pernas no parado = 2 (= 4)"
       ],
       "etapas": {
         "retrato": {
@@ -716,7 +717,7 @@
           ]
         },
         "parado": {
-          "escolhida": 4101,
+          "escolhida": 3101,
           "ok": false,
           "terminada": true,
           "refacao": 1,
@@ -801,8 +802,51 @@
                 }
               ],
               "ok": false
+            },
+            {
+              "seed": 3101,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-esguio-lisa-parado-s3101.png",
+              "geracoes": 1,
+              "marca": "",
+              "data": "2026-11-13T10:26:09.469Z",
+              "criterios": [
+                {
+                  "criterio": "forma (parado)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no parado",
+                  "ok": false,
+                  "valor": 2,
+                  "limite": "= 4",
+                  "aceito": true
+                }
+              ],
+              "ok": false,
+              "manual": true,
+              "aceita": true,
+              "importada": true,
+              "refacao": 0,
+              "origem": "refação 0, no histórico"
             }
-          ]
+          ],
+          "escolha": {
+            "manual": true,
+            "seed": 3101,
+            "data": "2026-11-13T12:55:30.789Z",
+            "motivo": "decisão do Vinicius em 2026-11-13: desenho melhor, 2 pernas visíveis",
+            "refacao": 0,
+            "origem": "refação 0, no histórico",
+            "arquivo": "raw/portes-esguio-lisa-parado-s3101.png",
+            "aceitos": [
+              "pernas no parado"
+            ]
+          }
         },
         "corrida": {
           "escolhida": 3201,
@@ -1067,6 +1111,20 @@
                   "ok": false
                 }
               ]
+            }
+          }
+        },
+        {
+          "escolher": [
+            "parado"
+          ],
+          "data": "2026-11-13T12:55:30.789Z",
+          "motivo": "decisão do Vinicius em 2026-11-13: desenho melhor, 2 pernas visíveis",
+          "antes": {
+            "parado": {
+              "escolhida": 4101,
+              "ok": false,
+              "refacao": 1
             }
           }
         }
@@ -2169,5 +2227,5 @@
     "nose": 6,
     "comprimento": 4
   },
-  "atualizado": "2026-11-13T11:49:25.845Z"
+  "atualizado": "2026-11-13T12:55:30.951Z"
 }
