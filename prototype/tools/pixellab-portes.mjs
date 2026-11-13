@@ -807,9 +807,15 @@ export async function rodarPortes(op) {
     };
   }
 
-  const pular = (t, reg) => {
+  const pular = (t, reg, item, etapa) => {
     t.ok = false;
     if (reg.rejeitada) t.geracoes = geracoesDe(reg.resposta, reg.resposta && reg.resposta.job) ?? 1;
+    // --manter-escolhas: o erro de API de uma rodada anterior guarda o custo que foi contado nela (o cru de erro não o
+    // registra; sem a opção, a tentativa pulada sai com 0, como sempre)
+    else if (manterEscolhas) {
+      const a = tentativasDoRegistro(anteriores[item.chave], etapa).find(x => x.t.seed === t.seed && baseDoArquivo(x.t.arquivo) === t._base && x.t.motivo);
+      if (a && a.t.geracoes) t.geracoes = a.t.geracoes;
+    }
     t.motivo = reg.erro ? `erro registrado em rodada anterior: ${reg.erro}` : `rejeitada na conferência visual: ${reg.rejeitada}`;
     log(`    pulada seed ${t.seed}: ${t.motivo}`);
   };
@@ -936,6 +942,10 @@ export async function rodarPortes(op) {
     log(`    ${rotulo}: escolha mantida (--manter-escolhas), a seed ${ant.seed}${ant.ok ? '' : ' (reprovada)'}; pelos critérios de hoje seria a seed ${x.mantida.seria}${x.mantida.seriaOk ? ' (aprovada)' : ''}`);
     return ant;
   }
+  // --manter-escolhas: o laço reavalia todas as tentativas que já estão em raw/, as de erro incluídas (não para na 1ª
+  // aprovada: as tentativas pagas continuam no registro), e para no 1º cru que falta depois da escolha anterior (nada a
+  // pagar no --reprocessar)
+  const passouDaEscolha = (k, ate) => manterEscolhas && ate >= 0 && k > ate;
   // pref = o cru da escolha anterior (preferida): depois de uma aprovada, o laço só segue até ela, e só pelo que já
   // está em raw/ (sem pagar); a escolha fica com ela se continuar aprovada
   async function tentarParada(item, etapa, rotulo, mestre, g, tentativas, pref) {
@@ -945,14 +955,14 @@ export async function rodarPortes(op) {
       const seed = seeds[k], base = bases[k], forca = g ? g.forca(k) : FORCA_GUIA;
       const { corpo, reg, versao } = pedidoDaSeed(item, etapa, seed, base, g && g.guia && g.guia.buf, forca, g && g.proporcao);
       const crus = reg && !reg.erro && !reg.rejeitada ? pngsCrus(raw, base, false) : null;
-      if (!crus && tentativas.some(x => x.ok)) break;
+      if (!crus && !(manterEscolhas && reg) && (tentativas.some(x => x.ok) || passouDaEscolha(k, ate))) break;
       const t = { seed, endpoint: PIXFLUX, prompt: corpo.description, versaoTexto: versao, arquivo: `raw/${base}.png`, geracoes: 0, marca: g ? g.marca(k) : '', _base: base };
       if (g) { t.init_image = g.descricao; t.init_image_strength = forca; }
       if (g && g.tipo === 'mestre') t.guiaMestre = g.mestre;
       tentativas.push(t);
       const forcaTxt = g && g.textoForca ? `= ${g.textoForca}` : forca;
       log(`  ${rotulo} seed ${seed}${g ? ` (init_image ${t.init_image}, força ${forcaTxt}${g.tipo === 'mestre' && etapa !== 'retrato' && !g.textoForca ? ', a do retrato aceito' : ''})` : ''}`);
-      if (reg && (reg.erro || reg.rejeitada)) { pular(t, reg); continue; }
+      if (reg && (reg.erro || reg.rejeitada)) { pular(t, reg, item, etapa); continue; }
       let buf;
       if (crus) { reaproveitar(t, reg, rotulo); buf = crus[0]; }
       else {
@@ -974,7 +984,7 @@ export async function rodarPortes(op) {
       }
       avaliarParada(item, etapa, buf, t, mestre);
       relatar(rotulo, t);
-      if (t.ok && k >= ate) break;
+      if (t.ok && k >= ate && !manterEscolhas) break;
     }
   }
 
@@ -1076,11 +1086,11 @@ export async function rodarPortes(op) {
       if (tc.planejada) { tentativas.push(t); await pagar(ANIMA, { rotulo, seed, geracoes: 0 }, null, texto); t.planejada = true; break; }
       const corpo = pedidoGalope(tc._buf, seed, ACAO_PORTES), reg = lerCru(raw, base, corpo);
       let bufs = reg && !reg.erro && !reg.rejeitada ? pngsCrus(raw, base, true) : null;
-      if (!bufs && tentativas.some(x => x.ok)) break;
+      if (!bufs && !(manterEscolhas && reg) && (tentativas.some(x => x.ok) || passouDaEscolha(k, ate))) break;
       tentativas.push(t);
       t.arquivo = `raw/${base}-N.png`;
       log(`  ${rotulo} seed ${seed} (corrida ${tc.seed}; job assíncrono; pode levar minutos)`);
-      if (reg && (reg.erro || reg.rejeitada)) { pular(t, reg); continue; }
+      if (reg && (reg.erro || reg.rejeitada)) { pular(t, reg, item, 'galope'); continue; }
       if (bufs) reaproveitar(t, reg, rotulo);
       else {
         if (!reg) protegerCru(base, true, rotulo, seed);
@@ -1106,7 +1116,7 @@ export async function rodarPortes(op) {
       if (bufs.length !== LIMITES.quadros) log(`    AVISO ${rotulo}: vieram ${bufs.length} quadros (o molde precisa de ${LIMITES.quadros})`);
       avaliarGalope(item, bufs, t, tc);
       relatar(rotulo, t);
-      if (t.ok && k >= ate) break;
+      if (t.ok && k >= ate && !manterEscolhas) break;
     }
   }
 

@@ -1765,7 +1765,19 @@ await testA('--manter-escolhas (só no --reprocessar): a escolha gravada fica, m
   // padrão/retrato: a 3102 reprovou (pernas coladas) e a 3202 foi escolhida; o registro passa a ter a 3102 escolhida
   const arq = path.join(G.dirs.novos, 'criterios.json'), C0 = lerJ(arq);
   assert.deepStrictEqual(C0.itens['padrao-lisa'].etapas.retrato.tentativas.map(t => t.seed + (t.ok ? '✓' : '✗')), ['3102✗', '3202✓']);
-  C0.itens['padrao-lisa'].etapas.retrato.escolhida = 3102; fs.writeFileSync(arq, JSON.stringify(C0, null, 2) + '\n');
+  C0.itens['padrao-lisa'].etapas.retrato.escolhida = 3102;
+  // robusto/galope: os 3 galopes reprovaram (pulam); a 3103 passa a ser estável (todos os quadros = o 1º) e a 3203 vira
+  // um erro de API registrado (cru de erro, sem imagem; no registro, com o custo contado na rodada dele)
+  const gal = C0.itens['robusto-lisa'].etapas.galope;
+  assert.deepStrictEqual([gal.escolhida, gal.tentativas.map(t => t.seed + (t.ok ? '✓' : '✗')).join(' ')], [3103, '3103✗ 3203✗ 3303✗']);
+  const base = s => path.join(G.dirs.raw, `portes-robusto-lisa-galope-c3103-s${s}`);
+  for (let i = 1; i < 9; i++) fs.copyFileSync(base(3103) + '-0.png', `${base(3103)}-${i}.png`);
+  const e3203 = lerJ(base(3203) + '.json');
+  fs.writeFileSync(base(3203) + '.json', JSON.stringify({ endpoint: e3203.endpoint, data: e3203.data, pedido: e3203.pedido, erro: 'HTTP 502 (teste)' }));
+  for (let i = 0; i < 9; i++) fs.unlinkSync(`${base(3203)}-${i}.png`);
+  Object.assign(gal.tentativas[1], { ok: false, motivo: 'POST /animate-with-text-v3 → HTTP 502 (teste)', geracoes: 1 });
+  delete gal.tentativas[1].criterios;
+  fs.writeFileSync(arq, JSON.stringify(C0, null, 2) + '\n');
   const linhas = [];
   const r = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', manterEscolhas: true, executar: sem, dirs: G.dirs, log: l => linhas.push(l) }));
   assert.strictEqual(r.parada, null);
@@ -1777,12 +1789,17 @@ await testA('--manter-escolhas (só no --reprocessar): a escolha gravada fica, m
   assert.strictEqual(J.seeds.retrato, 3102, 'o final é regravado com a escolha mantida');
   // as etapas em que a escolhida já é a melhor não ganham `mantida`
   assert.ok(Object.values(lerJ(arq).itens['esguio-lisa'].etapas).every(x => !('mantida' in x)));
+  // as tentativas pagas continuam no registro, também depois da 1ª aprovada, e o erro guarda o custo contado
+  const gal1 = lerJ(arq).itens['robusto-lisa'].etapas.galope;
+  assert.deepStrictEqual([gal1.escolhida, 'mantida' in gal1, gal1.tentativas.map(t => `${t.seed}${t.ok ? '✓' : '✗'}${t.geracoes}`).join(' ')], [3103, false, '3103✓1 3203✗1 3303✗1']);
   const Fo = await import('./folha-portes.mjs');
   assert.match(Fo.htmlFolhaMestres(Fo.dadosMestres(G.dirs.novos)), /retrato 3102: escolha mantida no reprocessamento \(--manter-escolhas\); pelos critérios de hoje seria a seed 3202 \(aprovada\)/);
   // sem a opção, a regra de sempre: a anterior reprovada perde para a aprovada
   await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', executar: sem, dirs: G.dirs, log: () => {} }));
   const ret2 = lerJ(arq).itens['padrao-lisa'].etapas.retrato;
   assert.deepStrictEqual([ret2.escolhida, ret2.ok, 'mantida' in ret2], [3202, true, false]);
+  // (e, como sempre, o laço para na 1ª aprovada: o registro do galope fica só com a 3103)
+  assert.deepStrictEqual(lerJ(arq).itens['robusto-lisa'].etapas.galope.tentativas.map(t => t.seed), [3103]);
   // erros de uso: só com --reprocessar
   await assert.rejects(() => Pl().rodarPortes({ fase: 'mestres', modo: 'plano', manterEscolhas: true, dirs: G.dirs }), /--manter-escolhas só anda com --reprocessar/);
   assert.match(Pl().validarArgsPortes({ fase: 'mestres', manterEscolhas: true }, G.dirs.novos), /--manter-escolhas só anda com --reprocessar/);
