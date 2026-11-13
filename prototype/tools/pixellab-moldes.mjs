@@ -3,7 +3,10 @@
 // Uso:  NODE_USE_ENV_PROXY=1 node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|icones2|tudo [--only <id>] [--teto 60] [--gerar]
 //       NODE_USE_ENV_PROXY=1 node prototype/tools/pixellab-moldes.mjs --lote portes --fase mestres|piloto|versoes [--only <porte>[-<estilo>]] [--teto 90] [--gerar]
 //         [--sem-guia <porte>-<estilo>]… [--guia-galope-mestre <porte>-<estilo>]… [--refazer <porte>-<estilo>:<etapa>[,…]]…
-//         [--nova-refacao]   (ver o topo do pixellab-portes.mjs; no portes, sai 0 com item só reprovado num critério)
+//         [--nova-refacao] [--guia-mestre <porte>-lisa=<porte>-lisa]…
+//         (ver o topo do pixellab-portes.mjs; no portes, sai 0 com item só reprovado num critério)
+//       node prototype/tools/pixellab-moldes.mjs --lote portes --fase … --escolher <porte>-<estilo>:<etapa>=<seed>… --motivo "<texto>"
+//         (escolha manual de uma tentativa já paga: sem rede e sem custo, só raw/; regrava novos/)
 //   (icones2 = os 58 ícones novos de icones-catalogo.mjs; tudo = moldes + os 16 + os 58; portes = os 12 moldes dos
 //   portes da spec 2026-11-13-cavalos-portes, no pixellab-portes.mjs: fases, seeds 3101–3959, critérios, teto somado
 //   entre rodadas em novos/gasto.json e saída na pasta de espera assets/pixellab/novos/, que o build não lê)
@@ -179,7 +182,7 @@ function pedidoIcone(icone, seed) {
 function sair(msg) { console.error(msg); process.exit(2); }
 
 function lerArgs(argv) {
-  const a = { lote: null, fase: null, only: null, teto: null, gerar: false, reprocessar: false, repetir: [], semGuia: [], guiaGalope: [], refazer: [], novaRefacao: false, testarCrinas: false, forca: null };
+  const a = { lote: null, fase: null, only: null, teto: null, gerar: false, reprocessar: false, repetir: [], semGuia: [], guiaGalope: [], refazer: [], novaRefacao: false, guiaMestre: [], escolher: [], motivo: null, testarCrinas: false, forca: null };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--gerar') a.gerar = true;
@@ -191,6 +194,9 @@ function lerArgs(argv) {
     else if (k === '--guia-galope-mestre') a.guiaGalope.push(...String(argv[++i] || '').split(',').filter(Boolean));
     else if (k === '--refazer') a.refazer.push(String(argv[++i] || ''));
     else if (k === '--nova-refacao') a.novaRefacao = true;
+    else if (k === '--guia-mestre') a.guiaMestre.push(String(argv[++i] || ''));
+    else if (k === '--escolher') a.escolher.push(String(argv[++i] || ''));
+    else if (k === '--motivo') a.motivo = argv[++i] == null ? '' : String(argv[i]);
     else if (k === '--teto') a.teto = Number(argv[++i]);
     else if (k === '--repetir') a.repetir = String(argv[++i] || '').split(',').filter(Boolean);
     else if (k === '--testar-crinas') a.testarCrinas = true;
@@ -200,7 +206,9 @@ function lerArgs(argv) {
   if (!['moldes', 'icones', 'icones2', 'tudo', 'portes'].includes(a.lote)) {
     sair('uso: node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|icones2|tudo [--only <id>] [--teto 60] [--gerar]\n'
       + '     node prototype/tools/pixellab-moldes.mjs --lote portes --fase mestres|piloto|versoes [--only <porte>[-<estilo>]] [--teto 90] [--gerar]\n'
-      + '       [--sem-guia <porte>-<estilo>]… [--guia-galope-mestre <porte>-<estilo>]… [--refazer <porte>-<estilo>:<etapa>[,<etapa>…]]… [--nova-refacao]');
+      + '       [--sem-guia <porte>-<estilo>]… [--guia-galope-mestre <porte>-<estilo>]… [--refazer <porte>-<estilo>:<etapa>[,<etapa>…]]… [--nova-refacao]\n'
+      + '       [--guia-mestre <porte>-lisa=<porte>-lisa]…\n'
+      + '     node prototype/tools/pixellab-moldes.mjs --lote portes --fase mestres|piloto|versoes --escolher <porte>-<estilo>:<etapa>=<seed>… --motivo "<texto>"');
   }
   if (a.teto == null) a.teto = a.lote === 'portes' ? TETO_PORTES : 60;
   if (!Number.isFinite(a.teto) || a.teto <= 0) sair('--teto precisa ser um número maior que zero');
@@ -212,7 +220,9 @@ function lerArgs(argv) {
     if (erro) sair(erro);
     return a;
   }
-  if (a.fase != null || a.semGuia.length || a.guiaGalope.length || a.refazer.length || a.novaRefacao) sair('--fase, --sem-guia, --guia-galope-mestre, --refazer e --nova-refacao só valem com --lote portes');
+  if (a.fase != null || a.semGuia.length || a.guiaGalope.length || a.refazer.length || a.novaRefacao || a.guiaMestre.length || a.escolher.length || a.motivo != null) {
+    sair('--fase, --sem-guia, --guia-galope-mestre, --refazer, --nova-refacao, --guia-mestre, --escolher e --motivo só valem com --lote portes');
+  }
   if (a.testarCrinas && (a.reprocessar || ['icones', 'icones2'].includes(a.lote) || a.repetir.length)) sair('--testar-crinas: só com --lote moldes|tudo, sem --reprocessar nem --repetir');
   if (a.forca != null && !a.testarCrinas) sair('--forca só vale com --testar-crinas');
   a.estilos = ['icones', 'icones2'].includes(a.lote) ? [] : ESTILOS.filter(e => !a.only || e.id === a.only);
@@ -664,7 +674,7 @@ async function gerarPortes(a) {
       throw new ErroApi(`saldo do plano (${disponivel}) menor que o que sobra do teto (${fmt(sobra)}): o resto sairia dos créditos em US$; abortado`, { fatal: true });
     }
   }
-  const r = await rodarPortes({ fase: a.fase, only: a.only, teto: a.teto, repetir: a.repetir, semGuia: a.semGuia, guiaGalope: a.guiaGalope, refazer: a.refazer, novaRefacao: a.novaRefacao, modo: a.reprocessar ? 'reprocessar' : 'gerar', executar: executarReal });
+  const r = await rodarPortes({ fase: a.fase, only: a.only, teto: a.teto, repetir: a.repetir, semGuia: a.semGuia, guiaGalope: a.guiaGalope, refazer: a.refazer, novaRefacao: a.novaRefacao, guiaMestre: a.guiaMestre, modo: a.reprocessar ? 'reprocessar' : 'gerar', executar: executarReal });
   if (!a.reprocessar) {
     try {
       const depois = await saldo('depois');
@@ -681,10 +691,22 @@ async function gerarPortes(a) {
   return codigo;
 }
 
+// --escolher (lote portes): escolha manual de tentativas já pagas — sem rede (nem /balance) e sem custo: só lê raw/ e
+// regrava novos/ (o molde e o criterios.json). A rede continua desligada (estado.redeLiberada fica false).
+async function escolherPortes(a) {
+  console.log(`ESCOLHA MANUAL (sem rede e sem custo: só os crus de raw/) — lote "portes", fase "${a.fase}": ${a.escolher.join(', ')}; motivo: ${a.motivo}`);
+  const r = await rodarPortes({ fase: a.fase, semGuia: a.semGuia, guiaGalope: a.guiaGalope, escolher: a.escolher, motivo: a.motivo, modo: 'escolher' });
+  const codigo = r.naoGravados.length ? 1 : codigoSaidaPortes(r);
+  console.log(codigo ? `\nSaída 1: ${r.parada ? 'a rodada parou' : r.naoGravados.length ? `${r.naoGravados.join(', ')} não gravado(s)` : `${r.incompletos} item(ns) incompleto(s)`}.`
+    : `\nSaída 0: escolha gravada em novos/ (criterios.json e o molde)${r.falhas ? `; ${r.falhas} item(ns) ainda reprovado(s) em outro critério (ver o Resumo)` : ''}.`);
+  return codigo;
+}
+
 const args = lerArgs(process.argv.slice(2));
 if (args.lote === 'portes') {
   try {
-    if (!args.gerar && !args.reprocessar) await dryRunPortes(args);
+    if (args.escolher.length) process.exitCode = await escolherPortes(args);
+    else if (!args.gerar && !args.reprocessar) await dryRunPortes(args);
     else process.exitCode = await gerarPortes(args);
   } catch (e) {
     console.error('ERRO: ' + (e instanceof ErroApi ? e.message : e.stack));

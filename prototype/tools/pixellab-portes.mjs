@@ -4,8 +4,9 @@
 //
 // Uso (pelo pixellab-moldes.mjs): --lote portes --fase mestres|piloto|versoes [--only <porte>[-<estilo>]] [--teto 90]
 //   [--repetir <chave>/<etapa>[,…]] [--sem-guia <porte>-<estilo>]… [--guia-galope-mestre <porte>-<estilo>]…
-//   [--refazer <porte>-<estilo>:<etapa>[,<etapa>…]]… [--nova-refacao] [--reprocessar] [--gerar]. Sem --gerar é dry-run
-//   (nenhuma chamada, nenhum arquivo).
+//   [--refazer <porte>-<estilo>:<etapa>[,<etapa>…]]… [--nova-refacao] [--guia-mestre <porte>-lisa=<porte>-lisa]…
+//   [--reprocessar] [--gerar]; ou [--escolher <porte>-<estilo>:<etapa>=<seed>]… --motivo "<texto>" (sem custo). Sem
+//   --gerar é dry-run (nenhuma chamada, nenhum arquivo).
 //   --sem-guia (piloto e versoes; repetível): aquela versão sai sem init_image, pela receita do primeiro lote, nas seeds
 //            sem guia (3701+), e passa nos mesmos critérios — a decisão da folha quando a crina mudou pouco partindo do
 //            mestre (spec §5.2). Não mexe no registro do piloto; na fase versoes vale também para o chamas.
@@ -25,6 +26,29 @@
 //            mesmo --refazer repetido depois de terminado (um comando rodado de novo por engano) não gasta: o --gerar
 //            para com erro de uso antes de qualquer chamada e o dry-run avisa em destaque, sem prever nada para o item.
 //            O galope que vem junto com a 1ª refação da corrida não pede a confirmação (ele parte da corrida nova).
+//   --guia-mestre <guiado>=<guia> (fase mestres; repetível; ex.: robusto-lisa=padrao-lisa; decisão do Vinicius na folha
+//            v2, 2026-11-13: o PixelLab enche o quadro com o cavalo, então o texto sozinho não muda a proporção): anda com
+//            o --refazer do guiado. Cada imagem parada refeita dele (retrato, parado, corrida) sai com init_image = o cru
+//            ESCOLHIDO do mestre-guia no mesmo estado (a seed do molde do guia em novos/, o arquivo pelo criterios.json),
+//            o texto do porte guiado (a última versão, TEXTOS_PORTE) e um reforço curto de proporção logo depois dele
+//            (REFORCO_PROPORCAO). A força do init_image muda a cada tentativa, além da seed (FORCAS_GUIA_MESTRE): 90 na
+//            seed base, 60 na base + 100 e 35 na base + 200 (a 4ª do --repetir, base + 50, usa a última, 35) — em
+//            2026-11-09 a força 150 já copiou a guia quase igual, então a 1ª ainda segura o desenho do guia e as outras
+//            deixam o texto mudar mais o corpo. Para na 1ª que passa nos critérios; no retrato do esguio e do robusto,
+//            os "portes distintos" contra o padrão entram no aceite (como sempre). O galope parte da corrida aceita, como
+//            sempre. A guia de cada etapa fica no criterios.json (`guiaMestre.<etapa>`: guia, seed, arquivo, refação,
+//            forças e reforço) e vale enquanto a etapa estiver naquela refação (retomar, --reprocessar). O guia precisa
+//            ter molde em novos/ e os crus das etapas refeitas, e não pode ser refeito na mesma rodada (erro de uso).
+//   --escolher <porte>-<estilo>:<etapa>=<seed> (as 3 fases; repetível; --motivo "<texto>" obrigatório): escolha manual
+//            de uma tentativa já paga daquela etapa — da refação atual ou de qualquer uma do `historico` —, sem rede e
+//            sem custo (só os crus de raw/). A tentativa é reavaliada pelos critérios de hoje e os que ela reprova ficam
+//            aceitos na folha (`aceito: true` no critério; no item, `aceitos` em vez de `falhas`, então ele não sai
+//            reprovado por eles). A escolha fica gravada (etapas.<etapa>.escolha = { manual: true, seed, data, motivo,
+//            refacao, origem, arquivo, aceitos }) e vale nas rodadas seguintes, até um --refazer daquela etapa; o molde
+//            em novos/ é regravado com ela, e o `historico` ganha uma linha com a escolha de antes. Escolher a corrida
+//            não muda o galope: se o escolhido partiu de outra corrida, o script avisa e o galope fica escolhido também
+//            (nada é animado de novo). Seed que não está nas tentativas da etapa (ou sem imagem em raw/) é erro de uso.
+//            Não anda com --gerar, --reprocessar, --refazer, --nova-refacao, --repetir, --guia-mestre nem --only.
 // Código de saída (pixellab-moldes): 1 só quando a rodada não terminou (teto, erro fatal da API, arquivo ilegível) ou
 //   deixou item incompleto; item completo que reprova num critério sai 0 (ele vai para a folha, marcado no Resumo). Erro
 //   de uso sai 2.
@@ -71,7 +95,9 @@
 //   "geracoes" que não é número finito ≥ 0) para o --gerar antes de qualquer chamada e nunca é sobrescrito; o dry-run
 //   avisa em destaque.
 // Saídas: os finais em prototype/assets/pixellab/novos/ (molde-<porte>-<estilo>.json e -<estado>.png, no formato que o
-//   build lê, mas numa pasta que ele NÃO lê); os crus em raw/ (portes-<chave>-<etapa>[-g<força>m<seed do mestre>]-s<seed>);
+//   build lê, mas numa pasta que ele NÃO lê); os crus em raw/ (portes-<chave>-<etapa>[-<marca da guia>]-s<seed>: a
+//   marca é g<força>m<seed do mestre> na versão guiada pelo mestre, gm<força>c<corrida>s<galope> na corrida guiada pelo
+//   galope do mestre e g<força><porte do guia><seed do guia> no mestre guiado por outro, ex. g60padrao3102);
 //   o relatório dos critérios em novos/criterios.json (toda tentativa: seed, prompt, init_image, custo e critérios).
 //   O docs/memoria/assets.md fica para depois da aprovação nas folhas (folha-portes.mjs).
 import fs from 'node:fs';
@@ -99,6 +125,11 @@ export const FORCA_GUIA = 100;
 // init_image_strength da corrida guiada pelo 1º quadro do galope do mestre (--guia-galope-mestre): a mesma 300 da guia
 // de corrida do primeiro lote (o 1º quadro do galope de chamas guiou ondas, folhas e lisa em 2026-11-09).
 export const FORCA_GUIA_GALOPE = 300;
+// init_image_strength do mestre guiado por outro mestre (--guia-mestre), por tentativa: a 1ª seed (base) 90, a 2ª
+// (+100) 60 e a 3ª (+200) 35; a 4ª do --repetir (+50) usa a última. Em 2026-11-09 a força 150 já copiou a guia quase
+// igual: aqui o desenho do guia tem de ficar e a proporção tem de mudar, então a força desce a cada tentativa.
+export const FORCAS_GUIA_MESTRE = Object.freeze([90, 60, 35]);
+const forcaGuiaMestre = (forcas, k) => forcas[Math.min(k, forcas.length - 1)];
 
 // ---------------------------------------------------------------- textos (spec §4: tabela de aparência, exagerada)
 // Cada porte guarda as versões do seu texto; a última sai nos pedidos novos. As anteriores ficam para reconhecer os crus
@@ -130,12 +161,20 @@ export const POSES_PORTES = {
 // reforço do mestre com jóquei (o da lisa no lote de 2026-11-08: sem ele, crina marrom e jóquei borrado)
 const REFORCO_MESTRE = 'bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet';
 export const ACAO_PORTES = `${ACAO_CORRIDA}, the same horse with the same body proportions in every frame`;
+// reforço de proporção do mestre guiado por outro (--guia-mestre), logo depois do texto do porte: o init_image traz o
+// desenho do guia, e o texto diz o que muda nele (decisão do Vinicius na folha v2, 2026-11-13; só esguio e robusto
+// têm porte diferente do padrão para pedir)
+export const REFORCO_PROPORCAO = Object.freeze({
+  robusto: 'same horse redrawn shorter and stockier: much shorter legs, deeper barrel body, thicker neck',
+  esguio: 'same horse redrawn taller and slimmer: much longer thinner legs, narrower lighter body, longer slimmer neck',
+});
 
 // Pedido do create-image-pixflux de uma etapa parada. Mestre: porte + pose + crina lisa + COR. Versão: a crina do
 // elemento no começo e repetida como "clearly visible and distinct" (o reforço da rodada de crinas de 2026-11-09).
-// versao = a do texto do porte (TEXTOS_PORTE); sem ela, a última.
-export function pedidoPorte(item, etapa, seed, guiaBuf, forca = FORCA_GUIA, versao = ultimaVersao(item.porte)) {
-  const crina = CRINAS[item.estilo], pose = POSES_PORTES[etapa], porte = textoPorte(item.porte, versao);
+// versao = a do texto do porte (TEXTOS_PORTE); sem ela, a última. proporcao = o reforço do mestre guiado por outro
+// (--guia-mestre), logo depois do texto do porte; sem ele, o pedido de sempre.
+export function pedidoPorte(item, etapa, seed, guiaBuf, forca = FORCA_GUIA, versao = ultimaVersao(item.porte), proporcao = null) {
+  const crina = CRINAS[item.estilo], pose = POSES_PORTES[etapa], porte = textoPorte(item.porte, versao) + (proporcao ? `, ${proporcao}` : '');
   const reforco = item.mestre && etapa !== 'retrato' ? `, ${REFORCO_MESTRE}` : '';
   const corpo = {
     description: item.mestre
@@ -215,10 +254,44 @@ export function lerRefazer(lista = []) {
   }
   return { pedidos, erro: null };
 }
-// Confere --only, --repetir, --sem-guia, --guia-galope-mestre e --refazer contra os itens da fase; devolve o erro ou null.
+// --escolher <porte>-<estilo>:<etapa>=<seed> (repetível) ⇒ { escolhas: [{ chave, etapa, seed }], erro }. Só confere a
+// forma; o item, a seed e o cru são conferidos em validarArgsPortes (e de novo no rodarPortes).
+export function lerEscolhas(lista = []) {
+  const escolhas = [];
+  for (const x of lista) {
+    const m = /^([a-z]+-[a-z]+):([a-z]+)=(\d+)$/.exec(String(x));
+    if (!m || !ETAPAS.includes(m[2])) return { escolhas: [], erro: `--escolher ${x}: use <porte>-<estilo>:<etapa>=<seed>, com as etapas ${ETAPAS.join(', ')} (ex.: esguio-lisa:parado=3101)` };
+    if (escolhas.some(e => e.chave === m[1] && e.etapa === m[2])) return { escolhas: [], erro: `--escolher ${m[1]}:${m[2]}: repetido (uma seed por etapa)` };
+    escolhas.push({ chave: m[1], etapa: m[2], seed: Number(m[3]) });
+  }
+  return { escolhas, erro: null };
+}
+// --guia-mestre <porte>-lisa=<porte>-lisa (repetível) ⇒ { guias: { <guiado>: <guia> }, erro }. Só o esguio e o robusto
+// são guiados (têm REFORCO_PROPORCAO); o guia é outro mestre.
+export function lerGuiasMestre(lista = []) {
+  const guias = {}, uso = x => `--guia-mestre ${x}: use <porte>-lisa=<porte>-lisa, o guiado = o guia (ex.: robusto-lisa=padrao-lisa)`;
+  for (const x of lista) {
+    const [a, b, resto] = String(x).split('='), pa = /^([a-z]+)-lisa$/.exec(a || ''), pb = /^([a-z]+)-lisa$/.exec(b || '');
+    if (resto != null || !pa || !pb || !PORTES.includes(pa[1]) || !PORTES.includes(pb[1])) return { guias: {}, erro: uso(x) };
+    if (pa[1] === pb[1]) return { guias: {}, erro: `--guia-mestre ${x}: o mestre não guia a si mesmo` };
+    if (!REFORCO_PROPORCAO[pa[1]]) return { guias: {}, erro: `--guia-mestre ${x}: o ${pa[1]} não tem reforço de proporção (só ${Object.keys(REFORCO_PROPORCAO).join(' e ')} são guiados por outro mestre)` };
+    if (guias[a] && guias[a] !== b) return { guias: {}, erro: `--guia-mestre ${a}: dois guias (${guias[a]} e ${b})` };
+    guias[a] = b;
+  }
+  return { guias, erro: null };
+}
+const ETAPAS_PARADAS = ['retrato', 'parado', 'corrida'];
+// Confere --only, --repetir, --sem-guia, --guia-galope-mestre, --refazer, --guia-mestre e --escolher contra os itens da
+// fase (e o --escolher e o --guia-mestre também contra o criterios.json e os crus de raw/); devolve o erro ou null.
 // gerar: o --gerar (refação já terminada sem --nova-refacao é erro de uso; no dry-run, aviso)
-export function validarArgsPortes({ fase, only, repetir = [], semGuia = [], guiaGalope = [], refazer = [], novaRefacao = false, reprocessar = false, gerar = false }, novos = DIR_NOVOS) {
+export function validarArgsPortes({ fase, only, repetir = [], semGuia = [], guiaGalope = [], refazer = [], novaRefacao = false, guiaMestre = [], escolher = [], motivo = null, reprocessar = false, gerar = false }, novos = DIR_NOVOS, raw = DIR_MOLDES_RAW) {
   if (!FASES.includes(fase)) return `--lote portes: --fase ${fase == null ? '(faltou)' : fase}: use mestres, piloto ou versoes`;
+  if (motivo != null && !escolher.length) return '--motivo só vale com --escolher';
+  if (escolher.length) {
+    if (gerar || reprocessar) return '--escolher não anda com --gerar nem com --reprocessar (a escolha não gasta nada: só lê raw/ e regrava novos/)';
+    if (refazer.length || novaRefacao || repetir.length || guiaMestre.length || only) return '--escolher não anda com --refazer, --nova-refacao, --repetir, --guia-mestre nem --only';
+    if (motivo == null || !String(motivo).trim()) return '--escolher pede --motivo "<texto>" (por que a tentativa foi aceita na folha; fica gravado no criterios.json)';
+  }
   for (const [op, lista] of [['--sem-guia', semGuia], ['--guia-galope-mestre', guiaGalope]]) {
     if (!lista.length) continue;
     if (fase === 'mestres') return `${op}: só nas fases piloto e versoes (o mestre não tem guia)`;
@@ -253,6 +326,32 @@ export function validarArgsPortes({ fase, only, repetir = [], semGuia = [], guia
       if (ant.variante !== it.variante) return `--refazer ${chave}: a receita mudou ("${ant.variante}" → "${it.variante}") e a nova já sai nas seeds dela, sem --refazer`;
       const ts = refacoesTerminadas(ant, pedidos[chave]);
       if (gerar && !novaRefacao && !pelaMetade(ant) && ts.length) return msgRefacaoTerminada(chave, ts);
+    }
+  }
+  if (guiaMestre.length) {
+    if (fase !== 'mestres') return '--guia-mestre: só na fase mestres (as versões já saem guiadas pelo mestre do porte)';
+    const { guias, erro } = lerGuiasMestre(guiaMestre);
+    if (erro) return erro;
+    const { pedidos } = lerRefazer(refazer);
+    for (const [a, b] of Object.entries(guias)) {
+      const es = (pedidos[a] || []).filter(e => ETAPAS_PARADAS.includes(e));
+      if (!es.length) return `--guia-mestre ${a}=${b}: anda com o --refazer de ${a} com retrato, parado ou corrida (ex.: --refazer ${a}:retrato,parado,corrida,galope)`;
+      if (pedidos[b]) return `--guia-mestre ${a}=${b}: o guia ${b} não pode ser refeito na mesma rodada`;
+      const J = lerJson(path.join(novos, `molde-${b}.json`));
+      if (!J || !J.seeds) return `--guia-mestre ${a}=${b}: o guia ainda não tem molde em ${rel(novos)}/`;
+      for (const e of es) if (!cruEscolhido(raw, J, crit.itens[b], b, e)) return `--guia-mestre ${a}=${b}: falta o cru escolhido de ${b}/${e} em ${rel(raw)}/ (seed ${J.seeds[e === 'corrida' ? 'montado' : e]})`;
+    }
+  }
+  if (escolher.length) {
+    const { escolhas, erro } = lerEscolhas(escolher);
+    if (erro) return erro;
+    for (const x of escolhas) {
+      const it = todos.find(i => i.chave === x.chave), ant = crit.itens[x.chave];
+      if (!it) return `--escolher ${x.chave}: não está na fase "${fase}" (itens: ${todos.map(i => i.chave).join(', ')})`;
+      if (!ant) return `--escolher ${x.chave}: o item ainda não tem registro no criterios.json (nada a escolher)`;
+      if (ant.variante !== it.variante) return `--escolher ${x.chave}: a receita no criterios.json é "${ant.variante}", não "${it.variante}" (repita as opções da receita, --sem-guia ou --guia-galope-mestre)`;
+      const a = acharTentativa(raw, ant, x.etapa, x.seed);
+      if (a.erro) return `--escolher ${x.chave}:${x.etapa}=${x.seed}: ${a.erro}`;
     }
   }
   return null;
@@ -307,31 +406,84 @@ export function lerMolde(dir, chave) {
 // mestre no mesmo estado, `gm<força>c<corrida>s<galope>` pelo 1º quadro do galope do mestre. O galope leva a marca da
 // pose de corrida de onde saiu.
 const marcaGuia = (tipo, guia) => (tipo === 'galope' ? `gm${FORCA_GUIA_GALOPE}${guia ? guia.seed : 'x'}` : `g${FORCA_GUIA}m${guia ? guia.seed : 'x'}`);
+// mestre guiado por outro (--guia-mestre): g<força><porte do guia><seed do cru do guia>, ex. g60padrao3102
+const marcaGuiaMestre = (gm, forca) => `g${forca}${gm.mestre.replace(/-lisa$/, '')}${gm.seed}`;
 const prefixoEtapa = (item, etapa, marca) => `portes-${item.chave}-${etapa}${marca ? '-' + marca : ''}`;
 const prefixoGalope = (item, tc) => `portes-${item.chave}-galope-c${tc.seed}${tc.marca || ''}`;
+// As tentativas de uma etapa no registro de um item (criterios.json): as da refação atual e as do `historico`, da mais
+// nova para a mais velha, cada uma com a refação e a origem dela. A cópia que uma escolha manual trouxe de outra refação
+// (importada) só vale no lugar de origem.
+function tentativasDoRegistro(reg, etapa) {
+  const out = [], x = reg && reg.etapas && reg.etapas[etapa];
+  if (x) for (const t of x.tentativas || []) if (!t.importada) out.push({ t, refacao: x.refacao || 0, origem: `refação ${x.refacao || 0}, a atual` });
+  for (const h of [...((reg && reg.historico) || [])].reverse()) {
+    const y = h.etapas && h.etapas[etapa];
+    if (!y) continue;
+    const r = y.refacao != null ? y.refacao : (h.refacoes && h.refacoes[etapa]) || 0;
+    const origem = h.refazer ? `refação ${r}, no histórico` : `receita "${h.variante}", no histórico`;
+    for (const t of y.tentativas || []) if (!t.importada) out.push({ t, refacao: r, origem });
+  }
+  return out;
+}
+// A tentativa `seed` (e `arquivo`, quando dado) de uma etapa no registro, com imagem em raw/: { t, refacao, origem,
+// base } ou { erro } (seed que não está nas tentativas, sem imagem, cru com erro da API ou rejeitado à mão)
+export function acharTentativa(raw, reg, etapa, seed, arquivo = null) {
+  const todas = tentativasDoRegistro(reg, etapa), mesmas = todas.filter(x => x.t.seed === seed && (!arquivo || x.t.arquivo === arquivo));
+  if (!mesmas.length) {
+    const seeds = [...new Set(todas.map(x => x.t.seed))];
+    return { erro: `a seed ${seed} não está nas tentativas de ${etapa} (${seeds.length ? `seeds tentadas: ${seeds.join(', ')}` : 'nenhuma tentativa'})` };
+  }
+  const motivos = [];
+  for (const x of mesmas) {
+    const base = baseDoArquivo(x.t.arquivo), cru = base && lerJson(path.join(raw, base + '.json'));
+    if (!base || (cru && cru.erro) || !pngsCrus(raw, base, etapa === 'galope')) { motivos.push(`${x.t.arquivo || 'sem arquivo'} sem imagem em raw/${cru && cru.erro ? ` (erro da API: ${cru.erro.slice(0, 80)})` : ''}`); continue; }
+    if (cru && cru.rejeitada) { motivos.push(`${x.t.arquivo} rejeitada na conferência visual (${cru.rejeitada})`); continue; }
+    return { ...x, base };
+  }
+  return { erro: `a tentativa seed ${seed} de ${etapa} não serve: ${motivos.join('; ')}` };
+}
+// O cru escolhido de um mestre numa etapa (retrato, parado, corrida; galope = o 1º quadro): a seed do molde dele em
+// novos/ (J.seeds) e o arquivo pela tentativa no criterios.json — o nome pode levar a marca de uma guia (mestre guiado
+// por outro) ou vir do histórico (escolha manual) —; sem registro, o nome de sempre. { seed, buf, arquivo } ou null.
+function cruEscolhido(raw, J, reg, chave, etapa) {
+  const sd = (J && J.seeds) || {}, seed = sd[etapa === 'corrida' ? 'montado' : etapa], galope = etapa === 'galope';
+  if (seed == null || (galope && sd.montado == null)) return null;
+  const daCorrida = t => t.first_frame === `${chave}/corrida seed ${sd.montado}`;
+  const cands = tentativasDoRegistro(reg, etapa).map(x => x.t).filter(t => t.seed === seed && t.arquivo);
+  if (galope) cands.sort((a, b) => daCorrida(b) - daCorrida(a)); // o galope da corrida do molde primeiro
+  const bases = [...cands.map(t => baseDoArquivo(t.arquivo)), galope ? `portes-${chave}-galope-c${sd.montado}-s${seed}` : `portes-${chave}-${etapa}-s${seed}`];
+  for (const base of bases) {
+    const nome = base + (galope ? '-0' : '') + '.png', f = path.join(raw, nome);
+    if (fs.existsSync(f)) return { seed: galope ? `c${sd.montado}s${seed}` : seed, buf: fs.readFileSync(f), arquivo: `raw/${nome}` };
+  }
+  return null;
+}
 // as imagens cruas aceitas do mestre (as seeds do JSON dele), para o init_image das versões guiadas; galope0 = o 1º
 // quadro cru do galope dele (para --guia-galope-mestre), ou null se faltar
-function crusDoMestre(raw, J, chave) {
+function crusDoMestre(raw, J, chave, reg) {
   const out = {};
-  for (const [etapa, k] of [['retrato', 'retrato'], ['parado', 'parado'], ['corrida', 'montado']]) {
-    const seed = J.seeds && J.seeds[k], base = `portes-${chave}-${etapa}-s${seed}`, f = path.join(raw, base + '.png');
-    if (seed == null || !fs.existsSync(f)) return null;
-    out[etapa] = { seed, buf: fs.readFileSync(f), arquivo: `raw/${base}.png` };
+  for (const etapa of ETAPAS_PARADAS) {
+    const c = cruEscolhido(raw, J, reg, chave, etapa);
+    if (!c) return null;
+    out[etapa] = c;
   }
-  const cs = J.seeds.montado, gs = J.seeds.galope, g0 = `portes-${chave}-galope-c${cs}-s${gs}-0.png`;
-  out.galope0 = gs != null && fs.existsSync(path.join(raw, g0)) ? { seed: `c${cs}s${gs}`, buf: fs.readFileSync(path.join(raw, g0)), arquivo: `raw/${g0}` } : null;
+  out.galope0 = cruEscolhido(raw, J, reg, chave, 'galope');
   return out;
 }
 
 // ---------------------------------------------------------------- tentativas
 const PLANEJADO = Symbol('planejado');
+// --escolher sem uma imagem crua em raw/ (a escolha nunca paga): o item fica incompleto, como no --reprocessar
+class FaltaCruEscolha extends FaltaCru {
+  constructor(rotulo) { super(rotulo); this.message = `--escolher: faltaria gerar ${rotulo} (sem imagem crua em raw/; a escolha não paga nada)`; }
+}
 const falhasDe = t => (t.criterios || []).filter(c => !c.ok);
 // a tentativa passou no "mesmo corpo" (todos os critérios dele ok), qualquer que seja o resto (forma, pernas…)
 const passouMesmoCorpo = t => { const mc = (t.criterios || []).filter(c => /^mesmo corpo/.test(c.criterio)); return mc.length > 0 && mc.every(c => c.ok); };
 // melhor tentativa: a 1ª aprovada; senão a com menos critérios reprovados (reprovar na forma pesa 100); empate: a 1ª.
 // pref = o cru (nome-base em raw/) da escolhida da rodada anterior: fica se continuar aprovada, ou, sem aprovada, se
 // empatar com a melhor (a escolha que continua valendo não muda)
-function escolher(tentativas, pref = null) {
+function melhorTentativa(tentativas, pref = null) {
   const comImagem = tentativas.filter(t => t.planejada || t._buf || t._bufs), ehPref = t => pref != null && t._base === pref;
   const oks = comImagem.filter(t => t.ok || t.planejada);
   if (oks.length) return oks.find(ehPref) || oks[0];
@@ -353,15 +505,25 @@ const resumoCrit = c => `${c.criterio} = ${c.valor == null ? '—' : typeof c.va
  * falhas, parada, gastoAntes, gasto, previstas }.
  */
 export async function rodarPortes(op) {
-  const { fase, only = null, teto = TETO_PADRAO, repetir = [], semGuia = [], guiaGalope = [], refazer = [], novaRefacao = false, modo = 'plano', executar = null } = op;
+  const { fase, only = null, teto = TETO_PADRAO, repetir = [], semGuia = [], guiaGalope = [], refazer = [], novaRefacao = false, guiaMestre = [], escolher = [], motivo = null, modo = 'plano', executar = null } = op;
   const raw = (op.dirs && op.dirs.raw) || DIR_MOLDES_RAW, novos = (op.dirs && op.dirs.novos) || DIR_NOVOS;
-  const plano = modo === 'plano', reproc = modo === 'reprocessar';
+  // modo 'escolher' (--escolher): como o --reprocessar, nada é pago (o que faltar em raw/ deixa o item incompleto), e
+  // só os itens escolhidos entram; o criterios.json só é gravado no fim (ver salvar)
+  const plano = modo === 'plano', reproc = modo === 'reprocessar', escolha = modo === 'escolher', semPagar = reproc || escolha;
   const log = plano ? () => {} : (op.log || console.log);
   if (!FASES.includes(fase)) throw new ErroApi(`fase desconhecida: ${fase}`, { fatal: true });
   if (modo === 'gerar' && typeof executar !== 'function') throw new Error('rodarPortes: modo gerar sem executar');
   const { pedidos, erro: erroRefazer } = lerRefazer(refazer);
   if (erroRefazer) throw new ErroApi(erroRefazer, { fatal: true });
   if (reproc && refazer.length) throw new ErroApi('--refazer não anda com --reprocessar', { fatal: true });
+  const { guias, erro: erroGuias } = lerGuiasMestre(guiaMestre);
+  if (erroGuias) throw new ErroApi(erroGuias, { fatal: true });
+  if (guiaMestre.length && fase !== 'mestres') throw new ErroApi('--guia-mestre: só na fase mestres', { fatal: true });
+  const { escolhas, erro: erroEscolhas } = lerEscolhas(escolher);
+  if (erroEscolhas) throw new ErroApi(erroEscolhas, { fatal: true });
+  if (escolha !== !!escolhas.length) throw new ErroApi(escolha ? 'modo escolher sem --escolher' : '--escolher só no modo escolher (sem rede e sem custo)', { fatal: true });
+  if (escolha && (refazer.length || guiaMestre.length || repetir.length || only)) throw new ErroApi('--escolher não anda com --refazer, --guia-mestre, --repetir nem --only', { fatal: true });
+  if (escolha && (motivo == null || !String(motivo).trim())) throw new ErroApi('--escolher pede --motivo "<texto>"', { fatal: true });
   const crit = lerCriterios(novos), avisos = [];
   // gasto.json ilegível: o --gerar para aqui, antes de qualquer chamada; o plano e o --reprocessar (que não pagam nem
   // gravam o gasto) seguem com o aviso
@@ -371,8 +533,15 @@ export async function rodarPortes(op) {
     gastoIlegivel = e.message; gasto = { geracoes: 0, chamadas: 0, rodadas: [], ilegivel: true };
     avisos.push(e.message + (plano ? ' A previsão abaixo conta como se nada tivesse sido gasto; o --gerar recusa rodar assim.' : ''));
   }
-  const itens = itensDaFase(fase, { only, piloto: crit.piloto, semGuia, guiaGalope });
-  const res = { itens: itens.map(i => i.chave), chamadas: [], reaproveitadas: [], avisos, falhas: 0, incompletos: 0, parada: null, gastoAntes: gasto.geracoes, gastoIlegivel, refacaoTerminada: [], gasto: 0, previstas: 0 };
+  const todosDaFase = itensDaFase(fase, { only, piloto: crit.piloto, semGuia, guiaGalope });
+  const itens = escolha ? todosDaFase.filter(it => escolhas.some(x => x.chave === it.chave)) : todosDaFase;
+  for (const x of escolhas) {
+    const it = itens.find(i => i.chave === x.chave), ant = crit.itens[x.chave];
+    const erro = !it ? `não está na fase "${fase}"` : !ant ? 'o item ainda não tem registro no criterios.json'
+      : ant.variante !== it.variante ? `a receita no criterios.json é "${ant.variante}", não "${it.variante}"` : acharTentativa(raw, ant, x.etapa, x.seed).erro;
+    if (erro) throw new ErroApi(`--escolher ${x.chave}:${x.etapa}=${x.seed}: ${erro}`, { fatal: true });
+  }
+  const res = { itens: itens.map(i => i.chave), chamadas: [], reaproveitadas: [], manuais: [], naoGravados: [], avisos, falhas: 0, incompletos: 0, parada: null, gastoAntes: gasto.geracoes, gastoIlegivel, refacaoTerminada: [], gasto: 0, previstas: 0 };
   // as entradas de antes desta rodada (o histórico de um item refeito com outra receita é guardado, não sobrescrito)
   const anteriores = {};
   for (const it of itens) if (crit.itens[it.chave]) anteriores[it.chave] = crit.itens[it.chave];
@@ -403,9 +572,64 @@ export async function rodarPortes(op) {
       avisos.push(`--refazer ${it.chave}: ${desc.join(', ')}; a tentativa anterior vai para o histórico e a escolha só olha as novas.`);
     }
   }
+  const agora = new Date().toISOString(); // a data desta rodada (gasto.json, histórico e escolhas manuais)
+  // guia de outro mestre (--guia-mestre) em cada etapa parada: a nova, nas etapas refeitas agora; a gravada, na etapa
+  // que continua na refação em que ela foi pedida (retomar, --reprocessar, as rodadas dos outros itens). Escolhas
+  // manuais: a gravada vale até um --refazer daquela etapa; a do --escolher desta rodada passa por cima dela.
+  const novaGuia = (it, b, e) => {
+    const J = lerJson(path.join(novos, `molde-${b}.json`)), c = cruEscolhido(raw, J, crit.itens[b], b, e);
+    if (!c) return { mestre: b, seed: null, arquivo: null, refacao: it.refacoes[e], forcas: [...FORCAS_GUIA_MESTRE], reforco: REFORCO_PROPORCAO[it.porte] };
+    return { mestre: b, seed: c.seed, arquivo: c.arquivo, refacao: it.refacoes[e], forcas: [...FORCAS_GUIA_MESTRE], reforco: REFORCO_PROPORCAO[it.porte], _buf: c.buf };
+  };
+  for (const it of itens) {
+    const ant = anteriores[it.chave], mesma = !!ant && ant.variante === it.variante, b = guias[it.chave];
+    it.guiasMestre = {}; it.manuais = {};
+    for (const e of ETAPAS_PARADAS) {
+      const gAnt = mesma && ant.guiaMestre && ant.guiaMestre[e];
+      if (b && it.refazendo.includes(e)) it.guiasMestre[e] = novaGuia(it, b, e);
+      else if (gAnt && !it.refazendo.includes(e) && (gAnt.refacao || 0) === it.refacoes[e]) {
+        const f = gAnt.arquivo && path.join(raw, gAnt.arquivo.replace(/^raw\//, ''));
+        it.guiasMestre[e] = Object.assign({}, gAnt, f && fs.existsSync(f) ? { _buf: fs.readFileSync(f) } : {});
+      }
+      const gm = it.guiasMestre[e];
+      if (gm && !gm._buf) {
+        const msg = `a guia de ${it.chave}/${e} (${gm.mestre}${gm.arquivo ? `, ${gm.arquivo}` : ''}) não está em raw/`;
+        if (!plano) throw new ErroApi(`--guia-mestre: ${msg}`, { fatal: true });
+        avisos.push(`--guia-mestre: ${msg}; a previsão segue sem o init_image.`);
+      }
+    }
+    if (b) {
+      const es = ETAPAS_PARADAS.filter(e => it.guiasMestre[e] && it.refazendo.includes(e));
+      if (!es.length) avisos.push(`--guia-mestre ${it.chave}=${b}: ignorado (nenhuma imagem parada de ${it.chave} é refeita nesta rodada).`);
+      else {
+        const gm = it.guiasMestre[es[0]], seeds = seedsDoItem(it, es[0], repetir);
+        avisos.push(`--guia-mestre ${it.chave}=${b}: ${es.map(e => `${e} com init_image = ${it.guiasMestre[e].arquivo || '(falta)'}`).join(', ')}; texto do ${it.porte} (versão ${ultimaVersao(it.porte)}) + "${gm.reforco}"; `
+          + `forças ${seeds.map((s, k) => `${forcaGuiaMestre(gm.forcas, k)} (seed ${s})`).join(', ')}, parando na 1ª que passa nos critérios; o galope parte da corrida aceita.`);
+      }
+    }
+    if (mesma) {
+      for (const e of ETAPAS) {
+        const esc = ant.etapas && ant.etapas[e] && ant.etapas[e].escolha;
+        if (esc && esc.manual && !it.refazendo.includes(e)) it.manuais[e] = { seed: esc.seed, arquivo: esc.arquivo, data: esc.data, motivo: esc.motivo, ...(esc.automatico ? { automatico: esc.automatico } : {}) };
+      }
+    }
+    const novas = escolhas.filter(x => x.chave === it.chave);
+    for (const x of novas) it.manuais[x.etapa] = { seed: x.seed, data: agora, motivo: String(motivo).trim(), nova: true };
+    // escolher a corrida não muda o galope: se o escolhido partiu de outra corrida, ele fica escolhido também (senão a
+    // rodada animaria um galope novo a partir da corrida escolhida)
+    const nc = novas.find(x => x.etapa === 'corrida'), ge = ant && ant.etapas && ant.etapas.galope;
+    if (nc && !novas.some(x => x.etapa === 'galope') && ge && ge.escolhida != null) {
+      const tc = acharTentativa(raw, ant, 'corrida', nc.seed), pg = it.manuais.galope;
+      const tg = pg ? acharTentativa(raw, ant, 'galope', pg.seed, pg.arquivo) : acharTentativa(raw, ant, 'galope', ge.escolhida);
+      if (!tc.erro && !tg.erro && !tg.base.startsWith(prefixoGalope(it, tc.t) + '-s')) {
+        if (!pg) it.manuais.galope = { seed: tg.t.seed, arquivo: tg.t.arquivo, data: agora, motivo: String(motivo).trim(), nova: true, automatico: `a corrida foi escolhida à mão (seed ${nc.seed}); o galope continua o escolhido` };
+        avisos.push(`--escolher ${it.chave}:corrida=${nc.seed}: o galope escolhido (seed ${tg.t.seed}, ${tg.t.arquivo}) partiu de outra corrida (${tg.t.first_frame || '?'}); ele continua o escolhido e não é refeito (o molde grava montado = ${nc.seed}). Para trocar o galope: --escolher ${it.chave}:galope=<seed> ou --refazer ${it.chave}:galope.`);
+      }
+    }
+  }
 
   // teto somado entre rodadas: o orçamento começa no gasto de novos/gasto.json e grava a cada chamada paga
-  const rodada = { data: new Date().toISOString(), fase, modo, only, ...(refazer.length ? { refazer } : {}), teto, geracoes: 0, chamadas: 0 };
+  const rodada = { data: agora, fase, modo, only, ...(refazer.length ? { refazer } : {}), ...(guiaMestre.length ? { guiaMestre } : {}), teto, geracoes: 0, chamadas: 0 };
   const orc = criarOrcamento(teto, {
     gasto: gasto.geracoes, log,
     aoRegistrar: (ep, g) => {
@@ -421,7 +645,7 @@ export async function rodarPortes(op) {
       res.previstas++;
       return PLANEJADO;
     }
-    if (reproc) throw new FaltaCru(`${it.rotulo} seed ${it.seed}`);
+    if (semPagar) throw escolha ? new FaltaCruEscolha(`${it.rotulo} seed ${it.seed}`) : new FaltaCru(`${it.rotulo} seed ${it.seed}`);
     return pago(orc, ep, it, () => executar(ep, corpo));
   };
 
@@ -429,7 +653,7 @@ export async function rodarPortes(op) {
   const mestres = {};
   if (fase !== 'mestres') {
     for (const p of new Set(itens.map(i => i.porte))) {
-      const chave = `${p}-lisa`, molde = lerMolde(novos, chave), crus = molde && crusDoMestre(raw, molde.json, chave);
+      const chave = `${p}-lisa`, molde = lerMolde(novos, chave), crus = molde && crusDoMestre(raw, molde.json, chave, crit.itens[chave]);
       if (!molde || !crus) {
         if (!plano) throw new ErroApi(`falta o mestre ${chave} em ${rel(novos)}/ (com as imagens cruas em raw/): rode --fase mestres antes`, { fatal: true });
         res.avisos.push(`o mestre ${chave} ainda não está em novos/: a previsão usa a 1ª seed de cada etapa e o init_image entra quando ele existir.`);
@@ -465,22 +689,30 @@ export async function rodarPortes(op) {
   const estados = {};
   for (const it of itens) estados[it.chave] = { etapas: {}, incompleto: null, final: false };
 
-  const salvar = () => {
-    if (plano) return;
-    for (const it of itens) if (Object.keys(estados[it.chave].etapas).length) crit.itens[it.chave] = entrada(it);
+  // No modo escolher, o criterios.json só é gravado no fim (fim = true), e o item que terminaria incompleto tendo estado
+  // completo antes (um cru que sumiu de raw/) fica como estava: a escolha não troca um registro inteiro por um pela metade.
+  const salvar = (fim = false) => {
+    if (plano || (escolha && !fim)) return;
+    for (const it of itens) {
+      if (!Object.keys(estados[it.chave].etapas).length) continue;
+      const e = entrada(it), ant = anteriores[it.chave];
+      if (escolha && !e.completo && ant && ant.completo) { if (!res.naoGravados.includes(it.chave)) res.naoGravados.push(it.chave); continue; }
+      crit.itens[it.chave] = e;
+    }
     crit.lote = 'portes'; crit.limites = LIMITES; crit.atualizado = new Date().toISOString();
     gravarJson(path.join(novos, 'criterios.json'), crit);
   };
   function entrada(item) {
-    const st = estados[item.chave], etapas = {}, falhas = [];
+    const st = estados[item.chave], etapas = {}, falhas = [], aceitos = [];
     for (const e of ETAPAS) {
       const x = st.etapas[e];
       if (!x) continue;
-      etapas[e] = { escolhida: x.escolhida ? x.escolhida.seed : null, ok: !!(x.escolhida && x.escolhida.ok), terminada: x.terminada, refacao: item.refacoes[e], tentativas: x.tentativas };
+      etapas[e] = { escolhida: x.escolhida ? x.escolhida.seed : null, ok: !!(x.escolhida && x.escolhida.ok), terminada: x.terminada, refacao: item.refacoes[e], tentativas: x.tentativas, ...(x.escolha ? { escolha: x.escolha } : {}) };
       if (!x.terminada) falhas.push(`${e}: interrompida antes de terminar as seeds`);
       else if (!x.escolhida) falhas.push(`${e}: nenhuma tentativa com imagem`);
       else if (!x.escolhida.ok) {
-        falhas.push(...falhasDe(x.escolhida).map(c => (c.criterio.startsWith(e + ':') ? '' : `${e}: `) + resumoCrit(c)), ...(x.escolhida.motivo ? [`${e}: ${x.escolhida.motivo}`] : []));
+        // escolha manual: o que a escolhida reprova foi aceito na folha (aceitos), não reprova o item
+        (x.escolha ? aceitos : falhas).push(...falhasDe(x.escolhida).map(c => (c.criterio.startsWith(e + ':') ? '' : `${e}: `) + resumoCrit(c)), ...(x.escolhida.motivo ? [`${e}: ${x.escolhida.motivo}`] : []));
       }
     }
     if (st.incompleto) falhas.push(st.incompleto);
@@ -489,18 +721,27 @@ export async function rodarPortes(op) {
     // desta rodada (as tentativas reaproveitadas de raw/ voltam todas), e o histórico dela continua. Etapas refeitas
     // (--refazer): o registro anterior delas (escolhida, tentativas, refação) vai para o histórico, acrescentado.
     const ant = anteriores[item.chave], semHist = ({ historico, ...resto }) => resto;
+    const guiasAnt = ant && ant.guiaMestre && Object.fromEntries(item.refazendo.filter(e => ant.guiaMestre[e]).map(e => [e, ant.guiaMestre[e]]));
     const refeito = ant && item.refazendo.length ? [{
-      refazer: item.refazendo, data: rodada.data, variante: ant.variante, falhas: ant.falhas || [],
+      refazer: item.refazendo, data: rodada.data, variante: ant.variante, falhas: ant.falhas || [], ...(ant.aceitos ? { aceitos: ant.aceitos } : {}),
       refacoes: Object.fromEntries(item.refazendo.map(e => [e, (ant.refacoes && ant.refacoes[e]) || 0])),
       etapas: Object.fromEntries(item.refazendo.filter(e => ant.etapas && ant.etapas[e]).map(e => [e, ant.etapas[e]])),
+      ...(guiasAnt && Object.keys(guiasAnt).length ? { guiaMestre: guiasAnt } : {}),
     }] : [];
-    const historico = ant ? [...(ant.historico || []), ...(ant.variante !== item.variante ? [semHist(ant)] : []), ...refeito] : [];
+    // escolha manual nova (--escolher): o que a etapa tinha antes (a escolhida, a refação e a escolha manual anterior)
+    const novas = ETAPAS.filter(e => item.manuais[e] && item.manuais[e].nova && st.etapas[e] && st.etapas[e].escolha);
+    const escolhido = ant && novas.length ? [{
+      escolher: novas, data: rodada.data, motivo: item.manuais[novas[0]].motivo,
+      antes: Object.fromEntries(novas.filter(e => ant.etapas && ant.etapas[e]).map(e => [e, { escolhida: ant.etapas[e].escolhida, ok: ant.etapas[e].ok, refacao: ant.etapas[e].refacao || 0, ...(ant.etapas[e].escolha ? { escolha: ant.etapas[e].escolha } : {}) }])),
+    }] : [];
+    const historico = ant ? [...(ant.historico || []), ...(ant.variante !== item.variante ? [semHist(ant)] : []), ...refeito, ...escolhido] : [];
     const g0 = item.guiaGalope && mestres[item.porte] && mestres[item.porte].crus && mestres[item.porte].crus.galope0;
     return {
       fase: item.fase, porte: item.porte, estilo: item.estilo, mestre: item.chaveMestre, variante: item.variante,
       guia: item.guia ? { init_image_strength: FORCA_GUIA } : null,
       guiaGalope: item.guiaGalope ? { init_image_strength: FORCA_GUIA_GALOPE, quadro: g0 ? g0.arquivo : null } : null,
-      seedBase: item.seedBase, refacoes: item.refacoes, completo, final: st.final, ok: completo && !falhas.length, falhas, etapas, historico,
+      ...(Object.keys(item.guiasMestre).length ? { guiaMestre: item.guiasMestre } : {}),
+      seedBase: item.seedBase, refacoes: item.refacoes, completo, final: st.final, ok: completo && !falhas.length, falhas, ...(aceitos.length ? { aceitos } : {}), etapas, historico,
     };
   }
 
@@ -528,19 +769,19 @@ export async function rodarPortes(op) {
   };
   // o pedido de uma seed parada: com o texto atual do porte; se o cru dessa seed em raw/ saiu de um texto anterior
   // (TEXTOS_PORTE), vale aquele — o cru é reaproveitado, nunca refeito por cima (o nome dele não leva o texto)
-  const pedidoDaSeed = (item, etapa, seed, base, guiaBuf, forca) => {
+  const pedidoDaSeed = (item, etapa, seed, base, guiaBuf, forca, proporcao = null) => {
     const vs = TEXTOS_PORTE[item.porte];
     for (let k = vs.length - 1; k >= 0; k--) {
-      const corpo = pedidoPorte(item, etapa, seed, guiaBuf, forca, vs[k].versao), reg = lerCru(raw, base, corpo);
+      const corpo = pedidoPorte(item, etapa, seed, guiaBuf, forca, vs[k].versao, proporcao), reg = lerCru(raw, base, corpo);
       if (reg) return { corpo, reg, versao: vs[k].versao };
     }
-    return { corpo: pedidoPorte(item, etapa, seed, guiaBuf, forca), reg: null, versao: ultimaVersao(item.porte) };
+    return { corpo: pedidoPorte(item, etapa, seed, guiaBuf, forca, ultimaVersao(item.porte), proporcao), reg: null, versao: ultimaVersao(item.porte) };
   };
   // um cru que já existe em raw/ com outro pedido nunca é refeito por cima: o --gerar para antes de pagar (o dry-run
   // mostra onde). Só um registro de erro, sem imagem, pode ser refeito. O --reprocessar não paga (fica o FaltaCru).
   const protegerCru = (base, varios, rotulo, seed) => {
     const arq = path.join(raw, base + '.json');
-    if (reproc || !fs.existsSync(arq)) return;
+    if (semPagar || !fs.existsSync(arq)) return;
     const reg = lerJson(arq);
     if (reg && reg.erro && !pngsCrus(raw, base, varios)) return;
     throw new ErroApi(`raw/${base}: já existe um cru de ${rotulo} seed ${seed} com outro pedido, e ele não é refeito por cima (para seeds novas: --refazer)`, { fatal: true });
@@ -567,14 +808,25 @@ export async function rodarPortes(op) {
     t.criterios = crits; t.ok = crits.every(c => c.ok); t._buf = buf; t._quadro = { idx: q.idx, ancora: a };
   }
   async function etapaParada(item, etapa) {
+    if (item.manuais[etapa]) return etapaManual(item, etapa, item.manuais[etapa]);
     const st = estados[item.chave], rotulo = `${item.chave}/${etapa}`;
     const mestre = item.mestre ? null : mestres[item.porte], crus = mestre && mestre.crus;
-    // a guia desta etapa: o 1º quadro do galope do mestre (corrida com --guia-galope-mestre), o mestre no mesmo estado
-    // (versão guiada) ou nenhuma
-    const tipo = etapa === 'corrida' && item.guiaGalope ? 'galope' : item.guia ? 'estado' : null;
-    const guia = tipo === 'galope' ? (crus && crus.galope0) || null : tipo === 'estado' ? (crus && crus[etapa]) || null : null;
-    const g = tipo && { tipo, guia, forca: tipo === 'galope' ? FORCA_GUIA_GALOPE : FORCA_GUIA, marca: marcaGuia(tipo, guia),
-      descricao: guia ? guia.arquivo : tipo === 'galope' ? `o 1º quadro do galope do mestre ${item.chaveMestre} (ainda não gerado)` : `o mestre ${item.chaveMestre}/${etapa} (ainda não gerado)` };
+    // a guia desta etapa: outro mestre no mesmo estado (mestre com --guia-mestre; a força muda a cada tentativa), o 1º
+    // quadro do galope do mestre (corrida com --guia-galope-mestre), o mestre no mesmo estado (versão guiada) ou nenhuma.
+    // g.forca(k) e g.marca(k) = a força e a marca do cru da k-ésima tentativa.
+    const gm = item.guiasMestre[etapa];
+    let g = null;
+    if (gm) {
+      g = { tipo: 'mestre', guia: gm._buf ? { seed: gm.seed, buf: gm._buf, arquivo: gm.arquivo } : null, proporcao: gm.reforco, mestre: gm.mestre,
+        forca: k => forcaGuiaMestre(gm.forcas, k), marca: k => marcaGuiaMestre(gm, forcaGuiaMestre(gm.forcas, k)),
+        descricao: gm.arquivo ? `${gm.arquivo}` : `o mestre ${gm.mestre}/${etapa} (cru não encontrado)` };
+    } else {
+      const tipo = etapa === 'corrida' && item.guiaGalope ? 'galope' : item.guia ? 'estado' : null;
+      const guia = tipo === 'galope' ? (crus && crus.galope0) || null : tipo === 'estado' ? (crus && crus[etapa]) || null : null;
+      const forca = tipo === 'galope' ? FORCA_GUIA_GALOPE : FORCA_GUIA, marca = tipo && marcaGuia(tipo, guia);
+      g = tipo && { tipo, guia, forca: () => forca, marca: () => marca,
+        descricao: guia ? guia.arquivo : tipo === 'galope' ? `o 1º quadro do galope do mestre ${item.chaveMestre} (ainda não gerado)` : `o mestre ${item.chaveMestre}/${etapa} (ainda não gerado)` };
+    }
     const tentativas = [], pref = preferida(item, etapa);
     st.etapas[etapa] = { tentativas, escolhida: null, terminada: false };
     try {
@@ -582,7 +834,7 @@ export async function rodarPortes(op) {
       st.etapas[etapa].terminada = true;
     } finally {
       // também quando o teto interrompe no meio: fica a melhor tentativa que já tem imagem
-      const esc = st.etapas[etapa].escolhida = escolher(tentativas, pref);
+      const esc = st.etapas[etapa].escolhida = melhorTentativa(tentativas, pref);
       if (esc && !esc.ok && !esc.planejada && st.etapas[etapa].terminada) log(`    ${rotulo}: reprovada nas ${tentativas.length} seeds; fica a melhor, a seed ${esc.seed}`);
       if (item.mestre && item.porte === 'padrao' && etapa === 'retrato' && esc && esc._quadro) {
         refPadrao = { w: LADO, h: LADO, retrato: esc._quadro.idx, ancoras: { retrato: esc._quadro.ancora } };
@@ -592,17 +844,18 @@ export async function rodarPortes(op) {
   // pref = o cru da escolha anterior (preferida): depois de uma aprovada, o laço só segue até ela, e só pelo que já
   // está em raw/ (sem pagar); a escolha fica com ela se continuar aprovada
   async function tentarParada(item, etapa, rotulo, mestre, g, tentativas, pref) {
-    const seeds = seedsDoItem(item, etapa, repetir), bases = seeds.map(s => `${prefixoEtapa(item, etapa, g && g.marca)}-s${s}`);
+    const seeds = seedsDoItem(item, etapa, repetir), bases = seeds.map((s, k) => `${prefixoEtapa(item, etapa, g && g.marca(k))}-s${s}`);
     const ate = bases.indexOf(pref);
     for (let k = 0; k < seeds.length; k++) {
-      const seed = seeds[k], base = bases[k];
-      const { corpo, reg, versao } = pedidoDaSeed(item, etapa, seed, base, g && g.guia && g.guia.buf, g ? g.forca : FORCA_GUIA);
+      const seed = seeds[k], base = bases[k], forca = g ? g.forca(k) : FORCA_GUIA;
+      const { corpo, reg, versao } = pedidoDaSeed(item, etapa, seed, base, g && g.guia && g.guia.buf, forca, g && g.proporcao);
       const crus = reg && !reg.erro && !reg.rejeitada ? pngsCrus(raw, base, false) : null;
       if (!crus && tentativas.some(x => x.ok)) break;
-      const t = { seed, endpoint: PIXFLUX, prompt: corpo.description, versaoTexto: versao, arquivo: `raw/${base}.png`, geracoes: 0, marca: g ? g.marca : '', _base: base };
-      if (g) { t.init_image = g.descricao; t.init_image_strength = g.forca; }
+      const t = { seed, endpoint: PIXFLUX, prompt: corpo.description, versaoTexto: versao, arquivo: `raw/${base}.png`, geracoes: 0, marca: g ? g.marca(k) : '', _base: base };
+      if (g) { t.init_image = g.descricao; t.init_image_strength = forca; }
+      if (g && g.tipo === 'mestre') t.guiaMestre = g.mestre;
       tentativas.push(t);
-      log(`  ${rotulo} seed ${seed}${g ? ` (init_image ${t.init_image}, força ${g.forca})` : ''}`);
+      log(`  ${rotulo} seed ${seed}${g ? ` (init_image ${t.init_image}, força ${forca})` : ''}`);
       if (reg && (reg.erro || reg.rejeitada)) { pular(t, reg); continue; }
       let buf;
       if (crus) { reaproveitar(t, reg, rotulo); buf = crus[0]; }
@@ -611,7 +864,7 @@ export async function rodarPortes(op) {
         const it = { rotulo, seed, geracoes: 0 };
         let resp;
         try {
-          resp = await pagar(PIXFLUX, it, corpo, corpo.description + (g ? ` [init_image = ${t.init_image}; init_image_strength ${g.forca}]` : ''));
+          resp = await pagar(PIXFLUX, it, corpo, corpo.description + (g ? ` [init_image = ${t.init_image}; init_image_strength ${forca}]` : ''));
         } catch (e) {
           if (!recuperavel(e)) throw e;
           gravarErro(raw, base, PIXFLUX, corpo, e); t.ok = false; t.motivo = e.message; t.geracoes = it.geracoes;
@@ -630,15 +883,81 @@ export async function rodarPortes(op) {
   }
 
   // ------------------------------------------------ galope (a partir da pose de corrida escolhida)
+  // tc = a pose de corrida de onde o galope saiu (com _quadro); sem ela (galope escolhido à mão de uma corrida que não
+  // está mais em raw/), o "nose.x contra a pose de corrida" mede contra o quadro 0 do galope, que é o first_frame
   function avaliarGalope(item, bufs, t, tc) {
     const g = classificarGrupo(bufs, true, `${item.chave}/galope`, true);
-    const anc = { corrida: tc._quadro.ancora }, galope = g.quadros.map(q => q.idx);
+    const anc = tc ? { corrida: tc._quadro.ancora } : {}, galope = g.quadros.map(q => q.idx);
     galope.forEach((q, i) => { anc['galope-' + i] = ancoras(q, LADO, LADO); });
-    const m = { w: LADO, h: LADO, galope, ancoras: anc, corrida: tc._quadro.idx };
+    const m = { w: LADO, h: LADO, galope, ancoras: anc, ...(tc ? { corrida: tc._quadro.idx } : {}) };
     const crits = [criterioForma('galope', g.ruins), ...criterioPernas(m), ...criterioGalope(m)];
     t.criterios = crits; t.ok = crits.every(c => c.ok); t._bufs = bufs; t.quadros = bufs.length;
   }
+
+  // ------------------------------------------------ escolha manual (--escolher, ou a gravada no criterios.json)
+  // A tentativa vem do registro do item (da refação atual ou do histórico) e a imagem de raw/, sem chamada nenhuma. Ela é
+  // reavaliada pelos critérios de hoje, e os que reprova ficam aceitos na folha (aceito: true). As outras tentativas da
+  // refação atual ficam como estavam no registro (sem marca de escolha); a escolhida, se veio de outra refação, entra no
+  // fim da lista como importada, com a refação e a origem dela.
+  const semMarcaManual = ({ manual, aceita, ...t }) => (t.criterios ? Object.assign(t, { criterios: t.criterios.map(({ aceito, ...c }) => c) }) : t);
+  function tentativaManual(item, etapa, pin) {
+    const a = acharTentativa(raw, anteriores[item.chave], etapa, pin.seed, pin.arquivo || null);
+    if (a.erro) throw new ErroApi(`escolha manual de ${item.chave}/${etapa} (seed ${pin.seed}): ${a.erro}`, { fatal: true });
+    const { criterios, ok, manual, aceita, importada, motivo, reaproveitada, refacao, origem, planejada, ...t } = a.t;
+    return { t: Object.assign(t, { _base: a.base }), a };
+  }
+  function fecharManual(item, etapa, pin, t, a) {
+    t.manual = true;
+    for (const c of t.criterios) if (!c.ok) c.aceito = true;
+    if (!t.ok) t.aceita = true;
+    const x = anteriores[item.chave].etapas && anteriores[item.chave].etapas[etapa];
+    const lista = ((x && x.tentativas) || []).filter(y => !y.importada).map(semMarcaManual);
+    const i = lista.findIndex(y => y.seed === t.seed && y.arquivo === t.arquivo);
+    if (i >= 0) lista[i] = t; else { t.importada = true; t.refacao = a.refacao; t.origem = a.origem; lista.push(t); }
+    const escolha = { manual: true, seed: t.seed, data: pin.data, motivo: pin.motivo, refacao: a.refacao, origem: a.origem, arquivo: t.arquivo,
+      aceitos: t.criterios.filter(c => !c.ok).map(c => c.criterio), ...(pin.automatico ? { automatico: pin.automatico } : {}) };
+    estados[item.chave].etapas[etapa] = { tentativas: lista, escolhida: t, terminada: true, escolha };
+    res.manuais.push({ rotulo: `${item.chave}/${etapa}`, t, origem: a.origem });
+    log(t.ok ? '    passa nos critérios de hoje' : `    critérios aceitos na folha: ${falhasDe(t).map(resumoCrit).join('; ')}`);
+  }
+  // quadro e âncora de uma imagem parada (a pose de corrida de um galope escolhido à mão)
+  const quadroParado = (buf, etapa, rotulo) => {
+    const q = classificarGrupo([buf], etapa !== 'retrato', rotulo, etapa === 'corrida').quadros[0];
+    return { idx: q.idx, ancora: ancoras(q.idx, LADO, LADO) };
+  };
+  // a pose de corrida de onde saiu o galope de nome-base `base`: a escolhida da rodada, se for ela; senão a do registro
+  // (pelo nome do cru, que leva a seed e a marca da corrida), ou null
+  function corridaDoGalope(item, base) {
+    const daqui = tc => tc && base.startsWith(prefixoGalope(item, tc) + '-s');
+    const esc = estados[item.chave].etapas.corrida && estados[item.chave].etapas.corrida.escolhida;
+    if (daqui(esc) && esc._quadro) return esc;
+    for (const { t } of tentativasDoRegistro(anteriores[item.chave], 'corrida')) {
+      const b = baseDoArquivo(t.arquivo);
+      if (!daqui(t) || !b || !fs.existsSync(path.join(raw, b + '.png'))) continue;
+      return { seed: t.seed, marca: t.marca, _quadro: quadroParado(fs.readFileSync(path.join(raw, b + '.png')), 'corrida', `${item.chave}/corrida`) };
+    }
+    return null;
+  }
+  async function etapaManual(item, etapa, pin) {
+    const rotulo = `${item.chave}/${etapa}`, { t, a } = tentativaManual(item, etapa, pin);
+    log(`  ${rotulo}: escolha manual, seed ${t.seed} (${a.origem}; ${t.arquivo}${pin.automatico ? `; ${pin.automatico}` : ''})`);
+    if (etapa === 'galope') {
+      const tc = corridaDoGalope(item, a.base), esc = estados[item.chave].etapas.corrida && estados[item.chave].etapas.corrida.escolhida;
+      if ((!esc || tc !== esc) && !(pin.nova && pin.automatico)) { // o galope mantido ao escolher a corrida já foi avisado
+        const msg = `${rotulo}: o galope escolhido (seed ${t.seed}) partiu de ${t.first_frame || 'outra corrida'}, não da corrida escolhida (${esc ? `seed ${esc.seed}` : 'nenhuma'}); ele não é refeito, e o molde grava montado = ${esc ? esc.seed : '—'}.`;
+        if (!res.avisos.includes(msg)) res.avisos.push(msg);
+        log(`  AVISO: ${msg}`);
+      }
+      avaliarGalope(item, pngsCrus(raw, a.base, true), t, tc);
+    } else {
+      avaliarParada(item, etapa, fs.readFileSync(path.join(raw, a.base + '.png')), t, item.mestre ? null : mestres[item.porte]);
+      if (item.mestre && item.porte === 'padrao' && etapa === 'retrato') refPadrao = { w: LADO, h: LADO, retrato: t._quadro.idx, ancoras: { retrato: t._quadro.ancora } };
+    }
+    fecharManual(item, etapa, pin, t, a);
+  }
+
   async function etapaGalope(item) {
+    if (item.manuais.galope) return etapaManual(item, 'galope', item.manuais.galope);
     const st = estados[item.chave], rotulo = `${item.chave}/galope`, tc = st.etapas.corrida && st.etapas.corrida.escolhida;
     const tentativas = [], pref = preferida(item, 'galope');
     st.etapas.galope = { tentativas, escolhida: null, terminada: false };
@@ -647,7 +966,7 @@ export async function rodarPortes(op) {
       await tentarGalope(item, rotulo, tc, tentativas, pref);
       st.etapas.galope.terminada = true;
     } finally {
-      const esc = st.etapas.galope.escolhida = escolher(tentativas, pref);
+      const esc = st.etapas.galope.escolhida = melhorTentativa(tentativas, pref);
       if (esc && !esc.ok && !esc.planejada && st.etapas.galope.terminada) log(`    ${rotulo}: reprovado nas ${tentativas.length} seeds; fica o melhor galope, a seed ${esc.seed}`);
     }
   }
@@ -718,7 +1037,8 @@ export async function rodarPortes(op) {
   };
   try {
     for (const item of itens) {
-      log(`\n== ${item.chave} (${item.fase}; seed base ${item.seedBase}${item.guia ? `; init_image do mestre ${item.chaveMestre}, força ${FORCA_GUIA}` : item.mestre ? '' : '; sem init_image'}${item.guiaGalope ? `; corrida guiada pelo galope do mestre, força ${FORCA_GUIA_GALOPE}` : ''}) ==`);
+      const gms = ETAPAS_PARADAS.filter(e => item.guiasMestre[e]);
+      log(`\n== ${item.chave} (${item.fase}; seed base ${item.seedBase}${item.guia ? `; init_image do mestre ${item.chaveMestre}, força ${FORCA_GUIA}` : item.mestre ? '' : '; sem init_image'}${item.guiaGalope ? `; corrida guiada pelo galope do mestre, força ${FORCA_GUIA_GALOPE}` : ''}${gms.length ? `; ${gms.join(', ')} guiados por ${item.guiasMestre[gms[0]].mestre}, forças ${item.guiasMestre[gms[0]].forcas.join('/')}` : ''}) ==`);
       for (const etapa of ['retrato', 'parado', 'corrida']) await passo(item, () => etapaParada(item, etapa));
     }
     for (const item of itens) {
@@ -761,8 +1081,9 @@ export async function rodarPortes(op) {
     }
     if (rodada.chamadas) rodada.parada = res.parada;
     if (rodada.chamadas && !gasto.ilegivel) gravarJson(path.join(novos, 'gasto.json'), gasto);
-    salvar();
+    salvar(true);
     log('\n== Resumo ==');
+    for (const ch of res.naoGravados) log(`  ${ch.padEnd(16)} NÃO GRAVADO: a escolha deixaria incompleto um item que estava completo (falta cru em raw/); o registro e o molde ficam como estavam`);
     for (const item of itens) {
       const e = crit.itens[item.chave];
       if (!e) { res.incompletos++; log(`  ${item.chave.padEnd(16)} não começou`); continue; }
@@ -770,6 +1091,11 @@ export async function rodarPortes(op) {
       if (!e.completo) res.incompletos++;
       log(`  ${item.chave.padEnd(16)} ${e.ok ? 'OK' : e.completo ? 'REPROVADO' : 'INCOMPLETO'}  seeds ${ETAPAS.map(x => `${x} ${e.etapas[x] ? e.etapas[x].escolhida : '—'}`).join(', ')}${e.final ? '' : '  (sem final em novos/)'}`);
       for (const f of e.falhas) log(`      ${f}`);
+      for (const x of ETAPAS.filter(x => e.etapas[x] && e.etapas[x].escolha)) {
+        const es = e.etapas[x].escolha;
+        log(`      ${x}: escolha manual da seed ${es.seed} (${es.origem}; ${es.aceitos.length ? `aceitos na folha: ${es.aceitos.join(', ')}` : 'passa nos critérios'}); motivo: ${es.motivo}${es.automatico ? ` (${es.automatico})` : ''}`);
+      }
+      for (const f of e.aceitos || []) log(`      aceito: ${f}`);
     }
     if (fase === 'mestres' && crit.portes) {
       log(crit.portes.faltam.length ? `  Portes distintos: faltam ${crit.portes.faltam.join(', ')}` : `  Portes distintos: ${crit.portes.criterios.map(c => `${c.ok ? 'ok' : 'NÃO'} ${resumoCrit(c)}`).join('; ')}`);
@@ -786,8 +1112,8 @@ export async function rodarPortes(op) {
 export const codigoSaidaPortes = r => (r.parada || r.incompletos ? 1 : 0);
 
 // Dry-run: o mesmo caminho do lote, no modo 'plano' (nada pago, nada gravado), e a lista das chamadas novas.
-export async function dryRunPortes({ fase, only = null, teto = TETO_PADRAO, repetir = [], semGuia = [], guiaGalope = [], refazer = [], novaRefacao = false, dirs } = {}, log = console.log) {
-  const r = await rodarPortes({ fase, only, teto, repetir, semGuia, guiaGalope, refazer, novaRefacao, modo: 'plano', dirs });
+export async function dryRunPortes({ fase, only = null, teto = TETO_PADRAO, repetir = [], semGuia = [], guiaGalope = [], refazer = [], novaRefacao = false, guiaMestre = [], dirs } = {}, log = console.log) {
+  const r = await rodarPortes({ fase, only, teto, repetir, semGuia, guiaGalope, refazer, novaRefacao, guiaMestre, modo: 'plano', dirs });
   const sobra = r.gastoIlegivel ? '?' : fmt(teto - r.gastoAntes), gastas = r.gastoIlegivel ? 'DESCONHECIDO (gasto.json ilegível)' : fmt(r.gastoAntes);
   if (r.gastoIlegivel) {
     log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
@@ -821,6 +1147,7 @@ export async function dryRunPortes({ fase, only = null, teto = TETO_PADRAO, repe
   if (r.parada) log(`\nO --gerar PARARIA aqui (a lista acima vai só até este ponto): ${r.parada}`);
   const reap = r.reaproveitadas.map(({ rotulo, t }) => `${rotulo} (seed ${t.seed}${t.ok ? '' : ', reprovada'})`);
   log(`\nReaproveitados de raw/ (0 geração): ${reap.length ? reap.join(', ') : 'nenhum'}.`);
+  if (r.manuais.length) log(`\nEscolhas manuais (0 geração; valem até um --refazer da etapa): ${r.manuais.map(({ rotulo, t, origem }) => `${rotulo} (seed ${t.seed}, ${origem}${t.ok ? '' : `; aceito na folha: ${falhasDe(t).map(c => c.criterio).join(', ')}`})`).join(', ')}.`);
   log(`\nTotal previsto: ${n} gerações em ${n} chamadas novas (+ ${r.reaproveitadas.length} reaproveitadas de raw/); no pior caso (${TENTATIVAS} seeds por etapa), ${TENTATIVAS * n}; teto ${teto} no lote (sobram ${sobra}).`);
   return r;
 }
