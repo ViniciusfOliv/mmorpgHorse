@@ -4,7 +4,8 @@
 //
 // Uso (pelo pixellab-moldes.mjs): --lote portes --fase mestres|piloto|versoes [--only <porte>[-<estilo>]] [--teto 90]
 //   [--repetir <chave>/<etapa>[,…]] [--sem-guia <porte>-<estilo>]… [--guia-galope-mestre <porte>-<estilo>]…
-//   [--reprocessar] [--gerar]. Sem --gerar é dry-run (nenhuma chamada, nenhum arquivo).
+//   [--refazer <porte>-<estilo>:<etapa>[,<etapa>…]]… [--reprocessar] [--gerar]. Sem --gerar é dry-run (nenhuma
+//   chamada, nenhum arquivo).
 //   --sem-guia (piloto e versoes; repetível): aquela versão sai sem init_image, pela receita do primeiro lote, nas seeds
 //            sem guia (3701+), e passa nos mesmos critérios — a decisão da folha quando a crina mudou pouco partindo do
 //            mestre (spec §5.2). Não mexe no registro do piloto; na fase versoes vale também para o chamas.
@@ -12,6 +13,14 @@
 //            quadro cru do galope do mestre (init_image_strength FORCA_GUIA_GALOPE = 300, a força da guia de corrida do
 //            primeiro lote) e o galope é animado a partir dela — o galope do mestre guiando o de uma versão que falhou
 //            (spec §4). Retrato e parado seguem como estavam (reaproveitados de raw/).
+//   --refazer (as 3 fases; repetível): refaz aquelas etapas do item (retrato, parado, corrida, galope; refazer a corrida
+//            refaz o galope, que parte dela) numa refação, com seeds novas (ver Seeds) e as mesmas regras de sempre (3
+//            seeds, parada na 1ª aprovada, teto somado, registro). A tentativa anterior da etapa vai para o `historico`
+//            do item e a escolha só olha as novas; as outras etapas seguem como estavam (reaproveitadas de raw/). O
+//            número da refação de cada etapa fica no criterios.json (`refacoes`): sem --refazer, a etapa continua nas
+//            seeds dela (retomar, --reprocessar). Item que ficou pela metade (alguma etapa sem terminar as seeds: teto,
+//            erro fatal) não abre refação nova com o --refazer: a que ficou pela metade é retomada. Só para item que já
+//            tem registro, com a mesma receita; não anda com --reprocessar.
 //   Item refeito com outra receita (outra `variante`) guarda a entrada anterior em `historico` no criterios.json.
 // Fases (cada item é um molde, com 4 etapas: retrato, parado, corrida e galope):
 //   mestres  lisa dos 3 portes, na ordem padrao, esguio, robusto (o padrão é a régua das proporções dos outros dois);
@@ -30,6 +39,10 @@
 //   Cada etapa tenta até 3 seeds, base, base + 100 e base + 200, e para na 1ª que passa nos critérios automáticos;
 //   --repetir <chave>/<etapa> dá uma 4ª, base + 50. As 4 etapas do item usam as mesmas seeds (endpoints e textos
 //   diferentes). Todas caem em 3101–3959.
+//   Refação r de uma etapa (--refazer): as mesmas contas + 1000 × r (PASSO_REFACAO). A 1ª: mestres 4101–4103 (+100,
+//   +200: até 4303; +50 do --repetir: 4151…), guiadas 4401–4409 (até 4609) e sem guia 4701–4709 (até 4909), tudo em
+//   4101–4959; a 2ª em 5101–5959, e assim por diante. Nenhuma refação cruza outra nem os blocos de antes, e o nome do
+//   cru leva a seed: um cru antigo nunca é sobrescrito.
 // Critérios automáticos (portes-criterios.mjs) de cada tentativa:
 //   retrato e parado: forma (o validar() do primeiro lote) + 4 pernas + (versões) mesmo corpo contra o mestre +
 //                     (retrato do esguio e do robusto) a proporção contra o retrato do padrão;
@@ -38,12 +51,18 @@
 //                     com exatamente 9 quadros (galope com outro número reprova e só fica como "melhor", marcado).
 //   Item ainda reprovado depois das 3 seeds fica com a melhor tentativa (menos critérios reprovados; reprovar na forma
 //   pesa mais) e sai marcado no criterios.json e na folha; quem decide é o Vinicius.
+//   Escolha que continua valendo não muda: quando o critério muda (ex.: a regra do galope de 2026-11-13) e a etapa é
+//   reavaliada de raw/, a escolhida da rodada anterior (na mesma refação) fica se continuar aprovada, ou, todas
+//   reprovadas, se empatar com a melhor. Trocar a pose de corrida obrigaria a animar outro galope, e trocar o mestre, a
+//   refazer as versões. Depois de uma aprovada o script só segue até a escolha anterior pelo que já está em raw/, sem
+//   pagar nada.
+// Crus: um cru em raw/ é reaproveitado quando o pedido é o mesmo, também com um texto de porte anterior (TEXTOS_PORTE).
+//   Um cru que existe com outro pedido nunca é refeito por cima: o --gerar para (o dry-run mostra onde); seeds novas
+//   saem com --refazer. Um registro só de erro (sem imagem) pode ser refeito.
 // Teto: somado entre rodadas em novos/gasto.json ({ geracoes, chamadas, rodadas: [...] }, gravado a cada chamada
 //   paga); a chamada que passaria do teto (padrão 90) não sai. Um gasto.json que existe mas não se lê (JSON quebrado,
 //   "geracoes" que não é número finito ≥ 0) para o --gerar antes de qualquer chamada e nunca é sobrescrito; o dry-run
 //   avisa em destaque.
-// Crus: um cru em raw/ é reaproveitado quando o pedido é o mesmo, também com um texto de porte anterior
-//   (TEXTOS_PORTE): os crus de um texto antigo nunca são refeitos por cima com o texto novo na mesma seed.
 // Saídas: os finais em prototype/assets/pixellab/novos/ (molde-<porte>-<estilo>.json e -<estado>.png, no formato que o
 //   build lê, mas numa pasta que ele NÃO lê); os crus em raw/ (portes-<chave>-<etapa>[-g<força>m<seed do mestre>]-s<seed>);
 //   o relatório dos critérios em novos/criterios.json (toda tentativa: seed, prompt, init_image, custo e critérios).
@@ -65,7 +84,7 @@ export const FASES = ['mestres', 'piloto', 'versoes'];
 export const ETAPAS = ['retrato', 'parado', 'corrida', 'galope'];
 export const DIR_NOVOS = path.join(DIR_MOLDES, 'novos');
 export const TETO_PADRAO = 90;
-export const TENTATIVAS = 3, PASSO_SEED = 100, SEED_EXTRA = 50;
+export const TENTATIVAS = 3, PASSO_SEED = 100, SEED_EXTRA = 50, PASSO_REFACAO = 1000;
 const BLOCO = { mestre: 3101, guiada: 3401, semGuia: 3701 };
 // init_image_strength das versões guiadas (1–999; mais alto = mais perto da guia). Em 2026-11-09 a força 150 já
 // copiou o penacho da guia de chamas; aqui a crina TEM de mudar e o corpo ficar: o piloto confere o corpo.
@@ -154,13 +173,32 @@ export function itensDaFase(fase, { only = null, piloto = {}, semGuia = [], guia
   });
   return only ? itens.filter(it => it.porte === only || it.chave === only) : itens;
 }
+// as seeds de uma etapa na refação dela (item.refacoes[etapa]: 0 = as de sempre; r ≥ 1 = a r-ésima do --refazer)
 export function seedsDoItem(item, etapa, repetir = []) {
-  const s = Array.from({ length: TENTATIVAS }, (_, k) => item.seedBase + PASSO_SEED * k);
-  if (repetir.includes(`${item.chave}/${etapa}`)) s.push(item.seedBase + SEED_EXTRA);
+  const base = item.seedBase + PASSO_REFACAO * ((item.refacoes && item.refacoes[etapa]) || 0);
+  const s = Array.from({ length: TENTATIVAS }, (_, k) => base + PASSO_SEED * k);
+  if (repetir.includes(`${item.chave}/${etapa}`)) s.push(base + SEED_EXTRA);
   return s;
 }
-// Confere --only, --repetir, --sem-guia e --guia-galope-mestre contra os itens da fase; devolve o erro ou null.
-export function validarArgsPortes({ fase, only, repetir = [], semGuia = [], guiaGalope = [] }, novos = DIR_NOVOS) {
+// --refazer <porte>-<estilo>:<etapa>[,<etapa>…] (repetível) ⇒ { pedidos: { <chave>: [etapas] }, erro }. Refazer a
+// corrida refaz também o galope (ele parte dela). Só confere a forma; o item é conferido contra a fase em
+// validarArgsPortes.
+export function lerRefazer(lista = []) {
+  const pedidos = {};
+  for (const r of lista) {
+    const [chave, etapas, resto] = String(r).split(':');
+    const es = String(etapas || '').split(',').filter(Boolean);
+    if (!chave || resto != null || !es.length || es.some(e => !ETAPAS.includes(e))) {
+      return { pedidos: {}, erro: `--refazer ${r}: use <porte>-<estilo>:<etapa>[,<etapa>…], com as etapas ${ETAPAS.join(', ')} (ex.: padrao-lisa:corrida)` };
+    }
+    const s = new Set([...(pedidos[chave] || []), ...es]);
+    if (s.has('corrida')) s.add('galope');
+    pedidos[chave] = ETAPAS.filter(e => s.has(e));
+  }
+  return { pedidos, erro: null };
+}
+// Confere --only, --repetir, --sem-guia, --guia-galope-mestre e --refazer contra os itens da fase; devolve o erro ou null.
+export function validarArgsPortes({ fase, only, repetir = [], semGuia = [], guiaGalope = [], refazer = [], reprocessar = false }, novos = DIR_NOVOS) {
   if (!FASES.includes(fase)) return `--lote portes: --fase ${fase == null ? '(faltou)' : fase}: use mestres, piloto ou versoes`;
   for (const [op, lista] of [['--sem-guia', semGuia], ['--guia-galope-mestre', guiaGalope]]) {
     if (!lista.length) continue;
@@ -171,7 +209,7 @@ export function validarArgsPortes({ fase, only, repetir = [], semGuia = [], guia
       if (fase === 'piloto' && e !== 'chamas') return `${op} ${ch}: a fase piloto só tem as versões de chamas`;
     }
   }
-  const todos = itensDaFase(fase, { piloto: lerCriterios(novos).piloto || {}, semGuia, guiaGalope });
+  const crit = lerCriterios(novos), todos = itensDaFase(fase, { piloto: crit.piloto || {}, semGuia, guiaGalope });
   for (const ch of guiaGalope) {
     if (!todos.some(it => it.chave === ch)) return `--guia-galope-mestre ${ch}: não está na fase "${fase}" (itens: ${todos.map(it => it.chave).join(', ')})`;
   }
@@ -182,6 +220,18 @@ export function validarArgsPortes({ fase, only, repetir = [], semGuia = [], guia
   for (const r of repetir) {
     const [chave, etapa] = r.split('/');
     if (!todos.some(it => it.chave === chave) || !ETAPAS.includes(etapa)) return `--repetir ${r}: item desconhecido na fase "${fase}" (ex.: ${todos[0].chave}/retrato, ${todos[0].chave}/galope)`;
+  }
+  if (refazer.length) {
+    if (reprocessar) return '--refazer não anda com --reprocessar (o --refazer pede seeds novas; o --reprocessar só lê raw/)';
+    const { pedidos, erro } = lerRefazer(refazer);
+    if (erro) return erro;
+    for (const chave of Object.keys(pedidos)) {
+      const it = todos.find(i => i.chave === chave), ant = crit.itens[chave];
+      if (!it) return `--refazer ${chave}: não está na fase "${fase}" (itens: ${todos.map(i => i.chave).join(', ')})`;
+      if (only && it.porte !== only && it.chave !== only) return `--refazer ${chave}: fora do --only ${only}`;
+      if (!ant) return `--refazer ${chave}: o item ainda não tem registro no criterios.json (nada a refazer: rode a fase sem --refazer)`;
+      if (ant.variante !== it.variante) return `--refazer ${chave}: a receita mudou ("${ant.variante}" → "${it.variante}") e a nova já sai nas seeds dela, sem --refazer`;
+    }
   }
   return null;
 }
@@ -256,14 +306,18 @@ const PLANEJADO = Symbol('planejado');
 const falhasDe = t => (t.criterios || []).filter(c => !c.ok);
 // a tentativa passou no "mesmo corpo" (todos os critérios dele ok), qualquer que seja o resto (forma, pernas…)
 const passouMesmoCorpo = t => { const mc = (t.criterios || []).filter(c => /^mesmo corpo/.test(c.criterio)); return mc.length > 0 && mc.every(c => c.ok); };
-// melhor tentativa: a 1ª aprovada; senão a com menos critérios reprovados (reprovar na forma pesa 100); empate: a 1ª
-function escolher(tentativas) {
-  const comImagem = tentativas.filter(t => t.planejada || t._buf || t._bufs);
-  const ok = comImagem.find(t => t.ok || t.planejada);
-  if (ok) return ok;
+// melhor tentativa: a 1ª aprovada; senão a com menos critérios reprovados (reprovar na forma pesa 100); empate: a 1ª.
+// pref = o cru (nome-base em raw/) da escolhida da rodada anterior: fica se continuar aprovada, ou, sem aprovada, se
+// empatar com a melhor (a escolha que continua valendo não muda)
+function escolher(tentativas, pref = null) {
+  const comImagem = tentativas.filter(t => t.planejada || t._buf || t._bufs), ehPref = t => pref != null && t._base === pref;
+  const oks = comImagem.filter(t => t.ok || t.planejada);
+  if (oks.length) return oks.find(ehPref) || oks[0];
   const nota = t => falhasDe(t).reduce((n, c) => n + (/^forma/.test(c.criterio) ? 100 : 1), 0);
-  return comImagem.reduce((m, t) => (!m || nota(t) < nota(m) ? t : m), null);
+  return comImagem.reduce((m, t) => (!m || nota(t) < nota(m) || (nota(t) === nota(m) && ehPref(t) && !ehPref(m)) ? t : m), null);
 }
+// nome-base do cru de uma tentativa gravada: raw/<base>.png (parada) ou raw/<base>-0..8.png / -N.png (galope)
+const baseDoArquivo = a => (typeof a === 'string' ? a.replace(/^raw\//, '').replace(/(-\d+\.\.\d+|-N)?\.png$/, '') : null);
 function criterioForma(etapa, ruins) {
   return { criterio: `forma (${etapa})`, ok: !ruins.length, valor: ruins.length, limite: 'paleta, papéis obrigatórios e silhueta fechada (validar)', ...(ruins.length ? { motivo: ruins.join('; ') } : {}) };
 }
@@ -277,12 +331,15 @@ const resumoCrit = c => `${c.criterio} = ${c.valor == null ? '—' : typeof c.va
  * falhas, parada, gastoAntes, gasto, previstas }.
  */
 export async function rodarPortes(op) {
-  const { fase, only = null, teto = TETO_PADRAO, repetir = [], semGuia = [], guiaGalope = [], modo = 'plano', executar = null } = op;
+  const { fase, only = null, teto = TETO_PADRAO, repetir = [], semGuia = [], guiaGalope = [], refazer = [], modo = 'plano', executar = null } = op;
   const raw = (op.dirs && op.dirs.raw) || DIR_MOLDES_RAW, novos = (op.dirs && op.dirs.novos) || DIR_NOVOS;
   const plano = modo === 'plano', reproc = modo === 'reprocessar';
   const log = plano ? () => {} : (op.log || console.log);
   if (!FASES.includes(fase)) throw new ErroApi(`fase desconhecida: ${fase}`, { fatal: true });
   if (modo === 'gerar' && typeof executar !== 'function') throw new Error('rodarPortes: modo gerar sem executar');
+  const { pedidos, erro: erroRefazer } = lerRefazer(refazer);
+  if (erroRefazer) throw new ErroApi(erroRefazer, { fatal: true });
+  if (reproc && refazer.length) throw new ErroApi('--refazer não anda com --reprocessar', { fatal: true });
   const crit = lerCriterios(novos), avisos = [];
   // gasto.json ilegível: o --gerar para aqui, antes de qualquer chamada; o plano e o --reprocessar (que não pagam nem
   // gravam o gasto) seguem com o aviso
@@ -297,9 +354,27 @@ export async function rodarPortes(op) {
   // as entradas de antes desta rodada (o histórico de um item refeito com outra receita é guardado, não sobrescrito)
   const anteriores = {};
   for (const it of itens) if (crit.itens[it.chave]) anteriores[it.chave] = crit.itens[it.chave];
+  // refação de cada etapa (0 = as seeds de sempre; r = a r-ésima do --refazer): a gravada no criterios.json (com a
+  // mesma receita), + 1 nas etapas pedidas no --refazer. Item que ficou pela metade (alguma etapa sem terminar as
+  // seeds: teto, erro fatal) não abre refação nova: a dele é retomada — rodar o mesmo --refazer de novo não joga fora
+  // o que já saiu.
+  for (const it of itens) {
+    const ant = anteriores[it.chave], mesma = !!ant && ant.variante === it.variante, pede = pedidos[it.chave] || [];
+    const metade = mesma && ETAPAS.some(e => !(ant.etapas && ant.etapas[e] && ant.etapas[e].terminada));
+    it.refacoes = Object.fromEntries(ETAPAS.map(e => [e, (mesma && ant.refacoes && ant.refacoes[e]) || 0]));
+    it.refazendo = mesma && !metade ? pede.slice() : [];
+    for (const e of it.refazendo) it.refacoes[e]++;
+    if (!pede.length) continue;
+    if (!mesma) avisos.push(`--refazer ${it.chave}: ignorado (${ant ? `a receita mudou de "${ant.variante}" para "${it.variante}"` : 'o item ainda não tem registro'}; ele sai nas seeds de sempre).`);
+    else if (metade) avisos.push(`--refazer ${it.chave}: o item ficou pela metade (teto ou erro) e é retomado nas mesmas seeds, sem refação nova; rode o --refazer de novo depois, se ainda quiser refazer.`);
+    else {
+      const desc = it.refazendo.map(e => `${e} (refação ${it.refacoes[e]}: seeds ${seedsDoItem(it, e, repetir).join(', ')}${e === 'galope' && it.refazendo.includes('corrida') ? '; parte da corrida nova' : ''})`);
+      avisos.push(`--refazer ${it.chave}: ${desc.join(', ')}; a tentativa anterior vai para o histórico e a escolha só olha as novas.`);
+    }
+  }
 
   // teto somado entre rodadas: o orçamento começa no gasto de novos/gasto.json e grava a cada chamada paga
-  const rodada = { data: new Date().toISOString(), fase, modo, only, teto, geracoes: 0, chamadas: 0 };
+  const rodada = { data: new Date().toISOString(), fase, modo, only, ...(refazer.length ? { refazer } : {}), teto, geracoes: 0, chamadas: 0 };
   const orc = criarOrcamento(teto, {
     gasto: gasto.geracoes, log,
     aoRegistrar: (ep, g) => {
@@ -370,7 +445,7 @@ export async function rodarPortes(op) {
     for (const e of ETAPAS) {
       const x = st.etapas[e];
       if (!x) continue;
-      etapas[e] = { escolhida: x.escolhida ? x.escolhida.seed : null, ok: !!(x.escolhida && x.escolhida.ok), terminada: x.terminada, tentativas: x.tentativas };
+      etapas[e] = { escolhida: x.escolhida ? x.escolhida.seed : null, ok: !!(x.escolhida && x.escolhida.ok), terminada: x.terminada, refacao: item.refacoes[e], tentativas: x.tentativas };
       if (!x.terminada) falhas.push(`${e}: interrompida antes de terminar as seeds`);
       else if (!x.escolhida) falhas.push(`${e}: nenhuma tentativa com imagem`);
       else if (!x.escolhida.ok) {
@@ -380,15 +455,21 @@ export async function rodarPortes(op) {
     if (st.incompleto) falhas.push(st.incompleto);
     const completo = ETAPAS.every(e => st.etapas[e] && st.etapas[e].terminada && st.etapas[e].escolhida);
     // a entrada anterior com outra receita vai para o histórico (com as tentativas dela); a da mesma receita é refeita
-    // desta rodada (as tentativas reaproveitadas de raw/ voltam todas), e o histórico dela continua
+    // desta rodada (as tentativas reaproveitadas de raw/ voltam todas), e o histórico dela continua. Etapas refeitas
+    // (--refazer): o registro anterior delas (escolhida, tentativas, refação) vai para o histórico, acrescentado.
     const ant = anteriores[item.chave], semHist = ({ historico, ...resto }) => resto;
-    const historico = ant ? [...(ant.historico || []), ...(ant.variante !== item.variante ? [semHist(ant)] : [])] : [];
+    const refeito = ant && item.refazendo.length ? [{
+      refazer: item.refazendo, data: rodada.data, variante: ant.variante, falhas: ant.falhas || [],
+      refacoes: Object.fromEntries(item.refazendo.map(e => [e, (ant.refacoes && ant.refacoes[e]) || 0])),
+      etapas: Object.fromEntries(item.refazendo.filter(e => ant.etapas && ant.etapas[e]).map(e => [e, ant.etapas[e]])),
+    }] : [];
+    const historico = ant ? [...(ant.historico || []), ...(ant.variante !== item.variante ? [semHist(ant)] : []), ...refeito] : [];
     const g0 = item.guiaGalope && mestres[item.porte] && mestres[item.porte].crus && mestres[item.porte].crus.galope0;
     return {
       fase: item.fase, porte: item.porte, estilo: item.estilo, mestre: item.chaveMestre, variante: item.variante,
       guia: item.guia ? { init_image_strength: FORCA_GUIA } : null,
       guiaGalope: item.guiaGalope ? { init_image_strength: FORCA_GUIA_GALOPE, quadro: g0 ? g0.arquivo : null } : null,
-      seedBase: item.seedBase, completo, final: st.final, ok: completo && !falhas.length, falhas, etapas, historico,
+      seedBase: item.seedBase, refacoes: item.refacoes, completo, final: st.final, ok: completo && !falhas.length, falhas, etapas, historico,
     };
   }
 
@@ -407,6 +488,13 @@ export async function rodarPortes(op) {
     if (t.planejada) return;
     log(t.ok ? `    aprovada seed ${t.seed}` : `    REPROVADA seed ${t.seed}: ${[...falhasDe(t).map(resumoCrit), ...(t.motivo && !t.criterios ? [t.motivo] : [])].join('; ')}`);
   };
+  // o cru (nome-base em raw/) da escolhida da rodada anterior nesta etapa, com a mesma receita e a mesma refação, ou null
+  const preferida = (item, etapa) => {
+    const ant = anteriores[item.chave], x = ant && ant.variante === item.variante && ant.etapas && ant.etapas[etapa];
+    if (!x || x.escolhida == null || (x.refacao || 0) !== item.refacoes[etapa]) return null;
+    const t = (x.tentativas || []).find(y => y.seed === x.escolhida);
+    return t ? baseDoArquivo(t.arquivo) : null;
+  };
   // o pedido de uma seed parada: com o texto atual do porte; se o cru dessa seed em raw/ saiu de um texto anterior
   // (TEXTOS_PORTE), vale aquele — o cru é reaproveitado, nunca refeito por cima (o nome dele não leva o texto)
   const pedidoDaSeed = (item, etapa, seed, base, guiaBuf, forca) => {
@@ -416,6 +504,15 @@ export async function rodarPortes(op) {
       if (reg) return { corpo, reg, versao: vs[k].versao };
     }
     return { corpo: pedidoPorte(item, etapa, seed, guiaBuf, forca), reg: null, versao: ultimaVersao(item.porte) };
+  };
+  // um cru que já existe em raw/ com outro pedido nunca é refeito por cima: o --gerar para antes de pagar (o dry-run
+  // mostra onde). Só um registro de erro, sem imagem, pode ser refeito. O --reprocessar não paga (fica o FaltaCru).
+  const protegerCru = (base, varios, rotulo, seed) => {
+    const arq = path.join(raw, base + '.json');
+    if (reproc || !fs.existsSync(arq)) return;
+    const reg = lerJson(arq);
+    if (reg && reg.erro && !pngsCrus(raw, base, varios)) return;
+    throw new ErroApi(`raw/${base}: já existe um cru de ${rotulo} seed ${seed} com outro pedido, e ele não é refeito por cima (para seeds novas: --refazer)`, { fatal: true });
   };
 
   // ------------------------------------------------ etapa parada (retrato, parado, corrida)
@@ -447,33 +544,39 @@ export async function rodarPortes(op) {
     const guia = tipo === 'galope' ? (crus && crus.galope0) || null : tipo === 'estado' ? (crus && crus[etapa]) || null : null;
     const g = tipo && { tipo, guia, forca: tipo === 'galope' ? FORCA_GUIA_GALOPE : FORCA_GUIA, marca: marcaGuia(tipo, guia),
       descricao: guia ? guia.arquivo : tipo === 'galope' ? `o 1º quadro do galope do mestre ${item.chaveMestre} (ainda não gerado)` : `o mestre ${item.chaveMestre}/${etapa} (ainda não gerado)` };
-    const tentativas = [];
+    const tentativas = [], pref = preferida(item, etapa);
     st.etapas[etapa] = { tentativas, escolhida: null, terminada: false };
     try {
-      await tentarParada(item, etapa, rotulo, mestre, g, tentativas);
+      await tentarParada(item, etapa, rotulo, mestre, g, tentativas, pref);
       st.etapas[etapa].terminada = true;
     } finally {
       // também quando o teto interrompe no meio: fica a melhor tentativa que já tem imagem
-      const esc = st.etapas[etapa].escolhida = escolher(tentativas);
+      const esc = st.etapas[etapa].escolhida = escolher(tentativas, pref);
       if (esc && !esc.ok && !esc.planejada && st.etapas[etapa].terminada) log(`    ${rotulo}: reprovada nas ${tentativas.length} seeds; fica a melhor, a seed ${esc.seed}`);
       if (item.mestre && item.porte === 'padrao' && etapa === 'retrato' && esc && esc._quadro) {
         refPadrao = { w: LADO, h: LADO, retrato: esc._quadro.idx, ancoras: { retrato: esc._quadro.ancora } };
       }
     }
   }
-  async function tentarParada(item, etapa, rotulo, mestre, g, tentativas) {
-    for (const seed of seedsDoItem(item, etapa, repetir)) {
-      const base = `${prefixoEtapa(item, etapa, g && g.marca)}-s${seed}`;
+  // pref = o cru da escolha anterior (preferida): depois de uma aprovada, o laço só segue até ela, e só pelo que já
+  // está em raw/ (sem pagar); a escolha fica com ela se continuar aprovada
+  async function tentarParada(item, etapa, rotulo, mestre, g, tentativas, pref) {
+    const seeds = seedsDoItem(item, etapa, repetir), bases = seeds.map(s => `${prefixoEtapa(item, etapa, g && g.marca)}-s${s}`);
+    const ate = bases.indexOf(pref);
+    for (let k = 0; k < seeds.length; k++) {
+      const seed = seeds[k], base = bases[k];
       const { corpo, reg, versao } = pedidoDaSeed(item, etapa, seed, base, g && g.guia && g.guia.buf, g ? g.forca : FORCA_GUIA);
-      const t = { seed, endpoint: PIXFLUX, prompt: corpo.description, versaoTexto: versao, arquivo: `raw/${base}.png`, geracoes: 0, marca: g ? g.marca : '' };
+      const crus = reg && !reg.erro && !reg.rejeitada ? pngsCrus(raw, base, false) : null;
+      if (!crus && tentativas.some(x => x.ok)) break;
+      const t = { seed, endpoint: PIXFLUX, prompt: corpo.description, versaoTexto: versao, arquivo: `raw/${base}.png`, geracoes: 0, marca: g ? g.marca : '', _base: base };
       if (g) { t.init_image = g.descricao; t.init_image_strength = g.forca; }
       tentativas.push(t);
       log(`  ${rotulo} seed ${seed}${g ? ` (init_image ${t.init_image}, força ${g.forca})` : ''}`);
       if (reg && (reg.erro || reg.rejeitada)) { pular(t, reg); continue; }
-      const crus = reg && pngsCrus(raw, base, false);
       let buf;
       if (crus) { reaproveitar(t, reg, rotulo); buf = crus[0]; }
       else {
+        if (!reg) protegerCru(base, false, rotulo, seed);
         const it = { rotulo, seed, geracoes: 0 };
         let resp;
         try {
@@ -491,7 +594,7 @@ export async function rodarPortes(op) {
       }
       avaliarParada(item, etapa, buf, t, mestre);
       relatar(rotulo, t);
-      if (t.ok) break;
+      if (t.ok && k >= ate) break;
     }
   }
 
@@ -506,31 +609,35 @@ export async function rodarPortes(op) {
   }
   async function etapaGalope(item) {
     const st = estados[item.chave], rotulo = `${item.chave}/galope`, tc = st.etapas.corrida && st.etapas.corrida.escolhida;
-    const tentativas = [];
+    const tentativas = [], pref = preferida(item, 'galope');
     st.etapas.galope = { tentativas, escolhida: null, terminada: false };
     if (!tc) { st.incompleto = 'galope: sem pose de corrida'; return; }
     try {
-      await tentarGalope(item, rotulo, tc, tentativas);
+      await tentarGalope(item, rotulo, tc, tentativas, pref);
       st.etapas.galope.terminada = true;
     } finally {
-      const esc = st.etapas.galope.escolhida = escolher(tentativas);
+      const esc = st.etapas.galope.escolhida = escolher(tentativas, pref);
       if (esc && !esc.ok && !esc.planejada && st.etapas.galope.terminada) log(`    ${rotulo}: reprovado nas ${tentativas.length} seeds; fica o melhor galope, a seed ${esc.seed}`);
     }
   }
-  async function tentarGalope(item, rotulo, tc, tentativas) {
-    for (const seed of seedsDoItem(item, 'galope', repetir)) {
-      const t = { seed, endpoint: ANIMA, prompt: ACAO_PORTES, first_frame: `${item.chave}/corrida seed ${tc.seed}`, geracoes: 0 };
-      tentativas.push(t);
+  async function tentarGalope(item, rotulo, tc, tentativas, pref) {
+    const seeds = seedsDoItem(item, 'galope', repetir), bases = seeds.map(s => `${prefixoGalope(item, tc)}-s${s}`);
+    const ate = bases.indexOf(pref);
+    for (let k = 0; k < seeds.length; k++) {
+      const seed = seeds[k], base = bases[k];
+      const t = { seed, endpoint: ANIMA, prompt: ACAO_PORTES, first_frame: `${item.chave}/corrida seed ${tc.seed}`, geracoes: 0, _base: base };
       const texto = `${ACAO_PORTES} [first_frame = ${t.first_frame}; frame_count 8; drift_threshold 0]`;
-      if (tc.planejada) { await pagar(ANIMA, { rotulo, seed, geracoes: 0 }, null, texto); t.planejada = true; break; }
-      const corpo = pedidoGalope(tc._buf, seed, ACAO_PORTES), base = `${prefixoGalope(item, tc)}-s${seed}`;
+      if (tc.planejada) { tentativas.push(t); await pagar(ANIMA, { rotulo, seed, geracoes: 0 }, null, texto); t.planejada = true; break; }
+      const corpo = pedidoGalope(tc._buf, seed, ACAO_PORTES), reg = lerCru(raw, base, corpo);
+      let bufs = reg && !reg.erro && !reg.rejeitada ? pngsCrus(raw, base, true) : null;
+      if (!bufs && tentativas.some(x => x.ok)) break;
+      tentativas.push(t);
       t.arquivo = `raw/${base}-N.png`;
       log(`  ${rotulo} seed ${seed} (corrida ${tc.seed}; job assíncrono; pode levar minutos)`);
-      const reg = lerCru(raw, base, corpo);
       if (reg && (reg.erro || reg.rejeitada)) { pular(t, reg); continue; }
-      let bufs = reg && pngsCrus(raw, base, true);
       if (bufs) reaproveitar(t, reg, rotulo);
       else {
+        if (!reg) protegerCru(base, true, rotulo, seed);
         const it = { rotulo, seed, geracoes: 0 };
         let r;
         try {
@@ -553,7 +660,7 @@ export async function rodarPortes(op) {
       if (bufs.length !== LIMITES.quadros) log(`    AVISO ${rotulo}: vieram ${bufs.length} quadros (o molde precisa de ${LIMITES.quadros})`);
       avaliarGalope(item, bufs, t, tc);
       relatar(rotulo, t);
-      if (t.ok) break;
+      if (t.ok && k >= ate) break;
     }
   }
 
@@ -643,8 +750,8 @@ export async function rodarPortes(op) {
 }
 
 // Dry-run: o mesmo caminho do lote, no modo 'plano' (nada pago, nada gravado), e a lista das chamadas novas.
-export async function dryRunPortes({ fase, only = null, teto = TETO_PADRAO, repetir = [], semGuia = [], guiaGalope = [], dirs } = {}, log = console.log) {
-  const r = await rodarPortes({ fase, only, teto, repetir, semGuia, guiaGalope, modo: 'plano', dirs });
+export async function dryRunPortes({ fase, only = null, teto = TETO_PADRAO, repetir = [], semGuia = [], guiaGalope = [], refazer = [], dirs } = {}, log = console.log) {
+  const r = await rodarPortes({ fase, only, teto, repetir, semGuia, guiaGalope, refazer, modo: 'plano', dirs });
   const sobra = r.gastoIlegivel ? '?' : fmt(teto - r.gastoAntes), gastas = r.gastoIlegivel ? 'DESCONHECIDO (gasto.json ilegível)' : fmt(r.gastoAntes);
   if (r.gastoIlegivel) {
     log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
@@ -669,6 +776,7 @@ export async function dryRunPortes({ fase, only = null, teto = TETO_PADRAO, repe
     log(`       ${c.texto}`);
   }
   if (cortadas.length) log(`AVISO: o teto de ${teto} gerações (já gastas ${gastas}) cortou ${cortadas.length} chamada(s), a partir de ${cortadas[0].rotulo}.`);
+  if (r.parada) log(`\nO --gerar PARARIA aqui (a lista acima vai só até este ponto): ${r.parada}`);
   const reap = r.reaproveitadas.map(({ rotulo, t }) => `${rotulo} (seed ${t.seed}${t.ok ? '' : ', reprovada'})`);
   log(`\nReaproveitados de raw/ (0 geração): ${reap.length ? reap.join(', ') : 'nenhum'}.`);
   log(`\nTotal previsto: ${n} gerações em ${n} chamadas novas (+ ${r.reaproveitadas.length} reaproveitadas de raw/); no pior caso (${TENTATIVAS} seeds por etapa), ${TENTATIVAS * n}; teto ${teto} no lote (sobram ${sobra}).`);

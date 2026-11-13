@@ -171,7 +171,8 @@ function registroTxt(reg) {
   if (!reg) return '<p class="suave">Sem registro no criterios.json (molde fora do lote).</p>';
   const seeds = ['retrato', 'parado', 'corrida', 'galope'].map(e => {
     const x = reg.etapas && reg.etapas[e];
-    return x ? `${e} ${x.escolhida}${x.tentativas.length > 1 ? ` (${x.tentativas.length} tentativas)` : ''}` : `${e} —`;
+    // refacao = a refação do --refazer (0 ou ausente: as seeds de sempre)
+    return x ? `${e} ${x.escolhida}${x.refacao ? `, refeita (refação ${x.refacao})` : ''}${x.tentativas.length > 1 ? ` (${x.tentativas.length} tentativas)` : ''}` : `${e} —`;
   });
   const forma = (reg.falhas || []).filter(f => /forma|imagem|interrompida|faltaria|quadros/.test(f));
   return `<p class="suave">Seeds: ${esc(seeds.join(' · '))}${reg.guia ? ` · init_image do mestre, força ${esc(reg.guia.init_image_strength)}` : ''}</p>`

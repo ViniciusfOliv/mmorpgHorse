@@ -147,7 +147,10 @@ a crina e a cauda (4 e 5), o detalhe (6), o jóquei (7 e 8) e a sela (9). As ore
    do elemento; depois o galope a partir da própria pose. Se a crina mudar pouco partindo do mestre, aquela
    versão sai sem `init_image`, pela receita do primeiro lote, e passa nos mesmos critérios.
 3. O dry-run é o padrão, com `--gerar`, `--teto`, `--only`, `--repetir` e `--reprocessar`, como hoje. As
-   respostas cruas ficam em `raw/`.
+   respostas cruas ficam em `raw/`. Para refazer uma etapa decidida na folha, há o
+   `--refazer <porte>-<estilo>:<etapa>[,…]` (refazer a corrida refaz o galope), com seeds novas que não cruzam as de
+   antes (+1000 por refação: os mestres refeitos em 4101+, as versões em 4401+ e 4701+). Os crus antigos ficam, e a
+   tentativa anterior vai para o histórico do item.
 
 **Critérios automáticos de aceite** (no script, antes de qualquer conferência visual):
 - **pernas:** `Marcas.zonas` acha exatamente 4 pernas no retrato e no parado; no galope (e na pose de corrida, que
@@ -171,7 +174,8 @@ a crina e a cauda (4 e 5), o detalhe (6), o jóquei (7 e 8) e a sela (9). As ore
   segura o corpo do mestre. Se o piloto não passar no "mesmo corpo" em 3 seeds, as versões daquele porte saem
   pelo caminho 2 (sem `init_image`), com os mesmos critérios.
 - **Item ainda reprovado depois das 3 seeds:** a melhor tentativa vai para a folha marcada com o critério que
-  falhou, e o Vinicius decide entre aceitar, refazer ou dar mais teto. O teto nunca sobe sem a confirmação dele.
+  falhou, e o Vinicius decide entre aceitar, refazer (`--refazer`) ou dar mais teto. O teto nunca sobe sem a
+  confirmação dele.
 - **Limiares:** os de 1,10, 0,92 e 1,15 são o meu ponto de partida. Se o PixelLab não chegar neles, o Vinicius
   decide na folha dos mestres se aceita o que saiu.
 
