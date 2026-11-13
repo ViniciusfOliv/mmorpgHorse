@@ -8,7 +8,7 @@
 // Também confere a entrada reservada do páreo aberto, a gravação que falha, o save adulterado ou corrompido,
 // o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo, o tamanho mínimo do texto e o teto
 // de chamadas de canvas por quadro na corrida mais cara.
-//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,marcas node tools/ui-test.mjs  -> só esses
+//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,marcas,portes node tools/ui-test.mjs  -> só esses
 import { createRequire } from 'node:module'
 import { dirname, extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -2554,6 +2554,457 @@ try {
     }
   }
 
+  // ---------------- Portes: save, telas, rivais, gaveta DEV e desempenho (Visuais 2, parte 2b, Task 3) ----------------
+  // O porte (GameData.PORTES; só desenho) segue a escada do Breed.porteDe: o do cavalo, se válido; senão o do modelo do
+  // catálogo; senão porteDoId(uid). O save com lixo no porte (Review Focus 1) e o alugado de antes da 2b (Review Focus 4)
+  // abrem com um porte válido, que vai para o disco e fica na recarga. A ficha e as linhas dos pais no Haras mostram
+  // "Porte: …"; a Calculadora, os portes que o potro pode ter. Cada drawHorse, horseBox, anchorsFor e prepararCavalo do
+  // jogo recebe o porte do cavalo; o rival, o do modelo dele. A gaveta DEV escolhe o porte sem tocar no save real. A 360 px
+  // a ativa fica inteira no cartão do estábulo e na raia nos 3 portes (Review Focus 3); a corrida DEV com 8 Míticos de
+  // portes alternados fica abaixo do teto de 6 ms e o cache dos moldes não cresce depois da largada (Review Focus 5).
+  // Desde a T7 os moldes são os 12 dos portes: cada porte desenha o seu molde, e aqui se confere que o porte chega a cada
+  // desenho (com os 4 moldes antigos, antes da T7, todo porte desenhava igual e só isso se conferia).
+  if (quer('portes')) {
+    const TETO_MS = 6   // o mesmo teto do bloco marcas (e do teste de desempenho: Completas − Reduzidas)
+    const PV = G.PORTES.valores, NOMES = G.PORTES.nomes, MUT = Math.round(G.PORTES.mutacao * 100)
+    const CAT = G.STARTERS.concat(G.WILD_HORSES)
+    const doModelo = (id) => { const h = CAT.find((x) => x.id === id); return h ? h.porte : null }
+    const linhaPorte = (p) => 'Porte: ' + NOMES[p]
+    // a linha da Calculadora: os portes dos pais na ordem de GameData.PORTES.valores, e a mutação
+    const linhaPotro = (a, b) => 'Porte do potro: ' + PV.filter((p) => p === a || p === b).map((p) => NOMES[p]).join(' ou ') + ` (${MUT}% de chance de mutação)`
+    const estado = (pg) => pg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    const daAtiva = (s) => s.mounts.find((m) => m.uid === s.activeId)
+    const semRaia = (id) => String(id).replace(/-b\d+$/, '')   // id do rival na sala = id do modelo + '-b<n>'
+    // espia dos desenhos que o jogo pede ao Sprites (o jogo chama SP.<função> a cada vez): guarda as primeiras 600
+    // chamadas de cada função desde a última ligação em window.__portes; ligar = false devolve as originais. Do
+    // drawHorse com quadro (retratos e pódio) guarda também o cartão do estábulo (data-uid), o tamanho do canvas e a
+    // caixa do desenho (horseBox original, com as mesmas opções).
+    const espia = (pg, ligar = true) => pg.evaluate((on) => {
+      const SP = window.Sprites, FN = ['drawHorse', 'horseBox', 'prepararCavalo', 'anchorsFor', 'drawHorseSilhouette']
+      if (!SP.__origPortes) { SP.__origPortes = {}; for (const f of FN) SP.__origPortes[f] = SP[f] }
+      const O = SP.__origPortes, reg = window.__portes = {}
+      for (const f of FN) {
+        reg[f] = []
+        SP[f] = !on ? O[f] : function () {
+          const a = arguments, lista = reg[f]
+          if (lista.length < 600) {
+            if (f === 'anchorsFor') lista.push({ element: a[0], estado: a[2], porte: a[3] === undefined ? '(ausente)' : a[3] })
+            else {
+              const o = (f === 'horseBox' ? a[2] : f === 'prepararCavalo' ? a[0] : a[3]) || {}
+              const c = { porte: o.porte === undefined ? '(ausente)' : o.porte, semente: o.semente, element: o.element, quadro: !!o.quadro, idle: !!o.idle }
+              if (f === 'drawHorse' && o.quadro && a[0] && a[0].canvas) {
+                const cv = a[0].canvas, card = cv.closest ? cv.closest('.montaria') : null
+                c.cartao = card ? card.getAttribute('data-uid') : null
+                c.cv = [cv.width, cv.height]
+                c.caixa = O.horseBox(a[1], a[2], o)
+              }
+              lista.push(c)
+            }
+          }
+          return O[f].apply(this, arguments)
+        }
+      }
+    }, ligar)
+    const espiado = (pg) => pg.evaluate(() => JSON.parse(JSON.stringify(window.__portes)))
+    // nenhuma chamada espiada sem um porte da lista
+    const semPorte = (reg, onde) => {
+      for (const [f, lista] of Object.entries(reg)) {
+        const ruins = lista.filter((c) => PV.indexOf(c.porte) < 0)
+        if (ruins.length) problems.push(`${onde}: ${ruins.length} de ${lista.length} chamadas de ${f} sem porte válido (${[...new Set(ruins.map((c) => c.porte))].join(', ')})`)
+      }
+    }
+    // retratos (drawHorse com quadro) de cada cavalo esperado ({ chave, porte }): uma chamada com a semente da chave e o porte
+    const confereRetratos = (reg, esperados, onde, filtro = (d) => d.quadro) => {
+      const daTela = reg.drawHorse.filter(filtro)
+      for (const e of esperados) {
+        const dela = daTela.filter((d) => d.semente === B.hashChave(e.chave))
+        if (!dela.length) problems.push(`${onde}: nenhum retrato de ${e.chave}`)
+        else if (!dela.some((d) => d.porte === e.porte)) problems.push(`${onde}: retrato de ${e.chave} com porte ${[...new Set(dela.map((d) => d.porte))].join(',')} (esperado ${e.porte})`)
+      }
+      semPorte(reg, onde)
+    }
+    // corrida: cada corredor ({ chave, element, porte }) desenhado na pista (drawHorse sem quadro e horseBox) com o porte
+    // esperado; prepararCavalo uma vez por corredor, com o porte dele; anchorsFor sempre com porte, nos pares
+    // elemento|porte dos corredores (o jogo pede as âncoras de todos a cada quadro, antes do corte nas bordas)
+    const confereCorrida = (reg, esperados, onde) => {
+      const pista = reg.drawHorse.filter((d) => !d.quadro), caixas = reg.horseBox.filter((d) => !d.quadro)
+      for (const e of esperados) {
+        const sem = B.hashChave(e.chave)
+        for (const [fn, lista] of [['drawHorse', pista], ['horseBox', caixas]]) {
+          const dela = lista.filter((d) => d.semente === sem)
+          if (!dela.length) problems.push(`${onde}: nenhum ${fn} de ${e.chave} na pista`)
+          else if (!dela.some((d) => d.porte === e.porte)) problems.push(`${onde}: ${fn} de ${e.chave} com porte ${[...new Set(dela.map((d) => d.porte))].join(',')} (esperado ${e.porte})`)
+        }
+      }
+      const prep = reg.prepararCavalo.map((d) => d.porte).sort().join(','), espPrep = esperados.map((e) => e.porte).sort().join(',')
+      if (prep !== espPrep) problems.push(`${onde}: prepararCavalo com os portes ${prep || '(nenhum)'} (esperado ${espPrep})`)
+      const pares = [...new Set(reg.anchorsFor.map((d) => d.element + '|' + d.porte))].sort().join(' ')
+      const espPares = [...new Set(esperados.map((e) => e.element + '|' + e.porte))].sort().join(' ')
+      if (pares !== espPares) problems.push(`${onde}: anchorsFor com ${pares || '(nenhum)'} (esperado ${espPares})`)
+      semPorte(reg, onde)
+    }
+    // corredores da sala aberta: chave do desenho (uid da montaria ou id do modelo), elemento e o porte que o jogo tem
+    const corredores = (pg) => pg.evaluate(() => {
+      const L = window.__galope.ui.lobby
+      return { n: L.n, seed: L.seed, racers: L.racers.map((r) => ({ isPlayer: r.isPlayer, id: r.horse.uid || r.horse.id, element: r.horse.element })) }
+    })
+    // linhas da ficha da Montaria: o "Porte: …" e se ele vem logo antes do "Marcas: …"
+    const fichaPorte = async (pg, uid, onde) => {
+      await pg.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click()
+      await pg.waitForSelector('#t-montaria')
+      const sp = await pg.evaluate(() => Array.from(document.querySelectorAll('.montaria-cabeca .linha-meta span')).map((e) => e.textContent.replace(/\s+/g, ' ').trim()))
+      await checkOverflow(pg, onde)
+      await pg.locator('[data-acao="montaria-voltar"]').click()
+      await pg.waitForSelector('#t-estabulo')
+      const iP = sp.findIndex((t) => /^Porte:/.test(t)), iM = sp.findIndex((t) => /^Marcas:/.test(t))
+      return { txt: iP >= 0 ? sp[iP] : null, antes: iP >= 0 && iM === iP + 1 }
+    }
+    const confereFicha = async (pg, uid, porte, onde) => {
+      const f = await fichaPorte(pg, uid, onde)
+      if (f.txt !== linhaPorte(porte)) problems.push(`${onde}: ficha de ${uid} com "${f.txt}" (esperado "${linhaPorte(porte)}")`)
+      else if (!f.antes) problems.push(`${onde}: na ficha de ${uid}, "${f.txt}" não vem logo antes da linha das marcas`)
+    }
+    // montaria de teste: a TETO_M2 com outro uid, ou a de um modelo do catálogo (o alugado / a cópia de antes da 2b)
+    const outro = (uid, o = {}) => Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { uid, name: 'Cavalo ' + uid.slice(1), breedLeft: 2 }, o)
+    const deModelo = (uid, id, o = {}) => { const t = CAT.find((x) => x.id === id); return outro(uid, { templateId: id, element: t.element, rarity: t.rarity, sex: t.sex, name: t.name, ...o }) }
+
+    // 1. save de antes da 2b (sem porte, com o alugado de Pororoca: RF4) e save com lixo no porte (RF1), a 360 px
+    {
+      const label = 'portes-save'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label)
+      try {
+        await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+        await pg.waitForSelector('#t-estabulo')
+        if (doModelo('brasa') !== 'padrao' || doModelo('w-ticao') !== 'robusto' || doModelo('w-pororoca') !== 'robusto') problems.push(`${label}: os portes do catálogo mudaram (Brasa ${doModelo('brasa')}, Tição ${doModelo('w-ticao')}, Pororoca ${doModelo('w-pororoca')})`)
+        // RF4: nenhum cavalo com o campo porte; Tição e Pororoca pelo modelo, o sem modelo por porteDoId
+        await montaSave(pg, (raw) => {
+          raw.mounts.push(deModelo('m2', 'w-ticao'))
+          raw.mounts.push(deModelo('m3', 'w-pororoca'))   // o alugado de antes da 2b
+          raw.mounts.push(outro('m4'))
+          raw.mounts.forEach((m) => { delete m.porte })
+          raw.nextUid = 5; raw.stableSlots = 6
+        })
+        let esperados = { m1: 'padrao', m2: 'robusto', m3: 'robusto', m4: B.porteDoId('m4') }
+        let s = await estado(pg)
+        for (const [uid, p] of Object.entries(esperados)) {
+          const got = (s.mounts.find((x) => x.uid === uid) || {}).porte
+          if (got !== p) problems.push(`${label}: save sem porte: ${uid} abriu com porte ${JSON.stringify(got)} (esperado ${p})`)
+        }
+        await espia(pg)
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.waitForSelector('#t-estabulo')
+        confereRetratos(await espiado(pg), Object.entries(esperados).map(([chave, porte]) => ({ chave, porte })), label + ' (estábulo)')
+        await espia(pg, false)
+        await confereFicha(pg, 'm1', 'padrao', label + '-ficha-brasa')
+        await confereFicha(pg, 'm2', 'robusto', label + '-ficha-ticao')
+        await confereFicha(pg, 'm3', 'robusto', label + '-ficha-pororoca')   // RF4
+        await confereFicha(pg, 'm4', esperados.m4, label + '-ficha-m4')
+        // RF1: lixo no porte de 3 montarias (texto fora da lista, número e a maiúscula), mais um porte válido que fica
+        await montaSave(pg, (raw) => {
+          const por = (uid) => raw.mounts.find((m) => m.uid === uid)
+          por('m2').porte = 'gigante'      // Tição: o do modelo
+          por('m3').porte = 7              // Pororoca: o do modelo
+          por('m4').porte = 'Robusto'      // sem modelo e com maiúscula: porteDoId('m4')
+          raw.mounts.push(deModelo('m5', 'w-ticao', { porte: 'esguio' }))   // válido: fica, mesmo com o modelo robusto
+          raw.nextUid = 6
+        })
+        esperados = { m1: 'padrao', m2: 'robusto', m3: 'robusto', m4: B.porteDoId('m4'), m5: 'esguio' }
+        s = await estado(pg)
+        for (const [uid, p] of Object.entries(esperados)) {
+          const got = (s.mounts.find((x) => x.uid === uid) || {}).porte
+          if (got !== p) problems.push(`${label}: save com lixo: ${uid} abriu com porte ${JSON.stringify(got)} (esperado ${p})`)
+        }
+        await confereFicha(pg, 'm4', esperados.m4, label + '-ficha-lixo')
+        await confereFicha(pg, 'm5', 'esguio', label + '-ficha-valido')
+        // a gravação seguinte (a sala aberta) leva os portes saneados ao disco; recarregar não muda nada
+        await abrirSala(pg)
+        const disco = await pg.evaluate((k) => JSON.parse(localStorage.getItem(k)), SAVE_REAL)
+        if (disco.v !== 5) problems.push(`${label}: a versão do save mudou para ${disco.v}`)
+        for (const m of disco.mounts) if (m.porte !== esperados[m.uid]) problems.push(`${label}: ${m.uid} gravado com porte ${JSON.stringify(m.porte)} (esperado ${esperados[m.uid]})`)
+        const chaves = Object.keys(disco.pending || {}).sort().join(',')
+        if (chaves !== 'alloc,counter,fee,gear,pr,training') problems.push(`${label}: a sala gravada mudou de forma: ${chaves}`)
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        s = await estado(pg)
+        const recarga = s.mounts.map((m) => m.uid + ':' + m.porte).join(' '), espRecarga = Object.entries(esperados).map(([u, p]) => u + ':' + p).join(' ')
+        if (recarga !== espRecarga) problems.push(`${label}: depois de recarregar, portes ${recarga} (esperado ${espRecarga})`)
+        await checkOverflow(pg, label + '-estabulo')
+        notes.portesSave = { m4: esperados.m4 }
+      } catch (e) {
+        problems.push(`${label}: ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 2. Haras (360 e 1280): as linhas dos pais com o porte e a linha do porte do potro na Calculadora
+    for (const vp of [{ width: 360, height: 780 }, { width: 1280, height: 800 }]) {
+      const tag = `portes-haras-${vp.width}`
+      const pg = await newPage(browser, vp, tag)
+      try {
+        await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+        await pg.waitForSelector('#t-estabulo')
+        await montaSave(pg, (raw) => {
+          raw.mounts.push(deModelo('m2', 'w-ticao'))
+          raw.mounts.forEach((m) => { delete m.porte })   // pelo modelo: Brasa padrão, Tição robusto
+          raw.nextUid = 3; raw.stableSlots = 6
+        })
+        await pg.locator('[data-acao="aba"][data-id="haras"]').click()
+        await pg.waitForSelector('#t-haras')
+        // [minha, aluguel]: Garoa padrão, Faísca esguio, Fogaréu robusto (a fêmea com o porte que vem depois na lista)
+        const casos = [['m1', 'w-garoa'], ['m1', 'w-faisca'], ['m1', 'w-fogareu'], ['m2', 'w-faisca'], ['m2', 'w-fogareu']]
+        const meu = { m1: { name: 'Brasa', porte: 'padrao' }, m2: { name: 'Tição', porte: 'robusto' } }
+        const vistas = {}   // linha do potro de cada caso
+        let mineAtual = null
+        for (const [mine, rent] of casos) {
+          if (mine !== mineAtual) {
+            await pg.locator(`[data-acao="haras-mine"][data-id="${mine}"]`).click()
+            await pg.waitForSelector(`[data-acao="haras-partner"][data-kind="rent"][data-id="${rent}"]`)
+            mineAtual = mine
+          }
+          await pg.locator(`[data-acao="haras-partner"][data-kind="rent"][data-id="${rent}"]`).click()
+          await pg.waitForFunction((id) => window.__galope.ui.haras.partner && window.__galope.ui.haras.partner.id === id && document.querySelector('.calc'), rent)
+          const t = CAT.find((x) => x.id === rent)
+          const calc = await pg.evaluate(() => ({
+            pais: Array.from(document.querySelectorAll('.calc .marcas-linha')).map((e) => e.textContent.replace(/\s+/g, ' ').trim()),
+            linhas: Array.from(document.querySelectorAll('.calc p')).map((e) => e.textContent.replace(/\s+/g, ' ').trim())
+          }))
+          // f é sempre a fêmea (o aluguel) e m o macho (a minha): f primeiro
+          const espPais = [[t.name, t.porte], [meu[mine].name, meu[mine].porte]].map(([nome, p]) => `${nome} · ${linhaPorte(p)} · Marcas: `)
+          if (calc.pais.length !== 2 || espPais.some((e, i) => !calc.pais[i].startsWith(e))) problems.push(`${tag}: ${mine} × ${rent}: linhas dos pais ${JSON.stringify(calc.pais)} (esperado começar com ${JSON.stringify(espPais)})`)
+          const potro = calc.linhas.filter((l) => /^Porte do potro:/.test(l)), esp = linhaPotro(t.porte, meu[mine].porte)
+          vistas[mine + ' × ' + rent] = potro.join(' | ')
+          if (potro.length !== 1 || potro[0] !== esp) problems.push(`${tag}: ${mine} × ${rent}: linha do potro ${JSON.stringify(potro)} (esperado "${esp}")`)
+          const mesmos = t.porte === meu[mine].porte
+          if (potro.length === 1 && (mesmos ? / ou /.test(potro[0]) : !/ ou /.test(potro[0]))) problems.push(`${tag}: ${mine} × ${rent}: "${potro[0]}" ${mesmos ? 'com "ou" para pais do mesmo porte' : 'sem "ou" para pais de portes diferentes'}`)
+        }
+        // os textos da spec, letra a letra; a ordem dentro do "ou" é a de GameData.PORTES.valores, não a dos pais (Fogaréu,
+        // robusta, é a fêmea e vem primeiro nas linhas dos pais)
+        const literais = {
+          'm2 × w-fogareu': `Porte do potro: Robusto (${MUT}% de chance de mutação)`,
+          'm2 × w-faisca': `Porte do potro: Esguio ou Robusto (${MUT}% de chance de mutação)`,
+          'm1 × w-fogareu': `Porte do potro: Padrão ou Robusto (${MUT}% de chance de mutação)`
+        }
+        for (const [caso, txt] of Object.entries(literais)) if (vistas[caso] !== txt) problems.push(`${tag}: ${caso}: "${vistas[caso]}" (esperado "${txt}")`)
+        await checkOverflow(pg, tag)
+      } catch (e) {
+        problems.push(`${tag}: ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 3. gaveta DEV (360): o seletor de porte vai ao save DEV e nunca toca no save real; com a ativa em cada porte,
+    // ela fica inteira no cartão do estábulo e na raia (RF3) e o porte de cada rival é o do modelo dele
+    {
+      const label = 'portes-dev'
+      const REAL = JSON.stringify({ v: 2, starterId: 'mare', level: 4, xp: 0, skills: [], gold: 555, races: 1, wins: 0, podiums: 0, goldWon: 0, seedBase: 777, raceCounter: 1 })
+      const init = { content: `(() => {
+        try { if (localStorage.getItem('galope-elemental:v1') === null) localStorage.setItem('galope-elemental:v1', ${JSON.stringify(REAL)}) } catch (e) {}
+        const log = window.__acessos = []
+        window.__lsGet = Storage.prototype.getItem
+        for (const fn of ['getItem', 'setItem', 'removeItem']) {
+          const orig = Storage.prototype[fn]
+          Storage.prototype[fn] = function (k) { log.push(fn + ':' + k); return orig.apply(this, arguments) }
+        }
+      })()` }
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1', init })
+      const discoDev = () => pg.evaluate(() => JSON.parse(window.__lsGet.call(localStorage, 'galope-elemental:dev')))
+      const seletor = () => pg.evaluate(() => { const el = document.getElementById('dev-porte'); return el ? el.value : '(sem seletor)' })
+      const conferirReal = async (quando) => {
+        const a = await pg.evaluate(() => ({ real: window.__lsGet.call(localStorage, 'galope-elemental:v1'), acessos: window.__acessos.slice() }))
+        if (a.real !== REAL) problems.push(`${label}: o save real mudou (${quando}): ${a.real}`)
+        if (a.acessos.some((x) => /galope-elemental:v1$/.test(x))) problems.push(`${label}: a página tocou no save real (${quando}): ${a.acessos.filter((x) => /v1$/.test(x)).join(', ')}`)
+      }
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await devAbrir(pg)
+        const opc = await pg.evaluate(() => {
+          const el = document.querySelector('[data-dev-campo="porte"]')
+          return el ? { tag: el.tagName, id: el.id, valores: Array.from(el.options).map((o) => o.value), textos: Array.from(el.options).map((o) => o.textContent), valor: el.value } : null
+        })
+        if (!opc) problems.push(`${label}: a gaveta DEV não tem o seletor data-dev-campo="porte"`)
+        else {
+          if (opc.tag !== 'SELECT' || opc.id !== 'dev-porte') problems.push(`${label}: o campo do porte é ${opc.tag}#${opc.id} (esperado SELECT#dev-porte)`)
+          if (opc.valores.join(',') !== PV.join(',')) problems.push(`${label}: seletor de porte com ${opc.valores.join(',')} (esperado ${PV.join(',')})`)
+          if (opc.textos.join(',') !== PV.map((p) => NOMES[p]).join(',')) problems.push(`${label}: textos do seletor de porte ${opc.textos.join(',')}`)
+          const sujos = opc.textos.filter((t) => !/^[A-Za-zÀ-ÿ0-9 ]+$/.test(t))
+          if (sujos.length) problems.push(`${label}: opções do porte com símbolos: ${sujos.join(' | ')}`)
+          if (opc.valor !== 'padrao') problems.push(`${label}: a gaveta abriu com o porte ${opc.valor} (o da Brasa: padrao)`)
+        }
+        const casas = {}
+        for (const p of ['robusto', 'esguio', 'padrao']) {
+          const tag = `${label}-${p}`
+          if (opc) await pg.selectOption('#dev-porte', p)
+          await pg.locator('[data-acao="dev-aplicar"]').click()
+          const a = daAtiva(await estado(pg)), noDisco = daAtiva(await discoDev())
+          if (a.porte !== p || !noDisco || noDisco.porte !== p) problems.push(`${tag}: "Aplicar na ativa" deixou o porte ${a.porte} (no save DEV: ${noDisco && noDisco.porte}; esperado ${p})`)
+          if ((await seletor()) !== (opc ? p : '(sem seletor)')) problems.push(`${tag}: o seletor ficou em ${await seletor()} depois de aplicar`)
+          await devFechar(pg)
+          // cartão do estábulo: o retrato com o porte, o cavalo inteiro no canvas (o topo pode passar no máximo 10 % da
+          // altura, o CORTE_MAX do sprites.js) e o canvas inteiro no cartão, que fica na largura da tela
+          await espia(pg)
+          await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+          await pg.waitForSelector('#t-estabulo')
+          await sleep(150)
+          let reg = await espiado(pg)
+          await espia(pg, false)
+          const doCartao = reg.drawHorse.filter((d) => d.cartao === a.uid)
+          if (!doCartao.length) problems.push(`${tag}: nenhum retrato no cartão de ${a.uid}`)
+          else {
+            const d = doCartao[doCartao.length - 1], c = d.caixa, corte = Math.max(0, -c.y)
+            if (d.porte !== p) problems.push(`${tag}: retrato do cartão com porte ${d.porte} (esperado ${p})`)
+            if (c.x < 0 || c.x + c.w > d.cv[0] || c.y + c.h > d.cv[1] || corte > 0.1 * c.h) problems.push(`${tag}: cavalo fora do retrato do cartão: caixa ${JSON.stringify(c)} no canvas ${d.cv}`)
+            casas[p] = { caixa: c, cv: d.cv }
+          }
+          const r = await pg.evaluate((uid) => {
+            const card = document.querySelector(`.montaria[data-uid="${uid}"]`), cv = card && card.querySelector('canvas.retrato')
+            if (!card || !cv) return null
+            const A = card.getBoundingClientRect(), C = cv.getBoundingClientRect()
+            return { card: [A.left, A.top, A.right, A.bottom], cv: [C.left, C.top, C.right, C.bottom], vw: document.documentElement.clientWidth }
+          }, a.uid)
+          if (!r) problems.push(`${tag}: sem o cartão de ${a.uid} no estábulo`)
+          else if (r.cv[0] < r.card[0] - 0.5 || r.cv[1] < r.card[1] - 0.5 || r.cv[2] > r.card[2] + 0.5 || r.cv[3] > r.card[3] + 0.5 || r.card[0] < -0.5 || r.card[2] > r.vw + 0.5) problems.push(`${tag}: retrato fora do cartão ou cartão fora da tela ${JSON.stringify(r)}`)
+          await checkOverflow(pg, tag + '-estabulo')
+          // corrida: a ativa inteira na raia (câmera, quadro a quadro) e o porte de cada corredor
+          await espia(pg)
+          await abrirSala(pg)
+          const sala = await corredores(pg)
+          await pg.getByRole('button', { name: /^Largar/ }).click()
+          await pg.waitForSelector('#pista')
+          await startCamMonitor(pg)
+          await pg.getByRole('button', { name: 'x2' }).click()
+          await sleep(3500)
+          await checkOverflow(pg, tag + '-corrida')
+          reg = await espiado(pg)
+          await espia(pg, false)
+          const cc = await pg.evaluate(() => window.__cc)
+          if (cc.partial > 0 || cc.off > 0 || cc.vfora > 0 || !(cc.frames > 30)) problems.push(`${tag}: a ativa saiu da raia ${JSON.stringify(cc)}`)
+          const esperados = sala.racers.map((x) => ({ chave: x.isPlayer ? x.id : semRaia(x.id), element: x.element, porte: x.isPlayer ? p : doModelo(semRaia(x.id)) }))
+          if (!sala.racers.some((x) => !x.isPlayer)) problems.push(`${tag}: sala sem rivais`)
+          confereCorrida(reg, esperados, tag + ' (corrida)')
+          casas[p].cam = cc
+          await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+          await pg.waitForSelector('#t-resultado')
+          await pg.locator('[data-acao="voltar"]').click()
+          await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+          await pg.waitForSelector('#t-estabulo')
+          await devAbrir(pg)
+        }
+        notes.portesDev = casas
+        // copiar um pronto (Pororoca: o porte do modelo, e o seletor carrega o da ativa) e criar um com o porte escolhido
+        await pg.selectOption('#dev-copiar', 'w-pororoca')
+        await pg.locator('[data-acao="dev-copiar"]').click()
+        let a = daAtiva(await estado(pg))
+        if (a.uid !== 'm2' || a.porte !== 'robusto') problems.push(`${label}: cópia da Pororoca ${a.uid} com porte ${a.porte} (esperado m2 robusto)`)
+        if ((await seletor()) !== 'robusto') problems.push(`${label}: a gaveta não carregou o porte da ativa (${await seletor()})`)
+        if (opc) await pg.selectOption('#dev-porte', 'esguio')
+        await pg.locator('[data-acao="dev-criar"]').click()
+        a = daAtiva(await estado(pg))
+        if (a.uid !== 'm3' || a.porte !== 'esguio') problems.push(`${label}: "Criar cavalo" deixou ${a.uid} com porte ${a.porte} (esperado m3 esguio)`)
+        await devFechar(pg)
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        const salvas = (await estado(pg)).mounts.map((m) => m.uid + ':' + m.porte).join(' ')
+        const disco = (await discoDev()).mounts.map((m) => m.uid + ':' + m.porte).join(' ')
+        if (salvas !== 'm1:padrao m2:robusto m3:esguio' || disco !== salvas) problems.push(`${label}: depois de recarregar, portes ${salvas} (no save DEV: ${disco})`)
+        await conferirReal('depois da gaveta, das corridas e da recarga')
+      } catch (e) {
+        problems.push(`${label}: ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 4. corrida DEV com 8 Míticos de portes alternados (1280: o canvas maior; RF5): a ativa robusta pela gaveta e os
+    // rivais, na ordem das raias, esguio, robusto, padrão, robusto, esguio, robusto, padrão (4 robustos, 2 esguios e 2
+    // padrões ao todo; Míticos e portes trocados na sala aberta, só neste teste). Abaixo do teto de 6 ms por quadro, o
+    // cache dos moldes montado na largada e sem crescer depois, e o porte de cada um na pista e no pódio.
+    {
+      const label = 'portes-corrida'
+      let SEED8_DEV = 0   // 8 corredores numa sala DEV: o nº de corredores é o 2º sorteio do rng da sala (como no bloco marcas)
+      for (let sd = 1; sd <= 2000 && !SEED8_DEV; sd++) {
+        const rng = S.mulberry32(S.hash2(sd, 0xA11CE))
+        rng()
+        if (4 + Math.floor(rng() * 5) === 8) SEED8_DEV = sd
+      }
+      const RIVAIS = ['esguio', 'robusto', 'padrao', 'robusto', 'esguio', 'robusto', 'padrao']
+      const pg = await newPage(browser, { width: 1280, height: 800 }, label, { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await devAbrir(pg)
+        await pg.selectOption('#dev-raridade', 'mitico')
+        if (await pg.locator('#dev-porte').count()) await pg.selectOption('#dev-porte', 'robusto')
+        await pg.locator('[data-acao="dev-aplicar"]').click()
+        await devFechar(pg)
+        const at = daAtiva(await estado(pg))
+        if (at.rarity !== 'mitico' || at.porte !== 'robusto') problems.push(`${label}: a ativa ficou ${at.rarity} ${at.porte} (esperado mitico robusto)`)
+        await devArmar(pg, { seed: SEED8_DEV })
+        await abrirSala(pg)
+        const sala = await pg.evaluate((rivais) => {
+          const L = window.__galope.ui.lobby
+          let b = 0
+          L.racers.forEach((r) => { r.horse.rarity = 'mitico'; if (!r.isPlayer) r.horse.porte = rivais[b++ % rivais.length] })
+          return { n: L.n, racers: L.racers.map((r) => ({ isPlayer: r.isPlayer, id: r.horse.uid || r.horse.id, element: r.horse.element, porte: r.horse.porte })) }
+        }, RIVAIS)
+        if (sala.n !== 8) problems.push(`${label}: a sala da seed ${SEED8_DEV} tem ${sala.n} corredores (esperado 8)`)
+        const esperados = sala.racers.map((r) => ({ chave: r.isPlayer ? r.id : semRaia(r.id), element: r.element, porte: r.isPlayer ? 'robusto' : r.porte }))
+        const conta = (p) => esperados.filter((e) => e.porte === p).length
+        if (conta('robusto') !== 4 || conta('esguio') !== 2 || conta('padrao') !== 2) problems.push(`${label}: portes da sala ${esperados.map((e) => e.porte).join(',')} (esperado 4 robustos, 2 esguios e 2 padrões)`)
+        // quadros do galope por molde (o do porte e do elemento), para o tamanho do cache depois da largada
+        const nQuadros = await pg.evaluate((cs) => cs.map((c) => {
+          const q = new Set()
+          for (let f = 0; f < window.Sprites.GALLOP_FRAMES; f += 1 / 16) q.add(window.Sprites._quadroGalope(c.element, f, c.porte))
+          return q.size
+        }), esperados)
+        await espia(pg)
+        await pg.evaluate(() => {
+          const m = window.__pc8 = { inicio: null, max: 0 }
+          const tick = () => {
+            if (window.__galope.ui.screen === 'corrida') {
+              const c = window.Sprites._cacheMoldes()
+              if (m.inicio == null) m.inicio = c
+              m.max = Math.max(m.max, c)
+            }
+            if (window.__galope.ui.screen !== 'resultado') requestAnimationFrame(tick)
+          }
+          requestAnimationFrame(tick)
+        })
+        await pg.getByRole('button', { name: /^Largar/ }).click()
+        await pg.waitForSelector('#pista')
+        const q0 = await (await pg.waitForFunction(() => {
+          const r = window.__galope.race
+          return r && r._state.phase === 'corrida' ? window.RaceFx._stats.quadros : false
+        }, null, { timeout: 60000, polling: 'raf' })).jsonValue()
+        confereCorrida(await espiado(pg), esperados, label + ' (corrida)')
+        await espia(pg, false)
+        // desenho por quadro com os 8 Míticos (média dos últimos 60 de 120 quadros de corrida, sem a espia)
+        const ms = await (await pg.waitForFunction((q) => {
+          const st = window.RaceFx._stats
+          return st.quadros >= q ? st.msQuadro : false
+        }, q0 + 120, { timeout: 60000, polling: 'raf' })).jsonValue()
+        const mc = await pg.evaluate(() => JSON.parse(JSON.stringify(window.__pc8)))
+        const montados = nQuadros.reduce((x, q) => x + 1 + q, 0)   // parado + quadros do galope de cada corredor
+        notes.portes8 = { seed: SEED8_DEV, portes: esperados.map((e) => e.porte).join(','), msQuadro: +ms.toFixed(2), teto: TETO_MS, cache: { largada: mc.inicio, max: mc.max, esperado: montados } }
+        if (ms > TETO_MS) problems.push(`${label}: ${ms.toFixed(2)} ms por quadro com 8 Míticos de portes alternados (teto ${TETO_MS})`)
+        if (!(mc.inicio >= montados)) problems.push(`${label}: na largada o cache dos moldes tinha ${mc.inicio} quadros (esperado ${montados}: cada cavalo montado uma vez na largada)`)
+        if (mc.max !== mc.inicio) problems.push(`${label}: o cache dos moldes cresceu durante a corrida (${mc.inicio} -> ${mc.max})`)
+        // pódio: os 3 primeiros com o porte deles
+        await espia(pg)
+        const top3 = await pg.evaluate(() => window.__galope.ui.lobby.sim.finishOrder.slice(0, 3))
+        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pg.waitForSelector('#t-resultado')
+        await sleep(300)
+        confereRetratos(await espiado(pg), top3.map((j) => esperados[j]), label + ' (pódio)', (d) => d.quadro && d.idle)
+        await espia(pg, false)
+      } catch (e) {
+        problems.push(`${label}: ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+  }
+
   if (!SO.length) {   // o resto do teste (fluxo completo e contextos antigos) só roda sem UI_SO
   // ---------------- celular 390x844 ----------------
   // newPage já espera Sprites.moldsReady === true (moldes do PixelLab embutidos pelo build e decodificados)
@@ -4148,40 +4599,42 @@ try {
     }
     const mc = await newPage(browser, { width: 390, height: 844 }, 'moldes-cache')
     try {
-      // encaixe dos moldes: escala única entre estilos, molde inteiro nos quadros de altura fixa e
-      // ciclo do galope com a mesma duração do código
+      // encaixe dos moldes: escala única entre estilos e portes, molde inteiro nos quadros de altura fixa e
+      // ciclo do galope com a mesma duração do código, nos 12 moldes (3 portes × 4 estilos)
       const enc = await mc.evaluate(() => {
-        const SP = window.Sprites, ELS = ['fogo', 'agua', 'grama', 'neutro'], erros = []
+        const SP = window.Sprites, ELS = ['fogo', 'agua', 'grama', 'neutro'], PS = ['esguio', 'padrao', 'robusto'], erros = []
         for (let k = 1; k <= 9; k++) {
-          const Ss = ELS.map((el) => SP._layoutMolde(el, 'galope', 0, 0, k).S)
-          if (new Set(Ss).size !== 1) erros.push(`pista k=${k}: escalas diferentes entre estilos ${Ss}`)
+          const Ss = PS.flatMap((p) => ELS.map((el) => SP._layoutMolde(el, 'galope', 0, 0, k, null, p).S))
+          if (new Set(Ss).size !== 1) erros.push(`pista k=${k}: escalas diferentes entre estilos e portes ${Ss}`)
         }
-        // baia 48×36 (retratos): a mesma escala para os 4 estilos; cascos dentro do quadro; o topo pode sair
-        // do quadro (crista de ondas) em no máximo 10 % da altura do bbox
-        for (const k of [3, 6, 9]) for (const est of ['retrato', 'parado']) {
-          const Ls = ELS.map((el) => SP._layoutMolde(el, est, 5 * k, 1 * k, k, { topo: 0, base: 36 * k }))
-          if (new Set(Ls.map((L) => L.S)).size !== 1) erros.push(`${est} k=${k}: escalas diferentes entre estilos ${Ls.map((L) => L.S)}`)
-          Ls.forEach((L, i) => {
+        // baia 48×36 (retratos): a mesma escala para os 12 moldes; cascos dentro do quadro; o topo pode sair
+        // do quadro (crista de ondas, orelhas do robusto) em no máximo 10 % da altura do bbox. k = round(3 × dpr): 3, 6 e
+        // 9 são os dpr 1, 2 e 3; 4 é o dpr 1,25 a 1,4 (o zoom de 125 % do Windows), 7, 8 e 10 os dpr 2,25 a 3,4 (o passo
+        // da escala no quadro sai do molde mais alto, então todos descem juntos)
+        for (const k of [3, 4, 6, 7, 8, 9, 10]) for (const est of ['retrato', 'parado']) {
+          const Ls = PS.flatMap((p) => ELS.map((el) => Object.assign({ nome: el + ' ' + p }, SP._layoutMolde(el, est, 5 * k, 1 * k, k, { topo: 0, base: 36 * k }, p))))
+          if (new Set(Ls.map((L) => L.S)).size !== 1) erros.push(`${est} k=${k}: escalas diferentes entre os moldes ${Ls.map((L) => L.nome + ' ' + L.S)}`)
+          Ls.forEach((L) => {
             const alt = L.pe - L.topo, corte = Math.max(0, -L.topo)
-            if (L.pe > 36 * k || L.pe < 33 * k) erros.push(`${est} ${ELS[i]} k=${k}: cascos em ${L.pe} (esperado ${33 * k}..${36 * k})`)
-            if (corte > 0.1 * alt) erros.push(`${est} ${ELS[i]} k=${k}: topo cortado em ${corte}px de ${alt} (> 10 %)`)
+            if (L.pe > 36 * k || L.pe < 33 * k) erros.push(`${est} ${L.nome} k=${k}: cascos em ${L.pe} (esperado ${33 * k}..${36 * k})`)
+            if (corte > 0.1 * alt) erros.push(`${est} ${L.nome} k=${k}: topo cortado em ${corte}px de ${alt} (> 10 %)`)
           })
         }
-        for (const k of [2, 4, 6]) for (const top of [49, 57, 63]) for (const el of ELS) {   // pódio: em pé no bloco
-          const L = SP._layoutMolde(el, 'parado', (84 - 21) * k, (top - 32) * k, k, { topo: 0, base: top * k })
-          if (L.topo < 0 || L.pe !== top * k) erros.push(`pódio ${el} k=${k} topo ${top}: bbox ${L.topo}..${L.pe} (bloco em ${top * k})`)
+        for (const k of [2, 4, 6]) for (const top of [49, 57, 63]) for (const p of PS) for (const el of ELS) {   // pódio: em pé no bloco
+          const L = SP._layoutMolde(el, 'parado', (84 - 21) * k, (top - 32) * k, k, { topo: 0, base: top * k }, p)
+          if (L.topo < 0 || L.pe !== top * k) erros.push(`pódio ${el} ${p} k=${k} topo ${top}: bbox ${L.topo}..${L.pe} (bloco em ${top * k})`)
         }
         const G = SP.GALLOP_FRAMES
-        for (const el of ELS) {
+        for (const p of PS) for (const el of ELS) {
           const vistos = new Set()
           let ant = -1
           for (let f = 0; f < G; f += 0.01) {
-            const q = SP._quadroGalope(el, f)
-            if (q < ant) erros.push(`galope ${el}: quadro ${q} depois de ${ant} dentro do ciclo`)
+            const q = SP._quadroGalope(el, f, p)
+            if (q < ant) erros.push(`galope ${el} ${p}: quadro ${q} depois de ${ant} dentro do ciclo`)
             ant = q; vistos.add(q)
           }
-          if (SP._quadroGalope(el, G) !== 0) erros.push(`galope ${el}: o ciclo do molde não volta ao quadro 0 junto com o do código`)
-          if (vistos.size !== Math.max(...vistos) + 1) erros.push(`galope ${el}: pulou quadros (${[...vistos]})`)
+          if (SP._quadroGalope(el, G, p) !== 0) erros.push(`galope ${el} ${p}: o ciclo do molde não volta ao quadro 0 junto com o do código`)
+          if (vistos.size !== Math.max(...vistos) + 1) erros.push(`galope ${el} ${p}: pulou quadros (${[...vistos]})`)
         }
         return erros
       })

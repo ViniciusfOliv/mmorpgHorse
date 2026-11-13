@@ -5,7 +5,7 @@
  * API (global `Sprites` no navegador; module.exports no Node):
  *   Sprites.HORSE_W, Sprites.HORSE_H, Sprites.GALLOP_FRAMES, Sprites.FOOT_Y
  *   Sprites.drawHorse(ctx, x, y, { palette, element, frame, scale, silks, idle, t, jockey, shadow, quadro,
- *                                  marcas, semente, joquei, raridade, rastro, reduzido })
+ *                                  marcas, semente, joquei, raridade, rastro, reduzido, porte })
  *     frame pode ser fracionário (fase contínua do galope); quadro = { topo, base } em px: quadro de altura
  *     fixa onde o molde inteiro tem de caber (retratos, pódio) — o desenho por código o ignora.
  *     Parte 2a (spec 2026-11-12-cavalos-marcas), todas opcionais — sem elas, o desenho é o de antes, byte a byte:
@@ -15,6 +15,8 @@
  *         escolhida e manta no capacete escurecido, só nos moldes (Marcas.camadaJoquei);
  *       raridade (id de GameData.RARITIES), rastro (só na corrida), reduzido (movimento reduzido): os efeitos de
  *         Sprites.drawRaridade, desenhados depois do cavalo (as faíscas e o rastro também no desenho por código).
+ *     Parte 2b (spec 2026-11-13-cavalos-portes), opcional: porte (GameData.PORTES.valores; fora da lista ou ausente,
+ *       'padrao') escolhe o molde do porte; no desenho por código, não muda nada.
  *   Sprites.drawRaridade(ctx, caixa, o)  caixa = horseBox(x, y, o): brilho na crina (só com molde), faíscas e
  *     rastro do Mítico (ver a seção RARIDADE VISÍVEL). Comum não desenha nada.
  *   Sprites.drawTrack(ctx, { width, height, cameraX, pxPerMeter, lanes, laneTop, laneH, surface,
@@ -37,8 +39,9 @@
  *   Sprites.PALETTES  // paletas de exemplo
  *   Moldes do PixelLab (recolor por paleta; sem eles, desenho por código):
  *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
+ *   Sprites.moldesConjunto ('portes': os 12 moldes '<porte>-<estilo>' carregados; null: sem moldes),
  *   Sprites.drawHorseSilhouette(ctx, x, y, opts, cor, alpha)  (contorno tingido, chamar antes de drawHorse),
- *   Sprites.anchorsFor(element, scale, estado), Sprites.horseBox(x, y, opts),
+ *   Sprites.anchorsFor(element, scale, estado, porte), Sprites.horseBox(x, y, opts),
  *   Sprites.limparCacheMoldes() (moldes recoloridos, silhuetas do contorno, máscaras do brilho da crina e textos
  *     prontos; o game.js chama ao trocar de tela),
  *   Sprites.prepararCavalo(opts) -> n: recolore já, no cache dos moldes, os quadros que drawHorse(…, opts) usa (parado
@@ -886,15 +889,27 @@
   // e galope (N quadros). O build embute PNGs e âncoras em window.__MOLDES; loadMolds decodifica os PNGs
   // num canvas e guarda os índices. drawHorse pinta cada papel com as cores da montaria e do corredor.
   //
+  // Os moldes são os 12 '<porte>-<estilo>' (spec 2026-11-13-cavalos-portes §4 e §6; porte de GameData.PORTES:
+  // esguio, padrao, robusto). O molde de um cavalo é porte + '-' + estiloDe(element); sem porte nas opções, ou com
+  // um porte fora da lista, 'padrao'. A carga é tudo ou nada: faltou uma das 12 chaves (ou um quadro não decodificou),
+  // nenhum molde liga, com um console.warn do motivo, e os cavalos ficam no desenho por código. Os 4 moldes antigos
+  // ('<estilo>', o lote de 2026-11-08) saíram na 2b: uma chave sem porte na tabela é ignorada.
+  // Sprites.moldesConjunto = 'portes' com os moldes ligados (null sem moldes). Os caches dos moldes recoloridos, das
+  // máscaras do brilho e das silhuetas usam a chave do molde (o porte vai junto).
+  //
   // Encaixe no sprite por código (40×32, escala k): o molde é desenhado em escala inteira
-  // S = max(1, round(k × 40 / Lref)), ÚNICA para todos os estilos (Lref = maior larguraUtil entre os estilos
-  // carregados): cavalos de estilos diferentes ficam do mesmo tamanho. Na pista:
+  // S = max(1, round(k × 40 / Lref)), ÚNICA para todos os moldes. Lref = maior larguraUtil entre os 4 moldes do
+  // padrão (lisa incluída): na pista, os cavalos do padrão ficam do tamanho dos antigos, e o esguio e o robusto se
+  // distinguem pelas proporções do desenho, sem mudar a escala dos outros. Cavalos de estilos e portes diferentes
+  // ficam na mesma escala. Na pista:
   //   • a última linha dos cascos (o maior footY entre os quadros do estado) termina em y + (FOOT_Y + 1)·k,
   //     a mesma linha de chão do sprite por código;
   //   • a coluna do focinho (mediana de nose.x entre os quadros do estado) fica em x + NOSE·k (NOSE = 38).
-  // Num quadro de altura fixa (opção `quadro`: retratos e pódio) vale a mesma escala única e o cavalo fica
-  // centrado no x do sprite; se o bbox do estado for mais alto que o quadro, os cascos ficam na base e o topo
-  // (crista, orelhas) é cortado em no máximo 10 % da altura do bbox (senão a escala desce um passo).
+  // Num quadro de altura fixa (opção `quadro`: retratos e pódio) o cavalo fica centrado no x do sprite e a escala
+  // é a única enquanto o MAIS ALTO dos 12 moldes naquele estado couber com o topo (crista, orelhas) cortado em no
+  // máximo 10 % da altura do bbox; senão a escala desce um passo para todos os moldes juntos (layoutMolde), e os 3
+  // portes ficam proporcionais em qualquer zoom. Com zoom de 125 % (k = 4), todos ficam um passo menores que antes
+  // da 2b (decisão do Vinicius em 2026-11-13). Se o bbox do estado for mais alto que o quadro, os cascos ficam na base.
   // As referências são POR ESTADO, não por quadro: por quadro o cavalo tremeria no galope (cauda e patas
   // mudam rear e footY). Como o focinho cai no mesmo NOSE, a câmera e as etiquetas da corrida não mudam;
   // anchorsFor() converte rear/saddle do molde para as unidades do sprite por código. As âncoras POR QUADRO
@@ -904,10 +919,13 @@
   // `frame` pode ser fracionário (fase contínua) e o índice é floor((frame mod GALLOP_FRAMES) × frames / GALLOP_FRAMES).
   var ESTILO_POR_ELEMENTO = { fogo: 'chamas', agua: 'ondas', grama: 'folhas', neutro: 'lisa' };
   var ESTILOS_MOLDE = ['chamas', 'ondas', 'folhas', 'lisa'];
+  // os portes vêm de GameData.PORTES.valores; esta cópia vale sem o GameData (o wiki embute só o sprites.js)
+  var PORTES_MOLDE = ['esguio', 'padrao', 'robusto'], PORTE_PADRAO = 'padrao';
   var MOLDE_CORES_FIXAS = { contorno: '#1a1405', pele: '#e8b48a', sela: '#5a3a22' };
-  var moldes = null;       // estilo -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados, ancoras }
+  var moldes = null;       // chave do molde -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados, ancoras }
   var moldsOk = false;
-  var moldesLref = 0;      // maior larguraUtil entre os estilos carregados (escala única)
+  var moldesLref = 0;      // maior larguraUtil entre os 4 moldes do padrão: escala única
+  var alturaMaxEstado = {}; // estado -> maior altura de bbox entre os 12 moldes: o passo da escala num quadro fixo
   var moldesGeracao = 0;   // descarta um carregamento antigo se loadMolds for chamado de novo
   var CORTE_MAX = 0.1;     // fração da altura do bbox que pode ser cortada no topo de um quadro de altura fixa
   // 64×64×4 = 16 KB por entrada; o teto em bytes é só uma rede de segurança (go() limpa ao trocar de tela)
@@ -918,6 +936,20 @@
   var brilhoCache = new LruCanvasCache(1024 * 1024);
 
   function estiloDe(element) { return ESTILO_POR_ELEMENTO[element] || 'lisa'; }
+  function portesMolde() {
+    var GD = dadosApi(), v = GD && GD.PORTES && GD.PORTES.valores;
+    return Array.isArray(v) ? v : PORTES_MOLDE;
+  }
+  // porte das opções do desenho: fora da lista (ou ausente), o padrão
+  function porteDe(p) { return typeof p === 'string' && portesMolde().indexOf(p) >= 0 ? p : PORTE_PADRAO; }
+  // chave do molde de um cavalo: '<porte>-<estilo>'
+  function chaveMolde(element, porte) { return porteDe(porte) + '-' + estiloDe(element); }
+  // as 12 chaves dos moldes (porte × estilo)
+  function chavesPortes() {
+    var out = [];
+    portesMolde().forEach(function (p) { ESTILOS_MOLDE.forEach(function (e) { out.push(p + '-' + e); }); });
+    return out;
+  }
   function moldScale(k) { return Math.max(1, Math.round(k * 40 / moldesLref)); }
   // A corrida pode desenhar numa escala de trabalho k/d e deixar o CSS ampliar d vezes (pixelated): os moldes
   // continuam do mesmo tamanho na tela só se a escala deles também dividir certinho. Sem moldes (ainda), não.
@@ -931,9 +963,8 @@
   }
   function ponto(p) { return p && p.length === 2 && isFinite(p[0]) && isFinite(p[1]); }
   function caixa(b) { return b && isFinite(b.x) && isFinite(b.y) && b.w > 0 && b.h > 0; }
-  function aviso(motivo) {
-    if (typeof console !== 'undefined' && console.warn) console.warn('Sprites: moldes desligados (' + motivo + '); os cavalos usam o desenho por código.');
-  }
+  function avisa(msg) { if (typeof console !== 'undefined' && console.warn) console.warn('Sprites: ' + msg); }
+  function aviso(motivo) { avisa('moldes desligados (' + motivo + '); os cavalos usam o desenho por código.'); }
   // cópia rasa da âncora de um quadro com a larguraUtil do molde (a zona da cara usa a do molde, não a do bbox)
   function ancoraComL(a, larguraUtil) {
     var c = {};
@@ -991,30 +1022,46 @@
     img.src = url;
   }
 
-  // tabela = { estilos: { chamas: { json, retrato, parado, galope: [...] }, ... } } (window.__MOLDES).
-  // Só liga os moldes quando os 4 estilos carregam; qualquer falha deixa moldsReady = false, sem exceção,
-  // com um console.warn do motivo (o jogo segue com o desenho por código).
+  // tabela = { estilos: { <chave>: { json, retrato, parado, galope: [...] }, ... } } (window.__MOLDES), com as 12
+  // chaves '<porte>-<estilo>'. Só liga os moldes quando os 12 estão na tabela e todos os quadros carregam; faltou
+  // uma chave, os moldes ficam desligados com um console.warn "conjunto dos portes incompleto (N de 12 moldes;
+  // faltam …)", e qualquer outra falha (quadro que não decodifica, âncora inválida) também deixa moldsReady = false
+  // e moldesConjunto = null, sem exceção, com um console.warn do motivo (o jogo segue com o desenho por código).
+  // Chave a mais na tabela (a de um molde antigo '<estilo>') é ignorada.
   function loadMolds(tabela, pronto) {
     var geracao = ++moldesGeracao;
-    moldsOk = false; api.moldsReady = false; moldes = null; moldCache.clear(); brilhoCache.clear();
+    moldsOk = false; api.moldsReady = false; api.moldesConjunto = null; moldes = null; moldCache.clear(); brilhoCache.clear();
     if (typeof Image === 'undefined' || typeof document === 'undefined') return;   // Node: sem canvas
     var est = tabela && tabela.estilos;
     if (!est) { aviso('a tabela de moldes não tem estilos'); return; }
+    var chaves = chavesPortes(), faltam = chaves.filter(function (ch) { return !(Object.prototype.hasOwnProperty.call(est, ch) && est[ch]); });
+    if (faltam.length) {
+      avisa('conjunto dos portes incompleto (' + (chaves.length - faltam.length) + ' de ' + chaves.length + ' moldes; faltam ' +
+        faltam.join(', ') + '): moldes desligados; os cavalos usam o desenho por código.');
+      return;
+    }
     var novos = {}, pendentes = 1, motivo = null;   // 1 = o próprio laço abaixo (fecha no fim)
     function falha(m) { if (!motivo) motivo = m || 'falha'; }
     function fim() {
       pendentes--;
       if (pendentes > 0 || geracao !== moldesGeracao) return;
       if (motivo) { aviso(motivo); return; }
+      // escala única: o maior larguraUtil entre os 4 moldes do padrão
       moldesLref = 0;
-      ESTILOS_MOLDE.forEach(function (n) { moldesLref = Math.max(moldesLref, novos[n].larguraUtil); });
-      moldes = novos; moldsOk = true; api.moldsReady = true;
+      ESTILOS_MOLDE.forEach(function (e) { moldesLref = Math.max(moldesLref, novos[PORTE_PADRAO + '-' + e].larguraUtil); });
+      // num quadro de altura fixa, o passo da escala sai do mais alto dos 12 moldes em cada estado (ver layoutMolde)
+      alturaMaxEstado = {};
+      Object.keys(novos).forEach(function (ch) {
+        var E = novos[ch].estados;
+        for (var est in E) if (Object.prototype.hasOwnProperty.call(E, est)) alturaMaxEstado[est] = Math.max(alturaMaxEstado[est] || 0, E[est].altura);
+      });
+      moldes = novos; api.moldesConjunto = 'portes'; moldsOk = true; api.moldsReady = true;
       if (typeof pronto === 'function') pronto();
     }
     try {
-      ESTILOS_MOLDE.forEach(function (nome) {
+      chaves.forEach(function (nome) {
         var e = est[nome], J = e && e.json;
-        if (!J || !e.retrato || !e.parado || !e.galope) throw new Error('estilo ausente: ' + nome);
+        if (!J || !e.retrato || !e.parado || !e.galope) throw new Error('molde ausente: ' + nome);
         function refDe(rotulo, lista) {
           try { return refEstado(lista); } catch (x) { throw new Error(nome + '/' + rotulo + ': ' + x.message); }
         }
@@ -1054,9 +1101,14 @@
   // Cores por papel (índice 0–9) para as opções do drawHorse.
   function coresMolde(o) {
     var pal = o.palette || PALETTES.neutro;
-    var coat = pal.coat || '#a0704a', mane = pal.mane || shade(coat, 0.5);
+    var coat = pal.coat || '#a0704a', mane = corCrina(o);
     return [null, MOLDE_CORES_FIXAS.contorno, coat, pal.coatShade || shade(coat, 0.35), mane, shade(mane, 0.35),
       pal.accent || '#f2ead8', o.silks || '#d8353b', MOLDE_CORES_FIXAS.pele, MOLDE_CORES_FIXAS.sela];
+  }
+  // a cor da crina (papel 4) do molde nas opções do drawHorse; o brilho da raridade escolhe a cor por ela
+  function corCrina(o) {
+    var pal = o.palette || PALETTES.neutro;
+    return pal.mane || shade(pal.coat || '#a0704a', 0.5);
   }
 
   function pintaIndices(idx, w, h, cores) {
@@ -1119,8 +1171,9 @@
   }
 
   // Canvas 1× recolorido; a escala fica no drawImage (vizinho mais próximo), então a chave não leva a
-  // escala: uma entrada por estilo|estado|quadro|cores (+ marcas, semente, padrão e capacete, quando vêm nas
-  // opções), em qualquer tamanho de tela. Sem marcas e sem jóquei: a chave e os pixels de antes da parte 2a.
+  // escala: uma entrada por molde|estado|quadro|cores (molde = a chave do molde, com o porte; + marcas,
+  // semente, padrão e capacete, quando vêm nas opções), em qualquer tamanho de tela. Sem marcas e sem jóquei: a
+  // chave e os pixels de antes da parte 2a.
   // As camadas saem do marcas.js só na falta (uma vez por cavalo e quadro; na corrida, na largada).
   function moldeRecolorido(nome, estado, quadro, o) {
     var cores = coresMolde(o), v = visuaisMolde(o);
@@ -1143,7 +1196,7 @@
   function prepararCavalo(opts) {
     opts = opts || {};
     if (!moldsOk) return 0;
-    var nome = estiloDe(opts.element), M = moldes[nome], n = 0, feitos = {}, q;
+    var nome = chaveMolde(opts.element, opts.porte), M = moldes[nome], n = 0, feitos = {}, q;
     [true, false].forEach(function (idle) {
       var estado = estadoMolde({ idle: idle, jockey: opts.jockey, retrato: opts.retrato });
       if (!estado || feitos[estado]) return;
@@ -1162,18 +1215,22 @@
 
   // Posição do molde na tela para drawHorse(ctx, x, y, { scale: k, quadro }): escala S, canto (ox, oy),
   // linha dos cascos (pe), topo do bbox (topo) e centro do corpo (cx), em px. Sem quadro: cascos no chão do
-  // sprite e focinho no NOSE. Com quadro { topo, base } (px): a mesma escala única, o corpo centrado no x do
-  // sprite e
+  // sprite e focinho no NOSE. Com quadro { topo, base } (px): o corpo centrado no x do sprite e
   //   • se o bbox do estado cabe na altura do quadro: cascos no chão do sprite, ou mais baixos (até a base)
   //     o necessário para o cavalo ficar centrado na altura do quadro;
-  //   • se não cabe: cascos na base e o topo cortado — no máximo CORTE_MAX da altura do bbox; acima disso a
-  //     escala desce um passo (rede de segurança: com os moldes atuais o corte é de ~4 % no retrato de ondas).
+  //   • se não cabe: cascos na base e o topo cortado — no máximo CORTE_MAX da altura do bbox.
+  // A escala do quadro é a única (moldScale) enquanto o MAIS ALTO dos 12 moldes naquele estado (alturaMaxEstado)
+  // couber com corte de no máximo CORTE_MAX; senão desce um passo, para TODOS os moldes juntos. Assim a escala segue
+  // única entre portes e estilos em qualquer k: decidir pelo bbox de cada molde fazia o robusto (o retrato mais alto)
+  // descer de S 3 para S 2 em k = 4 (dpr 1,25 a 1,4, o zoom de 125 % do Windows) e ficar menor que o padrão. O corte de
+  // cada molde fica no máximo o do mais alto (com os moldes dos portes, até 6,9 % no retrato do robusto-ondas em k = 3,
+  // 6 e 9). A outra saída, tolerar mais corte, cortaria a cabeça do robusto (14 % em k = 4).
   function layoutMolde(nome, estado, x, y, k, quadro) {
     var M = moldes[nome], ref = M.estados[estado];
     var S = moldScale(k), pe = y + (FOOT_Y + 1) * k, ox;
     if (quadro && isFinite(quadro.topo) && isFinite(quadro.base) && quadro.base > quadro.topo) {
-      var livre = quadro.base - quadro.topo;
-      while (S > 1 && ref.altura * S - livre > CORTE_MAX * ref.altura * S) S--;
+      var livre = quadro.base - quadro.topo, alta = Math.max(ref.altura, alturaMaxEstado[estado] || 0);
+      while (S > 1 && alta * S - livre > CORTE_MAX * alta * S) S--;
       if (ref.altura * S > livre) pe = quadro.base;
       else pe = Math.min(quadro.base, Math.max(pe, Math.round((quadro.topo + quadro.base + ref.altura * S) / 2)));
       ox = Math.round(x + HORSE_W / 2 * k - ref.centro * S);
@@ -1185,7 +1242,7 @@
 
   function drawHorseMolde(ctx, x, y, o, estado) {
     var k = Math.max(1, Math.round(o.scale || 1));
-    var nome = estiloDe(o.element), M = moldes[nome];
+    var nome = chaveMolde(o.element, o.porte), M = moldes[nome];
     var quadro = estado === 'galope' ? quadroGalope(M, o.frame) : 0;
     x = Math.round(x); y = Math.round(y);
     var L = layoutMolde(nome, estado, x, y, k, o.quadro);
@@ -1212,8 +1269,9 @@
 
   // Silhueta do cavalo (com jóquei) tingida de uma cor, para o contorno de skill da corrida: o desenho
   // normal (molde ou código, sem sombra) vai para um canvas pequeno, é tingido com 'source-in' e fica no
-  // cache por estilo|estado|quadro|escala|cor. O quadro é o que drawHorse desenha de fato: com molde, o do
-  // molde (quadroGalope: 9 quadros no ciclo dos 6 do código; parado e retrato = 0); sem molde, o do código
+  // cache por molde|estado|quadro|escala|cor (molde = a chave do molde, com o porte). O quadro é o que
+  // drawHorse desenha de fato: com molde, o do molde (quadroGalope: 9 quadros no ciclo dos 6 do código; parado
+  // e retrato = 0); sem molde, o do código
   // (e a pose parada). Desenha 4 cópias deslocadas 1 px de arte (= k px) para cima/baixo/esquerda/direita;
   // chamar ANTES de drawHorse para o contorno ficar atrás. Cache LRU com teto em bytes (8 MB), limpo junto
   // com o dos moldes (limparCacheMoldes, ao trocar de tela).
@@ -1223,8 +1281,8 @@
     var k = Math.max(1, Math.round(opts.scale || 1));
     var estado = moldsOk ? estadoMolde(opts) : null, key;
     if (estado) {
-      var estilo = estiloDe(opts.element);
-      key = 'm|' + estilo + '|' + estado + '|' + (estado === 'galope' ? quadroGalope(moldes[estilo], opts.frame) : 0);
+      var nome = chaveMolde(opts.element, opts.porte);
+      key = 'm|' + nome + '|' + estado + '|' + (estado === 'galope' ? quadroGalope(moldes[nome], opts.frame) : 0);
     } else {
       key = 'c|' + opts.element + '|' + mod(Math.floor(opts.frame || 0), GALLOP.length) + '|' + (opts.idle ? 1 : 0);
     }
@@ -1266,7 +1324,7 @@
     x = Math.round(x); y = Math.round(y);
     var estado = moldsOk ? estadoMolde(opts) : null;
     if (!estado) return { x: x, y: y, w: HORSE_W * k, h: HORSE_H * k };
-    var nome = estiloDe(opts.element), ref = moldes[nome].estados[estado];
+    var nome = chaveMolde(opts.element, opts.porte), ref = moldes[nome].estados[estado];
     var L = layoutMolde(nome, estado, x, y, k, opts.quadro);
     return { x: L.ox + ref.esq * L.S, y: L.topo, w: (ref.dir - ref.esq) * L.S, h: L.pe - L.topo };
   }
@@ -1279,11 +1337,19 @@
   // arte = u: com molde, a escala do molde (S = caixa.w ÷ colunas do bbox do estado, o inverso do horseBox);
   // sem molde, a escala k do sprite por código.
   //   • brilho da crina (Marcas.BRILHO; só com molde): a máscara dos papéis 4 e 5 do quadro, recortada na
-  //     crina e pintada na cor da raridade CLAREADA (light(cor, RARIDADE_CLARO), a mesma do rastro; a cor pura some
-  //     numa crina da mesma cor, como o verde do Mágico na crina da Grama) (brilhoCache, uma por estilo|estado|quadro|cor). Uma fatia de 3 colunas (alfa
-  //     BRILHO[raridade]: a mistura de 25/30/45 % da cor clareada), com 1 coluna a meio alfa de cada lado, atravessa a
-  //     crina da cabeça para a cauda a cada BRILHO_CICLO (1,2 s); fatia sem crina não desenha. Com o.reduzido,
-  //     a fatia fica parada na coluna com mais crina da metade da cabeça (a crina do pescoço, não a cauda).
+  //     crina e pintada numa cor da raridade que SE AJUSTA À CRINA (corBrilho; brilhoCache, uma por
+  //     molde|estado|quadro|cor). Uma fatia de 3 colunas (alfa BRILHO[raridade]: a mistura de 25/30/45 % dessa cor),
+  //     com 1 coluna a meio alfa de cada lado, atravessa a crina da cabeça para a cauda a cada BRILHO_CICLO (1,2 s);
+  //     fatia sem crina não desenha. Com o.reduzido, a fatia fica parada na coluna com mais crina da metade da
+  //     cabeça (a crina do pescoço, não a cauda).
+  //     A cor (corBrilho, parte 2b, 2026-11-13): o brilho é um reflexo claro, então fica a cor da raridade
+  //     CLAREADA (light) em RARIDADE_CLARO (35 %) sempre que ela muda a luminância relativa (WCAG) da crina
+  //     (corCrina: palette.mane, o papel 4), misturada no alfa de pico, em pelo menos BRILHO_CONTRASTE (0,05). Só
+  //     quando não muda, vale a clareada ou a escurecida (shade), a de maior diferença; se nenhuma das duas chega a
+  //     0,05, as duas vão mais longe (BRILHO_PASSOS, até 65 %) e fica a primeira que chega (no último passo, a de maior
+  //     diferença). A cor pura some numa crina do mesmo tom (o verde do Mágico na crina verde da Grama) e a clareada,
+  //     numa crina de luminância parecida (o Mágico na crina laranja do Tição: 0,005, onde fica a escurecida); o matiz
+  //     fica o da raridade. Só cores, sem sorteio.
   //   • faíscas: Marcas.faiscas(o.semente, Marcas.N_FAISCAS[raridade]) (0/0/3/5/5), na caixa com margem de
   //     FAISCA_MARGEM px de arte (com o.quadro, presas na altura do quadro), no grid de arte da caixa. Cruz de
   //     1 px de arte (barra 3u × u + barra u × 3u, mesmo centro) que pisca (alfa 0,15 … 1) pelo tempo o.t e pela
@@ -1296,7 +1362,9 @@
   // Math.random; o globalAlpha volta ao que era. Sem o marcas.js ou o GameData (o wiki só embute o
   // sprites.js), não desenha nada.
   var BRILHO_CICLO = 1.2;
-  var RARIDADE_CLARO = 0.35;   // quanto a cor da raridade é clareada (light) no brilho da crina e no rastro
+  var RARIDADE_CLARO = 0.35;   // quanto a cor da raridade é clareada (light) no rastro e no 1º passo do brilho da crina
+  var BRILHO_PASSOS = [RARIDADE_CLARO, 0.45, 0.55, 0.65];   // clareada ou escurecida no brilho, da mais fiel à mais forte
+  var BRILHO_CONTRASTE = 0.05;   // diferença de luminância relativa mínima entre a crina e a crina com o brilho no pico
   var FAISCA_MARGEM = 3, FAISCA_CICLO = 1.6, FAISCA_REDUZIDO = 0.85;
   var RASTRO_PASSO = 0.45;
   var RASTRO_FAIXAS = [{ dy: -2, alfa: 0.45, l: 0.8 }, { dy: 0, alfa: 0.6, l: 1 }, { dy: 2, alfa: 0.45, l: 0.65 }];
@@ -1320,7 +1388,7 @@
     var a0 = typeof ctx.globalAlpha === 'number' ? ctx.globalAlpha : 1, t = o.reduzido ? 0 : (Number(o.t) || 0);
     var L = layoutRaridade(caixa, o);
     if (R.rastro && L.galope) desenhaRastro(ctx, caixa, L, R, t, a0);
-    if (R.brilho && L.molde) desenhaBrilho(ctx, L.molde, R, t, !!o.reduzido, a0);
+    if (R.brilho && L.molde) desenhaBrilho(ctx, L.molde, corBrilho(R.cor, corCrina(o), R.brilho), R.brilho, t, !!o.reduzido, a0);
     if (R.faiscas) desenhaFaiscas(ctx, caixa, o, R, L.u, t, a0);
     ctx.globalAlpha = a0;
   }
@@ -1330,7 +1398,7 @@
   function layoutRaridade(caixa, o) {
     var k = Math.max(1, Math.round(o.scale || 1)), estado = moldsOk ? estadoMolde(o) : null;
     if (!estado) return { u: k, molde: null, galope: !o.idle && !o.retrato, rear: [caixa.x + ANCHORS.rear[0] * k, caixa.y + ANCHORS.rear[1] * k] };
-    var nome = estiloDe(o.element), M = moldes[nome], ref = M.estados[estado];
+    var nome = chaveMolde(o.element, o.porte), M = moldes[nome], ref = M.estados[estado];
     var S = Math.max(1, Math.round(caixa.w / (ref.dir - ref.esq)));
     var ox = caixa.x - ref.esq * S, oy = caixa.y + caixa.h - (ref.footY + 1) * S;
     return {
@@ -1368,8 +1436,37 @@
     return hit.c ? hit : null;
   }
 
-  function desenhaBrilho(ctx, Lm, R, t, reduzido, a0) {
-    var mk = mascaraCrina(Lm, light(R.cor, RARIDADE_CLARO));
+  // Luminância relativa (WCAG 2) de '#rrggbb'.
+  function lumRel(c) {
+    var v = hexToRgb(c).map(function (x) { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+  }
+  // A cor do brilho da crina (ver o cabeçalho do drawRaridade): a cor da raridade clareada em 35 % quando ela já muda a
+  // luminância da crina misturada no alfa de pico em BRILHO_CONTRASTE; senão, a clareada ou a escurecida, a que mais
+  // muda, indo mais longe (BRILHO_PASSOS) até chegar. Em cache por cor|crina|alfa (no máximo 512 entradas; depois,
+  // recomeça).
+  var corBrilhoCache = {}, corBrilhoN = 0;
+  function corBrilho(cor, crina, alfa) {
+    var key = cor + '|' + crina + '|' + alfa, hit = corBrilhoCache[key];
+    if (hit) return hit;
+    var L0 = lumRel(crina), melhor = light(cor, BRILHO_PASSOS[0]), i, j, c, d;
+    var dMelhor = Math.abs(lumRel(mix(crina, melhor, alfa)) - L0);
+    // a clareada que já aparece fica (o brilho é um reflexo claro); senão, a busca pela maior diferença
+    if (!(dMelhor >= BRILHO_CONTRASTE)) dMelhor = -1;
+    for (i = 0; i < BRILHO_PASSOS.length && !(dMelhor >= BRILHO_CONTRASTE); i++) {
+      c = [light(cor, BRILHO_PASSOS[i]), shade(cor, BRILHO_PASSOS[i])];
+      for (j = 0; j < 2; j++) {
+        d = Math.abs(lumRel(mix(crina, c[j], alfa)) - L0);
+        if (d > dMelhor) { dMelhor = d; melhor = c[j]; }
+      }
+    }
+    if (++corBrilhoN > 512) { corBrilhoCache = {}; corBrilhoN = 1; }
+    corBrilhoCache[key] = melhor;
+    return melhor;
+  }
+
+  function desenhaBrilho(ctx, Lm, cor, alfa, t, reduzido, a0) {
+    var mk = mascaraCrina(Lm, cor);
     if (!mk) return;
     // centro da fatia, em colunas do recorte: entra pela direita (cabeça) e sai pela esquerda a cada ciclo
     var c = reduzido ? mk.pico : Math.round(mk.w + 1 - frac(t / BRILHO_CICLO) * (mk.w + 3));
@@ -1378,7 +1475,7 @@
       var sx = Math.max(0, fatias[i][0]), ex = Math.min(mk.w, fatias[i][0] + fatias[i][1]), n = 0, x;
       for (x = sx; x < ex; x++) n += mk.col[x];
       if (!n) continue;
-      ctx.globalAlpha = a0 * R.brilho * fatias[i][2];
+      ctx.globalAlpha = a0 * alfa * fatias[i][2];
       ctx.drawImage(mk.c, sx, 0, ex - sx, mk.h, Lm.ox + (mk.x0 + sx) * Lm.S, Lm.oy + mk.y0 * Lm.S, (ex - sx) * Lm.S, mk.h * Lm.S);
     }
   }
@@ -1424,9 +1521,10 @@
   // Âncoras nas unidades do sprite por código (some x + v·escala, y + v·escala), para o estado pedido
   // ('galope' por padrão, 'parado' ou 'retrato'), na pista (sem quadro). Com a escala, a conversão é exata
   // para aquele tamanho; sem ela, usa a proporção ideal 40 / Lref. Sem moldes: ANCHORS. O focinho é sempre NOSE.
-  function anchorsFor(element, scale, estado) {
+  // porte (opcional, como o opts.porte do drawHorse): o molde do porte; fora da lista, o padrão.
+  function anchorsFor(element, scale, estado, porte) {
     if (!moldsOk) return ANCHORS;
-    var M = moldes[estiloDe(element)];
+    var M = moldes[chaveMolde(element, porte)];
     var ref = M.estados[estado === 'parado' || estado === 'retrato' ? estado : 'galope'];
     var k = scale > 0 ? Math.max(1, Math.round(scale)) : 0;
     var r = k ? moldScale(k) / k : 40 / moldesLref;
@@ -1434,19 +1532,20 @@
     return { rear: conv(ref.rear), nose: conv(ref.nose), saddle: conv(ref.saddle) };
   }
 
-  // Para testes: o layout e o quadro do galope que drawHorse usaria (null sem moldes).
-  function layoutTeste(element, estado, x, y, k, quadro) {
-    return moldsOk ? layoutMolde(estiloDe(element), estado, Math.round(x), Math.round(y), Math.max(1, Math.round(k)), quadro) : null;
+  // Para testes: o layout e o quadro do galope que drawHorse usaria (null sem moldes); porte opcional, como no drawHorse.
+  function layoutTeste(element, estado, x, y, k, quadro, porte) {
+    return moldsOk ? layoutMolde(chaveMolde(element, porte), estado, Math.round(x), Math.round(y), Math.max(1, Math.round(k)), quadro) : null;
   }
-  function quadroGalopeTeste(element, frame) { return moldsOk ? quadroGalope(moldes[estiloDe(element)], frame) : null; }
+  function quadroGalopeTeste(element, frame, porte) { return moldsOk ? quadroGalope(moldes[chaveMolde(element, porte)], frame) : null; }
 
   function limparCacheMoldes() { moldCache.clear(); silCache.clear(); brilhoCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
   function cacheMoldes() { return moldCache.map.size; }
   function cacheSilhuetas() { return { n: silCache.map.size, bytes: silCache.bytes, max: silCache.max }; }
 
-  // Para o comparativo.html: um quadro do molde pintado com cores livres (índice -> cor), sem cache.
-  function moldeCanvas(estilo, estado, quadro, cores) {
-    var M = moldsOk && moldes[estilo];
+  // Para o comparativo.html: um quadro do molde pintado com cores livres (índice -> cor), sem cache. chave = a do
+  // molde ('<porte>-<estilo>'); outra chave: null.
+  function moldeCanvas(chave, estado, quadro, cores) {
+    var M = moldsOk && moldes[chave];
     if (!M) return null;
     var idx = indicesMolde(M, estado, estado === 'galope' ? mod(quadro | 0, M.frames) : 0);
     return idx ? pintaIndices(idx, M.w, M.h, cores) : null;
@@ -2465,6 +2564,7 @@
     // moldes do PixelLab (ver a seção MOLDES)
     ESTILO_POR_ELEMENTO: ESTILO_POR_ELEMENTO,
     moldsReady: false,
+    moldesConjunto: null,   // 'portes' (os 12 moldes ligados) ou null (ver loadMolds)
     loadMolds: loadMolds,
     anchorsFor: anchorsFor,
     escalaMoldeCompativel: escalaMoldeCompativel,
@@ -2475,6 +2575,7 @@
     _cacheSilhuetas: cacheSilhuetas,
     _layoutMolde: layoutTeste,
     _quadroGalope: quadroGalopeTeste,
+    _corBrilho: corBrilho,   // para testes: a cor do brilho da crina (cor da raridade, crina, alfa de pico)
     drawTrack: drawTrack,
     cloudCanvas: cloudCanvas,
     drawTrail: drawTrail,

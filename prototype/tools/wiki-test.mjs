@@ -78,9 +78,9 @@ confere(/<span class="el el--geral"><img /.test(a.html), 'skills gerais sem o í
 // 2a. marcas e jóquei (parte 2a dos cavalos): seção com os genes, a herança, o jóquei, a raridade e a tabela dos 15 cavalos
 {
   const ini = a.md.indexOf('## Marcas e jóquei')
-  const fim = a.md.indexOf('<a id="cruzamento">')
+  const fim = a.md.indexOf('## Portes')
   const sec = ini >= 0 && fim > ini ? a.md.slice(ini, fim) : ''
-  confere(sec.length > 0, 'falta a seção "Marcas e jóquei" no md (antes do Cruzamento)')
+  confere(sec.length > 0, 'falta a seção "Marcas e jóquei" no md (antes dos Portes)')
   confere(/<section class="secao" id="marcas"/.test(a.html), 'falta a seção "marcas" no html')
   for (const v of G.MARCAS.cara) confere(sec.includes(v === 'frente' ? 'frente branca' : v), `seção Marcas sem o valor de cara "${v}"`)
   for (const v of G.MARCAS.patas) confere(sec.includes(`| Patas | ${G.MARCAS.patas.join(', ').replace(/, (\d)$/, ' e $1')} meias brancas`), `seção Marcas sem a lista de patas (${v})`)
@@ -91,7 +91,8 @@ confere(/<span class="el el--geral"><img /.test(a.html), 'skills gerais sem o í
   confere(sec.includes(`o capacete inicial é ${G.JOQUEI.nomes[G.JOQUEI.capacete]}`), 'seção Marcas sem o nome do capacete inicial')
   confere(!/#[0-9a-fA-F]{6}/.test(sec), 'a seção Marcas mostra um hex de cor ("#rrggbb")')
   confere(/\| Comum \| nada \|/.test(sec), 'raridade Comum devia ser "nada"')
-  confere(/\| Mágico \| brilho na crina \(mistura de 25% da cor da raridade clareada\) \|/.test(sec), 'raridade Mágico: só brilho de 25%')
+  confere(/\| Mágico \| brilho na crina \(mistura de 25% da cor da raridade\) \|/.test(sec), 'raridade Mágico: só brilho de 25%')
+  confere(sec.includes('na cor da raridade clareada; numa crina em que essa cor quase não aparece, na clareada ou na escurecida, a que mais se destaca'), 'raridade: a cor do brilho que se ajusta à crina (parte 2b)')
   confere(/\| Raro \| brilho na crina \(mistura de 30%[^|]*3 faíscas/.test(sec), 'raridade Raro: brilho de 30% e 3 faíscas')
   confere(/\| Lendário \| brilho na crina \(mistura de 45%[^|]*5 faíscas/.test(sec), 'raridade Lendário: brilho de 45% e 5 faíscas')
   confere(/\| Mítico \| brilho na crina \(mistura de 45%[^|]*5 faíscas[^|]*rastro/.test(sec), 'raridade Mítico: 5 faíscas e rastro')
@@ -103,6 +104,25 @@ confere(/<span class="el el--geral"><img /.test(a.html), 'skills gerais sem o í
   }
   const linhasTab = sec.slice(sec.indexOf('### Marcas dos iniciais e selvagens')).split('\n').filter((l) => /^\| /.test(l)).length - 2
   confere(linhasTab === 15, `tabela de marcas devia ter 15 linhas, tem ${linhasTab}`)
+}
+
+// 2b'. portes (parte 2b dos cavalos): seção com os 3 portes, a herança e a tabela dos 15 cavalos, sem valores internos
+{
+  const ini = a.md.indexOf('## Portes')
+  const fim = a.md.indexOf('<a id="cruzamento">')
+  const sec = ini >= 0 && fim > ini ? a.md.slice(ini, fim) : ''
+  confere(sec.length > 0, 'falta a seção "Portes" no md (antes do Cruzamento)')
+  confere(/<section class="secao" id="portes"/.test(a.html), 'falta a seção "portes" no html')
+  for (const v of G.PORTES.valores) confere(sec.includes(`| ${G.PORTES.nomes[v]} |`), `seção Portes sem o porte "${G.PORTES.nomes[v]}"`)
+  confere(sec.includes('50% para cada um'), 'seção Portes sem os 50% de herança')
+  confere(sec.includes('10% de chance de **mutação**'), 'seção Portes sem os 10% de mutação')
+  confere(!/\bpadrao\b/.test(sec), 'a seção Portes mostra o valor interno "padrao"')
+  const catalogo = G.STARTERS.concat(G.WILD_HORSES)
+  for (const h of catalogo) {
+    confere(new RegExp(`\\| ${h.name} \\| [^|]+ \\| ${G.PORTES.nomes[h.porte]} \\|`).test(sec), `tabela de portes: linha de ${h.name} não confere com o data.js`)
+  }
+  const linhasTab = sec.slice(sec.indexOf('### Porte dos iniciais e selvagens')).split('\n').filter((l) => /^\| /.test(l)).length - 2
+  confere(linhasTab === 15, `tabela de portes devia ter 15 linhas, tem ${linhasTab}`)
 }
 
 // 2b. ícones: skill (e skill de tipo), status, clima, piso, liga e raridade que têm arquivo ganham o <img> antes do nome

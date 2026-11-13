@@ -14,7 +14,9 @@
  *   1 cara:  distância (euclidiana) ao nose ≤ caraRaio · L (0,19; L = ancora.larguraUtil, a largura do retrato do
  *            molde, igual em todos os quadros; sem ela, bbox.w) e y ≤ nose.y + caraBaixo (1 px). Raio e corte
  *            presos ao focinho ⇒ a zona não cresce nem encolhe no galope; o alvo é a cabeça, sem pescoço nem
- *            orelhas (nos 4 moldes: borda de baixo sempre nose.y + 1, área variando ≤ 18% nos 9 quadros);
+ *            orelhas (nos 4 moldes antigos: borda de baixo sempre nose.y + 1, área variando ≤ 18% nos 9 quadros;
+ *            nos 12 dos portes, borda em nose.y ou nose.y + 1 e área variando até 111%: ver PENDENTES_2A no
+ *            moldes-test);
  *   2 patas: y > footY − barriga · bbox.h (0,30), a "linha da barriga";
  *   3 corpo: o resto.
  * PERNAS (perna[i] = −1 fora das patas):
@@ -39,7 +41,8 @@
  *   CENTRO DA CARA (S): o pixel de cara mais perto do ponto médio entre o nose e o pixel mais alto da zona da
  *     cara (o primeiro na ordem de leitura); empate: o primeiro na ordem de leitura.
  *   estrela: S e os 2 primeiros pixels de cara entre (x+1,y), (x,y+1), (x−1,y), (x,y−1) ⇒ até 3 px (2 a 3 em
- *            todos os quadros dos 4 moldes; só 1 se S for um pixel de cara isolado).
+ *            todos os quadros dos 4 moldes antigos; nos 12 dos portes, 1 px em 3 quadros do galope do robusto-ondas;
+ *            só 1 se S for um pixel de cara isolado).
  *   listra:  pixels de cara a até 0,75 px do segmento S → F (1 a 2 px de largura, da testa ao focinho), F = o
  *            pixel de cara mais perto do nose (o nose costuma ser contorno, e o focinho pode fazer curva).
  *   frente:  toda a zona da cara.
@@ -63,13 +66,17 @@
  *   capacete: grupos 4-conexos do papel 7; o de cima é o primeiro com ≥ 3 px na ordem de leitura (nenhum com
  *     3: o primeiro). LINHA DO CAPACETE = maior y desse grupo, cortada no fundo do rosto (o grupo 8-conexo de
  *     pele que tem o pixel de pele mais alto) quando o rosto acaba antes — o cabelo pode ligar o capacete à
- *     roupa. Capacete = os pixels do grupo de cima até a linha.
+ *     roupa. Quadro SEM pele (sem rosto para cortar; nos moldes, o galope do robusto-ondas e o parado do
+ *     esguio-folhas): a linha fica a no máximo LIMITES.capaceteSemPele − 1 linhas abaixo do topo do grupo — sem
+ *     o corte, o grupo de cima é a cabeça e o tronco juntos, e o capacete cobria metade da roupa.
+ *     Capacete = os pixels do grupo de cima até a linha.
  *   padrão (GameData.JOQUEI.padroes; fora da lista vale liso): só no papel 7 fora do capacete e abaixo da
  *     linha, em (u, v) relativos à referência (como as marcas do corpo), ~1/3 dos pixels:
  *       liso nada · listras u % 3 = 0 · faixa (u + v) % 6 < 2 · xadrez casas 2×2 alternadas sem o canto de baixo
  *       à direita (3/8) · estrelas cruzes de 5 px numa grade 4×4, fileiras alternadas deslocadas 2 (5/16) ·
  *       losangos (u + v) % 6 = 0 ou (u − v) % 6 = 0, a rede de diagonais (11/36). (% sempre positivo.)
- *     Nos 40 quadros parado/galope dos 4 moldes o padrão fica entre 18% e 44% da seda (sempre menos que a base).
+ *     Nos 120 quadros parado/galope dos 12 moldes dos portes o padrão fica entre 15% e 45% da seda (sempre menos
+ *     que a base; nos 4 moldes antigos, entre 18% e 44%).
  *
  * ================== FAÍSCAS: faiscas(semente, n) =============================================
  * n faíscas { dx, dy, fase }: dx, dy em [0, 1] na caixa do cavalo com margem (quem desenha escolhe a margem),
@@ -91,8 +98,11 @@
   var CARA_BAIXO = 1;     // a cara vai até nose.y + CARA_BAIXO (corte preso ao focinho)
   var BARRIGA = 0.30;     // linha da barriga = footY − BARRIGA · bbox.h
   var LINHAS_CASCOS = 3;  // linhas de baixo de uma perna onde se procuram cascos separados
+  // capacete de um quadro SEM pele do jóquei (sem rosto para cortar a linha): no máximo estas linhas a partir do topo da
+  // roupa. É o 3º quartil da altura do capacete nos 110 quadros com pele dos 12 moldes dos portes (mediana 3; 75 % até 4)
+  var CAPACETE_SEM_PELE = 4;
   var MAX_FAISCAS = 16;
-  var LIMITES = { caraRaio: CARA_RAIO, caraBaixo: CARA_BAIXO, barriga: BARRIGA, linhasCascos: LINHAS_CASCOS };
+  var LIMITES = { caraRaio: CARA_RAIO, caraBaixo: CARA_BAIXO, barriga: BARRIGA, linhasCascos: LINHAS_CASCOS, capaceteSemPele: CAPACETE_SEM_PELE };
   if (Object.freeze) Object.freeze(LIMITES);
 
   var N_FAISCAS = { comum: 0, magico: 0, raro: 3, lendario: 5, mitico: 5 };
@@ -383,8 +393,10 @@
     if (!roupa.length) return out;
     var cima = roupa[0];
     for (i = 0; i < roupa.length; i++) if (roupa[i].px.length >= 3) { cima = roupa[i]; break; }
-    var linha = cima.y1, pele = grupos(idx, w, h, 8, true);
+    var linha = cima.y1, pele = grupos(idx, w, h, 8, true), topo = h;
+    for (i = 0; i < cima.px.length; i++) topo = Math.min(topo, (cima.px[i] / w) | 0);
     if (pele.length && pele[0].y1 < linha) linha = pele[0].y1;
+    else if (!pele.length) linha = Math.min(linha, topo + CAPACETE_SEM_PELE - 1);
     for (i = 0; i < cima.px.length; i++) if (((cima.px[i] / w) | 0) <= linha) out[cima.px[i]] = 2;
     var f = Object.prototype.hasOwnProperty.call(PADROES, padrao) && emLista(G.JOQUEI.padroes, padrao) ? PADROES[padrao] : PADROES.liso;
     var ref = referencia(ancora);

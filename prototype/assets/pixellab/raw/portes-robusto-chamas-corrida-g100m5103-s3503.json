@@ -1,0 +1,35 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-13T13:13:21.605Z",
+  "pedido": {
+    "description": "side view, facing right, mane and tail shaped like flickering flames, very short stocky heavy draft-type horse inspired by the Crioulo breed, massive barrel-shaped body that is very wide and very deep, very short thick sturdy legs that are shorter than the depth of the body, short very thick muscular neck, broad wide chest, low heavy stance close to the ground, large heavy head, full thick mane, clearly much lower, wider and heavier than an average horse, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flickering flames clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "side",
+    "direction": "east",
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "detail": "medium detail",
+    "no_background": true,
+    "seed": 3503,
+    "init_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1815 bytes, sha256 c79b756a70b74704>",
+      "format": "png"
+    },
+    "init_image_strength": 100
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1893 bytes, sha256 5696a52d399dfc36>",
+      "format": "png"
+    }
+  }
+}

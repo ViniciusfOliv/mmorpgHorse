@@ -1,0 +1,29 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-13T11:40:47.660Z",
+  "pedido": {
+    "description": "side view, facing right, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "side",
+    "direction": "east",
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "detail": "medium detail",
+    "no_background": true,
+    "seed": 4301
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1206 bytes, sha256 246315ccfe18999b>",
+      "format": "png"
+    }
+  }
+}

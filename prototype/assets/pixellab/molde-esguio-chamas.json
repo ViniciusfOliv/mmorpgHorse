@@ -1,0 +1,73 @@
+{
+  "estilo": "esguio-chamas",
+  "w": 64,
+  "h": 64,
+  "footY": 55,
+  "frames": 9,
+  "larguraUtil": 52,
+  "limiares": {
+    "retrato": {
+      "pelagem": {
+        "limiar": 43,
+        "procedural": false
+      },
+      "crina": {
+        "limiar": 95,
+        "procedural": false
+      }
+    },
+    "parado": {
+      "pelagem": {
+        "limiar": 48,
+        "procedural": false
+      },
+      "crina": {
+        "limiar": 60,
+        "procedural": false
+      }
+    },
+    "galope": {
+      "pelagem": {
+        "limiar": 33,
+        "procedural": false
+      },
+      "crina": {
+        "limiar": 51,
+        "procedural": false
+      }
+    }
+  },
+  "seeds": {
+    "retrato": 3701,
+    "parado": 3701,
+    "montado": 3701,
+    "galope": 3701
+  },
+  "gerado": "2026-11-13",
+  "contagens": {
+    "retrato": {"aproximados":0,"remapeados":6,"contornados":0},
+    "parado": {"aproximados":17,"remapeados":11,"contornados":0},
+    "galope-0": {"aproximados":0,"remapeados":4,"contornados":5},
+    "galope-1": {"aproximados":0,"remapeados":2,"contornados":5},
+    "galope-2": {"aproximados":0,"remapeados":0,"contornados":4},
+    "galope-3": {"aproximados":0,"remapeados":0,"contornados":10},
+    "galope-4": {"aproximados":0,"remapeados":0,"contornados":4},
+    "galope-5": {"aproximados":0,"remapeados":2,"contornados":4},
+    "galope-6": {"aproximados":0,"remapeados":0,"contornados":3},
+    "galope-7": {"aproximados":0,"remapeados":0,"contornados":5},
+    "galope-8": {"aproximados":0,"remapeados":0,"contornados":8}
+  },
+  "ancoras": {
+    "retrato": {"footY":55,"nose":[56,20],"rear":[8,26],"saddle":null,"bbox":{"x":5,"y":8,"w":52,"h":48}},
+    "parado": {"footY":55,"nose":[56,20],"rear":[8,26],"saddle":[33,23],"bbox":{"x":7,"y":8,"w":50,"h":48}},
+    "galope-0": {"footY":51,"nose":[57,23],"rear":[6,30],"saddle":[35,22],"bbox":{"x":6,"y":11,"w":52,"h":41}},
+    "galope-1": {"footY":50,"nose":[57,23],"rear":[6,31],"saddle":[35,22],"bbox":{"x":6,"y":11,"w":52,"h":40}},
+    "galope-2": {"footY":50,"nose":[58,24],"rear":[10,31],"saddle":[35,22],"bbox":{"x":7,"y":12,"w":52,"h":39}},
+    "galope-3": {"footY":51,"nose":[58,25],"rear":[11,31],"saddle":[34,23],"bbox":{"x":10,"y":13,"w":49,"h":39}},
+    "galope-4": {"footY":51,"nose":[57,24],"rear":[9,32],"saddle":[34,22],"bbox":{"x":7,"y":12,"w":51,"h":40}},
+    "galope-5": {"footY":51,"nose":[56,23],"rear":[6,31],"saddle":[34,22],"bbox":{"x":6,"y":11,"w":51,"h":41}},
+    "galope-6": {"footY":51,"nose":[56,23],"rear":[5,31],"saddle":[35,22],"bbox":{"x":5,"y":11,"w":52,"h":41}},
+    "galope-7": {"footY":51,"nose":[57,24],"rear":[6,27],"saddle":[34,22],"bbox":{"x":6,"y":12,"w":52,"h":40}},
+    "galope-8": {"footY":51,"nose":[58,25],"rear":[6,28],"saddle":[34,23],"bbox":{"x":6,"y":13,"w":53,"h":39}}
+  }
+}

@@ -672,7 +672,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
   const efeitoRar = (id) => {
     if (!(id in MK.N_FAISCAS) || !(id in MK.BRILHO)) throw new Error(`wiki: raridade sem efeito em marcas.js: ${id}`)
     const n = MK.N_FAISCAS[id], b = MK.BRILHO[id], t = []
-    if (b > 0) t.push(`brilho na crina (mistura de ${pct(b, 0)} da cor da raridade clareada)`)
+    if (b > 0) t.push(`brilho na crina (mistura de ${pct(b, 0)} da cor da raridade)`)
     if (n > 0) t.push(`${n} faíscas piscando em volta`)
     if (id === 'mitico') t.push('rastro de luz atrás do cavalo no galope da corrida')
     return t.length ? t.join(' e ') : 'nada'
@@ -704,10 +704,32 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
       'O jóquei dos rivais (padrão e capacete) sai da seed da sala.'
     ] },
     { t: 'h3', txt: 'Raridade visível' },
-    { t: 'p', txt: `Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada ${num(brilhoCiclo)} s. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.` },
+    { t: 'p', txt: `Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada ${num(brilhoCiclo)} s, na cor da raridade clareada; numa crina em que essa cor quase não aparece, na clareada ou na escurecida, a que mais se destaca. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.` },
     { t: 'tabela', cab: ['Raridade', 'Efeito'], linhas: B.RARITY_IDS.map((r) => [nomeRar(r), efeitoRar(r)]) },
     { t: 'h3', txt: 'Marcas dos iniciais e selvagens' },
     { t: 'tabela', cab: ['Cavalo', 'Cara', 'Patas (meias)', 'Corpo'], linhas: G.STARTERS.concat(G.WILD_HORSES).map(marcasHorse) }
+  ])
+
+  // 9c. Portes -------------------------------------------------------------------------------------------
+  const PT = G.PORTES
+  const porteRot = (id) => { if (!(PT.valores.indexOf(id) >= 0) || !PT.nomes[id]) throw new Error(`wiki: porte desconhecido "${id}"`); return PT.nomes[id] }
+  const porteHorse = (h) => [h.name, nomeEl(h.element), porteRot(h.porte)]
+  add('portes', 'Portes', 'Portes', [
+    { t: 'p', txt: 'O porte é o tamanho e a forma do corpo do cavalo. Como as marcas, é só desenho: não entra em status, Poder, preço, chance de skill, aluguel nem na corrida. O mesmo porte tem o mesmo corpo nos três elementos.' },
+    { t: 'tabela', cab: ['Porte', 'Como se reconhece de lado'], linhas: [
+      [porteRot('esguio'), 'pernas longas e finas, pescoço comprido, cabeça pequena, cauda alta'],
+      [porteRot('padrao'), 'meio-termo: corpo equilibrado, perfil de cabeça levemente curvo'],
+      [porteRot('robusto'), 'mais baixo e largo, peito e pescoço grossos, pernas curtas e fortes, crina farta']
+    ] },
+    { t: 'h3', txt: 'Herança no cruzamento' },
+    { t: 'lista', itens: [
+      `O potro herda o porte de um dos pais (égua ou garanhão), ${pct(0.5, 0)} para cada um, com ${pct(PT.mutacao, 0)} de chance de **mutação**: o porte vira um dos ${PT.valores.length} da lista, com a mesma chance para todos (pode sair o mesmo).`,
+      'O sorteio usa uma sequência própria da seed do cruzamento, separada das marcas. O resto do potro nasce igual a antes de existirem portes.',
+      `Cavalo sem porte válido (save antigo) vale pelo porte do modelo do catálogo ou, na falta dele, por um porte calculado do identificador dele: o mesmo cavalo tem sempre o mesmo porte. O padrão do jogo é ${porteRot(PT.padrao)}.`,
+      `${nomeRar('mitico')} nunca nasce de cruzamento, com ou sem porte.`
+    ] },
+    { t: 'h3', txt: 'Porte dos iniciais e selvagens' },
+    { t: 'tabela', cab: ['Cavalo', 'Elemento', 'Porte'], linhas: G.STARTERS.concat(G.WILD_HORSES).map(porteHorse) }
   ])
 
   // 10. Cruzamento ---------------------------------------------------------------------------------------

@@ -1,0 +1,35 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-13T13:46:13.346Z",
+  "pedido": {
+    "description": "side view, facing right, mane and tail made of leaves, balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail made of leaves clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "side",
+    "direction": "east",
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "detail": "medium detail",
+    "no_background": true,
+    "seed": 3408,
+    "init_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1772 bytes, sha256 c827130f0ed80d1a>",
+      "format": "png"
+    },
+    "init_image_strength": 100
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1562 bytes, sha256 dfc9440b40088b91>",
+      "format": "png"
+    }
+  }
+}

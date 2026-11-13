@@ -200,21 +200,28 @@ export function sombrearRegioes(idx, w, h, { regioes = [2, 4] } = {}) {
   return { idx: out, alterados };
 }
 
+// limparJoquei(): seda e pele separadas do jóquei SÓ por contorno — até `passos` pixels andando só por contorno a partir
+// do que fica (no máximo passos − 1 pixels de contorno no meio) — e encostadas na caixa do maior componente + `margem`
+// px ficam (tarefa 6a: o capacete do galope do robusto-chamas, separado do tronco por 2 px de contorno do rosto).
+export const JOQUEI_CONTORNO = Object.freeze({ passos: 3, margem: 2 });
 /**
  * Limpeza espacial dos papéis do jóquei (7/8/9). Sem jóquei (retrato): todo pixel 7/8/9 é remapeado.
  * Com jóquei: fica o maior componente conexo (8-vizinhança) de pixels {7,8,9} e os componentes "junto do
  * jóquei", em cadeia: a até 2 px (Chebyshev) de um componente que já fica (capacete → rosto → seda); e, se
  * o componente for majoritariamente cinza (9), também a até 4 px ou embaixo do jóquei (sobrepõe a faixa x
  * do maior componente ± 2 e começa até 8 linhas abaixo do fim dele) — a sela fica sob a calça e o contorno,
- * a 3–6 px da seda; rédea na cabeça e casco cinza saem.
+ * a 3–6 px da seda; rédea na cabeça e casco cinza saem. E, se o componente não for majoritariamente cinza, também
+ * quando ele só está separado dos que ficam por contorno (até JOQUEI_CONTORNO.passos andando só por pixels 1) e
+ * encosta na caixa do maior componente + JOQUEI_CONTORNO.margem: o capacete separado do tronco pela linha do rosto.
  * Os demais 7/8/9 são remapeados para o papel 1–6
  * mais comum entre os 8 vizinhos (desempate 4, 2, 6, 1, depois 3, 5), em passadas simultâneas até
  * resolver os pixels cercados só por jóquei; sem vizinho nenhum ⇒ 1 (contorno).
  * @param {Uint8Array} idx
- * @param {{ comJoquei?: boolean }} opts
+ * @param {{ comJoquei?: boolean, porContorno?: boolean }} opts porContorno: false desliga a regra do "separado só
+ *        por contorno" (é o que a caixa do jóquei da crinaEscura usa)
  * @returns {{ idx: Uint8Array, remapeados: number }}
  */
-export function limparJoquei(idx, w, h, { comJoquei = false } = {}) {
+export function limparJoquei(idx, w, h, { comJoquei = false, porContorno = true } = {}) {
   const out = Uint8Array.from(idx), pendente = new Uint8Array(w * h);
   const viz = i => {
     const x = i % w, y = (i / w) | 0, r = [];
@@ -255,8 +262,24 @@ export function limparJoquei(idx, w, h, { comJoquei = false } = {}) {
         }
         const perto = new Array(tamanhos.length).fill(99);
         for (let i = 0; i < w * h; i++) if (comp[i] >= 0 && dist[i] >= 0) perto[comp[i]] = Math.min(perto[comp[i]], dist[i]);
+        // separado só por contorno: distância andando só por pixels de contorno (1) a partir dos que ficam
+        const distC = new Int8Array(w * h).fill(-1);
+        fila = [];
+        for (let i = 0; i < w * h; i++) if (comp[i] >= 0 && fica[comp[i]]) { distC[i] = 0; fila.push(i); }
+        const pertoC = new Array(tamanhos.length).fill(99);
+        for (let d = 1; d <= JOQUEI_CONTORNO.passos && fila.length; d++) {
+          const prox = [];
+          for (const i of fila) for (const n of viz(i)) {
+            if (distC[n] >= 0) continue;
+            if (comp[n] >= 0 && !fica[comp[n]]) pertoC[comp[n]] = Math.min(pertoC[comp[n]], d);
+            else if (idx[n] === 1) { distC[n] = d; prox.push(n); }
+          }
+          fila = prox;
+        }
+        const naCaixa = c => { const [x0, y0, x1, y1] = caixas[c], m = JOQUEI_CONTORNO.margem; return x1 >= mx0 - m && y1 >= my0 - m && x0 <= mx1 + m && y0 <= my1 + m; };
         perto.forEach((d, c) => {
-          if (fica[c] || !(d <= 2 || (cinzas[c] * 2 > tamanhos[c] && (d <= 4 || embaixo(c))))) return;
+          const soContorno = porContorno && cinzas[c] * 2 <= tamanhos[c] && pertoC[c] <= JOQUEI_CONTORNO.passos && naCaixa(c);
+          if (fica[c] || !(d <= 2 || soContorno || (cinzas[c] * 2 > tamanhos[c] && (d <= 4 || embaixo(c))))) return;
           fica[c] = true; mudou = true;
         });
       }
@@ -309,11 +332,12 @@ export function limiarOtsu(valores) {
  * puxando para o magenta; longe do jóquei, limparJoquei remapeia). Laranja (25–38°) vai para a família de
  * centro mais próximo (0°, 55°, 120°, 225°) e conta em `aproximados`. Alfa < 128 ⇒ 0. `lum` é a luminância
  * (0,299 R + 0,587 G + 0,114 B) de cada pixel. `magenta` marca os pixels que viraram seda pela faixa magenta:
- * os que a limpeza tirar do jóquei contam como aproximados em posProcessar().
- * @returns {{ idx: Uint8Array, lum: Float32Array, magenta: Uint8Array, aproximados: number, opacos: number, w: number, h: number }}
+ * os que a limpeza tirar do jóquei contam como aproximados em posProcessar(). `cor` é o RGB de cada pixel opaco
+ * (0xRRGGBB), para as correções que decidem por cor no grupo de quadros (corrigirGrupo).
+ * @returns {{ idx: Uint8Array, lum: Float32Array, magenta: Uint8Array, cor: Uint32Array, aproximados: number, opacos: number, w: number, h: number }}
  */
 export function classificarFamilias(rgba, w, h) {
-  const idx = new Uint8Array(w * h), lum = new Float32Array(w * h), magenta = new Uint8Array(w * h);
+  const idx = new Uint8Array(w * h), lum = new Float32Array(w * h), magenta = new Uint8Array(w * h), cor = new Uint32Array(w * h);
   const CENTROS = [[0, 2], [55, 7], [120, 4], [225, 6]];
   const distMatiz = (a, b) => { const d = Math.abs(a - b) % 360; return Math.min(d, 360 - d); };
   let aproximados = 0, opacos = 0;
@@ -322,7 +346,7 @@ export function classificarFamilias(rgba, w, h) {
     opacos++;
     const r = rgba[i * 4], g = rgba[i * 4 + 1], b = rgba[i * 4 + 2];
     const max = Math.max(r, g, b), min = Math.min(r, g, b), c = max - min, s = max ? c / max : 0;
-    lum[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+    lum[i] = 0.299 * r + 0.587 * g + 0.114 * b; cor[i] = (r << 16) | (g << 8) | b;
     let hue = 0;
     if (c) hue = max === r ? 60 * (((g - b) / c) % 6) : max === g ? 60 * ((b - r) / c + 2) : 60 * ((r - g) / c + 4);
     if (hue < 0) hue += 360;
@@ -341,7 +365,258 @@ export function classificarFamilias(rgba, w, h) {
     }
     idx[i] = p;
   }
-  return { idx, lum, magenta, aproximados, opacos, w, h };
+  return { idx, lum, magenta, cor, aproximados, opacos, w, h };
+}
+
+// Candidata a sombra da pelagem em sombraMagenta(): magenta escura (maior canal < 128), muito saturada (S ≥ 0,75) e do
+// lado vermelho da faixa (matiz ≥ 300°). As sombras de pelagem medidas nos crus dos portes ficam em 314–330°, S 0,82–0,99
+// e maior canal 60–118; as cores roxas escuras (crina, linhas e calça do jóquei, 270–299°) e as pouco saturadas
+// (linhas acinzentadas) ficam de fora.
+export const MAGENTA_ESCURO = 128, MAGENTA_SAT = 0.75, MAGENTA_MATIZ = 300;
+function sombraDaPelagem(c) {
+  const r = c >> 16, g = (c >> 8) & 255, b = c & 255, max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  if (!max || max >= MAGENTA_ESCURO || d / max < MAGENTA_SAT || max !== r) return false;
+  let hue = 60 * (((g - b) / d) % 6);
+  if (hue < 0) hue += 360;
+  return hue >= MAGENTA_MATIZ;
+}
+
+/**
+ * Sombra da pelagem que caiu na faixa magenta (tarefa 6a dos portes, 2026-11-13). O pixel art escurece a pelagem
+ * puxando o matiz para o roxo: numa pelagem carmim ou castanho-arroxeada, as sombras (#3c0229, #450336, #76013c…)
+ * caem em 314–330°, a faixa que classificarFamilias() dá à sombra da seda. Encostadas no jóquei (que monta no
+ * cavalo), elas entravam no componente dele e o limparJoquei as mantinha como seda: o corpo saía com listras da cor
+ * da seda.
+ * Decide por COR (o RGB exato), com os quadros do grupo juntos (o galope não pisca): uma cor magenta escura, muito
+ * saturada e do lado vermelho da faixa (sombraDaPelagem: MAGENTA_ESCURO, MAGENTA_SAT, MAGENTA_MATIZ; a seda e a
+ * sela magenta são claras, a crina e as linhas roxas ficam abaixo de 300°) cujos pixels encostam (8-vizinhança,
+ * somada no grupo) mais na pelagem (família 2) do que no jóquei (7/8/9 fora da faixa magenta e as magenta que não
+ * são candidatas) vira pelagem (2), sem a marca de magenta: entra no Otsu da pelagem e no claro × sombra como
+ * qualquer pixel dela. Em cadeia: a cor que virou pelagem conta como pelagem para as outras, até estabilizar (só
+ * cresce, então a ordem não importa). Uma candidata que encosta mais no jóquei (a sombra da seda rosa do jóquei)
+ * continua seda, como antes. Vale para todos os pixels da cor, mesmo os que não encostam na pelagem: a sombra sob a
+ * sela fica cercada de contorno e de sela, e ligada à pelagem por ela voltava a ser seda (testado; o preço é um pixel
+ * solto da cor na cauda virar pelagem, como no galope 2 do robusto-ondas). Os 4 moldes antigos não têm candidata:
+ * saem iguais. Pura (devolve cópias).
+ * @param {Array<ReturnType<typeof classificarFamilias>>} fams os quadros de um grupo (retrato, parado ou o galope)
+ * @returns {{ fams: Array<ReturnType<typeof classificarFamilias>>, cores: number[], pixels: number }} os quadros
+ *          corrigidos, as cores que viraram pelagem (0xRRGGBB, em ordem) e quantos pixels mudaram
+ */
+export function sombraMagenta(fams) {
+  const escuro = (f, i) => f.magenta[i] && sombraDaPelagem(f.cor[i]);
+  const candidatas = new Set();
+  for (const f of fams) for (let i = 0; i < f.idx.length; i++) if (escuro(f, i)) candidatas.add(f.cor[i]);
+  const pelagem = new Set();
+  // contatos de cada candidata com o jóquei (fixos) e com a pelagem (crescem com as cores que viram pelagem)
+  const contar = () => {
+    const pel = new Map(), joq = new Map();
+    for (const f of fams) {
+      const { w, h } = f;
+      for (let i = 0; i < f.idx.length; i++) {
+        if (!escuro(f, i) || pelagem.has(f.cor[i])) continue;
+        const x = i % w, y = (i / w) | 0, c = f.cor[i];
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx, yy = y + dy;
+          if ((!dx && !dy) || xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+          const j = yy * w + xx, v = f.idx[j];
+          if (!v || f.cor[j] === c) continue;
+          if (v === 2 || (f.magenta[j] && pelagem.has(f.cor[j]))) pel.set(c, (pel.get(c) || 0) + 1);
+          else if (JOQUEI(v) && (!f.magenta[j] || !candidatas.has(f.cor[j]))) joq.set(c, (joq.get(c) || 0) + 1);
+        }
+      }
+    }
+    return { pel, joq };
+  };
+  for (let mudou = true; mudou;) {
+    mudou = false;
+    const { pel, joq } = contar();
+    for (const c of [...candidatas].sort((a, b) => a - b)) {
+      if (pelagem.has(c) || !((pel.get(c) || 0) > (joq.get(c) || 0))) continue;
+      pelagem.add(c); mudou = true;
+    }
+  }
+  let pixels = 0;
+  const saida = fams.map(f => {
+    if (!pelagem.size) return f;
+    const idx = Uint8Array.from(f.idx), magenta = Uint8Array.from(f.magenta);
+    for (let i = 0; i < idx.length; i++) if (magenta[i] && pelagem.has(f.cor[i])) { idx[i] = 2; magenta[i] = 0; pixels++; }
+    return { ...f, idx, magenta };
+  });
+  return { fams: saida, cores: [...pelagem].sort((a, b) => a - b), pixels };
+}
+
+// ---------------------------------------------------------------- cru de cores naturais (tarefa 6a dos portes)
+// Às vezes o PixelLab ignora as cores de papel pedidas por texto e desenha um cavalo de cores naturais: pelagem
+// castanha, crina e cauda pretas ou azul-marinho, jóquei de seda rosa, carmim ou laranja. Foi o que aconteceu com o
+// robusto guiado pelo padrão com força 35 (2026-11-13) e, por herança do init_image, com as versões dele: em todo
+// parado, pose de corrida e galope do robusto nenhum pixel caiu na família da crina (o retrato saiu com a crina
+// verde pedida). Nesse caso — grupo sem NENHUM pixel da família crina, o "modo natural" — a crina é procurada pela
+// forma (crinaEscura) e a seda que caiu na família da pelagem, pela cor (sedaNaPelagem). Grupo com crina pedida
+// (os 4 moldes antigos e os portes que seguiram as cores) não passa por aqui.
+
+// Vizinhos (8) de i num quadro w × h.
+function vizinhos8(i, w, h) {
+  const x = i % w, y = (i / w) | 0, r = [];
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    if ((dx || dy) && x + dx >= 0 && x + dx < w && y + dy >= 0 && y + dy < h) r.push(i + dy * w + dx);
+  }
+  return r;
+}
+// Componentes 8-conexos dos pixels com dentro(i) verdadeiro: lista de listas de índices, na ordem de varredura.
+function componentes8(n, w, h, dentro) {
+  const visto = new Uint8Array(n), lista = [];
+  for (let i = 0; i < n; i++) {
+    if (visto[i] || !dentro(i)) continue;
+    const pilha = [i], m = [];
+    visto[i] = 1;
+    while (pilha.length) {
+      const j = pilha.pop();
+      m.push(j);
+      for (const k of vizinhos8(j, w, h)) if (!visto[k] && dentro(k)) { visto[k] = 1; pilha.push(k); }
+    }
+    lista.push(m);
+  }
+  return lista;
+}
+
+/** Grupo no modo natural: nenhum pixel da família crina (4) em nenhum quadro. */
+export function modoNatural(fams) {
+  return fams.length > 0 && fams.every(f => !f.idx.includes(4));
+}
+
+/**
+ * Seda do jóquei que caiu na família da pelagem (modo natural, com jóquei). A seda carmim ou rosa do jóquei
+ * (#90274c, #ec578e…, matiz 336–345°) cai na família vermelha, como a pelagem castanha (352–357°): o tronco do
+ * jóquei saía da cor da pelagem e, sem ele, o capacete e o rosto ficavam soltos e a limpeza os apagava (jóquei
+ * escuro). A cor separa os dois: as cores da pelagem são as do maior componente 8-conexo de pixels da família 2 de
+ * cada quadro, mais as dos componentes em que elas são maioria (em cadeia, até estabilizar); uma cor da família 2
+ * que fica de fora (só aparece em componentes à parte, como o tronco do jóquei) vira seda (7) se algum pixel dela
+ * encosta no jóquei (7/8/9) ou, em cadeia, numa cor que já virou seda. Ela entra no jóquei pela limpeza de sempre
+ * (limparJoquei): longe dele, volta para o vizinho mais comum. Pura (devolve cópias).
+ * @param {Array<ReturnType<typeof classificarFamilias>>} fams
+ * @returns {{ fams: Array<ReturnType<typeof classificarFamilias>>, cores: number[], pixels: number }}
+ */
+export function sedaNaPelagem(fams) {
+  const comps = fams.map(f => componentes8(f.idx.length, f.w, f.h, i => f.idx[i] === 2));
+  const pelagem = new Set();
+  fams.forEach((f, k) => {
+    const maior = comps[k].reduce((a, b) => (b.length > a.length ? b : a), []);
+    for (const j of maior) pelagem.add(f.cor[j]);
+  });
+  for (let mudou = true; mudou;) {
+    mudou = false;
+    fams.forEach((f, k) => comps[k].forEach(m => {
+      if (m.filter(j => pelagem.has(f.cor[j])).length * 2 <= m.length) return;
+      for (const j of m) if (!pelagem.has(f.cor[j])) { pelagem.add(f.cor[j]); mudou = true; }
+    }));
+  }
+  // em cadeia: a cor de fora que encosta no jóquei ou numa cor que já virou seda (o brilho do tronco só encosta na
+  // sombra dele)
+  const seda = new Set();
+  for (let mudou = true; mudou;) {
+    mudou = false;
+    for (const f of fams) for (let i = 0; i < f.idx.length; i++) {
+      if (f.idx[i] !== 2 || pelagem.has(f.cor[i]) || seda.has(f.cor[i])) continue;
+      if (vizinhos8(i, f.w, f.h).some(j => JOQUEI(f.idx[j]) || (f.idx[j] === 2 && seda.has(f.cor[j])))) { seda.add(f.cor[i]); mudou = true; }
+    }
+  }
+  let pixels = 0;
+  const saida = fams.map(f => {
+    if (!seda.size) return f;
+    const idx = Uint8Array.from(f.idx);
+    for (let i = 0; i < idx.length; i++) if (idx[i] === 2 && seda.has(f.cor[i])) { idx[i] = 7; pixels++; }
+    return { ...f, idx };
+  });
+  return { fams: saida, cores: [...seda].sort((a, b) => a - b), pixels };
+}
+
+// crinaEscura(): luminância abaixo da qual um pixel (fora da pelagem e da pele) conta como escuro; pixels mínimos de
+// uma mecha; fração da altura da pelagem (de cima) até onde a mecha tem de começar.
+export const CRINA_ESCURA = Object.freeze({ lum: 80, minimo: 6, topo: 0.5 });
+/**
+ * Crina e cauda escuras pela forma (modo natural, um quadro por vez). No cru natural a crina e a cauda são pretas ou
+ * azul-marinho — às vezes da mesma cor do contorno (robusto-folhas parado, robusto-chamas corrida) —, então a cor
+ * não basta: o contorno é uma linha fina, e a crina e a cauda são manchas escuras GROSSAS presas no alto do cavalo.
+ * 1. Escuros: pixels opacos com luminância < CRINA_ESCURA.lum que não são pelagem (2/3) nem pele (8).
+ * 2. Grossos: os escuros que fazem parte de um bloco 2 × 2 todo escuro (a abertura morfológica 2 × 2). A linha de
+ *    contorno de 1 px some; a mecha de 2 px da crina esticada no galope fica (com 3 × 3 ela sumia em quase todo
+ *    quadro e a cor da crina piscava).
+ * 3. Com jóquei, tira dos grossos a caixa do jóquei (a dos pixels de seda e pele, 7/8, que a limparJoquei mantém,
+ *    + 1 px; sem o cinza, porque a rédea vai até a boca do cavalo e a caixa cobriria a crina): as botas pretas entre a
+ *    seda e a sela e o capacete escuro não são crina (a base da crina que cai dentro dela fica como estava).
+ * 4. Cada componente 8-conexo do que sobrou, com ≥ CRINA_ESCURA.minimo pixels, vira crina se começa (pixel mais alto)
+ *    na metade de cima da pelagem (CRINA_ESCURA.topo: a crina nasce nas orelhas e a cauda na garupa; as patas escuras
+ *    e as pernas do outro lado, sombreadas, começam abaixo da barriga).
+ * 5. Fica como contorno a borda da mancha: o pixel que encosta (4-vizinhança) no fundo transparente.
+ * evitar = cores que outra correção já decidiu (a seda de sedaNaPelagem: a sombra do tronco do jóquei é escura).
+ * A crina marcada entra na família 4 (claro × sombra pelo Otsu do grupo, ou o sombreado procedural). Mecha de 1 px
+ * não é achada e fica como estava (contorno ou detalhe). Pura.
+ * @param {ReturnType<typeof classificarFamilias>} f
+ * @param {{ evitar?: Set<number>, comJoquei?: boolean }} opts
+ * @returns {{ fam: ReturnType<typeof classificarFamilias>, pixels: number }}
+ */
+export function crinaEscura(f, { evitar = new Set(), comJoquei = false } = {}) {
+  const { w, h, idx, lum } = f, n = w * h;
+  const escuro = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (idx[i] && idx[i] !== 2 && idx[i] !== 3 && idx[i] !== 8 && lum[i] < CRINA_ESCURA.lum && !evitar.has(f.cor[i])) escuro[i] = 1;
+  const grosso = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = i % w, y = (i / w) | 0;
+    if (x < w - 1 && y < h - 1 && escuro[i] && escuro[i + 1] && escuro[i + w] && escuro[i + w + 1]) grosso[i] = grosso[i + 1] = grosso[i + w] = grosso[i + w + 1] = 1;
+  }
+  // altura da pelagem e caixa do jóquei
+  let y0 = h, y1 = -1;
+  for (let i = 0; i < n; i++) if (idx[i] === 2 || idx[i] === 3) { const y = (i / w) | 0; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (y1 < 0) return { fam: f, pixels: 0 };
+  const yTopo = y0 + CRINA_ESCURA.topo * (y1 - y0 + 1);
+  let cx0 = w, cy0 = h, cx1 = -1, cy1 = -1;
+  if (comJoquei) {
+    // a caixa de sempre (sem a regra do "separado só por contorno"): com o capacete do galope dentro, ela subia até a
+    // cabeça do jóquei, que fica em cima do pescoço, e cortava a crina
+    const lj = limparJoquei(idx, w, h, { comJoquei: true, porContorno: false }).idx;
+    for (let j = 0; j < n; j++) {
+      if (!(idx[j] === 7 || idx[j] === 8) || !JOQUEI(lj[j])) continue;
+      const x = j % w, y = (j / w) | 0;
+      cx0 = Math.min(cx0, x - 1); cy0 = Math.min(cy0, y - 1); cx1 = Math.max(cx1, x + 1); cy1 = Math.max(cy1, y + 1);
+    }
+  }
+  const naCaixa = j => { const x = j % w, y = (j / w) | 0; return x >= cx0 && x <= cx1 && y >= cy0 && y <= cy1; };
+  const borda = j => {
+    const x = j % w, y = (j / w) | 0;
+    return x === 0 || y === 0 || x === w - 1 || y === h - 1 || !idx[j - 1] || !idx[j + 1] || !idx[j - w] || !idx[j + w];
+  };
+  const out = Uint8Array.from(idx), magenta = Uint8Array.from(f.magenta);
+  let pixels = 0;
+  for (const m of componentes8(n, w, h, i => grosso[i] && !naCaixa(i))) {
+    if (m.length < CRINA_ESCURA.minimo) continue;
+    const topo = Math.min(...m.map(j => (j / w) | 0));
+    if (topo >= yTopo) continue;
+    // a crina roxa escura caiu na faixa magenta: deixa de ser "magenta tirado do jóquei" (não conta como aproximado)
+    for (const j of m) if (!borda(j)) { out[j] = 4; magenta[j] = 0; pixels++; }
+  }
+  return { fam: pixels ? { ...f, idx: out, magenta } : f, pixels };
+}
+
+/**
+ * As correções que olham o grupo de quadros inteiro (retrato, parado ou o galope), entre classificarFamilias() e
+ * limiaresDeTons(): a sombra da pelagem na faixa magenta (sombraMagenta, sempre) e, no modo natural (grupo sem
+ * família crina), a seda que caiu na pelagem (sedaNaPelagem, só com jóquei) e a crina escura pela forma
+ * (crinaEscura, quadro a quadro). Pura.
+ * @param {Array<ReturnType<typeof classificarFamilias>>} fams
+ * @param {{ comJoquei?: boolean }} opts
+ * @returns {{ fams: Array<ReturnType<typeof classificarFamilias>>, sombraMagenta: { cores: number[], pixels: number },
+ *   natural: boolean, seda: { cores: number[], pixels: number }, crina: number[] }} crina = pixels marcados por quadro
+ */
+export function corrigirGrupo(fams, { comJoquei = false } = {}) {
+  const sm = sombraMagenta(fams);
+  let saida = sm.fams, seda = { cores: [], pixels: 0 }, crina = saida.map(() => 0);
+  const natural = modoNatural(saida);
+  if (natural) {
+    if (comJoquei) { const s = sedaNaPelagem(saida); saida = s.fams; seda = { cores: s.cores, pixels: s.pixels }; }
+    const evitar = new Set(seda.cores), ce = saida.map(f => crinaEscura(f, { evitar, comJoquei }));
+    saida = ce.map(c => c.fam); crina = ce.map(c => c.pixels);
+  }
+  return { fams: saida, sombraMagenta: { cores: sm.cores, pixels: sm.pixels }, natural, seda, crina };
 }
 
 /**
@@ -384,18 +659,78 @@ export function contornar(idx, w, h) {
   return { idx: out, adicionados };
 }
 
+// Crina solta (revisão da T7 da 2b, 2026-11-13). O PixelLab às vezes pinta a canela e o focinho na cor pedida para a
+// crina (no cru do robusto, a canela e a ponta do focinho saem verdes como a crina; no galope do padrão e dos
+// esguios, pedaços das patas), e a classificação por cor os põe nos papéis 4/5: no jogo eles pegam a cor da crina do
+// cavalo (a canela amarela do Fogaréu, verde-escura do Mandacaru) e o brilho da raridade passa por eles. Regra, por
+// componente 8-conexo de crina (4/5) do quadro:
+//   • canela: o componente fica inteiro abaixo da linha da barriga (y > footY − CRINA_SOLTA.barriga × altura do bbox,
+//     a fração do Marcas.zonas). Crina e cauda de verdade sempre passam acima da linha: a cauda que desce até o chão
+//     é o mesmo componente da parte de cima dela (a canela de trás do robusto, a 2–4 px da cauda, é outro);
+//   • focinho: algum pixel do componente a até CRINA_SOLTA.raioFocinho px (Chebyshev) do nose das âncoras, e o topo
+//     dele no máximo CRINA_SOLTA.acimaFocinho linhas acima do nose (o topete e a crina ficam mais altos). Com raio 1
+//     só a ponta do focinho entra; a mancha verde na cara do esguio-chamas no galope, a 2 px, fica crina.
+// O componente deixa de ser crina:
+//   • canela: vira pelagem-sombra (3) se encosta (4-vizinhança) na pelagem — é a continuação da perna, como no parado e
+//     no galope, e as meias podem pintar a canela —, senão contorno (1), um pedaço solto na linha do casco;
+//   • focinho: vira detalhe (6), o papel que o pedido dá ao focinho (COR: "blue (#0000ff) hooves and muzzle") e que o
+//     focinho tem nos outros retratos (os do esguio e do padrão, e o do robusto-folhas, o mesmo porte).
+// Não muda a opacidade, então as âncoras e a larguraUtil não mudam.
+export const CRINA_SOLTA = Object.freeze({ barriga: 0.30, raioFocinho: 1, acimaFocinho: 2 });
+
+/**
+ * Tira da crina (papéis 4/5) os pedaços de canela e de focinho (ver CRINA_SOLTA).
+ * @param {Uint8Array} idx índices de papel (w × h)
+ * @returns {{ idx: Uint8Array, alterados: number, pedacos: Array<{ onde: 'canela'|'focinho', papel: 1|3|6, px: number }> }}
+ */
+export function soltarCrina(idx, w, h) {
+  const out = Uint8Array.from(idx), a = ancoras(idx, w, h), pedacos = [];
+  if (!a.nose) return { idx: out, alterados: 0, pedacos };
+  const crina = v => v === 4 || v === 5, linha = a.footY - CRINA_SOLTA.barriga * a.bbox.h;
+  const visto = new Uint8Array(w * h);
+  let alterados = 0;
+  for (let i0 = 0; i0 < w * h; i0++) {
+    if (!crina(idx[i0]) || visto[i0]) continue;
+    const px = [], pilha = [i0];
+    visto[i0] = 1;
+    let y0 = h, perto = Infinity, pelagem = false;
+    while (pilha.length) {
+      const j = pilha.pop(), x = j % w, y = (j / w) | 0;
+      px.push(j);
+      if (y < y0) y0 = y;
+      perto = Math.min(perto, Math.max(Math.abs(x - a.nose[0]), Math.abs(y - a.nose[1])));
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy, k = yy * w + xx;
+        if ((!dx && !dy) || xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        if (crina(idx[k])) { if (!visto[k]) { visto[k] = 1; pilha.push(k); } }
+        else if ((!dx || !dy) && (idx[k] === 2 || idx[k] === 3)) pelagem = true;
+      }
+    }
+    const onde = y0 > linha ? 'canela'
+      : perto <= CRINA_SOLTA.raioFocinho && y0 >= a.nose[1] - CRINA_SOLTA.acimaFocinho ? 'focinho' : null;
+    if (!onde) continue;
+    const papel = onde === 'focinho' ? 6 : pelagem ? 3 : 1;
+    for (const j of px) out[j] = papel;
+    alterados += px.length;
+    pedacos.push({ onde, papel, px: px.length });
+  }
+  return { idx: out, alterados, pedacos };
+}
+
 /**
  * Quadro classificado → papéis finais: separa claro/sombra com os limiares do grupo, limpa os papéis do
  * jóquei (limparJoquei), sombreia por procedimento as famílias marcadas como `procedural` e, só com
  * `contorno: true` (montado e galope, que o animate devolve sem borda), fecha o contorno (contornar). No
- * retrato e no parado o contorno fica como veio, para o validar() continuar pegando silhueta aberta.
+ * retrato e no parado o contorno fica como veio, para o validar() continuar pegando silhueta aberta. Por último,
+ * tira da crina os pedaços de canela e de focinho (soltarCrina; `crinaSolta: false` pula essa etapa, só para os
+ * testes compararem o antes e o depois).
  * `aproximados` = os da classificação + magenta que a limpeza tirou do jóquei (virou papel de cavalo).
  * Devolve o formato de normalizar() (serve para validar()) e as contagens das etapas.
  * @param {{ idx: Uint8Array, lum: Float32Array, magenta?: Uint8Array, aproximados: number, opacos: number, w: number, h: number }} fam
  * @param {ReturnType<typeof limiaresDeTons>} tons
- * @param {{ comJoquei?: boolean, contorno?: boolean }} opts
+ * @param {{ comJoquei?: boolean, contorno?: boolean, crinaSolta?: boolean }} opts
  */
-export function posProcessar(fam, tons, { comJoquei = false, contorno = false } = {}) {
+export function posProcessar(fam, tons, { comJoquei = false, contorno = false, crinaSolta = true } = {}) {
   const { w, h } = fam, idx = Uint8Array.from(fam.idx);
   for (const [nome, claro] of Object.entries(FAMILIAS)) {
     const t = tons[nome];
@@ -405,9 +740,10 @@ export function posProcessar(fam, tons, { comJoquei = false, contorno = false } 
   const regioes = Object.entries(FAMILIAS).filter(([nome]) => tons[nome].procedural).map(([, claro]) => claro);
   const s = regioes.length ? sombrearRegioes(lj.idx, w, h, { regioes }) : { idx: lj.idx, alterados: 0 };
   const c = contorno ? contornar(s.idx, w, h) : { idx: s.idx, adicionados: 0 };
+  const sc = crinaSolta ? soltarCrina(c.idx, w, h) : { idx: c.idx, alterados: 0 };
   let aproximados = fam.aproximados;
   if (fam.magenta) for (let i = 0; i < idx.length; i++) if (fam.magenta[i] && !JOQUEI(lj.idx[i])) aproximados++;
   const papeis = new Set();
-  for (const v of c.idx) if (v) papeis.add(v);
-  return { idx: c.idx, papeis, aproximados, opacos: fam.opacos, w, h, remapeados: lj.remapeados, sombreados: s.alterados, contornados: c.adicionados };
+  for (const v of sc.idx) if (v) papeis.add(v);
+  return { idx: sc.idx, papeis, aproximados, opacos: fam.opacos, w, h, remapeados: lj.remapeados, sombreados: s.alterados, contornados: c.adicionados, crinaSolta: sc.alterados };
 }

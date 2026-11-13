@@ -14,6 +14,7 @@
 - [Pista e simulação](#pista)
 - [Montarias](#montarias)
 - [Marcas e jóquei](#marcas)
+- [Portes](#portes)
 - [Cruzamento (Haras)](#cruzamento)
 - [Equipamento](#equipamento)
 - [Economia](#economia)
@@ -706,15 +707,15 @@ Marcas, jóquei e brilho da raridade são só desenho: não entram em status, Po
 
 ### Raridade visível
 
-Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada 1,2 s. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.
+Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada 1,2 s, na cor da raridade clareada; numa crina em que essa cor quase não aparece, na clareada ou na escurecida, a que mais se destaca. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.
 
 | Raridade | Efeito |
 | --- | --- |
 | Comum | nada |
-| Mágico | brilho na crina (mistura de 25% da cor da raridade clareada) |
-| Raro | brilho na crina (mistura de 30% da cor da raridade clareada) e 3 faíscas piscando em volta |
-| Lendário | brilho na crina (mistura de 45% da cor da raridade clareada) e 5 faíscas piscando em volta |
-| Mítico | brilho na crina (mistura de 45% da cor da raridade clareada) e 5 faíscas piscando em volta e rastro de luz atrás do cavalo no galope da corrida |
+| Mágico | brilho na crina (mistura de 25% da cor da raridade) |
+| Raro | brilho na crina (mistura de 30% da cor da raridade) e 3 faíscas piscando em volta |
+| Lendário | brilho na crina (mistura de 45% da cor da raridade) e 5 faíscas piscando em volta |
+| Mítico | brilho na crina (mistura de 45% da cor da raridade) e 5 faíscas piscando em volta e rastro de luz atrás do cavalo no galope da corrida |
 
 ### Marcas dos iniciais e selvagens
 
@@ -735,6 +736,45 @@ Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada 1,2 s.
 | Jequitibá | listra | 1 | ruão (pelos brancos salpicados) |
 | Boitatá | estrela | 2 | malhado (manchas brancas grandes) |
 | Iara | nenhuma | 4 | ruão (pelos brancos salpicados) |
+
+<a id="portes"></a>
+
+## Portes
+
+O porte é o tamanho e a forma do corpo do cavalo. Como as marcas, é só desenho: não entra em status, Poder, preço, chance de skill, aluguel nem na corrida. O mesmo porte tem o mesmo corpo nos três elementos.
+
+| Porte | Como se reconhece de lado |
+| --- | --- |
+| Esguio | pernas longas e finas, pescoço comprido, cabeça pequena, cauda alta |
+| Padrão | meio-termo: corpo equilibrado, perfil de cabeça levemente curvo |
+| Robusto | mais baixo e largo, peito e pescoço grossos, pernas curtas e fortes, crina farta |
+
+### Herança no cruzamento
+
+- O potro herda o porte de um dos pais (égua ou garanhão), 50% para cada um, com 10% de chance de **mutação**: o porte vira um dos 3 da lista, com a mesma chance para todos (pode sair o mesmo).
+- O sorteio usa uma sequência própria da seed do cruzamento, separada das marcas. O resto do potro nasce igual a antes de existirem portes.
+- Cavalo sem porte válido (save antigo) vale pelo porte do modelo do catálogo ou, na falta dele, por um porte calculado do identificador dele: o mesmo cavalo tem sempre o mesmo porte. O padrão do jogo é Padrão.
+- Mítico nunca nasce de cruzamento, com ou sem porte.
+
+### Porte dos iniciais e selvagens
+
+| Cavalo | Elemento | Porte |
+| --- | --- | --- |
+| Brasa | Fogo | Padrão |
+| Maré | Água | Padrão |
+| Ipê | Grama | Padrão |
+| Faísca | Fogo | Esguio |
+| Lambari | Água | Esguio |
+| Capim | Grama | Esguio |
+| Tição | Fogo | Robusto |
+| Garoa | Água | Padrão |
+| Mandacaru | Grama | Robusto |
+| Ventania | Grama | Esguio |
+| Pororoca | Água | Robusto |
+| Fogaréu | Fogo | Robusto |
+| Jequitibá | Grama | Robusto |
+| Boitatá | Fogo | Esguio |
+| Iara | Água | Esguio |
 
 <a id="cruzamento"></a>
 

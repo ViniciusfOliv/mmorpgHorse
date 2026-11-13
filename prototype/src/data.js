@@ -235,6 +235,14 @@
     branco: '#f1e9d4'
   };
 
+  // Porte do cavalo (spec 2026-11-13-cavalos-portes §3). Gene herdável (breed.js); só desenho, não entra em status, Poder nem corrida.
+  var PORTES = {
+    valores: ['esguio', 'padrao', 'robusto'],
+    nomes: { esguio: 'Esguio', padrao: 'Padrão', robusto: 'Robusto' },
+    mutacao: 0.10,
+    padrao: 'padrao'
+  };
+
   // Jóquei do jogador (spec §4): padrão da seda e cor do capacete.
   var JOQUEI = {
     padroes: ['liso', 'listras', 'faixa', 'xadrez', 'estrelas', 'losangos'],
@@ -250,17 +258,17 @@
       { vel: 24, acel: 24, man: 14, forca: 12, est: 12, garra: 14, sorte: 12 },
       [],
       { coat: '#c4471d', coatShade: '#7f2a0e', mane: '#ffb02e', accent: '#ffe066' },
-      { title: 'A fagulha veloz', bio: 'Potro alazão de crina dourada. Larga como um rojão.', marcas: { cara: 'estrela', patas: 1, corpo: 'liso' }, grau: 2 }),
+      { title: 'A fagulha veloz', bio: 'Potro alazão de crina dourada. Larga como um rojão.', marcas: { cara: 'estrela', patas: 1, corpo: 'liso' }, porte: 'padrao', grau: 2 }),
     mount('mare', 'Maré', 'agua', 'comum', 'f', 1,
       { vel: 14, acel: 12, man: 12, forca: 14, est: 24, garra: 24, sorte: 12 },
       [],
       { coat: '#9ba7b4', coatShade: '#646f7e', mane: '#5fd8ee', accent: '#e6f4fb' },
-      { title: 'O fôlego do oceano', bio: 'Égua tordilha de crina cor do mar. Quanto mais longa a pista, mais perigosa.', marcas: { cara: 'listra', patas: 0, corpo: 'ruao' }, grau: 2 }),
+      { title: 'O fôlego do oceano', bio: 'Égua tordilha de crina cor do mar. Quanto mais longa a pista, mais perigosa.', marcas: { cara: 'listra', patas: 0, corpo: 'ruao' }, porte: 'padrao', grau: 2 }),
     mount('ipe', 'Ipê', 'grama', 'comum', 'm', 1,
       { vel: 16, acel: 12, man: 24, forca: 24, est: 14, garra: 12, sorte: 10 },
       [],
       { coat: '#7a4a2a', coatShade: '#4c2b18', mane: '#f5c518', accent: '#f2e6c8' },
-      { title: 'A raiz que não verga', bio: 'Castanho robusto de crina amarela como ipê florido. Não teme subida.', marcas: { cara: 'frente', patas: 2, corpo: 'liso' }, grau: 2 })
+      { title: 'A raiz que não verga', bio: 'Castanho robusto de crina amarela como ipê florido. Não teme subida.', marcas: { cara: 'frente', patas: 2, corpo: 'liso' }, porte: 'padrao', grau: 2 })
   ];
 
   var WILD_HORSES = [
@@ -268,62 +276,62 @@
       { vel: 14, acel: 16, man: 15, forca: 10, est: 8, garra: 12, sorte: 10 },
       ['arranque'],
       { coat: '#d9772b', coatShade: '#9a4d16', mane: '#f7d08a', accent: '#ff8a3d' },
-      { habitat: 'Cerrado seco', marcas: { cara: 'estrela', patas: 2, corpo: 'pintado' }, grau: 2 }),
+      { habitat: 'Cerrado seco', marcas: { cara: 'estrela', patas: 2, corpo: 'pintado' }, porte: 'esguio', grau: 2 }),
     mount('w-lambari', 'Lambari', 'agua', 'comum', 'm', 2,
       { vel: 9, acel: 11, man: 10, forca: 12, est: 17, garra: 13, sorte: 10 },
       [],
       { coat: '#7fa6c4', coatShade: '#4f7594', mane: '#e8f4fb', accent: '#5ec2d9' },
-      { habitat: 'Beira de rio', marcas: { cara: 'nenhuma', patas: 0, corpo: 'malhado' }, grau: 1 }),
+      { habitat: 'Beira de rio', marcas: { cara: 'nenhuma', patas: 0, corpo: 'malhado' }, porte: 'esguio', grau: 1 }),
     mount('w-capim', 'Capim', 'grama', 'comum', 'f', 4,
       { vel: 10, acel: 10, man: 10, forca: 18, est: 13, garra: 12, sorte: 10 },
       ['segundo-ar'],
       { coat: '#9a8a4a', coatShade: '#6a5e2e', mane: '#5b7d2a', accent: '#b9d46a' },
-      { habitat: 'Campos gerais', marcas: { cara: 'listra', patas: 4, corpo: 'liso' }, grau: 2 }),
+      { habitat: 'Campos gerais', marcas: { cara: 'listra', patas: 4, corpo: 'liso' }, porte: 'esguio', grau: 2 }),
     mount('w-ticao', 'Tição', 'fogo', 'magico', 'm', 8,
       { vel: 17, acel: 19, man: 18, forca: 12, est: 10, garra: 15, sorte: 12 },
       ['chama-final'],
       { coat: '#3a2a26', coatShade: '#1e1513', mane: '#ff5a1f', accent: '#ffb347' },
-      { habitat: 'Carvoaria abandonada', marcas: { cara: 'frente', patas: 1, corpo: 'liso' }, grau: 2 }),
+      { habitat: 'Carvoaria abandonada', marcas: { cara: 'frente', patas: 1, corpo: 'liso' }, porte: 'robusto', grau: 2 }),
     mount('w-garoa', 'Garoa', 'agua', 'magico', 'f', 10,
       { vel: 13, acel: 12, man: 13, forca: 14, est: 20, garra: 15, sorte: 12 },
       ['pe-na-chuva', 'segundo-ar'],
       { coat: '#a9b8c6', coatShade: '#73879a', mane: '#f2f6fa', accent: '#6fb7e8' },
-      { habitat: 'Serra enevoada', marcas: { cara: 'estrela', patas: 0, corpo: 'ruao' }, grau: 2 }),
+      { habitat: 'Serra enevoada', marcas: { cara: 'estrela', patas: 0, corpo: 'ruao' }, porte: 'padrao', grau: 2 }),
     mount('w-mandacaru', 'Mandacaru', 'grama', 'magico', 'm', 7,
       { vel: 12, acel: 13, man: 13, forca: 21, est: 16, garra: 13, sorte: 12 },
       ['casco-firme'],
       { coat: '#b48a5a', coatShade: '#7d5c38', mane: '#3f6b2a', accent: '#e85d9a' },
-      { habitat: 'Caatinga', marcas: { cara: 'nenhuma', patas: 3, corpo: 'pintado' }, grau: 2 }),
+      { habitat: 'Caatinga', marcas: { cara: 'nenhuma', patas: 3, corpo: 'pintado' }, porte: 'robusto', grau: 2 }),
     mount('w-ventania', 'Ventania', 'grama', 'raro', 'f', 15,
       { vel: 21, acel: 18, man: 20, forca: 13, est: 15, garra: 17, sorte: 14 },
       ['sprint', 'arrancada-final'],
       { coat: '#e9e4da', coatShade: '#b6aea0', mane: '#7a7a7a', accent: '#9ad0ff' },
-      { habitat: 'Pampa gaúcho', marcas: { cara: 'listra', patas: 2, corpo: 'malhado' }, grau: 3 }),
+      { habitat: 'Pampa gaúcho', marcas: { cara: 'listra', patas: 2, corpo: 'malhado' }, porte: 'esguio', grau: 3 }),
     mount('w-pororoca', 'Pororoca', 'agua', 'raro', 'm', 18,
       { vel: 15, acel: 14, man: 15, forca: 17, est: 24, garra: 16, sorte: 14 },
       ['nascente', 'pe-na-chuva'],
       { coat: '#2e5f73', coatShade: '#1a3b49', mane: '#9ee7e0', accent: '#2fd6c5' },
-      { habitat: 'Foz do Amazonas', marcas: { cara: 'estrela', patas: 4, corpo: 'liso' }, grau: 2 }),
+      { habitat: 'Foz do Amazonas', marcas: { cara: 'estrela', patas: 4, corpo: 'liso' }, porte: 'robusto', grau: 2 }),
     mount('w-fogareu', 'Fogaréu', 'fogo', 'lendario', 'f', 22,
       { vel: 24, acel: 26, man: 25, forca: 16, est: 15, garra: 20, sorte: 16 },
       ['sol-a-pino', 'chama-final', 'arranque'],
       { coat: '#b3201a', coatShade: '#6e110d', mane: '#ffd23f', accent: '#ff7b00' },
-      { habitat: 'Chapada em chamas', marcas: { cara: 'frente', patas: 0, corpo: 'pintado' }, grau: 3 }),
+      { habitat: 'Chapada em chamas', marcas: { cara: 'frente', patas: 0, corpo: 'pintado' }, porte: 'robusto', grau: 3 }),
     mount('w-jequitiba', 'Jequitibá', 'grama', 'lendario', 'm', 25,
       { vel: 17, acel: 16, man: 17, forca: 27, est: 21, garra: 19, sorte: 16 },
       ['casco-firme', 'folego-de-montanha', 'segundo-ar'],
       { coat: '#5a4127', coatShade: '#36261a', mane: '#2f7d32', accent: '#8bc34a' },
-      { habitat: 'Mata Atlântica', marcas: { cara: 'listra', patas: 1, corpo: 'ruao' }, grau: 3 }),
+      { habitat: 'Mata Atlântica', marcas: { cara: 'listra', patas: 1, corpo: 'ruao' }, porte: 'robusto', grau: 3 }),
     mount('w-boitata', 'Boitatá', 'fogo', 'mitico', 'f', 30,
       { vel: 28, acel: 29, man: 29, forca: 21, est: 20, garra: 26, sorte: 18 },
       ['sol-a-pino', 'chama-final', 'drift'],
       { coat: '#2a1a3a', coatShade: '#140b1e', mane: '#3cf0ff', accent: '#ff4fd8' },
-      { habitat: 'Só aparece em noites de queimada', lore: 'A cobra de fogo do folclore, em forma de cavalo.', marcas: { cara: 'estrela', patas: 2, corpo: 'malhado' }, grau: 3 }),
+      { habitat: 'Só aparece em noites de queimada', lore: 'A cobra de fogo do folclore, em forma de cavalo.', marcas: { cara: 'estrela', patas: 2, corpo: 'malhado' }, porte: 'esguio', grau: 3 }),
     mount('w-iara', 'Iara', 'agua', 'mitico', 'm', 28,
       { vel: 22, acel: 21, man: 22, forca: 20, est: 30, garra: 25, sorte: 18 },
       ['canto-da-iara', 'pe-na-chuva', 'nascente'],
       { coat: '#1f6f78', coatShade: '#0f3f45', mane: '#b8fff1', accent: '#ffd36e' },
-      { habitat: 'Rios encantados', lore: 'A mãe-d\'água que encanta quem a ouve.', marcas: { cara: 'nenhuma', patas: 4, corpo: 'ruao' }, grau: 3 })
+      { habitat: 'Rios encantados', lore: 'A mãe-d\'água que encanta quem a ouve.', marcas: { cara: 'nenhuma', patas: 4, corpo: 'ruao' }, porte: 'esguio', grau: 3 })
   ];
 
   var BOT_NAMES = [
@@ -502,6 +510,7 @@
     GEAR_SETS: GEAR_SETS,
     GEAR: GEAR,
     MARCAS: MARCAS,
+    PORTES: PORTES,
     JOQUEI: JOQUEI,
     STARTERS: STARTERS,
     WILD_HORSES: WILD_HORSES,

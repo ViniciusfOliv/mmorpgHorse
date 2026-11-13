@@ -17,9 +17,9 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
 - **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Cavalo, Itens,
   Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
-- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (117 testes
-  de simulação, 96 de efeitos, 69 de moldes, 492 conferências do wiki, 77 metas de balanço no modo
-  rápido e 126 no completo, e o teste de interface).
+- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (122 testes
+  de simulação, 104 de efeitos, 161 de moldes, 527 conferências do wiki, 77 metas de balanço no modo
+  rápido e 126 no completo, e o teste de interface; contagem de 2026-11-13, revisão final da 2b).
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
 | Frente | Entrega | Spec |
@@ -72,11 +72,31 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   jóquei e raridade, em código), 2b (portes no PixelLab) e 2c (animações). **A parte 2a está pronta e integrada na
   `claude/cavalos-v3`** (spec em `docs/superpowers/specs/2026-11-12-cavalos-marcas-design.md`): marcas por
   cavalo com 3 genes herdados pela seed, jóquei do jogador no Perfil e raridade em escada, tudo em código e
-  sem créditos. **Próxima: a 2b (portes, PixelLab), só com confirmação de créditos.**
-  **Pendências da 2a que vão para a 2b:** moldes novos com as 4 pernas separadas no retrato e no parado, com
-  teste de contagem de meias por molde (hoje 3 e 4 meias aparecem como 2 ou 3 em alguns quadros); teste do caso
-  "pele acima do capacete" (`marcas.js` ~386-388) com os moldes novos; conferir o brilho das raridades nos
-  moldes novos.
+  sem créditos. **2b (portes) pronta na `claude/visuais-2`** (spec em
+  `docs/superpowers/specs/2026-11-13-cavalos-portes-design.md`): gene herdado com 3 portes (esguio, padrão, robusto)
+  iguais nos três elementos, 12 moldes novos a partir de um corpo-mestre por porte; 155 gerações no lote.
+  **2b integrada na `claude/visuais-2` (T7, 2026-11-13):** os 12 moldes dos portes (folha final aprovada) moram em
+  `prototype/assets/pixellab/`, os 4 antigos saíram (histórico do git) e o caminho 'legado' do `sprites.js` também;
+  `novos/` guarda só o registro do lote (para mexer no lote: `--reprocessar --manter-escolhas` antes, mover os moldes
+  depois; cabeçalho do `pixellab-portes.mjs`). As pendências da 2a viraram testes no `moldes-test` ("Portes: moldes
+  reais"): critérios aceitos na folha em `ACEITOS_NA_FOLHA`; meias por molde, pele acima do capacete (passa) e brilho
+  das raridades. Na revisão da T7 saíram três defeitos: a canela (retrato dos robustos, galope do padrão e dos esguios)
+  e o focinho (robustos) que o PixelLab pintou na cor da crina voltaram à pelagem-sombra e ao detalhe (`soltarCrina`,
+  1.313 px em 61 quadros, sem custo); o capacete do jóquei sem pele ficou em 4 linhas; e a escala dos retratos é a
+  mesma nos 12 moldes em qualquer dpr (o passo sai do molde mais alto). Wiki (seção "Portes"), GDD §6 e memória
+  prontos (T8). **Revisão final da 2b feita (2026-11-13), com as decisões do Vinicius:** a escala dos retratos fica
+  "todos os portes descem juntos" (com zoom de 125%, todos um passo menores; spec §4 emendada); o **brilho das
+  raridades foi corrigido** (a cor se ajusta ao contraste com a crina: as 60 combinações do catálogo ficam ≥ 0,05 de
+  luminância, antes 14 ficavam abaixo e a pior, Mágico sobre o Tição, era 0,005; `BRILHO_PENDENTE` vazia); o retrato do
+  robusto-folhas com 3 pernas e as 5 frestas de 1 px entre cauda e anca no parado do robusto-ondas ficam aceitos (o
+  teste da forma passou a revalidar com o defeito aceito neutralizado, e achou as frestas escondidas atrás do "fora da
+  paleta"). **Ficam para a 2c**, medidos e listados no teste (`PENDENTES_2A`): meias que se juntam ou se partem em 5 dos
+  24 retratos/parados e a zona da cara variando mais de 20% no galope em 5 moldes.
+  **Próxima: 2c (animações novas para todos os portes).**
+  **Pendências (Vinicius):** para a 2c, as meias que se juntam ou se partem (5 de 24) e a zona da cara que pulsa no
+  galope (5 moldes); estrela de 1 px e listra curta em alguns quadros (`PENDENTES_2A`); no galope do robusto-chamas o
+  vermelho do capacete é igual ao da pelagem e o tronco do jóquei sai manchado; a crina do robusto é fina no galope do
+  mestre; forma ainda reprovada em crus com laranja > 2% (padrao-ondas, robusto-*), aceitos na folha.
 
 ## O que falta
 - **Decidido em 2026-11-10:** o teste fechado do Play sai com o jogo offline; o lançamento público

@@ -11,9 +11,15 @@ Code mudam: na dúvida, vale a documentação oficial (https://code.claude.com/d
 | ElevenLabs | sons e vozes (ainda não usado) | conector, quando ligado | créditos |
 
 ## PixelLab
-- `node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|tudo` mostra o que geraria e o custo,
-  sem gastar. `--gerar` gasta; `--teto N` limita as gerações; `--reprocessar` refaz os arquivos finais
-  a partir das respostas guardadas em `raw/`, sem rede e sem custo.
+- Moldes de cavalo: `node prototype/tools/pixellab-moldes.mjs --lote portes --fase mestres|piloto|versoes`
+  (os 12 moldes dos portes da parte 2b; opções e fluxo no topo do `pixellab-portes.mjs`; a saída vai para
+  `assets/pixellab/novos/`). O lote `moldes` (os 4 moldes de 2026-11-08) foi substituído pelo `portes`:
+  rodá-lo (ou o `tudo`, que o inclui) regrava os moldes antigos em `assets/pixellab/` (o build os ignora
+  com aviso e o `moldes-test` reprova).
+- Ícones: `--lote icones|icones2`.
+- Sem `--gerar` é sempre dry-run: mostra o que geraria e o custo, sem gastar. `--gerar` gasta; `--teto N`
+  limita as gerações; `--reprocessar` refaz os arquivos finais a partir das respostas guardadas em `raw/`,
+  sem rede e sem custo.
 - Na nuvem, a credencial é injetada pelo proxy do ambiente; rode com `NODE_USE_ENV_PROXY=1` (sem isso
   a API responde 401). Localmente, a chave fica em `PIXELLAB_API_KEY`.
 - A API devolve HTTP 502 com frequência, sem cobrar.

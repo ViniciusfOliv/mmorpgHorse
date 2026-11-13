@@ -1,0 +1,79 @@
+{
+  "chamadas": 155,
+  "rodadas": [
+    {
+      "data": "2026-11-13T10:24:19.064Z",
+      "fase": "mestres",
+      "modo": "gerar",
+      "only": null,
+      "teto": 90,
+      "geracoes": 26,
+      "chamadas": 26,
+      "parada": null
+    },
+    {
+      "data": "2026-11-13T11:39:27.812Z",
+      "fase": "mestres",
+      "modo": "gerar",
+      "only": null,
+      "refazer": [
+        "padrao-lisa:corrida",
+        "esguio-lisa:parado"
+      ],
+      "teto": 90,
+      "geracoes": 5,
+      "chamadas": 5,
+      "parada": null
+    },
+    {
+      "data": "2026-11-13T11:42:03.744Z",
+      "fase": "mestres",
+      "modo": "gerar",
+      "only": null,
+      "refazer": [
+        "robusto-lisa:retrato,parado,corrida,galope"
+      ],
+      "teto": 90,
+      "geracoes": 12,
+      "chamadas": 12,
+      "parada": null
+    },
+    {
+      "data": "2026-11-13T12:55:44.485Z",
+      "fase": "mestres",
+      "modo": "gerar",
+      "only": null,
+      "refazer": [
+        "robusto-lisa:retrato,parado,corrida,galope"
+      ],
+      "guiaMestre": [
+        "robusto-lisa=padrao-lisa"
+      ],
+      "teto": 90,
+      "geracoes": 12,
+      "chamadas": 12,
+      "parada": null
+    },
+    {
+      "data": "2026-11-13T13:07:36.448Z",
+      "fase": "piloto",
+      "modo": "gerar",
+      "only": null,
+      "teto": 130,
+      "geracoes": 30,
+      "chamadas": 30,
+      "parada": null
+    },
+    {
+      "data": "2026-11-13T13:36:48.267Z",
+      "fase": "versoes",
+      "modo": "gerar",
+      "only": null,
+      "teto": 170,
+      "geracoes": 70,
+      "chamadas": 70,
+      "parada": null
+    }
+  ],
+  "geracoes": 155
+}

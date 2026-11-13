@@ -17,7 +17,7 @@
  *     Skills: qualquer uma do catálogo (inclusive de outro elemento); inexistentes ou
  *     repetidas saem; no máximo RARITIES[rarity].skillSlots, na ordem pedida.
  *     Campo inválido vira o padrão: elemento Fogo, raridade Comum, sexo macho, nome "Teste",
- *     potencial 0, cores de um cavalo pronto do mesmo elemento (cor a cor), marcas nenhuma/0/liso (gene a gene).
+ *     potencial 0, cores de um cavalo pronto do mesmo elemento (cor a cor), marcas nenhuma/0/liso (gene a gene). Porte (GameData.PORTES): o pedido se válido, senão o padrão.
  *     O nível (1 até o máximo) é aplicado pelo game.js na instância (level direto, xp 0).
  *
  *   Dev.itemId({ slot, set, rarity }) -> id de GameData.GEAR ou null. Comum e Mágico são peças soltas
@@ -111,7 +111,8 @@
     }
     return {
       id: 'dev-' + num, name: name, especie: 'cavalo', element: element, rarity: rarity, sex: sex,
-      level: 1, xp: 0, potential: potential, alloc: alloc, skills: skills, palette: palette, grau: grau, marcas: marcas
+      level: 1, xp: 0, potential: potential, alloc: alloc, skills: skills, palette: palette, grau: grau, marcas: marcas,
+      porte: G.PORTES.valores.indexOf(c.porte) >= 0 ? c.porte : G.PORTES.padrao
     };
   }
 
