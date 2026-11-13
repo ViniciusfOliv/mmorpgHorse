@@ -808,6 +808,18 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
 .logo .logo-img { width: 320px; }
 .app-topo .logo-mini { display: flex; align-items: center; }
 .app-topo .logo-img { height: 24px; width: auto; max-width: 100%; image-rendering: auto; }   /* 63 -> 24 px: redução suavizada */
+
+/* editor do jóquei (Perfil) */
+.joquei-previa { display: flex; justify-content: center; background: var(--painel-2); padding: 8px 0; }
+.capacetes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.capacete-btn { min-width: 40px; min-height: 40px; padding: 0; }
+.capacete-btn[aria-pressed="true"] {
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--ouro), 0 var(--px) 0 0 var(--ouro),
+    calc(-1 * var(--px)) 0 0 0 var(--ouro), var(--px) 0 0 0 var(--ouro);
+  outline: 3px solid var(--ouro); outline-offset: 2px;
+}
+@media (min-width: 640px) { .capacetes { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
 </style>
 <div class="app" id="app">
   <main id="tela">
@@ -8784,13 +8796,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 
   // Opções da parte 2a (spec 2026-11-12-cavalos-marcas) para o Sprites.drawHorse de qualquer cavalo (montaria,
   // modelo do catálogo ou rival): marcas (marcasDe), semente do padrão (Breed.hashChave da chave: o uid da montaria
-  // ou o id do modelo ou do rival), jóquei ({ padrao, capacete }; null quando o desenho não tem jóquei), raridade e
+  // ou o id do modelo; o rival usa o id do modelo, sem o sufixo da raia), jóquei ({ padrao, capacete }; null quando o desenho não tem jóquei), raridade e
   // movimento reduzido. Só desenho. Usada no retrato (estábulo, ficha, sala, Haras...), na corrida (com rastro:
   // true) e no pódio; quem desenha várias vezes calcula uma vez e atualiza o `reduzido` a cada quadro.
   function opcoesVisuais(horse, joquei) {
     var chave = horse.uid || horse.id;
+    // rival: o id da raia é id do modelo + '-b<n>'; a semente (e as manchas) vêm do modelo, como no Haras e no catálogo
+    var sem = horse.uid ? chave : String(chave).replace(/-b\d+$/, '');
     return {
-      marcas: marcasDe(horse.marcas, horse.templateId, chave), semente: BRD.hashChave(chave), joquei: joquei || null,
+      marcas: marcasDe(horse.marcas, horse.templateId, chave), semente: BRD.hashChave(sem), joquei: joquei || null,
       raridade: horse.rarity, reduzido: reduced()
     };
   }
@@ -9570,11 +9584,43 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         '<span class="app-aba-icone" aria-hidden="true">' + iconeHtml('aba-' + a.id, a.icone, 32) + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
     }).join('') + '</nav>';
   }
+  // Linha "Marcas: ..." (ficha da Montaria e Haras): nomes em português, sem símbolos
+  var CARA_ROT = { nenhuma: 'sem marca na cara', estrela: 'estrela', listra: 'listra', frente: 'frente branca' };
+  var CORPO_ROT = { liso: 'liso', malhado: 'malhado', pintado: 'pintado', ruao: 'ruão' };
+  function marcasTexto(h) {
+    var m = marcasDe(h.marcas, h.templateId, h.uid || h.id);
+    return 'Marcas: ' + CARA_ROT[m.cara] + ', ' + (m.patas === 0 ? 'sem meias' : m.patas === 1 ? '1 meia' : m.patas + ' meias') + ', ' + CORPO_ROT[m.corpo];
+  }
+  // Editor do jóquei (Perfil): padrão da seda e cor do capacete; a prévia é o cavalo ativo, parado e montado
+  var PADRAO_ROT = { liso: 'Liso', listras: 'Listras', faixa: 'Faixa', xadrez: 'Xadrez', estrelas: 'Estrelas', losangos: 'Losangos' };
+  var CAPACETE_ROT = { '#f2c230': 'Dourado', '#ff6b5e': 'Vermelho', '#62b8ff': 'Azul', '#86d86a': 'Verde', '#c77dff': 'Roxo', '#ff9f43': 'Laranja', '#f1e9d4': 'Creme', '#2a2a2a': 'Preto' };
+  function joqueiHtml() {
+    var j = joqueiDoJogador();
+    var pads = GD.JOQUEI.padroes.map(function (p) {
+      return '<button type="button" class="btn opcao opcao--centro" data-acao="joquei-padrao" data-id="' + esc(p) + '" data-v="' + esc(p) +
+        '" aria-pressed="' + (j.padrao === p) + '"><span class="opcao-nome">' + esc(PADRAO_ROT[p] || p) + '</span></button>';
+    }).join('');
+    var caps = GD.JOQUEI.capacetes.map(function (c) {
+      return '<button type="button" class="btn capacete-btn" data-acao="joquei-capacete" data-id="' + esc(c) + '" data-v="' + esc(c) +
+        '" aria-pressed="' + (j.capacete === c) + '" aria-label="' + esc(CAPACETE_ROT[c] || 'Capacete') + '" title="' + esc(CAPACETE_ROT[c] || 'Capacete') +
+        '" style="background:' + esc(c) + '"></button>';
+    }).join('');
+    var m = activeMount();
+    var previa = m ? '<div class="joquei-previa">' + portraitHtml(m, { jockey: true, joquei: j }) + '</div>' : '';
+    return '<section class="caixa" aria-labelledby="r-joquei"><div class="tela-cabeca">' +
+      '<h2 class="titulo" id="r-joquei">Seu jóquei</h2>' + previa +
+      '<span class="rotulo" id="r-joq-padrao">Seda</span>' +
+      '<div class="opcoes opcoes--3" role="group" aria-labelledby="r-joq-padrao">' + pads + '</div>' +
+      '<span class="rotulo" id="r-joq-cap">Capacete</span>' +
+      '<div class="capacetes" role="group" aria-labelledby="r-joq-cap">' + caps + '</div>' +
+      '<p class="nota">O jóquei só muda o visual: vale para todos os seus cavalos e não afeta a corrida.</p>' +
+      '</div></section>';
+  }
   // Perfil: estatísticas, saldo, inventário e "Recomeçar com outro inicial"
   function renderPerfil() {
     return '<section class="tela" aria-labelledby="t-perfil">' +
       '<button type="button" class="btn btn--pequeno" data-acao="perfil-voltar">Voltar</button>' +
-      '<h1 class="titulo titulo--tela" id="t-perfil" tabindex="-1" data-foco>Perfil</h1>' +
+      '<h1 class="titulo titulo--tela" id="t-perfil" tabindex="-1" data-foco>Perfil</h1>' + noticeHtml() +
       '<div class="caixa">' +
         '<div class="linha-meta"><span>Corridas <b>' + fmt(state.races) + '</b></span><span>Vitórias <b>' + fmt(state.wins) + '</b></span>' +
           '<span>Pódios <b>' + fmt(state.podiums) + '</b></span><span>Prêmios ' + ouroHtml(state.goldWon) + '</span></div>' +
@@ -9582,7 +9628,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         '<div class="linha-meta"><span>' + esc(state.mounts.length) + (state.mounts.length === 1 ? ' montaria' : ' montarias') + ' · ' +
           esc(state.items.length) + (state.items.length === 1 ? ' peça' : ' peças') + '</span></div>' +
       '</div>' +
-      animacoesHtml() +
+      joqueiHtml() + animacoesHtml() +
       '<footer class="caixa">' + resetHtml() + '</footer></section>';
   }
   // opção "Animações": mesmo controle de escolhas (aria-pressed) da entrada e das abas internas
@@ -9943,6 +9989,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var custoNome = ui.haras.mode === 'troca' ? 'Troca' : (P.kind === 'rent' ? 'Aluguel' : 'Registro');
     return '<section class="caixa calc" aria-labelledby="t-calc"><h2 class="titulo" id="t-calc">Calculadora</h2>' +
       '<p class="nota">' + esc(P.f.name) + ' (' + sexoHtml('f') + ') × ' + esc(P.m.name) + ' (' + sexoHtml('m') + ')</p>' +
+      '<p class="nota marcas-linha">' + esc(P.f.name + ' · ' + marcasTexto(P.f)) + '</p>' +
+      '<p class="nota marcas-linha">' + esc(P.m.name + ' · ' + marcasTexto(P.m)) + '</p>' +
       '<div class="calc-barras">' + bars + '</div>' +
       '<p>' + grau + '</p>' +
       '<p>' + esc(genTxt) + '</p>' +
@@ -10341,6 +10389,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco>' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h1>' +
           '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
             '<span>' + sexoHtml(m.sex) + '</span>' +
+            '<span>' + esc(marcasTexto(m)) + '</span>' +
             '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
             (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
           '</div>' +
@@ -11912,6 +11961,22 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var card = document.getElementById('ini-' + id);
         if (card) { try { card.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'nearest', inline: 'center' }); } catch (e2) { card.scrollIntoView(); } }
         break;
+      }
+      case 'joquei-padrao':
+      case 'joquei-capacete': {
+        if (!state) break;
+        var campoJ = b.getAttribute('data-acao') === 'joquei-padrao' ? 'padrao' : 'capacete';
+        var vJ = b.getAttribute('data-v');
+        var novoJ = validJoquei(joqueiDoJogador());
+        novoJ[campoJ] = vJ;
+        if (validJoquei(novoJ)[campoJ] !== (campoJ === 'capacete' ? String(vJ).toLowerCase() : vJ)) break;   // valor fora das listas
+        novoJ = validJoquei(novoJ);
+        var sJ = state, antesJ = clone(state);
+        state.joquei = novoJ;
+        var gJ = gravaGasto(sJ, antesJ);
+        if (gJ === 'outra-aba') break;
+        if (gJ === 'falhou') ui.notice = FALHA_SALVAR;
+        rerenderKeepScroll(); break;
       }
       case 'motion':
         if (!state || MOTIONS.indexOf(id) < 0) break;

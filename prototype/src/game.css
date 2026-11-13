@@ -804,3 +804,15 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
 .logo .logo-img { width: 320px; }
 .app-topo .logo-mini { display: flex; align-items: center; }
 .app-topo .logo-img { height: 24px; width: auto; max-width: 100%; image-rendering: auto; }   /* 63 -> 24 px: redução suavizada */
+
+/* editor do jóquei (Perfil) */
+.joquei-previa { display: flex; justify-content: center; background: var(--painel-2); padding: 8px 0; }
+.capacetes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.capacete-btn { min-width: 40px; min-height: 40px; padding: 0; }
+.capacete-btn[aria-pressed="true"] {
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--ouro), 0 var(--px) 0 0 var(--ouro),
+    calc(-1 * var(--px)) 0 0 0 var(--ouro), var(--px) 0 0 0 var(--ouro);
+  outline: 3px solid var(--ouro); outline-offset: 2px;
+}
+@media (min-width: 640px) { .capacetes { grid-template-columns: repeat(8, minmax(0, 1fr)); } }

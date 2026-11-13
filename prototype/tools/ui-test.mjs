@@ -2137,7 +2137,9 @@ try {
           problems.push(`marcas (${onde}): nenhum drawHorse com a semente de ${e.chave} (${sem}); sementes: ${[...new Set(daTela.map((d) => d.semente))].join(', ')}`)
           continue
         }
-        const d = dela[dela.length - 1], erros = []
+        // dois rivais do mesmo modelo têm a mesma semente (as manchas iguais) e jóqueis diferentes: basta uma chamada que bata
+        const bate = (x) => igual(x.marcas, e.marcas) && igual(x.joquei, e.joquei) && x.raridade === e.raridade
+        const d = dela.slice().reverse().find(bate) || dela[dela.length - 1], erros = []
         if (!igual(d.marcas, e.marcas)) erros.push(`marcas ${mStr(d.marcas)} (esperado ${mStr(e.marcas)})`)
         if (!igual(d.joquei, e.joquei)) erros.push(`joquei ${JSON.stringify(d.joquei)} (esperado ${JSON.stringify(e.joquei)})`)
         if (d.raridade !== e.raridade) erros.push(`raridade ${d.raridade} (esperado ${e.raridade})`)
@@ -2288,7 +2290,7 @@ try {
         const sala = await pg.evaluate(() => {
           const L = window.__galope.ui.lobby
           L.racers.forEach((r) => { r.horse.rarity = 'mitico' })
-          return { n: L.n, seed: L.seed, racers: L.racers.map((r) => ({ isPlayer: r.isPlayer, chave: r.horse.uid || r.horse.id, id: r.horse.id, element: r.horse.element })) }
+          return { n: L.n, seed: L.seed, racers: L.racers.map((r) => ({ isPlayer: r.isPlayer, chave: r.horse.uid || r.horse.id.replace(/-b\d+$/, ''), id: r.horse.id, element: r.horse.element })) }
         })
         if (sala.n !== 8) problems.push(`${label}: a sala da seed ${SEED8_DEV} tem ${sala.n} corredores (esperado 8)`)
         s = await estado(pg)
@@ -2332,6 +2334,20 @@ try {
         const comJoquei = await pg.evaluate(() => window.__galope.ui.lobby.racers.filter((r) => 'joquei' in r || 'joquei' in r.horse).length)
         if (comJoquei) problems.push(`${label}: ${comJoquei} corredor(es) da sala com o campo joquei`)
         confereDesenhos(await desenhos(pg), esperados, 'corrida', (d) => !d.quadro, { rastro: true })
+        // a semente de um rival vem do id do modelo (o do Haras e do catálogo), não do id da raia ('-b<n>')
+        {
+          const lista = await desenhos(pg)
+          const sementes = new Set(lista.map((d) => d.semente))
+          let rivais = 0
+          sala.racers.forEach((r) => {
+            if (r.isPlayer) return
+            rivais++
+            const tpl = r.id.replace(/-b\d+$/, '')
+            if (tpl === r.id) problems.push(`${label}: o rival ${r.id} não tem o sufixo -b<n>`)
+            else if (sementes.has(B.hashChave(r.id))) problems.push(`${label}: o rival ${r.id} foi desenhado com a semente do id da raia, não a do modelo ${tpl}`)
+          })
+          if (!rivais) problems.push(`${label}: sem rivais para conferir a semente`)
+        }
         await espia(pg, false)
         // desenho por quadro com os 8 Míticos (média dos últimos 60 de 120 quadros de corrida)
         const ms = await (await pg.waitForFunction((q) => {
@@ -2398,6 +2414,121 @@ try {
         problems.push(`${label}: ` + e.message)
       } finally {
         await pg.context().close()
+      }
+    }
+
+    // 4. telas (Task 5): editor do jóquei no Perfil, linha "Marcas:" na ficha e no Haras (360 e 1280)
+    {
+      const label = 'marcas-telas'
+      const PADROES = { liso: 'Liso', listras: 'Listras', faixa: 'Faixa', xadrez: 'Xadrez', estrelas: 'Estrelas', losangos: 'Losangos' }
+      const CORES = { '#f2c230': 'Dourado', '#ff6b5e': 'Vermelho', '#62b8ff': 'Azul', '#86d86a': 'Verde', '#c77dff': 'Roxo', '#ff9f43': 'Laranja', '#f1e9d4': 'Creme', '#2a2a2a': 'Preto' }
+      const CARAS = { nenhuma: 'sem marca na cara', estrela: 'estrela', listra: 'listra', frente: 'frente branca' }
+      const CORPOS = { liso: 'liso', malhado: 'malhado', pintado: 'pintado', ruao: 'ruão' }
+      const linhaMarcas = (m) => `Marcas: ${CARAS[m.cara]}, ${m.patas === 0 ? 'sem meias' : m.patas === 1 ? '1 meia' : m.patas + ' meias'}, ${CORPOS[m.corpo]}`
+      const norm = (t) => t.replace(/\s+/g, ' ').trim()
+      const pressionado = (pg, acao) => pg.evaluate((a) => Array.from(document.querySelectorAll(`[data-acao="${a}"]`)).map((b) => (b.getAttribute('data-v') + '=' + b.getAttribute('aria-pressed'))).join(','), acao)
+      for (const vp of [{ width: 360, height: 780 }, { width: 1280, height: 800 }]) {
+        const tag = `${label}-${vp.width}`
+        const pg = await newPage(browser, vp, tag)
+        try {
+          await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+          await pg.waitForSelector('#t-estabulo')
+          await montaSave(pg, (raw) => {
+            raw.mounts[0].marcas = { cara: 'frente', patas: 2, corpo: 'ruao' }
+            raw.mounts.push(Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { uid: 'm2', name: 'Egua', sex: 'f', breedLeft: 3, marcas: { cara: 'nenhuma', patas: 0, corpo: 'pintado' } }))
+            raw.nextUid = 3; raw.stableSlots = 6
+          })
+          // Perfil: os 6 padrões e os 8 capacetes, nomes em português, o inicial marcado
+          await pg.locator('[data-acao="perfil"]').click()
+          await pg.waitForSelector('#t-perfil')
+          const pads = await pg.evaluate(() => Array.from(document.querySelectorAll('[data-acao="joquei-padrao"]')).map((b) => ({ v: b.getAttribute('data-v'), t: b.textContent.trim(), p: b.getAttribute('aria-pressed') })))
+          if (!igual(pads.map((x) => x.v), G.JOQUEI.padroes)) problems.push(`${tag}: botões de padrão ${pads.map((x) => x.v).join(',')} (esperado ${G.JOQUEI.padroes.join(',')})`)
+          for (const x of pads) if (x.t !== PADROES[x.v]) problems.push(`${tag}: padrão ${x.v} com o texto "${x.t}" (esperado ${PADROES[x.v]})`)
+          const caps = await pg.evaluate(() => Array.from(document.querySelectorAll('[data-acao="joquei-capacete"]')).map((b) => {
+            const r = b.getBoundingClientRect()
+            return { v: b.getAttribute('data-v'), n: b.getAttribute('aria-label'), p: b.getAttribute('aria-pressed'), w: r.width, h: r.height }
+          }))
+          if (!igual(caps.map((x) => x.v), G.JOQUEI.capacetes)) problems.push(`${tag}: botões de capacete ${caps.map((x) => x.v).join(',')}`)
+          for (const x of caps) {
+            if (x.n !== CORES[x.v]) problems.push(`${tag}: capacete ${x.v} com aria-label "${x.n}" (esperado ${CORES[x.v]})`)
+            if (x.w < 32 || x.h < 32) problems.push(`${tag}: capacete ${x.v} com alvo de toque ${x.w}x${x.h} (mínimo 32)`)
+          }
+          if ((await pressionado(pg, 'joquei-padrao')) !== 'liso=true,listras=false,faixa=false,xadrez=false,estrelas=false,losangos=false') problems.push(`${tag}: padrão inicial ${await pressionado(pg, 'joquei-padrao')}`)
+          if (!(await pg.locator('[data-acao="joquei-capacete"][data-v="#f2c230"]').getAttribute('aria-pressed') === 'true')) problems.push(`${tag}: capacete inicial sem aria-pressed`)
+          if ((await pg.locator('[aria-labelledby="r-joquei"], #r-joquei').count()) < 1) problems.push(`${tag}: sem a seção "Seu jóquei"`)
+          if (!/Seu jóquei/.test(await pg.locator('#tela').textContent())) problems.push(`${tag}: texto "Seu jóquei" ausente`)
+          // a prévia: a ativa (m1) parada e montada, com o jóquei escolhido
+          await espia(pg)
+          await pg.locator('[data-acao="joquei-padrao"][data-v="xadrez"]').click()
+          await pg.locator('[data-acao="joquei-capacete"][data-v="#62b8ff"]').click()
+          await sleep(200)
+          if ((await pressionado(pg, 'joquei-padrao')).indexOf('xadrez=true') < 0 || (await pressionado(pg, 'joquei-padrao')).indexOf('liso=false') < 0) problems.push(`${tag}: Xadrez não ficou marcado: ${await pressionado(pg, 'joquei-padrao')}`)
+          if ((await pg.locator('[data-acao="joquei-capacete"][aria-pressed="true"]').getAttribute('data-v')) !== '#62b8ff') problems.push(`${tag}: Azul não ficou marcado`)
+          const lista = await desenhos(pg)
+          const prev = lista.filter((d) => d.quadro && d.jockey === true && d.joquei && d.joquei.padrao === 'xadrez' && d.joquei.capacete === '#62b8ff')
+          if (!prev.length) problems.push(`${tag}: a prévia não foi redesenhada com o jóquei xadrez/azul (${lista.length} desenhos)`)
+          else {
+            const u = prev[prev.length - 1]
+            if (u.idle !== true) problems.push(`${tag}: a prévia não está parada (idle ${u.idle})`)
+            if (u.semente !== B.hashChave('m1') || !igual(u.marcas, { cara: 'frente', patas: 2, corpo: 'ruao' })) problems.push(`${tag}: a prévia não é o cavalo ativo (m1): semente ${u.semente}, marcas ${mStr(u.marcas)}`)
+          }
+          await espia(pg, false)
+          await semQuebra(pg, tag + '-perfil')
+          let s = await estado(pg)
+          if (!igual(s.joquei, { padrao: 'xadrez', capacete: '#62b8ff' })) problems.push(`${tag}: state.joquei ${JSON.stringify(s.joquei)}`)
+          if (vp.width === 360) await pg.screenshot({ path: join(SHOTS, 'marcas-perfil-celular.png'), fullPage: true })
+          else await pg.screenshot({ path: join(SHOTS, 'marcas-perfil-desktop.png') })
+          // recarregar mantém
+          await pg.reload({ waitUntil: 'domcontentloaded' })
+          await pg.waitForSelector('#t-estabulo')
+          await pg.locator('[data-acao="perfil"]').click()
+          await pg.waitForSelector('#t-perfil')
+          if ((await pressionado(pg, 'joquei-padrao')).indexOf('xadrez=true') < 0 || (await pg.locator('[data-acao="joquei-capacete"][aria-pressed="true"]').getAttribute('data-v')) !== '#62b8ff') problems.push(`${tag}: depois de recarregar o jóquei não ficou`)
+          // gravação que falha: nada muda (nem o state, nem o aria-pressed) e o aviso aparece
+          await pg.evaluate(() => { Storage.prototype.__setOrig = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new Error('cheio') } })
+          await pg.locator('[data-acao="joquei-padrao"][data-v="listras"]').click()
+          await pg.locator('[data-acao="joquei-capacete"][data-v="#c77dff"]').click()
+          s = await estado(pg)
+          if (!igual(s.joquei, { padrao: 'xadrez', capacete: '#62b8ff' })) problems.push(`${tag}: gravação falhou e o state mudou: ${JSON.stringify(s.joquei)}`)
+          if ((await pressionado(pg, 'joquei-padrao')).indexOf('xadrez=true') < 0) problems.push(`${tag}: gravação falhou e a tela mudou o padrão`)
+          if (!/Não foi possível salvar/.test(await pg.locator('#tela').textContent())) problems.push(`${tag}: gravação falhou sem aviso`)
+          await pg.evaluate(() => { Storage.prototype.setItem = Storage.prototype.__setOrig })
+          // ficha da Montaria: a linha "Marcas:" junto do sexo, batendo com o save
+          await pg.locator('[data-acao="perfil-voltar"]').click()
+          await pg.waitForSelector('#t-estabulo')
+          for (const uid of ['m1', 'm2']) {
+            await pg.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click()
+            await pg.waitForSelector('#t-montaria')
+            const m = (await estado(pg)).mounts.find((x) => x.uid === uid)
+            const txt = await pg.evaluate(() => Array.from(document.querySelectorAll('.montaria-cabeca .linha-meta span')).map((e) => e.textContent.replace(/\s+/g, ' ').trim()).find((t) => /^Marcas:/.test(t)) || null)
+            if (txt !== linhaMarcas(m.marcas)) problems.push(`${tag}: ficha de ${uid}: "${txt}" (esperado "${linhaMarcas(m.marcas)}")`)
+            if (uid === 'm1' && txt !== 'Marcas: frente branca, 2 meias, ruão') problems.push(`${tag}: ficha de m1 com "${txt}"`)
+            await semQuebra(pg, `${tag}-ficha-${uid}`)
+            await pg.locator('[data-acao="montaria-voltar"]').click()
+            await pg.waitForSelector('#t-estabulo')
+          }
+          // Haras: as linhas dos dois pais escolhidos
+          await pg.locator('[data-acao="aba"][data-id="haras"]').click()
+          await pg.waitForSelector('#t-haras')
+          await pg.locator('[data-acao="haras-mine"][data-id="m1"]').click()
+          await pg.locator('[data-acao="haras-partner"][data-kind="rent"]').first().click()
+          await pg.waitForSelector('.calc')
+          const par = await pg.evaluate(() => ({
+            linhas: Array.from(document.querySelectorAll('.calc .marcas-linha')).map((e) => e.textContent.replace(/\s+/g, ' ').trim()),
+            parceiro: window.__galope.ui.haras.partner && window.__galope.ui.haras.partner.id
+          }))
+          const rent = G.WILD_HORSES.find((h) => h.id === par.parceiro)
+          if (par.linhas.length !== 2) problems.push(`${tag}: Haras com ${par.linhas.length} linhas de marcas (esperado 2)`)
+          else {
+            const esp = [linhaMarcas({ cara: 'frente', patas: 2, corpo: 'ruao' }), rent ? linhaMarcas(rent.marcas) : '?']
+            for (const e of esp) if (!par.linhas.some((l) => l.indexOf(e) >= 0)) problems.push(`${tag}: Haras sem a linha "${e}" (${par.linhas.join(' | ')})`)
+          }
+          await semQuebra(pg, tag + '-haras')
+        } catch (e) {
+          problems.push(`${tag}: ` + e.message)
+        } finally {
+          await pg.context().close()
+        }
       }
     }
   }
