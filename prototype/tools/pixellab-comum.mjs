@@ -259,8 +259,8 @@ export function decodificar64(buf, onde) {
   return d;
 }
 // Classifica um grupo de quadros com as correções de grupo (corrigirGrupo) e os limiares do próprio grupo (como nos
-// finais: retrato, parado e o galope inteiro), limpa e valida. Devolve os quadros e as falhas (o lote portes guarda a melhor tentativa
-// mesmo reprovada); preChecar() é a forma antiga, com a 1ª falha.
+// finais: retrato, parado e o galope inteiro), limpa e valida. Devolve os quadros e as falhas (o lote portes guarda a
+// melhor tentativa mesmo reprovada); preChecar() é a forma antiga, com a 1ª falha.
 export function classificarGrupo(bufs, comJoquei, onde, contorno) {
   const { fams } = corrigirGrupo(bufs.map((b, i) => classificarFamilias(decodificar64(b, `${onde} quadro ${i}`).rgba, LADO, LADO)), { comJoquei });
   const tons = limiaresDeTons(fams);
