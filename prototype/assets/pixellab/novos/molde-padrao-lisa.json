@@ -28,11 +28,11 @@
     },
     "galope": {
       "pelagem": {
-        "limiar": 56,
-        "procedural": false
+        "limiar": 43,
+        "procedural": true
       },
       "crina": {
-        "limiar": 74,
+        "limiar": 58,
         "procedural": false
       }
     }
@@ -40,34 +40,34 @@
   "seeds": {
     "retrato": 3102,
     "parado": 3102,
-    "montado": 3202,
-    "galope": 3102
+    "montado": 4102,
+    "galope": 4102
   },
   "gerado": "2026-11-13",
   "contagens": {
     "retrato": {"aproximados":0,"remapeados":49,"contornados":0},
     "parado": {"aproximados":3,"remapeados":70,"contornados":0},
-    "galope-0": {"aproximados":13,"remapeados":17,"contornados":21},
-    "galope-1": {"aproximados":14,"remapeados":35,"contornados":20},
-    "galope-2": {"aproximados":10,"remapeados":10,"contornados":20},
-    "galope-3": {"aproximados":12,"remapeados":11,"contornados":19},
-    "galope-4": {"aproximados":11,"remapeados":11,"contornados":20},
-    "galope-5": {"aproximados":11,"remapeados":18,"contornados":17},
-    "galope-6": {"aproximados":11,"remapeados":18,"contornados":20},
-    "galope-7": {"aproximados":12,"remapeados":18,"contornados":17},
-    "galope-8": {"aproximados":12,"remapeados":11,"contornados":22}
+    "galope-0": {"aproximados":1,"remapeados":1,"contornados":181},
+    "galope-1": {"aproximados":0,"remapeados":1,"contornados":172},
+    "galope-2": {"aproximados":0,"remapeados":0,"contornados":162},
+    "galope-3": {"aproximados":0,"remapeados":1,"contornados":163},
+    "galope-4": {"aproximados":1,"remapeados":1,"contornados":165},
+    "galope-5": {"aproximados":0,"remapeados":0,"contornados":162},
+    "galope-6": {"aproximados":1,"remapeados":2,"contornados":172},
+    "galope-7": {"aproximados":0,"remapeados":1,"contornados":150},
+    "galope-8": {"aproximados":0,"remapeados":0,"contornados":166}
   },
   "ancoras": {
     "retrato": {"footY":57,"nose":[61,21],"rear":[4,29],"saddle":null,"bbox":{"x":2,"y":6,"w":60,"h":52}},
     "parado": {"footY":57,"nose":[61,21],"rear":[6,31],"saddle":null,"bbox":{"x":2,"y":6,"w":60,"h":52}},
-    "galope-0": {"footY":49,"nose":[55,24],"rear":[7,31],"saddle":[32,25],"bbox":{"x":6,"y":12,"w":50,"h":38}},
-    "galope-1": {"footY":49,"nose":[55,24],"rear":[9,31],"saddle":[32,25],"bbox":{"x":7,"y":13,"w":49,"h":37}},
-    "galope-2": {"footY":49,"nose":[56,25],"rear":[7,32],"saddle":[32,26],"bbox":{"x":7,"y":14,"w":50,"h":36}},
-    "galope-3": {"footY":48,"nose":[56,27],"rear":[6,31],"saddle":[31,25],"bbox":{"x":1,"y":14,"w":56,"h":35}},
-    "galope-4": {"footY":49,"nose":[56,26],"rear":[7,26],"saddle":[31,24],"bbox":{"x":7,"y":13,"w":50,"h":37}},
-    "galope-5": {"footY":49,"nose":[56,25],"rear":[7,29],"saddle":[32,24],"bbox":{"x":7,"y":12,"w":50,"h":38}},
-    "galope-6": {"footY":49,"nose":[56,24],"rear":[7,31],"saddle":[32,25],"bbox":{"x":7,"y":12,"w":50,"h":38}},
-    "galope-7": {"footY":48,"nose":[56,25],"rear":[9,31],"saddle":[32,26],"bbox":{"x":7,"y":13,"w":50,"h":36}},
-    "galope-8": {"footY":48,"nose":[56,26],"rear":[7,30],"saddle":[32,26],"bbox":{"x":7,"y":14,"w":50,"h":35}}
+    "galope-0": {"footY":52,"nose":[62,25],"rear":[7,31],"saddle":[34,27],"bbox":{"x":2,"y":10,"w":61,"h":43}},
+    "galope-1": {"footY":50,"nose":[62,25],"rear":[6,29],"saddle":[34,26],"bbox":{"x":4,"y":9,"w":59,"h":42}},
+    "galope-2": {"footY":52,"nose":[62,26],"rear":[4,30],"saddle":[34,27],"bbox":{"x":3,"y":10,"w":60,"h":43}},
+    "galope-3": {"footY":53,"nose":[62,27],"rear":[2,31],"saddle":[34,28],"bbox":{"x":1,"y":11,"w":62,"h":43}},
+    "galope-4": {"footY":53,"nose":[62,28],"rear":[2,31],"saddle":[35,28],"bbox":{"x":2,"y":12,"w":61,"h":42}},
+    "galope-5": {"footY":52,"nose":[62,26],"rear":[3,31],"saddle":[34,27],"bbox":{"x":1,"y":10,"w":62,"h":43}},
+    "galope-6": {"footY":50,"nose":[62,25],"rear":[5,30],"saddle":[34,25],"bbox":{"x":1,"y":9,"w":62,"h":42}},
+    "galope-7": {"footY":52,"nose":[62,26],"rear":[3,31],"saddle":[35,27],"bbox":{"x":2,"y":9,"w":61,"h":44}},
+    "galope-8": {"footY":53,"nose":[62,27],"rear":[3,32],"saddle":[34,28],"bbox":{"x":1,"y":11,"w":62,"h":43}}
   }
 }

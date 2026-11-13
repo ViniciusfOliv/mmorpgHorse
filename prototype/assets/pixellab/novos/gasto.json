@@ -1,6 +1,5 @@
 {
-  "geracoes": 26,
-  "chamadas": 26,
+  "chamadas": 31,
   "rodadas": [
     {
       "data": "2026-11-13T10:24:19.064Z",
@@ -11,6 +10,21 @@
       "geracoes": 26,
       "chamadas": 26,
       "parada": null
+    },
+    {
+      "data": "2026-11-13T11:39:27.812Z",
+      "fase": "mestres",
+      "modo": "gerar",
+      "only": null,
+      "refazer": [
+        "padrao-lisa:corrida",
+        "esguio-lisa:parado"
+      ],
+      "teto": 90,
+      "geracoes": 5,
+      "chamadas": 5,
+      "parada": null
     }
-  ]
+  ],
+  "geracoes": 31
 }

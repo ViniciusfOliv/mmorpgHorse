@@ -18,12 +18,12 @@
     },
     "parado": {
       "pelagem": {
-        "limiar": 68,
-        "procedural": true
+        "limiar": 48,
+        "procedural": false
       },
       "crina": {
-        "limiar": 49,
-        "procedural": false
+        "limiar": -1,
+        "procedural": true
       }
     },
     "galope": {
@@ -39,14 +39,14 @@
   },
   "seeds": {
     "retrato": 3101,
-    "parado": 3101,
+    "parado": 4101,
     "montado": 3201,
     "galope": 3101
   },
   "gerado": "2026-11-13",
   "contagens": {
     "retrato": {"aproximados":0,"remapeados":0,"contornados":0},
-    "parado": {"aproximados":0,"remapeados":0,"contornados":0},
+    "parado": {"aproximados":0,"remapeados":29,"contornados":0},
     "galope-0": {"aproximados":0,"remapeados":4,"contornados":125},
     "galope-1": {"aproximados":0,"remapeados":1,"contornados":113},
     "galope-2": {"aproximados":0,"remapeados":3,"contornados":100},
@@ -59,7 +59,7 @@
   },
   "ancoras": {
     "retrato": {"footY":57,"nose":[57,19],"rear":[6,29],"saddle":null,"bbox":{"x":6,"y":7,"w":52,"h":51}},
-    "parado": {"footY":57,"nose":[56,23],"rear":[6,32],"saddle":[32,26],"bbox":{"x":6,"y":8,"w":51,"h":50}},
+    "parado": {"footY":49,"nose":[48,30],"rear":[15,22],"saddle":[31,28],"bbox":{"x":15,"y":15,"w":34,"h":35}},
     "galope-0": {"footY":50,"nose":[59,27],"rear":[8,31],"saddle":[32,30],"bbox":{"x":3,"y":13,"w":57,"h":38}},
     "galope-1": {"footY":49,"nose":[59,27],"rear":[9,32],"saddle":[32,30],"bbox":{"x":5,"y":14,"w":55,"h":36}},
     "galope-2": {"footY":49,"nose":[59,26],"rear":[9,30],"saddle":[32,29],"bbox":{"x":7,"y":14,"w":53,"h":36}},

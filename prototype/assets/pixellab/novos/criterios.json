@@ -37,16 +37,13 @@
       "refacoes": {
         "retrato": 0,
         "parado": 0,
-        "corrida": 0,
-        "galope": 0
+        "corrida": 1,
+        "galope": 1
       },
       "completo": true,
       "final": true,
-      "ok": false,
-      "falhas": [
-        "corrida: forma (corrida) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))",
-        "galope: forma (galope) = 9 (paleta, papéis obrigatórios e silhueta fechada (validar))"
-      ],
+      "ok": true,
+      "falhas": [],
       "etapas": {
         "retrato": {
           "escolhida": 3102,
@@ -117,55 +114,26 @@
           ]
         },
         "corrida": {
-          "escolhida": 3202,
-          "ok": false,
+          "escolhida": 4102,
+          "ok": true,
           "terminada": true,
-          "refacao": 0,
+          "refacao": 1,
           "tentativas": [
             {
-              "seed": 3102,
+              "seed": 4102,
               "endpoint": "/create-image-pixflux",
               "prompt": "side view, facing right, balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
               "versaoTexto": 1,
-              "arquivo": "raw/portes-padrao-lisa-corrida-s3102.png",
+              "arquivo": "raw/portes-padrao-lisa-corrida-s4102.png",
               "geracoes": 1,
               "marca": "",
-              "reaproveitada": true,
-              "data": "2026-11-13T10:25:07.763Z",
+              "data": "2026-11-13T11:39:45.305Z",
               "criterios": [
                 {
                   "criterio": "forma (corrida)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "fora da paleta: 22 de 1092 pixels (2.0%) acima de 2%"
-                },
-                {
-                  "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
                   "ok": true,
-                  "valor": 2,
-                  "limite": "≥ 2"
-                }
-              ],
-              "ok": false
-            },
-            {
-              "seed": 3202,
-              "endpoint": "/create-image-pixflux",
-              "prompt": "side view, facing right, balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
-              "versaoTexto": 1,
-              "arquivo": "raw/portes-padrao-lisa-corrida-s3202.png",
-              "geracoes": 1,
-              "marca": "",
-              "reaproveitada": true,
-              "data": "2026-11-13T10:25:22.942Z",
-              "criterios": [
-                {
-                  "criterio": "forma (corrida)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "faltam papéis: 8 (jóquei-pele)"
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
@@ -174,59 +142,30 @@
                   "limite": "≥ 2"
                 }
               ],
-              "ok": false
-            },
-            {
-              "seed": 3302,
-              "endpoint": "/create-image-pixflux",
-              "prompt": "side view, facing right, balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
-              "versaoTexto": 1,
-              "arquivo": "raw/portes-padrao-lisa-corrida-s3302.png",
-              "geracoes": 1,
-              "marca": "",
-              "reaproveitada": true,
-              "data": "2026-11-13T10:25:39.625Z",
-              "criterios": [
-                {
-                  "criterio": "forma (corrida)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "fora da paleta: 26 de 814 pixels (3.2%) acima de 2%"
-                },
-                {
-                  "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
-                  "ok": true,
-                  "valor": 3,
-                  "limite": "≥ 2"
-                }
-              ],
-              "ok": false
+              "ok": true
             }
           ]
         },
         "galope": {
-          "escolhida": 3102,
-          "ok": false,
+          "escolhida": 4102,
+          "ok": true,
           "terminada": true,
-          "refacao": 0,
+          "refacao": 1,
           "tentativas": [
             {
-              "seed": 3102,
+              "seed": 4102,
               "endpoint": "/animate-with-text-v3",
               "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
-              "first_frame": "padrao-lisa/corrida seed 3202",
+              "first_frame": "padrao-lisa/corrida seed 4102",
               "geracoes": 1,
-              "arquivo": "raw/portes-padrao-lisa-galope-c3202-s3102-0..8.png",
-              "reaproveitada": true,
-              "data": "2026-11-13T10:30:29.267Z",
+              "arquivo": "raw/portes-padrao-lisa-galope-c4102-s4102-0..8.png",
+              "data": "2026-11-13T11:42:00.937Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
-                  "ok": false,
-                  "valor": 9,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: faltam papéis: 8 (jóquei-pele); galope-1: faltam papéis: 8 (jóquei-pele); galope-2: faltam papéis: 8 (jóquei-pele); galope-3: faltam papéis: 8 (jóquei-pele); galope-4: faltam papéis: 8 (jóquei-pele); galope-5: faltam papéis: 8 (jóquei-pele); galope-6: faltam papéis: 8 (jóquei-pele); galope-7: faltam papéis: 8 (jóquei-pele); galope-8: faltam papéis: 8 (jóquei-pele)"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
@@ -235,202 +174,12 @@
                   "limite": "≥ 2",
                   "quadros": [
                     3,
+                    3,
+                    3,
                     2,
                     2,
                     3,
-                    2,
-                    2,
                     3,
-                    3,
-                    2
-                  ]
-                },
-                {
-                  "criterio": "galope: 9 quadros",
-                  "ok": true,
-                  "valor": 9,
-                  "limite": "= 9"
-                },
-                {
-                  "criterio": "galope: lombo na coluna da sela",
-                  "ok": true,
-                  "valor": 1,
-                  "limite": "varia ≤ 3 px",
-                  "quadros": [
-                    17,
-                    17,
-                    17,
-                    18,
-                    17,
-                    17,
-                    17,
-                    18,
-                    18
-                  ]
-                },
-                {
-                  "criterio": "galope: nose.x contra a pose de corrida",
-                  "ok": true,
-                  "valor": 1,
-                  "limite": "±6 px",
-                  "quadros": [
-                    55,
-                    55,
-                    56,
-                    56,
-                    56,
-                    56,
-                    56,
-                    56,
-                    56
-                  ]
-                },
-                {
-                  "criterio": "galope: comprimento do corpo",
-                  "ok": true,
-                  "valor": 2,
-                  "limite": "varia ≤ 4 px",
-                  "quadros": [
-                    38,
-                    38,
-                    39,
-                    40,
-                    40,
-                    39,
-                    39,
-                    39,
-                    39
-                  ]
-                }
-              ],
-              "ok": false,
-              "quadros": 9
-            },
-            {
-              "seed": 3202,
-              "endpoint": "/animate-with-text-v3",
-              "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
-              "first_frame": "padrao-lisa/corrida seed 3202",
-              "geracoes": 1,
-              "arquivo": "raw/portes-padrao-lisa-galope-c3202-s3202-0..8.png",
-              "reaproveitada": true,
-              "data": "2026-11-13T10:32:13.690Z",
-              "criterios": [
-                {
-                  "criterio": "forma (galope)",
-                  "ok": false,
-                  "valor": 9,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: faltam papéis: 8 (jóquei-pele); galope-1: faltam papéis: 8 (jóquei-pele); galope-2: faltam papéis: 8 (jóquei-pele); galope-3: faltam papéis: 8 (jóquei-pele); galope-4: fora da paleta: 16 de 737 pixels (2.2%) acima de 2%; galope-5: faltam papéis: 8 (jóquei-pele); galope-6: faltam papéis: 8 (jóquei-pele); galope-7: faltam papéis: 8 (jóquei-pele); galope-8: faltam papéis: 8 (jóquei-pele)"
-                },
-                {
-                  "criterio": "pernas no galope (todo quadro)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "≥ 2",
-                  "quadros": [
-                    3,
-                    1,
-                    1,
-                    2,
-                    3,
-                    1,
-                    2,
-                    2,
-                    2
-                  ]
-                },
-                {
-                  "criterio": "galope: 9 quadros",
-                  "ok": true,
-                  "valor": 9,
-                  "limite": "= 9"
-                },
-                {
-                  "criterio": "galope: lombo na coluna da sela",
-                  "ok": true,
-                  "valor": 3,
-                  "limite": "varia ≤ 3 px",
-                  "quadros": [
-                    17,
-                    18,
-                    17,
-                    17,
-                    16,
-                    15,
-                    15,
-                    16,
-                    17
-                  ]
-                },
-                {
-                  "criterio": "galope: nose.x contra a pose de corrida",
-                  "ok": true,
-                  "valor": 2,
-                  "limite": "±6 px",
-                  "quadros": [
-                    55,
-                    55,
-                    56,
-                    57,
-                    57,
-                    57,
-                    56,
-                    56,
-                    55
-                  ]
-                },
-                {
-                  "criterio": "galope: comprimento do corpo",
-                  "ok": true,
-                  "valor": 4,
-                  "limite": "varia ≤ 4 px",
-                  "quadros": [
-                    38,
-                    38,
-                    39,
-                    40,
-                    41,
-                    42,
-                    40,
-                    39,
-                    38
-                  ]
-                }
-              ],
-              "ok": false,
-              "quadros": 9
-            },
-            {
-              "seed": 3302,
-              "endpoint": "/animate-with-text-v3",
-              "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
-              "first_frame": "padrao-lisa/corrida seed 3202",
-              "geracoes": 1,
-              "arquivo": "raw/portes-padrao-lisa-galope-c3202-s3302-0..8.png",
-              "reaproveitada": true,
-              "data": "2026-11-13T10:34:03.518Z",
-              "criterios": [
-                {
-                  "criterio": "forma (galope)",
-                  "ok": false,
-                  "valor": 9,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: faltam papéis: 8 (jóquei-pele); galope-1: fora da paleta: 20 de 745 pixels (2.7%) acima de 2%; galope-2: fora da paleta: 17 de 745 pixels (2.3%) acima de 2%; galope-3: faltam papéis: 8 (jóquei-pele); galope-4: fora da paleta: 20 de 755 pixels (2.6%) acima de 2%; galope-5: faltam papéis: 8 (jóquei-pele); galope-6: fora da paleta: 20 de 738 pixels (2.7%) acima de 2%; galope-7: fora da paleta: 18 de 732 pixels (2.5%) acima de 2%; galope-8: fora da paleta: 20 de 714 pixels (2.8%) acima de 2%"
-                },
-                {
-                  "criterio": "pernas no galope (todo quadro)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "≥ 2",
-                  "quadros": [
-                    3,
-                    1,
-                    2,
-                    3,
-                    2,
-                    1,
-                    1,
                     3,
                     3
                   ]
@@ -444,62 +193,463 @@
                 {
                   "criterio": "galope: lombo na coluna da sela",
                   "ok": true,
-                  "valor": 2,
+                  "valor": 3,
                   "limite": "varia ≤ 3 px",
                   "quadros": [
-                    17,
-                    17,
-                    17,
-                    17,
-                    17,
-                    16,
-                    16,
-                    17,
-                    18
+                    23,
+                    22,
+                    23,
+                    25,
+                    25,
+                    23,
+                    22,
+                    23,
+                    25
                   ]
                 },
                 {
                   "criterio": "galope: nose.x contra a pose de corrida",
                   "ok": true,
-                  "valor": 2,
+                  "valor": 0,
                   "limite": "±6 px",
                   "quadros": [
-                    55,
-                    55,
-                    56,
-                    57,
-                    57,
-                    57,
-                    57,
-                    56,
-                    55
+                    62,
+                    62,
+                    62,
+                    62,
+                    62,
+                    62,
+                    62,
+                    62,
+                    62
                   ]
                 },
                 {
                   "criterio": "galope: comprimento do corpo",
                   "ok": true,
-                  "valor": 4,
+                  "valor": 2,
                   "limite": "varia ≤ 4 px",
                   "quadros": [
-                    38,
-                    38,
-                    39,
-                    40,
-                    42,
-                    42,
-                    41,
-                    39,
-                    39
+                    47,
+                    47,
+                    47,
+                    47,
+                    49,
+                    48,
+                    47,
+                    47,
+                    47
                   ]
                 }
               ],
-              "ok": false,
+              "ok": true,
               "quadros": 9
             }
           ]
         }
       },
-      "historico": []
+      "historico": [
+        {
+          "refazer": [
+            "corrida",
+            "galope"
+          ],
+          "data": "2026-11-13T11:39:27.812Z",
+          "variante": "mestre",
+          "falhas": [
+            "corrida: forma (corrida) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))",
+            "galope: forma (galope) = 9 (paleta, papéis obrigatórios e silhueta fechada (validar))"
+          ],
+          "refacoes": {
+            "corrida": 0,
+            "galope": 0
+          },
+          "etapas": {
+            "corrida": {
+              "escolhida": 3202,
+              "ok": false,
+              "terminada": true,
+              "refacao": 0,
+              "tentativas": [
+                {
+                  "seed": 3102,
+                  "endpoint": "/create-image-pixflux",
+                  "prompt": "side view, facing right, balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+                  "versaoTexto": 1,
+                  "arquivo": "raw/portes-padrao-lisa-corrida-s3102.png",
+                  "geracoes": 1,
+                  "marca": "",
+                  "reaproveitada": true,
+                  "data": "2026-11-13T10:25:07.763Z",
+                  "criterios": [
+                    {
+                      "criterio": "forma (corrida)",
+                      "ok": false,
+                      "valor": 1,
+                      "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                      "motivo": "fora da paleta: 22 de 1092 pixels (2.0%) acima de 2%"
+                    },
+                    {
+                      "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
+                      "ok": true,
+                      "valor": 2,
+                      "limite": "≥ 2"
+                    }
+                  ],
+                  "ok": false
+                },
+                {
+                  "seed": 3202,
+                  "endpoint": "/create-image-pixflux",
+                  "prompt": "side view, facing right, balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+                  "versaoTexto": 1,
+                  "arquivo": "raw/portes-padrao-lisa-corrida-s3202.png",
+                  "geracoes": 1,
+                  "marca": "",
+                  "reaproveitada": true,
+                  "data": "2026-11-13T10:25:22.942Z",
+                  "criterios": [
+                    {
+                      "criterio": "forma (corrida)",
+                      "ok": false,
+                      "valor": 1,
+                      "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                      "motivo": "faltam papéis: 8 (jóquei-pele)"
+                    },
+                    {
+                      "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
+                      "ok": true,
+                      "valor": 3,
+                      "limite": "≥ 2"
+                    }
+                  ],
+                  "ok": false
+                },
+                {
+                  "seed": 3302,
+                  "endpoint": "/create-image-pixflux",
+                  "prompt": "side view, facing right, balanced medium build horse inspired by the Campolina breed, average proportions, slightly convex head profile, medium length neck and legs, well proportioned body, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+                  "versaoTexto": 1,
+                  "arquivo": "raw/portes-padrao-lisa-corrida-s3302.png",
+                  "geracoes": 1,
+                  "marca": "",
+                  "reaproveitada": true,
+                  "data": "2026-11-13T10:25:39.625Z",
+                  "criterios": [
+                    {
+                      "criterio": "forma (corrida)",
+                      "ok": false,
+                      "valor": 1,
+                      "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                      "motivo": "fora da paleta: 26 de 814 pixels (3.2%) acima de 2%"
+                    },
+                    {
+                      "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
+                      "ok": true,
+                      "valor": 3,
+                      "limite": "≥ 2"
+                    }
+                  ],
+                  "ok": false
+                }
+              ]
+            },
+            "galope": {
+              "escolhida": 3102,
+              "ok": false,
+              "terminada": true,
+              "refacao": 0,
+              "tentativas": [
+                {
+                  "seed": 3102,
+                  "endpoint": "/animate-with-text-v3",
+                  "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+                  "first_frame": "padrao-lisa/corrida seed 3202",
+                  "geracoes": 1,
+                  "arquivo": "raw/portes-padrao-lisa-galope-c3202-s3102-0..8.png",
+                  "reaproveitada": true,
+                  "data": "2026-11-13T10:30:29.267Z",
+                  "criterios": [
+                    {
+                      "criterio": "forma (galope)",
+                      "ok": false,
+                      "valor": 9,
+                      "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                      "motivo": "galope-0: faltam papéis: 8 (jóquei-pele); galope-1: faltam papéis: 8 (jóquei-pele); galope-2: faltam papéis: 8 (jóquei-pele); galope-3: faltam papéis: 8 (jóquei-pele); galope-4: faltam papéis: 8 (jóquei-pele); galope-5: faltam papéis: 8 (jóquei-pele); galope-6: faltam papéis: 8 (jóquei-pele); galope-7: faltam papéis: 8 (jóquei-pele); galope-8: faltam papéis: 8 (jóquei-pele)"
+                    },
+                    {
+                      "criterio": "pernas no galope (todo quadro)",
+                      "ok": true,
+                      "valor": 2,
+                      "limite": "≥ 2",
+                      "quadros": [
+                        3,
+                        2,
+                        2,
+                        3,
+                        2,
+                        2,
+                        3,
+                        3,
+                        2
+                      ]
+                    },
+                    {
+                      "criterio": "galope: 9 quadros",
+                      "ok": true,
+                      "valor": 9,
+                      "limite": "= 9"
+                    },
+                    {
+                      "criterio": "galope: lombo na coluna da sela",
+                      "ok": true,
+                      "valor": 1,
+                      "limite": "varia ≤ 3 px",
+                      "quadros": [
+                        17,
+                        17,
+                        17,
+                        18,
+                        17,
+                        17,
+                        17,
+                        18,
+                        18
+                      ]
+                    },
+                    {
+                      "criterio": "galope: nose.x contra a pose de corrida",
+                      "ok": true,
+                      "valor": 1,
+                      "limite": "±6 px",
+                      "quadros": [
+                        55,
+                        55,
+                        56,
+                        56,
+                        56,
+                        56,
+                        56,
+                        56,
+                        56
+                      ]
+                    },
+                    {
+                      "criterio": "galope: comprimento do corpo",
+                      "ok": true,
+                      "valor": 2,
+                      "limite": "varia ≤ 4 px",
+                      "quadros": [
+                        38,
+                        38,
+                        39,
+                        40,
+                        40,
+                        39,
+                        39,
+                        39,
+                        39
+                      ]
+                    }
+                  ],
+                  "ok": false,
+                  "quadros": 9
+                },
+                {
+                  "seed": 3202,
+                  "endpoint": "/animate-with-text-v3",
+                  "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+                  "first_frame": "padrao-lisa/corrida seed 3202",
+                  "geracoes": 1,
+                  "arquivo": "raw/portes-padrao-lisa-galope-c3202-s3202-0..8.png",
+                  "reaproveitada": true,
+                  "data": "2026-11-13T10:32:13.690Z",
+                  "criterios": [
+                    {
+                      "criterio": "forma (galope)",
+                      "ok": false,
+                      "valor": 9,
+                      "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                      "motivo": "galope-0: faltam papéis: 8 (jóquei-pele); galope-1: faltam papéis: 8 (jóquei-pele); galope-2: faltam papéis: 8 (jóquei-pele); galope-3: faltam papéis: 8 (jóquei-pele); galope-4: fora da paleta: 16 de 737 pixels (2.2%) acima de 2%; galope-5: faltam papéis: 8 (jóquei-pele); galope-6: faltam papéis: 8 (jóquei-pele); galope-7: faltam papéis: 8 (jóquei-pele); galope-8: faltam papéis: 8 (jóquei-pele)"
+                    },
+                    {
+                      "criterio": "pernas no galope (todo quadro)",
+                      "ok": false,
+                      "valor": 1,
+                      "limite": "≥ 2",
+                      "quadros": [
+                        3,
+                        1,
+                        1,
+                        2,
+                        3,
+                        1,
+                        2,
+                        2,
+                        2
+                      ]
+                    },
+                    {
+                      "criterio": "galope: 9 quadros",
+                      "ok": true,
+                      "valor": 9,
+                      "limite": "= 9"
+                    },
+                    {
+                      "criterio": "galope: lombo na coluna da sela",
+                      "ok": true,
+                      "valor": 3,
+                      "limite": "varia ≤ 3 px",
+                      "quadros": [
+                        17,
+                        18,
+                        17,
+                        17,
+                        16,
+                        15,
+                        15,
+                        16,
+                        17
+                      ]
+                    },
+                    {
+                      "criterio": "galope: nose.x contra a pose de corrida",
+                      "ok": true,
+                      "valor": 2,
+                      "limite": "±6 px",
+                      "quadros": [
+                        55,
+                        55,
+                        56,
+                        57,
+                        57,
+                        57,
+                        56,
+                        56,
+                        55
+                      ]
+                    },
+                    {
+                      "criterio": "galope: comprimento do corpo",
+                      "ok": true,
+                      "valor": 4,
+                      "limite": "varia ≤ 4 px",
+                      "quadros": [
+                        38,
+                        38,
+                        39,
+                        40,
+                        41,
+                        42,
+                        40,
+                        39,
+                        38
+                      ]
+                    }
+                  ],
+                  "ok": false,
+                  "quadros": 9
+                },
+                {
+                  "seed": 3302,
+                  "endpoint": "/animate-with-text-v3",
+                  "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+                  "first_frame": "padrao-lisa/corrida seed 3202",
+                  "geracoes": 1,
+                  "arquivo": "raw/portes-padrao-lisa-galope-c3202-s3302-0..8.png",
+                  "reaproveitada": true,
+                  "data": "2026-11-13T10:34:03.518Z",
+                  "criterios": [
+                    {
+                      "criterio": "forma (galope)",
+                      "ok": false,
+                      "valor": 9,
+                      "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                      "motivo": "galope-0: faltam papéis: 8 (jóquei-pele); galope-1: fora da paleta: 20 de 745 pixels (2.7%) acima de 2%; galope-2: fora da paleta: 17 de 745 pixels (2.3%) acima de 2%; galope-3: faltam papéis: 8 (jóquei-pele); galope-4: fora da paleta: 20 de 755 pixels (2.6%) acima de 2%; galope-5: faltam papéis: 8 (jóquei-pele); galope-6: fora da paleta: 20 de 738 pixels (2.7%) acima de 2%; galope-7: fora da paleta: 18 de 732 pixels (2.5%) acima de 2%; galope-8: fora da paleta: 20 de 714 pixels (2.8%) acima de 2%"
+                    },
+                    {
+                      "criterio": "pernas no galope (todo quadro)",
+                      "ok": false,
+                      "valor": 1,
+                      "limite": "≥ 2",
+                      "quadros": [
+                        3,
+                        1,
+                        2,
+                        3,
+                        2,
+                        1,
+                        1,
+                        3,
+                        3
+                      ]
+                    },
+                    {
+                      "criterio": "galope: 9 quadros",
+                      "ok": true,
+                      "valor": 9,
+                      "limite": "= 9"
+                    },
+                    {
+                      "criterio": "galope: lombo na coluna da sela",
+                      "ok": true,
+                      "valor": 2,
+                      "limite": "varia ≤ 3 px",
+                      "quadros": [
+                        17,
+                        17,
+                        17,
+                        17,
+                        17,
+                        16,
+                        16,
+                        17,
+                        18
+                      ]
+                    },
+                    {
+                      "criterio": "galope: nose.x contra a pose de corrida",
+                      "ok": true,
+                      "valor": 2,
+                      "limite": "±6 px",
+                      "quadros": [
+                        55,
+                        55,
+                        56,
+                        57,
+                        57,
+                        57,
+                        57,
+                        56,
+                        55
+                      ]
+                    },
+                    {
+                      "criterio": "galope: comprimento do corpo",
+                      "ok": true,
+                      "valor": 4,
+                      "limite": "varia ≤ 4 px",
+                      "quadros": [
+                        38,
+                        38,
+                        39,
+                        40,
+                        42,
+                        42,
+                        41,
+                        39,
+                        39
+                      ]
+                    }
+                  ],
+                  "ok": false,
+                  "quadros": 9
+                }
+              ]
+            }
+          }
+        }
+      ]
     },
     "esguio-lisa": {
       "fase": "mestres",
@@ -512,7 +662,7 @@
       "seedBase": 3101,
       "refacoes": {
         "retrato": 0,
-        "parado": 0,
+        "parado": 1,
         "corrida": 0,
         "galope": 0
       },
@@ -520,7 +670,7 @@
       "final": true,
       "ok": false,
       "falhas": [
-        "parado: pernas no parado = 2 (= 4)"
+        "parado: forma (parado) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))"
       ],
       "etapas": {
         "retrato": {
@@ -564,27 +714,53 @@
           ]
         },
         "parado": {
-          "escolhida": 3101,
+          "escolhida": 4101,
           "ok": false,
           "terminada": true,
-          "refacao": 0,
+          "refacao": 1,
           "tentativas": [
             {
-              "seed": 3101,
+              "seed": 4101,
               "endpoint": "/create-image-pixflux",
               "prompt": "side view, facing right, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
               "versaoTexto": 1,
-              "arquivo": "raw/portes-esguio-lisa-parado-s3101.png",
+              "arquivo": "raw/portes-esguio-lisa-parado-s4101.png",
               "geracoes": 1,
               "marca": "",
-              "reaproveitada": true,
-              "data": "2026-11-13T10:26:09.469Z",
+              "data": "2026-11-13T11:40:13.009Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
+                  "ok": false,
+                  "valor": 1,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "faltam papéis: 4 (crina)"
+                },
+                {
+                  "criterio": "pernas no parado",
                   "ok": true,
-                  "valor": 0,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                  "valor": 4,
+                  "limite": "= 4"
+                }
+              ],
+              "ok": false
+            },
+            {
+              "seed": 4201,
+              "endpoint": "/create-image-pixflux",
+              "prompt": "side view, facing right, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+              "versaoTexto": 1,
+              "arquivo": "raw/portes-esguio-lisa-parado-s4201.png",
+              "geracoes": 1,
+              "marca": "",
+              "data": "2026-11-13T11:40:32.190Z",
+              "criterios": [
+                {
+                  "criterio": "forma (parado)",
+                  "ok": false,
+                  "valor": 1,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                  "motivo": "silhueta aberta: 8 buracos de transparência dentro da pelagem (máx. 4)"
                 },
                 {
                   "criterio": "pernas no parado",
@@ -596,53 +772,26 @@
               "ok": false
             },
             {
-              "seed": 3201,
+              "seed": 4301,
               "endpoint": "/create-image-pixflux",
               "prompt": "side view, facing right, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
               "versaoTexto": 1,
-              "arquivo": "raw/portes-esguio-lisa-parado-s3201.png",
+              "arquivo": "raw/portes-esguio-lisa-parado-s4301.png",
               "geracoes": 1,
               "marca": "",
-              "reaproveitada": true,
-              "data": "2026-11-13T10:26:24.010Z",
-              "criterios": [
-                {
-                  "criterio": "forma (parado)",
-                  "ok": true,
-                  "valor": 0,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
-                },
-                {
-                  "criterio": "pernas no parado",
-                  "ok": false,
-                  "valor": 3,
-                  "limite": "= 4"
-                }
-              ],
-              "ok": false
-            },
-            {
-              "seed": 3301,
-              "endpoint": "/create-image-pixflux",
-              "prompt": "side view, facing right, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
-              "versaoTexto": 1,
-              "arquivo": "raw/portes-esguio-lisa-parado-s3301.png",
-              "geracoes": 1,
-              "marca": "",
-              "reaproveitada": true,
-              "data": "2026-11-13T10:26:38.327Z",
+              "data": "2026-11-13T11:40:47.660Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
                   "ok": false,
                   "valor": 1,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "fora da paleta: 36 de 550 pixels (6.5%) acima de 2%"
+                  "motivo": "faltam papéis: 4 (crina), 8 (jóquei-pele)"
                 },
                 {
                   "criterio": "pernas no parado",
-                  "ok": true,
-                  "valor": 4,
+                  "ok": false,
+                  "valor": 3,
                   "limite": "= 4"
                 }
               ],
@@ -813,7 +962,110 @@
           ]
         }
       },
-      "historico": []
+      "historico": [
+        {
+          "refazer": [
+            "parado"
+          ],
+          "data": "2026-11-13T11:39:27.812Z",
+          "variante": "mestre",
+          "falhas": [
+            "parado: pernas no parado = 2 (= 4)"
+          ],
+          "refacoes": {
+            "parado": 0
+          },
+          "etapas": {
+            "parado": {
+              "escolhida": 3101,
+              "ok": false,
+              "terminada": true,
+              "refacao": 0,
+              "tentativas": [
+                {
+                  "seed": 3101,
+                  "endpoint": "/create-image-pixflux",
+                  "prompt": "side view, facing right, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+                  "versaoTexto": 1,
+                  "arquivo": "raw/portes-esguio-lisa-parado-s3101.png",
+                  "geracoes": 1,
+                  "marca": "",
+                  "reaproveitada": true,
+                  "data": "2026-11-13T10:26:09.469Z",
+                  "criterios": [
+                    {
+                      "criterio": "forma (parado)",
+                      "ok": true,
+                      "valor": 0,
+                      "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                    },
+                    {
+                      "criterio": "pernas no parado",
+                      "ok": false,
+                      "valor": 2,
+                      "limite": "= 4"
+                    }
+                  ],
+                  "ok": false
+                },
+                {
+                  "seed": 3201,
+                  "endpoint": "/create-image-pixflux",
+                  "prompt": "side view, facing right, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+                  "versaoTexto": 1,
+                  "arquivo": "raw/portes-esguio-lisa-parado-s3201.png",
+                  "geracoes": 1,
+                  "marca": "",
+                  "reaproveitada": true,
+                  "data": "2026-11-13T10:26:24.010Z",
+                  "criterios": [
+                    {
+                      "criterio": "forma (parado)",
+                      "ok": true,
+                      "valor": 0,
+                      "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                    },
+                    {
+                      "criterio": "pernas no parado",
+                      "ok": false,
+                      "valor": 3,
+                      "limite": "= 4"
+                    }
+                  ],
+                  "ok": false
+                },
+                {
+                  "seed": 3301,
+                  "endpoint": "/create-image-pixflux",
+                  "prompt": "side view, facing right, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, horse standing still, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, with a small jockey riding, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, long straight flowing mane and tail, bright green (#00ff00) long straight mane and tail clearly visible, jockey in yellow silks and yellow helmet, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+                  "versaoTexto": 1,
+                  "arquivo": "raw/portes-esguio-lisa-parado-s3301.png",
+                  "geracoes": 1,
+                  "marca": "",
+                  "reaproveitada": true,
+                  "data": "2026-11-13T10:26:38.327Z",
+                  "criterios": [
+                    {
+                      "criterio": "forma (parado)",
+                      "ok": false,
+                      "valor": 1,
+                      "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
+                      "motivo": "fora da paleta: 36 de 550 pixels (6.5%) acima de 2%"
+                    },
+                    {
+                      "criterio": "pernas no parado",
+                      "ok": true,
+                      "valor": 4,
+                      "limite": "= 4"
+                    }
+                  ],
+                  "ok": false
+                }
+              ]
+            }
+          }
+        }
+      ]
     },
     "robusto-lisa": {
       "fase": "mestres",
@@ -1334,5 +1586,5 @@
     "nose": 6,
     "comprimento": 4
   },
-  "atualizado": "2026-11-13T11:39:09.487Z"
+  "atualizado": "2026-11-13T11:42:01.070Z"
 }
