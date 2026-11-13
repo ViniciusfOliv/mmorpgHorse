@@ -35,7 +35,7 @@
 
   // ---------------------------------------------------------------------------
   // Raridades
-  //   statCap: teto de cada status (natural + pontos livres; o equipamento soma depois do teto).
+  //   ptsMult: fator da raridade nos pontos por nível (RaceSim.freePoints).
   //   skillSlots: nº máximo de habilidades; bornSkills: nº MÍNIMO ao nascer (o potro completa
   //   com skills compatíveis até esse número, limitado às vagas);
   //   skillChance: chance base de ativar cada skill quando o gatilho acontece.
@@ -43,11 +43,11 @@
   //   genética: status no nível 1 = baseLo + 16 × g / 31.
   // ---------------------------------------------------------------------------
   var RARITIES = {
-    comum:    { id: 'comum',    name: 'Comum',    color: '#9e9e9e', statCap: 80,  skillSlots: 1, bornSkills: 1, skillChance: 0.35, order: 0, baseLo: 40 },
-    magico:   { id: 'magico',   name: 'Mágico',   color: '#4caf50', statCap: 85,  skillSlots: 2, bornSkills: 1, skillChance: 0.45, order: 1, baseLo: 45 },
-    raro:     { id: 'raro',     name: 'Raro',     color: '#2196f3', statCap: 90,  skillSlots: 3, bornSkills: 2, skillChance: 0.55, order: 2, baseLo: 50 },
-    lendario: { id: 'lendario', name: 'Lendário', color: '#ff9800', statCap: 95,  skillSlots: 4, bornSkills: 2, skillChance: 0.65, order: 3, baseLo: 55 },
-    mitico:   { id: 'mitico',   name: 'Mítico',   color: '#9c27b0', statCap: 100, skillSlots: 5, bornSkills: 3, skillChance: 0.75, order: 4, baseLo: 60 }
+    comum:    { id: 'comum',    name: 'Comum',    color: '#9e9e9e', ptsMult: 1.00, skillSlots: 1, bornSkills: 1, skillChance: 0.35, order: 0, baseLo: 40 },
+    magico:   { id: 'magico',   name: 'Mágico',   color: '#4caf50', ptsMult: 1.05, skillSlots: 2, bornSkills: 1, skillChance: 0.45, order: 1, baseLo: 44 },
+    raro:     { id: 'raro',     name: 'Raro',     color: '#2196f3', ptsMult: 1.10, skillSlots: 3, bornSkills: 2, skillChance: 0.55, order: 2, baseLo: 49 },
+    lendario: { id: 'lendario', name: 'Lendário', color: '#ff9800', ptsMult: 1.15, skillSlots: 4, bornSkills: 2, skillChance: 0.65, order: 3, baseLo: 54 },
+    mitico:   { id: 'mitico',   name: 'Mítico',   color: '#9c27b0', ptsMult: 1.20, skillSlots: 5, bornSkills: 3, skillChance: 0.75, order: 4, baseLo: 60 }
   };
 
   var STAT_KEYS = ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
@@ -87,26 +87,25 @@
   // Skill de tipo (v3): uma por elemento, em vaga própria, sempre ativa e sem sorteio no terço
   // `zone` da distância ([início, fim] em fração de D). Os valores valem com força P = 1 e são
   // multiplicados por P = RaceSim.typePower (cresce com nível e raridade):
-  //   accelMult / speedMult: somam x·P ao multiplicador; drainCut: corta x·P do gasto de estamina;
-  //   forcaAdd / manAdd: somam x·P a n(Força) / n(Manobra) (curva, subida, piso, pelotão);
-  //   staminaRestore: recupera x·P do tanque uma vez, ao entrar no terço.
+  //   statMul: no terço, os dois status do tipo (Fogo Vel/Ace, Água Est/Gar, Grama For/Man) valem × (1 + x·P);
+  //   (chaves antigas ainda aceitas pela corrida: accelMult, speedMult, drainCut, forcaAdd, manAdd, staminaRestore).
   //   short: nome de até 12 letras para o balão da corrida.
   // ---------------------------------------------------------------------------
   var TYPE_SKILLS = {
     fogo: {
       id: 'labareda', name: 'Labareda', short: 'LABAREDA', zone: [0, 1 / 3],
-      effect: { accelMult: 0.23 },
-      desc: 'No primeiro terço da pista, a largada pega fogo: +23% de aceleração (cresce com nível e raridade).'
+      effect: { statMul: 0.19 },
+      desc: 'No primeiro terço da pista, a largada pega fogo: Velocidade e Aceleração valem +19% (varia com nível e raridade).'
     },
     grama: {
       id: 'raizes-firmes', name: 'Raízes Firmes', short: 'RAÍZES FIRM.', zone: [1 / 3, 2 / 3],
-      effect: { forcaAdd: 0.07, manAdd: 0.07, drainCut: 0.012 },
-      desc: 'No terço do meio, finca os cascos: +7 de Força e de Manobra e gasta 1,2% menos estamina (cresce com nível e raridade).'
+      effect: { statMul: 0.15 },
+      desc: 'No terço do meio, finca os cascos: Força e Manobra valem +15% (cresce com nível e raridade).'
     },
     agua: {
       id: 'mare-alta', name: 'Maré Alta', short: 'MARÉ ALTA', zone: [2 / 3, 1],
-      effect: { speedMult: 0.018, staminaRestore: 0.012 },
-      desc: 'No último terço, a maré sobe: recupera 1,2% de estamina ao entrar e corre +1,8% mais rápido (cresce com nível e raridade).'
+      effect: { statMul: 0.33 },
+      desc: 'No último terço, a maré sobe: Estamina e Garra valem +33% (cresce com a raridade).'
     }
   };
 
@@ -130,8 +129,8 @@
     // --- Gerais (qualquer tipo) ---
     'arranque': {
       id: 'arranque', name: 'Arranque', element: 'geral', trigger: 'start',
-      desc: 'Largada explosiva: +20% de aceleração nos primeiros 100 m.',
-      effect: { accelMult: 1.2, distanceM: 100 }
+      desc: 'Largada explosiva: +18% de aceleração nos primeiros 100 m.',
+      effect: { accelMult: 1.18, distanceM: 100 }
     },
     'sprint': {
       id: 'sprint', name: 'Sprint', element: 'geral', trigger: 'straight',
@@ -140,8 +139,8 @@
     },
     'drift': {
       id: 'drift', name: 'Drift', element: 'geral', trigger: 'curve',
-      desc: 'Em cada curva: +3% de rendimento na curva.',
-      effect: { curveBonus: 0.03, blockScoped: true }
+      desc: 'Em cada curva: +2,5% de rendimento na curva.',
+      effect: { curveBonus: 0.025, blockScoped: true }
     },
     'saida-rapida': {
       id: 'saida-rapida', name: 'Saída Rápida', element: 'geral', trigger: 'curveExit',
@@ -176,8 +175,8 @@
     },
     'chama-final': {
       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
-      desc: 'Na reta final, +5% de velocidade por 8s.',
-      effect: { speedMult: 1.05, durationS: 8 }
+      desc: 'Na reta final, +5% de velocidade por 9,5s.',
+      effect: { speedMult: 1.05, durationS: 9.5 }
     },
     // --- Água ---
     'pe-na-chuva': {
@@ -187,8 +186,8 @@
     },
     'canto-da-iara': {
       id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
-      desc: 'Na reta final, +6% de velocidade por 7s e gasta 30% menos estamina.',
-      effect: { speedMult: 1.06, drainMult: 0.7, durationS: 7 }
+      desc: 'Na reta final, +6% de velocidade por 9s e gasta 30% menos estamina.',
+      effect: { speedMult: 1.06, drainMult: 0.7, durationS: 9 }
     },
     'nascente': {
       id: 'nascente', name: 'Nascente', element: 'agua', trigger: 'straight',
@@ -344,18 +343,18 @@
 
   // Ligas por Rating de Poder (RaceSim.powerRating). min inclusivo.
   // Seis faixas iguais entre dois cavalos de referência: Fogo, genética 16 em todos os status, ★★,
-  // sem peças e sem skills de vaga, com alloc = RaceSim.botAlloc(cavalo).
-  //   lo = Poder do Comum de nível 1 = 711;  hi = Poder do Lendário de nível 50 = 1316.
+  // sem skills de vaga, com alloc = RaceSim.botAlloc(cavalo).
+  //   lo = Poder do Comum de nível 1 = 624;  hi = Poder do Lendário de nível 50 = 1154.
   //   Bronze começa em 0; a liga k (1 a 5) em lo + k·(hi − lo)/6, arredondado para a dezena:
-  //   811,8 → 810 · 912,7 → 910 · 1013,5 → 1010 · 1114,3 → 1110 · 1215,2 → 1220.
+  //   712,3 → 710 · 800,7 → 800 · 889,0 → 890 · 977,3 → 980 · 1065,7 → 1070.
   // O sim-test refaz a conta: mudou peso do Poder, status ou build dos bots, recalcule aqui.
   var LEAGUES = [
     { id: 'bronze',   name: 'Bronze',   min: 0,    color: '#b0703c' },
-    { id: 'prata',    name: 'Prata',    min: 810,  color: '#b8c2cc' },
-    { id: 'ouro',     name: 'Ouro',     min: 910,  color: '#f2c230' },
-    { id: 'platina',  name: 'Platina',  min: 1010, color: '#5fd3c8' },
-    { id: 'diamante', name: 'Diamante', min: 1110, color: '#7ab8ff' },
-    { id: 'lenda',    name: 'Lenda',    min: 1220, color: '#ff7a3d' }
+    { id: 'prata',    name: 'Prata',    min: 710,  color: '#b8c2cc' },
+    { id: 'ouro',     name: 'Ouro',     min: 800,  color: '#f2c230' },
+    { id: 'platina',  name: 'Platina',  min: 890,  color: '#5fd3c8' },
+    { id: 'diamante', name: 'Diamante', min: 980,  color: '#7ab8ff' },
+    { id: 'lenda',    name: 'Lenda',    min: 1070, color: '#ff7a3d' }
   ];
 
   var FOAL_NAMES = [
