@@ -556,14 +556,15 @@ const ELEMENTO_DO_ESTILO = { chamas: 'fogo', ondas: 'agua', folhas: 'grama' };
 // reprovam nos moldes escolhidos e que o Vinicius aceitou assim mesmo na folha: a dos mestres (aceite dos 3 mestres) e
 // a final (as 9 versões), as duas em 2026-11-13. É o que o criterios.json de novos/ marca reprovado nas tentativas
 // escolhidas. etapa 'corrida' = a pose de corrida, que não fica no molde (o quadro 0 do galope parte dela): essas
-// linhas só se conferem contra o criterios.json. Na forma, `defeito` é o começo do motivo do validar.
+// linhas só se conferem contra o criterios.json. Na forma, `defeito` é o começo do motivo do validar. `sob` marca o
+// defeito que a forma reprovada escondia (o validar para no 1º defeito; revisão final da 2b): não é critério próprio do
+// lote nem do criterios.json, e aparece ao revalidar com o defeito de cima neutralizado (formaComAceitos).
 const HOJE_FOLHA = '2026-11-13';
 const MESTRE_ROBUSTO = 'folha dos mestres: o robusto guiado pelo mestre padrão, aceito como está (cabeça e pescoço mais pesados)';
 const ESGUIO_SEM_GUIA = 'folha final: versão do esguio sem init_image (o piloto reprovou no mesmo corpo nas 3 seeds), aceita como está';
 const FOLHA_FINAL = 'folha final: aceito como está';
-// rodada de correção 1 da T7 (2026-11-13): a crina solta (moldes-lib, soltarCrina) devolveu a canela do retrato dos
-// robustos à pelagem; o desenho da folha só mudou na canela, e as medidas mudaram com ela
-const CRINA_SOLTA_T7 = 'T7, rodada de correção 1: a canela voltou da crina para a pelagem-sombra (47 px); as pernas ficaram inteiras e a dianteira de longe encosta na de perto (antes, as 4 "pernas" eram pedaços partidos pela canela de crina). O desenho da folha final é o mesmo, fora a cor da canela';
+// revisão final da 2b (2026-11-13): o que só apareceu depois da folha final e o Vinicius aceitou
+const VINICIUS_FINAL = 'aceito pelo Vinicius em 2026-11-13';
 const aceito = (molde, etapa, criterio, valor, motivo, defeito) => Object.assign({ molde, etapa, criterio, valor, data: HOJE_FOLHA, motivo }, defeito ? { defeito } : {});
 const ACEITOS_NA_FOLHA = [
   aceito('esguio-lisa', 'parado', 'pernas no parado', 2, 'folha dos mestres: escolha do Vinicius (seed 3101), desenho melhor com 2 pernas visíveis'),
@@ -592,10 +593,15 @@ const ACEITOS_NA_FOLHA = [
   aceito('padrao-ondas', 'galope', 'forma (galope)', 9, FOLHA_FINAL + '; laranja fora da paleta no cru, nos 9 quadros', 'fora da paleta'),
   aceito('padrao-folhas', 'parado', 'pernas no parado', 3, FOLHA_FINAL),
   aceito('robusto-ondas', 'parado', 'forma (parado)', 1, FOLHA_FINAL + '; laranja fora da paleta no cru (3,6 %)', 'fora da paleta'),
+  // escondido pelo "fora da paleta" de cima: 5 frestas de 1 px (máx. 4), medidas na revisão final da 2b
+  Object.assign(aceito('robusto-ondas', 'parado', 'forma (parado): buracos na silhueta', 5, VINICIUS_FINAL + ': 5 frestas de 1 px entre a cauda e a anca, em (12,38), (13,42), (12,43), (12,44) e (16,48)', 'silhueta aberta'), { sob: 'forma (parado)' }),
   aceito('robusto-ondas', 'corrida', 'forma (corrida)', 1, FOLHA_FINAL + '; o jóquei sai sem pele', 'faltam papéis: 8 (jóquei-pele)'),
   aceito('robusto-ondas', 'galope', 'forma (galope)', 9, FOLHA_FINAL + '; o jóquei sai sem pele nos 9 quadros', 'faltam papéis: 8 (jóquei-pele)'),
   aceito('robusto-ondas', 'galope', 'galope: comprimento do corpo', 9, FOLHA_FINAL),
-  aceito('robusto-folhas', 'retrato', 'pernas no retrato', 3, CRINA_SOLTA_T7),
+  // T7, rodada de correção 1: a canela voltou da crina para a pelagem-sombra (47 px, soltarCrina); as pernas ficaram
+  // inteiras e a dianteira de longe encosta na de perto (antes, as 4 "pernas" eram pedaços partidos pela canela de
+  // crina). O desenho da folha final é o mesmo, fora a cor da canela
+  aceito('robusto-folhas', 'retrato', 'pernas no retrato', 3, VINICIUS_FINAL + ' (revisão final da 2b): 3 pernas no retrato depois que a canela de crina voltou à pelagem na T7'),
   aceito('robusto-folhas', 'galope', 'galope: comprimento do corpo', 6, FOLHA_FINAL),
 ];
 const chaveAceito = a => `${a.molde} · ${a.etapa} · ${a.criterio} = ${a.valor}`;
@@ -603,11 +609,38 @@ const chaveAceito = a => `${a.molde} · ${a.etapa} · ${a.criterio} = ${a.valor}
 const valorAceito = (molde, etapa, criterio) => (ACEITOS_NA_FOLHA.find(a => a.molde === molde && a.etapa === etapa && a.criterio === criterio) || {}).valor;
 // quadro sem pele do jóquei, aceito na folha (a forma reprova por "faltam papéis: 8")
 const semPeleAceito = (molde, etapa) => ACEITOS_NA_FOLHA.some(a => a.molde === molde && a.etapa === etapa && a.defeito === 'faltam papéis: 8 (jóquei-pele)');
+// os critérios do lote (o que o portes-criterios e o criterios.json marcam): fora o que a forma escondia (`sob`)
+const ACEITOS_DO_LOTE = ACEITOS_NA_FOLHA.filter(a => !a.sob);
+// A forma (validar) de um quadro com os defeitos aceitos neutralizados (revisão final da 2b): o validar para no 1º
+// defeito, e a forma reprovada por um defeito aceito escondia os seguintes (os 5 buracos do parado do robusto-ondas,
+// atrás do "fora da paleta"). Cada defeito aceito para o molde e a etapa que aparece é neutralizado e o quadro é
+// validado de novo: fora da paleta ⇒ sem aproximados; sem pele do jóquei ⇒ com o papel 8; silhueta aberta (a última
+// conferência do validar) ⇒ passa só com o número de buracos aceito. Para num defeito não aceito. Devolve o resultado
+// final ({ ok, motivo }) e os defeitos aceitos neutralizados, na ordem.
+const formaComAceitos = (molde, etapa, quadro, opts) => {
+  const acs = ACEITOS_NA_FOLHA.filter(a => a.molde === molde && a.etapa === etapa && a.defeito), vistos = [];
+  let q = quadro, r = validar(q, opts);
+  while (!r.ok) {
+    const ac = acs.find(a => r.motivo.startsWith(a.defeito) && !vistos.includes(a.defeito));
+    if (!ac) break;
+    if (ac.defeito === 'silhueta aberta') {
+      if (Number(/: (\d+) buracos/.exec(r.motivo)[1]) === ac.valor) { vistos.push(ac.defeito); r = { ok: true }; }
+      break;
+    }
+    vistos.push(ac.defeito);
+    if (ac.defeito === 'fora da paleta') q = Object.assign({}, q, { aproximados: 0 });
+    else if (ac.defeito === 'faltam papéis: 8 (jóquei-pele)') q = Object.assign({}, q, { papeis: new Set([...q.papeis, 8]) });
+    else throw new Error('defeito aceito sem neutralização no teste: ' + ac.defeito);
+    r = validar(q, opts);
+  }
+  return { r, vistos };
+};
 
 // Medidas da 2a (spec 2026-11-12-cavalos-marcas §3 e §7, e os números do cabeçalho do marcas.js, tirados dos 4 moldes
 // antigos) e da pendência da 2a que a 2b fecharia (as meias por molde) que os moldes novos NÃO cumprem, medidas na T7
-// em 2026-11-13. Não foram critério da folha: ficam aqui com o valor medido para a decisão do Vinicius (relatório da
-// T7). Nenhum limite foi afrouxado.
+// em 2026-11-13. Não foram critério da folha: ficam aqui com o valor medido. Decisão do Vinicius (2026-11-13, revisão
+// final da 2b): as meias que se juntam ou se partem e a zona da cara que pulsa no galope ficam para a 2c. Nenhum limite
+// foi afrouxado.
 const PENDENTES_2A = {
   // a zona da cara (raio preso ao focinho) muda de área entre os 9 quadros do galope mais que 20 % (regra: ≤ 20 %)
   caraPresa: ['esguio-chamas: área 19–26 (37 %)', 'esguio-folhas: área 18–38 (111 %)', 'esguio-ondas: área 26–35 (35 %)',
@@ -664,14 +697,13 @@ moldes.forEach(arq => {
       quadros[n] = { idx, w: 64, h: 64, papeis: new Set(idx.filter(v => v)), aproximados: aproximadosDe(J, n) };
     });
   });
-  // a forma do lote (validar, com os aproximados do cru gravados no JSON); a forma aceita na folha reprova, e com o
-  // defeito registrado em ACEITOS_NA_FOLHA
-  test(chave + ': validar ok em todos os quadros, fora a forma aceita na folha', () => {
+  // a forma do lote (validar, com os aproximados do cru gravados no JSON); a forma aceita na folha reprova com o defeito
+  // registrado em ACEITOS_NA_FOLHA, e com os defeitos aceitos neutralizados (formaComAceitos) o quadro tem de passar:
+  // nada fica escondido atrás de um defeito aceito
+  test(chave + ': validar ok em todos os quadros, com os defeitos aceitos na folha neutralizados', () => {
     nomes.forEach(n => {
-      const etapa = /^galope-/.test(n) ? 'galope' : n, r = validar(quadros[n], { exigeJoquei: n !== 'retrato' });
-      const ac = ACEITOS_NA_FOLHA.find(a => a.molde === chave && a.etapa === etapa && /^forma/.test(a.criterio));
-      if (!ac) assert.strictEqual(r.ok, true, n + ': ' + r.motivo);
-      else if (!r.ok) assert.ok(r.motivo.startsWith(ac.defeito), n + ': ' + r.motivo + ' (aceito: ' + ac.defeito + ')');
+      const etapa = /^galope-/.test(n) ? 'galope' : n, { r, vistos } = formaComAceitos(chave, etapa, quadros[n], { exigeJoquei: n !== 'retrato' });
+      assert.strictEqual(r.ok, true, n + ': ' + r.motivo + (vistos.length ? ' (depois de neutralizar: ' + vistos.join(', ') + ')' : ''));
     });
   });
   test(chave + ': footY e nose.x coerentes', () => {
@@ -1512,25 +1544,30 @@ function criteriosReais(m) {
 }
 
 test('critérios da T4 nos 12: reprova exatamente o que o Vinicius aceitou na folha (ACEITOS_NA_FOLHA, fora a pose de corrida)', comReais(() => {
-  const falhas = [];
+  const falhas = [], defeitosVistos = new Set();
   for (const ch of CHAVES_REAIS) {
     const cs = criteriosReais(REAIS[ch]), ruins = cs.filter(c => !c.ok);
     console.log(`       ${ch}: ${cs.length} critérios, ${ruins.length ? 'aceitos reprovados: ' + ruins.map(c => c.criterio + ' = ' + c.valor).join('; ') : 'todos passam'}`);
-    for (const c of ruins) {
-      const k = { molde: ch, etapa: c.etapa, criterio: c.criterio, valor: c.valor };
-      falhas.push(chaveAceito(k));
-      // forma: o defeito de cada quadro é o registrado
-      const ac = ACEITOS_NA_FOLHA.find(a => a.molde === ch && a.etapa === c.etapa && a.criterio === c.criterio);
-      if (ac && ac.defeito) c.motivos.forEach(mt => assert.ok(mt.startsWith(ac.defeito), `${ch} ${c.criterio}: ${mt} (aceito: ${ac.defeito})`));
+    for (const c of ruins) falhas.push(chaveAceito({ molde: ch, etapa: c.etapa, criterio: c.criterio, valor: c.valor }));
+    // forma: com os defeitos aceitos neutralizados, todo quadro passa; e cada defeito aceito aparece em algum quadro
+    for (const q of quadrosDe(REAIS[ch])) {
+      const papeis = new Set(q.idx.filter(v => v));
+      const { r, vistos } = formaComAceitos(ch, q.etapa, { idx: q.idx, w: 64, h: 64, papeis, aproximados: aproximadosDe(REAIS[ch].J, q.quadro) }, { exigeJoquei: q.quadro !== 'retrato' });
+      assert.ok(r.ok, `${q.nome}: ${r.motivo}` + (vistos.length ? ' (depois de neutralizar: ' + vistos.join(', ') + ')' : ''));
+      vistos.forEach(d => defeitosVistos.add(`${ch} · ${q.etapa} · ${d}`));
     }
   }
+  const defeitosAceitos = ACEITOS_NA_FOLHA.filter(a => a.defeito && a.etapa !== 'corrida').map(a => `${a.molde} · ${a.etapa} · ${a.defeito}`);
+  assert.deepStrictEqual([...defeitosVistos].sort(), [...new Set(defeitosAceitos)].sort(), 'defeitos da forma aceitos × os que aparecem nos quadros');
   const pt = Pc().criterioPortes({ esguio: REAIS['esguio-lisa'], padrao: REAIS['padrao-lisa'], robusto: REAIS['robusto-lisa'] });
   console.log('       portes distintos (retratos dos mestres): ' + pt.map(c => `${c.criterio} = ${c.valor} (${c.limite}) ${c.ok ? 'ok' : 'aceito reprovado'}`).join('; '));
-  confereLista(falhas, ACEITOS_NA_FOLHA.filter(a => a.etapa !== 'corrida').map(chaveAceito), 'ACEITOS_NA_FOLHA');
+  confereLista(falhas, ACEITOS_DO_LOTE.filter(a => a.etapa !== 'corrida').map(chaveAceito), 'ACEITOS_NA_FOLHA');
   ACEITOS_NA_FOLHA.forEach(a => {
     assert.strictEqual(a.data, '2026-11-13', chaveAceito(a));
     assert.ok(typeof a.motivo === 'string' && a.motivo.length > 10, chaveAceito(a));
     assert.ok(ETAPAS_REAIS.includes(a.etapa) && CHAVES_REAIS.includes(a.molde), chaveAceito(a));
+    // o defeito escondido fica sob uma forma aceita do mesmo molde e etapa
+    if (a.sob) assert.ok(ACEITOS_DO_LOTE.some(b => b.molde === a.molde && b.etapa === a.etapa && b.criterio === a.sob && b.defeito), chaveAceito(a) + ': sob ' + a.sob);
   });
 }));
 
@@ -1548,7 +1585,7 @@ test('ACEITOS_NA_FOLHA = o que reprova hoje no criterios.json de novos/ (as tent
       for (const c of t.criterios.filter(x => !x.ok)) falhas.push(chaveAceito({ molde: ch, etapa: e, criterio: c.criterio, valor: c.valor }));
     }
   }
-  confereLista(falhas, ACEITOS_NA_FOLHA.map(chaveAceito), 'ACEITOS_NA_FOLHA × criterios.json');
+  confereLista(falhas, ACEITOS_DO_LOTE.map(chaveAceito), 'ACEITOS_NA_FOLHA × criterios.json');
 }));
 
 // Meias (pendência da 2a): no retrato e no parado de cada molde, patas = N (1 a 4) dá N manchas brancas (pedaços
