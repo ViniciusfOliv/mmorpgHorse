@@ -47,15 +47,15 @@
   "contagens": {
     "retrato": {"aproximados":0,"remapeados":8,"contornados":0},
     "parado": {"aproximados":33,"remapeados":0,"contornados":0},
-    "galope-0": {"aproximados":9,"remapeados":47,"contornados":85},
-    "galope-1": {"aproximados":9,"remapeados":31,"contornados":68},
-    "galope-2": {"aproximados":9,"remapeados":35,"contornados":66},
-    "galope-3": {"aproximados":10,"remapeados":49,"contornados":64},
-    "galope-4": {"aproximados":9,"remapeados":43,"contornados":77},
-    "galope-5": {"aproximados":10,"remapeados":47,"contornados":81},
-    "galope-6": {"aproximados":10,"remapeados":49,"contornados":84},
-    "galope-7": {"aproximados":9,"remapeados":48,"contornados":72},
-    "galope-8": {"aproximados":9,"remapeados":45,"contornados":78}
+    "galope-0": {"aproximados":0,"remapeados":31,"contornados":85},
+    "galope-1": {"aproximados":0,"remapeados":15,"contornados":68},
+    "galope-2": {"aproximados":0,"remapeados":19,"contornados":66},
+    "galope-3": {"aproximados":1,"remapeados":33,"contornados":64},
+    "galope-4": {"aproximados":0,"remapeados":27,"contornados":77},
+    "galope-5": {"aproximados":1,"remapeados":31,"contornados":81},
+    "galope-6": {"aproximados":1,"remapeados":33,"contornados":84},
+    "galope-7": {"aproximados":0,"remapeados":32,"contornados":72},
+    "galope-8": {"aproximados":0,"remapeados":29,"contornados":78}
   },
   "ancoras": {
     "retrato": {"footY":59,"nose":[61,19],"rear":[3,32],"saddle":null,"bbox":{"x":2,"y":4,"w":60,"h":56}},

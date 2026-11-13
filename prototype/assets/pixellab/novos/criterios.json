@@ -28,7 +28,7 @@
         "ok": true,
         "seed": 3402
       },
-      "atualizado": "2026-11-13T15:09:13.208Z"
+      "atualizado": "2026-11-13T15:41:28.343Z"
     },
     "robusto": {
       "chave": "robusto-chamas",
@@ -41,7 +41,7 @@
         "ok": true,
         "seed": 3503
       },
-      "atualizado": "2026-11-13T15:09:13.535Z"
+      "atualizado": "2026-11-13T15:41:28.692Z"
     }
   },
   "portes": {
@@ -5525,7 +5525,8 @@
           ],
           "mantida": {
             "seria": 3603,
-            "seriaOk": true
+            "seriaOk": true,
+            "data": "2026-11-13T15:41:28.422Z"
           }
         },
         "corrida": {
@@ -6965,7 +6966,8 @@
           ],
           "mantida": {
             "seria": 3707,
-            "seriaOk": false
+            "seriaOk": false,
+            "data": "2026-11-13T15:41:28.775Z"
           }
         },
         "corrida": {
@@ -7705,7 +7707,7 @@
                   "ok": false,
                   "valor": 9,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: fora da paleta: 24 de 891 pixels (2.7%) acima de 2%; galope-1: fora da paleta: 27 de 907 pixels (3.0%) acima de 2%; galope-2: fora da paleta: 27 de 902 pixels (3.0%) acima de 2%; galope-3: fora da paleta: 22 de 908 pixels (2.4%) acima de 2%; galope-4: fora da paleta: 22 de 924 pixels (2.4%) acima de 2%; galope-5: fora da paleta: 29 de 896 pixels (3.2%) acima de 2%; galope-6: fora da paleta: 31 de 914 pixels (3.4%) acima de 2%; galope-7: fora da paleta: 33 de 921 pixels (3.6%) acima de 2%; galope-8: fora da paleta: 25 de 943 pixels (2.7%) acima de 2%"
+                  "motivo": "galope-0: fora da paleta: 24 de 891 pixels (2.7%) acima de 2%; galope-1: fora da paleta: 27 de 907 pixels (3.0%) acima de 2%; galope-2: fora da paleta: 27 de 902 pixels (3.0%) acima de 2%; galope-3: fora da paleta: 22 de 908 pixels (2.4%) acima de 2%; galope-4: fora da paleta: 22 de 924 pixels (2.4%) acima de 2%; galope-5: fora da paleta: 29 de 896 pixels (3.2%) acima de 2%; galope-6: fora da paleta: 29 de 914 pixels (3.2%) acima de 2%; galope-7: fora da paleta: 33 de 921 pixels (3.6%) acima de 2%; galope-8: fora da paleta: 25 de 943 pixels (2.7%) acima de 2%"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
@@ -8692,7 +8694,8 @@
           ],
           "mantida": {
             "seria": 3506,
-            "seriaOk": true
+            "seriaOk": true,
+            "data": "2026-11-13T15:41:28.775Z"
           }
         },
         "corrida": {
@@ -9084,7 +9087,8 @@
           ],
           "mantida": {
             "seria": 3406,
-            "seriaOk": false
+            "seriaOk": false,
+            "data": "2026-11-13T15:41:28.775Z"
           }
         }
       },
@@ -9834,5 +9838,5 @@
     "nose": 6,
     "comprimento": 4
   },
-  "atualizado": "2026-11-13T15:09:14.258Z"
+  "atualizado": "2026-11-13T15:41:29.516Z"
 }
