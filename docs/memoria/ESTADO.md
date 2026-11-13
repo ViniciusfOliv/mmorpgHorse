@@ -76,10 +76,19 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   elementos, 9 desenhos novos a partir de um corpo-mestre por porte; spec em
   `docs/superpowers/specs/2026-11-13-cavalos-portes-design.md`, **aguardando a revisão do Vinicius**. Geração só
   com confirmação de créditos (teto proposto: 90).
-  **Pendências da 2a que vão para a 2b:** moldes novos com as 4 pernas separadas no retrato e no parado, com
-  teste de contagem de meias por molde (hoje 3 e 4 meias aparecem como 2 ou 3 em alguns quadros); teste do caso
-  "pele acima do capacete" (`marcas.js` ~386-388) com os moldes novos; conferir o brilho das raridades nos
-  moldes novos.
+  **2b integrada na `claude/visuais-2` (T7, 2026-11-13):** os 12 moldes dos portes (folha final aprovada) moram em
+  `prototype/assets/pixellab/`, os 4 antigos saíram (histórico do git) e o caminho 'legado' do `sprites.js` também;
+  `novos/` guarda só o registro do lote (para mexer no lote: `--reprocessar --manter-escolhas` antes, mover os moldes
+  depois; cabeçalho do `pixellab-portes.mjs`). As pendências da 2a viraram testes no `moldes-test` ("Portes: moldes
+  reais"): critérios aceitos na folha em `ACEITOS_NA_FOLHA`; meias por molde, pele acima do capacete (passa) e brilho
+  das raridades. **Para decidir com o Vinicius** (medido e listado no teste, sem afrouxar regra): 6 dos 24
+  retratos/parados com meias que se juntam ou se partem (`PENDENTES_2A.meias`); 14 combinações elemento × raridade ×
+  crina do catálogo com o brilho abaixo de 0,05 de luminância (ex.: Mágico na crina do Tição, 0,005;
+  `BRILHO_PENDENTE`); zona da cara variando mais de 20% no galope em 5 moldes, estrela de 1 px e listra curta em
+  alguns quadros (`PENDENTES_2A`); patas do retrato dos 4 robustos classificadas como crina (pegam a cor da crina e
+  o brilho); sem a pele do jóquei (galope do robusto-ondas, parado do esguio-folhas), o capacete pega cerca de metade da roupa
+  (78 a 81 de ~146 px no galope do robusto-ondas). Faltam a T8 (wiki, GDD,
+  memória e artefato) e a revisão final da 2b.
 
 ## O que falta
 - **Decidido em 2026-11-10:** o teste fechado do Play sai com o jogo offline; o lançamento público
