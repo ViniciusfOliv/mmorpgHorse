@@ -11578,6 +11578,14 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
             if (!movido) break;
           }
           r.x = Math.max(0, Math.min(lay.artW - r.w, r.x));
+          // preso à borda da direita (o cavalo da raia de baixo encostado nela), o balão pode voltar para cima do que
+          // ele desviou: então vai para logo atrás do primeiro obstáculo que ainda bate, se ali estiver livre
+          var todos = obst.concat(cavalos), ruim = null;
+          for (var oi = 0; oi < todos.length && !ruim; oi++) if (bate(r, todos[oi])) ruim = todos[oi];
+          if (ruim) {
+            var tras = { x: ruim.x - r.w - 2, y: r.y, w: r.w, h: r.h };
+            if (tras.x >= 0 && !todos.some(function (ob) { return bate(tras, ob); })) r.x = tras.x;
+          }
           if (FX.drawBalloon(ctx, r.x * S, r.y * S, S, item, t, q)) {
             FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, tipo: !!item.typeSkill, texto: q ? '' : (item.nomeCurto || ''), pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
           }
