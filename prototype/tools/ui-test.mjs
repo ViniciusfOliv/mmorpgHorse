@@ -1252,20 +1252,13 @@ try {
   const TETO_M2 = { uid: 'm2', templateId: null, name: 'Teto', especie: 'cavalo', element: 'agua', rarity: 'comum', grau: 2, sex: 'f', level: 50, xp: 0, skills: [],
     potential: { vel: 31, acel: 31, man: 31, forca: 31, est: 31, garra: 31, sorte: 31 }, alloc: { vel: 6, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 },
     palette: null, breedLeft: 2, parents: null, born: 0, equip: {} }
-  // pontos de status que ainda dá para comprar com o que sobra (o selo "+N" do Estábulo, spec 1b §11), contados aqui sem
-  // o jogo: o ponto mais barato primeiro, entre os status abaixo do teto (maxBuy) e fora da Sorte, até nada caber
+  // o selo "+N" do Estábulo (spec 1b §11, rodada de correção 1 da T3): os pontos que sobram, o mesmo número do topo da aba
+  // Status, enquanto algum status aceita mais um ponto (abaixo do teto, fora da Sorte e com o próximo ponto cabendo no que
+  // sobra); senão 0 (sem selo). Conta feita aqui sem o room do jogo
   const podeComprar = (m) => {
-    const info = S.allocInfo(m), a = { ...info.perStat }, nb = S.TUNING.noBuy || []
-    let left = info.left, n = 0
-    for (;;) {
-      let best = null
-      for (const k of G.STAT_KEYS) {
-        if (nb.includes(k) || a[k] >= S.maxBuy(m, k)) continue
-        if (S.pointCost(a[k]) <= left && (best === null || S.pointCost(a[k]) < S.pointCost(a[best]))) best = k
-      }
-      if (!best) return n
-      left -= S.pointCost(a[best]); a[best]++; n++
-    }
+    const info = S.allocInfo(m), nb = S.TUNING.noBuy || []
+    const cabe = G.STAT_KEYS.some((k) => !nb.includes(k) && info.perStat[k] < S.maxBuy(m, k) && S.pointCost(info.perStat[k]) <= info.left)
+    return cabe ? info.left : 0
   }
   // o efeito da skill de tipo em pontos para o cavalo (spec 1b §5): status × statMul·P nos dois status do tipo, dos status
   // atuais; "Velocidade e Aceleração +N no 1º terço" (um número para cada status quando os dois diferem)
@@ -1454,7 +1447,7 @@ try {
         return JSON.stringify({ seed: L.seed, counter: L.counter, pr: window.__galope.state.pending.pr, dist: L.cond.distance,
           rivais: L.racers.map((x) => (x.isPlayer ? 'VOCE' : x.horse.id + ':Nv' + x.horse.level + ':P' + x.rating)) })
       })
-      await abrirSala(bd)
+      const salaRet = await abrirSala(bd)
       const fina0 = await salaFina()
       for (let i = 1; i <= 2; i++) {
         await bd.reload({ waitUntil: 'domcontentloaded' })
@@ -1475,8 +1468,10 @@ try {
       if (s.mounts[1].alloc.acel !== 1) problems.push('build: ponto na montaria que não é a ativa, com sala aberta ' + JSON.stringify(s.mounts[1].alloc))
       if (s.pending.pr !== pr) problems.push(`build: o Poder da sala mudou (${pr} -> ${s.pending.pr})`)
       const sala2 = await abrirSala(bd)
-      // mesma sala (seed, páreo e mapa); os rivais mudaram uma vez, com o retrato montado pelo teste (o Poder da sala subiu)
+      // mesma sala (seed, páreo e mapa); os rivais mudaram uma vez, com o retrato montado pelo teste (o Poder da sala
+      // subiu), e daí em diante o ponto em outra montaria não mexe neles (CLAUDE.md §8)
       for (const k of ['seed', 'counter', 'blocks']) if (sala[k] !== sala2[k]) problems.push(`build: a sala mudou (${k})`)
+      if (sala2.rivais !== salaRet.rivais) problems.push(`build: o ponto na outra montaria mudou os rivais da sala: ${salaRet.rivais} -> ${sala2.rivais}`)
       if (await bd.evaluate(() => !!window.__confirmou)) problems.push('build: usou window.confirm/alert')
     } catch (e) {
       problems.push('build: ' + e.message)
@@ -1596,16 +1591,17 @@ try {
       await sq.getByRole('button', { name: 'Escolher Brasa' }).click()
       await sq.waitForSelector('#t-estabulo')
       // Comum ★★ nível 24 de genética 31: 73 pontos. m2 com 10 em cada status de corrida (custo 60): sobram 13 e o próximo
-      // ponto custa 2 em todos, então dá para comprar 6 (o selo é "+6", não "+13"). m3 com 11 em cada (custo 72): sobra 1,
-      // que não paga nenhum ponto: sem selo
+      // ponto custa 2 em todos; o selo mostra os 13 que sobram (o mesmo número do topo da aba Status). m3 com 11 em cada
+      // (custo 72): sobra 1, que não paga nenhum ponto: sem selo
       const cada = (n) => Object.fromEntries(G.STAT_KEYS.map((k) => [k, k === 'sorte' ? 0 : n]))
       const M2 = Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { level: 24, alloc: cada(10) })
       const M3 = Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { uid: 'm3', level: 24, alloc: cada(11) })
       await montaSave(sq, (raw) => { raw.mounts.push(M2, M3); raw.nextUid = 4; raw.stableSlots = 3 })
       const ms = await sq.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts)))
       const i2 = S.allocInfo(ms[1]), i3 = S.allocInfo(ms[2])
-      if (i2.left !== 13 || podeComprar(ms[1]) !== 6 || i3.left !== 1 || podeComprar(ms[2]) !== 0) problems.push('selo-teto: montarias de teste ' + JSON.stringify({ m2: [i2.left, podeComprar(ms[1])], m3: [i3.left, podeComprar(ms[2])] }))
-      if ((await seloDe('m2')) !== '+6') problems.push(`selo-teto: com 13 sobrando e o ponto a 2, o selo é "${await seloDe('m2')}" (esperado "+6": conta pontos, não custo)`)
+      if (i2.left !== 13 || podeComprar(ms[1]) !== 13 || i3.left !== 1 || podeComprar(ms[2]) !== 0) problems.push('selo-teto: montarias de teste ' + JSON.stringify({ m2: [i2.left, podeComprar(ms[1])], m3: [i3.left, podeComprar(ms[2])] }))
+      if ((await seloDe('m2')) !== '+13') problems.push(`selo-teto: com 13 sobrando e o ponto a 2, o selo é "${await seloDe('m2')}" (esperado "+13", o número do topo da aba Status)`)
+      if (!/^Sobram 13 pontos para distribuir na aba Status$/.test((await sq.locator('.montaria[data-uid="m2"] .pontos-livres').first().getAttribute('title').catch(() => '')) || '')) problems.push('selo-teto: o title do selo da m2 não é "Sobram 13 pontos para distribuir na aba Status"')
       if (await seloDe('m3')) problems.push('selo-teto: o cartão do Estábulo mostra "+N" sem nenhum ponto que caiba: ' + await seloDe('m3'))
       await sq.locator('button[data-acao="montaria"][data-id="m3"]').click()
       await sq.waitForSelector('#t-montaria')
@@ -1613,8 +1609,16 @@ try {
       const tx = ((await sq.locator('#tela').textContent()) || '').replace(/\s+/g, ' ')
       if (!/Sobra 1 ponto: não pagam o próximo ponto de nenhum status/.test(tx)) problems.push('selo-teto: a aba Status não explica o ponto que sobra')
       if (!tx.includes('Pontos: sobram 1 de 73')) problems.push('selo-teto: topo da m3 sem "Pontos: sobram 1 de 73"')
-      const habil = await sq.locator('[data-acao="ponto-mais"]:not([disabled])').count()
-      if (habil) problems.push(`selo-teto: ${habil} botões +N habilitados sem nenhum ponto que caiba`)
+      // nenhum ponto cabe e não há rascunho: os +N e o "Distribuir sugerido" não aparecem (decisão de 2026-11-13, spec §11)
+      const nMais = await sq.locator('[data-acao="ponto-mais"]').count(), nSug = await sq.locator('[data-acao="pontos-sugerir"]').count()
+      if (nMais || nSug) problems.push(`selo-teto: sem nenhum ponto que caiba, a aba Status mostra ${nMais} botões +N e ${nSug} "Distribuir sugerido"`)
+      // a m2 (13 sobrando, ponto a 2): +1 e +5 cabem, +10 (custa 20) desabilitado com o motivo
+      await sq.locator('[data-acao="montaria-voltar"]').click()
+      await sq.waitForSelector('#t-estabulo')
+      await sq.locator('button[data-acao="montaria"][data-id="m2"]').click()
+      await sq.waitForSelector('#t-montaria')
+      const b10 = sq.locator('[data-acao="ponto-mais"][data-id="vel"][data-n="10"]'), b1 = sq.locator('[data-acao="ponto-mais"][data-id="vel"][data-n="1"]')
+      if ((await b1.isDisabled()) || !(await b10.isDisabled()) || (await b10.getAttribute('title')) !== tituloMais(ms[1].alloc, 'vel', 10) + '. Faltam pontos: sobram 13.') problems.push(`selo-teto: m2 com +1 ${await b1.isDisabled() ? 'desabilitado' : 'habilitado'} e +10 "${await b10.getAttribute('title')}"`)
       // a Brasa nível 12 (28 pontos, todos a 1) continua com o selo de todos os pontos
       await montaSave(sq, (raw) => { raw.mounts[0].level = 12 })
       const m1 = (await sq.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts[0]))))
@@ -1635,14 +1639,25 @@ try {
       await b1.waitForSelector('#t-montaria')
       const txt = ((await b1.locator('.build-topo').first().textContent()) || '').replace(/\s+/g, ' ')
       if (!txt.includes('Pontos: sobram 0 de 0') || !txt.includes('Cada nível ganho dá pontos para distribuir.')) problems.push('build-nivel1: topo sem "Pontos: sobram 0 de 0" e a explicação: ' + txt)
-      // os +1, +5 e +10 aparecem, todos desabilitados com o motivo (faltam pontos); a Sorte sem botões
-      const bs = await b1.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({ k: b.getAttribute('data-id'), off: b.disabled, title: b.getAttribute('title') })))
-      if (bs.length !== 18 || bs.some((b) => b.k === 'sorte' || !b.off || !/: custa \d+ pontos?\. Faltam pontos: sobram 0\.$/.test(b.title || ''))) problems.push('build-nivel1: nível 1 com +N habilitado ou sem o motivo ' + JSON.stringify(bs.filter((b) => !b.off || !/Faltam pontos/.test(b.title || '')).slice(0, 3)))
+      // sem nenhum ponto, os +1, +5 e +10 não aparecem (decisão de 2026-11-13, spec §11)
+      if ((await b1.locator('[data-acao="ponto-mais"]').count()) !== 0) problems.push('build-nivel1: nível 1 oferece +N')
       if ((await b1.locator('[data-acao="pontos-confirmar"]').count()) !== 0) problems.push('build-nivel1: nível 1 oferece "Confirmar"')
       if ((await b1.locator('[data-acao="pontos-sugerir"]').count()) !== 0) problems.push('build-nivel1: nível 1 oferece "Distribuir sugerido"')
       if ((await b1.locator('[data-acao="redistribuir"]').count()) !== 0) problems.push('build-nivel1: nível 1 oferece "Redistribuir pontos"')
       if ((await b1.locator('[data-status] .nota-genetica').count()) !== 7) problems.push('build-nivel1: sem as 7 notas de genética')
       await confereLegivel(b1, ['.pontos-livres', '.nota-genetica', '.build-custo'], 'build-nivel1-360')
+      // nível 2 (2 pontos): os +N aparecem; +1 cabe, +5 e +10 ficam desabilitados com o motivo; a Sorte sem botões
+      await montaSave(b1, (raw) => { raw.mounts[0].level = 2 })
+      await b1.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await b1.waitForSelector('#t-montaria')
+      const m1 = await b1.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts[0])))
+      const bs = await b1.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({ k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), off: b.disabled, title: b.getAttribute('title') })))
+      if (S.freePoints(m1) !== 2 || bs.length !== 18 || bs.some((b) => b.k === 'sorte')) problems.push(`build-nivel1: nível 2 com ${bs.length} botões +N (esperado 18, nenhum na Sorte; ${S.freePoints(m1)} pontos)`)
+      for (const b of bs) {
+        const esp = tituloMais(m1.alloc, b.k, b.n) + (b.n === 1 ? '' : '. Faltam pontos: sobram 2.')
+        if (b.off !== (b.n !== 1) || b.title !== esp) problems.push(`build-nivel1: nível 2, botão ${JSON.stringify(b)} (esperado "${esp}", ${b.n === 1 ? 'habilitado' : 'desabilitado'})`)
+      }
+      if ((await b1.locator('[data-acao="pontos-sugerir"]').count()) !== 1) problems.push('build-nivel1: nível 2 sem "Distribuir sugerido"')
     } catch (e) {
       problems.push('build-nivel1: ' + e.message)
     }
@@ -1661,10 +1676,10 @@ try {
         // Estábulo: selo no retrato, barra de XP, "+N" e sem "Nv" na fileira de etiquetas
         if ((await seloEm('.montaria[data-uid="m1"] .retrato-moldura .selo-nivel')) !== 'Nv 12') problems.push(`${tag}: selo do cartão do Estábulo = "${await seloEm('.montaria[data-uid="m1"] .selo-nivel')}"`)
         if ((await sl.locator('.montaria[data-uid="m1"] .barra--xp').count()) !== 1) problems.push(tag + ': cartão do Estábulo sem barra de XP')
-        // os pontos de status que ainda dá para comprar: a Brasa nível 12 tem 28, todos a 1 (era "+13" no bloco 1)
+        // os pontos que sobram, como no topo da aba Status: a Brasa nível 12 tem 28 (era "+13" no bloco 1)
         const espSelo = '+' + podeComprar(await sl.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts[0]))))
         if (espSelo !== '+28' || (await seloEm('.montaria[data-uid="m1"] .pontos-livres')) !== espSelo) problems.push(`${tag}: aviso de pontos do cartão = "${await seloEm('.montaria[data-uid="m1"] .pontos-livres')}" (esperado "${espSelo}")`)
-        if (!/^Dá para comprar mais 28 pontos de status/.test((await sl.locator('.montaria[data-uid="m1"] .pontos-livres').first().getAttribute('title')) || '')) problems.push(`${tag}: o title do selo não diz os pontos que dá para comprar`)
+        if ((await sl.locator('.montaria[data-uid="m1"] .pontos-livres').first().getAttribute('title')) !== 'Sobram 28 pontos para distribuir na aba Status') problems.push(`${tag}: o title do selo não é "Sobram 28 pontos para distribuir na aba Status"`)
         const etiquetas = await sl.evaluate(() => Array.from(document.querySelectorAll('.montaria .linha-meta')).map((e) => e.textContent).join(' | '))
         if (/Nv\s*\d/.test(etiquetas)) problems.push(tag + ': "Nv" continua na fileira de etiquetas do cartão: ' + etiquetas)
         await confereLegivel(sl, ['.montaria .selo-nivel', '.montaria .pontos-livres'], tag + '-estabulo')
@@ -3598,12 +3613,12 @@ try {
         let s = await estado(pg)
         const m1 = s.mounts[0]
         if (m1.level !== 30 || !igual(m1.alloc, somaR(ZERO, { vel: 12, acel: 8 })) || s.mounts.length !== 3 || s.mounts[1].respecFree !== false) problems.push(`${label}: preparo ` + JSON.stringify(s.mounts.map((m) => [m.uid, m.level, m.alloc, m.respecFree])))
-        // selo "+N" do Estábulo: os pontos de status que ainda dá para comprar (m1: 4 status com o ponto a 1, depois a 2)
+        // selo "+N" do Estábulo: os pontos que sobram (o número do topo da aba Status) enquanto algum ponto cabe
         for (const m of s.mounts) {
           const esp = podeComprar(m)
           if ((await seloDe(m.uid)) !== (esp ? '+' + esp : '')) problems.push(`${label}: selo de ${m.uid} "${await seloDe(m.uid)}" (esperado ${esp ? '+' + esp : 'nenhum'})`)
         }
-        if (podeComprar(m1) === S.allocInfo(m1).left) problems.push(`${label}: a m1 de teste não separa pontos de custo (${podeComprar(m1)})`)
+        if ((await seloDe('m1')) !== '+78') problems.push(`${label}: selo da m1 "${await seloDe('m1')}" (esperado "+78", o "sobram 78" do topo)`)
         await abre('m1')
         const info = S.allocInfo(m1)
         // topo: "Pontos: sobram X de Y", sem "Poder A → B" enquanto não há rascunho
@@ -3673,6 +3688,13 @@ try {
         r = await rascunho()
         const espS = sugerido(m1, somaR(m1.alloc, { vel: 10 }))
         if (!igual(r, espS) || r.vel < 10) problems.push(`${label}: sugerido depois de +10 em Velocidade ${JSON.stringify(r)} (esperado ${JSON.stringify(espS)})`)
+        // com rascunho e pontos gravados: lista, ações e "Redistribuir pontos" embaixo, separado dos botões de compra
+        const ordemDe = () => pg.evaluate(() => {
+          const sec = document.querySelector('section[aria-label="Status"]'), todos = Array.from(sec.querySelectorAll('*'))
+          return ['.build', '.build-acoes', '.redistribuir'].map((q) => todos.indexOf(sec.querySelector(q)))
+        })
+        const ordem0 = await ordemDe()
+        if (!(ordem0[0] >= 0 && ordem0[0] < ordem0[1] && ordem0[1] < ordem0[2])) problems.push(`${label}: ordem lista / ações / Redistribuir ${JSON.stringify(ordem0)}`)
         // Confirmar em dois toques: o 1º só avisa (redistribuição grátis), o 2º grava
         await pg.locator('[data-acao="pontos-confirmar"]').click()
         if (!(await avisos(pg)).includes('Para mudar depois, use Redistribuir (a primeira deste cavalo é grátis).')) problems.push(`${label}: o 1º Confirmar não disse "Para mudar depois, use Redistribuir (a primeira deste cavalo é grátis).": ` + await avisos(pg))
@@ -3683,12 +3705,12 @@ try {
         const gravado = somaR(m1.alloc, espS)
         if (!igual(s.mounts[0].alloc, gravado) || !igual((await disco(pg)).mounts[0].alloc, gravado) || await rascunho()) problems.push(`${label}: Confirmar ${JSON.stringify({ mem: s.mounts[0].alloc, esperado: gravado })}`)
         if ((await poderNaCabeca(pg)) !== S.powerRating(s.mounts[0])) problems.push(`${label}: o Poder da cabeça depois de confirmar`)
-        // "Redistribuir pontos" embaixo, separado dos botões de compra
-        const ordem = await pg.evaluate(() => {
-          const sec = document.querySelector('section[aria-label="Status"]'), todos = Array.from(sec.querySelectorAll('*'))
-          return ['.build', '.build-acoes', '.redistribuir'].map((q) => todos.indexOf(sec.querySelector(q)))
-        })
-        if (!(ordem[0] >= 0 && ordem[0] < ordem[1] && ordem[1] < ordem[2])) problems.push(`${label}: ordem lista / ações / Redistribuir ${JSON.stringify(ordem)}`)
+        // gastou tudo o que cabe e sem rascunho: os +N e o "Distribuir sugerido" somem (decisão de 2026-11-13, spec §11);
+        // "Redistribuir pontos" fica embaixo da lista
+        const nMais = await pg.locator('[data-acao="ponto-mais"]').count(), nSug = await pg.locator('[data-acao="pontos-sugerir"]').count()
+        if (nMais || nSug) problems.push(`${label}: sem nenhum ponto que caiba, a aba mostra ${nMais} botões +N e ${nSug} "Distribuir sugerido"`)
+        const ordem = await ordemDe()
+        if (!(ordem[0] >= 0 && ordem[1] === -1 && ordem[0] < ordem[2])) problems.push(`${label}: ordem lista / (sem ações) / Redistribuir ${JSON.stringify(ordem)}`)
 
         // m2 já usou a redistribuição grátis: o aviso do Confirmar fala da Rédea nova
         await abre('m2')
@@ -3696,6 +3718,7 @@ try {
         await pg.locator('[data-acao="pontos-confirmar"]').click()
         if (!(await avisos(pg)).includes('Para mudar depois, use Redistribuir (gasta uma Rédea nova).')) problems.push(`${label}: sem a grátis, o 1º Confirmar não disse "(gasta uma Rédea nova)": ` + await avisos(pg))
         await pg.locator('[data-acao="pontos-desfazer"]').click()
+
 
         // RF3: m2 ativa com páreo aberto. Os +N que passariam do Poder da sala ficam desabilitados com o motivo; o sugerido
         // passa do Poder da sala, o Confirmar fica bloqueado com o motivo (na tela e no title) e nada é gravado, nem forçando
@@ -3712,6 +3735,9 @@ try {
           const passa = S.powerRating(h2) > pr
           if (passa !== b.off || (passa && b.title !== tituloMais(m2.alloc, b.k, b.n) + `. Páreo aberto: passaria do Poder ${pr} que a sala viu.`)) problems.push(`${label}: páreo aberto, botão ${JSON.stringify(b)} (passa do Poder ${pr}: ${passa})`)
         }
+        // sem rascunho, o aviso geral do páreo está na tela
+        const AVISO_PAREO = `Páreo aberto: os pontos da montaria ativa não podem passar o Poder de ${pr} que a sala viu.`
+        if (!(await avisos(pg)).includes(AVISO_PAREO)) problems.push(`${label}: páreo aberto sem o aviso geral "${AVISO_PAREO}": ` + await avisos(pg))
         const dA = await disco(pg)
         await pg.locator('[data-acao="pontos-sugerir"]').click()
         r = await rascunho()
@@ -3720,6 +3746,10 @@ try {
         const motivo = `Páreo aberto: com este rascunho o Poder iria a ${S.powerRating({ ...m2, alloc: somaR(m2.alloc, r) })}, e a sala viu ${pr}.`
         if (!(await conf.isDisabled()) || !((await conf.getAttribute('title')) || '').startsWith(motivo)) problems.push(`${label}: RF3: Confirmar ${await conf.isDisabled() ? '' : 'habilitado '}com title "${await conf.getAttribute('title')}" (esperado "${motivo}…")`)
         if (!(await avisos(pg)).includes(motivo)) problems.push(`${label}: RF3: o motivo do Confirmar bloqueado não aparece na tela: ` + await avisos(pg))
+        // o motivo é anunciado (role="status") e o aviso geral do páreo não se repete junto dele
+        const papel = await pg.evaluate((mt) => { const p = Array.from(document.querySelectorAll('#tela .aviso')).find((e) => e.textContent.startsWith(mt)); return p ? p.getAttribute('role') : null }, motivo)
+        if (papel !== 'status') problems.push(`${label}: RF3: o parágrafo do motivo do Confirmar bloqueado tem role "${papel}" (esperado "status")`)
+        if ((await avisos(pg)).includes(AVISO_PAREO)) problems.push(`${label}: RF3: o aviso geral do páreo se repete junto do motivo do Confirmar bloqueado`)
         for (let k = 0; k < 2; k++) await pg.evaluate(() => { const b = document.querySelector('[data-acao="pontos-confirmar"]'); b.disabled = false; b.click() })
         s = await estado(pg)
         if (!igual(s.mounts.find((m) => m.uid === 'm2').alloc, m2.alloc) || !igual(await disco(pg), dA) || s.pending.pr !== pr) problems.push(`${label}: RF3: o Confirmar forçado gravou acima do Poder da sala ` + JSON.stringify(s.mounts.find((m) => m.uid === 'm2').alloc))
