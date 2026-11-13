@@ -145,6 +145,18 @@ confere(/<span class="el el--geral"><img /.test(a.html), 'skills gerais sem o í
   confere(linhasTab === 15, `tabela de portes devia ter 15 linhas, tem ${linhasTab}`)
 }
 
+// 2a. explicações curtas (ⓘ, bloco 1b §11): o wiki usa os mesmos textos de GameData.HELP
+{
+  const CHAVES = ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte', 'genetica', 'estrelas', 'raridade', 'skillTipo', 'poder', 'liga', 'clima', 'piso', 'dado', 'custo', 'redea']
+  for (const k of CHAVES) {
+    confere(typeof G.HELP[k] === 'string' && G.HELP[k].length > 0, `HELP.${k} não existe`)
+    confere(!G.HELP[k] || G.HELP[k].length <= 160, `HELP.${k} passa de 160 caracteres (${(G.HELP[k] || '').length})`)
+    confere(!G.HELP[k] || (a.md.includes(G.HELP[k]) && a.html.includes(escHtml(G.HELP[k]))), `o wiki não traz o texto de HELP.${k} (md e html)`)
+  }
+  for (const k of G.STAT_KEYS) confere(G.STATS[k].desc === G.HELP[k], `STATS.${k}.desc é diferente de HELP.${k}`)
+  confere(Object.keys(G.HELP).every((k) => CHAVES.includes(k)), 'HELP tem chave fora da lista conhecida')
+}
+
 // 2b. ícones: skill (e skill de tipo), status, clima, piso, liga e raridade que têm arquivo ganham o <img> antes do nome
 const DIR_ICONES = resolve(import.meta.dirname, '..', 'assets', 'icons')
 const temIcone = (id) => existsSync(join(DIR_ICONES, id + '.png'))

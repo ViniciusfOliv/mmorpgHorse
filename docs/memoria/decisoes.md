@@ -222,3 +222,4 @@ Resumo completo no `docs/GDD.md` §8. Tudo decidido em conversa com o Vinicius, 
 - **Prêmios nunca crescentes por colocação; sem Ouro para a entrada, a sala vira treino** — correções do primeiro pente fino.
 - **Pilares do GDD §2 aprovados** — corrida automática por seed, duas moedas (Gemas nunca viram Ouro), PVP de 4 a 8 com pote, ligas por Poder.
 - **Nome do projeto "MMORPG Horse"; título do jogo "Galope Elemental"** (provisório até 2026-11-10, quando virou definitivo).
+- **2026-11-13 · Explicações curtas ("ⓘ") em `GameData.HELP`; `STATS[k].desc` passa a ser o mesmo texto · o jogo e o wiki mostram uma frase só por conceito; no toque o texto abre embaixo do rótulo (`aria-expanded`, `role="note"`), sem re-renderizar a tela.**

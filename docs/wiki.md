@@ -54,13 +54,31 @@ Cada montaria tem 7 status na escala de 1 a 150. Na corrida o motor usa n(x) = s
 
 | Sigla | Status | Descrição no jogo | Na corrida |
 | ---: | --- | --- | --- |
-| VEL | ![](../prototype/assets/icons/st-vel.png) Velocidade | Velocidade máxima. | Velocidade máxima: vMax = 19 + 1,13 × n(VEL) m/s (VEL 50 → 19,57 m/s; VEL 100 → 20,13 m/s; VEL 150 → 20,7 m/s). Ritmo, piso, bloco e boosts multiplicam esse teto. |
-| ACE | ![](../prototype/assets/icons/st-acel.png) Aceleração | Rapidez até a velocidade máxima (largada e retomadas). | Aceleração = 1 / max(0,044, 1,158 − 0,66 × n(ACE)) m/s² (ACE 50 → 1,21; ACE 100 → 2,01; ACE 150 → 5,95): cada ponto encurta a largada igual. Vale na largada e nas retomadas (saída de curva e de subida). Também encurta a reação à largada: atraso sorteado de até 0,56 s × (1 − 0,333 × min(n(ACE), 1,5)). |
-| MAN | ![](../prototype/assets/icons/st-man.png) Manobra | Agilidade nas curvas e na saída delas. | Fator da curva = min(1, 0,704 + 0,185 × n(MAN)): de 79,7% (MAN 50) a 98,2% (MAN 150) da velocidade dentro da curva. |
-| FOR | ![](../prototype/assets/icons/st-forca.png) Força | Subidas, terreno pesado e disputa no pelotão. | Fator da subida = min(1, 0,824 + 0,11 × n(FOR)): de 87,9% (FOR 50) a 98,9% (FOR 150). Alivia o piso pesado (20% × n(FOR) da perda), o aperto do pelotão (60% × n(FOR), até zerar) e o gasto extra da subida (+30% × (1 − 0,5 × n(FOR))). |
-| EST | ![](../prototype/assets/icons/st-est.png) Estamina | Quanto tempo mantém o ritmo. | Tanque = 66 + 20 × n(EST) (EST 50 → 76). Também sobe o teto do ritmo: + 3,5% × (n(EST) − 0,5) no meio e + 6,5% × (n(EST) − 0,5) no sprint final, então rende mesmo com tanque de sobra. O clima não mexe na Estamina. |
-| GAR | ![](../prototype/assets/icons/st-garra.png) Garra | Chance e força da arrancada final (últimos 20%). | A arrancada começa em 80% − 14% × (n(GAR) − 0,5) da pista (GAR 50 → 80%; GAR 100 → 73%). Lá: chance = min(95%, 50% + 15% × n(GAR)). Se sair, o teto de velocidade vai a ×1,02 + 0,26 × n(GAR) até a chegada. |
-| SOR | ![](../prototype/assets/icons/st-sorte.png) Sorte | Chance de rolar um 2º dado no Dado da Sorte e bônus para ativar skills. | Vem do nascimento: não recebe pontos. No Dado da Sorte, a chance de rolar um 2º dado é (SOR − 40) / 40, presa entre 0% e 100% (SOR 40 → 0%; SOR 80 → 100%). Na chance de skill soma 0,1 p.p. por ponto (SOR 50 → +5 p.p.). |
+| VEL | ![](../prototype/assets/icons/st-vel.png) Velocidade | Velocidade máxima nas retas. É o status que mais pesa numa reta longa. | Velocidade máxima: vMax = 19 + 1,13 × n(VEL) m/s (VEL 50 → 19,57 m/s; VEL 100 → 20,13 m/s; VEL 150 → 20,7 m/s). Ritmo, piso, bloco e boosts multiplicam esse teto. |
+| ACE | ![](../prototype/assets/icons/st-acel.png) Aceleração | Quão rápido chega à velocidade máxima na largada e depois de perder ritmo. | Aceleração = 1 / max(0,044, 1,158 − 0,66 × n(ACE)) m/s² (ACE 50 → 1,21; ACE 100 → 2,01; ACE 150 → 5,95): cada ponto encurta a largada igual. Vale na largada e nas retomadas (saída de curva e de subida). Também encurta a reação à largada: atraso sorteado de até 0,56 s × (1 − 0,333 × min(n(ACE), 1,5)). |
+| MAN | ![](../prototype/assets/icons/st-man.png) Manobra | Rendimento nas curvas: quem tem mais perde menos velocidade nelas. | Fator da curva = min(1, 0,704 + 0,185 × n(MAN)): de 79,7% (MAN 50) a 98,2% (MAN 150) da velocidade dentro da curva. |
+| FOR | ![](../prototype/assets/icons/st-forca.png) Força | Rendimento nas subidas, nos pisos pesados e para passar pelo pelotão. | Fator da subida = min(1, 0,824 + 0,11 × n(FOR)): de 87,9% (FOR 50) a 98,9% (FOR 150). Alivia o piso pesado (20% × n(FOR) da perda), o aperto do pelotão (60% × n(FOR), até zerar) e o gasto extra da subida (+30% × (1 − 0,5 × n(FOR))). |
+| EST | ![](../prototype/assets/icons/st-est.png) Estamina | Fôlego para manter o ritmo até o fim; também deixa correr mais forte no meio e no sprint. | Tanque = 66 + 20 × n(EST) (EST 50 → 76). Também sobe o teto do ritmo: + 3,5% × (n(EST) − 0,5) no meio e + 6,5% × (n(EST) − 0,5) no sprint final, então rende mesmo com tanque de sobra. O clima não mexe na Estamina. |
+| GAR | ![](../prototype/assets/icons/st-garra.png) Garra | Chance e força da arrancada final; com mais Garra ela começa mais cedo. | A arrancada começa em 80% − 14% × (n(GAR) − 0,5) da pista (GAR 50 → 80%; GAR 100 → 73%). Lá: chance = min(95%, 50% + 15% × n(GAR)). Se sair, o teto de velocidade vai a ×1,02 + 0,26 × n(GAR) até a chegada. |
+| SOR | ![](../prototype/assets/icons/st-sorte.png) Sorte | Vem do nascimento e não recebe pontos. Chance de jogar o Dado da Sorte duas vezes. | Vem do nascimento: não recebe pontos. No Dado da Sorte, a chance de rolar um 2º dado é (SOR − 40) / 40, presa entre 0% e 100% (SOR 40 → 0%; SOR 80 → 100%). Na chance de skill soma 0,1 p.p. por ponto (SOR 50 → +5 p.p.). |
+
+### Explicações do botão ⓘ
+
+No jogo, o botão ⓘ ao lado de cada rótulo mostra estas frases (no computador, com o mouse; no toque, abrindo e fechando embaixo do rótulo). Os sete status têm a frase na tabela acima.
+
+| Rótulo | Texto |
+| ---: | --- |
+| Nota de genética | Nota S, A, B ou C: o quanto o status já nasce alto. Vem do nascimento e não muda. |
+| Estrelas | Grau do cavalo, de 1 a 3 estrelas: mais estrelas, mais pontos para distribuir a cada nível. |
+| Raridade | Quanto mais rara, mais pontos por nível, mais vagas de skill e status que já nascem mais altos. |
+| Skill de tipo | Uma por elemento, sempre ativa num terço da pista: os dois status do tipo valem mais naquele trecho. |
+| Poder | Nota da força geral do cavalo, calculada dos status e das skills. Define a liga e os rivais da sala. |
+| Liga | Faixa do Poder: você corre contra cavalos da mesma liga. |
+| Clima | Cada elemento rende mais no seu clima e menos no clima ruim. O Dado da Sorte pode virar o clima na corrida. |
+| Piso | Piso mais pesado tira velocidade e gasta mais fôlego; a Força ajuda a perder menos. |
+| Dado da Sorte | Duas vezes por corrida, quem tira o maior dado puxa o clima para o seu elemento. Sorte alta rola dois dados. |
+| Custo dos pontos | Cada ponto comprado num status custa mais que o anterior. Os pontos que sobram ficam guardados para depois. |
+| Rédea nova | Devolve todos os pontos para você distribuir de novo. A primeira de cada cavalo é grátis; depois gasta 1 Rédea nova. |
 
 ### Como o status é calculado
 

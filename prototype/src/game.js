@@ -246,6 +246,47 @@
   function statIcon(k) {
     return iconeHtml('st-' + k, pixelSvg(STAT_ICON_ROWS[k] || STAT_ICON_ROWS.vel, 'icone-status icone-status--' + k), 16);
   }
+  // ---- Explicações curtas (spec 1b §11): botão "ⓘ" ao lado do rótulo ----
+  // No computador o texto aparece com o mouse (title); no toque, abrir/fechar mostra a frase embaixo do rótulo
+  // (aria-expanded no botão, texto com role="note"). Os textos são os de GameData.HELP, os mesmos do wiki.
+  // nome: o que o botão explica, para o nome acessível ("O que é Velocidade?").
+  function ajudaBtn(chave, nome) {
+    if (!hasOwn(GD.HELP, chave)) return '';
+    return '<button type="button" class="ajuda" data-ajuda="' + esc(chave) + '" aria-expanded="false" aria-label="' +
+      esc('O que é ' + nome + '?') + '" title="' + esc(GD.HELP[chave]) + '">ⓘ</button>';
+  }
+  // onde o texto aberto entra: 'dt' depois da linha de status (a grade do <dl>), 'in' no fim do bloco, 'after' logo depois dele
+  var AJUDA_ONDE = [['li', 'in'], ['.vaga-tipo', 'in'], ['.redistribuir', 'in'], ['.tela-cabeca', 'in'],
+    ['dt', 'dt'], ['.linha-meta', 'after'], ['.chips', 'after'], ['.build-topo', 'after']];
+  var ajudaSeq = 0;
+  function alternaAjuda(btn) {
+    var chave = btn.getAttribute('data-ajuda');
+    if (!hasOwn(GD.HELP, chave)) return;
+    var aberto = btn.getAttribute('aria-expanded') === 'true', nid = btn.getAttribute('data-nota');
+    if (nid) {
+      var velha = document.getElementById(nid);
+      if (velha && velha.parentNode) velha.parentNode.removeChild(velha);
+      btn.removeAttribute('data-nota');
+    }
+    btn.setAttribute('aria-expanded', aberto ? 'false' : 'true');
+    if (aberto) return;
+    var host = null, modo = '';
+    for (var i = 0; i < AJUDA_ONDE.length && !host; i++) {
+      host = btn.closest(AJUDA_ONDE[i][0]);
+      if (host) modo = AJUDA_ONDE[i][1];
+    }
+    if (!host) { btn.setAttribute('aria-expanded', 'false'); return; }
+    var ref = host;
+    if (modo === 'dt' && host.nextElementSibling && host.nextElementSibling.nextElementSibling) ref = host.nextElementSibling.nextElementSibling;   // depois do valor
+    var nota = document.createElement(modo === 'dt' ? 'dd' : 'div');
+    nota.className = 'ajuda-txt';
+    nota.id = 'ajuda-' + (++ajudaSeq);
+    nota.setAttribute('role', 'note');
+    nota.textContent = GD.HELP[chave];
+    if (modo === 'in') host.appendChild(nota);
+    else host.parentNode.insertBefore(nota, ref.nextSibling);
+    btn.setAttribute('data-nota', nota.id);
+  }
   // grau do cavalo: três estrelas, cheias e vazias (reserva ★/☆), lidas como "N de 3 estrelas"
   function estrelasHtml(grau) {
     var g = clamp(Math.floor(Number(grau) || 0), 0, 3), out = '';
@@ -1056,7 +1097,7 @@
       var info = GD.STATS[k];
       var v = stats[k], b = baseStats ? baseStats[k] : v, d = v - b;
       var delta = d ? '<span class="delta ' + (d > 0 ? 'mais' : 'menos-t') + '">' + (d > 0 ? '+' : '−') + Math.abs(d) + '</span>' : '';
-      out += '<dt title="' + esc(info.name + ': ' + info.desc) + '">' + statIcon(k) + '<span>' + esc(info.short) + '</span></dt>' +
+      out += '<dt title="' + esc(info.name + ': ' + info.desc) + '">' + statIcon(k) + '<span>' + esc(info.short) + '</span>' + ajudaBtn(k, info.name) + '</dt>' +
         '<dd><div class="barra barra--seg" role="img" aria-label="' + esc(info.name + ' ' + v) + '">' + barHtml(v, b) + '</div></dd>' +
         '<dd class="valor">' + v + delta + '</dd>';
     });
@@ -1116,13 +1157,11 @@
     if (!ts) return '';
     var el = elementOf(horse.element), def = GD.TYPE_SKILLS[horse.element];
     var pontos = efeitoTipoPontosTxt(horse, ts);
-    // P da Água só cresce com a raridade (TUNING.typeLevel 0); o do Fogo e o da Grama, com o nível e a raridade
-    var varia = RS.TUNING.typeLevel[horse.element] ? 'varia com o nível e a raridade' : 'cresce com a raridade';
-    return '<div class="vaga-tipo vaga-tipo--' + esc(el.id) + '"><span class="vaga-tipo-rotulo">Skill de tipo · sempre ativa</span>' +
+    return '<div class="vaga-tipo vaga-tipo--' + esc(el.id) + '"><span class="vaga-tipo-rotulo">Skill de tipo · sempre ativa' + ajudaBtn('skillTipo', 'a skill de tipo') + '</span>' +
       '<b>' + skillIcone(ts.id, 32) + esc(ts.name) + '</b>' +
       (pontos ? '<span class="vaga-tipo-pontos">' + esc(pontos) + '</span>' + '<span>' + esc(def.desc) + '</span>'
         : '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts, horse.element) + '.') + '</span>') +
-      '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',') + ': ' + varia) + '</span></div>';
+      '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',')) + '</span></div>';
   }
   function silkClass(r) { return r.isPlayer ? 'seda-voce' : 'seda-' + r.silkIdx; }
   function laneChip(r, i, extra) {
@@ -1867,7 +1906,8 @@
         '<div class="retrato-palco">' + portraitHtml(h) + '<span class="contador">' + (idx + 1) + '/' + GD.STARTERS.length + '</span></div>' +
         '<div class="inicial-topo"><h2 class="cavalo-nome">' + esc(h.name) + '</h2>' + elementHtml(h.element) + '</div>' +
         '<p class="cavalo-titulo"><b>' + esc(h.title) + '.</b> ' + esc(h.bio) + '</p>' +
-        '<div class="linha-meta">' + rarityHtml(h.rarity) + estrelasHtml(h.grau) + '<span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
+        '<div class="linha-meta">' + rarityHtml(h.rarity) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(h.grau) + ajudaBtn('estrelas', 'as estrelas') +
+          '<span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
         '<p class="inicial-fortes">Fortes: <b>' + esc(GD.STATS[fortes[0]].name) + '</b> e <b>' + esc(GD.STATS[fortes[1]].name) + '</b></p>' +
         statsHtml(stats) +
         vagaTipoHtml(h) +
@@ -2535,7 +2575,7 @@
       ? '<p class="aviso" role="status">' + esc(custoRedistribuirTxt(pode) + '. Todos os pontos voltam para distribuir. Toque em Redistribuir pontos de novo para confirmar.') + '</p>' : '';
     return '<div class="redistribuir">' + conf +
       '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="redistribuir"' +
-        (pode.ok ? '' : ' disabled title="' + esc(pode.motivo) + '"') + '>Redistribuir pontos</button></div>' +
+        (pode.ok ? '' : ' disabled title="' + esc(pode.motivo) + '"') + '>Redistribuir pontos</button>' + ajudaBtn('redea', 'a Rédea nova') + '</div>' +
       (pode.ok ? '' : '<p class="nota">' + esc(pode.motivo) + '</p>') + '</div>';
   }
   function notaGenetica(g) { return g >= 24 ? 'S' : g >= 16 ? 'A' : g >= 8 ? 'B' : 'C'; }
@@ -2602,7 +2642,7 @@
         }).join('');
       }
       return '<li class="build-linha" data-status="' + k + '">' +
-        '<span class="build-nome" title="' + esc(st.name + ': ' + st.desc) + '">' + statIcon(k) + '<span>' + esc(st.short) + '</span></span>' +
+        '<span class="build-nome" title="' + esc(st.name + ': ' + st.desc) + '">' + statIcon(k) + '<span>' + esc(st.short) + '</span>' + ajudaBtn(k, st.name) + '</span>' +
         '<span class="nota-genetica nota-genetica--' + nota.toLowerCase() + '" title="' + esc('Genética ' + g + ' de 31') + '" aria-label="' + esc('Genética ' + nota + ' (' + g + ' de 31)') + '">' + nota + '</span>' +
         '<div class="barra barra--seg build-barra" role="img" aria-label="' + esc(st.name + ' ' + v + ' de ' + cap) + '">' + barHtml(v, antes[k]) + '</div>' +
         '<span class="valor' + (rk ? ' valor--rascunho' : '') + '">' + v + delta + (rk ? '<span class="sr"> (+' + rk + ' no rascunho)</span>' : '') + '</span>' +
@@ -2619,7 +2659,8 @@
     if (livres > 0 && !algumMais) avisos += '<p class="nota">' + esc((livres === 1 ? 'Sobra 1 ponto' : 'Sobram ' + livres + ' pontos') + ': não pagam o próximo ponto de nenhum status.') + '</p>';
     // o aviso geral do páreo não se repete quando o motivo do Confirmar bloqueado já está na tela
     if (trava && info.left > 0 && !motivoConf) avisos += '<p class="aviso">' + esc('Páreo aberto: os pontos da montaria ativa não podem passar o Poder de ' + P.pr + ' que a sala viu.') + '</p>';
-    var topo = '<div class="build-topo"><p class="pontos-livres">Pontos: <b>' + esc('sobram ' + livres + ' de ' + info.free) + '</b></p>' +
+    var topo = '<div class="build-topo"><p class="pontos-livres">Pontos: <b>' + esc('sobram ' + livres + ' de ' + info.free) + '</b>' + ajudaBtn('custo', 'o custo dos pontos') + '</p>' +
+      '<span class="nota">Nota de genética' + ajudaBtn('genetica', 'a nota de genética') + '</span>' +
       (info.free ? '' : '<span class="nota">Cada nível ganho dá pontos para distribuir.</span>') +
       (soma ? '<span class="nota">' + esc('Poder ' + RS.powerRating(m) + ' → ' + RS.powerRating(h)) + '</span>' : '') + '</div>';
     // ações: "Distribuir sugerido" (com algum ponto cabendo ou com rascunho), Desfazer e Confirmar (com rascunho)
@@ -2700,7 +2741,7 @@
       '<div class="cavalo-cabeca">' + portraitHtml(m, { selo: true }) +
         '<div class="cavalo-info">' +
           '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco>' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h1>' +
-          '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
+          '<div class="linha-meta">' + rarityHtml(m.rarity) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(m.grau) + ajudaBtn('estrelas', 'as estrelas') + elementHtml(m.element) +
             '<span>' + sexoHtml(m.sex) + '</span>' +
             '<span>' + esc(porteTexto(m)) + '</span>' +
             '<span>' + esc(marcasTexto(m)) + '</span>' +
@@ -2708,7 +2749,7 @@
             (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
           '</div>' +
           xpHtml(m.level, m.xp, true) +
-          '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) +
+          '<div class="linha-meta"><span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') +
             '<span>Skills: <b>' + skillPct + '%</b> de ativar</span></div>' +
           (GEAR_ON ? gearSummaryHtml(m) : '') +
         '</div></div>' + acoes + '</article>';
@@ -2989,8 +3030,8 @@
     var sh = sharePct(cond);
     return '<div class="chips">' +
       '<span class="chip"><span class="rotulo">Distância</span><b>' + esc(cond.distance + ' m') + '</b></span>' +
-      '<span class="chip"><span class="rotulo">Piso</span>' + pisoIcone(cond.surface) + '<b>' + esc(GD.SURFACES[cond.surface].name) + '</b></span>' +
-      '<span class="chip"><span class="rotulo">Clima inicial</span>' + climaIcone(cond.weather) + '<b>' + esc(GD.WEATHERS[cond.weather].name) + '</b></span>' +
+      '<span class="chip"><span class="rotulo">Piso</span>' + pisoIcone(cond.surface) + '<b>' + esc(GD.SURFACES[cond.surface].name) + '</b>' + ajudaBtn('piso', 'o piso') + '</span>' +
+      '<span class="chip"><span class="rotulo">Clima inicial</span>' + climaIcone(cond.weather) + '<b>' + esc(GD.WEATHERS[cond.weather].name) + '</b>' + ajudaBtn('clima', 'o clima') + '</span>' +
       '<span class="chip"><span class="rotulo">Traçado</span><b>' + esc(sh.reta + '% reta · ' + sh.curva + '% curva · ' + sh.subida + '% subida') + '</b></span></div>';
   }
 
@@ -3020,9 +3061,9 @@
     var T = RS.TUNING, sorte = RS.computeStats(h).sorte;
     var dois = Math.round(clamp((sorte - T.sorteDiceLo) / (T.sorteDiceFull - T.sorteDiceLo), 0, 1) * 100);
     var items = '<li' + (pct > 0 ? ' class="bom"' : pct < 0 ? ' class="ruim"' : '') + '>' + esc('Clima inicial ' + w.name + ': ' + eff) + '</li>' +
-      '<li class="dica">' + esc('Dado da Sorte a 1/3 e 2/3 da pista: quem tira o maior dado puxa o clima para o seu elemento. Sua Sorte (' + sorte + '): ' + dois + '% de rolar dois dados.') + '</li>';
+      '<li class="dica">' + esc('Dado da Sorte a 1/3 e 2/3 da pista: quem tira o maior dado puxa o clima para o seu elemento. Sua Sorte (' + sorte + '): ' + dois + '% de rolar dois dados.') + ajudaBtn('dado', 'o Dado da Sorte') + '</li>';
     var tips = strategyTips(L).map(function (t) { return '<li class="dica">' + esc(t) + '</li>'; }).join('');
-    return '<div class="tela-cabeca"><span class="rotulo">Clima e sorte</span><ul class="dicas">' + items + tips + '</ul></div>';
+    return '<div class="tela-cabeca"><span class="rotulo">Clima e sorte</span>' + ajudaBtn('clima', 'o clima') + '<ul class="dicas">' + items + tips + '</ul></div>';
   }
 
   function racerRow(r, i) {
@@ -4099,6 +4140,8 @@
   var ACOES_EQUIP = { 'loja-tab': 1, comprar: 1, 'comprar-pedra': 1, 'equipar-tela': 1, 'equip-slot': 1, equipar: 1, tirar: 1,
     melhorar: 1, 'melhorar-nao': 1, 'melhorar-sim': 1, vender: 1, 'vender-desfazer': 1 };
   telaEl.addEventListener('click', function (e) {
+    var aj = e.target.closest ? e.target.closest('[data-ajuda]') : null;
+    if (aj) { alternaAjuda(aj); return; }   // "ⓘ": abre/fecha o texto, sem re-renderizar nem acionar o cartão em volta
     var b = e.target.closest ? e.target.closest('[data-acao]') : null;
     if (!b || b.disabled) return;
     var id = b.getAttribute('data-id');

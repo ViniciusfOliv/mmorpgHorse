@@ -416,7 +416,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .build { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 /* linha de um status (bloco 1b §11): nome, nota, barra até 150 e valor; embaixo, o custo do próximo ponto e +1, +5, +10 */
 .build-linha {
-  display: grid; grid-template-columns: 64px auto minmax(0, 1fr) 148px; grid-template-areas: "nome nota barra valor" "custo custo custo acao";
+  display: grid; grid-template-columns: 110px auto minmax(0, 1fr) 148px; grid-template-areas: "nome nota barra valor" "custo custo custo acao";
   align-items: center; gap: 4px 10px; padding-bottom: 10px; border-bottom: 2px solid var(--linha);
 }
 .build-linha:last-child { padding-bottom: 0; border-bottom: 0; }
@@ -825,3 +825,14 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   /* sem outline próprio: o anel de foco (:focus-visible, --foco) continua valendo no botão selecionado */
 }
 @media (min-width: 640px) { .capacetes { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+
+/* "ⓘ" (bloco 1b §11): glifo pequeno com área de toque de 44 px; as margens negativas devolvem o espaço, e a linha não cresce */
+.ajuda {
+  appearance: none; flex: 0 0 auto; box-sizing: border-box; width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+  margin: -14px -12px; padding: 0; border: 0; background: transparent; color: var(--texto-2);
+  font: inherit; font-size: var(--t-m); line-height: 1; cursor: help; display: inline-flex; align-items: center; justify-content: center;
+}
+.ajuda:hover, .ajuda[aria-expanded="true"] { color: var(--ouro); }
+.ajuda:focus-visible { outline: 3px solid var(--ouro); outline-offset: -6px; }
+.ajuda-txt { grid-column: 1 / -1; flex: 1 1 100%; margin: 4px 0 0; padding: 6px 8px; background: var(--painel-3); box-shadow: inset 3px 0 0 0 var(--ouro);
+  font-family: var(--fonte-ui); font-size: var(--t-s); font-weight: 400; line-height: 1.4; color: var(--texto); letter-spacing: 0; text-transform: none; white-space: normal; }

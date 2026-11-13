@@ -50,16 +50,41 @@
     mitico:   { id: 'mitico',   name: 'Mítico',   color: '#9c27b0', ptsMult: 1.20, skillSlots: 5, bornSkills: 3, skillChance: 0.75, order: 4, baseLo: 60 }
   };
 
+  // ---------------------------------------------------------------------------
+  // Explicações curtas ("ⓘ" ao lado dos rótulos; o wiki usa os mesmos textos). Uma frase de até ~140
+  // caracteres, sem número que não venha do código. Os 7 primeiros são os da spec do bloco 1b §11.
+  // ---------------------------------------------------------------------------
+  var HELP = {
+    vel: 'Velocidade máxima nas retas. É o status que mais pesa numa reta longa.',
+    acel: 'Quão rápido chega à velocidade máxima na largada e depois de perder ritmo.',
+    man: 'Rendimento nas curvas: quem tem mais perde menos velocidade nelas.',
+    forca: 'Rendimento nas subidas, nos pisos pesados e para passar pelo pelotão.',
+    est: 'Fôlego para manter o ritmo até o fim; também deixa correr mais forte no meio e no sprint.',
+    garra: 'Chance e força da arrancada final; com mais Garra ela começa mais cedo.',
+    sorte: 'Vem do nascimento e não recebe pontos. Chance de jogar o Dado da Sorte duas vezes.',
+    genetica: 'Nota S, A, B ou C: o quanto o status já nasce alto. Vem do nascimento e não muda.',
+    estrelas: 'Grau do cavalo, de 1 a 3 estrelas: mais estrelas, mais pontos para distribuir a cada nível.',
+    raridade: 'Quanto mais rara, mais pontos por nível, mais vagas de skill e status que já nascem mais altos.',
+    skillTipo: 'Uma por elemento, sempre ativa num terço da pista: os dois status do tipo valem mais naquele trecho.',
+    poder: 'Nota da força geral do cavalo, calculada dos status e das skills. Define a liga e os rivais da sala.',
+    liga: 'Faixa do Poder: você corre contra cavalos da mesma liga.',
+    clima: 'Cada elemento rende mais no seu clima e menos no clima ruim. O Dado da Sorte pode virar o clima na corrida.',
+    piso: 'Piso mais pesado tira velocidade e gasta mais fôlego; a Força ajuda a perder menos.',
+    dado: 'Duas vezes por corrida, quem tira o maior dado puxa o clima para o seu elemento. Sorte alta rola dois dados.',
+    custo: 'Cada ponto comprado num status custa mais que o anterior. Os pontos que sobram ficam guardados para depois.',
+    redea: 'Devolve todos os pontos para você distribuir de novo. A primeira de cada cavalo é grátis; depois gasta 1 Rédea nova.'
+  };
+
   var STAT_KEYS = ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
 
   var STATS = {
-    vel:   { id: 'vel',   name: 'Velocidade', short: 'VEL', desc: 'Velocidade máxima.' },
-    acel:  { id: 'acel',  name: 'Aceleração', short: 'ACE', desc: 'Rapidez até a velocidade máxima (largada e retomadas).' },
-    man:   { id: 'man',   name: 'Manobra',    short: 'MAN', desc: 'Agilidade nas curvas e na saída delas.' },
-    forca: { id: 'forca', name: 'Força',      short: 'FOR', desc: 'Subidas, terreno pesado e disputa no pelotão.' },
-    est:   { id: 'est',   name: 'Estamina',   short: 'EST', desc: 'Quanto tempo mantém o ritmo.' },
-    garra: { id: 'garra', name: 'Garra',      short: 'GAR', desc: 'Chance e força da arrancada final (últimos 20%).' },
-    sorte: { id: 'sorte', name: 'Sorte',      short: 'SOR', desc: 'Chance de rolar um 2º dado no Dado da Sorte e bônus para ativar skills.' }
+    vel:   { id: 'vel',   name: 'Velocidade', short: 'VEL', desc: HELP.vel },
+    acel:  { id: 'acel',  name: 'Aceleração', short: 'ACE', desc: HELP.acel },
+    man:   { id: 'man',   name: 'Manobra',    short: 'MAN', desc: HELP.man },
+    forca: { id: 'forca', name: 'Força',      short: 'FOR', desc: HELP.forca },
+    est:   { id: 'est',   name: 'Estamina',   short: 'EST', desc: HELP.est },
+    garra: { id: 'garra', name: 'Garra',      short: 'GAR', desc: HELP.garra },
+    sorte: { id: 'sorte', name: 'Sorte',      short: 'SOR', desc: HELP.sorte }
   };
 
   // slow: perda de velocidade (aliviada por Força); drain: gasto extra de estamina.
@@ -95,24 +120,24 @@
     fogo: {
       id: 'labareda', name: 'Labareda', short: 'LABAREDA', zone: [0, 1 / 3],
       effect: { statMul: 0.19 },
-      desc: 'No primeiro terço da pista, a largada pega fogo: Velocidade e Aceleração valem +19% (varia com nível e raridade).'
+      desc: 'No primeiro terço da pista, a largada pega fogo: Velocidade e Aceleração valem +19% com intensidade ×1 (varia com nível e raridade).'
     },
     grama: {
       id: 'raizes-firmes', name: 'Raízes Firmes', short: 'RAÍZES FIRM.', zone: [1 / 3, 2 / 3],
       effect: { statMul: 0.15 },
-      desc: 'No terço do meio, finca os cascos: Força e Manobra valem +15% (cresce com nível e raridade).'
+      desc: 'No terço do meio, finca os cascos: Força e Manobra valem +15% com intensidade ×1 (varia com nível e raridade).'
     },
     agua: {
       id: 'mare-alta', name: 'Maré Alta', short: 'MARÉ ALTA', zone: [2 / 3, 1],
       effect: { statMul: 0.33 },
-      desc: 'No último terço, a maré sobe: Estamina e Garra valem +33% (cresce com a raridade).'
+      desc: 'No último terço, a maré sobe: Estamina e Garra valem +33% com intensidade ×1 (cresce com a raridade).'
     }
   };
 
   // ---------------------------------------------------------------------------
   // Habilidades
   //   trigger: 'start' | 'straight' (reta de 150 m ou mais, fora a da largada) | 'curve' | 'curveExit'
-  //            | 'hill' | 'lowStamina' (<=30%) | 'final' (últimos 20%) | 'dice' (uma tentativa,
+  //            | 'hill' | 'lowStamina' (<=30%) | 'final' (onde começa a arrancada do cavalo, garraFrom) | 'dice' (uma tentativa,
   //            antes do 1º Dado) | 'weather:<sol|chuva|nevoa>'
   //   effect (chaves usadas):
   //     accelMult / speedMult: multiplicadores; drainMult: gasto de estamina;
@@ -497,6 +522,7 @@
     version: '0.2-prototipo',
     STAT_KEYS: STAT_KEYS,
     STATS: STATS,
+    HELP: HELP,
     ELEMENTS: ELEMENTS,
     RARITIES: RARITIES,
     TYPE_SKILLS: TYPE_SKILLS,

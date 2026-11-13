@@ -8,7 +8,7 @@
 // Também confere a entrada reservada do páreo aberto, a gravação que falha, o save adulterado ou corrompido,
 // o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo, o tamanho mínimo do texto e o teto
 // de chamadas de canvas por quadro na corrida mais cara.
-//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,marcas,portes,crescimento node tools/ui-test.mjs  -> só esses
+//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,marcas,portes,crescimento,ajuda node tools/ui-test.mjs  -> só esses
 // Equipamento suspenso (bloco 1b, GEAR_ON = false no game.js): os blocos das telas de peças e da Loja conferem que elas
 // não aparecem e que as ações de peça não fazem nada; com GEAR_ON = true voltam a testar as telas (GEAR_ON abaixo).
 import { createRequire } from 'node:module'
@@ -1746,8 +1746,9 @@ try {
         if ((await vt.locator('.vaga-tipo').count()) !== 1) problems.push(`vaga-tipo: ${m.uid} com ${await vt.locator('.vaga-tipo').count()} vagas de tipo`)
         if (!vaga.includes(ts.name) || !vaga.toLowerCase().includes(terco)) problems.push(`vaga-tipo: ${m.uid} sem nome/terço (${ts.name}, ${terco}): ${vaga}`)
         // a força P: a da Água só cresce com a raridade (spec 1b §5); a do Fogo e a da Grama variam com o nível e a raridade
-        const inten = 'Intensidade ×' + ts.power.toFixed(2).replace('.', ',') + ': ' + (m.element === 'agua' ? 'cresce com a raridade' : 'varia com o nível e a raridade')
-        if (!vaga.includes(inten) || /Força ×/.test(vaga)) problems.push(`vaga-tipo: ${m.uid} sem o rótulo "${inten}" (ou ainda com "Força ×"): ${vaga}`)
+        // (o "varia com nível e raridade" fica só na descrição da skill; a linha de intensidade não o repete)
+        const inten = 'Intensidade ×' + ts.power.toFixed(2).replace('.', ',')
+        if (!vaga.includes(inten) || (vaga.match(/varia com/g) || []).length > 1 || (vaga.match(/cresce com/g) || []).length > 1 || /Força ×/.test(vaga)) problems.push(`vaga-tipo: ${m.uid} sem o rótulo "${inten}" (ou ainda com "Força ×"): ${vaga}`)
         // bloco 1b: o efeito em pontos para o cavalo (status × statMul·P nos dois status do tipo) e a descrição com o %
         const pts = efeitoTipoPontos(m).replace(/º/g, 'o')   // o "º" vira um "o" sobrescrito na tela (ordFix)
         if (!vaga.includes(pts) || !vaga.includes(G.TYPE_SKILLS[m.element].desc)) problems.push(`vaga-tipo: ${m.uid} sem o efeito em pontos "${pts}" ou a descrição: ${vaga}`)
@@ -3140,6 +3141,84 @@ try {
   // ---------------- crescimento livre (bloco 1b): save v6, equipamento suspenso, Redistribuir, potro, jóquei e DEV ----------------
   // Spec 2026-11-12-crescimento-livre §8–§10. Migração v5 -> v6 com páreo aberto (RF1), lixo no save novo (RF2), gravação
   // que falha ao redistribuir (RF4) e jogador antigo com peças equipadas (RF5); o custo de abrir a sala (pareamento).
+  // ---- ajuda: botão "ⓘ" com as explicações curtas (spec 1b §11) ----
+  if (quer('ajuda')) {
+    const CHAVES = ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte', 'genetica', 'estrelas', 'raridade', 'skillTipo', 'poder', 'liga', 'clima', 'piso', 'dado', 'custo', 'redea']
+    for (const k of CHAVES) {
+      const t = G.HELP[k]
+      if (typeof t !== 'string' || !t) problems.push(`ajuda: GameData.HELP.${k} não existe`)
+      else if (t.length > 160) problems.push(`ajuda: HELP.${k} tem ${t.length} caracteres (máximo 160)`)
+    }
+    // o botão do rótulo: nome acessível, title com o texto, alvo de 44 px, abre e fecha (clique e teclado) sem rolagem horizontal
+    const confereAjuda = async (pg, escopo, chave, nome, tag, teclado) => {
+      const btn = pg.locator(`${escopo} .ajuda[data-ajuda="${chave}"]`).first()
+      if (!(await btn.count())) { problems.push(`${tag}: sem o ⓘ de ${chave} em ${escopo}`); return }
+      const nomeAc = (await btn.getAttribute('aria-label')) || ''
+      if (nomeAc !== `O que é ${nome}?`) problems.push(`${tag}: ⓘ de ${chave} com nome acessível "${nomeAc}" (esperado "O que é ${nome}?")`)
+      if ((await btn.getAttribute('title')) !== G.HELP[chave]) problems.push(`${tag}: ⓘ de ${chave} com title diferente de HELP.${chave}`)
+      if ((await btn.getAttribute('aria-expanded')) !== 'false') problems.push(`${tag}: ⓘ de ${chave} começa aberto`)
+      await btn.scrollIntoViewIfNeeded()
+      const box = await btn.boundingBox()
+      if (!box || box.width < 43.5 || box.height < 43.5) problems.push(`${tag}: ⓘ de ${chave} com alvo ${box ? Math.round(box.width) + 'x' + Math.round(box.height) : 'sem caixa'} (mínimo 44x44)`)
+      const texto = async () => pg.evaluate((id) => { const e = document.getElementById(id); return e ? { role: e.getAttribute('role'), t: e.textContent, vis: !!(e.offsetWidth || e.offsetHeight) } : null }, await btn.getAttribute('data-nota'))
+      if (teclado) { await btn.focus(); await pg.keyboard.press('Enter') } else await btn.click()
+      if ((await btn.getAttribute('aria-expanded')) !== 'true') problems.push(`${tag}: ⓘ de ${chave} não abriu (aria-expanded)`)
+      const n = await texto()
+      if (!n || n.role !== 'note' || n.t !== G.HELP[chave] || !n.vis) problems.push(`${tag}: ⓘ de ${chave} aberto sem o texto em role="note" visível: ${JSON.stringify(n)}`)
+      await checkOverflow(pg, `${tag}-${chave}-aberto`)
+      if (teclado) await pg.keyboard.press('Space'); else await btn.click()
+      if ((await btn.getAttribute('aria-expanded')) !== 'false') problems.push(`${tag}: ⓘ de ${chave} não fechou`)
+      if (await pg.locator('.ajuda-txt').count()) problems.push(`${tag}: ⓘ de ${chave} fechado, mas o texto continua na tela`)
+    }
+    const NOMES = { vel: 'Velocidade', acel: 'Aceleração', man: 'Manobra', forca: 'Força', est: 'Estamina', garra: 'Garra', sorte: 'Sorte' }
+    const OUTROS = { genetica: 'a nota de genética', estrelas: 'as estrelas', raridade: 'a raridade', skillTipo: 'a skill de tipo', poder: 'o Poder', liga: 'a liga',
+      clima: 'o clima', piso: 'o piso', dado: 'o Dado da Sorte', custo: 'o custo dos pontos', redea: 'a Rédea nova' }
+    const pg = await newPage(browser, { width: 360, height: 780 }, 'ajuda')
+    try {
+      // escolha do inicial: os 7 status (dl.status), raridade, estrelas, Poder e liga
+      await pg.waitForSelector('#ini-brasa')
+      for (const k of G.STAT_KEYS) await confereAjuda(pg, '#ini-brasa', k, NOMES[k], 'ajuda-inicial', k === 'garra')
+      for (const k of ['raridade', 'estrelas', 'poder', 'liga']) await confereAjuda(pg, '#ini-brasa', k, OUTROS[k], 'ajuda-inicial')
+      await checkOverflow(pg, 'ajuda-inicial')
+      await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await pg.waitForSelector('#t-estabulo')
+      await montaSave(pg, (raw) => {
+        raw.mounts[0].level = 12
+        raw.mounts[0].alloc = Object.assign({}, raw.mounts[0].alloc || {}, { vel: 4, acel: 3, man: 0, forca: 0, est: 2, garra: 0, sorte: 0 })
+      })
+      await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await pg.waitForSelector('#t-montaria')
+      // aba Status: 7 status, nota de genética, custo dos pontos, Rédea nova; cabeça: raridade, estrelas, Poder e liga
+      for (const k of G.STAT_KEYS) await confereAjuda(pg, '.build', k, NOMES[k], 'ajuda-status', k === 'vel')
+      for (const k of ['genetica', 'custo']) await confereAjuda(pg, '.build-topo', k, OUTROS[k], 'ajuda-status')
+      await confereAjuda(pg, '.redistribuir', 'redea', OUTROS.redea, 'ajuda-status')
+      for (const k of ['raridade', 'estrelas', 'poder', 'liga']) await confereAjuda(pg, '.montaria-cabeca', k, OUTROS[k], 'ajuda-cabeca')
+      // a linha de status cresce com o texto aberto, mas o Redistribuir e os botões +N seguem clicáveis e sem sobreposição
+      await pg.locator('.build .ajuda[data-ajuda="vel"]').click()
+      const sobrepoe = await pg.evaluate(() => { const n = document.querySelector('.ajuda-txt').getBoundingClientRect(), b = document.querySelector('[data-status="vel"] .build-mais').getBoundingClientRect(); return n.bottom > b.top + 1 && n.top < b.bottom - 1 })
+      if (sobrepoe) problems.push('ajuda-status: o texto aberto sobrepõe os botões +N da mesma linha')
+      await pg.locator('.build .ajuda[data-ajuda="vel"]').click()
+      // aba Skills: a skill de tipo
+      await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+      await confereAjuda(pg, '.vaga-tipo', 'skillTipo', OUTROS.skillTipo, 'ajuda-skills')
+      // o texto da descrição da skill de tipo diz o % e "varia"/"cresce" uma vez só
+      const vt = ((x) => x.replace(/\s+/g, ' ').trim())(await pg.locator('.vaga-tipo').textContent())
+      if (!/\+19%/.test(vt) || (vt.match(/varia com|cresce com/g) || []).length !== 1) problems.push(`ajuda-skills: descrição da skill de tipo "${vt}"`)
+      // sala de largada: piso, clima e Dado da Sorte
+      await abrirSala(pg)
+      for (const k of ['piso', 'clima']) await confereAjuda(pg, '.chips', k, OUTROS[k], 'ajuda-sala')
+      await confereAjuda(pg, '.dicas', 'dado', OUTROS.dado, 'ajuda-sala')
+      await checkOverflow(pg, 'ajuda-sala')
+      // no computador (mouse): o title basta; o botão não depende de toque. A corrida não ganha ⓘ no canvas.
+      if (await pg.locator('#pista .ajuda, .corrida-baixo .ajuda').count()) problems.push('ajuda: a tela da corrida ganhou ⓘ')
+    } catch (e) {
+      problems.push('ajuda: ' + e.message)
+    } finally {
+      await pg.context().close()
+    }
+  }
+
   if (quer('crescimento')) {
     const AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.'
     const FALHA = 'Não foi possível salvar. Libere espaço e tente de novo.'

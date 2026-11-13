@@ -451,10 +451,14 @@ function secoes(F, A) {
     { t: 'p', txt: `Versão dos dados: \`${G.version}\`. Este wiki é gerado do código (\`prototype/src/\`) por \`prototype/tools/wiki.mjs\`; não edite à mão.` }
   ])
 
+  const ROTULO_AJUDA = { genetica: 'Nota de genética', estrelas: 'Estrelas', raridade: 'Raridade', skillTipo: 'Skill de tipo', poder: 'Poder', liga: 'Liga', clima: 'Clima', piso: 'Piso', dado: 'Dado da Sorte', custo: 'Custo dos pontos', redea: 'Rédea nova' }
   // 2. Status --------------------------------------------------------------------------------------------
   add('status', 'Status', 'Status', [
     { t: 'p', txt: `Cada montaria tem ${G.STAT_KEYS.length} status na escala de ${lim.baixo} a ${lim.alto}. Na corrida o motor usa n(x) = status / 100, e toda fórmula da corrida rende em linha reta até ${lim.alto}. O valor é arredondado uma vez só, no fim, e preso entre ${lim.baixo} e ${lim.alto}.` },
-    { t: 'tabela', rotulo: 'Status', cab: ['Sigla', 'Status', 'Descrição no jogo', 'Na corrida'], linhas: G.STAT_KEYS.map((k) => [N(siglaStat(k)), comIcone('st-' + k, nomeStat(k)), G.STATS[k].desc, papelDoStatus(k, F)]) },
+    { t: 'tabela', rotulo: 'Status', cab: ['Sigla', 'Status', 'Descrição no jogo', 'Na corrida'], linhas: G.STAT_KEYS.map((k) => [N(siglaStat(k)), comIcone('st-' + k, nomeStat(k)), G.HELP[k], papelDoStatus(k, F)]) },
+    { t: 'h3', txt: 'Explicações do botão ⓘ' },
+    { t: 'p', txt: 'No jogo, o botão ⓘ ao lado de cada rótulo mostra estas frases (no computador, com o mouse; no toque, abrindo e fechando embaixo do rótulo). Os sete status têm a frase na tabela acima.' },
+    { t: 'tabela', rotulo: 'Explicações', cab: ['Rótulo', 'Texto'], linhas: Object.keys(G.HELP).filter((k) => G.STAT_KEYS.indexOf(k) < 0).map((k) => [N(ROTULO_AJUDA[k] || k), G.HELP[k]]) },
     { t: 'h3', txt: 'Como o status é calculado' },
     { t: 'formula', txt: `base   = início da faixa da raridade + ${num(T.gBand)} × g / 31      (nada cresce sozinho com o level)
 status = base + pontos comprados, arredondado e preso entre ${lim.baixo} e ${lim.alto}
