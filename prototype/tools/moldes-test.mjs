@@ -2,6 +2,7 @@
 // Testes do codec PNG e da normalização/validação dos moldes (sem rede).
 import assert from 'node:assert';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePng, encodePng, encodeGray } from './png.mjs';
@@ -1065,6 +1066,189 @@ test('dry-run: --lote portes --fase mestres sem --gerar lista 3 itens e 12 chama
   }
   assert.strictEqual(fs.existsSync(novos), existia, 'o dry-run não cria a pasta novos/');
 });
+
+// ---------------------------------------------------------------- Portes: geração com API falsa (pasta temporária)
+// O caminho do lote (rodarPortes) com um `executar` falso que desenha cavalos sintéticos: sem rede (fetch trocado por
+// um que lança), sem --gerar e sem tocar em assets/pixellab (raw/ e novos/ numa pasta temporária).
+section('Portes: geração com API falsa');
+const portesLote = await import('./pixellab-portes.mjs').then(M => ({ M }), erro => ({ erro }));
+const Pl = () => { if (portesLote.erro) throw portesLote.erro; return portesLote.M; };
+async function testA(name, fn) {
+  count++;
+  try { await fn(); console.log('  ok  ' + name); } catch (e) { fails++; console.log('  FALHA ' + name + '\n       ' + (e.stack || e.message || e)); }
+}
+const CORPO_FALSO = { padrao: {}, esguio: { perna: 14 }, robusto: { esp: 15, perna: 4 } };
+const b64png = rgba => encodePng({ width: 64, height: 64, rgba }).toString('base64');
+function descer(rgba, dy) {
+  const out = new Uint8Array(rgba.length);
+  for (let y = 0; y < 64; y++) if (y - dy >= 0 && y - dy < 64) out.set(rgba.subarray((y - dy) * 256, (y - dy + 1) * 256), y * 256);
+  return out;
+}
+// API falsa: o pixflux devolve o cavalo sintético do porte (lido do texto) e da etapa; o animate devolve 9 quadros
+// = o first_frame descido de 0 a 2 px (estável), ou com o lombo pulando 4 px quando regras.pula(seed).
+function apiFalsa(regras = {}) {
+  const chamadas = [];
+  const executar = async (ep, corpo) => {
+    if (ep === '/create-image-pixflux') {
+      const d = corpo.description;
+      const porte = /Mangalarga/.test(d) ? 'esguio' : /Crioulo/.test(d) ? 'robusto' : 'padrao';
+      const estilo = /flames/.test(d) ? 'chamas' : /waves/.test(d) ? 'ondas' : /leaves/.test(d) ? 'folhas' : 'lisa';
+      const etapa = /no rider/.test(d) ? 'retrato' : /full gallop/.test(d) ? 'corrida' : 'parado';
+      chamadas.push({ ep, porte, estilo, etapa, seed: corpo.seed, guia: !!corpo.init_image, forca: corpo.init_image_strength });
+      const op = Object.assign({}, CORPO_FALSO[porte], { joquei: etapa !== 'retrato', crina: estilo === 'lisa' ? 'normal' : 'grande' },
+        regras.parada ? regras.parada({ porte, estilo, etapa, seed: corpo.seed }) : {});
+      const r = { image: { type: 'base64', base64: b64png(rgbaDeIdx(sintPorte(op), 64, 64)) }, usage: { type: 'generations', generations: 1 } };
+      return { resultado: r, respostas: [r] };
+    }
+    chamadas.push({ ep, seed: corpo.seed, frames: corpo.frame_count });
+    const f0 = decodePng(Buffer.from(corpo.first_frame.base64, 'base64')).rgba;
+    const dys = regras.pula && regras.pula(corpo.seed) ? [0, 0, 0, 0, 4, 0, 0, 0, 0] : [0, 1, 2, 1, 0, 1, 2, 1, 0];
+    const post = { background_job_id: 'falso', usage: { type: 'generations', generations: 1 } };
+    const job = { status: 'completed', last_response: { images: dys.map(dy => ({ type: 'base64', base64: b64png(descer(f0, dy)) })), usage: { type: 'generations', generations: 1 } } };
+    return { resultado: { post, job }, respostas: [post, job] };
+  };
+  return { executar, chamadas };
+}
+const semRede = async fn => {
+  const antes = globalThis.fetch;
+  globalThis.fetch = () => { throw new Error('rede proibida no teste'); };
+  try { return await fn(); } finally { globalThis.fetch = antes; }
+};
+const pastaTemp = () => {
+  const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'portes-teste-'));
+  return { raiz, dirs: { raw: path.join(raiz, 'raw'), novos: path.join(raiz, 'novos') } };
+};
+const lerJ = f => JSON.parse(fs.readFileSync(f, 'utf8'));
+// regras do cenário: o retrato do padrão na seed base sai com duas pernas coladas; o galope do robusto pula sempre;
+// no piloto, o chamas do esguio sai deslocado 3 px (reprova no mesmo corpo nas 3 seeds)
+const CENARIO = {
+  parada: ({ porte, estilo, etapa, seed }) => Object.assign({},
+    porte === 'padrao' && estilo === 'lisa' && etapa === 'retrato' && seed === 3102 ? { coladas: true } : {},
+    porte === 'esguio' && estilo === 'chamas' ? { dx: 3 } : {}),
+  pula: seed => seed % 100 === 3,
+};
+const A = pastaTemp(), logA = [];
+const quietoA = m => logA.push(m);
+
+await testA('mestres: 3 seeds por etapa, para na 1ª aprovada; o melhor galope fica e o item sai marcado; finais no formato de hoje', async () => {
+  const api = apiFalsa(CENARIO);
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: api.executar, dirs: A.dirs, log: quietoA }));
+  assert.strictEqual(r.parada, null, r.parada);
+  // 10 imagens paradas (o retrato do padrão uma vez a mais) e 5 galopes (o do robusto nas 3 seeds)
+  assert.deepStrictEqual(api.chamadas.map(c => c.ep + ' ' + (c.porte ? c.porte + '/' + c.etapa : 'galope') + ' ' + c.seed), [
+    '/create-image-pixflux padrao/retrato 3102', '/create-image-pixflux padrao/retrato 3202', '/create-image-pixflux padrao/parado 3102',
+    '/create-image-pixflux padrao/corrida 3102', '/create-image-pixflux esguio/retrato 3101', '/create-image-pixflux esguio/parado 3101',
+    '/create-image-pixflux esguio/corrida 3101', '/create-image-pixflux robusto/retrato 3103', '/create-image-pixflux robusto/parado 3103',
+    '/create-image-pixflux robusto/corrida 3103', '/animate-with-text-v3 galope 3102', '/animate-with-text-v3 galope 3101',
+    '/animate-with-text-v3 galope 3103', '/animate-with-text-v3 galope 3203', '/animate-with-text-v3 galope 3303',
+  ]);
+  assert.ok(api.chamadas.every(c => !c.guia), 'mestre sem init_image');
+  const g = lerJ(path.join(A.dirs.novos, 'gasto.json'));
+  assert.deepStrictEqual([g.geracoes, g.chamadas, g.rodadas.length, g.rodadas[0].geracoes], [15, 15, 1, 15]);
+  const C = lerJ(path.join(A.dirs.novos, 'criterios.json'));
+  const ret = C.itens['padrao-lisa'].etapas.retrato;
+  assert.deepStrictEqual([ret.escolhida, ret.tentativas.length, ret.tentativas[0].ok, ret.tentativas[1].ok], [3202, 2, false, true]);
+  assert.ok(ret.tentativas[0].criterios.some(c => c.criterio === 'pernas no retrato' && !c.ok && c.valor === 3));
+  assert.ok(ret.tentativas.every(t => t.prompt && t.arquivo && t.geracoes === 1 && !('_buf' in t)), 'cada tentativa com prompt, arquivo cru e custo');
+  assert.strictEqual(C.itens['padrao-lisa'].ok, true); assert.strictEqual(C.itens['esguio-lisa'].ok, true);
+  const rob = C.itens['robusto-lisa'];
+  assert.deepStrictEqual([rob.ok, rob.completo, rob.final, rob.etapas.galope.tentativas.length, rob.etapas.galope.escolhida], [false, true, true, 3, 3103]);
+  assert.ok(rob.falhas.length === 1 && /^galope: lombo na coluna da sela = 4/.test(rob.falhas[0]), rob.falhas.join(' | '));
+  assert.ok(logA.some(m => /fica o melhor galope, a seed 3103/.test(m)));
+  // portes distintos nos 3 mestres (o esguio e o robusto também já passaram no aceite do próprio retrato)
+  assert.deepStrictEqual(C.portes.faltam, []); assert.strictEqual(C.portes.criterios.length, 3);
+  assert.ok(C.portes.criterios.every(c => c.ok), JSON.stringify(C.portes.criterios));
+  assert.ok(C.itens['esguio-lisa'].etapas.retrato.tentativas[0].criterios.some(c => /esguio/.test(c.criterio) && c.ok));
+  // os finais: 3 JSON + 33 PNGs, com os campos dos moldes de hoje, na mesma ordem
+  const arqs = fs.readdirSync(A.dirs.novos).filter(f => /^molde-/.test(f));
+  assert.strictEqual(arqs.length, 3 * 12);
+  const J = lerJ(path.join(A.dirs.novos, 'molde-padrao-lisa.json')), hoje = lerJ(path.join(DIR, 'molde-chamas.json'));
+  assert.deepStrictEqual(Object.keys(J), Object.keys(hoje));
+  assert.deepStrictEqual([J.estilo, J.w, J.h, J.frames, J.seeds], ['padrao-lisa', 64, 64, 9, { retrato: 3202, parado: 3102, montado: 3102, galope: 3102 }]);
+  const m = Pl().lerMolde(A.dirs.novos, 'padrao-lisa');
+  assert.deepStrictEqual(J.ancoras.retrato, ancoras(m.retrato, 64, 64));
+  assert.deepStrictEqual(falhos(Pc().criterioPernas(m)), []);
+});
+
+await testA('mestres de novo: tudo reaproveitado de raw/, nenhuma chamada e o gasto não muda', async () => {
+  const antes = fs.readFileSync(path.join(A.dirs.novos, 'molde-robusto-lisa-galope-4.png'));
+  const api = apiFalsa(CENARIO);
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: api.executar, dirs: A.dirs, log: () => {} }));
+  assert.strictEqual(api.chamadas.length, 0); assert.strictEqual(r.gasto, 0);
+  assert.strictEqual(lerJ(path.join(A.dirs.novos, 'gasto.json')).geracoes, 15);
+  assert.ok(fs.readFileSync(path.join(A.dirs.novos, 'molde-robusto-lisa-galope-4.png')).equals(antes));
+});
+
+await testA('teto somado entre rodadas: a chamada que passaria do teto não sai; a rodada seguinte retoma de raw/', async () => {
+  const B = pastaTemp(), api = apiFalsa(CENARIO);
+  const r1 = await semRede(() => Pl().rodarPortes({ fase: 'mestres', teto: 5, modo: 'gerar', executar: api.executar, dirs: B.dirs, log: () => {} }));
+  assert.match(r1.parada || '', /^TETO: parou antes de esguio-lisa\/parado/);
+  assert.strictEqual(api.chamadas.length, 5);
+  assert.deepStrictEqual([lerJ(path.join(B.dirs.novos, 'gasto.json')).geracoes, lerJ(path.join(B.dirs.novos, 'gasto.json')).rodadas[0].parada.slice(0, 5)], [5, 'TETO:']);
+  const C1 = lerJ(path.join(B.dirs.novos, 'criterios.json'));
+  assert.deepStrictEqual([C1.itens['padrao-lisa'].completo, C1.itens['esguio-lisa'].completo], [false, false]);
+  assert.ok(!fs.existsSync(path.join(B.dirs.novos, 'molde-padrao-lisa.json')), 'sem final antes do galope');
+  // o dry-run vê o gasto e o que já está em raw/
+  const linhas = [];
+  await Pl().dryRunPortes({ fase: 'mestres', teto: 5, dirs: B.dirs }, l => linhas.push(l));
+  assert.match(linhas.join('\n'), /já gastas 5, sobram 0/);
+  assert.match(linhas.join('\n'), /cortou 8 chamada\(s\), a partir de esguio-lisa\/parado/);
+  assert.match(linhas.join('\n'), /padrao-lisa\/retrato \(seed 3102, reprovada\), padrao-lisa\/retrato \(seed 3202\)/);
+  const api2 = apiFalsa(CENARIO);
+  const r2 = await semRede(() => Pl().rodarPortes({ fase: 'mestres', teto: 90, modo: 'gerar', executar: api2.executar, dirs: B.dirs, log: () => {} }));
+  assert.strictEqual(r2.parada, null); assert.strictEqual(api2.chamadas.length, 10);
+  const g = lerJ(path.join(B.dirs.novos, 'gasto.json'));
+  assert.deepStrictEqual([g.geracoes, g.chamadas, g.rodadas.map(x => x.geracoes)], [15, 15, [5, 10]]);
+  fs.rmSync(B.raiz, { recursive: true, force: true });
+});
+
+await testA('piloto com init_image do mestre; reprovado no mesmo corpo ⇒ as versões daquele porte saem sem init_image', async () => {
+  const api = apiFalsa(CENARIO);
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'piloto', modo: 'gerar', executar: api.executar, dirs: A.dirs, log: () => {} }));
+  assert.strictEqual(r.parada, null);
+  const paradas = api.chamadas.filter(c => c.porte);
+  assert.ok(paradas.length && paradas.every(c => c.guia && c.forca === Pl().FORCA_GUIA && c.estilo === 'chamas'), 'piloto: chamas com init_image');
+  // o esguio deslocado 3 px: retrato e parado nas 3 seeds (3401, 3501, 3601); a corrida não tem o critério
+  assert.deepStrictEqual(paradas.filter(c => c.porte === 'esguio').map(c => c.etapa + ' ' + c.seed),
+    ['retrato 3401', 'retrato 3501', 'retrato 3601', 'parado 3401', 'parado 3501', 'parado 3601', 'corrida 3401']);
+  const C = lerJ(path.join(A.dirs.novos, 'criterios.json'));
+  assert.deepStrictEqual([C.piloto.esguio.mesmoCorpo, C.piloto.padrao.mesmoCorpo, C.piloto.robusto.mesmoCorpo], [false, true, true]);
+  assert.ok(C.itens['esguio-chamas'].falhas.some(f => /mesmo corpo no retrato: nose\.x/.test(f)));
+  assert.ok(C.itens['esguio-chamas'].etapas.retrato.tentativas[0].init_image.startsWith('raw/portes-esguio-lisa-retrato-s3101'));
+  assert.ok(C.itens['padrao-chamas'].ok, C.itens['padrao-chamas'].falhas.join(' | '));
+  assert.strictEqual(lerJ(path.join(A.dirs.novos, 'gasto.json')).geracoes, 15 + api.chamadas.length);
+  // versões: o esguio sem init_image (chamas refeito) e os outros dois portes com
+  const itens = Pl().itensDaFase('versoes', { piloto: C.piloto });
+  assert.deepStrictEqual(itens.map(i => i.chave + (i.guia ? '+' : '') + ' ' + i.seedBase), [
+    'esguio-chamas 3701', 'esguio-ondas 3704', 'esguio-folhas 3707', 'padrao-ondas+ 3405', 'padrao-folhas+ 3408', 'robusto-ondas+ 3406', 'robusto-folhas+ 3409']);
+  const linhas = [];
+  await Pl().dryRunPortes({ fase: 'versoes', dirs: A.dirs }, l => linhas.push(l));
+  const txt = linhas.join('\n');
+  assert.match(txt, /Itens: 7 \(/);
+  assert.match(txt, /o piloto de esguio reprovou no "mesmo corpo" nas 3 seeds: as versões de esguio saem sem init_image/);
+  assert.match(txt, /padrao-ondas\/retrato +seed 3405/);
+  assert.match(txt, /init_image = raw\/portes-padrao-lisa-retrato-s3202\.png; init_image_strength/);
+  assert.ok(!/esguio-ondas\/retrato[^\n]*\n[^\n]*init_image/.test(txt), 'esguio sem init_image');
+});
+
+await testA('--reprocessar refaz os finais de novos/ só de raw/, sem chamada e sem mexer no gasto', async () => {
+  const antes = {};
+  for (const f of fs.readdirSync(A.dirs.novos).filter(f => /^molde-.*-lisa/.test(f))) { antes[f] = fs.readFileSync(path.join(A.dirs.novos, f)); fs.unlinkSync(path.join(A.dirs.novos, f)); }
+  const gasto = fs.readFileSync(path.join(A.dirs.novos, 'gasto.json'));
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', executar: () => { throw new Error('chamou a API'); }, dirs: A.dirs, log: () => {} }));
+  assert.strictEqual(r.parada, null);
+  for (const [f, buf] of Object.entries(antes)) assert.ok(fs.readFileSync(path.join(A.dirs.novos, f)).equals(buf), f);
+  assert.ok(fs.readFileSync(path.join(A.dirs.novos, 'gasto.json')).equals(gasto));
+  // sem a imagem crua, o item fica incompleto (os outros seguem)
+  fs.unlinkSync(path.join(A.dirs.raw, 'portes-esguio-lisa-parado-s3101.png'));
+  fs.unlinkSync(path.join(A.dirs.raw, 'portes-esguio-lisa-parado-s3101.json'));
+  const r2 = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', dirs: A.dirs, log: () => {} }));
+  const C = lerJ(path.join(A.dirs.novos, 'criterios.json'));
+  assert.strictEqual(r2.parada, null);
+  assert.ok(C.itens['esguio-lisa'].falhas.some(f => /faltaria gerar esguio-lisa\/parado seed 3101/.test(f)), C.itens['esguio-lisa'].falhas.join(' | '));
+  assert.strictEqual(C.itens['padrao-lisa'].ok, true);
+});
+fs.rmSync(A.raiz, { recursive: true, force: true });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

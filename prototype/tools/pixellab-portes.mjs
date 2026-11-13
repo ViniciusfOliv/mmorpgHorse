@@ -276,7 +276,9 @@ export async function rodarPortes(op) {
       etapas[e] = { escolhida: x.escolhida ? x.escolhida.seed : null, ok: !!(x.escolhida && x.escolhida.ok), terminada: x.terminada, tentativas: x.tentativas };
       if (!x.terminada) falhas.push(`${e}: interrompida antes de terminar as seeds`);
       else if (!x.escolhida) falhas.push(`${e}: nenhuma tentativa com imagem`);
-      else if (!x.escolhida.ok) falhas.push(...falhasDe(x.escolhida).map(c => `${e}: ${resumoCrit(c)}`), ...(x.escolhida.motivo ? [`${e}: ${x.escolhida.motivo}`] : []));
+      else if (!x.escolhida.ok) {
+        falhas.push(...falhasDe(x.escolhida).map(c => (c.criterio.startsWith(e + ':') ? '' : `${e}: `) + resumoCrit(c)), ...(x.escolhida.motivo ? [`${e}: ${x.escolhida.motivo}`] : []));
+      }
     }
     if (st.incompleto) falhas.push(st.incompleto);
     const completo = ETAPAS.every(e => st.etapas[e] && st.etapas[e].terminada && st.etapas[e].escolhida);
@@ -295,7 +297,7 @@ export async function rodarPortes(op) {
   };
   const reaproveitar = (t, reg, rotulo) => {
     t.reaproveitada = true; t.geracoes = geracoesDe(reg.resposta, reg.resposta && reg.resposta.job) ?? 1; t.data = reg.data;
-    res.reaproveitadas.push(`${rotulo} (seed ${t.seed})`);
+    res.reaproveitadas.push({ rotulo, t });
     log(`    reaproveitada a imagem crua da seed ${t.seed} (mesmo pedido; ${fmt(t.geracoes)} geração gasta antes)`);
   };
   const relatar = (rotulo, t) => {
@@ -534,7 +536,8 @@ export async function dryRunPortes({ fase, only = null, teto = TETO_PADRAO, repe
     log(`       ${c.texto}`);
   }
   if (cortadas.length) log(`AVISO: o teto de ${teto} gerações (já gastas ${fmt(r.gastoAntes)}) cortou ${cortadas.length} chamada(s), a partir de ${cortadas[0].rotulo}.`);
-  log(`\nReaproveitados de raw/ (0 geração): ${r.reaproveitadas.length ? r.reaproveitadas.join(', ') : 'nenhum'}.`);
+  const reap = r.reaproveitadas.map(({ rotulo, t }) => `${rotulo} (seed ${t.seed}${t.ok ? '' : ', reprovada'})`);
+  log(`\nReaproveitados de raw/ (0 geração): ${reap.length ? reap.join(', ') : 'nenhum'}.`);
   log(`\nTotal previsto: ${n} gerações em ${n} chamadas novas (+ ${r.reaproveitadas.length} reaproveitadas de raw/); no pior caso (${TENTATIVAS} seeds por etapa), ${TENTATIVAS * n}; teto ${teto} no lote (sobram ${fmt(sobra)}).`);
   return r;
 }
