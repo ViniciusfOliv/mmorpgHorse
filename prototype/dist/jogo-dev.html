@@ -1610,7 +1610,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     poolBase: 66, poolEst: 20,
     drainK: 1.07, drainExp: 4, drainDistExp: [2, 5], drainRefDist: 1600,   // drainDistExp = 2/5 (fração p/ evitar Math.pow)
     rationReserve: 0.03,
-    jockeyErrMin: -0.005, jockeyErrMax: 0.025,   // otimismo do jóquei ao ler o tanque (às vezes cansa no fim)
+    jockeyErrMin: -0.005, jockeyErrMax: 0.025,   // otimismo do jóquei ao ler o tanque (erro pequeno: quase ninguém cansa no fim)
     exhaustPace: 0.75,
     minPace: 0.80,
     // ruído; atraso de largada = rng·startDelayMax·(1 − startAcelK·min(n(acel), startAcelMax))
@@ -1713,7 +1713,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   }
   // Impressão digital das regras: FNV-1a de 32 bits (duas bases, 16 hex) sobre o JSON do TUNING, dos
   // pesos de gatilho e dos dados de jogo que a simulação lê (skills: gatilho e efeito; raridades:
-  // teto, início da faixa de nascimento e chance de skill; skills de tipo: terço e efeito; elementos,
+  // início da faixa de nascimento, multiplicador de pontos, chance de skill e ordem; skills de tipo: terço e efeito; elementos,
   // pisos e climas; level máximo). Recalculada a cada
   // simulate (o TUNING pode ser trocado em teste/ajuste); um servidor pode guardar o par
   // simVersion + tuningHash para auditar corridas antigas depois de um rebalanceamento.

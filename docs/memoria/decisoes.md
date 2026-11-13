@@ -18,6 +18,17 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
   — com o 1b o equipamento fica suspenso e as telas de peças somem.
 - **Parte 2c (animações) espera a confirmação de créditos do Vinicius** — o `CLAUDE.md` exige confirmação explícita para
   geração paga; o 1b não gasta nada.
+- **Execução do 1b (decisões de design; o detalhe está no ledger e na spec):**
+  - **Os grupos +1/+5/+10 e o "Distribuir sugerido" somem quando nenhum ponto cabe** (nível 1, ou o que sobra não paga o próximo
+    ponto de nenhum status); ficam desabilitados, com o motivo, só quando algum N cabe e outro não — entre um nível e outro o
+    estado "tudo cinza" seria o normal, e 18 rótulos "indisponível" atrapalham o leitor de tela. Spec §11 emendada.
+  - **O selo do Estábulo mostra o orçamento de pontos** ("sobram X", o mesmo número do topo da aba Status) enquanto algum ponto
+    cabe; antes contava pontos de status, número que divergia do topo.
+  - **A sala aberta migrada para a v6 mantém seed, mapa, nomes, ordem e sedas, mas os bots podem mudar de nível** — a spec manda
+    recalcular o Poder da sala pela regra do retrato (R16); acontece uma vez, só para quem migra com páreo aberto.
+  - **A skill de tipo mostra dois números quando os ganhos dos dois status diferem** (por exemplo Velocidade +12, Aceleração +9).
+  - **Sala e "Distribuir sugerido" não re-sorteiam nada:** o teste do bloco build continua conferindo os rivais da sala, por ser regra do `CLAUDE.md` §8.
+  - **O texto do custo diz "sobe a cada 10 pontos no mesmo status"**, tirado do `costStep` do código (o wiki-test confere), e não "cada ponto custa mais que o anterior".
 
 ## 2026-11-13 — Portes (parte 2b): revisão final, decisões do Vinicius
 Correções em `prototype/src/sprites.js` (`corBrilho`) e `prototype/tools/moldes-test.mjs` (`formaComAceitos`); specs da 2a (§3, §5) e da 2b (§4, §6) emendadas. A escala dos retratos, também decidida aqui, está na seção abaixo.

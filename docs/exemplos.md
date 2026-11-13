@@ -1,43 +1,59 @@
 # Exemplos e achados do balanceamento
 
-Medições do protótipo em 2026-11-11, no modelo v3 (bloco 1 dos cavalos v3: genética, pontos livres,
-estrelas, skill de tipo e pistas de 1.400 a 2.000 m). As tabelas de dados (status, skills, raridades,
-equipamento, economia) estão em `docs/wiki.md`, gerado do código. Para refazer as medições:
+Medições do protótipo em 2026-11-13, no modelo do crescimento livre (bloco 1b dos cavalos v3: pontos
+comprados com custo por faixa até 150, física linear, skill de tipo que multiplica os status, equipamento
+suspenso). Spec e tabelas: `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md` §13. As tabelas de
+dados estão em `docs/wiki.md`, gerado do código. Para refazer as medições:
 
 ```bash
-node prototype/tools/balance.js            # relatório completo com as 126 metas (~2,5 min)
+node prototype/tools/balance.js            # relatório completo com as 165 metas (~2,5 min)
 node prototype/tools/balance.js --exemplo  # uma corrida narrada
 ```
 
 ## 1. Os três iniciais (Comuns ★★, nível 1, mapas aleatórios)
 
-| Inicial | Vitórias | Curta (1.400–1.599 m) | Média | Longa (1.800–2.000 m) | No clima do seu tipo (sem Dado) |
-|---|---|---|---|---|---|
-| **Brasa** 🔥 Labareda no 1º terço | 33,0% | 41,7% | 32,5% | 26,4% | Sol: 57,7% |
-| **Maré** 💧 Maré Alta no último terço | 35,3% | 28,7% | 34,9% | 41,0% | Chuva: 61,0% |
-| **Ipê** 🌿 Raízes Firmes no terço do meio | 31,7% | 29,6% | 32,6% | 32,6% | Névoa: 56,7% |
-
-Meta M1: 30% a 37% no geral e 22% a 45% em cada faixa de distância. No modelo anterior a Brasa vencia
-67% das curtas e 11% das longas. Duração com os iniciais: 95,9 s nas curtas e 127,1 s nas longas.
+Meta M1: 30% a 37% no geral e 22% a 45% em cada faixa de distância. Medido: **31,8%, 33,3% e 34,9%**
+(terços de 26,7% a 38,9%). Duração com os iniciais: **98,2 s** nas curtas e **128,6 s** nas longas
+(antes do bloco 1b: 95,9 s e 127,1 s; a física ficou mais rápida por proporção e a corrida inteira, mais curta).
+Nível 25: os três caem na Prata (Poder 782–791; nível 1: 626–633, Bronze).
 
 ## 2. Progressão e Poder (duelos 1v1, mesma genética, build dos bots)
 
-| Duelo | Vitórias do primeiro | Meta |
+| Meta | Medido (pior caso nas 4 bases de seed) | Faixa |
 |---|---|---|
-| 10 níveis a mais, mesma raridade (M3) | 77,9% a 87,5% | ≥ 70% |
-| Uma raridade acima, mesmo nível (M4) | 81,7% a 86,0% | 72–88% |
-| Duas raridades acima (M4) | 96,8% a 98,8% | ≥ 95% |
-| ★★★ × ★ no nível 50 (M5) | 71,1% a 72,5% | 65–75% |
-| ★★ × ★ no nível 50 (M5) | 58,6% a 61,0% | 55–63% |
-| Melhor de 6 builds contra outra (M6) | no máximo 57,0% | ≤ 60% |
+| M3 dez níveis a mais, mesma raridade | 1→11 78,0–78,5% · 20→30 76,1–77,8% · 40→50 75,0–77,0% (75,0) | ≥ 70% (alvo 40→50 ≥ 74%) |
+| M4 uma raridade / duas raridades acima | 78,1–85,0% / 95,4–98,7% (94,97) | 72–88% / ≥ 94% |
+| M5 ★★★ × ★ / ★★ × ★ no nível 50 | 68,7–70,5% / 59,6–62,3% (63,1) | 65–75% / 55–64% |
+| M6 melhor build contra o campo, Raro ★★ 11/30/50 | 53,7 / 53,2 / 59,9% (60,6), sempre o bot | ≤ 62% |
+| M6 Comum ★★ 50 / Mítico ★★★ 50 | 61,4% (62,3) / 64,9% (65,4), o bot | ≤ 64% / ≤ 67% |
+| M6 menor `inc:*` / `tipo` | 47,2% (46,1) / 47,9% | ≥ 45% |
+| M6 "tudo num status", níveis 30 e 50 | no máximo 18,9% | < 35% |
+| M7 pior caso de status (Mítico ★★★ 50, tudo num status) | 146 | < 150 |
+| M8 líder em 1/3 vence / chegada com < 1 m | 38,1% / 5,6% | ≤ 55% / ≥ 5% |
+| M9 tipos em campo misto (justo: 16,7%) | 16,3% a 17,2% | 15,3–18,0% |
+| P1 resíduo do Poder / P2 favorito vence | 1,1 p.p. / 52,1% | ≤ 5 p.p. / 35–55% |
+| A1 ganho de +10 num Raro nível 20 | 9,6 a 11,0 p.p.; maior ÷ menor 1,15 | ≥ 3 p.p.; ≤ 1,3 |
+| S1 ganho de uma skill | 4,0 (Chama Final) a 12,7 p.p. (Drift) | 3–13 p.p. |
+| Dado: Mítico g31 contra sete Comuns g0 | 20,8% | 17–25% |
 
-Status que dá para encher no nível 50 (M7): ★ 3,48 · ★★ 4,08 · ★★★ 4,89 dos 7 (enche os 7: 0,8% dos ★★★).
-Num campo misto de 6 cavalos equivalentes (M9), cada tipo vence de 15,4% a 17,9% (justo: 16,7%).
+Durações por liga (média, curta / longa): todas dentro da faixa com pelo menos 4 s de folga (Bronze
+92–104 s / 121–136 s até Lenda 80–94 s / 106–122 s); a sala mais rápida leva 0,86× o tempo dos iniciais.
+O Mítico ★★★ nível 50 é 14% mais rápido que eles.
 
-**O Poder prevê o resultado?** Em 5.000 salas montadas como o jogo monta (rivais de 91,5% a 111,5% do seu Poder, build dos bots):
-- o favorito do Poder vence **52,0%** das vezes (sorteio puro daria ~18%);
-- nenhum tipo, raridade ou número de estrelas foge mais de **2,0 p.p.** do que o Poder prevê;
-- quem lidera em 1/3 da pista vence **44,1%**; **6,7%** das corridas terminam com menos de 1 m de margem.
+**A build equilibrada é a mais forte.** O bot (e o "Distribuir sugerido") é a equilibrada com leve
+inclinação no tipo. Médias nas 4 bases de seed no nível 50:
+
+| Classe | Bot contra todas | Equilibrada contra as inclinadas |
+|---|---|---|
+| Raro ★★ | 60,1% | 57,8% |
+| Comum ★★ | 61,6% | 61,7% |
+| Mítico ★★★ | 64,8% | 64,2% |
+
+As inclinadas ficam em 44–54%: escolha de estilo que custa poucos pontos percentuais, não armadilha.
+
+**O Poder prevê o resultado?** Em salas montadas como o jogo monta, o favorito do Poder vence **52,1%**
+das vezes (sorteio puro daria ~18%) e nenhum tipo, raridade ou número de estrelas foge mais de **1,1 p.p.**
+do que o Poder prevê.
 
 ## 3. Quanto vale cada skill e cada status
 

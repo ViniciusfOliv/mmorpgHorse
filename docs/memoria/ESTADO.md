@@ -8,7 +8,7 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
 
 ## Onde estamos
 - **Branches:** a `main` tem tudo até o pente fino (2026-11-10). Em aberto: `claude/cavalos-v3`
-  (bloco 1 do redesenho implementado, a integrar na `main` depois da revisão) e `claude/empacotamento`
+  (blocos 1 e 1b do redesenho implementados, a integrar na `main` depois de o Vinicius jogar) e `claude/empacotamento`
   (em pausa, só com as decisões iniciais; volta como bloco 3).
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
@@ -17,9 +17,7 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
 - **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Cavalo, Itens,
   Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
-- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (122 testes
-  de simulação, 104 de efeitos, 161 de moldes, 527 conferências do wiki, 77 metas de balanço no modo
-  rápido e 126 no completo, e o teste de interface; contagem de 2026-11-13, revisão final da 2b).
+- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (__CHECKCOUNTS__; contagem de 2026-11-13, bloco 1b).
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
 | Frente | Entrega | Spec |
@@ -32,6 +30,7 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
 | Corrida viva e modo DEV | galope, dado por cavalo, skills visíveis, natureza, curvas, DEV | `2026-11-09-corrida-viva-design.md` |
 | Wiki | `docs/wiki.md` e `prototype/dist/wiki.html` gerados do código | — |
 | Cavalos v3, bloco 1 | genética visível, pontos livres e estrelas, skill de tipo por terço, pistas sem extremos, iniciais Comuns, save v5 | `2026-11-10-cavalos-v3-status-e-tipo-design.md` |
+| Cavalos v3, bloco 1b | crescimento livre: pontos comprados com custo por faixa até 150, física linear, skill de tipo que multiplica, equipamento suspenso, save v6 | `2026-11-12-crescimento-livre-design.md` |
 
 ## Pente fino de 2026-11-10
 Seis auditorias (regras, interface e save, desenho, balanceamento, arquivos, normas do Play), com as
@@ -52,15 +51,22 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   R16), o valor da peça na tela (meio ponto por melhoria, como na simulação) e o aviso de pontos livres
   ao subir de nível.
 
-## Em andamento (2026-11-12)
-- **Crescimento livre (bloco 1b):** desenho aprovado (`docs/GDD.md` §8.5); três rodadas de calibração.
-  O modelo é o da rodada 2 (os quatro ajustes pedidos); a rodada 3 testou o degrau do custo e ficou o 10,
-  com as metas apertadas no pior caso de 4 seeds (165 metas passam). Anexos em
-  `docs/superpowers/specs/anexos/`; a rodada 1 está no commit 78e61cd. Spec em
-  `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, **aguardando a revisão do Vinicius**
-  (seção 15: equilibrada como a build mais forte; skill de tipo nova).
-  Depois: plano e execução na branch `claude/cavalos-v3`, **antes** de integrar o bloco 1 na `main`.
-- **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b. Cada ginásio tem o
+## Bloco 1b, crescimento livre (pronto em 2026-11-13, na `claude/cavalos-v3`)
+Spec em `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, plano em
+`docs/superpowers/plans/2026-11-13-crescimento-livre.md`; regra em `docs/GDD.md` §3, §4, §7 e §8.5; medições em
+`docs/exemplos.md`; decisões em `decisoes.md` (2026-11-13).
+- **Regra:** nada cresce sozinho; status = base (raridade + genética) + pontos comprados, com custo +1 a cada 10 pontos
+  no mesmo status e teto único de 150; pontos por nível por raridade e estrelas; física da corrida linear até 150; Sorte só
+  de nascimento (Dado em (Sorte − 40)/40); skill de tipo multiplica os dois status do tipo; bots e "Distribuir sugerido" pela
+  mesma build por pesos; Poder e ligas sem equipamento.
+- **Telas e save:** abas Status (+1/+5/+10, custo do próximo ponto, Redistribuir) e Skills (efeito em pontos), selo do
+  Estábulo com os pontos que sobram, explicações "ⓘ"; equipamento e Loja suspensos (peças guardadas); save v6 que devolve
+  os pontos, com aviso único; Rédea nova só pela gaveta DEV.
+- **Verificação:** __CHECK__
+- **Ainda não testado por gente:** os números saíram de simulação; a corrida mudou de sensação (mais curta).
+
+## Em andamento
+- **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b, que também traz a fonte da Rédea nova. Cada ginásio tem o
   foco num elemento.
 - **Visuais 2** (branch `claude/visuais-2`, criada da `claude/cavalos-v3`; a parte 1 foi integrada na
   `claude/cavalos-v3` em 2026-11-12, a parte 2a e a 2b em 2026-11-13): três partes, ícones →
@@ -92,7 +98,8 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   teste da forma passou a revalidar com o defeito aceito neutralizado, e achou as frestas escondidas atrás do "fora da
   paleta"). **Ficam para a 2c**, medidos e listados no teste (`PENDENTES_2A`): meias que se juntam ou se partem em 5 dos
   24 retratos/parados e a zona da cara variando mais de 20% no galope em 5 moldes.
-  **Próxima: 2c (animações novas para todos os portes).**
+  **Próxima: 2c (animações novas para todos os portes) — espera a confirmação de créditos do Vinicius** (o `CLAUDE.md` exige
+  confirmação explícita antes de gerar).
   **Pendências (Vinicius):** para a 2c, as meias que se juntam ou se partem (5 de 24) e a zona da cara que pulsa no
   galope (5 moldes); estrela de 1 px e listra curta em alguns quadros (`PENDENTES_2A`); no galope do robusto-chamas o
   vermelho do capacete é igual ao da pelagem e o tronco do jóquei sai manchado; a crina do robusto é fina no galope do
@@ -104,31 +111,41 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
 - **Blocos 2 a 7 do redesenho** (`docs/GDD.md` §8), cada um com spec própria: preparação com relógio,
   empacotamento (espera a resposta sobre o Capacitor), itens de treino e gastos de Ouro, tempo e
   estábulo ativo, loja de Gemas, online.
-- **Até o bloco 4** não existe item que redistribui pontos nem que sobe estrela: ponto confirmado é
-  definitivo.
+- **Redistribuição:** a primeira de cada cavalo é grátis; depois só com a Rédea nova, que não tem fonte no
+  jogo normal até os ginásios (só a gaveta DEV). Nenhum item sobe estrela até o bloco 4.
 - **O Vinicius ainda não jogou o modelo novo:** os números saíram de simulação.
-- **Balanço:** a Sorte continua quase sem valor na corrida; a Grama no Lendário nível 50 fica no piso
-  da M9. M6, M9, P1, S1 e A1 só são vigiadas pelo `balance.js` completo.
+- **Balanço:** M6, M9, P1, S1 e A1 só são vigiadas pelo `balance.js` completo.
+
+### A decidir / pendências do bloco 1b (spec §15)
+- **A build equilibrada domina:** é a mais forte (o bot a 60–65% no nível 50; as inclinadas em 44–54%). Mudar a regra
+  (custo que para de subir, retorno extra por concentrar) fica para depois de o Vinicius jogar.
+- **A sensação da corrida mudou:** mais curta, "Cansou" some, a Garra dispara em 58% das corridas. Olhar a animação no artefato.
+- **Os iniciais no nível 25 caem para a Prata** (eram Ouro): o meio da progressão ficou mais lento.
+- **A Sorte vale pouco** (0,7 p.p. na corrida), por desenho: só de nascimento, mexe no Dado e na chance de skill.
+- **Sem fonte de Rédea nova** no jogo normal até os ginásios: quem gastar a redistribuição grátis só muda a build pelo DEV.
+- **O Ouro tem menos uso:** a loja de peças some; sobram entradas, cruza e troca do Haras.
+- **Folga de ~1 p.p.** nas metas rebaseadas sobre o pior caso de 4 bases de seed; mexer na RNG pede a faixa de novo.
+- **Equipamento suspenso:** voltar (talvez como cosmético) e a ferradura de tração do bloco 2 ficam em aberto.
+- De `docs/exemplos.md` §5, seguem abertos: o papel da Sorte, o conjunto de 3 peças, o "Cansou", a Garra e a zebra.
 - **Decisões do Vinicius ainda abertas:** o empacotador (a pergunta sobre o Capacitor ficou sem
   resposta) e, de `docs/exemplos.md` §5, o papel da Sorte, o conjunto de 3 peças, o "Cansou", a Garra
   e a zebra.
 - **Arte:** crina própria de cada estilo no galope (6 a 10 gerações); retrato, largada e pódio sem
   respiração nem piscar.
-- **Ponto distribuído pode perder o efeito** quando o crescimento natural encosta no teto: resolvido
-  pelo crescimento livre (bloco 1b), que tira o crescimento automático.
 - **Antes do próximo aumento de versão do save:** pôr uma guarda para save de versão maior que a do
   código (não adotar nem gravar por cima, e avisar para atualizar a página).
 - **Pendências menores:** `docs/memoria/bugs.md`.
 - **GDD §9+:** expedições, tecnologia do servidor, anti-trapaça, PVP assíncrono e ranqueada.
 
 ## Próximos passos
-1. O Vinicius joga o bloco 1 (republicar os artefatos de jogo, DEV e wiki) e decide os seis pontos da
-   calibração (`decisoes.md`, 2026-11-11); depois a `claude/cavalos-v3` entra na `main`.
-2. O Vinicius apaga as branches antigas no GitHub (lista abaixo).
-3. **Bloco 2, preparação com relógio:** spec, revisão do Vinicius, plano e execução.
-4. **Bloco 3, empacotamento:** retomar pela pergunta do Capacitor; o teste fechado começa aqui.
-5. Abrir a conta de desenvolvedor do Play e começar a juntar os 12 testadores (é o que mais atrasa).
-6. Blocos 4 a 6 chegam como atualizações durante o teste fechado; o bloco 7 (online) vem depois.
+1. O Vinicius joga o modelo novo no artefato (jogo, DEV e wiki republicados com o 1b) e decide os pontos de
+   calibração acima; depois a `claude/cavalos-v3` entra na `main`.
+2. **Parte 3 da Visuais 2 (interface)**, que mexe nas telas que o 1b acabou de reescrever.
+3. O Vinicius apaga as branches antigas no GitHub (lista abaixo).
+4. **Bloco 2, preparação com relógio:** spec, revisão do Vinicius, plano e execução.
+5. **Bloco 3, empacotamento:** retomar pela pergunta do Capacitor; o teste fechado começa aqui.
+6. Abrir a conta de desenvolvedor do Play e começar a juntar os 12 testadores (é o que mais atrasa).
+7. Blocos 4 a 6 chegam como atualizações durante o teste fechado; o bloco 7 (online) vem depois.
 
 ## Branches para apagar no GitHub
 Todas já integradas na `main`: `claude/equipamentos`, `claude/cruzamento`, `claude/nucleo-corrida-v2`,
