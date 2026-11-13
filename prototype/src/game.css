@@ -373,13 +373,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   box-shadow: 0 0 0 2px var(--sombra);
 }
 .barra > i { position: absolute; top: 0; bottom: 0; left: 0; display: block; background: var(--ouro); }
-/* barra em segmentos inteiros (20 x 5 pontos) */
+/* barra em segmentos inteiros (30 x 5 pontos, até o teto de 150) */
 .barra--seg { display: flex; gap: 2px; background: var(--sombra); height: 12px; }
 .barra--seg > i { position: static; flex: 1 1 0; background: var(--painel-3); }
 .barra--seg > i.on { background: var(--ouro); box-shadow: inset 0 -2px 0 0 var(--ouro-escuro); }
 .barra--seg > i.extra { background: var(--ganho); box-shadow: inset 0 -2px 0 0 #3f9a3e; }
 .barra--seg > i.menos { background: transparent; box-shadow: inset 0 0 0 2px var(--perda); }
-.barra--seg > i.teto { background: transparent; box-shadow: inset 0 -2px 0 0 var(--painel-3); }   /* acima do teto da raridade */
 .barra--xp::after {
   content: ""; position: absolute; inset: 0;
   background-image: linear-gradient(90deg, transparent calc(100% - 2px), var(--sombra) 0);
@@ -414,18 +413,23 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .build-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 10px; }
 .build-topo .pontos-livres { margin: 0; font-family: var(--fonte-display); font-size: 12px; line-height: 1.6; color: var(--texto); }
 .build-topo .pontos-livres b { color: var(--ganho); }
-.build { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.build { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+/* linha de um status (bloco 1b §11): nome, nota, barra até 150 e valor; embaixo, o custo do próximo ponto e +1, +5, +10 */
 .build-linha {
-  display: grid; grid-template-columns: 64px auto minmax(0, 1fr) auto 44px; grid-template-areas: "nome nota barra valor acao";
-  align-items: center; gap: 4px 10px; min-height: 44px;
+  display: grid; grid-template-columns: 64px auto minmax(0, 1fr) 148px; grid-template-areas: "nome nota barra valor" "custo custo custo acao";
+  align-items: center; gap: 4px 10px; padding-bottom: 10px; border-bottom: 2px solid var(--linha);
 }
+.build-linha:last-child { padding-bottom: 0; border-bottom: 0; }
+.build-custo { grid-area: custo; font-size: var(--t-xs); color: var(--texto-3); }
 .build-nome { grid-area: nome; font-family: var(--fonte-display); font-size: 11px; color: var(--texto-2); display: flex; align-items: center; gap: 6px; }
 .build-barra { grid-area: barra; }
 .build-linha .valor { grid-area: valor; font-family: var(--fonte-display); font-size: 16px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 3ch; }
 .build-linha .valor--rascunho { color: var(--ganho); }
 .build-linha .delta { font-family: var(--fonte-ui); font-size: var(--t-s); font-weight: 700; margin-left: 4px; }
-.build-acao { grid-area: acao; display: flex; justify-content: flex-end; }
-.build-mais { min-width: 44px; min-height: 44px; padding: 0; font-family: var(--fonte-display); font-size: 16px; }
+/* 3 botões de 44 px (+ a margem de 2 px do .btn) com 2 px entre eles: 148 px, a 4ª coluna da linha no computador
+   (fixa, para as barras ficarem alinhadas também na linha da Sorte, que não tem botões) */
+.build-acao { grid-area: acao; display: flex; justify-content: flex-end; gap: 2px; }
+.build-mais { width: 44px; min-width: 44px; min-height: 44px; padding: 0; font-family: var(--fonte-display); font-size: 12px; }
 .nota-genetica {
   grid-area: nota; font-family: var(--fonte-display); font-size: 11px; line-height: 1; padding: 4px 5px; text-align: center; min-width: 2ch;
   color: var(--tinta); background: var(--r-comum);
@@ -438,8 +442,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .redistribuir { margin-top: 12px; padding-top: 10px; border-top: 2px solid var(--linha); display: flex; flex-direction: column; gap: 8px; }
 .redistribuir .nota { margin: 0; }
 @media (max-width: 600px) {
-  /* celular: nome, nota e valor numa linha; a barra embaixo; o "+" ao lado das duas */
-  .build-linha { grid-template-columns: auto auto minmax(0, 1fr) 44px; grid-template-areas: "nome nota valor acao" "barra barra barra acao"; gap: 4px 8px; }
+  /* celular: nome, nota e valor numa linha; a barra inteira embaixo; depois o custo e os botões */
+  .build-linha { grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: "nome nota . valor" "barra barra barra barra" "custo custo custo acao"; gap: 6px 8px; }
   .build-linha .valor { text-align: right; }
 }
 
@@ -452,6 +456,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .vaga-tipo > span { font-size: var(--t-s); color: var(--texto-2); }
 .vaga-tipo .vaga-tipo-rotulo { font-size: var(--t-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto-3); }
 .vaga-tipo .vaga-tipo-forca { font-size: var(--t-xs); color: var(--texto-3); }
+.vaga-tipo .vaga-tipo-pontos { color: var(--texto); font-weight: 600; }   /* o efeito em pontos para este cavalo */
+.vaga-tipo .ord { font-size: 11px; vertical-align: 0.5em; }   /* o "º" de "1º terço": o sobrescrito não fica abaixo do mínimo de 11 px */
 .caixa[aria-label="Skills"] .vaga-tipo { margin-bottom: 8px; }
 .inicial-fortes { margin: 0; font-size: var(--t-s); color: var(--texto-2); }
 .inicial-fortes b { color: var(--texto); }

@@ -376,13 +376,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   box-shadow: 0 0 0 2px var(--sombra);
 }
 .barra > i { position: absolute; top: 0; bottom: 0; left: 0; display: block; background: var(--ouro); }
-/* barra em segmentos inteiros (20 x 5 pontos) */
+/* barra em segmentos inteiros (30 x 5 pontos, até o teto de 150) */
 .barra--seg { display: flex; gap: 2px; background: var(--sombra); height: 12px; }
 .barra--seg > i { position: static; flex: 1 1 0; background: var(--painel-3); }
 .barra--seg > i.on { background: var(--ouro); box-shadow: inset 0 -2px 0 0 var(--ouro-escuro); }
 .barra--seg > i.extra { background: var(--ganho); box-shadow: inset 0 -2px 0 0 #3f9a3e; }
 .barra--seg > i.menos { background: transparent; box-shadow: inset 0 0 0 2px var(--perda); }
-.barra--seg > i.teto { background: transparent; box-shadow: inset 0 -2px 0 0 var(--painel-3); }   /* acima do teto da raridade */
 .barra--xp::after {
   content: ""; position: absolute; inset: 0;
   background-image: linear-gradient(90deg, transparent calc(100% - 2px), var(--sombra) 0);
@@ -417,18 +416,23 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .build-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 10px; }
 .build-topo .pontos-livres { margin: 0; font-family: var(--fonte-display); font-size: 12px; line-height: 1.6; color: var(--texto); }
 .build-topo .pontos-livres b { color: var(--ganho); }
-.build { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.build { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+/* linha de um status (bloco 1b §11): nome, nota, barra até 150 e valor; embaixo, o custo do próximo ponto e +1, +5, +10 */
 .build-linha {
-  display: grid; grid-template-columns: 64px auto minmax(0, 1fr) auto 44px; grid-template-areas: "nome nota barra valor acao";
-  align-items: center; gap: 4px 10px; min-height: 44px;
+  display: grid; grid-template-columns: 64px auto minmax(0, 1fr) 148px; grid-template-areas: "nome nota barra valor" "custo custo custo acao";
+  align-items: center; gap: 4px 10px; padding-bottom: 10px; border-bottom: 2px solid var(--linha);
 }
+.build-linha:last-child { padding-bottom: 0; border-bottom: 0; }
+.build-custo { grid-area: custo; font-size: var(--t-xs); color: var(--texto-3); }
 .build-nome { grid-area: nome; font-family: var(--fonte-display); font-size: 11px; color: var(--texto-2); display: flex; align-items: center; gap: 6px; }
 .build-barra { grid-area: barra; }
 .build-linha .valor { grid-area: valor; font-family: var(--fonte-display); font-size: 16px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 3ch; }
 .build-linha .valor--rascunho { color: var(--ganho); }
 .build-linha .delta { font-family: var(--fonte-ui); font-size: var(--t-s); font-weight: 700; margin-left: 4px; }
-.build-acao { grid-area: acao; display: flex; justify-content: flex-end; }
-.build-mais { min-width: 44px; min-height: 44px; padding: 0; font-family: var(--fonte-display); font-size: 16px; }
+/* 3 botões de 44 px (+ a margem de 2 px do .btn) com 2 px entre eles: 148 px, a 4ª coluna da linha no computador
+   (fixa, para as barras ficarem alinhadas também na linha da Sorte, que não tem botões) */
+.build-acao { grid-area: acao; display: flex; justify-content: flex-end; gap: 2px; }
+.build-mais { width: 44px; min-width: 44px; min-height: 44px; padding: 0; font-family: var(--fonte-display); font-size: 12px; }
 .nota-genetica {
   grid-area: nota; font-family: var(--fonte-display); font-size: 11px; line-height: 1; padding: 4px 5px; text-align: center; min-width: 2ch;
   color: var(--tinta); background: var(--r-comum);
@@ -441,8 +445,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .redistribuir { margin-top: 12px; padding-top: 10px; border-top: 2px solid var(--linha); display: flex; flex-direction: column; gap: 8px; }
 .redistribuir .nota { margin: 0; }
 @media (max-width: 600px) {
-  /* celular: nome, nota e valor numa linha; a barra embaixo; o "+" ao lado das duas */
-  .build-linha { grid-template-columns: auto auto minmax(0, 1fr) 44px; grid-template-areas: "nome nota valor acao" "barra barra barra acao"; gap: 4px 8px; }
+  /* celular: nome, nota e valor numa linha; a barra inteira embaixo; depois o custo e os botões */
+  .build-linha { grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: "nome nota . valor" "barra barra barra barra" "custo custo custo acao"; gap: 6px 8px; }
   .build-linha .valor { text-align: right; }
 }
 
@@ -455,6 +459,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .vaga-tipo > span { font-size: var(--t-s); color: var(--texto-2); }
 .vaga-tipo .vaga-tipo-rotulo { font-size: var(--t-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto-3); }
 .vaga-tipo .vaga-tipo-forca { font-size: var(--t-xs); color: var(--texto-3); }
+.vaga-tipo .vaga-tipo-pontos { color: var(--texto); font-weight: 600; }   /* o efeito em pontos para este cavalo */
+.vaga-tipo .ord { font-size: 11px; vertical-align: 0.5em; }   /* o "º" de "1º terço": o sobrescrito não fica abaixo do mínimo de 11 px */
 .caixa[aria-label="Skills"] .vaga-tipo { margin-bottom: 8px; }
 .inicial-fortes { margin: 0; font-size: var(--t-s); color: var(--texto-2); }
 .inicial-fortes b { color: var(--texto); }
@@ -8771,7 +8777,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // Retrato: baia com parede de tábuas e palha; cavalo parado (respira, pisca, abana o rabo,
   // descansa um posterior e abaixa a cabeça de vez em quando).
   var PORTRAIT_W = 48, PORTRAIT_H = 36;
-  // opts.selo: moldura com o selo "Nv N" no canto (e, com opts.pontos > 0, o aviso "+N" de pontos livres);
+  // opts.selo: moldura com o selo "Nv N" no canto (e, com opts.pontos > 0, o aviso "+N" dos pontos de status que
+  // ainda dá para comprar: pontosQueCabem);
   // opts.jockey: montado (seda opts.silks, a sua por padrão; jóquei opts.joquei, o seu por padrão). Marcas e raridade
   // do cavalo sempre (opcoesVisuais).
   function portraitHtml(horse, opts) {
@@ -8782,7 +8789,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       esc('Retrato de ' + horse.name) + '"></canvas>';
     if (!opts.selo) return cv;
     var pts = opts.pontos > 0 ? '<span class="pontos-livres pontos-livres--selo" title="' +
-      esc(opts.pontos + (opts.pontos === 1 ? ' ponto livre' : ' pontos livres') + ' para distribuir') + '">+' + esc(opts.pontos) + '</span>' : '';
+      esc('Dá para comprar mais ' + opts.pontos + (opts.pontos === 1 ? ' ponto' : ' pontos') + ' de status na aba Status') + '">+' + esc(opts.pontos) + '</span>' : '';
     return '<span class="retrato-moldura">' + cv + '<span class="selo-nivel">Nv ' + esc(horse.level) + '</span>' + pts + '</span>';
   }
 
@@ -8896,19 +8903,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     // com o ícone, o quadradinho colorido (::before) sai: o escudo faz o papel dele
     return '<span class="liga liga--' + esc(L.id) + (ic ? ' liga--icone' : '') + '">' + ic + 'Liga ' + esc(L.name) + '</span>';
   }
-  // Barras em 20 segmentos inteiros (cada um = 5 pontos): nada de meio segmento. teto (opcional): os
-  // segmentos vazios acima do teto da raridade ficam marcados (.teto).
-  function barHtml(v, b, teto) {
-    var SEG = 20;
-    var fill = clamp(Math.round(v / 5), 0, SEG), base = b == null ? fill : clamp(Math.round(b / 5), 0, SEG);
-    var lim = teto == null ? SEG : clamp(Math.round(teto / 5), 0, SEG);
+  // Barras até o teto único dos status (RaceSim.TUNING.statMax, 150) em 30 segmentos inteiros (cada um = 5
+  // pontos): nada de meio segmento. b (opcional): o valor de antes; o que passa dele fica .extra (o rascunho).
+  var BARRA_SEG = 30;
+  function barHtml(v, b) {
+    var porSeg = RS.TUNING.statMax / BARRA_SEG;
+    var fill = clamp(Math.round(v / porSeg), 0, BARRA_SEG), base = b == null ? fill : clamp(Math.round(b / porSeg), 0, BARRA_SEG);
     var out = '';
-    for (var i = 0; i < SEG; i++) {
+    for (var i = 0; i < BARRA_SEG; i++) {
       var cls = '';
       if (i < Math.min(fill, base)) cls = 'on';
       else if (i < fill) cls = 'on extra';
       else if (i < base) cls = 'menos';
-      else if (i >= lim) cls = 'teto';
       out += '<i' + (cls ? ' class="' + cls + '"' : '') + '></i>';
     }
     return out;
@@ -8959,14 +8965,33 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (e.staminaRestore) out.push('recupera ' + num1(e.staminaRestore * P * 100) + '% do fôlego ao entrar');
     return out.join(' · ');
   }
+  // Efeito da skill de tipo em pontos de status para este cavalo (spec 1b §5 e §11): no terço, cada status do tipo
+  // vale status × (1 + statMul·P), então ganha status × statMul·P, dos status atuais (sem o clima, que a corrida soma
+  // por fora). "Velocidade e Aceleração +12 no 1º terço"; se os dois ganhos diferem, um número para cada status.
+  // '' para skill sem statMul (chaves antigas, sem uso).
+  var TERCO_ORD = ['1º', '2º', '3º'];
+  function efeitoTipoPontosTxt(horse, ts) {
+    var e = ts.effect, keys = e.statKeys || RS.TYPE_STATS[horse.element] || [];
+    if (!e.statMul || !keys.length) return '';
+    var st = RS.computeStats(horse), mul = e.statMul * ts.power;
+    var ganhos = keys.map(function (k) { return Math.round(st[k] * mul); });
+    var nomes = keys.map(function (k) { return GD.STATS[k].name; });
+    var onde = ' no ' + TERCO_ORD[clamp(Math.round(ts.zone[0] * 3), 0, 2)] + ' terço';
+    if (ganhos.every(function (g) { return g === ganhos[0]; })) return nomes.join(' e ') + ' +' + ganhos[0] + onde;
+    return nomes.map(function (n, i) { return n + ' +' + ganhos[i]; }).join(' e ') + onde;
+  }
   function vagaTipoHtml(horse) {
     var ts = RS.typeSkill(horse);
     if (!ts) return '';
-    var el = elementOf(horse.element);
+    var el = elementOf(horse.element), def = GD.TYPE_SKILLS[horse.element];
+    var pontos = efeitoTipoPontosTxt(horse, ts);
+    // P da Água só cresce com a raridade (TUNING.typeLevel 0); o do Fogo e o da Grama, com o nível e a raridade
+    var varia = RS.TUNING.typeLevel[horse.element] ? 'varia com o nível e a raridade' : 'cresce com a raridade';
     return '<div class="vaga-tipo vaga-tipo--' + esc(el.id) + '"><span class="vaga-tipo-rotulo">Skill de tipo · sempre ativa</span>' +
       '<b>' + skillIcone(ts.id, 32) + esc(ts.name) + '</b>' +
-      '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts, horse.element) + '.') + '</span>' +
-      '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',') + ': varia com o nível e a raridade') + '</span></div>';
+      (pontos ? '<span class="vaga-tipo-pontos">' + esc(pontos) + '</span>' + '<span>' + esc(def.desc) + '</span>'
+        : '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts, horse.element) + '.') + '</span>') +
+      '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',') + ': ' + varia) + '</span></div>';
   }
   function silkClass(r) { return r.isPlayer ? 'seda-voce' : 'seda-' + r.silkIdx; }
   function laneChip(r, i, extra) {
@@ -9178,9 +9203,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ===========================================================================
   function renderInicial() {
     var cards = GD.STARTERS.map(function (h, idx) {
-      var stats = RS.computeStats(h, null);
+      var stats = RS.computeStats(h);
       var el = GD.ELEMENTS[h.element];
-      var rating = RS.powerRating(h, null);
+      var rating = RS.powerRating(h);
       var wPct = Math.round((RS.TUNING.weatherMult - 1) * 100);
       // melhor e pior clima, cada um com o ícone (HTML pronto: o texto passa por esc)
       var best = el.weather && GD.WEATHERS[el.weather] ? climaIcone(el.weather) + esc(GD.WEATHERS[el.weather].name + ' (+' + wPct + '%)') : '—';
@@ -9772,12 +9797,14 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     .filter(function (a) { return GEAR_ON || a.id !== 'equip'; });
   function montariaAbaValida(id) { return MONTARIA_ABAS.some(function (a) { return a.id === id; }); }
 
-  // ---- Aba Status: distribuir os pontos livres (spec v3 §10) ----
-  // O rascunho (ui.montaria.rascunho: pontos a somar por status, ou null) fica só na memória da tela: sair da
-  // tela ou trocar de sub-aba o descarta. Somado ao que já foi comprado, ele nunca passa do que RaceSim.validAlloc
-  // aceita (custo por faixa dentro dos pontos, teto de 150 e Sorte sem pontos). "Confirmar" pede um segundo
-  // toque e grava como um gasto (gravaGasto: se a gravação falha, nada muda). Com páreo aberto, o Poder da ativa
-  // não passa do da sala (state.pending.pr); as outras montarias ficam livres.
+  // ---- Aba Status: comprar pontos (spec v3 §10 e spec 1b §11) ----
+  // Cada status tem os botões +1, +5 e +10 (a Sorte não: é de nascimento) e "Distribuir sugerido" põe no rascunho a
+  // build dos bots. O rascunho (ui.montaria.rascunho: pontos a somar por status, ou null) fica só na memória da tela:
+  // sair da tela ou trocar de sub-aba o descarta. Somado ao que já foi comprado, ele nunca passa do que
+  // RaceSim.validAlloc aceita (custo por faixa dentro dos pontos, teto de 150 e Sorte sem pontos). "Confirmar" pede
+  // um segundo toque e grava como um gasto (gravaGasto: se a gravação falha, nada muda). Com páreo aberto, o Poder
+  // da ativa não passa do da sala (state.pending.pr): os +N que passariam ficam desabilitados e, se o sugerido
+  // passar, o Confirmar fica bloqueado (RF3); as outras montarias ficam livres.
   function rascunhoMais(r, k) {
     var out = {};
     STAT_KEYS.forEach(function (j) { out[j] = (r ? r[j] : 0) + (j === k ? 1 : 0); });
@@ -9811,12 +9838,22 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     STAT_KEYS.forEach(function (k) { out[k] = a[k] + (r ? r[k] : 0); });
     return out;
   }
-  // pontos livres que ainda cabem em algum status (o selo "+N" do Estábulo): quando o que sobra não paga o
-  // próximo ponto de nenhum status, o selo some
+  // Pontos de status que ainda dá para comprar com o que sobra (o selo "+N" do Estábulo). Conta pontos, não o custo:
+  // compra sempre o ponto mais barato entre os status que ainda aceitam (RaceSim.allocInfo().room, que já respeita o
+  // teto de 150 e a Sorte sem pontos), até o que sobra não pagar mais nenhum. Com 13 sobrando e o próximo ponto a 2
+  // em todos os status, dá +6. Zero (nada cabe): o selo some.
   function pontosQueCabem(m) {
-    var info = RS.allocInfo(m), room = 0;
-    STAT_KEYS.forEach(function (k) { room += info.room[k]; });
-    return Math.min(info.left, room);
+    var info = RS.allocInfo(m), a = {}, left = info.left, n = 0;
+    STAT_KEYS.forEach(function (k) { a[k] = info.perStat[k]; });
+    for (;;) {
+      var best = null, bc = Infinity;
+      for (var i = 0; i < STAT_KEYS.length; i++) {
+        var k = STAT_KEYS[i], c = RS.pointCost(a[k]);
+        if (a[k] < info.perStat[k] + info.room[k] && c <= left && c < bc) { best = k; bc = c; }
+      }
+      if (!best) return n;
+      left -= bc; a[best]++; n++;
+    }
   }
   function travaPontos(m, alloc) {
     var P = state.pending;
@@ -9862,47 +9899,97 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       (pode.ok ? '' : '<p class="nota">' + esc(pode.motivo) + '</p>') + '</div>';
   }
   function notaGenetica(g) { return g >= 24 ? 'S' : g >= 16 ? 'A' : g >= 8 ? 'B' : 'C'; }
-  function montariaStatusHtml(m, gear) {
+  function pontosTxt(n) { return n + (n === 1 ? ' ponto' : ' pontos'); }
+  // os botões de compra de cada status (spec 1b §11): cada um soma exatamente N pontos ao rascunho
+  var BUILD_PASSOS = [1, 5, 10];
+  function rascunhoMaisN(r, k, n) {
+    var out = {};
+    STAT_KEYS.forEach(function (j) { out[j] = (r ? r[j] : 0) + (j === k ? n : 0); });
+    return out;
+  }
+  // o botão "+N" de um status: o custo de N vai no title e no aria-label ("+5 em Velocidade: custa 15 pontos").
+  // Desabilitado quando N não cabe, com o motivo no title, nesta ordem: passaria de 150, faltam pontos, trava do
+  // páreo (com páreo aberto, o Poder da ativa não passa do da sala). livres: o que sobra com o rascunho.
+  function botaoMaisInfo(m, r, k, n, livres) {
+    var st = GD.STATS[k], atual = allocComRascunho(m, r)[k];
+    var custo = RS.costOf(atual + n) - RS.costOf(atual);
+    var txt = '+' + n + ' em ' + st.name + ': custa ' + pontosTxt(custo);
+    var motivo = '';
+    if (atual + n > RS.maxBuy(m, k)) motivo = 'Passaria de ' + RS.TUNING.statMax + '.';
+    else if (custo > livres) motivo = 'Faltam pontos: ' + (livres === 1 ? 'sobra 1.' : 'sobram ' + livres + '.');
+    else if (!rascunhoOk(m, rascunhoMaisN(r, k, n))) motivo = 'Não cabe nos pontos desta montaria.';
+    else {
+      var lock = travaPontos(m, allocComRascunho(m, rascunhoMaisN(r, k, n)));
+      if (!lock.ok) motivo = 'Páreo aberto: passaria do Poder ' + lock.limit + ' que a sala viu.';
+    }
+    return { ok: !motivo, titulo: txt + (motivo ? '. ' + motivo : '') };
+  }
+  // "Distribuir sugerido" (spec 1b §6 e §11): a build dos bots (RaceSim.botAlloc) continuando dos pontos já
+  // comprados mais o rascunho; devolve o rascunho novo (o que passa dos pontos gravados). Não olha a trava do páreo:
+  // o rascunho pode passar do Poder da sala, e aí é o Confirmar que fica bloqueado (RF3).
+  function rascunhoSugerido(m, r) {
+    var gravado = RS.validAlloc(m, m.alloc), b = RS.botAlloc(m, allocComRascunho(m, r)), out = {};
+    STAT_KEYS.forEach(function (k) { out[k] = b[k] - gravado[k]; });
+    return out;
+  }
+  function montariaStatusHtml(m) {
     var M = ui.montaria;
     if (M.rascunho && (!rascunhoSoma(M.rascunho) || !rascunhoOk(m, M.rascunho))) { M.rascunho = null; M.confirmaPontos = false; }
     var r = M.rascunho, soma = rascunhoSoma(r);
-    var info = RS.allocInfo(m), livres = info.free - custoAlloc(allocComRascunho(m, r));
-    var cap = RS.TUNING.statMax;
+    var info = RS.allocInfo(m), comR = allocComRascunho(m, r), livres = info.free - custoAlloc(comR);
+    var cap = RS.TUNING.statMax, nb = RS.TUNING.noBuy || [];
     var h = clone(m);
-    h.alloc = allocComRascunho(m, r);
-    var stats = RS.computeStats(h, gear), puro = RS.computeStats(h, null), antes = RS.computeStats(m, gear);
+    h.alloc = comR;
+    var stats = RS.computeStats(h), antes = RS.computeStats(m);
     var P = state.pending, trava = P && m.uid === state.activeId;
     var linhas = STAT_KEYS.map(function (k) {
       var st = GD.STATS[k], g = m.potential[k], nota = notaGenetica(g);
-      var v = stats[k], d = v - puro[k], rk = r ? r[k] : 0;
-      var delta = d ? '<span class="delta ' + (d > 0 ? 'mais' : 'menos-t') + '">' + (d > 0 ? '+' : '−') + Math.abs(d) + '</span>' : '';
-      var botao = '';
-      var r2 = rascunhoMais(r, k);
-      if (rascunhoOk(m, r2)) {
-        var lock = travaPontos(m, allocComRascunho(m, r2));
-        botao = '<button type="button" class="btn btn--pequeno build-mais" data-acao="ponto-mais" data-id="' + k + '" aria-label="' +
-          esc('Mais um ponto em ' + st.name) + '"' + (lock.ok ? '' : ' disabled title="' + esc('Páreo aberto: passaria do Poder ' + lock.limit) + '"') + '>+</button>';
+      var v = stats[k], rk = r ? r[k] : 0, d = v - antes[k];
+      var delta = d > 0 ? '<span class="delta mais" aria-hidden="true">+' + d + '</span>' : '';
+      var custo, botoes = '';
+      if (nb.indexOf(k) >= 0) {
+        custo = 'de nascimento';   // a Sorte não recebe pontos (TUNING.noBuy): sem custo nem botões
+      } else {
+        // espaço sem quebra antes do número: no celular a frase quebra antes de "custa", nunca antes do custo
+        custo = comR[k] >= RS.maxBuy(m, k) ? 'no teto de\u00a0' + cap : 'próximo ponto custa\u00a0' + RS.pointCost(comR[k]);
+        botoes = BUILD_PASSOS.map(function (n) {
+          var bi = botaoMaisInfo(m, r, k, n, livres);
+          return '<button type="button" class="btn btn--pequeno build-mais" data-acao="ponto-mais" data-id="' + k + '" data-n="' + n + '"' +
+            ' aria-label="' + esc(bi.titulo) + '" title="' + esc(bi.titulo) + '"' + (bi.ok ? '' : ' disabled') + '>+' + n + '</button>';
+        }).join('');
       }
       return '<li class="build-linha" data-status="' + k + '">' +
         '<span class="build-nome" title="' + esc(st.name + ': ' + st.desc) + '">' + statIcon(k) + '<span>' + esc(st.short) + '</span></span>' +
         '<span class="nota-genetica nota-genetica--' + nota.toLowerCase() + '" title="' + esc('Genética ' + g + ' de 31') + '" aria-label="' + esc('Genética ' + nota + ' (' + g + ' de 31)') + '">' + nota + '</span>' +
-        '<div class="barra barra--seg build-barra" role="img" aria-label="' + esc(st.name + ' ' + v + ' (teto ' + cap + ')') + '">' + barHtml(v, antes[k], cap) + '</div>' +
+        '<div class="barra barra--seg build-barra" role="img" aria-label="' + esc(st.name + ' ' + v + ' de ' + cap) + '">' + barHtml(v, antes[k]) + '</div>' +
         '<span class="valor' + (rk ? ' valor--rascunho' : '') + '">' + v + delta + (rk ? '<span class="sr"> (+' + rk + ' no rascunho)</span>' : '') + '</span>' +
-        '<span class="build-acao">' + botao + '</span></li>';
+        '<span class="build-custo">' + esc(custo) + '</span>' +
+        (botoes ? '<span class="build-acao" role="group" aria-label="' + esc('Comprar pontos em ' + st.name) + '">' + botoes + '</span>' : '') + '</li>';
     }).join('');
     var avisos = '';
     if (M.pontosMsg) avisos += '<p class="aviso" role="status">' + esc(M.pontosMsg) + '</p>';
     var algumMais = STAT_KEYS.some(function (k) { return rascunhoOk(m, rascunhoMais(r, k)); });
     if (livres > 0 && !algumMais) avisos += '<p class="nota">' + esc((livres === 1 ? 'Sobra 1 ponto' : 'Sobram ' + livres + ' pontos') + ': não pagam o próximo ponto de nenhum status.') + '</p>';
     if (trava && info.left > 0) avisos += '<p class="aviso">' + esc('Páreo aberto: os pontos da montaria ativa não podem passar o Poder de ' + P.pr + ' que a sala viu.') + '</p>';
-    var topo = '<div class="build-topo"><p class="pontos-livres">Pontos livres: <b>' + livres + '</b></p>' +
-      '<span class="nota">' + esc(info.free ? 'de ' + info.free : 'cada nível ganho dá pontos para distribuir') + '</span>' +
-      (soma ? '<span class="nota">' + esc('Poder ' + RS.powerRating(clone(m), gear) + ' → ' + RS.powerRating(h, gear)) + '</span>' : '') + '</div>';
+    var topo = '<div class="build-topo"><p class="pontos-livres">Pontos: <b>' + esc('sobram ' + livres + ' de ' + info.free) + '</b></p>' +
+      (info.free ? '' : '<span class="nota">Cada nível ganho dá pontos para distribuir.</span>') +
+      (soma ? '<span class="nota">' + esc('Poder ' + RS.powerRating(m) + ' → ' + RS.powerRating(h)) + '</span>' : '') + '</div>';
+    // ações: "Distribuir sugerido" (sempre que a montaria já ganhou pontos), Desfazer e Confirmar (com rascunho)
     var acoes = '';
-    if (soma) {
-      acoes = (M.confirmaPontos ? '<p class="aviso" role="status">' + esc('Os pontos ficam para sempre: não dá para voltar atrás. Toque em Confirmar de novo para gravar.') + '</p>' : '') +
-        '<div class="acoes build-acoes"><button type="button" class="btn btn--pequeno" data-acao="pontos-desfazer">Desfazer</button>' +
-        '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="pontos-confirmar">Confirmar</button></div>';
+    if (info.free) {
+      var sug = rascunhoSoma(rascunhoSugerido(m, r)) > soma;
+      var botaoSug = '<button type="button" class="btn btn--pequeno" data-acao="pontos-sugerir"' +
+        (sug ? '' : ' disabled title="' + esc(livres > 0 ? 'Os pontos que sobram não pagam o próximo ponto de nenhum status.' : 'Nenhum ponto sobrando para distribuir.') + '"') + '>Distribuir sugerido</button>';
+      var lockR = soma ? travaPontos(m, comR) : { ok: true };
+      var motivoConf = lockR.ok ? '' : 'Páreo aberto: com este rascunho o Poder iria a ' + RS.powerRating(h) + ', e a sala viu ' + lockR.limit + '. Use Desfazer ou corra antes de confirmar.';
+      if (!lockR.ok) M.confirmaPontos = false;
+      var depois = 'Para mudar depois, use Redistribuir ' + (m.respecFree === true ? '(a primeira deste cavalo é grátis).' : '(gasta uma Rédea nova).');
+      acoes = (soma && M.confirmaPontos ? '<p class="aviso" role="status">' + esc(depois + ' Toque em Confirmar de novo para gravar.') + '</p>' : '') +
+        (motivoConf ? '<p class="aviso">' + esc(motivoConf) + '</p>' : '') +
+        '<div class="acoes build-acoes">' + botaoSug + (soma
+          ? '<button type="button" class="btn btn--pequeno" data-acao="pontos-desfazer">Desfazer</button>' +
+            '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="pontos-confirmar"' + (motivoConf ? ' disabled title="' + esc(motivoConf) + '"' : '') + '>Confirmar</button>'
+          : '') + '</div>';
     }
     return avisos + '<section class="caixa" aria-label="Status">' + topo +
       '<ul class="build">' + linhas + '</ul>' + acoes + redistribuirHtml(m) +
@@ -9937,7 +10024,6 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var isActive = m.uid === state.activeId;
     var uid = esc(m.uid);
     var h = clone(m);
-    var gear = gearOf(m);
     var stats = RS.computeStats(h);
     var rating = RS.powerRating(h);
     // a corrida não usa mais o bônus de chance de skill do conjunto (o equipamento não entra: sim.js)
@@ -9997,7 +10083,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     } else if (M.aba === 'equip' && GEAR_ON) {
       corpo = montariaEquipHtml(m);
     } else {
-      corpo = montariaStatusHtml(m, gear);
+      corpo = montariaStatusHtml(m);
     }
 
     return '<section class="tela" aria-labelledby="t-montaria">' +
@@ -10408,7 +10494,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var order = L.sim.finishOrder;
     var place = order.indexOf(L.playerIdx) + 1;
     var hBefore = playerHorse();
-    var before = { level: hBefore.level, xp: hBefore.xp, gold: state.gold, stats: RS.computeStats(hBefore, null), free: RS.freePoints(hBefore) };
+    var before = { level: hBefore.level, xp: hBefore.xp, gold: state.gold, stats: RS.computeStats(hBefore), free: RS.freePoints(hBefore) };
     var pay = null, prize;
     if (L.training) {
       prize = TRAINING_GOLD[place - 1] || 10;
@@ -10440,7 +10526,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone,
       xpGain: xpGain, levels: levels, learned: learned,
       before: before,
-      after: { level: hAfter.level, xp: hAfter.xp, gold: state.gold, stats: RS.computeStats(hAfter, null),
+      after: { level: hAfter.level, xp: hAfter.xp, gold: state.gold, stats: RS.computeStats(hAfter),
         free: RS.freePoints(hAfter), allCap: todosNoTeto(hAfter) }
     };
   }
@@ -11432,24 +11518,41 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         ui.montaria.confirmaRedist = false;
         rerenderKeepScroll(); break;
       case 'ponto-mais': {
-        var pm = ui.montaria ? mountByUid(ui.montaria.uid) : null;
-        if (!pm || ui.montaria.aba !== 'status' || STAT_KEYS.indexOf(id) < 0) break;   // só na aba Status
-        var pr2 = rascunhoMais(ui.montaria.rascunho, id);
+        // +1, +5 ou +10 (data-n): soma exatamente N ao rascunho, ou nada
+        var pm = ui.montaria ? mountByUid(ui.montaria.uid) : null, pn = Number(b.getAttribute('data-n'));
+        if (!pm || ui.montaria.aba !== 'status' || STAT_KEYS.indexOf(id) < 0 || BUILD_PASSOS.indexOf(pn) < 0) break;   // só na aba Status
+        var pr2 = rascunhoMaisN(ui.montaria.rascunho, id, pn);
         if (!rascunhoOk(pm, pr2) || !travaPontos(pm, allocComRascunho(pm, pr2)).ok) break;   // nunca confia no botão
         ui.montaria.rascunho = pr2; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null; ui.montaria.confirmaRedist = false;
         rerenderKeepScroll();
-        if (!telaEl.contains(document.activeElement)) focusAction('pontos-confirmar');   // o "+" sumiu (limite ou teto)
+        if (!telaEl.contains(document.activeElement)) focusAction('ponto-mais', id, 1);   // o +N ficou desabilitado
+        if (!telaEl.contains(document.activeElement)) focusAction('pontos-confirmar');
+        break;
+      }
+      case 'pontos-sugerir': {
+        // "Distribuir sugerido": a build dos bots a partir dos pontos gravados + o rascunho; ainda pede o Confirmar
+        var MS = ui.montaria, sm = MS ? mountByUid(MS.uid) : null;
+        if (!sm || MS.aba !== 'status') break;   // só na aba Status
+        var rs0 = MS.rascunho && rascunhoOk(sm, MS.rascunho) ? MS.rascunho : null;
+        var rs1 = rascunhoSugerido(sm, rs0);
+        if (rascunhoSoma(rs1) <= rascunhoSoma(rs0) || !rascunhoOk(sm, rs1)) break;   // nada a somar (nunca confia no botão)
+        MS.rascunho = rs1; MS.confirmaPontos = false; MS.pontosMsg = null; MS.confirmaRedist = false;
+        rerenderKeepScroll();
+        if (!telaEl.contains(document.activeElement)) focusAction('pontos-confirmar');   // o botão ficou desabilitado
+        if (!telaEl.contains(document.activeElement)) focusAction('pontos-desfazer');    // Confirmar travado pelo páreo
         break;
       }
       case 'pontos-desfazer':
         if (!ui.montaria) break;
         ui.montaria.rascunho = null; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null; ui.montaria.confirmaRedist = false;
-        rerenderKeepScroll(); focusAction('ponto-mais', 'vel'); break;
+        rerenderKeepScroll(); focusAction('ponto-mais', 'vel', 1); break;
       case 'pontos-confirmar': {
         var MQ = ui.montaria, cq = MQ ? mountByUid(MQ.uid) : null;
         if (!cq || MQ.aba !== 'status' || !rascunhoSoma(MQ.rascunho)) break;   // só na aba Status
         MQ.confirmaRedist = false;
-        if (!MQ.confirmaPontos) {   // primeiro toque: só o aviso de que não dá para voltar atrás
+        // nunca confia no botão: com páreo aberto, um rascunho acima do Poder da sala não arma nem grava (RF3)
+        if (!rascunhoOk(cq, MQ.rascunho) || !travaPontos(cq, allocComRascunho(cq, MQ.rascunho)).ok) { MQ.confirmaPontos = false; rerenderKeepScroll(); break; }
+        if (!MQ.confirmaPontos) {   // primeiro toque: só o aviso de como mudar depois (Redistribuir)
           MQ.confirmaPontos = true; MQ.pontosMsg = null;
           rerenderKeepScroll(); focusAction('pontos-confirmar'); break;
         }
@@ -11502,7 +11605,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         if (gR === 'falhou') { MR.rascunho = rqR; MR.confirmaRedist = true; }
         MR.pontosMsg = gR === 'falhou' ? FALHA_SALVAR : 'Pontos devolvidos: distribua de novo.';
         rerenderKeepScroll();
-        if (!telaEl.contains(document.activeElement)) focusAction('ponto-mais', 'vel');   // o botão sumiu (sem pontos)
+        if (!telaEl.contains(document.activeElement)) focusAction('ponto-mais', 'vel', 1);   // o botão sumiu (sem pontos)
         break;
       }
       case 'montaria-voltar':
@@ -11838,8 +11941,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     else if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); e.stopPropagation(); renomearCancela(); }
   });
 
-  function focusAction(acao, id) {
-    var sel = '[data-acao="' + acao + '"]' + (id != null ? '[data-id="' + id + '"]' : '');
+  // n (opcional): data-n, para os botões que repetem a ação e o id (os +1, +5 e +10 da aba Status)
+  function focusAction(acao, id, n) {
+    var sel = '[data-acao="' + acao + '"]' + (id != null ? '[data-id="' + id + '"]' : '') + (n != null ? '[data-n="' + n + '"]' : '');
     var el = telaEl.querySelector(sel);
     if (el) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } }
   }
@@ -11853,9 +11957,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var active = document.activeElement;
     var acao = active && active.getAttribute && active.getAttribute('data-acao');
     var id = active && active.getAttribute && active.getAttribute('data-id');
+    var n = active && active.getAttribute && active.getAttribute('data-n');
     render();
     window.scrollTo(0, y);
-    if (acao) focusAction(acao, id);
+    if (acao) focusAction(acao, id, n);
   }
 
   // ===========================================================================
