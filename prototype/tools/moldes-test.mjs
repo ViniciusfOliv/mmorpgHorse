@@ -1769,5 +1769,232 @@ await testA('pedido do robusto: o texto novo sai nos pedidos; o antigo (versão 
   fs.rmSync(H.raiz, { recursive: true, force: true });
 });
 
+// ---------------------------------------------------------------- Portes: Task 5b (decisões da folha v2)
+// --escolher: a escolha manual de uma tentativa já paga (sem rede e sem custo), com os critérios aceitos na folha;
+// --guia-mestre: o mestre guiado por outro mestre (o robusto pelo padrão), com a força do init_image caindo a cada tentativa.
+section('Portes: escolha manual e mestre guiado por outro');
+// Pasta G: o parado do esguio sai com 2 pernas na seed 3101 e com buracos (forma) em todas as outras, também na refação
+// (4101+); a corrida do esguio sai com 1 perna na 3101 e passa na 3201; no robusto guiado (refação 2), o retrato da seed
+// base (5103) sai com duas pernas coladas.
+const G = pastaTemp(), arqCG = path.join(G.dirs.novos, 'criterios.json'), arqGG = path.join(G.dirs.novos, 'gasto.json');
+const CENARIO_G = {
+  parada: ({ porte, estilo, etapa, seed }) => Object.assign({},
+    porte === 'esguio' && estilo === 'lisa' && etapa === 'parado' ? (seed === 3101 ? { sem: [1, 3] } : { furos: true }) : {},
+    porte === 'esguio' && estilo === 'lisa' && etapa === 'corrida' && seed === 3101 ? { sem: [1, 2, 3] } : {},
+    porte === 'robusto' && estilo === 'lisa' && etapa === 'retrato' && seed === 5103 ? { coladas: true } : {}),
+};
+const MOTIVO = 'aceito na folha pelo Vinicius: desenho melhor, 2 pernas visíveis';
+const moldeG = n => path.join(G.dirs.novos, `molde-esguio-lisa${n ? '-' + n : ''}.${n ? 'png' : 'json'}`);
+let parado3101 = null;
+
+await testA('--escolher: sem chamada nenhuma, troca pela tentativa do histórico, regrava novos/, aceita os critérios e mantém o histórico', async () => {
+  const api = apiFalsa(CENARIO_G);
+  await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: api.executar, dirs: G.dirs, log: () => {} }));
+  parado3101 = fs.readFileSync(moldeG('parado'));
+  assert.deepStrictEqual([lerJ(arqCG).itens['esguio-lisa'].etapas.parado.escolhida, lerJ(arqCG).itens['esguio-lisa'].ok], [3101, false]);
+  // a refação 1 do parado (4101+) reprova na forma nas 3 seeds e fica com a 4101, como no lote de verdade
+  await semRede(() => Pl().rodarPortes({ fase: 'mestres', refazer: ['esguio-lisa:parado'], modo: 'gerar', executar: api.executar, dirs: G.dirs, log: () => {} }));
+  const C1 = lerJ(arqCG), e1 = C1.itens['esguio-lisa'];
+  assert.deepStrictEqual([e1.etapas.parado.escolhida, e1.etapas.parado.refacao, e1.historico.length, e1.ok], [4101, 1, 1, false]);
+  assert.ok(!fs.readFileSync(moldeG('parado')).equals(parado3101));
+  // erros de uso
+  const v = o => Pl().validarArgsPortes(Object.assign({ fase: 'mestres', escolher: ['esguio-lisa:parado=3101'], motivo: MOTIVO }, o), G.dirs.novos, G.dirs.raw);
+  assert.strictEqual(v({}), null);
+  assert.match(v({ escolher: ['esguio-lisa:parado=9999'] }), /^--escolher esguio-lisa:parado=9999: a seed 9999 não está nas tentativas de parado \(seeds tentadas: 4101, 4201, 4301, 3101, 3201, 3301\)/);
+  assert.match(v({ motivo: null }), /--escolher pede --motivo/); assert.match(v({ motivo: '  ' }), /--escolher pede --motivo/);
+  assert.match(v({ gerar: true }), /não anda com --gerar/); assert.match(v({ reprocessar: true }), /não anda com --gerar nem com --reprocessar/);
+  assert.match(v({ refazer: ['esguio-lisa:parado'] }), /não anda com --refazer/); assert.match(v({ only: 'esguio' }), /nem --only/);
+  assert.match(v({ escolher: ['esguio-lisa:pescoco=3101'] }), /use <porte>-<estilo>:<etapa>=<seed>/);
+  assert.match(v({ escolher: ['esguio-lisa:parado'] }), /use <porte>-<estilo>:<etapa>=<seed>/);
+  assert.match(v({ escolher: ['esguio-lisa:parado=3101', 'esguio-lisa:parado=3201'] }), /repetido/);
+  assert.match(v({ escolher: ['padrao-chamas:parado=3101'] }), /não está na fase "mestres"/);
+  assert.match(Pl().validarArgsPortes({ fase: 'mestres', motivo: MOTIVO }, G.dirs.novos, G.dirs.raw), /--motivo só vale com --escolher/);
+  // a cópia sem imagem (cru apagado) também é erro de uso
+  const cru3201 = path.join(G.dirs.raw, 'portes-esguio-lisa-parado-s3201.png'), b3201 = fs.readFileSync(cru3201);
+  fs.unlinkSync(cru3201);
+  try { assert.match(v({ escolher: ['esguio-lisa:parado=3201'] }), /a tentativa seed 3201 de parado não serve: raw\/portes-esguio-lisa-parado-s3201\.png sem imagem em raw\//); } finally { fs.writeFileSync(cru3201, b3201); }
+  // a escolha: modo escolher, sem executar (qualquer chamada lançaria) — nada pago, nenhum cru novo
+  const gasto = fs.readFileSync(arqGG), crus = crusDe(G.dirs.raw), log = [];
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'mestres', escolher: ['esguio-lisa:parado=3101'], motivo: MOTIVO, modo: 'escolher', dirs: G.dirs, log: m => log.push(m) }));
+  assert.deepStrictEqual([r.parada, r.itens, r.falhas, r.incompletos, r.naoGravados, Pl().codigoSaidaPortes(r)], [null, ['esguio-lisa'], 0, 0, [], 0]);
+  assert.ok(fs.readFileSync(arqGG).equals(gasto), 'o gasto não muda');
+  assert.deepStrictEqual([iguaisAntes(crus, G.dirs.raw), Object.keys(crusDe(G.dirs.raw)).length], [[], Object.keys(crus).length], 'raw/ intacto');
+  const e = lerJ(arqCG).itens['esguio-lisa'], x = e.etapas.parado;
+  assert.deepStrictEqual([e.ok, e.completo, e.falhas, e.aceitos], [true, true, [], ['parado: pernas no parado = 2 (= 4)']]);
+  assert.deepStrictEqual([x.escolhida, x.ok, x.refacao, x.escolha.manual, x.escolha.seed, x.escolha.motivo, x.escolha.refacao, x.escolha.origem, x.escolha.aceitos, x.escolha.arquivo],
+    [3101, false, 1, true, 3101, MOTIVO, 0, 'refação 0, no histórico', ['pernas no parado'], 'raw/portes-esguio-lisa-parado-s3101.png']);
+  assert.ok(!Number.isNaN(Date.parse(x.escolha.data)));
+  // as tentativas da refação 1 ficam; a 3101 entra no fim, importada do histórico, com o critério aceito
+  assert.deepStrictEqual(x.tentativas.map(t => t.seed + (t.importada ? 'i' : '') + (t.manual ? 'm' : '')), ['4101', '4201', '4301', '3101im']);
+  assert.deepStrictEqual(x.tentativas[3].criterios.filter(c => !c.ok).map(c => [c.criterio, c.aceito]), [['pernas no parado', true]]);
+  assert.deepStrictEqual(x.tentativas.slice(0, 3), e1.etapas.parado.tentativas, 'as da refação atual, como estavam');
+  // o histórico de antes inteiro, mais a linha da escolha
+  assert.deepStrictEqual(e.historico.slice(0, 1), e1.historico);
+  assert.deepStrictEqual(e.historico[1], { escolher: ['parado'], data: x.escolha.data, motivo: MOTIVO, antes: { parado: { escolhida: 4101, ok: false, refacao: 1 } } });
+  // o molde regravado com o parado 3101 (o mesmo PNG da 1ª rodada); as outras etapas e os outros itens como estavam
+  assert.ok(fs.readFileSync(moldeG('parado')).equals(parado3101));
+  assert.deepStrictEqual(lerJ(moldeG()).seeds, { retrato: 3101, parado: 3101, montado: 3201, galope: 3101 });
+  for (const ch of ['padrao-lisa', 'robusto-lisa']) assert.deepStrictEqual(lerJ(arqCG).itens[ch], C1.itens[ch], ch);
+  for (const k of ['retrato', 'corrida', 'galope']) assert.deepStrictEqual(e.etapas[k], e1.etapas[k], k);
+  assert.ok(log.some(m => /esguio-lisa\/parado: escolha manual, seed 3101 \(refação 0, no histórico; raw\/portes-esguio-lisa-parado-s3101\.png\)/.test(m)), log.join('\n'));
+  // direto no rodarPortes, seed inexistente também para antes de gravar
+  await assert.rejects(semRede(() => Pl().rodarPortes({ fase: 'mestres', escolher: ['esguio-lisa:parado=9999'], motivo: MOTIVO, modo: 'escolher', dirs: G.dirs, log: () => {} })), e2 => e2.fatal && /a seed 9999 não está/.test(e2.message));
+});
+
+await testA('--escolher: a escolha vale nas rodadas seguintes (0 chamadas) e a folha mostra "escolha manual — aceito na folha"', async () => {
+  const antes = lerJ(arqCG).itens['esguio-lisa'], api = apiFalsa(CENARIO_G);
+  await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: api.executar, dirs: G.dirs, log: () => {} }));
+  assert.strictEqual(api.chamadas.length, 0);
+  const e = lerJ(arqCG).itens['esguio-lisa'];
+  assert.deepStrictEqual([e.etapas.parado.escolhida, e.ok, e.historico.length, e.etapas.parado.escolha], [3101, true, antes.historico.length, antes.etapas.parado.escolha]);
+  assert.ok(fs.readFileSync(moldeG('parado')).equals(parado3101));
+  const rp = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', dirs: G.dirs, log: () => {} }));
+  assert.deepStrictEqual([rp.incompletos, lerJ(arqCG).itens['esguio-lisa'].etapas.parado.escolhida], [0, 3101], 'o --reprocessar também');
+  const linhas = [];
+  await semRede(() => Pl().dryRunPortes({ fase: 'mestres', dirs: G.dirs }, l => linhas.push(l)));
+  const txt = linhas.join('\n');
+  assert.match(txt, /Escolhas manuais \(0 geração; valem até um --refazer da etapa\): esguio-lisa\/parado \(seed 3101, refação 0, no histórico; aceito na folha: pernas no parado\)/);
+  assert.match(txt, /Total previsto: 0 gerações em 0 chamadas novas/);
+  const Fo = await import('./folha-portes.mjs'), html = Fo.htmlFolhaMestres(Fo.dadosMestres(G.dirs.novos));
+  assert.ok(html.includes(`parado 3101: escolha manual — aceito na folha: ${MOTIVO}`), 'a linha da escolha');
+  assert.match(html, /<span class="aceito">aceito na folha<\/span> pernas no parado: 2/);
+  assert.ok(!/<span class="nao">NÃO<\/span> pernas no parado/.test(html.slice(html.indexOf('id="esguio-lisa"'))), 'não sai como reprovado');
+  assert.match(html, /id="esguio-lisa"><h2>[^<]*<small>esguio-lisa<\/small><span class="selo aceito">aceito na folha<\/span>/);
+  assert.ok(html.includes('parado 3101 (escolha manual, da refação 0, no histórico) (4 tentativas)'));
+});
+
+await testA('--escolher da corrida não muda o galope: avisa, o galope fica escolhido e nada é animado de novo; --refazer tira a escolha', async () => {
+  const galope = Array.from({ length: 9 }, (_, i) => fs.readFileSync(moldeG('galope-' + i)));
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'mestres', escolher: ['esguio-lisa:corrida=3101'], motivo: 'corrida mais baixa', modo: 'escolher', dirs: G.dirs, log: () => {} }));
+  assert.ok(r.avisos.some(a => /^--escolher esguio-lisa:corrida=3101: o galope escolhido \(seed 3101, raw\/portes-esguio-lisa-galope-c3201-s3101-0\.\.8\.png\) partiu de outra corrida \(esguio-lisa\/corrida seed 3201\); ele continua o escolhido e não é refeito/.test(a)), r.avisos.join(' | '));
+  const e = lerJ(arqCG).itens['esguio-lisa'];
+  assert.deepStrictEqual([e.etapas.corrida.escolhida, e.etapas.corrida.escolha.aceitos, e.etapas.galope.escolhida, /o galope continua o escolhido/.test(e.etapas.galope.escolha.automatico), e.etapas.parado.escolhida],
+    [3101, ['pernas na pose de corrida (o quadro 0 do galope)'], 3101, true, 3101]);
+  assert.ok(e.etapas.galope.tentativas.find(t => t.seed === 3101).criterios.every(c => c.ok), 'o galope medido contra a corrida de onde saiu (3201)');
+  assert.deepStrictEqual(lerJ(moldeG()).seeds, { retrato: 3101, parado: 3101, montado: 3101, galope: 3101 });
+  galope.forEach((b, i) => assert.ok(fs.readFileSync(moldeG('galope-' + i)).equals(b), 'galope-' + i));
+  const api = apiFalsa(CENARIO_G);
+  await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: api.executar, dirs: G.dirs, log: () => {} }));
+  assert.strictEqual(api.chamadas.length, 0, 'nenhum galope novo a partir da corrida escolhida');
+  // o --refazer do parado tira a escolha manual dele (seeds novas, 5101+); as da corrida e do galope ficam
+  const l = [];
+  await semRede(() => Pl().dryRunPortes({ fase: 'mestres', refazer: ['esguio-lisa:parado'], novaRefacao: true, dirs: G.dirs }, x => l.push(x)));
+  const txt = l.join('\n');
+  assert.deepStrictEqual(txt.match(/POST \S+ +\S+ +seed \d+/g).map(x => x.replace(/ +/g, ' ')), ['POST /create-image-pixflux esguio-lisa/parado seed 5101']);
+  assert.match(txt, /Escolhas manuais [^\n]*esguio-lisa\/corrida \(seed 3101[^\n]*esguio-lisa\/galope \(seed 3101/);
+  assert.ok(!/Escolhas manuais [^\n]*esguio-lisa\/parado/.test(txt));
+});
+
+const REFORCO = 'same horse redrawn shorter and stockier: much shorter legs, deeper barrel body, thicker neck';
+const CMD_GUIA = { fase: 'mestres', refazer: ['robusto-lisa:retrato,parado,corrida,galope'], novaRefacao: true, guiaMestre: ['robusto-lisa=padrao-lisa'] };
+
+await testA('--guia-mestre: erros de uso (sem --refazer, o mesmo porte, sem reforço, fora dos mestres, guia refeito junto, guia sem o cru)', async () => {
+  const v = o => Pl().validarArgsPortes(Object.assign({ fase: 'mestres', refazer: ['robusto-lisa:retrato,parado,corrida,galope'], guiaMestre: ['robusto-lisa=padrao-lisa'] }, o), G.dirs.novos, G.dirs.raw);
+  assert.strictEqual(v({}), null);
+  assert.match(v({ refazer: [] }), /^--guia-mestre robusto-lisa=padrao-lisa: anda com o --refazer de robusto-lisa com retrato, parado ou corrida/);
+  assert.match(v({ refazer: ['robusto-lisa:galope'] }), /anda com o --refazer de robusto-lisa com retrato, parado ou corrida/);
+  assert.match(v({ guiaMestre: ['robusto-lisa=robusto-lisa'] }), /o mestre não guia a si mesmo/);
+  assert.match(v({ guiaMestre: ['padrao-lisa=esguio-lisa'], refazer: ['padrao-lisa:retrato'] }), /o padrao não tem reforço de proporção/);
+  assert.match(v({ guiaMestre: ['robusto-chamas=padrao-lisa'] }), /use <porte>-lisa=<porte>-lisa/);
+  assert.match(v({ guiaMestre: ['robusto-lisa=padrao-lisa', 'robusto-lisa=esguio-lisa'] }), /dois guias/);
+  assert.match(v({ refazer: ['robusto-lisa:retrato', 'padrao-lisa:retrato'] }), /o guia padrao-lisa não pode ser refeito na mesma rodada/);
+  assert.match(Pl().validarArgsPortes({ fase: 'piloto', guiaMestre: ['robusto-lisa=padrao-lisa'] }, G.dirs.novos, G.dirs.raw), /só na fase mestres/);
+  assert.deepStrictEqual(Pl().lerGuiasMestre(['robusto-lisa=padrao-lisa', 'esguio-lisa=padrao-lisa']).guias, { 'robusto-lisa': 'padrao-lisa', 'esguio-lisa': 'padrao-lisa' });
+  // o guia sem o cru escolhido da corrida: erro de uso só quando a corrida é refeita
+  const cru = path.join(G.dirs.raw, 'portes-padrao-lisa-corrida-s3102.png'), guardado = fs.readFileSync(cru);
+  fs.unlinkSync(cru);
+  try {
+    assert.match(v({}), /--guia-mestre robusto-lisa=padrao-lisa: falta o cru escolhido de padrao-lisa\/corrida em .*raw\/ \(seed 3102\)/);
+    assert.strictEqual(v({ refazer: ['robusto-lisa:retrato'] }), null, 'só as etapas refeitas precisam do cru do guia');
+  } finally { fs.writeFileSync(cru, guardado); }
+});
+
+await testA('--guia-mestre robusto-lisa=padrao-lisa: o dry-run do comando prevê 4 chamadas (pior caso 12), init_image = os crus do padrão, forças 90/60/35', async () => {
+  // a 1ª refação do robusto (sem guia), como a de 2026-11-13; o comando do exemplo abre a 2ª, com --nova-refacao
+  await semRede(() => Pl().rodarPortes({ fase: 'mestres', refazer: ['robusto-lisa:retrato,parado,corrida,galope'], modo: 'gerar', executar: apiFalsa(CENARIO_G).executar, dirs: G.dirs, log: () => {} }));
+  assert.strictEqual(Pl().validarArgsPortes(Object.assign({ gerar: true }, CMD_GUIA), G.dirs.novos, G.dirs.raw), null, 'o --gerar do comando passa na validação');
+  assert.match(Pl().validarArgsPortes(Object.assign({}, CMD_GUIA, { gerar: true, novaRefacao: false }), G.dirs.novos, G.dirs.raw), /a refação 1 de retrato.*já terminaram/, 'a mesma trava de refação');
+  const linhas = [], crus = crusDe(G.dirs.raw), criterios = fs.readFileSync(arqCG);
+  await semRede(() => Pl().dryRunPortes(Object.assign({ dirs: G.dirs }, CMD_GUIA), l => linhas.push(l)));
+  const txt = linhas.join('\n');
+  assert.deepStrictEqual(txt.match(/POST \S+ +\S+ +seed \d+/g).map(x => x.replace(/ +/g, ' ')),
+    ['retrato', 'parado', 'corrida'].map(e => `POST /create-image-pixflux robusto-lisa/${e} seed 5103`).concat('POST /animate-with-text-v3 robusto-lisa/galope seed 5103'));
+  assert.match(txt, /Total previsto: 4 gerações em 4 chamadas novas \(\+ \d+ reaproveitadas de raw\/\); no pior caso \(3 seeds por etapa\), 12;/);
+  for (const e of ['retrato', 'parado', 'corrida']) assert.ok(txt.includes(`[init_image = raw/portes-padrao-lisa-${e}-s3102.png; init_image_strength 90]`), e);
+  assert.match(txt, /AVISO: --guia-mestre robusto-lisa=padrao-lisa: retrato com init_image = raw\/portes-padrao-lisa-retrato-s3102\.png, parado com init_image = raw\/portes-padrao-lisa-parado-s3102\.png, corrida com init_image = raw\/portes-padrao-lisa-corrida-s3102\.png;/);
+  assert.match(txt, /forças 90 \(seed 5103\), 60 \(seed 5203\), 35 \(seed 5303\), parando na 1ª que passa nos critérios; o galope parte da corrida aceita/);
+  const textos = txt.split('\n').filter((l, i, a) => /POST \S+ +robusto-lisa\/(retrato|parado|corrida) /.test(a[i - 1] || ''));
+  assert.ok(textos.length === 3 && textos.every(l => l.includes(`${Pl().TEXTO_PORTE.robusto}, ${REFORCO}, `)), 'o texto do robusto (v2) e o reforço logo depois');
+  assert.deepStrictEqual([Pl().REFORCO_PROPORCAO.robusto, [...Pl().FORCAS_GUIA_MESTRE]], [REFORCO, [90, 60, 35]]);
+  assert.deepStrictEqual(iguaisAntes(crus, G.dirs.raw), []); assert.ok(fs.readFileSync(arqCG).equals(criterios), 'o dry-run não grava');
+  // sem --guia-mestre, o pedido de sempre (o mesmo de antes desta tarefa)
+  assert.ok(!Pl().pedidoPorte({ porte: 'robusto', estilo: 'lisa', mestre: true }, 'retrato', 1).description.includes(REFORCO));
+});
+
+await testA('--guia-mestre com a API falsa: a 2ª tentativa aprovada para no meio, cada uma com a força dela; o cru leva força e guia no nome; a guia fica gravada', async () => {
+  const api = apiFalsa(CENARIO_G), g0 = lerJ(arqGG).geracoes;
+  const r = await semRede(() => Pl().rodarPortes(Object.assign({ modo: 'gerar', executar: api.executar, dirs: G.dirs, log: () => {} }, CMD_GUIA)));
+  assert.strictEqual(r.parada, null);
+  assert.deepStrictEqual(api.chamadas.map(c => (c.etapa || 'galope') + ' ' + c.seed + (c.forca ? ' f' + c.forca : '')), ['retrato 5103 f90', 'retrato 5203 f60', 'parado 5103 f90', 'corrida 5103 f90', 'galope 5103']);
+  for (const c of api.chamadas.filter(x => x.etapa)) {
+    assert.strictEqual(c.init, fs.readFileSync(path.join(G.dirs.raw, `portes-padrao-lisa-${c.etapa}-s3102.png`)).toString('base64'), c.etapa + ': init_image = o cru do padrão');
+  }
+  assert.strictEqual(lerJ(arqGG).geracoes, g0 + 5, 'conta no teto somado');
+  for (const f of ['retrato-g90padrao3102-s5103', 'retrato-g60padrao3102-s5203', 'parado-g90padrao3102-s5103', 'corrida-g90padrao3102-s5103', 'galope-c5103g90padrao3102-s5103-0']) {
+    assert.ok(fs.existsSync(path.join(G.dirs.raw, `portes-robusto-lisa-${f}.png`)), f);
+  }
+  assert.ok(!fs.readdirSync(G.dirs.raw).some(f => /g35padrao/.test(f)), 'a 3ª tentativa não saiu');
+  const rob = lerJ(arqCG).itens['robusto-lisa'], tr = rob.etapas.retrato.tentativas;
+  assert.deepStrictEqual([rob.ok, rob.refacoes, rob.etapas.retrato.escolhida, rob.historico.length, rob.historico[1].refacoes], [true, { retrato: 2, parado: 2, corrida: 2, galope: 2 }, 5203, 2, { retrato: 1, parado: 1, corrida: 1, galope: 1 }]);
+  assert.deepStrictEqual(tr.map(t => [t.seed, t.init_image_strength, t.init_image, t.guiaMestre, t.ok]),
+    [[5103, 90, 'raw/portes-padrao-lisa-retrato-s3102.png', 'padrao-lisa', false], [5203, 60, 'raw/portes-padrao-lisa-retrato-s3102.png', 'padrao-lisa', true]]);
+  assert.ok(tr[1].criterios.some(c => /^portes: altura\/comprimento do robusto/.test(c.criterio) && c.ok) && tr[1].criterios.some(c => /^portes: espessura/.test(c.criterio)), 'os portes distintos no aceite do retrato');
+  assert.ok(tr.every(t => t.prompt.includes(REFORCO)));
+  assert.deepStrictEqual(rob.guiaMestre.retrato, { mestre: 'padrao-lisa', seed: 3102, arquivo: 'raw/portes-padrao-lisa-retrato-s3102.png', refacao: 2, forcas: [90, 60, 35], reforco: REFORCO });
+  assert.deepStrictEqual(Object.keys(rob.guiaMestre), ['retrato', 'parado', 'corrida']);
+  assert.strictEqual(rob.etapas.galope.tentativas[0].arquivo, 'raw/portes-robusto-lisa-galope-c5103g90padrao3102-s5103-0..8.png', 'o galope parte da corrida aceita');
+  // de novo, sem opções: a guia gravada refaz os mesmos pedidos ⇒ tudo reaproveitado; o --reprocessar também
+  const api2 = apiFalsa(CENARIO_G);
+  await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: api2.executar, dirs: G.dirs, log: () => {} }));
+  assert.deepStrictEqual([api2.chamadas.length, lerJ(arqCG).itens['robusto-lisa'].etapas.retrato.escolhida], [0, 5203]);
+  const rp = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', dirs: G.dirs, log: () => {} }));
+  assert.deepStrictEqual([rp.incompletos, lerJ(arqCG).itens['robusto-lisa'].ok], [0, true]);
+  // a folha mostra a guia e a força da escolhida
+  const Fo = await import('./folha-portes.mjs'), html = Fo.htmlFolhaMestres(Fo.dadosMestres(G.dirs.novos));
+  assert.ok(html.includes('retrato 5203, refeita (refação 2) (2 tentativas), guiada por padrao-lisa com força 60'), 'a força da escolhida');
+  assert.ok(html.includes('Guia de outro mestre: retrato com init_image = raw/portes-padrao-lisa-retrato-s3102.png; parado com'));
+  // o piloto do robusto parte do mestre guiado: o init_image é o cru escolhido dele (com a marca da guia no nome)
+  const lp = [];
+  await semRede(() => Pl().dryRunPortes({ fase: 'piloto', only: 'robusto', dirs: G.dirs }, l => lp.push(l)));
+  assert.match(lp.join('\n'), /init_image = raw\/portes-robusto-lisa-retrato-g60padrao3102-s5203\.png; init_image_strength 100\]/);
+  assert.ok(!/o mestre robusto-lisa ainda não está/.test(lp.join('\n')));
+});
+fs.rmSync(G.raiz, { recursive: true, force: true });
+
+test('CLI: --escolher e --guia-mestre sem rede; os erros de uso saem 2 antes de gravar qualquer coisa', () => {
+  const temCrit = fs.existsSync(path.join(DIR, 'novos', 'criterios.json'));
+  for (const [args, msg] of [
+    [['--escolher', 'esguio-lisa:parado=9999', '--motivo', 'x'], temCrit ? /--escolher esguio-lisa:parado=9999: a seed 9999 não está nas tentativas de parado/ : /ainda não tem registro/],
+    [['--escolher', 'esguio-lisa:parado=3101'], /--escolher pede --motivo/],
+    [['--escolher', 'esguio-lisa:parado=3101', '--motivo', 'x', '--gerar'], /não anda com --gerar/],
+    [['--escolher', 'esguio-lisa:parado=3101', '--motivo', 'x', '--refazer', 'esguio-lisa:parado'], /não anda com --refazer/],
+    [['--motivo', 'x'], /--motivo só vale com --escolher/],
+    [['--guia-mestre', 'robusto-lisa=padrao-lisa'], /anda com o --refazer de robusto-lisa/],
+    [['--guia-mestre', 'robusto-lisa=robusto-lisa', '--refazer', 'robusto-lisa:retrato'], /o mestre não guia a si mesmo/],
+  ]) {
+    const e = cliPortes(['--fase', 'mestres', ...args]);
+    assert.strictEqual(e.status, 2, args.join(' ') + ': saída ' + e.status + '\n' + e.stdout + e.stderr);
+    assert.match(e.stderr, msg); assert.ok(!/REDE PROIBIDA/.test(e.stderr));
+  }
+  const m = spawnSync(process.execPath, [path.join(path.dirname(fileURLToPath(import.meta.url)), 'pixellab-moldes.mjs'), '--lote', 'moldes', '--escolher', 'lisa:parado=1'], { encoding: 'utf8' });
+  assert.strictEqual(m.status, 2); assert.match(m.stderr, /--escolher e --motivo só valem com --lote portes/);
+  // o dry-run guiado no estado de hoje (só leitura)
+  if (temCrit) {
+    const r = cliPortes(['--fase', 'mestres', '--refazer', 'robusto-lisa:retrato', '--nova-refacao', '--guia-mestre', 'robusto-lisa=padrao-lisa']);
+    assert.strictEqual(r.status, 0, r.stderr + r.stdout); assert.ok(!/REDE PROIBIDA/.test(r.stderr), r.stderr);
+    assert.match(r.stdout, /AVISO: --guia-mestre robusto-lisa=padrao-lisa: (retrato com init_image = raw\/portes-padrao-lisa-retrato-s\d+\.png|ignorado)/);
+  }
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
