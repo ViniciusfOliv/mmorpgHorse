@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePng, encodePng, encodeGray } from './png.mjs';
 import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 import { ICONES_NOVOS, FAMILIAS, RESERVADOS, ANTIGOS } from './icones-catalogo.mjs';
 import { htmlFolhaIcones } from './folha-icones.mjs';
 import { PAPEIS, paletaPng, normalizar, validar, ancoras, paraCinza, deCinza, sombrearRegioes, limparJoquei, limiarOtsu, classificarFamilias, limiaresDeTons, posProcessar, contornar, passada } from './moldes-lib.mjs';
@@ -1040,6 +1041,29 @@ test('moldes de hoje: os 4 rodam pelos critérios sem lançar e o relatório sai
     if (estilo !== 'lisa') console.log('         mesmo corpo (contra lisa), falhas: ' + (falhos(Pc().criterioMesmoCorpo(m, lidos.lisa)).join(', ') || 'nenhuma'));
   }
   console.log('         portes (lisa nos 3 papéis): ' + linha(Pc().criterioPortes({ esguio: lidos.lisa, padrao: lidos.lisa, robusto: lidos.lisa })));
+});
+
+test('dry-run: --lote portes --fase mestres sem --gerar lista 3 itens e 12 chamadas, sem rede', () => {
+  const novos = path.join(DIR, 'novos'), existia = fs.existsSync(novos);
+  // fetch, sockets e http trocados por funções que avisam e lançam: qualquer tentativa de rede aparece no stderr
+  const bloqueio = 'data:text/javascript,' + encodeURIComponent([
+    'import net from "node:net"; import tls from "node:tls"; import http from "node:http"; import https from "node:https";',
+    'const proibido = (o) => () => { process.stderr.write("REDE PROIBIDA: " + o + "\\n"); throw new Error("rede proibida no teste: " + o); };',
+    'globalThis.fetch = proibido("fetch");',
+    'net.Socket.prototype.connect = proibido("net.Socket.connect"); net.connect = net.createConnection = proibido("net.connect");',
+    'tls.connect = proibido("tls.connect"); http.request = http.get = proibido("http"); https.request = https.get = proibido("https");',
+  ].join('\n'));
+  const r = spawnSync(process.execPath, ['--import', bloqueio, path.join(path.dirname(fileURLToPath(import.meta.url)), 'pixellab-moldes.mjs'), '--lote', 'portes', '--fase', 'mestres'],
+    { encoding: 'utf8', env: Object.assign({}, process.env, { NODE_USE_ENV_PROXY: '' }) });
+  assert.strictEqual(r.status, 0, 'saída ' + r.status + '\n' + r.stderr + r.stdout);
+  assert.ok(!/REDE PROIBIDA/.test(r.stderr), r.stderr);
+  assert.match(r.stdout, /nenhuma chamada à API/);
+  assert.match(r.stdout, /Itens: 3 \(padrao-lisa, esguio-lisa, robusto-lisa\)/);
+  assert.match(r.stdout, /Total previsto: 12 gerações em 12 chamadas novas/);
+  for (const ch of ['esguio-lisa', 'padrao-lisa', 'robusto-lisa']) for (const e of ['retrato', 'parado', 'corrida', 'galope']) {
+    assert.ok(r.stdout.includes(ch + '/' + e), 'falta ' + ch + '/' + e);
+  }
+  assert.strictEqual(fs.existsSync(novos), existia, 'o dry-run não cria a pasta novos/');
 });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
