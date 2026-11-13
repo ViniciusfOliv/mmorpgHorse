@@ -3,6 +3,13 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-13 — Portes: classificação das cores corrigida sem gastar (tarefa 6a)
+Código em `prototype/tools/moldes-lib.mjs` (`corrigirGrupo`, com o diagnóstico nos comentários) e `--manter-escolhas` no `pixellab-portes.mjs`; crus e escolhas de antes no commit 8037a97.
+- **A sombra roxa escura da pelagem (314–330°, muito saturada) volta à pelagem quando encosta mais nela do que no jóquei, decidida por cor no grupo de quadros** — a faixa magenta é da sombra da seda; numa pelagem carmim ou castanho-arroxeada ela pintava o corpo com a cor da seda no galope (padrao-ondas, robusto-ondas, robusto-folhas).
+- **Cru de cores naturais (grupo sem nenhum pixel da família crina): crina e cauda achadas pela forma (manchas escuras grossas presas no alto do cavalo) e seda que caiu na família da pelagem devolvida ao jóquei** — o robusto guiado pelo padrão com força 35 saiu com cores naturais (crina preta, às vezes da cor do contorno) e as versões herdaram pelo init_image; só cor não separa.
+- **`--reprocessar --manter-escolhas`: reprocessa sem trocar o desenho já visto na folha** — com a classificação nova, outras seeds passaram a passar (esguio-folhas, robusto-chamas e robusto-ondas trocariam de parado); a etapa grava a seed que seria escolhida (`mantida`), para o Vinicius decidir.
+- **A regra "laranja (25–38°) conta como fora da paleta, máx. 2%" não mudou** — é o que ainda reprova a forma do padrao-ondas e de parte dos robustos (sombra laranja da seda e da manta no cru); mudar é decisão de desenho.
+
 ## 2026-11-13 — Visuais 2, parte 2b (portes): desenho
 Conversa com o Vinicius. Spec em `docs/superpowers/specs/2026-11-13-cavalos-portes-design.md`, aguardando a revisão dele.
 - **O porte é um gene herdado, como as marcas (só aparência)** — escolha do Vinicius; dá mais variedade e não amarra a cara do cavalo ao balanceamento (a outra opção era o porte sair da genética de status).
