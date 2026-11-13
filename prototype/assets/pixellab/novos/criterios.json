@@ -1189,8 +1189,9 @@
       },
       "completo": true,
       "final": true,
-      "ok": false,
-      "falhas": [
+      "ok": true,
+      "falhas": [],
+      "aceitos": [
         "retrato: pernas no retrato = 3 (= 4)",
         "retrato: portes: altura/comprimento do robusto ÷ a do padrão = 1,056 (≤ 0,92)",
         "retrato: portes: espessura/comprimento do robusto ÷ a do padrão = 0,817 (≥ 1,15)",
@@ -1308,24 +1309,43 @@
                   "criterio": "pernas no retrato",
                   "ok": false,
                   "valor": 3,
-                  "limite": "= 4"
+                  "limite": "= 4",
+                  "aceito": true
                 },
                 {
                   "criterio": "portes: altura/comprimento do robusto ÷ a do padrão",
                   "ok": false,
                   "valor": 1.056,
-                  "limite": "≤ 0,92"
+                  "limite": "≤ 0,92",
+                  "aceito": true
                 },
                 {
                   "criterio": "portes: espessura/comprimento do robusto ÷ a do padrão",
                   "ok": false,
                   "valor": 0.817,
-                  "limite": "≥ 1,15"
+                  "limite": "≥ 1,15",
+                  "aceito": true
                 }
               ],
-              "ok": false
+              "ok": false,
+              "manual": true,
+              "aceita": true
             }
-          ]
+          ],
+          "escolha": {
+            "manual": true,
+            "seed": 5303,
+            "data": "2026-11-13T13:06:11.089Z",
+            "motivo": "decisão do Vinicius em 2026-11-13: robusto guiado pelo padrão aceito como está (cabeça e pescoço mais pesados)",
+            "refacao": 2,
+            "origem": "refação 2, a atual",
+            "arquivo": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
+            "aceitos": [
+              "pernas no retrato",
+              "portes: altura/comprimento do robusto ÷ a do padrão",
+              "portes: espessura/comprimento do robusto ÷ a do padrão"
+            ]
+          }
         },
         "parado": {
           "escolhida": 5103,
@@ -1351,7 +1371,8 @@
                   "ok": false,
                   "valor": 1,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "faltam papéis: 4 (crina)"
+                  "motivo": "faltam papéis: 4 (crina)",
+                  "aceito": true
                 },
                 {
                   "criterio": "pernas no parado",
@@ -1360,7 +1381,9 @@
                   "limite": "= 4"
                 }
               ],
-              "ok": false
+              "ok": false,
+              "manual": true,
+              "aceita": true
             },
             {
               "seed": 5203,
@@ -1420,7 +1443,19 @@
               ],
               "ok": false
             }
-          ]
+          ],
+          "escolha": {
+            "manual": true,
+            "seed": 5103,
+            "data": "2026-11-13T13:06:11.089Z",
+            "motivo": "decisão do Vinicius em 2026-11-13: robusto guiado pelo padrão aceito como está (cabeça e pescoço mais pesados)",
+            "refacao": 2,
+            "origem": "refação 2, a atual",
+            "arquivo": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
+            "aceitos": [
+              "forma (parado)"
+            ]
+          }
         },
         "corrida": {
           "escolhida": 5103,
@@ -1446,7 +1481,8 @@
                   "ok": false,
                   "valor": 1,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "fora da paleta: 67 de 1108 pixels (6.0%) acima de 2%"
+                  "motivo": "fora da paleta: 67 de 1108 pixels (6.0%) acima de 2%",
+                  "aceito": true
                 },
                 {
                   "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
@@ -1455,7 +1491,9 @@
                   "limite": "≥ 2"
                 }
               ],
-              "ok": false
+              "ok": false,
+              "manual": true,
+              "aceita": true
             },
             {
               "seed": 5203,
@@ -1485,7 +1523,19 @@
               "ok": false,
               "motivo": "POST /create-image-pixflux → HTTP 502: upstream request failed"
             }
-          ]
+          ],
+          "escolha": {
+            "manual": true,
+            "seed": 5103,
+            "data": "2026-11-13T13:06:11.089Z",
+            "motivo": "decisão do Vinicius em 2026-11-13: robusto guiado pelo padrão aceito como está (cabeça e pescoço mais pesados)",
+            "refacao": 2,
+            "origem": "refação 2, a atual",
+            "arquivo": "raw/portes-robusto-lisa-corrida-g35padrao4102-s5103.png",
+            "aceitos": [
+              "forma (corrida)"
+            ]
+          }
         },
         "galope": {
           "escolhida": 5103,
@@ -1501,13 +1551,15 @@
               "geracoes": 1,
               "arquivo": "raw/portes-robusto-lisa-galope-c5103g35padrao4102-s5103-0..8.png",
               "data": "2026-11-13T13:00:23.750Z",
+              "quadros": 9,
               "criterios": [
                 {
                   "criterio": "forma (galope)",
                   "ok": false,
                   "valor": 9,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: fora da paleta: 67 de 1108 pixels (6.0%) acima de 2%; galope-1: fora da paleta: 69 de 1099 pixels (6.3%) acima de 2%; galope-2: fora da paleta: 72 de 1093 pixels (6.6%) acima de 2%; galope-3: fora da paleta: 76 de 1044 pixels (7.3%) acima de 2%; galope-4: fora da paleta: 69 de 1079 pixels (6.4%) acima de 2%; galope-5: fora da paleta: 72 de 1073 pixels (6.7%) acima de 2%; galope-6: fora da paleta: 71 de 1096 pixels (6.5%) acima de 2%; galope-7: fora da paleta: 66 de 1108 pixels (6.0%) acima de 2%; galope-8: fora da paleta: 69 de 1071 pixels (6.4%) acima de 2%"
+                  "motivo": "galope-0: fora da paleta: 67 de 1108 pixels (6.0%) acima de 2%; galope-1: fora da paleta: 69 de 1099 pixels (6.3%) acima de 2%; galope-2: fora da paleta: 72 de 1093 pixels (6.6%) acima de 2%; galope-3: fora da paleta: 76 de 1044 pixels (7.3%) acima de 2%; galope-4: fora da paleta: 69 de 1079 pixels (6.4%) acima de 2%; galope-5: fora da paleta: 72 de 1073 pixels (6.7%) acima de 2%; galope-6: fora da paleta: 71 de 1096 pixels (6.5%) acima de 2%; galope-7: fora da paleta: 66 de 1108 pixels (6.0%) acima de 2%; galope-8: fora da paleta: 69 de 1071 pixels (6.4%) acima de 2%",
+                  "aceito": true
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
@@ -1585,7 +1637,8 @@
                 }
               ],
               "ok": false,
-              "quadros": 9
+              "manual": true,
+              "aceita": true
             },
             {
               "seed": 5203,
@@ -1775,7 +1828,19 @@
               "ok": false,
               "quadros": 9
             }
-          ]
+          ],
+          "escolha": {
+            "manual": true,
+            "seed": 5103,
+            "data": "2026-11-13T13:06:11.089Z",
+            "motivo": "decisão do Vinicius em 2026-11-13: robusto guiado pelo padrão aceito como está (cabeça e pescoço mais pesados)",
+            "refacao": 2,
+            "origem": "refação 2, a atual",
+            "arquivo": "raw/portes-robusto-lisa-galope-c5103g35padrao4102-s5103-0..8.png",
+            "aceitos": [
+              "forma (galope)"
+            ]
+          }
         }
       },
       "historico": [
@@ -2857,6 +2922,38 @@
               ]
             }
           }
+        },
+        {
+          "escolher": [
+            "retrato",
+            "parado",
+            "corrida",
+            "galope"
+          ],
+          "data": "2026-11-13T13:06:11.089Z",
+          "motivo": "decisão do Vinicius em 2026-11-13: robusto guiado pelo padrão aceito como está (cabeça e pescoço mais pesados)",
+          "antes": {
+            "retrato": {
+              "escolhida": 5303,
+              "ok": false,
+              "refacao": 2
+            },
+            "parado": {
+              "escolhida": 5103,
+              "ok": false,
+              "refacao": 2
+            },
+            "corrida": {
+              "escolhida": 5103,
+              "ok": false,
+              "refacao": 2
+            },
+            "galope": {
+              "escolhida": 5103,
+              "ok": false,
+              "refacao": 2
+            }
+          }
         }
       ]
     }
@@ -2873,5 +2970,5 @@
     "nose": 6,
     "comprimento": 4
   },
-  "atualizado": "2026-11-13T13:03:27.231Z"
+  "atualizado": "2026-11-13T13:06:11.196Z"
 }
