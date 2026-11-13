@@ -1,6 +1,7 @@
 # Cavalos v3, bloco 1b: crescimento livre
 
-Especificação do bloco 1b, desenho aprovado em 2026-11-12 (`docs/GDD.md` §8.5). Depois de aprovada pelo
+Especificação do bloco 1b, desenho aprovado em 2026-11-12 (`docs/GDD.md` §8.5); spec aprovada em 2026-11-13 por
+delegação do Vinicius ("decida sozinho o melhor para o jogo"; `docs/memoria/decisoes.md`). Depois de aprovada pelo
 Vinicius vira plano de implementação, executado na branch `claude/cavalos-v3`, em cima do bloco 1 e antes
 de integrar na `main`. Os números vêm de três rodadas de calibração por simulação numa cópia isolada do
 jogo (dezenas de milhares de corridas por medida). A rodada 2 aplicou os quatro ajustes pedidos depois da

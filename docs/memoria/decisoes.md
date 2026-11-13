@@ -3,6 +3,22 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-13 — Decisões delegadas pelo Vinicius ("Prossiga, decida sozinho o melhor para o jogo")
+- **Spec do bloco 1b (crescimento livre) aprovada como está** — é o próximo passo do roteiro (antes de integrar o bloco 1
+  na `main` e antes da parte 3 da Visuais 2, que mexe nas mesmas telas). Ficam valendo as escolhas da spec que estavam
+  para a revisão dele: skill de tipo que multiplica os dois status do tipo; Loja e Equipamento escondidos com as peças
+  guardadas; Pedra Negra do pódio parada; a ativa não redistribui com páreo aberto; Rédea nova só pela gaveta DEV até os
+  ginásios; aviso único da migração; +5/+10 somam exatamente N ou ficam desabilitados.
+- **A equilibrada continua a build mais forte (spec 1b §15)** — mudar a regra (custo que para de subir, bônus por
+  concentrar) fica para depois de o Vinicius jogar; o bot e o "Distribuir sugerido" são a equilibrada com leve
+  inclinação no tipo.
+- **O jóquei do jogador continua o mesmo ao "Recomeçar com outro inicial"** — é a identidade do jogador (escolha do
+  Perfil), como a opção de animações; entra junto com o bloco 1b, que já mexe no `game.js`.
+- **Ícones: selo de liga só onde a liga já aparece; medalhão de raridade nas peças fica para quando o equipamento voltar**
+  — com o 1b o equipamento fica suspenso e as telas de peças somem.
+- **Parte 2c (animações) espera a confirmação de créditos do Vinicius** — o `CLAUDE.md` exige confirmação explícita para
+  geração paga; o 1b não gasta nada.
+
 ## 2026-11-13 — Portes (parte 2b): revisão final, decisões do Vinicius
 Correções em `prototype/src/sprites.js` (`corBrilho`) e `prototype/tools/moldes-test.mjs` (`formaComAceitos`); specs da 2a (§3, §5) e da 2b (§4, §6) emendadas. A escala dos retratos, também decidida aqui, está na seção abaixo.
 - **O brilho das raridades foi corrigido na 2b: a cor se ajusta ao contraste com a crina — decisão do Vinicius** — a cor clareada fixa sumia em 14 combinações do catálogo (a pior, Mágico na crina laranja do Tição, 0,005 de luminância). O brilho é um reflexo claro: a clareada de 35% fica sempre que já muda a luminância da crina em 0,05 no alfa de pico; só onde não muda, vale a clareada ou a escurecida, a de maior diferença, indo até 65% se nenhuma chega a 0,05. As 60 combinações do catálogo ficam ≥ 0,05 (a menor, Lendário na crina da Faísca, 0,052, na clareada): 46 seguem na clareada como na 2a, 13 passam à escurecida e o Mítico no Mandacaru, à clareada de 45%. O matiz continua o da raridade e o rastro do Mítico segue na clareada. (A 1ª versão desta correção usava sempre a de maior diferença, e 46 das 60 viravam faixa escura; ajustada no mesmo dia: o pedido era consertar onde o brilho sumia, não escurecer o que já aparecia.)
