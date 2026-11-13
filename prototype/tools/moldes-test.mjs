@@ -367,6 +367,435 @@ else {
   });
 }
 
+// ---------------------------------------------------------------- Marcas (zonas e camadas dos moldes)
+// prototype/src/marcas.js: zonas por quadro (cara, patas, corpo), camadas das marcas e do jóquei, faíscas.
+// Spec 2026-11-12-cavalos-marcas §3–§5. Papéis: 2 pelagem, 3 pelagem-sombra, 4/5 crina, 7 roupa, 9 sela.
+section('Marcas');
+const marcasMod = (() => {
+  try { return { M: createRequire(import.meta.url)('../src/marcas.js') }; } catch (e) { return { erro: e }; }
+})();
+const Mc = () => { if (marcasMod.erro) throw marcasMod.erro; return marcasMod.M; };
+const pelagem = v => v === 2 || v === 3;
+const MARCA_VAZIA = { cara: 'nenhuma', patas: 0, corpo: 'liso' };
+
+// Cavalo sintético 48×32 virado para a direita, com contorno 1 em volta de tudo:
+//   corpo x 6–33 × y 11–20 (sombra nas 2 linhas de baixo); cabeça x 34–41 × y 5–13 e focinho x 42 × y 7–8;
+//   crina x 33 × y 3–10; cauda x 2–5 × y 11–18; jóquei: capacete x 20–23 × y 1–2, rosto x 22–23 × y 3,
+//   seda x 19–24 × y 5–8 (linha 4 de contorno no meio), sela x 18–25 × y 9–10;
+//   pernas (pelagem a partir de y 21, casco 6 embaixo): traseira de longe x 8–9 até y 27, traseira de perto
+//   x 12–13 até y 29, dianteira de longe x 27–28 até y 27, dianteira de perto x 31–32 até y 29.
+// ancoras(): bbox x 1–43 × y 0–31 (w 43, h 32), footY 31, nose [43, 7], saddle [22, 10]; sem larguraUtil.
+// Linha da barriga = 31 − 0,3·32 = 21,4 (pernas a partir de y 22). `extra(ret)` desenha mais antes do contorno.
+const PERNAS_SINT = [[8, 9, 27], [12, 13, 29], [27, 28, 27], [31, 32, 29]];
+function cavaloMarcas(pernas, extra) {
+  const w = 48, h = 32, idx = new Uint8Array(w * h);
+  const ret = (x0, y0, x1, y1, v) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) idx[y * w + x] = v; };
+  ret(6, 11, 33, 18, 2); ret(6, 19, 33, 20, 3);
+  ret(34, 5, 41, 13, 2); ret(42, 7, 42, 8, 2);
+  ret(33, 3, 33, 10, 4); ret(2, 11, 5, 18, 4);
+  (pernas || PERNAS_SINT).forEach(([a, b, f]) => { ret(a, 21, b, f, 2); ret(a, f + 1, b, f + 1, 6); });
+  ret(20, 1, 23, 2, 7); ret(22, 3, 23, 3, 8); ret(19, 5, 24, 8, 7); ret(18, 9, 25, 10, 9);
+  if (extra) extra(ret);
+  const base = idx.slice();
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (base[y * w + x]) continue;
+    const viz = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
+      const xx = x + dx, yy = y + dy;
+      return xx >= 0 && yy >= 0 && xx < w && yy < h && base[yy * w + xx];
+    });
+    if (viz) idx[y * w + x] = 1;
+  }
+  return { idx, w, h, a: ancoras(idx, w, h) };
+}
+
+// Quadros reais (como o bloco "moldes reais": índice = round(cinza / 25)) com as âncoras do JSON.
+const quadrosReais = {};
+moldes.forEach(arq => {
+  const J = JSON.parse(fs.readFileSync(path.join(DIR, arq), 'utf8'));
+  const estilo = arq.replace(/^molde-|\.json$/g, '');
+  const nomes = ['retrato', 'parado'].concat(Array.from({ length: J.frames }, (_, i) => 'galope-' + i));
+  quadrosReais[estilo] = nomes.map(n => {
+    const d = decodePng(fs.readFileSync(path.join(DIR, 'molde-' + estilo + '-' + n + '.png')));
+    const idx = new Uint8Array(64 * 64);
+    for (let i = 0; i < idx.length; i++) idx[i] = Math.round(d.rgba[i * 4] / 25);
+    // a âncora leva a larguraUtil do molde, como o jogo passa (raio da cara igual em todos os quadros)
+    return { nome: estilo + ' ' + n, quadro: n, idx, w: 64, h: 64, a: Object.assign({ larguraUtil: J.larguraUtil }, J.ancoras[n]) };
+  });
+});
+const todosReais = () => Object.values(quadrosReais).flat();
+const contar = (arr, f) => { let n = 0; for (let i = 0; i < arr.length; i++) if (f(arr[i], i)) n++; return n; };
+
+test('zonas num molde sintético: cara perto do focinho, patas abaixo da barriga, 4 pernas na ordem fixa', () => {
+  const { idx, w, h, a } = cavaloMarcas();
+  assert.deepStrictEqual([a.bbox, a.footY, a.nose, a.saddle], [{ x: 1, y: 0, w: 43, h: 32 }, 31, [43, 7], [22, 10]]);
+  const { zona, perna } = Mc().zonas(idx, w, h, a);
+  assert.strictEqual(zona.length, w * h); assert.strictEqual(perna.length, w * h);
+  const LIM = Mc().LIMITES;
+  assert.ok(Object.isFrozen(LIM), 'LIMITES só leitura');
+  const esperada = (anc) => {
+    const r = LIM.caraRaio * (anc.larguraUtil || anc.bbox.w), barriga = anc.footY - LIM.barriga * anc.bbox.h;
+    return (x, y, v) => !pelagem(v) ? 0
+      : (y <= anc.nose[1] + LIM.caraBaixo && Math.hypot(x - anc.nose[0], y - anc.nose[1]) <= r) ? 1
+      : y > barriga ? 2 : 3;
+  };
+  const z0 = esperada(a);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x;
+    assert.strictEqual(zona[i], z0(x, y, idx[i]), 'zona em (' + x + ',' + y + ')');
+    assert.strictEqual(perna[i] >= 0, zona[i] === 2, 'perna só na zona das patas, em (' + x + ',' + y + ')');
+  }
+  // com larguraUtil na âncora, o raio sai dela (e não do bbox.w)
+  const aL = Object.assign({ larguraUtil: 30 }, a), zL = Mc().zonas(idx, w, h, aL).zona, eL = esperada(aL);
+  for (let i = 0; i < w * h; i++) assert.strictEqual(zL[i], eL(i % w, (i / w) | 0, idx[i]), 'larguraUtil: pixel ' + i);
+  assert.notDeepStrictEqual(Array.from(zL), Array.from(zona), 'larguraUtil muda o raio');
+  assert.strictEqual(zona[8 * w + 40], 1, 'cabeça é cara'); assert.strictEqual(zona[15 * w + 10], 3, 'lombo é corpo');
+  assert.strictEqual(zona[11 * w + 40], 3, 'abaixo do corte (nose.y + caraBaixo) não é cara');
+  assert.strictEqual(zona[21 * w + 12], 3, 'coxa acima da linha da barriga é corpo');
+  // ordem fixa: 0 traseira de perto, 1 dianteira de perto, 2 traseira de longe, 3 dianteira de longe
+  assert.deepStrictEqual([perna[29 * w + 12], perna[29 * w + 31], perna[27 * w + 8], perna[27 * w + 27]], [0, 1, 2, 3]);
+  assert.deepStrictEqual([perna[22 * w + 13], perna[22 * w + 32], perna[22 * w + 9], perna[22 * w + 28]], [0, 1, 2, 3]);
+});
+
+test('pernas: componentes; cascos separados partem a componente; lado pela sela; de perto = a maior; > 2 num lado junta a menor', () => {
+  const pernaEm = (c, x, y) => Mc().zonas(c.idx, c.w, c.h, c.a).perna[y * c.w + x];
+  // só as duas traseiras (as duas à esquerda da sela, x 22): de perto 0 (16 px), de longe 2 (12 px)
+  const tras = cavaloMarcas([[8, 9, 27], [12, 13, 29]]);
+  assert.deepStrictEqual([pernaEm(tras, 12, 29), pernaEm(tras, 8, 27)], [0, 2]);
+  // sem dianteiras, 2 meias vão para as 2 traseiras achadas (a perna 1 não existe)
+  const m2 = Mc().camadaMarcas(tras.idx, tras.w, tras.h, tras.a, { cara: 'nenhuma', patas: 2, corpo: 'liso' }, 1);
+  assert.ok(m2[29 * tras.w + 12] && m2[27 * tras.w + 8], '2 meias nas 2 traseiras');
+  // traseiras em Λ: uma componente só (coxa junta em y 22–23), cascos separados embaixo (x 8–9 e x 12–13)
+  // ⇒ partida no vão (corte em x 11); a parte da direita tem mais pixels (18 × 16) e é a de perto
+  const lambda = cavaloMarcas([[27, 28, 27], [31, 32, 29]], ret => {
+    ret(8, 21, 13, 23, 2); ret(8, 24, 9, 28, 2); ret(8, 29, 9, 29, 6); ret(12, 24, 13, 29, 2); ret(12, 30, 13, 30, 6);
+  });
+  assert.strictEqual(lambda.a.footY, 31);
+  assert.deepStrictEqual([pernaEm(lambda, 12, 29), pernaEm(lambda, 11, 22), pernaEm(lambda, 8, 28), pernaEm(lambda, 10, 22)], [0, 0, 2, 2]);
+  assert.deepStrictEqual([pernaEm(lambda, 31, 29), pernaEm(lambda, 27, 27)], [1, 3]);
+  // três grupos: as duas traseiras e a dianteira de perto
+  const tres = cavaloMarcas([[8, 9, 27], [12, 13, 29], [31, 32, 29]]);
+  assert.deepStrictEqual([pernaEm(tres, 12, 29), pernaEm(tres, 31, 29), pernaEm(tres, 8, 27)], [0, 1, 2]);
+  // uma de cada lado: as duas são "de perto"
+  const duas = cavaloMarcas([[12, 13, 27], [27, 28, 29]]);
+  assert.deepStrictEqual([pernaEm(duas, 12, 27), pernaEm(duas, 27, 29)], [0, 1]);
+  // 3 traseiras: a menor (x 15, 3 px) junta com a vizinha mais perto (x 12–13); sobram 4 pernas
+  const cinco = cavaloMarcas(PERNAS_SINT.concat([[15, 15, 24]]));
+  const z = Mc().zonas(cinco.idx, cinco.w, cinco.h, cinco.a);
+  assert.strictEqual(new Set(Array.from(z.perna).filter(p => p >= 0)).size, 4);
+  assert.strictEqual(z.perna[24 * cinco.w + 15], z.perna[29 * cinco.w + 12], 'x 15 junta com a perna x 12–13');
+});
+
+test('zonas nos 4 moldes reais (parado e os 9 quadros do galope): cara e ≥ 2 pernas achadas', () => {
+  const estilos = Object.keys(quadrosReais);
+  assert.strictEqual(estilos.length, 4, 'moldes reais: ' + estilos.join(', '));
+  estilos.forEach(estilo => {
+    const linha = [];
+    quadrosReais[estilo].forEach(q => {
+      const { zona, perna } = Mc().zonas(q.idx, q.w, q.h, q.a);
+      const cara = contar(zona, v => v === 1);
+      const pernas = new Set(Array.from(perna).filter(p => p >= 0)).size;
+      linha.push(q.quadro.replace('galope-', 'g') + ' ' + cara + '/' + pernas);
+      assert.ok(cara > 0, q.nome + ': nenhuma cara');
+      assert.ok(pernas >= 2, q.nome + ': ' + pernas + ' perna(s)');
+      for (let i = 0; i < zona.length; i++) assert.strictEqual(zona[i] > 0, pelagem(q.idx[i]), q.nome + ' pixel ' + i);
+    });
+    console.log('       ' + estilo + ' (pixels de cara/pernas): ' + linha.join(' · '));
+  });
+});
+
+// Manchas 8-conexas dos pixels ≠ 0 de uma camada (cada uma, a lista dos seus índices).
+function manchas(c, w, h) {
+  const visto = new Uint8Array(w * h), out = [];
+  for (let i = 0; i < w * h; i++) {
+    if (!c[i] || visto[i]) continue;
+    const m = [], pilha = [i];
+    visto[i] = 1;
+    while (pilha.length) {
+      const j = pilha.pop(), x = j % w, y = (j / w) | 0;
+      m.push(j);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy, k = yy * w + xx;
+        if (xx >= 0 && yy >= 0 && xx < w && yy < h && c[k] && !visto[k]) { visto[k] = 1; pilha.push(k); }
+      }
+    }
+    out.push(m);
+  }
+  return out;
+}
+
+test('meias nos 44 quadros reais: 1 meia = uma mancha só; cada perna achada a mais pinta mais; no galope a 1ª meia fica atrás', () => {
+  const linhas = [];
+  Object.keys(quadrosReais).forEach(estilo => {
+    const lin = [];
+    quadrosReais[estilo].forEach(q => {
+      const { perna } = Mc().zonas(q.idx, q.w, q.h, q.a);
+      const nPernas = new Set(Array.from(perna).filter(p => p >= 0)).size;
+      const L = [0, 1, 2, 3, 4].map(n => Array.from(Mc().camadaMarcas(q.idx, q.w, q.h, q.a, { cara: 'nenhuma', patas: n, corpo: 'liso' }, 1)));
+      const m1 = manchas(L[1], q.w, q.h);
+      assert.strictEqual(m1.length, 1, q.nome + ': 1 meia em ' + m1.length + ' manchas');
+      for (let n = 0; n < 4; n++) {
+        if (nPernas >= n + 1) assert.notDeepStrictEqual(L[n + 1], L[n], q.nome + ': ' + (n + 1) + ' meia(s) = ' + n + ' (' + nPernas + ' pernas)');
+        else assert.deepStrictEqual(L[n + 1], L[n], q.nome + ': meia a mais sem perna achada');
+      }
+      if (/^galope-/.test(q.quadro)) {
+        const cx = m1[0].reduce((soma, i) => soma + i % q.w, 0) / m1[0].length;
+        assert.ok(cx < q.a.saddle[0], q.nome + ': 1ª meia na frente (x ' + cx.toFixed(1) + ', sela ' + q.a.saddle[0] + ')');
+      }
+      lin.push(q.quadro.replace('galope-', 'g') + ' ' + nPernas);
+    });
+    linhas.push(estilo + ': ' + lin.join(' · '));
+  });
+  console.log('       pernas achadas — ' + linhas.join('\n       pernas achadas — '));
+});
+
+test('cara presa ao focinho: nos 9 quadros do galope, a borda de baixo (em relação ao nose) varia ≤ 2 px e a área ≤ 20%', () => {
+  Object.keys(quadrosReais).forEach(estilo => {
+    const fundos = [], areas = [];
+    quadrosReais[estilo].filter(q => /^galope-/.test(q.quadro)).forEach(q => {
+      const { zona } = Mc().zonas(q.idx, q.w, q.h, q.a);
+      let fundo = -1, area = 0;
+      zona.forEach((v, i) => { if (v === 1) { area++; fundo = Math.max(fundo, (i / q.w) | 0); } });
+      fundos.push(fundo - q.a.nose[1]); areas.push(area);
+    });
+    const [fMin, fMax, aMin, aMax] = [Math.min(...fundos), Math.max(...fundos), Math.min(...areas), Math.max(...areas)];
+    const medidas = estilo + ': borda − nose ' + fundos.join(' ') + '; área ' + areas.join(' ');
+    assert.ok(fMax - fMin <= 2, medidas);
+    assert.ok(aMax - aMin <= 0.2 * aMin, medidas + ' (' + (100 * (aMax - aMin) / aMin).toFixed(0) + '%)');
+    console.log('       ' + medidas + ' (' + (100 * (aMax - aMin) / aMin).toFixed(0) + '%)');
+  });
+});
+
+// Cada marca sozinha: o que ela pinta e em que zona.
+const MARCAS_SOZINHAS = [
+  [{ cara: 'estrela' }, 1], [{ cara: 'listra' }, 1], [{ cara: 'frente' }, 1],
+  [{ patas: 1 }, 2], [{ patas: 2 }, 2], [{ patas: 3 }, 2], [{ patas: 4 }, 2],
+  [{ corpo: 'malhado' }, 3], [{ corpo: 'pintado' }, 3], [{ corpo: 'ruao' }, 3]
+].map(([m, z]) => [Object.assign({}, MARCA_VAZIA, m), z]);
+const quadrosTeste = () => [Object.assign({ nome: 'sintético', quadro: 'sintético' }, cavaloMarcas())].concat(todosReais());
+
+test('cada marca só muda pixels de pelagem da zona dela; contorno, crina, jóquei e sela intactos', () => {
+  quadrosTeste().forEach(q => {
+    const { zona } = Mc().zonas(q.idx, q.w, q.h, q.a);
+    const vazia = Mc().camadaMarcas(q.idx, q.w, q.h, q.a, MARCA_VAZIA, 7);
+    assert.strictEqual(contar(vazia, v => v), 0, q.nome + ': nenhuma marca pinta algo');
+    const uniao = new Uint8Array(q.w * q.h);
+    MARCAS_SOZINHAS.forEach(([m, z]) => {
+      const c = Mc().camadaMarcas(q.idx, q.w, q.h, q.a, m, 12345);
+      const nome = q.nome + ' ' + JSON.stringify(m);
+      assert.strictEqual(c.length, q.w * q.h);
+      for (let i = 0; i < c.length; i++) {
+        if (!c[i]) continue;
+        assert.ok(pelagem(q.idx[i]), nome + ': pintou o papel ' + q.idx[i] + ' no pixel ' + i);
+        assert.strictEqual(zona[i], z, nome + ': fora da zona ' + z + ' no pixel ' + i);
+        if (c[i] === 3) assert.strictEqual(m.corpo, 'pintado', nome + ': escuro sem ser pintado');
+        else assert.strictEqual(c[i], q.idx[i] === 2 ? 1 : 2, nome + ': branco 1 na pelagem, 2 na sombra');
+        uniao[i] = c[i];
+      }
+    });
+    // as zonas não se cruzam: todas as marcas juntas = a soma das marcas sozinhas
+    const juntas = Mc().camadaMarcas(q.idx, q.w, q.h, q.a, { cara: 'frente', patas: 4, corpo: 'ruao' }, 12345);
+    const soma = new Uint8Array(q.w * q.h);
+    [{ cara: 'frente' }, { patas: 4 }, { corpo: 'ruao' }].forEach(m => {
+      Mc().camadaMarcas(q.idx, q.w, q.h, q.a, Object.assign({}, MARCA_VAZIA, m), 12345).forEach((v, i) => { if (v) soma[i] = v; });
+    });
+    assert.deepStrictEqual(Array.from(juntas), Array.from(soma), q.nome + ': frente + 4 meias + ruão');
+  });
+});
+
+test('estrela de 2 a 3 px; listra de testa a focinho, mais fina que a frente; meias = 3 linhas de baixo das N primeiras pernas', () => {
+  quadrosTeste().forEach(q => {
+    const { zona, perna } = Mc().zonas(q.idx, q.w, q.h, q.a);
+    const nCara = contar(zona, v => v === 1);
+    const camada = m => Mc().camadaMarcas(q.idx, q.w, q.h, q.a, Object.assign({}, MARCA_VAZIA, m), 99);
+    const est = contar(camada({ cara: 'estrela' }), v => v);
+    assert.ok(est >= 2 && est <= 3, q.nome + ': estrela com ' + est + ' px');
+    const lis = camada({ cara: 'listra' });
+    const nLis = contar(lis, v => v);
+    assert.ok(nLis >= 3 && nLis < 0.5 * nCara, q.nome + ': listra com ' + nLis + ' px (cara ' + nCara + ')');
+    // a listra desce até o focinho: tem um pixel a até 3 px do nose
+    let perto = false;
+    lis.forEach((v, i) => { if (v && Math.hypot(i % q.w - q.a.nose[0], ((i / q.w) | 0) - q.a.nose[1]) <= 3) perto = true; });
+    assert.ok(perto, q.nome + ': listra longe do focinho');
+    // meias: as N primeiras pernas ACHADAS na ordem fixa, só as 3 linhas de baixo de cada uma
+    const fundo = [-1, -1, -1, -1];
+    perna.forEach((p, i) => { if (p >= 0) fundo[p] = Math.max(fundo[p], (i / q.w) | 0); });
+    const achadas = [0, 1, 2, 3].filter(p => fundo[p] >= 0);
+    for (let n = 1; n <= 4; n++) {
+      const c = camada({ patas: n }), com = achadas.slice(0, n);
+      for (let i = 0; i < c.length; i++) {
+        const y = (i / q.w) | 0, deve = com.includes(perna[i]) && y >= fundo[perna[i]] - 2;
+        assert.strictEqual(!!c[i], deve, q.nome + ' ' + n + ' meia(s): pixel ' + i);
+      }
+    }
+  });
+});
+
+test('frente cobre a zona da cara; ruao troca de 25% a 35% do corpo', () => {
+  quadrosTeste().forEach(q => {
+    const { zona } = Mc().zonas(q.idx, q.w, q.h, q.a);
+    const f = Mc().camadaMarcas(q.idx, q.w, q.h, q.a, Object.assign({}, MARCA_VAZIA, { cara: 'frente' }), 1);
+    for (let i = 0; i < f.length; i++) assert.strictEqual(!!f[i], zona[i] === 1, q.nome + ' frente: pixel ' + i);
+    [1, 2, 0xDEADBEEF].forEach(semente => {
+      const r = Mc().camadaMarcas(q.idx, q.w, q.h, q.a, Object.assign({}, MARCA_VAZIA, { corpo: 'ruao' }), semente);
+      const corpo = contar(zona, v => v === 3), trocados = contar(r, v => v);
+      const frac = trocados / corpo;
+      assert.ok(frac >= 0.25 && frac <= 0.35, q.nome + ' ruão (semente ' + semente + '): ' + (100 * frac).toFixed(1) + '% de ' + corpo);
+    });
+  });
+});
+
+// Mapa "posição relativa à sela → pintado ou não" dos pixels de corpo de um quadro (o tom, 1 ou 2, segue o
+// papel do pixel naquele quadro; o que não pode mudar é ONDE o padrão cai).
+function relativoASela(q, m, semente) {
+  const { zona } = Mc().zonas(q.idx, q.w, q.h, q.a);
+  const c = Mc().camadaMarcas(q.idx, q.w, q.h, q.a, Object.assign({}, MARCA_VAZIA, m), semente);
+  const mapa = new Map();
+  for (let i = 0; i < c.length; i++) {
+    if (zona[i] !== 3) continue;
+    mapa.set(((i % q.w) - q.a.saddle[0]) + ',' + (((i / q.w) | 0) - q.a.saddle[1]), c[i] > 0);
+  }
+  return mapa;
+}
+function mesmoPadraoNoGalope(m) {
+  Object.keys(quadrosReais).forEach(estilo => {
+    const galope = quadrosReais[estilo].filter(q => /^galope-/.test(q.quadro));
+    assert.strictEqual(galope.length, 9, estilo);
+    const mapas = galope.map(q => relativoASela(q, m, 0xC0FFEE));
+    mapas.forEach((mp, k) => assert.ok(Array.from(mp.values()).some(v => v), estilo + ' ' + galope[k].nome + ': ' + m.corpo + ' vazio'));
+    let comuns = 0;
+    for (let i = 0; i < mapas.length; i++) for (let j = i + 1; j < mapas.length; j++) {
+      mapas[i].forEach((v, k) => {
+        if (!mapas[j].has(k)) return;
+        comuns++;
+        assert.strictEqual(mapas[j].get(k), v, estilo + ' ' + m.corpo + ': ' + galope[i].nome + ' × ' + galope[j].nome + ' em ' + k);
+      });
+    }
+    assert.ok(comuns > 1000, estilo + ': poucos pixels em comum (' + comuns + ')');
+  });
+}
+
+test('malhado: o mesmo padrão nos 9 quadros do galope, em coordenadas relativas à sela', () => {
+  mesmoPadraoNoGalope({ corpo: 'malhado' });
+});
+
+test('pintado e ruão: o mesmo padrão nos 9 quadros do galope; sementes diferentes ⇒ malhados diferentes', () => {
+  mesmoPadraoNoGalope({ corpo: 'pintado' });
+  mesmoPadraoNoGalope({ corpo: 'ruao' });
+  const q = quadrosTeste()[0];
+  const camada = s => Array.from(Mc().camadaMarcas(q.idx, q.w, q.h, q.a, Object.assign({}, MARCA_VAZIA, { corpo: 'malhado' }), s));
+  assert.deepStrictEqual(camada(42), camada(42), 'determinístico');
+  assert.notDeepStrictEqual(camada(42), camada(43), 'semente muda as manchas');
+  // retrato (sem sela): a referência é o centro da caixa; o malhado aparece
+  todosReais().filter(r => r.quadro === 'retrato').forEach(r => {
+    assert.strictEqual(r.a.saddle, null);
+    const c = Mc().camadaMarcas(r.idx, r.w, r.h, r.a, Object.assign({}, MARCA_VAZIA, { corpo: 'malhado' }), 42);
+    assert.ok(contar(c, v => v) > 0, 'retrato sem malhado');
+  });
+});
+
+test('Review Focus 2: quadro sem pernas e sem cara ⇒ meias e estrela não pintam nada, sem exceção', () => {
+  // pelagem só no meio; a "cabeça" e as "pernas" são só contorno (longe do focinho e acima da barriga)
+  const w = 40, h = 30, idx = new Uint8Array(w * h);
+  for (let y = 10; y <= 14; y++) for (let x = 2; x <= 10; x++) idx[y * w + x] = 2;
+  for (let x = 30; x <= 35; x++) idx[x] = 1;
+  for (let y = 15; y <= 25; y++) idx[y * w + 4] = 1;
+  const a = ancoras(idx, w, h);
+  const { zona, perna } = Mc().zonas(idx, w, h, a);
+  assert.strictEqual(contar(zona, v => v === 1), 0); assert.strictEqual(contar(zona, v => v === 2), 0);
+  assert.strictEqual(contar(perna, p => p >= 0), 0);
+  ['estrela', 'listra', 'frente'].forEach(cara => {
+    const c = Mc().camadaMarcas(idx, w, h, a, { cara, patas: 4, corpo: 'liso' }, 5);
+    assert.strictEqual(contar(c, v => v), 0, cara + ' + 4 meias');
+  });
+  // quadro vazio, âncora ausente e marcas/padrão inválidos: camadas zeradas, sem lançar
+  const vazio = new Uint8Array(w * h), av = ancoras(vazio, w, h);
+  assert.strictEqual(av.nose, null);
+  [av, null, undefined].forEach(anc => {
+    assert.strictEqual(contar(Mc().zonas(vazio, w, h, anc).zona, v => v), 0);
+    assert.strictEqual(contar(Mc().zonas(idx, w, h, anc).zona, v => v === 1 || v === 2), 0);
+    assert.strictEqual(contar(Mc().camadaMarcas(vazio, w, h, anc, { cara: 'frente', patas: 4, corpo: 'malhado' }, 5), v => v), 0);
+    assert.strictEqual(contar(Mc().camadaJoquei(vazio, w, h, anc, 'xadrez'), v => v), 0);
+  });
+  [null, undefined, {}, { cara: 'x', patas: 7, corpo: 'y' }].forEach(m => {
+    assert.strictEqual(contar(Mc().camadaMarcas(idx, w, h, a, m, 5), v => v), 0, JSON.stringify(m));
+  });
+});
+
+test('camadaJoquei: padrão só no papel 7; liso ⇒ zero pixels 1; capacete = grupo de cima do papel 7; manta = papel 9', () => {
+  const PADROES = createRequire(import.meta.url)('../src/data.js').JOQUEI.padroes;
+  // sintético: capacete x 20–23 × y 1–2; seda x 19–24 × y 5–8; sela x 18–25 × y 9–10
+  const s = cavaloMarcas();
+  PADROES.forEach(p => {
+    const c = Mc().camadaJoquei(s.idx, s.w, s.h, s.a, p);
+    for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) {
+      const i = y * s.w + x, v = s.idx[i];
+      const capacete = v === 7 && y <= 2;
+      if (capacete) assert.strictEqual(c[i], 2, p + ': capacete em (' + x + ',' + y + ')');
+      else if (v === 9) assert.strictEqual(c[i], 3, p + ': manta em (' + x + ',' + y + ')');
+      else if (v === 7) assert.ok(c[i] === 0 || c[i] === 1, p + ': seda em (' + x + ',' + y + ')');
+      else assert.strictEqual(c[i], 0, p + ': papel ' + v + ' em (' + x + ',' + y + ')');
+    }
+    const n1 = contar(c, v => v === 1);
+    assert.strictEqual(n1 === 0, p === 'liso', p + ': ' + n1 + ' pixels de padrão');
+  });
+  assert.strictEqual(contar(Mc().camadaJoquei(s.idx, s.w, s.h, s.a, 'nao-existe'), v => v === 1), 0, 'padrão inválido = liso');
+  // moldes reais (parado e galope): capacete no alto, padrão só na seda abaixo dele e minoria nela
+  todosReais().filter(q => q.quadro !== 'retrato').forEach(q => {
+    let topo = q.h;
+    q.idx.forEach((v, i) => { if (v === 7) topo = Math.min(topo, (i / q.w) | 0); });
+    PADROES.forEach(p => {
+      const c = Mc().camadaJoquei(q.idx, q.w, q.h, q.a, p), nome = q.nome + ' ' + p;
+      let capMin = q.h, capMax = -1, seda = 0, padrao = 0, padraoMin = q.h;
+      for (let i = 0; i < c.length; i++) {
+        const v = q.idx[i], y = (i / q.w) | 0;
+        if (c[i] === 2) { assert.strictEqual(v, 7, nome); capMin = Math.min(capMin, y); capMax = Math.max(capMax, y); }
+        if (c[i] === 3) assert.strictEqual(v, 9, nome);
+        if (v === 9) assert.strictEqual(c[i], 3, nome + ': toda a sela vira manta');
+        if (c[i] === 1) { assert.strictEqual(v, 7, nome); padrao++; padraoMin = Math.min(padraoMin, y); }
+        if (v === 7 && c[i] !== 2) seda++;
+      }
+      assert.strictEqual(capMin, topo, nome + ': o capacete começa no topo do papel 7');
+      assert.ok(capMax - capMin <= 8, nome + ': capacete alto demais (' + capMin + '–' + capMax + ')');
+      if (p === 'liso') { assert.strictEqual(padrao, 0, nome); return; }
+      assert.ok(padrao > 0, nome + ': padrão vazio');
+      assert.ok(padraoMin > capMax, nome + ': padrão acima da linha do capacete');
+      assert.ok(padrao < seda - padrao, nome + ': padrão ' + padrao + ' ≥ base ' + (seda - padrao));
+    });
+  });
+});
+
+test('faiscas: determinístico; n itens; dx, dy em [0,1]', () => {
+  const M = Mc();
+  assert.deepStrictEqual(M.N_FAISCAS, { comum: 0, magico: 0, raro: 3, lendario: 5, mitico: 5 });
+  assert.deepStrictEqual(M.BRILHO, { comum: 0, magico: 0.25, raro: 0.30, lendario: 0.45, mitico: 0.45 });
+  [0, 1, 0x811c9dc5, 0xFFFFFFFF].forEach(semente => {
+    [0, 3, 5].forEach(n => {
+      const f = M.faiscas(semente, n);
+      assert.strictEqual(f.length, n);
+      assert.deepStrictEqual(M.faiscas(semente, n), f, 'determinístico');
+      f.forEach(o => {
+        assert.deepStrictEqual(Object.keys(o).sort(), ['dx', 'dy', 'fase']);
+        assert.ok(o.dx >= 0 && o.dx <= 1 && o.dy >= 0 && o.dy <= 1, JSON.stringify(o));
+        assert.ok(o.fase >= 0 && o.fase < 1, JSON.stringify(o));
+      });
+    });
+  });
+  assert.notDeepStrictEqual(M.faiscas(1, 5), M.faiscas(2, 5), 'semente muda as posições');
+  // em volta da caixa: cada faísca encostada numa das 4 bordas (a até 0,2 dela)
+  M.faiscas(0xABCDEF, 5).forEach(o => assert.ok(Math.min(o.dx, o.dy, 1 - o.dx, 1 - o.dy) <= 0.2, JSON.stringify(o)));
+  ['x', -1, NaN, null, -Infinity].forEach(n => assert.deepStrictEqual(M.faiscas(1, n), [], 'n inválido ⇒ nenhuma'));
+  // n preso a [0, 16] (Infinity travava o laço)
+  [16, 17, 1e9, Infinity].forEach(n => assert.strictEqual(M.faiscas(1, n).length, 16, 'n = ' + n));
+});
+
+test('marcas.js: puro (sem Math.random, sem DOM, sem canvas) e UMD', () => {
+  const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'marcas.js'), 'utf8');
+  const codigo = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  ['Math.random', 'document', 'window', 'getContext', 'Date.now'].forEach(p => assert.ok(!codigo.includes(p), 'usa ' + p));
+  assert.ok(/root\.Marcas\s*=/.test(codigo) && /module\.exports\s*=/.test(codigo), 'UMD');
+  assert.ok(!/\b(let|const)\b|=>/.test(codigo), 'ES5');
+});
+
 // ---------------------------------------------------------------- Catálogo de ícones
 section('Catálogo de ícones');
 {

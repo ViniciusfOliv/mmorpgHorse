@@ -10,13 +10,14 @@
  *   Dev.horseTemplate(c, n) -> template no formato de GameData.STARTERS (o game.js faz a instância):
  *     c = { name, element, rarity, sex, potential: 0..31 | 'max' | { vel..sorte } (genética por status),
  *           grau: 1..3 (estrelas; padrão 2), alloc: { vel..sorte } (pontos distribuídos), skills: [ids],
- *           palette: { coat, coatShade, mane, accent } }; n = nº do cavalo (id 'dev-' + n; padrão 1).
+ *           palette: { coat, coatShade, mane, accent }, marcas: { cara, patas, corpo } (GameData.MARCAS; patas
+ *           também em texto, '0'..'4', como vem do select) }; n = nº do cavalo (id 'dev-' + n; padrão 1).
  *     Sem status base (v3: sai da genética). level 1, xp 0, espécie 'cavalo'. alloc: inteiros ≥ 0
  *     (o limite por status e o total ficam para RaceSim.validAlloc, que depende do nível).
  *     Skills: qualquer uma do catálogo (inclusive de outro elemento); inexistentes ou
  *     repetidas saem; no máximo RARITIES[rarity].skillSlots, na ordem pedida.
  *     Campo inválido vira o padrão: elemento Fogo, raridade Comum, sexo macho, nome "Teste",
- *     potencial 0, cores de um cavalo pronto do mesmo elemento (cor a cor).
+ *     potencial 0, cores de um cavalo pronto do mesmo elemento (cor a cor), marcas nenhuma/0/liso (gene a gene).
  *     O nível (1 até o máximo) é aplicado pelo game.js na instância (level direto, xp 0).
  *
  *   Dev.itemId({ slot, set, rarity }) -> id de GameData.GEAR ou null. Comum e Mágico são peças soltas
@@ -51,6 +52,7 @@
   var GOLD_INF = 999999;
   var WIND_INTENSITIES = ['calmo', 'brisa', 'ventania'];
   var PALETTE_KEYS = ['coat', 'coatShade', 'mane', 'accent'];
+  var MARCA_GENES = ['cara', 'patas', 'corpo'];   // GameData.MARCAS (a 1ª de cada lista é o padrão)
   var NEUTRAL_DISTANCE = 1600;   // o mesmo padrão de RaceSim.normalizeConditions sem seed
   var MAX_LIST = 12;
 
@@ -101,9 +103,15 @@
       var pk = PALETTE_KEYS[i], cor = c.palette && c.palette[pk];
       palette[pk] = isHex(cor) ? cor : def[pk];
     }
+    var mc = c.marcas && typeof c.marcas === 'object' ? c.marcas : {}, marcas = {};
+    for (i = 0; i < MARCA_GENES.length; i++) {
+      var gk = MARCA_GENES[i], lista = G.MARCAS[gk], mv = mc[gk];
+      if (gk === 'patas' && typeof mv === 'string' && /^\d$/.test(mv)) mv = Number(mv);
+      marcas[gk] = lista.indexOf(mv) >= 0 ? mv : lista[0];
+    }
     return {
       id: 'dev-' + num, name: name, especie: 'cavalo', element: element, rarity: rarity, sex: sex,
-      level: 1, xp: 0, potential: potential, alloc: alloc, skills: skills, palette: palette, grau: grau
+      level: 1, xp: 0, potential: potential, alloc: alloc, skills: skills, palette: palette, grau: grau, marcas: marcas
     };
   }
 

@@ -4,9 +4,19 @@
  *
  * API (global `Sprites` no navegador; module.exports no Node):
  *   Sprites.HORSE_W, Sprites.HORSE_H, Sprites.GALLOP_FRAMES, Sprites.FOOT_Y
- *   Sprites.drawHorse(ctx, x, y, { palette, element, frame, scale, silks, idle, t, jockey, shadow, quadro })
+ *   Sprites.drawHorse(ctx, x, y, { palette, element, frame, scale, silks, idle, t, jockey, shadow, quadro,
+ *                                  marcas, semente, joquei, raridade, rastro, reduzido })
  *     frame pode ser fracionário (fase contínua do galope); quadro = { topo, base } em px: quadro de altura
- *     fixa onde o molde inteiro tem de caber (retratos, pódio) — o desenho por código o ignora
+ *     fixa onde o molde inteiro tem de caber (retratos, pódio) — o desenho por código o ignora.
+ *     Parte 2a (spec 2026-11-12-cavalos-marcas), todas opcionais — sem elas, o desenho é o de antes, byte a byte:
+ *       marcas = { cara, patas, corpo } (GameData.MARCAS) e semente (uint32, Breed.hashChave da chave do cavalo,
+ *         calculada por quem chama): marcas na pelagem, só nos moldes (Marcas.camadaMarcas);
+ *       joquei = { padrao, capacete } (GameData.JOQUEI): padrão da seda num tom 2 da cor `silks`, capacete na cor
+ *         escolhida e manta no capacete escurecido, só nos moldes (Marcas.camadaJoquei);
+ *       raridade (id de GameData.RARITIES), rastro (só na corrida), reduzido (movimento reduzido): os efeitos de
+ *         Sprites.drawRaridade, desenhados depois do cavalo (as faíscas e o rastro também no desenho por código).
+ *   Sprites.drawRaridade(ctx, caixa, o)  caixa = horseBox(x, y, o): brilho na crina (só com molde), faíscas e
+ *     rastro do Mítico (ver a seção RARIDADE VISÍVEL). Comum não desenha nada.
  *   Sprites.drawTrack(ctx, { width, height, cameraX, pxPerMeter, lanes, laneTop, laneH, surface,
  *                           finishM, hills, curves, distanceMarkersEvery, t, weather, pixel, wind, curveScale })
  *     wind = { intensity: 'calmo'|'brisa'|'ventania', dir: 1|-1 } (só visual; padrão brisa ←): bandeirinhas
@@ -29,14 +39,18 @@
  *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
  *   Sprites.drawHorseSilhouette(ctx, x, y, opts, cor, alpha)  (contorno tingido, chamar antes de drawHorse),
  *   Sprites.anchorsFor(element, scale, estado), Sprites.horseBox(x, y, opts),
- *   Sprites.limparCacheMoldes() (moldes recoloridos, silhuetas do contorno e textos prontos; o game.js chama ao
- *     trocar de tela),
+ *   Sprites.limparCacheMoldes() (moldes recoloridos, silhuetas do contorno, máscaras do brilho da crina e textos
+ *     prontos; o game.js chama ao trocar de tela),
+ *   Sprites.prepararCavalo(opts) -> n: recolore já, no cache dos moldes, os quadros que drawHorse(…, opts) usa (parado
+ *     e todo o galope; sem jóquei, o retrato), para a corrida montar cada cavalo uma vez na largada; 0 sem moldes,
  *   Sprites.drawHorseCodigo(...)
+ *   Dependências: Marcas (marcas.js) e GameData (data.js) — require no Node, globais no navegador (procurados na
+ *   hora do desenho). Sem eles (o wiki embute só este arquivo), marcas, jóquei e raridade não desenham nada.
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.Sprites = factory();
-}(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./marcas.js'), require('./data.js'));
+  else root.Sprites = factory(null, null);   // no navegador: Marcas e GameData globais, procurados na hora (ver marcasApi)
+}(typeof self !== 'undefined' ? self : this, function (MARCAS_NODE, DADOS_NODE) {
   'use strict';
 
   // ===================================================================
@@ -883,13 +897,15 @@
   // (crista, orelhas) é cortado em no máximo 10 % da altura do bbox (senão a escala desce um passo).
   // As referências são POR ESTADO, não por quadro: por quadro o cavalo tremeria no galope (cauda e patas
   // mudam rear e footY). Como o focinho cai no mesmo NOSE, a câmera e as etiquetas da corrida não mudam;
-  // anchorsFor() converte rear/saddle do molde para as unidades do sprite por código.
+  // anchorsFor() converte rear/saddle do molde para as unidades do sprite por código. As âncoras POR QUADRO
+  // (M.ancoras = { retrato, parado, galope: [9] }, as do JSON + larguraUtil) só servem às zonas das marcas e
+  // do jóquei (marcas.js), presas a cada quadro.
   // Galope: o ciclo do molde (frames quadros) dura o mesmo que o ciclo do código (GALLOP_FRAMES quadros);
   // `frame` pode ser fracionário (fase contínua) e o índice é floor((frame mod GALLOP_FRAMES) × frames / GALLOP_FRAMES).
   var ESTILO_POR_ELEMENTO = { fogo: 'chamas', agua: 'ondas', grama: 'folhas', neutro: 'lisa' };
   var ESTILOS_MOLDE = ['chamas', 'ondas', 'folhas', 'lisa'];
   var MOLDE_CORES_FIXAS = { contorno: '#1a1405', pele: '#e8b48a', sela: '#5a3a22' };
-  var moldes = null;       // estilo -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados }
+  var moldes = null;       // estilo -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados, ancoras }
   var moldsOk = false;
   var moldesLref = 0;      // maior larguraUtil entre os estilos carregados (escala única)
   var moldesGeracao = 0;   // descarta um carregamento antigo se loadMolds for chamado de novo
@@ -897,6 +913,9 @@
   // 64×64×4 = 16 KB por entrada; o teto em bytes é só uma rede de segurança (go() limpa ao trocar de tela)
   var moldCache = new LruCanvasCache(8 * 1024 * 1024);
   LruCanvasCache.prototype.clear = function () { this.map.clear(); this.bytes = 0; };
+  // máscaras da crina para o brilho da raridade (recortadas na crina: poucos KB cada); fora do moldCache, que o
+  // ui-test conta por corrida e no pódio
+  var brilhoCache = new LruCanvasCache(1024 * 1024);
 
   function estiloDe(element) { return ESTILO_POR_ELEMENTO[element] || 'lisa'; }
   function moldScale(k) { return Math.max(1, Math.round(k * 40 / moldesLref)); }
@@ -914,6 +933,13 @@
   function caixa(b) { return b && isFinite(b.x) && isFinite(b.y) && b.w > 0 && b.h > 0; }
   function aviso(motivo) {
     if (typeof console !== 'undefined' && console.warn) console.warn('Sprites: moldes desligados (' + motivo + '); os cavalos usam o desenho por código.');
+  }
+  // cópia rasa da âncora de um quadro com a larguraUtil do molde (a zona da cara usa a do molde, não a do bbox)
+  function ancoraComL(a, larguraUtil) {
+    var c = {};
+    for (var k in a) if (Object.prototype.hasOwnProperty.call(a, k)) c[k] = a[k];
+    c.larguraUtil = larguraUtil;
+    return c;
   }
 
   // Referência de um estado a partir das âncoras dos seus quadros (calculada uma vez, ao carregar).
@@ -970,7 +996,7 @@
   // com um console.warn do motivo (o jogo segue com o desenho por código).
   function loadMolds(tabela, pronto) {
     var geracao = ++moldesGeracao;
-    moldsOk = false; api.moldsReady = false; moldes = null; moldCache.clear();
+    moldsOk = false; api.moldsReady = false; moldes = null; moldCache.clear(); brilhoCache.clear();
     if (typeof Image === 'undefined' || typeof document === 'undefined') return;   // Node: sem canvas
     var est = tabela && tabela.estilos;
     if (!est) { aviso('a tabela de moldes não tem estilos'); return; }
@@ -1000,6 +1026,9 @@
           w: J.w, h: J.h, frames: frames, larguraUtil: J.larguraUtil, retrato: null, parado: null, galope: [],
           estados: { retrato: refDe('retrato', [A.retrato]), parado: refDe('parado', [A.parado]), galope: refDe('galope', lista) }
         };
+        // âncoras por quadro (as do JSON, já validadas acima) + larguraUtil, para as zonas do marcas.js
+        M.ancoras = { retrato: ancoraComL(A.retrato, J.larguraUtil), parado: ancoraComL(A.parado, J.larguraUtil), galope: [] };
+        for (f = 0; f < frames; f++) M.ancoras.galope.push(ancoraComL(lista[f], J.larguraUtil));
         function carrega(url, rotulo, guarda) {
           pendentes++;
           decodificaMolde(url, M.w, M.h, function (idx) { guarda(idx); fim(); },
@@ -1042,19 +1071,87 @@
     return c;
   }
   function indicesMolde(M, estado, quadro) { return estado === 'galope' ? M.galope[quadro] : M[estado]; }
+  function ancoraMolde(M, estado, quadro) { return estado === 'galope' ? M.ancoras.galope[quadro] : M.ancoras[estado]; }
+
+  // Marcas e jóquei (spec 2026-11-12-cavalos-marcas §3–§4) das opções do drawHorse, normalizados pelas listas do
+  // GameData (fora da lista: sem marca, padrão liso; capacete que não é '#rgb'/'#rrggbb': sem capacete — o
+  // capacete fica na seda e a manta na sela). null sem as duas opções (ou sem o marcas.js): a recoloração de hoje.
+  function visuaisMolde(o) {
+    var MK = marcasApi(), GD = dadosApi();
+    if (!MK || !GD || !GD.MARCAS || !GD.JOQUEI) return null;
+    var m = o.marcas && typeof o.marcas === 'object' ? o.marcas : null;
+    var j = o.joquei && typeof o.joquei === 'object' ? o.joquei : null;
+    if (!m && !j) return null;
+    var L = GD.MARCAS, v = { MK: MK, branco: L.branco || '#f1e9d4', marcas: null, semente: o.semente >>> 0, padrao: null, capacete: null, chave: '' };
+    if (m) {
+      v.marcas = {
+        cara: L.cara.indexOf(m.cara) >= 0 ? m.cara : 'nenhuma',
+        patas: L.patas.indexOf(m.patas) >= 0 ? m.patas : 0,
+        corpo: L.corpo.indexOf(m.corpo) >= 0 ? m.corpo : 'liso'
+      };
+      v.chave += '|m' + v.marcas.cara + ',' + v.marcas.patas + ',' + v.marcas.corpo + ',' + v.semente;
+    }
+    if (j) {
+      v.padrao = GD.JOQUEI.padroes.indexOf(j.padrao) >= 0 ? j.padrao : 'liso';
+      v.capacete = opaca(j.capacete) ? j.capacete.toLowerCase() : null;
+      v.chave += '|j' + v.padrao + ',' + (v.capacete || '-');
+    }
+    return v;
+  }
+
+  // Índices 10–15 por cima dos papéis: 10–12 = camada das marcas (1 branco, 2 branco-sombra, 3 escuro),
+  // 13–15 = camada do jóquei (1 tom 2 da seda, 2 capacete, 3 manta). As camadas não se cruzam (marcas só na
+  // pelagem, jóquei só na roupa e na sela).
+  function indicesComCamadas(idx, w, h, ancora, v) {
+    var cm = v.marcas ? v.MK.camadaMarcas(idx, w, h, ancora, v.marcas, v.semente) : null;
+    var cj = v.padrao ? v.MK.camadaJoquei(idx, w, h, ancora, v.padrao) : null;
+    var out = new Uint8Array(w * h);
+    for (var i = 0; i < w * h; i++) out[i] = cm && cm[i] ? 9 + cm[i] : (cj && cj[i] ? 12 + cj[i] : idx[i]);
+    return out;
+  }
+  function coresComCamadas(cores, v) {
+    var seda = cores[7], cap = v.capacete;
+    return cores.concat([
+      v.branco, shade(v.branco, 0.3), shade(cores[3], 0.45),                  // marcas
+      lum(seda) < 0.5 ? light(seda, 0.35) : shade(seda, 0.3),                  // tom 2 da seda
+      cap || seda, cap ? shade(cap, 0.4) : cores[9]                            // capacete e manta
+    ]);
+  }
 
   // Canvas 1× recolorido; a escala fica no drawImage (vizinho mais próximo), então a chave não leva a
-  // escala: uma entrada por estilo|estado|quadro|cores, em qualquer tamanho de tela.
+  // escala: uma entrada por estilo|estado|quadro|cores (+ marcas, semente, padrão e capacete, quando vêm nas
+  // opções), em qualquer tamanho de tela. Sem marcas e sem jóquei: a chave e os pixels de antes da parte 2a.
+  // As camadas saem do marcas.js só na falta (uma vez por cavalo e quadro; na corrida, na largada).
   function moldeRecolorido(nome, estado, quadro, o) {
-    var cores = coresMolde(o);
-    var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',');
+    var cores = coresMolde(o), v = visuaisMolde(o);
+    var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '');
     var c = moldCache.get(key);
     if (!c) {
-      var M = moldes[nome];
-      c = pintaIndices(indicesMolde(M, estado, quadro), M.w, M.h, cores);
+      var M = moldes[nome], idx = indicesMolde(M, estado, quadro);
+      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v), M.w, M.h, coresComCamadas(cores, v))
+        : pintaIndices(idx, M.w, M.h, cores);
       moldCache.set(key, c);
     }
     return c;
+  }
+
+  // Monta agora, no cache dos moldes, todos os quadros recoloridos que drawHorse(…, opts) usa com estas opções
+  // (o parado e os quadros do galope; sem jóquei, o retrato), para a corrida não recolorir no 1º ciclo do
+  // galope (~0,8 ms por quadro com marcas e jóquei; spec 2026-11-12-cavalos-marcas §3: cada cavalo montado uma
+  // vez na largada). Só o número de quadros do molde decide o laço, e ele mora aqui. Devolve quantos quadros
+  // ficaram prontos (0 sem moldes).
+  function prepararCavalo(opts) {
+    opts = opts || {};
+    if (!moldsOk) return 0;
+    var nome = estiloDe(opts.element), M = moldes[nome], n = 0, feitos = {}, q;
+    [true, false].forEach(function (idle) {
+      var estado = estadoMolde({ idle: idle, jockey: opts.jockey, retrato: opts.retrato });
+      if (!estado || feitos[estado]) return;
+      feitos[estado] = true;
+      var quadros = estado === 'galope' ? M.frames : 1;
+      for (q = 0; q < quadros; q++) { moldeRecolorido(nome, estado, q, opts); n++; }
+    });
+    return n;
   }
 
   // Quadro do galope do molde para o contador do sprite por código (pode ser fracionário).
@@ -1107,6 +1204,10 @@
     var estado = moldsOk ? estadoMolde(opts) : null;
     if (estado) drawHorseMolde(ctx, x, y, opts, estado);
     else drawHorseCodigo(ctx, x, y, opts);
+    if (opts.raridade != null) {   // depois do cavalo; Comum não tem efeito (e nem calcula a caixa)
+      var R = infoRaridade(opts);
+      if (R) desenhaRaridade(ctx, horseBox(x, y, opts), opts, R);
+    }
   }
 
   // Silhueta do cavalo (com jóquei) tingida de uma cor, para o contorno de skill da corrida: o desenho
@@ -1138,6 +1239,7 @@
       var o2 = {};
       for (var q in opts) if (Object.prototype.hasOwnProperty.call(opts, q)) o2[q] = opts[q];
       o2.shadow = false;
+      o2.raridade = null;   // faíscas, brilho e rastro mudam com o tempo e não fazem parte da silhueta
       drawHorse(cx, pad - b0.x, pad - b0.y, o2);
       cx.globalCompositeOperation = 'source-in';
       cx.fillStyle = cor;
@@ -1169,6 +1271,156 @@
     return { x: L.ox + ref.esq * L.S, y: L.topo, w: (ref.dir - ref.esq) * L.S, h: L.pe - L.topo };
   }
 
+  // ===================================================================
+  // RARIDADE VISÍVEL (spec 2026-11-12-cavalos-marcas §5)
+  // ===================================================================
+  // drawRaridade(ctx, caixa, o): efeitos na cor da raridade (GameData.RARITIES[o.raridade].color) por cima do
+  // cavalo; caixa = horseBox(x, y, o) (o drawHorse chama sozinho quando as opções trazem `raridade`). 1 px de
+  // arte = u: com molde, a escala do molde (S = caixa.w ÷ colunas do bbox do estado, o inverso do horseBox);
+  // sem molde, a escala k do sprite por código.
+  //   • brilho da crina (Marcas.BRILHO; só com molde): a máscara dos papéis 4 e 5 do quadro, recortada na
+  //     crina e pintada na cor da raridade CLAREADA (light(cor, RARIDADE_CLARO), a mesma do rastro; a cor pura some
+  //     numa crina da mesma cor, como o verde do Mágico na crina da Grama) (brilhoCache, uma por estilo|estado|quadro|cor). Uma fatia de 3 colunas (alfa
+  //     BRILHO[raridade]: a mistura de 25/30/45 % da cor clareada), com 1 coluna a meio alfa de cada lado, atravessa a
+  //     crina da cabeça para a cauda a cada BRILHO_CICLO (1,2 s); fatia sem crina não desenha. Com o.reduzido,
+  //     a fatia fica parada na coluna com mais crina da metade da cabeça (a crina do pescoço, não a cauda).
+  //   • faíscas: Marcas.faiscas(o.semente, Marcas.N_FAISCAS[raridade]) (0/0/3/5/5), na caixa com margem de
+  //     FAISCA_MARGEM px de arte (com o.quadro, presas na altura do quadro), no grid de arte da caixa. Cruz de
+  //     1 px de arte (barra 3u × u + barra u × 3u, mesmo centro) que pisca (alfa 0,15 … 1) pelo tempo o.t e pela
+  //     fase da faísca, num ciclo de FAISCA_CICLO s. Com o.reduzido, alfa fixo.
+  //   • rastro (o.rastro, só Mítico, só no galope, nunca com o.reduzido): 3 faixas de 1 px de arte que acabam
+  //     na âncora traseira do estado (sem molde, ANCHORS.rear) e somem para trás em 3 trechos; comprimento =
+  //     a passada (RASTRO_PASSO da largura da caixa), tremulando com o tempo; cor = a da raridade clareada. As
+  //     faíscas ficam na cor pura da raridade.
+  // Ordem: rastro, brilho, faíscas. Comum (ou raridade fora de GameData.RARITIES) não desenha nada; nada de
+  // Math.random; o globalAlpha volta ao que era. Sem o marcas.js ou o GameData (o wiki só embute o
+  // sprites.js), não desenha nada.
+  var BRILHO_CICLO = 1.2;
+  var RARIDADE_CLARO = 0.35;   // quanto a cor da raridade é clareada (light) no brilho da crina e no rastro
+  var FAISCA_MARGEM = 3, FAISCA_CICLO = 1.6, FAISCA_REDUZIDO = 0.85;
+  var RASTRO_PASSO = 0.45;
+  var RASTRO_FAIXAS = [{ dy: -2, alfa: 0.45, l: 0.8 }, { dy: 0, alfa: 0.6, l: 1 }, { dy: 2, alfa: 0.45, l: 0.65 }];
+  var RASTRO_TRECHOS = [1, 0.55, 0.25];   // alfa relativo de cada terço da faixa, da traseira para trás
+
+  function infoRaridade(o) {
+    var MK = marcasApi(), GD = dadosApi(), id = o.raridade, tem = Object.prototype.hasOwnProperty;
+    if (!MK || !GD || !GD.RARITIES || typeof id !== 'string' || !tem.call(GD.RARITIES, id)) return null;
+    var n = tem.call(MK.N_FAISCAS, id) ? MK.N_FAISCAS[id] : 0, b = tem.call(MK.BRILHO, id) ? MK.BRILHO[id] : 0;
+    var R = { MK: MK, cor: GD.RARITIES[id].color, faiscas: n > 0 ? n : 0, brilho: b > 0 ? b : 0, rastro: !!o.rastro && id === 'mitico' && !o.reduzido };
+    return R.faiscas || R.brilho || R.rastro ? R : null;
+  }
+
+  function drawRaridade(ctx, caixa, o) {
+    o = o || {};
+    var R = infoRaridade(o);
+    if (R && caixa) desenhaRaridade(ctx, caixa, o, R);
+  }
+
+  function desenhaRaridade(ctx, caixa, o, R) {
+    var a0 = typeof ctx.globalAlpha === 'number' ? ctx.globalAlpha : 1, t = o.reduzido ? 0 : (Number(o.t) || 0);
+    var L = layoutRaridade(caixa, o);
+    if (R.rastro && L.galope) desenhaRastro(ctx, caixa, L, R, t, a0);
+    if (R.brilho && L.molde) desenhaBrilho(ctx, L.molde, R, t, !!o.reduzido, a0);
+    if (R.faiscas) desenhaFaiscas(ctx, caixa, o, R, L.u, t, a0);
+    ctx.globalAlpha = a0;
+  }
+
+  // O layout do desenho a partir da caixa (o inverso do horseBox): px de arte, âncora traseira e, com molde,
+  // a posição do molde (ox, oy, S) e o quadro.
+  function layoutRaridade(caixa, o) {
+    var k = Math.max(1, Math.round(o.scale || 1)), estado = moldsOk ? estadoMolde(o) : null;
+    if (!estado) return { u: k, molde: null, galope: !o.idle && !o.retrato, rear: [caixa.x + ANCHORS.rear[0] * k, caixa.y + ANCHORS.rear[1] * k] };
+    var nome = estiloDe(o.element), M = moldes[nome], ref = M.estados[estado];
+    var S = Math.max(1, Math.round(caixa.w / (ref.dir - ref.esq)));
+    var ox = caixa.x - ref.esq * S, oy = caixa.y + caixa.h - (ref.footY + 1) * S;
+    return {
+      u: S, galope: estado === 'galope', rear: [ox + ref.rear[0] * S, oy + ref.rear[1] * S],
+      molde: { nome: nome, estado: estado, quadro: estado === 'galope' ? quadroGalope(M, o.frame) : 0, ox: ox, oy: oy, S: S }
+    };
+  }
+
+  // Máscara da crina (papéis 4 e 5) de um quadro, recortada no retângulo da crina e pintada na cor; col[x] =
+  // pixels de crina por coluna do recorte, pico = a coluna com mais crina na metade direita (a da cabeça). null se
+  // o quadro não tem crina.
+  function mascaraCrina(Lm, cor) {
+    var key = Lm.nome + '|' + Lm.estado + '|' + Lm.quadro + '|' + cor, hit = brilhoCache.get(key);
+    if (!hit) {
+      var M = moldes[Lm.nome], idx = indicesMolde(M, Lm.estado, Lm.quadro), w = M.w, h = M.h;
+      var x0 = w, y0 = h, x1 = -1, y1 = -1, x, y, v;
+      for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+        v = idx[y * w + x];
+        if (v !== 4 && v !== 5) continue;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+      hit = { c: null, width: 0, height: 0 };
+      if (x1 >= 0) {
+        var cw = x1 - x0 + 1, ch = y1 - y0 + 1, rec = new Uint8Array(cw * ch), col = new Uint16Array(cw), pico = 0;
+        for (y = 0; y < ch; y++) for (x = 0; x < cw; x++) {
+          v = idx[(y0 + y) * w + x0 + x];
+          if (v === 4 || v === 5) { rec[y * cw + x] = 1; col[x]++; }
+        }
+        // pico na metade da cabeça (direita: a crina do pescoço; a cauda, à esquerda, é mais grossa)
+        for (pico = x = cw >> 1; x < cw; x++) if (col[x] > col[pico]) pico = x;
+        hit = { c: pintaIndices(rec, cw, ch, [null, cor]), x0: x0, y0: y0, w: cw, h: ch, col: col, pico: pico, width: cw, height: ch };
+      }
+      brilhoCache.set(key, hit);
+    }
+    return hit.c ? hit : null;
+  }
+
+  function desenhaBrilho(ctx, Lm, R, t, reduzido, a0) {
+    var mk = mascaraCrina(Lm, light(R.cor, RARIDADE_CLARO));
+    if (!mk) return;
+    // centro da fatia, em colunas do recorte: entra pela direita (cabeça) e sai pela esquerda a cada ciclo
+    var c = reduzido ? mk.pico : Math.round(mk.w + 1 - frac(t / BRILHO_CICLO) * (mk.w + 3));
+    var fatias = [[c - 1, 3, 1], [c - 2, 1, 0.5], [c + 2, 1, 0.5]];
+    for (var i = 0; i < fatias.length; i++) {
+      var sx = Math.max(0, fatias[i][0]), ex = Math.min(mk.w, fatias[i][0] + fatias[i][1]), n = 0, x;
+      for (x = sx; x < ex; x++) n += mk.col[x];
+      if (!n) continue;
+      ctx.globalAlpha = a0 * R.brilho * fatias[i][2];
+      ctx.drawImage(mk.c, sx, 0, ex - sx, mk.h, Lm.ox + (mk.x0 + sx) * Lm.S, Lm.oy + mk.y0 * Lm.S, (ex - sx) * Lm.S, mk.h * Lm.S);
+    }
+  }
+
+  function piscar(t, fase) {
+    var s = Math.sin(2 * Math.PI * (t / FAISCA_CICLO + fase));
+    return s > 0 ? 0.15 + 0.85 * s * s : 0.15;
+  }
+
+  function desenhaFaiscas(ctx, caixa, o, R, u, t, a0) {
+    var lista = R.MK.faiscas(o.semente >>> 0, R.faiscas), m = FAISCA_MARGEM * u;
+    var W = caixa.w + 2 * m, H = caixa.h + 2 * m, q = o.quadro, topo = -Infinity, base = Infinity;
+    if (q && isFinite(q.topo) && isFinite(q.base) && q.base - q.topo > 4 * u) { topo = q.topo + u; base = q.base - 2 * u; }
+    ctx.fillStyle = R.cor;
+    for (var i = 0; i < lista.length; i++) {
+      var f = lista[i];
+      var cx = caixa.x - m + Math.round(f.dx * W / u) * u, cy = caixa.y - m + Math.round(f.dy * H / u) * u;
+      if (cy < topo) cy = caixa.y + Math.ceil((topo - caixa.y) / u) * u;
+      if (cy > base) cy = caixa.y + Math.floor((base - caixa.y) / u) * u;
+      ctx.globalAlpha = a0 * (o.reduzido ? FAISCA_REDUZIDO : piscar(t, f.fase));
+      ctx.fillRect(cx - u, cy, 3 * u, u);
+      ctx.fillRect(cx, cy - u, u, 3 * u);
+    }
+  }
+
+  function desenhaRastro(ctx, caixa, L, R, t, a0) {
+    var u = L.u, passo = Math.max(6, Math.round(RASTRO_PASSO * caixa.w / u)), x1 = L.rear[0], nT = RASTRO_TRECHOS.length;
+    ctx.fillStyle = light(R.cor, RARIDADE_CLARO);
+    for (var i = 0; i < RASTRO_FAIXAS.length; i++) {
+      var F = RASTRO_FAIXAS[i], y = L.rear[1] + F.dy * u, fim = x1;
+      var len = Math.max(nT, Math.round(passo * F.l * (0.85 + 0.15 * Math.sin(2 * Math.PI * (t * 2.5 + i / 3)))));
+      for (var s = 0; s < nT; s++) {
+        var ini = x1 - Math.round(len * (s + 1) / nT) * u;
+        if (fim > ini) {
+          ctx.globalAlpha = a0 * F.alfa * RASTRO_TRECHOS[s];
+          ctx.fillRect(ini, y, fim - ini, u);
+        }
+        fim = ini;
+      }
+    }
+  }
+
   // Âncoras nas unidades do sprite por código (some x + v·escala, y + v·escala), para o estado pedido
   // ('galope' por padrão, 'parado' ou 'retrato'), na pista (sem quadro). Com a escala, a conversão é exata
   // para aquele tamanho; sem ela, usa a proporção ideal 40 / Lref. Sem moldes: ANCHORS. O focinho é sempre NOSE.
@@ -1188,7 +1440,7 @@
   }
   function quadroGalopeTeste(element, frame) { return moldsOk ? quadroGalope(moldes[estiloDe(element)], frame) : null; }
 
-  function limparCacheMoldes() { moldCache.clear(); silCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
+  function limparCacheMoldes() { moldCache.clear(); silCache.clear(); brilhoCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
   function cacheMoldes() { return moldCache.map.size; }
   function cacheSilhuetas() { return { n: silCache.map.size, bytes: silCache.bytes, max: silCache.max }; }
 
@@ -2191,6 +2443,10 @@
     if (typeof global !== 'undefined' && global.RaceFx) return global.RaceFx;
     return null;
   }
+  // Marcas (marcas.js) e GameData (data.js): no Node, os do require do topo; no navegador, os globais (o build
+  // carrega os dois antes do sprites.js). Sem eles (o wiki embute só o sprites.js): sem marcas, jóquei e raridade.
+  function marcasApi() { return MARCAS_NODE || (typeof self !== 'undefined' && self.Marcas) || null; }
+  function dadosApi() { return DADOS_NODE || (typeof self !== 'undefined' && self.GameData) || null; }
 
   var api = {
     HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y,
@@ -2205,6 +2461,7 @@
     drawHorseCodigo: drawHorseCodigo,
     horseBox: horseBox,
     drawHorseSilhouette: drawHorseSilhouette,
+    drawRaridade: drawRaridade,
     // moldes do PixelLab (ver a seção MOLDES)
     ESTILO_POR_ELEMENTO: ESTILO_POR_ELEMENTO,
     moldsReady: false,
@@ -2212,6 +2469,7 @@
     anchorsFor: anchorsFor,
     escalaMoldeCompativel: escalaMoldeCompativel,
     limparCacheMoldes: limparCacheMoldes,
+    prepararCavalo: prepararCavalo,
     moldeCanvas: moldeCanvas,
     _cacheMoldes: cacheMoldes,
     _cacheSilhuetas: cacheSilhuetas,

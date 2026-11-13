@@ -147,6 +147,8 @@ A base é a menor raridade entre os pais. **Estrelas do potro:** se a raridade s
 | Lendário | + Saída Rápida | idem |
 | Mítico | + Arrancada Final | idem |
 
+**Marcas e jóquei (só aparência, 2026-11-13):** spec em `docs/superpowers/specs/2026-11-12-cavalos-marcas-design.md`; números em `docs/wiki.md` (Marcas e jóquei). Cada cavalo tem 3 genes de marcas: cara (nenhuma, estrela, listra, frente branca), patas (0 a 4 meias brancas) e corpo (liso, malhado, pintado, ruão). O potro herda cada gene de um dos pais (égua ou garanhão, 50% cada) com 10% de mutação para um valor qualquer, pela RNG da seed (sequência própria, sem mexer no resto do potro). Marcas não entram em status, Poder, preço, skills nem na corrida. O jóquei é do jogador: padrão da seda (6) e cor do capacete (8), escolhidos no Perfil e valendo para todos os cavalos; o dos rivais sai da seed da sala. A raridade aparece em escada: Comum nada, Mágico brilho na crina, Raro brilho e 3 faíscas, Lendário brilho mais forte e 5 faíscas, Mítico igual ao Lendário e rastro de luz na corrida.
+
 ## 7. Equipamentos
 
 Cada montaria usa um **set de 5 peças** (modelo do equipamento de cavalo do Black Desert). As peças ficam num **inventário compartilhado**, são compradas na **Loja** com Ouro e melhoradas de +0 a +10 com **Pedras Negras**. Os **conjuntos** ligados aos climas criam a escolha pré-corrida: turbinar o dia bom ou se proteger do dia ruim. Sem durabilidade e sem limite de vagas (por enquanto).

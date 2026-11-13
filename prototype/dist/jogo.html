@@ -754,6 +754,18 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
 .logo .logo-img { width: 320px; }
 .app-topo .logo-mini { display: flex; align-items: center; }
 .app-topo .logo-img { height: 24px; width: auto; max-width: 100%; image-rendering: auto; }   /* 63 -> 24 px: redução suavizada */
+
+/* editor do jóquei (Perfil) */
+.joquei-previa { display: flex; justify-content: center; background: var(--painel-2); padding: 8px 0; }
+.capacetes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.capacete-btn { min-width: 40px; min-height: 40px; padding: 0; }
+.capacete-btn[aria-pressed="true"] {
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--ouro), 0 var(--px) 0 0 var(--ouro),
+    calc(-1 * var(--px)) 0 0 0 var(--ouro), var(--px) 0 0 0 var(--ouro);
+  /* sem outline próprio: o anel de foco (:focus-visible, --foco) continua valendo no botão selecionado */
+}
+@media (min-width: 640px) { .capacetes { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
 </style>
 <div class="app" id="app">
   <main id="tela">
@@ -984,7 +996,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   //   acelera o crescimento (RaceSim.computeStats). Não há status base guardado.
   //   alloc (no save, não no catálogo) = pontos livres distribuídos por status.
   //   sex: 'm' | 'f'.
-  //   extra (opcional): title, bio, habitat, lore, grau (1–3 estrelas: multiplicam os pontos livres),
+  //   extra (opcional): marcas { cara, patas, corpo }, title, bio, habitat, lore, grau (1–3 estrelas: multiplicam os pontos livres),
   //   breedLeftMax (cruzas restantes ao nascer; padrão BREED_LEFT[sex]).
   // ---------------------------------------------------------------------------
   function mount(id, name, element, rarity, sex, level, potential, skills, palette, extra) {
@@ -996,22 +1008,41 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return h;
   }
 
+  // Marcas na pelagem (spec 2026-11-12-cavalos-marcas §2). Genes herdáveis (breed.js); não entram em status, Poder nem corrida.
+  var MARCAS = {
+    cara: ['nenhuma', 'estrela', 'listra', 'frente'],
+    patas: [0, 1, 2, 3, 4],
+    corpo: ['liso', 'malhado', 'pintado', 'ruao'],
+    mutacao: 0.10,
+    branco: '#f1e9d4'
+  };
+
+  // Jóquei do jogador (spec §4): padrão da seda e cor do capacete.
+  var JOQUEI = {
+    padroes: ['liso', 'listras', 'faixa', 'xadrez', 'estrelas', 'losangos'],
+    capacetes: ['#f2c230', '#ff6b5e', '#62b8ff', '#86d86a', '#c77dff', '#ff9f43', '#f1e9d4', '#2a2a2a'],
+    padrao: 'liso',
+    capacete: '#f2c230',
+    // nome de cada cor de capacete (hex → nome), para o aria-label da interface e para o wiki
+    nomes: { '#f2c230': 'Dourado', '#ff6b5e': 'Vermelho', '#62b8ff': 'Azul', '#86d86a': 'Verde', '#c77dff': 'Roxo', '#ff9f43': 'Laranja', '#f1e9d4': 'Creme', '#2a2a2a': 'Preto' }
+  };
+
   var STARTERS = [
     mount('brasa', 'Brasa', 'fogo', 'comum', 'm', 1,
       { vel: 24, acel: 24, man: 14, forca: 12, est: 12, garra: 14, sorte: 12 },
       [],
       { coat: '#c4471d', coatShade: '#7f2a0e', mane: '#ffb02e', accent: '#ffe066' },
-      { title: 'A fagulha veloz', bio: 'Potro alazão de crina dourada. Larga como um rojão.', grau: 2 }),
+      { title: 'A fagulha veloz', bio: 'Potro alazão de crina dourada. Larga como um rojão.', marcas: { cara: 'estrela', patas: 1, corpo: 'liso' }, grau: 2 }),
     mount('mare', 'Maré', 'agua', 'comum', 'f', 1,
       { vel: 14, acel: 12, man: 12, forca: 14, est: 24, garra: 24, sorte: 12 },
       [],
       { coat: '#9ba7b4', coatShade: '#646f7e', mane: '#5fd8ee', accent: '#e6f4fb' },
-      { title: 'O fôlego do oceano', bio: 'Égua tordilha de crina cor do mar. Quanto mais longa a pista, mais perigosa.', grau: 2 }),
+      { title: 'O fôlego do oceano', bio: 'Égua tordilha de crina cor do mar. Quanto mais longa a pista, mais perigosa.', marcas: { cara: 'listra', patas: 0, corpo: 'ruao' }, grau: 2 }),
     mount('ipe', 'Ipê', 'grama', 'comum', 'm', 1,
       { vel: 16, acel: 12, man: 24, forca: 24, est: 14, garra: 12, sorte: 10 },
       [],
       { coat: '#7a4a2a', coatShade: '#4c2b18', mane: '#f5c518', accent: '#f2e6c8' },
-      { title: 'A raiz que não verga', bio: 'Castanho robusto de crina amarela como ipê florido. Não teme subida.', grau: 2 })
+      { title: 'A raiz que não verga', bio: 'Castanho robusto de crina amarela como ipê florido. Não teme subida.', marcas: { cara: 'frente', patas: 2, corpo: 'liso' }, grau: 2 })
   ];
 
   var WILD_HORSES = [
@@ -1019,62 +1050,62 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       { vel: 14, acel: 16, man: 15, forca: 10, est: 8, garra: 12, sorte: 10 },
       ['arranque'],
       { coat: '#d9772b', coatShade: '#9a4d16', mane: '#f7d08a', accent: '#ff8a3d' },
-      { habitat: 'Cerrado seco', grau: 2 }),
+      { habitat: 'Cerrado seco', marcas: { cara: 'estrela', patas: 2, corpo: 'pintado' }, grau: 2 }),
     mount('w-lambari', 'Lambari', 'agua', 'comum', 'm', 2,
       { vel: 9, acel: 11, man: 10, forca: 12, est: 17, garra: 13, sorte: 10 },
       [],
       { coat: '#7fa6c4', coatShade: '#4f7594', mane: '#e8f4fb', accent: '#5ec2d9' },
-      { habitat: 'Beira de rio', grau: 1 }),
+      { habitat: 'Beira de rio', marcas: { cara: 'nenhuma', patas: 0, corpo: 'malhado' }, grau: 1 }),
     mount('w-capim', 'Capim', 'grama', 'comum', 'f', 4,
       { vel: 10, acel: 10, man: 10, forca: 18, est: 13, garra: 12, sorte: 10 },
       ['segundo-ar'],
       { coat: '#9a8a4a', coatShade: '#6a5e2e', mane: '#5b7d2a', accent: '#b9d46a' },
-      { habitat: 'Campos gerais', grau: 2 }),
+      { habitat: 'Campos gerais', marcas: { cara: 'listra', patas: 4, corpo: 'liso' }, grau: 2 }),
     mount('w-ticao', 'Tição', 'fogo', 'magico', 'm', 8,
       { vel: 17, acel: 19, man: 18, forca: 12, est: 10, garra: 15, sorte: 12 },
       ['chama-final'],
       { coat: '#3a2a26', coatShade: '#1e1513', mane: '#ff5a1f', accent: '#ffb347' },
-      { habitat: 'Carvoaria abandonada', grau: 2 }),
+      { habitat: 'Carvoaria abandonada', marcas: { cara: 'frente', patas: 1, corpo: 'liso' }, grau: 2 }),
     mount('w-garoa', 'Garoa', 'agua', 'magico', 'f', 10,
       { vel: 13, acel: 12, man: 13, forca: 14, est: 20, garra: 15, sorte: 12 },
       ['pe-na-chuva', 'segundo-ar'],
       { coat: '#a9b8c6', coatShade: '#73879a', mane: '#f2f6fa', accent: '#6fb7e8' },
-      { habitat: 'Serra enevoada', grau: 2 }),
+      { habitat: 'Serra enevoada', marcas: { cara: 'estrela', patas: 0, corpo: 'ruao' }, grau: 2 }),
     mount('w-mandacaru', 'Mandacaru', 'grama', 'magico', 'm', 7,
       { vel: 12, acel: 13, man: 13, forca: 21, est: 16, garra: 13, sorte: 12 },
       ['casco-firme'],
       { coat: '#b48a5a', coatShade: '#7d5c38', mane: '#3f6b2a', accent: '#e85d9a' },
-      { habitat: 'Caatinga', grau: 2 }),
+      { habitat: 'Caatinga', marcas: { cara: 'nenhuma', patas: 3, corpo: 'pintado' }, grau: 2 }),
     mount('w-ventania', 'Ventania', 'grama', 'raro', 'f', 15,
       { vel: 21, acel: 18, man: 20, forca: 13, est: 15, garra: 17, sorte: 14 },
       ['sprint', 'arrancada-final'],
       { coat: '#e9e4da', coatShade: '#b6aea0', mane: '#7a7a7a', accent: '#9ad0ff' },
-      { habitat: 'Pampa gaúcho', grau: 3 }),
+      { habitat: 'Pampa gaúcho', marcas: { cara: 'listra', patas: 2, corpo: 'malhado' }, grau: 3 }),
     mount('w-pororoca', 'Pororoca', 'agua', 'raro', 'm', 18,
       { vel: 15, acel: 14, man: 15, forca: 17, est: 24, garra: 16, sorte: 14 },
       ['nascente', 'pe-na-chuva'],
       { coat: '#2e5f73', coatShade: '#1a3b49', mane: '#9ee7e0', accent: '#2fd6c5' },
-      { habitat: 'Foz do Amazonas', grau: 2 }),
+      { habitat: 'Foz do Amazonas', marcas: { cara: 'estrela', patas: 4, corpo: 'liso' }, grau: 2 }),
     mount('w-fogareu', 'Fogaréu', 'fogo', 'lendario', 'f', 22,
       { vel: 24, acel: 26, man: 25, forca: 16, est: 15, garra: 20, sorte: 16 },
       ['sol-a-pino', 'chama-final', 'arranque'],
       { coat: '#b3201a', coatShade: '#6e110d', mane: '#ffd23f', accent: '#ff7b00' },
-      { habitat: 'Chapada em chamas', grau: 3 }),
+      { habitat: 'Chapada em chamas', marcas: { cara: 'frente', patas: 0, corpo: 'pintado' }, grau: 3 }),
     mount('w-jequitiba', 'Jequitibá', 'grama', 'lendario', 'm', 25,
       { vel: 17, acel: 16, man: 17, forca: 27, est: 21, garra: 19, sorte: 16 },
       ['casco-firme', 'folego-de-montanha', 'segundo-ar'],
       { coat: '#5a4127', coatShade: '#36261a', mane: '#2f7d32', accent: '#8bc34a' },
-      { habitat: 'Mata Atlântica', grau: 3 }),
+      { habitat: 'Mata Atlântica', marcas: { cara: 'listra', patas: 1, corpo: 'ruao' }, grau: 3 }),
     mount('w-boitata', 'Boitatá', 'fogo', 'mitico', 'f', 30,
       { vel: 28, acel: 29, man: 29, forca: 21, est: 20, garra: 26, sorte: 18 },
       ['sol-a-pino', 'chama-final', 'drift'],
       { coat: '#2a1a3a', coatShade: '#140b1e', mane: '#3cf0ff', accent: '#ff4fd8' },
-      { habitat: 'Só aparece em noites de queimada', lore: 'A cobra de fogo do folclore, em forma de cavalo.', grau: 3 }),
+      { habitat: 'Só aparece em noites de queimada', lore: 'A cobra de fogo do folclore, em forma de cavalo.', marcas: { cara: 'estrela', patas: 2, corpo: 'malhado' }, grau: 3 }),
     mount('w-iara', 'Iara', 'agua', 'mitico', 'm', 28,
       { vel: 22, acel: 21, man: 22, forca: 20, est: 30, garra: 25, sorte: 18 },
       ['canto-da-iara', 'pe-na-chuva', 'nascente'],
       { coat: '#1f6f78', coatShade: '#0f3f45', mane: '#b8fff1', accent: '#ffd36e' },
-      { habitat: 'Rios encantados', lore: 'A mãe-d\'água que encanta quem a ouve.', grau: 3 })
+      { habitat: 'Rios encantados', lore: 'A mãe-d\'água que encanta quem a ouve.', marcas: { cara: 'nenhuma', patas: 4, corpo: 'ruao' }, grau: 3 })
   ];
 
   var BOT_NAMES = [
@@ -1252,6 +1283,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     GEAR_SLOT_INFO: GEAR_SLOT_INFO,
     GEAR_SETS: GEAR_SETS,
     GEAR: GEAR,
+    MARCAS: MARCAS,
+    JOQUEI: JOQUEI,
     STARTERS: STARTERS,
     WILD_HORSES: WILD_HORSES,
     BOT_NAMES: BOT_NAMES,
@@ -2492,6 +2525,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *      ordem égua→garanhão; corte em skillSlots; preenchimento até bornSkills: 1 chamada de índice cada.
  *   7. nome (1 chamada: índice em FOAL_NAMES)
  *   8. paleta (1 chamada t = 0,3 + 0,4·rng(), só se os dois pais têm paleta)
+ *   9. marcas (sequência própria, mulberry32(hash2(seedBase>>>0, 0x4D410000 + breedCounter)); não muda os passos 1–8):
+ *      por gene, na ordem cara, patas, corpo, 2 chamadas: 1ª < GameData.MARCAS.mutacao ⇒ mutação; 2ª com mutação é o índice
+ *      uniforme na lista do gene; sem mutação, < 0,5 ⇒ gene da égua, senão do garanhão. Pai sem marcas válidas vale pelo
+ *      modelo do catálogo (templateId) ou por marcasDoId(uid): FNV-1a 32 bits da chave (hashChave) → mulberry32 → 3 sorteios.
  * (v3: saiu o antigo passo 5, uma chamada por status para o status base; o piso de genética por
  * estrela saiu sem mudar o número de chamadas.)
  */
@@ -2683,6 +2720,62 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return isFinite(v) ? clamp(Math.floor(v), 0, 31) : 0;
   }
 
+  // ---- marcas (spec 2026-11-12-cavalos-marcas §2) ----
+  var MARCA_GENES = ['cara', 'patas', 'corpo'];
+
+  // FNV-1a de 32 bits sobre os code units da string
+  function hashChave(chave) {
+    var h = 0x811c9dc5, str = String(chave), i;
+    for (i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+
+  function marcasValidas(m) {
+    if (!m || typeof m !== 'object') return false;
+    for (var i = 0; i < MARCA_GENES.length; i++) {
+      if (G.MARCAS[MARCA_GENES[i]].indexOf(m[MARCA_GENES[i]]) < 0) return false;
+    }
+    return true;
+  }
+
+  function marcasDoId(chave) {
+    var r = S.mulberry32(hashChave(chave)), out = {}, i, lista;
+    for (i = 0; i < MARCA_GENES.length; i++) {
+      lista = G.MARCAS[MARCA_GENES[i]];
+      out[MARCA_GENES[i]] = lista[Math.floor(r() * lista.length)];
+    }
+    return out;
+  }
+
+  // Marcas de um cavalo (spec 2026-11-12-cavalos-marcas §2; só desenho): as dele, se válidas; senão as fixas do
+  // modelo do catálogo (templateId); senão as calculadas da chave por marcasDoId — o mesmo cavalo fica sempre igual,
+  // sem sorteio. Cada chamador passa a sua chave de fallback (uid, id ou nome). Devolve uma cópia só com os 3 genes.
+  function marcasDe(marcas, templateId, chave) {
+    var m = null, cat, i;
+    if (marcasValidas(marcas)) m = marcas;
+    else {
+      if (templateId != null) {
+        cat = G.STARTERS.concat(G.WILD_HORSES);
+        for (i = 0; i < cat.length; i++) if (cat[i].id === templateId && marcasValidas(cat[i].marcas)) { m = cat[i].marcas; break; }
+      }
+      if (!m) m = marcasDoId(chave);
+    }
+    return { cara: m.cara, patas: m.patas, corpo: m.corpo };
+  }
+  function marcasDePai(p) { return marcasDe(p.marcas, p.templateId, p.uid != null ? p.uid : (p.id != null ? p.id : p.name)); }
+
+  function rollMarcas(opts) {
+    var r = S.mulberry32(S.hash2(opts.seedBase >>> 0, 0x4D410000 + opts.breedCounter));
+    var mf = marcasDePai(opts.f), mm = marcasDePai(opts.m), out = {}, i, g, lista, mut, pick;
+    for (i = 0; i < MARCA_GENES.length; i++) {
+      g = MARCA_GENES[i]; lista = G.MARCAS[g];
+      mut = r() < G.MARCAS.mutacao;
+      pick = r();
+      out[g] = mut ? lista[Math.floor(pick * lista.length)] : (pick < 0.5 ? mf[g] : mm[g]);
+    }
+    return out;
+  }
+
   function foal(opts) {
     var f = opts.f, m = opts.m, breedCounter = opts.breedCounter;
     var rng = S.mulberry32(S.hash2(opts.seedBase >>> 0, 0xB0B0 + breedCounter));
@@ -2749,7 +2842,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       uid: 'm' + opts.nextUid, templateId: null, name: name, especie: 'cavalo', element: element, rarity: rarity, grau: grau, sex: sex,
       level: 1, xp: 0, skills: inherited, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
       parents: { f: { uid: f.uid || null, name: f.name }, m: { uid: m.uid || null, name: m.name } },
-      born: breedCounter
+      born: breedCounter,
+      marcas: rollMarcas(opts)
     };
   }
 
@@ -2766,11 +2860,444 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     rentalPrice: rentalPrice,
     isCorcel: isCorcel,
     skillCandidates: skillCandidates,
+    hashChave: hashChave,
+    marcasDoId: marcasDoId,
+    marcasDe: marcasDe,
+    marcasValidas: marcasValidas,
     foal: foal
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = Breed;
   else root.Breed = Breed;
+})(typeof self !== 'undefined' ? self : this);
+</script>
+<script>
+/* src/marcas.js */
+/*
+ * MMORPG Horse — marcas, jóquei e faíscas nos moldes (protótipo). Spec: docs/superpowers/specs/2026-11-12-cavalos-marcas-design.md §3–§5
+ *
+ * Módulo PURO: sem DOM, sem canvas, sem estado, sem Math.random; as entradas nunca são mutadas. Mesmas
+ * entradas ⇒ mesmas camadas. Recebe os índices de papel de UM quadro de molde (idx[y·w + x]; papéis de
+ * tools/moldes-lib.mjs: 0 vazio, 1 contorno, 2 pelagem, 3 pelagem-sombra, 4/5 crina, 6 detalhe, 7 roupa do
+ * jóquei, 8 pele, 9 sela) e as âncoras desse quadro (as do JSON do molde: { footY, nose:[x,y], saddle:[x,y]|null,
+ * bbox:{x,y,w,h} }, mais o campo opcional larguraUtil do molde) e devolve CAMADAS (Uint8Array w·h) que o
+ * sprites.js pinta por cima da recoloração. Sem âncora (ou bbox vazio): zonas e camadas zeradas, sem lançar.
+ * Os limites ficam nas constantes de LIMITES (exportadas, só leitura), para o ajuste fino no portão visual.
+ *
+ * ============================== ZONAS: zonas(idx, w, h, ancora) =============================
+ * Só pixels de pelagem (2 e 3); o resto é zona 0. Cada pixel de pelagem cai em uma zona só:
+ *   1 cara:  distância (euclidiana) ao nose ≤ caraRaio · L (0,19; L = ancora.larguraUtil, a largura do retrato do
+ *            molde, igual em todos os quadros; sem ela, bbox.w) e y ≤ nose.y + caraBaixo (1 px). Raio e corte
+ *            presos ao focinho ⇒ a zona não cresce nem encolhe no galope; o alvo é a cabeça, sem pescoço nem
+ *            orelhas (nos 4 moldes: borda de baixo sempre nose.y + 1, área variando ≤ 18% nos 9 quadros);
+ *   2 patas: y > footY − barriga · bbox.h (0,30), a "linha da barriga";
+ *   3 corpo: o resto.
+ * PERNAS (perna[i] = −1 fora das patas):
+ *   - pernas = componentes 4-conexas da zona de patas. Uma componente com cascos separados nas suas
+ *     linhasCascos (3) linhas de baixo é partida na coluna do vão entre eles. Cascos = os pedaços 4-conexos da
+ *     componente dentro dessas linhas (pedaços cujas colunas se cruzam contam como um); entre dois cascos
+ *     seguidos, coluna de corte = floor((última coluna do da esquerda + primeira do da direita + 1) / 2), e
+ *     x < corte fica na parte da esquerda. (Projetar as colunas não basta: casco inclinado encosta, em x, na
+ *     perna vizinha sem tocar nela — ondas galope-3.)
+ *   - lado: traseira se o centro da perna (média dos x) fica à esquerda da referência (x da sela; sem sela, o meio
+ *     do bbox), senão dianteira. Lado com mais de 2: a perna menor junta-se à vizinha mais perto (centro) do
+ *     mesmo lado (empate: a da esquerda), até sobrarem 2 — pernas que o desenho não separa contam como uma;
+ *   - no lado, a de perto é a de MAIS pixels; empate: a que desce mais (maior y), depois a da esquerda.
+ *     Lado com uma perna só: é a de perto;
+ *   - ordem fixa: 0 traseira de perto, 1 dianteira de perto, 2 traseira de longe, 3 dianteira de longe.
+ *   Quadro com menos pernas (ou sem cara) só pinta o que achou.
+ *
+ * ============== MARCAS: camadaMarcas(idx, w, h, ancora, marcas, semente) =======================
+ * marcas = { cara, patas, corpo } (GameData.MARCAS); cada campo fora da lista vale como "sem marca".
+ * Camada: 0 nada · 1 branco (sobre o papel 2) · 2 branco-sombra (sobre o papel 3) · 3 escuro (pintado).
+ * Só pinta pelagem, e cada marca só na zona dela (contorno, crina, jóquei e sela nunca mudam).
+ *   CENTRO DA CARA (S): o pixel de cara mais perto do ponto médio entre o nose e o pixel mais alto da zona da
+ *     cara (o primeiro na ordem de leitura); empate: o primeiro na ordem de leitura.
+ *   estrela: S e os 2 primeiros pixels de cara entre (x+1,y), (x,y+1), (x−1,y), (x,y−1) ⇒ até 3 px (2 a 3 em
+ *            todos os quadros dos 4 moldes; só 1 se S for um pixel de cara isolado).
+ *   listra:  pixels de cara a até 0,75 px do segmento S → F (1 a 2 px de largura, da testa ao focinho), F = o
+ *            pixel de cara mais perto do nose (o nose costuma ser contorno, e o focinho pode fazer curva).
+ *   frente:  toda a zona da cara.
+ *   N meias: as 3 linhas de baixo (fundo − 2 … fundo, fundo = maior y da perna) das N primeiras pernas ACHADAS,
+ *            na ordem fixa (quadro sem a perna 1 passa para a 2): o número de meias visíveis fica limitado às
+ *            pernas achadas, e cada perna a mais pinta uma meia a mais.
+ *   Padrões do corpo, presos à REFERÊNCIA (sela; sem sela, o centro do bbox, arredondado para baixo):
+ *     (u, v) = (x − ref.x, y − ref.y), então o padrão é o mesmo em todos os quadros do galope.
+ *   malhado: rng = mulberry32(hash2(semente, 0x4D414C48)); 1 chamada: n = 2 + floor(3·rng) manchas; por mancha
+ *     4 chamadas: cx = −20 + L·(k + 0,5) + (rng − 0,5)·L/2 (L = 34/n), cy = 2 + 6·rng, rx = 3,5 + 3·rng,
+ *     ry = 2,5 + 2,5·rng. Pinta se (du/rx)² + (dv/ry)² ≤ 1 + 0,4·(ruído(u,v) − 0,5) em alguma mancha
+ *     (ruído = byte de hash2(hash2(semente ^ 0x52554944, u), v) / 255: borda irregular, presa a (u, v)).
+ *   pintado: células 3×3 de (u, v); em cada uma, h = hash2(hash2(semente ^ 0x50494E54, cu), cv): pinta se
+ *     (h & 255) < 154 (60%) um ponto de 1 px (escuro) em ((h >>> 8) % 3, (h >>> 16) % 3) da célula (~6,7%).
+ *   ruão: blocos 5×2 de (u, v) (posição p = du + 5·dv, 0–9); h = hash2(hash2(semente ^ 0x5255414F, bu), bv),
+ *     m = 3 ou 7 (h & 1), d = (h >>> 1) % 10: branco se (m·p + d) % 10 < 3 — exatamente 3 de cada 10 (30%).
+ *
+ * ================== JÓQUEI: camadaJoquei(idx, w, h, ancora, padrao) ==========================
+ * Camada: 0 nada · 1 tom 2 da seda (padrão) · 2 capacete · 3 manta.
+ *   manta: todo pixel de sela (9).
+ *   capacete: grupos 4-conexos do papel 7; o de cima é o primeiro com ≥ 3 px na ordem de leitura (nenhum com
+ *     3: o primeiro). LINHA DO CAPACETE = maior y desse grupo, cortada no fundo do rosto (o grupo 8-conexo de
+ *     pele que tem o pixel de pele mais alto) quando o rosto acaba antes — o cabelo pode ligar o capacete à
+ *     roupa. Capacete = os pixels do grupo de cima até a linha.
+ *   padrão (GameData.JOQUEI.padroes; fora da lista vale liso): só no papel 7 fora do capacete e abaixo da
+ *     linha, em (u, v) relativos à referência (como as marcas do corpo), ~1/3 dos pixels:
+ *       liso nada · listras u % 3 = 0 · faixa (u + v) % 6 < 2 · xadrez casas 2×2 alternadas sem o canto de baixo
+ *       à direita (3/8) · estrelas cruzes de 5 px numa grade 4×4, fileiras alternadas deslocadas 2 (5/16) ·
+ *       losangos (u + v) % 6 = 0 ou (u − v) % 6 = 0, a rede de diagonais (11/36). (% sempre positivo.)
+ *     Nos 40 quadros parado/galope dos 4 moldes o padrão fica entre 18% e 44% da seda (sempre menos que a base).
+ *
+ * ================== FAÍSCAS: faiscas(semente, n) =============================================
+ * n faíscas { dx, dy, fase }: dx, dy em [0, 1] na caixa do cavalo com margem (quem desenha escolhe a margem),
+ * fase em [0, 1). rng = mulberry32(hash2(semente, 0x46410000)); 1 chamada: giro; por faísca 3 chamadas: posição
+ * t = (giro + (k + 0,2 + 0,6·rng) / n) % 1 no perímetro (topo, direita, baixo, esquerda, nesta ordem), recuo para
+ * dentro (0,2·rng da distância ao centro) e fase. n inválido ou ≤ 0: []; n é preso a no máximo 16.
+ * N_FAISCAS e BRILHO (mistura da cor da raridade na faixa de brilho da crina) são por raridade (spec §5).
+ */
+(function (root) {
+  'use strict';
+
+  var G = (typeof require === 'function' && typeof module !== 'undefined' && module.exports)
+    ? require('./data.js') : root.GameData;
+  var S = (typeof require === 'function' && typeof module !== 'undefined' && module.exports)
+    ? require('./sim.js') : root.RaceSim;
+
+  // Limites das zonas (ajuste fino no portão visual).
+  var CARA_RAIO = 0.19;   // raio da cara a partir do nose, em fração de larguraUtil (sem ela, de bbox.w)
+  var CARA_BAIXO = 1;     // a cara vai até nose.y + CARA_BAIXO (corte preso ao focinho)
+  var BARRIGA = 0.30;     // linha da barriga = footY − BARRIGA · bbox.h
+  var LINHAS_CASCOS = 3;  // linhas de baixo de uma perna onde se procuram cascos separados
+  var MAX_FAISCAS = 16;
+  var LIMITES = { caraRaio: CARA_RAIO, caraBaixo: CARA_BAIXO, barriga: BARRIGA, linhasCascos: LINHAS_CASCOS };
+  if (Object.freeze) Object.freeze(LIMITES);
+
+  var N_FAISCAS = { comum: 0, magico: 0, raro: 3, lendario: 5, mitico: 5 };
+  var BRILHO = { comum: 0, magico: 0.25, raro: 0.30, lendario: 0.45, mitico: 0.45 };
+
+  function mod(a, n) { return ((a % n) + n) % n; }
+  function pelagem(v) { return v === 2 || v === 3; }
+  function ancoraValida(a) { return !!(a && a.bbox && a.bbox.w > 0 && a.bbox.h > 0); }
+  function emLista(lista, v) { return lista.indexOf(v) >= 0; }
+  function vazias(n) {
+    var perna = new Int8Array(n);
+    for (var i = 0; i < n; i++) perna[i] = -1;
+    return { zona: new Uint8Array(n), perna: perna };
+  }
+  // Referência dos padrões: a sela; sem sela (retrato), o centro do bbox.
+  function referencia(a) {
+    if (a.saddle) return [a.saddle[0], a.saddle[1]];
+    return [Math.floor(a.bbox.x + a.bbox.w / 2), Math.floor(a.bbox.y + a.bbox.h / 2)];
+  }
+
+  // ------------------------------------------------------------------ zonas
+  function zonas(idx, w, h, ancora) {
+    var n = w * h, Z = vazias(n), zona = Z.zona, perna = Z.perna;
+    if (!ancoraValida(ancora)) return Z;
+    var bb = ancora.bbox, nose = ancora.nose;
+    var L = ancora.larguraUtil > 0 ? ancora.larguraUtil : bb.w, raio2 = Math.pow(CARA_RAIO * L, 2);
+    var barriga = (typeof ancora.footY === 'number' && ancora.footY >= 0) ? ancora.footY - BARRIGA * bb.h : Infinity;
+    var x, y, i;
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+      i = y * w + x;
+      if (!pelagem(idx[i])) continue;
+      if (nose && y <= nose[1] + CARA_BAIXO && (x - nose[0]) * (x - nose[0]) + (y - nose[1]) * (y - nose[1]) <= raio2) zona[i] = 1;
+      else if (y > barriga) zona[i] = 2;
+      else zona[i] = 3;
+    }
+    marcarPernas(zona, perna, w, h, ancora);
+    return Z;
+  }
+
+  // Componentes 4-conexas da zona 2, cada uma uma lista de índices (na ordem de leitura do primeiro pixel).
+  function componentesPatas(zona, w, h) {
+    var n = w * h, visto = new Uint8Array(n), lista = [], i;
+    for (i = 0; i < n; i++) {
+      if (zona[i] !== 2 || visto[i]) continue;
+      var px = [], pilha = [i];
+      visto[i] = 1;
+      while (pilha.length) {
+        var j = pilha.pop(), x = j % w, y = (j / w) | 0;
+        px.push(j);
+        var viz = [x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1, y > 0 ? j - w : -1, y < h - 1 ? j + w : -1];
+        for (var k = 0; k < 4; k++) if (viz[k] >= 0 && zona[viz[k]] === 2 && !visto[viz[k]]) { visto[viz[k]] = 1; pilha.push(viz[k]); }
+      }
+      lista.push(px);
+    }
+    return lista;
+  }
+
+  // Parte uma componente nos vãos entre cascos das suas LINHAS_CASCOS linhas de baixo: os cascos são os pedaços
+  // 4-conexos da componente dentro dessas linhas; pedaços com colunas que se cruzam contam como um casco só.
+  function partirCascos(px, w) {
+    var fundo = -1, k, x, y, dentro = {}, visto = {};
+    for (k = 0; k < px.length; k++) { y = (px[k] / w) | 0; if (y > fundo) fundo = y; }
+    for (k = 0; k < px.length; k++) if (((px[k] / w) | 0) > fundo - LINHAS_CASCOS) dentro[px[k]] = 1;
+    var cascos = [];
+    for (k = 0; k < px.length; k++) {
+      if (!dentro[px[k]] || visto[px[k]]) continue;
+      var c = { x0: Infinity, x1: -1 }, pilha = [px[k]];
+      visto[px[k]] = 1;
+      while (pilha.length) {
+        var j = pilha.pop();
+        x = j % w;
+        if (x < c.x0) c.x0 = x;
+        if (x > c.x1) c.x1 = x;
+        var viz = [x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1, j - w, j + w];
+        for (var v = 0; v < 4; v++) if (dentro[viz[v]] && !visto[viz[v]]) { visto[viz[v]] = 1; pilha.push(viz[v]); }
+      }
+      cascos.push(c);
+    }
+    cascos.sort(function (a, b) { return a.x0 - b.x0; });
+    var cortes = [], fim = cascos.length ? cascos[0].x1 : -1;
+    for (k = 1; k < cascos.length; k++) {
+      if (cascos[k].x0 > fim) cortes.push(Math.floor((fim + cascos[k].x0 + 1) / 2));
+      if (cascos[k].x1 > fim) fim = cascos[k].x1;
+    }
+    if (!cortes.length) return [px];
+    var partes = [];
+    for (k = 0; k <= cortes.length; k++) partes.push([]);
+    for (k = 0; k < px.length; k++) {
+      x = px[k] % w;
+      var p = 0;
+      while (p < cortes.length && x >= cortes[p]) p++;
+      partes[p].push(px[k]);
+    }
+    return partes;
+  }
+
+  function resumo(px, w) {
+    var soma = 0, fundo = -1;
+    for (var k = 0; k < px.length; k++) { soma += px[k] % w; if (((px[k] / w) | 0) > fundo) fundo = (px[k] / w) | 0; }
+    return { px: px, n: px.length, fundo: fundo, cx: soma / px.length };
+  }
+
+  function marcarPernas(zona, perna, w, h, ancora) {
+    var comps = componentesPatas(zona, w, h), pernas = [], k, j;
+    for (k = 0; k < comps.length; k++) {
+      var partes = partirCascos(comps[k], w);
+      for (j = 0; j < partes.length; j++) pernas.push(resumo(partes[j], w));
+    }
+    var refX = referencia(ancora)[0], tras = [], frente = [];
+    for (k = 0; k < pernas.length; k++) (pernas[k].cx < refX ? tras : frente).push(pernas[k]);
+    // lado com mais de 2: a menor junta-se à vizinha mais perto do mesmo lado
+    function juntar(lado) {
+      while (lado.length > 2) {
+        var m = 0;
+        for (var a = 1; a < lado.length; a++) if (lado[a].n < lado[m].n) m = a;
+        var alvo = -1;
+        for (var b = 0; b < lado.length; b++) {
+          if (b === m) continue;
+          var d = Math.abs(lado[b].cx - lado[m].cx);
+          if (alvo < 0 || d < Math.abs(lado[alvo].cx - lado[m].cx) ||
+              (d === Math.abs(lado[alvo].cx - lado[m].cx) && lado[b].cx < lado[alvo].cx)) alvo = b;
+        }
+        lado[alvo] = resumo(lado[alvo].px.concat(lado[m].px), w);
+        lado.splice(m, 1);
+      }
+      // de perto primeiro: mais pixels; empate: desce mais; depois a da esquerda (e, por fim, o 1º pixel)
+      return lado.sort(function (p, q) { return (q.n - p.n) || (q.fundo - p.fundo) || (p.cx - q.cx) || (p.px[0] - q.px[0]); });
+    }
+    tras = juntar(tras); frente = juntar(frente);
+    var ordem = [tras[0], frente[0], tras[1], frente[1]];
+    for (k = 0; k < 4; k++) if (ordem[k]) for (j = 0; j < ordem[k].px.length; j++) perna[ordem[k].px[j]] = k;
+  }
+
+  // ------------------------------------------------------------------ marcas
+  // O pixel de cara mais perto de (px, py); empate: o primeiro na ordem de leitura. −1 sem cara.
+  function maisPerto(zona, w, h, px, py) {
+    var melhor = -1, dMin = Infinity;
+    for (var i = 0; i < w * h; i++) {
+      if (zona[i] !== 1) continue;
+      var dx = i % w - px, dy = ((i / w) | 0) - py, d = dx * dx + dy * dy;
+      if (d < dMin) { dMin = d; melhor = i; }
+    }
+    return melhor;
+  }
+  // Centro da cara: o pixel de cara mais perto do meio entre o nose e o pixel mais alto da zona.
+  function centroCara(zona, w, h, nose) {
+    var topo = -1;
+    for (var i = 0; i < w * h && topo < 0; i++) if (zona[i] === 1) topo = i;
+    if (topo < 0 || !nose) return -1;
+    return maisPerto(zona, w, h, (topo % w + nose[0]) / 2, (((topo / w) | 0) + nose[1]) / 2);
+  }
+
+  function distSegmento2(px, py, ax, ay, bx, by) {
+    var vx = bx - ax, vy = by - ay, l2 = vx * vx + vy * vy;
+    var t = l2 ? ((px - ax) * vx + (py - ay) * vy) / l2 : 0;
+    t = t < 0 ? 0 : (t > 1 ? 1 : t);
+    var dx = px - (ax + t * vx), dy = py - (ay + t * vy);
+    return dx * dx + dy * dy;
+  }
+
+  // ruído de 0 a 1 preso a (u, v)
+  function ruido(semente, u, v) { return (S.hash2(S.hash2(semente ^ 0x52554944, u), v) & 255) / 255; }
+
+  function manchasMalhado(semente) {
+    var rng = S.mulberry32(S.hash2(semente, 0x4D414C48)), n = 2 + Math.floor(3 * rng()), L = 34 / n, out = [];
+    for (var k = 0; k < n; k++) {
+      out.push({
+        cx: -20 + L * (k + 0.5) + (rng() - 0.5) * L / 2,
+        cy: 2 + 6 * rng(),
+        rx: 3.5 + 3 * rng(),
+        ry: 2.5 + 2.5 * rng()
+      });
+    }
+    return out;
+  }
+
+  function camadaMarcas(idx, w, h, ancora, marcas, semente) {
+    var n = w * h, out = new Uint8Array(n);
+    if (!marcas || !ancoraValida(ancora)) return out;
+    var M = G.MARCAS;
+    var cara = emLista(M.cara, marcas.cara) ? marcas.cara : 'nenhuma';
+    var patas = emLista(M.patas, marcas.patas) ? marcas.patas : 0;
+    var corpo = emLista(M.corpo, marcas.corpo) ? marcas.corpo : 'liso';
+    semente = semente >>> 0;
+    var Z = zonas(idx, w, h, ancora), zona = Z.zona, perna = Z.perna, i, x, y, k;
+    function branco(j) { out[j] = idx[j] === 2 ? 1 : 2; }
+
+    // cara
+    if (cara === 'frente') {
+      for (i = 0; i < n; i++) if (zona[i] === 1) branco(i);
+    } else if (cara === 'estrela' || cara === 'listra') {
+      var s = centroCara(zona, w, h, ancora.nose);
+      if (s >= 0) {
+        var sx = s % w, sy = (s / w) | 0;
+        if (cara === 'estrela') {
+          branco(s);
+          var viz = [[1, 0], [0, 1], [-1, 0], [0, -1]], postos = 0;
+          for (k = 0; k < viz.length && postos < 2; k++) {
+            x = sx + viz[k][0]; y = sy + viz[k][1];
+            if (x >= 0 && y >= 0 && x < w && y < h && zona[y * w + x] === 1) { branco(y * w + x); postos++; }
+          }
+        } else {
+          var f = maisPerto(zona, w, h, ancora.nose[0], ancora.nose[1]), fx = f % w, fy = (f / w) | 0;
+          for (i = 0; i < n; i++) {
+            if (zona[i] === 1 && distSegmento2(i % w, (i / w) | 0, sx, sy, fx, fy) <= 0.5625) branco(i);
+          }
+        }
+      }
+    }
+
+    // meias: as 3 linhas de baixo das N primeiras pernas achadas, na ordem fixa
+    if (patas > 0) {
+      var fundo = [-1, -1, -1, -1], comMeia = [false, false, false, false], postas = 0;
+      for (i = 0; i < n; i++) if (perna[i] >= 0 && ((i / w) | 0) > fundo[perna[i]]) fundo[perna[i]] = (i / w) | 0;
+      for (k = 0; k < 4 && postas < patas; k++) if (fundo[k] >= 0) { comMeia[k] = true; postas++; }
+      for (i = 0; i < n; i++) if (perna[i] >= 0 && comMeia[perna[i]] && ((i / w) | 0) >= fundo[perna[i]] - 2) branco(i);
+    }
+
+    // corpo, preso à referência
+    if (corpo !== 'liso') {
+      var ref = referencia(ancora), manchas = corpo === 'malhado' ? manchasMalhado(semente) : null;
+      for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+        i = y * w + x;
+        if (zona[i] !== 3) continue;
+        var u = x - ref[0], v = y - ref[1], hh;
+        if (corpo === 'malhado') {
+          var borda = 1 + 0.4 * (ruido(semente, u, v) - 0.5);
+          for (k = 0; k < manchas.length; k++) {
+            var du = (u - manchas[k].cx) / manchas[k].rx, dv = (v - manchas[k].cy) / manchas[k].ry;
+            if (du * du + dv * dv <= borda) { branco(i); break; }
+          }
+        } else if (corpo === 'pintado') {
+          var cu = Math.floor(u / 3), cv = Math.floor(v / 3);
+          hh = S.hash2(S.hash2(semente ^ 0x50494E54, cu), cv);
+          if ((hh & 255) < 154 && u - 3 * cu === (hh >>> 8) % 3 && v - 3 * cv === (hh >>> 16) % 3) out[i] = 3;
+        } else { // ruao
+          var bu = Math.floor(u / 5), bv = Math.floor(v / 2), p = (u - 5 * bu) + 5 * (v - 2 * bv);
+          hh = S.hash2(S.hash2(semente ^ 0x5255414F, bu), bv);
+          if (((hh & 1 ? 3 : 7) * p + (hh >>> 1) % 10) % 10 < 3) branco(i);
+        }
+      }
+    }
+    return out;
+  }
+
+  // ------------------------------------------------------------------ jóquei
+  var PADROES = {
+    liso: function () { return false; },
+    listras: function (u) { return mod(u, 3) === 0; },
+    faixa: function (u, v) { return mod(u + v, 6) < 2; },
+    xadrez: function (u, v) {
+      return ((Math.floor(u / 2) + Math.floor(v / 2)) & 1) === 0 && !(mod(u, 2) === 1 && mod(v, 2) === 1);
+    },
+    estrelas: function (u, v) {
+      var a = mod(u + 2 * (Math.floor(v / 4) & 1), 4), b = mod(v, 4);
+      return (b === 2 && a !== 0) || (a === 2 && b !== 0);
+    },
+    losangos: function (u, v) { return mod(u + v, 6) === 0 || mod(u - v, 6) === 0; }
+  };
+
+  // Grupos conexos (4 ou 8) dos pixels com papel `papel`, na ordem de leitura do primeiro pixel de cada um.
+  function grupos(idx, w, h, papel, oito) {
+    var n = w * h, rot = new Int32Array(n), lista = [], i;
+    for (i = 0; i < n; i++) rot[i] = -1;
+    for (i = 0; i < n; i++) {
+      if (idx[i] !== papel || rot[i] >= 0) continue;
+      var g = { px: [], y1: -1 }, pilha = [i];
+      rot[i] = lista.length;
+      while (pilha.length) {
+        var j = pilha.pop(), x = j % w, y = (j / w) | 0;
+        g.px.push(j); if (y > g.y1) g.y1 = y;
+        for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+          if ((!dx && !dy) || (!oito && dx && dy)) continue;
+          var xx = x + dx, yy = y + dy, k = yy * w + xx;
+          if (xx >= 0 && yy >= 0 && xx < w && yy < h && idx[k] === papel && rot[k] < 0) { rot[k] = lista.length; pilha.push(k); }
+        }
+      }
+      lista.push(g);
+    }
+    return lista;
+  }
+
+  function camadaJoquei(idx, w, h, ancora, padrao) {
+    var n = w * h, out = new Uint8Array(n), i;
+    if (!ancoraValida(ancora)) return out;
+    for (i = 0; i < n; i++) if (idx[i] === 9) out[i] = 3;
+    var roupa = grupos(idx, w, h, 7, false);
+    if (!roupa.length) return out;
+    var cima = roupa[0];
+    for (i = 0; i < roupa.length; i++) if (roupa[i].px.length >= 3) { cima = roupa[i]; break; }
+    var linha = cima.y1, pele = grupos(idx, w, h, 8, true);
+    if (pele.length && pele[0].y1 < linha) linha = pele[0].y1;
+    for (i = 0; i < cima.px.length; i++) if (((cima.px[i] / w) | 0) <= linha) out[cima.px[i]] = 2;
+    var f = Object.prototype.hasOwnProperty.call(PADROES, padrao) && emLista(G.JOQUEI.padroes, padrao) ? PADROES[padrao] : PADROES.liso;
+    var ref = referencia(ancora);
+    for (i = 0; i < n; i++) {
+      var y = (i / w) | 0;
+      if (idx[i] === 7 && out[i] !== 2 && y > linha && f(i % w - ref[0], y - ref[1])) out[i] = 1;
+    }
+    return out;
+  }
+
+  // ------------------------------------------------------------------ faíscas
+  function faiscas(semente, n) {
+    n = Math.floor(Number(n));
+    if (!(n > 0)) return [];
+    if (n > MAX_FAISCAS) n = MAX_FAISCAS;
+    var rng = S.mulberry32(S.hash2(semente >>> 0, 0x46410000)), giro = rng(), out = [];
+    for (var k = 0; k < n; k++) {
+      var t = (giro + (k + 0.2 + 0.6 * rng()) / n) % 1, s = 4 * t, lado = Math.floor(s), f = s - lado;
+      var px = lado === 0 ? f : (lado === 1 ? 1 : (lado === 2 ? 1 - f : 0));
+      var py = lado === 0 ? 0 : (lado === 1 ? f : (lado === 2 ? 1 : 1 - f));
+      var dentro = 0.2 * rng();
+      out.push({ dx: px + (0.5 - px) * dentro, dy: py + (0.5 - py) * dentro, fase: rng() });
+    }
+    return out;
+  }
+
+  var Marcas = {
+    LIMITES: LIMITES,
+    N_FAISCAS: N_FAISCAS,
+    BRILHO: BRILHO,
+    zonas: zonas,
+    camadaMarcas: camadaMarcas,
+    camadaJoquei: camadaJoquei,
+    faiscas: faiscas
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = Marcas;
+  else root.Marcas = Marcas;
 })(typeof self !== 'undefined' ? self : this);
 </script>
 <script>
@@ -2954,9 +3481,19 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *
  * API (global `Sprites` no navegador; module.exports no Node):
  *   Sprites.HORSE_W, Sprites.HORSE_H, Sprites.GALLOP_FRAMES, Sprites.FOOT_Y
- *   Sprites.drawHorse(ctx, x, y, { palette, element, frame, scale, silks, idle, t, jockey, shadow, quadro })
+ *   Sprites.drawHorse(ctx, x, y, { palette, element, frame, scale, silks, idle, t, jockey, shadow, quadro,
+ *                                  marcas, semente, joquei, raridade, rastro, reduzido })
  *     frame pode ser fracionário (fase contínua do galope); quadro = { topo, base } em px: quadro de altura
- *     fixa onde o molde inteiro tem de caber (retratos, pódio) — o desenho por código o ignora
+ *     fixa onde o molde inteiro tem de caber (retratos, pódio) — o desenho por código o ignora.
+ *     Parte 2a (spec 2026-11-12-cavalos-marcas), todas opcionais — sem elas, o desenho é o de antes, byte a byte:
+ *       marcas = { cara, patas, corpo } (GameData.MARCAS) e semente (uint32, Breed.hashChave da chave do cavalo,
+ *         calculada por quem chama): marcas na pelagem, só nos moldes (Marcas.camadaMarcas);
+ *       joquei = { padrao, capacete } (GameData.JOQUEI): padrão da seda num tom 2 da cor `silks`, capacete na cor
+ *         escolhida e manta no capacete escurecido, só nos moldes (Marcas.camadaJoquei);
+ *       raridade (id de GameData.RARITIES), rastro (só na corrida), reduzido (movimento reduzido): os efeitos de
+ *         Sprites.drawRaridade, desenhados depois do cavalo (as faíscas e o rastro também no desenho por código).
+ *   Sprites.drawRaridade(ctx, caixa, o)  caixa = horseBox(x, y, o): brilho na crina (só com molde), faíscas e
+ *     rastro do Mítico (ver a seção RARIDADE VISÍVEL). Comum não desenha nada.
  *   Sprites.drawTrack(ctx, { width, height, cameraX, pxPerMeter, lanes, laneTop, laneH, surface,
  *                           finishM, hills, curves, distanceMarkersEvery, t, weather, pixel, wind, curveScale })
  *     wind = { intensity: 'calmo'|'brisa'|'ventania', dir: 1|-1 } (só visual; padrão brisa ←): bandeirinhas
@@ -2979,14 +3516,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
  *   Sprites.drawHorseSilhouette(ctx, x, y, opts, cor, alpha)  (contorno tingido, chamar antes de drawHorse),
  *   Sprites.anchorsFor(element, scale, estado), Sprites.horseBox(x, y, opts),
- *   Sprites.limparCacheMoldes() (moldes recoloridos, silhuetas do contorno e textos prontos; o game.js chama ao
- *     trocar de tela),
+ *   Sprites.limparCacheMoldes() (moldes recoloridos, silhuetas do contorno, máscaras do brilho da crina e textos
+ *     prontos; o game.js chama ao trocar de tela),
+ *   Sprites.prepararCavalo(opts) -> n: recolore já, no cache dos moldes, os quadros que drawHorse(…, opts) usa (parado
+ *     e todo o galope; sem jóquei, o retrato), para a corrida montar cada cavalo uma vez na largada; 0 sem moldes,
  *   Sprites.drawHorseCodigo(...)
+ *   Dependências: Marcas (marcas.js) e GameData (data.js) — require no Node, globais no navegador (procurados na
+ *   hora do desenho). Sem eles (o wiki embute só este arquivo), marcas, jóquei e raridade não desenham nada.
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.Sprites = factory();
-}(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./marcas.js'), require('./data.js'));
+  else root.Sprites = factory(null, null);   // no navegador: Marcas e GameData globais, procurados na hora (ver marcasApi)
+}(typeof self !== 'undefined' ? self : this, function (MARCAS_NODE, DADOS_NODE) {
   'use strict';
 
   // ===================================================================
@@ -3833,13 +4374,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // (crista, orelhas) é cortado em no máximo 10 % da altura do bbox (senão a escala desce um passo).
   // As referências são POR ESTADO, não por quadro: por quadro o cavalo tremeria no galope (cauda e patas
   // mudam rear e footY). Como o focinho cai no mesmo NOSE, a câmera e as etiquetas da corrida não mudam;
-  // anchorsFor() converte rear/saddle do molde para as unidades do sprite por código.
+  // anchorsFor() converte rear/saddle do molde para as unidades do sprite por código. As âncoras POR QUADRO
+  // (M.ancoras = { retrato, parado, galope: [9] }, as do JSON + larguraUtil) só servem às zonas das marcas e
+  // do jóquei (marcas.js), presas a cada quadro.
   // Galope: o ciclo do molde (frames quadros) dura o mesmo que o ciclo do código (GALLOP_FRAMES quadros);
   // `frame` pode ser fracionário (fase contínua) e o índice é floor((frame mod GALLOP_FRAMES) × frames / GALLOP_FRAMES).
   var ESTILO_POR_ELEMENTO = { fogo: 'chamas', agua: 'ondas', grama: 'folhas', neutro: 'lisa' };
   var ESTILOS_MOLDE = ['chamas', 'ondas', 'folhas', 'lisa'];
   var MOLDE_CORES_FIXAS = { contorno: '#1a1405', pele: '#e8b48a', sela: '#5a3a22' };
-  var moldes = null;       // estilo -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados }
+  var moldes = null;       // estilo -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados, ancoras }
   var moldsOk = false;
   var moldesLref = 0;      // maior larguraUtil entre os estilos carregados (escala única)
   var moldesGeracao = 0;   // descarta um carregamento antigo se loadMolds for chamado de novo
@@ -3847,6 +4390,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // 64×64×4 = 16 KB por entrada; o teto em bytes é só uma rede de segurança (go() limpa ao trocar de tela)
   var moldCache = new LruCanvasCache(8 * 1024 * 1024);
   LruCanvasCache.prototype.clear = function () { this.map.clear(); this.bytes = 0; };
+  // máscaras da crina para o brilho da raridade (recortadas na crina: poucos KB cada); fora do moldCache, que o
+  // ui-test conta por corrida e no pódio
+  var brilhoCache = new LruCanvasCache(1024 * 1024);
 
   function estiloDe(element) { return ESTILO_POR_ELEMENTO[element] || 'lisa'; }
   function moldScale(k) { return Math.max(1, Math.round(k * 40 / moldesLref)); }
@@ -3864,6 +4410,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   function caixa(b) { return b && isFinite(b.x) && isFinite(b.y) && b.w > 0 && b.h > 0; }
   function aviso(motivo) {
     if (typeof console !== 'undefined' && console.warn) console.warn('Sprites: moldes desligados (' + motivo + '); os cavalos usam o desenho por código.');
+  }
+  // cópia rasa da âncora de um quadro com a larguraUtil do molde (a zona da cara usa a do molde, não a do bbox)
+  function ancoraComL(a, larguraUtil) {
+    var c = {};
+    for (var k in a) if (Object.prototype.hasOwnProperty.call(a, k)) c[k] = a[k];
+    c.larguraUtil = larguraUtil;
+    return c;
   }
 
   // Referência de um estado a partir das âncoras dos seus quadros (calculada uma vez, ao carregar).
@@ -3920,7 +4473,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // com um console.warn do motivo (o jogo segue com o desenho por código).
   function loadMolds(tabela, pronto) {
     var geracao = ++moldesGeracao;
-    moldsOk = false; api.moldsReady = false; moldes = null; moldCache.clear();
+    moldsOk = false; api.moldsReady = false; moldes = null; moldCache.clear(); brilhoCache.clear();
     if (typeof Image === 'undefined' || typeof document === 'undefined') return;   // Node: sem canvas
     var est = tabela && tabela.estilos;
     if (!est) { aviso('a tabela de moldes não tem estilos'); return; }
@@ -3950,6 +4503,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           w: J.w, h: J.h, frames: frames, larguraUtil: J.larguraUtil, retrato: null, parado: null, galope: [],
           estados: { retrato: refDe('retrato', [A.retrato]), parado: refDe('parado', [A.parado]), galope: refDe('galope', lista) }
         };
+        // âncoras por quadro (as do JSON, já validadas acima) + larguraUtil, para as zonas do marcas.js
+        M.ancoras = { retrato: ancoraComL(A.retrato, J.larguraUtil), parado: ancoraComL(A.parado, J.larguraUtil), galope: [] };
+        for (f = 0; f < frames; f++) M.ancoras.galope.push(ancoraComL(lista[f], J.larguraUtil));
         function carrega(url, rotulo, guarda) {
           pendentes++;
           decodificaMolde(url, M.w, M.h, function (idx) { guarda(idx); fim(); },
@@ -3992,19 +4548,87 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return c;
   }
   function indicesMolde(M, estado, quadro) { return estado === 'galope' ? M.galope[quadro] : M[estado]; }
+  function ancoraMolde(M, estado, quadro) { return estado === 'galope' ? M.ancoras.galope[quadro] : M.ancoras[estado]; }
+
+  // Marcas e jóquei (spec 2026-11-12-cavalos-marcas §3–§4) das opções do drawHorse, normalizados pelas listas do
+  // GameData (fora da lista: sem marca, padrão liso; capacete que não é '#rgb'/'#rrggbb': sem capacete — o
+  // capacete fica na seda e a manta na sela). null sem as duas opções (ou sem o marcas.js): a recoloração de hoje.
+  function visuaisMolde(o) {
+    var MK = marcasApi(), GD = dadosApi();
+    if (!MK || !GD || !GD.MARCAS || !GD.JOQUEI) return null;
+    var m = o.marcas && typeof o.marcas === 'object' ? o.marcas : null;
+    var j = o.joquei && typeof o.joquei === 'object' ? o.joquei : null;
+    if (!m && !j) return null;
+    var L = GD.MARCAS, v = { MK: MK, branco: L.branco || '#f1e9d4', marcas: null, semente: o.semente >>> 0, padrao: null, capacete: null, chave: '' };
+    if (m) {
+      v.marcas = {
+        cara: L.cara.indexOf(m.cara) >= 0 ? m.cara : 'nenhuma',
+        patas: L.patas.indexOf(m.patas) >= 0 ? m.patas : 0,
+        corpo: L.corpo.indexOf(m.corpo) >= 0 ? m.corpo : 'liso'
+      };
+      v.chave += '|m' + v.marcas.cara + ',' + v.marcas.patas + ',' + v.marcas.corpo + ',' + v.semente;
+    }
+    if (j) {
+      v.padrao = GD.JOQUEI.padroes.indexOf(j.padrao) >= 0 ? j.padrao : 'liso';
+      v.capacete = opaca(j.capacete) ? j.capacete.toLowerCase() : null;
+      v.chave += '|j' + v.padrao + ',' + (v.capacete || '-');
+    }
+    return v;
+  }
+
+  // Índices 10–15 por cima dos papéis: 10–12 = camada das marcas (1 branco, 2 branco-sombra, 3 escuro),
+  // 13–15 = camada do jóquei (1 tom 2 da seda, 2 capacete, 3 manta). As camadas não se cruzam (marcas só na
+  // pelagem, jóquei só na roupa e na sela).
+  function indicesComCamadas(idx, w, h, ancora, v) {
+    var cm = v.marcas ? v.MK.camadaMarcas(idx, w, h, ancora, v.marcas, v.semente) : null;
+    var cj = v.padrao ? v.MK.camadaJoquei(idx, w, h, ancora, v.padrao) : null;
+    var out = new Uint8Array(w * h);
+    for (var i = 0; i < w * h; i++) out[i] = cm && cm[i] ? 9 + cm[i] : (cj && cj[i] ? 12 + cj[i] : idx[i]);
+    return out;
+  }
+  function coresComCamadas(cores, v) {
+    var seda = cores[7], cap = v.capacete;
+    return cores.concat([
+      v.branco, shade(v.branco, 0.3), shade(cores[3], 0.45),                  // marcas
+      lum(seda) < 0.5 ? light(seda, 0.35) : shade(seda, 0.3),                  // tom 2 da seda
+      cap || seda, cap ? shade(cap, 0.4) : cores[9]                            // capacete e manta
+    ]);
+  }
 
   // Canvas 1× recolorido; a escala fica no drawImage (vizinho mais próximo), então a chave não leva a
-  // escala: uma entrada por estilo|estado|quadro|cores, em qualquer tamanho de tela.
+  // escala: uma entrada por estilo|estado|quadro|cores (+ marcas, semente, padrão e capacete, quando vêm nas
+  // opções), em qualquer tamanho de tela. Sem marcas e sem jóquei: a chave e os pixels de antes da parte 2a.
+  // As camadas saem do marcas.js só na falta (uma vez por cavalo e quadro; na corrida, na largada).
   function moldeRecolorido(nome, estado, quadro, o) {
-    var cores = coresMolde(o);
-    var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',');
+    var cores = coresMolde(o), v = visuaisMolde(o);
+    var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '');
     var c = moldCache.get(key);
     if (!c) {
-      var M = moldes[nome];
-      c = pintaIndices(indicesMolde(M, estado, quadro), M.w, M.h, cores);
+      var M = moldes[nome], idx = indicesMolde(M, estado, quadro);
+      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v), M.w, M.h, coresComCamadas(cores, v))
+        : pintaIndices(idx, M.w, M.h, cores);
       moldCache.set(key, c);
     }
     return c;
+  }
+
+  // Monta agora, no cache dos moldes, todos os quadros recoloridos que drawHorse(…, opts) usa com estas opções
+  // (o parado e os quadros do galope; sem jóquei, o retrato), para a corrida não recolorir no 1º ciclo do
+  // galope (~0,8 ms por quadro com marcas e jóquei; spec 2026-11-12-cavalos-marcas §3: cada cavalo montado uma
+  // vez na largada). Só o número de quadros do molde decide o laço, e ele mora aqui. Devolve quantos quadros
+  // ficaram prontos (0 sem moldes).
+  function prepararCavalo(opts) {
+    opts = opts || {};
+    if (!moldsOk) return 0;
+    var nome = estiloDe(opts.element), M = moldes[nome], n = 0, feitos = {}, q;
+    [true, false].forEach(function (idle) {
+      var estado = estadoMolde({ idle: idle, jockey: opts.jockey, retrato: opts.retrato });
+      if (!estado || feitos[estado]) return;
+      feitos[estado] = true;
+      var quadros = estado === 'galope' ? M.frames : 1;
+      for (q = 0; q < quadros; q++) { moldeRecolorido(nome, estado, q, opts); n++; }
+    });
+    return n;
   }
 
   // Quadro do galope do molde para o contador do sprite por código (pode ser fracionário).
@@ -4057,6 +4681,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var estado = moldsOk ? estadoMolde(opts) : null;
     if (estado) drawHorseMolde(ctx, x, y, opts, estado);
     else drawHorseCodigo(ctx, x, y, opts);
+    if (opts.raridade != null) {   // depois do cavalo; Comum não tem efeito (e nem calcula a caixa)
+      var R = infoRaridade(opts);
+      if (R) desenhaRaridade(ctx, horseBox(x, y, opts), opts, R);
+    }
   }
 
   // Silhueta do cavalo (com jóquei) tingida de uma cor, para o contorno de skill da corrida: o desenho
@@ -4088,6 +4716,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       var o2 = {};
       for (var q in opts) if (Object.prototype.hasOwnProperty.call(opts, q)) o2[q] = opts[q];
       o2.shadow = false;
+      o2.raridade = null;   // faíscas, brilho e rastro mudam com o tempo e não fazem parte da silhueta
       drawHorse(cx, pad - b0.x, pad - b0.y, o2);
       cx.globalCompositeOperation = 'source-in';
       cx.fillStyle = cor;
@@ -4119,6 +4748,156 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return { x: L.ox + ref.esq * L.S, y: L.topo, w: (ref.dir - ref.esq) * L.S, h: L.pe - L.topo };
   }
 
+  // ===================================================================
+  // RARIDADE VISÍVEL (spec 2026-11-12-cavalos-marcas §5)
+  // ===================================================================
+  // drawRaridade(ctx, caixa, o): efeitos na cor da raridade (GameData.RARITIES[o.raridade].color) por cima do
+  // cavalo; caixa = horseBox(x, y, o) (o drawHorse chama sozinho quando as opções trazem `raridade`). 1 px de
+  // arte = u: com molde, a escala do molde (S = caixa.w ÷ colunas do bbox do estado, o inverso do horseBox);
+  // sem molde, a escala k do sprite por código.
+  //   • brilho da crina (Marcas.BRILHO; só com molde): a máscara dos papéis 4 e 5 do quadro, recortada na
+  //     crina e pintada na cor da raridade CLAREADA (light(cor, RARIDADE_CLARO), a mesma do rastro; a cor pura some
+  //     numa crina da mesma cor, como o verde do Mágico na crina da Grama) (brilhoCache, uma por estilo|estado|quadro|cor). Uma fatia de 3 colunas (alfa
+  //     BRILHO[raridade]: a mistura de 25/30/45 % da cor clareada), com 1 coluna a meio alfa de cada lado, atravessa a
+  //     crina da cabeça para a cauda a cada BRILHO_CICLO (1,2 s); fatia sem crina não desenha. Com o.reduzido,
+  //     a fatia fica parada na coluna com mais crina da metade da cabeça (a crina do pescoço, não a cauda).
+  //   • faíscas: Marcas.faiscas(o.semente, Marcas.N_FAISCAS[raridade]) (0/0/3/5/5), na caixa com margem de
+  //     FAISCA_MARGEM px de arte (com o.quadro, presas na altura do quadro), no grid de arte da caixa. Cruz de
+  //     1 px de arte (barra 3u × u + barra u × 3u, mesmo centro) que pisca (alfa 0,15 … 1) pelo tempo o.t e pela
+  //     fase da faísca, num ciclo de FAISCA_CICLO s. Com o.reduzido, alfa fixo.
+  //   • rastro (o.rastro, só Mítico, só no galope, nunca com o.reduzido): 3 faixas de 1 px de arte que acabam
+  //     na âncora traseira do estado (sem molde, ANCHORS.rear) e somem para trás em 3 trechos; comprimento =
+  //     a passada (RASTRO_PASSO da largura da caixa), tremulando com o tempo; cor = a da raridade clareada. As
+  //     faíscas ficam na cor pura da raridade.
+  // Ordem: rastro, brilho, faíscas. Comum (ou raridade fora de GameData.RARITIES) não desenha nada; nada de
+  // Math.random; o globalAlpha volta ao que era. Sem o marcas.js ou o GameData (o wiki só embute o
+  // sprites.js), não desenha nada.
+  var BRILHO_CICLO = 1.2;
+  var RARIDADE_CLARO = 0.35;   // quanto a cor da raridade é clareada (light) no brilho da crina e no rastro
+  var FAISCA_MARGEM = 3, FAISCA_CICLO = 1.6, FAISCA_REDUZIDO = 0.85;
+  var RASTRO_PASSO = 0.45;
+  var RASTRO_FAIXAS = [{ dy: -2, alfa: 0.45, l: 0.8 }, { dy: 0, alfa: 0.6, l: 1 }, { dy: 2, alfa: 0.45, l: 0.65 }];
+  var RASTRO_TRECHOS = [1, 0.55, 0.25];   // alfa relativo de cada terço da faixa, da traseira para trás
+
+  function infoRaridade(o) {
+    var MK = marcasApi(), GD = dadosApi(), id = o.raridade, tem = Object.prototype.hasOwnProperty;
+    if (!MK || !GD || !GD.RARITIES || typeof id !== 'string' || !tem.call(GD.RARITIES, id)) return null;
+    var n = tem.call(MK.N_FAISCAS, id) ? MK.N_FAISCAS[id] : 0, b = tem.call(MK.BRILHO, id) ? MK.BRILHO[id] : 0;
+    var R = { MK: MK, cor: GD.RARITIES[id].color, faiscas: n > 0 ? n : 0, brilho: b > 0 ? b : 0, rastro: !!o.rastro && id === 'mitico' && !o.reduzido };
+    return R.faiscas || R.brilho || R.rastro ? R : null;
+  }
+
+  function drawRaridade(ctx, caixa, o) {
+    o = o || {};
+    var R = infoRaridade(o);
+    if (R && caixa) desenhaRaridade(ctx, caixa, o, R);
+  }
+
+  function desenhaRaridade(ctx, caixa, o, R) {
+    var a0 = typeof ctx.globalAlpha === 'number' ? ctx.globalAlpha : 1, t = o.reduzido ? 0 : (Number(o.t) || 0);
+    var L = layoutRaridade(caixa, o);
+    if (R.rastro && L.galope) desenhaRastro(ctx, caixa, L, R, t, a0);
+    if (R.brilho && L.molde) desenhaBrilho(ctx, L.molde, R, t, !!o.reduzido, a0);
+    if (R.faiscas) desenhaFaiscas(ctx, caixa, o, R, L.u, t, a0);
+    ctx.globalAlpha = a0;
+  }
+
+  // O layout do desenho a partir da caixa (o inverso do horseBox): px de arte, âncora traseira e, com molde,
+  // a posição do molde (ox, oy, S) e o quadro.
+  function layoutRaridade(caixa, o) {
+    var k = Math.max(1, Math.round(o.scale || 1)), estado = moldsOk ? estadoMolde(o) : null;
+    if (!estado) return { u: k, molde: null, galope: !o.idle && !o.retrato, rear: [caixa.x + ANCHORS.rear[0] * k, caixa.y + ANCHORS.rear[1] * k] };
+    var nome = estiloDe(o.element), M = moldes[nome], ref = M.estados[estado];
+    var S = Math.max(1, Math.round(caixa.w / (ref.dir - ref.esq)));
+    var ox = caixa.x - ref.esq * S, oy = caixa.y + caixa.h - (ref.footY + 1) * S;
+    return {
+      u: S, galope: estado === 'galope', rear: [ox + ref.rear[0] * S, oy + ref.rear[1] * S],
+      molde: { nome: nome, estado: estado, quadro: estado === 'galope' ? quadroGalope(M, o.frame) : 0, ox: ox, oy: oy, S: S }
+    };
+  }
+
+  // Máscara da crina (papéis 4 e 5) de um quadro, recortada no retângulo da crina e pintada na cor; col[x] =
+  // pixels de crina por coluna do recorte, pico = a coluna com mais crina na metade direita (a da cabeça). null se
+  // o quadro não tem crina.
+  function mascaraCrina(Lm, cor) {
+    var key = Lm.nome + '|' + Lm.estado + '|' + Lm.quadro + '|' + cor, hit = brilhoCache.get(key);
+    if (!hit) {
+      var M = moldes[Lm.nome], idx = indicesMolde(M, Lm.estado, Lm.quadro), w = M.w, h = M.h;
+      var x0 = w, y0 = h, x1 = -1, y1 = -1, x, y, v;
+      for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+        v = idx[y * w + x];
+        if (v !== 4 && v !== 5) continue;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+      hit = { c: null, width: 0, height: 0 };
+      if (x1 >= 0) {
+        var cw = x1 - x0 + 1, ch = y1 - y0 + 1, rec = new Uint8Array(cw * ch), col = new Uint16Array(cw), pico = 0;
+        for (y = 0; y < ch; y++) for (x = 0; x < cw; x++) {
+          v = idx[(y0 + y) * w + x0 + x];
+          if (v === 4 || v === 5) { rec[y * cw + x] = 1; col[x]++; }
+        }
+        // pico na metade da cabeça (direita: a crina do pescoço; a cauda, à esquerda, é mais grossa)
+        for (pico = x = cw >> 1; x < cw; x++) if (col[x] > col[pico]) pico = x;
+        hit = { c: pintaIndices(rec, cw, ch, [null, cor]), x0: x0, y0: y0, w: cw, h: ch, col: col, pico: pico, width: cw, height: ch };
+      }
+      brilhoCache.set(key, hit);
+    }
+    return hit.c ? hit : null;
+  }
+
+  function desenhaBrilho(ctx, Lm, R, t, reduzido, a0) {
+    var mk = mascaraCrina(Lm, light(R.cor, RARIDADE_CLARO));
+    if (!mk) return;
+    // centro da fatia, em colunas do recorte: entra pela direita (cabeça) e sai pela esquerda a cada ciclo
+    var c = reduzido ? mk.pico : Math.round(mk.w + 1 - frac(t / BRILHO_CICLO) * (mk.w + 3));
+    var fatias = [[c - 1, 3, 1], [c - 2, 1, 0.5], [c + 2, 1, 0.5]];
+    for (var i = 0; i < fatias.length; i++) {
+      var sx = Math.max(0, fatias[i][0]), ex = Math.min(mk.w, fatias[i][0] + fatias[i][1]), n = 0, x;
+      for (x = sx; x < ex; x++) n += mk.col[x];
+      if (!n) continue;
+      ctx.globalAlpha = a0 * R.brilho * fatias[i][2];
+      ctx.drawImage(mk.c, sx, 0, ex - sx, mk.h, Lm.ox + (mk.x0 + sx) * Lm.S, Lm.oy + mk.y0 * Lm.S, (ex - sx) * Lm.S, mk.h * Lm.S);
+    }
+  }
+
+  function piscar(t, fase) {
+    var s = Math.sin(2 * Math.PI * (t / FAISCA_CICLO + fase));
+    return s > 0 ? 0.15 + 0.85 * s * s : 0.15;
+  }
+
+  function desenhaFaiscas(ctx, caixa, o, R, u, t, a0) {
+    var lista = R.MK.faiscas(o.semente >>> 0, R.faiscas), m = FAISCA_MARGEM * u;
+    var W = caixa.w + 2 * m, H = caixa.h + 2 * m, q = o.quadro, topo = -Infinity, base = Infinity;
+    if (q && isFinite(q.topo) && isFinite(q.base) && q.base - q.topo > 4 * u) { topo = q.topo + u; base = q.base - 2 * u; }
+    ctx.fillStyle = R.cor;
+    for (var i = 0; i < lista.length; i++) {
+      var f = lista[i];
+      var cx = caixa.x - m + Math.round(f.dx * W / u) * u, cy = caixa.y - m + Math.round(f.dy * H / u) * u;
+      if (cy < topo) cy = caixa.y + Math.ceil((topo - caixa.y) / u) * u;
+      if (cy > base) cy = caixa.y + Math.floor((base - caixa.y) / u) * u;
+      ctx.globalAlpha = a0 * (o.reduzido ? FAISCA_REDUZIDO : piscar(t, f.fase));
+      ctx.fillRect(cx - u, cy, 3 * u, u);
+      ctx.fillRect(cx, cy - u, u, 3 * u);
+    }
+  }
+
+  function desenhaRastro(ctx, caixa, L, R, t, a0) {
+    var u = L.u, passo = Math.max(6, Math.round(RASTRO_PASSO * caixa.w / u)), x1 = L.rear[0], nT = RASTRO_TRECHOS.length;
+    ctx.fillStyle = light(R.cor, RARIDADE_CLARO);
+    for (var i = 0; i < RASTRO_FAIXAS.length; i++) {
+      var F = RASTRO_FAIXAS[i], y = L.rear[1] + F.dy * u, fim = x1;
+      var len = Math.max(nT, Math.round(passo * F.l * (0.85 + 0.15 * Math.sin(2 * Math.PI * (t * 2.5 + i / 3)))));
+      for (var s = 0; s < nT; s++) {
+        var ini = x1 - Math.round(len * (s + 1) / nT) * u;
+        if (fim > ini) {
+          ctx.globalAlpha = a0 * F.alfa * RASTRO_TRECHOS[s];
+          ctx.fillRect(ini, y, fim - ini, u);
+        }
+        fim = ini;
+      }
+    }
+  }
+
   // Âncoras nas unidades do sprite por código (some x + v·escala, y + v·escala), para o estado pedido
   // ('galope' por padrão, 'parado' ou 'retrato'), na pista (sem quadro). Com a escala, a conversão é exata
   // para aquele tamanho; sem ela, usa a proporção ideal 40 / Lref. Sem moldes: ANCHORS. O focinho é sempre NOSE.
@@ -4138,7 +4917,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   }
   function quadroGalopeTeste(element, frame) { return moldsOk ? quadroGalope(moldes[estiloDe(element)], frame) : null; }
 
-  function limparCacheMoldes() { moldCache.clear(); silCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
+  function limparCacheMoldes() { moldCache.clear(); silCache.clear(); brilhoCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
   function cacheMoldes() { return moldCache.map.size; }
   function cacheSilhuetas() { return { n: silCache.map.size, bytes: silCache.bytes, max: silCache.max }; }
 
@@ -5141,6 +5920,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (typeof global !== 'undefined' && global.RaceFx) return global.RaceFx;
     return null;
   }
+  // Marcas (marcas.js) e GameData (data.js): no Node, os do require do topo; no navegador, os globais (o build
+  // carrega os dois antes do sprites.js). Sem eles (o wiki embute só o sprites.js): sem marcas, jóquei e raridade.
+  function marcasApi() { return MARCAS_NODE || (typeof self !== 'undefined' && self.Marcas) || null; }
+  function dadosApi() { return DADOS_NODE || (typeof self !== 'undefined' && self.GameData) || null; }
 
   var api = {
     HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y,
@@ -5155,6 +5938,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     drawHorseCodigo: drawHorseCodigo,
     horseBox: horseBox,
     drawHorseSilhouette: drawHorseSilhouette,
+    drawRaridade: drawRaridade,
     // moldes do PixelLab (ver a seção MOLDES)
     ESTILO_POR_ELEMENTO: ESTILO_POR_ELEMENTO,
     moldsReady: false,
@@ -5162,6 +5946,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     anchorsFor: anchorsFor,
     escalaMoldeCompativel: escalaMoldeCompativel,
     limparCacheMoldes: limparCacheMoldes,
+    prepararCavalo: prepararCavalo,
     moldeCanvas: moldeCanvas,
     _cacheMoldes: cacheMoldes,
     _cacheSilhuetas: cacheSilhuetas,
@@ -7221,6 +8006,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // número do uid (neutroParaTipo); as skills de tipo (Labareda, Maré Alta, Raízes Firmes) saem da lista;
   // modelo que saiu do catálogo (ex.: Pangaré) fica com templateId null e a própria paleta; a sala aberta
   // fica (mesma seed, entrada e treino) com o Poder recalculado.
+  // Visual da parte 2a (spec 2026-11-12-cavalos-marcas), sem versão nova: mount.marcas = { cara, patas, corpo } e
+  // state.joquei = { padrao, capacete }, opcionais no save; ausentes ou inválidos, o sanitize põe os calculados
+  // (marcasDe) e o jóquei inicial (validJoquei). Só desenho: nada disso entra na corrida, no Poder nem na sala.
   var SAVE_VERSION = 5;
   var BR = E.breeding;
   var MAX_LEVEL = E.maxLevel || 50;
@@ -7241,11 +8029,26 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       potential: clone(tpl.potential),
       alloc: zeroAlloc(),
       palette: tpl.palette ? clone(tpl.palette) : null,
+      marcas: marcasDe(tpl.marcas, null, uid),
       breedLeft: tpl.breedLeftMax || GD.BREED_LEFT[tpl.sex],
       parents: null,
       born: 0,
       equip: GR.emptyEquip()
     };
+  }
+
+  // Marcas na pelagem (spec 2026-11-12-cavalos-marcas §2; só desenho, fora do Poder e da corrida): a regra é uma só,
+  // Breed.marcasDe(marcas, templateId, chave) — as do cavalo, se válidas; senão as do modelo do catálogo; senão as
+  // calculadas da chave (o uid). Sempre uma cópia com os três genes.
+  function marcasDe(marcas, templateId, chave) { return BRD.marcasDe(marcas, templateId, chave); }
+  // Jóquei do jogador (spec §4): padrão da seda e cor do capacete, só das listas de GameData.JOQUEI (a cor aceita
+  // maiúsculas e fica como na lista); qualquer outra coisa (save de antes da 2a, lixo) volta ao jóquei inicial.
+  function joqueiInicial() { return { padrao: GD.JOQUEI.padrao, capacete: GD.JOQUEI.capacete }; }
+  function validJoquei(j) {
+    if (!j || typeof j !== 'object') return joqueiInicial();
+    var cap = typeof j.capacete === 'string' ? j.capacete.toLowerCase() : null;
+    if (GD.JOQUEI.padroes.indexOf(j.padrao) < 0 || GD.JOQUEI.capacetes.indexOf(cap) < 0) return joqueiInicial();
+    return { padrao: j.padrao, capacete: cap };
   }
 
   function zeroAlloc() {
@@ -7282,7 +8085,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       nextItemUid: 1,
       pedras: 0,
       enhanceCounter: 0,
-      settings: { motion: 'sistema' }
+      settings: { motion: 'sistema' },
+      joquei: joqueiInicial()
     };
     // equipamento inicial (+0) já equipado no inicial
     GE.startGear.forEach(function (id) {
@@ -7386,6 +8190,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       potential: potential,
       alloc: null,
       palette: validPalette(m.palette),
+      marcas: marcasDe(m.marcas, templateId, m.uid),   // sem versão nova: ausentes ou inválidas, as calculadas
       breedLeft: num(m.breedLeft, GD.BREED_LEFT[m.sex], 0, 4),
       parents: validParents(m.parents),
       born: num(m.born, 0, 0, 1e9),
@@ -7483,6 +8288,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     // preferências (sem mudar a versão do save): save antigo sem settings, ou com valor inválido, segue o sistema
     var mo = s.settings && typeof s.settings === 'object' ? s.settings.motion : null;
     base.settings = { motion: MOTIONS.indexOf(mo) >= 0 ? mo : 'sistema' };
+    base.joquei = validJoquei(s.joquei);   // idem: sem jóquei (save de antes da 2a) ou inválido, o inicial
     return base;
   }
 
@@ -7700,7 +8506,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // Retrato: baia com parede de tábuas e palha; cavalo parado (respira, pisca, abana o rabo,
   // descansa um posterior e abaixa a cabeça de vez em quando).
   var PORTRAIT_W = 48, PORTRAIT_H = 36;
-  // opts.selo: moldura com o selo "Nv N" no canto (e, com opts.pontos > 0, o aviso "+N" de pontos livres)
+  // opts.selo: moldura com o selo "Nv N" no canto (e, com opts.pontos > 0, o aviso "+N" de pontos livres);
+  // opts.jockey: montado (seda opts.silks, a sua por padrão; jóquei opts.joquei, o seu por padrão). Marcas e raridade
+  // do cavalo sempre (opcoesVisuais).
   function portraitHtml(horse, opts) {
     opts = opts || {};
     var id = portraitQueue.length;
@@ -7711,6 +8519,35 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var pts = opts.pontos > 0 ? '<span class="pontos-livres pontos-livres--selo" title="' +
       esc(opts.pontos + (opts.pontos === 1 ? ' ponto livre' : ' pontos livres') + ' para distribuir') + '">+' + esc(opts.pontos) + '</span>' : '';
     return '<span class="retrato-moldura">' + cv + '<span class="selo-nivel">Nv ' + esc(horse.level) + '</span>' + pts + '</span>';
+  }
+
+  // Opções da parte 2a (spec 2026-11-12-cavalos-marcas) para o Sprites.drawHorse de qualquer cavalo (montaria,
+  // modelo do catálogo ou rival): marcas (marcasDe), semente do padrão (Breed.hashChave da chave: o uid da montaria
+  // ou o id do modelo; o rival usa o id do modelo, sem o sufixo da raia), jóquei ({ padrao, capacete }; null quando o desenho não tem jóquei), raridade e
+  // movimento reduzido. Só desenho. Usada no retrato (estábulo, ficha, sala, Haras...), na corrida (com rastro:
+  // true) e no pódio; quem desenha várias vezes calcula uma vez e atualiza o `reduzido` a cada quadro.
+  function opcoesVisuais(horse, joquei) {
+    var chave = horse.uid || horse.id;
+    // rival: o id da raia é id do modelo + '-b<n>'; a semente (e as manchas) vêm do modelo, como no Haras e no catálogo
+    var sem = horse.uid ? chave : String(chave).replace(/-b\d+$/, '');
+    return {
+      marcas: marcasDe(horse.marcas, horse.templateId, chave), semente: BRD.hashChave(sem), joquei: joquei || null,
+      raridade: horse.rarity, reduzido: reduced()
+    };
+  }
+  // copia as opções visuais (vis) para as opções de desenho (o) e devolve o
+  function comVisuais(o, vis) {
+    for (var k in vis) if (hasOwn(vis, k)) o[k] = vis[k];
+    return o;
+  }
+  // O seu jóquei vale para todos os seus cavalos; os rivais têm o deles, da seed da sala e da raia j (índice em
+  // L.racers): 1 sorteio para o padrão e 1 para o capacete. Calculado ao desenhar: a sala (salva ou não) não guarda.
+  function joqueiDoJogador() { return state && state.joquei ? state.joquei : joqueiInicial(); }
+  function joqueiDoCorredor(L, j) {
+    if (L.racers[j].isPlayer) return joqueiDoJogador();
+    var J = GD.JOQUEI, rng = RS.mulberry32(RS.hash2(L.seed, 0x4A4F0000 + j));
+    var padrao = J.padroes[Math.floor(rng() * J.padroes.length)];
+    return { padrao: padrao, capacete: J.capacetes[Math.floor(rng() * J.capacetes.length)] };
   }
 
   function drawStall(ctx, k, w, h, seed) {
@@ -7747,6 +8584,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var s = setupCanvas(cv, PORTRAIT_W, PORTRAIT_H, PORTRAIT_SCALE);
         var seed = (horse.name.charCodeAt(0) || 0) + (horse.name.length * 3);
         var phase = (seed % 10) * 0.37;
+        var vis = opcoesVisuais(horse, o.jockey ? (o.joquei || joqueiDoJogador()) : null);
         var item = {
           drawn: false,
           draw: function (t) {
@@ -7754,10 +8592,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
             item.drawn = true;
             drawStall(s.ctx, s.k, PORTRAIT_W, PORTRAIT_H, seed);
             // quadro: o molde inteiro cabe na altura da baia (o desenho por código já cabe)
-            SP.drawHorse(s.ctx, 5 * s.k, 1 * s.k, {
+            vis.reduzido = reduced();
+            SP.drawHorse(s.ctx, 5 * s.k, 1 * s.k, comVisuais({
               palette: horse.palette, element: horse.element, idle: true, t: reduced() ? 0.5 : t + phase,
               scale: s.k, jockey: !!o.jockey, silks: o.silks || PLAYER_SILKS, quadro: { topo: 0, base: PORTRAIT_H * s.k }
-            });
+            }, vis));
           }
         };
         item.draw(0);
@@ -7985,11 +8824,47 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         '<span class="app-aba-icone" aria-hidden="true">' + iconeHtml('aba-' + a.id, a.icone, 32) + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
     }).join('') + '</nav>';
   }
+  // Linha "Marcas: ..." (ficha da Montaria e Haras): nomes em português, sem símbolos
+  var CARA_ROT = { nenhuma: 'nenhuma', estrela: 'estrela', listra: 'listra', frente: 'frente branca' };
+  var CORPO_ROT = { liso: 'liso', malhado: 'malhado', pintado: 'pintado', ruao: 'ruão' };
+  // só o que existe (cara, patas, corpo); sem marca nenhuma: "Marcas: nenhuma"
+  function marcasTexto(h) {
+    var m = marcasDe(h.marcas, h.templateId, h.uid || h.id), t = [];
+    if (m.cara !== 'nenhuma') t.push(CARA_ROT[m.cara]);
+    if (m.patas > 0) t.push(m.patas === 1 ? '1 meia' : m.patas + ' meias');
+    if (m.corpo !== 'liso') t.push(CORPO_ROT[m.corpo]);
+    return 'Marcas: ' + (t.length ? t.join(', ') : 'nenhuma');
+  }
+  // Editor do jóquei (Perfil): padrão da seda e cor do capacete; a prévia é o cavalo ativo, parado e montado
+  var PADRAO_ROT = { liso: 'Liso', listras: 'Listras', faixa: 'Faixa', xadrez: 'Xadrez', estrelas: 'Estrelas', losangos: 'Losangos' };
+  var CAPACETE_ROT = GD.JOQUEI.nomes;   // hex → nome (data.js)
+  function joqueiHtml() {
+    var j = joqueiDoJogador();
+    var pads = GD.JOQUEI.padroes.map(function (p) {
+      return '<button type="button" class="btn opcao opcao--centro" data-acao="joquei-padrao" data-id="' + esc(p) + '" data-v="' + esc(p) +
+        '" aria-pressed="' + (j.padrao === p) + '"><span class="opcao-nome">' + esc(PADRAO_ROT[p] || p) + '</span></button>';
+    }).join('');
+    var caps = GD.JOQUEI.capacetes.map(function (c) {
+      return '<button type="button" class="btn capacete-btn" data-acao="joquei-capacete" data-id="' + esc(c) + '" data-v="' + esc(c) +
+        '" aria-pressed="' + (j.capacete === c) + '" aria-label="' + esc(CAPACETE_ROT[c] || 'Capacete') + '" title="' + esc(CAPACETE_ROT[c] || 'Capacete') +
+        '" style="background:' + esc(c) + '"></button>';
+    }).join('');
+    var m = activeMount();
+    var previa = m ? '<div class="joquei-previa">' + portraitHtml(m, { jockey: true, joquei: j }) + '</div>' : '';
+    return '<section class="caixa" aria-labelledby="r-joquei"><div class="tela-cabeca">' +
+      '<h2 class="titulo" id="r-joquei">Seu jóquei</h2>' + previa +
+      '<span class="rotulo" id="r-joq-padrao">Seda</span>' +
+      '<div class="opcoes opcoes--3" role="group" aria-labelledby="r-joq-padrao">' + pads + '</div>' +
+      '<span class="rotulo" id="r-joq-cap">Capacete</span>' +
+      '<div class="capacetes" role="group" aria-labelledby="r-joq-cap">' + caps + '</div>' +
+      '<p class="nota">O jóquei só muda o visual: vale para todos os seus cavalos e não afeta a corrida.</p>' +
+      '</div></section>';
+  }
   // Perfil: estatísticas, saldo, inventário e "Recomeçar com outro inicial"
   function renderPerfil() {
     return '<section class="tela" aria-labelledby="t-perfil">' +
       '<button type="button" class="btn btn--pequeno" data-acao="perfil-voltar">Voltar</button>' +
-      '<h1 class="titulo titulo--tela" id="t-perfil" tabindex="-1" data-foco>Perfil</h1>' +
+      '<h1 class="titulo titulo--tela" id="t-perfil" tabindex="-1" data-foco>Perfil</h1>' + noticeHtml() +
       '<div class="caixa">' +
         '<div class="linha-meta"><span>Corridas <b>' + fmt(state.races) + '</b></span><span>Vitórias <b>' + fmt(state.wins) + '</b></span>' +
           '<span>Pódios <b>' + fmt(state.podiums) + '</b></span><span>Prêmios ' + ouroHtml(state.goldWon) + '</span></div>' +
@@ -7997,7 +8872,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         '<div class="linha-meta"><span>' + esc(state.mounts.length) + (state.mounts.length === 1 ? ' montaria' : ' montarias') + ' · ' +
           esc(state.items.length) + (state.items.length === 1 ? ' peça' : ' peças') + '</span></div>' +
       '</div>' +
-      animacoesHtml() +
+      joqueiHtml() + animacoesHtml() +
       '<footer class="caixa">' + resetHtml() + '</footer></section>';
   }
   // opção "Animações": mesmo controle de escolhas (aria-pressed) da entrada e das abas internas
@@ -8358,6 +9233,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var custoNome = ui.haras.mode === 'troca' ? 'Troca' : (P.kind === 'rent' ? 'Aluguel' : 'Registro');
     return '<section class="caixa calc" aria-labelledby="t-calc"><h2 class="titulo" id="t-calc">Calculadora</h2>' +
       '<p class="nota">' + esc(P.f.name) + ' (' + sexoHtml('f') + ') × ' + esc(P.m.name) + ' (' + sexoHtml('m') + ')</p>' +
+      '<p class="nota marcas-linha">' + esc(P.f.name + ' · ' + marcasTexto(P.f)) + '</p>' +
+      '<p class="nota marcas-linha">' + esc(P.m.name + ' · ' + marcasTexto(P.m)) + '</p>' +
       '<div class="calc-barras">' + bars + '</div>' +
       '<p>' + grau + '</p>' +
       '<p>' + esc(genTxt) + '</p>' +
@@ -8756,6 +9633,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco>' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h1>' +
           '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
             '<span>' + sexoHtml(m.sex) + '</span>' +
+            '<span>' + esc(marcasTexto(m)) + '</span>' +
             '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
             (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
           '</div>' +
@@ -9352,6 +10230,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       wind: ventoDaSala(L)   // só visual (RaceFx.wind da seed, ou o forçado no DEV)
     };
     for (i = 0; i < n; i++) self.gallop[i] = i * 1.7;
+    // marcas, jóquei e raridade de cada corredor (parte 2a), calculados uma vez; cada cavalo é montado já na largada
+    // (Sprites.prepararCavalo: o parado e todo o galope recoloridos agora, ~0,8 ms por quadro com marcas e jóquei),
+    // e não aos poucos no 1º ciclo do galope. Só desenho: a corrida já foi simulada.
+    var visuais = L.racers.map(function (r, q) {
+      var v = opcoesVisuais(r.horse, joqueiDoCorredor(L, q));
+      v.rastro = true;   // rastro de luz do Mítico: só na corrida
+      SP.prepararCavalo(comVisuais({ palette: r.horse.palette, element: r.horse.element, silks: r.silks }, v));
+      return v;
+    });
 
     // minimapa do HUD (fora do layout compacto): caixa em pixels de arte logo abaixo da linha de cima
     function miniCaixa(artW) {
@@ -9633,11 +10520,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var feetY = laneTop + (j + 1) * laneH - 3 * S - lift - arcoJ * S;
         var y = feetY - (SP.FOOT_Y + 1) * S;
         var x = Math.round(((st.pos[j] - cam) * ppm - an.nose[0] * S) / S) * S;
-        var cavalo = {
+        var cavalo = comVisuais({
           // fase contínua do galope: o código usa o quadro inteiro; o molde mapeia o ciclo (mesma duração)
           palette: r.horse.palette, element: r.horse.element, frame: self.gallop[j],
           scale: S, silks: r.silks, t: tr, idle: standing
-        };
+        }, visuais[j]);
+        cavalo.reduzido = red;
         // caixa do que vai ser desenhado (molde ou código): o corte nas bordas e o monitor de câmera usam ela,
         // então a cauda do molde (que passa do x do sprite) não some de uma vez na borda
         var caixaCav = SP.horseBox(x, y, cavalo);
@@ -9943,6 +10831,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var top3 = L.sim.finishOrder.slice(0, 3);
     var slots = [{ place: 2, cx: 30, top: 57, col: C.prata }, { place: 1, cx: 84, top: 49, col: C.ouro }, { place: 3, cx: 138, top: 63, col: C.bronze }];
     var playerOnPodium = top3.indexOf(L.playerIdx) >= 0;
+    var visuais = top3.map(function (ri) { return opcoesVisuais(L.racers[ri].horse, joqueiDoCorredor(L, ri)); });   // parte 2a
     var confetti = [];
     for (var c = 0; c < 26; c++) confetti.push({ x: (c * 37) % PODIUM_W, y: (c * 23) % PODIUM_H, v: 6 + (c % 5) * 3, col: [C.ouro, C.ganho, C.agua, C.fogo, C.texto][c % 5] });
     function R(x, y, w, h, col) { ctx.fillStyle = col; ctx.fillRect(Math.round(x) * k, Math.round(y) * k, w * k, h * k); }
@@ -9972,10 +10861,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           R(bx, sl.top, bw, 1, C.brilho);
           R(bx, PODIUM_H - 7, bw, 3, C.escuro);
           SP.drawText(ctx, String(sl.place), sl.cx * k, (sl.top + 3) * k, { scale: 2 * k, color: C.tinta, align: 'center' });
-          var hx = (sl.cx - 21) * k, hy = (sl.top - 32) * k, cavalo = {
+          var hx = (sl.cx - 21) * k, hy = (sl.top - 32) * k, cavalo = comVisuais({
             palette: r.horse.palette, element: r.horse.element, idle: true, t: reduced() ? 0.5 : t + sl.place * 0.8,
             scale: k, silks: r.silks, shadow: false, quadro: { topo: 0, base: sl.top * k }   // em pé no bloco, sem sair do canvas
-          };
+          }, visuais[sl.place - 1]);
+          cavalo.reduzido = reduced();
           SP.drawHorse(ctx, hx, hy, cavalo);
           if (r.isPlayer) {
             // seta dourada sobre o seu cavalo: a ponta fica 4 px de arte acima do topo do desenho (o molde pode ser
@@ -10315,6 +11205,22 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var card = document.getElementById('ini-' + id);
         if (card) { try { card.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'nearest', inline: 'center' }); } catch (e2) { card.scrollIntoView(); } }
         break;
+      }
+      case 'joquei-padrao':
+      case 'joquei-capacete': {
+        if (!state) break;
+        var campoJ = b.getAttribute('data-acao') === 'joquei-padrao' ? 'padrao' : 'capacete';
+        var vJ = b.getAttribute('data-v');
+        var novoJ = validJoquei(joqueiDoJogador());
+        novoJ[campoJ] = vJ;
+        if (validJoquei(novoJ)[campoJ] !== (campoJ === 'capacete' ? String(vJ).toLowerCase() : vJ)) break;   // valor fora das listas
+        novoJ = validJoquei(novoJ);
+        var sJ = state, antesJ = clone(state);
+        state.joquei = novoJ;
+        var gJ = gravaGasto(sJ, antesJ);
+        if (gJ === 'outra-aba') break;
+        if (gJ === 'falhou') ui.notice = FALHA_SALVAR;
+        rerenderKeepScroll(); break;
       }
       case 'motion':
         if (!state || MOTIONS.indexOf(id) < 0) break;

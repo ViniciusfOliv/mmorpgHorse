@@ -685,6 +685,8 @@ test('snapshot dourado dos potros de exemplos.md', function () {
   ];
   casos.forEach(function (c, i) {
     var x = B.foal({ f: c.f, m: c.m, seedBase: 20261106, breedCounter: i, nextUid: 2 });
+    // `marcas` usa sequência própria (spec 2a §2) e é conferida na seção "Marcas"; aqui só se confirma que existe e é válida
+    assert.ok(B.marcasValidas(x.marcas), 'marcas do potro ' + i); delete x.marcas;
     assert.deepStrictEqual(x, {
       uid: 'm2', templateId: null, name: c.name, especie: 'cavalo', element: c.element, rarity: c.rarity, grau: c.grau, sex: c.sex,
       level: 1, xp: 0, skills: c.skills, potential: st(c.potential), palette: c.palette, breedLeft: c.breedLeft,
@@ -692,6 +694,92 @@ test('snapshot dourado dos potros de exemplos.md', function () {
       born: i
     }, 'potro ' + i);
     assert.deepStrictEqual(S.computeStats(x, null), st(c.stats), 'status do potro ' + i + ' no nível 1');
+  });
+});
+
+section('Marcas');
+function marcasPai(o, m) { var p = mk2(o); p.marcas = m; return p; }
+test('foal: mesma seed e pais ⇒ mesmas marcas; valores válidos', function () {
+  var f = marcasPai({ sex: 'f' }, { cara: 'estrela', patas: 2, corpo: 'malhado' }), m = marcasPai({}, { cara: 'listra', patas: 4, corpo: 'ruao' });
+  for (var s = 0; s < 200; s++) {
+    var a = B.foal({ f: f, m: m, seedBase: 91, breedCounter: s, nextUid: 1 }), b = B.foal({ f: f, m: m, seedBase: 91, breedCounter: s, nextUid: 1 });
+    assert.deepStrictEqual(a.marcas, b.marcas); assert.ok(B.marcasValidas(a.marcas), JSON.stringify(a.marcas));
+  }
+});
+test('foal: campos antigos iguais ao potro de antes (sorteios antigos intactos)', function () {
+  // o snapshot dourado acima compara o potro inteiro, exceto `marcas`; aqui, marcas diferentes nos pais não mudam nenhum outro campo
+  var base = { f: mk2({ sex: 'f' }), m: mk2({}), seedBase: 5, nextUid: 3 };
+  for (var s = 0; s < 100; s++) {
+    var sem = B.foal({ f: marcasPai({ sex: 'f' }, { cara: 'nenhuma', patas: 0, corpo: 'liso' }), m: marcasPai({}, { cara: 'frente', patas: 4, corpo: 'pintado' }), seedBase: 5, breedCounter: s, nextUid: 3 });
+    var com = B.foal({ f: marcasPai({ sex: 'f' }, { cara: 'estrela', patas: 2, corpo: 'ruao' }), m: marcasPai({}, { cara: 'listra', patas: 1, corpo: 'malhado' }), seedBase: 5, breedCounter: s, nextUid: 3 });
+    delete sem.marcas; delete com.marcas; assert.deepStrictEqual(sem, com);
+  }
+});
+test('foal: 10.000 potros de pais com marcas diferentes ⇒ mutação por gene em [8,5%; 11,5%] e, sem mutação, égua em [47%; 53%]', function () {
+  var f = marcasPai({ sex: 'f' }, { cara: 'nenhuma', patas: 0, corpo: 'liso' }), m = marcasPai({}, { cara: 'estrela', patas: 1, corpo: 'malhado' });
+  var N = 10000, mut = { cara: 0, patas: 0, corpo: 0 }, deF = 0, semMut = 0, k;
+  var fora = { cara: 2 / 4, patas: 3 / 5, corpo: 2 / 4 }; // fração dos valores que nenhum pai tem
+  for (var s = 0; s < N; s++) {
+    var c = B.foal({ f: f, m: m, seedBase: 77, breedCounter: s, nextUid: 1 }).marcas;
+    ['cara', 'patas', 'corpo'].forEach(function (g) {
+      if (c[g] !== f.marcas[g] && c[g] !== m.marcas[g]) mut[g]++;
+    });
+  }
+  // fração observada de "valor de fora" = mutação × fração fora; mutação = observada / fora
+  ['cara', 'patas', 'corpo'].forEach(function (g) {
+    var taxa = mut[g] / N / fora[g]; assert.ok(taxa >= 0.085 && taxa <= 0.115, g + ' mutação ' + taxa);
+  });
+  // sem mutação: genes distintos nos pais; conta os que bateram com a égua entre os que bateram com algum pai
+  // (mutação que cai por acaso num valor dos pais é rara e entra igual nos dois lados)
+  for (s = 0; s < N; s++) {
+    var d = B.foal({ f: f, m: m, seedBase: 78, breedCounter: s, nextUid: 1 }).marcas;
+    ['cara', 'patas', 'corpo'].forEach(function (g) {
+      if (d[g] === f.marcas[g]) { deF++; semMut++; } else if (d[g] === m.marcas[g]) semMut++;
+    });
+  }
+  var pF = deF / semMut; assert.ok(pF >= 0.47 && pF <= 0.53, 'égua ' + pF);
+});
+test('foal: pai sem marcas usa as do modelo ou marcasDoId(uid)', function () {
+  var modelo = G.WILD_HORSES.filter(function (x) { return x.id === 'w-ventania'; })[0];
+  var comModelo = mk2({ uid: 'm9', sex: 'f' }); comModelo.templateId = 'w-ventania';
+  var semNada = mk2({ uid: 'm7' });
+  var ref = marcasPai({ sex: 'f' }, modelo.marcas), ref2 = marcasPai({ uid: 'm7' }, B.marcasDoId('m7'));
+  for (var s = 0; s < 100; s++) {
+    var a = B.foal({ f: comModelo, m: semNada, seedBase: 3, breedCounter: s, nextUid: 1 }), b = B.foal({ f: ref, m: ref2, seedBase: 3, breedCounter: s, nextUid: 1 });
+    assert.deepStrictEqual(a.marcas, b.marcas);
+  }
+  var inval = mk2({ uid: 'm7', marcas: { cara: 'xx', patas: 9, corpo: 'liso' } });
+  assert.deepStrictEqual(B.foal({ f: semNada, m: inval, seedBase: 3, breedCounter: 1, nextUid: 1 }).marcas, B.foal({ f: semNada, m: semNada, seedBase: 3, breedCounter: 1, nextUid: 1 }).marcas);
+});
+test('marcasDoId: determinístico, válido e cobre todos os valores em 1.000 chaves', function () {
+  var vistos = {};
+  for (var i = 0; i < 1000; i++) {
+    var a = B.marcasDoId('m' + i); assert.deepStrictEqual(a, B.marcasDoId('m' + i)); assert.ok(B.marcasValidas(a));
+    vistos['c' + a.cara] = vistos['p' + a.patas] = vistos['o' + a.corpo] = 1; vistos['p' + a.patas] = 1; vistos['c' + a.cara] = 1;
+  }
+  G.MARCAS.cara.forEach(function (v) { assert.ok(vistos['c' + v], v); });
+  G.MARCAS.patas.forEach(function (v) { assert.ok(vistos['p' + v], 'patas ' + v); });
+  G.MARCAS.corpo.forEach(function (v) { assert.ok(vistos['o' + v], v); });
+  assert.ok(!B.marcasValidas({ cara: 'nenhuma', patas: '2', corpo: 'liso' }) && !B.marcasValidas(null) && !B.marcasValidas({}));
+});
+test('hashChave("") e hashChave("m1") conhecidos (FNV-1a 32 bits)', function () {
+  assert.strictEqual(B.hashChave(''), 0x811c9dc5);
+  assert.strictEqual(B.hashChave('a'), 0xe40c292c); // vetor de teste FNV-1a 32 bits
+  assert.strictEqual(B.hashChave('m1'), 0x942e6feb);
+});
+test('MARCAS e JOQUEI no catálogo', function () {
+  assert.deepStrictEqual(G.MARCAS, { cara: ['nenhuma', 'estrela', 'listra', 'frente'], patas: [0, 1, 2, 3, 4], corpo: ['liso', 'malhado', 'pintado', 'ruao'], mutacao: 0.10, branco: '#f1e9d4' });
+  assert.strictEqual(G.JOQUEI.padroes.length, 6); assert.strictEqual(G.JOQUEI.capacetes.length, 8);
+  assert.strictEqual(G.JOQUEI.padrao, 'liso'); assert.strictEqual(G.JOQUEI.capacete, '#f2c230');
+});
+test('iniciais e selvagens com as marcas da tabela da spec §2', function () {
+  var T = { brasa: 'estrela/1/liso', mare: 'listra/0/ruao', ipe: 'frente/2/liso', 'w-faisca': 'estrela/2/pintado', 'w-lambari': 'nenhuma/0/malhado',
+    'w-capim': 'listra/4/liso', 'w-ticao': 'frente/1/liso', 'w-garoa': 'estrela/0/ruao', 'w-mandacaru': 'nenhuma/3/pintado', 'w-ventania': 'listra/2/malhado',
+    'w-pororoca': 'estrela/4/liso', 'w-fogareu': 'frente/0/pintado', 'w-jequitiba': 'listra/1/ruao', 'w-boitata': 'estrela/2/malhado', 'w-iara': 'nenhuma/4/ruao' };
+  var todos = G.STARTERS.concat(G.WILD_HORSES); assert.strictEqual(todos.length, 15);
+  todos.forEach(function (h) {
+    assert.strictEqual(typeof h.marcas.patas, 'number', h.id);
+    assert.strictEqual(h.marcas.cara + '/' + h.marcas.patas + '/' + h.marcas.corpo, T[h.id], h.id); assert.ok(B.marcasValidas(h.marcas));
   });
 });
 
@@ -1003,6 +1091,18 @@ test('Dev.horseTemplate v3: sem base, genética por status, estrelas e alloc', f
   [0, 4, 'x', null, 2.4].forEach(function (g) { var e = DV().horseTemplate({ grau: g }).grau; assert.ok(e >= 1 && e <= 3 && e === Math.floor(e), String(g) + ' -> ' + e); });
   assert.strictEqual(DV().horseTemplate({ grau: 1 }).grau, 1); assert.strictEqual(DV().horseTemplate({}).grau, 2);
   G.STAT_KEYS.forEach(function (k) { assert.strictEqual(DV().horseTemplate({}).alloc[k], 0); });
+});
+test('Dev.horseTemplate: marcas da gaveta (patas também em texto, como no select); inválidas viram nenhuma/0/liso', function () {
+  assert.deepStrictEqual(DV().horseTemplate({ marcas: { cara: 'listra', patas: 3, corpo: 'malhado' } }).marcas, { cara: 'listra', patas: 3, corpo: 'malhado' });
+  assert.deepStrictEqual(DV().horseTemplate({ marcas: { cara: 'frente', patas: '4', corpo: 'ruao' } }).marcas, { cara: 'frente', patas: 4, corpo: 'ruao' });
+  [undefined, null, 'x', {}, { cara: 'x', patas: 7, corpo: 2 }, { cara: 'estrela', patas: '2.5', corpo: 'liso' }, { patas: ' 1' }, { patas: true }].forEach(function (mc) {
+    var t = DV().horseTemplate({ marcas: mc });
+    assert.ok(B.marcasValidas(t.marcas), JSON.stringify(mc) + ' -> ' + JSON.stringify(t.marcas));
+    if (!mc || typeof mc !== 'object' || mc.cara !== 'estrela') assert.strictEqual(t.marcas.cara, 'nenhuma', JSON.stringify(mc));
+    assert.strictEqual(t.marcas.patas, 0, JSON.stringify(mc));
+  });
+  // cada gene vale por si: um gene inválido não apaga os outros
+  assert.deepStrictEqual(DV().horseTemplate({ marcas: { cara: 'estrela', patas: 9, corpo: 'pintado' } }).marcas, { cara: 'estrela', patas: 0, corpo: 'pintado' });
 });
 test('Dev.itemId devolve só ids do catálogo', function () {
   assert.strictEqual(DV().itemId({ slot: 'sela', set: 'sol', rarity: 'lendario' }), 'sela-sol-lendario');

@@ -13,6 +13,7 @@
 - [Dado da Sorte](#dado)
 - [Pista e simulação](#pista)
 - [Montarias](#montarias)
+- [Marcas e jóquei](#marcas)
 - [Cruzamento (Haras)](#cruzamento)
 - [Equipamento](#equipamento)
 - [Economia](#economia)
@@ -675,6 +676,65 @@ Skill de tipo: Maré Alta · Skills: Canto da Iara, Pé na Chuva, Nascente · On
 | Nv 1 | 71 | 71 | 71 | 70 | 75 | 73 | 69 |
 | Genética | 22 | 21 | 22 | 20 | 30 | 25 | 18 |
 | No Nv 28 | 81 | 80 | 81 | 80 | 86 | 83 | 79 |
+
+<a id="marcas"></a>
+
+## Marcas e jóquei
+
+Marcas, jóquei e brilho da raridade são só desenho: não entram em status, Poder, preço, chance de skill nem na corrida. Cada cavalo carrega 3 genes de marcas, que o potro herda pela seed do cruzamento.
+
+### Genes de marcas
+
+| Gene | Valores | Quantos |
+| --- | --- | ---: |
+| Cara | nenhuma, estrela, listra e frente branca | 4 |
+| Patas | 0, 1, 2, 3 e 4 meias brancas | 5 |
+| Corpo | liso, malhado (manchas brancas grandes), pintado (pintas escuras pequenas) e ruão (pelos brancos salpicados) | 4 |
+
+### Herança no cruzamento
+
+- Cada gene (cara, patas, corpo, nessa ordem) vem de um dos pais, 50% para cada um (égua ou garanhão), com 10% de chance de **mutação**: o gene vira um valor qualquer da lista, com a mesma chance para todos.
+- Os sorteios das marcas usam uma sequência própria da seed do cruzamento. O resto do potro (raridade, estrelas, genética, skills) nasce igual a antes de existirem marcas.
+- Cavalo sem marcas válidas (save antigo) vale pelas marcas do modelo do catálogo ou, na falta dele, por marcas calculadas do identificador dele: o mesmo cavalo tem sempre as mesmas marcas.
+- Mítico nunca nasce de cruzamento, com ou sem marcas. A ficha da montaria e o Haras mostram a linha "Marcas: …".
+
+### Jóquei do jogador
+
+- Na aba Perfil você escolhe o **padrão da seda** (liso, listras, faixa, xadrez, estrelas e losangos) e a **cor do capacete** (8 cores). O padrão inicial é "liso" e o capacete inicial é Dourado. Cores de capacete: Dourado, Vermelho, Azul, Verde, Roxo, Laranja, Creme e Preto.
+- A seda continua na cor de sempre (a sua é dourada; a dos rivais é a cor da raia); o padrão vai por cima em um tom mais claro ou mais escuro. A escolha vale para todos os seus cavalos.
+- O jóquei dos rivais (padrão e capacete) sai da seed da sala.
+
+### Raridade visível
+
+Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada 1,2 s. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.
+
+| Raridade | Efeito |
+| --- | --- |
+| Comum | nada |
+| Mágico | brilho na crina (mistura de 25% da cor da raridade clareada) |
+| Raro | brilho na crina (mistura de 30% da cor da raridade clareada) e 3 faíscas piscando em volta |
+| Lendário | brilho na crina (mistura de 45% da cor da raridade clareada) e 5 faíscas piscando em volta |
+| Mítico | brilho na crina (mistura de 45% da cor da raridade clareada) e 5 faíscas piscando em volta e rastro de luz atrás do cavalo no galope da corrida |
+
+### Marcas dos iniciais e selvagens
+
+| Cavalo | Cara | Patas (meias) | Corpo |
+| --- | --- | ---: | --- |
+| Brasa | estrela | 1 | liso |
+| Maré | listra | 0 | ruão (pelos brancos salpicados) |
+| Ipê | frente branca | 2 | liso |
+| Faísca | estrela | 2 | pintado (pintas escuras pequenas) |
+| Lambari | nenhuma | 0 | malhado (manchas brancas grandes) |
+| Capim | listra | 4 | liso |
+| Tição | frente branca | 1 | liso |
+| Garoa | estrela | 0 | ruão (pelos brancos salpicados) |
+| Mandacaru | nenhuma | 3 | pintado (pintas escuras pequenas) |
+| Ventania | listra | 2 | malhado (manchas brancas grandes) |
+| Pororoca | estrela | 4 | liso |
+| Fogaréu | frente branca | 0 | pintado (pintas escuras pequenas) |
+| Jequitibá | listra | 1 | ruão (pelos brancos salpicados) |
+| Boitatá | estrela | 2 | malhado (manchas brancas grandes) |
+| Iara | nenhuma | 4 | ruão (pelos brancos salpicados) |
 
 <a id="cruzamento"></a>
 

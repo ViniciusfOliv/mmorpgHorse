@@ -1,6 +1,6 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-11._
+_Atualizado em 2026-11-13._
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
 durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o
@@ -17,8 +17,8 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
 - **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Cavalo, Itens,
   Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
-- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (108 testes
-  de simulação, 75 de efeitos, 46 de moldes, 301 conferências do wiki, 77 metas de balanço no modo
+- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (117 testes
+  de simulação, 96 de efeitos, 69 de moldes, 492 conferências do wiki, 77 metas de balanço no modo
   rápido e 126 no completo, e o teste de interface).
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
@@ -68,8 +68,15 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   no wiki; 79 gerações (spec em `docs/superpowers/specs/2026-11-12-icones-design.md`). Revisão final da
   branch limpa e `check.sh` OK (598977e). Build de teste num artefato separado:
   https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch. A confirmar com o Vinicius: selo de liga só onde a
-  liga já aparece, e medalhão de raridade também nas peças. **Próxima parte: os cavalos** (spec a
-  desenhar). Geração só com confirmação explícita.
+  liga já aparece, e medalhão de raridade também nas peças. **Parte 2 (cavalos)** dividida em 2a (marcas,
+  jóquei e raridade, em código), 2b (portes no PixelLab) e 2c (animações). **A parte 2a está pronta na
+  `claude/visuais-2`** (spec em `docs/superpowers/specs/2026-11-12-cavalos-marcas-design.md`): marcas por
+  cavalo com 3 genes herdados pela seed, jóquei do jogador no Perfil e raridade em escada, tudo em código e
+  sem créditos. **Próxima: a 2b (portes, PixelLab), só com confirmação de créditos.**
+  **Pendências da 2a que vão para a 2b:** moldes novos com as 4 pernas separadas no retrato e no parado, com
+  teste de contagem de meias por molde (hoje 3 e 4 meias aparecem como 2 ou 3 em alguns quadros); teste do caso
+  "pele acima do capacete" (`marcas.js` ~386-388) com os moldes novos; conferir o brilho das raridades nos
+  moldes novos.
 
 ## O que falta
 - **Decidido em 2026-11-10:** o teste fechado do Play sai com o jogo offline; o lançamento público

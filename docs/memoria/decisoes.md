@@ -3,6 +3,25 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-13 — Visuais 2, parte 2a pronta (marcas, jóquei e raridade)
+Regra em `docs/GDD.md` §6; números no wiki (seção "Marcas e jóquei").
+- **As zonas de cara e pernas são calculadas pelas regras de `prototype/src/marcas.js` (cara: raio de 0,19 × largura útil a partir do focinho, cortado em `nose.y + 1`; pernas: componentes 4-conexas partidas no vão entre cascos)** — as regras da spec original falhavam nos moldes reais: na cara, a zona derivava no galope e pegava o pescoço; nas pernas, os grupos de colunas juntavam pernas vizinhas.
+- **O brilho da crina usa a cor da raridade clareada (a mesma do rastro do Mítico)** — o verde do Mágico sumia na crina verde dos cavalos de Grama (Capim, Mandacaru); a luminância do brilho sobre a crina passou de 0,034–0,041 para 0,061–0,064.
+- **O limite das 3 e 4 meias (pernas encostadas contam como uma, 2 a 4 pernas por quadro) fica aceito até os moldes da 2b** — não mexer no código das pernas agora; os moldes novos separam as 4 pernas e ganham teste de contagem de meias.
+- **Os 15 cavalos do catálogo têm marcas fixas, e o rival da sala usa as do modelo dele** — o mesmo cavalo tem a mesma cara em qualquer corrida; só o jóquei do rival varia, pela seed da sala.
+- **Cavalo sem marcas válidas (save antigo, alugado) vale pelas do modelo do catálogo, ou pelas calculadas do identificador** — nunca muda de aparência entre sessões e o save não precisa de versão nova.
+- **A raridade é um efeito por cima do cavalo (brilho na crina, faíscas, rastro), não pintura no molde** — não multiplica os moldes recoloridos e liga e desliga com movimento reduzido.
+- **A ficha e o Haras mostram "Marcas: …" (só o que existe, ou "Marcas: nenhuma")** — o jogador escolhe reprodutores sabendo o que o potro pode herdar.
+
+## 2026-11-12 — Visuais 2, parte 2 (cavalos): divisão e desenho da 2a
+Spec da 2a em `docs/superpowers/specs/2026-11-12-cavalos-marcas-design.md`.
+- **Cavalos em três subpartes: 2a em código (marcas, jóquei, raridade), 2b portes no PixelLab, 2c animações** — o que é grátis primeiro; as animações saem uma vez só, para todos os portes.
+- **Cada porte novo traz a sua crina e cauda** — crina separada do porte multiplicaria as gerações.
+- **Jóquei é do jogador, escolha livre no Perfil, vale para todos os cavalos; bots sorteiam pela seed da sala** — identidade do jogador; a cor da seda continua mostrando a raia.
+- **Marcas em três genes (cara, patas, corpo), herdados de um dos pais pela seed, 10% de mutação; só aparência** — muitas combinações com regra simples.
+- **Raridade em escada (Mágico brilho na crina → Mítico com rastro), sem usar o contorno da skill** — o contorno já significa skill ativa.
+- **Marcas por zonas calculadas no molde, não por máscaras à mão nem pelo PixelLab** — sem créditos e funciona sozinho para os portes da 2b.
+
 ## 2026-11-12 — Visuais 2: ícones, cavalos e interface (branch `claude/visuais-2`)
 Conversa com o Vinicius. Spec da parte 1 em `docs/superpowers/specs/2026-11-12-icones-design.md`.
 - **Três partes, cada uma com spec, plano e execução: ícones, cavalos, interface** — o pedido inteiro era grande demais para uma spec; os ícones são os mais baratos e independentes.

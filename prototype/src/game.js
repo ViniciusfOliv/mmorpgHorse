@@ -366,6 +366,9 @@
   // número do uid (neutroParaTipo); as skills de tipo (Labareda, Maré Alta, Raízes Firmes) saem da lista;
   // modelo que saiu do catálogo (ex.: Pangaré) fica com templateId null e a própria paleta; a sala aberta
   // fica (mesma seed, entrada e treino) com o Poder recalculado.
+  // Visual da parte 2a (spec 2026-11-12-cavalos-marcas), sem versão nova: mount.marcas = { cara, patas, corpo } e
+  // state.joquei = { padrao, capacete }, opcionais no save; ausentes ou inválidos, o sanitize põe os calculados
+  // (marcasDe) e o jóquei inicial (validJoquei). Só desenho: nada disso entra na corrida, no Poder nem na sala.
   var SAVE_VERSION = 5;
   var BR = E.breeding;
   var MAX_LEVEL = E.maxLevel || 50;
@@ -386,11 +389,26 @@
       potential: clone(tpl.potential),
       alloc: zeroAlloc(),
       palette: tpl.palette ? clone(tpl.palette) : null,
+      marcas: marcasDe(tpl.marcas, null, uid),
       breedLeft: tpl.breedLeftMax || GD.BREED_LEFT[tpl.sex],
       parents: null,
       born: 0,
       equip: GR.emptyEquip()
     };
+  }
+
+  // Marcas na pelagem (spec 2026-11-12-cavalos-marcas §2; só desenho, fora do Poder e da corrida): a regra é uma só,
+  // Breed.marcasDe(marcas, templateId, chave) — as do cavalo, se válidas; senão as do modelo do catálogo; senão as
+  // calculadas da chave (o uid). Sempre uma cópia com os três genes.
+  function marcasDe(marcas, templateId, chave) { return BRD.marcasDe(marcas, templateId, chave); }
+  // Jóquei do jogador (spec §4): padrão da seda e cor do capacete, só das listas de GameData.JOQUEI (a cor aceita
+  // maiúsculas e fica como na lista); qualquer outra coisa (save de antes da 2a, lixo) volta ao jóquei inicial.
+  function joqueiInicial() { return { padrao: GD.JOQUEI.padrao, capacete: GD.JOQUEI.capacete }; }
+  function validJoquei(j) {
+    if (!j || typeof j !== 'object') return joqueiInicial();
+    var cap = typeof j.capacete === 'string' ? j.capacete.toLowerCase() : null;
+    if (GD.JOQUEI.padroes.indexOf(j.padrao) < 0 || GD.JOQUEI.capacetes.indexOf(cap) < 0) return joqueiInicial();
+    return { padrao: j.padrao, capacete: cap };
   }
 
   function zeroAlloc() {
@@ -427,7 +445,8 @@
       nextItemUid: 1,
       pedras: 0,
       enhanceCounter: 0,
-      settings: { motion: 'sistema' }
+      settings: { motion: 'sistema' },
+      joquei: joqueiInicial()
     };
     // equipamento inicial (+0) já equipado no inicial
     GE.startGear.forEach(function (id) {
@@ -531,6 +550,7 @@
       potential: potential,
       alloc: null,
       palette: validPalette(m.palette),
+      marcas: marcasDe(m.marcas, templateId, m.uid),   // sem versão nova: ausentes ou inválidas, as calculadas
       breedLeft: num(m.breedLeft, GD.BREED_LEFT[m.sex], 0, 4),
       parents: validParents(m.parents),
       born: num(m.born, 0, 0, 1e9),
@@ -628,6 +648,7 @@
     // preferências (sem mudar a versão do save): save antigo sem settings, ou com valor inválido, segue o sistema
     var mo = s.settings && typeof s.settings === 'object' ? s.settings.motion : null;
     base.settings = { motion: MOTIONS.indexOf(mo) >= 0 ? mo : 'sistema' };
+    base.joquei = validJoquei(s.joquei);   // idem: sem jóquei (save de antes da 2a) ou inválido, o inicial
     return base;
   }
 
@@ -845,7 +866,9 @@
   // Retrato: baia com parede de tábuas e palha; cavalo parado (respira, pisca, abana o rabo,
   // descansa um posterior e abaixa a cabeça de vez em quando).
   var PORTRAIT_W = 48, PORTRAIT_H = 36;
-  // opts.selo: moldura com o selo "Nv N" no canto (e, com opts.pontos > 0, o aviso "+N" de pontos livres)
+  // opts.selo: moldura com o selo "Nv N" no canto (e, com opts.pontos > 0, o aviso "+N" de pontos livres);
+  // opts.jockey: montado (seda opts.silks, a sua por padrão; jóquei opts.joquei, o seu por padrão). Marcas e raridade
+  // do cavalo sempre (opcoesVisuais).
   function portraitHtml(horse, opts) {
     opts = opts || {};
     var id = portraitQueue.length;
@@ -856,6 +879,35 @@
     var pts = opts.pontos > 0 ? '<span class="pontos-livres pontos-livres--selo" title="' +
       esc(opts.pontos + (opts.pontos === 1 ? ' ponto livre' : ' pontos livres') + ' para distribuir') + '">+' + esc(opts.pontos) + '</span>' : '';
     return '<span class="retrato-moldura">' + cv + '<span class="selo-nivel">Nv ' + esc(horse.level) + '</span>' + pts + '</span>';
+  }
+
+  // Opções da parte 2a (spec 2026-11-12-cavalos-marcas) para o Sprites.drawHorse de qualquer cavalo (montaria,
+  // modelo do catálogo ou rival): marcas (marcasDe), semente do padrão (Breed.hashChave da chave: o uid da montaria
+  // ou o id do modelo; o rival usa o id do modelo, sem o sufixo da raia), jóquei ({ padrao, capacete }; null quando o desenho não tem jóquei), raridade e
+  // movimento reduzido. Só desenho. Usada no retrato (estábulo, ficha, sala, Haras...), na corrida (com rastro:
+  // true) e no pódio; quem desenha várias vezes calcula uma vez e atualiza o `reduzido` a cada quadro.
+  function opcoesVisuais(horse, joquei) {
+    var chave = horse.uid || horse.id;
+    // rival: o id da raia é id do modelo + '-b<n>'; a semente (e as manchas) vêm do modelo, como no Haras e no catálogo
+    var sem = horse.uid ? chave : String(chave).replace(/-b\d+$/, '');
+    return {
+      marcas: marcasDe(horse.marcas, horse.templateId, chave), semente: BRD.hashChave(sem), joquei: joquei || null,
+      raridade: horse.rarity, reduzido: reduced()
+    };
+  }
+  // copia as opções visuais (vis) para as opções de desenho (o) e devolve o
+  function comVisuais(o, vis) {
+    for (var k in vis) if (hasOwn(vis, k)) o[k] = vis[k];
+    return o;
+  }
+  // O seu jóquei vale para todos os seus cavalos; os rivais têm o deles, da seed da sala e da raia j (índice em
+  // L.racers): 1 sorteio para o padrão e 1 para o capacete. Calculado ao desenhar: a sala (salva ou não) não guarda.
+  function joqueiDoJogador() { return state && state.joquei ? state.joquei : joqueiInicial(); }
+  function joqueiDoCorredor(L, j) {
+    if (L.racers[j].isPlayer) return joqueiDoJogador();
+    var J = GD.JOQUEI, rng = RS.mulberry32(RS.hash2(L.seed, 0x4A4F0000 + j));
+    var padrao = J.padroes[Math.floor(rng() * J.padroes.length)];
+    return { padrao: padrao, capacete: J.capacetes[Math.floor(rng() * J.capacetes.length)] };
   }
 
   function drawStall(ctx, k, w, h, seed) {
@@ -892,6 +944,7 @@
         var s = setupCanvas(cv, PORTRAIT_W, PORTRAIT_H, PORTRAIT_SCALE);
         var seed = (horse.name.charCodeAt(0) || 0) + (horse.name.length * 3);
         var phase = (seed % 10) * 0.37;
+        var vis = opcoesVisuais(horse, o.jockey ? (o.joquei || joqueiDoJogador()) : null);
         var item = {
           drawn: false,
           draw: function (t) {
@@ -899,10 +952,11 @@
             item.drawn = true;
             drawStall(s.ctx, s.k, PORTRAIT_W, PORTRAIT_H, seed);
             // quadro: o molde inteiro cabe na altura da baia (o desenho por código já cabe)
-            SP.drawHorse(s.ctx, 5 * s.k, 1 * s.k, {
+            vis.reduzido = reduced();
+            SP.drawHorse(s.ctx, 5 * s.k, 1 * s.k, comVisuais({
               palette: horse.palette, element: horse.element, idle: true, t: reduced() ? 0.5 : t + phase,
               scale: s.k, jockey: !!o.jockey, silks: o.silks || PLAYER_SILKS, quadro: { topo: 0, base: PORTRAIT_H * s.k }
-            });
+            }, vis));
           }
         };
         item.draw(0);
@@ -1161,6 +1215,8 @@
     for (var i = 0; i < DEV_SKILL_VAGAS; i++) f['skill' + i] = a.skills[i] || '';
     f.coat = pal.coat.toLowerCase(); f.coatshade = pal.coatShade.toLowerCase();
     f.mane = pal.mane.toLowerCase(); f.accent = pal.accent.toLowerCase();
+    var mk = marcasDe(a.marcas, a.templateId, a.uid);
+    f.cara = mk.cara; f.patas = String(mk.patas); f.corpo = mk.corpo;
   }
   function devLerCampos() {
     var f = devForm();
@@ -1180,7 +1236,8 @@
       name: f.nome, element: f.elemento, rarity: f.raridade, sex: f.sexo,
       potential: f.potencial === 'max' ? 'max' : f.potencial === 'cada' ? gen : Number(f.potencial), skills: skills,
       grau: f.estrelas, alloc: pts,
-      palette: { coat: f.coat, coatShade: f.coatshade, mane: f.mane, accent: f.accent }
+      palette: { coat: f.coat, coatShade: f.coatshade, mane: f.mane, accent: f.accent },
+      marcas: { cara: f.cara, patas: f.patas, corpo: f.corpo }
     };
   }
   // pontos do template (inteiros ≥ 0) cortados pelo limite e pelos pontos livres do nível da instância
@@ -1284,6 +1341,14 @@
     var raridadesPeca = Object.keys(GE.price).map(function (r) { return [r, GD.RARITIES[r].name]; });
     var melhorias = [];
     for (var mv = 0; mv <= GE.plusMax; mv++) melhorias.push([String(mv), '+' + mv]);
+    // marcas da montaria (parte 2a), com nomes sem símbolos
+    var MARCA_NOMES = { nenhuma: 'Sem marca', estrela: 'Estrela', listra: 'Listra', frente: 'Frente branca',
+      liso: 'Liso', malhado: 'Malhado', pintado: 'Pintado', ruao: 'Ruão' };
+    var marcaOpts = function (gene) {
+      return GD.MARCAS[gene].map(function (v) {
+        return [String(v), gene === 'patas' ? (v === 0 ? 'Sem meias' : v + (v === 1 ? ' meia' : ' meias')) : MARCA_NOMES[v] || String(v)];
+      });
+    };
     var distancias = [['', '— da sala —']];
     for (var dd = 1000; dd <= 2400; dd += 100) distancias.push([String(dd), dd + ' m']);
 
@@ -1294,7 +1359,7 @@
       '<div class="dev-acoes">' + devBotao('dev-ouro', '+' + fmt(1000) + ' Ouro') + '</div>');
 
     var cavalo = devGrupo('cavalo', 'Cavalo',
-      '<p class="nota">Cria um cavalo novo (entra no estábulo sem limite de vagas e vira a ativa) ou substitui a ativa (status, skills e cores; mantém equipamento e cruzas).</p>' +
+      '<p class="nota">Cria um cavalo novo (entra no estábulo sem limite de vagas e vira a ativa) ou substitui a ativa (status, skills, cores e marcas; mantém equipamento e cruzas).</p>' +
       '<div class="dev-campos dev-campos--1">' + devEntrada('nome', 'Nome', 'type="text" maxlength="16" autocomplete="off"', f.nome) + '</div>' +
       '<div class="dev-campos">' +
         devSelect('elemento', 'Elemento', elementos, f.elemento) + devSelect('raridade', 'Raridade', raridades, f.raridade) +
@@ -1315,6 +1380,10 @@
       '<div class="dev-campos dev-campos--4">' +
         devEntrada('coat', 'Pelagem', 'type="color"', f.coat) + devEntrada('coatshade', 'Sombra', 'type="color"', f.coatshade) +
         devEntrada('mane', 'Crina', 'type="color"', f.mane) + devEntrada('accent', 'Detalhe', 'type="color"', f.accent) +
+      '</div>' +
+      '<div class="dev-campos">' +
+        devSelect('cara', 'Marca na cara', marcaOpts('cara'), f.cara) + devSelect('patas', 'Meias', marcaOpts('patas'), f.patas) +
+        devSelect('corpo', 'Pelagem do corpo', marcaOpts('corpo'), f.corpo) +
       '</div>' +
       '<div class="dev-acoes">' + devBotao('dev-criar', 'Criar cavalo', 'btn--ouro') + devBotao('dev-aplicar', 'Aplicar na ativa') + devBotao('dev-carregar', 'Carregar a ativa') + '</div>' +
       '<div class="dev-campos dev-campos--1">' + devSelect('copiar', 'Copiar cavalo pronto (iniciais e aluguéis do Haras)', prontos, f.copiar) + '</div>' +
@@ -1451,6 +1520,7 @@
         a.name = tpl.name; a.element = tpl.element; a.rarity = tpl.rarity; a.sex = tpl.sex; a.grau = tpl.grau;
         a.level = devNivel(f); a.xp = 0;
         a.skills = tpl.skills.slice(); a.potential = clone(tpl.potential); a.palette = clone(tpl.palette);
+        a.marcas = clone(tpl.marcas);
         devAplicaPontos(a, tpl);
         devCavaloDaAtiva();
         devGrava('Ativa substituída: ' + devDescreveCavalo(a) + '.'); break;
@@ -1601,11 +1671,47 @@
         '<span class="app-aba-icone" aria-hidden="true">' + iconeHtml('aba-' + a.id, a.icone, 32) + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
     }).join('') + '</nav>';
   }
+  // Linha "Marcas: ..." (ficha da Montaria e Haras): nomes em português, sem símbolos
+  var CARA_ROT = { nenhuma: 'nenhuma', estrela: 'estrela', listra: 'listra', frente: 'frente branca' };
+  var CORPO_ROT = { liso: 'liso', malhado: 'malhado', pintado: 'pintado', ruao: 'ruão' };
+  // só o que existe (cara, patas, corpo); sem marca nenhuma: "Marcas: nenhuma"
+  function marcasTexto(h) {
+    var m = marcasDe(h.marcas, h.templateId, h.uid || h.id), t = [];
+    if (m.cara !== 'nenhuma') t.push(CARA_ROT[m.cara]);
+    if (m.patas > 0) t.push(m.patas === 1 ? '1 meia' : m.patas + ' meias');
+    if (m.corpo !== 'liso') t.push(CORPO_ROT[m.corpo]);
+    return 'Marcas: ' + (t.length ? t.join(', ') : 'nenhuma');
+  }
+  // Editor do jóquei (Perfil): padrão da seda e cor do capacete; a prévia é o cavalo ativo, parado e montado
+  var PADRAO_ROT = { liso: 'Liso', listras: 'Listras', faixa: 'Faixa', xadrez: 'Xadrez', estrelas: 'Estrelas', losangos: 'Losangos' };
+  var CAPACETE_ROT = GD.JOQUEI.nomes;   // hex → nome (data.js)
+  function joqueiHtml() {
+    var j = joqueiDoJogador();
+    var pads = GD.JOQUEI.padroes.map(function (p) {
+      return '<button type="button" class="btn opcao opcao--centro" data-acao="joquei-padrao" data-id="' + esc(p) + '" data-v="' + esc(p) +
+        '" aria-pressed="' + (j.padrao === p) + '"><span class="opcao-nome">' + esc(PADRAO_ROT[p] || p) + '</span></button>';
+    }).join('');
+    var caps = GD.JOQUEI.capacetes.map(function (c) {
+      return '<button type="button" class="btn capacete-btn" data-acao="joquei-capacete" data-id="' + esc(c) + '" data-v="' + esc(c) +
+        '" aria-pressed="' + (j.capacete === c) + '" aria-label="' + esc(CAPACETE_ROT[c] || 'Capacete') + '" title="' + esc(CAPACETE_ROT[c] || 'Capacete') +
+        '" style="background:' + esc(c) + '"></button>';
+    }).join('');
+    var m = activeMount();
+    var previa = m ? '<div class="joquei-previa">' + portraitHtml(m, { jockey: true, joquei: j }) + '</div>' : '';
+    return '<section class="caixa" aria-labelledby="r-joquei"><div class="tela-cabeca">' +
+      '<h2 class="titulo" id="r-joquei">Seu jóquei</h2>' + previa +
+      '<span class="rotulo" id="r-joq-padrao">Seda</span>' +
+      '<div class="opcoes opcoes--3" role="group" aria-labelledby="r-joq-padrao">' + pads + '</div>' +
+      '<span class="rotulo" id="r-joq-cap">Capacete</span>' +
+      '<div class="capacetes" role="group" aria-labelledby="r-joq-cap">' + caps + '</div>' +
+      '<p class="nota">O jóquei só muda o visual: vale para todos os seus cavalos e não afeta a corrida.</p>' +
+      '</div></section>';
+  }
   // Perfil: estatísticas, saldo, inventário e "Recomeçar com outro inicial"
   function renderPerfil() {
     return '<section class="tela" aria-labelledby="t-perfil">' +
       '<button type="button" class="btn btn--pequeno" data-acao="perfil-voltar">Voltar</button>' +
-      '<h1 class="titulo titulo--tela" id="t-perfil" tabindex="-1" data-foco>Perfil</h1>' +
+      '<h1 class="titulo titulo--tela" id="t-perfil" tabindex="-1" data-foco>Perfil</h1>' + noticeHtml() +
       '<div class="caixa">' +
         '<div class="linha-meta"><span>Corridas <b>' + fmt(state.races) + '</b></span><span>Vitórias <b>' + fmt(state.wins) + '</b></span>' +
           '<span>Pódios <b>' + fmt(state.podiums) + '</b></span><span>Prêmios ' + ouroHtml(state.goldWon) + '</span></div>' +
@@ -1613,7 +1719,7 @@
         '<div class="linha-meta"><span>' + esc(state.mounts.length) + (state.mounts.length === 1 ? ' montaria' : ' montarias') + ' · ' +
           esc(state.items.length) + (state.items.length === 1 ? ' peça' : ' peças') + '</span></div>' +
       '</div>' +
-      animacoesHtml() +
+      joqueiHtml() + animacoesHtml() +
       '<footer class="caixa">' + resetHtml() + '</footer></section>';
   }
   // opção "Animações": mesmo controle de escolhas (aria-pressed) da entrada e das abas internas
@@ -1974,6 +2080,8 @@
     var custoNome = ui.haras.mode === 'troca' ? 'Troca' : (P.kind === 'rent' ? 'Aluguel' : 'Registro');
     return '<section class="caixa calc" aria-labelledby="t-calc"><h2 class="titulo" id="t-calc">Calculadora</h2>' +
       '<p class="nota">' + esc(P.f.name) + ' (' + sexoHtml('f') + ') × ' + esc(P.m.name) + ' (' + sexoHtml('m') + ')</p>' +
+      '<p class="nota marcas-linha">' + esc(P.f.name + ' · ' + marcasTexto(P.f)) + '</p>' +
+      '<p class="nota marcas-linha">' + esc(P.m.name + ' · ' + marcasTexto(P.m)) + '</p>' +
       '<div class="calc-barras">' + bars + '</div>' +
       '<p>' + grau + '</p>' +
       '<p>' + esc(genTxt) + '</p>' +
@@ -2372,6 +2480,7 @@
           '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco>' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h1>' +
           '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
             '<span>' + sexoHtml(m.sex) + '</span>' +
+            '<span>' + esc(marcasTexto(m)) + '</span>' +
             '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
             (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
           '</div>' +
@@ -2968,6 +3077,15 @@
       wind: ventoDaSala(L)   // só visual (RaceFx.wind da seed, ou o forçado no DEV)
     };
     for (i = 0; i < n; i++) self.gallop[i] = i * 1.7;
+    // marcas, jóquei e raridade de cada corredor (parte 2a), calculados uma vez; cada cavalo é montado já na largada
+    // (Sprites.prepararCavalo: o parado e todo o galope recoloridos agora, ~0,8 ms por quadro com marcas e jóquei),
+    // e não aos poucos no 1º ciclo do galope. Só desenho: a corrida já foi simulada.
+    var visuais = L.racers.map(function (r, q) {
+      var v = opcoesVisuais(r.horse, joqueiDoCorredor(L, q));
+      v.rastro = true;   // rastro de luz do Mítico: só na corrida
+      SP.prepararCavalo(comVisuais({ palette: r.horse.palette, element: r.horse.element, silks: r.silks }, v));
+      return v;
+    });
 
     // minimapa do HUD (fora do layout compacto): caixa em pixels de arte logo abaixo da linha de cima
     function miniCaixa(artW) {
@@ -3249,11 +3367,12 @@
         var feetY = laneTop + (j + 1) * laneH - 3 * S - lift - arcoJ * S;
         var y = feetY - (SP.FOOT_Y + 1) * S;
         var x = Math.round(((st.pos[j] - cam) * ppm - an.nose[0] * S) / S) * S;
-        var cavalo = {
+        var cavalo = comVisuais({
           // fase contínua do galope: o código usa o quadro inteiro; o molde mapeia o ciclo (mesma duração)
           palette: r.horse.palette, element: r.horse.element, frame: self.gallop[j],
           scale: S, silks: r.silks, t: tr, idle: standing
-        };
+        }, visuais[j]);
+        cavalo.reduzido = red;
         // caixa do que vai ser desenhado (molde ou código): o corte nas bordas e o monitor de câmera usam ela,
         // então a cauda do molde (que passa do x do sprite) não some de uma vez na borda
         var caixaCav = SP.horseBox(x, y, cavalo);
@@ -3559,6 +3678,7 @@
     var top3 = L.sim.finishOrder.slice(0, 3);
     var slots = [{ place: 2, cx: 30, top: 57, col: C.prata }, { place: 1, cx: 84, top: 49, col: C.ouro }, { place: 3, cx: 138, top: 63, col: C.bronze }];
     var playerOnPodium = top3.indexOf(L.playerIdx) >= 0;
+    var visuais = top3.map(function (ri) { return opcoesVisuais(L.racers[ri].horse, joqueiDoCorredor(L, ri)); });   // parte 2a
     var confetti = [];
     for (var c = 0; c < 26; c++) confetti.push({ x: (c * 37) % PODIUM_W, y: (c * 23) % PODIUM_H, v: 6 + (c % 5) * 3, col: [C.ouro, C.ganho, C.agua, C.fogo, C.texto][c % 5] });
     function R(x, y, w, h, col) { ctx.fillStyle = col; ctx.fillRect(Math.round(x) * k, Math.round(y) * k, w * k, h * k); }
@@ -3588,10 +3708,11 @@
           R(bx, sl.top, bw, 1, C.brilho);
           R(bx, PODIUM_H - 7, bw, 3, C.escuro);
           SP.drawText(ctx, String(sl.place), sl.cx * k, (sl.top + 3) * k, { scale: 2 * k, color: C.tinta, align: 'center' });
-          var hx = (sl.cx - 21) * k, hy = (sl.top - 32) * k, cavalo = {
+          var hx = (sl.cx - 21) * k, hy = (sl.top - 32) * k, cavalo = comVisuais({
             palette: r.horse.palette, element: r.horse.element, idle: true, t: reduced() ? 0.5 : t + sl.place * 0.8,
             scale: k, silks: r.silks, shadow: false, quadro: { topo: 0, base: sl.top * k }   // em pé no bloco, sem sair do canvas
-          };
+          }, visuais[sl.place - 1]);
+          cavalo.reduzido = reduced();
           SP.drawHorse(ctx, hx, hy, cavalo);
           if (r.isPlayer) {
             // seta dourada sobre o seu cavalo: a ponta fica 4 px de arte acima do topo do desenho (o molde pode ser
@@ -3931,6 +4052,22 @@
         var card = document.getElementById('ini-' + id);
         if (card) { try { card.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'nearest', inline: 'center' }); } catch (e2) { card.scrollIntoView(); } }
         break;
+      }
+      case 'joquei-padrao':
+      case 'joquei-capacete': {
+        if (!state) break;
+        var campoJ = b.getAttribute('data-acao') === 'joquei-padrao' ? 'padrao' : 'capacete';
+        var vJ = b.getAttribute('data-v');
+        var novoJ = validJoquei(joqueiDoJogador());
+        novoJ[campoJ] = vJ;
+        if (validJoquei(novoJ)[campoJ] !== (campoJ === 'capacete' ? String(vJ).toLowerCase() : vJ)) break;   // valor fora das listas
+        novoJ = validJoquei(novoJ);
+        var sJ = state, antesJ = clone(state);
+        state.joquei = novoJ;
+        var gJ = gravaGasto(sJ, antesJ);
+        if (gJ === 'outra-aba') break;
+        if (gJ === 'falhou') ui.notice = FALHA_SALVAR;
+        rerenderKeepScroll(); break;
       }
       case 'motion':
         if (!state || MOTIONS.indexOf(id) < 0) break;

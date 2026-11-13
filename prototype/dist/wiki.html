@@ -186,7 +186,7 @@ dd.num { font: 400 var(--t-num)/1 var(--fonte-rotulo); color: var(--ouro); }
 <div class="corpo">
 <div class="lateral">
 <div class="ferramentas" role="search"><label for="busca">Buscar</label><input id="busca" type="search" placeholder="Skill, montaria ou peça" autocomplete="off" spellcheck="false"><fieldset class="filtro"><legend>Elemento</legend><div class="chips"><button type="button" class="chip" id="filtro-el-todos" data-filtro="el" data-valor="" aria-pressed="true">Todos</button><button type="button" class="chip" id="filtro-el-fogo" data-filtro="el" data-valor="fogo" aria-pressed="false"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAApUlEQVR4nO3WwQ2AIAwFUEZwMKfx6AjO4HQuUoNRY0vBaOjvpU168vAfRZGUoqL6FZ3tE75Ogz/AC3EE0zK6AO6VZwAawYLRgDJ8m2EIPRwE4Ht+BQtAblNAsXIFYTWFdvgDYQGojx4AeB+9IeBzeE9A+603BhTHrBvAawt0QAth8E/QARpEPOv+CVYRStseQg7hDFGbBupKRhIigmHXMVI6KupX7Wn7o+bZMRpLAAAAAElFTkSuQmCC" alt="" width="16" height="16">Fogo</button><button type="button" class="chip" id="filtro-el-agua" data-filtro="el" data-valor="agua" aria-pressed="false"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAq0lEQVR4nO2UwQ2AMAhFO4VXjw7gDk7gBE7pIC7h0QkwHEhIY6ttKVXDT7j2PZF85yyWgozzBDjNBJYVAKcJHL+cBNS3wOHqEldwNYEQ/Ng3HYk7gaoSIbjK7+iGHj4lICpBbfd6ATxEGjEJDo8JcLi4AD2UI1As4fd9yg2YgJgAv4MceHOBbDiFt2BqHYuWkerq/TzdAi8tMTgFH/VFQiMO50GJ2FSFW36ZE37/JO6oECDXAAAAAElFTkSuQmCC" alt="" width="16" height="16">Água</button><button type="button" class="chip" id="filtro-el-grama" data-filtro="el" data-valor="grama" aria-pressed="false"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAyUlEQVR4nO2WwQ3CMAxFPUWvHBmgOzAB08CaDNArRyYAUelL0ZeDXPHtIhRL/9Qo7yVxm5qNGvWvNR0Pz3d2A+8iAOh8PtUKtCu+LpdVABKpMAYjKTvQg3mR70AU3MJlAoA/7rc1n+BoQMTMvhPAhJFVM1zSA1sEOFIBJAKWCbQflZ4AP5cL8KRlcE8gCpe9gj1IBJ4mEIXLBfiWS+1+FvAunnIBFvGOpB0ngaPbe73AQtLrl1bjHkPqr5e3nSVgD5YC+HmBUZX1AujSKpO8VUstAAAAAElFTkSuQmCC" alt="" width="16" height="16">Grama</button><button type="button" class="chip" id="filtro-el-geral" data-filtro="el" data-valor="geral" aria-pressed="false"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAA8UlEQVR4nO2XwQ3CMAxFM0WvHDsAOzABozJEb1xYgiMTgFTVyDSO4287F9RIPjbv+Stp3VKOBa5pPr21GsleAefrpVmbAFUu+L7cxJIk0kQ0sCZCSUUlzHAtCZYG3vnr+VjLm4JX4rthRCAi8bMpSVhFQgL7Q8fhVgktBXYw8e4zBNQUyFATyDgHWgqVwIiDCAtkvQv+X8AKHyLQ+jK6BFAJ7dMMCdAdla5jtHNrAkUaOqJdI/AqBaR6o5pJgKewf9ALRuGVgLSZBSo1AM0ECMQCnxwTcxrcPRdGwSE4T8KSRgOc/3/QuyEjwJVIp44FrQ8hSxnbdl3ceAAAAABJRU5ErkJggg==" alt="" width="16" height="16">Gerais</button></div></fieldset><fieldset class="filtro"><legend>Raridade</legend><div class="chips"><button type="button" class="chip" id="filtro-rar-todos" data-filtro="rar" data-valor="" aria-pressed="true">Todas</button><button type="button" class="chip" id="filtro-rar-comum" data-filtro="rar" data-valor="comum" aria-pressed="false">Comum</button><button type="button" class="chip" id="filtro-rar-magico" data-filtro="rar" data-valor="magico" aria-pressed="false">Mágico</button><button type="button" class="chip" id="filtro-rar-raro" data-filtro="rar" data-valor="raro" aria-pressed="false">Raro</button><button type="button" class="chip" id="filtro-rar-lendario" data-filtro="rar" data-valor="lendario" aria-pressed="false">Lendário</button><button type="button" class="chip" id="filtro-rar-mitico" data-filtro="rar" data-valor="mitico" aria-pressed="false">Mítico</button></div></fieldset><p class="filtro-nota">A busca e os filtros valem para skills, montarias e peças. Elemento de peça = o do clima do conjunto; "Gerais" = skills que qualquer tipo aprende; skills não têm raridade.</p><p id="busca-resultado" aria-live="polite"></p></div>
-<nav class="indice" aria-label="Seções"><ol><li><a href="#visao">Visão geral</a></li><li><a href="#status">Status</a></li><li><a href="#level">Level e XP</a></li><li><a href="#raridades">Raridades</a></li><li><a href="#elementos">Elementos</a></li><li><a href="#skills">Skills</a></li><li><a href="#dado">Dado da Sorte</a></li><li><a href="#pista">Pista</a></li><li><a href="#montarias">Montarias</a></li><li><a href="#cruzamento">Cruzamento</a></li><li><a href="#equipamento">Equipamento</a></li><li><a href="#economia">Economia</a></li><li><a href="#icones-reservados">Ícones reservados</a></li><li><a href="#dev">Modo DEV</a></li></ol></nav>
+<nav class="indice" aria-label="Seções"><ol><li><a href="#visao">Visão geral</a></li><li><a href="#status">Status</a></li><li><a href="#level">Level e XP</a></li><li><a href="#raridades">Raridades</a></li><li><a href="#elementos">Elementos</a></li><li><a href="#skills">Skills</a></li><li><a href="#dado">Dado da Sorte</a></li><li><a href="#pista">Pista</a></li><li><a href="#montarias">Montarias</a></li><li><a href="#marcas">Marcas e jóquei</a></li><li><a href="#cruzamento">Cruzamento</a></li><li><a href="#equipamento">Equipamento</a></li><li><a href="#economia">Economia</a></li><li><a href="#icones-reservados">Ícones reservados</a></li><li><a href="#dev">Modo DEV</a></li></ol></nav>
 </div>
 <main>
 <section class="secao" id="visao" aria-labelledby="t-visao"><h2 id="t-visao">Visão geral</h2>
@@ -309,6 +309,20 @@ mods: piso, sol ×1,04, subida, vácuo −10%, skills</pre>
 <p><strong>Genética</strong> (0 a 31 por status, nota C a S) aparece no jogo, na aba Status da montaria. Os status são sem equipamento e sem pontos livres distribuídos. Os bots usam a genética do modelo e distribuem os pontos pela build fixa (ver Economia, Poder e ligas).</p>
 <section class="grupo" data-grupo="montaria"><h3 id="montarias-iniciais">Iniciais <span class="conta">3</span></h3><div class="cartoes cartoes--montarias"><article id="montaria-brasa" class="entrada" data-entrada="montaria" data-busca="brasa fogo comum a fagulha veloz  montaria cavalo" data-el="fogo" data-rar="comum"><div class="mont-cabeca"><canvas class="retrato" data-montaria="brasa" width="144" height="108" role="img" aria-label="Retrato de Brasa"></canvas><div class="mont-info"><h4>Brasa</h4><p class="mont-titulo">A fagulha veloz</p><p class="selos"><span class="el el--fogo"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAApUlEQVR4nO3WwQ2AIAwFUEZwMKfx6AjO4HQuUoNRY0vBaOjvpU168vAfRZGUoqL6FZ3tE75Ogz/AC3EE0zK6AO6VZwAawYLRgDJ8m2EIPRwE4Ht+BQtAblNAsXIFYTWFdvgDYQGojx4AeB+9IeBzeE9A+603BhTHrBvAawt0QAth8E/QARpEPOv+CVYRStseQg7hDFGbBupKRhIigmHXMVI6KupX7Wn7o+bZMRpLAAAAAElFTkSuQmCC" alt="" width="16" height="16">Fogo</span><span class="rar rar--comum"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABcklEQVR4nNWW0W3DMBBDM0V/+5kBskMn6HyeKkvkMxO0UIEDGIbkSU78UQEHRLEtPlF3Z59O/21cvr9+Uhwium3bg8iYqxjXPs6ffzHmbxVGkZl4GaTEWLgWTlHP1f3LECiuhGuedr4bgsVxQRTm/xPINMT9dm3Fxz21mLM/QYznLUASZ4CCVXYrx/B6tD7ZizsdAOjC+F1QLkfqfukCUypxV/+1cK2BcAxgXUBCZX0tXJEaUYKQAHzR7V7Z7txgZ2LbnrW/EpDF3ZwTlY9iCoDt73bM/70EwNY78VkALskpgCTudu8qZMmBWfEuGbFrLgM4OzE6wErc1gEuQyXiXjCrAE9l6BoRCqQK6Y5A5ZbshKoZuTddB+AqygJgonTv+j0A6PDmvgs4GbsPjpXSi/bX4IRJEA7AtXMsbQuAR9E5ob6G1L0MFcXxKGYTcSbiuXdOqLzodq+OY0mcIfbsHJvYLvEE0pXe24TV6HZ+iOiR4xcSXcy7yUucAQAAAABJRU5ErkJggg==" alt="" width="16" height="16">Comum</span><span class="selo">★★</span><span class="selo">♂ macho</span><span class="selo">Nv 1</span></p><p class="mont-poder">Poder <b>715</b> <span class="liga" style="--c:#b0703c">Bronze</span></p></div></div><p class="mont-bio">Potro alazão de crina dourada. Larga como um rojão.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Brasa"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">52</td><td class="n">52</td><td class="n">47</td><td class="n">46</td><td class="n">46</td><td class="n">47</td><td class="n">46</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">24</td><td class="n">24</td><td class="n">14</td><td class="n">12</td><td class="n">12</td><td class="n">14</td><td class="n">12</td></tr><tr><th scope="row">No Nv 1</th><td class="n">52</td><td class="n">52</td><td class="n">47</td><td class="n">46</td><td class="n">46</td><td class="n">47</td><td class="n">46</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Labareda</dd><dt>Skills</dt><dd>nenhuma</dd><dt>Cruzas</dt><dd>2</dd><dt>Onde aparece</dt><dd>montaria inicial, bot nas corridas (quando não é a sua)</dd></dl></article><article id="montaria-mare" class="entrada" data-entrada="montaria" data-busca="mare agua comum o folego do oceano  montaria cavalo" data-el="agua" data-rar="comum"><div class="mont-cabeca"><canvas class="retrato" data-montaria="mare" width="144" height="108" role="img" aria-label="Retrato de Maré"></canvas><div class="mont-info"><h4>Maré</h4><p class="mont-titulo">O fôlego do oceano</p><p class="selos"><span class="el el--agua"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAq0lEQVR4nO2UwQ2AMAhFO4VXjw7gDk7gBE7pIC7h0QkwHEhIY6ttKVXDT7j2PZF85yyWgozzBDjNBJYVAKcJHL+cBNS3wOHqEldwNYEQ/Ng3HYk7gaoSIbjK7+iGHj4lICpBbfd6ATxEGjEJDo8JcLi4AD2UI1As4fd9yg2YgJgAv4MceHOBbDiFt2BqHYuWkerq/TzdAi8tMTgFH/VFQiMO50GJ2FSFW36ZE37/JO6oECDXAAAAAElFTkSuQmCC" alt="" width="16" height="16">Água</span><span class="rar rar--comum"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABcklEQVR4nNWW0W3DMBBDM0V/+5kBskMn6HyeKkvkMxO0UIEDGIbkSU78UQEHRLEtPlF3Z59O/21cvr9+Uhwium3bg8iYqxjXPs6ffzHmbxVGkZl4GaTEWLgWTlHP1f3LECiuhGuedr4bgsVxQRTm/xPINMT9dm3Fxz21mLM/QYznLUASZ4CCVXYrx/B6tD7ZizsdAOjC+F1QLkfqfukCUypxV/+1cK2BcAxgXUBCZX0tXJEaUYKQAHzR7V7Z7txgZ2LbnrW/EpDF3ZwTlY9iCoDt73bM/70EwNY78VkALskpgCTudu8qZMmBWfEuGbFrLgM4OzE6wErc1gEuQyXiXjCrAE9l6BoRCqQK6Y5A5ZbshKoZuTddB+AqygJgonTv+j0A6PDmvgs4GbsPjpXSi/bX4IRJEA7AtXMsbQuAR9E5ob6G1L0MFcXxKGYTcSbiuXdOqLzodq+OY0mcIfbsHJvYLvEE0pXe24TV6HZ+iOiR4xcSXcy7yUucAQAAAABJRU5ErkJggg==" alt="" width="16" height="16">Comum</span><span class="selo">★★</span><span class="selo">♀ fêmea</span><span class="selo">Nv 1</span></p><p class="mont-poder">Poder <b>714</b> <span class="liga" style="--c:#b0703c">Bronze</span></p></div></div><p class="mont-bio">Égua tordilha de crina cor do mar. Quanto mais longa a pista, mais perigosa.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Maré"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">47</td><td class="n">46</td><td class="n">46</td><td class="n">47</td><td class="n">52</td><td class="n">52</td><td class="n">46</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">14</td><td class="n">12</td><td class="n">12</td><td class="n">14</td><td class="n">24</td><td class="n">24</td><td class="n">12</td></tr><tr><th scope="row">No Nv 1</th><td class="n">47</td><td class="n">46</td><td class="n">46</td><td class="n">47</td><td class="n">52</td><td class="n">52</td><td class="n">46</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Maré Alta</dd><dt>Skills</dt><dd>nenhuma</dd><dt>Cruzas</dt><dd>1</dd><dt>Onde aparece</dt><dd>montaria inicial, bot nas corridas (quando não é a sua)</dd></dl></article><article id="montaria-ipe" class="entrada" data-entrada="montaria" data-busca="ipe grama comum a raiz que nao verga  montaria cavalo" data-el="grama" data-rar="comum"><div class="mont-cabeca"><canvas class="retrato" data-montaria="ipe" width="144" height="108" role="img" aria-label="Retrato de Ipê"></canvas><div class="mont-info"><h4>Ipê</h4><p class="mont-titulo">A raiz que não verga</p><p class="selos"><span class="el el--grama"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAyUlEQVR4nO2WwQ3CMAxFPUWvHBmgOzAB08CaDNArRyYAUelL0ZeDXPHtIhRL/9Qo7yVxm5qNGvWvNR0Pz3d2A+8iAOh8PtUKtCu+LpdVABKpMAYjKTvQg3mR70AU3MJlAoA/7rc1n+BoQMTMvhPAhJFVM1zSA1sEOFIBJAKWCbQflZ4AP5cL8KRlcE8gCpe9gj1IBJ4mEIXLBfiWS+1+FvAunnIBFvGOpB0ngaPbe73AQtLrl1bjHkPqr5e3nSVgD5YC+HmBUZX1AujSKpO8VUstAAAAAElFTkSuQmCC" alt="" width="16" height="16">Grama</span><span class="rar rar--comum"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABcklEQVR4nNWW0W3DMBBDM0V/+5kBskMn6HyeKkvkMxO0UIEDGIbkSU78UQEHRLEtPlF3Z59O/21cvr9+Uhwium3bg8iYqxjXPs6ffzHmbxVGkZl4GaTEWLgWTlHP1f3LECiuhGuedr4bgsVxQRTm/xPINMT9dm3Fxz21mLM/QYznLUASZ4CCVXYrx/B6tD7ZizsdAOjC+F1QLkfqfukCUypxV/+1cK2BcAxgXUBCZX0tXJEaUYKQAHzR7V7Z7txgZ2LbnrW/EpDF3ZwTlY9iCoDt73bM/70EwNY78VkALskpgCTudu8qZMmBWfEuGbFrLgM4OzE6wErc1gEuQyXiXjCrAE9l6BoRCqQK6Y5A5ZbshKoZuTddB+AqygJgonTv+j0A6PDmvgs4GbsPjpXSi/bX4IRJEA7AtXMsbQuAR9E5ob6G1L0MFcXxKGYTcSbiuXdOqLzodq+OY0mcIfbsHJvYLvEE0pXe24TV6HZ+iOiR4xcSXcy7yUucAQAAAABJRU5ErkJggg==" alt="" width="16" height="16">Comum</span><span class="selo">★★</span><span class="selo">♂ macho</span><span class="selo">Nv 1</span></p><p class="mont-poder">Poder <b>722</b> <span class="liga" style="--c:#b0703c">Bronze</span></p></div></div><p class="mont-bio">Castanho robusto de crina amarela como ipê florido. Não teme subida.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Ipê"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">48</td><td class="n">46</td><td class="n">52</td><td class="n">52</td><td class="n">47</td><td class="n">46</td><td class="n">45</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">16</td><td class="n">12</td><td class="n">24</td><td class="n">24</td><td class="n">14</td><td class="n">12</td><td class="n">10</td></tr><tr><th scope="row">No Nv 1</th><td class="n">48</td><td class="n">46</td><td class="n">52</td><td class="n">52</td><td class="n">47</td><td class="n">46</td><td class="n">45</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Raízes Firmes</dd><dt>Skills</dt><dd>nenhuma</dd><dt>Cruzas</dt><dd>2</dd><dt>Onde aparece</dt><dd>montaria inicial, bot nas corridas (quando não é a sua)</dd></dl></article></div></section><section class="grupo" data-grupo="montaria"><h3 id="montarias-selvagens">Selvagens <span class="conta">12</span></h3><div class="cartoes cartoes--montarias"><article id="montaria-w-faisca" class="entrada" data-entrada="montaria" data-busca="faisca fogo comum  cerrado seco montaria cavalo" data-el="fogo" data-rar="comum"><div class="mont-cabeca"><canvas class="retrato" data-montaria="w-faisca" width="144" height="108" role="img" aria-label="Retrato de Faísca"></canvas><div class="mont-info"><h4>Faísca</h4><p class="selos"><span class="el el--fogo"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAApUlEQVR4nO3WwQ2AIAwFUEZwMKfx6AjO4HQuUoNRY0vBaOjvpU168vAfRZGUoqL6FZ3tE75Ogz/AC3EE0zK6AO6VZwAawYLRgDJ8m2EIPRwE4Ht+BQtAblNAsXIFYTWFdvgDYQGojx4AeB+9IeBzeE9A+603BhTHrBvAawt0QAth8E/QARpEPOv+CVYRStseQg7hDFGbBupKRhIigmHXMVI6KupX7Wn7o+bZMRpLAAAAAElFTkSuQmCC" alt="" width="16" height="16">Fogo</span><span class="rar rar--comum"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABcklEQVR4nNWW0W3DMBBDM0V/+5kBskMn6HyeKkvkMxO0UIEDGIbkSU78UQEHRLEtPlF3Z59O/21cvr9+Uhwium3bg8iYqxjXPs6ffzHmbxVGkZl4GaTEWLgWTlHP1f3LECiuhGuedr4bgsVxQRTm/xPINMT9dm3Fxz21mLM/QYznLUASZ4CCVXYrx/B6tD7ZizsdAOjC+F1QLkfqfukCUypxV/+1cK2BcAxgXUBCZX0tXJEaUYKQAHzR7V7Z7txgZ2LbnrW/EpDF3ZwTlY9iCoDt73bM/70EwNY78VkALskpgCTudu8qZMmBWfEuGbFrLgM4OzE6wErc1gEuQyXiXjCrAE9l6BoRCqQK6Y5A5ZbshKoZuTddB+AqygJgonTv+j0A6PDmvgs4GbsPjpXSi/bX4IRJEA7AtXMsbQuAR9E5ob6G1L0MFcXxKGYTcSbiuXdOqLzodq+OY0mcIfbsHJvYLvEE0pXe24TV6HZ+iOiR4xcSXcy7yUucAQAAAABJRU5ErkJggg==" alt="" width="16" height="16">Comum</span><span class="selo">★★</span><span class="selo">♀ fêmea</span><span class="selo">Nv 3</span></p><p class="mont-poder">Poder <b>716</b> <span class="liga" style="--c:#b0703c">Bronze</span></p></div></div><p class="mont-bio">Habitat: Cerrado seco.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Faísca"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">47</td><td class="n">48</td><td class="n">48</td><td class="n">45</td><td class="n">44</td><td class="n">46</td><td class="n">45</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">14</td><td class="n">16</td><td class="n">15</td><td class="n">10</td><td class="n">8</td><td class="n">12</td><td class="n">10</td></tr><tr><th scope="row">No Nv 3</th><td class="n">48</td><td class="n">49</td><td class="n">48</td><td class="n">46</td><td class="n">45</td><td class="n">47</td><td class="n">46</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Labareda</dd><dt>Skills</dt><dd><a class="skill-chip" href="#skill-arranque">Arranque</a></dd><dt>Cruzas</dt><dd>1</dd><dt>Onde aparece</dt><dd>bot nas corridas, aluguel no Haras (125 de Ouro), vitrine da Expedição</dd></dl></article><article id="montaria-w-lambari" class="entrada" data-entrada="montaria" data-busca="lambari agua comum  beira de rio montaria cavalo" data-el="agua" data-rar="comum"><div class="mont-cabeca"><canvas class="retrato" data-montaria="w-lambari" width="144" height="108" role="img" aria-label="Retrato de Lambari"></canvas><div class="mont-info"><h4>Lambari</h4><p class="selos"><span class="el el--agua"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAq0lEQVR4nO2UwQ2AMAhFO4VXjw7gDk7gBE7pIC7h0QkwHEhIY6ttKVXDT7j2PZF85yyWgozzBDjNBJYVAKcJHL+cBNS3wOHqEldwNYEQ/Ng3HYk7gaoSIbjK7+iGHj4lICpBbfd6ATxEGjEJDo8JcLi4AD2UI1As4fd9yg2YgJgAv4MceHOBbDiFt2BqHYuWkerq/TzdAi8tMTgFH/VFQiMO50GJ2FSFW36ZE37/JO6oECDXAAAAAElFTkSuQmCC" alt="" width="16" height="16">Água</span><span class="rar rar--comum"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABcklEQVR4nNWW0W3DMBBDM0V/+5kBskMn6HyeKkvkMxO0UIEDGIbkSU78UQEHRLEtPlF3Z59O/21cvr9+Uhwium3bg8iYqxjXPs6ffzHmbxVGkZl4GaTEWLgWTlHP1f3LECiuhGuedr4bgsVxQRTm/xPINMT9dm3Fxz21mLM/QYznLUASZ4CCVXYrx/B6tD7ZizsdAOjC+F1QLkfqfukCUypxV/+1cK2BcAxgXUBCZX0tXJEaUYKQAHzR7V7Z7txgZ2LbnrW/EpDF3ZwTlY9iCoDt73bM/70EwNY78VkALskpgCTudu8qZMmBWfEuGbFrLgM4OzE6wErc1gEuQyXiXjCrAE9l6BoRCqQK6Y5A5ZbshKoZuTddB+AqygJgonTv+j0A6PDmvgs4GbsPjpXSi/bX4IRJEA7AtXMsbQuAR9E5ob6G1L0MFcXxKGYTcSbiuXdOqLzodq+OY0mcIfbsHJvYLvEE0pXe24TV6HZ+iOiR4xcSXcy7yUucAQAAAABJRU5ErkJggg==" alt="" width="16" height="16">Comum</span><span class="selo">★</span><span class="selo">♂ macho</span><span class="selo">Nv 2</span></p><p class="mont-poder">Poder <b>693</b> <span class="liga" style="--c:#b0703c">Bronze</span></p></div></div><p class="mont-bio">Habitat: Beira de rio.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Lambari"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">45</td><td class="n">46</td><td class="n">45</td><td class="n">46</td><td class="n">49</td><td class="n">47</td><td class="n">45</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">9</td><td class="n">11</td><td class="n">10</td><td class="n">12</td><td class="n">17</td><td class="n">13</td><td class="n">10</td></tr><tr><th scope="row">No Nv 2</th><td class="n">45</td><td class="n">46</td><td class="n">45</td><td class="n">47</td><td class="n">49</td><td class="n">47</td><td class="n">45</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Maré Alta</dd><dt>Skills</dt><dd>nenhuma</dd><dt>Cruzas</dt><dd>2</dd><dt>Onde aparece</dt><dd>bot nas corridas, aluguel no Haras (100 de Ouro)</dd></dl></article><article id="montaria-w-capim" class="entrada" data-entrada="montaria" data-busca="capim grama comum  campos gerais montaria cavalo" data-el="grama" data-rar="comum"><div class="mont-cabeca"><canvas class="retrato" data-montaria="w-capim" width="144" height="108" role="img" aria-label="Retrato de Capim"></canvas><div class="mont-info"><h4>Capim</h4><p class="selos"><span class="el el--grama"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAyUlEQVR4nO2WwQ3CMAxFPUWvHBmgOzAB08CaDNArRyYAUelL0ZeDXPHtIhRL/9Qo7yVxm5qNGvWvNR0Pz3d2A+8iAOh8PtUKtCu+LpdVABKpMAYjKTvQg3mR70AU3MJlAoA/7rc1n+BoQMTMvhPAhJFVM1zSA1sEOFIBJAKWCbQflZ4AP5cL8KRlcE8gCpe9gj1IBJ4mEIXLBfiWS+1+FvAunnIBFvGOpB0ngaPbe73AQtLrl1bjHkPqr5e3nSVgD5YC+HmBUZX1AujSKpO8VUstAAAAAElFTkSuQmCC" alt="" width="16" height="16">Grama</span><span class="rar rar--comum"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABcklEQVR4nNWW0W3DMBBDM0V/+5kBskMn6HyeKkvkMxO0UIEDGIbkSU78UQEHRLEtPlF3Z59O/21cvr9+Uhwium3bg8iYqxjXPs6ffzHmbxVGkZl4GaTEWLgWTlHP1f3LECiuhGuedr4bgsVxQRTm/xPINMT9dm3Fxz21mLM/QYznLUASZ4CCVXYrx/B6tD7ZizsdAOjC+F1QLkfqfukCUypxV/+1cK2BcAxgXUBCZX0tXJEaUYKQAHzR7V7Z7txgZ2LbnrW/EpDF3ZwTlY9iCoDt73bM/70EwNY78VkALskpgCTudu8qZMmBWfEuGbFrLgM4OzE6wErc1gEuQyXiXjCrAE9l6BoRCqQK6Y5A5ZbshKoZuTddB+AqygJgonTv+j0A6PDmvgs4GbsPjpXSi/bX4IRJEA7AtXMsbQuAR9E5ob6G1L0MFcXxKGYTcSbiuXdOqLzodq+OY0mcIfbsHJvYLvEE0pXe24TV6HZ+iOiR4xcSXcy7yUucAQAAAABJRU5ErkJggg==" alt="" width="16" height="16">Comum</span><span class="selo">★★</span><span class="selo">♀ fêmea</span><span class="selo">Nv 4</span></p><p class="mont-poder">Poder <b>721</b> <span class="liga" style="--c:#b0703c">Bronze</span></p></div></div><p class="mont-bio">Habitat: Campos gerais.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Capim"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">45</td><td class="n">45</td><td class="n">45</td><td class="n">49</td><td class="n">47</td><td class="n">46</td><td class="n">45</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">10</td><td class="n">10</td><td class="n">10</td><td class="n">18</td><td class="n">13</td><td class="n">12</td><td class="n">10</td></tr><tr><th scope="row">No Nv 4</th><td class="n">46</td><td class="n">46</td><td class="n">46</td><td class="n">50</td><td class="n">48</td><td class="n">47</td><td class="n">46</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Raízes Firmes</dd><dt>Skills</dt><dd><a class="skill-chip" href="#skill-segundo-ar">Segundo Ar</a></dd><dt>Cruzas</dt><dd>1</dd><dt>Onde aparece</dt><dd>bot nas corridas, aluguel no Haras (125 de Ouro)</dd></dl></article><article id="montaria-w-ticao" class="entrada" data-entrada="montaria" data-busca="ticao fogo magico  carvoaria abandonada montaria cavalo" data-el="fogo" data-rar="magico"><div class="mont-cabeca"><canvas class="retrato" data-montaria="w-ticao" width="144" height="108" role="img" aria-label="Retrato de Tição"></canvas><div class="mont-info"><h4>Tição</h4><p class="selos"><span class="el el--fogo"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAApUlEQVR4nO3WwQ2AIAwFUEZwMKfx6AjO4HQuUoNRY0vBaOjvpU168vAfRZGUoqL6FZ3tE75Ogz/AC3EE0zK6AO6VZwAawYLRgDJ8m2EIPRwE4Ht+BQtAblNAsXIFYTWFdvgDYQGojx4AeB+9IeBzeE9A+603BhTHrBvAawt0QAth8E/QARpEPOv+CVYRStseQg7hDFGbBupKRhIigmHXMVI6KupX7Wn7o+bZMRpLAAAAAElFTkSuQmCC" alt="" width="16" height="16">Fogo</span><span class="rar rar--magico"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAB4UlEQVR4nNWXu03EQBRFXQIRKSEpEj0QbUBAJYTUQg/0QA1UQLYhNDDoob3W2es3nhmvhYSlJ3vXM3PP+8zH03T5VXYYY+w6vD2WsBD/On783k+//05UwvdPD+X69mb+D+32FX59vqKn5fv9bgYIi+dosytIDBBCYQQIj/mbAPEc7QlykXgMqoElpLsDMCLRR/DDEO55eCwjQNwJwPtmiJa4cssQOxCLcwjCxTUIASTsAILgbBmOBPOuzi1xB+BM0f+EqAJk3hOAYZcQi9CLVM/q34xC5j3D6t4z3HrP3PvMIEQToJV3h3KAVi0sAEJI4ekpuiwiFCMgAVyHDN0AmWXe1opROr6LLgBq3veIr0EMA7Da3WrVXwNgCroA1JleZqHOxPUunOCUTAGyIqSw7wE0idVWxhqAF+HEecp57AP689rSrC1b7bmtZ4vhDOBLsC8oazOEAOXzheHuA2AUFAm3nr1BpyMJ8myxdpBdRCETzwB0bIu+4XmY3ikSLfGzKESnEe8JQXGH6DnGzxCqYK6OBFhbmDwCPd5XIZSKXoBoozQoJVs+YM4gGA2mIFsZea5QSk7hH77mQQjCdLA29J59OMYWgElzmIPKQzcX3vu7sWQwFdFdhReXzwqsmP/v+gEoBs2WkzP6AAAAAABJRU5ErkJggg==" alt="" width="16" height="16">Mágico</span><span class="selo">★★</span><span class="selo">♂ macho</span><span class="selo">Nv 8</span></p><p class="mont-poder">Poder <b>832</b> <span class="liga" style="--c:#b8c2cc">Prata</span></p></div></div><p class="mont-bio">Habitat: Carvoaria abandonada.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Tição"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">54</td><td class="n">55</td><td class="n">54</td><td class="n">51</td><td class="n">50</td><td class="n">53</td><td class="n">51</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">17</td><td class="n">19</td><td class="n">18</td><td class="n">12</td><td class="n">10</td><td class="n">15</td><td class="n">12</td></tr><tr><th scope="row">No Nv 8</th><td class="n">56</td><td class="n">57</td><td class="n">57</td><td class="n">54</td><td class="n">52</td><td class="n">55</td><td class="n">54</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Labareda</dd><dt>Skills</dt><dd><a class="skill-chip" href="#skill-chama-final">Chama Final</a></dd><dt>Cruzas</dt><dd>2</dd><dt>Onde aparece</dt><dd>bot nas corridas, aluguel no Haras (313 de Ouro)</dd></dl></article><article id="montaria-w-garoa" class="entrada" data-entrada="montaria" data-busca="garoa agua magico  serra enevoada montaria cavalo" data-el="agua" data-rar="magico"><div class="mont-cabeca"><canvas class="retrato" data-montaria="w-garoa" width="144" height="108" role="img" aria-label="Retrato de Garoa"></canvas><div class="mont-info"><h4>Garoa</h4><p class="selos"><span class="el el--agua"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAq0lEQVR4nO2UwQ2AMAhFO4VXjw7gDk7gBE7pIC7h0QkwHEhIY6ttKVXDT7j2PZF85yyWgozzBDjNBJYVAKcJHL+cBNS3wOHqEldwNYEQ/Ng3HYk7gaoSIbjK7+iGHj4lICpBbfd6ATxEGjEJDo8JcLi4AD2UI1As4fd9yg2YgJgAv4MceHOBbDiFt2BqHYuWkerq/TzdAi8tMTgFH/VFQiMO50GJ2FSFW36ZE37/JO6oECDXAAAAAElFTkSuQmCC" alt="" width="16" height="16">Água</span><span class="rar rar--magico"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAB4UlEQVR4nNWXu03EQBRFXQIRKSEpEj0QbUBAJYTUQg/0QA1UQLYhNDDoob3W2es3nhmvhYSlJ3vXM3PP+8zH03T5VXYYY+w6vD2WsBD/On783k+//05UwvdPD+X69mb+D+32FX59vqKn5fv9bgYIi+dosytIDBBCYQQIj/mbAPEc7QlykXgMqoElpLsDMCLRR/DDEO55eCwjQNwJwPtmiJa4cssQOxCLcwjCxTUIASTsAILgbBmOBPOuzi1xB+BM0f+EqAJk3hOAYZcQi9CLVM/q34xC5j3D6t4z3HrP3PvMIEQToJV3h3KAVi0sAEJI4ekpuiwiFCMgAVyHDN0AmWXe1opROr6LLgBq3veIr0EMA7Da3WrVXwNgCroA1JleZqHOxPUunOCUTAGyIqSw7wE0idVWxhqAF+HEecp57AP689rSrC1b7bmtZ4vhDOBLsC8oazOEAOXzheHuA2AUFAm3nr1BpyMJ8myxdpBdRCETzwB0bIu+4XmY3ikSLfGzKESnEe8JQXGH6DnGzxCqYK6OBFhbmDwCPd5XIZSKXoBoozQoJVs+YM4gGA2mIFsZea5QSk7hH77mQQjCdLA29J59OMYWgElzmIPKQzcX3vu7sWQwFdFdhReXzwqsmP/v+gEoBs2WkzP6AAAAAABJRU5ErkJggg==" alt="" width="16" height="16">Mágico</span><span class="selo">★★</span><span class="selo">♀ fêmea</span><span class="selo">Nv 10</span></p><p class="mont-poder">Poder <b>853</b> <span class="liga" style="--c:#b8c2cc">Prata</span></p></div></div><p class="mont-bio">Habitat: Serra enevoada.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Garoa"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">52</td><td class="n">51</td><td class="n">52</td><td class="n">52</td><td class="n">55</td><td class="n">53</td><td class="n">51</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">13</td><td class="n">12</td><td class="n">13</td><td class="n">14</td><td class="n">20</td><td class="n">15</td><td class="n">12</td></tr><tr><th scope="row">No Nv 10</th><td class="n">55</td><td class="n">54</td><td class="n">55</td><td class="n">55</td><td class="n">58</td><td class="n">56</td><td class="n">54</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Maré Alta</dd><dt>Skills</dt><dd><a class="skill-chip" href="#skill-pe-na-chuva">Pé na Chuva</a> <a class="skill-chip" href="#skill-segundo-ar">Segundo Ar</a></dd><dt>Cruzas</dt><dd>1</dd><dt>Onde aparece</dt><dd>bot nas corridas, aluguel no Haras (313 de Ouro)</dd></dl></article><article id="montaria-w-mandacaru" class="entrada" data-entrada="montaria" data-busca="mandacaru grama magico  caatinga montaria cavalo" data-el="grama" data-rar="magico"><div class="mont-cabeca"><canvas class="retrato" data-montaria="w-mandacaru" width="144" height="108" role="img" aria-label="Retrato de Mandacaru"></canvas><div class="mont-info"><h4>Mandacaru</h4><p class="selos"><span class="el el--grama"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAyUlEQVR4nO2WwQ3CMAxFPUWvHBmgOzAB08CaDNArRyYAUelL0ZeDXPHtIhRL/9Qo7yVxm5qNGvWvNR0Pz3d2A+8iAOh8PtUKtCu+LpdVABKpMAYjKTvQg3mR70AU3MJlAoA/7rc1n+BoQMTMvhPAhJFVM1zSA1sEOFIBJAKWCbQflZ4AP5cL8KRlcE8gCpe9gj1IBJ4mEIXLBfiWS+1+FvAunnIBFvGOpB0ngaPbe73AQtLrl1bjHkPqr5e3nSVgD5YC+HmBUZX1AujSKpO8VUstAAAAAElFTkSuQmCC" alt="" width="16" height="16">Grama</span><span class="rar rar--magico"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAB4UlEQVR4nNWXu03EQBRFXQIRKSEpEj0QbUBAJYTUQg/0QA1UQLYhNDDoob3W2es3nhmvhYSlJ3vXM3PP+8zH03T5VXYYY+w6vD2WsBD/On783k+//05UwvdPD+X69mb+D+32FX59vqKn5fv9bgYIi+dosytIDBBCYQQIj/mbAPEc7QlykXgMqoElpLsDMCLRR/DDEO55eCwjQNwJwPtmiJa4cssQOxCLcwjCxTUIASTsAILgbBmOBPOuzi1xB+BM0f+EqAJk3hOAYZcQi9CLVM/q34xC5j3D6t4z3HrP3PvMIEQToJV3h3KAVi0sAEJI4ekpuiwiFCMgAVyHDN0AmWXe1opROr6LLgBq3veIr0EMA7Da3WrVXwNgCroA1JleZqHOxPUunOCUTAGyIqSw7wE0idVWxhqAF+HEecp57AP689rSrC1b7bmtZ4vhDOBLsC8oazOEAOXzheHuA2AUFAm3nr1BpyMJ8myxdpBdRCETzwB0bIu+4XmY3ikSLfGzKESnEe8JQXGH6DnGzxCqYK6OBFhbmDwCPd5XIZSKXoBoozQoJVs+YM4gGA2mIFsZea5QSk7hH77mQQjCdLA29J59OMYWgElzmIPKQzcX3vu7sWQwFdFdhReXzwqsmP/v+gEoBs2WkzP6AAAAAABJRU5ErkJggg==" alt="" width="16" height="16">Mágico</span><span class="selo">★★</span><span class="selo">♂ macho</span><span class="selo">Nv 7</span></p><p class="mont-poder">Poder <b>825</b> <span class="liga" style="--c:#b8c2cc">Prata</span></p></div></div><p class="mont-bio">Habitat: Caatinga.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Mandacaru"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">51</td><td class="n">52</td><td class="n">52</td><td class="n">56</td><td class="n">53</td><td class="n">52</td><td class="n">51</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">12</td><td class="n">13</td><td class="n">13</td><td class="n">21</td><td class="n">16</td><td class="n">13</td><td class="n">12</td></tr><tr><th scope="row">No Nv 7</th><td class="n">53</td><td class="n">54</td><td class="n">54</td><td class="n">58</td><td class="n">55</td><td class="n">54</td><td class="n">53</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Raízes Firmes</dd><dt>Skills</dt><dd><a class="skill-chip" href="#skill-casco-firme">Casco Firme</a></dd><dt>Cruzas</dt><dd>2</dd><dt>Onde aparece</dt><dd>bot nas corridas, aluguel no Haras (313 de Ouro), vitrine da Expedição</dd></dl></article><article id="montaria-w-ventania" class="entrada" data-entrada="montaria" data-busca="ventania grama raro  pampa gaucho montaria cavalo" data-el="grama" data-rar="raro"><div class="mont-cabeca"><canvas class="retrato" data-montaria="w-ventania" width="144" height="108" role="img" aria-label="Retrato de Ventania"></canvas><div class="mont-info"><h4>Ventania</h4><p class="selos"><span class="el el--grama"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAyUlEQVR4nO2WwQ3CMAxFPUWvHBmgOzAB08CaDNArRyYAUelL0ZeDXPHtIhRL/9Qo7yVxm5qNGvWvNR0Pz3d2A+8iAOh8PtUKtCu+LpdVABKpMAYjKTvQg3mR70AU3MJlAoA/7rc1n+BoQMTMvhPAhJFVM1zSA1sEOFIBJAKWCbQflZ4AP5cL8KRlcE8gCpe9gj1IBJ4mEIXLBfiWS+1+FvAunnIBFvGOpB0ngaPbe73AQtLrl1bjHkPqr5e3nSVgD5YC+HmBUZX1AujSKpO8VUstAAAAAElFTkSuQmCC" alt="" width="16" height="16">Grama</span><span class="rar rar--raro"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABMUlEQVR4nO2WzQkCMRSEtwqv4skC7MEKrM3KbMLjYgFKDoFxmPe3iQjiwsPNn/NlXjbJsvyfwrM77p+Z+Jjwer+9xeH6kDENxBJW0YU7xOlyHgPJCjehLtbK7ZfLZYhIXOWd2/o7pmVY3EoJCmJdc4LXxmaAbEpQvAwwQ9xzIITw7M2KRhAmwKzZR+vAhOgDW4cR6z0H+rsL0Dp9FQB3sS15V+1lB6oAakNSECEA7+MVmz1w3hdCgAoEA/A4bk8D8Im2BULVhwA8ILsmlJiK9BrAz2eF8z4jzi6mAJQLuCkhBAcLYH+GCM8CHKRmq2aKddy/BKBcUH+GqeGZcn3Kes8FXANWalS7KpduRdYisnLt9SuJKwhLINs2dDNWJ1r0nU+5lkcgVkwVtkCimC78088Lb7aPtCPCPIEAAAAASUVORK5CYII=" alt="" width="16" height="16">Raro</span><span class="selo">★★★</span><span class="selo">♀ fêmea</span><span class="selo">Nv 15</span></p><p class="mont-poder">Poder <b>975</b> <span class="liga" style="--c:#f2c230">Ouro</span></p></div></div><p class="mont-bio">Habitat: Pampa gaúcho.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Ventania"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">61</td><td class="n">59</td><td class="n">60</td><td class="n">57</td><td class="n">58</td><td class="n">59</td><td class="n">57</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">21</td><td class="n">18</td><td class="n">20</td><td class="n">13</td><td class="n">15</td><td class="n">17</td><td class="n">14</td></tr><tr><th scope="row">No Nv 15</th><td class="n">66</td><td class="n">64</td><td class="n">65</td><td class="n">61</td><td class="n">62</td><td class="n">64</td><td class="n">62</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Raízes Firmes</dd><dt>Skills</dt><dd><a class="skill-chip" href="#skill-sprint">Sprint</a> <a class="skill-chip" href="#skill-arrancada-final">Arrancada Final</a></dd><dt>Cruzas</dt><dd>1</dd><dt>Onde aparece</dt><dd>bot nas corridas, aluguel no Haras (900 de Ouro), vitrine da Expedição</dd></dl></article><article id="montaria-w-pororoca" class="entrada" data-entrada="montaria" data-busca="pororoca agua raro  foz do amazonas montaria cavalo" data-el="agua" data-rar="raro"><div class="mont-cabeca"><canvas class="retrato" data-montaria="w-pororoca" width="144" height="108" role="img" aria-label="Retrato de Pororoca"></canvas><div class="mont-info"><h4>Pororoca</h4><p class="selos"><span class="el el--agua"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAq0lEQVR4nO2UwQ2AMAhFO4VXjw7gDk7gBE7pIC7h0QkwHEhIY6ttKVXDT7j2PZF85yyWgozzBDjNBJYVAKcJHL+cBNS3wOHqEldwNYEQ/Ng3HYk7gaoSIbjK7+iGHj4lICpBbfd6ATxEGjEJDo8JcLi4AD2UI1As4fd9yg2YgJgAv4MceHOBbDiFt2BqHYuWkerq/TzdAi8tMTgFH/VFQiMO50GJ2FSFW36ZE37/JO6oECDXAAAAAElFTkSuQmCC" alt="" width="16" height="16">Água</span><span class="rar rar--raro"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABMUlEQVR4nO2WzQkCMRSEtwqv4skC7MEKrM3KbMLjYgFKDoFxmPe3iQjiwsPNn/NlXjbJsvyfwrM77p+Z+Jjwer+9xeH6kDENxBJW0YU7xOlyHgPJCjehLtbK7ZfLZYhIXOWd2/o7pmVY3EoJCmJdc4LXxmaAbEpQvAwwQ9xzIITw7M2KRhAmwKzZR+vAhOgDW4cR6z0H+rsL0Dp9FQB3sS15V+1lB6oAakNSECEA7+MVmz1w3hdCgAoEA/A4bk8D8Im2BULVhwA8ILsmlJiK9BrAz2eF8z4jzi6mAJQLuCkhBAcLYH+GCM8CHKRmq2aKddy/BKBcUH+GqeGZcn3Kes8FXANWalS7KpduRdYisnLt9SuJKwhLINs2dDNWJ1r0nU+5lkcgVkwVtkCimC78088Lb7aPtCPCPIEAAAAASUVORK5CYII=" alt="" width="16" height="16">Raro</span><span class="selo">★★</span><span class="selo">♂ macho</span><span class="selo">Nv 18</span></p><p class="mont-poder">Poder <b>995</b> <span class="liga" style="--c:#f2c230">Ouro</span></p></div></div><p class="mont-bio">Habitat: Foz do Amazonas.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Pororoca"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">58</td><td class="n">57</td><td class="n">58</td><td class="n">59</td><td class="n">62</td><td class="n">58</td><td class="n">57</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">15</td><td class="n">14</td><td class="n">15</td><td class="n">17</td><td class="n">24</td><td class="n">16</td><td class="n">14</td></tr><tr><th scope="row">No Nv 18</th><td class="n">64</td><td class="n">63</td><td class="n">64</td><td class="n">65</td><td class="n">69</td><td class="n">64</td><td class="n">63</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Maré Alta</dd><dt>Skills</dt><dd><a class="skill-chip" href="#skill-nascente">Nascente</a> <a class="skill-chip" href="#skill-pe-na-chuva">Pé na Chuva</a></dd><dt>Cruzas</dt><dd>2</dd><dt>Onde aparece</dt><dd>bot nas corridas, aluguel no Haras (750 de Ouro)</dd></dl></article><article id="montaria-w-fogareu" class="entrada" data-entrada="montaria" data-busca="fogareu fogo lendario  chapada em chamas montaria cavalo" data-el="fogo" data-rar="lendario"><div class="mont-cabeca"><canvas class="retrato" data-montaria="w-fogareu" width="144" height="108" role="img" aria-label="Retrato de Fogaréu"></canvas><div class="mont-info"><h4>Fogaréu</h4><p class="selos"><span class="el el--fogo"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAApUlEQVR4nO3WwQ2AIAwFUEZwMKfx6AjO4HQuUoNRY0vBaOjvpU168vAfRZGUoqL6FZ3tE75Ogz/AC3EE0zK6AO6VZwAawYLRgDJ8m2EIPRwE4Ht+BQtAblNAsXIFYTWFdvgDYQGojx4AeB+9IeBzeE9A+603BhTHrBvAawt0QAth8E/QARpEPOv+CVYRStseQg7hDFGbBupKRhIigmHXMVI6KupX7Wn7o+bZMRpLAAAAAElFTkSuQmCC" alt="" width="16" height="16">Fogo</span><span class="rar rar--lendario"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABS0lEQVR4nO2WvQ3CQAyFMwIVLSUtEjswAZMwDQXTMANLUMICQY5k6WE923dOoEBEsi5Hwr3PP+fcMPyvwrXebkZmXxO9nFbjeB4mk3u1j8DogijmRUDfkXEREE8YvWYR0LmCzBZnC6NFICUIK+4JIwCLTAmCiXvCmP/H/fY2L0MoQCSOoipsR1s7TQCZ91bYAjyvu8l0HbZWCIGkLMdyb8UZjLdDygAyF88ycY0CClsHXAAl93KfCe+Ph6Yo6JgCYM5aPEeIxQC83HvFmNVCGYDl/ysAWeXLc8x9BlECiKpfxLH7yTwqxhDAbsMeABTQ3yxEKs6i0FL5zEv2rBkAG0fr9mMQ5Q8SklYBuqrfA+htQlnzaQaoQkT7vkvcg+hpPGs4pM4+F9ovmgdiT0P4n5I4QrADBjN2eJklzkCiiseOuJhwBoP2UdGfvV47p5OLHfj5PAAAAABJRU5ErkJggg==" alt="" width="16" height="16">Lendário</span><span class="selo">★★★</span><span class="selo">♀ fêmea</span><span class="selo">Nv 22</span></p><p class="mont-poder">Poder <b>1.125</b> <span class="liga" style="--c:#7ab8ff">Diamante</span></p></div></div><p class="mont-bio">Habitat: Chapada em chamas.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Fogaréu"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">67</td><td class="n">68</td><td class="n">68</td><td class="n">63</td><td class="n">63</td><td class="n">65</td><td class="n">63</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">24</td><td class="n">26</td><td class="n">25</td><td class="n">16</td><td class="n">15</td><td class="n">20</td><td class="n">16</td></tr><tr><th scope="row">No Nv 22</th><td class="n">75</td><td class="n">76</td><td class="n">76</td><td class="n">70</td><td class="n">70</td><td class="n">73</td><td class="n">70</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Labareda</dd><dt>Skills</dt><dd><a class="skill-chip" href="#skill-sol-a-pino">Sol a Pino</a> <a class="skill-chip" href="#skill-chama-final">Chama Final</a> <a class="skill-chip" href="#skill-arranque">Arranque</a></dd><dt>Cruzas</dt><dd>1</dd><dt>Onde aparece</dt><dd>bot nas corridas, aluguel no Haras (2.250 de Ouro), vitrine da Expedição</dd></dl></article><article id="montaria-w-jequitiba" class="entrada" data-entrada="montaria" data-busca="jequitiba grama lendario  mata atlantica montaria cavalo" data-el="grama" data-rar="lendario"><div class="mont-cabeca"><canvas class="retrato" data-montaria="w-jequitiba" width="144" height="108" role="img" aria-label="Retrato de Jequitibá"></canvas><div class="mont-info"><h4>Jequitibá</h4><p class="selos"><span class="el el--grama"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAyUlEQVR4nO2WwQ3CMAxFPUWvHBmgOzAB08CaDNArRyYAUelL0ZeDXPHtIhRL/9Qo7yVxm5qNGvWvNR0Pz3d2A+8iAOh8PtUKtCu+LpdVABKpMAYjKTvQg3mR70AU3MJlAoA/7rc1n+BoQMTMvhPAhJFVM1zSA1sEOFIBJAKWCbQflZ4AP5cL8KRlcE8gCpe9gj1IBJ4mEIXLBfiWS+1+FvAunnIBFvGOpB0ngaPbe73AQtLrl1bjHkPqr5e3nSVgD5YC+HmBUZX1AujSKpO8VUstAAAAAElFTkSuQmCC" alt="" width="16" height="16">Grama</span><span class="rar rar--lendario"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABS0lEQVR4nO2WvQ3CQAyFMwIVLSUtEjswAZMwDQXTMANLUMICQY5k6WE923dOoEBEsi5Hwr3PP+fcMPyvwrXebkZmXxO9nFbjeB4mk3u1j8DogijmRUDfkXEREE8YvWYR0LmCzBZnC6NFICUIK+4JIwCLTAmCiXvCmP/H/fY2L0MoQCSOoipsR1s7TQCZ91bYAjyvu8l0HbZWCIGkLMdyb8UZjLdDygAyF88ycY0CClsHXAAl93KfCe+Ph6Yo6JgCYM5aPEeIxQC83HvFmNVCGYDl/ysAWeXLc8x9BlECiKpfxLH7yTwqxhDAbsMeABTQ3yxEKs6i0FL5zEv2rBkAG0fr9mMQ5Q8SklYBuqrfA+htQlnzaQaoQkT7vkvcg+hpPGs4pM4+F9ovmgdiT0P4n5I4QrADBjN2eJklzkCiiseOuJhwBoP2UdGfvV47p5OLHfj5PAAAAABJRU5ErkJggg==" alt="" width="16" height="16">Lendário</span><span class="selo">★★★</span><span class="selo">♂ macho</span><span class="selo">Nv 25</span></p><p class="mont-poder">Poder <b>1.127</b> <span class="liga" style="--c:#7ab8ff">Diamante</span></p></div></div><p class="mont-bio">Habitat: Mata Atlântica.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Jequitibá"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">64</td><td class="n">63</td><td class="n">64</td><td class="n">69</td><td class="n">66</td><td class="n">65</td><td class="n">63</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">17</td><td class="n">16</td><td class="n">17</td><td class="n">27</td><td class="n">21</td><td class="n">19</td><td class="n">16</td></tr><tr><th scope="row">No Nv 25</th><td class="n">72</td><td class="n">71</td><td class="n">72</td><td class="n">78</td><td class="n">74</td><td class="n">73</td><td class="n">71</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Raízes Firmes</dd><dt>Skills</dt><dd><a class="skill-chip" href="#skill-casco-firme">Casco Firme</a> <a class="skill-chip" href="#skill-folego-de-montanha">Fôlego de Montanha</a> <a class="skill-chip" href="#skill-segundo-ar">Segundo Ar</a></dd><dt>Cruzas</dt><dd>2</dd><dt>Onde aparece</dt><dd>bot nas corridas, aluguel no Haras (2.250 de Ouro)</dd></dl></article><article id="montaria-w-boitata" class="entrada" data-entrada="montaria" data-busca="boitata fogo mitico  so aparece em noites de queimada montaria cavalo" data-el="fogo" data-rar="mitico"><div class="mont-cabeca"><canvas class="retrato" data-montaria="w-boitata" width="144" height="108" role="img" aria-label="Retrato de Boitatá"></canvas><div class="mont-info"><h4>Boitatá</h4><p class="selos"><span class="el el--fogo"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAApUlEQVR4nO3WwQ2AIAwFUEZwMKfx6AjO4HQuUoNRY0vBaOjvpU168vAfRZGUoqL6FZ3tE75Ogz/AC3EE0zK6AO6VZwAawYLRgDJ8m2EIPRwE4Ht+BQtAblNAsXIFYTWFdvgDYQGojx4AeB+9IeBzeE9A+603BhTHrBvAawt0QAth8E/QARpEPOv+CVYRStseQg7hDFGbBupKRhIigmHXMVI6KupX7Wn7o+bZMRpLAAAAAElFTkSuQmCC" alt="" width="16" height="16">Fogo</span><span class="rar rar--mitico"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABTklEQVR4nO2WvRHCMAyFMwIVLWUGYAcmYBLmyRAMwxKUTBBOhbiH0JMl41DhOx3Oj/U+yVLMNP1HceznwxrZ5sLLfF0f99ubyT214SDqUITkGkWsDQdBYSbkieq1rusWZ46ZuMDK7/F8es27INSZOo6EUVxFca41k4bQRRIFE7cFiKJoNnNNCPuyJ+x1QRS99RVCtAC8DDAQu0UlABZ9xRgEBWDRV4W7s8Cib+27LUZWB80sRACRaLYQUTgNkIm6ug0/BfAOqhJAtuWyWRheA16U0fMUAL6YbTnsAC8jpTasAngHk56GJQB7+LT2lgHYALwDSbQ+ADQL8vBbANwSBNIgXfHeLDAA9gmm0W8BYTPaFFcAhNB5BJKNPAUgY7ns3H9EUZt5rYh1lRb3MsFArOHHSO91iVsIBhJVP67tEm+BMBsqzCAyNlQ8C9Pj6wmQsYr3dXwYiAAAAABJRU5ErkJggg==" alt="" width="16" height="16">Mítico</span><span class="selo">★★★</span><span class="selo">♀ fêmea</span><span class="selo">Nv 30</span></p><p class="mont-poder">Poder <b>1.273</b> <span class="liga" style="--c:#ff7a3d">Lenda</span></p></div></div><p class="mont-bio">Habitat: Só aparece em noites de queimada. A cobra de fogo do folclore, em forma de cavalo.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Boitatá"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">74</td><td class="n">75</td><td class="n">75</td><td class="n">71</td><td class="n">70</td><td class="n">73</td><td class="n">69</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">28</td><td class="n">29</td><td class="n">29</td><td class="n">21</td><td class="n">20</td><td class="n">26</td><td class="n">18</td></tr><tr><th scope="row">No Nv 30</th><td class="n">85</td><td class="n">86</td><td class="n">86</td><td class="n">81</td><td class="n">81</td><td class="n">84</td><td class="n">79</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Labareda</dd><dt>Skills</dt><dd><a class="skill-chip" href="#skill-sol-a-pino">Sol a Pino</a> <a class="skill-chip" href="#skill-chama-final">Chama Final</a> <a class="skill-chip" href="#skill-drift">Drift</a></dd><dt>Cruzas</dt><dd>1</dd><dt>Onde aparece</dt><dd>bot nas corridas, vitrine da Expedição</dd></dl></article><article id="montaria-w-iara" class="entrada" data-entrada="montaria" data-busca="iara agua mitico  rios encantados montaria cavalo" data-el="agua" data-rar="mitico"><div class="mont-cabeca"><canvas class="retrato" data-montaria="w-iara" width="144" height="108" role="img" aria-label="Retrato de Iara"></canvas><div class="mont-info"><h4>Iara</h4><p class="selos"><span class="el el--agua"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAq0lEQVR4nO2UwQ2AMAhFO4VXjw7gDk7gBE7pIC7h0QkwHEhIY6ttKVXDT7j2PZF85yyWgozzBDjNBJYVAKcJHL+cBNS3wOHqEldwNYEQ/Ng3HYk7gaoSIbjK7+iGHj4lICpBbfd6ATxEGjEJDo8JcLi4AD2UI1As4fd9yg2YgJgAv4MceHOBbDiFt2BqHYuWkerq/TzdAi8tMTgFH/VFQiMO50GJ2FSFW36ZE37/JO6oECDXAAAAAElFTkSuQmCC" alt="" width="16" height="16">Água</span><span class="rar rar--mitico"><img class="ic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABTklEQVR4nO2WvRHCMAyFMwIVLWUGYAcmYBLmyRAMwxKUTBBOhbiH0JMl41DhOx3Oj/U+yVLMNP1HceznwxrZ5sLLfF0f99ubyT214SDqUITkGkWsDQdBYSbkieq1rusWZ46ZuMDK7/F8es27INSZOo6EUVxFca41k4bQRRIFE7cFiKJoNnNNCPuyJ+x1QRS99RVCtAC8DDAQu0UlABZ9xRgEBWDRV4W7s8Cib+27LUZWB80sRACRaLYQUTgNkIm6ug0/BfAOqhJAtuWyWRheA16U0fMUAL6YbTnsAC8jpTasAngHk56GJQB7+LT2lgHYALwDSbQ+ADQL8vBbANwSBNIgXfHeLDAA9gmm0W8BYTPaFFcAhNB5BJKNPAUgY7ns3H9EUZt5rYh1lRb3MsFArOHHSO91iVsIBhJVP67tEm+BMBsqzCAyNlQ8C9Pj6wmQsYr3dXwYiAAAAABJRU5ErkJggg==" alt="" width="16" height="16">Mítico</span><span class="selo">★★★</span><span class="selo">♂ macho</span><span class="selo">Nv 28</span></p><p class="mont-poder">Poder <b>1.255</b> <span class="liga" style="--c:#ff7a3d">Lenda</span></p></div></div><p class="mont-bio">Habitat: Rios encantados. A mãe-d&#39;água que encanta quem a ouve.</p><div class="rolagem" tabindex="0" role="region" aria-label="Status de Iara"><table class="mont-status"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col" class="n" title="Velocidade">VEL</th><th scope="col" class="n" title="Aceleração">ACE</th><th scope="col" class="n" title="Manobra">MAN</th><th scope="col" class="n" title="Força">FOR</th><th scope="col" class="n" title="Estamina">EST</th><th scope="col" class="n" title="Garra">GAR</th><th scope="col" class="n" title="Sorte">SOR</th></tr></thead><tbody><tr><th scope="row">Nv 1</th><td class="n">71</td><td class="n">71</td><td class="n">71</td><td class="n">70</td><td class="n">75</td><td class="n">73</td><td class="n">69</td></tr><tr class="oculto"><th scope="row">Genética</th><td class="n">22</td><td class="n">21</td><td class="n">22</td><td class="n">20</td><td class="n">30</td><td class="n">25</td><td class="n">18</td></tr><tr><th scope="row">No Nv 28</th><td class="n">81</td><td class="n">80</td><td class="n">81</td><td class="n">80</td><td class="n">86</td><td class="n">83</td><td class="n">79</td></tr></tbody></table></div><dl class="pares pares--mont"><dt>Skill de tipo</dt><dd>Maré Alta</dd><dt>Skills</dt><dd><a class="skill-chip" href="#skill-canto-da-iara">Canto da Iara</a> <a class="skill-chip" href="#skill-pe-na-chuva">Pé na Chuva</a> <a class="skill-chip" href="#skill-nascente">Nascente</a></dd><dt>Cruzas</dt><dd>2</dd><dt>Onde aparece</dt><dd>bot nas corridas, vitrine da Expedição</dd></dl></article></div></section><p class="vazio" data-vazio="montaria" hidden>Nenhuma montaria casa com a busca e os filtros.</p>
 </section>
+<section class="secao" id="marcas" aria-labelledby="t-marcas"><h2 id="t-marcas">Marcas e jóquei</h2>
+<p>Marcas, jóquei e brilho da raridade são só desenho: não entram em status, Poder, preço, chance de skill nem na corrida. Cada cavalo carrega 3 genes de marcas, que o potro herda pela seed do cruzamento.</p>
+<h3>Genes de marcas</h3>
+<div class="tabela"><div class="rolagem" tabindex="0" role="region" aria-label="Tabela"><table><thead><tr><th scope="col">Gene</th><th scope="col">Valores</th><th scope="col" class="n">Quantos</th></tr></thead><tbody><tr><th scope="row" class="cu">Cara</th><td class="cl">nenhuma, estrela, listra e frente branca</td><td class="n">4</td></tr><tr><th scope="row" class="cu">Patas</th><td class="cl">0, 1, 2, 3 e 4 meias brancas</td><td class="n">5</td></tr><tr><th scope="row" class="cu">Corpo</th><td class="cl">liso, malhado (manchas brancas grandes), pintado (pintas escuras pequenas) e ruão (pelos brancos salpicados)</td><td class="n">4</td></tr></tbody></table></div></div>
+<h3>Herança no cruzamento</h3>
+<ul><li>Cada gene (cara, patas, corpo, nessa ordem) vem de um dos pais, 50% para cada um (égua ou garanhão), com 10% de chance de <strong>mutação</strong>: o gene vira um valor qualquer da lista, com a mesma chance para todos.</li><li>Os sorteios das marcas usam uma sequência própria da seed do cruzamento. O resto do potro (raridade, estrelas, genética, skills) nasce igual a antes de existirem marcas.</li><li>Cavalo sem marcas válidas (save antigo) vale pelas marcas do modelo do catálogo ou, na falta dele, por marcas calculadas do identificador dele: o mesmo cavalo tem sempre as mesmas marcas.</li><li>Mítico nunca nasce de cruzamento, com ou sem marcas. A ficha da montaria e o Haras mostram a linha &quot;Marcas: …&quot;.</li></ul>
+<h3>Jóquei do jogador</h3>
+<ul><li>Na aba Perfil você escolhe o <strong>padrão da seda</strong> (liso, listras, faixa, xadrez, estrelas e losangos) e a <strong>cor do capacete</strong> (8 cores). O padrão inicial é &quot;liso&quot; e o capacete inicial é Dourado. Cores de capacete: Dourado, Vermelho, Azul, Verde, Roxo, Laranja, Creme e Preto.</li><li>A seda continua na cor de sempre (a sua é dourada; a dos rivais é a cor da raia); o padrão vai por cima em um tom mais claro ou mais escuro. A escolha vale para todos os seus cavalos.</li><li>O jóquei dos rivais (padrão e capacete) sai da seed da sala.</li></ul>
+<h3>Raridade visível</h3>
+<p>Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada 1,2 s. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.</p>
+<div class="tabela"><div class="rolagem" tabindex="0" role="region" aria-label="Tabela"><table><thead><tr><th scope="col">Raridade</th><th scope="col">Efeito</th></tr></thead><tbody><tr><th scope="row" class="cu">Comum</th><td class="cu">nada</td></tr><tr><th scope="row" class="cu">Mágico</th><td class="cl">brilho na crina (mistura de 25% da cor da raridade clareada)</td></tr><tr><th scope="row" class="cu">Raro</th><td class="cl">brilho na crina (mistura de 30% da cor da raridade clareada) e 3 faíscas piscando em volta</td></tr><tr><th scope="row" class="cu">Lendário</th><td class="cl">brilho na crina (mistura de 45% da cor da raridade clareada) e 5 faíscas piscando em volta</td></tr><tr><th scope="row" class="cu">Mítico</th><td class="cl">brilho na crina (mistura de 45% da cor da raridade clareada) e 5 faíscas piscando em volta e rastro de luz atrás do cavalo no galope da corrida</td></tr></tbody></table></div></div>
+<h3>Marcas dos iniciais e selvagens</h3>
+<div class="tabela"><div class="rolagem" tabindex="0" role="region" aria-label="Tabela"><table><thead><tr><th scope="col">Cavalo</th><th scope="col">Cara</th><th scope="col" class="n">Patas (meias)</th><th scope="col">Corpo</th></tr></thead><tbody><tr><th scope="row" class="cu">Brasa</th><td class="cu">estrela</td><td class="n">1</td><td class="cu">liso</td></tr><tr><th scope="row" class="cu">Maré</th><td class="cu">listra</td><td class="n">0</td><td class="cl">ruão (pelos brancos salpicados)</td></tr><tr><th scope="row" class="cu">Ipê</th><td class="cu">frente branca</td><td class="n">2</td><td class="cu">liso</td></tr><tr><th scope="row" class="cu">Faísca</th><td class="cu">estrela</td><td class="n">2</td><td class="cl">pintado (pintas escuras pequenas)</td></tr><tr><th scope="row" class="cu">Lambari</th><td class="cu">nenhuma</td><td class="n">0</td><td class="cl">malhado (manchas brancas grandes)</td></tr><tr><th scope="row" class="cu">Capim</th><td class="cu">listra</td><td class="n">4</td><td class="cu">liso</td></tr><tr><th scope="row" class="cu">Tição</th><td class="cu">frente branca</td><td class="n">1</td><td class="cu">liso</td></tr><tr><th scope="row" class="cu">Garoa</th><td class="cu">estrela</td><td class="n">0</td><td class="cl">ruão (pelos brancos salpicados)</td></tr><tr><th scope="row" class="cu">Mandacaru</th><td class="cu">nenhuma</td><td class="n">3</td><td class="cl">pintado (pintas escuras pequenas)</td></tr><tr><th scope="row" class="cu">Ventania</th><td class="cu">listra</td><td class="n">2</td><td class="cl">malhado (manchas brancas grandes)</td></tr><tr><th scope="row" class="cu">Pororoca</th><td class="cu">estrela</td><td class="n">4</td><td class="cu">liso</td></tr><tr><th scope="row" class="cu">Fogaréu</th><td class="cu">frente branca</td><td class="n">0</td><td class="cl">pintado (pintas escuras pequenas)</td></tr><tr><th scope="row" class="cu">Jequitibá</th><td class="cu">listra</td><td class="n">1</td><td class="cl">ruão (pelos brancos salpicados)</td></tr><tr><th scope="row" class="cu">Boitatá</th><td class="cu">estrela</td><td class="n">2</td><td class="cl">malhado (manchas brancas grandes)</td></tr><tr><th scope="row" class="cu">Iara</th><td class="cu">nenhuma</td><td class="n">4</td><td class="cl">ruão (pelos brancos salpicados)</td></tr></tbody></table></div></div>
+</section>
 <section class="secao" id="cruzamento" aria-labelledby="t-cruzamento"><h2 id="t-cruzamento">Cruzamento (Haras)</h2>
 <p>No Haras uma égua (♀) e um garanhão (♂) geram um potro. O sorteio é determinístico (seed do save e contador de cruzas). O potro nasce na hora, no level 1 (ainda não existe gestação no protótipo).</p>
 <h3>Regras e custos</h3>
@@ -395,9 +409,19 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
  *
  * API (global `Sprites` no navegador; module.exports no Node):
  *   Sprites.HORSE_W, Sprites.HORSE_H, Sprites.GALLOP_FRAMES, Sprites.FOOT_Y
- *   Sprites.drawHorse(ctx, x, y, { palette, element, frame, scale, silks, idle, t, jockey, shadow, quadro })
+ *   Sprites.drawHorse(ctx, x, y, { palette, element, frame, scale, silks, idle, t, jockey, shadow, quadro,
+ *                                  marcas, semente, joquei, raridade, rastro, reduzido })
  *     frame pode ser fracionário (fase contínua do galope); quadro = { topo, base } em px: quadro de altura
- *     fixa onde o molde inteiro tem de caber (retratos, pódio) — o desenho por código o ignora
+ *     fixa onde o molde inteiro tem de caber (retratos, pódio) — o desenho por código o ignora.
+ *     Parte 2a (spec 2026-11-12-cavalos-marcas), todas opcionais — sem elas, o desenho é o de antes, byte a byte:
+ *       marcas = { cara, patas, corpo } (GameData.MARCAS) e semente (uint32, Breed.hashChave da chave do cavalo,
+ *         calculada por quem chama): marcas na pelagem, só nos moldes (Marcas.camadaMarcas);
+ *       joquei = { padrao, capacete } (GameData.JOQUEI): padrão da seda num tom 2 da cor `silks`, capacete na cor
+ *         escolhida e manta no capacete escurecido, só nos moldes (Marcas.camadaJoquei);
+ *       raridade (id de GameData.RARITIES), rastro (só na corrida), reduzido (movimento reduzido): os efeitos de
+ *         Sprites.drawRaridade, desenhados depois do cavalo (as faíscas e o rastro também no desenho por código).
+ *   Sprites.drawRaridade(ctx, caixa, o)  caixa = horseBox(x, y, o): brilho na crina (só com molde), faíscas e
+ *     rastro do Mítico (ver a seção RARIDADE VISÍVEL). Comum não desenha nada.
  *   Sprites.drawTrack(ctx, { width, height, cameraX, pxPerMeter, lanes, laneTop, laneH, surface,
  *                           finishM, hills, curves, distanceMarkersEvery, t, weather, pixel, wind, curveScale })
  *     wind = { intensity: 'calmo'|'brisa'|'ventania', dir: 1|-1 } (só visual; padrão brisa ←): bandeirinhas
@@ -420,14 +444,18 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
  *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
  *   Sprites.drawHorseSilhouette(ctx, x, y, opts, cor, alpha)  (contorno tingido, chamar antes de drawHorse),
  *   Sprites.anchorsFor(element, scale, estado), Sprites.horseBox(x, y, opts),
- *   Sprites.limparCacheMoldes() (moldes recoloridos, silhuetas do contorno e textos prontos; o game.js chama ao
- *     trocar de tela),
+ *   Sprites.limparCacheMoldes() (moldes recoloridos, silhuetas do contorno, máscaras do brilho da crina e textos
+ *     prontos; o game.js chama ao trocar de tela),
+ *   Sprites.prepararCavalo(opts) -> n: recolore já, no cache dos moldes, os quadros que drawHorse(…, opts) usa (parado
+ *     e todo o galope; sem jóquei, o retrato), para a corrida montar cada cavalo uma vez na largada; 0 sem moldes,
  *   Sprites.drawHorseCodigo(...)
+ *   Dependências: Marcas (marcas.js) e GameData (data.js) — require no Node, globais no navegador (procurados na
+ *   hora do desenho). Sem eles (o wiki embute só este arquivo), marcas, jóquei e raridade não desenham nada.
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.Sprites = factory();
-}(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./marcas.js'), require('./data.js'));
+  else root.Sprites = factory(null, null);   // no navegador: Marcas e GameData globais, procurados na hora (ver marcasApi)
+}(typeof self !== 'undefined' ? self : this, function (MARCAS_NODE, DADOS_NODE) {
   'use strict';
 
   // ===================================================================
@@ -1274,13 +1302,15 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   // (crista, orelhas) é cortado em no máximo 10 % da altura do bbox (senão a escala desce um passo).
   // As referências são POR ESTADO, não por quadro: por quadro o cavalo tremeria no galope (cauda e patas
   // mudam rear e footY). Como o focinho cai no mesmo NOSE, a câmera e as etiquetas da corrida não mudam;
-  // anchorsFor() converte rear/saddle do molde para as unidades do sprite por código.
+  // anchorsFor() converte rear/saddle do molde para as unidades do sprite por código. As âncoras POR QUADRO
+  // (M.ancoras = { retrato, parado, galope: [9] }, as do JSON + larguraUtil) só servem às zonas das marcas e
+  // do jóquei (marcas.js), presas a cada quadro.
   // Galope: o ciclo do molde (frames quadros) dura o mesmo que o ciclo do código (GALLOP_FRAMES quadros);
   // `frame` pode ser fracionário (fase contínua) e o índice é floor((frame mod GALLOP_FRAMES) × frames / GALLOP_FRAMES).
   var ESTILO_POR_ELEMENTO = { fogo: 'chamas', agua: 'ondas', grama: 'folhas', neutro: 'lisa' };
   var ESTILOS_MOLDE = ['chamas', 'ondas', 'folhas', 'lisa'];
   var MOLDE_CORES_FIXAS = { contorno: '#1a1405', pele: '#e8b48a', sela: '#5a3a22' };
-  var moldes = null;       // estilo -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados }
+  var moldes = null;       // estilo -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados, ancoras }
   var moldsOk = false;
   var moldesLref = 0;      // maior larguraUtil entre os estilos carregados (escala única)
   var moldesGeracao = 0;   // descarta um carregamento antigo se loadMolds for chamado de novo
@@ -1288,6 +1318,9 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   // 64×64×4 = 16 KB por entrada; o teto em bytes é só uma rede de segurança (go() limpa ao trocar de tela)
   var moldCache = new LruCanvasCache(8 * 1024 * 1024);
   LruCanvasCache.prototype.clear = function () { this.map.clear(); this.bytes = 0; };
+  // máscaras da crina para o brilho da raridade (recortadas na crina: poucos KB cada); fora do moldCache, que o
+  // ui-test conta por corrida e no pódio
+  var brilhoCache = new LruCanvasCache(1024 * 1024);
 
   function estiloDe(element) { return ESTILO_POR_ELEMENTO[element] || 'lisa'; }
   function moldScale(k) { return Math.max(1, Math.round(k * 40 / moldesLref)); }
@@ -1305,6 +1338,13 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   function caixa(b) { return b && isFinite(b.x) && isFinite(b.y) && b.w > 0 && b.h > 0; }
   function aviso(motivo) {
     if (typeof console !== 'undefined' && console.warn) console.warn('Sprites: moldes desligados (' + motivo + '); os cavalos usam o desenho por código.');
+  }
+  // cópia rasa da âncora de um quadro com a larguraUtil do molde (a zona da cara usa a do molde, não a do bbox)
+  function ancoraComL(a, larguraUtil) {
+    var c = {};
+    for (var k in a) if (Object.prototype.hasOwnProperty.call(a, k)) c[k] = a[k];
+    c.larguraUtil = larguraUtil;
+    return c;
   }
 
   // Referência de um estado a partir das âncoras dos seus quadros (calculada uma vez, ao carregar).
@@ -1361,7 +1401,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   // com um console.warn do motivo (o jogo segue com o desenho por código).
   function loadMolds(tabela, pronto) {
     var geracao = ++moldesGeracao;
-    moldsOk = false; api.moldsReady = false; moldes = null; moldCache.clear();
+    moldsOk = false; api.moldsReady = false; moldes = null; moldCache.clear(); brilhoCache.clear();
     if (typeof Image === 'undefined' || typeof document === 'undefined') return;   // Node: sem canvas
     var est = tabela && tabela.estilos;
     if (!est) { aviso('a tabela de moldes não tem estilos'); return; }
@@ -1391,6 +1431,9 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
           w: J.w, h: J.h, frames: frames, larguraUtil: J.larguraUtil, retrato: null, parado: null, galope: [],
           estados: { retrato: refDe('retrato', [A.retrato]), parado: refDe('parado', [A.parado]), galope: refDe('galope', lista) }
         };
+        // âncoras por quadro (as do JSON, já validadas acima) + larguraUtil, para as zonas do marcas.js
+        M.ancoras = { retrato: ancoraComL(A.retrato, J.larguraUtil), parado: ancoraComL(A.parado, J.larguraUtil), galope: [] };
+        for (f = 0; f < frames; f++) M.ancoras.galope.push(ancoraComL(lista[f], J.larguraUtil));
         function carrega(url, rotulo, guarda) {
           pendentes++;
           decodificaMolde(url, M.w, M.h, function (idx) { guarda(idx); fim(); },
@@ -1433,19 +1476,87 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     return c;
   }
   function indicesMolde(M, estado, quadro) { return estado === 'galope' ? M.galope[quadro] : M[estado]; }
+  function ancoraMolde(M, estado, quadro) { return estado === 'galope' ? M.ancoras.galope[quadro] : M.ancoras[estado]; }
+
+  // Marcas e jóquei (spec 2026-11-12-cavalos-marcas §3–§4) das opções do drawHorse, normalizados pelas listas do
+  // GameData (fora da lista: sem marca, padrão liso; capacete que não é '#rgb'/'#rrggbb': sem capacete — o
+  // capacete fica na seda e a manta na sela). null sem as duas opções (ou sem o marcas.js): a recoloração de hoje.
+  function visuaisMolde(o) {
+    var MK = marcasApi(), GD = dadosApi();
+    if (!MK || !GD || !GD.MARCAS || !GD.JOQUEI) return null;
+    var m = o.marcas && typeof o.marcas === 'object' ? o.marcas : null;
+    var j = o.joquei && typeof o.joquei === 'object' ? o.joquei : null;
+    if (!m && !j) return null;
+    var L = GD.MARCAS, v = { MK: MK, branco: L.branco || '#f1e9d4', marcas: null, semente: o.semente >>> 0, padrao: null, capacete: null, chave: '' };
+    if (m) {
+      v.marcas = {
+        cara: L.cara.indexOf(m.cara) >= 0 ? m.cara : 'nenhuma',
+        patas: L.patas.indexOf(m.patas) >= 0 ? m.patas : 0,
+        corpo: L.corpo.indexOf(m.corpo) >= 0 ? m.corpo : 'liso'
+      };
+      v.chave += '|m' + v.marcas.cara + ',' + v.marcas.patas + ',' + v.marcas.corpo + ',' + v.semente;
+    }
+    if (j) {
+      v.padrao = GD.JOQUEI.padroes.indexOf(j.padrao) >= 0 ? j.padrao : 'liso';
+      v.capacete = opaca(j.capacete) ? j.capacete.toLowerCase() : null;
+      v.chave += '|j' + v.padrao + ',' + (v.capacete || '-');
+    }
+    return v;
+  }
+
+  // Índices 10–15 por cima dos papéis: 10–12 = camada das marcas (1 branco, 2 branco-sombra, 3 escuro),
+  // 13–15 = camada do jóquei (1 tom 2 da seda, 2 capacete, 3 manta). As camadas não se cruzam (marcas só na
+  // pelagem, jóquei só na roupa e na sela).
+  function indicesComCamadas(idx, w, h, ancora, v) {
+    var cm = v.marcas ? v.MK.camadaMarcas(idx, w, h, ancora, v.marcas, v.semente) : null;
+    var cj = v.padrao ? v.MK.camadaJoquei(idx, w, h, ancora, v.padrao) : null;
+    var out = new Uint8Array(w * h);
+    for (var i = 0; i < w * h; i++) out[i] = cm && cm[i] ? 9 + cm[i] : (cj && cj[i] ? 12 + cj[i] : idx[i]);
+    return out;
+  }
+  function coresComCamadas(cores, v) {
+    var seda = cores[7], cap = v.capacete;
+    return cores.concat([
+      v.branco, shade(v.branco, 0.3), shade(cores[3], 0.45),                  // marcas
+      lum(seda) < 0.5 ? light(seda, 0.35) : shade(seda, 0.3),                  // tom 2 da seda
+      cap || seda, cap ? shade(cap, 0.4) : cores[9]                            // capacete e manta
+    ]);
+  }
 
   // Canvas 1× recolorido; a escala fica no drawImage (vizinho mais próximo), então a chave não leva a
-  // escala: uma entrada por estilo|estado|quadro|cores, em qualquer tamanho de tela.
+  // escala: uma entrada por estilo|estado|quadro|cores (+ marcas, semente, padrão e capacete, quando vêm nas
+  // opções), em qualquer tamanho de tela. Sem marcas e sem jóquei: a chave e os pixels de antes da parte 2a.
+  // As camadas saem do marcas.js só na falta (uma vez por cavalo e quadro; na corrida, na largada).
   function moldeRecolorido(nome, estado, quadro, o) {
-    var cores = coresMolde(o);
-    var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',');
+    var cores = coresMolde(o), v = visuaisMolde(o);
+    var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '');
     var c = moldCache.get(key);
     if (!c) {
-      var M = moldes[nome];
-      c = pintaIndices(indicesMolde(M, estado, quadro), M.w, M.h, cores);
+      var M = moldes[nome], idx = indicesMolde(M, estado, quadro);
+      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v), M.w, M.h, coresComCamadas(cores, v))
+        : pintaIndices(idx, M.w, M.h, cores);
       moldCache.set(key, c);
     }
     return c;
+  }
+
+  // Monta agora, no cache dos moldes, todos os quadros recoloridos que drawHorse(…, opts) usa com estas opções
+  // (o parado e os quadros do galope; sem jóquei, o retrato), para a corrida não recolorir no 1º ciclo do
+  // galope (~0,8 ms por quadro com marcas e jóquei; spec 2026-11-12-cavalos-marcas §3: cada cavalo montado uma
+  // vez na largada). Só o número de quadros do molde decide o laço, e ele mora aqui. Devolve quantos quadros
+  // ficaram prontos (0 sem moldes).
+  function prepararCavalo(opts) {
+    opts = opts || {};
+    if (!moldsOk) return 0;
+    var nome = estiloDe(opts.element), M = moldes[nome], n = 0, feitos = {}, q;
+    [true, false].forEach(function (idle) {
+      var estado = estadoMolde({ idle: idle, jockey: opts.jockey, retrato: opts.retrato });
+      if (!estado || feitos[estado]) return;
+      feitos[estado] = true;
+      var quadros = estado === 'galope' ? M.frames : 1;
+      for (q = 0; q < quadros; q++) { moldeRecolorido(nome, estado, q, opts); n++; }
+    });
+    return n;
   }
 
   // Quadro do galope do molde para o contador do sprite por código (pode ser fracionário).
@@ -1498,6 +1609,10 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     var estado = moldsOk ? estadoMolde(opts) : null;
     if (estado) drawHorseMolde(ctx, x, y, opts, estado);
     else drawHorseCodigo(ctx, x, y, opts);
+    if (opts.raridade != null) {   // depois do cavalo; Comum não tem efeito (e nem calcula a caixa)
+      var R = infoRaridade(opts);
+      if (R) desenhaRaridade(ctx, horseBox(x, y, opts), opts, R);
+    }
   }
 
   // Silhueta do cavalo (com jóquei) tingida de uma cor, para o contorno de skill da corrida: o desenho
@@ -1529,6 +1644,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
       var o2 = {};
       for (var q in opts) if (Object.prototype.hasOwnProperty.call(opts, q)) o2[q] = opts[q];
       o2.shadow = false;
+      o2.raridade = null;   // faíscas, brilho e rastro mudam com o tempo e não fazem parte da silhueta
       drawHorse(cx, pad - b0.x, pad - b0.y, o2);
       cx.globalCompositeOperation = 'source-in';
       cx.fillStyle = cor;
@@ -1560,6 +1676,156 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     return { x: L.ox + ref.esq * L.S, y: L.topo, w: (ref.dir - ref.esq) * L.S, h: L.pe - L.topo };
   }
 
+  // ===================================================================
+  // RARIDADE VISÍVEL (spec 2026-11-12-cavalos-marcas §5)
+  // ===================================================================
+  // drawRaridade(ctx, caixa, o): efeitos na cor da raridade (GameData.RARITIES[o.raridade].color) por cima do
+  // cavalo; caixa = horseBox(x, y, o) (o drawHorse chama sozinho quando as opções trazem `raridade`). 1 px de
+  // arte = u: com molde, a escala do molde (S = caixa.w ÷ colunas do bbox do estado, o inverso do horseBox);
+  // sem molde, a escala k do sprite por código.
+  //   • brilho da crina (Marcas.BRILHO; só com molde): a máscara dos papéis 4 e 5 do quadro, recortada na
+  //     crina e pintada na cor da raridade CLAREADA (light(cor, RARIDADE_CLARO), a mesma do rastro; a cor pura some
+  //     numa crina da mesma cor, como o verde do Mágico na crina da Grama) (brilhoCache, uma por estilo|estado|quadro|cor). Uma fatia de 3 colunas (alfa
+  //     BRILHO[raridade]: a mistura de 25/30/45 % da cor clareada), com 1 coluna a meio alfa de cada lado, atravessa a
+  //     crina da cabeça para a cauda a cada BRILHO_CICLO (1,2 s); fatia sem crina não desenha. Com o.reduzido,
+  //     a fatia fica parada na coluna com mais crina da metade da cabeça (a crina do pescoço, não a cauda).
+  //   • faíscas: Marcas.faiscas(o.semente, Marcas.N_FAISCAS[raridade]) (0/0/3/5/5), na caixa com margem de
+  //     FAISCA_MARGEM px de arte (com o.quadro, presas na altura do quadro), no grid de arte da caixa. Cruz de
+  //     1 px de arte (barra 3u × u + barra u × 3u, mesmo centro) que pisca (alfa 0,15 … 1) pelo tempo o.t e pela
+  //     fase da faísca, num ciclo de FAISCA_CICLO s. Com o.reduzido, alfa fixo.
+  //   • rastro (o.rastro, só Mítico, só no galope, nunca com o.reduzido): 3 faixas de 1 px de arte que acabam
+  //     na âncora traseira do estado (sem molde, ANCHORS.rear) e somem para trás em 3 trechos; comprimento =
+  //     a passada (RASTRO_PASSO da largura da caixa), tremulando com o tempo; cor = a da raridade clareada. As
+  //     faíscas ficam na cor pura da raridade.
+  // Ordem: rastro, brilho, faíscas. Comum (ou raridade fora de GameData.RARITIES) não desenha nada; nada de
+  // Math.random; o globalAlpha volta ao que era. Sem o marcas.js ou o GameData (o wiki só embute o
+  // sprites.js), não desenha nada.
+  var BRILHO_CICLO = 1.2;
+  var RARIDADE_CLARO = 0.35;   // quanto a cor da raridade é clareada (light) no brilho da crina e no rastro
+  var FAISCA_MARGEM = 3, FAISCA_CICLO = 1.6, FAISCA_REDUZIDO = 0.85;
+  var RASTRO_PASSO = 0.45;
+  var RASTRO_FAIXAS = [{ dy: -2, alfa: 0.45, l: 0.8 }, { dy: 0, alfa: 0.6, l: 1 }, { dy: 2, alfa: 0.45, l: 0.65 }];
+  var RASTRO_TRECHOS = [1, 0.55, 0.25];   // alfa relativo de cada terço da faixa, da traseira para trás
+
+  function infoRaridade(o) {
+    var MK = marcasApi(), GD = dadosApi(), id = o.raridade, tem = Object.prototype.hasOwnProperty;
+    if (!MK || !GD || !GD.RARITIES || typeof id !== 'string' || !tem.call(GD.RARITIES, id)) return null;
+    var n = tem.call(MK.N_FAISCAS, id) ? MK.N_FAISCAS[id] : 0, b = tem.call(MK.BRILHO, id) ? MK.BRILHO[id] : 0;
+    var R = { MK: MK, cor: GD.RARITIES[id].color, faiscas: n > 0 ? n : 0, brilho: b > 0 ? b : 0, rastro: !!o.rastro && id === 'mitico' && !o.reduzido };
+    return R.faiscas || R.brilho || R.rastro ? R : null;
+  }
+
+  function drawRaridade(ctx, caixa, o) {
+    o = o || {};
+    var R = infoRaridade(o);
+    if (R && caixa) desenhaRaridade(ctx, caixa, o, R);
+  }
+
+  function desenhaRaridade(ctx, caixa, o, R) {
+    var a0 = typeof ctx.globalAlpha === 'number' ? ctx.globalAlpha : 1, t = o.reduzido ? 0 : (Number(o.t) || 0);
+    var L = layoutRaridade(caixa, o);
+    if (R.rastro && L.galope) desenhaRastro(ctx, caixa, L, R, t, a0);
+    if (R.brilho && L.molde) desenhaBrilho(ctx, L.molde, R, t, !!o.reduzido, a0);
+    if (R.faiscas) desenhaFaiscas(ctx, caixa, o, R, L.u, t, a0);
+    ctx.globalAlpha = a0;
+  }
+
+  // O layout do desenho a partir da caixa (o inverso do horseBox): px de arte, âncora traseira e, com molde,
+  // a posição do molde (ox, oy, S) e o quadro.
+  function layoutRaridade(caixa, o) {
+    var k = Math.max(1, Math.round(o.scale || 1)), estado = moldsOk ? estadoMolde(o) : null;
+    if (!estado) return { u: k, molde: null, galope: !o.idle && !o.retrato, rear: [caixa.x + ANCHORS.rear[0] * k, caixa.y + ANCHORS.rear[1] * k] };
+    var nome = estiloDe(o.element), M = moldes[nome], ref = M.estados[estado];
+    var S = Math.max(1, Math.round(caixa.w / (ref.dir - ref.esq)));
+    var ox = caixa.x - ref.esq * S, oy = caixa.y + caixa.h - (ref.footY + 1) * S;
+    return {
+      u: S, galope: estado === 'galope', rear: [ox + ref.rear[0] * S, oy + ref.rear[1] * S],
+      molde: { nome: nome, estado: estado, quadro: estado === 'galope' ? quadroGalope(M, o.frame) : 0, ox: ox, oy: oy, S: S }
+    };
+  }
+
+  // Máscara da crina (papéis 4 e 5) de um quadro, recortada no retângulo da crina e pintada na cor; col[x] =
+  // pixels de crina por coluna do recorte, pico = a coluna com mais crina na metade direita (a da cabeça). null se
+  // o quadro não tem crina.
+  function mascaraCrina(Lm, cor) {
+    var key = Lm.nome + '|' + Lm.estado + '|' + Lm.quadro + '|' + cor, hit = brilhoCache.get(key);
+    if (!hit) {
+      var M = moldes[Lm.nome], idx = indicesMolde(M, Lm.estado, Lm.quadro), w = M.w, h = M.h;
+      var x0 = w, y0 = h, x1 = -1, y1 = -1, x, y, v;
+      for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+        v = idx[y * w + x];
+        if (v !== 4 && v !== 5) continue;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+      hit = { c: null, width: 0, height: 0 };
+      if (x1 >= 0) {
+        var cw = x1 - x0 + 1, ch = y1 - y0 + 1, rec = new Uint8Array(cw * ch), col = new Uint16Array(cw), pico = 0;
+        for (y = 0; y < ch; y++) for (x = 0; x < cw; x++) {
+          v = idx[(y0 + y) * w + x0 + x];
+          if (v === 4 || v === 5) { rec[y * cw + x] = 1; col[x]++; }
+        }
+        // pico na metade da cabeça (direita: a crina do pescoço; a cauda, à esquerda, é mais grossa)
+        for (pico = x = cw >> 1; x < cw; x++) if (col[x] > col[pico]) pico = x;
+        hit = { c: pintaIndices(rec, cw, ch, [null, cor]), x0: x0, y0: y0, w: cw, h: ch, col: col, pico: pico, width: cw, height: ch };
+      }
+      brilhoCache.set(key, hit);
+    }
+    return hit.c ? hit : null;
+  }
+
+  function desenhaBrilho(ctx, Lm, R, t, reduzido, a0) {
+    var mk = mascaraCrina(Lm, light(R.cor, RARIDADE_CLARO));
+    if (!mk) return;
+    // centro da fatia, em colunas do recorte: entra pela direita (cabeça) e sai pela esquerda a cada ciclo
+    var c = reduzido ? mk.pico : Math.round(mk.w + 1 - frac(t / BRILHO_CICLO) * (mk.w + 3));
+    var fatias = [[c - 1, 3, 1], [c - 2, 1, 0.5], [c + 2, 1, 0.5]];
+    for (var i = 0; i < fatias.length; i++) {
+      var sx = Math.max(0, fatias[i][0]), ex = Math.min(mk.w, fatias[i][0] + fatias[i][1]), n = 0, x;
+      for (x = sx; x < ex; x++) n += mk.col[x];
+      if (!n) continue;
+      ctx.globalAlpha = a0 * R.brilho * fatias[i][2];
+      ctx.drawImage(mk.c, sx, 0, ex - sx, mk.h, Lm.ox + (mk.x0 + sx) * Lm.S, Lm.oy + mk.y0 * Lm.S, (ex - sx) * Lm.S, mk.h * Lm.S);
+    }
+  }
+
+  function piscar(t, fase) {
+    var s = Math.sin(2 * Math.PI * (t / FAISCA_CICLO + fase));
+    return s > 0 ? 0.15 + 0.85 * s * s : 0.15;
+  }
+
+  function desenhaFaiscas(ctx, caixa, o, R, u, t, a0) {
+    var lista = R.MK.faiscas(o.semente >>> 0, R.faiscas), m = FAISCA_MARGEM * u;
+    var W = caixa.w + 2 * m, H = caixa.h + 2 * m, q = o.quadro, topo = -Infinity, base = Infinity;
+    if (q && isFinite(q.topo) && isFinite(q.base) && q.base - q.topo > 4 * u) { topo = q.topo + u; base = q.base - 2 * u; }
+    ctx.fillStyle = R.cor;
+    for (var i = 0; i < lista.length; i++) {
+      var f = lista[i];
+      var cx = caixa.x - m + Math.round(f.dx * W / u) * u, cy = caixa.y - m + Math.round(f.dy * H / u) * u;
+      if (cy < topo) cy = caixa.y + Math.ceil((topo - caixa.y) / u) * u;
+      if (cy > base) cy = caixa.y + Math.floor((base - caixa.y) / u) * u;
+      ctx.globalAlpha = a0 * (o.reduzido ? FAISCA_REDUZIDO : piscar(t, f.fase));
+      ctx.fillRect(cx - u, cy, 3 * u, u);
+      ctx.fillRect(cx, cy - u, u, 3 * u);
+    }
+  }
+
+  function desenhaRastro(ctx, caixa, L, R, t, a0) {
+    var u = L.u, passo = Math.max(6, Math.round(RASTRO_PASSO * caixa.w / u)), x1 = L.rear[0], nT = RASTRO_TRECHOS.length;
+    ctx.fillStyle = light(R.cor, RARIDADE_CLARO);
+    for (var i = 0; i < RASTRO_FAIXAS.length; i++) {
+      var F = RASTRO_FAIXAS[i], y = L.rear[1] + F.dy * u, fim = x1;
+      var len = Math.max(nT, Math.round(passo * F.l * (0.85 + 0.15 * Math.sin(2 * Math.PI * (t * 2.5 + i / 3)))));
+      for (var s = 0; s < nT; s++) {
+        var ini = x1 - Math.round(len * (s + 1) / nT) * u;
+        if (fim > ini) {
+          ctx.globalAlpha = a0 * F.alfa * RASTRO_TRECHOS[s];
+          ctx.fillRect(ini, y, fim - ini, u);
+        }
+        fim = ini;
+      }
+    }
+  }
+
   // Âncoras nas unidades do sprite por código (some x + v·escala, y + v·escala), para o estado pedido
   // ('galope' por padrão, 'parado' ou 'retrato'), na pista (sem quadro). Com a escala, a conversão é exata
   // para aquele tamanho; sem ela, usa a proporção ideal 40 / Lref. Sem moldes: ANCHORS. O focinho é sempre NOSE.
@@ -1579,7 +1845,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   }
   function quadroGalopeTeste(element, frame) { return moldsOk ? quadroGalope(moldes[estiloDe(element)], frame) : null; }
 
-  function limparCacheMoldes() { moldCache.clear(); silCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
+  function limparCacheMoldes() { moldCache.clear(); silCache.clear(); brilhoCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
   function cacheMoldes() { return moldCache.map.size; }
   function cacheSilhuetas() { return { n: silCache.map.size, bytes: silCache.bytes, max: silCache.max }; }
 
@@ -2582,6 +2848,10 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     if (typeof global !== 'undefined' && global.RaceFx) return global.RaceFx;
     return null;
   }
+  // Marcas (marcas.js) e GameData (data.js): no Node, os do require do topo; no navegador, os globais (o build
+  // carrega os dois antes do sprites.js). Sem eles (o wiki embute só o sprites.js): sem marcas, jóquei e raridade.
+  function marcasApi() { return MARCAS_NODE || (typeof self !== 'undefined' && self.Marcas) || null; }
+  function dadosApi() { return DADOS_NODE || (typeof self !== 'undefined' && self.GameData) || null; }
 
   var api = {
     HORSE_W: HORSE_W, HORSE_H: HORSE_H, GALLOP_FRAMES: GALLOP.length, FOOT_Y: FOOT_Y,
@@ -2596,6 +2866,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     drawHorseCodigo: drawHorseCodigo,
     horseBox: horseBox,
     drawHorseSilhouette: drawHorseSilhouette,
+    drawRaridade: drawRaridade,
     // moldes do PixelLab (ver a seção MOLDES)
     ESTILO_POR_ELEMENTO: ESTILO_POR_ELEMENTO,
     moldsReady: false,
@@ -2603,6 +2874,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     anchorsFor: anchorsFor,
     escalaMoldeCompativel: escalaMoldeCompativel,
     limparCacheMoldes: limparCacheMoldes,
+    prepararCavalo: prepararCavalo,
     moldeCanvas: moldeCanvas,
     _cacheMoldes: cacheMoldes,
     _cacheSilhuetas: cacheSilhuetas,
