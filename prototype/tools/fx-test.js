@@ -215,6 +215,13 @@ function corridaSkills(seed, escala) {
   var sim = S.simulate({ seed: seed, recordFrames: true, racers: racers, conditions: { distance: 2000 }, dev: { skillsAlways: true } });
   return { sim: sim, racers: racers, tl: FX.timeline(sim, racers, escala) };
 }
+// Desde o bloco 1b o jóquei erra pouco (−0,5% a +2,5%, abaixo da reserva de 3%) e quase ninguém se cansa. Para
+// exercitar o item 'cansou' da linha do tempo, estes testes correm com um jóquei otimista (só aqui, no TUNING).
+function comJoqueiOtimista(fn) {
+  var T = S.TUNING, salvo = [T.jockeyErrMin, T.jockeyErrMax];
+  T.jockeyErrMin = 0.05; T.jockeyErrMax = 0.15;
+  try { return fn(); } finally { T.jockeyErrMin = salvo[0]; T.jockeyErrMax = salvo[1]; }
+}
 test('skillIcon segue a ordem (5 skills reais do catálogo)', function () {
   assert.strictEqual(FX.skillIcon(G.SKILLS['arranque']), 'ace');          // accelMult
   assert.strictEqual(FX.skillIcon(G.SKILLS['drift']), 'curva');           // curveBonus
@@ -258,7 +265,7 @@ test('nomeCurto: nome inteiro até 12 letras; campo short nos longos; nenhum cor
   // sem short, o corte do nome é por palavras inteiras
   assert.strictEqual(FX.nomeCurto('Fôlego de Montanha'), 'FÔLEGO');
 });
-test('timeline tem um item por evento skill/garra/cansou', function () {
+test('timeline tem um item por evento skill/garra/cansou', function () { comJoqueiOtimista(function () {
   var visto = { skill: 0, garra: 0, cansou: 0 };
   for (var sd = 1; sd <= 40; sd++) {   // 2000 m (a mais longa do sorteio): com 1000 m ninguém se cansa
     var C = corridaSkills(sd);
@@ -274,7 +281,7 @@ test('timeline tem um item por evento skill/garra/cansou', function () {
     for (var q = 1; q < C.tl.length; q++) assert.ok(C.tl[q - 1].t0 <= C.tl[q].t0, 'ordenada por t0');
   }
   assert.ok(visto.skill > 20 && visto.garra > 0 && visto.cansou > 0, 'as corridas exercitam os três tipos ' + JSON.stringify(visto));
-});
+}); });
 test('cada item de skill acha a skill pelo nome do evento e o ícone dela', function () {
   var sks = [], C = null, sd;
   for (sd = 1; sd <= 6; sd++) {
@@ -331,9 +338,9 @@ test('duração por distância e por bloco segue os frames da simulação', func
   }
   assert.ok(ok.dist >= 1 && ok.bloco >= 1, 'exercitou distância e bloco ' + JSON.stringify(ok));
 });
-test('Garra vai até finishTime + 0.6 e cansou dura 1.5; escala multiplica os limites', function () {
+test('Garra vai até finishTime + 0.6 e cansou dura 1.5; escala multiplica os limites', function () { comJoqueiOtimista(function () {
   var visto = { garra: 0, cansou: 0 };
-  for (var sd = 1; sd <= 60 && (!visto.garra || !visto.cansou); sd++) {   // v3: o 1º cansaço vem na seed 36
+  for (var sd = 1; sd <= 60 && (!visto.garra || !visto.cansou); sd++) {   // com o jóquei otimista, o 1º cansaço vem na seed 4
     var C = corridaSkills(sd, 1), C3 = corridaSkills(sd, 3);
     C.tl.forEach(function (it) {
       if (it.kind === 'garra') { assert.ok(Math.abs(it.t1 - (C.sim.finishTimes[it.racer] + 0.6)) < 1e-9); visto.garra++; }
@@ -345,7 +352,7 @@ test('Garra vai até finishTime + 0.6 e cansou dura 1.5; escala multiplica os li
     });
   }
   assert.ok(visto.garra && visto.cansou, 'achou Garra e cansou ' + JSON.stringify(visto));
-});
+}); });
 test('a linha do tempo de skills é a mesma para a mesma seed e não mexe na simulação', function () {
   var a = corridaSkills(9), antes = JSON.stringify(a.sim.events), b = corridaSkills(9);
   assert.deepStrictEqual(a.tl, b.tl);
@@ -424,10 +431,10 @@ test('glow do contorno: some fora de [t0, t1), pulsa e fica parado em reduced; s
   assert.ok(FX.glow(ITEM_SKILL, 10.01, false).alpha < FX.glow(ITEM_SKILL, 12, false).alpha + 1e-9, 'entra suave');
 });
 test('ícone de clima pelo trigger da skill (sol, gota, névoa)', function () {
-  var C = corridaSkills(21);   // seed com sol, chuva e névoa (as três skills de clima ativam)
+  var C = corridaSkills(7);   // seed com sol, chuva e névoa (as três skills de clima ativam; bloco 1b: era a 21)
   var porId = {};
   C.tl.filter(function (it) { return it.kind === 'skill'; }).forEach(function (it) { porId[it.skillId] = it; });
-  ['sol-a-pino', 'pe-na-chuva', 'nevoa-amiga'].forEach(function (id) { assert.ok(porId[id], 'seed 21 tem ' + id); assert.strictEqual(porId[id].icon, 'clima'); });
+  ['sol-a-pino', 'pe-na-chuva', 'nevoa-amiga'].forEach(function (id) { assert.ok(porId[id], 'seed 7 tem ' + id); assert.strictEqual(porId[id].icon, 'clima'); });
   assert.strictEqual(FX.iconeDe(porId['sol-a-pino']), 'sol');
   assert.strictEqual(FX.iconeDe(porId['pe-na-chuva']), 'gota');
   assert.strictEqual(FX.iconeDe(porId['nevoa-amiga']), 'nevoa');
