@@ -4433,15 +4433,17 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   //
   // Encaixe no sprite por código (40×32, escala k): o molde é desenhado em escala inteira
   // S = max(1, round(k × 40 / Lref)), ÚNICA para todos os moldes. Lref = maior larguraUtil entre os 4 moldes do
-  // padrão (lisa incluída): os cavalos do padrão ficam do tamanho dos antigos, e o esguio e o robusto se distinguem
-  // pelas proporções do desenho, sem mudar a escala dos outros. Cavalos de estilos e portes diferentes ficam na
-  // mesma escala. Na pista:
+  // padrão (lisa incluída): na pista, os cavalos do padrão ficam do tamanho dos antigos, e o esguio e o robusto se
+  // distinguem pelas proporções do desenho, sem mudar a escala dos outros. Cavalos de estilos e portes diferentes
+  // ficam na mesma escala. Na pista:
   //   • a última linha dos cascos (o maior footY entre os quadros do estado) termina em y + (FOOT_Y + 1)·k,
   //     a mesma linha de chão do sprite por código;
   //   • a coluna do focinho (mediana de nose.x entre os quadros do estado) fica em x + NOSE·k (NOSE = 38).
-  // Num quadro de altura fixa (opção `quadro`: retratos e pódio) vale a mesma escala única e o cavalo fica
-  // centrado no x do sprite; se o bbox do estado for mais alto que o quadro, os cascos ficam na base e o topo
-  // (crista, orelhas) é cortado em no máximo 10 % da altura do bbox (senão a escala desce um passo).
+  // Num quadro de altura fixa (opção `quadro`: retratos e pódio) o cavalo fica centrado no x do sprite e a escala
+  // é a única enquanto o MAIS ALTO dos 12 moldes naquele estado couber com o topo (crista, orelhas) cortado em no
+  // máximo 10 % da altura do bbox; senão a escala desce um passo para todos os moldes juntos (layoutMolde), e os 3
+  // portes ficam proporcionais em qualquer zoom. Com zoom de 125 % (k = 4), todos ficam um passo menores que antes
+  // da 2b (decisão do Vinicius em 2026-11-13). Se o bbox do estado for mais alto que o quadro, os cascos ficam na base.
   // As referências são POR ESTADO, não por quadro: por quadro o cavalo tremeria no galope (cauda e patas
   // mudam rear e footY). Como o focinho cai no mesmo NOSE, a câmera e as etiquetas da corrida não mudam;
   // anchorsFor() converte rear/saddle do molde para as unidades do sprite por código. As âncoras POR QUADRO
@@ -4633,9 +4635,14 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // Cores por papel (índice 0–9) para as opções do drawHorse.
   function coresMolde(o) {
     var pal = o.palette || PALETTES.neutro;
-    var coat = pal.coat || '#a0704a', mane = pal.mane || shade(coat, 0.5);
+    var coat = pal.coat || '#a0704a', mane = corCrina(o);
     return [null, MOLDE_CORES_FIXAS.contorno, coat, pal.coatShade || shade(coat, 0.35), mane, shade(mane, 0.35),
       pal.accent || '#f2ead8', o.silks || '#d8353b', MOLDE_CORES_FIXAS.pele, MOLDE_CORES_FIXAS.sela];
+  }
+  // a cor da crina (papel 4) do molde nas opções do drawHorse; o brilho da raridade escolhe a cor por ela
+  function corCrina(o) {
+    var pal = o.palette || PALETTES.neutro;
+    return pal.mane || shade(pal.coat || '#a0704a', 0.5);
   }
 
   function pintaIndices(idx, w, h, cores) {
@@ -4864,11 +4871,17 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // arte = u: com molde, a escala do molde (S = caixa.w ÷ colunas do bbox do estado, o inverso do horseBox);
   // sem molde, a escala k do sprite por código.
   //   • brilho da crina (Marcas.BRILHO; só com molde): a máscara dos papéis 4 e 5 do quadro, recortada na
-  //     crina e pintada na cor da raridade CLAREADA (light(cor, RARIDADE_CLARO), a mesma do rastro; a cor pura some
-  //     numa crina da mesma cor, como o verde do Mágico na crina da Grama) (brilhoCache, uma por molde|estado|quadro|cor). Uma fatia de 3 colunas (alfa
-  //     BRILHO[raridade]: a mistura de 25/30/45 % da cor clareada), com 1 coluna a meio alfa de cada lado, atravessa a
-  //     crina da cabeça para a cauda a cada BRILHO_CICLO (1,2 s); fatia sem crina não desenha. Com o.reduzido,
-  //     a fatia fica parada na coluna com mais crina da metade da cabeça (a crina do pescoço, não a cauda).
+  //     crina e pintada numa cor da raridade que SE AJUSTA À CRINA (corBrilho; brilhoCache, uma por
+  //     molde|estado|quadro|cor). Uma fatia de 3 colunas (alfa BRILHO[raridade]: a mistura de 25/30/45 % dessa cor),
+  //     com 1 coluna a meio alfa de cada lado, atravessa a crina da cabeça para a cauda a cada BRILHO_CICLO (1,2 s);
+  //     fatia sem crina não desenha. Com o.reduzido, a fatia fica parada na coluna com mais crina da metade da
+  //     cabeça (a crina do pescoço, não a cauda).
+  //     A cor (corBrilho, parte 2b, 2026-11-13): a cor da raridade clareada (light) ou escurecida (shade) em
+  //     RARIDADE_CLARO (35 %), a que mais muda a luminância relativa (WCAG) da crina (corCrina: palette.mane, o
+  //     papel 4) misturada no alfa de pico; se nenhuma das duas muda BRILHO_CONTRASTE (0,05), as duas vão mais longe
+  //     (BRILHO_PASSOS, até 65 %) e fica a primeira que chega (no último passo, a de maior diferença). A cor pura
+  //     some numa crina do mesmo tom (o verde do Mágico na crina verde da Grama) e a clareada, numa crina de luminância
+  //     parecida (o Mágico na crina laranja do Tição: 0,005); o matiz fica o da raridade. Só cores, sem sorteio.
   //   • faíscas: Marcas.faiscas(o.semente, Marcas.N_FAISCAS[raridade]) (0/0/3/5/5), na caixa com margem de
   //     FAISCA_MARGEM px de arte (com o.quadro, presas na altura do quadro), no grid de arte da caixa. Cruz de
   //     1 px de arte (barra 3u × u + barra u × 3u, mesmo centro) que pisca (alfa 0,15 … 1) pelo tempo o.t e pela
@@ -4881,7 +4894,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // Math.random; o globalAlpha volta ao que era. Sem o marcas.js ou o GameData (o wiki só embute o
   // sprites.js), não desenha nada.
   var BRILHO_CICLO = 1.2;
-  var RARIDADE_CLARO = 0.35;   // quanto a cor da raridade é clareada (light) no brilho da crina e no rastro
+  var RARIDADE_CLARO = 0.35;   // quanto a cor da raridade é clareada (light) no rastro e no 1º passo do brilho da crina
+  var BRILHO_PASSOS = [RARIDADE_CLARO, 0.45, 0.55, 0.65];   // clareada ou escurecida no brilho, da mais fiel à mais forte
+  var BRILHO_CONTRASTE = 0.05;   // diferença de luminância relativa mínima entre a crina e a crina com o brilho no pico
   var FAISCA_MARGEM = 3, FAISCA_CICLO = 1.6, FAISCA_REDUZIDO = 0.85;
   var RASTRO_PASSO = 0.45;
   var RASTRO_FAIXAS = [{ dy: -2, alfa: 0.45, l: 0.8 }, { dy: 0, alfa: 0.6, l: 1 }, { dy: 2, alfa: 0.45, l: 0.65 }];
@@ -4905,7 +4920,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var a0 = typeof ctx.globalAlpha === 'number' ? ctx.globalAlpha : 1, t = o.reduzido ? 0 : (Number(o.t) || 0);
     var L = layoutRaridade(caixa, o);
     if (R.rastro && L.galope) desenhaRastro(ctx, caixa, L, R, t, a0);
-    if (R.brilho && L.molde) desenhaBrilho(ctx, L.molde, R, t, !!o.reduzido, a0);
+    if (R.brilho && L.molde) desenhaBrilho(ctx, L.molde, corBrilho(R.cor, corCrina(o), R.brilho), R.brilho, t, !!o.reduzido, a0);
     if (R.faiscas) desenhaFaiscas(ctx, caixa, o, R, L.u, t, a0);
     ctx.globalAlpha = a0;
   }
@@ -4953,8 +4968,33 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return hit.c ? hit : null;
   }
 
-  function desenhaBrilho(ctx, Lm, R, t, reduzido, a0) {
-    var mk = mascaraCrina(Lm, light(R.cor, RARIDADE_CLARO));
+  // Luminância relativa (WCAG 2) de '#rrggbb'.
+  function lumRel(c) {
+    var v = hexToRgb(c).map(function (x) { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+  }
+  // A cor do brilho da crina (ver o cabeçalho do drawRaridade): a cor da raridade clareada ou escurecida, a que mais
+  // muda a luminância da crina misturada no alfa de pico, indo mais longe (BRILHO_PASSOS) até chegar a
+  // BRILHO_CONTRASTE. Em cache por cor|crina|alfa (no máximo 512 entradas; depois, recomeça).
+  var corBrilhoCache = {}, corBrilhoN = 0;
+  function corBrilho(cor, crina, alfa) {
+    var key = cor + '|' + crina + '|' + alfa, hit = corBrilhoCache[key];
+    if (hit) return hit;
+    var L0 = lumRel(crina), melhor = light(cor, BRILHO_PASSOS[0]), dMelhor = -1, i, j, c, d;
+    for (i = 0; i < BRILHO_PASSOS.length && !(dMelhor >= BRILHO_CONTRASTE); i++) {
+      c = [light(cor, BRILHO_PASSOS[i]), shade(cor, BRILHO_PASSOS[i])];
+      for (j = 0; j < 2; j++) {
+        d = Math.abs(lumRel(mix(crina, c[j], alfa)) - L0);
+        if (d > dMelhor) { dMelhor = d; melhor = c[j]; }
+      }
+    }
+    if (++corBrilhoN > 512) { corBrilhoCache = {}; corBrilhoN = 1; }
+    corBrilhoCache[key] = melhor;
+    return melhor;
+  }
+
+  function desenhaBrilho(ctx, Lm, cor, alfa, t, reduzido, a0) {
+    var mk = mascaraCrina(Lm, cor);
     if (!mk) return;
     // centro da fatia, em colunas do recorte: entra pela direita (cabeça) e sai pela esquerda a cada ciclo
     var c = reduzido ? mk.pico : Math.round(mk.w + 1 - frac(t / BRILHO_CICLO) * (mk.w + 3));
@@ -4963,7 +5003,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       var sx = Math.max(0, fatias[i][0]), ex = Math.min(mk.w, fatias[i][0] + fatias[i][1]), n = 0, x;
       for (x = sx; x < ex; x++) n += mk.col[x];
       if (!n) continue;
-      ctx.globalAlpha = a0 * R.brilho * fatias[i][2];
+      ctx.globalAlpha = a0 * alfa * fatias[i][2];
       ctx.drawImage(mk.c, sx, 0, ex - sx, mk.h, Lm.ox + (mk.x0 + sx) * Lm.S, Lm.oy + mk.y0 * Lm.S, (ex - sx) * Lm.S, mk.h * Lm.S);
     }
   }
@@ -6063,6 +6103,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     _cacheSilhuetas: cacheSilhuetas,
     _layoutMolde: layoutTeste,
     _quadroGalope: quadroGalopeTeste,
+    _corBrilho: corBrilho,   // para testes: a cor do brilho da crina (cor da raridade, crina, alfa de pico)
     drawTrack: drawTrack,
     cloudCanvas: cloudCanvas,
     drawTrail: drawTrail,

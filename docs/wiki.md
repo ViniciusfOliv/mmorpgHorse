@@ -707,15 +707,15 @@ Marcas, jóquei e brilho da raridade são só desenho: não entram em status, Po
 
 ### Raridade visível
 
-Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada 1,2 s. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.
+Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada 1,2 s, na cor da raridade clareada ou escurecida: a que mais se destaca sobre a crina do cavalo. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.
 
 | Raridade | Efeito |
 | --- | --- |
 | Comum | nada |
-| Mágico | brilho na crina (mistura de 25% da cor da raridade clareada) |
-| Raro | brilho na crina (mistura de 30% da cor da raridade clareada) e 3 faíscas piscando em volta |
-| Lendário | brilho na crina (mistura de 45% da cor da raridade clareada) e 5 faíscas piscando em volta |
-| Mítico | brilho na crina (mistura de 45% da cor da raridade clareada) e 5 faíscas piscando em volta e rastro de luz atrás do cavalo no galope da corrida |
+| Mágico | brilho na crina (mistura de 25% da cor da raridade) |
+| Raro | brilho na crina (mistura de 30% da cor da raridade) e 3 faíscas piscando em volta |
+| Lendário | brilho na crina (mistura de 45% da cor da raridade) e 5 faíscas piscando em volta |
+| Mítico | brilho na crina (mistura de 45% da cor da raridade) e 5 faíscas piscando em volta e rastro de luz atrás do cavalo no galope da corrida |
 
 ### Marcas dos iniciais e selvagens
 

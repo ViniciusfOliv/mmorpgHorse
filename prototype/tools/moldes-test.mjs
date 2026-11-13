@@ -659,16 +659,11 @@ const PENDENTES_2A = {
     'robusto-lisa retrato: 1/2/3/3 (esperado 1/2/3/4)'],
 };
 // Brilho da raridade sobre a crina (pendência da 2a): a diferença de luminância relativa entre a crina e a crina com o
-// brilho no alfa de pico fica abaixo de 0,05 (o limiar do teste do Mágico na Grama, fx-test) nestas combinações de
-// elemento, raridade e crina de um cavalo do catálogo daquele elemento. A conta só depende das cores, então vale igual
-// nos 3 portes de cada elemento. Medido na T7 (2026-11-13); fica para a decisão (relatório da T7).
-const BRILHO_PENDENTE = [
-  'fogo · magico · Brasa #ffb02e: 0.025', 'fogo · magico · Tição #ff5a1f: 0.005', 'fogo · raro · Tição #ff5a1f: 0.009',
-  'fogo · lendario · Brasa #ffb02e: 0.017', 'fogo · mitico · Tição #ff5a1f: 0.026',
-  'agua · magico · Maré #5fd8ee: 0.029', 'agua · raro · Maré #5fd8ee: 0.048', 'agua · lendario · Maré #5fd8ee: 0.045',
-  'grama · magico · Ipê #f5c518: 0.037', 'grama · lendario · Ipê #f5c518: 0.016', 'grama · mitico · Capim #5b7d2a: 0.025',
-  'grama · mitico · Mandacaru #3f6b2a: 0.043', 'grama · mitico · Ventania #7a7a7a: 0.023', 'grama · mitico · Jequitibá #2f7d32: 0.023',
-];
+// brilho no alfa de pico ficava abaixo de 0,05 (o limiar do teste do Mágico na Grama, fx-test) em 14 combinações de
+// elemento, raridade e crina do catálogo com a cor clareada fixa (medido na T7, 2026-11-13; a pior, o Mágico na crina
+// do Tição, 0,005). Corrigido na 2b por decisão do Vinicius (2026-11-13): a cor do brilho se ajusta ao contraste com a
+// crina (sprites.js corBrilho). A lista fica VAZIA: o teste exige ≥ 0,05 em todas as combinações do catálogo.
+const BRILHO_PENDENTE = [];
 // contagem de pixels aproximados (fora da paleta no cru) de um quadro, gravada no JSON do molde pelo lote: a mesma
 // entrada do validar() que o lote usou na forma
 const aproximadosDe = (J, n) => ((J.contagens && J.contagens[n]) || {}).aproximados || 0;
@@ -1487,7 +1482,8 @@ test('dry-run: --refazer no CLI roda sem rede; chave ou etapa inválida e --refa
 // Os 12 moldes do jogo (assets/pixellab/molde-<porte>-<estilo>) pelos critérios automáticos da T4 (spec
 // 2026-11-13-cavalos-portes §5) e pelas pendências da 2a que dependiam dos moldes novos (spec §6): meias por molde,
 // pele acima do capacete e o brilho das raridades na crina. O que reprova e o Vinicius aceitou na folha está em
-// ACEITOS_NA_FOLHA; o que a 2a mede fora da regra, em PENDENTES_2A e BRILHO_PENDENTE (começo do arquivo).
+// ACEITOS_NA_FOLHA; o que a 2a mede fora da regra, em PENDENTES_2A (para a 2c) e BRILHO_PENDENTE (vazia desde a
+// correção do brilho na 2b) (começo do arquivo).
 section('Portes: moldes reais');
 const ETAPAS_REAIS = ['retrato', 'parado', 'corrida', 'galope'];
 // molde no formato dos critérios (o de portes-criterios.mjs), com o JSON; null se faltar o JSON em assets/pixellab
@@ -1636,15 +1632,17 @@ test('pele acima do capacete: nos 12 moldes, o capacete da camadaJoquei fica aci
   console.log('       capacete (linhas) / 1ª linha de pele — ' + linhas.join('\n       capacete (linhas) / 1ª linha de pele — '));
 }));
 
-// Brilho das raridades na crina (pendência da 2a), a mesma medida do teste do Mágico na Grama (fx-test): a diferença de
-// luminância relativa entre a crina e a crina com o brilho no alfa de pico (Marcas.BRILHO) fica ≥ 0,05. A cor do brilho
-// é a do sprites.js, light(cor da raridade, RARIDADE_CLARO) (conferida no fonte); a crina, a palette.mane de cada
-// cavalo do catálogo do elemento do molde. Em cada molde, todo quadro tem crina (onde o brilho passa); a conta das
-// cores vale igual nos 3 portes. O lisa (o 'neutro', sem cavalo no catálogo) só confere a crina nos quadros.
-test('brilho das raridades: crina em todo quadro dos 12; luminância ≥ 0,05 nas crinas do catálogo, fora BRILHO_PENDENTE', comReais(() => {
-  const G = createRequire(import.meta.url)('../src/data.js'), src = fs.readFileSync(path.join(DIR, '..', '..', 'src', 'sprites.js'), 'utf8');
-  const claro = /var RARIDADE_CLARO = ([\d.]+);/.exec(src);
-  assert.ok(claro && /function light\(c, t\) \{ return mix\(c, '#fff4d6', t\); \}/.test(src) && /mascaraCrina\(Lm, light\(R\.cor, RARIDADE_CLARO\)\)/.test(src), 'a cor do brilho no sprites.js mudou: atualize este teste');
+// Brilho das raridades na crina (pendência da 2a, corrigida na 2b), a mesma medida do teste do Mágico na Grama
+// (fx-test): a diferença de luminância relativa entre a crina e a crina com o brilho no alfa de pico (Marcas.BRILHO)
+// fica ≥ 0,05 em TODAS as combinações do catálogo. A cor do brilho é a do jogo, Sprites._corBrilho(cor da raridade,
+// crina, alfa) (o fx-test confere que é a cor que o drawRaridade pinta); a crina, a palette.mane de cada cavalo do
+// catálogo do elemento do molde; a luminância e a mistura são refeitas aqui. Em cada molde, todo quadro tem crina (onde
+// o brilho passa); a conta das cores vale igual nos 3 portes. O lisa (o 'neutro', sem cavalo no catálogo) só confere a
+// crina nos quadros.
+test('brilho das raridades: crina em todo quadro dos 12; luminância ≥ 0,05 em todas as crinas do catálogo (BRILHO_PENDENTE vazia)', comReais(() => {
+  const req = createRequire(import.meta.url), G = req('../src/data.js'), SPR = req('../src/sprites.js');
+  assert.ok(typeof SPR._corBrilho === 'function', 'Sprites._corBrilho (a cor do brilho) no sprites.js');
+  assert.deepStrictEqual(BRILHO_PENDENTE, [], 'BRILHO_PENDENTE fica vazia: nenhuma combinação abaixo do limiar');
   const hx = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   const paraHex = v => '#' + v.map(c => { const r = Math.max(0, Math.min(255, Math.round(c))); return (r < 16 ? '0' : '') + r.toString(16); }).join('');
   const mistura = (a, b, t) => { const A = hx(a), B = hx(b); return paraHex(A.map((v, i) => v + (B[i] - v) * t)); };
@@ -1652,6 +1650,7 @@ test('brilho das raridades: crina em todo quadro dos 12; luminância ≥ 0,05 na
   const LIMIAR = 0.05, CAT = G.STARTERS.concat(G.WILD_HORSES), RARS = Object.keys(Mc().BRILHO).filter(r => Mc().BRILHO[r] > 0);
   assert.deepStrictEqual(RARS, ['magico', 'raro', 'lendario', 'mitico']);
   const tabela = [];
+  let menor = Infinity, pior = '', n = 0;
   for (const ch of CHAVES_REAIS) {
     const m = REAIS[ch];
     quadrosDe(m).forEach(q => assert.ok(q.idx.some(v => v === 4 || v === 5), q.nome + ': sem crina (o brilho não tem onde passar)'));
@@ -1659,16 +1658,22 @@ test('brilho das raridades: crina em todo quadro dos 12; luminância ≥ 0,05 na
     if (!el) continue;
     const desvios = [];
     for (const r of RARS) {
-      const cor = mistura(G.RARITIES[r].color, '#fff4d6', Number(claro[1])), pico = Mc().BRILHO[r];
+      const pico = Mc().BRILHO[r];
       for (const h of CAT.filter(x => x.element === el)) {
-        const crina = h.palette.mane, d = Math.abs(lumRel(mistura(crina, cor, pico)) - lumRel(crina));
-        if (m.porte === 'padrao') tabela.push(`${el} ${r} ${h.name} ${d.toFixed(3)}`);
+        const crina = h.palette.mane, cor = SPR._corBrilho(G.RARITIES[r].color, crina, pico);
+        const d = Math.abs(lumRel(mistura(crina, cor, pico)) - lumRel(crina));
+        n++;
+        if (m.porte === 'padrao') tabela.push(`${el} ${r} ${h.name} ${cor} ${d.toFixed(3)}`);
+        if (d < menor) { menor = d; pior = `${el} · ${r} · ${h.name}`; }
         if (d < LIMIAR) desvios.push(`${el} · ${r} · ${h.name} ${crina}: ${d.toFixed(3)}`);
       }
     }
     confereLista(desvios, BRILHO_PENDENTE.filter(b => b.startsWith(el + ' ')), ch + ': brilho abaixo de ' + LIMIAR);
   }
+  // 9 moldes de elemento × (5 cavalos do elemento × 4 raridades)
+  assert.strictEqual(n, 9 * 20, 'combinações conferidas');
   console.log('       luminância do brilho (pico) sobre a crina — ' + tabela.join(' · '));
+  console.log('       menor: ' + pior + ' ' + menor.toFixed(3));
 }));
 
 // lerMoldes (arte-embutida.mjs): depois da 2b só aceita molde-<porte>-<estilo>.json; o nome antigo e qualquer outro

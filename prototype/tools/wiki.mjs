@@ -672,7 +672,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
   const efeitoRar = (id) => {
     if (!(id in MK.N_FAISCAS) || !(id in MK.BRILHO)) throw new Error(`wiki: raridade sem efeito em marcas.js: ${id}`)
     const n = MK.N_FAISCAS[id], b = MK.BRILHO[id], t = []
-    if (b > 0) t.push(`brilho na crina (mistura de ${pct(b, 0)} da cor da raridade clareada)`)
+    if (b > 0) t.push(`brilho na crina (mistura de ${pct(b, 0)} da cor da raridade)`)
     if (n > 0) t.push(`${n} faíscas piscando em volta`)
     if (id === 'mitico') t.push('rastro de luz atrás do cavalo no galope da corrida')
     return t.length ? t.join(' e ') : 'nada'
@@ -704,7 +704,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
       'O jóquei dos rivais (padrão e capacete) sai da seed da sala.'
     ] },
     { t: 'h3', txt: 'Raridade visível' },
-    { t: 'p', txt: `Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada ${num(brilhoCiclo)} s. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.` },
+    { t: 'p', txt: `Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada ${num(brilhoCiclo)} s, na cor da raridade clareada ou escurecida: a que mais se destaca sobre a crina do cavalo. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.` },
     { t: 'tabela', cab: ['Raridade', 'Efeito'], linhas: B.RARITY_IDS.map((r) => [nomeRar(r), efeitoRar(r)]) },
     { t: 'h3', txt: 'Marcas dos iniciais e selvagens' },
     { t: 'tabela', cab: ['Cavalo', 'Cara', 'Patas (meias)', 'Corpo'], linhas: G.STARTERS.concat(G.WILD_HORSES).map(marcasHorse) }
