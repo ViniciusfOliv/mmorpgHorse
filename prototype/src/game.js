@@ -908,8 +908,8 @@
   // Retrato: baia com parede de tábuas e palha; cavalo parado (respira, pisca, abana o rabo,
   // descansa um posterior e abaixa a cabeça de vez em quando).
   var PORTRAIT_W = 48, PORTRAIT_H = 36;
-  // opts.selo: moldura com o selo "Nv N" no canto (e, com opts.pontos > 0, o aviso "+N" dos pontos de status que
-  // ainda dá para comprar: pontosQueCabem);
+  // opts.selo: moldura com o selo "Nv N" no canto (e, com opts.pontos > 0, o aviso "+N" dos pontos que sobram para
+  // distribuir enquanto algum cabe: pontosQueCabem);
   // opts.jockey: montado (seda opts.silks, a sua por padrão; jóquei opts.joquei, o seu por padrão). Marcas e raridade
   // do cavalo sempre (opcoesVisuais).
   function portraitHtml(horse, opts) {
@@ -920,7 +920,7 @@
       esc('Retrato de ' + horse.name) + '"></canvas>';
     if (!opts.selo) return cv;
     var pts = opts.pontos > 0 ? '<span class="pontos-livres pontos-livres--selo" title="' +
-      esc('Dá para comprar mais ' + opts.pontos + (opts.pontos === 1 ? ' ponto' : ' pontos') + ' de status na aba Status') + '">+' + esc(opts.pontos) + '</span>' : '';
+      esc((opts.pontos === 1 ? 'Sobra 1 ponto' : 'Sobram ' + opts.pontos + ' pontos') + ' para distribuir na aba Status') + '">+' + esc(opts.pontos) + '</span>' : '';
     return '<span class="retrato-moldura">' + cv + '<span class="selo-nivel">Nv ' + esc(horse.level) + '</span>' + pts + '</span>';
   }
 
@@ -2483,22 +2483,17 @@
     STAT_KEYS.forEach(function (k) { out[k] = a[k] + (r ? r[k] : 0); });
     return out;
   }
-  // Pontos de status que ainda dá para comprar com o que sobra (o selo "+N" do Estábulo). Conta pontos, não o custo:
-  // compra sempre o ponto mais barato entre os status que ainda aceitam (RaceSim.allocInfo().room, que já respeita o
-  // teto de 150 e a Sorte sem pontos), até o que sobra não pagar mais nenhum. Com 13 sobrando e o próximo ponto a 2
-  // em todos os status, dá +6. Zero (nada cabe): o selo some.
+  // O selo "+N" do Estábulo: os pontos que sobram, o mesmo número do topo da aba Status ("sobram N"), enquanto algum
+  // ponto ainda cabe (RaceSim.allocInfo().room, que já respeita o teto de 150 e a Sorte sem pontos). Quando o que sobra
+  // não paga o próximo ponto de nenhum status, dá 0 e o selo some.
   function pontosQueCabem(m) {
-    var info = RS.allocInfo(m), a = {}, left = info.left, n = 0;
-    STAT_KEYS.forEach(function (k) { a[k] = info.perStat[k]; });
-    for (;;) {
-      var best = null, bc = Infinity;
-      for (var i = 0; i < STAT_KEYS.length; i++) {
-        var k = STAT_KEYS[i], c = RS.pointCost(a[k]);
-        if (a[k] < info.perStat[k] + info.room[k] && c <= left && c < bc) { best = k; bc = c; }
-      }
-      if (!best) return n;
-      left -= bc; a[best]++; n++;
-    }
+    var i = RS.allocInfo(m);
+    return algumPontoCabe(i) ? i.left : 0;
+  }
+  // algum status ainda aceita um ponto? (info: RaceSim.allocInfo dos pontos gravados). Sem isso e sem rascunho, a aba
+  // Status esconde os +N e o "Distribuir sugerido"
+  function algumPontoCabe(info) {
+    return STAT_KEYS.some(function (k) { return info.room[k] > 0; });
   }
   function travaPontos(m, alloc) {
     var P = state.pending;
@@ -2587,6 +2582,9 @@
     h.alloc = comR;
     var stats = RS.computeStats(h), antes = RS.computeStats(m);
     var P = state.pending, trava = P && m.uid === state.activeId;
+    // sem rascunho e sem nenhum ponto que caiba (nível 1, ou o que sobra não paga ponto nenhum), os +N e o "Distribuir
+    // sugerido" não aparecem; com algum ponto cabendo, os que não cabem ficam desabilitados com o motivo (spec 1b §11)
+    var compra = !!soma || algumPontoCabe(info);
     var linhas = STAT_KEYS.map(function (k) {
       var st = GD.STATS[k], g = m.potential[k], nota = notaGenetica(g);
       var v = stats[k], rk = r ? r[k] : 0, d = v - antes[k];
@@ -2597,7 +2595,7 @@
       } else {
         // espaço sem quebra antes do número: no celular a frase quebra antes de "custa", nunca antes do custo
         custo = comR[k] >= RS.maxBuy(m, k) ? 'no teto de\u00a0' + cap : 'próximo ponto custa\u00a0' + RS.pointCost(comR[k]);
-        botoes = BUILD_PASSOS.map(function (n) {
+        if (compra) botoes = BUILD_PASSOS.map(function (n) {
           var bi = botaoMaisInfo(m, r, k, n, livres);
           return '<button type="button" class="btn btn--pequeno build-mais" data-acao="ponto-mais" data-id="' + k + '" data-n="' + n + '"' +
             ' aria-label="' + esc(bi.titulo) + '" title="' + esc(bi.titulo) + '"' + (bi.ok ? '' : ' disabled') + '>+' + n + '</button>';
@@ -2611,26 +2609,28 @@
         '<span class="build-custo">' + esc(custo) + '</span>' +
         (botoes ? '<span class="build-acao" role="group" aria-label="' + esc('Comprar pontos em ' + st.name) + '">' + botoes + '</span>' : '') + '</li>';
     }).join('');
+    // com páreo aberto, um rascunho acima do Poder da sala bloqueia o Confirmar (RF3); o motivo vai junto das ações
+    var lockR = soma ? travaPontos(m, comR) : { ok: true };
+    var motivoConf = lockR.ok ? '' : 'Páreo aberto: com este rascunho o Poder iria a ' + RS.powerRating(h) + ', e a sala viu ' + lockR.limit + '. Use Desfazer ou corra antes de confirmar.';
+    if (!lockR.ok) M.confirmaPontos = false;
     var avisos = '';
     if (M.pontosMsg) avisos += '<p class="aviso" role="status">' + esc(M.pontosMsg) + '</p>';
     var algumMais = STAT_KEYS.some(function (k) { return rascunhoOk(m, rascunhoMais(r, k)); });
     if (livres > 0 && !algumMais) avisos += '<p class="nota">' + esc((livres === 1 ? 'Sobra 1 ponto' : 'Sobram ' + livres + ' pontos') + ': não pagam o próximo ponto de nenhum status.') + '</p>';
-    if (trava && info.left > 0) avisos += '<p class="aviso">' + esc('Páreo aberto: os pontos da montaria ativa não podem passar o Poder de ' + P.pr + ' que a sala viu.') + '</p>';
+    // o aviso geral do páreo não se repete quando o motivo do Confirmar bloqueado já está na tela
+    if (trava && info.left > 0 && !motivoConf) avisos += '<p class="aviso">' + esc('Páreo aberto: os pontos da montaria ativa não podem passar o Poder de ' + P.pr + ' que a sala viu.') + '</p>';
     var topo = '<div class="build-topo"><p class="pontos-livres">Pontos: <b>' + esc('sobram ' + livres + ' de ' + info.free) + '</b></p>' +
       (info.free ? '' : '<span class="nota">Cada nível ganho dá pontos para distribuir.</span>') +
       (soma ? '<span class="nota">' + esc('Poder ' + RS.powerRating(m) + ' → ' + RS.powerRating(h)) + '</span>' : '') + '</div>';
-    // ações: "Distribuir sugerido" (sempre que a montaria já ganhou pontos), Desfazer e Confirmar (com rascunho)
+    // ações: "Distribuir sugerido" (com algum ponto cabendo ou com rascunho), Desfazer e Confirmar (com rascunho)
     var acoes = '';
-    if (info.free) {
+    if (compra) {
       var sug = rascunhoSoma(rascunhoSugerido(m, r)) > soma;
       var botaoSug = '<button type="button" class="btn btn--pequeno" data-acao="pontos-sugerir"' +
         (sug ? '' : ' disabled title="' + esc(livres > 0 ? 'Os pontos que sobram não pagam o próximo ponto de nenhum status.' : 'Nenhum ponto sobrando para distribuir.') + '"') + '>Distribuir sugerido</button>';
-      var lockR = soma ? travaPontos(m, comR) : { ok: true };
-      var motivoConf = lockR.ok ? '' : 'Páreo aberto: com este rascunho o Poder iria a ' + RS.powerRating(h) + ', e a sala viu ' + lockR.limit + '. Use Desfazer ou corra antes de confirmar.';
-      if (!lockR.ok) M.confirmaPontos = false;
       var depois = 'Para mudar depois, use Redistribuir ' + (m.respecFree === true ? '(a primeira deste cavalo é grátis).' : '(gasta uma Rédea nova).');
       acoes = (soma && M.confirmaPontos ? '<p class="aviso" role="status">' + esc(depois + ' Toque em Confirmar de novo para gravar.') + '</p>' : '') +
-        (motivoConf ? '<p class="aviso">' + esc(motivoConf) + '</p>' : '') +
+        (motivoConf ? '<p class="aviso" role="status">' + esc(motivoConf) + '</p>' : '') +
         '<div class="acoes build-acoes">' + botaoSug + (soma
           ? '<button type="button" class="btn btn--pequeno" data-acao="pontos-desfazer">Desfazer</button>' +
             '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="pontos-confirmar"' + (motivoConf ? ' disabled title="' + esc(motivoConf) + '"' : '') + '>Confirmar</button>'

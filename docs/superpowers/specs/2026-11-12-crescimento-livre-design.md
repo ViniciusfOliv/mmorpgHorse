@@ -256,7 +256,9 @@ Poder = 2,5·VEL + 2,0·ACE + 2,2·MAN + 2,4·FOR + 2,4·EST + 1,5·GAR + 0·SOR
 - cada linha: ícone, nome, nota de genética, barra até 150, valor, **"próximo ponto custa C"** e os botões
   **+1, +5 e +10**. Cada botão soma exatamente N pontos ao rascunho; fica desabilitado quando N não cabe
   (pontos, 150 ou a trava do páreo), com o motivo no `title`. O custo de N aparece no `title` e no
-  `aria-label` ("+5 em Velocidade: custa 15 pontos");
+  `aria-label` ("+5 em Velocidade: custa 15 pontos"). Sem rascunho e sem nenhum ponto que caiba (nível 1, ou o
+  que sobra não paga o próximo ponto de nenhum status), os botões +N e o "Distribuir sugerido" não aparecem; ficam
+  desabilitados com o motivo só quando algum ponto cabe (decidido em 2026-11-13 por delegação do Vinicius);
 - a linha da **Sorte** não tem botões nem custo: mostra "de nascimento";
 - topo: "Pontos: **sobram X de Y**" e, com rascunho, "Poder A → B";
 - **"Distribuir sugerido"**: preenche o rascunho com `botAlloc(cavalo, pontos + rascunho)`; o jogador
