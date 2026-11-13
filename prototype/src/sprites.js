@@ -16,7 +16,7 @@
  *       raridade (id de GameData.RARITIES), rastro (só na corrida), reduzido (movimento reduzido): os efeitos de
  *         Sprites.drawRaridade, desenhados depois do cavalo (as faíscas e o rastro também no desenho por código).
  *     Parte 2b (spec 2026-11-13-cavalos-portes), opcional: porte (GameData.PORTES.valores; fora da lista ou ausente,
- *       'padrao') escolhe o molde do porte no conjunto 'portes'; no 'legado' e no desenho por código, não muda nada.
+ *       'padrao') escolhe o molde do porte; no desenho por código, não muda nada.
  *   Sprites.drawRaridade(ctx, caixa, o)  caixa = horseBox(x, y, o): brilho na crina (só com molde), faíscas e
  *     rastro do Mítico (ver a seção RARIDADE VISÍVEL). Comum não desenha nada.
  *   Sprites.drawTrack(ctx, { width, height, cameraX, pxPerMeter, lanes, laneTop, laneH, surface,
@@ -39,7 +39,7 @@
  *   Sprites.PALETTES  // paletas de exemplo
  *   Moldes do PixelLab (recolor por paleta; sem eles, desenho por código):
  *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
- *   Sprites.moldesConjunto ('portes': os 12 moldes '<porte>-<estilo>'; 'legado': os 4 antigos; null: sem moldes),
+ *   Sprites.moldesConjunto ('portes': os 12 moldes '<porte>-<estilo>' carregados; null: sem moldes),
  *   Sprites.drawHorseSilhouette(ctx, x, y, opts, cor, alpha)  (contorno tingido, chamar antes de drawHorse),
  *   Sprites.anchorsFor(element, scale, estado, porte), Sprites.horseBox(x, y, opts),
  *   Sprites.limparCacheMoldes() (moldes recoloridos, silhuetas do contorno, máscaras do brilho da crina e textos
@@ -889,20 +889,19 @@
   // e galope (N quadros). O build embute PNGs e âncoras em window.__MOLDES; loadMolds decodifica os PNGs
   // num canvas e guarda os índices. drawHorse pinta cada papel com as cores da montaria e do corredor.
   //
-  // Dois conjuntos de moldes (spec 2026-11-13-cavalos-portes §4 e §6), pela chave do molde na tabela:
-  //   • 'portes': os 12 moldes '<porte>-<estilo>' (porte de GameData.PORTES: esguio, padrao, robusto). O molde de um
-  //     cavalo é porte + '-' + estiloDe(element); sem porte nas opções, ou com um porte fora da lista, 'padrao';
-  //   • 'legado': os 4 moldes antigos '<estilo>', os mesmos para qualquer porte.
-  // A carga escolhe o conjunto pelas chaves da tabela: com as 12 novas, 'portes'; senão, com as 4 antigas, 'legado'
-  // (com um console.warn se havia alguma nova: conjunto incompleto); senão, sem moldes. Nunca mistura os dois, e
-  // dentro do conjunto é tudo ou nada. Sprites.moldesConjunto diz qual ligou (null sem moldes). Os caches dos
-  // moldes recoloridos, das máscaras do brilho e das silhuetas usam a chave do molde (o porte vai junto).
+  // Os moldes são os 12 '<porte>-<estilo>' (spec 2026-11-13-cavalos-portes §4 e §6; porte de GameData.PORTES:
+  // esguio, padrao, robusto). O molde de um cavalo é porte + '-' + estiloDe(element); sem porte nas opções, ou com
+  // um porte fora da lista, 'padrao'. A carga é tudo ou nada: faltou uma das 12 chaves (ou um quadro não decodificou),
+  // nenhum molde liga, com um console.warn do motivo, e os cavalos ficam no desenho por código. Os 4 moldes antigos
+  // ('<estilo>', o lote de 2026-11-08) saíram na 2b: uma chave sem porte na tabela é ignorada.
+  // Sprites.moldesConjunto = 'portes' com os moldes ligados (null sem moldes). Os caches dos moldes recoloridos, das
+  // máscaras do brilho e das silhuetas usam a chave do molde (o porte vai junto).
   //
   // Encaixe no sprite por código (40×32, escala k): o molde é desenhado em escala inteira
-  // S = max(1, round(k × 40 / Lref)), ÚNICA para todos os moldes. No 'portes', Lref = maior larguraUtil entre os 4
-  // moldes do padrão (lisa incluída): os cavalos do padrão ficam do tamanho de hoje, e o esguio e o robusto se
-  // distinguem pelas proporções do desenho, sem mudar a escala dos outros. No 'legado', Lref = maior larguraUtil
-  // entre os 4 estilos. Cavalos de estilos e portes diferentes ficam na mesma escala. Na pista:
+  // S = max(1, round(k × 40 / Lref)), ÚNICA para todos os moldes. Lref = maior larguraUtil entre os 4 moldes do
+  // padrão (lisa incluída): os cavalos do padrão ficam do tamanho dos antigos, e o esguio e o robusto se distinguem
+  // pelas proporções do desenho, sem mudar a escala dos outros. Cavalos de estilos e portes diferentes ficam na
+  // mesma escala. Na pista:
   //   • a última linha dos cascos (o maior footY entre os quadros do estado) termina em y + (FOOT_Y + 1)·k,
   //     a mesma linha de chão do sprite por código;
   //   • a coluna do focinho (mediana de nose.x entre os quadros do estado) fica em x + NOSE·k (NOSE = 38).
@@ -923,8 +922,7 @@
   var MOLDE_CORES_FIXAS = { contorno: '#1a1405', pele: '#e8b48a', sela: '#5a3a22' };
   var moldes = null;       // chave do molde -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados, ancoras }
   var moldsOk = false;
-  var conjunto = null;     // conjunto carregado: 'portes', 'legado' ou null (sem moldes)
-  var moldesLref = 0;      // maior larguraUtil entre os moldes do padrão (no 'legado', entre os estilos): escala única
+  var moldesLref = 0;      // maior larguraUtil entre os 4 moldes do padrão: escala única
   var moldesGeracao = 0;   // descarta um carregamento antigo se loadMolds for chamado de novo
   var CORTE_MAX = 0.1;     // fração da altura do bbox que pode ser cortada no topo de um quadro de altura fixa
   // 64×64×4 = 16 KB por entrada; o teto em bytes é só uma rede de segurança (go() limpa ao trocar de tela)
@@ -941,11 +939,10 @@
   }
   // porte das opções do desenho: fora da lista (ou ausente), o padrão
   function porteDe(p) { return typeof p === 'string' && portesMolde().indexOf(p) >= 0 ? p : PORTE_PADRAO; }
-  // chave do molde de um cavalo no conjunto carregado: '<porte>-<estilo>' no 'portes', '<estilo>' no 'legado'
-  function chaveMolde(element, porte) { return conjunto === 'portes' ? porteDe(porte) + '-' + estiloDe(element) : estiloDe(element); }
-  // as chaves de um conjunto: as 12 dos portes (porte × estilo) ou as 4 antigas
-  function chavesConjunto(qual) {
-    if (qual !== 'portes') return ESTILOS_MOLDE.slice();
+  // chave do molde de um cavalo: '<porte>-<estilo>'
+  function chaveMolde(element, porte) { return porteDe(porte) + '-' + estiloDe(element); }
+  // as 12 chaves dos moldes (porte × estilo)
+  function chavesPortes() {
     var out = [];
     portesMolde().forEach(function (p) { ESTILOS_MOLDE.forEach(function (e) { out.push(p + '-' + e); }); });
     return out;
@@ -1022,22 +1019,23 @@
     img.src = url;
   }
 
-  // tabela = { estilos: { <chave>: { json, retrato, parado, galope: [...] }, ... } } (window.__MOLDES), com as
-  // chaves '<porte>-<estilo>' (conjunto 'portes') e/ou '<estilo>' (conjunto 'legado'). O conjunto sai das chaves
-  // presentes: as 12 dos portes, senão as 4 antigas (com um console.warn se havia só parte das novas); nunca os
-  // dois juntos. Só liga os moldes quando todos os do conjunto carregam; qualquer falha deixa moldsReady = false
+  // tabela = { estilos: { <chave>: { json, retrato, parado, galope: [...] }, ... } } (window.__MOLDES), com as 12
+  // chaves '<porte>-<estilo>'. Só liga os moldes quando os 12 estão na tabela e todos os quadros carregam; faltou
+  // uma chave, os moldes ficam desligados com um console.warn "conjunto dos portes incompleto (N de 12 moldes;
+  // faltam …)", e qualquer outra falha (quadro que não decodifica, âncora inválida) também deixa moldsReady = false
   // e moldesConjunto = null, sem exceção, com um console.warn do motivo (o jogo segue com o desenho por código).
+  // Chave a mais na tabela (a de um molde antigo '<estilo>') é ignorada.
   function loadMolds(tabela, pronto) {
     var geracao = ++moldesGeracao;
-    moldsOk = false; api.moldsReady = false; conjunto = api.moldesConjunto = null; moldes = null; moldCache.clear(); brilhoCache.clear();
+    moldsOk = false; api.moldsReady = false; api.moldesConjunto = null; moldes = null; moldCache.clear(); brilhoCache.clear();
     if (typeof Image === 'undefined' || typeof document === 'undefined') return;   // Node: sem canvas
     var est = tabela && tabela.estilos;
     if (!est) { aviso('a tabela de moldes não tem estilos'); return; }
-    var novas = chavesConjunto('portes'), faltam = novas.filter(function (ch) { return !(Object.prototype.hasOwnProperty.call(est, ch) && est[ch]); });
-    var qual = faltam.length ? 'legado' : 'portes';
-    if (faltam.length && faltam.length < novas.length) {
-      avisa('conjunto dos portes incompleto (' + (novas.length - faltam.length) + ' de ' + novas.length + ' moldes; faltam ' +
-        faltam.join(', ') + '): os moldes novos ficam de fora e valem os antigos, se estiverem todos.');
+    var chaves = chavesPortes(), faltam = chaves.filter(function (ch) { return !(Object.prototype.hasOwnProperty.call(est, ch) && est[ch]); });
+    if (faltam.length) {
+      avisa('conjunto dos portes incompleto (' + (chaves.length - faltam.length) + ' de ' + chaves.length + ' moldes; faltam ' +
+        faltam.join(', ') + '): moldes desligados; os cavalos usam o desenho por código.');
+      return;
     }
     var novos = {}, pendentes = 1, motivo = null;   // 1 = o próprio laço abaixo (fecha no fim)
     function falha(m) { if (!motivo) motivo = m || 'falha'; }
@@ -1045,14 +1043,14 @@
       pendentes--;
       if (pendentes > 0 || geracao !== moldesGeracao) return;
       if (motivo) { aviso(motivo); return; }
-      // escala única: o maior larguraUtil entre os 4 moldes do padrão (no 'legado', entre os 4 estilos)
+      // escala única: o maior larguraUtil entre os 4 moldes do padrão
       moldesLref = 0;
-      ESTILOS_MOLDE.forEach(function (e) { moldesLref = Math.max(moldesLref, novos[qual === 'portes' ? PORTE_PADRAO + '-' + e : e].larguraUtil); });
-      moldes = novos; conjunto = api.moldesConjunto = qual; moldsOk = true; api.moldsReady = true;
+      ESTILOS_MOLDE.forEach(function (e) { moldesLref = Math.max(moldesLref, novos[PORTE_PADRAO + '-' + e].larguraUtil); });
+      moldes = novos; api.moldesConjunto = 'portes'; moldsOk = true; api.moldsReady = true;
       if (typeof pronto === 'function') pronto();
     }
     try {
-      chavesConjunto(qual).forEach(function (nome) {
+      chaves.forEach(function (nome) {
         var e = est[nome], J = e && e.json;
         if (!J || !e.retrato || !e.parado || !e.galope) throw new Error('molde ausente: ' + nome);
         function refDe(rotulo, lista) {
@@ -1159,7 +1157,7 @@
   }
 
   // Canvas 1× recolorido; a escala fica no drawImage (vizinho mais próximo), então a chave não leva a
-  // escala: uma entrada por molde|estado|quadro|cores (molde = a chave do molde, com o porte no 'portes'; + marcas,
+  // escala: uma entrada por molde|estado|quadro|cores (molde = a chave do molde, com o porte; + marcas,
   // semente, padrão e capacete, quando vêm nas opções), em qualquer tamanho de tela. Sem marcas e sem jóquei: a
   // chave e os pixels de antes da parte 2a.
   // As camadas saem do marcas.js só na falta (uma vez por cavalo e quadro; na corrida, na largada).
@@ -1466,7 +1464,7 @@
   // Âncoras nas unidades do sprite por código (some x + v·escala, y + v·escala), para o estado pedido
   // ('galope' por padrão, 'parado' ou 'retrato'), na pista (sem quadro). Com a escala, a conversão é exata
   // para aquele tamanho; sem ela, usa a proporção ideal 40 / Lref. Sem moldes: ANCHORS. O focinho é sempre NOSE.
-  // porte (opcional, como o opts.porte do drawHorse): o molde do porte no conjunto 'portes'; fora da lista, o padrão.
+  // porte (opcional, como o opts.porte do drawHorse): o molde do porte; fora da lista, o padrão.
   function anchorsFor(element, scale, estado, porte) {
     if (!moldsOk) return ANCHORS;
     var M = moldes[chaveMolde(element, porte)];
@@ -1488,7 +1486,7 @@
   function cacheSilhuetas() { return { n: silCache.map.size, bytes: silCache.bytes, max: silCache.max }; }
 
   // Para o comparativo.html: um quadro do molde pintado com cores livres (índice -> cor), sem cache. chave = a do
-  // molde no conjunto carregado ('<estilo>' no 'legado', '<porte>-<estilo>' no 'portes'); outra chave: null.
+  // molde ('<porte>-<estilo>'); outra chave: null.
   function moldeCanvas(chave, estado, quadro, cores) {
     var M = moldsOk && moldes[chave];
     if (!M) return null;
@@ -2509,7 +2507,7 @@
     // moldes do PixelLab (ver a seção MOLDES)
     ESTILO_POR_ELEMENTO: ESTILO_POR_ELEMENTO,
     moldsReady: false,
-    moldesConjunto: null,   // 'portes', 'legado' ou null (ver loadMolds)
+    moldesConjunto: null,   // 'portes' (os 12 moldes ligados) ou null (ver loadMolds)
     loadMolds: loadMolds,
     anchorsFor: anchorsFor,
     escalaMoldeCompativel: escalaMoldeCompativel,

@@ -1545,9 +1545,11 @@ test('Review Focus 3: sem moldes (Node), drawHorse com marcas, joquei e raridade
 // ---- com moldes: um molde sintético 32×24 por porte, carregado com Image e document falsos ----
 // O padrão é o molde sintético de sempre (os 4 estilos iguais). O esguio é o mesmo com o corpo mais fino e as pernas
 // mais longas; o robusto, com o corpo mais grosso, as pernas curtas e a cauda mais comprida (mais largo: larguraUtil
-// 29, contra 27 do padrão e do esguio). SINT.tabela é a tabela antiga (as 4 chaves do 'legado', com o molde do
-// padrão); SINT.tabelaDe(chaves, origem) monta outra: cada chave '<porte>-<estilo>' leva o molde do seu porte, cada
-// chave antiga o do padrão, e origem(chave), quando devolve um porte, troca o molde daquela chave.
+// 29, contra 27 do padrão e do esguio). SINT.tabela é a tabela do jogo (as 12 chaves '<porte>-<estilo>', cada uma com
+// o molde do seu porte; sem porte nas opções, o desenho é o do padrão, o molde sintético de sempre);
+// SINT.tabelaDe(chaves, origem) monta outra: cada chave '<porte>-<estilo>' leva o molde do seu porte, cada chave antiga
+// ('<estilo>', SINT.LEGADO: o nome dos 4 moldes que saíram na 2b) o do padrão, e origem(chave), quando devolve um
+// porte, troca o molde daquela chave.
 var SINT = (function () {
   var w = 32, h = 24;
   var CORPOS = {   // retângulos [x0, y0, x1, y1]; coxa = a linha onde as pernas começam
@@ -1610,7 +1612,7 @@ var SINT = (function () {
   var A0 = porte.padrao.A, L0 = porte.padrao.J.larguraUtil;
   return {
     w: w, h: h, idx: porte.padrao.idx, porte: porte, fontes: fontes, LEGADO: LEGADO, PORTES: PORTES,
-    tabela: tabelaDe(LEGADO), tabelaDe: tabelaDe,
+    tabela: tabelaDe(PORTES), tabelaDe: tabelaDe,
     ancora: function (estado, q) { return com(estado === 'galope' ? A0['galope-' + q] : A0[estado], { larguraUtil: L0 }); }
   };
 })();
@@ -1629,7 +1631,7 @@ function comImagens(fn) {
     SPR.loadMolds(null);   // volta ao desenho por código (moldsReady = false)
   }
 }
-// fn com os moldes sintéticos carregados (tabela: a antiga, das 4 chaves, se não vier outra)
+// fn com os moldes sintéticos carregados (tabela: a do jogo, das 12 chaves, se não vier outra)
 function comMoldes(fn, tabela) {
   return comImagens(function () {
     var pronto = false;
@@ -1900,64 +1902,54 @@ test('portes: escala do padrão', function () {
   }
   assert.ok(SINT.porte.robusto.J.larguraUtil > SINT.porte.padrao.J.larguraUtil, 'o robusto sintético é mais largo');
   var portes = escalas(SINT.tabelaDe(SINT.PORTES));
+  // os cavalos do padrão ficam do tamanho de antes da 2b: a escala é a dos moldes do padrão sozinhos (o molde sintético
+  // de sempre, o mesmo da assinatura b16463ea)
   assert.strictEqual(portes, escalas(SINT.tabelaDe(SINT.PORTES, function () { return 'padrao'; })), 'a mesma escala só com os moldes do padrão');
-  assert.strictEqual(portes, escalas(SINT.tabela), 'a mesma do conjunto antigo: os cavalos do padrão do tamanho de hoje');
   // o teste distingue: se os moldes do padrão fossem os mais largos, a escala mudaria
   assert.notStrictEqual(portes, escalas(SINT.tabelaDe(SINT.PORTES, function (ch) { return ch.indexOf('padrao-') === 0 ? 'robusto' : null; })));
 });
 
-test('portes: conjunto incompleto (RF2)', function () {
-  var legado = comMoldes(function () {
-    return ELS_PORTE.map(function (e) { return assinatura(desenhaCav(com(CAVM, { element: e[0], palette: e[1] }))); }).join('\n');
+// carrega a tabela com as Image e document falsas e confere que os moldes NÃO ligaram: desenho por código (a caixa,
+// as âncoras e o prepararCavalo de sem moldes); devolve os avisos do console
+function semMoldesCom(tabela, rotulo) {
+  return avisos(function () {
+    comImagens(function () {
+      var pronto = false;
+      SPR.loadMolds(tabela, function () { pronto = true; });
+      assert.ok(!pronto && SPR.moldsReady === false && SPR.moldesConjunto === null, rotulo + ': sem moldes');
+      assert.strictEqual(SPR.horseBox(0, 0, CAVM).w, SPR.HORSE_W * CAVM.scale, rotulo + ': a caixa do desenho por código');
+      assert.strictEqual(SPR.anchorsFor('fogo', 3, 'galope', 'robusto'), SPR.ANCHORS, rotulo + ': as âncoras do código');
+      assert.strictEqual(SPR.prepararCavalo(com(CAVM, { porte: 'robusto' })), 0, rotulo + ': nada a preparar');
+    });
   });
+}
+
+// Sem o caminho 'legado' (saiu na T7 da 2b): faltou uma das 12 chaves, o jogo fica sem moldes, com ou sem os 4 nomes
+// antigos na tabela, e com um aviso só, que diz quantas há e qual falta.
+test('portes: conjunto incompleto (RF2) ⇒ sem moldes, com ou sem os nomes antigos', function () {
   SINT.PORTES.forEach(function (falta) {
     var onze = SINT.PORTES.filter(function (ch) { return ch !== falta; });
-    // 11 novas + as 4 antigas: o conjunto antigo inteiro, sem nenhum molde novo, e um aviso
-    var av = avisos(function () {
-      comMoldes(function () {
-        assert.strictEqual(SPR.moldesConjunto, 'legado', 'sem ' + falta + ': o conjunto antigo');
-        ['esguio', 'padrao', 'robusto'].forEach(function (p) {
-          var sig = ELS_PORTE.map(function (e) { return assinatura(desenhaCav(com(CAVM, { element: e[0], palette: e[1], porte: p }))); }).join('\n');
-          assert.strictEqual(sig, legado, 'sem ' + falta + ': ' + p + ' desenha os moldes antigos');
-        });
-      }, SINT.tabelaDe(onze.concat(SINT.LEGADO)));
+    [['11 novas + as 4 antigas', onze.concat(SINT.LEGADO)], ['11 novas', onze]].forEach(function (caso) {
+      var rotulo = 'sem ' + falta + ' (' + caso[0] + ')', av = semMoldesCom(SINT.tabelaDe(caso[1]), rotulo);
+      assert.strictEqual(av.length, 1, rotulo + ': um aviso só (' + av.join(' / ') + ')');
+      assert.ok(/incompleto/.test(av[0]) && av[0].indexOf('11 de 12') >= 0 && av[0].indexOf(falta) >= 0 && /desenho por código/.test(av[0]), av[0]);
+      assert.ok(!/antigos/.test(av[0]), rotulo + ': nada de voltar aos moldes antigos (' + av[0] + ')');
     });
-    assert.strictEqual(av.length, 1, 'sem ' + falta + ': um aviso só (' + av.join(' / ') + ')');
-    assert.ok(/incompleto/.test(av[0]) && av[0].indexOf('11 de 12') >= 0 && av[0].indexOf(falta) >= 0, av[0]);
-    // 11 novas sem as antigas: desenho por código
-    av = avisos(function () {
-      comImagens(function () {
-        var pronto = false;
-        SPR.loadMolds(SINT.tabelaDe(onze), function () { pronto = true; });
-        assert.ok(!pronto && SPR.moldsReady === false && SPR.moldesConjunto === null, 'sem ' + falta + ' e sem os antigos: sem moldes');
-        assert.strictEqual(SPR.horseBox(0, 0, CAVM).w, SPR.HORSE_W * CAVM.scale, 'a caixa do desenho por código');
-      });
-    });
-    assert.ok(av.length >= 1 && /incompleto/.test(av[0]), 'avisa: ' + av.join(' / '));
   });
 });
 
-test('portes: legado', function () {
-  var av = avisos(function () {
-    comMoldes(function () {
-      assert.strictEqual(SPR.moldesConjunto, 'legado');
-      var casos = [CAVM, com(CAVM, { idle: true }), com(CAVM, { idle: true, jockey: false, element: 'grama', palette: PAL.grama })];
-      casos.forEach(function (o, i) {
-        var pad = assinatura(desenhaCav(com(o, { porte: 'padrao' })));
-        assert.strictEqual(assinatura(desenhaCav(o)), pad, 'caso ' + i);
-        ['esguio', 'robusto', 'Robusto', null].forEach(function (p) {
-          assert.strictEqual(assinatura(desenhaCav(com(o, { porte: p }))), pad, String(p) + ' desenha o molde antigo (caso ' + i + ')');
-          assert.deepStrictEqual(SPR.horseBox(50, 40, com(o, { porte: p })), SPR.horseBox(50, 40, o));
-        });
-      });
-      assert.deepStrictEqual(SPR.anchorsFor('agua', 3, 'parado', 'robusto'), SPR.anchorsFor('agua', 3, 'parado'));
-      SPR.limparCacheMoldes();
-      assert.strictEqual(SPR.prepararCavalo(CAVM), 10);
-      assert.strictEqual(SPR.prepararCavalo(com(CAVM, { porte: 'robusto' })), 10);
-      assert.strictEqual(SPR._cacheMoldes(), 10, 'robusto e padrão dividem as entradas do molde antigo');
-    });
+test('portes: só os 4 moldes antigos ⇒ sem moldes (o caminho legado saiu)', function () {
+  var av = semMoldesCom(SINT.tabelaDe(SINT.LEGADO), 'só os 4 antigos');
+  assert.strictEqual(av.length, 1, av.join(' / '));
+  assert.ok(av[0].indexOf('0 de 12') >= 0 && /incompleto/.test(av[0]), av[0]);
+  // e o desenho é o do código, igual ao de sem tabela nenhuma
+  comCanvas(function () {
+    var sem = assinatura(desenhaCav(CAVM, 17, 23));
+    avisos(function () { comImagens(function () {
+      SPR.loadMolds(SINT.tabelaDe(SINT.LEGADO));
+      assert.strictEqual(assinatura(desenhaCav(CAVM, 17, 23)), sem, 'o desenho por código');
+    }); });
   });
-  assert.deepStrictEqual(av, [], 'só os 4 antigos: sem aviso');
 });
 
 test('portes: sem moldes', function () {

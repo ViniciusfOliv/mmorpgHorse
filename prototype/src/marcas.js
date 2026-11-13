@@ -14,7 +14,9 @@
  *   1 cara:  distância (euclidiana) ao nose ≤ caraRaio · L (0,19; L = ancora.larguraUtil, a largura do retrato do
  *            molde, igual em todos os quadros; sem ela, bbox.w) e y ≤ nose.y + caraBaixo (1 px). Raio e corte
  *            presos ao focinho ⇒ a zona não cresce nem encolhe no galope; o alvo é a cabeça, sem pescoço nem
- *            orelhas (nos 4 moldes: borda de baixo sempre nose.y + 1, área variando ≤ 18% nos 9 quadros);
+ *            orelhas (nos 4 moldes antigos: borda de baixo sempre nose.y + 1, área variando ≤ 18% nos 9 quadros;
+ *            nos 12 dos portes, borda em nose.y ou nose.y + 1 e área variando até 111%: ver PENDENTES_2A no
+ *            moldes-test);
  *   2 patas: y > footY − barriga · bbox.h (0,30), a "linha da barriga";
  *   3 corpo: o resto.
  * PERNAS (perna[i] = −1 fora das patas):
@@ -39,7 +41,8 @@
  *   CENTRO DA CARA (S): o pixel de cara mais perto do ponto médio entre o nose e o pixel mais alto da zona da
  *     cara (o primeiro na ordem de leitura); empate: o primeiro na ordem de leitura.
  *   estrela: S e os 2 primeiros pixels de cara entre (x+1,y), (x,y+1), (x−1,y), (x,y−1) ⇒ até 3 px (2 a 3 em
- *            todos os quadros dos 4 moldes; só 1 se S for um pixel de cara isolado).
+ *            todos os quadros dos 4 moldes antigos; nos 12 dos portes, 1 px em 3 quadros do galope do robusto-ondas;
+ *            só 1 se S for um pixel de cara isolado).
  *   listra:  pixels de cara a até 0,75 px do segmento S → F (1 a 2 px de largura, da testa ao focinho), F = o
  *            pixel de cara mais perto do nose (o nose costuma ser contorno, e o focinho pode fazer curva).
  *   frente:  toda a zona da cara.
@@ -69,7 +72,8 @@
  *       liso nada · listras u % 3 = 0 · faixa (u + v) % 6 < 2 · xadrez casas 2×2 alternadas sem o canto de baixo
  *       à direita (3/8) · estrelas cruzes de 5 px numa grade 4×4, fileiras alternadas deslocadas 2 (5/16) ·
  *       losangos (u + v) % 6 = 0 ou (u − v) % 6 = 0, a rede de diagonais (11/36). (% sempre positivo.)
- *     Nos 40 quadros parado/galope dos 4 moldes o padrão fica entre 18% e 44% da seda (sempre menos que a base).
+ *     Nos 120 quadros parado/galope dos 12 moldes dos portes o padrão fica entre 15% e 45% da seda (sempre menos
+ *     que a base; nos 4 moldes antigos, entre 18% e 44%).
  *
  * ================== FAÍSCAS: faiscas(semente, n) =============================================
  * n faíscas { dx, dy, fase }: dx, dy em [0, 1] na caixa do cavalo com margem (quem desenha escolhe a margem),

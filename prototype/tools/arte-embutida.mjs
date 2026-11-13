@@ -16,20 +16,19 @@ const listar = async (root, rel) => (existsSync(join(root, rel)) ? (await readdi
 // JSON seguro dentro de <script>: nada de "<" literal (fecharia a tag).
 export const jsonJs = (v) => JSON.stringify(v).replace(/</g, '\\u003c')
 
-// Moldes: assets/pixellab/molde-<chave>.json + molde-<chave>-retrato.png, -parado.png, -galope-0..N-1.png, com
-// estilo ∈ chamas|ondas|folhas|lisa e dois formatos de chave (spec 2026-11-13-cavalos-portes §4 e §6):
-//   • '<porte>-<estilo>' (porte ∈ esguio|padrao|robusto): o conjunto dos portes, 12 moldes;
-//   • '<estilo>': o conjunto antigo ('legado'), 4 moldes.
-// A tabela guarda as chaves que achar, das duas formas, com json.estilo = a chave; quem escolhe o conjunto é o
-// sprites.js (os 12 dos portes, senão os 4 antigos; nunca mistura). A escala dos cavalos sai do maior larguraUtil
-// entre os 4 moldes do padrão (no 'legado', entre os 4 estilos). Outro molde-*.json é ignorado com aviso.
+// Moldes: assets/pixellab/molde-<porte>-<estilo>.json + molde-<porte>-<estilo>-retrato.png, -parado.png,
+// -galope-0..N-1.png, com porte ∈ esguio|padrao|robusto e estilo ∈ chamas|ondas|folhas|lisa (spec
+// 2026-11-13-cavalos-portes §4 e §6): os 12 moldes dos portes, com chave '<porte>-<estilo>'. A tabela guarda as
+// chaves que achar, com json.estilo = a chave; o sprites.js só liga os moldes com as 12 (tudo ou nada). A escala dos
+// cavalos sai do maior larguraUtil entre os 4 moldes do padrão. Outro molde-*.json é ignorado com aviso, inclusive
+// o nome antigo molde-<estilo>.json (o lote de 2026-11-08, que saiu na 2b).
 // Do JSON vão só os campos que o jogo lê (o resto — seeds, limiares, contagens — fica no arquivo).
 export async function lerMoldes(root, avisos = [], dir = 'assets/pixellab') {
   const estilos = {}
   for (const nome of await listar(root, dir)) {
     if (!/^molde-.*\.json$/.test(nome)) continue
-    const mm = nome.match(/^molde-((?:(?:esguio|padrao|robusto)-)?(?:chamas|ondas|folhas|lisa))\.json$/)
-    if (!mm) { avisos.push(`molde "${nome}" ignorado: o nome não é molde-<estilo>.json nem molde-<porte>-<estilo>.json`); continue }
+    const mm = nome.match(/^molde-((?:esguio|padrao|robusto)-(?:chamas|ondas|folhas|lisa))\.json$/)
+    if (!mm) { avisos.push(`molde "${nome}" ignorado: o nome não é molde-<porte>-<estilo>.json`); continue }
     const chave = mm[1]
     try {
       const J = JSON.parse(await readFile(join(root, dir, nome), 'utf8'))
