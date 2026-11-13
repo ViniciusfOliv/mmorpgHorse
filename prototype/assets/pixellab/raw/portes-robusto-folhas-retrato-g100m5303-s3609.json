@@ -1,0 +1,35 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-13T13:50:55.337Z",
+  "pedido": {
+    "description": "side view, facing right, mane and tail made of leaves, very short stocky heavy draft-type horse inspired by the Crioulo breed, massive barrel-shaped body that is very wide and very deep, very short thick sturdy legs that are shorter than the depth of the body, short very thick muscular neck, broad wide chest, low heavy stance close to the ground, large heavy head, full thick mane, clearly much lower, wider and heavier than an average horse, standing still horse, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, no rider, no saddle, mane and tail made of leaves clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "side",
+    "direction": "east",
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "detail": "medium detail",
+    "no_background": true,
+    "seed": 3609,
+    "init_image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1618 bytes, sha256 179663acb8d3b259>",
+      "format": "png"
+    },
+    "init_image_strength": 100
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 2102 bytes, sha256 32600ff8fa2a5ebd>",
+      "format": "png"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-13T13:39:31.993Z",
+  "pedido": {
+    "description": "side view, facing right, mane and tail shaped like flowing water waves, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, standing still horse, all four legs clearly visible and separated, the far legs offset from the near legs with a gap between every leg, no overlapping legs, no rider, no saddle, mane and tail shaped like flowing water waves clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "side",
+    "direction": "east",
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "detail": "medium detail",
+    "no_background": true,
+    "seed": 3904
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 969 bytes, sha256 7f89456a976d4484>",
+      "format": "png"
+    }
+  }
+}

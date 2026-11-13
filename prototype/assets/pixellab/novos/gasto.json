@@ -1,5 +1,5 @@
 {
-  "chamadas": 85,
+  "chamadas": 155,
   "rodadas": [
     {
       "data": "2026-11-13T10:24:19.064Z",
@@ -63,7 +63,17 @@
       "geracoes": 30,
       "chamadas": 30,
       "parada": null
+    },
+    {
+      "data": "2026-11-13T13:36:48.267Z",
+      "fase": "versoes",
+      "modo": "gerar",
+      "only": null,
+      "teto": 170,
+      "geracoes": 70,
+      "chamadas": 70,
+      "parada": null
     }
   ],
-  "geracoes": 85
+  "geracoes": 155
 }

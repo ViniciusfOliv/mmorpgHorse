@@ -1,0 +1,19 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-13T13:40:47.233Z",
+  "pedido": {
+    "description": "side view, facing right, mane and tail shaped like flowing water waves, tall slender lean horse inspired by the Mangalarga breed, very long thin legs, long slim neck held high, small refined head, tail set and carried high, narrow light body, clearly taller and thinner than an average horse, racing horse at full gallop, body stretched low, front legs reaching far forward and hind legs pushing far back, jockey crouched low, jockey in yellow (#ffff00) silks and yellow helmet with pink (#ffc0cb) skin, grey (#808080) saddle and saddle pad and reins, mane and tail shaped like flowing water waves clearly visible and distinct, pure red (#ff0000) coat with dark red (#800000) shading, bright green (#00ff00) mane and tail with dark green (#008000) shading, blue (#0000ff) hooves and muzzle, black outline, flat colors, no gradients, no anti-aliasing",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "side",
+    "direction": "east",
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "detail": "medium detail",
+    "no_background": true,
+    "seed": 3704
+  },
+  "erro": "POST /create-image-pixflux → HTTP 502: upstream request failed"
+}
