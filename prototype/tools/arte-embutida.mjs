@@ -1,5 +1,6 @@
 // Arte embutida (data:) compartilhada entre o build do jogo (build.mjs) e o gerador do wiki (tools/wiki.mjs).
-//   lerMoldes(root, avisos) -> { estilos }   (a tabela window.__MOLDES)
+//   lerMoldes(root, avisos, dir) -> { estilos }   (a tabela window.__MOLDES; dir = 'assets/pixellab', o único que o
+//                           build lê; a folha dos portes, tools/folha-portes.mjs, passa a pasta de espera 'assets/pixellab/novos')
 //   lerIcones(root)         -> { nome: dataUrl }  (window.__ICONES; a pasta raw/ fica de fora)
 //   lerMarca(root)          -> { logo, w, h } ou { logo: null }  (window.__MARCA)
 //   jsonJs(v)               -> JSON seguro dentro de <script> (nada de "<" literal)
@@ -23,9 +24,8 @@ export const jsonJs = (v) => JSON.stringify(v).replace(/</g, '\\u003c')
 // sprites.js (os 12 dos portes, senão os 4 antigos; nunca mistura). A escala dos cavalos sai do maior larguraUtil
 // entre os 4 moldes do padrão (no 'legado', entre os 4 estilos). Outro molde-*.json é ignorado com aviso.
 // Do JSON vão só os campos que o jogo lê (o resto — seeds, limiares, contagens — fica no arquivo).
-export async function lerMoldes(root, avisos = []) {
+export async function lerMoldes(root, avisos = [], dir = 'assets/pixellab') {
   const estilos = {}
-  const dir = 'assets/pixellab'
   for (const nome of await listar(root, dir)) {
     if (!/^molde-.*\.json$/.test(nome)) continue
     const mm = nome.match(/^molde-((?:(?:esguio|padrao|robusto)-)?(?:chamas|ondas|folhas|lisa))\.json$/)

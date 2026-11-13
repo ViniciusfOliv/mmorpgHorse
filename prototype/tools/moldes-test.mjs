@@ -1231,6 +1231,66 @@ await testA('piloto com init_image do mestre; reprovado no mesmo corpo ⇒ as ve
   assert.ok(!/esguio-ondas\/retrato[^\n]*\n[^\n]*init_image/.test(txt), 'esguio sem init_image');
 });
 
+await testA('versões: o porte do piloto reprovado sai sem init_image (seeds 3701+); os outros com o mestre no mesmo estado', async () => {
+  const api = apiFalsa(CENARIO);
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'versoes', modo: 'gerar', executar: api.executar, dirs: A.dirs, log: () => {} }));
+  assert.strictEqual(r.parada, null);
+  const paradas = api.chamadas.filter(c => c.porte);
+  assert.ok(paradas.filter(c => c.porte === 'esguio').every(c => !c.guia && c.seed >= 3701), 'esguio sem init_image');
+  assert.ok(paradas.filter(c => c.porte !== 'esguio').every(c => c.guia && c.seed >= 3405 && c.seed < 3700), 'padrão e robusto com init_image');
+  assert.deepStrictEqual([...new Set(paradas.map(c => c.porte + '-' + c.estilo))].sort(),
+    ['esguio-chamas', 'esguio-folhas', 'esguio-ondas', 'padrao-folhas', 'padrao-ondas', 'robusto-folhas', 'robusto-ondas']);
+  assert.strictEqual(fs.readdirSync(A.dirs.novos).filter(f => /^molde-.*\.json$/.test(f)).length, 12);
+  assert.ok(lerJ(path.join(A.dirs.novos, 'gasto.json')).geracoes <= Pl().TETO_PADRAO);
+});
+
+await testA('folha dos mestres: os 3 em 1× e 4×, o galope animado, os critérios e o reprovado marcado; determinística', async () => {
+  const F = await import('./folha-portes.mjs');
+  const d = F.dadosMestres(A.dirs.novos), html = F.htmlFolhaMestres(d);
+  assert.ok(html.startsWith('<!doctype html>')); assert.strictEqual(html, F.htmlFolhaMestres(F.dadosMestres(A.dirs.novos)));
+  for (const ch of ['esguio-lisa', 'padrao-lisa', 'robusto-lisa']) assert.ok(html.includes('id="' + ch + '"'), ch);
+  assert.match(html, /<title>Mestres dos portes<\/title>/);
+  assert.strictEqual((html.match(/class="anim g1"/g) || []).length, 3); assert.strictEqual((html.match(/class="anim g4"/g) || []).length, 3);
+  assert.strictEqual((html.match(/em 4×"/g) || []).length, 3 * 2 + 3, 'retrato e parado em 4× (img) e o galope em 4× (aria-label)');
+  assert.ok(!/https?:\/\//.test(html.replace(/xmlns="[^"]*"/g, '')), 'autocontida: nada de rede');
+  assert.strictEqual(d.portes.length, 3); assert.ok(d.portes.every(c => c.ok));
+  assert.match(html, /id="robusto-lisa"[^>]*>.*?reprovado/s);
+  assert.match(html, /NÃO<\/span> galope: lombo na coluna da sela: 4/);
+  for (const c of ['pernas no retrato', 'pernas no parado', 'pernas no galope (todo quadro)', 'galope: nose.x contra a pose de corrida', 'portes: altura/comprimento do esguio']) assert.ok(html.includes(c), c);
+  // sem um mestre: "falta"; sem o padrão: os portes distintos dizem que falta a régua
+  const sem = F.dadosMestres(A.dirs.novos);
+  sem.itens[1].molde = null; sem.portes = []; sem.semPadrao = true;
+  const h2 = F.htmlFolhaMestres(sem);
+  assert.match(h2, /falta: molde-padrao-lisa/); assert.match(h2, /sem o mestre do padrão/);
+});
+
+await testA('folha final: com os 12, embute os scripts e a tabela __MOLDES de novos/; com menos, diz o que falta e desenha direto', async () => {
+  const F = await import('./folha-portes.mjs');
+  const { lerMoldes } = await import('./arte-embutida.mjs');
+  const d = F.dadosFinal(A.dirs.novos);
+  assert.deepStrictEqual(d.faltam, []);
+  assert.deepStrictEqual(Object.keys(d.cavalos), ['chamas', 'ondas', 'folhas']);
+  assert.deepStrictEqual(d.cavalos.chamas.map(m => m.id + ' ' + m.raridade), ['brasa comum', 'w-ticao magico', 'w-boitata mitico']);
+  assert.deepStrictEqual(d.cavalos.folhas.map(m => m.id + ' ' + m.raridadeDoCavalo + '→' + m.raridade), ['ipe comum→comum', 'w-mandacaru magico→magico', 'w-jequitiba lendario→mitico']);
+  const avisos = [], moldes = await lerMoldes(path.dirname(A.dirs.novos), avisos, 'novos');
+  assert.deepStrictEqual(avisos, []); assert.strictEqual(Object.keys(moldes.estilos).length, 12);
+  const fontes = Object.fromEntries(['data.js', 'sim.js', 'breed.js', 'marcas.js', 'sprites.js'].map(n => [n, fs.readFileSync(path.join(DIR, '..', '..', 'src', n), 'utf8')]));
+  const html = F.htmlFolhaFinal(d, { fontes, moldes });
+  assert.match(html, /<title>Folha final dos portes<\/title>/);
+  assert.match(html, /window\.__MOLDES = \{"estilos":/); assert.ok(html.includes('Sprites.drawHorse(g, x0, y0, o)'));
+  assert.strictEqual((html.match(/data-chave="/g) || []).length, 9);
+  assert.ok(html.includes('root.Sprites = factory'), 'sprites.js embutido');
+  assert.match(html, /id="esguio-chamas"[^>]*>.*?reprovado/s, 'o piloto reprovado no mesmo corpo sai marcado');
+  assert.ok(!/Faltam/.test(html));
+  // com menos de 12: diz quais faltam e desenha direto, sem scripts
+  const parcial = F.dadosFinal(A.dirs.novos);
+  parcial.faltam = ['robusto-folhas']; parcial.itens.find(i => i.chave === 'robusto-folhas').molde = null;
+  const h2 = F.htmlFolhaFinal(parcial, { fontes, moldes });
+  assert.match(h2, /Faltam 1 dos 12 moldes: robusto-folhas/); assert.ok(!h2.includes('<script>')); assert.match(h2, /class="anim g4"/);
+  // o build não lê novos/: o lerMoldes padrão continua só em assets/pixellab
+  assert.ok(!Object.keys((await lerMoldes(path.join(DIR, '..', '..'))).estilos).some(k => /-/.test(k)), 'sem chave de porte vinda de novos/');
+});
+
 await testA('--reprocessar refaz os finais de novos/ só de raw/, sem chamada e sem mexer no gasto', async () => {
   const antes = {};
   for (const f of fs.readdirSync(A.dirs.novos).filter(f => /^molde-.*-lisa/.test(f))) { antes[f] = fs.readFileSync(path.join(A.dirs.novos, f)); fs.unlinkSync(path.join(A.dirs.novos, f)); }
