@@ -114,11 +114,12 @@ conforme as pernas se cruzam. 1 e 2 meias são estáveis. O código das pernas n
 nos moldes novos (retrato e parado) é requisito da 2b, com um teste de contagem de meias por molde.
 
 **Resolvido na 2b (T7, 2026-11-13).** Os 4 moldes acima saíram; os 12 moldes dos portes têm 4 pernas no retrato e no
-parado, fora as contagens que o Vinicius aceitou na folha (esguio-lisa e esguio-ondas no parado, 2; padrao-folhas no
-parado, robusto-lisa e robusto-chamas no retrato, 3). No galope, pelo menos 2 em todo quadro. O `moldes-test` confere
-isso e conta as meias por molde (N meias = N manchas brancas no retrato e no parado). Ficaram fora dessa conta, medidos
-e listados no teste (`PENDENTES_2A.meias`) para decisão: 6 dos 24 retratos e parados, por meias de pernas vizinhas que se
-encostam (viram uma mancha) ou pela ponta do casco separada pelo contorno (uma mancha a mais).
+parado, fora as contagens aceitas (esguio-lisa e esguio-ondas no parado, 2; padrao-folhas no parado e robusto-chamas
+no retrato, 3, na folha; robusto-folhas no retrato, 3, depois que a canela de crina voltou à pelagem na rodada de
+correção 1 da T7). No galope, pelo menos 2 em todo quadro. O `moldes-test` confere isso e conta as meias por molde (N
+meias = N manchas brancas no retrato e no parado). Ficaram fora dessa conta, medidos e listados no teste
+(`PENDENTES_2A.meias`) para decisão: 5 dos 24 retratos e parados, por meias de pernas vizinhas que se encostam (viram uma
+mancha) ou pela ponta do casco separada pelo contorno (uma mancha a mais).
 
 **Pintura** (só sobre pixels de pelagem e pelagem-sombra; contorno, crina, jóquei e sela não mudam):
 

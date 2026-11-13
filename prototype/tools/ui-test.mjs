@@ -4609,8 +4609,9 @@ try {
         }
         // baia 48×36 (retratos): a mesma escala para os 12 moldes; cascos dentro do quadro; o topo pode sair
         // do quadro (crista de ondas, orelhas do robusto) em no máximo 10 % da altura do bbox. k = round(3 × dpr): 3, 6 e
-        // 9 são os dpr 1, 2 e 3 (em k = 4 e 7 o robusto e alguns esguios descem um passo: o CORTE_MAX do sprites.js)
-        for (const k of [3, 6, 9]) for (const est of ['retrato', 'parado']) {
+        // 9 são os dpr 1, 2 e 3; 4 é o dpr 1,25 a 1,4 (o zoom de 125 % do Windows), 7, 8 e 10 os dpr 2,25 a 3,4 (o passo
+        // da escala no quadro sai do molde mais alto, então todos descem juntos)
+        for (const k of [3, 4, 6, 7, 8, 9, 10]) for (const est of ['retrato', 'parado']) {
           const Ls = PS.flatMap((p) => ELS.map((el) => Object.assign({ nome: el + ' ' + p }, SP._layoutMolde(el, est, 5 * k, 1 * k, k, { topo: 0, base: 36 * k }, p))))
           if (new Set(Ls.map((L) => L.S)).size !== 1) erros.push(`${est} k=${k}: escalas diferentes entre os moldes ${Ls.map((L) => L.nome + ' ' + L.S)}`)
           Ls.forEach((L) => {

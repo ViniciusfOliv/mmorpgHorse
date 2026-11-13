@@ -923,6 +923,7 @@
   var moldes = null;       // chave do molde -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados, ancoras }
   var moldsOk = false;
   var moldesLref = 0;      // maior larguraUtil entre os 4 moldes do padrão: escala única
+  var alturaMaxEstado = {}; // estado -> maior altura de bbox entre os 12 moldes: o passo da escala num quadro fixo
   var moldesGeracao = 0;   // descarta um carregamento antigo se loadMolds for chamado de novo
   var CORTE_MAX = 0.1;     // fração da altura do bbox que pode ser cortada no topo de um quadro de altura fixa
   // 64×64×4 = 16 KB por entrada; o teto em bytes é só uma rede de segurança (go() limpa ao trocar de tela)
@@ -1046,6 +1047,12 @@
       // escala única: o maior larguraUtil entre os 4 moldes do padrão
       moldesLref = 0;
       ESTILOS_MOLDE.forEach(function (e) { moldesLref = Math.max(moldesLref, novos[PORTE_PADRAO + '-' + e].larguraUtil); });
+      // num quadro de altura fixa, o passo da escala sai do mais alto dos 12 moldes em cada estado (ver layoutMolde)
+      alturaMaxEstado = {};
+      Object.keys(novos).forEach(function (ch) {
+        var E = novos[ch].estados;
+        for (var est in E) if (Object.prototype.hasOwnProperty.call(E, est)) alturaMaxEstado[est] = Math.max(alturaMaxEstado[est] || 0, E[est].altura);
+      });
       moldes = novos; api.moldesConjunto = 'portes'; moldsOk = true; api.moldsReady = true;
       if (typeof pronto === 'function') pronto();
     }
@@ -1201,18 +1208,22 @@
 
   // Posição do molde na tela para drawHorse(ctx, x, y, { scale: k, quadro }): escala S, canto (ox, oy),
   // linha dos cascos (pe), topo do bbox (topo) e centro do corpo (cx), em px. Sem quadro: cascos no chão do
-  // sprite e focinho no NOSE. Com quadro { topo, base } (px): a mesma escala única, o corpo centrado no x do
-  // sprite e
+  // sprite e focinho no NOSE. Com quadro { topo, base } (px): o corpo centrado no x do sprite e
   //   • se o bbox do estado cabe na altura do quadro: cascos no chão do sprite, ou mais baixos (até a base)
   //     o necessário para o cavalo ficar centrado na altura do quadro;
-  //   • se não cabe: cascos na base e o topo cortado — no máximo CORTE_MAX da altura do bbox; acima disso a
-  //     escala desce um passo (rede de segurança: com os moldes atuais o corte é de ~4 % no retrato de ondas).
+  //   • se não cabe: cascos na base e o topo cortado — no máximo CORTE_MAX da altura do bbox.
+  // A escala do quadro é a única (moldScale) enquanto o MAIS ALTO dos 12 moldes naquele estado (alturaMaxEstado)
+  // couber com corte de no máximo CORTE_MAX; senão desce um passo, para TODOS os moldes juntos. Assim a escala segue
+  // única entre portes e estilos em qualquer k: decidir pelo bbox de cada molde fazia o robusto (o retrato mais alto)
+  // descer de S 3 para S 2 em k = 4 (dpr 1,25 a 1,4, o zoom de 125 % do Windows) e ficar menor que o padrão. O corte de
+  // cada molde fica no máximo o do mais alto (com os moldes dos portes, até 6,9 % no retrato do robusto-ondas em k = 3,
+  // 6 e 9). A outra saída, tolerar mais corte, cortaria a cabeça do robusto (14 % em k = 4).
   function layoutMolde(nome, estado, x, y, k, quadro) {
     var M = moldes[nome], ref = M.estados[estado];
     var S = moldScale(k), pe = y + (FOOT_Y + 1) * k, ox;
     if (quadro && isFinite(quadro.topo) && isFinite(quadro.base) && quadro.base > quadro.topo) {
-      var livre = quadro.base - quadro.topo;
-      while (S > 1 && ref.altura * S - livre > CORTE_MAX * ref.altura * S) S--;
+      var livre = quadro.base - quadro.topo, alta = Math.max(ref.altura, alturaMaxEstado[estado] || 0);
+      while (S > 1 && alta * S - livre > CORTE_MAX * alta * S) S--;
       if (ref.altura * S > livre) pe = quadro.base;
       else pe = Math.min(quadro.base, Math.max(pe, Math.round((quadro.topo + quadro.base + ref.altura * S) / 2)));
       ox = Math.round(x + HORSE_W / 2 * k - ref.centro * S);

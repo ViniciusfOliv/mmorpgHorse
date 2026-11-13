@@ -659,18 +659,78 @@ export function contornar(idx, w, h) {
   return { idx: out, adicionados };
 }
 
+// Crina solta (revisão da T7 da 2b, 2026-11-13). O PixelLab às vezes pinta a canela e o focinho na cor pedida para a
+// crina (no cru do robusto, a canela e a ponta do focinho saem verdes como a crina; no galope do padrão e dos
+// esguios, pedaços das patas), e a classificação por cor os põe nos papéis 4/5: no jogo eles pegam a cor da crina do
+// cavalo (a canela amarela do Fogaréu, verde-escura do Mandacaru) e o brilho da raridade passa por eles. Regra, por
+// componente 8-conexo de crina (4/5) do quadro:
+//   • canela: o componente fica inteiro abaixo da linha da barriga (y > footY − CRINA_SOLTA.barriga × altura do bbox,
+//     a fração do Marcas.zonas). Crina e cauda de verdade sempre passam acima da linha: a cauda que desce até o chão
+//     é o mesmo componente da parte de cima dela (a canela de trás do robusto, a 2–4 px da cauda, é outro);
+//   • focinho: algum pixel do componente a até CRINA_SOLTA.raioFocinho px (Chebyshev) do nose das âncoras, e o topo
+//     dele no máximo CRINA_SOLTA.acimaFocinho linhas acima do nose (o topete e a crina ficam mais altos). Com raio 1
+//     só a ponta do focinho entra; a mancha verde na cara do esguio-chamas no galope, a 2 px, fica crina.
+// O componente deixa de ser crina:
+//   • canela: vira pelagem-sombra (3) se encosta (4-vizinhança) na pelagem — é a continuação da perna, como no parado e
+//     no galope, e as meias podem pintar a canela —, senão contorno (1), um pedaço solto na linha do casco;
+//   • focinho: vira detalhe (6), o papel que o pedido dá ao focinho (COR: "blue (#0000ff) hooves and muzzle") e que o
+//     focinho tem nos outros retratos (os do esguio e do padrão, e o do robusto-folhas, o mesmo porte).
+// Não muda a opacidade, então as âncoras e a larguraUtil não mudam.
+export const CRINA_SOLTA = Object.freeze({ barriga: 0.30, raioFocinho: 1, acimaFocinho: 2 });
+
+/**
+ * Tira da crina (papéis 4/5) os pedaços de canela e de focinho (ver CRINA_SOLTA).
+ * @param {Uint8Array} idx índices de papel (w × h)
+ * @returns {{ idx: Uint8Array, alterados: number, pedacos: Array<{ onde: 'canela'|'focinho', papel: 1|3|6, px: number }> }}
+ */
+export function soltarCrina(idx, w, h) {
+  const out = Uint8Array.from(idx), a = ancoras(idx, w, h), pedacos = [];
+  if (!a.nose) return { idx: out, alterados: 0, pedacos };
+  const crina = v => v === 4 || v === 5, linha = a.footY - CRINA_SOLTA.barriga * a.bbox.h;
+  const visto = new Uint8Array(w * h);
+  let alterados = 0;
+  for (let i0 = 0; i0 < w * h; i0++) {
+    if (!crina(idx[i0]) || visto[i0]) continue;
+    const px = [], pilha = [i0];
+    visto[i0] = 1;
+    let y0 = h, perto = Infinity, pelagem = false;
+    while (pilha.length) {
+      const j = pilha.pop(), x = j % w, y = (j / w) | 0;
+      px.push(j);
+      if (y < y0) y0 = y;
+      perto = Math.min(perto, Math.max(Math.abs(x - a.nose[0]), Math.abs(y - a.nose[1])));
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy, k = yy * w + xx;
+        if ((!dx && !dy) || xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        if (crina(idx[k])) { if (!visto[k]) { visto[k] = 1; pilha.push(k); } }
+        else if ((!dx || !dy) && (idx[k] === 2 || idx[k] === 3)) pelagem = true;
+      }
+    }
+    const onde = y0 > linha ? 'canela'
+      : perto <= CRINA_SOLTA.raioFocinho && y0 >= a.nose[1] - CRINA_SOLTA.acimaFocinho ? 'focinho' : null;
+    if (!onde) continue;
+    const papel = onde === 'focinho' ? 6 : pelagem ? 3 : 1;
+    for (const j of px) out[j] = papel;
+    alterados += px.length;
+    pedacos.push({ onde, papel, px: px.length });
+  }
+  return { idx: out, alterados, pedacos };
+}
+
 /**
  * Quadro classificado → papéis finais: separa claro/sombra com os limiares do grupo, limpa os papéis do
  * jóquei (limparJoquei), sombreia por procedimento as famílias marcadas como `procedural` e, só com
  * `contorno: true` (montado e galope, que o animate devolve sem borda), fecha o contorno (contornar). No
- * retrato e no parado o contorno fica como veio, para o validar() continuar pegando silhueta aberta.
+ * retrato e no parado o contorno fica como veio, para o validar() continuar pegando silhueta aberta. Por último,
+ * tira da crina os pedaços de canela e de focinho (soltarCrina; `crinaSolta: false` pula essa etapa, só para os
+ * testes compararem o antes e o depois).
  * `aproximados` = os da classificação + magenta que a limpeza tirou do jóquei (virou papel de cavalo).
  * Devolve o formato de normalizar() (serve para validar()) e as contagens das etapas.
  * @param {{ idx: Uint8Array, lum: Float32Array, magenta?: Uint8Array, aproximados: number, opacos: number, w: number, h: number }} fam
  * @param {ReturnType<typeof limiaresDeTons>} tons
- * @param {{ comJoquei?: boolean, contorno?: boolean }} opts
+ * @param {{ comJoquei?: boolean, contorno?: boolean, crinaSolta?: boolean }} opts
  */
-export function posProcessar(fam, tons, { comJoquei = false, contorno = false } = {}) {
+export function posProcessar(fam, tons, { comJoquei = false, contorno = false, crinaSolta = true } = {}) {
   const { w, h } = fam, idx = Uint8Array.from(fam.idx);
   for (const [nome, claro] of Object.entries(FAMILIAS)) {
     const t = tons[nome];
@@ -680,9 +740,10 @@ export function posProcessar(fam, tons, { comJoquei = false, contorno = false } 
   const regioes = Object.entries(FAMILIAS).filter(([nome]) => tons[nome].procedural).map(([, claro]) => claro);
   const s = regioes.length ? sombrearRegioes(lj.idx, w, h, { regioes }) : { idx: lj.idx, alterados: 0 };
   const c = contorno ? contornar(s.idx, w, h) : { idx: s.idx, adicionados: 0 };
+  const sc = crinaSolta ? soltarCrina(c.idx, w, h) : { idx: c.idx, alterados: 0 };
   let aproximados = fam.aproximados;
   if (fam.magenta) for (let i = 0; i < idx.length; i++) if (fam.magenta[i] && !JOQUEI(lj.idx[i])) aproximados++;
   const papeis = new Set();
-  for (const v of c.idx) if (v) papeis.add(v);
-  return { idx: c.idx, papeis, aproximados, opacos: fam.opacos, w, h, remapeados: lj.remapeados, sombreados: s.alterados, contornados: c.adicionados };
+  for (const v of sc.idx) if (v) papeis.add(v);
+  return { idx: sc.idx, papeis, aproximados, opacos: fam.opacos, w, h, remapeados: lj.remapeados, sombreados: s.alterados, contornados: c.adicionados, crinaSolta: sc.alterados };
 }

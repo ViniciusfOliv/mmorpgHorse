@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { ICONES_NOVOS, FAMILIAS, RESERVADOS, ANTIGOS } from './icones-catalogo.mjs';
 import { htmlFolhaIcones } from './folha-icones.mjs';
-import { PAPEIS, paletaPng, normalizar, validar, ancoras, paraCinza, deCinza, sombrearRegioes, limparJoquei, limiarOtsu, classificarFamilias, limiaresDeTons, posProcessar, contornar, passada, sombraMagenta, sedaNaPelagem, crinaEscura, corrigirGrupo, modoNatural } from './moldes-lib.mjs';
+import { PAPEIS, paletaPng, normalizar, validar, ancoras, paraCinza, deCinza, sombrearRegioes, limparJoquei, limiarOtsu, classificarFamilias, limiaresDeTons, posProcessar, contornar, passada, sombraMagenta, sedaNaPelagem, crinaEscura, corrigirGrupo, modoNatural, soltarCrina, CRINA_SOLTA } from './moldes-lib.mjs';
 
 let fails = 0, count = 0;
 function section(t) { console.log('\n## ' + t); }
@@ -255,7 +255,8 @@ test('contornar fecha a borda só onde falta contorno', () => {
 test('posProcessar: Otsu na família equilibrada, procedural na desequilibrada', () => {
   // coluna 0: pelagem com lum 200,200,60 (sombra pelo limiar); coluna 1: crina toda lum 120 (procedural)
   const w = 2, h = 3, fam = { idx: Uint8Array.from([2, 4, 2, 4, 2, 4]), lum: Float32Array.from([200, 120, 200, 120, 60, 120]), aproximados: 0, opacos: 6, w, h };
-  const r = posProcessar(fam, { pelagem: { limiar: 100, procedural: false }, crina: { limiar: -1, procedural: true } });
+  // (sem a etapa da crina solta: num quadro 2×3 a crina inteira fica a 1 px do nose e viraria focinho)
+  const r = posProcessar(fam, { pelagem: { limiar: 100, procedural: false }, crina: { limiar: -1, procedural: true } }, { crinaSolta: false });
   assert.deepStrictEqual(Array.from(r.idx), [2, 4, 2, 4, 3, 5]);
   assert.deepStrictEqual([...r.papeis].sort(), [2, 3, 4, 5]); assert.strictEqual(r.sombreados, 1);
   assert.strictEqual(r.contornados, 0, 'sem pixel transparente, nada a contornar');
@@ -462,7 +463,55 @@ else {
       }
     }
   });
+  test('cru robusto-chamas (retrato 3403): a canela e o focinho que saem na cor da crina viram pelagem-sombra e detalhe; o resto, igual ao molde do jogo', () => {
+    // o caminho do lote para o retrato (quadrosDoMolde): correções de grupo, limiares e pós-processamento, sem jóquei
+    const fams = corrigirGrupo(grupoCru('portes-robusto-chamas-retrato-g100m5303-s3403'), { comJoquei: false }).fams, tons = limiaresDeTons(fams);
+    const antes = posProcessar(fams[0], tons, { crinaSolta: false }).idx, depois = posProcessar(fams[0], tons);
+    const a = ancoras(antes, 64, 64), linha = a.footY - CRINA_SOLTA.barriga * a.bbox.h;
+    const crinaAbaixo = q => q.filter((v, i) => (v === 4 || v === 5) && ((i / 64) | 0) > linha).length;
+    // antes: abaixo da barriga, a cauda que desce (35 px) e as canelas das 3 pernas que se veem (80 px) eram crina
+    assert.strictEqual(crinaAbaixo(antes), 115, 'antes: canelas + cauda');
+    const mud = [];
+    for (let i = 0; i < 4096; i++) if (antes[i] !== depois.idx[i]) mud.push([antes[i], depois.idx[i], (i / 64) | 0, i % 64]);
+    assert.strictEqual(mud.length, 93); assert.strictEqual(depois.crinaSolta, 93);
+    assert.ok(mud.every(([v]) => v === 4 || v === 5), 'só muda crina');
+    assert.strictEqual(mud.filter(m => m[1] === 3 && m[2] > linha).length, 80, 'canelas: pelagem-sombra');
+    assert.strictEqual(mud.filter(m => m[1] === 6 && Math.abs(m[3] - a.nose[0]) <= 4 && Math.abs(m[2] - a.nose[1]) <= 4).length, 13, 'ponta do focinho: detalhe');
+    assert.strictEqual(crinaAbaixo(depois.idx), 35, 'depois: abaixo da barriga, só a cauda');
+    // e é o molde do jogo
+    const d = decodePng(fs.readFileSync(path.join(DIR, 'molde-robusto-chamas-retrato.png')));
+    assert.ok(depois.idx.every((v, i) => v === Math.round(d.rgba[i * 4] / 25)), 'igual ao molde-robusto-chamas-retrato.png');
+  });
 }
+// Crina solta (rodada de correção 1 da T7): canela e focinho que a classificação pôs na crina (moldes-lib, soltarCrina).
+test('soltarCrina: canela abaixo da barriga vira pelagem-sombra (ou contorno, solta); focinho vira detalhe; crina, topete e cauda ficam', () => {
+  // grade 30×24 desenhada à mão: corpo de pelagem x 6–21 × y 8–13, cabeça x 22–26 × y 3–9 e focinho x 27 × y 6–7 (de
+  // crina, com o x 26 dele; nose = o contorno em x 28, y 6), crina x 18–21 × y 3–7 e topete x 24 × y 2; cauda x 2–5 ×
+  // y 8–19 (desce abaixo da linha da barriga, presa ao alto dela); pernas x 8–9 e x 18–19 de y 14 a 20, com a canela
+  // (y 17–20) de crina; um pedaço de crina solto no contorno (x 13, y 21). Contorno 1 em volta de tudo.
+  const w = 30, h = 24, idx = new Uint8Array(w * h);
+  const ret = (x0, y0, x1, y1, v) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) idx[y * w + x] = v; };
+  ret(6, 8, 21, 13, 2); ret(22, 3, 26, 9, 2); ret(18, 3, 21, 7, 4); ret(24, 2, 24, 2, 4); ret(2, 8, 5, 19, 5);
+  ret(8, 14, 9, 16, 2); ret(8, 17, 9, 20, 4); ret(18, 14, 19, 16, 3); ret(18, 17, 19, 20, 5); ret(26, 6, 27, 7, 4);
+  const base = idx.slice();
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (base[y * w + x]) continue;
+    if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const xx = x + dx, yy = y + dy; return xx >= 0 && yy >= 0 && xx < w && yy < h && base[yy * w + xx]; })) idx[y * w + x] = 1;
+  }
+  idx[22 * w + 13] = 4;   // pedaço de crina solto, cercado de vazio e contorno: vira contorno
+  const a = ancoras(idx, w, h), linha = a.footY - CRINA_SOLTA.barriga * a.bbox.h;
+  assert.ok(linha > 13 && linha < 17, 'linha da barriga ' + linha);
+  const r = soltarCrina(idx, w, h), em = (x, y) => r.idx[y * w + x];
+  assert.deepStrictEqual([em(8, 18), em(9, 20), em(18, 17), em(19, 20)], [3, 3, 3, 3], 'canelas: pelagem-sombra');
+  assert.strictEqual(em(13, 22), 1, 'pedaço solto, sem pelagem em volta: contorno');
+  assert.deepStrictEqual([em(26, 6), em(27, 7)], [6, 6], 'focinho: detalhe (nose ' + a.nose + ')');
+  assert.deepStrictEqual([em(19, 4), em(24, 2), em(3, 19), em(4, 10)], [4, 4, 5, 5], 'crina, topete e cauda (até abaixo da linha) ficam');
+  assert.deepStrictEqual(r.pedacos.map(p => p.onde + ' ' + p.papel + ' ' + p.px).sort(), ['canela 1 1', 'canela 3 8', 'canela 3 8', 'focinho 6 4']);
+  assert.strictEqual(r.alterados, 21);
+  for (let i = 0; i < w * h; i++) if (r.idx[i] !== idx[i]) assert.ok(idx[i] === 4 || idx[i] === 5, 'só a crina muda (pixel ' + i + ')');
+  assert.deepStrictEqual(ancoras(r.idx, w, h), a, 'as âncoras não mudam');
+  assert.strictEqual(soltarCrina(new Uint8Array(w * h), w, h).alterados, 0, 'quadro vazio: nada');
+});
 test('limparJoquei: seda separada do jóquei só por contorno (até 2 px de contorno no meio) e encostada na caixa dele fica', () => {
   // 7 = seda (o maior componente é o de baixo, em L), 1 = contorno, 2 = pelagem. O "capacete" (os 7 de cima) fica a 3 px
   // (Chebyshev) do tronco — a regra de sempre (até 2 px) o tirava — e só encosta nele por 2 px de contorno
@@ -512,10 +561,12 @@ const HOJE_FOLHA = '2026-11-13';
 const MESTRE_ROBUSTO = 'folha dos mestres: o robusto guiado pelo mestre padrão, aceito como está (cabeça e pescoço mais pesados)';
 const ESGUIO_SEM_GUIA = 'folha final: versão do esguio sem init_image (o piloto reprovou no mesmo corpo nas 3 seeds), aceita como está';
 const FOLHA_FINAL = 'folha final: aceito como está';
+// rodada de correção 1 da T7 (2026-11-13): a crina solta (moldes-lib, soltarCrina) devolveu a canela do retrato dos
+// robustos à pelagem; o desenho da folha só mudou na canela, e as medidas mudaram com ela
+const CRINA_SOLTA_T7 = 'T7, rodada de correção 1: a canela voltou da crina para a pelagem-sombra (47 px); as pernas ficaram inteiras e a dianteira de longe encosta na de perto (antes, as 4 "pernas" eram pedaços partidos pela canela de crina). O desenho da folha final é o mesmo, fora a cor da canela';
 const aceito = (molde, etapa, criterio, valor, motivo, defeito) => Object.assign({ molde, etapa, criterio, valor, data: HOJE_FOLHA, motivo }, defeito ? { defeito } : {});
 const ACEITOS_NA_FOLHA = [
   aceito('esguio-lisa', 'parado', 'pernas no parado', 2, 'folha dos mestres: escolha do Vinicius (seed 3101), desenho melhor com 2 pernas visíveis'),
-  aceito('robusto-lisa', 'retrato', 'pernas no retrato', 3, MESTRE_ROBUSTO),
   aceito('robusto-lisa', 'retrato', 'portes: altura/comprimento do robusto ÷ a do padrão', 1.056, MESTRE_ROBUSTO),
   aceito('robusto-lisa', 'retrato', 'portes: espessura/comprimento do robusto ÷ a do padrão', 0.817, MESTRE_ROBUSTO),
   aceito('robusto-lisa', 'corrida', 'forma (corrida)', 1, MESTRE_ROBUSTO + '; laranja fora da paleta no cru (3,4 %)', 'fora da paleta'),
@@ -544,6 +595,7 @@ const ACEITOS_NA_FOLHA = [
   aceito('robusto-ondas', 'corrida', 'forma (corrida)', 1, FOLHA_FINAL + '; o jóquei sai sem pele', 'faltam papéis: 8 (jóquei-pele)'),
   aceito('robusto-ondas', 'galope', 'forma (galope)', 9, FOLHA_FINAL + '; o jóquei sai sem pele nos 9 quadros', 'faltam papéis: 8 (jóquei-pele)'),
   aceito('robusto-ondas', 'galope', 'galope: comprimento do corpo', 9, FOLHA_FINAL),
+  aceito('robusto-folhas', 'retrato', 'pernas no retrato', 3, CRINA_SOLTA_T7),
   aceito('robusto-folhas', 'galope', 'galope: comprimento do corpo', 6, FOLHA_FINAL),
 ];
 const chaveAceito = a => `${a.molde} · ${a.etapa} · ${a.criterio} = ${a.valor}`;
@@ -564,12 +616,14 @@ const PENDENTES_2A = {
   estrela: ['robusto-ondas galope-4: 1 px', 'robusto-ondas galope-5: 1 px', 'robusto-ondas galope-6: 1 px'],
   listra: ['esguio-ondas parado: 2 px', 'padrao-folhas retrato: longe do focinho', 'robusto-chamas galope-5: 2 px', 'robusto-ondas galope-0: longe do focinho'],
   // 1 meia em 2 manchas: o contorno do casco corta a meia (a ponta de baixo da perna fica separada)
-  umaMeia: ['padrao-ondas parado: 2 manchas', 'robusto-chamas galope-6: 2 manchas', 'robusto-folhas galope-0: 2 manchas', 'robusto-folhas retrato: 2 manchas'],
+  umaMeia: ['padrao-ondas parado: 2 manchas', 'robusto-chamas galope-6: 2 manchas', 'robusto-folhas galope-0: 2 manchas'],
   // meias por molde (pendência da 2a): N meias (1 a 4) ⇒ min(N, pernas) manchas, com pernas = 4 ou a contagem aceita
   // na folha. Desvios: meias de pernas vizinhas encostadas viram uma mancha; o casco cortado (acima) faz uma a mais
   meias: ['esguio-folhas retrato: 1/2/3/3 (esperado 1/2/3/4)', 'esguio-lisa retrato: 1/2/4/5 (esperado 1/2/3/4)',
     'padrao-chamas parado: 1/2/2/2 (esperado 1/2/3/4)', 'padrao-ondas parado: 2/3/5/7 (esperado 1/2/3/4)',
-    'robusto-chamas retrato: 1/2/2/2 (esperado 1/2/3/3)', 'robusto-folhas retrato: 2/3/4/5 (esperado 1/2/3/4)'],
+    // rodada de correção 1 da T7: com a canela de volta à pelagem, o robusto-lisa acha as 4 pernas no retrato (eram 3
+    // aceitas), e duas meias de trás se encostam
+    'robusto-lisa retrato: 1/2/3/3 (esperado 1/2/3/4)'],
 };
 // Brilho da raridade sobre a crina (pendência da 2a): a diferença de luminância relativa entre a crina e a crina com o
 // brilho no alfa de pico fica abaixo de 0,05 (o limiar do teste do Mágico na Grama, fx-test) nestas combinações de
@@ -1036,9 +1090,19 @@ test('camadaJoquei: padrão só no papel 7; liso ⇒ zero pixels 1; capacete = g
     assert.strictEqual(n1 === 0, p === 'liso', p + ': ' + n1 + ' pixels de padrão');
   });
   assert.strictEqual(contar(Mc().camadaJoquei(s.idx, s.w, s.h, s.a, 'nao-existe'), v => v === 1), 0, 'padrão inválido = liso');
+  // sem pele do jóquei (rosto e a linha de contorno do pescoço viram roupa: o grupo de cima vai da linha 1 à 8): sem
+  // rosto para cortar a linha, o capacete fica nas LIMITES.capaceteSemPele linhas de cima, e não no grupo todo
+  const sp = cavaloMarcas(null, ret => { ret(22, 3, 23, 3, 7); ret(20, 4, 23, 4, 7); });
+  assert.ok(!sp.idx.includes(8), 'sintético sem pele');
+  const cs = Mc().camadaJoquei(sp.idx, sp.w, sp.h, sp.a, 'liso'), N = Mc().LIMITES.capaceteSemPele;
+  assert.strictEqual(N, 4);
+  for (let i = 0; i < cs.length; i++) {
+    const y = (i / sp.w) | 0;
+    if (sp.idx[i] === 7) assert.strictEqual(cs[i] === 2, y <= N, 'sem pele: capacete só nas linhas 1 a ' + N + ' (pixel ' + i + ', linha ' + y + ')');
+  }
   // moldes reais (parado e galope): capacete no alto, padrão só na seda abaixo dele e minoria nela. Quadro sem pele do
-  // jóquei (a forma aceita na folha com "faltam papéis: 8") não tem rosto para cortar a linha do capacete: o capacete é o
-  // grupo de cima inteiro do papel 7, e a altura dele não se confere (no robusto-ondas, o jóquei todo)
+  // jóquei (a forma aceita na folha com "faltam papéis: 8") não tem rosto para cortar a linha do capacete: ela fica a no
+  // máximo LIMITES.capaceteSemPele linhas do topo (rodada de correção 1 da T7; antes, o capacete cobria metade da roupa)
   todosReais().filter(q => q.quadro !== 'retrato').forEach(q => {
     let topo = q.h;
     q.idx.forEach((v, i) => { if (v === 7) topo = Math.min(topo, (i / q.w) | 0); });
@@ -1056,7 +1120,8 @@ test('camadaJoquei: padrão só no papel 7; liso ⇒ zero pixels 1; capacete = g
         if (v === 7 && c[i] !== 2) seda++;
       }
       assert.strictEqual(capMin, topo, nome + ': o capacete começa no topo do papel 7');
-      if (!semPele) assert.ok(capMax - capMin <= 8, nome + ': capacete alto demais (' + capMin + '–' + capMax + ')');
+      assert.ok(capMax - capMin <= 8, nome + ': capacete alto demais (' + capMin + '–' + capMax + ')');
+      if (semPele) assert.ok(capMax - capMin + 1 <= Mc().LIMITES.capaceteSemPele, nome + ': sem pele, capacete com ' + (capMax - capMin + 1) + ' linhas');
       if (p === 'liso') { assert.strictEqual(padrao, 0, nome); return; }
       assert.ok(padrao > 0, nome + ': padrão vazio');
       assert.ok(padraoMin > capMax, nome + ': padrão acima da linha do capacete');

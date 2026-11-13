@@ -28,7 +28,7 @@
         "ok": true,
         "seed": 3402
       },
-      "atualizado": "2026-11-13T15:41:28.343Z"
+      "atualizado": "2026-11-13T17:00:56.074Z"
     },
     "robusto": {
       "chave": "robusto-chamas",
@@ -41,7 +41,7 @@
         "ok": true,
         "seed": 3503
       },
-      "atualizado": "2026-11-13T15:41:28.692Z"
+      "atualizado": "2026-11-13T17:00:56.542Z"
     }
   },
   "portes": {
@@ -1424,7 +1424,6 @@
       "ok": true,
       "falhas": [],
       "aceitos": [
-        "retrato: pernas no retrato = 3 (= 4)",
         "retrato: portes: altura/comprimento do robusto ÷ a do padrão = 1,056 (≤ 0,92)",
         "retrato: portes: espessura/comprimento do robusto ÷ a do padrão = 0,817 (≥ 1,15)",
         "corrida: forma (corrida) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))",
@@ -1538,10 +1537,9 @@
                 },
                 {
                   "criterio": "pernas no retrato",
-                  "ok": false,
-                  "valor": 3,
-                  "limite": "= 4",
-                  "aceito": true
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "= 4"
                 },
                 {
                   "criterio": "portes: altura/comprimento do robusto ÷ a do padrão",
@@ -1572,7 +1570,6 @@
             "origem": "refação 2, a atual",
             "arquivo": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
             "aceitos": [
-              "pernas no retrato",
               "portes: altura/comprimento do robusto ÷ a do padrão",
               "portes: espessura/comprimento do robusto ÷ a do padrão"
             ]
@@ -4868,14 +4865,14 @@
                   "limite": "≥ 2",
                   "quadros": [
                     4,
-                    3,
                     2,
-                    4,
-                    3,
-                    3,
-                    3,
                     2,
-                    4
+                    3,
+                    3,
+                    3,
+                    3,
+                    3,
+                    3
                   ]
                 },
                 {
@@ -4958,12 +4955,12 @@
                 {
                   "criterio": "pernas no galope (todo quadro)",
                   "ok": true,
-                  "valor": 2,
+                  "valor": 3,
                   "limite": "≥ 2",
                   "quadros": [
                     4,
-                    2,
                     3,
+                    4,
                     3,
                     4,
                     4,
@@ -5056,8 +5053,8 @@
                   "limite": "≥ 2",
                   "quadros": [
                     4,
-                    3,
                     2,
+                    4,
                     4,
                     4,
                     4,
@@ -5242,8 +5239,8 @@
                 },
                 {
                   "criterio": "pernas no retrato",
-                  "ok": true,
-                  "valor": 4,
+                  "ok": false,
+                  "valor": 3,
                   "limite": "= 4"
                 },
                 {
@@ -6329,7 +6326,7 @@
                 {
                   "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
                   "ok": true,
-                  "valor": 3,
+                  "valor": 2,
                   "limite": "≥ 2"
                 }
               ],
@@ -6365,15 +6362,15 @@
                   "valor": 2,
                   "limite": "≥ 2",
                   "quadros": [
-                    3,
-                    2,
-                    3,
                     2,
                     3,
                     3,
                     3,
-                    2,
-                    3
+                    3,
+                    3,
+                    3,
+                    4,
+                    4
                   ]
                 },
                 {
@@ -6455,19 +6452,19 @@
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
-                  "ok": false,
-                  "valor": 1,
+                  "ok": true,
+                  "valor": 2,
                   "limite": "≥ 2",
                   "quadros": [
+                    2,
+                    3,
+                    3,
                     3,
                     2,
                     2,
-                    2,
-                    2,
-                    2,
-                    2,
-                    1,
-                    2
+                    3,
+                    3,
+                    3
                   ]
                 },
                 {
@@ -6528,7 +6525,7 @@
                   ]
                 }
               ],
-              "ok": false,
+              "ok": true,
               "quadros": 9
             },
             {
@@ -6553,7 +6550,7 @@
                   "valor": 2,
                   "limite": "≥ 2",
                   "quadros": [
-                    3,
+                    2,
                     2,
                     2,
                     2,
@@ -8188,7 +8185,7 @@
                 {
                   "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
                   "ok": true,
-                  "valor": 2,
+                  "valor": 3,
                   "limite": "≥ 2"
                 }
               ],
@@ -8224,7 +8221,7 @@
                   "valor": 2,
                   "limite": "≥ 2",
                   "quadros": [
-                    2,
+                    3,
                     3,
                     3,
                     4,
@@ -8355,8 +8352,8 @@
                 },
                 {
                   "criterio": "pernas no retrato",
-                  "ok": false,
-                  "valor": 3,
+                  "ok": true,
+                  "valor": 4,
                   "limite": "= 4"
                 },
                 {
@@ -8413,8 +8410,8 @@
                 },
                 {
                   "criterio": "pernas no retrato",
-                  "ok": false,
-                  "valor": 3,
+                  "ok": true,
+                  "valor": 4,
                   "limite": "= 4"
                 },
                 {
@@ -8448,7 +8445,7 @@
                   "limite": "|Δ| ≤ 2 px"
                 }
               ],
-              "ok": false
+              "ok": true
             },
             {
               "seed": 3606,
@@ -9115,12 +9112,13 @@
       "final": true,
       "ok": false,
       "falhas": [
+        "retrato: pernas no retrato = 3 (= 4)",
         "galope: comprimento do corpo = 6 (varia ≤ 4 px)"
       ],
       "etapas": {
         "retrato": {
           "escolhida": 3609,
-          "ok": true,
+          "ok": false,
           "terminada": true,
           "refacao": 0,
           "tentativas": [
@@ -9261,8 +9259,8 @@
                 },
                 {
                   "criterio": "pernas no retrato",
-                  "ok": true,
-                  "valor": 4,
+                  "ok": false,
+                  "valor": 3,
                   "limite": "= 4"
                 },
                 {
@@ -9296,7 +9294,7 @@
                   "limite": "|Δ| ≤ 2 px"
                 }
               ],
-              "ok": true
+              "ok": false
             }
           ]
         },
@@ -9838,5 +9836,5 @@
     "nose": 6,
     "comprimento": 4
   },
-  "atualizado": "2026-11-13T15:41:29.516Z"
+  "atualizado": "2026-11-13T17:00:57.328Z"
 }

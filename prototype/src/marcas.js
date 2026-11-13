@@ -66,7 +66,10 @@
  *   capacete: grupos 4-conexos do papel 7; o de cima é o primeiro com ≥ 3 px na ordem de leitura (nenhum com
  *     3: o primeiro). LINHA DO CAPACETE = maior y desse grupo, cortada no fundo do rosto (o grupo 8-conexo de
  *     pele que tem o pixel de pele mais alto) quando o rosto acaba antes — o cabelo pode ligar o capacete à
- *     roupa. Capacete = os pixels do grupo de cima até a linha.
+ *     roupa. Quadro SEM pele (sem rosto para cortar; nos moldes, o galope do robusto-ondas e o parado do
+ *     esguio-folhas): a linha fica a no máximo LIMITES.capaceteSemPele − 1 linhas abaixo do topo do grupo — sem
+ *     o corte, o grupo de cima é a cabeça e o tronco juntos, e o capacete cobria metade da roupa.
+ *     Capacete = os pixels do grupo de cima até a linha.
  *   padrão (GameData.JOQUEI.padroes; fora da lista vale liso): só no papel 7 fora do capacete e abaixo da
  *     linha, em (u, v) relativos à referência (como as marcas do corpo), ~1/3 dos pixels:
  *       liso nada · listras u % 3 = 0 · faixa (u + v) % 6 < 2 · xadrez casas 2×2 alternadas sem o canto de baixo
@@ -95,8 +98,11 @@
   var CARA_BAIXO = 1;     // a cara vai até nose.y + CARA_BAIXO (corte preso ao focinho)
   var BARRIGA = 0.30;     // linha da barriga = footY − BARRIGA · bbox.h
   var LINHAS_CASCOS = 3;  // linhas de baixo de uma perna onde se procuram cascos separados
+  // capacete de um quadro SEM pele do jóquei (sem rosto para cortar a linha): no máximo estas linhas a partir do topo da
+  // roupa. É o 3º quartil da altura do capacete nos 110 quadros com pele dos 12 moldes dos portes (mediana 3; 75 % até 4)
+  var CAPACETE_SEM_PELE = 4;
   var MAX_FAISCAS = 16;
-  var LIMITES = { caraRaio: CARA_RAIO, caraBaixo: CARA_BAIXO, barriga: BARRIGA, linhasCascos: LINHAS_CASCOS };
+  var LIMITES = { caraRaio: CARA_RAIO, caraBaixo: CARA_BAIXO, barriga: BARRIGA, linhasCascos: LINHAS_CASCOS, capaceteSemPele: CAPACETE_SEM_PELE };
   if (Object.freeze) Object.freeze(LIMITES);
 
   var N_FAISCAS = { comum: 0, magico: 0, raro: 3, lendario: 5, mitico: 5 };
@@ -387,8 +393,10 @@
     if (!roupa.length) return out;
     var cima = roupa[0];
     for (i = 0; i < roupa.length; i++) if (roupa[i].px.length >= 3) { cima = roupa[i]; break; }
-    var linha = cima.y1, pele = grupos(idx, w, h, 8, true);
+    var linha = cima.y1, pele = grupos(idx, w, h, 8, true), topo = h;
+    for (i = 0; i < cima.px.length; i++) topo = Math.min(topo, (cima.px[i] / w) | 0);
     if (pele.length && pele[0].y1 < linha) linha = pele[0].y1;
+    else if (!pele.length) linha = Math.min(linha, topo + CAPACETE_SEM_PELE - 1);
     for (i = 0; i < cima.px.length; i++) if (((cima.px[i] / w) | 0) <= linha) out[cima.px[i]] = 2;
     var f = Object.prototype.hasOwnProperty.call(PADROES, padrao) && emLista(G.JOQUEI.padroes, padrao) ? PADROES[padrao] : PADROES.liso;
     var ref = referencia(ancora);

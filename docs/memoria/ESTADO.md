@@ -81,13 +81,16 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   `novos/` guarda só o registro do lote (para mexer no lote: `--reprocessar --manter-escolhas` antes, mover os moldes
   depois; cabeçalho do `pixellab-portes.mjs`). As pendências da 2a viraram testes no `moldes-test` ("Portes: moldes
   reais"): critérios aceitos na folha em `ACEITOS_NA_FOLHA`; meias por molde, pele acima do capacete (passa) e brilho
-  das raridades. **Para decidir com o Vinicius** (medido e listado no teste, sem afrouxar regra): 6 dos 24
-  retratos/parados com meias que se juntam ou se partem (`PENDENTES_2A.meias`); 14 combinações elemento × raridade ×
+  das raridades. Na revisão da T7 saíram três defeitos: a canela (retrato dos robustos, galope do padrão e dos esguios)
+  e o focinho (robustos) que o PixelLab pintou na cor da crina voltaram à pelagem-sombra e ao detalhe (`soltarCrina`,
+  1.313 px em 61 quadros, sem custo); o capacete do jóquei sem pele ficou em 4 linhas; e a escala dos retratos é a
+  mesma nos 12 moldes em qualquer dpr (o passo sai do molde mais alto). **Para decidir com o Vinicius** (medido e
+  listado no teste, sem afrouxar regra): 5 dos 24 retratos/parados com meias que se juntam ou se partem
+  (`PENDENTES_2A.meias`); 14 combinações elemento × raridade ×
   crina do catálogo com o brilho abaixo de 0,05 de luminância (ex.: Mágico na crina do Tição, 0,005;
   `BRILHO_PENDENTE`); zona da cara variando mais de 20% no galope em 5 moldes, estrela de 1 px e listra curta em
-  alguns quadros (`PENDENTES_2A`); patas do retrato dos 4 robustos classificadas como crina (pegam a cor da crina e
-  o brilho); sem a pele do jóquei (galope do robusto-ondas, parado do esguio-folhas), o capacete pega cerca de metade da roupa
-  (78 a 81 de ~146 px no galope do robusto-ondas). Faltam a T8 (wiki, GDD,
+  alguns quadros (`PENDENTES_2A`); o retrato do robusto-folhas passou a 3 pernas com a canela de volta à pelagem
+  (registrado no teste com o motivo). Faltam a T8 (wiki, GDD,
   memória e artefato) e a revisão final da 2b.
 
 ## O que falta
