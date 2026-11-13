@@ -8,7 +8,9 @@
 // Também confere a entrada reservada do páreo aberto, a gravação que falha, o save adulterado ou corrompido,
 // o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo, o tamanho mínimo do texto e o teto
 // de chamadas de canvas por quadro na corrida mais cara.
-//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,marcas,portes node tools/ui-test.mjs  -> só esses
+//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,marcas,portes,crescimento node tools/ui-test.mjs  -> só esses
+// Equipamento suspenso (bloco 1b, GEAR_ON = false no game.js): os blocos das telas de peças e da Loja conferem que elas
+// não aparecem e que as ações de peça não fazem nada; com GEAR_ON = true voltam a testar as telas (GEAR_ON abaixo).
 import { createRequire } from 'node:module'
 import { dirname, extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -52,6 +54,11 @@ await new Promise((ok, falha) => { servidor.once('error', falha); servidor.liste
 const BASE = `http://127.0.0.1:${servidor.address().port}/`
 const URL = BASE + 'preview.html'
 const SHOTS = process.env.SHOTS_DIR || join(ROOT, 'screens') // SHOTS_DIR: usado pelo scripts/check.sh
+// versão do save e equipamento (spec 1b §8, §10), lidos do jogo gerado: o teste segue o que o build tem
+const PREVIEW_JS = await readFile(join(DIST, 'preview.html'), 'utf8')
+const SAVE_V = Number((PREVIEW_JS.match(/var SAVE_VERSION = (\d+);/) || [])[1])
+const GEAR_ON = (PREVIEW_JS.match(/var GEAR_ON = (true|false);/) || [])[1] === 'true'
+if (!(SAVE_V >= 6)) throw new Error('ui-test: não achei SAVE_VERSION (>= 6) no dist/preview.html')
 // SHOTS_T6: pasta (fora do repositório) para as capturas de conferência das telas da build; sem ela, não captura
 const SHOTS_T6 = process.env.SHOTS_T6 || null
 const capT6 = (pg, nome, full = false) => (SHOTS_T6 ? pg.screenshot({ path: join(SHOTS_T6, nome), fullPage: full }).catch(() => {}) : null)
@@ -253,21 +260,25 @@ try {
       await rv.getByRole('button', { name: /^Voltar/ }).click()
       await rv.waitForSelector('#t-correr')
       // 2. Loja: as pedras só podem gastar o Ouro acima da entrada reservada (500 - 250 = 250 livres)
-      await rv.locator('[data-acao="aba"][data-id="loja"]').click()
-      await rv.waitForSelector('#t-loja')
-      await rv.locator('[data-acao="loja-tab"][data-id="pedras"]').click()
-      if (!/250 de Ouro reservados para a entrada do páreo aberto/.test((await rv.locator('#tela').textContent()) || '')) problems.push('reserva: a Loja não avisa o Ouro reservado')
-      await rv.locator('[data-acao="comprar-pedra"][data-id="5"]').click()   // 200 -> 300
-      await rv.locator('[data-acao="comprar-pedra"][data-id="1"]').click()   // 40 -> 260
-      let s = await st()
-      if (s.gold !== 260 || s.pedras !== 6) problems.push('reserva: compras dentro do livre ' + JSON.stringify({ gold: s.gold, pedras: s.pedras }))
-      if (!(await rv.locator('[data-acao="comprar-pedra"][data-id="1"]').isDisabled())) problems.push('reserva: comprar pedra habilitado com o Ouro livre abaixo do preço')
-      // clique forçado: o handler também recusa
-      for (let k = 0; k < 2; k++) await rv.evaluate(() => { const b = document.querySelector('[data-acao="comprar-pedra"][data-id="1"]'); b.disabled = false; b.click() })
-      await rv.locator('[data-acao="loja-tab"][data-id="sela"]').click()
-      await rv.evaluate(() => { const b = document.querySelector('[data-acao="comprar"][data-id="sela-comum"]'); b.disabled = false; b.click() })
-      s = await st()
-      if (s.gold < 250) problems.push('reserva: gasto passou da entrada reservada (Ouro ' + s.gold + ')')
+      //    (com o equipamento suspenso não há Loja: o gasto que sobra com a sala aberta é a vaga do estábulo, no passo 3)
+      let s
+      if (GEAR_ON) {
+        await rv.locator('[data-acao="aba"][data-id="loja"]').click()
+        await rv.waitForSelector('#t-loja')
+        await rv.locator('[data-acao="loja-tab"][data-id="pedras"]').click()
+        if (!/250 de Ouro reservados para a entrada do páreo aberto/.test((await rv.locator('#tela').textContent()) || '')) problems.push('reserva: a Loja não avisa o Ouro reservado')
+        await rv.locator('[data-acao="comprar-pedra"][data-id="5"]').click()   // 200 -> 300
+        await rv.locator('[data-acao="comprar-pedra"][data-id="1"]').click()   // 40 -> 260
+        s = await st()
+        if (s.gold !== 260 || s.pedras !== 6) problems.push('reserva: compras dentro do livre ' + JSON.stringify({ gold: s.gold, pedras: s.pedras }))
+        if (!(await rv.locator('[data-acao="comprar-pedra"][data-id="1"]').isDisabled())) problems.push('reserva: comprar pedra habilitado com o Ouro livre abaixo do preço')
+        // clique forçado: o handler também recusa
+        for (let k = 0; k < 2; k++) await rv.evaluate(() => { const b = document.querySelector('[data-acao="comprar-pedra"][data-id="1"]'); b.disabled = false; b.click() })
+        await rv.locator('[data-acao="loja-tab"][data-id="sela"]').click()
+        await rv.evaluate(() => { const b = document.querySelector('[data-acao="comprar"][data-id="sela-comum"]'); b.disabled = false; b.click() })
+        s = await st()
+        if (s.gold < 250) problems.push('reserva: gasto passou da entrada reservada (Ouro ' + s.gold + ')')
+      }
       // 3. vaga do estábulo (300) com 260: recusada mesmo forçando o clique
       await rv.evaluate(() => { window.__galope.state.gold = 500 })
       await rv.locator('[data-acao="aba"][data-id="estabulo"]').click()
@@ -356,20 +367,24 @@ try {
       await g2.locator('[data-acao="haras-partner"][data-kind="own"][data-id="m2"]').click()
       await g2.locator('[data-acao="troca"]').click()
       await semMudar('Troca', () => g2.locator('[data-acao="troca-sim"]').click(), ['gold', 'mounts', 'activeId', 'breedCounter'])
-      // 3. vender e desfazer venda
-      await g2.locator('[data-acao="aba"][data-id="estabulo"]').click()
-      await g2.locator('button[data-acao="montaria"][data-id="m1"]').click()
-      await g2.waitForSelector('#t-montaria')
-      await g2.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
-      await g2.locator('[data-acao="equip-slot"][data-id="sela"]').click()
-      const sela = (await st()).mounts[0].equip.sela
-      await g2.locator('[data-acao="tirar"][data-id="sela"]').click()
-      await semMudar('vender', () => g2.locator(`[data-acao="vender"][data-id="${sela}"]`).click(), ['gold', 'items'])
-      await g2.locator(`[data-acao="vender"][data-id="${sela}"]`).click()
-      await g2.waitForSelector('[data-acao="vender-desfazer"]')
-      await semMudar('desfazer venda', () => g2.locator('[data-acao="vender-desfazer"]').click(), ['gold', 'items'])
+      // 3. vender e desfazer venda (só com o equipamento ligado: suspenso, nada é vendido; o bloco crescimento confere)
+      if (GEAR_ON) {
+        await g2.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await g2.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await g2.waitForSelector('#t-montaria')
+        await g2.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+        await g2.locator('[data-acao="equip-slot"][data-id="sela"]').click()
+        const sela = (await st()).mounts[0].equip.sela
+        await g2.locator('[data-acao="tirar"][data-id="sela"]').click()
+        await semMudar('vender', () => g2.locator(`[data-acao="vender"][data-id="${sela}"]`).click(), ['gold', 'items'])
+        await g2.locator(`[data-acao="vender"][data-id="${sela}"]`).click()
+        await g2.waitForSelector('[data-acao="vender-desfazer"]')
+        await semMudar('desfazer venda', () => g2.locator('[data-acao="vender-desfazer"]').click(), ['gold', 'items'])
+        await g2.locator('[data-acao="montaria-voltar"]').click()
+      } else {
+        await g2.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      }
       // 4. vaga do estábulo
-      await g2.locator('[data-acao="montaria-voltar"]').click()
       await g2.waitForSelector('#t-estabulo')
       await semMudar('expandir', () => g2.locator('[data-acao="expandir"]').click(), ['gold', 'stableSlots'])
       // 5. sala valendo rebaixada a treino (Ouro abaixo da entrada): sem gravar, continua valendo e não abre
@@ -402,19 +417,24 @@ try {
       const salaA = await salaAtual(tr)
       if (!salaA.training) problems.push('treino: a sala aberta não é treino')
       await tr.getByRole('button', { name: /^Voltar/ }).click()
-      // tira e vende a sela inicial (+25 de Ouro): 55, acima da menor entrada
-      const s0 = await st()
-      const sela = s0.mounts[0].equip.sela
-      await tr.locator('[data-acao="aba"][data-id="estabulo"]').click()
-      await tr.locator('button[data-acao="montaria"][data-id="m1"]').click()
-      await tr.waitForSelector('#t-montaria')
-      await tr.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
-      await tr.locator('[data-acao="equip-slot"][data-id="sela"]').click()
-      await tr.locator('[data-acao="tirar"][data-id="sela"]').click()
-      await tr.locator(`[data-acao="vender"][data-id="${sela}"]`).click()
+      // tira e vende a sela inicial (+25 de Ouro): 55, acima da menor entrada. Com o equipamento suspenso nada é
+      // vendido: o Ouro sobe direto no state (como uma outra fonte de Ouro)
+      if (GEAR_ON) {
+        const s0 = await st()
+        const sela = s0.mounts[0].equip.sela
+        await tr.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await tr.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await tr.waitForSelector('#t-montaria')
+        await tr.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+        await tr.locator('[data-acao="equip-slot"][data-id="sela"]').click()
+        await tr.locator('[data-acao="tirar"][data-id="sela"]').click()
+        await tr.locator(`[data-acao="vender"][data-id="${sela}"]`).click()
+      } else {
+        await tr.evaluate(() => { window.__galope.state.gold = 55 })
+      }
       const g = (await st()).gold
       if (g < 50) problems.push('treino: Ouro depois da venda ' + g + ' (o teste precisa passar de 50)')
-      await tr.locator('[data-acao="montaria-voltar"]').click()
+      if (GEAR_ON) await tr.locator('[data-acao="montaria-voltar"]').click()
       const salaB = await abrirSala(tr)
       if (salaB.seed !== salaA.seed || salaB.counter !== salaA.counter || !salaB.training) problems.push('treino: o treino aberto virou outra sala ' + JSON.stringify({ antes: [salaA.seed, salaA.counter], depois: [salaB.seed, salaB.counter, salaB.training] }))
     } catch (e) {
@@ -467,26 +487,30 @@ try {
     try {
       await gv.getByRole('button', { name: 'Escolher Brasa' }).click()
       await gv.waitForSelector('#t-estabulo')
-      // 1. melhoria de peça: pedras, +N e contador intactos
-      await gv.evaluate(() => { window.__galope.state.pedras = 10 })
-      let s0 = await st()
-      const slot = Object.keys(s0.mounts[0].equip).find((k) => s0.mounts[0].equip[k])
-      const uid = s0.mounts[0].equip[slot]
-      await gv.locator('button[data-acao="montaria"][data-id="m1"]').click()
-      await gv.waitForSelector('#t-montaria')
-      await gv.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
-      await gv.locator(`[data-acao="equip-slot"][data-id="${slot}"]`).click()
-      await gv.locator(`[data-acao="melhorar"][data-id="${uid}"]`).click()
-      await quebrar()
-      await gv.locator(`[data-acao="melhorar-sim"][data-id="${uid}"]`).click()
-      let s = await st()
-      const it0 = s0.items.find((x) => x.uid === uid), it1 = s.items.find((x) => x.uid === uid)
-      if (s.pedras !== 10 || s.enhanceCounter !== s0.enhanceCounter || it1.plus !== it0.plus) problems.push('gravacao: melhoria sem gravar mudou o save ' + JSON.stringify({ pedras: s.pedras, cont: s.enhanceCounter, plus: it1.plus }))
-      if (!(await temAviso())) problems.push('gravacao: melhoria sem gravar não avisou')
-      if (/Sucesso!|Falhou/.test((await gv.locator('#tela').textContent()) || '')) problems.push('gravacao: melhoria sem gravar mostrou o resultado')
-      await consertar()
-      await gv.locator('[data-acao="montaria-voltar"]').click()
-      await gv.waitForSelector('#t-estabulo')
+      // 1. melhoria de peça: pedras, +N e contador intactos (só com o equipamento ligado; a Redistribuição que falha
+      //    está no bloco crescimento)
+      let s
+      if (GEAR_ON) {
+        await gv.evaluate(() => { window.__galope.state.pedras = 10 })
+        const s0 = await st()
+        const slot = Object.keys(s0.mounts[0].equip).find((k) => s0.mounts[0].equip[k])
+        const uid = s0.mounts[0].equip[slot]
+        await gv.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await gv.waitForSelector('#t-montaria')
+        await gv.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+        await gv.locator(`[data-acao="equip-slot"][data-id="${slot}"]`).click()
+        await gv.locator(`[data-acao="melhorar"][data-id="${uid}"]`).click()
+        await quebrar()
+        await gv.locator(`[data-acao="melhorar-sim"][data-id="${uid}"]`).click()
+        s = await st()
+        const it0 = s0.items.find((x) => x.uid === uid), it1 = s.items.find((x) => x.uid === uid)
+        if (s.pedras !== 10 || s.enhanceCounter !== s0.enhanceCounter || it1.plus !== it0.plus) problems.push('gravacao: melhoria sem gravar mudou o save ' + JSON.stringify({ pedras: s.pedras, cont: s.enhanceCounter, plus: it1.plus }))
+        if (!(await temAviso())) problems.push('gravacao: melhoria sem gravar não avisou')
+        if (/Sucesso!|Falhou/.test((await gv.locator('#tela').textContent()) || '')) problems.push('gravacao: melhoria sem gravar mostrou o resultado')
+        await consertar()
+        await gv.locator('[data-acao="montaria-voltar"]').click()
+        await gv.waitForSelector('#t-estabulo')
+      }
       // 2. abrir a sala: sem gravar, a sala não abre (recarregar a sortearia de novo)
       await gv.locator('[data-acao="aba"][data-id="correr"]').click()
       await gv.waitForSelector('#t-correr')
@@ -507,16 +531,18 @@ try {
       const lob = await gv.evaluate(() => ({ sim: !!window.__galope.ui.lobby.sim, result: !!window.__galope.ui.result, screen: window.__galope.ui.screen }))
       if (s.gold !== g0 || !s.pending || s.races !== 0 || lob.sim || lob.result || lob.screen !== 'largada' || (await gv.locator('#pista, #t-resultado').count())) problems.push('gravacao: Largar sem gravar ' + JSON.stringify({ gold: s.gold, g0, pending: !!s.pending, races: s.races, ...lob }))
       if (!(await temAviso())) problems.push('gravacao: Largar sem gravar não avisou')
-      // 4. compra na Loja sem gravar
+      // 4. compra na Loja sem gravar (só com o equipamento ligado: suspenso, não há Loja)
       await gv.getByRole('button', { name: /^Voltar/ }).click()
-      await gv.locator('[data-acao="aba"][data-id="loja"]').click()
-      await gv.waitForSelector('#t-loja')
-      await gv.locator('[data-acao="loja-tab"][data-id="pedras"]').click()
-      const s1 = await st()
-      await gv.locator('[data-acao="comprar-pedra"][data-id="1"]').click()
-      s = await st()
-      if (s.gold !== s1.gold || s.pedras !== s1.pedras) problems.push('gravacao: compra sem gravar ' + JSON.stringify({ gold: s.gold, pedras: s.pedras }))
-      if (!(await temAviso())) problems.push('gravacao: compra sem gravar não avisou')
+      if (GEAR_ON) {
+        await gv.locator('[data-acao="aba"][data-id="loja"]').click()
+        await gv.waitForSelector('#t-loja')
+        await gv.locator('[data-acao="loja-tab"][data-id="pedras"]').click()
+        const s1 = await st()
+        await gv.locator('[data-acao="comprar-pedra"][data-id="1"]').click()
+        s = await st()
+        if (s.gold !== s1.gold || s.pedras !== s1.pedras) problems.push('gravacao: compra sem gravar ' + JSON.stringify({ gold: s.gold, pedras: s.pedras }))
+        if (!(await temAviso())) problems.push('gravacao: compra sem gravar não avisou')
+      }
       // 5. gravação de volta: a mesma sala larga normalmente
       await consertar()
       await gv.locator('[data-acao="aba"][data-id="correr"]').click()
@@ -571,16 +597,26 @@ try {
       if (!s.items.some((x) => x.uid === 'i99' && x.plus === 10)) problems.push('adulterado: a peça Lendária foi descartada')
       const real = await poderReal()
       if (s.pending.pr !== real) problems.push(`adulterado: Poder da sala ${s.pending.pr} != Poder real ${real}`)
-      // a trava continua: com o Poder da sala real, a Lendária não pode ser equipada
       await ad.locator('button[data-acao="montaria"][data-id="m1"]').click()
       await ad.waitForSelector('#t-montaria')
-      await ad.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
-      await ad.locator('[data-acao="equip-slot"][data-id="armadura"]').click()
-      if (!(await ad.locator('[data-acao="equipar"][data-id="i99"]').isDisabled())) problems.push('adulterado: a peça Lendária pode ser equipada com o páreo aberto')
+      if (GEAR_ON) {
+        // a trava continua: com o Poder da sala real, a Lendária não pode ser equipada
+        await ad.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+        await ad.locator('[data-acao="equip-slot"][data-id="armadura"]').click()
+        if (!(await ad.locator('[data-acao="equipar"][data-id="i99"]').isDisabled())) problems.push('adulterado: a peça Lendária pode ser equipada com o páreo aberto')
+      } else {
+        // equipamento suspenso: sem a sub-aba Equipamento, e o "equipar" forçado (botão criado no DOM) não equipa a
+        // Lendária; mesmo equipada ela não subiria o Poder (a corrida e o Poder ignoram as peças)
+        if (await ad.locator('[data-acao="montaria-aba"][data-id="equip"]').count()) problems.push('adulterado: a sub-aba Equipamento continua com o equipamento suspenso')
+        await ad.evaluate(() => { const b = document.createElement('button'); b.setAttribute('data-acao', 'equipar'); b.setAttribute('data-id', 'i99'); document.getElementById('tela').appendChild(b); b.click(); b.remove() })
+        if ((await st()).mounts[0].equip.armadura === 'i99') problems.push('adulterado: o equipar forçado equipou a peça Lendária com o páreo aberto')
+        const mL = Object.assign({}, s.mounts[0], { equip: Object.assign({}, s.mounts[0].equip, { armadura: 'i99' }) })
+        if (S.powerRating(mL) !== S.powerRating(s.mounts[0])) problems.push('adulterado: a peça Lendária equipada mudou o Poder')
+      }
       const sala2 = await salaAtual(ad).catch(() => null)
       if (sala2 && sala2.seed !== sala.seed) problems.push('adulterado: seed da sala mudou')
-      // 3. retrato inválido (peça inexistente) vale como save sem retrato: é descartado e o pr gravado fica
-      //    (recalcular pelo equipamento atual mudaria os rivais da sala; ver o contexto "retrato")
+      // 3. retrato inválido (peça inexistente) vale como save sem retrato: é descartado e o pr fica (o Poder da sala sai
+      //    do retrato dos pontos; ver o contexto "retrato")
       const raw2 = await bruto()
       const prGravado = raw2.pending.pr
       raw2.pending.gear = [{ slot: 'sela', id: 'nao-existe', plus: 99 }]
@@ -588,14 +624,17 @@ try {
       await ad.reload({ waitUntil: 'domcontentloaded' })
       await ad.waitForSelector('#t-estabulo')
       s = await st()
-      if (s.pending.gear !== null || s.pending.pr !== prGravado) problems.push('adulterado: retrato inválido ' + JSON.stringify({ gear: s.pending.gear, pr: s.pending.pr, prGravado }))
+      // (com o equipamento suspenso o pr sai sempre do retrato dos pontos, então o 99 999 ainda gravado volta ao real)
+      const prEsperado = GEAR_ON ? prGravado : await poderReal()
+      if (s.pending.gear !== null || s.pending.pr !== prEsperado) problems.push('adulterado: retrato inválido ' + JSON.stringify({ gear: s.pending.gear, pr: s.pending.pr, prGravado, prEsperado }))
     } catch (e) {
       problems.push('adulterado: ' + e.message)
     }
     await ad.context().close()
   }
 
-  // ---------------- migração v4 -> v5: status base sai, pontos livres para distribuir, Neutro vira tipo ----------------
+  // ---------------- migração v4 -> v6: status base sai, pontos livres para distribuir, Neutro vira tipo ----------------
+  // (o save v4 passa pela migração v4 -> v5 e pela v5 -> v6 do bloco 1b: pontos zerados, redistribuição grátis, 0 Rédeas)
   // Save v4 de exemplo: Brasa Raro nível 12 com status base e Labareda; Ventania Neutro; Pangaré (modelo que saiu do
   // catálogo, também Neutro); peças (uma +2 equipada, uma solta) e uma sala aberta valendo com retrato do equipamento.
   // A pista da sala sai da seed pelas regras v3 (o v4 não guardava a pista): o que tem de valer é a mesma seed,
@@ -630,13 +669,15 @@ try {
   // problemas de um save já carregado (state do jogo) depois da migração
   const conferirMigrado = (s, rotulo) => {
     const out = []
-    if (s.v !== 5) out.push(`${rotulo}: versão ${s.v}`)
+    if (s.v !== SAVE_V) out.push(`${rotulo}: versão ${s.v}`)
+    if (s.redeas !== 0 || s.avisoV6 !== false) out.push(`${rotulo}: redeas ${s.redeas}, avisoV6 ${s.avisoV6}`)
     if (s.mounts.length !== 3) out.push(`${rotulo}: ${s.mounts.length} montarias (eram 3)`)
     for (const m of s.mounts) {
       if ('base' in m) out.push(`${rotulo}: ${m.uid} ainda tem base`)
       if (!G.ELEMENTS[m.element]) out.push(`${rotulo}: ${m.uid} com elemento ${m.element}`)
       if (m.skills.some((id) => SKILLS_DE_TIPO.includes(id))) out.push(`${rotulo}: ${m.uid} ainda tem skill de tipo na lista ${m.skills}`)
       if (!m.alloc || G.STAT_KEYS.some((k) => m.alloc[k] !== 0) || Object.keys(m.alloc).length !== 7) out.push(`${rotulo}: ${m.uid} veio com pontos distribuídos ${JSON.stringify(m.alloc)}`)
+      if (m.respecFree !== true) out.push(`${rotulo}: ${m.uid} sem a redistribuição grátis (respecFree ${m.respecFree})`)
     }
     const [m1, m2, m3] = s.mounts
     if (m1.rarity !== 'raro' || m1.level !== 12 || m1.xp !== 30 || m1.grau !== 2 || m1.name !== 'Brasa' || JSON.stringify(m1.skills) !== '["sprint"]') out.push(`${rotulo}: Brasa mudou ` + JSON.stringify(m1))
@@ -649,8 +690,9 @@ try {
     else {
       const its = {}; p.gear.forEach((x, i) => { its['s' + i] = { uid: 's' + i, id: x.id, plus: x.plus } })
       const eq = {}; p.gear.forEach((x, i) => { eq[x.slot] = 's' + i })
-      const pr = S.powerRating(m1, GR.resolve({ equip: eq }, its))
-      if (p.pr !== pr) out.push(`${rotulo}: Poder da sala ${p.pr} (v3 com o retrato: ${pr})`)
+      // o Poder ignora o equipamento (o retrato dele fica guardado, sem efeito): R16 com o retrato dos pontos zerado
+      const pr = Math.max(S.powerRating(Object.assign({}, m1, { alloc: p.alloc })), S.powerRating(m1, GR.resolve({ equip: eq }, its)))
+      if (p.pr !== pr || G.STAT_KEYS.some((k) => p.alloc[k] !== 0)) out.push(`${rotulo}: Poder da sala ${p.pr} (R16 com o retrato dos pontos zerado: ${pr}) e retrato ${JSON.stringify(p.alloc)}`)
     }
     return out
   }
@@ -664,10 +706,10 @@ try {
       const s1 = await st()
       problems.push(...conferirMigrado(s1, 'migracao'))
       const info = await mg.evaluate(() => { const m = window.__galope.state.mounts[0]; return window.RaceSim.allocInfo(m) })
-      const livres = Math.floor(11 * 1.2)
-      if (info.free !== livres || info.left !== livres || info.used !== 0) problems.push('migracao: pontos livres do nível 12 ' + JSON.stringify(info))
+      const livres = S.freePoints(s1.mounts[0])   // Brasa Raro ★★ nível 12: os pontos do nível, todos para distribuir
+      if (!(livres > 0) || info.free !== livres || info.left !== livres || info.used !== 0) problems.push('migracao: pontos livres do nível 12 ' + JSON.stringify(info))
       const gravado = await mg.evaluate(() => JSON.parse(localStorage.getItem('galope-elemental:v1')))
-      if (gravado.v !== 5) problems.push('migracao: o save migrado não foi gravado (v ' + gravado.v + ')')
+      if (gravado.v !== SAVE_V) problems.push('migracao: o save migrado não foi gravado (v ' + gravado.v + ')')
       // o Pangaré (sem modelo) aparece no estábulo sem erro, com retrato
       if ((await mg.locator('canvas.retrato').count()) < 3) problems.push('migracao: o estábulo não mostra os três cavalos')
       // a sala: mesma seed, e recarregar duas vezes dá exatamente a mesma sala
@@ -689,8 +731,8 @@ try {
         }
       }
       const s3 = await st()
-      // idempotente: o save v5 recarregado não muda nada (fora o rev)
-      if (JSON.stringify(s3.mounts) !== mounts1) problems.push('migracao: recarregar o save v5 mudou as montarias')
+      // idempotente: o save migrado recarregado não muda nada (fora o rev)
+      if (JSON.stringify(s3.mounts) !== mounts1) problems.push('migracao: recarregar o save migrado mudou as montarias')
       problems.push(...conferirMigrado(s3, 'migracao (recarregado)'))
       if (s3.gold !== 900) problems.push('migracao: Ouro mudou para ' + s3.gold)
     } catch (e) {
@@ -705,15 +747,16 @@ try {
     try {
       await md.waitForSelector('#t-estabulo')
       const s = await md.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
-      if (s.v !== 5 || s.mounts.some((m) => 'base' in m || !G_ELS.includes(m.element))) problems.push('migracao-dev: save de teste não migrou ' + JSON.stringify(s.mounts.map((m) => [m.uid, m.element, 'base' in m])))
+      if (s.v !== SAVE_V || s.mounts.some((m) => 'base' in m || !G_ELS.includes(m.element) || m.respecFree !== true)) problems.push('migracao-dev: save de teste não migrou ' + JSON.stringify(s.mounts.map((m) => [m.uid, m.element, 'base' in m, m.respecFree])))
       if (s.mounts.length !== 3 || s.mounts[1].element !== neutroVira(MIG_SEED, 'm2')) problems.push('migracao-dev: montarias ' + JSON.stringify(s.mounts.map((m) => m.element)))
       if ((await md.evaluate(() => localStorage.getItem('galope-elemental:v1'))) !== null) problems.push('migracao-dev: o modo DEV gravou o save real')
     } catch (e) {
       problems.push('migracao-dev: ' + e.message)
     }
     await md.context().close()
-    // save v4 sem o retrato do equipamento (pending.gear ausente): o pr da sala é recalculado uma vez pelo
-    // equipamento vestido, no modelo v3, e a sala fica igual depois de duas recargas
+    // save v4 sem o retrato do equipamento (pending.gear ausente): o pr da sala é recalculado uma vez no modelo novo
+    // (o Poder ignora o equipamento vestido: R16 com o retrato dos pontos zerado), e a sala fica igual depois de duas
+    // recargas
     const SEM_RETRATO = JSON.parse(JSON.stringify(MIG_V4))
     delete SEM_RETRATO.pending.gear
     const mr = await newPage(browser, { width: 390, height: 844 }, 'migracao-sem-retrato', {
@@ -724,7 +767,7 @@ try {
       const s = await mr.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
       const m1 = s.mounts[0], its = Object.fromEntries(s.items.map((x) => [x.uid, x]))
       const prV3 = S.powerRating(m1, GR.resolve(m1, its))
-      if (!s.pending || s.pending.pr !== prV3 || s.pending.pr === 777) problems.push(`migracao-sem-retrato: pr da sala ${s.pending && s.pending.pr} (Poder v3 com o equipamento vestido: ${prV3})`)
+      if (!s.pending || s.pending.pr !== prV3 || s.pending.pr === 777) problems.push(`migracao-sem-retrato: pr da sala ${s.pending && s.pending.pr} (Poder da ativa no modelo novo: ${prV3})`)
       if (s.pending && s.pending.gear !== null) problems.push('migracao-sem-retrato: retrato inventado ' + JSON.stringify(s.pending.gear))
       const salaA = await abrirSala(mr)
       for (let k = 1; k <= 2; k++) {
@@ -743,8 +786,9 @@ try {
     await mr.context().close()
   }
 
-  // ---------------- save v5 adulterado: alloc com 999, negativo, texto e soma acima dos pontos livres; Neutro ----------------
-  // e o jogo novo: inicial Comum ★★, sem pontos distribuídos, save versão 5
+  // ---------------- save adulterado (versão atual): alloc com 999, negativo, texto e custo acima dos pontos; Neutro ----------------
+  // e o jogo novo: inicial Comum ★★, sem pontos distribuídos, save na versão atual (SAVE_V). O nome do bloco é da v5;
+  // desde a v6 (bloco 1b) o alloc é cortado pelo validAlloc novo: teto de 150, custo por faixa e Sorte sem pontos.
   if (quer('adulterado-v5')) {
     const av = await newPage(browser, { width: 390, height: 844 }, 'adulterado-v5')
     const st = () => av.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
@@ -753,40 +797,41 @@ try {
       await av.waitForSelector('#t-estabulo')
       const s0 = await st()
       const m0 = s0.mounts[0]
-      if (s0.v !== 5 || m0.templateId !== 'brasa' || m0.rarity !== 'comum' || m0.grau !== 2 || 'base' in m0 || !m0.alloc || G.STAT_KEYS.some((k) => m0.alloc[k] !== 0)) problems.push('adulterado-v5: jogo novo ' + JSON.stringify({ v: s0.v, m0 }))
+      if (s0.v !== SAVE_V || m0.templateId !== 'brasa' || m0.rarity !== 'comum' || m0.grau !== 2 || 'base' in m0 || !m0.alloc || G.STAT_KEYS.some((k) => m0.alloc[k] !== 0)) problems.push('adulterado-v5: jogo novo ' + JSON.stringify({ v: s0.v, m0 }))
       const raw = await av.evaluate(() => JSON.parse(localStorage.getItem('galope-elemental:v1')))
+      const LIXO1 = { vel: 999, acel: -5, man: 'abc', forca: 3.7, est: 1e300, garra: null, sorte: '4' }
+      const GULOSO = { vel: 4, acel: 4, man: 4, forca: 4, est: 4, garra: 4, sorte: 4 }
       raw.mounts[0].level = 20
-      raw.mounts[0].alloc = { vel: 999, acel: -5, man: 'abc', forca: 3.7, est: 1e300, garra: null, sorte: '4' }
+      raw.mounts[0].alloc = LIXO1
       raw.mounts[0].base = { vel: 100, acel: 100, man: 100, forca: 100, est: 100, garra: 100, sorte: 100 }
       raw.mounts.push({ uid: 'm2', templateId: null, name: 'Velho', element: 'neutro', rarity: 'magico', grau: 3, sex: 'f', level: 30, xp: 0, skills: ['sprint', 'raizes-firmes'],
         potential: { vel: 5, acel: 5, man: 5, forca: 5, est: 5, garra: 5, sorte: 5 }, alloc: 'tudo', palette: null, breedLeft: 2, parents: null, born: 0, equip: {} })
       raw.mounts.push({ uid: 'm3', templateId: null, name: 'Guloso', element: 'agua', rarity: 'comum', grau: 1, sex: 'm', level: 11, xp: 0, skills: [],
-        potential: { vel: 5, acel: 5, man: 5, forca: 5, est: 5, garra: 5, sorte: 5 }, alloc: { vel: 4, acel: 4, man: 4, forca: 4, est: 4, garra: 4, sorte: 4 }, palette: null, breedLeft: 2, parents: null, born: 0, equip: {} })
+        potential: { vel: 5, acel: 5, man: 5, forca: 5, est: 5, garra: 5, sorte: 5 }, alloc: GULOSO, palette: null, breedLeft: 2, parents: null, born: 0, equip: {} })
       raw.nextUid = 4; raw.stableSlots = 3
       await av.evaluate((r) => localStorage.setItem('galope-elemental:v1', JSON.stringify(r)), raw)
       await av.reload({ waitUntil: 'domcontentloaded' })
       await av.waitForSelector('#t-estabulo')
       const s = await st()
       if (s.mounts.length !== 3) problems.push('adulterado-v5: montarias ' + s.mounts.length)
+      // alloc válido: as 7 chaves inteiras ≥ 0, base + pontos ≤ 150, Sorte 0 e o custo (por faixa) dentro dos pontos
+      const allocValido = (m, a) => !!a && G.STAT_KEYS.every((k) => Number.isInteger(a[k]) && a[k] >= 0 && a[k] <= S.maxBuy(m, k)) && a.sorte === 0 &&
+        G.STAT_KEYS.reduce((t, k) => t + S.costOf(a[k]), 0) <= S.freePoints(m)
       for (const m of s.mounts) {
-        const lim = S.statLimit(m), free = S.freePoints(m)
-        let soma = 0
-        for (const k of G.STAT_KEYS) {
-          const a = m.alloc && m.alloc[k]
-          if (!(Number.isInteger(a) && a >= 0 && a <= lim)) problems.push(`adulterado-v5: ${m.uid} alloc.${k} = ${a} (limite ${lim})`)
-          soma += a
-        }
-        if (soma > free) problems.push(`adulterado-v5: ${m.uid} soma ${soma} > ${free} pontos livres`)
+        if (!allocValido(m, m.alloc)) problems.push(`adulterado-v5: ${m.uid} alloc inválido ${JSON.stringify(m.alloc)} (${S.freePoints(m)} pontos)`)
         if ('base' in m) problems.push(`adulterado-v5: ${m.uid} com base`)
         if (!G.ELEMENTS[m.element]) problems.push(`adulterado-v5: ${m.uid} elemento ${m.element}`)
-        const cap = G.RARITIES[m.rarity].statCap, stt = S.computeStats(m, null)
-        if (G.STAT_KEYS.some((k) => stt[k] > cap)) problems.push(`adulterado-v5: ${m.uid} passou do teto ` + JSON.stringify(stt))
+        const stt = S.computeStats(m)
+        if (G.STAT_KEYS.some((k) => stt[k] > S.TUNING.statMax)) problems.push(`adulterado-v5: ${m.uid} passou do teto ` + JSON.stringify(stt))
       }
       const [a1, a2, a3] = s.mounts
-      // nível 20 ★★: 22 livres, limite 8 por status; vel 999 -> 8, forca 3,7 -> 3, sorte '4' -> 4
-      if (JSON.stringify(a1.alloc) !== JSON.stringify({ vel: 8, acel: 0, man: 0, forca: 3, est: 8, garra: 0, sorte: 3 })) problems.push('adulterado-v5: alloc saneado da Brasa ' + JSON.stringify(a1.alloc))
+      // Brasa nível 20 ★★: o lixo cortado pelo validAlloc (vel 999 -> o que o custo paga, forca 3,7 -> 3, sorte '4' -> 0)
+      const esp1 = S.validAlloc(a1, LIXO1)
+      if (JSON.stringify(a1.alloc) !== JSON.stringify(esp1) || !(a1.alloc.vel > 0) || a1.alloc.sorte !== 0) problems.push('adulterado-v5: alloc saneado da Brasa ' + JSON.stringify(a1.alloc) + ' (validAlloc: ' + JSON.stringify(esp1) + ')')
       if (a2.element !== neutroVira(s.seedBase, 'm2') || a2.skills.includes('raizes-firmes') || G.STAT_KEYS.some((k) => a2.alloc[k] !== 0)) problems.push('adulterado-v5: Neutro ' + JSON.stringify(a2))
-      if (G.STAT_KEYS.reduce((t, k) => t + a3.alloc[k], 0) !== 10) problems.push('adulterado-v5: soma acima dos pontos livres não foi cortada em 10 ' + JSON.stringify(a3.alloc))
+      // Guloso Comum ★ nível 11: 4 em cada status custa mais que os pontos do nível; cortado na ordem de STAT_KEYS
+      const esp3 = S.validAlloc(a3, GULOSO)
+      if (JSON.stringify(a3.alloc) !== JSON.stringify(esp3) || JSON.stringify(esp3) === JSON.stringify(GULOSO)) problems.push('adulterado-v5: custo acima dos pontos não foi cortado ' + JSON.stringify(a3.alloc) + ' (validAlloc: ' + JSON.stringify(esp3) + ')')
       // idempotente: recarregar o save saneado não muda nada
       await av.reload({ waitUntil: 'domcontentloaded' })
       await av.waitForSelector('#t-estabulo')
@@ -814,8 +859,7 @@ try {
         await grava(r)
         const x = await st(), p = x.pending, m = x.mounts.find((y) => y.uid === x.activeId)
         if (!p) { problems.push(`adulterado-v5: retrato dos pontos ${nome} fechou a sala`); continue }
-        const lim = S.statLimit(m), free = S.freePoints(m)
-        if (!p.alloc || G.STAT_KEYS.some((k) => !(Number.isInteger(p.alloc[k]) && p.alloc[k] >= 0 && p.alloc[k] <= lim)) || G.STAT_KEYS.reduce((t, k) => t + p.alloc[k], 0) > free) problems.push(`adulterado-v5: retrato dos pontos ${nome} não foi saneado ` + JSON.stringify(p.alloc))
+        if (!allocValido(m, p.alloc)) problems.push(`adulterado-v5: retrato dos pontos ${nome} não foi saneado ` + JSON.stringify(p.alloc))
         if (p.pr < poderAtivo(x)) problems.push(`adulterado-v5: retrato dos pontos ${nome} baixou o Poder da sala para ${p.pr} (a ativa corre com ${poderAtivo(x)})`)
         // retrato com lixo pode SUBIR o Poder da sala (rivais mais fortes: só atrapalha quem adulterou); os outros não mudam
         if (nome !== 'lixo' && p.pr !== sA.pending.pr) problems.push(`adulterado-v5: retrato dos pontos ${nome} mudou o Poder da sala (${sA.pending.pr} -> ${p.pr})`)
@@ -839,6 +883,7 @@ try {
   }
 
   // ---------------- retrato do equipamento: save sem retrato não mexe na sala; pr adulterado volta ao do retrato ----------------
+  // (com o equipamento suspenso, o Poder da sala sai só do retrato dos pontos; o do equipamento fica guardado, sem efeito)
   if (quer('retrato')) {
     const rt = await newPage(browser, { width: 390, height: 844 }, 'retrato')
     const st = () => rt.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
@@ -854,14 +899,18 @@ try {
       await rt.waitForSelector('#t-estabulo')
       const salaA = await abrirSala(rt)
       const prA = (await st()).pending.pr
-      // 1. tira sela e ferraduras com a sala aberta (o Poder cai), apaga o retrato do save (save de antes dele)
-      await rt.locator('[data-acao="equipar-tela"]').click()
-      await rt.waitForSelector('#t-montaria')
-      for (const slot of ['sela', 'ferraduras']) {
-        await rt.locator(`[data-acao="equip-slot"][data-id="${slot}"]`).click()
-        await rt.locator(`[data-acao="tirar"][data-id="${slot}"]`).click()
+      // 1. tira sela e ferraduras com a sala aberta (com o equipamento ligado o Poder cairia; suspenso, as peças saem só
+      //    no save e o Poder não muda), apaga o retrato do equipamento do save (save de antes dele)
+      if (GEAR_ON) {
+        await rt.locator('[data-acao="equipar-tela"]').click()
+        await rt.waitForSelector('#t-montaria')
+        for (const slot of ['sela', 'ferraduras']) {
+          await rt.locator(`[data-acao="equip-slot"][data-id="${slot}"]`).click()
+          await rt.locator(`[data-acao="tirar"][data-id="${slot}"]`).click()
+        }
       }
       const raw = await bruto()
+      if (!GEAR_ON) { raw.mounts[0].equip.sela = null; raw.mounts[0].equip.ferraduras = null }
       if (raw.mounts[0].equip.sela || raw.mounts[0].equip.ferraduras) problems.push('retrato: as peças não saíram')
       delete raw.pending.gear
       await grava(raw)
@@ -878,6 +927,13 @@ try {
       const sC = await st()
       if (sC.pending.pr !== prA) problems.push(`retrato: pr adulterado para baixo ficou em ${sC.pending.pr} (Poder do retrato ${prA})`)
       if (salaC.rivais !== salaA.rivais) problems.push('retrato: pr adulterado para baixo trouxe outros rivais')
+      // 3. e para cima (99 999) também volta ao Poder do retrato dos pontos (o equipamento não entra)
+      const raw3 = await bruto()
+      raw3.pending.pr = 99999
+      await grava(raw3)
+      const salaD = await recarregaSala()
+      const sD = await st()
+      if (sD.pending.pr !== prA || salaD.rivais !== salaA.rivais) problems.push(`retrato: pr adulterado para cima ficou em ${sD.pending.pr} (Poder do retrato ${prA})`)
     } catch (e) {
       problems.push('retrato: ' + e.message)
     }
@@ -1396,7 +1452,10 @@ try {
   }
 
   // ---------------- valor da peça: a tela mostra o mesmo número que a simulação usa (Gear.resolve, plusStep 0,5) ----------------
-  if (quer('valor-peca')) {
+  // Só com o equipamento ligado: suspenso (GEAR_ON = false), não há sub-aba Equipamento nem Loja para mostrar as peças
+  // (o bloco crescimento confere que elas não aparecem).
+  if (quer('valor-peca') && !GEAR_ON) notes['valor-peca'] = 'pulado: equipamento suspenso (GEAR_ON = false, spec 1b §8)'
+  if (quer('valor-peca') && GEAR_ON) {
     const vp = await newPage(browser, { width: 360, height: 780 }, 'valor-peca')
     const numTxt = (v) => (Number.isInteger(v) ? String(v) : String(Math.round(v * 10) / 10).replace('.', ','))
     const modsDe = (id, plus) => GR.resolve({ equip: { [G.GEAR[id].slot]: 'x' } }, { x: { uid: 'x', id, plus } }).mods
@@ -2216,7 +2275,7 @@ try {
         await semQuebra(pg, label + '-largada')
         await espia(pg, false)
         const disco = await pg.evaluate((k) => JSON.parse(localStorage.getItem(k)), SAVE_REAL)
-        if (disco.v !== 5) problems.push(`${label}: a versão do save mudou para ${disco.v}`)
+        if (disco.v !== SAVE_V) problems.push(`${label}: a versão do save mudou para ${disco.v}`)
         if (!igual(disco.joquei, { padrao: 'xadrez', capacete: '#62b8ff' })) problems.push(`${label}: o save gravado tem joquei ${JSON.stringify(disco.joquei)}`)
         for (const m of disco.mounts) if (!igual(m.marcas, esperadas[m.uid])) problems.push(`${label}: ${m.uid} gravado com marcas ${JSON.stringify(m.marcas)} (esperado ${mStr(esperadas[m.uid])})`)
         const chaves = Object.keys(disco.pending || {}).sort().join(',')
@@ -2719,7 +2778,7 @@ try {
         // a gravação seguinte (a sala aberta) leva os portes saneados ao disco; recarregar não muda nada
         await abrirSala(pg)
         const disco = await pg.evaluate((k) => JSON.parse(localStorage.getItem(k)), SAVE_REAL)
-        if (disco.v !== 5) problems.push(`${label}: a versão do save mudou para ${disco.v}`)
+        if (disco.v !== SAVE_V) problems.push(`${label}: a versão do save mudou para ${disco.v}`)
         for (const m of disco.mounts) if (m.porte !== esperados[m.uid]) problems.push(`${label}: ${m.uid} gravado com porte ${JSON.stringify(m.porte)} (esperado ${esperados[m.uid]})`)
         const chaves = Object.keys(disco.pending || {}).sort().join(',')
         if (chaves !== 'alloc,counter,fee,gear,pr,training') problems.push(`${label}: a sala gravada mudou de forma: ${chaves}`)
@@ -3451,13 +3510,16 @@ try {
   await checkOverflow(page, 'estabulo')
   await page.screenshot({ path: join(SHOTS, 'final-02-estabulo.png') })
   // ícones do PixelLab: barra de abas e saldos do cabeçalho (img decorativa + rótulo de texto ao lado)
-  for (const [aba, rotulo] of [['estabulo', 'Estábulo'], ['correr', 'Correr'], ['expedicao', 'Expedição'], ['haras', 'Haras'], ['loja', 'Loja']]) {
+  // (a Loja só com o equipamento ligado: suspenso, a barra tem 4 abas)
+  const ABAS_UI = [['estabulo', 'Estábulo'], ['correr', 'Correr'], ['expedicao', 'Expedição'], ['haras', 'Haras']].concat(GEAR_ON ? [['loja', 'Loja']] : [])
+  if ((await page.locator('.app-aba').count()) !== ABAS_UI.length) problems.push(`abas: ${await page.locator('.app-aba').count()} na barra (esperado ${ABAS_UI.length})`)
+  for (const [aba, rotulo] of ABAS_UI) {
     const b = page.locator(`.app-aba[data-id="${aba}"]`)
     if ((await b.locator('img.icone[alt=""]').count()) !== 1) problems.push('ícones: aba ' + aba + ' sem img.icone[alt=""]')
     if (((await b.locator('.app-aba-rotulo').textContent()) || '').trim() !== rotulo) problems.push('ícones: aba ' + aba + ' perdeu o rótulo de texto')
   }
   if ((await page.locator('.app-topo .saldo img.icone--moeda-ouro[alt=""]').count()) !== 1) problems.push('ícones: saldo de Ouro sem img.icone--moeda-ouro')
-  if ((await page.locator('.app-topo .pedras img.icone--pedra-negra[alt=""]').count()) !== 1) problems.push('ícones: saldo de Pedras sem img.icone--pedra-negra')
+  if ((await page.locator('.app-topo .pedras img.icone--pedra-negra[alt=""]').count()) !== (GEAR_ON ? 1 : 0)) problems.push(GEAR_ON ? 'ícones: saldo de Pedras sem img.icone--pedra-negra' : 'cabeçalho: saldo de Pedras com o equipamento suspenso')
   if ((await page.locator('.app-topo img.logo-img[alt="Galope Elemental"]').count()) !== 1) problems.push('ícones: cabeçalho sem img.logo-img')
   const quebradas = await page.evaluate(() => Array.prototype.filter.call(document.querySelectorAll('img.icone, img.logo-img'), (i) => !i.complete || i.naturalWidth === 0).length)
   if (quebradas) problems.push('ícones: ' + quebradas + ' imagem(ns) quebrada(s)')
@@ -3520,7 +3582,8 @@ try {
   botGear.bots.forEach((b) => { b.league = S.leagueFor(b.rating).id })
   notes.botGear = botGear
   const alvoMax = S.leagueFor(botGear.pr * 1.115).id
-  if (alvoMax === 'bronze' ? botGear.bots.some((b) => b.pieces !== 0) : !botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: equipamento dos bots fora da liga do alvo (' + alvoMax + ') ' + JSON.stringify(botGear))
+  if (!GEAR_ON) { if (botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: bot com peças com o equipamento suspenso ' + JSON.stringify(botGear)) }
+  else if (alvoMax === 'bronze' ? botGear.bots.some((b) => b.pieces !== 0) : !botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: equipamento dos bots fora da liga do alvo (' + alvoMax + ') ' + JSON.stringify(botGear))
   await page.getByRole('button', { name: /^Voltar/ }).click()
   await page.waitForSelector('#t-correr')
   await page.reload({ waitUntil: 'domcontentloaded' })
@@ -3532,8 +3595,8 @@ try {
   const lobbyB = await page.evaluate(() => ({ seed: window.__galope.ui.lobby.seed, counter: window.__galope.ui.lobby.counter, gold: window.__galope.state.gold }))
   if (lobbyA.seed !== lobbyB.seed || lobbyA.counter !== lobbyB.counter) problems.push(`voltar/recarregar re-sorteou a sala (${lobbyA.counter} -> ${lobbyB.counter})`)
   if (lobbyB.gold !== lobbyA.gold) problems.push('voltar à sala cobrou Ouro')
-  // a sala mostra o resumo do equipamento da montaria ativa
-  if ((await page.locator('.slots').count()) < 1) problems.push('sala: sem resumo do equipamento')
+  // a sala mostra o resumo do equipamento da montaria ativa (com o equipamento suspenso, não mostra)
+  if (GEAR_ON ? (await page.locator('.slots').count()) < 1 : (await page.locator('.slots').count()) !== 0) problems.push(GEAR_ON ? 'sala: sem resumo do equipamento' : 'sala: resumo do equipamento com ele suspenso')
   await page.evaluate(() => window.scrollTo(0, 0))
   await sleep(300)
   await checkOverflow(page, 'largada')
@@ -3575,7 +3638,7 @@ try {
   if (after.gold !== goldBefore - after.result.fee + after.result.prize) problems.push(`ouro: ${after.gold} != ${goldBefore} - ${after.result.fee} + ${after.result.prize}`)
   if (after.pending) problems.push('sala continuou pendente depois de correr')
   // pedra do pódio: determinística pela seed da sala (1ª sala do save)
-  const expectStone = GR.podiumStone(S.hash2(seedBase1, 1), after.result.place, after.result.fee)
+  const expectStone = GEAR_ON ? GR.podiumStone(S.hash2(seedBase1, 1), after.result.place, after.result.fee) : 0   // suspenso: não cai
   if (after.pedras !== expectStone || after.result.stone !== expectStone) problems.push(`pedra do pódio: ${after.pedras} (resultado ${after.result.stone}) != ${expectStone}`)
   const res = await page.evaluate(() => ({
     dados: window.__galope.ui.lobby.sim.events.filter((e) => e.type === 'dado').length,
@@ -3634,7 +3697,7 @@ try {
     const s = window.__galope.state
     return {
       ok: s.mounts.length === 1 && s.mounts[0].templateId === 'mare' && JSON.stringify(s.mounts[0].skills) === '[]' && s.activeId === 'm1' && s.gold === 777 && s.level === undefined &&
-        s.v === 5 && !('base' in s.mounts[0]) && s.items.length === 1 && s.items[0].id === 'sela-comum' && s.mounts[0].equip.sela === null && s.pedras === 0 &&
+        s.v === 6 && !('base' in s.mounts[0]) && s.items.length === 1 && s.items[0].id === 'sela-comum' && s.mounts[0].equip.sela === null && s.pedras === 0 &&
         s.inventory === undefined && s.equipped === undefined,
       tactic: s.tactic, save: JSON.stringify(s)
     }
@@ -3642,7 +3705,7 @@ try {
   if (!mig.ok || mig.tactic !== undefined) problems.push('save antigo não migrou: ' + mig.save)
   await oldCtx.close()
 
-  // save v2 (um inicial com nível, XP e skills na raiz) vira v5 com mounts[0] (a Labareda, agora skill de tipo, sai da lista)
+  // save v2 (um inicial com nível, XP e skills na raiz) vira v6 com mounts[0] (a Labareda, agora skill de tipo, sai da lista)
   const v2Ctx = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const v2 = await v2Ctx.newPage()
   v2.on('console', (m) => { if (m.type() === 'error') problems.push(`[save-v2] console: ${m.text()}`) })
@@ -3701,7 +3764,7 @@ try {
   {
     const s = await openSave('save-v3-completo', V3_FULL)
     const arm = s.items.filter((it) => it.id === 'armadura-magico')[0]
-    const ok = s.v === 5 && s.items.length === 9 && s.pedras === 3 && arm && s.mounts[0].equip.armadura === arm.uid &&
+    const ok = s.v === 6 && s.items.length === 9 && s.pedras === 3 && arm && s.mounts[0].equip.armadura === arm.uid &&
       s.gold === 999 && s.nextItemUid === 10 && s.inventory === undefined && s.equipped === undefined
     if (!ok) problems.push('save v3 completo não migrou os itens: ' + JSON.stringify({ items: s.items, equip: s.mounts[0] && s.mounts[0].equip, pedras: s.pedras, gold: s.gold, nextItemUid: s.nextItemUid }))
   }
@@ -3758,8 +3821,9 @@ try {
     if (c1.mounts.length !== 2) problems.push('cruzamento: ' + c1.mounts.length + ' montarias (esperado 2)')
     if (c1.breedCounter !== 1) problems.push('cruzamento: breedCounter ' + c1.breedCounter)
     if (c1.mounts[0].breedLeft !== 1) problems.push('cruzamento: breedLeft de Brasa ' + c1.mounts[0].breedLeft)
-    // o potro entra no estábulo com o equipamento vazio (Breed.foal não sabe de equipamento)
-    const esperadoJogo = Object.assign({}, esperado, { equip: GR.emptyEquip(), alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } })
+    // o potro entra no estábulo com o equipamento vazio (Breed.foal não sabe de equipamento), sem pontos e com a
+    // redistribuição grátis (bloco 1b)
+    const esperadoJogo = Object.assign({}, esperado, { equip: GR.emptyEquip(), alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 }, respecFree: true })
     if (c1.mounts.length > 1 && JSON.stringify(c1.mounts[1]) !== JSON.stringify(esperadoJogo)) {
       problems.push('cruzamento: potro diferente do calculado no Node\n  jogo: ' + JSON.stringify(c1.mounts[1]) + '\n  node: ' + JSON.stringify(esperado))
     }
@@ -3894,8 +3958,8 @@ try {
     try {
       await mn.getByRole('button', { name: 'Escolher Brasa' }).click()
       await mn.waitForSelector('#t-estabulo')
-      // 1. as 5 abas abrem e focam o h1 certo
-      for (const [id, h1] of [['correr', 't-correr'], ['expedicao', 't-expedicao'], ['haras', 't-haras'], ['loja', 't-loja'], ['estabulo', 't-estabulo']]) {
+      // 1. as abas (5; 4 com o equipamento suspenso, sem a Loja) abrem e focam o h1 certo
+      for (const [id, h1] of [['correr', 't-correr'], ['expedicao', 't-expedicao'], ['haras', 't-haras']].concat(GEAR_ON ? [['loja', 't-loja']] : []).concat([['estabulo', 't-estabulo']])) {
         await mn.locator(`[data-acao="aba"][data-id="${id}"]`).click()
         await mn.waitForSelector('#' + h1)
         const focused = await mn.evaluate(() => document.activeElement && document.activeElement.id)
@@ -3906,8 +3970,9 @@ try {
       // 2. trocar de aba não empilha histórico: abas são raízes, sem o estado de guarda { galope: 1 }
       //    (só history.length não pega a regressão: o guarda único mantém o comprimento estável)
       const len0 = await mn.evaluate(() => history.length)
+      const cicloAbas = GEAR_ON ? ['correr', 'haras', 'loja', 'estabulo', 'expedicao'] : ['correr', 'haras', 'estabulo', 'expedicao']
       for (let i = 0; i < 10; i++) {
-        const id = ['correr', 'haras', 'loja', 'estabulo', 'expedicao'][i % 5]
+        const id = cicloAbas[i % cicloAbas.length]
         await mn.locator(`[data-acao="aba"][data-id="${id}"]`).click()
         await mn.waitForSelector('#t-' + id)
         const hs = await mn.evaluate(() => history.state)
@@ -3963,18 +4028,21 @@ try {
       await mn.locator('button[data-acao="montaria"][data-id="m1"]').click()
       await mn.waitForSelector('#t-montaria')
       await guarda('#t-montaria')
-      // captura da Montaria na sub-aba Equipamento, do topo (cabeça + sub-abas), sem o painel dev
-      await mn.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+      // captura da Montaria na sub-aba Equipamento (com o equipamento suspenso, na Status), do topo (cabeça + sub-abas),
+      // sem o painel dev
+      if (GEAR_ON) await mn.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
       await mn.evaluate(() => window.scrollTo(0, 0))
       await sleep(300)
-      if ((await mn.locator('.slot-botao img.icone[alt=""]').count()) !== 5) problems.push('ícones: os 5 slots do Equipamento deveriam ter img.icone')
-      if ((await mn.locator('.slot-botao .slot-nome').count()) !== 5) problems.push('ícones: rótulos dos slots sumiram')
+      if (GEAR_ON && (await mn.locator('.slot-botao img.icone[alt=""]').count()) !== 5) problems.push('ícones: os 5 slots do Equipamento deveriam ter img.icone')
+      if (GEAR_ON && (await mn.locator('.slot-botao .slot-nome').count()) !== 5) problems.push('ícones: rótulos dos slots sumiram')
       await mn.screenshot({ path: join(SHOTS, 'final-03-montaria.png') })
-      for (const aba of ['skills', 'equip', 'status']) {
+      if ((await mn.locator('[data-acao="montaria-aba"]').count()) !== (GEAR_ON ? 3 : 2)) problems.push('menu: a Montaria tem ' + (await mn.locator('[data-acao="montaria-aba"]').count()) + ' sub-abas')
+      for (const aba of GEAR_ON ? ['skills', 'equip', 'status'] : ['skills', 'status']) {
         await mn.locator(`[data-acao="montaria-aba"][data-id="${aba}"]`).click()
         if ((await mn.locator(`[data-acao="montaria-aba"][data-id="${aba}"][aria-pressed="true"]`).count()) !== 1) problems.push('menu: sub-aba ' + aba + ' não ativou')
       }
-      if ((await mn.locator('.slots').count()) < 1) problems.push('menu: resumo do equipamento ausente na cabeça da Montaria')   // .slots vem do gearSummaryHtml da cabeça, visível em qualquer sub-aba
+      // .slots vem do gearSummaryHtml da cabeça, visível em qualquer sub-aba (com o equipamento suspenso, ausente)
+      if (GEAR_ON ? (await mn.locator('.slots').count()) < 1 : (await mn.locator('.slots').count()) !== 0) problems.push(GEAR_ON ? 'menu: resumo do equipamento ausente na cabeça da Montaria' : 'menu: resumo do equipamento na cabeça da Montaria com ele suspenso')
       await mn.locator('[data-acao="renomear"][data-id="m1"]').click()   // campo na própria tela, como no teste principal
       await mn.fill('#renomear-campo', 'Trovão')
       await mn.locator('[data-acao="renomear-ok"]').click()
@@ -3999,19 +4067,22 @@ try {
       await guarda('#t-perfil')
       const perfilTxt = await mn.locator('#tela').textContent()
       if (!/Corridas/.test(perfilTxt) || !/Vitórias/.test(perfilTxt) || !/Pódios/.test(perfilTxt) || !/Recomeçar/.test(perfilTxt)) problems.push('menu: perfil incompleto')
-      if (!/montaria/.test(perfilTxt) || !/peça/.test(perfilTxt)) problems.push('menu: perfil sem contagem de montarias/peças')
+      if (!/montaria/.test(perfilTxt) || (GEAR_ON ? !/peça/.test(perfilTxt) : /peça|Pedras/.test(perfilTxt))) problems.push('menu: perfil sem contagem de montarias/peças (ou com peças e Pedras com o equipamento suspenso)')
       await checkOverflow(mn, 'menu-perfil')
       await mn.screenshot({ path: join(SHOTS, 'final-11-perfil.png') })
       await mn.goBack(); await mn.waitForSelector('#t-' + abaAntes)
       await mn.locator('[data-acao="perfil"]').click(); await mn.waitForSelector('#t-perfil')
       await mn.locator('[data-acao="perfil-voltar"]').click(); await mn.waitForSelector('#t-' + abaAntes)
-      // 11. Perfil -> Voltar devolve à Loja com a mesma aba interna (Pedras)
-      await mn.locator('[data-acao="aba"][data-id="loja"]').click(); await mn.waitForSelector('#t-loja')
-      await mn.locator('[data-acao="loja-tab"][data-id="pedras"]').click()
-      await mn.locator('[data-acao="perfil"]').click(); await mn.waitForSelector('#t-perfil')
-      await mn.locator('[data-acao="perfil-voltar"]').click(); await mn.waitForSelector('#t-loja')
-      const lojaTab = await mn.evaluate(() => window.__galope.ui.loja && window.__galope.ui.loja.tab)
-      if (lojaTab !== 'pedras') problems.push(`menu: Perfil -> Voltar perdeu a aba da Loja (${lojaTab}, esperado pedras)`)
+      // 11. Perfil -> Voltar devolve à Loja com a mesma aba interna (Pedras); só com o equipamento ligado (sem Loja,
+      //     o mesmo vale para o Haras no contexto cruzamento)
+      if (GEAR_ON) {
+        await mn.locator('[data-acao="aba"][data-id="loja"]').click(); await mn.waitForSelector('#t-loja')
+        await mn.locator('[data-acao="loja-tab"][data-id="pedras"]').click()
+        await mn.locator('[data-acao="perfil"]').click(); await mn.waitForSelector('#t-perfil')
+        await mn.locator('[data-acao="perfil-voltar"]').click(); await mn.waitForSelector('#t-loja')
+        const lojaTab = await mn.evaluate(() => window.__galope.ui.loja && window.__galope.ui.loja.tab)
+        if (lojaTab !== 'pedras') problems.push(`menu: Perfil -> Voltar perdeu a aba da Loja (${lojaTab}, esperado pedras)`)
+      }
       // 12. barra embaixo no celular (390) e à esquerda no desktop (1280)
       const mbox = await mn.locator('.app-abas').boundingBox()
       if (!mbox || mbox.y < 700 || mbox.width < 380) problems.push('menu: barra não está embaixo em 390: ' + JSON.stringify(mbox))
@@ -4040,174 +4111,240 @@ try {
   }
 
   // ---------------- equipamento: dev, equipar/tirar, melhorar determinístico, venda com desfazer e trava ----------------
+  // (com o equipamento suspenso, GEAR_ON = false: a gaveta dá peças, a tela não as mostra e as ações forçadas não fazem nada)
   {
     const eq = await newPage(browser, { width: 390, height: 844 }, 'equipamento', { query: '?dev=1' })
     try {
       const st = () => eq.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
       const txt = async () => (await eq.locator('#tela').textContent()) || ''
       const itemOf = (s, uid) => s.items.find((it) => it.uid === uid)
-      // 1. perfil DEV novo (Brasa, sem a escolha inicial) com o equipamento de partida
-      await eq.waitForSelector('#t-estabulo')
-      let s = await st()
-      if (s.items.length !== 2 || s.mounts[0].equip.sela !== 'i1' || s.mounts[0].equip.ferraduras !== 'i2' || s.pedras !== 0) {
-        problems.push('equipamento: estado inicial ' + JSON.stringify({ items: s.items, equip: s.mounts[0].equip, pedras: s.pedras }))
-      }
-      // 2. gaveta DEV: 5 Pedras e conjunto Lendário do Sol +0 equipado na ativa (Brasa é Fogo)
-      await devAbrir(eq)
-      await eq.fill('#dev-pedras', '5')
-      await eq.locator('[data-acao="dev-pedras"]').click()
-      if ((await st()).pedras !== 5) problems.push('equipamento: dev-pedras não deu 5 pedras')
-      await eq.selectOption('#dev-conjunto', 'sol')
-      await eq.selectOption('#dev-rpeca', 'lendario')
-      await eq.selectOption('#dev-melhoria', '0')
-      await eq.setChecked('#dev-equipar', true)
-      await eq.locator('[data-acao="dev-conjunto"]').click()
-      await devFechar(eq)
-      s = await st()
-      if (s.items.length !== 7) problems.push('equipamento: dev-set deixou ' + s.items.length + ' peças (esperado 7)')
-      const ids = GR.SLOTS.map((sl) => { const it = itemOf(s, s.mounts[0].equip[sl]); return it ? it.id : null })
-      GR.SLOTS.forEach((sl, k) => { if (ids[k] !== sl + '-sol-lendario') problems.push('equipamento: dev-set ' + sl + ' = ' + ids[k]) })
-      const L = s.mounts[0].equip.sela
-      // 3. tela da Montaria (pelo "Ver" do cartão do Estábulo), sub-aba Equipamento
-      await eq.locator('button[data-acao="montaria"][data-id="m1"]').click()
-      await eq.waitForSelector('#t-montaria', { timeout: 5000 })
-      await eq.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
-      if (!/Sol ×5/.test(await txt())) problems.push('equipamento: tela sem "Sol ×5"')
-      // 4. tirar a sela
-      await eq.locator('[data-acao="equip-slot"][data-id="sela"]').click()
-      await eq.locator('[data-acao="tirar"][data-id="sela"]').click()
-      s = await st()
-      if (s.mounts[0].equip.sela !== null) problems.push('equipamento: tirar deixou sela ' + s.mounts[0].equip.sela)
-      if (!/Sol ×4/.test(await txt())) problems.push('equipamento: tela sem "Sol ×4" depois de tirar')
-      // 5. equipar a sela comum de volta; a Lendária fica no inventário
-      await eq.locator('[data-acao="equipar"][data-id="i1"]').click()
-      s = await st()
-      if (s.mounts[0].equip.sela !== 'i1') problems.push('equipamento: equipar i1 deixou sela ' + s.mounts[0].equip.sela)
-      if (!itemOf(s, L)) problems.push('equipamento: a sela Lendária ' + L + ' sumiu do inventário')
-      // 6. melhorar i1 três vezes, conferindo cada sorteio com o Node
-      const seedBase = s.seedBase
-      let plus = itemOf(s, 'i1').plus, gastas = 0
-      const seq = [plus]
-      for (let k = 0; k < 3; k++) {
-        const odds = GR.enhanceOdds(plus)
-        const r = GR.enhance({ uid: 'i1', id: 'sela-comum', plus }, seedBase, k)
-        await eq.locator('[data-acao="melhorar"][data-id="i1"]').click()
-        await eq.locator('[data-acao="melhorar-sim"][data-id="i1"]').click()
-        plus = r.plus; gastas += odds.cost; seq.push(plus)
-        s = await st()
-        if (itemOf(s, 'i1').plus !== plus || s.pedras !== 5 - gastas || s.enhanceCounter !== k + 1) {
-          problems.push('equipamento: melhoria ' + k + ' jogo ' + JSON.stringify({ plus: itemOf(s, 'i1').plus, pedras: s.pedras, counter: s.enhanceCounter }) + ' node ' + JSON.stringify({ plus, pedras: 5 - gastas, counter: k + 1 }))
+      if (!GEAR_ON) {
+        // Equipamento suspenso (GEAR_ON = false, spec 1b §8): a gaveta DEV ainda dá peças e Pedras (RF5: nada quebra
+        // com peças no save), mas a tela não as mostra, as ações de peça forçadas não fazem nada e o Poder as ignora
+        await eq.waitForSelector('#t-estabulo')
+        let s = await st()
+        if (s.items.length !== 2 || s.mounts[0].equip.sela !== 'i1' || s.mounts[0].equip.ferraduras !== 'i2' || s.pedras !== 0) {
+          problems.push('equipamento: estado inicial ' + JSON.stringify({ items: s.items, equip: s.mounts[0].equip, pedras: s.pedras }))
         }
+        await devAbrir(eq)
+        await eq.fill('#dev-pedras', '5')
+        await eq.locator('[data-acao="dev-pedras"]').click()
+        await eq.selectOption('#dev-conjunto', 'sol')
+        await eq.selectOption('#dev-rpeca', 'lendario')
+        await eq.selectOption('#dev-melhoria', '7')
+        await eq.setChecked('#dev-equipar', true)
+        await eq.locator('[data-acao="dev-conjunto"]').click()
+        await devFechar(eq)
+        s = await st()
+        if (s.items.length !== 7 || s.pedras !== 5) problems.push('equipamento: a gaveta DEV não deu o conjunto e as Pedras ' + JSON.stringify({ n: s.items.length, pedras: s.pedras }))
+        const L = s.mounts[0].equip.sela
+        GR.SLOTS.forEach((sl) => { const it = itemOf(s, s.mounts[0].equip[sl]); if (!it || it.id !== sl + '-sol-lendario' || it.plus !== 7) problems.push('equipamento: dev-set ' + sl + ' = ' + JSON.stringify(it)) })
+        if ((await eq.locator('#tela .slots, #tela .set-badge, .app-topo .pedras').count()) !== 0) problems.push('equipamento: o Estábulo mostra peças ou Pedras com o equipamento suspenso')
+        // ficha da Montaria: sem a sub-aba Equipamento e sem resumo; o Poder é o do cavalo sem as peças
+        await eq.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await eq.waitForSelector('#t-montaria', { timeout: 5000 })
+        if (await eq.locator('[data-acao="montaria-aba"][data-id="equip"]').count()) problems.push('equipamento: sub-aba Equipamento com o equipamento suspenso')
+        if (await eq.locator('#tela .slots, #tela .set-badge').count()) problems.push('equipamento: resumo das peças na ficha')
+        const poderFicha = await eq.evaluate(() => { const sp = Array.from(document.querySelectorAll('.montaria-cabeca .linha-meta span')).find((x) => /^Poder/.test(x.textContent)); return sp ? Number(sp.querySelector('b').textContent) : null })
+        const semPecas = S.powerRating(Object.assign({}, s.mounts[0], { equip: GR.emptyEquip() }))
+        if (poderFicha !== semPecas) problems.push(`equipamento: Poder na ficha ${poderFicha} (sem as peças: ${semPecas})`)
+        // ações de peça forçadas (botão criado no DOM): nada muda
+        const antes = await st()
+        for (const [acao, id] of [['equip-slot', 'sela'], ['tirar', 'sela'], ['equipar', 'i1'], ['melhorar', 'i1'], ['melhorar-sim', 'i1'], ['vender', L], ['vender', 'i1'], ['vender-desfazer', null]]) {
+          await eq.evaluate(([a, i]) => { const b = document.createElement('button'); b.setAttribute('data-acao', a); if (i != null) b.setAttribute('data-id', i); document.getElementById('tela').appendChild(b); b.click(); b.remove() }, [acao, id])
+        }
+        s = await st()
+        for (const c of ['items', 'pedras', 'enhanceCounter', 'gold']) if (JSON.stringify(s[c]) !== JSON.stringify(antes[c])) problems.push('equipamento: ação de peça forçada mudou ' + c)
+        if (JSON.stringify(s.mounts[0].equip) !== JSON.stringify(antes.mounts[0].equip)) problems.push('equipamento: ação de peça forçada mudou o equipado')
+        // persistência: as peças e o equipado continuam no save de teste
+        await eq.reload({ waitUntil: 'domcontentloaded' })
+        await eq.waitForSelector('#t-estabulo')
+        s = await st()
+        if (JSON.stringify(s.mounts[0].equip) !== JSON.stringify(antes.mounts[0].equip) || JSON.stringify(s.items) !== JSON.stringify(antes.items) || s.pedras !== 5) problems.push('equipamento: as peças não ficaram no save')
+        // 8b. botão DEV inteiro acima da barra de abas
+        const devBox = await eq.locator('.dev-botao').boundingBox()
+        const abasBox = await eq.locator('.app-abas').boundingBox()
+        if (!devBox || !abasBox || devBox.y + devBox.height > abasBox.y + 1) problems.push('menu: botão DEV cobre a barra ' + JSON.stringify({ devBox, abasBox }))
+        // 9. aba Correr sem o resumo nem o atalho Equipar; na largada, o botão DEV não cobre o "Largar!"
+        await eq.locator('[data-acao="aba"][data-id="correr"]').click()
+        await eq.waitForSelector('#t-correr')
+        if (await eq.locator('#tela .slots, #tela [data-acao="equipar-tela"]').count()) problems.push('equipamento: aba Correr com o resumo das peças ou o Equipar')
+        await eq.getByRole('button', { name: 'Procurar corrida' }).click()
+        await eq.waitForSelector('#t-largada')
+        {
+          const lb = await eq.locator('.barra-acao .btn').boundingBox()
+          const db = await eq.locator('.dev-botao').boundingBox()
+          const cruza = lb && db && lb.x < db.x + db.width && db.x < lb.x + lb.width && lb.y < db.y + db.height && db.y < lb.y + lb.height
+          if (!lb || !db || cruza) problems.push('equipamento: botão DEV cobre o "Largar!" na largada ' + JSON.stringify({ lb, db }))
+        }
+        if ((await st()).pending.pr !== semPecas) problems.push(`equipamento: Poder da sala ${(await st()).pending.pr} (sem as peças: ${semPecas})`)
+        await sleep(300)
+        await checkOverflow(eq, 'equipamento')
+        notes.equipamento = 'suspenso (GEAR_ON = false): telas de peças ausentes, ações forçadas sem efeito, Poder sem as peças'
+      } else {
+        // 1. perfil DEV novo (Brasa, sem a escolha inicial) com o equipamento de partida
+        await eq.waitForSelector('#t-estabulo')
+        let s = await st()
+        if (s.items.length !== 2 || s.mounts[0].equip.sela !== 'i1' || s.mounts[0].equip.ferraduras !== 'i2' || s.pedras !== 0) {
+          problems.push('equipamento: estado inicial ' + JSON.stringify({ items: s.items, equip: s.mounts[0].equip, pedras: s.pedras }))
+        }
+        // 2. gaveta DEV: 5 Pedras e conjunto Lendário do Sol +0 equipado na ativa (Brasa é Fogo)
+        await devAbrir(eq)
+        await eq.fill('#dev-pedras', '5')
+        await eq.locator('[data-acao="dev-pedras"]').click()
+        if ((await st()).pedras !== 5) problems.push('equipamento: dev-pedras não deu 5 pedras')
+        await eq.selectOption('#dev-conjunto', 'sol')
+        await eq.selectOption('#dev-rpeca', 'lendario')
+        await eq.selectOption('#dev-melhoria', '0')
+        await eq.setChecked('#dev-equipar', true)
+        await eq.locator('[data-acao="dev-conjunto"]').click()
+        await devFechar(eq)
+        s = await st()
+        if (s.items.length !== 7) problems.push('equipamento: dev-set deixou ' + s.items.length + ' peças (esperado 7)')
+        const ids = GR.SLOTS.map((sl) => { const it = itemOf(s, s.mounts[0].equip[sl]); return it ? it.id : null })
+        GR.SLOTS.forEach((sl, k) => { if (ids[k] !== sl + '-sol-lendario') problems.push('equipamento: dev-set ' + sl + ' = ' + ids[k]) })
+        const L = s.mounts[0].equip.sela
+        // 3. tela da Montaria (pelo "Ver" do cartão do Estábulo), sub-aba Equipamento
+        await eq.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await eq.waitForSelector('#t-montaria', { timeout: 5000 })
+        await eq.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+        if (!/Sol ×5/.test(await txt())) problems.push('equipamento: tela sem "Sol ×5"')
+        // 4. tirar a sela
+        await eq.locator('[data-acao="equip-slot"][data-id="sela"]').click()
+        await eq.locator('[data-acao="tirar"][data-id="sela"]').click()
+        s = await st()
+        if (s.mounts[0].equip.sela !== null) problems.push('equipamento: tirar deixou sela ' + s.mounts[0].equip.sela)
+        if (!/Sol ×4/.test(await txt())) problems.push('equipamento: tela sem "Sol ×4" depois de tirar')
+        // 5. equipar a sela comum de volta; a Lendária fica no inventário
+        await eq.locator('[data-acao="equipar"][data-id="i1"]').click()
+        s = await st()
+        if (s.mounts[0].equip.sela !== 'i1') problems.push('equipamento: equipar i1 deixou sela ' + s.mounts[0].equip.sela)
+        if (!itemOf(s, L)) problems.push('equipamento: a sela Lendária ' + L + ' sumiu do inventário')
+        // 6. melhorar i1 três vezes, conferindo cada sorteio com o Node
+        const seedBase = s.seedBase
+        let plus = itemOf(s, 'i1').plus, gastas = 0
+        const seq = [plus]
+        for (let k = 0; k < 3; k++) {
+          const odds = GR.enhanceOdds(plus)
+          const r = GR.enhance({ uid: 'i1', id: 'sela-comum', plus }, seedBase, k)
+          await eq.locator('[data-acao="melhorar"][data-id="i1"]').click()
+          await eq.locator('[data-acao="melhorar-sim"][data-id="i1"]').click()
+          plus = r.plus; gastas += odds.cost; seq.push(plus)
+          s = await st()
+          if (itemOf(s, 'i1').plus !== plus || s.pedras !== 5 - gastas || s.enhanceCounter !== k + 1) {
+            problems.push('equipamento: melhoria ' + k + ' jogo ' + JSON.stringify({ plus: itemOf(s, 'i1').plus, pedras: s.pedras, counter: s.enhanceCounter }) + ' node ' + JSON.stringify({ plus, pedras: 5 - gastas, counter: k + 1 }))
+          }
+        }
+        if (s.enhanceCounter !== 3) problems.push('equipamento: enhanceCounter ' + s.enhanceCounter)
+        if (!/Sucesso|Falhou/.test(await txt())) problems.push('equipamento: sem mensagem de Sucesso/Falhou')
+        notes.equipamento = { seedBase, plusSeq: seq, pedras: s.pedras }
+        // 7. vender a Lendária e desfazer; sair limpa o desfazer
+        const gold0 = s.gold
+        await eq.locator(`[data-acao="vender"][data-id="${L}"]`).click()
+        s = await st()
+        if (s.gold !== gold0 + 375 || s.items.length !== 6) problems.push('equipamento: venda ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
+        await eq.locator('[data-acao="vender-desfazer"]').click()
+        s = await st()
+        if (s.gold !== gold0 || s.items.length !== 7 || !itemOf(s, L)) problems.push('equipamento: desfazer ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
+        // 7c. vender de novo e desfazer uma vez; um segundo clique forçado não pode desfazer de novo
+        await eq.locator('[data-acao="vender"][data-id="' + L + '"]').click()
+        s = await st()
+        if (s.gold !== gold0 + 375 || s.items.length !== 6) problems.push('equipamento: 2ª venda ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
+        await eq.locator('[data-acao="vender-desfazer"]').click()
+        s = await st()
+        if (s.gold !== gold0 || s.items.length !== 7 || !itemOf(s, L)) problems.push('equipamento: 2º desfazer ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
+        if (await eq.locator('[data-acao="vender-desfazer"]').count() !== 0) problems.push('equipamento: "Desfazer venda" continua depois de usado')
+        await eq.evaluate(() => { const b = document.querySelector('[data-acao="vender-desfazer"]'); if (b) { b.disabled = false; b.click() } })
+        s = await st()
+        if (s.gold !== gold0 || s.items.length !== 7) problems.push('equipamento: desfazer usado duas vezes ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
+        // 8. persistência
+        const antes = await st()
+        await eq.reload({ waitUntil: 'domcontentloaded' })
+        await eq.waitForSelector('#t-estabulo')
+        s = await st()
+        if (JSON.stringify(s.mounts[0].equip) !== JSON.stringify(antes.mounts[0].equip) || itemOf(s, 'i1').plus !== itemOf(antes, 'i1').plus || s.items.length !== 7) {
+          problems.push('equipamento: não persistiu ' + JSON.stringify({ equip: s.mounts[0].equip, plus: itemOf(s, 'i1').plus }))
+        }
+        // 8b. botão DEV inteiro acima da barra de abas; a aba ainda responde com o botão presente
+        const devBox = await eq.locator('.dev-botao').boundingBox()
+        const abasBox = await eq.locator('.app-abas').boundingBox()
+        if (!devBox || !abasBox || devBox.y + devBox.height > abasBox.y + 1) problems.push('menu: botão DEV cobre a barra ' + JSON.stringify({ devBox, abasBox }))
+        await eq.locator('[data-acao="aba"][data-id="loja"]').click()
+        await eq.waitForSelector('#t-loja', { timeout: 5000 })
+        await eq.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await eq.waitForSelector('#t-estabulo')
+        // 9. trava parcial com páreo aberto
+        await eq.locator('[data-acao="aba"][data-id="correr"]').click()
+        await eq.waitForSelector('#t-correr')
+        await eq.getByRole('button', { name: 'Procurar corrida' }).click()
+        await eq.waitForSelector('#t-largada')
+        // 9a. na largada (tela cheia, no topo) o botão DEV não cobre o "Largar!"
+        {
+          const lb = await eq.locator('.barra-acao .btn').boundingBox()
+          const db = await eq.locator('.dev-botao').boundingBox()
+          const cruza = lb && db && lb.x < db.x + db.width && db.x < lb.x + lb.width && lb.y < db.y + db.height && db.y < lb.y + lb.height
+          if (!lb || !db || cruza) problems.push('equipamento: botão DEV cobre o "Largar!" na largada ' + JSON.stringify({ lb, db }))
+        }
+        await eq.locator('[data-acao="voltar"]').first().click()
+        await eq.waitForSelector('#t-correr')
+        await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()   // "Equipar" da aba Correr
+        await eq.waitForSelector('#t-montaria')
+        if ((await eq.locator('[data-acao="montaria-aba"][data-id="equip"][aria-pressed="true"]').count()) !== 1) problems.push('equipamento: "Equipar" da aba Correr não abriu a sub-aba Equipamento')
+        await eq.locator('[data-acao="equip-slot"][data-id="sela"]').click()
+        const pr = await eq.evaluate(() => window.__galope.state.pending && window.__galope.state.pending.pr)
+        if (!(await eq.locator(`[data-acao="equipar"][data-id="${L}"]`).isDisabled())) problems.push('equipamento: equipar a Lendária habilitado com páreo aberto')
+        if (!/Páreo aberto/.test(await txt())) problems.push('equipamento: sem aviso "Páreo aberto"')
+        if (!(await eq.locator('[data-acao="melhorar"][data-id="i1"]').isDisabled())) problems.push('equipamento: melhorar peça da ativa habilitado com páreo aberto')
+        // clique forçado no handler: equipar a Lendária e melhorar i1 continuam bloqueados
+        const travaAntes = await st()
+        await eq.evaluate((L) => { const b = document.querySelector('[data-acao="equipar"][data-id="' + L + '"]'); b.disabled = false; b.click() }, L)
+        if ((await st()).mounts[0].equip.sela !== 'i1') problems.push('equipamento: clique forçado equipou a Lendária com páreo aberto')
+        if (!/Páreo aberto/.test(await txt())) problems.push('equipamento: sem aviso "Páreo aberto" depois do clique forçado')
+        await eq.evaluate(() => { const b = document.querySelector('[data-acao="melhorar"][data-id="i1"]'); if (b) { b.disabled = false; b.click() } })
+        await eq.evaluate(() => { const b = document.querySelector('[data-acao="melhorar-sim"][data-id="i1"]'); if (b) { b.disabled = false; b.click() } })
+        const travaDepois = await st()
+        if (travaDepois.enhanceCounter !== travaAntes.enhanceCounter || travaDepois.pedras !== travaAntes.pedras || itemOf(travaDepois, 'i1').plus !== itemOf(travaAntes, 'i1').plus) {
+          problems.push('equipamento: clique forçado melhorou i1 com páreo aberto ' + JSON.stringify({ antes: [travaAntes.enhanceCounter, travaAntes.pedras], depois: [travaDepois.enhanceCounter, travaDepois.pedras] }))
+        }
+        await eq.locator('[data-acao="tirar"][data-id="sela"]').click()
+        if ((await st()).mounts[0].equip.sela !== null) problems.push('equipamento: tirar bloqueado com páreo aberto')
+        await eq.locator('[data-acao="equipar"][data-id="i1"]').click()
+        if ((await st()).mounts[0].equip.sela !== 'i1') problems.push('equipamento: re-equipar i1 bloqueado com páreo aberto')
+        const ratingL = S.powerRating(antes.mounts[0], GR.resolve({ equip: Object.assign({}, antes.mounts[0].equip, { sela: L }) }, Object.fromEntries(antes.items.map((it) => [it.uid, it]))))
+        notes.equipamentoTrava = { pr, liga: S.leagueFor(pr).name, ratingComLendaria: ratingL, ligaComLendaria: S.leagueFor(ratingL).name }
+        // 10. sem rolagem horizontal
+        await sleep(300)
+        await checkOverflow(eq, 'equipamento')
+        // 11. vender a Lendária pela 3ª vez e sair: a venda fica e o "Desfazer" some
+        //     (depois da trava, que ainda usa a Lendária no inventário)
+        const goldAntes3 = (await st()).gold
+        await eq.locator('[data-acao="vender"][data-id="' + L + '"]').click()
+        s = await st()
+        const gold3 = s.gold
+        if (gold3 !== goldAntes3 + 375 || s.items.length !== 6) problems.push('equipamento: 3ª venda ' + JSON.stringify({ gold: s.gold, goldAntes3, n: s.items.length }))
+        await eq.locator('[data-acao="montaria-voltar"]').click()
+        await eq.waitForSelector('#t-correr')   // ui.tab é correr: a Montaria foi aberta pela aba Correr
+        await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
+        await eq.waitForSelector('#t-montaria')
+        if (await eq.locator('[data-acao="vender-desfazer"]').count()) problems.push('equipamento: "Desfazer venda" continua depois de sair da tela')
+        s = await st()
+        if (s.items.length !== 6 || s.gold !== gold3 || itemOf(s, L)) problems.push('equipamento: venda não ficou depois de sair ' + JSON.stringify({ gold: s.gold, gold3, n: s.items.length }))
+        // 12. trocar de aba pela barra também descarta o "Desfazer" (vende as ferraduras comuns, i2)
+        await eq.locator('[data-acao="equip-slot"][data-id="ferraduras"]').click()
+        await eq.locator('[data-acao="vender"][data-id="i2"]').click()
+        if ((await eq.locator('[data-acao="vender-desfazer"]').count()) !== 1) problems.push('equipamento: sem "Desfazer venda" depois de vender i2')
+        const n12 = (await st()).items.length
+        await eq.locator('[data-acao="aba"][data-id="loja"]').click()
+        await eq.waitForSelector('#t-loja')
+        await eq.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await eq.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await eq.waitForSelector('#t-montaria')
+        await eq.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+        if ((await eq.locator('[data-acao="vender-desfazer"]').count()) !== 0) problems.push('equipamento: "Desfazer venda" continua depois de trocar de aba')
+        s = await st()
+        if (s.items.length !== n12 || itemOf(s, 'i2')) problems.push('equipamento: venda de i2 não ficou depois de trocar de aba ' + JSON.stringify({ n: s.items.length, n12 }))
+        notes.equipamentoVenda = { gold0, goldVenda: gold0 + 375, goldAntes3, goldVendida3: gold3, goldFinal: s.gold }
       }
-      if (s.enhanceCounter !== 3) problems.push('equipamento: enhanceCounter ' + s.enhanceCounter)
-      if (!/Sucesso|Falhou/.test(await txt())) problems.push('equipamento: sem mensagem de Sucesso/Falhou')
-      notes.equipamento = { seedBase, plusSeq: seq, pedras: s.pedras }
-      // 7. vender a Lendária e desfazer; sair limpa o desfazer
-      const gold0 = s.gold
-      await eq.locator(`[data-acao="vender"][data-id="${L}"]`).click()
-      s = await st()
-      if (s.gold !== gold0 + 375 || s.items.length !== 6) problems.push('equipamento: venda ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
-      await eq.locator('[data-acao="vender-desfazer"]').click()
-      s = await st()
-      if (s.gold !== gold0 || s.items.length !== 7 || !itemOf(s, L)) problems.push('equipamento: desfazer ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
-      // 7c. vender de novo e desfazer uma vez; um segundo clique forçado não pode desfazer de novo
-      await eq.locator('[data-acao="vender"][data-id="' + L + '"]').click()
-      s = await st()
-      if (s.gold !== gold0 + 375 || s.items.length !== 6) problems.push('equipamento: 2ª venda ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
-      await eq.locator('[data-acao="vender-desfazer"]').click()
-      s = await st()
-      if (s.gold !== gold0 || s.items.length !== 7 || !itemOf(s, L)) problems.push('equipamento: 2º desfazer ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
-      if (await eq.locator('[data-acao="vender-desfazer"]').count() !== 0) problems.push('equipamento: "Desfazer venda" continua depois de usado')
-      await eq.evaluate(() => { const b = document.querySelector('[data-acao="vender-desfazer"]'); if (b) { b.disabled = false; b.click() } })
-      s = await st()
-      if (s.gold !== gold0 || s.items.length !== 7) problems.push('equipamento: desfazer usado duas vezes ' + JSON.stringify({ gold: s.gold, gold0, n: s.items.length }))
-      // 8. persistência
-      const antes = await st()
-      await eq.reload({ waitUntil: 'domcontentloaded' })
-      await eq.waitForSelector('#t-estabulo')
-      s = await st()
-      if (JSON.stringify(s.mounts[0].equip) !== JSON.stringify(antes.mounts[0].equip) || itemOf(s, 'i1').plus !== itemOf(antes, 'i1').plus || s.items.length !== 7) {
-        problems.push('equipamento: não persistiu ' + JSON.stringify({ equip: s.mounts[0].equip, plus: itemOf(s, 'i1').plus }))
-      }
-      // 8b. botão DEV inteiro acima da barra de abas; a aba ainda responde com o botão presente
-      const devBox = await eq.locator('.dev-botao').boundingBox()
-      const abasBox = await eq.locator('.app-abas').boundingBox()
-      if (!devBox || !abasBox || devBox.y + devBox.height > abasBox.y + 1) problems.push('menu: botão DEV cobre a barra ' + JSON.stringify({ devBox, abasBox }))
-      await eq.locator('[data-acao="aba"][data-id="loja"]').click()
-      await eq.waitForSelector('#t-loja', { timeout: 5000 })
-      await eq.locator('[data-acao="aba"][data-id="estabulo"]').click()
-      await eq.waitForSelector('#t-estabulo')
-      // 9. trava parcial com páreo aberto
-      await eq.locator('[data-acao="aba"][data-id="correr"]').click()
-      await eq.waitForSelector('#t-correr')
-      await eq.getByRole('button', { name: 'Procurar corrida' }).click()
-      await eq.waitForSelector('#t-largada')
-      // 9a. na largada (tela cheia, no topo) o botão DEV não cobre o "Largar!"
-      {
-        const lb = await eq.locator('.barra-acao .btn').boundingBox()
-        const db = await eq.locator('.dev-botao').boundingBox()
-        const cruza = lb && db && lb.x < db.x + db.width && db.x < lb.x + lb.width && lb.y < db.y + db.height && db.y < lb.y + lb.height
-        if (!lb || !db || cruza) problems.push('equipamento: botão DEV cobre o "Largar!" na largada ' + JSON.stringify({ lb, db }))
-      }
-      await eq.locator('[data-acao="voltar"]').first().click()
-      await eq.waitForSelector('#t-correr')
-      await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()   // "Equipar" da aba Correr
-      await eq.waitForSelector('#t-montaria')
-      if ((await eq.locator('[data-acao="montaria-aba"][data-id="equip"][aria-pressed="true"]').count()) !== 1) problems.push('equipamento: "Equipar" da aba Correr não abriu a sub-aba Equipamento')
-      await eq.locator('[data-acao="equip-slot"][data-id="sela"]').click()
-      const pr = await eq.evaluate(() => window.__galope.state.pending && window.__galope.state.pending.pr)
-      if (!(await eq.locator(`[data-acao="equipar"][data-id="${L}"]`).isDisabled())) problems.push('equipamento: equipar a Lendária habilitado com páreo aberto')
-      if (!/Páreo aberto/.test(await txt())) problems.push('equipamento: sem aviso "Páreo aberto"')
-      if (!(await eq.locator('[data-acao="melhorar"][data-id="i1"]').isDisabled())) problems.push('equipamento: melhorar peça da ativa habilitado com páreo aberto')
-      // clique forçado no handler: equipar a Lendária e melhorar i1 continuam bloqueados
-      const travaAntes = await st()
-      await eq.evaluate((L) => { const b = document.querySelector('[data-acao="equipar"][data-id="' + L + '"]'); b.disabled = false; b.click() }, L)
-      if ((await st()).mounts[0].equip.sela !== 'i1') problems.push('equipamento: clique forçado equipou a Lendária com páreo aberto')
-      if (!/Páreo aberto/.test(await txt())) problems.push('equipamento: sem aviso "Páreo aberto" depois do clique forçado')
-      await eq.evaluate(() => { const b = document.querySelector('[data-acao="melhorar"][data-id="i1"]'); if (b) { b.disabled = false; b.click() } })
-      await eq.evaluate(() => { const b = document.querySelector('[data-acao="melhorar-sim"][data-id="i1"]'); if (b) { b.disabled = false; b.click() } })
-      const travaDepois = await st()
-      if (travaDepois.enhanceCounter !== travaAntes.enhanceCounter || travaDepois.pedras !== travaAntes.pedras || itemOf(travaDepois, 'i1').plus !== itemOf(travaAntes, 'i1').plus) {
-        problems.push('equipamento: clique forçado melhorou i1 com páreo aberto ' + JSON.stringify({ antes: [travaAntes.enhanceCounter, travaAntes.pedras], depois: [travaDepois.enhanceCounter, travaDepois.pedras] }))
-      }
-      await eq.locator('[data-acao="tirar"][data-id="sela"]').click()
-      if ((await st()).mounts[0].equip.sela !== null) problems.push('equipamento: tirar bloqueado com páreo aberto')
-      await eq.locator('[data-acao="equipar"][data-id="i1"]').click()
-      if ((await st()).mounts[0].equip.sela !== 'i1') problems.push('equipamento: re-equipar i1 bloqueado com páreo aberto')
-      const ratingL = S.powerRating(antes.mounts[0], GR.resolve({ equip: Object.assign({}, antes.mounts[0].equip, { sela: L }) }, Object.fromEntries(antes.items.map((it) => [it.uid, it]))))
-      notes.equipamentoTrava = { pr, liga: S.leagueFor(pr).name, ratingComLendaria: ratingL, ligaComLendaria: S.leagueFor(ratingL).name }
-      // 10. sem rolagem horizontal
-      await sleep(300)
-      await checkOverflow(eq, 'equipamento')
-      // 11. vender a Lendária pela 3ª vez e sair: a venda fica e o "Desfazer" some
-      //     (depois da trava, que ainda usa a Lendária no inventário)
-      const goldAntes3 = (await st()).gold
-      await eq.locator('[data-acao="vender"][data-id="' + L + '"]').click()
-      s = await st()
-      const gold3 = s.gold
-      if (gold3 !== goldAntes3 + 375 || s.items.length !== 6) problems.push('equipamento: 3ª venda ' + JSON.stringify({ gold: s.gold, goldAntes3, n: s.items.length }))
-      await eq.locator('[data-acao="montaria-voltar"]').click()
-      await eq.waitForSelector('#t-correr')   // ui.tab é correr: a Montaria foi aberta pela aba Correr
-      await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
-      await eq.waitForSelector('#t-montaria')
-      if (await eq.locator('[data-acao="vender-desfazer"]').count()) problems.push('equipamento: "Desfazer venda" continua depois de sair da tela')
-      s = await st()
-      if (s.items.length !== 6 || s.gold !== gold3 || itemOf(s, L)) problems.push('equipamento: venda não ficou depois de sair ' + JSON.stringify({ gold: s.gold, gold3, n: s.items.length }))
-      // 12. trocar de aba pela barra também descarta o "Desfazer" (vende as ferraduras comuns, i2)
-      await eq.locator('[data-acao="equip-slot"][data-id="ferraduras"]').click()
-      await eq.locator('[data-acao="vender"][data-id="i2"]').click()
-      if ((await eq.locator('[data-acao="vender-desfazer"]').count()) !== 1) problems.push('equipamento: sem "Desfazer venda" depois de vender i2')
-      const n12 = (await st()).items.length
-      await eq.locator('[data-acao="aba"][data-id="loja"]').click()
-      await eq.waitForSelector('#t-loja')
-      await eq.locator('[data-acao="aba"][data-id="estabulo"]').click()
-      await eq.locator('button[data-acao="montaria"][data-id="m1"]').click()
-      await eq.waitForSelector('#t-montaria')
-      await eq.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
-      if ((await eq.locator('[data-acao="vender-desfazer"]').count()) !== 0) problems.push('equipamento: "Desfazer venda" continua depois de trocar de aba')
-      s = await st()
-      if (s.items.length !== n12 || itemOf(s, 'i2')) problems.push('equipamento: venda de i2 não ficou depois de trocar de aba ' + JSON.stringify({ n: s.items.length, n12 }))
-      notes.equipamentoVenda = { gold0, goldVenda: gold0 + 375, goldAntes3, goldVendida3: gold3, goldFinal: s.gold }
     } catch (e) {
       problems.push('equipamento: ' + e.message)
     }
@@ -4278,9 +4415,11 @@ try {
       await dv.fill('#dev-pt-vel', '10'); await dv.fill('#dev-pt-acel', '999'); await dv.fill('#dev-pt-man', '-4')
       await dv.locator('[data-acao="dev-aplicar"]').click()
       let ap = (await st()).mounts.find((m) => m.uid === 'm2')
-      // nível 30 ★★★: 43 pontos livres, até 15 num status
+      // Mítico ★★★ nível 30: os pontos cortados pelo validAlloc novo (teto de 150 e custo por faixa: ACE 999 vira o que
+      // o custo paga, MAN −4 vira 0)
+      const ptsDev = { vel: 10, acel: 999, man: -4, forca: 0, est: 0, garra: 0, sorte: 0 }, espDev = S.validAlloc(ap, ptsDev)
       if (ap.grau !== 3 || ap.potential.vel !== 7 || ap.potential.acel !== 31 || ap.potential.man !== 0 || ap.potential.forca !== 31 ||
-        JSON.stringify(ap.alloc) !== JSON.stringify({ vel: 10, acel: 15, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 }) || 'base' in ap) problems.push('dev: aplicar genética/estrelas/pontos ' + JSON.stringify(ap))
+        JSON.stringify(ap.alloc) !== JSON.stringify(espDev) || espDev.vel !== 10 || !(espDev.acel > 0) || 'base' in ap) problems.push('dev: aplicar genética/estrelas/pontos ' + JSON.stringify(ap) + ' (validAlloc: ' + JSON.stringify(espDev) + ')')
       await dv.locator('[data-acao="dev-devolver"]').click()
       ap = (await st()).mounts.find((m) => m.uid === 'm2')
       if (G.STAT_KEYS.some((k) => ap.alloc[k] !== 0) || ap.grau !== 3) problems.push('dev: devolver pontos ' + JSON.stringify(ap.alloc))
@@ -4317,10 +4456,14 @@ try {
       await devFechar(dv)
       await dv.locator(`button[data-acao="montaria"][data-id="${s.activeId}"]`).click()
       await dv.waitForSelector('#t-montaria')
-      await dv.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
-      await dv.locator('[data-acao="equip-slot"][data-id="armadura"]').click()
-      if (!peca || (await dv.locator(`[data-acao="equipar"][data-id="${peca.uid}"]`).count()) !== 1) problems.push('dev: a peça Lendária não aparece no inventário da Armadura')
-      if (!/Armadura da Chuva/.test((await dv.locator('#tela').textContent()) || '')) problems.push('dev: inventário sem "Armadura da Chuva"')
+      if (GEAR_ON) {
+        await dv.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+        await dv.locator('[data-acao="equip-slot"][data-id="armadura"]').click()
+        if (!peca || (await dv.locator(`[data-acao="equipar"][data-id="${peca.uid}"]`).count()) !== 1) problems.push('dev: a peça Lendária não aparece no inventário da Armadura')
+        if (!/Armadura da Chuva/.test((await dv.locator('#tela').textContent()) || '')) problems.push('dev: inventário sem "Armadura da Chuva"')
+      } else if ((await dv.locator('[data-acao="montaria-aba"][data-id="equip"]').count()) || /Armadura da Chuva/.test((await dv.locator('#tela').textContent()) || '')) {
+        problems.push('dev: a peça dada aparece na tela com o equipamento suspenso (ela só fica no save)')
+      }
       // 5. próxima corrida: clima Névoa, vento brisa ←, seed fixa e skills sempre ativam
       await devArmar(dv, { clima: 'nevoa', vento: 'brisa', direcao: -1, seed: 4321, sempre: true })
       const nx = await dv.evaluate(() => window.__galope.ui.devNext)
@@ -4610,7 +4753,7 @@ try {
           s.gold = 4321; s.races = 9; s.wins = 2
           return s
         })
-        if (velho.v !== 5 || 'settings' in velho) problems.push('save-antigo: o save montado não é um v5 sem settings ' + JSON.stringify({ v: velho.v }))
+        if (velho.v !== SAVE_V || 'settings' in velho) problems.push('save-antigo: o save montado não é um v' + SAVE_V + ' sem settings ' + JSON.stringify({ v: velho.v }))
         const ctx1 = p1.context()
         await p1.close()
         const p2 = await ctx1.newPage()
@@ -4621,7 +4764,7 @@ try {
         await p2.waitForSelector('#t-estabulo')
         const s = await p2.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
         if (!s.settings || s.settings.motion !== 'sistema') problems.push('save-antigo: settings ' + JSON.stringify(s.settings) + ' (esperado { motion: "sistema" })')
-        if (s.v !== 5 || s.gold !== 4321 || s.races !== 9 || s.wins !== 2 || s.mounts.length !== velho.mounts.length || s.items.length !== velho.items.length || s.mounts[0].templateId !== 'brasa') {
+        if (s.v !== SAVE_V || s.gold !== 4321 || s.races !== 9 || s.wins !== 2 || s.mounts.length !== velho.mounts.length || s.items.length !== velho.items.length || s.mounts[0].templateId !== 'brasa') {
           problems.push('save-antigo: o save perdeu dados ao migrar ' + JSON.stringify({ v: s.v, gold: s.gold, races: s.races, wins: s.wins, mounts: s.mounts.length, items: s.items.length }))
         }
         await p2.locator('[data-acao="perfil"]').click()
@@ -4908,7 +5051,10 @@ try {
   }
 
   // ---------------- loja: abas, comprar (com recusa sem Ouro), Pedras Negras e resumo na largada ----------------
-  {
+  // Só com o equipamento ligado: suspenso (GEAR_ON = false), a Loja sai da barra (o bloco crescimento confere que ela não
+  // abre e que comprar não faz nada); a captura final-09-loja.png não é gerada.
+  if (!GEAR_ON) notes.loja = 'pulado: equipamento suspenso (GEAR_ON = false, spec 1b §8)'
+  else {
     const lj = await newPage(browser, { width: 390, height: 844 }, 'loja')
     try {
       const st = () => lj.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
@@ -5149,8 +5295,8 @@ try {
       await sem.waitForSelector('#t-estabulo')
       if ((await sem.locator('img').count()) !== 0) problems.push('sem-icones: há <img> no estábulo')
       const icones = await sem.locator('.app-aba-icone').allTextContents()
-      if (icones.join('') !== '🐴🏁🧭💞🛒') problems.push('sem-icones: abas sem os emojis de antes: ' + icones.join('|'))
-      if (!/🪨/.test((await sem.locator('.app-topo .pedras').textContent()) || '')) problems.push('sem-icones: saldo de Pedras sem o emoji')
+      if (icones.join('') !== '🐴🏁🧭💞' + (GEAR_ON ? '🛒' : '')) problems.push('sem-icones: abas sem os emojis de antes: ' + icones.join('|'))
+      if (GEAR_ON && !/🪨/.test((await sem.locator('.app-topo .pedras').textContent()) || '')) problems.push('sem-icones: saldo de Pedras sem o emoji')
       if ((await sem.locator('.app-topo .saldo svg').count()) !== 1) problems.push('sem-icones: saldo de Ouro sem a moeda em SVG')
       if (((await sem.locator('.app-topo .logo-mini').textContent()) || '').trim() !== 'Galope Elemental') problems.push('sem-icones: cabeçalho sem o texto da marca')
       // ícones novos (spec 2026-11-12-icones): sem o mapa, as telas abrem com a reserva de hoje (★/☆, ♂ Macho, 👤,
