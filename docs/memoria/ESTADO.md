@@ -63,14 +63,14 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b. Cada ginásio tem o
   foco num elemento.
 - **Visuais 2** (branch `claude/visuais-2`, criada da `claude/cavalos-v3`; a parte 1 foi integrada na
-  `claude/cavalos-v3` em 2026-11-12): três partes, ícones →
+  `claude/cavalos-v3` em 2026-11-12 e a parte 2a em 2026-11-13): três partes, ícones →
   cavalos → interface. **Parte 1 (ícones) pronta na `claude/visuais-2`:** 58 ícones nas telas, na corrida e
   no wiki; 79 gerações (spec em `docs/superpowers/specs/2026-11-12-icones-design.md`). Revisão final da
   branch limpa e `check.sh` OK (598977e). Build de teste num artefato separado:
   https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch. A confirmar com o Vinicius: selo de liga só onde a
   liga já aparece, e medalhão de raridade também nas peças. **Parte 2 (cavalos)** dividida em 2a (marcas,
-  jóquei e raridade, em código), 2b (portes no PixelLab) e 2c (animações). **A parte 2a está pronta na
-  `claude/visuais-2`** (spec em `docs/superpowers/specs/2026-11-12-cavalos-marcas-design.md`): marcas por
+  jóquei e raridade, em código), 2b (portes no PixelLab) e 2c (animações). **A parte 2a está pronta e integrada na
+  `claude/cavalos-v3`** (spec em `docs/superpowers/specs/2026-11-12-cavalos-marcas-design.md`): marcas por
   cavalo com 3 genes herdados pela seed, jóquei do jogador no Perfil e raridade em escada, tudo em código e
   sem créditos. **Próxima: a 2b (portes, PixelLab), só com confirmação de créditos.**
   **Pendências da 2a que vão para a 2b:** moldes novos com as 4 pernas separadas no retrato e no parado, com
