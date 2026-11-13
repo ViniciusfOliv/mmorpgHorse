@@ -2562,7 +2562,8 @@ try {
   // jogo recebe o porte do cavalo; o rival, o do modelo dele. A gaveta DEV escolhe o porte sem tocar no save real. A 360 px
   // a ativa fica inteira no cartão do estábulo e na raia nos 3 portes (Review Focus 3); a corrida DEV com 8 Míticos de
   // portes alternados fica abaixo do teto de 6 ms e o cache dos moldes não cresce depois da largada (Review Focus 5).
-  // Com os 4 moldes antigos ('legado') todo porte desenha igual: aqui se confere que o porte chega a cada desenho.
+  // Desde a T7 os moldes são os 12 dos portes: cada porte desenha o seu molde, e aqui se confere que o porte chega a cada
+  // desenho (com os 4 moldes antigos, antes da T7, todo porte desenhava igual e só isso se conferia).
   if (quer('portes')) {
     const TETO_MS = 6   // o mesmo teto do bloco marcas (e do teste de desempenho: Completas − Reduzidas)
     const PV = G.PORTES.valores, NOMES = G.PORTES.nomes, MUT = Math.round(G.PORTES.mutacao * 100)
@@ -4598,40 +4599,41 @@ try {
     }
     const mc = await newPage(browser, { width: 390, height: 844 }, 'moldes-cache')
     try {
-      // encaixe dos moldes: escala única entre estilos, molde inteiro nos quadros de altura fixa e
-      // ciclo do galope com a mesma duração do código
+      // encaixe dos moldes: escala única entre estilos e portes, molde inteiro nos quadros de altura fixa e
+      // ciclo do galope com a mesma duração do código, nos 12 moldes (3 portes × 4 estilos)
       const enc = await mc.evaluate(() => {
-        const SP = window.Sprites, ELS = ['fogo', 'agua', 'grama', 'neutro'], erros = []
+        const SP = window.Sprites, ELS = ['fogo', 'agua', 'grama', 'neutro'], PS = ['esguio', 'padrao', 'robusto'], erros = []
         for (let k = 1; k <= 9; k++) {
-          const Ss = ELS.map((el) => SP._layoutMolde(el, 'galope', 0, 0, k).S)
-          if (new Set(Ss).size !== 1) erros.push(`pista k=${k}: escalas diferentes entre estilos ${Ss}`)
+          const Ss = PS.flatMap((p) => ELS.map((el) => SP._layoutMolde(el, 'galope', 0, 0, k, null, p).S))
+          if (new Set(Ss).size !== 1) erros.push(`pista k=${k}: escalas diferentes entre estilos e portes ${Ss}`)
         }
-        // baia 48×36 (retratos): a mesma escala para os 4 estilos; cascos dentro do quadro; o topo pode sair
-        // do quadro (crista de ondas) em no máximo 10 % da altura do bbox
+        // baia 48×36 (retratos): a mesma escala para os 12 moldes; cascos dentro do quadro; o topo pode sair
+        // do quadro (crista de ondas, orelhas do robusto) em no máximo 10 % da altura do bbox. k = round(3 × dpr): 3, 6 e
+        // 9 são os dpr 1, 2 e 3 (em k = 4 e 7 o robusto e alguns esguios descem um passo: o CORTE_MAX do sprites.js)
         for (const k of [3, 6, 9]) for (const est of ['retrato', 'parado']) {
-          const Ls = ELS.map((el) => SP._layoutMolde(el, est, 5 * k, 1 * k, k, { topo: 0, base: 36 * k }))
-          if (new Set(Ls.map((L) => L.S)).size !== 1) erros.push(`${est} k=${k}: escalas diferentes entre estilos ${Ls.map((L) => L.S)}`)
-          Ls.forEach((L, i) => {
+          const Ls = PS.flatMap((p) => ELS.map((el) => Object.assign({ nome: el + ' ' + p }, SP._layoutMolde(el, est, 5 * k, 1 * k, k, { topo: 0, base: 36 * k }, p))))
+          if (new Set(Ls.map((L) => L.S)).size !== 1) erros.push(`${est} k=${k}: escalas diferentes entre os moldes ${Ls.map((L) => L.nome + ' ' + L.S)}`)
+          Ls.forEach((L) => {
             const alt = L.pe - L.topo, corte = Math.max(0, -L.topo)
-            if (L.pe > 36 * k || L.pe < 33 * k) erros.push(`${est} ${ELS[i]} k=${k}: cascos em ${L.pe} (esperado ${33 * k}..${36 * k})`)
-            if (corte > 0.1 * alt) erros.push(`${est} ${ELS[i]} k=${k}: topo cortado em ${corte}px de ${alt} (> 10 %)`)
+            if (L.pe > 36 * k || L.pe < 33 * k) erros.push(`${est} ${L.nome} k=${k}: cascos em ${L.pe} (esperado ${33 * k}..${36 * k})`)
+            if (corte > 0.1 * alt) erros.push(`${est} ${L.nome} k=${k}: topo cortado em ${corte}px de ${alt} (> 10 %)`)
           })
         }
-        for (const k of [2, 4, 6]) for (const top of [49, 57, 63]) for (const el of ELS) {   // pódio: em pé no bloco
-          const L = SP._layoutMolde(el, 'parado', (84 - 21) * k, (top - 32) * k, k, { topo: 0, base: top * k })
-          if (L.topo < 0 || L.pe !== top * k) erros.push(`pódio ${el} k=${k} topo ${top}: bbox ${L.topo}..${L.pe} (bloco em ${top * k})`)
+        for (const k of [2, 4, 6]) for (const top of [49, 57, 63]) for (const p of PS) for (const el of ELS) {   // pódio: em pé no bloco
+          const L = SP._layoutMolde(el, 'parado', (84 - 21) * k, (top - 32) * k, k, { topo: 0, base: top * k }, p)
+          if (L.topo < 0 || L.pe !== top * k) erros.push(`pódio ${el} ${p} k=${k} topo ${top}: bbox ${L.topo}..${L.pe} (bloco em ${top * k})`)
         }
         const G = SP.GALLOP_FRAMES
-        for (const el of ELS) {
+        for (const p of PS) for (const el of ELS) {
           const vistos = new Set()
           let ant = -1
           for (let f = 0; f < G; f += 0.01) {
-            const q = SP._quadroGalope(el, f)
-            if (q < ant) erros.push(`galope ${el}: quadro ${q} depois de ${ant} dentro do ciclo`)
+            const q = SP._quadroGalope(el, f, p)
+            if (q < ant) erros.push(`galope ${el} ${p}: quadro ${q} depois de ${ant} dentro do ciclo`)
             ant = q; vistos.add(q)
           }
-          if (SP._quadroGalope(el, G) !== 0) erros.push(`galope ${el}: o ciclo do molde não volta ao quadro 0 junto com o do código`)
-          if (vistos.size !== Math.max(...vistos) + 1) erros.push(`galope ${el}: pulou quadros (${[...vistos]})`)
+          if (SP._quadroGalope(el, G, p) !== 0) erros.push(`galope ${el} ${p}: o ciclo do molde não volta ao quadro 0 junto com o do código`)
+          if (vistos.size !== Math.max(...vistos) + 1) erros.push(`galope ${el} ${p}: pulou quadros (${[...vistos]})`)
         }
         return erros
       })
