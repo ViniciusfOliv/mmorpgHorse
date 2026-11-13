@@ -15,34 +15,41 @@ const listar = async (root, rel) => (existsSync(join(root, rel)) ? (await readdi
 // JSON seguro dentro de <script>: nada de "<" literal (fecharia a tag).
 export const jsonJs = (v) => JSON.stringify(v).replace(/</g, '\\u003c')
 
-// Moldes: assets/pixellab/molde-<estilo>.json + -retrato.png, -parado.png, -galope-0..N-1.png.
+// Moldes: assets/pixellab/molde-<chave>.json + molde-<chave>-retrato.png, -parado.png, -galope-0..N-1.png, com
+// estilo ∈ chamas|ondas|folhas|lisa e dois formatos de chave (spec 2026-11-13-cavalos-portes §4 e §6):
+//   • '<porte>-<estilo>' (porte ∈ esguio|padrao|robusto): o conjunto dos portes, 12 moldes;
+//   • '<estilo>': o conjunto antigo ('legado'), 4 moldes.
+// A tabela guarda as chaves que achar, das duas formas, com json.estilo = a chave; quem escolhe o conjunto é o
+// sprites.js (os 12 dos portes, senão os 4 antigos; nunca mistura). A escala dos cavalos sai do maior larguraUtil
+// entre os 4 moldes do padrão (no 'legado', entre os 4 estilos). Outro molde-*.json é ignorado com aviso.
 // Do JSON vão só os campos que o jogo lê (o resto — seeds, limiares, contagens — fica no arquivo).
 export async function lerMoldes(root, avisos = []) {
   const estilos = {}
   const dir = 'assets/pixellab'
   for (const nome of await listar(root, dir)) {
-    const mm = nome.match(/^molde-([a-z]+)\.json$/)
-    if (!mm) continue
-    const estilo = mm[1]
+    if (!/^molde-.*\.json$/.test(nome)) continue
+    const mm = nome.match(/^molde-((?:(?:esguio|padrao|robusto)-)?(?:chamas|ondas|folhas|lisa))\.json$/)
+    if (!mm) { avisos.push(`molde "${nome}" ignorado: o nome não é molde-<estilo>.json nem molde-<porte>-<estilo>.json`); continue }
+    const chave = mm[1]
     try {
       const J = JSON.parse(await readFile(join(root, dir, nome), 'utf8'))
       const frames = J.frames | 0
       if (!(frames > 0) || !J.ancoras || !(J.larguraUtil > 0)) throw new Error('JSON sem frames, ancoras ou larguraUtil')
-      const png = (q) => join(dir, `molde-${estilo}-${q}.png`)
+      const png = (q) => join(dir, `molde-${chave}-${q}.png`)
       const quadros = ['retrato', 'parado']
       for (let i = 0; i < frames; i++) quadros.push('galope-' + i)
       const faltam = quadros.filter((q) => !existsSync(join(root, png(q))))
-      if (faltam.length) throw new Error('faltam ' + faltam.map((q) => `molde-${estilo}-${q}.png`).join(', '))
+      if (faltam.length) throw new Error('faltam ' + faltam.map((q) => `molde-${chave}-${q}.png`).join(', '))
       const galope = []
       for (let i = 0; i < frames; i++) galope.push(await dataUrl(root, png('galope-' + i)))
-      estilos[estilo] = {
-        json: { estilo, w: J.w, h: J.h, footY: J.footY, frames, larguraUtil: J.larguraUtil, ancoras: J.ancoras },
+      estilos[chave] = {
+        json: { estilo: chave, w: J.w, h: J.h, footY: J.footY, frames, larguraUtil: J.larguraUtil, ancoras: J.ancoras },
         retrato: await dataUrl(root, png('retrato')),
         parado: await dataUrl(root, png('parado')),
         galope
       }
     } catch (e) {
-      avisos.push(`molde "${estilo}" ignorado: ${e.message}`)
+      avisos.push(`molde "${chave}" ignorado: ${e.message}`)
     }
   }
   return { estilos }

@@ -1542,19 +1542,30 @@ test('Review Focus 3: sem moldes (Node), drawHorse com marcas, joquei e raridade
   assert.strictEqual(c.globalAlpha, 1, 'globalAlpha restaurado');
 });
 
-// ---- com moldes: um molde sintético 32×24 (os 4 estilos iguais), carregado com Image e document falsos ----
+// ---- com moldes: um molde sintético 32×24 por porte, carregado com Image e document falsos ----
+// O padrão é o molde sintético de sempre (os 4 estilos iguais). O esguio é o mesmo com o corpo mais fino e as pernas
+// mais longas; o robusto, com o corpo mais grosso, as pernas curtas e a cauda mais comprida (mais largo: larguraUtil
+// 29, contra 27 do padrão e do esguio). SINT.tabela é a tabela antiga (as 4 chaves do 'legado', com o molde do
+// padrão); SINT.tabelaDe(chaves, origem) monta outra: cada chave '<porte>-<estilo>' leva o molde do seu porte, cada
+// chave antiga o do padrão, e origem(chave), quando devolve um porte, troca o molde daquela chave.
 var SINT = (function () {
   var w = 32, h = 24;
-  function quadro(comJoquei, q) {
-    var idx = new Uint8Array(w * h);
+  var CORPOS = {   // retângulos [x0, y0, x1, y1]; coxa = a linha onde as pernas começam
+    padrao: { corpo: [6, 10, 23, 13], barriga: [6, 14, 23, 15], cauda: [3, 10, 5, 14], pernas: [7, 10, 19, 22], coxa: 16 },
+    esguio: { corpo: [7, 9, 22, 11], barriga: [7, 12, 22, 12], cauda: [3, 8, 6, 12], pernas: [8, 11, 18, 21], coxa: 13 },
+    robusto: { corpo: [5, 10, 24, 15], barriga: [5, 16, 24, 17], cauda: [1, 10, 4, 15], pernas: [6, 9, 20, 23], coxa: 18 }
+  };
+  function quadro(porte, comJoquei, q) {
+    var P = CORPOS[porte], idx = new Uint8Array(w * h), c = P.cauda;
     function r(x0, y0, x1, y1, v) { for (var y = y0; y <= y1; y++) for (var x = x0; x <= x1; x++) idx[y * w + x] = v; }
-    r(6, 10, 23, 13, 2); r(6, 14, 23, 15, 3);                 // corpo e barriga (sombra)
+    function ret(b, v) { r(b[0], b[1], b[2], b[3], v); }
+    ret(P.corpo, 2); ret(P.barriga, 3);                       // corpo e barriga (sombra)
     r(22, 5, 27, 10, 2); r(26, 4, 29, 8, 2);                  // pescoço e cabeça
     r(20, 4 + q % 2, 23, 9, 4); r(20, 6 + q % 2, 21, 9, 5);   // crina (desce 1 px nos quadros ímpares)
-    r(3, 10, 5, 14, 4); r(3, 13, 4, 14, 5);                   // cauda
-    [7, 10, 19, 22].forEach(function (x, i) {                 // pernas (as de longe na sombra) e cascos
+    ret(c, 4); r(c[0], c[3] - 1, c[0] + 1, c[3], 5);          // cauda
+    P.pernas.forEach(function (x, i) {                        // pernas (as de longe na sombra) e cascos
       var d = i >= 2 ? (q % 3) - 1 : 0;
-      r(x + d, 16, x + d + 1, 21, i % 2 ? 3 : 2); r(x + d, 22, x + d + 1, 22, 1);
+      r(x + d, P.coxa, x + d + 1, 21, i % 2 ? 3 : 2); r(x + d, 22, x + d + 1, 22, 1);
     });
     if (comJoquei) { r(13, 1, 15, 2, 7); r(14, 3, 15, 4, 8); r(12, 5, 16, 8, 7); r(12, 9, 16, 9, 9); }
     return idx;
@@ -1576,22 +1587,35 @@ var SINT = (function () {
     }
     return { footY: y1, nose: nose, rear: rear, saddle: sn ? [Math.round(sx / sn), Math.round(sy / sn)] : null, bbox: bbox };
   }
-  var idx = { retrato: quadro(false, 0), parado: quadro(true, 0), galope: [] }, fontes = {}, A = {}, q;
-  for (q = 0; q < 9; q++) idx.galope.push(quadro(true, q));
-  A.retrato = ancoras(idx.retrato); A.parado = ancoras(idx.parado);
-  for (q = 0; q < 9; q++) A['galope-' + q] = ancoras(idx.galope[q]);
-  var J = { estilo: 'sint', w: w, h: h, footY: A.retrato.footY, frames: 9, larguraUtil: A.retrato.bbox.w, ancoras: A };
-  fontes['s:retrato'] = idx.retrato; fontes['s:parado'] = idx.parado;
-  var galope = [];
-  for (q = 0; q < 9; q++) { fontes['s:galope-' + q] = idx.galope[q]; galope.push('s:galope-' + q); }
-  var estilos = {};
-  ['chamas', 'ondas', 'folhas', 'lisa'].forEach(function (n) { estilos[n] = { json: J, retrato: 's:retrato', parado: 's:parado', galope: galope }; });
+  var porte = {}, fontes = {};   // porte -> { idx, A, J, galope }; fontes: url falsa -> índices
+  Object.keys(CORPOS).forEach(function (p) {
+    var idx = { retrato: quadro(p, false, 0), parado: quadro(p, true, 0), galope: [] }, A = {}, galope = [], q;
+    for (q = 0; q < 9; q++) idx.galope.push(quadro(p, true, q));
+    A.retrato = ancoras(idx.retrato); A.parado = ancoras(idx.parado);
+    for (q = 0; q < 9; q++) A['galope-' + q] = ancoras(idx.galope[q]);
+    fontes[p + ':retrato'] = idx.retrato; fontes[p + ':parado'] = idx.parado;
+    for (q = 0; q < 9; q++) { fontes[p + ':galope-' + q] = idx.galope[q]; galope.push(p + ':galope-' + q); }
+    porte[p] = { idx: idx, A: A, galope: galope, J: { w: w, h: h, footY: A.retrato.footY, frames: 9, larguraUtil: A.retrato.bbox.w, ancoras: A } };
+  });
+  var LEGADO = ['chamas', 'ondas', 'folhas', 'lisa'], PORTES = [];
+  ['esguio', 'padrao', 'robusto'].forEach(function (p) { LEGADO.forEach(function (e) { PORTES.push(p + '-' + e); }); });
+  function tabelaDe(chaves, origem) {
+    var estilos = {};
+    chaves.forEach(function (ch) {
+      var p = (origem && origem(ch)) || (ch.indexOf('-') > 0 ? ch.split('-')[0] : 'padrao'), M = porte[p];
+      estilos[ch] = { json: com(M.J, { estilo: ch }), retrato: p + ':retrato', parado: p + ':parado', galope: M.galope };
+    });
+    return { estilos: estilos };
+  }
+  var A0 = porte.padrao.A, L0 = porte.padrao.J.larguraUtil;
   return {
-    w: w, h: h, idx: idx, fontes: fontes, tabela: { estilos: estilos },
-    ancora: function (estado, q) { return com(estado === 'galope' ? A['galope-' + q] : A[estado], { larguraUtil: J.larguraUtil }); }
+    w: w, h: h, idx: porte.padrao.idx, porte: porte, fontes: fontes, LEGADO: LEGADO, PORTES: PORTES,
+    tabela: tabelaDe(LEGADO), tabelaDe: tabelaDe,
+    ancora: function (estado, q) { return com(estado === 'galope' ? A0['galope-' + q] : A0[estado], { larguraUtil: L0 }); }
   };
 })();
-function comMoldes(fn) {
+// Image e document falsos durante fn (as decodificações terminam na hora); no fim, volta ao desenho por código
+function comImagens(fn) {
   var antes = { Image: global.Image, document: global.document };
   global.Image = function () {};
   Object.defineProperty(global.Image.prototype, 'src', {
@@ -1599,14 +1623,20 @@ function comMoldes(fn) {
   });
   global.document = { createElement: function () { return new CanvasFalso(0, 0); } };
   try {
-    var pronto = false;
-    SPR.loadMolds(SINT.tabela, function () { pronto = true; });
-    assert.ok(pronto && SPR.moldsReady, 'moldes sintéticos carregados');
     return fn();
   } finally {
     ['Image', 'document'].forEach(function (n) { if (antes[n] === undefined) delete global[n]; else global[n] = antes[n]; });
     SPR.loadMolds(null);   // volta ao desenho por código (moldsReady = false)
   }
+}
+// fn com os moldes sintéticos carregados (tabela: a antiga, das 4 chaves, se não vier outra)
+function comMoldes(fn, tabela) {
+  return comImagens(function () {
+    var pronto = false;
+    SPR.loadMolds(tabela || SINT.tabela, function () { pronto = true; });
+    assert.ok(pronto && SPR.moldsReady, 'moldes sintéticos carregados');
+    return fn();
+  });
 }
 // a cor da raridade clareada do brilho e do rastro: mistura de 35% com o creme #fff4d6 (sprites.js: light, RARIDADE_CLARO)
 function clareia(hex) {
@@ -1805,6 +1835,178 @@ test('com moldes: rastro atrás da traseira do molde; a silhueta da skill não l
     assert.ok(sil.rects.every(function (r) { return r.cor === '#ff00ff'; }), 'só o tingido da silhueta: ' + JSON.stringify(sil.rects.map(function (r) { return r.cor; })));
     assert.strictEqual(sil.imgs.length, 1, 'só o cavalo no canvas da silhueta');
   });
+});
+
+section('Portes: o molde pelo porte e pelo elemento');
+// console.warn trocado durante fn: devolve os avisos (e a saída dos testes fica limpa)
+function avisos(fn) {
+  var antes = console.warn, lista = [];
+  console.warn = function () { lista.push(Array.prototype.join.call(arguments, ' ')); };
+  try { fn(); } finally { console.warn = antes; }
+  return lista;
+}
+// os pixels de cada imagem que o desenho passou ao drawImage (o molde recolorido)
+function pixels(c) { return c.imgs.map(function (im) { return im.args[0] && im.args[0].px ? fnvBytes(im.args[0].px) : '-'; }).join(','); }
+var LIXO_PORTE = ['Robusto', 'grande', '', 7, null, true, {}, [], '__proto__', 'constructor', 'toString'];
+var ELS_PORTE = [['fogo', PAL.fogo], ['agua', PAL.agua], ['grama', PAL.grama], ['neutro', PAL.neutro]];
+
+test('portes: conjunto completo', function () {
+  comMoldes(function () {
+    assert.strictEqual(SPR.moldesConjunto, 'portes');
+    var casos = [CAVM, com(CAVM, { idle: true }), com(CAVM, { idle: true, jockey: false }), com(CAVM, { frame: 4.4, element: 'agua', palette: PAL.agua }),
+      com(CAVM, { retrato: true, element: 'neutro', palette: PAL.neutro, quadro: { topo: 0, base: 90 } })];
+    casos.forEach(function (o, i) {
+      var pad = desenhaCav(com(o, { porte: 'padrao' }));
+      assert.strictEqual(assinatura(desenhaCav(o)), assinatura(pad), 'sem porte: o padrão (caso ' + i + ')');
+      ['esguio', 'robusto'].forEach(function (p) {
+        assert.notStrictEqual(pixels(desenhaCav(com(o, { porte: p }))), pixels(pad), p + ' desenha o seu molde (caso ' + i + ')');
+      });
+      LIXO_PORTE.forEach(function (p) {
+        assert.strictEqual(assinatura(desenhaCav(com(o, { porte: p }))), assinatura(pad), 'porte inválido ' + JSON.stringify(p) + ': o padrão (caso ' + i + ')');
+      });
+    });
+    // caixa e âncoras pelo molde do porte: o robusto (cauda mais comprida) é mais largo e tem a traseira mais atrás
+    var bp = SPR.horseBox(50, 40, CAVM), br = SPR.horseBox(50, 40, com(CAVM, { porte: 'robusto' }));
+    assert.ok(br.w > bp.w, 'robusto mais largo: ' + br.w + ' contra ' + bp.w);
+    assert.deepStrictEqual(SPR.horseBox(50, 40, com(CAVM, { porte: 'Robusto' })), bp, 'porte inválido: a caixa do padrão');
+    var ap = SPR.anchorsFor('fogo', 3, 'galope'), ar = SPR.anchorsFor('fogo', 3, 'galope', 'robusto');
+    assert.ok(ar.rear[0] < ap.rear[0], 'traseira do robusto mais atrás: ' + ar.rear + ' contra ' + ap.rear);
+    assert.deepStrictEqual(ar.nose, ap.nose, 'o focinho continua no NOSE');
+    assert.deepStrictEqual(SPR.anchorsFor('fogo', 3, 'galope', 'padrao'), ap);
+    assert.deepStrictEqual(SPR.anchorsFor('fogo', 3, 'galope', '__proto__'), ap, 'porte inválido: as âncoras do padrão');
+  }, SINT.tabelaDe(SINT.PORTES));
+  // cada combinação tem o seu molde: com 'robusto-ondas' trocado pelo molde do esguio, a Água robusta desenha o esguio
+  comMoldes(function () {
+    var agua = com(CAVM, { element: 'agua', palette: PAL.agua });
+    assert.strictEqual(assinatura(desenhaCav(com(agua, { porte: 'robusto' }))), assinatura(desenhaCav(com(agua, { porte: 'esguio' }))), 'Água robusta: o molde de robusto-ondas');
+    assert.notStrictEqual(pixels(desenhaCav(com(CAVM, { porte: 'robusto' }))), pixels(desenhaCav(com(CAVM, { porte: 'esguio' }))), 'Fogo robusto: o molde de robusto-chamas');
+  }, SINT.tabelaDe(SINT.PORTES, function (ch) { return ch === 'robusto-ondas' ? 'esguio' : null; }));
+});
+
+test('portes: escala do padrão', function () {
+  // a escala de k = 1…8 (única para os 3 portes) e as âncoras na proporção ideal 40 / Lref (anchorsFor sem escala)
+  function escalas(tabela) {
+    return comMoldes(function () {
+      var out = [];
+      for (var k = 1; k <= 8; k++) {
+        var S = SPR._layoutMolde('fogo', 'galope', 0, 0, k).S;
+        ['esguio', 'robusto'].forEach(function (p) {
+          assert.strictEqual(SPR._layoutMolde('grama', 'parado', 0, 0, k, null, p).S, S, 'escala única: ' + p + ' em k = ' + k);
+        });
+        out.push(S);
+      }
+      return out.join(',') + ' ' + JSON.stringify(SPR.anchorsFor('fogo', 0, 'galope'));
+    }, tabela);
+  }
+  assert.ok(SINT.porte.robusto.J.larguraUtil > SINT.porte.padrao.J.larguraUtil, 'o robusto sintético é mais largo');
+  var portes = escalas(SINT.tabelaDe(SINT.PORTES));
+  assert.strictEqual(portes, escalas(SINT.tabelaDe(SINT.PORTES, function () { return 'padrao'; })), 'a mesma escala só com os moldes do padrão');
+  assert.strictEqual(portes, escalas(SINT.tabela), 'a mesma do conjunto antigo: os cavalos do padrão do tamanho de hoje');
+  // o teste distingue: se os moldes do padrão fossem os mais largos, a escala mudaria
+  assert.notStrictEqual(portes, escalas(SINT.tabelaDe(SINT.PORTES, function (ch) { return ch.indexOf('padrao-') === 0 ? 'robusto' : null; })));
+});
+
+test('portes: conjunto incompleto (RF2)', function () {
+  var legado = comMoldes(function () {
+    return ELS_PORTE.map(function (e) { return assinatura(desenhaCav(com(CAVM, { element: e[0], palette: e[1] }))); }).join('\n');
+  });
+  SINT.PORTES.forEach(function (falta) {
+    var onze = SINT.PORTES.filter(function (ch) { return ch !== falta; });
+    // 11 novas + as 4 antigas: o conjunto antigo inteiro, sem nenhum molde novo, e um aviso
+    var av = avisos(function () {
+      comMoldes(function () {
+        assert.strictEqual(SPR.moldesConjunto, 'legado', 'sem ' + falta + ': o conjunto antigo');
+        ['esguio', 'padrao', 'robusto'].forEach(function (p) {
+          var sig = ELS_PORTE.map(function (e) { return assinatura(desenhaCav(com(CAVM, { element: e[0], palette: e[1], porte: p }))); }).join('\n');
+          assert.strictEqual(sig, legado, 'sem ' + falta + ': ' + p + ' desenha os moldes antigos');
+        });
+      }, SINT.tabelaDe(onze.concat(SINT.LEGADO)));
+    });
+    assert.strictEqual(av.length, 1, 'sem ' + falta + ': um aviso só (' + av.join(' / ') + ')');
+    assert.ok(/incompleto/.test(av[0]) && av[0].indexOf('11 de 12') >= 0 && av[0].indexOf(falta) >= 0, av[0]);
+    // 11 novas sem as antigas: desenho por código
+    av = avisos(function () {
+      comImagens(function () {
+        var pronto = false;
+        SPR.loadMolds(SINT.tabelaDe(onze), function () { pronto = true; });
+        assert.ok(!pronto && SPR.moldsReady === false && SPR.moldesConjunto === null, 'sem ' + falta + ' e sem os antigos: sem moldes');
+        assert.strictEqual(SPR.horseBox(0, 0, CAVM).w, SPR.HORSE_W * CAVM.scale, 'a caixa do desenho por código');
+      });
+    });
+    assert.ok(av.length >= 1 && /incompleto/.test(av[0]), 'avisa: ' + av.join(' / '));
+  });
+});
+
+test('portes: legado', function () {
+  var av = avisos(function () {
+    comMoldes(function () {
+      assert.strictEqual(SPR.moldesConjunto, 'legado');
+      var casos = [CAVM, com(CAVM, { idle: true }), com(CAVM, { idle: true, jockey: false, element: 'grama', palette: PAL.grama })];
+      casos.forEach(function (o, i) {
+        var pad = assinatura(desenhaCav(com(o, { porte: 'padrao' })));
+        assert.strictEqual(assinatura(desenhaCav(o)), pad, 'caso ' + i);
+        ['esguio', 'robusto', 'Robusto', null].forEach(function (p) {
+          assert.strictEqual(assinatura(desenhaCav(com(o, { porte: p }))), pad, String(p) + ' desenha o molde antigo (caso ' + i + ')');
+          assert.deepStrictEqual(SPR.horseBox(50, 40, com(o, { porte: p })), SPR.horseBox(50, 40, o));
+        });
+      });
+      assert.deepStrictEqual(SPR.anchorsFor('agua', 3, 'parado', 'robusto'), SPR.anchorsFor('agua', 3, 'parado'));
+      SPR.limparCacheMoldes();
+      assert.strictEqual(SPR.prepararCavalo(CAVM), 10);
+      assert.strictEqual(SPR.prepararCavalo(com(CAVM, { porte: 'robusto' })), 10);
+      assert.strictEqual(SPR._cacheMoldes(), 10, 'robusto e padrão dividem as entradas do molde antigo');
+    });
+  });
+  assert.deepStrictEqual(av, [], 'só os 4 antigos: sem aviso');
+});
+
+test('portes: sem moldes', function () {
+  assert.strictEqual(SPR.moldsReady, false);
+  assert.strictEqual(SPR.moldesConjunto, null);
+  comCanvas(function () {
+    CAV.forEach(function (o, i) {
+      var b = desenhaCav(o, 17, 23), n = SPR.cacheStats().baseCount;
+      ['esguio', 'padrao', 'robusto', 'Robusto', null, {}].forEach(function (p) {
+        var c = desenhaCav(com(o, { porte: p }), 17, 23);
+        assert.strictEqual(assinatura(c), assinatura(b), 'caso ' + i + ', porte ' + JSON.stringify(p));
+        assert.strictEqual(Buffer.compare(Buffer.from(c.imgs[0].args[0].px), Buffer.from(b.imgs[0].args[0].px)), 0, 'byte a byte');
+        assert.deepStrictEqual(SPR.horseBox(17, 23, com(o, { porte: p })), SPR.horseBox(17, 23, o));
+      });
+      assert.strictEqual(SPR.cacheStats().baseCount, n, 'o porte não cria entradas no cache do desenho por código');
+    });
+  });
+  assert.strictEqual(SPR.anchorsFor('fogo', 3, 'galope', 'robusto'), SPR.ANCHORS);
+  assert.strictEqual(SPR.prepararCavalo(com(CAVM, { porte: 'robusto' })), 0);
+});
+
+test('portes: cache', function () {
+  comMoldes(function () {
+    SPR.limparCacheMoldes();
+    function n(o) { desenhaCav(o); return SPR._cacheMoldes(); }
+    assert.strictEqual(n(CAVM), 1);
+    assert.strictEqual(n(com(CAVM, { porte: 'padrao' })), 1, 'sem porte = padrão: a mesma entrada');
+    assert.strictEqual(n(com(CAVM, { porte: 'robusto' })), 2, 'robusto: outra entrada');
+    assert.strictEqual(n(com(CAVM, { porte: 'esguio' })), 3, 'esguio: outra entrada');
+    assert.strictEqual(n(com(CAVM, { porte: 'Robusto' })), 3, 'porte inválido: a entrada do padrão');
+    assert.notStrictEqual(desenhaCav(com(CAVM, { porte: 'robusto' })).imgs[0].args[0], desenhaCav(CAVM).imgs[0].args[0]);
+    // prepararCavalo monta os quadros do molde do porte (o do galope de CAVM já estava no cache)
+    assert.strictEqual(SPR.prepararCavalo(com(CAVM, { porte: 'robusto' })), 10);
+    assert.strictEqual(SPR._cacheMoldes(), 12, 'robusto: parado + os 8 quadros do galope que faltavam');
+    for (var f = 0; f < SPR.GALLOP_FRAMES; f += 0.25) { desenhaCav(com(CAVM, { porte: 'robusto', frame: f })); desenhaCav(com(CAVM, { porte: 'robusto', frame: f, idle: true })); }
+    assert.strictEqual(SPR._cacheMoldes(), 12, 'o robusto já estava pronto');
+    // brilho da crina: uma máscara por molde
+    function mascara(o) { var c = ctxAlfa(); SPR.drawRaridade(c, SPR.horseBox(50, 40, o), o); assert.ok(c.imgs.length >= 1, 'brilho desenhado'); return c.imgs[0].args[0]; }
+    var mg = com(CAVM, { raridade: 'magico', semente: 5, t: 0.2 }), mp = mascara(mg), mr = mascara(com(mg, { porte: 'robusto' }));
+    assert.notStrictEqual(mr, mp, 'robusto: outra máscara');
+    assert.strictEqual(mascara(com(mg, { porte: 'robusto' })), mr, 'a do robusto fica no cache');
+    assert.strictEqual(mascara(com(mg, { porte: 'Robusto' })), mp, 'porte inválido: a do padrão');
+    // silhueta do contorno da skill: uma por molde
+    var s0 = SPR._cacheSilhuetas().n;
+    SPR.drawHorseSilhouette(ctxFalso(), 50, 40, CAVM, '#ff00ff', 1);
+    SPR.drawHorseSilhouette(ctxFalso(), 50, 40, com(CAVM, { porte: 'robusto' }), '#ff00ff', 1);
+    SPR.drawHorseSilhouette(ctxFalso(), 50, 40, com(CAVM, { porte: 'lixo' }), '#ff00ff', 1);
+    assert.strictEqual(SPR._cacheSilhuetas().n, s0 + 2, 'padrão e robusto: duas silhuetas; porte inválido: a do padrão');
+  }, SINT.tabelaDe(SINT.PORTES));
 });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');

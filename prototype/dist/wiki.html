@@ -410,7 +410,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
  * API (global `Sprites` no navegador; module.exports no Node):
  *   Sprites.HORSE_W, Sprites.HORSE_H, Sprites.GALLOP_FRAMES, Sprites.FOOT_Y
  *   Sprites.drawHorse(ctx, x, y, { palette, element, frame, scale, silks, idle, t, jockey, shadow, quadro,
- *                                  marcas, semente, joquei, raridade, rastro, reduzido })
+ *                                  marcas, semente, joquei, raridade, rastro, reduzido, porte })
  *     frame pode ser fracionário (fase contínua do galope); quadro = { topo, base } em px: quadro de altura
  *     fixa onde o molde inteiro tem de caber (retratos, pódio) — o desenho por código o ignora.
  *     Parte 2a (spec 2026-11-12-cavalos-marcas), todas opcionais — sem elas, o desenho é o de antes, byte a byte:
@@ -420,6 +420,8 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
  *         escolhida e manta no capacete escurecido, só nos moldes (Marcas.camadaJoquei);
  *       raridade (id de GameData.RARITIES), rastro (só na corrida), reduzido (movimento reduzido): os efeitos de
  *         Sprites.drawRaridade, desenhados depois do cavalo (as faíscas e o rastro também no desenho por código).
+ *     Parte 2b (spec 2026-11-13-cavalos-portes), opcional: porte (GameData.PORTES.valores; fora da lista ou ausente,
+ *       'padrao') escolhe o molde do porte no conjunto 'portes'; no 'legado' e no desenho por código, não muda nada.
  *   Sprites.drawRaridade(ctx, caixa, o)  caixa = horseBox(x, y, o): brilho na crina (só com molde), faíscas e
  *     rastro do Mítico (ver a seção RARIDADE VISÍVEL). Comum não desenha nada.
  *   Sprites.drawTrack(ctx, { width, height, cameraX, pxPerMeter, lanes, laneTop, laneH, surface,
@@ -442,8 +444,9 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
  *   Sprites.PALETTES  // paletas de exemplo
  *   Moldes do PixelLab (recolor por paleta; sem eles, desenho por código):
  *   Sprites.loadMolds(window.__MOLDES, pronto), Sprites.moldsReady, Sprites.ESTILO_POR_ELEMENTO,
+ *   Sprites.moldesConjunto ('portes': os 12 moldes '<porte>-<estilo>'; 'legado': os 4 antigos; null: sem moldes),
  *   Sprites.drawHorseSilhouette(ctx, x, y, opts, cor, alpha)  (contorno tingido, chamar antes de drawHorse),
- *   Sprites.anchorsFor(element, scale, estado), Sprites.horseBox(x, y, opts),
+ *   Sprites.anchorsFor(element, scale, estado, porte), Sprites.horseBox(x, y, opts),
  *   Sprites.limparCacheMoldes() (moldes recoloridos, silhuetas do contorno, máscaras do brilho da crina e textos
  *     prontos; o game.js chama ao trocar de tela),
  *   Sprites.prepararCavalo(opts) -> n: recolore já, no cache dos moldes, os quadros que drawHorse(…, opts) usa (parado
@@ -1291,9 +1294,20 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   // e galope (N quadros). O build embute PNGs e âncoras em window.__MOLDES; loadMolds decodifica os PNGs
   // num canvas e guarda os índices. drawHorse pinta cada papel com as cores da montaria e do corredor.
   //
+  // Dois conjuntos de moldes (spec 2026-11-13-cavalos-portes §4 e §6), pela chave do molde na tabela:
+  //   • 'portes': os 12 moldes '<porte>-<estilo>' (porte de GameData.PORTES: esguio, padrao, robusto). O molde de um
+  //     cavalo é porte + '-' + estiloDe(element); sem porte nas opções, ou com um porte fora da lista, 'padrao';
+  //   • 'legado': os 4 moldes antigos '<estilo>', os mesmos para qualquer porte.
+  // A carga escolhe o conjunto pelas chaves da tabela: com as 12 novas, 'portes'; senão, com as 4 antigas, 'legado'
+  // (com um console.warn se havia alguma nova: conjunto incompleto); senão, sem moldes. Nunca mistura os dois, e
+  // dentro do conjunto é tudo ou nada. Sprites.moldesConjunto diz qual ligou (null sem moldes). Os caches dos
+  // moldes recoloridos, das máscaras do brilho e das silhuetas usam a chave do molde (o porte vai junto).
+  //
   // Encaixe no sprite por código (40×32, escala k): o molde é desenhado em escala inteira
-  // S = max(1, round(k × 40 / Lref)), ÚNICA para todos os estilos (Lref = maior larguraUtil entre os estilos
-  // carregados): cavalos de estilos diferentes ficam do mesmo tamanho. Na pista:
+  // S = max(1, round(k × 40 / Lref)), ÚNICA para todos os moldes. No 'portes', Lref = maior larguraUtil entre os 4
+  // moldes do padrão (lisa incluída): os cavalos do padrão ficam do tamanho de hoje, e o esguio e o robusto se
+  // distinguem pelas proporções do desenho, sem mudar a escala dos outros. No 'legado', Lref = maior larguraUtil
+  // entre os 4 estilos. Cavalos de estilos e portes diferentes ficam na mesma escala. Na pista:
   //   • a última linha dos cascos (o maior footY entre os quadros do estado) termina em y + (FOOT_Y + 1)·k,
   //     a mesma linha de chão do sprite por código;
   //   • a coluna do focinho (mediana de nose.x entre os quadros do estado) fica em x + NOSE·k (NOSE = 38).
@@ -1309,10 +1323,13 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   // `frame` pode ser fracionário (fase contínua) e o índice é floor((frame mod GALLOP_FRAMES) × frames / GALLOP_FRAMES).
   var ESTILO_POR_ELEMENTO = { fogo: 'chamas', agua: 'ondas', grama: 'folhas', neutro: 'lisa' };
   var ESTILOS_MOLDE = ['chamas', 'ondas', 'folhas', 'lisa'];
+  // os portes vêm de GameData.PORTES.valores; esta cópia vale sem o GameData (o wiki embute só o sprites.js)
+  var PORTES_MOLDE = ['esguio', 'padrao', 'robusto'], PORTE_PADRAO = 'padrao';
   var MOLDE_CORES_FIXAS = { contorno: '#1a1405', pele: '#e8b48a', sela: '#5a3a22' };
-  var moldes = null;       // estilo -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados, ancoras }
+  var moldes = null;       // chave do molde -> { w, h, frames, larguraUtil, retrato, parado, galope: [], estados, ancoras }
   var moldsOk = false;
-  var moldesLref = 0;      // maior larguraUtil entre os estilos carregados (escala única)
+  var conjunto = null;     // conjunto carregado: 'portes', 'legado' ou null (sem moldes)
+  var moldesLref = 0;      // maior larguraUtil entre os moldes do padrão (no 'legado', entre os estilos): escala única
   var moldesGeracao = 0;   // descarta um carregamento antigo se loadMolds for chamado de novo
   var CORTE_MAX = 0.1;     // fração da altura do bbox que pode ser cortada no topo de um quadro de altura fixa
   // 64×64×4 = 16 KB por entrada; o teto em bytes é só uma rede de segurança (go() limpa ao trocar de tela)
@@ -1323,6 +1340,21 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   var brilhoCache = new LruCanvasCache(1024 * 1024);
 
   function estiloDe(element) { return ESTILO_POR_ELEMENTO[element] || 'lisa'; }
+  function portesMolde() {
+    var GD = dadosApi(), v = GD && GD.PORTES && GD.PORTES.valores;
+    return Array.isArray(v) ? v : PORTES_MOLDE;
+  }
+  // porte das opções do desenho: fora da lista (ou ausente), o padrão
+  function porteDe(p) { return typeof p === 'string' && portesMolde().indexOf(p) >= 0 ? p : PORTE_PADRAO; }
+  // chave do molde de um cavalo no conjunto carregado: '<porte>-<estilo>' no 'portes', '<estilo>' no 'legado'
+  function chaveMolde(element, porte) { return conjunto === 'portes' ? porteDe(porte) + '-' + estiloDe(element) : estiloDe(element); }
+  // as chaves de um conjunto: as 12 dos portes (porte × estilo) ou as 4 antigas
+  function chavesConjunto(qual) {
+    if (qual !== 'portes') return ESTILOS_MOLDE.slice();
+    var out = [];
+    portesMolde().forEach(function (p) { ESTILOS_MOLDE.forEach(function (e) { out.push(p + '-' + e); }); });
+    return out;
+  }
   function moldScale(k) { return Math.max(1, Math.round(k * 40 / moldesLref)); }
   // A corrida pode desenhar numa escala de trabalho k/d e deixar o CSS ampliar d vezes (pixelated): os moldes
   // continuam do mesmo tamanho na tela só se a escala deles também dividir certinho. Sem moldes (ainda), não.
@@ -1336,9 +1368,8 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   }
   function ponto(p) { return p && p.length === 2 && isFinite(p[0]) && isFinite(p[1]); }
   function caixa(b) { return b && isFinite(b.x) && isFinite(b.y) && b.w > 0 && b.h > 0; }
-  function aviso(motivo) {
-    if (typeof console !== 'undefined' && console.warn) console.warn('Sprites: moldes desligados (' + motivo + '); os cavalos usam o desenho por código.');
-  }
+  function avisa(msg) { if (typeof console !== 'undefined' && console.warn) console.warn('Sprites: ' + msg); }
+  function aviso(motivo) { avisa('moldes desligados (' + motivo + '); os cavalos usam o desenho por código.'); }
   // cópia rasa da âncora de um quadro com a larguraUtil do molde (a zona da cara usa a do molde, não a do bbox)
   function ancoraComL(a, larguraUtil) {
     var c = {};
@@ -1396,30 +1427,39 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     img.src = url;
   }
 
-  // tabela = { estilos: { chamas: { json, retrato, parado, galope: [...] }, ... } } (window.__MOLDES).
-  // Só liga os moldes quando os 4 estilos carregam; qualquer falha deixa moldsReady = false, sem exceção,
-  // com um console.warn do motivo (o jogo segue com o desenho por código).
+  // tabela = { estilos: { <chave>: { json, retrato, parado, galope: [...] }, ... } } (window.__MOLDES), com as
+  // chaves '<porte>-<estilo>' (conjunto 'portes') e/ou '<estilo>' (conjunto 'legado'). O conjunto sai das chaves
+  // presentes: as 12 dos portes, senão as 4 antigas (com um console.warn se havia só parte das novas); nunca os
+  // dois juntos. Só liga os moldes quando todos os do conjunto carregam; qualquer falha deixa moldsReady = false
+  // e moldesConjunto = null, sem exceção, com um console.warn do motivo (o jogo segue com o desenho por código).
   function loadMolds(tabela, pronto) {
     var geracao = ++moldesGeracao;
-    moldsOk = false; api.moldsReady = false; moldes = null; moldCache.clear(); brilhoCache.clear();
+    moldsOk = false; api.moldsReady = false; conjunto = api.moldesConjunto = null; moldes = null; moldCache.clear(); brilhoCache.clear();
     if (typeof Image === 'undefined' || typeof document === 'undefined') return;   // Node: sem canvas
     var est = tabela && tabela.estilos;
     if (!est) { aviso('a tabela de moldes não tem estilos'); return; }
+    var novas = chavesConjunto('portes'), faltam = novas.filter(function (ch) { return !(Object.prototype.hasOwnProperty.call(est, ch) && est[ch]); });
+    var qual = faltam.length ? 'legado' : 'portes';
+    if (faltam.length && faltam.length < novas.length) {
+      avisa('conjunto dos portes incompleto (' + (novas.length - faltam.length) + ' de ' + novas.length + ' moldes; faltam ' +
+        faltam.join(', ') + '): os moldes novos ficam de fora e valem os antigos, se estiverem todos.');
+    }
     var novos = {}, pendentes = 1, motivo = null;   // 1 = o próprio laço abaixo (fecha no fim)
     function falha(m) { if (!motivo) motivo = m || 'falha'; }
     function fim() {
       pendentes--;
       if (pendentes > 0 || geracao !== moldesGeracao) return;
       if (motivo) { aviso(motivo); return; }
+      // escala única: o maior larguraUtil entre os 4 moldes do padrão (no 'legado', entre os 4 estilos)
       moldesLref = 0;
-      ESTILOS_MOLDE.forEach(function (n) { moldesLref = Math.max(moldesLref, novos[n].larguraUtil); });
-      moldes = novos; moldsOk = true; api.moldsReady = true;
+      ESTILOS_MOLDE.forEach(function (e) { moldesLref = Math.max(moldesLref, novos[qual === 'portes' ? PORTE_PADRAO + '-' + e : e].larguraUtil); });
+      moldes = novos; conjunto = api.moldesConjunto = qual; moldsOk = true; api.moldsReady = true;
       if (typeof pronto === 'function') pronto();
     }
     try {
-      ESTILOS_MOLDE.forEach(function (nome) {
+      chavesConjunto(qual).forEach(function (nome) {
         var e = est[nome], J = e && e.json;
-        if (!J || !e.retrato || !e.parado || !e.galope) throw new Error('estilo ausente: ' + nome);
+        if (!J || !e.retrato || !e.parado || !e.galope) throw new Error('molde ausente: ' + nome);
         function refDe(rotulo, lista) {
           try { return refEstado(lista); } catch (x) { throw new Error(nome + '/' + rotulo + ': ' + x.message); }
         }
@@ -1524,8 +1564,9 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   }
 
   // Canvas 1× recolorido; a escala fica no drawImage (vizinho mais próximo), então a chave não leva a
-  // escala: uma entrada por estilo|estado|quadro|cores (+ marcas, semente, padrão e capacete, quando vêm nas
-  // opções), em qualquer tamanho de tela. Sem marcas e sem jóquei: a chave e os pixels de antes da parte 2a.
+  // escala: uma entrada por molde|estado|quadro|cores (molde = a chave do molde, com o porte no 'portes'; + marcas,
+  // semente, padrão e capacete, quando vêm nas opções), em qualquer tamanho de tela. Sem marcas e sem jóquei: a
+  // chave e os pixels de antes da parte 2a.
   // As camadas saem do marcas.js só na falta (uma vez por cavalo e quadro; na corrida, na largada).
   function moldeRecolorido(nome, estado, quadro, o) {
     var cores = coresMolde(o), v = visuaisMolde(o);
@@ -1548,7 +1589,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   function prepararCavalo(opts) {
     opts = opts || {};
     if (!moldsOk) return 0;
-    var nome = estiloDe(opts.element), M = moldes[nome], n = 0, feitos = {}, q;
+    var nome = chaveMolde(opts.element, opts.porte), M = moldes[nome], n = 0, feitos = {}, q;
     [true, false].forEach(function (idle) {
       var estado = estadoMolde({ idle: idle, jockey: opts.jockey, retrato: opts.retrato });
       if (!estado || feitos[estado]) return;
@@ -1590,7 +1631,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
 
   function drawHorseMolde(ctx, x, y, o, estado) {
     var k = Math.max(1, Math.round(o.scale || 1));
-    var nome = estiloDe(o.element), M = moldes[nome];
+    var nome = chaveMolde(o.element, o.porte), M = moldes[nome];
     var quadro = estado === 'galope' ? quadroGalope(M, o.frame) : 0;
     x = Math.round(x); y = Math.round(y);
     var L = layoutMolde(nome, estado, x, y, k, o.quadro);
@@ -1617,8 +1658,9 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
 
   // Silhueta do cavalo (com jóquei) tingida de uma cor, para o contorno de skill da corrida: o desenho
   // normal (molde ou código, sem sombra) vai para um canvas pequeno, é tingido com 'source-in' e fica no
-  // cache por estilo|estado|quadro|escala|cor. O quadro é o que drawHorse desenha de fato: com molde, o do
-  // molde (quadroGalope: 9 quadros no ciclo dos 6 do código; parado e retrato = 0); sem molde, o do código
+  // cache por molde|estado|quadro|escala|cor (molde = a chave do molde, com o porte). O quadro é o que
+  // drawHorse desenha de fato: com molde, o do molde (quadroGalope: 9 quadros no ciclo dos 6 do código; parado
+  // e retrato = 0); sem molde, o do código
   // (e a pose parada). Desenha 4 cópias deslocadas 1 px de arte (= k px) para cima/baixo/esquerda/direita;
   // chamar ANTES de drawHorse para o contorno ficar atrás. Cache LRU com teto em bytes (8 MB), limpo junto
   // com o dos moldes (limparCacheMoldes, ao trocar de tela).
@@ -1628,8 +1670,8 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     var k = Math.max(1, Math.round(opts.scale || 1));
     var estado = moldsOk ? estadoMolde(opts) : null, key;
     if (estado) {
-      var estilo = estiloDe(opts.element);
-      key = 'm|' + estilo + '|' + estado + '|' + (estado === 'galope' ? quadroGalope(moldes[estilo], opts.frame) : 0);
+      var nome = chaveMolde(opts.element, opts.porte);
+      key = 'm|' + nome + '|' + estado + '|' + (estado === 'galope' ? quadroGalope(moldes[nome], opts.frame) : 0);
     } else {
       key = 'c|' + opts.element + '|' + mod(Math.floor(opts.frame || 0), GALLOP.length) + '|' + (opts.idle ? 1 : 0);
     }
@@ -1671,7 +1713,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     x = Math.round(x); y = Math.round(y);
     var estado = moldsOk ? estadoMolde(opts) : null;
     if (!estado) return { x: x, y: y, w: HORSE_W * k, h: HORSE_H * k };
-    var nome = estiloDe(opts.element), ref = moldes[nome].estados[estado];
+    var nome = chaveMolde(opts.element, opts.porte), ref = moldes[nome].estados[estado];
     var L = layoutMolde(nome, estado, x, y, k, opts.quadro);
     return { x: L.ox + ref.esq * L.S, y: L.topo, w: (ref.dir - ref.esq) * L.S, h: L.pe - L.topo };
   }
@@ -1685,7 +1727,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   // sem molde, a escala k do sprite por código.
   //   • brilho da crina (Marcas.BRILHO; só com molde): a máscara dos papéis 4 e 5 do quadro, recortada na
   //     crina e pintada na cor da raridade CLAREADA (light(cor, RARIDADE_CLARO), a mesma do rastro; a cor pura some
-  //     numa crina da mesma cor, como o verde do Mágico na crina da Grama) (brilhoCache, uma por estilo|estado|quadro|cor). Uma fatia de 3 colunas (alfa
+  //     numa crina da mesma cor, como o verde do Mágico na crina da Grama) (brilhoCache, uma por molde|estado|quadro|cor). Uma fatia de 3 colunas (alfa
   //     BRILHO[raridade]: a mistura de 25/30/45 % da cor clareada), com 1 coluna a meio alfa de cada lado, atravessa a
   //     crina da cabeça para a cauda a cada BRILHO_CICLO (1,2 s); fatia sem crina não desenha. Com o.reduzido,
   //     a fatia fica parada na coluna com mais crina da metade da cabeça (a crina do pescoço, não a cauda).
@@ -1735,7 +1777,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   function layoutRaridade(caixa, o) {
     var k = Math.max(1, Math.round(o.scale || 1)), estado = moldsOk ? estadoMolde(o) : null;
     if (!estado) return { u: k, molde: null, galope: !o.idle && !o.retrato, rear: [caixa.x + ANCHORS.rear[0] * k, caixa.y + ANCHORS.rear[1] * k] };
-    var nome = estiloDe(o.element), M = moldes[nome], ref = M.estados[estado];
+    var nome = chaveMolde(o.element, o.porte), M = moldes[nome], ref = M.estados[estado];
     var S = Math.max(1, Math.round(caixa.w / (ref.dir - ref.esq)));
     var ox = caixa.x - ref.esq * S, oy = caixa.y + caixa.h - (ref.footY + 1) * S;
     return {
@@ -1829,9 +1871,10 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   // Âncoras nas unidades do sprite por código (some x + v·escala, y + v·escala), para o estado pedido
   // ('galope' por padrão, 'parado' ou 'retrato'), na pista (sem quadro). Com a escala, a conversão é exata
   // para aquele tamanho; sem ela, usa a proporção ideal 40 / Lref. Sem moldes: ANCHORS. O focinho é sempre NOSE.
-  function anchorsFor(element, scale, estado) {
+  // porte (opcional, como o opts.porte do drawHorse): o molde do porte no conjunto 'portes'; fora da lista, o padrão.
+  function anchorsFor(element, scale, estado, porte) {
     if (!moldsOk) return ANCHORS;
-    var M = moldes[estiloDe(element)];
+    var M = moldes[chaveMolde(element, porte)];
     var ref = M.estados[estado === 'parado' || estado === 'retrato' ? estado : 'galope'];
     var k = scale > 0 ? Math.max(1, Math.round(scale)) : 0;
     var r = k ? moldScale(k) / k : 40 / moldesLref;
@@ -1839,19 +1882,20 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     return { rear: conv(ref.rear), nose: conv(ref.nose), saddle: conv(ref.saddle) };
   }
 
-  // Para testes: o layout e o quadro do galope que drawHorse usaria (null sem moldes).
-  function layoutTeste(element, estado, x, y, k, quadro) {
-    return moldsOk ? layoutMolde(estiloDe(element), estado, Math.round(x), Math.round(y), Math.max(1, Math.round(k)), quadro) : null;
+  // Para testes: o layout e o quadro do galope que drawHorse usaria (null sem moldes); porte opcional, como no drawHorse.
+  function layoutTeste(element, estado, x, y, k, quadro, porte) {
+    return moldsOk ? layoutMolde(chaveMolde(element, porte), estado, Math.round(x), Math.round(y), Math.max(1, Math.round(k)), quadro) : null;
   }
-  function quadroGalopeTeste(element, frame) { return moldsOk ? quadroGalope(moldes[estiloDe(element)], frame) : null; }
+  function quadroGalopeTeste(element, frame, porte) { return moldsOk ? quadroGalope(moldes[chaveMolde(element, porte)], frame) : null; }
 
   function limparCacheMoldes() { moldCache.clear(); silCache.clear(); brilhoCache.clear(); textoCache.clear(); glifosCache.clear(); rascunho = null; }
   function cacheMoldes() { return moldCache.map.size; }
   function cacheSilhuetas() { return { n: silCache.map.size, bytes: silCache.bytes, max: silCache.max }; }
 
-  // Para o comparativo.html: um quadro do molde pintado com cores livres (índice -> cor), sem cache.
-  function moldeCanvas(estilo, estado, quadro, cores) {
-    var M = moldsOk && moldes[estilo];
+  // Para o comparativo.html: um quadro do molde pintado com cores livres (índice -> cor), sem cache. chave = a do
+  // molde no conjunto carregado ('<estilo>' no 'legado', '<porte>-<estilo>' no 'portes'); outra chave: null.
+  function moldeCanvas(chave, estado, quadro, cores) {
+    var M = moldsOk && moldes[chave];
     if (!M) return null;
     var idx = indicesMolde(M, estado, estado === 'galope' ? mod(quadro | 0, M.frames) : 0);
     return idx ? pintaIndices(idx, M.w, M.h, cores) : null;
@@ -2870,6 +2914,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     // moldes do PixelLab (ver a seção MOLDES)
     ESTILO_POR_ELEMENTO: ESTILO_POR_ELEMENTO,
     moldsReady: false,
+    moldesConjunto: null,   // 'portes', 'legado' ou null (ver loadMolds)
     loadMolds: loadMolds,
     anchorsFor: anchorsFor,
     escalaMoldeCompativel: escalaMoldeCompativel,
