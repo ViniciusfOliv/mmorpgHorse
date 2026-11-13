@@ -3005,6 +3005,432 @@ try {
     }
   }
 
+  // ---------------- crescimento livre (bloco 1b): save v6, equipamento suspenso, Redistribuir, potro, jóquei e DEV ----------------
+  // Spec 2026-11-12-crescimento-livre §8–§10. Migração v5 -> v6 com páreo aberto (RF1), lixo no save novo (RF2), gravação
+  // que falha ao redistribuir (RF4) e jogador antigo com peças equipadas (RF5); o custo de abrir a sala (pareamento).
+  if (quer('crescimento')) {
+    const AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.'
+    const FALHA = 'Não foi possível salvar. Libere espaço e tente de novo.'
+    const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+    const ZERO = Object.fromEntries(G.STAT_KEYS.map((k) => [k, 0]))
+    const estado = (pg) => pg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    const disco = (pg, k = SAVE_REAL) => pg.evaluate((kk) => JSON.parse(window.localStorage.getItem(kk)), k)
+    const avisos = async (pg) => (await pg.locator('#tela .aviso').allTextContents()).join(' | ')
+    const textoTela = async (pg) => (await pg.locator('#tela').textContent()) || ''
+    const quebrar = (pg) => pg.evaluate(() => {
+      if (!window.__setOrig) window.__setOrig = Storage.prototype.setItem
+      Storage.prototype.setItem = function () { throw new DOMException('cheio', 'QuotaExceededError') }
+    })
+    const consertar = (pg) => pg.evaluate(() => { Storage.prototype.setItem = window.__setOrig })
+    const custo = (a) => G.STAT_KEYS.reduce((t, k) => t + S.costOf(a[k] || 0), 0)
+    // botão criado no DOM e clicado (o handler da tela é delegado): a ação chega ao jogo mesmo sem o botão na tela
+    const forca = (pg, acao, id) => pg.evaluate(([a, i]) => {
+      const b = document.createElement('button')
+      b.type = 'button'; b.setAttribute('data-acao', a); if (i != null) b.setAttribute('data-id', i)
+      document.getElementById('tela').appendChild(b); b.click(); b.remove()
+    }, [acao, id])
+    const brasa = G.STARTERS.find((h) => h.id === 'brasa'), ventania = G.WILD_HORSES.find((h) => h.id === 'w-ventania')
+    const deModelo = (tpl, o) => Object.assign({ uid: 'm1', templateId: tpl.id, name: tpl.name, especie: 'cavalo', element: tpl.element, rarity: tpl.rarity,
+      grau: tpl.grau || 2, sex: tpl.sex, level: 1, xp: 0, skills: tpl.skills.slice(), potential: JSON.parse(JSON.stringify(tpl.potential)),
+      palette: JSON.parse(JSON.stringify(tpl.palette)), breedLeft: 2, parents: null, born: 0, equip: {} }, o)
+
+    // 1. migração v5 -> v6 com páreo aberto (RF1) e peças equipadas (RF5)
+    const MIG5_SEED = 5151
+    const MIG_V5 = {
+      v: 5, rev: 20, gold: 1200, tier: 100, seedBase: MIG5_SEED, raceCounter: 4,
+      pending: { counter: 4, training: false, fee: 100, pr: 999, alloc: { vel: 4, acel: 4, man: 0, forca: 0, est: 2, garra: 0, sorte: 0 },
+        gear: [{ slot: 'sela', id: 'sela-comum', plus: 3 }, { slot: 'ferraduras', id: 'ferraduras-comum', plus: 0 }, { slot: 'armadura', id: 'armadura-sol-lendario', plus: 5 }] },
+      races: 3, wins: 1, podiums: 2, goldWon: 300,
+      mounts: [
+        deModelo(brasa, { uid: 'm1', level: 20, xp: 10, skills: ['sprint'], alloc: { vel: 4, acel: 4, man: 0, forca: 0, est: 2, garra: 0, sorte: 0 },
+          equip: { sela: 'i1', ferraduras: 'i2', armadura: 'i3' } }),
+        deModelo(ventania, { uid: 'm2', level: 12, alloc: { vel: 1, acel: 0, man: 3, forca: 3, est: 0, garra: 0, sorte: 0 }, equip: { estribos: 'i4' } })
+      ],
+      activeId: 'm1', nextUid: 3, stableSlots: 3, breedCounter: 0,
+      items: [{ uid: 'i1', id: 'sela-comum', plus: 3 }, { uid: 'i2', id: 'ferraduras-comum', plus: 0 }, { uid: 'i3', id: 'armadura-sol-lendario', plus: 5 },
+        { uid: 'i4', id: 'estribos-magico', plus: 2 }, { uid: 'i5', id: 'testeira-comum', plus: 0 }],
+      nextItemUid: 6, pedras: 7, enhanceCounter: 3, settings: { motion: 'sistema' }, joquei: { padrao: 'xadrez', capacete: '#62b8ff' }
+    }
+    {
+      const label = 'crescimento-migracao'
+      const pg = await newPage(browser, { width: 390, height: 844 }, label, {
+        init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(JSON.stringify(MIG_V5))}) } } catch (e) {}` }
+      })
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        const av = await avisos(pg)
+        if (av.split(AVISO_V6).length - 1 !== 1) problems.push(`${label}: o aviso da migração apareceu ${av.split(AVISO_V6).length - 1} vez(es) no Estábulo: ${av}`)
+        const s = await estado(pg), d = await disco(pg)
+        for (const [onde, x] of [['memória', s], ['disco', d]]) {
+          const erro = (t) => problems.push(`${label} (${onde}): ${t}`)
+          if (x.v !== 6) erro('versão ' + x.v)
+          if (x.redeas !== 0) erro('redeas ' + x.redeas)
+          if (x.avisoV6 !== false) erro('avisoV6 ' + x.avisoV6 + ' depois de mostrar o aviso')
+          for (const m of x.mounts) {
+            if (!igual(m.alloc, ZERO)) erro(`${m.uid}: pontos não devolvidos ${JSON.stringify(m.alloc)}`)
+            if (m.respecFree !== true) erro(`${m.uid}: respecFree ${m.respecFree}`)
+          }
+          // RF5: peças, melhorias, o que está equipado e as Pedras ficam iguais
+          if (!igual(x.items, MIG_V5.items)) erro('peças mudaram ' + JSON.stringify(x.items))
+          if (x.pedras !== 7 || x.enhanceCounter !== 3 || x.nextItemUid !== 6 || x.gold !== 1200) erro('Pedras/contadores/Ouro ' + JSON.stringify({ pedras: x.pedras, enh: x.enhanceCounter, next: x.nextItemUid, gold: x.gold }))
+          for (const m0 of MIG_V5.mounts) {
+            const m = x.mounts.find((y) => y.uid === m0.uid)
+            if (!m || GR.SLOTS.some((sl) => (m.equip[sl] || null) !== (m0.equip[sl] || null))) erro(`${m0.uid}: equipamento mudou ${m && JSON.stringify(m.equip)}`)
+          }
+          if (!igual(x.joquei, MIG_V5.joquei)) erro('jóquei ' + JSON.stringify(x.joquei))
+          // RF1: a sala continua, com o retrato dos pontos zerado, o do equipamento guardado e o Poder pela R16
+          const p = x.pending
+          if (!p || p.counter !== 4 || p.fee !== 100 || p.training !== false) { erro('sala aberta ' + JSON.stringify(p)); continue }
+          if (!igual(p.alloc, ZERO)) erro('retrato dos pontos não zerado ' + JSON.stringify(p.alloc))
+          if (!igual(p.gear, MIG_V5.pending.gear)) erro('retrato do equipamento mudou ' + JSON.stringify(p.gear))
+          const m1 = x.mounts.find((y) => y.uid === 'm1')
+          const r16 = Math.max(S.powerRating(Object.assign({}, m1, { alloc: p.alloc })), S.powerRating(m1))
+          if (p.pr !== r16) erro(`Poder da sala ${p.pr} (R16: ${r16}; no save v5, ${MIG_V5.pending.pr})`)
+        }
+        // a sala: a mesma seed, o mapa da seed e os rivais com os nomes do sorteio da seed (o Poder entra só depois)
+        const sala = async () => {
+          const a = await abrirSala(pg)
+          a.nomes = await pg.evaluate(() => window.__galope.ui.lobby.racers.filter((r) => !r.isPlayer).map((r) => r.name).sort().join('|'))
+          a.poderVoce = Number(await pg.locator('.programa li.voce .poder b').textContent())
+          return a
+        }
+        const salaA = await sala()
+        if (salaA.seed !== (S.hash2(MIG5_SEED, 4) >>> 0) || salaA.counter !== 4 || salaA.fee !== 100 || salaA.training) problems.push(`${label}: sala ` + JSON.stringify(salaA))
+        if (salaA.blocks !== JSON.stringify(S.randomConditions(salaA.seed).blocks)) problems.push(`${label}: o mapa da sala não é o da seed`)
+        const rng = S.mulberry32(S.hash2(salaA.seed, 0xA11CE))
+        rng()   // o nome da pista
+        const n = G.ECONOMY.minRacers + Math.floor(rng() * (G.ECONOMY.maxRacers - G.ECONOMY.minRacers + 1))
+        const nomes = G.BOT_NAMES.slice()
+        for (let i = nomes.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = nomes[i]; nomes[i] = nomes[j]; nomes[j] = t }
+        if (salaA.nomes !== nomes.slice(0, n - 1).sort().join('|')) problems.push(`${label}: rivais ${salaA.nomes} (da seed: ${nomes.slice(0, n - 1).sort().join('|')})`)
+        // RF5: o Poder do jogador na sala é o do cavalo sem as peças
+        const m1 = s.mounts.find((y) => y.uid === 'm1')
+        if (salaA.poderVoce !== S.powerRating(Object.assign({}, m1, { equip: GR.emptyEquip() }))) problems.push(`${label}: Poder na sala ${salaA.poderVoce} (sem as peças: ${S.powerRating(m1)})`)
+        // recarregar duas vezes: o aviso não volta e a sala é exatamente a mesma
+        for (let k = 1; k <= 2; k++) {
+          await pg.reload({ waitUntil: 'domcontentloaded' })
+          await pg.waitForSelector('#t-estabulo')
+          if ((await avisos(pg)).includes(AVISO_V6)) problems.push(`${label}: o aviso da migração voltou na recarga ${k}`)
+          const salaK = await sala()
+          for (const c of ['seed', 'counter', 'fee', 'training', 'track', 'blocks', 'weather', 'rivais', 'nomes', 'gold']) {
+            if (salaA[c] !== salaK[c]) problems.push(`${label}: recarga ${k} mudou a sala (${c}: ${salaA[c]} -> ${salaK[c]})`)
+          }
+        }
+        // RF5 na corrida: ninguém corre com peças, e o resultado é o mesmo da simulação com e sem as peças do save;
+        // a Pedra Negra do pódio não cai (o podiumStone nem é chamado: a espia devolveria sempre 1 pedra)
+        await pg.evaluate(() => {
+          window.__pedraChamadas = 0
+          window.Gear.podiumStone = function () { window.__pedraChamadas++; return 1 }
+        })
+        await pg.getByRole('button', { name: /^Largar/ }).click()
+        await pg.waitForSelector('#pista')
+        const L = await pg.evaluate(() => {
+          const L = window.__galope.ui.lobby
+          return { seed: L.seed, cond: L.sim.conditions, racers: L.racers.map((r) => ({ horse: r.horse, name: r.name, isPlayer: r.isPlayer, comPecas: !!r.gear })), times: L.sim.finishTimes }
+        })
+        if (L.racers.some((r) => r.comPecas)) problems.push(`${label}: corredor com peças na sala: ` + L.racers.filter((r) => r.comPecas).map((r) => r.name).join(', '))
+        const its = Object.fromEntries(s.items.map((it) => [it.uid, it]))
+        const simula = (comPecas) => S.simulate({ seed: L.seed, conditions: L.cond,
+          racers: L.racers.map((r) => ({ horse: r.horse, name: r.name, isPlayer: r.isPlayer, gear: comPecas && r.isPlayer ? GR.resolve(m1, its) : null })) }).finishTimes
+        if (!igual(simula(false), L.times) || !igual(simula(true), L.times)) problems.push(`${label}: a corrida do jogo difere da simulação sem peças ou com as peças do save`)
+        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pg.waitForSelector('#t-resultado')
+        const R = await pg.evaluate(() => ({ stone: window.__galope.ui.result.stone, place: window.__galope.ui.result.place, pedras: window.__galope.state.pedras, chamadas: window.__pedraChamadas }))
+        if (R.chamadas !== 0 || R.stone !== 0 || R.pedras !== 7) problems.push(`${label}: Pedra Negra do pódio com o equipamento suspenso ` + JSON.stringify(R))
+        if (/Pedra Negra/.test(await textoTela(pg))) problems.push(`${label}: o resultado fala em Pedra Negra`)
+        notes.crescimentoMigracao = { pr: s.pending.pr, prV5: MIG_V5.pending.pr, rivais: salaA.rivais, lugar: R.place }
+      } catch (e) {
+        problems.push(`${label}: ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 2. lixo no save novo (RF2), sem equipamento na tela, pareamento rápido, potro e jóquei mantido (jogo real, 360 px)
+    {
+      const label = 'crescimento-jogo'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label)
+      try {
+        await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+        await pg.waitForSelector('#t-estabulo')
+        let s = await estado(pg)
+        if (s.v !== 6 || s.redeas !== 0 || s.avisoV6 !== false || s.mounts[0].respecFree !== true || !igual(s.mounts[0].alloc, ZERO)) problems.push(`${label}: jogo novo ` + JSON.stringify({ v: s.v, redeas: s.redeas, avisoV6: s.avisoV6, m1: s.mounts[0] }))
+        if ((await avisos(pg)).includes(AVISO_V6)) problems.push(`${label}: o jogo novo mostrou o aviso da migração`)
+        // abrir a sala (pareamento): a 1ª monta a memória do Poder dos bots; as seguintes ficam bem abaixo de 15 ms
+        const t = await pg.evaluate(() => {
+          const g = window.__galope, pr0 = window.RaceSim.powerRating(g.state.mounts[0]), out = []
+          for (let k = 0; k < 21; k++) {
+            const t0 = performance.now()
+            g.buildLobby({ counter: 1000 + k, training: false, fee: 50, pr: Math.round(pr0 * (1 + 0.05 * (k % 7))) })
+            out.push(performance.now() - t0)
+          }
+          return out
+        })
+        const media = t.slice(1).reduce((a, b) => a + b, 0) / (t.length - 1)
+        notes.crescimentoSalaMs = { primeira: +t[0].toFixed(2), media20: +media.toFixed(2), max20: +Math.max(...t.slice(1)).toFixed(2) }
+        if (!(media < 15)) problems.push(`${label}: abrir a sala custa ${media.toFixed(1)} ms em média (esperado < 15 ms; a 1ª: ${t[0].toFixed(1)} ms)`)
+        if ((await estado(pg)).raceCounter !== 0) problems.push(`${label}: medir o pareamento gravou uma sala`)
+
+        // RF2: lixo em respecFree, redeas e avisoV6 volta ao padrão; valores válidos ficam
+        for (const rd of [-3, 2.5, 'x', 5000, null, '4']) {
+          await montaSave(pg, (raw) => { raw.redeas = rd; raw.mounts[0].respecFree = 'sim'; raw.avisoV6 = 'sim' })
+          s = await estado(pg)
+          if (s.redeas !== 0) problems.push(`${label}: redeas ${JSON.stringify(rd)} abriu como ${s.redeas} (esperado 0)`)
+          if (s.mounts[0].respecFree !== true) problems.push(`${label}: respecFree 'sim' abriu como ${s.mounts[0].respecFree}`)
+          if (s.avisoV6 !== false || (await avisos(pg)).includes(AVISO_V6)) problems.push(`${label}: avisoV6 'sim' mostrou o aviso da migração`)
+        }
+        for (const [rd, rf] of [[7, false], [999, true], [0, false]]) {
+          await montaSave(pg, (raw) => { raw.redeas = rd; raw.mounts[0].respecFree = rf })
+          s = await estado(pg)
+          if (s.redeas !== rd || s.mounts[0].respecFree !== rf) problems.push(`${label}: valores válidos mudaram (redeas ${rd} -> ${s.redeas}, respecFree ${rf} -> ${s.mounts[0].respecFree})`)
+        }
+        // alloc acima do orçamento (e lixo) num save v6: cortado pelo validAlloc (teto, custo por faixa, Sorte 0)
+        const LIXO = { vel: 60, acel: 60, man: 'abc', forca: -2, est: 3.7, garra: 1e300, sorte: 9 }
+        await montaSave(pg, (raw) => { raw.mounts[0].level = 15; raw.mounts[0].alloc = LIXO })
+        s = await estado(pg)
+        const mL = s.mounts[0]
+        if (!igual(mL.alloc, S.validAlloc(mL, LIXO)) || custo(mL.alloc) > S.freePoints(mL) || mL.alloc.sorte !== 0) problems.push(`${label}: alloc acima do orçamento abriu como ${JSON.stringify(mL.alloc)} (validAlloc: ${JSON.stringify(S.validAlloc(mL, LIXO))}, ${S.freePoints(mL)} pontos)`)
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        if (!igual((await estado(pg)).mounts[0].alloc, mL.alloc)) problems.push(`${label}: recarregar o alloc cortado mudou o alloc`)
+
+        // sem equipamento: 4 abas (sem a Loja), sem Pedras no cabeçalho, sem resumo de peças no Estábulo
+        // (uma peça solta e o conjunto do Sol inteiro na Brasa: o Poder e a chance de skill ignoram os dois)
+        await montaSave(pg, (raw) => {
+          raw.items = GR.SLOTS.map((sl, i) => ({ uid: 'i' + (i + 1), id: sl + '-sol-lendario', plus: 4 })).concat([{ uid: 'i9', id: 'sela-magico', plus: 0 }])
+          raw.nextItemUid = 10; raw.pedras = 5; raw.gold = 2000
+          raw.mounts[0].equip = Object.fromEntries(GR.SLOTS.map((sl, i) => [sl, 'i' + (i + 1)]))
+        })
+        const abas = await pg.locator('.app-abas [data-acao="aba"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id')))
+        if (!igual(abas, ['estabulo', 'correr', 'expedicao', 'haras'])) problems.push(`${label}: abas ${abas.join(',')} (esperado estabulo,correr,expedicao,haras)`)
+        await forca(pg, 'aba', 'loja')
+        if (await pg.locator('#t-loja').count()) problems.push(`${label}: a Loja abriu pelo botão forçado`)
+        if (await pg.locator('.app-topo .pedras').count()) problems.push(`${label}: saldo de Pedras no cabeçalho`)
+        if (await pg.locator('#tela .slots, #tela .set-badge').count()) problems.push(`${label}: resumo de peças no Estábulo`)
+        s = await estado(pg)
+        const m1 = s.mounts[0]
+        // Montaria: sub-abas Status e Skills; a chance de skill sem o bônus do conjunto
+        await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await pg.waitForSelector('#t-montaria')
+        const subabas = await pg.locator('[data-acao="montaria-aba"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id')))
+        if (!igual(subabas, ['status', 'skills'])) problems.push(`${label}: sub-abas da Montaria ${subabas.join(',')} (esperado status,skills)`)
+        if (await pg.locator('#tela .slots, #tela .set-badge').count()) problems.push(`${label}: resumo de peças na ficha da Montaria`)
+        const pctSkill = Math.round(S.skillChance(m1, S.computeStats(m1), 0) * 100)
+        if (!new RegExp('Skills:\\s*' + pctSkill + '%').test(await textoTela(pg))) problems.push(`${label}: chance de skill na ficha não é ${pctSkill}% (sem o bônus do conjunto)`)
+        // ações de peça e da Loja com o botão forçado: nada muda
+        const antes = await estado(pg)
+        for (const [acao, id] of [['equipar-tela', 'm1'], ['equip-slot', 'sela'], ['tirar', 'sela'], ['equipar', 'i9'], ['vender', 'i9'], ['melhorar', 'i1'], ['melhorar-sim', 'i1'],
+          ['vender-desfazer', null], ['comprar', 'sela-comum'], ['comprar-pedra', '1'], ['loja-tab', 'pedras'], ['montaria-aba', 'equip']]) await forca(pg, acao, id)
+        const depois = await estado(pg)
+        for (const c of ['items', 'gold', 'pedras', 'enhanceCounter', 'nextItemUid']) if (!igual(antes[c], depois[c])) problems.push(`${label}: ação de peça forçada mudou ${c}: ${JSON.stringify(antes[c])} -> ${JSON.stringify(depois[c])}`)
+        if (!igual(antes.mounts[0].equip, depois.mounts[0].equip)) problems.push(`${label}: ação de peça forçada mudou o equipado ` + JSON.stringify(depois.mounts[0].equip))
+        const ui1 = await pg.evaluate(() => ({ tela: window.__galope.ui.screen, aba: window.__galope.ui.montaria && window.__galope.ui.montaria.aba }))
+        if (ui1.tela !== 'montaria' || ui1.aba !== 'status') problems.push(`${label}: ação de peça forçada mudou a tela ` + JSON.stringify(ui1))
+        // Perfil sem Pedras e sem a contagem de peças (as peças continuam no save)
+        await pg.locator('[data-acao="perfil"]').click()
+        await pg.waitForSelector('#t-perfil')
+        const perfil = await textoTela(pg)
+        if (/Pedras/.test(perfil) || /peças?\b/.test(perfil)) problems.push(`${label}: Perfil com Pedras ou peças: ` + perfil.replace(/\s+/g, ' ').slice(0, 200))
+        await pg.locator('[data-acao="perfil-voltar"]').click()
+        // Correr e largada: sem o resumo de peças nem o atalho Equipar; o Poder é o do cavalo sem as peças
+        const poder = S.powerRating(Object.assign({}, m1, { equip: GR.emptyEquip() }))
+        await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+        await pg.waitForSelector('#t-correr')
+        if (await pg.locator('#tela .slots, #tela [data-acao="equipar-tela"]').count()) problems.push(`${label}: aba Correr com o resumo de peças ou o Equipar`)
+        const poderCorrer = await pg.evaluate(() => { const sp = Array.from(document.querySelectorAll('[aria-label="Montaria ativa"] .linha-meta span')).find((x) => /^Poder/.test(x.textContent)); return sp ? Number(sp.querySelector('b').textContent) : null })
+        if (poderCorrer !== poder) problems.push(`${label}: aba Correr com Poder ${poderCorrer} (o do cavalo sem peças: ${poder})`)
+        await abrirSala(pg)
+        if (await pg.locator('#tela .slots, #tela .set-badge, #tela [data-acao="equipar-tela"]').count()) problems.push(`${label}: a largada mostra o resumo de peças ou o Equipar`)
+        if (/conjunto completo/i.test(await textoTela(pg))) problems.push(`${label}: a largada ainda fala do conjunto de peças`)
+        const prSala = (await estado(pg)).pending.pr
+        if (prSala !== poder) problems.push(`${label}: Poder da sala ${prSala} (o do cavalo sem peças: ${poder})`)
+        await pg.getByRole('button', { name: /^Largar/ }).click()
+        await pg.waitForSelector('#pista')
+        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pg.waitForSelector('#t-resultado')
+        s = await estado(pg)
+        if (s.pedras !== 5 || !igual(s.items, depois.items)) problems.push(`${label}: a corrida mexeu nas Pedras ou nas peças ` + JSON.stringify({ pedras: s.pedras }))
+        await pg.getByRole('button', { name: /^Voltar/ }).click()
+        await pg.waitForSelector('#t-correr')
+
+        // potro: nasce com a redistribuição grátis e nenhum ponto (também depois de recarregar)
+        await pg.locator('[data-acao="aba"][data-id="haras"]').click()
+        await pg.waitForSelector('#t-haras')
+        await pg.locator('[data-acao="haras-partner"][data-kind="rent"][data-id="w-faisca"]').click()
+        await pg.locator('[data-acao="cruzar"]').click()
+        await pg.waitForSelector('#t-nasceu')
+        s = await estado(pg)
+        const potro = s.mounts[s.mounts.length - 1]
+        if (s.mounts.length !== 2 || potro.respecFree !== true || !igual(potro.alloc, ZERO)) problems.push(`${label}: potro ` + JSON.stringify({ n: s.mounts.length, respecFree: potro.respecFree, alloc: potro.alloc }))
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        const potro2 = (await estado(pg)).mounts.find((m) => m.uid === potro.uid)
+        if (!potro2 || potro2.respecFree !== true || !igual(potro2.alloc, ZERO)) problems.push(`${label}: potro depois de recarregar ` + JSON.stringify(potro2))
+
+        // jóquei: "Recomeçar com outro inicial" mantém o padrão e o capacete (também se a aba recarregar na escolha)
+        const JQ = { padrao: 'estrelas', capacete: '#c77dff' }
+        await pg.locator('[data-acao="perfil"]').click()
+        await pg.waitForSelector('#t-perfil')
+        await pg.locator(`[data-acao="joquei-padrao"][data-id="${JQ.padrao}"]`).click()
+        await pg.locator(`[data-acao="joquei-capacete"][data-id="${JQ.capacete}"]`).click()
+        if (!igual((await estado(pg)).joquei, JQ)) problems.push(`${label}: o Perfil não trocou o jóquei ` + JSON.stringify((await estado(pg)).joquei))
+        await pg.getByRole('button', { name: 'Recomeçar com outro inicial' }).click()
+        await pg.getByRole('button', { name: 'Sim, recomeçar' }).click()
+        await pg.waitForSelector('.inicial')
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('.inicial')
+        await pg.getByRole('button', { name: 'Escolher Maré' }).click()
+        await pg.waitForSelector('#t-estabulo')
+        s = await estado(pg)
+        const d = await disco(pg)
+        if (s.mounts[0].templateId !== 'mare' || !igual(s.joquei, JQ) || !igual(d.joquei, JQ)) problems.push(`${label}: Recomeçar perdeu o jóquei ` + JSON.stringify({ t: s.mounts[0].templateId, memoria: s.joquei, disco: d.joquei }))
+        if ((await pg.evaluate(() => window.localStorage.getItem('galope-elemental:v1:joquei'))) !== null) problems.push(`${label}: a chave do jóquei guardado ficou depois de escolher o inicial`)
+        if (s.redeas !== 0 || s.mounts[0].respecFree !== true) problems.push(`${label}: o save novo não começou com 0 Rédeas e a redistribuição grátis`)
+      } catch (e) {
+        problems.push(`${label}: ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 3. Redistribuir (modo DEV, com a espia do localStorage): a 1ª grátis, a 2ª sem Rédea desabilitada, com Rédea gasta 1,
+    //    dois toques, gravação que falha (RF4), páreo aberto (a ativa não, as outras sim) e a gaveta DEV (Rédeas e a caixa
+    //    da redistribuição grátis), sem nunca tocar no save real
+    {
+      const label = 'crescimento-redistribuir'
+      const REAL = JSON.stringify({ v: 2, starterId: 'mare', level: 7, xp: 10, skills: [], gold: 777, races: 3, wins: 1, podiums: 2, goldWon: 300, seedBase: 4242, raceCounter: 3 })
+      const init = { content: `(() => {
+        try { if (localStorage.getItem('galope-elemental:v1') === null) localStorage.setItem('galope-elemental:v1', ${JSON.stringify(REAL)}) } catch (e) {}
+        const log = window.__acessos = []
+        window.__lsGet = Storage.prototype.getItem
+        for (const fn of ['getItem', 'setItem', 'removeItem']) {
+          const orig = Storage.prototype[fn]
+          Storage.prototype[fn] = function (k) { log.push(fn + ':' + k); return orig.apply(this, arguments) }
+        }
+      })()` }
+      const pg = await newPage(browser, { width: 390, height: 844 }, label, { query: '?dev=1', init })
+      const DEV_KEY = 'galope-elemental:dev'
+      const botao = () => pg.locator('[data-acao="redistribuir"]')
+      const da = (s, uid) => s.mounts.find((m) => m.uid === uid)
+      const pontosDev = async (pts) => {   // "Aplicar na ativa" com os pontos pedidos (o resto em 0)
+        await devAbrir(pg)
+        for (const k of G.STAT_KEYS) await pg.fill('#dev-pt-' + k, String(pts[k] || 0))
+        await pg.locator('[data-acao="dev-aplicar"]').click()
+        await devFechar(pg)
+      }
+      const abreStatus = async (uid) => {
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.waitForSelector('#t-estabulo')
+        await pg.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click()
+        await pg.waitForSelector('#t-montaria')
+      }
+      // dois toques com a gravação quebrada: nada muda e o aviso de falha aparece; depois, os dois toques de verdade
+      const falhaEGrava = async (uid, quando) => {
+        const a = await estado(pg)
+        await botao().click()
+        await quebrar(pg)
+        await botao().click()
+        const b = await estado(pg)
+        await consertar(pg)
+        if (!igual(da(a, uid).alloc, da(b, uid).alloc) || da(a, uid).respecFree !== da(b, uid).respecFree || a.redeas !== b.redeas) problems.push(`${label}: ${quando}: Redistribuir sem gravar mudou o save ` + JSON.stringify({ antes: [da(a, uid).alloc, da(a, uid).respecFree, a.redeas], depois: [da(b, uid).alloc, da(b, uid).respecFree, b.redeas] }))
+        if (!(await avisos(pg)).includes(FALHA)) problems.push(`${label}: ${quando}: Redistribuir sem gravar não avisou`)
+        const g = await disco(pg, DEV_KEY)
+        if (!igual(da(g, uid).alloc, da(a, uid).alloc) || g.redeas !== a.redeas) problems.push(`${label}: ${quando}: o save de teste mudou com a gravação quebrada`)
+        await botao().click()   // o 1º toque continua valendo depois da falha (como no Confirmar dos pontos)
+        return estado(pg)
+      }
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await devAbrir(pg)
+        await pg.locator('[data-acao="dev-niveis"]').click()
+        if (!(await pg.locator('#dev-respecfree').isChecked())) problems.push(`${label}: a caixa da redistribuição grátis não mostra a da ativa (true)`)
+        await devFechar(pg)
+        await pontosDev({ vel: 4, acel: 2 })
+        let s = await estado(pg)
+        if (!igual(da(s, 'm1').alloc, Object.assign({}, ZERO, { vel: 4, acel: 2 })) || da(s, 'm1').respecFree !== true || s.redeas !== 0) problems.push(`${label}: preparo ` + JSON.stringify({ m1: da(s, 'm1'), redeas: s.redeas }))
+        // a 1ª é grátis: dois toques; o 1º só mostra o que vai gastar
+        await abreStatus('m1')
+        if (!(await botao().count()) || (await botao().isDisabled())) problems.push(`${label}: Redistribuir ausente ou desabilitado na 1ª vez`)
+        await botao().click()
+        if (!(await avisos(pg)).includes('Grátis: a primeira deste cavalo')) problems.push(`${label}: o 1º toque não disse que é grátis: ` + await avisos(pg))
+        s = await estado(pg)
+        if (!igual(da(s, 'm1').alloc, Object.assign({}, ZERO, { vel: 4, acel: 2 })) || da(s, 'm1').respecFree !== true) problems.push(`${label}: o 1º toque já redistribuiu`)
+        await botao().click()   // 2º toque: grava (a gravação que falha vem abaixo, com os pontos de novo)
+        s = await estado(pg)
+        if (!igual(da(s, 'm1').alloc, ZERO) || da(s, 'm1').respecFree !== false || s.redeas !== 0) problems.push(`${label}: a 1ª redistribuição ` + JSON.stringify({ alloc: da(s, 'm1').alloc, respecFree: da(s, 'm1').respecFree, redeas: s.redeas }))
+        if (await botao().count()) problems.push(`${label}: Redistribuir continua na tela sem pontos comprados`)
+        const g1 = await disco(pg, DEV_KEY)
+        if (!igual(da(g1, 'm1').alloc, ZERO) || da(g1, 'm1').respecFree !== false) problems.push(`${label}: a 1ª redistribuição não foi gravada no save de teste`)
+        // a 2ª, sem Rédea: desabilitada com o motivo; o clique forçado não muda nada
+        await pontosDev({ vel: 3 })
+        await abreStatus('m1')
+        if (!(await botao().isDisabled()) || !/Rédea nova/.test((await botao().getAttribute('title')) || '')) problems.push(`${label}: a 2ª sem Rédea não está desabilitada com o motivo (title ${await botao().getAttribute('title')})`)
+        if (!/Rédea nova/.test(await textoTela(pg))) problems.push(`${label}: o motivo da 2ª sem Rédea não aparece na tela`)
+        const a2 = await estado(pg)
+        for (let k = 0; k < 2; k++) await pg.evaluate(() => { const b = document.querySelector('[data-acao="redistribuir"]'); b.disabled = false; b.click() })
+        if (!igual(await estado(pg), a2)) problems.push(`${label}: o clique forçado na 2ª sem Rédea mudou o save`)
+        // Rédeas pela gaveta DEV: lixo é cortado a 0–999; com 2 Rédeas a 2ª gasta 1 (RF4 antes: a falha não gasta)
+        await devAbrir(pg)
+        for (const [v, esp] of [['5000', 999], ['-4', 0], ['2', 2]]) {
+          await pg.fill('#dev-redeas', v)
+          await pg.locator('[data-acao="dev-redeas"]').click()
+          if ((await estado(pg)).redeas !== esp) problems.push(`${label}: Rédeas "${v}" pela gaveta ficaram ${(await estado(pg)).redeas} (esperado ${esp})`)
+        }
+        if ((await disco(pg, DEV_KEY)).redeas !== 2) problems.push(`${label}: as Rédeas da gaveta não foram gravadas no save de teste`)
+        await devFechar(pg)
+        if (await botao().isDisabled()) problems.push(`${label}: com Rédea, Redistribuir continua desabilitado`)
+        await botao().click()
+        if (!(await avisos(pg)).includes('Usa 1 Rédea nova; você tem 2')) problems.push(`${label}: o 1º toque com Rédea não disse o que gasta: ` + await avisos(pg))
+        await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()   // trocar de sub-aba desarma o 1º toque
+        await pg.locator('[data-acao="montaria-aba"][data-id="status"]').click()
+        s = await falhaEGrava('m1', 'com Rédea')
+        if (!igual(da(s, 'm1').alloc, ZERO) || s.redeas !== 1 || da(s, 'm1').respecFree !== false) problems.push(`${label}: a 2ª com Rédea ` + JSON.stringify({ alloc: da(s, 'm1').alloc, redeas: s.redeas, respecFree: da(s, 'm1').respecFree }))
+        // RF4 na grátis: a caixa da gaveta devolve a redistribuição grátis à ativa (e grava); a falha não a gasta
+        await devAbrir(pg)
+        await pg.setChecked('#dev-respecfree', false)
+        if (da(await estado(pg), 'm1').respecFree !== false) problems.push(`${label}: desmarcar a caixa não desligou a redistribuição grátis`)
+        await pg.setChecked('#dev-respecfree', true)
+        if (da(await estado(pg), 'm1').respecFree !== true || da(await disco(pg, DEV_KEY), 'm1').respecFree !== true) problems.push(`${label}: marcar a caixa não ligou (ou não gravou) a redistribuição grátis`)
+        await devFechar(pg)
+        await pontosDev({ est: 5 })
+        await abreStatus('m1')
+        s = await falhaEGrava('m1', 'grátis')
+        if (!igual(da(s, 'm1').alloc, ZERO) || s.redeas !== 1 || da(s, 'm1').respecFree !== false) problems.push(`${label}: a grátis depois da falha ` + JSON.stringify({ alloc: da(s, 'm1').alloc, redeas: s.redeas, respecFree: da(s, 'm1').respecFree }))
+        // páreo aberto: a ativa não redistribui (desabilitada com o motivo, nem forçando); outra montaria sim
+        await pontosDev({ vel: 2 })   // m1, ativa, com pontos
+        await devAbrir(pg)
+        await pg.locator('[data-acao="dev-criar"]').click()   // m2 (vira a ativa), com os mesmos pontos
+        await devFechar(pg)
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.locator('[data-acao="ativar"][data-id="m1"]').click()
+        s = await estado(pg)
+        if (s.activeId !== 'm1' || !(G.STAT_KEYS.some((k) => da(s, 'm2').alloc[k] > 0))) problems.push(`${label}: preparo do páreo ` + JSON.stringify({ ativa: s.activeId, m2: da(s, 'm2') && da(s, 'm2').alloc }))
+        await abrirSala(pg)
+        await pg.getByRole('button', { name: /^Voltar/ }).click()
+        await abreStatus('m1')
+        if (!(await botao().isDisabled()) || !/Páreo aberto/.test((await botao().getAttribute('title')) || '')) problems.push(`${label}: com páreo aberto, Redistribuir da ativa não está desabilitado com o motivo`)
+        const a3 = await estado(pg)
+        for (let k = 0; k < 2; k++) await pg.evaluate(() => { const b = document.querySelector('[data-acao="redistribuir"]'); b.disabled = false; b.click() })
+        if (!igual(await estado(pg), a3)) problems.push(`${label}: o clique forçado com páreo aberto redistribuiu a ativa`)
+        await abreStatus('m2')
+        if (await botao().isDisabled()) problems.push(`${label}: com páreo aberto, Redistribuir de outra montaria ficou desabilitado`)
+        await botao().click()
+        await botao().click()
+        s = await estado(pg)
+        if (!igual(da(s, 'm2').alloc, ZERO) || da(s, 'm2').respecFree !== false || s.redeas !== 1 || !s.pending) problems.push(`${label}: outra montaria com páreo aberto ` + JSON.stringify({ alloc: da(s, 'm2').alloc, respecFree: da(s, 'm2').respecFree, redeas: s.redeas, sala: !!s.pending }))
+        await checkOverflow(pg, label)
+        // o save real nunca foi lido nem gravado
+        const ac = await pg.evaluate(() => ({ real: window.__lsGet.call(localStorage, 'galope-elemental:v1'), acessos: window.__acessos.slice() }))
+        if (ac.real !== REAL) problems.push(`${label}: o save real mudou: ${ac.real}`)
+        if (ac.acessos.some((x) => /galope-elemental:v1(:|$)/.test(x))) problems.push(`${label}: a página tocou no save real: ` + ac.acessos.filter((x) => /galope-elemental:v1/.test(x)).join(', '))
+      } catch (e) {
+        problems.push(`${label}: ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+  }
+
   if (!SO.length) {   // o resto do teste (fluxo completo e contextos antigos) só roda sem UI_SO
   // ---------------- celular 390x844 ----------------
   // newPage já espera Sprites.moldsReady === true (moldes do PixelLab embutidos pelo build e decodificados)

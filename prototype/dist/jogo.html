@@ -437,6 +437,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .nota-genetica--a { background: var(--r-raro); }
 .nota-genetica--s { background: var(--ouro); }
 .build-acoes { margin-top: 10px; }
+/* "Redistribuir pontos" (bloco 1b §9): embaixo, separado dos botões de compra por um filete */
+.redistribuir { margin-top: 12px; padding-top: 10px; border-top: 2px solid var(--linha); display: flex; flex-direction: column; gap: 8px; }
+.redistribuir .nota { margin: 0; }
 @media (max-width: 600px) {
   /* celular: nome, nota e valor numa linha; a barra embaixo; o "+" ao lado das duas */
   .build-linha { grid-template-columns: auto auto minmax(0, 1fr) 44px; grid-template-areas: "nome nota valor acao" "barra barra barra acao"; gap: 4px 8px; }
@@ -7883,8 +7886,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *
  * Sala de largada: o campo (seed, condições, rivais, entrada) é sorteado UMA vez e fica salvo em
  * state.pending até ser corrido. Voltar à aba Correr ou recarregar reabre a mesma sala (sem
- * re-sorteio grátis). O equipamento (persistente, por montaria) entra no pareamento; com páreo aberto
- * só trocas que não passem do Poder da sala.
+ * re-sorteio grátis). O Poder da sala (pareamento) é o da montaria ativa com os pontos de quando a sala
+ * abriu; com páreo aberto, nenhum ponto passa desse Poder. O equipamento está suspenso (GEAR_ON, bloco 1b).
  * A corrida é calculada por RaceSim.simulate (função pura da seed) só quando o jogador aperta
  * "Largar!", depois de pagar a entrada, como um servidor faria; a tela de corrida só anima os
  * frames. Ouro e XP são liquidados nesse momento: recarregar no meio da corrida não muda nada.
@@ -7914,6 +7917,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   
   var E = GD.ECONOMY;
   var GE = E.gear;
+  // Equipamento suspenso (bloco 1b, spec 2026-11-12-crescimento-livre §8). A corrida, o Poder e os status já ignoram
+  // as peças (sim.js). Com GEAR_ON = false:
+  // - a aba Loja e a sub-aba Equipamento somem, e o resumo das peças sai do Estábulo, do Correr, da ficha e da largada;
+  // - o saldo de Pedras Negras sai do cabeçalho e do Perfil;
+  // - a Pedra Negra do pódio não cai (GR.podiumStone não é chamado) e os bots correm sem peças;
+  // - as ações de peça (equipar, tirar, melhorar, vender, comprar) não fazem nada, nem com o botão forçado.
+  // Peças, melhorias, o que está equipado e as Pedras ficam no save sem mudança: nada é vendido nem convertido.
+  // O código do equipamento fica, desligado por esta constante, para voltar depois.
+  var GEAR_ON = false;
   var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
   var TRAINING_GOLD = [30, 22, 16, 12, 10, 10, 10, 10];
   var MIN_ENTRY = Math.min.apply(null, E.entryTiers);
@@ -8214,6 +8226,21 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   function leMotionKeep() {
     try { var m = window.localStorage.getItem(MOTION_KEY); return MOTIONS.indexOf(m) >= 0 ? m : null; } catch (e) { return null; }
   }
+  // O jóquei também passa para o save novo (decisão de 2026-11-13: é a identidade do jogador, como a opção Animações),
+  // numa chave própria pelo mesmo motivo; só existe de "Recomeçar" até escolher o inicial. Lixo na chave: o inicial.
+  var JOQUEI_KEY = SAVE_KEY + ':joquei';
+  function guardaJoqueiKeep(j) {
+    try {
+      if (j) window.localStorage.setItem(JOQUEI_KEY, JSON.stringify(j));
+      else window.localStorage.removeItem(JOQUEI_KEY);
+    } catch (e) { /* sem armazenamento: vale só nesta aba */ }
+  }
+  function leJoqueiKeep() {
+    try {
+      var raw = window.localStorage.getItem(JOQUEI_KEY);
+      return raw ? validJoquei(JSON.parse(raw)) : null;
+    } catch (e) { return null; }
+  }
 
   // Save v5: várias montarias (instâncias) e uma ativa; peças de equipamento como instâncias em
   // state.items ({ uid: 'i<n>', id, plus }) e equipadas por montaria em mount.equip (slot -> uid|null).
@@ -8232,7 +8259,16 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // Parte 2b (spec 2026-11-13-cavalos-portes §3), também sem versão nova: mount.porte (GameData.PORTES.valores),
   // opcional; ausente ou inválido, o sanitize põe o da escada do Breed.porteDe (o do modelo do catálogo, senão
   // porteDoId do uid). Só desenho, como as marcas.
-  var SAVE_VERSION = 5;
+  // v5 -> v6 (bloco 1b, crescimento livre; spec 2026-11-12-crescimento-livre §10), também em sanitize e gravado logo ao
+  // abrir: todos os cavalos ficam com alloc zerado (todos os pontos devolvidos, no custo por faixa novo) e
+  // mount.respecFree = true (a primeira redistribuição de cada cavalo é grátis); state.redeas = 0 (Rédeas novas, que
+  // pagam as redistribuições seguintes); peças, equipamento e Pedras ficam como estão; a sala aberta continua (mesma
+  // seed, entrada e treino), com o retrato dos pontos zerado e o Poder pela R16. state.avisoV6 = true marca o aviso
+  // da migração ainda não mostrado: o Estábulo o mostra uma vez na abertura (start) e grava false.
+  // Campos novos da v6: respecFree só booleano (padrão true); redeas inteiro 0–999 (fora disso, 0); avisoV6 booleano.
+  var SAVE_VERSION = 6;
+  var AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.';
+  var REDEAS_MAX = 999;
   var BR = E.breeding;
   var MAX_LEVEL = E.maxLevel || 50;
 
@@ -8251,6 +8287,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       skills: tpl.skills.slice(),
       potential: clone(tpl.potential),
       alloc: zeroAlloc(),
+      respecFree: true,   // a primeira redistribuição dos pontos é grátis (bloco 1b §9)
       palette: tpl.palette ? clone(tpl.palette) : null,
       marcas: marcasDe(tpl.marcas, null, uid),
       porte: BRD.porteDe(tpl.porte, null, uid),   // o do modelo (todo modelo, do catálogo ou do painel DEV, tem um)
@@ -8309,6 +8346,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       nextItemUid: 1,
       pedras: 0,
       enhanceCounter: 0,
+      redeas: 0,          // Rédeas novas (bloco 1b §9): só a gaveta DEV dá, por enquanto
+      avisoV6: false,     // aviso da migração v5 -> v6 ainda por mostrar (só em save migrado)
       settings: { motion: 'sistema' },
       joquei: joqueiInicial()
     };
@@ -8382,9 +8421,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   }
 
   // Uma montaria do save v3+: tipos e faixas; campo essencial ausente ou genética inválida -> null.
-  // seedBase: a seed do save (converte o Neutro); v5: o save já é v5 (antes dele, os pontos vêm zerados).
-  // Modelo fora do catálogo: a montaria fica, sem modelo.
-  function sanitizeMount(m, seedBase, v5) {
+  // seedBase: a seed do save (converte o Neutro); v6: o save já é v6 (antes dele, os pontos vêm zerados, todos
+  // devolvidos, e a redistribuição grátis volta). Modelo fora do catálogo: a montaria fica, sem modelo.
+  function sanitizeMount(m, seedBase, v6) {
     if (!m || typeof m !== 'object') return null;
     if (typeof m.uid !== 'string' || !/^m\d{1,9}$/.test(m.uid)) return null;
     var element = m.element === 'neutro' ? neutroParaTipo(seedBase, m.uid) : m.element;
@@ -8413,6 +8452,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       skills: [],
       potential: potential,
       alloc: null,
+      // só booleano; ausente ou lixo (e todo save de antes da v6): true
+      respecFree: v6 && typeof m.respecFree === 'boolean' ? m.respecFree : true,
       palette: validPalette(m.palette),
       marcas: marcasDe(m.marcas, templateId, m.uid),   // sem versão nova: ausentes ou inválidas, as calculadas
       porte: BRD.porteDe(m.porte, templateId, m.uid),  // idem: ausente ou inválido, o do modelo ou o do uid
@@ -8422,7 +8463,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       // ('gestacao', gravado por saves antigos e nunca lido, fica de fora)
       equip: GR.emptyEquip()      // preenchido em sanitize(), que conhece as peças válidas
     };
-    out.alloc = RS.validAlloc(out, v5 ? m.alloc : null);   // save antigo: zerado; inválido: saneado pelos pontos livres
+    out.alloc = RS.validAlloc(out, v6 ? m.alloc : null);   // save antigo: zerado; inválido: cortado pelo teto e pelo custo
     out.skills = validSkills(m.skills, out);
     return out;
   }
@@ -8431,7 +8472,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (!s || typeof s !== 'object') return null;
     var mounts, activeId, nextUid, stableSlots, breedCounter;
     var start = BR.stableSlotsStart, max = BR.stableSlotsMax;
-    var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4, v5 = Number(s.v) >= SAVE_VERSION;
+    var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4, v6 = Number(s.v) >= SAVE_VERSION;
     var seedBase = num(s.seedBase, null, 0, 4294967295);
     if (seedBase == null) seedBase = freshSeedBase(0);
     var rawEquip = {};   // uid da montaria -> equip cru do save (validado depois das peças)
@@ -8449,7 +8490,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       mounts = [];
       var seen = {}, maxUid = 0;
       (Array.isArray(s.mounts) ? s.mounts : []).forEach(function (raw) {
-        var m = sanitizeMount(raw, seedBase, v5);
+        var m = sanitizeMount(raw, seedBase, v6);
         if (!m || seen[m.uid]) return;
         seen[m.uid] = true;
         mounts.push(m);
@@ -8488,27 +8529,29 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     base.nextUid = nextUid;
     base.stableSlots = stableSlots;
     base.breedCounter = breedCounter;
-    sanitizeGear(s, v4, base, rawEquip);
-    // Poder da sala = Poder da montaria ativa com o equipamento e os pontos de quando a sala abriu (retratos
-    // pending.gear e pending.alloc, tirados em openLobby), nem mais (liberaria trocas de peça e de pontos) nem
-    // menos (os rivais sairiam mais fracos). Sem o retrato do equipamento (save de antes dele) o pr gravado fica
-    // como está: recalcular pelo equipamento atual mudaria os rivais da mesma sala. Exceção: save de antes da
-    // v5 (o pr é do modelo de status antigo), recalculado uma vez pelo equipamento atual; o save migrado é
-    // gravado logo ao abrir e daí em diante o pr fica. Sem o retrato dos pontos (sala de antes dele, ou lixo
-    // que não é objeto) vale o alloc atual, uma vez: o retrato passa a existir e vai na próxima gravação.
-    // Em qualquer caso o pr nunca fica abaixo do Poder com que a ativa corre agora (R16): pelas travas da tela
-    // ele nunca passa do pr, então só um retrato adulterado para baixo é corrigido.
+    sanitizeGear(s, v4, base, rawEquip);   // peças, equipado e Pedras: guardados como estão (o equipamento está suspenso)
+    // Rédeas novas: inteiro de 0 a 999; qualquer outra coisa (negativo, fração, texto, acima de 999) volta a 0.
+    // Save de antes da v6: 0. Aviso da migração: pendente em todo save de antes da v6; na v6, só se gravado true.
+    var rd = s.redeas;
+    base.redeas = v6 && typeof rd === 'number' && rd === Math.floor(rd) && rd >= 0 && rd <= REDEAS_MAX ? rd : 0;
+    base.avisoV6 = v6 ? s.avisoV6 === true : true;
+    // Poder da sala (R16) = o maior entre o Poder do retrato dos pontos de quando a sala abriu (pending.alloc, tirado
+    // em openLobby) e o Poder com que a ativa corre agora. Nem mais (liberaria pontos acima do que a sala viu) nem
+    // menos (os rivais sairiam mais fracos). O equipamento não entra (spec 1b §8): o retrato dele (pending.gear) fica
+    // guardado, sem efeito. O pr é sempre recalculado: um pr adulterado (para cima ou para baixo) volta ao do retrato, e
+    // o de um save de antes da v6 (modelo de status antigo, com ou sem o retrato do equipamento) passa ao modelo novo
+    // uma vez (o save migrado é gravado logo ao abrir). Antes da v6 os pontos foram todos devolvidos, então o retrato
+    // vai a zero junto. Sem retrato (sala de antes dele, ou lixo que não é objeto) vale o alloc atual, uma vez: o
+    // retrato passa a existir e vai na próxima gravação. Retrato com lixo é cortado (validAlloc) e só pode subir o
+    // Poder da sala (rivais mais fortes: só atrapalha quem adulterou). Pelas travas da tela o Poder da ativa nunca
+    // passa do da sala, então o max só corrige um retrato adulterado para baixo.
     if (base.pending) {
-      var act = null, its = {};
+      var act = null;
       base.mounts.forEach(function (m) { if (m.uid === base.activeId) act = m; });
-      base.items.forEach(function (it) { its[it.uid] = it; });
-      base.pending.alloc = RS.validAlloc(act, base.pending.alloc || act.alloc);
-      if (base.pending.gear || !v5) {
-        var retrato = clone(act);
-        retrato.alloc = base.pending.alloc;
-        base.pending.pr = RS.powerRating(retrato, base.pending.gear ? gearFromSnapshot(base.pending.gear) : GR.resolve(act, its));
-      }
-      base.pending.pr = Math.max(base.pending.pr, RS.powerRating(act, GR.resolve(act, its)));
+      base.pending.alloc = RS.validAlloc(act, v6 ? (base.pending.alloc || act.alloc) : null);
+      var retrato = clone(act);
+      retrato.alloc = base.pending.alloc;
+      base.pending.pr = Math.max(RS.powerRating(retrato), RS.powerRating(act));
     }
     // preferências (sem mudar a versão do save): save antigo sem settings, ou com valor inválido, segue o sistema
     var mo = s.settings && typeof s.settings === 'object' ? s.settings.motion : null;
@@ -8518,14 +8561,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   }
 
   // Retrato do equipamento da montaria ativa quando a sala abre (state.pending.gear): [{ slot, id, plus }].
-  // Não aponta para as peças do inventário (que podem ser vendidas ou melhoradas depois), só copia.
+  // Não aponta para as peças do inventário (que podem ser vendidas ou melhoradas depois), só copia. Com o
+  // equipamento suspenso (GEAR_ON) ele continua gravado e saneado, mas não entra no Poder da sala.
   function gearSnapshot(gear) {
     return gear.pieces.map(function (p) { return { slot: p.slot, id: p.id, plus: p.plus }; });
-  }
-  function gearFromSnapshot(snap) {
-    var equip = {}, items = {};
-    snap.forEach(function (p, i) { equip[p.slot] = 's' + i; items['s' + i] = { uid: 's' + i, id: p.id, plus: p.plus }; });
-    return GR.resolve({ equip: equip }, items);
   }
   // retrato salvo: peças do catálogo no slot certo, +N válido, um por slot; qualquer coisa fora disso -> null
   function validGearSnapshot(arr) {
@@ -8686,6 +8725,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   var state = null;
   var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null, montaria: null, tab: 'estabulo',
     motionKeep: null,   // "Recomeçar": a opção Animações passa para o save novo
+    joqueiKeep: null,   // e o jóquei também (padrão e capacete)
     // modo DEV (só com DEV_MODE): gaveta, confirmação do "Zerar" e valores armados para a próxima corrida
     // (ver a seção "Modo DEV")
     dev: { aberto: false, ouroInf: true, msg: '', f: null, confirmZerar: false }, devNext: null };
@@ -8957,7 +8997,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // Tipos de tela: 'aba' (raiz, com cabeçalho e barra; não empilha histórico), 'sub' (com cabeçalho e barra;
   // empilha um estado e o Voltar devolve a ui.tab) e 'full' (tela cheia, sem casca).
   var SCREEN_KIND = { inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', largada: 'full', corrida: 'full', resultado: 'full' };
+  // a Loja só vende peças e Pedras Negras: com o equipamento suspenso (GEAR_ON), sai da barra (e não abre nem pelo
+  // botão forçado: o handler 'aba' só abre as abas desta lista)
   var ABAS = [{ id: 'estabulo', icone: '🐴', rotulo: 'Estábulo' }, { id: 'correr', icone: '🏁', rotulo: 'Correr' }, { id: 'expedicao', icone: '🧭', rotulo: 'Expedição' }, { id: 'haras', icone: '💞', rotulo: 'Haras' }, { id: 'loja', icone: '🛒', rotulo: 'Loja' }];
+  ABAS = ABAS.filter(function (a) { return GEAR_ON || a.id !== 'loja'; });   // (o wiki lê a lista acima e o GEAR_ON)
+  function abaVisivel(id) { return ABAS.some(function (a) { return a.id === id; }); }
   function kindOf(screen) { return hasOwn(SCREEN_KIND, screen) ? SCREEN_KIND[screen] : 'full'; }
   var guardPushed = false, ignorePop = false;
   function isRoot(screen) { return kindOf(screen) === 'aba' || screen === 'inicial'; }
@@ -9040,7 +9084,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ===========================================================================
   function appTopoHtml() {
     return '<header class="app-topo"><span class="logo-mini">' + logoHtml('Galope Elemental', 24) + '</span>' +
-      '<span class="topo-saldos">' + pedrasSaldoHtml() +
+      '<span class="topo-saldos">' + (GEAR_ON ? pedrasSaldoHtml() : '') +
       '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></span>' +
       '<button type="button" class="btn btn--pequeno app-perfil" data-acao="perfil" aria-label="Perfil">' + iconeHtml('ui-perfil', '👤', 16) + '</button></header>';
   }
@@ -9105,9 +9149,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       '<div class="caixa">' +
         '<div class="linha-meta"><span>Corridas <b>' + fmt(state.races) + '</b></span><span>Vitórias <b>' + fmt(state.wins) + '</b></span>' +
           '<span>Pódios <b>' + fmt(state.podiums) + '</b></span><span>Prêmios ' + ouroHtml(state.goldWon) + '</span></div>' +
-        '<div class="linha-meta"><span>Ouro ' + ouroHtml(state.gold) + '</span><span>Pedras ' + pedrasSaldoHtml() + '</span></div>' +
-        '<div class="linha-meta"><span>' + esc(state.mounts.length) + (state.mounts.length === 1 ? ' montaria' : ' montarias') + ' · ' +
-          esc(state.items.length) + (state.items.length === 1 ? ' peça' : ' peças') + '</span></div>' +
+        // com o equipamento suspenso (GEAR_ON), sem o saldo de Pedras e sem a contagem de peças (as telas delas somem)
+        '<div class="linha-meta"><span>Ouro ' + ouroHtml(state.gold) + '</span>' + (GEAR_ON ? '<span>Pedras ' + pedrasSaldoHtml() + '</span>' : '') + '</div>' +
+        '<div class="linha-meta"><span>' + esc(state.mounts.length) + (state.mounts.length === 1 ? ' montaria' : ' montarias') +
+          (GEAR_ON ? ' · ' + esc(state.items.length) + (state.items.length === 1 ? ' peça' : ' peças') : '') + '</span></div>' +
       '</div>' +
       joqueiHtml() + animacoesHtml() +
       '<footer class="caixa">' + resetHtml() + '</footer></section>';
@@ -9223,7 +9268,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         '<span>' + sexoHtml(m.sex) + '</span>' +
         '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
         (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
-      '</div>' + xpHtml(m.level, m.xp, true) + gearSummaryHtml(m) + acoes +
+      '</div>' + xpHtml(m.level, m.xp, true) + (GEAR_ON ? gearSummaryHtml(m) : '') + acoes +
     '</article>';
   }
 
@@ -9260,7 +9305,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ===========================================================================
   function renderCorrer() {
     var h = playerHorse();
-    var rating = RS.powerRating(h, playerGear());
+    var rating = RS.powerRating(h);   // sem equipamento (spec 1b §7)
     var broke = state.gold < MIN_ENTRY;
     var tier = effectiveTier();
     var P = state.pending;
@@ -9293,8 +9338,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           xpHtml(h.level, h.xp, true) +
           '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
         '</div></div>' +
-        '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
-          '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div></div>' +
+        (GEAR_ON ? '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
+          '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div></div>' : '') +
       '</article>' +
       '<section class="caixa" aria-labelledby="r-entrada">' +
         '<div class="tela-cabeca"><span class="rotulo" id="r-entrada">Entrada da corrida</span>' +
@@ -9566,6 +9611,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var foal = BRD.foal({ f: P.f, m: P.m, seedBase: state.seedBase, breedCounter: state.breedCounter, nextUid: state.nextUid });
     foal.equip = GR.emptyEquip();   // entra no estábulo sem peças (Breed.foal não sabe de equipamento)
     foal.alloc = zeroAlloc();       // e sem pontos distribuídos (nasce no nível 1: nenhum ponto livre)
+    foal.respecFree = true;         // com a primeira redistribuição grátis, como todo cavalo (bloco 1b §9)
     state.nextUid += 1;
     state.breedCounter += 1;
     return foal;
@@ -9720,14 +9766,17 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ===========================================================================
   // Tela da Montaria (sub-tela): cabeça com ações e sub-abas Status / Skills / Equipamento
   // ===========================================================================
-  var MONTARIA_ABAS = [{ id: 'status', rotulo: 'Status' }, { id: 'skills', rotulo: 'Skills' }, { id: 'equip', rotulo: 'Equipamento' }];
+  // a sub-aba Equipamento some com o equipamento suspenso (GEAR_ON); o handler 'montaria-aba' só abre as desta lista
+  var MONTARIA_ABAS = [{ id: 'status', rotulo: 'Status' }, { id: 'skills', rotulo: 'Skills' }, { id: 'equip', rotulo: 'Equipamento' }]
+    .filter(function (a) { return GEAR_ON || a.id !== 'equip'; });
+  function montariaAbaValida(id) { return MONTARIA_ABAS.some(function (a) { return a.id === id; }); }
 
   // ---- Aba Status: distribuir os pontos livres (spec v3 §10) ----
   // O rascunho (ui.montaria.rascunho: pontos a somar por status, ou null) fica só na memória da tela: sair da
   // tela ou trocar de sub-aba o descarta. Somado ao que já foi comprado, ele nunca passa do que RaceSim.validAlloc
   // aceita (custo por faixa dentro dos pontos, teto de 150 e Sorte sem pontos). "Confirmar" pede um segundo
-  // toque e grava como um gasto (gravaGasto: se a gravação falha, nada muda). Com páreo aberto, a ativa segue a trava das peças: o Poder não passa do
-  // da sala (state.pending.pr); as outras montarias ficam livres.
+  // toque e grava como um gasto (gravaGasto: se a gravação falha, nada muda). Com páreo aberto, o Poder da ativa
+  // não passa do da sala (state.pending.pr); as outras montarias ficam livres.
   function rascunhoMais(r, k) {
     var out = {};
     STAT_KEYS.forEach(function (j) { out[j] = (r ? r[j] : 0) + (j === k ? 1 : 0); });
@@ -9773,7 +9822,43 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (!P || m.uid !== state.activeId) return { ok: true, limit: null };
     var h = clone(m);
     h.alloc = alloc;
-    return { ok: RS.powerRating(h, gearOf(m)) <= P.pr, limit: P.pr };
+    return { ok: RS.powerRating(h) <= P.pr, limit: P.pr };
+  }
+
+  // ---- Redistribuir (bloco 1b §9): devolve todos os pontos comprados (o alloc volta a zero) ----
+  // A primeira de cada cavalo é grátis (mount.respecFree, que nasce true e vira false ao usar); as seguintes gastam
+  // 1 Rédea nova (state.redeas; neste bloco só a gaveta DEV dá Rédeas, nunca o Ouro). Com páreo aberto, a montaria
+  // ativa não redistribui (o retrato dos pontos da sala já foi tirado); as outras podem. Dois toques no mesmo botão,
+  // como o Confirmar dos pontos, e grava como um gasto (gravaGasto: se a gravação falha, nada muda).
+  // Devolve { ok, motivo, custo: 'gratis' | 'redea' } (motivo: o texto do botão desabilitado; '' quando ok).
+  function temPontos(m) {
+    var a = RS.validAlloc(m, m.alloc);
+    return STAT_KEYS.some(function (k) { return a[k] > 0; });
+  }
+  function podeRedistribuir(m) {
+    var custo = m.respecFree === true ? 'gratis' : 'redea';
+    var P = state.pending;
+    if (!temPontos(m)) return { ok: false, motivo: 'Nenhum ponto distribuído para devolver.', custo: custo };
+    if (P && m.uid === state.activeId) return { ok: false, motivo: 'Páreo aberto: a montaria ativa só redistribui depois de correr.', custo: custo };
+    if (custo === 'redea' && !(state.redeas >= 1)) return { ok: false, motivo: 'A redistribuição grátis deste cavalo já foi usada, e você não tem Rédea nova.', custo: custo };
+    return { ok: true, motivo: '', custo: custo };
+  }
+  // o que a redistribuição vai gastar (o texto do segundo toque)
+  function custoRedistribuirTxt(pode) {
+    return pode.custo === 'gratis' ? 'Grátis: a primeira deste cavalo'
+      : 'Usa 1 Rédea nova; você tem ' + state.redeas;
+  }
+  // bloco do botão (só quando o cavalo tem pontos comprados), embaixo e separado dos botões de compra
+  function redistribuirHtml(m) {
+    if (!temPontos(m)) return '';
+    var M = ui.montaria, pode = podeRedistribuir(m);
+    if (!pode.ok) M.confirmaRedist = false;
+    var conf = M.confirmaRedist && pode.ok
+      ? '<p class="aviso" role="status">' + esc(custoRedistribuirTxt(pode) + '. Todos os pontos voltam para distribuir. Toque em Redistribuir pontos de novo para confirmar.') + '</p>' : '';
+    return '<div class="redistribuir">' + conf +
+      '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="redistribuir"' +
+        (pode.ok ? '' : ' disabled title="' + esc(pode.motivo) + '"') + '>Redistribuir pontos</button></div>' +
+      (pode.ok ? '' : '<p class="nota">' + esc(pode.motivo) + '</p>') + '</div>';
   }
   function notaGenetica(g) { return g >= 24 ? 'S' : g >= 16 ? 'A' : g >= 8 ? 'B' : 'C'; }
   function montariaStatusHtml(m, gear) {
@@ -9819,15 +9904,17 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="pontos-confirmar">Confirmar</button></div>';
     }
     return avisos + '<section class="caixa" aria-label="Status">' + topo +
-      '<ul class="build">' + linhas + '</ul>' + acoes +
+      '<ul class="build">' + linhas + '</ul>' + acoes + redistribuirHtml(m) +
       '<p class="nota">' + esc('Nota de genética (C, B, A ou S): vem do nascimento. A barra vai até ' + cap + '. O custo do ponto sobe a cada ' + RS.TUNING.costStep + ' pontos no mesmo status.') + '</p></section>';
   }
 
   // abre a Montaria numa sub-aba; o estado do equipamento (confirmação, Desfazer) começa zerado
   function goMontaria(uid, aba) {
     if (!state || !mountByUid(uid)) return;
+    if (!montariaAbaValida(aba)) aba = 'status';   // a sub-aba Equipamento some com o equipamento suspenso
     ui.montaria = { uid: uid, aba: aba, renomear: null, equip: { slot: null, confirm: null, undo: null, msg: null },
-      rascunho: null, confirmaPontos: false, pontosMsg: null };   // rascunho dos pontos livres (só na memória da tela)
+      rascunho: null, confirmaPontos: false, pontosMsg: null,   // rascunho dos pontos livres (só na memória da tela)
+      confirmaRedist: false };                                   // 1º toque do "Redistribuir pontos"
     go('montaria');
   }
 
@@ -9850,9 +9937,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var uid = esc(m.uid);
     var h = clone(m);
     var gear = gearOf(m);
-    var stats = RS.computeStats(h, gear);
-    var rating = RS.powerRating(h, gear);
-    var skillPct = Math.round(RS.skillChance(h, stats, gear.special.skillChanceBonus) * 100);
+    var stats = RS.computeStats(h);
+    var rating = RS.powerRating(h);
+    // a corrida não usa mais o bônus de chance de skill do conjunto (o equipamento não entra: sim.js)
+    var skillPct = Math.round(RS.skillChance(h, stats, 0) * 100);
     var corcel = window.Breed && window.Breed.isCorcel(m)
       ? '<span class="corcel" title="Corcel: herança garantida">' + corcelHtml() + '</span>' : '';
     var canRelease = !isActive && state.mounts.length > 1 && !P;
@@ -9890,7 +9978,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           xpHtml(m.level, m.xp, true) +
           '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) +
             '<span>Skills: <b>' + skillPct + '%</b> de ativar</span></div>' +
-          gearSummaryHtml(m) +
+          (GEAR_ON ? gearSummaryHtml(m) : '') +
         '</div></div>' + acoes + '</article>';
 
     var subabas = '<div class="subabas" role="group" aria-label="Seções da montaria">' + MONTARIA_ABAS.map(function (a) {
@@ -9905,7 +9993,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         '<p class="nota">' + (vagas > 0
           ? vagas + (vagas === 1 ? ' vaga livre' : ' vagas livres') + ' · ' + Math.round(RS.TUNING.learnChance * 100) + '% de chance de aprender uma skill nova a cada nível'
           : 'Sem vagas livres') + '</p></section>';
-    } else if (M.aba === 'equip') {
+    } else if (M.aba === 'equip' && GEAR_ON) {
       corpo = montariaEquipHtml(m);
     } else {
       corpo = montariaStatusHtml(m, gear);
@@ -9989,14 +10077,26 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ===========================================================================
   // Sala de largada: campo sorteado uma vez (state.pending) e simulado só no "Largar!"
   // ===========================================================================
-  // O Poder de cada nível já conta os pontos livres distribuídos pela build fixa dos bots (botAlloc).
-  function bestLevelFor(template, gear, target, lo, hi) {
-    var h = clone(template); // um clone por template, mudando só o level e o alloc (clonar a cada nível custava ~10 ms por sala)
-    var best = lo || 1, bestD = Infinity;
-    for (var L = (lo || 1); L <= (hi || E.maxLevel || 50); L++) {
+  // Poder de um modelo do catálogo como bot no nível L, com os pontos pela build fixa dos bots (botAlloc). É função
+  // pura do modelo e do nível (sem equipamento: spec 1b §7), então fica guardado por (id do modelo, nível): o
+  // botAlloc do bloco 1b compra ponto a ponto, e chamá-lo para cada nível, modelo e bot deixava a sala ~5× mais lenta
+  // (~57 ms no Node, contra ~11 ms antes do 1b; com a memória, ~13 ms a 1ª sala e menos de 1 ms as seguintes).
+  // Só os modelos fixos do catálogo (GD.WILD_HORSES e GD.STARTERS) passam por aqui.
+  var poderBotMemo = {};
+  function poderBot(template, L) {
+    var k = template.id + '|' + L;
+    if (!hasOwn(poderBotMemo, k)) {
+      var h = clone(template);
       h.level = L;
       h.alloc = RS.botAlloc(h);
-      var d = Math.abs(RS.powerRating(h, gear) - target);
+      poderBotMemo[k] = RS.powerRating(h);
+    }
+    return poderBotMemo[k];
+  }
+  function bestLevelFor(template, target, lo, hi) {
+    var best = lo || 1, bestD = Infinity;
+    for (var L = (lo || 1); L <= (hi || E.maxLevel || 50); L++) {
+      var d = Math.abs(poderBot(template, L) - target);
       if (d < bestD - 0.5) { bestD = d; best = L; }
     }
     return { level: best, diff: bestD };
@@ -10034,12 +10134,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       if (fee == null) { training = true; fee = 0; } // sem Ouro para nenhuma entrada (ex.: save editado): vira treino
       state.raceCounter += 1;
       P = {
-        // pareamento pelo cavalo COM o equipamento: ele é persistente (não é escolha de sala), então entra
-        // no rating que atrai os rivais; com o páreo aberto, trocas não podem passar deste rating
+        // pareamento pelo Poder do cavalo com os pontos de agora; com o páreo aberto, pontos não podem passar dele
         counter: state.raceCounter, training: !!training, fee: fee,
-        pr: RS.powerRating(playerHorse(), playerGear()),
-        gear: gearSnapshot(playerGear()),   // retrato do equipamento: o sanitize limita pr por ele
-        alloc: RS.validAlloc(activeMount(), activeMount().alloc)   // e o retrato dos pontos (R16), pelo mesmo motivo
+        pr: RS.powerRating(playerHorse()),   // sem equipamento (spec 1b §7)
+        gear: gearSnapshot(playerGear()),   // retrato do equipamento: guardado, sem efeito com o equipamento suspenso
+        alloc: RS.validAlloc(activeMount(), activeMount().alloc)   // retrato dos pontos (R16): o sanitize limita pr por ele
       };
       state.pending = P;
       // a sala só abre se ficou gravada: sem isso, recarregar a sortearia de novo
@@ -10066,7 +10165,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var n = (E.minRacers || 4) + Math.floor(rng() * ((E.maxRacers || 8) - (E.minRacers || 4) + 1));
     var pr = P.pr;
     var player = {
-      isPlayer: true, name: PLAYER_NAME, horse: playerHorse(), gear: playerGear(),
+      isPlayer: true, name: PLAYER_NAME, horse: playerHorse(), gear: corredorGear(),
       silks: PLAYER_SILKS, silkIdx: -1
     };
 
@@ -10081,12 +10180,14 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       // alvo em torno do rating do jogador (−8,5%..+11,5%); o rating já pesa cada habilidade pela chance
       // do gatilho. O leve viés para cima mantém a margem da casa (~10%) também contra bots.
       var target = pr * (0.915 + 0.2 * rng());
-      // equipamento do bot pela liga do alvo e pelo elemento do template
+      // equipamento do bot pela liga do alvo e pelo elemento do template; com o equipamento suspenso (GEAR_ON) o bot
+      // corre sem peças, mas o sorteio continua consumido (a ordem da RNG da sala não muda com a constante)
       var gpick = rng();
       var leagueIdx = leagueIndex(target);
+      var botGear = function (tpl) { return GEAR_ON ? GR.botGear(leagueIdx, tpl.element, gpick) : null; };
       var inBand = pool.map(function (tpl) {
-        var bd = levelBand(tpl), bg = GR.botGear(leagueIdx, tpl.element, gpick);
-        return { tpl: tpl, gear: bg, fit: bestLevelFor(tpl, bg, target, bd[0], bd[1]) };
+        var bd = levelBand(tpl);
+        return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, bd[0], bd[1]) };
       })
         .filter(function (c) { return c.fit.diff <= target * 0.06; });
       var fresh = inBand.filter(function (c) { return !used[c.tpl.id]; });
@@ -10094,8 +10195,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       if (!cands.length) {
         // ninguém plausível na faixa: o mais próximo do alvo em qualquer nível
         var all = pool.map(function (tpl) {
-          var bg = GR.botGear(leagueIdx, tpl.element, gpick);
-          return { tpl: tpl, gear: bg, fit: bestLevelFor(tpl, bg, target) };
+          return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target) };
         });
         all.sort(function (x, y) { return x.fit.diff - y.fit.diff; });
         cands = all.slice(0, 3);
@@ -10110,7 +10210,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       bots.push({
         isPlayer: false, name: names[b % names.length], horse: horse, gear: choice.gear,
         silks: SP.SILKS[silkIdx], silkIdx: silkIdx,
-        rating: RS.powerRating(horse, choice.gear)
+        rating: RS.powerRating(horse)
       });
     }
     var racers = shuffle([player].concat(bots), rng);   // ordem = raia
@@ -10135,11 +10235,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     cond.curves = RS.curvesFromBlocks(cond.blocks);
     return cond;
   }
-  // o cavalo do jogador na sala reflete a montaria ativa e o equipamento atual
+  // o cavalo do jogador na sala reflete a montaria ativa (e o equipamento atual, quando ele não está suspenso)
   function refreshPlayerEntry(L) {
     var r = L.racers[L.playerIdx];
-    r.horse = playerHorse(); r.gear = playerGear();
+    r.horse = playerHorse(); r.gear = corredorGear();
   }
+  // equipamento do jogador na sala e na corrida: com o equipamento suspenso (GEAR_ON), nenhum (a corrida já o ignora)
+  function corredorGear() { return GEAR_ON ? playerGear() : null; }
 
   // ===========================================================================
   // Tela 3 — Sala de largada
@@ -10164,11 +10266,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var tips = [];
     var sh = sharePct(L.cond);
     if (sh.curva >= 40) tips.push('Muitas curvas: Manobra segura a velocidade na curva e na saída dela.');
-    if (sh.subida >= 30) tips.push('Muitas subidas: Força ajuda a não perder ritmo (a Armadura dá Força).');
+    if (sh.subida >= 30) tips.push('Muitas subidas: Força ajuda a não perder ritmo' + (GEAR_ON ? ' (a Armadura dá Força).' : '.'));
     if (L.cond.distance >= 1800) tips.push('Pista longa: Estamina segura o ritmo até o fim.');   // longa a partir de 1.800 m, como no balance.js (distGroup)
+    // clima contra o elemento: a penalidade vale sempre (o conjunto de 5 peças não a anula mais, porque o
+    // equipamento não entra na corrida), e só o Dado da Sorte pode virar o clima
     var h = playerHorse();
-    if (RS.weatherMult(h.element, L.cond.weather, false) < 1 && !playerGear().special.ignoreWeatherPenalty) {
-      tips.push('Um conjunto completo (5 peças) anula a penalidade de clima.');
+    if (RS.weatherMult(h.element, L.cond.weather, false) < 1) {
+      tips.push('Clima ruim para o seu elemento: só o Dado da Sorte pode virá-lo durante a corrida.');
     }
     return tips;
   }
@@ -10180,22 +10284,24 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var m = RS.weatherMult(h.element, L.cond.weather, false);
     var pct = Math.round((m - 1) * 100);
     var eff = pct > 0 ? '+' + pct + '% para ' + el.name : pct < 0 ? '−' + Math.abs(pct) + '% para ' + el.name : 'sem efeito para ' + el.name;
-    var sorte = RS.computeStats(h, playerGear()).sorte;
+    // chance de rolar o 2º dado, pela mesma conta do RaceSim.rollDice: (Sorte − sorteDiceLo)/(sorteDiceFull − sorteDiceLo)
+    var T = RS.TUNING, sorte = RS.computeStats(h).sorte;
+    var dois = Math.round(clamp((sorte - T.sorteDiceLo) / (T.sorteDiceFull - T.sorteDiceLo), 0, 1) * 100);
     var items = '<li' + (pct > 0 ? ' class="bom"' : pct < 0 ? ' class="ruim"' : '') + '>' + esc('Clima inicial ' + w.name + ': ' + eff) + '</li>' +
-      '<li class="dica">' + esc('Dado da Sorte a 1/3 e 2/3 da pista: quem tira o maior dado puxa o clima para o seu elemento. Sua Sorte: ' + Math.min(100, sorte) + '% de rolar dois dados.') + '</li>';
+      '<li class="dica">' + esc('Dado da Sorte a 1/3 e 2/3 da pista: quem tira o maior dado puxa o clima para o seu elemento. Sua Sorte (' + sorte + '): ' + dois + '% de rolar dois dados.') + '</li>';
     var tips = strategyTips(L).map(function (t) { return '<li class="dica">' + esc(t) + '</li>'; }).join('');
     return '<div class="tela-cabeca"><span class="rotulo">Clima e sorte</span><ul class="dicas">' + items + tips + '</ul></div>';
   }
 
   function racerRow(r, i) {
     var h = r.horse;
-    var rating = r.isPlayer ? RS.powerRating(h, r.gear) : r.rating;
+    var rating = r.isPlayer ? RS.powerRating(h) : r.rating;
     return '<li class="' + (r.isPlayer ? 'voce' : '') + '">' + laneChip(r, i) +
       '<div class="corredor"><b>' + (r.isPlayer ? '<span class="tag-voce">VOCÊ</span>' : '') +
         '<span class="nome">' + esc(r.isPlayer ? h.name : r.name) + '</span></b>' +
         '<small>' + (r.isPlayer ? '' : '<span>' + esc(h.name) + '</span>') + elementHtml(h.element) + rarityHtml(h.rarity) +
         '<span>Nv ' + h.level + '</span>' +
-        setBadgeHtml(r.gear) + '</small></div>' +
+        (GEAR_ON ? setBadgeHtml(r.gear) : '') + '</small></div>' +
       '<div class="poder"><b>' + rating + '</b><small>Poder</small></div></li>';
   }
 
@@ -10239,11 +10345,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         '<div class="cavalo-cabeca">' + portraitHtml(eu.horse, { selo: true }) +
           '<div class="cavalo-info"><b class="cavalo-nome">' + esc(eu.horse.name) + '</b>' +
           '<div class="linha-meta">' + rarityHtml(eu.horse.rarity) + elementHtml(eu.horse.element) +
-            '<span>Poder <b>' + RS.powerRating(eu.horse, eu.gear) + '</b></span></div></div></div>' +
-        '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
+            '<span>Poder <b>' + RS.powerRating(eu.horse) + '</b></span></div></div></div>' +
+        (GEAR_ON ? '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
           '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div>' +
           (state.pending ? '<p class="nota">' + esc('Com o páreo aberto, só trocas que não passem do Poder da sala (' + state.pending.pr + ').') + '</p>' : '') +
-        '</div></section>' +
+        '</div>' : '') + '</section>' +
       '<section class="caixa" aria-labelledby="t-corredores"><h2 class="titulo" id="t-corredores">Corredores<span class="nota">' + L.n + ' na raia</span></h2>' +
         '<ol class="programa">' + L.racers.map(racerRow).join('') + '</ol></section>' +
       pote +
@@ -10314,8 +10420,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var xpGain = L.training ? Math.round(xpBase / 2) : xpBase;
 
     state.gold = state.gold - L.fee + prize;
-    // Pedra Negra do pódio: só em corrida valendo, pela seed da sala, na mesma gravação do Ouro
-    var stone = L.training ? 0 : GR.podiumStone(L.seed, place, L.fee);
+    // Pedra Negra do pódio: só em corrida valendo, pela seed da sala, na mesma gravação do Ouro. Com o equipamento
+    // suspenso (GEAR_ON) não cai: o podiumStone (RNG própria, da seed da sala) nem é chamado; o resto não muda
+    var stone = L.training || !GEAR_ON ? 0 : GR.podiumStone(L.seed, place, L.fee);
     state.pedras += stone;
     var gained = applyXp(activeMount(), xpGain, state.raceCounter);
     var levels = gained.levels, learned = gained.learned;
@@ -11255,13 +11362,19 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     go('largada');
   }
 
+  // ações de peça e da Loja: com o equipamento suspenso (GEAR_ON) não fazem nada, nem com o botão forçado (nada é
+  // equipado, melhorado, vendido nem comprado; peças e Pedras ficam no save como estão)
+  var ACOES_EQUIP = { 'loja-tab': 1, comprar: 1, 'comprar-pedra': 1, 'equipar-tela': 1, 'equip-slot': 1, equipar: 1, tirar: 1,
+    melhorar: 1, 'melhorar-nao': 1, 'melhorar-sim': 1, vender: 1, 'vender-desfazer': 1 };
   telaEl.addEventListener('click', function (e) {
     var b = e.target.closest ? e.target.closest('[data-acao]') : null;
     if (!b || b.disabled) return;
     var id = b.getAttribute('data-id');
-    switch (b.getAttribute('data-acao')) {
+    var acaoClicada = b.getAttribute('data-acao');
+    if (!GEAR_ON && hasOwn(ACOES_EQUIP, acaoClicada)) return;
+    switch (acaoClicada) {
       case 'aba':
-        if (state && hasOwn(SCREEN_KIND, id) && SCREEN_KIND[id] === 'aba') go(id);
+        if (state && hasOwn(SCREEN_KIND, id) && SCREEN_KIND[id] === 'aba' && abaVisivel(id)) go(id);
         break;
       case 'perfil':
         if (state) go('perfil');
@@ -11312,27 +11425,29 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       case 'equipar-tela':            // "Equipar" da aba Correr e da largada
         goMontaria(id, 'equip'); break;
       case 'montaria-aba':
-        if (!ui.montaria || !MONTARIA_ABAS.some(function (a) { return a.id === id; })) break;
+        if (!ui.montaria || !montariaAbaValida(id)) break;
         ui.montaria.aba = id;
         ui.montaria.rascunho = null; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null;   // o rascunho não sai da aba Status
+        ui.montaria.confirmaRedist = false;
         rerenderKeepScroll(); break;
       case 'ponto-mais': {
         var pm = ui.montaria ? mountByUid(ui.montaria.uid) : null;
         if (!pm || ui.montaria.aba !== 'status' || STAT_KEYS.indexOf(id) < 0) break;   // só na aba Status
         var pr2 = rascunhoMais(ui.montaria.rascunho, id);
         if (!rascunhoOk(pm, pr2) || !travaPontos(pm, allocComRascunho(pm, pr2)).ok) break;   // nunca confia no botão
-        ui.montaria.rascunho = pr2; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null;
+        ui.montaria.rascunho = pr2; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null; ui.montaria.confirmaRedist = false;
         rerenderKeepScroll();
         if (!telaEl.contains(document.activeElement)) focusAction('pontos-confirmar');   // o "+" sumiu (limite ou teto)
         break;
       }
       case 'pontos-desfazer':
         if (!ui.montaria) break;
-        ui.montaria.rascunho = null; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null;
+        ui.montaria.rascunho = null; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null; ui.montaria.confirmaRedist = false;
         rerenderKeepScroll(); focusAction('ponto-mais', 'vel'); break;
       case 'pontos-confirmar': {
         var MQ = ui.montaria, cq = MQ ? mountByUid(MQ.uid) : null;
         if (!cq || MQ.aba !== 'status' || !rascunhoSoma(MQ.rascunho)) break;   // só na aba Status
+        MQ.confirmaRedist = false;
         if (!MQ.confirmaPontos) {   // primeiro toque: só o aviso de que não dá para voltar atrás
           MQ.confirmaPontos = true; MQ.pontosMsg = null;
           rerenderKeepScroll(); focusAction('pontos-confirmar'); break;
@@ -11356,6 +11471,38 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         if (gQ === 'falhou') { MQ.rascunho = rq; MQ.confirmaPontos = true; }
         MQ.pontosMsg = gQ === 'falhou' ? FALHA_SALVAR : 'Pontos distribuídos.';
         rerenderKeepScroll(); break;
+      }
+      case 'redistribuir': {
+        // 1º toque: o texto do que vai gastar; 2º toque: devolve os pontos e grava (Rédea ou a grátis na mesma gravação)
+        var MR = ui.montaria, rm = MR ? mountByUid(MR.uid) : null;
+        if (!rm || MR.aba !== 'status') break;   // só na aba Status
+        if (!podeRedistribuir(rm).ok) { MR.confirmaRedist = false; rerenderKeepScroll(); break; }   // nunca confia no botão
+        if (!MR.confirmaRedist) {
+          MR.confirmaRedist = true; MR.confirmaPontos = false; MR.pontosMsg = null;
+          rerenderKeepScroll(); focusAction('redistribuir'); break;
+        }
+        MR.confirmaRedist = false;
+        var sR = state;
+        persist();                    // sincroniza com outras abas antes de gravar
+        if (state !== sR) break;      // save mais novo adotado: adoptExternal já navegou
+        rm = mountByUid(MR.uid);
+        var podeR = rm ? podeRedistribuir(rm) : null;
+        if (!podeR || !podeR.ok) {
+          MR.pontosMsg = 'Não deu para redistribuir: ' + (podeR ? podeR.motivo : 'a montaria não está mais no estábulo.');
+          rerenderKeepScroll(); break;
+        }
+        var antesR = clone(state), rqR = MR.rascunho;
+        if (podeR.custo === 'gratis') rm.respecFree = false; else state.redeas -= 1;
+        rm.alloc = zeroAlloc();
+        MR.rascunho = null; MR.confirmaPontos = false;
+        var gR = gravaGasto(sR, antesR);
+        if (gR === 'outra-aba') break;
+        // gravação que falhou: nada mudou (state voltou ao de antes); o 1º toque continua valendo, como no Confirmar
+        if (gR === 'falhou') { MR.rascunho = rqR; MR.confirmaRedist = true; }
+        MR.pontosMsg = gR === 'falhou' ? FALHA_SALVAR : 'Pontos devolvidos: distribua de novo.';
+        rerenderKeepScroll();
+        if (!telaEl.contains(document.activeElement)) focusAction('ponto-mais', 'vel');   // o botão sumiu (sem pontos)
+        break;
       }
       case 'montaria-voltar':
       case 'perfil-voltar':
@@ -11456,8 +11603,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         saveCorrompido = false;   // o aviso da tela inicial vale até o jogo recomeçar
         state = newState(id);
         if (ui.motionKeep) { state.settings.motion = ui.motionKeep; ui.motionKeep = null; }   // "Recomeçar" não apaga a preferência
+        if (ui.joqueiKeep) { state.joquei = validJoquei(ui.joqueiKeep); ui.joqueiKeep = null; }   // nem o jóquei
         persist();
         guardaMotionKeep(null);   // a preferência agora está no save
+        guardaJoqueiKeep(null);
         go('estabulo');
         break;
       case 'ver-inicial': {
@@ -11653,6 +11802,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         if (devHooks) { devHooks.zerarPerfil(); go('estabulo'); break; }   // perfil de teste: volta à Brasa, sem a escolha
         ui.motionKeep = motionPref();
         guardaMotionKeep(ui.motionKeep);
+        ui.joqueiKeep = validJoquei(joqueiDoJogador());
+        guardaJoqueiKeep(ui.joqueiKeep);
         ui.confirmReset = false; wipeSave(); state = null; ui.lobby = null; ui.result = null; go('inicial'); break;
     }
   });
@@ -11767,11 +11918,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     // JSON válido mas que não vira save (sanitize null): também guarda a cópia antes de recomeçar
     if (!state && lido != null && !saveCorrompido) { try { guardaCorrompido(window.localStorage.getItem(SAVE_KEY)); } catch (e) { /* ignora */ } }
 
+    // save migrado para a v6 (bloco 1b): o Estábulo avisa uma vez que os pontos voltaram para distribuir; o aviso
+    // sai do save na mesma gravação da migração (logo abaixo), então recarregar não o mostra de novo
+    var gravaAviso = false;
+    if (state && state.avisoV6) { ui.notice = AVISO_V6; state.avisoV6 = false; gravaAviso = true; }
     // save de versão anterior migrado: grava já a versão nova (a migração acontece uma vez só; o Neutro
-    // convertido e o Poder da sala recalculado ficam no disco)
-    if (state && lido && typeof lido === 'object' && !(Number(lido.v) >= SAVE_VERSION)) persist();
+    // convertido, os pontos devolvidos e o Poder da sala recalculado ficam no disco)
+    if (state && ((lido && typeof lido === 'object' && !(Number(lido.v) >= SAVE_VERSION)) || gravaAviso)) persist();
     if (!state && devHooks) { state = devHooks.novoPerfil(); persist(); }   // perfil DEV novo: Brasa, sem a escolha inicial
-    if (!state) ui.motionKeep = leMotionKeep();   // "Recomeçar" e a aba fechou na escolha: a opção continua
+    if (!state) { ui.motionKeep = leMotionKeep(); ui.joqueiKeep = leJoqueiKeep(); }   // "Recomeçar" e a aba fechou na escolha: as escolhas continuam
     ui.screen = state ? 'estabulo' : 'inicial';
     // moldes do PixelLab (embutidos pelo build): decodificam em segundo plano; até lá (ou sem eles, ou
     // com ?semmoldes=1) os cavalos saem do desenho por código. Ao chegarem, a tela é redesenhada — menos

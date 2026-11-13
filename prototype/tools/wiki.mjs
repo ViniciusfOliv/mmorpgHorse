@@ -53,13 +53,16 @@ const listaJs = (txt) => JSON.parse(txt.replace(/'/g, '"'))
 function lerFonte() {
   const game = 'src/game.js', sim = 'src/sim.js', breed = 'src/breed.js', fx = 'src/fx.js'
   const abas = extrair(game, /var ABAS = \[(.*)\];/, 'a lista ABAS')[1]
+  // equipamento suspenso (bloco 1b): com GEAR_ON = false a Loja sai da barra de abas
+  const gearOn = extrair(game, /var GEAR_ON = (true|false);/, 'a constante GEAR_ON')[1] === 'true'
   const ventos = extrair(fx, /a < ([\d.]+) \? 'calmo' : a < ([\d.]+) \? 'brisa' : 'ventania'/, 'a distribuição do vento (RaceFx.wind)')
   const alvo = extrair(game, /var target = pr \* \(([\d.]+) \+ ([\d.]+) \* rng\(\)\)/, 'a faixa de Poder dos bots')
   return {
     treinoOuro: listaJs(extrair(game, /var TRAINING_GOLD = (\[[^\]]*\]);/, 'TRAINING_GOLD')[1]),
     treinoXpDiv: numDe(game, /xpGain = L\.training \? Math\.round\(xpBase \/ (\d+)\)/, 'a divisão do XP do treino'),
     vitrine: listaJs(extrair(game, /var WILD_SHOWCASE = (\[[^\]]*\]);/, 'WILD_SHOWCASE')[1]),
-    abas: [...abas.matchAll(/rotulo: '([^']+)'/g)].map((m) => m[1]),
+    abas: [...abas.matchAll(/rotulo: '([^']+)'/g)].map((m) => m[1]).filter((a) => gearOn || a !== 'Loja'),
+    gearOn,
     pistas: listaJs('[' + extrair(game, /var TRACK_NAMES = \[([\s\S]*?)\];/, 'TRACK_NAMES')[1] + ']'),
     retrato: extrair(game, /var PORTRAIT_W = (\d+), PORTRAIT_H = (\d+);/, 'o tamanho do retrato').slice(1, 3).map(Number),
     retratoEscala: numDe(game, /var PORTRAIT_SCALE = (\d+);/, 'PORTRAIT_SCALE'),
@@ -263,7 +266,7 @@ export function efeitoGeralClima(id) {
 /** O que cada aba do jogo faz hoje. Lança erro em aba desconhecida. */
 export function descreverAba(rotulo, F) {
   switch (rotulo) {
-    case 'Estábulo': return `suas montarias (${BR.stableSlotsStart} vagas no começo, até ${BR.stableSlotsMax}), status, skills e equipamento; escolher a ativa.`
+    case 'Estábulo': return `suas montarias (${BR.stableSlotsStart} vagas no começo, até ${BR.stableSlotsMax}), status, ${F.gearOn ? 'skills e equipamento' : 'skills e a redistribuição dos pontos'}; escolher a ativa.`
     case 'Correr': return `escolher a entrada (${lista(E.entryTiers.map((t) => num(t)), 'ou')} de Ouro) e procurar corrida; sem Ouro para a menor entrada, treino gratuito.`
     case 'Expedição': return `vitrine de ${F.vitrine.length} cavalos selvagens. Expedições e captura ainda não existem no protótipo.`
     case 'Haras': return 'cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.'
@@ -440,7 +443,7 @@ function secoes(F, A) {
       `**Procurar sala.** Na aba Correr você escolhe a entrada (${lista(E.entryTiers.map((t) => num(t)), 'ou')} de Ouro). A sala tem de ${E.minRacers} a ${E.maxRacers} corredores: você e bots com Poder perto do seu. Pista, clima e rivais saem da seed da sala e não mudam até você correr.`,
       '**Pagar a entrada.** Só depois de "Largar!" a corrida é simulada; o resultado nunca é calculado antes.',
       `**Corrida automática.** O jóquei dosa o ritmo pela estamina; skills disparam nos gatilhos; o Dado da Sorte rola em ${lista(T.diceAt.map(fracao))} da pista e pode virar o clima; a Garra decide a reta final.`,
-      `**Prêmio e XP.** A casa fica com ${pct(E.houseFee, 0)} do pote e o resto vai para os primeiros colocados. Todos ganham XP pela colocação, e o pódio pode dar uma Pedra Negra.`
+      `**Prêmio e XP.** A casa fica com ${pct(E.houseFee, 0)} do pote e o resto vai para os primeiros colocados. Todos ganham XP pela colocação${F.gearOn ? ', e o pódio pode dar uma Pedra Negra' : ''}.`
     ] },
     { t: 'h3', txt: 'Abas do jogo' },
     { t: 'dl', itens: F.abas.map((a) => [a, descreverAba(a, F)]) },
@@ -825,14 +828,14 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'h3', txt: 'Melhoria (+1 a +' + EG.plusMax + ')', id: 'melhoria' },
     { t: 'p', txt: `Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela seed do save). A partir de +${EG.enhanceDropFrom}, a falha **derruba** a peça 1 nível. Cada + soma ${num(EG.plusStep)} no status principal (uma peça +${EG.plusMax} soma +${num(EG.plusStep * EG.plusMax)}). Pedra Negra: ${num(EG.stonePrice)} de Ouro na loja (pacote de ${EG.stoneBundle} = ${num(EG.stonePrice * EG.stoneBundle)}).` },
     { t: 'tabela', rotulo: 'Melhoria', cab: ['Passo', 'Chance', 'Custo (pedras)', 'Se falhar', 'Pedras esperadas no passo', 'Pedras esperadas desde +0'], linhas: pedras.map((p) => [`+${p.de} → +${p.de + 1}`, N(pct(p.chance, 0)), N(String(p.custo)), p.cai < p.de ? `cai para +${p.cai}` : `fica em +${p.de}`, N(num(p.esperado, 1)), N(num(p.acumulado, 1))]) },
-    { t: 'p', txt: `**Pedra Negra do pódio:** só em corrida valendo (entrada paga), sorteada pela seed da sala: ${E.xpPerPlace.slice(0, EG.podiumStone.length).map((x, i) => `${ordinal(i + 1)} lugar ${pct(EG.podiumStone[i], 0)}`).join(', ')}.` },
+    { t: 'p', txt: `**Pedra Negra do pódio${F.gearOn ? '' : ' (não cai enquanto o equipamento estiver suspenso)'}:** só em corrida valendo (entrada paga), sorteada pela seed da sala: ${E.xpPerPlace.slice(0, EG.podiumStone.length).map((x, i) => `${ordinal(i + 1)} lugar ${pct(EG.podiumStone[i], 0)}`).join(', ')}.` },
     { t: 'h3', txt: 'Conjuntos', id: 'conjuntos' },
     { t: 'tabela', rotulo: 'Conjuntos', cab: ['Conjunto', 'Clima', 'Elemento favorecido', 'Peças'], linhas: setIds.map((s) => { const w = G.GEAR_SETS[s].weather; return [nomeConjunto(s), nomeClima(w), G.WEATHERS[w].element ? elCel(G.WEATHERS[w].element) : '—', gearIds.filter((id) => peca(id).set === s).map((id) => `${peca(id).name} (${nomeRar(peca(id).rarity)})`).join(', ')] }) },
     { t: 'tabela', rotulo: 'Bônus de conjunto', titulo: 'Bônus total por número de peças do mesmo conjunto (cada linha já é o total)', cab: ['Peças', 'Bônus'], linhas: EG.setBonus.pieces.map((n) => [N(String(n)), bonusTxt(n)]) },
     { t: 'p', txt: `Cada linha é o total daquele patamar, não soma com as de cima: +${EG.setBonus.sorte} ${nomeStat('sorte')} e ${'+' + pp(EG.setBonus.skillChance, 0)} de chance valem uma vez a partir de ${EG.setBonus.pieces[0]} peças. Vale o conjunto com mais peças equipadas (empate: ${lista(setIds.map(nomeConjunto))}, nessa ordem). Enquanto o equipamento estiver suspenso, nenhum bônus de conjunto vale.` },
     { t: 'h3', txt: 'Equipamento dos bots por liga' },
     { t: 'tabela', rotulo: 'Equipamento dos bots', cab: ['Liga do alvo', 'Peças do bot'], linhas: G.LEAGUES.map((L, i) => { const r = GR.botGear(i, 'fogo', 0); return [L.name, r.pieces.length ? r.pieces.map((p) => `${peca(p.id).name} +${p.plus}`).join(', ') : 'nada'] }) },
-    { t: 'p', txt: `O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, ${nomeEl('fogo')}).` }
+    { t: 'p', txt: `O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, ${nomeEl('fogo')}).${F.gearOn ? '' : ' Enquanto o equipamento estiver suspenso, os bots correm sem peças.'}` }
   ])
 
   // 12. Economia -----------------------------------------------------------------------------------------

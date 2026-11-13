@@ -33,15 +33,14 @@
 2. **Procurar sala.** Na aba Correr você escolhe a entrada (50, 100 ou 250 de Ouro). A sala tem de 4 a 8 corredores: você e bots com Poder perto do seu. Pista, clima e rivais saem da seed da sala e não mudam até você correr.
 3. **Pagar a entrada.** Só depois de "Largar!" a corrida é simulada; o resultado nunca é calculado antes.
 4. **Corrida automática.** O jóquei dosa o ritmo pela estamina; skills disparam nos gatilhos; o Dado da Sorte rola em 1/3 e 2/3 da pista e pode virar o clima; a Garra decide a reta final.
-5. **Prêmio e XP.** A casa fica com 10% do pote e o resto vai para os primeiros colocados. Todos ganham XP pela colocação, e o pódio pode dar uma Pedra Negra.
+5. **Prêmio e XP.** A casa fica com 10% do pote e o resto vai para os primeiros colocados. Todos ganham XP pela colocação.
 
 ### Abas do jogo
 
-- **Estábulo:** suas montarias (3 vagas no começo, até 8), status, skills e equipamento; escolher a ativa.
+- **Estábulo:** suas montarias (3 vagas no começo, até 8), status, skills e a redistribuição dos pontos; escolher a ativa.
 - **Correr:** escolher a entrada (50, 100 ou 250 de Ouro) e procurar corrida; sem Ouro para a menor entrada, treino gratuito.
 - **Expedição:** vitrine de 6 cavalos selvagens. Expedições e captura ainda não existem no protótipo.
 - **Haras:** cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.
-- **Loja:** comprar peças de equipamento (menos as de raridade Lendário) e Pedras Negras.
 
 > Ainda não existem no protótipo: Gemas, passe, ovos, contas, servidor, expedições e captura. A única moeda é o Ouro; as Pedras Negras são material de melhoria.
 
@@ -1022,7 +1021,7 @@ Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela see
 | +8 → +9 | 30% | 2 | cai para +7 | 54,7 | 91,7 |
 | +9 → +10 | 25% | 2 | cai para +8 | 172 | 263,7 |
 
-**Pedra Negra do pódio:** só em corrida valendo (entrada paga), sorteada pela seed da sala: 1º lugar 60%, 2º lugar 40%, 3º lugar 25%.
+**Pedra Negra do pódio (não cai enquanto o equipamento estiver suspenso):** só em corrida valendo (entrada paga), sorteada pela seed da sala: 1º lugar 60%, 2º lugar 40%, 3º lugar 25%.
 
 ### Conjuntos
 
@@ -1053,7 +1052,7 @@ Cada linha é o total daquele patamar, não soma com as de cima: +5 Sorte e +5 p
 | Diamante | Ferraduras do Sol +4, Sela do Sol +4, Estribos do Sol +4, Testeira de Couro +3, Capa Impermeável +3 |
 | Lenda | Ferraduras do Sol +7, Sela do Sol +7, Estribos do Sol +7, Testeira do Sol +7, Armadura do Sol +7 |
 
-O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, Fogo).
+O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, Fogo). Enquanto o equipamento estiver suspenso, os bots correm sem peças.
 
 <a id="economia"></a>
 
