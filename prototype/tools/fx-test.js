@@ -1645,9 +1645,12 @@ function clareia(hex, t) { return misturaHex(hex, '#fff4d6', t == null ? 0.35 : 
 // a escurecida: mistura de t com o roxo escuro #24122e (sprites.js: shade)
 function escurece(hex, t) { return misturaHex(hex, '#24122e', t); }
 // A cor do brilho da crina (sprites.js: corBrilho, parte 2b), refeita aqui pela regra da spec 2026-11-12-cavalos-marcas
-// §5: a clareada ou a escurecida em 35%, a que mais muda a luminância relativa da crina misturada no alfa de pico;
-// se nenhuma chega a 0,05, 45%, 55% e 65%, e fica a primeira que chega (no último passo, a de maior diferença).
+// §5: a clareada de 35% quando ela já muda a luminância relativa da crina misturada no alfa de pico em ≥ 0,05 (o
+// brilho é um reflexo claro); senão, a clareada ou a escurecida em 35%, a que mais muda; se nenhuma chega a 0,05, 45%,
+// 55% e 65%, e fica a primeira que chega (no último passo, a de maior diferença).
 function corBrilhoRef(cor, crina, alfa) {
+  var c0 = clareia(cor), d0 = Math.abs(lumRel(misturaHex(crina, c0, alfa)) - lumRel(crina));
+  if (d0 >= 0.05) return { cor: c0, d: d0, passo: 0.35 };
   var passos = [0.35, 0.45, 0.55, 0.65], melhor = null, dm = -1;
   for (var i = 0; i < passos.length && dm < 0.05; i++) {
     [clareia(cor, passos[i]), escurece(cor, passos[i])].forEach(function (c) {
@@ -1829,7 +1832,7 @@ test('com moldes: o brilho do Mágico aparece na crina verde dos cavalos de Gram
 
 // Parte 2b (2026-11-13, decisão do Vinicius): a cor do brilho se ajusta ao contraste com a crina (sprites.js corBrilho).
 // Medida no desenho: a cor da máscara que o drawRaridade usa, conferida contra a regra refeita aqui (corBrilhoRef).
-test('com moldes: a cor do brilho se ajusta à crina (escurecida na crina clara, clareada na escura, mais forte se 35% não chega a 0,05); o rastro fica na clareada', function () {
+test('com moldes: a cor do brilho fica na clareada onde ela já aparece e se ajusta à crina onde sumia (escurecida, ou mais forte se 35% não chega a 0,05); o rastro fica na clareada', function () {
   comMoldes(function () {
     function brilho(raridade, mane) {
       var o = com(CAVM, { palette: com(PAL.fogo, { mane: mane }), raridade: raridade, semente: 5, t: 0.2 });
@@ -1848,25 +1851,34 @@ test('com moldes: a cor do brilho se ajusta à crina (escurecida na crina clara,
     assert.strictEqual(ticao.cor, escurece(mag, 0.35), 'Mágico no Tição: a escurecida de 35%');
     // Mágico na crina verde escura do Mandacaru: a clareada de 35% (o caso da 2a, igual a antes)
     assert.strictEqual(brilho('magico', '#3f6b2a').cor, clareia(mag), 'Mágico no Mandacaru: a clareada de 35%');
+    // Mágico na crina quase branca do Lambari: a escurecida mudaria mais (0,259), mas a clareada já aparece (0,118) e fica
+    assert.ok(dif('#e8f4fb', clareia(mag), 0.25) >= 0.05 && dif('#e8f4fb', escurece(mag, 0.35), 0.25) > dif('#e8f4fb', clareia(mag), 0.25), 'Lambari: as duas aparecem, a escurecida mais');
+    assert.strictEqual(brilho('magico', '#e8f4fb').cor, clareia(mag), 'Mágico no Lambari: a clareada de 35% (reflexo claro)');
     // Mítico no Mandacaru: em 35% nenhuma das duas chega a 0,05; em 45% a clareada chega
     assert.ok(dif('#3f6b2a', clareia(mit), 0.45) < 0.05 && dif('#3f6b2a', escurece(mit, 0.35), 0.45) < 0.05, 'Mítico no Mandacaru: 35% não basta');
     var mand = brilho('mitico', '#3f6b2a');
     assert.strictEqual(mand.cor, clareia(mit, 0.45), 'Mítico no Mandacaru: a clareada de 45%');
     assert.ok(dif('#3f6b2a', mand.cor, mand.pico) >= 0.05, 'Mítico no Mandacaru: ≥ 0,05 no desenho');
     // as 60 combinações do catálogo (15 crinas × Mágico, Raro, Lendário, Mítico), no desenho: a cor é a da regra e a
-    // do Sprites._corBrilho (que o moldes-test usa com os moldes reais), e o brilho muda a crina em ≥ 0,05
-    var n = 0;
+    // do Sprites._corBrilho (que o moldes-test usa com os moldes reais), e o brilho muda a crina em ≥ 0,05. Onde a
+    // clareada de 35% já muda ≥ 0,05 (46 combinações, as que passavam na 2a), a cor é ela; nas outras 14, não.
+    var n = 0, claras = 0, escuras = 0;
     G.STARTERS.concat(G.WILD_HORSES).forEach(function (h) {
       ['magico', 'raro', 'lendario', 'mitico'].forEach(function (r) {
-        var b = brilho(r, h.palette.mane), ref = corBrilhoRef(G.RARITIES[r].color, h.palette.mane, MK.BRILHO[r]);
+        var cor = G.RARITIES[r].color, b = brilho(r, h.palette.mane), ref = corBrilhoRef(cor, h.palette.mane, MK.BRILHO[r]);
         assert.strictEqual(b.pico, MK.BRILHO[r], r + ': alfa de pico');
         assert.strictEqual(b.cor, ref.cor, h.name + ' · ' + r + ': a cor da regra');
-        assert.strictEqual(SPR._corBrilho(G.RARITIES[r].color, h.palette.mane, MK.BRILHO[r]), b.cor, h.name + ' · ' + r + ': Sprites._corBrilho');
+        assert.strictEqual(SPR._corBrilho(cor, h.palette.mane, MK.BRILHO[r]), b.cor, h.name + ' · ' + r + ': Sprites._corBrilho');
         assert.ok(dif(h.palette.mane, b.cor, b.pico) >= 0.05, h.name + ' · ' + r + ': ' + dif(h.palette.mane, b.cor, b.pico).toFixed(3) + ' < 0,05');
+        if (dif(h.palette.mane, clareia(cor), b.pico) >= 0.05) { claras++; assert.strictEqual(b.cor, clareia(cor), h.name + ' · ' + r + ': a clareada já aparece, fica ela'); }
+        else assert.notStrictEqual(b.cor, clareia(cor), h.name + ' · ' + r + ': a clareada some, troca');
+        if ([0.35, 0.45, 0.55, 0.65].some(function (t) { return b.cor === escurece(cor, t); })) escuras++;
         n++;
       });
     });
     assert.strictEqual(n, 60);
+    assert.strictEqual(claras, 46, 'combinações em que a clareada de 35% já aparecia (e fica)');
+    assert.strictEqual(escuras, 13, 'combinações com a escurecida (das 14 em que a clareada sumia; a outra é a clareada de 45%)');
     // cache das máscaras (chave molde|estado|quadro|cor): duas crinas com a mesma cor de brilho dividem a máscara
     var brasa = brilho('magico', '#ffb02e');
     assert.strictEqual(brasa.cor, ticao.cor, 'Brasa e Tição: a mesma escurecida');

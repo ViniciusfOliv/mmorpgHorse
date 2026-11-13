@@ -707,7 +707,7 @@ Marcas, jóquei e brilho da raridade são só desenho: não entram em status, Po
 
 ### Raridade visível
 
-Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada 1,2 s, na cor da raridade clareada ou escurecida: a que mais se destaca sobre a crina do cavalo. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.
+Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada 1,2 s, na cor da raridade clareada; numa crina em que essa cor quase não aparece, na clareada ou na escurecida, a que mais se destaca. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.
 
 | Raridade | Efeito |
 | --- | --- |

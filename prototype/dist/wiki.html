@@ -318,7 +318,7 @@ mods: piso, sol ×1,04, subida, vácuo −10%, skills</pre>
 <h3>Jóquei do jogador</h3>
 <ul><li>Na aba Perfil você escolhe o <strong>padrão da seda</strong> (liso, listras, faixa, xadrez, estrelas e losangos) e a <strong>cor do capacete</strong> (8 cores). O padrão inicial é &quot;liso&quot; e o capacete inicial é Dourado. Cores de capacete: Dourado, Vermelho, Azul, Verde, Roxo, Laranja, Creme e Preto.</li><li>A seda continua na cor de sempre (a sua é dourada; a dos rivais é a cor da raia); o padrão vai por cima em um tom mais claro ou mais escuro. A escolha vale para todos os seus cavalos.</li><li>O jóquei dos rivais (padrão e capacete) sai da seed da sala.</li></ul>
 <h3>Raridade visível</h3>
-<p>Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada 1,2 s, na cor da raridade clareada ou escurecida: a que mais se destaca sobre a crina do cavalo. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.</p>
+<p>Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada 1,2 s, na cor da raridade clareada; numa crina em que essa cor quase não aparece, na clareada ou na escurecida, a que mais se destaca. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.</p>
 <div class="tabela"><div class="rolagem" tabindex="0" role="region" aria-label="Tabela"><table><thead><tr><th scope="col">Raridade</th><th scope="col">Efeito</th></tr></thead><tbody><tr><th scope="row" class="cu">Comum</th><td class="cu">nada</td></tr><tr><th scope="row" class="cu">Mágico</th><td class="cl">brilho na crina (mistura de 25% da cor da raridade)</td></tr><tr><th scope="row" class="cu">Raro</th><td class="cl">brilho na crina (mistura de 30% da cor da raridade) e 3 faíscas piscando em volta</td></tr><tr><th scope="row" class="cu">Lendário</th><td class="cl">brilho na crina (mistura de 45% da cor da raridade) e 5 faíscas piscando em volta</td></tr><tr><th scope="row" class="cu">Mítico</th><td class="cl">brilho na crina (mistura de 45% da cor da raridade) e 5 faíscas piscando em volta e rastro de luz atrás do cavalo no galope da corrida</td></tr></tbody></table></div></div>
 <h3>Marcas dos iniciais e selvagens</h3>
 <div class="tabela"><div class="rolagem" tabindex="0" role="region" aria-label="Tabela"><table><thead><tr><th scope="col">Cavalo</th><th scope="col">Cara</th><th scope="col" class="n">Patas (meias)</th><th scope="col">Corpo</th></tr></thead><tbody><tr><th scope="row" class="cu">Brasa</th><td class="cu">estrela</td><td class="n">1</td><td class="cu">liso</td></tr><tr><th scope="row" class="cu">Maré</th><td class="cu">listra</td><td class="n">0</td><td class="cl">ruão (pelos brancos salpicados)</td></tr><tr><th scope="row" class="cu">Ipê</th><td class="cu">frente branca</td><td class="n">2</td><td class="cu">liso</td></tr><tr><th scope="row" class="cu">Faísca</th><td class="cu">estrela</td><td class="n">2</td><td class="cl">pintado (pintas escuras pequenas)</td></tr><tr><th scope="row" class="cu">Lambari</th><td class="cu">nenhuma</td><td class="n">0</td><td class="cl">malhado (manchas brancas grandes)</td></tr><tr><th scope="row" class="cu">Capim</th><td class="cu">listra</td><td class="n">4</td><td class="cu">liso</td></tr><tr><th scope="row" class="cu">Tição</th><td class="cu">frente branca</td><td class="n">1</td><td class="cu">liso</td></tr><tr><th scope="row" class="cu">Garoa</th><td class="cu">estrela</td><td class="n">0</td><td class="cl">ruão (pelos brancos salpicados)</td></tr><tr><th scope="row" class="cu">Mandacaru</th><td class="cu">nenhuma</td><td class="n">3</td><td class="cl">pintado (pintas escuras pequenas)</td></tr><tr><th scope="row" class="cu">Ventania</th><td class="cu">listra</td><td class="n">2</td><td class="cl">malhado (manchas brancas grandes)</td></tr><tr><th scope="row" class="cu">Pororoca</th><td class="cu">estrela</td><td class="n">4</td><td class="cu">liso</td></tr><tr><th scope="row" class="cu">Fogaréu</th><td class="cu">frente branca</td><td class="n">0</td><td class="cl">pintado (pintas escuras pequenas)</td></tr><tr><th scope="row" class="cu">Jequitibá</th><td class="cu">listra</td><td class="n">1</td><td class="cl">ruão (pelos brancos salpicados)</td></tr><tr><th scope="row" class="cu">Boitatá</th><td class="cu">estrela</td><td class="n">2</td><td class="cl">malhado (manchas brancas grandes)</td></tr><tr><th scope="row" class="cu">Iara</th><td class="cu">nenhuma</td><td class="n">4</td><td class="cl">ruão (pelos brancos salpicados)</td></tr></tbody></table></div></div>
@@ -1755,12 +1755,14 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   //     com 1 coluna a meio alfa de cada lado, atravessa a crina da cabeça para a cauda a cada BRILHO_CICLO (1,2 s);
   //     fatia sem crina não desenha. Com o.reduzido, a fatia fica parada na coluna com mais crina da metade da
   //     cabeça (a crina do pescoço, não a cauda).
-  //     A cor (corBrilho, parte 2b, 2026-11-13): a cor da raridade clareada (light) ou escurecida (shade) em
-  //     RARIDADE_CLARO (35 %), a que mais muda a luminância relativa (WCAG) da crina (corCrina: palette.mane, o
-  //     papel 4) misturada no alfa de pico; se nenhuma das duas muda BRILHO_CONTRASTE (0,05), as duas vão mais longe
-  //     (BRILHO_PASSOS, até 65 %) e fica a primeira que chega (no último passo, a de maior diferença). A cor pura
-  //     some numa crina do mesmo tom (o verde do Mágico na crina verde da Grama) e a clareada, numa crina de luminância
-  //     parecida (o Mágico na crina laranja do Tição: 0,005); o matiz fica o da raridade. Só cores, sem sorteio.
+  //     A cor (corBrilho, parte 2b, 2026-11-13): o brilho é um reflexo claro, então fica a cor da raridade
+  //     CLAREADA (light) em RARIDADE_CLARO (35 %) sempre que ela muda a luminância relativa (WCAG) da crina
+  //     (corCrina: palette.mane, o papel 4), misturada no alfa de pico, em pelo menos BRILHO_CONTRASTE (0,05). Só
+  //     quando não muda, vale a clareada ou a escurecida (shade), a de maior diferença; se nenhuma das duas chega a
+  //     0,05, as duas vão mais longe (BRILHO_PASSOS, até 65 %) e fica a primeira que chega (no último passo, a de maior
+  //     diferença). A cor pura some numa crina do mesmo tom (o verde do Mágico na crina verde da Grama) e a clareada,
+  //     numa crina de luminância parecida (o Mágico na crina laranja do Tição: 0,005, onde fica a escurecida); o matiz
+  //     fica o da raridade. Só cores, sem sorteio.
   //   • faíscas: Marcas.faiscas(o.semente, Marcas.N_FAISCAS[raridade]) (0/0/3/5/5), na caixa com margem de
   //     FAISCA_MARGEM px de arte (com o.quadro, presas na altura do quadro), no grid de arte da caixa. Cruz de
   //     1 px de arte (barra 3u × u + barra u × 3u, mesmo centro) que pisca (alfa 0,15 … 1) pelo tempo o.t e pela
@@ -1852,14 +1854,18 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     var v = hexToRgb(c).map(function (x) { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
     return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
   }
-  // A cor do brilho da crina (ver o cabeçalho do drawRaridade): a cor da raridade clareada ou escurecida, a que mais
-  // muda a luminância da crina misturada no alfa de pico, indo mais longe (BRILHO_PASSOS) até chegar a
-  // BRILHO_CONTRASTE. Em cache por cor|crina|alfa (no máximo 512 entradas; depois, recomeça).
+  // A cor do brilho da crina (ver o cabeçalho do drawRaridade): a cor da raridade clareada em 35 % quando ela já muda a
+  // luminância da crina misturada no alfa de pico em BRILHO_CONTRASTE; senão, a clareada ou a escurecida, a que mais
+  // muda, indo mais longe (BRILHO_PASSOS) até chegar. Em cache por cor|crina|alfa (no máximo 512 entradas; depois,
+  // recomeça).
   var corBrilhoCache = {}, corBrilhoN = 0;
   function corBrilho(cor, crina, alfa) {
     var key = cor + '|' + crina + '|' + alfa, hit = corBrilhoCache[key];
     if (hit) return hit;
-    var L0 = lumRel(crina), melhor = light(cor, BRILHO_PASSOS[0]), dMelhor = -1, i, j, c, d;
+    var L0 = lumRel(crina), melhor = light(cor, BRILHO_PASSOS[0]), i, j, c, d;
+    var dMelhor = Math.abs(lumRel(mix(crina, melhor, alfa)) - L0);
+    // a clareada que já aparece fica (o brilho é um reflexo claro); senão, a busca pela maior diferença
+    if (!(dMelhor >= BRILHO_CONTRASTE)) dMelhor = -1;
     for (i = 0; i < BRILHO_PASSOS.length && !(dMelhor >= BRILHO_CONTRASTE); i++) {
       c = [light(cor, BRILHO_PASSOS[i]), shade(cor, BRILHO_PASSOS[i])];
       for (j = 0; j < 2; j++) {

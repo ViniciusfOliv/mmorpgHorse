@@ -1636,10 +1636,11 @@ test('pele acima do capacete: nos 12 moldes, o capacete da camadaJoquei fica aci
 // (fx-test): a diferença de luminância relativa entre a crina e a crina com o brilho no alfa de pico (Marcas.BRILHO)
 // fica ≥ 0,05 em TODAS as combinações do catálogo. A cor do brilho é a do jogo, Sprites._corBrilho(cor da raridade,
 // crina, alfa) (o fx-test confere que é a cor que o drawRaridade pinta); a crina, a palette.mane de cada cavalo do
-// catálogo do elemento do molde; a luminância e a mistura são refeitas aqui. Em cada molde, todo quadro tem crina (onde
-// o brilho passa); a conta das cores vale igual nos 3 portes. O lisa (o 'neutro', sem cavalo no catálogo) só confere a
-// crina nos quadros.
-test('brilho das raridades: crina em todo quadro dos 12; luminância ≥ 0,05 em todas as crinas do catálogo (BRILHO_PENDENTE vazia)', comReais(() => {
+// catálogo do elemento do molde; a luminância e a mistura são refeitas aqui. O brilho é um reflexo claro: onde a cor
+// clareada de 35% (a da 2a) já muda ≥ 0,05, a cor é ela (46 das 60 combinações); só nas outras 14 a cor muda. Em cada
+// molde, todo quadro tem crina (onde o brilho passa); a conta das cores vale igual nos 3 portes. O lisa (o 'neutro', sem
+// cavalo no catálogo) só confere a crina nos quadros.
+test('brilho das raridades: crina em todo quadro dos 12; luminância ≥ 0,05 em todas as crinas do catálogo (BRILHO_PENDENTE vazia), na clareada onde ela já aparecia', comReais(() => {
   const req = createRequire(import.meta.url), G = req('../src/data.js'), SPR = req('../src/sprites.js');
   assert.ok(typeof SPR._corBrilho === 'function', 'Sprites._corBrilho (a cor do brilho) no sprites.js');
   assert.deepStrictEqual(BRILHO_PENDENTE, [], 'BRILHO_PENDENTE fica vazia: nenhuma combinação abaixo do limiar');
@@ -1650,7 +1651,7 @@ test('brilho das raridades: crina em todo quadro dos 12; luminância ≥ 0,05 em
   const LIMIAR = 0.05, CAT = G.STARTERS.concat(G.WILD_HORSES), RARS = Object.keys(Mc().BRILHO).filter(r => Mc().BRILHO[r] > 0);
   assert.deepStrictEqual(RARS, ['magico', 'raro', 'lendario', 'mitico']);
   const tabela = [];
-  let menor = Infinity, pior = '', n = 0;
+  let menor = Infinity, pior = '', n = 0, claras = 0;
   for (const ch of CHAVES_REAIS) {
     const m = REAIS[ch];
     quadrosDe(m).forEach(q => assert.ok(q.idx.some(v => v === 4 || v === 5), q.nome + ': sem crina (o brilho não tem onde passar)'));
@@ -1662,6 +1663,10 @@ test('brilho das raridades: crina em todo quadro dos 12; luminância ≥ 0,05 em
       for (const h of CAT.filter(x => x.element === el)) {
         const crina = h.palette.mane, cor = SPR._corBrilho(G.RARITIES[r].color, crina, pico);
         const d = Math.abs(lumRel(mistura(crina, cor, pico)) - lumRel(crina));
+        // a clareada de 35% (a cor da 2a): onde ela já aparece, fica
+        const clara = mistura(G.RARITIES[r].color, '#fff4d6', 0.35), dClara = Math.abs(lumRel(mistura(crina, clara, pico)) - lumRel(crina));
+        if (dClara >= LIMIAR) { claras++; assert.strictEqual(cor, clara, `${ch} ${r} ${h.name}: a clareada já aparece (${dClara.toFixed(3)}), fica ela`); }
+        else assert.notStrictEqual(cor, clara, `${ch} ${r} ${h.name}: a clareada some (${dClara.toFixed(3)}), troca`);
         n++;
         if (m.porte === 'padrao') tabela.push(`${el} ${r} ${h.name} ${cor} ${d.toFixed(3)}`);
         if (d < menor) { menor = d; pior = `${el} · ${r} · ${h.name}`; }
@@ -1672,6 +1677,7 @@ test('brilho das raridades: crina em todo quadro dos 12; luminância ≥ 0,05 em
   }
   // 9 moldes de elemento × (5 cavalos do elemento × 4 raridades)
   assert.strictEqual(n, 9 * 20, 'combinações conferidas');
+  assert.strictEqual(claras, 3 * 46, 'na clareada de 35%: as 46 combinações em que ela já aparecia, nos 3 portes');
   console.log('       luminância do brilho (pico) sobre a crina — ' + tabela.join(' · '));
   console.log('       menor: ' + pior + ' ' + menor.toFixed(3));
 }));

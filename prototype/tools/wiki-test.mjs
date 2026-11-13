@@ -92,7 +92,7 @@ confere(/<span class="el el--geral"><img /.test(a.html), 'skills gerais sem o í
   confere(!/#[0-9a-fA-F]{6}/.test(sec), 'a seção Marcas mostra um hex de cor ("#rrggbb")')
   confere(/\| Comum \| nada \|/.test(sec), 'raridade Comum devia ser "nada"')
   confere(/\| Mágico \| brilho na crina \(mistura de 25% da cor da raridade\) \|/.test(sec), 'raridade Mágico: só brilho de 25%')
-  confere(sec.includes('na cor da raridade clareada ou escurecida: a que mais se destaca sobre a crina do cavalo'), 'raridade: a cor do brilho que se ajusta à crina (parte 2b)')
+  confere(sec.includes('na cor da raridade clareada; numa crina em que essa cor quase não aparece, na clareada ou na escurecida, a que mais se destaca'), 'raridade: a cor do brilho que se ajusta à crina (parte 2b)')
   confere(/\| Raro \| brilho na crina \(mistura de 30%[^|]*3 faíscas/.test(sec), 'raridade Raro: brilho de 30% e 3 faíscas')
   confere(/\| Lendário \| brilho na crina \(mistura de 45%[^|]*5 faíscas/.test(sec), 'raridade Lendário: brilho de 45% e 5 faíscas')
   confere(/\| Mítico \| brilho na crina \(mistura de 45%[^|]*5 faíscas[^|]*rastro/.test(sec), 'raridade Mítico: 5 faíscas e rastro')
