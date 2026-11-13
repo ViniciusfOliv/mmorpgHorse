@@ -264,18 +264,26 @@
     return out;
   }
 
-  function marcasDe(p) {
-    if (marcasValidas(p.marcas)) return p.marcas;
-    var cat = G.STARTERS.concat(G.WILD_HORSES), i;
-    if (p.templateId != null) {
-      for (i = 0; i < cat.length; i++) if (cat[i].id === p.templateId && marcasValidas(cat[i].marcas)) return cat[i].marcas;
+  // Marcas de um cavalo (spec 2026-11-12-cavalos-marcas §2; só desenho): as dele, se válidas; senão as fixas do
+  // modelo do catálogo (templateId); senão as calculadas da chave por marcasDoId — o mesmo cavalo fica sempre igual,
+  // sem sorteio. Cada chamador passa a sua chave de fallback (uid, id ou nome). Devolve uma cópia só com os 3 genes.
+  function marcasDe(marcas, templateId, chave) {
+    var m = null, cat, i;
+    if (marcasValidas(marcas)) m = marcas;
+    else {
+      if (templateId != null) {
+        cat = G.STARTERS.concat(G.WILD_HORSES);
+        for (i = 0; i < cat.length; i++) if (cat[i].id === templateId && marcasValidas(cat[i].marcas)) { m = cat[i].marcas; break; }
+      }
+      if (!m) m = marcasDoId(chave);
     }
-    return marcasDoId(p.uid != null ? p.uid : (p.id != null ? p.id : p.name));
+    return { cara: m.cara, patas: m.patas, corpo: m.corpo };
   }
+  function marcasDePai(p) { return marcasDe(p.marcas, p.templateId, p.uid != null ? p.uid : (p.id != null ? p.id : p.name)); }
 
   function rollMarcas(opts) {
     var r = S.mulberry32(S.hash2(opts.seedBase >>> 0, 0x4D410000 + opts.breedCounter));
-    var mf = marcasDe(opts.f), mm = marcasDe(opts.m), out = {}, i, g, lista, mut, pick;
+    var mf = marcasDePai(opts.f), mm = marcasDePai(opts.m), out = {}, i, g, lista, mut, pick;
     for (i = 0; i < MARCA_GENES.length; i++) {
       g = MARCA_GENES[i]; lista = G.MARCAS[g];
       mut = r() < G.MARCAS.mutacao;
@@ -371,6 +379,7 @@
     skillCandidates: skillCandidates,
     hashChave: hashChave,
     marcasDoId: marcasDoId,
+    marcasDe: marcasDe,
     marcasValidas: marcasValidas,
     foal: foal
   };

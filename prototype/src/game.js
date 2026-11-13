@@ -397,15 +397,10 @@
     };
   }
 
-  // Marcas na pelagem (spec 2026-11-12-cavalos-marcas §2; só desenho, fora do Poder e da corrida): as do próprio
-  // cavalo, se válidas (Breed.marcasValidas); senão as fixas do modelo do catálogo (templateId: um alugado de antes
-  // da 2a fica com as do modelo); senão as calculadas da chave (o uid) por Breed.marcasDoId — o mesmo cavalo fica
-  // sempre igual, sem sorteio. Devolve uma cópia só com os três genes.
-  function marcasDe(marcas, templateId, chave) {
-    var tpl = templateId ? horseById(templateId) : null;
-    var m = BRD.marcasValidas(marcas) ? marcas : (tpl && BRD.marcasValidas(tpl.marcas) ? tpl.marcas : BRD.marcasDoId(chave));
-    return { cara: m.cara, patas: m.patas, corpo: m.corpo };
-  }
+  // Marcas na pelagem (spec 2026-11-12-cavalos-marcas §2; só desenho, fora do Poder e da corrida): a regra é uma só,
+  // Breed.marcasDe(marcas, templateId, chave) — as do cavalo, se válidas; senão as do modelo do catálogo; senão as
+  // calculadas da chave (o uid). Sempre uma cópia com os três genes.
+  function marcasDe(marcas, templateId, chave) { return BRD.marcasDe(marcas, templateId, chave); }
   // Jóquei do jogador (spec §4): padrão da seda e cor do capacete, só das listas de GameData.JOQUEI (a cor aceita
   // maiúsculas e fica como na lista); qualquer outra coisa (save de antes da 2a, lixo) volta ao jóquei inicial.
   function joqueiInicial() { return { padrao: GD.JOQUEI.padrao, capacete: GD.JOQUEI.capacete }; }
