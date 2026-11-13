@@ -1631,13 +1631,14 @@ await testA('--refazer padrao-lisa:corrida: corrida e galope em seeds novas (410
   assert.deepStrictEqual([g.geracoes, g.rodadas.slice(-2).map(x => x.refazer)], [g0 + 3, [['padrao-lisa:corrida'], ['padrao-lisa:corrida']]]);
   assert.deepStrictEqual(iguaisAntes(crus, F.dirs.raw), [], 'nenhum cru antigo sobrescrito');
   assert.ok(Object.keys(crusDe(F.dirs.raw)).filter(f => !(f in crus)).every(f => /-s4[12]02/.test(f)), 'só crus novos, nas seeds novas');
-  // sem --refazer, a corrida fica na refação 1 (nada novo); um --refazer de novo, com o item completo, abre a 2ª (5102+)
+  // sem --refazer, a corrida fica na refação 1 (nada novo); um --refazer de novo, com o item completo, só abre a 2ª
+  // (5102+) com --nova-refacao (os testes da rodada de correção 1, mais abaixo, conferem o --gerar)
   const api3 = apiFalsa(CENARIO_F);
   await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: api3.executar, dirs: F.dirs, log: () => {} }));
   assert.strictEqual(api3.chamadas.length, 0);
   assert.strictEqual(lerJ(arqC).itens['padrao-lisa'].etapas.corrida.escolhida, 4202);
   const l3 = [];
-  await semRede(() => Pl().dryRunPortes({ fase: 'mestres', refazer: ['padrao-lisa:corrida'], dirs: F.dirs }, l => l3.push(l)));
+  await semRede(() => Pl().dryRunPortes({ fase: 'mestres', refazer: ['padrao-lisa:corrida'], novaRefacao: true, dirs: F.dirs }, l => l3.push(l)));
   assert.match(l3.join('\n'), /corrida \(refação 2: seeds 5102, 5202, 5302\)/); assert.match(l3.join('\n'), /padrao-lisa\/corrida +seed 5102/);
 });
 
@@ -1657,7 +1658,66 @@ await testA('--refazer esguio-lisa:parado refaz só o parado (4101+); retrato, c
   assert.ok(html.includes('parado 4101, refeita (refação 1)') && html.includes('corrida 4202, refeita (refação 1) (2 tentativas)'), 'refação na folha');
   assert.ok(html.includes('retrato 3101 ·'), 'etapa sem refação sai como antes');
 });
+
+// Rodada de correção 1 (revisão da Task 5a): o mesmo --refazer rodado de novo depois de terminado não gasta sem
+// --nova-refacao; a refação interrompida retoma sem ela (o teste do padrão acima, com o teto); reprovado sai 0.
+await testA('--refazer repetido numa refação terminada: sem --nova-refacao, 0 chamadas e erro (--gerar) ou aviso (dry-run); com ela, a refação 2 (5101+)', async () => {
+  const arqC = path.join(F.dirs.novos, 'criterios.json'), arqG = path.join(F.dirs.novos, 'gasto.json');
+  const v = o => Pl().validarArgsPortes(Object.assign({ fase: 'mestres', refazer: ['esguio-lisa:parado'] }, o), F.dirs.novos);
+  assert.match(v({ gerar: true }), /^--refazer esguio-lisa: a refação 1 de parado já terminou \(um --refazer repetido\)\. Para abrir a próxima \(parado 2\).*--nova-refacao/);
+  assert.strictEqual(v({}), null, 'o dry-run roda (e avisa)');
+  assert.strictEqual(v({ gerar: true, novaRefacao: true }), null);
+  assert.match(Pl().validarArgsPortes({ fase: 'mestres', novaRefacao: true }, F.dirs.novos), /--nova-refacao só vale com --refazer/);
+  assert.match(v({ gerar: true, refazer: ['padrao-lisa:corrida', 'esguio-lisa:parado'] }), /padrao-lisa: a refação 1 de corrida e a refação 1 de galope já terminaram/);
+  // --gerar sem a confirmação: erro antes de qualquer chamada, nada gravado
+  const C0 = fs.readFileSync(arqC), G0 = fs.readFileSync(arqG), api = apiFalsa(CENARIO_F);
+  await assert.rejects(semRede(() => Pl().rodarPortes({ fase: 'mestres', refazer: ['esguio-lisa:parado'], modo: 'gerar', executar: api.executar, dirs: F.dirs, log: () => {} })),
+    e => e.fatal && /a refação 1 de parado já terminou/.test(e.message));
+  assert.strictEqual(api.chamadas.length, 0);
+  assert.ok(fs.readFileSync(arqC).equals(C0) && fs.readFileSync(arqG).equals(G0), 'criterios.json e gasto.json intactos');
+  // dry-run sem a confirmação: o aviso em destaque e nada previsto
+  const l1 = [];
+  await semRede(() => Pl().dryRunPortes({ fase: 'mestres', refazer: ['esguio-lisa:parado'], dirs: F.dirs }, l => l1.push(l)));
+  const t1 = l1.join('\n');
+  assert.match(t1, /^!!! AVISO: --refazer esguio-lisa: a refação 1 de parado já terminou/m); assert.match(t1, /o --gerar recusa rodar assim/);
+  assert.match(t1, /Total previsto: 0 gerações em 0 chamadas novas/); assert.ok(!/esguio-lisa\/parado +seed 5101/.test(t1));
+  // com --nova-refacao: a refação 2, no bloco 5101+
+  const l2 = [];
+  await semRede(() => Pl().dryRunPortes({ fase: 'mestres', refazer: ['esguio-lisa:parado'], novaRefacao: true, dirs: F.dirs }, l => l2.push(l)));
+  assert.match(l2.join('\n'), /parado \(refação 2: seeds 5101, 5201, 5301\)/); assert.match(l2.join('\n'), /Total previsto: 1 gerações em 1 chamadas novas/);
+  const api2 = apiFalsa(CENARIO_F);
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'mestres', refazer: ['esguio-lisa:parado'], novaRefacao: true, modo: 'gerar', executar: api2.executar, dirs: F.dirs, log: () => {} }));
+  assert.strictEqual(r.parada, null);
+  assert.deepStrictEqual(etapasDe(api2.chamadas), ['esguio/parado 5101']);
+  const e = lerJ(arqC).itens['esguio-lisa'];
+  assert.deepStrictEqual([e.refacoes.parado, e.etapas.parado.escolhida, e.historico.length, e.historico[1].refacoes], [2, 5101, 2, { parado: 1 }]);
+  // o galope que vem junto com a 1ª refação da corrida não pede a confirmação, mesmo com o galope já refeito antes
+  const api3 = apiFalsa(CENARIO_F);
+  await semRede(() => Pl().rodarPortes({ fase: 'mestres', refazer: ['robusto-lisa:galope'], modo: 'gerar', executar: api3.executar, dirs: F.dirs, log: () => {} }));
+  assert.strictEqual(Pl().validarArgsPortes({ fase: 'mestres', refazer: ['robusto-lisa:corrida'], gerar: true }, F.dirs.novos), null);
+  await semRede(() => Pl().rodarPortes({ fase: 'mestres', refazer: ['robusto-lisa:corrida'], modo: 'gerar', executar: api3.executar, dirs: F.dirs, log: () => {} }));
+  assert.deepStrictEqual(etapasDe(api3.chamadas), ['galope 4103', 'robusto/corrida 4103', 'galope 5103']);
+  assert.deepStrictEqual(lerJ(arqC).itens['robusto-lisa'].refacoes, { retrato: 0, parado: 0, corrida: 1, galope: 2 });
+});
 fs.rmSync(F.raiz, { recursive: true, force: true });
+
+await testA('código de saída do lote: rodada completa com item reprovado sai 0; teto e item incompleto saem 1; o CLI usa a mesma regra', async () => {
+  const K = pastaTemp();
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'gerar', executar: apiFalsa(CENARIO).executar, dirs: K.dirs, log: () => {} }));
+  assert.deepStrictEqual([r.parada, r.falhas, r.incompletos, Pl().codigoSaidaPortes(r)], [null, 1, 0, 0], 'o robusto reprova no lombo e a saída é 0');
+  const rp = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', dirs: K.dirs, log: () => {} }));
+  assert.deepStrictEqual([rp.falhas, Pl().codigoSaidaPortes(rp)], [1, 0], '--reprocessar com reprovado também sai 0');
+  fs.unlinkSync(path.join(K.dirs.raw, 'portes-esguio-lisa-parado-s3101.png')); fs.unlinkSync(path.join(K.dirs.raw, 'portes-esguio-lisa-parado-s3101.json'));
+  const ri = await semRede(() => Pl().rodarPortes({ fase: 'mestres', modo: 'reprocessar', dirs: K.dirs, log: () => {} }));
+  assert.deepStrictEqual([ri.parada, ri.incompletos, Pl().codigoSaidaPortes(ri)], [null, 1, 1], 'item incompleto (falta cru) sai 1');
+  const T = pastaTemp();
+  const rt = await semRede(() => Pl().rodarPortes({ fase: 'mestres', teto: 3, modo: 'gerar', executar: apiFalsa(CENARIO).executar, dirs: T.dirs, log: () => {} }));
+  assert.ok(/^TETO/.test(rt.parada)); assert.strictEqual(Pl().codigoSaidaPortes(rt), 1);
+  const cli = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'pixellab-moldes.mjs'), 'utf8');
+  const gp = cli.slice(cli.indexOf('async function gerarPortes'), cli.indexOf('const args = lerArgs'));
+  assert.ok(/return codigo;/.test(gp) && /const codigo = codigoSaidaPortes\(r\)/.test(gp) && !/return r\.parada \|\| r\.falhas/.test(gp), 'o gerarPortes sai pela mesma regra');
+  for (const x of [K, T]) fs.rmSync(x.raiz, { recursive: true, force: true });
+});
 
 await testA('pedido do robusto: o texto novo sai nos pedidos; o antigo (versão 1) reconhece os crus dele; cru com outro pedido não é refeito por cima', async () => {
   const T = Pl().TEXTOS_PORTE;

@@ -4,8 +4,8 @@
 //
 // Uso (pelo pixellab-moldes.mjs): --lote portes --fase mestres|piloto|versoes [--only <porte>[-<estilo>]] [--teto 90]
 //   [--repetir <chave>/<etapa>[,…]] [--sem-guia <porte>-<estilo>]… [--guia-galope-mestre <porte>-<estilo>]…
-//   [--refazer <porte>-<estilo>:<etapa>[,<etapa>…]]… [--reprocessar] [--gerar]. Sem --gerar é dry-run (nenhuma
-//   chamada, nenhum arquivo).
+//   [--refazer <porte>-<estilo>:<etapa>[,<etapa>…]]… [--nova-refacao] [--reprocessar] [--gerar]. Sem --gerar é dry-run
+//   (nenhuma chamada, nenhum arquivo).
 //   --sem-guia (piloto e versoes; repetível): aquela versão sai sem init_image, pela receita do primeiro lote, nas seeds
 //            sem guia (3701+), e passa nos mesmos critérios — a decisão da folha quando a crina mudou pouco partindo do
 //            mestre (spec §5.2). Não mexe no registro do piloto; na fase versoes vale também para o chamas.
@@ -21,6 +21,13 @@
 //            seeds dela (retomar, --reprocessar). Item que ficou pela metade (alguma etapa sem terminar as seeds: teto,
 //            erro fatal) não abre refação nova com o --refazer: a que ficou pela metade é retomada. Só para item que já
 //            tem registro, com a mesma receita; não anda com --reprocessar.
+//   --nova-refacao (com --refazer): confirma abrir a refação N+1 de uma etapa cuja refação N já terminou. Sem ela, o
+//            mesmo --refazer repetido depois de terminado (um comando rodado de novo por engano) não gasta: o --gerar
+//            para com erro de uso antes de qualquer chamada e o dry-run avisa em destaque, sem prever nada para o item.
+//            O galope que vem junto com a 1ª refação da corrida não pede a confirmação (ele parte da corrida nova).
+// Código de saída (pixellab-moldes): 1 só quando a rodada não terminou (teto, erro fatal da API, arquivo ilegível) ou
+//   deixou item incompleto; item completo que reprova num critério sai 0 (ele vai para a folha, marcado no Resumo). Erro
+//   de uso sai 2.
 //   Item refeito com outra receita (outra `variante`) guarda a entrada anterior em `historico` no criterios.json.
 // Fases (cada item é um molde, com 4 etapas: retrato, parado, corrida e galope):
 //   mestres  lisa dos 3 portes, na ordem padrao, esguio, robusto (o padrão é a régua das proporções dos outros dois);
@@ -180,6 +187,17 @@ export function seedsDoItem(item, etapa, repetir = []) {
   if (repetir.includes(`${item.chave}/${etapa}`)) s.push(base + SEED_EXTRA);
   return s;
 }
+// item que ficou pela metade: alguma etapa sem terminar as seeds (teto, erro fatal) ou que nem começou
+const pelaMetade = ant => ETAPAS.some(e => !(ant.etapas && ant.etapas[e] && ant.etapas[e].terminada));
+// as etapas pedidas cuja última refação já terminou (abrir a próxima pede --nova-refacao), com o número dela; o galope
+// que vem junto com a 1ª refação da corrida não conta (ele parte da corrida nova)
+function refacoesTerminadas(ant, etapas) {
+  const r = e => (ant.refacoes && ant.refacoes[e]) || 0;
+  return etapas.filter(e => r(e) > 0 && !(e === 'galope' && etapas.includes('corrida') && r('corrida') === 0)).map(e => ({ etapa: e, refacao: r(e) }));
+}
+const lista = xs => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} e ${xs[xs.length - 1]}` : xs[0]);
+const msgRefacaoTerminada = (chave, ts) => `--refazer ${chave}: ${lista(ts.map(t => `a refação ${t.refacao} de ${t.etapa}`))} já ${ts.length > 1 ? 'terminaram' : 'terminou'}`
+  + ` (um --refazer repetido). Para abrir a próxima (${ts.map(t => `${t.etapa} ${t.refacao + 1}`).join(', ')}), que gasta de novo até ${TENTATIVAS} gerações por etapa, repita com --nova-refacao, com a confirmação do Vinicius.`;
 // --refazer <porte>-<estilo>:<etapa>[,<etapa>…] (repetível) ⇒ { pedidos: { <chave>: [etapas] }, erro }. Refazer a
 // corrida refaz também o galope (ele parte dela). Só confere a forma; o item é conferido contra a fase em
 // validarArgsPortes.
@@ -198,7 +216,8 @@ export function lerRefazer(lista = []) {
   return { pedidos, erro: null };
 }
 // Confere --only, --repetir, --sem-guia, --guia-galope-mestre e --refazer contra os itens da fase; devolve o erro ou null.
-export function validarArgsPortes({ fase, only, repetir = [], semGuia = [], guiaGalope = [], refazer = [], reprocessar = false }, novos = DIR_NOVOS) {
+// gerar: o --gerar (refação já terminada sem --nova-refacao é erro de uso; no dry-run, aviso)
+export function validarArgsPortes({ fase, only, repetir = [], semGuia = [], guiaGalope = [], refazer = [], novaRefacao = false, reprocessar = false, gerar = false }, novos = DIR_NOVOS) {
   if (!FASES.includes(fase)) return `--lote portes: --fase ${fase == null ? '(faltou)' : fase}: use mestres, piloto ou versoes`;
   for (const [op, lista] of [['--sem-guia', semGuia], ['--guia-galope-mestre', guiaGalope]]) {
     if (!lista.length) continue;
@@ -221,6 +240,7 @@ export function validarArgsPortes({ fase, only, repetir = [], semGuia = [], guia
     const [chave, etapa] = r.split('/');
     if (!todos.some(it => it.chave === chave) || !ETAPAS.includes(etapa)) return `--repetir ${r}: item desconhecido na fase "${fase}" (ex.: ${todos[0].chave}/retrato, ${todos[0].chave}/galope)`;
   }
+  if (novaRefacao && !refazer.length) return '--nova-refacao só vale com --refazer';
   if (refazer.length) {
     if (reprocessar) return '--refazer não anda com --reprocessar (o --refazer pede seeds novas; o --reprocessar só lê raw/)';
     const { pedidos, erro } = lerRefazer(refazer);
@@ -231,6 +251,8 @@ export function validarArgsPortes({ fase, only, repetir = [], semGuia = [], guia
       if (only && it.porte !== only && it.chave !== only) return `--refazer ${chave}: fora do --only ${only}`;
       if (!ant) return `--refazer ${chave}: o item ainda não tem registro no criterios.json (nada a refazer: rode a fase sem --refazer)`;
       if (ant.variante !== it.variante) return `--refazer ${chave}: a receita mudou ("${ant.variante}" → "${it.variante}") e a nova já sai nas seeds dela, sem --refazer`;
+      const ts = refacoesTerminadas(ant, pedidos[chave]);
+      if (gerar && !novaRefacao && !pelaMetade(ant) && ts.length) return msgRefacaoTerminada(chave, ts);
     }
   }
   return null;
@@ -331,7 +353,7 @@ const resumoCrit = c => `${c.criterio} = ${c.valor == null ? '—' : typeof c.va
  * falhas, parada, gastoAntes, gasto, previstas }.
  */
 export async function rodarPortes(op) {
-  const { fase, only = null, teto = TETO_PADRAO, repetir = [], semGuia = [], guiaGalope = [], refazer = [], modo = 'plano', executar = null } = op;
+  const { fase, only = null, teto = TETO_PADRAO, repetir = [], semGuia = [], guiaGalope = [], refazer = [], novaRefacao = false, modo = 'plano', executar = null } = op;
   const raw = (op.dirs && op.dirs.raw) || DIR_MOLDES_RAW, novos = (op.dirs && op.dirs.novos) || DIR_NOVOS;
   const plano = modo === 'plano', reproc = modo === 'reprocessar';
   const log = plano ? () => {} : (op.log || console.log);
@@ -350,7 +372,7 @@ export async function rodarPortes(op) {
     avisos.push(e.message + (plano ? ' A previsão abaixo conta como se nada tivesse sido gasto; o --gerar recusa rodar assim.' : ''));
   }
   const itens = itensDaFase(fase, { only, piloto: crit.piloto, semGuia, guiaGalope });
-  const res = { itens: itens.map(i => i.chave), chamadas: [], reaproveitadas: [], avisos, falhas: 0, parada: null, gastoAntes: gasto.geracoes, gastoIlegivel, gasto: 0, previstas: 0 };
+  const res = { itens: itens.map(i => i.chave), chamadas: [], reaproveitadas: [], avisos, falhas: 0, incompletos: 0, parada: null, gastoAntes: gasto.geracoes, gastoIlegivel, refacaoTerminada: [], gasto: 0, previstas: 0 };
   // as entradas de antes desta rodada (o histórico de um item refeito com outra receita é guardado, não sobrescrito)
   const anteriores = {};
   for (const it of itens) if (crit.itens[it.chave]) anteriores[it.chave] = crit.itens[it.chave];
@@ -360,9 +382,18 @@ export async function rodarPortes(op) {
   // o que já saiu.
   for (const it of itens) {
     const ant = anteriores[it.chave], mesma = !!ant && ant.variante === it.variante, pede = pedidos[it.chave] || [];
-    const metade = mesma && ETAPAS.some(e => !(ant.etapas && ant.etapas[e] && ant.etapas[e].terminada));
+    const metade = mesma && pelaMetade(ant);
     it.refacoes = Object.fromEntries(ETAPAS.map(e => [e, (mesma && ant.refacoes && ant.refacoes[e]) || 0]));
     it.refazendo = mesma && !metade ? pede.slice() : [];
+    // a refação pedida já terminou (o mesmo --refazer de novo): sem --nova-refacao nada é refeito — o --gerar para
+    // aqui, antes de qualquer chamada; o dry-run avisa em destaque e segue o item nas seeds de agora (reaproveitadas)
+    const ts = it.refazendo.length && !novaRefacao ? refacoesTerminadas(ant, it.refazendo) : [];
+    if (ts.length) {
+      const msg = msgRefacaoTerminada(it.chave, ts);
+      if (modo === 'gerar') throw new ErroApi(msg, { fatal: true });
+      res.refacaoTerminada.push(msg); it.refazendo = [];
+      continue;
+    }
     for (const e of it.refazendo) it.refacoes[e]++;
     if (!pede.length) continue;
     if (!mesma) avisos.push(`--refazer ${it.chave}: ignorado (${ant ? `a receita mudou de "${ant.variante}" para "${it.variante}"` : 'o item ainda não tem registro'}; ele sai nas seeds de sempre).`);
@@ -734,8 +765,9 @@ export async function rodarPortes(op) {
     log('\n== Resumo ==');
     for (const item of itens) {
       const e = crit.itens[item.chave];
-      if (!e) { log(`  ${item.chave.padEnd(16)} não começou`); continue; }
+      if (!e) { res.incompletos++; log(`  ${item.chave.padEnd(16)} não começou`); continue; }
       if (!e.ok) res.falhas++;
+      if (!e.completo) res.incompletos++;
       log(`  ${item.chave.padEnd(16)} ${e.ok ? 'OK' : e.completo ? 'REPROVADO' : 'INCOMPLETO'}  seeds ${ETAPAS.map(x => `${x} ${e.etapas[x] ? e.etapas[x].escolhida : '—'}`).join(', ')}${e.final ? '' : '  (sem final em novos/)'}`);
       for (const f of e.falhas) log(`      ${f}`);
     }
@@ -749,14 +781,24 @@ export async function rodarPortes(op) {
   return res;
 }
 
+// Código de saída de uma rodada (gerar ou reprocessar): 1 quando ela parou (teto, erro fatal) ou deixou item incompleto;
+// 0 quando terminou, mesmo com item reprovado num critério (ele vai para a folha).
+export const codigoSaidaPortes = r => (r.parada || r.incompletos ? 1 : 0);
+
 // Dry-run: o mesmo caminho do lote, no modo 'plano' (nada pago, nada gravado), e a lista das chamadas novas.
-export async function dryRunPortes({ fase, only = null, teto = TETO_PADRAO, repetir = [], semGuia = [], guiaGalope = [], refazer = [], dirs } = {}, log = console.log) {
-  const r = await rodarPortes({ fase, only, teto, repetir, semGuia, guiaGalope, refazer, modo: 'plano', dirs });
+export async function dryRunPortes({ fase, only = null, teto = TETO_PADRAO, repetir = [], semGuia = [], guiaGalope = [], refazer = [], novaRefacao = false, dirs } = {}, log = console.log) {
+  const r = await rodarPortes({ fase, only, teto, repetir, semGuia, guiaGalope, refazer, novaRefacao, modo: 'plano', dirs });
   const sobra = r.gastoIlegivel ? '?' : fmt(teto - r.gastoAntes), gastas = r.gastoIlegivel ? 'DESCONHECIDO (gasto.json ilegível)' : fmt(r.gastoAntes);
   if (r.gastoIlegivel) {
     log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
     log(`!!! AVISO: ${r.gastoIlegivel}`);
     log('!!! O --gerar recusa rodar até o arquivo ser consertado; a previsão abaixo conta como se nada tivesse sido gasto.');
+    log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  }
+  for (const m of r.refacaoTerminada) {
+    log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    log(`!!! AVISO: ${m}`);
+    log('!!! Nada é previsto para essas etapas (seguem nas seeds de agora), e o --gerar recusa rodar assim.');
     log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
   }
   log(`DRY-RUN (sem --gerar): nenhuma chamada à API. Lote "portes", fase "${fase}"${only ? ` (--only ${only})` : ''}; teto ${teto} gerações no lote todo, somadas entre rodadas em novos/gasto.json: já gastas ${gastas}, sobram ${sobra}.`);
