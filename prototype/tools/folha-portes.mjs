@@ -200,7 +200,10 @@ function registroTxt(reg) {
   });
   const forma = (reg.falhas || []).filter(f => /forma|imagem|interrompida|faltaria|quadros/.test(f));
   const guias = ['retrato', 'parado', 'corrida'].map(e => [e, guiaMestreDe(reg, e)]).filter(([, gm]) => gm);
-  const guiaTxt = guias.length ? `<p class="suave">Guia de outro mestre: ${guias.map(([e, gm]) => `${e} com init_image = ${esc(gm.arquivo || '?')}`).join('; ')} · forças ${esc(guias[0][1].forcas.join(', '))} nas 3 tentativas · reforço "${esc(guias[0][1].reforco)}"</p>` : '';
+  // o retrato tem uma força por tentativa; o parado e a corrida, a do retrato aceito (a mesma em todas as tentativas)
+  const forcasTxt = (e, gm) => (e === 'retrato' ? `forças ${(gm.forcas || []).join(', ')} por tentativa`
+    : gm.forcaDoRetrato ? `força ${gm.forcaDoRetrato.forca}, a do retrato aceito (seed ${gm.forcaDoRetrato.seed})` : 'a força do retrato aceito');
+  const guiaTxt = guias.length ? `<p class="suave">Guia de outro mestre: ${guias.map(([e, gm]) => `${e} com init_image = ${esc(gm.arquivo || '?')} (${esc(forcasTxt(e, gm))})`).join('; ')} · reforço "${esc(guias[0][1].reforco)}"</p>` : '';
   const escolhas = ['retrato', 'parado', 'corrida', 'galope'].map(e => [e, reg.etapas && reg.etapas[e] && reg.etapas[e].escolha]).filter(([, x]) => x && x.manual);
   const escolhaTxt = escolhas.map(([e, x]) => `<p class="aceito">${esc(e)} ${esc(x.seed)}: escolha manual — aceito na folha: ${esc(x.motivo)}${x.aceitos && x.aceitos.length ? ` <small>(${esc(x.aceitos.join('; '))})</small>` : ''}${x.automatico ? ` <small>(${esc(x.automatico)})</small>` : ''}</p>`).join('');
   return `<p class="suave">Seeds: ${esc(seeds.join(' · '))}${reg.guia ? ` · init_image do mestre, força ${esc(reg.guia.init_image_strength)}` : ''}</p>`

@@ -31,14 +31,22 @@
 //            o --refazer do guiado. Cada imagem parada refeita dele (retrato, parado, corrida) sai com init_image = o cru
 //            ESCOLHIDO do mestre-guia no mesmo estado (a seed do molde do guia em novos/, o arquivo pelo criterios.json),
 //            o texto do porte guiado (a última versão, TEXTOS_PORTE) e um reforço curto de proporção logo depois dele
-//            (REFORCO_PROPORCAO). A força do init_image muda a cada tentativa, além da seed (FORCAS_GUIA_MESTRE): 90 na
-//            seed base, 60 na base + 100 e 35 na base + 200 (a 4ª do --repetir, base + 50, usa a última, 35) — em
-//            2026-11-09 a força 150 já copiou a guia quase igual, então a 1ª ainda segura o desenho do guia e as outras
-//            deixam o texto mudar mais o corpo. Para na 1ª que passa nos critérios; no retrato do esguio e do robusto,
-//            os "portes distintos" contra o padrão entram no aceite (como sempre). O galope parte da corrida aceita, como
-//            sempre. A guia de cada etapa fica no criterios.json (`guiaMestre.<etapa>`: guia, seed, arquivo, refação,
+//            (REFORCO_PROPORCAO). O RETRATO decide a força: nele, a força do init_image muda a cada tentativa, além da
+//            seed (FORCAS_GUIA_MESTRE): 90 na seed base, 60 na base + 100 e 35 na base + 200 (a 4ª do --repetir, base +
+//            50, usa a última, 35) — em 2026-11-09 a força 150 já copiou a guia quase igual, então a 1ª ainda segura o
+//            desenho do guia e as outras deixam o texto mudar mais o corpo; os "portes distintos" contra o padrão entram
+//            no aceite dele (como sempre). O PARADO e a CORRIDA, que não têm critério de proporção (parariam sempre na
+//            força 90, a mais parecida com o guia), usam a força do retrato aceito — ou do melhor, se os 3 reprovarem —
+//            em todas as tentativas, só variando a seed (base, + 100, + 200): os estados saem com o mesmo corpo. Ela é
+//            decidida quando o retrato da rodada termina e gravada (guiaMestre.<etapa>.forcas e forcaDoRetrato); o
+//            dry-run, com o retrato ainda por gerar, mostra "a do retrato aceito". Parado ou corrida guiados sem refazer
+//            o retrato pedem que o retrato escolhido tenha saído guiado (erro de uso). Continua até 3 chamadas por etapa
+//            (pior caso 12 por mestre). Cada etapa para na 1ª que passa nos critérios. O galope parte da corrida aceita,
+//            como sempre. A guia de cada etapa fica no criterios.json (`guiaMestre.<etapa>`: guia, seed, arquivo, refação,
 //            forças e reforço) e vale enquanto a etapa estiver naquela refação (retomar, --reprocessar). O guia precisa
-//            ter molde em novos/ e os crus das etapas refeitas, e não pode ser refeito na mesma rodada (erro de uso).
+//            ter molde em novos/ e os crus das etapas refeitas, e não pode ser refeito na mesma rodada (erro de uso). Um
+//            --refazer novo de uma etapa que saiu guiada, sem --guia-mestre, sai sem guia: o dry-run e o log avisam em
+//            destaque.
 //   --escolher <porte>-<estilo>:<etapa>=<seed> (as 3 fases; repetível; --motivo "<texto>" obrigatório): escolha manual
 //            de uma tentativa já paga daquela etapa — da refação atual ou de qualquer uma do `historico` —, sem rede e
 //            sem custo (só os crus de raw/). A tentativa é reavaliada pelos critérios de hoje e os que ela reprova ficam
@@ -81,10 +89,11 @@
 //   galope:           forma nos quadros + pelo menos 2 pernas em todo quadro + galope estável contra a pose de corrida,
 //                     com exatamente 9 quadros (galope com outro número reprova e só fica como "melhor", marcado).
 //   Item ainda reprovado depois das 3 seeds fica com a melhor tentativa (menos critérios reprovados; reprovar na forma
-//   pesa mais) e sai marcado no criterios.json e na folha; quem decide é o Vinicius.
+//   pesa mais; no empate, a que chegou mais perto dos limites, pela soma das faltas normalizadas — faltaDoLimite —, e
+//   depois a 1ª) e sai marcado no criterios.json e na folha; quem decide é o Vinicius.
 //   Escolha que continua valendo não muda: quando o critério muda (ex.: a regra do galope de 2026-11-13) e a etapa é
-//   reavaliada de raw/, a escolhida da rodada anterior (na mesma refação) fica se continuar aprovada, ou, todas
-//   reprovadas, se empatar com a melhor. Trocar a pose de corrida obrigaria a animar outro galope, e trocar o mestre, a
+//   reavaliada de raw/, a escolhida da rodada anterior (na mesma refação, numa etapa que terminou as seeds) fica se
+//   continuar aprovada, ou, todas reprovadas, se empatar com a melhor no número de reprovações. Trocar a pose de corrida obrigaria a animar outro galope, e trocar o mestre, a
 //   refazer as versões. Depois de uma aprovada o script só segue até a escolha anterior pelo que já está em raw/, sem
 //   pagar nada.
 // Crus: um cru em raw/ é reaproveitado quando o pedido é o mesmo, também com um texto de porte anterior (TEXTOS_PORTE).
@@ -340,6 +349,12 @@ export function validarArgsPortes({ fase, only, repetir = [], semGuia = [], guia
       const J = lerJson(path.join(novos, `molde-${b}.json`));
       if (!J || !J.seeds) return `--guia-mestre ${a}=${b}: o guia ainda não tem molde em ${rel(novos)}/`;
       for (const e of es) if (!cruEscolhido(raw, J, crit.itens[b], b, e)) return `--guia-mestre ${a}=${b}: falta o cru escolhido de ${b}/${e} em ${rel(raw)}/ (seed ${J.seeds[e === 'corrida' ? 'montado' : e]})`;
+      // o retrato decide a força do parado e da corrida: sem refazê-lo junto, o escolhido tem de ter saído guiado
+      if (!es.includes('retrato')) {
+        const x = crit.itens[a] && crit.itens[a].etapas && crit.itens[a].etapas.retrato;
+        const t = x && (x.tentativas || []).find(y => y.seed === x.escolhida && (!x.escolha || !x.escolha.arquivo || y.arquivo === x.escolha.arquivo));
+        if (!t || !t.guiaMestre) return `--guia-mestre ${a}=${b}: a força do parado e da corrida sai do retrato aceito, e o retrato escolhido de ${a} não saiu guiado por outro mestre: refaça o retrato junto (--refazer ${a}:retrato,${es.join(',')})`;
+      }
     }
   }
   if (escolher.length) {
@@ -480,15 +495,34 @@ class FaltaCruEscolha extends FaltaCru {
 const falhasDe = t => (t.criterios || []).filter(c => !c.ok);
 // a tentativa passou no "mesmo corpo" (todos os critérios dele ok), qualquer que seja o resto (forma, pernas…)
 const passouMesmoCorpo = t => { const mc = (t.criterios || []).filter(c => /^mesmo corpo/.test(c.criterio)); return mc.length > 0 && mc.every(c => c.ok); };
-// melhor tentativa: a 1ª aprovada; senão a com menos critérios reprovados (reprovar na forma pesa 100); empate: a 1ª.
-// pref = o cru (nome-base em raw/) da escolhida da rodada anterior: fica se continuar aprovada, ou, sem aprovada, se
-// empatar com a melhor (a escolha que continua valendo não muda)
+// Quanto um critério reprovado ficou longe do limite, normalizado pelo limite (0 = no limite; ok = 0). O limite vem do
+// texto do critério: ≥ 1,15 e ≤ 0,92 (portes), = 4 (pernas), ≥ 2, = 9, varia ≤ 3 px, ±6 px, |Δ| ≤ 2 px (mesmo corpo, valor
+// com sinal). Sem número no limite (forma), conta o valor (os quadros ruins); sem valor medido, conta como muito longe.
+export function faltaDoLimite(c) {
+  if (c.ok) return 0;
+  if (typeof c.valor !== 'number' || !Number.isFinite(c.valor)) return 1e6;
+  const m = /(\|Δ\|\s*)?([≤≥=±])\s*(-?\d+(?:[.,]\d+)?)/.exec(String(c.limite));
+  if (!m) return Math.abs(c.valor);
+  const lim = Number(m[3].replace(',', '.')), v = m[1] || m[2] === '±' ? Math.abs(c.valor) : c.valor, escala = Math.abs(lim) || 1;
+  if (m[2] === '≥') return Math.max(0, lim - v) / escala;
+  if (m[2] === '=') return Math.abs(v - lim) / escala;
+  return Math.max(0, v - lim) / escala; // ≤ e ±
+}
+// Melhor tentativa: a 1ª aprovada; senão a com menos critérios reprovados (reprovar na forma pesa 100). Empate no número:
+//   1. a escolha anterior (pref: o cru, nome-base em raw/, da escolhida de uma rodada anterior que terminou a etapa na
+//      mesma refação) — a escolha que continua valendo não muda numa reavaliação: trocar a corrida obrigaria a animar
+//      outro galope, e trocar o mestre, a refazer as versões;
+//   2. a que chegou mais perto dos limites (a menor soma de faltaDoLimite dos critérios reprovados): com as 3 reprovando
+//      os mesmos portes, fica a que mais se aproximou, e não a 1ª (a força 90, a mais parecida com o guia);
+//   3. a ordem das tentativas (a 1ª).
 function melhorTentativa(tentativas, pref = null) {
   const comImagem = tentativas.filter(t => t.planejada || t._buf || t._bufs), ehPref = t => pref != null && t._base === pref;
   const oks = comImagem.filter(t => t.ok || t.planejada);
   if (oks.length) return oks.find(ehPref) || oks[0];
   const nota = t => falhasDe(t).reduce((n, c) => n + (/^forma/.test(c.criterio) ? 100 : 1), 0);
-  return comImagem.reduce((m, t) => (!m || nota(t) < nota(m) || (nota(t) === nota(m) && ehPref(t) && !ehPref(m)) ? t : m), null);
+  const falta = t => falhasDe(t).reduce((s, c) => s + faltaDoLimite(c), 0);
+  const melhor = (t, m) => (nota(t) !== nota(m) ? nota(t) < nota(m) : ehPref(t) !== ehPref(m) ? ehPref(t) : falta(t) < falta(m) - 1e-9);
+  return comImagem.reduce((m, t) => (!m || melhor(t, m) ? t : m), null);
 }
 // nome-base do cru de uma tentativa gravada: raw/<base>.png (parada) ou raw/<base>-0..8.png / -N.png (galope)
 const baseDoArquivo = a => (typeof a === 'string' ? a.replace(/^raw\//, '').replace(/(-\d+\.\.\d+|-N)?\.png$/, '') : null);
@@ -541,7 +575,7 @@ export async function rodarPortes(op) {
       : ant.variante !== it.variante ? `a receita no criterios.json é "${ant.variante}", não "${it.variante}"` : acharTentativa(raw, ant, x.etapa, x.seed).erro;
     if (erro) throw new ErroApi(`--escolher ${x.chave}:${x.etapa}=${x.seed}: ${erro}`, { fatal: true });
   }
-  const res = { itens: itens.map(i => i.chave), chamadas: [], reaproveitadas: [], manuais: [], naoGravados: [], avisos, falhas: 0, incompletos: 0, parada: null, gastoAntes: gasto.geracoes, gastoIlegivel, refacaoTerminada: [], gasto: 0, previstas: 0 };
+  const res = { itens: itens.map(i => i.chave), chamadas: [], reaproveitadas: [], manuais: [], naoGravados: [], guiaPerdida: [], avisos, falhas: 0, incompletos: 0, parada: null, gastoAntes: gasto.geracoes, gastoIlegivel, refacaoTerminada: [], gasto: 0, previstas: 0 };
   // as entradas de antes desta rodada (o histórico de um item refeito com outra receita é guardado, não sobrescrito)
   const anteriores = {};
   for (const it of itens) if (crit.itens[it.chave]) anteriores[it.chave] = crit.itens[it.chave];
@@ -576,16 +610,28 @@ export async function rodarPortes(op) {
   // guia de outro mestre (--guia-mestre) em cada etapa parada: a nova, nas etapas refeitas agora; a gravada, na etapa
   // que continua na refação em que ela foi pedida (retomar, --reprocessar, as rodadas dos outros itens). Escolhas
   // manuais: a gravada vale até um --refazer daquela etapa; a do --escolher desta rodada passa por cima dela.
+  // forcas: no retrato, uma por tentativa (FORCAS_GUIA_MESTRE); no parado e na corrida, null até o retrato da rodada
+  // terminar — aí vira [a força do retrato aceito] (forcaDoRetrato), a mesma em todas as tentativas (etapaParada)
   const novaGuia = (it, b, e) => {
     const J = lerJson(path.join(novos, `molde-${b}.json`)), c = cruEscolhido(raw, J, crit.itens[b], b, e);
-    if (!c) return { mestre: b, seed: null, arquivo: null, refacao: it.refacoes[e], forcas: [...FORCAS_GUIA_MESTRE], reforco: REFORCO_PROPORCAO[it.porte] };
-    return { mestre: b, seed: c.seed, arquivo: c.arquivo, refacao: it.refacoes[e], forcas: [...FORCAS_GUIA_MESTRE], reforco: REFORCO_PROPORCAO[it.porte], _buf: c.buf };
+    const gm = { mestre: b, seed: c ? c.seed : null, arquivo: c ? c.arquivo : null, refacao: it.refacoes[e],
+      forcas: e === 'retrato' ? [...FORCAS_GUIA_MESTRE] : null, ...(e === 'retrato' ? {} : { forcaDoRetrato: null }), reforco: REFORCO_PROPORCAO[it.porte] };
+    return c ? Object.assign(gm, { _buf: c.buf }) : gm;
+  };
+  // a tentativa escolhida do retrato no registro de antes (para dizer a força que o parado e a corrida vão usar)
+  const retratoGravado = ant => {
+    const x = ant && ant.etapas && ant.etapas.retrato;
+    return x ? (x.tentativas || []).find(t => t.seed === x.escolhida && (!x.escolha || !x.escolha.arquivo || t.arquivo === x.escolha.arquivo)) || null : null;
   };
   for (const it of itens) {
     const ant = anteriores[it.chave], mesma = !!ant && ant.variante === it.variante, b = guias[it.chave];
     it.guiasMestre = {}; it.manuais = {};
     for (const e of ETAPAS_PARADAS) {
       const gAnt = mesma && ant.guiaMestre && ant.guiaMestre[e];
+      // a refação de antes desta etapa saiu guiada por outro mestre e esta sai sem guia: aviso em destaque (dry-run e log)
+      if (!b && gAnt && it.refazendo.includes(e) && (gAnt.refacao || 0) === ((ant.refacoes && ant.refacoes[e]) || 0)) {
+        res.guiaPerdida.push(`--refazer ${it.chave}:${e}: a refação ${gAnt.refacao || 0} de ${e} saiu guiada por ${gAnt.mestre} (--guia-mestre), e a refação ${it.refacoes[e]} sai SEM guia, só pelo texto. Para manter a guia, repita com --guia-mestre ${it.chave}=${gAnt.mestre}.`);
+      }
       if (b && it.refazendo.includes(e)) it.guiasMestre[e] = novaGuia(it, b, e);
       else if (gAnt && !it.refazendo.includes(e) && (gAnt.refacao || 0) === it.refacoes[e]) {
         const f = gAnt.arquivo && path.join(raw, gAnt.arquivo.replace(/^raw\//, ''));
@@ -602,9 +648,16 @@ export async function rodarPortes(op) {
       const es = ETAPAS_PARADAS.filter(e => it.guiasMestre[e] && it.refazendo.includes(e));
       if (!es.length) avisos.push(`--guia-mestre ${it.chave}=${b}: ignorado (nenhuma imagem parada de ${it.chave} é refeita nesta rodada).`);
       else {
-        const gm = it.guiasMestre[es[0]], seeds = seedsDoItem(it, es[0], repetir);
+        const gm = it.guiasMestre[es[0]], outras = es.filter(e => e !== 'retrato'), partes = [];
+        if (es.includes('retrato')) {
+          partes.push(`retrato: forças ${seedsDoItem(it, 'retrato', repetir).map((s, k) => `${forcaGuiaMestre(gm.forcas, k)} (seed ${s})`).join(', ')}, parando na 1ª que passa nos critérios`);
+        }
+        if (outras.length) {
+          const tr = !es.includes('retrato') && retratoGravado(ant);
+          partes.push(`${lista(outras)}: a força do retrato aceito (ou do melhor, se os 3 reprovarem)${tr ? ` — a do retrato escolhido, seed ${tr.seed}, força ${tr.init_image_strength}` : ''}, a mesma em todas as seeds (${seedsDoItem(it, outras[0], repetir).join(', ')}), parando na 1ª que passa`);
+        }
         avisos.push(`--guia-mestre ${it.chave}=${b}: ${es.map(e => `${e} com init_image = ${it.guiasMestre[e].arquivo || '(falta)'}`).join(', ')}; texto do ${it.porte} (versão ${ultimaVersao(it.porte)}) + "${gm.reforco}"; `
-          + `forças ${seeds.map((s, k) => `${forcaGuiaMestre(gm.forcas, k)} (seed ${s})`).join(', ')}, parando na 1ª que passa nos critérios; o galope parte da corrida aceita.`);
+          + `${partes.join('; ')}; o galope parte da corrida aceita.`);
       }
     }
     if (mesma) {
@@ -682,6 +735,7 @@ export async function rodarPortes(op) {
     }
   }
   for (const a of res.avisos) log(`AVISO: ${a}`); // no plano, quem imprime é o dryRunPortes
+  for (const a of res.guiaPerdida) log(`${'!'.repeat(112)}\n!!! AVISO: ${a}\n${'!'.repeat(112)}`);
   // régua das proporções: o retrato do padrão (o desta rodada, se o padrão está nela; senão o de novos/)
   let refPadrao = null;
   const regua = () => refPadrao || (refPadrao = (() => { const m = lerMolde(novos, 'padrao-lisa'); return m && { w: m.w, h: m.h, retrato: m.retrato, ancoras: { retrato: m.ancoras.retrato } }; })());
@@ -760,10 +814,12 @@ export async function rodarPortes(op) {
     if (t.planejada) return;
     log(t.ok ? `    aprovada seed ${t.seed}` : `    REPROVADA seed ${t.seed}: ${[...falhasDe(t).map(resumoCrit), ...(t.motivo && !t.criterios ? [t.motivo] : [])].join('; ')}`);
   };
-  // o cru (nome-base em raw/) da escolhida da rodada anterior nesta etapa, com a mesma receita e a mesma refação, ou null
+  // o cru (nome-base em raw/) da escolhida da rodada anterior nesta etapa, com a mesma receita e a mesma refação, ou null.
+  // Só a de uma etapa que terminou as seeds: a melhor de uma etapa interrompida (teto, erro) ainda não é uma decisão, e a
+  // retomada escolhe de novo entre todas
   const preferida = (item, etapa) => {
     const ant = anteriores[item.chave], x = ant && ant.variante === item.variante && ant.etapas && ant.etapas[etapa];
-    if (!x || x.escolhida == null || (x.refacao || 0) !== item.refacoes[etapa]) return null;
+    if (!x || x.escolhida == null || !x.terminada || (x.refacao || 0) !== item.refacoes[etapa]) return null;
     const t = (x.tentativas || []).find(y => y.seed === x.escolhida);
     return t ? baseDoArquivo(t.arquivo) : null;
   };
@@ -817,8 +873,25 @@ export async function rodarPortes(op) {
     const gm = item.guiasMestre[etapa];
     let g = null;
     if (gm) {
-      g = { tipo: 'mestre', guia: gm._buf ? { seed: gm.seed, buf: gm._buf, arquivo: gm.arquivo } : null, proporcao: gm.reforco, mestre: gm.mestre,
-        forca: k => forcaGuiaMestre(gm.forcas, k), marca: k => marcaGuiaMestre(gm, forcaGuiaMestre(gm.forcas, k)),
+      // parado e corrida: a força do retrato aceito (ou do melhor, com os 3 reprovados) desta rodada, a mesma em todas as
+      // tentativas (só a seed muda) — o retrato, que tem o critério dos portes, decide quanto o guia pesa, e os outros
+      // estados saem com o mesmo corpo. Decidida uma vez e gravada (forcas, forcaDoRetrato): a retomada refaz os mesmos
+      // pedidos. No dry-run, com o retrato ainda por gerar, a força só se sabe depois dele.
+      let textoForca = null;
+      if (etapa !== 'retrato' && !gm.forcas) {
+        const r = st.etapas.retrato && st.etapas.retrato.escolhida;
+        if (r && r.planejada) textoForca = 'a do retrato aceito (o retrato ainda não saiu)';
+        else if (r && r.guiaMestre && r.init_image_strength != null) { gm.forcas = [r.init_image_strength]; gm.forcaDoRetrato = { seed: r.seed, forca: r.init_image_strength }; }
+        else {
+          const msg = `${rotulo}: a força da guia sai do retrato aceito, e ${r ? `o retrato escolhido (seed ${r.seed}) não saiu guiado` : 'o retrato não tem tentativa com imagem'}; ${item.chave} fica incompleto (refaça o retrato com --guia-mestre)`;
+          st.etapas[etapa] = { tentativas: [], escolhida: null, terminada: false };
+          st.incompleto = msg; res.avisos.push(msg); log(`  INCOMPLETO ${item.chave}: ${msg}`);
+          return;
+        }
+      }
+      const forcas = gm.forcas || [FORCAS_GUIA_MESTRE[0]];
+      g = { tipo: 'mestre', guia: gm._buf ? { seed: gm.seed, buf: gm._buf, arquivo: gm.arquivo } : null, proporcao: gm.reforco, mestre: gm.mestre, textoForca,
+        forca: k => forcaGuiaMestre(forcas, k), marca: k => marcaGuiaMestre(gm, forcaGuiaMestre(forcas, k)),
         descricao: gm.arquivo ? `${gm.arquivo}` : `o mestre ${gm.mestre}/${etapa} (cru não encontrado)` };
     } else {
       const tipo = etapa === 'corrida' && item.guiaGalope ? 'galope' : item.guia ? 'estado' : null;
@@ -855,7 +928,8 @@ export async function rodarPortes(op) {
       if (g) { t.init_image = g.descricao; t.init_image_strength = forca; }
       if (g && g.tipo === 'mestre') t.guiaMestre = g.mestre;
       tentativas.push(t);
-      log(`  ${rotulo} seed ${seed}${g ? ` (init_image ${t.init_image}, força ${forca})` : ''}`);
+      const forcaTxt = g && g.textoForca ? `= ${g.textoForca}` : forca;
+      log(`  ${rotulo} seed ${seed}${g ? ` (init_image ${t.init_image}, força ${forcaTxt}${g.tipo === 'mestre' && etapa !== 'retrato' && !g.textoForca ? ', a do retrato aceito' : ''})` : ''}`);
       if (reg && (reg.erro || reg.rejeitada)) { pular(t, reg); continue; }
       let buf;
       if (crus) { reaproveitar(t, reg, rotulo); buf = crus[0]; }
@@ -864,7 +938,7 @@ export async function rodarPortes(op) {
         const it = { rotulo, seed, geracoes: 0 };
         let resp;
         try {
-          resp = await pagar(PIXFLUX, it, corpo, corpo.description + (g ? ` [init_image = ${t.init_image}; init_image_strength ${forca}]` : ''));
+          resp = await pagar(PIXFLUX, it, corpo, corpo.description + (g ? ` [init_image = ${t.init_image}; init_image_strength ${forcaTxt}]` : ''));
         } catch (e) {
           if (!recuperavel(e)) throw e;
           gravarErro(raw, base, PIXFLUX, corpo, e); t.ok = false; t.motivo = e.message; t.geracoes = it.geracoes;
@@ -1120,6 +1194,11 @@ export async function dryRunPortes({ fase, only = null, teto = TETO_PADRAO, repe
     log(`!!! AVISO: ${r.gastoIlegivel}`);
     log('!!! O --gerar recusa rodar até o arquivo ser consertado; a previsão abaixo conta como se nada tivesse sido gasto.');
     log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  }
+  for (const m of r.guiaPerdida) {
+    log('!'.repeat(112));
+    log(`!!! AVISO: ${m}`);
+    log('!'.repeat(112));
   }
   for (const m of r.refacaoTerminada) {
     log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
