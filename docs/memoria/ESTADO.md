@@ -73,6 +73,10 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   `claude/visuais-2`** (spec em `docs/superpowers/specs/2026-11-12-cavalos-marcas-design.md`): marcas por
   cavalo com 3 genes herdados pela seed, jóquei do jogador no Perfil e raridade em escada, tudo em código e
   sem créditos. **Próxima: a 2b (portes, PixelLab), só com confirmação de créditos.**
+  **Pendências da 2a que vão para a 2b:** moldes novos com as 4 pernas separadas no retrato e no parado, com
+  teste de contagem de meias por molde (hoje 3 e 4 meias aparecem como 2 ou 3 em alguns quadros); teste do caso
+  "pele acima do capacete" (`marcas.js` ~386-388) com os moldes novos; conferir o brilho das raridades nos
+  moldes novos.
 
 ## O que falta
 - **Decidido em 2026-11-10:** o teste fechado do Play sai com o jogo offline; o lançamento público

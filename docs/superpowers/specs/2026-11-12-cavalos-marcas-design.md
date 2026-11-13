@@ -89,13 +89,29 @@ Só o jóquei deles sai da seed da sala (seção 4). A sala salva não muda.
 Só nos desenhos do PixelLab (os moldes), em todas as telas: retrato, parado, galope e pódio.
 
 **Zonas, calculadas uma vez por quadro do molde** a partir dos papéis e das âncoras que o molde já tem:
-- **cara:** pixels de pelagem a até 30% da largura útil do focinho (`nose`) e acima da metade da altura;
+- **cara:** pixels de pelagem a até 0,19 × `larguraUtil` do focinho (`nose`; `larguraUtil` é a largura do retrato do
+  molde, igual em todos os quadros) e com `y ≤ nose.y + 1`. Raio e corte presos ao focinho, para a zona não
+  derivar no galope nem pegar o pescoço;
 - **patas:** pixels de pelagem abaixo da linha da barriga (`footY − 0,30 · altura do cavalo`), separados em até 4
-  pernas por grupos de colunas, na ordem fixa: traseira de perto, dianteira de perto, traseira de longe,
-  dianteira de longe;
+  pernas: componentes 4-conexas da zona de patas, partidas no vão entre cascos das 3 linhas de baixo. Lado com
+  mais de 2 pernas junta a menor com a vizinha. Ordem fixa: traseira de perto, dianteira de perto, traseira de
+  longe, dianteira de longe;
 - **corpo:** o resto da pelagem.
 
 As zonas valem para qualquer molde, inclusive os portes da 2b.
+
+**Limite conhecido (aceito até a 2b).** Nos moldes atuais, pernas que se encostam no desenho contam como uma, e
+por quadro se acham de 2 a 4 pernas. Medição da revisão final:
+
+| Molde  | Retrato | Parado | Galope |
+|--------|---------|--------|--------|
+| folhas | 2       | 4      | 2 a 4  |
+| chamas | 4       | 3      | 2 ou 3 |
+| ondas  | 3       | 2      | 2 a 4  |
+
+Por isso 3 e 4 meias podem aparecer como 2 ou 3 num quadro, e no galope a 3ª e a 4ª meia aparecem e somem
+conforme as pernas se cruzam. 1 e 2 meias são estáveis. O código das pernas não muda na 2a; separar as 4 pernas
+nos moldes novos (retrato e parado) é requisito da 2b, com um teste de contagem de meias por molde.
 
 **Pintura** (só sobre pixels de pelagem e pelagem-sombra; contorno, crina, jóquei e sela não mudam):
 
@@ -104,7 +120,7 @@ As zonas valem para qualquer molde, inclusive os portes da 2b.
 | estrela | mancha de 2 a 3 px no meio da zona da cara |
 | listra | faixa de 1 a 2 px descendo da testa ao focinho |
 | frente | toda a zona da cara |
-| N meias | as 3 linhas de baixo das N primeiras pernas, na ordem fixa |
+| N meias | as 3 linhas de baixo das N primeiras pernas achadas, na ordem fixa (quadro com menos pernas só pinta as que achou) |
 | malhado | 2 a 4 manchas grandes no corpo |
 | pintado | pintas de 1 px no corpo, na sombra da pelagem |
 | ruão | 30% dos pixels do corpo trocados por branco, em padrão fixo |
@@ -187,7 +203,9 @@ Não mudam: `sim.js` (a corrida) e `gear.js`. `prototype/dist/` e `docs/wiki.md`
 - iniciais e selvagens com as marcas da tabela da seção 2.
 
 **Zonas e pintura (`moldes-test.mjs`, com um molde sintético e com os 4 moldes reais):**
-- cara perto do focinho, patas abaixo da linha da barriga e 4 pernas encontradas nos quadros parado e galope;
+- cara perto do focinho e patas abaixo da linha da barriga; pernas encontradas, em 2 a 4 por quadro nos moldes
+  atuais (limite conhecido da seção 3). **Requisito dos moldes novos da 2b:** 4 pernas nos quadros retrato, parado e
+  galope, com um teste de contagem de meias por molde;
 - cada marca só muda pixels de pelagem da zona dela;
 - `frente` cobre a zona da cara;
 - `ruao` troca de 25% a 35% do corpo;
@@ -217,7 +235,7 @@ Não mudam: `sim.js` (a corrida) e `gear.js`. `prototype/dist/` e `docs/wiki.md`
 
 1. **Zona da cara ou das pernas fora do lugar num molde** (por exemplo, a estrela no pescoço). A página de
    conferência mostra todas as marcas nos 4 moldes antes de ligar no jogo, e o plano reserva um ajuste dos
-   limites (30% e a linha da barriga) por molde, se precisar.
+   limites (0,19 e a linha da barriga) por molde, se precisar.
 2. **Manchas "nadando" no galope.** O padrão preso à sela reduz isso; quem confere é a página de conferência
    (galope animado).
 3. **Corrida mais pesada** com 8 cavalos recoloridos e efeitos. A montagem é feita uma vez na largada, e o teste
