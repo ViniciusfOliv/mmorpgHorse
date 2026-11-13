@@ -9,6 +9,7 @@ Conversa com o Vinicius. Spec em `docs/superpowers/specs/2026-11-13-cavalos-port
 - **Três portes inspirados em raças brasileiras: esguio, padrão e robusto, iguais nos três elementos** — dito pelo Vinicius; o cruzamento mistura elementos, então o gene precisa valer em qualquer um.
 - **O padrão também é gerado de novo (9 desenhos novos, os de hoje saem)** — escolha do Vinicius; os três portes saem com a mesma receita, todos com as 4 pernas separadas (fecha o limite das meias) e cada elemento com a sua crina no galope.
 - **Um corpo-mestre por porte, com as versões de Fogo, Água e Grama partindo dele** — escolha do Vinicius; garante o mesmo corpo do porte em qualquer elemento e barateia as refações.
+- **Galope: ≥ 2 pernas em todo quadro** (sai o "≥ 3 em todo quadro e 4 em pelo menos 5 dos 9"; retrato e parado seguem com 4) — na vista de lado as pernas se cruzam no galope; os galopes dos mestres parecem bons e reprovavam só por isso; decidido pelo Vinicius na folha dos mestres.
 
 ## 2026-11-13 — Visuais 2, parte 2a pronta (marcas, jóquei e raridade)
 Regra em `docs/GDD.md` §6; números no wiki (seção "Marcas e jóquei").

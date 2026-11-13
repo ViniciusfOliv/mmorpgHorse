@@ -204,8 +204,9 @@ Não mudam: `sim.js` (a corrida) e `gear.js`. `prototype/dist/` e `docs/wiki.md`
 
 **Zonas e pintura (`moldes-test.mjs`, com um molde sintético e com os 4 moldes reais):**
 - cara perto do focinho e patas abaixo da linha da barriga; pernas encontradas, em 2 a 4 por quadro nos moldes
-  atuais (limite conhecido da seção 3). **Requisito dos moldes novos da 2b:** 4 pernas nos quadros retrato, parado e
-  galope, com um teste de contagem de meias por molde;
+  atuais (limite conhecido da seção 3). **Requisito dos moldes novos da 2b:** 4 pernas no retrato e no parado; no
+  galope, pelo menos 2 em todo quadro (ajustado na 2b em 2026-11-13: de lado as pernas se cruzam no galope); com um
+  teste de contagem de meias por molde;
 - cada marca só muda pixels de pelagem da zona dela;
 - `frente` cobre a zona da cara;
 - `ruao` troca de 25% a 35% do corpo;

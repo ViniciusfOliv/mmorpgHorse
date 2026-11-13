@@ -892,10 +892,10 @@ const Pc = () => { if (portesCrit.erro) throw portesCrit.erro; return portesCrit
 // pernas de pelagem x 12–13, 17–18 (coladas: 14–15), 31–32 e 36–37, de y 32 até y 41, casco (6) em y 42.
 // joquei: sela x 22–27 × y 20–21, seda x 23–26 × y 12–19, rosto x 24–25 × y 10–11, capacete x 23–26 × y 8–9.
 // dx/dy deslocam tudo; furos abre 6 buracos isolados no tronco (reprova na forma, "silhueta aberta", sem mudar o
-// corpo medido). Medidas esperadas (corpo = pelagem + contorno encostado nela): topo 9 (contorno da orelha),
+// corpo medido); sem = as pernas que não saem (0 e 1 as de trás, 2 e 3 as da frente: sem [1, 3] ⇒ 2 pernas). Medidas esperadas (corpo = pelagem + contorno encostado nela): topo 9 (contorno da orelha),
 // footY 43 (contorno do casco) ⇒ altura 35; corpo de x 9 a x 46 ⇒ comprimento 38; nose [46, 12]; espessura 14 na
 // coluna 28 (meio do corpo: contorno do lombo em y 19 até o da barriga em y 32).
-function sintPorte({ esp = 12, perna = 10, comp = 30, coladas = false, joquei = false, crina = 'normal', dx = 0, dy = 0, top = 20, furos = false } = {}) {
+function sintPorte({ esp = 12, perna = 10, comp = 30, coladas = false, joquei = false, crina = 'normal', dx = 0, dy = 0, top = 20, furos = false, sem = [] } = {}) {
   const w = 64, h = 64, idx = new Uint8Array(w * h);
   const ret = (x0, y0, x1, y1, v) => {
     for (let y = y0 + dy; y <= y1 + dy; y++) for (let x = x0 + dx; x <= x1 + dx; x++) if (x >= 0 && y >= 0 && x < w && y < h) idx[y * w + x] = v;
@@ -905,9 +905,10 @@ function sintPorte({ esp = 12, perna = 10, comp = 30, coladas = false, joquei = 
   ret(fim + 1, top - 8, fim + 6, top + 1, 2); ret(fim + 5, top - 10, fim + 5, top - 9, 2);
   if (crina === 'grande') ret(fim - 7, top - 16, fim, top - 1, 4); else ret(fim - 3, top - 6, fim, top - 1, 4);
   ret(4, top, 9, top + 10, 4);
-  for (const [a, b] of [[12, 13], coladas ? [14, 15] : [17, 18], [fim - 8, fim - 7], [fim - 3, fim - 2]]) {
+  [[12, 13], coladas ? [14, 15] : [17, 18], [fim - 8, fim - 7], [fim - 3, fim - 2]].forEach(([a, b], k) => {
+    if (sem.includes(k)) return;
     ret(a, top + esp, b, top + esp + perna - 1, 2); ret(a, top + esp + perna, b, top + esp + perna, 6);
-  }
+  });
   if (joquei) { ret(22, top, 27, top + 1, 9); ret(23, top - 8, 26, top - 1, 7); ret(24, top - 10, 25, top - 9, 8); ret(23, top - 12, 26, top - 11, 7); }
   const base = idx.slice();
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -960,18 +961,27 @@ test('pernas: 4 separadas = 4; duas coladas contam como uma', () => {
 
 test('criterioPernas: o sintético de 4 pernas passa; com duas pernas coladas reprova o retrato', () => {
   const ok = Pc().criterioPernas(moldeSint());
-  assert.ok(ok.length >= 4 && ok.every(formaCriterio), JSON.stringify(ok));
+  assert.ok(ok.length === 3 && ok.every(formaCriterio), JSON.stringify(ok)); // retrato, parado e galope
   assert.deepStrictEqual(falhos(ok), []);
   const m = moldeSint();
   m.retrato = sintPorte({ coladas: true }); m.ancoras.retrato = ancoras(m.retrato, 64, 64);
   const r = Pc().criterioPernas(m), ret = r.find(c => /retrato/.test(c.criterio));
   assert.strictEqual(ret.ok, false); assert.strictEqual(ret.valor, 3); assert.match(ret.limite, /4/);
   assert.deepStrictEqual(falhos(r), [ret.criterio], 'só o retrato reprova');
-  // galope: pelo menos 3 em todo quadro e 4 em pelo menos 5 dos 9 — 5 quadros com pernas coladas reprovam
-  const g = moldeSint();
-  [0, 2, 4, 6, 8].forEach(i => { g.galope[i] = sintPorte({ joquei: true, coladas: true }); g.ancoras['galope-' + i] = ancoras(g.galope[i], 64, 64); });
-  const fg = falhos(Pc().criterioPernas(g));
-  assert.strictEqual(fg.length, 1, fg.join(' | ')); assert.match(fg[0], /galope/);
+  // galope (regra de 2026-11-13): pelo menos 2 em todo quadro, e só isso — nada mais de "4 em 5 dos 9"
+  assert.strictEqual(Pc().LIMITES.galopeMin, 2); assert.ok(!('galopeQuatro' in Pc().LIMITES), 'saiu a regra dos 5 de 9');
+  const comPernas = (ns) => {
+    const g = moldeSint();
+    ns.forEach((n, i) => { g.galope[i] = sintPorte({ joquei: true, sem: [[1, 2, 3], [1, 3], [1], []][n - 1] }); g.ancoras['galope-' + i] = ancoras(g.galope[i], 64, 64); });
+    return Pc().criterioPernas(g).filter(c => /galope/.test(c.criterio));
+  };
+  assert.deepStrictEqual([1, 2, 3].map(n => Pc().pernas(sintPorte({ sem: [[1, 2, 3], [1, 3], [1]][n - 1] }), 64, 64)), [1, 2, 3], 'o sintético sai com 1, 2 e 3 pernas');
+  const dois = comPernas([2, 2, 2, 2, 2, 2, 2, 2, 2]);                   // 2 em todo quadro (nenhum com 4) passa
+  assert.strictEqual(dois.length, 1, 'um critério só de pernas no galope'); assert.ok(dois.every(formaCriterio));
+  assert.deepStrictEqual([dois[0].criterio, dois[0].ok, dois[0].valor, dois[0].limite, dois[0].quadros], ['pernas no galope (todo quadro)', true, 2, '≥ 2', new Array(9).fill(2)]);
+  const um = comPernas([4, 3, 4, 4, 1, 4, 4, 4, 4]);                     // um quadro com 1 reprova, mesmo com 7 de 4
+  assert.deepStrictEqual([um[0].ok, um[0].valor], [false, 1]);
+  assert.deepStrictEqual(falhos(comPernas([3, 3, 2, 3, 3, 2, 3, 3, 3])), [], 'pernas coladas e cruzadas (2 e 3) passam');
   // só os estados presentes entram (o script confere cada etapa sozinha)
   const so = Pc().criterioPernas({ w: 64, h: 64, retrato: sintPorte(), ancoras: {} });
   assert.strictEqual(so.length, 1); assert.strictEqual(so[0].ok, true);

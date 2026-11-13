@@ -37,13 +37,15 @@ const Marcas = createRequire(import.meta.url)('../src/marcas.js');
 
 export const LIMITES = Object.freeze({
   pernas: 4,            // retrato e parado: exatamente 4 pernas achadas pelo Marcas.zonas
-  galopeMin: 3,         // galope: pelo menos 3 em todo quadro…
-  galopeQuatro: 5,      // …e 4 em pelo menos 5 dos 9 quadros
+  // galope (e a pose de corrida, que vira o quadro 0 dele): pelo menos 2 em todo quadro. Na vista de lado as pernas se
+  // cruzam no galope; os galopes dos mestres pareciam bons na folha e reprovavam só pela regra antiga (≥ 3 em todo
+  // quadro e 4 em pelo menos 5 dos 9). Decidido pelo Vinicius em 2026-11-13.
+  galopeMin: 2,
   mesmoCorpo: 2,        // |Δ| máximo, em px, de cada versão para o mestre (footY, nose, altura, comprimento)
   esguioAltura: 1.10,   // (altura/comprimento do esguio) ÷ (a do padrão) ≥ 1,10
   robustoAltura: 0.92,  // (altura/comprimento do robusto) ÷ (a do padrão) ≤ 0,92
   robustoEspessura: 1.15, // (espessura/comprimento do robusto) ÷ (a do padrão) ≥ 1,15
-  quadros: 9,           // galope: exatamente 9 quadros (galope-0…8; o molde e o "4 em 5 dos 9" contam com eles)
+  quadros: 9,           // galope: exatamente 9 quadros (galope-0…8; o molde conta com eles)
   lombo: 3,             // galope: o lombo na coluna da sela varia no máximo 3 px
   nose: 6,              // galope: nose.x a ±6 px do da pose de corrida (o critério do primeiro lote)
   comprimento: 4,       // galope: o comprimento varia no máximo 4 px
@@ -120,7 +122,7 @@ export function pernas(idx, w, h, ancora) {
 const ancoraDe = (m, nome, idx) => (m.ancoras && m.ancoras[nome]) || ancoras(idx, m.w, m.h);
 const galopeDe = m => (m.galope || []).map((idx, i) => ({ idx, a: ancoraDe(m, 'galope-' + i, idx) }));
 
-/** Pernas: retrato = 4 e parado = 4; no galope, ≥ 3 em todo quadro e = 4 em pelo menos 5 dos 9. */
+/** Pernas: retrato = 4 e parado = 4; no galope, ≥ 2 em todo quadro. */
 export function criterioPernas(molde) {
   const out = [];
   for (const estado of ['retrato', 'parado']) {
@@ -130,9 +132,8 @@ export function criterioPernas(molde) {
   }
   const g = galopeDe(molde);
   if (g.length) {
-    const ns = g.map(q => pernas(q.idx, molde.w, molde.h, q.a)), min = Math.min(...ns), quatro = ns.filter(n => n === 4).length;
+    const ns = g.map(q => pernas(q.idx, molde.w, molde.h, q.a)), min = Math.min(...ns);
     out.push({ criterio: 'pernas no galope (todo quadro)', ok: min >= LIMITES.galopeMin, valor: min, limite: `≥ ${LIMITES.galopeMin}`, quadros: ns });
-    out.push({ criterio: 'pernas no galope (quadros com 4)', ok: quatro >= LIMITES.galopeQuatro, valor: quatro, limite: `≥ ${LIMITES.galopeQuatro} de ${ns.length}`, quadros: ns });
   }
   return out;
 }

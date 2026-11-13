@@ -150,8 +150,10 @@ a crina e a cauda (4 e 5), o detalhe (6), o jóquei (7 e 8) e a sela (9). As ore
    respostas cruas ficam em `raw/`.
 
 **Critérios automáticos de aceite** (no script, antes de qualquer conferência visual):
-- **pernas:** `Marcas.zonas` acha exatamente 4 pernas no retrato e no parado; no galope, pelo menos 3 em todo
-  quadro e 4 em pelo menos 5 dos 9;
+- **pernas:** `Marcas.zonas` acha exatamente 4 pernas no retrato e no parado; no galope (e na pose de corrida, que
+  vira o quadro 0 dele), pelo menos 2 em todo quadro. Na vista de lado as pernas se cruzam no galope: a regra de
+  antes (pelo menos 3 em todo quadro e 4 em pelo menos 5 dos 9) reprovava os galopes dos mestres, que pareciam bons
+  na folha. Mudança decidida pelo Vinicius em 2026-11-13;
 - **forma:** a regra de silhueta e de contorno do primeiro lote, sem buraco que deixe o fundo entrar no corpo;
 - **mesmo corpo:** no retrato e no parado, cada versão de elemento fica a no máximo 2 px do mestre no `footY`,
   no `nose`, na altura do corpo e no comprimento (medidas da seção 4, sem a crina);

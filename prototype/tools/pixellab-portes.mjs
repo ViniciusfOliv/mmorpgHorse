@@ -33,9 +33,9 @@
 // Critérios automáticos (portes-criterios.mjs) de cada tentativa:
 //   retrato e parado: forma (o validar() do primeiro lote) + 4 pernas + (versões) mesmo corpo contra o mestre +
 //                     (retrato do esguio e do robusto) a proporção contra o retrato do padrão;
-//   corrida:          forma + pelo menos 3 pernas (ela vira o quadro 0 do galope, que precisa de 3 em todo quadro);
-//   galope:           forma nos quadros + pernas do galope + galope estável contra a pose de corrida, com exatamente 9
-//                     quadros (galope com outro número reprova e só fica como "melhor", marcado).
+//   corrida:          forma + pelo menos 2 pernas (ela vira o quadro 0 do galope, que precisa de 2 em todo quadro);
+//   galope:           forma nos quadros + pelo menos 2 pernas em todo quadro + galope estável contra a pose de corrida,
+//                     com exatamente 9 quadros (galope com outro número reprova e só fica como "melhor", marcado).
 //   Item ainda reprovado depois das 3 seeds fica com a melhor tentativa (menos critérios reprovados; reprovar na forma
 //   pesa mais) e sai marcado no criterios.json e na folha; quem decide é o Vinicius.
 // Teto: somado entre rodadas em novos/gasto.json ({ geracoes, chamadas, rodadas: [...] }, gravado a cada chamada

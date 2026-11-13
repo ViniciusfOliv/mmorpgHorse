@@ -205,8 +205,8 @@ export function htmlFolhaMestres(d) {
   const corpo = `<h1>Mestres dos portes</h1>
 <p>Os 3 corpos-mestre (lisa, sem elemento) de onde saem as versões de Fogo, Água e Grama. Confira o corpo: as 4 pernas
 separadas no retrato e no parado, o esguio claramente mais alto e fino, o robusto claramente mais baixo e largo, e o
-galope sem o corpo mudar. Os critérios são os automáticos da spec (limiares: pernas = ${LIMITES.pernas}; galope ≥ ${LIMITES.galopeMin}
-pernas em todo quadro e 4 em ${LIMITES.galopeQuatro} de 9; lombo ≤ ${LIMITES.lombo} px; focinho ±${LIMITES.nose} px; comprimento ≤ ${LIMITES.comprimento} px).
+galope sem o corpo mudar. Os critérios são os automáticos da spec (limiares: pernas = ${LIMITES.pernas} no retrato e no parado;
+galope ≥ ${LIMITES.galopeMin} pernas em todo quadro, porque de lado elas se cruzam; ${LIMITES.quadros} quadros; lombo ≤ ${LIMITES.lombo} px; focinho ±${LIMITES.nose} px; comprimento ≤ ${LIMITES.comprimento} px).
 Cores fixas por papel, sem a paleta do jogo:</p>
 ${legenda()}
 <section class="cartao" style="margin-bottom:12px">${resumo}</section>
