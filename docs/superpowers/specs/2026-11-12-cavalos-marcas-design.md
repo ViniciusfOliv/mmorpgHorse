@@ -168,18 +168,20 @@ Efeitos na cor da raridade (`RARITIES[*].color`). O contorno brilhante continua 
 | Raridade | Efeito |
 |---|---|
 | Comum | nada |
-| Mágico | uma faixa de brilho corre pela crina a cada 1,2 s (mistura de 25% da cor da raridade, clareada ou escurecida conforme a crina; ver abaixo) |
+| Mágico | uma faixa de brilho corre pela crina a cada 1,2 s (mistura de 25% da cor da raridade clareada, a mesma do rastro; escurecida só nas crinas em que a clareada some, ver abaixo) |
 | Raro | o brilho na crina (30%) e 3 faíscas piscando em volta |
 | Lendário | o brilho mais forte (45%) e 5 faíscas |
 | Mítico | o mesmo do Lendário e um rastro de luz atrás do cavalo no galope da corrida |
 
-- **Cor do brilho** (corrigida na 2b, decisão do Vinicius em 2026-11-13): a cor da raridade clareada (mistura de 35%
-  com o creme) ou escurecida (35% com o roxo escuro das sombras), a que mais muda a luminância relativa da crina do
-  cavalo (`palette.mane`) no alfa de pico; se nenhuma das duas muda 0,05, as duas vão mais longe (45%, 55%, 65%) e
-  fica a primeira que chega. Na 2a era sempre a clareada (a cor pura sumia na crina verde da Grama), e a clareada sumia
-  em 14 combinações do catálogo (a pior, o Mágico na crina laranja do Tição: 0,005). Com a regra, as 60 combinações do
-  catálogo (15 crinas × Mágico, Raro, Lendário e Mítico) ficam ≥ 0,05; a menor é o Mágico na crina cinza da Ventania,
-  0,055. Só cores (`sprites.js`, `corBrilho`), sem sorteio; o rastro do Mítico continua na clareada.
+- **Cor do brilho** (corrigida na 2b, decisão do Vinicius em 2026-11-13): o brilho é um reflexo claro. Fica a cor da
+  raridade clareada (mistura de 35% com o creme, a da 2a; a cor pura sumia na crina verde da Grama) sempre que ela muda
+  a luminância relativa da crina do cavalo (`palette.mane`), no alfa de pico, em pelo menos 0,05. Só onde não muda,
+  vale a clareada ou a escurecida (35% com o roxo escuro das sombras), a de maior diferença; se nenhuma das duas chega a
+  0,05, as duas vão mais longe (45%, 55%, 65%) e fica a primeira que chega. Com a clareada fixa, o brilho sumia em 14
+  combinações do catálogo (a pior, o Mágico na crina laranja do Tição: 0,005). Com a regra, as 60 combinações do
+  catálogo (15 crinas × Mágico, Raro, Lendário e Mítico) ficam ≥ 0,05: 46 continuam na clareada, 13 passam à escurecida
+  e 1 (o Mítico no Mandacaru) à clareada de 45%; a menor é o Lendário na crina da Faísca, 0,052, na clareada. Só cores
+  (`sprites.js`, `corBrilho`), sem sorteio; o rastro do Mítico continua na clareada.
 - **Onde:** retrato (estábulo, ficha, Haras, selvagens), parado (sala), corrida e pódio.
 - **Faíscas:** posições fixas em volta da caixa do cavalo, calculadas da chave dele. Cada uma é uma cruz de
   1 px que pisca com fase própria, desenhada pelo tempo de animação (sem `Math.random`).
