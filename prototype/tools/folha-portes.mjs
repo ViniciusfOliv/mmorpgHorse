@@ -11,7 +11,9 @@
 //            breed.js, marcas.js e sprites.js e a tabela __MOLDES lida da pasta (lerMoldes). O conjunto 'portes' só existe
 //            com os 12 moldes; com menos, a folha diz o que falta e desenha o que tem direto, como a dos mestres.
 // Os critérios são recalculados dos arquivos (portes-criterios.mjs); do criterios.json do lote vêm as seeds, o número
-// de tentativas e o que reprovou na forma. Item reprovado sai marcado com o critério que falhou.
+// de tentativas, o que reprovou na forma, a guia de outro mestre (--guia-mestre) e as escolhas manuais (--escolher).
+// Item reprovado sai marcado com o critério que falhou; o critério que uma escolha manual aceitou sai como "aceito"
+// (não reprova o cartão), com a linha "escolha manual — aceito na folha: <motivo>".
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -59,15 +61,23 @@ function faixa(quadros, w, h, k) {
 }
 
 // ---------------------------------------------------------------- critérios de um molde
-const okDe = lista => lista.every(c => c.ok);
+// critério aceito por uma escolha manual (--escolher) conta como ok no cartão
+const okDe = lista => lista.every(c => c.ok || c.aceito);
 function criteriosDoMolde(m, mestre) {
   const out = [...criterioPernas(m), ...criterioGalope(m)];
   if (mestre) out.push(...criterioMesmoCorpo(m, mestre));
   return out;
 }
+// os nomes dos critérios que as escolhas manuais do item aceitaram na folha (etapas.<etapa>.escolha.aceitos)
+function aceitosDe(reg) {
+  const out = [];
+  for (const x of Object.values((reg && reg.etapas) || {})) if (x.escolha && x.escolha.manual) out.push(...(x.escolha.aceitos || []));
+  return out;
+}
+const marcarAceitos = (lista, aceitos) => lista.map(c => (!c.ok && aceitos.includes(c.criterio) ? Object.assign({}, c, { aceito: true }) : c));
 function itemDe(novos, chave, porte, estilo, crit, mestre) {
-  const molde = lerMolde(novos, chave), reg = crit.itens[chave] || null;
-  return { chave, porte, estilo, molde, registro: reg, criterios: molde ? criteriosDoMolde(molde, mestre) : [] };
+  const molde = lerMolde(novos, chave), reg = crit.itens[chave] || null, aceitos = aceitosDe(reg);
+  return { chave, porte, estilo, molde, registro: reg, aceitos, criterios: molde ? marcarAceitos(criteriosDoMolde(molde, mestre), aceitos) : [] };
 }
 
 /** Dados da folha dos mestres: os 3 lisa (molde ou null), os critérios de cada um e os portes distintos. */
@@ -75,7 +85,12 @@ export function dadosMestres(novos = DIR_NOVOS) {
   const crit = lerCriterios(novos);
   const itens = PORTES.map(p => itemDe(novos, `${p}-lisa`, p, 'lisa', crit, null));
   const ms = Object.fromEntries(itens.filter(i => i.molde).map(i => [i.porte, i.molde]));
-  return { itens, portes: ms.padrao ? criterioPortes(ms) : [], semPadrao: !ms.padrao };
+  // os portes distintos do retrato aceitos por uma escolha manual do retrato daquele porte
+  const portes = ms.padrao ? criterioPortes(ms).map(c => {
+    const it = itens.find(i => new RegExp(`do ${i.porte} `).test(c.criterio));
+    return it ? marcarAceitos([c], it.aceitos)[0] : c;
+  }) : [];
+  return { itens, portes, semPadrao: !ms.padrao };
 }
 
 // Os 3 cavalos do catálogo de cada elemento que dão a paleta das linhas da folha final: o de cada raridade da folha
@@ -109,11 +124,11 @@ export function dadosFinal(novos = DIR_NOVOS) {
 
 // ---------------------------------------------------------------- HTML
 const ESTILO_BASE = `
-:root { --bg: #f4efe2; --cartao: #fffaf0; --texto: #1d2a22; --suave: #56665b; --borda: #cdbf9f; --ok: #2e7d32; --nao: #b3261e; --palco: #8fae96; }
+:root { --bg: #f4efe2; --cartao: #fffaf0; --texto: #1d2a22; --suave: #56665b; --borda: #cdbf9f; --ok: #2e7d32; --nao: #b3261e; --aceito: #8a5a00; --palco: #8fae96; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --bg: #16211b; --cartao: #1e2c24; --texto: #eee7d6; --suave: #a9b7ad; --borda: #34483c; --ok: #7bd389; --nao: #ff8a80; }
+  :root:not([data-theme="light"]) { --bg: #16211b; --cartao: #1e2c24; --texto: #eee7d6; --suave: #a9b7ad; --borda: #34483c; --ok: #7bd389; --nao: #ff8a80; --aceito: #f2c46d; }
 }
-:root[data-theme="dark"] { --bg: #16211b; --cartao: #1e2c24; --texto: #eee7d6; --suave: #a9b7ad; --borda: #34483c; --ok: #7bd389; --nao: #ff8a80; }
+:root[data-theme="dark"] { --bg: #16211b; --cartao: #1e2c24; --texto: #eee7d6; --suave: #a9b7ad; --borda: #34483c; --ok: #7bd389; --nao: #ff8a80; --aceito: #f2c46d; }
 * { box-sizing: border-box; }
 body { margin: 0; padding: 16px; background: var(--bg); color: var(--texto); font: 14px/1.45 system-ui, sans-serif; }
 h1 { font-size: 20px; margin: 0 0 6px; }
@@ -134,6 +149,7 @@ ul.crit { list-style: none; padding: 0; margin: 8px 0 0; font-size: 12px; }
 ul.crit li { padding: 2px 0; border-top: 1px solid var(--borda); }
 .ok { color: var(--ok); font-weight: 600; }
 .nao { color: var(--nao); font-weight: 600; }
+.aceito { color: var(--aceito); font-weight: 600; }
 .selo { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 9px; border: 1px solid currentColor; margin-left: 6px; vertical-align: middle; }
 .falta { padding: 40px 8px; text-align: center; color: var(--nao); font-weight: 700; border: 1px dashed var(--borda); border-radius: 6px; }
 .legenda { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; margin: 8px 0 14px; }
@@ -164,19 +180,31 @@ ${scripts}
 }
 function listaCriterios(lista) {
   if (!lista.length) return '';
-  return `<ul class="crit">${lista.map(c => `<li><span class="${c.ok ? 'ok' : 'nao'}">${c.ok ? 'ok' : 'NÃO'}</span> ${esc(c.criterio)}: ${esc(num(c.valor))} <small>(${esc(c.limite)})</small></li>`).join('')}</ul>`;
+  const marca = c => (c.ok ? ['ok', 'ok'] : c.aceito ? ['aceito', 'aceito na folha'] : ['nao', 'NÃO']);
+  return `<ul class="crit">${lista.map(c => `<li><span class="${marca(c)[0]}">${marca(c)[1]}</span> ${esc(c.criterio)}: ${esc(num(c.valor))} <small>(${esc(c.limite)})</small></li>`).join('')}</ul>`;
 }
 const legenda = () => `<div class="legenda">${CORES_PAPEIS.map((c, i) => (c ? `<span style="--c:${c}">${esc(NOMES_PAPEIS[i])}</span>` : '')).join('')}</div>`;
+// a guia de outro mestre (--guia-mestre) que vale para a etapa: a gravada na mesma refação dela
+const guiaMestreDe = (reg, e) => { const gm = reg.guiaMestre && reg.guiaMestre[e], x = reg.etapas && reg.etapas[e]; return gm && x && (gm.refacao || 0) === (x.refacao || 0) ? gm : null; };
 function registroTxt(reg) {
   if (!reg) return '<p class="suave">Sem registro no criterios.json (molde fora do lote).</p>';
   const seeds = ['retrato', 'parado', 'corrida', 'galope'].map(e => {
     const x = reg.etapas && reg.etapas[e];
-    // refacao = a refação do --refazer (0 ou ausente: as seeds de sempre)
-    return x ? `${e} ${x.escolhida}${x.refacao ? `, refeita (refação ${x.refacao})` : ''}${x.tentativas.length > 1 ? ` (${x.tentativas.length} tentativas)` : ''}` : `${e} —`;
+    if (!x) return `${e} —`;
+    // refacao = a refação do --refazer (0 ou ausente: as seeds de sempre); escolha manual: a tentativa pode vir de outra
+    // refação (a do histórico); guia de outro mestre: a força da tentativa escolhida
+    const esc0 = x.escolha && x.escolha.manual ? x.escolha : null, gm = guiaMestreDe(reg, e);
+    const t = (x.tentativas || []).find(y => y.seed === x.escolhida && (!esc0 || !esc0.arquivo || y.arquivo === esc0.arquivo));
+    return `${e} ${x.escolhida}${esc0 ? ` (escolha manual, da ${esc0.origem})` : x.refacao ? `, refeita (refação ${x.refacao})` : ''}${x.tentativas.length > 1 ? ` (${x.tentativas.length} tentativas)` : ''}`
+      + (gm && !esc0 ? `, guiada por ${gm.mestre}${t && t.init_image_strength ? ` com força ${t.init_image_strength}` : ''}` : '');
   });
   const forma = (reg.falhas || []).filter(f => /forma|imagem|interrompida|faltaria|quadros/.test(f));
+  const guias = ['retrato', 'parado', 'corrida'].map(e => [e, guiaMestreDe(reg, e)]).filter(([, gm]) => gm);
+  const guiaTxt = guias.length ? `<p class="suave">Guia de outro mestre: ${guias.map(([e, gm]) => `${e} com init_image = ${esc(gm.arquivo || '?')}`).join('; ')} · forças ${esc(guias[0][1].forcas.join(', '))} nas 3 tentativas · reforço "${esc(guias[0][1].reforco)}"</p>` : '';
+  const escolhas = ['retrato', 'parado', 'corrida', 'galope'].map(e => [e, reg.etapas && reg.etapas[e] && reg.etapas[e].escolha]).filter(([, x]) => x && x.manual);
+  const escolhaTxt = escolhas.map(([e, x]) => `<p class="aceito">${esc(e)} ${esc(x.seed)}: escolha manual — aceito na folha: ${esc(x.motivo)}${x.aceitos && x.aceitos.length ? ` <small>(${esc(x.aceitos.join('; '))})</small>` : ''}${x.automatico ? ` <small>(${esc(x.automatico)})</small>` : ''}</p>`).join('');
   return `<p class="suave">Seeds: ${esc(seeds.join(' · '))}${reg.guia ? ` · init_image do mestre, força ${esc(reg.guia.init_image_strength)}` : ''}</p>`
-    + (forma.length ? `<p class="nao">${forma.map(esc).join('<br>')}</p>` : '');
+    + guiaTxt + escolhaTxt + (forma.length ? `<p class="nao">${forma.map(esc).join('<br>')}</p>` : '');
 }
 // o molde desenhado direto: retrato, parado e galope animado em 1× e 4×, e os quadros do galope parados em 2×
 function desenhoDireto(m, chave) {
@@ -191,7 +219,8 @@ function desenhoDireto(m, chave) {
 }
 function cartaoDireto(item, titulo, extraCrit = []) {
   const crits = [...item.criterios, ...extraCrit], reprovado = item.molde && (!okDe(crits) || (item.registro && item.registro.ok === false));
-  const selo = !item.molde ? '<span class="selo nao">falta</span>' : reprovado ? '<span class="selo nao">reprovado</span>' : '<span class="selo ok">passou</span>';
+  const aceito = crits.some(c => c.aceito);
+  const selo = !item.molde ? '<span class="selo nao">falta</span>' : reprovado ? '<span class="selo nao">reprovado</span>' : aceito ? '<span class="selo aceito">aceito na folha</span>' : '<span class="selo ok">passou</span>';
   const corpo = item.molde ? desenhoDireto(item.molde, item.chave) + listaCriterios(crits) + registroTxt(item.registro)
     : `<div class="falta">falta: molde-${esc(item.chave)} em novos/</div>`;
   return `<article class="cartao${reprovado ? ' reprovado' : ''}" id="${esc(item.chave)}"><h2>${esc(titulo)} <small>${esc(item.chave)}</small>${selo}</h2>${corpo}</article>`;
