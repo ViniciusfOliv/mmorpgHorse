@@ -61,8 +61,9 @@ valor. As regras de antes continuam valendo:
 - os sorteios que já existem no `foal()` (passos 1 a 8 e as marcas) não mudam em número nem em ordem;
 - o Mítico nunca nasce de cruzamento.
 
-**Catálogo** (escolha minha, a conferir pelo Vinicius). Os iniciais ficam todos no padrão, para que a escolha do
-inicial compare cavalos com o mesmo corpo. Os nomes guiaram o resto:
+**Catálogo** (escolha minha, que o Vinicius confere na revisão desta spec; depois dela, a tabela é a fonte da
+verdade para os testes e o wiki). Os iniciais ficam todos no padrão, para que a escolha do inicial compare cavalos
+com o mesmo corpo. Os nomes guiaram o resto:
 
 | Cavalo | Elemento | Porte |
 |---|---|---|
@@ -120,11 +121,20 @@ Os pedidos exageram a diferença: o esguio claramente mais alto e fino, o robust
 **Crina e cauda por elemento:** as de hoje. Chamas para Fogo, ondas para Água e folhas para Grama, cada uma
 com o seu detalhe (papel 6). As versões de elemento mantêm o corpo do mestre.
 
-**Escala.** Hoje a escala única sai do maior `larguraUtil` entre os estilos. Ela passa a sair **só dos
-desenhos do padrão**, que ficam do tamanho dos cavalos de hoje; esguio e robusto ficam maiores ou menores
-de verdade em relação a eles. Se um porte não couber na raia ou no cartão (o teste de interface já confere
-que o cavalo nunca sai da tela e que nada rola de lado a 360 px), ajusta-se o pedido ou o recorte daquele
-porte, nunca a escala dos outros.
+**Tela e escala.** O canvas continua 64×64. O PixelLab tende a encher o canvas com o cavalo, qualquer que seja o
+porte pedido, então a diferença entre os portes está nas **proporções** (altura e espessura do corpo em relação ao
+comprimento), e não no tamanho absoluto do desenho. Hoje a escala única sai do maior `larguraUtil` entre os
+estilos. Ela passa a sair do maior `larguraUtil` **entre os 4 desenhos do padrão** (`lisa` incluído), e os
+cavalos do padrão ficam do tamanho dos de hoje. O encaixe continua pelas âncoras de cada molde, como hoje: pés
+no `footY`, focinho no `nose`, retrato pelo bbox. Se um porte não couber na raia ou no cartão (o teste de
+interface já confere que o cavalo nunca sai da tela e que nada rola de lado a 360 px), ajusta-se o pedido ou o
+recorte daquele porte, nunca a escala dos outros.
+
+**Medidas do corpo** (usadas nos critérios da seção 5): só os papéis 1 a 3 (contorno e pelagem). Ficam de fora
+a crina e a cauda (4 e 5), o detalhe (6), o jóquei (7 e 8) e a sela (9). As orelhas contam como corpo.
+- **altura do corpo:** do pixel de corpo mais alto até o `footY`;
+- **comprimento:** o `larguraUtil`;
+- **espessura:** do lombo à barriga, na coluna da sela; no retrato, que não tem sela, na coluna do meio do bbox.
 
 ## 5. Geração (PixelLab, API v2, com o mesmo script)
 
@@ -143,14 +153,30 @@ porte, nunca a escala dos outros.
 - **pernas:** `Marcas.zonas` acha exatamente 4 pernas no retrato e no parado; no galope, pelo menos 3 em todo
   quadro e 4 em pelo menos 5 dos 9;
 - **forma:** a regra de silhueta e de contorno do primeiro lote, sem buraco que deixe o fundo entrar no corpo;
-- **mesmo corpo:** cada versão de elemento fica a no máximo 2 px do mestre no `footY`, no `nose` e na
-  altura do bbox, nos estados parados;
-- **portes distintos:** no retrato dos mestres, a altura do bbox do esguio é pelo menos 10% maior que a do
-  padrão, e a do robusto pelo menos 8% menor. A espessura do corpo (do lombo à barriga, na coluna da sela) do
-  robusto é pelo menos 15% maior que a do padrão.
+- **mesmo corpo:** no retrato e no parado, cada versão de elemento fica a no máximo 2 px do mestre no `footY`,
+  no `nose`, na altura do corpo e no comprimento (medidas da seção 4, sem a crina);
+- **portes distintos,** em proporção, no retrato dos mestres:
+  - altura do corpo ÷ comprimento: no esguio, pelo menos 1,10 × a do padrão; no robusto, no máximo 0,92 × a do
+    padrão;
+  - espessura ÷ comprimento: no robusto, pelo menos 1,15 × a do padrão;
+- **galope estável:** nos 9 quadros, o lombo na coluna da sela varia no máximo 3 px, o `nose.x` fica a ±6 px do
+  da pose de corrida (o critério do primeiro lote) e o comprimento varia no máximo 4 px. O porte não pode mudar
+  no meio do galope.
 
-Uma geração que falha num critério é repetida com outra seed, dentro do teto. Os números de 10%, 8% e 15%
-são o meu ponto de partida. Se o PixelLab não chegar neles, o Vinicius decide na folha se aceita o que saiu.
+**Quando um critério falha:**
+- **Repetição:** cada item tem até 3 seeds.
+- **Piloto:** antes das 9 versões, sai uma versão piloto por porte (a de Fogo), para ver se o `init_image`
+  segura o corpo do mestre. Se o piloto não passar no "mesmo corpo" em 3 seeds, as versões daquele porte saem
+  pelo caminho 2 (sem `init_image`), com os mesmos critérios.
+- **Item ainda reprovado depois das 3 seeds:** a melhor tentativa vai para a folha marcada com o critério que
+  falhou, e o Vinicius decide entre aceitar, refazer ou dar mais teto. O teto nunca sobe sem a confirmação dele.
+- **Limiares:** os de 1,10, 0,92 e 1,15 são o meu ponto de partida. Se o PixelLab não chegar neles, o Vinicius
+  decide na folha dos mestres se aceita o que saiu.
+
+**Entrega.** É tudo ou nada: a 2b só entra na `claude/cavalos-v3` com os 12 moldes aprovados. Até lá:
+- o código do gene, do save, das telas e do wiki pode ser feito antes, com os desenhos de hoje fazendo as vezes
+  dos três portes, e o `check.sh` fica verde a cada passo;
+- os moldes novos entram, e os antigos saem, no mesmo commit, depois da folha final.
 
 **Folhas para o Vinicius aprovar** (artefato do claude.ai, como a folha dos ícones):
 1. **Folha dos mestres:** os 3 portes lado a lado, em retrato, parado e galope animado, em tamanho real e

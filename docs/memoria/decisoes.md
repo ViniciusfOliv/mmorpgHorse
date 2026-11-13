@@ -3,6 +3,13 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-13 — Visuais 2, parte 2b (portes): desenho
+Conversa com o Vinicius. Spec em `docs/superpowers/specs/2026-11-13-cavalos-portes-design.md`, aguardando a revisão dele.
+- **O porte é um gene herdado, como as marcas (só aparência)** — escolha do Vinicius; dá mais variedade e não amarra a cara do cavalo ao balanceamento (a outra opção era o porte sair da genética de status).
+- **Três portes inspirados em raças brasileiras: esguio, padrão e robusto, iguais nos três elementos** — dito pelo Vinicius; o cruzamento mistura elementos, então o gene precisa valer em qualquer um.
+- **O padrão também é gerado de novo (9 desenhos novos, os de hoje saem)** — escolha do Vinicius; os três portes saem com a mesma receita, todos com as 4 pernas separadas (fecha o limite das meias) e cada elemento com a sua crina no galope.
+- **Um corpo-mestre por porte, com as versões de Fogo, Água e Grama partindo dele** — escolha do Vinicius; garante o mesmo corpo do porte em qualquer elemento e barateia as refações.
+
 ## 2026-11-13 — Visuais 2, parte 2a pronta (marcas, jóquei e raridade)
 Regra em `docs/GDD.md` §6; números no wiki (seção "Marcas e jóquei").
 - **As zonas de cara e pernas são calculadas pelas regras de `prototype/src/marcas.js` (cara: raio de 0,19 × largura útil a partir do focinho, cortado em `nose.y + 1`; pernas: componentes 4-conexas partidas no vão entre cascos)** — as regras da spec original falhavam nos moldes reais: na cara, a zona derivava no galope e pegava o pescoço; nas pernas, os grupos de colunas juntavam pernas vizinhas.

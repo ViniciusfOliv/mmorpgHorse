@@ -72,7 +72,10 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   jóquei e raridade, em código), 2b (portes no PixelLab) e 2c (animações). **A parte 2a está pronta e integrada na
   `claude/cavalos-v3`** (spec em `docs/superpowers/specs/2026-11-12-cavalos-marcas-design.md`): marcas por
   cavalo com 3 genes herdados pela seed, jóquei do jogador no Perfil e raridade em escada, tudo em código e
-  sem créditos. **Próxima: a 2b (portes, PixelLab), só com confirmação de créditos.**
+  sem créditos. **2b (portes) em desenho:** gene herdado com 3 portes (esguio, padrão, robusto) iguais nos três
+  elementos, 9 desenhos novos a partir de um corpo-mestre por porte; spec em
+  `docs/superpowers/specs/2026-11-13-cavalos-portes-design.md`, **aguardando a revisão do Vinicius**. Geração só
+  com confirmação de créditos (teto proposto: 90).
   **Pendências da 2a que vão para a 2b:** moldes novos com as 4 pernas separadas no retrato e no parado, com
   teste de contagem de meias por molde (hoje 3 e 4 meias aparecem como 2 ou 3 em alguns quadros); teste do caso
   "pele acima do capacete" (`marcas.js` ~386-388) com os moldes novos; conferir o brilho das raridades nos
