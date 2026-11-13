@@ -877,5 +877,170 @@ section('Catálogo de ícones');
   });
 }
 
+// ---------------------------------------------------------------- Portes: critérios (spec 2026-11-13-cavalos-portes §4–§5)
+// prototype/tools/portes-criterios.mjs: medidas do corpo (só pelagem e o contorno dela) e os critérios automáticos
+// de aceite dos 12 moldes novos, sobre moldes sintéticos montados aqui.
+section('Portes: critérios');
+const portesCrit = await import('./portes-criterios.mjs').then(M => ({ M }), erro => ({ erro }));
+const Pc = () => { if (portesCrit.erro) throw portesCrit.erro; return portesCrit.M; };
+
+// Cavalo sintético 64×64 de lado, virado para a direita, com contorno 1 em volta de tudo. Com os padrões
+// (top 20, esp 12, perna 10, comp 30): tronco x 10–39 × y 20–31 (sombra nas 2 linhas de baixo); cabeça x 40–45 ×
+// y 12–21 e orelha x 44 × y 10–11; crina x 36–39 × y 14–19 ('grande': x 32–39 × y 4–19); cauda x 4–9 × y 20–30;
+// pernas de pelagem x 12–13, 17–18 (coladas: 14–15), 31–32 e 36–37, de y 32 até y 41, casco (6) em y 42.
+// joquei: sela x 22–27 × y 20–21, seda x 23–26 × y 12–19, rosto x 24–25 × y 10–11, capacete x 23–26 × y 8–9.
+// dx/dy deslocam tudo. Medidas esperadas (corpo = pelagem + contorno encostado nela): topo 9 (contorno da orelha),
+// footY 43 (contorno do casco) ⇒ altura 35; corpo de x 9 a x 46 ⇒ comprimento 38; nose [46, 12]; espessura 14 na
+// coluna 28 (meio do corpo: contorno do lombo em y 19 até o da barriga em y 32).
+function sintPorte({ esp = 12, perna = 10, comp = 30, coladas = false, joquei = false, crina = 'normal', dx = 0, dy = 0, top = 20 } = {}) {
+  const w = 64, h = 64, idx = new Uint8Array(w * h);
+  const ret = (x0, y0, x1, y1, v) => {
+    for (let y = y0 + dy; y <= y1 + dy; y++) for (let x = x0 + dx; x <= x1 + dx; x++) if (x >= 0 && y >= 0 && x < w && y < h) idx[y * w + x] = v;
+  };
+  const fim = 10 + comp - 1;
+  ret(10, top, fim, top + esp - 3, 2); ret(10, top + esp - 2, fim, top + esp - 1, 3);
+  ret(fim + 1, top - 8, fim + 6, top + 1, 2); ret(fim + 5, top - 10, fim + 5, top - 9, 2);
+  if (crina === 'grande') ret(fim - 7, top - 16, fim, top - 1, 4); else ret(fim - 3, top - 6, fim, top - 1, 4);
+  ret(4, top, 9, top + 10, 4);
+  for (const [a, b] of [[12, 13], coladas ? [14, 15] : [17, 18], [fim - 8, fim - 7], [fim - 3, fim - 2]]) {
+    ret(a, top + esp, b, top + esp + perna - 1, 2); ret(a, top + esp + perna, b, top + esp + perna, 6);
+  }
+  if (joquei) { ret(22, top, 27, top + 1, 9); ret(23, top - 8, 26, top - 1, 7); ret(24, top - 10, 25, top - 9, 8); ret(23, top - 12, 26, top - 11, 7); }
+  const base = idx.slice();
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (base[y * w + x]) continue;
+    if ((x > 0 && base[y * w + x - 1]) || (x < w - 1 && base[y * w + x + 1]) || (y > 0 && base[(y - 1) * w + x]) || (y < h - 1 && base[(y + 1) * w + x])) idx[y * w + x] = 1;
+  }
+  return idx;
+}
+// molde no formato dos critérios: retrato sem jóquei, parado com jóquei e 9 quadros de galope (parado deslocado)
+function moldeSint(op = {}, galopeDy = [0, 1, 2, 1, 0, 1, 2, 1, 0]) {
+  const retrato = sintPorte(op), parado = sintPorte(Object.assign({}, op, { joquei: true }));
+  const galope = galopeDy.map(d => sintPorte(Object.assign({}, op, { joquei: true, dy: (op.dy || 0) + d })));
+  const anc = { retrato: ancoras(retrato, 64, 64), parado: ancoras(parado, 64, 64) };
+  galope.forEach((q, i) => { anc['galope-' + i] = ancoras(q, 64, 64); });
+  return { w: 64, h: 64, retrato, parado, galope, ancoras: anc, larguraUtil: anc.retrato.bbox.w };
+}
+const falhos = lista => lista.filter(c => !c.ok).map(c => c.criterio);
+const formaCriterio = c => typeof c.criterio === 'string' && typeof c.ok === 'boolean' && 'valor' in c && typeof c.limite === 'string';
+
+test('medidas num retângulo conhecido: altura, comprimento e espessura do corpo, sem a crina nem o jóquei', () => {
+  const r = sintPorte();
+  const m = Pc().medidas(r, 64, 64, ancoras(r, 64, 64));
+  assert.deepStrictEqual([m.altura, m.comprimento, m.espessura, m.footY, m.nose], [35, 38, 14, 43, [46, 12]]);
+  // a crina grande (até y 4, contorno em y 3) muda o bbox e as âncoras, mas não o corpo
+  const g = sintPorte({ crina: 'grande' }), ag = ancoras(g, 64, 64);
+  assert.ok(ag.bbox.y < 9, 'a crina grande sobe o bbox (y ' + ag.bbox.y + ')');
+  const mg = Pc().medidas(g, 64, 64, ag);
+  assert.deepStrictEqual([mg.altura, mg.comprimento, mg.espessura, mg.footY, mg.nose], [35, 38, 14, 43, [46, 12]]);
+  // jóquei e sela: altura, comprimento e focinho iguais; a espessura vai para a coluna da sela (x 25), do topo da
+  // sela (y 20, sobre o lombo) até o contorno da barriga (y 32)
+  const j = sintPorte({ joquei: true, crina: 'grande' }), aj = ancoras(j, 64, 64);
+  assert.deepStrictEqual(aj.saddle, [25, 21]);
+  const mj = Pc().medidas(j, 64, 64, aj);
+  assert.deepStrictEqual([mj.altura, mj.comprimento, mj.espessura, mj.footY, mj.nose], [35, 38, 13, 43, [46, 12]]);
+  // pernas mais longas sobem a altura; tronco mais grosso sobe a espessura; o comprimento fica
+  const e = sintPorte({ perna: 14, esp: 15 }), me = Pc().medidas(e, 64, 64, ancoras(e, 64, 64));
+  assert.deepStrictEqual([me.altura, me.comprimento, me.espessura], [42, 38, 17]);
+  // sem âncora, calcula a do quadro; quadro vazio não lança
+  assert.deepStrictEqual(Pc().medidas(r, 64, 64), m);
+  const v = Pc().medidas(new Uint8Array(64 * 64), 64, 64);
+  assert.deepStrictEqual([v.altura, v.comprimento, v.espessura], [0, 0, 0]);
+});
+
+test('pernas: 4 separadas = 4; duas coladas contam como uma', () => {
+  assert.strictEqual(Pc().pernas(sintPorte(), 64, 64, ancoras(sintPorte(), 64, 64)), 4);
+  assert.strictEqual(Pc().pernas(sintPorte({ joquei: true }), 64, 64), 4);
+  assert.strictEqual(Pc().pernas(sintPorte({ coladas: true }), 64, 64), 3);
+});
+
+test('criterioPernas: o sintético de 4 pernas passa; com duas pernas coladas reprova o retrato', () => {
+  const ok = Pc().criterioPernas(moldeSint());
+  assert.ok(ok.length >= 4 && ok.every(formaCriterio), JSON.stringify(ok));
+  assert.deepStrictEqual(falhos(ok), []);
+  const m = moldeSint();
+  m.retrato = sintPorte({ coladas: true }); m.ancoras.retrato = ancoras(m.retrato, 64, 64);
+  const r = Pc().criterioPernas(m), ret = r.find(c => /retrato/.test(c.criterio));
+  assert.strictEqual(ret.ok, false); assert.strictEqual(ret.valor, 3); assert.match(ret.limite, /4/);
+  assert.deepStrictEqual(falhos(r), [ret.criterio], 'só o retrato reprova');
+  // galope: pelo menos 3 em todo quadro e 4 em pelo menos 5 dos 9 — 5 quadros com pernas coladas reprovam
+  const g = moldeSint();
+  [0, 2, 4, 6, 8].forEach(i => { g.galope[i] = sintPorte({ joquei: true, coladas: true }); g.ancoras['galope-' + i] = ancoras(g.galope[i], 64, 64); });
+  const fg = falhos(Pc().criterioPernas(g));
+  assert.strictEqual(fg.length, 1, fg.join(' | ')); assert.match(fg[0], /galope/);
+  // só os estados presentes entram (o script confere cada etapa sozinha)
+  const so = Pc().criterioPernas({ w: 64, h: 64, retrato: sintPorte(), ancoras: {} });
+  assert.strictEqual(so.length, 1); assert.strictEqual(so[0].ok, true);
+});
+
+test('criterioMesmoCorpo: deslocado 2 px passa, 3 px reprova; uma crina maior não muda o resultado', () => {
+  const mestre = moldeSint();
+  const c2 = Pc().criterioMesmoCorpo(moldeSint({ dx: 2 }), mestre);
+  assert.strictEqual(c2.length, 10, 'retrato e parado × footY, nose.x, nose.y, altura e comprimento');
+  assert.ok(c2.every(formaCriterio));
+  assert.deepStrictEqual(falhos(c2), []);
+  assert.deepStrictEqual(c2.filter(c => /nose\.x/.test(c.criterio)).map(c => c.valor), [2, 2]);
+  const c3 = falhos(Pc().criterioMesmoCorpo(moldeSint({ dx: 3 }), mestre));
+  assert.strictEqual(c3.length, 2, c3.join(' | ')); c3.forEach(n => assert.match(n, /nose\.x/));
+  assert.strictEqual(falhos(Pc().criterioMesmoCorpo(moldeSint({ dy: 3 }), mestre)).length, 4, 'dy 3: footY e nose.y nos 2 estados, e nada mais');
+  assert.deepStrictEqual(falhos(Pc().criterioMesmoCorpo(moldeSint({ crina: 'grande' }), mestre)), []);
+  assert.deepStrictEqual(Pc().criterioMesmoCorpo(moldeSint({ crina: 'grande' }), mestre).map(c => c.valor), new Array(10).fill(0));
+});
+
+test('criterioPortes: esguio ≥ 1,10 × a altura/comprimento do padrão; robusto ≤ 0,92 e espessura ≥ 1,15', () => {
+  const padrao = moldeSint();
+  const crit = (op, nome) => Pc().criterioPortes({ padrao, [nome]: moldeSint(op) });
+  const esgOk = crit({ perna: 14 }, 'esguio');                              // altura 39 / 35 = 1,114
+  assert.strictEqual(esgOk.length, 1); assert.ok(esgOk.every(formaCriterio));
+  assert.strictEqual(esgOk[0].ok, true, JSON.stringify(esgOk)); assert.ok(Math.abs(esgOk[0].valor - 39 / 35) < 0.001);
+  assert.strictEqual(crit({ perna: 12 }, 'esguio')[0].ok, false, 'altura 37 / 35 = 1,057');
+  const robOk = crit({ esp: 15, perna: 4 }, 'robusto');                     // altura 32 / 35 = 0,914; espessura 17 / 14 = 1,214
+  assert.strictEqual(robOk.length, 2); assert.deepStrictEqual(falhos(robOk), [], JSON.stringify(robOk));
+  assert.deepStrictEqual(falhos(crit({ esp: 15, perna: 6 }, 'robusto')).length, 1, 'altura 34 / 35 = 0,971');
+  assert.match(falhos(crit({ esp: 15, perna: 6 }, 'robusto'))[0], /altura/);
+  assert.match(falhos(crit({ esp: 13, perna: 6 }, 'robusto'))[0], /espessura/, 'espessura 15 / 14 = 1,071');
+  const tres = Pc().criterioPortes({ esguio: moldeSint({ perna: 14 }), padrao, robusto: moldeSint({ esp: 15, perna: 4 }) });
+  assert.strictEqual(tres.length, 3); assert.deepStrictEqual(falhos(tres), []);
+  // sem o padrão não há referência: cada critério reprova, com valor nulo, sem lançar
+  const sem = Pc().criterioPortes({ esguio: moldeSint({ perna: 14 }) });
+  assert.strictEqual(sem.length, 1); assert.strictEqual(sem[0].ok, false); assert.strictEqual(sem[0].valor, null);
+});
+
+test('criterioGalope: lombo estável passa; o lombo pulando 4 px reprova', () => {
+  const ok = Pc().criterioGalope(moldeSint());
+  assert.strictEqual(ok.length, 3, 'lombo, nose.x contra a pose de corrida e comprimento'); assert.ok(ok.every(formaCriterio));
+  assert.deepStrictEqual(falhos(ok), [], JSON.stringify(ok));
+  const pulo = Pc().criterioGalope(moldeSint({}, [0, 0, 0, 0, 4, 0, 0, 0, 0]));
+  assert.deepStrictEqual(falhos(pulo).length, 1); assert.match(falhos(pulo)[0], /lombo/);
+  assert.strictEqual(pulo.find(c => /lombo/.test(c.criterio)).valor, 4);
+  // focinho a 7 px da pose de corrida (o quadro 0, ou molde.corrida) reprova; comprimento mudando 5 px reprova
+  const m = moldeSint();
+  m.galope[3] = sintPorte({ joquei: true, dx: 7 }); m.ancoras['galope-3'] = ancoras(m.galope[3], 64, 64);
+  assert.match(falhos(Pc().criterioGalope(m)).join(), /nose/);
+  const c = moldeSint();
+  c.galope[5] = sintPorte({ joquei: true, comp: 25 }); c.ancoras['galope-5'] = ancoras(c.galope[5], 64, 64);
+  assert.match(falhos(Pc().criterioGalope(c)).join(), /comprimento/);
+});
+
+// Os 4 moldes de hoje (um porte só, o antigo) pelos critérios novos: só informação, não falha.
+test('moldes de hoje: os 4 rodam pelos critérios sem lançar e o relatório sai impresso', () => {
+  const lidos = {};
+  for (const estilo of ['chamas', 'ondas', 'folhas', 'lisa']) {
+    const J = JSON.parse(fs.readFileSync(path.join(DIR, 'molde-' + estilo + '.json'), 'utf8'));
+    const idxDe = n => { const d = decodePng(fs.readFileSync(path.join(DIR, 'molde-' + estilo + '-' + n + '.png'))); return Uint8Array.from({ length: 64 * 64 }, (_, i) => Math.round(d.rgba[i * 4] / 25)); };
+    lidos[estilo] = { w: 64, h: 64, retrato: idxDe('retrato'), parado: idxDe('parado'),
+      galope: Array.from({ length: J.frames }, (_, i) => idxDe('galope-' + i)), ancoras: J.ancoras, larguraUtil: J.larguraUtil };
+  }
+  const linha = l => l.map(c => (c.ok ? 'ok ' : 'NÃO ') + c.criterio + ' = ' + (typeof c.valor === 'number' ? Math.round(c.valor * 1000) / 1000 : c.valor) + ' (' + c.limite + ')').join('; ');
+  for (const [estilo, m] of Object.entries(lidos)) {
+    const md = Pc().medidas(m.retrato, 64, 64, m.ancoras.retrato);
+    console.log('       ' + estilo + ' — retrato: altura ' + md.altura + ', comprimento ' + md.comprimento + ', espessura ' + md.espessura + ', footY ' + md.footY + ', nose ' + JSON.stringify(md.nose));
+    console.log('         pernas: ' + linha(Pc().criterioPernas(m)));
+    console.log('         galope: ' + linha(Pc().criterioGalope(m)));
+    if (estilo !== 'lisa') console.log('         mesmo corpo (contra lisa), falhas: ' + (falhos(Pc().criterioMesmoCorpo(m, lidos.lisa)).join(', ') || 'nenhuma'));
+  }
+  console.log('         portes (lisa nos 3 papéis): ' + linha(Pc().criterioPortes({ esguio: lidos.lisa, padrao: lidos.lisa, robusto: lidos.lisa })));
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
