@@ -1,0 +1,102 @@
+{
+  "endpoint": "/animate-with-text-v3",
+  "data": "2026-11-13T10:36:40.795Z",
+  "pedido": {
+    "first_frame": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1515 bytes, sha256 b6cc70d747478cc9>",
+      "format": "png"
+    },
+    "action": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+    "frame_count": 8,
+    "no_background": true,
+    "drift_threshold": 0,
+    "seed": 3201
+  },
+  "resposta": {
+    "post": {
+      "usage": null,
+      "background_job_id": "e3d877f6-c01b-450b-aed5-2b09c2430c76",
+      "status": "processing",
+      "enhanced_prompt": null,
+      "enhance_usage": null
+    },
+    "job": {
+      "usage": {
+        "type": "generations",
+        "generations": 1
+      },
+      "id": "e3d877f6-c01b-450b-aed5-2b09c2430c76",
+      "status": "completed",
+      "created_at": "2026-11-13T10:35:32.588000+00:00",
+      "last_response": {
+        "seed": 3201,
+        "type": "message_done",
+        "usage": {
+          "usd": 0,
+          "type": "generations",
+          "generations": 1,
+          "cost_if_paid": 0.02131597940127055
+        },
+        "images": [
+          {
+            "type": "base64",
+            "base64": "<base64 omitido: 1515 bytes, sha256 b6cc70d747478cc9>",
+            "format": "png"
+          },
+          {
+            "type": "base64",
+            "base64": "<base64 omitido: 1438 bytes, sha256 8da75b7e62e2673f>",
+            "format": "png"
+          },
+          {
+            "type": "base64",
+            "base64": "<base64 omitido: 1332 bytes, sha256 a2ee6b0f412c71c1>",
+            "format": "png"
+          },
+          {
+            "type": "base64",
+            "base64": "<base64 omitido: 1378 bytes, sha256 894cc54cb3630960>",
+            "format": "png"
+          },
+          {
+            "type": "base64",
+            "base64": "<base64 omitido: 1383 bytes, sha256 0bde9085c25a95db>",
+            "format": "png"
+          },
+          {
+            "type": "base64",
+            "base64": "<base64 omitido: 1438 bytes, sha256 40a5de07057cdf81>",
+            "format": "png"
+          },
+          {
+            "type": "base64",
+            "base64": "<base64 omitido: 1405 bytes, sha256 afe01792c13d3915>",
+            "format": "png"
+          },
+          {
+            "type": "base64",
+            "base64": "<base64 omitido: 1378 bytes, sha256 0a502f5afa6a59aa>",
+            "format": "png"
+          },
+          {
+            "type": "base64",
+            "base64": "<base64 omitido: 1416 bytes, sha256 3e27c78f96b6e421>",
+            "format": "png"
+          }
+        ],
+        "status": "completed",
+        "progress": 0.4666666666666667,
+        "flow_kind": "animation",
+        "billing_usage": {
+          "type": "generations",
+          "generations": 1
+        },
+        "generation_id": "c306338d-6df1-454d-82b4-b9c1c11bcf90",
+        "queue_position": 0,
+        "billing_charged": true,
+        "generation_started_at": "2026-11-13T10:35:44.202926+00:00"
+      }
+    }
+  }
+}
