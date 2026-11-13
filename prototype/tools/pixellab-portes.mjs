@@ -255,6 +255,7 @@ export async function rodarPortes(op) {
       }
     }
   }
+  for (const a of res.avisos) log(`AVISO: ${a}`); // no plano, quem imprime é o dryRunPortes
   // régua das proporções: o retrato do padrão (o desta rodada, se o padrão está nela; senão o de novos/)
   let refPadrao = null;
   const regua = () => refPadrao || (refPadrao = (() => { const m = lerMolde(novos, 'padrao-lisa'); return m && { w: m.w, h: m.h, retrato: m.retrato, ancoras: { retrato: m.ancoras.retrato } }; })());

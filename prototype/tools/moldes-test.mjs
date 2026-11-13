@@ -1232,9 +1232,10 @@ await testA('piloto com init_image do mestre; reprovado no mesmo corpo ⇒ as ve
 });
 
 await testA('versões: o porte do piloto reprovado sai sem init_image (seeds 3701+); os outros com o mestre no mesmo estado', async () => {
-  const api = apiFalsa(CENARIO);
-  const r = await semRede(() => Pl().rodarPortes({ fase: 'versoes', modo: 'gerar', executar: api.executar, dirs: A.dirs, log: () => {} }));
+  const api = apiFalsa(CENARIO), log = [];
+  const r = await semRede(() => Pl().rodarPortes({ fase: 'versoes', modo: 'gerar', executar: api.executar, dirs: A.dirs, log: m => log.push(m) }));
   assert.strictEqual(r.parada, null);
+  assert.ok(log.some(m => /^AVISO: o piloto de esguio reprovou no "mesmo corpo" nas 3 seeds: as versões de esguio saem sem init_image/.test(m)), 'o script diz');
   const paradas = api.chamadas.filter(c => c.porte);
   assert.ok(paradas.filter(c => c.porte === 'esguio').every(c => !c.guia && c.seed >= 3701), 'esguio sem init_image');
   assert.ok(paradas.filter(c => c.porte !== 'esguio').every(c => c.guia && c.seed >= 3405 && c.seed < 3700), 'padrão e robusto com init_image');
