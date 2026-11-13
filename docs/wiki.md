@@ -77,7 +77,7 @@ No jogo, o botão ⓘ ao lado de cada rótulo mostra estas frases (no computador
 | Clima | Cada elemento rende mais no seu clima e menos no clima ruim. O Dado da Sorte pode virar o clima na corrida. |
 | Piso | Piso mais pesado tira velocidade e gasta mais fôlego; a Força ajuda a perder menos. |
 | Dado da Sorte | Duas vezes por corrida, quem tira o maior dado puxa o clima para o seu elemento. Sorte alta rola dois dados. |
-| Custo dos pontos | Cada ponto comprado num status custa mais que o anterior. Os pontos que sobram ficam guardados para depois. |
+| Custo dos pontos | O custo de cada ponto sobe a cada 10 pontos comprados no mesmo status. Os pontos que sobram ficam guardados para depois. |
 | Rédea nova | Devolve todos os pontos para você distribuir de novo. A primeira de cada cavalo é grátis; depois gasta 1 Rédea nova. |
 
 ### Como o status é calculado

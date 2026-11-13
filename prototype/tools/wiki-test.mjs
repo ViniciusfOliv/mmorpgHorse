@@ -12,6 +12,7 @@ import { gerarWiki, descreverEfeito, descreverEfeitoTipo, descreverGatilho, desc
 
 const require = createRequire(import.meta.url)
 const G = require('../src/data.js')
+const S = require('../src/sim.js')
 const inicio = Date.now()
 const problemas = []
 let testes = 0
@@ -153,6 +154,9 @@ confere(/<span class="el el--geral"><img /.test(a.html), 'skills gerais sem o í
     confere(!G.HELP[k] || G.HELP[k].length <= 160, `HELP.${k} passa de 160 caracteres (${(G.HELP[k] || '').length})`)
     confere(!G.HELP[k] || (a.md.includes(G.HELP[k]) && a.html.includes(escHtml(G.HELP[k]))), `o wiki não traz o texto de HELP.${k} (md e html)`)
   }
+  // custo dos pontos: o número do texto é o degrau do código (TUNING.costStep) e a regra é "sobe a cada N pontos", não "cada ponto custa mais"
+  confere(G.HELP.custo.includes(`sobe a cada ${S.TUNING.costStep} pontos`), `HELP.custo não diz "sobe a cada ${S.TUNING.costStep} pontos" (TUNING.costStep): ${G.HELP.custo}`)
+  confere(!/custa mais que o anterior/.test(G.HELP.custo), 'HELP.custo diz que cada ponto custa mais que o anterior (o custo sobe só a cada degrau)')
   for (const k of G.STAT_KEYS) confere(G.STATS[k].desc === G.HELP[k], `STATS.${k}.desc é diferente de HELP.${k}`)
   confere(Object.keys(G.HELP).every((k) => CHAVES.includes(k)), 'HELP tem chave fora da lista conhecida')
 }

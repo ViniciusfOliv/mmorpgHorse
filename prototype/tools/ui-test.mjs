@@ -1965,16 +1965,18 @@ try {
           semArmar = await skillsDoJogador(pg)
           await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
           await pg.waitForSelector('#t-resultado')
-          if (semArmar.length < 3) { seed = SK_SEEDS[k]; break }
+          if (new Set(semArmar).size < 3) { seed = SK_SEEDS[k]; break }
         }
         if (seed == null) { problems.push(`[${label}] skills: nenhuma seed de ${SK_SEEDS} deixa o cavalo Raro sem as três skills`); return }
         // 2) a mesma seed, armada: as duas ativam
         await largar(pg, seed, true, false)
         const armada = await skillsDoJogador(pg)
         // o Raro tem 3 vagas e só 2 vêm da gaveta: subindo de nível entre as corridas ele pode aprender uma
-        // terceira, que também ativa armada
-        const vagasUsadas = await pg.evaluate(() => { const s = window.__galope.state; return s.mounts.find((m) => m.uid === s.activeId).skills.length })
-        if (armada.length !== 1 + vagasUsadas || !/Arranque/.test(armada.join(' ')) || !/Labareda/.test(armada.join(' ')) || !/Arrancada Final/.test(armada.join(' '))) problems.push(`[${label}] skills: sempre ativam deu ${JSON.stringify(armada)} (sem armar: ${JSON.stringify(semArmar)})`)
+        // terceira, que também ativa armada. As skills contadas são as do corredor da sala (L.racers), a cópia que a
+        // simulação usou: ler state.mounts depois do Largar contaria uma skill aprendida no fim da própria corrida.
+        // Conta nomes distintos: uma skill por bloco (Drift, Fôlego de Montanha) ativa uma vez em cada bloco
+        const vagasUsadas = await pg.evaluate(() => { const L = window.__galope.ui.lobby; return L.racers[L.playerIdx].horse.skills.length })
+        if (new Set(armada).size !== 1 + vagasUsadas || !/Arranque/.test(armada.join(' ')) || !/Labareda/.test(armada.join(' ')) || !/Arrancada Final/.test(armada.join(' '))) problems.push(`[${label}] skills: sempre ativam deu ${JSON.stringify(armada)} (sem armar: ${JSON.stringify(semArmar)})`)
         await gravador(pg)
         // logo depois da largada: balão + faixa central com o nome da skill do jogador
         const q = await (await pg.waitForFunction(() => {
