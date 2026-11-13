@@ -8382,6 +8382,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // Visual da parte 2a (spec 2026-11-12-cavalos-marcas), sem versão nova: mount.marcas = { cara, patas, corpo } e
   // state.joquei = { padrao, capacete }, opcionais no save; ausentes ou inválidos, o sanitize põe os calculados
   // (marcasDe) e o jóquei inicial (validJoquei). Só desenho: nada disso entra na corrida, no Poder nem na sala.
+  // Parte 2b (spec 2026-11-13-cavalos-portes §3), também sem versão nova: mount.porte (GameData.PORTES.valores),
+  // opcional; ausente ou inválido, o sanitize põe o da escada do Breed.porteDe (o do modelo do catálogo, senão
+  // porteDoId do uid). Só desenho, como as marcas.
   var SAVE_VERSION = 5;
   var BR = E.breeding;
   var MAX_LEVEL = E.maxLevel || 50;
@@ -8403,6 +8406,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       alloc: zeroAlloc(),
       palette: tpl.palette ? clone(tpl.palette) : null,
       marcas: marcasDe(tpl.marcas, null, uid),
+      porte: BRD.porteDe(tpl.porte, null, uid),   // o do modelo (todo modelo, do catálogo ou do painel DEV, tem um)
       breedLeft: tpl.breedLeftMax || GD.BREED_LEFT[tpl.sex],
       parents: null,
       born: 0,
@@ -8564,6 +8568,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       alloc: null,
       palette: validPalette(m.palette),
       marcas: marcasDe(m.marcas, templateId, m.uid),   // sem versão nova: ausentes ou inválidas, as calculadas
+      porte: BRD.porteDe(m.porte, templateId, m.uid),  // idem: ausente ou inválido, o do modelo ou o do uid
       breedLeft: num(m.breedLeft, GD.BREED_LEFT[m.sex], 0, 4),
       parents: validParents(m.parents),
       born: num(m.born, 0, 0, 1e9),
@@ -8897,15 +8902,17 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // Opções da parte 2a (spec 2026-11-12-cavalos-marcas) para o Sprites.drawHorse de qualquer cavalo (montaria,
   // modelo do catálogo ou rival): marcas (marcasDe), semente do padrão (Breed.hashChave da chave: o uid da montaria
   // ou o id do modelo; o rival usa o id do modelo, sem o sufixo da raia), jóquei ({ padrao, capacete }; null quando o desenho não tem jóquei), raridade e
-  // movimento reduzido. Só desenho. Usada no retrato (estábulo, ficha, sala, Haras...), na corrida (com rastro:
-  // true) e no pódio; quem desenha várias vezes calcula uma vez e atualiza o `reduzido` a cada quadro.
+  // movimento reduzido; e o porte da parte 2b (Breed.porteDe, com a mesma chave das marcas: o rival, cópia do modelo,
+  // fica com o porte do modelo). Só desenho. Usada no retrato (estábulo, ficha, sala, Haras...), na corrida (com rastro:
+  // true; o porte vai também às âncoras e à caixa do cavalo) e no pódio; quem desenha várias vezes calcula uma vez e
+  // atualiza o `reduzido` a cada quadro.
   function opcoesVisuais(horse, joquei) {
     var chave = horse.uid || horse.id;
     // rival: o id da raia é id do modelo + '-b<n>'; a semente (e as manchas) vêm do modelo, como no Haras e no catálogo
     var sem = horse.uid ? chave : String(chave).replace(/-b\d+$/, '');
     return {
       marcas: marcasDe(horse.marcas, horse.templateId, chave), semente: BRD.hashChave(sem), joquei: joquei || null,
-      raridade: horse.rarity, reduzido: reduced()
+      raridade: horse.rarity, reduzido: reduced(), porte: BRD.porteDe(horse.porte, horse.templateId, chave)
     };
   }
   // copia as opções visuais (vis) para as opções de desenho (o) e devolve o
@@ -9230,6 +9237,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     f.mane = pal.mane.toLowerCase(); f.accent = pal.accent.toLowerCase();
     var mk = marcasDe(a.marcas, a.templateId, a.uid);
     f.cara = mk.cara; f.patas = String(mk.patas); f.corpo = mk.corpo;
+    f.porte = BRD.porteDe(a.porte, a.templateId, a.uid);
   }
   function devLerCampos() {
     var f = devForm();
@@ -9250,7 +9258,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       potential: f.potencial === 'max' ? 'max' : f.potencial === 'cada' ? gen : Number(f.potencial), skills: skills,
       grau: f.estrelas, alloc: pts,
       palette: { coat: f.coat, coatShade: f.coatshade, mane: f.mane, accent: f.accent },
-      marcas: { cara: f.cara, patas: f.patas, corpo: f.corpo }
+      marcas: { cara: f.cara, patas: f.patas, corpo: f.corpo },
+      porte: f.porte
     };
   }
   // pontos do template (inteiros ≥ 0) cortados pelo limite e pelos pontos livres do nível da instância
@@ -9362,6 +9371,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         return [String(v), gene === 'patas' ? (v === 0 ? 'Sem meias' : v + (v === 1 ? ' meia' : ' meias')) : MARCA_NOMES[v] || String(v)];
       });
     };
+    // porte da montaria (parte 2b): os nomes do GameData, sem símbolos
+    var porteOpts = GD.PORTES.valores.map(function (p) { return [p, GD.PORTES.nomes[p]]; });
     var distancias = [['', '— da sala —']];
     for (var dd = 1000; dd <= 2400; dd += 100) distancias.push([String(dd), dd + ' m']);
 
@@ -9372,7 +9383,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       '<div class="dev-acoes">' + devBotao('dev-ouro', '+' + fmt(1000) + ' Ouro') + '</div>');
 
     var cavalo = devGrupo('cavalo', 'Cavalo',
-      '<p class="nota">Cria um cavalo novo (entra no estábulo sem limite de vagas e vira a ativa) ou substitui a ativa (status, skills, cores e marcas; mantém equipamento e cruzas).</p>' +
+      '<p class="nota">Cria um cavalo novo (entra no estábulo sem limite de vagas e vira a ativa) ou substitui a ativa (status, skills, cores, marcas e porte; mantém equipamento e cruzas).</p>' +
       '<div class="dev-campos dev-campos--1">' + devEntrada('nome', 'Nome', 'type="text" maxlength="16" autocomplete="off"', f.nome) + '</div>' +
       '<div class="dev-campos">' +
         devSelect('elemento', 'Elemento', elementos, f.elemento) + devSelect('raridade', 'Raridade', raridades, f.raridade) +
@@ -9396,7 +9407,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       '</div>' +
       '<div class="dev-campos">' +
         devSelect('cara', 'Marca na cara', marcaOpts('cara'), f.cara) + devSelect('patas', 'Meias', marcaOpts('patas'), f.patas) +
-        devSelect('corpo', 'Pelagem do corpo', marcaOpts('corpo'), f.corpo) +
+        devSelect('corpo', 'Pelagem do corpo', marcaOpts('corpo'), f.corpo) + devSelect('porte', 'Porte', porteOpts, f.porte) +
       '</div>' +
       '<div class="dev-acoes">' + devBotao('dev-criar', 'Criar cavalo', 'btn--ouro') + devBotao('dev-aplicar', 'Aplicar na ativa') + devBotao('dev-carregar', 'Carregar a ativa') + '</div>' +
       '<div class="dev-campos dev-campos--1">' + devSelect('copiar', 'Copiar cavalo pronto (iniciais e aluguéis do Haras)', prontos, f.copiar) + '</div>' +
@@ -9534,6 +9545,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         a.level = devNivel(f); a.xp = 0;
         a.skills = tpl.skills.slice(); a.potential = clone(tpl.potential); a.palette = clone(tpl.palette);
         a.marcas = clone(tpl.marcas);
+        a.porte = tpl.porte;
         devAplicaPontos(a, tpl);
         devCavaloDaAtiva();
         devGrava('Ativa substituída: ' + devDescreveCavalo(a) + '.'); break;
@@ -9694,6 +9706,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (m.patas > 0) t.push(m.patas === 1 ? '1 meia' : m.patas + ' meias');
     if (m.corpo !== 'liso') t.push(CORPO_ROT[m.corpo]);
     return 'Marcas: ' + (t.length ? t.join(', ') : 'nenhuma');
+  }
+  // Linha "Porte: Robusto" (ficha da Montaria e Haras, antes da das marcas): o porte pela escada do Breed.porteDe,
+  // com a mesma chave das marcas, e o nome do GameData
+  function porteTexto(h) {
+    return 'Porte: ' + GD.PORTES.nomes[BRD.porteDe(h.porte, h.templateId, h.uid || h.id)];
   }
   // Editor do jóquei (Perfil): padrão da seda e cor do capacete; a prévia é o cavalo ativo, parado e montado
   var PADRAO_ROT = { liso: 'Liso', listras: 'Listras', faixa: 'Faixa', xadrez: 'Xadrez', estrelas: 'Estrelas', losangos: 'Losangos' };
@@ -10075,6 +10092,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var elName = function (e) { return elementOf(e).name; };
     var els = P.f.element === P.m.element ? [P.f.element] : [P.f.element, P.m.element];
     var elTxt = 'Elemento: ' + (els.length === 1 ? elName(els[0]) : elName(els[0]) + ' ou ' + elName(els[1]) + ' (50/50)');
+    // porte do potro (parte 2b): o de um dos pais (na ordem de GameData.PORTES.valores) ou, com a mutação, qualquer um
+    var pf = BRD.porteDe(P.f.porte, P.f.templateId, P.f.uid || P.f.id), pm = BRD.porteDe(P.m.porte, P.m.templateId, P.m.uid || P.m.id);
+    var porteTxt = 'Porte do potro: ' + GD.PORTES.valores.filter(function (p) { return p === pf || p === pm; })
+      .map(function (p) { return GD.PORTES.nomes[p]; }).join(' ou ') +
+      ' (' + Math.round(GD.PORTES.mutacao * 100) + '% de chance de mutação)';
     var cands = [];
     els.forEach(function (e) {
       BRD.skillCandidates(P.f, P.m, e).forEach(function (id) { if (cands.indexOf(id) < 0) cands.push(id); });
@@ -10093,12 +10115,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var custoNome = ui.haras.mode === 'troca' ? 'Troca' : (P.kind === 'rent' ? 'Aluguel' : 'Registro');
     return '<section class="caixa calc" aria-labelledby="t-calc"><h2 class="titulo" id="t-calc">Calculadora</h2>' +
       '<p class="nota">' + esc(P.f.name) + ' (' + sexoHtml('f') + ') × ' + esc(P.m.name) + ' (' + sexoHtml('m') + ')</p>' +
-      '<p class="nota marcas-linha">' + esc(P.f.name + ' · ' + marcasTexto(P.f)) + '</p>' +
-      '<p class="nota marcas-linha">' + esc(P.m.name + ' · ' + marcasTexto(P.m)) + '</p>' +
+      '<p class="nota marcas-linha">' + esc(P.f.name + ' · ' + porteTexto(P.f) + ' · ' + marcasTexto(P.f)) + '</p>' +
+      '<p class="nota marcas-linha">' + esc(P.m.name + ' · ' + porteTexto(P.m) + ' · ' + marcasTexto(P.m)) + '</p>' +
       '<div class="calc-barras">' + bars + '</div>' +
       '<p>' + grau + '</p>' +
       '<p>' + esc(genTxt) + '</p>' +
       '<p>' + esc(elTxt) + '</p>' +
+      '<p>' + esc(porteTxt) + '</p>' +
       '<p>' + esc(skTxt) + '</p>' + corcel +
       '<p>' + esc('Nível efetivo: ' + Math.round(o.L * 100) + '% do máximo') + '</p>' +
       '<p class="calc-custo">' + esc(custoNome) + ': ' + ouroHtml(P.price) + '</p>' +
@@ -10493,6 +10516,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco>' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h1>' +
           '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
             '<span>' + sexoHtml(m.sex) + '</span>' +
+            '<span>' + esc(porteTexto(m)) + '</span>' +
             '<span>' + esc(marcasTexto(m)) + '</span>' +
             '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
             (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
@@ -11090,9 +11114,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       wind: ventoDaSala(L)   // só visual (RaceFx.wind da seed, ou o forçado no DEV)
     };
     for (i = 0; i < n; i++) self.gallop[i] = i * 1.7;
-    // marcas, jóquei e raridade de cada corredor (parte 2a), calculados uma vez; cada cavalo é montado já na largada
-    // (Sprites.prepararCavalo: o parado e todo o galope recoloridos agora, ~0,8 ms por quadro com marcas e jóquei),
-    // e não aos poucos no 1º ciclo do galope. Só desenho: a corrida já foi simulada.
+    // marcas, jóquei, raridade (parte 2a) e porte (parte 2b) de cada corredor, calculados uma vez; cada cavalo é
+    // montado já na largada, no molde do porte (Sprites.prepararCavalo: o parado e todo o galope recoloridos agora,
+    // ~0,8 ms por quadro com marcas e jóquei), e não aos poucos no 1º ciclo do galope. Só desenho: a corrida já foi
+    // simulada.
     var visuais = L.racers.map(function (r, q) {
       var v = opcoesVisuais(r.horse, joqueiDoCorredor(L, q));
       v.rastro = true;   // rastro de luz do Mítico: só na corrida
@@ -11372,7 +11397,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var r = L.racers[j];
         var standing = self.phase === 'contagem' || st.speed[j] < 0.4;
         // âncoras do sprite por código ou do molde (convertidas): o focinho é sempre o mesmo NOSE
-        var an = SP.anchorsFor(r.horse.element, S, standing ? 'parado' : 'galope');
+        var an = SP.anchorsFor(r.horse.element, S, standing ? 'parado' : 'galope', visuais[j].porte);
         var hoofM = st.pos[j] - (an.nose[0] - 20) / self.ppmArt;
         var lift = SP.hillLiftAt ? SP.hillLiftAt(hoofM, hills, lay.maxLift) * S : 0;
         // na curva a raia sobe com a cerca (RaceFx.curveOffset no meio do cavalo, como as colunas da pista)
