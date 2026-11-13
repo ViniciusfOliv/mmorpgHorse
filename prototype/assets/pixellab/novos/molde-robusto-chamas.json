@@ -22,8 +22,8 @@
         "procedural": false
       },
       "crina": {
-        "limiar": -1,
-        "procedural": true
+        "limiar": 33,
+        "procedural": false
       }
     },
     "galope": {
@@ -32,8 +32,8 @@
         "procedural": false
       },
       "crina": {
-        "limiar": -1,
-        "procedural": true
+        "limiar": 9,
+        "procedural": false
       }
     }
   },
@@ -59,7 +59,7 @@
   },
   "ancoras": {
     "retrato": {"footY":59,"nose":[61,19],"rear":[3,32],"saddle":null,"bbox":{"x":2,"y":4,"w":60,"h":56}},
-    "parado": {"footY":57,"nose":[60,20],"rear":[7,30],"saddle":[39,23],"bbox":{"x":5,"y":6,"w":56,"h":52}},
+    "parado": {"footY":57,"nose":[60,20],"rear":[7,30],"saddle":[38,23],"bbox":{"x":5,"y":6,"w":56,"h":52}},
     "galope-0": {"footY":54,"nose":[63,24],"rear":[9,30],"saddle":[33,24],"bbox":{"x":2,"y":8,"w":62,"h":47}},
     "galope-1": {"footY":54,"nose":[62,23],"rear":[9,29],"saddle":[34,23],"bbox":{"x":3,"y":7,"w":60,"h":48}},
     "galope-2": {"footY":52,"nose":[61,23],"rear":[8,30],"saddle":[33,23],"bbox":{"x":4,"y":7,"w":58,"h":46}},

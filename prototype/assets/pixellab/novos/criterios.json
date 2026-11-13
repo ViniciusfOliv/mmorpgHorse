@@ -28,7 +28,7 @@
         "ok": true,
         "seed": 3402
       },
-      "atualizado": "2026-11-13T13:27:37.400Z"
+      "atualizado": "2026-11-13T15:09:13.208Z"
     },
     "robusto": {
       "chave": "robusto-chamas",
@@ -41,7 +41,7 @@
         "ok": true,
         "seed": 3503
       },
-      "atualizado": "2026-11-13T13:27:37.400Z"
+      "atualizado": "2026-11-13T15:09:13.535Z"
     }
   },
   "portes": {
@@ -1051,6 +1051,194 @@
               ],
               "ok": true,
               "quadros": 9
+            },
+            {
+              "seed": 3201,
+              "endpoint": "/animate-with-text-v3",
+              "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+              "first_frame": "esguio-lisa/corrida seed 3201",
+              "geracoes": 1,
+              "arquivo": "raw/portes-esguio-lisa-galope-c3201-s3201-0..8.png",
+              "reaproveitada": true,
+              "data": "2026-11-13T10:36:40.795Z",
+              "criterios": [
+                {
+                  "criterio": "forma (galope)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no galope (todo quadro)",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "≥ 2",
+                  "quadros": [
+                    4,
+                    4,
+                    3,
+                    3,
+                    3,
+                    3,
+                    3,
+                    2,
+                    4
+                  ]
+                },
+                {
+                  "criterio": "galope: 9 quadros",
+                  "ok": true,
+                  "valor": 9,
+                  "limite": "= 9"
+                },
+                {
+                  "criterio": "galope: lombo na coluna da sela",
+                  "ok": false,
+                  "valor": 7,
+                  "limite": "varia ≤ 3 px",
+                  "quadros": [
+                    33,
+                    33,
+                    32,
+                    32,
+                    32,
+                    33,
+                    33,
+                    26,
+                    32
+                  ]
+                },
+                {
+                  "criterio": "galope: nose.x contra a pose de corrida",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "±6 px",
+                  "quadros": [
+                    59,
+                    59,
+                    59,
+                    58,
+                    58,
+                    59,
+                    59,
+                    59,
+                    58
+                  ]
+                },
+                {
+                  "criterio": "galope: comprimento do corpo",
+                  "ok": true,
+                  "valor": 4,
+                  "limite": "varia ≤ 4 px",
+                  "quadros": [
+                    41,
+                    43,
+                    43,
+                    40,
+                    40,
+                    42,
+                    44,
+                    43,
+                    40
+                  ]
+                }
+              ],
+              "ok": false,
+              "quadros": 9
+            },
+            {
+              "seed": 3301,
+              "endpoint": "/animate-with-text-v3",
+              "prompt": "full speed racing gallop, long extended stride, moment of suspension with all four hooves off the ground, seamless loop, mane and tail streaming back, the same horse with the same body proportions in every frame",
+              "first_frame": "esguio-lisa/corrida seed 3201",
+              "geracoes": 1,
+              "arquivo": "raw/portes-esguio-lisa-galope-c3201-s3301-0..8.png",
+              "reaproveitada": true,
+              "data": "2026-11-13T10:38:51.113Z",
+              "criterios": [
+                {
+                  "criterio": "forma (galope)",
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
+                },
+                {
+                  "criterio": "pernas no galope (todo quadro)",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "≥ 2",
+                  "quadros": [
+                    4,
+                    4,
+                    2,
+                    2,
+                    3,
+                    4,
+                    3,
+                    3,
+                    3
+                  ]
+                },
+                {
+                  "criterio": "galope: 9 quadros",
+                  "ok": true,
+                  "valor": 9,
+                  "limite": "= 9"
+                },
+                {
+                  "criterio": "galope: lombo na coluna da sela",
+                  "ok": true,
+                  "valor": 2,
+                  "limite": "varia ≤ 3 px",
+                  "quadros": [
+                    33,
+                    33,
+                    32,
+                    31,
+                    32,
+                    33,
+                    33,
+                    31,
+                    32
+                  ]
+                },
+                {
+                  "criterio": "galope: nose.x contra a pose de corrida",
+                  "ok": true,
+                  "valor": 1,
+                  "limite": "±6 px",
+                  "quadros": [
+                    59,
+                    59,
+                    58,
+                    58,
+                    59,
+                    59,
+                    59,
+                    58,
+                    58
+                  ]
+                },
+                {
+                  "criterio": "galope: comprimento do corpo",
+                  "ok": true,
+                  "valor": 3,
+                  "limite": "varia ≤ 4 px",
+                  "quadros": [
+                    41,
+                    41,
+                    41,
+                    40,
+                    41,
+                    41,
+                    43,
+                    42,
+                    40
+                  ]
+                }
+              ],
+              "ok": true,
+              "quadros": 9
             }
           ]
         }
@@ -1239,7 +1427,6 @@
         "retrato: pernas no retrato = 3 (= 4)",
         "retrato: portes: altura/comprimento do robusto ÷ a do padrão = 1,056 (≤ 0,92)",
         "retrato: portes: espessura/comprimento do robusto ÷ a do padrão = 0,817 (≥ 1,15)",
-        "parado: forma (parado) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))",
         "corrida: forma (corrida) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))",
         "galope: forma (galope) = 9 (paleta, papéis obrigatórios e silhueta fechada (validar))"
       ],
@@ -1393,7 +1580,7 @@
         },
         "parado": {
           "escolhida": 5103,
-          "ok": false,
+          "ok": true,
           "terminada": true,
           "refacao": 2,
           "tentativas": [
@@ -1412,11 +1599,9 @@
               "criterios": [
                 {
                   "criterio": "forma (parado)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "faltam papéis: 4 (crina)",
-                  "aceito": true
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas no parado",
@@ -1425,9 +1610,8 @@
                   "limite": "= 4"
                 }
               ],
-              "ok": false,
-              "manual": true,
-              "aceita": true
+              "ok": true,
+              "manual": true
             },
             {
               "seed": 5203,
@@ -1496,9 +1680,7 @@
             "refacao": 2,
             "origem": "refação 2, a atual",
             "arquivo": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
-            "aceitos": [
-              "forma (parado)"
-            ]
+            "aceitos": []
           }
         },
         "corrida": {
@@ -1525,7 +1707,7 @@
                   "ok": false,
                   "valor": 1,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "fora da paleta: 67 de 1108 pixels (6.0%) acima de 2%",
+                  "motivo": "fora da paleta: 38 de 1108 pixels (3.4%) acima de 2%",
                   "aceito": true
                 },
                 {
@@ -1602,7 +1784,7 @@
                   "ok": false,
                   "valor": 9,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: fora da paleta: 67 de 1108 pixels (6.0%) acima de 2%; galope-1: fora da paleta: 69 de 1099 pixels (6.3%) acima de 2%; galope-2: fora da paleta: 72 de 1093 pixels (6.6%) acima de 2%; galope-3: fora da paleta: 76 de 1044 pixels (7.3%) acima de 2%; galope-4: fora da paleta: 69 de 1079 pixels (6.4%) acima de 2%; galope-5: fora da paleta: 72 de 1073 pixels (6.7%) acima de 2%; galope-6: fora da paleta: 71 de 1096 pixels (6.5%) acima de 2%; galope-7: fora da paleta: 66 de 1108 pixels (6.0%) acima de 2%; galope-8: fora da paleta: 69 de 1071 pixels (6.4%) acima de 2%",
+                  "motivo": "galope-0: fora da paleta: 38 de 1108 pixels (3.4%) acima de 2%; galope-1: fora da paleta: 36 de 1099 pixels (3.3%) acima de 2%; galope-2: fora da paleta: 40 de 1093 pixels (3.7%) acima de 2%; galope-3: fora da paleta: 39 de 1044 pixels (3.7%) acima de 2%; galope-4: fora da paleta: 37 de 1079 pixels (3.4%) acima de 2%; galope-5: fora da paleta: 37 de 1073 pixels (3.4%) acima de 2%; galope-6: fora da paleta: 38 de 1096 pixels (3.5%) acima de 2%; galope-7: fora da paleta: 38 de 1108 pixels (3.4%) acima de 2%; galope-8: fora da paleta: 39 de 1071 pixels (3.6%) acima de 2%",
                   "aceito": true
                 },
                 {
@@ -1614,8 +1796,8 @@
                     2,
                     3,
                     2,
-                    3,
                     2,
+                    3,
                     2,
                     2,
                     2,
@@ -1674,7 +1856,7 @@
                     48,
                     48,
                     48,
-                    48,
+                    47,
                     47,
                     48
                   ]
@@ -3042,6 +3224,7 @@
               "arquivo": "raw/portes-esguio-chamas-retrato-s3701.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:37:05.294Z",
               "criterios": [
                 {
@@ -3097,6 +3280,7 @@
               "arquivo": "raw/portes-esguio-chamas-retrato-s3801.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:37:19.632Z",
               "criterios": [
                 {
@@ -3152,6 +3336,7 @@
               "arquivo": "raw/portes-esguio-chamas-retrato-s3901.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:37:33.125Z",
               "criterios": [
                 {
@@ -3159,7 +3344,7 @@
                   "ok": false,
                   "valor": 1,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "faltam papéis: 4 (crina)"
+                  "motivo": "silhueta aberta: 11 buracos de transparência dentro da pelagem (máx. 4)"
                 },
                 {
                   "criterio": "pernas no retrato",
@@ -3216,6 +3401,7 @@
               "arquivo": "raw/portes-esguio-chamas-parado-s3701.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:37:47.460Z",
               "criterios": [
                 {
@@ -3271,7 +3457,8 @@
               "arquivo": "raw/portes-esguio-chamas-parado-s3801.png",
               "geracoes": 1,
               "marca": "",
-              "data": "2026-11-13T13:37:57.960Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:37:57.959Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
@@ -3327,6 +3514,7 @@
               "arquivo": "raw/portes-esguio-chamas-parado-s3901.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:38:16.648Z",
               "criterios": [
                 {
@@ -3390,7 +3578,8 @@
               "arquivo": "raw/portes-esguio-chamas-corrida-s3701.png",
               "geracoes": 1,
               "marca": "",
-              "data": "2026-11-13T13:38:34.716Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:38:34.715Z",
               "criterios": [
                 {
                   "criterio": "forma (corrida)",
@@ -3422,7 +3611,8 @@
               "first_frame": "esguio-chamas/corrida seed 3701",
               "geracoes": 1,
               "arquivo": "raw/portes-esguio-chamas-galope-c3701-s3701-0..8.png",
-              "data": "2026-11-13T13:56:52.100Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:56:52.099Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
@@ -3515,7 +3705,8 @@
               "first_frame": "esguio-chamas/corrida seed 3701",
               "geracoes": 1,
               "arquivo": "raw/portes-esguio-chamas-galope-c3701-s3801-0..8.png",
-              "data": "2026-11-13T13:58:05.215Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:58:05.214Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
@@ -3608,6 +3799,7 @@
               "first_frame": "esguio-chamas/corrida seed 3701",
               "geracoes": 1,
               "arquivo": "raw/portes-esguio-chamas-galope-c3701-s3901-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T13:59:23.665Z",
               "criterios": [
                 {
@@ -4407,6 +4599,7 @@
               "marca": "g100m3102",
               "init_image": "raw/portes-padrao-lisa-retrato-s3102.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:10:08.465Z",
               "criterios": [
                 {
@@ -4472,7 +4665,8 @@
               "marca": "g100m3102",
               "init_image": "raw/portes-padrao-lisa-parado-s3102.png",
               "init_image_strength": 100,
-              "data": "2026-11-13T13:10:26.385Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:10:26.384Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
@@ -4530,7 +4724,8 @@
               "marca": "g100m3102",
               "init_image": "raw/portes-padrao-lisa-parado-s3102.png",
               "init_image_strength": 100,
-              "data": "2026-11-13T13:10:38.768Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:10:38.767Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
@@ -4595,6 +4790,7 @@
               "marca": "g100m4102",
               "init_image": "raw/portes-padrao-lisa-corrida-s4102.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:10:55.770Z",
               "criterios": [
                 {
@@ -4623,6 +4819,7 @@
               "marca": "g100m4102",
               "init_image": "raw/portes-padrao-lisa-corrida-s4102.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:11:10.959Z",
               "criterios": [
                 {
@@ -4655,7 +4852,8 @@
               "first_frame": "padrao-chamas/corrida seed 3502",
               "geracoes": 1,
               "arquivo": "raw/portes-padrao-chamas-galope-c3502g100m4102-s3402-0..8.png",
-              "data": "2026-11-13T13:18:57.032Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:18:57.031Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
@@ -4748,6 +4946,7 @@
               "first_frame": "padrao-chamas/corrida seed 3502",
               "geracoes": 1,
               "arquivo": "raw/portes-padrao-chamas-galope-c3502g100m4102-s3502-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T13:21:12.985Z",
               "criterios": [
                 {
@@ -4841,6 +5040,7 @@
               "first_frame": "padrao-chamas/corrida seed 3502",
               "geracoes": 1,
               "arquivo": "raw/portes-padrao-chamas-galope-c3502g100m4102-s3602-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T13:22:29.588Z",
               "criterios": [
                 {
@@ -4954,9 +5154,7 @@
       "ok": false,
       "falhas": [
         "retrato: pernas no retrato = 3 (= 4)",
-        "parado: forma (parado) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))",
-        "corrida: forma (corrida) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))",
-        "galope: forma (galope) = 9 (paleta, papéis obrigatórios e silhueta fechada (validar))"
+        "parado: forma (parado) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))"
       ],
       "etapas": {
         "retrato": {
@@ -4975,6 +5173,7 @@
               "marca": "g100m5303",
               "init_image": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:11:26.852Z",
               "criterios": [
                 {
@@ -5032,6 +5231,7 @@
               "marca": "g100m5303",
               "init_image": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:11:42.704Z",
               "criterios": [
                 {
@@ -5089,7 +5289,8 @@
               "marca": "g100m5303",
               "init_image": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
               "init_image_strength": 100,
-              "data": "2026-11-13T13:11:58.448Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:11:58.447Z",
               "criterios": [
                 {
                   "criterio": "forma (retrato)",
@@ -5155,6 +5356,7 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:12:13.927Z",
               "criterios": [
                 {
@@ -5162,7 +5364,7 @@
                   "ok": false,
                   "valor": 1,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "fora da paleta: 81 de 1363 pixels (5.9%) acima de 2%"
+                  "motivo": "fora da paleta: 80 de 1363 pixels (5.9%) acima de 2%"
                 },
                 {
                   "criterio": "pernas no parado",
@@ -5213,6 +5415,7 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:12:29.094Z",
               "criterios": [
                 {
@@ -5271,14 +5474,14 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:12:44.706Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "faltam papéis: 4 (crina)"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas no parado",
@@ -5317,13 +5520,17 @@
                   "limite": "|Δ| ≤ 2 px"
                 }
               ],
-              "ok": false
+              "ok": true
             }
-          ]
+          ],
+          "mantida": {
+            "seria": 3603,
+            "seriaOk": true
+          }
         },
         "corrida": {
           "escolhida": 3403,
-          "ok": false,
+          "ok": true,
           "terminada": true,
           "refacao": 0,
           "tentativas": [
@@ -5337,14 +5544,14 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-corrida-g35padrao4102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:13:06.503Z",
               "criterios": [
                 {
                   "criterio": "forma (corrida)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "faltam papéis: 4 (crina)"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
@@ -5353,7 +5560,7 @@
                   "limite": "≥ 2"
                 }
               ],
-              "ok": false
+              "ok": true
             },
             {
               "seed": 3503,
@@ -5365,7 +5572,8 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-corrida-g35padrao4102-s5103.png",
               "init_image_strength": 100,
-              "data": "2026-11-13T13:13:21.606Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:13:21.605Z",
               "criterios": [
                 {
                   "criterio": "forma (corrida)",
@@ -5393,29 +5601,29 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-corrida-g35padrao4102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:13:32.254Z",
               "criterios": [
                 {
                   "criterio": "forma (corrida)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "fora da paleta: 133 de 1102 pixels (12.1%) acima de 2%"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
                   "ok": true,
-                  "valor": 2,
+                  "valor": 3,
                   "limite": "≥ 2"
                 }
               ],
-              "ok": false
+              "ok": true
             }
           ]
         },
         "galope": {
           "escolhida": 3403,
-          "ok": false,
+          "ok": true,
           "terminada": true,
           "refacao": 0,
           "tentativas": [
@@ -5426,14 +5634,14 @@
               "first_frame": "robusto-chamas/corrida seed 3403",
               "geracoes": 1,
               "arquivo": "raw/portes-robusto-chamas-galope-c3403g100m5103-s3403-0..8.png",
-              "data": "2026-11-13T13:24:19.111Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:24:19.110Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
-                  "ok": false,
-                  "valor": 9,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: faltam papéis: 4 (crina); galope-1: faltam papéis: 4 (crina); galope-2: faltam papéis: 4 (crina); galope-3: faltam papéis: 4 (crina); galope-4: faltam papéis: 4 (crina); galope-5: faltam papéis: 4 (crina); galope-6: faltam papéis: 4 (crina); galope-7: faltam papéis: 4 (crina); galope-8: faltam papéis: 4 (crina)"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
@@ -5510,7 +5718,7 @@
                   ]
                 }
               ],
-              "ok": false,
+              "ok": true,
               "quadros": 9
             },
             {
@@ -5520,14 +5728,15 @@
               "first_frame": "robusto-chamas/corrida seed 3403",
               "geracoes": 1,
               "arquivo": "raw/portes-robusto-chamas-galope-c3403g100m5103-s3503-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T13:26:09.073Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
                   "ok": false,
-                  "valor": 9,
+                  "valor": 1,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: faltam papéis: 4 (crina); galope-1: faltam papéis: 4 (crina); galope-2: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-3: faltam papéis: 4 (crina); galope-4: faltam papéis: 4 (crina); galope-5: faltam papéis: 4 (crina); galope-6: faltam papéis: 4 (crina); galope-7: faltam papéis: 4 (crina); galope-8: faltam papéis: 4 (crina)"
+                  "motivo": "galope-2: faltam papéis: 8 (jóquei-pele)"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
@@ -5614,14 +5823,14 @@
               "first_frame": "robusto-chamas/corrida seed 3403",
               "geracoes": 1,
               "arquivo": "raw/portes-robusto-chamas-galope-c3403g100m5103-s3603-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T13:27:37.375Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
-                  "ok": false,
-                  "valor": 9,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: faltam papéis: 4 (crina); galope-1: faltam papéis: 4 (crina); galope-2: faltam papéis: 4 (crina); galope-3: faltam papéis: 4 (crina); galope-4: faltam papéis: 4 (crina); galope-5: faltam papéis: 4 (crina); galope-6: faltam papéis: 4 (crina); galope-7: faltam papéis: 4 (crina); galope-8: faltam papéis: 4 (crina)"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
@@ -5649,18 +5858,18 @@
                 {
                   "criterio": "galope: lombo na coluna da sela",
                   "ok": true,
-                  "valor": 3,
+                  "valor": 2,
                   "limite": "varia ≤ 3 px",
                   "quadros": [
-                    13,
-                    12,
-                    12,
-                    13,
-                    15,
-                    13,
-                    12,
-                    12,
-                    13
+                    21,
+                    20,
+                    20,
+                    21,
+                    22,
+                    21,
+                    20,
+                    20,
+                    21
                   ]
                 },
                 {
@@ -5698,7 +5907,7 @@
                   ]
                 }
               ],
-              "ok": false,
+              "ok": true,
               "quadros": 9
             }
           ]
@@ -5744,7 +5953,8 @@
               "arquivo": "raw/portes-esguio-ondas-retrato-s3704.png",
               "geracoes": 1,
               "marca": "",
-              "data": "2026-11-13T13:38:44.765Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:38:44.764Z",
               "criterios": [
                 {
                   "criterio": "forma (retrato)",
@@ -5799,7 +6009,8 @@
               "arquivo": "raw/portes-esguio-ondas-retrato-s3804.png",
               "geracoes": 1,
               "marca": "",
-              "data": "2026-11-13T13:39:13.798Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:39:13.797Z",
               "criterios": [
                 {
                   "criterio": "forma (retrato)",
@@ -5854,6 +6065,7 @@
               "arquivo": "raw/portes-esguio-ondas-retrato-s3904.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:39:31.993Z",
               "criterios": [
                 {
@@ -5917,6 +6129,7 @@
               "arquivo": "raw/portes-esguio-ondas-parado-s3704.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:39:50.462Z",
               "criterios": [
                 {
@@ -5972,6 +6185,7 @@
               "arquivo": "raw/portes-esguio-ondas-parado-s3804.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:40:04.264Z",
               "criterios": [
                 {
@@ -6027,7 +6241,8 @@
               "arquivo": "raw/portes-esguio-ondas-parado-s3904.png",
               "geracoes": 1,
               "marca": "",
-              "data": "2026-11-13T13:40:17.147Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:40:17.146Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
@@ -6091,7 +6306,7 @@
               "geracoes": 1,
               "marca": "",
               "ok": false,
-              "motivo": "POST /create-image-pixflux → HTTP 502: upstream request failed"
+              "motivo": "erro registrado em rodada anterior: POST /create-image-pixflux → HTTP 502: upstream request failed"
             },
             {
               "seed": 3804,
@@ -6101,6 +6316,7 @@
               "arquivo": "raw/portes-esguio-ondas-corrida-s3804.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:41:03.520Z",
               "criterios": [
                 {
@@ -6133,7 +6349,8 @@
               "first_frame": "esguio-ondas/corrida seed 3804",
               "geracoes": 1,
               "arquivo": "raw/portes-esguio-ondas-galope-c3804-s3704-0..8.png",
-              "data": "2026-11-13T14:01:34.601Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T14:01:34.600Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
@@ -6226,6 +6443,7 @@
               "first_frame": "esguio-ondas/corrida seed 3804",
               "geracoes": 1,
               "arquivo": "raw/portes-esguio-ondas-galope-c3804-s3804-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T14:03:56.002Z",
               "criterios": [
                 {
@@ -6319,6 +6537,7 @@
               "first_frame": "esguio-ondas/corrida seed 3804",
               "geracoes": 1,
               "arquivo": "raw/portes-esguio-ondas-galope-c3804-s3904-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T14:05:45.501Z",
               "criterios": [
                 {
@@ -6451,6 +6670,7 @@
               "arquivo": "raw/portes-esguio-folhas-retrato-s3707.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:41:17.143Z",
               "criterios": [
                 {
@@ -6506,6 +6726,7 @@
               "arquivo": "raw/portes-esguio-folhas-retrato-s3807.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:41:36.374Z",
               "criterios": [
                 {
@@ -6561,6 +6782,7 @@
               "arquivo": "raw/portes-esguio-folhas-retrato-s3907.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:42:03.483Z",
               "criterios": [
                 {
@@ -6624,14 +6846,14 @@
               "arquivo": "raw/portes-esguio-folhas-parado-s3707.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:42:23.971Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "faltam papéis: 4 (crina)"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas no parado",
@@ -6681,7 +6903,7 @@
               "geracoes": 1,
               "marca": "",
               "ok": false,
-              "motivo": "POST /create-image-pixflux → HTTP 502: upstream request failed"
+              "motivo": "erro registrado em rodada anterior: POST /create-image-pixflux → HTTP 502: upstream request failed"
             },
             {
               "seed": 3907,
@@ -6691,6 +6913,7 @@
               "arquivo": "raw/portes-esguio-folhas-parado-s3907.png",
               "geracoes": 1,
               "marca": "",
+              "reaproveitada": true,
               "data": "2026-11-13T13:43:11.821Z",
               "criterios": [
                 {
@@ -6739,7 +6962,11 @@
               ],
               "ok": false
             }
-          ]
+          ],
+          "mantida": {
+            "seria": 3707,
+            "seriaOk": false
+          }
         },
         "corrida": {
           "escolhida": 3707,
@@ -6755,7 +6982,8 @@
               "arquivo": "raw/portes-esguio-folhas-corrida-s3707.png",
               "geracoes": 1,
               "marca": "",
-              "data": "2026-11-13T13:43:37.019Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:43:37.018Z",
               "criterios": [
                 {
                   "criterio": "forma (corrida)",
@@ -6787,6 +7015,7 @@
               "first_frame": "esguio-folhas/corrida seed 3707",
               "geracoes": 1,
               "arquivo": "raw/portes-esguio-folhas-galope-c3707-s3707-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T14:07:04.130Z",
               "criterios": [
                 {
@@ -6880,7 +7109,8 @@
               "first_frame": "esguio-folhas/corrida seed 3707",
               "geracoes": 1,
               "arquivo": "raw/portes-esguio-folhas-galope-c3707-s3807-0..8.png",
-              "data": "2026-11-13T14:08:33.440Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T14:08:33.439Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
@@ -6973,7 +7203,8 @@
               "first_frame": "esguio-folhas/corrida seed 3707",
               "geracoes": 1,
               "arquivo": "raw/portes-esguio-folhas-galope-c3707-s3907-0..8.png",
-              "data": "2026-11-13T14:09:51.970Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T14:09:51.969Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
@@ -7105,6 +7336,7 @@
               "marca": "g100m3102",
               "init_image": "raw/portes-padrao-lisa-retrato-s3102.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:43:47.981Z",
               "criterios": [
                 {
@@ -7170,7 +7402,8 @@
               "marca": "g100m3102",
               "init_image": "raw/portes-padrao-lisa-parado-s3102.png",
               "init_image_strength": 100,
-              "data": "2026-11-13T13:44:04.781Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:44:04.780Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
@@ -7227,7 +7460,8 @@
               "marca": "g100m3102",
               "init_image": "raw/portes-padrao-lisa-parado-s3102.png",
               "init_image_strength": 100,
-              "data": "2026-11-13T13:44:22.043Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:44:22.042Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
@@ -7293,7 +7527,7 @@
               "init_image": "raw/portes-padrao-lisa-corrida-s4102.png",
               "init_image_strength": 100,
               "ok": false,
-              "motivo": "POST /create-image-pixflux → HTTP 502: upstream request failed"
+              "motivo": "erro registrado em rodada anterior: POST /create-image-pixflux → HTTP 502: upstream request failed"
             },
             {
               "seed": 3505,
@@ -7305,6 +7539,7 @@
               "marca": "g100m4102",
               "init_image": "raw/portes-padrao-lisa-corrida-s4102.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:45:08.375Z",
               "criterios": [
                 {
@@ -7317,7 +7552,7 @@
                 {
                   "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
                   "ok": true,
-                  "valor": 3,
+                  "valor": 2,
                   "limite": "≥ 2"
                 }
               ],
@@ -7333,6 +7568,7 @@
               "marca": "g100m4102",
               "init_image": "raw/portes-padrao-lisa-corrida-s4102.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:45:30.632Z",
               "criterios": [
                 {
@@ -7366,14 +7602,15 @@
               "first_frame": "padrao-ondas/corrida seed 3505",
               "geracoes": 1,
               "arquivo": "raw/portes-padrao-ondas-galope-c3505g100m4102-s3405-0..8.png",
-              "data": "2026-11-13T14:12:02.877Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T14:12:02.876Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
                   "ok": false,
                   "valor": 9,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: fora da paleta: 24 de 891 pixels (2.7%) acima de 2%; galope-1: fora da paleta: 26 de 915 pixels (2.8%) acima de 2%; galope-2: fora da paleta: 27 de 936 pixels (2.9%) acima de 2%; galope-3: fora da paleta: 27 de 966 pixels (2.8%) acima de 2%; galope-4: fora da paleta: 28 de 912 pixels (3.1%) acima de 2%; galope-5: fora da paleta: 30 de 887 pixels (3.4%) acima de 2%; galope-6: fora da paleta: 29 de 910 pixels (3.2%) acima de 2%; galope-7: fora da paleta: 27 de 941 pixels (2.9%) acima de 2%; galope-8: fora da paleta: 28 de 972 pixels (2.9%) acima de 2%"
+                  "motivo": "galope-0: fora da paleta: 24 de 891 pixels (2.7%) acima de 2%; galope-1: fora da paleta: 27 de 915 pixels (3.0%) acima de 2%; galope-2: fora da paleta: 27 de 936 pixels (2.9%) acima de 2%; galope-3: fora da paleta: 27 de 966 pixels (2.8%) acima de 2%; galope-4: fora da paleta: 29 de 912 pixels (3.2%) acima de 2%; galope-5: fora da paleta: 31 de 887 pixels (3.5%) acima de 2%; galope-6: fora da paleta: 29 de 910 pixels (3.2%) acima de 2%; galope-7: fora da paleta: 27 de 941 pixels (2.9%) acima de 2%; galope-8: fora da paleta: 28 de 972 pixels (2.9%) acima de 2%"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
@@ -7381,11 +7618,11 @@
                   "valor": 2,
                   "limite": "≥ 2",
                   "quadros": [
+                    2,
+                    2,
+                    2,
                     3,
-                    2,
-                    2,
                     3,
-                    2,
                     3,
                     2,
                     2,
@@ -7435,18 +7672,18 @@
                 {
                   "criterio": "galope: comprimento do corpo",
                   "ok": true,
-                  "valor": 2,
+                  "valor": 4,
                   "limite": "varia ≤ 4 px",
                   "quadros": [
+                    48,
+                    46,
+                    46,
+                    49,
+                    50,
+                    48,
+                    46,
                     47,
-                    46,
-                    45,
-                    46,
-                    47,
-                    47,
-                    46,
-                    46,
-                    46
+                    47
                   ]
                 }
               ],
@@ -7460,6 +7697,7 @@
               "first_frame": "padrao-ondas/corrida seed 3505",
               "geracoes": 1,
               "arquivo": "raw/portes-padrao-ondas-galope-c3505g100m4102-s3505-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T14:13:47.423Z",
               "criterios": [
                 {
@@ -7467,23 +7705,23 @@
                   "ok": false,
                   "valor": 9,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: fora da paleta: 24 de 891 pixels (2.7%) acima de 2%; galope-1: fora da paleta: 29 de 907 pixels (3.2%) acima de 2%; galope-2: fora da paleta: 28 de 902 pixels (3.1%) acima de 2%; galope-3: fora da paleta: 23 de 908 pixels (2.5%) acima de 2%; galope-4: fora da paleta: 23 de 924 pixels (2.5%) acima de 2%; galope-5: fora da paleta: 33 de 896 pixels (3.7%) acima de 2%; galope-6: fora da paleta: 36 de 914 pixels (3.9%) acima de 2%; galope-7: fora da paleta: 115 de 921 pixels (12.5%) acima de 2%; galope-8: fora da paleta: 32 de 943 pixels (3.4%) acima de 2%"
+                  "motivo": "galope-0: fora da paleta: 24 de 891 pixels (2.7%) acima de 2%; galope-1: fora da paleta: 27 de 907 pixels (3.0%) acima de 2%; galope-2: fora da paleta: 27 de 902 pixels (3.0%) acima de 2%; galope-3: fora da paleta: 22 de 908 pixels (2.4%) acima de 2%; galope-4: fora da paleta: 22 de 924 pixels (2.4%) acima de 2%; galope-5: fora da paleta: 29 de 896 pixels (3.2%) acima de 2%; galope-6: fora da paleta: 31 de 914 pixels (3.4%) acima de 2%; galope-7: fora da paleta: 33 de 921 pixels (3.6%) acima de 2%; galope-8: fora da paleta: 25 de 943 pixels (2.7%) acima de 2%"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
-                  "ok": false,
-                  "valor": 0,
+                  "ok": true,
+                  "valor": 2,
                   "limite": "≥ 2",
                   "quadros": [
-                    3,
-                    0,
-                    1,
-                    3,
+                    2,
                     3,
                     2,
                     2,
+                    2,
+                    2,
                     3,
-                    2
+                    3,
+                    3
                   ]
                 },
                 {
@@ -7529,15 +7767,15 @@
                 {
                   "criterio": "galope: comprimento do corpo",
                   "ok": true,
-                  "valor": 2,
+                  "valor": 4,
                   "limite": "varia ≤ 4 px",
                   "quadros": [
-                    47,
-                    46,
-                    45,
+                    48,
                     47,
                     47,
-                    47,
+                    48,
+                    49,
+                    49,
                     46,
                     45,
                     47
@@ -7554,6 +7792,7 @@
               "first_frame": "padrao-ondas/corrida seed 3505",
               "geracoes": 1,
               "arquivo": "raw/portes-padrao-ondas-galope-c3505g100m4102-s3605-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T14:15:26.681Z",
               "criterios": [
                 {
@@ -7561,7 +7800,7 @@
                   "ok": false,
                   "valor": 9,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: fora da paleta: 24 de 891 pixels (2.7%) acima de 2%; galope-1: fora da paleta: 28 de 866 pixels (3.2%) acima de 2%; galope-2: fora da paleta: 23 de 870 pixels (2.6%) acima de 2%; galope-3: fora da paleta: 30 de 934 pixels (3.2%) acima de 2%; galope-4: fora da paleta: 108 de 943 pixels (11.5%) acima de 2%; galope-5: fora da paleta: 115 de 905 pixels (12.7%) acima de 2%; galope-6: fora da paleta: 28 de 849 pixels (3.3%) acima de 2%; galope-7: fora da paleta: 27 de 875 pixels (3.1%) acima de 2%; galope-8: fora da paleta: 110 de 919 pixels (12.0%) acima de 2%"
+                  "motivo": "galope-0: fora da paleta: 24 de 891 pixels (2.7%) acima de 2%; galope-1: fora da paleta: 23 de 866 pixels (2.7%) acima de 2%; galope-2: fora da paleta: 23 de 870 pixels (2.6%) acima de 2%; galope-3: fora da paleta: 30 de 934 pixels (3.2%) acima de 2%; galope-4: fora da paleta: 25 de 943 pixels (2.7%) acima de 2%; galope-5: fora da paleta: 27 de 905 pixels (3.0%) acima de 2%; galope-6: fora da paleta: 28 de 849 pixels (3.3%) acima de 2%; galope-7: fora da paleta: 26 de 875 pixels (3.0%) acima de 2%; galope-8: fora da paleta: 26 de 919 pixels (2.8%) acima de 2%"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
@@ -7569,14 +7808,14 @@
                   "valor": 2,
                   "limite": "≥ 2",
                   "quadros": [
-                    3,
-                    3,
-                    3,
-                    3,
+                    2,
                     2,
                     3,
+                    2,
+                    2,
+                    2,
+                    2,
                     3,
-                    4,
                     2
                   ]
                 },
@@ -7623,18 +7862,18 @@
                 {
                   "criterio": "galope: comprimento do corpo",
                   "ok": true,
-                  "valor": 3,
+                  "valor": 2,
                   "limite": "varia ≤ 4 px",
                   "quadros": [
-                    47,
-                    46,
-                    46,
+                    48,
                     47,
                     47,
                     48,
+                    49,
+                    48,
                     47,
-                    45,
-                    46
+                    47,
+                    48
                   ]
                 }
               ],
@@ -7686,6 +7925,7 @@
               "marca": "g100m3102",
               "init_image": "raw/portes-padrao-lisa-retrato-s3102.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:45:51.223Z",
               "criterios": [
                 {
@@ -7751,7 +7991,8 @@
               "marca": "g100m3102",
               "init_image": "raw/portes-padrao-lisa-parado-s3102.png",
               "init_image_strength": 100,
-              "data": "2026-11-13T13:46:13.347Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:46:13.346Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
@@ -7808,6 +8049,7 @@
               "marca": "g100m3102",
               "init_image": "raw/portes-padrao-lisa-parado-s3102.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:46:29.988Z",
               "criterios": [
                 {
@@ -7866,6 +8108,7 @@
               "marca": "g100m3102",
               "init_image": "raw/portes-padrao-lisa-parado-s3102.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:46:47.784Z",
               "criterios": [
                 {
@@ -7931,7 +8174,8 @@
               "marca": "g100m4102",
               "init_image": "raw/portes-padrao-lisa-corrida-s4102.png",
               "init_image_strength": 100,
-              "data": "2026-11-13T13:47:06.135Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:47:06.134Z",
               "criterios": [
                 {
                   "criterio": "forma (corrida)",
@@ -7963,7 +8207,8 @@
               "first_frame": "padrao-folhas/corrida seed 3408",
               "geracoes": 1,
               "arquivo": "raw/portes-padrao-folhas-galope-c3408g100m4102-s3408-0..8.png",
-              "data": "2026-11-13T14:16:34.914Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T14:16:34.913Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
@@ -8077,7 +8322,8 @@
       "falhas": [
         "parado: forma (parado) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))",
         "corrida: forma (corrida) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))",
-        "galope: forma (galope) = 9 (paleta, papéis obrigatórios e silhueta fechada (validar))"
+        "galope: forma (galope) = 9 (paleta, papéis obrigatórios e silhueta fechada (validar))",
+        "galope: comprimento do corpo = 9 (varia ≤ 4 px)"
       ],
       "etapas": {
         "retrato": {
@@ -8096,7 +8342,8 @@
               "marca": "g100m5303",
               "init_image": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
               "init_image_strength": 100,
-              "data": "2026-11-13T13:47:23.312Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:47:23.311Z",
               "criterios": [
                 {
                   "criterio": "forma (retrato)",
@@ -8153,6 +8400,7 @@
               "marca": "g100m5303",
               "init_image": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:47:40.634Z",
               "criterios": [
                 {
@@ -8210,7 +8458,8 @@
               "marca": "g100m5303",
               "init_image": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
               "init_image_strength": 100,
-              "data": "2026-11-13T13:47:59.960Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:47:59.959Z",
               "criterios": [
                 {
                   "criterio": "forma (retrato)",
@@ -8275,6 +8524,7 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:48:19.640Z",
               "criterios": [
                 {
@@ -8317,7 +8567,7 @@
                 {
                   "criterio": "mesmo corpo no parado: comprimento",
                   "ok": true,
-                  "valor": 0,
+                  "valor": -1,
                   "limite": "|Δ| ≤ 2 px"
                 }
               ],
@@ -8333,14 +8583,14 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:48:34.695Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "faltam papéis: 4 (crina)"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas no parado",
@@ -8375,11 +8625,11 @@
                 {
                   "criterio": "mesmo corpo no parado: comprimento",
                   "ok": true,
-                  "valor": 1,
+                  "valor": 0,
                   "limite": "|Δ| ≤ 2 px"
                 }
               ],
-              "ok": false
+              "ok": true
             },
             {
               "seed": 3606,
@@ -8391,14 +8641,14 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:48:54.129Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "faltam papéis: 4 (crina)"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas no parado",
@@ -8433,13 +8683,17 @@
                 {
                   "criterio": "mesmo corpo no parado: comprimento",
                   "ok": true,
-                  "valor": -1,
+                  "valor": -2,
                   "limite": "|Δ| ≤ 2 px"
                 }
               ],
               "ok": false
             }
-          ]
+          ],
+          "mantida": {
+            "seria": 3506,
+            "seriaOk": true
+          }
         },
         "corrida": {
           "escolhida": 3406,
@@ -8457,6 +8711,7 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-corrida-g35padrao4102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:49:09.732Z",
               "criterios": [
                 {
@@ -8464,7 +8719,7 @@
                   "ok": false,
                   "valor": 1,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "faltam papéis: 4 (crina), 8 (jóquei-pele)"
+                  "motivo": "faltam papéis: 8 (jóquei-pele)"
                 },
                 {
                   "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
@@ -8485,6 +8740,7 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-corrida-g35padrao4102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:49:26.797Z",
               "criterios": [
                 {
@@ -8492,12 +8748,12 @@
                   "ok": false,
                   "valor": 1,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "fora da paleta: 146 de 1158 pixels (12.6%) acima de 2%"
+                  "motivo": "fora da paleta: 46 de 1158 pixels (4.0%) acima de 2%"
                 },
                 {
                   "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
                   "ok": true,
-                  "valor": 2,
+                  "valor": 3,
                   "limite": "≥ 2"
                 }
               ],
@@ -8513,6 +8769,7 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-corrida-g35padrao4102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:49:42.496Z",
               "criterios": [
                 {
@@ -8520,12 +8777,12 @@
                   "ok": false,
                   "valor": 1,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "fora da paleta: 145 de 1107 pixels (13.1%) acima de 2%"
+                  "motivo": "faltam papéis: 8 (jóquei-pele)"
                 },
                 {
                   "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
                   "ok": true,
-                  "valor": 2,
+                  "valor": 3,
                   "limite": "≥ 2"
                 }
               ],
@@ -8546,6 +8803,7 @@
               "first_frame": "robusto-ondas/corrida seed 3406",
               "geracoes": 1,
               "arquivo": "raw/portes-robusto-ondas-galope-c3406g100m5103-s3406-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T14:17:48.187Z",
               "criterios": [
                 {
@@ -8553,23 +8811,23 @@
                   "ok": false,
                   "valor": 9,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-1: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-2: fora da paleta: 51 de 1032 pixels (4.9%) acima de 2%; galope-3: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-4: fora da paleta: 49 de 1014 pixels (4.8%) acima de 2%; galope-5: fora da paleta: 41 de 1027 pixels (4.0%) acima de 2%; galope-6: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-7: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-8: faltam papéis: 4 (crina), 8 (jóquei-pele)"
+                  "motivo": "galope-0: faltam papéis: 8 (jóquei-pele); galope-1: faltam papéis: 8 (jóquei-pele); galope-2: faltam papéis: 8 (jóquei-pele); galope-3: faltam papéis: 8 (jóquei-pele); galope-4: faltam papéis: 8 (jóquei-pele); galope-5: faltam papéis: 8 (jóquei-pele); galope-6: faltam papéis: 8 (jóquei-pele); galope-7: faltam papéis: 8 (jóquei-pele); galope-8: faltam papéis: 8 (jóquei-pele)"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
-                  "ok": false,
-                  "valor": 1,
+                  "ok": true,
+                  "valor": 2,
                   "limite": "≥ 2",
                   "quadros": [
                     4,
+                    4,
+                    4,
+                    3,
                     2,
                     4,
                     4,
-                    2,
-                    2,
-                    1,
-                    2,
-                    3
+                    4,
+                    4
                   ]
                 },
                 {
@@ -8580,16 +8838,16 @@
                 },
                 {
                   "criterio": "galope: lombo na coluna da sela",
-                  "ok": false,
-                  "valor": 12,
+                  "ok": true,
+                  "valor": 3,
                   "limite": "varia ≤ 3 px",
                   "quadros": [
                     20,
+                    19,
                     20,
-                    27,
                     21,
-                    15,
-                    27,
+                    22,
+                    21,
                     19,
                     20,
                     22
@@ -8618,15 +8876,15 @@
                   "valor": 3,
                   "limite": "varia ≤ 4 px",
                   "quadros": [
-                    43,
-                    42,
-                    42,
-                    42,
                     44,
-                    45,
-                    42,
-                    42,
-                    43
+                    43,
+                    43,
+                    43,
+                    44,
+                    46,
+                    43,
+                    43,
+                    44
                   ]
                 }
               ],
@@ -8640,6 +8898,7 @@
               "first_frame": "robusto-ondas/corrida seed 3406",
               "geracoes": 1,
               "arquivo": "raw/portes-robusto-ondas-galope-c3406g100m5103-s3506-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T14:22:30.012Z",
               "criterios": [
                 {
@@ -8647,23 +8906,23 @@
                   "ok": false,
                   "valor": 9,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-1: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-2: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-3: fora da paleta: 31 de 1035 pixels (3.0%) acima de 2%; galope-4: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-5: fora da paleta: 60 de 1025 pixels (5.9%) acima de 2%; galope-6: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-7: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-8: faltam papéis: 4 (crina), 8 (jóquei-pele)"
+                  "motivo": "galope-0: faltam papéis: 8 (jóquei-pele); galope-1: faltam papéis: 8 (jóquei-pele); galope-2: faltam papéis: 8 (jóquei-pele); galope-3: faltam papéis: 8 (jóquei-pele); galope-4: faltam papéis: 8 (jóquei-pele); galope-5: faltam papéis: 8 (jóquei-pele); galope-6: faltam papéis: 8 (jóquei-pele); galope-7: faltam papéis: 8 (jóquei-pele); galope-8: faltam papéis: 8 (jóquei-pele)"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
                   "ok": true,
-                  "valor": 2,
+                  "valor": 3,
                   "limite": "≥ 2",
                   "quadros": [
                     4,
-                    2,
-                    3,
-                    2,
-                    3,
-                    3,
+                    4,
+                    4,
+                    4,
+                    4,
                     4,
                     3,
-                    4
+                    4,
+                    3
                   ]
                 },
                 {
@@ -8679,11 +8938,11 @@
                   "limite": "varia ≤ 3 px",
                   "quadros": [
                     20,
-                    20,
-                    20,
+                    19,
                     20,
                     21,
-                    19,
+                    21,
+                    20,
                     19,
                     20,
                     21
@@ -8708,18 +8967,18 @@
                 },
                 {
                   "criterio": "galope: comprimento do corpo",
-                  "ok": true,
-                  "valor": 3,
+                  "ok": false,
+                  "valor": 9,
                   "limite": "varia ≤ 4 px",
                   "quadros": [
+                    44,
                     43,
-                    42,
-                    42,
-                    42,
-                    41,
+                    52,
                     44,
                     44,
-                    42,
+                    45,
+                    45,
+                    43,
                     44
                   ]
                 }
@@ -8734,6 +8993,7 @@
               "first_frame": "robusto-ondas/corrida seed 3406",
               "geracoes": 1,
               "arquivo": "raw/portes-robusto-ondas-galope-c3406g100m5103-s3606-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T14:23:53.632Z",
               "criterios": [
                 {
@@ -8741,21 +9001,21 @@
                   "ok": false,
                   "valor": 9,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-1: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-2: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-3: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-4: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-5: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-6: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-7: faltam papéis: 4 (crina), 8 (jóquei-pele); galope-8: faltam papéis: 4 (crina), 8 (jóquei-pele)"
+                  "motivo": "galope-0: faltam papéis: 8 (jóquei-pele); galope-1: faltam papéis: 8 (jóquei-pele); galope-2: faltam papéis: 8 (jóquei-pele); galope-3: faltam papéis: 8 (jóquei-pele); galope-4: faltam papéis: 8 (jóquei-pele); galope-5: faltam papéis: 8 (jóquei-pele); galope-6: faltam papéis: 8 (jóquei-pele); galope-7: faltam papéis: 8 (jóquei-pele); galope-8: faltam papéis: 8 (jóquei-pele)"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
                   "ok": true,
-                  "valor": 3,
+                  "valor": 4,
                   "limite": "≥ 2",
                   "quadros": [
                     4,
                     4,
-                    3,
                     4,
                     4,
                     4,
-                    3,
+                    4,
+                    4,
                     4,
                     4
                   ]
@@ -8773,14 +9033,14 @@
                   "limite": "varia ≤ 3 px",
                   "quadros": [
                     20,
-                    20,
+                    19,
                     20,
                     21,
-                    22,
                     21,
                     20,
+                    19,
                     20,
-                    22
+                    21
                   ]
                 },
                 {
@@ -8803,25 +9063,29 @@
                 {
                   "criterio": "galope: comprimento do corpo",
                   "ok": true,
-                  "valor": 1,
+                  "valor": 0,
                   "limite": "varia ≤ 4 px",
                   "quadros": [
-                    43,
-                    43,
-                    43,
-                    43,
-                    43,
                     44,
-                    43,
-                    43,
-                    43
+                    44,
+                    44,
+                    44,
+                    44,
+                    44,
+                    44,
+                    44,
+                    44
                   ]
                 }
               ],
               "ok": false,
               "quadros": 9
             }
-          ]
+          ],
+          "mantida": {
+            "seria": 3406,
+            "seriaOk": false
+          }
         }
       },
       "historico": []
@@ -8847,10 +9111,6 @@
       "final": true,
       "ok": false,
       "falhas": [
-        "parado: forma (parado) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))",
-        "corrida: forma (corrida) = 1 (paleta, papéis obrigatórios e silhueta fechada (validar))",
-        "galope: forma (galope) = 9 (paleta, papéis obrigatórios e silhueta fechada (validar))",
-        "galope: pernas no galope (todo quadro) = 1 (≥ 2)",
         "galope: comprimento do corpo = 6 (varia ≤ 4 px)"
       ],
       "etapas": {
@@ -8870,7 +9130,8 @@
               "marca": "g100m5303",
               "init_image": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
               "init_image_strength": 100,
-              "data": "2026-11-13T13:50:06.032Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:50:06.031Z",
               "criterios": [
                 {
                   "criterio": "forma (retrato)",
@@ -8927,6 +9188,7 @@
               "marca": "g100m5303",
               "init_image": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:50:32.073Z",
               "criterios": [
                 {
@@ -8984,6 +9246,7 @@
               "marca": "g100m5303",
               "init_image": "raw/portes-robusto-lisa-retrato-g35padrao3102-s5303.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:50:55.337Z",
               "criterios": [
                 {
@@ -9035,7 +9298,7 @@
         },
         "parado": {
           "escolhida": 3609,
-          "ok": false,
+          "ok": true,
           "terminada": true,
           "refacao": 0,
           "tentativas": [
@@ -9050,7 +9313,7 @@
               "init_image": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
               "init_image_strength": 100,
               "ok": false,
-              "motivo": "POST /create-image-pixflux → HTTP 502: upstream request failed"
+              "motivo": "erro registrado em rodada anterior: POST /create-image-pixflux → HTTP 502: upstream request failed"
             },
             {
               "seed": 3509,
@@ -9062,6 +9325,7 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:51:36.720Z",
               "criterios": [
                 {
@@ -9104,7 +9368,7 @@
                 {
                   "criterio": "mesmo corpo no parado: comprimento",
                   "ok": true,
-                  "valor": 1,
+                  "valor": 0,
                   "limite": "|Δ| ≤ 2 px"
                 }
               ],
@@ -9120,14 +9384,14 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-parado-g35padrao3102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:51:54.210Z",
               "criterios": [
                 {
                   "criterio": "forma (parado)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "faltam papéis: 4 (crina), 8 (jóquei-pele)"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas no parado",
@@ -9166,13 +9430,13 @@
                   "limite": "|Δ| ≤ 2 px"
                 }
               ],
-              "ok": false
+              "ok": true
             }
           ]
         },
         "corrida": {
           "escolhida": 3409,
-          "ok": false,
+          "ok": true,
           "terminada": true,
           "refacao": 0,
           "tentativas": [
@@ -9186,23 +9450,23 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-corrida-g35padrao4102-s5103.png",
               "init_image_strength": 100,
-              "data": "2026-11-13T13:52:14.871Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T13:52:14.870Z",
               "criterios": [
                 {
                   "criterio": "forma (corrida)",
-                  "ok": false,
-                  "valor": 1,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "fora da paleta: 35 de 1107 pixels (3.2%) acima de 2%"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
                   "ok": true,
-                  "valor": 2,
+                  "valor": 3,
                   "limite": "≥ 2"
                 }
               ],
-              "ok": false
+              "ok": true
             },
             {
               "seed": 3509,
@@ -9214,6 +9478,7 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-corrida-g35padrao4102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:52:35.267Z",
               "criterios": [
                 {
@@ -9221,7 +9486,7 @@
                   "ok": false,
                   "valor": 1,
                   "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "faltam papéis: 8 (jóquei-pele)"
+                  "motivo": "fora da paleta: 73 de 1136 pixels (6.4%) acima de 2%"
                 },
                 {
                   "criterio": "pernas na pose de corrida (o quadro 0 do galope)",
@@ -9242,6 +9507,7 @@
               "marca": "g100m5103",
               "init_image": "raw/portes-robusto-lisa-corrida-g35padrao4102-s5103.png",
               "init_image_strength": 100,
+              "reaproveitada": true,
               "data": "2026-11-13T13:52:51.863Z",
               "criterios": [
                 {
@@ -9275,30 +9541,30 @@
               "first_frame": "robusto-folhas/corrida seed 3409",
               "geracoes": 1,
               "arquivo": "raw/portes-robusto-folhas-galope-c3409g100m5103-s3409-0..8.png",
-              "data": "2026-11-13T14:26:40.835Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T14:26:40.834Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
-                  "ok": false,
-                  "valor": 9,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: fora da paleta: 35 de 1107 pixels (3.2%) acima de 2%; galope-1: fora da paleta: 79 de 1124 pixels (7.0%) acima de 2%; galope-2: fora da paleta: 66 de 1083 pixels (6.1%) acima de 2%; galope-3: fora da paleta: 37 de 1085 pixels (3.4%) acima de 2%; galope-4: fora da paleta: 60 de 1087 pixels (5.5%) acima de 2%; galope-5: fora da paleta: 70 de 1094 pixels (6.4%) acima de 2%; galope-6: fora da paleta: 74 de 1082 pixels (6.8%) acima de 2%; galope-7: fora da paleta: 41 de 1086 pixels (3.8%) acima de 2%; galope-8: fora da paleta: 39 de 1057 pixels (3.7%) acima de 2%"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
-                  "ok": false,
-                  "valor": 1,
+                  "ok": true,
+                  "valor": 2,
                   "limite": "≥ 2",
                   "quadros": [
-                    2,
-                    1,
-                    1,
+                    3,
                     2,
                     2,
                     2,
                     2,
+                    3,
                     2,
-                    2
+                    3,
+                    3
                   ]
                 },
                 {
@@ -9310,18 +9576,18 @@
                 {
                   "criterio": "galope: lombo na coluna da sela",
                   "ok": true,
-                  "valor": 3,
+                  "valor": 2,
                   "limite": "varia ≤ 3 px",
                   "quadros": [
-                    25,
+                    23,
+                    22,
                     22,
                     23,
                     24,
-                    25,
-                    25,
-                    23,
-                    23,
-                    24
+                    24,
+                    22,
+                    22,
+                    23
                   ]
                 },
                 {
@@ -9347,15 +9613,15 @@
                   "valor": 6,
                   "limite": "varia ≤ 4 px",
                   "quadros": [
-                    46,
-                    47,
+                    48,
+                    48,
                     47,
                     47,
                     50,
                     51,
                     49,
                     45,
-                    45
+                    46
                   ]
                 }
               ],
@@ -9369,30 +9635,30 @@
               "first_frame": "robusto-folhas/corrida seed 3409",
               "geracoes": 1,
               "arquivo": "raw/portes-robusto-folhas-galope-c3409g100m5103-s3509-0..8.png",
+              "reaproveitada": true,
               "data": "2026-11-13T14:28:25.564Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
-                  "ok": false,
-                  "valor": 9,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: fora da paleta: 35 de 1107 pixels (3.2%) acima de 2%; galope-1: fora da paleta: 97 de 1097 pixels (8.8%) acima de 2%; galope-2: fora da paleta: 93 de 1057 pixels (8.8%) acima de 2%; galope-3: fora da paleta: 31 de 1106 pixels (2.8%) acima de 2%; galope-4: fora da paleta: 26 de 1110 pixels (2.3%) acima de 2%; galope-5: fora da paleta: 30 de 1109 pixels (2.7%) acima de 2%; galope-6: fora da paleta: 36 de 1106 pixels (3.3%) acima de 2%; galope-7: fora da paleta: 32 de 1062 pixels (3.0%) acima de 2%; galope-8: fora da paleta: 29 de 1095 pixels (2.6%) acima de 2%"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
                   "ok": true,
-                  "valor": 2,
+                  "valor": 3,
                   "limite": "≥ 2",
                   "quadros": [
-                    2,
-                    2,
-                    2,
-                    2,
-                    2,
-                    2,
-                    2,
+                    3,
+                    3,
+                    3,
+                    3,
                     4,
-                    2
+                    3,
+                    3,
+                    3,
+                    4
                   ]
                 },
                 {
@@ -9404,16 +9670,16 @@
                 {
                   "criterio": "galope: lombo na coluna da sela",
                   "ok": false,
-                  "valor": 13,
+                  "valor": 11,
                   "limite": "varia ≤ 3 px",
                   "quadros": [
-                    25,
+                    23,
                     21,
                     12,
                     13,
                     13,
                     13,
-                    24,
+                    23,
                     19,
                     13
                   ]
@@ -9437,19 +9703,19 @@
                 },
                 {
                   "criterio": "galope: comprimento do corpo",
-                  "ok": false,
-                  "valor": 6,
+                  "ok": true,
+                  "valor": 4,
                   "limite": "varia ≤ 4 px",
                   "quadros": [
+                    48,
+                    47,
                     46,
-                    46,
-                    45,
-                    46,
+                    48,
                     48,
                     50,
                     49,
-                    46,
-                    44
+                    47,
+                    46
                   ]
                 }
               ],
@@ -9463,14 +9729,14 @@
               "first_frame": "robusto-folhas/corrida seed 3409",
               "geracoes": 1,
               "arquivo": "raw/portes-robusto-folhas-galope-c3409g100m5103-s3609-0..8.png",
-              "data": "2026-11-13T14:30:10.154Z",
+              "reaproveitada": true,
+              "data": "2026-11-13T14:30:10.153Z",
               "criterios": [
                 {
                   "criterio": "forma (galope)",
-                  "ok": false,
-                  "valor": 9,
-                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)",
-                  "motivo": "galope-0: fora da paleta: 35 de 1107 pixels (3.2%) acima de 2%; galope-1: fora da paleta: 77 de 1091 pixels (7.1%) acima de 2%; galope-2: faltam papéis: 4 (crina); galope-3: fora da paleta: 37 de 1093 pixels (3.4%) acima de 2%; galope-4: fora da paleta: 32 de 1071 pixels (3.0%) acima de 2%; galope-5: faltam papéis: 4 (crina); galope-6: fora da paleta: 33 de 1078 pixels (3.1%) acima de 2%; galope-7: faltam papéis: 4 (crina); galope-8: faltam papéis: 4 (crina)"
+                  "ok": true,
+                  "valor": 0,
+                  "limite": "paleta, papéis obrigatórios e silhueta fechada (validar)"
                 },
                 {
                   "criterio": "pernas no galope (todo quadro)",
@@ -9478,15 +9744,15 @@
                   "valor": 2,
                   "limite": "≥ 2",
                   "quadros": [
-                    2,
-                    2,
                     3,
+                    3,
+                    3,
+                    3,
+                    4,
+                    4,
                     2,
-                    2,
-                    2,
-                    2,
-                    2,
-                    2
+                    4,
+                    4
                   ]
                 },
                 {
@@ -9498,18 +9764,18 @@
                 {
                   "criterio": "galope: lombo na coluna da sela",
                   "ok": false,
-                  "valor": 13,
+                  "valor": 4,
                   "limite": "varia ≤ 3 px",
                   "quadros": [
-                    25,
+                    23,
                     22,
-                    24,
+                    23,
                     20,
-                    26,
+                    24,
                     24,
                     23,
                     22,
-                    33
+                    23
                   ]
                 },
                 {
@@ -9531,14 +9797,14 @@
                 },
                 {
                   "criterio": "galope: comprimento do corpo",
-                  "ok": false,
-                  "valor": 5,
+                  "ok": true,
+                  "valor": 4,
                   "limite": "varia ≤ 4 px",
                   "quadros": [
-                    46,
-                    46,
-                    46,
-                    45,
+                    48,
+                    48,
+                    47,
+                    47,
                     48,
                     50,
                     48,
@@ -9568,5 +9834,5 @@
     "nose": 6,
     "comprimento": 4
   },
-  "atualizado": "2026-11-13T14:30:10.187Z"
+  "atualizado": "2026-11-13T15:09:14.258Z"
 }
