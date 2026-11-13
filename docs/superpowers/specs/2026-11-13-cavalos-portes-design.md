@@ -124,11 +124,19 @@ com o seu detalhe (papel 6). As versões de elemento mantêm o corpo do mestre.
 **Tela e escala.** O canvas continua 64×64. O PixelLab tende a encher o canvas com o cavalo, qualquer que seja o
 porte pedido, então a diferença entre os portes está nas **proporções** (altura e espessura do corpo em relação ao
 comprimento), e não no tamanho absoluto do desenho. Hoje a escala única sai do maior `larguraUtil` entre os
-estilos. Ela passa a sair do maior `larguraUtil` **entre os 4 desenhos do padrão** (`lisa` incluído), e os
-cavalos do padrão ficam do tamanho dos de hoje. O encaixe continua pelas âncoras de cada molde, como hoje: pés
+estilos. Ela passa a sair do maior `larguraUtil` **entre os 4 desenhos do padrão** (`lisa` incluído), e na pista
+os cavalos do padrão ficam do tamanho dos de hoje. O encaixe continua pelas âncoras de cada molde, como hoje: pés
 no `footY`, focinho no `nose`, retrato pelo bbox. Se um porte não couber na raia ou no cartão (o teste de
 interface já confere que o cavalo nunca sai da tela e que nada rola de lado a 360 px), ajusta-se o pedido ou o
-recorte daquele porte, nunca a escala dos outros.
+recorte daquele porte; na pista, nunca a escala dos outros.
+
+**Escala num quadro fixo (emenda de 2026-11-13, decisão do Vinicius depois da revisão final).** Nos retratos e no
+pódio (quadro de altura fixa), a escala decide o passo pelo **molde mais alto dos 12** naquele estado: fica a escala
+única enquanto ele couber com o topo cortado em no máximo 10% da altura; senão, desce um passo **para todos os moldes
+juntos**. Assim os 3 portes ficam proporcionais em qualquer zoom. Com zoom de 125% (k = 4), todos ficam um passo
+menores que antes da 2b (de S 3 para S 2), inclusive o padrão. A outra saída era decidir por molde: o robusto, o
+retrato mais alto, descia sozinho e ficava menor que o padrão; e tolerar mais corte cortaria a cabeça do robusto
+(14% em k = 4).
 
 **Medidas do corpo** (usadas nos critérios da seção 5): só os papéis 1 a 3 (contorno e pelagem). Ficam de fora
 a crina e a cauda (4 e 5), o detalhe (6), o jóquei (7 e 8) e a sela (9). As orelhas contam como corpo.
@@ -210,6 +218,14 @@ endpoint, prompt, seed e custo, porque isso alimenta a declaração de IA da Ste
   - teste do caso "pele acima do capacete" (`marcas.js` ~386-388) com os moldes novos;
   - o brilho de cada raridade conferido sobre a crina de cada molde novo, com o mesmo teste de luminância do
     Mágico na Grama.
+
+  **Estado real no fim da 2b (revisão final, 2026-11-13).** As 4 pernas no retrato e no parado saíram na maioria
+  dos moldes, com as contagens aceitas pelo Vinicius (esguio-lisa e esguio-ondas no parado, 2; padrao-folhas no
+  parado, robusto-chamas e robusto-folhas no retrato, 3). Os três testes existem no `moldes-test` ("Portes: moldes
+  reais"). O de pele acima do capacete passa. O do brilho passa em todas as combinações do catálogo depois da
+  correção da cor (decisão do Vinicius: a cor do brilho se ajusta ao contraste com a crina; spec da 2a §5). Ficam
+  **para a 2c**, por decisão do Vinicius, medidos e listados no teste (`PENDENTES_2A`): as meias que se juntam ou se
+  partem em 5 dos 24 retratos e parados e a zona da cara que pulsa no galope em 5 moldes.
 
 ## 7. Testes
 

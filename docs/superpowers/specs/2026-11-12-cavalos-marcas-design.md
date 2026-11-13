@@ -100,7 +100,8 @@ Só nos desenhos do PixelLab (os moldes), em todas as telas: retrato, parado, ga
 
 As zonas valem para qualquer molde, inclusive os portes da 2b.
 
-**Limite conhecido (aceito até a 2b; resolvido na 2b em 2026-11-13, ver abaixo).** Nos moldes de 2026-11-08, pernas
+**Limite conhecido (aceito até a 2b; as 4 pernas resolvidas na 2b em 2026-11-13, com exceções aceitas; a contagem de
+meias segue para a 2c, ver abaixo).** Nos moldes de 2026-11-08, pernas
 que se encostam no desenho contam como uma, e por quadro se acham de 2 a 4 pernas. Medição da revisão final:
 
 | Molde  | Retrato | Parado | Galope |
@@ -113,13 +114,15 @@ Por isso 3 e 4 meias podem aparecer como 2 ou 3 num quadro, e no galope a 3ª e 
 conforme as pernas se cruzam. 1 e 2 meias são estáveis. O código das pernas não muda na 2a; separar as 4 pernas
 nos moldes novos (retrato e parado) é requisito da 2b, com um teste de contagem de meias por molde.
 
-**Resolvido na 2b (T7, 2026-11-13).** Os 4 moldes acima saíram; os 12 moldes dos portes têm 4 pernas no retrato e no
-parado, fora as contagens aceitas (esguio-lisa e esguio-ondas no parado, 2; padrao-folhas no parado e robusto-chamas
-no retrato, 3, na folha; robusto-folhas no retrato, 3, depois que a canela de crina voltou à pelagem na rodada de
-correção 1 da T7). No galope, pelo menos 2 em todo quadro. O `moldes-test` confere isso e conta as meias por molde (N
-meias = N manchas brancas no retrato e no parado). Ficaram fora dessa conta, medidos e listados no teste
-(`PENDENTES_2A.meias`) para decisão: 5 dos 24 retratos e parados, por meias de pernas vizinhas que se encostam (viram uma
-mancha) ou pela ponta do casco separada pelo contorno (uma mancha a mais).
+**Na 2b (T7 e revisão final, 2026-11-13): 4 pernas resolvidas na maioria dos moldes; contagem de meias para a 2c.**
+Os 4 moldes acima saíram; os 12 moldes dos portes têm 4 pernas no retrato e no parado, fora as contagens aceitas pelo
+Vinicius (esguio-lisa e esguio-ondas no parado, 2; padrao-folhas no parado e robusto-chamas no retrato, 3, na folha;
+robusto-folhas no retrato, 3, depois que a canela de crina voltou à pelagem na rodada de correção 1 da T7, aceito na
+revisão final). No galope, pelo menos 2 em todo quadro. O `moldes-test` confere isso e conta as meias por molde (N
+meias = N manchas brancas no retrato e no parado). Ficam fora dessa conta, medidos e listados no teste
+(`PENDENTES_2A.meias`): 5 dos 24 retratos e parados, por meias de pernas vizinhas que se encostam (viram uma mancha) ou
+pela ponta do casco separada pelo contorno (uma mancha a mais). **Ficam para a 2c**, por decisão do Vinicius
+(2026-11-13), com a zona da cara que pulsa no galope em 5 moldes (`PENDENTES_2A.caraPresa`).
 
 **Pintura** (só sobre pixels de pelagem e pelagem-sombra; contorno, crina, jóquei e sela não mudam):
 
@@ -165,11 +168,18 @@ Efeitos na cor da raridade (`RARITIES[*].color`). O contorno brilhante continua 
 | Raridade | Efeito |
 |---|---|
 | Comum | nada |
-| Mágico | uma faixa de brilho corre pela crina a cada 1,2 s (mistura de 25% da cor da raridade clareada, a mesma do rastro; a cor pura sumia na crina verde da Grama) |
+| Mágico | uma faixa de brilho corre pela crina a cada 1,2 s (mistura de 25% da cor da raridade, clareada ou escurecida conforme a crina; ver abaixo) |
 | Raro | o brilho na crina (30%) e 3 faíscas piscando em volta |
 | Lendário | o brilho mais forte (45%) e 5 faíscas |
 | Mítico | o mesmo do Lendário e um rastro de luz atrás do cavalo no galope da corrida |
 
+- **Cor do brilho** (corrigida na 2b, decisão do Vinicius em 2026-11-13): a cor da raridade clareada (mistura de 35%
+  com o creme) ou escurecida (35% com o roxo escuro das sombras), a que mais muda a luminância relativa da crina do
+  cavalo (`palette.mane`) no alfa de pico; se nenhuma das duas muda 0,05, as duas vão mais longe (45%, 55%, 65%) e
+  fica a primeira que chega. Na 2a era sempre a clareada (a cor pura sumia na crina verde da Grama), e a clareada sumia
+  em 14 combinações do catálogo (a pior, o Mágico na crina laranja do Tição: 0,005). Com a regra, as 60 combinações do
+  catálogo (15 crinas × Mágico, Raro, Lendário e Mítico) ficam ≥ 0,05; a menor é o Mágico na crina cinza da Ventania,
+  0,055. Só cores (`sprites.js`, `corBrilho`), sem sorteio; o rastro do Mítico continua na clareada.
 - **Onde:** retrato (estábulo, ficha, Haras, selvagens), parado (sala), corrida e pódio.
 - **Faíscas:** posições fixas em volta da caixa do cavalo, calculadas da chave dele. Cada uma é uma cruz de
   1 px que pisca com fase própria, desenhada pelo tempo de animação (sem `Math.random`).

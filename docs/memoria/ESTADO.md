@@ -17,9 +17,9 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
 - **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Cavalo, Itens,
   Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
-- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (117 testes
-  de simulação, 96 de efeitos, 69 de moldes, 492 conferências do wiki, 77 metas de balanço no modo
-  rápido e 126 no completo, e o teste de interface).
+- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (122 testes
+  de simulação, 104 de efeitos, 161 de moldes, 527 conferências do wiki, 77 metas de balanço no modo
+  rápido e 126 no completo, e o teste de interface; contagem de 2026-11-13, revisão final da 2b).
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
 | Frente | Entrega | Spec |
@@ -83,19 +83,20 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   das raridades. Na revisão da T7 saíram três defeitos: a canela (retrato dos robustos, galope do padrão e dos esguios)
   e o focinho (robustos) que o PixelLab pintou na cor da crina voltaram à pelagem-sombra e ao detalhe (`soltarCrina`,
   1.313 px em 61 quadros, sem custo); o capacete do jóquei sem pele ficou em 4 linhas; e a escala dos retratos é a
-  mesma nos 12 moldes em qualquer dpr (o passo sai do molde mais alto). **Para decidir com o Vinicius** (medido e
-  listado no teste, sem afrouxar regra): 5 dos 24 retratos/parados com meias que se juntam ou se partem
-  (`PENDENTES_2A.meias`); 14 combinações elemento × raridade ×
-  crina do catálogo com o brilho abaixo de 0,05 de luminância (ex.: Mágico na crina do Tição, 0,005;
-  `BRILHO_PENDENTE`); zona da cara variando mais de 20% no galope em 5 moldes, estrela de 1 px e listra curta em
-  alguns quadros (`PENDENTES_2A`); o retrato do robusto-folhas passou a 3 pernas com a canela de volta à pelagem
-  (registrado no teste com o motivo). Wiki (seção "Portes"), GDD §6 e memória prontos (T8). Falta a revisão final da 2b.
+  mesma nos 12 moldes em qualquer dpr (o passo sai do molde mais alto). Wiki (seção "Portes"), GDD §6 e memória
+  prontos (T8). **Revisão final da 2b feita (2026-11-13), com as decisões do Vinicius:** a escala dos retratos fica
+  "todos os portes descem juntos" (com zoom de 125%, todos um passo menores; spec §4 emendada); o **brilho das
+  raridades foi corrigido** (a cor se ajusta ao contraste com a crina: as 60 combinações do catálogo ficam ≥ 0,05 de
+  luminância, antes 14 ficavam abaixo e a pior, Mágico sobre o Tição, era 0,005; `BRILHO_PENDENTE` vazia); o retrato do
+  robusto-folhas com 3 pernas e as 5 frestas de 1 px entre cauda e anca no parado do robusto-ondas ficam aceitos (o
+  teste da forma passou a revalidar com o defeito aceito neutralizado, e achou as frestas escondidas atrás do "fora da
+  paleta"). **Ficam para a 2c**, medidos e listados no teste (`PENDENTES_2A`): meias que se juntam ou se partem em 5 dos
+  24 retratos/parados e a zona da cara variando mais de 20% no galope em 5 moldes.
   **Próxima: 2c (animações novas para todos os portes).**
-  **A decidir / pendências (Vinicius):** o brilho da raridade fica fraco em algumas crinas (vem da 2a; 14 combinações
-  abaixo de 0,05, a pior Mágico sobre o Tição); meias que se juntam ou se partem em 5 dos 24 parados/retratos; a zona
-  da cara pulsa no galope em 5 moldes; no galope do robusto-chamas o vermelho do capacete é igual ao da pelagem e o
-  tronco do jóquei sai manchado; a crina do robusto é fina no galope do mestre; forma ainda reprovada em crus com
-  laranja > 2% (padrao-ondas, robusto-*), aceitos na folha.
+  **Pendências (Vinicius):** para a 2c, as meias que se juntam ou se partem (5 de 24) e a zona da cara que pulsa no
+  galope (5 moldes); estrela de 1 px e listra curta em alguns quadros (`PENDENTES_2A`); no galope do robusto-chamas o
+  vermelho do capacete é igual ao da pelagem e o tronco do jóquei sai manchado; a crina do robusto é fina no galope do
+  mestre; forma ainda reprovada em crus com laranja > 2% (padrao-ondas, robusto-*), aceitos na folha.
 
 ## O que falta
 - **Decidido em 2026-11-10:** o teste fechado do Play sai com o jogo offline; o lançamento público
