@@ -75,6 +75,33 @@ confere(a.html.includes('<li><b>15</b> skills</li>') && a.html.includes('<li><b>
 confere(/id="filtro-el-geral"[^>]*>(<img[^>]*>)?Gerais</.test(a.html), 'falta o filtro "Gerais" (skills gerais)')
 confere(/<span class="el el--geral"><img /.test(a.html), 'skills gerais sem o ícone el-geral')
 
+// 2a. marcas e jóquei (parte 2a dos cavalos): seção com os genes, a herança, o jóquei, a raridade e a tabela dos 15 cavalos
+{
+  const ini = a.md.indexOf('## Marcas e jóquei')
+  const fim = a.md.indexOf('<a id="cruzamento">')
+  const sec = ini >= 0 && fim > ini ? a.md.slice(ini, fim) : ''
+  confere(sec.length > 0, 'falta a seção "Marcas e jóquei" no md (antes do Cruzamento)')
+  confere(/<section class="secao" id="marcas"/.test(a.html), 'falta a seção "marcas" no html')
+  for (const v of G.MARCAS.cara) confere(sec.includes(v === 'frente' ? 'frente branca' : v), `seção Marcas sem o valor de cara "${v}"`)
+  for (const v of G.MARCAS.patas) confere(sec.includes(`| Patas | ${G.MARCAS.patas.join(', ').replace(/, (\d)$/, ' e $1')} meias brancas`), `seção Marcas sem a lista de patas (${v})`)
+  for (const v of G.MARCAS.corpo) confere(new RegExp(`\\| Corpo \\|[^\\n]*${v === 'ruao' ? 'ruão' : v}`).test(sec), `seção Marcas sem o valor de corpo "${v}"`)
+  confere(sec.includes('10% de chance de **mutação**'), 'seção Marcas sem os 10% de mutação')
+  for (const p of G.JOQUEI.padroes) confere(sec.includes(p), `seção Marcas sem o padrão de jóquei "${p}"`)
+  confere(/\| Comum \| nada \|/.test(sec), 'raridade Comum devia ser "nada"')
+  confere(/\| Mágico \| brilho na crina \(mistura de 25% da cor da raridade\) \|/.test(sec), 'raridade Mágico: só brilho de 25%')
+  confere(/\| Raro \| brilho na crina \(mistura de 30%[^|]*3 faíscas/.test(sec), 'raridade Raro: brilho de 30% e 3 faíscas')
+  confere(/\| Lendário \| brilho na crina \(mistura de 45%[^|]*5 faíscas/.test(sec), 'raridade Lendário: brilho de 45% e 5 faíscas')
+  confere(/\| Mítico \| brilho na crina \(mistura de 45%[^|]*5 faíscas[^|]*rastro/.test(sec), 'raridade Mítico: 5 faíscas e rastro')
+  const catalogo = G.STARTERS.concat(G.WILD_HORSES)
+  confere(catalogo.length === 15, 'o catálogo devia ter 15 cavalos')
+  for (const h of catalogo) {
+    const cara = h.marcas.cara === 'frente' ? 'frente branca' : h.marcas.cara
+    confere(new RegExp(`\\| ${h.name} \\| ${cara} \\| ${h.marcas.patas} \\| ${h.marcas.corpo === 'ruao' ? 'ruão' : h.marcas.corpo}`).test(sec), `tabela de marcas: linha de ${h.name} não confere com o data.js`)
+  }
+  const linhasTab = sec.slice(sec.indexOf('### Marcas dos iniciais e selvagens')).split('\n').filter((l) => /^\| /.test(l)).length - 2
+  confere(linhasTab === 15, `tabela de marcas devia ter 15 linhas, tem ${linhasTab}`)
+}
+
 // 2b. ícones: skill (e skill de tipo), status, clima, piso, liga e raridade que têm arquivo ganham o <img> antes do nome
 const DIR_ICONES = resolve(import.meta.dirname, '..', 'assets', 'icons')
 const temIcone = (id) => existsSync(join(DIR_ICONES, id + '.png'))

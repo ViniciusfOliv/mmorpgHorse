@@ -31,6 +31,7 @@ const GR = require('../src/gear.js')
 const B = require('../src/breed.js')
 const FX = require('../src/fx.js')
 const DV = require('../src/dev.js')
+const MK = require('../src/marcas.js')
 const T = S.TUNING
 const E = G.ECONOMY
 const EG = E.gear
@@ -660,6 +661,53 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `Há ${G.STARTERS.length} montarias iniciais e ${G.WILD_HORSES.length} selvagens. Todas são da espécie cavalo. As selvagens aparecem como bots nas corridas, como reprodutores de aluguel no Haras (menos as de raridade ${nomeRar('mitico')}) e ${F.vitrine.length} delas na vitrine da Expedição. As iniciais também aparecem como bots quando não são suas. Como o level dos bots é escolhido: ver Economia, Rivais da sala.` },
     { t: 'p', txt: `**Genética** (0 a 31 por status, nota C a S) aparece no jogo, na aba Status da montaria. Os status são sem equipamento e sem pontos livres distribuídos. Os bots usam a genética do modelo e distribuem os pontos pela build fixa (ver Economia, Poder e ligas).` },
     { t: 'custom', md: montariasMd(F), html: montariasHtml(F) }
+  ])
+
+  // 9b. Marcas e jóquei ----------------------------------------------------------------------------------
+  const MC = G.MARCAS, JQ = G.JOQUEI
+  const caraRot = { nenhuma: 'nenhuma', estrela: 'estrela', listra: 'listra', frente: 'frente branca' }
+  const corpoRot = { liso: 'liso', malhado: 'malhado (manchas brancas grandes)', pintado: 'pintado (pintas escuras pequenas)', ruao: 'ruão (pelos brancos salpicados)' }
+  const marcaRot = (tab, id) => { if (!(id in tab)) throw new Error(`wiki: valor de marca desconhecido "${id}"`); return tab[id] }
+  const brilhoCiclo = numDe('src/sprites.js', /var BRILHO_CICLO = ([\d.]+);/, 'BRILHO_CICLO (ciclo do brilho da crina)')
+  const efeitoRar = (id) => {
+    if (!(id in MK.N_FAISCAS) || !(id in MK.BRILHO)) throw new Error(`wiki: raridade sem efeito em marcas.js: ${id}`)
+    const n = MK.N_FAISCAS[id], b = MK.BRILHO[id], t = []
+    if (b > 0) t.push(`brilho na crina (mistura de ${pct(b, 0)} da cor da raridade)`)
+    if (n > 0) t.push(`${n} faíscas piscando em volta`)
+    if (id === 'mitico') t.push('rastro de luz atrás do cavalo no galope da corrida')
+    return t.length ? t.join(' e ') : 'nada'
+  }
+  const marcasHorse = (h) => {
+    const m = h.marcas
+    if (!B.marcasValidas(m)) throw new Error(`wiki: ${h.name} sem marcas válidas em data.js`)
+    return [h.name, marcaRot(caraRot, m.cara), N(String(m.patas)), marcaRot(corpoRot, m.corpo)]
+  }
+  add('marcas', 'Marcas e jóquei', 'Marcas e jóquei', [
+    { t: 'p', txt: 'Marcas, jóquei e brilho da raridade são só desenho: não entram em status, Poder, preço, chance de skill nem na corrida. Cada cavalo carrega 3 genes de marcas, que o potro herda pela seed do cruzamento.' },
+    { t: 'h3', txt: 'Genes de marcas' },
+    { t: 'tabela', cab: ['Gene', 'Valores', 'Quantos'], linhas: [
+      ['Cara', lista(MC.cara.map((v) => marcaRot(caraRot, v))), N(String(MC.cara.length))],
+      ['Patas', `${lista(MC.patas.map((v) => String(v)))} meias brancas`, N(String(MC.patas.length))],
+      ['Corpo', lista(MC.corpo.map((v) => marcaRot(corpoRot, v))), N(String(MC.corpo.length))]
+    ] },
+    { t: 'h3', txt: 'Herança no cruzamento' },
+    { t: 'lista', itens: [
+      `Cada gene (cara, patas, corpo, nessa ordem) vem de um dos pais, ${pct(0.5, 0)} para cada um (égua ou garanhão), com ${pct(MC.mutacao, 0)} de chance de **mutação**: o gene vira um valor qualquer da lista, com a mesma chance para todos.`,
+      'Os sorteios das marcas usam uma sequência própria da seed do cruzamento. O resto do potro (raridade, estrelas, genética, skills) nasce igual a antes de existirem marcas.',
+      'Cavalo sem marcas válidas (save antigo) vale pelas marcas do modelo do catálogo ou, na falta dele, por marcas calculadas do identificador dele: o mesmo cavalo tem sempre as mesmas marcas.',
+      `${nomeRar('mitico')} nunca nasce de cruzamento, com ou sem marcas. A ficha da montaria e o Haras mostram a linha "Marcas: …".`
+    ] },
+    { t: 'h3', txt: 'Jóquei do jogador' },
+    { t: 'lista', itens: [
+      `Na aba Perfil você escolhe o **padrão da seda** (${lista(JQ.padroes.map((p) => p))}) e a **cor do capacete** (${JQ.capacetes.length} cores). O padrão inicial é "${JQ.padrao}" e o capacete inicial é ${JQ.capacete}.`,
+      'A seda continua na cor de sempre (a sua é dourada; a dos rivais é a cor da raia); o padrão vai por cima em um tom mais claro ou mais escuro. A escolha vale para todos os seus cavalos.',
+      'O jóquei dos rivais (padrão e capacete) sai da seed da sala.'
+    ] },
+    { t: 'h3', txt: 'Raridade visível' },
+    { t: 'p', txt: `Cada raridade ganha um efeito na cor dela. O brilho da crina corre a cada ${num(brilhoCiclo)} s. Com movimento reduzido, o brilho fica parado, as faíscas ficam fixas e não há rastro.` },
+    { t: 'tabela', cab: ['Raridade', 'Efeito'], linhas: B.RARITY_IDS.map((r) => [nomeRar(r), efeitoRar(r)]) },
+    { t: 'h3', txt: 'Marcas dos iniciais e selvagens' },
+    { t: 'tabela', cab: ['Cavalo', 'Cara', 'Patas (meias)', 'Corpo'], linhas: G.STARTERS.concat(G.WILD_HORSES).map(marcasHorse) }
   ])
 
   // 10. Cruzamento ---------------------------------------------------------------------------------------
