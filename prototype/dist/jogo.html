@@ -8816,11 +8816,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     }).join('') + '</nav>';
   }
   // Linha "Marcas: ..." (ficha da Montaria e Haras): nomes em português, sem símbolos
-  var CARA_ROT = { nenhuma: 'sem marca na cara', estrela: 'estrela', listra: 'listra', frente: 'frente branca' };
+  var CARA_ROT = { nenhuma: 'nenhuma', estrela: 'estrela', listra: 'listra', frente: 'frente branca' };
   var CORPO_ROT = { liso: 'liso', malhado: 'malhado', pintado: 'pintado', ruao: 'ruão' };
+  // só o que existe (cara, patas, corpo); sem marca nenhuma: "Marcas: nenhuma"
   function marcasTexto(h) {
-    var m = marcasDe(h.marcas, h.templateId, h.uid || h.id);
-    return 'Marcas: ' + CARA_ROT[m.cara] + ', ' + (m.patas === 0 ? 'sem meias' : m.patas === 1 ? '1 meia' : m.patas + ' meias') + ', ' + CORPO_ROT[m.corpo];
+    var m = marcasDe(h.marcas, h.templateId, h.uid || h.id), t = [];
+    if (m.cara !== 'nenhuma') t.push(CARA_ROT[m.cara]);
+    if (m.patas > 0) t.push(m.patas === 1 ? '1 meia' : m.patas + ' meias');
+    if (m.corpo !== 'liso') t.push(CORPO_ROT[m.corpo]);
+    return 'Marcas: ' + (t.length ? t.join(', ') : 'nenhuma');
   }
   // Editor do jóquei (Perfil): padrão da seda e cor do capacete; a prévia é o cavalo ativo, parado e montado
   var PADRAO_ROT = { liso: 'Liso', listras: 'Listras', faixa: 'Faixa', xadrez: 'Xadrez', estrelas: 'Estrelas', losangos: 'Losangos' };

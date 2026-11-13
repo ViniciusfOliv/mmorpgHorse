@@ -1981,7 +1981,7 @@ try {
         await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
         await pg.waitForSelector('#t-montaria')
         espera(await confereTela(pg, tag + ' montaria-status'), 'montaria-status', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-', 'ui-corcel', 'ui-macho']))
-        for (const uid of ['m1', 'm2']) {
+        for (const uid of ['m1', 'm2', 'm3', 'm4']) {
           if (uid === 'm2') {
             await pg.locator('[data-acao="montaria-voltar"]').click()
             await pg.locator('button[data-acao="montaria"][data-id="m2"]').click()
@@ -2422,9 +2422,15 @@ try {
       const label = 'marcas-telas'
       const PADROES = { liso: 'Liso', listras: 'Listras', faixa: 'Faixa', xadrez: 'Xadrez', estrelas: 'Estrelas', losangos: 'Losangos' }
       const CORES = { '#f2c230': 'Dourado', '#ff6b5e': 'Vermelho', '#62b8ff': 'Azul', '#86d86a': 'Verde', '#c77dff': 'Roxo', '#ff9f43': 'Laranja', '#f1e9d4': 'Creme', '#2a2a2a': 'Preto' }
-      const CARAS = { nenhuma: 'sem marca na cara', estrela: 'estrela', listra: 'listra', frente: 'frente branca' }
+      const CARAS = { nenhuma: 'nenhuma', estrela: 'estrela', listra: 'listra', frente: 'frente branca' }
       const CORPOS = { liso: 'liso', malhado: 'malhado', pintado: 'pintado', ruao: 'ruão' }
-      const linhaMarcas = (m) => `Marcas: ${CARAS[m.cara]}, ${m.patas === 0 ? 'sem meias' : m.patas === 1 ? '1 meia' : m.patas + ' meias'}, ${CORPOS[m.corpo]}`
+      const linhaMarcas = (m) => {
+        const p = []
+        if (m.cara !== 'nenhuma') p.push(CARAS[m.cara])
+        if (m.patas > 0) p.push(m.patas === 1 ? '1 meia' : m.patas + ' meias')
+        if (m.corpo !== 'liso') p.push(CORPOS[m.corpo])
+        return 'Marcas: ' + (p.length ? p.join(', ') : 'nenhuma')
+      }
       const norm = (t) => t.replace(/\s+/g, ' ').trim()
       const pressionado = (pg, acao) => pg.evaluate((a) => Array.from(document.querySelectorAll(`[data-acao="${a}"]`)).map((b) => (b.getAttribute('data-v') + '=' + b.getAttribute('aria-pressed'))).join(','), acao)
       for (const vp of [{ width: 360, height: 780 }, { width: 1280, height: 800 }]) {
@@ -2436,7 +2442,9 @@ try {
           await montaSave(pg, (raw) => {
             raw.mounts[0].marcas = { cara: 'frente', patas: 2, corpo: 'ruao' }
             raw.mounts.push(Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { uid: 'm2', name: 'Egua', sex: 'f', breedLeft: 3, marcas: { cara: 'nenhuma', patas: 0, corpo: 'pintado' } }))
-            raw.nextUid = 3; raw.stableSlots = 6
+            raw.mounts.push(Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { uid: 'm3', name: 'Lisa', sex: 'f', marcas: { cara: 'nenhuma', patas: 0, corpo: 'liso' } }))
+            raw.mounts.push(Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { uid: 'm4', name: 'Meia', sex: 'f', marcas: { cara: 'nenhuma', patas: 1, corpo: 'liso' } }))
+            raw.nextUid = 5; raw.stableSlots = 6
           })
           // Perfil: os 6 padrões e os 8 capacetes, nomes em português, o inicial marcado
           await pg.locator('[data-acao="perfil"]').click()
@@ -2496,12 +2504,14 @@ try {
           // ficha da Montaria: a linha "Marcas:" junto do sexo, batendo com o save
           await pg.locator('[data-acao="perfil-voltar"]').click()
           await pg.waitForSelector('#t-estabulo')
-          for (const uid of ['m1', 'm2']) {
+          for (const uid of ['m1', 'm2', 'm3', 'm4']) {
             await pg.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click()
             await pg.waitForSelector('#t-montaria')
             const m = (await estado(pg)).mounts.find((x) => x.uid === uid)
             const txt = await pg.evaluate(() => Array.from(document.querySelectorAll('.montaria-cabeca .linha-meta span')).map((e) => e.textContent.replace(/\s+/g, ' ').trim()).find((t) => /^Marcas:/.test(t)) || null)
             if (txt !== linhaMarcas(m.marcas)) problems.push(`${tag}: ficha de ${uid}: "${txt}" (esperado "${linhaMarcas(m.marcas)}")`)
+            if (uid === 'm3' && txt !== 'Marcas: nenhuma') problems.push(`${tag}: ficha sem marcas com "${txt}"`)
+            if (uid === 'm4' && txt !== 'Marcas: 1 meia') problems.push(`${tag}: ficha só com 1 meia com "${txt}"`)
             if (uid === 'm1' && txt !== 'Marcas: frente branca, 2 meias, ruão') problems.push(`${tag}: ficha de m1 com "${txt}"`)
             await semQuebra(pg, `${tag}-ficha-${uid}`)
             await pg.locator('[data-acao="montaria-voltar"]').click()
