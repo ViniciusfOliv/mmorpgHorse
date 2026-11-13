@@ -1045,8 +1045,13 @@
   var TERCOS = ['primeiro terço', 'terço do meio', 'último terço'];
   function num1(x) { return (Math.round(x * 10) / 10).toFixed(1).replace('.', ','); }
   function tercoTxt(ts) { return TERCOS[clamp(Math.round(ts.zone[0] * 3), 0, 2)]; }
-  function efeitoTipoTxt(ts) {
+  function efeitoTipoTxt(ts, el) {
     var e = ts.effect, P = ts.power, out = [];
+    // bloco 1b: os dois status do tipo valem × (1 + statMul·P) no terço (RaceSim.TYPE_STATS)
+    if (e.statMul) {
+      var nomes = (RS.TYPE_STATS[el] || []).map(function (k) { return GD.STATS[k].name; }).join(' e ');
+      out.push(nomes + ' +' + num1(e.statMul * P * 100) + '%');
+    }
     if (e.accelMult) out.push('+' + num1(e.accelMult * P * 100) + '% de aceleração');
     if (e.forcaAdd) out.push('+' + num1(e.forcaAdd * P * 100) + ' de Força' + (e.manAdd ? ' e de Manobra' : ''));
     if (e.drainCut) out.push('−' + num1(e.drainCut * P * 100) + '% de gasto de fôlego');
@@ -1060,8 +1065,8 @@
     var el = elementOf(horse.element);
     return '<div class="vaga-tipo vaga-tipo--' + esc(el.id) + '"><span class="vaga-tipo-rotulo">Skill de tipo · sempre ativa</span>' +
       '<b>' + skillIcone(ts.id, 32) + esc(ts.name) + '</b>' +
-      '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts) + '.') + '</span>' +
-      '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',') + ': cresce com o nível e a raridade') + '</span></div>';
+      '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts, horse.element) + '.') + '</span>' +
+      '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',') + ': varia com o nível e a raridade') + '</span></div>';
   }
   function silkClass(r) { return r.isPlayer ? 'seda-voce' : 'seda-' + r.silkIdx; }
   function laneChip(r, i, extra) {
@@ -1249,7 +1254,7 @@
       porte: f.porte
     };
   }
-  // pontos do template (inteiros ≥ 0) cortados pelo limite e pelos pontos livres do nível da instância
+  // pontos do template (inteiros ≥ 0) cortados pelo teto de 150 e pelo custo, com os pontos do nível da instância
   function devAplicaPontos(m, tpl) { m.alloc = RS.validAlloc(m, tpl.alloc); }
   function devNivel(f) { return clamp(Math.floor(Number(f.nivel)) || 1, 1, MAX_LEVEL); }
   function devDescreveCavalo(m) {
@@ -1379,7 +1384,7 @@
         devSelect('potencial', 'Genética', potenciais, f.potencial) +
         devSelect('estrelas', 'Estrelas', [['1', '1 estrela'], ['2', '2 estrelas'], ['3', '3 estrelas']], f.estrelas) +
       '</div>' +
-      '<p class="nota">Genética por status (0–31, com "Genética: por status") e pontos distribuídos (cortados pelo limite por status e pelos pontos livres do nível).</p>' +
+      '<p class="nota">Genética por status (0–31, com "Genética: por status") e pontos distribuídos (cortados pelo teto de 150 e pelo custo por faixa, com os pontos do nível; a Sorte não recebe pontos).</p>' +
       '<div class="dev-campos dev-campos--4">' + STAT_KEYS.map(function (k) {
         return devEntrada('gen-' + k, 'Gen. ' + GD.STATS[k].short, 'type="number" min="0" max="31" inputmode="numeric"', f['gen-' + k]);
       }).join('') + '</div>' +
@@ -2351,9 +2356,9 @@
 
   // ---- Aba Status: distribuir os pontos livres (spec v3 §10) ----
   // O rascunho (ui.montaria.rascunho: pontos a somar por status, ou null) fica só na memória da tela: sair da
-  // tela ou trocar de sub-aba o descarta. Ele nunca passa do que RaceSim.allocInfo aceita (limite por status,
-  // pontos que sobram e teto da raridade). "Confirmar" pede um segundo toque e grava como um gasto (gravaGasto:
-  // se a gravação falha, nada muda). Com páreo aberto, a ativa segue a trava das peças: o Poder não passa do
+  // tela ou trocar de sub-aba o descarta. Somado ao que já foi comprado, ele nunca passa do que RaceSim.validAlloc
+  // aceita (custo por faixa dentro dos pontos, teto de 150 e Sorte sem pontos). "Confirmar" pede um segundo
+  // toque e grava como um gasto (gravaGasto: se a gravação falha, nada muda). Com páreo aberto, a ativa segue a trava das peças: o Poder não passa do
   // da sala (state.pending.pr); as outras montarias ficam livres.
   function rascunhoMais(r, k) {
     var out = {};
@@ -2365,16 +2370,22 @@
     if (r) STAT_KEYS.forEach(function (k) { t += r[k]; });
     return t;
   }
-  // o rascunho cabe nos pontos da montaria (cada status no que ainda aceita e a soma nos pontos que sobram)?
+  // o rascunho cabe nos pontos da montaria? Inteiros ≥ 0 e, somado ao que já foi comprado, um alloc que
+  // RaceSim.validAlloc aceita sem cortar nada (custo por faixa dentro dos pontos, base + pontos ≤ 150, Sorte 0).
   function rascunhoOk(m, r) {
     if (!r) return true;
-    var info = RS.allocInfo(m), soma = 0;
     for (var i = 0; i < STAT_KEYS.length; i++) {
       var v = r[STAT_KEYS[i]];
-      if (!(typeof v === 'number' && v >= 0 && v === Math.floor(v) && v <= info.room[STAT_KEYS[i]])) return false;
-      soma += v;
+      if (!(typeof v === 'number' && v >= 0 && v === Math.floor(v))) return false;
     }
-    return soma <= info.left;
+    var a = allocComRascunho(m, r), va = RS.validAlloc(m, a);
+    return STAT_KEYS.every(function (k) { return va[k] === a[k]; });
+  }
+  // custo de um alloc (soma de RaceSim.costOf: o ponto fica mais caro a cada TUNING.costStep no mesmo status)
+  function custoAlloc(a) {
+    var c = 0;
+    STAT_KEYS.forEach(function (k) { c += RS.costOf(a[k] || 0); });
+    return c;
   }
   // os pontos gravados com o rascunho por cima
   function allocComRascunho(m, r) {
@@ -2382,8 +2393,8 @@
     STAT_KEYS.forEach(function (k) { out[k] = a[k] + (r ? r[k] : 0); });
     return out;
   }
-  // pontos livres que ainda cabem em algum status (o selo "+N" do Estábulo): com tudo no teto ou no limite
-  // por status, os que sobram não rendem e o selo some
+  // pontos livres que ainda cabem em algum status (o selo "+N" do Estábulo): quando o que sobra não paga o
+  // próximo ponto de nenhum status, o selo some
   function pontosQueCabem(m) {
     var info = RS.allocInfo(m), room = 0;
     STAT_KEYS.forEach(function (k) { room += info.room[k]; });
@@ -2401,8 +2412,8 @@
     var M = ui.montaria;
     if (M.rascunho && (!rascunhoSoma(M.rascunho) || !rascunhoOk(m, M.rascunho))) { M.rascunho = null; M.confirmaPontos = false; }
     var r = M.rascunho, soma = rascunhoSoma(r);
-    var info = RS.allocInfo(m), livres = info.left - soma;
-    var cap = (GD.RARITIES[m.rarity] || GD.RARITIES.comum).statCap;
+    var info = RS.allocInfo(m), livres = info.free - custoAlloc(allocComRascunho(m, r));
+    var cap = RS.TUNING.statMax;
     var h = clone(m);
     h.alloc = allocComRascunho(m, r);
     var stats = RS.computeStats(h, gear), puro = RS.computeStats(h, null), antes = RS.computeStats(m, gear);
@@ -2428,10 +2439,10 @@
     var avisos = '';
     if (M.pontosMsg) avisos += '<p class="aviso" role="status">' + esc(M.pontosMsg) + '</p>';
     var algumMais = STAT_KEYS.some(function (k) { return rascunhoOk(m, rascunhoMais(r, k)); });
-    if (livres > 0 && !algumMais) avisos += '<p class="nota">' + esc((livres === 1 ? 'Sobra 1 ponto' : 'Sobram ' + livres + ' pontos') + ': todos os status estão no teto ou no limite.') + '</p>';
+    if (livres > 0 && !algumMais) avisos += '<p class="nota">' + esc((livres === 1 ? 'Sobra 1 ponto' : 'Sobram ' + livres + ' pontos') + ': não pagam o próximo ponto de nenhum status.') + '</p>';
     if (trava && info.left > 0) avisos += '<p class="aviso">' + esc('Páreo aberto: os pontos da montaria ativa não podem passar o Poder de ' + P.pr + ' que a sala viu.') + '</p>';
     var topo = '<div class="build-topo"><p class="pontos-livres">Pontos livres: <b>' + livres + '</b></p>' +
-      '<span class="nota">' + esc(info.free ? 'de ' + info.free + ' · até ' + info.perStat + ' por status' : 'cada nível ganho dá pontos para distribuir') + '</span>' +
+      '<span class="nota">' + esc(info.free ? 'de ' + info.free : 'cada nível ganho dá pontos para distribuir') + '</span>' +
       (soma ? '<span class="nota">' + esc('Poder ' + RS.powerRating(clone(m), gear) + ' → ' + RS.powerRating(h, gear)) + '</span>' : '') + '</div>';
     var acoes = '';
     if (soma) {
@@ -2441,7 +2452,7 @@
     }
     return avisos + '<section class="caixa" aria-label="Status">' + topo +
       '<ul class="build">' + linhas + '</ul>' + acoes +
-      '<p class="nota">' + esc('Nota de genética (C, B, A ou S): vem do nascimento. Valores com o equipamento; a barra marca o teto de ' + cap + ' da raridade.') + '</p></section>';
+      '<p class="nota">' + esc('Nota de genética (C, B, A ou S): vem do nascimento. A barra vai até ' + cap + '. O custo do ponto sobe a cada ' + RS.TUNING.costStep + ' pontos no mesmo status.') + '</p></section>';
   }
 
   // abre a Montaria numa sub-aba; o estado do equipamento (confirmação, Desfazer) começa zerado
@@ -2957,10 +2968,10 @@
         free: RS.freePoints(hAfter), allCap: todosNoTeto(hAfter) }
     };
   }
-  // os sete status no teto da raridade (natural + pontos distribuídos, sem equipamento)?
+  // os status que recebem pontos no teto (base + pontos ≥ TUNING.statMax)? A Sorte não recebe (TUNING.noBuy).
   function todosNoTeto(h) {
-    var cap = (GD.RARITIES[h.rarity] || GD.RARITIES.comum).statCap, a = RS.validAlloc(h, h.alloc);
-    return STAT_KEYS.every(function (k) { return RS.naturalStat(h, k) + a[k] >= cap - 1e-9; });
+    var cap = RS.TUNING.statMax, a = RS.validAlloc(h, h.alloc), nb = RS.TUNING.noBuy || [];
+    return STAT_KEYS.every(function (k) { return nb.indexOf(k) >= 0 || RS.naturalStat(h, k) + a[k] >= cap - 1e-9; });
   }
 
   // ===========================================================================
@@ -3795,12 +3806,12 @@
         var d = R.after.stats[k] - R.before.stats[k];
         return d ? '<span>' + esc(GD.STATS[k].short) + ' ' + R.before.stats[k] + ' → ' + R.after.stats[k] + ' <b class="mais">+' + d + '</b></span>' : '';
       }).join('');
-      // pontos livres ganhos (subir mais de um nível soma); com os sete status no teto, nenhum ponto rende:
-      // aí só a frase do teto. Sem status que mude e fora do teto, não diz nada sobre teto.
+      // pontos livres ganhos (subir mais de um nível soma); com os status que recebem pontos no teto de 150,
+      // nenhum ponto rende: aí só a frase do teto. Sem status que mude e fora do teto, não diz nada sobre teto.
       var ganhos = R.after.free - R.before.free;
       var pontos = ganhos > 0 && !R.after.allCap
         ? '<span>' + esc('+' + ganhos + (ganhos === 1 ? ' ponto livre' : ' pontos livres') + ' para distribuir na aba Status da Montaria.') + '</span>' : '';
-      var teto = R.after.allCap ? '<span>Os status já estão no teto da raridade.</span>' : '';
+      var teto = R.after.allCap ? '<span>' + esc('Os status já estão no teto de ' + RS.TUNING.statMax + '.') + '</span>' : '';
       var corpoNivel = ups + pontos + teto;
       lvl = '<div class="levelup" role="status"><b>Subiu para o nível ' + R.after.level + '!</b>' +
         (corpoNivel ? '<div class="ganhos">' + corpoNivel + '</div>' : '') + '</div>';

@@ -70,7 +70,6 @@ function lerFonte() {
     botReserva: numDe(game, /cands = all\.slice\(0, (\d+)\);/, 'quantos modelos o bot considera sem candidato na faixa'),
     vento: { calmo: Number(ventos[1]), brisa: Number(ventos[2]) - Number(ventos[1]), ventania: 1 - Number(ventos[2]) },
     subidaForca: numDe(sim, /T\.hillDrain \* \(1 - ([\d.]+) \* nf\) \* hillDrainMult/, 'o alívio de Força no gasto da subida'),
-    largadaAcel: numDe(sim, /T\.startDelayMax \* \(1 - ([\d.]+) \* clamp\(statsN\.acel/, 'o alívio de Aceleração na largada'),
     pelotaoMax: numDe(sim, /Math\.min\(neighbors, (\d+)\)/, 'o teto de vizinhos do pelotão'),
     cansouFalta: numDe(sim, /if \(rem > D \* ([\d.]+)\) ev\(t, i, 'cansou'/, 'a folga do evento "cansou"'),
     chegadaFreio: numDe(sim, /r\.v = Math\.max\(0, r\.v - (\d+) \* dt\)/, 'a frenagem depois da chegada'),
@@ -81,7 +80,7 @@ function lerFonte() {
     potroPai: numDe(breed, /potential\[k\] = potOf\(rng\(\) < ([\d.]+) \? f : m, k\)/, 'a escolha do pai no potencial herdado'),
     notas: extrair(game, /function notaGenetica\(g\) \{ return g >= (\d+) \? 'S' : g >= (\d+) \? 'A' : g >= (\d+) \? 'B' : 'C'; \}/, 'as notas de genética (notaGenetica)').slice(1, 4).map(Number),
     moldePista: extrair(sim, /var c1 = corte\(([\d.]+)\), c2 = corte\(([\d.]+)\), c3 = corte\(([\d.]+)\), c4 = corte\(([\d.]+)\);/, 'o molde fixo da pista').slice(1, 5).map(Number),
-    botRodizio: listaJs(extrair(sim, /var BOT_ROTATION = (\[[^\]]*\]);/, 'BOT_ROTATION')[1])
+    statMin: numDe(sim, /clamp\(Math\.round\(naturalStat\(horse, k\) \+ alloc\[k\]\), (\d+), T\.statMax\)/, 'o piso do status (computeStats)')
   }
 }
 
@@ -154,7 +153,7 @@ export function descreverGatilho(trigger) {
     case 'curveExit': return 'Sai de uma curva'
     case 'hill': return 'Entra numa subida'
     case 'lowStamina': return `Estamina cai a ${pct(T.lowStaminaAt, 0)} ou menos`
-    case 'final': return `Cruza ${pct(T.garraZone, 0)} da pista (reta final)`
+    case 'final': return `Começa a arrancada do cavalo (reta final): em ${pct(T.garraZone, 0)} da pista − ${pct(T.garraZoneK, 0)} × (n(GAR) − 0,5), mais cedo com mais Garra`
     case 'dice': return 'Antes do 1º Dado da Sorte (uma tentativa por corrida; se ativar, vale para todos os Dados)'
     default: throw new Error(`wiki: gatilho de skill desconhecido "${trigger}" — descreva-o em descreverGatilho (prototype/tools/wiki.mjs)`)
   }
@@ -190,12 +189,17 @@ export function descreverEfeito(effect) {
   return partes.join('; ') + (fim.length ? ', ' + fim.join(', ') : '')
 }
 
-/** Efeito da skill de tipo (GameData.TYPE_SKILLS[el].effect) com a força P aplicada. Lança erro em chave desconhecida. */
-export function descreverEfeitoTipo(effect, P) {
+/** Efeito da skill de tipo (GameData.TYPE_SKILLS[el].effect) com a força P aplicada; el nomeia os dois status
+ * do tipo (RaceSim.TYPE_STATS) no statMul. Lança erro em chave desconhecida. */
+export function descreverEfeitoTipo(effect, P, el) {
   const partes = []
   for (const k of Object.keys(effect || {})) {
     const v = effect[k] * P
     switch (k) {
+      case 'statMul': {
+        const ks = S.TYPE_STATS[el]
+        partes.push(`${ks ? lista(ks.map(nomeStat)) : 'os dois status do tipo'} ${mult(1 + v, 3)} (+${pct(v, 1)})`); break
+      }
       case 'accelMult': partes.push(`aceleração +${pct(v, 0)}`); break
       case 'speedMult': partes.push(`velocidade +${pct(v, 1)}`); break
       case 'forcaAdd': partes.push(`Força efetiva +${num(v * 100, 1)}`); break
@@ -213,7 +217,7 @@ export function descreverEfeitoTipo(effect, P) {
 export function descreverEspecial(chave, valor) {
   switch (chave) {
     case 'skillChanceBonus': return valor ? `chance de ativar skills ${'+' + pp(valor, 0)}` : ''
-    case 'weatherDoubleClimate': return valor ? `no clima ${nomeClima(valor)}, o bônus do elemento dono sobe de ${multF(T.weatherMult)} para ${multF(T.weatherMultSet)} (não soma com a skill de clima, que dá ${multF(T.weatherMultDouble)})` : ''
+    case 'weatherDoubleClimate': return valor ? `no clima ${nomeClima(valor)}, reforçaria o bônus do elemento dono` : ''
     case 'ignoreWeatherPenalty': return valor ? `anula a penalidade de clima (${multF(2 - T.weatherMult)} vira ×1)` : ''
     default: throw new Error(`wiki: bônus especial de equipamento desconhecido "${chave}" — descreva-o em descreverEspecial (prototype/tools/wiki.mjs)`)
   }
@@ -222,14 +226,15 @@ export function descreverEspecial(chave, valor) {
 /** Papel de cada status na corrida (fórmula resumida do sim.js). Lança erro em status desconhecido. */
 export function papelDoStatus(k, F) {
   const n = (x) => num(x, 3)
+  const ac = (x) => 1 / Math.max(T.aInvMin, T.aInv0 - T.aInv1 * x)
   switch (k) {
-    case 'vel': return `Velocidade máxima: vMax = ${n(T.vBase)} + ${n(T.vRange)} × n(VEL) m/s (VEL 50 → ${num(T.vBase + T.vRange * 0.5)} m/s; VEL 100 → ${num(T.vBase + T.vRange)} m/s). Ritmo, piso, bloco e boosts multiplicam esse teto.`
-    case 'acel': return `Aceleração = ${n(T.aBase)} + ${n(T.aRange)} × n(ACE) m/s², na largada e nas retomadas (saída de curva e de subida). Também encurta a reação à largada: atraso sorteado de até ${num(T.startDelayMax)} s × (1 − ${num(F.largadaAcel)} × n(ACE)).`
-    case 'man': return `Fator da curva = min(1, ${n(T.curveBase)} + ${n(T.curveRange)} × n(MAN)): de ${pct(T.curveBase, 0)} a ${pct(T.curveBase + T.curveRange, 0)} da velocidade dentro da curva.`
-    case 'forca': return `Fator da subida = min(1, ${n(T.hillBase)} + ${n(T.hillRange)} × n(FOR)). Alivia o piso pesado (${pct(T.forcaSurfRelief, 0)} × n(FOR) da perda), o aperto do pelotão (${pct(T.forcaCrowdRelief, 0)} × n(FOR)) e o gasto extra da subida (+${pct(T.hillDrain, 0)} × (1 − ${num(F.subidaForca)} × n(FOR))).`
-    case 'est': return `Tanque = ${n(T.poolBase)} + ${n(T.poolEst)} × n(EST) (EST 50 → ${num(T.poolBase + T.poolEst * 0.5)}). O clima não mexe no tanque.`
-    case 'garra': return `Ao cruzar ${pct(T.garraZone, 0)} da pista: chance = min(${pct(T.garraChanceMax, 0)}, ${pct(T.garraChanceBase, 0)} + ${pct(T.garraChanceRange, 0)} × n(GAR)). Se sair, o teto de velocidade vai a ${mult(1 + T.garraBoostBase, 2)} + ${num(T.garraBoostRange, 3)} × n(GAR) até a chegada.`
-    case 'sorte': return `No Dado da Sorte, SOR% é a chance de rolar um 2º dado e ficar com o melhor. Na chance de skill soma ${pp(T.skillPerSorte)} por ponto (SOR 50 → ${'+' + pp(T.skillPerSorte * 50, 0)}).`
+    case 'vel': return `Velocidade máxima: vMax = ${n(T.vBase)} + ${n(T.vRange)} × n(VEL) m/s (VEL 50 → ${num(T.vBase + T.vRange * 0.5)} m/s; VEL 100 → ${num(T.vBase + T.vRange)} m/s; VEL ${T.statMax} → ${num(T.vBase + T.vRange * T.statMax / 100)} m/s). Ritmo, piso, bloco e boosts multiplicam esse teto.`
+    case 'acel': return `Aceleração = 1 / max(${n(T.aInvMin)}, ${n(T.aInv0)} − ${n(T.aInv1)} × n(ACE)) m/s² (ACE 50 → ${num(ac(0.5))}; ACE 100 → ${num(ac(1))}; ACE ${T.statMax} → ${num(ac(T.statMax / 100))}): cada ponto encurta a largada igual. Vale na largada e nas retomadas (saída de curva e de subida). Também encurta a reação à largada: atraso sorteado de até ${num(T.startDelayMax)} s × (1 − ${num(T.startAcelK, 3)} × min(n(ACE), ${num(T.startAcelMax)})).`
+    case 'man': return `Fator da curva = min(1, ${n(T.curveBase)} + ${n(T.curveRange)} × n(MAN)): de ${pct(T.curveBase + T.curveRange * 0.5, 1)} (MAN 50) a ${pct(T.curveBase + T.curveRange * T.statMax / 100, 1)} (MAN ${T.statMax}) da velocidade dentro da curva.`
+    case 'forca': return `Fator da subida = min(1, ${n(T.hillBase)} + ${n(T.hillRange)} × n(FOR)): de ${pct(T.hillBase + T.hillRange * 0.5, 1)} (FOR 50) a ${pct(T.hillBase + T.hillRange * T.statMax / 100, 1)} (FOR ${T.statMax}). Alivia o piso pesado (${pct(T.forcaSurfRelief, 0)} × n(FOR) da perda), o aperto do pelotão (${pct(T.forcaCrowdRelief, 0)} × n(FOR), até zerar) e o gasto extra da subida (+${pct(T.hillDrain, 0)} × (1 − ${num(F.subidaForca)} × n(FOR))).`
+    case 'est': return `Tanque = ${n(T.poolBase)} + ${n(T.poolEst)} × n(EST) (EST 50 → ${num(T.poolBase + T.poolEst * 0.5)}). Também sobe o teto do ritmo: + ${pct(T.pace.midEst, 1)} × (n(EST) − 0,5) no meio e + ${pct(T.pace.spurtEst, 1)} × (n(EST) − 0,5) no sprint final, então rende mesmo com tanque de sobra. O clima não mexe na Estamina.`
+    case 'garra': return `A arrancada começa em ${pct(T.garraZone, 0)} − ${pct(T.garraZoneK, 0)} × (n(GAR) − 0,5) da pista (GAR 50 → ${pct(T.garraZone, 0)}; GAR 100 → ${pct(T.garraZone - T.garraZoneK * 0.5, 0)}). Lá: chance = min(${pct(T.garraChanceMax, 0)}, ${pct(T.garraChanceBase, 0)} + ${pct(T.garraChanceRange, 0)} × n(GAR)). Se sair, o teto de velocidade vai a ${mult(1 + T.garraBoostBase, 2)} + ${num(T.garraBoostRange, 3)} × n(GAR) até a chegada.`
+    case 'sorte': return `Vem do nascimento: não recebe pontos. No Dado da Sorte, a chance de rolar um 2º dado é (SOR − ${num(T.sorteDiceLo)}) / ${num(T.sorteDiceFull - T.sorteDiceLo)}, presa entre 0% e 100% (SOR ${num(T.sorteDiceLo)} → 0%; SOR ${num(T.sorteDiceFull)} → 100%). Na chance de skill soma ${pp(T.skillPerSorte)} por ponto (SOR 50 → ${'+' + pp(T.skillPerSorte * 50, 0)}).`
     default: throw new Error(`wiki: status desconhecido "${k}" — descreva-o em papelDoStatus (prototype/tools/wiki.mjs)`)
   }
 }
@@ -238,8 +243,8 @@ export function papelDoStatus(k, F) {
 export function descreverBloco(tipo, F) {
   switch (tipo) {
     case 'reta': return { fator: '1 (sem perda)', gasto: 'normal', mais: `Reta de ${num(T.straightMinM)} m ou mais (fora a da largada) dispara skills de reta.` }
-    case 'curva': return { fator: `min(1, ${num(T.curveBase)} + ${num(T.curveRange)} × n(MAN) + bônus de skill) — ${pct(T.curveBase, 0)} a ${pct(T.curveBase + T.curveRange, 0)}`, gasto: 'normal', mais: 'Ao sair, a velocidade volta pela Aceleração.' }
-    case 'subida': return { fator: `min(1, ${num(T.hillBase)} + ${num(T.hillRange)} × n(FOR) + bônus de skill) — ${pct(T.hillBase, 0)} a ${pct(T.hillBase + T.hillRange, 0)}`, gasto: `×(1 + ${num(T.hillDrain)} × (1 − ${num(F.subidaForca)} × n(FOR))), e o esforço não cai com a velocidade menor`, mais: 'Ao sair, a velocidade volta pela Aceleração.' }
+    case 'curva': return { fator: `min(1, ${num(T.curveBase, 3)} + ${num(T.curveRange, 3)} × n(MAN) + bônus de skill) — ${pct(T.curveBase + T.curveRange * 0.5, 1)} (MAN 50) a ${pct(T.curveBase + T.curveRange * T.statMax / 100, 1)} (MAN ${T.statMax})`, gasto: 'normal', mais: 'Ao sair, a velocidade volta pela Aceleração.' }
+    case 'subida': return { fator: `min(1, ${num(T.hillBase, 3)} + ${num(T.hillRange, 3)} × n(FOR) + bônus de skill) — ${pct(T.hillBase + T.hillRange * 0.5, 1)} (FOR 50) a ${pct(T.hillBase + T.hillRange * T.statMax / 100, 1)} (FOR ${T.statMax})`, gasto: `×(1 + ${num(T.hillDrain)} × (1 − ${num(F.subidaForca)} × n(FOR))), e o esforço não cai com a velocidade menor`, mais: 'Ao sair, a velocidade volta pela Aceleração.' }
     default: throw new Error(`wiki: tipo de bloco desconhecido "${tipo}" — descreva-o em descreverBloco (prototype/tools/wiki.mjs)`)
   }
 }
@@ -272,12 +277,9 @@ export function descreverAba(rotulo, F) {
 // ---------------------------------------------------------------------------------------------------------
 // Peso de cada skill no Poder: lido do export do sim.js (RaceSim.skillWeight / SKILL_TRIGGER_WEIGHT).
 function pesoSkill(id) { return S.skillWeight(id) }
-// teto e piso de cada status depois de tudo (computeStats prende o resultado)
-function limitesStatus() {
-  const k = G.STAT_KEYS[0]
-  const alto = S.computeStats({ rarity: 'mitico', element: 'fogo', level: 1, potential: { [k]: 31 } }, { mods: { [k]: 1e6 } })[k]
-  const baixo = S.computeStats({ rarity: 'comum', element: 'fogo', level: 1, potential: { [k]: 0 } }, { mods: { [k]: -1e6 } })[k]
-  return { alto, baixo }
+// teto e piso de cada status (computeStats prende o resultado entre o piso do fonte e TUNING.statMax)
+function limitesStatus(F) {
+  return { alto: T.statMax, baixo: F.statMin }
 }
 // faixa do dado e nº máximo de dados (rollDice com rng nas pontas)
 function limitesDado() {
@@ -327,11 +329,6 @@ function pedrasEsperadas() {
   let acc = 0
   for (const p of passos) { acc += p.esperado; p.acumulado = acc }
   return passos
-}
-function equipInicial() {
-  const equip = {}, items = {}
-  EG.startGear.forEach((id, i) => { const uid = 'w' + i; equip[G.GEAR[id].slot] = uid; items[uid] = { uid, id, plus: 0 } })
-  return GR.resolve({ equip }, items)
 }
 function conjunto(setId, n) {
   const equip = {}, items = {}
@@ -427,11 +424,16 @@ function secoes(F, A) {
   const SEC = []
   const add = (id, titulo, curto, blocos) => SEC.push({ id, titulo, curto, blocos })
   const minE = Math.min(...E.entryTiers)
-  const lim = limitesStatus()
+  const lim = limitesStatus(F)
+  const M = E.maxLevel
+  // pontos e builds de exemplo (tudo do código: freePoints, costOf, weightedAlloc, botAlloc)
+  const cav = (r, st, L, g, el) => { const h = { element: el || 'fogo', rarity: r, grau: st, level: L, potential: {}, skills: [] }; G.STAT_KEYS.forEach((k) => { h.potential[k] = g }); return h }
+  const tudoNum = (h, k) => S.computeStats({ ...h, alloc: S.weightedAlloc(h, { [k]: 1 }) })[k]
+  const piorCaso = tudoNum(cav('mitico', T.starMult.length, M, 31), 'vel')
 
   // 1. Visão geral ---------------------------------------------------------------------------------------
   add('visao', 'Visão geral', 'Visão geral', [
-    { t: 'p', txt: `**Galope Elemental** é um jogo de corrida de cavalos automática em pixel art. Você não controla o cavalo durante a corrida: decide antes (montaria, equipamento e entrada) e assiste. Os cavalos têm tipo (${lista(Object.keys(G.ELEMENTS).map(nomeEl))}), raridade, estrelas, genética, level e skills; a cada level o jogador distribui pontos livres nos status.` },
+    { t: 'p', txt: `**Galope Elemental** é um jogo de corrida de cavalos automática em pixel art. Você não controla o cavalo durante a corrida: decide antes (montaria, equipamento e entrada) e assiste. Os cavalos têm tipo (${lista(Object.keys(G.ELEMENTS).map(nomeEl))}), raridade, estrelas, genética, level e skills; nada cresce sozinho: cada level dá pontos para o jogador comprar status.` },
     { t: 'h3', txt: 'Ciclo de uma corrida' },
     { t: 'passos', itens: [
       `**Escolher a montaria.** No começo você escolhe uma das ${G.STARTERS.length} iniciais (${lista(G.STARTERS.map((h) => h.name))}) e recebe ${num(E.startingGold)} de Ouro e o equipamento inicial (${lista(EG.startGear.map((id) => G.GEAR[id].name))}, já equipado).`,
@@ -448,18 +450,23 @@ function secoes(F, A) {
 
   // 2. Status --------------------------------------------------------------------------------------------
   add('status', 'Status', 'Status', [
-    { t: 'p', txt: `Cada montaria tem ${G.STAT_KEYS.length} status na escala de 1 a 100. Na corrida o motor usa n(x) = status / 100. Depois do equipamento o valor é arredondado e preso entre ${lim.baixo} e ${lim.alto}.` },
+    { t: 'p', txt: `Cada montaria tem ${G.STAT_KEYS.length} status na escala de ${lim.baixo} a ${lim.alto}. Na corrida o motor usa n(x) = status / 100, e toda fórmula da corrida rende em linha reta até ${lim.alto}. O valor é arredondado uma vez só, no fim, e preso entre ${lim.baixo} e ${lim.alto}.` },
     { t: 'tabela', rotulo: 'Status', cab: ['Sigla', 'Status', 'Descrição no jogo', 'Na corrida'], linhas: G.STAT_KEYS.map((k) => [N(siglaStat(k)), comIcone('st-' + k, nomeStat(k)), G.STATS[k].desc, papelDoStatus(k, F)]) },
     { t: 'h3', txt: 'Como o status é calculado' },
-    { t: 'formula', txt: `natural = início da faixa da raridade + ${num(T.gBand)} × g / 31 + (level − 1) × (${num(T.gGrowBase)} + ${num(T.gGrowRange)} × g / 31)
-status  = min(natural + pontos distribuídos, teto da raridade) + equipamento
-arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
+    { t: 'formula', txt: `base   = início da faixa da raridade + ${num(T.gBand)} × g / 31      (nada cresce sozinho com o level)
+status = base + pontos comprados, arredondado e preso entre ${lim.baixo} e ${lim.alto}
+pontos(L) = piso(fator da raridade × fator das estrelas × [(L − 1) × ${num(T.ptsRate0)} + ${num(T.ptsRate1 - T.ptsRate0)} × (L − 1)(L − 2) / ${2 * (M - 2)}])
+custo do i-ésimo ponto num mesmo status (i = 0, 1, …) = 1 + piso(i / ${T.costStep})` },
     { t: 'lista', itens: [
-      `**Genética (g):** de 0 a 31 por status, só do nascimento. Define onde o status nasce dentro da faixa da raridade (${num(T.gBand)} pontos de largura) e acelera o crescimento por level. Nota da genética no jogo: C 0–${F.notas[2] - 1} · B ${F.notas[2]}–${F.notas[1] - 1} · A ${F.notas[1]}–${F.notas[0] - 1} · S ${F.notas[0]}–31.`,
-      `**Pontos livres:** piso((level − 1) × ${T.starMult.map((x) => num(x)).join(' / ')}, conforme as estrelas). O jogador distribui na aba Status e confirma; ponto confirmado não volta. No máximo ${pct(T.freeCapShare, 0)} dos pontos livres (arredondado para cima) num mesmo status, e ponto acima do teto não rende.`,
-      `**Teto da raridade:** vale antes do equipamento, então a peça pode passar dele. Ver Raridades.`
+      `**Genética (g):** de 0 a 31 por status, só do nascimento. Define onde o status nasce dentro da faixa da raridade (${num(T.gBand)} pontos de largura). Nota da genética no jogo: C 0–${F.notas[2] - 1} · B ${F.notas[2]}–${F.notas[1] - 1} · A ${F.notas[1]}–${F.notas[0] - 1} · S ${F.notas[0]}–31.`,
+      `**Pontos por level:** a taxa sobe em linha reta de ${num(T.ptsRate0)} pontos no Nv 2 a ${num(T.ptsRate1)} no Nv ${M} (antes dos fatores de raridade e estrelas; ver Level e XP, Raridades e Estrelas). O jogador compra status com eles na aba Status e confirma.`,
+      `**Custo por faixa:** os ${T.costStep} primeiros pontos num status custam 1 cada, os ${T.costStep} seguintes 2, depois 3, e assim por diante. A genética não entra no custo. Por isso pôr tudo num status só rende pouco.`,
+      `**Teto:** base + pontos ≤ ${lim.alto} em cada status. Ninguém chega lá: o pior caso (${nomeRar('mitico')} ${estrelas(T.starMult.length)} no Nv ${M}, genética 31, todos os pontos num status) fica em ${piorCaso}.`,
+      `**${nomeStat('sorte')}:** só de nascimento, não recebe pontos: fica na base, de ${num(G.RARITIES.comum.baseLo)} (${nomeRar('comum')}, genética 0) a ${num(G.RARITIES.mitico.baseLo + T.gBand)} (${nomeRar('mitico')}, genética 31).`,
+      `**Equipamento:** suspenso; as peças não mexem nos status (ver Equipamento).`
     ] },
-    { t: 'p', txt: `O clima também mexe nos status durante a corrida: o multiplicador m do clima (ver Elementos e clima) entra em VEL, ACE, MAN, FOR e GAR (não em EST nem em SOR).` }
+    { t: 'tabela', rotulo: 'Custo por faixa', titulo: 'Custo dos pontos num mesmo status', cab: ['Pontos no status', 'Custo de cada ponto da faixa', 'Custo total até o fim da faixa'], linhas: [0, 1, 2, 3, 4, 5, 6, 7].map((q) => [N(`${q * T.costStep + 1}º a ${(q + 1) * T.costStep}º`), N(String(S.pointCost(q * T.costStep))), N(num(S.costOf((q + 1) * T.costStep)))]) },
+    { t: 'p', txt: `O clima também mexe nos status durante a corrida: soma (m − 1) × ${num(T.weatherAdd)} a n(x) de VEL, ACE, MAN, FOR e GAR, com o multiplicador m do clima (ver Elementos e clima), o mesmo efeito em qualquer nível. Não mexe em EST nem em SOR.` }
   ])
 
   // 3. Level e XP ----------------------------------------------------------------------------------------
@@ -473,16 +480,15 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
   for (let l = 1; l < E.maxLevel; l++) { acum += E.xpToLevel(l); xpLinhas.push([`Nv ${l} → ${l + 1}`, N(num(E.xpToLevel(l))), N(num(acum))]) }
   const nPlaces = E.xpPerPlace.length
   const rarIds = Object.keys(G.RARITIES)
-  const crescimento = (g) => T.gGrowBase + T.gGrowRange * g / 31
-  const genEx = [0, F.notas[2], F.notas[1], F.notas[0], 31]
   const niveisEx = [1, 10, 25, E.maxLevel]
-  // exemplo do teto: o primeiro inicial no Nv máximo, no status de maior potencial, com o limite de pontos nele
-  const exemploTeto = () => {
+  const niveisPts = [2, 5, 11, 20, 30, 40, E.maxLevel]
+  // exemplo de build: o primeiro inicial no Nv máximo, com a build dos bots e com tudo no status de maior genética
+  const exemploBuild = () => {
     const h = G.STARTERS[0]
     const k = G.STAT_KEYS.reduce((m, x) => (h.potential[x] > h.potential[m] ? x : m), G.STAT_KEYS[0])
-    const x = { ...h, level: E.maxLevel }, lim_ = S.statLimit(x), R_ = G.RARITIES[h.rarity]
-    const nat = S.naturalStat(x, k), real = S.computeStats({ ...x, alloc: { [k]: lim_ } }, null)[k]
-    return { t: 'p', txt: `O ganho real para no teto: status = min(natural + pontos, teto). Exemplo: ${h.name} (${nomeRar(h.rarity)} ${estrelas(S.starsOf(h))}), ${nomeStat(k)} com genética ${h.potential[k]}, chega sozinha a ${num(nat, 1)} no Nv ${E.maxLevel}; com ${lim_} pontos (o limite num status) chegaria a ${num(nat + lim_, 1)}, mas fica em ${real} (teto ${R_.statCap}).` }
+    const x = { ...h, level: E.maxLevel }, st = S.computeStats({ ...x, alloc: S.botAlloc(x) })
+    const corrida = G.STAT_KEYS.filter((q) => (T.noBuy || []).indexOf(q) < 0)
+    return { t: 'p', txt: `Exemplo: ${h.name} (${nomeRar(h.rarity)} ${estrelas(S.starsOf(h))}) no Nv ${E.maxLevel} tem ${S.freePoints(x)} pontos. Com a build dos bots (a mesma do "Distribuir sugerido") fica com ${corrida.map((q) => `${siglaStat(q)} ${st[q]}`).join(', ')}. Pondo tudo em ${nomeStat(k)} (genética ${h.potential[k]}), ela chegaria a ${tudoNum(x, k)}, e os outros ficariam na base.` }
   }
   add('level', 'Level e XP', 'Level e XP', [
     { t: 'p', txt: `Level máximo: **${E.maxLevel}**. ${xpLin ? `Para subir do level L para L + 1 são ${num(xpLin.a)} + ${num(xpLin.b)} × L de XP.` : 'XP por level na tabela.'} Do level 1 ao ${E.maxLevel} são ${num(acum)} de XP no total. No level máximo o XP ainda acumula até ${num(E.xpToLevel(E.maxLevel))} (o valor de um level ${E.maxLevel} → ${E.maxLevel + 1}) e aí trava.` },
@@ -491,30 +497,30 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
     { t: 'p', txt: `**Treino gratuito:** aparece quando seu Ouro não cobre a menor entrada (${num(minE)}). Não cobra entrada, rende 1/${F.treinoXpDiv} do XP e de ${num(Math.min(...F.treinoOuro))} a ${num(Math.max(...F.treinoOuro))} de Ouro pela colocação, e não dá Pedra Negra.` },
     { t: 'h3', txt: 'XP necessário por level' },
     { t: 'grade', classe: 'grade--xp', cab: ['Level', 'XP', 'Acumulado'], linhas: xpLinhas },
-    { t: 'h3', txt: 'Crescimento por level' },
-    { t: 'p', txt: `A cada level, cada status ganha sozinho ${num(T.gGrowBase)} + ${num(T.gGrowRange)} × g / 31, igual em todas as raridades, até o teto da raridade. Além disso, cada level dá pontos livres para distribuir (ver Raridades, Estrelas).` },
-    { t: 'tabela', rotulo: 'Crescimento por level', cab: ['Genética', 'Ganho por level', `Ganho do Nv 1 ao ${E.maxLevel}, sem o teto`], linhas: genEx.map((g) => [N(String(g)), N(num(crescimento(g), 3)), N(num(crescimento(g) * (E.maxLevel - 1), 1))]) },
-    exemploTeto(),
+    { t: 'h3', txt: 'Pontos por level' },
+    { t: 'p', txt: `Nenhum status cresce sozinho: cada level dá pontos para comprar status (ver Status). A taxa sobe de ${num(T.ptsRate0)} no Nv 2 a ${num(T.ptsRate1)} no Nv ${E.maxLevel}, vezes o fator da raridade e o das estrelas, então dez levels rendem parecido em qualquer ponto da progressão.` },
+    { t: 'tabela', rotulo: 'Pontos por level', titulo: `Pontos acumulados por level (${estrelas(2)})`, cab: ['Level', ...rarIds.map(nomeRar)], linhas: niveisPts.map((l) => [N(`Nv ${l}`), ...rarIds.map((r) => N(String(S.freePoints({ rarity: r, grau: 2, level: l }))))]) },
+    { t: 'tabela', rotulo: 'Pontos por estrela', titulo: `Pontos acumulados, ${nomeRar('comum')} / ${nomeRar('mitico')}`, cab: ['Estrelas', ...[11, 30, E.maxLevel].map((l) => `Nv ${l}`)], linhas: T.starMult.map((x, i) => [N(estrelas(i + 1)), ...[11, 30, E.maxLevel].map((l) => N(`${S.freePoints({ rarity: 'comum', grau: i + 1, level: l })} / ${S.freePoints({ rarity: 'mitico', grau: i + 1, level: l })}`))]) },
+    exemploBuild(),
     { t: 'h3', txt: 'Aprender skill ao subir de level' },
     { t: 'p', txt: `A cada level ganho há ${pct(T.learnChance, 0)} de chance de aprender uma skill nova (sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: geral ou do próprio elemento, nunca repetida.` },
-    { t: 'h3', txt: 'Exemplo: as iniciais por level (sem equipamento e sem pontos distribuídos)' },
-    { t: 'tabela', rotulo: 'Iniciais por level', cab: ['Montaria', 'Level', ...G.STAT_KEYS.map(siglaStat), 'Poder'], linhas: G.STARTERS.flatMap((h) => niveisEx.map((l) => { const x = { ...h, level: l }; const st = S.computeStats(x, null); return [h.name, N(String(l)), ...G.STAT_KEYS.map((k) => N(String(st[k]))), N(num(S.powerRating(x, null)))] })) }
+    { t: 'h3', txt: 'Exemplo: as iniciais por level (build dos bots)' },
+    { t: 'tabela', rotulo: 'Iniciais por level', cab: ['Montaria', 'Level', ...G.STAT_KEYS.map(siglaStat), 'Poder', 'Liga'], linhas: G.STARTERS.flatMap((h) => niveisEx.map((l) => { const x0 = { ...h, level: l }, x = { ...x0, alloc: S.botAlloc(x0) }; const st = S.computeStats(x), pr = S.powerRating(x); return [h.name, N(String(l)), ...G.STAT_KEYS.map((k) => N(String(st[k]))), N(num(pr)), S.leagueFor(pr).name] })) }
   ])
 
   // 4. Raridades -----------------------------------------------------------------------------------------
   const contaRar = (r) => todasMontarias().filter((h) => h.rarity === r).length
   add('raridades', 'Raridades', 'Raridades', [
-    { t: 'p', txt: `São ${rarIds.length} raridades, da mais comum à mais rara: ${lista(rarIds.map(nomeRar))}. A raridade define a faixa onde o status nasce (pela genética), o teto de cada status, as vagas de skill, a chance de ativar skills e a força da skill de tipo. Só muda por cruzamento.` },
-    { t: 'tabela', rotulo: 'Raridades', cab: ['Raridade', 'Cor', 'Status nasce entre', 'Teto de status', 'Vagas de skill (além da de tipo)', 'Skills do potro (mínimo)', 'Chance base de skill', `Força da skill de tipo (Nv 1 / Nv ${E.maxLevel})`, 'Preço da peça', 'Aluguel base', 'Montarias no jogo'], linhas: rarIds.map((r) => {
+    { t: 'p', txt: `São ${rarIds.length} raridades, da mais comum à mais rara: ${lista(rarIds.map(nomeRar))}. A raridade define a faixa onde o status nasce (pela genética), o fator dos pontos por level, as vagas de skill, a chance de ativar skills e a força da skill de tipo (ver Skills). Só muda por cruzamento. O teto é o mesmo para todas: ${T.statMax}.` },
+    { t: 'tabela', rotulo: 'Raridades', cab: ['Raridade', 'Cor', 'Status nasce entre', 'Fator dos pontos', `Pontos no Nv ${E.maxLevel} (${estrelas(2)})`, 'Vagas de skill (além da de tipo)', 'Skills do potro (mínimo)', 'Chance base de skill', 'Preço da peça', 'Aluguel base', 'Montarias no jogo'], linhas: rarIds.map((r) => {
       const R = G.RARITIES[r]
-      return [rarCel(r, true), { md: R.color, html: `<span class="amostra" style="--c:${R.color}"></span><code>${R.color}</code>` }, N(`${num(R.baseLo)}–${num(R.baseLo + T.gBand)}`), N(num(R.statCap)), N(String(R.skillSlots)), N(String(R.bornSkills)), N(pct(R.skillChance, 0)),
-        N(`${num(S.typePower({ rarity: r, level: 1 }))} / ${num(S.typePower({ rarity: r, level: E.maxLevel }))}`),
+      return [rarCel(r, true), { md: R.color, html: `<span class="amostra" style="--c:${R.color}"></span><code>${R.color}</code>` }, N(`${num(R.baseLo)}–${num(R.baseLo + T.gBand)}`), N(mult(R.ptsMult, 2)), N(String(S.freePoints({ rarity: r, grau: 2, level: E.maxLevel }))), N(String(R.skillSlots)), N(String(R.bornSkills)), N(pct(R.skillChance, 0)),
         EG.price[r] != null ? ouroCel(EG.price[r]) : 'não existe', BR.rentalBase[r] != null ? ouroCel(BR.rentalBase[r]) : 'não se aluga', N(String(contaRar(r)))]
     }) },
     { t: 'p', txt: `Raridade mais alta que nasce de cruzamento: **${nomeRar(B.RARITY_IDS[B.TUNING.maxRarityOrder])}**. ${nomeRar('mitico')} nunca nasce de cruzamento e não se aluga.` },
     { t: 'h3', txt: 'Estrelas' },
-    { t: 'p', txt: `Cada montaria tem de ${estrelas(1)} a ${estrelas(T.starMult.length)}. As estrelas multiplicam os pontos livres ganhos por level e mudam o preço do aluguel; não mexem na genética. O potro recebe as estrelas no nascimento (ver Cruzamento); as iniciais e os selvagens têm as estrelas definidas nos dados. Ainda não existe item que sobe estrela.` },
-    { t: 'tabela', rotulo: 'Estrelas', cab: ['Estrelas', 'Multiplicador dos pontos livres', `Pontos livres no Nv ${E.maxLevel}`, `Limite por status no Nv ${E.maxLevel}`, 'Multiplicador do aluguel'], linhas: T.starMult.map((x, i) => { const h = { level: E.maxLevel, grau: i + 1 }; return [N(estrelas(i + 1)), N(mult(x, 2)), N(String(S.freePoints(h))), N(String(S.statLimit(h))), N(mult(BR.grauMult[i], 2))] }) },
+    { t: 'p', txt: `Cada montaria tem de ${estrelas(1)} a ${estrelas(T.starMult.length)}. As estrelas multiplicam os pontos ganhos por level e mudam o preço do aluguel; não mexem na genética. O potro recebe as estrelas no nascimento (ver Cruzamento); as iniciais e os selvagens têm as estrelas definidas nos dados. Ainda não existe item que sobe estrela.` },
+    { t: 'tabela', rotulo: 'Estrelas', cab: ['Estrelas', 'Fator dos pontos', `Pontos no Nv ${E.maxLevel} (${nomeRar('comum')})`, 'Multiplicador do aluguel'], linhas: T.starMult.map((x, i) => { const h = { rarity: 'comum', level: E.maxLevel, grau: i + 1 }; return [N(estrelas(i + 1)), N(mult(x, 2)), N(String(S.freePoints(h))), N(mult(BR.grauMult[i], 2))] }) },
     { t: 'h3', txt: 'Corcel' },
     { t: 'p', txt: `Uma montaria é **Corcel** quando já tem todas as skills "de linha" da sua raridade. Corcel garante herança de skill no cruzamento (ver Cruzamento).` },
     { t: 'tabela', rotulo: 'Corcel', cab: ['Raridade', 'Skills de linha'], linhas: Object.keys(B.CORCEL_SETS).map((r) => [rarCel(r), B.CORCEL_SETS[r].map(nomeSkill).join(', ')]) }
@@ -536,11 +542,12 @@ arredondado e preso entre ${lim.baixo} e ${lim.alto}` },
       return [comIcone('cl-' + w, nomeClima(w)), W.element ? elCel(W.element) : '—', W.penalizes ? elCel(W.penalizes) : '—', efeitoGeralClima(w), W.desc]
     }) },
     { t: 'h3', txt: 'Multiplicador de clima (m)' },
-    { t: 'p', txt: `Elemento dono do clima: ${multF(T.weatherMult)}; com a skill de clima ativa, ${multF(T.weatherMultDouble)}; com ${EG.setBonus.pieces[1]} peças do conjunto daquele clima (sem a skill), ${multF(T.weatherMultSet)}. Elemento penalizado: ${multF(2 - T.weatherMult)} (o equipamento de ${EG.setBonus.pieces[2]} peças anula). O resto, e todos no ${nomeClima('nublado')}, ×1.` },
+    { t: 'p', txt: `Elemento dono do clima: ${multF(T.weatherMult)}; com a skill de clima ativa, ${multF(T.weatherMultDouble)}. Elemento penalizado: ${multF(2 - T.weatherMult)}. O resto, e todos no ${nomeClima('nublado')}, ×1. O multiplicador entra somado a n(x): nc(x) = n(x) + (m − 1) × ${num(T.weatherAdd)}, o mesmo efeito em qualquer nível.` },
     { t: 'tabela', rotulo: 'Multiplicador de clima', cab: ['Elemento', ...clIds.map(nomeClima)], linhas: elIds.map((e) => [elCel(e), ...clIds.map((w) => N(multF(S.weatherMult(e, w, false))))]) },
-    { t: 'formula', txt: `vMax       = (${num(T.vBase)} + ${num(T.vRange)} × n(VEL) × m) × (1 + ${num(T.weatherVel)} × (m − 1))
-aceleração = ${num(T.aBase)} + ${num(T.aRange)} × n(ACE) × m
-Força, Manobra e Garra efetivas = n(x) × m` },
+    { t: 'formula', txt: `nc(x)      = n(x) + (m − 1) × ${num(T.weatherAdd)}
+vMax       = (${num(T.vBase)} + ${num(T.vRange)} × nc(VEL)) × (1 + ${num(T.weatherVel)} × (m − 1))
+aceleração = 1 / max(${num(T.aInvMin, 3)}, ${num(T.aInv0, 3)} − ${num(T.aInv1, 3)} × nc(ACE))
+Força, Manobra e Garra efetivas = nc(x)` },
     { t: 'p', txt: `O clima inicial sai da seed da sala. O Dado da Sorte pode virar o clima no meio da corrida (ver Dado da Sorte); quando vira, os números de todos são recalculados (o que já foi gasto não volta).` },
     { t: 'h3', txt: 'Vento (só visual)' },
     { t: 'p', txt: `Cada sala tem um vento sorteado pela seed: ${lista(Object.keys(amostraVento).map((k) => `${k} ${pct(amostraVento[k], 0)}`))}, soprando para a direita ou para a esquerda. Ele só mexe no desenho (bandeirinhas, folhas, nuvens, inclinação da chuva); não entra na simulação.` }
@@ -559,7 +566,7 @@ Força, Manobra e Garra efetivas = n(x) × m` },
     const ids = skIds.filter((id) => G.SKILLS[id].element === e)
     return `### ${e === 'geral' ? 'Gerais' : nomeEl(e)} (${ids.length})\n\n` + blocoMd({ t: 'tabela', cab: ['Skill', 'Gatilho', 'Efeito', 'Descrição no jogo', 'Quem pode ter', 'Começa em', 'Pontos no Poder', 'Balão'], linhas: ids.map((id) => {
       const sk = G.SKILLS[id], qt = quemTem(id)
-      return [{ md: icMd('sk-' + id) + `**${sk.name}**`, html: icone('sk-' + id) + `<strong>${esc(sk.name)}</strong>` }, descreverGatilho(sk.trigger), descreverEfeito(sk.effect), sk.desc, quemPode(sk), qt.length ? qt.join(', ') : '—', N(num(pesoSkill(id) * 20)), FX.nomeCurto(sk.name, sk.short)]
+      return [{ md: icMd('sk-' + id) + `**${sk.name}**`, html: icone('sk-' + id) + `<strong>${esc(sk.name)}</strong>` }, descreverGatilho(sk.trigger), descreverEfeito(sk.effect), sk.desc, quemPode(sk), qt.length ? qt.join(', ') : '—', N(num(pesoSkill(id) * T.ratingSkillPts)), FX.nomeCurto(sk.name, sk.short)]
     }) })
   }).join('\n\n')
   const skillHtml = ordemEl.filter((e) => skIds.some((id) => G.SKILLS[id].element === e)).map((e) => {
@@ -574,7 +581,7 @@ Força, Manobra e Garra efetivas = n(x) × m` },
           `<dt>Efeito</dt><dd>${inlineHtml(descreverEfeito(sk.effect))}</dd>` +
           `<dt>Quem pode ter</dt><dd>${esc(quemPode(sk))}</dd>` +
           `<dt>Começa em</dt><dd>${esc(qt.length ? qt.join(', ') : 'nenhuma montaria pronta')}</dd>` +
-          `<dt>Pontos no Poder</dt><dd class="num">+${esc(num(pesoSkill(id) * 20))}</dd>` +
+          `<dt>Pontos no Poder</dt><dd class="num">+${esc(num(pesoSkill(id) * T.ratingSkillPts))}</dd>` +
           `<dt>Balão</dt><dd><span class="balao">${esc(FX.nomeCurto(sk.name, sk.short))}</span></dd></dl></article>`
       }).join('') + `</div></section>`
   }).join('') + `<p class="vazio" data-vazio="skill" hidden>Nenhuma skill casa com a busca e os filtros.</p>`
@@ -583,19 +590,20 @@ Força, Manobra e Garra efetivas = n(x) × m` },
   add('skills', 'Skills', 'Skills', [
     { t: 'p', txt: `Toda montaria tem a **skill de tipo** do seu elemento, em vaga própria e sempre ativa (abaixo). Além dela, há ${skIds.length} skills de vaga normal. Cada uma tem um gatilho; quando ele acontece, a montaria faz **uma** tentativa contra a chance de skill (uma por corrida, ou uma por bloco nas skills de curva e subida marcadas "em cada bloco"). Se acertar, o efeito vale pelo tempo ou pela distância indicados.` },
     { t: 'p', txt: `**Skills de largada** disparam no sinal (t = 0), antes do atraso de reação do cavalo (até ${num(T.startDelayMax)} s, menor com ACE alta). A duração conta desde o sinal, então esse atraso consome parte dela.` },
-    { t: 'formula', txt: `chance de skill = min(${pct(T.skillChanceMax, 0)}, chance base da raridade + ${pp(T.skillPerLevel)} × (level − 1) + ${pp(T.skillPerSorte)} × SOR + bônus de equipamento)` },
-    { t: 'tabela', rotulo: 'Chance de skill', titulo: `Chance de ativar: sem equipamento (SOR ${sorteEx}) / com ${EG.setBonus.pieces[0]}+ peças de um conjunto (SOR ${sorteEx} + ${EG.setBonus.sorte} do conjunto = ${sorteEx + EG.setBonus.sorte}, e ${'+' + pp(EG.setBonus.skillChance, 0)} de chance)`, cab: ['Raridade', ...lvEx.map((l) => `Nv ${l}`)], linhas: rarIds.map((r) => [rarCel(r), ...lvEx.map((l) => N(`${pct(S.skillChance({ rarity: r, level: l }, { sorte: sorteEx }), 1)} / ${pct(S.skillChance({ rarity: r, level: l }, { sorte: sorteEx + EG.setBonus.sorte }, EG.setBonus.skillChance), 1)}`))]) },
+    { t: 'formula', txt: `chance de skill = min(${pct(T.skillChanceMax, 0)}, chance base da raridade + ${pp(T.skillPerLevel)} × (level − 1) + ${pp(T.skillPerSorte)} × SOR)` },
+    { t: 'tabela', rotulo: 'Chance de skill', titulo: `Chance de ativar (SOR ${sorteEx}; o equipamento, suspenso, não soma)`, cab: ['Raridade', ...lvEx.map((l) => `Nv ${l}`)], linhas: rarIds.map((r) => [rarCel(r), ...lvEx.map((l) => N(pct(S.skillChance({ rarity: r, level: l }, { sorte: sorteEx }), 1)))]) },
     { t: 'h3', txt: 'Skill de tipo', id: 'skills-tipo' },
-    { t: 'p', txt: `Sem sorteio e sem chance: age sempre, no terço da distância que é do tipo (o terço é proporcional à distância da pista). Os números abaixo valem com força P = 1 e são multiplicados por P, que cresce com o level e a raridade. No início do terço aparece o balão da skill.` },
-    { t: 'formula', txt: `P = ${num(T.typeBase)} + ${num(T.typeLevel)} × (level − 1) / 49 + ${num(T.typeRar)} × ordem da raridade / 4      (ordem: ${rarIds.map((r) => `${nomeRar(r)} ${G.RARITIES[r].order}`).join(', ')})` },
-    { t: 'tabela', rotulo: 'Skills de tipo', cab: ['Skill', 'Tipo', 'Terço', 'Efeito (P = 1)', `${nomeRar('lendario')} Nv ${E.maxLevel} (P = ${num(S.typePower({ rarity: 'lendario', level: E.maxLevel }))})`, 'Pontos no Poder (P = 1)', 'Balão'], linhas: elIds.filter((e) => G.TYPE_SKILLS[e]).map((e) => {
-      const ts = G.TYPE_SKILLS[e]
-      return [{ md: icMd('sk-tipo-' + e) + `**${ts.name}**`, html: icone('sk-tipo-' + e) + `<strong>${esc(ts.name)}</strong>` }, elCel(e), tercoTxt(ts.zone), descreverEfeitoTipo(ts.effect, 1), descreverEfeitoTipo(ts.effect, S.typePower({ rarity: 'lendario', level: E.maxLevel })), N(num(T.ratingTypeW)), FX.nomeCurto(ts.name, ts.short)]
+    { t: 'p', txt: `Sem sorteio e sem chance: age sempre, no terço da distância que é do tipo (o terço é proporcional à distância da pista). No terço, os **dois status do tipo** valem × (1 + m × P): quem investe neles ganha mais. O m de cada skill está abaixo; P é a força, que varia com o level e a raridade de um jeito próprio de cada tipo. No início do terço aparece o balão da skill.` },
+    { t: 'formula', txt: `P = ${num(T.typeBase)} + nívelT × (level − 1) / ${E.maxLevel - 1} + raridadeT × ordem da raridade / 4      (ordem: ${rarIds.map((r) => `${nomeRar(r)} ${G.RARITIES[r].order}`).join(', ')})` },
+    { t: 'tabela', rotulo: 'Skills de tipo', cab: ['Skill', 'Tipo', 'Terço', 'Efeito (P = 1)', 'nívelT', 'raridadeT', `${nomeRar('lendario')} Nv ${E.maxLevel}`, 'Balão'], linhas: elIds.filter((e) => G.TYPE_SKILLS[e]).map((e) => {
+      const ts = G.TYPE_SKILLS[e], P50 = S.typePower({ element: e, rarity: 'lendario', level: E.maxLevel })
+      return [{ md: icMd('sk-tipo-' + e) + `**${ts.name}**`, html: icone('sk-tipo-' + e) + `<strong>${esc(ts.name)}</strong>` }, elCel(e), tercoTxt(ts.zone), descreverEfeitoTipo(ts.effect, 1, e), N(num(T.typeLevel[e], 2)), N(num(T.typeRar[e], 2)), `P = ${num(P50, 3)}: ${descreverEfeitoTipo(ts.effect, P50, e)}`, FX.nomeCurto(ts.name, ts.short)]
     }) },
-    { t: 'p', txt: `"Força efetiva +7" soma 7 pontos à Força (e à Manobra) usada na curva, na subida, no piso pesado e no pelotão. Elemento sem skill de tipo corre sem ela. A skill de tipo não troca e não conta nas vagas.` },
+    { t: 'tabela', rotulo: 'Força da skill de tipo', titulo: `Força P por raridade (Nv 1 → Nv ${E.maxLevel})`, cab: ['Raridade', ...elIds.filter((e) => G.TYPE_SKILLS[e]).map((e) => G.TYPE_SKILLS[e].name)], linhas: rarIds.map((r) => [rarCel(r), ...elIds.filter((e) => G.TYPE_SKILLS[e]).map((e) => N(`${num(S.typePower({ element: e, rarity: r, level: 1 }), 3)} → ${num(S.typePower({ element: e, rarity: r, level: E.maxLevel }), 3)}`))]) },
+    { t: 'p', txt: `Exemplo com P = 1: na ${G.TYPE_SKILLS.fogo.name}, ${nomeStat(S.TYPE_STATS.fogo[0])} 60 vale ${num(60 * (1 + G.TYPE_SKILLS.fogo.effect.statMul), 1)} no terço; com 100, vale ${num(100 * (1 + G.TYPE_SKILLS.fogo.effect.statMul), 1)}. A ${G.TYPE_SKILLS.agua.name} multiplica a ${nomeStat('est')} só no teto do ritmo (o tanque não muda). Elemento sem skill de tipo corre sem ela. A skill de tipo não troca, não conta nas vagas e não entra no Poder (lá, level e raridade valem o mesmo para os três tipos).` },
     { t: 'h3', txt: 'Skills de vaga' },
     { t: 'p', txt: `**Quem pode ter:** as skills gerais servem para qualquer tipo; as de um tipo, só para aquele tipo. O número de skills é limitado pelas vagas da raridade.` },
-    { t: 'p', txt: `**Pontos no Poder:** cada skill soma 20 × o peso do gatilho no Poder (gatilhos que nem sempre acontecem valem menos). **Balão:** o texto que aparece na pista quando a skill ativa.` },
+    { t: 'p', txt: `**Pontos no Poder:** cada skill soma ${num(T.ratingSkillPts)} × o peso do gatilho no Poder (gatilhos que nem sempre acontecem valem menos). **Balão:** o texto que aparece na pista quando a skill ativa.` },
     { t: 'custom', md: skillMd, html: skillHtml }
   ])
 
@@ -606,13 +614,13 @@ Força, Manobra e Garra efetivas = n(x) × m` },
     { t: 'p', txt: `Quando o líder cruza ${lista(T.diceAt.map(fracao))} da distância, **todos** rolam o Dado da Sorte (até quem já chegou). Ele usa um fluxo de números próprio da seed, então é determinístico.` },
     { t: 'passos', itens: [
       `Cada montaria rola um dado de ${ld.min} a ${ld.max}.`,
-      'Com chance igual à sua Sorte (SOR%), rola um 2º dado e fica com o melhor.',
+      `Com chance (SOR − ${num(T.sorteDiceLo)}) / ${num(T.sorteDiceFull - T.sorteDiceLo)} (presa entre 0% e 100%), rola um 2º dado e fica com o melhor. A ${nomeStat('sorte')} vai de ${num(G.RARITIES.comum.baseLo)} a ${num(G.RARITIES.mitico.baseLo + T.gBand)} (só de nascimento), então a fórmula começa onde a ${nomeStat('sorte')} começa.`,
       `${dadoViciado.length ? lista(dadoViciado) : 'A skill de dado extra'} tenta ativar uma vez por corrida, antes do 1º Dado. Se ativar, soma um dado extra nos ${T.diceAt.length} Dados (no máximo ${ld.maxDados} dados); se falhar, não tenta de novo.`,
       'O maior dado vence. Empate no topo: só os empatados rolam de novo.',
       `O clima vira o do elemento do vencedor. Se já for esse clima, o clima "segura".`
     ] },
     { t: 'tabela', rotulo: 'Vencedor e clima', cab: ['Elemento do vencedor', 'Clima depois do Dado'], linhas: elIds.map((e) => [elCel(e), G.ELEMENTS[e].weather ? nomeClima(G.ELEMENTS[e].weather) : 'não muda']) },
-    { t: 'tabela', rotulo: 'Sorte e dados', titulo: 'Chance de rolar o 2º dado', cab: ['SOR', 'Chance do 2º dado'], linhas: [0, 25, 50, 75, 100].map((s) => [N(String(s)), N(pct(s / 100, 0))]) }
+    { t: 'tabela', rotulo: 'Sorte e dados', titulo: 'Chance de rolar o 2º dado', cab: ['SOR', 'Chance do 2º dado'], linhas: [G.RARITIES.comum.baseLo, 50, G.RARITIES.comum.baseLo + T.gBand, 60, 70, G.RARITIES.mitico.baseLo + T.gBand, T.sorteDiceFull].map((s) => [N(String(s)), N(pct(Math.min(1, Math.max(0, (s - T.sorteDiceLo) / (T.sorteDiceFull - T.sorteDiceLo))), 0))]) }
   ])
 
   // 8. Pista e simulação ---------------------------------------------------------------------------------
@@ -638,20 +646,20 @@ Força, Manobra e Garra efetivas = n(x) × m` },
     { t: 'formula', txt: `alvo = ritmo × vMax × piso × pelotão × chuva × fator do bloco × boosts × variação (±${pct(T.tickJitter / 2, 1)})
 sobe com a aceleração; desce a ${num(T.decel)} m/s²` },
     { t: 'h4', txt: 'Ritmo do jóquei' },
-    { t: 'p', txt: `O jóquei calcula o ritmo constante que o tanque restante aguenta até a chegada e guarda ${pct(T.rationReserve, 0)} de reserva. Ele lê o tanque com um erro sorteado de ${sinalPct(T.jockeyErrMin, 0)} a ${sinalPct(T.jockeyErrMax, 0)} (às vezes é otimista demais e cansa no fim). Ritmo: até ${pct(T.pace.mid, 0)} da vMax até ${pct(T.pace.spurtStart, 0)} da pista, depois até ${pct(T.pace.spurtCap, 0)} (sprint final); nunca abaixo de ${pct(T.minPace, 0)} por vontade própria. A estimativa já conta as subidas que faltam.` },
+    { t: 'p', txt: `O jóquei calcula o ritmo constante que o tanque restante aguenta até a chegada e guarda ${pct(T.rationReserve, 0)} de reserva. Ele lê o tanque com um erro sorteado de ${sinalPct(T.jockeyErrMin, 1)} a ${sinalPct(T.jockeyErrMax, 1)} (menor que a reserva: quase nunca cansa). Ritmo: até ${pct(T.pace.mid, 0)} + ${pct(T.pace.midEst, 1)} × (n(EST) − 0,5) da vMax até ${pct(T.pace.spurtStart, 0)} da pista, depois até ${pct(T.pace.spurtCap, 0)} + ${pct(T.pace.spurtEst, 1)} × (n(EST) − 0,5) (sprint final); nunca abaixo de ${pct(T.minPace, 0)} por vontade própria. A estimativa já conta as subidas que faltam.` },
     { t: 'h4', txt: 'Estamina' },
     { t: 'formula', txt: `gasto por segundo = (v / (vMax × boosts × fator da subida))^${T.drainExp} × (${num(T.drainRefDist)} / D)^(${fracao(T.drainDistExp[0] / T.drainDistExp[1])}) × mods / tanque
 tanque = ${num(T.poolBase)} + ${num(T.poolEst)} × n(EST)
 mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}, skills` },
     { t: 'p', txt: 'Boosts (Garra e skills) sobem o teto sem custo extra de estamina. Pistas longas apertam mais o tanque no total.' },
     { t: 'h4', txt: 'Vácuo e pelotão' },
-    { t: 'p', txt: `**Vácuo:** quem corre de ${num(T.draftMin)} a ${num(T.draftRange)} m atrás de alguém gasta ${pct(T.draftSave, 0)} menos estamina. **Pelotão:** com vizinhos a até ${num(T.crowdRange)} m, a velocidade cai até ${pct(T.crowdSlow, 0)} (teto com ${F.pelotaoMax} vizinhos); a Força alivia ${pct(T.forcaCrowdRelief, 0)} × n(FOR) disso.` },
+    { t: 'p', txt: `**Vácuo:** quem corre de ${num(T.draftMin)} a ${num(T.draftRange)} m atrás de alguém gasta ${pct(T.draftSave, 0)} menos estamina. **Pelotão:** com vizinhos a até ${num(T.crowdRange)} m, a velocidade cai até ${pct(T.crowdSlow, 0)} (teto com ${F.pelotaoMax} vizinhos); a Força alivia ${pct(T.forcaCrowdRelief, 0)} × n(FOR) disso (até zerar).` },
     { t: 'h4', txt: 'Garra' },
-    { t: 'p', txt: `Ao cruzar ${pct(T.garraZone, 0)} da pista, cada montaria sorteia a Garra uma vez: chance = min(${pct(T.garraChanceMax, 0)}, ${pct(T.garraChanceBase, 0)} + ${pct(T.garraChanceRange, 0)} × n(GAR) × m + bônus de skill). Se sair, o teto de velocidade fica ${mult(1 + T.garraBoostBase, 2)} + ${num(T.garraBoostRange, 3)} × n(GAR) × m (+ bônus de skill) até a chegada.` },
+    { t: 'p', txt: `A arrancada de cada montaria começa em ${pct(T.garraZone, 0)} − ${pct(T.garraZoneK, 0)} × (n(GAR) − 0,5) da pista (mais Garra, mais cedo; as skills de reta final disparam no mesmo ponto). Lá ela sorteia a Garra uma vez: chance = min(${pct(T.garraChanceMax, 0)}, ${pct(T.garraChanceBase, 0)} + ${pct(T.garraChanceRange, 0)} × nc(GAR) + bônus de skill). Se sair, o teto de velocidade fica ${mult(1 + T.garraBoostBase, 2)} + ${num(T.garraBoostRange, 3)} × nc(GAR) (+ bônus de skill) até a chegada.` },
     { t: 'h4', txt: 'Cansaço' },
     { t: 'p', txt: `Estamina zerada: o ritmo cai para ${pct(T.exhaustPace, 0)} até o fim. Se ainda faltar mais de ${pct(F.cansouFalta, 0)} da pista, aparece o aviso "cansou".` },
     { t: 'h4', txt: 'Largada e eventos' },
-    { t: 'p', txt: `Cada montaria reage à largada com um atraso sorteado de até ${num(T.startDelayMax)} s (menor com ACE alta). Troca de liderança só vira evento depois de ${pct(T.leadMinP, 0)} da pista, confirmada por ${num(T.leadConfirmS)} s e com pelo menos ${num(T.leadMinGapS)} s entre avisos. Depois da chegada o cavalo freia a ${F.chegadaFreio} m/s². A corrida tem teto de ${num(T.maxTime)} s.` },
+    { t: 'p', txt: `Cada montaria reage à largada com um atraso sorteado de até ${num(T.startDelayMax)} s × (1 − ${num(T.startAcelK, 3)} × min(n(ACE), ${num(T.startAcelMax)})). Troca de liderança só vira evento depois de ${pct(T.leadMinP, 0)} da pista, confirmada por ${num(T.leadConfirmS)} s e com pelo menos ${num(T.leadMinGapS)} s entre avisos. Depois da chegada o cavalo freia a ${F.chegadaFreio} m/s². A corrida tem teto de ${num(T.maxTime)} s.` },
     { t: 'h4', txt: 'Traçado (desenho)' },
     { t: 'p', txt: `O mapa da pista é desenhado dos blocos: retas e subidas em linha reta, e cada sequência de curvas coladas vira uma curva só, que gira ${FX.CURVA.giroPor150m}° a cada 150 m (entre ${FX.CURVA.giroMin}° e ${FX.CURVA.giroMax}°). É só desenho: a simulação usa os blocos.` }
   ])
@@ -659,7 +667,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
   // 9. Montarias -----------------------------------------------------------------------------------------
   add('montarias', 'Montarias', 'Montarias', [
     { t: 'p', txt: `Há ${G.STARTERS.length} montarias iniciais e ${G.WILD_HORSES.length} selvagens. Todas são da espécie cavalo. As selvagens aparecem como bots nas corridas, como reprodutores de aluguel no Haras (menos as de raridade ${nomeRar('mitico')}) e ${F.vitrine.length} delas na vitrine da Expedição. As iniciais também aparecem como bots quando não são suas. Como o level dos bots é escolhido: ver Economia, Rivais da sala.` },
-    { t: 'p', txt: `**Genética** (0 a 31 por status, nota C a S) aparece no jogo, na aba Status da montaria. Os status são sem equipamento e sem pontos livres distribuídos. Os bots usam a genética do modelo e distribuem os pontos pela build fixa (ver Economia, Poder e ligas).` },
+    { t: 'p', txt: `**Genética** (0 a 31 por status, nota C a S) aparece no jogo, na aba Status da montaria. Os status são os da base (sem pontos comprados). Os bots usam a genética do modelo e distribuem os pontos pela build fixa (ver Economia, Poder e ligas).` },
     { t: 'custom', md: montariasMd(F), html: montariasHtml(F) }
   ])
 
@@ -764,13 +772,13 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     tabelaPares(0),
     tabelaPares(BR.levelSaturation),
     { t: 'h3', txt: 'Estrelas do potro' },
-    { t: 'p', txt: `As estrelas do potro multiplicam os pontos livres dele (ver Raridades). Estrelas base = arredondar(${num(BR.mareWeight)} × estrelas da égua + ${num(1 - BR.mareWeight)} × estrelas do garanhão). Se a raridade **subiu**, o potro nasce ${estrelas(1)}; se **desceu**, nasce ${estrelas(BR.grauMult.length)}. Se manteve, sorteia desce/mantém/sobe (fora de 1–3 soma em "mantém").` },
+    { t: 'p', txt: `As estrelas do potro multiplicam os pontos que ele ganha por level (ver Raridades). Estrelas base = arredondar(${num(BR.mareWeight)} × estrelas da égua + ${num(1 - BR.mareWeight)} × estrelas do garanhão). Se a raridade **subiu**, o potro nasce ${estrelas(1)}; se **desceu**, nasce ${estrelas(BR.grauMult.length)}. Se manteve, sorteia desce/mantém/sobe (fora de 1–3 soma em "mantém").` },
     { t: 'tabela', rotulo: 'Estrelas do potro', cab: ['Estrelas base', 'L', ...BR.grauMult.map((w, i) => estrelas(i + 1))], linhas: BR.grauMult.flatMap((w, i) => [0, BR.levelSaturation].map((lv) => { const o = gO(i + 1, lv); return [N(estrelas(i + 1)), lv ? 'L = 1' : 'L = 0', ...BR.grauMult.map((x, j) => N(o[j + 1] > 0 ? pct(o[j + 1], 0) : '—'))] })) },
     { t: 'h3', txt: 'Tipo, sexo e genética' },
     { t: 'lista', itens: [
       `**Tipo:** se os pais têm o mesmo, o potro herda; senão, ${pct(F.elementoPotro, 0)} de chance de cada um. A skill de tipo vem com o tipo.`,
       `**Sexo:** ${pct(F.sexoPotro, 0)} fêmea, ${pct(1 - F.sexoPotro, 0)} macho.`,
-      `**Genética:** para cada status, ${pct(B.TUNING.potInherit, 0)} de chance de herdar a de um dos pais (${pct(F.potroPai, 0)} para cada); senão sai de 0 a ${F.potValores - 1}. Os status do potro saem da genética e da raridade; ele nasce no level 1, sem pontos livres.`,
+      `**Genética:** para cada status, ${pct(B.TUNING.potInherit, 0)} de chance de herdar a de um dos pais (${pct(F.potroPai, 0)} para cada); senão sai de 0 a ${F.potValores - 1}. Os status do potro saem da genética e da raridade; ele nasce no level 1, sem pontos.`,
       `**Nome:** sorteado entre ${G.FOAL_NAMES.length}: ${lista(G.FOAL_NAMES)}.`,
       '**Cores:** mistura das cores dos pais.'
     ] },
@@ -797,11 +805,11 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
       const t = descreverEspecial(k, r.special[k])
       if (t) partes.push(t.replace(`clima ${nomeClima(G.GEAR_SETS[setIds[0]].weather)}`, 'clima do conjunto'))
     }
-    partes.push(`+${GR.ratingPts(n)} de Poder`)
     return partes.join('; ')
   }
   const peca = (id) => G.GEAR[id]
   add('equipamento', 'Equipamento', 'Equipamento', [
+    { t: 'nota', txt: '**Suspenso:** as peças, a melhoria, o que está equipado e as Pedras Negras ficam guardados, mas a corrida, os status e o Poder ignoram o equipamento por enquanto. O catálogo abaixo é o que volta quando ele for revisto.' },
     { t: 'p', txt: `Cada montaria tem ${G.GEAR_SLOTS.length} slots. Cada peça soma um status principal (o valor da raridade + a melhoria) e um secundário, definidos pelo slot. Peças ${lista(gearRar.filter((r) => !gearIds.some((id) => peca(id).rarity === r && peca(id).set)).map(nomeRar))} são soltas; ${lista(gearRar.filter((r) => gearIds.some((id) => peca(id).rarity === r && peca(id).set)).map(nomeRar))} pertencem a um conjunto (${lista(setIds.map(nomeConjunto))}).` },
     { t: 'tabela', rotulo: 'Slots', cab: ['Slot', 'Status principal', 'Status secundário'], linhas: G.GEAR_SLOTS.map((s) => [slotCel(s), nomeStat(G.GEAR_SLOT_INFO[s].main), nomeStat(G.GEAR_SLOT_INFO[s].sub)]) },
     { t: 'tabela', rotulo: 'Peças por raridade', cab: ['Raridade', 'Principal', 'Secundário', 'Preço', 'Venda', 'Na loja'], linhas: gearRar.map((r) => { const id = gearIds.find((x) => peca(x).rarity === r); return [rarCel(r), N('+' + EG.main[r]), N('+' + EG.sub[r]), ouroCel(EG.price[r]), ouroCel(GR.sellPrice(id)), peca(id).shop ? 'sim' : '**nunca à venda**'] }) },
@@ -821,8 +829,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'h3', txt: 'Conjuntos', id: 'conjuntos' },
     { t: 'tabela', rotulo: 'Conjuntos', cab: ['Conjunto', 'Clima', 'Elemento favorecido', 'Peças'], linhas: setIds.map((s) => { const w = G.GEAR_SETS[s].weather; return [nomeConjunto(s), nomeClima(w), G.WEATHERS[w].element ? elCel(G.WEATHERS[w].element) : '—', gearIds.filter((id) => peca(id).set === s).map((id) => `${peca(id).name} (${nomeRar(peca(id).rarity)})`).join(', ')] }) },
     { t: 'tabela', rotulo: 'Bônus de conjunto', titulo: 'Bônus total por número de peças do mesmo conjunto (cada linha já é o total)', cab: ['Peças', 'Bônus'], linhas: EG.setBonus.pieces.map((n) => [N(String(n)), bonusTxt(n)]) },
-    { t: 'p', txt: `Cada linha é o total daquele patamar, não soma com as de cima: +${EG.setBonus.sorte} ${nomeStat('sorte')} e ${'+' + pp(EG.setBonus.skillChance, 0)} de chance valem uma vez a partir de ${EG.setBonus.pieces[0]} peças, e os pontos de Poder são ${EG.setBonus.pieces.map((n) => `${GR.ratingPts(n)} com ${n}`).join(', ')} (não ${GR.ratingPts(EG.setBonus.pieces[0])} + ${GR.ratingPts(EG.setBonus.pieces[1])}).` },
-    { t: 'p', txt: `Vale o conjunto com mais peças equipadas (empate: ${lista(setIds.map(nomeConjunto))}, nessa ordem). O reforço de ${multF(T.weatherMultSet)} só age se o elemento da montaria for o dono do clima do conjunto.` },
+    { t: 'p', txt: `Cada linha é o total daquele patamar, não soma com as de cima: +${EG.setBonus.sorte} ${nomeStat('sorte')} e ${'+' + pp(EG.setBonus.skillChance, 0)} de chance valem uma vez a partir de ${EG.setBonus.pieces[0]} peças. Vale o conjunto com mais peças equipadas (empate: ${lista(setIds.map(nomeConjunto))}, nessa ordem). Enquanto o equipamento estiver suspenso, nenhum bônus de conjunto vale.` },
     { t: 'h3', txt: 'Equipamento dos bots por liga' },
     { t: 'tabela', rotulo: 'Equipamento dos bots', cab: ['Liga do alvo', 'Peças do bot'], linhas: G.LEAGUES.map((L, i) => { const r = GR.botGear(i, 'fogo', 0); return [L.name, r.pieces.length ? r.pieces.map((p) => `${peca(p.id).name} +${p.plus}`).join(', ') : 'nada'] }) },
     { t: 'p', txt: `O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, ${nomeEl('fogo')}).` }
@@ -834,7 +841,6 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
   const entradaEx = E.entryTiers[1] != null ? E.entryTiers[1] : E.entryTiers[0]
   const pesos = {}
   skIds.forEach((id) => { const t = G.SKILLS[id].trigger.indexOf('weather:') === 0 ? 'weather:*' : G.SKILLS[id].trigger; pesos[t] = pesoSkill(id) })
-  const ini = equipInicial()
   add('economia', 'Economia', 'Economia', [
     { t: 'p', txt: `Moeda única hoje: **Ouro**. Começa com ${num(E.startingGold)}. Ganha-se Ouro correndo (prêmios e treino) e vendendo peças; gasta-se em entradas, peças, Pedras Negras, aluguel e registro de cruza, Troca e vagas do estábulo.` },
     { t: 'h3', txt: 'Entradas e prêmios' },
@@ -852,16 +858,16 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
       ['Cruza', `aluguel ${num(Math.min(...alugaveis.map((h) => B.rentalPrice(h))))} a ${num(Math.max(...alugaveis.map((h) => B.rentalPrice(h))))}; registro ${num(BR.ownRegistration)}; Troca ${num(BR.exchange)}`]
     ] },
     { t: 'h3', txt: 'Poder e ligas', id: 'poder' },
-    { t: 'p', txt: 'O **Poder** resume a montaria com o equipamento: soma ponderada dos status efetivos (com os pontos distribuídos) + skills + skill de tipo + pontos de conjunto. Ele define a liga e os rivais da sala.' },
+    { t: 'p', txt: 'O **Poder** resume a montaria, sem equipamento: soma ponderada dos status (com os pontos comprados) + skills + level e raridade. Os pesos vêm de uma regressão sobre milhares de salas; o tipo não entra (level e raridade valem o mesmo para os três). Ele define a liga e os rivais da sala.' },
     { t: 'formula', txt: `Poder = ${G.STAT_KEYS.map((k) => `${num(T.ratingW[k], 2)}·${siglaStat(k)}`).join(' + ')}
       + ${num(T.ratingSkillPts)} × peso do gatilho, por skill
-      + ${num(T.ratingTypeW)} × força da skill de tipo
-      + ${EG.setBonus.pieces.map((n, i) => `${EG.setBonus.ratingPts[i]} (${n} peças)`).join(' / ')} de conjunto` },
+      + ${num(T.ratingLevel)} × (level − 1) / ${E.maxLevel - 1} + ${num(T.ratingRar)} × ordem da raridade / 4` },
     { t: 'tabela', rotulo: 'Peso do gatilho', titulo: 'Peso do gatilho no Poder', cab: ['Gatilho', 'Peso', 'Pontos por skill'], linhas: Object.keys(pesos).map((t) => [t === 'weather:*' ? 'Clima (qualquer)' : descreverGatilho(t), N(num(pesos[t], 2)), N(num(pesos[t] * T.ratingSkillPts))]) },
     { t: 'tabela', rotulo: 'Ligas', cab: ['Liga', 'Poder', 'Cor'], linhas: G.LEAGUES.map((L) => { const f = S.leagueFor(L.min); return [{ md: icMd('liga-' + L.id) + L.name, html: `<span class="liga" style="--c:${L.color}">${icone('liga-' + L.id)}${esc(L.name)}</span>` }, N(f.max == null ? `${num(L.min)} ou mais` : `${num(L.min)}–${num(f.max)}`), { md: L.color, html: `<code>${L.color}</code>` }] }) },
     { t: 'p', txt: `**Rivais da sala:** cada bot mira um Poder entre ${sinalPct(F.botAlvo[0] - 1, 1)} e ${sinalPct(F.botAlvo[0] + F.botAlvo[1] - 1, 1)} do seu (leve viés para cima), com o equipamento da liga desse alvo. Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de ${F.botFaixaNivel[0]} levels abaixo a ${F.botFaixaNivel[1]} acima do level dele, entre 1 e ${E.maxLevel}. O modelo só entra se ficar a até ${pct(F.botFaixa, 0)} do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos ${F.botReserva} modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem.` },
-    { t: 'p', txt: `**Build dos bots** (fixa, sem sorteio): o limite por status vai para ${nomeStat('vel')} (${lista(elIds.filter((e) => e !== 'grama').map(nomeEl))}) ou ${nomeStat('forca')} (${nomeEl('grama')}); o resto vai de um em um para ${lista(F.botRodizio.map(nomeStat))}, pulando o que está no limite ou no teto; a sobra vai para ${nomeStat('sorte')}.` },
-    { t: 'tabela', rotulo: 'Poder das iniciais', titulo: 'Poder das iniciais', cab: ['Montaria', 'Nv 1 sem peças', 'Nv 1 com o equipamento inicial', `Nv ${E.maxLevel} sem peças nem pontos`, `Nv ${E.maxLevel} sem peças, build dos bots`], linhas: G.STARTERS.map((h) => { const h50 = { ...h, level: E.maxLevel }; return [h.name, N(num(S.powerRating(h, null))), N(num(S.powerRating(h, ini))), N(num(S.powerRating(h50, null))), N(num(S.powerRating({ ...h50, alloc: S.botAlloc(h50) }, null)))] }) }
+    { t: 'p', txt: `**Build dos bots** (sem sorteio; é também o botão "Distribuir sugerido", que continua do que o jogador já comprou): um ponto por vez no status de menor (pontos + 1) / peso, entre os que ainda aceitam (peso acima de 0, abaixo de ${T.statMax} e com o próximo ponto cabendo no que sobra); empate na ordem ${lista(G.STAT_KEYS.filter((k) => (T.noBuy || []).indexOf(k) < 0).map(siglaStat))}. A ${nomeStat('sorte')} não recebe pontos.` },
+    { t: 'tabela', rotulo: 'Pesos da build dos bots', titulo: 'Pesos da build dos bots', cab: ['Tipo', ...G.STAT_KEYS.map(siglaStat)], linhas: elIds.map((e) => [elCel(e), ...G.STAT_KEYS.map((k) => N(T.botW[e] && T.botW[e][k] ? num(T.botW[e][k], 2) : '—'))]) },
+    { t: 'tabela', rotulo: 'Poder das iniciais', titulo: 'Poder das iniciais (sem equipamento)', cab: ['Montaria', 'Nv 1', `Nv 25, build dos bots`, `Nv ${E.maxLevel} sem pontos`, `Nv ${E.maxLevel}, build dos bots`], linhas: G.STARTERS.map((h) => { const h25 = { ...h, level: 25 }, h50 = { ...h, level: E.maxLevel }; const c = (x) => { const pr = S.powerRating(x); return N(`${num(pr)} (${S.leagueFor(pr).name})`) }; return [h.name, c(h), c({ ...h25, alloc: S.botAlloc(h25) }), c(h50), c({ ...h50, alloc: S.botAlloc(h50) })] }) }
   ])
 
   // 13. Ícones reservados --------------------------------------------------------------------------------

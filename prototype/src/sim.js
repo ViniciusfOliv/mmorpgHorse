@@ -816,7 +816,8 @@
 
   // Dado da Sorte de uma montaria. Ordem das chamadas de rng() (manter estável): d1, sorteio do
   // 2º dado (sempre consumido, mesmo com sorte 0 ou 100), d2 (se houver), dado extra (Dado Viciado).
-  // Sorte = chance, em %, de rolar dois dados e ficar com o melhor; extraDice limitado a 1 (até 3 dados).
+  // Chance de rolar o 2º dado e ficar com o melhor = (sorte − sorteDiceLo)/(sorteDiceFull − sorteDiceLo), presa a
+  // 0–1 (Sorte 40 → 0, 60 → 0,5, 80 ou mais → 1); extraDice limitado a 1 (até 3 dados).
   function rollDice(rng, sorte, extraDice) {
     var dice = [1 + Math.floor(rng() * 100)];
     var p = clamp(((sorte || 0) - T.sorteDiceLo) / (T.sorteDiceFull - T.sorteDiceLo), 0, 1);
@@ -1203,6 +1204,7 @@
     sanitizeLevel: sanitizeLevel,
     sanitizePotential: sanitizePotential,
     STAT_KEYS: STAT_KEYS,
+    TYPE_STATS: TYPE_STATS,
     mulberry32: mulberry32,
     hash2: hash2,
     computeStats: computeStats,

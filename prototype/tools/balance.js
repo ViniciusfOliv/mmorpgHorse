@@ -110,7 +110,7 @@ function pciB(w, N) { var p = w / N; return [100 * p, 100 * 1.96 * Math.sqrt(p *
 //   dup:k1+k2    peso 2 em k1 e k2, 1 nos outros
 //   tipo         peso 2 nos dois status do tipo
 //   all:k        tudo em k (até não caber), a sobra nos outros
-// Sorte só recebe a sobra (peso 0,01).
+// Sorte: peso 0,01, mas não recebe pontos (TUNING.noBuy: fica só com a base).
 var POLICIES = ['bot', 'eq', 'inc:vel', 'inc:acel', 'inc:man', 'inc:forca', 'inc:est', 'inc:garra',
   'dup:vel+est', 'dup:vel+forca', 'dup:forca+est', 'tipo'];
 var POLICIES_ALL = ['all:vel', 'all:acel', 'all:man', 'all:forca', 'all:est', 'all:garra'];

@@ -47,24 +47,44 @@ for (const [tipo, nome] of nomes) {
 for (const id in G.GEAR) confere(a.html.includes(`id="peca-${id}"`), `peça ${id} sem linha própria no html`)
 for (const id in G.SKILLS) confere(a.html.includes(`id="skill-${id}"`), `skill ${id} sem cartão no html`)
 
-// chance de skill com conjunto: SOR + bônus de Sorte do conjunto e + bônus de chance (Comum Nv 1)
-confere(/\| Comum \| 40% \/ 45,5% \|/.test(a.md), 'tabela de chance de skill: Comum Nv 1 com conjunto devia mostrar 45,5%')
+// chance de skill (o equipamento, suspenso no bloco 1b, não soma): Comum Nv 1 com SOR 50
+confere(/\| Comum \| 40% \| 52% \| 64,5% \|/.test(a.md), 'tabela de chance de skill: Comum com SOR 50 devia mostrar 40% / 52% / 64,5% (Nv 1 / 25 / 50)')
 
-// modelo v3 (cavalos v3, bloco 1): fórmula do status, raridades, estrelas, skill de tipo, sem Neutro
-confere(a.md.includes('natural = início da faixa da raridade + 16 × g / 31 + (level − 1) × (0,3 + 0,08 × g / 31)'), 'seção Status sem a fórmula v3 com a genética g')
+// crescimento livre (cavalos v3, bloco 1b): fórmulas do status, pontos por level, custo por faixa, teto 150, Sorte de
+// nascimento, Dado, raridades, estrelas, skill de tipo com statMul, Poder e ligas; nada do modelo do bloco 1
+confere(a.md.includes('base   = início da faixa da raridade + 16 × g / 31'), 'seção Status sem a fórmula da base pela genética g')
+confere(a.md.includes('status = base + pontos comprados, arredondado e preso entre 1 e 150'), 'seção Status sem o teto 150')
+confere(a.md.includes('pontos(L) = piso(fator da raridade × fator das estrelas × [(L − 1) × 2 + 4 × (L − 1)(L − 2) / 96])'), 'seção Status sem a fórmula dos pontos por level')
+confere(a.md.includes('custo do i-ésimo ponto num mesmo status (i = 0, 1, …) = 1 + piso(i / 10)'), 'seção Status sem o custo por faixa')
+for (const [faixa, custo, total] of [['1º a 10º', 1, 10], ['11º a 20º', 2, 30], ['21º a 30º', 3, 60], ['41º a 50º', 5, 150]]) {
+  confere(a.md.includes(`| ${faixa} | ${custo} | ${total} |`), `tabela do custo por faixa: ${faixa} devia custar ${custo} (total ${total})`)
+}
+confere(/pior caso[^\n]*fica em 146/.test(a.md), 'seção Status sem o pior caso (146) do teto')
+confere(/\*\*Sorte:\*\* só de nascimento, não recebe pontos[^\n]*de 40 \(Comum, genética 0\) a 76 \(Mítico, genética 31\)/.test(a.md), 'seção Status sem a Sorte de nascimento (40 a 76)')
 confere(/nota da genética[^\n]*C 0–7 · B 8–15 · A 16–23 · S 24–31/i.test(a.md), 'seção Status sem as notas de genética (C 0–7 … S 24–31)')
-for (const [rar, lo, hi, teto] of [['Comum', 40, 56, 80], ['Mágico', 45, 61, 85], ['Raro', 50, 66, 90], ['Lendário', 55, 71, 95], ['Mítico', 60, 76, 100]]) {
-  confere(new RegExp(`\\| (?:!\\[\\]\\([^)]*\\) )?${rar} \\|[^\\n]*\\| ${lo}–${hi} \\| ${teto} \\|`).test(a.md), `tabela de raridades: ${rar} devia nascer entre ${lo} e ${hi} com teto ${teto}`)
+// pontos por level da spec §2 (Comum / Mítico nos Nv 11, 30 e 50)
+for (const [est, n11, n30, n50] of [['★', '23 / 28', '91 / 110', '196 / 235'], ['★★', '25 / 31', '100 / 120', '213 / 256'], ['★★★', '28 / 34', '112 / 134', '239 / 286']]) {
+  confere(a.md.includes(`| ${est} | ${n11} | ${n30} | ${n50} |`), `tabela de pontos por estrela: ${est} devia ter ${n11} / ${n30} / ${n50}`)
 }
-for (const [est, m, livres, lim] of [['★', '×1', 49, 17], ['★★', '×1,2', 58, 20], ['★★★', '×1,5', 73, 25]]) {
-  confere(new RegExp(`\\| ${est} \\| ${m} \\| ${livres} \\| ${lim} \\|`).test(a.md), `tabela de estrelas: ${est} devia ter ${m}, ${livres} pontos livres e limite ${lim} no Nv 50`)
+for (const [rar, lo, hi, fator, n50] of [['Comum', 40, 56, '×1', 213], ['Mágico', 44, 60, '×1,05', 224], ['Raro', 49, 65, '×1,1', 235], ['Lendário', 54, 70, '×1,15', 245], ['Mítico', 60, 76, '×1,2', 256]]) {
+  confere(new RegExp(`\\| (?:!\\[\\]\\([^)]*\\) )?${rar} \\|[^\\n]*\\| ${lo}–${hi} \\| ${fator} \\| ${n50} \\|`).test(a.md), `tabela de raridades: ${rar} devia nascer entre ${lo} e ${hi}, fator ${fator}, ${n50} pontos no Nv 50`)
 }
+for (const [est, m, pts] of [['★', '×1', 196], ['★★', '×1,09', 213], ['★★★', '×1,22', 239]]) {
+  confere(new RegExp(`\\| ${est} \\| ${m} \\| ${pts} \\|`).test(a.md), `tabela de estrelas: ${est} devia ter ${m} e ${pts} pontos no Nv 50 (Comum)`)
+}
+confere(a.md.includes('Com chance (SOR − 40) / 40 (presa entre 0% e 100%), rola um 2º dado'), 'Dado da Sorte sem a chance (SOR − 40)/40')
+for (const [sor, ch] of [[40, '0%'], [60, '50%'], [80, '100%']]) confere(a.md.includes(`| ${sor} | ${ch} |`), `tabela do 2º dado: SOR ${sor} devia dar ${ch}`)
+confere(a.md.includes('Poder = 2,5·VEL + 2·ACE + 2,2·MAN + 2,4·FOR + 2,4·EST + 1,5·GAR + 0·SOR') && a.md.includes('+ 20 × (level − 1) / 49 + 28 × ordem da raridade / 4'), 'Poder sem os pesos novos ou sem os termos de level e raridade')
+for (const [liga, faixa] of [['Bronze', '0–709'], ['Prata', '710–799'], ['Ouro', '800–889'], ['Platina', '890–979'], ['Diamante', '980–1.069'], ['Lenda', '1.070 ou mais']]) {
+  confere(new RegExp(`\\) ${liga} \\| ${faixa.replace('.', '\\.')} \\|`).test(a.md), `tabela de ligas: ${liga} devia ser ${faixa}`)
+}
+confere(!/statCap|freeCapShare|statLimit|limite por status|limite num status|teto da raridade|teto de status|pontos livres distribu|34% dos pontos|ganha sozinho|chega sozinha|Crescimento por level/i.test(a.md), 'md com o modelo do bloco 1 (statCap, limite de 34%, teto da raridade ou crescimento natural)')
 confere(/### Skill de tipo/.test(a.md) && a.html.includes('id="skills-tipo"'), 'falta a seção da skill de tipo (md e html)')
-confere(a.md.includes('P = 1 + 0,4 × (level − 1) / 49 + 0,4 × ordem da raridade / 4'), 'skill de tipo sem a fórmula da força P')
+confere(a.md.includes('P = 1 + nívelT × (level − 1) / 49 + raridadeT × ordem da raridade / 4'), 'skill de tipo sem a fórmula da força P')
 for (const [nome, el, terco, efeito] of [
-  ['Labareda', 'Fogo', 'primeiro terço (da largada a 1/3)', 'aceleração +23%'],
-  ['Raízes Firmes', 'Grama', 'terço do meio (de 1/3 a 2/3)', 'Força efetiva +7; Manobra efetiva +7; gasto de estamina −1,2%'],
-  ['Maré Alta', 'Água', 'último terço (de 2/3 à chegada)', 'velocidade +1,8%; recupera 1,2% do tanque ao entrar no terço']
+  ['Labareda', 'Fogo', 'primeiro terço (da largada a 1/3)', 'Velocidade e Aceleração ×1,19 (+19%) | −0,15 | 0,15'],
+  ['Raízes Firmes', 'Grama', 'terço do meio (de 1/3 a 2/3)', 'Força e Manobra ×1,15 (+15%) | 0,25 | 0,4'],
+  ['Maré Alta', 'Água', 'último terço (de 2/3 à chegada)', 'Estamina e Garra ×1,33 (+33%) | 0 | 0,15']
 ]) {
   confere(a.md.includes(`| ![](../prototype/assets/icons/sk-tipo-${{ Fogo: 'fogo', Água: 'agua', Grama: 'grama' }[el]}.png) **${nome}** | ${el} | ${terco} | ${efeito} |`), `skill de tipo ${nome}: linha com elemento, terço e efeito (P = 1) não confere`)
 }

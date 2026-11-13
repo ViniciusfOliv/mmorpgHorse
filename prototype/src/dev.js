@@ -13,7 +13,7 @@
  *           palette: { coat, coatShade, mane, accent }, marcas: { cara, patas, corpo } (GameData.MARCAS; patas
  *           também em texto, '0'..'4', como vem do select) }; n = nº do cavalo (id 'dev-' + n; padrão 1).
  *     Sem status base (v3: sai da genética). level 1, xp 0, espécie 'cavalo'. alloc: inteiros ≥ 0
- *     (o limite por status e o total ficam para RaceSim.validAlloc, que depende do nível).
+ *     (o teto de 150, o custo por faixa e a Sorte sem pontos ficam para RaceSim.validAlloc, que depende do nível).
  *     Skills: qualquer uma do catálogo (inclusive de outro elemento); inexistentes ou
  *     repetidas saem; no máximo RARITIES[rarity].skillSlots, na ordem pedida.
  *     Campo inválido vira o padrão: elemento Fogo, raridade Comum, sexo macho, nome "Teste",

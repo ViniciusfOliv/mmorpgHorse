@@ -40,7 +40,7 @@
   //   com skills compatíveis até esse número, limitado às vagas);
   //   skillChance: chance base de ativar cada skill quando o gatilho acontece.
   //   baseLo: início da faixa de 16 pontos (RaceSim.TUNING.gBand) onde nasce cada status, conforme a
-  //   genética: status no nível 1 = baseLo + 16 × g / 31.
+  //   genética: base = baseLo + 16 × g / 31 (nada cresce sozinho com o nível; o resto são pontos comprados).
   // ---------------------------------------------------------------------------
   var RARITIES = {
     comum:    { id: 'comum',    name: 'Comum',    color: '#9e9e9e', ptsMult: 1.00, skillSlots: 1, bornSkills: 1, skillChance: 0.35, order: 0, baseLo: 40 },
@@ -86,7 +86,7 @@
   // ---------------------------------------------------------------------------
   // Skill de tipo (v3): uma por elemento, em vaga própria, sempre ativa e sem sorteio no terço
   // `zone` da distância ([início, fim] em fração de D). Os valores valem com força P = 1 e são
-  // multiplicados por P = RaceSim.typePower (cresce com nível e raridade):
+  // multiplicados por P = RaceSim.typePower (varia com nível e raridade, por tipo):
   //   statMul: no terço, os dois status do tipo (Fogo Vel/Ace, Água Est/Gar, Grama For/Man) valem × (1 + x·P);
   //   (chaves antigas ainda aceitas pela corrida: accelMult, speedMult, drainCut, forcaAdd, manAdd, staminaRestore).
   //   short: nome de até 12 letras para o balão da corrida.
@@ -209,9 +209,9 @@
 
   // ---------------------------------------------------------------------------
   // Montarias (espécie 'cavalo')
-  //   potential = genética, 0–31 por status: define onde o status nasce na faixa da raridade e
-  //   acelera o crescimento (RaceSim.computeStats). Não há status base guardado.
-  //   alloc (no save, não no catálogo) = pontos livres distribuídos por status.
+  //   potential = genética, 0–31 por status: define onde o status nasce na faixa da raridade
+  //   (RaceSim.naturalStat). Não há status base guardado.
+  //   alloc (no save, não no catálogo) = pontos comprados por status (custo por faixa; RaceSim.validAlloc).
   //   sex: 'm' | 'f'.
   //   extra (opcional): marcas { cara, patas, corpo }, title, bio, habitat, lore, grau (1–3 estrelas: multiplicam os pontos livres),
   //   breedLeftMax (cruzas restantes ao nascer; padrão BREED_LEFT[sex]).
