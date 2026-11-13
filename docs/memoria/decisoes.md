@@ -3,6 +3,15 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-13 — Portes (parte 2b): decisões da execução
+Detalhes das gerações em `docs/memoria/assets.md`; spec em `docs/superpowers/specs/2026-11-13-cavalos-portes-design.md`.
+- **Mestres aprovados na folha com o esguio parado e o robusto aceitos como estão** — o esguio parado (seed 3101) mostra 2 pernas e o robusto guiado reprova em proporção e forma, mas ambos leem bem na folha; refazer gastaria mais sem ganho visível.
+- **Robusto gerado guiado pelo mestre padrão** — pedido sozinho, o robusto saiu quase igual ao padrão (proporções 1,02 a 1,08); partir do padrão aprovado separa o corpo.
+- **Teto do lote subiu de 90 para 130 e depois 170, por decisão do Vinicius** — a refação dos mestres, o piloto e as 7 versões restantes passaram do previsto; cada subida foi confirmada antes de gastar. **Total: 155 gerações.**
+- **Versões de padrão e robusto partem do mestre (`init_image`); as do esguio saem sem guia** — no piloto o esguio com guia não manteve o corpo do mestre (focinho 10 a 13 px fora), então o esguio perde a garantia de "mesmo corpo" entre elementos.
+- **A classificação das cores foi corrigida offline, sem gastar, em duas rodadas** — seda que pintava o corpo no galope; crina e jóquei do robusto (cores naturais no cru, achadas pela forma); capacete separado por contorno vira seda; canela e focinho do robusto classificados como crina voltam à pelagem-sombra e ao detalhe.
+- **A escala dos retratos sai do molde mais alto dos 12** — o porte fica coerente no cartão; cortar a cabeça do robusto (14%) seria pior. Com zoom de 125%, todos ficam um passo menores.
+
 ## 2026-11-13 — Portes: classificação das cores corrigida sem gastar (tarefa 6a)
 Código em `prototype/tools/moldes-lib.mjs` (`corrigirGrupo`, com o diagnóstico nos comentários) e `--manter-escolhas` no `pixellab-portes.mjs`; crus e escolhas de antes no commit 8037a97.
 - **A sombra roxa escura da pelagem (314–330°, muito saturada) volta à pelagem quando encosta mais nela do que no jóquei, decidida por cor no grupo de quadros** — a faixa magenta é da sombra da seda; numa pelagem carmim ou castanho-arroxeada ela pintava o corpo com a cor da seda no galope (padrao-ondas, robusto-ondas, robusto-folhas).

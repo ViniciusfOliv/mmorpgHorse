@@ -72,10 +72,9 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   jóquei e raridade, em código), 2b (portes no PixelLab) e 2c (animações). **A parte 2a está pronta e integrada na
   `claude/cavalos-v3`** (spec em `docs/superpowers/specs/2026-11-12-cavalos-marcas-design.md`): marcas por
   cavalo com 3 genes herdados pela seed, jóquei do jogador no Perfil e raridade em escada, tudo em código e
-  sem créditos. **2b (portes) em desenho:** gene herdado com 3 portes (esguio, padrão, robusto) iguais nos três
-  elementos, 9 desenhos novos a partir de um corpo-mestre por porte; spec em
-  `docs/superpowers/specs/2026-11-13-cavalos-portes-design.md`, **aguardando a revisão do Vinicius**. Geração só
-  com confirmação de créditos (teto proposto: 90).
+  sem créditos. **2b (portes) pronta na `claude/visuais-2`** (spec em
+  `docs/superpowers/specs/2026-11-13-cavalos-portes-design.md`): gene herdado com 3 portes (esguio, padrão, robusto)
+  iguais nos três elementos, 12 moldes novos a partir de um corpo-mestre por porte; 155 gerações no lote.
   **2b integrada na `claude/visuais-2` (T7, 2026-11-13):** os 12 moldes dos portes (folha final aprovada) moram em
   `prototype/assets/pixellab/`, os 4 antigos saíram (histórico do git) e o caminho 'legado' do `sprites.js` também;
   `novos/` guarda só o registro do lote (para mexer no lote: `--reprocessar --manter-escolhas` antes, mover os moldes
@@ -90,8 +89,13 @@ Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas
   crina do catálogo com o brilho abaixo de 0,05 de luminância (ex.: Mágico na crina do Tição, 0,005;
   `BRILHO_PENDENTE`); zona da cara variando mais de 20% no galope em 5 moldes, estrela de 1 px e listra curta em
   alguns quadros (`PENDENTES_2A`); o retrato do robusto-folhas passou a 3 pernas com a canela de volta à pelagem
-  (registrado no teste com o motivo). Faltam a T8 (wiki, GDD,
-  memória e artefato) e a revisão final da 2b.
+  (registrado no teste com o motivo). Wiki (seção "Portes"), GDD §6 e memória prontos (T8). Falta a revisão final da 2b.
+  **Próxima: 2c (animações novas para todos os portes).**
+  **A decidir / pendências (Vinicius):** o brilho da raridade fica fraco em algumas crinas (vem da 2a; 14 combinações
+  abaixo de 0,05, a pior Mágico sobre o Tição); meias que se juntam ou se partem em 5 dos 24 parados/retratos; a zona
+  da cara pulsa no galope em 5 moldes; no galope do robusto-chamas o vermelho do capacete é igual ao da pelagem e o
+  tronco do jóquei sai manchado; a crina do robusto é fina no galope do mestre; forma ainda reprovada em crus com
+  laranja > 2% (padrao-ondas, robusto-*), aceitos na folha.
 
 ## O que falta
 - **Decidido em 2026-11-10:** o teste fechado do Play sai com o jogo offline; o lançamento público

@@ -710,6 +710,28 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'tabela', cab: ['Cavalo', 'Cara', 'Patas (meias)', 'Corpo'], linhas: G.STARTERS.concat(G.WILD_HORSES).map(marcasHorse) }
   ])
 
+  // 9c. Portes -------------------------------------------------------------------------------------------
+  const PT = G.PORTES
+  const porteRot = (id) => { if (!(PT.valores.indexOf(id) >= 0) || !PT.nomes[id]) throw new Error(`wiki: porte desconhecido "${id}"`); return PT.nomes[id] }
+  const porteHorse = (h) => [h.name, nomeEl(h.element), porteRot(h.porte)]
+  add('portes', 'Portes', 'Portes', [
+    { t: 'p', txt: 'O porte é o tamanho e a forma do corpo do cavalo. Como as marcas, é só desenho: não entra em status, Poder, preço, chance de skill, aluguel nem na corrida. O mesmo porte tem o mesmo corpo nos três elementos.' },
+    { t: 'tabela', cab: ['Porte', 'Como se reconhece de lado'], linhas: [
+      [porteRot('esguio'), 'pernas longas e finas, pescoço comprido, cabeça pequena, cauda alta'],
+      [porteRot('padrao'), 'meio-termo: corpo equilibrado, perfil de cabeça levemente curvo'],
+      [porteRot('robusto'), 'mais baixo e largo, peito e pescoço grossos, pernas curtas e fortes, crina farta']
+    ] },
+    { t: 'h3', txt: 'Herança no cruzamento' },
+    { t: 'lista', itens: [
+      `O potro herda o porte de um dos pais (égua ou garanhão), ${pct(0.5, 0)} para cada um, com ${pct(PT.mutacao, 0)} de chance de **mutação**: o porte vira um dos ${PT.valores.length} da lista, com a mesma chance para todos (pode sair o mesmo).`,
+      'O sorteio usa uma sequência própria da seed do cruzamento, separada das marcas. O resto do potro nasce igual a antes de existirem portes.',
+      `Cavalo sem porte válido (save antigo) vale pelo porte do modelo do catálogo ou, na falta dele, por um porte calculado do identificador dele: o mesmo cavalo tem sempre o mesmo porte. O padrão do jogo é ${porteRot(PT.padrao)}.`,
+      `${nomeRar('mitico')} nunca nasce de cruzamento, com ou sem porte.`
+    ] },
+    { t: 'h3', txt: 'Porte dos iniciais e selvagens' },
+    { t: 'tabela', cab: ['Cavalo', 'Elemento', 'Porte'], linhas: G.STARTERS.concat(G.WILD_HORSES).map(porteHorse) }
+  ])
+
   // 10. Cruzamento ---------------------------------------------------------------------------------------
   const breedRar = B.RARITY_IDS.slice(0, B.TUNING.maxRarityOrder + 1)
   const pares = []
