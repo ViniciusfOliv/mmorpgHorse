@@ -700,7 +700,7 @@ Marcas, jóquei e brilho da raridade são só desenho: não entram em status, Po
 
 ### Jóquei do jogador
 
-- Na aba Perfil você escolhe o **padrão da seda** (liso, listras, faixa, xadrez, estrelas e losangos) e a **cor do capacete** (8 cores). O padrão inicial é "liso" e o capacete inicial é #f2c230.
+- Na aba Perfil você escolhe o **padrão da seda** (liso, listras, faixa, xadrez, estrelas e losangos) e a **cor do capacete** (8 cores). O padrão inicial é "liso" e o capacete inicial é Dourado. Cores de capacete: Dourado, Vermelho, Azul, Verde, Roxo, Laranja, Creme e Preto.
 - A seda continua na cor de sempre (a sua é dourada; a dos rivais é a cor da raia); o padrão vai por cima em um tom mais claro ou mais escuro. A escolha vale para todos os seus cavalos.
 - O jóquei dos rivais (padrão e capacete) sai da seed da sala.
 

@@ -699,7 +699,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     ] },
     { t: 'h3', txt: 'Jóquei do jogador' },
     { t: 'lista', itens: [
-      `Na aba Perfil você escolhe o **padrão da seda** (${lista(JQ.padroes.map((p) => p))}) e a **cor do capacete** (${JQ.capacetes.length} cores). O padrão inicial é "${JQ.padrao}" e o capacete inicial é ${JQ.capacete}.`,
+      `Na aba Perfil você escolhe o **padrão da seda** (${lista(JQ.padroes.map((p) => p))}) e a **cor do capacete** (${JQ.capacetes.length} cores). O padrão inicial é "${JQ.padrao}" e o capacete inicial é ${JQ.nomes[JQ.capacete]}. Cores de capacete: ${lista(JQ.capacetes.map((c) => JQ.nomes[c]))}.`,
       'A seda continua na cor de sempre (a sua é dourada; a dos rivais é a cor da raia); o padrão vai por cima em um tom mais claro ou mais escuro. A escolha vale para todos os seus cavalos.',
       'O jóquei dos rivais (padrão e capacete) sai da seed da sala.'
     ] },

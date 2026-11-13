@@ -1684,7 +1684,7 @@
   }
   // Editor do jóquei (Perfil): padrão da seda e cor do capacete; a prévia é o cavalo ativo, parado e montado
   var PADRAO_ROT = { liso: 'Liso', listras: 'Listras', faixa: 'Faixa', xadrez: 'Xadrez', estrelas: 'Estrelas', losangos: 'Losangos' };
-  var CAPACETE_ROT = { '#f2c230': 'Dourado', '#ff6b5e': 'Vermelho', '#62b8ff': 'Azul', '#86d86a': 'Verde', '#c77dff': 'Roxo', '#ff9f43': 'Laranja', '#f1e9d4': 'Creme', '#2a2a2a': 'Preto' };
+  var CAPACETE_ROT = GD.JOQUEI.nomes;   // hex → nome (data.js)
   function joqueiHtml() {
     var j = joqueiDoJogador();
     var pads = GD.JOQUEI.padroes.map(function (p) {

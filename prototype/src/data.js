@@ -240,7 +240,9 @@
     padroes: ['liso', 'listras', 'faixa', 'xadrez', 'estrelas', 'losangos'],
     capacetes: ['#f2c230', '#ff6b5e', '#62b8ff', '#86d86a', '#c77dff', '#ff9f43', '#f1e9d4', '#2a2a2a'],
     padrao: 'liso',
-    capacete: '#f2c230'
+    capacete: '#f2c230',
+    // nome de cada cor de capacete (hex → nome), para o aria-label da interface e para o wiki
+    nomes: { '#f2c230': 'Dourado', '#ff6b5e': 'Vermelho', '#62b8ff': 'Azul', '#86d86a': 'Verde', '#c77dff': 'Roxo', '#ff9f43': 'Laranja', '#f1e9d4': 'Creme', '#2a2a2a': 'Preto' }
   };
 
   var STARTERS = [
