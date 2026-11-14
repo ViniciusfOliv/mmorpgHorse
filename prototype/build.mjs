@@ -22,6 +22,7 @@ import { lerMoldes, lerIcones, lerMarca, jsonJs } from './tools/arte-embutida.mj
 import { htmlFolhaIcones } from './tools/folha-icones.mjs'
 import { ICONES_NOVOS, ANTIGOS } from './tools/icones-catalogo.mjs'
 import { gravarWiki } from './tools/wiki.mjs'
+import { cssFontes, cssArte } from './tools/interface-arte.mjs'
 
 const ROOT = dirname(fileURLToPath(import.meta.url))
 const read = (p) => readFile(join(ROOT, p), 'utf8')
@@ -59,8 +60,10 @@ const markup = m[1].trim()
 
 const cssFonte = await read('src/game.css')
 if (/<\/style/i.test(cssFonte)) throw new Error('game.css contém "</style"')
-const css = blocos(cssFonte, 'src/game.css', false).trim()
-const cssProd = blocos(cssFonte, 'src/game.css', true).trim()   // sem o bloco @dev (faixa, botão e gaveta DEV)
+// fontes embutidas (@font-face em data:) e peças de pixel (--arte-*): vão antes do CSS do jogo, iguais nos dois builds
+const baseCss = (await cssFontes(ROOT)) + '\n' + cssArte(cssFonte)
+const css = baseCss + '\n' + blocos(cssFonte, 'src/game.css', false).trim()
+const cssProd = baseCss + '\n' + blocos(cssFonte, 'src/game.css', true).trim()   // sem o bloco @dev (faixa, botão e gaveta DEV)
 
 // ---------------------------------------------------------------------------
 // Arte embutida (moldes, ícones, logotipo): tools/arte-embutida.mjs, a mesma que o wiki usa
@@ -127,6 +130,7 @@ await writeFile(join(ROOT, 'dist', 'icones.html'), htmlFolhaIcones(await lerIcon
 const kb = (s) => (Buffer.byteLength(s) / 1024).toFixed(1) + ' KB'
 for (const a of avisos) console.log('AVISO: ' + a)
 console.log(`moldes: ${Object.keys(MOLDES.estilos).join(', ') || 'nenhum'} · arte embutida ${kb(arteJs)}`)
+console.log(`fontes e peças de pixel: ${kb(baseCss)}`)
 console.log(`dist/jogo.html    ${kb(body)}`)
 console.log(`dist/jogo-dev.html ${kb(bodyDev)}`)
 console.log(`dist/preview.html ${kb(preview)}`)

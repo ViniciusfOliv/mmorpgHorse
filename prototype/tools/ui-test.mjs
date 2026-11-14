@@ -8,7 +8,7 @@
 // Também confere a entrada reservada do páreo aberto, a gravação que falha, o save adulterado ou corrompido,
 // o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo, o tamanho mínimo do texto e o teto
 // de chamadas de canvas por quadro na corrida mais cara.
-//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,marcas,portes,crescimento,ajuda node tools/ui-test.mjs  -> só esses
+//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,marcas,portes,crescimento,ajuda,acabamento node tools/ui-test.mjs  -> só esses
 // Equipamento suspenso (bloco 1b, GEAR_ON = false no game.js): os blocos das telas de peças e da Loja conferem que elas
 // não aparecem e que as ações de peça não fazem nada; com GEAR_ON = true voltam a testar as telas (GEAR_ON abaixo).
 import { createRequire } from 'node:module'
@@ -70,14 +70,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 // extra.pagina: arquivo de dist/ (padrão preview.html); extra.query: sufixo da URL; extra.init: função para
 // page.addInitScript (roda antes dos scripts da página);
+// extra.bloquear: padrões de URL abortados (ctx.route) antes do goto;
 // extra.moldes (padrão true): espera os moldes do PixelLab carregarem (Sprites.moldsReady === true) — o jogo
 // re-renderiza a tela quando eles chegam, e esperar evita clicar num botão que está sendo trocado.
 async function newPage(browser, viewport, label, extra = {}) {
-  const { pagina = 'preview.html', query = '', init = null, moldes = true, ...ctxExtra } = extra
+  const { pagina = 'preview.html', query = '', init = null, moldes = true, bloquear = [], ...ctxExtra } = extra
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2, ...ctxExtra })
   const page = await ctx.newPage()
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`[${label}] console: ${m.text()}`) })
   page.on('pageerror', (e) => problems.push(`[${label}] pageerror: ${e.message}`))
+  for (const padrao of bloquear) await ctx.route(padrao, (r) => r.abort())   // sem rede para esses endereços
   if (init) await page.addInitScript(init)
   await page.goto(BASE + pagina + query, { waitUntil: 'domcontentloaded' })
   await Promise.race([page.evaluate(() => document.fonts && document.fonts.ready), sleep(4000)])
@@ -3223,6 +3225,82 @@ try {
       problems.push('ajuda: ' + e.message)
     } finally {
       await pg.context().close()
+    }
+  }
+
+  // ---------------- acabamento da interface (Visuais 2, parte 3a): fontes embutidas, sem border-image, altura ----------------
+  if (quer('acabamento')) {
+    // alturas da página a 360x780 com o CSS de antes da 3a (as peças e as fontes embutidas não mudam métrica)
+    // medido em 2026-11-14, antes da 3a
+    const ALTURA_ANTES_3A = { estabulo: 1284, status: 1894 }
+    const mod = (tpl, o) => Object.assign({ uid: 'm1', templateId: tpl.id, name: tpl.name, especie: 'cavalo', element: tpl.element, rarity: tpl.rarity,
+      grau: tpl.grau || 2, sex: tpl.sex, level: 1, xp: 0, skills: tpl.skills.slice(), potential: JSON.parse(JSON.stringify(tpl.potential)),
+      palette: JSON.parse(JSON.stringify(tpl.palette)), breedLeft: 2, parents: null, born: 0, equip: {}, respecFree: true,
+      alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } }, o)
+    const SAVE_3A = {
+      v: 6, rev: 20, gold: 1200, tier: 100, seedBase: 3131, raceCounter: 4, redeas: 0, avisoV6: false,
+      races: 3, wins: 1, podiums: 2, goldWon: 300,
+      mounts: [
+        mod(G.STARTERS.find((h) => h.id === 'brasa'), { uid: 'm1', level: 20, xp: 10, skills: ['sprint'], alloc: { vel: 4, acel: 4, man: 0, forca: 0, est: 2, garra: 0, sorte: 0 }, equip: { sela: 'i1' } }),
+        mod(G.WILD_HORSES.find((h) => h.id === 'w-ventania'), { uid: 'm2', level: 12 }),
+        mod(G.STARTERS.find((h) => h.id === 'mare'), { uid: 'm3', level: 5 })
+      ],
+      activeId: 'm1', nextUid: 4, stableSlots: 3, breedCounter: 0,
+      items: [{ uid: 'i1', id: 'sela-comum', plus: 3 }, { uid: 'i2', id: 'testeira-comum', plus: 0 }], nextItemUid: 3, pedras: 0, enhanceCounter: 0,
+      settings: { motion: 'sistema' }, joquei: { padrao: 'xadrez', capacete: '#62b8ff' }
+    }
+    const semBorderImage = async (pg, tag) => {
+      const ruins = await pg.evaluate(() => [...document.querySelectorAll('body *')]
+        .filter((e) => (e.offsetWidth || e.offsetHeight) && getComputedStyle(e).borderImageSource !== 'none')
+        .map((e) => e.tagName.toLowerCase() + (e.className && e.className.baseVal === undefined ? '.' + String(e.className).trim().split(/\s+/).join('.') : '')).slice(0, 6))
+      if (ruins.length) problems.push(`acabamento (${tag}): border-image em ${ruins.join(', ')}`)
+    }
+    {
+      // fontes sem rede: os @font-face levam as duas famílias embutidas em data:
+      const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-fontes', { bloquear: ['**/fonts.googleapis.com/**', '**/fonts.gstatic.com/**'] })
+      try {
+        await pg.waitForSelector('.inicial')
+        const r = await pg.evaluate(async () => {
+          await document.fonts.ready
+          const carregadas = [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family.replace(/["']/g, ''))
+          return { ps: document.fonts.check('16px "Press Start 2P"'), jy: document.fonts.check('20px "Jersey 10"'), carregadas }
+        })
+        if (!r.ps || !r.jy) problems.push(`acabamento: document.fonts.check sem rede deu ${JSON.stringify({ ps: r.ps, jy: r.jy })}`)
+        for (const fam of ['Press Start 2P', 'Jersey 10']) if (!r.carregadas.includes(fam)) problems.push(`acabamento: a face "${fam}" não ficou loaded sem rede (${JSON.stringify(r.carregadas)})`)
+        await semBorderImage(pg, 'inicial')
+      } catch (e) {
+        problems.push('acabamento-fontes: ' + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    {
+      // altura: Estábulo e aba Status da ativa, save v6 com 3 montarias, a 360x780
+      const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-altura', {
+        init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(JSON.stringify(SAVE_3A))}) } } catch (e) {}` }
+      })
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        const altura = () => pg.evaluate(() => document.documentElement.scrollHeight)
+        const aEst = await altura()
+        notes.alturaAcabamento = { estabulo: aEst }
+        if (aEst > 1.04 * ALTURA_ANTES_3A.estabulo) problems.push(`acabamento: Estábulo com ${aEst}px (limite ${Math.round(1.04 * ALTURA_ANTES_3A.estabulo)}, antes ${ALTURA_ANTES_3A.estabulo})`)
+        await semBorderImage(pg, 'estabulo')
+        await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await pg.waitForSelector('#t-montaria')
+        await pg.locator('[data-acao="montaria-aba"][data-id="status"]').click()
+        const aSt = await altura()
+        notes.alturaAcabamento.status = aSt
+        if (aSt > 1.04 * ALTURA_ANTES_3A.status) problems.push(`acabamento: aba Status com ${aSt}px (limite ${Math.round(1.04 * ALTURA_ANTES_3A.status)}, antes ${ALTURA_ANTES_3A.status})`)
+        await semBorderImage(pg, 'status')
+        await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+        await pg.waitForSelector('#t-correr')
+        await semBorderImage(pg, 'correr')
+      } catch (e) {
+        problems.push('acabamento-altura: ' + e.message)
+      } finally {
+        await pg.context().close()
+      }
     }
   }
 

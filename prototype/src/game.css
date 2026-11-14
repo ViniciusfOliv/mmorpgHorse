@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Jersey+10&family=Press+Start+2P&display=swap');
-
 /* Layout: uma coluna central (até 520px) de painéis no estilo "programa de corrida";
    a pista quebra a coluna (sangra até a borda no celular, cresce até 1120px no desktop).
    Mundo único: estábulo à noite (piso de tábuas), cerca creme e placar dourado.
@@ -13,6 +11,7 @@
   --painel-2: #1e3329;
   --painel-3: #284438;
   --linha: #335446;
+  --linha-luz: #4a6e5c;
   --sombra: #060d0a;
   /* madeira (placas) */
   --madeira: #6b4a2b;
@@ -27,6 +26,9 @@
   --ouro: #f2c230;
   --ouro-claro: #ffe27a;
   --ouro-escuro: #9c7210;
+  --ouro-medio: #c99a1c;
+  --prego: #9aa3a0;
+  --prego-luz: #e6ece9;
   --ganho: #7be07a;
   --perda: #ff6b5e;
   --foco: #62e6ff;

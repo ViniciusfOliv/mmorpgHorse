@@ -2786,5 +2786,75 @@ await testA('o registro do lote (raw/ + criterios.json) refaz os 12 moldes do jo
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
+// ---------------------------------------------------------------------------
+section('Interface: peças e fontes');
+const PROTO = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const GAME_CSS = fs.readFileSync(path.join(PROTO, 'src', 'game.css'), 'utf8');
+const IA = await import('./interface-arte.mjs');
+const TOK = IA.lerTokens(GAME_CSS);
+const pecaOk = { nome: 'x', mapa: ['.k', 'kk'], legenda: { k: '--sombra' } };
+
+test('lerTokens: só os hex do primeiro :root, em #rrggbb minúsculo', () => {
+  const t = IA.lerTokens(':root { --a: #ABC; --b: #112233; --c: 12px; --d: rgb(1,2,3); }\n:root { --e: #000000; }');
+  assert.deepStrictEqual(t, { '--a': '#aabbcc', '--b': '#112233' });
+  assert.strictEqual(TOK['--sombra'], '#060d0a');
+});
+test('os 4 tokens novos estão no :root', () => {
+  assert.strictEqual(TOK['--linha-luz'], '#4a6e5c');
+  assert.strictEqual(TOK['--ouro-medio'], '#c99a1c');
+  assert.strictEqual(TOK['--prego'], '#9aa3a0');
+  assert.strictEqual(TOK['--prego-luz'], '#e6ece9');
+});
+test('cada peça do catálogo passa na validação contra o game.css', () => {
+  assert.ok(IA.PECAS.length >= 5);
+  IA.validarCatalogo(IA.PECAS, TOK);
+  for (const n of ['rebite', 'prego', 'veio', 'ajuda', 'ajuda-ativa']) assert.ok(IA.PECAS.some(p => p.nome === n), n);
+});
+test('ida e volta do PNG: cada pixel tem a cor do token (alfa 255) ou alfa 0', () => {
+  for (const p of IA.PECAS) {
+    const d = decodePng(encodePng(IA.pecaRgba(p, TOK)));
+    assert.strictEqual(d.width, p.mapa[0].length); assert.strictEqual(d.height, p.mapa.length);
+    p.mapa.forEach((lin, y) => [...lin].forEach((c, x) => {
+      const i = (y * d.width + x) * 4, px = [...d.rgba.slice(i, i + 4)];
+      if (c === '.') assert.strictEqual(px[3], 0, `${p.nome} ${x},${y}`);
+      else assert.deepStrictEqual(px, [...hex(TOK[p.legenda[c]]), 255], `${p.nome} ${x},${y}`);
+    }));
+  }
+});
+test('validarPeca lança com o nome da peça e a linha', () => {
+  assert.throws(() => IA.validarPeca({ nome: 'torta', mapa: ['ab', 'a'], legenda: { a: '--sombra', b: '--sombra' } }, TOK), /torta.*linha 2/);
+  assert.throws(() => IA.validarPeca({ nome: 'solta', mapa: ['kz'], legenda: { k: '--sombra' } }, TOK), /solta.*linha 1.*z/);
+  assert.throws(() => IA.validarPeca({ nome: 'sem', mapa: ['k'], legenda: { k: '--nao-existe' } }, TOK), /sem.*--nao-existe/);
+  assert.throws(() => IA.validarPeca({ nome: 'larga', mapa: ['k'.repeat(65)], legenda: { k: '--sombra' } }, TOK), /larga/);
+  assert.throws(() => IA.validarPeca({ nome: 'alta', mapa: Array(65).fill('k'), legenda: { k: '--sombra' } }, TOK), /alta/);
+  IA.validarPeca(pecaOk, TOK);
+});
+test('validarCatalogo lança em nome repetido', () => {
+  assert.throws(() => IA.validarCatalogo([pecaOk, { ...pecaOk }], TOK), /repetid|duplicad/i);
+});
+test('cssArte: uma propriedade --arte-<nome> por peça e determinístico', () => {
+  const a = IA.cssArte(GAME_CSS);
+  for (const p of IA.PECAS) assert.ok(a.includes(`--arte-${p.nome}: url(data:image/png;base64,`), p.nome);
+  assert.strictEqual(a, IA.cssArte(GAME_CSS));
+  assert.ok(a.startsWith(':root {'));
+});
+const FONTES = await IA.cssFontes(PROTO);
+test('cssFontes: dois @font-face, data: antes da URL do gstatic', () => {
+  const f = FONTES;
+  const faces = f.match(/@font-face\s*\{[^}]*\}/g) || [];
+  assert.strictEqual(faces.length, 2);
+  for (const fam of ["'Press Start 2P'", "'Jersey 10'"]) {
+    const face = faces.find(x => x.includes(fam));
+    assert.ok(face, fam);
+    const d = face.indexOf('data:font/woff2;base64,'), g = face.indexOf('https://fonts.gstatic.com/');
+    assert.ok(d >= 0 && g > d, fam + ': data antes do gstatic');
+    assert.ok(/font-display:\s*swap/.test(face) && /font-weight:\s*400/.test(face) && /font-style:\s*normal/.test(face), fam);
+  }
+});
+test('o game.css não importa fontes da rede', () => {
+  assert.ok(!/@import/.test(GAME_CSS));
+  assert.ok(!/fonts\.googleapis/.test(GAME_CSS));
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
