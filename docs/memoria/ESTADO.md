@@ -25,7 +25,7 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
 | Núcleo da corrida v2 | 7 atributos, 5 raridades, mapa em blocos, clima, Dado da Sorte, skills | `2026-11-06-nucleo-corrida-v2-design.md` |
 | Estábulo, Haras e cruzamento | várias montarias, grau, potro pela seed, aluguel e Troca | `2026-11-06-cruzamento-design.md` |
 | Equipamentos | 5 slots, 40 peças, melhoria +10, conjuntos, Loja, Pedra Negra | `2026-11-06-equipamentos-design.md` |
-| Menu de abas | 5 abas, tela da Montaria com sub-abas, Perfil | `2026-11-08-menu-abas-design.md` |
+| Menu de abas | 4 abas (a Loja fica escondida com o equipamento suspenso), tela da Montaria com sub-abas, Perfil | `2026-11-08-menu-abas-design.md` |
 | Visuais | moldes PixelLab recoloridos, 16 ícones, logotipo e capa | `2026-11-08-visuais-design.md` |
 | Corrida viva e modo DEV | galope, dado por cavalo, skills visíveis, natureza, curvas, DEV | `2026-11-09-corrida-viva-design.md` |
 | Wiki | `docs/wiki.md` e `prototype/dist/wiki.html` gerados do código | — |
@@ -40,13 +40,13 @@ correções; os motivos estão em `decisoes.md` e o veredito das normas em `docs
 Plano em `docs/superpowers/plans/2026-11-11-cavalos-v3-bloco-1.md`, oito tarefas; regras em `docs/GDD.md`
 §3, §4, §6 e §7, números no wiki, medições em `docs/exemplos.md`, decisões em `decisoes.md`.
 - **Regra:** status = genética (0–31, nota C a S) + crescimento por nível + pontos livres (até 34% num
-  status), estrelas multiplicando os pontos; sai o bônus fixo do tipo e o Neutro; skill de tipo sempre
-  ativa num terço; pistas de 1.400 a 2.000 m com curva e subida; equipamento com valores menores;
+  status), estrelas multiplicando os pontos (limite de 34% e crescimento por nível: substituídos pelo 1b, ver a seção
+  do bloco 1b); sai o bônus fixo do tipo e o Neutro; skill de tipo sempre ativa num terço (agora multiplica: 1b); pistas de 1.400 a 2.000 m com curva e subida; equipamento com valores menores;
   Poder, bots e ligas recalculados.
 - **Telas:** build na aba Status (rascunho, Confirmar, Desfazer), vaga do tipo na aba Skills, selo de
   nível e barra de XP, escolha do inicial, animação da skill de tipo e terços no minimapa.
 - **Save v5** com migração do v4 (pontos devolvidos para distribuir, Neutro convertido).
-- **Balanço:** as 126 metas do `balance.js` completo passam.
+- **Balanço:** as 126 metas do `balance.js` completo passam (números superados pelo 1b: ver a seção do bloco 1b).
 - **Revisão final (2026-11-11):** fechou a trava do páreo aberto (a sala guarda o retrato dos pontos,
   R16), o valor da peça na tela (meio ponto por melhoria, como na simulação) e o aviso de pontos livres
   ao subir de nível.
@@ -126,7 +126,6 @@ Spec em `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, plano e
 - **O Ouro tem menos uso:** a loja de peças some; sobram entradas, cruza e troca do Haras.
 - **Folga de ~1 p.p.** nas metas rebaseadas sobre o pior caso de 4 bases de seed; mexer na RNG pede a faixa de novo.
 - **Equipamento suspenso:** voltar (talvez como cosmético) e a ferradura de tração do bloco 2 ficam em aberto.
-- De `docs/exemplos.md` §5, seguem abertos: o papel da Sorte, o conjunto de 3 peças, o "Cansou", a Garra e a zebra.
 - **Decisões do Vinicius ainda abertas:** o empacotador (a pergunta sobre o Capacitor ficou sem
   resposta) e, de `docs/exemplos.md` §5, o papel da Sorte, o conjunto de 3 peças, o "Cansou", a Garra
   e a zebra.

@@ -18,7 +18,7 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
   — com o 1b o equipamento fica suspenso e as telas de peças somem.
 - **Parte 2c (animações) espera a confirmação de créditos do Vinicius** — o `CLAUDE.md` exige confirmação explícita para
   geração paga; o 1b não gasta nada.
-- **Execução do 1b (decisões de design; o detalhe está no ledger e na spec):**
+- **Execução do 1b (controlador, sob delegação; decisões de design; o detalhe está no ledger e na spec):**
   - **Os grupos +1/+5/+10 e o "Distribuir sugerido" somem quando nenhum ponto cabe** (nível 1, ou o que sobra não paga o próximo
     ponto de nenhum status); ficam desabilitados, com o motivo, só quando algum N cabe e outro não — entre um nível e outro o
     estado "tudo cinza" seria o normal, e 18 rótulos "indisponível" atrapalham o leitor de tela. Spec §11 emendada.

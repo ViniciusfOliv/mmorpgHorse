@@ -293,6 +293,7 @@ Uma frase de até ~140 caracteres, sem número que não venha do código. Os 7 s
 - Gaveta DEV: campo "Rédeas novas" (como o das Pedras) e uma caixa "redistribuição grátis" por cavalo; os
   modelos de cavalo do DEV usam `validAlloc` novo.
 - Barra de abas: 4 abas (Estábulo, Correr, Expedição, Haras).
+- **Emenda (2026-11-14):** a caixa DEV "redistribuição grátis" ficou só na gaveta DEV e vale para a montaria ativa, não "por cavalo"; para outro cavalo, ative-o antes.
 
 ## 12. Arquivos
 
