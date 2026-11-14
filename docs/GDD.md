@@ -126,6 +126,8 @@ cada faixa de distância). No nível 25 caem na Prata (Poder 782–791).
 
 **Arte do protótipo.** Os cavalos usam moldes gerados no PixelLab (retrato, parado e galope de 9 quadros por estilo de crina), recoloridos na hora com a paleta de cada montaria; ícones também do PixelLab, logotipo e capa do Canva; pista, clima e interface por código. Na corrida, o Dado da Sorte, as skills, a Garra e o cansaço aparecem no próprio cavalo, e o clima e o vento (só visual) aparecem na pista. Detalhes: `docs/superpowers/specs/2026-11-08-visuais-design.md` e `docs/superpowers/specs/2026-11-09-corrida-viva-design.md`.
 
+**Acabamento da interface (Visuais 2, parte 3a).** Cada componente é desenhado em camadas: as linhas (contorno de 2 px, bisel em três tons, sombra) saem de `box-shadow` do CSS, e peças pequenas de pixel (rebites, pregos, veio da placa, ⓘ) vão por cima como imagens `pixelated` em múltiplos de 2 px. Não há `border-image`: molduras inteiras mostraram linhas nas emendas em densidades como 2,625 (comum em Android). As peças são feitas à mão em mapas de texto (`prototype/tools/interface-arte.mjs`), com as cores dos tokens do `game.css`, e entram no build; a folha `prototype/dist/interface.html` mostra todos os componentes. As duas fontes (Press Start 2P, só em 8, 16 ou 24 px, e Jersey 10) vão embutidas no jogo em `data:` (subconjunto latino, licença OFL, `prototype/assets/fontes/`), com o Google Fonts de reserva. Spec: `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`.
+
 ## 6. Estábulo e cruzamento
 
 Spec completa e algoritmo: `docs/superpowers/specs/2026-11-06-cruzamento-design.md` (o código é `prototype/src/breed.js`). Números reais: `docs/wiki.md` (Cruzamento); potros de exemplo em `docs/exemplos.md` §4.

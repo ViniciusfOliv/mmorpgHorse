@@ -17,7 +17,7 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
 - **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Cavalo, Itens,
   Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
-- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (129 testes de simulação, 104 de efeitos, 161 de moldes, 615 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de interface; contagem de 2026-11-13, bloco 1b).
+- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (129 testes de simulação, 104 de efeitos, 170 de moldes, 615 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de interface; contagem de 2026-11-14, parte 3a da Visuais 2).
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
 | Frente | Entrega | Spec |
@@ -67,6 +67,24 @@ Spec em `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, plano e
   equipamento do wiki, o comentário do `GEAR_ON`, o ⓘ de Poder e liga na aba Correr e a memória; `check.sh` OK em 9115ddf.
   Jogo, DEV, wiki e o build "Galope Ícones DEV" republicados com esse build em 2026-11-14.
 - **Ainda não testado por gente:** os números saíram de simulação; a corrida mudou de sensação (mais curta).
+
+## Visuais 2, parte 3a: acabamento da interface (pronta em 2026-11-14, na `claude/visuais-2`)
+Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plano em
+`docs/superpowers/plans/2026-11-14-interface-acabamento.md`; decisões em `decisoes.md` (2026-11-14); `docs/GDD.md` (arte).
+- **O que mudou:** fontes Press Start 2P e Jersey 10 embutidas no jogo (com o Google Fonts de reserva); painéis com
+  rebites, títulos em placa de madeira, saldo como placar, avisos e moldura nos retratos; botões com bisel em três tons
+  (e o ouro), opções, abas, barras com sulco, selos e ⓘ desenhado em pixel; a fonte display só em 8, 16 ou 24 px. Sem
+  `border-image` (linhas por sombra, peças de pixel por cima). Nenhuma regra, número ou texto do jogo mudou.
+- **Folha da interface** (todos os componentes, `prototype/dist/interface.html`): https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR
+- **Verificação:** `./scripts/check.sh` OK (129 simulação, 104 efeitos, 170 moldes, 615 conferências do wiki, 87 metas no
+  balanço rápido, interface; `jogo.html` 841,9 KB, fontes e peças 35,0 KB). Alturas a 360 px: Estábulo 1320 e Status 1940
+  (limite de +4% sobre 1284 e 1894). Capturas oficiais de `prototype/screens/` regeneradas (33 imagens, nenhuma nova nem removida).
+- **Publicação:** a folha e o `jogo-dev.html` vão para o artefato de teste da frente visual; os artefatos oficiais só
+  depois do merge na `main` (decisão do Vinicius sobre integração).
+- **Próximos passos:** 3b (estábulo e montaria no celular: lista compacta, ficha com o cavalo em destaque, Status sem
+  duas telas de rolagem, motivo visível no toque, "º" no leitor de tela) e 3c (tela da corrida); cada uma com spec e plano.
+  Pendências menores da 3a: ver os "minor" do ledger da execução (sem hover/apertado nas abas da barra de baixo, "ç" de
+  Expedição encostado no bisel).
 
 ## Em andamento
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b, que também traz a fonte da Rédea nova. Cada ginásio tem o

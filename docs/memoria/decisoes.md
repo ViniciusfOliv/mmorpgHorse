@@ -20,6 +20,15 @@ O Vinicius pediu "Decida sozinho a divisão e pode começar". Spec em `docs/supe
 - **Folha da interface publicada para o Vinicius antes de mudar as telas** — o gosto é dele; se ele quiser outro rumo, a
   execução para.
 - **Trabalho na `claude/visuais-2`, avançada até a `main`** — é a branch da frente visual que ele pediu em 2026-11-12.
+- **Decisões da execução da 3a (controlador, sob delegação):**
+  - **`.chip` sem `clip-path`** — o ⓘ dentro do chip tem alvo de 44 px, maior que o chip; o corte recortaria o alvo de toque (desvio da spec §4.10). O chip fica só com o contorno e o bisel por sombra.
+  - **O botão apertado desce 2 px também com movimento reduzido** (saiu o `mov-reduzido` do apertado) — como pede a spec §7: é feedback de toque, não animação.
+  - **Mapa do ⓘ redesenhado** — o da Tarefa 1 lia como "H" em 14 px.
+  - **Barra de abas com uma coluna por aba** — antes eram 5 colunas fixas para 4 abas (a Loja está suspensa), e com as abas em botão a 5ª aparecia como um buraco.
+  - **A velocidade escolhida da corrida (ouro) segue a mesma receita do botão ouro** — apertada desce 2 px e a sombra encolhe; desabilitada fica com o bisel escuro também no topo (o seletor dela vencia `.btn:active` e `.btn:disabled`; corrigido na Tarefa 5, com checagem no `ui-test`).
+  - **`.montaria--ativa` no lugar de `.caixa--destaque`** (spec §4.2) — a classe já marca o lugar e evita mexer no markup.
+  - **A folha da interface não simula o modo de cores forçadas** — simular repetiria as regras do `@media`; o `ui-test` emula o modo de verdade (`forcedColors`).
+  - **Os estados de demonstração da folha (`.foco-demo`, `.apertado-demo`) entram como seletores extras** nas mesmas regras de `:focus-visible` e `:active`, sem regra copiada.
 
 ## 2026-11-14 — Integração dos blocos 1 e 1b na `main` (decisão do Vinicius)
 - **A `claude/cavalos-v3` entrou na `main` antes do teste no artefato** — escolha do Vinicius depois da revisão final
