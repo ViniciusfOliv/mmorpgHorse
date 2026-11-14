@@ -3,6 +3,24 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-14 — Visuais 2, parte 3 (interface): divisão e 3a (controlador, sob delegação)
+O Vinicius pediu "Decida sozinho a divisão e pode começar". Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`.
+- **Parte 3 em três: 3a acabamento, 3b estábulo e montaria no celular, 3c tela da corrida** — o acabamento define as peças
+  que as outras usam; a 3b mexe nas telas que o 1b reescreveu (as mais compridas); a corrida é a mais independente.
+  "Celular" vira regra das três (spec 3a §7), e a 3b é a que corta rolagem.
+- **Acabamento em camadas: linhas por sombra do CSS e peças pequenas de pixel (rebites, pregos, veio, ⓘ) por cima** —
+  num teste descartável, molduras inteiras por `border-image` mostraram linhas nas emendas na densidade 2,625 (comum em
+  Android), mesmo com bordas em múltiplos de 8 px; as camadas ficaram nítidas. Um kit do PixelLab gastaria créditos e
+  teria o mesmo problema das emendas.
+- **Peças de pixel feitas à mão em mapas de texto, com as cores dos tokens do `game.css`** — sem IA, sem custo, e a paleta
+  não diverge.
+- **Fontes dentro do jogo (subconjunto latino, OFL), com o Google Fonts de reserva** — o app Android sem rede cairia na
+  fonte do sistema.
+- **Press Start 2P só em 8, 16 ou 24 px** — 10 regras usavam 11–12 px e borravam a fonte.
+- **Folha da interface publicada para o Vinicius antes de mudar as telas** — o gosto é dele; se ele quiser outro rumo, a
+  execução para.
+- **Trabalho na `claude/visuais-2`, avançada até a `main`** — é a branch da frente visual que ele pediu em 2026-11-12.
+
 ## 2026-11-14 — Integração dos blocos 1 e 1b na `main` (decisão do Vinicius)
 - **A `claude/cavalos-v3` entrou na `main` antes do teste no artefato** — escolha do Vinicius depois da revisão final
   limpa e do `check.sh` OK; o plano era jogar antes. Os pontos de calibração do 1b (spec §15, lista no `ESTADO.md`)

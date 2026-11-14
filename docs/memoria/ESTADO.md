@@ -152,5 +152,6 @@ Spec em `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, plano e
 ## Branches para apagar no GitHub
 Todas já integradas na `main`: `claude/equipamentos`, `claude/cruzamento`, `claude/nucleo-corrida-v2`,
 `claude/analise-regras-arquivo-3j3zv1`, `claude/kind-thompson-gsqj7r`, `claude/menu-abas`,
-`claude/visuais`, `claude/corrida-viva`, `claude/pente-fino`, `claude/cavalos-v3` e `claude/visuais-2`. A `claude/nifty-newton-e8u133` é a
+`claude/visuais`, `claude/corrida-viva`, `claude/pente-fino` e `claude/cavalos-v3`. A `claude/visuais-2` voltou a ser
+usada para a parte 3 (interface), avançada até a `main` em 2026-11-14. A `claude/nifty-newton-e8u133` é a
 branch desta sessão e acompanha a `main`. A sessão não consegue apagar branch remota (o proxy bloqueia).
