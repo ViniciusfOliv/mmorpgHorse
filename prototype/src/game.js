@@ -59,7 +59,8 @@
   // - a Pedra Negra do pódio não cai (GR.podiumStone não é chamado) e os bots correm sem peças;
   // - as ações de peça (equipar, tirar, melhorar, vender, comprar) não fazem nada, nem com o botão forçado.
   // Peças, melhorias, o que está equipado e as Pedras ficam no save sem mudança: nada é vendido nem convertido.
-  // O código do equipamento fica, desligado por esta constante, para voltar depois.
+  // O código do equipamento fica, desligado por esta constante, para voltar depois. Ligar a constante não basta: o gear
+  // precisa entrar de novo na corrida (`entry`), no `powerRating` e na trava do páreo (`canEquip` hoje passaria sempre).
   var GEAR_ON = false;
   var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
   var TRAINING_GOLD = [30, 22, 16, 12, 10, 10, 10, 10];
@@ -2047,7 +2048,7 @@
           '<div class="cavalo-info"><h2 class="cavalo-nome">' + esc(h.name) + '</h2>' +
           '<div class="linha-meta">' + rarityHtml(h.rarity) + elementHtml(h.element) + '</div>' +
           xpHtml(h.level, h.xp, true) +
-          '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
+          '<div class="linha-meta"><span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
         '</div></div>' +
         (GEAR_ON ? '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
           '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div></div>' : '') +

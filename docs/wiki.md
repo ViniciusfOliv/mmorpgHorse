@@ -25,11 +25,11 @@
 
 ## Visão geral
 
-**Galope Elemental** é um jogo de corrida de cavalos automática em pixel art. Você não controla o cavalo durante a corrida: decide antes (montaria, equipamento e entrada) e assiste. Os cavalos têm tipo (Fogo, Água e Grama), raridade, estrelas, genética, level e skills; nada cresce sozinho: cada level dá pontos para o jogador comprar status.
+**Galope Elemental** é um jogo de corrida de cavalos automática em pixel art. Você não controla o cavalo durante a corrida: decide antes (montaria e entrada) e assiste. Os cavalos têm tipo (Fogo, Água e Grama), raridade, estrelas, genética, level e skills; nada cresce sozinho: cada level dá pontos para o jogador comprar status.
 
 ### Ciclo de uma corrida
 
-1. **Escolher a montaria.** No começo você escolhe uma das 3 iniciais (Brasa, Maré e Ipê) e recebe 500 de Ouro e o equipamento inicial (Sela de Couro Cru e Ferradura Leve, já equipado).
+1. **Escolher a montaria.** No começo você escolhe uma das 3 iniciais (Brasa, Maré e Ipê) e recebe 500 de Ouro.
 2. **Procurar sala.** Na aba Correr você escolhe a entrada (50, 100 ou 250 de Ouro). A sala tem de 4 a 8 corredores: você e bots com Poder perto do seu. Pista, clima e rivais saem da seed da sala e não mudam até você correr.
 3. **Pagar a entrada.** Só depois de "Largar!" a corrida é simulada; o resultado nunca é calculado antes.
 4. **Corrida automática.** O jóquei dosa o ritmo pela estamina; skills disparam nos gatilhos; o Dado da Sorte rola em 1/3 e 2/3 da pista e pode virar o clima; a Garra decide a reta final.
@@ -72,8 +72,8 @@ No jogo, o botão ⓘ ao lado de cada rótulo mostra estas frases (no computador
 | Estrelas | Grau do cavalo, de 1 a 3 estrelas: mais estrelas, mais pontos para distribuir a cada nível. |
 | Raridade | Quanto mais rara, mais pontos por nível, mais vagas de skill e status que já nascem mais altos. |
 | Skill de tipo | Uma por elemento, sempre ativa num terço da pista: os dois status do tipo valem mais naquele trecho. |
-| Poder | Nota da força geral do cavalo, calculada dos status e das skills. Define a liga e os rivais da sala. |
-| Liga | Faixa do Poder: você corre contra cavalos da mesma liga. |
+| Poder | Nota da força geral do cavalo, calculada dos status, das skills, do nível e da raridade. Define a liga e os rivais da sala. |
+| Liga | Faixa do Poder, para comparar cavalos. Os rivais da sala vêm do seu Poder, não da liga. |
 | Clima | Cada elemento rende mais no seu clima e menos no clima ruim. O Dado da Sorte pode virar o clima na corrida. |
 | Piso | Piso mais pesado tira velocidade e gasta mais fôlego; a Força ajuda a perder menos. |
 | Dado da Sorte | Duas vezes por corrida, quem tira o maior dado puxa o clima para o seu elemento. Sorte alta rola dois dados. |
@@ -1132,7 +1132,7 @@ Poder = 2,5·VEL + 2·ACE + 2,2·MAN + 2,4·FOR + 2,4·EST + 1,5·GAR + 0·SOR
 | ![](../prototype/assets/icons/liga-diamante.png) Diamante | 980–1.069 | #7ab8ff |
 | ![](../prototype/assets/icons/liga-lenda.png) Lenda | 1.070 ou mais | #ff7a3d |
 
-**Rivais da sala:** cada bot mira um Poder entre −8,5% e +11,5% do seu (leve viés para cima), com o equipamento da liga desse alvo. Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de 10 levels abaixo a 20 acima do level dele, entre 1 e 50. O modelo só entra se ficar a até 6% do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos 3 modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem.
+**Rivais da sala:** cada bot mira um Poder entre −8,5% e +11,5% do seu (leve viés para cima). Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de 10 levels abaixo a 20 acima do level dele, entre 1 e 50. O modelo só entra se ficar a até 6% do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos 3 modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem.
 
 **Build dos bots** (sem sorteio; é também o botão "Distribuir sugerido", que continua do que o jogador já comprou): um ponto por vez no status de menor (pontos + 1) / peso, entre os que ainda aceitam (peso acima de 0, abaixo de 150 e com o próximo ponto cabendo no que sobra); empate na ordem VEL, ACE, MAN, FOR, EST e GAR. A Sorte não recebe pontos.
 

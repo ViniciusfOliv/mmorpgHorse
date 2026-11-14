@@ -922,8 +922,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     estrelas: 'Grau do cavalo, de 1 a 3 estrelas: mais estrelas, mais pontos para distribuir a cada nível.',
     raridade: 'Quanto mais rara, mais pontos por nível, mais vagas de skill e status que já nascem mais altos.',
     skillTipo: 'Uma por elemento, sempre ativa num terço da pista: os dois status do tipo valem mais naquele trecho.',
-    poder: 'Nota da força geral do cavalo, calculada dos status e das skills. Define a liga e os rivais da sala.',
-    liga: 'Faixa do Poder: você corre contra cavalos da mesma liga.',
+    poder: 'Nota da força geral do cavalo, calculada dos status, das skills, do nível e da raridade. Define a liga e os rivais da sala.',
+    liga: 'Faixa do Poder, para comparar cavalos. Os rivais da sala vêm do seu Poder, não da liga.',
     clima: 'Cada elemento rende mais no seu clima e menos no clima ruim. O Dado da Sorte pode virar o clima na corrida.',
     piso: 'Piso mais pesado tira velocidade e gasta mais fôlego; a Força ajuda a perder menos.',
     dado: 'Duas vezes por corrida, quem tira o maior dado puxa o clima para o seu elemento. Sorte alta rola dois dados.',
@@ -8248,7 +8248,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // - a Pedra Negra do pódio não cai (GR.podiumStone não é chamado) e os bots correm sem peças;
   // - as ações de peça (equipar, tirar, melhorar, vender, comprar) não fazem nada, nem com o botão forçado.
   // Peças, melhorias, o que está equipado e as Pedras ficam no save sem mudança: nada é vendido nem convertido.
-  // O código do equipamento fica, desligado por esta constante, para voltar depois.
+  // O código do equipamento fica, desligado por esta constante, para voltar depois. Ligar a constante não basta: o gear
+  // precisa entrar de novo na corrida (`entry`), no `powerRating` e na trava do páreo (`canEquip` hoje passaria sempre).
   var GEAR_ON = false;
   var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
   var TRAINING_GOLD = [30, 22, 16, 12, 10, 10, 10, 10];
@@ -10236,7 +10237,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           '<div class="cavalo-info"><h2 class="cavalo-nome">' + esc(h.name) + '</h2>' +
           '<div class="linha-meta">' + rarityHtml(h.rarity) + elementHtml(h.element) + '</div>' +
           xpHtml(h.level, h.xp, true) +
-          '<div class="linha-meta"><span>Poder <b>' + rating + '</b></span>' + leagueHtml(rating) + '</div>' +
+          '<div class="linha-meta"><span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
         '</div></div>' +
         (GEAR_ON ? '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
           '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div></div>' : '') +

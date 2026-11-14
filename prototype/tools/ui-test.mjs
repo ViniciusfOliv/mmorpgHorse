@@ -3207,6 +3207,11 @@ try {
       // o texto da descrição da skill de tipo diz o % e "varia"/"cresce" uma vez só
       const vt = ((x) => x.replace(/\s+/g, ' ').trim())(await pg.locator('.vaga-tipo').textContent())
       if (!/\+19%/.test(vt) || (vt.match(/varia com|cresce com/g) || []).length !== 1) problems.push(`ajuda-skills: descrição da skill de tipo "${vt}"`)
+      // aba Correr, cartão "Montaria ativa": Poder e liga
+      await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+      await pg.waitForSelector('#t-correr')
+      for (const k of ['poder', 'liga']) await confereAjuda(pg, '[aria-label="Montaria ativa"]', k, OUTROS[k], 'ajuda-correr')
+      await checkOverflow(pg, 'ajuda-correr')
       // sala de largada: piso, clima e Dado da Sorte
       await abrirSala(pg)
       for (const k of ['piso', 'clima']) await confereAjuda(pg, '.chips', k, OUTROS[k], 'ajuda-sala')
