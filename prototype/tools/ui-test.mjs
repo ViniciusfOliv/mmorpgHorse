@@ -3655,6 +3655,26 @@ try {
         await pg.waitForSelector('#pista')
         await sleep(600)
         await displayNaEscala(pg, 'corrida')
+        {
+          // a velocidade escolhida (ouro) apertada desce 2 px e perde a sombra de 4 px; desabilitada, bisel escuro também no topo
+          const sel = '.controles .vel .btn[aria-pressed="true"]'
+          const el = pg.locator(sel).first()
+          const box = await el.boundingBox()
+          await pg.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+          await pg.mouse.down()
+          const ap = await el.evaluate((e) => ({ t: getComputedStyle(e).transform, bs: getComputedStyle(e).boxShadow }))
+          await pg.mouse.up()
+          if (ap.t !== 'matrix(1, 0, 0, 1, 0, 2)') problems.push(`acabamento (corrida): ${sel} apertado não desce 2 px (transform ${ap.t})`)
+          if (/(^|, )rgb[^)]*\) 0px 4px 0px 0px(,|$)/.test(ap.bs)) problems.push(`acabamento (corrida): ${sel} apertado mantém a sombra de 4 px`)
+          const des = await el.evaluate((e) => {
+            const cor = (t) => { const d = document.createElement('i'); d.style.color = `var(${t})`; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c }
+            e.disabled = true
+            const bs = getComputedStyle(e).boxShadow
+            e.disabled = false
+            return bs.includes(`${cor('--ouro-escuro')} 0px 2px 0px 0px inset`)
+          })
+          if (!des) problems.push(`acabamento (corrida): ${sel} desabilitado sem o bisel escuro no topo`)
+        }
         await pg.getByRole('button', { name: /Pular/ }).click()
         await pg.waitForSelector('#t-resultado')
         await confere('resultado')
