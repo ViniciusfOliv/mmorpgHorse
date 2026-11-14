@@ -16,6 +16,7 @@ import { dirname, extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdir, readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
+import { PECAS as PECAS_ARTE } from './interface-arte.mjs'
 
 const require = createRequire(import.meta.url)
 const { chromium } = require('playwright')
@@ -3298,6 +3299,42 @@ try {
         await semBorderImage(pg, 'correr')
       } catch (e) {
         problems.push('acabamento-altura: ' + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    {
+      // folha da interface (dist/interface.html): uma seção por componente da spec §4 e cada peça ampliada x4
+      const COMPONENTES = ['4.1', '4.2', '4.3', '4.4', '4.5', '4.6', '4.7', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13', '4.14', '4.15']
+      for (const [larg, alt] of [[360, 780], [1280, 800]]) {
+        const pg = await newPage(browser, { width: larg, height: alt }, `acabamento-folha-${larg}`, { pagina: 'interface.html', moldes: false })
+        try {
+          await pg.waitForSelector('[data-componente]')
+          await checkOverflow(pg, `folha ${larg}`)
+          const r = await pg.evaluate(() => ({
+            comps: [...document.querySelectorAll('[data-componente]')].map((e) => e.getAttribute('data-componente')),
+            pecas: [...document.querySelectorAll('[data-peca]')].map((e) => ({ nome: e.getAttribute('data-peca'), w: e.querySelector('img') ? e.querySelector('img').getBoundingClientRect().width : 0, nat: e.querySelector('img') ? e.querySelector('img').naturalWidth : 0, txt: e.textContent }))
+          }))
+          for (const c of COMPONENTES) if (!r.comps.includes(c)) problems.push(`acabamento (folha ${larg}): falta a seção do componente ${c}`)
+          for (const p of PECAS_ARTE) {
+            const a = r.pecas.find((x) => x.nome === p.nome)
+            if (!a) problems.push(`acabamento (folha ${larg}): a peça "${p.nome}" não aparece`)
+            else if (!a.txt.includes(p.nome) || a.nat < 1 || Math.abs(a.w - 4 * a.nat) > 0.5) problems.push(`acabamento (folha ${larg}): a peça "${p.nome}" não está ampliada x4 com o nome (largura ${a.w}, original ${a.nat})`)
+          }
+          await semBorderImage(pg, `folha ${larg}`)
+        } catch (e) {
+          problems.push(`acabamento-folha-${larg}: ` + e.message)
+        } finally {
+          await pg.context().close()
+        }
+      }
+      // densidade fracionada (2,625): captura para o controlador conferir as emendas (fora de prototype/screens/)
+      const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-folha-2625', { pagina: 'interface.html', moldes: false, deviceScaleFactor: 2.625 })
+      try {
+        await pg.waitForSelector('[data-componente]')
+        if (process.env.SHOTS_DIR) await pg.screenshot({ path: join(SHOTS, 'interface-2625.png'), fullPage: true })
+      } catch (e) {
+        problems.push('acabamento-folha-2625: ' + e.message)
       } finally {
         await pg.context().close()
       }

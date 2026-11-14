@@ -136,7 +136,7 @@ b, strong { font-weight: 400; color: var(--texto); }
 /* pixelated por último: é o que o Chrome aplica (crisp-edges fica de reserva); a corrida pode ser ampliada pelo CSS */
 canvas { image-rendering: crisp-edges; image-rendering: pixelated; display: block; }
 [hidden] { display: none !important; }
-:focus-visible { outline: 3px solid var(--foco); outline-offset: 3px; }
+:focus-visible, .foco-demo { outline: 3px solid var(--foco); outline-offset: 3px; }   /* .foco-demo: só a folha da interface (interface.html) */
 [tabindex="-1"]:focus { outline: none; }
 .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
@@ -243,7 +243,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   -webkit-user-select: none; user-select: none;
 }
 .btn:hover:not(:disabled) { background: var(--painel-3); }
-.btn:active:not(:disabled) {
+.btn:active:not(:disabled), .btn.apertado-demo {   /* .apertado-demo: só a folha da interface */
   transform: translateY(2px);
   box-shadow:
     0 calc(-1 * var(--px)) 0 0 var(--sombra),
@@ -253,7 +253,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     inset 0 -2px 0 0 var(--escuro-35);
 }
 .btn:disabled { opacity: 0.42; cursor: not-allowed; }
-.btn:focus-visible { outline-offset: 5px; }
+.btn:focus-visible, .btn.foco-demo { outline-offset: 5px; }
 .btn--ouro { background: var(--ouro); color: var(--tinta); box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
     inset 0 -4px 0 0 var(--ouro-escuro), inset 0 2px 0 0 var(--ouro-claro); }
@@ -746,7 +746,7 @@ html.mov-reduzido .btn:active:not(:disabled) { transform: none; }
 .app-aba--ponto .app-aba-icone::after {
   content: ''; position: absolute; top: -2px; right: -6px; width: 8px; height: 8px; background: var(--ouro);
 }
-.app-aba:focus-visible { outline-offset: -3px; }
+.app-aba:focus-visible, .app-aba.foco-demo { outline-offset: -3px; }
 /* o foco por teclado nunca fica atrás do cabeçalho fixo nem da barra de abas */
 html.app-com-abas { scroll-padding: calc(56px + var(--sat)) 0 calc(72px + env(safe-area-inset-bottom, 0px)); }
 /* o cartão inteiro da montaria abre a montaria */
@@ -862,7 +862,7 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   font: inherit; font-size: var(--t-m); line-height: 1; cursor: help; display: inline-flex; align-items: center; justify-content: center;
 }
 .ajuda:hover, .ajuda[aria-expanded="true"] { color: var(--ouro); }
-.ajuda:focus-visible { outline: 3px solid var(--ouro); outline-offset: -6px; }
+.ajuda:focus-visible, .ajuda.foco-demo { outline: 3px solid var(--ouro); outline-offset: -6px; }
 .ajuda-txt { grid-column: 1 / -1; flex: 1 1 100%; margin: 4px 0 0; padding: 6px 8px; background: var(--painel-3); box-shadow: inset 3px 0 0 0 var(--ouro);
   font-family: var(--fonte-ui); font-size: var(--t-s); font-weight: 400; line-height: 1.4; color: var(--texto); letter-spacing: 0; text-transform: none; white-space: normal; }
 </style>

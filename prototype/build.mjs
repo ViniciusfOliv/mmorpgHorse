@@ -22,7 +22,9 @@ import { lerMoldes, lerIcones, lerMarca, jsonJs } from './tools/arte-embutida.mj
 import { htmlFolhaIcones } from './tools/folha-icones.mjs'
 import { ICONES_NOVOS, ANTIGOS } from './tools/icones-catalogo.mjs'
 import { gravarWiki } from './tools/wiki.mjs'
-import { cssFontes, cssArte } from './tools/interface-arte.mjs'
+import { cssFontes, cssArte, PECAS, lerTokens, pecaRgba } from './tools/interface-arte.mjs'
+import { htmlFolhaInterface } from './tools/folha-interface.mjs'
+import { encodePng } from './tools/png.mjs'
 
 const ROOT = dirname(fileURLToPath(import.meta.url))
 const read = (p) => readFile(join(ROOT, p), 'utf8')
@@ -126,6 +128,15 @@ await writeFile(join(ROOT, 'dist', 'jogo.html'), body)
 await writeFile(join(ROOT, 'dist', 'jogo-dev.html'), bodyDev)
 await writeFile(join(ROOT, 'dist', 'preview.html'), preview)
 await writeFile(join(ROOT, 'dist', 'moldes.js'), moldesJs)
+{
+  // folha da interface: os componentes com o CSS de produção e cada peça de pixel ampliada
+  const tokens = lerTokens(cssFonte)
+  const pecasFolha = PECAS.map((p) => {
+    const { width, height, rgba } = pecaRgba(p, tokens)
+    return { nome: p.nome, width, height, dataUrl: 'data:image/png;base64,' + encodePng({ width, height, rgba }).toString('base64') }
+  })
+  await writeFile(join(ROOT, 'dist', 'interface.html'), htmlFolhaInterface({ estilo: cssProd, pecas: pecasFolha }))
+}
 await writeFile(join(ROOT, 'dist', 'icones.html'), htmlFolhaIcones(await lerIcones(ROOT), ICONES_NOVOS, ANTIGOS))
 const kb = (s) => (Buffer.byteLength(s) / 1024).toFixed(1) + ' KB'
 for (const a of avisos) console.log('AVISO: ' + a)
