@@ -554,6 +554,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   box-shadow: 0 0 0 2px var(--sombra), inset 0 2px 0 0 var(--brilho-33), inset 0 -2px 0 0 var(--escuro-25);
 }
 .cavalo-cabeca { display: flex; gap: 14px; align-items: flex-start; }
+/* a moldura de madeira do retrato avança 6px do contorno e o rebite do canto fica a 4-10px da borda do painel: em linha,
+   o retrato anda 4px para a direita (e o texto fica onde estava), sem mexer na altura */
+.cavalo-cabeca > .retrato, .cavalo-cabeca > .retrato-moldura { margin: 0 -4px 0 4px; }
 .cavalo-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
 .cavalo-nome { font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; color: var(--texto); text-shadow: 2px 2px 0 var(--sombra); }
 .cavalo-titulo { color: var(--texto-2); font-size: var(--t-s); margin: 0; }
@@ -847,7 +850,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 }
 @media (max-width: 380px) {
   .cavalo-cabeca { flex-direction: column; align-items: stretch; }
-  .cavalo-cabeca .retrato, .cavalo-cabeca .retrato-moldura { align-self: center; }
+  .cavalo-cabeca .retrato, .cavalo-cabeca .retrato-moldura { align-self: center; margin: 0; }
 }
 
 /* movimento reduzido: a classe vem do game.js (opção "Animações" do Perfil; "Seguir o sistema" usa
@@ -899,7 +902,7 @@ html.mov-reduzido *, html.mov-reduzido *::before, html.mov-reduzido *::after { t
     inset 0 2px 0 0 var(--ouro), inset 2px 0 0 0 var(--linha-luz);
 }
 .app-aba--ponto .app-aba-icone::after {
-  content: ''; position: absolute; top: -2px; right: -6px; width: 8px; height: 8px; background: var(--ouro);
+  content: ''; position: absolute; top: 2px; right: -6px; width: 8px; height: 8px; background: var(--ouro);
 }
 .app-aba:focus-visible, .app-aba.foco-demo { outline-offset: -3px; }
 /* o foco por teclado nunca fica atrás do cabeçalho fixo nem da barra de abas */

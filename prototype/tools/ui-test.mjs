@@ -3232,8 +3232,9 @@ try {
   // ---------------- acabamento da interface (Visuais 2, parte 3a): fontes embutidas, sem border-image, altura, peças, títulos compridos ----------------
   if (quer('acabamento')) {
     // alturas da página a 360x780 com o CSS de antes da 3a (as peças e as fontes embutidas não mudam métrica)
-    // medido em 2026-11-14, antes da 3a
-    const ALTURA_ANTES_3A = { estabulo: 1284, status: 1894 }
+    // medido em 2026-11-14 na `main` (7fe5124), antes da 3a: build da `main`, o mesmo save (SAVE_3A) e o mesmo caminho abaixo
+    // (servidor deste teste, 360x780, scrollHeight; Skills é a aba da montaria ativa)
+    const ALTURA_ANTES_3A = { estabulo: 1284, status: 1894, correr: 802, skills: 1145 }
     const mod = (tpl, o) => Object.assign({ uid: 'm1', templateId: tpl.id, name: tpl.name, especie: 'cavalo', element: tpl.element, rarity: tpl.rarity,
       grau: tpl.grau || 2, sex: tpl.sex, level: 1, xp: 0, skills: tpl.skills.slice(), potential: JSON.parse(JSON.stringify(tpl.potential)),
       palette: JSON.parse(JSON.stringify(tpl.palette)), breedLeft: 2, parents: null, born: 0, equip: {}, respecFree: true,
@@ -3485,8 +3486,16 @@ try {
         await semBorderImage(pg, 'status')
         await pecasNoLugar(pg, 'status', ['.caixa', 'h1.titulo--tela'])
         await temCores(pg, 'status', '.opcao[aria-pressed="true"]', ['--sombra', '--ouro-escuro', '--ouro'])
+        await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+        const aSk = await altura()
+        notes.alturaAcabamento.skills = aSk
+        if (aSk > 1.04 * ALTURA_ANTES_3A.skills) problems.push(`acabamento: aba Skills com ${aSk}px (limite ${Math.round(1.04 * ALTURA_ANTES_3A.skills)}, antes ${ALTURA_ANTES_3A.skills})`)
+        await semBorderImage(pg, 'skills')
         await pg.locator('[data-acao="aba"][data-id="correr"]').click()
         await pg.waitForSelector('#t-correr')
+        const aCor = await altura()
+        notes.alturaAcabamento.correr = aCor
+        if (aCor > 1.04 * ALTURA_ANTES_3A.correr) problems.push(`acabamento: aba Correr com ${aCor}px (limite ${Math.round(1.04 * ALTURA_ANTES_3A.correr)}, antes ${ALTURA_ANTES_3A.correr})`)
         await semBorderImage(pg, 'correr')
         await pecasNoLugar(pg, 'correr', ['.caixa', '.saldo', 'h1.titulo--tela'])
         await temCores(pg, 'correr', '.opcao[aria-pressed="true"]', ['--sombra', '--ouro-escuro', '--ouro'])
