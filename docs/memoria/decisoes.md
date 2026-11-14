@@ -26,7 +26,7 @@ O Vinicius pediu "Decida sozinho a divisão e pode começar". Spec em `docs/supe
 - **Folha da interface publicada para o Vinicius depois da Tarefa 3, e não antes** — publicada com as telas já mudadas
   (na branch `claude/visuais-2`) e republicada depois da Tarefa 5, sem esperar resposta. Antes da T3 a folha mostraria o
   visual antigo, e a branch ainda não está na `main`. Links: folha https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR
-  (versão 2) e build de teste https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 8). O gosto é dele; se ele quiser
+  (versão 3, a final) e build de teste https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 9, a final). O gosto é dele; se ele quiser
   outro rumo, a execução para.
 - **Trabalho na `claude/visuais-2`, avançada até a `main`** — é a branch da frente visual que ele pediu em 2026-11-12.
 - **Decisões da execução da 3a (controlador, sob delegação):**

@@ -80,8 +80,8 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
 - **Verificação:** `./scripts/check.sh` OK (129 simulação, 104 efeitos, 170 moldes, 615 conferências do wiki, 87 metas no
   balanço rápido, interface; `jogo.html` 841,9 KB, fontes e peças 35,0 KB). Alturas a 360 px: Estábulo 1320 e Status 1940
   (limite de +4% sobre 1284 e 1894). Capturas oficiais de `prototype/screens/` regeneradas (31 imagens, nenhuma nova nem removida).
-- **Publicação (feita):** a folha da interface https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 2) e o build de
-  teste com o modo DEV https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 8), os dois com o build b7219a2,
+- **Publicação (feita):** a folha da interface https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 3) e o build de
+  teste com o modo DEV https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 9), os dois com o build 341eb4c (o fim da 3a),
   publicados depois da Tarefa 3 e republicados depois da Tarefa 5, sem esperar resposta. Os artefatos oficiais só depois
   do merge na `main`.
 - **Tamanho do jogo:** `jogo.html` de 813.461 B para 862.145 B (+47,5 KB, acima dos ~45 KB da spec §9; 5,6 KB são
