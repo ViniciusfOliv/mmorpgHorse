@@ -7,9 +7,9 @@ durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (
 protótipo vira o jogo, a mesma base web empacotada para Android, com os módulos de regra no servidor.
 
 ## Onde estamos
-- **Branches:** a `main` tem tudo até o pente fino (2026-11-10). Em aberto: `claude/cavalos-v3`
-  (blocos 1 e 1b do redesenho implementados, a integrar na `main` depois de o Vinicius jogar) e `claude/empacotamento`
-  (em pausa, só com as decisões iniciais; volta como bloco 3).
+- **Branches:** a `main` tem tudo até o bloco 1b e a parte 2b da Visuais 2 (`claude/cavalos-v3` integrada em
+  2026-11-14, por fast-forward). Em aberto só a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta
+  como bloco 3). Trabalho novo sai da `main`.
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
   - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
@@ -140,8 +140,8 @@ Spec em `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, plano e
 - **GDD §9+:** expedições, tecnologia do servidor, anti-trapaça, PVP assíncrono e ranqueada.
 
 ## Próximos passos
-1. O Vinicius joga o modelo novo no artefato (jogo, DEV e wiki republicados com o 1b) e decide os pontos de
-   calibração acima; depois a `claude/cavalos-v3` entra na `main`.
+1. O Vinicius joga o modelo novo no artefato (jogo, DEV e wiki republicados com o 1b, já na `main`) e decide os
+   pontos de calibração acima; o que ele mudar entra como ajuste por cima da `main`.
 2. **Parte 3 da Visuais 2 (interface)**, que mexe nas telas que o 1b acabou de reescrever.
 3. O Vinicius apaga as branches antigas no GitHub (lista abaixo).
 4. **Bloco 2, preparação com relógio:** spec, revisão do Vinicius, plano e execução.
@@ -152,5 +152,5 @@ Spec em `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, plano e
 ## Branches para apagar no GitHub
 Todas já integradas na `main`: `claude/equipamentos`, `claude/cruzamento`, `claude/nucleo-corrida-v2`,
 `claude/analise-regras-arquivo-3j3zv1`, `claude/kind-thompson-gsqj7r`, `claude/menu-abas`,
-`claude/visuais`, `claude/corrida-viva` e `claude/pente-fino`. A `claude/nifty-newton-e8u133` é a
+`claude/visuais`, `claude/corrida-viva`, `claude/pente-fino`, `claude/cavalos-v3` e `claude/visuais-2`. A `claude/nifty-newton-e8u133` é a
 branch desta sessão e acompanha a `main`. A sessão não consegue apagar branch remota (o proxy bloqueia).

@@ -3,6 +3,11 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-14 — Integração dos blocos 1 e 1b na `main` (decisão do Vinicius)
+- **A `claude/cavalos-v3` entrou na `main` antes do teste no artefato** — escolha do Vinicius depois da revisão final
+  limpa e do `check.sh` OK; o plano era jogar antes. Os pontos de calibração do 1b (spec §15, lista no `ESTADO.md`)
+  continuam abertos e viram ajustes por cima da `main`. A `claude/visuais-2` já estava contida e também sai da lista.
+
 ## 2026-11-13 — Decisões delegadas pelo Vinicius ("Prossiga, decida sozinho o melhor para o jogo")
 - **Spec do bloco 1b (crescimento livre) aprovada como está** — é o próximo passo do roteiro (antes de integrar o bloco 1
   na `main` e antes da parte 3 da Visuais 2, que mexe nas mesmas telas). Ficam valendo as escolhas da spec que estavam
