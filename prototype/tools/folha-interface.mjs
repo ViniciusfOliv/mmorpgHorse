@@ -18,7 +18,8 @@ const secao = (num, titulo, nota, corpo) =>
 const btn = (cls, txt, extra = '') => `<button type="button" class="btn ${cls}"${extra ? ' ' + extra : ''}>${esc(txt)}</button>`;
 const retrato = (w, h) => `<span class="retrato-moldura"><span class="retrato" style="display:block;width:${w}px;height:${h}px;background:var(--painel-3)"></span>` +
   `<span class="selo-nivel">Nv 20</span><span class="pontos-livres--selo">+3</span></span>`;
-const ajuda = (extra = '') => `<button type="button" class="ajuda${extra}" aria-label="O que é o Poder?" title="O Poder resume o cavalo.">ⓘ</button>`;
+// o botão de ajuda como o ajudaBtn do game.js: sem texto, a peça de pixel vem do ::before
+const ajuda = (extra = '', aberto = false) => `<button type="button" class="ajuda${extra}" aria-expanded="${aberto}" aria-label="O que é o Poder?" title="O Poder resume o cavalo."></button>`;
 const moeda = n => `<span class="ouro"><span aria-hidden="true">🪙</span><span>${n}</span><span class="sr">Ouro</span></span>`;
 
 const RARIDADES = [['comum', 'Comum'], ['magico', 'Mágico'], ['raro', 'Raro'], ['lendario', 'Lendário'], ['mitico', 'Mítico']];
@@ -72,6 +73,7 @@ function secoes() {
     estados([
       ['normal', '<div class="opcoes opcoes--3">' + btn('opcao opcao--centro', 'Sistema', 'aria-pressed="false"') + btn('opcao opcao--centro', 'Reduzido', 'aria-pressed="false"') + btn('opcao opcao--centro', 'Cheio', 'aria-pressed="false"') + '</div>'],
       ['escolhida', btn('opcao opcao--centro', 'Reduzido', 'aria-pressed="true"')],
+      ['escolhida apertada', btn('opcao opcao--centro apertado-demo', 'Reduzido', 'aria-pressed="true"')],
       ['foco', btn('opcao opcao--centro foco-demo', 'Reduzido', 'aria-pressed="false"')],
       ['apertado', btn('opcao opcao--centro apertado-demo', 'Reduzido', 'aria-pressed="false"')],
       ['desabilitada', btn('opcao opcao--centro', 'Reduzido', 'aria-pressed="false" disabled')]
@@ -92,12 +94,13 @@ function secoes() {
       ['experiência', '<div class="barra barra--xp" role="img" aria-label="Experiência 45%"><i style="width:45%"></i></div>']
     ])));
   // 4.10 Selos e chips
-  s.push(secao('4.10', 'Selos e chips', 'Classes .chip, .raridade, .liga, .selo-nivel, .pontos-livres--selo, .badge-ativa e .set-badge.',
+  s.push(secao('4.10', 'Selos e chips', 'Classes .chip, .raridade, .liga, .selo-nivel, .pontos-livres--selo, .badge-ativa, .tag-voce e .set-badge.',
     estados([
       ['chips', '<div class="chips"><span class="chip"><span class="rotulo">Distância</span><b>1200 m</b></span><span class="chip">Conjunto Trovão</span></div>'],
       ['raridades', '<div class="linha-meta">' + RARIDADES.map(([id, nome]) => `<span class="raridade raridade--${id}">${nome}</span>`).join('') + '</div>'],
       ['ligas', '<div class="linha-meta">' + LIGAS.map(([id, nome]) => `<span class="liga liga--${id}">Liga ${nome}</span>`).join('') + '</div>'],
-      ['selo de nível e pontos', '<div class="linha-meta"><span class="badge-ativa">Ativa</span><span class="badge-ativa">Equipada</span><span class="set-badge">Trovão ×2</span></div>']
+      ['selos', '<div class="linha-meta"><span class="badge-ativa">Ativa</span><span class="badge-ativa">Equipada</span><span class="tag-voce">VOCÊ</span><span class="set-badge">Trovão ×2</span></div>'],
+      ['selo de nível e pontos', retrato(96, 72)]
     ])));
   // 4.11 Saldo
   s.push(secao('4.11', 'Saldo do topo', 'Classe .saldo.',
@@ -106,10 +109,10 @@ function secoes() {
   s.push(secao('4.12', 'Moldura do retrato', 'Classe .retrato dentro de .retrato-moldura (aqui sem o desenho do cavalo).',
     estados([['retrato', retrato(96, 72)]])));
   // 4.13 Botão ⓘ
-  s.push(secao('4.13', 'Botão de ajuda', 'Classe .ajuda (alvo de 44×44 px).',
+  s.push(secao('4.13', 'Botão de ajuda', 'Classe .ajuda (alvo de 44×44 px; a peça de 14×14 px no ::before, em ouro quando aberto ou com o mouse).',
     estados([
       ['normal', '<div class="alvo-ajuda">' + ajuda() + '</div>'],
-      ['aberto', '<div class="alvo-ajuda"><button type="button" class="ajuda" aria-expanded="true" aria-label="O que é o Poder?">ⓘ</button></div>'],
+      ['aberto', '<div class="alvo-ajuda">' + ajuda('', true) + '</div>'],
       ['foco', '<div class="alvo-ajuda">' + ajuda(' foco-demo') + '</div>']
     ])));
   // 4.14 Avisos
@@ -153,7 +156,8 @@ const ESTILO_FOLHA = `
 .estado-par { display: block; }
 .col { min-width: 0; }
 .col--larga { display: none; }
-.moldura-fixa { position: relative; transform: translateZ(0); height: 56px; overflow: hidden; }
+/* a barra de abas fixa dentro de uma moldura: 56px da barra + 4px do friso e do contorno, que ficam por cima dela */
+.moldura-fixa { position: relative; transform: translateZ(0); height: 60px; overflow: hidden; }
 .moldura-fixa--solta { height: 56px; width: 120px; }
 .moldura-fixa--solta .app-aba { position: absolute; inset: 0; width: 100%; }
 .alvo-ajuda { display: flex; align-items: center; width: 44px; height: 44px; }

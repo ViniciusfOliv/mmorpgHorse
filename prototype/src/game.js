@@ -251,10 +251,11 @@
   // No computador o texto aparece com o mouse (title); no toque, abrir/fechar mostra a frase embaixo do rótulo
   // (aria-expanded no botão, texto com role="note"). Os textos são os de GameData.HELP, os mesmos do wiki.
   // nome: o que o botão explica, para o nome acessível ("O que é Velocidade?").
+  // O botão não tem texto: o "ⓘ" é a peça de pixel do ::before (acabamento 3a §4.13; o caractere não existe nas fontes).
   function ajudaBtn(chave, nome) {
     if (!hasOwn(GD.HELP, chave)) return '';
     return '<button type="button" class="ajuda" data-ajuda="' + esc(chave) + '" aria-expanded="false" aria-label="' +
-      esc('O que é ' + nome + '?') + '" title="' + esc(GD.HELP[chave]) + '">ⓘ</button>';
+      esc('O que é ' + nome + '?') + '" title="' + esc(GD.HELP[chave]) + '"></button>';
   }
   // onde o texto aberto entra: 'dt' depois da linha de status (a grade do <dl>), 'in' no fim do bloco, 'after' logo depois dele
   var AJUDA_ONDE = [['li', 'in'], ['.vaga-tipo', 'in'], ['.redistribuir', 'in'], ['.tela-cabeca', 'in'],

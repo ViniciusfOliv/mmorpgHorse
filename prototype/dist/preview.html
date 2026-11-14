@@ -22,8 +22,8 @@
   --arte-rebite: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAADCAYAAABWKLW/AAAAH0lEQVR4nGNgYGBgYOPl+s8AY/x/VPV/TpEARADGAACqpQnNUXpzVwAAAABJRU5ErkJggg==);
   --arte-prego: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAADCAYAAABWKLW/AAAAH0lEQVR4nGNgYGBgYOPl+s8AYzx78/L/rMULIAIwBgDBogurg57sQQAAAABJRU5ErkJggg==);
   --arte-veio: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAICAYAAACYhf2vAAAAQElEQVR4nGPI9tL+P5CYAZkTZK6AgskxEN0MQuYwkGMJzUKAVJ+RE0roehkoDXJKo3BwRgG1gpuYkGHAZRm9MAAWGNCrvIlydAAAAABJRU5ErkJggg==);
-  --arte-ajuda: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAHCAYAAADEUlfTAAAAKUlEQVR4nGNgYGBgYOPl+o+OGWASmw9tAmN0NookMsaQxKuTNEl8rgUA18xcv/xN8M0AAAAASUVORK5CYII=);
-  --arte-ajuda-ativa: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAHCAYAAADEUlfTAAAAKUlEQVR4nGNgYGBgYOPl+o+OGWASnw4ZgDE6G0USGWNI4tVJmiQ+1wIAr1JXQGVIY0EAAAAASUVORK5CYII=);
+  --arte-ajuda: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAHCAYAAADEUlfTAAAAKklEQVR4nGNggILNhzb9h2EGZAATZOPlQlWArAMdo0gi6yQsiddOfK4FAB8RbFfLLiXmAAAAAElFTkSuQmCC);
+  --arte-ajuda-ativa: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAHCAYAAADEUlfTAAAAKklEQVR4nGNggIJPhwz+wzADMoAJsvFyoSpA1oGOUSSRdRKWxGsnPtcCAL8tY7Tlxc/CAAAAAElFTkSuQmCC);
 }
 /* Layout: uma coluna central (até 520px) de painéis no estilo "programa de corrida";
    a pista quebra a coluna (sangra até a borda no celular, cresce até 1120px no desktop).
@@ -194,8 +194,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   gap: 12px;
   min-width: 0;
 }
-/* painel em destaque (§4.2): a montaria ativa e a opção escolhida; friso --ouro-escuro e bisel claro em --ouro */
-.montaria--ativa, .opcao[aria-pressed="true"] {
+/* painel em destaque (§4.2): a montaria ativa e a opção escolhida (também desabilitada: o .btn:disabled não a troca);
+   friso --ouro-escuro e bisel claro em --ouro */
+.montaria--ativa, .opcao[aria-pressed="true"], .opcao[aria-pressed="true"]:disabled {
   position: relative;
   box-shadow:
     0 0 0 2px var(--ouro-escuro),
@@ -253,7 +254,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 /* a nota do título ("3/3 vagas") herda a display: 16px, da escala dela (com 17px, "Estábulo 3/3 vagas" quebrava a 360px) */
 .titulo--tela .nota { font-size: 16px; }
 
-/* ---------- botões ---------- */
+/* ---------- botões (§4.4–4.6): contorno --sombra de 2px com os cantos recortados (um deslocamento por lado), bisel em
+   3 tons (claro 2px em cima e à esquerda, médio 2px à direita, escuro 4px embaixo) e sombra de 4px. Apertado: desce 2px
+   e a sombra encolhe para os 2px do contorno (a borda de baixo fica no lugar). Desabilitado: a opacidade de hoje e o
+   bisel escuro também no topo ---------- */
 .btn {
   appearance: none;
   border: 0;
@@ -268,38 +272,63 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   line-height: 1.15;
   cursor: pointer;
   box-shadow:
-    0 calc(-1 * var(--px)) 0 0 var(--sombra),
-    0 var(--px) 0 0 var(--sombra),
-    calc(-1 * var(--px)) 0 0 0 var(--sombra),
-    var(--px) 0 0 0 var(--sombra),
-    inset 0 -4px 0 0 var(--escuro-35),
-    inset 0 2px 0 0 var(--brilho-08);
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    0 4px 0 0 var(--sombra),
+    inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
+    inset 0 2px 0 0 var(--linha-luz), inset 2px 0 0 0 var(--linha-luz);
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   text-align: center;
   touch-action: manipulation;
   -webkit-user-select: none; user-select: none;
 }
 .btn:hover:not(:disabled) { background: var(--painel-3); }
+.btn:disabled {
+  opacity: 0.42; cursor: not-allowed;
+  box-shadow:
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    0 4px 0 0 var(--sombra),
+    inset 0 -4px 0 0 var(--noite-2), inset 0 2px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel), inset 2px 0 0 0 var(--painel);
+}
 .btn:active:not(:disabled), .btn.apertado-demo {   /* .apertado-demo: só a folha da interface */
   transform: translateY(2px);
   box-shadow:
-    0 calc(-1 * var(--px)) 0 0 var(--sombra),
-    0 var(--px) 0 0 var(--sombra),
-    calc(-1 * var(--px)) 0 0 0 var(--sombra),
-    var(--px) 0 0 0 var(--sombra),
-    inset 0 -2px 0 0 var(--escuro-35);
-}
-.btn:disabled { opacity: 0.42; cursor: not-allowed; }
-.btn:focus-visible, .btn.foco-demo { outline-offset: 5px; }
-.btn--ouro { background: var(--ouro); color: var(--tinta); box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
-    inset 0 -4px 0 0 var(--ouro-escuro), inset 0 2px 0 0 var(--ouro-claro); }
+    inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
+    inset 0 2px 0 0 var(--linha-luz), inset 2px 0 0 0 var(--linha-luz);
+}
+.btn:focus-visible, .btn.foco-demo { outline-offset: 5px; }
+/* botão ouro (§4.5): o mesmo desenho em --ouro-claro, --ouro, --ouro-medio e --ouro-escuro (também a velocidade escolhida
+   da corrida, que é ouro) */
+.btn--ouro, .controles .vel .btn[aria-pressed="true"] {
+  background: var(--ouro); color: var(--tinta);
+  box-shadow:
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    0 4px 0 0 var(--sombra),
+    inset 0 -4px 0 0 var(--ouro-escuro), inset -2px 0 0 0 var(--ouro-medio),
+    inset 0 2px 0 0 var(--ouro-claro), inset 2px 0 0 0 var(--ouro-claro);
+}
 .btn--ouro:hover:not(:disabled) { background: var(--ouro-claro); }
+.btn--ouro:disabled {
+  box-shadow:
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    0 4px 0 0 var(--sombra),
+    inset 0 -4px 0 0 var(--ouro-escuro), inset 0 2px 0 0 var(--ouro-escuro), inset -2px 0 0 0 var(--ouro-medio), inset 2px 0 0 0 var(--ouro-medio);
+}
+.btn--ouro:active:not(:disabled), .btn--ouro.apertado-demo {
+  box-shadow:
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    inset 0 -4px 0 0 var(--ouro-escuro), inset -2px 0 0 0 var(--ouro-medio),
+    inset 0 2px 0 0 var(--ouro-claro), inset 2px 0 0 0 var(--ouro-claro);
+}
 .btn--grande { min-height: 56px; font-size: var(--t-l); width: calc(100% - 2 * var(--px)); }
 .btn--pequeno { min-height: 48px; padding: 6px 12px; font-size: var(--t-s); }
-.btn--texto { background: transparent; box-shadow: none; color: var(--texto-2); text-decoration: underline; text-underline-offset: 3px; min-height: 48px; }
+/* de texto (§4.6): sem moldura em nenhum estado */
+.btn--texto { background: transparent; color: var(--texto-2); text-decoration: underline; text-underline-offset: 3px; min-height: 48px; }
+.btn--texto, .btn--texto:disabled, .btn--texto:active:not(:disabled), .btn--texto.apertado-demo { box-shadow: none; }
 .btn--texto:hover:not(:disabled) { background: transparent; color: var(--texto); }
+/* de perigo (§4.6): o botão com o texto em --perda; no hover o fundo escurece (--perda sobre --painel-3 fica abaixo de 4,5:1) */
 .btn--perigo { color: var(--perda); }
+.btn--perigo:hover:not(:disabled) { background: var(--painel); }
 .acoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .barra-acao {
   position: sticky; bottom: 0; z-index: 5;
@@ -317,7 +346,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 }
 .slot--cheio { border-color: var(--ouro-escuro); color: var(--ouro-claro); }
 .slot--vazio { color: var(--texto-3); opacity: 0.5; }
-.set-badge { padding: 2px 8px; border: 2px solid var(--ouro); color: var(--ouro); font-weight: 700; white-space: nowrap; }
+.set-badge { padding: 4px 10px; background: var(--painel-2); color: var(--ouro); font-weight: 700; white-space: nowrap; }   /* moldura: selos (§4.10) */
 
 /* tela de Equipamento: saldo de pedras, linhas de slot e lista de peças */
 .topo-saldos { display: flex; align-items: center; gap: 8px; flex: none; }
@@ -356,6 +385,30 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   min-width: 0; font-weight: 500;
 }
 .opcao[aria-pressed="true"] { background: var(--painel-3); }   /* moldura: painel em destaque (acima) */
+/* a opção (§4.7) herda o botão; a escolhida, apertada, continua com o destaque: só desce 2px e a sombra encolhe junto */
+.opcao[aria-pressed="true"]:active:not(:disabled), .opcao[aria-pressed="true"].apertado-demo {
+  box-shadow:
+    0 0 0 2px var(--ouro-escuro),
+    0 0 0 4px var(--sombra),
+    0 6px 0 0 var(--sombra),
+    inset 0 2px 0 0 var(--ouro),
+    inset 2px 0 0 0 var(--ouro-medio),
+    inset 0 -2px 0 0 var(--noite-2),
+    inset -2px 0 0 0 var(--noite-2);
+}
+/* aba atual das sub-abas (§4.8, Montaria, Haras e Loja): o destaque "encaixa" no conteúdo, sem a sombra de baixo; o bisel
+   --ouro de 2px no topo é a marca de ouro. Apertada, só desce */
+:is(.abas, .subabas) .opcao[aria-pressed="true"],
+:is(.abas, .subabas) .opcao[aria-pressed="true"]:active:not(:disabled),
+:is(.abas, .subabas) .opcao[aria-pressed="true"].apertado-demo {
+  box-shadow:
+    0 0 0 2px var(--ouro-escuro),
+    0 0 0 4px var(--sombra),
+    inset 0 2px 0 0 var(--ouro),
+    inset 2px 0 0 0 var(--ouro-medio),
+    inset 0 -2px 0 0 var(--noite-2),
+    inset -2px 0 0 0 var(--noite-2);
+}
 .opcao .opcao-nome { font-weight: 700; display: flex; align-items: center; gap: 6px; }
 .opcao .opcao-desc { font-size: var(--t-xs); color: var(--texto-2); font-weight: 400; line-height: 1.3; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
 .opcao--centro { align-items: center; text-align: center; justify-content: center; }
@@ -382,11 +435,15 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: nowrap; min-width: 0; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+/* chip (§4.10): contorno --sombra com os cantos recortados por deslocamento (sem clip-path: o ⓘ de dentro tem o alvo de
+   44px, maior que o chip, e o clip-path o cortaria) e bisel de 2px */
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
   background: var(--painel-2); color: var(--texto);
   padding: 4px 9px; font-size: var(--t-s); font-weight: 500; line-height: 1.3;
-  box-shadow: 0 -2px 0 0 var(--linha), 0 2px 0 0 var(--linha), -2px 0 0 0 var(--linha), 2px 0 0 0 var(--linha);
+  box-shadow:
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    inset 0 2px 0 0 var(--linha), inset 0 -2px 0 0 var(--noite-2);
   margin: 2px;
 }
 .chip b { font-weight: 700; }
@@ -402,12 +459,22 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .raridade {
   display: inline-flex; align-items: center; gap: 4px; font-size: 0.875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
   padding: 1px 6px; color: var(--tinta); background: var(--r-comum); line-height: 1.5;
-  box-shadow: inset 0 -2px 0 0 var(--escuro-25);
+  box-shadow: 0 0 0 2px var(--sombra), inset 0 2px 0 0 var(--brilho-33), inset 0 -2px 0 0 var(--escuro-25);
 }
 .raridade--magico { background: var(--r-magico); }
 .raridade--raro { background: var(--r-raro); }
 .raridade--lendario { background: var(--r-lendario); }
 .raridade--mitico { background: var(--r-mitico); color: var(--texto); }
+/* selos (§4.10): contorno --sombra, bisel de 2px e o canto recortado de 1 pixel de arte — o clip-path em degraus de 2px
+   tira o pixel de cada canto do contorno de fora (os pontos passam 2px da caixa). O chip faz o mesmo sem clip-path */
+.raridade, .selo-nivel, .pontos-livres--selo, .badge-ativa, .tag-voce, .set-badge {
+  clip-path: polygon(0 -2px, 100% -2px, 100% 0, calc(100% + 2px) 0, calc(100% + 2px) 100%, 100% 100%,
+    100% calc(100% + 2px), 0 calc(100% + 2px), 0 100%, -2px 100%, -2px 0, 0 0);
+}
+.set-badge {
+  box-shadow: 0 0 0 2px var(--sombra), inset 0 2px 0 0 var(--ouro-claro), inset 2px 0 0 0 var(--ouro),
+    inset -2px 0 0 0 var(--ouro-escuro), inset 0 -2px 0 0 var(--ouro-escuro);
+}
 
 .liga { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
 .liga::before { content: ""; width: 10px; height: 10px; background: currentColor; box-shadow: 0 0 0 2px var(--sombra); }
@@ -425,7 +492,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 
 /* ---------- status ---------- */
 .status { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 10px; align-items: center; margin: 0; }
-.status dt { font-family: var(--fonte-display); font-size: 11px; color: var(--texto-2); display: flex; align-items: center; gap: 6px; min-width: 52px; }
+.status dt { font-family: var(--fonte-ui); font-size: var(--t-s); color: var(--texto-2); display: flex; align-items: center; gap: 6px; min-width: 52px; }
 .status dd { margin: 0; }
 .status .valor { font-family: var(--fonte-display); font-size: 16px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 3ch; }
 .status .delta { font-family: var(--fonte-ui); font-size: var(--t-s); font-weight: 700; margin-left: 4px; }
@@ -435,19 +502,25 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .icone-status--est { fill: var(--perda); }
 .icone-status--forca { fill: var(--grama); }
 .icone-status--garra { fill: var(--agua); }
+/* barras (§4.9): sulco — contorno --sombra, borda interna escura de 2px e fundo --noite-2; o preenchimento fica dentro da
+   borda (a largura de hoje, limitada à do sulco) e ganha 2px de brilho no topo */
 .barra {
-  position: relative; height: 12px; background: var(--sombra);
-  box-shadow: 0 0 0 2px var(--sombra);
+  position: relative; height: 12px; background: var(--noite-2);
+  box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 2px var(--sombra);
 }
-.barra > i { position: absolute; top: 0; bottom: 0; left: 0; display: block; background: var(--ouro); }
+.barra > i {
+  position: absolute; top: 2px; bottom: 2px; left: 2px; max-width: calc(100% - 4px); display: block;
+  background: var(--ouro); box-shadow: inset 0 2px 0 0 var(--ouro-claro);
+}
 /* barra em segmentos inteiros (30 x 5 pontos, até o teto de 150) */
-.barra--seg { display: flex; gap: 2px; background: var(--sombra); height: 12px; }
-.barra--seg > i { position: static; flex: 1 1 0; background: var(--painel-3); }
-.barra--seg > i.on { background: var(--ouro); box-shadow: inset 0 -2px 0 0 var(--ouro-escuro); }
-.barra--seg > i.extra { background: var(--ganho); box-shadow: inset 0 -2px 0 0 #3f9a3e; }
+.barra--seg { display: flex; gap: 2px; padding: 2px; height: 12px; }
+.barra--seg > i { position: static; flex: 1 1 0; max-width: none; background: var(--painel-3); box-shadow: none; }
+.barra--seg > i.on { background: var(--ouro); box-shadow: inset 0 2px 0 0 var(--ouro-claro), inset 0 -2px 0 0 var(--ouro-escuro); }
+.barra--seg > i.extra { background: var(--ganho); box-shadow: inset 0 2px 0 0 var(--brilho-33), inset 0 -2px 0 0 var(--escuro-35); }
 .barra--seg > i.menos { background: transparent; box-shadow: inset 0 0 0 2px var(--perda); }
+/* marcas a cada 5% na mesma conta do preenchimento (a partir de 2px, 5% da largura inteira): caem no fim de cada degrau */
 .barra--xp::after {
-  content: ""; position: absolute; inset: 0;
+  content: ""; position: absolute; top: 2px; bottom: 2px; left: 2px; width: 100%;
   background-image: linear-gradient(90deg, transparent calc(100% - 2px), var(--sombra) 0);
   background-size: 5% 100%;
 }
@@ -456,7 +529,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 
 .xp { display: flex; flex-direction: column; gap: 4px; }
 .xp .barra { height: 10px; }
-.xp .barra > i { background: var(--agua); }
+.xp .barra > i { background: var(--agua); box-shadow: inset 0 2px 0 0 var(--brilho-33); }
 .xp-linha { display: flex; justify-content: space-between; font-size: var(--t-xs); color: var(--texto-2); font-variant-numeric: tabular-nums; }
 
 /* ---------- retrato do cavalo ---------- */
@@ -472,20 +545,22 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .retrato-moldura { position: relative; display: inline-block; flex: none; line-height: 0; }
 .retrato-moldura .retrato { display: block; }
 .selo-nivel, .pontos-livres--selo {
-  position: absolute; font-family: var(--fonte-display); font-size: 11px; line-height: 1; padding: 4px 5px; white-space: nowrap;
-  box-shadow: 0 0 0 2px var(--sombra);
+  position: absolute; font-family: var(--fonte-ui); font-size: var(--t-s); line-height: 1; padding: 4px 6px 3px; white-space: nowrap;
 }
-.selo-nivel { left: 0; bottom: 0; color: var(--texto); background: var(--sombra); }
-.pontos-livres--selo { right: 0; top: 0; color: var(--tinta); background: var(--ganho); }
+.selo-nivel { left: 0; bottom: 0; color: var(--texto); background: var(--sombra); box-shadow: 0 0 0 2px var(--sombra), inset 0 2px 0 0 var(--linha); }
+.pontos-livres--selo {
+  right: 0; top: 0; color: var(--tinta); background: var(--ganho);
+  box-shadow: 0 0 0 2px var(--sombra), inset 0 2px 0 0 var(--brilho-33), inset 0 -2px 0 0 var(--escuro-25);
+}
 .cavalo-cabeca { display: flex; gap: 14px; align-items: flex-start; }
 .cavalo-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
 .cavalo-nome { font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; color: var(--texto); text-shadow: 2px 2px 0 var(--sombra); }
 .cavalo-titulo { color: var(--texto-2); font-size: var(--t-s); margin: 0; }
 .linha-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: var(--t-s); }
-.nivel { font-family: var(--fonte-display); font-size: 12px; line-height: 1.2; color: var(--texto); white-space: nowrap; }
+.nivel { font-size: inherit; line-height: 1.2; color: var(--texto); white-space: nowrap; }   /* "Nv 3": na Jersey do texto em volta, como o selo de nível */
 
 .build-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 10px; }
-.build-topo .pontos-livres { margin: 0; font-family: var(--fonte-display); font-size: 12px; line-height: 1.6; color: var(--texto); }
+.build-topo .pontos-livres { margin: 0; font-size: var(--t-m); line-height: 1.25; color: var(--texto); }
 .build-topo .pontos-livres b { color: var(--ganho); }
 .build { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 /* linha de um status (bloco 1b §11): nome, nota, barra até 150 e valor; embaixo, o custo do próximo ponto e +1, +5, +10 */
@@ -495,7 +570,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 }
 .build-linha:last-child { padding-bottom: 0; border-bottom: 0; }
 .build-custo { grid-area: custo; font-size: var(--t-xs); color: var(--texto-3); }
-.build-nome { grid-area: nome; font-family: var(--fonte-display); font-size: 11px; color: var(--texto-2); display: flex; align-items: center; gap: 6px; }
+.build-nome { grid-area: nome; font-family: var(--fonte-ui); font-size: var(--t-s); color: var(--texto-2); display: flex; align-items: center; gap: 6px; }
 .build-barra { grid-area: barra; }
 .build-linha .valor { grid-area: valor; font-family: var(--fonte-display); font-size: 16px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 3ch; }
 .build-linha .valor--rascunho { color: var(--ganho); }
@@ -503,9 +578,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 /* 3 botões de 44 px (+ a margem de 2 px do .btn) com 2 px entre eles: 148 px, a 4ª coluna da linha no computador
    (fixa, para as barras ficarem alinhadas também na linha da Sorte, que não tem botões) */
 .build-acao { grid-area: acao; display: flex; justify-content: flex-end; gap: 2px; }
-.build-mais { width: 44px; min-width: 44px; min-height: 44px; padding: 0; font-family: var(--fonte-display); font-size: 12px; }
+.build-mais { width: 44px; min-width: 44px; min-height: 44px; padding: 0; }   /* texto do .btn--pequeno ("+10" na display passaria dos 44px) */
 .nota-genetica {
-  grid-area: nota; font-family: var(--fonte-display); font-size: 11px; line-height: 1; padding: 4px 5px; text-align: center; min-width: 2ch;
+  grid-area: nota; font-family: var(--fonte-display); font-size: 16px; line-height: 1; padding: 4px; text-align: center; min-width: 2ch;
   color: var(--tinta); background: var(--r-comum);
 }
 .nota-genetica--b { background: var(--r-magico); }
@@ -549,7 +624,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .inicial > .btn--grande { margin-top: auto; }
 @media (min-width: 960px) { .inicial .cavalo-titulo { min-height: 4.2em; } .iniciais-nav { display: none; } }
 .inicial .retrato-palco { position: relative; display: flex; justify-content: center; background: var(--painel-2); padding: 8px 0 10px; margin: -14px -14px 0; box-shadow: inset 0 -2px 0 0 var(--linha); }
-.inicial .contador { position: absolute; right: 12px; top: 12px; font-family: var(--fonte-display); font-size: 11px; color: var(--texto-2); background: var(--sombra); padding: 4px 6px; }   /* 12px: fora do rebite do canto do painel */
+.inicial .contador { position: absolute; right: 12px; top: 12px; font-family: var(--fonte-ui); font-size: var(--t-s); line-height: 1; color: var(--texto-2); background: var(--sombra); padding: 4px 6px; }   /* 12px: fora do rebite do canto do painel */
 .inicial .cavalo-nome { font-size: 24px; }
 .inicial-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .iniciais-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -573,16 +648,20 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .montaria .retrato, .montaria .retrato-moldura { align-self: center; }
 .montaria--ativa { padding: 10px; }   /* o destaque tem rebites nos cantos: 2px a mais de respiro */
 .montaria .cavalo-nome { overflow-wrap: anywhere; }
-.montaria .cavalo-nome small { color: var(--texto-2); font-size: var(--t-xs); text-shadow: none; }
+.montaria .cavalo-nome small { color: var(--texto-2); font-size: 1em; text-shadow: none; }   /* "#1": a display do nome, em 16px */
 .estrelas { color: var(--ouro); letter-spacing: 1px; display: inline-flex; align-items: center; gap: 1px; vertical-align: middle; }
 .corcel { color: var(--ouro); font-size: var(--t-xs); }
-.badge-ativa { font-family: var(--fonte-display); font-size: 11px; line-height: 1; color: var(--tinta); background: var(--ouro); padding: 3px 4px; }
+/* "Ativa"/"Equipada" e "VOCÊ" (largada e resultado): o mesmo selo de ouro, na Jersey no tamanho do texto em volta */
+.badge-ativa, .tag-voce {
+  font-family: var(--fonte-ui); font-size: var(--t-s); line-height: 1; color: var(--tinta); background: var(--ouro); padding: 4px 6px 3px;
+  box-shadow: 0 0 0 2px var(--sombra), inset 0 2px 0 0 var(--ouro-claro), inset 0 -2px 0 0 var(--ouro-escuro);
+}
 .montaria-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
 .montaria-acoes .btn { flex: 1 1 auto; }
 /* tela da Montaria: cabeça (retrato, nome, ações) e sub-abas Status / Skills / Equipamento */
 .tela > [data-acao="montaria-voltar"], .tela > [data-acao="perfil-voltar"] { align-self: flex-start; }
 .montaria-cabeca .cavalo-info .titulo { overflow-wrap: anywhere; }
-.montaria-cabeca .titulo small { font-size: var(--t-xs); text-shadow: none; }
+.montaria-cabeca .titulo small { font-size: 1em; text-shadow: none; }
 .subabas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .subabas .opcao { min-height: 48px; min-width: 0; padding-left: 4px; padding-right: 4px; overflow-wrap: anywhere; }
 /* avisos (§4.14): a faixa de 4px à esquerda (ouro ou perda), contorno --sombra e bisel de 2px */
@@ -655,16 +734,16 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 }
 /* dígito escuro sobre sedas claras (contraste) */
 .raia.seda-2, .raia.seda-4, .raia.seda-5, .raia.seda-6, .raia.seda-7, .raia.seda-voce { color: var(--tinta); text-shadow: none; }
-.raia--mini { width: 20px; height: 20px; font-size: 11px; text-shadow: none; box-shadow: 0 0 0 2px var(--sombra); }
+.raia--mini { width: 20px; height: 20px; font-family: var(--fonte-ui); font-size: var(--t-s); line-height: 1; text-shadow: none; box-shadow: 0 0 0 2px var(--sombra); }
 .raia--mini:not(.seda-2):not(.seda-4):not(.seda-5):not(.seda-6):not(.seda-7):not(.seda-voce) { text-shadow: 1px 1px 0 var(--sombra); }
 .corredor { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .corredor b { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .corredor b .nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .corredor small { color: var(--texto-2); font-size: var(--t-xs); display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; }
 .poder { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.poder b { font-family: var(--fonte-display); font-size: 12px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.poder b { font-family: var(--fonte-display); font-size: 16px; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .poder small { font-size: var(--t-xs); color: var(--texto-2); }
-.tag-voce { font-family: var(--fonte-display); font-size: 11px; line-height: 1; color: var(--tinta); background: var(--ouro); padding: 3px 4px; flex: none; }
+.tag-voce { flex: none; padding-top: 6px; }   /* selo: com o .badge-ativa; 2px a mais em cima para o acento do "Ê" */
 
 .pote { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; font-variant-numeric: tabular-nums; }
 .pote dt { color: var(--texto-2); }
@@ -702,7 +781,6 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .controles { display: flex; gap: 10px; flex-wrap: nowrap; align-items: center; }
 .controles .vel { display: flex; gap: 8px; }
 .controles .vel .btn { min-width: 58px; font-family: var(--fonte-display); font-size: 16px; }
-.controles .vel .btn[aria-pressed="true"] { background: var(--ouro); color: var(--tinta); }
 .controles .pular { margin-left: auto; }
 @media (min-width: 860px) {
   .corrida-baixo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; }
@@ -734,7 +812,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .balanco .final dt, .balanco .final dd { color: var(--texto); padding-top: 6px; border-top: 2px solid var(--linha); }
 .balanco .final dt { margin-right: -12px; padding-right: 12px; }
 .levelup { background: var(--painel-2); padding: 10px 12px; box-shadow: inset 0 0 0 2px var(--ouro); display: flex; flex-direction: column; gap: 6px; }
-.levelup b { font-family: var(--fonte-display); font-size: 11px; line-height: 1.6; color: var(--ouro); }
+.levelup b { font-size: var(--t-m); line-height: 1.25; color: var(--ouro); }
 .ganhos { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--t-s); }
 .ganhos span { font-variant-numeric: tabular-nums; }
 .rolagem { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
@@ -774,7 +852,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 /* movimento reduzido: a classe vem do game.js (opção "Animações" do Perfil; "Seguir o sistema" usa
    prefers-reduced-motion), então "Completas" vale mesmo com o aparelho pedindo menos movimento */
 html.mov-reduzido *, html.mov-reduzido *::before, html.mov-reduzido *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
-html.mov-reduzido .btn:active:not(:disabled) { transform: none; }
+/* o botão apertado continua descendo 2px com movimento reduzido: é retorno do toque, não animação (acabamento §7) */
 
 /* ---------- casca: cabeçalho fixo e barra de abas (abas e sub-telas) ---------- */
 .app-topo {
@@ -786,24 +864,39 @@ html.mov-reduzido .btn:active:not(:disabled) { transform: none; }
 }
 .app-topo .logo-mini { flex: 1 1 auto; }
 .app-topo .saldo { padding: 6px 14px; }
-.app-topo .ouro, .app-topo .pedras { font-size: 12px; }
-.app-topo .ouro svg { width: 12px; height: 12px; }
 .app-perfil { flex: none; min-width: 40px; }
 .app-conteudo { display: block; padding-top: calc(56px + var(--sat)); padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+/* barra de abas (§4.8): friso --linha e contorno --sombra do painel por fora (só a borda de dentro da tela aparece), sem
+   rebites; uma coluna por aba (4 ou 5, com a Loja) */
 .app-abas {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
   height: calc(56px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
-  display: grid; grid-template-columns: repeat(5, 1fr);
-  background: var(--painel); border-top: 2px solid var(--linha);
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); column-gap: 2px;
+  background: var(--painel);
+  box-shadow: 0 -2px 0 0 var(--linha), 0 -4px 0 0 var(--sombra);
 }
+/* aba = botão (contorno, bisel em 3 tons e sombra de 4px) nos 56px da barra: 2px em cima para o contorno, 4px embaixo
+   para a sombra; dentro, o ícone de 32px e o rótulo de 12px entre os biséis */
 .app-aba {
-  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  min-width: 0; min-height: 48px; padding: 4px 2px; margin: 0;
-  background: none; border: 0; color: var(--texto-2); cursor: pointer; font-size: 12px; line-height: 1;
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+  min-width: 0; min-height: 44px; padding: 2px 2px 4px; margin: 2px 2px 4px;
+  background: var(--painel-2); border: 0; color: var(--texto-2); cursor: pointer; font-size: 12px; line-height: 1;
+  box-shadow:
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    0 4px 0 0 var(--sombra),
+    inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
+    inset 0 2px 0 0 var(--linha-luz), inset 2px 0 0 0 var(--linha-luz);
 }
 .app-aba-icone { position: relative; font-size: 20px; line-height: 1; }
 .app-aba-rotulo { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.app-aba--ativa { color: var(--ouro); box-shadow: inset 0 3px 0 var(--ouro); }
+/* aba atual: encaixa (sem a sombra de baixo), com a marca de ouro de 2px no topo no lugar do bisel claro */
+.app-aba--ativa {
+  color: var(--ouro); background: var(--painel-3);
+  box-shadow:
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
+    inset 0 2px 0 0 var(--ouro), inset 2px 0 0 0 var(--linha-luz);
+}
 .app-aba--ponto .app-aba-icone::after {
   content: ''; position: absolute; top: -2px; right: -6px; width: 8px; height: 8px; background: var(--ouro);
 }
@@ -813,13 +906,21 @@ html.app-com-abas { scroll-padding: calc(56px + var(--sat)) 0 calc(72px + env(sa
 /* o cartão inteiro da montaria abre a montaria */
 .montaria[data-acao] { cursor: pointer; }
 @media (min-width: 900px) {
+  /* barra lateral: o friso e o contorno à direita; cada aba é um botão de 48px na linha de 56px */
   .app-abas {
     top: 0; bottom: 0; left: 0; right: auto; width: 200px; height: auto;
-    grid-template-columns: 1fr; grid-auto-rows: 56px; align-content: start;
-    border-top: 0; border-right: 2px solid var(--linha); padding-top: var(--sat);
+    grid-auto-flow: row; grid-template-columns: 1fr; grid-auto-rows: 56px; align-content: start;
+    padding-top: var(--sat);
+    box-shadow: 2px 0 0 0 var(--linha), 4px 0 0 0 var(--sombra);
   }
-  .app-aba { flex-direction: row; gap: 10px; justify-content: flex-start; padding-left: 16px; font-size: 14px; }
-  .app-aba--ativa { box-shadow: inset 3px 0 0 var(--ouro); }
+  .app-aba { flex-direction: row; gap: 10px; justify-content: flex-start; padding: 2px 12px 4px 16px; margin: 2px 8px 6px; font-size: 14px; }
+  /* aba atual: a marca de ouro fica à esquerda */
+  .app-aba--ativa {
+    box-shadow:
+      0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+      inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
+      inset 2px 0 0 0 var(--ouro), inset 0 2px 0 0 var(--linha-luz);
+  }
   .app-topo, .app-conteudo { margin-left: 200px; }
   .app-conteudo { padding-bottom: 16px; }
   html.app-com-abas { scroll-padding-bottom: 16px; }
@@ -902,30 +1003,65 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
 .logo-img { display: block; max-width: 100%; height: auto; image-rendering: pixelated; }
 .logo .logo-img { width: 320px; }
 .app-topo .logo-mini { display: flex; align-items: center; }
-.app-topo .logo-img { height: 24px; width: auto; max-width: 100%; image-rendering: auto; }   /* 63 -> 24 px: redução suavizada */
+.app-topo .logo-img { height: 24px; width: auto; max-width: 100%; image-rendering: auto; object-fit: contain; object-position: left center; }   /* 63 -> 24 px: redução suavizada; com saldo grande (5 dígitos ou mais a 360 px) o logotipo encolhe sem deformar */
 
 /* editor do jóquei (Perfil) */
 .joquei-previa { display: flex; justify-content: center; background: var(--painel-2); padding: 8px 0; }
 .capacetes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+/* capacete: o botão com a cor do capacete na face (style); o bisel em véus claro e escuro sobre a própria cor, e o
+   escolhido com o contorno em --ouro (apertado, continua com ele) */
 .capacete-btn { min-width: 40px; min-height: 40px; padding: 0; }
-.capacete-btn[aria-pressed="true"] {
+.capacete-btn, .capacete-btn:disabled {
   box-shadow:
-    0 calc(-1 * var(--px)) 0 0 var(--ouro), 0 var(--px) 0 0 var(--ouro),
-    calc(-1 * var(--px)) 0 0 0 var(--ouro), var(--px) 0 0 0 var(--ouro);
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    0 4px 0 0 var(--sombra),
+    inset 0 -4px 0 0 var(--escuro-35), inset -2px 0 0 0 var(--escuro-25), inset 0 2px 0 0 var(--brilho-33), inset 2px 0 0 0 var(--brilho-33);
+}
+.capacete-btn:active:not(:disabled) {
+  box-shadow:
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    inset 0 -4px 0 0 var(--escuro-35), inset -2px 0 0 0 var(--escuro-25), inset 0 2px 0 0 var(--brilho-33), inset 2px 0 0 0 var(--brilho-33);
+}
+.capacete-btn[aria-pressed="true"], .capacete-btn[aria-pressed="true"]:active:not(:disabled) {
+  box-shadow:
+    0 -2px 0 0 var(--ouro), 0 2px 0 0 var(--ouro), -2px 0 0 0 var(--ouro), 2px 0 0 0 var(--ouro),
+    inset 0 -4px 0 0 var(--escuro-35), inset -2px 0 0 0 var(--escuro-25), inset 0 2px 0 0 var(--brilho-33), inset 2px 0 0 0 var(--brilho-33);
   /* sem outline próprio: o anel de foco (:focus-visible, --foco) continua valendo no botão selecionado */
 }
 @media (min-width: 640px) { .capacetes { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
 
-/* "ⓘ" (bloco 1b §11): glifo pequeno com área de toque de 44 px; as margens negativas devolvem o espaço, e a linha não cresce */
+/* "ⓘ" (bloco 1b §11, acabamento §4.13): a peça de pixel de 7x7 (14x14px) no ::before, sem texto no botão, dentro da área
+   de toque de 44 px; as margens negativas devolvem o espaço, e a linha não cresce. Aberto ou com o mouse: a peça em ouro */
 .ajuda {
   appearance: none; flex: 0 0 auto; box-sizing: border-box; width: 44px; height: 44px; min-width: 44px; min-height: 44px;
   margin: -14px -12px; padding: 0; border: 0; background: transparent; color: var(--texto-2);
-  font: inherit; font-size: var(--t-m); line-height: 1; cursor: help; display: inline-flex; align-items: center; justify-content: center;
+  font: 400 var(--t-m)/1 var(--fonte-ui); cursor: help; display: inline-flex; align-items: center; justify-content: center;
+  vertical-align: middle;
 }
-.ajuda:hover, .ajuda[aria-expanded="true"] { color: var(--ouro); }
+.ajuda::before {
+  content: ""; flex: none; width: 14px; height: 14px; image-rendering: pixelated;
+  background: var(--arte-ajuda) 0 0 / 14px 14px no-repeat;
+}
+.ajuda:hover::before, .ajuda[aria-expanded="true"]::before { background-image: var(--arte-ajuda-ativa); }
 .ajuda:focus-visible, .ajuda.foco-demo { outline: 3px solid var(--ouro); outline-offset: -6px; }
 .ajuda-txt { grid-column: 1 / -1; flex: 1 1 100%; margin: 4px 0 0; padding: 6px 8px; background: var(--painel-3); box-shadow: inset 3px 0 0 0 var(--ouro);
   font-family: var(--fonte-ui); font-size: var(--t-s); font-weight: 400; line-height: 1.4; color: var(--texto); letter-spacing: 0; text-transform: none; white-space: normal; }
+
+/* ---------- modo de cores forçadas (alto contraste do sistema, acabamento §3): as sombras somem, então botões, opções,
+   painéis e abas ganham borda de 2px em cor do sistema (a escolhida e a aba atual em Highlight) e as peças de pixel
+   ficam escondidas. O ⓘ vira um "i" num quadro, para o botão não sumir ---------- */
+@media (forced-colors: active) {
+  .btn, .opcao, .caixa, .app-aba, .montaria--ativa { border: 2px solid ButtonText; }
+  .app-aba { padding-block: 0; }   /* sem bisel: a borda ocupa o lugar dele, e o ícone e o rótulo continuam cabendo */
+  .opcao[aria-pressed="true"], .app-aba--ativa, .montaria--ativa { border-color: Highlight; }
+  .caixa::before, .montaria--ativa::before, .opcao[aria-pressed="true"]::before, .saldo::before,
+  .placa::before, .titulo--tela::before { display: none; }
+  .placa, .titulo--tela { background-image: none; }
+  .ajuda::before, .ajuda:hover::before, .ajuda[aria-expanded="true"]::before {
+    background-image: none; content: "i"; box-sizing: border-box; border: 2px solid ButtonText;
+    font: 400 8px/10px var(--fonte-display); text-align: center;
+  }
+}
 </style>
 <div class="app" id="app">
   <main id="tela">
@@ -8526,10 +8662,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // No computador o texto aparece com o mouse (title); no toque, abrir/fechar mostra a frase embaixo do rótulo
   // (aria-expanded no botão, texto com role="note"). Os textos são os de GameData.HELP, os mesmos do wiki.
   // nome: o que o botão explica, para o nome acessível ("O que é Velocidade?").
+  // O botão não tem texto: o "ⓘ" é a peça de pixel do ::before (acabamento 3a §4.13; o caractere não existe nas fontes).
   function ajudaBtn(chave, nome) {
     if (!hasOwn(GD.HELP, chave)) return '';
     return '<button type="button" class="ajuda" data-ajuda="' + esc(chave) + '" aria-expanded="false" aria-label="' +
-      esc('O que é ' + nome + '?') + '" title="' + esc(GD.HELP[chave]) + '">ⓘ</button>';
+      esc('O que é ' + nome + '?') + '" title="' + esc(GD.HELP[chave]) + '"></button>';
   }
   // onde o texto aberto entra: 'dt' depois da linha de status (a grade do <dl>), 'in' no fim do bloco, 'after' logo depois dele
   var AJUDA_ONDE = [['li', 'in'], ['.vaga-tipo', 'in'], ['.redistribuir', 'in'], ['.tela-cabeca', 'in'],

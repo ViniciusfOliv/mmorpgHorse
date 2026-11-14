@@ -7,7 +7,9 @@ import { join } from 'node:path';
 import { encodePng } from './png.mjs';
 
 // legenda: caractere -> token (ex.: '--sombra'); '.' é sempre transparente e não entra na legenda.
-const AJUDA = ['.kkkkk.', 'kTTkTTk', 'kTTTTTk', 'kTTkTTk', 'kTTkTTk', 'kTTkTTk', '.kkkkk.'];
+// ⓘ: disco claro com o "i" vazado em --sombra (o ponto em cima, a haste de 3 pixels embaixo). Com o contorno escuro em
+// volta de um quadrado claro, o "i" dividia o claro em duas colunas e a peça lia como um "H".
+const AJUDA = ['..TTT..', '.TTkTT.', 'TTTTTTT', 'TTTkTTT', 'TTTkTTT', '.TTkTT.', '..TTT..'];
 export const PECAS = [
   { nome: 'rebite', mapa: ['.k.', 'kYg', '.g.'], legenda: { k: '--sombra', Y: '--ouro-claro', g: '--ouro-escuro' } },
   { nome: 'prego', mapa: ['.k.', 'kSs', '.s.'], legenda: { k: '--sombra', S: '--prego-luz', s: '--prego' } },

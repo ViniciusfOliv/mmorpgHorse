@@ -3309,6 +3309,130 @@ try {
       const fora = await pg.evaluate(() => [...document.querySelectorAll('h1.titulo--tela')].filter((e) => e.offsetWidth && e.scrollWidth > e.clientWidth + 1).map((e) => e.id))
       if (fora.length) problems.push(`acabamento (${tag}): o texto sai da placa do título (${fora.join(', ')})`)
     }
+    // ---- Tarefa 4: botões, abas, barras, selos, ⓘ e fonte display ----
+    // fonte display (spec §3): nenhum elemento visível com a Press Start 2P fora de 8, 16 ou 24 px
+    const displayNaEscala = async (pg, tag) => {
+      const ruins = await pg.evaluate(() => {
+        const nome = (e) => e.tagName.toLowerCase() + (typeof e.className === 'string' && e.className.trim() ? '.' + e.className.trim().split(/\s+/).join('.') : '')
+        const out = new Set()
+        for (const e of document.querySelectorAll('body *')) {
+          if (!(e.offsetWidth || e.offsetHeight)) continue
+          const cs = getComputedStyle(e)
+          if (!/^\s*["']?Press Start 2P/.test(cs.fontFamily)) continue
+          if (!['8px', '16px', '24px'].includes(cs.fontSize)) out.add((e.parentElement ? nome(e.parentElement) + ' > ' : '') + nome(e) + ' ' + cs.fontSize)
+        }
+        return [...out].slice(0, 10)
+      })
+      if (ruins.length) problems.push(`acabamento (${tag}): Press Start 2P fora de 8/16/24 px em ${ruins.join(', ')}`)
+    }
+    // ⓘ desenhado (spec §4.13): sem o caractere no texto; o ::before de 14x14 px com --arte-ajuda (aberto: --arte-ajuda-ativa).
+    // O mouse sai de cima antes (com o mouse em cima, a peça é a ativa).
+    const ajudaDesenhada = async (pg, tag, abertos = 0) => {
+      await pg.mouse.move(0, 0)
+      const r = await pg.evaluate(() => {
+        const b64 = (s) => (String(s).match(/base64,([A-Za-z0-9+/=]+)/) || [])[1] || ''
+        const raiz = getComputedStyle(document.documentElement)
+        const arte = b64(raiz.getPropertyValue('--arte-ajuda')), ativa = b64(raiz.getPropertyValue('--arte-ajuda-ativa'))
+        const els = [...document.querySelectorAll('.ajuda')].filter((e) => e.offsetWidth || e.offsetHeight)
+        const ruins = []
+        let nAbertos = 0
+        for (const e of els) {
+          const id = e.getAttribute('data-ajuda') || e.getAttribute('aria-label')
+          const aberto = e.getAttribute('aria-expanded') === 'true'
+          if (aberto) nAbertos++
+          const b = getComputedStyle(e, '::before')
+          if (e.textContent.includes('ⓘ')) ruins.push(`${id}: "ⓘ" no texto`)
+          if (b.content === 'none' || b64(b.backgroundImage) !== (aberto ? ativa : arte)) ruins.push(`${id}${aberto ? ' (aberto)' : ''}: ::before sem --arte-ajuda${aberto ? '-ativa' : ''}`)
+          if (b.imageRendering !== 'pixelated' || b.width !== '14px' || b.height !== '14px') ruins.push(`${id}: peça ${b.width}x${b.height} ${b.imageRendering}`)
+        }
+        return { n: els.length, nAbertos, pecas: !!arte && !!ativa && arte !== ativa, ruins: ruins.slice(0, 4) }
+      })
+      if (!r.pecas) problems.push(`acabamento (${tag}): --arte-ajuda e --arte-ajuda-ativa ausentes ou iguais no :root`)
+      if (!r.n) problems.push(`acabamento (${tag}): nenhum ⓘ visível`)
+      if (r.nAbertos < abertos) problems.push(`acabamento (${tag}): nenhum ⓘ aberto para conferir a peça ativa`)
+      if (r.ruins.length) problems.push(`acabamento (${tag}): ⓘ ${r.ruins.join('; ')}`)
+    }
+    // abre o primeiro ⓘ visível do escopo, confere a peça ativa (sem o mouse em cima) e fecha
+    const ajudaAberta = async (pg, tag, escopo) => {
+      const b = pg.locator(`${escopo} .ajuda`).first()
+      await b.click()
+      await ajudaDesenhada(pg, tag + ' aberto', 1)
+      await b.click()
+    }
+    // contraste (spec §3): texto sobre o fundo calculado de botões, chips e selos; fundo transparente fica de fora.
+    // Devolve as classes conferidas (para exigir as variantes onde todas aparecem).
+    const SEL_CONTRASTE = '.btn, .raridade, .chip, .selo-nivel, .pontos-livres--selo, .badge-ativa, .set-badge, .tag-voce'
+    const contrasteOk = async (pg, tag) => {
+      const r = await pg.evaluate((sel) => {
+        const rgb = (s) => { const m = String(s).match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(/[\s,/]+/).filter(Boolean).map(parseFloat); return { c: p.slice(0, 3), a: p.length > 3 ? p[3] : 1 } }
+        const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]) }
+        const nome = (e) => e.tagName.toLowerCase() + '.' + [...e.classList].join('.')
+        const ruins = new Set(), vistos = {}
+        for (const e of document.querySelectorAll(sel)) {
+          if (!(e.offsetWidth || e.offsetHeight) || !e.textContent.trim()) continue
+          const cs = getComputedStyle(e), fg = rgb(cs.color), bg = rgb(cs.backgroundColor)
+          if (!bg || bg.a === 0) continue
+          if (bg.a < 1 || !fg || fg.a < 1) { ruins.add(`${nome(e)} com cor semitransparente (${cs.color} sobre ${cs.backgroundColor})`); continue }
+          const l1 = lum(fg.c), l2 = lum(bg.c), razao = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)
+          const px = parseFloat(cs.fontSize), grande = px >= 24 || (px >= 18.66 && Number(cs.fontWeight) >= 700)
+          for (const c of e.classList) vistos[c] = (vistos[c] || 0) + 1
+          if (razao < (grande ? 3 : 4.5)) ruins.add(`${nome(e)} "${e.textContent.trim().slice(0, 16)}" ${razao.toFixed(2)}:1`)
+        }
+        return { ruins: [...ruins].slice(0, 6), vistos }
+      }, SEL_CONTRASTE)
+      if (r.ruins.length) problems.push(`acabamento (${tag}): contraste abaixo do mínimo em ${r.ruins.join(', ')}`)
+      return r.vistos
+    }
+    // sombras de um elemento (box-shadow calculado), com a cor em rgb() e os deslocamentos em px
+    const sombrasDe = (pg, sel, ps = null) => pg.evaluate(([s, p]) => [...document.querySelectorAll(s)].filter((e) => e.offsetWidth || e.offsetHeight).map((e) => {
+      const bs = getComputedStyle(e, p).boxShadow
+      return bs === 'none' ? [] : bs.split(/,(?![^(]*\))/).map((x) => {
+        const cor = (x.match(/rgba?\([^)]*\)/) || [''])[0]
+        const n = x.replace(cor, '').trim().split(/\s+/)
+        const v = n.filter((k) => k !== 'inset').map(parseFloat)
+        return { cor, x: v[0] || 0, y: v[1] || 0, spread: v[3] || 0, inset: n.includes('inset') }
+      })
+    }), [sel, ps])
+    const corDe = (pg, token) => pg.evaluate((t) => { const d = document.createElement('i'); d.style.color = `var(${t})`; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c }, token)
+    // aba atual (spec §4.8): marca de ouro de 2 px por dentro (no topo; na barra lateral do desktop, à esquerda) e sem a
+    // sombra de baixo; as outras abas são botões, com a sombra de 4 px
+    const abaAtual = async (pg, tag, sel, lado) => {
+      const ouro = await corDe(pg, '--ouro')
+      const todas = await sombrasDe(pg, sel)
+      if (!todas.length) { problems.push(`acabamento (${tag}): nenhuma ${sel} visível`); return }
+      for (const s of todas) {
+        const marca = s.some((x) => x.inset && x.cor === ouro && (lado === 'esquerda' ? x.x === 2 && x.y === 0 : x.x === 0 && x.y === 2) && !x.spread)
+        if (!marca) problems.push(`acabamento (${tag}): ${sel} sem a marca de ouro de 2 px ${lado === 'esquerda' ? 'à esquerda' : 'no topo'}`)
+        if (s.some((x) => !x.inset && x.y > 2)) problems.push(`acabamento (${tag}): ${sel} com a sombra de baixo (a aba atual encaixa)`)
+      }
+    }
+    // apertar (mouse para baixo) mantém a moldura pedida e desce 2 px
+    const apertaEConfere = async (pg, tag, sel, tokens) => {
+      const el = pg.locator(sel).first()
+      await el.scrollIntoViewIfNeeded()
+      const box = await el.boundingBox()
+      await pg.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await pg.mouse.down()
+      const r = await el.evaluate((e, toks) => {
+        const cor = (t) => { const d = document.createElement('i'); d.style.color = `var(${t})`; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c }
+        const cs = getComputedStyle(e)
+        return { t: cs.transform, faltam: toks.filter((t) => !cs.boxShadow.includes(cor(t))) }
+      }, tokens)
+      await pg.mouse.up()
+      if (r.t !== 'matrix(1, 0, 0, 1, 0, 2)') problems.push(`acabamento (${tag}): ${sel} apertado não desce 2 px (transform ${r.t})`)
+      if (r.faltam.length) problems.push(`acabamento (${tag}): ${sel} apertado perde ${r.faltam.join(', ')} da moldura`)
+    }
+    // selos e chips (spec §4.10): contorno --sombra e, nos selos, o canto recortado por clip-path em degraus
+    const selosRecortados = async (pg, tag, sel, comClip) => {
+      const r = await pg.evaluate(([s, clip]) => {
+        const d = document.createElement('i'); d.style.color = 'var(--sombra)'; document.body.appendChild(d); const sombra = getComputedStyle(d).color; d.remove()
+        const els = [...document.querySelectorAll(s)].filter((e) => e.offsetWidth || e.offsetHeight)
+        const ruins = els.filter((e) => { const cs = getComputedStyle(e); return !cs.boxShadow.includes(sombra) || (clip && !/^polygon\(/.test(cs.clipPath)) }).map((e) => e.className)
+        return { n: els.length, ruins: ruins.slice(0, 3) }
+      }, [sel, comClip])
+      if (!r.n) problems.push(`acabamento (${tag}): nenhum ${sel} visível`)
+      else if (r.ruins.length) problems.push(`acabamento (${tag}): ${sel} sem o contorno --sombra${comClip ? ' ou sem o canto recortado (clip-path)' : ''}: ${r.ruins.join(', ')}`)
+    }
     {
       // fontes sem rede: os @font-face levam as duas famílias embutidas em data:
       const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-fontes', { bloquear: ['**/fonts.googleapis.com/**', '**/fonts.gstatic.com/**'] })
@@ -3322,6 +3446,11 @@ try {
         if (!r.ps || !r.jy) problems.push(`acabamento: document.fonts.check sem rede deu ${JSON.stringify({ ps: r.ps, jy: r.jy })}`)
         for (const fam of ['Press Start 2P', 'Jersey 10']) if (!r.carregadas.includes(fam)) problems.push(`acabamento: a face "${fam}" não ficou loaded sem rede (${JSON.stringify(r.carregadas)})`)
         await semBorderImage(pg, 'inicial')
+        // tela inicial: display na escala, ⓘ desenhado (fechado e aberto) e contraste
+        await displayNaEscala(pg, 'inicial')
+        await ajudaDesenhada(pg, 'inicial')
+        await ajudaAberta(pg, 'inicial', '#ini-brasa .status')
+        await contrasteOk(pg, 'inicial')
       } catch (e) {
         problems.push('acabamento-fontes: ' + e.message)
       } finally {
@@ -3434,6 +3563,42 @@ try {
           await temCores(pg, `folha ${larg}`, '.opcao[aria-pressed="true"]', ['--sombra', '--ouro-escuro', '--ouro'])
           const destaqueVelho = await pg.evaluate(() => document.querySelectorAll('.caixa--destaque').length)
           if (destaqueVelho) problems.push(`acabamento (folha ${larg}): a folha usa a classe .caixa--destaque, que não existe no jogo`)
+          // Tarefa 4: display na escala, ⓘ desenhado (o exemplo "aberto" com a peça ativa) e contraste de todas as variantes
+          await displayNaEscala(pg, `folha ${larg}`)
+          await ajudaDesenhada(pg, `folha ${larg}`, 1)
+          const vistos = await contrasteOk(pg, `folha ${larg}`)
+          for (const c of ['btn', 'btn--ouro', 'btn--perigo', 'opcao', 'chip', 'raridade--comum', 'raridade--magico', 'raridade--raro', 'raridade--lendario', 'raridade--mitico', 'badge-ativa', 'selo-nivel', 'pontos-livres--selo', 'set-badge']) {
+            if (!vistos[c]) problems.push(`acabamento (folha ${larg}): contraste de .${c} não conferido (sem texto ou sem fundo)`)
+          }
+          // botão (§4.4, §4.5): contorno --sombra e bisel em 3 tons
+          await temCores(pg, `folha ${larg}`, '[data-componente="4.4"] .btn:not(:disabled):not(.apertado-demo)', ['--sombra', '--linha-luz', '--painel', '--noite-2'])
+          await temCores(pg, `folha ${larg}`, '[data-componente="4.5"] .btn--ouro:not(:disabled):not(.apertado-demo)', ['--sombra', '--ouro-claro', '--ouro-medio', '--ouro-escuro'])
+          // apertado (§4.4, §4.7): desce 2 px e a sombra muda, também na opção; a escolhida apertada continua com o destaque
+          const APERTOS = [
+            ['4.4', '.btn.apertado-demo', '.btn:not(.apertado-demo):not(.foco-demo):not(:disabled)'],
+            ['4.5', '.btn--ouro.apertado-demo', '.btn--ouro:not(.apertado-demo):not(.foco-demo):not(:disabled)'],
+            ['4.7', '.opcao[aria-pressed="false"].apertado-demo', '.opcao[aria-pressed="false"]:not(.apertado-demo):not(.foco-demo):not(:disabled)'],
+            ['4.7', '.opcao[aria-pressed="true"].apertado-demo', '.opcao[aria-pressed="true"]:not(.apertado-demo)']
+          ]
+          const ap = await pg.evaluate((lista) => lista.map(([c, sa, sn]) => {
+            const a = document.querySelector(`[data-componente="${c}"] .col--estreita ${sa}`), n = document.querySelector(`[data-componente="${c}"] .col--estreita ${sn}`)
+            return { c, sa, ok: !!(a && n), t: a ? getComputedStyle(a).transform : '', igual: a && n ? getComputedStyle(a).boxShadow === getComputedStyle(n).boxShadow : true }
+          }), APERTOS)
+          for (const x of ap) {
+            if (!x.ok) problems.push(`acabamento (folha ${larg}): falta o estado ${x.sa} em ${x.c}`)
+            else if (x.t !== 'matrix(1, 0, 0, 1, 0, 2)' || x.igual) problems.push(`acabamento (folha ${larg}): ${x.sa} em ${x.c} não parece apertado (transform ${x.t}, sombra ${x.igual ? 'igual à do normal' : 'diferente'})`)
+          }
+          await temCores(pg, `folha ${larg} escolhida apertada`, '.opcao[aria-pressed="true"].apertado-demo', ['--sombra', '--ouro-escuro', '--ouro'])
+          // abas (§4.8): a atual com a marca de ouro (no topo; na barra lateral do desktop, à esquerda) e sem a sombra de baixo
+          await abaAtual(pg, `folha ${larg}`, '.app-aba--ativa', larg >= 900 ? 'esquerda' : 'topo')
+          await abaAtual(pg, `folha ${larg}`, '.abas .opcao[aria-pressed="true"]', 'topo')
+          await temCores(pg, `folha ${larg}`, '.app-abas', ['--sombra', '--linha'])
+          // barras (§4.9): sulco com contorno --sombra e fundo --noite-2; selos e chips (§4.10)
+          await temCores(pg, `folha ${larg}`, '[data-componente="4.9"] .barra', ['--sombra'])
+          const fundoBarra = await pg.evaluate(() => { const d = document.createElement('i'); d.style.color = 'var(--noite-2)'; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return [...document.querySelectorAll('[data-componente="4.9"] .barra')].filter((e) => getComputedStyle(e).backgroundColor !== c).length })
+          if (fundoBarra) problems.push(`acabamento (folha ${larg}): ${fundoBarra} barra(s) sem o fundo --noite-2`)
+          await selosRecortados(pg, `folha ${larg}`, '[data-componente="4.10"] .raridade, [data-componente="4.10"] .badge-ativa, [data-componente="4.10"] .set-badge, .selo-nivel, .pontos-livres--selo', true)
+          await selosRecortados(pg, `folha ${larg}`, '[data-componente="4.10"] .chip', false)
         } catch (e) {
           problems.push(`acabamento-folha-${larg}: ` + e.message)
         } finally {
@@ -3449,6 +3614,155 @@ try {
         problems.push('acabamento-folha-2625: ' + e.message)
       } finally {
         await pg.context().close()
+      }
+    }
+    const comSave = (save) => ({ init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(JSON.stringify(save))}) } } catch (e) {}` } })
+    {
+      // Tarefa 4 nas telas do jogo a 360x780: display na escala, ⓘ desenhado, contraste, abas e apertar a escolhida
+      const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-telas', comSave(SAVE_3A))
+      const aba = async (id) => { await pg.locator(`[data-acao="aba"][data-id="${id}"]`).click(); await pg.waitForSelector('#t-' + id) }
+      const confere = async (tag) => { await displayNaEscala(pg, tag); await contrasteOk(pg, tag); await checkOverflow(pg, 'acabamento-telas ' + tag) }
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await confere('estabulo')
+        await abaAtual(pg, 'estabulo', '.app-aba--ativa', 'topo')
+        await temCores(pg, 'estabulo', '.app-abas', ['--sombra', '--linha'])
+        await selosRecortados(pg, 'estabulo', '.raridade, .badge-ativa, .selo-nivel, .pontos-livres--selo', true)
+        await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await pg.waitForSelector('#t-montaria')
+        await pg.locator('[data-acao="montaria-aba"][data-id="status"]').click()
+        await confere('status')
+        await ajudaDesenhada(pg, 'status')
+        await ajudaAberta(pg, 'status', '.build')
+        await abaAtual(pg, 'status', '.subabas .opcao[aria-pressed="true"]', 'topo')
+        // a sub-aba atual apertada continua com o destaque e só desce 2 px
+        await apertaEConfere(pg, 'status', '.subabas .opcao[aria-pressed="true"]', ['--sombra', '--ouro-escuro', '--ouro'])
+        await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+        await confere('skills')
+        await aba('correr')
+        await confere('correr')
+        await ajudaDesenhada(pg, 'correr')
+        // a opção escolhida (entrada da corrida) apertada continua com o destaque e só desce 2 px
+        await apertaEConfere(pg, 'correr', '.opcao[aria-pressed="true"][data-acao="tier"]', ['--sombra', '--ouro-escuro', '--ouro'])
+        await pg.locator('[data-acao="procurar"]').click()
+        await pg.waitForSelector('#t-largada')
+        await confere('largada')
+        await ajudaDesenhada(pg, 'largada')
+        await selosRecortados(pg, 'largada', '.chip', false)
+        // uma corrida até o resultado (com subida de nível), pelo "Pular para o resultado"
+        await pg.evaluate(() => { window.__galope.state.mounts[0].xp = 10000 })
+        await pg.getByRole('button', { name: /^Largar/ }).click()
+        await pg.waitForSelector('#pista')
+        await sleep(600)
+        await displayNaEscala(pg, 'corrida')
+        await pg.getByRole('button', { name: /Pular/ }).click()
+        await pg.waitForSelector('#t-resultado')
+        await confere('resultado')
+        if (!(await pg.locator('.levelup').count())) problems.push('acabamento-telas: o resultado não mostrou a subida de nível')
+        await pg.locator('[data-acao="voltar"]').click()   // o resultado não tem a casca: "Voltar" leva à aba Correr
+        await pg.waitForSelector('#t-correr')
+        for (const id of ['haras', 'expedicao']) { await aba(id); await confere(id) }
+        await pg.locator('[data-acao="perfil"]').click()
+        await pg.waitForSelector('#t-perfil')
+        await confere('perfil')
+      } catch (e) {
+        problems.push('acabamento-telas: ' + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    {
+      // Review Focus 3: desktop (1280x800), a barra de abas vira coluna à esquerda: sem rolagem lateral em nenhuma aba e
+      // a aba atual com a marca de ouro à esquerda
+      const pg = await newPage(browser, { width: 1280, height: 800 }, 'acabamento-desktop', comSave(SAVE_3A))
+      const aba = async (id) => { await pg.locator(`[data-acao="aba"][data-id="${id}"]`).click(); await pg.waitForSelector('#t-' + id) }
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await checkOverflow(pg, 'acabamento-desktop estabulo')
+        await abaAtual(pg, 'desktop', '.app-aba--ativa', 'esquerda')
+        await temCores(pg, 'desktop', '.app-abas', ['--sombra', '--linha'])
+        await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await pg.waitForSelector('#t-montaria')
+        for (const sub of ['status', 'skills']) { await pg.locator(`[data-acao="montaria-aba"][data-id="${sub}"]`).click(); await checkOverflow(pg, 'acabamento-desktop montaria ' + sub) }
+        for (const id of ['correr', 'haras', 'expedicao']) {
+          await aba(id)
+          await checkOverflow(pg, 'acabamento-desktop ' + id)
+          await abaAtual(pg, 'desktop ' + id, '.app-aba--ativa', 'esquerda')
+        }
+        await pg.locator('[data-acao="perfil"]').click()
+        await pg.waitForSelector('#t-perfil')
+        await checkOverflow(pg, 'acabamento-desktop perfil')
+        await displayNaEscala(pg, 'desktop perfil')
+        if (process.env.SHOTS_DIR) { await aba('correr'); await pg.screenshot({ path: join(SHOTS, 'acabamento-desktop-correr.png') }) }   // só na pasta temporária
+      } catch (e) {
+        problems.push('acabamento-desktop: ' + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    {
+      // Review Focus 4: gaveta DEV aberta a 360x780 (?dev=1): sem rolagem lateral, nem na página nem dentro da gaveta
+      const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-dev', { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await devAbrir(pg)
+        await checkOverflow(pg, 'acabamento-dev gaveta')
+        const g = await pg.evaluate(() => { const e = document.querySelector('.dev-gaveta'); return { sw: e.scrollWidth, cw: e.clientWidth } })
+        if (g.sw > g.cw) problems.push(`acabamento-dev: conteúdo da gaveta DEV mais largo que ela (${g.sw} > ${g.cw})`)
+        await displayNaEscala(pg, 'gaveta DEV')
+        if (process.env.SHOTS_DIR) await pg.screenshot({ path: join(SHOTS, 'acabamento-dev-gaveta.png') })   // só na pasta temporária
+        await devFechar(pg)
+      } catch (e) {
+        problems.push('acabamento-dev: ' + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    {
+      // cores forçadas (spec §3): botões e painéis com borda de 2 px em cor do sistema, peças de pixel escondidas
+      const PECAS_PSEUDO = ['.caixa', '.saldo', '.placa', '.titulo--tela', '.montaria--ativa', '.opcao[aria-pressed="true"]', '.ajuda']
+      const confereForcado = async (pg, tag) => {
+        const r = await pg.evaluate((pecas) => {
+          const ruins = []
+          if (!matchMedia('(forced-colors: active)').matches) ruins.push('a página não está em cores forçadas')
+          for (const sel of ['.btn', '.caixa']) {
+            const els = [...document.querySelectorAll(sel)].filter((e) => e.offsetWidth || e.offsetHeight)
+            if (!els.length) ruins.push(`nenhum ${sel} visível`)
+            const fino = els.filter((e) => parseFloat(getComputedStyle(e).borderTopWidth) < 2).length
+            if (fino) ruins.push(`${fino} ${sel} sem a borda de 2 px`)
+          }
+          for (const sel of pecas) {
+            for (const e of [...document.querySelectorAll(sel)].filter((x) => x.offsetWidth || x.offsetHeight)) {
+              const b = getComputedStyle(e, '::before')
+              if (b.display !== 'none' && b.content !== 'none' && b.backgroundImage.includes('data:image')) { ruins.push(`${sel}::before com a peça à mostra`); break }
+              if (getComputedStyle(e).backgroundImage.includes('data:image')) { ruins.push(`${sel} com a peça no fundo`); break }
+            }
+          }
+          return ruins
+        }, PECAS_PSEUDO)
+        if (r.length) problems.push(`acabamento (cores forçadas, ${tag}): ${r.join('; ')}`)
+      }
+      const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-forcado', { forcedColors: 'active', ...comSave(SAVE_3A) })
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await confereForcado(pg, 'estabulo')
+        await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await pg.waitForSelector('#t-montaria')
+        await confereForcado(pg, 'status')
+        if (process.env.SHOTS_DIR) await pg.screenshot({ path: join(SHOTS, 'acabamento-forcado-status.png') })   // só na pasta temporária
+      } catch (e) {
+        problems.push('acabamento-forcado: ' + e.message)
+      } finally {
+        await pg.context().close()
+      }
+      const fl = await newPage(browser, { width: 360, height: 780 }, 'acabamento-forcado-folha', { pagina: 'interface.html', moldes: false, forcedColors: 'active' })
+      try {
+        await fl.waitForSelector('[data-componente]')
+        await confereForcado(fl, 'folha')
+      } catch (e) {
+        problems.push('acabamento-forcado-folha: ' + e.message)
+      } finally {
+        await fl.context().close()
       }
     }
   }
