@@ -16,9 +16,18 @@ O Vinicius pediu "Decida sozinho a divisão e pode começar". Spec em `docs/supe
   não diverge.
 - **Fontes dentro do jogo (subconjunto latino, OFL), com o Google Fonts de reserva** — o app Android sem rede cairia na
   fonte do sistema.
-- **Press Start 2P só em 8, 16 ou 24 px** — 10 regras usavam 11–12 px e borravam a fonte.
-- **Folha da interface publicada para o Vinicius antes de mudar as telas** — o gosto é dele; se ele quiser outro rumo, a
-  execução para.
+- **Press Start 2P só em 8, 16 ou 24 px** — 12 regras usavam 11–12 px (e 5 outras o teste achou a mais) e borravam a
+  fonte. Destino: foram para **16 px** `.status .valor` (já estava), `.poder b`, o saldo do cabeçalho (`.app-topo .ouro` e
+  `.pedras`), `.montaria-cabeca .titulo small`, `.montaria .cavalo-nome small` e `.nota-genetica`; foram para a **Jersey 10**
+  (`--t-s`, `--t-m` ou o tamanho em volta) `.nivel`, `.build-topo .pontos-livres`, `.build-nome`, `.build-mais`,
+  `.inicial .contador`, `.badge-ativa`, `.tag-voce`, `.levelup b`, `.status dt`, `.selo-nivel`, `.pontos-livres--selo`,
+  `.raia--mini` e `.ajuda`. Regra de escolha: número ou letra curta fica em 16 px; frase, rótulo ou selo que quebraria ou
+  cobriria o retrato vai para a Jersey.
+- **Folha da interface publicada para o Vinicius depois da Tarefa 3, e não antes** — publicada com as telas já mudadas
+  (na branch `claude/visuais-2`) e republicada depois da Tarefa 5, sem esperar resposta. Antes da T3 a folha mostraria o
+  visual antigo, e a branch ainda não está na `main`. Links: folha https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR
+  (versão 2) e build de teste https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 8). O gosto é dele; se ele quiser
+  outro rumo, a execução para.
 - **Trabalho na `claude/visuais-2`, avançada até a `main`** — é a branch da frente visual que ele pediu em 2026-11-12.
 - **Decisões da execução da 3a (controlador, sob delegação):**
   - **`.chip` sem `clip-path`** — o ⓘ dentro do chip tem alvo de 44 px, maior que o chip; o corte recortaria o alvo de toque (desvio da spec §4.10). O chip fica só com o contorno e o bisel por sombra.
@@ -28,6 +37,8 @@ O Vinicius pediu "Decida sozinho a divisão e pode começar". Spec em `docs/supe
   - **A velocidade escolhida da corrida (ouro) segue a mesma receita do botão ouro** — apertada desce 2 px e a sombra encolhe; desabilitada fica com o bisel escuro também no topo (o seletor dela vencia `.btn:active` e `.btn:disabled`; corrigido na Tarefa 5, com checagem no `ui-test`).
   - **`.montaria--ativa` no lugar de `.caixa--destaque`** (spec §4.2) — a classe já marca o lugar e evita mexer no markup.
   - **A folha da interface não simula o modo de cores forçadas** — simular repetiria as regras do `@media`; o `ui-test` emula o modo de verdade (`forcedColors`).
+  - **Retrato em linha anda 4px para a direita (revisão final):** a moldura de madeira do retrato avança 6px e encostava no rebite do canto (4–10px) no cartão da Montaria ativa e na cabeça da Montaria em tela larga; `.cavalo-cabeca > .retrato` ganhou `margin: 0 -4px 0 4px` (o texto fica onde estava, altura igual) e em tela estreita (coluna) volta a `0`. Correr segue em 834px (limite 834).
+  - **Ponto de aviso da aba Correr** a `top: 2px` (ficava no bisel claro). **Teste de altura** ganhou Correr (802, medida na `main` 7fe5124) e Skills da ativa (1145): limite 1,04 vezes cada.
   - **Os estados de demonstração da folha (`.foco-demo`, `.apertado-demo`) entram como seletores extras** nas mesmas regras de `:focus-visible` e `:active`, sem regra copiada.
 
 ## 2026-11-14 — Integração dos blocos 1 e 1b na `main` (decisão do Vinicius)

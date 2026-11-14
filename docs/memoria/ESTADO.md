@@ -9,7 +9,8 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
 ## Onde estamos
 - **Branches:** a `main` tem tudo até o bloco 1b e a parte 2b da Visuais 2 (`claude/cavalos-v3` integrada em
   2026-11-14, por fast-forward). Em aberto só a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta
-  como bloco 3). Trabalho novo sai da `main`.
+  como bloco 3). A `claude/visuais-2` leva a parte 3a (acabamento da interface), pronta e **ainda sem merge na `main`**
+  (build b7219a2 mais a rodada final de correções); trabalho novo sai da `main`, exceto a 3b e a 3c, que saem da `claude/visuais-2`.
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
   - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
@@ -79,8 +80,21 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
 - **Verificação:** `./scripts/check.sh` OK (129 simulação, 104 efeitos, 170 moldes, 615 conferências do wiki, 87 metas no
   balanço rápido, interface; `jogo.html` 841,9 KB, fontes e peças 35,0 KB). Alturas a 360 px: Estábulo 1320 e Status 1940
   (limite de +4% sobre 1284 e 1894). Capturas oficiais de `prototype/screens/` regeneradas (31 imagens, nenhuma nova nem removida).
-- **Publicação:** a folha e o `jogo-dev.html` vão para o artefato de teste da frente visual; os artefatos oficiais só
-  depois do merge na `main` (decisão do Vinicius sobre integração).
+- **Publicação (feita):** a folha da interface https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 2) e o build de
+  teste com o modo DEV https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 8), os dois com o build b7219a2,
+  publicados depois da Tarefa 3 e republicados depois da Tarefa 5, sem esperar resposta. Os artefatos oficiais só depois
+  do merge na `main`.
+- **Tamanho do jogo:** `jogo.html` de 813.461 B para 862.145 B (+47,5 KB, acima dos ~45 KB da spec §9; 5,6 KB são
+  comentários do CSS).
+- **A confirmar com o Vinicius (gosto, 3a):**
+  - barras mais finas (preenchimento de 12 para 8 px e XP de 10 para 6 px);
+  - saldo do cabeçalho em 16 px (o logotipo encolhe a partir de 5 dígitos: 122 para 98 px com 999.999);
+  - Poder da largada em 16 px;
+  - retrato sem a sombra projetada;
+  - hover do botão de perigo mudando o fundo;
+  - rebites do pote da corrida, em tela baixa ou paisagem, lidos como dois-pontos ("¦POTE … 400¦"); cada item uma linha.
+- **Para a 3b:** o `::before` da `.opcao` escolhida já está ocupado pelo destaque; o bloco de `box-shadow` do botão se
+  repete em `.btn`, `.app-aba` e `.capacete-btn` (dá para trocar por propriedades).
 - **Próximos passos:** 3b (estábulo e montaria no celular: lista compacta, ficha com o cavalo em destaque, Status sem
   duas telas de rolagem, motivo visível no toque, "º" no leitor de tela) e 3c (tela da corrida); cada uma com spec e plano.
   Pendências menores da 3a (sem hover/apertado nas abas da barra de baixo, "ç" de
@@ -89,6 +103,8 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
 ## Em andamento
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b, que também traz a fonte da Rédea nova. Cada ginásio tem o
   foco num elemento.
+- **Parte 3a da Visuais 2 pronta na `claude/visuais-2`, esperando o Vinicius** (folha, build de teste e a lista "A confirmar
+  com o Vinicius (gosto, 3a)" acima); sem merge na `main` até ele olhar.
 - **Visuais 2** (branch `claude/visuais-2`, criada da `claude/cavalos-v3`; a parte 1 foi integrada na
   `claude/cavalos-v3` em 2026-11-12, a parte 2a e a 2b em 2026-11-13): três partes, ícones →
   cavalos → interface. **Parte 1 (ícones) pronta na `claude/visuais-2`:** 58 ícones nas telas, na corrida e
@@ -158,9 +174,11 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
 - **GDD §9+:** expedições, tecnologia do servidor, anti-trapaça, PVP assíncrono e ranqueada.
 
 ## Próximos passos
+0. O Vinicius olha a folha da interface e o build de teste da 3a e decide a lista "A confirmar com o Vinicius (gosto, 3a)"
+   (acima); o que ele mudar entra antes do merge da `claude/visuais-2` na `main`.
 1. O Vinicius joga o modelo novo no artefato (jogo, DEV e wiki republicados com o 1b, já na `main`) e decide os
    pontos de calibração acima; o que ele mudar entra como ajuste por cima da `main`.
-2. **Parte 3 da Visuais 2 (interface)**, que mexe nas telas que o 1b acabou de reescrever.
+2. **3b (estábulo e montaria no celular) e 3c (tela da corrida)** da Visuais 2, cada uma com spec e plano.
 3. O Vinicius apaga as branches antigas no GitHub (lista abaixo).
 4. **Bloco 2, preparação com relógio:** spec, revisão do Vinicius, plano e execução.
 5. **Bloco 3, empacotamento:** retomar pela pergunta do Capacitor; o teste fechado começa aqui.
