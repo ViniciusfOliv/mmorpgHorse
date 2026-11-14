@@ -30,9 +30,10 @@ function secoes() {
   s.push(secao('4.1', 'Painel', 'Classe .caixa.',
     estados([['normal', '<div class="caixa"><h2 class="titulo">Estábulo</h2><p>Texto do painel com <b>valor</b>.</p></div>']])));
   // 4.2 Painel em destaque
-  s.push(secao('4.2', 'Painel em destaque', 'Montaria ativa (.caixa--destaque) e opção escolhida ([aria-pressed="true"]).',
+  s.push(secao('4.2', 'Painel em destaque', 'Cartão da montaria ativa (.montaria--ativa) e opção escolhida (.opcao[aria-pressed="true"]).',
     estados([
-      ['montaria ativa', '<article class="caixa caixa--destaque montaria montaria--ativa"><h3 class="cavalo-nome">Brasa <small>#1</small></h3><span class="badge-ativa">Ativa</span></article>'],
+      ['montaria ativa', '<article class="montaria montaria--ativa">' + retrato(96, 72) + '<h3 class="cavalo-nome">Brasa <small>#1</small></h3>' +
+        '<div class="linha-meta"><span class="raridade">Comum</span><span>cruza 2x</span><span class="badge-ativa">Ativa</span></div></article>'],
       ['opção escolhida', btn('opcao opcao--centro', 'Escolhida', 'aria-pressed="true"')]
     ])));
   // 4.3 Placa de madeira
@@ -146,6 +147,9 @@ const ESTILO_FOLHA = `
 .comp-nota { margin: 0 0 12px; color: var(--texto-2); font-size: var(--t-s); }
 .estado { display: grid; gap: 6px; margin: 0 0 16px; min-width: 0; }
 .estado-rot { color: var(--texto-3); font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.08em; }
+/* saldo e retrato no tamanho do conteúdo, como no jogo (a grade esticaria); o retrato com folga para a moldura */
+.estado > .saldo, .estado > .retrato-moldura { justify-self: start; }
+.estado > .retrato-moldura { margin: 6px; }
 .estado-par { display: block; }
 .col { min-width: 0; }
 .col--larga { display: none; }

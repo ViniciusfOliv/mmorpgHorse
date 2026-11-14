@@ -3229,7 +3229,7 @@ try {
     }
   }
 
-  // ---------------- acabamento da interface (Visuais 2, parte 3a): fontes embutidas, sem border-image, altura ----------------
+  // ---------------- acabamento da interface (Visuais 2, parte 3a): fontes embutidas, sem border-image, altura, peças, títulos compridos ----------------
   if (quer('acabamento')) {
     // alturas da página a 360x780 com o CSS de antes da 3a (as peças e as fontes embutidas não mudam métrica)
     // medido em 2026-11-14, antes da 3a
@@ -3250,11 +3250,64 @@ try {
       items: [{ uid: 'i1', id: 'sela-comum', plus: 3 }, { uid: 'i2', id: 'testeira-comum', plus: 0 }], nextItemUid: 3, pedras: 0, enhanceCounter: 0,
       settings: { motion: 'sistema' }, joquei: { padrao: 'xadrez', capacete: '#62b8ff' }
     }
+    // títulos compridos (Review Focus 2): 10 vagas cheias e a ativa com nome de 24 caracteres. O jogo corta o nome em
+    // 16 e as vagas em 8 ao ler o save; o teste repõe os dois no estado depois de abrir (pior caso, com folga)
+    const NOME_LONGO = 'Relâmpago da Madrugada X'
+    const MODELOS_3A = [...G.STARTERS, ...G.WILD_HORSES]
+    const SAVE_3A_LONGO = Object.assign({}, SAVE_3A, {
+      mounts: MODELOS_3A.concat(MODELOS_3A).slice(0, 10).map((tpl, i) => mod(tpl, { uid: 'm' + (i + 1), level: 1 + 3 * i })),
+      nextUid: 11, stableSlots: 10, items: [], nextItemUid: 1
+    })
+    SAVE_3A_LONGO.mounts[0] = mod(G.STARTERS.find((h) => h.id === 'brasa'), { uid: 'm1', name: NOME_LONGO, level: 20, xp: 10, skills: ['sprint'] })
+    // sem border-image no elemento nem no ::before/::after (as peças de pixel entram por pseudo-elemento)
     const semBorderImage = async (pg, tag) => {
-      const ruins = await pg.evaluate(() => [...document.querySelectorAll('body *')]
-        .filter((e) => (e.offsetWidth || e.offsetHeight) && getComputedStyle(e).borderImageSource !== 'none')
-        .map((e) => e.tagName.toLowerCase() + (e.className && e.className.baseVal === undefined ? '.' + String(e.className).trim().split(/\s+/).join('.') : '')).slice(0, 6))
+      const ruins = await pg.evaluate(() => {
+        const nome = (e) => e.tagName.toLowerCase() + (e.className && e.className.baseVal === undefined ? '.' + String(e.className).trim().split(/\s+/).join('.') : '')
+        const out = []
+        for (const e of document.querySelectorAll('body *')) {
+          if (!(e.offsetWidth || e.offsetHeight)) continue
+          for (const ps of [null, '::before', '::after']) if (getComputedStyle(e, ps).borderImageSource !== 'none') out.push(nome(e) + (ps || ''))
+        }
+        return out.slice(0, 6)
+      })
       if (ruins.length) problems.push(`acabamento (${tag}): border-image em ${ruins.join(', ')}`)
+    }
+    // peças no lugar (spec §8.4): o ::before de cada elemento visível desenha peças em data:image/png com
+    // image-rendering: pixelated; o h1.titulo--tela é a própria placa (com o veio no fundo), ou fica dentro de uma .placa
+    const pecasNoLugar = async (pg, tag, sels) => {
+      const r = await pg.evaluate((ss) => ss.map((sel) => {
+        const els = [...document.querySelectorAll(sel)].filter((e) => e.offsetWidth || e.offsetHeight)
+        const ruins = []
+        for (const e0 of els) {
+          const titulo = e0.matches('h1.titulo--tela')
+          const e = titulo ? (e0.closest('.placa') || e0) : e0
+          const b = getComputedStyle(e, '::before')
+          if (b.content === 'none' || !b.backgroundImage.includes('data:image/png') || b.imageRendering !== 'pixelated') ruins.push(`::before ${b.content.slice(0, 8)} ${b.backgroundImage.slice(0, 24)} ${b.imageRendering}`)
+          if (titulo && !getComputedStyle(e).backgroundImage.includes('data:image/png')) ruins.push('sem o veio no fundo')
+        }
+        return { sel, n: els.length, ruins: ruins.slice(0, 3) }
+      }), sels)
+      for (const x of r) {
+        if (!x.n) problems.push(`acabamento (${tag}): nenhum ${x.sel} visível`)
+        else if (x.ruins.length) problems.push(`acabamento (${tag}): ${x.sel} sem as peças (${x.ruins.join('; ')})`)
+      }
+    }
+    // moldura: o box-shadow de cada elemento visível do seletor leva todas as cores (tokens do :root) pedidas
+    const temCores = async (pg, tag, sel, tokens) => {
+      const r = await pg.evaluate(([s, toks]) => {
+        const cor = (t) => { const d = document.createElement('i'); d.style.color = `var(${t})`; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c }
+        const cores = toks.map(cor)
+        const els = [...document.querySelectorAll(s)].filter((e) => e.offsetWidth || e.offsetHeight)
+        const faltam = els.map((e) => { const bs = getComputedStyle(e).boxShadow; return toks.filter((t, i) => !bs.includes(cores[i])) }).find((f) => f.length) || []
+        return { n: els.length, faltam }
+      }, [sel, tokens])
+      if (!r.n) problems.push(`acabamento (${tag}): nenhum ${sel} visível`)
+      else if (r.faltam.length) problems.push(`acabamento (${tag}): ${sel} sem ${r.faltam.join(', ')} na moldura`)
+    }
+    // o texto do título fica dentro da placa (quebra a linha em vez de sair dela)
+    const tituloCabe = async (pg, tag) => {
+      const fora = await pg.evaluate(() => [...document.querySelectorAll('h1.titulo--tela')].filter((e) => e.offsetWidth && e.scrollWidth > e.clientWidth + 1).map((e) => e.id))
+      if (fora.length) problems.push(`acabamento (${tag}): o texto sai da placa do título (${fora.join(', ')})`)
     }
     {
       // fontes sem rede: os @font-face levam as duas famílias embutidas em data:
@@ -3287,6 +3340,13 @@ try {
         notes.alturaAcabamento = { estabulo: aEst }
         if (aEst > 1.04 * ALTURA_ANTES_3A.estabulo) problems.push(`acabamento: Estábulo com ${aEst}px (limite ${Math.round(1.04 * ALTURA_ANTES_3A.estabulo)}, antes ${ALTURA_ANTES_3A.estabulo})`)
         await semBorderImage(pg, 'estabulo')
+        // painel, saldo e título com as peças; molduras do painel, do destaque (montaria ativa), do saldo e do retrato
+        await pecasNoLugar(pg, 'estabulo', ['.caixa', '.saldo', 'h1.titulo--tela', '.montaria--ativa'])
+        await temCores(pg, 'estabulo', '.caixa', ['--sombra', '--linha', '--linha-luz', '--painel-3', '--noite-2'])
+        await temCores(pg, 'estabulo', '.montaria--ativa', ['--sombra', '--ouro-escuro', '--ouro'])
+        await temCores(pg, 'estabulo', '.saldo', ['--sombra', '--ouro-escuro'])
+        await temCores(pg, 'estabulo', 'h1.titulo--tela', ['--sombra', '--madeira-luz', '--madeira-2'])
+        await temCores(pg, 'estabulo', '.retrato', ['--sombra', '--madeira', '--madeira-luz'])
         await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
         await pg.waitForSelector('#t-montaria')
         await pg.locator('[data-acao="montaria-aba"][data-id="status"]').click()
@@ -3294,11 +3354,56 @@ try {
         notes.alturaAcabamento.status = aSt
         if (aSt > 1.04 * ALTURA_ANTES_3A.status) problems.push(`acabamento: aba Status com ${aSt}px (limite ${Math.round(1.04 * ALTURA_ANTES_3A.status)}, antes ${ALTURA_ANTES_3A.status})`)
         await semBorderImage(pg, 'status')
+        await pecasNoLugar(pg, 'status', ['.caixa', 'h1.titulo--tela'])
+        await temCores(pg, 'status', '.opcao[aria-pressed="true"]', ['--sombra', '--ouro-escuro', '--ouro'])
         await pg.locator('[data-acao="aba"][data-id="correr"]').click()
         await pg.waitForSelector('#t-correr')
         await semBorderImage(pg, 'correr')
+        await pecasNoLugar(pg, 'correr', ['.caixa', '.saldo', 'h1.titulo--tela'])
+        await temCores(pg, 'correr', '.opcao[aria-pressed="true"]', ['--sombra', '--ouro-escuro', '--ouro'])
+        // sala de largada: a .placa de hoje (rótulo + título) é uma placa só, sem placa dentro de placa
+        await pg.locator('[data-acao="procurar"]').click()
+        await pg.waitForSelector('#t-largada')
+        await semBorderImage(pg, 'largada')
+        await pecasNoLugar(pg, 'largada', ['.placa', 'h1.titulo--tela', '.saldo', '.caixa'])
+        const dupla = await pg.evaluate(() => [...document.querySelectorAll('.placa .titulo--tela')].filter((e) => getComputedStyle(e).backgroundImage !== 'none' || getComputedStyle(e, '::before').content !== 'none').length)
+        if (dupla) problems.push(`acabamento (largada): título com placa própria dentro da .placa (${dupla})`)
+        await tituloCabe(pg, 'largada')
       } catch (e) {
         problems.push('acabamento-altura: ' + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    {
+      // títulos compridos a 360 px (Review Focus 2): a placa quebra a linha, sem rolagem lateral em nenhuma tela
+      const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-longo', {
+        init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(JSON.stringify(SAVE_3A_LONGO))}) } } catch (e) {}` }
+      })
+      const aba = async (id) => { await pg.locator(`[data-acao="aba"][data-id="${id}"]`).click(); await pg.waitForSelector('#t-' + id) }
+      const confere = async (tag) => { await checkOverflow(pg, 'acabamento-longo ' + tag); await tituloCabe(pg, 'longo ' + tag) }
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await pg.evaluate((nome) => { const s = window.__galope.state; s.stableSlots = 10; s.mounts[0].name = nome }, NOME_LONGO)
+        await aba('correr')   // redesenha com o estado reposto
+        await aba('estabulo')
+        const t = await pg.evaluate(() => ({ est: document.getElementById('t-estabulo').textContent, n: document.querySelectorAll('.montaria').length }))
+        if (!/10\/10 vagas/.test(t.est) || t.n !== 10) problems.push(`acabamento-longo: o Estábulo não ficou com 10/10 vagas (${JSON.stringify(t)})`)
+        await confere('estabulo')
+        await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await pg.waitForSelector('#t-montaria')
+        if (!(await pg.locator('#t-montaria').textContent()).includes(NOME_LONGO)) problems.push('acabamento-longo: a Montaria não mostra o nome de 24 caracteres')
+        for (const sub of ['status', 'skills']) {
+          await pg.locator(`[data-acao="montaria-aba"][data-id="${sub}"]`).click()
+          await confere('montaria ' + sub)
+        }
+        for (const id of ['correr', 'haras', 'expedicao']) { await aba(id); await confere(id) }
+        await pg.locator('[data-acao="perfil"]').click()
+        await pg.waitForSelector('#t-perfil')
+        await confere('perfil')
+        if (process.env.SHOTS_DIR) { await aba('estabulo'); await pg.screenshot({ path: join(SHOTS, 'acabamento-longo-estabulo.png') }) }   // só na pasta temporária
+      } catch (e) {
+        problems.push('acabamento-longo: ' + e.message)
       } finally {
         await pg.context().close()
       }
@@ -3322,6 +3427,13 @@ try {
             else if (!a.txt.includes(p.nome) || a.nat < 1 || Math.abs(a.w - 4 * a.nat) > 0.5) problems.push(`acabamento (folha ${larg}): a peça "${p.nome}" não está ampliada x4 com o nome (largura ${a.w}, original ${a.nat})`)
           }
           await semBorderImage(pg, `folha ${larg}`)
+          // a folha mostra os componentes da Tarefa 3 com o acabamento (avisos só aparecem nela sem montar uma sala)
+          await pecasNoLugar(pg, `folha ${larg}`, ['.caixa', '.placa', 'h1.titulo--tela', '.saldo', '.montaria--ativa'])
+          await temCores(pg, `folha ${larg}`, '.aviso:not(.aviso--perda)', ['--sombra', '--ouro'])
+          await temCores(pg, `folha ${larg}`, '.aviso--perda', ['--sombra', '--perda'])
+          await temCores(pg, `folha ${larg}`, '.opcao[aria-pressed="true"]', ['--sombra', '--ouro-escuro', '--ouro'])
+          const destaqueVelho = await pg.evaluate(() => document.querySelectorAll('.caixa--destaque').length)
+          if (destaqueVelho) problems.push(`acabamento (folha ${larg}): a folha usa a classe .caixa--destaque, que não existe no jogo`)
         } catch (e) {
           problems.push(`acabamento-folha-${larg}: ` + e.message)
         } finally {

@@ -174,23 +174,47 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .sub { color: var(--texto-2); margin: 0; max-width: 60ch; }
 .nota { color: var(--texto-3); font-size: var(--t-s); margin: 0; }
 
-/* ---------- caixas: moldura pixel (cantos recortados), bisel e sombra projetada ---------- */
+/* ---------- painel (acabamento 3a §4.1): contorno --sombra por fora do friso --linha, bisel de 2px (claro em cima,
+   médio à esquerda, escuro embaixo e à direita), sombra projetada de 8px e um rebite em cada canto ---------- */
 .caixa {
+  position: relative;
   background: var(--painel);
   box-shadow:
-    0 calc(-1 * var(--px)) 0 0 var(--linha),
-    0 var(--px) 0 0 var(--linha),
-    calc(-1 * var(--px)) 0 0 0 var(--linha),
-    var(--px) 0 0 0 var(--linha),
-    0 6px 0 0 var(--sombra),
-    inset 0 2px 0 0 var(--brilho-08),
-    inset 0 -2px 0 0 var(--escuro-25);
+    0 0 0 2px var(--linha),
+    0 0 0 4px var(--sombra),
+    0 8px 0 0 var(--sombra),
+    inset 0 2px 0 0 var(--linha-luz),
+    inset 2px 0 0 0 var(--painel-3),
+    inset 0 -2px 0 0 var(--noite-2),
+    inset -2px 0 0 0 var(--noite-2);
   padding: 14px;
   margin: var(--px) var(--px) 6px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+}
+/* painel em destaque (§4.2): a montaria ativa e a opção escolhida; friso --ouro-escuro e bisel claro em --ouro */
+.montaria--ativa, .opcao[aria-pressed="true"] {
+  position: relative;
+  box-shadow:
+    0 0 0 2px var(--ouro-escuro),
+    0 0 0 4px var(--sombra),
+    0 8px 0 0 var(--sombra),
+    inset 0 2px 0 0 var(--ouro),
+    inset 2px 0 0 0 var(--ouro-medio),
+    inset 0 -2px 0 0 var(--noite-2),
+    inset -2px 0 0 0 var(--noite-2);
+}
+/* rebites: peça de 3x3 pixels de arte (6x6px) nos quatro cantos, a 4px da borda; por cima do conteúdo que encosta
+   na borda (o palco do retrato da tela inicial), sem pegar toque */
+.caixa::before, .montaria--ativa::before, .opcao[aria-pressed="true"]::before, .saldo::before {
+  content: ""; position: absolute; inset: 4px; z-index: 1; pointer-events: none; image-rendering: pixelated;
+  background:
+    var(--arte-rebite) left top / 6px 6px no-repeat,
+    var(--arte-rebite) right top / 6px 6px no-repeat,
+    var(--arte-rebite) left bottom / 6px 6px no-repeat,
+    var(--arte-rebite) right bottom / 6px 6px no-repeat;
 }
 .caixa > h2 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .caixa > h2.titulo::before {
@@ -200,21 +224,34 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .caixa > h2.titulo { justify-content: flex-start; }
 .caixa > h2 .nota { font-family: var(--fonte-ui); font-size: var(--t-s); letter-spacing: 0; margin-left: auto; }
 
-/* placa de madeira (título da sala de largada) */
-.placa {
-  background: var(--madeira);
-  padding: 12px 14px;
-  margin: var(--px) var(--px) 6px;
+/* placa de madeira (§4.3): a da sala de largada e o título de cada tela (o próprio h1.titulo--tela vira placa).
+   Veio repetido (peça de 32x8 pixels de arte em 64x16px), bisel claro em cima e escuro embaixo, contorno --sombra
+   e um prego em cada ponta, no meio da altura da face (entre os biséis); o texto quebra a linha dentro dela */
+.placa, .titulo--tela {
+  position: relative;
+  background: var(--madeira) var(--arte-veio) 0 0 / 64px 16px repeat;   /* 48px de altura: três tábuas */
+  image-rendering: pixelated;
+  padding: 12px 18px;
+  margin: var(--px) 0 6px;   /* o contorno de 2px fica alinhado ao contorno de fora do painel */
   box-shadow:
-    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
-    0 6px 0 0 var(--sombra),
+    0 0 0 2px var(--sombra),
+    0 8px 0 0 var(--sombra),
     inset 0 2px 0 0 var(--madeira-luz), inset 0 -4px 0 0 var(--madeira-2);
-  background-image: linear-gradient(var(--madeira-2) 2px, transparent 2px);
-  background-size: 100% 18px;
-  background-position: 0 8px;
+  overflow-wrap: anywhere;
 }
-.placa .rotulo { color: #e8d7b0; }
-.placa .nota { color: #e8d7b0; }
+.placa::before, .titulo--tela::before {
+  content: ""; position: absolute; inset: 2px 6px 4px; pointer-events: none; image-rendering: pixelated;
+  background:
+    var(--arte-prego) left center / 6px 6px no-repeat,
+    var(--arte-prego) right center / 6px 6px no-repeat;
+}
+/* o título dentro de uma .placa (sala de largada) é texto da placa, não outra placa */
+.placa .titulo--tela { background: none; box-shadow: none; padding: 0; margin: 0; }
+.placa .titulo--tela::before { content: none; }
+/* texto secundário sobre a madeira: --texto (o --texto-2 fica abaixo de 4,5:1 sobre --madeira) */
+.placa .rotulo, .placa .nota, .titulo--tela .nota, .titulo--tela small { color: var(--texto); }
+/* a nota do título ("3/3 vagas") herda a display: 16px, da escala dela (com 17px, "Estábulo 3/3 vagas" quebrava a 360px) */
+.titulo--tela .nota { font-size: 16px; }
 
 /* ---------- botões ---------- */
 .btn {
@@ -318,15 +355,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   text-align: left; align-items: flex-start; justify-content: flex-start; flex-direction: column; gap: 2px;
   min-width: 0; font-weight: 500;
 }
-.opcao[aria-pressed="true"] {
-  background: var(--painel-3);
-  box-shadow:
-    0 calc(-1 * var(--px)) 0 0 var(--ouro),
-    0 var(--px) 0 0 var(--ouro),
-    calc(-1 * var(--px)) 0 0 0 var(--ouro),
-    var(--px) 0 0 0 var(--ouro),
-    inset 0 -4px 0 0 var(--escuro-35);
-}
+.opcao[aria-pressed="true"] { background: var(--painel-3); }   /* moldura: painel em destaque (acima) */
 .opcao .opcao-nome { font-weight: 700; display: flex; align-items: center; gap: 6px; }
 .opcao .opcao-desc { font-size: var(--t-xs); color: var(--texto-2); font-weight: 400; line-height: 1.3; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
 .opcao--centro { align-items: center; text-align: center; justify-content: center; }
@@ -334,12 +363,21 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 /* ---------- moeda, chips, emblemas ---------- */
 .ouro { display: inline-flex; align-items: center; gap: 6px; font-family: var(--fonte-display); font-size: 16px; line-height: 1; color: var(--ouro); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ouro svg { width: 16px; height: 16px; flex: none; }
+/* saldo (§4.11): placar com friso --ouro-escuro, contorno --sombra, bisel e um rebite em cada canto (::before do painel) */
 .saldo {
+  position: relative;
   background: var(--painel);
-  padding: 8px 12px;
-  margin: var(--px);
+  padding: 8px 14px;
+  margin: 4px;
   flex: none;
-  box-shadow: 0 -2px 0 0 var(--ouro-escuro), 0 2px 0 0 var(--ouro-escuro), -2px 0 0 0 var(--ouro-escuro), 2px 0 0 0 var(--ouro-escuro), 0 6px 0 0 var(--sombra);
+  box-shadow:
+    0 0 0 2px var(--ouro-escuro),
+    0 0 0 4px var(--sombra),
+    0 8px 0 0 var(--sombra),
+    inset 0 2px 0 0 var(--ouro-medio),
+    inset 2px 0 0 0 var(--painel-3),
+    inset 0 -2px 0 0 var(--noite-2),
+    inset -2px 0 0 0 var(--noite-2);
 }
 .topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: nowrap; min-width: 0; }
 
@@ -422,7 +460,14 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .xp-linha { display: flex; justify-content: space-between; font-size: var(--t-xs); color: var(--texto-2); font-variant-numeric: tabular-nums; }
 
 /* ---------- retrato do cavalo ---------- */
-.retrato { flex: none; box-shadow: 0 0 0 2px var(--sombra), 0 6px 0 0 var(--sombra); }
+/* moldura do retrato (§4.12): madeira de 4px (--madeira, --madeira-luz em cima) por fora do contorno de hoje */
+.retrato {
+  flex: none;
+  box-shadow:
+    0 0 0 2px var(--sombra),
+    0 -4px 0 2px var(--madeira-luz),
+    0 0 0 6px var(--madeira);
+}
 /* moldura do retrato com o selo de nível (canto de baixo à esquerda) e o aviso "+N" de pontos (canto de cima à direita) */
 .retrato-moldura { position: relative; display: inline-block; flex: none; line-height: 0; }
 .retrato-moldura .retrato { display: block; }
@@ -504,7 +549,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .inicial > .btn--grande { margin-top: auto; }
 @media (min-width: 960px) { .inicial .cavalo-titulo { min-height: 4.2em; } .iniciais-nav { display: none; } }
 .inicial .retrato-palco { position: relative; display: flex; justify-content: center; background: var(--painel-2); padding: 8px 0 10px; margin: -14px -14px 0; box-shadow: inset 0 -2px 0 0 var(--linha); }
-.inicial .contador { position: absolute; right: 8px; top: 8px; font-family: var(--fonte-display); font-size: 11px; color: var(--texto-2); background: var(--sombra); padding: 4px 6px; }
+.inicial .contador { position: absolute; right: 12px; top: 12px; font-family: var(--fonte-display); font-size: 11px; color: var(--texto-2); background: var(--sombra); padding: 4px 6px; }   /* 12px: fora do rebite do canto do painel */
 .inicial .cavalo-nome { font-size: 24px; }
 .inicial-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .iniciais-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -526,9 +571,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 @media (min-width: 601px) { .montarias { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .montaria { background: var(--painel-2); padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .montaria .retrato, .montaria .retrato-moldura { align-self: center; }
+.montaria--ativa { padding: 10px; }   /* o destaque tem rebites nos cantos: 2px a mais de respiro */
 .montaria .cavalo-nome { overflow-wrap: anywhere; }
 .montaria .cavalo-nome small { color: var(--texto-2); font-size: var(--t-xs); text-shadow: none; }
-.montaria--ativa { box-shadow: inset 0 0 0 2px var(--ouro); }
 .estrelas { color: var(--ouro); letter-spacing: 1px; display: inline-flex; align-items: center; gap: 1px; vertical-align: middle; }
 .corcel { color: var(--ouro); font-size: var(--t-xs); }
 .badge-ativa { font-family: var(--fonte-display); font-size: 11px; line-height: 1; color: var(--tinta); background: var(--ouro); padding: 3px 4px; }
@@ -537,11 +582,27 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 /* tela da Montaria: cabeça (retrato, nome, ações) e sub-abas Status / Skills / Equipamento */
 .tela > [data-acao="montaria-voltar"], .tela > [data-acao="perfil-voltar"] { align-self: flex-start; }
 .montaria-cabeca .cavalo-info .titulo { overflow-wrap: anywhere; }
-.montaria-cabeca .titulo small { color: var(--texto-2); font-size: var(--t-xs); text-shadow: none; }
+.montaria-cabeca .titulo small { font-size: var(--t-xs); text-shadow: none; }
 .subabas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .subabas .opcao { min-height: 48px; min-width: 0; padding-left: 4px; padding-right: 4px; overflow-wrap: anywhere; }
-.aviso { background: var(--painel-2); padding: 10px 12px; color: var(--texto); font-size: var(--t-s); box-shadow: inset 4px 0 0 0 var(--ouro); margin: 0; }
-.aviso--perda { box-shadow: inset 4px 0 0 0 var(--perda); }
+/* avisos (§4.14): a faixa de 4px à esquerda (ouro ou perda), contorno --sombra e bisel de 2px */
+.aviso {
+  background: var(--painel-2); padding: 10px 12px 10px 14px; color: var(--texto); font-size: var(--t-s); margin: 0;
+  box-shadow:
+    0 0 0 2px var(--sombra),
+    inset 4px 0 0 0 var(--ouro),
+    inset 0 2px 0 0 var(--linha),
+    inset 0 -2px 0 0 var(--noite-2),
+    inset -2px 0 0 0 var(--noite-2);
+}
+.aviso--perda {
+  box-shadow:
+    0 0 0 2px var(--sombra),
+    inset 4px 0 0 0 var(--perda),
+    inset 0 2px 0 0 var(--linha),
+    inset 0 -2px 0 0 var(--noite-2),
+    inset -2px 0 0 0 var(--noite-2);
+}
 .confirma { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 /* renomear montaria: campo na própria tela (sem window.prompt) */
 .renomear { display: flex; flex-direction: column; gap: 8px; }
@@ -558,7 +619,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .haras-card .retrato-moldura { align-self: center; margin-bottom: 4px; }
 .haras-card .retrato-moldura .retrato { margin-bottom: 0; }
 .haras-card .linha-meta { gap: 4px 8px; font-size: var(--t-xs); }
-.haras-card.sel--on { background: var(--painel-3); box-shadow: inset 0 0 0 3px var(--ouro), inset 0 -4px 0 0 var(--escuro-35); }
+.haras-card.sel--on { background: var(--painel-3); }   /* moldura: o painel em destaque (.opcao[aria-pressed="true"]) */
 .haras-nome { overflow-wrap: anywhere; }
 .calc p { margin: 0; font-size: var(--t-s); }
 .calc-barras { display: flex; flex-direction: column; gap: 6px; }
@@ -623,7 +684,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .corrida-titulo { display: flex; flex-direction: column; gap: 0; min-width: 0; }
 .corrida-nome { font-family: var(--fonte-ui); font-size: var(--t-l); line-height: 1.1; color: var(--texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-wrap: nowrap; }
 .corrida-titulo .rotulo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.saldo--pote { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; padding: 6px 10px; flex: none; }
+.saldo--pote { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; padding: 6px 14px; flex: none; }   /* 14px: o texto fora dos rebites */
 .saldo--pote .rotulo { font-size: 0.8125rem; color: var(--texto-2); }
 .palco { position: relative; background: var(--sombra); line-height: 0; overflow: hidden; flex: none; }
 .palco canvas { margin: 0 auto; }
@@ -653,7 +714,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   .corrida-topo { min-height: 40px; }
   .corrida-titulo .rotulo { display: none; }
   .feed { display: none; }
-  .saldo--pote { flex-direction: row; align-items: center; padding: 4px 8px; }
+  .saldo--pote { flex-direction: row; align-items: center; padding: 4px 14px; }
 }
 
 /* ---------- resultado ---------- */
@@ -724,7 +785,7 @@ html.mov-reduzido .btn:active:not(:disabled) { transform: none; }
   background: var(--painel); border-bottom: 2px solid var(--linha);
 }
 .app-topo .logo-mini { flex: 1 1 auto; }
-.app-topo .saldo { padding: 4px 8px; }
+.app-topo .saldo { padding: 6px 14px; }
 .app-topo .ouro, .app-topo .pedras { font-size: 12px; }
 .app-topo .ouro svg { width: 12px; height: 12px; }
 .app-perfil { flex: none; min-width: 40px; }
