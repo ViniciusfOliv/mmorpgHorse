@@ -78,12 +78,12 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
 - **Folha da interface** (todos os componentes, `prototype/dist/interface.html`): https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR
 - **Verificação:** `./scripts/check.sh` OK (129 simulação, 104 efeitos, 170 moldes, 615 conferências do wiki, 87 metas no
   balanço rápido, interface; `jogo.html` 841,9 KB, fontes e peças 35,0 KB). Alturas a 360 px: Estábulo 1320 e Status 1940
-  (limite de +4% sobre 1284 e 1894). Capturas oficiais de `prototype/screens/` regeneradas (33 imagens, nenhuma nova nem removida).
+  (limite de +4% sobre 1284 e 1894). Capturas oficiais de `prototype/screens/` regeneradas (31 imagens, nenhuma nova nem removida).
 - **Publicação:** a folha e o `jogo-dev.html` vão para o artefato de teste da frente visual; os artefatos oficiais só
   depois do merge na `main` (decisão do Vinicius sobre integração).
 - **Próximos passos:** 3b (estábulo e montaria no celular: lista compacta, ficha com o cavalo em destaque, Status sem
   duas telas de rolagem, motivo visível no toque, "º" no leitor de tela) e 3c (tela da corrida); cada uma com spec e plano.
-  Pendências menores da 3a: ver os "minor" do ledger da execução (sem hover/apertado nas abas da barra de baixo, "ç" de
+  Pendências menores da 3a (sem hover/apertado nas abas da barra de baixo, "ç" de
   Expedição encostado no bisel).
 
 ## Em andamento
