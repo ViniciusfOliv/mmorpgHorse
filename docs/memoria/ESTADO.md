@@ -1,6 +1,6 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-13._
+_Atualizado em 2026-11-14._
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
 durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o
@@ -63,6 +63,9 @@ Spec em `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, plano e
   Estábulo com os pontos que sobram, explicações "ⓘ"; equipamento e Loja suspensos (peças guardadas); save v6 que devolve
   os pontos, com aviso único; Rédea nova só pela gaveta DEV.
 - **Verificação:** `./scripts/check.sh` termina em `VERIFICAÇÃO COMPLETA: OK` (129 testes de simulação, 104 de efeitos, 161 de moldes, 615 conferências do wiki, 87 metas no balanço rápido, interface); o `balance.js` completo passa as 165 metas. Capturas oficiais de `prototype/screens/` regeneradas (a da Loja, `final-09-loja.png`, saiu: a tela está escondida).
+- **Revisão final da branch (2026-11-14):** código aprovado; uma rodada corrigiu textos do ⓘ (Poder e liga), o texto de
+  equipamento do wiki, o comentário do `GEAR_ON`, o ⓘ de Poder e liga na aba Correr e a memória; `check.sh` OK em 9115ddf.
+  Jogo, DEV, wiki e o build "Galope Ícones DEV" republicados com esse build em 2026-11-14.
 - **Ainda não testado por gente:** os números saíram de simulação; a corrida mudou de sensação (mais curta).
 
 ## Em andamento
