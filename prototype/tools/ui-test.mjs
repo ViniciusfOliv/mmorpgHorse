@@ -2118,16 +2118,18 @@ try {
           raw.nextUid = 3; raw.stableSlots = 3
         })
         const est = await confereTela(pg, tag + ' estábulo')
-        // sexo e Corcel saíram da linha do Estábulo (3b §4): os ícones e o texto ao lado deles são conferidos nas fichas da
-        // m1 (Macho, Corcel) e da m2 (Fêmea, Corcel), abaixo
+        // sexo e Corcel saíram da linha do Estábulo (3b §4) e da cabeça da ficha (3b §5): os ícones e o texto ao lado deles
+        // são conferidos na aba Ficha da m1 (Macho, Corcel) e da m2 (Fêmea, Corcel), abaixo
         espera(est, 'estábulo', ['ui-perfil', 'ui-estrela', 'ui-estrela-vazia', 'rar-comum', 'rar-raro'])
-        const fichaTxt = async () => ((await pg.locator('.montaria-cabeca').textContent()) || '').replace(/\s+/g, ' ')
+        const fichaTxt = async () => ((await pg.locator('.montaria-ficha').textContent()) || '').replace(/\s+/g, ' ')
         const rotPerfil = await pg.locator('.app-perfil').getAttribute('aria-label')
         if (rotPerfil !== 'Perfil') problems.push(`${tag} estábulo: botão do Perfil com aria-label "${rotPerfil}"`)
         // Montaria m1: aba Status (os 7 status) e aba Skills (ícones de 32 px)
         await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
         await pg.waitForSelector('#t-montaria')
-        espera(await confereTela(pg, tag + ' montaria-status'), 'montaria-status', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-', 'ui-corcel', 'ui-macho']))
+        espera(await confereTela(pg, tag + ' montaria-status'), 'montaria-status', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-']))
+        await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+        espera(await confereTela(pg, tag + ' montaria-ficha'), 'montaria-ficha', ['ui-corcel', 'ui-macho'])
         const txt1 = await fichaTxt()
         for (const p of ['Macho', 'Corcel']) if (!txt1.includes(p)) problems.push(`${tag} ficha m1: sem o texto "${p}" ao lado do ícone`)
         for (const uid of ['m1', 'm2', 'm3', 'm4']) {
@@ -2135,14 +2137,16 @@ try {
             await pg.locator('[data-acao="montaria-voltar"]').click()
             await pg.locator('button[data-acao="montaria"][data-id="m2"]').click()
             await pg.waitForSelector('#t-montaria')
-            espera(await confereTela(pg, tag + ' montaria-status m2'), 'montaria-status m2', ['ui-femea', 'ui-corcel'])
+            await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+            espera(await confereTela(pg, tag + ' montaria-ficha m2'), 'montaria-ficha m2', ['ui-femea', 'ui-corcel'])
             const txt2 = await fichaTxt()
             for (const p of ['Fêmea', 'Corcel']) if (!txt2.includes(p)) problems.push(`${tag} ficha m2: sem o texto "${p}" ao lado do ícone`)
           }
           await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
           await pg.waitForSelector('.vaga-tipo')
           const sk = await confereTela(pg, `${tag} skills ${uid}`)
-          espera(sk, 'skills ' + uid, uid === 'm1' ? ['sk-arranque', 'sk-tipo-fogo'] : ['sk-arranque', 'sk-sprint', 'sk-drift', 'sk-tipo-agua', 'ui-femea'])
+          // o ui-femea da m2 aparecia aqui pela cabeça da ficha; com o sexo na aba Ficha (3b §5), é conferido lá (acima)
+          espera(sk, 'skills ' + uid, uid === 'm1' ? ['sk-arranque', 'sk-tipo-fogo'] : ['sk-arranque', 'sk-sprint', 'sk-drift', 'sk-tipo-agua'])
           const tam = await pg.evaluate(() => Array.prototype.map.call(document.querySelectorAll('.habilidade img.icone, .vaga-tipo img.icone'), (i) => {
             const b = i.getBoundingClientRect()
             return { c: i.className, w: i.getAttribute('width'), h: i.getAttribute('height'), rw: Math.round(b.width), rh: Math.round(b.height) }
@@ -2664,14 +2668,15 @@ try {
           if ((await pressionado(pg, 'joquei-padrao')).indexOf('xadrez=true') < 0) problems.push(`${tag}: gravação falhou e a tela mudou o padrão`)
           if (!/Não foi possível salvar/.test(await pg.locator('#tela').textContent())) problems.push(`${tag}: gravação falhou sem aviso`)
           await pg.evaluate(() => { Storage.prototype.setItem = Storage.prototype.__setOrig })
-          // ficha da Montaria: a linha "Marcas:" junto do sexo, batendo com o save
+          // ficha da Montaria (aba Ficha, 3b §5): a linha "Marcas:" junto do sexo e do porte, batendo com o save
           await pg.locator('[data-acao="perfil-voltar"]').click()
           await pg.waitForSelector('#t-estabulo')
           for (const uid of ['m1', 'm2', 'm3', 'm4']) {
             await pg.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click()
             await pg.waitForSelector('#t-montaria')
+            await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
             const m = (await estado(pg)).mounts.find((x) => x.uid === uid)
-            const txt = await pg.evaluate(() => Array.from(document.querySelectorAll('.montaria-cabeca .linha-meta span')).map((e) => e.textContent.replace(/\s+/g, ' ').trim()).find((t) => /^Marcas:/.test(t)) || null)
+            const txt = await pg.evaluate(() => Array.from(document.querySelectorAll('.montaria-ficha .ficha-dados > li')).map((e) => e.textContent.replace(/\s+/g, ' ').trim()).find((t) => /^Marcas:/.test(t)) || null)
             if (txt !== linhaMarcas(m.marcas)) problems.push(`${tag}: ficha de ${uid}: "${txt}" (esperado "${linhaMarcas(m.marcas)}")`)
             if (uid === 'm3' && txt !== 'Marcas: nenhuma') problems.push(`${tag}: ficha sem marcas com "${txt}"`)
             if (uid === 'm4' && txt !== 'Marcas: 1 meia') problems.push(`${tag}: ficha só com 1 meia com "${txt}"`)
@@ -2800,11 +2805,12 @@ try {
       const L = window.__galope.ui.lobby
       return { n: L.n, seed: L.seed, racers: L.racers.map((r) => ({ isPlayer: r.isPlayer, id: r.horse.uid || r.horse.id, element: r.horse.element })) }
     })
-    // linhas da ficha da Montaria: o "Porte: …" e se ele vem logo antes do "Marcas: …"
+    // linhas da aba Ficha da Montaria (3b §5): o "Porte: …" e se ele vem logo antes do "Marcas: …"
     const fichaPorte = async (pg, uid, onde) => {
       await pg.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click()
       await pg.waitForSelector('#t-montaria')
-      const sp = await pg.evaluate(() => Array.from(document.querySelectorAll('.montaria-cabeca .linha-meta span')).map((e) => e.textContent.replace(/\s+/g, ' ').trim()))
+      await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+      const sp = await pg.evaluate(() => Array.from(document.querySelectorAll('.montaria-ficha .ficha-dados > li')).map((e) => e.textContent.replace(/\s+/g, ' ').trim()))
       await checkOverflow(pg, onde)
       await pg.locator('[data-acao="montaria-voltar"]').click()
       await pg.waitForSelector('#t-estabulo')
@@ -3282,11 +3288,12 @@ try {
   const comSave = (save) => ({ init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(JSON.stringify(save))}) } } catch (e) {}` } })
 
   // ---------------- acabamento da interface (Visuais 2, parte 3a): fontes embutidas, sem border-image, altura, peças, títulos compridos ----------------
+  // alturas da página a 360x780 com o CSS de antes da 3a (as peças e as fontes embutidas não mudam métrica)
+  // medido em 2026-11-14 na `main` (7fe5124), antes da 3a: build da `main`, o mesmo save (SAVE_3A) e o mesmo caminho do
+  // bloco acabamento (servidor deste teste, 360x780, scrollHeight; Skills é a aba da montaria ativa). Usado também no celular.
+  const ALTURA_ANTES_3A = { estabulo: 1284, status: 1894, correr: 802, skills: 1145 }
+
   if (quer('acabamento')) {
-    // alturas da página a 360x780 com o CSS de antes da 3a (as peças e as fontes embutidas não mudam métrica)
-    // medido em 2026-11-14 na `main` (7fe5124), antes da 3a: build da `main`, o mesmo save (SAVE_3A) e o mesmo caminho abaixo
-    // (servidor deste teste, 360x780, scrollHeight; Skills é a aba da montaria ativa)
-    const ALTURA_ANTES_3A = { estabulo: 1284, status: 1894, correr: 802, skills: 1145 }
     // sem border-image no elemento nem no ::before/::after (as peças de pixel entram por pseudo-elemento)
     const semBorderImage = async (pg, tag) => {
       const ruins = await pg.evaluate(() => {
@@ -3559,7 +3566,7 @@ try {
         await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
         await pg.waitForSelector('#t-montaria')
         if (!(await pg.locator('#t-montaria').textContent()).includes(NOME_LONGO)) problems.push('acabamento-longo: a Montaria não mostra o nome de 24 caracteres')
-        for (const sub of ['status', 'skills']) {
+        for (const sub of ['status', 'skills', 'ficha']) {
           await pg.locator(`[data-acao="montaria-aba"][data-id="${sub}"]`).click()
           await confere('montaria ' + sub)
         }
@@ -3675,6 +3682,10 @@ try {
         await apertaEConfere(pg, 'status', '.subabas .opcao[aria-pressed="true"]', ['--sombra', '--ouro-escuro', '--ouro'])
         await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
         await confere('skills')
+        // aba Ficha (3b §5) e a cabeça: o selo "Ativa" na placa, a raridade e os selos do retrato grande com o canto recortado
+        await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+        await confere('ficha')
+        await selosRecortados(pg, 'ficha', '.montaria-cabeca .raridade, .montaria-cabeca .badge-ativa, .montaria-cabeca .selo-nivel, .montaria-cabeca .pontos-livres--selo', true)
         await aba('correr')
         await confere('correr')
         await ajudaDesenhada(pg, 'correr')
@@ -3739,7 +3750,7 @@ try {
         await temCores(pg, 'desktop', '.app-abas', ['--sombra', '--linha'])
         await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
         await pg.waitForSelector('#t-montaria')
-        for (const sub of ['status', 'skills']) { await pg.locator(`[data-acao="montaria-aba"][data-id="${sub}"]`).click(); await checkOverflow(pg, 'acabamento-desktop montaria ' + sub) }
+        for (const sub of ['status', 'skills', 'ficha']) { await pg.locator(`[data-acao="montaria-aba"][data-id="${sub}"]`).click(); await checkOverflow(pg, 'acabamento-desktop montaria ' + sub) }
         for (const id of ['correr', 'haras', 'expedicao']) {
           await aba(id)
           await checkOverflow(pg, 'acabamento-desktop ' + id)
@@ -3806,6 +3817,8 @@ try {
         await pg.waitForSelector('#t-montaria')
         await confereForcado(pg, 'status')
         if (process.env.SHOTS_DIR) await pg.screenshot({ path: join(SHOTS, 'acabamento-forcado-status.png') })   // só na pasta temporária
+        await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+        await confereForcado(pg, 'ficha')
       } catch (e) {
         problems.push('acabamento-forcado: ' + e.message)
       } finally {
@@ -3862,6 +3875,12 @@ try {
         const lg = await pg.evaluate(() => { const m = document.querySelector('#tela .motivo'), l = m && m.closest('.build-linha'); return m && l ? m.getBoundingClientRect().width / l.getBoundingClientRect().width : null })
         if (!(lg >= 0.9)) problems.push(`${label}: ${nome}: a .motivo ocupa ${lg} da largura da .build-linha (esperado >= 0,9)`)
       }
+      // Tornar ativa e Liberar (aba Ficha, Ruling 2): a .motivo vem logo depois do contêiner .montaria-acoes do botão
+      if (/"(ativar|liberar)"/.test(sel)) {
+        const lugar = await pg.evaluate((s) => { const m = document.querySelector('#tela .motivo'), b = document.querySelector(s), a = m && m.previousElementSibling
+          return m && a ? { acoes: a.classList.contains('montaria-acoes'), doBotao: !!(b && a.contains(b)), naFicha: !!a.closest('.montaria-ficha') } : null }, sel)
+        if (!lugar || !lugar.acoes || !lugar.doBotao || !lugar.naFicha) problems.push(`${label}: ${nome}: a .motivo não ficou logo depois das ações da aba Ficha (${JSON.stringify(lugar)})`)
+      }
       await b().focus()
       await pg.keyboard.press('Enter')
       await vistoUma('Enter'); await igualA0('o Enter')
@@ -3889,9 +3908,18 @@ try {
       await confere('Expandir estábulo sem Ouro', '[data-acao="expandir"]', /^Falta Ouro para expandir o estábulo\.$/)
       // 3b §4: "Tornar ativa" saiu da lista (só na ficha): nenhum botão de ativar no Estábulo; o da ficha, abaixo, tem os mesmos motivos
       if (await pg.locator('#tela [data-acao="ativar"]').count()) problems.push(`${label}: "Tornar ativa" na lista do Estábulo (sem páreo)`)
-      await abreFicha('m1')
-      await confere('Tornar ativa na ficha (já ativa)', '.montaria-cabeca [data-acao="ativar"]', /^Esta já é a montaria ativa\.$/)
-      await confere('Liberar a ativa', '.montaria-cabeca [data-acao="liberar"]', /^A montaria ativa não pode ser liberada\.$/)
+      await abreFicha('m1', 'ficha')
+      // 3b §5: a ficha da ativa não tem "Tornar ativa" (nem na aba Ficha nem na cabeça); um botão forçado (criado no DOM e
+      // clicado) não muda nada: o handler recusa a que já é a ativa
+      if (await pg.locator('#tela [data-acao="ativar"]').count()) problems.push(`${label}: a ficha da ativa tem "Tornar ativa"`)
+      {
+        const t0 = await tudo()
+        await pg.evaluate(() => { const x = document.createElement('button'); x.type = 'button'; x.setAttribute('data-acao', 'ativar'); x.setAttribute('data-id', 'm1'); document.getElementById('tela').appendChild(x); x.click(); x.remove() })
+        const t1 = await tudo()
+        if (t1.disco !== t0.disco || t1.mem !== t0.mem || t1.rasc !== t0.rasc || t1.conf !== t0.conf) problems.push(`${label}: "Tornar ativa" forçado na ficha da ativa mudou o estado`)
+      }
+      await confere('Liberar a ativa', '.montaria-ficha [data-acao="liberar"]', /^A montaria ativa não pode ser liberada\.$/)
+      await pg.locator('[data-acao="montaria-aba"][data-id="status"]').click()
       const s1 = await pg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
       if (S.allocInfo(s1.mounts[0]).left !== 4) problems.push(`${label}: a Brasa de teste tem ${S.allocInfo(s1.mounts[0]).left} pontos livres (esperado 4)`)
       if (await pg.locator('[data-acao="ponto-mais"][data-id="est"][data-n="1"]').isDisabled()) problems.push(`${label}: o +1 de Resistência está indisponível com 4 pontos livres`)
@@ -3915,9 +3943,9 @@ try {
         raw.pending = { counter: raw.raceCounter, training: false, fee: 100, pr: S.powerRating(raw.mounts[1]), alloc: JSON.parse(JSON.stringify(raw.mounts[1].alloc)), gear: [] }
       })
       if (await pg.locator('#tela [data-acao="ativar"]').count()) problems.push(`${label}: "Tornar ativa" na lista do Estábulo (páreo aberto)`)
-      await abreFicha('m1')
-      await confere('Tornar ativa na ficha (páreo aberto)', '.montaria-cabeca [data-acao="ativar"]', /^Páreo aberto: corra a sala antes de trocar a montaria ativa\.$/)
-      await confere('Liberar com páreo aberto', '.montaria-cabeca [data-acao="liberar"]', /^Páreo aberto: corra a sala antes de liberar uma montaria\.$/)
+      await abreFicha('m1', 'ficha')
+      await confere('Tornar ativa na ficha (páreo aberto)', '.montaria-ficha [data-acao="ativar"]', /^Páreo aberto: corra a sala antes de trocar a montaria ativa\.$/)
+      await confere('Liberar com páreo aberto', '.montaria-ficha [data-acao="liberar"]', /^Páreo aberto: corra a sala antes de liberar uma montaria\.$/)
       await abreFicha('m2')
       const maisTrava = await pg.evaluate(() => { const x = Array.from(document.querySelectorAll('[data-acao="ponto-mais"][aria-disabled="true"]')).find((e) => /Páreo aberto: passaria do Poder/.test(e.getAttribute('data-motivo') || '')); return x ? [x.getAttribute('data-id'), x.getAttribute('data-n')] : null })
       if (!maisTrava) problems.push(`${label}: a Teto ativa com páreo aberto não tem +N travado pelo Poder da sala`)
@@ -3991,11 +4019,12 @@ try {
       if (f.id !== uid) problems.push(`${label} ${tag}: depois de "Voltar" o foco ficou em ${f.id ? 'outra linha (' + f.id + ')' : f.fora} (esperado a linha de ${uid})`)
       else if (!f.visivel) problems.push(`${label} ${tag}: a linha de ${uid}, com o foco, ficou fora da tela (atrás do cabeçalho ou da barra de abas)`)
     }
-    // troca a ativa pela ficha: até a Tarefa 3 o "Tornar ativa" fica na cabeça da ficha (ela o leva para a aba Ficha)
+    // troca a ativa pela ficha: o "Tornar ativa" fica na aba Ficha (3b §5)
     const ativaPelaFicha = async (p, uid) => {
       await p.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click()
       await p.waitForSelector('#t-montaria')
-      await p.locator('.montaria-cabeca [data-acao="ativar"]').click()
+      await p.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+      await p.locator('.montaria-ficha [data-acao="ativar"]').click()
       if ((await p.evaluate(() => window.__galope.state.activeId)) !== uid) problems.push(`${label}: "Tornar ativa" da ficha não ativou ${uid}`)
     }
     {
@@ -4012,6 +4041,12 @@ try {
         await p3.locator('[data-acao="montaria-voltar"]').click()
         await p3.waitForSelector('#t-estabulo')
         await focoNaLinha(p3, 'm2', '3 cavalos, Voltar da m2')
+        // o voltar do aparelho (history.back, popstate) faz o mesmo: o foco na linha daquele cavalo
+        await p3.locator('button[data-acao="montaria"][data-id="m2"]').click()
+        await p3.waitForSelector('#t-montaria')
+        await p3.goBack()
+        await p3.waitForSelector('#t-estabulo')
+        await focoNaLinha(p3, 'm2', '3 cavalos, voltar do aparelho da m2')
         // trocar a ativa pela ficha e voltar: a ordem das linhas não muda (só o destaque passa para a nova ativa)
         await ativaPelaFicha(p3, 'm3')
         await p3.locator('[data-acao="montaria-voltar"]').click()
@@ -4055,10 +4090,199 @@ try {
         await pl.waitForSelector('#t-estabulo')
         if ((await pl.locator('#tela .montaria-linha').count()) !== 10) problems.push(`${label} longo ${larg}: o Estábulo não mostra as 10 linhas`)
         await confereLista(pl, `longo ${larg}`, null)
+        // a ficha do nome de 24 caracteres nas três abas: sem rolagem lateral e o nome quebrando dentro da placa
+        await pl.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await pl.waitForSelector('#t-montaria')
+        for (const sub of ['status', 'skills', 'ficha']) {
+          await pl.locator(`[data-acao="montaria-aba"][data-id="${sub}"]`).click()
+          await checkOverflow(pl, `${label} longo ${larg} ficha ${sub}`)
+          const h1 = await pl.evaluate(() => { const e = document.getElementById('t-montaria'); return { sw: e.scrollWidth, cw: e.clientWidth, txt: e.textContent } })
+          if (h1.sw > h1.cw + 1 || !h1.txt.includes(NOME_LONGO)) problems.push(`${label} longo ${larg} ficha ${sub}: o nome sai da placa ou some (${JSON.stringify(h1)})`)
+        }
       } catch (e) {
         problems.push(`${label}-longo-${larg}: ${e.message}`)
       } finally {
         await pl.context().close()
+      }
+    }
+
+    // ---- Ficha (3b §5): cabeça com o retrato grande na baia e as abas Status | Skills | Ficha ----
+    // PORTRAIT_SCALE_GRANDE: a maior escala inteira que cabe na coluna a 360 px e deixa a linha de abas inteira acima da
+    // barra de abas do app ao abrir a ficha (se as duas brigarem, as abas vencem e a escala desce um passo). O canvas tem
+    // 48·k x 36·k pixels, k = round(escala · dpr), e 48·k/dpr x 36·k/dpr px de CSS (setupCanvas: nada encolhido pelo CSS)
+    const ESCALA_GRANDE = 6
+    const cabecaDe = (p) => p.evaluate(() => {
+      const cab = document.querySelector('#tela .montaria-cabeca')
+      if (!cab) return null
+      const h1 = document.getElementById('t-montaria'), cv = cab.querySelector('canvas.retrato')
+      const semRetrato = cab.cloneNode(true)
+      semRetrato.querySelectorAll('.retrato-moldura').forEach((x) => x.remove())
+      const r = cv ? cv.getBoundingClientRect() : null
+      const sub = document.querySelector('#tela .subabas'), abas = document.querySelector('.app-abas')
+      const poder = Array.from(cab.querySelectorAll('.linha-meta span')).find((x) => /^Poder/.test(x.textContent.trim()))
+      return {
+        h1: h1 ? { dentro: cab.contains(h1), placa: h1.classList.contains('titulo--tela') && getComputedStyle(h1).backgroundImage.includes('data:image/png'),
+          ativa: h1.querySelectorAll('.badge-ativa').length, txt: h1.textContent.replace(/\s+/g, ' ').trim() } : null,
+        ativasCab: cab.querySelectorAll('.badge-ativa').length,
+        txt: semRetrato.textContent.replace(/\s+/g, ' ').trim(),
+        raridade: cab.querySelectorAll('.raridade').length, estrelas: cab.querySelectorAll('.estrelas[aria-label]').length, tipo: cab.querySelectorAll('.el').length,
+        liga: cab.querySelectorAll('.liga').length, xp: cab.querySelectorAll('.barra--xp').length,
+        ajudas: Array.from(cab.querySelectorAll('.ajuda')).map((b) => b.getAttribute('data-ajuda')),
+        poder: poder && poder.querySelector('b') ? Number(poder.querySelector('b').textContent) : null,
+        acoes: cab.querySelectorAll('[data-acao="ativar"], [data-acao="renomear"], [data-acao="liberar"], .montaria-acoes').length,
+        selo: (cab.querySelector('.retrato-moldura .selo-nivel') || {}).textContent || null,
+        mais: (cab.querySelector('.retrato-moldura .pontos-livres--selo') || {}).textContent || null,
+        cv: cv ? { grande: cv.classList.contains('retrato--grande'), w: cv.width, h: cv.height, cw: r.width, ch: r.height } : null,
+        cab: cab.getBoundingClientRect().width, dpr: window.devicePixelRatio, scrollY: window.scrollY,
+        abasFundo: sub ? sub.getBoundingClientRect().bottom : null, appAbasTopo: abas ? abas.getBoundingClientRect().top : null,
+        subabas: Array.from(document.querySelectorAll('#tela .subabas [data-acao="montaria-aba"]')).map((b) => [b.getAttribute('data-id'), b.textContent.trim(), b.getAttribute('aria-pressed')]),
+        aba: window.__galope.ui.montaria && window.__galope.ui.montaria.aba
+      }
+    })
+    // abre a ficha pela linha do Estábulo e confere a cabeça (estreita: o celular, com a barra de abas do app embaixo e a
+    // coluna de 360 px, onde o retrato ocupa a largura)
+    const confereCabeca = async (p, tag, uid, estreita) => {
+      await p.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await p.waitForSelector('#t-estabulo')
+      await p.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click()
+      await p.waitForSelector('#t-montaria')
+      const s = await p.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+      const m = s.mounts.find((x) => x.uid === uid), ativa = uid === s.activeId, num = uid.replace(/\D+/g, '')
+      const c = await cabecaDe(p)
+      if (!c) { problems.push(`${label} ${tag}: a ficha sem a .montaria-cabeca`); return null }
+      // abre em Status, com Status | Skills | Ficha na ordem e a linha de abas inteira acima da barra de abas do app, sem rolar
+      if (c.scrollY !== 0) problems.push(`${label} ${tag}: a ficha abriu com scrollY ${c.scrollY}`)
+      // (no computador a barra de abas do app é a coluna da esquerda: não cobre a linha de abas)
+      if (estreita && !(c.abasFundo <= c.appAbasTopo)) problems.push(`${label} ${tag}: o fundo da linha de abas (${c.abasFundo}) passa do topo da barra de abas do app (${c.appAbasTopo})`)
+      const esp = [['status', 'Status', 'true'], ['skills', 'Skills', 'false'], ['ficha', 'Ficha', 'false']]
+      if (JSON.stringify(c.subabas) !== JSON.stringify(esp) || c.aba !== 'status') problems.push(`${label} ${tag}: abas ${JSON.stringify(c.subabas)} na aba ${c.aba} (esperado ${JSON.stringify(esp)}, aberta em Status)`)
+      // cabeça: o h1 é a placa, com o nome, o #N e o selo "Ativa" (só na ativa); raridade, estrelas e tipo; Poder e liga com
+      // os ⓘ; o XP. Porte, marcas, cruzas, sexo, Corcel, chance de skill, pais e os botões ficam na aba Ficha
+      if (!c.h1 || !c.h1.dentro || !c.h1.placa || !c.h1.txt.includes(m.name) || !c.h1.txt.includes('#' + num) || c.h1.ativa !== (ativa ? 1 : 0) || c.ativasCab !== c.h1.ativa) problems.push(`${label} ${tag}: o h1 da cabeça ${JSON.stringify(c.h1)} (${c.ativasCab} selo(s) "Ativa" na cabeça; ativa: ${ativa})`)
+      if (c.raridade !== 1 || c.estrelas !== 1 || c.tipo < 1 || c.liga !== 1 || c.xp !== 1) problems.push(`${label} ${tag}: a cabeça sem raridade, estrelas, tipo, liga ou XP ${JSON.stringify(c)}`)
+      for (const k of ['raridade', 'estrelas', 'poder', 'liga']) if (!c.ajudas.includes(k)) problems.push(`${label} ${tag}: a cabeça sem o ⓘ de ${k}`)
+      if (c.poder !== S.powerRating(m)) problems.push(`${label} ${tag}: Poder ${c.poder} na cabeça (esperado ${S.powerRating(m)})`)
+      for (const t of [G.RARITIES[m.rarity].name, G.ELEMENTS[m.element].name, 'XP']) if (!c.txt.includes(t)) problems.push(`${label} ${tag}: a cabeça sem "${t}": ${c.txt}`)
+      if (/Macho|Fêmea|Porte:|Marcas:|[Cc]ruza|Corcel|Skills:|Pais:/.test(c.txt) || c.acoes) problems.push(`${label} ${tag}: a cabeça com dados ou ações da aba Ficha (${c.acoes} ações): ${c.txt}`)
+      // retrato grande com os selos nos cantos: "Nv N" e o "+N" dos pontos que cabem
+      const pts = podeComprar(m)
+      if (c.selo !== 'Nv ' + m.level || c.mais !== (pts ? '+' + pts : null)) problems.push(`${label} ${tag}: selos do retrato ${JSON.stringify([c.selo, c.mais])} (esperado Nv ${m.level} e ${pts ? '+' + pts : 'sem +N'})`)
+      const k = Math.max(1, Math.round(ESCALA_GRANDE * c.dpr))
+      if (!c.cv || !c.cv.grande || c.cv.w !== 48 * k || c.cv.h !== 36 * k || Math.abs(c.cv.cw - 48 * k / c.dpr) > 0.5 || Math.abs(c.cv.ch - 36 * k / c.dpr) > 0.5) {
+        problems.push(`${label} ${tag}: retrato grande ${JSON.stringify(c.cv)} (esperado ${48 * k}x${36 * k} pixels em ${(48 * k / c.dpr).toFixed(2)}x${(36 * k / c.dpr).toFixed(2)} px: escala ${ESCALA_GRANDE}, dpr ${c.dpr}, sem encolher pelo CSS)`)
+      } else if (estreita && (c.cv.cw + 12) / c.cab < 0.9) problems.push(`${label} ${tag}: o retrato com a moldura (${(c.cv.cw + 12).toFixed(1)} px) não ocupa a largura da coluna (${c.cab} px)`)
+      notes[`${label} ${tag}`] = { abasFundo: c.abasFundo, appAbasTopo: c.appAbasTopo, retrato: c.cv, cabeca: c.cab }
+      return m
+    }
+    // a aba Ficha da montaria aberta: ações (Tornar ativa só nas outras) no contêiner .montaria-acoes e os dados
+    const confereAbaFicha = async (p, tag, m, pais) => {
+      await p.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+      const s = await p.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+      const ativa = m.uid === s.activeId
+      const f = await p.evaluate(() => {
+        const sec = document.querySelector('#tela .montaria-ficha')
+        if (!sec) return null
+        const bt = (a) => {
+          const b = sec.querySelector(`[data-acao="${a}"]`)
+          if (!b) return null
+          const r = b.getBoundingClientRect(), ac = b.closest('.montaria-acoes')
+          return { id: b.getAttribute('data-id'), noAcoes: !!ac, off: b.getAttribute('aria-disabled') === 'true' || b.disabled, txt: b.textContent.trim(), w: r.width, h: r.height }
+        }
+        const press = document.querySelector('#tela [data-acao="montaria-aba"][aria-pressed="true"]')
+        return { rotulo: sec.getAttribute('aria-label'), tag: sec.tagName, aba: window.__galope.ui.montaria.aba, press: press && press.getAttribute('data-id'),
+          ativar: bt('ativar'), renomear: bt('renomear'), liberar: bt('liberar'), ativarNaTela: document.querySelectorAll('#tela [data-acao="ativar"]').length,
+          dados: Array.from(sec.querySelectorAll('.ficha-dados > li')).map((li) => li.textContent.replace(/[♂♀⚑]/g, ' ').replace(/\s+/g, ' ').trim()) }
+      })
+      if (!f) { problems.push(`${label} ${tag}: a aba Ficha sem a .montaria-ficha`); return }
+      if (f.tag !== 'SECTION' || f.rotulo !== 'Ficha' || f.aba !== 'ficha' || f.press !== 'ficha') problems.push(`${label} ${tag}: aba Ficha ${JSON.stringify({ tag: f.tag, rotulo: f.rotulo, aba: f.aba, press: f.press })}`)
+      // Tornar ativa só fora da ativa; Renomear e Liberar sempre (Liberar indisponível na ativa); todos no .montaria-acoes
+      if (ativa ? f.ativar || f.ativarNaTela : !f.ativar || f.ativar.id !== m.uid || f.ativar.off || f.ativar.txt !== 'Tornar ativa') problems.push(`${label} ${tag}: "Tornar ativa" ${JSON.stringify(f.ativar)} (${f.ativarNaTela} na tela; ativa: ${ativa})`)
+      if (!f.renomear || f.renomear.id !== m.uid || f.renomear.off || f.renomear.txt !== 'Renomear') problems.push(`${label} ${tag}: "Renomear" ${JSON.stringify(f.renomear)}`)
+      if (!f.liberar || f.liberar.id !== m.uid || f.liberar.off !== ativa || f.liberar.txt !== 'Liberar') problems.push(`${label} ${tag}: "Liberar" ${JSON.stringify(f.liberar)} (ativa: ${ativa})`)
+      for (const b of [f.ativar, f.renomear, f.liberar].filter(Boolean)) {
+        if (!b.noAcoes) problems.push(`${label} ${tag}: "${b.txt}" fora do contêiner .montaria-acoes (Ruling 2)`)
+        if (b.w < 44 || b.h < 44) problems.push(`${label} ${tag}: "${b.txt}" com ${b.w}x${b.h} px (alvo mínimo 44x44)`)
+      }
+      // dados: sexo (e Corcel), porte, marcas, cruzas restantes, chance de skill e, com parents, os pais
+      const nomeSexo = 'Sexo: ' + (m.sex === 'f' ? 'Fêmea' : 'Macho') + (B.isCorcel(m) ? ' Corcel' : '')
+      const esp = [nomeSexo, 'Porte: ' + G.PORTES.nomes[B.porteDe(m.porte, m.templateId, m.uid)], /^Marcas: \S/, 'Cruzas restantes: ' + m.breedLeft,
+        'Skills: ' + Math.round(S.skillChance(m, S.computeStats(m), 0) * 100) + '% de ativar'].concat(pais ? [pais] : [])
+      const ok = f.dados.length === esp.length && esp.every((e, i) => (e instanceof RegExp ? e.test(f.dados[i]) : e === f.dados[i]))
+      if (!ok) problems.push(`${label} ${tag}: dados da aba Ficha ${JSON.stringify(f.dados)} (esperado ${esp.map(String).join(' | ')})`)
+      await checkOverflow(p, `${label} ${tag} aba Ficha`)
+    }
+    {
+      // SAVE_3A a 360x780: a ativa (m1) e as outras (m2 com pais: a mãe no estábulo e o pai fora; m3 com um uid que não
+      // está mais no estábulo); Tornar ativa pela aba Ficha; Review Focus 5 (rascunho e troca de aba); altura da aba Skills
+      const SAVE_PAIS = JSON.parse(JSON.stringify(SAVE_3A))
+      SAVE_PAIS.mounts[1].parents = { f: { uid: 'm3', name: 'Maré' }, m: { uid: null, name: 'Trovão' } }
+      SAVE_PAIS.mounts[2].parents = { f: { uid: 'm9', name: 'Iara' }, m: { uid: 'm1', name: 'Brasa' } }
+      const pf = await newPage(browser, { width: 360, height: 780 }, label + '-ficha', comSave(SAVE_PAIS))
+      try {
+        await pf.waitForSelector('#t-estabulo')
+        const m1 = await confereCabeca(pf, 'ficha da ativa', 'm1', true)
+        // a aba Skills da ativa continua presa em +4% sobre a main (ALTURA_ANTES_3A)
+        await pf.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+        const aSk = await pf.evaluate(() => document.documentElement.scrollHeight)
+        notes[`${label} altura skills`] = aSk
+        if (aSk > 1.04 * ALTURA_ANTES_3A.skills) problems.push(`${label}: aba Skills da ativa com ${aSk}px (limite ${Math.round(1.04 * ALTURA_ANTES_3A.skills)})`)
+        if (m1) await confereAbaFicha(pf, 'ficha da ativa', m1, null)
+        // Review Focus 5: com rascunho na aba Status, ir para a Ficha (ou Skills) e voltar: o rascunho some e nada é gravado
+        for (const outra of ['ficha', 'skills']) {
+          await pf.locator('[data-acao="montaria-aba"][data-id="status"]').click()
+          const antes = await pf.evaluate((k) => ({ disco: localStorage.getItem(k), alloc: JSON.stringify(window.__galope.state.mounts[0].alloc) }), SAVE_REAL)
+          await pf.locator('[data-acao="ponto-mais"][data-id="vel"][data-n="1"]').click()
+          if ((await pf.evaluate(() => JSON.stringify(window.__galope.ui.montaria.rascunho))) === 'null') problems.push(`${label}: RF5: o +1 não pôs nada no rascunho`)
+          await pf.locator(`[data-acao="montaria-aba"][data-id="${outra}"]`).click()
+          await pf.locator('[data-acao="montaria-aba"][data-id="status"]').click()
+          const dep = await pf.evaluate((k) => ({ disco: localStorage.getItem(k), alloc: JSON.stringify(window.__galope.state.mounts[0].alloc), rasc: JSON.stringify(window.__galope.ui.montaria.rascunho),
+            marcas: document.querySelectorAll('#tela .valor--rascunho').length, confirmar: document.querySelectorAll('#tela [data-acao="pontos-confirmar"]').length }), SAVE_REAL)
+          if (dep.rasc !== 'null' || dep.marcas || dep.confirmar || dep.disco !== antes.disco || dep.alloc !== antes.alloc) problems.push(`${label}: RF5: Status -> ${outra} -> Status com rascunho ${JSON.stringify({ rasc: dep.rasc, marcas: dep.marcas, confirmar: dep.confirmar, alloc: [antes.alloc, dep.alloc], disco: dep.disco === antes.disco })}`)
+        }
+        // trocar de aba também fecha o campo de renomear da aba Ficha (como o rascunho do Status), sem mudar o nome
+        await pf.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+        await pf.locator('.montaria-ficha [data-acao="renomear"]').click()
+        if ((await pf.locator('.montaria-ficha #renomear-campo').count()) !== 1) problems.push(`${label}: "Renomear" não abriu o campo na aba Ficha`)
+        await pf.locator('[data-acao="montaria-aba"][data-id="status"]').click()
+        await pf.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+        const ren = await pf.evaluate(() => ({ campo: document.querySelectorAll('#renomear-campo').length, aberto: window.__galope.ui.montaria.renomear, nome: window.__galope.state.mounts[0].name }))
+        if (ren.campo || ren.aberto !== null || ren.nome !== 'Brasa') problems.push(`${label}: trocar de aba com o campo de renomear aberto ${JSON.stringify(ren)} (esperado o campo fechado e o nome igual)`)
+        // m2: Tornar ativa disponível; pais com o pai fora do estábulo (uid null)
+        const m2 = await confereCabeca(pf, 'ficha da m2', 'm2', true)
+        if (m2) await confereAbaFicha(pf, 'ficha da m2', m2, 'Pais: Maré e Trovão (fora do estábulo)')
+        // a confirmação de liberar também some ao trocar de aba, e nada sai do estábulo
+        await pf.locator('.montaria-ficha [data-acao="liberar"]').click()
+        if ((await pf.locator('.montaria-ficha [data-acao="liberar-sim"]').count()) !== 1) problems.push(`${label}: "Liberar" da m2 não pediu a confirmação`)
+        await pf.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+        await pf.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+        const lib = await pf.evaluate(() => ({ sim: document.querySelectorAll('[data-acao="liberar-sim"]').length, conf: window.__galope.ui.confirmLiberar, n: window.__galope.state.mounts.length }))
+        if (lib.sim || lib.conf !== null || lib.n !== 3) problems.push(`${label}: trocar de aba com a confirmação de liberar aberta ${JSON.stringify(lib)} (esperado sem a confirmação e os 3 cavalos)`)
+        // m3: a mãe com um uid que não está mais no estábulo
+        const m3 = await confereCabeca(pf, 'ficha da m3', 'm3', true)
+        if (m3) await confereAbaFicha(pf, 'ficha da m3', m3, 'Pais: Iara (fora do estábulo) e Brasa')
+        // Tornar ativa pela aba Ficha: a m3 vira a ativa, o botão some, o foco vai para o título e a aba continua a Ficha
+        await pf.locator('.montaria-ficha [data-acao="ativar"]').click()
+        const at = await pf.evaluate(() => ({ ativa: window.__galope.state.activeId, aba: window.__galope.ui.montaria.aba, botao: document.querySelectorAll('#tela [data-acao="ativar"]').length,
+          foco: document.activeElement && document.activeElement.id, selo: document.querySelectorAll('#t-montaria .badge-ativa').length }))
+        if (at.ativa !== 'm3' || at.aba !== 'ficha' || at.botao || at.foco !== 't-montaria' || at.selo !== 1) problems.push(`${label}: Tornar ativa pela aba Ficha ${JSON.stringify(at)}`)
+        await capT6(pf, 'celular-ficha-m3.png', true)
+      } catch (e) {
+        problems.push(`${label}-ficha: ${e.message}`)
+      } finally {
+        await pf.context().close()
+      }
+    }
+    for (const [larg, alt, dpr] of [[360, 780, 2.625], [1280, 800, 2]]) {
+      // densidade fracionada (o tamanho do retrato sai do setupCanvas: 48·k/dpr) e o computador (coluna de 520 px)
+      const pd = await newPage(browser, { width: larg, height: alt }, `${label}-ficha-${larg}-${dpr}`, { deviceScaleFactor: dpr, ...comSave(SAVE_3A) })
+      try {
+        await pd.waitForSelector('#t-estabulo')
+        const m1 = await confereCabeca(pd, `ficha ${larg} dpr ${dpr}`, 'm1', larg < 600)
+        if (m1) await confereAbaFicha(pd, `ficha ${larg} dpr ${dpr}`, m1, null)
+      } catch (e) {
+        problems.push(`${label}-ficha-${larg}-${dpr}: ${e.message}`)
+      } finally {
+        await pd.context().close()
       }
     }
   }
@@ -4264,14 +4488,17 @@ try {
         if (await pg.locator('#tela .slots, #tela .set-badge').count()) problems.push(`${label}: resumo de peças no Estábulo`)
         s = await estado(pg)
         const m1 = s.mounts[0]
-        // Montaria: sub-abas Status e Skills; a chance de skill sem o bônus do conjunto
+        // Montaria: sub-abas Status, Skills e Ficha (sem Equipamento); a chance de skill (na aba Ficha, 3b §5) sem o bônus do conjunto
         await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
         await pg.waitForSelector('#t-montaria')
         const subabas = await pg.locator('[data-acao="montaria-aba"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id')))
-        if (!igual(subabas, ['status', 'skills'])) problems.push(`${label}: sub-abas da Montaria ${subabas.join(',')} (esperado status,skills)`)
+        if (!igual(subabas, ['status', 'skills', 'ficha'])) problems.push(`${label}: sub-abas da Montaria ${subabas.join(',')} (esperado status,skills,ficha)`)
         if (await pg.locator('#tela .slots, #tela .set-badge').count()) problems.push(`${label}: resumo de peças na ficha da Montaria`)
         const pctSkill = Math.round(S.skillChance(m1, S.computeStats(m1), 0) * 100)
+        await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+        if (await pg.locator('#tela .slots, #tela .set-badge').count()) problems.push(`${label}: resumo de peças na aba Ficha da Montaria`)
         if (!new RegExp('Skills:\\s*' + pctSkill + '%').test(await textoTela(pg))) problems.push(`${label}: chance de skill na ficha não é ${pctSkill}% (sem o bônus do conjunto)`)
+        await pg.locator('[data-acao="montaria-aba"][data-id="status"]').click()
         // ações de peça e da Loja com o botão forçado: nada muda
         const antes = await estado(pg)
         for (const [acao, id] of [['equipar-tela', 'm1'], ['equip-slot', 'sela'], ['tirar', 'sela'], ['equipar', 'i9'], ['vender', 'i9'], ['melhorar', 'i1'], ['melhorar-sim', 'i1'],
@@ -4457,8 +4684,9 @@ try {
         await pg.locator('[data-acao="dev-criar"]').click()   // m2 (vira a ativa), com os mesmos pontos
         await devFechar(pg)
         await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
-        await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()   // 3b §4: "Tornar ativa" só na ficha
-        await pg.locator('.montaria-cabeca [data-acao="ativar"]').click()
+        await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()   // 3b §4 e §5: "Tornar ativa" só na aba Ficha
+        await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+        await pg.locator('.montaria-ficha [data-acao="ativar"]').click()
         s = await estado(pg)
         if (s.activeId !== 'm1' || !(G.STAT_KEYS.some((k) => da(s, 'm2').alloc[k] > 0))) problems.push(`${label}: preparo do páreo ` + JSON.stringify({ ativa: s.activeId, m2: da(s, 'm2') && da(s, 'm2').alloc }))
         await abrirSala(pg)
@@ -4647,8 +4875,9 @@ try {
         // RF3: m2 ativa com páreo aberto. Os +N que passariam do Poder da sala ficam desabilitados com o motivo; o sugerido
         // passa do Poder da sala, o Confirmar fica bloqueado com o motivo (na tela e no title) e nada é gravado, nem forçando
         await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
-        await pg.locator('button[data-acao="montaria"][data-id="m2"]').click()   // 3b §4: "Tornar ativa" só na ficha
-        await pg.locator('.montaria-cabeca [data-acao="ativar"]').click()
+        await pg.locator('button[data-acao="montaria"][data-id="m2"]').click()   // 3b §4 e §5: "Tornar ativa" só na aba Ficha
+        await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+        await pg.locator('.montaria-ficha [data-acao="ativar"]').click()
         await abrirSala(pg)
         s = await estado(pg)
         const m2 = s.mounts.find((m) => m.uid === 'm2'), pr = s.pending.pr
@@ -4739,9 +4968,11 @@ try {
   if (quebradas) problems.push('ícones: ' + quebradas + ' imagem(ns) quebrada(s)')
   if ((await page.locator('.dev-painel, .dev-faixa, .dev-botao').count()) !== 0) problems.push('painel/faixa dev presente sem ?dev=1')
 
-  // tela da Montaria (pela linha do Estábulo): renomear (escapado), a ativa não pode ser liberada; depois expandir o estábulo
+  // tela da Montaria (pela linha do Estábulo), aba Ficha (3b §5): renomear (escapado), a ativa não pode ser liberada; depois
+  // expandir o estábulo
   await page.locator('button[data-acao="montaria"][data-id="m1"]').click()
   await page.waitForSelector('#t-montaria')
+  await page.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
   // renomear num campo da própria tela (window.prompt não abre no iframe do artefato): Enter confirma, Esc cancela
   page.on('dialog', (d) => { problems.push('renomear: diálogo do navegador aberto: ' + d.message()); d.dismiss().catch(() => {}) })
   await page.locator('[data-acao="renomear"][data-id="m1"]').click()
@@ -5082,7 +5313,8 @@ try {
     const outraCz = await cz.evaluate(() => { const s = window.__galope.state; const m = s.mounts.find((x) => x.uid !== s.activeId); return m ? m.uid : null })
     await cz.locator(`button[data-acao="montaria"][data-id="${outraCz}"]`).click()
     await cz.waitForSelector('#t-montaria')
-    if (!(await indisp(cz.locator('.montaria-cabeca [data-acao="ativar"]').first()))) problems.push('cruzamento: ativar habilitado com páreo aberto')
+    await cz.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+    if (!(await indisp(cz.locator('.montaria-ficha [data-acao="ativar"]').first()))) problems.push('cruzamento: ativar habilitado com páreo aberto')
     await cz.locator('[data-acao="aba"][data-id="haras"]').click()
     await cz.waitForSelector('#t-haras')
     await cz.locator('[data-acao="haras-mine"][data-id="m1"]').click()
@@ -5161,6 +5393,7 @@ try {
       await cz.waitForSelector('#t-estabulo')
       await cz.locator(`button[data-acao="montaria"][data-id="${alvo}"]`).click()
       await cz.waitForSelector('#t-montaria')
+      await cz.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
       await cz.locator(`[data-acao="liberar"][data-id="${alvo}"]`).click()
       await cz.locator(`[data-acao="liberar-sim"][data-id="${alvo}"]`).click()
       await cz.waitForSelector('#t-estabulo')
@@ -5242,7 +5475,8 @@ try {
       // 7. expedição mostra a vitrine dos selvagens
       await mn.locator('[data-acao="aba"][data-id="expedicao"]').click()
       if ((await mn.locator('.selvagem').count()) < 3) problems.push('menu: expedição sem selvagens')
-      // 8. tela da Montaria: estado de guarda, captura, 3 sub-abas, Renomear e Liberar
+      // 8. tela da Montaria: estado de guarda, captura, as sub-abas (Status, Skills, Ficha e, com o equipamento, Equipamento),
+      //    Renomear e Liberar (na aba Ficha)
       await mn.locator('[data-acao="aba"][data-id="estabulo"]').click()
       await mn.locator('button[data-acao="montaria"][data-id="m1"]').click()
       await mn.waitForSelector('#t-montaria')
@@ -5255,8 +5489,8 @@ try {
       if (GEAR_ON && (await mn.locator('.slot-botao img.icone[alt=""]').count()) !== 5) problems.push('ícones: os 5 slots do Equipamento deveriam ter img.icone')
       if (GEAR_ON && (await mn.locator('.slot-botao .slot-nome').count()) !== 5) problems.push('ícones: rótulos dos slots sumiram')
       await mn.screenshot({ path: join(SHOTS, 'final-03-montaria.png') })
-      if ((await mn.locator('[data-acao="montaria-aba"]').count()) !== (GEAR_ON ? 3 : 2)) problems.push('menu: a Montaria tem ' + (await mn.locator('[data-acao="montaria-aba"]').count()) + ' sub-abas')
-      for (const aba of GEAR_ON ? ['skills', 'equip', 'status'] : ['skills', 'status']) {
+      if ((await mn.locator('[data-acao="montaria-aba"]').count()) !== (GEAR_ON ? 4 : 3)) problems.push('menu: a Montaria tem ' + (await mn.locator('[data-acao="montaria-aba"]').count()) + ' sub-abas')
+      for (const aba of GEAR_ON ? ['skills', 'equip', 'status', 'ficha'] : ['skills', 'status', 'ficha']) {
         await mn.locator(`[data-acao="montaria-aba"][data-id="${aba}"]`).click()
         if ((await mn.locator(`[data-acao="montaria-aba"][data-id="${aba}"][aria-pressed="true"]`).count()) !== 1) problems.push('menu: sub-aba ' + aba + ' não ativou')
       }
@@ -6530,11 +6764,18 @@ try {
       if (((await sem.locator('.app-perfil').textContent()) || '').trim() !== '👤') problems.push('sem-icones: botão do Perfil sem o emoji')
       await sem.locator('button[data-acao="montaria"][data-id="m1"]').click()
       await sem.waitForSelector('#t-montaria')
-      // o sexo saiu da linha do Estábulo (3b §4): a reserva dele é conferida na ficha
-      const fichaSemTxt = (await sem.locator('.montaria-cabeca').textContent()) || ''
-      if (!/♂ Macho/.test(fichaSemTxt)) problems.push('sem-icones: ficha sem a reserva do sexo: ' + fichaSemTxt.replace(/\s+/g, ' ').slice(0, 200))
+      // a linha do Estábulo leva o aria-label do botão (os filhos não chegam ao leitor de tela): as estrelas com o
+      // aria-label são conferidas também na cabeça da ficha
+      const cabSemTxt = (await sem.locator('.montaria-cabeca').textContent()) || ''
+      if (!/★★☆/.test(cabSemTxt)) problems.push('sem-icones: cabeça da ficha sem a reserva das estrelas: ' + cabSemTxt.replace(/\s+/g, ' ').slice(0, 200))
+      if ((await sem.locator('.montaria-cabeca .estrelas').first().getAttribute('aria-label')) !== '2 de 3 estrelas') problems.push('sem-icones: estrelas da cabeça da ficha sem o aria-label')
       if ((await sem.locator('.build-nome svg.icone-status').count()) !== 7) problems.push('sem-icones: aba Status sem os 7 status em SVG')
       await semImg('Montaria (Status)')
+      // o sexo saiu da linha do Estábulo (3b §4) e da cabeça (3b §5): a reserva dele é conferida na aba Ficha
+      await sem.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
+      const fichaSemTxt = (await sem.locator('.montaria-ficha').textContent()) || ''
+      if (!/♂ Macho/.test(fichaSemTxt)) problems.push('sem-icones: ficha sem a reserva do sexo: ' + fichaSemTxt.replace(/\s+/g, ' ').slice(0, 200))
+      await semImg('Montaria (Ficha)')
       await sem.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
       await sem.waitForSelector('.vaga-tipo')
       if ((await sem.locator('.vaga-tipo b canvas[data-icon]').count()) !== 1) problems.push('sem-icones: skill de tipo sem o selo do elemento de reserva')

@@ -722,12 +722,34 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 }
 .montaria-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
 .montaria-acoes .btn { flex: 1 1 auto; }
-/* tela da Montaria: cabeça (retrato, nome, ações) e sub-abas Status / Skills / Equipamento */
+/* tela da Montaria (3b §5): cabeça (retrato grande, nome, raridade, Poder, XP) e sub-abas Status / Skills / Ficha */
 .tela > [data-acao="montaria-voltar"], .tela > [data-acao="perfil-voltar"] { align-self: flex-start; }
-.montaria-cabeca .cavalo-info .titulo { overflow-wrap: anywhere; }
+/* o retrato grande na baia, de borda a borda do painel como o palco da tela inicial: o canvas sai do tamanho da escala
+   (setupCanvas) e a moldura de madeira (6px) fica dentro do palco; os rebites do painel ficam por cima */
+.montaria-cabeca .retrato-palco {
+  display: flex; justify-content: center; background: var(--painel-2); padding: 8px 0 10px; margin: -14px -14px 0;
+  box-shadow: inset 0 -2px 0 0 var(--linha);
+}
+/* os selos do retrato grande: um passo maior (Jersey 20px), na escala do cavalo, e os dois na linha de baixo (a palha):
+   o "+N" desce do canto de cima, onde cobriria a cabeça do cavalo, para o canto de baixo à direita */
+.retrato--grande ~ .selo-nivel, .retrato--grande ~ .pontos-livres--selo { font-size: var(--t-m); padding: 6px 8px 4px; }
+.retrato--grande ~ .pontos-livres--selo { top: auto; bottom: 0; }
+/* o nome na placa (h1), com o selo "Ativa" na ponta direita; um nome comprido quebra dentro da placa e leva o selo junto */
+.montaria-cabeca .titulo--tela { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.montaria-cabeca .montaria-nome { min-width: 0; overflow-wrap: anywhere; }
 .montaria-cabeca .titulo small { font-size: 1em; text-shadow: none; }
-.subabas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.montaria-cabeca .titulo--tela .badge-ativa { margin-left: auto; text-shadow: none; }
+.subabas { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
 .subabas .opcao { min-height: 48px; min-width: 0; padding-left: 4px; padding-right: 4px; overflow-wrap: anywhere; }
+/* aba Ficha (3b §5): as ações em cima (o motivo do toque entra logo abaixo delas) e os dados em linhas de rótulo e valor,
+   separadas por um tracejado de 2px, como no programa de corrida */
+.ficha-dados { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; font-size: var(--t-m); line-height: 1.25; }
+.ficha-dados > li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 8px 0; min-width: 0; }
+.ficha-dados > li + li { background: linear-gradient(90deg, var(--linha) 4px, transparent 0) 0 0 / 8px 2px repeat-x; }
+.ficha-rotulo { color: var(--texto-2); }
+.ficha-valor { color: var(--texto); min-width: 0; overflow-wrap: anywhere; }
+.ficha-valor .corcel { font-size: inherit; margin-left: 8px; white-space: nowrap; }
+.ficha-fora { color: var(--texto-2); }
 /* avisos (§4.14): a faixa de 4px à esquerda (ouro ou perda), contorno --sombra e bisel de 2px */
 .aviso {
   background: var(--painel-2); padding: 10px 12px 10px 14px; color: var(--texto); font-size: var(--t-s); margin: 0;

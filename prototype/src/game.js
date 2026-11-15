@@ -75,7 +75,9 @@
   var BOT_SILKS = SP.SILKS.filter(function (c) { return c.toLowerCase() !== PLAYER_SILKS; });
   var PORTRAIT_SCALE = 3;        // escala dos retratos (portraitHtml sem opts.tamanho)
   var PORTRAIT_SCALE_PEQUENO = 2; // retrato pequeno: a linha do Estábulo (3b §4)
-  var PORTRAIT_SCALE_GRANDE = 6;  // retrato grande: a cabeça da ficha (3b §5)
+  // retrato grande: a cabeça da ficha (3b §5). A maior escala inteira que cabe na coluna a 360 px (288 px + a moldura no
+  // palco de 324); a 360x780 a linha de abas da ficha ainda fica inteira acima da barra de abas do app (folga de 97 px)
+  var PORTRAIT_SCALE_GRANDE = 6;
   var CANVAS_MAX_PX = 1500000;   // teto (pixels) do canvas da corrida antes de desenhar numa escala menor
 
   // Movimento: opção "Animações" do Perfil (state.settings.motion). 'sistema' (padrão) segue o
@@ -2028,8 +2030,9 @@
   var SLOT_PRICE = BR.stableSlotPrice;
   function uidNum(uid) { return String(uid).replace(/\D+/g, ''); }
 
-  function motivoAtivar(isActive, P) {
-    return isActive ? 'Esta já é a montaria ativa.' : P ? 'Páreo aberto: corra a sala antes de trocar a montaria ativa.' : '';
+  // por que "Tornar ativa" está indisponível ('' quando pode). A ficha da ativa nem mostra o botão (3b §5)
+  function motivoAtivar(P) {
+    return P ? 'Páreo aberto: corra a sala antes de trocar a montaria ativa.' : '';
   }
   // por que a montaria não pode ser liberada ('' quando pode)
   function motivoLiberar(m) {
@@ -2568,10 +2571,11 @@
   }
 
   // ===========================================================================
-  // Tela da Montaria (sub-tela): cabeça com ações e sub-abas Status / Skills / Equipamento
+  // Tela da Montaria (sub-tela): cabeça com o retrato grande e sub-abas Status / Skills / (Equipamento) / Ficha
   // ===========================================================================
   // a sub-aba Equipamento some com o equipamento suspenso (GEAR_ON); o handler 'montaria-aba' só abre as desta lista
-  var MONTARIA_ABAS = [{ id: 'status', rotulo: 'Status' }, { id: 'skills', rotulo: 'Skills' }, { id: 'equip', rotulo: 'Equipamento' }]
+  var MONTARIA_ABAS = [{ id: 'status', rotulo: 'Status' }, { id: 'skills', rotulo: 'Skills' }, { id: 'equip', rotulo: 'Equipamento' },
+    { id: 'ficha', rotulo: 'Ficha' }]
     .filter(function (a) { return GEAR_ON || a.id !== 'equip'; });
   function montariaAbaValida(id) { return MONTARIA_ABAS.some(function (a) { return a.id === id; }); }
 
@@ -2796,21 +2800,31 @@
     }
   }
 
-  function renderMontaria() {
-    var m = ui.montaria ? mountByUid(ui.montaria.uid) : null;
-    if (!m) { ui.montaria = null; ui.screen = ui.tab; syncHistory(ui.tab); return renderTab(ui.tab); } // montaria sumiu (liberada, outra aba): volta à aba
-    var M = ui.montaria, P = state.pending;
-    var isActive = m.uid === state.activeId;
-    var uid = esc(m.uid);
+  // ---- Aba Ficha (3b §5): as ações da montaria e os dados que saíram da cabeça ----
+  // Ações no contêiner .montaria-acoes (o MOTIVO_ONDE põe o motivo do toque logo depois dele): Tornar ativa só nas outras
+  // (trava com páreo aberto), Renomear (o campo na própria tela) e Liberar (com a confirmação; trava na ativa, no único
+  // cavalo e com páreo aberto). Os handlers conferem tudo de novo. Dados: sexo (e Corcel), porte, marcas, cruzas
+  // restantes, chance de skill e, com m.parents, os pais pelo nome salvo, com "(fora do estábulo)" quando o uid é null ou
+  // não está mais em state.mounts (o critério é o uid: nomes podem repetir).
+  function fichaLinha(rotulo, valorHtml) {
+    return '<li><span class="ficha-rotulo">' + esc(rotulo) + ':</span> <span class="ficha-valor">' + valorHtml + '</span></li>';
+  }
+  // "Porte: Robusto" (porteTexto) e "Marcas: ..." (marcasTexto) separados em rótulo e valor
+  function fichaLinhaTexto(txt) {
+    var i = txt.indexOf(': ');
+    return fichaLinha(txt.slice(0, i), esc(txt.slice(i + 2)));
+  }
+  function paiHtml(p) {
+    var fora = p.uid == null || !mountByUid(p.uid);
+    return esc(p.name || 'sem nome') + (fora ? ' <span class="ficha-fora">(fora do estábulo)</span>' : '');
+  }
+  function montariaFichaHtml(m) {
+    var M = ui.montaria, P = state.pending, uid = esc(m.uid), isActive = m.uid === state.activeId;
     var h = clone(m);
-    var stats = RS.computeStats(h);
-    var rating = RS.powerRating(h);
     // a corrida não usa mais o bônus de chance de skill do conjunto (o equipamento não entra: sim.js)
-    var skillPct = Math.round(RS.skillChance(h, stats, 0) * 100);
+    var skillPct = Math.round(RS.skillChance(h, RS.computeStats(h), 0) * 100);
     var corcel = window.Breed && window.Breed.isCorcel(m)
-      ? '<span class="corcel" title="Corcel: herança garantida">' + corcelHtml() + '</span>' : '';
-    var canRelease = !isActive && state.mounts.length > 1 && !P;
-
+      ? ' <span class="corcel" title="Corcel: herança garantida">' + corcelHtml() + '</span>' : '';
     // renomear: campo na própria tela (window.prompt não abre num iframe sem allow-modals, como o do artefato)
     var R = M.renomear;
     var acoes = R
@@ -2820,32 +2834,47 @@
           (R.erro ? '<p class="aviso" role="status">' + esc(R.erro) + '</p>' : '') +
           '<div class="montaria-acoes"><button type="button" class="btn btn--pequeno btn--ouro" data-acao="renomear-ok" data-id="' + uid + '">Salvar</button>' +
           '<button type="button" class="btn btn--pequeno" data-acao="renomear-nao" data-id="' + uid + '">Cancelar</button></div></div>'
-      : ui.confirmLiberar === m.uid && canRelease
+      : ui.confirmLiberar === m.uid && !motivoLiberar(m)
       ? '<div class="confirma" role="group" aria-label="Confirmar liberação"><span>Liberar ' + esc(m.name) + '? Ela deixa o estábulo para sempre, sem Ouro de volta.</span>' +
         '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="liberar-sim" data-id="' + uid + '">Sim, liberar</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="liberar-nao" data-id="' + uid + '">Cancelar</button></div>'
       : '<div class="montaria-acoes">' +
-        '<button type="button" class="btn btn--pequeno" data-acao="ativar" data-id="' + uid + '"' + indisponivel(motivoAtivar(isActive, P)) + '>Tornar ativa</button>' +
+        (isActive ? '' : '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="ativar" data-id="' + uid + '"' + indisponivel(motivoAtivar(P)) + '>Tornar ativa</button>') +
         '<button type="button" class="btn btn--pequeno" data-acao="renomear" data-id="' + uid + '">Renomear</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="liberar" data-id="' + uid + '"' + indisponivel(motivoLiberar(m)) + '>Liberar</button>' +
         '</div>';
+    return '<section class="caixa montaria-ficha" aria-label="Ficha">' + acoes +
+      '<ul class="ficha-dados">' +
+        fichaLinha('Sexo', sexoHtml(m.sex) + corcel) +
+        fichaLinhaTexto(porteTexto(m)) +
+        fichaLinhaTexto(marcasTexto(m)) +
+        fichaLinha('Cruzas restantes', esc(m.breedLeft)) +
+        fichaLinha('Skills', '<b>' + skillPct + '%</b> de ativar') +
+        (m.parents ? fichaLinha('Pais', paiHtml(m.parents.f) + ' e ' + paiHtml(m.parents.m)) : '') +
+      '</ul></section>';
+  }
+
+  // Ficha da montaria (3b §5). Cabeça: o retrato grande na baia, de borda a borda do painel (escala PORTRAIT_SCALE_GRANDE,
+  // a maior inteira que cabe na coluna a 360 px com a linha de abas ainda inteira acima da barra de abas do app), com os
+  // selos do nível e do +N nos cantos; o nome na placa (h1, com o #N e o selo "Ativa"); raridade, estrelas e tipo; Poder
+  // e liga; o XP. Abaixo, as sub-abas; ações e os outros dados ficam na aba Ficha.
+  function renderMontaria() {
+    var m = ui.montaria ? mountByUid(ui.montaria.uid) : null;
+    if (!m) { ui.montaria = null; ui.screen = ui.tab; syncHistory(ui.tab); return renderTab(ui.tab); } // montaria sumiu (liberada, outra aba): volta à aba
+    var M = ui.montaria;
+    var isActive = m.uid === state.activeId;
+    var rating = RS.powerRating(clone(m));
 
     var cabeca = '<article class="caixa montaria-cabeca" aria-label="Montaria">' +
-      '<div class="cavalo-cabeca">' + portraitHtml(m, { selo: true }) +
-        '<div class="cavalo-info">' +
-          '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco>' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h1>' +
-          '<div class="linha-meta">' + rarityHtml(m.rarity) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(m.grau) + ajudaBtn('estrelas', 'as estrelas') + elementHtml(m.element) +
-            '<span>' + sexoHtml(m.sex) + '</span>' +
-            '<span>' + esc(porteTexto(m)) + '</span>' +
-            '<span>' + esc(marcasTexto(m)) + '</span>' +
-            '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
-            (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
-          '</div>' +
-          xpHtml(m.level, m.xp, true) +
-          '<div class="linha-meta"><span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') +
-            '<span>Skills: <b>' + skillPct + '%</b> de ativar</span></div>' +
-          (GEAR_ON ? gearSummaryHtml(m) : '') +
-        '</div></div>' + acoes + '</article>';
+      '<div class="retrato-palco">' + portraitHtml(m, { tamanho: 'grande', selo: true, pontos: pontosQueCabem(m) }) + '</div>' +
+      '<div class="cavalo-info">' +
+        '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco><span class="montaria-nome">' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></span>' +
+          (isActive ? '<span class="badge-ativa">Ativa</span>' : '') + '</h1>' +
+        '<div class="linha-meta">' + rarityHtml(m.rarity) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(m.grau) + ajudaBtn('estrelas', 'as estrelas') + elementHtml(m.element) + '</div>' +
+        '<div class="linha-meta"><span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
+        xpHtml(m.level, m.xp, true) +
+        (GEAR_ON ? gearSummaryHtml(m) : '') +
+      '</div></article>';
 
     var subabas = '<div class="subabas" role="group" aria-label="Seções da montaria">' + MONTARIA_ABAS.map(function (a) {
       return '<button type="button" class="btn opcao opcao--centro" data-acao="montaria-aba" data-id="' + esc(a.id) + '" aria-pressed="' + (M.aba === a.id) + '">' + esc(a.rotulo) + '</button>';
@@ -2861,6 +2890,8 @@
           : 'Sem vagas livres') + '</p></section>';
     } else if (M.aba === 'equip' && GEAR_ON) {
       corpo = montariaEquipHtml(m);
+    } else if (M.aba === 'ficha') {
+      corpo = montariaFichaHtml(m);
     } else {
       corpo = montariaStatusHtml(m);
     }
@@ -4299,6 +4330,7 @@
         ui.montaria.aba = id;
         ui.montaria.rascunho = null; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null;   // o rascunho não sai da aba Status
         ui.montaria.confirmaRedist = false;
+        ui.montaria.renomear = null; ui.confirmLiberar = null;   // nem o campo de renomear e a confirmação de liberar da aba Ficha
         rerenderKeepScroll(); break;
       case 'ponto-mais': {
         // +1, +5 ou +10 (data-n): soma exatamente N ao rascunho, ou nada
@@ -4573,7 +4605,7 @@
       case 'ativar':
         if (state.pending || !mountByUid(id) || id === state.activeId) break;   // nunca confia no botão
         state.activeId = id; persist(); rerenderKeepScroll();
-        if (ui.screen === 'montaria') {   // o botão "Ativar" fica desabilitado: o foco iria para o body
+        if (ui.screen === 'montaria') {   // o "Tornar ativa" some da aba Ficha da nova ativa: o foco iria para o body
           var hf = telaEl.querySelector('[data-foco]');
           if (hf) { try { hf.focus({ preventScroll: true }); } catch (e) { hf.focus(); } }
         }
