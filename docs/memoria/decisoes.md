@@ -5,9 +5,9 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 
 ## 2026-11-15 — Visuais 2, parte 3b: decisões da execução (controlador)
 Tudo abaixo é do controlador (nada foi decidido pelo Vinicius).
-- **(controlador) Meta do Status: documento ≤ 1.450 px** (a conversa dizia ~1.100, a spec 1.200) — a cabeça com o retrato grande se
+- **(controlador) Meta do Status: documento ≤ 1.470 px** (medido ~1.455: 1.450 a 1.457 conforme a densidade) (a conversa dizia ~1.100, a spec 1.200) — a cabeça com o retrato grande se
   repete em cima e a spec §2 manda a §5 vencer. Meta nova: com as abas no topo, as 7 linhas de status inteiras visíveis (169–583 px;
-  `.app-abas` em 724). O Status caiu de 1.902 para 1.450 px (−24%).
+  `.app-abas` em 724). O Status caiu de 1.902 para ~1.455 px (−24%).
 - **(controlador) "Poder A → B" do rascunho na barra presa, não no topo** — a lista não pula sob o dedo no 1º toque.
 - **(controlador) Barra presa:** por ~400 ms ao aparecer não pega toque (o 2º toque rápido cai no +N de baixo, não em
   Desfazer/Confirmar); por ~400 ms depois do 1º toque no Confirmar os botões dela não pegam toque (o toque duplo não grava sem

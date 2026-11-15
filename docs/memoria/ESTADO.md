@@ -99,7 +99,7 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
   - plaquinha "Ativa" na borda de cima da linha;
   - Poder do rascunho ("Poder A → B") na barra presa, não no topo;
   - "Tornar ativa" dourado na ficha (some na ativa);
-  - aba Status com até 1.450 px em vez dos 1.200 px da spec aprovada (a cabeça com o retrato grande se repete em cima e a
+  - aba Status com ~1.455 px (teto do teste 1.470) em vez dos 1.200 px da spec aprovada (a cabeça com o retrato grande se repete em cima e a
     conta não fecha); meta nova: com as abas no topo, os 7 status inteiros numa tela;
   - "Genética" no topo da aba Status; custo "·N" embaixo do valor;
   - a barra presa não pega toque por ~0,4 s ao aparecer e por ~0,4 s depois do 1º toque no Confirmar (contra toque acidental).
@@ -118,12 +118,11 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
   `docs/superpowers/specs/2026-11-15-estabulo-montaria-celular-design.md`, plano em `docs/superpowers/plans/2026-11-15-estabulo-montaria-celular.md`;
   decisões da execução em `decisoes.md`). Estábulo em lista de linhas, ficha com retrato grande e aba Ficha, aba Status em linha
   única com a barra do Confirmar presa, motivo visível no toque e ordinal lido pelo leitor de tela. Alturas a 360×780: Estábulo
-  com 3 cavalos de 1.320 para 780 px, com 6 de 2.277 para 1.012 px; Status de 1.902 para 1.450 px; ficha com a linha de abas
+  com 3 cavalos de 1.320 para 780 px, com 6 de 2.277 para 1.012 px; Status de 1.902 para ~1.455 px (1.450 a 1.457 conforme a densidade da tela; teto do teste 1.470); ficha com a linha de abas
   inteira na 1ª tela. `check.sh` OK (129 testes de simulação, 104 de efeitos, 170 de moldes, 615 conferências do wiki, 87 metas
   rápidas e o teste de interface). Capturas oficiais regeneradas; folha da interface com a linha nova do Estábulo. Sem merge
-  na `main` até ele olhar. Já publicado: folha https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 4) e build de teste
-  https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 10), build 956c29c (o controlador republica de novo depois da rodada
-  de correções e atualiza as versões).
+  na `main` até ele olhar. Já publicado: folha https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 5) e build de teste
+  https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 11), build 2a381ff (o fim da 3b).
 - **Parte 3a da Visuais 2 pronta na `claude/visuais-2`, esperando o Vinicius** (folha, build de teste e a lista "A confirmar
   com o Vinicius (gosto, 3a)" acima); sem merge na `main` até ele olhar.
 - **Visuais 2** (branch `claude/visuais-2`, criada da `claude/cavalos-v3`; a parte 1 foi integrada na
