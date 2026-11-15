@@ -126,9 +126,11 @@
   }
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   // A fonte de interface desenha "º" como um "o" na linha de base; troca por um "o" sobrescrito
-  // apenas no texto (nunca dentro de atributos). Leitores de tela leem o aria-label do pai.
-  function ordFix(html) {
-    return html.replace(/>([^<]*)</g, function (m, t) { return '>' + t.replace(/º/g, '<sup class="ord" aria-hidden="true">o</sup>') + '<'; });
+  // apenas no texto (nunca dentro de atributos). O sobrescrito é escondido dos leitores de tela, que leem o "º" do .sr.
+  // semSr: sem o "º" para leitor de tela (a faixa de eventos da corrida: o .sr absoluto no meio do texto largo estoura a rolagem lateral)
+  function ordFix(html, semSr) {
+    var fim = semSr ? '' : '<span class="sr">º</span>';
+    return html.replace(/>([^<]*)</g, function (m, t) { return '>' + t.replace(/º/g, '<sup class="ord" aria-hidden="true">o</sup>' + fim) + '<'; });
   }
   function clamp(x, a, b) { return x < a ? a : (x > b ? b : x); }
   function fmt(n) { return Math.round(n).toLocaleString('pt-BR'); }
@@ -260,6 +262,36 @@
   // onde o texto aberto entra: 'dt' depois da linha de status (a grade do <dl>), 'in' no fim do bloco, 'after' logo depois dele
   var AJUDA_ONDE = [['li', 'in'], ['.vaga-tipo', 'in'], ['.redistribuir', 'in'], ['.tela-cabeca', 'in'],
     ['dt', 'dt'], ['.linha-meta', 'after'], ['.chips', 'after'], ['.build-topo', 'after']];
+  // ---- Botão indisponível com motivo (3b §7): aria-disabled em vez de disabled, para o toque e o teclado mostrarem
+  // o porquê. O atributo só avisa: cada ação confere a condição de novo e nunca executa com o botão forçado.
+  function indisponivel(motivo) {
+    if (!motivo) return '';
+    return ' aria-disabled="true" data-motivo="' + esc(motivo) + '" title="' + esc(motivo) + '"';
+  }
+  // onde a linha do motivo entra: 'in' no fim do bloco, 'after' logo depois dele (a 1ª regra que casar)
+  var MOTIVO_ONDE = [['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
+    ['.montaria-acoes', 'after'], ['.acoes', 'after']];
+  function tiraMotivo() {
+    var velhas = telaEl.querySelectorAll('.motivo');
+    for (var i = 0; i < velhas.length; i++) if (velhas[i].parentNode) velhas[i].parentNode.removeChild(velhas[i]);
+  }
+  function mostraMotivo(btn) {
+    tiraMotivo();
+    var txt = btn.getAttribute('data-motivo');
+    if (!txt) return;
+    var host = null, modo = '';
+    for (var i = 0; i < MOTIVO_ONDE.length && !host; i++) {
+      host = btn.closest(MOTIVO_ONDE[i][0]);
+      if (host) modo = MOTIVO_ONDE[i][1];
+    }
+    if (!host) return;
+    var p = document.createElement('p');
+    p.className = 'motivo';
+    p.setAttribute('role', 'status');
+    p.textContent = txt;
+    if (modo === 'in') host.appendChild(p);
+    else host.parentNode.insertBefore(p, host.nextSibling);
+  }
   var ajudaSeq = 0;
   function alternaAjuda(btn) {
     var chave = btn.getAttribute('data-ajuda');
@@ -1961,6 +1993,17 @@
   var SLOT_PRICE = BR.stableSlotPrice;
   function uidNum(uid) { return String(uid).replace(/\D+/g, ''); }
 
+  function motivoAtivar(isActive, P) {
+    return isActive ? 'Esta já é a montaria ativa.' : P ? 'Páreo aberto: corra a sala antes de trocar a montaria ativa.' : '';
+  }
+  // por que a montaria não pode ser liberada ('' quando pode)
+  function motivoLiberar(m) {
+    var P = state.pending;
+    if (m.uid === state.activeId) return 'A montaria ativa não pode ser liberada.';
+    if (state.mounts.length <= 1) return 'É o único cavalo do estábulo: não dá para liberar.';
+    if (P) return 'Páreo aberto: corra a sala antes de liberar uma montaria.';
+    return '';
+  }
   // opts.semAcoes: sem os botões (ex.: card do potro no resultado do Haras).
   // O cartão inteiro abre a montaria (data-acao="montaria"); os botões internos têm a própria ação.
   // Renomear e Liberar ficam na tela da Montaria.
@@ -1970,7 +2013,7 @@
     var corcel = window.Breed && window.Breed.isCorcel(m)
       ? '<span class="corcel" title="Corcel: herança garantida">' + corcelHtml() + '</span>' : '';
     var acoes = semAcoes ? '' : '<div class="montaria-acoes">' +
-        '<button type="button" class="btn btn--pequeno" data-acao="ativar" data-id="' + esc(m.uid) + '"' + (isActive || P ? ' disabled' : '') + '>Tornar ativa</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="ativar" data-id="' + esc(m.uid) + '"' + indisponivel(motivoAtivar(isActive, P)) + '>Tornar ativa</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="montaria" data-id="' + esc(m.uid) + '">Ver</button>' +
         '</div>';
     var abre = semAcoes ? '' : ' data-acao="montaria" data-id="' + esc(m.uid) + '"';
@@ -1989,8 +2032,10 @@
     var maxed = state.stableSlots >= BR.stableSlotsMax;
     var canExpand = !maxed && podeGastar(SLOT_PRICE);
     var reservaBloqueia = !maxed && state.gold >= SLOT_PRICE && !canExpand;
+    var motivoExp = canExpand ? '' : maxed ? 'O estábulo já está no máximo.'
+      : reservaBloqueia ? reservaTxt() + '.' : 'Falta Ouro para expandir o estábulo.';
     return '<section class="caixa" aria-label="Suas montarias"><div class="montarias">' + state.mounts.map(function (m) { return mountCardHtml(m, m.uid === state.activeId); }).join('') + '</div>' +
-      '<div class="acoes"><button type="button" data-acao="expandir" class="btn"' + (canExpand ? '' : ' disabled') + '>' +
+      '<div class="acoes"><button type="button" data-acao="expandir" class="btn"' + indisponivel(motivoExp) + '>' +
         (maxed ? 'Estábulo no máximo' : 'Expandir estábulo (' + fmt(SLOT_PRICE) + ')') + '</button></div>' +
       (reservaBloqueia ? reservaHtml() : '') + '</section>';
   }
@@ -2577,7 +2622,7 @@
       ? '<p class="aviso" role="status">' + esc(custoRedistribuirTxt(pode) + '. Todos os pontos voltam para distribuir. Toque em Redistribuir pontos de novo para confirmar.') + '</p>' : '';
     return '<div class="redistribuir">' + conf +
       '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="redistribuir"' +
-        (pode.ok ? '' : ' disabled title="' + esc(pode.motivo) + '"') + '>Redistribuir pontos</button>' + ajudaBtn('redea', 'a Rédea nova') + '</div>' +
+        indisponivel(pode.ok ? '' : pode.motivo) + '>Redistribuir pontos</button>' + ajudaBtn('redea', 'a Rédea nova') + '</div>' +
       (pode.ok ? '' : '<p class="nota">' + esc(pode.motivo) + '</p>') + '</div>';
   }
   function notaGenetica(g) { return g >= 24 ? 'S' : g >= 16 ? 'A' : g >= 8 ? 'B' : 'C'; }
@@ -2640,7 +2685,7 @@
         if (compra) botoes = BUILD_PASSOS.map(function (n) {
           var bi = botaoMaisInfo(m, r, k, n, livres);
           return '<button type="button" class="btn btn--pequeno build-mais" data-acao="ponto-mais" data-id="' + k + '" data-n="' + n + '"' +
-            ' aria-label="' + esc(bi.titulo) + '" title="' + esc(bi.titulo) + '"' + (bi.ok ? '' : ' disabled') + '>+' + n + '</button>';
+            ' aria-label="' + esc(bi.titulo) + '"' + (bi.ok ? ' title="' + esc(bi.titulo) + '"' : indisponivel(bi.titulo)) + '>+' + n + '</button>';
         }).join('');
       }
       return '<li class="build-linha" data-status="' + k + '">' +
@@ -2670,13 +2715,13 @@
     if (compra) {
       var sug = rascunhoSoma(rascunhoSugerido(m, r)) > soma;
       var botaoSug = '<button type="button" class="btn btn--pequeno" data-acao="pontos-sugerir"' +
-        (sug ? '' : ' disabled title="' + esc(livres > 0 ? 'Os pontos que sobram não pagam o próximo ponto de nenhum status.' : 'Nenhum ponto sobrando para distribuir.') + '"') + '>Distribuir sugerido</button>';
+        indisponivel(sug ? '' : livres > 0 ? 'Os pontos que sobram não pagam o próximo ponto de nenhum status.' : 'Nenhum ponto sobrando para distribuir.') + '>Distribuir sugerido</button>';
       var depois = 'Para mudar depois, use Redistribuir ' + (m.respecFree === true ? '(a primeira deste cavalo é grátis).' : '(gasta uma Rédea nova).');
       acoes = (soma && M.confirmaPontos ? '<p class="aviso" role="status">' + esc(depois + ' Toque em Confirmar de novo para gravar.') + '</p>' : '') +
         (motivoConf ? '<p class="aviso" role="status">' + esc(motivoConf) + '</p>' : '') +
         '<div class="acoes build-acoes">' + botaoSug + (soma
           ? '<button type="button" class="btn btn--pequeno" data-acao="pontos-desfazer">Desfazer</button>' +
-            '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="pontos-confirmar"' + (motivoConf ? ' disabled title="' + esc(motivoConf) + '"' : '') + '>Confirmar</button>'
+            '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="pontos-confirmar"' + indisponivel(motivoConf) + '>Confirmar</button>'
           : '') + '</div>';
     }
     return avisos + '<section class="caixa" aria-label="Status">' + topo +
@@ -2734,9 +2779,9 @@
         '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="liberar-sim" data-id="' + uid + '">Sim, liberar</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="liberar-nao" data-id="' + uid + '">Cancelar</button></div>'
       : '<div class="montaria-acoes">' +
-        '<button type="button" class="btn btn--pequeno" data-acao="ativar" data-id="' + uid + '"' + (isActive || P ? ' disabled' : '') + '>Tornar ativa</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="ativar" data-id="' + uid + '"' + indisponivel(motivoAtivar(isActive, P)) + '>Tornar ativa</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="renomear" data-id="' + uid + '">Renomear</button>' +
-        '<button type="button" class="btn btn--pequeno" data-acao="liberar" data-id="' + uid + '"' + (canRelease ? '' : ' disabled') + '>Liberar</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="liberar" data-id="' + uid + '"' + indisponivel(motivoLiberar(m)) + '>Liberar</button>' +
         '</div>';
 
     var cabeca = '<article class="caixa montaria-cabeca" aria-label="Montaria">' +
@@ -3500,7 +3545,7 @@
         var mine = e.racer === me;
         var chip = e.racer >= 0 && L.racers[e.racer] ? laneChip(L.racers[e.racer], e.racer, 'raia--mini') : '';
         return '<li class="tipo-' + esc(e.type) + (mine ? ' voce' : '') + '"><time>' + fmtClock(e.t) + '</time>' + chip + '<span>' + eventoHtml(e.text, e.type) + '</span></li>';
-      }).join(''));
+      }).join(''), true);   // sem o .sr: o anúncio do jogador acima já vai para o leitor de tela
       if (ev.racer === me && (ev.type === 'chegada' || ev.type === 'garra' || ev.type === 'skill')) hud.anuncio.textContent = ev.text;
       if (ev.type === 'clima') climaNoPainel(hud.clima, ev.weather);
       if (ev.type === 'dado' && ev.changed && GD.WEATHERS[ev.weather]) {
@@ -4144,8 +4189,10 @@
   telaEl.addEventListener('click', function (e) {
     var aj = e.target.closest ? e.target.closest('[data-ajuda]') : null;
     if (aj) { alternaAjuda(aj); return; }   // "ⓘ": abre/fecha o texto, sem re-renderizar nem acionar o cartão em volta
+    tiraMotivo();   // qualquer outro toque tira a linha do motivo; nunca há duas na tela
     var b = e.target.closest ? e.target.closest('[data-acao]') : null;
     if (!b || b.disabled) return;
+    if (b.getAttribute('aria-disabled') === 'true') { mostraMotivo(b); return; }   // indisponível: só diz o porquê, sem ação
     var id = b.getAttribute('data-id');
     var acaoClicada = b.getAttribute('data-acao');
     if (!GEAR_ON && hasOwn(ACOES_EQUIP, acaoClicada)) return;
@@ -4478,7 +4525,7 @@
         if (state.gold < MIN_ENTRY) startLobby(true); else startLobby(false);
         break;
       case 'ativar':
-        if (state.pending || !mountByUid(id)) break;
+        if (state.pending || !mountByUid(id) || id === state.activeId) break;   // nunca confia no botão
         state.activeId = id; persist(); rerenderKeepScroll();
         if (ui.screen === 'montaria') {   // o botão "Ativar" fica desabilitado: o foco iria para o body
           var hf = telaEl.querySelector('[data-foco]');
@@ -4495,6 +4542,7 @@
       case 'renomear-nao':
         renomearCancela(); break;
       case 'liberar':
+        if (!mountByUid(id) || motivoLiberar(mountByUid(id))) break;   // nunca confia no botão
         ui.confirmLiberar = id; rerenderKeepScroll(); focusAction('liberar-nao', id); break;
       case 'liberar-nao':
         ui.confirmLiberar = null; rerenderKeepScroll(); focusAction('liberar', id); break;

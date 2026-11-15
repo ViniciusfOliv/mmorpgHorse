@@ -284,15 +284,15 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   touch-action: manipulation;
   -webkit-user-select: none; user-select: none;
 }
-.btn:hover:not(:disabled) { background: var(--painel-3); }
-.btn:disabled {
+.btn:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--painel-3); }
+.btn:disabled, .btn[aria-disabled="true"] {
   opacity: 0.42; cursor: not-allowed;
   box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
     0 4px 0 0 var(--sombra),
     inset 0 -4px 0 0 var(--noite-2), inset 0 2px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel), inset 2px 0 0 0 var(--painel);
 }
-.btn:active:not(:disabled), .btn.apertado-demo {   /* .apertado-demo: só a folha da interface */
+.btn:active:not(:disabled):not([aria-disabled="true"]), .btn.apertado-demo {   /* .apertado-demo: só a folha da interface */
   transform: translateY(2px);
   box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
@@ -310,14 +310,14 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     inset 0 -4px 0 0 var(--ouro-escuro), inset -2px 0 0 0 var(--ouro-medio),
     inset 0 2px 0 0 var(--ouro-claro), inset 2px 0 0 0 var(--ouro-claro);
 }
-.btn--ouro:hover:not(:disabled) { background: var(--ouro-claro); }
-.btn--ouro:disabled, .controles .vel .btn[aria-pressed="true"]:disabled {
+.btn--ouro:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--ouro-claro); }
+.btn--ouro:disabled, .btn--ouro[aria-disabled="true"], .controles .vel .btn[aria-pressed="true"]:disabled {
   box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
     0 4px 0 0 var(--sombra),
     inset 0 -4px 0 0 var(--ouro-escuro), inset 0 2px 0 0 var(--ouro-escuro), inset -2px 0 0 0 var(--ouro-medio), inset 2px 0 0 0 var(--ouro-medio);
 }
-.btn--ouro:active:not(:disabled), .btn--ouro.apertado-demo, .controles .vel .btn[aria-pressed="true"]:active:not(:disabled) {
+.btn--ouro:active:not(:disabled):not([aria-disabled="true"]), .btn--ouro.apertado-demo, .controles .vel .btn[aria-pressed="true"]:active:not(:disabled) {
   transform: translateY(2px);
   box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
@@ -332,7 +332,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .btn--texto:hover:not(:disabled) { background: transparent; color: var(--texto); }
 /* de perigo (§4.6): o botão com o texto em --perda; no hover o fundo escurece (--perda sobre --painel-3 fica abaixo de 4,5:1) */
 .btn--perigo { color: var(--perda); }
-.btn--perigo:hover:not(:disabled) { background: var(--painel); }
+.btn--perigo:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--painel); }
 .acoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .barra-acao {
   position: sticky; bottom: 0; z-index: 5;
@@ -674,6 +674,16 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 /* avisos (§4.14): a faixa de 4px à esquerda (ouro ou perda), contorno --sombra e bisel de 2px */
 .aviso {
   background: var(--painel-2); padding: 10px 12px 10px 14px; color: var(--texto); font-size: var(--t-s); margin: 0;
+  box-shadow:
+    0 0 0 2px var(--sombra),
+    inset 4px 0 0 0 var(--ouro),
+    inset 0 2px 0 0 var(--linha),
+    inset 0 -2px 0 0 var(--noite-2),
+    inset -2px 0 0 0 var(--noite-2);
+}
+/* motivo do botão indisponível (3b §7): a linha que o toque e o teclado mostram no lugar do title */
+.motivo {
+  background: var(--painel-2); padding: 10px 12px 10px 14px; color: var(--texto); font-size: var(--t-s); margin: 8px 0 0;
   box-shadow:
     0 0 0 2px var(--sombra),
     inset 4px 0 0 0 var(--ouro),

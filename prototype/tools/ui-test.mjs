@@ -8,7 +8,7 @@
 // Também confere a entrada reservada do páreo aberto, a gravação que falha, o save adulterado ou corrompido,
 // o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo, o tamanho mínimo do texto e o teto
 // de chamadas de canvas por quadro na corrida mais cara.
-//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,marcas,portes,crescimento,ajuda,acabamento node tools/ui-test.mjs  -> só esses
+//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,marcas,portes,crescimento,ajuda,acabamento,celular node tools/ui-test.mjs  -> só esses
 // Equipamento suspenso (bloco 1b, GEAR_ON = false no game.js): os blocos das telas de peças e da Loja conferem que elas
 // não aparecem e que as ações de peça não fazem nada; com GEAR_ON = true voltam a testar as telas (GEAR_ON abaixo).
 import { createRequire } from 'node:module'
@@ -234,6 +234,8 @@ const browser = await chromium.launch()
 // ~5 min do resto); sem UI_SO (o check.sh), roda tudo.
 const SO = (process.env.UI_SO || '').split(',').map((x) => x.trim()).filter(Boolean)
 const quer = (nome) => !SO.length || SO.includes(nome)
+// botão indisponível pela regra da 3b: aria-disabled="true" e NÃO disabled (o toque e o teclado ainda o alcançam e mostram o motivo)
+const indisp = (loc) => loc.evaluate((b) => b.getAttribute('aria-disabled') === 'true' && !b.hasAttribute('disabled'))
 // abre a sala na entrada pedida (tier) a partir do estábulo e devolve o que identifica a sala
 async function abrirSala(pg, tier) {
   await pg.locator('[data-acao="aba"][data-id="correr"]').click()
@@ -286,8 +288,8 @@ try {
       await rv.evaluate(() => { window.__galope.state.gold = 500 })
       await rv.locator('[data-acao="aba"][data-id="estabulo"]').click()
       await rv.waitForSelector('#t-estabulo')
-      if (!(await rv.locator('[data-acao="expandir"]').isDisabled())) problems.push('reserva: expandir o estábulo habilitado com só 250 livres')
-      await rv.evaluate(() => { const b = document.querySelector('[data-acao="expandir"]'); b.disabled = false; b.click() })
+      if (!(await indisp(rv.locator('[data-acao="expandir"]')))) problems.push('reserva: expandir o estábulo habilitado com só 250 livres')
+      await rv.evaluate(() => { const b = document.querySelector('[data-acao="expandir"]'); b.disabled = false; b.removeAttribute('aria-disabled'); b.click() })
       s = await st()
       if (s.gold !== 500 || s.stableSlots !== 3) problems.push('reserva: expandir com a entrada reservada ' + JSON.stringify({ gold: s.gold, slots: s.stableSlots }))
       await rv.evaluate(() => { window.__galope.state.gold = 260 })
@@ -460,7 +462,7 @@ try {
       await av.locator('[data-acao="aba"][data-id="estabulo"]').click()
       await av.waitForSelector('#t-estabulo')
       // vaga do estábulo (300) com só 250 livres: clique forçado, o aviso aparece
-      await av.evaluate(() => { const b = document.querySelector('[data-acao="expandir"]'); b.disabled = false; b.click() })
+      await av.evaluate(() => { const b = document.querySelector('[data-acao="expandir"]'); b.disabled = false; b.removeAttribute('aria-disabled'); b.click() })
       if (!RES.test(await avisos())) problems.push('aviso: recusa da vaga sem o aviso de Ouro reservado: ' + await avisos())
       // redesenho passivo (o mesmo dos moldes chegando): mudar a largura da janela
       await av.evaluate(() => { document.getElementById('t-estabulo').dataset.antigo = '1' })
@@ -1329,8 +1331,8 @@ try {
       // custo por faixa (no lugar do limite de 34% por status): +10 em Velocidade custa 10; o +10 seguinte custaria 20 e
       // não cabe nos 18 que sobram (desabilitado, "Faltam pontos"); o +5 custa 10 e cabe
       await mais('vel', 10).click()
-      if (!(await mais('vel', 10).isDisabled()) || !/custa 20 pontos\. Faltam pontos: sobram 18\./.test((await mais('vel', 10).getAttribute('title')) || '')) problems.push('build: o 2º +10 em Velocidade (custa 20, sobram 18) não está desabilitado com o motivo: ' + await mais('vel', 10).getAttribute('title'))
-      if (await mais('vel', 5).isDisabled()) problems.push('build: +5 em Velocidade (custa 10, sobram 18) desabilitado')
+      if (!(await indisp(mais('vel', 10))) || !/custa 20 pontos\. Faltam pontos: sobram 18\./.test((await mais('vel', 10).getAttribute('title')) || '')) problems.push('build: o 2º +10 em Velocidade (custa 20, sobram 18) não está desabilitado com o motivo: ' + await mais('vel', 10).getAttribute('title'))
+      if (await indisp(mais('vel', 5))) problems.push('build: +5 em Velocidade (custa 10, sobram 18) desabilitado')
       await mais('vel', 5).click()
       let r = await rascunho()
       if (!r || r.vel !== 15) problems.push('build: rascunho depois de +10 e +5 ' + JSON.stringify(r))
@@ -1343,7 +1345,7 @@ try {
       await bd.locator('[data-acao="pontos-desfazer"]').click()
       r = await rascunho()
       if (r && G.STAT_KEYS.some((k) => r[k])) problems.push('build: Desfazer não limpou o rascunho ' + JSON.stringify(r))
-      if ((await mais('vel', 10).isDisabled())) problems.push('build: o +10 de Velocidade não voltou depois de Desfazer')
+      if ((await indisp(mais('vel', 10)))) problems.push('build: o +10 de Velocidade não voltou depois de Desfazer')
       // Confirmar: o primeiro toque só avisa (como mudar depois); com a gravação falhando, nada muda
       await mais('vel').click(); await mais('vel').click(); await mais('acel').click()
       await bd.locator('[data-acao="pontos-confirmar"]').click()
@@ -1416,7 +1418,7 @@ try {
       // cada +N habilitado tem de caber no Poder da sala; o +1 de Velocidade, não (todo ponto sobe o Poder arredondado)
       const confereSala = async (onde) => {
         const mAb = (await st()).mounts[0]
-        const bs = await bd.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({ k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), off: b.disabled, title: b.getAttribute('title') })))
+        const bs = await bd.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({ k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), off: b.getAttribute('aria-disabled') === 'true' && !b.disabled, title: b.getAttribute('title') })))
         for (const b of bs) {
           const h2 = JSON.parse(JSON.stringify(mAb)); h2.alloc[b.k] += b.n
           if (!b.off && S.powerRating(h2) > pr) problems.push(`build: ${onde}: o +${b.n} de ${b.k} habilitado passaria do Poder ${pr}`)
@@ -1424,8 +1426,8 @@ try {
         }
       }
       await confereSala('sala aberta')
-      if (!(await mais('vel').isDisabled())) problems.push('build: com a sala aberta, o +1 de Velocidade da ativa está habilitado')
-      await bd.evaluate(() => { const b = document.querySelector('[data-acao="ponto-mais"][data-id="vel"][data-n="1"]'); if (b) { b.disabled = false; b.click() } })   // botão forçado: a regra vale no clique
+      if (!(await indisp(mais('vel')))) problems.push('build: com a sala aberta, o +1 de Velocidade da ativa está habilitado')
+      await bd.evaluate(() => { const b = document.querySelector('[data-acao="ponto-mais"][data-id="vel"][data-n="1"]'); if (b) { b.disabled = false; b.removeAttribute('aria-disabled'); b.click() } })   // botão forçado: a regra vale no clique
       if (await rascunho()) problems.push('build: com a sala aberta, o clique forçado entrou no rascunho')
       // o Poder da sala sai do retrato dos pontos (R16). Sem equipamento, não há como baixar o Poder da ativa com a sala
       // aberta; o teste monta um retrato com +5 em Velocidade (no lugar das ferraduras do bloco 1): aí cabem até 5 pontos
@@ -1436,8 +1438,8 @@ try {
       if (pr !== S.powerRating(hRet)) problems.push(`build: o Poder da sala ${pr} não é o do retrato com +5 em Velocidade (${S.powerRating(hRet)})`)
       await abreMontaria('m1')
       await confereSala('retrato com +5')
-      if (await mais('vel', 5).isDisabled()) problems.push('build: com o retrato de +5, o +5 de Velocidade está desabilitado')
-      if (!(await mais('vel', 10).isDisabled())) problems.push('build: com o retrato de +5, o +10 de Velocidade está habilitado')
+      if (await indisp(mais('vel', 5))) problems.push('build: com o retrato de +5, o +5 de Velocidade está desabilitado')
+      if (!(await indisp(mais('vel', 10)))) problems.push('build: com o retrato de +5, o +10 de Velocidade está habilitado')
       await mais('vel', 5).click()
       await bd.locator('[data-acao="pontos-confirmar"]').click()
       await bd.locator('[data-acao="pontos-confirmar"]').click()
@@ -1463,7 +1465,7 @@ try {
       await bd.getByRole('button', { name: /^Voltar/ }).click()
       // outra montaria (não é a ativa): livre com a sala aberta
       await abreMontaria('m2')
-      if ((await mais('acel').count()) !== 1 || (await mais('acel').isDisabled())) problems.push('build: com a sala aberta, a montaria que não é a ativa não aceita ponto')
+      if ((await mais('acel').count()) !== 1 || (await indisp(mais('acel')))) problems.push('build: com a sala aberta, a montaria que não é a ativa não aceita ponto')
       await mais('acel').click()
       await bd.locator('[data-acao="pontos-confirmar"]').click()
       await bd.locator('[data-acao="pontos-confirmar"]').click()
@@ -1621,7 +1623,7 @@ try {
       await sq.locator('button[data-acao="montaria"][data-id="m2"]').click()
       await sq.waitForSelector('#t-montaria')
       const b10 = sq.locator('[data-acao="ponto-mais"][data-id="vel"][data-n="10"]'), b1 = sq.locator('[data-acao="ponto-mais"][data-id="vel"][data-n="1"]')
-      if ((await b1.isDisabled()) || !(await b10.isDisabled()) || (await b10.getAttribute('title')) !== tituloMais(ms[1].alloc, 'vel', 10) + '. Faltam pontos: sobram 13.') problems.push(`selo-teto: m2 com +1 ${await b1.isDisabled() ? 'desabilitado' : 'habilitado'} e +10 "${await b10.getAttribute('title')}"`)
+      if ((await indisp(b1)) || !(await indisp(b10)) || (await b10.getAttribute('title')) !== tituloMais(ms[1].alloc, 'vel', 10) + '. Faltam pontos: sobram 13.') problems.push(`selo-teto: m2 com +1 ${await indisp(b1) ? 'desabilitado' : 'habilitado'} e +10 "${await b10.getAttribute('title')}"`)
       // a Brasa nível 12 (28 pontos, todos a 1) continua com o selo de todos os pontos
       await montaSave(sq, (raw) => { raw.mounts[0].level = 12 })
       const m1 = (await sq.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts[0]))))
@@ -1654,7 +1656,7 @@ try {
       await b1.locator('button[data-acao="montaria"][data-id="m1"]').click()
       await b1.waitForSelector('#t-montaria')
       const m1 = await b1.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts[0])))
-      const bs = await b1.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({ k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), off: b.disabled, title: b.getAttribute('title') })))
+      const bs = await b1.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({ k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), off: b.getAttribute('aria-disabled') === 'true' && !b.disabled, title: b.getAttribute('title') })))
       if (S.freePoints(m1) !== 2 || bs.length !== 18 || bs.some((b) => b.k === 'sorte')) problems.push(`build-nivel1: nível 2 com ${bs.length} botões +N (esperado 18, nenhum na Sorte; ${S.freePoints(m1)} pontos)`)
       for (const b of bs) {
         const esp = tituloMais(m1.alloc, b.k, b.n) + (b.n === 1 ? '' : '. Faltam pontos: sobram 2.')
@@ -1753,7 +1755,7 @@ try {
         const inten = 'Intensidade ×' + ts.power.toFixed(2).replace('.', ',')
         if (!vaga.includes(inten) || (vaga.match(/varia com/g) || []).length > 1 || (vaga.match(/cresce com/g) || []).length > 1 || /Força ×/.test(vaga)) problems.push(`vaga-tipo: ${m.uid} sem o rótulo "${inten}" (ou ainda com "Força ×"): ${vaga}`)
         // bloco 1b: o efeito em pontos para o cavalo (status × statMul·P nos dois status do tipo) e a descrição com o %
-        const pts = efeitoTipoPontos(m).replace(/º/g, 'o')   // o "º" vira um "o" sobrescrito na tela (ordFix)
+        const pts = efeitoTipoPontos(m).replace(/º/g, 'oº')   // o "º" vira um "o" sobrescrito e um "º" só para leitor de tela (ordFix)
         if (!vaga.includes(pts) || !vaga.includes(G.TYPE_SKILLS[m.element].desc)) problems.push(`vaga-tipo: ${m.uid} sem o efeito em pontos "${pts}" ou a descrição: ${vaga}`)
         if (/NaN|undefined/.test(vaga)) problems.push(`vaga-tipo: ${m.uid} com NaN/undefined: ${vaga}`)
         // a vaga de tipo vem antes das vagas normais
@@ -3796,6 +3798,104 @@ try {
     }
   }
 
+  // ---------------- celular (3b §7): botão indisponível com motivo no toque e no teclado ----------------
+  // aria-disabled (não disabled) + uma linha .motivo role="status"; o toque, o Enter, o Espaço e o clique forçado nunca executam a ação
+  if (quer('celular')) {
+    const label = 'celular'
+    const pg = await newPage(browser, { width: 360, height: 780 }, label)
+    const tudo = () => pg.evaluate((k) => ({ disco: localStorage.getItem(k), mem: JSON.stringify(window.__galope.state),
+      rasc: JSON.stringify(window.__galope.ui.montaria ? window.__galope.ui.montaria.rascunho : null),
+      conf: JSON.stringify([window.__galope.ui.confirmLiberar || null, window.__galope.ui.montaria ? [window.__galope.ui.montaria.confirmaPontos, window.__galope.ui.montaria.confirmaRedist] : null]) }), SAVE_REAL)
+    const motivos = () => pg.evaluate(() => Array.from(document.querySelectorAll('#tela .motivo')).map((p) => ({ txt: p.textContent, papel: p.getAttribute('role') })))
+    const abreFicha = async (uid, aba = 'status') => {
+      await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await pg.waitForSelector('#t-estabulo')
+      await pg.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click()
+      await pg.waitForSelector('#t-montaria')
+      if (aba !== 'status') await pg.locator(`[data-acao="montaria-aba"][data-id="${aba}"]`).click()
+    }
+    // o botão tem de estar aria-disabled e sem disabled; o toque (real), o Enter, o Espaço e o clique forçado (sem o atributo) mostram
+    // o motivo (ou não fazem nada) e deixam o save, a ativa, os pontos, a Rédea e o rascunho como estavam
+    const confere = async (nome, sel, motivoRe) => {
+      const b = () => pg.locator(sel).first()
+      if ((await pg.locator(sel).count()) < 1) { problems.push(`${label}: ${nome}: botão ausente (${sel})`); return }
+      if (!(await indisp(b()))) { problems.push(`${label}: ${nome}: não está aria-disabled="true" sem disabled`); return }
+      const t0 = await tudo()
+      const igualA0 = async (onde) => { const t1 = await tudo(); if (t1.disco !== t0.disco || t1.mem !== t0.mem || t1.rasc !== t0.rasc || t1.conf !== t0.conf) problems.push(`${label}: ${nome}: ${onde} mudou o estado`) }
+      const vistoUma = async (onde) => {
+        const ms = await motivos()
+        if (ms.length !== 1 || ms[0].papel !== 'status' || !motivoRe.test(ms[0].txt)) problems.push(`${label}: ${nome}: ${onde}: motivo ${JSON.stringify(ms)} (esperado um role="status" com ${motivoRe})`)
+      }
+      await b().click({ force: true })   // o toque real nas coordenadas do botão (o click() normal espera o botão habilitado)
+      await vistoUma('toque'); await igualA0('o toque')
+      await b().focus()
+      await pg.keyboard.press('Enter')
+      await vistoUma('Enter'); await igualA0('o Enter')
+      await b().focus()
+      await pg.keyboard.press('Space')
+      await vistoUma('Espaço'); await igualA0('o Espaço')
+      if (!(await b().evaluate((e) => e === document.activeElement))) problems.push(`${label}: ${nome}: o foco saiu do botão depois do Enter/Espaço`)
+      // some no próximo toque em outro lugar
+      await pg.locator('#tela h1').first().click()
+      if ((await motivos()).length) problems.push(`${label}: ${nome}: o motivo não sumiu no toque seguinte`)
+      // forçado: sem o atributo, o handler confere a condição de novo e também recusa
+      await pg.evaluate((s) => { const x = document.querySelector(s); x.removeAttribute('aria-disabled'); x.disabled = false; x.click() }, sel)
+      await igualA0('o clique forçado (sem aria-disabled)')
+    }
+
+    try {
+      await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await pg.waitForSelector('#t-estabulo')
+      // A: sem páreo aberto. Ouro 200 (a vaga custa 300); Brasa nível 12 (28 pontos) com 24 gastos: o +1 cabe, o +5 não
+      await montaSave(pg, (raw) => {
+        raw.gold = 200; raw.stableSlots = 3; raw.nextUid = 3; raw.pending = null
+        Object.assign(raw.mounts[0], { level: 12, alloc: { vel: 10, acel: 10, man: 4, forca: 0, est: 0, garra: 0, sorte: 0 } })
+        raw.mounts.push(JSON.parse(JSON.stringify(TETO_M2)))
+      })
+      await confere('Expandir estábulo sem Ouro', '[data-acao="expandir"]', /^Falta Ouro para expandir o estábulo\.$/)
+      await confere('Tornar ativa na lista (já ativa)', '.montarias [data-acao="ativar"][data-id="m1"]', /^Esta já é a montaria ativa\.$/)
+      await abreFicha('m1')
+      await confere('Tornar ativa na ficha (já ativa)', '.montaria-cabeca [data-acao="ativar"]', /^Esta já é a montaria ativa\.$/)
+      await confere('Liberar a ativa', '.montaria-cabeca [data-acao="liberar"]', /^A montaria ativa não pode ser liberada\.$/)
+      const s1 = await pg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+      if (S.allocInfo(s1.mounts[0]).left !== 4) problems.push(`${label}: a Brasa de teste tem ${S.allocInfo(s1.mounts[0]).left} pontos livres (esperado 4)`)
+      if (await indisp(pg.locator('[data-acao="ponto-mais"][data-id="est"][data-n="1"]'))) problems.push(`${label}: o +1 de Resistência está indisponível com 4 pontos livres`)
+      await confere('+5 quando só o +1 cabe', '[data-acao="ponto-mais"][data-id="est"][data-n="5"]', /Faltam pontos: sobram 4\./)
+      await pg.locator('[data-acao="pontos-sugerir"]').click()   // gasta o que sobra no rascunho: nada mais cabe
+      await confere('Distribuir sugerido com o rascunho cheio', '[data-acao="pontos-sugerir"]', /^(Os pontos que sobram não pagam o próximo ponto de nenhum status\.|Nenhum ponto sobrando para distribuir\.)$/)
+      await pg.locator('[data-acao="pontos-desfazer"]').click()
+      // ordinal: o "º" da aba Skills é um "o" sobrescrito escondido do leitor de tela mais um "º" só para ele
+      await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+      const ord = await pg.evaluate(() => {
+        const p = document.querySelector('.vaga-tipo-pontos'), o = p && p.querySelector('.ord')
+        return p ? { txt: p.textContent.replace(/\s+/g, ' ').trim(), sobre: o ? o.getAttribute('aria-hidden') + ':' + o.textContent : null,
+          sr: o && o.nextElementSibling && o.nextElementSibling.classList.contains('sr') ? o.nextElementSibling.textContent : null } : null
+      })
+      if (!ord || ord.sobre !== 'true:o' || ord.sr !== 'º' || !/ no 1oº terço$/.test(ord.txt)) problems.push(`${label}: ordinal da aba Skills: ${JSON.stringify(ord)} (esperado .ord[aria-hidden=true] "o" seguido de .sr "º")`)
+      await checkOverflow(pg, label + ' A')
+
+      // B: páreo aberto com a Teto (m2) ativa, no Poder dela; a Brasa (m1) fica no estábulo
+      await montaSave(pg, (raw) => {
+        raw.activeId = 'm2'; raw.raceCounter = 4
+        raw.pending = { counter: raw.raceCounter, training: false, fee: 100, pr: S.powerRating(raw.mounts[1]), alloc: JSON.parse(JSON.stringify(raw.mounts[1].alloc)), gear: [] }
+      })
+      await confere('Tornar ativa na lista (páreo aberto)', '.montarias [data-acao="ativar"][data-id="m1"]', /^Páreo aberto: corra a sala antes de trocar a montaria ativa\.$/)
+      await abreFicha('m1')
+      await confere('Tornar ativa na ficha (páreo aberto)', '.montaria-cabeca [data-acao="ativar"]', /^Páreo aberto: corra a sala antes de trocar a montaria ativa\.$/)
+      await confere('Liberar com páreo aberto', '.montaria-cabeca [data-acao="liberar"]', /^Páreo aberto: corra a sala antes de liberar uma montaria\.$/)
+      await abreFicha('m2')
+      await confere('Redistribuir com páreo aberto', '[data-acao="redistribuir"]', /^Páreo aberto: a montaria ativa só redistribui depois de correr\.$/)
+      await pg.locator('[data-acao="pontos-sugerir"]').click()
+      await confere('Confirmar acima do Poder da sala', '[data-acao="pontos-confirmar"]', /^Páreo aberto: com este rascunho o Poder iria a \d+, e a sala viu \d+\./)
+      await pg.locator('[data-acao="pontos-desfazer"]').click()
+      await checkOverflow(pg, label + ' B')
+    } catch (e) {
+      problems.push(`${label}: ${e.message}`)
+    } finally {
+      await pg.context().close()
+    }
+  }
+
   if (quer('crescimento')) {
     const AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.'
     const FALHA = 'Não foi possível salvar. Libere espaço e tente de novo.'
@@ -4138,7 +4238,7 @@ try {
         if (!igual(da(s, 'm1').alloc, Object.assign({}, ZERO, { vel: 4, acel: 2 })) || da(s, 'm1').respecFree !== true || s.redeas !== 0) problems.push(`${label}: preparo ` + JSON.stringify({ m1: da(s, 'm1'), redeas: s.redeas }))
         // a 1ª é grátis: dois toques; o 1º só mostra o que vai gastar
         await abreStatus('m1')
-        if (!(await botao().count()) || (await botao().isDisabled())) problems.push(`${label}: Redistribuir ausente ou desabilitado na 1ª vez`)
+        if (!(await botao().count()) || (await indisp(botao()))) problems.push(`${label}: Redistribuir ausente ou desabilitado na 1ª vez`)
         await botao().click()
         if (!(await avisos(pg)).includes('Grátis: a primeira deste cavalo')) problems.push(`${label}: o 1º toque não disse que é grátis: ` + await avisos(pg))
         s = await estado(pg)
@@ -4152,10 +4252,10 @@ try {
         // a 2ª, sem Rédea: desabilitada com o motivo; o clique forçado não muda nada
         await pontosDev({ vel: 3 })
         await abreStatus('m1')
-        if (!(await botao().isDisabled()) || !/Rédea nova/.test((await botao().getAttribute('title')) || '')) problems.push(`${label}: a 2ª sem Rédea não está desabilitada com o motivo (title ${await botao().getAttribute('title')})`)
+        if (!(await indisp(botao())) || !/Rédea nova/.test((await botao().getAttribute('title')) || '')) problems.push(`${label}: a 2ª sem Rédea não está desabilitada com o motivo (title ${await botao().getAttribute('title')})`)
         if (!/Rédea nova/.test(await textoTela(pg))) problems.push(`${label}: o motivo da 2ª sem Rédea não aparece na tela`)
         const a2 = await estado(pg)
-        for (let k = 0; k < 2; k++) await pg.evaluate(() => { const b = document.querySelector('[data-acao="redistribuir"]'); b.disabled = false; b.click() })
+        for (let k = 0; k < 2; k++) await pg.evaluate(() => { const b = document.querySelector('[data-acao="redistribuir"]'); b.disabled = false; b.removeAttribute('aria-disabled'); b.click() })
         if (!igual(await estado(pg), a2)) problems.push(`${label}: o clique forçado na 2ª sem Rédea mudou o save`)
         // Rédeas pela gaveta DEV: lixo é cortado a 0–999; com 2 Rédeas a 2ª gasta 1 (RF4 antes: a falha não gasta)
         await devAbrir(pg)
@@ -4166,7 +4266,7 @@ try {
         }
         if ((await disco(pg, DEV_KEY)).redeas !== 2) problems.push(`${label}: as Rédeas da gaveta não foram gravadas no save de teste`)
         await devFechar(pg)
-        if (await botao().isDisabled()) problems.push(`${label}: com Rédea, Redistribuir continua desabilitado`)
+        if (await indisp(botao())) problems.push(`${label}: com Rédea, Redistribuir continua desabilitado`)
         await botao().click()
         if (!(await avisos(pg)).includes('Usa 1 Rédea nova; você tem 2')) problems.push(`${label}: o 1º toque com Rédea não disse o que gasta: ` + await avisos(pg))
         await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()   // trocar de sub-aba desarma o 1º toque
@@ -4196,12 +4296,12 @@ try {
         await abrirSala(pg)
         await pg.getByRole('button', { name: /^Voltar/ }).click()
         await abreStatus('m1')
-        if (!(await botao().isDisabled()) || !/Páreo aberto/.test((await botao().getAttribute('title')) || '')) problems.push(`${label}: com páreo aberto, Redistribuir da ativa não está desabilitado com o motivo`)
+        if (!(await indisp(botao())) || !/Páreo aberto/.test((await botao().getAttribute('title')) || '')) problems.push(`${label}: com páreo aberto, Redistribuir da ativa não está desabilitado com o motivo`)
         const a3 = await estado(pg)
-        for (let k = 0; k < 2; k++) await pg.evaluate(() => { const b = document.querySelector('[data-acao="redistribuir"]'); b.disabled = false; b.click() })
+        for (let k = 0; k < 2; k++) await pg.evaluate(() => { const b = document.querySelector('[data-acao="redistribuir"]'); b.disabled = false; b.removeAttribute('aria-disabled'); b.click() })
         if (!igual(await estado(pg), a3)) problems.push(`${label}: o clique forçado com páreo aberto redistribuiu a ativa`)
         await abreStatus('m2')
-        if (await botao().isDisabled()) problems.push(`${label}: com páreo aberto, Redistribuir de outra montaria ficou desabilitado`)
+        if (await indisp(botao())) problems.push(`${label}: com páreo aberto, Redistribuir de outra montaria ficou desabilitado`)
         await botao().click()
         await botao().click()
         s = await estado(pg)
@@ -4235,7 +4335,7 @@ try {
       const livresDe = (m, a) => S.freePoints(m) - custo(a)
       const sugerido = (m, de) => { const b = S.botAlloc(m, de); return Object.fromEntries(G.STAT_KEYS.map((k) => [k, b[k] - m.alloc[k]])) }
       const botoes = () => pg.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({
-        k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), txt: b.textContent.trim(), title: b.getAttribute('title'), aria: b.getAttribute('aria-label'), off: b.disabled })))
+        k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), txt: b.textContent.trim(), title: b.getAttribute('title'), aria: b.getAttribute('aria-label'), off: b.getAttribute('aria-disabled') === 'true' && !b.disabled })))
       // os 18 botões a partir dos pontos a (gravados + rascunho) com `livres` sobrando, longe do teto e sem páreo:
       // desabilitado só quando o custo de N passa do que sobra, com "Faltam pontos" no title
       const confereBotoes = async (a, livres, onde) => {
@@ -4320,7 +4420,7 @@ try {
         // com 20 sobrando, +10 em Estamina custa 30 (desabilitado, "Faltam pontos") e +5 custa 15 (habilitado)
         if (livres !== 20 || S.costOf(comR.est + 10) - S.costOf(comR.est) !== 30) problems.push(`${label}: conta do teste mudou (sobram ${livres})`)
         await confereBotoes(comR, livres, 'com rascunho')
-        await pg.evaluate(() => { const b = document.querySelector('[data-acao="ponto-mais"][data-id="est"][data-n="10"]'); b.disabled = false; b.click() })   // clique forçado
+        await pg.evaluate(() => { const b = document.querySelector('[data-acao="ponto-mais"][data-id="est"][data-n="10"]'); b.disabled = false; b.removeAttribute('aria-disabled'); b.click() })   // clique forçado
         if (!igual(await rascunho(), esp)) problems.push(`${label}: o +10 forçado sem pontos mudou o rascunho ` + JSON.stringify(await rascunho()))
         if (!igual((await estado(pg)).mounts, s0.mounts) || !igual(await disco(pg), d0)) problems.push(`${label}: o rascunho chegou ao save antes de confirmar`)
         if ((await poderNaCabeca(pg)) !== poder0) problems.push(`${label}: o Poder da cabeça mudou com o rascunho`)
@@ -4333,7 +4433,7 @@ try {
         await pg.locator('[data-acao="pontos-sugerir"]').click()
         let r = await rascunho()
         if (!igual(r, sugerido(m1, m1.alloc)) || r.sorte !== 0) problems.push(`${label}: sugerido ${JSON.stringify(r)} (esperado ${JSON.stringify(sugerido(m1, m1.alloc))})`)
-        if (!(await pg.locator('[data-acao="pontos-sugerir"]').isDisabled())) problems.push(`${label}: "Distribuir sugerido" continua habilitado sem nada a somar`)
+        if (!(await indisp(pg.locator('[data-acao="pontos-sugerir"]')))) problems.push(`${label}: "Distribuir sugerido" continua habilitado sem nada a somar`)
         const comS = somaR(m1.alloc, r)
         tp = await topo()
         if (!tp.includes(`sobram ${livresDe(m1, comS)} de ${info.free}`) || !tp.includes(`Poder ${S.powerRating(m1)} → ${S.powerRating({ ...m1, alloc: comS })}`)) problems.push(`${label}: topo depois do sugerido "${tp}"`)
@@ -4400,13 +4500,13 @@ try {
         if (!igual(r, sugerido(m2, m2.alloc))) problems.push(`${label}: páreo aberto, sugerido ${JSON.stringify(r)} (esperado ${JSON.stringify(sugerido(m2, m2.alloc))})`)
         const conf = pg.locator('[data-acao="pontos-confirmar"]')
         const motivo = `Páreo aberto: com este rascunho o Poder iria a ${S.powerRating({ ...m2, alloc: somaR(m2.alloc, r) })}, e a sala viu ${pr}.`
-        if (!(await conf.isDisabled()) || !((await conf.getAttribute('title')) || '').startsWith(motivo)) problems.push(`${label}: RF3: Confirmar ${await conf.isDisabled() ? '' : 'habilitado '}com title "${await conf.getAttribute('title')}" (esperado "${motivo}…")`)
+        if (!(await indisp(conf)) || !((await conf.getAttribute('title')) || '').startsWith(motivo)) problems.push(`${label}: RF3: Confirmar ${await indisp(conf) ? '' : 'habilitado '}com title "${await conf.getAttribute('title')}" (esperado "${motivo}…")`)
         if (!(await avisos(pg)).includes(motivo)) problems.push(`${label}: RF3: o motivo do Confirmar bloqueado não aparece na tela: ` + await avisos(pg))
         // o motivo é anunciado (role="status") e o aviso geral do páreo não se repete junto dele
         const papel = await pg.evaluate((mt) => { const p = Array.from(document.querySelectorAll('#tela .aviso')).find((e) => e.textContent.startsWith(mt)); return p ? p.getAttribute('role') : null }, motivo)
         if (papel !== 'status') problems.push(`${label}: RF3: o parágrafo do motivo do Confirmar bloqueado tem role "${papel}" (esperado "status")`)
         if ((await avisos(pg)).includes(AVISO_PAREO)) problems.push(`${label}: RF3: o aviso geral do páreo se repete junto do motivo do Confirmar bloqueado`)
-        for (let k = 0; k < 2; k++) await pg.evaluate(() => { const b = document.querySelector('[data-acao="pontos-confirmar"]'); b.disabled = false; b.click() })
+        for (let k = 0; k < 2; k++) await pg.evaluate(() => { const b = document.querySelector('[data-acao="pontos-confirmar"]'); b.disabled = false; b.removeAttribute('aria-disabled'); b.click() })
         s = await estado(pg)
         if (!igual(s.mounts.find((m) => m.uid === 'm2').alloc, m2.alloc) || !igual(await disco(pg), dA) || s.pending.pr !== pr) problems.push(`${label}: RF3: o Confirmar forçado gravou acima do Poder da sala ` + JSON.stringify(s.mounts.find((m) => m.uid === 'm2').alloc))
         if (/Para mudar depois/.test(await avisos(pg)) || !igual(await rascunho(), r)) problems.push(`${label}: RF3: o Confirmar forçado armou o 2º toque ou perdeu o rascunho`)
@@ -4416,8 +4516,8 @@ try {
         // aba Skills: a skill de tipo em pontos para o cavalo, dos status atuais (Fogo, Água e Grama)
         for (const m of s.mounts) {
           await abre(m.uid, 'skills')
-          // o "º" vira um "o" sobrescrito na tela (ordFix do game.js): o textContent traz "1o"
-          const t = limpo(await pg.locator('.vaga-tipo-pontos').textContent().catch(() => '')), espT = efeitoTipoPontos(m).replace(/º/g, 'o')
+          // o "º" vira um "o" sobrescrito mais um "º" para leitor de tela (ordFix do game.js): o textContent traz "1oº"
+          const t = limpo(await pg.locator('.vaga-tipo-pontos').textContent().catch(() => '')), espT = efeitoTipoPontos(m).replace(/º/g, 'oº')
           if (t !== espT) problems.push(`${label}: aba Skills de ${m.uid} diz "${t}" (esperado "${espT}")`)
         }
         // o selo depois de gastar: a m1 sem nada que caiba (some), as outras como antes
@@ -4498,7 +4598,7 @@ try {
   await page.fill('#renomear-campo', '  Brasa  ')
   await page.locator('[data-acao="renomear-ok"]').click()
   if ((await page.evaluate(() => window.__galope.state.mounts[0].name)) !== 'Brasa') problems.push('renomear de volta para Brasa falhou')
-  if (!(await page.locator('[data-acao="liberar"][data-id="m1"]').isDisabled())) problems.push('liberar da montaria ativa não está desabilitado')
+  if (!(await indisp(page.locator('[data-acao="liberar"][data-id="m1"]')))) problems.push('liberar da montaria ativa não está desabilitado')
   await page.locator('[data-acao="montaria-voltar"]').click()
   await page.waitForSelector('#t-estabulo')
   await page.evaluate(() => { window.__galope.state.gold = 2000 })
@@ -4808,7 +4908,7 @@ try {
     await cz.waitForSelector('#t-correr')
     await cz.locator('[data-acao="aba"][data-id="estabulo"]').click()
     await cz.waitForSelector('#t-estabulo')
-    if (!(await cz.locator('.montaria:not(.montaria--ativa) [data-acao="ativar"]').first().isDisabled())) problems.push('cruzamento: ativar habilitado com páreo aberto')
+    if (!(await indisp(cz.locator('.montaria:not(.montaria--ativa) [data-acao="ativar"]').first()))) problems.push('cruzamento: ativar habilitado com páreo aberto')
     await cz.locator('[data-acao="aba"][data-id="haras"]').click()
     await cz.waitForSelector('#t-haras')
     await cz.locator('[data-acao="haras-mine"][data-id="m1"]').click()
@@ -4994,7 +5094,7 @@ try {
       if ((await mn.evaluate(() => window.__galope.state.mounts[0].name)) !== 'Trovão') problems.push('menu: renomear na Montaria não aplicou')
       if (!/Trovão/.test(await mn.locator('#t-montaria').textContent())) problems.push('menu: h1 da Montaria não mostra o nome novo')
       // Liberar desabilitado na ativa/única
-      if (!(await mn.locator('[data-acao="liberar"][data-id="m1"]').isDisabled())) problems.push('menu: Liberar habilitado na única montaria')
+      if (!(await indisp(mn.locator('[data-acao="liberar"][data-id="m1"]')))) problems.push('menu: Liberar habilitado na única montaria')
       // 9. capturas das abas Correr e Expedição
       await mn.locator('[data-acao="montaria-voltar"]').click()
       await mn.waitForSelector('#t-estabulo')
