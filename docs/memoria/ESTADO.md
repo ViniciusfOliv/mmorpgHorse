@@ -10,7 +10,8 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
 - **Branches:** a `main` tem tudo até o bloco 1b e a parte 2b da Visuais 2 (`claude/cavalos-v3` integrada em
   2026-11-14, por fast-forward). Em aberto só a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta
   como bloco 3). A `claude/visuais-2` leva a parte 3a (acabamento da interface), pronta e **ainda sem merge na `main`**
-  (build b7219a2 mais a rodada final de correções); trabalho novo sai da `main`, exceto a 3b e a 3c, que saem da `claude/visuais-2`.
+  (build b7219a2 mais a rodada final de correções); a `claude/visuais-2` leva a 3a e a 3b, prontas, esperando o Vinicius; a 3c sai dela.
+  Trabalho novo sai da `main`, exceto a 3c.
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
   - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
@@ -97,9 +98,15 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
   - linha do Estábulo com 3 linhas de texto (~96 px, a spec dizia ~88);
   - plaquinha "Ativa" na borda de cima da linha;
   - Poder do rascunho ("Poder A → B") na barra presa, não no topo;
-  - "Tornar ativa" dourado na ficha (some na ativa).
-- **Para a 3b:** o `::before` da `.opcao` escolhida já está ocupado pelo destaque; o bloco de `box-shadow` do botão se
-  repete em `.btn`, `.app-aba` e `.capacete-btn` (dá para trocar por propriedades).
+  - "Tornar ativa" dourado na ficha (some na ativa);
+  - aba Status com até 1.450 px em vez dos 1.200 px da spec aprovada (a cabeça com o retrato grande se repete em cima e a
+    conta não fecha); meta nova: com as abas no topo, os 7 status inteiros numa tela;
+  - "Genética" no topo da aba Status; custo "·N" embaixo do valor;
+  - a barra presa não pega toque por ~0,4 s ao aparecer e por ~0,4 s depois do 1º toque no Confirmar (contra toque acidental).
+- **Para a 3c:** o `::before` da `.opcao` escolhida já está ocupado pelo destaque; o bloco de `box-shadow` do botão se
+  repete em `.btn`, `.app-aba`, `.capacete-btn` e `.montaria-linha` (4 cópias; dá para trocar por propriedades). Pendências
+  da 3b que ficam para a 3c: o motivo que repete uma frase já na tela (a barra presa cresce ~100 px no Confirmar travado) e a
+  lista que pula quando a `.motivo` de um +N some.
 - **Próximos passos:** 3c (tela da corrida; rever o ordinal sem `.sr` na faixa de eventos), com spec e plano. A 3b está pronta (acima).
   Pendências menores da 3a (sem hover/apertado nas abas da barra de baixo, "ç" de
   Expedição encostado no bisel).
@@ -114,7 +121,9 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
   com 3 cavalos de 1.320 para 780 px, com 6 de 2.277 para 1.012 px; Status de 1.902 para 1.450 px; ficha com a linha de abas
   inteira na 1ª tela. `check.sh` OK (129 testes de simulação, 104 de efeitos, 170 de moldes, 615 conferências do wiki, 87 metas
   rápidas e o teste de interface). Capturas oficiais regeneradas; folha da interface com a linha nova do Estábulo. Sem merge
-  na `main` até ele olhar. **Republicar** a folha e o `jogo-dev.html` nos artefatos de teste.
+  na `main` até ele olhar. Já publicado: folha https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 4) e build de teste
+  https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 10), build 956c29c (o controlador republica de novo depois da rodada
+  de correções e atualiza as versões).
 - **Parte 3a da Visuais 2 pronta na `claude/visuais-2`, esperando o Vinicius** (folha, build de teste e a lista "A confirmar
   com o Vinicius (gosto, 3a)" acima); sem merge na `main` até ele olhar.
 - **Visuais 2** (branch `claude/visuais-2`, criada da `claude/cavalos-v3`; a parte 1 foi integrada na
@@ -186,8 +195,8 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
 - **GDD §9+:** expedições, tecnologia do servidor, anti-trapaça, PVP assíncrono e ranqueada.
 
 ## Próximos passos
-0. O Vinicius olha a folha da interface e o build de teste da 3a e decide a lista "A confirmar com o Vinicius (gosto, 3a)"
-   (acima); o que ele mudar entra antes do merge da `claude/visuais-2` na `main`.
+0. O Vinicius olha a folha da interface e o build de teste da 3a e da 3b e decide as listas "A confirmar com o Vinicius
+   (gosto, 3a)" e "(gosto, 3b)" (acima); o que ele mudar entra antes do merge da `claude/visuais-2` na `main`.
 1. O Vinicius joga o modelo novo no artefato (jogo, DEV e wiki republicados com o 1b, já na `main`) e decide os
    pontos de calibração acima; o que ele mudar entra como ajuste por cima da `main`.
 2. **3c (tela da corrida)** da Visuais 2, com spec e plano (a 3b está pronta).

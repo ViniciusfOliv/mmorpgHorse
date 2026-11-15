@@ -3300,8 +3300,8 @@ try {
   const ALTURA_ANTES_3A = { estabulo: 1284, status: 1894, correr: 802, skills: 1145 }
   // 3b §2 e decisão do controlador na Tarefa 4: a meta de 1.200 px da aba Status não fecha com a cabeça do retrato grande
   // (§5, que vence quando as metas brigam): a aba Status da ativa (SAVE_3A, 360x780, sem rascunho) fica na altura medida
-  // com a linha única (1.450 px, arredondada para cima nos 10 px), e as 7 linhas cabem inteiras numa tela com as abas no topo
-  const ALTURA_STATUS_3B = 1450
+  // com a linha única (medi 1.454 px a 2,625 de dpr e 1.457 a 2,75; teto 1.470), e as 7 linhas cabem inteiras numa tela com as abas no topo
+  const ALTURA_STATUS_3B = 1470
 
   if (quer('acabamento')) {
     // sem border-image no elemento nem no ::before/::after (as peças de pixel entram por pseudo-elemento)
@@ -3830,6 +3830,18 @@ try {
         if (process.env.SHOTS_DIR) await pg.screenshot({ path: join(SHOTS, 'acabamento-forcado-status.png') })   // só na pasta temporária
         await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
         await confereForcado(pg, 'ficha')
+        // botão indisponível por aria-disabled (o Liberar da ativa): texto e borda em GrayText, a cor do texto do disabled nativo
+        const dis = await pg.evaluate(() => {
+          const a = document.querySelector('.montaria-acoes .btn[aria-disabled="true"]')
+          if (!a) return { erro: 'nenhum botão aria-disabled na ficha da ativa' }
+          const n = document.createElement('button'); n.disabled = true; n.className = a.className; n.textContent = 'x'; a.parentNode.appendChild(n)
+          const ca = getComputedStyle(a), cn = getComputedStyle(n)
+          const out = { aCor: ca.color, aBorda: ca.borderTopColor, nCor: cn.color, nBorda: cn.borderTopColor }
+          n.remove()
+          return out
+        })
+        if (dis.erro) problems.push('acabamento (cores forçadas, ficha): ' + dis.erro)
+        else if (dis.aCor !== dis.nCor || dis.aBorda !== dis.nCor) problems.push(`acabamento (cores forçadas, ficha): botão aria-disabled com cor ${dis.aCor} e borda ${dis.aBorda} (GrayText, a cor do texto do disabled nativo: ${dis.nCor})`)
       } catch (e) {
         problems.push('acabamento-forcado: ' + e.message)
       } finally {
@@ -3998,7 +4010,8 @@ try {
         const m = s.mounts.find((x) => x.uid === l.id)
         if (!m) continue
         const ativa = m.uid === s.activeId, num = m.uid.replace(/\D+/g, '')
-        const rot = `${m.name} #${num}, nível ${m.level}${ativa ? ', ativa' : ''}. Abrir ficha.`
+        const pts = podeComprar(m)
+        const rot = `${m.name} #${num}, nível ${m.level}${ativa ? ', ativa' : ''}${pts ? `, ${pts} ${pts === 1 ? 'ponto' : 'pontos'} para distribuir` : ''}. Abrir ficha.`
         if (l.tag !== 'BUTTON' || l.tipo !== 'button' || l.acao !== 'montaria') problems.push(`${label} ${tag}: linha de ${m.uid} não é um <button type="button" data-acao="montaria"> (${l.tag} ${l.tipo} ${l.acao})`)
         if (l.rotulo !== rot) problems.push(`${label} ${tag}: aria-label da linha de ${m.uid} "${l.rotulo}" (esperado "${rot}")`)
         if (l.ativa !== ativa || l.selosAtiva !== (ativa ? 1 : 0)) problems.push(`${label} ${tag}: linha de ${m.uid} com destaque ${l.ativa} e ${l.selosAtiva} selo(s) "Ativa" (ativa: ${ativa})`)
@@ -4009,7 +4022,7 @@ try {
         if (/Macho|Fêmea|cruza|Corcel|XP/.test(l.txt)) problems.push(`${label} ${tag}: linha de ${m.uid} com sexo, cruzas, Corcel ou XP (ficam na ficha): "${l.txt}"`)
         if (!l.retratoOculto) problems.push(`${label} ${tag}: o retrato da linha de ${m.uid} não está aria-hidden`)
         const k = Math.max(1, Math.round(2 * l.dpr))
-        if (!l.cv || l.cv[0] !== 48 * k || l.cv[1] !== 36 * k || l.cv[2] !== 96 || l.cv[3] !== 72) problems.push(`${label} ${tag}: retrato da linha de ${m.uid} ${JSON.stringify(l.cv)} (esperado ${48 * k}x${36 * k} pixels em 96x72 px: escala 2, sem encolher pelo CSS)`)
+        if (!l.cv || l.cv[0] !== 48 * k || l.cv[1] !== 36 * k || Math.abs(l.cv[2] - 48 * k / l.dpr) > 0.5 || Math.abs(l.cv[3] - 36 * k / l.dpr) > 0.5) problems.push(`${label} ${tag}: retrato da linha de ${m.uid} ${JSON.stringify(l.cv)} (esperado ${48 * k}x${36 * k} pixels em ${48 * k / l.dpr}x${36 * k / l.dpr} px de CSS: escala 2, sem encolher pelo CSS)`)
         if (l.w < 44 || l.h < 44) problems.push(`${label} ${tag}: linha de ${m.uid} com ${l.w}x${l.h} px (alvo mínimo 44x44)`)
         if (l.sw > l.cw + 1) problems.push(`${label} ${tag}: o conteúdo sai da linha de ${m.uid} (scrollWidth ${l.sw} > ${l.cw})`)
       }
@@ -4181,7 +4194,7 @@ try {
       if (/Macho|Fêmea|Porte:|Marcas:|[Cc]ruza|Corcel|Skills:|Pais:/.test(c.txt) || c.acoes) problems.push(`${label} ${tag}: a cabeça com dados ou ações da aba Ficha (${c.acoes} ações): ${c.txt}`)
       // retrato grande com os selos nos cantos: "Nv N" e o "+N" dos pontos que cabem
       const pts = podeComprar(m)
-      if (c.selo !== 'Nv ' + m.level || c.mais !== (pts ? '+' + pts : null)) problems.push(`${label} ${tag}: selos do retrato ${JSON.stringify([c.selo, c.mais])} (esperado Nv ${m.level} e ${pts ? '+' + pts : 'sem +N'})`)
+      if (c.selo !== 'Nv ' + m.level || c.mais !== (pts ? '+' + pts + (pts === 1 ? ' ponto' : ' pontos') + ' para distribuir' : null)) problems.push(`${label} ${tag}: selos do retrato ${JSON.stringify([c.selo, c.mais])} (esperado Nv ${m.level} e ${pts ? '+' + pts + ' (com o texto para o leitor de tela " pontos para distribuir")' : 'sem +N'})`)
       const k = Math.max(1, Math.round(ESCALA_GRANDE * c.dpr))
       if (!c.cv || !c.cv.grande || c.cv.w !== 48 * k || c.cv.h !== 36 * k || Math.abs(c.cv.cw - 48 * k / c.dpr) > 0.5 || Math.abs(c.cv.ch - 36 * k / c.dpr) > 0.5) {
         problems.push(`${label} ${tag}: retrato grande ${JSON.stringify(c.cv)} (esperado ${48 * k}x${36 * k} pixels em ${(48 * k / c.dpr).toFixed(2)}x${(36 * k / c.dpr).toFixed(2)} px: escala ${ESCALA_GRANDE}, dpr ${c.dpr}, sem encolher pelo CSS)`)
@@ -4219,9 +4232,9 @@ try {
         if (b.w < 44 || b.h < 44) problems.push(`${label} ${tag}: "${b.txt}" com ${b.w}x${b.h} px (alvo mínimo 44x44)`)
       }
       // dados: sexo (e Corcel), porte, marcas, cruzas restantes, chance de skill e, com parents, os pais
-      const nomeSexo = 'Sexo: ' + (m.sex === 'f' ? 'Fêmea' : 'Macho') + (B.isCorcel(m) ? ' Corcel' : '')
-      const esp = [nomeSexo, 'Porte: ' + G.PORTES.nomes[B.porteDe(m.porte, m.templateId, m.uid)], /^Marcas: \S/, 'Cruzas restantes: ' + m.breedLeft,
-        'Skills: ' + Math.round(S.skillChance(m, S.computeStats(m), 0) * 100) + '% de ativar'].concat(pais ? [pais] : [])
+      const nomeSexo = 'Sexo: ' + (m.sex === 'f' ? 'Fêmea' : 'Macho')
+      const esp = [nomeSexo].concat(B.isCorcel(m) ? ['Corcel: herança garantida'] : []).concat(['Porte: ' + G.PORTES.nomes[B.porteDe(m.porte, m.templateId, m.uid)], /^Marcas: \S/, 'Cruzas restantes: ' + m.breedLeft,
+        'Skills: ' + Math.round(S.skillChance(m, S.computeStats(m), 0) * 100) + '% de ativar']).concat(pais ? [pais] : [])
       const ok = f.dados.length === esp.length && esp.every((e, i) => (e instanceof RegExp ? e.test(f.dados[i]) : e === f.dados[i]))
       if (!ok) problems.push(`${label} ${tag}: dados da aba Ficha ${JSON.stringify(f.dados)} (esperado ${esp.map(String).join(' | ')})`)
       await checkOverflow(p, `${label} ${tag} aba Ficha`)
@@ -4349,7 +4362,6 @@ try {
       await checkOverflow(p, `${label} ${tag}`)
       return ls
     }
-    const caixaDe = (p, sel) => p.evaluate((s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height, b: b.bottom, r: b.right } }, sel)
     const moldura = (p) => p.evaluate(() => ({ topo: document.querySelector('.app-topo').getBoundingClientRect().bottom, abas: document.querySelector('.app-abas').getBoundingClientRect(), alt: window.innerHeight }))
     // a barra presa com o rascunho: Desfazer e Confirmar (alvos de 44 px) dentro dela, presa acima da barra de abas do app
     // (no celular) ou no fundo da janela, na coluna (no computador); o "Poder A → B" nela

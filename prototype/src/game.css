@@ -759,10 +759,10 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .ficha-dados > li + li { background: linear-gradient(90deg, var(--linha) 4px, transparent 0) 0 0 / 8px 2px repeat-x; }
 .ficha-rotulo { color: var(--texto-2); }
 .ficha-valor { color: var(--texto); min-width: 0; overflow-wrap: anywhere; }
-.ficha-valor .corcel { font-size: inherit; margin-left: 8px; white-space: nowrap; }
+.ficha-valor .corcel { font-size: inherit; white-space: nowrap; }
 .ficha-fora { color: var(--texto-2); }
 /* avisos (§4.14): a faixa de 4px à esquerda (ouro ou perda), contorno --sombra e bisel de 2px */
-.aviso {
+.aviso, .motivo {
   background: var(--painel-2); padding: 10px 12px 10px 14px; color: var(--texto); font-size: var(--t-s); margin: 0;
   box-shadow:
     0 0 0 2px var(--sombra),
@@ -772,15 +772,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
     inset -2px 0 0 0 var(--noite-2);
 }
 /* motivo do botão indisponível (3b §7): a linha que o toque e o teclado mostram no lugar do title */
-.motivo {
-  grid-column: 1 / -1; background: var(--painel-2); padding: 10px 12px 10px 14px; color: var(--texto); font-size: var(--t-s); margin: 8px 0 0;
-  box-shadow:
-    0 0 0 2px var(--sombra),
-    inset 4px 0 0 0 var(--ouro),
-    inset 0 2px 0 0 var(--linha),
-    inset 0 -2px 0 0 var(--noite-2),
-    inset -2px 0 0 0 var(--noite-2);
-}
+.motivo { grid-column: 1 / -1; margin: 8px 0 0; }
 .aviso--perda {
   box-shadow:
     0 0 0 2px var(--sombra),
@@ -1164,6 +1156,8 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   .btn, .opcao, .caixa, .app-aba, .montaria--ativa, .montaria-linha { border: 2px solid ButtonText; }
   .app-aba { padding-block: 0; }   /* sem bisel: a borda ocupa o lugar dele, e o ícone e o rótulo continuam cabendo */
   .opcao[aria-pressed="true"], .app-aba--ativa, .montaria--ativa { border-color: Highlight; }
+  /* indisponível por aria-disabled (o foco fica no botão): as mesmas cores do disabled nativo */
+  .btn[aria-disabled="true"], .opcao[aria-disabled="true"] { color: GrayText; border-color: GrayText; }
   .montaria-linha-seta { fill: ButtonText; }   /* o svg não ganha a cor do sistema sozinho */
   .caixa::before, .montaria--ativa::before, .opcao[aria-pressed="true"]::before, .saldo::before,
   .placa::before, .titulo--tela::before { display: none; }

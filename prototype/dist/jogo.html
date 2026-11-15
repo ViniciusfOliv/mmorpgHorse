@@ -785,10 +785,10 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .ficha-dados > li + li { background: linear-gradient(90deg, var(--linha) 4px, transparent 0) 0 0 / 8px 2px repeat-x; }
 .ficha-rotulo { color: var(--texto-2); }
 .ficha-valor { color: var(--texto); min-width: 0; overflow-wrap: anywhere; }
-.ficha-valor .corcel { font-size: inherit; margin-left: 8px; white-space: nowrap; }
+.ficha-valor .corcel { font-size: inherit; white-space: nowrap; }
 .ficha-fora { color: var(--texto-2); }
 /* avisos (§4.14): a faixa de 4px à esquerda (ouro ou perda), contorno --sombra e bisel de 2px */
-.aviso {
+.aviso, .motivo {
   background: var(--painel-2); padding: 10px 12px 10px 14px; color: var(--texto); font-size: var(--t-s); margin: 0;
   box-shadow:
     0 0 0 2px var(--sombra),
@@ -798,15 +798,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
     inset -2px 0 0 0 var(--noite-2);
 }
 /* motivo do botão indisponível (3b §7): a linha que o toque e o teclado mostram no lugar do title */
-.motivo {
-  grid-column: 1 / -1; background: var(--painel-2); padding: 10px 12px 10px 14px; color: var(--texto); font-size: var(--t-s); margin: 8px 0 0;
-  box-shadow:
-    0 0 0 2px var(--sombra),
-    inset 4px 0 0 0 var(--ouro),
-    inset 0 2px 0 0 var(--linha),
-    inset 0 -2px 0 0 var(--noite-2),
-    inset -2px 0 0 0 var(--noite-2);
-}
+.motivo { grid-column: 1 / -1; margin: 8px 0 0; }
 .aviso--perda {
   box-shadow:
     0 0 0 2px var(--sombra),
@@ -1132,6 +1124,8 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   .btn, .opcao, .caixa, .app-aba, .montaria--ativa, .montaria-linha { border: 2px solid ButtonText; }
   .app-aba { padding-block: 0; }   /* sem bisel: a borda ocupa o lugar dele, e o ícone e o rótulo continuam cabendo */
   .opcao[aria-pressed="true"], .app-aba--ativa, .montaria--ativa { border-color: Highlight; }
+  /* indisponível por aria-disabled (o foco fica no botão): as mesmas cores do disabled nativo */
+  .btn[aria-disabled="true"], .opcao[aria-disabled="true"] { color: GrayText; border-color: GrayText; }
   .montaria-linha-seta { fill: ButtonText; }   /* o svg não ganha a cor do sistema sozinho */
   .caixa::before, .montaria--ativa::before, .opcao[aria-pressed="true"]::before, .saldo::before,
   .placa::before, .titulo--tela::before { display: none; }
@@ -9285,7 +9279,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       esc('Retrato de ' + horse.name) + '"></canvas>';
     if (!opts.selo) return cv;
     var pts = opts.pontos > 0 ? '<span class="pontos-livres pontos-livres--selo" title="' +
-      esc((opts.pontos === 1 ? 'Sobra 1 ponto' : 'Sobram ' + opts.pontos + ' pontos') + ' para distribuir na aba Status') + '">+' + esc(opts.pontos) + '</span>' : '';
+      esc((opts.pontos === 1 ? 'Sobra 1 ponto' : 'Sobram ' + opts.pontos + ' pontos') + ' para distribuir na aba Status') + '">+' + esc(opts.pontos) +
+      (opts.tamanho === 'grande' ? '<span class="sr">' + esc(opts.pontos === 1 ? ' ponto para distribuir' : ' pontos para distribuir') + '</span>' : '') + '</span>' : '';
     return '<span class="retrato-moldura">' + cv + '<span class="selo-nivel">Nv ' + esc(horse.level) + '</span>' + pts + '</span>';
   }
 
@@ -9865,10 +9860,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   var SETA_ROWS = ['..#.....', '..##....', '...##...', '....##..', '...##...', '..##....', '..#.....', '........'];
   function mountRowHtml(m, isActive) {
     var n = uidNum(m.uid);
-    var rotulo = m.name + ' #' + n + ', nível ' + m.level + (isActive ? ', ativa' : '') + '. Abrir ficha.';
+    var pq = pontosQueCabem(m);
+    var rotulo = m.name + ' #' + n + ', nível ' + m.level + (isActive ? ', ativa' : '') +
+      (pq > 0 ? ', ' + pq + (pq === 1 ? ' ponto' : ' pontos') + ' para distribuir' : '') + '. Abrir ficha.';
     return '<button type="button" class="montaria-linha' + (isActive ? ' montaria--ativa' : '') + '" data-acao="montaria" data-id="' + esc(m.uid) +
         '" aria-label="' + esc(rotulo) + '">' +
-      '<span class="montaria-linha-retrato" aria-hidden="true">' + portraitHtml(m, { tamanho: 'pequeno', selo: true, pontos: pontosQueCabem(m) }) + '</span>' +
+      '<span class="montaria-linha-retrato" aria-hidden="true">' + portraitHtml(m, { tamanho: 'pequeno', selo: true, pontos: pq }) + '</span>' +
       '<span class="montaria-linha-nome">' + esc(m.name) + '<small>#' + esc(n) + '</small></span>' +
       '<span class="montaria-linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) +
         (isActive ? '<span class="badge-ativa">Ativa</span>' : '') + '</span>' +
@@ -10446,7 +10443,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // 1 Rédea nova (state.redeas; neste bloco só a gaveta DEV dá Rédeas, nunca o Ouro). Com páreo aberto, a montaria
   // ativa não redistribui (o retrato dos pontos da sala já foi tirado); as outras podem. Dois toques no mesmo botão,
   // como o Confirmar dos pontos, e grava como um gasto (gravaGasto: se a gravação falha, nada muda).
-  // Devolve { ok, motivo, custo: 'gratis' | 'redea' } (motivo: o texto do botão desabilitado; '' quando ok).
+  // Devolve { ok, motivo, custo: 'gratis' | 'redea' } (motivo: o texto do botão indisponível (aria-disabled); '' quando ok).
   function temPontos(m) {
     var a = RS.validAlloc(m, m.alloc);
     return STAT_KEYS.some(function (k) { return a[k] > 0; });
@@ -10486,7 +10483,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return out;
   }
   // o botão "+N" de um status: o custo de N vai no title e no aria-label ("+5 em Velocidade: custa 15 pontos").
-  // Desabilitado quando N não cabe, com o motivo no title, nesta ordem: passaria de 150, faltam pontos, trava do
+  // Indisponível (aria-disabled, o foco fica nele) quando N não cabe, com o motivo no title, nesta ordem: passaria de 150, faltam pontos, trava do
   // páreo (com páreo aberto, o Poder da ativa não passa do da sala). livres: o que sobra com o rascunho.
   function botaoMaisInfo(m, r, k, n, livres) {
     var st = GD.STATS[k], atual = allocComRascunho(m, r)[k];
@@ -10640,7 +10637,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     // a corrida não usa mais o bônus de chance de skill do conjunto (o equipamento não entra: sim.js)
     var skillPct = Math.round(RS.skillChance(h, RS.computeStats(h), 0) * 100);
     var corcel = window.Breed && window.Breed.isCorcel(m)
-      ? ' <span class="corcel" title="Corcel: herança garantida">' + corcelHtml() + '</span>' : '';
+      ? fichaLinha('Corcel', '<span class="corcel" title="Corcel: herança garantida">' + iconeHtml('ui-corcel', '⚑', 16) + ' herança garantida</span>') : '';
     // renomear: campo na própria tela (window.prompt não abre num iframe sem allow-modals, como o do artefato)
     var R = M.renomear;
     var acoes = R
@@ -10661,7 +10658,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         '</div>';
     return '<section class="caixa montaria-ficha" aria-label="Ficha">' + acoes +
       '<ul class="ficha-dados">' +
-        fichaLinha('Sexo', sexoHtml(m.sex) + corcel) +
+        fichaLinha('Sexo', sexoHtml(m.sex)) + corcel +
         fichaLinhaTexto(porteTexto(m)) +
         fichaLinhaTexto(marcasTexto(m)) +
         fichaLinha('Cruzas restantes', esc(m.breedLeft)) +
@@ -12155,9 +12152,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var pr2 = rascunhoMaisN(ui.montaria.rascunho, id, pn);
         if (!rascunhoOk(pm, pr2) || !travaPontos(pm, allocComRascunho(pm, pr2)).ok) break;   // nunca confia no botão
         ui.montaria.rascunho = pr2; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null; ui.montaria.confirmaRedist = false;
-        rerenderKeepScroll();
-        if (!telaEl.contains(document.activeElement)) focusAction('ponto-mais', id, 1);   // o +N ficou desabilitado
-        if (!telaEl.contains(document.activeElement)) focusAction('pontos-confirmar');
+        rerenderKeepScroll();   // o +N que ficou indisponível (aria-disabled) continua no lugar: o foco volta para ele
         break;
       }
       case 'pontos-sugerir': {
@@ -12168,9 +12163,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var rs1 = rascunhoSugerido(sm, rs0);
         if (rascunhoSoma(rs1) <= rascunhoSoma(rs0) || !rascunhoOk(sm, rs1)) break;   // nada a somar (nunca confia no botão)
         MS.rascunho = rs1; MS.confirmaPontos = false; MS.pontosMsg = null; MS.confirmaRedist = false;
-        rerenderKeepScroll();
-        if (!telaEl.contains(document.activeElement)) focusAction('pontos-confirmar');   // o botão ficou desabilitado
-        if (!telaEl.contains(document.activeElement)) focusAction('pontos-desfazer');    // Confirmar travado pelo páreo
+        rerenderKeepScroll();   // o "Distribuir sugerido" indisponível (aria-disabled) continua no lugar: o foco volta para ele
         break;
       }
       case 'pontos-desfazer':
@@ -12442,7 +12435,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         ui.confirmLiberar = null; rerenderKeepScroll(); focusAction('liberar', id); break;
       case 'liberar-sim':
         ui.confirmLiberar = null;
-        if (!state.pending && id !== state.activeId && state.mounts.length > 1 && mountByUid(id)) {
+        if (mountByUid(id) && !motivoLiberar(mountByUid(id))) {
           state.mounts = state.mounts.filter(function (m) { return m.uid !== id; });
           persist();
         }

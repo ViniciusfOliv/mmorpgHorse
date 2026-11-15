@@ -4,7 +4,7 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
 ## 2026-11-15 — Visuais 2, parte 3b: decisões da execução (controlador)
-Tudo abaixo é do controlador (nada foi decidido pelo Vinicius); os números estão em `.superpowers/sdd/2026-11-15-estabulo-montaria-celular/`.
+Tudo abaixo é do controlador (nada foi decidido pelo Vinicius).
 - **(controlador) Meta do Status: documento ≤ 1.450 px** (a conversa dizia ~1.100, a spec 1.200) — a cabeça com o retrato grande se
   repete em cima e a spec §2 manda a §5 vencer. Meta nova: com as abas no topo, as 7 linhas de status inteiras visíveis (169–583 px;
   `.app-abas` em 724). O Status caiu de 1.902 para 1.450 px (−24%).
