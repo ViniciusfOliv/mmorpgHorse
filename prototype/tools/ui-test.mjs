@@ -238,7 +238,8 @@ const quer = (nome) => !SO.length || SO.includes(nome)
 const indisp = (loc) => loc.evaluate((b) => b.getAttribute('aria-disabled') === 'true' && !b.hasAttribute('disabled'))
 // a barra presa dos pontos (aba Status, 3b §6) deixa o toque passar por ~400 ms depois de aparecer (.barra-acao--chegando):
 // antes de um toque forçado ou do mouse nela, espera esse tempo acabar
-const esperaBarra = (pg) => pg.waitForFunction(() => !document.querySelector('.barra-acao--chegando'), null, { timeout: 3000 }).catch(() => problems.push('a barra presa dos pontos não saiu do estado "chegando"'))
+// (e, depois do 1º toque no Confirmar, os botões dela também não pegam toque por ~400 ms: .barra-acao--armando)
+const esperaBarra = (pg) => pg.waitForFunction(() => !document.querySelector('.barra-acao--chegando, .barra-acao--armando'), null, { timeout: 3000 }).catch(() => problems.push('a barra presa dos pontos não saiu do estado "chegando"/"armando"'))
 // abre a sala na entrada pedida (tier) a partir do estábulo e devolve o que identifica a sala
 async function abrirSala(pg, tier) {
   await pg.locator('[data-acao="aba"][data-id="correr"]').click()
@@ -4507,6 +4508,55 @@ try {
         await pr.locator('[data-acao="pontos-desfazer"]').focus()
         await pr.keyboard.press('Enter')
         if ((await rascunhoDe(pr)).r) problems.push(`${label}: Desfazer pelo teclado, logo depois de a barra aparecer, não desfez`)
+        // I1 da revisão: dois toques rápidos no Confirmar (no fim da aba e com a barra presa) só armam o pedido de confirmação
+        // (que entra em cima dos botões); nada é gravado sem ele ser lido. Passada a espera, um toque grava
+        const gravado = () => pr.evaluate((k) => JSON.stringify([window.__galope.state.mounts[0].alloc, JSON.parse(localStorage.getItem(k)).mounts[0].alloc]), SAVE_REAL)
+        for (const onde of ['fim', 'presa']) {
+          await pr.locator('[data-acao="ponto-mais"][data-id="vel"][data-n="1"]').click()
+          await esperaBarra(pr)
+          if (onde === 'fim') await pr.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+          else await pr.evaluate(() => { const e = document.querySelector('#tela .subabas'), t = document.querySelector('.app-topo').getBoundingClientRect().bottom; window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - t) })
+          const presa = await pr.evaluate(() => Math.abs(document.querySelector('#tela .barra-acao').getBoundingClientRect().bottom - document.querySelector('.app-abas').getBoundingClientRect().top) <= 1)
+          if (onde === 'presa' && !presa) problems.push(`${label}: I1: a barra não ficou presa acima da barra de abas para o teste`)
+          const g0 = await gravado(), pc = await centro('#tela [data-acao="pontos-confirmar"]')
+          await pr.mouse.click(pc.x, pc.y)
+          await pr.mouse.click(pc.x, pc.y)
+          const d1 = await rascunhoDe(pr), pedido = await pr.evaluate(() => { const a = document.querySelector('#tela .barra-acao .aviso'); return a ? a.textContent : '' })
+          if ((await gravado()) !== g0 || !d1.r || d1.r.vel !== 1 || !d1.conf || !pedido.includes('Toque em Confirmar de novo para gravar.')) problems.push(`${label}: I1 (${onde}): dois toques rápidos no Confirmar ${JSON.stringify({ gravou: (await gravado()) !== g0, rascunho: d1, pedido })} (esperado só o pedido armado, nada gravado)`)
+          if (onde === 'fim') { await pr.locator('[data-acao="pontos-desfazer"]').click(); continue }
+          await esperaBarra(pr)
+          const pc2 = await centro('#tela [data-acao="pontos-confirmar"]')
+          await pr.mouse.click(pc2.x, pc2.y)
+          const d2 = await rascunhoDe(pr)
+          if ((await gravado()) === g0 || d2.r) problems.push(`${label}: I1: depois da espera, o toque no Confirmar armado não gravou ${JSON.stringify(d2)}`)
+        }
+        // I2 da revisão: o foco por teclado nunca fica atrás da barra presa
+        const focoLivre = async (tag, esp) => {
+          const f = await pr.evaluate(() => {
+            const a = document.activeElement, r = a.getBoundingClientRect(), ba = document.querySelector('#tela .barra-acao')
+            return { foco: [a.getAttribute('data-acao'), a.getAttribute('data-id'), a.getAttribute('data-n')].join(':'), y: r.top, b: r.bottom,
+              barra: ba ? ba.getBoundingClientRect().top : null, topo: document.querySelector('.app-topo').getBoundingClientRect().bottom }
+          })
+          if (f.foco !== esp || f.barra == null || f.b > f.barra + 0.5 || f.y < f.topo - 0.5) problems.push(`${label}: I2 (${tag}): foco ${JSON.stringify(f)} (esperado ${esp} inteiro entre o cabeçalho e o topo da barra presa)`)
+        }
+        // (a) Enter no +1 da Garra nos 76 px de baixo: a barra aparece por cima, e o foco (devolvido ao +1) sobe acima dela
+        await pr.evaluate(() => { const b = document.querySelector('[data-acao="ponto-mais"][data-id="garra"][data-n="1"]').getBoundingClientRect(), a = document.querySelector('.app-abas').getBoundingClientRect().top; window.scrollBy(0, b.top + b.height / 2 - (a - 30)) })
+        await pr.locator('.build-linha[data-status="garra"] .ajuda--nome').focus()
+        await pr.keyboard.press('Tab')
+        await pr.keyboard.press('Enter')
+        await focoLivre('Enter no +1 da Garra embaixo', 'ponto-mais:garra:1')
+        if (((await rascunhoDe(pr)).r || {}).garra !== 1) problems.push(`${label}: I2: o Enter no +1 da Garra não pôs o ponto no rascunho`)
+        // (b) com o pedido de confirmação aberto (barra mais alta), Shift+Tab até o +5 da Garra, que estava atrás dela
+        await pr.locator('[data-acao="pontos-confirmar"]').click()
+        await esperaBarra(pr)
+        if (!(await rascunhoDe(pr)).conf) problems.push(`${label}: I2: o 1º Confirmar não armou o pedido`)
+        await pr.evaluate(() => { const b = document.querySelector('[data-acao="ponto-mais"][data-id="garra"][data-n="5"]').getBoundingClientRect(), t = document.querySelector('#tela .barra-acao').getBoundingClientRect().top; window.scrollBy(0, b.top - (t + 30)) })
+        const atras = await pr.evaluate(() => { const b = document.querySelector('[data-acao="ponto-mais"][data-id="garra"][data-n="5"]').getBoundingClientRect(), t = document.querySelector('#tela .barra-acao').getBoundingClientRect().top; return b.top >= t })
+        if (!atras) problems.push(`${label}: I2: o +5 da Garra não ficou atrás da barra presa para o teste`)
+        await pr.evaluate(() => document.querySelector('[data-acao="ponto-mais"][data-id="garra"][data-n="10"]').focus({ preventScroll: true }))
+        await pr.keyboard.press('Shift+Tab')
+        await focoLivre('Shift+Tab com o pedido de confirmação aberto', 'ponto-mais:garra:5')
+        await pr.locator('[data-acao="pontos-desfazer"]').click()
       } catch (e) {
         problems.push(`${label}-status-toques: ${e.message}`)
       } finally {

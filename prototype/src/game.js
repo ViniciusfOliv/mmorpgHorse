@@ -291,6 +291,7 @@
     motivoVivo('');
     var velhas = telaEl.querySelectorAll('.motivo');
     for (var i = 0; i < velhas.length; i++) if (velhas[i].parentNode) velhas[i].parentNode.removeChild(velhas[i]);
+    if (velhas.length) medeBarra();   // a .motivo do Confirmar fica dentro da barra presa
   }
   function mostraMotivo(btn) {
     tiraMotivo();
@@ -309,6 +310,7 @@
     p.textContent = txt;
     if (modo === 'in') host.appendChild(p);
     else host.parentNode.insertBefore(p, host.nextSibling);
+    medeBarra();
   }
   var ajudaSeq = 0;
   function alternaAjuda(btn) {
@@ -1827,19 +1829,47 @@
   // A barra presa dos pontos (aba Status, 3b §6) aparece no 1º +N do rascunho e pode surgir por cima do botão que acabou
   // de ser tocado (os +N das linhas que estão nos ~76 px de baixo da tela). Por BARRA_GUARDA_MS depois de aparecer, ela
   // deixa o toque passar (.barra-acao--chegando: pointer-events none) para o +N de baixo: um 2º toque rápido nunca cai
-  // em Desfazer nem em Confirmar. O teclado não muda. Com ela na tela, o foco por teclado não fica atrás dela
-  // (html.com-barra-pontos: scroll-padding de baixo maior, CSS).
-  var BARRA_GUARDA_MS = 400, barraDesde = 0, barraTimer = 0;
+  // em Desfazer nem em Confirmar. Do mesmo jeito, quando o 1º toque no Confirmar arma o pedido de confirmação (que entra
+  // em cima dos botões, com a barra presa no lugar), os botões dela não pegam toque por BARRA_GUARDA_MS
+  // (.barra-acao--armando): um toque duplo não grava sem o pedido ser lido; o toque cai na bandeja e nada acontece.
+  // O teclado não muda (nenhuma das duas mexe no foco nem no Enter).
+  var BARRA_GUARDA_MS = 400, barraDesde = 0, armadaDesde = 0, barraArmada = false, timerChegando = 0, timerArmando = 0;
+  function barraGuarda(barra, cls, desde, timer) {
+    var resta = BARRA_GUARDA_MS - (Date.now() - desde);
+    clearTimeout(timer);
+    if (resta <= 0) return 0;
+    barra.classList.add(cls);
+    return setTimeout(function () { barra.classList.remove(cls); }, resta);
+  }
   function barraPontosChegou(barra) {
     var raiz = document.documentElement, tinha = raiz.classList.contains('com-barra-pontos');
+    var armada = !!(barra && ui.montaria && ui.montaria.confirmaPontos);
     raiz.classList.toggle('com-barra-pontos', !!barra);
+    if (!tinha && barra) barraDesde = Date.now();
+    if (armada && !barraArmada) armadaDesde = Date.now();
+    barraArmada = armada;
+    medeBarra();
     if (!barra) return;
-    if (!tinha) barraDesde = Date.now();
-    var resta = BARRA_GUARDA_MS - (Date.now() - barraDesde);
-    if (resta <= 0) return;
-    barra.classList.add('barra-acao--chegando');
-    clearTimeout(barraTimer);
-    barraTimer = setTimeout(function () { barra.classList.remove('barra-acao--chegando'); }, resta);
+    timerChegando = barraGuarda(barra, 'barra-acao--chegando', barraDesde, timerChegando);
+    timerArmando = armada ? barraGuarda(barra, 'barra-acao--armando', armadaDesde, timerArmando) : 0;
+  }
+  // O foco por teclado nunca fica atrás da barra presa: a altura de verdade dela (o pedido de confirmação e a .motivo a
+  // deixam mais alta) vai para --barra-pontos-alt, que entra no scroll-padding de baixo (CSS: o Tab e o scrollIntoView
+  // param acima dela). Medida a cada desenho e quando a .motivo entra ou sai.
+  function medeBarra() {
+    var raiz = document.documentElement, barra = telaEl.querySelector('.barra-acao--pontos');
+    if (barra) raiz.style.setProperty('--barra-pontos-alt', Math.ceil(barra.getBoundingClientRect().height) + 'px');
+    else raiz.style.removeProperty('--barra-pontos-alt');
+  }
+  // depois de devolver o foco a um botão sem rolar (focusAction): se o foco é de teclado (:focus-visible) e ficou atrás
+  // da barra presa, rola o mínimo para ele aparecer acima dela. No toque, a tela não anda sob o dedo.
+  function focoAcimaDaBarra(el) {
+    var barra = telaEl.querySelector('.barra-acao--pontos');
+    if (!barra || !el || barra.contains(el)) return;
+    var teclado = false;
+    try { teclado = el.matches(':focus-visible'); } catch (e) { teclado = false; }
+    if (!teclado) return;
+    if (el.getBoundingClientRect().bottom > barra.getBoundingClientRect().top) el.scrollIntoView({ block: 'nearest' });
   }
 
   function render() {
@@ -4798,6 +4828,7 @@
     var sel = '[data-acao="' + acao + '"]' + (id != null ? '[data-id="' + id + '"]' : '') + (n != null ? '[data-n="' + n + '"]' : '');
     var el = telaEl.querySelector(sel);
     if (el) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } }
+    focoAcimaDaBarra(el);
   }
   // Redesenho que não vem do jogador (moldes carregados, largura da janela mudou): o aviso da tela continua.
   function redesenhoPassivo() {
