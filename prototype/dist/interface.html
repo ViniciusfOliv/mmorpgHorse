@@ -566,26 +566,41 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .linha-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: var(--t-s); }
 .nivel { font-size: inherit; line-height: 1.2; color: var(--texto); white-space: nowrap; }   /* "Nv 3": na Jersey do texto em volta, como o selo de nível */
 
-.build-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 10px; }
+.build-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
 .build-topo .pontos-livres { margin: 0; font-size: var(--t-m); line-height: 1.25; color: var(--texto); }
 .build-topo .pontos-livres b { color: var(--ganho); }
-.build { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-/* linha de um status (bloco 1b §11): nome, nota, barra até 150 e valor; embaixo, o custo do próximo ponto e +1, +5, +10 */
+.build { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+/* linha de um status (3b §6): numa linha de 44 px o nome (o botão de ajuda), a nota, o valor com o custo do próximo ponto
+   embaixo dele e +1, +5, +10; a barra fina embaixo de tudo. Colunas de largura fixa: os botões e as barras ficam alinhados
+   de uma linha para a outra (também na Sorte, sem botões) e não andam quando o "+N" do rascunho aparece */
 .build-linha {
-  display: grid; grid-template-columns: 110px auto minmax(0, 1fr) 148px; grid-template-areas: "nome nota barra valor" "custo custo custo acao";
-  align-items: center; gap: 4px 10px; padding-bottom: 10px; border-bottom: 2px solid var(--linha);
+  display: grid; grid-template-columns: 64px 24px minmax(0, 1fr) 144px; grid-template-areas: "nome nota valor acao" "barra barra barra barra";
+  align-items: center; column-gap: 4px; row-gap: 4px;
 }
-.build-linha:last-child { padding-bottom: 0; border-bottom: 0; }
-.build-custo { grid-area: custo; font-size: var(--t-xs); color: var(--texto-3); }
-.build-nome { grid-area: nome; font-family: var(--fonte-ui); font-size: var(--t-s); color: var(--texto-2); display: flex; align-items: center; gap: 6px; }
+/* o nome é o próprio botão de ajuda (.ajuda--nome): ícone, sigla e a peça ⓘ (o ::before) depois dela, num alvo de 44 px */
+.ajuda.ajuda--nome {
+  grid-area: nome; width: 100%; height: 44px; margin: 0; padding: 0 2px; gap: 4px; justify-content: flex-start;
+  color: var(--texto-2); font: 400 var(--t-s)/1 var(--fonte-ui); text-align: left; white-space: nowrap;
+}
+.ajuda--nome::before { order: 1; }
+.ajuda--nome:hover { color: var(--texto); }
+.build-sigla { letter-spacing: 0.04em; }
 .build-barra { grid-area: barra; }
-.build-linha .valor { grid-area: valor; font-family: var(--fonte-display); font-size: 16px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 3ch; }
+/* barra fina (6 px): os 30 segmentos sem o sulco de 2 px (o contorno --sombra fica por fora), com o brilho e a sombra
+   de 2 px nos acesos */
+.barra--seg.build-barra { height: 6px; padding: 0; background: var(--sombra); box-shadow: 0 0 0 2px var(--sombra); }
+/* o valor (Press Start 2P 16) e, embaixo dele, o "+N" do rascunho e o custo do próximo ponto ("·2"), à direita */
+.build-valor { grid-area: valor; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 0; }
+.build-linha .valor { font-family: var(--fonte-display); font-size: 16px; line-height: 16px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .build-linha .valor--rascunho { color: var(--ganho); }
-.build-linha .delta { font-family: var(--fonte-ui); font-size: var(--t-s); font-weight: 700; margin-left: 4px; }
-/* 3 botões de 44 px (+ a margem de 2 px do .btn) com 2 px entre eles: 148 px, a 4ª coluna da linha no computador
-   (fixa, para as barras ficarem alinhadas também na linha da Sorte, que não tem botões) */
-.build-acao { grid-area: acao; display: flex; justify-content: flex-end; gap: 2px; }
-.build-mais { width: 44px; min-width: 44px; min-height: 44px; padding: 0; }   /* texto do .btn--pequeno ("+10" na display passaria dos 44px) */
+.build-sub { display: flex; justify-content: flex-end; gap: 6px; font-size: var(--t-s); line-height: 1; white-space: nowrap; }
+.build-linha .delta { font-family: var(--fonte-ui); font-size: var(--t-s); font-weight: 700; margin: 0; }
+.build-custo { font-size: var(--t-s); line-height: 1; color: var(--texto-3); white-space: nowrap; }
+/* a Sorte: "de nascimento" no lugar dos botões */
+.build-linha--fixa > .build-custo { grid-area: acao; text-align: right; }
+/* 3 botões de 44 px com a margem de 2 px do .btn (o contorno): 144 px, a última coluna */
+.build-acao { grid-area: acao; display: flex; justify-content: flex-end; gap: 0; }
+.build-mais { width: 44px; min-width: 44px; min-height: 44px; margin-block: 0; padding: 0; }   /* texto do .btn--pequeno ("+10" na display passaria dos 44px) */
 .nota-genetica {
   grid-area: nota; font-family: var(--fonte-display); font-size: 16px; line-height: 1; padding: 4px; text-align: center; min-width: 2ch;
   color: var(--tinta); background: var(--r-comum);
@@ -593,14 +608,36 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .nota-genetica--b { background: var(--r-magico); }
 .nota-genetica--a { background: var(--r-raro); }
 .nota-genetica--s { background: var(--ouro); }
-.build-acoes { margin-top: 10px; }
 /* "Redistribuir pontos" (bloco 1b §9): embaixo, separado dos botões de compra por um filete */
-.redistribuir { margin-top: 12px; padding-top: 10px; border-top: 2px solid var(--linha); display: flex; flex-direction: column; gap: 8px; }
+.redistribuir { padding-top: 10px; border-top: 2px solid var(--linha); display: flex; flex-direction: column; gap: 8px; }
 .redistribuir .nota { margin: 0; }
-@media (max-width: 600px) {
-  /* celular: nome, nota e valor numa linha; a barra inteira embaixo; depois o custo e os botões */
-  .build-linha { grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: "nome nota . valor" "barra barra barra barra" "custo custo custo acao"; gap: 6px 8px; }
-  .build-linha .valor { text-align: right; }
+/* o botão e o ⓘ da Rédea na mesma linha (na grade das .acoes, o ⓘ caía numa linha só dele) */
+.redistribuir .acoes { display: flex; align-items: center; gap: 8px; }
+.redistribuir .acoes > .btn { flex: 1 1 auto; }
+.build-rodape { font-size: var(--t-xs); }
+/* a barra presa dos pontos (3b §6): só com rascunho, o último bloco da aba Status (rolando até o fim, ela fica no lugar
+   dela, embaixo do rodapé). Presa embaixo, acima da barra de abas do app e da área segura (no computador a barra de abas
+   é a coluna da esquerda: presa no fundo da janela), dentro da coluna do painel. É uma bandeja opaca: em cima, o contorno
+   --sombra e o friso --linha de 2 px (as peças da 3a), sem deixar a lista aparecer por baixo. O pedido de confirmação, o
+   motivo do Confirmar travado e o .motivo do toque entram nela */
+.barra-acao--pontos {
+  bottom: calc(56px + env(safe-area-inset-bottom, 0px)); margin: 10px 0 0; padding: 14px 0 8px;
+  display: flex; flex-direction: column; gap: 8px;
+  background: linear-gradient(to bottom, var(--sombra) 0 2px, var(--linha) 2px 4px, var(--painel) 4px);
+}
+.barra-acao--pontos > .aviso, .barra-acao--pontos > .motivo { margin: 0; }
+/* recém-aparecida: deixa o toque passar para o +N de baixo (BARRA_GUARDA_MS, game.js) */
+.barra-acao--chegando { pointer-events: none; }
+.barra-pontos { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
+.barra-poder { margin: 0; font-size: var(--t-s); line-height: 1.2; color: var(--texto-2); white-space: nowrap; }
+.barra-poder b { color: var(--texto); }
+.barra-poder .barra-poder-novo { color: var(--ganho); }
+.barra-botoes { display: flex; gap: 6px; margin-left: auto; }
+.barra-botoes .btn { margin: 2px; }
+html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(72px + 76px + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 900px) {
+  .barra-acao--pontos { bottom: 0; padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
+  html.app-com-abas.com-barra-pontos { scroll-padding-bottom: 92px; }
 }
 
 /* skill de tipo: vaga própria, destacada na cor do tipo */
@@ -1099,6 +1136,8 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   .caixa::before, .montaria--ativa::before, .opcao[aria-pressed="true"]::before, .saldo::before,
   .placa::before, .titulo--tela::before { display: none; }
   .placa, .titulo--tela { background-image: none; }
+  /* a barra presa dos pontos perde o degradê: fundo e filete do sistema, para a lista não aparecer por baixo dela */
+  .barra-acao--pontos { background: Canvas; border-top: 2px solid CanvasText; }
   .ajuda::before, .ajuda:hover::before, .ajuda[aria-expanded="true"]::before {
     background-image: none; content: "i"; box-sizing: border-box; border: 2px solid ButtonText;
     font: 400 8px/10px var(--fonte-display); text-align: center;

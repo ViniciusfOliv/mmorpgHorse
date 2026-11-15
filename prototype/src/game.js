@@ -258,10 +258,12 @@
   // (aria-expanded no botão, texto com role="note"). Os textos são os de GameData.HELP, os mesmos do wiki.
   // nome: o que o botão explica, para o nome acessível ("O que é Velocidade?").
   // O botão não tem texto: o "ⓘ" é a peça de pixel do ::before (acabamento 3a §4.13; o caractere não existe nas fontes).
-  function ajudaBtn(chave, nome) {
-    if (!hasOwn(GD.HELP, chave)) return '';
-    return '<button type="button" class="ajuda" data-ajuda="' + esc(chave) + '" aria-expanded="false" aria-label="' +
-      esc('O que é ' + nome + '?') + '" title="' + esc(GD.HELP[chave]) + '"></button>';
+  // conteudo (opcional): o rótulo à vista vira o próprio botão (.ajuda--nome, 3b §6: o nome do status), com a peça ⓘ
+  // pequena junto dele; cls vai junto da classe. Sem o texto em GD.HELP, o rótulo fica num <span> com a mesma classe.
+  function ajudaBtn(chave, nome, conteudo, cls) {
+    if (!hasOwn(GD.HELP, chave)) return conteudo ? '<span class="' + (cls || '') + '">' + conteudo + '</span>' : '';
+    return '<button type="button" class="ajuda' + (conteudo ? ' ajuda--nome' : '') + (cls ? ' ' + cls : '') + '" data-ajuda="' + esc(chave) +
+      '" aria-expanded="false" aria-label="' + esc('O que é ' + nome + '?') + '" title="' + esc(GD.HELP[chave]) + '">' + (conteudo || '') + '</button>';
   }
   // onde o texto aberto entra: 'dt' depois da linha de status (a grade do <dl>), 'in' no fim do bloco, 'after' logo depois dele
   var AJUDA_ONDE = [['li', 'in'], ['.vaga-tipo', 'in'], ['.redistribuir', 'in'], ['.tela-cabeca', 'in'],
@@ -1822,6 +1824,24 @@
   if (DEV_MODE) devHooks = { templateId: devTemplateId, novoPerfil: devNovoPerfil, zerarPerfil: devZerarPerfil, condicoes: devCondicoes, render: renderDev };
   /*@dev:fim*/
 
+  // A barra presa dos pontos (aba Status, 3b §6) aparece no 1º +N do rascunho e pode surgir por cima do botão que acabou
+  // de ser tocado (os +N das linhas que estão nos ~76 px de baixo da tela). Por BARRA_GUARDA_MS depois de aparecer, ela
+  // deixa o toque passar (.barra-acao--chegando: pointer-events none) para o +N de baixo: um 2º toque rápido nunca cai
+  // em Desfazer nem em Confirmar. O teclado não muda. Com ela na tela, o foco por teclado não fica atrás dela
+  // (html.com-barra-pontos: scroll-padding de baixo maior, CSS).
+  var BARRA_GUARDA_MS = 400, barraDesde = 0, barraTimer = 0;
+  function barraPontosChegou(barra) {
+    var raiz = document.documentElement, tinha = raiz.classList.contains('com-barra-pontos');
+    raiz.classList.toggle('com-barra-pontos', !!barra);
+    if (!barra) return;
+    if (!tinha) barraDesde = Date.now();
+    var resta = BARRA_GUARDA_MS - (Date.now() - barraDesde);
+    if (resta <= 0) return;
+    barra.classList.add('barra-acao--chegando');
+    clearTimeout(barraTimer);
+    barraTimer = setTimeout(function () { barra.classList.remove('barra-acao--chegando'); }, resta);
+  }
+
   function render() {
     ui.avisoNaTela = null;   // noticeHtml() o preenche se a tela desenhar um aviso
     if (visObs) visObs.disconnect();
@@ -1850,6 +1870,7 @@
     // folga no fim da tela para o conteúdo rolar acima do botão DEV fixo
     if (DEV_MODE && ui.screen !== 'corrida') html += '<div class="dev-espaco" aria-hidden="true"></div>';
     telaEl.innerHTML = ordFix(html);
+    barraPontosChegou(telaEl.querySelector('.barra-acao--pontos'));
     hydrate(telaEl);
     if (ui.screen === 'corrida') {
       if (raceView) raceView.destroy();
@@ -2709,6 +2730,11 @@
     STAT_KEYS.forEach(function (k) { out[k] = b[k] - gravado[k]; });
     return out;
   }
+  // Aba Status (3b §6): uma linha por status. Na linha: o nome (ícone e sigla; é o próprio botão de ajuda), a nota de
+  // genética, o valor (com o rascunho) e, embaixo dele, o "+N" do rascunho e o custo do próximo ponto ("·2", com a frase
+  // inteira para o leitor de tela); à direita, +1, +5 e +10; embaixo de tudo, a barra fina em segmentos. A Sorte não
+  // tem botões: "de nascimento". Com rascunho, Desfazer e Confirmar ficam na barra presa embaixo (.barra-acao, sticky),
+  // com o Poder de antes e de depois, o pedido de confirmação e o motivo do Confirmar travado; sem rascunho, ela não existe.
   function montariaStatusHtml(m) {
     var M = ui.montaria;
     if (M.rascunho && (!rascunhoSoma(M.rascunho) || !rascunhoOk(m, M.rascunho))) { M.rascunho = null; M.confirmaPontos = false; }
@@ -2726,25 +2752,28 @@
       var st = GD.STATS[k], g = m.potential[k], nota = notaGenetica(g);
       var v = stats[k], rk = r ? r[k] : 0, d = v - antes[k];
       var delta = d > 0 ? '<span class="delta mais" aria-hidden="true">+' + d + '</span>' : '';
-      var custo, botoes = '';
-      if (nb.indexOf(k) >= 0) {
-        custo = 'de nascimento';   // a Sorte não recebe pontos (TUNING.noBuy): sem custo nem botões
+      var fixo = nb.indexOf(k) >= 0, custo, botoes = '';
+      if (fixo) {
+        custo = '<span class="build-custo">de nascimento</span>';   // a Sorte não recebe pontos (TUNING.noBuy): sem custo nem botões
       } else {
-        // espaço sem quebra antes do número: no celular a frase quebra antes de "custa", nunca antes do custo
-        custo = comR[k] >= RS.maxBuy(m, k) ? 'no teto de\u00a0' + cap : 'próximo ponto custa\u00a0' + RS.pointCost(comR[k]);
+        // à vista, curto ("·2", ou "teto" no teto); o leitor de tela ouve a frase inteira, com espaço sem quebra antes do número
+        var noTeto = comR[k] >= RS.maxBuy(m, k), pc = RS.pointCost(comR[k]);
+        custo = '<span class="build-custo"><span aria-hidden="true">' + (noTeto ? 'teto' : '\u00b7' + pc) + '</span>' +
+          '<span class="sr">' + esc(noTeto ? 'no teto de\u00a0' + cap : 'próximo ponto custa\u00a0' + pc) + '</span></span>';
         if (compra) botoes = BUILD_PASSOS.map(function (n) {
           var bi = botaoMaisInfo(m, r, k, n, livres);
           return '<button type="button" class="btn btn--pequeno build-mais" data-acao="ponto-mais" data-id="' + k + '" data-n="' + n + '"' +
             ' aria-label="' + esc(bi.titulo) + '"' + (bi.ok ? ' title="' + esc(bi.titulo) + '"' : indisponivel(bi.titulo)) + '>+' + n + '</button>';
         }).join('');
       }
-      return '<li class="build-linha" data-status="' + k + '">' +
-        '<span class="build-nome" title="' + esc(st.name + ': ' + st.desc) + '">' + statIcon(k) + '<span>' + esc(st.short) + '</span>' + ajudaBtn(k, st.name) + '</span>' +
+      return '<li class="build-linha' + (fixo ? ' build-linha--fixa' : '') + '" data-status="' + k + '">' +
+        ajudaBtn(k, st.name, statIcon(k) + '<span class="build-sigla">' + esc(st.short) + '</span>', 'build-nome') +
         '<span class="nota-genetica nota-genetica--' + nota.toLowerCase() + '" title="' + esc('Genética ' + g + ' de 31') + '" aria-label="' + esc('Genética ' + nota + ' (' + g + ' de 31)') + '">' + nota + '</span>' +
-        '<div class="barra barra--seg build-barra" role="img" aria-label="' + esc(st.name + ' ' + v + ' de ' + cap) + '">' + barHtml(v, antes[k]) + '</div>' +
-        '<span class="valor' + (rk ? ' valor--rascunho' : '') + '">' + v + delta + (rk ? '<span class="sr"> (+' + rk + ' no rascunho)</span>' : '') + '</span>' +
-        '<span class="build-custo">' + esc(custo) + '</span>' +
-        (botoes ? '<span class="build-acao" role="group" aria-label="' + esc('Comprar pontos em ' + st.name) + '">' + botoes + '</span>' : '') + '</li>';
+        '<span class="build-valor"><span class="valor' + (rk ? ' valor--rascunho' : '') + '">' + v + (rk ? '<span class="sr"> (+' + rk + ' no rascunho)</span>' : '') + '</span>' +
+          (fixo ? '' : '<span class="build-sub">' + delta + custo + '</span>') + '</span>' +
+        (fixo ? custo : '') +
+        (botoes ? '<span class="build-acao" role="group" aria-label="' + esc('Comprar pontos em ' + st.name) + '">' + botoes + '</span>' : '') +
+        '<div class="barra barra--seg build-barra" role="img" aria-label="' + esc(st.name + ' ' + v + ' de ' + cap) + '">' + barHtml(v, antes[k]) + '</div></li>';
     }).join('');
     // com páreo aberto, um rascunho acima do Poder da sala bloqueia o Confirmar (RF3); o motivo vai junto das ações
     var lockR = soma ? travaPontos(m, comR) : { ok: true };
@@ -2756,27 +2785,34 @@
     if (livres > 0 && !algumMais) avisos += '<p class="nota">' + esc((livres === 1 ? 'Sobra 1 ponto' : 'Sobram ' + livres + ' pontos') + ': não pagam o próximo ponto de nenhum status.') + '</p>';
     // o aviso geral do páreo não se repete quando o motivo do Confirmar bloqueado já está na tela
     if (trava && info.left > 0 && !motivoConf) avisos += '<p class="aviso">' + esc('Páreo aberto: os pontos da montaria ativa não podem passar o Poder de ' + P.pr + ' que a sala viu.') + '</p>';
+    // topo numa linha (quebra se precisar): os pontos que sobram e o ⓘ do custo; "Genética" e o ⓘ da nota. O Poder de antes
+    // e de depois do rascunho fica na barra presa, junto do Confirmar (aqui ele empurraria a lista no 1º toque de um +N)
     var topo = '<div class="build-topo"><p class="pontos-livres">Pontos: <b>' + esc('sobram ' + livres + ' de ' + info.free) + '</b>' + ajudaBtn('custo', 'o custo dos pontos') + '</p>' +
-      '<span class="nota">Nota de genética' + ajudaBtn('genetica', 'a nota de genética') + '</span>' +
-      (info.free ? '' : '<span class="nota">Cada nível ganho dá pontos para distribuir.</span>') +
-      (soma ? '<span class="nota">' + esc('Poder ' + RS.powerRating(m) + ' → ' + RS.powerRating(h)) + '</span>' : '') + '</div>';
-    // ações: "Distribuir sugerido" (com algum ponto cabendo ou com rascunho), Desfazer e Confirmar (com rascunho)
+      '<span class="nota">Genética' + ajudaBtn('genetica', 'a nota de genética') + '</span>' +
+      (info.free ? '' : '<span class="nota">Cada nível ganho dá pontos para distribuir.</span>') + '</div>';
+    // "Distribuir sugerido" no fim da lista (com algum ponto cabendo ou com rascunho)
     var acoes = '';
     if (compra) {
       var sug = rascunhoSoma(rascunhoSugerido(m, r)) > soma;
-      var botaoSug = '<button type="button" class="btn btn--pequeno" data-acao="pontos-sugerir"' +
-        indisponivel(sug ? '' : livres > 0 ? 'Os pontos que sobram não pagam o próximo ponto de nenhum status.' : 'Nenhum ponto sobrando para distribuir.') + '>Distribuir sugerido</button>';
+      acoes = '<div class="acoes build-acoes"><button type="button" class="btn btn--pequeno" data-acao="pontos-sugerir"' +
+        indisponivel(sug ? '' : livres > 0 ? 'Os pontos que sobram não pagam o próximo ponto de nenhum status.' : 'Nenhum ponto sobrando para distribuir.') + '>Distribuir sugerido</button></div>';
+    }
+    // a barra presa (só com rascunho): o pedido de confirmação e o motivo do Confirmar travado, o Poder e os dois botões.
+    // É o último bloco da aba: rolando até o fim, ela fica no lugar dela, embaixo do Redistribuir, sem cobrir nada
+    var barra = '';
+    if (soma) {
       var depois = 'Para mudar depois, use Redistribuir ' + (m.respecFree === true ? '(a primeira deste cavalo é grátis).' : '(gasta uma Rédea nova).');
-      acoes = (soma && M.confirmaPontos ? '<p class="aviso" role="status">' + esc(depois + ' Toque em Confirmar de novo para gravar.') + '</p>' : '') +
+      barra = '<div class="barra-acao barra-acao--pontos">' +
+        (M.confirmaPontos ? '<p class="aviso" role="status">' + esc(depois + ' Toque em Confirmar de novo para gravar.') + '</p>' : '') +
         (motivoConf ? '<p class="aviso" role="status">' + esc(motivoConf) + '</p>' : '') +
-        '<div class="acoes build-acoes">' + botaoSug + (soma
-          ? '<button type="button" class="btn btn--pequeno" data-acao="pontos-desfazer">Desfazer</button>' +
-            '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="pontos-confirmar"' + indisponivel(motivoConf) + '>Confirmar</button>'
-          : '') + '</div>';
+        '<div class="barra-pontos"><p class="barra-poder">Poder <b>' + RS.powerRating(m) + '</b> → <b class="barra-poder-novo">' + RS.powerRating(h) + '</b></p>' +
+          '<div class="barra-botoes"><button type="button" class="btn btn--pequeno" data-acao="pontos-desfazer">Desfazer</button>' +
+          '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="pontos-confirmar"' + indisponivel(motivoConf) + '>Confirmar</button></div></div></div>';
     }
     return avisos + '<section class="caixa" aria-label="Status">' + topo +
       '<ul class="build">' + linhas + '</ul>' + acoes + redistribuirHtml(m) +
-      '<p class="nota">' + esc('Nota de genética (C, B, A ou S): vem do nascimento. A barra vai até ' + cap + '. O custo do ponto sobe a cada ' + RS.TUNING.costStep + ' pontos no mesmo status.') + '</p></section>';
+      '<p class="nota build-rodape">' + esc('Nota de genética (C, B, A ou S): vem do nascimento. A barra vai até ' + cap + '. O custo do ponto sobe a cada ' + RS.TUNING.costStep + ' pontos no mesmo status.') + '</p>' +
+      barra + '</section>';
   }
 
   // abre a Montaria numa sub-aba; o estado do equipamento (confirmação, Desfazer) começa zerado
@@ -2869,7 +2905,7 @@
       '<div class="retrato-palco">' + portraitHtml(m, { tamanho: 'grande', selo: true, pontos: pontosQueCabem(m) }) + '</div>' +
       '<div class="cavalo-info">' +
         '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco><span class="montaria-nome">' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></span>' +
-          (isActive ? '<span class="badge-ativa">Ativa</span>' : '') + '</h1>' +
+          (isActive ? ' <span class="badge-ativa">Ativa</span>' : '') + '</h1>' +   // o espaço: o leitor de tela lê "Brasa #1 Ativa"
         '<div class="linha-meta">' + rarityHtml(m.rarity) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(m.grau) + ajudaBtn('estrelas', 'as estrelas') + elementHtml(m.element) + '</div>' +
         '<div class="linha-meta"><span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
         xpHtml(m.level, m.xp, true) +
@@ -4264,9 +4300,9 @@
   var ACOES_EQUIP = { 'loja-tab': 1, comprar: 1, 'comprar-pedra': 1, 'equipar-tela': 1, 'equip-slot': 1, equipar: 1, tirar: 1,
     melhorar: 1, 'melhorar-nao': 1, 'melhorar-sim': 1, vender: 1, 'vender-desfazer': 1 };
   telaEl.addEventListener('click', function (e) {
+    tiraMotivo();   // qualquer toque tira a linha do motivo (também o do ⓘ, que abre a ajuda); nunca há duas na tela
     var aj = e.target.closest ? e.target.closest('[data-ajuda]') : null;
-    if (aj) { alternaAjuda(aj); return; }   // "ⓘ": abre/fecha o texto, sem re-renderizar nem acionar o cartão em volta
-    tiraMotivo();   // qualquer outro toque tira a linha do motivo; nunca há duas na tela
+    if (aj) { alternaAjuda(aj); return; }   // "ⓘ" (ou o nome do status): abre/fecha o texto, sem re-renderizar nem acionar o cartão em volta
     var b = e.target.closest ? e.target.closest('[data-acao]') : null;
     if (!b || b.disabled) return;
     if (b.getAttribute('aria-disabled') === 'true') { mostraMotivo(b); return; }   // indisponível: só diz o porquê, sem ação

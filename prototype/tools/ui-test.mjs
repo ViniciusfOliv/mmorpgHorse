@@ -236,6 +236,9 @@ const SO = (process.env.UI_SO || '').split(',').map((x) => x.trim()).filter(Bool
 const quer = (nome) => !SO.length || SO.includes(nome)
 // botão indisponível pela regra da 3b: aria-disabled="true" e NÃO disabled (o toque e o teclado ainda o alcançam e mostram o motivo)
 const indisp = (loc) => loc.evaluate((b) => b.getAttribute('aria-disabled') === 'true' && !b.hasAttribute('disabled'))
+// a barra presa dos pontos (aba Status, 3b §6) deixa o toque passar por ~400 ms depois de aparecer (.barra-acao--chegando):
+// antes de um toque forçado ou do mouse nela, espera esse tempo acabar
+const esperaBarra = (pg) => pg.waitForFunction(() => !document.querySelector('.barra-acao--chegando'), null, { timeout: 3000 }).catch(() => problems.push('a barra presa dos pontos não saiu do estado "chegando"'))
 // abre a sala na entrada pedida (tier) a partir do estábulo e devolve o que identifica a sala
 async function abrirSala(pg, tier) {
   await pg.locator('[data-acao="aba"][data-id="correr"]').click()
@@ -2137,6 +2140,8 @@ try {
             await pg.locator('[data-acao="montaria-voltar"]').click()
             await pg.locator('button[data-acao="montaria"][data-id="m2"]').click()
             await pg.waitForSelector('#t-montaria')
+            // a aba Status da m2 (a ficha abre nela): as regras gerais da tela e os 7 status e a liga, como na m1
+            espera(await confereTela(pg, tag + ' montaria-status m2'), 'montaria-status m2', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-']))
             await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
             espera(await confereTela(pg, tag + ' montaria-ficha m2'), 'montaria-ficha m2', ['ui-femea', 'ui-corcel'])
             const txt2 = await fichaTxt()
@@ -3292,6 +3297,10 @@ try {
   // medido em 2026-11-14 na `main` (7fe5124), antes da 3a: build da `main`, o mesmo save (SAVE_3A) e o mesmo caminho do
   // bloco acabamento (servidor deste teste, 360x780, scrollHeight; Skills é a aba da montaria ativa). Usado também no celular.
   const ALTURA_ANTES_3A = { estabulo: 1284, status: 1894, correr: 802, skills: 1145 }
+  // 3b §2 e decisão do controlador na Tarefa 4: a meta de 1.200 px da aba Status não fecha com a cabeça do retrato grande
+  // (§5, que vence quando as metas brigam): a aba Status da ativa (SAVE_3A, 360x780, sem rascunho) fica na altura medida
+  // com a linha única (1.450 px, arredondada para cima nos 10 px), e as 7 linhas cabem inteiras numa tela com as abas no topo
+  const ALTURA_STATUS_3B = 1450
 
   if (quer('acabamento')) {
     // sem border-image no elemento nem no ::before/::after (as peças de pixel entram por pseudo-elemento)
@@ -3517,7 +3526,8 @@ try {
         await pg.locator('[data-acao="montaria-aba"][data-id="status"]').click()
         const aSt = await altura()
         notes.alturaAcabamento.status = aSt
-        if (aSt > 1.04 * ALTURA_ANTES_3A.status) problems.push(`acabamento: aba Status com ${aSt}px (limite ${Math.round(1.04 * ALTURA_ANTES_3A.status)}, antes ${ALTURA_ANTES_3A.status})`)
+        // 3b §2: a linha única (era 1,04 × a medida de antes da 3a)
+        if (aSt > ALTURA_STATUS_3B) problems.push(`acabamento: aba Status com ${aSt}px (limite ${ALTURA_STATUS_3B}, Tarefa 4 da 3b; antes da 3a ${ALTURA_ANTES_3A.status})`)
         await semBorderImage(pg, 'status')
         await pecasNoLugar(pg, 'status', ['.caixa', 'h1.titulo--tela'])
         await temCores(pg, 'status', '.opcao[aria-pressed="true"]', ['--sombra', '--ouro-escuro', '--ouro'])
@@ -3857,6 +3867,7 @@ try {
     const confere = async (nome, sel, motivoRe) => {
       const b = () => pg.locator(sel).first()
       if ((await pg.locator(sel).count()) < 1) { problems.push(`${label}: ${nome}: botão ausente (${sel})`); return }
+      await esperaBarra(pg)   // o toque forçado vai nas coordenadas: a barra presa recém-aparecida deixaria o toque passar
       if (!(await indisp(b()))) { problems.push(`${label}: ${nome}: não está aria-disabled="true" sem disabled`); return }
       const t0 = await tudo()
       const igualA0 = async (onde) => { const t1 = await tudo(); if (t1.disco !== t0.disco || t1.mem !== t0.mem || t1.rasc !== t0.rasc || t1.conf !== t0.conf) problems.push(`${label}: ${nome}: ${onde} mudou o estado`) }
@@ -3870,10 +3881,11 @@ try {
       const txtMotivo = ((await motivos())[0] || {}).txt || ''
       const vivo = (t) => pg.waitForFunction((x) => document.getElementById('motivo-vivo').textContent === x, t, { timeout: 1500 }).then(() => true, () => false)
       if (!(await vivo(txtMotivo))) problems.push(`${label}: ${nome}: #motivo-vivo sem o texto do motivo: ${JSON.stringify(await pg.evaluate(() => document.getElementById('motivo-vivo').textContent))}`)
-      // o +N: a .motivo ocupa a largura da linha do status (não cai numa célula vazia do grid)
+      // o +N: a .motivo fica dentro da .build-linha daquele status e ocupa a largura dela (não cai numa célula vazia do grid)
       if (/ponto-mais/.test(sel)) {
-        const lg = await pg.evaluate(() => { const m = document.querySelector('#tela .motivo'), l = m && m.closest('.build-linha'); return m && l ? m.getBoundingClientRect().width / l.getBoundingClientRect().width : null })
-        if (!(lg >= 0.9)) problems.push(`${label}: ${nome}: a .motivo ocupa ${lg} da largura da .build-linha (esperado >= 0,9)`)
+        const lg = await pg.evaluate((s) => { const m = document.querySelector('#tela .motivo'), l = m && m.closest('.build-linha'), x = document.querySelector(s)
+          return m && l ? { r: m.getBoundingClientRect().width / l.getBoundingClientRect().width, linha: l.getAttribute('data-status'), botao: x && x.getAttribute('data-id') } : null }, sel)
+        if (!lg || !(lg.r >= 0.9) || lg.linha !== lg.botao) problems.push(`${label}: ${nome}: a .motivo ${JSON.stringify(lg)} (esperado dentro da linha do status do botão, com >= 0,9 da largura)`)
       }
       // Tornar ativa e Liberar (aba Ficha, Ruling 2): a .motivo vem logo depois do contêiner .montaria-acoes do botão
       if (/"(ativar|liberar)"/.test(sel)) {
@@ -4159,6 +4171,8 @@ try {
       // cabeça: o h1 é a placa, com o nome, o #N e o selo "Ativa" (só na ativa); raridade, estrelas e tipo; Poder e liga com
       // os ⓘ; o XP. Porte, marcas, cruzas, sexo, Corcel, chance de skill, pais e os botões ficam na aba Ficha
       if (!c.h1 || !c.h1.dentro || !c.h1.placa || !c.h1.txt.includes(m.name) || !c.h1.txt.includes('#' + num) || c.h1.ativa !== (ativa ? 1 : 0) || c.ativasCab !== c.h1.ativa) problems.push(`${label} ${tag}: o h1 da cabeça ${JSON.stringify(c.h1)} (${c.ativasCab} selo(s) "Ativa" na cabeça; ativa: ${ativa})`)
+      // o leitor de tela lê "Brasa #1 Ativa": um espaço entre o nome e o selo no markup (o flex da placa não o mostra)
+      if (ativa && c.h1 && !new RegExp(`#${num} Ativa$`).test(c.h1.txt)) problems.push(`${label} ${tag}: o h1 lê "${c.h1.txt}" (esperado um espaço antes de "Ativa")`)
       if (c.raridade !== 1 || c.estrelas !== 1 || c.tipo < 1 || c.liga !== 1 || c.xp !== 1) problems.push(`${label} ${tag}: a cabeça sem raridade, estrelas, tipo, liga ou XP ${JSON.stringify(c)}`)
       for (const k of ['raridade', 'estrelas', 'poder', 'liga']) if (!c.ajudas.includes(k)) problems.push(`${label} ${tag}: a cabeça sem o ⓘ de ${k}`)
       if (c.poder !== S.powerRating(m)) problems.push(`${label} ${tag}: Poder ${c.poder} na cabeça (esperado ${S.powerRating(m)})`)
@@ -4266,6 +4280,13 @@ try {
           foco: document.activeElement && document.activeElement.id, selo: document.querySelectorAll('#t-montaria .badge-ativa').length }))
         if (at.ativa !== 'm3' || at.aba !== 'ficha' || at.botao || at.foco !== 't-montaria' || at.selo !== 1) problems.push(`${label}: Tornar ativa pela aba Ficha ${JSON.stringify(at)}`)
         await capT6(pf, 'celular-ficha-m3.png', true)
+        // pai homônimo: a m2 com a mãe "Brasa" de uid null e o pai "Brasa" de uid m1, com a Brasa (m1) no estábulo. O critério
+        // é o uid, não o nome: a mãe sai "(fora do estábulo)" e o pai, não (pelo save, que passa pela validação dos pais)
+        await montaSave(pf, (raw) => { raw.mounts.find((x) => x.uid === 'm2').parents = { f: { uid: null, name: 'Brasa' }, m: { uid: 'm1', name: 'Brasa' } } })
+        const nomes = await pf.evaluate(() => window.__galope.state.mounts.map((x) => x.uid + ':' + x.name).join(','))
+        if (!nomes.includes('m1:Brasa')) problems.push(`${label}: o teste do pai homônimo precisa da Brasa no estábulo (${nomes})`)
+        const m2h = await confereCabeca(pf, 'ficha da m2 (pai homônimo)', 'm2', true)
+        if (m2h) await confereAbaFicha(pf, 'ficha da m2 (pai homônimo)', m2h, 'Pais: Brasa (fora do estábulo) e Brasa')
       } catch (e) {
         problems.push(`${label}-ficha: ${e.message}`)
       } finally {
@@ -4283,6 +4304,278 @@ try {
         problems.push(`${label}-ficha-${larg}-${dpr}: ${e.message}`)
       } finally {
         await pd.context().close()
+      }
+    }
+
+    // ---- Aba Status (3b §6): uma linha por status, a ajuda no nome, o topo numa linha e a barra presa com o rascunho ----
+    // cada .build-linha: o nome (o próprio botão de ajuda), a nota, o valor e o custo e os três +N na faixa de 44 px dos
+    // botões (a Sorte, sem botões: a do nome), com os centros alinhados, e a barra fina (6 px) embaixo; alvos de 44 px; um
+    // só [data-ajuda] na linha (o do nome); o custo curto à vista ("·N" ou "teto") e a frase inteira para o leitor de tela
+    const statusDe = (p) => p.evaluate(() => Array.from(document.querySelectorAll('#tela .build-linha')).map((l) => {
+      const caixa = (e) => { if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height, b: b.bottom, r: b.right } }
+      const nome = l.querySelector('.build-nome'), custo = l.querySelector('.build-custo')
+      const visto = custo ? (() => { const c = custo.cloneNode(true); c.querySelectorAll('.sr').forEach((x) => x.remove()); return c.textContent.trim() })() : null
+      return { k: l.getAttribute('data-status'), linha: caixa(l), sw: l.scrollWidth, cw: l.clientWidth,
+        nome: caixa(nome), nomeTxt: nome ? nome.textContent.trim() : null, nomeIcone: nome ? nome.querySelectorAll('svg.icone-status, img.icone').length : 0,
+        nomeBotao: !!nome && nome.tagName === 'BUTTON' && nome.getAttribute('type') === 'button' && nome.classList.contains('ajuda') && nome.classList.contains('ajuda--nome') && nome.getAttribute('data-ajuda') === l.getAttribute('data-status'),
+        ajudas: Array.from(l.querySelectorAll('[data-ajuda]')).map((b) => b.getAttribute('data-ajuda')),
+        nota: caixa(l.querySelector('.nota-genetica')), valor: caixa(l.querySelector('.valor')), custo: caixa(custo), custoVisto: visto,
+        custoSr: custo && custo.querySelector('.sr') ? custo.querySelector('.sr').textContent : null,
+        mais: Array.from(l.querySelectorAll('.build-mais')).map(caixa), barra: caixa(l.querySelector('.build-barra')) }
+    }))
+    const confereLinhas = async (p, tag) => {
+      const ls = await statusDe(p)
+      if (ls.length !== 7) problems.push(`${label} ${tag}: ${ls.length} linhas de status (esperado 7)`)
+      for (const l of ls) {
+        const sorte = l.k === 'sorte', st = G.STATS[l.k], q = `${label} ${tag}: linha ${l.k}`
+        if (!l.nomeBotao || l.nomeTxt !== st.short || l.nomeIcone !== 1) problems.push(`${q}: o nome não é o botão de ajuda com o ícone e a sigla ${JSON.stringify({ botao: l.nomeBotao, txt: l.nomeTxt, icone: l.nomeIcone })}`)
+        if (JSON.stringify(l.ajudas) !== JSON.stringify([l.k])) problems.push(`${q}: [data-ajuda] na linha ${JSON.stringify(l.ajudas)} (esperado só o do nome, ${l.k})`)
+        if (l.mais.length !== (sorte ? 0 : 3)) problems.push(`${q}: ${l.mais.length} botões +N (esperado ${sorte ? 0 : 3})`)
+        for (const a of [l.nome].concat(l.mais)) if (!a || a.w < 43.5 || a.h < 43.5) problems.push(`${q}: alvo de ${a ? Math.round(a.w) + 'x' + Math.round(a.h) : 'nenhum'} px (mínimo 44x44)`)
+        if (!l.nome || (!sorte && !l.mais.length)) continue
+        // a faixa da linha: a dos três botões, todos na mesma altura (a Sorte: a do nome)
+        if (l.mais.some((m) => Math.abs(m.y - l.mais[0].y) > 4)) problems.push(`${q}: os +N em alturas diferentes ${JSON.stringify(l.mais.map((m) => Math.round(m.y)))}`)
+        const faixa = sorte ? { y: l.nome.y, b: l.nome.b } : { y: Math.min(...l.mais.map((m) => m.y)), b: Math.max(...l.mais.map((m) => m.b)) }, meio = (faixa.y + faixa.b) / 2
+        for (const [n, c] of [['nome', l.nome], ['nota', l.nota], ['valor', l.valor], ['custo', l.custo]]) {
+          if (!c || c.y < faixa.y - 4 || c.b > faixa.b + 4) problems.push(`${q}: ${n} fora da linha dos botões (${c ? Math.round(c.y) + '..' + Math.round(c.b) : 'ausente'}; faixa ${Math.round(faixa.y)}..${Math.round(faixa.b)})`)
+        }
+        for (const [n, c] of [['nome', l.nome], ['nota', l.nota]]) if (c && Math.abs((c.y + c.b) / 2 - meio) > 4) problems.push(`${q}: ${n} fora do meio da linha (${Math.round((c.y + c.b) / 2)}; meio ${Math.round(meio)})`)
+        if (!l.barra || l.barra.y < faixa.b - 0.5 || Math.abs(l.barra.h - 6) > 0.5 || l.barra.w < 0.9 * l.linha.w) problems.push(`${q}: a barra não é a fina de 6 px embaixo da linha, na largura dela ${JSON.stringify(l.barra)}`)
+        const vistoOk = sorte ? l.custoVisto === 'de nascimento' && l.custoSr === null : /^·\d+$|^teto$/.test(l.custoVisto || '') && /^(próximo ponto custa|no teto de) \d+$/.test(l.custoSr || '')
+        if (!vistoOk) problems.push(`${q}: custo à vista "${l.custoVisto}" e para o leitor de tela "${l.custoSr}"`)
+        if (l.sw > l.cw + 1) problems.push(`${q}: o conteúdo sai da linha (scrollWidth ${l.sw} > ${l.cw})`)
+      }
+      await checkOverflow(p, `${label} ${tag}`)
+      return ls
+    }
+    const caixaDe = (p, sel) => p.evaluate((s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height, b: b.bottom, r: b.right } }, sel)
+    const moldura = (p) => p.evaluate(() => ({ topo: document.querySelector('.app-topo').getBoundingClientRect().bottom, abas: document.querySelector('.app-abas').getBoundingClientRect(), alt: window.innerHeight }))
+    // a barra presa com o rascunho: Desfazer e Confirmar (alvos de 44 px) dentro dela, presa acima da barra de abas do app
+    // (no celular) ou no fundo da janela, na coluna (no computador); o "Poder A → B" nela
+    const confereBarra = async (p, tag, estreita, poderTxt) => {
+      await esperaBarra(p)
+      const r = await p.evaluate(() => {
+        const ba = document.querySelector('#tela .barra-acao'), cx = (e) => { if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height, b: b.bottom, r: b.right } }
+        return { n: document.querySelectorAll('#tela .barra-acao').length, barra: cx(ba), sw: ba ? ba.scrollWidth : 0, cw: ba ? ba.clientWidth : 0, txt: ba ? ba.textContent.replace(/\s+/g, ' ').trim() : '',
+          desfazer: cx(ba && ba.querySelector('[data-acao="pontos-desfazer"]')), confirmar: cx(ba && ba.querySelector('[data-acao="pontos-confirmar"]')),
+          sec: cx(document.querySelector('#tela section[aria-label="Status"]')), abas: cx(document.querySelector('.app-abas')), alt: window.innerHeight, pe: ba ? getComputedStyle(ba).pointerEvents : null }
+      })
+      if (r.n !== 1 || !r.barra) { problems.push(`${label} ${tag}: com rascunho, ${r.n} barras presas (esperado 1)`); return r }
+      if (estreita ? Math.abs(r.barra.b - r.abas.y) > 1 : Math.abs(r.barra.b - r.alt) > 1) problems.push(`${label} ${tag}: a barra presa termina em ${r.barra.b} (esperado ${estreita ? 'no topo da barra de abas do app, ' + r.abas.y : 'no fundo da janela, ' + r.alt})`)
+      if (!estreita && r.barra.x < r.abas.r) problems.push(`${label} ${tag}: a barra presa fica sob a barra lateral de abas (x ${r.barra.x} < ${r.abas.r})`)
+      if (r.barra.x < r.sec.x - 0.5 || r.barra.r > r.sec.r + 0.5) problems.push(`${label} ${tag}: a barra presa sai da coluna do painel (${Math.round(r.barra.x)}..${Math.round(r.barra.r)}; painel ${Math.round(r.sec.x)}..${Math.round(r.sec.r)})`)
+      for (const [n, b] of [['Desfazer', r.desfazer], ['Confirmar', r.confirmar]]) {
+        if (!b || b.w < 43.5 || b.h < 43.5 || b.y < r.barra.y || b.b > r.barra.b + 0.5 || b.b > (estreita ? r.abas.y : r.alt)) problems.push(`${label} ${tag}: ${n} fora da barra presa ou pequeno ${JSON.stringify(b)} (barra ${JSON.stringify(r.barra)})`)
+      }
+      if (poderTxt && !r.txt.includes(poderTxt)) problems.push(`${label} ${tag}: a barra presa sem "${poderTxt}": "${r.txt}"`)
+      if (r.pe !== 'auto') problems.push(`${label} ${tag}: a barra presa continua deixando o toque passar (pointer-events ${r.pe})`)
+      if (r.sw > r.cw + 1) problems.push(`${label} ${tag}: o conteúdo sai da barra presa (${r.sw} > ${r.cw})`)
+      await checkOverflow(p, `${label} ${tag} barra`)
+      return r
+    }
+    // Review Focus 3: rolando até o fim com a barra presa, o bloco Redistribuir (o botão inteiro) e o rodapé ficam à vista,
+    // entre o cabeçalho e a barra, e a barra acima da barra de abas do app (comRedist false: a montaria sem pontos gastos,
+    // sem o bloco Redistribuir; aí o último é o rodapé)
+    const confereFim = async (p, tag, estreita, comRedist = true) => {
+      await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      await esperaBarra(p)
+      const f = await p.evaluate(() => {
+        const cx = (s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { y: b.top, b: b.bottom } }
+        return { red: cx('#tela [data-acao="redistribuir"]'), bloco: cx('#tela .redistribuir'), rodape: cx('#tela .build-rodape'), barra: cx('#tela .barra-acao'),
+          topo: document.querySelector('.app-topo').getBoundingClientRect().bottom, abas: document.querySelector('.app-abas').getBoundingClientRect().top, alt: window.innerHeight }
+      })
+      const limite = estreita ? f.abas : f.alt
+      if (!f.barra || f.barra.b > limite + 1) problems.push(`${label} ${tag}: no fim, a barra presa ${JSON.stringify(f.barra)} passa de ${limite}`)
+      if (!comRedist && (f.red || f.bloco)) problems.push(`${label} ${tag}: o bloco Redistribuir numa montaria sem pontos gastos`)
+      for (const [n, c] of (comRedist ? [['o botão Redistribuir', f.red], ['o bloco Redistribuir', f.bloco]] : []).concat([['o rodapé', f.rodape]])) {
+        if (!c || !f.barra || c.y < f.topo - 0.5 || c.b > f.barra.y + 0.5) problems.push(`${label} ${tag}: RF3: rolando até o fim, ${n} não fica inteiro à vista acima da barra presa ${JSON.stringify({ c, barra: f.barra, topo: f.topo })}`)
+      }
+    }
+    const rascunhoDe = (p) => p.evaluate(() => { const M = window.__galope.ui.montaria; return { r: M && M.rascunho ? JSON.parse(JSON.stringify(M.rascunho)) : null, conf: !!(M && M.confirmaPontos) } })
+    const somaDe = (r) => (r ? G.STAT_KEYS.reduce((a, k) => a + (r[k] || 0), 0) : 0)
+    {
+      // SAVE_3A a 360x780, a ativa (m1): alturas, linhas, topo, barra presa e o fim da aba com a barra
+      const ps = await newPage(browser, { width: 360, height: 780 }, label + '-status', comSave(SAVE_3A))
+      try {
+        await ps.waitForSelector('#t-estabulo')
+        await ps.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await ps.waitForSelector('#t-montaria')
+        const m1 = await ps.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts[0])))
+        // altura do documento sem rascunho (decisão da Tarefa 4: a medida da linha única)
+        const aSt = await ps.evaluate(() => document.documentElement.scrollHeight)
+        notes[`${label} altura status`] = aSt
+        if (aSt > ALTURA_STATUS_3B) problems.push(`${label}: aba Status da ativa com ${aSt}px (limite ${ALTURA_STATUS_3B}, Tarefa 4 da 3b)`)
+        if (await ps.locator('#tela .barra-acao').count()) problems.push(`${label}: sem rascunho, a barra presa está na tela`)
+        // a meta que importa: com a linha de abas no topo (logo abaixo do cabeçalho fixo), as 7 linhas inteiras numa tela
+        await ps.evaluate(() => { const e = document.querySelector('#tela .subabas'), t = document.querySelector('.app-topo').getBoundingClientRect().bottom; window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - t) })
+        const mo = await moldura(ps), ls = await confereLinhas(ps, '360 SAVE_3A')
+        const fora = ls.filter((l) => l.linha.y < mo.topo - 0.5 || l.linha.b > mo.abas.top + 0.5).map((l) => l.k + ' ' + Math.round(l.linha.y) + '..' + Math.round(l.linha.b))
+        if (ls.length !== 7 || fora.length) problems.push(`${label}: com as abas no topo, linhas fora da tela (entre ${mo.topo} e ${mo.abas.top}): ${JSON.stringify(fora)}`)
+        await capT6(ps, 'celular-status-sem.png')
+        // o topo numa linha: "Pontos: sobram X de Y" com o ⓘ do custo e "Genética" com o seu ⓘ
+        const info = S.allocInfo(m1)
+        const tp = await ps.evaluate(() => {
+          const t = document.querySelector('#tela .build-topo'), pl = t.querySelector('.pontos-livres'), gen = Array.from(t.querySelectorAll(':scope > .nota')).find((e) => e.textContent.trim() === 'Genética')
+          const tops = Array.from(t.children).map((e) => e.getBoundingClientRect()).map((b) => (b.top + b.bottom) / 2)
+          return { pontos: pl ? pl.textContent.replace(/\s+/g, ' ').trim() : null, custo: !!(pl && pl.querySelector('.ajuda[data-ajuda="custo"]')), gen: !!gen, genAjuda: !!(gen && gen.querySelector('.ajuda[data-ajuda="genetica"]')),
+            meios: tops, txt: t.textContent.replace(/\s+/g, ' ').trim() }
+        })
+        if (tp.pontos !== `Pontos: sobram ${info.left} de ${info.free}` || !tp.custo || !tp.gen || !tp.genAjuda) problems.push(`${label}: topo da aba Status ${JSON.stringify(tp)} (esperado "Pontos: sobram ${info.left} de ${info.free}" com o ⓘ do custo e "Genética" com o ⓘ)`)
+        if (tp.meios.some((y) => Math.abs(y - tp.meios[0]) > 4)) problems.push(`${label}: o topo da aba Status em mais de uma linha a 360 px (${JSON.stringify(tp.meios.map(Math.round))})`)
+        if (/Poder/.test(tp.txt)) problems.push(`${label}: o topo da aba Status com o Poder: "${tp.txt}"`)
+        // com rascunho (+1 em Velocidade): a barra presa acima da barra de abas, com Desfazer, Confirmar e o Poder
+        await ps.locator('[data-acao="ponto-mais"][data-id="vel"][data-n="1"]').click()
+        const h1 = { ...m1, alloc: { ...m1.alloc, vel: m1.alloc.vel + 1 } }
+        const poderTxt = `Poder ${S.powerRating(m1)} → ${S.powerRating(h1)}`
+        await confereBarra(ps, '360 com rascunho', true, poderTxt)
+        if (/Poder/.test(await ps.locator('#tela .build-topo').textContent())) problems.push(`${label}: com rascunho, o Poder foi para o topo (fica na barra presa)`)
+        await capT6(ps, 'celular-status-com.png')
+        await confereFim(ps, '360 fim', true)
+        await capT6(ps, 'celular-status-fim.png')
+        // o 1º Confirmar: o pedido de confirmação entra na barra (mais alta); o fim continua alcançável
+        await ps.locator('[data-acao="pontos-confirmar"]').click()
+        const pedido = await ps.evaluate(() => { const a = document.querySelector('#tela .barra-acao .aviso'); return a ? a.textContent : null })
+        if (!pedido || !pedido.includes('Toque em Confirmar de novo para gravar.')) problems.push(`${label}: o pedido de confirmação fora da barra presa (${pedido})`)
+        await confereBarra(ps, '360 pedido de confirmação', true, poderTxt)
+        await confereFim(ps, '360 fim com o pedido de confirmação', true)
+        await ps.locator('[data-acao="pontos-desfazer"]').click()
+        const d = await rascunhoDe(ps)
+        if (d.r || d.conf || (await ps.locator('#tela .barra-acao').count())) problems.push(`${label}: Desfazer deixou rascunho ou a barra presa ${JSON.stringify(d)}`)
+      } catch (e) {
+        problems.push(`${label}-status: ${e.message}`)
+      } finally {
+        await ps.context().close()
+      }
+    }
+    {
+      // Review Focus 1, a barra que aparece sob o dedo e o toque no ⓘ (pendência M1 da Tarefa 1): a Brasa nível 12 sem
+      // pontos gastos (28 livres, todos a 1): o +10 cabe uma vez (o 2º custaria 20 e sobram 18)
+      const SAVE_RF = JSON.parse(JSON.stringify(SAVE_3A))
+      Object.assign(SAVE_RF.mounts[0], { level: 12, alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } })
+      const pr = await newPage(browser, { width: 360, height: 780 }, label + '-status-toques', comSave(SAVE_RF))
+      const motivosR = () => pr.evaluate(() => Array.from(document.querySelectorAll('#tela .motivo')).map((p) => ({ txt: p.textContent, papel: p.getAttribute('role'), linha: p.closest('.build-linha') ? p.closest('.build-linha').getAttribute('data-status') : null })))
+      const centro = (sel) => pr.evaluate((s) => { const b = document.querySelector(s).getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 } }, sel)
+      try {
+        await pr.waitForSelector('#t-estabulo')
+        await pr.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await pr.waitForSelector('#t-montaria')
+        const livres = await pr.evaluate(() => { const m = window.__galope.state.mounts[0]; return window.RaceSim.allocInfo(m).left })
+        if (livres !== 28) problems.push(`${label}: a Brasa nível 12 de teste tem ${livres} pontos livres (esperado 28)`)
+        // RF1: dois toques seguidos no +10 de Velocidade (no meio da tela): só o 1º entra; o 2º mostra o motivo na linha dele
+        await pr.evaluate(() => { const e = document.querySelector('#tela .subabas'), t = document.querySelector('.app-topo').getBoundingClientRect().bottom; window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - t) })
+        const c10 = await centro('[data-acao="ponto-mais"][data-id="vel"][data-n="10"]')
+        await pr.mouse.click(c10.x, c10.y)
+        await pr.mouse.click(c10.x, c10.y)
+        let rd = await rascunhoDe(pr), ms = await motivosR()
+        if (!rd.r || rd.r.vel !== 10 || somaDe(rd.r) !== 10 || rd.conf) problems.push(`${label}: RF1: dois toques no +10 deixaram o rascunho ${JSON.stringify(rd)} (esperado só +10 em Velocidade)`)
+        if (ms.length !== 1 || ms[0].papel !== 'status' || ms[0].linha !== 'vel' || !/Faltam pontos: sobram 18\.$/.test(ms[0].txt)) problems.push(`${label}: RF1: o 2º toque no +10 mostrou ${JSON.stringify(ms)} (esperado o motivo "Faltam pontos: sobram 18." dentro da linha de Velocidade)`)
+        // pendência M1: tocar no nome (o botão de ajuda) tira o motivo e abre a ajuda; nunca os dois na tela
+        await pr.locator('.build-linha[data-status="vel"] .ajuda--nome').click()
+        const aj = await pr.evaluate(() => ({ motivos: document.querySelectorAll('#tela .motivo').length, aberto: document.querySelector('.build-linha[data-status="vel"] .ajuda--nome').getAttribute('aria-expanded'), notas: document.querySelectorAll('#tela .ajuda-txt').length, vivo: document.getElementById('motivo-vivo').textContent }))
+        if (aj.motivos || aj.aberto !== 'true' || aj.notas !== 1 || aj.vivo) problems.push(`${label}: M1: o toque no nome com o motivo na tela ${JSON.stringify(aj)} (esperado o motivo fora, a região viva vazia e a ajuda aberta)`)
+        await pr.locator('.build-linha[data-status="vel"] .ajuda--nome').click()
+        await pr.locator('[data-acao="pontos-desfazer"]').click()
+        if ((await rascunhoDe(pr)).r || (await pr.locator('#tela .barra-acao').count())) problems.push(`${label}: Desfazer não limpou o rascunho do RF1`)
+        // a barra aparece sob o dedo: o +1 e o +10 da Garra nos 76 px de baixo da área visível (logo acima da barra de abas).
+        // Dois toques rápidos no mesmo lugar: o 1º faz a barra aparecer por cima do botão; o 2º passa por ela (só ~400 ms) e
+        // vai para o +N, nunca para Desfazer nem Confirmar
+        for (const [n, esp] of [[1, 2], [10, 10]]) {
+          const sel = `[data-acao="ponto-mais"][data-id="garra"][data-n="${n}"]`
+          await pr.evaluate(([s]) => { const b = document.querySelector(s).getBoundingClientRect(), a = document.querySelector('.app-abas').getBoundingClientRect().top; window.scrollBy(0, b.top + b.height / 2 - (a - 30)) }, [sel])
+          const pt = await centro(sel), abasTopo = (await moldura(pr)).abas.top
+          if (!(pt.y > abasTopo - 76 && pt.y < abasTopo)) problems.push(`${label}: o +${n} da Garra não ficou nos 76 px de baixo da área visível (${pt.y}; barra de abas em ${abasTopo})`)
+          await pr.mouse.click(pt.x, pt.y)
+          await pr.mouse.click(pt.x, pt.y)
+          rd = await rascunhoDe(pr)
+          const tela = await pr.evaluate(() => (document.getElementById('tela').textContent || ''))
+          if (!rd.r || rd.r.garra !== esp || somaDe(rd.r) !== esp || rd.conf || /Toque em Confirmar de novo/.test(tela)) problems.push(`${label}: dois toques rápidos no +${n} da Garra, sob a barra que apareceu: ${JSON.stringify(rd)} (esperado só +${esp} na Garra, sem Desfazer nem Confirmar)`)
+          // o cenário é de verdade: passado o tempo, o mesmo lugar é um botão da barra presa (Desfazer ou Confirmar)
+          await esperaBarra(pr)
+          const debaixo = await pr.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y), b = e && e.closest('[data-acao]'); return { barra: !!(e && e.closest('.barra-acao')), acao: b ? b.getAttribute('data-acao') : null } }, [pt.x, pt.y])
+          if (!debaixo.barra || !/^pontos-(desfazer|confirmar)$/.test(debaixo.acao || '')) problems.push(`${label}: o +${n} da Garra não ficou sob Desfazer ou Confirmar da barra presa ${JSON.stringify(debaixo)} (o teste não exercita o caso)`)
+          notes[`${label} barra sob o dedo +${n}`] = debaixo.acao
+          if (n === 10) {
+            const m10 = await motivosR()
+            if (m10.length !== 1 || m10[0].linha !== 'garra') problems.push(`${label}: o 2º +10 da Garra (não cabe) sem o motivo na linha dela ${JSON.stringify(m10)}`)
+          }
+          await pr.locator('[data-acao="pontos-desfazer"]').click()
+          if ((await rascunhoDe(pr)).r) problems.push(`${label}: Desfazer não limpou o rascunho do +${n} da Garra`)
+        }
+        // o teclado não espera: logo depois do +N, Enter no Desfazer já desfaz
+        await pr.locator('[data-acao="ponto-mais"][data-id="man"][data-n="1"]').focus()
+        await pr.keyboard.press('Enter')
+        await pr.locator('[data-acao="pontos-desfazer"]').focus()
+        await pr.keyboard.press('Enter')
+        if ((await rascunhoDe(pr)).r) problems.push(`${label}: Desfazer pelo teclado, logo depois de a barra aparecer, não desfez`)
+      } catch (e) {
+        problems.push(`${label}-status-toques: ${e.message}`)
+      } finally {
+        await pr.context().close()
+      }
+    }
+    {
+      // 1280x800: a barra presa fica na coluna, no fundo da janela, fora da barra lateral de abas
+      const pk = await newPage(browser, { width: 1280, height: 800 }, label + '-status-1280', comSave(SAVE_3A))
+      try {
+        await pk.waitForSelector('#t-estabulo')
+        await pk.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await pk.waitForSelector('#t-montaria')
+        await confereLinhas(pk, '1280 SAVE_3A')
+        if (await pk.locator('#tela .barra-acao').count()) problems.push(`${label} 1280: sem rascunho, a barra presa está na tela`)
+        await pk.locator('[data-acao="ponto-mais"][data-id="vel"][data-n="1"]').click()
+        await pk.evaluate(() => window.scrollTo(0, 0))
+        await confereBarra(pk, '1280 com rascunho', false, null)
+        await confereFim(pk, '1280 fim', false)
+      } catch (e) {
+        problems.push(`${label}-status-1280: ${e.message}`)
+      } finally {
+        await pk.context().close()
+      }
+    }
+    {
+      // modo DEV (jogo-dev.html, save de teste): a barra presa sobe acima do botão DEV, que fica sobre a barra de abas
+      const SAVE_KEY_DEV = 'galope-elemental:dev'
+      const pv = await newPage(browser, { width: 360, height: 780 }, label + '-status-dev', { pagina: 'jogo-dev.html',
+        init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem(${JSON.stringify(SAVE_KEY_DEV)}, ${JSON.stringify(JSON.stringify(SAVE_3A))}) } } catch (e) {}` } })
+      try {
+        await pv.waitForSelector('#t-estabulo')
+        await pv.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await pv.waitForSelector('#t-montaria')
+        await pv.locator('[data-acao="ponto-mais"][data-id="vel"][data-n="1"]').click()
+        await esperaBarra(pv)
+        await pv.evaluate(() => { const e = document.querySelector('#tela .subabas'); window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - 80) })
+        const dv = await pv.evaluate(() => {
+          const cx = (s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left, y: b.top, b: b.bottom, r: b.right } }
+          return { barra: cx('#tela .barra-acao'), dev: cx('.dev-botao'), abas: cx('.app-abas'), desfazer: cx('#tela .barra-acao [data-acao="pontos-desfazer"]'), confirmar: cx('#tela .barra-acao [data-acao="pontos-confirmar"]') }
+        })
+        const cruza = (a, b) => !!(a && b && a.x < b.r && b.x < a.r && a.y < b.b && b.y < a.b)
+        if (!dv.barra || !dv.dev || cruza(dv.barra, dv.dev) || dv.barra.b > dv.abas.y + 1) problems.push(`${label} DEV: a barra presa ${JSON.stringify(dv.barra)} cruza o botão DEV ${JSON.stringify(dv.dev)} ou passa da barra de abas (${dv.abas && dv.abas.y})`)
+        if (cruza(dv.desfazer, dv.dev) || cruza(dv.confirmar, dv.dev)) problems.push(`${label} DEV: o botão DEV cobre Desfazer ou Confirmar`)
+        await confereFim(pv, 'DEV fim', true)
+        await checkOverflow(pv, `${label} DEV barra`)
+      } catch (e) {
+        problems.push(`${label}-status-dev: ${e.message}`)
+      } finally {
+        await pv.context().close()
+      }
+    }
+    {
+      // SAVE_3A_LONGO a 360 (10 vagas, nome de 24 caracteres): as linhas, a barra presa e o fim sem rolagem lateral
+      const pl = await newPage(browser, { width: 360, height: 780 }, label + '-status-longo', comSave(SAVE_3A_LONGO))
+      try {
+        await pl.waitForSelector('#t-estabulo')
+        await pl.evaluate((nome) => { const s = window.__galope.state; s.stableSlots = 10; s.mounts[0].name = nome }, NOME_LONGO)
+        await pl.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await pl.waitForSelector('#t-montaria')
+        await confereLinhas(pl, 'longo 360')
+        await pl.locator('[data-acao="ponto-mais"][data-id="vel"][data-n="1"]').click()
+        await confereBarra(pl, 'longo 360 com rascunho', true, null)
+        await confereFim(pl, 'longo 360 fim', true, false)
+        await checkOverflow(pl, `${label} longo 360 fim`)
+      } catch (e) {
+        problems.push(`${label}-status-longo: ${e.message}`)
+      } finally {
+        await pl.context().close()
       }
     }
   }
@@ -4725,8 +5018,13 @@ try {
       const rascunho = () => pg.evaluate(() => { const r = window.__galope.ui.rascunho; return r ? JSON.parse(JSON.stringify(r)) : null })
       const mais = (k, n) => pg.locator(`[data-acao="ponto-mais"][data-id="${k}"][data-n="${n}"]`)
       const limpo = (t) => (t || '').replace(/\s+/g, ' ').trim()
-      const custoLinha = async (k) => limpo(await pg.locator(`[data-status="${k}"] .build-custo`).textContent().catch(() => ''))
+      // 3b §6: o custo à vista é curto ("·2", "teto"); o leitor de tela ouve a frase inteira (.sr). custoLinha é o texto lido
+      // (sem o que está aria-hidden), custoVisto o que aparece (sem o .sr)
+      const custoLinha = async (k) => limpo(await pg.locator(`[data-status="${k}"] .build-custo`).evaluate((e) => { const c = e.cloneNode(true); c.querySelectorAll('[aria-hidden="true"]').forEach((x) => x.remove()); return c.textContent }).catch(() => ''))
+      const custoVisto = async (k) => limpo(await pg.locator(`[data-status="${k}"] .build-custo`).evaluate((e) => { const c = e.cloneNode(true); c.querySelectorAll('.sr').forEach((x) => x.remove()); return c.textContent }).catch(() => ''))
       const topo = async () => limpo(await pg.locator('.build-topo').textContent().catch(() => ''))
+      // 3b §6: o "Poder A → B" do rascunho fica na barra presa (.barra-acao), junto de Desfazer e Confirmar
+      const barraTxt = async () => limpo(await pg.locator('#tela .barra-acao').textContent({ timeout: 500 }).catch(() => ''))
       const somaR = (a, r) => Object.fromEntries(G.STAT_KEYS.map((k) => [k, a[k] + (r ? r[k] || 0 : 0)]))
       const livresDe = (m, a) => S.freePoints(m) - custo(a)
       const sugerido = (m, de) => { const b = S.botAlloc(m, de); return Object.fromEntries(G.STAT_KEYS.map((k) => [k, b[k] - m.alloc[k]])) }
@@ -4773,14 +5071,17 @@ try {
         if ((await seloDe('m1')) !== '+78') problems.push(`${label}: selo da m1 "${await seloDe('m1')}" (esperado "+78", o "sobram 78" do topo)`)
         await abre('m1')
         const info = S.allocInfo(m1)
-        // topo: "Pontos: sobram X de Y", sem "Poder A → B" enquanto não há rascunho
+        // topo: "Pontos: sobram X de Y", sem "Poder A → B" enquanto não há rascunho (nem a barra presa, onde ele fica)
         let tp = await topo()
         if (!tp.includes(`Pontos: sobram ${info.left} de ${info.free}`) || /Poder/.test(tp)) problems.push(`${label}: topo "${tp}" (esperado "Pontos: sobram ${info.left} de ${info.free}", sem Poder)`)
+        if (await pg.locator('#tela .barra-acao').count()) problems.push(`${label}: sem rascunho, a barra presa (com o Poder) está na tela: "${await barraTxt()}"`)
         // cada linha: "próximo ponto custa C"; a Sorte, "de nascimento" e sem botões; barra até 150 em 30 segmentos
         const st1 = S.computeStats(m1)
         for (const k of G.STAT_KEYS) {
           const c = await custoLinha(k), esp = k === 'sorte' ? 'de nascimento' : 'próximo ponto custa ' + S.pointCost(m1.alloc[k])
           if (c !== esp) problems.push(`${label}: linha de ${k} diz "${c}" (esperado "${esp}")`)
+          const v = await custoVisto(k), espV = k === 'sorte' ? 'de nascimento' : '·' + S.pointCost(m1.alloc[k])
+          if (v !== espV) problems.push(`${label}: linha de ${k} mostra "${v}" (esperado "${espV}")`)
         }
         await confereBotoes(m1.alloc, info.left, 'sem rascunho')
         const barras = await pg.evaluate(() => Array.from(document.querySelectorAll('[data-status]')).map((l) => ({ k: l.getAttribute('data-status'),
@@ -4795,10 +5096,10 @@ try {
         await pg.evaluate((t) => { window.RaceSim.TUNING.statMax = t }, tetoV)
         await pg.locator('[data-acao="montaria-aba"][data-id="status"]').click()   // redesenha a aba
         const bt = (await botoes()).filter((b) => b.k === 'vel')
-        if ((await custoLinha('vel')) !== 'no teto de ' + tetoV || bt.length !== 3 || bt.some((b) => !b.off || b.title !== tituloMais(m1.alloc, 'vel', b.n) + `. Passaria de ${tetoV}.`)) problems.push(`${label}: no teto (${tetoV} na página): "${await custoLinha('vel')}" ` + JSON.stringify(bt))
+        if ((await custoLinha('vel')) !== 'no teto de ' + tetoV || (await custoVisto('vel')) !== 'teto' || bt.length !== 3 || bt.some((b) => !b.off || b.title !== tituloMais(m1.alloc, 'vel', b.n) + `. Passaria de ${tetoV}.`)) problems.push(`${label}: no teto (${tetoV} na página): "${await custoLinha('vel')}" / "${await custoVisto('vel')}" ` + JSON.stringify(bt))
         await pg.evaluate((t) => { window.RaceSim.TUNING.statMax = t }, tetoOrig)
         await pg.locator('[data-acao="montaria-aba"][data-id="status"]').click()
-        if (tetoOrig !== 150 || (await custoLinha('vel')) !== 'próximo ponto custa 2') problems.push(`${label}: o teto não voltou a 150 (${tetoOrig})`)
+        if (tetoOrig !== 150 || (await custoLinha('vel')) !== 'próximo ponto custa 2' || (await custoVisto('vel')) !== '·2') problems.push(`${label}: o teto não voltou a 150 (${tetoOrig})`)
 
         // +1, +5 e +10 somam exatamente N ao rascunho; o topo, o "Poder A → B" e o custo da linha seguem o rascunho
         const s0 = await estado(pg), d0 = await disco(pg), poder0 = await poderNaCabeca(pg)
@@ -4811,8 +5112,8 @@ try {
         const comR = somaR(m1.alloc, esp), livres = livresDe(m1, comR)
         tp = await topo()
         const poderTxt = `Poder ${S.powerRating(m1)} → ${S.powerRating({ ...m1, alloc: comR })}`
-        if (!tp.includes(`Pontos: sobram ${livres} de ${info.free}`) || !tp.includes(poderTxt)) problems.push(`${label}: topo com rascunho "${tp}" (esperado "sobram ${livres} de ${info.free}" e "${poderTxt}")`)
-        if ((await custoLinha('est')) !== 'próximo ponto custa ' + S.pointCost(comR.est)) problems.push(`${label}: o custo da Estamina não segue o rascunho: "${await custoLinha('est')}"`)
+        if (!tp.includes(`Pontos: sobram ${livres} de ${info.free}`) || /Poder/.test(tp) || !(await barraTxt()).includes(poderTxt)) problems.push(`${label}: com rascunho, topo "${tp}" e barra presa "${await barraTxt()}" (esperado "sobram ${livres} de ${info.free}" no topo e "${poderTxt}" na barra)`)
+        if ((await custoLinha('est')) !== 'próximo ponto custa ' + S.pointCost(comR.est) || (await custoVisto('est')) !== '·' + S.pointCost(comR.est)) problems.push(`${label}: o custo da Estamina não segue o rascunho: "${await custoLinha('est')}" / "${await custoVisto('est')}"`)
         // com 20 sobrando, +10 em Estamina custa 30 (desabilitado, "Faltam pontos") e +5 custa 15 (habilitado)
         if (livres !== 20 || S.costOf(comR.est + 10) - S.costOf(comR.est) !== 30) problems.push(`${label}: conta do teste mudou (sobram ${livres})`)
         await confereBotoes(comR, livres, 'com rascunho')
@@ -4832,7 +5133,7 @@ try {
         if (!(await indisp(pg.locator('[data-acao="pontos-sugerir"]')))) problems.push(`${label}: "Distribuir sugerido" continua habilitado sem nada a somar`)
         const comS = somaR(m1.alloc, r)
         tp = await topo()
-        if (!tp.includes(`sobram ${livresDe(m1, comS)} de ${info.free}`) || !tp.includes(`Poder ${S.powerRating(m1)} → ${S.powerRating({ ...m1, alloc: comS })}`)) problems.push(`${label}: topo depois do sugerido "${tp}"`)
+        if (!tp.includes(`sobram ${livresDe(m1, comS)} de ${info.free}`) || /Poder/.test(tp) || !(await barraTxt()).includes(`Poder ${S.powerRating(m1)} → ${S.powerRating({ ...m1, alloc: comS })}`)) problems.push(`${label}: depois do sugerido, topo "${tp}" e barra presa "${await barraTxt()}"`)
         if (!igual((await estado(pg)).mounts, s0.mounts) || !igual(await disco(pg), d0)) problems.push(`${label}: "Distribuir sugerido" gravou sem Confirmar`)
         await pg.locator('[data-acao="pontos-desfazer"]').click()
         await mais('vel', 10).click()
