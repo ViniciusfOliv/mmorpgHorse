@@ -27,7 +27,10 @@ Também ficam duas pendências do 1b que são destas telas: o motivo de um botã
 - **Estábulo:** com 3 cavalos, a tela inteira cabe numa tela (≤ 780 px de altura do documento); com 6, ≤ 1.100 px.
 - **Ficha:** as abas Status | Skills | Ficha ficam inteiras visíveis acima da barra de abas, sem rolar, ao abrir a
   ficha.
-- **Aba Status:** a altura do documento cai de 1.940 para ≤ 1.100 px (montaria ativa do `SAVE_3A` da 3a).
+- **Aba Status:** a altura do documento cai de 1.940 para ≤ 1.200 px (montaria ativa do `SAVE_3A` da 3a, sem rascunho).
+  *Decisão do controlador na revisão da spec:* na conversa o alvo era ~1.100 px, mas a cabeça com o retrato grande se
+  repete em cima da aba e a conta não fecha com folga; 1.200 px ainda corta 38%. Se as duas metas brigarem, vale a da
+  seção 5: as abas visíveis na primeira tela.
 - **Toque:** todo botão indisponível destas telas mostra o motivo quando tocado.
 - **Leitor de tela:** "1º", "2º" e "3º" chegam como ordinais.
 
@@ -92,8 +95,10 @@ XP ▰▰▰▱▱▱▱▱▱  10/550
 ```
 
 **Topo (cabeça):**
-- **Retrato:** ocupa a largura da coluna, com a cena da baia e o cavalo na maior escala inteira que cabe a 360 px.
-  A escala é a mesma para todos os moldes, porque o passo sai do molde mais alto (regra da 2b).
+- **Retrato:** ocupa a largura da coluna, com a cena da baia e o cavalo na maior escala inteira que cabe a 360 px
+  **e** deixa a linha de abas inteira visível acima da barra de abas do app, sem rolar (a 360×780). Se as duas coisas
+  brigarem, vale a das abas, e a escala desce um passo (decisão do controlador). A escala é a mesma para todos os
+  moldes, porque o passo sai do molde mais alto (regra da 2b).
 - **Selos:** nível e +N nos cantos.
 - **Nome:** o `h1` vira a placa de madeira, com o `#N` e o selo "Ativa". O `id="t-montaria"` e o foco continuam.
 - **Linhas embaixo:**
@@ -115,8 +120,9 @@ Ficha.
   com páreo aberto.
 - **Dados:** sexo, porte (`porteTexto`), marcas (`marcasTexto`), cruzas que restam (`breedLeft`), corcel e chance de
   skill por nível ("Skills: 45% de ativar", como hoje).
-- **Pais:** se a montaria tiver `parents`, o nome dos dois. Se o nome não estiver mais no estábulo, o texto
-  "fora do estábulo".
+- **Pais:** se a montaria tiver `parents` (`{ f: { uid, name }, m: { uid, name } }`), o nome salvo dos dois. Se o
+  `uid` for `null` ou não estiver mais em `state.mounts`, o nome vem seguido de "(fora do estábulo)". O critério é o
+  `uid`, não o nome (decisão do controlador: nomes podem repetir).
 
 ## 6. Aba Status: uma linha por status
 
@@ -148,8 +154,11 @@ grid. A escolha é do executor; os botões nunca encolhem.
 **Topo:** "Pontos: sobram X de Y" com o ⓘ do custo e "Genética" com o seu ⓘ, numa linha (quebra se precisar).
 
 **Ações:**
-- Com rascunho, Desfazer e Confirmar ficam numa barra fixa embaixo, acima da barra de abas (`.barra-acao`, com a
-  área segura). A barra some sem rascunho.
+- Com rascunho, Desfazer e Confirmar ficam numa barra presa embaixo: a `.barra-acao` de hoje, `position: sticky`
+  dentro da coluna, com `bottom` acima da barra de abas do app e da área segura (no desktop, a barra lateral não cobre
+  a coluna). A barra some sem rascunho; os testes de altura medem sem rascunho. A regra que desloca a `.barra-acao`
+  com a gaveta DEV aberta (`html.dev-ativo`) continua valendo. *Decisão do controlador:* sticky em vez de uma barra
+  `fixed` nova, que pediria reservar espaço e tratar a área segura de novo.
 - O pedido de confirmação ("Toque em Confirmar de novo para gravar") e o motivo do Confirmar travado aparecem na
   própria barra.
 - "Distribuir sugerido" e o bloco Redistribuir (Rédea) continuam no fim da lista.
@@ -173,8 +182,12 @@ focável e tocável. Vale para:
 
 - **Aparência:** igual à do desabilitado da 3a, inclusive o bisel escuro no topo e a opacidade.
 - **Tocar ou acionar pelo teclado (Enter/Espaço):** **não executa a ação.** Mostra o motivo, o mesmo texto do
-  `title` de hoje, numa linha `role="status"` logo abaixo do grupo do botão. A linha some no próximo toque em outro
-  lugar ou ao redesenhar.
+  `title` de hoje, numa linha `role="status"` (classe `.motivo`) logo abaixo do grupo do botão. A linha some no
+  próximo toque em outro lugar ou ao redesenhar. Só uma linha de motivo fica na tela por vez.
+- **Onde a linha entra** (decisão do controlador): +N, logo abaixo da linha daquele status (ocupando a largura da
+  linha do grid); Desfazer e Confirmar, dentro da barra presa; Distribuir sugerido e Redistribuir, abaixo do grupo
+  deles; Tornar ativa e Liberar, abaixo das ações da aba Ficha; Expandir estábulo, abaixo dele. Um mesmo ajudante
+  decide o lugar, como o `AJUDA_ONDE` faz para o texto do ⓘ.
 - **Handler:** o de cada ação confere de novo a condição (como já faz para +N e Confirmar, revisão do 1b) e devolve
   o motivo. Nenhuma ação depende só do atributo para não acontecer.
 - **Mouse:** o `title` continua.
@@ -208,7 +221,7 @@ outros que abrem o Estábulo ou a ficha) passam a usar os seletores novos.
 1. **Alturas a 360×780:**
    - Estábulo com 3 cavalos ≤ 780 px;
    - Estábulo com 6 cavalos ≤ 1.100 px;
-   - aba Status da ativa ≤ 1.100 px;
+   - aba Status da ativa ≤ 1.200 px, sem rascunho;
    - o fundo da linha de abas da ficha fica acima do topo da barra de abas do app, sem rolar.
 2. **Estábulo:**
    - uma linha (botão) por cavalo, na ordem de `state.mounts`;
@@ -249,3 +262,4 @@ As capturas oficiais de `prototype/screens/` são regeneradas (a interface muda 
 - Onde o custo do próximo ponto fica, se a linha apertar a 360 px.
 - O texto curto de cada motivo quando o `title` de hoje não existir (por exemplo, "Expandir estábulo" sem Ouro).
   Deve ser no tom dos outros.
+- Foco e rolagem depois de "Tornar ativa" ou "Liberar" na ficha (seguir o que a ficha faz hoje).
