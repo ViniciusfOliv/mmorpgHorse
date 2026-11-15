@@ -271,7 +271,18 @@
   // onde a linha do motivo entra: 'in' no fim do bloco, 'after' logo depois dele (a 1ª regra que casar)
   var MOTIVO_ONDE = [['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
     ['.montaria-acoes', 'after'], ['.acoes', 'after']];
+  // região viva fixa (fora da tela que redesenha): leitores de tela anunciam o texto escrito nela, e o .motivo criado já
+  // com o texto muitas vezes passa em silêncio. Limpa antes de escrever, para o mesmo texto ser anunciado de novo.
+  var motivoVivoTimer = 0;
+  function motivoVivo(txt) {
+    var el = document.getElementById('motivo-vivo');
+    if (!el) return;
+    clearTimeout(motivoVivoTimer);
+    el.textContent = '';
+    if (txt) motivoVivoTimer = setTimeout(function () { el.textContent = txt; }, 60);
+  }
   function tiraMotivo() {
+    motivoVivo('');
     var velhas = telaEl.querySelectorAll('.motivo');
     for (var i = 0; i < velhas.length; i++) if (velhas[i].parentNode) velhas[i].parentNode.removeChild(velhas[i]);
   }
@@ -284,6 +295,7 @@
       host = btn.closest(MOTIVO_ONDE[i][0]);
       if (host) modo = MOTIVO_ONDE[i][1];
     }
+    motivoVivo(txt);
     if (!host) return;
     var p = document.createElement('p');
     p.className = 'motivo';

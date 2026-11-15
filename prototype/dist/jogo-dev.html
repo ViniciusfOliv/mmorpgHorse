@@ -679,7 +679,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 }
 /* motivo do botão indisponível (3b §7): a linha que o toque e o teclado mostram no lugar do title */
 .motivo {
-  background: var(--painel-2); padding: 10px 12px 10px 14px; color: var(--texto); font-size: var(--t-s); margin: 8px 0 0;
+  grid-column: 1 / -1; background: var(--painel-2); padding: 10px 12px 10px 14px; color: var(--texto); font-size: var(--t-s); margin: 8px 0 0;
   box-shadow:
     0 0 0 2px var(--sombra),
     inset 4px 0 0 0 var(--ouro),
@@ -1080,6 +1080,7 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   <main id="tela">
     <noscript><p>Galope Elemental precisa de JavaScript para rodar.</p></noscript>
   </main>
+  <p class="sr" id="motivo-vivo" aria-live="polite" aria-atomic="true"></p>
 </div>
 <script>window.__GALOPE_DEV = true;</script>
 <script>
@@ -8696,7 +8697,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // onde a linha do motivo entra: 'in' no fim do bloco, 'after' logo depois dele (a 1ª regra que casar)
   var MOTIVO_ONDE = [['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
     ['.montaria-acoes', 'after'], ['.acoes', 'after']];
+  // região viva fixa (fora da tela que redesenha): leitores de tela anunciam o texto escrito nela, e o .motivo criado já
+  // com o texto muitas vezes passa em silêncio. Limpa antes de escrever, para o mesmo texto ser anunciado de novo.
+  var motivoVivoTimer = 0;
+  function motivoVivo(txt) {
+    var el = document.getElementById('motivo-vivo');
+    if (!el) return;
+    clearTimeout(motivoVivoTimer);
+    el.textContent = '';
+    if (txt) motivoVivoTimer = setTimeout(function () { el.textContent = txt; }, 60);
+  }
   function tiraMotivo() {
+    motivoVivo('');
     var velhas = telaEl.querySelectorAll('.motivo');
     for (var i = 0; i < velhas.length; i++) if (velhas[i].parentNode) velhas[i].parentNode.removeChild(velhas[i]);
   }
@@ -8709,6 +8721,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       host = btn.closest(MOTIVO_ONDE[i][0]);
       if (host) modo = MOTIVO_ONDE[i][1];
     }
+    motivoVivo(txt);
     if (!host) return;
     var p = document.createElement('p');
     p.className = 'motivo';

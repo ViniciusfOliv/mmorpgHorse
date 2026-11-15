@@ -1332,7 +1332,7 @@ try {
       // não cabe nos 18 que sobram (desabilitado, "Faltam pontos"); o +5 custa 10 e cabe
       await mais('vel', 10).click()
       if (!(await indisp(mais('vel', 10))) || !/custa 20 pontos\. Faltam pontos: sobram 18\./.test((await mais('vel', 10).getAttribute('title')) || '')) problems.push('build: o 2º +10 em Velocidade (custa 20, sobram 18) não está desabilitado com o motivo: ' + await mais('vel', 10).getAttribute('title'))
-      if (await indisp(mais('vel', 5))) problems.push('build: +5 em Velocidade (custa 10, sobram 18) desabilitado')
+      if (await mais('vel', 5).isDisabled()) problems.push('build: +5 em Velocidade (custa 10, sobram 18) desabilitado')
       await mais('vel', 5).click()
       let r = await rascunho()
       if (!r || r.vel !== 15) problems.push('build: rascunho depois de +10 e +5 ' + JSON.stringify(r))
@@ -1345,7 +1345,7 @@ try {
       await bd.locator('[data-acao="pontos-desfazer"]').click()
       r = await rascunho()
       if (r && G.STAT_KEYS.some((k) => r[k])) problems.push('build: Desfazer não limpou o rascunho ' + JSON.stringify(r))
-      if ((await indisp(mais('vel', 10)))) problems.push('build: o +10 de Velocidade não voltou depois de Desfazer')
+      if ((await mais('vel', 10).isDisabled())) problems.push('build: o +10 de Velocidade não voltou depois de Desfazer')
       // Confirmar: o primeiro toque só avisa (como mudar depois); com a gravação falhando, nada muda
       await mais('vel').click(); await mais('vel').click(); await mais('acel').click()
       await bd.locator('[data-acao="pontos-confirmar"]').click()
@@ -1418,7 +1418,8 @@ try {
       // cada +N habilitado tem de caber no Poder da sala; o +1 de Velocidade, não (todo ponto sobe o Poder arredondado)
       const confereSala = async (onde) => {
         const mAb = (await st()).mounts[0]
-        const bs = await bd.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({ k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), off: b.getAttribute('aria-disabled') === 'true' && !b.disabled, title: b.getAttribute('title') })))
+        const bs = await bd.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({ k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), off: b.getAttribute('aria-disabled') === 'true', nativo: b.disabled, title: b.getAttribute('title') })))
+      if (bs.some((b) => b.nativo)) problems.push('ponto-mais com disabled nativo (devia ser só aria-disabled): ' + JSON.stringify(bs.filter((b) => b.nativo)))
         for (const b of bs) {
           const h2 = JSON.parse(JSON.stringify(mAb)); h2.alloc[b.k] += b.n
           if (!b.off && S.powerRating(h2) > pr) problems.push(`build: ${onde}: o +${b.n} de ${b.k} habilitado passaria do Poder ${pr}`)
@@ -1438,7 +1439,7 @@ try {
       if (pr !== S.powerRating(hRet)) problems.push(`build: o Poder da sala ${pr} não é o do retrato com +5 em Velocidade (${S.powerRating(hRet)})`)
       await abreMontaria('m1')
       await confereSala('retrato com +5')
-      if (await indisp(mais('vel', 5))) problems.push('build: com o retrato de +5, o +5 de Velocidade está desabilitado')
+      if (await mais('vel', 5).isDisabled()) problems.push('build: com o retrato de +5, o +5 de Velocidade está desabilitado')
       if (!(await indisp(mais('vel', 10)))) problems.push('build: com o retrato de +5, o +10 de Velocidade está habilitado')
       await mais('vel', 5).click()
       await bd.locator('[data-acao="pontos-confirmar"]').click()
@@ -1465,7 +1466,7 @@ try {
       await bd.getByRole('button', { name: /^Voltar/ }).click()
       // outra montaria (não é a ativa): livre com a sala aberta
       await abreMontaria('m2')
-      if ((await mais('acel').count()) !== 1 || (await indisp(mais('acel')))) problems.push('build: com a sala aberta, a montaria que não é a ativa não aceita ponto')
+      if ((await mais('acel').count()) !== 1 || (await mais('acel').isDisabled())) problems.push('build: com a sala aberta, a montaria que não é a ativa não aceita ponto')
       await mais('acel').click()
       await bd.locator('[data-acao="pontos-confirmar"]').click()
       await bd.locator('[data-acao="pontos-confirmar"]').click()
@@ -1623,7 +1624,7 @@ try {
       await sq.locator('button[data-acao="montaria"][data-id="m2"]').click()
       await sq.waitForSelector('#t-montaria')
       const b10 = sq.locator('[data-acao="ponto-mais"][data-id="vel"][data-n="10"]'), b1 = sq.locator('[data-acao="ponto-mais"][data-id="vel"][data-n="1"]')
-      if ((await indisp(b1)) || !(await indisp(b10)) || (await b10.getAttribute('title')) !== tituloMais(ms[1].alloc, 'vel', 10) + '. Faltam pontos: sobram 13.') problems.push(`selo-teto: m2 com +1 ${await indisp(b1) ? 'desabilitado' : 'habilitado'} e +10 "${await b10.getAttribute('title')}"`)
+      if ((await b1.isDisabled()) || !(await indisp(b10)) || (await b10.getAttribute('title')) !== tituloMais(ms[1].alloc, 'vel', 10) + '. Faltam pontos: sobram 13.') problems.push(`selo-teto: m2 com +1 ${await indisp(b1) ? 'desabilitado' : 'habilitado'} e +10 "${await b10.getAttribute('title')}"`)
       // a Brasa nível 12 (28 pontos, todos a 1) continua com o selo de todos os pontos
       await montaSave(sq, (raw) => { raw.mounts[0].level = 12 })
       const m1 = (await sq.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts[0]))))
@@ -1656,7 +1657,8 @@ try {
       await b1.locator('button[data-acao="montaria"][data-id="m1"]').click()
       await b1.waitForSelector('#t-montaria')
       const m1 = await b1.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts[0])))
-      const bs = await b1.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({ k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), off: b.getAttribute('aria-disabled') === 'true' && !b.disabled, title: b.getAttribute('title') })))
+      const bs = await b1.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({ k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), off: b.getAttribute('aria-disabled') === 'true', nativo: b.disabled, title: b.getAttribute('title') })))
+      if (bs.some((b) => b.nativo)) problems.push('ponto-mais com disabled nativo (devia ser só aria-disabled): ' + JSON.stringify(bs.filter((b) => b.nativo)))
       if (S.freePoints(m1) !== 2 || bs.length !== 18 || bs.some((b) => b.k === 'sorte')) problems.push(`build-nivel1: nível 2 com ${bs.length} botões +N (esperado 18, nenhum na Sorte; ${S.freePoints(m1)} pontos)`)
       for (const b of bs) {
         const esp = tituloMais(m1.alloc, b.k, b.n) + (b.n === 1 ? '' : '. Faltam pontos: sobram 2.')
@@ -3828,6 +3830,15 @@ try {
       }
       await b().click({ force: true })   // o toque real nas coordenadas do botão (o click() normal espera o botão habilitado)
       await vistoUma('toque'); await igualA0('o toque')
+      // a região viva fixa (#motivo-vivo, fora da tela que redesenha) leva o mesmo texto, para o leitor de tela anunciar
+      const txtMotivo = ((await motivos())[0] || {}).txt || ''
+      const vivo = (t) => pg.waitForFunction((x) => document.getElementById('motivo-vivo').textContent === x, t, { timeout: 1500 }).then(() => true, () => false)
+      if (!(await vivo(txtMotivo))) problems.push(`${label}: ${nome}: #motivo-vivo sem o texto do motivo: ${JSON.stringify(await pg.evaluate(() => document.getElementById('motivo-vivo').textContent))}`)
+      // o +N: a .motivo ocupa a largura da linha do status (não cai numa célula vazia do grid)
+      if (/ponto-mais/.test(sel)) {
+        const lg = await pg.evaluate(() => { const m = document.querySelector('#tela .motivo'), l = m && m.closest('.build-linha'); return m && l ? m.getBoundingClientRect().width / l.getBoundingClientRect().width : null })
+        if (!(lg >= 0.9)) problems.push(`${label}: ${nome}: a .motivo ocupa ${lg} da largura da .build-linha (esperado >= 0,9)`)
+      }
       await b().focus()
       await pg.keyboard.press('Enter')
       await vistoUma('Enter'); await igualA0('o Enter')
@@ -3859,7 +3870,7 @@ try {
       await confere('Liberar a ativa', '.montaria-cabeca [data-acao="liberar"]', /^A montaria ativa não pode ser liberada\.$/)
       const s1 = await pg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
       if (S.allocInfo(s1.mounts[0]).left !== 4) problems.push(`${label}: a Brasa de teste tem ${S.allocInfo(s1.mounts[0]).left} pontos livres (esperado 4)`)
-      if (await indisp(pg.locator('[data-acao="ponto-mais"][data-id="est"][data-n="1"]'))) problems.push(`${label}: o +1 de Resistência está indisponível com 4 pontos livres`)
+      if (await pg.locator('[data-acao="ponto-mais"][data-id="est"][data-n="1"]').isDisabled()) problems.push(`${label}: o +1 de Resistência está indisponível com 4 pontos livres`)
       await confere('+5 quando só o +1 cabe', '[data-acao="ponto-mais"][data-id="est"][data-n="5"]', /Faltam pontos: sobram 4\./)
       await pg.locator('[data-acao="pontos-sugerir"]').click()   // gasta o que sobra no rascunho: nada mais cabe
       await confere('Distribuir sugerido com o rascunho cheio', '[data-acao="pontos-sugerir"]', /^(Os pontos que sobram não pagam o próximo ponto de nenhum status\.|Nenhum ponto sobrando para distribuir\.)$/)
@@ -3884,6 +3895,9 @@ try {
       await confere('Tornar ativa na ficha (páreo aberto)', '.montaria-cabeca [data-acao="ativar"]', /^Páreo aberto: corra a sala antes de trocar a montaria ativa\.$/)
       await confere('Liberar com páreo aberto', '.montaria-cabeca [data-acao="liberar"]', /^Páreo aberto: corra a sala antes de liberar uma montaria\.$/)
       await abreFicha('m2')
+      const maisTrava = await pg.evaluate(() => { const x = Array.from(document.querySelectorAll('[data-acao="ponto-mais"][aria-disabled="true"]')).find((e) => /Páreo aberto: passaria do Poder/.test(e.getAttribute('data-motivo') || '')); return x ? [x.getAttribute('data-id'), x.getAttribute('data-n')] : null })
+      if (!maisTrava) problems.push(`${label}: a Teto ativa com páreo aberto não tem +N travado pelo Poder da sala`)
+      else await confere('+N da ativa com páreo aberto', `[data-acao="ponto-mais"][data-id="${maisTrava[0]}"][data-n="${maisTrava[1]}"]`, /^\+\d+ em .+: custa \d+ pontos?\. Páreo aberto: passaria do Poder \d+ que a sala viu\.$/)
       await confere('Redistribuir com páreo aberto', '[data-acao="redistribuir"]', /^Páreo aberto: a montaria ativa só redistribui depois de correr\.$/)
       await pg.locator('[data-acao="pontos-sugerir"]').click()
       await confere('Confirmar acima do Poder da sala', '[data-acao="pontos-confirmar"]', /^Páreo aberto: com este rascunho o Poder iria a \d+, e a sala viu \d+\./)
@@ -4238,7 +4252,7 @@ try {
         if (!igual(da(s, 'm1').alloc, Object.assign({}, ZERO, { vel: 4, acel: 2 })) || da(s, 'm1').respecFree !== true || s.redeas !== 0) problems.push(`${label}: preparo ` + JSON.stringify({ m1: da(s, 'm1'), redeas: s.redeas }))
         // a 1ª é grátis: dois toques; o 1º só mostra o que vai gastar
         await abreStatus('m1')
-        if (!(await botao().count()) || (await indisp(botao()))) problems.push(`${label}: Redistribuir ausente ou desabilitado na 1ª vez`)
+        if (!(await botao().count()) || (await botao().isDisabled())) problems.push(`${label}: Redistribuir ausente ou desabilitado na 1ª vez`)
         await botao().click()
         if (!(await avisos(pg)).includes('Grátis: a primeira deste cavalo')) problems.push(`${label}: o 1º toque não disse que é grátis: ` + await avisos(pg))
         s = await estado(pg)
@@ -4266,7 +4280,7 @@ try {
         }
         if ((await disco(pg, DEV_KEY)).redeas !== 2) problems.push(`${label}: as Rédeas da gaveta não foram gravadas no save de teste`)
         await devFechar(pg)
-        if (await indisp(botao())) problems.push(`${label}: com Rédea, Redistribuir continua desabilitado`)
+        if (await botao().isDisabled()) problems.push(`${label}: com Rédea, Redistribuir continua desabilitado`)
         await botao().click()
         if (!(await avisos(pg)).includes('Usa 1 Rédea nova; você tem 2')) problems.push(`${label}: o 1º toque com Rédea não disse o que gasta: ` + await avisos(pg))
         await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()   // trocar de sub-aba desarma o 1º toque
@@ -4301,7 +4315,7 @@ try {
         for (let k = 0; k < 2; k++) await pg.evaluate(() => { const b = document.querySelector('[data-acao="redistribuir"]'); b.disabled = false; b.removeAttribute('aria-disabled'); b.click() })
         if (!igual(await estado(pg), a3)) problems.push(`${label}: o clique forçado com páreo aberto redistribuiu a ativa`)
         await abreStatus('m2')
-        if (await indisp(botao())) problems.push(`${label}: com páreo aberto, Redistribuir de outra montaria ficou desabilitado`)
+        if (await botao().isDisabled()) problems.push(`${label}: com páreo aberto, Redistribuir de outra montaria ficou desabilitado`)
         await botao().click()
         await botao().click()
         s = await estado(pg)
@@ -4334,8 +4348,8 @@ try {
       const somaR = (a, r) => Object.fromEntries(G.STAT_KEYS.map((k) => [k, a[k] + (r ? r[k] || 0 : 0)]))
       const livresDe = (m, a) => S.freePoints(m) - custo(a)
       const sugerido = (m, de) => { const b = S.botAlloc(m, de); return Object.fromEntries(G.STAT_KEYS.map((k) => [k, b[k] - m.alloc[k]])) }
-      const botoes = () => pg.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({
-        k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), txt: b.textContent.trim(), title: b.getAttribute('title'), aria: b.getAttribute('aria-label'), off: b.getAttribute('aria-disabled') === 'true' && !b.disabled })))
+      const botoes = async () => { const r = await pg.evaluate(() => Array.from(document.querySelectorAll('[data-acao="ponto-mais"]')).map((b) => ({
+        k: b.getAttribute('data-id'), n: Number(b.getAttribute('data-n')), txt: b.textContent.trim(), title: b.getAttribute('title'), aria: b.getAttribute('aria-label'), off: b.getAttribute('aria-disabled') === 'true', nativo: b.disabled }))); if (r.some((b) => b.nativo)) problems.push('ponto-mais com disabled nativo: ' + JSON.stringify(r.filter((b) => b.nativo))); return r }
       // os 18 botões a partir dos pontos a (gravados + rascunho) com `livres` sobrando, longe do teto e sem páreo:
       // desabilitado só quando o custo de N passa do que sobra, com "Faltam pontos" no title
       const confereBotoes = async (a, livres, onde) => {
