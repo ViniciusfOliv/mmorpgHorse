@@ -73,7 +73,9 @@
   var PLAYER_NAME = 'Você';
   var PLAYER_SILKS = '#f2c230';
   var BOT_SILKS = SP.SILKS.filter(function (c) { return c.toLowerCase() !== PLAYER_SILKS; });
-  var PORTRAIT_SCALE = 3;        // escala única dos retratos em todas as telas
+  var PORTRAIT_SCALE = 3;        // escala dos retratos (portraitHtml sem opts.tamanho)
+  var PORTRAIT_SCALE_PEQUENO = 2; // retrato pequeno: a linha do Estábulo (3b §4)
+  var PORTRAIT_SCALE_GRANDE = 6;  // retrato grande: a cabeça da ficha (3b §5)
   var CANVAS_MAX_PX = 1500000;   // teto (pixels) do canvas da corrida antes de desenhar numa escala menor
 
   // Movimento: opção "Animações" do Perfil (state.settings.motion). 'sistema' (padrão) segue o
@@ -999,11 +1001,17 @@
   // distribuir enquanto algum cabe: pontosQueCabem);
   // opts.jockey: montado (seda opts.silks, a sua por padrão; jóquei opts.joquei, o seu por padrão). Marcas e raridade
   // do cavalo sempre (opcoesVisuais).
+  // opts.tamanho: 'pequeno' (linha do Estábulo) ou 'grande' (ficha) desenha na PORTRAIT_SCALE_PEQUENO ou _GRANDE, no
+  // lugar da PORTRAIT_SCALE. O canvas sai do tamanho da escala: nunca é encolhido pelo CSS (fica nítido).
+  function escalaRetrato(tamanho) {
+    return tamanho === 'pequeno' ? PORTRAIT_SCALE_PEQUENO : tamanho === 'grande' ? PORTRAIT_SCALE_GRANDE : PORTRAIT_SCALE;
+  }
   function portraitHtml(horse, opts) {
     opts = opts || {};
     var id = portraitQueue.length;
     portraitQueue.push({ horse: horse, opts: opts });
-    var cv = '<canvas class="retrato" data-retrato="' + id + '" role="img" aria-label="' +
+    var tam = opts.tamanho === 'pequeno' || opts.tamanho === 'grande' ? opts.tamanho : '';
+    var cv = '<canvas class="retrato' + (tam ? ' retrato--' + tam : '') + '" data-retrato="' + id + '" role="img" aria-label="' +
       esc('Retrato de ' + horse.name) + '"></canvas>';
     if (!opts.selo) return cv;
     var pts = opts.pontos > 0 ? '<span class="pontos-livres pontos-livres--selo" title="' +
@@ -1073,7 +1081,7 @@
         var entry = portraitQueue[Number(cv.getAttribute('data-retrato'))];
         if (!entry) return;
         var o = entry.opts, horse = entry.horse;
-        var s = setupCanvas(cv, PORTRAIT_W, PORTRAIT_H, PORTRAIT_SCALE);
+        var s = setupCanvas(cv, PORTRAIT_W, PORTRAIT_H, escalaRetrato(o.tamanho));
         var seed = (horse.name.charCodeAt(0) || 0) + (horse.name.length * 3);
         var phase = (seed % 10) * 0.37;
         var vis = opcoesVisuais(horse, o.jockey ? (o.joquei || joqueiDoJogador()) : null);
@@ -1245,6 +1253,9 @@
   function abaVisivel(id) { return ABAS.some(function (a) { return a.id === id; }); }
   function kindOf(screen) { return hasOwn(SCREEN_KIND, screen) ? SCREEN_KIND[screen] : 'full'; }
   var guardPushed = false, ignorePop = false;
+  // a rolagem é do jogo (go() volta ao topo; o "Voltar" da ficha rola até a linha do cavalo no Estábulo): o navegador não
+  // a restaura por cima quando o history.back() do guarda volta à entrada da aba
+  try { if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch (e) { /* ignora */ }
   function isRoot(screen) { return kindOf(screen) === 'aba' || screen === 'inicial'; }
   function syncHistory(screen) {
     try {
@@ -1256,7 +1267,7 @@
     if (ignorePop) { ignorePop = false; return; }
     guardPushed = false;
     if (ui.screen === 'corrida') { if (raceView) raceView.skip(); else go('resultado'); }
-    else if (!isRoot(ui.screen) && state) go(ui.tab);
+    else if (!isRoot(ui.screen) && state) voltaDaSubtela();
   });
 
   function go(screen) {
@@ -1279,6 +1290,18 @@
     var h = telaEl.querySelector('[data-foco]');
     if (h) { try { h.focus({ preventScroll: true }); } catch (e2) { h.focus(); } }
     syncHistory(screen);
+  }
+  // "Voltar" (ou o voltar do aparelho) de uma sub-tela (Montaria, Perfil) para a aba de origem. Da ficha para o Estábulo
+  // o foco vai para a linha daquele cavalo, não para o título (3b, Review Focus 2), e a página rola só o que precisar
+  // para a linha aparecer (o scroll-padding desconta o cabeçalho e a barra de abas)
+  function voltaDaSubtela() {
+    var uid = ui.screen === 'montaria' && ui.montaria ? ui.montaria.uid : null;
+    go(ui.tab);
+    if (!uid || ui.screen !== 'estabulo') return;
+    focusAction('montaria', uid);
+    var el = document.activeElement;
+    if (!el || el.getAttribute('data-id') !== uid || !el.scrollIntoView) return;
+    try { el.scrollIntoView({ block: 'nearest' }); } catch (e) { el.scrollIntoView(false); }
   }
 
   /*@dev:inicio*/
@@ -2016,28 +2039,39 @@
     if (P) return 'Páreo aberto: corra a sala antes de liberar uma montaria.';
     return '';
   }
-  // opts.semAcoes: sem os botões (ex.: card do potro no resultado do Haras).
-  // O cartão inteiro abre a montaria (data-acao="montaria"); os botões internos têm a própria ação.
-  // Renomear e Liberar ficam na tela da Montaria.
-  function mountCardHtml(m, isActive, opts) {
-    var P = state.pending;
-    var semAcoes = !!(opts && opts.semAcoes);
+  // Cartão do potro no resultado do Haras (sem botões: "Tornar ativa" fica no próprio resultado). O Estábulo usa mountRowHtml.
+  function mountCardHtml(m, isActive) {
     var corcel = window.Breed && window.Breed.isCorcel(m)
       ? '<span class="corcel" title="Corcel: herança garantida">' + corcelHtml() + '</span>' : '';
-    var acoes = semAcoes ? '' : '<div class="montaria-acoes">' +
-        '<button type="button" class="btn btn--pequeno" data-acao="ativar" data-id="' + esc(m.uid) + '"' + indisponivel(motivoAtivar(isActive, P)) + '>Tornar ativa</button>' +
-        '<button type="button" class="btn btn--pequeno" data-acao="montaria" data-id="' + esc(m.uid) + '">Ver</button>' +
-        '</div>';
-    var abre = semAcoes ? '' : ' data-acao="montaria" data-id="' + esc(m.uid) + '"';
-    return '<article class="montaria' + (isActive ? ' montaria--ativa' : '') + '" data-uid="' + esc(m.uid) + '"' + abre + '>' +
+    return '<article class="montaria' + (isActive ? ' montaria--ativa' : '') + '" data-uid="' + esc(m.uid) + '">' +
       portraitHtml(m, { selo: true, pontos: pontosQueCabem(m) }) +
       '<h3 class="cavalo-nome">' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></h3>' +
       '<div class="linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) + elementHtml(m.element) +
         '<span>' + sexoHtml(m.sex) + '</span>' +
         '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
         (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
-      '</div>' + xpHtml(m.level, m.xp, true) + (GEAR_ON ? gearSummaryHtml(m) : '') + acoes +
+      '</div>' + xpHtml(m.level, m.xp, true) + (GEAR_ON ? gearSummaryHtml(m) : '') +
     '</article>';
+  }
+
+  // Linha do Estábulo (3b §4): um botão por cavalo, que abre a ficha. À esquerda o retrato pequeno com o selo do nível e
+  // o "+N" (escondido do leitor de tela: o nome acessível já diz nome, número, nível e se é a ativa); à direita o nome e o
+  // #N, a raridade e as estrelas (e o selo "Ativa" na ativa), o tipo e o Poder (sem equipamento, spec 1b §7), e a seta.
+  // Sexo, cruzas, Corcel e XP ficam na ficha; "Tornar ativa" também.
+  var SETA_ROWS = ['..#.....', '..##....', '...##...', '....##..', '...##...', '..##....', '..#.....', '........'];
+  function mountRowHtml(m, isActive) {
+    var n = uidNum(m.uid);
+    var rotulo = m.name + ' #' + n + ', nível ' + m.level + (isActive ? ', ativa' : '') + '. Abrir ficha.';
+    return '<button type="button" class="montaria-linha' + (isActive ? ' montaria--ativa' : '') + '" data-acao="montaria" data-id="' + esc(m.uid) +
+        '" aria-label="' + esc(rotulo) + '">' +
+      '<span class="montaria-linha-retrato" aria-hidden="true">' + portraitHtml(m, { tamanho: 'pequeno', selo: true, pontos: pontosQueCabem(m) }) + '</span>' +
+      '<span class="montaria-linha-nome">' + esc(m.name) + '<small>#' + esc(n) + '</small></span>' +
+      '<span class="montaria-linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) +
+        (isActive ? '<span class="badge-ativa">Ativa</span>' : '') + '</span>' +
+      '<span class="montaria-linha-meta">' + elementHtml(m.element) +
+        '<span class="montaria-linha-poder">Poder <b>' + RS.powerRating(m) + '</b></span></span>' +
+      pixelSvg(SETA_ROWS, 'montaria-linha-seta') +
+    '</button>';
   }
 
   function montariasHtml() {
@@ -2046,7 +2080,7 @@
     var reservaBloqueia = !maxed && state.gold >= SLOT_PRICE && !canExpand;
     var motivoExp = canExpand ? '' : maxed ? 'O estábulo já está no máximo.'
       : reservaBloqueia ? reservaTxt() + '.' : 'Falta Ouro para expandir o estábulo.';
-    return '<section class="caixa" aria-label="Suas montarias"><div class="montarias">' + state.mounts.map(function (m) { return mountCardHtml(m, m.uid === state.activeId); }).join('') + '</div>' +
+    return '<section class="caixa" aria-label="Suas montarias"><ul class="montarias">' + state.mounts.map(function (m) { return '<li>' + mountRowHtml(m, m.uid === state.activeId) + '</li>'; }).join('') + '</ul>' +
       '<div class="acoes"><button type="button" data-acao="expandir" class="btn"' + indisponivel(motivoExp) + '>' +
         (maxed ? 'Estábulo no máximo' : 'Expandir estábulo (' + fmt(SLOT_PRICE) + ')') + '</button></div>' +
       (reservaBloqueia ? reservaHtml() : '') + '</section>';
@@ -2306,7 +2340,7 @@
   function harasResultHtml(foal) {
     var isActive = foal.uid === state.activeId;
     return '<section class="caixa" aria-labelledby="t-nasceu"><h2 class="titulo" id="t-nasceu">' + esc('Nasceu ' + foal.name + '!') + '</h2>' +
-      mountCardHtml(foal, isActive, { semAcoes: true }) +
+      mountCardHtml(foal, isActive) +
       '<div class="acoes">' +
         '<button type="button" class="btn btn--ouro" data-acao="haras-ativar"' + (isActive || state.pending ? ' disabled' : '') + '>Tornar ativa</button>' +
         '<button type="button" class="btn" data-acao="haras-denovo">Cruzar de novo</button>' +
@@ -4256,7 +4290,7 @@
         ui.loja.msg = 'Comprou ' + pedrasTxt(pn) + ' negra' + (pn === 1 ? '' : 's') + '.';
         rerenderKeepScroll(); break;
       }
-      case 'montaria':                // cartão do Estábulo e botão "Ver"
+      case 'montaria':                // linha do Estábulo
         goMontaria(id, 'status'); break;
       case 'equipar-tela':            // "Equipar" da aba Correr e da largada
         goMontaria(id, 'equip'); break;
@@ -4359,7 +4393,7 @@
       }
       case 'montaria-voltar':
       case 'perfil-voltar':
-        go(ui.tab); break;
+        voltaDaSubtela(); break;
       case 'equip-slot':
         if (!ui.montaria || GR.SLOTS.indexOf(id) < 0) break;
         ui.montaria.equip.slot = ui.montaria.equip.slot === id ? null : id;

@@ -1031,7 +1031,7 @@ try {
       if (process.env.SHOTS_DIR) { await tx.locator('.inicial .status').first().scrollIntoViewIfNeeded(); await tx.screenshot({ path: join(SHOTS, 'texto-360-inicial.png') }) }   // só na pasta temporária
       await tx.getByRole('button', { name: 'Escolher Brasa' }).click()
       await tx.waitForSelector('#t-estabulo')
-      confere(await tamanhos(['.montaria .selo-nivel', '.app-aba-rotulo', '.badge-ativa']), 'estábulo')
+      confere(await tamanhos(['.montaria-linha .selo-nivel', '.app-aba-rotulo', '.badge-ativa']), 'estábulo')
       await checkOverflow(tx, 'texto-estabulo')
       if (process.env.SHOTS_DIR) await tx.screenshot({ path: join(SHOTS, 'texto-360-estabulo.png') })   // só na pasta temporária
       await abrirSala(tx)
@@ -1592,7 +1592,7 @@ try {
   // a aba Status explica a sobra (bloco 1b: no lugar do teto da raridade, o custo por faixa) ----------------
   if (quer('selo-teto')) {
     const sq = await newPage(browser, { width: 360, height: 780 }, 'selo-teto')
-    const seloDe = async (uid) => ((await sq.locator(`.montaria[data-uid="${uid}"] .pontos-livres`).first().textContent({ timeout: 500 }).catch(() => '')) || '').trim()
+    const seloDe = async (uid) => ((await sq.locator(`.montaria-linha[data-id="${uid}"] .pontos-livres`).first().textContent({ timeout: 500 }).catch(() => '')) || '').trim()
     try {
       await sq.getByRole('button', { name: 'Escolher Brasa' }).click()
       await sq.waitForSelector('#t-estabulo')
@@ -1607,8 +1607,8 @@ try {
       const i2 = S.allocInfo(ms[1]), i3 = S.allocInfo(ms[2])
       if (i2.left !== 13 || podeComprar(ms[1]) !== 13 || i3.left !== 1 || podeComprar(ms[2]) !== 0) problems.push('selo-teto: montarias de teste ' + JSON.stringify({ m2: [i2.left, podeComprar(ms[1])], m3: [i3.left, podeComprar(ms[2])] }))
       if ((await seloDe('m2')) !== '+13') problems.push(`selo-teto: com 13 sobrando e o ponto a 2, o selo é "${await seloDe('m2')}" (esperado "+13", o número do topo da aba Status)`)
-      if (!/^Sobram 13 pontos para distribuir na aba Status$/.test((await sq.locator('.montaria[data-uid="m2"] .pontos-livres').first().getAttribute('title').catch(() => '')) || '')) problems.push('selo-teto: o title do selo da m2 não é "Sobram 13 pontos para distribuir na aba Status"')
-      if (await seloDe('m3')) problems.push('selo-teto: o cartão do Estábulo mostra "+N" sem nenhum ponto que caiba: ' + await seloDe('m3'))
+      if (!/^Sobram 13 pontos para distribuir na aba Status$/.test((await sq.locator('.montaria-linha[data-id="m2"] .pontos-livres').first().getAttribute('title').catch(() => '')) || '')) problems.push('selo-teto: o title do selo da m2 não é "Sobram 13 pontos para distribuir na aba Status"')
+      if (await seloDe('m3')) problems.push('selo-teto: a linha do Estábulo mostra "+N" sem nenhum ponto que caiba: ' + await seloDe('m3'))
       await sq.locator('button[data-acao="montaria"][data-id="m3"]').click()
       await sq.waitForSelector('#t-montaria')
       if (await sq.locator('.montaria-cabeca .pontos-livres').count()) problems.push('selo-teto: o retrato da Montaria mostra "+N" sem nenhum ponto que caiba')
@@ -1640,7 +1640,8 @@ try {
     try {
       await b1.getByRole('button', { name: 'Escolher Brasa' }).click()
       await b1.waitForSelector('#t-estabulo')
-      if ((await b1.locator('.montaria .pontos-livres').count()) !== 0) problems.push('build-nivel1: o cartão do Estábulo avisa pontos no nível 1')
+      if ((await b1.locator('.montaria-linha').count()) !== 1) problems.push('build-nivel1: o Estábulo sem a linha da Brasa')
+      if ((await b1.locator('.montaria-linha .pontos-livres').count()) !== 0) problems.push('build-nivel1: a linha do Estábulo avisa pontos no nível 1')
       await b1.locator('button[data-acao="montaria"][data-id="m1"]').click()
       await b1.waitForSelector('#t-montaria')
       const txt = ((await b1.locator('.build-topo').first().textContent()) || '').replace(/\s+/g, ' ')
@@ -1680,21 +1681,24 @@ try {
         await sl.getByRole('button', { name: 'Escolher Brasa' }).click()
         await sl.waitForSelector('#t-estabulo')
         await montaSave(sl, (raw) => { raw.mounts[0].level = 12; raw.mounts[0].xp = 40; raw.mounts.push(Object.assign(JSON.parse(JSON.stringify(TETO_M2)), { sex: 'f', level: 7 })); raw.nextUid = 3; raw.stableSlots = 3 })
-        // Estábulo: selo no retrato, barra de XP, "+N" e sem "Nv" na fileira de etiquetas
-        if ((await seloEm('.montaria[data-uid="m1"] .retrato-moldura .selo-nivel')) !== 'Nv 12') problems.push(`${tag}: selo do cartão do Estábulo = "${await seloEm('.montaria[data-uid="m1"] .selo-nivel')}"`)
-        if ((await sl.locator('.montaria[data-uid="m1"] .barra--xp').count()) !== 1) problems.push(tag + ': cartão do Estábulo sem barra de XP')
+        // Estábulo: selo no retrato, "+N" e sem "Nv" no texto da linha; a barra de XP saiu da linha (3b §4) e fica na
+        // ficha (conferida abaixo)
+        if ((await seloEm('.montaria-linha[data-id="m1"] .retrato-moldura .selo-nivel')) !== 'Nv 12') problems.push(`${tag}: selo da linha do Estábulo = "${await seloEm('.montaria-linha[data-id="m1"] .selo-nivel')}"`)
+        if ((await sl.locator('.montaria-linha[data-id="m1"] .barra--xp').count()) !== 0) problems.push(tag + ': a linha do Estábulo com barra de XP (3b §4: o XP fica na ficha)')
         // os pontos que sobram, como no topo da aba Status: a Brasa nível 12 tem 28 (era "+13" no bloco 1)
         const espSelo = '+' + podeComprar(await sl.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state.mounts[0]))))
-        if (espSelo !== '+28' || (await seloEm('.montaria[data-uid="m1"] .pontos-livres')) !== espSelo) problems.push(`${tag}: aviso de pontos do cartão = "${await seloEm('.montaria[data-uid="m1"] .pontos-livres')}" (esperado "${espSelo}")`)
-        if ((await sl.locator('.montaria[data-uid="m1"] .pontos-livres').first().getAttribute('title')) !== 'Sobram 28 pontos para distribuir na aba Status') problems.push(`${tag}: o title do selo não é "Sobram 28 pontos para distribuir na aba Status"`)
-        const etiquetas = await sl.evaluate(() => Array.from(document.querySelectorAll('.montaria .linha-meta')).map((e) => e.textContent).join(' | '))
-        if (/Nv\s*\d/.test(etiquetas)) problems.push(tag + ': "Nv" continua na fileira de etiquetas do cartão: ' + etiquetas)
-        await confereLegivel(sl, ['.montaria .selo-nivel', '.montaria .pontos-livres'], tag + '-estabulo')
+        if (espSelo !== '+28' || (await seloEm('.montaria-linha[data-id="m1"] .pontos-livres')) !== espSelo) problems.push(`${tag}: aviso de pontos da linha = "${await seloEm('.montaria-linha[data-id="m1"] .pontos-livres')}" (esperado "${espSelo}")`)
+        if ((await sl.locator('.montaria-linha[data-id="m1"] .pontos-livres').first().getAttribute('title')) !== 'Sobram 28 pontos para distribuir na aba Status') problems.push(`${tag}: o title do selo não é "Sobram 28 pontos para distribuir na aba Status"`)
+        // o texto das linhas fora do retrato (nome, raridade, tipo, Poder): o nível só no selo do retrato
+        const etiquetas = await sl.evaluate(() => Array.from(document.querySelectorAll('.montaria-linha')).map((b) => { const c = b.cloneNode(true); c.querySelectorAll('.retrato-moldura').forEach((x) => x.remove()); return c.textContent.replace(/\s+/g, ' ').trim() }).join(' | '))
+        if (!etiquetas || /Nv\s*\d/.test(etiquetas)) problems.push(tag + ': "Nv" no texto da linha do Estábulo (ou linha sem texto): ' + etiquetas)
+        await confereLegivel(sl, ['.montaria-linha .selo-nivel', '.montaria-linha .pontos-livres'], tag + '-estabulo')
         if (vp.width === 360) await capT6(sl, tag + '-estabulo.png')
         // Montaria
         await sl.locator('button[data-acao="montaria"][data-id="m1"]').click()
         await sl.waitForSelector('#t-montaria')
         if ((await seloEm('.montaria-cabeca .retrato-moldura .selo-nivel')) !== 'Nv 12') problems.push(tag + ': Montaria sem o selo "Nv 12"')
+        if ((await sl.locator('.montaria-cabeca .barra--xp').count()) !== 1) problems.push(tag + ': ficha sem a barra de XP')
         await confereLegivel(sl, ['.montaria-cabeca .selo-nivel'], tag + '-montaria')
         if (vp.width === 360 || vp.width === 1280) await capT6(sl, tag + '-montaria.png', true)
         await sl.locator('[data-acao="montaria-voltar"]').click()
@@ -2114,20 +2118,26 @@ try {
           raw.nextUid = 3; raw.stableSlots = 3
         })
         const est = await confereTela(pg, tag + ' estábulo')
-        espera(est, 'estábulo', ['ui-perfil', 'ui-macho', 'ui-femea', 'ui-corcel', 'ui-estrela', 'ui-estrela-vazia', 'rar-comum', 'rar-raro'])
-        const estTxt = ((await pg.locator('.montarias').textContent()) || '').replace(/\s+/g, ' ')
-        for (const p of ['Macho', 'Fêmea', 'Corcel']) if (!estTxt.includes(p)) problems.push(`${tag} estábulo: sem o texto "${p}" ao lado do ícone`)
+        // sexo e Corcel saíram da linha do Estábulo (3b §4): os ícones e o texto ao lado deles são conferidos nas fichas da
+        // m1 (Macho, Corcel) e da m2 (Fêmea, Corcel), abaixo
+        espera(est, 'estábulo', ['ui-perfil', 'ui-estrela', 'ui-estrela-vazia', 'rar-comum', 'rar-raro'])
+        const fichaTxt = async () => ((await pg.locator('.montaria-cabeca').textContent()) || '').replace(/\s+/g, ' ')
         const rotPerfil = await pg.locator('.app-perfil').getAttribute('aria-label')
         if (rotPerfil !== 'Perfil') problems.push(`${tag} estábulo: botão do Perfil com aria-label "${rotPerfil}"`)
         // Montaria m1: aba Status (os 7 status) e aba Skills (ícones de 32 px)
         await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
         await pg.waitForSelector('#t-montaria')
         espera(await confereTela(pg, tag + ' montaria-status'), 'montaria-status', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-', 'ui-corcel', 'ui-macho']))
+        const txt1 = await fichaTxt()
+        for (const p of ['Macho', 'Corcel']) if (!txt1.includes(p)) problems.push(`${tag} ficha m1: sem o texto "${p}" ao lado do ícone`)
         for (const uid of ['m1', 'm2', 'm3', 'm4']) {
           if (uid === 'm2') {
             await pg.locator('[data-acao="montaria-voltar"]').click()
             await pg.locator('button[data-acao="montaria"][data-id="m2"]').click()
             await pg.waitForSelector('#t-montaria')
+            espera(await confereTela(pg, tag + ' montaria-status m2'), 'montaria-status m2', ['ui-femea', 'ui-corcel'])
+            const txt2 = await fichaTxt()
+            for (const p of ['Fêmea', 'Corcel']) if (!txt2.includes(p)) problems.push(`${tag} ficha m2: sem o texto "${p}" ao lado do ícone`)
           }
           await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
           await pg.waitForSelector('.vaga-tipo')
@@ -2719,7 +2729,7 @@ try {
     const semRaia = (id) => String(id).replace(/-b\d+$/, '')   // id do rival na sala = id do modelo + '-b<n>'
     // espia dos desenhos que o jogo pede ao Sprites (o jogo chama SP.<função> a cada vez): guarda as primeiras 600
     // chamadas de cada função desde a última ligação em window.__portes; ligar = false devolve as originais. Do
-    // drawHorse com quadro (retratos e pódio) guarda também o cartão do estábulo (data-uid), o tamanho do canvas e a
+    // drawHorse com quadro (retratos e pódio) guarda também a linha do estábulo (data-id), o tamanho do canvas e a
     // caixa do desenho (horseBox original, com as mesmas opções).
     const espia = (pg, ligar = true) => pg.evaluate((on) => {
       const SP = window.Sprites, FN = ['drawHorse', 'horseBox', 'prepararCavalo', 'anchorsFor', 'drawHorseSilhouette']
@@ -2735,8 +2745,8 @@ try {
               const o = (f === 'horseBox' ? a[2] : f === 'prepararCavalo' ? a[0] : a[3]) || {}
               const c = { porte: o.porte === undefined ? '(ausente)' : o.porte, semente: o.semente, element: o.element, quadro: !!o.quadro, idle: !!o.idle }
               if (f === 'drawHorse' && o.quadro && a[0] && a[0].canvas) {
-                const cv = a[0].canvas, card = cv.closest ? cv.closest('.montaria') : null
-                c.cartao = card ? card.getAttribute('data-uid') : null
+                const cv = a[0].canvas, card = cv.closest ? cv.closest('.montaria-linha') : null
+                c.cartao = card ? card.getAttribute('data-id') : null
                 c.cv = [cv.width, cv.height]
                 c.caixa = O.horseBox(a[1], a[2], o)
               }
@@ -2983,7 +2993,7 @@ try {
           if (a.porte !== p || !noDisco || noDisco.porte !== p) problems.push(`${tag}: "Aplicar na ativa" deixou o porte ${a.porte} (no save DEV: ${noDisco && noDisco.porte}; esperado ${p})`)
           if ((await seletor()) !== (opc ? p : '(sem seletor)')) problems.push(`${tag}: o seletor ficou em ${await seletor()} depois de aplicar`)
           await devFechar(pg)
-          // cartão do estábulo: o retrato com o porte, o cavalo inteiro no canvas (o topo pode passar no máximo 10 % da
+          // linha do estábulo: o retrato com o porte, o cavalo inteiro no canvas (o topo pode passar no máximo 10 % da
           // altura, o CORTE_MAX do sprites.js) e o canvas inteiro no cartão, que fica na largura da tela
           await espia(pg)
           await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
@@ -3000,7 +3010,7 @@ try {
             casas[p] = { caixa: c, cv: d.cv }
           }
           const r = await pg.evaluate((uid) => {
-            const card = document.querySelector(`.montaria[data-uid="${uid}"]`), cv = card && card.querySelector('canvas.retrato')
+            const card = document.querySelector(`.montaria-linha[data-id="${uid}"]`), cv = card && card.querySelector('canvas.retrato')
             if (!card || !cv) return null
             const A = card.getBoundingClientRect(), C = cv.getBoundingClientRect()
             return { card: [A.left, A.top, A.right, A.bottom], cv: [C.left, C.top, C.right, C.bottom], vw: document.documentElement.clientWidth }
@@ -3233,37 +3243,50 @@ try {
     }
   }
 
+  // ---------------- saves das telas do celular (Visuais 2, partes 3a e 3b): usados nos blocos acabamento e celular ----------------
+  const mod = (tpl, o) => Object.assign({ uid: 'm1', templateId: tpl.id, name: tpl.name, especie: 'cavalo', element: tpl.element, rarity: tpl.rarity,
+    grau: tpl.grau || 2, sex: tpl.sex, level: 1, xp: 0, skills: tpl.skills.slice(), potential: JSON.parse(JSON.stringify(tpl.potential)),
+    palette: JSON.parse(JSON.stringify(tpl.palette)), breedLeft: 2, parents: null, born: 0, equip: {}, respecFree: true,
+    alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } }, o)
+  const SAVE_3A = {
+    v: 6, rev: 20, gold: 1200, tier: 100, seedBase: 3131, raceCounter: 4, redeas: 0, avisoV6: false,
+    races: 3, wins: 1, podiums: 2, goldWon: 300,
+    mounts: [
+      mod(G.STARTERS.find((h) => h.id === 'brasa'), { uid: 'm1', level: 20, xp: 10, skills: ['sprint'], alloc: { vel: 4, acel: 4, man: 0, forca: 0, est: 2, garra: 0, sorte: 0 }, equip: { sela: 'i1' } }),
+      mod(G.WILD_HORSES.find((h) => h.id === 'w-ventania'), { uid: 'm2', level: 12 }),
+      mod(G.STARTERS.find((h) => h.id === 'mare'), { uid: 'm3', level: 5 })
+    ],
+    activeId: 'm1', nextUid: 4, stableSlots: 3, breedCounter: 0,
+    items: [{ uid: 'i1', id: 'sela-comum', plus: 3 }, { uid: 'i2', id: 'testeira-comum', plus: 0 }], nextItemUid: 3, pedras: 0, enhanceCounter: 0,
+    settings: { motion: 'sistema' }, joquei: { padrao: 'xadrez', capacete: '#62b8ff' }
+  }
+  // títulos compridos (Review Focus 2): 10 vagas cheias e a ativa com nome de 24 caracteres. O jogo corta o nome em
+  // 16 e as vagas em 8 ao ler o save; o teste repõe os dois no estado depois de abrir (pior caso, com folga)
+  const NOME_LONGO = 'Relâmpago da Madrugada X'
+  const MODELOS_3A = [...G.STARTERS, ...G.WILD_HORSES]
+  const SAVE_3A_LONGO = Object.assign({}, SAVE_3A, {
+    mounts: MODELOS_3A.concat(MODELOS_3A).slice(0, 10).map((tpl, i) => mod(tpl, { uid: 'm' + (i + 1), level: 1 + 3 * i })),
+    nextUid: 11, stableSlots: 10, items: [], nextItemUid: 1
+  })
+  SAVE_3A_LONGO.mounts[0] = mod(G.STARTERS.find((h) => h.id === 'brasa'), { uid: 'm1', name: NOME_LONGO, level: 20, xp: 10, skills: ['sprint'] })
+  // 3b §2: o mesmo padrão com 6 cavalos (as metas de altura do Estábulo: 3 cavalos ≤ 780 px, 6 ≤ 1.100 px)
+  const SAVE_3B_6 = Object.assign({}, SAVE_3A, {
+    mounts: SAVE_3A.mounts.concat([
+      mod(G.WILD_HORSES.find((h) => h.id === 'w-fogareu'), { uid: 'm4', level: 30 }),
+      mod(G.WILD_HORSES.find((h) => h.id === 'w-pororoca'), { uid: 'm5', level: 8 }),
+      mod(G.WILD_HORSES.find((h) => h.id === 'w-iara'), { uid: 'm6', level: 1 })
+    ]),
+    nextUid: 7, stableSlots: 6
+  })
+  // abre o jogo com o save pedido (só no 1º carregamento da aba: um reload continua com o que o jogo gravou)
+  const comSave = (save) => ({ init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(JSON.stringify(save))}) } } catch (e) {}` } })
+
   // ---------------- acabamento da interface (Visuais 2, parte 3a): fontes embutidas, sem border-image, altura, peças, títulos compridos ----------------
   if (quer('acabamento')) {
     // alturas da página a 360x780 com o CSS de antes da 3a (as peças e as fontes embutidas não mudam métrica)
     // medido em 2026-11-14 na `main` (7fe5124), antes da 3a: build da `main`, o mesmo save (SAVE_3A) e o mesmo caminho abaixo
     // (servidor deste teste, 360x780, scrollHeight; Skills é a aba da montaria ativa)
     const ALTURA_ANTES_3A = { estabulo: 1284, status: 1894, correr: 802, skills: 1145 }
-    const mod = (tpl, o) => Object.assign({ uid: 'm1', templateId: tpl.id, name: tpl.name, especie: 'cavalo', element: tpl.element, rarity: tpl.rarity,
-      grau: tpl.grau || 2, sex: tpl.sex, level: 1, xp: 0, skills: tpl.skills.slice(), potential: JSON.parse(JSON.stringify(tpl.potential)),
-      palette: JSON.parse(JSON.stringify(tpl.palette)), breedLeft: 2, parents: null, born: 0, equip: {}, respecFree: true,
-      alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } }, o)
-    const SAVE_3A = {
-      v: 6, rev: 20, gold: 1200, tier: 100, seedBase: 3131, raceCounter: 4, redeas: 0, avisoV6: false,
-      races: 3, wins: 1, podiums: 2, goldWon: 300,
-      mounts: [
-        mod(G.STARTERS.find((h) => h.id === 'brasa'), { uid: 'm1', level: 20, xp: 10, skills: ['sprint'], alloc: { vel: 4, acel: 4, man: 0, forca: 0, est: 2, garra: 0, sorte: 0 }, equip: { sela: 'i1' } }),
-        mod(G.WILD_HORSES.find((h) => h.id === 'w-ventania'), { uid: 'm2', level: 12 }),
-        mod(G.STARTERS.find((h) => h.id === 'mare'), { uid: 'm3', level: 5 })
-      ],
-      activeId: 'm1', nextUid: 4, stableSlots: 3, breedCounter: 0,
-      items: [{ uid: 'i1', id: 'sela-comum', plus: 3 }, { uid: 'i2', id: 'testeira-comum', plus: 0 }], nextItemUid: 3, pedras: 0, enhanceCounter: 0,
-      settings: { motion: 'sistema' }, joquei: { padrao: 'xadrez', capacete: '#62b8ff' }
-    }
-    // títulos compridos (Review Focus 2): 10 vagas cheias e a ativa com nome de 24 caracteres. O jogo corta o nome em
-    // 16 e as vagas em 8 ao ler o save; o teste repõe os dois no estado depois de abrir (pior caso, com folga)
-    const NOME_LONGO = 'Relâmpago da Madrugada X'
-    const MODELOS_3A = [...G.STARTERS, ...G.WILD_HORSES]
-    const SAVE_3A_LONGO = Object.assign({}, SAVE_3A, {
-      mounts: MODELOS_3A.concat(MODELOS_3A).slice(0, 10).map((tpl, i) => mod(tpl, { uid: 'm' + (i + 1), level: 1 + 3 * i })),
-      nextUid: 11, stableSlots: 10, items: [], nextItemUid: 1
-    })
-    SAVE_3A_LONGO.mounts[0] = mod(G.STARTERS.find((h) => h.id === 'brasa'), { uid: 'm1', name: NOME_LONGO, level: 20, xp: 10, skills: ['sprint'] })
     // sem border-image no elemento nem no ::before/::after (as peças de pixel entram por pseudo-elemento)
     const semBorderImage = async (pg, tag) => {
       const ruins = await pg.evaluate(() => {
@@ -3472,7 +3495,8 @@ try {
         const altura = () => pg.evaluate(() => document.documentElement.scrollHeight)
         const aEst = await altura()
         notes.alturaAcabamento = { estabulo: aEst }
-        if (aEst > 1.04 * ALTURA_ANTES_3A.estabulo) problems.push(`acabamento: Estábulo com ${aEst}px (limite ${Math.round(1.04 * ALTURA_ANTES_3A.estabulo)}, antes ${ALTURA_ANTES_3A.estabulo})`)
+        // 3b §2: o Estábulo em lista de linhas cabe numa tela (era 1,04 × a medida de antes da 3a)
+        if (aEst > 780) problems.push(`acabamento: Estábulo com ${aEst}px (limite 780, spec 3b §2; antes da 3a ${ALTURA_ANTES_3A.estabulo})`)
         await semBorderImage(pg, 'estabulo')
         // painel, saldo e título com as peças; molduras do painel, do destaque (montaria ativa), do saldo e do retrato
         await pecasNoLugar(pg, 'estabulo', ['.caixa', '.saldo', 'h1.titulo--tela', '.montaria--ativa'])
@@ -3529,7 +3553,7 @@ try {
         await pg.evaluate((nome) => { const s = window.__galope.state; s.stableSlots = 10; s.mounts[0].name = nome }, NOME_LONGO)
         await aba('correr')   // redesenha com o estado reposto
         await aba('estabulo')
-        const t = await pg.evaluate(() => ({ est: document.getElementById('t-estabulo').textContent, n: document.querySelectorAll('.montaria').length }))
+        const t = await pg.evaluate(() => ({ est: document.getElementById('t-estabulo').textContent, n: document.querySelectorAll('.montaria-linha').length }))
         if (!/10\/10 vagas/.test(t.est) || t.n !== 10) problems.push(`acabamento-longo: o Estábulo não ficou com 10/10 vagas (${JSON.stringify(t)})`)
         await confere('estabulo')
         await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
@@ -3629,7 +3653,6 @@ try {
         await pg.context().close()
       }
     }
-    const comSave = (save) => ({ init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(JSON.stringify(save))}) } } catch (e) {}` } })
     {
       // Tarefa 4 nas telas do jogo a 360x780: display na escala, ⓘ desenhado, contraste, abas e apertar a escolhida
       const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-telas', comSave(SAVE_3A))
@@ -3864,7 +3887,8 @@ try {
         raw.mounts.push(JSON.parse(JSON.stringify(TETO_M2)))
       })
       await confere('Expandir estábulo sem Ouro', '[data-acao="expandir"]', /^Falta Ouro para expandir o estábulo\.$/)
-      await confere('Tornar ativa na lista (já ativa)', '.montarias [data-acao="ativar"][data-id="m1"]', /^Esta já é a montaria ativa\.$/)
+      // 3b §4: "Tornar ativa" saiu da lista (só na ficha): nenhum botão de ativar no Estábulo; o da ficha, abaixo, tem os mesmos motivos
+      if (await pg.locator('#tela [data-acao="ativar"]').count()) problems.push(`${label}: "Tornar ativa" na lista do Estábulo (sem páreo)`)
       await abreFicha('m1')
       await confere('Tornar ativa na ficha (já ativa)', '.montaria-cabeca [data-acao="ativar"]', /^Esta já é a montaria ativa\.$/)
       await confere('Liberar a ativa', '.montaria-cabeca [data-acao="liberar"]', /^A montaria ativa não pode ser liberada\.$/)
@@ -3890,7 +3914,7 @@ try {
         raw.activeId = 'm2'; raw.raceCounter = 4
         raw.pending = { counter: raw.raceCounter, training: false, fee: 100, pr: S.powerRating(raw.mounts[1]), alloc: JSON.parse(JSON.stringify(raw.mounts[1].alloc)), gear: [] }
       })
-      await confere('Tornar ativa na lista (páreo aberto)', '.montarias [data-acao="ativar"][data-id="m1"]', /^Páreo aberto: corra a sala antes de trocar a montaria ativa\.$/)
+      if (await pg.locator('#tela [data-acao="ativar"]').count()) problems.push(`${label}: "Tornar ativa" na lista do Estábulo (páreo aberto)`)
       await abreFicha('m1')
       await confere('Tornar ativa na ficha (páreo aberto)', '.montaria-cabeca [data-acao="ativar"]', /^Páreo aberto: corra a sala antes de trocar a montaria ativa\.$/)
       await confere('Liberar com páreo aberto', '.montaria-cabeca [data-acao="liberar"]', /^Páreo aberto: corra a sala antes de liberar uma montaria\.$/)
@@ -3907,6 +3931,135 @@ try {
       problems.push(`${label}: ${e.message}`)
     } finally {
       await pg.context().close()
+    }
+
+    // ---- Estábulo em lista de linhas (3b §4): um botão por cavalo, na ordem de state.mounts; altura; foco ao voltar ----
+    // cada linha: uid, tipo, ação, destaque, nome acessível, texto à vista, selo "Ativa", o retrato (escondido do leitor de
+    // tela e desenhado na escala 2: o canvas tem 96x72 px de CSS e 48x36 × round(2 × dpr) pixels, sem encolher pelo CSS)
+    const linhasDe = (p) => p.evaluate(() => Array.from(document.querySelectorAll('#tela .montaria-linha')).map((b) => {
+      const cv = b.querySelector('canvas.retrato'), oculto = cv && cv.closest('[aria-hidden="true"]'), r = cv ? cv.getBoundingClientRect() : null, bb = b.getBoundingClientRect()
+      const semRetrato = b.cloneNode(true)
+      semRetrato.querySelectorAll('.retrato-moldura').forEach((x) => x.remove())
+      return { id: b.getAttribute('data-id'), tag: b.tagName, tipo: b.getAttribute('type'), acao: b.getAttribute('data-acao'), ativa: b.classList.contains('montaria--ativa'),
+        rotulo: b.getAttribute('aria-label'), txt: semRetrato.textContent.replace(/\s+/g, ' ').trim(), selosAtiva: b.querySelectorAll('.badge-ativa').length,
+        estrelas: b.querySelectorAll('.estrelas').length, retratoOculto: !!(oculto && b.contains(oculto)), dpr: window.devicePixelRatio,
+        cv: cv ? [cv.width, cv.height, Math.round(r.width), Math.round(r.height)] : null, x: Math.round(bb.left), w: Math.round(bb.width), h: Math.round(bb.height), sw: b.scrollWidth, cw: b.clientWidth }
+    }))
+    // confere a lista contra o estado do jogo (alturaMax: altura do documento, ou null para não medir); devolve a altura
+    const confereLista = async (p, tag, alturaMax) => {
+      const s = await p.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+      const ls = await linhasDe(p)
+      const ids = ls.map((l) => l.id), esperado = s.mounts.map((m) => m.uid)
+      if (JSON.stringify(ids) !== JSON.stringify(esperado)) problems.push(`${label} ${tag}: linhas ${JSON.stringify(ids)} fora da ordem de state.mounts ${JSON.stringify(esperado)}`)
+      if (await p.locator('#tela [data-acao="ativar"]').count()) problems.push(`${label} ${tag}: "Tornar ativa" na lista do Estábulo`)
+      if (await p.locator('#tela .montaria').count()) problems.push(`${label} ${tag}: o cartão antigo (.montaria) continua no Estábulo`)
+      for (const l of ls) {
+        const m = s.mounts.find((x) => x.uid === l.id)
+        if (!m) continue
+        const ativa = m.uid === s.activeId, num = m.uid.replace(/\D+/g, '')
+        const rot = `${m.name} #${num}, nível ${m.level}${ativa ? ', ativa' : ''}. Abrir ficha.`
+        if (l.tag !== 'BUTTON' || l.tipo !== 'button' || l.acao !== 'montaria') problems.push(`${label} ${tag}: linha de ${m.uid} não é um <button type="button" data-acao="montaria"> (${l.tag} ${l.tipo} ${l.acao})`)
+        if (l.rotulo !== rot) problems.push(`${label} ${tag}: aria-label da linha de ${m.uid} "${l.rotulo}" (esperado "${rot}")`)
+        if (l.ativa !== ativa || l.selosAtiva !== (ativa ? 1 : 0)) problems.push(`${label} ${tag}: linha de ${m.uid} com destaque ${l.ativa} e ${l.selosAtiva} selo(s) "Ativa" (ativa: ${ativa})`)
+        // à vista: nome e #N, estrelas, raridade, tipo e Poder (sem equipamento); fora da linha: sexo, cruzas, Corcel e XP (3b §4)
+        const visiveis = [m.name, '#' + num, G.RARITIES[m.rarity].name, G.ELEMENTS[m.element].name, 'Poder ' + S.powerRating(m)]
+        const faltam = visiveis.filter((t) => !l.txt.includes(t))
+        if (faltam.length || l.estrelas !== 1) problems.push(`${label} ${tag}: linha de ${m.uid} sem ${JSON.stringify(faltam)}${l.estrelas !== 1 ? ' e sem as estrelas' : ''}: "${l.txt}"`)
+        if (/Macho|Fêmea|cruza|Corcel|XP/.test(l.txt)) problems.push(`${label} ${tag}: linha de ${m.uid} com sexo, cruzas, Corcel ou XP (ficam na ficha): "${l.txt}"`)
+        if (!l.retratoOculto) problems.push(`${label} ${tag}: o retrato da linha de ${m.uid} não está aria-hidden`)
+        const k = Math.max(1, Math.round(2 * l.dpr))
+        if (!l.cv || l.cv[0] !== 48 * k || l.cv[1] !== 36 * k || l.cv[2] !== 96 || l.cv[3] !== 72) problems.push(`${label} ${tag}: retrato da linha de ${m.uid} ${JSON.stringify(l.cv)} (esperado ${48 * k}x${36 * k} pixels em 96x72 px: escala 2, sem encolher pelo CSS)`)
+        if (l.w < 44 || l.h < 44) problems.push(`${label} ${tag}: linha de ${m.uid} com ${l.w}x${l.h} px (alvo mínimo 44x44)`)
+        if (l.sw > l.cw + 1) problems.push(`${label} ${tag}: o conteúdo sai da linha de ${m.uid} (scrollWidth ${l.sw} > ${l.cw})`)
+      }
+      // uma coluna também no computador (3b §4)
+      if (new Set(ls.map((l) => l.x)).size > 1) problems.push(`${label} ${tag}: linhas em mais de uma coluna (x ${JSON.stringify(ls.map((l) => l.x))})`)
+      const h = await p.evaluate(() => document.documentElement.scrollHeight)
+      notes[`${label} ${tag}`] = { altura: h, linhas: ls.map((l) => l.h) }
+      if (alturaMax != null && h > alturaMax) problems.push(`${label} ${tag}: Estábulo com ${h}px de altura (limite ${alturaMax}, spec 3b §2)`)
+      await checkOverflow(p, `${label} ${tag}`)
+      return h
+    }
+    // o foco depois de "Voltar" da ficha (Review Focus 2): a linha daquele cavalo, inteira entre o cabeçalho e a barra de abas
+    const focoNaLinha = async (p, uid, tag) => {
+      const f = await p.evaluate(() => {
+        const a = document.activeElement
+        if (!a || !a.classList.contains('montaria-linha')) return { fora: a ? `${a.tagName.toLowerCase()}#${a.id}.${String(a.className).trim().replace(/\s+/g, '.')}` : null }
+        const r = a.getBoundingClientRect(), topo = document.querySelector('.app-topo').getBoundingClientRect(), abas = document.querySelector('.app-abas').getBoundingClientRect()
+        return { id: a.getAttribute('data-id'), visivel: r.top >= topo.bottom - 1 && r.bottom <= abas.top + 1 }
+      })
+      if (f.id !== uid) problems.push(`${label} ${tag}: depois de "Voltar" o foco ficou em ${f.id ? 'outra linha (' + f.id + ')' : f.fora} (esperado a linha de ${uid})`)
+      else if (!f.visivel) problems.push(`${label} ${tag}: a linha de ${uid}, com o foco, ficou fora da tela (atrás do cabeçalho ou da barra de abas)`)
+    }
+    // troca a ativa pela ficha: até a Tarefa 3 o "Tornar ativa" fica na cabeça da ficha (ela o leva para a aba Ficha)
+    const ativaPelaFicha = async (p, uid) => {
+      await p.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click()
+      await p.waitForSelector('#t-montaria')
+      await p.locator('.montaria-cabeca [data-acao="ativar"]').click()
+      if ((await p.evaluate(() => window.__galope.state.activeId)) !== uid) problems.push(`${label}: "Tornar ativa" da ficha não ativou ${uid}`)
+    }
+    {
+      // SAVE_3A (3 cavalos) a 360x780: a tela inteira cabe numa tela
+      const p3 = await newPage(browser, { width: 360, height: 780 }, label + '-estabulo3', comSave(SAVE_3A))
+      try {
+        await p3.waitForSelector('#t-estabulo')
+        await confereLista(p3, '3 cavalos', 780)
+        // tocar na 2ª linha abre a ficha daquele cavalo; "Voltar" devolve o foco à linha dele
+        await p3.locator('#tela .montaria-linha').nth(1).click()
+        await p3.waitForSelector('#t-montaria')
+        const f = await p3.evaluate(() => ({ tela: window.__galope.ui.screen, uid: window.__galope.ui.montaria && window.__galope.ui.montaria.uid }))
+        if (f.tela !== 'montaria' || f.uid !== 'm2') problems.push(`${label}: a 2ª linha abriu ${JSON.stringify(f)} (esperado a ficha da m2)`)
+        await p3.locator('[data-acao="montaria-voltar"]').click()
+        await p3.waitForSelector('#t-estabulo')
+        await focoNaLinha(p3, 'm2', '3 cavalos, Voltar da m2')
+        // trocar a ativa pela ficha e voltar: a ordem das linhas não muda (só o destaque passa para a nova ativa)
+        await ativaPelaFicha(p3, 'm3')
+        await p3.locator('[data-acao="montaria-voltar"]').click()
+        await p3.waitForSelector('#t-estabulo')
+        await focoNaLinha(p3, 'm3', '3 cavalos, Voltar depois de ativar a m3')
+        const ordem = (await linhasDe(p3)).map((l) => l.id)
+        if (JSON.stringify(ordem) !== '["m1","m2","m3"]') problems.push(`${label}: depois de trocar a ativa, as linhas ficaram na ordem ${JSON.stringify(ordem)} (esperado m1, m2, m3)`)
+        await confereLista(p3, '3 cavalos, m3 ativa', 780)
+      } catch (e) {
+        problems.push(`${label}-estabulo3: ${e.message}`)
+      } finally {
+        await p3.context().close()
+      }
+    }
+    {
+      // SAVE_3B_6 (6 cavalos) a 360x780: ≤ 1.100 px; a 6ª linha (abaixo da dobra) recebe o foco e aparece ao voltar
+      const p6 = await newPage(browser, { width: 360, height: 780 }, label + '-estabulo6', comSave(SAVE_3B_6))
+      try {
+        await p6.waitForSelector('#t-estabulo')
+        await confereLista(p6, '6 cavalos', 1100)
+        await p6.locator('button[data-acao="montaria"][data-id="m6"]').click()
+        await p6.waitForSelector('#t-montaria')
+        await p6.locator('[data-acao="montaria-voltar"]').click()
+        await p6.waitForSelector('#t-estabulo')
+        await focoNaLinha(p6, 'm6', '6 cavalos, Voltar da m6')
+      } catch (e) {
+        problems.push(`${label}-estabulo6: ${e.message}`)
+      } finally {
+        await p6.context().close()
+      }
+    }
+    for (const [larg, alt] of [[360, 780], [1280, 800]]) {
+      // SAVE_3A_LONGO (10 vagas, nome de 24 caracteres): sem rolagem lateral e nada saindo da linha
+      const pl = await newPage(browser, { width: larg, height: alt }, `${label}-longo-${larg}`, comSave(SAVE_3A_LONGO))
+      try {
+        await pl.waitForSelector('#t-estabulo')
+        await pl.evaluate((nome) => { const s = window.__galope.state; s.stableSlots = 10; s.mounts[0].name = nome }, NOME_LONGO)
+        await pl.locator('[data-acao="aba"][data-id="correr"]').click()   // redesenha com o estado reposto
+        await pl.waitForSelector('#t-correr')
+        await pl.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pl.waitForSelector('#t-estabulo')
+        if ((await pl.locator('#tela .montaria-linha').count()) !== 10) problems.push(`${label} longo ${larg}: o Estábulo não mostra as 10 linhas`)
+        await confereLista(pl, `longo ${larg}`, null)
+      } catch (e) {
+        problems.push(`${label}-longo-${larg}: ${e.message}`)
+      } finally {
+        await pl.context().close()
+      }
     }
   }
 
@@ -4304,7 +4457,8 @@ try {
         await pg.locator('[data-acao="dev-criar"]').click()   // m2 (vira a ativa), com os mesmos pontos
         await devFechar(pg)
         await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
-        await pg.locator('[data-acao="ativar"][data-id="m1"]').click()
+        await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()   // 3b §4: "Tornar ativa" só na ficha
+        await pg.locator('.montaria-cabeca [data-acao="ativar"]').click()
         s = await estado(pg)
         if (s.activeId !== 'm1' || !(G.STAT_KEYS.some((k) => da(s, 'm2').alloc[k] > 0))) problems.push(`${label}: preparo do páreo ` + JSON.stringify({ ativa: s.activeId, m2: da(s, 'm2') && da(s, 'm2').alloc }))
         await abrirSala(pg)
@@ -4368,7 +4522,7 @@ try {
         await pg.waitForSelector('#t-montaria')
         if (aba !== 'status') await pg.locator(`[data-acao="montaria-aba"][data-id="${aba}"]`).click()
       }
-      const seloDe = async (uid) => limpo(await pg.locator(`.montaria[data-uid="${uid}"] .pontos-livres`).first().textContent({ timeout: 500 }).catch(() => ''))
+      const seloDe = async (uid) => limpo(await pg.locator(`.montaria-linha[data-id="${uid}"] .pontos-livres`).first().textContent({ timeout: 500 }).catch(() => ''))
       try {
         await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
         await pg.waitForSelector('#t-estabulo')
@@ -4493,7 +4647,8 @@ try {
         // RF3: m2 ativa com páreo aberto. Os +N que passariam do Poder da sala ficam desabilitados com o motivo; o sugerido
         // passa do Poder da sala, o Confirmar fica bloqueado com o motivo (na tela e no title) e nada é gravado, nem forçando
         await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
-        await pg.locator('[data-acao="ativar"][data-id="m2"]').click()
+        await pg.locator('button[data-acao="montaria"][data-id="m2"]').click()   // 3b §4: "Tornar ativa" só na ficha
+        await pg.locator('.montaria-cabeca [data-acao="ativar"]').click()
         await abrirSala(pg)
         s = await estado(pg)
         const m2 = s.mounts.find((m) => m.uid === 'm2'), pr = s.pending.pr
@@ -4584,7 +4739,7 @@ try {
   if (quebradas) problems.push('ícones: ' + quebradas + ' imagem(ns) quebrada(s)')
   if ((await page.locator('.dev-painel, .dev-faixa, .dev-botao').count()) !== 0) problems.push('painel/faixa dev presente sem ?dev=1')
 
-  // tela da Montaria (pelo "Ver" do cartão): renomear (escapado), a ativa não pode ser liberada; depois expandir o estábulo
+  // tela da Montaria (pela linha do Estábulo): renomear (escapado), a ativa não pode ser liberada; depois expandir o estábulo
   await page.locator('button[data-acao="montaria"][data-id="m1"]').click()
   await page.waitForSelector('#t-montaria')
   // renomear num campo da própria tela (window.prompt não abre no iframe do artefato): Enter confirma, Esc cancela
@@ -4922,7 +5077,12 @@ try {
     await cz.waitForSelector('#t-correr')
     await cz.locator('[data-acao="aba"][data-id="estabulo"]').click()
     await cz.waitForSelector('#t-estabulo')
-    if (!(await indisp(cz.locator('.montaria:not(.montaria--ativa) [data-acao="ativar"]').first()))) problems.push('cruzamento: ativar habilitado com páreo aberto')
+    // 3b §4: "Tornar ativa" saiu da lista (só na ficha): a lista não tem o botão, e o da ficha de outra montaria fica indisponível
+    if (await cz.locator('#tela [data-acao="ativar"]').count()) problems.push('cruzamento: "Tornar ativa" na lista do Estábulo')
+    const outraCz = await cz.evaluate(() => { const s = window.__galope.state; const m = s.mounts.find((x) => x.uid !== s.activeId); return m ? m.uid : null })
+    await cz.locator(`button[data-acao="montaria"][data-id="${outraCz}"]`).click()
+    await cz.waitForSelector('#t-montaria')
+    if (!(await indisp(cz.locator('.montaria-cabeca [data-acao="ativar"]').first()))) problems.push('cruzamento: ativar habilitado com páreo aberto')
     await cz.locator('[data-acao="aba"][data-id="haras"]').click()
     await cz.waitForSelector('#t-haras')
     await cz.locator('[data-acao="haras-mine"][data-id="m1"]').click()
@@ -5078,7 +5238,7 @@ try {
       await mn.locator('[data-acao="aba"][data-id="estabulo"]').click()
       const estTxt = await mn.locator('#tela').textContent()
       if (/Preparar corrida|Cavalos selvagens|Recomeçar/.test(estTxt)) problems.push('menu: estábulo ainda tem conteúdo das outras abas')
-      if ((await mn.locator('button[data-acao="montaria"][data-id="m1"]').count()) !== 1) problems.push('menu: cartão sem "Ver"')
+      if ((await mn.locator('button[data-acao="montaria"][data-id="m1"]').count()) !== 1) problems.push('menu: o Estábulo sem o botão que abre a ficha (a linha da m1)')
       // 7. expedição mostra a vitrine dos selvagens
       await mn.locator('[data-acao="aba"][data-id="expedicao"]').click()
       if ((await mn.locator('.selvagem').count()) < 3) problems.push('menu: expedição sem selvagens')
@@ -6365,11 +6525,14 @@ try {
         if (n.icones || n.quebradas) problems.push(`sem-icones: ${tela} com ${n.icones} img.icone e ${n.quebradas} imagem(ns) quebrada(s)`)
       }
       const estTxt = (await sem.locator('.montarias').textContent()) || ''
-      if (!/★★☆/.test(estTxt) || !/♂ Macho/.test(estTxt)) problems.push('sem-icones: estábulo sem a reserva das estrelas e do sexo: ' + estTxt.replace(/\s+/g, ' ').slice(0, 200))
-      if ((await sem.locator('.montaria .estrelas').first().getAttribute('aria-label')) !== '2 de 3 estrelas') problems.push('sem-icones: estrelas sem o aria-label')
+      if (!/★★☆/.test(estTxt)) problems.push('sem-icones: estábulo sem a reserva das estrelas: ' + estTxt.replace(/\s+/g, ' ').slice(0, 200))
+      if ((await sem.locator('.montaria-linha .estrelas').first().getAttribute('aria-label')) !== '2 de 3 estrelas') problems.push('sem-icones: estrelas sem o aria-label')
       if (((await sem.locator('.app-perfil').textContent()) || '').trim() !== '👤') problems.push('sem-icones: botão do Perfil sem o emoji')
       await sem.locator('button[data-acao="montaria"][data-id="m1"]').click()
       await sem.waitForSelector('#t-montaria')
+      // o sexo saiu da linha do Estábulo (3b §4): a reserva dele é conferida na ficha
+      const fichaSemTxt = (await sem.locator('.montaria-cabeca').textContent()) || ''
+      if (!/♂ Macho/.test(fichaSemTxt)) problems.push('sem-icones: ficha sem a reserva do sexo: ' + fichaSemTxt.replace(/\s+/g, ' ').slice(0, 200))
       if ((await sem.locator('.build-nome svg.icone-status').count()) !== 7) problems.push('sem-icones: aba Status sem os 7 status em SVG')
       await semImg('Montaria (Status)')
       await sem.locator('[data-acao="montaria-aba"][data-id="skills"]').click()

@@ -619,15 +619,72 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .selvagem--raro { box-shadow: inset 0 -4px 0 0 var(--r-raro); }
 .selvagem--lendario { box-shadow: inset 0 -4px 0 0 var(--r-lendario); }
 .selvagem--mitico { box-shadow: inset 0 -4px 0 0 var(--r-mitico); }
-.montarias { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
-@media (min-width: 601px) { .montarias { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* cartão da montaria: só o do potro no resultado do Haras (o Estábulo é a lista de linhas, abaixo) */
 .montaria { background: var(--painel-2); padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .montaria .retrato, .montaria .retrato-moldura { align-self: center; }
-.montaria--ativa { padding: 10px; }   /* o destaque tem rebites nos cantos: 2px a mais de respiro */
+.montaria.montaria--ativa { padding: 10px; }   /* o destaque tem rebites nos cantos: 2px a mais de respiro */
 .montaria .cavalo-nome { overflow-wrap: anywhere; }
 .montaria .cavalo-nome small { color: var(--texto-2); font-size: 1em; text-shadow: none; }   /* "#1": a display do nome, em 16px */
 .estrelas { color: var(--ouro); letter-spacing: 1px; display: inline-flex; align-items: center; gap: 1px; vertical-align: middle; }
 .corcel { color: var(--ouro); font-size: var(--t-xs); }
+/* lista do Estábulo (3b §4): uma linha (botão) por cavalo, numa coluna em qualquer largura, na ordem do estábulo. Avança
+   4px sobre o respiro do painel (o contorno das linhas não chega aos rebites dos cantos dele) */
+.montarias { list-style: none; margin: 0 -4px; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+.montarias > li { display: block; min-width: 0; }
+/* a linha: retrato pequeno à esquerda (ao lado das três linhas de texto) e a seta à direita. As outras linhas têm a
+   moldura do botão (§4.4: contorno de cantos recortados, bisel em 3 tons e sombra de 4px); a ativa, o destaque dourado
+   com os rebites (§4.2, a regra do .montaria--ativa) no --painel-3 */
+.montaria-linha {
+  appearance: none; border: 0; margin: 0; width: 100%; min-width: 0; position: relative;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-content: center; align-items: center;
+  column-gap: 10px; row-gap: 2px; padding: 6px 8px 6px 10px;
+  background: var(--painel-2); color: var(--texto); font: inherit; text-align: left; cursor: pointer;
+  touch-action: manipulation; -webkit-user-select: none; user-select: none;
+}
+.montaria-linha:not(.montaria--ativa) {
+  box-shadow:
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    0 4px 0 0 var(--sombra),
+    inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
+    inset 0 2px 0 0 var(--linha-luz), inset 2px 0 0 0 var(--linha-luz);
+}
+.montaria-linha.montaria--ativa { background: var(--painel-3); }
+.montaria-linha:not(.montaria--ativa):hover { background: var(--painel-3); }
+/* apertada: desce 2px e a sombra encolhe (a ativa continua com o destaque, como a opção escolhida) */
+.montaria-linha:not(.montaria--ativa):active {
+  transform: translateY(2px);
+  box-shadow:
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
+    inset 0 2px 0 0 var(--linha-luz), inset 2px 0 0 0 var(--linha-luz);
+}
+.montaria-linha.montaria--ativa:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 0 0 2px var(--ouro-escuro), 0 0 0 4px var(--sombra), 0 6px 0 0 var(--sombra),
+    inset 0 2px 0 0 var(--ouro), inset 2px 0 0 0 var(--ouro-medio), inset 0 -2px 0 0 var(--noite-2), inset -2px 0 0 0 var(--noite-2);
+}
+.montaria-linha:focus-visible { outline-offset: 5px; }
+/* retrato pequeno (escala 2, 96x72 px): a moldura de madeira (6px em volta do canvas) fica dentro da linha, a 6px da borda
+   em cima e embaixo e a 10px à esquerda: os rebites da ativa (a 4-10px da borda) ficam ao lado dela, sem cobri-la */
+.montaria-linha-retrato { grid-column: 1; grid-row: 1 / span 3; display: block; line-height: 0; margin: 6px 0 6px 6px; }
+.montaria-linha-nome {
+  grid-column: 2; min-width: 0; overflow-wrap: anywhere;
+  font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; color: var(--texto); text-shadow: 2px 2px 0 var(--sombra);
+}
+.montaria-linha-nome small { font-family: var(--fonte-ui); font-size: var(--t-m); line-height: 1; color: var(--texto-2); text-shadow: none; white-space: nowrap; margin-left: 6px; }
+.montaria-linha-meta { grid-column: 2; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--t-s); line-height: 1.25; }
+.montaria-linha-meta .raridade { margin: 2px 0; }
+/* o selo "Ativa" da linha: uma plaquinha presa na borda de cima, sobre o canto da moldura do retrato (não toma a largura
+   do texto); os 16px entre as linhas a deixam longe da sombra da linha de cima */
+.montaria-linha .badge-ativa { position: absolute; z-index: 2; top: -8px; left: 18px; width: 48px; text-align: center; font-size: var(--t-xs); padding: 4px 0 3px; }
+.montaria-linha-poder { color: var(--texto-2); white-space: nowrap; }
+.montaria-linha-poder b { color: var(--texto); }
+/* a seta: o desenho ocupa as colunas 2 a 5 das 8 do svg; as margens deixam 6px entre o texto e ela e 8px até a borda */
+.montaria-linha-seta { grid-column: 3; grid-row: 1 / span 3; width: 16px; height: 16px; margin: 0 -4px 0 -8px; color: var(--texto-2); fill: currentColor; }
+.montaria--ativa .montaria-linha-seta { color: var(--ouro); }
+/* os selos do retrato pequeno: um passo menor (Jersey 15px), para o cavalo continuar à vista */
+.retrato--pequeno ~ .selo-nivel, .retrato--pequeno ~ .pontos-livres--selo { font-size: var(--t-xs); padding: 3px 4px 2px; }
 /* "Ativa"/"Equipada" e "VOCÊ" (largada e resultado): o mesmo selo de ouro, na Jersey no tamanho do texto em volta */
 .badge-ativa, .tag-voce {
   font-family: var(--fonte-ui); font-size: var(--t-s); line-height: 1; color: var(--tinta); background: var(--ouro); padding: 4px 6px 3px;
@@ -890,8 +947,6 @@ html.mov-reduzido *, html.mov-reduzido *::before, html.mov-reduzido *::after { t
 .app-aba:focus-visible, .app-aba.foco-demo { outline-offset: -3px; }
 /* o foco por teclado nunca fica atrás do cabeçalho fixo nem da barra de abas */
 html.app-com-abas { scroll-padding: calc(56px + var(--sat)) 0 calc(72px + env(safe-area-inset-bottom, 0px)); }
-/* o cartão inteiro da montaria abre a montaria */
-.montaria[data-acao] { cursor: pointer; }
 @media (min-width: 900px) {
   /* barra lateral: o friso e o contorno à direita; cada aba é um botão de 48px na linha de 56px */
   .app-abas {
@@ -1038,9 +1093,10 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
    painéis e abas ganham borda de 2px em cor do sistema (a escolhida e a aba atual em Highlight) e as peças de pixel
    ficam escondidas. O ⓘ vira um "i" num quadro, para o botão não sumir ---------- */
 @media (forced-colors: active) {
-  .btn, .opcao, .caixa, .app-aba, .montaria--ativa { border: 2px solid ButtonText; }
+  .btn, .opcao, .caixa, .app-aba, .montaria--ativa, .montaria-linha { border: 2px solid ButtonText; }
   .app-aba { padding-block: 0; }   /* sem bisel: a borda ocupa o lugar dele, e o ícone e o rótulo continuam cabendo */
   .opcao[aria-pressed="true"], .app-aba--ativa, .montaria--ativa { border-color: Highlight; }
+  .montaria-linha-seta { fill: ButtonText; }   /* o svg não ganha a cor do sistema sozinho */
   .caixa::before, .montaria--ativa::before, .opcao[aria-pressed="true"]::before, .saldo::before,
   .placa::before, .titulo--tela::before { display: none; }
   .placa, .titulo--tela { background-image: none; }
