@@ -1,6 +1,6 @@
 # Visuais 2, parte 3b: Estábulo e montaria no celular
 
-Desenho de 2026-11-15, conversado com o Vinicius. Branch `claude/visuais-2`, sobre a parte 3a (acabamento), que ainda
+Desenho de 2026-11-15, conversado com o Vinicius. **Aprovado pelo Vinicius em 2026-11-15.** Branch `claude/visuais-2`, sobre a parte 3a (acabamento), que ainda
 espera a avaliação dele (`docs/memoria/ESTADO.md`, lista "A confirmar com o Vinicius"). Divisão da parte 3 e regras de
 celular: spec da 3a, `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md` §§ topo e 7.
 

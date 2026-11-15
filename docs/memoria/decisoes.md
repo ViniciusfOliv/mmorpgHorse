@@ -3,6 +3,16 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-15 — Visuais 2, parte 3b: Estábulo e montaria no celular (decisões do Vinicius)
+Spec em `docs/superpowers/specs/2026-11-15-estabulo-montaria-celular-design.md` (aprovada por ele).
+- **Aba Status em linha única com +1/+5/+10** — um toque soma, como hoje; a aba cai de 1.940 para até 1.200 px a 360 px.
+- **Estábulo em lista de linhas; "Tornar ativa" só na ficha** — cerca de 6 cavalos por tela; tocar na linha abre a ficha.
+- **Ficha com retrato grande e uma 3ª aba "Ficha"** (ações, porte, marcas, cruzas, pais) — o cavalo em destaque e as abas
+  na primeira tela.
+- Do controlador, na revisão da spec: meta do Status 1.200 px (não 1.100: a cabeça com o retrato grande se repete); se
+  retrato e abas brigarem, as abas vencem; barra do Confirmar = a `.barra-acao` sticky de hoje; o motivo de botão
+  indisponível aparece abaixo do grupo dele, um por vez; pais reconhecidos pelo `uid`.
+
 ## 2026-11-14 — Visuais 2, parte 3 (interface): divisão e 3a (controlador, sob delegação)
 O Vinicius pediu "Decida sozinho a divisão e pode começar". Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`.
 - **Parte 3 em três: 3a acabamento, 3b estábulo e montaria no celular, 3c tela da corrida** — o acabamento define as peças
