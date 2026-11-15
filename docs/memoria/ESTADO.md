@@ -1,6 +1,6 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-14._
+_Atualizado em 2026-11-15._
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
 durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o
@@ -18,7 +18,7 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
 - **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Cavalo, Itens,
   Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
-- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (129 testes de simulação, 104 de efeitos, 170 de moldes, 615 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de interface; contagem de 2026-11-14, parte 3a da Visuais 2).
+- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (129 testes de simulação, 104 de efeitos, 170 de moldes, 615 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de interface; contagem de 2026-11-15, parte 3b da Visuais 2: 129 / 104 / 170 / 615 / 87, sem mudança nas regras).
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
 | Frente | Entrega | Spec |
@@ -93,16 +93,28 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
   - retrato sem a sombra projetada;
   - hover do botão de perigo mudando o fundo;
   - rebites do pote da corrida, em tela baixa ou paisagem, lidos como dois-pontos ("¦POTE … 400¦"); cada item uma linha.
+- **A confirmar com o Vinicius (gosto, 3b):**
+  - linha do Estábulo com 3 linhas de texto (~96 px, a spec dizia ~88);
+  - plaquinha "Ativa" na borda de cima da linha;
+  - Poder do rascunho ("Poder A → B") na barra presa, não no topo;
+  - "Tornar ativa" dourado na ficha (some na ativa).
 - **Para a 3b:** o `::before` da `.opcao` escolhida já está ocupado pelo destaque; o bloco de `box-shadow` do botão se
   repete em `.btn`, `.app-aba` e `.capacete-btn` (dá para trocar por propriedades).
-- **Próximos passos:** 3b (estábulo e montaria no celular: lista compacta, ficha com o cavalo em destaque, Status sem
-  duas telas de rolagem, motivo visível no toque, "º" no leitor de tela) e 3c (tela da corrida); cada uma com spec e plano.
+- **Próximos passos:** 3c (tela da corrida; rever o ordinal sem `.sr` na faixa de eventos), com spec e plano. A 3b está pronta (acima).
   Pendências menores da 3a (sem hover/apertado nas abas da barra de baixo, "ç" de
   Expedição encostado no bisel).
 
 ## Em andamento
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b, que também traz a fonte da Rédea nova. Cada ginásio tem o
   foco num elemento.
+- **Parte 3b da Visuais 2 pronta na `claude/visuais-2`, esperando o Vinicius** (Estábulo e montaria no celular; spec em
+  `docs/superpowers/specs/2026-11-15-estabulo-montaria-celular-design.md`, plano em `docs/superpowers/plans/2026-11-15-estabulo-montaria-celular.md`;
+  decisões da execução em `decisoes.md`). Estábulo em lista de linhas, ficha com retrato grande e aba Ficha, aba Status em linha
+  única com a barra do Confirmar presa, motivo visível no toque e ordinal lido pelo leitor de tela. Alturas a 360×780: Estábulo
+  com 3 cavalos de 1.320 para 780 px, com 6 de 2.277 para 1.012 px; Status de 1.902 para 1.450 px; ficha com a linha de abas
+  inteira na 1ª tela. `check.sh` OK (129 testes de simulação, 104 de efeitos, 170 de moldes, 615 conferências do wiki, 87 metas
+  rápidas e o teste de interface). Capturas oficiais regeneradas; folha da interface com a linha nova do Estábulo. Sem merge
+  na `main` até ele olhar. **Republicar** a folha e o `jogo-dev.html` nos artefatos de teste.
 - **Parte 3a da Visuais 2 pronta na `claude/visuais-2`, esperando o Vinicius** (folha, build de teste e a lista "A confirmar
   com o Vinicius (gosto, 3a)" acima); sem merge na `main` até ele olhar.
 - **Visuais 2** (branch `claude/visuais-2`, criada da `claude/cavalos-v3`; a parte 1 foi integrada na
@@ -178,7 +190,7 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
    (acima); o que ele mudar entra antes do merge da `claude/visuais-2` na `main`.
 1. O Vinicius joga o modelo novo no artefato (jogo, DEV e wiki republicados com o 1b, já na `main`) e decide os
    pontos de calibração acima; o que ele mudar entra como ajuste por cima da `main`.
-2. **3b (estábulo e montaria no celular) e 3c (tela da corrida)** da Visuais 2, cada uma com spec e plano.
+2. **3c (tela da corrida)** da Visuais 2, com spec e plano (a 3b está pronta).
 3. O Vinicius apaga as branches antigas no GitHub (lista abaixo).
 4. **Bloco 2, preparação com relógio:** spec, revisão do Vinicius, plano e execução.
 5. **Bloco 3, empacotamento:** retomar pela pergunta do Capacitor; o teste fechado começa aqui.

@@ -3,6 +3,33 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-15 — Visuais 2, parte 3b: decisões da execução (controlador)
+Tudo abaixo é do controlador (nada foi decidido pelo Vinicius); os números estão em `.superpowers/sdd/2026-11-15-estabulo-montaria-celular/`.
+- **(controlador) Meta do Status: documento ≤ 1.450 px** (a conversa dizia ~1.100, a spec 1.200) — a cabeça com o retrato grande se
+  repete em cima e a spec §2 manda a §5 vencer. Meta nova: com as abas no topo, as 7 linhas de status inteiras visíveis (169–583 px;
+  `.app-abas` em 724). O Status caiu de 1.902 para 1.450 px (−24%).
+- **(controlador) "Poder A → B" do rascunho na barra presa, não no topo** — a lista não pula sob o dedo no 1º toque.
+- **(controlador) Barra presa:** por ~400 ms ao aparecer não pega toque (o 2º toque rápido cai no +N de baixo, não em
+  Desfazer/Confirmar); por ~400 ms depois do 1º toque no Confirmar os botões dela não pegam toque (o toque duplo não grava sem
+  ler o aviso). Teclado não é afetado; o foco de teclado nunca fica atrás da barra.
+- **(controlador) "Genética" no topo da aba Status**, ao lado dos pontos; o custo "·N" fica embaixo do valor, na mesma linha do grid.
+- **(controlador) Estábulo: linha de 3 linhas de texto** (nome / raridade + estrelas / tipo + Poder), ~96 px (a spec dizia ~88);
+  selo "Ativa" como plaquinha na borda de cima; a ordem nunca muda.
+- **(controlador) `history.scrollRestoration = 'manual'` no jogo todo** — o Voltar devolve o foco e a rolagem à linha do cavalo;
+  um reload abre no topo, como o boot já fazia.
+- **(controlador) Ficha:** retrato grande na escala 6 (as abas cabem com 97 px de folga); "+N" no canto de baixo à direita (em
+  cima cobria a cabeça); "Tornar ativa" some na ativa (o texto "Esta já é a montaria ativa." saiu) e fica dourado nas outras;
+  trocar de aba fecha o campo de renomear e a confirmação de liberar, como o rascunho; rótulos "Sexo:", "Cruzas restantes: N",
+  "Pais:".
+- **(controlador) Pais reconhecidos pelo `uid`** ("(fora do estábulo)" com uid nulo ou fora do estábulo, mesmo com nome igual ao
+  de um cavalo presente).
+- **(controlador) Motivo no toque:** `aria-disabled` nos 7 botões das telas da 3b; região viva `#motivo-vivo` fora da tela para o
+  leitor anunciar; Liberar e Tornar ativa recusam já no clique.
+- **(controlador) Ordinal com ".sr º" em todo o jogo, menos na faixa de eventos da corrida** (o .sr ali causava rolagem lateral; o
+  anúncio do jogador já vai pelo `#anuncio`) — rever na 3c.
+- **(controlador) Pendências para a onda final / depois:** nome acessível da linha do Estábulo sem o "+N"; contorno da plaquinha
+  "Ativa" nas cores forçadas; Corcel na linha "Sexo:" e "+N" do retrato grande sem contexto para o leitor de tela.
+
 ## 2026-11-15 — Visuais 2, parte 3b: Estábulo e montaria no celular (decisões do Vinicius)
 Spec em `docs/superpowers/specs/2026-11-15-estabulo-montaria-celular-design.md` (aprovada por ele).
 - **Aba Status em linha única com +1/+5/+10** — um toque soma, como hoje; a aba cai de 1.940 para até 1.200 px a 360 px.

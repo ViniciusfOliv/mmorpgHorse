@@ -22,6 +22,14 @@ const retrato = (w, h) => `<span class="retrato-moldura"><span class="retrato" s
 const ajuda = (extra = '', aberto = false) => `<button type="button" class="ajuda${extra}" aria-expanded="${aberto}" aria-label="O que é o Poder?" title="O Poder resume o cavalo."></button>`;
 const moeda = n => `<span class="ouro"><span aria-hidden="true">🪙</span><span>${n}</span><span class="sr">Ouro</span></span>`;
 
+// a seta da linha do Estábulo: mesmas linhas de pixel (SETA_ROWS) e mesmo caminho que o pixelSvg do game.js gera
+const SETA_ROWS = ['..#.....', '..##....', '...##...', '....##..', '...##...', '..##....', '..#.....', '........'];
+const setaSvg = () => {
+  let d = '';
+  SETA_ROWS.forEach((r, y) => { for (let x = 0; x < r.length;) { if (r[x] === '#') { const x0 = x; while (x < r.length && r[x] === '#') x++; d += `M${x0} ${y}h${x - x0}v1h-${x - x0}z`; } else x++; } });
+  return `<svg class="montaria-linha-seta" viewBox="0 0 8 8" aria-hidden="true" shape-rendering="crispEdges"><path d="${d}"/></svg>`;
+};
+
 const RARIDADES = [['comum', 'Comum'], ['magico', 'Mágico'], ['raro', 'Raro'], ['lendario', 'Lendário'], ['mitico', 'Mítico']];
 const LIGAS = [['bronze', 'Bronze'], ['prata', 'Prata'], ['ouro', 'Ouro'], ['platina', 'Platina'], ['diamante', 'Diamante'], ['lenda', 'Lenda']];
 
@@ -31,10 +39,15 @@ function secoes() {
   s.push(secao('4.1', 'Painel', 'Classe .caixa.',
     estados([['normal', '<div class="caixa"><h2 class="titulo">Estábulo</h2><p>Texto do painel com <b>valor</b>.</p></div>']])));
   // 4.2 Painel em destaque
-  s.push(secao('4.2', 'Painel em destaque', 'Cartão da montaria ativa (.montaria--ativa) e opção escolhida (.opcao[aria-pressed="true"]).',
+  s.push(secao('4.2', 'Painel em destaque', 'Linha da montaria ativa no Estábulo (.montaria-linha.montaria--ativa) e opção escolhida (.opcao[aria-pressed="true"]).',
     estados([
-      ['montaria ativa', '<article class="montaria montaria--ativa">' + retrato(96, 72) + '<h3 class="cavalo-nome">Brasa <small>#1</small></h3>' +
-        '<div class="linha-meta"><span class="raridade">Comum</span><span>cruza 2x</span><span class="badge-ativa">Ativa</span></div></article>'],
+      // a linha do Estábulo, com o markup do mountRowHtml do game.js (selo "Ativa" na borda de cima, retrato pequeno, seta)
+      ['montaria ativa', '<button type="button" class="montaria-linha montaria--ativa" aria-label="Brasa #1, nível 20, ativa. Abrir ficha.">' +
+        '<span class="montaria-linha-retrato" aria-hidden="true">' + retrato(96, 72) + '</span>' +
+        '<span class="montaria-linha-nome">Brasa<small>#1</small></span>' +
+        '<span class="montaria-linha-meta"><span class="raridade">Comum</span><span class="estrelas" role="img" aria-label="2 de 3 estrelas">★★☆</span><span class="badge-ativa">Ativa</span></span>' +
+        '<span class="montaria-linha-meta"><span class="el el--fogo">Fogo</span><span class="montaria-linha-poder">Poder <b>412</b></span></span>' +
+        setaSvg() + '</button>'],
       ['opção escolhida', btn('opcao opcao--centro', 'Escolhida', 'aria-pressed="true"')]
     ])));
   // 4.3 Placa de madeira
