@@ -106,7 +106,8 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
 - **Para a 3c:** o `::before` da `.opcao` escolhida já está ocupado pelo destaque; o bloco de `box-shadow` do botão se
   repete em `.btn`, `.app-aba`, `.capacete-btn` e `.montaria-linha` (4 cópias; dá para trocar por propriedades). Pendências
   da 3b que ficam para a 3c: o motivo que repete uma frase já na tela (a barra presa cresce ~100 px no Confirmar travado) e a
-  lista que pula quando a `.motivo` de um +N some.
+  lista que pula quando a `.motivo` de um +N some; e a plaquinha "Ativa" da linha do Estábulo sem contorno no modo de
+  cores forçadas (só aparência).
 - **Próximos passos:** 3c (tela da corrida; rever o ordinal sem `.sr` na faixa de eventos), com spec e plano. A 3b está pronta (acima).
   Pendências menores da 3a (sem hover/apertado nas abas da barra de baixo, "ç" de
   Expedição encostado no bisel).
