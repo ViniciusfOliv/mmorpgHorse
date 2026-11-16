@@ -11549,6 +11549,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       return '<span class="viz"><span class="viz-rot">' + esc(rot + ' ') + '</span><b class="viz-nome">' + esc(L.racers[j].horse.name) +
         '</b><span class="viz-m">' + esc(' ' + m) + '</span></span>';
     }
+    // distância em metros inteiros ("+3 m", "−4 m"); arredondada a 0, "colado" ("+0 m" lê como defeito)
+    function metrosTxt(sinal, d) {
+      var m = Math.max(0, Math.round(d));
+      return m === 0 ? 'colado' : sinal + m + ' m';
+    }
     function atualizaOrdem(order, st) {
       self.quadro = { order: order, pos: st.pos };
       var agora = window.performance.now();
@@ -11572,8 +11577,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var mostrada = self.ordemAtual || order, k = mostrada.indexOf(me), partes = [];
         var frente = k > 0 ? mostrada[k - 1] : -1, atras = k < n - 1 ? mostrada[k + 1] : -1;
         if (frente < 0) partes.push('<span class="viz"><span class="viz-rot">Você lidera</span></span>');
-        else partes.push(vizinhoHtml('À frente:', frente, '+' + Math.max(0, Math.round(st.pos[frente] - st.pos[me])) + ' m'));
-        if (atras >= 0) partes.push(vizinhoHtml('Atrás:', atras, '−' + Math.max(0, Math.round(st.pos[me] - st.pos[atras])) + ' m'));
+        else partes.push(vizinhoHtml('À frente:', frente, metrosTxt('+', st.pos[frente] - st.pos[me])));
+        if (atras >= 0) partes.push(vizinhoHtml('Atrás:', atras, metrosTxt('−', st.pos[me] - st.pos[atras])));
         html = partes.join('<span class="viz-sep"> · </span>');
       }
       hud.vizinhos.innerHTML = html;

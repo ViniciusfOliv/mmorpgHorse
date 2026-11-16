@@ -1234,11 +1234,13 @@ try {
   if (quer('corrida')) {
     const SEED7 = 16, SEED8 = 4242, SEED4 = 1, SEED6 = 5
     // arma a seed, abre a sala (onde a faixa não existe) e larga; devolve o n da sala
-    const abreCorrida = async (pg, label, seed) => {
+    // antesDeLargar(pg): roda na sala, antes do "Largar" (a simulação sai no Largar, com a sala como estiver)
+    const abreCorrida = async (pg, label, seed, antesDeLargar) => {
       await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
       await devArmar(pg, { seed })
       await abrirSala(pg)
       if (await pg.locator('#ordem').count()) problems.push(`[${label}] a faixa de ordem aparece na sala de largada`)
+      if (antesDeLargar) await antesDeLargar(pg)
       await pg.getByRole('button', { name: /^Largar/ }).click()
       await pg.waitForSelector('#pista')
       return pg.evaluate(() => window.__galope.ui.lobby.n)
@@ -1307,16 +1309,67 @@ try {
       }
       const k = v.atual.indexOf(v.me), n = v.atual.length, ruim = (m) => problems.push(`[${label}] vizinhos ${JSON.stringify(v.txt)}: ${m}`)
       const metros = (a, b) => Math.max(0, Math.round(v.pos[a] - v.pos[b]))
+      // Ruling 5: distância arredondada a 0 vira "colado" (nunca "+0 m" / "−0 m"); o número mostrado vale ± 1 m
+      const lido = (m) => (m[2] === undefined ? 0 : Number(m[2]))
+      if (/[+−]0 m/.test(v.txt)) ruim('distância 0 escrita como "+0 m" / "−0 m" (esperado "colado")')
       if (k === 0) { if (!/^Você lidera( · |$)/.test(v.txt) || v.txt.includes('À frente')) ruim('o jogador lidera') }
       else {
-        const m = v.txt.match(/^À frente: (.+?) \+(\d+) m( · |$)/), a = v.atual[k - 1]
-        if (!m || m[1] !== v.nomes[a] || Math.abs(Number(m[2]) - metros(a, v.me)) > 1) ruim(`à frente esperado ${v.nomes[a]} +${metros(a, v.me)} m`)
+        const m = v.txt.match(/^À frente: (.+?) (?:\+(\d+) m|colado)( · |$)/), a = v.atual[k - 1]
+        if (!m || m[1] !== v.nomes[a] || Math.abs(lido(m) - metros(a, v.me)) > 1) ruim(`à frente esperado ${v.nomes[a]} +${metros(a, v.me)} m`)
+        else if (m[2] === undefined) v.colados = (v.colados || 0) + 1
       }
       if (k === n - 1) { if (v.txt.includes('Atrás')) ruim('o jogador é o último') }
       else {
-        const m = v.txt.match(/(?:^| · )Atrás: (.+?) −(\d+) m$/), b = v.atual[k + 1]
-        if (!m || m[1] !== v.nomes[b] || Math.abs(Number(m[2]) - metros(v.me, b)) > 1) ruim(`atrás esperado ${v.nomes[b]} −${metros(v.me, b)} m`)
+        const m = v.txt.match(/(?:^| · )Atrás: (.+?) (?:−(\d+) m|colado)$/), b = v.atual[k + 1]
+        if (!m || m[1] !== v.nomes[b] || Math.abs(lido(m) - metros(v.me, b)) > 1) ruim(`atrás esperado ${v.nomes[b]} −${metros(v.me, b)} m`)
+        else if (m[2] === undefined) v.colados = (v.colados || 0) + 1
       }
+    }
+    // cada escrita da linha dos vizinhos na corrida inteira, com o quadro que a escreveu (conferidas por confereViz)
+    const vigiaViz = (pg) => pg.evaluate(() => {
+      const el = document.getElementById('ordem-vizinhos'), s = window.__galope.race._state, L = window.__galope.ui.lobby
+      const w = window.__vizVigia = []
+      new MutationObserver(() => {
+        if (s.phase === 'contagem' || w.length >= 400) return
+        w.push({ txt: el.textContent, atual: s.ordemAtual.slice(), pos: Array.from(s.quadro.pos), me: L.playerIdx, crossed: s.crossed, phase: s.phase,
+          nomes: L.racers.map((r) => r.horse.name), lugar: L.sim.finishOrder.indexOf(L.playerIdx) + 1,
+          ords: Array.from(el.querySelectorAll('.ord')).map((o) => o.getAttribute('aria-hidden') + ':' + (o.nextElementSibling ? o.nextElementSibling.className + ':' + o.nextElementSibling.textContent : '-')) })
+      }).observe(el, { childList: true, subtree: true, characterData: true })
+    })
+    // Review Focus 1, nos primeiros 3 s da corrida (depois da largada o pelotão troca de lugar a cada poucos quadros):
+    // cada reescrita da lista (MutationObserver), cada troca da ordem do quadro e quanto tempo a lista mostrada
+    // ficou diferente do quadro
+    const vigiaOrdem = (pg) => pg.evaluate(() => {
+      const s = window.__galope.race._state, ul = document.getElementById('ordem-lista')
+      const w = window.__ordemVigia = { escritas: [], trocas: [], atrasoMax: 0, quadros: 0, fim: false, inicio: null }
+      const lista = () => Array.from(ul.children).map((li) => li.dataset.raia).join()
+      new MutationObserver(() => { if (!w.fim) w.escritas.push(performance.now()) }).observe(ul, { childList: true })
+      let ult = null, desde = null
+      const tick = () => {
+        if (w.fim || !window.__galope.race) return
+        const agora = performance.now()
+        if (s.phase !== 'contagem' && w.inicio === null) w.inicio = agora
+        if (w.inicio !== null && agora - w.inicio > 3000) { w.fim = true; return }
+        const q = s.quadro ? s.quadro.order.join() : null
+        if (q !== ult) { if (ult !== null && w.inicio !== null) w.trocas.push(agora); ult = q }
+        if (w.inicio !== null) w.quadros++
+        if (q !== null && lista() !== q) { if (desde === null) desde = agora; w.atrasoMax = Math.max(w.atrasoMax, agora - desde) } else desde = null
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    const confereVigiaOrdem = async (pg, label) => {
+      await pg.waitForFunction(() => window.__ordemVigia.fim, null, { timeout: 20000 })
+      const w = await pg.evaluate(() => window.__ordemVigia)
+      const gaps = (v) => v.slice(1).map((t, i) => t - v[i])
+      const gE = gaps(w.escritas), gT = gaps(w.trocas)
+      const r = { escritas: w.escritas.length, menorIntervalo: gE.length ? +Math.min(...gE).toFixed(1) : null, trocas: w.trocas.length,
+        trocasRapidas: gT.filter((g) => g < 200).length, atrasoMax: +w.atrasoMax.toFixed(1), quadros: w.quadros }
+      notes[label + '-limite-ordem'] = r
+      // a janela tem de ser difícil: sem trocas a menos de 200 ms umas das outras, o teste não provaria o limite
+      if (r.trocasRapidas < 2) problems.push(`[${label}] Review Focus 1: a janela medida não tem trocas rápidas de ordem (${JSON.stringify(r)})`)
+      if (r.escritas < 3 || gE.some((g) => g < 240)) problems.push(`[${label}] Review Focus 1: a lista da faixa de ordem foi reescrita com menos de 250 ms de intervalo (${JSON.stringify(r)})`)
+      if (r.atrasoMax > 320) problems.push(`[${label}] Review Focus 1: a lista mostrada ficou ${r.atrasoMax} ms diferente da ordem do quadro (máximo ~300)`)
     }
     // narração: a 1ª frase de Garra de um rival (com o dono entre parênteses) medida quando chega, e os ordinais
     const vigiaFeed = (pg) => pg.evaluate(() => {
@@ -1350,6 +1403,8 @@ try {
       try {
         const n = await abreCorrida(pg, label, SEED7)
         if (!(await pg.locator('#ordem').count())) throw new Error('sem a faixa de ordem (#ordem) na corrida')
+        await vigiaOrdem(pg)
+        await vigiaViz(pg)
         await vigiaFeed(pg)
         // na contagem: a ordem das raias e "Largada em instantes" (quando ainda dá tempo de ler)
         const cont = await pg.evaluate(() => ({ phase: window.__galope.race._state.phase, raias: Array.from(document.querySelectorAll('#ordem-lista > li')).map((li) => li.dataset.raia).join(), viz: document.getElementById('ordem-vizinhos').textContent }))
@@ -1370,6 +1425,7 @@ try {
         const escritas = await pg.evaluate(() => new Promise((ok) => { const s = window.__galope.race._state, e0 = s.ordemEscritas; setTimeout(() => ok(s.ordemEscritas - e0), 2000) }))
         notes[label + '-escritas2s'] = escritas
         if (escritas > 8) problems.push(`[${label}] a lista da faixa de ordem foi reescrita ${escritas} vezes em 2 s (máximo 8)`)
+        await confereVigiaOrdem(pg, label)
         // meio
         await esperaFracao(pg, 0.5)
         const meio = await listaEstavel(pg)
@@ -1386,6 +1442,11 @@ try {
         let v = await proximaViz(pg)
         if (!v.crossed) v = await proximaViz(pg)
         confereViz(v, label + ' chegada')
+        // todas as escritas da linha dos vizinhos da corrida (Ruling 5: "colado" no lugar de "+0 m")
+        const todas = await pg.evaluate(() => window.__vizVigia)
+        todas.forEach((x, i) => confereViz(x, `${label} vizinhos #${i + 1}`))
+        notes[label + '-vizinhos'] = { escritas: todas.length, colados: todas.reduce((a, x) => a + (x.colados || 0), 0) }
+        if (todas.length < 10) problems.push(`[${label}] só ${todas.length} escritas da linha dos vizinhos na corrida (esperado uma a cada 500 ms)`)
         const h2 = await alturas(pg)
         notes[label + '-alturas'] = { largada: h0, meio: h1, chegada: h2 }
         if (JSON.stringify(h0) !== JSON.stringify(h1) || JSON.stringify(h1) !== JSON.stringify(h2)) problems.push(`[${label}] a faixa, a narração ou a pista mudaram de altura durante a corrida: ${JSON.stringify(notes[label + '-alturas'])}`)
@@ -1515,17 +1576,20 @@ try {
       }
     }
 
-    // Review Focus 3: sala de 8 com o cavalo do jogador renomeado (16 letras) pelo save, contra a sala de 4
+    // Review Focus 3: sala de 8 com o cavalo do jogador renomeado (16 letras) pelo save e os rivais renomeados (16
+    // letras, na sala, antes do "Largar": os vizinhos do jogador também têm nome comprido), contra a sala de 4
     {
       const label = 'corrida-8'
       const NOME = 'Relampagodourado'
+      const RIVAIS = 'ABCDEFGH'.split('').map((c) => 'Tempestadeserra' + c)   // 16 letras, um nome por raia
       const altura4 = async () => {
         const p4 = await newPage(browser, { width: 360, height: 780 }, label + '-4', { query: '?dev=1' })
         try {
           const n4 = await abreCorrida(p4, label + '-4', SEED4)
           if (n4 !== 4) problems.push(`[${label}-4] a seed ${SEED4} abriu uma sala de ${n4} (esperado 4)`)
           await esperaFracao(p4, 0.2)
-          return (await alturas(p4)).ordem
+          const viz = await p4.evaluate(() => document.getElementById('ordem-vizinhos').getBoundingClientRect().height)
+          return { ordem: (await alturas(p4)).ordem, viz }
         } finally { await p4.context().close() }
       }
       const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
@@ -1537,7 +1601,9 @@ try {
           localStorage.setItem(k, JSON.stringify(raw))
         }, NOME)
         await pg.reload({ waitUntil: 'domcontentloaded' })
-        const n = await abreCorrida(pg, label, SEED8)
+        const n = await abreCorrida(pg, label, SEED8, (p) => p.evaluate((nomes) => {
+          window.__galope.ui.lobby.racers.forEach((r, j) => { if (!r.isPlayer) r.horse.name = nomes[j] })
+        }, RIVAIS))
         if (n !== 8) problems.push(`[${label}] a seed ${SEED8} abriu uma sala de ${n} (esperado 8)`)
         await esperaFracao(pg, 0.4)
         const r = await listaEstavel(pg)
@@ -1546,11 +1612,19 @@ try {
         const tops = [...new Set(r.itens.map((it) => it.top))]
         if (tops.length !== 1 || r.itens.some((it) => it.dir > r.vw)) problems.push(`[${label}] os 8 itens não cabem numa linha a 360px: tops ${tops}, direita ${r.itens.map((it) => Math.round(it.dir))} (largura ${r.vw})`)
         await checkOverflow(pg, label)
+        const rivaisR = r.nomes.filter((x, j) => j !== r.me)
+        if (rivaisR.some((x) => !RIVAIS.includes(x) || x.length !== 16)) problems.push(`[${label}] os rivais correm como ${rivaisR} (esperado os nomes de 16 letras da sala)`)
+        // a linha dos vizinhos com os nomes compridos: confere com o quadro, sem rolagem lateral e na altura de sempre
+        const v8 = await proximaViz(pg)
+        confereViz(v8, label + ' vizinhos')
         const h8 = (await alturas(pg)).ordem
-        const viz = await pg.evaluate(() => { const e = document.getElementById('ordem-vizinhos'); return { h: e.getBoundingClientRect().height, txt: e.textContent } })
+        const viz = await pg.evaluate(() => { const e = document.getElementById('ordem-vizinhos'); return { h: e.getBoundingClientRect().height, sw: e.scrollWidth, cw: e.clientWidth, txt: e.textContent } })
+        if (!RIVAIS.some((x) => viz.txt.includes(x))) problems.push(`[${label}] a linha dos vizinhos não mostra nenhum rival de nome comprido: ${JSON.stringify(viz.txt)}`)
+        if (viz.sw > viz.cw) problems.push(`[${label}] a linha dos vizinhos rola na horizontal com nomes de 16 letras: scrollWidth ${viz.sw} > ${viz.cw} (${JSON.stringify(viz.txt)})`)
         const h4 = await altura4()
-        notes[label] = { ordem8: h8, ordem4: h4, viz }
-        if (h8 !== h4) problems.push(`[${label}] a faixa de ordem tem ${h8}px com 8 corredores e ${h4}px com 4`)
+        notes[label] = { ordem8: h8, ordem4: h4.ordem, viz, viz4: h4.viz }
+        if (h8 !== h4.ordem) problems.push(`[${label}] a faixa de ordem tem ${h8}px com 8 corredores e ${h4.ordem}px com 4`)
+        if (viz.h !== h4.viz) problems.push(`[${label}] a linha dos vizinhos tem ${viz.h}px com nomes de 16 letras e ${h4.viz}px com os nomes da sala de 4`)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
