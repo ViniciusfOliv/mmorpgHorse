@@ -131,10 +131,10 @@
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   // A fonte de interface desenha "º" como um "o" na linha de base; troca por um "o" sobrescrito
   // apenas no texto (nunca dentro de atributos). O sobrescrito é escondido dos leitores de tela, que leem o "º" do .sr.
-  // semSr: sem o "º" para leitor de tela (a faixa de eventos da corrida: o .sr absoluto no meio do texto largo estoura a rolagem lateral)
-  function ordFix(html, semSr) {
-    var fim = semSr ? '' : '<span class="sr">º</span>';
-    return html.replace(/>([^<]*)</g, function (m, t) { return '>' + t.replace(/º/g, '<sup class="ord" aria-hidden="true">o</sup>' + fim) + '<'; });
+  // (o .sr é absoluto: num texto cortado, o elemento que corta precisa de position: relative, senão ele estoura a
+  // rolagem lateral — ex.: a narração e a faixa de ordem da corrida)
+  function ordFix(html) {
+    return html.replace(/>([^<]*)</g, function (m, t) { return '>' + t.replace(/º/g, '<sup class="ord" aria-hidden="true">o</sup><span class="sr">º</span>') + '<'; });
   }
   function clamp(x, a, b) { return x < a ? a : (x > b ? b : x); }
   function fmt(n) { return Math.round(n).toLocaleString('pt-BR'); }
@@ -3435,6 +3435,10 @@
         '<span class="saldo saldo--pote">' + (L.training ? '<span class="rotulo">Treino</span>' : '<span class="rotulo">Pote</span>' + ouroHtml(L.fee * L.n)) + '</span></header>' +
       '<div class="palco"><canvas id="pista" role="img" aria-label="' + esc('Corrida em ' + L.trackName + ', ' + condTxt) + '"></canvas></div>' +
       '<div class="corrida-baixo">' +
+        // faixa de ordem (spec 3c §4), logo abaixo da pista: preenchida por atualizaOrdem (createRaceView); altura fixa
+        // no CSS. Fica dentro do .corrida-baixo para, em paisagem, ir para a linha dos controles sem somar altura
+        '<section class="ordem" id="ordem" aria-label="Classificação"><ol class="ordem-lista" id="ordem-lista"></ol>' +
+          '<p class="ordem-vizinhos" id="ordem-vizinhos"></p></section>' +
         '<ol class="feed" id="feed" aria-label="Narração"></ol>' +
         '<div class="controles" role="group" aria-label="Controles da corrida">' +
           '<div class="vel"><button type="button" class="btn btn--pequeno" data-acao="vel" data-id="1" aria-pressed="true">x1</button>' +
@@ -3474,7 +3478,8 @@
     var ctx = cv.getContext('2d');
     var hud = {
       feed: root.querySelector('#feed'), pular: root.querySelector('#btn-pular'), anuncio: root.querySelector('#anuncio'),
-      clima: root.querySelector('#clima-atual')
+      clima: root.querySelector('#clima-atual'),
+      ordem: root.querySelector('#ordem-lista'), vizinhos: root.querySelector('#ordem-vizinhos')
     };
     var fTime = sim.finishTimes;
     var rankOf = new Array(n);
@@ -3586,6 +3591,10 @@
     function layout() {
       var r = dpr();
       var cssW = palco.clientWidth || 360;
+      // tela baixa (< 700 px): a faixa de ordem só com a linha dos corredores e a narração com 1 frase em 1 linha
+      // (spec 3c §4 e §5: senão, a 360×640, a pista cai no layout compacto)
+      var baixa = (window.innerHeight || 700) < 700;
+      if (baixa) tela.classList.add('tela--baixa'); else tela.classList.remove('tela--baixa');
       if (hud.feed) hud.feed.style.height = '';
       var other = tela.getBoundingClientRect().height - palco.getBoundingClientRect().height;
       var cs = appEl ? getComputedStyle(appEl) : null;
@@ -3627,11 +3636,13 @@
       palco.style.height = (self.H * d / r) + 'px';
       ctx.imageSmoothingEnabled = false;
       self.ppmArt = pick.artW < 260 ? 2 : 2.5;
-      // a narração ocupa a altura que sobrar (campos pequenos): nada de faixa vazia sob os botões
-      if (hud.feed && getComputedStyle(hud.feed).display !== 'none') {
+      // a narração ocupa a altura que sobrar (campos pequenos): nada de faixa vazia sob os botões. Só aqui (no
+      // redimensionar) a altura dela muda: durante a corrida, a faixa de ordem e a narração têm altura fixa
+      if (!baixa && hud.feed && getComputedStyle(hud.feed).display !== 'none') {
         var rest = (window.innerHeight || 700) - padY - tela.getBoundingClientRect().height;
         if (rest > 8) hud.feed.style.height = Math.floor(hud.feed.getBoundingClientRect().height + rest - 4) + 'px';
       }
+      ajustaFeed();
     }
     layout();
 
@@ -3691,7 +3702,8 @@
         var mine = e.racer === me;
         var chip = e.racer >= 0 && L.racers[e.racer] ? laneChip(L.racers[e.racer], e.racer, 'raia--mini') : '';
         return '<li class="tipo-' + esc(e.type) + (mine ? ' voce' : '') + '"><time>' + fmtClock(e.t) + '</time>' + chip + '<span>' + eventoHtml(e.text, e.type) + '</span></li>';
-      }).join(''), true);   // sem o .sr: o anúncio do jogador acima já vai para o leitor de tela
+      }).join(''));
+      ajustaFeed();
       if (ev.racer === me && (ev.type === 'chegada' || ev.type === 'garra' || ev.type === 'skill')) hud.anuncio.textContent = ev.text;
       if (ev.type === 'clima') climaNoPainel(hud.clima, ev.weather);
       if (ev.type === 'dado' && ev.changed && GD.WEATHERS[ev.weather]) {
@@ -3705,6 +3717,64 @@
         hud.anuncio.textContent = 'O clima virou: ' + GD.WEATHERS[ev.weather].name + '.';
         if (!reduced()) self.flash = Math.max(self.flash, 0.12);
       }
+    }
+
+    // a narração tem altura fixa e cada frase até 2 linhas: mostra as mais novas que cabem inteiras (a que ficaria
+    // cortada embaixo some, e as mais velhas com ela). Roda a cada frase nova e no layout, nunca a cada quadro.
+    function ajustaFeed() {
+      var feed = hud.feed;
+      if (!feed) return;
+      var lis = feed.children, alt = feed.clientHeight, corta = false;
+      for (var q = 0; q < lis.length; q++) lis[q].hidden = false;
+      for (q = 0; q < lis.length; q++) {
+        if (!corta && q > 0 && lis[q].offsetTop + lis[q].offsetHeight > alt) corta = true;
+        if (corta) lis[q].hidden = true;
+      }
+    }
+
+    // ---- faixa de ordem (spec 3c §4): a mesma ordem do painel do topo, ranking(st, simT) do quadro que a pista
+    // mostra (quem já cruzou fica no lugar de chegada; na contagem, a ordem das raias). Nada é reescrito a cada
+    // quadro: a lista só quando a ordem muda e no máximo a cada 250 ms; a linha dos vizinhos a cada 500 ms.
+    var ORDEM_MS = 250, VIZ_MS = 500, ordemT = -1e9, vizT = -1e9;
+    self.ordemEscritas = 0; self.ordemAtual = null; self.quadro = null;
+    function mesmaOrdem(a, b) {
+      if (!a || !b || a.length !== b.length) return false;
+      for (var q = 0; q < a.length; q++) if (a[q] !== b[q]) return false;
+      return true;
+    }
+    function vizinhoHtml(rot, j, m) {
+      // os espaços ficam dentro dos spans (o texto lido segue "À frente: Nome +3 m"); na tela, o espaço é o gap do flex
+      return '<span class="viz"><span class="viz-rot">' + esc(rot + ' ') + '</span><b class="viz-nome">' + esc(L.racers[j].horse.name) +
+        '</b><span class="viz-m">' + esc(' ' + m) + '</span></span>';
+    }
+    function atualizaOrdem(order, st) {
+      self.quadro = { order: order, pos: st.pos };
+      var agora = window.performance.now();
+      if (!mesmaOrdem(order, self.ordemAtual) && agora - ordemT >= ORDEM_MS) {
+        ordemT = agora;
+        self.ordemAtual = order.slice();
+        self.ordemEscritas++;
+        hud.ordem.innerHTML = ordFix(order.map(function (j, k) {
+          var r = L.racers[j];
+          return '<li class="ordem-item' + (r.isPlayer ? ' ordem-item--voce' : '') + '" data-raia="' + j + '">' +
+            '<span class="ordem-pos">' + (k + 1) + 'º</span>' + laneChip(r, j, 'raia--mini') + '<span class="ordem-dado"></span>' +
+            '<span class="sr">' + esc(r.horse.name + (r.isPlayer ? ' (você)' : '')) + '</span></li>';
+        }).join(''));
+      }
+      if (agora - vizT < VIZ_MS) return;
+      vizT = agora;
+      var html;
+      if (self.phase === 'contagem') html = esc('Largada em instantes');
+      else if (self.crossed) html = ordFix('<span>' + esc('Você chegou em ' + (rankOf[me] + 1) + 'º') + '</span>');
+      else {
+        var mostrada = self.ordemAtual || order, k = mostrada.indexOf(me), partes = [];
+        var frente = k > 0 ? mostrada[k - 1] : -1, atras = k < n - 1 ? mostrada[k + 1] : -1;
+        if (frente < 0) partes.push('<span class="viz"><span class="viz-rot">Você lidera</span></span>');
+        else partes.push(vizinhoHtml('À frente:', frente, '+' + Math.max(0, Math.round(st.pos[frente] - st.pos[me])) + ' m'));
+        if (atras >= 0) partes.push(vizinhoHtml('Atrás:', atras, '−' + Math.max(0, Math.round(st.pos[me] - st.pos[atras])) + ' m'));
+        html = partes.join('<span class="viz-sep"> · </span>');
+      }
+      hud.vizinhos.innerHTML = html;
     }
 
     // ---- desenho em pixels de arte (A = escala)
@@ -4119,6 +4189,7 @@
       // narração
       while (self.phase !== 'contagem' && feedPtr < feedEvents.length && feedEvents[feedPtr].t <= self.simT) pushFeed(feedEvents[feedPtr++]);
       var order = ranking(st, self.simT);
+      atualizaOrdem(order, st);
       // tempo de desenho do quadro (média móvel em RaceFx._stats.msQuadro)
       var tDes = window.performance.now();
       FX.beginFrame();

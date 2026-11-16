@@ -8,7 +8,7 @@
 // Também confere a entrada reservada do páreo aberto, a gravação que falha, o save adulterado ou corrompido,
 // o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo, o tamanho mínimo do texto e o teto
 // de chamadas de canvas por quadro na corrida mais cara.
-//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,marcas,portes,crescimento,ajuda,acabamento,celular node tools/ui-test.mjs  -> só esses
+//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,corrida,marcas,portes,crescimento,ajuda,acabamento,celular node tools/ui-test.mjs  -> só esses
 // Equipamento suspenso (bloco 1b, GEAR_ON = false no game.js): os blocos das telas de peças e da Loja conferem que elas
 // não aparecem e que as ações de peça não fazem nada; com GEAR_ON = true voltam a testar as telas (GEAR_ON abaixo).
 import { createRequire } from 'node:module'
@@ -1224,6 +1224,338 @@ try {
       problems.push('teto-desenho: ' + e.message)
     } finally {
       await pg.context().close()
+    }
+  }
+
+  // ---------------- tela da corrida (3c, Tarefa 1): faixa de ordem e narração ----------------
+  // A faixa de ordem (entre a pista e a narração) segue ranking(st, simT) do quadro que a pista mostra, é reescrita no
+  // máximo a cada 250 ms (a linha dos vizinhos a cada 500 ms) e tem altura fixa; em tela baixa (< 700 px) fica com a
+  // linha dos corredores só, e a narração com 1 frase em 1 linha. Seeds: 16 (7 corredores; dois Faísca, então a Garra de um rival sai com o dono), 4242 (8), 5 (6) e 1 (4).
+  if (quer('corrida')) {
+    const SEED7 = 16, SEED8 = 4242, SEED4 = 1, SEED6 = 5
+    // arma a seed, abre a sala (onde a faixa não existe) e larga; devolve o n da sala
+    const abreCorrida = async (pg, label, seed) => {
+      await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+      await devArmar(pg, { seed })
+      await abrirSala(pg)
+      if (await pg.locator('#ordem').count()) problems.push(`[${label}] a faixa de ordem aparece na sala de largada`)
+      await pg.getByRole('button', { name: /^Largar/ }).click()
+      await pg.waitForSelector('#pista')
+      return pg.evaluate(() => window.__galope.ui.lobby.n)
+    }
+    const alturas = (pg) => pg.evaluate(() => {
+      const h = (s) => +document.querySelector(s).getBoundingClientRect().height.toFixed(1)
+      return { ordem: h('#ordem'), feed: h('#feed'), pista: h('#pista') }
+    })
+    // espera o tempo de simulação passar de uma fração da chegada do jogador
+    const esperaFracao = (pg, k) => pg.waitForFunction((kk) => {
+      const r = window.__galope.race, L = window.__galope.ui.lobby
+      return r && r._state.phase !== 'contagem' && r._state.simT >= L.sim.finishTimes[L.playerIdx] * kk
+    }, k, { timeout: 90000, polling: 'raf' })
+    // a lista depois de 300 ms sem troca de ordem no quadro: os itens, a ordemAtual e o quadro.order do mesmo instante
+    const listaEstavel = (pg) => pg.evaluate(() => new Promise((ok, falha) => {
+      const s = window.__galope.race._state, L = window.__galope.ui.lobby, t0 = performance.now()
+      let ult = null, desde = t0
+      const tick = () => {
+        const q = s.quadro ? s.quadro.order.join() : null
+        if (q !== ult) { ult = q; desde = performance.now() }
+        if (q !== null && performance.now() - desde >= 300) {
+          const itens = Array.from(document.querySelectorAll('#ordem-lista > li')).map((li) => {
+            const pos = li.querySelector('.ordem-pos'), ord = pos && pos.querySelector('.ord'), sr = li.querySelector(':scope > .sr')
+            const srOrd = ord && ord.nextElementSibling
+            return { raia: Number(li.dataset.raia), voce: li.classList.contains('ordem-item--voce'), pos: pos && pos.firstChild ? pos.firstChild.nodeValue : null,
+              ord: ord ? ord.getAttribute('aria-hidden') + ':' + ord.textContent + ':' + (srOrd && srOrd.classList.contains('sr') ? srOrd.textContent : '-') : null,
+              sr: sr ? sr.textContent : null, chip: !!li.querySelector('.raia--mini'), dado: !!li.querySelector('.ordem-dado'), top: Math.round(li.getBoundingClientRect().top),
+              dir: li.getBoundingClientRect().right }
+          })
+          ok({ itens, atual: s.ordemAtual.slice(), quadro: s.quadro.order.slice(), simT: s.simT, me: L.playerIdx, nomes: L.racers.map((r) => r.horse.name), vw: document.documentElement.clientWidth })
+          return
+        }
+        if (performance.now() - t0 > 15000) { falha(new Error('a ordem do quadro não ficou 300 ms parada em 15 s')); return }
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    }))
+    const confereLista = (r, label, n) => {
+      const raias = r.itens.map((it) => it.raia).join()
+      if (r.itens.length !== n) problems.push(`[${label}] faixa de ordem com ${r.itens.length} itens (esperado ${n})`)
+      if (raias !== r.atual.join() || r.atual.join() !== r.quadro.join()) problems.push(`[${label}] faixa de ordem fora do quadro em simT ${r.simT.toFixed(1)}: itens ${raias}, ordemAtual ${r.atual}, quadro ${r.quadro}`)
+      r.itens.forEach((it, k) => {
+        const esperado = r.nomes[it.raia] + (it.raia === r.me ? ' (você)' : '')
+        if (it.voce !== (it.raia === r.me)) problems.push(`[${label}] item ${k + 1} (raia ${it.raia + 1}) com o destaque do jogador = ${it.voce}`)
+        if (it.pos !== String(k + 1) || it.ord !== 'true:o:º') problems.push(`[${label}] item ${k + 1}: posição ${JSON.stringify(it.pos)} e ordinal ${it.ord} (esperado ${k + 1} e .ord[aria-hidden=true] "o" + .sr "º")`)
+        if (it.sr !== esperado) problems.push(`[${label}] item ${k + 1}: .sr ${JSON.stringify(it.sr)} (esperado ${JSON.stringify(esperado)})`)
+        if (!it.chip || !it.dado) problems.push(`[${label}] item ${k + 1} sem o selo da raia ou sem o .ordem-dado`)
+      })
+    }
+    // a próxima escrita da linha dos vizinhos (MutationObserver: o quadro lido é o mesmo que a escreveu)
+    const proximaViz = (pg) => pg.evaluate(() => new Promise((ok, falha) => {
+      const el = document.getElementById('ordem-vizinhos'), s = window.__galope.race._state, L = window.__galope.ui.lobby
+      const obs = new MutationObserver(() => {
+        obs.disconnect()
+        ok({ txt: el.textContent, atual: s.ordemAtual.slice(), pos: Array.from(s.quadro.pos), me: L.playerIdx, crossed: s.crossed, phase: s.phase,
+          nomes: L.racers.map((r) => r.horse.name), lugar: L.sim.finishOrder.indexOf(L.playerIdx) + 1,
+          ords: Array.from(el.querySelectorAll('.ord')).map((o) => o.getAttribute('aria-hidden') + ':' + (o.nextElementSibling ? o.nextElementSibling.className + ':' + o.nextElementSibling.textContent : '-')) })
+      })
+      obs.observe(el, { childList: true, subtree: true, characterData: true })
+      setTimeout(() => { obs.disconnect(); falha(new Error('a linha dos vizinhos não foi reescrita em 3 s')) }, 3000)
+    }))
+    const confereViz = (v, label) => {
+      if (v.crossed) {
+        if (v.txt !== `Você chegou em ${v.lugar}oº` || v.ords.join() !== 'true:sr:º') problems.push(`[${label}] vizinhos depois de cruzar: ${JSON.stringify(v.txt)} ${v.ords} (esperado "Você chegou em ${v.lugar}º", lugar do sim.finishOrder)`)
+        return
+      }
+      const k = v.atual.indexOf(v.me), n = v.atual.length, ruim = (m) => problems.push(`[${label}] vizinhos ${JSON.stringify(v.txt)}: ${m}`)
+      const metros = (a, b) => Math.max(0, Math.round(v.pos[a] - v.pos[b]))
+      if (k === 0) { if (!/^Você lidera( · |$)/.test(v.txt) || v.txt.includes('À frente')) ruim('o jogador lidera') }
+      else {
+        const m = v.txt.match(/^À frente: (.+?) \+(\d+) m( · |$)/), a = v.atual[k - 1]
+        if (!m || m[1] !== v.nomes[a] || Math.abs(Number(m[2]) - metros(a, v.me)) > 1) ruim(`à frente esperado ${v.nomes[a]} +${metros(a, v.me)} m`)
+      }
+      if (k === n - 1) { if (v.txt.includes('Atrás')) ruim('o jogador é o último') }
+      else {
+        const m = v.txt.match(/(?:^| · )Atrás: (.+?) −(\d+) m$/), b = v.atual[k + 1]
+        if (!m || m[1] !== v.nomes[b] || Math.abs(Number(m[2]) - metros(v.me, b)) > 1) ruim(`atrás esperado ${v.nomes[b]} −${metros(v.me, b)} m`)
+      }
+    }
+    // narração: a 1ª frase de Garra de um rival (com o dono entre parênteses) medida quando chega, e os ordinais
+    const vigiaFeed = (pg) => pg.evaluate(() => {
+      const w = window.__feedVigia = { garra: null, ords: 0, ordRuim: [] }
+      const feed = document.getElementById('feed')
+      new MutationObserver(() => {
+        feed.querySelectorAll('.ord').forEach((o) => {
+          w.ords++
+          const sr = o.nextElementSibling
+          if (o.getAttribute('aria-hidden') !== 'true' || !sr || !sr.classList.contains('sr') || sr.textContent !== 'º') w.ordRuim.push(o.parentNode.textContent)
+        })
+        const li = feed.firstElementChild
+        if (!w.garra && li && li.classList.contains('tipo-garra') && !li.classList.contains('voce')) {
+          const sp = li.lastElementChild
+          w.garra = { txt: sp.textContent, sw: sp.scrollWidth, cw: sp.clientWidth, sh: sp.scrollHeight, ch: sp.clientHeight, h: sp.getBoundingClientRect().height,
+            lh: parseFloat(getComputedStyle(sp).lineHeight), visivel: !li.hidden && li.offsetTop + li.offsetHeight <= feed.clientHeight,
+            docSw: document.documentElement.scrollWidth, docCw: document.documentElement.clientWidth }
+        }
+      }).observe(feed, { childList: true, subtree: true })
+    })
+    const visivel = (pg, sel) => pg.evaluate((s) => {
+      const e = document.querySelector(s), b = e.getBoundingClientRect()
+      return getComputedStyle(e).display !== 'none' && b.height > 0 && b.top >= 0 && b.bottom <= window.innerHeight
+    }, sel)
+    const SHOTS_C = process.env.SHOTS_CORRIDA || null   // pasta (fora do repositório) para as capturas de conferência
+
+    // 360x780 e 360x640 (tela baixa): ordem, vizinhos, alturas fixas, narração e o limite de reescritas
+    for (const [vp, baixa] of [[{ width: 360, height: 780 }, false], [{ width: 360, height: 640 }, true]]) {
+      const label = `corrida-${vp.width}x${vp.height}`
+      const pg = await newPage(browser, vp, label, { query: '?dev=1' })
+      try {
+        const n = await abreCorrida(pg, label, SEED7)
+        if (!(await pg.locator('#ordem').count())) throw new Error('sem a faixa de ordem (#ordem) na corrida')
+        await vigiaFeed(pg)
+        // na contagem: a ordem das raias e "Largada em instantes" (quando ainda dá tempo de ler)
+        const cont = await pg.evaluate(() => ({ phase: window.__galope.race._state.phase, raias: Array.from(document.querySelectorAll('#ordem-lista > li')).map((li) => li.dataset.raia).join(), viz: document.getElementById('ordem-vizinhos').textContent }))
+        if (cont.phase === 'contagem' && (cont.raias !== Array.from({ length: n }, (_, i) => i).join() || cont.viz !== 'Largada em instantes')) problems.push(`[${label}] na contagem: ordem ${cont.raias} e vizinhos ${JSON.stringify(cont.viz)} (esperado as raias em ordem e "Largada em instantes")`)
+        const h0 = await alturas(pg)
+        const lay = await pg.evaluate(() => ({ compact: window.__galope.race._state.lay.compact, baixa: document.querySelector('.tela--corrida').classList.contains('tela--baixa') }))
+        if (lay.compact) problems.push(`[${label}] a pista caiu no layout compacto`)
+        if (lay.baixa !== baixa) problems.push(`[${label}] classe tela--baixa = ${lay.baixa} (esperado ${baixa})`)
+        await checkRaceFits(pg, label)
+        if (!(await visivel(pg, '.ordem-lista'))) problems.push(`[${label}] a linha dos corredores não está visível`)
+        if ((await visivel(pg, '.ordem-vizinhos')) === baixa) problems.push(`[${label}] a linha dos vizinhos ${baixa ? 'aparece na tela baixa' : 'não está visível'}`)
+        // logo depois da largada
+        await esperaFracao(pg, 0.08)
+        confereLista(await listaEstavel(pg), label + ' largada', n)
+        confereViz(await proximaViz(pg), label + ' largada')
+        // Review Focus 1: em 2 s de corrida em x2, a lista é reescrita no máximo 8 vezes
+        await pg.getByRole('button', { name: 'x2' }).click()
+        const escritas = await pg.evaluate(() => new Promise((ok) => { const s = window.__galope.race._state, e0 = s.ordemEscritas; setTimeout(() => ok(s.ordemEscritas - e0), 2000) }))
+        notes[label + '-escritas2s'] = escritas
+        if (escritas > 8) problems.push(`[${label}] a lista da faixa de ordem foi reescrita ${escritas} vezes em 2 s (máximo 8)`)
+        // meio
+        await esperaFracao(pg, 0.5)
+        const meio = await listaEstavel(pg)
+        confereLista(meio, label + ' meio', n)
+        confereViz(await proximaViz(pg), label + ' meio')
+        const h1 = await alturas(pg)
+        await checkOverflow(pg, label + ' meio')
+        if (SHOTS_C) await pg.screenshot({ path: join(SHOTS_C, `${label}-meio.png`) })
+        // perto do fim (antes de o jogador cruzar)
+        await esperaFracao(pg, 0.92)
+        confereLista(await listaEstavel(pg), label + ' fim', n)
+        // depois de cruzar: "Você chegou em Nº" e as alturas da largada
+        await pg.waitForFunction(() => window.__galope.race._state.crossed, null, { timeout: 30000, polling: 'raf' })
+        let v = await proximaViz(pg)
+        if (!v.crossed) v = await proximaViz(pg)
+        confereViz(v, label + ' chegada')
+        const h2 = await alturas(pg)
+        notes[label + '-alturas'] = { largada: h0, meio: h1, chegada: h2 }
+        if (JSON.stringify(h0) !== JSON.stringify(h1) || JSON.stringify(h1) !== JSON.stringify(h2)) problems.push(`[${label}] a faixa, a narração ou a pista mudaram de altura durante a corrida: ${JSON.stringify(notes[label + '-alturas'])}`)
+        if (baixa && (h0.ordem > 30 || h0.feed > 34)) problems.push(`[${label}] tela baixa com a faixa de ${h0.ordem}px e a narração de ${h0.feed}px (esperado ~28 e ~33)`)
+        // narração
+        const w = await pg.evaluate(() => window.__feedVigia)
+        notes[label + '-narracao'] = w
+        if (!w.ords) problems.push(`[${label}] a narração não mostrou nenhum ordinal`)
+        if (w.ordRuim.length) problems.push(`[${label}] ordinais da narração sem .ord[aria-hidden] seguido de .sr: ${w.ordRuim.slice(0, 2).join(' | ')}`)
+        if (!baixa) {
+          const g = w.garra
+          if (!g || !/\(.+\) mostrou GARRA na reta final!$/.test(g.txt)) problems.push(`[${label}] a narração não mostrou a Garra de um rival com dono: ${JSON.stringify(g)}`)
+          else if (g.sw > g.cw || g.sh > g.ch || g.h > 2 * g.lh + 1 || !g.visivel || g.docSw > g.docCw) problems.push(`[${label}] a frase longa da narração não aparece inteira em até 2 linhas: ${JSON.stringify(g)}`)
+        } else {
+          const um = await pg.evaluate(() => Array.from(document.querySelectorAll('#feed > li')).filter((li) => getComputedStyle(li).display !== 'none').length)
+          if (um > 1) problems.push(`[${label}] tela baixa com ${um} frases na narração (esperado 1)`)
+        }
+        await checkOverflow(pg, label + ' chegada')
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 390x844: sem rolagem lateral com o .sr dos ordinais na narração e na faixa
+    {
+      const label = 'corrida-390x844'
+      const pg = await newPage(browser, { width: 390, height: 844 }, label, { query: '?dev=1' })
+      try {
+        await abreCorrida(pg, label, SEED7)
+        await pg.getByRole('button', { name: 'x2' }).click()
+        for (const k of [0.3, 0.6, 0.95]) { await esperaFracao(pg, k); await checkOverflow(pg, `${label} ${k}`) }
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // cores forçadas: o item do jogador com Highlight e os outros com borda em cor do sistema
+    {
+      const label = 'corrida-forcado'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1', forcedColors: 'active' })
+      try {
+        await abreCorrida(pg, label, SEED7)
+        await esperaFracao(pg, 0.1)
+        const fc = await pg.evaluate(() => {
+          const sonda = (c) => { const d = document.createElement('i'); d.style.border = '2px solid ' + c; document.body.appendChild(d); const v = getComputedStyle(d).borderTopColor; d.remove(); return v }
+          return { ativo: matchMedia('(forced-colors: active)').matches, hl: sonda('Highlight'), ct: sonda('CanvasText'),
+            itens: Array.from(document.querySelectorAll('#ordem-lista > li')).map((li) => { const cs = getComputedStyle(li); return { voce: li.classList.contains('ordem-item--voce'), w: cs.borderTopWidth, s: cs.borderTopStyle, c: cs.borderTopColor, bg: cs.backgroundColor } }) }
+        })
+        notes[label] = fc
+        if (!fc.ativo) problems.push(`[${label}] a página não está em cores forçadas`)
+        const eu = fc.itens.filter((i) => i.voce), outros = fc.itens.filter((i) => !i.voce)
+        if (eu.length !== 1 || !(eu[0].c === fc.hl || eu[0].bg === fc.hl) || eu[0].w !== '2px') problems.push(`[${label}] item do jogador sem Highlight: ${JSON.stringify(eu)} (Highlight = ${fc.hl})`)
+        if (!outros.length || outros.some((i) => i.w !== '2px' || i.s !== 'solid' || i.c !== fc.ct)) problems.push(`[${label}] itens sem borda de 2px em cor do sistema: ${JSON.stringify(outros)} (CanvasText = ${fc.ct})`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // Review Focus 2: girar no meio da corrida (360x780 → 780x360 → 360x780) numa sala de n ≤ 6 (Ruling 3: com 7–8
+    // corredores a paisagem já estourava na BASE — a raia mínima de 12 do compacto —, pendência conhecida)
+    {
+      const label = 'corrida-girar'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
+      try {
+        const n6 = await abreCorrida(pg, label, SEED6)
+        if (n6 > 6) problems.push(`[${label}] a seed ${SEED6} abriu uma sala de ${n6} (esperado ≤ 6)`)
+        await esperaFracao(pg, 0.3)
+        const estado = async (tag) => {
+          const f = await checkRaceFits(pg, `${label} ${tag}`)
+          await checkOverflow(pg, `${label} ${tag}`)
+          const r = await pg.evaluate(() => ({ baixa: document.querySelector('.tela--corrida').classList.contains('tela--baixa'), ordem: document.getElementById('ordem').getBoundingClientRect().height, vh: window.innerHeight, sh: document.documentElement.scrollHeight }))
+          notes[`${label}-${tag}`] = { ...f, ...r }
+          return r
+        }
+        const a = await estado('retrato')
+        await pg.setViewportSize({ width: 780, height: 360 })
+        await sleep(500)
+        const b = await estado('paisagem')
+        await pg.setViewportSize({ width: 360, height: 780 })
+        await sleep(500)
+        const c = await estado('volta')
+        if (a.baixa || !b.baixa || c.baixa) problems.push(`[${label}] a classe tela--baixa não acompanhou o giro: ${a.baixa} → ${b.baixa} → ${c.baixa}`)
+        if (b.ordem > 30 || a.ordem !== c.ordem) problems.push(`[${label}] a faixa não se reajustou no giro: ${a.ordem} → ${b.ordem} → ${c.ordem}px`)
+        for (const [tag, r] of [['paisagem', b], ['volta', c]]) if (r.sh > r.vh + 1) problems.push(`[${label}] ${tag}: a corrida não cabe na altura da janela (${r.sh} > ${r.vh})`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // Ruling 3: em paisagem, com a sala de 8, a faixa vai para a linha dos controles e não soma altura
+    {
+      const label = 'corrida-paisagem-8'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
+      try {
+        const n = await abreCorrida(pg, label, SEED8)
+        if (n !== 8) problems.push(`[${label}] a seed ${SEED8} abriu uma sala de ${n} (esperado 8)`)
+        await esperaFracao(pg, 0.3)
+        await pg.setViewportSize({ width: 780, height: 360 })
+        await sleep(500)
+        await checkOverflow(pg, label)
+        const r = await pg.evaluate(() => {
+          const ordem = document.getElementById('ordem'), baixo = document.querySelector('.corrida-baixo'), ctl = document.querySelector('.controles')
+          const com = baixo.getBoundingClientRect().height
+          ordem.style.display = 'none'
+          const sem = baixo.getBoundingClientRect().height   // getBoundingClientRect força o layout
+          ordem.style.display = ''
+          return { baixa: document.querySelector('.tela--corrida').classList.contains('tela--baixa'), topOrdem: ordem.getBoundingClientRect().top,
+            topCtl: ctl.getBoundingClientRect().top, hOrdem: ordem.getBoundingClientRect().height, com, sem,
+            itens: Array.from(document.querySelectorAll('#ordem-lista > li')).map((li) => Math.round(li.getBoundingClientRect().top)) }
+        })
+        notes[label] = r
+        if (!r.baixa) problems.push(`[${label}] sem a classe tela--baixa em 780x360`)
+        if (Math.abs(r.topOrdem - r.topCtl) > 2) problems.push(`[${label}] a faixa de ordem não está na linha dos controles: ${JSON.stringify(r)}`)
+        if (r.com !== r.sem) problems.push(`[${label}] a faixa de ordem soma altura ao .corrida-baixo em paisagem: ${r.com}px com ela, ${r.sem}px sem`)
+        if (r.itens.length !== 8 || new Set(r.itens).size !== 1) problems.push(`[${label}] os 8 itens não estão numa linha: ${r.itens}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // Review Focus 3: sala de 8 com o cavalo do jogador renomeado (16 letras) pelo save, contra a sala de 4
+    {
+      const label = 'corrida-8'
+      const NOME = 'Relampagodourado'
+      const altura4 = async () => {
+        const p4 = await newPage(browser, { width: 360, height: 780 }, label + '-4', { query: '?dev=1' })
+        try {
+          const n4 = await abreCorrida(p4, label + '-4', SEED4)
+          if (n4 !== 4) problems.push(`[${label}-4] a seed ${SEED4} abriu uma sala de ${n4} (esperado 4)`)
+          await esperaFracao(p4, 0.2)
+          return (await alturas(p4)).ordem
+        } finally { await p4.context().close() }
+      }
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await pg.evaluate((nome) => {
+          const k = 'galope-elemental:dev', raw = JSON.parse(localStorage.getItem(k))
+          raw.mounts.find((m) => m.uid === raw.activeId).name = nome
+          localStorage.setItem(k, JSON.stringify(raw))
+        }, NOME)
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        const n = await abreCorrida(pg, label, SEED8)
+        if (n !== 8) problems.push(`[${label}] a seed ${SEED8} abriu uma sala de ${n} (esperado 8)`)
+        await esperaFracao(pg, 0.4)
+        const r = await listaEstavel(pg)
+        confereLista(r, label, 8)
+        if (r.nomes[r.me] !== NOME) problems.push(`[${label}] o cavalo do jogador corre como ${r.nomes[r.me]} (esperado ${NOME})`)
+        const tops = [...new Set(r.itens.map((it) => it.top))]
+        if (tops.length !== 1 || r.itens.some((it) => it.dir > r.vw)) problems.push(`[${label}] os 8 itens não cabem numa linha a 360px: tops ${tops}, direita ${r.itens.map((it) => Math.round(it.dir))} (largura ${r.vw})`)
+        await checkOverflow(pg, label)
+        const h8 = (await alturas(pg)).ordem
+        const viz = await pg.evaluate(() => { const e = document.getElementById('ordem-vizinhos'); return { h: e.getBoundingClientRect().height, txt: e.textContent } })
+        const h4 = await altura4()
+        notes[label] = { ordem8: h8, ordem4: h4, viz }
+        if (h8 !== h4) problems.push(`[${label}] a faixa de ordem tem ${h8}px com 8 corredores e ${h4}px com 4`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
     }
   }
 

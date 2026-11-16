@@ -901,6 +901,56 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 }
 .feed li time { flex: none; width: 34px; color: var(--texto-2); font-variant-numeric: tabular-nums; }
 .feed li > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* narração da corrida (spec 3c §5): altura fixa (66px, mais a sobra que o layout() der no redimensionar), cada frase
+   em até 2 linhas, sem "…"; o JS (ajustaFeed) esconde a frase que ficaria cortada embaixo. O texto é o bloco de
+   corte do .sr do ordinal (position: relative), senão o .sr estoura a rolagem lateral */
+.tela--corrida .feed { position: relative; }
+.tela--corrida .feed li > span:last-child {
+  position: relative; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  white-space: normal; overflow-wrap: anywhere;
+}
+/* tela baixa: 1 frase em 1 linha (só aqui a frase ainda pode cortar com "…") */
+.tela--baixa .feed { height: 33px; }
+.tela--baixa .feed li + li { display: none; }
+.tela--baixa .feed li > span:last-child { display: block; -webkit-line-clamp: none; line-clamp: none; white-space: nowrap; }
+
+/* ---------- faixa de ordem (spec 3c §4): entre a pista e a narração, na largura da pista, altura fixa ----------
+   Cada item: a posição, o selo da raia e, embaixo, a linha do número do Dado (.ordem-dado, reservada mesmo vazia).
+   O do jogador com o destaque dourado (friso --ouro, como o .programa li.voce). Tela baixa: só a linha dos
+   corredores, numa linha de 28px. Os itens não mostram o nome do cavalo (a linha dos vizinhos já traz os nomes);
+   o nome vai no .sr para o leitor de tela */
+.ordem { flex: none; display: flex; flex-direction: column; gap: 6px; height: 68px; min-width: 0; }
+.ordem-lista {
+  list-style: none; margin: 0; padding: 0 2px; display: flex; justify-content: center; gap: 4px; height: 42px; min-width: 0;
+}
+.ordem-item {
+  position: relative; overflow: hidden;   /* bloco de corte do .sr */
+  flex: 1 1 0; min-width: 0; max-width: 64px; height: 42px;
+  display: grid; grid-template-columns: auto auto; grid-template-rows: 20px 16px; gap: 2px;
+  align-content: center; justify-content: center; align-items: center;
+  background: var(--painel-2);
+  box-shadow: 0 0 0 2px var(--sombra), inset 0 2px 0 0 var(--brilho-08), inset 0 -2px 0 0 var(--escuro-25);
+}
+.ordem-item--voce {
+  background: var(--painel-3);
+  box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 2px var(--ouro), inset 0 4px 0 0 var(--ouro-escuro);
+}
+.ordem-pos { grid-area: 1 / 1; font-size: var(--t-s); line-height: 1; color: var(--texto); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ordem-item .raia--mini { grid-area: 1 / 2; }
+.ordem-item--voce .ordem-pos { color: var(--ouro-claro); }
+.ordem-dado { grid-area: 2 / 1 / 3 / 3; justify-self: center; height: 16px; font-size: var(--t-s); line-height: 16px; color: var(--ouro-claro); white-space: nowrap; }
+.ordem-vizinhos {
+  margin: 0; height: 20px; display: flex; justify-content: center; gap: 6px; min-width: 0; overflow: hidden;
+  font-size: var(--t-s); line-height: 20px; color: var(--texto-2); white-space: nowrap;
+}
+.ordem-vizinhos .viz { display: flex; gap: 4px; min-width: 0; }
+.ordem-vizinhos .viz-rot, .ordem-vizinhos .viz-m, .ordem-vizinhos .viz-sep { flex: none; }
+.ordem-vizinhos .viz-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--texto); font-weight: 400; }
+.ordem-vizinhos .viz-m { color: var(--texto); font-variant-numeric: tabular-nums; }
+.tela--baixa .ordem { height: 28px; }
+.tela--baixa .ordem-lista { height: 28px; }
+.tela--baixa .ordem-item { height: 28px; grid-template-rows: 20px; }
+.tela--baixa .ordem-dado:empty, .tela--baixa .ordem-vizinhos { display: none; }
 .feed li.voce { box-shadow: inset 4px 0 0 0 var(--ouro); }
 .feed li.tipo-garra > span:last-child, .feed li.tipo-skill > span:last-child { color: var(--ouro-claro); }
 .feed li.tipo-cansou > span:last-child { color: var(--perda); }
@@ -909,7 +959,8 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .controles .vel .btn { min-width: 58px; font-family: var(--fonte-display); font-size: 16px; }
 .controles .pular { margin-left: auto; }
 @media (min-width: 860px) {
-  .corrida-baixo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; }
+  .corrida-baixo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; }
+  .corrida-baixo .ordem { grid-column: 1 / -1; }   /* a faixa de ordem na largura da pista, acima da narração */
   .feed { height: 66px; }
 }
 /* paisagem / telas baixas: o canvas fica com quase toda a altura */
@@ -919,6 +970,10 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
   .corrida-titulo .rotulo { display: none; }
   .feed { display: none; }
   .saldo--pote { flex-direction: row; align-items: center; padding: 4px 14px; }
+  /* a faixa de ordem (uma linha de 28px) vai para a linha dos controles: não soma altura à tela */
+  .corrida-baixo { display: flex; flex-direction: row; align-items: flex-start; gap: 16px; }
+  .corrida-baixo .ordem { flex: 1 1 auto; grid-column: auto; }
+  .corrida-baixo .controles { flex: none; }
 }
 
 /* ---------- resultado ---------- */
@@ -960,6 +1015,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
   .opcoes--tier .opcao { padding-inline: 6px; }
   .opcoes--tier .opcao-nome { font-size: var(--t-s); }
   .palco { margin-left: calc(-1 * var(--gl)); margin-right: calc(-1 * var(--gr)); }
+  .ordem-lista { margin-inline: calc(4px - var(--gl)) calc(4px - var(--gr)); }   /* na largura da pista (8 itens a 360px) */
   /* iniciais em carrossel: o próximo cartão aparece na borda (há 3 para comparar) */
   .iniciais {
     display: grid; grid-auto-flow: column; grid-auto-columns: 86%; grid-template-columns: none;
@@ -1186,6 +1242,8 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   /* indisponível por aria-disabled (o foco fica no botão): as mesmas cores do disabled nativo */
   .btn[aria-disabled="true"], .opcao[aria-disabled="true"] { color: GrayText; border-color: GrayText; }
   .montaria-linha-seta { fill: ButtonText; }   /* o svg não ganha a cor do sistema sozinho */
+  .ordem-item { border: 2px solid CanvasText; }   /* faixa de ordem da corrida: o item do jogador em Highlight */
+  .ordem-item--voce { border-color: Highlight; }
   .caixa::before, .montaria--ativa::before, .opcao[aria-pressed="true"]::before, .saldo::before,
   .placa::before, .titulo--tela::before { display: none; }
   .placa, .titulo--tela { background-image: none; }
@@ -8677,10 +8735,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   // A fonte de interface desenha "º" como um "o" na linha de base; troca por um "o" sobrescrito
   // apenas no texto (nunca dentro de atributos). O sobrescrito é escondido dos leitores de tela, que leem o "º" do .sr.
-  // semSr: sem o "º" para leitor de tela (a faixa de eventos da corrida: o .sr absoluto no meio do texto largo estoura a rolagem lateral)
-  function ordFix(html, semSr) {
-    var fim = semSr ? '' : '<span class="sr">º</span>';
-    return html.replace(/>([^<]*)</g, function (m, t) { return '>' + t.replace(/º/g, '<sup class="ord" aria-hidden="true">o</sup>' + fim) + '<'; });
+  // (o .sr é absoluto: num texto cortado, o elemento que corta precisa de position: relative, senão ele estoura a
+  // rolagem lateral — ex.: a narração e a faixa de ordem da corrida)
+  function ordFix(html) {
+    return html.replace(/>([^<]*)</g, function (m, t) { return '>' + t.replace(/º/g, '<sup class="ord" aria-hidden="true">o</sup><span class="sr">º</span>') + '<'; });
   }
   function clamp(x, a, b) { return x < a ? a : (x > b ? b : x); }
   function fmt(n) { return Math.round(n).toLocaleString('pt-BR'); }
@@ -11981,6 +12039,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         '<span class="saldo saldo--pote">' + (L.training ? '<span class="rotulo">Treino</span>' : '<span class="rotulo">Pote</span>' + ouroHtml(L.fee * L.n)) + '</span></header>' +
       '<div class="palco"><canvas id="pista" role="img" aria-label="' + esc('Corrida em ' + L.trackName + ', ' + condTxt) + '"></canvas></div>' +
       '<div class="corrida-baixo">' +
+        // faixa de ordem (spec 3c §4), logo abaixo da pista: preenchida por atualizaOrdem (createRaceView); altura fixa
+        // no CSS. Fica dentro do .corrida-baixo para, em paisagem, ir para a linha dos controles sem somar altura
+        '<section class="ordem" id="ordem" aria-label="Classificação"><ol class="ordem-lista" id="ordem-lista"></ol>' +
+          '<p class="ordem-vizinhos" id="ordem-vizinhos"></p></section>' +
         '<ol class="feed" id="feed" aria-label="Narração"></ol>' +
         '<div class="controles" role="group" aria-label="Controles da corrida">' +
           '<div class="vel"><button type="button" class="btn btn--pequeno" data-acao="vel" data-id="1" aria-pressed="true">x1</button>' +
@@ -12020,7 +12082,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var ctx = cv.getContext('2d');
     var hud = {
       feed: root.querySelector('#feed'), pular: root.querySelector('#btn-pular'), anuncio: root.querySelector('#anuncio'),
-      clima: root.querySelector('#clima-atual')
+      clima: root.querySelector('#clima-atual'),
+      ordem: root.querySelector('#ordem-lista'), vizinhos: root.querySelector('#ordem-vizinhos')
     };
     var fTime = sim.finishTimes;
     var rankOf = new Array(n);
@@ -12132,6 +12195,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     function layout() {
       var r = dpr();
       var cssW = palco.clientWidth || 360;
+      // tela baixa (< 700 px): a faixa de ordem só com a linha dos corredores e a narração com 1 frase em 1 linha
+      // (spec 3c §4 e §5: senão, a 360×640, a pista cai no layout compacto)
+      var baixa = (window.innerHeight || 700) < 700;
+      if (baixa) tela.classList.add('tela--baixa'); else tela.classList.remove('tela--baixa');
       if (hud.feed) hud.feed.style.height = '';
       var other = tela.getBoundingClientRect().height - palco.getBoundingClientRect().height;
       var cs = appEl ? getComputedStyle(appEl) : null;
@@ -12173,11 +12240,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       palco.style.height = (self.H * d / r) + 'px';
       ctx.imageSmoothingEnabled = false;
       self.ppmArt = pick.artW < 260 ? 2 : 2.5;
-      // a narração ocupa a altura que sobrar (campos pequenos): nada de faixa vazia sob os botões
-      if (hud.feed && getComputedStyle(hud.feed).display !== 'none') {
+      // a narração ocupa a altura que sobrar (campos pequenos): nada de faixa vazia sob os botões. Só aqui (no
+      // redimensionar) a altura dela muda: durante a corrida, a faixa de ordem e a narração têm altura fixa
+      if (!baixa && hud.feed && getComputedStyle(hud.feed).display !== 'none') {
         var rest = (window.innerHeight || 700) - padY - tela.getBoundingClientRect().height;
         if (rest > 8) hud.feed.style.height = Math.floor(hud.feed.getBoundingClientRect().height + rest - 4) + 'px';
       }
+      ajustaFeed();
     }
     layout();
 
@@ -12237,7 +12306,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var mine = e.racer === me;
         var chip = e.racer >= 0 && L.racers[e.racer] ? laneChip(L.racers[e.racer], e.racer, 'raia--mini') : '';
         return '<li class="tipo-' + esc(e.type) + (mine ? ' voce' : '') + '"><time>' + fmtClock(e.t) + '</time>' + chip + '<span>' + eventoHtml(e.text, e.type) + '</span></li>';
-      }).join(''), true);   // sem o .sr: o anúncio do jogador acima já vai para o leitor de tela
+      }).join(''));
+      ajustaFeed();
       if (ev.racer === me && (ev.type === 'chegada' || ev.type === 'garra' || ev.type === 'skill')) hud.anuncio.textContent = ev.text;
       if (ev.type === 'clima') climaNoPainel(hud.clima, ev.weather);
       if (ev.type === 'dado' && ev.changed && GD.WEATHERS[ev.weather]) {
@@ -12251,6 +12321,64 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         hud.anuncio.textContent = 'O clima virou: ' + GD.WEATHERS[ev.weather].name + '.';
         if (!reduced()) self.flash = Math.max(self.flash, 0.12);
       }
+    }
+
+    // a narração tem altura fixa e cada frase até 2 linhas: mostra as mais novas que cabem inteiras (a que ficaria
+    // cortada embaixo some, e as mais velhas com ela). Roda a cada frase nova e no layout, nunca a cada quadro.
+    function ajustaFeed() {
+      var feed = hud.feed;
+      if (!feed) return;
+      var lis = feed.children, alt = feed.clientHeight, corta = false;
+      for (var q = 0; q < lis.length; q++) lis[q].hidden = false;
+      for (q = 0; q < lis.length; q++) {
+        if (!corta && q > 0 && lis[q].offsetTop + lis[q].offsetHeight > alt) corta = true;
+        if (corta) lis[q].hidden = true;
+      }
+    }
+
+    // ---- faixa de ordem (spec 3c §4): a mesma ordem do painel do topo, ranking(st, simT) do quadro que a pista
+    // mostra (quem já cruzou fica no lugar de chegada; na contagem, a ordem das raias). Nada é reescrito a cada
+    // quadro: a lista só quando a ordem muda e no máximo a cada 250 ms; a linha dos vizinhos a cada 500 ms.
+    var ORDEM_MS = 250, VIZ_MS = 500, ordemT = -1e9, vizT = -1e9;
+    self.ordemEscritas = 0; self.ordemAtual = null; self.quadro = null;
+    function mesmaOrdem(a, b) {
+      if (!a || !b || a.length !== b.length) return false;
+      for (var q = 0; q < a.length; q++) if (a[q] !== b[q]) return false;
+      return true;
+    }
+    function vizinhoHtml(rot, j, m) {
+      // os espaços ficam dentro dos spans (o texto lido segue "À frente: Nome +3 m"); na tela, o espaço é o gap do flex
+      return '<span class="viz"><span class="viz-rot">' + esc(rot + ' ') + '</span><b class="viz-nome">' + esc(L.racers[j].horse.name) +
+        '</b><span class="viz-m">' + esc(' ' + m) + '</span></span>';
+    }
+    function atualizaOrdem(order, st) {
+      self.quadro = { order: order, pos: st.pos };
+      var agora = window.performance.now();
+      if (!mesmaOrdem(order, self.ordemAtual) && agora - ordemT >= ORDEM_MS) {
+        ordemT = agora;
+        self.ordemAtual = order.slice();
+        self.ordemEscritas++;
+        hud.ordem.innerHTML = ordFix(order.map(function (j, k) {
+          var r = L.racers[j];
+          return '<li class="ordem-item' + (r.isPlayer ? ' ordem-item--voce' : '') + '" data-raia="' + j + '">' +
+            '<span class="ordem-pos">' + (k + 1) + 'º</span>' + laneChip(r, j, 'raia--mini') + '<span class="ordem-dado"></span>' +
+            '<span class="sr">' + esc(r.horse.name + (r.isPlayer ? ' (você)' : '')) + '</span></li>';
+        }).join(''));
+      }
+      if (agora - vizT < VIZ_MS) return;
+      vizT = agora;
+      var html;
+      if (self.phase === 'contagem') html = esc('Largada em instantes');
+      else if (self.crossed) html = ordFix('<span>' + esc('Você chegou em ' + (rankOf[me] + 1) + 'º') + '</span>');
+      else {
+        var mostrada = self.ordemAtual || order, k = mostrada.indexOf(me), partes = [];
+        var frente = k > 0 ? mostrada[k - 1] : -1, atras = k < n - 1 ? mostrada[k + 1] : -1;
+        if (frente < 0) partes.push('<span class="viz"><span class="viz-rot">Você lidera</span></span>');
+        else partes.push(vizinhoHtml('À frente:', frente, '+' + Math.max(0, Math.round(st.pos[frente] - st.pos[me])) + ' m'));
+        if (atras >= 0) partes.push(vizinhoHtml('Atrás:', atras, '−' + Math.max(0, Math.round(st.pos[me] - st.pos[atras])) + ' m'));
+        html = partes.join('<span class="viz-sep"> · </span>');
+      }
+      hud.vizinhos.innerHTML = html;
     }
 
     // ---- desenho em pixels de arte (A = escala)
@@ -12665,6 +12793,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       // narração
       while (self.phase !== 'contagem' && feedPtr < feedEvents.length && feedEvents[feedPtr].t <= self.simT) pushFeed(feedEvents[feedPtr++]);
       var order = ranking(st, self.simT);
+      atualizaOrdem(order, st);
       // tempo de desenho do quadro (média móvel em RaceFx._stats.msQuadro)
       var tDes = window.performance.now();
       FX.beginFrame();
