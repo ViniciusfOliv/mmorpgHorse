@@ -3516,8 +3516,8 @@
       var d = dadoDoEvento(ev);
       return !!d && !FX.diceRevealed(d, self.simT, reduced());
     }
-    // o clima que o painel do topo mostra: o da simulação, mas a virada de um Dado só depois da revelação (a pista,
-    // chuva e névoa, segue climaAtual)
+    // o clima que o painel do topo mostra e a pista desenha (chuva, névoa): o da simulação, mas a virada de um Dado só
+    // depois da revelação (Ruling 18; a velocidade dos cavalos é a da simulação, que já conta o clima novo)
     function climaMostrado(simT) {
       var w = L.cond.weather;
       for (var c = 0; c < climaEvs.length && climaEvs[c].t <= simT; c++) {
@@ -3525,11 +3525,6 @@
         if (d && !FX.diceRevealed(d, simT, reduced())) break;
         w = climaEvs[c].weather;
       }
-      return w;
-    }
-    function climaAtual(simT) {
-      var w = L.cond.weather;
-      for (var c = 0; c < climaEvs.length && climaEvs[c].t <= simT; c++) w = climaEvs[c].weather;
       return w;
     }
     var frames = sim.frames, F = frames.length, dt = sim.dt;
@@ -3827,9 +3822,10 @@
     function marcaDado(dItem, baixa) {
       var lis = hud.ordem.children;
       for (var q = 0; q < lis.length; q++) {
-        var li = lis[q], j = Number(li.getAttribute('data-raia')), num = dItem ? String(dItem.rolls[j].best) : '';
-        li.querySelector('.ordem-dado').textContent = baixa ? '' : num;
-        if (baixa || dadoBaixa) li.querySelector('.ordem-pos').innerHTML = dItem && baixa ? esc(num) : ordFix('>' + (q + 1) + 'º<').slice(1, -1);   // ordFix só troca o º entre tags
+        var li = lis[q], j = Number(li.getAttribute('data-raia')), num = dItem ? '<span class="sr">dado </span>' + esc(String(dItem.rolls[j].best)) : '';
+        li.querySelector('.ordem-dado').innerHTML = baixa ? '' : num;
+        // em tela baixa o número fica no lugar da posição; a posição continua para o leitor de tela (.sr)
+        if (baixa || dadoBaixa) li.querySelector('.ordem-pos').innerHTML = dItem && baixa ? '<span class="sr">' + (q + 1) + 'º </span>' + num : ordFix('>' + (q + 1) + 'º<').slice(1, -1);   // ordFix só troca o º entre tags
         li.classList.toggle('ordem-item--maior', !!dItem && j === dItem.winner);
       }
       dadoMostrado = dItem; dadoBaixa = baixa;
@@ -3984,7 +3980,8 @@
       var cam = self.finishCam ? D - 0.62 * visM : follow;
       var laneH = lay.laneArt * S, laneTop = lay.laneTopArt * S;
       var tr = self.tReal, red = reduced();
-      var clima = climaAtual(self.simT);
+      var clima = climaMostrado(self.simT);
+      FX._stats.climaPista = clima;   // para o ui-test: o clima desenhado na pista neste quadro
       // em reduced nada congela: o cenário (nuvens, torcida, bandeiras, grama) anda a 40 % e a natureza
       // (fx.js) recebe o tempo real com a marca reduced (chuva a 40 %, metade dos pingos, sem relâmpago)
       SP.drawTrack(ctx, {
@@ -4190,6 +4187,7 @@
         var bx;
         if (v.j === me && youTag) { var yb = youTagBox(youTag); bx = yb.x + yb.w + 4; }
         else bx = Math.round((v.x + (v.an.nose[0] + 3) * S) / S) + 4;
+        var ant = null;
         for (var q = 0; q < lista.length; q++) {
           var item = lista[lista.length - 1 - q], sz = FX.balloonSize(item, q, q ? null : linhas);
           var r = { x: bx, y: by, w: sz.w, h: sz.h };
@@ -4212,10 +4210,13 @@
             var tras = { x: ruim.x - r.w - 2, y: r.y, w: r.w, h: r.h };
             if (tras.x >= 0 && !todos.some(function (ob) { return bate(tras, ob); })) r.x = tras.x;
           }
+          // preso à borda, um balão mais velho pode voltar para cima do anterior do mesmo cavalo (e cobrir o fim do nome
+          // no de texto): então ele e os mais velhos ficam de fora
+          if (ant && bate(r, ant)) break;
           if (FX.drawBalloon(ctx, r.x * S, r.y * S, S, item, t, q, q ? null : linhas)) {
             FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, tipo: !!item.typeSkill, texto: q ? '' : linhas ? linhas.join(' ') : (item.nomeCurto || ''), pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
           }
-          bx = r.x + r.w + 2;
+          bx = r.x + r.w + 2; ant = r;
         }
       });
     }

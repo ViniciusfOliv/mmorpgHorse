@@ -6947,7 +6947,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     borda mais escura. 3 por cavalo, 1 em reduced. A tela não chama na chuva.
  *
  *   RaceFx._stats = { dados, faixaDado, faixaDadoLinhas, faixaDadoCaixa, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
- *                     caixasEtiquetas, faixaLugar, faixaLugarCaixa, natureza, ventoHud, minimapa, auras, tipoAuras, tercos }
+ *                     caixasEtiquetas, faixaLugar, faixaLugarCaixa, natureza, ventoHud, minimapa, auras, tipoAuras, tercos, climaPista }
  *     faixaDado = a faixa grande do Dado foi desenhada no quadro; faixaDadoLinhas = as linhas dela ([] sem faixa);
  *     faixaDadoCaixa = { x, y, w, h } dela em pixels de arte (null sem faixa); faixaLugar = o texto da faixa do lugar
  *     desenhada no quadro ('' se não há) e faixaLugarCaixa = a caixa dela (null sem faixa).
@@ -6956,6 +6956,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     natureza = { pingos, respingos, relampago, raios, calor, nevoa, nevoaFrente, sombras, folhas, poeiraCascos }
  *     do quadro (não entra em particulas, que é só dos efeitos de skill e do Dado); ventoHud = 'texto' |
  *     'icone' | '' (o selo de vento que a tela desenhou no HUD); minimapa = true se o minimapa foi desenhado.
+ *     climaPista = o clima que a tela usou para desenhar a pista no quadro (chuva, névoa...; '' antes de desenhar).
  *     faixaSkill = texto da faixa central desenhada no quadro ('' se não há); caixasBaloes = [{ racer,
  *     kind, tipo, texto, pilha, x, y, w, h, y0, y1 }] dos balões posicionados (tipo = skill de tipo; texto = o nome
  *     no balão de texto, as linhas juntas com espaço, '' nos compactos) (pixels de arte; y0..y1 = faixa vertical da
@@ -7550,7 +7551,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return { pingos: 0, respingos: 0, relampago: 0, raios: 0, calor: 0, nevoa: 0, nevoaFrente: 0, sombras: 0, folhas: 0, poeiraCascos: 0 };
   }
   var stats = { dados: 0, faixaDado: false, faixaDadoLinhas: [], faixaDadoCaixa: null, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [], caixasEtiquetas: [],
-    faixaLugar: '', faixaLugarCaixa: null, natureza: novaNatureza(), ventoHud: '', minimapa: false, auras: 0, tipoAuras: [], tercos: 0 };
+    faixaLugar: '', faixaLugarCaixa: null, natureza: novaNatureza(), ventoHud: '', minimapa: false, auras: 0, tipoAuras: [], tercos: 0, climaPista: '' };
   var JANELA_MS = 60, amostras = [], somaMs = 0, intervalos = [], ultimoQuadro = null;
   // intervalo real entre quadros (mediana e p95 da janela), calculado só quando alguém lê
   Object.defineProperty(stats, 'intervalo', { enumerable: true, get: function () {
@@ -7560,7 +7561,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   } });
   function beginFrame() {
     stats.dados = 0; stats.faixaDado = false; stats.faixaDadoLinhas = []; stats.faixaDadoCaixa = null; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = []; stats.caixasEtiquetas = [];
-    stats.faixaLugar = ''; stats.faixaLugarCaixa = null; stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false; stats.auras = 0; stats.tipoAuras = []; stats.tercos = 0;
+    stats.faixaLugar = ''; stats.faixaLugarCaixa = null; stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false; stats.auras = 0; stats.tipoAuras = []; stats.tercos = 0; stats.climaPista = '';
   }
   function endFrame(ms, agora) {
     if (agora != null && isFinite(agora)) {
@@ -12242,8 +12243,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       var d = dadoDoEvento(ev);
       return !!d && !FX.diceRevealed(d, self.simT, reduced());
     }
-    // o clima que o painel do topo mostra: o da simulação, mas a virada de um Dado só depois da revelação (a pista,
-    // chuva e névoa, segue climaAtual)
+    // o clima que o painel do topo mostra e a pista desenha (chuva, névoa): o da simulação, mas a virada de um Dado só
+    // depois da revelação (Ruling 18; a velocidade dos cavalos é a da simulação, que já conta o clima novo)
     function climaMostrado(simT) {
       var w = L.cond.weather;
       for (var c = 0; c < climaEvs.length && climaEvs[c].t <= simT; c++) {
@@ -12251,11 +12252,6 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         if (d && !FX.diceRevealed(d, simT, reduced())) break;
         w = climaEvs[c].weather;
       }
-      return w;
-    }
-    function climaAtual(simT) {
-      var w = L.cond.weather;
-      for (var c = 0; c < climaEvs.length && climaEvs[c].t <= simT; c++) w = climaEvs[c].weather;
       return w;
     }
     var frames = sim.frames, F = frames.length, dt = sim.dt;
@@ -12553,9 +12549,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     function marcaDado(dItem, baixa) {
       var lis = hud.ordem.children;
       for (var q = 0; q < lis.length; q++) {
-        var li = lis[q], j = Number(li.getAttribute('data-raia')), num = dItem ? String(dItem.rolls[j].best) : '';
-        li.querySelector('.ordem-dado').textContent = baixa ? '' : num;
-        if (baixa || dadoBaixa) li.querySelector('.ordem-pos').innerHTML = dItem && baixa ? esc(num) : ordFix('>' + (q + 1) + 'º<').slice(1, -1);   // ordFix só troca o º entre tags
+        var li = lis[q], j = Number(li.getAttribute('data-raia')), num = dItem ? '<span class="sr">dado </span>' + esc(String(dItem.rolls[j].best)) : '';
+        li.querySelector('.ordem-dado').innerHTML = baixa ? '' : num;
+        // em tela baixa o número fica no lugar da posição; a posição continua para o leitor de tela (.sr)
+        if (baixa || dadoBaixa) li.querySelector('.ordem-pos').innerHTML = dItem && baixa ? '<span class="sr">' + (q + 1) + 'º </span>' + num : ordFix('>' + (q + 1) + 'º<').slice(1, -1);   // ordFix só troca o º entre tags
         li.classList.toggle('ordem-item--maior', !!dItem && j === dItem.winner);
       }
       dadoMostrado = dItem; dadoBaixa = baixa;
@@ -12710,7 +12707,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       var cam = self.finishCam ? D - 0.62 * visM : follow;
       var laneH = lay.laneArt * S, laneTop = lay.laneTopArt * S;
       var tr = self.tReal, red = reduced();
-      var clima = climaAtual(self.simT);
+      var clima = climaMostrado(self.simT);
+      FX._stats.climaPista = clima;   // para o ui-test: o clima desenhado na pista neste quadro
       // em reduced nada congela: o cenário (nuvens, torcida, bandeiras, grama) anda a 40 % e a natureza
       // (fx.js) recebe o tempo real com a marca reduced (chuva a 40 %, metade dos pingos, sem relâmpago)
       SP.drawTrack(ctx, {
@@ -12916,6 +12914,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var bx;
         if (v.j === me && youTag) { var yb = youTagBox(youTag); bx = yb.x + yb.w + 4; }
         else bx = Math.round((v.x + (v.an.nose[0] + 3) * S) / S) + 4;
+        var ant = null;
         for (var q = 0; q < lista.length; q++) {
           var item = lista[lista.length - 1 - q], sz = FX.balloonSize(item, q, q ? null : linhas);
           var r = { x: bx, y: by, w: sz.w, h: sz.h };
@@ -12938,10 +12937,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
             var tras = { x: ruim.x - r.w - 2, y: r.y, w: r.w, h: r.h };
             if (tras.x >= 0 && !todos.some(function (ob) { return bate(tras, ob); })) r.x = tras.x;
           }
+          // preso à borda, um balão mais velho pode voltar para cima do anterior do mesmo cavalo (e cobrir o fim do nome
+          // no de texto): então ele e os mais velhos ficam de fora
+          if (ant && bate(r, ant)) break;
           if (FX.drawBalloon(ctx, r.x * S, r.y * S, S, item, t, q, q ? null : linhas)) {
             FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, tipo: !!item.typeSkill, texto: q ? '' : linhas ? linhas.join(' ') : (item.nomeCurto || ''), pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
           }
-          bx = r.x + r.w + 2;
+          bx = r.x + r.w + 2; ant = r;
         }
       });
     }

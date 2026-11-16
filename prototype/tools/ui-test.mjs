@@ -1265,10 +1265,15 @@ try {
           const itens = Array.from(document.querySelectorAll('#ordem-lista > li')).map((li) => {
             const pos = li.querySelector('.ordem-pos'), ord = pos && pos.querySelector('.ord'), sr = li.querySelector(':scope > .sr')
             const srOrd = ord && ord.nextElementSibling
-            return { raia: Number(li.dataset.raia), voce: li.classList.contains('ordem-item--voce'), pos: pos && pos.firstChild ? pos.firstChild.nodeValue : null,
+            // o texto visível (fora dos .sr) e o que o leitor de tela lê (fora dos aria-hidden): o número do Dado leva um
+            // .sr "dado " antes dele e, em tela baixa, a posição fica num .sr no lugar dela
+            const visto = (el) => Array.from(el.childNodes).filter((x) => !(x.nodeType === 1 && x.classList.contains('sr'))).map((x) => x.textContent).join('')
+            const lido = (el) => Array.from(el.childNodes).map((x) => x.nodeType === 3 ? x.nodeValue : x.nodeType === 1 && x.getAttribute('aria-hidden') !== 'true' ? lido(x) : '').join('')
+            const txt1 = pos && Array.from(pos.childNodes).find((x) => x.nodeType === 3)
+            return { raia: Number(li.dataset.raia), voce: li.classList.contains('ordem-item--voce'), pos: txt1 ? txt1.nodeValue : null, acessivel: lido(li),
               ord: ord ? ord.getAttribute('aria-hidden') + ':' + ord.textContent + ':' + (srOrd && srOrd.classList.contains('sr') ? srOrd.textContent : '-') : null,
               sr: sr ? sr.textContent : null, chip: !!li.querySelector('.raia--mini'), dado: !!li.querySelector('.ordem-dado'), top: Math.round(li.getBoundingClientRect().top),
-              dadoTxt: li.querySelector('.ordem-dado') ? li.querySelector('.ordem-dado').textContent : null, maior: li.classList.contains('ordem-item--maior'),
+              dadoTxt: li.querySelector('.ordem-dado') ? visto(li.querySelector('.ordem-dado')) : null, maior: li.classList.contains('ordem-item--maior'),
               dir: li.getBoundingClientRect().right }
           })
           // o Dado ativo e já revelado no instante da lista (dadoAtivo(simT) da tela e os dados parados, Ruling 6): o
@@ -1297,6 +1302,8 @@ try {
         if (r.dado && r.baixa) { if (it.pos !== num || it.ord !== null) problems.push(`[${label}] item ${k + 1} no Dado (tela baixa): posição ${JSON.stringify(it.pos)} e ordinal ${it.ord} (esperado o número ${num}, sem ordinal)`) }
         else if (it.pos !== String(k + 1) || it.ord !== 'true:o:º') problems.push(`[${label}] item ${k + 1}: posição ${JSON.stringify(it.pos)} e ordinal ${it.ord} (esperado ${k + 1} e .ord[aria-hidden=true] "o" + .sr "º")`)
         if (it.dadoTxt !== (r.dado && !r.baixa ? num : '') || it.maior !== (!!r.dado && it.raia === r.dado.winner)) problems.push(`[${label}] item ${k + 1} (raia ${it.raia + 1}): .ordem-dado ${JSON.stringify(it.dadoTxt)} e maior = ${it.maior} (Dado ${JSON.stringify(r.dado)}, tela baixa = ${r.baixa})`)
+        // o leitor de tela: a posição sempre (em tela baixa, no Dado, num .sr) e, no Dado, "dado N"
+        if (!it.acessivel.startsWith((k + 1) + 'º') || (r.dado && !it.acessivel.includes('dado ' + num))) problems.push(`[${label}] item ${k + 1} (raia ${it.raia + 1}): texto acessível ${JSON.stringify(it.acessivel)} (esperado começar por "${k + 1}º"${r.dado ? ` e ter "dado ${num}"` : ''}; tela baixa = ${r.baixa})`)
         if (it.sr !== esperado) problems.push(`[${label}] item ${k + 1}: .sr ${JSON.stringify(it.sr)} (esperado ${JSON.stringify(esperado)})`)
         if (!it.chip || !it.dado) problems.push(`[${label}] item ${k + 1} sem o selo da raia ou sem o .ordem-dado`)
       })
@@ -1399,9 +1406,13 @@ try {
         return lin
       })
       const red = document.documentElement.classList.contains('mov-reduzido'), REG = FX.DADO.regira
+      // o clima da simulação logo antes de t (comT: contando as viradas em t, a do Dado)
+      const climaEm = (t, comT) => { let c = L.cond.weather; L.sim.events.forEach((e) => { if (e.type === 'clima' && (comT ? e.t <= t : e.t < t)) c = e.weather }); return c }
       const w = window.__dadoVigia = { quadros: 0, red, porDado: itens.map((d, q) => ({ t0: d.t0, t1: d.t1, winner: d.winner, revela: red ? d.t0 : d.t0 + REG * d.escala, escala: d.escala,
         antes: 0, durante: 0, girando: 0, revelado: 0, depois: 0, esperadas: esperadas[q], linhas: null, primeiro: null,
-        changed: evs[q].changed, feedDado: null, feedClima: null, anuncio: null, painel: null, painelAntes: null })), alturas: {}, ruins: [], nRuins: 0, maxT: 0 }
+        changed: evs[q].changed, feedDado: null, feedClima: null, anuncio: null, painel: null, painelAntes: null,
+        climaAntes: climaEm(d.t0, false), climaDepois: climaEm(d.t0, true), climaGirando: 0, climaRevelado: 0,
+        vencNormal: 0, vencDobro: 0, placasVistas: 0 })), alturas: {}, ruins: [], nRuins: 0, maxT: 0 }
       const ruim = (m) => { w.nRuins++; if (w.ruins.length < 6) w.ruins.push(m) }
       const ul = document.getElementById('ordem-lista')
       new MutationObserver(() => {
@@ -1444,12 +1455,17 @@ try {
           const h = ordem.getBoundingClientRect().height
           w.alturas[h] = (w.alturas[h] || 0) + 1
           itens.forEach((d, q) => { const p = w.porDado[q]; if (t < d.t0) { p.antes++; p.painelAntes = painel.textContent } else if (t < d.t1) p.durante++; else p.depois++ })
+          // o texto visível (fora dos .sr) e o que o leitor de tela lê (fora dos aria-hidden)
+          const visto = (el) => Array.from(el.childNodes).filter((x) => !(x.nodeType === 1 && x.classList.contains('sr'))).map((x) => x.textContent).join('')
+          const lido = (el) => Array.from(el.childNodes).map((x) => x.nodeType === 3 ? x.nodeValue : x.nodeType === 1 && x.getAttribute('aria-hidden') !== 'true' ? lido(x) : '').join('')
           document.querySelectorAll('#ordem-lista > li').forEach((li, k) => {
             const j = Number(li.dataset.raia), pos = li.querySelector('.ordem-pos'), dd = li.querySelector('.ordem-dado')
-            const posTxt = pos.firstChild ? pos.firstChild.nodeValue : '', maior = li.classList.contains('ordem-item--maior')
-            const num = mostrado ? String(mostrado.rolls[j].best) : ''
+            const txt1 = Array.from(pos.childNodes).find((x) => x.nodeType === 3), posTxt = txt1 ? txt1.nodeValue : '', maior = li.classList.contains('ordem-item--maior')
+            const num = mostrado ? String(mostrado.rolls[j].best) : '', ddTxt = visto(dd), aces = lido(li)
             const espPos = mostrado && baixa ? num : String(k + 1), espDado = mostrado && !baixa ? num : ''
-            if (posTxt !== espPos || dd.textContent !== espDado || maior !== (!!mostrado && j === mostrado.winner)) ruim({ t, ativo: !!ativo, rev, baixa, raia: j + 1, posTxt, dado: dd.textContent, maior, espPos, espDado })
+            if (posTxt !== espPos || ddTxt !== espDado || maior !== (!!mostrado && j === mostrado.winner)) ruim({ t, ativo: !!ativo, rev, baixa, raia: j + 1, posTxt, dado: ddTxt, maior, espPos, espDado })
+            // o leitor de tela: a posição sempre (em tela baixa, no Dado, num .sr no lugar dela) e "dado N" com o número
+            if (!aces.startsWith((k + 1) + 'º') || (mostrado && !aces.includes('dado ' + num))) ruim({ t, rev, baixa, raia: j + 1, acessivel: aces, esperado: (k + 1) + 'º' + (mostrado ? ' … dado ' + num : '') })
           })
           const st = FX._stats
           if (ativo) {
@@ -1458,6 +1474,18 @@ try {
             // o painel mostra o clima de antes do Dado até a revelação
             if (!rev && painel.textContent !== p.painelAntes) ruim({ t, painelAntesDaRevelacao: painel.textContent, era: p.painelAntes })
             if (!st.faixaDado || JSON.stringify(st.faixaDadoLinhas) !== JSON.stringify(esp)) ruim({ t, rev, faixa: st.faixaDado, linhas: st.faixaDadoLinhas, esperadas: esp })
+            // Ruling 18: a chuva e a névoa desenhadas na pista são as do clima de antes do Dado até a revelação
+            const climaEsp = rev ? p.climaDepois : p.climaAntes
+            if (st.climaPista !== climaEsp) ruim({ t, rev, climaPista: st.climaPista, esperado: climaEsp })
+            else if (p.climaAntes !== p.climaDepois) { if (rev) p.climaRevelado++; else p.climaGirando++ }
+            // a plaquinha do vencedor no tamanho normal (badgeSize) enquanto os dados giram e no dobro depois da
+            // revelação; as dos outros, sempre no normal
+            st.placas.forEach((pl) => {
+              const b = FX.badgeSize(ativo.rolls[pl.racer]), dobra = rev && pl.racer === ativo.winner ? 2 : 1
+              p.placasVistas++
+              if (pl.w !== b.w * dobra || pl.h !== b.h * dobra) ruim({ t, rev, placa: pl.racer + 1, vencedor: pl.racer === ativo.winner, w: pl.w, h: pl.h, esperado: [b.w * dobra, b.h * dobra] })
+              else if (pl.racer === ativo.winner) { if (dobra === 2) p.vencDobro++; else p.vencNormal++ }
+            })
             if (rev && !p.linhas) p.linhas = Array.isArray(st.faixaDadoLinhas) ? st.faixaDadoLinhas.slice() : String(st.faixaDadoLinhas)
           } else if (st.faixaDado) ruim({ t, faixaForaDaJanela: st.faixaDadoLinhas })
         }
@@ -1471,7 +1499,8 @@ try {
       const w = await pg.evaluate(() => window.__dadoVigia)
       notes[label + '-dado'] = { quadros: w.quadros, alturas: w.alturas, porDado: w.porDado.map((p) => ({ antes: p.antes, girando: p.girando, revelado: p.revelado, depois: p.depois,
         revela: +p.revela.toFixed(2), primeiroNumero: p.primeiro === null ? null : +p.primeiro.toFixed(2), linhas: p.linhas,
-        narracao: { dado: p.feedDado, clima: p.feedClima, anuncio: p.anuncio, painel: p.painel, changed: p.changed } })) }
+        narracao: { dado: p.feedDado, clima: p.feedClima, anuncio: p.anuncio, painel: p.painel, changed: p.changed },
+        climaPista: { de: p.climaAntes, para: p.climaDepois, girando: p.climaGirando, revelado: p.climaRevelado } })) }
       if (w.porDado.length < 2) problems.push(`[${label}] Dado: a corrida tem ${w.porDado.length} Dados (esperado 2)`)
       w.porDado.forEach((p, q) => {
         if (!p.antes || p.durante < 5 || !p.depois) problems.push(`[${label}] Dado ${q + 1}: quadros antes/durante/depois ${p.antes}/${p.durante}/${p.depois} (esperado todos vistos)`)
@@ -1486,7 +1515,14 @@ try {
           if (t === null || t < p.revela - 0.02 * p.escala || (w.red && t > p.t0 + 0.1 * p.escala)) problems.push(`[${label}] Dado ${q + 1}: ${k} entrou em simT ${t} (revelação em ${p.revela.toFixed(2)}${w.red ? ', movimento reduzido' : ''})`)
         }
         if (JSON.stringify(p.linhas) !== JSON.stringify(p.esperadas)) problems.push(`[${label}] Dado ${q + 1}: faixa com ${JSON.stringify(p.linhas)} (esperado ${JSON.stringify(p.esperadas)})`)
+        // Ruling 18: num Dado que vira o clima, o clima desenhado na pista foi visto nas duas fases (com movimento
+        // reduzido só a de depois: a revelação é em t0)
+        if (p.climaAntes !== p.climaDepois && (p.climaRevelado < 5 || (!w.red && !p.climaGirando))) problems.push(`[${label}] Dado ${q + 1} (${p.climaAntes} → ${p.climaDepois}): clima da pista conferido em ${p.climaGirando} quadros girando e ${p.climaRevelado} revelado (esperado os dois)`)
       })
+      // a plaquinha dobrada do vencedor: vista no normal (girando; não com movimento reduzido) e no dobro (revelada)
+      const vN = w.porDado.reduce((a, p) => a + p.vencNormal, 0), vD = w.porDado.reduce((a, p) => a + p.vencDobro, 0)
+      notes[label + '-dado'].placaVencedor = { normal: vN, dobro: vD, placas: w.porDado.map((p) => p.placasVistas) }
+      if (!vD || (!w.red && !vN)) problems.push(`[${label}] Dado: plaquinha do vencedor conferida em ${vN} quadros no tamanho normal e ${vD} no dobro (esperado os dois vistos)`)
       if (w.nRuins) problems.push(`[${label}] Dado: ${w.nRuins} quadros com a faixa de ordem ou a faixa do Dado fora do esperado, ex.: ${JSON.stringify(w.ruins)}`)
       if (Object.keys(w.alturas).length !== 1) problems.push(`[${label}] Dado: a faixa de ordem mudou de altura antes/durante/depois do Dado: ${JSON.stringify(w.alturas)}`)
     }
@@ -1606,11 +1642,21 @@ try {
     // com a raia alta o bastante (s.linhasBalao = 2), em duas; com a raia baixa, o nome curto de sempre
     const vigiaBaloes = (pg) => pg.evaluate(() => {
       const s = window.__galope.race._state, FX = window.RaceFx, me = window.__galope.ui.lobby.playerIdx
-      const w = window.__baloesVigia = { vistos: 0, inteirosLongos: 0, ruins: 0, ex: [], linhas: s.linhasBalao, lane: s.lay.laneArt }
+      const w = window.__baloesVigia = { vistos: 0, inteirosLongos: 0, ruins: 0, ex: [], linhas: s.linhasBalao, lane: s.lay.laneArt, pilhas: 0, cobertos: 0, foraDaPista: 0, exCobre: null }
+      const cruza = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
       const tick = () => {
         if (!window.__galope.race) return
-        const t = s.simT
-        FX._stats.caixasBaloes.forEach((b) => {
+        const t = s.simT, cx = FX._stats.caixasBaloes
+        // nenhum balão mais velho (pilha > 0) cobre um mais novo do mesmo cavalo (o de texto, pilha 0, mostra o nome
+        // inteiro) e nenhum sai da pista
+        cx.forEach((b) => {
+          if (b.x < 0 || b.x + b.w > s.lay.artW) w.foraDaPista++
+          if (b.pilha === 0) return
+          w.pilhas++
+          const c = cx.find((o) => o.racer === b.racer && o.pilha < b.pilha && cruza(b, o))
+          if (c) { w.cobertos++; w.exCobre = w.exCobre || { t, velho: b, novo: c } }
+        })
+        cx.forEach((b) => {
           if (b.pilha !== 0 || b.kind !== 'skill' || b.racer === me) return
           // o item do balão de texto: o mais novo do cavalo entre os balões ativos (skill, Garra, cansou), como a tela
           const it = s.fx.filter((x) => (x.kind === 'skill' || x.kind === 'garra' || x.kind === 'cansou') && x.racer === b.racer && t >= x.t0 && t < x.t0 + FX.BALAO.dur * x.escala).pop()
@@ -1714,6 +1760,7 @@ try {
         if (bv.linhas !== (baixa ? 1 : 2)) problems.push(`[${label}] nome da skill nos balões em ${bv.linhas} linha(s) com raias de ${bv.lane} (esperado ${baixa ? 1 : 2})`)
         if (!bv.vistos || bv.ruins) problems.push(`[${label}] plaquinhas de skill dos rivais: ${bv.ruins} de ${bv.vistos} com o texto errado, ex.: ${JSON.stringify(bv.ex)}`)
         if (!baixa && !bv.inteirosLongos) problems.push(`[${label}] nenhuma plaquinha de rival com o nome inteiro de uma skill de duas palavras que antes era abreviada (${JSON.stringify(bv)})`)
+        if (bv.cobertos || bv.foraDaPista) problems.push(`[${label}] plaquinhas: ${bv.cobertos} quadros com um balão mais velho por cima de um mais novo do mesmo cavalo e ${bv.foraDaPista} fora da pista, ex.: ${JSON.stringify(bv.exCobre)}`)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -3120,7 +3167,7 @@ try {
       return L.sim.events.filter((e) => e.type === 'skill' && e.racer === L.playerIdx).map((e) => e.text)
     })
     const gravador = (pg) => pg.evaluate(() => {
-      const g = window.__sk = { faixas: [], faixasT: [], baloesMax: 0, partMax: 0, baloesTipos: {}, cobriuVoce: 0, forasDaRaia: 0, cruzaOutro: 0, quadros: 0 }
+      const g = window.__sk = { faixas: [], faixasT: [], baloesMax: 0, partMax: 0, baloesTipos: {}, cobriuVoce: 0, forasDaRaia: 0, cruzaOutro: 0, quadros: 0, pilhas: 0, cobreNovo: 0, foraDaPista: 0 }
       const cruza = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
       const tick = () => {
         const r = window.__galope.race
@@ -3134,7 +3181,14 @@ try {
           g.baloesTipos[b.kind] = (g.baloesTipos[b.kind] || 0) + 1
           if (b.tipo) g.baloesTipo = (g.baloesTipo || 0) + 1
           if (voce && cruza(b, voce)) g.cobriuVoce++
-          if (b.pilha !== 0) return
+          if (b.x < 0 || b.x + b.w > r._state.lay.artW) g.foraDaPista++
+          if (b.pilha !== 0) {
+            // um balão mais velho não fica por cima de um mais novo do mesmo cavalo (o de texto tem o nome inteiro)
+            g.pilhas++
+            const c = st.caixasBaloes.find((o) => o.racer === b.racer && o.pilha < b.pilha && cruza(b, o))
+            if (c) { g.cobreNovo++; g.exCobre = g.exCobre || { velho: b, novo: c, simT: r._state.simT } }
+            return
+          }
           // o balão mais novo fica na faixa vertical da própria raia e não cruza a caixa de nenhum OUTRO cavalo
           if (b.y < b.y0 || b.y + b.h > b.y1) g.forasDaRaia++
           const o = st.caixasCavalos.find((c) => c.racer !== b.racer && cruza(b, c))
@@ -3197,6 +3251,7 @@ try {
         if (g.forasDaRaia) problems.push(`[${label}] skills: balão fora da faixa vertical da própria raia em ${g.forasDaRaia} quadro(s)`)
         if (g.cruzaOutro) problems.push(`[${label}] skills: balão cruzou a caixa de outro cavalo em ${g.cruzaOutro} quadro(s) ${JSON.stringify(g.exemplo)}`)
         if (g.cobriuVoce) problems.push(`[${label}] skills: balão cobriu o "◀VOCÊ" em ${g.cobriuVoce} quadro(s)`)
+        if (g.cobreNovo || g.foraDaPista) problems.push(`[${label}] skills: balão mais velho por cima de um mais novo do mesmo cavalo em ${g.cobreNovo} quadro(s) e balão fora da pista em ${g.foraDaPista} ${JSON.stringify(g.exCobre)}`)
         if (!g.baloesTipos.skill) problems.push(`[${label}] skills: nenhum balão de skill posicionado ${JSON.stringify(g.baloesTipos)}`)
         notes['skills-' + label + '-corrida'] = g
         if (extra && extra.reducedMotion === 'reduce' && g.partMax !== 0) problems.push(`[${label}] skills: movimento reduzido com ${g.partMax} partículas`)
@@ -7734,7 +7789,8 @@ try {
         const s = window.__galope.race && window.__galope.race._state
         if (!s || s.simT < it.t0 + 0.7 * it.e) return false
         const st = window.RaceFx._stats
-        return { simT: s.simT, slowK: s.slowK, dados: st.dados, faixa: st.faixaDado, particulas: st.particulas, placas: st.placas.slice(), ms: st.msQuadro, voce: s.voceRect }
+        return { simT: s.simT, slowK: s.slowK, dados: st.dados, faixa: st.faixaDado, particulas: st.particulas, placas: st.placas.slice(), ms: st.msQuadro, voce: s.voceRect,
+          baloes: st.caixasBaloes.slice(), artW: s.lay.artW }
       }, it, { timeout: 60000, polling: 'raf' })).jsonValue()
       return { dados, it, q, seed }
     }
@@ -7768,6 +7824,14 @@ try {
         q.placas.forEach((p, i) => {
           if (q.voce && cruza(p, q.voce)) problems.push(`[${label}] Dado: plaquinha da raia ${p.racer + 1} cobre o "◀VOCÊ" ${JSON.stringify([p, q.voce])}`)
           q.placas.slice(i + 1).forEach((o) => { if (cruza(p, o)) problems.push(`[${label}] Dado: plaquinhas ${p.racer + 1} e ${o.racer + 1} sobrepostas`) })
+        })
+        // o quadro da captura: nenhum balão de skill mais velho por cima do mais novo (com o nome) do mesmo cavalo, e
+        // nenhum fora da pista
+        notes['dado-' + label].baloes = q.baloes.map((b) => ({ racer: b.racer, pilha: b.pilha, texto: b.texto, x: b.x, y: b.y, w: b.w, h: b.h }))
+        q.baloes.forEach((b) => {
+          if (b.x < 0 || b.x + b.w > q.artW) problems.push(`[${label}] Dado: balão da raia ${b.racer + 1} fora da pista ${JSON.stringify(b)} (artW ${q.artW})`)
+          const c = b.pilha > 0 && q.baloes.find((o) => o.racer === b.racer && o.pilha < b.pilha && cruza(b, o))
+          if (c) problems.push(`[${label}] Dado: o balão ${b.pilha} da raia ${b.racer + 1} cobre o balão ${c.pilha} ("${c.texto}") ${JSON.stringify([b, c])}`)
         })
         await checkOverflow(pg, label + '-dado')
         if (testaPular) {

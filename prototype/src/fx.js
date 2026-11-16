@@ -222,7 +222,7 @@
  *     borda mais escura. 3 por cavalo, 1 em reduced. A tela não chama na chuva.
  *
  *   RaceFx._stats = { dados, faixaDado, faixaDadoLinhas, faixaDadoCaixa, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
- *                     caixasEtiquetas, faixaLugar, faixaLugarCaixa, natureza, ventoHud, minimapa, auras, tipoAuras, tercos }
+ *                     caixasEtiquetas, faixaLugar, faixaLugarCaixa, natureza, ventoHud, minimapa, auras, tipoAuras, tercos, climaPista }
  *     faixaDado = a faixa grande do Dado foi desenhada no quadro; faixaDadoLinhas = as linhas dela ([] sem faixa);
  *     faixaDadoCaixa = { x, y, w, h } dela em pixels de arte (null sem faixa); faixaLugar = o texto da faixa do lugar
  *     desenhada no quadro ('' se não há) e faixaLugarCaixa = a caixa dela (null sem faixa).
@@ -231,6 +231,7 @@
  *     natureza = { pingos, respingos, relampago, raios, calor, nevoa, nevoaFrente, sombras, folhas, poeiraCascos }
  *     do quadro (não entra em particulas, que é só dos efeitos de skill e do Dado); ventoHud = 'texto' |
  *     'icone' | '' (o selo de vento que a tela desenhou no HUD); minimapa = true se o minimapa foi desenhado.
+ *     climaPista = o clima que a tela usou para desenhar a pista no quadro (chuva, névoa...; '' antes de desenhar).
  *     faixaSkill = texto da faixa central desenhada no quadro ('' se não há); caixasBaloes = [{ racer,
  *     kind, tipo, texto, pilha, x, y, w, h, y0, y1 }] dos balões posicionados (tipo = skill de tipo; texto = o nome
  *     no balão de texto, as linhas juntas com espaço, '' nos compactos) (pixels de arte; y0..y1 = faixa vertical da
@@ -825,7 +826,7 @@
     return { pingos: 0, respingos: 0, relampago: 0, raios: 0, calor: 0, nevoa: 0, nevoaFrente: 0, sombras: 0, folhas: 0, poeiraCascos: 0 };
   }
   var stats = { dados: 0, faixaDado: false, faixaDadoLinhas: [], faixaDadoCaixa: null, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [], caixasEtiquetas: [],
-    faixaLugar: '', faixaLugarCaixa: null, natureza: novaNatureza(), ventoHud: '', minimapa: false, auras: 0, tipoAuras: [], tercos: 0 };
+    faixaLugar: '', faixaLugarCaixa: null, natureza: novaNatureza(), ventoHud: '', minimapa: false, auras: 0, tipoAuras: [], tercos: 0, climaPista: '' };
   var JANELA_MS = 60, amostras = [], somaMs = 0, intervalos = [], ultimoQuadro = null;
   // intervalo real entre quadros (mediana e p95 da janela), calculado só quando alguém lê
   Object.defineProperty(stats, 'intervalo', { enumerable: true, get: function () {
@@ -835,7 +836,7 @@
   } });
   function beginFrame() {
     stats.dados = 0; stats.faixaDado = false; stats.faixaDadoLinhas = []; stats.faixaDadoCaixa = null; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = []; stats.caixasEtiquetas = [];
-    stats.faixaLugar = ''; stats.faixaLugarCaixa = null; stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false; stats.auras = 0; stats.tipoAuras = []; stats.tercos = 0;
+    stats.faixaLugar = ''; stats.faixaLugarCaixa = null; stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false; stats.auras = 0; stats.tipoAuras = []; stats.tercos = 0; stats.climaPista = '';
   }
   function endFrame(ms, agora) {
     if (agora != null && isFinite(agora)) {
