@@ -7,12 +7,14 @@ durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (
 protótipo vira o jogo, a mesma base web empacotada para Android, com os módulos de regra no servidor.
 
 ## Onde estamos
-- **Branches:** a `main` tem tudo até o bloco 1b e a parte 2b da Visuais 2 (`claude/cavalos-v3` integrada em
-  2026-11-14, por fast-forward). Em aberto só a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta
-  como bloco 3). A `claude/visuais-2` leva a frente "interface" da Visuais 2 inteira (3a acabamento, 3b Estábulo e
-  montaria no celular, 3c tela da corrida), completa e **ainda sem merge na `main`**: o Vinicius joga antes e decide a
-  integração. Trabalho novo sai da `main`.
-- **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build):
+- **Branches:** a `main` tem tudo até o bloco 1b e a Visuais 2 até a parte 3 (`claude/cavalos-v3` integrada em
+  2026-11-14 e `claude/visuais-2` em 2026-11-16, as duas por fast-forward). A parte 3 é a frente "interface" inteira
+  (3a acabamento, 3b Estábulo e montaria no celular, 3c tela da corrida). O Vinicius escolheu integrar antes de jogar: as
+  listas "A confirmar com o Vinicius (gosto, 3a)", "(gosto, 3b)" e "(gosto, 3c)" continuam abertas e viram ajustes por
+  cima da `main`. Em aberto só a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta como bloco 3).
+  Trabalho novo sai da `main`.
+- **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build; os três foram republicados em
+  2026-11-16 com o build e9460f4, o da integração da parte 3 da Visuais 2: jogo na versão 7, DEV na 5 e wiki na 6):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
   - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
   - wiki: https://claude.ai/artifact/Bp47f9qE3tSswu1A9zdF2y (`prototype/dist/wiki.html`)
@@ -71,7 +73,7 @@ Spec em `docs/superpowers/specs/2026-11-12-crescimento-livre-design.md`, plano e
   Jogo, DEV, wiki e o build "Galope Ícones DEV" republicados com esse build em 2026-11-14.
 - **Ainda não testado por gente:** os números saíram de simulação; a corrida mudou de sensação (mais curta).
 
-## Visuais 2, parte 3a: acabamento da interface (pronta em 2026-11-14, na `claude/visuais-2`)
+## Visuais 2, parte 3a: acabamento da interface (pronta em 2026-11-14; integrada na `main` em 2026-11-16)
 Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plano em
 `docs/superpowers/plans/2026-11-14-interface-acabamento.md`; decisões em `decisoes.md` (2026-11-14); `docs/GDD.md` (arte).
 - **O que mudou:** fontes Press Start 2P e Jersey 10 embutidas no jogo (com o Google Fonts de reserva); painéis com
@@ -84,8 +86,8 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
   (limite de +4% sobre 1284 e 1894). Capturas oficiais de `prototype/screens/` regeneradas (31 imagens, nenhuma nova nem removida).
 - **Publicação (feita):** a folha da interface https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 3) e o build de
   teste com o modo DEV https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 9), os dois com o build 341eb4c (o fim da 3a),
-  publicados depois da Tarefa 3 e republicados depois da Tarefa 5, sem esperar resposta. Os artefatos oficiais só depois
-  do merge na `main`.
+  publicados depois da Tarefa 3 e republicados depois da Tarefa 5, sem esperar resposta. Os artefatos oficiais foram
+  republicados em 2026-11-16, com a integração na `main`.
 - **Tamanho do jogo:** `jogo.html` de 813.461 B para 862.145 B (+47,5 KB, acima dos ~45 KB da spec §9; 5,6 KB são
   comentários do CSS).
 - **A confirmar com o Vinicius (gosto, 3a):**
@@ -110,11 +112,11 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
   o ordinal sem `.sr` na narração da corrida foram fechados na 3c (seção abaixo).
 - **Pendências menores da 3a:** sem hover/apertado nas abas da barra de baixo; "ç" de Expedição encostado no bisel.
 
-## Visuais 2, parte 3c: tela da corrida (pronta em 2026-11-16, na `claude/visuais-2`)
+## Visuais 2, parte 3c: tela da corrida (pronta e integrada na `main` em 2026-11-16)
 Spec em `docs/superpowers/specs/2026-11-15-tela-da-corrida-design.md` (aprovada pelo Vinicius), plano em
 `docs/superpowers/plans/2026-11-16-tela-da-corrida.md`; decisões em `decisoes.md` (2026-11-16, as dele e as da execução);
-`docs/GDD.md` §5. Com ela, a frente "interface" (3a, 3b, 3c) está completa na `claude/visuais-2`, **sem merge na `main`**: o
-Vinicius joga antes e decide.
+`docs/GDD.md` §5. Com ela, a frente "interface" (3a, 3b, 3c) ficou completa e entrou na `main` em 2026-11-16, por escolha
+do Vinicius, antes de ele jogar; a lista de gosto abaixo continua aberta.
 - **O que mudou:** faixa de ordem embaixo da pista (todos os corredores em ordem, e quem vem logo à frente e logo atrás, com
   a distância); narração em caixa de altura fixa (cada frase em até 2 linhas, sem "…"; em tela baixa, uma frase em uma linha, que pode
   cortar com "…"); Dado da Sorte numa faixa grande na
@@ -169,26 +171,27 @@ Vinicius joga antes e decide.
 - **Publicação (feita em 2026-11-16, com o build b78e58e, o fim da 3c):** a folha da interface
   https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 6) e o build de teste com o modo DEV
   https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 12). Os artefatos oficiais (jogo, DEV e wiki, em "Onde jogar")
-  continuam com o bloco 1b: só mudam depois da integração na `main`.
+  foram republicados no mesmo dia, depois da integração na `main`, com o build e9460f4.
 
 ## Em andamento
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b, que também traz a fonte da Rédea nova. Cada ginásio tem o
   foco num elemento.
-- **Frente "interface" da Visuais 2 completa na `claude/visuais-2`, esperando o Vinicius:** a 3c (tela da corrida) ficou
-  pronta em 2026-11-16 (seção própria acima, com a lista "A confirmar com o Vinicius (gosto, 3c)"); com a 3a e a 3b, a
-  frente está inteira e **sem merge na `main`** até ele jogar e decidir.
-- **Parte 3b da Visuais 2 pronta na `claude/visuais-2`, esperando o Vinicius** (Estábulo e montaria no celular; spec em
+- **Frente "interface" da Visuais 2 integrada na `main` em 2026-11-16, com as listas de gosto abertas:** a 3c (tela da
+  corrida) ficou pronta em 2026-11-16 (seção própria acima, com a lista "A confirmar com o Vinicius (gosto, 3c)"); com a 3a
+  e a 3b, a frente está inteira. O Vinicius escolheu integrar antes de jogar; o que ele mudar ao jogar entra como ajuste
+  por cima da `main`.
+- **Parte 3b da Visuais 2 (integrada na `main` em 2026-11-16; lista de gosto aberta)** (Estábulo e montaria no celular; spec em
   `docs/superpowers/specs/2026-11-15-estabulo-montaria-celular-design.md`, plano em `docs/superpowers/plans/2026-11-15-estabulo-montaria-celular.md`;
   decisões da execução em `decisoes.md`). Estábulo em lista de linhas, ficha com retrato grande e aba Ficha, aba Status em linha
   única com a barra do Confirmar presa, motivo visível no toque e ordinal lido pelo leitor de tela. Alturas a 360×780: Estábulo
   com 3 cavalos de 1.320 para 780 px, com 6 de 2.277 para 1.012 px; Status de 1.902 para ~1.455 px (1.450 a 1.457 conforme a densidade da tela; teto do teste 1.470); ficha com a linha de abas
   inteira na 1ª tela. `check.sh` OK (129 testes de simulação, 104 de efeitos, 170 de moldes, 615 conferências do wiki, 87 metas
-  rápidas e o teste de interface). Capturas oficiais regeneradas; folha da interface com a linha nova do Estábulo. Sem merge
-  na `main` até ele olhar. Já publicado: folha https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 5) e build de teste
+  rápidas e o teste de interface). Capturas oficiais regeneradas; folha da interface com a linha nova do Estábulo.
+  Já publicado: folha https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 5) e build de teste
   https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 11), build 2a381ff (o fim da 3b); os dois foram republicados
   depois com a 3c (seção da 3c, acima).
-- **Parte 3a da Visuais 2 pronta na `claude/visuais-2`, esperando o Vinicius** (folha, build de teste e a lista "A confirmar
-  com o Vinicius (gosto, 3a)" acima); sem merge na `main` até ele olhar.
+- **Parte 3a da Visuais 2 (integrada na `main` em 2026-11-16; lista de gosto aberta)** (folha, build de teste e a lista
+  "A confirmar com o Vinicius (gosto, 3a)" acima).
 - **Visuais 2** (branch `claude/visuais-2`, criada da `claude/cavalos-v3`; a parte 1 foi integrada na
   `claude/cavalos-v3` em 2026-11-12, a parte 2a e a 2b em 2026-11-13): três partes, ícones →
   cavalos → interface. **Parte 1 (ícones) pronta na `claude/visuais-2`:** 58 ícones nas telas, na corrida e
@@ -258,10 +261,10 @@ Vinicius joga antes e decide.
 - **GDD §9+:** expedições, tecnologia do servidor, anti-trapaça, PVP assíncrono e ranqueada.
 
 ## Próximos passos
-0. O Vinicius joga a 3a, a 3b e a 3c (folha da interface e build de teste) e decide as listas "A confirmar com o Vinicius
-   (gosto, 3a)", "(gosto, 3b)" e "(gosto, 3c)" (acima) e a integração da `claude/visuais-2` na `main`; o que ele mudar entra
-   antes do merge.
-1. O Vinicius joga o modelo novo no artefato (jogo, DEV e wiki republicados com o 1b, já na `main`) e decide os
+0. O Vinicius joga a 3a, a 3b e a 3c nos artefatos oficiais (jogo, DEV e wiki, republicados com a integração; a folha
+   da interface mostra os componentes) e decide as listas "A confirmar com o Vinicius (gosto, 3a)", "(gosto, 3b)" e
+   "(gosto, 3c)" (acima); o que ele mudar entra como ajuste por cima da `main`.
+1. O Vinicius joga o modelo novo no artefato (jogo, DEV e wiki, com o que está na `main`) e decide os
    pontos de calibração acima; o que ele mudar entra como ajuste por cima da `main`.
 2. **2c (animações novas para todos os portes)** da Visuais 2: espera a confirmação de créditos do Vinicius.
 3. O Vinicius apaga as branches antigas no GitHub (lista abaixo).
@@ -274,6 +277,6 @@ Vinicius joga antes e decide.
 ## Branches para apagar no GitHub
 Todas já integradas na `main`: `claude/equipamentos`, `claude/cruzamento`, `claude/nucleo-corrida-v2`,
 `claude/analise-regras-arquivo-3j3zv1`, `claude/kind-thompson-gsqj7r`, `claude/menu-abas`,
-`claude/visuais`, `claude/corrida-viva`, `claude/pente-fino` e `claude/cavalos-v3`. A `claude/visuais-2` voltou a ser
-usada para a parte 3 (interface), avançada até a `main` em 2026-11-14. A `claude/nifty-newton-e8u133` é a
+`claude/visuais`, `claude/corrida-viva`, `claude/pente-fino`, `claude/cavalos-v3` e `claude/visuais-2` (a parte 3
+inteira, a frente "interface", entrou na `main` em 2026-11-16). A `claude/nifty-newton-e8u133` é a
 branch desta sessão e acompanha a `main`. A sessão não consegue apagar branch remota (o proxy bloqueia).

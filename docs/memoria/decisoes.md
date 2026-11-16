@@ -3,6 +3,13 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-16 — Integração da frente de interface da Visuais 2 na `main` (decisão do Vinicius)
+- **A `claude/visuais-2` (3a, 3b e 3c) entrou na `main` antes do teste no artefato** — escolha do Vinicius depois da
+  revisão final limpa da 3c e do `check.sh` OK; depois da 3a e da 3b ele tinha preferido manter o branch para jogar antes.
+  As listas "A confirmar com o Vinicius (gosto, 3a)", "(gosto, 3b)" e "(gosto, 3c)" do `ESTADO.md` continuam abertas e
+  viram ajustes por cima da `main`. Integração por fast-forward, com o `check.sh` OK em cima da `main` já integrada; jogo,
+  DEV e wiki republicados com esse build (e9460f4).
+
 ## 2026-11-16 — Visuais 2, parte 3c: tela da corrida (decisões do Vinicius)
 Spec em `docs/superpowers/specs/2026-11-15-tela-da-corrida-design.md` (aprovada por ele).
 - **Faixa de ordem embaixo da pista** — todos os corredores em ordem e o nome de quem está logo à frente e logo atrás; não
