@@ -5055,23 +5055,43 @@ try {
       await pg.waitForSelector('#t-montaria')
       if (aba !== 'status') await pg.locator(`[data-acao="montaria-aba"][data-id="${aba}"]`).click()
     }
+    // as frases à vista na tela iguais a txt (só o elemento mais de dentro de cada uma), com as classes que importam (3c §9)
+    const frases = (txt) => pg.evaluate((t) => {
+      const n = (x) => x.replace(/\s+/g, ' ').trim()
+      const vis = Array.from(document.querySelectorAll('#tela *')).filter((e) => e.getClientRects().length && n(e.textContent) === t)
+      return vis.filter((e) => !vis.some((f) => f !== e && e.contains(f)))
+        .map((e) => ({ txt: n(e.textContent), motivo: e.classList.contains('motivo'), alvo: e.classList.contains('motivo-alvo'), papel: e.getAttribute('role') }))
+    }, txt)
+    const altBarra = () => pg.evaluate(() => { const x = document.querySelector('.barra-acao'); return x ? x.getBoundingClientRect().height : null })
+    const nAlvos = () => pg.evaluate(() => document.querySelectorAll('#tela .motivo-alvo').length)
     // o botão tem de estar aria-disabled e sem disabled; o toque (real), o Enter, o Espaço e o clique forçado (sem o atributo) mostram
-    // o motivo (ou não fazem nada) e deixam o save, a ativa, os pontos, a Rédea e o rascunho como estavam
-    const confere = async (nome, sel, motivoRe) => {
+    // o motivo (ou não fazem nada) e deixam o save, a ativa, os pontos, a Rédea e o rascunho como estavam.
+    // alvo (3c §9.1): a frase do motivo já está na tela (Confirmar travado, Redistribuir, Expandir com reserva): o toque não cria
+    // a .motivo, destaca a frase que já está lá (.motivo-alvo, por ~2 s) e a .barra-acao não cresce
+    const confere = async (nome, sel, motivoRe, { alvo = false } = {}) => {
       const b = () => pg.locator(sel).first()
       if ((await pg.locator(sel).count()) < 1) { problems.push(`${label}: ${nome}: botão ausente (${sel})`); return }
       await esperaBarra(pg)   // o toque forçado vai nas coordenadas: a barra presa recém-aparecida deixaria o toque passar
       if (!(await indisp(b()))) { problems.push(`${label}: ${nome}: não está aria-disabled="true" sem disabled`); return }
       const t0 = await tudo()
       const igualA0 = async (onde) => { const t1 = await tudo(); if (t1.disco !== t0.disco || t1.mem !== t0.mem || t1.rasc !== t0.rasc || t1.conf !== t0.conf) problems.push(`${label}: ${nome}: ${onde} mudou o estado`) }
+      // a frase do motivo à vista uma vez: na .motivo role="status" criada pelo toque ou (alvo) na que já estava na tela, destacada
+      const dm = ((await b().getAttribute('data-motivo')) || '').replace(/\s+/g, ' ').trim()
       const vistoUma = async (onde) => {
-        const ms = await motivos()
-        if (ms.length !== 1 || ms[0].papel !== 'status' || !motivoRe.test(ms[0].txt)) problems.push(`${label}: ${nome}: ${onde}: motivo ${JSON.stringify(ms)} (esperado um role="status" com ${motivoRe})`)
+        const ms = await motivos(), fs = await frases(dm)
+        if (alvo) {
+          if (ms.length || fs.length !== 1 || !fs[0].alvo || !motivoRe.test(fs[0].txt)) problems.push(`${label}: ${nome}: ${onde}: frase do motivo à vista ${JSON.stringify(fs)}, .motivo ${JSON.stringify(ms)} (esperado a frase uma vez, com .motivo-alvo e ${motivoRe}, sem .motivo nova)`)
+        } else {
+          if (ms.length !== 1 || ms[0].papel !== 'status' || !motivoRe.test(ms[0].txt)) problems.push(`${label}: ${nome}: ${onde}: motivo ${JSON.stringify(ms)} (esperado um role="status" com ${motivoRe})`)
+          if (fs.length !== 1 || !fs[0].motivo) problems.push(`${label}: ${nome}: ${onde}: a frase do motivo à vista ${fs.length} vez(es) ${JSON.stringify(fs)} (esperado uma, na .motivo)`)
+        }
       }
+      const h0 = await altBarra()
       await b().click({ force: true })   // o toque real nas coordenadas do botão (o click() normal espera o botão habilitado)
       await vistoUma('toque'); await igualA0('o toque')
+      if (alvo && h0 !== await altBarra()) problems.push(`${label}: ${nome}: a .barra-acao foi de ${h0} a ${await altBarra()} px com o toque (esperado igual)`)
       // a região viva fixa (#motivo-vivo, fora da tela que redesenha) leva o mesmo texto, para o leitor de tela anunciar
-      const txtMotivo = ((await motivos())[0] || {}).txt || ''
+      const txtMotivo = ((await frases(dm))[0] || {}).txt || ''
       const vivo = (t) => pg.waitForFunction((x) => document.getElementById('motivo-vivo').textContent === x, t, { timeout: 1500 }).then(() => true, () => false)
       if (!(await vivo(txtMotivo))) problems.push(`${label}: ${nome}: #motivo-vivo sem o texto do motivo: ${JSON.stringify(await pg.evaluate(() => document.getElementById('motivo-vivo').textContent))}`)
       // o +N: a .motivo fica dentro da .build-linha daquele status e ocupa a largura dela (não cai numa célula vazia do grid)
@@ -5093,9 +5113,21 @@ try {
       await pg.keyboard.press('Space')
       await vistoUma('Espaço'); await igualA0('o Espaço')
       if (!(await b().evaluate((e) => e === document.activeElement))) problems.push(`${label}: ${nome}: o foco saiu do botão depois do Enter/Espaço`)
+      if (alvo) {
+        // o destaque dura ~2 s a partir do último toque: um toque novo o reinicia, e depois ele sai sozinho, sem mudar o estado
+        await sleep(1200)
+        await b().click({ force: true })
+        await sleep(1200)   // 2,4 s depois do Espaço: só continua se o 2º toque reiniciou o tempo
+        if ((await nAlvos()) !== 1) problems.push(`${label}: ${nome}: o destaque não durou ~2 s depois do último toque (${await nAlvos()} .motivo-alvo 1,2 s depois)`)
+        const saiu = await pg.waitForFunction(() => !document.querySelector('#tela .motivo-alvo'), null, { timeout: 1500 }).then(() => true, () => false)
+        if (!saiu) problems.push(`${label}: ${nome}: a .motivo-alvo não saiu ~2 s depois do toque`)
+        await igualA0('o destaque')
+        await b().click({ force: true })   // de novo, para o toque seguinte tirá-lo
+      }
       // some no próximo toque em outro lugar
       await pg.locator('#tela h1').first().click()
       if ((await motivos()).length) problems.push(`${label}: ${nome}: o motivo não sumiu no toque seguinte`)
+      if (await nAlvos()) problems.push(`${label}: ${nome}: o destaque da frase (.motivo-alvo) não saiu no toque seguinte`)
       // forçado: sem o atributo, o handler confere a condição de novo e também recusa
       await pg.evaluate((s) => { const x = document.querySelector(s); x.removeAttribute('aria-disabled'); x.disabled = false; x.click() }, sel)
       await igualA0('o clique forçado (sem aria-disabled)')
@@ -5129,6 +5161,35 @@ try {
       if (S.allocInfo(s1.mounts[0]).left !== 4) problems.push(`${label}: a Brasa de teste tem ${S.allocInfo(s1.mounts[0]).left} pontos livres (esperado 4)`)
       if (await pg.locator('[data-acao="ponto-mais"][data-id="est"][data-n="1"]').isDisabled()) problems.push(`${label}: o +1 de Resistência está indisponível com 4 pontos livres`)
       await confere('+5 quando só o +1 cabe', '[data-acao="ponto-mais"][data-id="est"][data-n="5"]', /Faltam pontos: sobram 4\./)
+      // 3c §9.2: a .motivo que some no toque seguinte não tira da frente do dedo o botão tocado. Com a .motivo de um +N aberta numa
+      // linha de cima, o toque no +1 de uma linha de baixo: o botão fica no lugar (± 1 px) e o ponto entra uma vez. Sem .motivo
+      // aberta, ou com ela abaixo do botão tocado, nada é compensado (o botão também fica no lugar)
+      {
+        const maisSel = (k, n) => `[data-acao="ponto-mais"][data-id="${k}"][data-n="${n}"]`
+        const topo = (s) => pg.evaluate((x) => document.querySelector(x).getBoundingClientRect().top, s)
+        const rascunho = () => pg.evaluate(() => (window.__galope.ui.montaria && window.__galope.ui.montaria.rascunho) || {})
+        const somaR = (r) => Object.values(r).reduce((a, v) => a + (v || 0), 0)
+        const toca = async (tag, travado, alvoSel, k, esperado) => {
+          if (travado) {
+            await pg.locator(travado).click({ force: true })
+            if ((await motivos()).length !== 1) problems.push(`${label}: ${tag}: o toque em ${travado} não abriu a .motivo`)
+          }
+          await pg.evaluate((s) => { const x = document.querySelector(s); window.scrollBy(0, x.getBoundingClientRect().top - 420) }, alvoSel)
+          const y0 = await topo(alvoSel), sy = await pg.evaluate(() => window.scrollY)
+          if (travado && sy < 120) problems.push(`${label}: ${tag}: a página só rolou ${sy} px (o teste precisa de espaço para compensar)`)
+          await pg.locator(alvoSel).click()
+          const y1 = await topo(alvoSel), r = await rascunho()
+          if (Math.abs(y1 - y0) > 1) problems.push(`${label}: ${tag}: o botão tocado foi de ${y0} a ${y1} px (esperado o mesmo ± 1)`)
+          if ((r[k] || 0) !== esperado || somaR(r) !== esperado) problems.push(`${label}: ${tag}: rascunho ${JSON.stringify(r)} (esperado ${k}: ${esperado} e nada mais)`)
+          if ((await motivos()).length) problems.push(`${label}: ${tag}: a .motivo continua na tela`)
+        }
+        await toca('+1 da Garra com a .motivo da Velocidade aberta', maisSel('vel', 5), maisSel('garra', 1), 'garra', 1)
+        await toca('+1 da Garra de novo, sem .motivo', null, maisSel('garra', 1), 'garra', 2)
+        await pg.locator('[data-acao="pontos-desfazer"]').click()
+        await toca('+1 da Aceleração com a .motivo da Garra (abaixo) aberta', maisSel('garra', 5), maisSel('acel', 1), 'acel', 1)
+        await esperaBarra(pg)
+        await pg.locator('[data-acao="pontos-desfazer"]').click()
+      }
       await pg.locator('[data-acao="pontos-sugerir"]').click()   // gasta o que sobra no rascunho: nada mais cabe
       await confere('Distribuir sugerido com o rascunho cheio', '[data-acao="pontos-sugerir"]', /^(Os pontos que sobram não pagam o próximo ponto de nenhum status\.|Nenhum ponto sobrando para distribuir\.)$/)
       await pg.locator('[data-acao="pontos-desfazer"]').click()
@@ -5146,7 +5207,9 @@ try {
       await montaSave(pg, (raw) => {
         raw.activeId = 'm2'; raw.raceCounter = 4
         raw.pending = { counter: raw.raceCounter, training: false, fee: 100, pr: S.powerRating(raw.mounts[1]), alloc: JSON.parse(JSON.stringify(raw.mounts[1].alloc)), gear: [] }
+        raw.gold = 350   // a vaga custa 300: com 100 da entrada reservados, sobram 250 (o aviso da reserva fica na tela)
       })
+      await confere('Expandir com a entrada reservada', '[data-acao="expandir"]', /^100 de Ouro reservados para a entrada do páreo aberto\.$/, { alvo: true })
       if (await pg.locator('#tela [data-acao="ativar"]').count()) problems.push(`${label}: "Tornar ativa" na lista do Estábulo (páreo aberto)`)
       await abreFicha('m1', 'ficha')
       await confere('Tornar ativa na ficha (páreo aberto)', '.montaria-ficha [data-acao="ativar"]', /^Páreo aberto: corra a sala antes de trocar a montaria ativa\.$/)
@@ -5155,15 +5218,35 @@ try {
       const maisTrava = await pg.evaluate(() => { const x = Array.from(document.querySelectorAll('[data-acao="ponto-mais"][aria-disabled="true"]')).find((e) => /Páreo aberto: passaria do Poder/.test(e.getAttribute('data-motivo') || '')); return x ? [x.getAttribute('data-id'), x.getAttribute('data-n')] : null })
       if (!maisTrava) problems.push(`${label}: a Teto ativa com páreo aberto não tem +N travado pelo Poder da sala`)
       else await confere('+N da ativa com páreo aberto', `[data-acao="ponto-mais"][data-id="${maisTrava[0]}"][data-n="${maisTrava[1]}"]`, /^\+\d+ em .+: custa \d+ pontos?\. Páreo aberto: passaria do Poder \d+ que a sala viu\.$/)
-      await confere('Redistribuir com páreo aberto', '[data-acao="redistribuir"]', /^Páreo aberto: a montaria ativa só redistribui depois de correr\.$/)
+      await confere('Redistribuir com páreo aberto', '[data-acao="redistribuir"]', /^Páreo aberto: a montaria ativa só redistribui depois de correr\.$/, { alvo: true })
       await pg.locator('[data-acao="pontos-sugerir"]').click()
-      await confere('Confirmar acima do Poder da sala', '[data-acao="pontos-confirmar"]', /^Páreo aberto: com este rascunho o Poder iria a \d+, e a sala viu \d+\./)
+      await confere('Confirmar acima do Poder da sala', '[data-acao="pontos-confirmar"]', /^Páreo aberto: com este rascunho o Poder iria a \d+, e a sala viu \d+\./, { alvo: true })
       await pg.locator('[data-acao="pontos-desfazer"]').click()
       await checkOverflow(pg, label + ' B')
     } catch (e) {
       problems.push(`${label}: ${e.message}`)
     } finally {
       await pg.context().close()
+    }
+
+    // 3c §9.3: em cores forçadas, a plaquinha "Ativa" da linha do Estábulo tem contorno (borda de 2 px em cor do sistema)
+    {
+      const pf = await newPage(browser, { width: 360, height: 780 }, label + '-forcado', { forcedColors: 'active', ...comSave(SAVE_3A) })
+      try {
+        await pf.waitForSelector('#t-estabulo')
+        const pl = await pf.evaluate(() => {
+          const e = document.querySelector('.montaria-linha .badge-ativa')
+          if (!e) return null
+          const sonda = (c) => { const d = document.createElement('i'); d.style.border = '2px solid ' + c; document.body.appendChild(d); const v = getComputedStyle(d).borderTopColor; d.remove(); return v }
+          const cs = getComputedStyle(e)
+          return { largura: parseFloat(cs.borderTopWidth), estilo: cs.borderTopStyle, cor: cs.borderTopColor, sistema: ['ButtonText', 'CanvasText'].map(sonda) }
+        })
+        if (!pl || !(pl.largura >= 2) || pl.estilo !== 'solid' || !pl.sistema.includes(pl.cor)) problems.push(`${label}: cores forçadas: a plaquinha "Ativa" da linha do Estábulo ${JSON.stringify(pl)} (esperado borda sólida de 2 px ou mais em ButtonText/CanvasText)`)
+      } catch (e) {
+        problems.push(`${label} cores forçadas: ${e.message}`)
+      } finally {
+        await pf.context().close()
+      }
     }
 
     // ---- Estábulo em lista de linhas (3b §4): um botão por cavalo, na ordem de state.mounts; altura; foco ao voltar ----

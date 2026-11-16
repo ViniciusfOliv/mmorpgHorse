@@ -281,11 +281,47 @@
     el.textContent = '';
     if (txt) motivoVivoTimer = setTimeout(function () { el.textContent = txt; }, 60);
   }
-  function tiraMotivo() {
+  // destaque parado (3c §9.1) da frase do motivo que já estava na tela: a classe .motivo-alvo por MOTIVO_ALVO_MS. Um toque
+  // novo reinicia o tempo; tiraMotivo() e o render() o tiram antes (o elemento pode já ter saído da tela: nada quebra)
+  var MOTIVO_ALVO_MS = 2000;
+  var motivoAlvoTimer = 0;
+  function tiraAlvo() {
+    clearTimeout(motivoAlvoTimer);
+    motivoAlvoTimer = 0;
+    var alvos = telaEl.querySelectorAll('.motivo-alvo');
+    for (var i = 0; i < alvos.length; i++) alvos[i].classList.remove('motivo-alvo');
+  }
+  // alvo: o elemento tocado. Se a .motivo removida estava acima dele na página, a lista subiria e o tirava de baixo do dedo
+  // (3c §9.2): rola de volta o que ele andou. Só mede quando algo acima saiu; a barra presa não anda (a medida dá 0)
+  function tiraMotivo(alvo) {
     motivoVivo('');
+    tiraAlvo();
     var velhas = telaEl.querySelectorAll('.motivo');
-    for (var i = 0; i < velhas.length; i++) if (velhas[i].parentNode) velhas[i].parentNode.removeChild(velhas[i]);
-    if (velhas.length) medeBarra();   // a .motivo do Confirmar fica dentro da barra presa
+    if (!velhas.length) return;
+    // mede só com o alvo na tela, fora das .motivo que saem e abaixo de alguma delas
+    var y0 = alvo && telaEl.contains(alvo) ? alvo.getBoundingClientRect().top : null, acima = false, i;
+    for (i = 0; i < velhas.length && y0 !== null; i++) {
+      if (velhas[i].contains(alvo)) y0 = null;
+      else if (velhas[i].getBoundingClientRect().bottom <= y0) acima = true;
+    }
+    for (i = 0; i < velhas.length; i++) if (velhas[i].parentNode) velhas[i].parentNode.removeChild(velhas[i]);
+    medeBarra();   // a .motivo do Confirmar fica dentro da barra presa
+    if (y0 !== null && acima) {
+      var subiu = y0 - alvo.getBoundingClientRect().top;
+      if (subiu > 0) window.scrollBy(0, -subiu);
+    }
+  }
+  // a frase do motivo já à vista no contêiner do botão (o mesmo do MOTIVO_ONDE: ele mesmo no 'in', o pai no 'after'): o
+  // elemento mais de dentro com exatamente aquele texto, ou null
+  function fraseNaTela(caixa, txt, btn) {
+    var limpa = function (x) { return String(x).replace(/\s+/g, ' ').trim(); };
+    var alvo = limpa(txt), achado = null, els = caixa.querySelectorAll('*');
+    for (var i = 0; i < els.length; i++) {
+      var e = els[i];
+      if (e.contains(btn) || !e.getClientRects().length || limpa(e.textContent) !== alvo) continue;
+      if (!achado || achado.contains(e)) achado = e;
+    }
+    return achado;
   }
   function mostraMotivo(btn) {
     tiraMotivo();
@@ -298,6 +334,13 @@
     }
     motivoVivo(txt);
     if (!host) return;
+    // a frase já está na tela (Confirmar travado, Redistribuir, Expandir com reserva): não repete, destaca a que está lá
+    var ja = fraseNaTela(modo === 'in' ? host : host.parentNode, txt, btn);
+    if (ja) {
+      ja.classList.add('motivo-alvo');
+      motivoAlvoTimer = setTimeout(function () { motivoAlvoTimer = 0; ja.classList.remove('motivo-alvo'); }, MOTIVO_ALVO_MS);
+      return;
+    }
     var p = document.createElement('p');
     p.className = 'motivo';
     p.setAttribute('role', 'status');
@@ -1869,6 +1912,7 @@
 
   function render() {
     ui.avisoNaTela = null;   // noticeHtml() o preenche se a tela desenhar um aviso
+    tiraAlvo();   // o destaque da frase do motivo não passa para a tela nova
     if (visObs) visObs.disconnect();
     live = [];
     portraitQueue = [];
@@ -4601,7 +4645,7 @@
   var ACOES_EQUIP = { 'loja-tab': 1, comprar: 1, 'comprar-pedra': 1, 'equipar-tela': 1, 'equip-slot': 1, equipar: 1, tirar: 1,
     melhorar: 1, 'melhorar-nao': 1, 'melhorar-sim': 1, vender: 1, 'vender-desfazer': 1 };
   telaEl.addEventListener('click', function (e) {
-    tiraMotivo();   // qualquer toque tira a linha do motivo (também o do ⓘ, que abre a ajuda); nunca há duas na tela
+    tiraMotivo(e.target);   // qualquer toque tira a linha do motivo (também o do ⓘ, que abre a ajuda); nunca há duas na tela
     var aj = e.target.closest ? e.target.closest('[data-ajuda]') : null;
     if (aj) { alternaAjuda(aj); return; }   // "ⓘ" (ou o nome do status): abre/fecha o texto, sem re-renderizar nem acionar o cartão em volta
     var b = e.target.closest ? e.target.closest('[data-acao]') : null;
