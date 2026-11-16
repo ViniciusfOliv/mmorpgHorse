@@ -1,6 +1,6 @@
 # Visuais 2, parte 3c: tela da corrida
 
-Desenho de 2026-11-15, conversado com o Vinicius. Branch `claude/visuais-2`, sobre as partes 3a (acabamento) e 3b
+Desenho de 2026-11-15, conversado com o Vinicius. **Aprovado pelo Vinicius em 2026-11-16.** Branch `claude/visuais-2`, sobre as partes 3a (acabamento) e 3b
 (Estábulo e montaria no celular), que esperam a avaliação dele. É a última parte da frente "interface" (divisão na spec
 da 3a, `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`).
 

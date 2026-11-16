@@ -3,6 +3,18 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-16 — Visuais 2, parte 3c: tela da corrida (decisões do Vinicius)
+Spec em `docs/superpowers/specs/2026-11-15-tela-da-corrida-design.md` (aprovada por ele).
+- **Faixa de ordem embaixo da pista** — todos os corredores em ordem e o nome de quem está logo à frente e logo atrás; não
+  cobre a pista e mostra quem saiu da tela.
+- **Dado da Sorte: faixa grande com o resultado na pista e os números na faixa de ordem** — sai a faixa de números a decifrar.
+- **Chegada: faixa com o lugar do jogador; resultado numa tela, com as abas Chegada e Momentos.**
+- **Pódio: só o 1º lugar maior, no centro** — os três maiores não cabem lado a lado a 360 px.
+- Do controlador, na revisão da spec (o revisor mediu o jogo): em tela baixa (< 700 px de altura) a faixa de ordem tem uma
+  linha, a narração uma frase em uma linha e o número do Dado toma o lugar da posição; as três frases de enfeite embaixo da
+  manchete do resultado saem (fica a que explica o pódio sem prêmio); a tabela "Ordem de chegada" passa a 2 linhas de texto
+  por corredor; "resultado numa tela" vale para o caso sem aviso de nível, skill ou Ouro.
+
 ## 2026-11-15 — Visuais 2, parte 3b: decisões da execução (controlador)
 Tudo abaixo é do controlador (nada foi decidido pelo Vinicius).
 - **(controlador) Meta do Status: documento ≤ 1.470 px** (medido ~1.455: 1.450 a 1.457 conforme a densidade) (a conversa dizia ~1.100, a spec 1.200) — a cabeça com o retrato grande se
