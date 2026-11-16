@@ -174,6 +174,10 @@ do Vinicius, antes de ele jogar; a lista de gosto abaixo continua aberta.
   foram republicados no mesmo dia, depois da integração na `main`, com o build e9460f4.
 
 ## Em andamento
+- **Itens, mochila, loja e recompensa diária (branch `claude/itens-loja-diaria`, em execução desde 2026-11-16):** spec
+  aprovada pelo Vinicius (`docs/superpowers/specs/2026-11-16-itens-loja-diaria-design.md`), plano em
+  `docs/superpowers/plans/2026-11-16-itens-loja-diaria.md` (6 tarefas, por subagentes). Decisões em `decisoes.md`
+  (2026-11-16). Os ginásios são o desenho seguinte. O galope ficou como está (decisão dele no mesmo dia).
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b, que também traz a fonte da Rédea nova. Cada ginásio tem o
   foco num elemento.
 - **Frente "interface" da Visuais 2 integrada na `main` em 2026-11-16, com as listas de gosto abertas:** a 3c (tela da
