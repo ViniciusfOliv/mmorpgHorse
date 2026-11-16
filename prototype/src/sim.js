@@ -19,6 +19,7 @@
  *   base(k)  = raridade.baseLo + 16*g/31   (naturalStat; baseLo 40/44/49/54/60)
  *   pontos   = floor(ptsMult * starMult[estrelas-1] * [(L-1)*2 + 4*(L-1)(L-2)/96])   (freePoints: a taxa
  *              por nível sobe de 2 no nível 2 a 6 no 50, média 4); ptsMult 1,00/1,05/1,10/1,15/1,20; starMult 1 / 1,09 / 1,22
+ *              + torrões (horse.torroes, inteiro 0–10 = GameData.ITEMS.torrao.cap; fora disso 0; bots não têm)
  *   Sorte não recebe pontos (T.noBuy): fica só com a base, 40–76.
  *   custo    = o i-ésimo ponto comprado num status (i = 0, 1, …) custa 1 + floor(i/10) (pointCost);
  *              comprar a pontos custa costOf(a) = 10·q(q+1)/2 + r(q+1), a = 10q + r.
@@ -366,11 +367,17 @@
   // Pontos ganhos até o nível: piso((nível − 1) · ptsRate · fator da raridade · fator das estrelas).
   // A taxa cresce em linha reta do nível 2 (ptsRate0) ao último (ptsRate1):
   //   soma até L = (L − 1)·r0 + (r1 − r0)·(L − 1)(L − 2)/(2·(maxLevel − 2)).
+  // Depois do piso, somam-se os Torrões de açúcar do cavalo (horse.torroes: inteiro de 0 ao teto do item;
+  // fora disso, não numérico ou ausente vale 0). Os bots não têm torrões.
   function freePoints(horse) {
     var fr = rarityOf(horse).ptsMult || 1, L = sanitizeLevel(horse.level), M = GameData.ECONOMY.maxLevel || 50;
     var r0 = T.ptsRate0, r1 = T.ptsRate1;
     var base = (L - 1) * r0 + (r1 - r0) * (L - 1) * (L - 2) / (2 * (M - 2));
-    return Math.floor(base * fr * T.starMult[starsOf(horse) - 1] + 1e-9);
+    return Math.floor(base * fr * T.starMult[starsOf(horse) - 1] + 1e-9) + torroesOf(horse);
+  }
+  function torroesOf(horse) {
+    var t = horse && horse.torroes, cap = GameData.ITEMS.torrao.cap;
+    return typeof t === 'number' && t === Math.floor(t) && t >= 0 && t <= cap ? t : 0;
   }
   // Custo do i-ésimo ponto (i = 0, 1, …) num mesmo status: 1 + piso(i / costStep).
   function pointCost(i) { return 1 + Math.floor(i / T.costStep); }
@@ -497,6 +504,18 @@
     var c = rar.skillChance + T.skillPerLevel * (sanitizeLevel(horse.level) - 1) + T.skillPerSorte * ((stats && stats.sorte) || 0) + (bonus || 0);
     return Math.min(T.skillChanceMax, c);
   }
+  // Skills que a montaria pode aprender: as gerais e as do elemento dela, menos as que já tem, na ordem de
+  // GameData.SKILLS (a skill de tipo não está lá: nunca é candidata). Usada pelo nível, pelo Cupom e pelo Manual.
+  function skillCandidates(mount) {
+    var owned = (mount && mount.skills) || [], el = mount && mount.element, cands = [];
+    Object.keys(GameData.SKILLS).forEach(function (id) {
+      var sk = GameData.SKILLS[id];
+      if (sk.element !== 'geral' && sk.element !== el) return;
+      if (owned.indexOf(id) >= 0) return;
+      cands.push(id);
+    });
+    return cands;
+  }
   // Sorteia uma skill nova ao subir de nível (ou null). Não muta a montaria.
   // Ordem das chamadas de rng: 1) portão de T.learnChance, 2) escolha do candidato.
   function learnSkill(mount, rng) {
@@ -504,13 +523,7 @@
     var owned = mount.skills || [];
     if (owned.length >= rar.skillSlots) return null;
     if (rng() >= T.learnChance) return null;
-    var cands = [];
-    Object.keys(GameData.SKILLS).forEach(function (id) {
-      var sk = GameData.SKILLS[id];
-      if (sk.element !== 'geral' && sk.element !== mount.element) return;
-      if (owned.indexOf(id) >= 0) return;
-      cands.push(id);
-    });
+    var cands = skillCandidates(mount);
     if (!cands.length) return null;
     return cands[Math.floor(rng() * cands.length)];
   }
@@ -1224,6 +1237,7 @@
     skillChance: skillChance,
     weatherMult: weatherMult,
     learnSkill: learnSkill,
+    skillCandidates: skillCandidates,
     leagueFor: leagueFor,
     randomConditions: randomConditions,
     normalizeConditions: normalizeConditions,

@@ -2,7 +2,7 @@
 //   node prototype/tools/wiki-test.mjs                    testes
 //   node prototype/tools/wiki-test.mjs --capturas <pasta>  também salva wiki-1280.png e wiki-390.png na pasta
 // Confere: geração determinística; cobertura (todo nome de skill, raridade, elemento, clima, montaria, slot,
-// conjunto e peça aparece no md e no html); chave desconhecida quebra; fragmento de artefato válido; e no
+// conjunto, peça e item aparece no md e no html); chave desconhecida quebra; fragmento de artefato válido; e no
 // navegador (390 e 1280 px, dentro do esqueleto que o host usa): sem erro de console, sem rolagem horizontal,
 // retratos desenhados, busca filtrando e todo link do índice apontando para uma seção que existe.
 import { createRequire } from 'node:module'
@@ -40,6 +40,7 @@ for (const h of G.STARTERS.concat(G.WILD_HORSES)) nomes.push(['montaria', h.name
 for (const id in G.GEAR_SLOT_INFO) nomes.push(['slot', G.GEAR_SLOT_INFO[id].name])
 for (const id in G.GEAR_SETS) nomes.push(['conjunto', G.GEAR_SETS[id].name])
 for (const id in G.GEAR) nomes.push(['peça', G.GEAR[id].name])
+for (const id in G.ITEMS) nomes.push(['item', G.ITEMS[id].name])
 const escHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 for (const [tipo, nome] of nomes) {
   confere(a.md.includes(nome), `${tipo} "${nome}" não aparece no md`)
@@ -194,6 +195,20 @@ for (const id of ['item-redea', 'moeda-gema', 'ins-fogo', 'ins-agua', 'ins-grama
   confere(a.md.includes(`![](../prototype/assets/icons/${id}.png)`) && a.md.includes('`' + id + '`'), `reservado ${id} sem imagem/nome no md`)
   confere(new RegExp('<img class="ic ic32" src="data:image/png;base64,[A-Za-z0-9+/=]+" alt="" width="32" height="32">(?:<[^>]+>)*<code>' + id + '</code>').test(a.html), `reservado ${id} sem <img> de 32 px no html`)
 }
+
+// itens e recompensa diária (spec de itens, loja e diária §4, §6, §7): os cinco itens, com preço, limite e origem,
+// e a tabela dos 7 dias com a Estrela a cada 4 calendários
+confere(a.html.includes('id="itens"') && /## Itens e recompensa diária/.test(a.md), 'falta a seção "Itens e recompensa diária"')
+confere(Object.keys(G.ITEMS).join() === 'torrao,estrela,redea,cupom,manual', 'catálogo de itens fora da ordem da spec')
+for (const [nome, preco, compra] of [['Torrão de açúcar', '120', '2 por dia'], ['Estrela de treino', '2\\.000', '1 a cada 7 dias'], ['Rédea nova', '\\*\\*não se vende\\*\\*', '—'], ['Cupom de troca de skill', '250', '1 por dia'], ['Manual de doma', '200', '1 por dia']]) {
+  confere(new RegExp(`\\| \\*\\*${nome}\\*\\* \\|[^\\n]*\\| ${preco} \\| ${compra} \\| [^|\\n]+ \\|`).test(a.md), `tabela de itens: ${nome} devia ter preço ${preco.replace(/\\/g, '')} e compra ${compra}`)
+}
+for (const id in G.ITEMS) confere(a.md.includes(G.ITEMS[id].desc) && a.md.includes(G.ITEMS[id].origem), `item ${id} sem a linha de para que serve ou de onde vem`)
+confere(/até 10 por cavalo/.test(a.md) && /35% de chance de aprender/.test(a.md), 'tabela de itens sem o teto do Torrão (10) ou a chance do Manual (35%)')
+for (const [dia, premio] of [['1º', '60 de Ouro'], ['2º', '1 Torrão de açúcar'], ['3º', '100 de Ouro'], ['4º', '1 Manual de doma'], ['5º', '150 de Ouro'], ['6º', '1 Cupom de troca de skill'], ['7º', '200 de Ouro e 1 Rédea nova; a cada 4 calendários completos, também 1 Estrela de treino']]) {
+  confere(a.md.includes(`| ${dia} | ${premio} |`), `tabela da recompensa diária: ${dia} dia devia dar ${premio}`)
+}
+confere(!a.md.includes('Ainda não existe item que sobe estrela'), 'seção Raridades ainda diz que não existe item que sobe estrela')
 
 // 3. chave desconhecida quebra
 lanca(() => descreverEfeito({ speedMult: 1.1, chaveInventada: 3 }), 'effect com chave inventada')

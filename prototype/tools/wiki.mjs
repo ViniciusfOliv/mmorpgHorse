@@ -83,7 +83,8 @@ function lerFonte() {
     potroPai: numDe(breed, /potential\[k\] = potOf\(rng\(\) < ([\d.]+) \? f : m, k\)/, 'a escolha do pai no potencial herdado'),
     notas: extrair(game, /function notaGenetica\(g\) \{ return g >= (\d+) \? 'S' : g >= (\d+) \? 'A' : g >= (\d+) \? 'B' : 'C'; \}/, 'as notas de genética (notaGenetica)').slice(1, 4).map(Number),
     moldePista: extrair(sim, /var c1 = corte\(([\d.]+)\), c2 = corte\(([\d.]+)\), c3 = corte\(([\d.]+)\), c4 = corte\(([\d.]+)\);/, 'o molde fixo da pista').slice(1, 5).map(Number),
-    statMin: numDe(sim, /clamp\(Math\.round\(naturalStat\(horse, k\) \+ alloc\[k\]\), (\d+), T\.statMax\)/, 'o piso do status (computeStats)')
+    statMin: numDe(sim, /clamp\(Math\.round\(naturalStat\(horse, k\) \+ alloc\[k\]\), (\d+), T\.statMax\)/, 'o piso do status (computeStats)'),
+    redeasMax: numDe(game, /var REDEAS_MAX = (\d+);/, 'REDEAS_MAX')
   }
 }
 
@@ -526,7 +527,7 @@ custo do i-ésimo ponto num mesmo status (i = 0, 1, …) = 1 + piso(i / ${T.cost
     }) },
     { t: 'p', txt: `Raridade mais alta que nasce de cruzamento: **${nomeRar(B.RARITY_IDS[B.TUNING.maxRarityOrder])}**. ${nomeRar('mitico')} nunca nasce de cruzamento e não se aluga.` },
     { t: 'h3', txt: 'Estrelas' },
-    { t: 'p', txt: `Cada montaria tem de ${estrelas(1)} a ${estrelas(T.starMult.length)}. As estrelas multiplicam os pontos ganhos por level e mudam o preço do aluguel; não mexem na genética. O potro recebe as estrelas no nascimento (ver Cruzamento); as iniciais e os selvagens têm as estrelas definidas nos dados. Ainda não existe item que sobe estrela.` },
+    { t: 'p', txt: `Cada montaria tem de ${estrelas(1)} a ${estrelas(T.starMult.length)}. As estrelas multiplicam os pontos ganhos por level e mudam o preço do aluguel; não mexem na genética. O potro recebe as estrelas no nascimento (ver Cruzamento); as iniciais e os selvagens têm as estrelas definidas nos dados. A Estrela de treino sobe 1 estrela (ver Itens e recompensa diária).` },
     { t: 'tabela', rotulo: 'Estrelas', cab: ['Estrelas', 'Fator dos pontos', `Pontos no Nv ${E.maxLevel} (${nomeRar('comum')})`, 'Multiplicador do aluguel'], linhas: T.starMult.map((x, i) => { const h = { rarity: 'comum', level: E.maxLevel, grau: i + 1 }; return [N(estrelas(i + 1)), N(mult(x, 2)), N(String(S.freePoints(h))), N(mult(BR.grauMult[i], 2))] }) },
     { t: 'h3', txt: 'Corcel' },
     { t: 'p', txt: `Uma montaria é **Corcel** quando já tem todas as skills "de linha" da sua raridade. Corcel garante herança de skill no cruzamento (ver Cruzamento).` },
@@ -875,6 +876,39 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `**Build dos bots** (sem sorteio; é também o botão "Distribuir sugerido", que continua do que o jogador já comprou): um ponto por vez no status de menor (pontos + 1) / peso, entre os que ainda aceitam (peso acima de 0, abaixo de ${T.statMax} e com o próximo ponto cabendo no que sobra); empate na ordem ${lista(G.STAT_KEYS.filter((k) => (T.noBuy || []).indexOf(k) < 0).map(siglaStat))}. A ${nomeStat('sorte')} não recebe pontos.` },
     { t: 'tabela', rotulo: 'Pesos da build dos bots', titulo: 'Pesos da build dos bots', cab: ['Tipo', ...G.STAT_KEYS.map(siglaStat)], linhas: elIds.map((e) => [elCel(e), ...G.STAT_KEYS.map((k) => N(T.botW[e] && T.botW[e][k] ? num(T.botW[e][k], 2) : '—'))]) },
     { t: 'tabela', rotulo: 'Poder das iniciais', titulo: 'Poder das iniciais (sem equipamento)', cab: ['Montaria', 'Nv 1', `Nv 25, build dos bots`, `Nv ${E.maxLevel} sem pontos`, `Nv ${E.maxLevel}, build dos bots`], linhas: G.STARTERS.map((h) => { const h25 = { ...h, level: 25 }, h50 = { ...h, level: E.maxLevel }; const c = (x) => { const pr = S.powerRating(x); return N(`${num(pr)} (${S.leagueFor(pr).name})`) }; return [h.name, c(h), c({ ...h25, alloc: S.botAlloc(h25) }), c(h50), c({ ...h50, alloc: S.botAlloc(h50) })] }) }
+  ])
+
+  // 12b. Itens e recompensa diária -----------------------------------------------------------------------
+  // tudo de GameData.ITEMS / DAILY / BAG_MAX; item novo sem as regras abaixo quebra o wiki
+  const IT = G.ITEMS, DY = G.DAILY, itIds = Object.keys(IT)
+  const nomeItem = (id) => { if (!IT[id]) throw new Error(`wiki: item desconhecido "${id}"`); return IT[id].name }
+  const salaTxt = 'não no cavalo ativo com a sala aberta'
+  const limitesItem = {
+    torrao: () => `até ${num(IT.torrao.cap)} por cavalo; o potro nasce com 0; os bots não têm`,
+    estrela: () => `não em cavalo ${estrelas(T.starMult.length)}`,
+    redea: () => 'as travas do Redistribuir: sem pontos distribuídos não redistribui; o ativo não redistribui com a sala aberta; a Rédea só é gasta depois da redistribuição grátis',
+    cupom: () => `precisa de skill nas vagas e de candidata; a skill de tipo nunca troca; ${salaTxt}`,
+    manual: () => `${pct(IT.manual.chance, 0)} de chance de aprender; precisa de vaga livre e de candidata; ${salaTxt}`
+  }
+  const limiteItem = (id) => { if (!limitesItem[id]) throw new Error(`wiki: item "${id}" sem limites no wiki`); return limitesItem[id]() }
+  const compraItem = (id) => IT[id].price == null ? '—' : IT[id].everyDays ? `1 a cada ${IT[id].everyDays} dias` : `${IT[id].perDay} por dia`
+  const premioTxt = (d) => [d.ouro ? `${num(d.ouro)} de Ouro` : null, d.item ? `1 ${nomeItem(d.item)}` : null].filter(Boolean).join(' e ')
+  const ouroCiclo = DY.dias.reduce((a, d) => a + (d.ouro || 0), 0)
+  const itensCiclo = DY.dias.filter((d) => d.item && IT[d.item].price != null)
+  add('itens', 'Itens e recompensa diária', 'Itens', [
+    { t: 'p', txt: `São ${itIds.length} itens de uso único; cada uso vale para um cavalo, pede confirmação e não tem volta. A mochila guarda até ${num(G.BAG_MAX)} de cada (a ${nomeItem('redea')} tem o teto dela, ${num(F.redeasMax)}). A loja só aceita Ouro e respeita o Ouro reservado para a entrada da sala aberta.` },
+    { t: 'tabela', rotulo: 'Itens', cab: ['Item', 'Para que serve', 'Limites e quando não pode', 'Preço na loja', 'Compra', 'De onde vem'], linhas: itIds.map((id) => [
+      { md: `**${IT[id].name}**`, html: `<strong>${esc(IT[id].name)}</strong>` }, IT[id].desc, limiteItem(id), IT[id].price == null ? '**não se vende**' : ouroCel(IT[id].price), N(compraItem(id)), IT[id].origem]) },
+    { t: 'p', txt: `**Torrão:** os pontos do cavalo passam a ser os do level, da raridade e das estrelas mais os torrões (somados depois do piso; ver Status). O teto de ${T.statMax} por status não muda. Os torrões são do cavalo e saem com ele na Troca do Haras.` },
+    { t: 'p', txt: `**Estrela:** só muda as estrelas do cavalo; os pontos a mais aparecem para distribuir. Vale como qualquer estrela, inclusive na cruza (ver Cruzamento).` },
+    { t: 'p', txt: `**Cupom e Manual:** as candidatas são as mesmas do aprendizado por level (as skills gerais e as do tipo do cavalo, menos as que ele já tem); no Cupom, a skill que sai não volta no mesmo sorteio e a nova fica na mesma posição. O sorteio sai da seed do save e de um contador de usos que é gravado junto com o resultado: recarregar a página não muda nada. O aprendizado por level continua com ${pct(T.learnChance, 0)} por level.` },
+    { t: 'h3', txt: 'Limites da loja', id: 'loja-limites' },
+    { t: 'p', txt: `Os limites por dia voltam a zero quando o dia muda; o da ${nomeItem('estrela')} conta ${IT.estrela.everyDays} dias desde a última compra. Com a mochila cheia (${num(G.BAG_MAX)}) aquele item não se compra. A ${nomeItem('redea')} não está à venda: vem no ${ordinal(DY.dias.length)} dia da recompensa diária.` },
+    { t: 'h3', txt: 'Recompensa diária', id: 'diaria' },
+    { t: 'p', txt: `Um calendário de ${DY.dias.length} dias com prêmios fixos, sem sorteio. Resgata-se uma vez por dia, só de abrir o jogo e tocar em Resgatar (não precisa correr). Não zera: quem falta continua de onde parou. Depois do ${ordinal(DY.dias.length)} dia recomeça no 1º, e a cada ${DY.estrelaACada} calendários completos o ${ordinal(DY.dias.length)} dia também dá 1 ${nomeItem('estrela')} (o ${ordinal(DY.dias.length * DY.estrelaACada)} resgate é o primeiro). Um save novo já começa com o dia 1 para resgatar.` },
+    { t: 'tabela', rotulo: 'Recompensa diária', cab: ['Dia', 'Prêmio'], linhas: DY.dias.map((d, i) => [N(ordinal(i + 1)), premioTxt(d) + (i === DY.dias.length - 1 ? `; a cada ${DY.estrelaACada} calendários completos, também 1 ${nomeItem('estrela')}` : '')]) },
+    { t: 'p', txt: `O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver cheia daquele item, o resgate do dia espera. Por calendário: ${num(ouroCiclo)} de Ouro e ${lista(itensCiclo.map((d) => nomeItem(d.item)))} (${num(itensCiclo.reduce((a, d) => a + IT[d.item].price, 0))} de Ouro pelo preço da loja), mais a ${nomeItem('redea')}.` },
+    { t: 'p', txt: '**O dia** é a data do aparelho, no fuso dele, guardada como número de dias. Com o relógio para trás (o dia de hoje menor que o do último resgate ou da loja), nem o resgate nem os limites da loja voltam até a data passar de novo do último dia guardado; nada se perde.' }
   ])
 
   // 13. Ícones reservados --------------------------------------------------------------------------------

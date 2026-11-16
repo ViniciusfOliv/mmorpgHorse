@@ -18,6 +18,7 @@
 - [Cruzamento (Haras)](#cruzamento)
 - [Equipamento](#equipamento)
 - [Economia](#economia)
+- [Itens e recompensa diária](#itens)
 - [Ícones reservados](#icones-reservados)
 - [Modo DEV](#dev)
 
@@ -251,7 +252,7 @@ Raridade mais alta que nasce de cruzamento: **Lendário**. Mítico nunca nasce d
 
 ### Estrelas
 
-Cada montaria tem de ★ a ★★★. As estrelas multiplicam os pontos ganhos por level e mudam o preço do aluguel; não mexem na genética. O potro recebe as estrelas no nascimento (ver Cruzamento); as iniciais e os selvagens têm as estrelas definidas nos dados. Ainda não existe item que sobe estrela.
+Cada montaria tem de ★ a ★★★. As estrelas multiplicam os pontos ganhos por level e mudam o preço do aluguel; não mexem na genética. O potro recebe as estrelas no nascimento (ver Cruzamento); as iniciais e os selvagens têm as estrelas definidas nos dados. A Estrela de treino sobe 1 estrela (ver Itens e recompensa diária).
 
 | Estrelas | Fator dos pontos | Pontos no Nv 50 (Comum) | Multiplicador do aluguel |
 | ---: | ---: | ---: | ---: |
@@ -1151,6 +1152,48 @@ Poder = 2,5·VEL + 2·ACE + 2,2·MAN + 2,4·FOR + 2,4·EST + 1,5·GAR + 0·SOR
 | Brasa | 629 (Bronze) | 787 (Prata) | 649 (Bronze) | 933 (Platina) |
 | Maré | 626 (Bronze) | 782 (Prata) | 646 (Bronze) | 928 (Platina) |
 | Ipê | 633 (Bronze) | 791 (Prata) | 653 (Bronze) | 938 (Platina) |
+
+<a id="itens"></a>
+
+## Itens e recompensa diária
+
+São 5 itens de uso único; cada uso vale para um cavalo, pede confirmação e não tem volta. A mochila guarda até 99 de cada (a Rédea nova tem o teto dela, 999). A loja só aceita Ouro e respeita o Ouro reservado para a entrada da sala aberta.
+
+| Item | Para que serve | Limites e quando não pode | Preço na loja | Compra | De onde vem |
+| --- | --- | --- | --- | ---: | --- |
+| **Torrão de açúcar** | O cavalo ganha 1 ponto a mais para distribuir, para sempre. | até 10 por cavalo; o potro nasce com 0; os bots não têm | 120 | 2 por dia | Compre na loja ou ganhe no 2º dia da recompensa diária. |
+| **Estrela de treino** | O cavalo sobe 1 estrela; os pontos a mais aparecem para distribuir. | não em cavalo ★★★ | 2.000 | 1 a cada 7 dias | Compre na loja ou ganhe no 7º dia da recompensa diária, de tempos em tempos. |
+| **Rédea nova** | Redistribui os pontos do cavalo (a primeira redistribuição de cada cavalo é grátis). | as travas do Redistribuir: sem pontos distribuídos não redistribui; o ativo não redistribui com a sala aberta; a Rédea só é gasta depois da redistribuição grátis | **não se vende** | — | Vem no 7º dia da recompensa diária; não está à venda. |
+| **Cupom de troca de skill** | Uma skill das vagas sai e entra outra, sorteada entre as que o cavalo pode aprender. | precisa de skill nas vagas e de candidata; a skill de tipo nunca troca; não no cavalo ativo com a sala aberta | 250 | 1 por dia | Compre na loja ou ganhe no 6º dia da recompensa diária. |
+| **Manual de doma** | O cavalo tenta aprender uma skill na hora; o manual é gasto mesmo se ele não aprender. | 35% de chance de aprender; precisa de vaga livre e de candidata; não no cavalo ativo com a sala aberta | 200 | 1 por dia | Compre na loja ou ganhe no 4º dia da recompensa diária. |
+
+**Torrão:** os pontos do cavalo passam a ser os do level, da raridade e das estrelas mais os torrões (somados depois do piso; ver Status). O teto de 150 por status não muda. Os torrões são do cavalo e saem com ele na Troca do Haras.
+
+**Estrela:** só muda as estrelas do cavalo; os pontos a mais aparecem para distribuir. Vale como qualquer estrela, inclusive na cruza (ver Cruzamento).
+
+**Cupom e Manual:** as candidatas são as mesmas do aprendizado por level (as skills gerais e as do tipo do cavalo, menos as que ele já tem); no Cupom, a skill que sai não volta no mesmo sorteio e a nova fica na mesma posição. O sorteio sai da seed do save e de um contador de usos que é gravado junto com o resultado: recarregar a página não muda nada. O aprendizado por level continua com 8% por level.
+
+### Limites da loja
+
+Os limites por dia voltam a zero quando o dia muda; o da Estrela de treino conta 7 dias desde a última compra. Com a mochila cheia (99) aquele item não se compra. A Rédea nova não está à venda: vem no 7º dia da recompensa diária.
+
+### Recompensa diária
+
+Um calendário de 7 dias com prêmios fixos, sem sorteio. Resgata-se uma vez por dia, só de abrir o jogo e tocar em Resgatar (não precisa correr). Não zera: quem falta continua de onde parou. Depois do 7º dia recomeça no 1º, e a cada 4 calendários completos o 7º dia também dá 1 Estrela de treino (o 28º resgate é o primeiro). Um save novo já começa com o dia 1 para resgatar.
+
+| Dia | Prêmio |
+| ---: | --- |
+| 1º | 60 de Ouro |
+| 2º | 1 Torrão de açúcar |
+| 3º | 100 de Ouro |
+| 4º | 1 Manual de doma |
+| 5º | 150 de Ouro |
+| 6º | 1 Cupom de troca de skill |
+| 7º | 200 de Ouro e 1 Rédea nova; a cada 4 calendários completos, também 1 Estrela de treino |
+
+O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver cheia daquele item, o resgate do dia espera. Por calendário: 510 de Ouro e Torrão de açúcar, Manual de doma e Cupom de troca de skill (570 de Ouro pelo preço da loja), mais a Rédea nova.
+
+**O dia** é a data do aparelho, no fuso dele, guardada como número de dias. Com o relógio para trás (o dia de hoje menor que o do último resgate ou da loja), nem o resgate nem os limites da loja voltam até a data passar de novo do último dia guardado; nada se perde.
 
 <a id="icones-reservados"></a>
 

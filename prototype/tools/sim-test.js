@@ -45,7 +45,11 @@ test('catálogo de skills', function () {
   ['arranque','sprint','drift','saida-rapida','casco-firme','folego-de-montanha','segundo-ar','arrancada-final','dado-viciado','sol-a-pino','pe-na-chuva','nevoa-amiga'].forEach(function (id) { assert.ok(G.SKILLS[id], id); });
   assert.strictEqual(G.SKILLS.drift.trigger, 'curve');
   assert.strictEqual(G.SKILLS['dado-viciado'].effect.extraDice, 1); assert.ok(!G.SKILLS.raca && !G.SKILLS.correnteza);
-  assert.ok(!G.ITEMS, 'catálogo antigo de itens removido');
+  // o catálogo antigo (peças com mods, antes do equipamento) continua fora; G.ITEMS agora é o dos itens de uso (seção itens)
+  ['ferradura-leve', 'ferradura-cravos', 'sela-couro', 'manta-la', 'antolhos', 'rapadura-engenho', 'esporas-prata', 'capa-impermeavel', 'figa-sorte', 'penas-gaviao'].forEach(function (id) {
+    assert.ok(!G.ITEMS || !Object.prototype.hasOwnProperty.call(G.ITEMS, id), 'catálogo antigo de itens removido: ' + id);
+  });
+  Object.keys(G.ITEMS || {}).forEach(function (id) { assert.ok(!('mods' in G.ITEMS[id]) && !('rarity' in G.ITEMS[id]), 'catálogo antigo de itens removido: ' + id + ' sem mods/raridade'); });
 });
 
 section('status');
@@ -1561,6 +1565,301 @@ test('foal/rentalPrice/odds com grau e level malformados', function () {
   assert.strictEqual(B.hexMix, undefined, 'hexMix não é exportado');
 });
 test('Dev.TRACADOS removido', function () { assert.strictEqual(DV().TRACADOS, undefined); });
+
+section('itens');
+// sem o módulo, cada teste desta seção falha (em vez de derrubar o arquivo inteiro)
+var IT; try { IT = require('../src/itens.js'); } catch (e) { IT = {}; console.log('  (itens.js não carregou: ' + e.message + ')'); }
+function congela(x) { if (x && typeof x === 'object') { Object.keys(x).forEach(function (k) { congela(x[k]); }); Object.freeze(x); } return x; }
+function cavIt(o) {
+  o = o || {};
+  return { uid: 'c1', name: 'Brasa', element: o.element || 'fogo', rarity: o.rarity || 'raro', grau: o.grau == null ? 2 : o.grau, level: o.level == null ? 20 : o.level,
+    skills: o.skills || ['arranque'], torroes: o.torroes == null ? 0 : o.torroes };
+}
+var CTX = { tem: 1, ativaComSala: false };
+// cópia da learnSkill de antes desta frente (o teste confere que a nova consome o rng igual e devolve o mesmo)
+function learnSkillAntiga(mount, rng) {
+  var r = mount && typeof mount.rarity === 'string' && Object.prototype.hasOwnProperty.call(G.RARITIES, mount.rarity) ? G.RARITIES[mount.rarity] : G.RARITIES.comum;
+  var owned = mount.skills || [];
+  if (owned.length >= r.skillSlots) return null;
+  if (rng() >= S.TUNING.learnChance) return null;
+  var cands = [];
+  Object.keys(G.SKILLS).forEach(function (id) {
+    var sk = G.SKILLS[id];
+    if (sk.element !== 'geral' && sk.element !== mount.element) return;
+    if (owned.indexOf(id) >= 0) return;
+    cands.push(id);
+  });
+  if (!cands.length) return null;
+  return cands[Math.floor(rng() * cands.length)];
+}
+function contaRng(seed) { var r = S.mulberry32(seed), f = function () { f.n++; return r(); }; f.n = 0; return f; }
+function todasCandidatas(el) { return Object.keys(G.SKILLS).filter(function (id) { return G.SKILLS[id].element === 'geral' || G.SKILLS[id].element === el; }); }
+
+test('catálogo: 5 itens na ordem, preços, limites, chance, mochila e diária', function () {
+  var I = G.ITEMS;
+  assert.deepStrictEqual(Object.keys(I), ['torrao', 'estrela', 'redea', 'cupom', 'manual']);
+  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].name; }), ['Torrão de açúcar', 'Estrela de treino', 'Rédea nova', 'Cupom de troca de skill', 'Manual de doma']);
+  Object.keys(I).forEach(function (k) {
+    assert.strictEqual(I[k].id, k);
+    assert.ok(typeof I[k].desc === 'string' && I[k].desc.length > 10 && I[k].desc.indexOf('\n') < 0, k + ' desc');
+    assert.ok(typeof I[k].origem === 'string' && I[k].origem.length > 10 && I[k].origem.indexOf('\n') < 0, k + ' origem');
+  });
+  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].price; }), [120, 2000, null, 250, 200]);
+  assert.strictEqual(I.torrao.perDay, 2); assert.strictEqual(I.cupom.perDay, 1); assert.strictEqual(I.manual.perDay, 1);
+  assert.strictEqual(I.torrao.cap, 10); assert.strictEqual(I.estrela.everyDays, 7); assert.strictEqual(I.manual.chance, 0.35);
+  assert.strictEqual(G.BAG_MAX, 99);
+  assert.deepStrictEqual(G.DAILY, { dias: [{ ouro: 60 }, { item: 'torrao' }, { ouro: 100 }, { item: 'manual' }, { ouro: 150 }, { item: 'cupom' }, { ouro: 200, item: 'redea' }], estrelaACada: 4 });
+});
+test('freePoints soma os torrões (0 a 10) depois do piso; fora da faixa vale 0', function () {
+  var h = { rarity: 'raro', grau: 2, level: 50 }, base = S.freePoints(h);
+  assert.strictEqual(base, 235);
+  assert.strictEqual(S.freePoints({ rarity: 'raro', grau: 2, level: 50, torroes: 0 }), base);
+  assert.strictEqual(S.freePoints({ rarity: 'raro', grau: 2, level: 50, torroes: 1 }), base + 1);
+  assert.strictEqual(S.freePoints({ rarity: 'raro', grau: 2, level: 50, torroes: 10 }), base + 10);
+  [-1, 11, 2.5, 'x', NaN, null, Infinity, '3'].forEach(function (t) {
+    assert.strictEqual(S.freePoints({ rarity: 'raro', grau: 2, level: 50, torroes: t }), base, 'torroes ' + String(t) + ' vale 0');
+  });
+  // os pontos a mais entram na build e no custo; o teto de 150 não muda
+  var h10 = { element: 'fogo', rarity: 'mitico', grau: 3, level: 50, potential: { vel: 31 }, skills: [], torroes: 10 };
+  var tudo = S.weightedAlloc(h10, { vel: 1 });
+  assert.strictEqual(S.computeStats(Object.assign({}, h10, { alloc: tudo })).vel <= S.TUNING.statMax, true);
+  var cav = clone(G.STARTERS[0]); cav.level = 1; cav.torroes = 7;   // Nv 1: só os pontos dos torrões
+  var a = S.weightedAlloc(cav, S.TUNING.botW.fogo), custo = 0;
+  G.STAT_KEYS.forEach(function (k) { custo += S.costOf(a[k]); });
+  assert.strictEqual(S.freePoints(cav), 7); assert.strictEqual(custo, 7, 'a build usa os pontos dos torrões');
+  assert.deepStrictEqual(S.validAlloc(cav, a), a, 'e o saneamento aceita');
+});
+test('bots não mudam: freePoints igual ao de antes e botAlloc igual sem torrões', function () {
+  function antiga(horse) {   // freePoints de antes desta frente
+    var r = typeof horse.rarity === 'string' && Object.prototype.hasOwnProperty.call(G.RARITIES, horse.rarity) ? G.RARITIES[horse.rarity] : G.RARITIES.comum;
+    var T = S.TUNING, L = S.sanitizeLevel(horse.level), M = G.ECONOMY.maxLevel;
+    var base = (L - 1) * T.ptsRate0 + (T.ptsRate1 - T.ptsRate0) * (L - 1) * (L - 2) / (2 * (M - 2));
+    return Math.floor(base * (r.ptsMult || 1) * T.starMult[S.starsOf(horse) - 1] + 1e-9);
+  }
+  G.STARTERS.concat(G.WILD_HORSES).forEach(function (h0) {
+    [1, 13, 30, 50].forEach(function (lv) {
+      var h = clone(h0); h.level = lv;
+      assert.strictEqual(S.freePoints(h), antiga(h), h.id + ' Nv ' + lv);
+      assert.deepStrictEqual(S.botAlloc(h), S.botAlloc(Object.assign({}, h, { torroes: 0 })), h.id + ' Nv ' + lv + ' botAlloc');
+      assert.deepStrictEqual(S.weightedAlloc(h, S.TUNING.botW[h.element]), S.botAlloc(h));
+    });
+  });
+});
+test('skillCandidates: gerais e do elemento, sem as que tem, na ordem de GameData.SKILLS; é o conjunto da learnSkill', function () {
+  ['fogo', 'agua', 'grama'].forEach(function (el) {
+    var tem = todasCandidatas(el).slice(0, 2), m = congela({ element: el, rarity: 'mitico', skills: tem });
+    var esperado = todasCandidatas(el).filter(function (id) { return tem.indexOf(id) < 0; });
+    assert.deepStrictEqual(S.skillCandidates(m), esperado, el);
+    // o que a learnSkill sorteava: rng 0 passa o portão; depois (i + 0,5) / n escolhe a i-ésima
+    var vistos = [];
+    for (var i = 0; i < esperado.length; i++) {
+      var seq = [0, (i + 0.5) / esperado.length], p = 0;
+      vistos.push(S.learnSkill(m, function () { return seq[p++]; }));
+    }
+    assert.deepStrictEqual(vistos, esperado, el + ': learnSkill escolhe entre as mesmas');
+  });
+  assert.deepStrictEqual(S.skillCandidates({ element: 'fogo', rarity: 'raro' }), todasCandidatas('fogo'), 'sem skills');
+  S.skillCandidates(congela(cavIt())).forEach(function (id) { assert.ok(G.SKILLS[id], id + ' é skill do catálogo (nunca de tipo)'); });
+});
+test('learnSkill devolve o mesmo que antes e consome o rng igual (200 seeds × 5 cavalos)', function () {
+  var cavalos = [cavIt({ skills: [] }), cavIt({ element: 'agua', rarity: 'mitico', skills: ['sprint', 'nascente'] }), cavIt({ element: 'grama', rarity: 'comum', skills: [] }),
+    cavIt({ rarity: 'comum', skills: ['arranque'] }), cavIt({ element: 'neutro', rarity: 'lendario', skills: ['drift'] })];
+  var aprendeu = 0;
+  cavalos.forEach(function (m, ci) {
+    for (var s = 0; s < 200; s++) {
+      var r1 = contaRng(s * 7 + ci), r2 = contaRng(s * 7 + ci);
+      var nova = S.learnSkill(m, r1), velha = learnSkillAntiga(m, r2);
+      assert.strictEqual(nova, velha, 'cavalo ' + ci + ' seed ' + s);
+      assert.strictEqual(r1.n, r2.n, 'cavalo ' + ci + ' seed ' + s + ': mesmas chamadas de rng');
+      if (nova) aprendeu++;
+    }
+  });
+  assert.ok(aprendeu > 20, 'o teste passou por aprendizados (' + aprendeu + ')');
+});
+test('podeUsar: ok e cada motivo, com frase pronta', function () {
+  function rec(id, m, ctx) { var r = IT.podeUsar(id, congela(m), congela(ctx || CTX)); assert.strictEqual(r.ok, false, id); assert.ok(typeof r.motivo === 'string' && r.motivo.length > 8, id + ' motivo'); return r.motivo; }
+  ['torrao', 'estrela', 'cupom', 'manual'].forEach(function (id) {
+    assert.deepStrictEqual(IT.podeUsar(id, congela(cavIt()), congela({ tem: 1, ativaComSala: false })), { ok: true }, id + ' ok');
+    var sem = rec(id, cavIt(), { tem: 0, ativaComSala: false });
+    assert.strictEqual(rec(id, cavIt(), { tem: -3, ativaComSala: false }), sem, id + ' tem negativo = sem o item');
+  });
+  var m10 = rec('torrao', cavIt({ torroes: 10 }));
+  assert.ok(/10/.test(m10), 'motivo do torrão cita o teto: ' + m10);
+  assert.deepStrictEqual(IT.podeUsar('torrao', cavIt({ torroes: 9 }), CTX), { ok: true });
+  var m3 = rec('estrela', cavIt({ grau: 3 }));
+  assert.deepStrictEqual(IT.podeUsar('estrela', cavIt({ grau: 1 }), CTX), { ok: true });
+  var semSkill = rec('cupom', cavIt({ skills: [] }));
+  var semCand = rec('cupom', cavIt({ rarity: 'mitico', skills: todasCandidatas('fogo') }));
+  var cheias = rec('manual', cavIt({ rarity: 'comum', skills: ['sprint'] }));
+  assert.deepStrictEqual(IT.podeUsar('manual', cavIt({ rarity: 'magico', skills: ['sprint'] }), CTX), { ok: true });
+  var sala = rec('cupom', cavIt(), { tem: 1, ativaComSala: true });
+  assert.strictEqual(rec('manual', cavIt(), { tem: 1, ativaComSala: true }), sala);
+  assert.deepStrictEqual(IT.podeUsar('torrao', cavIt(), { tem: 1, ativaComSala: true }), { ok: true }, 'torrão com a sala aceita');
+  assert.deepStrictEqual(IT.podeUsar('estrela', cavIt(), { tem: 1, ativaComSala: true }), { ok: true }, 'estrela com a sala aceita');
+  var sem = rec('torrao', cavIt(), { tem: 0, ativaComSala: false });
+  var motivos = [sem, m10, m3, semSkill, semCand, cheias, sala];
+  motivos.forEach(function (x, i) { motivos.forEach(function (y, j) { if (i < j) assert.notStrictEqual(x, y, 'motivos distintos: ' + x); }); });
+  rec('redea', cavIt()); rec('xyz', cavIt());
+});
+test('usarTorrao e usarEstrela devolvem o valor novo sem mutar', function () {
+  assert.deepStrictEqual(IT.usarTorrao(congela(cavIt({ torroes: 0 }))), { torroes: 1 });
+  assert.deepStrictEqual(IT.usarTorrao(congela(cavIt({ torroes: 9 }))), { torroes: 10 });
+  assert.deepStrictEqual(IT.usarTorrao(congela(cavIt({ torroes: 'x' }))), { torroes: 1 }, 'torroes inválido vale 0');
+  assert.deepStrictEqual(IT.usarEstrela(congela(cavIt({ grau: 1 }))), { grau: 2 });
+  assert.deepStrictEqual(IT.usarEstrela(congela(cavIt({ grau: 2 }))), { grau: 3 });
+});
+test('trocarSkill: determinístico, muda com o contador, nunca devolve a que sai, uma que tem ou de tipo; mantém a posição', function () {
+  var m = congela(cavIt({ rarity: 'lendario', skills: ['arranque', 'sol-a-pino', 'drift'] }));
+  assert.deepStrictEqual(IT.trocarSkill(m, 'drift', 123, 4), IT.trocarSkill(m, 'drift', 123, 4));
+  var mudou = 0;
+  for (var s = 0; s < 50; s++) if (IT.trocarSkill(m, 'sol-a-pino', s, 0).entra !== IT.trocarSkill(m, 'sol-a-pino', s, 1).entra) mudou++;
+  assert.ok(mudou >= 1, 'contador diferente muda o sorteio');
+  var tipos = Object.keys(G.TYPE_SKILLS).map(function (e) { return G.TYPE_SKILLS[e].id; });
+  for (var i = 0; i < 500; i++) {
+    var pos = i % 3, sai = m.skills[pos], r = IT.trocarSkill(m, sai, i * 31 + 7, i);
+    assert.strictEqual(r.sai, sai);
+    assert.notStrictEqual(r.entra, sai, 'a que sai não volta');
+    assert.ok(m.skills.indexOf(r.entra) < 0, 'não entra uma que ele tem');
+    assert.ok(G.SKILLS[r.entra] && tipos.indexOf(r.entra) < 0, 'nunca skill de tipo');
+    assert.ok(S.skillCandidates(m).indexOf(r.entra) >= 0, 'vem das candidatas');
+    assert.strictEqual(r.skills.length, 3); assert.strictEqual(r.skills[pos], r.entra, 'mesma posição');
+    m.skills.forEach(function (id, j) { if (j !== pos) assert.strictEqual(r.skills[j], id); });
+  }
+  assert.deepStrictEqual(m.skills, ['arranque', 'sol-a-pino', 'drift'], 'não muta');
+  assert.strictEqual(IT.trocarSkill(m, 'sprint', 1, 0), null, 'skill fora das vagas');
+  assert.strictEqual(IT.trocarSkill(m, 'labareda', 1, 0), null, 'skill de tipo');
+  assert.strictEqual(IT.trocarSkill(congela(cavIt({ rarity: 'mitico', skills: todasCandidatas('fogo') })), 'arranque', 1, 0), null, 'sem candidata');
+});
+test('trocarSkill e tentarDoma: uma sequência própria da seed do save (sal fora das seeds de corrida, nível, cruza e melhoria)', function () {
+  var m = congela(cavIt({ rarity: 'raro', skills: ['arranque', 'drift'] })), c = S.skillCandidates(m);
+  for (var s = 0; s < 40; s++) {
+    var r = S.mulberry32(S.hash2(s, IT.SAL + s % 5));
+    assert.strictEqual(IT.trocarSkill(m, 'drift', s, s % 5).entra, c[Math.floor(r() * c.length)]);
+    var r2 = S.mulberry32(S.hash2(s, IT.SAL + s % 5)), d = IT.tentarDoma(m, s, s % 5);
+    if (r2() < G.ITEMS.manual.chance) assert.strictEqual(d.aprendeu, c[Math.floor(r2() * c.length)]); else assert.strictEqual(d.aprendeu, null);
+  }
+  // não pode cair em hash2(seedBase, x) que outro sorteio já usa: sala (contador da corrida), aprendizado por nível
+  // (nº do páreo × 100 + nível), melhoria (0xE4A0 + contador) e cruza (0xB0B0, 0x4D410000, 0x504F0000 + contador)
+  assert.ok(IT.SAL > 0x10000000 && IT.SAL + 1e6 < 0x4D410000, 'sal alto e longe dos da cruza: ' + IT.SAL.toString(16));
+});
+test('tentarDoma: ~35% em 4.000 seeds, aprende das candidatas, sem vaga ou candidata é null', function () {
+  var m = congela(cavIt({ rarity: 'raro', skills: ['arranque', 'sol-a-pino'] })), c = S.skillCandidates(m), sim = 0;
+  for (var s = 0; s < 4000; s++) {
+    var r = IT.tentarDoma(m, s, 3);
+    if (r.aprendeu) {
+      sim++;
+      assert.ok(c.indexOf(r.aprendeu) >= 0, 'das candidatas');
+      assert.deepStrictEqual(r.skills, ['arranque', 'sol-a-pino', r.aprendeu]);
+    } else assert.deepStrictEqual(r.skills, ['arranque', 'sol-a-pino']);
+  }
+  assert.ok(sim / 4000 >= 0.31 && sim / 4000 <= 0.39, 'aprendeu ' + (sim / 40).toFixed(1) + '%');
+  assert.deepStrictEqual(IT.tentarDoma(m, 77, 2), IT.tentarDoma(m, 77, 2));
+  assert.deepStrictEqual(m.skills, ['arranque', 'sol-a-pino'], 'não muta');
+  assert.strictEqual(IT.tentarDoma(congela(cavIt({ rarity: 'comum', skills: ['drift'] })), 1, 0), null, 'sem vaga');
+  var semCand = { element: 'fogo', rarity: 'mitico', skills: [] }, salva = G.RARITIES.mitico.skillSlots;
+  semCand.skills = todasCandidatas('fogo'); G.RARITIES.mitico.skillSlots = 20;
+  try { assert.strictEqual(IT.tentarDoma(semCand, 1, 0), null, 'sem candidata'); } finally { G.RARITIES.mitico.skillSlots = salva; }
+});
+test('diária: 7 dias seguidos, recomeça, Estrela no 28º resgate', function () {
+  var d = congela({ prox: 0, ciclos: 0, ultimo: null }), sempre = function () { return true; }, vistos = [];
+  for (var n = 1; n <= 28; n++) {
+    var e = IT.diariaEstado(d, 99 + n);
+    assert.strictEqual(e.pode, true); assert.strictEqual(e.dia, (n - 1) % 7 + 1);
+    var r = IT.resgatar(d, 99 + n, sempre);
+    assert.deepStrictEqual({ ouro: r.ouro, itens: r.itens }, e.premio, 'o resgate dá o prêmio anunciado');
+    assert.strictEqual(!!r.itens.estrela, e.estrela);
+    vistos.push(r);
+    d = congela(r.diaria);
+  }
+  assert.deepStrictEqual(vistos.slice(0, 7).map(function (r) { return [r.ouro, r.itens]; }),
+    [[60, {}], [0, { torrao: 1 }], [100, {}], [0, { manual: 1 }], [150, {}], [0, { cupom: 1 }], [200, { redea: 1 }]]);
+  assert.deepStrictEqual([vistos[7].ouro, vistos[7].itens], [60, {}], 'volta ao dia 1');
+  assert.deepStrictEqual(vistos[6].diaria, { prox: 0, ciclos: 1, ultimo: 106 });
+  [6, 13, 20].forEach(function (i) { assert.ok(!vistos[i].itens.estrela, 'resgate ' + (i + 1) + ' sem Estrela'); });
+  assert.deepStrictEqual(vistos[27].itens, { redea: 1, estrela: 1 }, '28º resgate traz a Estrela');
+  assert.strictEqual(vistos[27].ouro, 200);
+  assert.deepStrictEqual(d, { prox: 0, ciclos: 4, ultimo: 127 });
+});
+test('diária: uma vez por dia, relógio para trás não libera, faltar não zera, mochila cheia espera', function () {
+  var sempre = function () { return true; };
+  var d0 = congela({ prox: 0, ciclos: 0, ultimo: null });
+  var e0 = IT.diariaEstado(d0, 100);
+  assert.deepStrictEqual(e0, { pode: true, dia: 1, premio: { ouro: 60, itens: {} }, amanha: { ouro: 0, itens: { torrao: 1 } }, estrela: false }, 'save novo: dia 1 para resgatar');
+  var d1 = congela(IT.resgatar(d0, 100, sempre).diaria);
+  assert.strictEqual(IT.resgatar(d1, 100, sempre), null, 'segundo resgate no mesmo dia');
+  var e1 = IT.diariaEstado(d1, 100);
+  assert.strictEqual(e1.pode, false); assert.strictEqual(e1.dia, 2);
+  assert.deepStrictEqual(e1.amanha, { ouro: 0, itens: { torrao: 1 } }, 'já resgatado: amanhã é o próximo prêmio');
+  // Review Focus 3: relógio para trás e de novo para a frente
+  assert.strictEqual(IT.resgatar(d1, 99, sempre), null, 'dia 99 depois de resgatar no 100');
+  assert.strictEqual(IT.diariaEstado(d1, 99).pode, false);
+  var r101 = IT.resgatar(d1, 101, sempre);
+  assert.deepStrictEqual(r101.itens, { torrao: 1 }); assert.deepStrictEqual(r101.diaria, { prox: 2, ciclos: 0, ultimo: 101 });
+  // faltar 5 dias não muda prox
+  var r106 = IT.resgatar(d1, 106, sempre);
+  assert.deepStrictEqual(r106.itens, { torrao: 1 }, 'continua de onde parou'); assert.strictEqual(r106.diaria.prox, 2);
+  // mochila cheia: o resgate espera e a diária não anda
+  var pediu = [];
+  assert.deepStrictEqual(IT.resgatar(d1, 101, function (id, q) { pediu.push([id, q]); return false; }), { cheia: 'torrao' });
+  assert.deepStrictEqual(pediu, [['torrao', 1]]);
+  assert.deepStrictEqual(d1, { prox: 1, ciclos: 0, ultimo: 100 }, 'não muta');
+  assert.strictEqual(IT.resgatar(d1, 101, sempre).diaria.prox, 2, 'depois de abrir espaço, resgata');
+  var d6 = congela({ prox: 6, ciclos: 3, ultimo: 50 }), negaEstrela = function (id) { return id !== 'estrela'; };
+  assert.deepStrictEqual(IT.resgatar(d6, 51, negaEstrela), { cheia: 'estrela' }, 'Estrela também espera');
+  var e6 = IT.diariaEstado(d6, 51);
+  assert.strictEqual(e6.estrela, true); assert.deepStrictEqual(e6.premio, { ouro: 200, itens: { redea: 1, estrela: 1 } });
+});
+test('diária: estado saneado (prox, ciclos e ultimo fora da faixa)', function () {
+  var e = IT.diariaEstado({ prox: 9, ciclos: -2, ultimo: 'x' }, 10);
+  assert.strictEqual(e.pode, true); assert.strictEqual(e.dia, 1);
+  assert.deepStrictEqual(IT.resgatar({ prox: 2.5, ciclos: 'a', ultimo: null }, 10, function () { return true; }).diaria, { prox: 1, ciclos: 0, ultimo: 10 });
+});
+test('loja: limite por dia, volta no dia seguinte, relógio para trás não volta', function () {
+  var L0 = congela({ dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null });
+  assert.deepStrictEqual(IT.podeComprar('torrao', L0, 10, 1000, 1000, 0), { ok: true, restam: 2 });
+  var L1 = congela(IT.comprar('torrao', L0, 10));
+  assert.deepStrictEqual(L1, { dia: 10, comprados: { torrao: 1, manual: 0, cupom: 0 }, estrelaDia: null });
+  assert.deepStrictEqual(IT.podeComprar('torrao', L1, 10, 1000, 1000, 1), { ok: true, restam: 1 });
+  var L2 = congela(IT.comprar('torrao', L1, 10));
+  assert.deepStrictEqual(IT.podeComprar('torrao', L2, 10, 1000, 1000, 2), { ok: false, motivo: 'limite' }, 'o 3º torrão');
+  assert.deepStrictEqual(IT.podeComprar('manual', L2, 10, 1000, 1000, 0), { ok: true, restam: 1 }, 'cada item tem o seu limite');
+  var L3 = congela(IT.comprar('cupom', L2, 10));
+  assert.deepStrictEqual(IT.podeComprar('cupom', L3, 10, 1000, 1000, 1), { ok: false, motivo: 'limite' });
+  assert.deepStrictEqual(IT.podeComprar('torrao', L2, 11, 1000, 1000, 2), { ok: true, restam: 2 }, 'no dia seguinte volta');
+  assert.deepStrictEqual(IT.lojaDoDia(L3, 11), { dia: 11, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null });
+  // relógio para trás: hoje < loja.dia devolve igual e o limite continua
+  var L11 = congela(IT.comprar('torrao', IT.comprar('torrao', L2, 11), 11));
+  assert.deepStrictEqual(IT.lojaDoDia(L11, 9), L11); assert.deepStrictEqual(IT.lojaDoDia(L11, 11), L11);
+  assert.deepStrictEqual(IT.podeComprar('torrao', L11, 10, 1000, 1000, 4), { ok: false, motivo: 'limite' }, 'voltar o dia não libera');
+  assert.deepStrictEqual(IT.comprar('manual', L11, 10).dia, 11, 'compra com o relógio para trás não volta o dia da loja');
+  assert.deepStrictEqual(IT.podeComprar('torrao', L11, 12, 1000, 1000, 4), { ok: true, restam: 2 }, 'passando do último dia, volta');
+});
+test('loja: Estrela a cada 7 dias, Rédea não vende, Sem Ouro, Reservado e mochila cheia', function () {
+  var L0 = congela({ dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null });
+  assert.deepStrictEqual(IT.podeComprar('estrela', L0, 10, 5000, 5000, 0), { ok: true, restam: 1 });
+  var L = congela(IT.comprar('estrela', L0, 10));
+  assert.strictEqual(L.estrelaDia, 10);
+  for (var dia = 10; dia <= 16; dia++) assert.deepStrictEqual(IT.podeComprar('estrela', L, dia, 5000, 5000, 1), { ok: false, motivo: 'limite', emDias: 17 - dia }, 'dia ' + dia);
+  assert.deepStrictEqual(IT.podeComprar('estrela', L, 17, 5000, 5000, 1), { ok: true, restam: 1 });
+  assert.strictEqual(IT.podeComprar('estrela', L, 8, 5000, 5000, 1).motivo, 'limite', 'relógio para trás não libera a Estrela');
+  assert.deepStrictEqual(IT.podeComprar('redea', L0, 10, 5000, 5000, 0), { ok: false, motivo: 'nao-vende' });
+  assert.deepStrictEqual(IT.podeComprar('xyz', L0, 10, 5000, 5000, 0), { ok: false, motivo: 'nao-vende' });
+  assert.deepStrictEqual(IT.podeComprar('torrao', L0, 10, 119, 119, 0), { ok: false, motivo: 'sem-ouro' });
+  assert.deepStrictEqual(IT.podeComprar('torrao', L0, 10, 120, 120, 0), { ok: true, restam: 2 }, 'o preço exato basta');
+  assert.deepStrictEqual(IT.podeComprar('cupom', L0, 10, 300, 249, 0), { ok: false, motivo: 'reservado' }, 'ouro ≥ preço > ouro livre');
+  assert.deepStrictEqual(IT.podeComprar('manual', L0, 10, 1000, 1000, 99), { ok: false, motivo: 'cheia' });
+  assert.deepStrictEqual(IT.podeComprar('manual', L0, 10, 1000, 1000, 98), { ok: true, restam: 1 });
+  assert.deepStrictEqual(L0, { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null }, 'não muta');
+});
+test('diaLocal: dias inteiros da data, sem ler o relógio', function () {
+  assert.strictEqual(IT.diaLocal(1970, 0, 1), 0);
+  assert.strictEqual(IT.diaLocal(2026, 10, 16) + 1, IT.diaLocal(2026, 10, 17));
+  assert.strictEqual(IT.diaLocal(2026, 11, 31) + 1, IT.diaLocal(2027, 0, 1), 'vira o ano');
+  assert.strictEqual(IT.diaLocal(2028, 1, 28) + 2, IT.diaLocal(2028, 2, 1), 'ano bissexto');
+  assert.strictEqual(IT.diaLocal(2026, 10, 16), Date.UTC(2026, 10, 16) / 86400000);
+  var fonte = require('fs').readFileSync(require('path').join(__dirname, '../src/itens.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(!/Math\.random|Date\.now|new Date|performance\.now/.test(fonte), 'itens.js não sorteia fora da seed nem lê o relógio');
+});
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

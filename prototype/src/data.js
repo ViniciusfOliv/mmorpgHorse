@@ -467,6 +467,50 @@
   };
 
   // ---------------------------------------------------------------------------------------------
+  // Itens de uso (um cavalo por uso, sem volta). Regras em itens.js; números de partida aqui, num só
+  // lugar, para ajustar depois de jogar (spec 2026-11-16 §4, §6, §7 e §11).
+  //   price: Ouro na loja (null = não se vende); perDay: compras por dia; everyDays: 1 compra a cada N dias;
+  //   cap (Torrão): torrões por cavalo; chance (Manual): chance de aprender.
+  //   desc: para que serve; origem: de onde vem (a mochila mostra com quantidade 0). Sem números de
+  //   regra no texto: quem mostra o limite ou a chance lê os campos acima.
+  // ---------------------------------------------------------------------------------------------
+  var ITEMS = {
+    torrao: {
+      id: 'torrao', name: 'Torrão de açúcar', price: 120, perDay: 2, cap: 10,
+      desc: 'O cavalo ganha 1 ponto a mais para distribuir, para sempre.',
+      origem: 'Compre na loja ou ganhe no 2º dia da recompensa diária.'
+    },
+    estrela: {
+      id: 'estrela', name: 'Estrela de treino', price: 2000, everyDays: 7,
+      desc: 'O cavalo sobe 1 estrela; os pontos a mais aparecem para distribuir.',
+      origem: 'Compre na loja ou ganhe no 7º dia da recompensa diária, de tempos em tempos.'
+    },
+    redea: {
+      id: 'redea', name: 'Rédea nova', price: null,
+      desc: 'Redistribui os pontos do cavalo (a primeira redistribuição de cada cavalo é grátis).',
+      origem: 'Vem no 7º dia da recompensa diária; não está à venda.'
+    },
+    cupom: {
+      id: 'cupom', name: 'Cupom de troca de skill', price: 250, perDay: 1,
+      desc: 'Uma skill das vagas sai e entra outra, sorteada entre as que o cavalo pode aprender.',
+      origem: 'Compre na loja ou ganhe no 6º dia da recompensa diária.'
+    },
+    manual: {
+      id: 'manual', name: 'Manual de doma', price: 200, perDay: 1, chance: 0.35,
+      desc: 'O cavalo tenta aprender uma skill na hora; o manual é gasto mesmo se ele não aprender.',
+      origem: 'Compre na loja ou ganhe no 4º dia da recompensa diária.'
+    }
+  };
+  // Teto da mochila por item (Torrão, Estrela, Cupom, Manual); a Rédea nova tem o teto dela no save (999).
+  var BAG_MAX = 99;
+  // Recompensa diária: calendário de 7 dias, sem sorteio. O 7º dia de cada estrelaACada-ésimo calendário
+  // completo também dá 1 Estrela de treino.
+  var DAILY = {
+    dias: [{ ouro: 60 }, { item: 'torrao' }, { ouro: 100 }, { item: 'manual' }, { ouro: 150 }, { item: 'cupom' }, { ouro: 200, item: 'redea' }],
+    estrelaACada: 4
+  };
+
+  // ---------------------------------------------------------------------------------------------
   // Equipamento: 5 slots por montaria. Cada peça dá um status principal e um secundário, definidos
   // pelo slot (GEAR_SLOT_INFO) e pela raridade (ECONOMY.gear.main/sub).
   //   id: '<slot>-<raridade>' (solta: Comum/Mágico) ou '<slot>-<conjunto>-<raridade>' (Raro/Lendário).
@@ -542,6 +586,9 @@
     BOT_NAMES: BOT_NAMES,
     LEAGUES: LEAGUES,
     ECONOMY: ECONOMY,
+    ITEMS: ITEMS,
+    BAG_MAX: BAG_MAX,
+    DAILY: DAILY,
     FOAL_NAMES: FOAL_NAMES,
     BREED_LEFT: BREED_LEFT
   };
