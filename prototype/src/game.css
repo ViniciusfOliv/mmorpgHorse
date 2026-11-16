@@ -964,26 +964,31 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .podio-nomes .voce b { color: var(--ouro); }
 .manchete { font-family: var(--fonte-display); font-size: 16px; line-height: 1.6; color: var(--texto); text-shadow: 2px 2px 0 var(--sombra); }
 .manchete em { font-style: normal; color: var(--ouro); }
-.balanco { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; font-variant-numeric: tabular-nums; }
-.balanco dt { color: var(--texto-2); }
-.balanco dd { margin: 0; text-align: right; font-weight: 700; }
-.balanco .final dt, .balanco .final dd { color: var(--texto); padding-top: 6px; border-top: 2px solid var(--linha); }
-.balanco .final dt { margin-right: -12px; padding-right: 12px; }
+/* entrada, prêmio e resultado numa linha que quebra (3c §8); o saldo ao lado do XP, com o friso de antes em cima */
+.balanco { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; font-variant-numeric: tabular-nums; }
+.balanco > div { display: flex; gap: 6px; align-items: baseline; white-space: nowrap; }
+.balanco dt, .saldo-final dt { color: var(--texto-2); }
+.balanco dd, .saldo-final dd { margin: 0; font-weight: 700; }
+.resultado-xp { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: end; padding-top: 8px; border-top: 2px solid var(--linha); }
+.saldo-final { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; margin: 0; }
+.resultado-caixa { gap: 10px; }
+.acoes--linha { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .levelup { background: var(--painel-2); padding: 10px 12px; box-shadow: inset 0 0 0 2px var(--ouro); display: flex; flex-direction: column; gap: 6px; }
 .levelup b { font-size: var(--t-m); line-height: 1.25; color: var(--ouro); }
 .ganhos { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--t-s); }
 .ganhos span { font-variant-numeric: tabular-nums; }
 .rolagem { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
 .tabela { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: var(--t-s); }
-.tabela th { text-align: left; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--texto-2); font-weight: 600; padding: 4px 6px; }
-.tabela td { padding: 7px 6px; border-top: 2px solid var(--painel-2); vertical-align: top; }
+.tabela th { text-align: left; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--texto-2); font-weight: 600; padding: 4px 4px; }
+/* linha baixa (3c §8: ≤ 70 px): o nome numa linha; dono, nível e skills na outra (que quebra se o nome do dono for longo) */
+.tabela td { padding: 4px 4px; border-top: 2px solid var(--painel-2); vertical-align: top; }
 .tabela td.num, .tabela th.num { text-align: right; white-space: nowrap; }
 .tabela tr.voce td { background: var(--painel-2); }
 .tabela tr.voce td:first-child { box-shadow: inset 4px 0 0 0 var(--ouro); }
 .tabela .pos { font-family: var(--fonte-display); font-size: 16px; white-space: nowrap; }
-.tabela .quem { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tabela .quem { display: flex; flex-direction: column; gap: 0; min-width: 0; }
 .tabela .quem b { display: flex; align-items: center; gap: 6px; font-weight: 700; }
-.tabela .quem small { color: var(--texto-2); font-size: var(--t-xs); }
+.tabela .quem small { color: var(--texto-2); font-size: var(--t-xs); line-height: 1.15; }
 .tabela td.num small { display: block; color: var(--texto-2); font-size: var(--t-xs); }
 .tabela .tempo { font-weight: 600; }
 

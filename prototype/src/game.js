@@ -165,12 +165,6 @@
     var n = parseInt(h, 16);
     return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
   }
-  // "no/na" e "do/da" conforme o nome da pista ("na Raia do Engenho", "no Prado do Cerrado").
-  function trackArt(name) {
-    var fem = /^(Raia|Pista|Arena|Várzea|Lagoa|Hípica|Chácara|Fazenda|Reta)\b/.test(String(name));
-    return fem ? { em: 'na', de: 'da' } : { em: 'no', de: 'do' };
-  }
-
   // Seed base por save: aleatoriedade de UI (fora da simulação), com reserva sem crypto.
   function freshSeedBase(idx) {
     try {
@@ -955,7 +949,7 @@
   // Estado de UI (não persistido)
   // ===========================================================================
   var state = null;
-  var ui = { screen: 'inicial', lobby: null, result: null, confirmReset: false, confirmLiberar: null, notice: null, haras: null, montaria: null, tab: 'estabulo',
+  var ui = { screen: 'inicial', lobby: null, result: null, resultAba: 'chegada', confirmReset: false, confirmLiberar: null, notice: null, haras: null, montaria: null, tab: 'estabulo',
     motionKeep: null,   // "Recomeçar": a opção Animações passa para o save novo
     joqueiKeep: null,   // e o jóquei também (padrão e capacete)
     // modo DEV (só com DEV_MODE): gaveta, confirmação do "Zerar" e valores armados para a próxima corrida
@@ -4380,54 +4374,94 @@
   // ===========================================================================
   // Tela 5 — Resultado
   // ===========================================================================
-  var PODIUM_W = 168, PODIUM_H = 84;
+  // Pódio (3c §8): o 1º lugar desenhado um passo de escala acima (k + passo: 3 quando os outros estão em 2), no centro;
+  // o 2º e o 3º na escala de hoje, cada um centrado no espaço que sobra do seu lado, para as caixas não se tocarem. O
+  // canvas tem 168 de arte de largura (336 px) e a altura que o cavalo maior pedir (a caixa dele, mais o lugar da seta
+  // do jogador acima). Degraus, números, nomes, holofotes, confete e a seta como antes.
+  var PODIUM_W = 168, PODIUM_H_MIN = 84;
+  var PODIO_DEGRAU = { 1: 29, 2: 25, 3: 21 };   // altura de cada degrau em arte (o "3" ainda cabe acima da faixa escura)
+  var PODIO_BLOCO = { 1: 56, 2: 44, 3: 44 };     // largura de cada degrau em arte
+  var PODIO_SETA = 9;                             // arte acima da caixa do cavalo: 1 de folga, a seta (4) e 4 até a caixa
+  var HORSE_PE = 32;                              // dos cascos ao topo do sprite por código (FOOT_Y + 1), em px de arte
   function setupPodium(cv) {
     var L = ui.lobby; if (!L || !L.sim) return;
-    var s = setupCanvas(cv, PODIUM_W, PODIUM_H, 2), ctx = s.ctx, k = s.k;
     var top3 = L.sim.finishOrder.slice(0, 3);
-    var slots = [{ place: 2, cx: 30, top: 57, col: C.prata }, { place: 1, cx: 84, top: 49, col: C.ouro }, { place: 3, cx: 138, top: 63, col: C.bronze }];
     var playerOnPodium = top3.indexOf(L.playerIdx) >= 0;
-    var visuais = top3.map(function (ri) { return opcoesVisuais(L.racers[ri].horse, joqueiDoCorredor(L, ri)); });   // parte 2a
+    var k = Math.max(1, Math.round(2 * dpr()));   // a escala do setupCanvas(…, 2) abaixo
+    var passo = Math.max(1, Math.round(k / 2));
+    // cada lugar: o cavalo (opções do drawHorse), a escala e a caixa medida com os cascos em y = 0. O quadro não tem
+    // topo (−1e6): os cascos ficam na base, o molde nunca desce de escala nem é cortado, e a caixa medida aqui é a
+    // desenhada; o canvas cresce para ela caber
+    var slots = [1, 2, 3].map(function (place) {
+      var ri = top3[place - 1];
+      if (ri == null) return null;
+      var r = L.racers[ri], kS = place === 1 ? k + passo : k;
+      var opts = comVisuais({
+        palette: r.horse.palette, element: r.horse.element, idle: true, t: 0,
+        scale: kS, silks: r.silks, shadow: false, quadro: { topo: -1e6, base: 0 }
+      }, opcoesVisuais(r.horse, joqueiDoCorredor(L, ri)));   // parte 2a
+      var b = SP.horseBox(0, -HORSE_PE * kS, opts);
+      var alto = Math.max(-b.y, HORSE_PE * kS);   // o desenho por código ocupa HORSE_PE·kS acima dos cascos
+      return { place: place, r: r, kS: kS, opts: opts, bx: b.x, bw: b.w, alto: alto,
+        col: place === 1 ? C.ouro : place === 2 ? C.prata : C.bronze };
+    });
+    var H = PODIUM_H_MIN;
+    slots.forEach(function (sl) { if (sl) H = Math.max(H, PODIO_DEGRAU[sl.place] + Math.ceil(sl.alto / k) + PODIO_SETA); });
+    var s = setupCanvas(cv, PODIUM_W, H, 2), ctx = s.ctx;
+    // posições (px do canvas): o 1º centrado; o 2º no meio do espaço à esquerda dele; o 3º no da direita
+    var W = PODIUM_W * k, g = slots[0];
+    g.left = Math.round(W / 2 - g.bw / 2);
+    if (slots[1]) slots[1].left = Math.max(0, Math.round(g.left / 2 - slots[1].bw / 2));
+    if (slots[2]) slots[2].left = Math.min(W - slots[2].bw, Math.round((g.left + g.bw + W) / 2 - slots[2].bw / 2));
+    var podio = [];
+    slots.forEach(function (sl) {
+      if (!sl) return;
+      sl.top = H - PODIO_DEGRAU[sl.place];        // topo do degrau, em arte
+      sl.cx = (sl.left + sl.bw / 2) / k;           // centro do cavalo e do degrau, em arte
+      sl.hx = sl.left - sl.bx;
+      sl.hy = sl.top * k - HORSE_PE * sl.kS;
+      sl.opts.quadro = { topo: -1e6, base: sl.top * k };   // em pé no degrau (o canvas já tem a altura da caixa)
+      sl.caixa = SP.horseBox(sl.hx, sl.hy, sl.opts);
+      podio.push({ lugar: sl.place, x: sl.caixa.x / dpr(), y: sl.caixa.y / dpr(), w: sl.caixa.w / dpr(), h: sl.caixa.h / dpr(), escala: sl.kS / dpr() });
+    });
+    /*@teste:inicio*/
+    if (window.__galope) window.__galope.podio = podio;   // caixas dos três cavalos em px de CSS do canvas (ui-test)
+    /*@teste:fim*/
     var confetti = [];
-    for (var c = 0; c < 26; c++) confetti.push({ x: (c * 37) % PODIUM_W, y: (c * 23) % PODIUM_H, v: 6 + (c % 5) * 3, col: [C.ouro, C.ganho, C.agua, C.fogo, C.texto][c % 5] });
+    for (var c = 0; c < 26; c++) confetti.push({ x: (c * 37) % PODIUM_W, y: (c * 23) % H, v: 6 + (c % 5) * 3, col: [C.ouro, C.ganho, C.agua, C.fogo, C.texto][c % 5] });
     function R(x, y, w, h, col) { ctx.fillStyle = col; ctx.fillRect(Math.round(x) * k, Math.round(y) * k, w * k, h * k); }
     var item = {
       draw: function (t) {
-        R(0, 0, PODIUM_W, PODIUM_H, C.painel);
+        R(0, 0, PODIUM_W, H, C.painel);
         // holofotes
         ctx.fillStyle = C.holofote;
-        for (var b = 0; b < 3; b++) {
-          var bx = slots[b].cx;
-          for (var yy = 0; yy < 56; yy += 2) { var hw = 4 + yy * 0.32; ctx.fillRect(Math.round(bx - hw) * k, yy * k, Math.round(hw * 2) * k, 2 * k); }
-        }
+        slots.forEach(function (sl) {
+          if (!sl) return;
+          for (var yy = 0; yy < sl.top - 1; yy += 2) { var hw = 4 + yy * 0.32; ctx.fillRect(Math.round(sl.cx - hw) * k, yy * k, Math.round(hw * 2) * k, 2 * k); }
+        });
         if (playerOnPodium && !reduced()) {
           confetti.forEach(function (p, i) {
-            var y = (p.y + t * p.v) % PODIUM_H, x = p.x + Math.round(Math.sin(t * 2 + i) * 2);
+            var y = (p.y + t * p.v) % H, x = p.x + Math.round(Math.sin(t * 2 + i) * 2);
             R(x, y, 1 + (i % 2), 1, p.col);
           });
         }
-        R(0, PODIUM_H - 4, PODIUM_W, 4, C.sombra);
+        R(0, H - 4, PODIUM_W, 4, C.sombra);
         slots.forEach(function (sl) {
-          var ri = top3[sl.place - 1];
-          if (ri == null) return;
-          var r = L.racers[ri];
-          var bw = 48, bx = sl.cx - bw / 2;
-          R(bx - 1, sl.top - 1, bw + 2, PODIUM_H - sl.top, C.sombra);
-          R(bx, sl.top, bw, PODIUM_H - sl.top - 4, sl.col);
+          if (!sl) return;
+          var bw = PODIO_BLOCO[sl.place], bx = sl.cx - bw / 2;
+          R(bx - 1, sl.top - 1, bw + 2, H - sl.top, C.sombra);
+          R(bx, sl.top, bw, H - sl.top - 4, sl.col);
           R(bx, sl.top, bw, 1, C.brilho);
-          R(bx, PODIUM_H - 7, bw, 3, C.escuro);
-          SP.drawText(ctx, String(sl.place), sl.cx * k, (sl.top + 3) * k, { scale: 2 * k, color: C.tinta, align: 'center' });
-          var hx = (sl.cx - 21) * k, hy = (sl.top - 32) * k, cavalo = comVisuais({
-            palette: r.horse.palette, element: r.horse.element, idle: true, t: reduced() ? 0.5 : t + sl.place * 0.8,
-            scale: k, silks: r.silks, shadow: false, quadro: { topo: 0, base: sl.top * k }   // em pé no bloco, sem sair do canvas
-          }, visuais[sl.place - 1]);
-          cavalo.reduzido = reduced();
-          SP.drawHorse(ctx, hx, hy, cavalo);
-          if (r.isPlayer) {
+          R(bx, H - 7, bw, 3, C.escuro);
+          SP.drawText(ctx, String(sl.place), Math.round(sl.cx) * k, (sl.top + 3) * k, { scale: 2 * k, color: C.tinta, align: 'center' });
+          sl.opts.t = reduced() ? 0.5 : t + sl.place * 0.8;
+          sl.opts.reduzido = reduced();
+          SP.drawHorse(ctx, sl.hx, sl.hy, sl.opts);
+          if (sl.r.isPlayer) {
             // seta dourada sobre o seu cavalo: a ponta fica 4 px de arte acima do topo do desenho (o molde pode ser
-            // mais alto que o sprite por código, cujo topo dá a posição de antes, sl.top − 37)
-            var ponta = Math.min(sl.top - 37, Math.floor(SP.horseBox(hx, hy, cavalo).y / k) - 5);
-            R(sl.cx - 3, ponta - 3, 7, 1, C.ouro); R(sl.cx - 2, ponta - 2, 5, 1, C.ouro); R(sl.cx - 1, ponta - 1, 3, 1, C.ouro); R(sl.cx, ponta, 1, 1, C.ouro);
+            // mais alto que o sprite por código, cujo topo é sl.hy)
+            var ponta = Math.min(Math.floor(sl.hy / k), Math.floor(sl.caixa.y / k)) - 5, ax = Math.round(sl.cx);
+            R(ax - 3, ponta - 3, 7, 1, C.ouro); R(ax - 2, ponta - 2, 5, 1, C.ouro); R(ax - 1, ponta - 1, 3, 1, C.ouro); R(ax, ponta, 1, 1, C.ouro);
           }
         });
       }
@@ -4436,11 +4470,11 @@
     vivo(item, cv);
   }
 
+  var RESULTADO_ABAS = [{ id: 'chegada', rotulo: 'Chegada' }, { id: 'momentos', rotulo: 'Momentos' }];
   function renderResultado() {
     var L = ui.lobby, R = ui.result, sim = L.sim;
     var order = sim.finishOrder, winT = sim.finishTimes[order[0]];
     var top3 = order.slice(0, 3);
-    var art = trackArt(L.trackName);
     var names = [1, 0, 2].map(function (k) {
       var ri = top3[k]; if (ri == null) return '<div></div>';
       var r = L.racers[ri];
@@ -4449,21 +4483,20 @@
 
     var head = R.place === 1 ? 'Vitória! <em>1º</em> de ' + L.n
       : 'Você chegou em <em>' + R.place + 'º</em> de ' + L.n;
+    // frase embaixo da manchete só quando explica algo (3c §8): as de enfeite saíram (a pista está no topo e o lugar
+    // na manchete)
     var paid = R.payouts ? R.payouts.prizes.length : 3;
-    var sub = R.place === 1 ? 'Na frente de todo mundo ' + art.em + ' ' + esc(L.trackName) + '.'
-      : R.place <= paid ? 'No pódio ' + art.de + ' ' + esc(L.trackName) + '.'
-      : R.place <= 3 ? 'Pódio sem prêmio: com ' + L.n + ' corredores só 1º e 2º são pagos.'
-      : 'Fora do pódio desta vez ' + art.em + ' ' + esc(L.trackName) + '.';
+    var sub = R.place > paid && R.place <= 3 ? 'Pódio sem prêmio: com ' + L.n + ' corredores só 1º e 2º são pagos.' : '';
 
+    // entrada, prêmio e resultado numa linha que quebra se precisar; o saldo vai ao lado do XP
     var net = R.prize - R.fee;
-    var balanco = R.training
-      ? '<dl class="balanco"><dt>Entrada</dt><dd>Treino, sem aposta</dd><dt>Ouro do treino</dt><dd class="mais">+' + fmt(R.prize) + '</dd>' +
-        '<div class="final" style="display:contents"><dt>Saldo</dt><dd>' + ouroHtml(R.after.gold) + '</dd></div></dl>'
-      : '<dl class="balanco"><dt>Entrada</dt><dd class="menos-t">−' + fmt(R.fee) + '</dd>' +
-        '<dt>Prêmio (' + R.place + 'º lugar)</dt><dd class="' + (R.prize ? 'mais' : '') + '">' + (R.prize ? '+' + fmt(R.prize) : '0') + '</dd>' +
-        '<dt>Resultado</dt><dd class="' + (net > 0 ? 'mais' : net < 0 ? 'menos-t' : '') + '">' + signed(net) + '</dd>' +
-        (R.stone ? '<dt>Pedra Negra</dt><dd class="mais">' + iconeHtml('pedra-negra', '🪨') + ' +1</dd>' : '') +
-        '<div class="final" style="display:contents"><dt>Saldo</dt><dd>' + ouroHtml(R.after.gold) + '</dd></div></dl>';
+    var par = function (dt, dd, cls) { return '<div><dt>' + dt + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + dd + '</dd></div>'; };
+    var balanco = '<dl class="balanco">' + (R.training
+      ? par('Entrada', 'Treino, sem aposta') + par('Ouro do treino', '+' + fmt(R.prize), 'mais')
+      : par('Entrada', '−' + fmt(R.fee), 'menos-t') +
+        par('Prêmio (' + R.place + 'º lugar)', R.prize ? '+' + fmt(R.prize) : '0', R.prize ? 'mais' : '') +
+        par('Resultado', signed(net), net > 0 ? 'mais' : net < 0 ? 'menos-t' : '') +
+        (R.stone ? par('Pedra Negra', iconeHtml('pedra-negra', '🪨') + ' +1', 'mais') : '')) + '</dl>';
 
     var lvl = '';
     if (R.levels > 0) {
@@ -4501,9 +4534,9 @@
     var broke = state.gold < MIN_ENTRY;
     var actions = broke
       ? '<p class="aviso aviso--perda">Seu Ouro acabou abaixo da menor entrada (' + MIN_ENTRY + '). O treino gratuito não cobra nada e paga de 10 a 30 de Ouro.</p>' +
-        '<div class="acoes"><button type="button" class="btn btn--ouro" data-acao="treino">Treino gratuito</button>' +
+        '<div class="acoes acoes--linha"><button type="button" class="btn btn--ouro" data-acao="treino">Treino gratuito</button>' +
         '<button type="button" class="btn" data-acao="voltar">Voltar</button></div>'
-      : '<div class="acoes"><button type="button" class="btn btn--ouro" data-acao="denovo">Correr de novo</button>' +
+      : '<div class="acoes acoes--linha"><button type="button" class="btn btn--ouro" data-acao="denovo">Correr de novo</button>' +
         '<button type="button" class="btn" data-acao="voltar">Voltar</button></div>';
 
     var prizeOf = {};
@@ -4514,28 +4547,37 @@
       var gap = k === 0 ? 'vencedor' : '+' + (t - winT).toFixed(2).replace('.', ',') + 's';
       var prize = R.training ? (r.isPlayer ? '+' + R.prize : '—') : (prizeOf[ri] ? fmt(prizeOf[ri]) : '—');
       return '<tr class="' + (r.isPlayer ? 'voce' : '') + '"><td class="pos" aria-label="' + (k + 1) + ' lugar">' + podioIcone(k + 1) + (k + 1) + 'º</td>' +
+        // duas linhas de texto (3c §8): o nome numa; dono, nível e chance de skill na outra
         '<td><div class="quem"><b>' + laneChip(r, ri, 'raia--mini') + esc(r.horse.name) +
         (r.isPlayer ? ' <span class="tag-voce">VOCÊ</span>' : '') + '</b>' +
-        (r.isPlayer ? '' : '<small>' + esc(r.name) + '</small>') +
-        '<small>' + esc('Nv ' + r.horse.level + (info ? ' · skills ' + Math.round(info.skillChance * 100) + '%' : '')) + '</small></div></td>' +
+        '<small>' + esc((r.isPlayer ? '' : r.name + ' · ') + 'Nv ' + r.horse.level + (info ? ' · skills ' + Math.round(info.skillChance * 100) + '%' : '')) + '</small></div></td>' +
         '<td class="num"><span class="tempo">' + fmtSec(t) + '</span><small>' + gap + '</small></td><td class="num">' + prize + '</td></tr>';
     }).join('');
+
+    // abas Chegada | Momentos (como as sub-abas da ficha): só a aberta vai para a página
+    var aba = ui.resultAba === 'momentos' ? 'momentos' : 'chegada';
+    var subabas = '<div class="subabas" role="group" aria-label="Detalhes da corrida">' + RESULTADO_ABAS.map(function (a) {
+      return '<button type="button" class="btn opcao opcao--centro" data-acao="resultado-aba" data-id="' + a.id + '" aria-pressed="' + (aba === a.id) + '">' + a.rotulo + '</button>';
+    }).join('') + '</div>';
+    var corpo = aba === 'momentos'
+      ? (momentos ? '<section class="caixa" aria-labelledby="t-dados"><h2 class="titulo" id="t-dados">Momentos da corrida</h2>' +
+          '<ol class="feed feed--estatica">' + momentos + '</ol></section>' : '<p class="nota">Nenhum momento marcante nesta corrida.</p>')
+      : '<section class="caixa" aria-labelledby="t-chegada"><h2 class="titulo" id="t-chegada">Ordem de chegada</h2>' +
+          '<div class="rolagem"><table class="tabela"><thead><tr><th>Pos</th><th>Cavalo</th><th class="num">Tempo</th><th class="num">Prêmio</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody></table></div>' +
+          '<p class="nota">' + iconeHtml('ui-dado', '🎲', 16) + ' Dado da Sorte: a 1/3 e 2/3 da pista o maior dado puxa o clima para o elemento de quem tirou.</p>' +
+        '</section>';
 
     return '<section class="tela" aria-labelledby="t-resultado">' +
       '<header class="topo topo--fixo"><span class="logo-mini">' + esc(L.trackName) + '</span><span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></header>' +
       '<div class="podio-palco"><canvas data-podio="1" role="img" aria-label="Pódio com os três primeiros"></canvas><div class="podio-nomes">' + names + '</div></div>' +
-      '<section class="caixa"><h1 class="manchete" id="t-resultado" tabindex="-1" data-foco>' + head + '</h1>' +
-        '<p class="sub">' + sub + '</p>' + balanco +
-        '<div class="tela-cabeca"><span class="rotulo">Experiência ' + '<span class="mais">+' + R.xpGain + ' XP</span>' + (R.training ? ' (treino: metade)' : '') + '</span>' +
-        xpHtml(R.after.level, R.after.xp) + '</div>' + lvl + '</section>' +
-      actions +
-      (momentos ? '<section class="caixa" aria-labelledby="t-dados"><h2 class="titulo" id="t-dados">Momentos da corrida</h2>' +
-        '<ol class="feed feed--estatica">' + momentos + '</ol></section>' : '') +
-      '<section class="caixa" aria-labelledby="t-chegada"><h2 class="titulo" id="t-chegada">Ordem de chegada</h2>' +
-        '<div class="rolagem"><table class="tabela"><thead><tr><th>Pos</th><th>Cavalo</th><th class="num">Tempo</th><th class="num">Prêmio</th></tr></thead>' +
-        '<tbody>' + rows + '</tbody></table></div>' +
-        '<p class="nota">' + iconeHtml('ui-dado', '🎲', 16) + ' Dado da Sorte: a 1/3 e 2/3 da pista o maior dado puxa o clima para o elemento de quem tirou.</p>' +
-        '</section>' +
+      '<section class="caixa resultado-caixa"><h1 class="manchete" id="t-resultado" tabindex="-1" data-foco>' + head + '</h1>' +
+        (sub ? '<p class="sub">' + sub + '</p>' : '') + balanco +
+        '<div class="resultado-xp"><div class="tela-cabeca"><span class="rotulo">Experiência ' + '<span class="mais">+' + R.xpGain + ' XP</span>' + (R.training ? ' (treino: metade)' : '') + '</span>' +
+          xpHtml(R.after.level, R.after.xp) + '</div>' +
+          '<dl class="saldo-final"><dt>Saldo</dt><dd>' + ouroHtml(R.after.gold) + '</dd></dl></div>' +
+        lvl + '</section>' +
+      actions + subabas + corpo +
       '</section>';
   }
 
@@ -4618,6 +4660,10 @@
         goMontaria(id, 'status'); break;
       case 'equipar-tela':            // "Equipar" da aba Correr e da largada
         goMontaria(id, 'equip'); break;
+      case 'resultado-aba':           // Chegada | Momentos do resultado
+        if (ui.screen !== 'resultado' || !RESULTADO_ABAS.some(function (a) { return a.id === id; })) break;
+        ui.resultAba = id;
+        rerenderKeepScroll(); break;
       case 'montaria-aba':
         if (!ui.montaria || !montariaAbaValida(id)) break;
         ui.montaria.aba = id;
@@ -4876,6 +4922,7 @@
         }
         if (DEV_MODE) ui.devNext = null;
         ui.result = resL;
+        ui.resultAba = 'chegada';   // cada resultado novo abre na aba Chegada
         go('corrida');
         break;
       }

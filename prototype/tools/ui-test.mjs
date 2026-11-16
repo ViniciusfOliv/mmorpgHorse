@@ -8,7 +8,7 @@
 // Também confere a entrada reservada do páreo aberto, a gravação que falha, o save adulterado ou corrompido,
 // o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo, o tamanho mínimo do texto e o teto
 // de chamadas de canvas por quadro na corrida mais cara.
-//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,corrida,marcas,portes,crescimento,ajuda,acabamento,celular node tools/ui-test.mjs  -> só esses
+//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,corrida,resultado,marcas,portes,crescimento,ajuda,acabamento,celular node tools/ui-test.mjs  -> só esses
 // Equipamento suspenso (bloco 1b, GEAR_ON = false no game.js): os blocos das telas de peças e da Loja conferem que elas
 // não aparecem e que as ações de peça não fazem nada; com GEAR_ON = true voltam a testar as telas (GEAR_ON abaixo).
 import { createRequire } from 'node:module'
@@ -2079,6 +2079,315 @@ try {
         await confereVigiaDado(pg, label)
         // com movimento reduzido, o mesmo texto (aparece e some sem animação: drawPlaceBanner é parado)
         await confereLugar(pg, label, '7º LUGAR')
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+  }
+
+  // ---------------- resultado numa tela, com abas Chegada | Momentos (3c §8) ----------------
+  if (quer('resultado')) {
+    // seeds DEV (perfil DEV novo): 16 = 7 corredores, o jogador em 7º, sem subir de nível; 70 = vitória (7 corredores);
+    // 12 = 5 corredores com o jogador em 3º (pódio sem prêmio)
+    const SEED7 = 16, SEED_VITORIA = 70, SEED_SEM_PREMIO = 12
+    const MIN_ENTRADA = Math.min(...G.ECONOMY.entryTiers)
+    // do resultado (ou de qualquer tela com a casca) até o próximo resultado da seed; prep(pg) roda na largada
+    const correAteResultado = async (pg, seed, prep) => {
+      if (await pg.locator('#t-resultado').count()) { await pg.locator('[data-acao="voltar"]').click(); await pg.waitForSelector('#t-correr') }
+      await devArmar(pg, { seed })
+      await abrirSala(pg)
+      if (prep) await prep(pg)
+      await pg.getByRole('button', { name: /^Largar/ }).click()
+      await pg.waitForSelector('#pista')
+      await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+      await pg.waitForSelector('#t-resultado')
+      await sleep(300)   // o pódio desenha o primeiro quadro
+    }
+    const abaRes = (pg, id) => pg.locator(`[data-acao="resultado-aba"][data-id="${id}"]`).click()
+    // a tela de resultado lida do DOM e o que ela devia mostrar, do ui.result e da simulação
+    const leResultado = (pg) => pg.evaluate(() => {
+      const G = window.__galope, R = G.ui.result, L = G.ui.lobby, sim = L.sim
+      // texto lido como o leitor de tela: sem o que é aria-hidden (o "o" do ordinal; o .sr "º" fica)
+      const limpa = (el) => {
+        if (!el) return null
+        const c = el.cloneNode(true)
+        c.querySelectorAll('[aria-hidden="true"]').forEach((x) => x.remove())
+        return c.textContent.replace(/\s+/g, ' ').trim()
+      }
+      const fmt = (n) => Math.round(n).toLocaleString('pt-BR')
+      const fmtSec = (s) => { const m = Math.floor(s / 60), r = s - m * 60, rs = r.toFixed(2).replace('.', ','); return m > 0 ? m + ':' + (r < 10 ? '0' : '') + rs : rs + 's' }
+      const fmtClock = (s) => { const m = Math.floor(s / 60), r = Math.floor(s - m * 60); return m + ':' + (r < 10 ? '0' : '') + r }
+      const net = R.prize - R.fee
+      const prizeOf = {}
+      if (R.payouts) R.payouts.prizes.forEach((p) => { prizeOf[p.racer] = p.amount })
+      const winT = sim.finishTimes[sim.finishOrder[0]]
+      // cada linha da Ordem de chegada: os pedaços de texto, na ordem em que aparecem
+      const linhasEsperadas = sim.finishOrder.map((ri, k) => {
+        const r = L.racers[ri], info = sim.racerInfo ? sim.racerInfo[ri] : null, t = sim.finishTimes[ri]
+        return [(k + 1) + 'º', String(ri + 1), r.horse.name].concat(r.isPlayer ? ['VOCÊ'] : [r.name])
+          .concat(['Nv ' + r.horse.level + (info ? ' · skills ' + Math.round(info.skillChance * 100) + '%' : ''), fmtSec(t),
+            k === 0 ? 'vencedor' : '+' + (t - winT).toFixed(2).replace('.', ',') + 's',
+            R.training ? (r.isPlayer ? '+' + R.prize : '—') : (prizeOf[ri] ? fmt(prizeOf[ri]) : '—')])
+      })
+      const MOM = { skill: 1, garra: 1, cansou: 1, dado: 1, clima: 1 }
+      const momentosEsperados = sim.events.filter((ev) => MOM[ev.type]).map((ev) => {
+        const mine = ev.type === 'dado' && ev.rolls && ev.rolls[L.playerIdx]
+        return { tipo: ev.type, voce: ev.racer === L.playerIdx, hora: fmtClock(ev.t), raia: ev.racer >= 0 ? String(ev.racer + 1) : null, tirou: mine ? 'você tirou ' + mine.best : null }
+      })
+      // Entrada, prêmio e resultado (.balanco) e o saldo ao lado do XP (.saldo-final)
+      const pares = Array.from(document.querySelectorAll('.balanco dt, .saldo-final dt')).map((dt) => [limpa(dt), limpa(dt.nextElementSibling)])
+      const sub = document.querySelector('#tela .sub')
+      const abas = Array.from(document.querySelectorAll('.subabas [data-acao="resultado-aba"]')).map((b) => ({ id: b.dataset.id, pressed: b.getAttribute('aria-pressed'), txt: limpa(b) }))
+      const linhas = Array.from(document.querySelectorAll('.tabela tbody tr')).map((tr) => {
+        const quem = tr.querySelector('.quem')
+        return { txt: limpa(tr), h: tr.getBoundingClientRect().height, filhos: quem ? quem.childElementCount : 0, chip: limpa(tr.querySelector('.raia--mini')) }
+      })
+      const itens = Array.from(document.querySelectorAll('#t-dados ~ ol > li, [aria-labelledby="t-dados"] li')).map((li) => ({
+        cls: li.className, hora: limpa(li.querySelector('time')), raia: limpa(li.querySelector('.raia--mini')), txt: limpa(li) }))
+      const aviso = document.querySelector('.aviso--perda')
+      return {
+        R: { place: R.place, fee: R.fee, prize: R.prize, stone: R.stone, training: R.training, xpGain: R.xpGain, levels: R.levels, learned: R.learned, nivel: R.after.level, gold: R.after.gold, paid: R.payouts ? R.payouts.prizes.length : 3 },
+        n: L.n, net, sinal: (net > 0 ? '+' : net < 0 ? '−' : '') + fmt(Math.abs(net)), saldoTxt: fmt(R.after.gold),
+        manchete: limpa(document.getElementById('t-resultado')), sub: sub ? limpa(sub) : null, pares,
+        xp: limpa(document.querySelector('.resultado-xp')), levelup: Array.from(document.querySelectorAll('.levelup')).map(limpa),
+        aviso: aviso ? limpa(aviso) : null, abas, linhas, linhasEsperadas, itens, momentosEsperados,
+        chegada: !!document.getElementById('t-chegada'), dados: !!document.getElementById('t-dados'),
+        notaDado: Array.from(document.querySelectorAll('[aria-labelledby="t-chegada"] .nota')).map(limpa).join(' | '),
+        notaVazia: Array.from(document.querySelectorAll('#tela .nota')).map(limpa).filter((t) => /Nenhum momento/.test(t)),
+        foco: document.activeElement ? (document.activeElement.dataset.acao || '') + ':' + (document.activeElement.dataset.id || '') : null,
+        skillNomes: R.learned.map((id) => (window.GameData.SKILLS[id] ? window.GameData.SKILLS[id].name : id))
+      }
+    })
+    // manchete, frase, entrada, prêmio, resultado, saldo e XP com os valores do ui.result
+    const confereCabeca = (r, label) => {
+      const ruim = (m) => problems.push(`[${label}] ${m}`)
+      const head = r.R.place === 1 ? `Vitória! 1º de ${r.n}` : `Você chegou em ${r.R.place}º de ${r.n}`
+      if (r.manchete !== head) ruim(`manchete ${JSON.stringify(r.manchete)} (esperado ${JSON.stringify(head)})`)
+      const semPremio = !r.R.training && r.R.place > r.R.paid && r.R.place <= 3
+      const frase = semPremio ? `Pódio sem prêmio: com ${r.n} corredores só 1º e 2º são pagos.` : null
+      if (r.sub !== frase) ruim(`frase embaixo da manchete ${JSON.stringify(r.sub)} (esperado ${JSON.stringify(frase)})`)
+      const esperado = r.R.training
+        ? [['Entrada', 'Treino, sem aposta'], ['Ouro do treino', '+' + r.R.prize]]
+        : [['Entrada', '−' + r.R.fee], [`Prêmio (${r.R.place}º lugar)`, r.R.prize ? '+' + r.R.prize : '0'], ['Resultado', r.sinal]]
+      if (r.R.stone) esperado.push(['Pedra Negra', '+' + r.R.stone])
+      esperado.push(['Saldo', r.saldoTxt + 'Ouro'])   // ouroHtml: o número e o .sr "Ouro" colados
+      if (JSON.stringify(r.pares) !== JSON.stringify(esperado)) ruim(`balanço ${JSON.stringify(r.pares)} (esperado ${JSON.stringify(esperado)})`)
+      if (!r.xp || !r.xp.includes(`+${r.R.xpGain} XP`)) ruim(`XP ${JSON.stringify(r.xp)} sem "+${r.R.xpGain} XP"`)
+      const sobe = r.R.levels > 0 ? [`Subiu para o nível ${r.R.nivel}!`] : []
+      if (r.R.learned.length) sobe.push(`Nova skill: ${r.skillNomes.join(', ')}!`)
+      if (r.levelup.length !== sobe.length || sobe.some((s, i) => !r.levelup[i].startsWith(s))) ruim(`avisos de nível/skill ${JSON.stringify(r.levelup)} (esperado ${JSON.stringify(sobe)})`)
+    }
+    // aba Chegada aberta: a tabela com os dados de hoje, em 2 linhas de texto na célula do cavalo, e a nota do Dado
+    const confereChegada = (r, label) => {
+      const ruim = (m) => problems.push(`[${label}] ${m}`)
+      if (r.abas.map((a) => a.id + '=' + a.pressed).join() !== 'chegada=true,momentos=false' || r.abas.map((a) => a.txt).join() !== 'Chegada,Momentos') ruim(`abas ${JSON.stringify(r.abas)} (esperado Chegada marcada)`)
+      if (!r.chegada || r.dados) ruim(`na aba Chegada: Ordem de chegada ${r.chegada}, Momentos ${r.dados}`)
+      if (r.linhas.length !== r.n) ruim(`tabela com ${r.linhas.length} linhas (esperado ${r.n})`)
+      r.linhas.forEach((l, k) => {
+        const exp = r.linhasEsperadas[k]
+        let de = 0
+        for (const p of exp) { const i = l.txt.indexOf(p, de); if (i < 0) { ruim(`linha ${k + 1}: ${JSON.stringify(l.txt)} sem ${JSON.stringify(p)} (na ordem ${JSON.stringify(exp)})`); break } de = i + p.length }
+        if (l.chip !== exp[1]) ruim(`linha ${k + 1}: raia ${l.chip} (esperado ${exp[1]})`)
+        if (l.h > 70) ruim(`linha ${k + 1} com ${l.h.toFixed(1)} px de altura (máximo 70)`)
+        if (l.filhos !== 2) ruim(`linha ${k + 1}: a célula do cavalo com ${l.filhos} linhas de texto (esperado 2: nome; dono, nível e skills)`)
+      })
+      if (!/Dado da Sorte: a 1\/3 e 2\/3 da pista o maior dado puxa o clima para o elemento de quem tirou\./.test(r.notaDado)) ruim(`nota do Dado ausente na aba Chegada: ${JSON.stringify(r.notaDado)}`)
+    }
+    // aba Momentos aberta: a lista com os mesmos itens de hoje (tipo, hora, raia, destaque do jogador, o "você tirou")
+    const confereMomentos = (r, label) => {
+      const ruim = (m) => problems.push(`[${label}] ${m}`)
+      if (r.abas.map((a) => a.id + '=' + a.pressed).join() !== 'chegada=false,momentos=true') ruim(`abas ${JSON.stringify(r.abas)} (esperado Momentos marcada)`)
+      if (r.chegada || r.linhas.length) ruim('a tabela da Ordem de chegada continua na aba Momentos')
+      if (!r.momentosEsperados.length) {
+        if (r.dados || r.itens.length || r.notaVazia.join() !== 'Nenhum momento marcante nesta corrida.') ruim(`corrida sem momentos: ${JSON.stringify({ dados: r.dados, itens: r.itens.length, nota: r.notaVazia })}`)
+        return
+      }
+      if (!r.dados || r.notaVazia.length) ruim(`aba Momentos sem a lista (t-dados ${r.dados}) ou com a frase de vazio`)
+      if (r.itens.length !== r.momentosEsperados.length) ruim(`${r.itens.length} momentos (esperado ${r.momentosEsperados.length})`)
+      r.momentosEsperados.forEach((e, k) => {
+        const it = r.itens[k]
+        if (!it || !it.cls.split(' ').includes('tipo-' + e.tipo) || it.cls.split(' ').includes('voce') !== e.voce || it.hora !== e.hora || it.raia !== e.raia || (e.tirou && !it.txt.includes(e.tirou)))
+          ruim(`momento ${k + 1}: ${JSON.stringify(it)} (esperado ${JSON.stringify(e)})`)
+      })
+    }
+    // caixas na ordem da página, sem se sobrepor (Review Focus 5b)
+    const blocosEmOrdem = (pg) => pg.evaluate(() => {
+      const sels = ['.podio-palco', '#t-resultado', '.balanco', '.resultado-xp', '.levelup', '.aviso--perda', '.acoes', '.subabas', '[aria-labelledby="t-chegada"], [aria-labelledby="t-dados"]']
+      const out = []
+      sels.forEach((s) => document.querySelectorAll(s).forEach((el) => { const b = el.getBoundingClientRect(); out.push({ s, top: b.top + scrollY, bottom: b.bottom + scrollY }) }))
+      return out
+    })
+    const confereOrdem = (bl, label, comAvisos) => {
+      const ruim = (m) => problems.push(`[${label}] ${m}`)
+      for (let i = 1; i < bl.length; i++) if (bl[i].top < bl[i - 1].bottom - 0.5) ruim(`${bl[i].s} (topo ${bl[i].top.toFixed(1)}) sobrepõe ${bl[i - 1].s} (fundo ${bl[i - 1].bottom.toFixed(1)})`)
+      if (comAvisos) {
+        const ac = bl.find((b) => b.s === '.acoes'), av = bl.filter((b) => b.s === '.levelup' || b.s === '.aviso--perda')
+        if (av.length < 3 || !ac || av.some((b) => b.bottom > ac.top + 0.5)) ruim(`avisos (${av.length}) não estão todos acima dos botões ${JSON.stringify(bl)}`)
+      }
+    }
+    // "Correr de novo"/"Treino gratuito" e "Voltar" lado a lado, com ≥ 44 px
+    const confereBotoes = async (pg, label, primeiro) => {
+      const b = await pg.evaluate((p) => [p, 'voltar'].map((a) => { const el = document.querySelector(`.acoes [data-acao="${a}"]`); if (!el) return null; const r = el.getBoundingClientRect(); return { top: Math.round(r.top), h: r.height } }), primeiro)
+      if (!b[0] || !b[1] || Math.abs(b[0].top - b[1].top) > 1 || b[0].h < 44 || b[1].h < 44) problems.push(`[${label}] botões ${primeiro} e voltar fora de uma linha ou baixos: ${JSON.stringify(b)}`)
+    }
+    // pódio: os três cavalos inteiros no canvas, sem sobrepor, o 1º maior (window.__galope.podio, em px de CSS do canvas)
+    const conferePodio = async (pg, label) => {
+      const p = await pg.evaluate(() => { const cv = document.querySelector('canvas[data-podio]').getBoundingClientRect(); return { w: cv.width, h: cv.height, caixas: window.__galope.podio } })
+      const ruim = (m) => problems.push(`[${label}] pódio: ${m} ${JSON.stringify(p)}`)
+      if (!p.caixas || p.caixas.length !== 3) { ruim('registro window.__galope.podio sem os três cavalos'); return p }
+      const por = (n) => p.caixas.find((c) => c.lugar === n)
+      if (!por(1) || !por(2) || !por(3)) { ruim('lugares 1, 2 e 3 não estão no registro'); return p }
+      for (const c of p.caixas) if (c.x < -0.01 || c.y < -0.01 || c.x + c.w > p.w + 0.01 || c.y + c.h > p.h + 0.01) ruim(`cavalo do ${c.lugar}º fora do canvas`)
+      for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
+        const a = p.caixas[i], b = p.caixas[j]
+        if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) ruim(`caixas do ${a.lugar}º e do ${b.lugar}º se sobrepõem`)
+      }
+      const g = por(1)
+      for (const o of [por(2), por(3)]) if (!(g.escala > o.escala && g.w > o.w && g.h > o.h)) ruim(`o 1º não é maior que o ${o.lugar}º`)
+      if (p.w !== 336) ruim(`canvas com ${p.w} px de largura (esperado 336)`)
+      return p
+    }
+
+    // caso base a 360×780: 7 corredores, sem subir de nível
+    {
+      const label = 'resultado-360'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await correAteResultado(pg, SEED7)
+        let r = await leResultado(pg)
+        if (r.n !== 7 || r.R.levels !== 0 || r.R.learned.length || r.R.gold < MIN_ENTRADA) problems.push(`[${label}] a seed ${SEED7} não deu o caso base (7 corredores, sem nível): ${JSON.stringify(r.R)}`)
+        const tela = await pg.evaluate(() => ({ y: scrollY, vh: innerHeight, sub: document.querySelector('.subabas').getBoundingClientRect().bottom, doc: document.documentElement.scrollHeight }))
+        if (tela.y !== 0 || tela.sub > tela.vh) problems.push(`[${label}] as abas não estão na primeira tela: fundo ${tela.sub.toFixed(1)} > ${tela.vh} (scrollY ${tela.y})`)
+        if (tela.doc > 1500) problems.push(`[${label}] documento com ${tela.doc} px de altura na aba Chegada (máximo 1.500)`)
+        confereCabeca(r, label)
+        confereChegada(r, label)
+        confereOrdem(await blocosEmOrdem(pg), label, false)
+        await confereBotoes(pg, label, 'denovo')
+        const podio = await conferePodio(pg, label)
+        await checkOverflow(pg, label)
+        await abaRes(pg, 'momentos')
+        r = await leResultado(pg)
+        confereMomentos(r, label + ' momentos')
+        confereCabeca(r, label + ' momentos')
+        if (r.foco !== 'resultado-aba:momentos') problems.push(`[${label}] o foco não ficou na aba Momentos depois do clique (${r.foco})`)
+        const docM = await pg.evaluate(() => document.documentElement.scrollHeight)
+        await checkOverflow(pg, label + ' momentos')
+        await abaRes(pg, 'chegada')
+        r = await leResultado(pg)
+        confereChegada(r, label + ' volta')
+        notes[label] = { ...tela, docMomentos: docM, linhas: r.linhas.map((l) => +l.h.toFixed(1)), podio }
+        // um resultado novo abre de novo em Chegada (a vitória, que tem frase de enfeite hoje: sai)
+        await abaRes(pg, 'momentos')
+        await correAteResultado(pg, SEED_VITORIA)
+        r = await leResultado(pg)
+        if (r.R.place !== 1 || r.n !== 7) problems.push(`[${label}] a seed ${SEED_VITORIA} não deu vitória com 7: ${JSON.stringify(r.R)}`)
+        confereCabeca(r, label + ' vitória')
+        confereChegada(r, label + ' vitória')
+        await conferePodio(pg, label + ' vitória')
+        // corrida sem momentos (nenhuma seed os zera: os Dados sempre acontecem; a lista sai só do sim.events, que aqui
+        // perde os momentos antes do redesenho da aba)
+        await pg.evaluate(() => { const MOM = { skill: 1, garra: 1, cansou: 1, dado: 1, clima: 1 }, sim = window.__galope.ui.lobby.sim; sim.events = sim.events.filter((e) => !MOM[e.type]) })
+        await abaRes(pg, 'momentos')
+        confereMomentos(await leResultado(pg), label + ' sem momentos')
+        // pódio sem prêmio: a única frase que fica embaixo da manchete
+        await correAteResultado(pg, SEED_SEM_PREMIO)
+        r = await leResultado(pg)
+        if (r.R.place !== 3 || r.R.paid !== 2) problems.push(`[${label}] a seed ${SEED_SEM_PREMIO} não deu pódio sem prêmio: ${JSON.stringify(r.R)} n ${r.n}`)
+        confereCabeca(r, label + ' sem prêmio')
+        confereChegada(r, label + ' sem prêmio')
+        await conferePodio(pg, label + ' sem prêmio')
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // Review Focus 5b: nível, skill nova e Ouro abaixo da menor entrada na mesma corrida
+    {
+      const label = 'resultado-rf5b'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await correAteResultado(pg, SEED7, (p) => p.evaluate((g) => {
+          const G = window.__galope
+          G.ui.dev.ouroInf = false; G.state.gold = g; G.state.mounts[0].xp += 1e7   // sobe até o nível máximo: 49 chances de skill
+        }, MIN_ENTRADA))
+        const r = await leResultado(pg)
+        if (!(r.R.levels > 0) || !r.R.learned.length || !(r.R.gold < MIN_ENTRADA)) problems.push(`[${label}] o save não deu nível, skill nova e Ouro abaixo de ${MIN_ENTRADA}: ${JSON.stringify(r.R)}`)
+        if (!r.aviso || !r.aviso.includes(`abaixo da menor entrada (${MIN_ENTRADA})`)) problems.push(`[${label}] sem o aviso de Ouro acabado: ${JSON.stringify(r.aviso)}`)
+        confereCabeca(r, label)
+        confereChegada(r, label)
+        confereOrdem(await blocosEmOrdem(pg), label, true)
+        await confereBotoes(pg, label, 'treino')
+        const rola = await pg.evaluate(() => ({ doc: document.documentElement.scrollHeight, vh: innerHeight }))
+        if (!(rola.doc > rola.vh)) problems.push(`[${label}] a tela não rola (${JSON.stringify(rola)})`)
+        // as abas trocam com a tela rolada, sem perder a rolagem
+        await pg.locator('.subabas').scrollIntoViewIfNeeded()
+        await pg.evaluate(() => scrollBy(0, 120))
+        const y0 = await pg.evaluate(() => scrollY)
+        await abaRes(pg, 'momentos')
+        const m = await leResultado(pg)
+        confereMomentos(m, label + ' momentos')
+        confereOrdem(await blocosEmOrdem(pg), label + ' momentos', true)
+        const y1 = await pg.evaluate(() => scrollY)
+        if (!(y0 > 0) || Math.abs(y1 - y0) > 1) problems.push(`[${label}] a troca de aba com a tela rolada mexeu na rolagem (${y0} → ${y1})`)
+        await abaRes(pg, 'chegada')
+        confereChegada(await leResultado(pg), label + ' volta')
+        await checkOverflow(pg, label)
+        notes[label] = { ...rola, y0, y1 }
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 1280: a mesma tela, sem rolagem lateral, botões lado a lado
+    {
+      const label = 'resultado-1280'
+      const pg = await newPage(browser, { width: 1280, height: 800 }, label, { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await correAteResultado(pg, SEED7)
+        const r = await leResultado(pg)
+        confereCabeca(r, label)
+        confereChegada(r, label)
+        await confereBotoes(pg, label, 'denovo')
+        await conferePodio(pg, label)
+        await checkOverflow(pg, label)
+        await abaRes(pg, 'momentos')
+        confereMomentos(await leResultado(pg), label + ' momentos')
+        await checkOverflow(pg, label + ' momentos')
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // cores forçadas: a aba atual com Highlight, a outra com borda em cor do sistema
+    {
+      const label = 'resultado-forcado'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1', forcedColors: 'active' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await correAteResultado(pg, SEED7)
+        for (const atual of ['chegada', 'momentos']) {
+          if (atual === 'momentos') await abaRes(pg, 'momentos')
+          const fc = await pg.evaluate(() => {
+            const sonda = (c) => { const d = document.createElement('i'); d.style.border = '2px solid ' + c; document.body.appendChild(d); const v = getComputedStyle(d).borderTopColor; d.remove(); return v }
+            return { ativo: matchMedia('(forced-colors: active)').matches, hl: sonda('Highlight'), bt: sonda('ButtonText'),
+              abas: Array.from(document.querySelectorAll('.subabas [data-acao="resultado-aba"]')).map((b) => { const cs = getComputedStyle(b); return { id: b.dataset.id, pressed: b.getAttribute('aria-pressed'), w: cs.borderTopWidth, c: cs.borderTopColor } }) }
+          })
+          if (!fc.ativo) problems.push(`[${label}] a página não está em cores forçadas`)
+          for (const a of fc.abas) {
+            const quer = a.id === atual ? fc.hl : fc.bt
+            if (a.w !== '2px' || a.c !== quer || a.pressed !== String(a.id === atual)) problems.push(`[${label}] aba ${a.id} com ${atual} aberta: ${JSON.stringify(a)} (esperado borda 2px ${quer})`)
+          }
+          if (fc.abas.length !== 2) problems.push(`[${label}] ${fc.abas.length} abas`)
+          notes[label + '-' + atual] = fc
+        }
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -5638,6 +5947,8 @@ try {
         const R = await pg.evaluate(() => ({ stone: window.__galope.ui.result.stone, place: window.__galope.ui.result.place, pedras: window.__galope.state.pedras, chamadas: window.__pedraChamadas }))
         if (R.chamadas !== 0 || R.stone !== 0 || R.pedras !== 7) problems.push(`${label}: Pedra Negra do pódio com o equipamento suspenso ` + JSON.stringify(R))
         if (/Pedra Negra/.test(await textoTela(pg))) problems.push(`${label}: o resultado fala em Pedra Negra`)
+        await pg.locator('[data-acao="resultado-aba"][data-id="momentos"]').click()   // e a outra aba do resultado
+        if (/Pedra Negra/.test(await textoTela(pg))) problems.push(`${label}: o resultado fala em Pedra Negra (aba Momentos)`)
         notes.crescimentoMigracao = { pr: s.pending.pr, prV5: MIG_V5.pending.pr, rivais: salaA.rivais, lugar: R.place }
       } catch (e) {
         problems.push(`${label}: ` + e.message)
@@ -6303,11 +6614,15 @@ try {
   await page.getByRole('button', { name: 'x2' }).click()
   await page.waitForSelector('#t-resultado', { timeout: 90000 })
   if (!(await page.evaluate(() => window.__sawDice))) problems.push('narração nunca mostrou um Dado da Sorte')
-  if (!(await page.evaluate(() => !!document.getElementById('t-dados')))) problems.push('resultado sem a seção de momentos/dados')
   notes.cam390 = await page.evaluate(() => window.__cc)
   await sleep(600)
   await checkOverflow(page, 'resultado')
   await page.screenshot({ path: join(SHOTS, 'final-07-resultado.png') })
+  // os momentos ficam na aba Momentos do resultado (3c §8); a tabela, lida abaixo, na Chegada
+  await page.locator('[data-acao="resultado-aba"][data-id="momentos"]').click()
+  if (!(await page.evaluate(() => !!document.getElementById('t-dados')))) problems.push('resultado sem a seção de momentos/dados')
+  await checkOverflow(page, 'resultado-momentos')
+  await page.locator('[data-acao="resultado-aba"][data-id="chegada"]').click()
   const after = await page.evaluate(() => ({ gold: window.__galope.state.gold, pedras: window.__galope.state.pedras, level: window.__galope.state.mounts.filter((m) => m.uid === window.__galope.state.activeId)[0].level, xp: window.__galope.state.mounts.filter((m) => m.uid === window.__galope.state.activeId)[0].xp, result: window.__galope.ui.result, pending: window.__galope.state.pending }))
   if (after.gold !== goldBefore - after.result.fee + after.result.prize) problems.push(`ouro: ${after.gold} != ${goldBefore} - ${after.result.fee} + ${after.result.prize}`)
   if (after.pending) problems.push('sala continuou pendente depois de correr')
