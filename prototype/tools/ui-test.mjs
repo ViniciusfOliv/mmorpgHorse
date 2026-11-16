@@ -5162,8 +5162,8 @@ try {
     // o botão tem de estar aria-disabled e sem disabled; o toque (real), o Enter, o Espaço e o clique forçado (sem o atributo) mostram
     // o motivo (ou não fazem nada) e deixam o save, a ativa, os pontos, a Rédea e o rascunho como estavam.
     // alvo (3c §9.1): a frase do motivo já está na tela (Confirmar travado, Redistribuir, Expandir com reserva): o toque não cria
-    // a .motivo, destaca a frase que já está lá (.motivo-alvo, por ~2 s) e a .barra-acao não cresce
-    const confere = async (nome, sel, motivoRe, { alvo = false } = {}) => {
+    // a .motivo, destaca a frase que já está lá (.motivo-alvo, por ~2 s); barra (só o Confirmar, onde há a .barra-acao): ela não cresce
+    const confere = async (nome, sel, motivoRe, { alvo = false, barra = false } = {}) => {
       const b = () => pg.locator(sel).first()
       if ((await pg.locator(sel).count()) < 1) { problems.push(`${label}: ${nome}: botão ausente (${sel})`); return }
       await esperaBarra(pg)   // o toque forçado vai nas coordenadas: a barra presa recém-aparecida deixaria o toque passar
@@ -5184,7 +5184,12 @@ try {
       const h0 = await altBarra()
       await b().click({ force: true })   // o toque real nas coordenadas do botão (o click() normal espera o botão habilitado)
       await vistoUma('toque'); await igualA0('o toque')
-      if (alvo && h0 !== await altBarra()) problems.push(`${label}: ${nome}: a .barra-acao foi de ${h0} a ${await altBarra()} px com o toque (esperado igual)`)
+      // barra: a tela tem a .barra-acao (Confirmar travado); só ali se mede que ela não cresce, e ela tem de existir
+      if (barra) {
+        const h1 = await altBarra()
+        if (h0 === null) problems.push(`${label}: ${nome}: sem .barra-acao na tela (o teste espera a barra presa dos pontos)`)
+        else if (h0 !== h1) problems.push(`${label}: ${nome}: a .barra-acao foi de ${h0} a ${h1} px com o toque (esperado igual)`)
+      }
       // a região viva fixa (#motivo-vivo, fora da tela que redesenha) leva o mesmo texto, para o leitor de tela anunciar
       const txtMotivo = ((await frases(dm))[0] || {}).txt || ''
       const vivo = (t) => pg.waitForFunction((x) => document.getElementById('motivo-vivo').textContent === x, t, { timeout: 1500 }).then(() => true, () => false)
@@ -5315,7 +5320,7 @@ try {
       else await confere('+N da ativa com páreo aberto', `[data-acao="ponto-mais"][data-id="${maisTrava[0]}"][data-n="${maisTrava[1]}"]`, /^\+\d+ em .+: custa \d+ pontos?\. Páreo aberto: passaria do Poder \d+ que a sala viu\.$/)
       await confere('Redistribuir com páreo aberto', '[data-acao="redistribuir"]', /^Páreo aberto: a montaria ativa só redistribui depois de correr\.$/, { alvo: true })
       await pg.locator('[data-acao="pontos-sugerir"]').click()
-      await confere('Confirmar acima do Poder da sala', '[data-acao="pontos-confirmar"]', /^Páreo aberto: com este rascunho o Poder iria a \d+, e a sala viu \d+\./, { alvo: true })
+      await confere('Confirmar acima do Poder da sala', '[data-acao="pontos-confirmar"]', /^Páreo aberto: com este rascunho o Poder iria a \d+, e a sala viu \d+\./, { alvo: true, barra: true })
       await pg.locator('[data-acao="pontos-desfazer"]').click()
       await checkOverflow(pg, label + ' B')
     } catch (e) {
@@ -7137,6 +7142,9 @@ try {
     try {
       await mn.getByRole('button', { name: 'Escolher Brasa' }).click()
       await mn.waitForSelector('#t-estabulo')
+      // Ruling 19: seedBase fixo (o save novo sorteia o dele com crypto.getRandomValues), para as capturas 03, 04, 10 e 11
+      // (saldo e XP depois da corrida abaixo) só mudarem quando a interface muda
+      await mn.evaluate(() => { window.__galope.state.seedBase = 7 })
       // 1. as abas (5; 4 com o equipamento suspenso, sem a Loja) abrem e focam o h1 certo
       for (const [id, h1] of [['correr', 't-correr'], ['expedicao', 't-expedicao'], ['haras', 't-haras']].concat(GEAR_ON ? [['loja', 't-loja']] : []).concat([['estabulo', 't-estabulo']])) {
         await mn.locator(`[data-acao="aba"][data-id="${id}"]`).click()

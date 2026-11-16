@@ -32,9 +32,16 @@ O que é gosto e espera a palavra dele está em `ESTADO.md` ("A confirmar com o 
 - **(controlador) O Dado guarda o suspense até os dados pararem:** enquanto giram, a faixa grande mostra só o dado e "DADO DA
   SORTE", centralizados e grandes, e a faixa de ordem fica sem números; o vencedor, os números, a frase da narração (a do Dado
   e a da virada de clima que ele causa), o clima do painel, o clarão e o aviso para o leitor de tela aparecem juntos, na
-  revelação. Com movimento reduzido nada espera. A chuva e a névoa desenhadas na pista seguem a corrida, como antes — nada
-  na tela pode adiantar o que a pista ainda não mostrou. Custo se errado: por ~1 s a faixa mostra um título no lugar do
+  revelação. Com movimento reduzido nada espera. A chuva e a névoa desenhadas na pista também esperam (decisão seguinte) —
+  nada na tela pode adiantar o que a pista ainda não mostrou. Custo se errado: por ~1 s a faixa mostra um título no lugar do
   resultado, e a narração do Dado chega ~1 s depois do instante do evento.
+- **(controlador) A chuva e a névoa desenhadas na pista também esperam a revelação do Dado** (emenda a anterior, que as deixava
+  seguir a simulação): a pista desenha o clima mostrado, o mesmo do painel; a velocidade dos cavalos continua a da simulação,
+  que já conta o clima novo — começar a chover com o título "DADO DA SORTE" ainda girando entregava o resultado que a faixa e
+  a narração guardam. Custo se errado: durante um Dado, o enfeite do clima atrasa ~1 s em relação à simulação.
+- **(controlador) O bloco "menu" do teste de interface fixa o `seedBase` do save novo** — as capturas oficiais 03, 04, 10 e 11
+  (saldo e XP depois de uma corrida) saíam de um sorteio a cada rodada, e o CLAUDE.md §4 pede que as capturas oficiais só
+  mudem quando a interface muda. Custo se errado: essas quatro capturas ficam presas a uma seed.
 - **(controlador) A faixa do Dado e a faixa do lugar ficam em cima, logo abaixo do painel; quando ali cobririam o cavalo do
   jogador, vão para o pé da pista** (sobre o gramado e a cerca). A posição é escolhida uma vez por Dado (e na chegada, quando
   o jogador cruza a linha) e não muda enquanto a faixa está na tela, só se a tela for redimensionada; as duas faixas nunca

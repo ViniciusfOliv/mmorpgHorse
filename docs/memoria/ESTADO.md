@@ -19,7 +19,7 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
 - **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Cavalo, Itens,
   Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
-- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (129 testes de simulação, 117 de efeitos, 170 de moldes, 615 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de interface; contagem de 2026-11-16, parte 3c da Visuais 2: 129 / 117 / 170 / 615 / 87, sem mudança nas regras; os testes de efeitos
+- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (129 testes de simulação, 117 de efeitos, 170 de moldes, 615 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de interface; contagem de 2026-11-16, parte 3c da Visuais 2, refeita depois da onda de correção da revisão final: 129 / 117 / 170 / 615 / 87, sem mudança nas regras; os testes de efeitos
   passaram de 104 para 117 com a 3c).
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
@@ -119,8 +119,9 @@ Vinicius joga antes e decide.
   a distância); narração em caixa de altura fixa (cada frase em até 2 linhas, sem "…"; em tela baixa, uma frase em uma linha, que pode
   cortar com "…"); Dado da Sorte numa faixa grande na
   pista, com o número de cada corredor na faixa de ordem, revelados só quando os dados param; faixa do lugar na chegada;
-  nome inteiro das skills dos rivais nas plaquinhas quando a plaquinha cabe na pista (perto da borda direita ela ainda pode
-  sair cortada; ver as pendências); contorno e bisel no painel do topo; resultado numa tela, com as abas
+  nome inteiro das skills dos rivais nas plaquinhas quando a plaquinha cabe na pista (perto da borda direita, um balão mais
+  velho do mesmo cavalo que voltaria para cima do nome não é desenhado: em `final-12-dado.png` a da raia 6 sai "CASCO FIRME"
+  inteira); contorno e bisel no painel do topo; resultado numa tela, com as abas
   Chegada e Momentos e o 1º lugar maior no pódio; as três pendências da 3b (motivo repetido, lista que pulava, "Ativa" nas
   cores forçadas). Nenhuma regra, número ou texto de regra mudou.
 - **Medidas antes → depois** (modo DEV, densidade 2):
@@ -136,12 +137,15 @@ Vinicius joga antes e decide.
 - **Verificação:** `./scripts/check.sh` OK (129 testes de simulação, 117 de efeitos — eram 104: a 3c acrescentou os das faixas
   novas e das plaquinhas e tirou os 2 da faixa de números antiga —, 170 de moldes, 615 conferências do wiki, 87 metas no
   balanço rápido e o teste de interface). Capturas oficiais de `prototype/screens/` regeneradas (31 imagens, nenhuma nova
-  nem removida; 20 mudaram). Folha da interface com a faixa de ordem (normal, com o Dado e em tela baixa) e as abas do resultado
+  nem removida; 20 mudaram) e de novo na onda de correção da revisão final (19 de 31 mudaram; de propósito, a
+  `final-12-dado.png`, com o nome inteiro na plaquinha; o resto são capturas de corrida, que mudam um pouco a cada rodada,
+  e a 03, a 04 e a 10 do bloco "menu", que agora fixa o `seedBase`). Folha da interface com a faixa de ordem (normal, com o Dado e em tela baixa) e as abas do resultado
   (seções 4.16 e 4.17).
 - **A confirmar com o Vinicius (gosto, 3c):**
   - a faixa de ordem só com a posição e o selo da raia (sem o nome do cavalo nos itens);
   - "colado" no lugar de "+0 m";
-  - o momento do Dado: título "DADO DA SORTE" enquanto os dados giram; o vencedor, a narração e o clima do painel só depois;
+  - o momento do Dado: título "DADO DA SORTE" enquanto os dados giram; o vencedor, a narração, o clima do painel e a chuva ou
+    a névoa da pista só depois;
   - a faixa do Dado e a do lugar descem para o pé da pista quando cobririam o cavalo dele (raias de cima);
   - o fim da corrida espera a faixa do lugar (2,5 s) antes do resultado;
   - resultado: as frases de enfeite embaixo da manchete saíram (fica só a do pódio sem prêmio); o saldo ao lado do XP; os
@@ -152,11 +156,7 @@ Vinicius joga antes e decide.
 - **Pendências conhecidas:**
   - paisagem (780×360) com 7 ou 8 corredores: os controles da corrida saem da janela de 360 px de altura (o fundo
     deles fica em 374 px em produção com 8; 398 no DEV com 8; 374 no DEV com 7). Já era assim antes da 3c, e a faixa de ordem não piora; cabem produção com até 7 e DEV com até 6;
-  - a chuva e a névoa desenhadas na pista começam no instante do evento, ~1 s antes de a faixa do Dado revelar o resultado;
-  - nas cores forçadas, o selo "Nv N" da linha do Estábulo continua sem contorno (só aparência);
-  - a plaquinha de skill de um rival perto da borda direita da pista sai cortada: em `final-12-dado.png` a da raia 6 aparece
-    como "CASCO FIRM", com outra plaquinha "6" encostada. Já existia antes da 3c (a mesma captura em 3641640 mostra o mesmo
-    corte).
+  - nas cores forçadas, o selo "Nv N" da linha do Estábulo continua sem contorno (só aparência).
 
 ## Em andamento
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b, que também traz a fonte da Rédea nova. Cada ginásio tem o
