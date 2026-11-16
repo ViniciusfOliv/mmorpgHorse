@@ -1455,6 +1455,41 @@ try {
       if (w.nRuins) problems.push(`[${label}] Dado: ${w.nRuins} quadros com a faixa de ordem ou a faixa do Dado fora do esperado, ex.: ${JSON.stringify(w.ruins)}`)
       if (Object.keys(w.alturas).length !== 1) problems.push(`[${label}] Dado: a faixa de ordem mudou de altura antes/durante/depois do Dado: ${JSON.stringify(w.alturas)}`)
     }
+    // Ruling 11, quadro a quadro em cada Dado: a caixa da faixa (_stats.faixaDadoCaixa) não cruza a caixa do cavalo do
+    // jogador (s.playerRect, a do "cavalo sempre na tela", em pixels de arte) e não muda de lugar durante o Dado
+    const vigiaLugarDado = (pg) => pg.evaluate(() => {
+      const s = window.__galope.race._state, FX = window.RaceFx, itens = s.fx.filter((x) => x.kind === 'dado')
+      const w = window.__lugarVigia = { porDado: itens.map((d) => ({ t1: d.t1, quadros: 0, ys: [], cruzou: 0, ex: null })), maxT: 0 }
+      const tick = () => {
+        if (!window.__galope.race) return
+        const t = s.simT, q = s.phase === 'contagem' ? -1 : itens.findIndex((d) => t >= d.t0 && t < d.t1)
+        w.maxT = t
+        const c = FX._stats.faixaDadoCaixa, p = s.playerRect
+        if (q >= 0 && c && p && !s.finishCam) {
+          const P = w.porDado[q], S = s.S, eu = { x: p.x / S, y: p.y / S, w: p.w / S, h: p.h / S }
+          P.quadros++
+          if (!P.ys.includes(c.y)) P.ys.push(c.y)
+          if (c.x < eu.x + eu.w && eu.x < c.x + c.w && c.y < eu.y + eu.h && eu.y < c.y + c.h) { P.cruzou++; if (!P.ex) P.ex = { t, faixa: c, cavalo: eu } }
+        }
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    // espera o fim do último Dado e confere: embaixo = true (jogador na raia 1) ⇒ a faixa no pé da pista; false ⇒ em cima
+    const confereLugarDado = async (pg, label, embaixo) => {
+      const ult = await pg.evaluate(() => { const p = window.__lugarVigia.porDado; return p.length ? p[p.length - 1].t1 : 0 })
+      await pg.waitForFunction((t1) => window.__lugarVigia.maxT >= t1 + 0.5, ult, { timeout: 90000, polling: 'raf' })
+      const r = await pg.evaluate(() => ({ w: window.__lugarVigia, hudH: window.__galope.race._state.lay.hudH, artH: window.__galope.race._state.lay.artH }))
+      notes[label + '-lugar-dado'] = r.w.porDado.map((p) => ({ quadros: p.quadros, ys: p.ys, cruzou: p.cruzou }))
+      if (r.w.porDado.length < 2) problems.push(`[${label}] Ruling 11: ${r.w.porDado.length} Dados na corrida (esperado 2)`)
+      r.w.porDado.forEach((p, q) => {
+        if (p.quadros < 10) problems.push(`[${label}] Ruling 11: Dado ${q + 1} com só ${p.quadros} quadros amostrados`)
+        if (p.ys.length !== 1) problems.push(`[${label}] Ruling 11: a faixa do Dado ${q + 1} mudou de lugar durante o Dado: y ${p.ys}`)
+        if (p.cruzou) problems.push(`[${label}] Ruling 11: a faixa do Dado ${q + 1} cruzou o cavalo do jogador em ${p.cruzou} quadros, ex.: ${JSON.stringify(p.ex)}`)
+        const y = p.ys[0], esp = embaixo ? 'no pé da pista' : 'logo abaixo do painel'
+        if (y !== undefined && (embaixo ? y < r.artH / 2 : y !== r.hudH + 2)) problems.push(`[${label}] Ruling 11: faixa do Dado ${q + 1} em y ${y} (esperado ${esp}; hudH ${r.hudH}, artH ${r.artH})`)
+      })
+    }
     // narração: a 1ª frase de Garra de um rival (com o dono entre parênteses) medida quando chega, e os ordinais
     const vigiaFeed = (pg) => pg.evaluate(() => {
       const w = window.__feedVigia = { garra: null, ords: 0, ordRuim: [] }
@@ -1490,6 +1525,7 @@ try {
         await vigiaOrdem(pg)
         await vigiaViz(pg)
         await vigiaDado(pg)
+        await vigiaLugarDado(pg)
         await vigiaFeed(pg)
         // na contagem: a ordem das raias e "Largada em instantes" (quando ainda dá tempo de ler)
         const cont = await pg.evaluate(() => ({ phase: window.__galope.race._state.phase, raias: Array.from(document.querySelectorAll('#ordem-lista > li')).map((li) => li.dataset.raia).join(), viz: document.getElementById('ordem-vizinhos').textContent }))
@@ -1534,6 +1570,7 @@ try {
         if (todas.length < 10) problems.push(`[${label}] só ${todas.length} escritas da linha dos vizinhos na corrida (esperado uma a cada 500 ms)`)
         // os dois Dados, quadro a quadro
         await confereVigiaDado(pg, label)
+        await confereLugarDado(pg, label, false)
         const h2 = await alturas(pg)
         notes[label + '-alturas'] = { largada: h0, meio: h1, chegada: h2 }
         if (JSON.stringify(h0) !== JSON.stringify(h1) || JSON.stringify(h1) !== JSON.stringify(h2)) problems.push(`[${label}] a faixa, a narração ou a pista mudaram de altura durante a corrida: ${JSON.stringify(notes[label + '-alturas'])}`)
@@ -1716,6 +1753,29 @@ try {
         problems.push(`[${label}] ` + e.message)
       } finally {
         await pg.context().close()
+      }
+    }
+
+    // Ruling 11: com o jogador na raia 1 (seed 102), a faixa do Dado vai para o pé da pista e não cobre o cavalo dele;
+    // com o jogador na raia 7 (seed 4242), fica em cima. Nos dois casos, um lugar por Dado.
+    for (const [seed, embaixo] of [[102, true], [SEED8, false]]) {
+      for (const vp of [{ width: 360, height: 780 }, { width: 360, height: 640 }]) {
+        const label = `corrida-lugar-dado-${seed}-${vp.width}x${vp.height}`
+        const pg = await newPage(browser, vp, label, { query: '?dev=1' })
+        try {
+          await abreCorrida(pg, label, seed)
+          const me = await pg.evaluate(() => window.__galope.ui.lobby.playerIdx)
+          if ((me === 0) !== embaixo) problems.push(`[${label}] a seed ${seed} pôs o jogador na raia ${me + 1} (o teste conta com ${embaixo ? 'a raia 1' : 'outra raia'})`)
+          await vigiaLugarDado(pg)
+          await pg.getByRole('button', { name: 'x2' }).click()
+          await confereLugarDado(pg, label, embaixo)
+          await checkRaceFits(pg, label)
+          if (SHOTS_C) await pg.screenshot({ path: join(SHOTS_C, `${label}.png`) })
+        } catch (e) {
+          problems.push(`[${label}] ` + e.message)
+        } finally {
+          await pg.context().close()
+        }
       }
     }
   }

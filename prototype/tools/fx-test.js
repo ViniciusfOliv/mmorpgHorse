@@ -1308,6 +1308,29 @@ test('faixa do Dado: nome e número em escala 2 quando cabem; nome de 16 letras 
   var C = FX.bannerLayout(dadoFaixa(), RACERS_FAIXA, { artW: 180, hudH: 15, compact: true }, 1);
   dentroDaPista(C, { artW: 180, hudH: 15 });
 });
+test('Ruling 11: com embaixo, a mesma caixa encostada no pé da pista (dentro de artH); o desenho vai junto', function () {
+  var lay = { artW: 180, hudH: 42, artH: 232, compact: false };
+  [[dadoFaixa(), 1], [dadoFaixa(), 0], [dadoFaixa({ changed: false, frase: 'o clima segura!' }), 1]].forEach(function (cs) {
+    var C = FX.bannerLayout(cs[0], RACERS_FAIXA, lay, cs[1]), B = FX.bannerLayout(cs[0], RACERS_FAIXA, lay, cs[1], true);
+    assert.deepStrictEqual([B.x, B.w, B.h, B.fs, B.linhas], [C.x, C.w, C.h, C.fs, C.linhas], 'mesma largura, altura e linhas');
+    assert.strictEqual(B.y + B.h, lay.artH - 2, 'encostada na borda de baixo com a margem de cima');
+    assert.ok(B.y > C.y + C.h, 'embaixo da posição de cima');
+    dentroDaPista(C, lay);
+  });
+  // o desenho inteiro desce junto (nada fora da caixa) e _stats.faixaDadoCaixa é a caixa desenhada
+  FX.setIconImages({ 'ui-dado': IMG, 'cl-sol': IMG });
+  [false, true].forEach(function (emb) {
+    FX.resetStats(true);
+    var c = ctxFalso(), B = FX.drawDiceBanner(c, dadoFaixa(), RACERS_FAIXA, lay, 2, 11, false, 1, emb);
+    assert.deepStrictEqual(FX._stats.faixaDadoCaixa, { x: B.x, y: B.y, w: B.w, h: B.h });
+    c.rects.concat(c.imgs.map(function (im) { return { x: im.args[1], y: im.args[2], w: im.args[3], h: im.args[4] }; })).forEach(function (r) {
+      assert.ok(r.x >= B.x * 2 && r.y >= B.y * 2 && r.x + r.w <= (B.x + B.w) * 2 && r.y + r.h <= (B.y + B.h) * 2, 'fora da caixa (embaixo = ' + emb + '): ' + JSON.stringify(r));
+    });
+  });
+  FX.setIconImages({});
+  FX.resetStats(true);
+  assert.strictEqual(FX._stats.faixaDadoCaixa, null);
+});
 test('Review Focus 4: com dois dados (Sorte) ou desempate, as linhas usam o best', function () {
   var it = dadoFaixa({ rolls: [{ dice: [3, 12], best: 12, rerolls: 0 }, { dice: [12], best: 12, rerolls: 1 }] });
   assert.deepStrictEqual(FX.bannerLayout(it, RACERS_FAIXA, LAY_FAIXA, 1).linhas, ['MAIOR DADO: BRASA 12', 'O SOL ABRE!', 'VOCÊ TIROU 12']);

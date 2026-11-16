@@ -90,11 +90,12 @@
  *   RaceFx.badgeSize(roll)  -> { w, h } em pixels de arte do retângulo da plaquinha (com a pontinha).
  *   RaceFx.diceRevealed(item, simT, reduced) -> boolean: o vencedor do Dado já foi revelado (reduced, ou
  *     d = (simT − t0)/escala >= DADO.regira: os dados pararam; o mesmo instante da plaquinha dourada).
- *   RaceFx.bannerLayout(item, racers, lay, me) -> caixa da faixa grande do Dado em pixels de arte
- *     ({ x, y, w, h, linhas, fs, ... posições }); lay = layout da tela da corrida ({ artW, hudH }); me = índice do
+ *   RaceFx.bannerLayout(item, racers, lay, me, embaixo) -> caixa da faixa grande do Dado em pixels de arte
+ *     ({ x, y, w, h, linhas, fs, ... posições }); lay = layout da tela da corrida ({ artW, artH, hudH }); me = índice do
  *     jogador. linhas (maiúsculas): 'MAIOR DADO: <nome do cavalo> <best>', a frase, e 'VOCÊ TIROU <best do
  *     jogador>' só quando o vencedor não é o jogador (sempre o best: com dois dados ou desempate, o que valeu).
- *     Centrada, logo abaixo do painel do topo (y = hudH + 2); o nome e o número em escala fs = 2 se a linha 1
+ *     Centrada, logo abaixo do painel do topo (y = hudH + 2) ou, com embaixo (a tela decide, para não cobrir o cavalo
+ *     do jogador), encostada na borda de baixo da pista (y + h = artH − 2), do mesmo tamanho; o nome e o número em escala fs = 2 se a linha 1
  *     couber na pista, senão 1; o "VOCÊ TIROU" ao lado da frase quando cabe, senão numa linha embaixo.
  *   RaceFx.layoutBadges(rects, W, H, fixos) -> rects (cópias, mesma ordem): cada um preso a
  *     [0, W] × [0, H] e, na ordem do y desejado, deslocado na vertical (para cima no empate) até não
@@ -137,7 +138,7 @@
  *     quicando; 'mostra': plaquinha com o best (precedido de "↻" se houve desempate) e, depois de um
  *     traço, os outros dados em cinza; borda na cor da raia (cor). Vencedor revelado: plaquinha dourada, halo pulsando com o brilho e
  *     faíscas em volta (omitidas em reduced).
- *   RaceFx.drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me) -> caixa (bannerLayout) ou null fora de
+ *   RaceFx.drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me, embaixo) -> caixa (bannerLayout) ou null fora de
  *     [t0, t1). Faixa grande do Dado (spec 3c §6): contorno --sombra, friso --ouro e bisel de 1 pixel de arte; ícone
  *     do dado (ui-dado) e do clima (cl-<weather>) em PNG quando no cache. Antes da revelação (diceRevealed falso)
  *     a mesma caixa só com o ícone do dado e "DADO DA SORTE" (_stats.faixaDadoLinhas = ['DADO DA SORTE']); depois,
@@ -207,9 +208,10 @@
  *     com o alfa cheio até a metade da vida; tom e alfa por piso (RaceFx.POEIRA), na areia com 1 px de
  *     borda mais escura. 3 por cavalo, 1 em reduced. A tela não chama na chuva.
  *
- *   RaceFx._stats = { dados, faixaDado, faixaDadoLinhas, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
+ *   RaceFx._stats = { dados, faixaDado, faixaDadoLinhas, faixaDadoCaixa, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
  *                     natureza, ventoHud, minimapa, auras, tipoAuras, tercos }
- *     faixaDado = a faixa grande do Dado foi desenhada no quadro; faixaDadoLinhas = as linhas dela ([] sem faixa).
+ *     faixaDado = a faixa grande do Dado foi desenhada no quadro; faixaDadoLinhas = as linhas dela ([] sem faixa);
+ *     faixaDadoCaixa = { x, y, w, h } dela em pixels de arte (null sem faixa).
  *     auras = auras de skill de tipo desenhadas no quadro (drawTypeAura; não entram em particulas);
  *     tipoAuras = [{ racer, element }] dessas auras (a tela anota); tercos = trechos pintados no minimapa (3).
  *     natureza = { pingos, respingos, relampago, raios, calor, nevoa, nevoaFrente, sombras, folhas, poeiraCascos }
@@ -564,7 +566,7 @@
     var n = String(s).normalize ? String(s).normalize('NFD') : String(s);
     return { cima: /[\u0300-\u0303]/.test(n), baixo: /\u0327/.test(n) };
   }
-  function bannerLayout(item, racers, lay, me) {
+  function bannerLayout(item, racers, lay, me, embaixo) {
     var F = FAIXA, rolls = item.rolls || [], w = item.winner, rw = rolls[w] || { best: 0 };
     var r = racers && racers[w], nome = r && r.horse && r.horse.name ? r.horse.name : 'RAIA ' + (w + 1);
     var nn = (nome + ' ' + rw.best).toUpperCase(), frase = String(item.frase || '').toUpperCase();
@@ -597,6 +599,13 @@
       fim = y3 + 5 + (m3.baixo ? 1 : 0);
     }
     L.h = fim + F.folgaY + F.borda - y;
+    // embaixo (a tela decide, um lugar por Dado): a mesma caixa encostada na borda de baixo da pista, com a margem
+    // de cima (2); tudo desce junto
+    if (embaixo) {
+      var dy = lay.artH - 2 - L.h - y;
+      L.y += dy;
+      [L.l1.icone, L.l1.pre, L.l1.nome, L.l2.icone, L.l2.texto, L.l2.sep, L.l2.eu, L.l3].forEach(function (p) { if (p) p.y += dy; });
+    }
     return L;
   }
 
@@ -784,7 +793,7 @@
   function novaNatureza() {
     return { pingos: 0, respingos: 0, relampago: 0, raios: 0, calor: 0, nevoa: 0, nevoaFrente: 0, sombras: 0, folhas: 0, poeiraCascos: 0 };
   }
-  var stats = { dados: 0, faixaDado: false, faixaDadoLinhas: [], baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [],
+  var stats = { dados: 0, faixaDado: false, faixaDadoLinhas: [], faixaDadoCaixa: null, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [],
     natureza: novaNatureza(), ventoHud: '', minimapa: false, auras: 0, tipoAuras: [], tercos: 0 };
   var JANELA_MS = 60, amostras = [], somaMs = 0, intervalos = [], ultimoQuadro = null;
   // intervalo real entre quadros (mediana e p95 da janela), calculado só quando alguém lê
@@ -794,7 +803,7 @@
     return { med: v[Math.floor(n * 0.5)], p95: v[Math.min(n - 1, Math.floor(n * 0.95))], n: n };
   } });
   function beginFrame() {
-    stats.dados = 0; stats.faixaDado = false; stats.faixaDadoLinhas = []; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = [];
+    stats.dados = 0; stats.faixaDado = false; stats.faixaDadoLinhas = []; stats.faixaDadoCaixa = null; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = [];
     stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false; stats.auras = 0; stats.tipoAuras = []; stats.tercos = 0;
   }
   function endFrame(ms, agora) {
@@ -904,10 +913,10 @@
   // bisel da faixa do Dado: os mesmos tons do bisel das caixas do HTML (--brilho-08 em cima e à esquerda,
   // --escuro-25 embaixo e à direita) sobre o fundo do painel
   var BISEL_LUZ = mix(COR.painel, '#ffffff', 0.08), BISEL_SOMBRA = mix(COR.painel, '#000000', 0.25);
-  function drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me) {
+  function drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me, embaixo) {
     if (!item || !lay) return null;
     if (diceState(item, simT, reduced, item.winner).fase === 'fim') return null;
-    var B = bannerLayout(item, racers, lay, me);
+    var B = bannerLayout(item, racers, lay, me, embaixo);
     function R(ax, ay, w, h, col) { ctx.fillStyle = col; ctx.fillRect(ax * S, ay * S, w * S, h * S); }
     // parada: nada aqui depende do tempo (nem pisca nem desliza, com ou sem movimento reduzido)
     R(B.x, B.y, B.w, B.h, COR.sombra);
@@ -918,6 +927,7 @@
     // ícones em PNG (sem imagem ou pequenos demais, o espaço fica vazio: o resto não muda)
     drawIconPng(ctx, 'ui-dado', B.l1.icone.x * S, B.l1.icone.y * S, 8, S);
     stats.faixaDado = true;
+    stats.faixaDadoCaixa = { x: B.x, y: B.y, w: B.w, h: B.h };
     if (!diceRevealed(item, simT, reduced)) {
       // dados girando: a caixa já no tamanho e no lugar finais, só com "DADO DA SORTE" (nada do vencedor)
       texto(ctx, ROTULO, B.l1.pre.x * S, B.l1.pre.y * S, S, COR.ouro);
