@@ -116,9 +116,11 @@ Spec em `docs/superpowers/specs/2026-11-15-tela-da-corrida-design.md` (aprovada 
 `docs/GDD.md` §5. Com ela, a frente "interface" (3a, 3b, 3c) está completa na `claude/visuais-2`, **sem merge na `main`**: o
 Vinicius joga antes e decide.
 - **O que mudou:** faixa de ordem embaixo da pista (todos os corredores em ordem, e quem vem logo à frente e logo atrás, com
-  a distância); narração em caixa de altura fixa (cada frase em até 2 linhas, sem "…"); Dado da Sorte numa faixa grande na
+  a distância); narração em caixa de altura fixa (cada frase em até 2 linhas, sem "…"; em tela baixa, uma frase em uma linha, que pode
+  cortar com "…"); Dado da Sorte numa faixa grande na
   pista, com o número de cada corredor na faixa de ordem, revelados só quando os dados param; faixa do lugar na chegada;
-  nome inteiro das skills dos rivais nas plaquinhas; contorno e bisel no painel do topo; resultado numa tela, com as abas
+  nome inteiro das skills dos rivais nas plaquinhas quando a plaquinha cabe na pista (perto da borda direita ela ainda pode
+  sair cortada; ver as pendências); contorno e bisel no painel do topo; resultado numa tela, com as abas
   Chegada e Momentos e o 1º lugar maior no pódio; as três pendências da 3b (motivo repetido, lista que pulava, "Ativa" nas
   cores forçadas). Nenhuma regra, número ou texto de regra mudou.
 - **Medidas antes → depois** (modo DEV, densidade 2):
@@ -151,7 +153,10 @@ Vinicius joga antes e decide.
   - paisagem (780×360) com 7 ou 8 corredores: os controles da corrida saem da janela de 360 px de altura (o fundo
     deles fica em 374 px em produção com 8; 398 no DEV com 8; 374 no DEV com 7). Já era assim antes da 3c, e a faixa de ordem não piora; cabem produção com até 7 e DEV com até 6;
   - a chuva e a névoa desenhadas na pista começam no instante do evento, ~1 s antes de a faixa do Dado revelar o resultado;
-  - nas cores forçadas, o selo "Nv N" da linha do Estábulo continua sem contorno (só aparência).
+  - nas cores forçadas, o selo "Nv N" da linha do Estábulo continua sem contorno (só aparência);
+  - a plaquinha de skill de um rival perto da borda direita da pista sai cortada: em `final-12-dado.png` a da raia 6 aparece
+    como "CASCO FIRM", com outra plaquinha "6" encostada. Já existia antes da 3c (a mesma captura em 3641640 mostra o mesmo
+    corte).
 
 ## Em andamento
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b, que também traz a fonte da Rédea nova. Cada ginásio tem o
@@ -247,7 +252,7 @@ Vinicius joga antes e decide.
 2. **2c (animações novas para todos os portes)** da Visuais 2: espera a confirmação de créditos do Vinicius.
 3. O Vinicius apaga as branches antigas no GitHub (lista abaixo).
 4. **Bloco 2, preparação com relógio:** spec, revisão do Vinicius, plano e execução.
-5. **Bloco 3, empacotamento (#62):** retomar pela pergunta do Capacitor; o teste fechado começa aqui. Os ginásios (#68)
+5. **Bloco 3, empacotamento:** retomar pela pergunta do Capacitor; o teste fechado começa aqui. Os ginásios
    têm desenho depois do bloco 1b (seção "Em andamento").
 6. Abrir a conta de desenvolvedor do Play e começar a juntar os 12 testadores (é o que mais atrasa).
 7. Blocos 4 a 6 chegam como atualizações durante o teste fechado; o bloco 7 (online) vem depois.

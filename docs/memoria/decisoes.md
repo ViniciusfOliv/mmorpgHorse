@@ -19,7 +19,7 @@ Spec em `docs/superpowers/specs/2026-11-15-tela-da-corrida-design.md` (aprovada 
 Tudo abaixo é do controlador (nada foi decidido pelo Vinicius). Plano em `docs/superpowers/plans/2026-11-16-tela-da-corrida.md`.
 O que é gosto e espera a palavra dele está em `ESTADO.md` ("A confirmar com o Vinicius (gosto, 3c)").
 - **(controlador) A faixa "CLIMA: X" que aparecia depois do Dado saiu** — a faixa nova do Dado já diz o efeito no clima;
-  ficam o clarão leve da virada, o clima no painel do topo e o aviso para o leitor de tela. Se errado: é só pôr a faixa de volta.
+  ficam o clarão leve da virada, o clima no painel do topo e o aviso para o leitor de tela. Se errado: sobra uma variável parada no código, que a revisão pega.
 - **(controlador) Os itens da faixa de ordem não mostram o nome do cavalo, nem em tela larga** (a spec deixava a escolha) —
   a linha dos vizinhos, logo embaixo, já traz os nomes. Se errado: acrescentar o nome é uma mudança pequena.
 - **(controlador) Em paisagem (altura até 500 px) a faixa de ordem fica na linha dos controles** e não soma altura à tela —
