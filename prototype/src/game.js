@@ -4547,10 +4547,12 @@
       var gap = k === 0 ? 'vencedor' : '+' + (t - winT).toFixed(2).replace('.', ',') + 's';
       var prize = R.training ? (r.isPlayer ? '+' + R.prize : '—') : (prizeOf[ri] ? fmt(prizeOf[ri]) : '—');
       return '<tr class="' + (r.isPlayer ? 'voce' : '') + '"><td class="pos" aria-label="' + (k + 1) + ' lugar">' + podioIcone(k + 1) + (k + 1) + 'º</td>' +
-        // duas linhas de texto (3c §8): o nome numa; dono, nível e chance de skill na outra
+        // duas linhas de texto (3c §8): o nome numa; dono, nível e chance de skill na outra. Esta quebra só entre os
+        // pedaços (Ruling 17): cada um sem quebra por dentro e o " ·" no fim do pedaço de cima
         '<td><div class="quem"><b>' + laneChip(r, ri, 'raia--mini') + esc(r.horse.name) +
         (r.isPlayer ? ' <span class="tag-voce">VOCÊ</span>' : '') + '</b>' +
-        '<small>' + esc((r.isPlayer ? '' : r.name + ' · ') + 'Nv ' + r.horse.level + (info ? ' · skills ' + Math.round(info.skillChance * 100) + '%' : '')) + '</small></div></td>' +
+        '<small>' + (r.isPlayer ? [] : [r.name]).concat(['Nv ' + r.horse.level]).concat(info ? ['skills ' + Math.round(info.skillChance * 100) + '%'] : [])
+          .map(function (p, i, ps) { return '<span class="quem-peca">' + esc(p + (i < ps.length - 1 ? ' ·' : '')) + '</span>'; }).join(' ') + '</small></div></td>' +
         '<td class="num"><span class="tempo">' + fmtSec(t) + '</span><small>' + gap + '</small></td><td class="num">' + prize + '</td></tr>';
     }).join('');
 

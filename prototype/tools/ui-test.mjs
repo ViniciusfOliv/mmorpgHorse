@@ -2142,7 +2142,9 @@ try {
       const abas = Array.from(document.querySelectorAll('.subabas [data-acao="resultado-aba"]')).map((b) => ({ id: b.dataset.id, pressed: b.getAttribute('aria-pressed'), txt: limpa(b) }))
       const linhas = Array.from(document.querySelectorAll('.tabela tbody tr')).map((tr) => {
         const quem = tr.querySelector('.quem')
-        return { txt: limpa(tr), h: tr.getBoundingClientRect().height, filhos: quem ? quem.childElementCount : 0, chip: limpa(tr.querySelector('.raia--mini')) }
+        // Ruling 17: os pedaços da 2ª linha (dono, nível, skills) — cada um numa linha só, o " ·" no fim do de cima
+        const pecas = quem ? Array.from(quem.querySelectorAll('small .quem-peca')).map((e) => ({ txt: e.textContent, rects: e.getClientRects().length })) : []
+        return { txt: limpa(tr), h: tr.getBoundingClientRect().height, filhos: quem ? quem.childElementCount : 0, chip: limpa(tr.querySelector('.raia--mini')), pecas }
       })
       const itens = Array.from(document.querySelectorAll('#t-dados ~ ol > li, [aria-labelledby="t-dados"] li')).map((li) => ({
         cls: li.className, hora: limpa(li.querySelector('time')), raia: limpa(li.querySelector('.raia--mini')), txt: limpa(li) }))
@@ -2192,6 +2194,9 @@ try {
         if (l.chip !== exp[1]) ruim(`linha ${k + 1}: raia ${l.chip} (esperado ${exp[1]})`)
         if (l.h > 70) ruim(`linha ${k + 1} com ${l.h.toFixed(1)} px de altura (máximo 70)`)
         if (l.filhos !== 2) ruim(`linha ${k + 1}: a célula do cavalo com ${l.filhos} linhas de texto (esperado 2: nome; dono, nível e skills)`)
+        const nPecas = exp.includes('VOCÊ') ? 2 : 3
+        if (l.pecas.length !== nPecas || l.pecas.some((p) => p.rects !== 1) || l.pecas.some((p, i) => (i < l.pecas.length - 1) !== / ·$/.test(p.txt)))
+          ruim(`linha ${k + 1}: pedaços de dono, nível e skills ${JSON.stringify(l.pecas)} (esperado ${nPecas}, cada um numa linha, o " ·" no fim de todos menos o último)`)
       })
       if (!/Dado da Sorte: a 1\/3 e 2\/3 da pista o maior dado puxa o clima para o elemento de quem tirou\./.test(r.notaDado)) ruim(`nota do Dado ausente na aba Chegada: ${JSON.stringify(r.notaDado)}`)
     }
