@@ -12,7 +12,8 @@
  *   RaceFx.timeline(sim, racers, escala) -> [{ kind, t0, t1, racer, ... }] ordenada por t0 (estável).
  *     Uma lista de efeitos montada UMA vez por corrida a partir de sim.events. Hoje:
  *       'dado' { t0: ev.t, t1: ev.t + 2.4·escala, racer: winner, winner, rolls (cópia), changed,
- *                weather, escala }   — um por evento 'dado'.
+ *                weather, escala, frase }   — um por evento 'dado'. frase = o efeito, como na narração: o trecho
+ *                de ev.text depois de ' — ' ('o sol abre!', 'o clima segura!'…).
  *       'skill' { t0: ev.t, t1, racer, skillId, icon, clima, element, cavalo, nome, nomeCurto, silks, raia,
  *                escala } — um por
  *                evento 'skill'. t1 = t0 + duração do efeito real da simulação (durationS; ou o
@@ -87,11 +88,14 @@
  *     ordem rolada; marca '↻' quando houve desempate: a simulação reescreve dice/best de quem empatou
  *     no topo e o valor empatado não fica no evento, então o número mostrado é o da nova rolagem).
  *   RaceFx.badgeSize(roll)  -> { w, h } em pixels de arte do retângulo da plaquinha (com a pontinha).
- *   RaceFx.stripOrder(item) -> índices da faixa: o vencedor primeiro, depois rerolls decrescente
+ *   RaceFx.stripOrder(item) -> índices dos corredores: o vencedor primeiro, depois rerolls decrescente
  *     (quem disputou o desempate empatou no topo) e best decrescente; por fim a raia.
- *   RaceFx.stripLayout(item, racers, lay) -> caixa da faixa "DADO DA SORTE" em pixels de arte
- *     ({ x, y, w, h, linhas, rotulo: {x, y}, entradas: {x, y} }); lay = layout da tela da corrida
- *     ({ artW, hudH, compact }). Uma linha quando cabe; senão o rótulo em cima e os números embaixo.
+ *   RaceFx.bannerLayout(item, racers, lay, me) -> caixa da faixa grande do Dado em pixels de arte
+ *     ({ x, y, w, h, linhas, fs, ... posições }); lay = layout da tela da corrida ({ artW, hudH }); me = índice do
+ *     jogador. linhas (maiúsculas): 'MAIOR DADO: <nome do cavalo> <best>', a frase, e 'VOCÊ TIROU <best do
+ *     jogador>' só quando o vencedor não é o jogador (sempre o best: com dois dados ou desempate, o que valeu).
+ *     Centrada, logo abaixo do painel do topo (y = hudH + 2); o nome e o número em escala fs = 2 se a linha 1
+ *     couber na pista, senão 1; o "VOCÊ TIROU" ao lado da frase quando cabe, senão numa linha embaixo.
  *   RaceFx.layoutBadges(rects, W, H, fixos) -> rects (cópias, mesma ordem): cada um preso a
  *     [0, W] × [0, H] e, na ordem do y desejado, deslocado na vertical (para cima no empate) até não
  *     sobrepor os já colocados nem os fixos (obstáculos que não se movem e não voltam, como a
@@ -133,11 +137,10 @@
  *     quicando; 'mostra': plaquinha com o best (precedido de "↻" se houve desempate) e, depois de um
  *     traço, os outros dados em cinza; borda na cor da raia (cor). Vencedor revelado: plaquinha dourada, halo pulsando com o brilho e
  *     faíscas em volta (omitidas em reduced).
- *   RaceFx.drawDiceStrip(ctx, item, racers, lay, S, simT, reduced) -> caixa (stripLayout) ou null
- *     Faixa "DADO DA SORTE" abaixo do HUD: chip na cor da raia (com o nº da raia) + número de cada
- *     cavalo ("↻" antes do número de quem desempatou). Enquanto os dados giram: ordem das raias e
- *     números rolando; depois da revelação (d ≥ 0.64, ou já em t0 se reduced): ordem de stripOrder,
- *     vencedor em dourado pulsante.
+ *   RaceFx.drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me) -> caixa (bannerLayout) ou null fora de
+ *     [t0, t1). Faixa grande do Dado (spec 3c §6): contorno --sombra, friso --ouro e bisel de 1 pixel de arte; ícone
+ *     do dado (ui-dado) e do clima (cl-<weather>) em PNG quando no cache. Parada: o mesmo desenho em qualquer
+ *     instante da janela, com ou sem reduced. Marca _stats.faixaDado e _stats.faixaDadoLinhas.
  *
  *   RaceFx.balloonSize(item, pilha) -> { w, h } em pixels de arte do corpo do balão (altura 11; a pontinha
  *     de 3 px fica à esquerda, fora de w). pilha > 0 é a versão compacta (chip + ícone).
@@ -203,8 +206,9 @@
  *     com o alfa cheio até a metade da vida; tom e alfa por piso (RaceFx.POEIRA), na areia com 1 px de
  *     borda mais escura. 3 por cavalo, 1 em reduced. A tela não chama na chuva.
  *
- *   RaceFx._stats = { dados, faixaDado, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
+ *   RaceFx._stats = { dados, faixaDado, faixaDadoLinhas, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
  *                     natureza, ventoHud, minimapa, auras, tipoAuras, tercos }
+ *     faixaDado = a faixa grande do Dado foi desenhada no quadro; faixaDadoLinhas = as linhas dela ([] sem faixa).
  *     auras = auras de skill de tipo desenhadas no quadro (drawTypeAura; não entram em particulas);
  *     tipoAuras = [{ racer, element }] dessas auras (a tela anota); tercos = trechos pintados no minimapa (3).
  *     natureza = { pingos, respingos, relampago, raios, calor, nevoa, nevoaFrente, sombras, folhas, poeiraCascos }
@@ -282,7 +286,7 @@
   function frac(x) { return x - Math.floor(x); }
   function mod(a, n) { return ((a % n) + n) % n; }
   function snap(v, P) { return Math.round(v / P) * P; }   // grade de pixels de arte
-  // hash inteiro -> [0, 1) (o mesmo misturador do sprites.js): números "rolando" na faixa, vento e natureza
+  // hash inteiro -> [0, 1) (o mesmo misturador do sprites.js): vento e natureza
   function hash(n) {
     n = n | 0;
     n = Math.imul(n ^ (n >>> 16), 0x7feb352d);
@@ -417,6 +421,13 @@
     return (pos - a) / (b - a);
   }
 
+  // a frase do efeito de um Dado, a mesma da narração: o trecho do texto do evento depois de ' — '
+  // ("🎲 Brasa tirou 86 — o sol abre!" -> 'o sol abre!'); sem o traço, ''
+  function fraseDoDado(txt) {
+    var s = String(txt || ''), k = s.indexOf(' \u2014 ');
+    return k < 0 ? '' : s.slice(k + 3);
+  }
+
   function timeline(sim, racers, escala) {
     var e = escala > 0 ? escala : 1;
     var out = [];
@@ -427,7 +438,8 @@
       if (ev.type === 'dado') {
         out.push({
           kind: 'dado', t0: ev.t, t1: ev.t + DADO.dur * e, racer: ev.winner, winner: ev.winner,
-          rolls: copiaRolls(ev.rolls), changed: !!ev.changed, weather: ev.weather, escala: e
+          rolls: copiaRolls(ev.rolls), changed: !!ev.changed, weather: ev.weather, escala: e,
+          frase: fraseDoDado(ev.text)
         });
       } else if (ev.type === 'skill' && ev.typeSkill) {
         // skill de tipo: sempre ativa no terço; o item é só o balão (e a faixa do jogador) da entrada. A aura
@@ -543,26 +555,49 @@
     return idx;
   }
 
-  // largura de uma entrada da faixa: chip 5 + espaço do número (fixo: os números rolando cabem)
-  function slotW(roll) { return (roll && roll.best >= 100 ? 11 : 7) + 2 + (roll && roll.rerolls > 0 ? MARCA_W : 0); }
-  function entradaW(roll) { return 5 + slotW(roll); }
-  var ROTULO = 'DADO DA SORTE', GAP_E = 2;
-
-  function stripLayout(item, racers, lay) {
-    var rolls = item.rolls || [], A = lay.artW;
-    var lab = textW(ROTULO), ent = 0;
-    for (var i = 0; i < rolls.length; i++) ent += entradaW(rolls[i]) + (i ? GAP_E : 0);
-    var y = lay.compact ? lay.hudH + 3 : lay.hudH + 12;   // fora do selo de CURVA/SUBIDA do HUD largo
-    var uma = 2 + lab + 4 + ent + 2, L;
-    if (uma <= A - 4) {
-      var x1 = Math.max(1, Math.round((A - uma) / 2));
-      L = { x: x1, y: y, w: uma, h: 7, linhas: 1, rotulo: { x: x1 + 2, y: y + 1 }, entradas: { x: x1 + 2 + lab + 4, y: y } };
-    } else {
-      var w = Math.min(A - 2, Math.max(lab, ent) + 4), x2 = Math.max(1, Math.round((A - w) / 2));
-      L = { x: x2, y: y, w: w, h: 15, linhas: 2, rotulo: { x: x2 + Math.round((w - lab) / 2), y: y + 1 },
-        entradas: { x: x2 + Math.max(2, Math.round((w - ent) / 2)), y: y + 8 } };
+  // ---- faixa grande do Dado da Sorte (spec 3c §6), em pixels de arte ----
+  // Caixa: contorno --sombra (1), friso --ouro (1) e bisel (1) = borda 3; folga 3 dos lados e 2 em cima e embaixo.
+  // Linha 1: ícone do dado, "MAIOR DADO:" e o nome + número em escala fs (2 se couber na pista, senão 1), alinhados
+  // embaixo. Linha 2: ícone do clima e a frase; "VOCÊ TIROU N" ao lado (depois de " · ") quando cabe, senão numa
+  // linha 3. Acento em cima de uma linha pede 3·escala de folga acima dela; cedilha, 1·escala embaixo.
+  var FAIXA = { borda: 3, folgaX: 3, folgaY: 2, gap: 2, icone: 8, gapIcone: 2, pre: 'MAIOR DADO:', gapPre: 3, sep: ' \u00b7 ', margem: 2 };
+  function marcasTexto(s) {
+    var n = String(s).normalize ? String(s).normalize('NFD') : String(s);
+    return { cima: /[\u0300-\u0303]/.test(n), baixo: /\u0327/.test(n) };
+  }
+  function bannerLayout(item, racers, lay, me) {
+    var F = FAIXA, rolls = item.rolls || [], w = item.winner, rw = rolls[w] || { best: 0 };
+    var r = racers && racers[w], nome = r && r.horse && r.horse.name ? r.horse.name : 'RAIA ' + (w + 1);
+    var nn = (nome + ' ' + rw.best).toUpperCase(), frase = String(item.frase || '').toUpperCase();
+    var eu = me != null && me >= 0 && me !== w && rolls[me] ? 'VOC\u00ca TIROU ' + rolls[me].best : '';
+    var linhas = [F.pre + ' ' + nn, frase];
+    if (eu) linhas.push(eu);
+    var A = lay.artW, ic = F.icone + F.gapIcone, preW = textW(F.pre), nnW = textW(nn), fraseW = textW(frase), sepW = textW(F.sep);
+    var euW = eu ? textW(eu) : 0, maxIn = A - 2 * F.margem - 2 * (F.borda + F.folgaX);
+    function l1W(fs) { return ic + preW + F.gapPre + nnW * fs; }
+    var fs = l1W(2) <= maxIn ? 2 : 1;
+    var juntas = !!eu && ic + fraseW + sepW + euW <= maxIn;
+    var inW = Math.max(l1W(fs), ic + fraseW + (juntas ? sepW + euW : 0), eu && !juntas ? ic + euW : 0);
+    var bw = inW + 2 * (F.borda + F.folgaX), x = Math.round((A - bw) / 2), y = lay.hudH + 2;
+    var cx = x + F.borda + F.folgaX, cy = y + F.borda + F.folgaY;
+    // linha 1
+    var m1 = marcasTexto(nn), h1 = Math.max(F.icone, 5 * fs), y1 = cy + (m1.cima ? 3 * fs : 0);
+    var t1 = y1 + Math.floor((h1 - 5 * fs) / 2), fim = Math.max(y1 + h1, t1 + 5 * fs + (m1.baixo ? fs : 0));
+    var L = {
+      x: x, y: y, w: bw, h: 0, linhas: linhas, fs: fs, juntas: juntas, nome: nn, frase: frase, eu: eu,
+      l1: { icone: { x: cx, y: y1 + Math.floor((h1 - F.icone) / 2) }, pre: { x: cx + ic, y: t1 + 5 * fs - 5 }, nome: { x: cx + ic + preW + F.gapPre, y: t1 } }
+    };
+    // linha 2 (ícone de 8 e texto de 5 no meio dele: o acento do texto sobe 2 acima da linha)
+    var m2 = marcasTexto(juntas ? frase + eu : frase), y2 = fim + F.gap + (m2.cima ? 2 : 0);
+    L.l2 = { icone: { x: cx, y: y2 }, texto: { x: cx + ic, y: y2 + 1 } };
+    if (juntas) { L.l2.sep = { x: cx + ic + fraseW, y: y2 + 1 }; L.l2.eu = { x: cx + ic + fraseW + sepW, y: y2 + 1 }; }
+    fim = y2 + F.icone;
+    if (eu && !juntas) {
+      var m3 = marcasTexto(eu), y3 = fim + F.gap + (m3.cima ? 3 : 0);
+      L.l3 = { x: cx + ic, y: y3 };
+      fim = y3 + 5 + (m3.baixo ? 1 : 0);
     }
-    L.largura = ent;
+    L.h = fim + F.folgaY + F.borda - y;
     return L;
   }
 
@@ -750,7 +785,7 @@
   function novaNatureza() {
     return { pingos: 0, respingos: 0, relampago: 0, raios: 0, calor: 0, nevoa: 0, nevoaFrente: 0, sombras: 0, folhas: 0, poeiraCascos: 0 };
   }
-  var stats = { dados: 0, faixaDado: false, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [],
+  var stats = { dados: 0, faixaDado: false, faixaDadoLinhas: [], baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [],
     natureza: novaNatureza(), ventoHud: '', minimapa: false, auras: 0, tipoAuras: [], tercos: 0 };
   var JANELA_MS = 60, amostras = [], somaMs = 0, intervalos = [], ultimoQuadro = null;
   // intervalo real entre quadros (mediana e p95 da janela), calculado só quando alguém lê
@@ -760,7 +795,7 @@
     return { med: v[Math.floor(n * 0.5)], p95: v[Math.min(n - 1, Math.floor(n * 0.95))], n: n };
   } });
   function beginFrame() {
-    stats.dados = 0; stats.faixaDado = false; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = [];
+    stats.dados = 0; stats.faixaDado = false; stats.faixaDadoLinhas = []; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = [];
     stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false; stats.auras = 0; stats.tipoAuras = []; stats.tercos = 0;
   }
   function endFrame(ms, agora) {
@@ -867,52 +902,35 @@
     return L.best;
   }
 
-  function drawDiceStrip(ctx, item, racers, lay, S, simT, reduced) {
+  // bisel da faixa do Dado: os mesmos tons do bisel das caixas do HTML (--brilho-08 em cima e à esquerda,
+  // --escuro-25 embaixo e à direita) sobre o fundo do painel
+  var BISEL_LUZ = mix(COR.painel, '#ffffff', 0.08), BISEL_SOMBRA = mix(COR.painel, '#000000', 0.25);
+  function drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me) {
     if (!item || !lay) return null;
-    var st = diceState(item, simT, reduced, item.winner);
-    if (st.fase === 'fim') return null;
-    var L = stripLayout(item, racers, lay);
-    var e = item.escala || 1, d = (simT - item.t0) / e;
-    var revelado = !!reduced || d >= DADO.regira - EPS;
+    if (diceState(item, simT, reduced, item.winner).fase === 'fim') return null;
+    var B = bannerLayout(item, racers, lay, me);
     function R(ax, ay, w, h, col) { ctx.fillStyle = col; ctx.fillRect(ax * S, ay * S, w * S, h * S); }
-    R(L.x - 1, L.y - 1, L.w + 2, L.h + 2, COR.ouro);
-    R(L.x, L.y, L.w, L.h, COR.sombra);
-    texto(ctx, ROTULO, L.rotulo.x * S, L.rotulo.y * S, S, COR.ouro);
-    // dado em PNG logo à esquerda da faixa (fora da caixa: o layout não muda); sem espaço ou sem imagem, nada
-    if (L.x >= 10) drawIconPng(ctx, 'ui-dado', (L.x - 10) * S, L.y * S, 8, S);
-    var ordem = revelado ? stripOrder(item) : item.rolls.map(function (r, q) { return q; });
-    var ex = L.entradas.x, ey = L.entradas.y;
-    for (var k = 0; k < ordem.length; k++) {
-      var j = ordem[k], roll = item.rolls[j], r = racers && racers[j];
-      var silk = (r && r.silks) || COR.texto3;
-      R(ex, ey, 5, 7, silk);
-      texto(ctx, String(j + 1), (ex + 1) * S, (ey + 1) * S, S, lum(silk) > 0.5 ? COR.tinta : COR.texto);
-      var sw = slotW(roll), nx = ex + 5;
-      var est = diceState(item, simT, reduced, j);
-      var num, cor;
-      if (est.fase === 'gira' || est.fase === 'regira') {
-        // número "rolando": hash do corredor e do quadro do giro (10..99, cabe no espaço)
-        num = String(10 + Math.floor(hash(j * 7919 + Math.floor(est.tempo * 14) * 131 + 17) * 90));
-        cor = COR.texto3;
-      } else {
-        num = String(roll.best);
-        cor = r && r.isPlayer ? COR.ouro : COR.texto;
-        if (j === item.winner && est.dourado) {
-          R(nx, ey, sw, 7, mix(COR.ouro, COR.ouroClaro, est.brilho));
-          cor = COR.tinta;
-        }
-      }
-      var marca = est.fase === 'mostra' && roll.rerolls > 0;
-      var tx = nx + Math.round((sw - numW(num) - (marca ? MARCA_W : 0)) / 2);
-      if (marca) {
-        texto(ctx, MARCA, tx * S, (ey + 1) * S, S, cor === COR.tinta ? COR.palha2 : COR.ouroClaro);
-        tx += MARCA_W;
-      }
-      texto(ctx, num, tx * S, (ey + 1) * S, S, cor, true);
-      ex += entradaW(roll) + GAP_E;
+    // parada: nada aqui depende do tempo (nem pisca nem desliza, com ou sem movimento reduzido)
+    R(B.x, B.y, B.w, B.h, COR.sombra);
+    R(B.x + 1, B.y + 1, B.w - 2, B.h - 2, COR.ouro);
+    R(B.x + 2, B.y + 2, B.w - 4, B.h - 4, COR.painel);
+    R(B.x + 2, B.y + 2, B.w - 4, 1, BISEL_LUZ); R(B.x + 2, B.y + 3, 1, B.h - 6, BISEL_LUZ);
+    R(B.x + 2, B.y + B.h - 3, B.w - 4, 1, BISEL_SOMBRA); R(B.x + B.w - 3, B.y + 3, 1, B.h - 6, BISEL_SOMBRA);
+    // ícones em PNG (sem imagem ou pequenos demais, o espaço fica vazio: o resto não muda)
+    drawIconPng(ctx, 'ui-dado', B.l1.icone.x * S, B.l1.icone.y * S, 8, S);
+    drawIconPng(ctx, 'cl-' + item.weather, B.l2.icone.x * S, B.l2.icone.y * S, 8, S);
+    texto(ctx, FAIXA.pre, B.l1.pre.x * S, B.l1.pre.y * S, S, COR.texto);
+    texto(ctx, B.nome, B.l1.nome.x * S, B.l1.nome.y * S, S * B.fs, COR.ouroClaro);
+    texto(ctx, B.frase, B.l2.texto.x * S, B.l2.texto.y * S, S, COR.texto);
+    if (B.l2.eu) {
+      texto(ctx, FAIXA.sep, B.l2.sep.x * S, B.l2.sep.y * S, S, COR.texto3);
+      texto(ctx, B.eu, B.l2.eu.x * S, B.l2.eu.y * S, S, COR.ouro);
+    } else if (B.l3) {
+      texto(ctx, B.eu, B.l3.x * S, B.l3.y * S, S, COR.ouro);
     }
     stats.faixaDado = true;
-    return L;
+    stats.faixaDadoLinhas = B.linhas.slice();
+    return B;
   }
 
   // ---------------------------------------------------------------------------
@@ -1627,7 +1645,7 @@
     diceLabels: diceLabels,
     badgeSize: badgeSize,
     stripOrder: stripOrder,
-    stripLayout: stripLayout,
+    bannerLayout: bannerLayout,
     layoutBadges: layoutBadges,
     balloonSize: balloonSize,
     iconeDe: iconeDe,
@@ -1655,7 +1673,7 @@
     AURA: AURA,
     // desenho
     drawDice: drawDice,
-    drawDiceStrip: drawDiceStrip,
+    drawDiceBanner: drawDiceBanner,
     drawBalloon: drawBalloon,
     drawIconPng: drawIconPng,
     skillBannerLayout: skillBannerLayout,

@@ -3553,7 +3553,7 @@
       simT: 0, tReal: 0, last: 0, mult: 1, phase: 'contagem', count: reduced() ? 1.2 : 2.4,
       gallop: new Array(n), S: 2, W: 0, H: 0, done: false, endTimer: 0,
       lastHud: {}, flash: 0, winnerSeen: false, finishCam: false, playerRect: null, crossed: false,
-      climaMsg: '', climaTimer: 0, climaDesde: 0, slowK: 1, fx: fxTl,
+      slowK: 1, fx: fxTl,
       lay: null,
       wind: ventoDaSala(L)   // só visual (RaceFx.wind da seed, ou o forçado no DEV)
     };
@@ -3707,13 +3707,8 @@
       if (ev.racer === me && (ev.type === 'chegada' || ev.type === 'garra' || ev.type === 'skill')) hud.anuncio.textContent = ev.text;
       if (ev.type === 'clima') climaNoPainel(hud.clima, ev.weather);
       if (ev.type === 'dado' && ev.changed && GD.WEATHERS[ev.weather]) {
-        // virada de clima: anúncio por ~2 s (faixa no canvas + leitor de tela) e um clarão leve
-        self.climaMsg = 'CLIMA: ' + GD.WEATHERS[ev.weather].name.toUpperCase();
-        self.climaIcone = 'cl-' + ev.weather;
-        self.climaTimer = 2;
-        // a faixa do clima entra em seguida à do Dado (mesmo lugar, abaixo do HUD)
-        var di = dadoItens.filter(function (it) { return it.t0 === ev.t; })[0];
-        self.climaDesde = di ? di.t1 : ev.t;
+        // virada de clima: o leitor de tela ouve no #anuncio e a pista ganha um clarão leve (na pista, a faixa do Dado
+        // já diz o efeito na linha 2: a faixa "CLIMA: X" que vinha depois saiu, spec 3c §6)
         hud.anuncio.textContent = 'O clima virou: ' + GD.WEATHERS[ev.weather].name + '.';
         if (!reduced()) self.flash = Math.max(self.flash, 0.12);
       }
@@ -3752,11 +3747,26 @@
       var m = Math.max(0, Math.round(d));
       return m === 0 ? 'colado' : sinal + m + ' m';
     }
-    function atualizaOrdem(order, st) {
+    // números do Dado na faixa de ordem (spec 3c §6): com o Dado ativo, cada item mostra o best do corredor (embaixo do
+    // selo; em tela baixa, no lugar da posição) e o do vencedor ganha .ordem-item--maior; fora dele, nada. Escritos só
+    // quando o Dado ativo muda (entra, sai ou é outro), quando a lista é reescrita durante ele ou quando a tela vira
+    // baixa/normal no meio dele — nunca a cada quadro (e fora de ordemEscritas, que conta as reescritas da lista)
+    var dadoMostrado = null, dadoBaixa = false;
+    function marcaDado(dItem, baixa) {
+      var lis = hud.ordem.children;
+      for (var q = 0; q < lis.length; q++) {
+        var li = lis[q], j = Number(li.getAttribute('data-raia')), num = dItem ? String(dItem.rolls[j].best) : '';
+        li.querySelector('.ordem-dado').textContent = baixa ? '' : num;
+        if (baixa || dadoBaixa) li.querySelector('.ordem-pos').innerHTML = dItem && baixa ? esc(num) : ordFix('>' + (q + 1) + 'º<').slice(1, -1);   // ordFix só troca o º entre tags
+        li.classList.toggle('ordem-item--maior', !!dItem && j === dItem.winner);
+      }
+      dadoMostrado = dItem; dadoBaixa = baixa;
+    }
+    function atualizaOrdem(order, st, dItem) {
       self.quadro = { order: order, pos: st.pos };
-      var agora = window.performance.now();
+      var agora = window.performance.now(), escreveu = false;
       if (!mesmaOrdem(order, self.ordemAtual) && agora - ordemT >= ORDEM_MS) {
-        ordemT = agora;
+        ordemT = agora; escreveu = true;
         self.ordemAtual = order.slice();
         self.ordemEscritas++;
         hud.ordem.innerHTML = ordFix(order.map(function (j, k) {
@@ -3766,6 +3776,8 @@
             '<span class="sr">' + esc(r.horse.name + (r.isPlayer ? ' (você)' : '')) + '</span></li>';
         }).join(''));
       }
+      var baixa = tela.classList.contains('tela--baixa');
+      if (escreveu ? !!(dItem || dadoMostrado) : dItem !== dadoMostrado || (!!dItem && baixa !== dadoBaixa)) marcaDado(dItem, baixa);
       if (agora - vizT < VIZ_MS) return;
       vizT = agora;
       var html;
@@ -4001,15 +4013,9 @@
         box(bx2, by2, bw, 9, C.sombra, C.ouro);
         text(bt, bx2 + 3, by2 + 2, C.ouro);
       } else if (dItem) {
-        FX.drawDiceStrip(ctx, dItem, L.racers, lay, S, self.simT, reduced());
-      } else if (self.climaTimer > 0 && self.simT >= self.climaDesde) {
-        var ct = self.climaMsg, clIco = !!FX.iconImage(self.climaIcone) && 8 * S >= 16, cw2 = tw(ct) + 6 + (clIco ? 10 : 0);
-        var cx3 = Math.round(lay.artW / 2 - cw2 / 2), cy3 = lay.hudH + 3;
-        box(cx3, cy3, cw2, 9, C.sombra, GD.BLOCK_TYPES.curva.color);
-        if (clIco) FX.drawIconPng(ctx, self.climaIcone, (cx3 + 2) * S, cy3 * S + Math.round(S / 2), 8, S);
-        text(ct, cx3 + 3 + (clIco ? 10 : 0), cy3 + 2, C.texto);
+        FX.drawDiceBanner(ctx, dItem, L.racers, lay, S, self.simT, reduced(), me);
       }
-      if (self.phase !== 'contagem') drawSkillsNaPista(vis, youTag, dItem, !!(self.finishCam || Math.abs(self.simT - tWin) < 0.6 || dItem || (self.climaTimer > 0 && self.simT >= self.climaDesde)));
+      if (self.phase !== 'contagem') drawSkillsNaPista(vis, youTag, dItem, !!(self.finishCam || Math.abs(self.simT - tWin) < 0.6));
       if (self.phase === 'contagem') {
         var c = Math.ceil(self.count / (reduced() ? 0.4 : 0.8));
         var label = c >= 3 ? '3' : c === 2 ? '2' : c === 1 ? '1' : 'JÁ!';
@@ -4044,6 +4050,8 @@
         var ft = fx0.item.nome.toUpperCase() + '!', skId = FX.iconNameOf(fx0.item);
         var bl = FX.skillBannerLayout(ft, lay.artW, S, !!FX.iconImage(skId), tw), fs = bl.fs, fw = bl.w, fh = bl.h;
         var fxx = bl.x, fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
+        // com o Dado na pista, logo abaixo da faixa dele
+        if (dItem) { var fd = FX.bannerLayout(dItem, L.racers, lay, me); fyy = Math.max(fyy, fd.y + fd.h + 2); }
         var esc0 = (t - fx0.a) / fx0.item.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
         var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
@@ -4062,7 +4070,7 @@
       }
       var obst = [];
       if (faixa) obst.push(faixa);
-      if (dItem) { obst.push(FX.stripLayout(dItem, L.racers, lay)); FX._stats.placas.forEach(function (p) { obst.push(p); }); }
+      if (dItem) { obst.push(FX.bannerLayout(dItem, L.racers, lay, me)); FX._stats.placas.forEach(function (p) { obst.push(p); }); }
       function bate(a, o) { return a.x < o.x + o.w + 1 && o.x < a.x + a.w + 1 && a.y < o.y + o.h + 1 && o.y < a.y + a.h + 1; }
       if (youTag && !self.voceRect) { var yb2 = youTagBox(youTag); self.voceRect = { x: yb2.x - 1, y: yb2.y - 1, w: yb2.w + 2, h: 11 }; }
       if (self.voceRect) obst.push(self.voceRect);
@@ -4114,16 +4122,19 @@
 
     // Dado da Sorte sobre cada cavalo visível (fx.js): plaquinha centrada no jóquei, logo acima da caixa
     // do desenho (molde ou código), arranjada sem sobreposição entre a faixa do Dado e o fim da pista e
-    // desviando da etiqueta "◀VOCÊ" (obstáculo fixo)
+    // desviando da etiqueta "◀VOCÊ" (obstáculo fixo). A do vencedor é o dobro (DADO_MAIOR): o destaque dourado
+    // pulsa só sem movimento reduzido (FX.diceState fixa o brilho e o drawDice omite as faíscas)
+    var DADO_MAIOR = 2;
     function drawDadosNaPista(item, vis, youTag) {
       var S = self.S, lay = self.lay, red = reduced();
-      var faixa = FX.stripLayout(item, L.racers, lay);
+      var faixa = FX.bannerLayout(item, L.racers, lay, me);
       var topo = faixa.y + faixa.h + 2;
       var fixos = [];
       if (youTag) { var yb = youTagBox(youTag); fixos.push({ x: yb.x - 1, y: yb.y - 1 - topo, w: yb.w + 2, h: 11 }); }
       self.voceRect = fixos.length ? { x: fixos[0].x, y: fixos[0].y + topo, w: fixos[0].w, h: fixos[0].h } : null;
       var rects = vis.map(function (v) {
-        var sz = FX.badgeSize(item.rolls[v.j]);
+        var sz = FX.badgeSize(item.rolls[v.j]), k = v.j === item.winner ? DADO_MAIOR : 1;
+        sz = { w: sz.w * k, h: sz.h * k };
         var cx = v.an.saddle ? Math.round(v.x / S + v.an.saddle[0]) : Math.round((v.caixa.x + v.caixa.w / 2) / S);
         return { j: v.j, x: cx - Math.floor(sz.w / 2), y: Math.floor(v.caixa.y / S) - 1 - sz.h - topo, w: sz.w, h: sz.h };
       });
@@ -4131,7 +4142,7 @@
       arr.sort(function (a, b) { return (a.j === item.winner) - (b.j === item.winner); });   // vencedor por cima
       arr.forEach(function (r) {
         var est = FX.diceState(item, self.simT, red, r.j), win = r.j === item.winner;
-        var num = FX.drawDice(ctx, r.x * S, (r.y + topo) * S, S, item.rolls[r.j], est, win, self.simT, L.racers[r.j].silks);
+        var num = FX.drawDice(ctx, r.x * S, (r.y + topo) * S, S * (win ? DADO_MAIOR : 1), item.rolls[r.j], est, win, self.simT, L.racers[r.j].silks);
         FX._stats.placas.push({ racer: r.j, numero: num, vencedor: win, fase: est.fase, x: r.x, y: r.y + topo, w: r.w, h: r.h });
       });
     }
@@ -4183,7 +4194,6 @@
       if (!self.winnerSeen && self.simT >= tWin) { self.winnerSeen = true; if (!reduced()) self.flash = 0.3; }
       if (self.flash > 0) self.flash = Math.max(0, self.flash - dtReal);
       self.slowK = slowK;
-      if (self.climaTimer > 0 && self.simT >= self.climaDesde) self.climaTimer = Math.max(0, self.climaTimer - dtReal);
       if (!self.crossed && self.simT >= fTime[me]) {
         self.crossed = true;
         hud.anuncio.textContent = 'Você cruzou a linha em ' + (rankOf[me] + 1) + 'º lugar.';
@@ -4194,7 +4204,7 @@
       // narração
       while (self.phase !== 'contagem' && feedPtr < feedEvents.length && feedEvents[feedPtr].t <= self.simT) pushFeed(feedEvents[feedPtr++]);
       var order = ranking(st, self.simT);
-      atualizaOrdem(order, st);
+      atualizaOrdem(order, st, self.phase === 'contagem' ? null : dadoAtivo(self.simT));
       // tempo de desenho do quadro (média móvel em RaceFx._stats.msQuadro)
       var tDes = window.performance.now();
       FX.beginFrame();

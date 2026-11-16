@@ -912,6 +912,10 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .ordem-item .raia--mini { grid-area: 1 / 2; }
 .ordem-item--voce .ordem-pos { color: var(--ouro-claro); }
 .ordem-dado { grid-area: 2 / 1 / 3 / 3; justify-self: center; height: 16px; font-size: var(--t-s); line-height: 16px; color: var(--ouro-claro); white-space: nowrap; }
+/* Dado da Sorte (spec 3c §6): o número do maior dado com fundo --ouro (a marca do vencedor); em tela baixa ele fica no
+   lugar da posição (.ordem-pos) e a marca vai junto */
+.ordem-item--maior .ordem-dado { padding: 0 2px; background: var(--ouro); color: var(--tinta); }
+.tela--baixa .ordem-item--maior .ordem-pos { padding: 0 2px; background: var(--ouro); color: var(--tinta); }
 .ordem-vizinhos {
   margin: 0; height: 20px; display: flex; justify-content: center; gap: 6px; min-width: 0; overflow: hidden;
   font-size: var(--t-s); line-height: 20px; color: var(--texto-2); white-space: nowrap;
@@ -1217,6 +1221,7 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   .montaria-linha-seta { fill: ButtonText; }   /* o svg não ganha a cor do sistema sozinho */
   .ordem-item { border: 2px solid CanvasText; }   /* faixa de ordem da corrida: o item do jogador em Highlight */
   .ordem-item--voce { border-color: Highlight; }
+  .ordem-item--maior .ordem-dado, .tela--baixa .ordem-item--maior .ordem-pos { outline: 2px solid CanvasText; }
   .caixa::before, .montaria--ativa::before, .opcao[aria-pressed="true"]::before, .saldo::before,
   .placa::before, .titulo--tela::before { display: none; }
   .placa, .titulo--tela { background-image: none; }

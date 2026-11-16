@@ -1268,9 +1268,13 @@ try {
             return { raia: Number(li.dataset.raia), voce: li.classList.contains('ordem-item--voce'), pos: pos && pos.firstChild ? pos.firstChild.nodeValue : null,
               ord: ord ? ord.getAttribute('aria-hidden') + ':' + ord.textContent + ':' + (srOrd && srOrd.classList.contains('sr') ? srOrd.textContent : '-') : null,
               sr: sr ? sr.textContent : null, chip: !!li.querySelector('.raia--mini'), dado: !!li.querySelector('.ordem-dado'), top: Math.round(li.getBoundingClientRect().top),
+              dadoTxt: li.querySelector('.ordem-dado') ? li.querySelector('.ordem-dado').textContent : null, maior: li.classList.contains('ordem-item--maior'),
               dir: li.getBoundingClientRect().right }
           })
-          ok({ itens, atual: s.ordemAtual.slice(), quadro: s.quadro.order.slice(), simT: s.simT, me: L.playerIdx, nomes: L.racers.map((r) => r.horse.name), vw: document.documentElement.clientWidth })
+          // o Dado ativo no instante da lista (como dadoAtivo(simT) da tela): o número de cada raia e o vencedor
+          const d = s.phase === 'contagem' ? null : s.fx.find((x) => x.kind === 'dado' && s.simT >= x.t0 && s.simT < x.t1)
+          ok({ itens, atual: s.ordemAtual.slice(), quadro: s.quadro.order.slice(), simT: s.simT, me: L.playerIdx, nomes: L.racers.map((r) => r.horse.name), vw: document.documentElement.clientWidth,
+            baixa: document.querySelector('.tela--corrida').classList.contains('tela--baixa'), dado: d ? { winner: d.winner, bests: d.rolls.map((x) => x.best) } : null })
           return
         }
         if (performance.now() - t0 > 15000) { falha(new Error('a ordem do quadro não ficou 300 ms parada em 15 s')); return }
@@ -1285,7 +1289,11 @@ try {
       r.itens.forEach((it, k) => {
         const esperado = r.nomes[it.raia] + (it.raia === r.me ? ' (você)' : '')
         if (it.voce !== (it.raia === r.me)) problems.push(`[${label}] item ${k + 1} (raia ${it.raia + 1}) com o destaque do jogador = ${it.voce}`)
-        if (it.pos !== String(k + 1) || it.ord !== 'true:o:º') problems.push(`[${label}] item ${k + 1}: posição ${JSON.stringify(it.pos)} e ordinal ${it.ord} (esperado ${k + 1} e .ord[aria-hidden=true] "o" + .sr "º")`)
+        // no Dado, em tela baixa, o número que o corredor tirou fica no lugar da posição (spec 3c §4 e §6)
+        const num = r.dado ? String(r.dado.bests[it.raia]) : ''
+        if (r.dado && r.baixa) { if (it.pos !== num || it.ord !== null) problems.push(`[${label}] item ${k + 1} no Dado (tela baixa): posição ${JSON.stringify(it.pos)} e ordinal ${it.ord} (esperado o número ${num}, sem ordinal)`) }
+        else if (it.pos !== String(k + 1) || it.ord !== 'true:o:º') problems.push(`[${label}] item ${k + 1}: posição ${JSON.stringify(it.pos)} e ordinal ${it.ord} (esperado ${k + 1} e .ord[aria-hidden=true] "o" + .sr "º")`)
+        if (it.dadoTxt !== (r.dado && !r.baixa ? num : '') || it.maior !== (!!r.dado && it.raia === r.dado.winner)) problems.push(`[${label}] item ${k + 1} (raia ${it.raia + 1}): .ordem-dado ${JSON.stringify(it.dadoTxt)} e maior = ${it.maior} (Dado ${JSON.stringify(r.dado)}, tela baixa = ${r.baixa})`)
         if (it.sr !== esperado) problems.push(`[${label}] item ${k + 1}: .sr ${JSON.stringify(it.sr)} (esperado ${JSON.stringify(esperado)})`)
         if (!it.chip || !it.dado) problems.push(`[${label}] item ${k + 1} sem o selo da raia ou sem o .ordem-dado`)
       })
@@ -1371,6 +1379,62 @@ try {
       if (r.escritas < 3 || gE.some((g) => g < 240)) problems.push(`[${label}] Review Focus 1: a lista da faixa de ordem foi reescrita com menos de 250 ms de intervalo (${JSON.stringify(r)})`)
       if (r.atrasoMax > 320) problems.push(`[${label}] Review Focus 1: a lista mostrada ficou ${r.atrasoMax} ms diferente da ordem do quadro (máximo ~300)`)
     }
+    // Dado da Sorte (spec 3c §6), quadro a quadro na corrida inteira: fora da janela de cada Dado (dadoAtivo), a
+    // faixa de ordem sem números e sem a marca e nenhuma faixa do Dado na pista; na janela, cada item com o best do
+    // seu corredor (embaixo do selo; em tela baixa, no lugar da posição), a marca só no vencedor e a faixa do Dado
+    // com as linhas certas; e a altura da faixa de ordem a mesma antes, durante e depois
+    const vigiaDado = (pg) => pg.evaluate(() => {
+      const s = window.__galope.race._state, L = window.__galope.ui.lobby, FX = window.RaceFx
+      const tela = document.querySelector('.tela--corrida'), ordem = document.getElementById('ordem'), me = L.playerIdx
+      const itens = s.fx.filter((x) => x.kind === 'dado'), evs = L.sim.events.filter((e) => e.type === 'dado')
+      const esperadas = itens.map((d, q) => {
+        const ev = evs[q], lin = ['MAIOR DADO: ' + L.racers[ev.winner].horse.name.toUpperCase() + ' ' + ev.rolls[ev.winner].best,
+          ev.text.slice(ev.text.indexOf(' — ') + 3).toUpperCase()]
+        if (ev.winner !== me) lin.push('VOCÊ TIROU ' + ev.rolls[me].best)
+        return lin
+      })
+      const w = window.__dadoVigia = { quadros: 0, porDado: itens.map((d, q) => ({ t0: d.t0, t1: d.t1, winner: d.winner, antes: 0, durante: 0, depois: 0, esperadas: esperadas[q], linhas: null })),
+        alturas: {}, ruins: [], nRuins: 0, maxT: 0 }
+      const ruim = (m) => { w.nRuins++; if (w.ruins.length < 6) w.ruins.push(m) }
+      const tick = () => {
+        if (!window.__galope.race) return
+        if (s.phase !== 'contagem') {
+          const t = s.simT, ativo = itens.find((d) => t >= d.t0 && t < d.t1) || null, baixa = tela.classList.contains('tela--baixa')
+          w.quadros++; w.maxT = t
+          const h = ordem.getBoundingClientRect().height
+          w.alturas[h] = (w.alturas[h] || 0) + 1
+          itens.forEach((d, q) => { const p = w.porDado[q]; if (t < d.t0) p.antes++; else if (t < d.t1) p.durante++; else p.depois++ })
+          document.querySelectorAll('#ordem-lista > li').forEach((li, k) => {
+            const j = Number(li.dataset.raia), pos = li.querySelector('.ordem-pos'), dd = li.querySelector('.ordem-dado')
+            const posTxt = pos.firstChild ? pos.firstChild.nodeValue : '', maior = li.classList.contains('ordem-item--maior')
+            const num = ativo ? String(ativo.rolls[j].best) : ''
+            const espPos = ativo && baixa ? num : String(k + 1), espDado = ativo && !baixa ? num : ''
+            if (posTxt !== espPos || dd.textContent !== espDado || maior !== (!!ativo && j === ativo.winner)) ruim({ t, ativo: !!ativo, baixa, raia: j + 1, posTxt, dado: dd.textContent, maior, espPos, espDado })
+          })
+          const st = FX._stats
+          if (ativo) {
+            const p = w.porDado[itens.indexOf(ativo)]
+            if (!st.faixaDado || JSON.stringify(st.faixaDadoLinhas) !== JSON.stringify(p.esperadas)) ruim({ t, faixa: st.faixaDado, linhas: st.faixaDadoLinhas, esperadas: p.esperadas })
+            if (!p.linhas) p.linhas = Array.isArray(st.faixaDadoLinhas) ? st.faixaDadoLinhas.slice() : String(st.faixaDadoLinhas)
+          } else if (st.faixaDado) ruim({ t, faixaForaDaJanela: st.faixaDadoLinhas })
+        }
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    const confereVigiaDado = async (pg, label) => {
+      const ult = await pg.evaluate(() => { const p = window.__dadoVigia.porDado; return p.length ? p[p.length - 1].t1 : 0 })
+      await pg.waitForFunction((t1) => window.__dadoVigia.maxT >= t1 + 0.5, ult, { timeout: 60000, polling: 'raf' })
+      const w = await pg.evaluate(() => window.__dadoVigia)
+      notes[label + '-dado'] = { quadros: w.quadros, alturas: w.alturas, porDado: w.porDado.map((p) => ({ antes: p.antes, durante: p.durante, depois: p.depois, linhas: p.linhas })) }
+      if (w.porDado.length < 2) problems.push(`[${label}] Dado: a corrida tem ${w.porDado.length} Dados (esperado 2)`)
+      w.porDado.forEach((p, q) => {
+        if (!p.antes || p.durante < 5 || !p.depois) problems.push(`[${label}] Dado ${q + 1}: quadros antes/durante/depois ${p.antes}/${p.durante}/${p.depois} (esperado todos vistos)`)
+        if (JSON.stringify(p.linhas) !== JSON.stringify(p.esperadas)) problems.push(`[${label}] Dado ${q + 1}: faixa com ${JSON.stringify(p.linhas)} (esperado ${JSON.stringify(p.esperadas)})`)
+      })
+      if (w.nRuins) problems.push(`[${label}] Dado: ${w.nRuins} quadros com a faixa de ordem ou a faixa do Dado fora do esperado, ex.: ${JSON.stringify(w.ruins)}`)
+      if (Object.keys(w.alturas).length !== 1) problems.push(`[${label}] Dado: a faixa de ordem mudou de altura antes/durante/depois do Dado: ${JSON.stringify(w.alturas)}`)
+    }
     // narração: a 1ª frase de Garra de um rival (com o dono entre parênteses) medida quando chega, e os ordinais
     const vigiaFeed = (pg) => pg.evaluate(() => {
       const w = window.__feedVigia = { garra: null, ords: 0, ordRuim: [] }
@@ -1405,6 +1469,7 @@ try {
         if (!(await pg.locator('#ordem').count())) throw new Error('sem a faixa de ordem (#ordem) na corrida')
         await vigiaOrdem(pg)
         await vigiaViz(pg)
+        await vigiaDado(pg)
         await vigiaFeed(pg)
         // na contagem: a ordem das raias e "Largada em instantes" (quando ainda dá tempo de ler)
         const cont = await pg.evaluate(() => ({ phase: window.__galope.race._state.phase, raias: Array.from(document.querySelectorAll('#ordem-lista > li')).map((li) => li.dataset.raia).join(), viz: document.getElementById('ordem-vizinhos').textContent }))
@@ -1447,6 +1512,8 @@ try {
         todas.forEach((x, i) => confereViz(x, `${label} vizinhos #${i + 1}`))
         notes[label + '-vizinhos'] = { escritas: todas.length, colados: todas.reduce((a, x) => a + (x.colados || 0), 0) }
         if (todas.length < 10) problems.push(`[${label}] só ${todas.length} escritas da linha dos vizinhos na corrida (esperado uma a cada 500 ms)`)
+        // os dois Dados, quadro a quadro
+        await confereVigiaDado(pg, label)
         const h2 = await alturas(pg)
         notes[label + '-alturas'] = { largada: h0, meio: h1, chegada: h2 }
         if (JSON.stringify(h0) !== JSON.stringify(h1) || JSON.stringify(h1) !== JSON.stringify(h2)) problems.push(`[${label}] a faixa, a narração ou a pista mudaram de altura durante a corrida: ${JSON.stringify(notes[label + '-alturas'])}`)
@@ -2243,7 +2310,7 @@ try {
           const D = L.cond.distance, els = L.racers.map((x) => x.horse.element), me = L.playerIdx
           const TS = sim.racerInfo.map((x) => x.typeSkill)
           const quadro = (T) => {
-            s.phase = 'corrida'; s.simT = T; s.tReal = 7; s.last = 0; s.flash = 0; s.winnerSeen = true; s.mult = 1; s.climaTimer = 0
+            s.phase = 'corrida'; s.simT = T; s.tReal = 7; s.last = 0; s.flash = 0; s.winnerSeen = true; s.mult = 1
             desenha(performance.now())
             const st = FX._stats, fr = sim.frames[Math.min(sim.frames.length - 1, Math.round(T / sim.dt))]
             return { T, pos: fr.pos.slice(), auras: st.auras, quem: st.tipoAuras.map((a) => ({ ...a })), vis: st.caixasCavalos.map((c) => c.racer),
@@ -6854,7 +6921,7 @@ try {
         const venc = q.placas.find((p) => p.racer === it.winner)
         notes['dado-' + label] = { seed: r.seed, t0: it.t0, escala: +it.e.toFixed(3), winner: it.winner, best: it.best, slowK: q.slowK, dados: q.dados, faixa: q.faixa, particulas: q.particulas, placaVencedor: venc, msQuadro: +q.ms.toFixed(2) }
         if (!(q.dados >= 1)) problems.push(`[${label}] Dado: RaceFx._stats.dados = ${q.dados} na janela do Dado`)
-        if (q.faixa !== true) problems.push(`[${label}] Dado: faixa "DADO DA SORTE" ausente na janela`)
+        if (q.faixa !== true) problems.push(`[${label}] Dado: faixa do Dado ausente na janela`)
         if (!(q.slowK < 1)) problems.push(`[${label}] Dado: sem câmera lenta logo depois da revelação (slowK ${q.slowK})`)
         if (!venc || venc.numero !== String(it.best) || !venc.vencedor || venc.fase !== 'mostra') problems.push(`[${label}] Dado: plaquinha do vencedor ${JSON.stringify(venc)} (esperado ${it.best})`)
         if (!(q.particulas > 0)) problems.push(`[${label}] Dado: vencedor sem faíscas (particulas = ${q.particulas})`)

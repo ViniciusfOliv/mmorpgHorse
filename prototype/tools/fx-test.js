@@ -38,6 +38,9 @@ test('timeline tem um \'dado\' por evento com o vencedor do evento', function ()
     assert.strictEqual(it.racer, ev.winner); assert.strictEqual(it.winner, ev.winner);
     assert.deepStrictEqual(it.rolls, ev.rolls);
     assert.strictEqual(it.changed, ev.changed); assert.strictEqual(it.weather, ev.weather);
+    // a frase do efeito, a mesma da narração: o trecho do texto do evento depois de ' — '
+    assert.strictEqual(it.frase, ev.text.slice(ev.text.indexOf(' — ') + 3));
+    assert.ok(/^(o sol abre!|começa a chover!|a névoa desce!|o clima segura!)$/.test(it.frase), it.frase);
   });
 });
 test('timeline ordenada por t0 e sem mexer na simulação', function () {
@@ -1292,19 +1295,106 @@ test('skill de tipo usa sk-tipo-<elemento>; clima usa cl-<clima>', function () {
   assert.strictEqual(a.imgs.length, 1); assert.strictEqual(b.imgs.length, 1);
   FX.setIconImages({});
 });
-test('faixa do Dado com ui-dado no cache desenha a imagem', function () {
-  var dado = { kind: 'dado', t0: 10, t1: 15, escala: 1, winner: 0, rolls: [{ best: 12, rerolls: 0 }, { best: 7, rerolls: 0 }] };
-  var racers = [{ silks: '#d8353b' }, { silks: '#2f6fd8' }];
-  var lay = { artW: 400, hudH: 12, compact: false };
+// faixa grande do Dado (spec 3c §6): linhas, caixa e ícones
+var RACERS_FAIXA = [{ silks: '#d8353b', horse: { name: 'Brasa' } }, { silks: '#2f6fd8', horse: { name: 'Maré' }, isPlayer: true }];
+var LAY_FAIXA = { artW: 180, hudH: 42, compact: false };
+function dadoFaixa(extra) {
+  var it = { kind: 'dado', t0: 10, t1: 15, escala: 1, winner: 0, racer: 0, changed: true, weather: 'sol', frase: 'o sol abre!',
+    rolls: [{ dice: [12], best: 12, rerolls: 0 }, { dice: [7], best: 7, rerolls: 0 }] };
+  for (var k in extra) it[k] = extra[k];
+  return it;
+}
+function dentroDaPista(B, lay) {
+  assert.ok(B.x >= 0 && B.x + B.w <= lay.artW, 'na largura da pista: ' + JSON.stringify(B));
+  assert.ok(B.y >= lay.hudH, 'abaixo do painel do topo: ' + JSON.stringify(B));
+  assert.ok(B.w > 0 && B.h > 0);
+}
+test('faixa do Dado: vencedor rival com virada tem 3 linhas (a do jogador por último)', function () {
+  var B = FX.bannerLayout(dadoFaixa(), RACERS_FAIXA, LAY_FAIXA, 1);
+  assert.deepStrictEqual(B.linhas, ['MAIOR DADO: BRASA 12', 'O SOL ABRE!', 'VOCÊ TIROU 7']);
+  dentroDaPista(B, LAY_FAIXA);
+});
+test('faixa do Dado: vencedor jogador tem 2 linhas; sem virada, "O CLIMA SEGURA!"', function () {
+  var B = FX.bannerLayout(dadoFaixa(), RACERS_FAIXA, LAY_FAIXA, 0);
+  assert.deepStrictEqual(B.linhas, ['MAIOR DADO: BRASA 12', 'O SOL ABRE!']);
+  dentroDaPista(B, LAY_FAIXA);
+  var S = FX.bannerLayout(dadoFaixa({ changed: false, frase: 'o clima segura!' }), RACERS_FAIXA, LAY_FAIXA, 1);
+  assert.deepStrictEqual(S.linhas, ['MAIOR DADO: BRASA 12', 'O CLIMA SEGURA!', 'VOCÊ TIROU 7']);
+  dentroDaPista(S, LAY_FAIXA);
+});
+test('faixa do Dado: nome e número em escala 2 quando cabem; nome de 16 letras cai para 1 e cabe em 180', function () {
+  var B = FX.bannerLayout(dadoFaixa(), RACERS_FAIXA, LAY_FAIXA, 1);
+  assert.strictEqual(B.fs, 2);
+  var longo = [{ silks: '#d8353b', horse: { name: 'Relampagodourado' } }, RACERS_FAIXA[1]];
+  var L = FX.bannerLayout(dadoFaixa({ rolls: [{ dice: [100], best: 100, rerolls: 0 }, { dice: [7], best: 7, rerolls: 0 }] }), longo, LAY_FAIXA, 1);
+  assert.strictEqual(L.fs, 1);
+  assert.deepStrictEqual(L.linhas, ['MAIOR DADO: RELAMPAGODOURADO 100', 'O SOL ABRE!', 'VOCÊ TIROU 7']);
+  dentroDaPista(L, LAY_FAIXA);
+  // no layout compacto também fica abaixo do painel
+  var C = FX.bannerLayout(dadoFaixa(), RACERS_FAIXA, { artW: 180, hudH: 15, compact: true }, 1);
+  dentroDaPista(C, { artW: 180, hudH: 15 });
+});
+test('Review Focus 4: com dois dados (Sorte) ou desempate, as linhas usam o best', function () {
+  var it = dadoFaixa({ rolls: [{ dice: [3, 12], best: 12, rerolls: 0 }, { dice: [12], best: 12, rerolls: 1 }] });
+  assert.deepStrictEqual(FX.bannerLayout(it, RACERS_FAIXA, LAY_FAIXA, 1).linhas, ['MAIOR DADO: BRASA 12', 'O SOL ABRE!', 'VOCÊ TIROU 12']);
+  var it2 = dadoFaixa({ winner: 1, racer: 1, rolls: [{ dice: [12], best: 12, rerolls: 0 }, { dice: [5, 12], best: 12, rerolls: 1 }] });
+  assert.deepStrictEqual(FX.bannerLayout(it2, RACERS_FAIXA, LAY_FAIXA, 0).linhas, ['MAIOR DADO: MARÉ 12', 'O SOL ABRE!', 'VOCÊ TIROU 12']);
+});
+test('drawDiceBanner: desenha em [t0, t1), marca _stats.faixaDado e as linhas; null fora', function () {
+  var it = dadoFaixa();
   FX.setIconImages({});
-  var sem = ctxFalso(); FX.drawDiceStrip(sem, dado, racers, lay, 2, 11, false);
+  FX.resetStats(true);
+  var c = ctxFalso(), B = FX.drawDiceBanner(c, it, RACERS_FAIXA, LAY_FAIXA, 2, 11, false, 1);
+  assert.ok(B && c.rects.length > 0);
+  assert.strictEqual(FX._stats.faixaDado, true);
+  assert.deepStrictEqual(FX._stats.faixaDadoLinhas, ['MAIOR DADO: BRASA 12', 'O SOL ABRE!', 'VOCÊ TIROU 7']);
+  assert.deepStrictEqual({ x: B.x, y: B.y, w: B.w, h: B.h }, (function (L) { return { x: L.x, y: L.y, w: L.w, h: L.h }; })(FX.bannerLayout(it, RACERS_FAIXA, LAY_FAIXA, 1)));
+  // nada fora da caixa
+  c.rects.forEach(function (r) {
+    assert.ok(r.x >= B.x * 2 && r.y >= B.y * 2 && r.x + r.w <= (B.x + B.w) * 2 && r.y + r.h <= (B.y + B.h) * 2, 'retângulo fora da caixa: ' + JSON.stringify(r));
+  });
+  FX.resetStats(true);
+  var d = ctxFalso();
+  assert.strictEqual(FX.drawDiceBanner(d, it, RACERS_FAIXA, LAY_FAIXA, 2, 15, false, 1), null);
+  assert.strictEqual(FX.drawDiceBanner(d, it, RACERS_FAIXA, LAY_FAIXA, 2, 9.9, false, 1), null);
+  assert.strictEqual(d.rects.length, 0);
+  assert.strictEqual(FX._stats.faixaDado, false);
+  assert.deepStrictEqual(FX._stats.faixaDadoLinhas, []);
+});
+test('drawDiceBanner: parada (o mesmo desenho em qualquer instante, com e sem movimento reduzido)', function () {
+  var it = dadoFaixa(), a = ctxFalso(), b = ctxFalso(), r = ctxFalso();
+  FX.setIconImages({});
+  FX.drawDiceBanner(a, it, RACERS_FAIXA, LAY_FAIXA, 2, 10.1, false, 1);
+  FX.drawDiceBanner(b, it, RACERS_FAIXA, LAY_FAIXA, 2, 13.7, false, 1);
+  FX.drawDiceBanner(r, it, RACERS_FAIXA, LAY_FAIXA, 2, 12, true, 1);
+  assert.deepStrictEqual(b.rects, a.rects);
+  assert.deepStrictEqual(r.rects, a.rects);
+});
+test('drawDiceBanner com ui-dado (e o ícone do clima) no cache desenha as imagens; o resto é o mesmo', function () {
+  var it = dadoFaixa();
+  FX.setIconImages({});
+  var sem = ctxFalso(); FX.drawDiceBanner(sem, it, RACERS_FAIXA, LAY_FAIXA, 2, 11, false, 1);
   FX.setIconImages({ 'ui-dado': IMG });
-  var c = ctxFalso(); FX.drawDiceStrip(c, dado, racers, lay, 2, 11, false);
+  var c = ctxFalso(); FX.drawDiceBanner(c, it, RACERS_FAIXA, LAY_FAIXA, 2, 11, false, 1);
+  FX.setIconImages({ 'ui-dado': IMG, 'cl-sol': IMG });
+  var cc = ctxFalso(); FX.drawDiceBanner(cc, it, RACERS_FAIXA, LAY_FAIXA, 2, 11, false, 1);
   FX.setIconImages({});
   assert.strictEqual(sem.imgs.length, 0);
   assert.strictEqual(c.imgs.length, 1);
   assert.strictEqual(c.imgs[0].args[3], 16);
+  assert.strictEqual(cc.imgs.length, 2);
   assert.deepStrictEqual(c.rects, sem.rects, 'o resto da faixa é o mesmo');
+  assert.deepStrictEqual(cc.rects, sem.rects, 'o resto da faixa é o mesmo');
+  // os ícones ficam dentro da caixa
+  var B = FX.bannerLayout(it, RACERS_FAIXA, LAY_FAIXA, 1);
+  cc.imgs.forEach(function (im) {
+    var x = im.args[1], y = im.args[2], w = im.args[3], h = im.args[4];
+    assert.ok(x >= B.x * 2 && y >= B.y * 2 && x + w <= (B.x + B.w) * 2 && y + h <= (B.y + B.h) * 2, 'ícone fora da caixa');
+  });
+});
+test('a faixa de números antiga saiu (drawDiceStrip e stripLayout)', function () {
+  assert.strictEqual(FX.drawDiceStrip, undefined);
+  assert.strictEqual(FX.stripLayout, undefined);
 });
 test('simulação não muda: mesmo resultado com e sem ícones', function () {
   FX.setIconImages({});
