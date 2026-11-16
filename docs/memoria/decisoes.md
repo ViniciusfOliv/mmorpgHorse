@@ -3,6 +3,40 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-16 — Itens, mochila, loja e recompensa diária (decisões do Vinicius)
+Spec em `docs/superpowers/specs/2026-11-16-itens-loja-diaria-design.md` (aprovada por ele); branch `claude/itens-loja-diaria`.
+- **A primeira entrega junta itens, mochila, loja e recompensa diária; os ginásios vêm depois, em desenho próprio** — um
+  ciclo completo (ganha, compra, guarda, usa), e os ginásios usam os itens como prêmio.
+- **Entram os cinco itens do GDD §8.2** (Torrão de açúcar, Estrela de treino, Rédea nova, Cupom de troca de skill, Manual
+  de doma) — já estavam aprovados desde 2026-11-10.
+- **Só Ouro; a Gema e a loja de Gemas ficam para o bloco próprio** — a Gema ainda não existe no jogo.
+- **Diária em calendário de 7 dias, prêmios fixos, que não zera ao faltar um dia, resgatada só de abrir o jogo** —
+  prende sem frustrar; sem sorteio.
+- **Telas: Loja como 5ª aba (Comprar e Mochila), cartão da diária no topo do Estábulo, item também na ficha do cavalo**
+  — escolhida entre três esboços.
+- **Manual de doma: tentativa na hora, com chance alta** (35% nos números de partida) — resposta imediata; muda a forma
+  do GDD, que dizia "aumenta a chance de aprender".
+- **Estrela de treino: na loja, cara e 1 por semana; também no 7º dia a cada 4 calendários** — o grande gasto de Ouro.
+
+## 2026-11-16 — Itens, loja e diária: decisões da spec (controlador)
+Ficam na seção 17 da spec; o Vinicius as leu na aprovação e pode trocar qualquer uma.
+- **Números de partida:** Torrão 120 de Ouro (2 por dia, até 10 por cavalo), Manual 200 (1 por dia), Cupom 250 (1 por
+  dia), Estrela 2.000 (1 a cada 7 dias); diária 60 · Torrão · 100 · Manual · 150 · Cupom · 200 + Rédea. Motivo: o Ouro
+  quase não entra hoje (o jogador mediano perde 10% da entrada por corrida), então a diária (510 por calendário) é a
+  fonte; a primeira Estrela comprada só com ela sai em cerca de 28 dias. Se errado: são números num só lugar do `data.js`.
+- **A Rédea nova não vai à loja; vem no 7º dia da diária** — o GDD diz "nunca por Ouro".
+- **Com a sala aberta, Cupom e Manual ficam bloqueados no cavalo ativo; Torrão e Estrela não** — os dois primeiros
+  mudam as skills, e a corrida já sorteada usa o cavalo como ele está; os outros só dão pontos, que já têm trava.
+- **A estrela ganha por item vale para a cruza, e a skill vinda de item vale na herança** — uma estrela é uma estrela;
+  não mexe no `breed.js`. Se errado: campo à parte para a estrela de treino.
+- **O Cupom troca qualquer skill das vagas** — o save não guarda a origem da skill.
+- **O Estábulo de 3 cavalos deixa de caber numa tela** (40 px a mais com a diária resgatada, 110 com prêmio).
+- **Relógio do aparelho:** voltar a data não libera resgate; adiantar libera, aceito até existir servidor.
+- **Proteção contra save de versão mais nova entra nesta frente** (bloqueio com o botão Recarregar), porque o save sobe
+  para a versão 7.
+- **Regras num módulo próprio (`itens.js`)**, puro, para ir ao servidor com os outros; **ícones dos itens desenhados em
+  código**, sem créditos.
+
 ## 2026-11-16 — Galope fica como está (decisão do Vinicius)
 - **O galope dos cavalos não muda por enquanto** — ele pediu um teste de pernas mais intensas e abertas, viu a página
   de comparação (https://claude.ai/artifact/JUTm5mf3SwbvgDENeVAEeA) e preferiu seguir para passos mais importantes. O

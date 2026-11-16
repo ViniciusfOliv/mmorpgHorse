@@ -1,6 +1,6 @@
 # Itens, mochila, loja e recompensa diária
 
-Desenho de 2026-11-16, conversado com o Vinicius. **Em revisão: ainda não aprovado.** Branch `claude/itens-loja-diaria`,
+Desenho de 2026-11-16, conversado com o Vinicius. **Aprovado pelo Vinicius em 2026-11-16.** Branch `claude/itens-loja-diaria`,
 criada da `main` (que já tem a Visuais 2 até a parte 3). É a primeira de duas frentes pedidas por ele no mesmo dia; a
 segunda, os ginásios, tem desenho próprio depois desta e usa estes itens como prêmio.
 
