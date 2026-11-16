@@ -1331,6 +1331,25 @@ test('Ruling 11: com embaixo, a mesma caixa encostada no pé da pista (dentro de
   FX.resetStats(true);
   assert.strictEqual(FX._stats.faixaDadoCaixa, null);
 });
+test('drawDiceBanner: com a caixa já calculada pela tela (um bannerLayout por quadro), desenha o mesmo', function () {
+  var lay = { artW: 180, hudH: 42, artH: 232, compact: false };
+  [false, true].forEach(function (emb) {
+    [11, 10.2].forEach(function (t) {   // revelado e com os dados girando
+      FX.resetStats(true);
+      var a = ctxFalso(), A = FX.drawDiceBanner(a, dadoFaixa(), RACERS_FAIXA, lay, 2, t, false, 1, emb);
+      var linhasA = FX._stats.faixaDadoLinhas.slice(), caixaA = FX._stats.faixaDadoCaixa;
+      FX.resetStats(true);
+      var pre = FX.bannerLayout(dadoFaixa(), RACERS_FAIXA, lay, 1, emb);
+      var b = ctxFalso(), B = FX.drawDiceBanner(b, dadoFaixa(), RACERS_FAIXA, lay, 2, t, false, 1, emb, pre);
+      assert.strictEqual(B, pre, 'devolve a caixa recebida');
+      assert.deepStrictEqual(b.rects, a.rects, 'mesmos retângulos (embaixo = ' + emb + ', t = ' + t + ')');
+      assert.deepStrictEqual(FX._stats.faixaDadoLinhas, linhasA);
+      assert.deepStrictEqual(FX._stats.faixaDadoCaixa, caixaA);
+      assert.deepStrictEqual({ x: A.x, y: A.y, w: A.w, h: A.h }, { x: B.x, y: B.y, w: B.w, h: B.h });
+    });
+  });
+  FX.resetStats(true);
+});
 test('Review Focus 4: com dois dados (Sorte) ou desempate, as linhas usam o best', function () {
   var it = dadoFaixa({ rolls: [{ dice: [3, 12], best: 12, rerolls: 0 }, { dice: [12], best: 12, rerolls: 1 }] });
   assert.deepStrictEqual(FX.bannerLayout(it, RACERS_FAIXA, LAY_FAIXA, 1).linhas, ['MAIOR DADO: BRASA 12', 'O SOL ABRE!', 'VOCÊ TIROU 12']);

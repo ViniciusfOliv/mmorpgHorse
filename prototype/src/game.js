@@ -3612,8 +3612,13 @@
     }
 
     // ---- layout: o canvas ocupa a altura que sobra na tela (sem rolagem), escala inteira
+    // lugar da faixa do Dado (decideLugarDado): o Dado da decisão e se a faixa fica no pé da pista
+    var lugarDado = { item: null, embaixo: false };
     function layout() {
       var r = dpr();
+      // a decisão do lugar da faixa do Dado vale para este layout: girar ou redimensionar no meio de um Dado muda artH e
+      // hudH, e o próximo quadro decide de novo
+      lugarDado.item = null;
       var cssW = palco.clientWidth || 360;
       // tela baixa (< 700 px): a faixa de ordem só com a linha dos corredores e a narração com 1 frase em 1 linha
       // (spec 3c §4 e §5: senão, a 360×640, a pista cai no layout compacto)
@@ -4023,24 +4028,30 @@
         box(yb.x, yb.y, yb.w, 9, C.veu, C.ouro);
         text(yb.txt, yb.x + 2, yb.y + 3, C.ouro);
       }
-      layoutTags(tagsR, true); layoutTags(tagsL, false);
+      // Dado ativo e a caixa da faixa dele, uma vez por quadro: a faixa, as plaquinhas, as etiquetas e os balões usam
+      // a mesma. Com a etiqueta "FOTO DE CHEGADA" na tela, a faixa do Dado não é desenhada
+      var dItem = self.phase === 'contagem' ? null : dadoAtivo(self.simT), dCaixa = null;
+      var foto = self.finishCam || (self.phase !== 'contagem' && Math.abs(self.simT - tWin) < 0.6);
+      if (dItem) { decideLugarDado(dItem, vis); dCaixa = FX.bannerLayout(dItem, L.racers, lay, me, lugarDado.embaixo); }
+      // com a faixa do Dado em cima, as etiquetas de quem está fora da tela ficam abaixo dela
+      var tagsTopo = dCaixa && !foto && !lugarDado.embaixo ? dCaixa.y + dCaixa.h + 2 : null;
+      layoutTags(tagsR, true, tagsTopo); layoutTags(tagsL, false, tagsTopo);
       // natureza, camada da frente (véu, pingos, relâmpago, sol, sombras, folhas) e a névoa da frente
       natO.camada = 'frente';
       FX.drawNature(ctx, natO);
       FX.drawFogFront(ctx, natO);
       if (self.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + (0.55 * self.flash / 0.3).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
-      var dItem = self.phase === 'contagem' ? null : dadoAtivo(self.simT);
       self.voceRect = null;
-      if (dItem) { decideLugarDado(dItem, vis); drawDadosNaPista(dItem, vis, youTag); }
+      if (dItem) drawDadosNaPista(dItem, vis, youTag, dCaixa);
       drawHud(st, order);
-      if (self.finishCam || (self.phase !== 'contagem' && Math.abs(self.simT - tWin) < 0.6)) {
+      if (foto) {
         var bt = 'FOTO DE CHEGADA', bw = tw(bt) + 6, bx2 = Math.round(lay.artW / 2 - bw / 2), by2 = lay.hudH + 3;
         box(bx2, by2, bw, 9, C.sombra, C.ouro);
         text(bt, bx2 + 3, by2 + 2, C.ouro);
       } else if (dItem) {
-        FX.drawDiceBanner(ctx, dItem, L.racers, lay, S, self.simT, reduced(), me, lugarDado.embaixo);
+        FX.drawDiceBanner(ctx, dItem, L.racers, lay, S, self.simT, reduced(), me, lugarDado.embaixo, dCaixa);
       }
-      if (self.phase !== 'contagem') drawSkillsNaPista(vis, youTag, dItem, !!(self.finishCam || Math.abs(self.simT - tWin) < 0.6));
+      if (self.phase !== 'contagem') drawSkillsNaPista(vis, youTag, dItem, dCaixa, foto);
       if (self.phase === 'contagem') {
         var c = Math.ceil(self.count / (reduced() ? 0.4 : 0.8));
         var label = c >= 3 ? '3' : c === 2 ? '2' : c === 1 ? '1' : 'JÁ!';
@@ -4067,7 +4078,7 @@
         faixasJogador.push({ item: it, a: a0, b: fim });
       });
     })();
-    function drawSkillsNaPista(vis, youTag, dItem, topoOcupado) {
+    function drawSkillsNaPista(vis, youTag, dItem, dCaixa, topoOcupado) {
       var S = self.S, lay = self.lay, t = self.simT, k;
       var faixa = null, fx0 = null;
       for (k = 0; k < faixasJogador.length; k++) if (t >= faixasJogador[k].a && t < faixasJogador[k].b) fx0 = faixasJogador[k];
@@ -4076,7 +4087,7 @@
         var bl = FX.skillBannerLayout(ft, lay.artW, S, !!FX.iconImage(skId), tw), fs = bl.fs, fw = bl.w, fh = bl.h;
         var fxx = bl.x, fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
         // com o Dado na pista, logo abaixo da faixa dele
-        if (dItem && !lugarDado.embaixo) { var fd = FX.bannerLayout(dItem, L.racers, lay, me); fyy = Math.max(fyy, fd.y + fd.h + 2); }
+        if (dItem && !lugarDado.embaixo) fyy = Math.max(fyy, dCaixa.y + dCaixa.h + 2);
         var esc0 = (t - fx0.a) / fx0.item.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
         var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
@@ -4095,7 +4106,7 @@
       }
       var obst = [];
       if (faixa) obst.push(faixa);
-      if (dItem) { obst.push(FX.bannerLayout(dItem, L.racers, lay, me, lugarDado.embaixo)); FX._stats.placas.forEach(function (p) { obst.push(p); }); }
+      if (dItem) { obst.push(dCaixa); FX._stats.placas.forEach(function (p) { obst.push(p); }); }
       function bate(a, o) { return a.x < o.x + o.w + 1 && o.x < a.x + a.w + 1 && a.y < o.y + o.h + 1 && o.y < a.y + a.h + 1; }
       if (youTag && !self.voceRect) { var yb2 = youTagBox(youTag); self.voceRect = { x: yb2.x - 1, y: yb2.y - 1, w: yb2.w + 2, h: 11 }; }
       if (self.voceRect) obst.push(self.voceRect);
@@ -4149,8 +4160,8 @@
     // da pista. Uma decisão por Dado, no 1º quadro em que ele fica ativo, e a faixa não muda de lugar até ele acabar.
     // A caixa do cavalo vale para a janela inteira: o sobe-e-desce dele (subida e arco da curva, as mesmas contas do
     // desenho) é medido nos quadros da simulação de t0 a t1, com 1 px de folga (a câmera segue o jogador, então o x
-    // não muda). Se as duas posições cruzarem, fica a que cobre menos (empate: em cima).
-    var lugarDado = { item: null, embaixo: false };
+    // não muda). Se as duas posições cruzarem, fica a que cobre menos (empate: em cima). Um layout novo (girar ou
+    // redimensionar) esquece a decisão e o quadro seguinte decide de novo.
     function decideLugarDado(item, vis) {
       if (lugarDado.item === item) return;
       var lay = self.lay, S = self.S, v = null, k;
@@ -4174,15 +4185,14 @@
       self.lugarDado = { t0: item.t0, embaixo: lugarDado.embaixo, cavalo: c, sobe: [sobeMin, sobeMax] };   // para o teste e o relatório
     }
 
-    // Dado da Sorte sobre cada cavalo visível (fx.js): plaquinha centrada no jóquei, logo acima da caixa
-    // do desenho (molde ou código), arranjada sem sobreposição entre a faixa do Dado e o fim (ou a faixa, quando
-    // ela está no pé) da pista e
-    // desviando da etiqueta "◀VOCÊ" (obstáculo fixo). Depois da revelação, a do vencedor é o dobro (DADO_MAIOR): o
-    // destaque dourado pulsa só sem movimento reduzido (FX.diceState fixa o brilho e o drawDice omite as faíscas)
+    // Dado da Sorte sobre cada cavalo visível (fx.js): plaquinha centrada no jóquei, logo acima da caixa do desenho
+    // (molde ou código), arranjada sem sobreposição entre a faixa do Dado e o pé da pista (com a faixa no pé, entre o
+    // painel e a faixa) e desviando da etiqueta "◀VOCÊ" (obstáculo fixo). faixa = a caixa da faixa no quadro
+    // (bannerLayout). Depois da revelação, a do vencedor é o dobro (DADO_MAIOR): o destaque dourado pulsa só sem
+    // movimento reduzido (FX.diceState fixa o brilho e o drawDice omite as faíscas)
     var DADO_MAIOR = 2;
-    function drawDadosNaPista(item, vis, youTag) {
+    function drawDadosNaPista(item, vis, youTag, faixa) {
       var S = self.S, lay = self.lay, red = reduced(), maior = FX.diceRevealed(item, self.simT, red) ? DADO_MAIOR : 1;
-      var faixa = FX.bannerLayout(item, L.racers, lay, me, lugarDado.embaixo);
       var topo = lugarDado.embaixo ? lay.hudH + 2 : faixa.y + faixa.h + 2, base = lugarDado.embaixo ? faixa.y - 2 : lay.artH;
       var fixos = [];
       if (youTag) { var yb = youTagBox(youTag); fixos.push({ x: yb.x - 1, y: yb.y - 1 - topo, w: yb.w + 2, h: 11 }); }
@@ -4202,12 +4212,13 @@
       });
     }
 
-    // etiquetas de quem está fora da tela: coluna própria, sem se sobrepor, com nº da raia
-    function layoutTags(tags, right) {
+    // etiquetas de quem está fora da tela: coluna própria, sem se sobrepor, com nº da raia; topo (opcional) = a
+    // primeira linha livre abaixo de uma faixa no alto da pista (a do Dado). Anota as caixas em _stats.caixasEtiquetas
+    function layoutTags(tags, right, topo) {
       if (!tags.length) return;
       var S = self.S, lay = self.lay;
       tags.sort(function (a, b) { return a.y - b.y; });
-      var minY = (lay.compact ? lay.hudH + 2 : lay.hudH + 14);
+      var minY = Math.max(lay.compact ? lay.hudH + 2 : lay.hudH + 14, topo || 0);
       var prev = minY - 9;
       tags.forEach(function (t) {
         var y = Math.max(Math.round(t.y / S), prev + 9);
@@ -4217,6 +4228,7 @@
         var w = 7 + tw(t.txt) + 4;
         var bx = right ? lay.artW - w - 1 : 1;
         box(bx, y, w, 8, C.veu);
+        FX._stats.caixasEtiquetas.push({ racer: t.j, x: right ? bx : bx - 1, y: y, w: w + 1, h: 8 });   // com a setinha
         box(bx + 1, y + 1, 5, 6, r.silks);
         text(num, bx + 2, y + 1, digitColor(r.silks));
         text(t.txt, bx + 8, y + 1, C.texto, 1, null, null, true);

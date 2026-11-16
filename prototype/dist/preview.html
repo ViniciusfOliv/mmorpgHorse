@@ -6851,8 +6851,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     quicando; 'mostra': plaquinha com o best (precedido de "↻" se houve desempate) e, depois de um
  *     traço, os outros dados em cinza; borda na cor da raia (cor). Vencedor revelado: plaquinha dourada, halo pulsando com o brilho e
  *     faíscas em volta (omitidas em reduced).
- *   RaceFx.drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me, embaixo) -> caixa (bannerLayout) ou null fora de
- *     [t0, t1). Faixa grande do Dado (spec 3c §6): contorno --sombra, friso --ouro e bisel de 1 pixel de arte; ícone
+ *   RaceFx.drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me, embaixo, caixa) -> caixa (bannerLayout) ou null fora de
+ *     [t0, t1). caixa (opcional) = o bannerLayout já calculado pela tela no quadro (com os mesmos argumentos). Faixa grande do Dado (spec 3c §6): contorno --sombra, friso --ouro e bisel de 1 pixel de arte; ícone
  *     do dado (ui-dado) e do clima (cl-<weather>) em PNG quando no cache. Antes da revelação (diceRevealed falso)
  *     a mesma caixa só com o ícone do dado e "DADO DA SORTE", centrados (escala 2 quando cabe)
  *     (_stats.faixaDadoLinhas = ['DADO DA SORTE']); depois,
@@ -6923,7 +6923,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     borda mais escura. 3 por cavalo, 1 em reduced. A tela não chama na chuva.
  *
  *   RaceFx._stats = { dados, faixaDado, faixaDadoLinhas, faixaDadoCaixa, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
- *                     natureza, ventoHud, minimapa, auras, tipoAuras, tercos }
+ *                     caixasEtiquetas, natureza, ventoHud, minimapa, auras, tipoAuras, tercos }
  *     faixaDado = a faixa grande do Dado foi desenhada no quadro; faixaDadoLinhas = as linhas dela ([] sem faixa);
  *     faixaDadoCaixa = { x, y, w, h } dela em pixels de arte (null sem faixa).
  *     auras = auras de skill de tipo desenhadas no quadro (drawTypeAura; não entram em particulas);
@@ -6934,7 +6934,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     faixaSkill = texto da faixa central desenhada no quadro ('' se não há); caixasBaloes = [{ racer,
  *     kind, tipo, texto, pilha, x, y, w, h, y0, y1 }] dos balões posicionados (tipo = skill de tipo; texto = o nome
  *     curto no balão de texto, '' nos compactos) (pixels de arte; y0..y1 = faixa vertical da
- *     raia) e caixasCavalos = [{ racer, x, y, w, h }] dos cavalos visíveis. A tela anota os três.
+ *     raia) e caixasCavalos = [{ racer, x, y, w, h }] dos cavalos visíveis; caixasEtiquetas = [{ racer, x, y, w, h }] das
+ *     etiquetas de quem está fora da tela (com a setinha). A tela anota os quatro.
  *     Contadores do quadro atual (zerados por beginFrame) para o ui-test: dados desenhados, faixa
  *     visível, balões, partículas, e placas = [{ racer, numero, vencedor, fase }]
  *     (a tela anota o que desenhou). msQuadro = média do tempo de desenho dos últimos 60 quadros
@@ -7507,7 +7508,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   function novaNatureza() {
     return { pingos: 0, respingos: 0, relampago: 0, raios: 0, calor: 0, nevoa: 0, nevoaFrente: 0, sombras: 0, folhas: 0, poeiraCascos: 0 };
   }
-  var stats = { dados: 0, faixaDado: false, faixaDadoLinhas: [], faixaDadoCaixa: null, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [],
+  var stats = { dados: 0, faixaDado: false, faixaDadoLinhas: [], faixaDadoCaixa: null, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [], caixasEtiquetas: [],
     natureza: novaNatureza(), ventoHud: '', minimapa: false, auras: 0, tipoAuras: [], tercos: 0 };
   var JANELA_MS = 60, amostras = [], somaMs = 0, intervalos = [], ultimoQuadro = null;
   // intervalo real entre quadros (mediana e p95 da janela), calculado só quando alguém lê
@@ -7517,7 +7518,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return { med: v[Math.floor(n * 0.5)], p95: v[Math.min(n - 1, Math.floor(n * 0.95))], n: n };
   } });
   function beginFrame() {
-    stats.dados = 0; stats.faixaDado = false; stats.faixaDadoLinhas = []; stats.faixaDadoCaixa = null; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = [];
+    stats.dados = 0; stats.faixaDado = false; stats.faixaDadoLinhas = []; stats.faixaDadoCaixa = null; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = []; stats.caixasEtiquetas = [];
     stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false; stats.auras = 0; stats.tipoAuras = []; stats.tercos = 0;
   }
   function endFrame(ms, agora) {
@@ -7627,10 +7628,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // bisel da faixa do Dado: os mesmos tons do bisel das caixas do HTML (--brilho-08 em cima e à esquerda,
   // --escuro-25 embaixo e à direita) sobre o fundo do painel
   var BISEL_LUZ = mix(COR.painel, '#ffffff', 0.08), BISEL_SOMBRA = mix(COR.painel, '#000000', 0.25);
-  function drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me, embaixo) {
+  function drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me, embaixo, caixa) {
     if (!item || !lay) return null;
     if (diceState(item, simT, reduced, item.winner).fase === 'fim') return null;
-    var B = bannerLayout(item, racers, lay, me, embaixo);
+    var B = caixa || bannerLayout(item, racers, lay, me, embaixo);
     function R(ax, ay, w, h, col) { ctx.fillStyle = col; ctx.fillRect(ax * S, ay * S, w * S, h * S); }
     // parada: nada aqui depende do tempo (nem pisca nem desliza, com ou sem movimento reduzido)
     R(B.x, B.y, B.w, B.h, COR.sombra);
@@ -12260,8 +12261,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     }
 
     // ---- layout: o canvas ocupa a altura que sobra na tela (sem rolagem), escala inteira
+    // lugar da faixa do Dado (decideLugarDado): o Dado da decisão e se a faixa fica no pé da pista
+    var lugarDado = { item: null, embaixo: false };
     function layout() {
       var r = dpr();
+      // a decisão do lugar da faixa do Dado vale para este layout: girar ou redimensionar no meio de um Dado muda artH e
+      // hudH, e o próximo quadro decide de novo
+      lugarDado.item = null;
       var cssW = palco.clientWidth || 360;
       // tela baixa (< 700 px): a faixa de ordem só com a linha dos corredores e a narração com 1 frase em 1 linha
       // (spec 3c §4 e §5: senão, a 360×640, a pista cai no layout compacto)
@@ -12671,24 +12677,30 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         box(yb.x, yb.y, yb.w, 9, C.veu, C.ouro);
         text(yb.txt, yb.x + 2, yb.y + 3, C.ouro);
       }
-      layoutTags(tagsR, true); layoutTags(tagsL, false);
+      // Dado ativo e a caixa da faixa dele, uma vez por quadro: a faixa, as plaquinhas, as etiquetas e os balões usam
+      // a mesma. Com a etiqueta "FOTO DE CHEGADA" na tela, a faixa do Dado não é desenhada
+      var dItem = self.phase === 'contagem' ? null : dadoAtivo(self.simT), dCaixa = null;
+      var foto = self.finishCam || (self.phase !== 'contagem' && Math.abs(self.simT - tWin) < 0.6);
+      if (dItem) { decideLugarDado(dItem, vis); dCaixa = FX.bannerLayout(dItem, L.racers, lay, me, lugarDado.embaixo); }
+      // com a faixa do Dado em cima, as etiquetas de quem está fora da tela ficam abaixo dela
+      var tagsTopo = dCaixa && !foto && !lugarDado.embaixo ? dCaixa.y + dCaixa.h + 2 : null;
+      layoutTags(tagsR, true, tagsTopo); layoutTags(tagsL, false, tagsTopo);
       // natureza, camada da frente (véu, pingos, relâmpago, sol, sombras, folhas) e a névoa da frente
       natO.camada = 'frente';
       FX.drawNature(ctx, natO);
       FX.drawFogFront(ctx, natO);
       if (self.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + (0.55 * self.flash / 0.3).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
-      var dItem = self.phase === 'contagem' ? null : dadoAtivo(self.simT);
       self.voceRect = null;
-      if (dItem) { decideLugarDado(dItem, vis); drawDadosNaPista(dItem, vis, youTag); }
+      if (dItem) drawDadosNaPista(dItem, vis, youTag, dCaixa);
       drawHud(st, order);
-      if (self.finishCam || (self.phase !== 'contagem' && Math.abs(self.simT - tWin) < 0.6)) {
+      if (foto) {
         var bt = 'FOTO DE CHEGADA', bw = tw(bt) + 6, bx2 = Math.round(lay.artW / 2 - bw / 2), by2 = lay.hudH + 3;
         box(bx2, by2, bw, 9, C.sombra, C.ouro);
         text(bt, bx2 + 3, by2 + 2, C.ouro);
       } else if (dItem) {
-        FX.drawDiceBanner(ctx, dItem, L.racers, lay, S, self.simT, reduced(), me, lugarDado.embaixo);
+        FX.drawDiceBanner(ctx, dItem, L.racers, lay, S, self.simT, reduced(), me, lugarDado.embaixo, dCaixa);
       }
-      if (self.phase !== 'contagem') drawSkillsNaPista(vis, youTag, dItem, !!(self.finishCam || Math.abs(self.simT - tWin) < 0.6));
+      if (self.phase !== 'contagem') drawSkillsNaPista(vis, youTag, dItem, dCaixa, foto);
       if (self.phase === 'contagem') {
         var c = Math.ceil(self.count / (reduced() ? 0.4 : 0.8));
         var label = c >= 3 ? '3' : c === 2 ? '2' : c === 1 ? '1' : 'JÁ!';
@@ -12715,7 +12727,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         faixasJogador.push({ item: it, a: a0, b: fim });
       });
     })();
-    function drawSkillsNaPista(vis, youTag, dItem, topoOcupado) {
+    function drawSkillsNaPista(vis, youTag, dItem, dCaixa, topoOcupado) {
       var S = self.S, lay = self.lay, t = self.simT, k;
       var faixa = null, fx0 = null;
       for (k = 0; k < faixasJogador.length; k++) if (t >= faixasJogador[k].a && t < faixasJogador[k].b) fx0 = faixasJogador[k];
@@ -12724,7 +12736,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var bl = FX.skillBannerLayout(ft, lay.artW, S, !!FX.iconImage(skId), tw), fs = bl.fs, fw = bl.w, fh = bl.h;
         var fxx = bl.x, fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
         // com o Dado na pista, logo abaixo da faixa dele
-        if (dItem && !lugarDado.embaixo) { var fd = FX.bannerLayout(dItem, L.racers, lay, me); fyy = Math.max(fyy, fd.y + fd.h + 2); }
+        if (dItem && !lugarDado.embaixo) fyy = Math.max(fyy, dCaixa.y + dCaixa.h + 2);
         var esc0 = (t - fx0.a) / fx0.item.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
         var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
@@ -12743,7 +12755,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       }
       var obst = [];
       if (faixa) obst.push(faixa);
-      if (dItem) { obst.push(FX.bannerLayout(dItem, L.racers, lay, me, lugarDado.embaixo)); FX._stats.placas.forEach(function (p) { obst.push(p); }); }
+      if (dItem) { obst.push(dCaixa); FX._stats.placas.forEach(function (p) { obst.push(p); }); }
       function bate(a, o) { return a.x < o.x + o.w + 1 && o.x < a.x + a.w + 1 && a.y < o.y + o.h + 1 && o.y < a.y + a.h + 1; }
       if (youTag && !self.voceRect) { var yb2 = youTagBox(youTag); self.voceRect = { x: yb2.x - 1, y: yb2.y - 1, w: yb2.w + 2, h: 11 }; }
       if (self.voceRect) obst.push(self.voceRect);
@@ -12797,8 +12809,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     // da pista. Uma decisão por Dado, no 1º quadro em que ele fica ativo, e a faixa não muda de lugar até ele acabar.
     // A caixa do cavalo vale para a janela inteira: o sobe-e-desce dele (subida e arco da curva, as mesmas contas do
     // desenho) é medido nos quadros da simulação de t0 a t1, com 1 px de folga (a câmera segue o jogador, então o x
-    // não muda). Se as duas posições cruzarem, fica a que cobre menos (empate: em cima).
-    var lugarDado = { item: null, embaixo: false };
+    // não muda). Se as duas posições cruzarem, fica a que cobre menos (empate: em cima). Um layout novo (girar ou
+    // redimensionar) esquece a decisão e o quadro seguinte decide de novo.
     function decideLugarDado(item, vis) {
       if (lugarDado.item === item) return;
       var lay = self.lay, S = self.S, v = null, k;
@@ -12822,15 +12834,14 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       self.lugarDado = { t0: item.t0, embaixo: lugarDado.embaixo, cavalo: c, sobe: [sobeMin, sobeMax] };   // para o teste e o relatório
     }
 
-    // Dado da Sorte sobre cada cavalo visível (fx.js): plaquinha centrada no jóquei, logo acima da caixa
-    // do desenho (molde ou código), arranjada sem sobreposição entre a faixa do Dado e o fim (ou a faixa, quando
-    // ela está no pé) da pista e
-    // desviando da etiqueta "◀VOCÊ" (obstáculo fixo). Depois da revelação, a do vencedor é o dobro (DADO_MAIOR): o
-    // destaque dourado pulsa só sem movimento reduzido (FX.diceState fixa o brilho e o drawDice omite as faíscas)
+    // Dado da Sorte sobre cada cavalo visível (fx.js): plaquinha centrada no jóquei, logo acima da caixa do desenho
+    // (molde ou código), arranjada sem sobreposição entre a faixa do Dado e o pé da pista (com a faixa no pé, entre o
+    // painel e a faixa) e desviando da etiqueta "◀VOCÊ" (obstáculo fixo). faixa = a caixa da faixa no quadro
+    // (bannerLayout). Depois da revelação, a do vencedor é o dobro (DADO_MAIOR): o destaque dourado pulsa só sem
+    // movimento reduzido (FX.diceState fixa o brilho e o drawDice omite as faíscas)
     var DADO_MAIOR = 2;
-    function drawDadosNaPista(item, vis, youTag) {
+    function drawDadosNaPista(item, vis, youTag, faixa) {
       var S = self.S, lay = self.lay, red = reduced(), maior = FX.diceRevealed(item, self.simT, red) ? DADO_MAIOR : 1;
-      var faixa = FX.bannerLayout(item, L.racers, lay, me, lugarDado.embaixo);
       var topo = lugarDado.embaixo ? lay.hudH + 2 : faixa.y + faixa.h + 2, base = lugarDado.embaixo ? faixa.y - 2 : lay.artH;
       var fixos = [];
       if (youTag) { var yb = youTagBox(youTag); fixos.push({ x: yb.x - 1, y: yb.y - 1 - topo, w: yb.w + 2, h: 11 }); }
@@ -12850,12 +12861,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       });
     }
 
-    // etiquetas de quem está fora da tela: coluna própria, sem se sobrepor, com nº da raia
-    function layoutTags(tags, right) {
+    // etiquetas de quem está fora da tela: coluna própria, sem se sobrepor, com nº da raia; topo (opcional) = a
+    // primeira linha livre abaixo de uma faixa no alto da pista (a do Dado). Anota as caixas em _stats.caixasEtiquetas
+    function layoutTags(tags, right, topo) {
       if (!tags.length) return;
       var S = self.S, lay = self.lay;
       tags.sort(function (a, b) { return a.y - b.y; });
-      var minY = (lay.compact ? lay.hudH + 2 : lay.hudH + 14);
+      var minY = Math.max(lay.compact ? lay.hudH + 2 : lay.hudH + 14, topo || 0);
       var prev = minY - 9;
       tags.forEach(function (t) {
         var y = Math.max(Math.round(t.y / S), prev + 9);
@@ -12865,6 +12877,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         var w = 7 + tw(t.txt) + 4;
         var bx = right ? lay.artW - w - 1 : 1;
         box(bx, y, w, 8, C.veu);
+        FX._stats.caixasEtiquetas.push({ racer: t.j, x: right ? bx : bx - 1, y: y, w: w + 1, h: 8 });   // com a setinha
         box(bx + 1, y + 1, 5, 6, r.silks);
         text(num, bx + 2, y + 1, digitColor(r.silks));
         text(t.txt, bx + 8, y + 1, C.texto, 1, null, null, true);

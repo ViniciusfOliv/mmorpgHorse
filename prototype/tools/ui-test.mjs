@@ -1491,10 +1491,12 @@ try {
       if (Object.keys(w.alturas).length !== 1) problems.push(`[${label}] Dado: a faixa de ordem mudou de altura antes/durante/depois do Dado: ${JSON.stringify(w.alturas)}`)
     }
     // Ruling 11, quadro a quadro em cada Dado: a caixa da faixa (_stats.faixaDadoCaixa) não cruza a caixa do cavalo do
-    // jogador (s.playerRect, a do "cavalo sempre na tela", em pixels de arte) e não muda de lugar durante o Dado
+    // jogador (s.playerRect, a do "cavalo sempre na tela", em pixels de arte) e não muda de lugar durante o Dado; e
+    // nenhuma etiqueta de quem está fora da tela (_stats.caixasEtiquetas) fica embaixo dela
     const vigiaLugarDado = (pg) => pg.evaluate(() => {
       const s = window.__galope.race._state, FX = window.RaceFx, itens = s.fx.filter((x) => x.kind === 'dado')
-      const w = window.__lugarVigia = { porDado: itens.map((d) => ({ t1: d.t1, quadros: 0, ys: [], cruzou: 0, ex: null })), maxT: 0 }
+      const w = window.__lugarVigia = { porDado: itens.map((d) => ({ t1: d.t1, quadros: 0, ys: [], cruzou: 0, ex: null, comEtiqueta: 0, etiquetaCruzou: 0, exEtiqueta: null })), maxT: 0 }
+      const cruza = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
       const tick = () => {
         if (!window.__galope.race) return
         const t = s.simT, q = s.phase === 'contagem' ? -1 : itens.findIndex((d) => t >= d.t0 && t < d.t1)
@@ -1504,7 +1506,11 @@ try {
           const P = w.porDado[q], S = s.S, eu = { x: p.x / S, y: p.y / S, w: p.w / S, h: p.h / S }
           P.quadros++
           if (!P.ys.includes(c.y)) P.ys.push(c.y)
-          if (c.x < eu.x + eu.w && eu.x < c.x + c.w && c.y < eu.y + eu.h && eu.y < c.y + c.h) { P.cruzou++; if (!P.ex) P.ex = { t, faixa: c, cavalo: eu } }
+          if (cruza(c, eu)) { P.cruzou++; if (!P.ex) P.ex = { t, faixa: c, cavalo: eu } }
+          const tags = FX._stats.caixasEtiquetas
+          if (tags.length) P.comEtiqueta++
+          const t2 = tags.find((e) => cruza(e, c))
+          if (t2) { P.etiquetaCruzou++; if (!P.exEtiqueta) P.exEtiqueta = { t, faixa: c, etiqueta: t2 } }
         }
         requestAnimationFrame(tick)
       }
@@ -1515,12 +1521,13 @@ try {
       const ult = await pg.evaluate(() => { const p = window.__lugarVigia.porDado; return p.length ? p[p.length - 1].t1 : 0 })
       await pg.waitForFunction((t1) => window.__lugarVigia.maxT >= t1 + 0.5, ult, { timeout: 90000, polling: 'raf' })
       const r = await pg.evaluate(() => ({ w: window.__lugarVigia, hudH: window.__galope.race._state.lay.hudH, artH: window.__galope.race._state.lay.artH }))
-      notes[label + '-lugar-dado'] = r.w.porDado.map((p) => ({ quadros: p.quadros, ys: p.ys, cruzou: p.cruzou }))
+      notes[label + '-lugar-dado'] = r.w.porDado.map((p) => ({ quadros: p.quadros, ys: p.ys, cruzou: p.cruzou, comEtiqueta: p.comEtiqueta, etiquetaCruzou: p.etiquetaCruzou }))
       if (r.w.porDado.length < 2) problems.push(`[${label}] Ruling 11: ${r.w.porDado.length} Dados na corrida (esperado 2)`)
       r.w.porDado.forEach((p, q) => {
         if (p.quadros < 10) problems.push(`[${label}] Ruling 11: Dado ${q + 1} com só ${p.quadros} quadros amostrados`)
         if (p.ys.length !== 1) problems.push(`[${label}] Ruling 11: a faixa do Dado ${q + 1} mudou de lugar durante o Dado: y ${p.ys}`)
         if (p.cruzou) problems.push(`[${label}] Ruling 11: a faixa do Dado ${q + 1} cruzou o cavalo do jogador em ${p.cruzou} quadros, ex.: ${JSON.stringify(p.ex)}`)
+        if (p.etiquetaCruzou) problems.push(`[${label}] a faixa do Dado ${q + 1} cobriu uma etiqueta de quem está fora da tela em ${p.etiquetaCruzou} quadros, ex.: ${JSON.stringify(p.exEtiqueta)}`)
         const y = p.ys[0], esp = embaixo ? 'no pé da pista' : 'logo abaixo do painel'
         if (y !== undefined && (embaixo ? y < r.artH / 2 : y !== r.hudH + 2)) problems.push(`[${label}] Ruling 11: faixa do Dado ${q + 1} em y ${y} (esperado ${esp}; hudH ${r.hudH}, artH ${r.artH})`)
       })
@@ -1811,6 +1818,89 @@ try {
         } finally {
           await pg.context().close()
         }
+      }
+    }
+
+    // girar ou redimensionar no meio de um Dado refaz a decisão do lugar da faixa: na seed 9 (jogador na raia 2), o 1º Dado
+    // decide em cima a 360x780 e, a 360x640, a faixa em cima cruzaria o cavalo dele; depois do novo layout, nenhum quadro
+    // do Dado tem a faixa sobre o cavalo do jogador
+    {
+      const label = 'corrida-lugar-dado-redimensiona'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
+      try {
+        await abreCorrida(pg, label, 9)
+        // o 1º Dado já decidido, no começo da janela dele
+        const antes = await (await pg.waitForFunction(() => {
+          const s = window.__galope.race._state, d = s.fx.find((x) => x.kind === 'dado')
+          return s.lugarDado && s.lugarDado.t0 === d.t0 && s.simT >= d.t0 ? { t0: d.t0, t1: d.t1, simT: s.simT, embaixo: s.lugarDado.embaixo, artH: s.lay.artH } : false
+        }, null, { timeout: 90000, polling: 'raf' })).jsonValue()
+        if (antes.embaixo !== false || antes.simT > antes.t0 + 0.3 * (antes.t1 - antes.t0)) problems.push(`[${label}] a 360x780 o 1º Dado devia decidir em cima, logo no começo: ${JSON.stringify(antes)}`)
+        // vigia os quadros do Dado depois do layout novo (artH diferente do de antes)
+        await pg.evaluate((a) => {
+          const s = window.__galope.race._state, FX = window.RaceFx
+          const w = window.__rzDado = { quadros: 0, cruzou: 0, ex: null, fim: false, embaixo: null }
+          const tick = () => {
+            if (!window.__galope.race || s.simT >= a.t1) { w.fim = true; return }
+            const c = FX._stats.faixaDadoCaixa, p = s.playerRect
+            if (s.lay.artH !== a.artH && c && p && !s.finishCam) {
+              const S = s.S, eu = { x: p.x / S, y: p.y / S, w: p.w / S, h: p.h / S }
+              w.quadros++; w.embaixo = s.lugarDado.embaixo
+              if (c.x < eu.x + eu.w && eu.x < c.x + c.w && c.y < eu.y + eu.h && eu.y < c.y + c.h) { w.cruzou++; if (!w.ex) w.ex = { t: s.simT, faixa: c, cavalo: eu } }
+            }
+            requestAnimationFrame(tick)
+          }
+          requestAnimationFrame(tick)
+        }, antes)
+        await pg.setViewportSize({ width: 360, height: 640 })
+        await pg.waitForFunction(() => window.__rzDado.fim, null, { timeout: 30000, polling: 'raf' })
+        const w = await pg.evaluate(() => window.__rzDado)
+        notes[label] = { antes, depois: w }
+        if (w.quadros < 5) problems.push(`[${label}] só ${w.quadros} quadros do Dado depois do layout novo`)
+        if (w.cruzou) problems.push(`[${label}] depois de redimensionar no meio do Dado, a faixa cruzou o cavalo do jogador em ${w.cruzou} quadros, ex.: ${JSON.stringify(w.ex)}`)
+        await checkRaceFits(pg, label)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // a faixa do Dado em cima não cobre as etiquetas de quem está fora da tela. No Dado o pelotão anda junto (ninguém fica
+    // fora da câmera), então o teste afasta os rivais das raias 1 e 2 (150 m à frente e atrás, nos quadros da simulação
+    // em volta do Dado, que só o desenho lê) e desenha à mão a janela do 1º Dado a 360x640, onde a etiqueta da raia 1
+    // cairia embaixo da faixa
+    {
+      const label = 'corrida-etiquetas-dado'
+      const pg = await newPage(browser, { width: 360, height: 640 }, label, { query: '?dev=1' })
+      try {
+        await abreCorrida(pg, label, SEED7)
+        await pg.waitForFunction(() => window.__galope.race && window.__galope.race._state.phase === 'corrida', null, { timeout: 20000 })
+        const r = await pg.evaluate(() => {
+          const rv = window.__galope.race, s = rv._state, L = window.__galope.ui.lobby, FX = window.RaceFx, desenha = rv.frame
+          rv.frame = function () {}
+          const d = s.fx.find((x) => x.kind === 'dado'), me = L.playerIdx, longe = [0, 1].filter((j) => j !== me)
+          L.sim.frames.forEach((f) => { if (f.t > d.t0 - 2 && f.t < d.t1 + 2) longe.forEach((j, k) => { f.pos[j] = f.pos[me] + (k ? -150 : 150) }) })
+          const cruza = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+          const w = { quadros: 0, comEtiqueta: 0, cruzou: 0, ex: null, embaixo: null }
+          for (let T = d.t0; T < d.t1; T += 0.1) {
+            s.phase = 'corrida'; s.simT = T; s.last = 0; s.mult = 1; s.flash = 0
+            desenha(performance.now())
+            const c = FX._stats.faixaDadoCaixa, tags = FX._stats.caixasEtiquetas
+            if (!c) continue
+            w.quadros++; w.embaixo = s.lugarDado.embaixo
+            if (tags.length >= longe.length) w.comEtiqueta++
+            const t2 = tags.find((e) => cruza(e, c))
+            if (t2) { w.cruzou++; if (!w.ex) w.ex = { T, faixa: c, etiqueta: t2 } }
+          }
+          rv.frame = desenha
+          return w
+        })
+        notes[label] = r
+        if (r.embaixo !== false || r.quadros < 20 || r.comEtiqueta < r.quadros) problems.push(`[${label}] o teste não desenhou a faixa do Dado em cima com as etiquetas dos rivais afastados: ${JSON.stringify(r)}`)
+        if (r.cruzou) problems.push(`[${label}] a faixa do Dado em cima cobriu uma etiqueta de quem está fora da tela em ${r.cruzou} quadros, ex.: ${JSON.stringify(r.ex)}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
       }
     }
 

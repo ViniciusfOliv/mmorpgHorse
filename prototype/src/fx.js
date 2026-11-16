@@ -138,8 +138,8 @@
  *     quicando; 'mostra': plaquinha com o best (precedido de "↻" se houve desempate) e, depois de um
  *     traço, os outros dados em cinza; borda na cor da raia (cor). Vencedor revelado: plaquinha dourada, halo pulsando com o brilho e
  *     faíscas em volta (omitidas em reduced).
- *   RaceFx.drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me, embaixo) -> caixa (bannerLayout) ou null fora de
- *     [t0, t1). Faixa grande do Dado (spec 3c §6): contorno --sombra, friso --ouro e bisel de 1 pixel de arte; ícone
+ *   RaceFx.drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me, embaixo, caixa) -> caixa (bannerLayout) ou null fora de
+ *     [t0, t1). caixa (opcional) = o bannerLayout já calculado pela tela no quadro (com os mesmos argumentos). Faixa grande do Dado (spec 3c §6): contorno --sombra, friso --ouro e bisel de 1 pixel de arte; ícone
  *     do dado (ui-dado) e do clima (cl-<weather>) em PNG quando no cache. Antes da revelação (diceRevealed falso)
  *     a mesma caixa só com o ícone do dado e "DADO DA SORTE", centrados (escala 2 quando cabe)
  *     (_stats.faixaDadoLinhas = ['DADO DA SORTE']); depois,
@@ -210,7 +210,7 @@
  *     borda mais escura. 3 por cavalo, 1 em reduced. A tela não chama na chuva.
  *
  *   RaceFx._stats = { dados, faixaDado, faixaDadoLinhas, faixaDadoCaixa, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
- *                     natureza, ventoHud, minimapa, auras, tipoAuras, tercos }
+ *                     caixasEtiquetas, natureza, ventoHud, minimapa, auras, tipoAuras, tercos }
  *     faixaDado = a faixa grande do Dado foi desenhada no quadro; faixaDadoLinhas = as linhas dela ([] sem faixa);
  *     faixaDadoCaixa = { x, y, w, h } dela em pixels de arte (null sem faixa).
  *     auras = auras de skill de tipo desenhadas no quadro (drawTypeAura; não entram em particulas);
@@ -221,7 +221,8 @@
  *     faixaSkill = texto da faixa central desenhada no quadro ('' se não há); caixasBaloes = [{ racer,
  *     kind, tipo, texto, pilha, x, y, w, h, y0, y1 }] dos balões posicionados (tipo = skill de tipo; texto = o nome
  *     curto no balão de texto, '' nos compactos) (pixels de arte; y0..y1 = faixa vertical da
- *     raia) e caixasCavalos = [{ racer, x, y, w, h }] dos cavalos visíveis. A tela anota os três.
+ *     raia) e caixasCavalos = [{ racer, x, y, w, h }] dos cavalos visíveis; caixasEtiquetas = [{ racer, x, y, w, h }] das
+ *     etiquetas de quem está fora da tela (com a setinha). A tela anota os quatro.
  *     Contadores do quadro atual (zerados por beginFrame) para o ui-test: dados desenhados, faixa
  *     visível, balões, partículas, e placas = [{ racer, numero, vencedor, fase }]
  *     (a tela anota o que desenhou). msQuadro = média do tempo de desenho dos últimos 60 quadros
@@ -794,7 +795,7 @@
   function novaNatureza() {
     return { pingos: 0, respingos: 0, relampago: 0, raios: 0, calor: 0, nevoa: 0, nevoaFrente: 0, sombras: 0, folhas: 0, poeiraCascos: 0 };
   }
-  var stats = { dados: 0, faixaDado: false, faixaDadoLinhas: [], faixaDadoCaixa: null, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [],
+  var stats = { dados: 0, faixaDado: false, faixaDadoLinhas: [], faixaDadoCaixa: null, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [], caixasEtiquetas: [],
     natureza: novaNatureza(), ventoHud: '', minimapa: false, auras: 0, tipoAuras: [], tercos: 0 };
   var JANELA_MS = 60, amostras = [], somaMs = 0, intervalos = [], ultimoQuadro = null;
   // intervalo real entre quadros (mediana e p95 da janela), calculado só quando alguém lê
@@ -804,7 +805,7 @@
     return { med: v[Math.floor(n * 0.5)], p95: v[Math.min(n - 1, Math.floor(n * 0.95))], n: n };
   } });
   function beginFrame() {
-    stats.dados = 0; stats.faixaDado = false; stats.faixaDadoLinhas = []; stats.faixaDadoCaixa = null; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = [];
+    stats.dados = 0; stats.faixaDado = false; stats.faixaDadoLinhas = []; stats.faixaDadoCaixa = null; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = []; stats.caixasEtiquetas = [];
     stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false; stats.auras = 0; stats.tipoAuras = []; stats.tercos = 0;
   }
   function endFrame(ms, agora) {
@@ -914,10 +915,10 @@
   // bisel da faixa do Dado: os mesmos tons do bisel das caixas do HTML (--brilho-08 em cima e à esquerda,
   // --escuro-25 embaixo e à direita) sobre o fundo do painel
   var BISEL_LUZ = mix(COR.painel, '#ffffff', 0.08), BISEL_SOMBRA = mix(COR.painel, '#000000', 0.25);
-  function drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me, embaixo) {
+  function drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me, embaixo, caixa) {
     if (!item || !lay) return null;
     if (diceState(item, simT, reduced, item.winner).fase === 'fim') return null;
-    var B = bannerLayout(item, racers, lay, me, embaixo);
+    var B = caixa || bannerLayout(item, racers, lay, me, embaixo);
     function R(ax, ay, w, h, col) { ctx.fillStyle = col; ctx.fillRect(ax * S, ay * S, w * S, h * S); }
     // parada: nada aqui depende do tempo (nem pisca nem desliza, com ou sem movimento reduzido)
     R(B.x, B.y, B.w, B.h, COR.sombra);
