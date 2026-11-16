@@ -255,6 +255,12 @@ do Vinicius, antes de ele jogar; a lista de gosto abaixo continua aberta.
   e a zebra.
 - **Arte:** crina própria de cada estilo no galope (6 a 10 gerações); retrato, largada e pódio sem
   respiração nem piscar.
+- **Galope mais intenso (pedido do Vinicius em 2026-11-16, depois de jogar a parte 3):** a corrida às vezes parece
+  trote, e não esforço para vencer. Hoje cada molde tem 9 quadros de galope (`galope-0..8`) e a cadência segue a
+  velocidade (`self.gallop` em `prototype/src/game.js`: 13 × velocidade / 17 por segundo, ×1,3 em x2, até 35% na câmera
+  lenta). Dois caminhos, ainda sem desenho nem decisão dele: sem créditos, em código (cadência mais alta e ligada ao
+  esforço, balanço do corpo, mais poeira e risco de velocidade na reta final); com créditos, na 2c (quadros novos com a
+  passada toda estendida e a fase no ar). Medir a duração real de um ciclo antes de mexer.
 - **Antes do próximo aumento de versão do save:** pôr uma guarda para save de versão maior que a do
   código (não adotar nem gravar por cima, e avisar para atualizar a página).
 - **Pendências menores:** `docs/memoria/bugs.md`.
@@ -266,7 +272,8 @@ do Vinicius, antes de ele jogar; a lista de gosto abaixo continua aberta.
    "(gosto, 3c)" (acima); o que ele mudar entra como ajuste por cima da `main`.
 1. O Vinicius joga o modelo novo no artefato (jogo, DEV e wiki, com o que está na `main`) e decide os
    pontos de calibração acima; o que ele mudar entra como ajuste por cima da `main`.
-2. **2c (animações novas para todos os portes)** da Visuais 2: espera a confirmação de créditos do Vinicius.
+2. **2c (animações novas para todos os portes)** da Visuais 2: espera a confirmação de créditos do Vinicius. Leva o
+   pedido dele de 2026-11-16: o galope tem de parecer esforço para vencer, não trote ("O que falta", acima).
 3. O Vinicius apaga as branches antigas no GitHub (lista abaixo).
 4. **Bloco 2, preparação com relógio:** spec, revisão do Vinicius, plano e execução.
 5. **Bloco 3, empacotamento:** retomar pela pergunta do Capacitor; o teste fechado começa aqui. Os ginásios
