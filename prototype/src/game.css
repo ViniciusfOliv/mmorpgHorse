@@ -126,6 +126,8 @@ canvas { image-rendering: crisp-edges; image-rendering: pixelated; display: bloc
 .tela { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .tela--larga { max-width: 1120px; }
 .tela-cabeca { display: flex; flex-direction: column; gap: 6px; }
+/* tela de bloqueio (save de versão mais nova): só o texto e o Recarregar; o espaço é o gap da caixa */
+.tela--bloqueio p { margin: 0; }
 
 h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .logo {

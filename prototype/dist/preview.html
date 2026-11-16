@@ -153,6 +153,8 @@ canvas { image-rendering: crisp-edges; image-rendering: pixelated; display: bloc
 .tela { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .tela--larga { max-width: 1120px; }
 .tela-cabeca { display: flex; flex-direction: column; gap: 6px; }
+/* tela de bloqueio (save de versão mais nova): só o texto e o Recarregar; o espaço é o gap da caixa */
+.tela--bloqueio p { margin: 0; }
 
 h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .logo {
@@ -9031,11 +9033,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
-  if (!GD || !RS || !SP || !GR || !FX || !telaEl) {
-    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, sprites.js ou fx.js).';
+  if (!GD || !RS || !SP || !GR || !FX || !IT || !telaEl) {
+    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, itens.js, sprites.js ou fx.js).';
     return;
   }
   // Modo DEV: decidido uma vez, na carga. O código DEV fica entre marcadores de bloco "@dev" (e o gancho de
@@ -9453,13 +9455,14 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (!raw) return null;
     try { return JSON.parse(raw); } catch (e2) { guardaCorrompido(raw); return null; }
   }
-  function storedRev() {
+  // O save guardado: { rev, novo } (novo: é de uma versão mais nova que a deste código, saveMaisNovo).
+  function storedInfo() {
     try {
       var raw = window.localStorage.getItem(SAVE_KEY);
-      if (!raw) return -1;
+      if (!raw) return { rev: -1, novo: false };
       var s = JSON.parse(raw);
-      return s && isFinite(s.rev) ? Number(s.rev) : 0;
-    } catch (e) { return -1; }
+      return { rev: s && isFinite(s.rev) ? Number(s.rev) : 0, novo: saveMaisNovo(s) };
+    } catch (e) { return { rev: -1, novo: false }; }
   }
   // Há armazenamento? Sem ele (iframe sem localStorage, acesso bloqueado) o jogo roda só em memória e
   // persist() não tem o que gravar. Com ele, uma gravação que lança (cota cheia) é uma FALHA: quem gasta
@@ -9469,12 +9472,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   })();
   // Grava o state. Devolve true se gravou (ou se não há armazenamento: tudo segue em memória) e false se a
   // gravação falhou ou se outra aba tinha gravado depois (aí o state já é o adotado: quem chama compara).
+  // Save guardado de versão mais nova (qualquer revisão): não grava por cima; o jogo passa à tela de bloqueio
+  // (o state vira null: quem chama compara com o de antes e para).
   function persist() {
-    if (!state) return true;
+    if (!state || saveBloqueado) return !saveBloqueado;
     /*@dev:inicio*/
     if (DEV_MODE && ui.dev.ouroInf) DV.refillGold(state);   // Ouro infinito do perfil DEV: repõe depois de cada gasto
     /*@dev:fim*/
-    var sr = storedRev();
+    var guardado = storedInfo(), sr = guardado.rev;
+    if (guardado.novo) { bloqueiaSaveNovo(); return false; }
     if (sr > state.rev) { adoptExternal(loadSave()); return false; }   // outra aba gravou depois: não sobrescreve
     state.rev = Math.max(state.rev, sr) + 1;
     if (!STORAGE_OK) return true;
@@ -9492,8 +9498,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     state = antes;
     return 'falhou';
   }
+  // Apaga o save ("Recomeçar", "Zerar perfil de teste"). Se o guardado é de versão mais nova, não apaga: vai à tela de
+  // bloqueio e devolve false (quem chama para).
   function wipeSave() {
+    if (storedInfo().novo) { bloqueiaSaveNovo(); return false; }
     try { window.localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignora */ }
+    return true;
   }
   // Opção "Animações" enquanto não há save (de "Recomeçar" até escolher o inicial): numa chave própria,
   // para não se perder se a aba fechar na tela de escolha. Só existe nesse intervalo.
@@ -9547,9 +9557,23 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // seed, entrada e treino), com o retrato dos pontos zerado e o Poder pela R16. state.avisoV6 = true marca o aviso
   // da migração ainda não mostrado: o Estábulo o mostra uma vez na abertura (start) e grava false.
   // Campos novos da v6: respecFree só booleano (padrão true); redeas inteiro 0–999 (fora disso, 0); avisoV6 booleano.
-  var SAVE_VERSION = 6;
+  // v6 -> v7 (itens, loja e diária; spec 2026-11-16-itens-loja-diaria §10), em sanitize e gravado logo ao abrir: tudo novo
+  // começa zerado, com a diária no dia 1 para resgatar; nada do save antigo muda. Campos novos da v7 (inteiro fora da
+  // faixa, fração, texto, null ou objeto voltam ao padrão):
+  //   state.mochila = { torrao, estrela, cupom, manual }: 0 a GameData.BAG_MAX (a Rédea nova fica em state.redeas);
+  //   state.diaria = { prox: 0–6, ciclos: ≥ 0, ultimo: dia do último resgate | null } (ultimo corrompido, nem dia nem
+  //     null, vale hojeDia(): na dúvida, já resgatado hoje; Itens.diariaEstado faz o mesmo);
+  //   state.lojaItens = { dia: dia | null, comprados: { torrao, manual, cupom } (0 ao limite do dia), estrelaDia: dia | null };
+  //   state.itemCounter: usos sorteados (Cupom, Manual), inteiro ≥ 0; mount.torroes: 0 ao teto do Torrão;
+  //   o deslocamento de dias da gaveta DEV: −400 a 400, só no save de teste (no jogo real o campo não existe; o nome
+  //   fica nos blocos DEV, e o build.mjs falha se ele aparecer no jogo de produção).
+  // Save de versão MAIOR que SAVE_VERSION (saveMaisNovo) nunca é adotado nem gravado por cima: tela de bloqueio.
+  var SAVE_VERSION = 7;
   var AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.';
   var REDEAS_MAX = 999;
+  var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual
+  var LOJA_LIMITADOS = ['torrao', 'manual', 'cupom'];   // os que têm limite por dia (perDay)
+  var DIA_MAX = IT.diaLocal(9999, 11, 31);   // dia guardado no save: inteiro de 0 a este
   var BR = E.breeding;
   var MAX_LEVEL = E.maxLevel || 50;
 
@@ -9569,6 +9593,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       potential: clone(tpl.potential),
       alloc: zeroAlloc(),
       respecFree: true,   // a primeira redistribuição dos pontos é grátis (bloco 1b §9)
+      torroes: 0,         // Torrões de açúcar usados (o potro nasce com 0)
       palette: tpl.palette ? clone(tpl.palette) : null,
       marcas: marcasDe(tpl.marcas, null, uid),
       porte: BRD.porteDe(tpl.porte, null, uid),   // o do modelo (todo modelo, do catálogo ou do painel DEV, tem um)
@@ -9629,9 +9654,16 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       enhanceCounter: 0,
       redeas: 0,          // Rédeas novas (bloco 1b §9): só a gaveta DEV dá, por enquanto
       avisoV6: false,     // aviso da migração v5 -> v6 ainda por mostrar (só em save migrado)
+      mochila: mochilaVazia(),
+      diaria: { prox: 0, ciclos: 0, ultimo: null },   // save novo: o dia 1 para resgatar
+      lojaItens: lojaItensVazia(),
+      itemCounter: 0,
       settings: { motion: 'sistema' },
       joquei: joqueiInicial()
     };
+    /*@dev:inicio*/
+    if (DEV_MODE) st.devDias = 0;   // deslocamento de dias da gaveta DEV: só no save de teste
+    /*@dev:fim*/
     // equipamento inicial (+0) já equipado no inicial
     GE.startGear.forEach(function (id) {
       if (!hasOwn(GD.GEAR, id)) return;
@@ -9639,6 +9671,17 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       st.mounts[0].equip[GD.GEAR[id].slot] = it.uid;
     });
     return st;
+  }
+
+  function mochilaVazia() {
+    var mo = {};
+    MOCHILA_IDS.forEach(function (id) { mo[id] = 0; });
+    return mo;
+  }
+  function lojaItensVazia() {
+    var c = {};
+    LOJA_LIMITADOS.forEach(function (id) { c[id] = 0; });
+    return { dia: null, comprados: c, estrelaDia: null };
   }
 
   // Itens do save v1–v3 -> peça do catálogo novo (spec §11). null: sem peça (rapadura vira 3 Pedras Negras).
@@ -9657,6 +9700,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   var OLD_RAPADURA_PEDRAS = 3;
 
   function num(v, d, lo, hi) { v = Number(v); return isFinite(v) ? clamp(Math.floor(v), lo, hi) : d; }
+  // inteiro de lo a hi, como está; qualquer outra coisa (fora da faixa, fração, texto, null, objeto) vale d
+  function inteiroOu(v, d, lo, hi) { return typeof v === 'number' && v === Math.floor(v) && v >= lo && v <= hi ? v : d; }
+  function objetoOu(o) { return o && typeof o === 'object' && !Array.isArray(o) ? o : null; }
   function hasOwn(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
 
   // Status das 7 chaves, todos finitos; senão null (a montaria é descartada).
@@ -9703,8 +9749,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 
   // Uma montaria do save v3+: tipos e faixas; campo essencial ausente ou genética inválida -> null.
   // seedBase: a seed do save (converte o Neutro); v6: o save já é v6 (antes dele, os pontos vêm zerados, todos
-  // devolvidos, e a redistribuição grátis volta). Modelo fora do catálogo: a montaria fica, sem modelo.
-  function sanitizeMount(m, seedBase, v6) {
+  // devolvidos, e a redistribuição grátis volta); v7: já é v7 (antes dele, sem torrões). Modelo fora do catálogo:
+  // a montaria fica, sem modelo.
+  function sanitizeMount(m, seedBase, v6, v7) {
     if (!m || typeof m !== 'object') return null;
     if (typeof m.uid !== 'string' || !/^m\d{1,9}$/.test(m.uid)) return null;
     var element = m.element === 'neutro' ? neutroParaTipo(seedBase, m.uid) : m.element;
@@ -9735,6 +9782,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       alloc: null,
       // só booleano; ausente ou lixo (e todo save de antes da v6): true
       respecFree: v6 && typeof m.respecFree === 'boolean' ? m.respecFree : true,
+      torroes: v7 ? inteiroOu(m.torroes, 0, 0, GD.ITEMS.torrao.cap) : 0,   // antes do alloc: os torrões entram nos pontos
       palette: validPalette(m.palette),
       marcas: marcasDe(m.marcas, templateId, m.uid),   // sem versão nova: ausentes ou inválidas, as calculadas
       porte: BRD.porteDe(m.porte, templateId, m.uid),  // idem: ausente ou inválido, o do modelo ou o do uid
@@ -9753,7 +9801,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (!s || typeof s !== 'object') return null;
     var mounts, activeId, nextUid, stableSlots, breedCounter;
     var start = BR.stableSlotsStart, max = BR.stableSlotsMax;
-    var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4, v6 = Number(s.v) >= SAVE_VERSION;
+    var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4, v6 = Number(s.v) >= 6, v7 = Number(s.v) >= 7;
     var seedBase = num(s.seedBase, null, 0, 4294967295);
     if (seedBase == null) seedBase = freshSeedBase(0);
     var rawEquip = {};   // uid da montaria -> equip cru do save (validado depois das peças)
@@ -9771,7 +9819,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       mounts = [];
       var seen = {}, maxUid = 0;
       (Array.isArray(s.mounts) ? s.mounts : []).forEach(function (raw) {
-        var m = sanitizeMount(raw, seedBase, v6);
+        var m = sanitizeMount(raw, seedBase, v6, v7);
         if (!m || seen[m.uid]) return;
         seen[m.uid] = true;
         mounts.push(m);
@@ -9816,6 +9864,25 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var rd = s.redeas;
     base.redeas = v6 && typeof rd === 'number' && rd === Math.floor(rd) && rd >= 0 && rd <= REDEAS_MAX ? rd : 0;
     base.avisoV6 = v6 ? s.avisoV6 === true : true;
+    // Itens, loja e diária (v7): save de antes da v7 fica com o padrão do newState (tudo zerado, o dia 1 para resgatar)
+    /*@dev:inicio*/
+    if (DEV_MODE) base.devDias = inteiroOu(s.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX);
+    /*@dev:fim*/
+    if (v7) {
+      var mch = objetoOu(s.mochila) || {}, di = objetoOu(s.diaria), lj = objetoOu(s.lojaItens) || {}, cp = objetoOu(lj.comprados) || {};
+      MOCHILA_IDS.forEach(function (id) { base.mochila[id] = inteiroOu(mch[id], 0, 0, GD.BAG_MAX); });
+      if (di) {
+        base.diaria = {
+          prox: inteiroOu(di.prox, 0, 0, GD.DAILY.dias.length - 1),
+          ciclos: inteiroOu(di.ciclos, 0, 0, 1e9),
+          ultimo: di.ultimo === null ? null : inteiroOu(di.ultimo, hojeDia(base), 0, DIA_MAX)
+        };
+      }
+      LOJA_LIMITADOS.forEach(function (id) { base.lojaItens.comprados[id] = inteiroOu(cp[id], 0, 0, GD.ITEMS[id].perDay); });
+      base.lojaItens.dia = inteiroOu(lj.dia, null, 0, DIA_MAX);
+      base.lojaItens.estrelaDia = inteiroOu(lj.estrelaDia, null, 0, DIA_MAX);
+      base.itemCounter = inteiroOu(s.itemCounter, 0, 0, 1e9);
+    }
     // Poder da sala (R16) = o maior entre o Poder do retrato dos pontos de quando a sala abriu (pending.alloc, tirado
     // em openLobby) e o Poder com que a ativa corre agora. Nem mais (liberaria pontos acima do que a sala viu) nem
     // menos (os rivais sairiam mais fracos). O equipamento não entra (spec 1b §8): o retrato dele (pending.gear) fica
@@ -10014,8 +10081,49 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   var raceView = null;
   var portraitQueue = [];
 
-  // Outra aba gravou um save mais novo: adota e volta para um ponto seguro.
+  // ===========================================================================
+  // O dia (spec de itens §9) e o save de versão mais nova (§10)
+  // ===========================================================================
+  // O dia do jogo: a data local do aparelho em dias inteiros (Itens.diaLocal; o mês do Date vai de 0 a 11). É o
+  // ÚNICO lugar do jogo que lê o relógio para as regras (diária e limites da loja). No modo DEV soma o deslocamento
+  // da gaveta (guardado só no save de teste); o jogo de produção sai sem ele (build.mjs proíbe o nome do campo). st: o
+  // save do deslocamento (padrão: o state).
+  function hojeDia(st) {
+    var d = new Date(), dia = IT.diaLocal(d.getFullYear(), d.getMonth(), d.getDate());
+    /*@dev:inicio*/
+    st = st || state;
+    if (DEV_MODE && st) dia += inteiroOu(st.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX);
+    /*@dev:fim*/
+    return dia;
+  }
+  // Save gravado por uma versão mais nova do jogo: só quando v é número maior que SAVE_VERSION (v ausente ou lixo
+  // segue o caminho de sempre do sanitize).
+  function saveMaisNovo(s) {
+    return !!s && typeof s === 'object' && typeof s.v === 'number' && Number(s.v) > SAVE_VERSION;
+  }
+  // Achou um save mais novo (na leitura ao abrir, no evento de outra aba, no estado do hot ou ao gravar): o jogo
+  // larga o state (nada mais grava: persist() sai sem tocar na chave) e mostra só a tela de bloqueio, com o
+  // "Recarregar". Não há volta sem recarregar a página.
+  var saveBloqueado = false;
+  // naCarga: chamado no start(), antes do primeiro desenho (o start desenha).
+  function bloqueiaSaveNovo(naCarga) {
+    saveBloqueado = true;
+    state = null; ui.lobby = null; ui.result = null; ui.notice = null; ui.montaria = null; ui.devNext = null;
+    if (naCarga) ui.screen = 'bloqueio';
+    else go('bloqueio');
+  }
+  function renderBloqueio() {
+    return '<section class="tela tela--bloqueio" aria-labelledby="t-bloqueio">' +
+      '<div class="caixa"><h1 class="titulo" id="t-bloqueio" tabindex="-1" data-foco>Save de uma versão mais nova</h1>' +
+      '<p>O seu progresso foi salvo por uma versão mais nova do Galope Elemental. Esta página é de uma versão anterior e não vai abrir nem mudar esse save.</p>' +
+      '<p>Atualize a página para jogar na versão nova. Nada foi apagado.</p>' +
+      '<button type="button" class="btn btn--ouro btn--grande" data-acao="recarregar">Recarregar</button></div></section>';
+  }
+
+  // Outra aba gravou um save mais novo: adota e volta para um ponto seguro. Save de versão mais nova: bloqueio.
   function adoptExternal(raw) {
+    if (saveBloqueado) return;
+    if (saveMaisNovo(raw)) { bloqueiaSaveNovo(); return; }
     var s = sanitize(raw);
     if (!s && devHooks) s = devHooks.novoPerfil();   // perfil DEV apagado em outra aba: nasce de novo com a Brasa
     if (!s) {
@@ -10301,7 +10409,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ===========================================================================
   // Tipos de tela: 'aba' (raiz, com cabeçalho e barra; não empilha histórico), 'sub' (com cabeçalho e barra;
   // empilha um estado e o Voltar devolve a ui.tab) e 'full' (tela cheia, sem casca).
-  var SCREEN_KIND = { inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', largada: 'full', corrida: 'full', resultado: 'full' };
+  var SCREEN_KIND = { bloqueio: 'full', inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', largada: 'full', corrida: 'full', resultado: 'full' };
   // a Loja só vende peças e Pedras Negras: com o equipamento suspenso (GEAR_ON), sai da barra (e não abre nem pelo
   // botão forçado: o handler 'aba' só abre as abas desta lista)
   var ABAS = [{ id: 'estabulo', icone: '🐴', rotulo: 'Estábulo' }, { id: 'correr', icone: '🏁', rotulo: 'Correr' }, { id: 'expedicao', icone: '🧭', rotulo: 'Expedição' }, { id: 'haras', icone: '💞', rotulo: 'Haras' }, { id: 'loja', icone: '🛒', rotulo: 'Loja' }];
@@ -10312,7 +10420,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // a rolagem é do jogo (go() volta ao topo; o "Voltar" da ficha rola até a linha do cavalo no Estábulo): o navegador não
   // a restaura por cima quando o history.back() do guarda volta à entrada da aba
   try { if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'; } catch (e) { /* ignora */ }
-  function isRoot(screen) { return kindOf(screen) === 'aba' || screen === 'inicial'; }
+  function isRoot(screen) { return kindOf(screen) === 'aba' || screen === 'inicial' || screen === 'bloqueio'; }
   function syncHistory(screen) {
     try {
       if (!isRoot(screen) && !guardPushed) { window.history.pushState({ galope: 1 }, ''); guardPushed = true; }
@@ -10327,6 +10435,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   });
 
   function go(screen) {
+    if (saveBloqueado) screen = 'bloqueio';   // a tela de bloqueio não tem saída (só o Recarregar)
     if (raceView && screen !== 'corrida') { raceView.destroy(); raceView = null; }
     if (screen !== ui.screen) {
       ui.confirmReset = false; ui.confirmLiberar = null;
@@ -10380,6 +10489,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // As funções puras (cavalo, peça, condições, vento, seed, Ouro) estão em dev.js.
   // ===========================================================================
   var DEV_SKILL_VAGAS = 5;   // selects de skill na gaveta (o máximo de vagas, Mítico)
+  var DEV_DIAS_MAX = 400;   // "Avançar/Voltar 1 dia": deslocamento de −400 a 400 dias (state.devDias, só no save de teste)
   var devEl = null;
   if (DEV_MODE) {
     devEl = document.createElement('div');
@@ -10402,7 +10512,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // escolha inicial; a opção Animações e o jóquei continuam. Quem chama navega.
   function devZerarPerfil() {
     var motion = motionPref(), joquei = validJoquei(joqueiDoJogador());
-    wipeSave();
+    if (!wipeSave()) return;   // save de versão mais nova: tela de bloqueio
     state = devNovoPerfil();
     state.settings.motion = motion;
     state.joquei = joquei;   // o jóquei continua, como no "Recomeçar" do jogo real
@@ -10430,7 +10540,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   function devForm() {
     if (!ui.dev.f) {
       ui.dev.f = {
-        pedras: null, redeas: null, copiar: GD.STARTERS[0].id,
+        pedras: null, redeas: null, 'mochila-torrao': null, 'mochila-estrela': null, 'mochila-cupom': null, 'mochila-manual': null,
+        copiar: GD.STARTERS[0].id,
         slot: GR.SLOTS[0], conjunto: 'sol', rpeca: 'lendario', melhoria: '0', equipar: false,
         clima: '', piso: '', distancia: '', tracado: 'normal', blocos: '', vento: '', direcao: '1', seed: '', sempre: false
       };
@@ -10604,6 +10715,19 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         '<div class="dev-acoes dev-acoes--base">' + devBotao('dev-redeas', 'Definir Rédeas') + '</div></div>' +
       '<div class="dev-acoes">' + devBotao('dev-ouro', '+' + fmt(1000) + ' Ouro') + '</div>');
 
+    // Itens e dia (spec de itens §12): a mochila, o deslocamento do dia (só no save de teste) e zerar a diária e os limites
+    var desloc = inteiroOu(state.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX);
+    var itensDia = devGrupo('itensdia', 'Itens e dia',
+      '<div class="dev-campos">' + MOCHILA_IDS.map(function (id) {
+        var v = f['mochila-' + id];
+        return devEntrada('mochila-' + id, GD.ITEMS[id].name, 'type="number" min="0" max="' + GD.BAG_MAX + '" inputmode="numeric"', v != null ? v : state.mochila[id]);
+      }).join('') + '</div>' +
+      '<div class="dev-acoes">' + devBotao('dev-mochila', 'Definir mochila') + '</div>' +
+      '<p class="nota" id="dev-dia">Dia do jogo: ' + (desloc === 0 ? 'o do aparelho' : (desloc > 0 ? '+' : '−') + Math.abs(desloc) + (Math.abs(desloc) === 1 ? ' dia' : ' dias') + ' do aparelho') +
+        ' (de −' + DEV_DIAS_MAX + ' a +' + DEV_DIAS_MAX + '; só no save de teste).</p>' +
+      '<div class="dev-acoes">' + devBotao('dev-dia-menos', 'Voltar 1 dia') + devBotao('dev-dia-mais', 'Avançar 1 dia') + '</div>' +
+      '<div class="dev-acoes">' + devBotao('dev-zerar-diaria', 'Zerar diária e limites') + '</div>');
+
     var cavalo = devGrupo('cavalo', 'Cavalo',
       '<p class="nota">Cria um cavalo novo (entra no estábulo sem limite de vagas e vira a ativa) ou substitui a ativa (status, skills, cores, marcas e porte; mantém equipamento e cruzas).</p>' +
       '<div class="dev-campos dev-campos--1">' + devEntrada('nome', 'Nome', 'type="text" maxlength="16" autocomplete="off"', f.nome) + '</div>' +
@@ -10685,7 +10809,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return '<div class="dev-gaveta" id="dev-gaveta" role="region" aria-labelledby="dev-titulo">' +
       '<div class="dev-cabeca"><h2 class="titulo" id="dev-titulo" tabindex="-1">Modo DEV</h2>' + devBotao('dev-fechar', 'Fechar') + '</div>' +
       '<p class="' + (ui.dev.msg ? 'aviso' : 'sr') + '" role="status" id="dev-msg">' + esc(ui.dev.msg) + '</p>' +
-      moedas + cavalo + itens + corrida + perfil +
+      moedas + itensDia + cavalo + itens + corrida + perfil +
     '</div>';
   }
 
@@ -10746,6 +10870,25 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         state.redeas = clamp(rv, 0, REDEAS_MAX); f.redeas = null;
         devGrava('Rédeas novas: ' + fmt(state.redeas) + '.'); break;
       }
+      case 'dev-mochila': {
+        var mq = {};
+        for (var mi = 0; mi < MOCHILA_IDS.length; mi++) {
+          var mv = String(f['mochila-' + MOCHILA_IDS[mi]] == null ? state.mochila[MOCHILA_IDS[mi]] : f['mochila-' + MOCHILA_IDS[mi]]).trim();
+          if (mv === '' || !isFinite(Number(mv))) { mq = null; break; }
+          mq[MOCHILA_IDS[mi]] = clamp(Math.floor(Number(mv)), 0, GD.BAG_MAX);
+        }
+        if (!mq) { ui.dev.msg = 'Mochila: digite um número em cada item.'; renderDev(); break; }
+        MOCHILA_IDS.forEach(function (id) { state.mochila[id] = mq[id]; f['mochila-' + id] = null; });
+        devGrava('Mochila: ' + MOCHILA_IDS.map(function (id) { return fmt(mq[id]) + ' ' + GD.ITEMS[id].name; }).join(', ') + '.'); break;
+      }
+      case 'dev-dia-mais':
+      case 'dev-dia-menos':
+        state.devDias = clamp(inteiroOu(state.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX) + (acao === 'dev-dia-mais' ? 1 : -1), -DEV_DIAS_MAX, DEV_DIAS_MAX);
+        devGrava('Dia do jogo: ' + (state.devDias > 0 ? '+' : state.devDias < 0 ? '−' : '') + Math.abs(state.devDias) + ' dia(s) do aparelho.'); break;
+      case 'dev-zerar-diaria':
+        state.diaria = { prox: 0, ciclos: 0, ultimo: null };
+        state.lojaItens = lojaItensVazia();
+        devGrava('Diária no dia 1 para resgatar e limites da loja zerados.'); break;
       case 'dev-niveis': {
         var alvo = Math.min(MAX_LEVEL, a.level + 10), need = 0;
         for (var dl = a.level; dl < alvo; dl++) need += E.xpToLevel(dl);
@@ -10929,7 +11072,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     live = [];
     portraitQueue = [];
     var html;
+    if (saveBloqueado) ui.screen = 'bloqueio';
     switch (ui.screen) {
+      case 'bloqueio': html = renderBloqueio(); break;
       case 'estabulo': html = renderEstabulo(); break;
       case 'largada': html = renderLargada(); break;
       case 'corrida': html = renderCorrida(); break;
@@ -13658,6 +13803,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   var ACOES_EQUIP = { 'loja-tab': 1, comprar: 1, 'comprar-pedra': 1, 'equipar-tela': 1, 'equip-slot': 1, equipar: 1, tirar: 1,
     melhorar: 1, 'melhorar-nao': 1, 'melhorar-sim': 1, vender: 1, 'vender-desfazer': 1 };
   telaEl.addEventListener('click', function (e) {
+    if (saveBloqueado) {   // tela de bloqueio: só o Recarregar faz alguma coisa
+      var rb = e.target.closest ? e.target.closest('[data-acao="recarregar"]') : null;
+      if (rb) window.location.reload();
+      return;
+    }
     tiraMotivo(e.target);   // qualquer toque tira a linha do motivo (também o do ⓘ, que abre a ajuda); nunca há duas na tela
     var aj = e.target.closest ? e.target.closest('[data-ajuda]') : null;
     if (aj) { alternaAjuda(aj); return; }   // "ⓘ" (ou o nome do status): abre/fecha o texto, sem re-renderizar nem acionar o cartão em volta
@@ -14119,7 +14269,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         guardaMotionKeep(ui.motionKeep);
         ui.joqueiKeep = validJoquei(joqueiDoJogador());
         guardaJoqueiKeep(ui.joqueiKeep);
-        ui.confirmReset = false; wipeSave(); state = null; ui.lobby = null; ui.result = null; go('inicial'); break;
+        ui.confirmReset = false;
+        if (!wipeSave()) break;   // save de versão mais nova: tela de bloqueio
+        state = null; ui.lobby = null; ui.result = null; go('inicial'); break;
     }
   });
 
@@ -14147,7 +14299,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     rerenderKeepScroll(); focusAction('renomear', ui.montaria.uid);
   }
   telaEl.addEventListener('keydown', function (e) {
-    if (!e.target || e.target.id !== 'renomear-campo') return;
+    if (saveBloqueado || !e.target || e.target.id !== 'renomear-campo') return;
     if (e.key === 'Enter') { e.preventDefault(); renomearConfirma(); }
     else if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); e.stopPropagation(); renomearCancela(); }
   });
@@ -14231,21 +14383,25 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     started = true;
     readTokens();
     data = data || {};
-    var lido = loadSave();
-    state = sanitize(!!data.dev === DEV_MODE ? data.save : null) || sanitize(lido);
-    // JSON válido mas que não vira save (sanitize null): também guarda a cópia antes de recomeçar
-    if (!state && lido != null && !saveCorrompido) { try { guardaCorrompido(window.localStorage.getItem(SAVE_KEY)); } catch (e) { /* ignora */ } }
+    var lido = loadSave(), doHot = !!data.dev === DEV_MODE ? data.save : null;
+    // save de versão mais nova no disco ou no estado do hot: nada é saneado, migrado nem gravado (tela de bloqueio)
+    if (saveMaisNovo(doHot) || saveMaisNovo(lido)) bloqueiaSaveNovo(true);
+    if (!saveBloqueado) {
+      state = sanitize(doHot) || sanitize(lido);
+      // JSON válido mas que não vira save (sanitize null): também guarda a cópia antes de recomeçar
+      if (!state && lido != null && !saveCorrompido) { try { guardaCorrompido(window.localStorage.getItem(SAVE_KEY)); } catch (e) { /* ignora */ } }
 
-    // save migrado para a v6 (bloco 1b): o Estábulo avisa uma vez que os pontos voltaram para distribuir; o aviso
-    // sai do save na mesma gravação da migração (logo abaixo), então recarregar não o mostra de novo
-    var gravaAviso = false;
-    if (state && state.avisoV6) { ui.notice = AVISO_V6; state.avisoV6 = false; gravaAviso = true; }
-    // save de versão anterior migrado: grava já a versão nova (a migração acontece uma vez só; o Neutro
-    // convertido, os pontos devolvidos e o Poder da sala recalculado ficam no disco)
-    if (state && ((lido && typeof lido === 'object' && !(Number(lido.v) >= SAVE_VERSION)) || gravaAviso)) persist();
-    if (!state && devHooks) { state = devHooks.novoPerfil(); persist(); }   // perfil DEV novo: Brasa, sem a escolha inicial
-    if (!state) { ui.motionKeep = leMotionKeep(); ui.joqueiKeep = leJoqueiKeep(); }   // "Recomeçar" e a aba fechou na escolha: as escolhas continuam
-    ui.screen = state ? 'estabulo' : 'inicial';
+      // save migrado para a v6 (bloco 1b): o Estábulo avisa uma vez que os pontos voltaram para distribuir; o aviso
+      // sai do save na mesma gravação da migração (logo abaixo), então recarregar não o mostra de novo
+      var gravaAviso = false;
+      if (state && state.avisoV6) { ui.notice = AVISO_V6; state.avisoV6 = false; gravaAviso = true; }
+      // save de versão anterior migrado: grava já a versão nova (a migração acontece uma vez só; o Neutro
+      // convertido, os pontos devolvidos e o Poder da sala recalculado ficam no disco)
+      if (state && ((lido && typeof lido === 'object' && !(Number(lido.v) >= SAVE_VERSION)) || gravaAviso)) persist();
+      if (!state && !saveBloqueado && devHooks) { state = devHooks.novoPerfil(); persist(); }   // perfil DEV novo: Brasa, sem a escolha inicial
+      if (!state && !saveBloqueado) { ui.motionKeep = leMotionKeep(); ui.joqueiKeep = leJoqueiKeep(); }   // "Recomeçar" e a aba fechou na escolha: as escolhas continuam
+    }
+    ui.screen = saveBloqueado ? 'bloqueio' : state ? 'estabulo' : 'inicial';
     // moldes do PixelLab (embutidos pelo build): decodificam em segundo plano; até lá (ou sem eles, ou
     // com ?semmoldes=1) os cavalos saem do desenho por código. Ao chegarem, a tela é redesenhada — menos
     // a corrida, que redesenha sozinha a cada quadro (re-renderizar recriaria a corrida).
@@ -14277,12 +14433,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       if (motionQuery.addEventListener) motionQuery.addEventListener('change', onMotion);
       else if (motionQuery.addListener) motionQuery.addListener(onMotion);
     }
-    // outra aba gravou: adota o save mais novo em vez de sobrescrevê-lo depois
+    // outra aba gravou: adota o save mais novo em vez de sobrescrevê-lo depois; save de versão mais nova (qualquer
+    // revisão): tela de bloqueio (adoptExternal); já bloqueado, nada mais é adotado
     window.addEventListener('storage', function (ev) {
-      if (ev.key !== SAVE_KEY && ev.key !== null) return;
+      if (saveBloqueado || (ev.key !== SAVE_KEY && ev.key !== null)) return;
       var raw = null;
       try { raw = ev.newValue ? JSON.parse(ev.newValue) : null; } catch (e) { raw = null; }
-      if (raw && state && Number(raw.rev) <= state.rev) return;
+      if (raw && state && !saveMaisNovo(raw) && Number(raw.rev) <= state.rev) return;
       adoptExternal(raw);
     });
     /*@teste:inicio*/
@@ -14291,6 +14448,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       get state() { return state; }, get ui() { return ui; }, get race() { return raceView; },
       // monta a sala de um pending ({ counter, training, fee, pr }) sem gravar nada (medição do pareamento no ui-test)
       buildLobby: function (P) { return buildLobby(P); },
+      hojeDia: function () { return hojeDia(); },
       GEAR_ON: GEAR_ON
     };
     // rascunho dos pontos livres da tela da Montaria (null sem rascunho), para o teste ler

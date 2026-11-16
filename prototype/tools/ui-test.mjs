@@ -8,7 +8,7 @@
 // Também confere a entrada reservada do páreo aberto, a gravação que falha, o save adulterado ou corrompido,
 // o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo, o tamanho mínimo do texto e o teto
 // de chamadas de canvas por quadro na corrida mais cara.
-//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,redimensiona,escala,teto,corrida,resultado,marcas,portes,crescimento,ajuda,acabamento,celular node tools/ui-test.mjs  -> só esses
+//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,itens,redimensiona,escala,teto,corrida,resultado,marcas,portes,crescimento,ajuda,acabamento,celular node tools/ui-test.mjs  -> só esses
 // Equipamento suspenso (bloco 1b, GEAR_ON = false no game.js): os blocos das telas de peças e da Loja conferem que elas
 // não aparecem e que as ações de peça não fazem nada; com GEAR_ON = true voltam a testar as telas (GEAR_ON abaixo).
 import { createRequire } from 'node:module'
@@ -1097,6 +1097,255 @@ try {
         problems.push(`[${label}] ` + e.message)
       }
       await pd.context().close()
+    }
+  }
+
+  // ---------------- itens (save v7, save mais novo, o dia e a gaveta DEV; spec de itens, loja e diária §9, §10, §12) ----------------
+  if (quer('itens')) {
+    const REAL = 'galope-elemental:v1', DEVK = 'galope-elemental:dev'
+    const VP = { width: 360, height: 780 }
+    const estadoDe = (pg) => pg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+    const bruto = (pg, k) => pg.evaluate((k) => localStorage.getItem(k), k)
+    // grava o save na chave antes de o jogo carregar, uma vez só (recarregar não regrava: o que fica é o que o jogo deixou)
+    const comSave = (chave, raw, extra = {}) => ({
+      init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem(${JSON.stringify(chave)}, ${JSON.stringify(raw)}) } } catch (e) {}` + (extra.depois || '') },
+      ...(extra.pagina ? { pagina: extra.pagina } : {}), ...(extra.query ? { query: extra.query } : {})
+    })
+    const hojeReal = (pg) => pg.evaluate(() => { const d = new Date(); return window.Itens.diaLocal(d.getFullYear(), d.getMonth(), d.getDate()) })
+    const brasa = G.STARTERS.find((h) => h.id === 'brasa'), mare = G.STARTERS.find((h) => h.id === 'mare')
+    const cav = (tpl, o) => Object.assign({ uid: 'm1', templateId: tpl.id, name: tpl.name, especie: 'cavalo', element: tpl.element, rarity: tpl.rarity,
+      grau: tpl.grau || 2, sex: tpl.sex, level: 1, xp: 0, skills: tpl.skills.slice(), potential: JSON.parse(JSON.stringify(tpl.potential)),
+      palette: JSON.parse(JSON.stringify(tpl.palette)), breedLeft: 2, parents: null, born: 0, equip: {}, respecFree: false,
+      alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } }, o)
+    const SAVE_6 = {
+      v: 6, rev: 9, gold: 777, tier: 50, seedBase: 4242, raceCounter: 0, pending: null, redeas: 3, avisoV6: false,
+      races: 2, wins: 1, podiums: 1, goldWon: 90,
+      mounts: [cav(brasa, { uid: 'm1', level: 12, skills: ['sprint'], alloc: { vel: 3, acel: 2, man: 0, forca: 0, est: 1, garra: 0, sorte: 0 } }),
+        cav(mare, { uid: 'm2', level: 4 })],
+      activeId: 'm1', nextUid: 3, stableSlots: 3, breedCounter: 0, items: [], nextItemUid: 1, pedras: 0, enhanceCounter: 0,
+      settings: { motion: 'sistema' }, joquei: { padrao: 'liso', capacete: G.JOQUEI.capacete }
+    }
+    const ZERO_MOCHILA = { torrao: 0, estrela: 0, cupom: 0, manual: 0 }
+    const DIARIA_0 = { prox: 0, ciclos: 0, ultimo: null }
+    const LOJA_0 = { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null }
+    const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+    // 1. save v6 -> v7: tudo novo zerado, a diária no dia 1, o resto igual (na memória e no disco)
+    {
+      const label = 'itens-v6'
+      const pg = await newPage(browser, VP, label, comSave(REAL, JSON.stringify(SAVE_6)))
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        const disco = JSON.parse(await bruto(pg, REAL))
+        for (const [onde, s] of [['memória', await estadoDe(pg)], ['disco', disco]]) {
+          const erro = (t) => problems.push(`${label} (${onde}): ${t}`)
+          if (s.v !== 7) erro('versão ' + s.v)
+          if (!igual(s.mochila, ZERO_MOCHILA)) erro('mochila ' + JSON.stringify(s.mochila))
+          if (!igual(s.diaria, DIARIA_0)) erro('diária ' + JSON.stringify(s.diaria))
+          if (!igual(s.lojaItens, LOJA_0)) erro('limites da loja ' + JSON.stringify(s.lojaItens))
+          if (s.itemCounter !== 0) erro('itemCounter ' + s.itemCounter)
+          if ('devDias' in s) erro('devDias no save real: ' + s.devDias)
+          if (s.gold !== 777 || s.redeas !== 3 || s.races !== 2) erro('Ouro/Rédeas/corridas ' + JSON.stringify({ gold: s.gold, redeas: s.redeas, races: s.races }))
+          if (s.mounts.length !== 2) erro('cavalos ' + s.mounts.length)
+          for (const m0 of SAVE_6.mounts) {
+            const m = s.mounts.find((x) => x.uid === m0.uid)
+            if (!m || m.torroes !== 0) erro(`${m0.uid}: torroes ${m && m.torroes}`)
+            else if (m.name !== m0.name || m.level !== m0.level || !igual(m.skills, m0.skills) || !igual(m.alloc, m0.alloc) || m.respecFree !== m0.respecFree || m.grau !== m0.grau) erro(`${m0.uid} mudou ` + JSON.stringify(m))
+          }
+        }
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 2. campos novos com lixo voltam ao padrão (o ultimo corrompido conta como resgatado hoje); valores bons ficam
+    {
+      const label = 'itens-lixo'
+      const lixo = Object.assign({}, SAVE_6, {
+        v: 7, mochila: { torrao: 'x', estrela: -3, cupom: 1e9, manual: { n: 1 } },
+        diaria: { prox: 'NaN', ciclos: -3, ultimo: { d: 1 } },
+        lojaItens: { dia: 'x', comprados: { torrao: 1e9, manual: -3, cupom: null }, estrelaDia: 2.5 },
+        itemCounter: 'NaN',
+        mounts: [cav(brasa, { uid: 'm1', torroes: 1e9 }), cav(mare, { uid: 'm2', torroes: 'x' }), cav(brasa, { uid: 'm3', name: 'Faísca', torroes: -3 })],
+        nextUid: 4
+      })
+      const pg = await newPage(browser, VP, label, comSave(REAL, JSON.stringify(lixo)))
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        const s = await estadoDe(pg), hoje = await hojeReal(pg)
+        if (!igual(s.mochila, ZERO_MOCHILA)) problems.push(`${label}: mochila ` + JSON.stringify(s.mochila))
+        if (!igual(s.diaria, { prox: 0, ciclos: 0, ultimo: hoje })) problems.push(`${label}: diária ${JSON.stringify(s.diaria)} (ultimo corrompido = hoje ${hoje})`)
+        if (!igual(s.lojaItens, LOJA_0)) problems.push(`${label}: limites da loja ` + JSON.stringify(s.lojaItens))
+        if (s.itemCounter !== 0) problems.push(`${label}: itemCounter ` + s.itemCounter)
+        if (s.mounts.some((m) => m.torroes !== 0)) problems.push(`${label}: torroes ` + JSON.stringify(s.mounts.map((m) => m.torroes)))
+        // valores bons ficam como estão
+        const bom = Object.assign({}, lixo, {
+          rev: 50, mochila: { torrao: 5, estrela: 1, cupom: G.BAG_MAX, manual: 0 }, diaria: { prox: 6, ciclos: 3, ultimo: hoje - 1 },
+          lojaItens: { dia: hoje, comprados: { torrao: 2, manual: 1, cupom: 0 }, estrelaDia: hoje - 3 }, itemCounter: 12,
+          mounts: [cav(brasa, { uid: 'm1', torroes: G.ITEMS.torrao.cap }), cav(mare, { uid: 'm2', torroes: 4 })], nextUid: 3
+        })
+        await pg.evaluate(([k, raw]) => localStorage.setItem(k, raw), [REAL, JSON.stringify(bom)])
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        const b = await estadoDe(pg)
+        for (const k of ['mochila', 'diaria', 'lojaItens', 'itemCounter']) if (!igual(b[k], bom[k])) problems.push(`${label}: ${k} bom mudou ${JSON.stringify(b[k])}`)
+        if (!igual(b.mounts.map((m) => m.torroes), [G.ITEMS.torrao.cap, 4])) problems.push(`${label}: torroes bons ` + JSON.stringify(b.mounts.map((m) => m.torroes)))
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 3. save de versão 8: tela de bloqueio, sem Estábulo, e a chave fica byte a byte igual (real, de teste e produção)
+    const SAVE_8 = JSON.stringify(Object.assign({}, SAVE_6, { v: 8, rev: 3, coisaNova: { a: [1, 2] }, gold: 123456 }))
+    const conferirBloqueio = async (pg, label, chave, raw) => {
+      await pg.waitForSelector('#t-bloqueio', { timeout: 5000 })
+      const txt = (await pg.locator('#tela').textContent()) || ''
+      if (!/versão mais nova/.test(txt)) problems.push(`${label}: a tela não diz que o save é de uma versão mais nova: ${txt}`)
+      if ((await pg.getByRole('button', { name: 'Recarregar' }).count()) !== 1) problems.push(`${label}: sem o botão Recarregar`)
+      if (await pg.locator('#t-estabulo, .app-abas, .inicial, .dev-botao, .dev-gaveta').count()) problems.push(`${label}: a tela de bloqueio mostra o jogo (Estábulo, abas, inicial ou DEV)`)
+      await sleep(2000)
+      if ((await bruto(pg, chave)) !== raw) problems.push(`${label}: a chave ${chave} mudou depois de 2 s`)
+      // toca em tudo que houver na tela (menos o Recarregar, tocado por último)
+      const n = await pg.locator('button, a, [data-acao], input, select').count()
+      for (let i = 0; i < n; i++) {
+        const el = pg.locator('button, a, [data-acao], input, select').nth(i)
+        if (((await el.textContent()) || '').trim() === 'Recarregar') continue
+        await el.click({ timeout: 2000 }).catch(() => {})
+      }
+      await pg.keyboard.press('Escape'); await pg.keyboard.press('Enter')
+      if ((await bruto(pg, chave)) !== raw) problems.push(`${label}: a chave ${chave} mudou depois de tocar na tela`)
+      await Promise.all([pg.waitForNavigation({ waitUntil: 'domcontentloaded' }), pg.getByRole('button', { name: 'Recarregar' }).click()])
+      await pg.waitForSelector('#t-bloqueio', { timeout: 5000 })
+      await sleep(500)
+      if ((await bruto(pg, chave)) !== raw) problems.push(`${label}: a chave ${chave} mudou depois de recarregar`)
+    }
+    for (const [label, chave, extra] of [['itens-v8', REAL, {}], ['itens-v8-dev', DEVK, { query: '?dev=1' }], ['itens-v8-producao', REAL, { pagina: 'producao.html' }]]) {
+      const pg = await newPage(browser, VP, label, comSave(chave, SAVE_8, extra))
+      try {
+        await conferirBloqueio(pg, label, chave, SAVE_8)
+        if (chave === DEVK && (await bruto(pg, REAL)) !== null) problems.push(`${label}: o modo DEV gravou o save real`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 4. outra aba grava um save v8 com o jogo aberto num v7: o evento storage leva à tela de bloqueio; sem o evento, a
+    //    próxima gravação (persist) e o "Recomeçar" (que apaga o save) também não tocam no v8, no jogo real e no DEV
+    for (const [label, comEvento, gatilho, query, chave] of [['itens-outra-aba', true, null, '', REAL], ['itens-outra-aba-persist', false, 'procurar', '', REAL],
+      ['itens-outra-aba-recomecar', false, 'recomecar', '', REAL], ['itens-outra-aba-recomecar-dev', false, 'recomecar', '?dev=1', DEVK]]) {
+      const pg = await newPage(browser, VP, label, { query })
+      try {
+        if (!query) await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+        await pg.waitForSelector('#t-estabulo')
+        // revisão menor que a do jogo aberto: a versão vale mais que a revisão
+        const raw8 = JSON.stringify(Object.assign(JSON.parse(SAVE_8), { rev: 0 }))
+        if (gatilho === 'recomecar') {   // chega até o "Sim" do Recomeçar antes de o v8 aparecer
+          await pg.locator('[data-acao="perfil"]').click()
+          await pg.locator('[data-acao="reset"]').click()
+          await pg.waitForSelector('[data-acao="reset-sim"]')
+        }
+        await pg.evaluate(([k, raw, ev]) => {
+          localStorage.setItem(k, raw)
+          if (ev) window.dispatchEvent(new StorageEvent('storage', { key: k, newValue: raw }))
+        }, [chave, raw8, comEvento])
+        if (gatilho === 'procurar') await pg.locator('[data-acao="aba"][data-id="correr"]').click().then(() => pg.locator('[data-acao="procurar"]').click())
+        if (gatilho === 'recomecar') await pg.locator('[data-acao="reset-sim"]').click()
+        await conferirBloqueio(pg, label, chave, raw8)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 5. estado da atualização ao vivo (window.claude.hot) com save v8: bloqueio, e o save do disco (v7) não muda
+    {
+      const label = 'itens-hot'
+      const raw7 = JSON.stringify(Object.assign({}, SAVE_6, { v: 7, rev: 40 }))
+      const hot = `window.claude = { hot: { data: { save: ${SAVE_8}, dev: false } } };`
+      const pg = await newPage(browser, VP, label, comSave(REAL, raw7, { depois: hot }))
+      try {
+        await pg.waitForSelector('#t-bloqueio', { timeout: 5000 })
+        await sleep(1000)
+        if ((await bruto(pg, REAL)) !== raw7) problems.push(`${label}: o save do disco mudou com o estado do hot bloqueado`)
+        if (await pg.locator('#t-estabulo, .app-abas').count()) problems.push(`${label}: mostra o jogo`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 6. gaveta DEV, grupo "Itens e dia": mochila, avançar e voltar o dia, zerar a diária e os limites
+    {
+      const label = 'itens-dev'
+      const pg = await newPage(browser, VP, label, { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        const real = await hojeReal(pg)
+        if ((await pg.evaluate(() => window.__galope.hojeDia())) !== real) problems.push(`${label}: hojeDia() sem deslocamento difere do dia do aparelho`)
+        await devAbrir(pg)
+        if (!(await pg.locator('#dev-g-itensdia').count()) || !/Itens e dia/.test((await pg.locator('#dev-g-itensdia').textContent()) || '')) problems.push(`${label}: sem o grupo "Itens e dia" na gaveta`)
+        await pg.fill('#dev-mochila-torrao', '3')
+        await pg.locator('[data-acao="dev-mochila"]').click()
+        let s = await estadoDe(pg)
+        if (s.mochila.torrao !== 3 || s.mochila.estrela !== 0) problems.push(`${label}: definir 3 torrões ` + JSON.stringify(s.mochila))
+        for (const [id, v] of [['estrela', '2'], ['cupom', '150'], ['manual', '1']]) await pg.fill('#dev-mochila-' + id, v)
+        await pg.locator('[data-acao="dev-mochila"]').click()
+        s = await estadoDe(pg)
+        if (!igual(s.mochila, { torrao: 3, estrela: 2, cupom: G.BAG_MAX, manual: 1 })) problems.push(`${label}: mochila depois de definir os quatro (150 vira o teto) ` + JSON.stringify(s.mochila))
+        // campo vazio: nada muda e a gaveta diz por quê
+        await pg.fill('#dev-mochila-manual', '')
+        await pg.locator('[data-acao="dev-mochila"]').click()
+        if (!igual((await estadoDe(pg)).mochila, s.mochila)) problems.push(`${label}: campo vazio mudou a mochila`)
+        if (!/digite um número/.test((await pg.locator('#dev-msg').textContent()) || '')) problems.push(`${label}: campo vazio sem aviso`)
+        if (!igual(JSON.parse(await bruto(pg, DEVK)).mochila, s.mochila)) problems.push(`${label}: a mochila não foi gravada no save de teste`)
+        await pg.locator('[data-acao="dev-dia-mais"]').click()
+        await pg.locator('[data-acao="dev-dia-mais"]').click()
+        await pg.locator('[data-acao="dev-dia-menos"]').click()
+        const h = await pg.evaluate(() => window.__galope.hojeDia())
+        if (h !== real + 1) problems.push(`${label}: hojeDia() ${h}, esperado ${real + 1}`)
+        if (JSON.parse(await bruto(pg, DEVK)).devDias !== 1) problems.push(`${label}: devDias não gravado no save de teste`)
+        // zerar a diária e os limites (o deslocamento continua)
+        await pg.evaluate(() => { const st = window.__galope.state; st.diaria = { prox: 4, ciclos: 2, ultimo: 5 }; st.lojaItens = { dia: 5, comprados: { torrao: 2, manual: 1, cupom: 1 }, estrelaDia: 5 } })
+        await pg.locator('[data-acao="dev-zerar-diaria"]').click()
+        s = await estadoDe(pg)
+        if (!igual(s.diaria, DIARIA_0) || !igual(s.lojaItens, LOJA_0) || s.devDias !== 1) problems.push(`${label}: zerar diária ` + JSON.stringify({ diaria: s.diaria, loja: s.lojaItens, devDias: s.devDias }))
+        if ((await bruto(pg, REAL)) !== null) problems.push(`${label}: o modo DEV gravou o save real`)
+        // o deslocamento fica no limite (±400) e recarregar o mantém
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        if ((await pg.evaluate(() => window.__galope.hojeDia())) !== real + 1) problems.push(`${label}: recarregar perdeu o deslocamento`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 7. fora do modo DEV: um save real com devDias (adulterado, ou copiado do de teste) abre com o dia do aparelho, o
+    //    campo sai do state e da próxima gravação; e a produção não tem o texto
+    {
+      const label = 'itens-real'
+      const pg = await newPage(browser, VP, label, comSave(REAL, JSON.stringify(Object.assign({}, SAVE_6, { v: 7, rev: 30, devDias: 5 }))))
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        const real = await hojeReal(pg)
+        if ((await pg.evaluate(() => window.__galope.hojeDia())) !== real) problems.push(`${label}: hojeDia() usou devDias fora do modo DEV`)
+        if ('devDias' in (await estadoDe(pg))) problems.push(`${label}: o state do jogo real tem devDias`)
+        await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+        await pg.locator('[data-acao="procurar"]').click()
+        await pg.waitForSelector('#t-largada')
+        const d = JSON.parse(await bruto(pg, REAL))
+        if (d.rev <= 30 || ('devDias' in d && d.devDias !== 0)) problems.push(`${label}: o save real gravado tem devDias ${d.devDias} (rev ${d.rev})`)
+        if ((await bruto(pg, DEVK)) !== null) problems.push(`${label}: o jogo real gravou o save de teste`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+      const prod = await readFile(join(DIST, 'jogo.html'), 'utf8')
+      if (/devDias/.test(prod)) problems.push('itens-producao: dist/jogo.html contém devDias')
+      if (!/devDias/.test(await readFile(join(ROOT, 'build.mjs'), 'utf8'))) problems.push('itens-producao: build.mjs não proíbe devDias na produção')
     }
   }
 
@@ -6067,7 +6316,7 @@ try {
         const s = await estado(pg), d = await disco(pg)
         for (const [onde, x] of [['memória', s], ['disco', d]]) {
           const erro = (t) => problems.push(`${label} (${onde}): ${t}`)
-          if (x.v !== 6) erro('versão ' + x.v)
+          if (x.v !== 7) erro('versão ' + x.v)
           if (x.redeas !== 0) erro('redeas ' + x.redeas)
           if (x.avisoV6 !== false) erro('avisoV6 ' + x.avisoV6 + ' depois de mostrar o aviso')
           for (const m of x.mounts) {
@@ -6160,7 +6409,7 @@ try {
         await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
         await pg.waitForSelector('#t-estabulo')
         let s = await estado(pg)
-        if (s.v !== 6 || s.redeas !== 0 || s.avisoV6 !== false || s.mounts[0].respecFree !== true || !igual(s.mounts[0].alloc, ZERO)) problems.push(`${label}: jogo novo ` + JSON.stringify({ v: s.v, redeas: s.redeas, avisoV6: s.avisoV6, m1: s.mounts[0] }))
+        if (s.v !== 7 || s.redeas !== 0 || s.avisoV6 !== false || s.mounts[0].respecFree !== true || !igual(s.mounts[0].alloc, ZERO)) problems.push(`${label}: jogo novo ` + JSON.stringify({ v: s.v, redeas: s.redeas, avisoV6: s.avisoV6, m1: s.mounts[0] }))
         if ((await avisos(pg)).includes(AVISO_V6)) problems.push(`${label}: o jogo novo mostrou o aviso da migração`)
         // abrir a sala (pareamento): a 1ª monta a memória do Poder dos bots; as seguintes ficam bem abaixo de 15 ms
         const t = await pg.evaluate(() => {
@@ -6881,7 +7130,7 @@ try {
     const s = window.__galope.state
     return {
       ok: s.mounts.length === 1 && s.mounts[0].templateId === 'mare' && JSON.stringify(s.mounts[0].skills) === '[]' && s.activeId === 'm1' && s.gold === 777 && s.level === undefined &&
-        s.v === 6 && !('base' in s.mounts[0]) && s.items.length === 1 && s.items[0].id === 'sela-comum' && s.mounts[0].equip.sela === null && s.pedras === 0 &&
+        s.v === 7 && !('base' in s.mounts[0]) && s.items.length === 1 && s.items[0].id === 'sela-comum' && s.mounts[0].equip.sela === null && s.pedras === 0 &&
         s.inventory === undefined && s.equipped === undefined,
       tactic: s.tactic, save: JSON.stringify(s)
     }
@@ -6948,7 +7197,7 @@ try {
   {
     const s = await openSave('save-v3-completo', V3_FULL)
     const arm = s.items.filter((it) => it.id === 'armadura-magico')[0]
-    const ok = s.v === 6 && s.items.length === 9 && s.pedras === 3 && arm && s.mounts[0].equip.armadura === arm.uid &&
+    const ok = s.v === 7 && s.items.length === 9 && s.pedras === 3 && arm && s.mounts[0].equip.armadura === arm.uid &&
       s.gold === 999 && s.nextItemUid === 10 && s.inventory === undefined && s.equipped === undefined
     if (!ok) problems.push('save v3 completo não migrou os itens: ' + JSON.stringify({ items: s.items, equip: s.mounts[0] && s.mounts[0].equip, pedras: s.pedras, gold: s.gold, nextItemUid: s.nextItemUid }))
   }
