@@ -159,7 +159,17 @@ Vinicius joga antes e decide.
   - nas cores forçadas, o selo "Nv N" da linha do Estábulo continua sem contorno (só aparência);
   - `final-10-expedicao.png` muda a cada rodada completa do teste de interface sem a interface ter mudado: só a área dos
     retratos dos cavalos selvagens (de (152, 748) a (704, 1394) na imagem), porque as faíscas da raridade e o "idle" dos
-    retratos andam no relógio real. O saldo e o XP já não mudam (seed fixa); não se congela a animação.
+    retratos andam no relógio real. O saldo e o XP já não mudam (seed fixa); não se congela a animação;
+  - ajustes pequenos que a revisão final leu e deixou ficar (casos raros ou sem efeito na tela): com um dono de nome
+    muito largo, a tabela da chegada pode rolar de lado dentro da própria caixa; a faixa no pé da pista pode cobrir
+    a etiqueta de um rival de baixo que esteja fora da tela; o destaque do motivo procura a frase só pelo texto (um texto
+    escondido igual seria escolhido); a altura do pé do cavalo no pódio (`HORSE_PE`) está escrita como número fixo; e os
+    testes de tempo real da corrida (limite de 320 ms no da faixa de ordem, 2,4–2,7 s no da faixa do lugar) são o primeiro
+    lugar a olhar se o `check.sh` falhar de vez em quando numa máquina carregada.
+- **Publicação (feita em 2026-11-16, com o build b78e58e, o fim da 3c):** a folha da interface
+  https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 6) e o build de teste com o modo DEV
+  https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 12). Os artefatos oficiais (jogo, DEV e wiki, em "Onde jogar")
+  continuam com o bloco 1b: só mudam depois da integração na `main`.
 
 ## Em andamento
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b, que também traz a fonte da Rédea nova. Cada ginásio tem o
@@ -175,7 +185,8 @@ Vinicius joga antes e decide.
   inteira na 1ª tela. `check.sh` OK (129 testes de simulação, 104 de efeitos, 170 de moldes, 615 conferências do wiki, 87 metas
   rápidas e o teste de interface). Capturas oficiais regeneradas; folha da interface com a linha nova do Estábulo. Sem merge
   na `main` até ele olhar. Já publicado: folha https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 5) e build de teste
-  https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 11), build 2a381ff (o fim da 3b).
+  https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 11), build 2a381ff (o fim da 3b); os dois foram republicados
+  depois com a 3c (seção da 3c, acima).
 - **Parte 3a da Visuais 2 pronta na `claude/visuais-2`, esperando o Vinicius** (folha, build de teste e a lista "A confirmar
   com o Vinicius (gosto, 3a)" acima); sem merge na `main` até ele olhar.
 - **Visuais 2** (branch `claude/visuais-2`, criada da `claude/cavalos-v3`; a parte 1 foi integrada na
