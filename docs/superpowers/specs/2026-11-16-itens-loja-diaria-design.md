@@ -16,8 +16,9 @@ quase nada em que gastar Ouro (entrada, vaga de estábulo, cruza e troca no Hara
 - **guardar** e ver o que tem (mochila);
 - **usar** no cavalo certo, na hora certa (os cinco itens).
 
-Os cinco itens já foram aprovados no GDD §8.2 em 2026-11-10. Nenhum deles existe no jogo, fora a Rédea nova, que só a
-gaveta DEV dá.
+Os cinco itens são os do GDD §8.2, aprovado em 2026-11-10. Nenhum deles existe no jogo, fora a Rédea nova, que só a
+gaveta DEV dá. Uma coisa muda em relação ao GDD: o Manual de doma, que lá "aumenta a chance de aprender", vira uma
+tentativa na hora (decisão 6, abaixo); a seção 15 acerta o GDD.
 
 **Decisões do Vinicius (2026-11-16):**
 1. A primeira entrega junta itens, mochila, loja e recompensa diária. Os ginásios vêm depois.
@@ -81,7 +82,7 @@ Redistribuir de hoje) e não tem volta.
 | **Torrão de açúcar** | O cavalo ganha 1 ponto a mais para distribuir, para sempre | Até **10 por cavalo**. O potro nasce com 0 |
 | **Estrela de treino** | O cavalo sobe 1 estrela (de ★1 para ★2, de ★2 para ★3) | Não em cavalo com ★3 |
 | **Rédea nova** | Redistribui os pontos do cavalo. É a regra que já existe (a primeira redistribuição de cada cavalo é grátis) | As travas de hoje: sem pontos distribuídos não redistribui; o ativo não redistribui com a sala aberta |
-| **Cupom de troca de skill** | O jogador escolhe uma skill aprendida do cavalo; ela sai e entra outra, sorteada entre as que ele pode aprender e ainda não tem | Precisa de pelo menos uma skill aprendida e de pelo menos uma candidata. A skill de tipo nunca troca. **Não no cavalo ativo com a sala aberta** |
+| **Cupom de troca de skill** | O jogador escolhe uma skill das vagas do cavalo; ela sai e entra outra, sorteada entre as que ele pode aprender e ainda não tem | Precisa de pelo menos uma skill nas vagas e de pelo menos uma candidata. A skill de tipo não ocupa vaga e nunca troca. **Não no cavalo ativo com a sala aberta** |
 | **Manual de doma** | O cavalo tenta aprender uma skill na hora: **35% de chance**. Se aprender, é uma das candidatas, sorteada | Precisa de vaga de skill livre e de pelo menos uma candidata. Aprendendo ou não, o manual é gasto. **Não no cavalo ativo com a sala aberta** |
 
 Detalhes das regras:
@@ -89,8 +90,13 @@ Detalhes das regras:
 - **Torrão.** O total de pontos do cavalo passa a ser o de hoje mais os torrões: `freePoints` soma o número de torrões
   (0 a 10) depois da conta de nível, raridade e estrelas. Os bots não têm torrões. O teto de 150 por status não muda.
   O campo novo é do cavalo (por exemplo `torroes`) e se perde com ele na Troca do Haras.
-- **Estrela.** Só muda o campo de estrelas do cavalo (`grau`). Os pontos a mais aparecem para distribuir. O preço do
-  aluguel, que depende das estrelas, sobe junto, como já é a regra.
+- **Estrela.** Só muda o campo de estrelas do cavalo (`grau`). Os pontos a mais aparecem para distribuir.
+- **Estrela e cruza.** A estrela ganha por item vale como qualquer outra: as estrelas dos pais continuam definindo a
+  base das estrelas do potro (`breed.js`, sem mudança). Treinar um pai melhora a linhagem. O `breed.js` não muda.
+- **Skills e cruza.** Uma skill que veio do Cupom ou do Manual é uma skill do cavalo como as outras, inclusive na
+  herança e na conta de Corcel. O `breed.js` não muda.
+- **Qualquer skill das vagas pode sair no Cupom**, venha ela de nascença, de herança, de nível ou do Manual. O save não
+  guarda a origem da skill.
 - **Torrão e Estrela com a sala aberta:** podem ser usados, inclusive no ativo. Eles só dão pontos para distribuir, e
   gastar esses pontos já passa pela trava do Poder da sala.
 - **Candidatas** (Cupom e Manual): as mesmas do aprendizado por nível de hoje — as skills gerais e as do elemento do
@@ -101,13 +107,17 @@ Detalhes das regras:
   seeds de corrida, de aprendizado por nível, de cruza e de melhoria.
 - **O aprendizado por nível não muda:** continua com 8% a cada nível.
 - **Avisos depois do uso** (região viva, como os avisos de hoje): "Brasa ganhou 1 ponto para distribuir.", "Brasa agora
-  tem ★★★.", "Brasa aprendeu Casco Firme!", "Não foi desta vez: Brasa não aprendeu. O manual foi usado.",
-  "Raízes Firmes saiu e entrou Fôlego de Aço." O texto exato é do executor; o tom é este.
+  tem ★★★.", "Brasa aprendeu Arranque!", "Não foi desta vez: Brasa não aprendeu. O manual foi usado.",
+  "Sprint saiu e entrou Arranque." O texto exato é do executor; o tom é este.
 - **Quando não pode**, o botão segue o padrão da 3b: fica apagado, com o motivo escrito, e o toque mostra o motivo.
 
 ## 5. Mochila
 
-- Guarda quantos o jogador tem de cada um dos cinco itens (0 a 99 de cada; a Rédea nova continua no campo que já existe).
+- Guarda quantos o jogador tem de cada item: 0 a 99 de Torrão, Estrela, Cupom e Manual. A Rédea nova continua no campo
+  que já existe, com o teto de hoje (999); a mochila só a mostra.
+- **Rédea nova pela mochila:** "Usar" abre a escolha do cavalo e leva ao Redistribuir da ficha dele. A regra de custo
+  não muda: a redistribuição grátis do cavalo é usada primeiro, e a Rédea só é gasta quando a grátis já foi. O cavalo
+  que não pode redistribuir aparece apagado, com o motivo de hoje.
 - A parte **Mochila** da aba Loja lista os cinco, sempre na mesma ordem, cada um com ícone, nome, quantidade, uma linha
   dizendo para que serve e o botão **Usar**. Com quantidade 0, a linha continua lá, apagada, dizendo de onde o item vem
   ("Compre na loja" ou "Vem no 7º dia da recompensa").
@@ -137,7 +147,9 @@ A aba **Loja** volta à barra de baixo, como 5ª aba, sempre visível. Ela abre 
   **Reservado** (o Ouro que sobra está guardado para a entrada da sala aberta) ou **Limite de hoje**.
 - O limite por dia volta a zero quando o dia muda (seção 9). O da Estrela conta 7 dias desde a última compra.
 - A mochila cheia (99) bloqueia a compra daquele item, com o motivo.
-- O que existe da loja de equipamento continua como está, escondido atrás do `GEAR_ON`.
+- O que existe da loja de equipamento continua como está, escondido atrás do `GEAR_ON`. Hoje a aba Loja inteira e as
+  ações dela (`loja-tab`, `comprar`) estão atrás desse portão (`ABAS`, `ACOES_EQUIP`); a aba e as ações novas têm de
+  ficar fora dele, com nomes de ação próprios. O wiki lê a lista de abas do código e precisa acompanhar.
 
 ## 7. Recompensa diária
 
@@ -157,8 +169,8 @@ Um calendário de 7 dias, com prêmios fixos:
 - **Não zera.** Quem falta um dia continua de onde parou: o calendário só anda quando há resgate.
 - Depois do dia 7, recomeça no dia 1. O jogo conta os calendários completos; o 4º, o 8º, o 12º… dão a Estrela.
 - Um save novo já começa com o dia 1 para resgatar.
-- O prêmio em Ouro entra direto no saldo. O prêmio em item vai para a mochila; se ela estiver com 99 daquele item, o
-  resgate daquele dia fica esperando e o cartão diz por quê.
+- O prêmio em Ouro entra direto no saldo. O prêmio em item vai para a mochila; se ela estiver cheia daquele item (99, ou
+  999 Rédeas), o resgate daquele dia fica esperando e o cartão diz por quê.
 - Nada é sorteado.
 
 ## 8. Onde aparece
@@ -193,8 +205,10 @@ FICHA DO CAVALO > Status                   FICHA DO CAVALO > Skills
   Depois do resgate, ele encolhe para uma linha com o prêmio de amanhã. "Ver os 7 dias" abre os sete prêmios, com os
   já resgatados marcados e o de hoje em destaque.
 - **Ponto na aba Estábulo** quando há prêmio para resgatar, no padrão do ponto que a aba Correr já usa.
-- **Altura do Estábulo.** A 3b deixou o Estábulo de 3 cavalos numa tela (780 px). Com a diária já resgatada, ele pode
-  crescer no máximo 40 px; com prêmio para resgatar, no máximo 110 px. O executor mede e ajusta o teste de altura.
+- **Altura do Estábulo.** A 3b deixou o Estábulo de 3 cavalos exatamente numa tela (780 px, que é o limite do teste) e
+  o de 6 cavalos em 1.012 px (limite 1.100). O cartão custa altura, e isso é aceito: **o Estábulo de 3 cavalos deixa de
+  caber numa tela**. Os limites novos, medidos nos dois estados: com a diária já resgatada, os de hoje mais 40 px (820
+  e 1.140); com prêmio para resgatar, os de hoje mais 110 px (890 e 1.210). A lista de cavalos em si não muda.
 - **Altura da aba Status.** Os botões de item só aparecem quando o jogador tem o item, ficam abaixo da lista de status
   (perto do Redistribuir) e não tiram da primeira tela as 7 linhas de status. Sem itens, a altura da aba é a de hoje.
 - **Loja a 360 px:** cada produto cabe sem rolagem lateral, com o botão de pelo menos 44 px de altura.
@@ -223,6 +237,10 @@ FICHA DO CAVALO > Status                   FICHA DO CAVALO > Skills
 - **Proteção contra save mais novo** (pendência antiga do `ESTADO.md`, que tem de entrar antes de a versão subir): se o
   save guardado tiver versão maior que a do código, o jogo não o adota e não grava por cima. Mostra uma tela dizendo
   que o save é de uma versão mais nova e pede para atualizar a página. Vale para o save real e para o de teste.
+  - Vale em todo caminho que adota um save: a leitura ao abrir, o save gravado por outra aba (o evento que hoje adota
+    o save externo) e o estado guardado pela atualização ao vivo do artefato.
+  - A tela é um bloqueio: só tem o texto e o botão **Recarregar**. Não oferece recomeçar, porque recomeçar apagaria
+    justamente o save mais novo.
 
 ## 11. Economia: os números de partida
 
@@ -284,7 +302,9 @@ No jogo de produção o deslocamento não existe e o dia é sempre o do aparelho
     aberta não muda;
   - save da versão 6 abre com tudo zerado e a diária no dia 1; save de versão maior não é adotado nem gravado;
   - 360×780, 360×640 e 1280: sem rolagem lateral; as alturas da seção 8; cores forçadas; foco.
-- **Asserções que já existem** não saem nem ficam mais fracas. As que leem a barra de abas passam a contar com a Loja.
+- **Asserções que já existem** não saem nem ficam mais fracas, com duas mudanças de propósito, que são desenho e não
+  afrouxamento: os limites de altura do Estábulo passam aos da seção 8, e a asserção "sem equipamento: 4 abas (sem a
+  Loja)" passa a exigir as 5 abas, com a Loja.
 - **`balance.js` completo:** roda e fica verde, porque `freePoints` é regra.
 - **Produção:** sem gancho de teste e sem o deslocamento de dias.
 
@@ -318,7 +338,12 @@ No jogo de produção o deslocamento não existe e o dia é sempre o do aparelho
 - A Rédea nova fora da loja, no 7º dia da diária (pelo "nunca por Ouro" do GDD).
 - Cupom e Manual recusados no cavalo ativo com a sala aberta; Torrão e Estrela aceitos.
 - Todo uso de item pede confirmação.
-- Mochila com teto de 99 por item.
+- Mochila com teto de 99 por item (a Rédea nova mantém o teto de 999 que já tem).
+- A estrela ganha por item vale para a cruza, como qualquer estrela; skills vindas de item valem na herança.
+- O Cupom troca qualquer skill das vagas, não só as aprendidas por nível.
+- "Usar" a Rédea nova pela mochila leva ao Redistribuir de hoje, sem mudar o custo.
+- O Estábulo de 3 cavalos deixa de caber numa tela por causa do cartão da diária (40 px a mais depois do resgate).
+- A tela de "save mais novo" é um bloqueio com o botão Recarregar, sem recomeçar.
 - Relógio do aparelho, com a trava para trás e sem trava para a frente.
 - A proteção contra save mais novo entra nesta frente.
 - Regras num módulo próprio (`itens.js`).
