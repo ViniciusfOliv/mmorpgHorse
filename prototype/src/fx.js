@@ -47,6 +47,10 @@
  *   RaceFx.nomeCurto(nome, short) -> texto do balão: o nome inteiro em maiúsculas se couber em 12
  *     letras; senão o campo opcional `short` do catálogo (data.js), ou, sem ele, o nome cortado
  *     em palavras inteiras seguidas de "." na última que sobrar.
+ *   RaceFx.nomeEmLinhas(nome, larguraMax, linhasMax, curto) -> [linha] (maiúsculas; spec 3c §5): o nome inteiro numa
+ *     linha se couber em larguraMax pixels de arte (a tela usa BALAO.textoMax); senão em duas, quebrando entre palavras
+ *     (as linhas mais equilibradas que caibam); com linhasMax < 2 (raia estreita demais) ou sem quebra que caiba,
+ *     [nomeCurto(nome, curto)] (curto = o short do catálogo).
  *   RaceFx.typeZone(typeSkill, pos) -> fração (0..1) já percorrida do terço [from, to) da skill de tipo
  *     (sim.racerInfo[i].typeSkill = { id, name, from, to }, metros fracionários) no metro pos, ou null fora
  *     dele, sem skill de tipo ou com dado torto (from/to não numéricos, to ≤ from, pos inválido).
@@ -144,10 +148,18 @@
  *     a mesma caixa só com o ícone do dado e "DADO DA SORTE", centrados (escala 2 quando cabe)
  *     (_stats.faixaDadoLinhas = ['DADO DA SORTE']); depois,
  *     as linhas de bannerLayout. Não pisca nem desliza: só troca o conteúdo na revelação. Marca _stats.faixaDado.
+ *   RaceFx.lugarLayout(texto, lay, topo, embaixo, base) -> { texto, fs, acento, x, y, w, h, tx, ty, tw } em pixels de
+ *     arte: a faixa do lugar na chegada (spec 3c §7), texto em escala 3 se couber na pista (senão 2, senão 1), a
+ *     mesma altura para qualquer texto (o acento reservado), centrada; y = topo, ou com embaixo y + h = base (padrão
+ *     artH − 2). A tela decide topo, embaixo e base (Ruling 14).
+ *   RaceFx.drawPlaceBanner(ctx, B, cor, S) -> B: a moldura da faixa do Dado com o friso e o texto na cor do lugar.
+ *     Parada (aparece e some sem animação). Marca _stats.faixaLugar = o texto e faixaLugarCaixa = { x, y, w, h }.
  *
- *   RaceFx.balloonSize(item, pilha) -> { w, h } em pixels de arte do corpo do balão (altura 11; a pontinha
- *     de 3 px fica à esquerda, fora de w). pilha > 0 é a versão compacta (chip + ícone).
- *   RaceFx.drawBalloon(ctx, x, y, S, item, simT, pilha) -> true se desenhou. (x, y) = canto do corpo.
+ *   RaceFx.balloonSize(item, pilha, linhas) -> { w, h } em pixels de arte do corpo do balão (altura 11; com linhas de
+ *     nomeEmLinhas em duas, BALAO.h2; a pontinha de 3 px fica à esquerda, fora de w). pilha > 0 é a versão compacta
+ *     (chip + ícone), que ignora as linhas.
+ *   RaceFx.drawBalloon(ctx, x, y, S, item, simT, pilha, linhas) -> true se desenhou. (x, y) = canto do corpo. linhas
+ *     (opcional) = o texto do balão de skill (nomeEmLinhas); sem elas, o nome curto numa linha.
  *     Preso à raia do cavalo (a tela põe à frente do focinho): borda e pontinha na cor da seda, chip
  *     com o número da raia, ícone de 8×8 (por código, no estilo dos ícones de status) e o nome curto
  *     na cor do elemento; Garra dourada; cansou cinza ("CANSOU"). Entra subindo 2 px, some em
@@ -210,9 +222,10 @@
  *     borda mais escura. 3 por cavalo, 1 em reduced. A tela não chama na chuva.
  *
  *   RaceFx._stats = { dados, faixaDado, faixaDadoLinhas, faixaDadoCaixa, baloes, particulas, msQuadro, quadros, placas, faixaSkill, caixasBaloes, caixasCavalos,
- *                     caixasEtiquetas, natureza, ventoHud, minimapa, auras, tipoAuras, tercos }
+ *                     caixasEtiquetas, faixaLugar, faixaLugarCaixa, natureza, ventoHud, minimapa, auras, tipoAuras, tercos }
  *     faixaDado = a faixa grande do Dado foi desenhada no quadro; faixaDadoLinhas = as linhas dela ([] sem faixa);
- *     faixaDadoCaixa = { x, y, w, h } dela em pixels de arte (null sem faixa).
+ *     faixaDadoCaixa = { x, y, w, h } dela em pixels de arte (null sem faixa); faixaLugar = o texto da faixa do lugar
+ *     desenhada no quadro ('' se não há) e faixaLugarCaixa = a caixa dela (null sem faixa).
  *     auras = auras de skill de tipo desenhadas no quadro (drawTypeAura; não entram em particulas);
  *     tipoAuras = [{ racer, element }] dessas auras (a tela anota); tercos = trechos pintados no minimapa (3).
  *     natureza = { pingos, respingos, relampago, raios, calor, nevoa, nevoaFrente, sombras, folhas, poeiraCascos }
@@ -220,7 +233,7 @@
  *     'icone' | '' (o selo de vento que a tela desenhou no HUD); minimapa = true se o minimapa foi desenhado.
  *     faixaSkill = texto da faixa central desenhada no quadro ('' se não há); caixasBaloes = [{ racer,
  *     kind, tipo, texto, pilha, x, y, w, h, y0, y1 }] dos balões posicionados (tipo = skill de tipo; texto = o nome
- *     curto no balão de texto, '' nos compactos) (pixels de arte; y0..y1 = faixa vertical da
+ *     no balão de texto, as linhas juntas com espaço, '' nos compactos) (pixels de arte; y0..y1 = faixa vertical da
  *     raia) e caixasCavalos = [{ racer, x, y, w, h }] dos cavalos visíveis; caixasEtiquetas = [{ racer, x, y, w, h }] das
  *     etiquetas de quem está fora da tela (com a setinha). A tela anota os quatro.
  *     Contadores do quadro atual (zerados por beginFrame) para o ui-test: dados desenhados, faixa
@@ -254,7 +267,9 @@
     efeitoMin: 1.5,    // contorno/efeito da skill: [1.5, 7]
     efeitoMax: 7,
     garraFim: 0.6,     // a Garra segue até finishTime + 0.6
-    sobe: 2            // pixels de arte que o balão sobe ao entrar
+    sobe: 2,           // pixels de arte que o balão sobe ao entrar
+    textoMax: 48,      // largura (pixels de arte) do nome numa linha do balão: a das 12 letras do nomeCurto
+    h2: 17             // altura do balão com o nome em duas linhas (o de uma linha tem 11)
   };
   var EPS = 1e-6;
   var PLACA_H = 9, PONTA_H = 2, GAP = 1;
@@ -368,6 +383,20 @@
     }
     out = out.replace(/ \S{1,2}$/, '');          // não termina em "de", "da"…
     return out || n.slice(0, CURTO_MAX);
+  }
+
+  // Nome da skill no balão (spec 3c §5), em maiúsculas: inteiro numa linha se couber em larguraMax (pixels de arte);
+  // senão em duas, quebrando entre palavras (a quebra de linhas mais equilibradas que caibam); com linhasMax < 2 (raia
+  // estreita demais para duas linhas) ou sem quebra que caiba, [nomeCurto(nome, curto)] — curto é o short do catálogo
+  function nomeEmLinhas(nome, larguraMax, linhasMax, curto) {
+    var n = String(nome || '').toUpperCase();
+    if (textW(n) <= larguraMax) return [n];
+    var ws = n.split(' '), melhor = null;
+    for (var k = 1; linhasMax >= 2 && k < ws.length; k++) {
+      var a = ws.slice(0, k).join(' '), b = ws.slice(k).join(' '), m = Math.max(textW(a), textW(b));
+      if (m <= larguraMax && (!melhor || m < melhor.m)) melhor = { m: m, linhas: [a, b] };
+    }
+    return melhor ? melhor.linhas : [nomeCurto(nome, curto)];
   }
 
   // a skill do evento: o texto é '<rótulo> ativou <Nome>!'; casa só esse trecho (o rótulo pode ter o nome
@@ -796,7 +825,7 @@
     return { pingos: 0, respingos: 0, relampago: 0, raios: 0, calor: 0, nevoa: 0, nevoaFrente: 0, sombras: 0, folhas: 0, poeiraCascos: 0 };
   }
   var stats = { dados: 0, faixaDado: false, faixaDadoLinhas: [], faixaDadoCaixa: null, baloes: 0, particulas: 0, msQuadro: 0, quadros: 0, placas: [], faixaSkill: '', caixasBaloes: [], caixasCavalos: [], caixasEtiquetas: [],
-    natureza: novaNatureza(), ventoHud: '', minimapa: false, auras: 0, tipoAuras: [], tercos: 0 };
+    faixaLugar: '', faixaLugarCaixa: null, natureza: novaNatureza(), ventoHud: '', minimapa: false, auras: 0, tipoAuras: [], tercos: 0 };
   var JANELA_MS = 60, amostras = [], somaMs = 0, intervalos = [], ultimoQuadro = null;
   // intervalo real entre quadros (mediana e p95 da janela), calculado só quando alguém lê
   Object.defineProperty(stats, 'intervalo', { enumerable: true, get: function () {
@@ -806,7 +835,7 @@
   } });
   function beginFrame() {
     stats.dados = 0; stats.faixaDado = false; stats.faixaDadoLinhas = []; stats.faixaDadoCaixa = null; stats.baloes = 0; stats.particulas = 0; stats.placas = []; stats.faixaSkill = ''; stats.caixasBaloes = []; stats.caixasCavalos = []; stats.caixasEtiquetas = [];
-    stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false; stats.auras = 0; stats.tipoAuras = []; stats.tercos = 0;
+    stats.faixaLugar = ''; stats.faixaLugarCaixa = null; stats.natureza = novaNatureza(); stats.ventoHud = ''; stats.minimapa = false; stats.auras = 0; stats.tipoAuras = []; stats.tercos = 0;
   }
   function endFrame(ms, agora) {
     if (agora != null && isFinite(agora)) {
@@ -915,17 +944,21 @@
   // bisel da faixa do Dado: os mesmos tons do bisel das caixas do HTML (--brilho-08 em cima e à esquerda,
   // --escuro-25 embaixo e à direita) sobre o fundo do painel
   var BISEL_LUZ = mix(COR.painel, '#ffffff', 0.08), BISEL_SOMBRA = mix(COR.painel, '#000000', 0.25);
+  // moldura das faixas grandes da pista (a do Dado e a do lugar): contorno --sombra, friso na cor pedida e bisel, numa
+  // caixa B = { x, y, w, h } em pixels de arte. Parada: nada aqui depende do tempo (nem pisca nem desliza)
+  function moldura(ctx, B, S, friso) {
+    function R(ax, ay, w, h, col) { ctx.fillStyle = col; ctx.fillRect(ax * S, ay * S, w * S, h * S); }
+    R(B.x, B.y, B.w, B.h, COR.sombra);
+    R(B.x + 1, B.y + 1, B.w - 2, B.h - 2, friso);
+    R(B.x + 2, B.y + 2, B.w - 4, B.h - 4, COR.painel);
+    R(B.x + 2, B.y + 2, B.w - 4, 1, BISEL_LUZ); R(B.x + 2, B.y + 3, 1, B.h - 6, BISEL_LUZ);
+    R(B.x + 2, B.y + B.h - 3, B.w - 4, 1, BISEL_SOMBRA); R(B.x + B.w - 3, B.y + 3, 1, B.h - 6, BISEL_SOMBRA);
+  }
   function drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me, embaixo, caixa) {
     if (!item || !lay) return null;
     if (diceState(item, simT, reduced, item.winner).fase === 'fim') return null;
     var B = caixa || bannerLayout(item, racers, lay, me, embaixo);
-    function R(ax, ay, w, h, col) { ctx.fillStyle = col; ctx.fillRect(ax * S, ay * S, w * S, h * S); }
-    // parada: nada aqui depende do tempo (nem pisca nem desliza, com ou sem movimento reduzido)
-    R(B.x, B.y, B.w, B.h, COR.sombra);
-    R(B.x + 1, B.y + 1, B.w - 2, B.h - 2, COR.ouro);
-    R(B.x + 2, B.y + 2, B.w - 4, B.h - 4, COR.painel);
-    R(B.x + 2, B.y + 2, B.w - 4, 1, BISEL_LUZ); R(B.x + 2, B.y + 3, 1, B.h - 6, BISEL_LUZ);
-    R(B.x + 2, B.y + B.h - 3, B.w - 4, 1, BISEL_SOMBRA); R(B.x + B.w - 3, B.y + 3, 1, B.h - 6, BISEL_SOMBRA);
+    moldura(ctx, B, S, COR.ouro);
     stats.faixaDado = true;
     stats.faixaDadoCaixa = { x: B.x, y: B.y, w: B.w, h: B.h };
     if (!diceRevealed(item, simT, reduced)) {
@@ -952,6 +985,30 @@
       texto(ctx, B.eu, B.l3.x * S, B.l3.y * S, S, COR.ouro);
     }
     stats.faixaDadoLinhas = B.linhas.slice();
+    return B;
+  }
+
+  // Faixa do lugar na chegada (spec 3c §7): o texto ('VITÓRIA!', '2º LUGAR'…) em escala fs = 3 se a caixa couber na
+  // pista (margem 2 dos lados), senão 2, senão 1; a moldura da faixa do Dado (borda 3) e folga 6 dos lados e 2 em cima e
+  // embaixo. A altura reserva o acento (2·fs) para qualquer lugar ter a mesma caixa; o texto fica centrado nela.
+  // Centrada na largura, com y = topo; com embaixo, encostada em base (padrão: o pé da pista, artH − 2).
+  var LUGAR = { borda: 3, folgaX: 6, folgaY: 2, margem: 2 };
+  function lugarLayout(texto, lay, topo, embaixo, base) {
+    var F = LUGAR, t = String(texto || '').toUpperCase(), tw0 = textW(t), fs = 1;
+    for (var k = 3; k > 1; k--) if (tw0 * k + 2 * (F.borda + F.folgaX) <= lay.artW - 2 * F.margem) { fs = k; break; }
+    var w = tw0 * fs + 2 * (F.borda + F.folgaX), h = 2 * (F.borda + F.folgaY) + 7 * fs, acento = marcasTexto(t).cima;
+    var y = embaixo ? (base != null ? base : lay.artH - F.margem) - h : topo, x = Math.round((lay.artW - w) / 2);
+    var alto = (acento ? 2 * fs : 0) + 5 * fs;
+    return { texto: t, fs: fs, acento: acento, x: x, y: y, w: w, h: h, tw: tw0 * fs,
+      tx: x + F.borda + F.folgaX, ty: y + F.borda + F.folgaY + Math.floor((7 * fs - alto) / 2) + (acento ? 2 * fs : 0) };
+  }
+  // desenha a faixa B (lugarLayout) com o friso e o texto na cor do lugar; parada (aparece e some, sem animação, com ou
+  // sem movimento reduzido). Marca _stats.faixaLugar e faixaLugarCaixa
+  function drawPlaceBanner(ctx, B, cor, S) {
+    moldura(ctx, B, S, cor);
+    texto(ctx, B.texto, B.tx * S, B.ty * S, S * B.fs, cor);
+    stats.faixaLugar = B.texto;
+    stats.faixaLugarCaixa = { x: B.x, y: B.y, w: B.w, h: B.h };
     return B;
   }
 
@@ -1042,18 +1099,22 @@
       textX: Math.round(artW / 2) + Math.round(m.skW / 2), textDy: Math.floor((h - 5 * fs) / 2)
     };
   }
-  function balloonSize(item, pilha) {
+  // linhas (opcional, do nomeEmLinhas): o texto do balão de skill; sem elas, o de sempre numa linha
+  function balloonSize(item, pilha, linhas) {
     if (pilha > 0) return { w: BAL_ICONE_X + 8 + 2, h: BAL_H };
-    return { w: BAL_ICONE_X + 8 + 2 + textW(textoBalao(item)) + 3, h: BAL_H };
+    var ls = linhas && linhas.length ? linhas : [textoBalao(item)];
+    return { w: BAL_ICONE_X + 8 + 2 + Math.max.apply(null, ls.map(textW)) + 3, h: ls.length > 1 ? BALAO.h2 : BAL_H };
   }
 
-  // (x, y) = canto do corpo do balão em px do canvas; a pontinha (1..2 px à esquerda) aponta para o cavalo
-  function drawBalloon(ctx, x, y, S, item, simT, pilha) {
+  // (x, y) = canto do corpo do balão em px do canvas; a pontinha (1..2 px à esquerda) aponta para o cavalo. Com o nome em
+  // duas linhas (linhas, do nomeEmLinhas) o balão tem BALAO.h2 de altura e o chip, o ícone e a pontinha vão para o meio
+  function drawBalloon(ctx, x, y, S, item, simT, pilha, linhas) {
     if (!item) return false;
     var e = item.escala || 1, dur = BALAO.dur * e, age = simT - item.t0;
     if (age < -EPS || age >= dur - EPS * e) return false;
     var d = age / e;                                   // segundos reais em x1
-    var sz = balloonSize(item, pilha), w = sz.w;
+    var ls = !pilha && linhas && linhas.length ? linhas : [textoBalao(item)];
+    var sz = balloonSize(item, pilha, ls), w = sz.w, h = sz.h, meio = Math.floor((h - BAL_H) / 2);
     var alpha = d > BALAO.dur - 0.4 ? Math.max(0, (BALAO.dur - d) / 0.4) : 1;
     if (pilha > 0) alpha *= 0.9;
     var sobe = Math.round(Math.min(1, d / 0.4) * BALAO.sobe);
@@ -1066,15 +1127,16 @@
     var prev = ctx.globalAlpha;
     ctx.globalAlpha = prev * alpha;
     function R(dx, dy, ww, hh, col) { ctx.fillStyle = col; ctx.fillRect(x + dx * S, y0 + dy * S, ww * S, hh * S); }
-    R(-1, -1, w + 2, BAL_H + 2, COR.sombra);            // contorno escuro por fora da seda
-    R(0, 0, w, BAL_H, seda);
-    R(1, 1, w - 2, BAL_H - 2, fundo);
-    R(1, 1, 7, BAL_H - 2, seda);                        // chip com o número da raia
-    texto(ctx, String(item.raia || ''), x + (item.raia > 9 ? 1 : 3) * S, y0 + 3 * S, S, lum(seda) > 0.5 ? COR.tinta : COR.texto);
-    if (!drawIconPng(ctx, iconNameOf(item), x + BAL_ICONE_X * S, y0 + 1 * S, 8, S)) desenhaIcone(ctx, iconeDe(item), x + BAL_ICONE_X * S, y0 + 1 * S, S, txt);
-    if (!pilha) texto(ctx, textoBalao(item), x + (BAL_ICONE_X + 10) * S, y0 + 3 * S, S, txt);
+    R(-1, -1, w + 2, h + 2, COR.sombra);                // contorno escuro por fora da seda
+    R(0, 0, w, h, seda);
+    R(1, 1, w - 2, h - 2, fundo);
+    R(1, 1, 7, h - 2, seda);                            // chip com o número da raia
+    texto(ctx, String(item.raia || ''), x + (item.raia > 9 ? 1 : 3) * S, y0 + (3 + meio) * S, S, lum(seda) > 0.5 ? COR.tinta : COR.texto);
+    if (!drawIconPng(ctx, iconNameOf(item), x + BAL_ICONE_X * S, y0 + (1 + meio) * S, 8, S)) desenhaIcone(ctx, iconeDe(item), x + BAL_ICONE_X * S, y0 + (1 + meio) * S, S, txt);
+    // as linhas a cada 7 px: 5 da letra e 2 entre elas, para a cedilha da linha de cima e o acento da de baixo
+    for (var li = 0; !pilha && li < ls.length; li++) texto(ctx, ls[li], x + (BAL_ICONE_X + 10) * S, y0 + (3 + 7 * li) * S, S, txt);
     if (!pilha) {                                      // pontinha para o cavalo (na cor da seda)
-      R(-3, 4, 3, 3, COR.sombra); R(-2, 4, 2, 3, seda); R(-1, 3, 1, 5, seda); R(-2, 5, 1, 1, seda);
+      R(-3, 4 + meio, 3, 3, COR.sombra); R(-2, 4 + meio, 2, 3, seda); R(-1, 3 + meio, 1, 5, seda); R(-2, 5 + meio, 1, 1, seda);
     }
     ctx.globalAlpha = prev;
     stats.baloes++;
@@ -1662,6 +1724,8 @@
     timeline: timeline,
     skillIcon: skillIcon,
     nomeCurto: nomeCurto,
+    nomeEmLinhas: nomeEmLinhas,
+    lugarLayout: lugarLayout,
     slowFactor: slowFactor,
     diceState: diceState,
     diceLabels: diceLabels,
@@ -1696,6 +1760,7 @@
     // desenho
     drawDice: drawDice,
     drawDiceBanner: drawDiceBanner,
+    drawPlaceBanner: drawPlaceBanner,
     drawBalloon: drawBalloon,
     drawIconPng: drawIconPng,
     skillBannerLayout: skillBannerLayout,

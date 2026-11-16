@@ -1551,6 +1551,79 @@ try {
         }
       }).observe(feed, { childList: true, subtree: true })
     })
+    // faixa do lugar (spec 3c §7, Ruling 14), quadro a quadro: nunca antes de o jogador cruzar a linha (s.crossed); no quadro
+    // em que cruza, o texto do lugar dele no sim.finishOrder ('VITÓRIA!', 'Nº LUGAR'); parada (uma caixa só) até sumir
+    // ~2,5 s reais depois (e a tela não vai para o resultado antes); sem cobrir o cavalo do jogador, a etiqueta "FOTO DE
+    // CHEGADA" (mesmo quando ela não está na tela: a faixa fica sempre fora do lugar dela) nem a faixa do Dado
+    const vigiaLugar = (pg) => pg.evaluate(() => {
+      const s = window.__galope.race._state, L = window.__galope.ui.lobby, FX = window.RaceFx, SP = window.Sprites, me = L.playerIdx
+      const k = L.sim.finishOrder.indexOf(me) + 1
+      const w = window.__lugarFaixa = { esperado: k === 1 ? 'VITÓRIA!' : k + 'º LUGAR', lugar: k, raia: me + 1, quadros: 0, antes: 0, noCruzar: null, textos: [], caixas: [],
+        t0: null, t1: null, cruzouCavalo: 0, cobriuFoto: 0, cobriuDado: 0, ex: null, fim: false, cortada: false, hudH: s.lay.hudH, artH: s.lay.artH }
+      const cruza = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+      const tick = () => {
+        // a tela sai para o resultado no quadro em que a faixa acaba (sem desenhá-lo): acabou se o relógio passou do fim dela
+        if (!window.__galope.race) {
+          if (w.t0 !== null && w.t1 === null) { if (s.lugar && s.tReal >= s.lugar.ate) w.t1 = s.tReal; else w.cortada = true }
+          w.fim = true; return
+        }
+        const st = FX._stats, txt = st.faixaLugar, c = st.faixaLugarCaixa
+        w.quadros++
+        if (!s.crossed) { if (txt) w.antes++ } else {
+          if (w.noCruzar === null) w.noCruzar = txt
+          if (txt) {
+            if (w.t0 === null) w.t0 = s.tReal
+            if (!w.textos.includes(txt)) w.textos.push(txt)
+            if (!w.caixas.includes(JSON.stringify(c))) w.caixas.push(JSON.stringify(c))
+            const p = s.playerRect, S = s.S, lay = s.lay, fw = SP.measureText('FOTO DE CHEGADA', 1) + 6
+            const eu = p && { x: p.x / S, y: p.y / S, w: p.w / S, h: p.h / S }, foto = { x: Math.round(lay.artW / 2 - fw / 2) - 1, y: lay.hudH + 2, w: fw + 2, h: 11 }
+            if (eu && cruza(c, eu)) { w.cruzouCavalo++; w.ex = w.ex || { t: s.simT, faixa: c, cavalo: eu } }
+            if (cruza(c, foto)) w.cobriuFoto++
+            if (st.faixaDadoCaixa && cruza(c, st.faixaDadoCaixa)) w.cobriuDado++
+          } else if (w.t0 !== null) { w.t1 = s.tReal; w.fim = true; return }
+        }
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    // espera a faixa do lugar sumir e confere; esperado (opcional) = o texto que a seed tem de dar (o teste conta com ele)
+    const confereLugar = async (pg, label, esperado) => {
+      await pg.waitForFunction(() => window.__lugarFaixa.fim, null, { timeout: 120000, polling: 'raf' })
+      const w = await pg.evaluate(() => window.__lugarFaixa)
+      const dur = w.t0 !== null && w.t1 !== null ? +(w.t1 - w.t0).toFixed(2) : null
+      notes[label + '-faixa-lugar'] = { esperado: w.esperado, raia: w.raia, textos: w.textos, caixas: w.caixas, duracao: dur, quadros: w.quadros, hudH: w.hudH, artH: w.artH }
+      if (esperado && w.esperado !== esperado) problems.push(`[${label}] o jogador chegou em ${w.lugar}º (o teste conta com ${esperado})`)
+      if (w.antes) problems.push(`[${label}] faixa do lugar em ${w.antes} quadros antes de o jogador cruzar a linha`)
+      if (w.noCruzar !== w.esperado || w.textos.join() !== w.esperado) problems.push(`[${label}] faixa do lugar ${JSON.stringify(w.textos)} (no quadro da chegada: ${JSON.stringify(w.noCruzar)}; esperado ${JSON.stringify(w.esperado)})`)
+      if (w.cortada || dur === null || dur < 2.4 || dur > 2.7) problems.push(`[${label}] a faixa do lugar ficou ${dur} s reais na tela${w.cortada ? ' (a corrida saiu antes de ela sumir)' : ''} (esperado ~2,5 s)`)
+      if (w.caixas.length !== 1) problems.push(`[${label}] a faixa do lugar mudou de lugar: ${w.caixas.join(' ')}`)
+      if (w.cruzouCavalo) problems.push(`[${label}] Ruling 14: a faixa do lugar cruzou o cavalo do jogador em ${w.cruzouCavalo} quadros, ex.: ${JSON.stringify(w.ex)}`)
+      if (w.cobriuFoto) problems.push(`[${label}] a faixa do lugar cobre a etiqueta "FOTO DE CHEGADA" (${w.caixas[0]})`)
+      if (w.cobriuDado) problems.push(`[${label}] a faixa do lugar cobriu a faixa do Dado em ${w.cobriuDado} quadros`)
+      return w
+    }
+    // plaquinhas de skill dos rivais (spec 3c §5), quadro a quadro: o balão de texto mostra o nome inteiro — numa linha ou,
+    // com a raia alta o bastante (s.linhasBalao = 2), em duas; com a raia baixa, o nome curto de sempre
+    const vigiaBaloes = (pg) => pg.evaluate(() => {
+      const s = window.__galope.race._state, FX = window.RaceFx, me = window.__galope.ui.lobby.playerIdx
+      const w = window.__baloesVigia = { vistos: 0, inteirosLongos: 0, ruins: 0, ex: [], linhas: s.linhasBalao, lane: s.lay.laneArt }
+      const tick = () => {
+        if (!window.__galope.race) return
+        const t = s.simT
+        FX._stats.caixasBaloes.forEach((b) => {
+          if (b.pilha !== 0 || b.kind !== 'skill' || b.racer === me) return
+          // o item do balão de texto: o mais novo do cavalo entre os balões ativos (skill, Garra, cansou), como a tela
+          const it = s.fx.filter((x) => (x.kind === 'skill' || x.kind === 'garra' || x.kind === 'cansou') && x.racer === b.racer && t >= x.t0 && t < x.t0 + FX.BALAO.dur * x.escala).pop()
+          if (!it || it.kind !== 'skill') return
+          w.vistos++
+          const inteiro = it.nome.toUpperCase(), esp = s.linhasBalao === 2 ? inteiro : it.nomeCurto
+          if (b.texto !== esp) { w.ruins++; if (w.ex.length < 4) w.ex.push({ texto: b.texto, esp, linhas: s.linhasBalao }) }
+          else if (b.texto === inteiro && inteiro.includes(' ') && inteiro !== it.nomeCurto) w.inteirosLongos++
+        })
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
     const visivel = (pg, sel) => pg.evaluate((s) => {
       const e = document.querySelector(s), b = e.getBoundingClientRect()
       return getComputedStyle(e).display !== 'none' && b.height > 0 && b.top >= 0 && b.bottom <= window.innerHeight
@@ -1569,6 +1642,8 @@ try {
         await vigiaDado(pg)
         await vigiaLugarDado(pg)
         await vigiaFeed(pg)
+        await vigiaLugar(pg)
+        await vigiaBaloes(pg)
         // na contagem: a ordem das raias e "Largada em instantes" (quando ainda dá tempo de ler)
         const cont = await pg.evaluate(() => ({ phase: window.__galope.race._state.phase, raias: Array.from(document.querySelectorAll('#ordem-lista > li')).map((li) => li.dataset.raia).join(), viz: document.getElementById('ordem-vizinhos').textContent }))
         if (cont.phase === 'contagem' && (cont.raias !== Array.from({ length: n }, (_, i) => i).join() || cont.viz !== 'Largada em instantes')) problems.push(`[${label}] na contagem: ordem ${cont.raias} e vizinhos ${JSON.stringify(cont.viz)} (esperado as raias em ordem e "Largada em instantes")`)
@@ -1631,6 +1706,14 @@ try {
           if (um > 1) problems.push(`[${label}] tela baixa com ${um} frases na narração (esperado 1)`)
         }
         await checkOverflow(pg, label + ' chegada')
+        // por último (a tela vai para o resultado quando a faixa some): a faixa do lugar (o jogador chega em 7º de 7 na
+        // seed 16) e as plaquinhas dos rivais
+        await confereLugar(pg, label, '7º LUGAR')
+        const bv = await pg.evaluate(() => window.__baloesVigia)
+        notes[label + '-baloes'] = bv
+        if (bv.linhas !== (baixa ? 1 : 2)) problems.push(`[${label}] nome da skill nos balões em ${bv.linhas} linha(s) com raias de ${bv.lane} (esperado ${baixa ? 1 : 2})`)
+        if (!bv.vistos || bv.ruins) problems.push(`[${label}] plaquinhas de skill dos rivais: ${bv.ruins} de ${bv.vistos} com o texto errado, ex.: ${JSON.stringify(bv.ex)}`)
+        if (!baixa && !bv.inteirosLongos) problems.push(`[${label}] nenhuma plaquinha de rival com o nome inteiro de uma skill de duas palavras que antes era abreviada (${JSON.stringify(bv)})`)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -1904,6 +1987,85 @@ try {
       }
     }
 
+    // faixa do lugar: vitória (seed 3, jogador em 1º), pódio (seed 12, 3º; com o jogador na raia 2 a 360x640 a faixa vai
+    // para o pé) e Ruling 14 com o jogador na raia 1 (seed 102, 8º): a faixa não cruza o cavalo dele em nenhum quadro, a
+    // 360x780 e a 360x640
+    for (const [seed, esperado, vp] of [[3, 'VITÓRIA!', { width: 360, height: 780 }], [12, '3º LUGAR', { width: 360, height: 640 }],
+      [102, '8º LUGAR', { width: 360, height: 780 }], [102, '8º LUGAR', { width: 360, height: 640 }]]) {
+      const label = `corrida-faixa-lugar-${seed}-${vp.width}x${vp.height}`
+      const pg = await newPage(browser, vp, label, { query: '?dev=1' })
+      try {
+        await abreCorrida(pg, label, seed)
+        const me = await pg.evaluate(() => window.__galope.ui.lobby.playerIdx)
+        if (seed === 102 && me !== 0) problems.push(`[${label}] a seed 102 pôs o jogador na raia ${me + 1} (o teste conta com a raia 1)`)
+        await vigiaLugar(pg)
+        await pg.getByRole('button', { name: 'x2' }).click()
+        const w = await confereLugar(pg, label, esperado)
+        // com o jogador na raia 1, a faixa em cima cruzaria o cavalo dele: fica no pé da pista
+        if (seed === 102 && w.caixas.length && JSON.parse(w.caixas[0]).y < w.artH / 2) problems.push(`[${label}] Ruling 14: com o jogador na raia 1 a faixa do lugar ficou em cima (${w.caixas[0]})`)
+        // em cima, logo abaixo da etiqueta "FOTO DE CHEGADA"; no pé, encostada na borda de baixo (sem Dado na chegada)
+        const cx = w.caixas.length ? JSON.parse(w.caixas[0]) : null
+        if (cx && (cx.y < w.artH / 2 ? cx.y !== w.hudH + 15 : cx.y + cx.h !== w.artH - 2)) problems.push(`[${label}] faixa do lugar fora das duas posições (${w.caixas[0]}; hudH ${w.hudH}, artH ${w.artH})`)
+        await pg.waitForSelector('#t-resultado', { timeout: 30000 })
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // Review Focus 5a: "Pular" com a faixa do lugar na tela leva ao resultado sem deixar a faixa presa; pular antes de
+    // cruzar nunca mostra a faixa
+    {
+      const label = 'corrida-faixa-lugar-pular'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
+      try {
+        await abreCorrida(pg, label, 12)
+        await pg.getByRole('button', { name: 'x2' }).click()
+        await pg.waitForFunction(() => window.RaceFx._stats.faixaLugar !== '', null, { timeout: 120000, polling: 'raf' })
+        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pg.waitForSelector('#t-resultado', { timeout: 5000 })
+        await sleep(300)
+        const r = await pg.evaluate(() => ({ race: !!window.__galope.race, pista: !!document.getElementById('pista'), faixa: window.RaceFx._stats.faixaLugar, caixa: window.RaceFx._stats.faixaLugarCaixa }))
+        notes[label] = r
+        if (r.race || r.pista || r.faixa !== '' || r.caixa !== null) problems.push(`[${label}] depois de pular com a faixa do lugar na tela: ${JSON.stringify(r)}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    {
+      const label = 'corrida-faixa-lugar-pular-antes'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
+      try {
+        await abreCorrida(pg, label, SEED7)
+        await pg.evaluate(() => {
+          const w = window.__pularAntes = { quadros: 0, comFaixa: 0, cruzou: false }
+          const tick = () => {
+            const r = window.__galope.race
+            if (!r) return
+            w.quadros++
+            if (window.RaceFx._stats.faixaLugar) w.comFaixa++
+            if (r._state.crossed) w.cruzou = true
+            requestAnimationFrame(tick)
+          }
+          requestAnimationFrame(tick)
+        })
+        await pg.getByRole('button', { name: 'x2' }).click()
+        await esperaFracao(pg, 0.5)
+        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pg.waitForSelector('#t-resultado', { timeout: 5000 })
+        const w = await pg.evaluate(() => ({ ...window.__pularAntes, faixa: window.RaceFx._stats.faixaLugar }))
+        notes[label] = w
+        if (w.quadros < 30 || w.cruzou) problems.push(`[${label}] o teste não amostrou a corrida antes da chegada: ${JSON.stringify(w)}`)
+        if (w.comFaixa || w.faixa !== '') problems.push(`[${label}] pulando antes de cruzar, a faixa do lugar apareceu em ${w.comFaixa} quadros (${JSON.stringify(w)})`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
     // Ruling 12 com movimento reduzido: a revelação é em t0, então a narração, o #anuncio e o painel não esperam
     {
       const label = 'corrida-dado-reduzido'
@@ -1912,8 +2074,11 @@ try {
         await abreCorrida(pg, label, SEED7)
         if (!(await pg.evaluate(() => document.documentElement.classList.contains('mov-reduzido')))) problems.push(`[${label}] sem a classe mov-reduzido`)
         await vigiaDado(pg)
+        await vigiaLugar(pg)
         await pg.getByRole('button', { name: 'x2' }).click()
         await confereVigiaDado(pg, label)
+        // com movimento reduzido, o mesmo texto (aparece e some sem animação: drawPlaceBanner é parado)
+        await confereLugar(pg, label, '7º LUGAR')
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -2543,7 +2708,8 @@ try {
           // balão na entrada de cada terço: 0,2 s reais depois do evento da skill de tipo
           const entradas = s.fx.filter((it) => it.typeSkill).map((it) => {
             const q = quadro(it.t0 + 0.2 * it.escala)
-            return { racer: it.racer, el: it.element, curto: it.nomeCurto, visivel: q.vis.includes(it.racer), balao: q.baloes.find((b) => b.racer === it.racer && b.tipo) || null }
+            // spec 3c §5: com a raia alta o bastante (s.linhasBalao = 2), o nome inteiro (em duas linhas, se não couber em uma)
+            return { racer: it.racer, el: it.element, curto: s.linhasBalao === 2 ? it.nome.toUpperCase() : it.nomeCurto, visivel: q.vis.includes(it.racer), balao: q.baloes.find((b) => b.racer === it.racer && b.tipo) || null }
           })
           // minimapa: pixels exatos das três cores dos elementos dentro da caixa
           const cv = document.getElementById('pista'), mc = s.lay.mini, S = s.S

@@ -242,6 +242,48 @@ test('nomeCurto: nome inteiro até 12 letras; campo short nos longos; nenhum cor
   // sem short, o corte do nome é por palavras inteiras
   assert.strictEqual(FX.nomeCurto('Fôlego de Montanha'), 'FÔLEGO');
 });
+// spec 3c §5: o nome inteiro numa linha quando cabe; senão em duas, quebrando entre palavras; nomeCurto só como último
+// recurso (raia estreita demais para duas linhas). A fonte só tem maiúsculas: as linhas saem como o nomeCurto, em maiúsculas
+test('nomeEmLinhas: inteiro numa linha se couber; senão duas linhas entre palavras; linhasMax 1 dá o nomeCurto', function () {
+  var w = FX.BALAO.textoMax, SP = require('../src/sprites.js');
+  assert.ok(SP.measureText('RAÍZES FIRMES', 1) > w, 'o teste conta com "Raízes Firmes" sem caber numa linha');
+  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', w, 2), ['RAÍZES', 'FIRMES']);
+  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', SP.measureText('RAÍZES FIRMES', 1), 2), ['RAÍZES FIRMES'], 'na largura exata cabe numa linha');
+  assert.deepStrictEqual(FX.nomeEmLinhas('Labareda', w, 2), ['LABAREDA']);
+  assert.deepStrictEqual(FX.nomeEmLinhas('Saída Rápida', w, 2), ['SAÍDA RÁPIDA'], 'nome de duas palavras que cabe: uma linha');
+  assert.deepStrictEqual(FX.nomeEmLinhas('Labareda', w, 1), ['LABAREDA']);
+  // linhasMax 1: o nomeCurto de hoje (com o short do catálogo, quando há)
+  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', w, 1), [FX.nomeCurto('Raízes Firmes')]);
+  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', w, 1, 'RAÍZES FIRM.'), ['RAÍZES FIRM.']);
+  // três palavras: a quebra de linhas mais equilibradas que caibam
+  assert.deepStrictEqual(FX.nomeEmLinhas('Fôlego de Montanha', w, 2), ['FÔLEGO DE', 'MONTANHA']);
+  assert.deepStrictEqual(FX.nomeEmLinhas('Canto da Iara', w, 2), ['CANTO', 'DA IARA']);
+  // sem quebra que caiba (uma palavra só, ou uma linha larga demais): o nomeCurto
+  assert.deepStrictEqual(FX.nomeEmLinhas('Supercalifragilistico', w, 2), [FX.nomeCurto('Supercalifragilistico')]);
+  assert.deepStrictEqual(FX.nomeEmLinhas('Arrancada Final', 20, 2, 'ARR. FINAL'), ['ARR. FINAL']);
+  // todas as skills do catálogo: em duas linhas, cada linha cabe e as palavras são as do nome, na ordem
+  Object.keys(G.SKILLS).map(function (id) { return G.SKILLS[id]; }).concat(Object.keys(G.TYPE_SKILLS).map(function (k) { return G.TYPE_SKILLS[k]; })).forEach(function (sk) {
+    var l = FX.nomeEmLinhas(sk.name, w, 2, sk.short);
+    assert.ok(l.length >= 1 && l.length <= 2, sk.name);
+    l.forEach(function (x) { assert.ok(SP.measureText(x, 1) <= w, sk.name + ': "' + x + '" passa de ' + w); });
+    assert.strictEqual(l.join(' '), sk.name.toUpperCase(), sk.name + ' inteiro em até duas linhas');
+  });
+});
+test('balão com o nome em duas linhas: mais alto, texto das duas linhas dentro do corpo; uma linha como antes', function () {
+  var um = ctxFalso(), dois = ctxFalso(), it = { kind: 'skill', t0: 10, t1: 15, racer: 0, skillId: 'raizes', icon: 'vel', element: 'grama', cavalo: 'grama', nome: 'Raízes Firmes', nomeCurto: 'RAÍZES FIRM.', silks: '#d8353b', raia: 1, escala: 1 };
+  var s1 = FX.balloonSize(it, 0), s2 = FX.balloonSize(it, 0, ['RAÍZES', 'FIRMES']), s0 = FX.balloonSize(it, 0, ['RAÍZES FIRM.']);
+  assert.deepStrictEqual(s0, s1, 'sem linhas: o nome curto numa linha, do mesmo tamanho');
+  assert.strictEqual(s1.h, 11);
+  assert.strictEqual(s2.h, FX.BALAO.h2);
+  assert.ok(s2.w < s1.w, 'duas linhas curtas: balão mais estreito');
+  assert.deepStrictEqual(FX.balloonSize(it, 1, ['RAÍZES', 'FIRMES']), FX.balloonSize(it, 1), 'compacto não muda');
+  assert.ok(FX.drawBalloon(um, 0, 0, 1, it, 10.5, 0) && FX.drawBalloon(dois, 0, 0, 1, it, 10.5, 0, ['RAÍZES', 'FIRMES']));
+  // (sobe 2 px ao entrar: aos 0,5 s já está no lugar) nada além do contorno de 1 px em volta do corpo e da pontinha
+  dois.rects.forEach(function (r) { assert.ok(r.y >= -1 && r.y + r.h <= s2.h + 1 && r.x >= -3 && r.x + r.w <= s2.w + 1, 'fora do balão: ' + JSON.stringify(r)); });
+  var lin = dois.rects.filter(function (r) { return r.x >= 19; });   // o texto começa em x = 19 (chip, ícone e folga antes)
+  assert.ok(lin.some(function (r) { return r.y < 9; }) && lin.some(function (r) { return r.y >= 10 && r.y + r.h <= 16; }), 'texto nas duas linhas');
+  FX.resetStats(true);
+});
 test('timeline tem um item por evento skill/garra/cansou', function () { comJoqueiOtimista(function () {
   var visto = { skill: 0, garra: 0, cansou: 0 };
   for (var sd = 1; sd <= 40; sd++) {   // 2000 m (a mais longa do sorteio): com 1000 m ninguém se cansa
@@ -1283,6 +1325,52 @@ function dentroDaPista(B, lay) {
   assert.ok(B.y >= lay.hudH, 'abaixo do painel do topo: ' + JSON.stringify(B));
   assert.ok(B.w > 0 && B.h > 0);
 }
+// faixa do lugar na chegada (spec 3c §7, Ruling 14): caixa e desenho
+test('faixa do lugar: escala 3 quando cabe, centrada, no topo pedido ou no pé da pista; a mesma altura para qualquer lugar', function () {
+  var lay = { artW: 180, artH: 232, hudH: 42 }, topo = 57;
+  var V = FX.lugarLayout('VITÓRIA!', lay, topo, false), D = FX.lugarLayout('2º LUGAR', lay, topo, false), O = FX.lugarLayout('8º LUGAR', lay, topo, false);
+  assert.strictEqual(V.texto, 'VITÓRIA!');
+  [V, D, O].forEach(function (B) {
+    assert.strictEqual(B.fs, 3, B.texto);
+    assert.strictEqual(B.y, topo);
+    assert.ok(B.x >= 2 && B.x + B.w <= lay.artW - 2, 'na largura da pista: ' + JSON.stringify(B));
+    assert.ok(Math.abs(B.x + B.w / 2 - lay.artW / 2) <= 0.5, 'centrada');
+    assert.strictEqual(B.h, V.h, 'mesma altura');
+    // o texto (5·fs de altura, mais o acento de 2·fs em cima) dentro da caixa, com a borda de 3 em volta
+    assert.ok(B.tx >= B.x + 3 && B.tx + B.tw <= B.x + B.w - 3 && B.ty - (B.acento ? 2 * B.fs : 0) >= B.y + 3 && B.ty + 5 * B.fs <= B.y + B.h - 3, 'texto dentro: ' + JSON.stringify(B));
+  });
+  assert.ok(V.acento && !D.acento);
+  var E = FX.lugarLayout('VITÓRIA!', lay, topo, true);
+  assert.deepStrictEqual([E.x, E.w, E.h, E.fs], [V.x, V.w, V.h, V.fs]);
+  assert.strictEqual(E.y + E.h, lay.artH - 2, 'encostada no pé da pista');
+  assert.strictEqual(E.ty - E.y, V.ty - V.y, 'o texto desce junto');
+  assert.strictEqual(FX.lugarLayout('VITÓRIA!', lay, topo, true, 150).y + E.h, 150, 'base pedida (acima de outra faixa no pé)');
+  // pista estreita: a escala cai até caber
+  var N = FX.lugarLayout('8º LUGAR', { artW: 90, artH: 120, hudH: 15 }, 20, false);
+  assert.ok(N.fs < 3 && N.x >= 2 && N.x + N.w <= 88, JSON.stringify(N));
+});
+test('drawPlaceBanner: moldura na cor do lugar, nada fora da caixa, marca _stats.faixaLugar e a caixa; beginFrame zera', function () {
+  var lay = { artW: 180, artH: 232, hudH: 42 }, B = FX.lugarLayout('3º LUGAR', lay, 57, false), c = ctxFalso();
+  FX.resetStats(true);
+  assert.strictEqual(FX._stats.faixaLugar, '');
+  assert.strictEqual(FX._stats.faixaLugarCaixa, null);
+  FX.drawPlaceBanner(c, B, '#c98a52', 2);
+  assert.strictEqual(FX._stats.faixaLugar, '3º LUGAR');
+  assert.deepStrictEqual(FX._stats.faixaLugarCaixa, { x: B.x, y: B.y, w: B.w, h: B.h });
+  assert.ok(c.rects.some(function (r) { return r.cor === '#c98a52' && r.w === (B.w - 2) * 2; }), 'friso na cor do lugar');
+  assert.ok(c.rects.filter(function (r) { return r.cor === '#c98a52'; }).length > 4, 'texto na cor do lugar');
+  c.rects.forEach(function (r) {
+    assert.ok(r.x >= B.x * 2 && r.y >= B.y * 2 && r.x + r.w <= (B.x + B.w) * 2 && r.y + r.h <= (B.y + B.h) * 2, 'fora da caixa: ' + JSON.stringify(r));
+    assert.strictEqual(r.a, 1, 'sem transparência (não pisca nem esmaece)');
+  });
+  // parada: desenhar de novo dá os mesmos retângulos
+  var d = ctxFalso();
+  FX.drawPlaceBanner(d, B, '#c98a52', 2);
+  assert.deepStrictEqual(d.rects, c.rects);
+  FX.beginFrame();
+  assert.strictEqual(FX._stats.faixaLugar, '');
+  assert.strictEqual(FX._stats.faixaLugarCaixa, null);
+});
 test('faixa do Dado: vencedor rival com virada tem 3 linhas (a do jogador por último)', function () {
   var B = FX.bannerLayout(dadoFaixa(), RACERS_FAIXA, LAY_FAIXA, 1);
   assert.deepStrictEqual(B.linhas, ['MAIOR DADO: BRASA 12', 'O SOL ABRE!', 'VOCÊ TIROU 7']);

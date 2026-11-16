@@ -116,7 +116,7 @@
       palha: t('--palha', '#a5823f'), palha2: t('--palha-2', '#6f5526'), tabua: t('--tabua', '#243a31'),
       fogo: t('--fogo', '#ff8a4c'), agua: t('--agua', '#62b8ff'),
       veu: t('--veu', 'rgba(6,13,10,0.74)'), escuro: t('--escuro-25', 'rgba(0,0,0,0.25)'),
-      brilho: t('--brilho-33', 'rgba(255,255,255,0.33)'), holofote: t('--holofote', 'rgba(255,226,122,0.06)')
+      brilho: t('--brilho-33', 'rgba(255,255,255,0.33)'), brilho08: t('--brilho-08', 'rgba(255,255,255,0.08)'), holofote: t('--holofote', 'rgba(255,226,122,0.06)')
     };
   }
 
@@ -3612,13 +3612,14 @@
     }
 
     // ---- layout: o canvas ocupa a altura que sobra na tela (sem rolagem), escala inteira
-    // lugar da faixa do Dado (decideLugarDado): o Dado da decisão e se a faixa fica no pé da pista
-    var lugarDado = { item: null, embaixo: false };
+    // lugar da faixa do Dado (decideLugarDado): o Dado da decisão e se a faixa fica no pé da pista; e o da faixa do
+    // lugar na chegada (decideLugarFaixa): decidida ou não, e a caixa dela
+    var lugarDado = { item: null, embaixo: false }, lugarFaixa = { decidida: false, embaixo: false, caixa: null };
     function layout() {
       var r = dpr();
-      // a decisão do lugar da faixa do Dado vale para este layout: girar ou redimensionar no meio de um Dado muda artH e
-      // hudH, e o próximo quadro decide de novo
-      lugarDado.item = null;
+      // as decisões do lugar das faixas grandes valem para este layout: girar ou redimensionar no meio de um Dado (ou
+      // com a faixa do lugar na tela) muda artH e hudH, e o próximo quadro decide de novo
+      lugarDado.item = null; lugarFaixa.decidida = false;
       var cssW = palco.clientWidth || 360;
       // tela baixa (< 700 px): a faixa de ordem só com a linha dos corredores e a narração com 1 frase em 1 linha
       // (spec 3c §4 e §5: senão, a 360×640, a pista cai no layout compacto)
@@ -3658,6 +3659,9 @@
       // sala) e de DPR 3 com k = 2 (celular); S = 4 (DPR 2 com k = 2) nunca reduz.
       var d = reducaoEscala(pick.S, pick.artW * pick.artH), S = pick.S / d;
       self.S = S; self.lay = pick; pick.reducao = d;
+      // nome da skill dos balões em duas linhas só quando o balão alto (BALAO.h2) cabe na raia com a folga de cima (2)
+      // e de baixo (1); senão o nome curto numa linha (spec 3c §5)
+      self.linhasBalao = pick.laneArt >= FX.BALAO.h2 + 3 ? 2 : 1;
       self.W = pick.artW * S; self.H = pick.artH * S;
       cv.width = self.W; cv.height = self.H;
       cv.style.width = (self.W * d / r) + 'px';
@@ -3826,9 +3830,21 @@
 
     // ---- desenho em pixels de arte (A = escala)
     function box(x, y, w, h, bg, border) {
+      if (border) borda(x, y, w, h, border);
+      ctx.fillStyle = bg; ctx.fillRect(x * self.S, y * self.S, w * self.S, h * self.S);
+    }
+    // borda de 1 pixel de arte por fora da caixa (x, y, w, h), sem os cantos
+    function borda(x, y, w, h, cor) {
       var S = self.S;
-      if (border) { ctx.fillStyle = border; ctx.fillRect(x * S, (y - 1) * S, w * S, S); ctx.fillRect(x * S, (y + h) * S, w * S, S); ctx.fillRect((x - 1) * S, y * S, S, h * S); ctx.fillRect((x + w) * S, y * S, S, h * S); }
-      ctx.fillStyle = bg; ctx.fillRect(x * S, y * S, w * S, h * S);
+      ctx.fillStyle = cor; ctx.fillRect(x * S, (y - 1) * S, w * S, S); ctx.fillRect(x * S, (y + h) * S, w * S, S); ctx.fillRect((x - 1) * S, y * S, S, h * S); ctx.fillRect((x + w) * S, y * S, S, h * S);
+    }
+    // caixa do painel do topo (spec 3c §5, as caixas da 3a): contorno --sombra por fora, friso opcional entre a caixa e o
+    // contorno (o ouro da posição) e bisel de 1 pixel de arte, claro em cima (--brilho-08) e escuro embaixo (--escuro-25)
+    function caixaPainel(x, y, w, h, bg, friso) {
+      var S = self.S;
+      if (friso) { borda(x - 1, y - 1, w + 2, h + 2, C.sombra); box(x, y, w, h, bg, friso); } else box(x, y, w, h, bg, C.sombra);
+      ctx.fillStyle = C.brilho08; ctx.fillRect(x * S, y * S, w * S, S);
+      ctx.fillStyle = C.escuro; ctx.fillRect(x * S, (y + h - 1) * S, w * S, S);
     }
     // volatil: texto que muda quase a cada quadro (relógio, km/h, distâncias), pintado fora do cache de texto
     function text(str, x, y, color, scale, align, shadow, volatil) {
@@ -3844,14 +3860,14 @@
       var big = self.phase === 'contagem' ? '—' : String(place);
       var small = '/' + n;
       var bw = tw(big, 2) + 2 + Math.max(tw('º'), tw(small)) + 6;
-      box(2, 2, bw, 14, C.veu, C.ouro);
+      caixaPainel(2, 2, bw, 14, C.veu, C.ouro);
       text(big, 5, 4, C.ouro, 2, null, C.sombra);
       if (self.phase !== 'contagem') text('º', 5 + tw(big, 2) + 2, 3, C.ouro);
       text(small, 5 + tw(big, 2) + 2, 9, C.texto);
       // estamina
       var sx = 2 + bw + 5, barW = clamp(Math.floor(A * 0.28), 32, 84);
       var stam = clamp(st.stamina[me], 0, 1);
-      box(sx, 2, barW + 4, 14, C.veu);
+      caixaPainel(sx, 2, barW + 4, 14, C.veu);
       text('EST', sx + 2, 3, C.texto2);
       var col = stam > 0.5 ? C.ganho : stam > 0.25 ? C.ouro : C.perda;
       var segs = Math.floor(barW / 4), on = Math.round(stam * segs);
@@ -3863,7 +3879,7 @@
       var tShown = Math.min(self.simT, fTime[me]);
       var tTxt = fmtClock(tShown), kmh = Math.round(st.speed[me] * 3.6) + ' KM/H';
       var tw2 = Math.max(tw(tTxt), tw(kmh)) + 4;
-      box(A - 2 - tw2, 2, tw2, 14, C.veu);
+      caixaPainel(A - 2 - tw2, 2, tw2, 14, C.veu);
       text(tTxt, A - 4, 3, C.texto, 1, 'right', null, true);
       text(kmh, A - 4, 10, C.texto2, 1, 'right', null, true);
       // clima atual (vira com o Dado da Sorte), à esquerda do relógio; no layout compacto
@@ -3872,7 +3888,7 @@
       var ww = Math.max(tw('CLIMA'), tw(wName)) + 4, wx = A - 2 - tw2 - 4 - ww;
       var livre = sx + barW + 4 + 4, climaVisivel = !lay.compact && wx > livre;
       if (climaVisivel) {
-        box(wx, 2, ww, 14, C.veu);
+        caixaPainel(wx, 2, ww, 14, C.veu);
         text('CLIMA', wx + 2, 3, C.texto2);
         text(wName, wx + 2, 10, C.texto);
       }
@@ -3881,7 +3897,7 @@
       var vw = self.wind, vNome = ventoTxt(vw).toUpperCase(), dir0 = climaVisivel ? wx : A - 2 - tw2;
       var vbw = Math.max(tw('VENTO'), tw(vNome)) + 4, vx = dir0 - 4 - vbw;
       if (!lay.compact && vx > livre) {
-        box(vx, 2, vbw, 14, C.veu);
+        caixaPainel(vx, 2, vbw, 14, C.veu);
         text('VENTO', vx + 2, 3, C.texto2);
         text(vNome, vx + 2, 10, C.texto);
         FX._stats.ventoHud = 'texto';
@@ -3889,7 +3905,7 @@
         var reserva = lay.compact ? Math.max(tw('\u25b2SUBIDA'), tw('\u21aaCURVA')) + 4 + 4 : 0;
         var iw = 9, ix = dir0 - 4 - reserva - iw;
         if (ix > livre) {
-          box(ix, 2, iw, 14, C.veu);
+          caixaPainel(ix, 2, iw, 14, C.veu);
           var seta = vw.intensity === 'calmo' ? '\u2013' : vw.dir > 0 ? '\u2192' : '\u2190';
           text(seta, ix + Math.round((iw - tw(seta)) / 2), 3, C.texto);
           var nivel = ['calmo', 'brisa', 'ventania'].indexOf(vw.intensity) + 1;
@@ -3908,13 +3924,13 @@
         var lw = tw(lbl) + 4;
         var hy = lay.compact ? 6 : mc.y + 1;
         var hx = lay.compact ? A - 2 - tw2 - 4 - lw : mc.x + mc.w + 4;
-        box(hx, hy, lw, 7, bType === 'curva' ? GD.BLOCK_TYPES.curva.color : C.ouro, C.sombra);
+        caixaPainel(hx, hy, lw, 7, bType === 'curva' ? GD.BLOCK_TYPES.curva.color : C.ouro);
         text(lbl, hx + 2, hy + 1, C.tinta);
       }
       if (lay.compact) return;
       // minimapa: o traçado visto de cima (curvas na cor da curva, subidas em ouro, retas na cor do piso) com
       // um ponto por cavalo na cor da raia; o seu é maior, com contorno claro, e vem por cima
-      box(mc.x, mc.y, mc.w, mc.h, C.veu);
+      caixaPainel(mc.x, mc.y, mc.w, mc.h, C.veu);
       FX.drawMiniMap(ctx, mapa, st.pos, silksCores, me, { x: mc.x, y: mc.y, w: mc.w, h: mc.h, P: self.S, piso: pisoCor });
     }
 
@@ -4032,9 +4048,16 @@
       // a mesma. Com a etiqueta "FOTO DE CHEGADA" na tela, a faixa do Dado não é desenhada
       var dItem = self.phase === 'contagem' ? null : dadoAtivo(self.simT), dCaixa = null;
       var foto = self.finishCam || (self.phase !== 'contagem' && Math.abs(self.simT - tWin) < 0.6);
-      if (dItem) { decideLugarDado(dItem, vis); dCaixa = FX.bannerLayout(dItem, L.racers, lay, me, lugarDado.embaixo); }
-      // com a faixa do Dado em cima, as etiquetas de quem está fora da tela ficam abaixo dela
-      var tagsTopo = dCaixa && !foto && !lugarDado.embaixo ? dCaixa.y + dCaixa.h + 2 : null;
+      // a faixa do lugar fica LUGAR_S s depois de o jogador cruzar a linha; a caixa dela é decidida uma vez (Ruling 14).
+      // Um Dado que começa com ela na tela evita a caixa dela; ela, a do Dado que já estava na tela
+      var lugarNaTela = !!self.lugar && self.tReal < self.lugar.ate;
+      var lCaixa = lugarNaTela && lugarFaixa.decidida ? lugarFaixa.caixa : null;
+      if (dItem) { decideLugarDado(dItem, vis, lCaixa ? [lCaixa] : null); dCaixa = FX.bannerLayout(dItem, L.racers, lay, me, lugarDado.embaixo); }
+      if (lugarNaTela) { if (!lugarFaixa.decidida) decideLugarFaixa(vis, youTag, dCaixa); lCaixa = lugarFaixa.caixa; }
+      // com uma faixa grande em cima (a do Dado ou a do lugar), as etiquetas de quem está fora da tela ficam abaixo dela
+      var tagsTopo = null;
+      if (dCaixa && !foto && !lugarDado.embaixo) tagsTopo = dCaixa.y + dCaixa.h + 2;
+      if (lCaixa && !lugarFaixa.embaixo) tagsTopo = Math.max(tagsTopo || 0, lCaixa.y + lCaixa.h + 2);
       layoutTags(tagsR, true, tagsTopo); layoutTags(tagsL, false, tagsTopo);
       // natureza, camada da frente (véu, pingos, relâmpago, sol, sombras, folhas) e a névoa da frente
       natO.camada = 'frente';
@@ -4051,7 +4074,8 @@
       } else if (dItem) {
         FX.drawDiceBanner(ctx, dItem, L.racers, lay, S, self.simT, reduced(), me, lugarDado.embaixo, dCaixa);
       }
-      if (self.phase !== 'contagem') drawSkillsNaPista(vis, youTag, dItem, dCaixa, foto);
+      if (lCaixa) FX.drawPlaceBanner(ctx, lCaixa, self.lugar.cor, S);
+      if (self.phase !== 'contagem') drawSkillsNaPista(vis, youTag, dItem, dCaixa, foto, lCaixa);
       if (self.phase === 'contagem') {
         var c = Math.ceil(self.count / (reduced() ? 0.4 : 0.8));
         var label = c >= 3 ? '3' : c === 2 ? '2' : c === 1 ? '1' : 'JÁ!';
@@ -4078,7 +4102,7 @@
         faixasJogador.push({ item: it, a: a0, b: fim });
       });
     })();
-    function drawSkillsNaPista(vis, youTag, dItem, dCaixa, topoOcupado) {
+    function drawSkillsNaPista(vis, youTag, dItem, dCaixa, topoOcupado, lCaixa) {
       var S = self.S, lay = self.lay, t = self.simT, k;
       var faixa = null, fx0 = null;
       for (k = 0; k < faixasJogador.length; k++) if (t >= faixasJogador[k].a && t < faixasJogador[k].b) fx0 = faixasJogador[k];
@@ -4088,6 +4112,8 @@
         var fxx = bl.x, fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
         // com o Dado na pista, logo abaixo da faixa dele
         if (dItem && !lugarDado.embaixo) fyy = Math.max(fyy, dCaixa.y + dCaixa.h + 2);
+        // com a faixa do lugar em cima, logo abaixo dela
+        if (lCaixa && !lugarFaixa.embaixo) fyy = Math.max(fyy, lCaixa.y + lCaixa.h + 2);
         var esc0 = (t - fx0.a) / fx0.item.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
         var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
@@ -4106,6 +4132,7 @@
       }
       var obst = [];
       if (faixa) obst.push(faixa);
+      if (lCaixa) obst.push(lCaixa);
       if (dItem) { obst.push(dCaixa); FX._stats.placas.forEach(function (p) { obst.push(p); }); }
       function bate(a, o) { return a.x < o.x + o.w + 1 && o.x < a.x + a.w + 1 && a.y < o.y + o.h + 1 && o.y < a.y + a.h + 1; }
       if (youTag && !self.voceRect) { var yb2 = youTagBox(youTag); self.voceRect = { x: yb2.x - 1, y: yb2.y - 1, w: yb2.w + 2, h: 11 }; }
@@ -4114,14 +4141,19 @@
         var lista = porCavalo[v.j];
         if (!lista) return;
         lista = lista.slice(-3);
+        // o nome da skill no balão mais novo: inteiro numa linha, ou em duas quando a raia comporta (self.linhasBalao)
+        var novo = lista[lista.length - 1];
+        var linhas = novo.kind === 'skill' ? FX.nomeEmLinhas(novo.nome, FX.BALAO.textoMax, self.linhasBalao, novo.nomeCurto) : null;
+        var h0 = FX.balloonSize(novo, 0, linhas).h;
         var y0 = lay.laneTopArt + v.j * lay.laneArt - (v.sobe || 0), y1 = y0 + lay.laneArt;
-        // na altura do jóquei (como o "◀VOCÊ"), mas sempre dentro da faixa da raia
-        var by = Math.max(y0 + 3, Math.min(y1 - 11 - 1, Math.round(v.y / S) + 1));
+        // na altura do jóquei (como o "◀VOCÊ"), mas sempre dentro da faixa da raia (o de duas linhas, que só existe em
+        // raia de BALAO.h2 + 3 ou mais, pode subir até 2 px abaixo do topo dela)
+        var by = Math.max(y0 + (h0 > 11 ? 2 : 3), Math.min(y1 - h0 - 1, Math.round(v.y / S) + 1));
         var bx;
         if (v.j === me && youTag) { var yb = youTagBox(youTag); bx = yb.x + yb.w + 4; }
         else bx = Math.round((v.x + (v.an.nose[0] + 3) * S) / S) + 4;
         for (var q = 0; q < lista.length; q++) {
-          var item = lista[lista.length - 1 - q], sz = FX.balloonSize(item, q);
+          var item = lista[lista.length - 1 - q], sz = FX.balloonSize(item, q, q ? null : linhas);
           var r = { x: bx, y: by, w: sz.w, h: sz.h };
           // desvia para a frente do que estiver no caminho: faixas do topo, plaquinhas do Dado e a caixa dos
           // outros cavalos (a de um cavalo da raia de baixo invade a de cima em até ~17 px)
@@ -4142,12 +4174,19 @@
             var tras = { x: ruim.x - r.w - 2, y: r.y, w: r.w, h: r.h };
             if (tras.x >= 0 && !todos.some(function (ob) { return bate(tras, ob); })) r.x = tras.x;
           }
-          if (FX.drawBalloon(ctx, r.x * S, r.y * S, S, item, t, q)) {
-            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, tipo: !!item.typeSkill, texto: q ? '' : (item.nomeCurto || ''), pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
+          if (FX.drawBalloon(ctx, r.x * S, r.y * S, S, item, t, q, q ? null : linhas)) {
+            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, tipo: !!item.typeSkill, texto: q ? '' : linhas ? linhas.join(' ') : (item.nomeCurto || ''), pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
           }
           bx = r.x + r.w + 2;
         }
       });
+    }
+
+    // faixa do lugar na chegada (spec 3c §7): texto e cor por lugar; fica LUGAR_S segundos de tempo real
+    var LUGAR_S = 2.5;
+    function faixaDoLugar(k) {
+      if (k === 1) return { texto: 'VITÓRIA!', cor: C.ouro };
+      return { texto: k + 'º LUGAR', cor: k === 2 ? C.prata : k === 3 ? C.bronze : C.texto };
     }
 
     // etiqueta "◀VOCÊ" (pixels de arte; caixa de 9 de altura, borda por fora): texto e posição
@@ -4156,33 +4195,59 @@
       return { txt: s, x: Math.min(Math.round(yt.x / self.S), self.lay.artW - w - 2), y: Math.round(yt.y / self.S) - 2, w: w };
     }
 
-    // Lugar da faixa do Dado (Ruling 11): em cima, logo abaixo do painel; se ali ela cruzaria o cavalo do jogador, no pé
-    // da pista. Uma decisão por Dado, no 1º quadro em que ele fica ativo, e a faixa não muda de lugar até ele acabar.
-    // A caixa do cavalo vale para a janela inteira: o sobe-e-desce dele (subida e arco da curva, as mesmas contas do
-    // desenho) é medido nos quadros da simulação de t0 a t1, com 1 px de folga (a câmera segue o jogador, então o x
-    // não muda). Se as duas posições cruzarem, fica a que cobre menos (empate: em cima). Um layout novo (girar ou
-    // redimensionar) esquece a decisão e o quadro seguinte decide de novo.
-    function decideLugarDado(item, vis) {
-      if (lugarDado.item === item) return;
+    // Lugar de uma faixa grande na pista (Rulings 11 e 14): em cima por padrão; se ali ela cobriria a caixa do cavalo do
+    // jogador (ou um dos obstáculos obst, como outra faixa já na tela), no pé da pista. caixaDe(embaixo) dá a caixa da
+    // faixa em cada posição. A caixa do cavalo vale para a janela [t0, t1] da simulação inteira: o sobe-e-desce dele
+    // (subida e arco da curva, as mesmas contas do desenho) é medido nos quadros da simulação, com 1 px de folga (a câmera
+    // segue o jogador, então o x não muda). Se as duas posições cobrirem algo, fica a que cobre menos (empate: em cima).
+    // Devolve { embaixo, cavalo, sobe }, com cavalo e sobe null quando o jogador não está na tela (aí, em cima).
+    function decideLugar(vis, t0, t1, caixaDe, obst) {
       var lay = self.lay, S = self.S, v = null, k;
       for (k = 0; k < vis.length; k++) if (vis[k].j === me) v = vis[k];
-      lugarDado.item = item; lugarDado.embaixo = false;
-      if (!v) return;
+      if (!v) return { embaixo: false, cavalo: null, sobe: null };
       var sobeMin = v.sobe, sobeMax = v.sobe;
-      for (var t = item.t0; t <= item.t1 + 1e-9; t += dt) {
+      for (var t = t0; t <= t1 + 1e-9; t += dt) {
         var hoof = sample(t).pos[me] - (v.an.nose[0] - 20) / self.ppmArt;
         var sobe = Math.round(SP.hillLiftAt ? SP.hillLiftAt(hoof, hills, lay.maxLift) : 0) + arcoArt(hoof);
         sobeMin = Math.min(sobeMin, sobe); sobeMax = Math.max(sobeMax, sobe);
       }
       // subir sobeMax − v.sobe leva o topo para cima; descer até sobeMin leva a base para baixo
       var c = { x: v.caixa.x / S, y: v.caixa.y / S - (sobeMax - v.sobe) - 1, w: v.caixa.w / S, h: v.caixa.h / S + (sobeMax - sobeMin) + 2 };
-      function cobre(b) {
-        var w = Math.min(b.x + b.w, c.x + c.w) - Math.max(b.x, c.x), h = Math.min(b.y + b.h, c.y + c.h) - Math.max(b.y, c.y);
+      function area(b, o) {
+        var w = Math.min(b.x + b.w, o.x + o.w) - Math.max(b.x, o.x), h = Math.min(b.y + b.h, o.y + o.h) - Math.max(b.y, o.y);
         return w > 0 && h > 0 ? w * h : 0;
       }
-      var cima = cobre(FX.bannerLayout(item, L.racers, lay, me, false));
-      if (cima > 0) lugarDado.embaixo = cobre(FX.bannerLayout(item, L.racers, lay, me, true)) < cima;
-      self.lugarDado = { t0: item.t0, embaixo: lugarDado.embaixo, cavalo: c, sobe: [sobeMin, sobeMax] };   // para o teste e o relatório
+      function cobre(b) {
+        var a = area(b, c);
+        for (var q = 0; obst && q < obst.length; q++) if (obst[q]) a += area(b, obst[q]);
+        return a;
+      }
+      var cima = cobre(caixaDe(false));
+      return { embaixo: cima > 0 && cobre(caixaDe(true)) < cima, cavalo: c, sobe: [sobeMin, sobeMax] };
+    }
+    // a faixa do Dado (Ruling 11): uma decisão por Dado, no 1º quadro em que ele fica ativo, na janela dele; não muda de
+    // lugar até ele acabar (um layout novo esquece a decisão e o quadro seguinte decide de novo). obst = a faixa do lugar,
+    // se estiver na tela
+    function decideLugarDado(item, vis, obst) {
+      if (lugarDado.item === item) return;
+      var d = decideLugar(vis, item.t0, item.t1, function (emb) { return FX.bannerLayout(item, L.racers, self.lay, me, emb); }, obst);
+      lugarDado.item = item; lugarDado.embaixo = d.embaixo;
+      if (d.cavalo) self.lugarDado = { t0: item.t0, embaixo: d.embaixo, cavalo: d.cavalo, sobe: d.sobe };   // para o teste e o relatório
+    }
+    // a faixa do lugar (Ruling 14): em cima, logo abaixo da etiqueta "FOTO DE CHEGADA" (que vai de hudH + 2 a hudH + 12),
+    // ou no pé da pista; decidida no quadro em que o jogador cruza a linha, na janela dos 2,5 s reais até em x2, e parada
+    // até sumir. Com a faixa do Dado na tela (dCaixa), fica do lado de fora dela: abaixo, se ela está em cima; acima, se no
+    // pé. O "◀VOCÊ Nº" do jogador entra como obstáculo
+    function decideLugarFaixa(vis, youTag, dCaixa) {
+      var lay = self.lay, topo = lay.hudH + 15, base = lay.artH - 2, dEmCima = !!dCaixa && !lugarDado.embaixo;
+      if (dCaixa && dEmCima) topo = Math.max(topo, dCaixa.y + dCaixa.h + 2);
+      if (dCaixa && !dEmCima) base = Math.min(base, dCaixa.y - 2);
+      function caixaDe(emb) { return FX.lugarLayout(self.lugar.texto, lay, topo, emb, base); }
+      var obst = [dCaixa];
+      if (youTag) { var yb = youTagBox(youTag); obst.push({ x: yb.x - 1, y: yb.y - 1, w: yb.w + 2, h: 11 }); }
+      var d = decideLugar(vis, self.simT, self.simT + LUGAR_S * ts * 2, caixaDe, obst);
+      lugarFaixa.decidida = true; lugarFaixa.embaixo = d.embaixo; lugarFaixa.caixa = caixaDe(d.embaixo);
+      self.lugarFaixa = { embaixo: d.embaixo, caixa: lugarFaixa.caixa, cavalo: d.cavalo };   // para o teste e o relatório
     }
 
     // Dado da Sorte sobre cada cavalo visível (fx.js): plaquinha centrada no jóquei, logo acima da caixa do desenho
@@ -4256,7 +4321,8 @@
       } else if (self.phase === 'fim') {
         self.simT += dtReal * ts * self.mult * 0.5;
         self.endTimer -= dtReal;
-        if (self.endTimer <= 0 && !self.done) { self.done = true; go('resultado'); return; }
+        // a faixa do lugar fica os 2,5 s inteiros mesmo quando o jogador é dos últimos a cruzar ("Ver resultado" pula)
+        if (self.endTimer <= 0 && !self.done && !(self.lugar && self.tReal < self.lugar.ate)) { self.done = true; go('resultado'); return; }
       }
       if (!self.winnerSeen && self.simT >= tWin) { self.winnerSeen = true; if (!reduced()) self.flash = 0.3; }
       if (self.flash > 0) self.flash = Math.max(0, self.flash - dtReal);
@@ -4264,6 +4330,9 @@
       if (!self.crossed && self.simT >= fTime[me]) {
         self.crossed = true;
         hud.anuncio.textContent = 'Você cruzou a linha em ' + (rankOf[me] + 1) + 'º lugar.';
+        // faixa do lugar (spec 3c §7): o lugar do sim.finishOrder, só para quem assiste (pular vai direto ao resultado)
+        self.lugar = faixaDoLugar(rankOf[me] + 1);
+        self.lugar.ate = self.tReal + LUGAR_S;
       }
       var st = sample(self.simT);
       // galope: cadência em tempo real proporcional à velocidade (mais lenta na câmera lenta)
