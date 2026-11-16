@@ -1,7 +1,8 @@
 # Galope: teste de intensidade (2026-11-16)
 
-**Estado:** teste descartável publicado, esperando o Vinicius olhar e escolher os valores. Nada disto está no jogo.
-Levar para o jogo é pedido novo (passa pelo desenho, com testes).
+**Estado:** encerrado. O Vinicius viu o teste e decidiu em 2026-11-16 manter o galope como está ("vamos para próximos
+passos mais importantes"). Nada disto está no jogo. Se o assunto voltar, é pedido novo (passa pelo desenho, com testes);
+o caminho que sobra para um galope mais intenso é a 2c, com quadros novos.
 
 - **Pedido dele:** "Os cavalos poderiam ter uma animação de corrida mais intensa, às vezes parecem trotes, e não um
   esforço para vencer" e "O galope das pernas, elas devem ser mais intensas e espaçadas. Faça um teste."

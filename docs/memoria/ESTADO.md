@@ -264,7 +264,7 @@ do Vinicius, antes de ele jogar; a lista de gosto abaixo continua aberta.
   e espaçadas"):** página descartável em https://claude.ai/artifact/JUTm5mf3SwbvgDENeVAEeA, com o galope de hoje ao lado
   de uma versão ajustável; medidas, receita do efeito e limites em `docs/memoria/sistemas/galope.md`. Uma passada dura
   0,47–0,57 s em x1 (1,8 a 2,1 por segundo; o galope real fica em 2,2–2,5) e 1,2–1,6 s na câmera lenta. Sugestão do
-  teste: ritmo 1,25×, abertura 100%, balanço 1, tempo 40%. **Espera o Vinicius olhar e dizer os valores**; nada entrou no jogo.
+  teste: ritmo 1,25×, abertura 100%, balanço 1, tempo 40%. **Decisão do Vinicius depois de ver o teste (2026-11-16): o galope fica como está**; nada entrou no jogo, e o assunto só volta com a 2c (quadros novos), se ele quiser.
 - **Antes do próximo aumento de versão do save:** pôr uma guarda para save de versão maior que a do
   código (não adotar nem gravar por cima, e avisar para atualizar a página).
 - **Pendências menores:** `docs/memoria/bugs.md`.

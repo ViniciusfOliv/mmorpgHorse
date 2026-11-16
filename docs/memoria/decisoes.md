@@ -3,6 +3,14 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-16 — Galope fica como está (decisão do Vinicius)
+- **O galope dos cavalos não muda por enquanto** — ele pediu um teste de pernas mais intensas e abertas, viu a página
+  de comparação (https://claude.ai/artifact/JUTm5mf3SwbvgDENeVAEeA) e preferiu seguir para passos mais importantes. O
+  teste mostrou ganho moderado com os quadros de hoje; ir além pede quadros novos (2c, com créditos). Medidas e receita em
+  `docs/memoria/sistemas/galope.md`.
+- **Próximas frentes pedidas por ele no mesmo dia:** recompensa diária, loja, inventário de itens e começo dos ginásios,
+  na frente da preparação com relógio e do empacotamento (ordem do GDD §8.7).
+
 ## 2026-11-16 — Integração da frente de interface da Visuais 2 na `main` (decisão do Vinicius)
 - **A `claude/visuais-2` (3a, 3b e 3c) entrou na `main` antes do teste no artefato** — escolha do Vinicius depois da
   revisão final limpa da 3c e do `check.sh` OK; depois da 3a e da 3b ele tinha preferido manter o branch para jogar antes.
