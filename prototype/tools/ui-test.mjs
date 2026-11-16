@@ -1271,8 +1271,11 @@ try {
               dadoTxt: li.querySelector('.ordem-dado') ? li.querySelector('.ordem-dado').textContent : null, maior: li.classList.contains('ordem-item--maior'),
               dir: li.getBoundingClientRect().right }
           })
-          // o Dado ativo no instante da lista (como dadoAtivo(simT) da tela): o número de cada raia e o vencedor
-          const d = s.phase === 'contagem' ? null : s.fx.find((x) => x.kind === 'dado' && s.simT >= x.t0 && s.simT < x.t1)
+          // o Dado ativo e já revelado no instante da lista (dadoAtivo(simT) da tela e os dados parados, Ruling 6): o
+          // número de cada raia e o vencedor
+          const red = document.documentElement.classList.contains('mov-reduzido')
+          const d = s.phase === 'contagem' ? null : s.fx.find((x) => x.kind === 'dado' && s.simT >= x.t0 && s.simT < x.t1 &&
+            (red || (s.simT - x.t0) / x.escala >= window.RaceFx.DADO.regira - 1e-6))
           ok({ itens, atual: s.ordemAtual.slice(), quadro: s.quadro.order.slice(), simT: s.simT, me: L.playerIdx, nomes: L.racers.map((r) => r.horse.name), vw: document.documentElement.clientWidth,
             baixa: document.querySelector('.tela--corrida').classList.contains('tela--baixa'), dado: d ? { winner: d.winner, bests: d.rolls.map((x) => x.best) } : null })
           return
@@ -1380,9 +1383,11 @@ try {
       if (r.atrasoMax > 320) problems.push(`[${label}] Review Focus 1: a lista mostrada ficou ${r.atrasoMax} ms diferente da ordem do quadro (máximo ~300)`)
     }
     // Dado da Sorte (spec 3c §6), quadro a quadro na corrida inteira: fora da janela de cada Dado (dadoAtivo), a
-    // faixa de ordem sem números e sem a marca e nenhuma faixa do Dado na pista; na janela, cada item com o best do
-    // seu corredor (embaixo do selo; em tela baixa, no lugar da posição), a marca só no vencedor e a faixa do Dado
-    // com as linhas certas; e a altura da faixa de ordem a mesma antes, durante e depois
+    // faixa de ordem sem números e sem a marca e nenhuma faixa do Dado na pista; na janela, com os dados ainda girando
+    // (Ruling 6), a faixa só com "DADO DA SORTE" e a faixa de ordem ainda sem números; da revelação até o fim da janela,
+    // cada item com o best do seu corredor (embaixo do selo; em tela baixa, no lugar da posição), a marca só no
+    // vencedor e a faixa do Dado com as linhas certas; e a altura da faixa de ordem a mesma antes, durante e depois.
+    // Um MutationObserver anota o simT em que o primeiro número (ou a marca) entra na faixa de ordem em cada Dado.
     const vigiaDado = (pg) => pg.evaluate(() => {
       const s = window.__galope.race._state, L = window.__galope.ui.lobby, FX = window.RaceFx
       const tela = document.querySelector('.tela--corrida'), ordem = document.getElementById('ordem'), me = L.playerIdx
@@ -1393,13 +1398,23 @@ try {
         if (ev.winner !== me) lin.push('VOCÊ TIROU ' + ev.rolls[me].best)
         return lin
       })
-      const w = window.__dadoVigia = { quadros: 0, porDado: itens.map((d, q) => ({ t0: d.t0, t1: d.t1, winner: d.winner, antes: 0, durante: 0, depois: 0, esperadas: esperadas[q], linhas: null })),
-        alturas: {}, ruins: [], nRuins: 0, maxT: 0 }
+      const red = document.documentElement.classList.contains('mov-reduzido'), REG = FX.DADO.regira
+      const w = window.__dadoVigia = { quadros: 0, red, porDado: itens.map((d, q) => ({ t0: d.t0, t1: d.t1, winner: d.winner, revela: red ? d.t0 : d.t0 + REG * d.escala, escala: d.escala,
+        antes: 0, durante: 0, girando: 0, revelado: 0, depois: 0, esperadas: esperadas[q], linhas: null, primeiro: null })), alturas: {}, ruins: [], nRuins: 0, maxT: 0 }
       const ruim = (m) => { w.nRuins++; if (w.ruins.length < 6) w.ruins.push(m) }
+      const ul = document.getElementById('ordem-lista')
+      new MutationObserver(() => {
+        const tem = Array.from(ul.querySelectorAll('.ordem-dado')).some((e) => e.textContent !== '') || !!ul.querySelector('.ordem-item--maior') ||
+          Array.from(ul.querySelectorAll('.ordem-pos')).some((e) => !e.querySelector('.ord'))
+        const q = itens.findIndex((d) => s.simT >= d.t0 && s.simT < d.t1)
+        if (tem && q >= 0 && w.porDado[q].primeiro === null) w.porDado[q].primeiro = s.simT
+        if (tem && q < 0) ruim({ t: s.simT, numeroForaDaJanela: true })
+      }).observe(ul, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] })
       const tick = () => {
         if (!window.__galope.race) return
         if (s.phase !== 'contagem') {
           const t = s.simT, ativo = itens.find((d) => t >= d.t0 && t < d.t1) || null, baixa = tela.classList.contains('tela--baixa')
+          const rev = !!ativo && t >= w.porDado[itens.indexOf(ativo)].revela - 1e-6 * ativo.escala, mostrado = rev ? ativo : null
           w.quadros++; w.maxT = t
           const h = ordem.getBoundingClientRect().height
           w.alturas[h] = (w.alturas[h] || 0) + 1
@@ -1407,15 +1422,16 @@ try {
           document.querySelectorAll('#ordem-lista > li').forEach((li, k) => {
             const j = Number(li.dataset.raia), pos = li.querySelector('.ordem-pos'), dd = li.querySelector('.ordem-dado')
             const posTxt = pos.firstChild ? pos.firstChild.nodeValue : '', maior = li.classList.contains('ordem-item--maior')
-            const num = ativo ? String(ativo.rolls[j].best) : ''
-            const espPos = ativo && baixa ? num : String(k + 1), espDado = ativo && !baixa ? num : ''
-            if (posTxt !== espPos || dd.textContent !== espDado || maior !== (!!ativo && j === ativo.winner)) ruim({ t, ativo: !!ativo, baixa, raia: j + 1, posTxt, dado: dd.textContent, maior, espPos, espDado })
+            const num = mostrado ? String(mostrado.rolls[j].best) : ''
+            const espPos = mostrado && baixa ? num : String(k + 1), espDado = mostrado && !baixa ? num : ''
+            if (posTxt !== espPos || dd.textContent !== espDado || maior !== (!!mostrado && j === mostrado.winner)) ruim({ t, ativo: !!ativo, rev, baixa, raia: j + 1, posTxt, dado: dd.textContent, maior, espPos, espDado })
           })
           const st = FX._stats
           if (ativo) {
-            const p = w.porDado[itens.indexOf(ativo)]
-            if (!st.faixaDado || JSON.stringify(st.faixaDadoLinhas) !== JSON.stringify(p.esperadas)) ruim({ t, faixa: st.faixaDado, linhas: st.faixaDadoLinhas, esperadas: p.esperadas })
-            if (!p.linhas) p.linhas = Array.isArray(st.faixaDadoLinhas) ? st.faixaDadoLinhas.slice() : String(st.faixaDadoLinhas)
+            const p = w.porDado[itens.indexOf(ativo)], esp = rev ? p.esperadas : ['DADO DA SORTE']
+            if (rev) p.revelado++; else p.girando++
+            if (!st.faixaDado || JSON.stringify(st.faixaDadoLinhas) !== JSON.stringify(esp)) ruim({ t, rev, faixa: st.faixaDado, linhas: st.faixaDadoLinhas, esperadas: esp })
+            if (rev && !p.linhas) p.linhas = Array.isArray(st.faixaDadoLinhas) ? st.faixaDadoLinhas.slice() : String(st.faixaDadoLinhas)
           } else if (st.faixaDado) ruim({ t, faixaForaDaJanela: st.faixaDadoLinhas })
         }
         requestAnimationFrame(tick)
@@ -1426,10 +1442,14 @@ try {
       const ult = await pg.evaluate(() => { const p = window.__dadoVigia.porDado; return p.length ? p[p.length - 1].t1 : 0 })
       await pg.waitForFunction((t1) => window.__dadoVigia.maxT >= t1 + 0.5, ult, { timeout: 60000, polling: 'raf' })
       const w = await pg.evaluate(() => window.__dadoVigia)
-      notes[label + '-dado'] = { quadros: w.quadros, alturas: w.alturas, porDado: w.porDado.map((p) => ({ antes: p.antes, durante: p.durante, depois: p.depois, linhas: p.linhas })) }
+      notes[label + '-dado'] = { quadros: w.quadros, alturas: w.alturas, porDado: w.porDado.map((p) => ({ antes: p.antes, girando: p.girando, revelado: p.revelado, depois: p.depois,
+        revela: +p.revela.toFixed(2), primeiroNumero: p.primeiro === null ? null : +p.primeiro.toFixed(2), linhas: p.linhas })) }
       if (w.porDado.length < 2) problems.push(`[${label}] Dado: a corrida tem ${w.porDado.length} Dados (esperado 2)`)
       w.porDado.forEach((p, q) => {
         if (!p.antes || p.durante < 5 || !p.depois) problems.push(`[${label}] Dado ${q + 1}: quadros antes/durante/depois ${p.antes}/${p.durante}/${p.depois} (esperado todos vistos)`)
+        // Ruling 6: os dados girando aparecem (sem movimento reduzido) e o primeiro número entra só na revelação
+        if ((!w.red && !p.girando) || p.revelado < 5) problems.push(`[${label}] Dado ${q + 1}: quadros girando/revelado ${p.girando}/${p.revelado} (esperado os dois vistos)`)
+        if (p.primeiro === null || p.primeiro < p.revela - 0.02 * p.escala) problems.push(`[${label}] Dado ${q + 1}: o primeiro número entrou na faixa de ordem em simT ${p.primeiro} (revelação em ${p.revela.toFixed(2)})`)
         if (JSON.stringify(p.linhas) !== JSON.stringify(p.esperadas)) problems.push(`[${label}] Dado ${q + 1}: faixa com ${JSON.stringify(p.linhas)} (esperado ${JSON.stringify(p.esperadas)})`)
       })
       if (w.nRuins) problems.push(`[${label}] Dado: ${w.nRuins} quadros com a faixa de ordem ou a faixa do Dado fora do esperado, ex.: ${JSON.stringify(w.ruins)}`)

@@ -88,8 +88,8 @@
  *     ordem rolada; marca '↻' quando houve desempate: a simulação reescreve dice/best de quem empatou
  *     no topo e o valor empatado não fica no evento, então o número mostrado é o da nova rolagem).
  *   RaceFx.badgeSize(roll)  -> { w, h } em pixels de arte do retângulo da plaquinha (com a pontinha).
- *   RaceFx.stripOrder(item) -> índices dos corredores: o vencedor primeiro, depois rerolls decrescente
- *     (quem disputou o desempate empatou no topo) e best decrescente; por fim a raia.
+ *   RaceFx.diceRevealed(item, simT, reduced) -> boolean: o vencedor do Dado já foi revelado (reduced, ou
+ *     d = (simT − t0)/escala >= DADO.regira: os dados pararam; o mesmo instante da plaquinha dourada).
  *   RaceFx.bannerLayout(item, racers, lay, me) -> caixa da faixa grande do Dado em pixels de arte
  *     ({ x, y, w, h, linhas, fs, ... posições }); lay = layout da tela da corrida ({ artW, hudH }); me = índice do
  *     jogador. linhas (maiúsculas): 'MAIOR DADO: <nome do cavalo> <best>', a frase, e 'VOCÊ TIROU <best do
@@ -139,8 +139,9 @@
  *     faíscas em volta (omitidas em reduced).
  *   RaceFx.drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me) -> caixa (bannerLayout) ou null fora de
  *     [t0, t1). Faixa grande do Dado (spec 3c §6): contorno --sombra, friso --ouro e bisel de 1 pixel de arte; ícone
- *     do dado (ui-dado) e do clima (cl-<weather>) em PNG quando no cache. Parada: o mesmo desenho em qualquer
- *     instante da janela, com ou sem reduced. Marca _stats.faixaDado e _stats.faixaDadoLinhas.
+ *     do dado (ui-dado) e do clima (cl-<weather>) em PNG quando no cache. Antes da revelação (diceRevealed falso)
+ *     a mesma caixa só com o ícone do dado e "DADO DA SORTE" (_stats.faixaDadoLinhas = ['DADO DA SORTE']); depois,
+ *     as linhas de bannerLayout. Não pisca nem desliza: só troca o conteúdo na revelação. Marca _stats.faixaDado.
  *
  *   RaceFx.balloonSize(item, pilha) -> { w, h } em pixels de arte do corpo do balão (altura 11; a pontinha
  *     de 3 px fica à esquerda, fora de w). pilha > 0 é a versão compacta (chip + ícone).
@@ -545,14 +546,11 @@
     return { w: w, h: PLACA_H + PONTA_H };
   }
 
-  function stripOrder(item) {
-    var rolls = item.rolls || [], idx = [];
-    for (var i = 0; i < rolls.length; i++) idx.push(i);
-    idx.sort(function (a, b) {
-      return ((b === item.winner) - (a === item.winner)) || ((rolls[b].rerolls | 0) - (rolls[a].rerolls | 0)) ||
-        (rolls[b].best - rolls[a].best) || (a - b);
-    });
-    return idx;
+  // o vencedor do Dado já aparece? (movimento reduzido: desde t0; senão, quando os dados param: d >= DADO.regira, a
+  // mesma condição da plaquinha dourada do diceState)
+  function diceRevealed(item, simT, reduced) {
+    if (reduced) return true;
+    return (simT - item.t0) / (item.escala || 1) >= DADO.regira - EPS;
   }
 
   // ---- faixa grande do Dado da Sorte (spec 3c §6), em pixels de arte ----
@@ -560,6 +558,7 @@
   // Linha 1: ícone do dado, "MAIOR DADO:" e o nome + número em escala fs (2 se couber na pista, senão 1), alinhados
   // embaixo. Linha 2: ícone do clima e a frase; "VOCÊ TIROU N" ao lado (depois de " · ") quando cabe, senão numa
   // linha 3. Acento em cima de uma linha pede 3·escala de folga acima dela; cedilha, 1·escala embaixo.
+  var ROTULO = 'DADO DA SORTE';   // a faixa antes da revelação (os dados ainda girando)
   var FAIXA = { borda: 3, folgaX: 3, folgaY: 2, gap: 2, icone: 8, gapIcone: 2, pre: 'MAIOR DADO:', gapPre: 3, sep: ' \u00b7 ', margem: 2 };
   function marcasTexto(s) {
     var n = String(s).normalize ? String(s).normalize('NFD') : String(s);
@@ -577,7 +576,7 @@
     function l1W(fs) { return ic + preW + F.gapPre + nnW * fs; }
     var fs = l1W(2) <= maxIn ? 2 : 1;
     var juntas = !!eu && ic + fraseW + sepW + euW <= maxIn;
-    var inW = Math.max(l1W(fs), ic + fraseW + (juntas ? sepW + euW : 0), eu && !juntas ? ic + euW : 0);
+    var inW = Math.max(l1W(fs), ic + textW(ROTULO), ic + fraseW + (juntas ? sepW + euW : 0), eu && !juntas ? ic + euW : 0);
     var bw = inW + 2 * (F.borda + F.folgaX), x = Math.round((A - bw) / 2), y = lay.hudH + 2;
     var cx = x + F.borda + F.folgaX, cy = y + F.borda + F.folgaY;
     // linha 1
@@ -918,6 +917,13 @@
     R(B.x + 2, B.y + B.h - 3, B.w - 4, 1, BISEL_SOMBRA); R(B.x + B.w - 3, B.y + 3, 1, B.h - 6, BISEL_SOMBRA);
     // ícones em PNG (sem imagem ou pequenos demais, o espaço fica vazio: o resto não muda)
     drawIconPng(ctx, 'ui-dado', B.l1.icone.x * S, B.l1.icone.y * S, 8, S);
+    stats.faixaDado = true;
+    if (!diceRevealed(item, simT, reduced)) {
+      // dados girando: a caixa já no tamanho e no lugar finais, só com "DADO DA SORTE" (nada do vencedor)
+      texto(ctx, ROTULO, B.l1.pre.x * S, B.l1.pre.y * S, S, COR.ouro);
+      stats.faixaDadoLinhas = [ROTULO];
+      return B;
+    }
     drawIconPng(ctx, 'cl-' + item.weather, B.l2.icone.x * S, B.l2.icone.y * S, 8, S);
     texto(ctx, FAIXA.pre, B.l1.pre.x * S, B.l1.pre.y * S, S, COR.texto);
     texto(ctx, B.nome, B.l1.nome.x * S, B.l1.nome.y * S, S * B.fs, COR.ouroClaro);
@@ -928,7 +934,6 @@
     } else if (B.l3) {
       texto(ctx, B.eu, B.l3.x * S, B.l3.y * S, S, COR.ouro);
     }
-    stats.faixaDado = true;
     stats.faixaDadoLinhas = B.linhas.slice();
     return B;
   }
@@ -1644,7 +1649,7 @@
     diceState: diceState,
     diceLabels: diceLabels,
     badgeSize: badgeSize,
-    stripOrder: stripOrder,
+    diceRevealed: diceRevealed,
     bannerLayout: bannerLayout,
     layoutBadges: layoutBadges,
     balloonSize: balloonSize,

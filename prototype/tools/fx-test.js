@@ -179,32 +179,6 @@ test('tamanho da plaquinha e números (melhor em destaque, os outros depois)', f
   assert.ok(s2.w > s1.w && s2.h === s1.h, 'outros dados alargam a plaquinha');
   assert.strictEqual(FX.badgeSize({ dice: [87], best: 87, rerolls: 2 }).w, s1.w + 6, '↻ (5 px + 1) antes do número');
 });
-test('faixa do Dado em ordem decrescente', function () {
-  assert.deepStrictEqual(FX.stripOrder(ITEM), [1, 0, 2]);
-  var it = { rolls: [{ dice: [50], best: 50 }, { dice: [80], best: 80 }, { dice: [50], best: 50 }, { dice: [90], best: 90 }], winner: 3 };
-  assert.deepStrictEqual(FX.stripOrder(it), [3, 1, 0, 2]);
-});
-test('faixa com desempate: vencedor em 1º, depois rerolls e best decrescentes (seed 19)', function () {
-  // o desempate reescreve dice/best dos empatados: o vencedor pode ter best menor que o de quem não empatou
-  var C2 = corrida(19);   // seed escolhida no modelo de status v3 (antes era a 2)
-  var it = FX.timeline(C2.sim, C2.racers).filter(function (x) { return x.kind === 'dado' && x.rolls.some(function (r) { return r.rerolls > 0; }); })[0];
-  assert.ok(it, 'a seed 19 tem um Dado com desempate');
-  var maior = Math.max.apply(null, it.rolls.map(function (r) { return r.best; }));
-  assert.ok(it.rolls[it.winner].best < maior, 'caso da revisão: vencedor com best menor que outro (' + it.rolls[it.winner].best + ' < ' + maior + ')');
-  var o = FX.stripOrder(it);
-  assert.strictEqual(o[0], it.winner, 'vencedor em 1º');
-  assert.strictEqual(o.length, it.rolls.length);
-  for (var k = 1; k < o.length; k++) {
-    var a = it.rolls[o[k - 1]], b = it.rolls[o[k]];
-    assert.ok(a.rerolls > b.rerolls || (a.rerolls === b.rerolls && a.best >= b.best), 'ordem em ' + k + ': ' + JSON.stringify([a, b]));
-  }
-  // em todas as corridas de 1–200: o vencedor sempre em 1º
-  for (var sd = 1; sd <= 200; sd++) {
-    var C = corrida(sd);
-    FX.timeline(C.sim, C.racers).filter(function (d) { return d.kind === 'dado'; }).forEach(function (d) { assert.strictEqual(FX.stripOrder(d)[0], d.winner, 'seed ' + sd); });
-  }
-});
-
 section('skills, Garra e cansaço');
 // corrida com todas as skills do catálogo distribuídas pelos cavalos e "skills sempre ativam" (modo DEV da simulação);
 // sem a skill de tipo (noTypeSkill): aqui só as skills de vaga (a skill de tipo na pista é outra tarefa)
@@ -1361,14 +1335,37 @@ test('drawDiceBanner: desenha em [t0, t1), marca _stats.faixaDado e as linhas; n
   assert.strictEqual(FX._stats.faixaDado, false);
   assert.deepStrictEqual(FX._stats.faixaDadoLinhas, []);
 });
-test('drawDiceBanner: parada (o mesmo desenho em qualquer instante, com e sem movimento reduzido)', function () {
+test('drawDiceBanner: parada depois da revelação (o mesmo desenho em qualquer instante, com e sem movimento reduzido)', function () {
   var it = dadoFaixa(), a = ctxFalso(), b = ctxFalso(), r = ctxFalso();
   FX.setIconImages({});
-  FX.drawDiceBanner(a, it, RACERS_FAIXA, LAY_FAIXA, 2, 10.1, false, 1);
+  FX.drawDiceBanner(a, it, RACERS_FAIXA, LAY_FAIXA, 2, 10 + FX.DADO.regira, false, 1);
   FX.drawDiceBanner(b, it, RACERS_FAIXA, LAY_FAIXA, 2, 13.7, false, 1);
   FX.drawDiceBanner(r, it, RACERS_FAIXA, LAY_FAIXA, 2, 12, true, 1);
   assert.deepStrictEqual(b.rects, a.rects);
   assert.deepStrictEqual(r.rects, a.rects);
+});
+test('Ruling 6: antes da revelação, a mesma caixa só com "DADO DA SORTE"; o vencedor só quando os dados param', function () {
+  var it = dadoFaixa({ escala: 4, t1: 10 + 2.4 * 4 }), revela = 10 + FX.DADO.regira * 4;
+  FX.setIconImages({ 'ui-dado': IMG, 'cl-sol': IMG });
+  var lin = function (t, red) { FX.resetStats(true); var c = ctxFalso(), B = FX.drawDiceBanner(c, it, RACERS_FAIXA, LAY_FAIXA, 2, t, red, 1); return { B: B, c: c, linhas: FX._stats.faixaDadoLinhas, faixa: FX._stats.faixaDado }; };
+  var gira = lin(10 + 0.1 * 4, false), quase = lin(revela - 0.01, false), rev = lin(revela, false), red = lin(10, true);
+  FX.setIconImages({});
+  [gira, quase].forEach(function (q) {
+    assert.strictEqual(q.faixa, true);
+    assert.deepStrictEqual(q.linhas, ['DADO DA SORTE']);
+    assert.strictEqual(q.c.imgs.length, 1, 'só o ícone do dado (sem o do clima)');
+    assert.deepStrictEqual({ x: q.B.x, y: q.B.y, w: q.B.w, h: q.B.h }, { x: rev.B.x, y: rev.B.y, w: rev.B.w, h: rev.B.h }, 'a caixa já no tamanho e no lugar finais');
+  });
+  assert.ok(gira.c.rects.length < rev.c.rects.length, 'sem nome, número nem frase antes da revelação');
+  assert.deepStrictEqual(rev.linhas, ['MAIOR DADO: BRASA 12', 'O SOL ABRE!', 'VOCÊ TIROU 7']);
+  assert.strictEqual(rev.c.imgs.length, 2);
+  assert.deepStrictEqual(red.linhas, ['MAIOR DADO: BRASA 12', 'O SOL ABRE!', 'VOCÊ TIROU 7'], 'movimento reduzido: revelado desde t0');
+  assert.strictEqual(FX.diceRevealed(it, revela - 0.01, false), false);
+  assert.strictEqual(FX.diceRevealed(it, revela, false), true);
+  assert.strictEqual(FX.diceRevealed(it, 10, true), true);
+  // o mesmo instante da plaquinha dourada do vencedor
+  assert.strictEqual(FX.diceState(it, revela - 0.01, false, 0).dourado, false);
+  assert.strictEqual(FX.diceState(it, revela, false, 0).dourado, true);
 });
 test('drawDiceBanner com ui-dado (e o ícone do clima) no cache desenha as imagens; o resto é o mesmo', function () {
   var it = dadoFaixa();

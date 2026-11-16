@@ -3747,10 +3747,11 @@
       var m = Math.max(0, Math.round(d));
       return m === 0 ? 'colado' : sinal + m + ' m';
     }
-    // números do Dado na faixa de ordem (spec 3c §6): com o Dado ativo, cada item mostra o best do corredor (embaixo do
-    // selo; em tela baixa, no lugar da posição) e o do vencedor ganha .ordem-item--maior; fora dele, nada. Escritos só
-    // quando o Dado ativo muda (entra, sai ou é outro), quando a lista é reescrita durante ele ou quando a tela vira
-    // baixa/normal no meio dele — nunca a cada quadro (e fora de ordemEscritas, que conta as reescritas da lista)
+    // números do Dado na faixa de ordem (spec 3c §6): com o Dado ativo e revelado (dItem; enquanto os dados giram,
+    // null), cada item mostra o best do corredor (embaixo do selo; em tela baixa, no lugar da posição) e o do vencedor
+    // ganha .ordem-item--maior; fora disso, nada. Escritos só quando esse estado muda (revelação, fim ou outro Dado),
+    // quando a lista é reescrita durante ele ou quando a tela vira baixa/normal no meio dele — nunca a cada quadro (e
+    // fora de ordemEscritas, que conta as reescritas da lista)
     var dadoMostrado = null, dadoBaixa = false;
     function marcaDado(dItem, baixa) {
       var lis = hud.ordem.children;
@@ -4122,18 +4123,18 @@
 
     // Dado da Sorte sobre cada cavalo visível (fx.js): plaquinha centrada no jóquei, logo acima da caixa
     // do desenho (molde ou código), arranjada sem sobreposição entre a faixa do Dado e o fim da pista e
-    // desviando da etiqueta "◀VOCÊ" (obstáculo fixo). A do vencedor é o dobro (DADO_MAIOR): o destaque dourado
-    // pulsa só sem movimento reduzido (FX.diceState fixa o brilho e o drawDice omite as faíscas)
+    // desviando da etiqueta "◀VOCÊ" (obstáculo fixo). Depois da revelação, a do vencedor é o dobro (DADO_MAIOR): o
+    // destaque dourado pulsa só sem movimento reduzido (FX.diceState fixa o brilho e o drawDice omite as faíscas)
     var DADO_MAIOR = 2;
     function drawDadosNaPista(item, vis, youTag) {
-      var S = self.S, lay = self.lay, red = reduced();
+      var S = self.S, lay = self.lay, red = reduced(), maior = FX.diceRevealed(item, self.simT, red) ? DADO_MAIOR : 1;
       var faixa = FX.bannerLayout(item, L.racers, lay, me);
       var topo = faixa.y + faixa.h + 2;
       var fixos = [];
       if (youTag) { var yb = youTagBox(youTag); fixos.push({ x: yb.x - 1, y: yb.y - 1 - topo, w: yb.w + 2, h: 11 }); }
       self.voceRect = fixos.length ? { x: fixos[0].x, y: fixos[0].y + topo, w: fixos[0].w, h: fixos[0].h } : null;
       var rects = vis.map(function (v) {
-        var sz = FX.badgeSize(item.rolls[v.j]), k = v.j === item.winner ? DADO_MAIOR : 1;
+        var sz = FX.badgeSize(item.rolls[v.j]), k = v.j === item.winner ? maior : 1;
         sz = { w: sz.w * k, h: sz.h * k };
         var cx = v.an.saddle ? Math.round(v.x / S + v.an.saddle[0]) : Math.round((v.caixa.x + v.caixa.w / 2) / S);
         return { j: v.j, x: cx - Math.floor(sz.w / 2), y: Math.floor(v.caixa.y / S) - 1 - sz.h - topo, w: sz.w, h: sz.h };
@@ -4142,7 +4143,7 @@
       arr.sort(function (a, b) { return (a.j === item.winner) - (b.j === item.winner); });   // vencedor por cima
       arr.forEach(function (r) {
         var est = FX.diceState(item, self.simT, red, r.j), win = r.j === item.winner;
-        var num = FX.drawDice(ctx, r.x * S, (r.y + topo) * S, S * (win ? DADO_MAIOR : 1), item.rolls[r.j], est, win, self.simT, L.racers[r.j].silks);
+        var num = FX.drawDice(ctx, r.x * S, (r.y + topo) * S, S * (win ? maior : 1), item.rolls[r.j], est, win, self.simT, L.racers[r.j].silks);
         FX._stats.placas.push({ racer: r.j, numero: num, vencedor: win, fase: est.fase, x: r.x, y: r.y + topo, w: r.w, h: r.h });
       });
     }
@@ -4204,7 +4205,9 @@
       // narração
       while (self.phase !== 'contagem' && feedPtr < feedEvents.length && feedEvents[feedPtr].t <= self.simT) pushFeed(feedEvents[feedPtr++]);
       var order = ranking(st, self.simT);
-      atualizaOrdem(order, st, self.phase === 'contagem' ? null : dadoAtivo(self.simT));
+      // o Dado só entra na faixa de ordem na revelação (Ruling 6: os dados pararam, ou movimento reduzido)
+      var dVisto = self.phase === 'contagem' ? null : dadoAtivo(self.simT);
+      atualizaOrdem(order, st, dVisto && FX.diceRevealed(dVisto, self.simT, reduced()) ? dVisto : null);
       // tempo de desenho do quadro (média móvel em RaceFx._stats.msQuadro)
       var tDes = window.performance.now();
       FX.beginFrame();
