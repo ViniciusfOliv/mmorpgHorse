@@ -2139,12 +2139,19 @@ try {
     // seeds DEV (perfil DEV novo): 16 = 7 corredores, o jogador em 7º, sem subir de nível; 70 = vitória (7 corredores);
     // 12 = 5 corredores com o jogador em 3º (pódio sem prêmio)
     const SEED7 = 16, SEED_VITORIA = 70, SEED_SEM_PREMIO = 12
+    // seedBase do perfil DEV fixo (Ruling 21): o perfil novo sorteia o dele (crypto.getRandomValues), e a skill que o
+    // cavalo aprende ao subir de nível sai de hash2(seedBase, …). Com uma skill aprendida na vitória, o Poder sobe, a sala
+    // da seed 12 vem com rivais mais fortes e o resultado deixa de ser o pódio sem prêmio (falhava ~1 em 10)
+    const SEED_BASE_RES = 7
     const MIN_ENTRADA = Math.min(...G.ECONOMY.entryTiers)
     // do resultado (ou de qualquer tela com a casca) até o próximo resultado da seed; prep(pg) roda na largada
     const correAteResultado = async (pg, seed, prep) => {
       if (await pg.locator('#t-resultado').count()) { await pg.locator('[data-acao="voltar"]').click(); await pg.waitForSelector('#t-correr') }
+      await pg.evaluate((b) => { window.__galope.state.seedBase = b }, SEED_BASE_RES)
       await devArmar(pg, { seed })
       await abrirSala(pg)
+      // só larga com a sala da seed armada e o seedBase fixo
+      await pg.waitForFunction(([sd, b]) => { const G = window.__galope; return !!G.ui.lobby && G.ui.lobby.seed === sd && G.state.seedBase === b }, [seed, SEED_BASE_RES], { timeout: 5000 })
       if (prep) await prep(pg)
       await pg.getByRole('button', { name: /^Largar/ }).click()
       await pg.waitForSelector('#pista')

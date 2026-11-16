@@ -42,6 +42,14 @@ O que é gosto e espera a palavra dele está em `ESTADO.md` ("A confirmar com o 
 - **(controlador) O bloco "menu" do teste de interface fixa o `seedBase` do save novo** — as capturas oficiais 03, 04, 10 e 11
   (saldo e XP depois de uma corrida) saíam de um sorteio a cada rodada, e o CLAUDE.md §4 pede que as capturas oficiais só
   mudem quando a interface muda. Custo se errado: essas quatro capturas ficam presas a uma seed.
+- **(controlador) A `final-10-expedicao.png` continua mudando a cada rodada pelos quadros de animação dos retratos** (faíscas
+  e "idle" no relógio real); não se congela na 3c — a seed fixa mirava o saldo e o XP, que pararam de mudar, e congelar a
+  animação muda a aparência da captura ou pede um gancho novo. Custo se errado: quem regravar as capturas vê essa mudar sem
+  a interface ter mudado (anotado nas pendências do `ESTADO.md`).
+- **(controlador) A falha intermitente do bloco "resultado" do teste de interface foi corrigida na mesma onda** — um
+  `check.sh` que falha de vez em quando deixa de valer como verificação. A causa era o `seedBase` sorteado do perfil DEV
+  novo: a skill aprendida ao subir de nível sai dele, e com uma skill a mais a sala da seed 12 mudava; o bloco agora fixa o
+  `seedBase` e só larga com a sala da seed armada. Custo se errado: 10 minutos de teste a mais nesta onda.
 - **(controlador) A faixa do Dado e a faixa do lugar ficam em cima, logo abaixo do painel; quando ali cobririam o cavalo do
   jogador, vão para o pé da pista** (sobre o gramado e a cerca). A posição é escolhida uma vez por Dado (e na chegada, quando
   o jogador cruza a linha) e não muda enquanto a faixa está na tela, só se a tela for redimensionada; as duas faixas nunca

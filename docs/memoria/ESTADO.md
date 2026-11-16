@@ -156,7 +156,10 @@ Vinicius joga antes e decide.
 - **Pendências conhecidas:**
   - paisagem (780×360) com 7 ou 8 corredores: os controles da corrida saem da janela de 360 px de altura (o fundo
     deles fica em 374 px em produção com 8; 398 no DEV com 8; 374 no DEV com 7). Já era assim antes da 3c, e a faixa de ordem não piora; cabem produção com até 7 e DEV com até 6;
-  - nas cores forçadas, o selo "Nv N" da linha do Estábulo continua sem contorno (só aparência).
+  - nas cores forçadas, o selo "Nv N" da linha do Estábulo continua sem contorno (só aparência);
+  - `final-10-expedicao.png` muda a cada rodada completa do teste de interface sem a interface ter mudado: só a área dos
+    retratos dos cavalos selvagens (de (152, 748) a (704, 1394) na imagem), porque as faíscas da raridade e o "idle" dos
+    retratos andam no relógio real. O saldo e o XP já não mudam (seed fixa); não se congela a animação.
 
 ## Em andamento
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b, que também traz a fonte da Rédea nova. Cada ginásio tem o
