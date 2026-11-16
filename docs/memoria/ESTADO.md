@@ -260,7 +260,11 @@ do Vinicius, antes de ele jogar; a lista de gosto abaixo continua aberta.
   velocidade (`self.gallop` em `prototype/src/game.js`: 13 × velocidade / 17 por segundo, ×1,3 em x2, até 35% na câmera
   lenta). Dois caminhos, ainda sem desenho nem decisão dele: sem créditos, em código (cadência mais alta e ligada ao
   esforço, balanço do corpo, mais poeira e risco de velocidade na reta final); com créditos, na 2c (quadros novos com a
-  passada toda estendida e a fase no ar). Medir a duração real de um ciclo antes de mexer.
+  passada toda estendida e a fase no ar). **Teste feito no mesmo dia, a pedido dele ("as pernas devem ser mais intensas
+  e espaçadas"):** página descartável em https://claude.ai/artifact/JUTm5mf3SwbvgDENeVAEeA, com o galope de hoje ao lado
+  de uma versão ajustável; medidas, receita do efeito e limites em `docs/memoria/sistemas/galope.md`. Uma passada dura
+  0,47–0,57 s em x1 (1,8 a 2,1 por segundo; o galope real fica em 2,2–2,5) e 1,2–1,6 s na câmera lenta. Sugestão do
+  teste: ritmo 1,25×, abertura 100%, balanço 1, tempo 40%. **Espera o Vinicius olhar e dizer os valores**; nada entrou no jogo.
 - **Antes do próximo aumento de versão do save:** pôr uma guarda para save de versão maior que a do
   código (não adotar nem gravar por cima, e avisar para atualizar a página).
 - **Pendências menores:** `docs/memoria/bugs.md`.
