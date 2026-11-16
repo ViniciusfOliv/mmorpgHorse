@@ -3465,6 +3465,30 @@
     function arcoArt(m) { return curves.length ? Math.round(-FX.curveOffset(curves, m) * self.lay.arcoK) || 0 : 0; }
     // clima em cada instante: o inicial, trocado por cada evento 'clima' (Dado da Sorte) já ocorrido
     var climaEvs = sim.events.filter(function (ev) { return ev.type === 'clima'; });
+    // o Dado de um evento ('dado', ou a virada de clima com o mesmo t), ou null
+    function dadoDoEvento(ev) {
+      if (ev.type !== 'dado' && ev.type !== 'clima') return null;
+      for (var q = 0; q < dadoItens.length; q++) if (dadoItens[q].t0 === ev.t) return dadoItens[q];
+      return null;
+    }
+    // Ruling 12: a frase do Dado e a virada de clima que ele causa (com o #anuncio, o clima do painel e o clarão, que
+    // saem do pushFeed delas) esperam a revelação daquele Dado; as frases seguintes esperam atrás, na ordem de sempre.
+    // Com movimento reduzido a revelação é em t0 e nada espera
+    function esperaRevelacao(ev) {
+      var d = dadoDoEvento(ev);
+      return !!d && !FX.diceRevealed(d, self.simT, reduced());
+    }
+    // o clima que o painel do topo mostra: o da simulação, mas a virada de um Dado só depois da revelação (a pista,
+    // chuva e névoa, segue climaAtual)
+    function climaMostrado(simT) {
+      var w = L.cond.weather;
+      for (var c = 0; c < climaEvs.length && climaEvs[c].t <= simT; c++) {
+        var d = dadoDoEvento(climaEvs[c]);
+        if (d && !FX.diceRevealed(d, simT, reduced())) break;
+        w = climaEvs[c].weather;
+      }
+      return w;
+    }
     function climaAtual(simT) {
       var w = L.cond.weather;
       for (var c = 0; c < climaEvs.length && climaEvs[c].t <= simT; c++) w = climaEvs[c].weather;
@@ -3839,7 +3863,7 @@
       text(kmh, A - 4, 10, C.texto2, 1, 'right', null, true);
       // clima atual (vira com o Dado da Sorte), à esquerda do relógio; no layout compacto
       // não há espaço (a CURVA/SUBIDA fica ali) e o cabeçalho da tela mostra o clima
-      var wName = GD.WEATHERS[climaAtual(self.simT)].name.toUpperCase();
+      var wName = GD.WEATHERS[climaMostrado(self.simT)].name.toUpperCase();
       var ww = Math.max(tw('CLIMA'), tw(wName)) + 4, wx = A - 2 - tw2 - 4 - ww;
       var livre = sx + barW + 4 + 4, climaVisivel = !lay.compact && wx > livre;
       if (climaVisivel) {
@@ -4233,7 +4257,7 @@
       // galope: cadência em tempo real proporcional à velocidade (mais lenta na câmera lenta)
       for (var j = 0; j < n; j++) self.gallop[j] += dtReal * 13 * (st.speed[j] / 17) * (self.mult > 1 ? 1.3 : 1) * Math.max(0.35, slowK);
       // narração
-      while (self.phase !== 'contagem' && feedPtr < feedEvents.length && feedEvents[feedPtr].t <= self.simT) pushFeed(feedEvents[feedPtr++]);
+      while (self.phase !== 'contagem' && feedPtr < feedEvents.length && feedEvents[feedPtr].t <= self.simT && !esperaRevelacao(feedEvents[feedPtr])) pushFeed(feedEvents[feedPtr++]);
       var order = ranking(st, self.simT);
       // o Dado só entra na faixa de ordem na revelação (Ruling 6: os dados pararam, ou movimento reduzido)
       var dVisto = self.phase === 'contagem' ? null : dadoAtivo(self.simT);

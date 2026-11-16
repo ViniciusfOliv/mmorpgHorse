@@ -1390,6 +1390,30 @@ test('Ruling 6: antes da revelação, a mesma caixa só com "DADO DA SORTE"; o v
   assert.strictEqual(FX.diceState(it, revela - 0.01, false, 0).dourado, false);
   assert.strictEqual(FX.diceState(it, revela, false, 0).dourado, true);
 });
+test('Ruling 13: antes da revelação, o ícone e "DADO DA SORTE" centrados na caixa (escala 2 quando cabe)', function () {
+  var it = dadoFaixa({ escala: 4, t1: 10 + 2.4 * 4 });
+  [[RACERS_FAIXA, false], [RACERS_FAIXA, true], [[{ silks: '#d8353b', horse: { name: 'Ipê' } }, RACERS_FAIXA[1]], false]].forEach(function (cs) {
+    FX.setIconImages({ 'ui-dado': IMG });
+    var c = ctxFalso(), B = FX.drawDiceBanner(c, it, cs[0], { artW: 180, hudH: 42, artH: 232 }, 2, 10.4, false, 1, cs[1]);
+    FX.setIconImages({});
+    var A = function (v) { return v / 2; };
+    // o que está dentro da borda (contorno, friso e bisel = 3): o texto, e a imagem do dado
+    var miolo = c.rects.filter(function (r) { return A(r.x) >= B.x + 3 && A(r.y) >= B.y + 3 && A(r.x + r.w) <= B.x + B.w - 3 && A(r.y + r.h) <= B.y + B.h - 3; });
+    assert.ok(miolo.length > 20, 'o texto foi desenhado');
+    miolo.forEach(function (r) { assert.strictEqual(r.cor, '#f2c230', 'só o texto em ouro dentro da caixa'); });
+    assert.strictEqual(c.imgs.length, 1);
+    var im = c.imgs[0], cx = [A(im.args[1])], cy = [A(im.args[2])], cx2 = [A(im.args[1] + im.args[3])], cy2 = [A(im.args[2] + im.args[4])];
+    miolo.forEach(function (r) { cx.push(A(r.x)); cy.push(A(r.y)); cx2.push(A(r.x + r.w)); cy2.push(A(r.y + r.h)); });
+    var x0 = Math.min.apply(null, cx), x1 = Math.max.apply(null, cx2), y0 = Math.min.apply(null, cy), y1 = Math.max.apply(null, cy2);
+    var esq = x0 - B.x, dir = B.x + B.w - x1, cima = y0 - B.y, baixo = B.y + B.h - y1;
+    assert.ok(Math.abs(esq - dir) <= 1, 'centrado na horizontal: ' + esq + ' / ' + dir);
+    assert.ok(Math.abs(cima - baixo) <= 1, 'centrado na vertical: ' + cima + ' / ' + baixo);
+    // escala 2 quando cabe: a altura do texto (sem o ícone) é 10
+    var ty0 = Math.min.apply(null, miolo.map(function (r) { return A(r.y); })), ty1 = Math.max.apply(null, miolo.map(function (r) { return A(r.y + r.h); }));
+    var cabe = 8 + 2 + 2 * require('../src/sprites.js').measureText('DADO DA SORTE', 1) <= B.w - 12;
+    assert.strictEqual(ty1 - ty0, cabe ? 10 : 5, 'escala do rótulo (caixa de ' + B.w + ')');
+  });
+});
 test('drawDiceBanner com ui-dado (e o ícone do clima) no cache desenha as imagens; o resto é o mesmo', function () {
   var it = dadoFaixa();
   FX.setIconImages({});

@@ -6795,7 +6795,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   RaceFx.drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me, embaixo) -> caixa (bannerLayout) ou null fora de
  *     [t0, t1). Faixa grande do Dado (spec 3c §6): contorno --sombra, friso --ouro e bisel de 1 pixel de arte; ícone
  *     do dado (ui-dado) e do clima (cl-<weather>) em PNG quando no cache. Antes da revelação (diceRevealed falso)
- *     a mesma caixa só com o ícone do dado e "DADO DA SORTE" (_stats.faixaDadoLinhas = ['DADO DA SORTE']); depois,
+ *     a mesma caixa só com o ícone do dado e "DADO DA SORTE", centrados (escala 2 quando cabe)
+ *     (_stats.faixaDadoLinhas = ['DADO DA SORTE']); depois,
  *     as linhas de bannerLayout. Não pisca nem desliza: só troca o conteúdo na revelação. Marca _stats.faixaDado.
  *
  *   RaceFx.balloonSize(item, pilha) -> { w, h } em pixels de arte do corpo do balão (altura 11; a pontinha
@@ -7578,16 +7579,21 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     R(B.x + 2, B.y + 2, B.w - 4, B.h - 4, COR.painel);
     R(B.x + 2, B.y + 2, B.w - 4, 1, BISEL_LUZ); R(B.x + 2, B.y + 3, 1, B.h - 6, BISEL_LUZ);
     R(B.x + 2, B.y + B.h - 3, B.w - 4, 1, BISEL_SOMBRA); R(B.x + B.w - 3, B.y + 3, 1, B.h - 6, BISEL_SOMBRA);
-    // ícones em PNG (sem imagem ou pequenos demais, o espaço fica vazio: o resto não muda)
-    drawIconPng(ctx, 'ui-dado', B.l1.icone.x * S, B.l1.icone.y * S, 8, S);
     stats.faixaDado = true;
     stats.faixaDadoCaixa = { x: B.x, y: B.y, w: B.w, h: B.h };
     if (!diceRevealed(item, simT, reduced)) {
-      // dados girando: a caixa já no tamanho e no lugar finais, só com "DADO DA SORTE" (nada do vencedor)
-      texto(ctx, ROTULO, B.l1.pre.x * S, B.l1.pre.y * S, S, COR.ouro);
+      // dados girando (Ruling 13): a caixa já no tamanho e no lugar finais, só com o ícone do dado e "DADO DA SORTE"
+      // (nada do vencedor), centrados na caixa, em escala 2 quando cabe
+      var F = FAIXA, livre = B.w - 2 * (F.borda + F.folgaX), rw = textW(ROTULO);
+      var fr = F.icone + F.gapIcone + 2 * rw <= livre ? 2 : 1, gw = F.icone + F.gapIcone + fr * rw, gh = Math.max(F.icone, 5 * fr);
+      var gx = B.x + Math.round((B.w - gw) / 2), gy = B.y + Math.round((B.h - gh) / 2);
+      drawIconPng(ctx, 'ui-dado', gx * S, (gy + Math.floor((gh - F.icone) / 2)) * S, 8, S);
+      texto(ctx, ROTULO, (gx + F.icone + F.gapIcone) * S, (gy + Math.floor((gh - 5 * fr) / 2)) * S, S * fr, COR.ouro);
       stats.faixaDadoLinhas = [ROTULO];
       return B;
     }
+    // ícones em PNG (sem imagem ou pequenos demais, o espaço fica vazio: o resto não muda)
+    drawIconPng(ctx, 'ui-dado', B.l1.icone.x * S, B.l1.icone.y * S, 8, S);
     drawIconPng(ctx, 'cl-' + item.weather, B.l2.icone.x * S, B.l2.icone.y * S, 8, S);
     texto(ctx, FAIXA.pre, B.l1.pre.x * S, B.l1.pre.y * S, S, COR.texto);
     texto(ctx, B.nome, B.l1.nome.x * S, B.l1.nome.y * S, S * B.fs, COR.ouroClaro);
@@ -11305,6 +11311,30 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     function arcoArt(m) { return curves.length ? Math.round(-FX.curveOffset(curves, m) * self.lay.arcoK) || 0 : 0; }
     // clima em cada instante: o inicial, trocado por cada evento 'clima' (Dado da Sorte) já ocorrido
     var climaEvs = sim.events.filter(function (ev) { return ev.type === 'clima'; });
+    // o Dado de um evento ('dado', ou a virada de clima com o mesmo t), ou null
+    function dadoDoEvento(ev) {
+      if (ev.type !== 'dado' && ev.type !== 'clima') return null;
+      for (var q = 0; q < dadoItens.length; q++) if (dadoItens[q].t0 === ev.t) return dadoItens[q];
+      return null;
+    }
+    // Ruling 12: a frase do Dado e a virada de clima que ele causa (com o #anuncio, o clima do painel e o clarão, que
+    // saem do pushFeed delas) esperam a revelação daquele Dado; as frases seguintes esperam atrás, na ordem de sempre.
+    // Com movimento reduzido a revelação é em t0 e nada espera
+    function esperaRevelacao(ev) {
+      var d = dadoDoEvento(ev);
+      return !!d && !FX.diceRevealed(d, self.simT, reduced());
+    }
+    // o clima que o painel do topo mostra: o da simulação, mas a virada de um Dado só depois da revelação (a pista,
+    // chuva e névoa, segue climaAtual)
+    function climaMostrado(simT) {
+      var w = L.cond.weather;
+      for (var c = 0; c < climaEvs.length && climaEvs[c].t <= simT; c++) {
+        var d = dadoDoEvento(climaEvs[c]);
+        if (d && !FX.diceRevealed(d, simT, reduced())) break;
+        w = climaEvs[c].weather;
+      }
+      return w;
+    }
     function climaAtual(simT) {
       var w = L.cond.weather;
       for (var c = 0; c < climaEvs.length && climaEvs[c].t <= simT; c++) w = climaEvs[c].weather;
@@ -11679,7 +11709,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       text(kmh, A - 4, 10, C.texto2, 1, 'right', null, true);
       // clima atual (vira com o Dado da Sorte), à esquerda do relógio; no layout compacto
       // não há espaço (a CURVA/SUBIDA fica ali) e o cabeçalho da tela mostra o clima
-      var wName = GD.WEATHERS[climaAtual(self.simT)].name.toUpperCase();
+      var wName = GD.WEATHERS[climaMostrado(self.simT)].name.toUpperCase();
       var ww = Math.max(tw('CLIMA'), tw(wName)) + 4, wx = A - 2 - tw2 - 4 - ww;
       var livre = sx + barW + 4 + 4, climaVisivel = !lay.compact && wx > livre;
       if (climaVisivel) {
@@ -12073,7 +12103,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       // galope: cadência em tempo real proporcional à velocidade (mais lenta na câmera lenta)
       for (var j = 0; j < n; j++) self.gallop[j] += dtReal * 13 * (st.speed[j] / 17) * (self.mult > 1 ? 1.3 : 1) * Math.max(0.35, slowK);
       // narração
-      while (self.phase !== 'contagem' && feedPtr < feedEvents.length && feedEvents[feedPtr].t <= self.simT) pushFeed(feedEvents[feedPtr++]);
+      while (self.phase !== 'contagem' && feedPtr < feedEvents.length && feedEvents[feedPtr].t <= self.simT && !esperaRevelacao(feedEvents[feedPtr])) pushFeed(feedEvents[feedPtr++]);
       var order = ranking(st, self.simT);
       // o Dado só entra na faixa de ordem na revelação (Ruling 6: os dados pararam, ou movimento reduzido)
       var dVisto = self.phase === 'contagem' ? null : dadoAtivo(self.simT);

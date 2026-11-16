@@ -1400,7 +1400,8 @@ try {
       })
       const red = document.documentElement.classList.contains('mov-reduzido'), REG = FX.DADO.regira
       const w = window.__dadoVigia = { quadros: 0, red, porDado: itens.map((d, q) => ({ t0: d.t0, t1: d.t1, winner: d.winner, revela: red ? d.t0 : d.t0 + REG * d.escala, escala: d.escala,
-        antes: 0, durante: 0, girando: 0, revelado: 0, depois: 0, esperadas: esperadas[q], linhas: null, primeiro: null })), alturas: {}, ruins: [], nRuins: 0, maxT: 0 }
+        antes: 0, durante: 0, girando: 0, revelado: 0, depois: 0, esperadas: esperadas[q], linhas: null, primeiro: null,
+        changed: evs[q].changed, feedDado: null, feedClima: null, anuncio: null, painel: null, painelAntes: null })), alturas: {}, ruins: [], nRuins: 0, maxT: 0 }
       const ruim = (m) => { w.nRuins++; if (w.ruins.length < 6) w.ruins.push(m) }
       const ul = document.getElementById('ordem-lista')
       new MutationObserver(() => {
@@ -1410,6 +1411,30 @@ try {
         if (tem && q >= 0 && w.porDado[q].primeiro === null) w.porDado[q].primeiro = s.simT
         if (tem && q < 0) ruim({ t: s.simT, numeroForaDaJanela: true })
       }).observe(ul, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class'] })
+      // Ruling 12: o simT em que entram a frase do Dado e a da virada na narração (a mais nova é a 1ª), o "O clima virou"
+      // do #anuncio e o clima novo no painel (#clima-atual), no Dado que já começou por último
+      const feed = document.getElementById('feed'), anuncio = document.getElementById('anuncio'), painel = document.getElementById('clima-atual')
+      const dadoAtual = () => { let q = -1; itens.forEach((d, k) => { if (s.simT >= d.t0) q = k }); return q }
+      // as frases, pelo texto do evento (as duas podem entrar no mesmo quadro; a do Dado vem sem o "🎲 ")
+      const frases = itens.map((d, q) => {
+        const cl = L.sim.events.find((e) => e.type === 'clima' && e.t === d.t0)
+        return { dado: evs[q].text.replace(/^🎲 /, ''), clima: cl ? cl.text : null }
+      })
+      new MutationObserver(() => {
+        const q = dadoAtual()
+        if (q < 0) return
+        const p = w.porDado[q], txt = feed.textContent
+        if (p.feedDado === null && txt.includes(frases[q].dado)) p.feedDado = s.simT
+        if (p.feedClima === null && frases[q].clima && txt.includes(frases[q].clima)) p.feedClima = s.simT
+      }).observe(feed, { childList: true, subtree: true })
+      new MutationObserver(() => {
+        const q = dadoAtual()
+        if (q >= 0 && w.porDado[q].anuncio === null && /^O clima virou/.test(anuncio.textContent)) w.porDado[q].anuncio = s.simT
+      }).observe(anuncio, { childList: true, subtree: true, characterData: true })
+      new MutationObserver(() => {
+        const q = dadoAtual()
+        if (q >= 0 && w.porDado[q].painel === null && w.porDado[q].painelAntes !== null && painel.textContent !== w.porDado[q].painelAntes) w.porDado[q].painel = s.simT
+      }).observe(painel, { childList: true, subtree: true, characterData: true })
       const tick = () => {
         if (!window.__galope.race) return
         if (s.phase !== 'contagem') {
@@ -1418,7 +1443,7 @@ try {
           w.quadros++; w.maxT = t
           const h = ordem.getBoundingClientRect().height
           w.alturas[h] = (w.alturas[h] || 0) + 1
-          itens.forEach((d, q) => { const p = w.porDado[q]; if (t < d.t0) p.antes++; else if (t < d.t1) p.durante++; else p.depois++ })
+          itens.forEach((d, q) => { const p = w.porDado[q]; if (t < d.t0) { p.antes++; p.painelAntes = painel.textContent } else if (t < d.t1) p.durante++; else p.depois++ })
           document.querySelectorAll('#ordem-lista > li').forEach((li, k) => {
             const j = Number(li.dataset.raia), pos = li.querySelector('.ordem-pos'), dd = li.querySelector('.ordem-dado')
             const posTxt = pos.firstChild ? pos.firstChild.nodeValue : '', maior = li.classList.contains('ordem-item--maior')
@@ -1430,6 +1455,8 @@ try {
           if (ativo) {
             const p = w.porDado[itens.indexOf(ativo)], esp = rev ? p.esperadas : ['DADO DA SORTE']
             if (rev) p.revelado++; else p.girando++
+            // o painel mostra o clima de antes do Dado até a revelação
+            if (!rev && painel.textContent !== p.painelAntes) ruim({ t, painelAntesDaRevelacao: painel.textContent, era: p.painelAntes })
             if (!st.faixaDado || JSON.stringify(st.faixaDadoLinhas) !== JSON.stringify(esp)) ruim({ t, rev, faixa: st.faixaDado, linhas: st.faixaDadoLinhas, esperadas: esp })
             if (rev && !p.linhas) p.linhas = Array.isArray(st.faixaDadoLinhas) ? st.faixaDadoLinhas.slice() : String(st.faixaDadoLinhas)
           } else if (st.faixaDado) ruim({ t, faixaForaDaJanela: st.faixaDadoLinhas })
@@ -1443,13 +1470,21 @@ try {
       await pg.waitForFunction((t1) => window.__dadoVigia.maxT >= t1 + 0.5, ult, { timeout: 60000, polling: 'raf' })
       const w = await pg.evaluate(() => window.__dadoVigia)
       notes[label + '-dado'] = { quadros: w.quadros, alturas: w.alturas, porDado: w.porDado.map((p) => ({ antes: p.antes, girando: p.girando, revelado: p.revelado, depois: p.depois,
-        revela: +p.revela.toFixed(2), primeiroNumero: p.primeiro === null ? null : +p.primeiro.toFixed(2), linhas: p.linhas })) }
+        revela: +p.revela.toFixed(2), primeiroNumero: p.primeiro === null ? null : +p.primeiro.toFixed(2), linhas: p.linhas,
+        narracao: { dado: p.feedDado, clima: p.feedClima, anuncio: p.anuncio, painel: p.painel, changed: p.changed } })) }
       if (w.porDado.length < 2) problems.push(`[${label}] Dado: a corrida tem ${w.porDado.length} Dados (esperado 2)`)
       w.porDado.forEach((p, q) => {
         if (!p.antes || p.durante < 5 || !p.depois) problems.push(`[${label}] Dado ${q + 1}: quadros antes/durante/depois ${p.antes}/${p.durante}/${p.depois} (esperado todos vistos)`)
         // Ruling 6: os dados girando aparecem (sem movimento reduzido) e o primeiro número entra só na revelação
         if ((!w.red && !p.girando) || p.revelado < 5) problems.push(`[${label}] Dado ${q + 1}: quadros girando/revelado ${p.girando}/${p.revelado} (esperado os dois vistos)`)
         if (p.primeiro === null || p.primeiro < p.revela - 0.02 * p.escala) problems.push(`[${label}] Dado ${q + 1}: o primeiro número entrou na faixa de ordem em simT ${p.primeiro} (revelação em ${p.revela.toFixed(2)})`)
+        // Ruling 12: a frase do Dado e, se o clima virou, a frase da virada, o #anuncio e o painel, todos na revelação
+        // (com movimento reduzido, em t0: até 0,1·escala depois)
+        const quando = { dado: p.feedDado }
+        if (p.changed) Object.assign(quando, { clima: p.feedClima, anuncio: p.anuncio, painel: p.painel })
+        for (const [k, t] of Object.entries(quando)) {
+          if (t === null || t < p.revela - 0.02 * p.escala || (w.red && t > p.t0 + 0.1 * p.escala)) problems.push(`[${label}] Dado ${q + 1}: ${k} entrou em simT ${t} (revelação em ${p.revela.toFixed(2)}${w.red ? ', movimento reduzido' : ''})`)
+        }
         if (JSON.stringify(p.linhas) !== JSON.stringify(p.esperadas)) problems.push(`[${label}] Dado ${q + 1}: faixa com ${JSON.stringify(p.linhas)} (esperado ${JSON.stringify(p.esperadas)})`)
       })
       if (w.nRuins) problems.push(`[${label}] Dado: ${w.nRuins} quadros com a faixa de ordem ou a faixa do Dado fora do esperado, ex.: ${JSON.stringify(w.ruins)}`)
@@ -1776,6 +1811,23 @@ try {
         } finally {
           await pg.context().close()
         }
+      }
+    }
+
+    // Ruling 12 com movimento reduzido: a revelação é em t0, então a narração, o #anuncio e o painel não esperam
+    {
+      const label = 'corrida-dado-reduzido'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1', reducedMotion: 'reduce' })
+      try {
+        await abreCorrida(pg, label, SEED7)
+        if (!(await pg.evaluate(() => document.documentElement.classList.contains('mov-reduzido')))) problems.push(`[${label}] sem a classe mov-reduzido`)
+        await vigiaDado(pg)
+        await pg.getByRole('button', { name: 'x2' }).click()
+        await confereVigiaDado(pg, label)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
       }
     }
   }
@@ -2629,7 +2681,12 @@ try {
     }
     // a corrida na tela tem virada de clima? Pula até ela e confere o "Clima: X" (texto e ícone novos)
     const confereViradaClima = async (pg, tag, ICONES) => {
-      const ev = await pg.evaluate(() => { const e = window.__galope.ui.lobby.sim.events.find((x) => x.type === 'clima'); return e ? { t: e.t, weather: e.weather } : null })
+      // Ruling 12: a virada de um Dado só aparece na revelação dele (t0 + DADO.regira·escala)
+      const ev = await pg.evaluate(() => {
+        const e = window.__galope.ui.lobby.sim.events.find((x) => x.type === 'clima'), s = window.__galope.race._state
+        const d = e && s.fx.find((x) => x.kind === 'dado' && x.t0 === e.t)
+        return e ? { t: d ? d.t0 + window.RaceFx.DADO.regira * d.escala : e.t, weather: e.weather } : null
+      })
       if (!ev) return false
       const antes = await pg.evaluate(() => window.__galope.ui.lobby.cond.weather)
       await pg.evaluate((t) => { const s = window.__galope.race._state; s.phase = 'corrida'; s.simT = Math.max(s.simT, t + 0.01) }, ev.t)

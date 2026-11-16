@@ -141,7 +141,8 @@
  *   RaceFx.drawDiceBanner(ctx, item, racers, lay, S, simT, reduced, me, embaixo) -> caixa (bannerLayout) ou null fora de
  *     [t0, t1). Faixa grande do Dado (spec 3c §6): contorno --sombra, friso --ouro e bisel de 1 pixel de arte; ícone
  *     do dado (ui-dado) e do clima (cl-<weather>) em PNG quando no cache. Antes da revelação (diceRevealed falso)
- *     a mesma caixa só com o ícone do dado e "DADO DA SORTE" (_stats.faixaDadoLinhas = ['DADO DA SORTE']); depois,
+ *     a mesma caixa só com o ícone do dado e "DADO DA SORTE", centrados (escala 2 quando cabe)
+ *     (_stats.faixaDadoLinhas = ['DADO DA SORTE']); depois,
  *     as linhas de bannerLayout. Não pisca nem desliza: só troca o conteúdo na revelação. Marca _stats.faixaDado.
  *
  *   RaceFx.balloonSize(item, pilha) -> { w, h } em pixels de arte do corpo do balão (altura 11; a pontinha
@@ -924,16 +925,21 @@
     R(B.x + 2, B.y + 2, B.w - 4, B.h - 4, COR.painel);
     R(B.x + 2, B.y + 2, B.w - 4, 1, BISEL_LUZ); R(B.x + 2, B.y + 3, 1, B.h - 6, BISEL_LUZ);
     R(B.x + 2, B.y + B.h - 3, B.w - 4, 1, BISEL_SOMBRA); R(B.x + B.w - 3, B.y + 3, 1, B.h - 6, BISEL_SOMBRA);
-    // ícones em PNG (sem imagem ou pequenos demais, o espaço fica vazio: o resto não muda)
-    drawIconPng(ctx, 'ui-dado', B.l1.icone.x * S, B.l1.icone.y * S, 8, S);
     stats.faixaDado = true;
     stats.faixaDadoCaixa = { x: B.x, y: B.y, w: B.w, h: B.h };
     if (!diceRevealed(item, simT, reduced)) {
-      // dados girando: a caixa já no tamanho e no lugar finais, só com "DADO DA SORTE" (nada do vencedor)
-      texto(ctx, ROTULO, B.l1.pre.x * S, B.l1.pre.y * S, S, COR.ouro);
+      // dados girando (Ruling 13): a caixa já no tamanho e no lugar finais, só com o ícone do dado e "DADO DA SORTE"
+      // (nada do vencedor), centrados na caixa, em escala 2 quando cabe
+      var F = FAIXA, livre = B.w - 2 * (F.borda + F.folgaX), rw = textW(ROTULO);
+      var fr = F.icone + F.gapIcone + 2 * rw <= livre ? 2 : 1, gw = F.icone + F.gapIcone + fr * rw, gh = Math.max(F.icone, 5 * fr);
+      var gx = B.x + Math.round((B.w - gw) / 2), gy = B.y + Math.round((B.h - gh) / 2);
+      drawIconPng(ctx, 'ui-dado', gx * S, (gy + Math.floor((gh - F.icone) / 2)) * S, 8, S);
+      texto(ctx, ROTULO, (gx + F.icone + F.gapIcone) * S, (gy + Math.floor((gh - 5 * fr) / 2)) * S, S * fr, COR.ouro);
       stats.faixaDadoLinhas = [ROTULO];
       return B;
     }
+    // ícones em PNG (sem imagem ou pequenos demais, o espaço fica vazio: o resto não muda)
+    drawIconPng(ctx, 'ui-dado', B.l1.icone.x * S, B.l1.icone.y * S, 8, S);
     drawIconPng(ctx, 'cl-' + item.weather, B.l2.icone.x * S, B.l2.icone.y * S, 8, S);
     texto(ctx, FAIXA.pre, B.l1.pre.x * S, B.l1.pre.y * S, S, COR.texto);
     texto(ctx, B.nome, B.l1.nome.x * S, B.l1.nome.y * S, S * B.fs, COR.ouroClaro);
