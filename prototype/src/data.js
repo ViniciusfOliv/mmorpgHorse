@@ -483,7 +483,7 @@
     estrela: {
       id: 'estrela', name: 'Estrela de treino', price: 2000, everyDays: 7,
       desc: 'O cavalo sobe 1 estrela; os pontos a mais aparecem para distribuir.',
-      origem: 'Compre na loja ou ganhe no 7º dia da recompensa diária, de tempos em tempos.'
+      origem: null   // montada abaixo, com os números de everyDays e de DAILY.estrelaACada
     },
     redea: {
       id: 'redea', name: 'Rédea nova', price: null,
@@ -509,6 +509,8 @@
     dias: [{ ouro: 60 }, { item: 'torrao' }, { ouro: 100 }, { item: 'manual' }, { ouro: 150 }, { item: 'cupom' }, { ouro: 200, item: 'redea' }],
     estrelaACada: 4
   };
+  ITEMS.estrela.origem = 'Compre na loja (1 a cada ' + ITEMS.estrela.everyDays + ' dias) ou ganhe no 7º dia de cada ' +
+    DAILY.estrelaACada + 'º calendário completo da recompensa diária.';
 
   // ---------------------------------------------------------------------------------------------
   // Equipamento: 5 slots por montaria. Cada peça dá um status principal e um secundário, definidos

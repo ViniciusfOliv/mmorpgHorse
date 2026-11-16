@@ -1222,6 +1222,8 @@
     hash2: hash2,
     computeStats: computeStats,
     starsOf: starsOf,
+    rarityOf: rarityOf,
+    torroesOf: torroesOf,
     freePoints: freePoints,
     pointCost: pointCost,
     costOf: costOf,

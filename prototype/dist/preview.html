@@ -1771,7 +1771,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     estrela: {
       id: 'estrela', name: 'Estrela de treino', price: 2000, everyDays: 7,
       desc: 'O cavalo sobe 1 estrela; os pontos a mais aparecem para distribuir.',
-      origem: 'Compre na loja ou ganhe no 7º dia da recompensa diária, de tempos em tempos.'
+      origem: null   // montada abaixo, com os números de everyDays e de DAILY.estrelaACada
     },
     redea: {
       id: 'redea', name: 'Rédea nova', price: null,
@@ -1797,6 +1797,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     dias: [{ ouro: 60 }, { item: 'torrao' }, { ouro: 100 }, { item: 'manual' }, { ouro: 150 }, { item: 'cupom' }, { ouro: 200, item: 'redea' }],
     estrelaACada: 4
   };
+  ITEMS.estrela.origem = 'Compre na loja (1 a cada ' + ITEMS.estrela.everyDays + ' dias) ou ganhe no 7º dia de cada ' +
+    DAILY.estrelaACada + 'º calendário completo da recompensa diária.';
 
   // ---------------------------------------------------------------------------------------------
   // Equipamento: 5 slots por montaria. Cada peça dá um status principal e um secundário, definidos
@@ -3111,6 +3113,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     hash2: hash2,
     computeStats: computeStats,
     starsOf: starsOf,
+    rarityOf: rarityOf,
+    torroesOf: torroesOf,
     freePoints: freePoints,
     pointCost: pointCost,
     costOf: costOf,
@@ -4230,15 +4234,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 
   function temChave(o, k) { return !!o && Object.prototype.hasOwnProperty.call(o, k); }
   function inteiro(x) { return typeof x === 'number' && isFinite(x) && x === Math.floor(x); }
-  function vagas(mount) {
-    var r = mount && mount.rarity;
-    return (typeof r === 'string' && temChave(G.RARITIES, r) ? G.RARITIES[r] : G.RARITIES.comum).skillSlots;
-  }
   function skillsDe(mount) { return mount && Array.isArray(mount.skills) ? mount.skills : []; }
-  function torroesDe(mount) {
-    var t = mount && mount.torroes;
-    return inteiro(t) && t >= 0 && t <= I.torrao.cap ? t : 0;
-  }
   function sorteio(seedBase, contador) { return S.mulberry32(S.hash2(seedBase, SAL + contador)); }
 
   // ---------------------------------------------------------------------------------------------
@@ -4258,27 +4254,29 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     semSkill: 'Este cavalo não tem skill nas vagas para trocar.',
     semCandidata: 'Não há skill nova que este cavalo possa aprender.',
     vagasCheias: 'As vagas de skill deste cavalo estão cheias.',
+    semCavalo: 'Escolha um cavalo para usar este item.',
     outro: 'Este item não se usa por aqui.'
   };
   // ctx = { tem: quantos o jogador tem, ativaComSala: o cavalo é o ativo e há sala aberta }
   function podeUsar(id, mount, ctx) {
     if (id !== 'torrao' && id !== 'estrela' && id !== 'cupom' && id !== 'manual') return { ok: false, motivo: MOTIVO.outro };
+    if (!mount || typeof mount !== 'object') return { ok: false, motivo: MOTIVO.semCavalo };
     var c = ctx || {};
     if (!(Number(c.tem) >= 1)) return { ok: false, motivo: 'Você não tem ' + I[id].name + '.' };
     if ((id === 'cupom' || id === 'manual') && c.ativaComSala) return { ok: false, motivo: MOTIVO.sala };
-    if (id === 'torrao' && torroesDe(mount) >= I.torrao.cap) return { ok: false, motivo: MOTIVO.torroes };
+    if (id === 'torrao' && S.torroesOf(mount) >= I.torrao.cap) return { ok: false, motivo: MOTIVO.torroes };
     if (id === 'estrela' && S.starsOf(mount) >= S.TUNING.starMult.length) return { ok: false, motivo: MOTIVO.estrelas };
     if (id === 'cupom') {
       if (!skillsDe(mount).some(function (s) { return temChave(G.SKILLS, s); })) return { ok: false, motivo: MOTIVO.semSkill };
       if (!S.skillCandidates(mount).length) return { ok: false, motivo: MOTIVO.semCandidata };
     }
     if (id === 'manual') {
-      if (skillsDe(mount).length >= vagas(mount)) return { ok: false, motivo: MOTIVO.vagasCheias };
+      if (skillsDe(mount).length >= S.rarityOf(mount).skillSlots) return { ok: false, motivo: MOTIVO.vagasCheias };
       if (!S.skillCandidates(mount).length) return { ok: false, motivo: MOTIVO.semCandidata };
     }
     return { ok: true };
   }
-  function usarTorrao(mount) { return { torroes: Math.min(I.torrao.cap, torroesDe(mount) + 1) }; }
+  function usarTorrao(mount) { return { torroes: Math.min(I.torrao.cap, S.torroesOf(mount) + 1) }; }
   function usarEstrela(mount) { return { grau: Math.min(S.TUNING.starMult.length, S.starsOf(mount) + 1) }; }
 
   function trocarSkill(mount, skillId, seedBase, contador) {
@@ -4294,7 +4292,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 
   function tentarDoma(mount, seedBase, contador) {
     var skills = skillsDe(mount);
-    if (skills.length >= vagas(mount)) return null;
+    if (skills.length >= S.rarityOf(mount).skillSlots) return null;
     var cands = S.skillCandidates(mount);
     if (!cands.length) return null;
     var rng = sorteio(seedBase, contador);
@@ -4306,14 +4304,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ---------------------------------------------------------------------------------------------
   // Recompensa diária
   // ---------------------------------------------------------------------------------------------
-  function diariaSaneada(diaria) {
+  // Sem diária (save novo): nunca resgatou. ultimo null: nunca resgatou. ultimo corrompido (nem inteiro
+  // nem null): na dúvida, conta como resgatado hoje (o próximo resgate é amanhã).
+  function diariaSaneada(diaria, hoje) {
     var d = diaria || {};
     return {
       prox: inteiro(d.prox) && d.prox >= 0 && d.prox < D.dias.length ? d.prox : 0,
       ciclos: inteiro(d.ciclos) && d.ciclos >= 0 ? d.ciclos : 0,
-      ultimo: inteiro(d.ultimo) ? d.ultimo : null
+      ultimo: inteiro(d.ultimo) ? d.ultimo : (!diaria || d.ultimo === null ? null : hoje)
     };
   }
+  // Pode resgatar: só com hoje inteiro, e se nunca resgatou ou hoje passou do último resgate.
+  function podeResgatar(d, hoje) { return inteiro(hoje) && (d.ultimo === null || hoje > d.ultimo); }
   // Prêmio do dia `prox` do calendário, com `ciclos` calendários completos antes dele.
   function premioDe(prox, ciclos) {
     var dia = D.dias[prox], itens = {};
@@ -4329,15 +4331,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // { pode, dia (1–7), premio (o próximo a resgatar), amanha (o que fica para amanhã se hoje resgatar,
   // ou o mesmo premio se hoje não dá), estrela (premio traz a Estrela) }
   function diariaEstado(diaria, hoje) {
-    var d = diariaSaneada(diaria);
-    var pode = d.ultimo === null || hoje > d.ultimo;
+    var d = diariaSaneada(diaria, hoje);
+    var pode = podeResgatar(d, hoje);
     var p = premioDe(d.prox, d.ciclos), s = seguinte(d);
     return { pode: pode, dia: d.prox + 1, premio: p.premio, amanha: pode ? premioDe(s.prox, s.ciclos).premio : premioDe(d.prox, d.ciclos).premio, estrela: p.estrela };
   }
   // cabe(id, qtd): a mochila aceita? Se algum item não cabe, nada anda: { cheia: id }.
   function resgatar(diaria, hoje, cabe) {
-    var d = diariaSaneada(diaria);
-    if (!(d.ultimo === null || hoje > d.ultimo)) return null;
+    var d = diariaSaneada(diaria, hoje);
+    if (!podeResgatar(d, hoje)) return null;
     var p = premioDe(d.prox, d.ciclos).premio;
     var ids = Object.keys(p.itens);
     for (var i = 0; i < ids.length; i++) if (!cabe(ids[i], p.itens[ids[i]])) return { cheia: ids[i] };
@@ -4353,9 +4355,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     LIMITADOS.forEach(function (id) { comprados[id] = inteiro(c[id]) && c[id] > 0 ? c[id] : 0; });
     return { dia: inteiro(l.dia) ? l.dia : null, comprados: comprados, estrelaDia: inteiro(l.estrelaDia) ? l.estrelaDia : null };
   }
+  // Com hoje que não é inteiro, nada volta: a loja fica como está.
   function lojaDoDia(loja, hoje) {
     var l = lojaSaneada(loja);
-    if (l.dia !== null && hoje <= l.dia) return l;
+    if (!inteiro(hoje) || (l.dia !== null && hoje <= l.dia)) return l;
     var zerados = {};
     LIMITADOS.forEach(function (id) { zerados[id] = 0; });
     return { dia: hoje, comprados: zerados, estrelaDia: l.estrelaDia };
@@ -4363,6 +4366,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ouro: saldo; ouroLivre: o que sobra fora do reservado para a entrada da sala aberta; tem: na mochila.
   function podeComprar(id, loja, hoje, ouro, ouroLivre, tem) {
     if (!temChave(I, id) || I[id].price == null) return { ok: false, motivo: 'nao-vende' };
+    if (!inteiro(hoje)) return { ok: false, motivo: 'limite' };
     var it = I[id], l = lojaDoDia(loja, hoje), restam;
     if (it.everyDays) {
       var passou = l.estrelaDia === null ? Infinity : hoje - l.estrelaDia;
@@ -4380,6 +4384,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // Registra a compra (quem chama confere podeComprar e desconta o Ouro na mesma gravação).
   function comprar(id, loja, hoje) {
     var l = lojaDoDia(loja, hoje);
+    if (!inteiro(hoje)) return l;
     if (temChave(I, id) && I[id].everyDays) l.estrelaDia = hoje;
     else if (LIMITADOS.indexOf(id) >= 0) l.comprados[id] += 1;
     return l;

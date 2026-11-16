@@ -1811,7 +1811,7 @@ test('diária: uma vez por dia, relógio para trás não libera, faltar não zer
 });
 test('diária: estado saneado (prox, ciclos e ultimo fora da faixa)', function () {
   var e = IT.diariaEstado({ prox: 9, ciclos: -2, ultimo: 'x' }, 10);
-  assert.strictEqual(e.pode, true); assert.strictEqual(e.dia, 1);
+  assert.strictEqual(e.pode, false, 'ultimo corrompido não libera'); assert.strictEqual(e.dia, 1);
   assert.deepStrictEqual(IT.resgatar({ prox: 2.5, ciclos: 'a', ultimo: null }, 10, function () { return true; }).diaria, { prox: 1, ciclos: 0, ultimo: 10 });
 });
 test('loja: limite por dia, volta no dia seguinte, relógio para trás não volta', function () {
@@ -1859,6 +1859,64 @@ test('diaLocal: dias inteiros da data, sem ler o relógio', function () {
   assert.strictEqual(IT.diaLocal(2026, 10, 16), Date.UTC(2026, 10, 16) / 86400000);
   var fonte = require('fs').readFileSync(require('path').join(__dirname, '../src/itens.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   assert.ok(!/Math\.random|Date\.now|new Date|performance\.now/.test(fonte), 'itens.js não sorteia fora da seed nem lê o relógio');
+});
+// Entrada malformada: na dúvida, nada é liberado (revisão da Tarefa 1).
+var DIAS_RUINS = [NaN, undefined, null, 1.5, '10', Infinity, {}];
+test('dia que não é inteiro não libera nada: diária, resgate, loja do dia, compra e registro', function () {
+  var d0 = congela({ prox: 0, ciclos: 0, ultimo: null }), sempre = function () { return true; };
+  var L = congela({ dia: 10, comprados: { torrao: 2, manual: 1, cupom: 1 }, estrelaDia: 10 });
+  var L0 = congela({ dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null });
+  DIAS_RUINS.forEach(function (hoje) {
+    var nome = 'hoje ' + String(hoje);
+    assert.strictEqual(IT.diariaEstado(d0, hoje).pode, false, nome + ': diária não resgata');
+    assert.strictEqual(IT.resgatar(d0, hoje, sempre), null, nome + ': resgate recusado');
+    assert.deepStrictEqual(IT.lojaDoDia(L, hoje), L, nome + ': compras do dia não zeram');
+    assert.deepStrictEqual(IT.lojaDoDia(L0, hoje), L0, nome + ': loja nova fica como está');
+    ['torrao', 'manual', 'cupom', 'estrela'].forEach(function (id) {
+      assert.deepStrictEqual(IT.podeComprar(id, L0, hoje, 5000, 5000, 0), { ok: false, motivo: 'limite' }, nome + ': ' + id + ' recusado');
+    });
+    assert.deepStrictEqual(IT.comprar('estrela', L0, hoje), L0, nome + ': registro não grava o dia ruim');
+  });
+});
+test('diária com ultimo corrompido conta como já resgatada (no dia pedido); null é nunca resgatou', function () {
+  var sempre = function () { return true; };
+  ['x', 2.5, NaN, {}, true, undefined].forEach(function (u) {
+    var d = congela({ prox: 3, ciclos: 1, ultimo: u });
+    assert.strictEqual(IT.diariaEstado(d, 50).pode, false, 'ultimo ' + String(u) + ': não libera hoje');
+    assert.strictEqual(IT.resgatar(d, 50, sempre), null, 'ultimo ' + String(u) + ': resgate recusado hoje');
+    // o módulo não guarda nada: sem saber o dia, nenhum hoje libera; o sanitize do game.js grava hojeDia() no lugar
+    assert.strictEqual(IT.resgatar(d, 51, sempre), null, 'ultimo ' + String(u) + ': continua recusado até o save ser saneado');
+  });
+  assert.strictEqual(IT.diariaEstado({ prox: 3, ciclos: 1, ultimo: null }, 50).pode, true, 'null: nunca resgatou');
+  assert.strictEqual(IT.diariaEstado(undefined, 50).pode, true, 'sem diária: save novo');
+});
+test('podeUsar sem cavalo recusa todos os itens', function () {
+  ['torrao', 'estrela', 'cupom', 'manual'].forEach(function (id) {
+    [null, undefined].forEach(function (m) {
+      var r = IT.podeUsar(id, m, CTX);
+      assert.strictEqual(r.ok, false, id + ' sem cavalo');
+      assert.ok(typeof r.motivo === 'string' && r.motivo.length > 8, id + ' motivo');
+    });
+  });
+});
+test('trocarSkill recusa a skill de tipo mesmo dentro das vagas', function () {
+  var m = congela(cavIt({ rarity: 'lendario', skills: ['arranque', 'labareda'] }));
+  assert.strictEqual(IT.trocarSkill(m, 'labareda', 1, 0), null, 'skill de tipo nas vagas');
+  assert.ok(IT.trocarSkill(m, 'arranque', 1, 0), 'a skill comum ao lado troca');
+});
+test('itens.js usa o saneamento de torrões e a raridade do sim.js', function () {
+  assert.strictEqual(typeof S.torroesOf, 'function'); assert.strictEqual(typeof S.rarityOf, 'function');
+  assert.strictEqual(S.torroesOf({ torroes: 4 }), 4); assert.strictEqual(S.torroesOf({ torroes: 11 }), 0);
+  assert.strictEqual(S.rarityOf({ rarity: 'constructor' }), G.RARITIES.comum);
+  var fonte = require('fs').readFileSync(require('path').join(__dirname, '../src/itens.js'), 'utf8');
+  assert.ok(/S\.torroesOf\(/.test(fonte) && /S\.rarityOf\(/.test(fonte), 'itens.js chama as do sim.js');
+  assert.ok(!/function torroesDe|function vagas/.test(fonte), 'sem cópia própria');
+});
+test('Estrela de treino diz de onde vem, com os números do catálogo', function () {
+  var o = G.ITEMS.estrela.origem;
+  assert.ok(o.indexOf(String(G.ITEMS.estrela.everyDays)) >= 0, 'a cada N dias na loja: ' + o);
+  assert.ok(o.indexOf(G.DAILY.estrelaACada + 'º') >= 0, 'a cada N calendários: ' + o);
+  assert.ok(/loja/.test(o) && /7º dia/.test(o) && !/de tempos em tempos/.test(o), o);
 });
 
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
