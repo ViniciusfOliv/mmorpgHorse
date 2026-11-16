@@ -15,6 +15,44 @@ Spec em `docs/superpowers/specs/2026-11-15-tela-da-corrida-design.md` (aprovada 
   manchete do resultado saem (fica a que explica o pódio sem prêmio); a tabela "Ordem de chegada" passa a 2 linhas de texto
   por corredor; "resultado numa tela" vale para o caso sem aviso de nível, skill ou Ouro.
 
+## 2026-11-16 — Visuais 2, parte 3c: decisões da execução (controlador)
+Tudo abaixo é do controlador (nada foi decidido pelo Vinicius). Plano em `docs/superpowers/plans/2026-11-16-tela-da-corrida.md`.
+O que é gosto e espera a palavra dele está em `ESTADO.md` ("A confirmar com o Vinicius (gosto, 3c)").
+- **(controlador) A faixa "CLIMA: X" que aparecia depois do Dado saiu** — a faixa nova do Dado já diz o efeito no clima;
+  ficam o clarão leve da virada, o clima no painel do topo e o aviso para o leitor de tela. Se errado: é só pôr a faixa de volta.
+- **(controlador) Os itens da faixa de ordem não mostram o nome do cavalo, nem em tela larga** (a spec deixava a escolha) —
+  a linha dos vizinhos, logo embaixo, já traz os nomes. Se errado: acrescentar o nome é uma mudança pequena.
+- **(controlador) Em paisagem (altura até 500 px) a faixa de ordem fica na linha dos controles** e não soma altura à tela —
+  se errado: a faixa fica apertada ao lado dos controles.
+- **(controlador) O estouro antigo em paisagem com 7 ou 8 corredores não se corrige na 3c** (os controles saem da janela; já
+  era assim antes, e a faixa de ordem não piora) — mexer nisso é mexer no desenho da pista, e a 3c mira o celular em pé.
+  Custo: quem joga deitado com sala cheia continua rolando para ver os controles. Fica como pendência no `ESTADO.md`.
+- **(controlador) Distância que arredonda a 0 vira "colado"** na linha dos vizinhos ("À frente: Ipê colado") — "+0 m" lia
+  como defeito. Se errado: é uma palavra.
+- **(controlador) O Dado guarda o suspense até os dados pararem:** enquanto giram, a faixa grande mostra só o dado e "DADO DA
+  SORTE", centralizados e grandes, e a faixa de ordem fica sem números; o vencedor, os números, a frase da narração (a do Dado
+  e a da virada de clima que ele causa), o clima do painel, o clarão e o aviso para o leitor de tela aparecem juntos, na
+  revelação. Com movimento reduzido nada espera. A chuva e a névoa desenhadas na pista seguem a corrida, como antes — nada
+  na tela pode adiantar o que a pista ainda não mostrou. Custo se errado: por ~1 s a faixa mostra um título no lugar do
+  resultado, e a narração do Dado chega ~1 s depois do instante do evento.
+- **(controlador) A faixa do Dado e a faixa do lugar ficam em cima, logo abaixo do painel; quando ali cobririam o cavalo do
+  jogador, vão para o pé da pista** (sobre o gramado e a cerca). A posição é escolhida uma vez por Dado (e na chegada, quando
+  o jogador cruza a linha) e não muda enquanto a faixa está na tela, só se a tela for redimensionada; as duas faixas nunca
+  se sobrepõem. A faixa pode cobrir o alto de um rival na raia 1, nunca o cavalo do jogador — o cavalo da raia 1 sobe acima
+  do próprio painel, então nenhuma posição em cima o livra. Custo: com o jogador nas raias de cima, as faixas aparecem
+  embaixo, longe do painel.
+- **(controlador) "VOCÊ TIROU N" fica na mesma linha da frase do clima quando cabe** — a faixa ocupa menos pista.
+- **(controlador) A faixa do lugar, do 4º para baixo, usa o creme do texto do painel** (a spec dizia "a cor do painel", que é
+  a do fundo da faixa). Se errado: é uma cor.
+- **(controlador) Na tabela da chegada, a linha de baixo (dono · nível · skills) só quebra entre os pedaços** — "Nv 14" e
+  "skills 46%" nunca se partem; a 360 px pode ocupar duas linhas, e a linha da tabela continua com até 70 px. Cortar o nome
+  do dono com reticências esconderia dado. Se errado: é uma regra de CSS.
+- **(controlador) O fim da corrida espera a faixa do lugar sumir (2,5 s) antes de ir ao resultado; "Pular" continua
+  imediato** (proposta do executor, aceita na revisão) — sem isso, quem chega em último via a faixa só ~1,5 s.
+- **(controlador) Código:** `FX.stripOrder`, da faixa de números antiga, saiu junto com os testes dele (nada no jogo o usava;
+  volta do git se precisar); `FX.nomeEmLinhas` devolve o nome em maiúsculas, porque a fonte desenhada na pista só tem
+  maiúsculas (nada muda na tela); o rodapé dos commits do plano é "Claude Fable 5.2", o da sessão.
+
 ## 2026-11-15 — Visuais 2, parte 3b: decisões da execução (controlador)
 Tudo abaixo é do controlador (nada foi decidido pelo Vinicius).
 - **(controlador) Meta do Status: documento ≤ 1.470 px** (medido ~1.455: 1.450 a 1.457 conforme a densidade) (a conversa dizia ~1.100, a spec 1.200) — a cabeça com o retrato grande se

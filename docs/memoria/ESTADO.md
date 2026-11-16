@@ -1,6 +1,6 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-15._
+_Atualizado em 2026-11-16._
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
 durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o
@@ -9,9 +9,9 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
 ## Onde estamos
 - **Branches:** a `main` tem tudo até o bloco 1b e a parte 2b da Visuais 2 (`claude/cavalos-v3` integrada em
   2026-11-14, por fast-forward). Em aberto só a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta
-  como bloco 3). A `claude/visuais-2` leva a parte 3a (acabamento da interface), pronta e **ainda sem merge na `main`**
-  (build b7219a2 mais a rodada final de correções); a `claude/visuais-2` leva a 3a e a 3b, prontas, esperando o Vinicius; a 3c sai dela.
-  Trabalho novo sai da `main`, exceto a 3c.
+  como bloco 3). A `claude/visuais-2` leva a frente "interface" da Visuais 2 inteira (3a acabamento, 3b Estábulo e
+  montaria no celular, 3c tela da corrida), completa e **ainda sem merge na `main`**: o Vinicius joga antes e decide a
+  integração. Trabalho novo sai da `main`.
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
   - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
@@ -19,7 +19,8 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
 - **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Cavalo, Itens,
   Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
-- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (129 testes de simulação, 104 de efeitos, 170 de moldes, 615 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de interface; contagem de 2026-11-15, parte 3b da Visuais 2: 129 / 104 / 170 / 615 / 87, sem mudança nas regras).
+- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (129 testes de simulação, 117 de efeitos, 170 de moldes, 615 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de interface; contagem de 2026-11-16, parte 3c da Visuais 2: 129 / 117 / 170 / 615 / 87, sem mudança nas regras; os testes de efeitos
+  passaram de 104 para 117 com a 3c).
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
 | Frente | Entrega | Spec |
@@ -103,18 +104,61 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
     conta não fecha); meta nova: com as abas no topo, os 7 status inteiros numa tela;
   - "Genética" no topo da aba Status; custo "·N" embaixo do valor;
   - a barra presa não pega toque por ~0,4 s ao aparecer e por ~0,4 s depois do 1º toque no Confirmar (contra toque acidental).
-- **Para a 3c:** o `::before` da `.opcao` escolhida já está ocupado pelo destaque; o bloco de `box-shadow` do botão se
-  repete em `.btn`, `.app-aba`, `.capacete-btn` e `.montaria-linha` (4 cópias; dá para trocar por propriedades). Pendências
-  da 3b que ficam para a 3c: o motivo que repete uma frase já na tela (a barra presa cresce ~100 px no Confirmar travado) e a
-  lista que pula quando a `.motivo` de um +N some; e a plaquinha "Ativa" da linha do Estábulo sem contorno no modo de
-  cores forçadas (só aparência).
-- **Próximos passos:** 3c (tela da corrida; rever o ordinal sem `.sr` na faixa de eventos), com spec e plano. A 3b está pronta (acima).
-  Pendências menores da 3a (sem hover/apertado nas abas da barra de baixo, "ç" de
-  Expedição encostado no bisel).
+- **Para depois (a 3c não mexeu):** o `::before` da `.opcao` escolhida já está ocupado pelo destaque; o bloco de
+  `box-shadow` do botão se repete em `.btn`, `.app-aba`, `.capacete-btn` e `.montaria-linha` (4 cópias; dá para trocar por
+  propriedades). As três pendências da 3b (o motivo repetido, a lista que pulava e a plaquinha "Ativa" nas cores forçadas) e
+  o ordinal sem `.sr` na narração da corrida foram fechados na 3c (seção abaixo).
+- **Pendências menores da 3a:** sem hover/apertado nas abas da barra de baixo; "ç" de Expedição encostado no bisel.
+
+## Visuais 2, parte 3c: tela da corrida (pronta em 2026-11-16, na `claude/visuais-2`)
+Spec em `docs/superpowers/specs/2026-11-15-tela-da-corrida-design.md` (aprovada pelo Vinicius), plano em
+`docs/superpowers/plans/2026-11-16-tela-da-corrida.md`; decisões em `decisoes.md` (2026-11-16, as dele e as da execução);
+`docs/GDD.md` §5. Com ela, a frente "interface" (3a, 3b, 3c) está completa na `claude/visuais-2`, **sem merge na `main`**: o
+Vinicius joga antes e decide.
+- **O que mudou:** faixa de ordem embaixo da pista (todos os corredores em ordem, e quem vem logo à frente e logo atrás, com
+  a distância); narração em caixa de altura fixa (cada frase em até 2 linhas, sem "…"); Dado da Sorte numa faixa grande na
+  pista, com o número de cada corredor na faixa de ordem, revelados só quando os dados param; faixa do lugar na chegada;
+  nome inteiro das skills dos rivais nas plaquinhas; contorno e bisel no painel do topo; resultado numa tela, com as abas
+  Chegada e Momentos e o 1º lugar maior no pódio; as três pendências da 3b (motivo repetido, lista que pulava, "Ativa" nas
+  cores forçadas). Nenhuma regra, número ou texto de regra mudou.
+- **Medidas antes → depois** (modo DEV, densidade 2):
+  - corrida a 360×780 (7 corredores): pista de 540 para 464 px; faixa de ordem 68 px; narração 66 px (igual);
+  - corrida a 360×640 (tela baixa): pista de 400 para 398 px, sem o layout compacto; faixa de ordem 28 px (uma linha);
+    narração de 66 para 33 px (uma frase);
+  - a lista da faixa de ordem é reescrita no máximo 4 vezes por segundo (medido: 2 em 2 s em x2); pior quadro com 3.905
+    chamadas de desenho para o limite de 4.500 (limite sem mudança), ~1,04 ms de JS por quadro;
+  - resultado a 360×780 (7 corredores): página de 2.468 para 1.481 px (teto do teste 1.500); fim das abas em 732 px (janela
+    de 780); linha da tabela de 77 para 66 px; pódio 336×172 px, 1º na escala 3 e 2º/3º na escala 2;
+  - Confirmar travado (pendência da 3b): a barra presa ia de 165,75 a 257,5 px no toque, agora fica em 165,75 px; o +1
+    tocado na linha de baixo ia de 419,5 para 345 px, agora de 419,5 para 419 px.
+- **Verificação:** `./scripts/check.sh` OK (129 testes de simulação, 117 de efeitos — eram 104: a 3c acrescentou os das faixas
+  novas e das plaquinhas e tirou os 2 da faixa de números antiga —, 170 de moldes, 615 conferências do wiki, 87 metas no
+  balanço rápido e o teste de interface). Capturas oficiais de `prototype/screens/` regeneradas (31 imagens, nenhuma nova
+  nem removida; 20 mudaram). Folha da interface com a faixa de ordem (normal, com o Dado e em tela baixa) e as abas do resultado
+  (seções 4.16 e 4.17).
+- **A confirmar com o Vinicius (gosto, 3c):**
+  - a faixa de ordem só com a posição e o selo da raia (sem o nome do cavalo nos itens);
+  - "colado" no lugar de "+0 m";
+  - o momento do Dado: título "DADO DA SORTE" enquanto os dados giram; o vencedor, a narração e o clima do painel só depois;
+  - a faixa do Dado e a do lugar descem para o pé da pista quando cobririam o cavalo dele (raias de cima);
+  - o fim da corrida espera a faixa do lugar (2,5 s) antes do resultado;
+  - resultado: as frases de enfeite embaixo da manchete saíram (fica só a do pódio sem prêmio); o saldo ao lado do XP; os
+    degraus do pódio mais baixos (29/25/21 pixels de arte, eram 35/27/21); os botões lado a lado;
+  - no caso "pódio sem prêmio", as abas ficam 42 px abaixo da primeira tela (a meta da primeira tela valia para o caso comum);
+  - o motivo que já está na tela é destacado (contorno dourado por 2 s) em vez de repetido;
+  - em paisagem, a faixa de ordem ao lado dos controles.
+- **Pendências conhecidas:**
+  - paisagem (780×360) com 7 ou 8 corredores: os controles da corrida saem da janela de 360 px de altura (o fundo
+    deles fica em 374 px em produção com 8; 398 no DEV com 8; 374 no DEV com 7). Já era assim antes da 3c, e a faixa de ordem não piora; cabem produção com até 7 e DEV com até 6;
+  - a chuva e a névoa desenhadas na pista começam no instante do evento, ~1 s antes de a faixa do Dado revelar o resultado;
+  - nas cores forçadas, o selo "Nv N" da linha do Estábulo continua sem contorno (só aparência).
 
 ## Em andamento
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b, que também traz a fonte da Rédea nova. Cada ginásio tem o
   foco num elemento.
+- **Frente "interface" da Visuais 2 completa na `claude/visuais-2`, esperando o Vinicius:** a 3c (tela da corrida) ficou
+  pronta em 2026-11-16 (seção própria acima, com a lista "A confirmar com o Vinicius (gosto, 3c)"); com a 3a e a 3b, a
+  frente está inteira e **sem merge na `main`** até ele jogar e decidir.
 - **Parte 3b da Visuais 2 pronta na `claude/visuais-2`, esperando o Vinicius** (Estábulo e montaria no celular; spec em
   `docs/superpowers/specs/2026-11-15-estabulo-montaria-celular-design.md`, plano em `docs/superpowers/plans/2026-11-15-estabulo-montaria-celular.md`;
   decisões da execução em `decisoes.md`). Estábulo em lista de linhas, ficha com retrato grande e aba Ficha, aba Status em linha
@@ -195,14 +239,16 @@ Spec em `docs/superpowers/specs/2026-11-14-interface-acabamento-design.md`, plan
 - **GDD §9+:** expedições, tecnologia do servidor, anti-trapaça, PVP assíncrono e ranqueada.
 
 ## Próximos passos
-0. O Vinicius olha a folha da interface e o build de teste da 3a e da 3b e decide as listas "A confirmar com o Vinicius
-   (gosto, 3a)" e "(gosto, 3b)" (acima); o que ele mudar entra antes do merge da `claude/visuais-2` na `main`.
+0. O Vinicius joga a 3a, a 3b e a 3c (folha da interface e build de teste) e decide as listas "A confirmar com o Vinicius
+   (gosto, 3a)", "(gosto, 3b)" e "(gosto, 3c)" (acima) e a integração da `claude/visuais-2` na `main`; o que ele mudar entra
+   antes do merge.
 1. O Vinicius joga o modelo novo no artefato (jogo, DEV e wiki republicados com o 1b, já na `main`) e decide os
    pontos de calibração acima; o que ele mudar entra como ajuste por cima da `main`.
-2. **3c (tela da corrida)** da Visuais 2, com spec e plano (a 3b está pronta).
+2. **2c (animações novas para todos os portes)** da Visuais 2: espera a confirmação de créditos do Vinicius.
 3. O Vinicius apaga as branches antigas no GitHub (lista abaixo).
 4. **Bloco 2, preparação com relógio:** spec, revisão do Vinicius, plano e execução.
-5. **Bloco 3, empacotamento:** retomar pela pergunta do Capacitor; o teste fechado começa aqui.
+5. **Bloco 3, empacotamento (#62):** retomar pela pergunta do Capacitor; o teste fechado começa aqui. Os ginásios (#68)
+   têm desenho depois do bloco 1b (seção "Em andamento").
 6. Abrir a conta de desenvolvedor do Play e começar a juntar os 12 testadores (é o que mais atrasa).
 7. Blocos 4 a 6 chegam como atualizações durante o teste fechado; o bloco 7 (online) vem depois.
 

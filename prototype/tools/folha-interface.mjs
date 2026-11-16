@@ -142,7 +142,44 @@ function secoes() {
       ['aba', '<div class="moldura-fixa moldura-fixa--solta">' + aba('Estábulo', false, ' foco-demo') + '</div>'],
       ['ajuda', '<div class="alvo-ajuda">' + ajuda(' foco-demo') + '</div>']
     ])));
+  // 4.16 Faixa de ordem da corrida (Visuais 2, 3c §4 e §6)
+  s.push(secao('4.16', 'Faixa de ordem da corrida', 'Classes .ordem, .ordem-item (o do jogador com .ordem-item--voce) e .ordem-vizinhos, embaixo da pista. No Dado da Sorte, o número de cada corredor em .ordem-dado e o do vencedor com .ordem-item--maior. Em tela baixa (.tela--baixa, altura < 700 px), uma linha só: sem os vizinhos, e o número do Dado no lugar da posição.',
+    estados([
+      ['normal (8 corredores)', ordemHtml({ vizinhos: [['À frente:', 6, '+3 m'], ['Atrás:', 5, '−4 m']] })],
+      ['Dado da Sorte (números e o vencedor marcado)', ordemHtml({ dado: true, vizinhos: [['À frente:', 6, 'colado'], ['Atrás:', 5, '−11 m']] })],
+      ['tela baixa', '<div class="tela--baixa">' + ordemHtml({ baixa: true, vizinhos: [['À frente:', 6, '+3 m'], ['Atrás:', 5, '−4 m']] }) + '</div>'],
+      ['tela baixa com o Dado', '<div class="tela--baixa">' + ordemHtml({ baixa: true, dado: true, vizinhos: [['À frente:', 6, '+3 m'], ['Atrás:', 5, '−4 m']] }) + '</div>']
+    ])));
+  // 4.17 Abas do resultado (Visuais 2, 3c §8)
+  const subabas = (aberta) => '<div class="subabas" role="group" aria-label="Detalhes da corrida">' +
+    [['chegada', 'Chegada'], ['momentos', 'Momentos']].map(([id, rot]) => `<button type="button" class="btn opcao opcao--centro" data-acao="resultado-aba" data-id="${id}" aria-pressed="${aberta === id}">${rot}</button>`).join('') + '</div>';
+  s.push(secao('4.17', 'Abas do resultado', 'Sub-abas .subabas (as mesmas da ficha da montaria), com aria-pressed na aba aberta; o resultado abre em "Chegada".',
+    estados([
+      ['Chegada aberta', subabas('chegada')],
+      ['Momentos aberta', subabas('momentos')]
+    ])));
   return s.join('\n');
+}
+
+// faixa de ordem com o markup que o atualizaOrdem e o marcaDado do game.js escrevem: <li> com a posição, o selo da raia
+// (laneChip com raia--mini), a linha do número do Dado e o nome no .sr; o ordinal pelo ordFix; os vizinhos como no
+// vizinhoHtml. Sala cheia: 8 corredores, o jogador (raia 2) em 2º; no Dado, o maior é o da raia 7 (o 1º)
+const ORDEM_NOMES = ['Mandacaru', 'Brasa', 'Lambari', 'Ipê', 'Faísca', 'Pequi', 'Trovão', 'Jatobá'];
+const ORDEM_JOGADOR = 1, ORDEM = [6, 1, 5, 3, 4, 0, 2, 7], ORDEM_DADO = [38, 73, 65, 30, 12, 51, 86, 44], ORDEM_VENCEDOR = 6;
+const ordFix = html => html.replace(/>([^<]*)</g, (m, t) => '>' + t.replace(/º/g, '<sup class="ord" aria-hidden="true">o</sup><span class="sr">º</span>') + '<');
+const laneChip = j => `<span class="raia ${j === ORDEM_JOGADOR ? 'seda-voce' : 'seda-' + j} raia--mini" aria-label="Raia ${j + 1}">${j + 1}</span>`;
+function ordemHtml({ dado = false, baixa = false, vizinhos }) {
+  const itens = ORDEM.map((j, k) => {
+    const voce = j === ORDEM_JOGADOR, num = dado ? String(ORDEM_DADO[j]) : '';
+    // em tela baixa o número do Dado toma o lugar da posição (o marcaDado troca o .ordem-pos) e a linha do número fica vazia
+    const pos = baixa && dado ? esc(num) : ordFix(`>${k + 1}º<`).slice(1, -1);
+    return `<li class="ordem-item${voce ? ' ordem-item--voce' : ''}${dado && j === ORDEM_VENCEDOR ? ' ordem-item--maior' : ''}" data-raia="${j}">` +
+      `<span class="ordem-pos">${pos}</span>${laneChip(j)}<span class="ordem-dado">${baixa ? '' : num}</span>` +
+      `<span class="sr">${esc(ORDEM_NOMES[j] + (voce ? ' (você)' : ''))}</span></li>`;
+  }).join('');
+  const viz = vizinhos.map(([rot, j, m]) => `<span class="viz"><span class="viz-rot">${esc(rot + ' ')}</span><b class="viz-nome">${esc(ORDEM_NOMES[j])}</b><span class="viz-m">${esc(' ' + m)}</span></span>`)
+    .join('<span class="viz-sep"> · </span>');
+  return `<section class="ordem" aria-label="Classificação"><ol class="ordem-lista">${itens}</ol><p class="ordem-vizinhos">${viz}</p></section>`;
 }
 
 function pecas(lista) {

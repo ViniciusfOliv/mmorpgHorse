@@ -4774,7 +4774,7 @@ try {
     }
     {
       // folha da interface (dist/interface.html): uma seção por componente da spec §4 e cada peça ampliada x4
-      const COMPONENTES = ['4.1', '4.2', '4.3', '4.4', '4.5', '4.6', '4.7', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13', '4.14', '4.15']
+      const COMPONENTES = ['4.1', '4.2', '4.3', '4.4', '4.5', '4.6', '4.7', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13', '4.14', '4.15', '4.16', '4.17']
       for (const [larg, alt] of [[360, 780], [1280, 800]]) {
         const pg = await newPage(browser, { width: larg, height: alt }, `acabamento-folha-${larg}`, { pagina: 'interface.html', moldes: false })
         try {
@@ -4834,6 +4834,46 @@ try {
           if (fundoBarra) problems.push(`acabamento (folha ${larg}): ${fundoBarra} barra(s) sem o fundo --noite-2`)
           await selosRecortados(pg, `folha ${larg}`, '[data-componente="4.10"] .raridade, [data-componente="4.10"] .badge-ativa, [data-componente="4.10"] .set-badge, .selo-nivel, .pontos-livres--selo', true)
           await selosRecortados(pg, `folha ${larg}`, '[data-componente="4.10"] .chip', false)
+          // faixa de ordem da 3c (§4.16): o markup do atualizaOrdem (posição, selo da raia, linha do Dado, nome no .sr, nessa
+          // ordem), 8 itens numa linha, altura 68 px (28 em tela baixa, sem os vizinhos), o jogador com o friso de ouro, o
+          // vencedor do Dado com o número em --ouro/--tinta (em tela baixa, no lugar da posição)
+          const fo = await pg.evaluate(() => {
+            const cor = (t) => { const d = document.createElement('i'); d.style.color = `var(${t})`; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c }
+            const ouro = cor('--ouro'), tinta = cor('--tinta')
+            return [...document.querySelectorAll('[data-componente="4.16"] .col--estreita .estado')].map((est) => {
+              const o = est.querySelector('.ordem'), baixa = !!est.querySelector('.tela--baixa'), itens = [...est.querySelectorAll('.ordem-item')]
+              const estrutura = itens.every((li) => /^ordem-pos\|raia seda-(voce|[0-7]) raia--mini\|ordem-dado\|sr$/.test([...li.children].map((c) => c.className).join('|')))
+              const tops = new Set(itens.map((li) => Math.round(li.getBoundingClientRect().top)))
+              const maior = est.querySelector('.ordem-item--maior'), marca = maior && maior.querySelector(baixa ? '.ordem-pos' : '.ordem-dado')
+              const cm = marca ? getComputedStyle(marca) : null
+              const viz = est.querySelector('.ordem-vizinhos')
+              return { rot: est.querySelector('.estado-rot').textContent, n: itens.length, voce: est.querySelectorAll('.ordem-item--voce').length, estrutura, linhas: tops.size,
+                h: o ? Math.round(o.getBoundingClientRect().height) : 0, baixa, vizVisivel: !!(viz && viz.offsetHeight), nMaior: est.querySelectorAll('.ordem-item--maior').length,
+                marcaOk: !maior || !!(cm && cm.backgroundColor === ouro && cm.color === tinta && marca.textContent.trim()), dados: itens.filter((li) => li.querySelector('.ordem-dado').textContent.trim()).length }
+            })
+          })
+          if (fo.length !== 4) problems.push(`acabamento (folha ${larg}): a faixa de ordem tem ${fo.length} estados (esperado 4)`)
+          for (const x of fo) {
+            const ruim = []
+            if (x.n !== 8 || x.voce !== 1 || !x.estrutura) ruim.push(`markup (${x.n} itens, ${x.voce} do jogador, estrutura ${x.estrutura ? 'ok' : 'diferente do jogo'})`)
+            if (x.linhas !== 1) ruim.push(`itens em ${x.linhas} linhas`)
+            if (x.h !== (x.baixa ? 28 : 68)) ruim.push(`altura ${x.h} px (esperado ${x.baixa ? 28 : 68})`)
+            if (x.vizVisivel === x.baixa) ruim.push(x.baixa ? 'vizinhos visíveis em tela baixa' : 'sem a linha dos vizinhos')
+            const comDado = /Dado/.test(x.rot)
+            if (comDado && (x.nMaior !== 1 || !x.marcaOk)) ruim.push(`vencedor do Dado sem a marca --ouro/--tinta (${x.nMaior} marcados)`)
+            if (comDado && x.dados !== (x.baixa ? 0 : 8)) ruim.push(`${x.dados} números na linha do Dado`)
+            if (!comDado && (x.nMaior || x.dados)) ruim.push('números do Dado fora do Dado')
+            if (ruim.length) problems.push(`acabamento (folha ${larg}): faixa de ordem "${x.rot}": ${ruim.join('; ')}`)
+          }
+          await temCores(pg, `folha ${larg}`, '[data-componente="4.16"] .ordem-item--voce', ['--sombra', '--ouro', '--ouro-escuro'])
+          await temCores(pg, `folha ${larg}`, '[data-componente="4.16"] .ordem-item:not(.ordem-item--voce)', ['--sombra', '--brilho-08', '--escuro-25'])
+          // abas do resultado (§4.17): duas sub-abas numa linha, uma só apertada, com a marca de ouro no topo
+          const ab = await pg.evaluate(() => [...document.querySelectorAll('[data-componente="4.17"] .col--estreita .subabas')].map((g) => {
+            const bs = [...g.querySelectorAll('.opcao')]
+            return { n: bs.length, apertadas: bs.filter((b) => b.getAttribute('aria-pressed') === 'true').length, linhas: new Set(bs.map((b) => Math.round(b.getBoundingClientRect().top))).size }
+          }))
+          if (ab.length !== 2 || ab.some((x) => x.n !== 2 || x.apertadas !== 1 || x.linhas !== 1)) problems.push(`acabamento (folha ${larg}): abas do resultado fora do esperado (${JSON.stringify(ab)})`)
+          await abaAtual(pg, `folha ${larg}`, '[data-componente="4.17"] .subabas .opcao[aria-pressed="true"]', 'topo')
         } catch (e) {
           problems.push(`acabamento-folha-${larg}: ` + e.message)
         } finally {
