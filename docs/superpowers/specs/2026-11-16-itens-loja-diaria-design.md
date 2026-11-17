@@ -225,6 +225,11 @@ FICHA DO CAVALO > Status                   FICHA DO CAVALO > Skills
   fica aceito e anotado como pendência até o online. O Vinicius foi avisado (2026-11-16).
 - O relógio é lido num único lugar do `game.js`. As regras em `itens.js` recebem o dia como número e não leem o relógio.
 - O dia só é conferido quando a tela é desenhada; não há contagem regressiva nem temporizador.
+- **Nota da execução (2026-11-17, decisões do controlador em `docs/memoria/decisoes.md`):** (a) continua sem
+  temporizador, mas a tela também é desenhada de novo quando o jogador volta à aba ou toca nela depois de o dia virar
+  (esse toque não vale; nunca durante a corrida) — sem isso, um jogo aberto de um dia para o outro mostrava o cartão de
+  ontem; (b) o relógio para trás é conferido registro a registro: a diária pelo último resgate, a loja pela última compra
+  e a Estrela pela última Estrela, e não por um único "último dia guardado".
 
 ## 10. Save
 

@@ -24,6 +24,7 @@ empacotamento está em `docs/cronograma.md`; as decisões de design em aberto, e
 - O motivo da Estrela num cavalo ★★★ tem "★★★" escrito fixo no texto (não sai do número de estrelas) — `prototype/src/itens.js`.
 - O "Sim" do Recomeçar grava as chaves auxiliares (animações e jóquei) antes de o `wipeSave` recusar um save de versão mais nova (inócuo: o save não é tocado) — `prototype/src/game.js` (`reset-sim`).
 - Sem teste (provados certos pelas sondas da revisão final): o corte do deslocamento de ±400 dias do modo DEV; o save de versão mais nova chegando de outra aba com a corrida na tela ou a confirmação aberta; a tela velha com "Comprar" e a regra recusando no toque; a loja de peças dentro da parte Comprar com `GEAR_ON = true` — `prototype/tools/ui-test.mjs`.
+- Se o dia vira com o campo "Renomear" da ficha aberto, a atualização da tela perde o texto digitado e o foco (os redesenhos que já existiam, como os moldes chegando, têm o mesmo efeito) — `prototype/src/game.js` (`redesenhaDia`).
 
 ## PixelLab
 - O script conta HTTP 502 como geração cobrada (corrigir antes da próxima geração paga) — `prototype/tools/pixellab-moldes.mjs`.

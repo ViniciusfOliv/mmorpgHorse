@@ -186,12 +186,23 @@ branch e não entrou na `main`: quem decide a integração é o Vinicius.**
   Manual · 150 de Ouro · Cupom · 200 de Ouro e Rédea nova; a cada 4 calendários, também uma Estrela). Save na versão 7,
   com a proteção contra save de versão mais nova (não é adotado nem gravado por cima). Os números ficam em
   `GameData.ITEMS` e `GameData.DAILY` (`prototype/src/data.js`). A Rédea nova passa a vir jogando (7º dia da diária).
-- **Verificação:** `./scripts/check.sh` termina em `VERIFICAÇÃO COMPLETA: OK` (157 testes de simulação, 117 de efeitos, 171 de moldes, 650 conferências do wiki, 87 metas no balanço rápido e o
-  teste de interface; contagem de 2026-11-17, fim da frente). O `balance.js` completo rodou em 2026-11-17 (279 s): as 165 metas passam, sem mudança (os bots não usam
-  itens). Capturas oficiais de `prototype/screens/` regeneradas, com quatro novas: `final-20-loja.png`,
+- **Verificação:** `./scripts/check.sh` termina em `VERIFICAÇÃO COMPLETA: OK` (158 testes de simulação, 117 de efeitos,
+  171 de moldes, 651 conferências do wiki, 87 metas no balanço rápido e o teste de interface; contagem de 2026-11-17, na
+  cabeça `fb10d22`, depois da revisão final e da onda de correção; hoje leva ~16 min). O `balance.js` completo rodou em
+  2026-11-17 (279 s): as 165 metas passam, sem mudança (os bots não usam itens; a onda de correção não mexeu em número).
+  Capturas oficiais de `prototype/screens/` regeneradas, com quatro novas: `final-20-loja.png`,
   `final-21-mochila.png`, `final-22-diaria.png` (o Estábulo com o cartão grande) e `final-23-ficha-itens.png` (aba Status
   com "Usar Torrão de açúcar" e "Usar Estrela de treino"). Folha da interface com o produto da loja, a linha da mochila e
   o cartão da diária (seções 4.18 a 4.20).
+- **Revisão final (2026-11-17):** a branch inteira foi revista depois das 6 tarefas. Nenhum defeito grave: Ouro e itens
+  não duplicam nem somem (duas abas, recarregar no meio, gravação falhando), nada é sorteado antes de confirmar e nenhum uso
+  de item muda a corrida já aberta. Uma onda de correção fechou o que faltava: frases velhas no GDD e no wiki, quatro
+  testes de regras de Ouro, a tela que se atualiza quando o dia vira com o jogo aberto, o limite por dia tirado do catálogo
+  e o dia estragado gravado já consertado. O que ficou para depois está em `bugs.md` ("Itens, loja e diária").
+- **Publicação (feita em 2026-11-17, build `fb10d22`):** build de teste com o modo DEV
+  https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 13) e a folha da interface
+  https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 7). Os artefatos oficiais (jogo, DEV e wiki, em "Onde jogar")
+  continuam com o que está na `main` e só mudam com a integração.
 - **A confirmar com o Vinicius (gosto, itens):**
   1. **Ícone da Rédea nova:** pouco reconhecível. Os cinco ícones de item são desenhos em código (16×16), sem créditos.
      Existe o `item-redea.png` do PixelLab, já pago em 2026-11-12 e guardado: trocar custa zero créditos, é só decidir.

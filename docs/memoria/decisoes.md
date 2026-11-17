@@ -67,6 +67,23 @@ está na seção seguinte.
   (o "Voltar" do aparelho com um item aberto pela Mochila, frases e conferências repetidas entre `game.js` e `itens.js`,
   esperas fixas no teste de interface e casos provados certos sem teste) — nenhum perde Ouro nem item. Se errado: cada um é
   um conserto pequeno depois.
+- **(controlador) O teste do wiki que fixava "o pior caso fica em 146" passou a exigir 148 com os 10 torrões** — é o
+  número que a revisão final mandou corrigir, não um teste afrouxado. Se errado: nada, é o valor novo.
+- **(controlador) O que a revisão final viu e deixou de fora, por não ser desta frente, ficou assim:** andar o relógio dia
+  a dia e o relógio adiantado por engano viraram frases nas pendências do relógio (`ESTADO.md`); abrir um jogo antigo sobre
+  um progresso novo virou aviso no `ESTADO.md`; progresso adulterado e sorteio previsível para quem lê a seed só se fecham
+  com o servidor; os números da economia são de partida, para o Vinicius ajustar jogando. Se errado: nada na tela.
+- **(controlador) O `CLAUDE.md` ganhou o `itens.js` na lista dos módulos de regra, a regra dos sorteios de item na seção 8
+  e os tempos reais da verificação** — são fatos da frente, tirados da spec aprovada; nenhum subagente mexeu no arquivo.
+  Se errado: três linhas de instrução para acertar.
+- **(controlador) A spec ganhou uma nota no fim da seção 9** dizendo que a tela também se atualiza ao voltar à aba ou no
+  primeiro toque depois da virada do dia, e que o relógio para trás é conferido registro a registro — a spec aprovada
+  dizia outra coisa nos dois pontos, e quem a ler depois precisa saber o que o jogo faz. Se errado: apagar a nota.
+- **(controlador) Desfiz uma linha da onda final de correção em vez de abrir uma segunda onda:** ela passava a gravar
+  "0 torrões" no potro logo depois do cruzamento (um campo que já vale 0 sem ela), e o teste antigo do cruzamento, que
+  compara o registro do potro com o calculado pelas regras, falhou na verificação completa. Voltar ao que estava revisado
+  foi a menor mudança; nenhum teste mudou (commit `fb10d22`). Se errado: o potro fica sem esse campo até o jogo ser
+  reaberto, como era antes.
 
 ## 2026-11-17 — Ritmo do trabalho (decisão do Vinicius)
 Ele perguntou por que às vezes demora. Causas medidas: o `check.sh` passou de ~6 para ~12 min (o teste de interface
@@ -190,7 +207,7 @@ O que é gosto e espera a palavra dele está em `ESTADO.md` ("A confirmar com o 
   imediato** (proposta do executor, aceita na revisão) — sem isso, quem chega em último via a faixa só ~1,5 s.
 - **(controlador) Código:** `FX.stripOrder`, da faixa de números antiga, saiu junto com os testes dele (nada no jogo o usava;
   volta do git se precisar); `FX.nomeEmLinhas` devolve o nome em maiúsculas, porque a fonte desenhada na pista só tem
-  maiúsculas (nada muda na tela); o rodapé dos commits do plano é "Claude Fable 5.2", o da sessão.
+  maiúsculas (nada muda na tela); o rodapé dos commits do plano é o da sessão.
 
 ## 2026-11-15 — Visuais 2, parte 3b: decisões da execução (controlador)
 Tudo abaixo é do controlador (nada foi decidido pelo Vinicius).

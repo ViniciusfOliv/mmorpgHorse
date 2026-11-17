@@ -11,7 +11,7 @@ para `docs/` e aqui fica só o caminho, entre crases (sem `@`, para não carrega
   (compradas; cosméticos e passe). Pacote de montaria só com moeda ganha jogando.
 - **Tecnologia:** base web (HTML/CSS/JS puro, sem dependências), em `prototype/`. Decidido em
   2026-11-10: o protótipo **vira o jogo**, empacotado para Android, e os módulos de regra (`sim.js`,
-  `data.js`, `breed.js`, `gear.js`) vão para o servidor. Empacotador e servidor ainda a definir.
+  `data.js`, `breed.js`, `gear.js`, `itens.js`) vão para o servidor. Empacotador e servidor ainda a definir.
 - **Fonte da verdade:** `docs/GDD.md`. Números reais do protótipo: `docs/wiki.md` e
   `prototype/dist/wiki.html` (gerados do código pelo build; não editar). Medições de balanceamento:
   `docs/exemplos.md`. Fórmulas da simulação: comentário no topo de `prototype/src/sim.js`.
@@ -40,10 +40,10 @@ lançamento: `docs/cronograma.md`.
 | Testes dos efeitos da corrida (dados, skills, clima, vento, curvas) | `node prototype/tools/fx-test.js` | 2 s |
 | Testes dos moldes de cavalo (PNGs e âncoras gerados) | `node prototype/tools/moldes-test.mjs` | <1 s |
 | Wiki: regerar (`--check` só confere) / testar (determinismo, cobertura, navegador) | `node prototype/tools/wiki.mjs` / `node prototype/tools/wiki-test.mjs` | <1 s / 2 s |
-| Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~30 s |
-| Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~2,5 min |
-| Teste de interface (Playwright) + capturas em `prototype/screens/` | `node prototype/tools/ui-test.mjs` | ~5 min |
-| **Verificação completa** (8 etapas: build, simulação, efeitos, dist, moldes, wiki, balanço, UI; não toca nas capturas) | `./scripts/check.sh` | ~6 min |
+| Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~45 s |
+| Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~4,5 min |
+| Teste de interface (Playwright) + capturas em `prototype/screens/` | `node prototype/tools/ui-test.mjs` | ~14 min |
+| **Verificação completa** (8 etapas: build, simulação, efeitos, dist, moldes, wiki, balanço, UI; não toca nas capturas) | `./scripts/check.sh` | ~16 min |
 
 Mudou número de regra (status, skill, pista, peça, Poder)? Rode também o `balance.js` completo: as metas
 M6, M9, P1, S1 e A1 só contam nele (no `--quick`, que o `check.sh` usa, são só informação).
@@ -95,6 +95,8 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
 - Dado da Sorte e viradas de clima só com a RNG da seed (nada de `Math.random`).
 - Potro gerado só pela RNG da seed (`prototype/src/breed.js`); Mítico nunca nasce de cruzamento.
 - Melhoria de peça e Pedra Negra do pódio só pela RNG da seed (`prototype/src/gear.js`); Lendário nunca à venda.
+- Cupom de troca de skill e Manual de doma só sorteiam pela RNG da seed, e só depois de confirmar
+  (`prototype/src/itens.js`); a loja de itens só aceita Ouro e a Rédea nova nunca é vendida.
 - Item comprado com Gema nunca tem resultado sorteado, e Gema nunca acelera o que paga Ouro. O Ouro
   nunca é vendido por Gemas. Todo sorteio novo (troca de skill, genética do potro, circuito) sai da seed.
 
