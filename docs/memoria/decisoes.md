@@ -4,6 +4,9 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
 ## 2026-11-17 — Teste de interface em paralelo (controlador)
+- **Integrado na `main` em 2026-11-17 por decisão do Vinicius** ("Sim, pode integrar na main") — com o `check.sh` em OK
+  na árvore integrada. Só o teste em paralelo entrou; o desenho dos ginásios ficou na branch da sessão, esperando a
+  aprovação dele.
 - **O `check.sh` roda o teste de interface em paralelo: um processo por bloco, 4 por vez, e os blocos que medem tempo
   depois, um por vez** — a verificação levava ~16 min e roda uma vez por tarefa; ficou em ~8. Nenhum teste saiu nem
   ficou mais fraco: os 68 blocos rodados um a um registram as mesmas 1.277 medições da rodada antiga. Se errado: o
