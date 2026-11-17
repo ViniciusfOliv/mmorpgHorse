@@ -380,6 +380,26 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .item-linha--vazia { background: var(--painel); }
 .item-linha--vazia .item-nome, .item-linha--vazia .item-qtd { color: var(--texto-2); }
 .item-linha--vazia .item-icone { opacity: 0.5; }
+.item-compra--usar { justify-content: flex-end; }   /* o "Usar" da Mochila, à direita */
+/* ---------- uso dos itens (spec de itens §5, §8): os botões da ficha (Status e Skills), a escolha do cavalo e a confirmação.
+   A linha do cavalo que não pode receber o item fica apagada (a opacidade do botão indisponível) e o motivo escrito embaixo ---------- */
+.item-uso { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-width: 0; }
+.item-uso > .nota, .item-uso > .motivo { flex-basis: 100%; margin: 0; }
+/* na aba Status, Torrão e Estrela numa grade (os botões na mesma largura, as linhas de informação ao lado): uma linha de
+   botão por item, para a aba crescer pouco (spec de itens §8) */
+.item-usos { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 8px; }
+.item-usos > .item-uso { display: contents; }
+.item-usos > .item-uso > .btn { justify-content: flex-start; padding-inline: 8px; }
+.item-usos > .item-uso > .nota, .item-usos > .item-uso > .motivo { grid-column: 1 / -1; }
+.item-uso-info { min-width: 0; font-size: var(--t-xs); line-height: 20px; color: var(--texto-2); }
+.item-uso-info > span { display: block; }
+.item-uso--skill { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; }
+.item-uso--skill > .nota, .item-uso--skill > .motivo { grid-column: 1 / -1; }
+.item-escolha > li { display: flex; flex-direction: column; gap: 6px; }
+.item-escolha > li > .nota { margin: 0 4px; }
+.montaria-linha[aria-disabled="true"] { opacity: 0.42; cursor: not-allowed; }
+.item-skills { grid-template-columns: minmax(0, 1fr); }
+.item-skill { justify-content: flex-start; }
 
 /* opções selecionáveis (aria-pressed) */
 .opcoes { display: grid; gap: 10px; }
@@ -1255,6 +1275,7 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   .btn, .opcao, .caixa, .app-aba, .montaria--ativa, .montaria-linha { border: 2px solid ButtonText; }
   .item-linha { border: 2px solid CanvasText; }   /* produto da loja e linha da mochila (a parte aberta: .opcao em Highlight) */
   .item-linha--vazia { border-color: GrayText; }
+  .montaria-linha[aria-disabled="true"] { border-color: GrayText; color: GrayText; }   /* o cavalo que não pode receber o item */
   .app-aba { padding-block: 0; }   /* sem bisel: a borda ocupa o lugar dele, e o ícone e o rótulo continuam cabendo */
   .opcao[aria-pressed="true"], .app-aba--ativa, .montaria--ativa { border-color: Highlight; }
   /* indisponível por aria-disabled (o foco fica no botão): as mesmas cores do disabled nativo */

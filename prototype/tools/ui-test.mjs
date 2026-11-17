@@ -24,6 +24,7 @@ const G = require('../src/data.js')
 const S = require('../src/sim.js')
 const B = require('../src/breed.js')
 const GR = require('../src/gear.js')
+const IT = require('../src/itens.js')
 const G_ELS = Object.keys(G.ELEMENTS)
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // prototype/dist/ servido por http://127.0.0.1:<porta livre> (node:http, sem dependências; fecha no fim): em
@@ -1588,6 +1589,472 @@ try {
           if (fc.linhas.length < 5 || fc.linhas.some((b) => b.w !== '2px' || b.s !== 'solid' || !fc.sis.includes(b.c))) problems.push(`[${label}] ${parte}: linhas sem borda de 2 px em cor do sistema ${JSON.stringify(fc.linhas)} (${fc.sis.join(' / ')})`)
           if (fc.aberta.length !== 1 || fc.aberta[0].c !== fc.hl) problems.push(`[${label}] ${parte}: a parte aberta sem Highlight ${JSON.stringify(fc.aberta)} (Highlight = ${fc.hl})`)
         }
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 10. usar os itens (Tarefa 4; spec de itens §4, §5, §8): pela mochila e pela ficha, no save de teste com a seed fixa.
+    //     Os resultados sorteados (Cupom, Manual) têm de ser os que o Itens dá para o contador do save (os mesmos módulos,
+    //     aqui no node). A altura da aba Status com os botões de item está no 2º bloco itens (depois do SAVE_3A).
+    const ipe = G.STARTERS.find((h) => h.id === 'ipe')
+    const ALLOC0 = { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 }
+    // seed 1006: o 1º Manual (contador 0) num cavalo de Água sem skill aprende; o 2º (contador 1), num de Grama, não
+    const SAVE_T4 = Object.assign({}, SAVE_6, {
+      v: 7, rev: 5, seedBase: 1006, gold: 5000, redeas: 0, mochila: ZERO_MOCHILA, diaria: DIARIA_0, lojaItens: LOJA_0, itemCounter: 0,
+      mounts: [
+        cav(brasa, { uid: 'm1', level: 12, skills: ['sprint'], alloc: { ...ALLOC0, vel: 3, acel: 2, est: 1 }, respecFree: false, torroes: 0 }),
+        cav(mare, { uid: 'm2', level: 10, skills: [], alloc: { ...ALLOC0, vel: 2 }, respecFree: true, torroes: 0 }),
+        cav(brasa, { uid: 'm3', name: 'Faísca', level: 20, grau: 3, skills: ['arranque'], torroes: G.ITEMS.torrao.cap }),
+        cav(ipe, { uid: 'm4', level: 8, grau: 1, skills: [] })
+      ],
+      activeId: 'm1', nextUid: 5, stableSlots: 4
+    })
+    const saveT4 = (o = {}) => comSave(DEVK, JSON.stringify(Object.assign({}, SAVE_T4, o)), { query: '?dev=1' })
+    // o resultado da sala aberta, simulado no navegador com a sala montada de novo do save (sem gravar nada)
+    const simSala = (pg) => pg.evaluate(() => {
+      const g = window.__galope, L = g.buildLobby(g.state.pending)
+      const r = window.RaceSim.simulate({ seed: L.seed, conditions: L.cond, racers: L.racers.map((x) => ({ horse: x.horse, gear: x.gear, name: x.name, isPlayer: x.isPlayer })) })
+      return JSON.stringify({ seed: L.seed, ordem: r.finishOrder, tempos: r.finishTimes })
+    })
+    const usoHelpers = (pg, label) => {
+      const h = {}
+      h.estado = () => estadoDe(pg)
+      h.disco = async () => JSON.parse(await bruto(pg, DEVK))
+      h.mount = async (uid) => (await estadoDe(pg)).mounts.find((m) => m.uid === uid)
+      h.uiItem = () => pg.evaluate(() => JSON.stringify(window.__galope.ui.item))
+      h.irMochila = async () => {
+        await pg.locator('[data-acao="aba"][data-id="loja"]').click()
+        await pg.waitForSelector('#t-loja')
+        await pg.locator('#tela [data-acao="loja-parte"][data-id="mochila"]').click()
+        await pg.waitForSelector('#tela .item-linha--mochila')
+      }
+      h.usarMochila = (id) => pg.locator(`#tela .item-linha--mochila[data-item="${id}"] [data-acao="item-usar"]`)
+      h.cavalo = (uid) => pg.locator(`#tela .item-escolha [data-acao="item-cavalo"][data-id="${uid}"]`)
+      h.ficha = async (uid, aba = 'status') => {
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.waitForSelector('#t-estabulo')
+        await pg.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click()
+        await pg.waitForSelector('#t-montaria')
+        if (aba !== 'status') await pg.locator(`[data-acao="montaria-aba"][data-id="${aba}"]`).click()
+      }
+      h.usarFicha = (id) => pg.locator(`#tela [data-acao="item-usar"][data-id="${id}"][data-mount]:not([data-skill])`)
+      h.trocar = (sk) => pg.locator(`#tela [data-acao="item-usar"][data-id="cupom"][data-skill="${sk}"]`)
+      h.confirmar = () => pg.locator('#tela [data-acao="item-confirmar"]')
+      h.cancelar = () => pg.locator('#tela [data-acao="item-cancelar"]')
+      h.texto = async () => ((await pg.locator('#tela').textContent()) || '').replace(/\s+/g, ' ')
+      h.vivo = async () => { await sleep(150); return (await pg.locator('#motivo-vivo').textContent()) || '' }
+      h.pontos = async () => ((await pg.locator('#tela .pontos-livres b').textContent()) || '').trim()   // "sobram L de F"
+      h.pontosEsperado = (m) => { const i = S.allocInfo(m); return `sobram ${i.left} de ${i.free}` }
+      // o que um uso recusado ou cancelado não pode mudar: mochila, Rédeas, contador, sala e os cavalos
+      const marca = (s) => JSON.stringify({ mochila: s.mochila, redeas: s.redeas, itemCounter: s.itemCounter, pending: s.pending, activeId: s.activeId,
+        mounts: s.mounts.map((m) => [m.uid, m.torroes, m.grau, m.skills, m.alloc, m.respecFree]) })
+      h.marca = async () => marca(await estadoDe(pg))
+      h.marcaDisco = async () => marca(await h.disco())
+      // um botão apagado (aria-disabled, sem disabled) com o motivo escrito na tela: o toque põe o motivo na região viva e
+      // nada muda; o toque forçado (sem o aria-disabled) também não gasta (o handler confere de novo), no state e no disco
+      h.apagado = async (loc, re, tag) => {
+        if ((await loc.count()) !== 1) { problems.push(`${label} ${tag}: o botão não está na tela (${await loc.count()})`); return }
+        if (!(await indisp(loc))) problems.push(`${label} ${tag}: o botão não está apagado (aria-disabled)`)
+        const motivo = (await loc.getAttribute('data-motivo')) || ''
+        if (!re.test(motivo)) problems.push(`${label} ${tag}: motivo "${motivo}" (esperado ${re})`)
+        if (!motivo || !(await h.texto()).includes(motivo)) problems.push(`${label} ${tag}: o motivo "${motivo}" não está escrito na tela`)
+        if (/\b\d+ de \d+\b/.test(motivo.replace(/[A-Za-zÀ-ú]+: \d+ de \d+/g, ''))) problems.push(`${label} ${tag}: motivo com "N de M" solto: "${motivo}"`)
+        const antes = await h.marca(), antesDisco = await h.marcaDisco()
+        await loc.click({ force: true })
+        if (!(await h.vivo()).includes(motivo)) problems.push(`${label} ${tag}: o toque não pôs o motivo na região viva`)
+        await loc.evaluate((b) => { b.removeAttribute('aria-disabled'); b.click() }).catch(() => {})
+        await sleep(100)
+        if ((await h.marca()) !== antes) problems.push(`${label} ${tag}: o toque forçado mudou o save: ${await h.marca()}`)
+        // o disco fica como estava ou recebe o state de antes do toque (o toque sincroniza com outras abas gravando)
+        const dd = await h.marcaDisco()
+        if (dd !== antesDisco && dd !== antes) problems.push(`${label} ${tag}: o toque forçado gravou outra coisa: ${dd}`)
+      }
+      // cancela no passo em que está: nada muda e a tela volta à de origem
+      h.cancela = async (tag, volta) => {
+        const antes = await h.marca()
+        await h.cancelar().click()
+        if ((await h.uiItem()) !== 'null') problems.push(`${label} ${tag}: Cancelar deixou ui.item ${await h.uiItem()}`)
+        if ((await h.marca()) !== antes) problems.push(`${label} ${tag}: Cancelar mudou o save`)
+        const onde = await pg.evaluate(() => { const u = window.__galope.ui; return u.screen + ':' + (u.screen === 'loja' ? u.lojaParte : u.montaria ? u.montaria.aba : '') })
+        if (onde !== volta) problems.push(`${label} ${tag}: Cancelar voltou a ${onde} (esperado ${volta})`)
+      }
+      return h
+    }
+    // 10a. Torrão, Estrela, Manual, Cupom e Rédea nova, pela mochila e pela ficha; cancelar em cada passo; os limites
+    {
+      const label = 'itens-usar'
+      const pg = await newPage(browser, VP, label, saveT4())
+      const h = usoHelpers(pg, label)
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        // a mochila pela gaveta DEV: 99 torrões (a mochila cheia não impede usar), 2 Estrelas, 3 Cupons, 3 Manuais e 2 Rédeas
+        await devAbrir(pg)
+        for (const [id, n] of [['torrao', G.BAG_MAX], ['estrela', 2], ['cupom', 3], ['manual', 3]]) await pg.fill('#dev-mochila-' + id, String(n))
+        await pg.locator('.dev-gaveta [data-acao="dev-mochila"]').click()
+        await pg.fill('#dev-redeas', '2')
+        await pg.locator('.dev-gaveta [data-acao="dev-redeas"]').click()
+        await devFechar(pg)
+        let s = await h.estado()
+        if (!igual(s.mochila, { torrao: G.BAG_MAX, estrela: 2, cupom: 3, manual: 3 }) || s.redeas !== 2 || s.seedBase !== 1006 || s.itemCounter !== 0) problems.push(`${label}: preparo ${JSON.stringify({ mochila: s.mochila, redeas: s.redeas, seed: s.seedBase, c: s.itemCounter })}`)
+        // a parte Mochila: cada item com quantidade tem o "Usar" (com o nome do item para o leitor de tela)
+        await h.irMochila()
+        for (const id of Object.keys(G.ITEMS)) {
+          const b = h.usarMochila(id), t = ((await b.textContent().catch(() => '')) || '').replace(/\s+/g, ' ').trim()
+          if ((await b.count()) !== 1 || !/^Usar/.test(t) || !t.includes(G.ITEMS[id].name)) problems.push(`${label}: a linha de ${id} sem o botão "Usar ${G.ITEMS[id].name}" (${t})`)
+        }
+        // ---- Torrão pela mochila (Brasa): a escolha do cavalo com as linhas do Estábulo; Faísca (10 torrões) apagada ----
+        const m1a = await h.mount('m1')
+        await h.usarMochila('torrao').click()
+        const rows = await pg.locator('#tela .item-escolha [data-acao="item-cavalo"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id')))
+        if (!igual(rows, ['m1', 'm2', 'm3', 'm4'])) problems.push(`${label}: a escolha do cavalo tem ${rows.join(',')} (esperado os 4, na ordem do estábulo)`)
+        if ((await h.uiItem()) !== JSON.stringify({ id: 'torrao', mountUid: null, skillId: null, passo: 'cavalo', origem: 'mochila' })) problems.push(`${label}: ui.item na escolha do cavalo ${await h.uiItem()}`)
+        await h.apagado(h.cavalo('m3'), /10/, 'Torrão em Faísca (10 torrões), pela mochila')
+        await h.cancela('Torrão, na escolha do cavalo', 'loja:mochila')
+        await h.usarMochila('torrao').click()
+        await h.cavalo('m1').click()
+        if (!/passo":"confirma"/.test(await h.uiItem()) || (await h.confirmar().count()) !== 1) problems.push(`${label}: Torrão em Brasa não foi à confirmação ${await h.uiItem()}`)
+        await h.cancela('Torrão, na confirmação', 'loja:mochila')
+        await h.usarMochila('torrao').click()
+        await h.cavalo('m1').click()
+        await h.confirmar().click()
+        s = await h.estado()
+        let m1 = s.mounts.find((m) => m.uid === 'm1')
+        if (m1.torroes !== 1 || s.mochila.torrao !== G.BAG_MAX - 1 || S.freePoints(m1) !== S.freePoints(m1a) + 1 || s.itemCounter !== 0) problems.push(`${label}: Torrão pela mochila: torroes ${m1.torroes}, mochila ${s.mochila.torrao}, pontos ${S.freePoints(m1a)} -> ${S.freePoints(m1)}, contador ${s.itemCounter}`)
+        let d = await h.disco()
+        if (d.mochila.torrao !== G.BAG_MAX - 1 || d.mounts.find((m) => m.uid === 'm1').torroes !== 1) problems.push(`${label}: o Torrão não foi gravado junto (mochila e cavalo)`)
+        const onde = await pg.evaluate(() => window.__galope.ui.screen + ':' + window.__galope.ui.lojaParte + ':' + JSON.stringify(window.__galope.ui.item))
+        if (onde !== 'loja:mochila:null') problems.push(`${label}: depois do Torrão a tela ficou em ${onde} (esperado a Mochila)`)
+        const avisoT = (await pg.locator('#tela .item-linha--mochila[data-item="torrao"] .item-aviso').textContent().catch(() => '')) || ''
+        if (!/Brasa ganhou 1 ponto para distribuir/.test(avisoT) || !/Torrões usados: 1 de 10/.test(avisoT)) problems.push(`${label}: o aviso do Torrão na linha: "${avisoT}"`)
+        if (!(await h.vivo()).includes('Brasa ganhou 1 ponto')) problems.push(`${label}: o aviso do Torrão não foi para a região viva`)
+        // ---- pela ficha: os pontos para distribuir sobem 1 e o cavalo mostra quantos torrões já usou ----
+        await h.ficha('m1')
+        if ((await h.pontos()) !== h.pontosEsperado(m1)) problems.push(`${label}: a ficha diz "${await h.pontos()}" (esperado "${h.pontosEsperado(m1)}", com o torrão)`)
+        if (!/Torrões usados: 1 de 10/.test(await h.texto())) problems.push(`${label}: a ficha não mostra "Torrões usados: 1 de 10"`)
+        const rotuloLinha = await pg.evaluate(() => window.__galope.state.mounts[0].uid)
+        if (rotuloLinha !== 'm1') problems.push(`${label}: a ordem do estábulo mudou`)
+        await h.usarFicha('torrao').click()
+        if (!/"origem":"ficha"/.test(await h.uiItem()) || !/"passo":"confirma"/.test(await h.uiItem())) problems.push(`${label}: o Torrão da ficha não foi direto à confirmação ${await h.uiItem()}`)
+        await h.cancela('Torrão da ficha, na confirmação', 'montaria:status')
+        await h.usarFicha('torrao').click()
+        await h.confirmar().click()
+        m1 = await h.mount('m1')
+        if (m1.torroes !== 2 || (await h.estado()).mochila.torrao !== G.BAG_MAX - 2) problems.push(`${label}: Torrão pela ficha: torroes ${m1.torroes}`)
+        if ((await h.pontos()) !== h.pontosEsperado(m1) || S.freePoints(m1) !== S.freePoints(m1a) + 2) problems.push(`${label}: depois do 2º torrão a ficha diz "${await h.pontos()}" (esperado "${h.pontosEsperado(m1)}")`)
+        if (!/Torrões usados: 2 de 10/.test(await h.texto()) || !/Brasa ganhou 1 ponto para distribuir/.test(await h.texto())) problems.push(`${label}: a ficha sem "Torrões usados: 2 de 10" ou sem o aviso do resultado`)
+        const rot = (await pg.locator('#tela').evaluate(() => window.__galope.ui.screen + ':' + window.__galope.ui.montaria.aba)) || ''
+        if (rot !== 'montaria:status') problems.push(`${label}: depois do Torrão da ficha a tela ficou em ${rot}`)
+        // ---- o 11º torrão (Faísca já tem 10): apagado com o motivo, na ficha; nada é gasto ----
+        await h.ficha('m3')
+        await h.apagado(h.usarFicha('torrao'), /10/, 'o 11º torrão, pela ficha')
+        if (!/Torrões usados: 10 de 10/.test(await h.texto())) problems.push(`${label}: Faísca sem "Torrões usados: 10 de 10"`)
+        // ---- Estrela: Maré ★2 vira ★3 e os pontos sobem pelo fator das estrelas; em ★3, recusado ----
+        const m2a = await h.mount('m2')
+        await h.ficha('m2')
+        await h.usarFicha('estrela').click()
+        await h.confirmar().click()
+        const m2b = await h.mount('m2')
+        if (m2b.grau !== 3 || S.freePoints(m2b) !== S.freePoints({ ...m2a, grau: 3 }) || !(S.freePoints(m2b) > S.freePoints(m2a)) || (await h.estado()).mochila.estrela !== 1) problems.push(`${label}: Estrela: grau ${m2b.grau}, pontos ${S.freePoints(m2a)} -> ${S.freePoints(m2b)}`)
+        if ((await h.pontos()) !== h.pontosEsperado(m2b)) problems.push(`${label}: depois da Estrela a ficha diz "${await h.pontos()}" (esperado "${h.pontosEsperado(m2b)}")`)
+        if (!/Maré agora tem 3 estrelas/.test(await h.texto())) problems.push(`${label}: sem o aviso da Estrela`)
+        await h.apagado(h.usarFicha('estrela'), /★★★/, 'Estrela em ★3, pela ficha')
+        await h.irMochila()
+        await h.usarMochila('estrela').click()
+        await h.apagado(h.cavalo('m3'), /★★★/, 'Estrela em Faísca (★3), pela mochila')
+        await h.cancela('Estrela, na escolha do cavalo', 'loja:mochila')
+        // ---- Manual pela mochila (Maré, vaga livre): o resultado é o do Itens para o contador; a confirmação diz a chance,
+        //      não o resultado; recarregar mostra o mesmo (Review Focus 1) ----
+        let m2 = await h.mount('m2'), c0 = (await h.estado()).itemCounter
+        const espera1 = IT.tentarDoma(m2, 1006, c0)
+        await h.usarMochila('manual').click()
+        await h.apagado(h.cavalo('m1'), /cheias/, 'Manual em Brasa (vaga cheia), pela mochila')
+        await h.cavalo('m2').click()
+        const conf = await h.texto()
+        if (!conf.includes(Math.round(G.ITEMS.manual.chance * 100) + '%')) problems.push(`${label}: a confirmação do Manual não diz a chance: ${conf}`)
+        if (espera1.aprendeu && conf.includes(G.SKILLS[espera1.aprendeu].name)) problems.push(`${label}: a confirmação do Manual mostra a skill que viria (${G.SKILLS[espera1.aprendeu].name})`)
+        if (await pg.evaluate(() => window.__galope.state.itemCounter) !== c0) problems.push(`${label}: abrir a confirmação mexeu no contador`)
+        await h.confirmar().click()
+        s = await h.estado()
+        m2 = s.mounts.find((m) => m.uid === 'm2')
+        if (!igual(m2.skills, espera1.skills) || s.itemCounter !== c0 + 1 || s.mochila.manual !== 2) problems.push(`${label}: Manual: skills ${JSON.stringify(m2.skills)} (esperado ${JSON.stringify(espera1.skills)}), contador ${s.itemCounter}, mochila ${s.mochila.manual}`)
+        const avisoM = await h.texto()
+        if (espera1.aprendeu ? !avisoM.includes('Maré aprendeu ' + G.SKILLS[espera1.aprendeu].name + '!') : !/Não foi desta vez: Maré não aprendeu\. O manual foi usado\./.test(avisoM)) problems.push(`${label}: aviso do Manual (${JSON.stringify(espera1)}): ${avisoM}`)
+        d = await h.disco()
+        if (d.itemCounter !== c0 + 1 || d.mochila.manual !== 2 || !igual(d.mounts.find((m) => m.uid === 'm2').skills, espera1.skills)) problems.push(`${label}: o Manual não foi gravado junto (contador, mochila e skill)`)
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        s = await h.estado()
+        if (!igual(s.mounts.find((m) => m.uid === 'm2').skills, espera1.skills) || s.itemCounter !== c0 + 1 || s.mochila.manual !== 2) problems.push(`${label}: Review Focus 1: depois de recarregar, Maré tem ${JSON.stringify(s.mounts.find((m) => m.uid === 'm2').skills)}, contador ${s.itemCounter}, mochila ${s.mochila.manual}`)
+        // o uso seguinte, pela ficha (Ipê, aba Skills), usa o contador seguinte
+        const m4 = s.mounts.find((m) => m.uid === 'm4'), espera2 = IT.tentarDoma(m4, 1006, c0 + 1)
+        await h.ficha('m4', 'skills')
+        await h.usarFicha('manual').click()
+        if (!/"passo":"confirma"/.test(await h.uiItem())) problems.push(`${label}: o Manual da ficha não foi à confirmação`)
+        await h.cancela('Manual da ficha, na confirmação', 'montaria:skills')
+        await h.usarFicha('manual').click()
+        await h.confirmar().click()
+        s = await h.estado()
+        if (!igual(s.mounts.find((m) => m.uid === 'm4').skills, espera2.skills) || s.itemCounter !== c0 + 2 || s.mochila.manual !== 1) problems.push(`${label}: 2º Manual: ${JSON.stringify(s.mounts.find((m) => m.uid === 'm4').skills)} (esperado ${JSON.stringify(espera2.skills)}), contador ${s.itemCounter}`)
+        if (espera1.aprendeu === null || espera2.aprendeu !== null) problems.push(`${label}: a seed 1006 deveria dar um Manual que aprende e um que não (${JSON.stringify([espera1, espera2])})`)
+        if (espera2.aprendeu === null && !/Não foi desta vez: Ipê não aprendeu\. O manual foi usado\./.test(await h.texto())) problems.push(`${label}: aviso do Manual que não aprende: ${await h.texto()}`)
+        // Manual com as vagas cheias: apagado na ficha
+        await h.ficha('m1', 'skills')
+        await h.apagado(h.usarFicha('manual'), /cheias/, 'Manual em Brasa (vaga cheia), pela ficha')
+        // ---- Cupom pela ficha (Brasa, Sprint): a skill de tipo não tem "Trocar"; a gravação que falha não mostra nada ----
+        if (await pg.locator('#tela .vaga-tipo [data-acao="item-usar"]').count()) problems.push(`${label}: a skill de tipo tem botão de uso`)
+        if ((await pg.locator('#tela [data-acao="item-usar"][data-id="cupom"]').count()) !== 1) problems.push(`${label}: Brasa tem ${await pg.locator('#tela [data-acao="item-usar"][data-id="cupom"]').count()} "Trocar" (esperado 1, o da Sprint)`)
+        await h.trocar('sprint').click()
+        if ((await h.uiItem()) !== JSON.stringify({ id: 'cupom', mountUid: 'm1', skillId: 'sprint', passo: 'confirma', origem: 'ficha' })) problems.push(`${label}: Trocar não foi à confirmação com a skill ${await h.uiItem()}`)
+        await h.cancela('Trocar, na confirmação', 'montaria:skills')
+        await h.trocar('sprint').click()
+        const marcaF = await h.marca()
+        await pg.evaluate(() => { window.__setOrig = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new DOMException('cheio', 'QuotaExceededError') } })
+        await h.confirmar().click()
+        await pg.evaluate(() => { Storage.prototype.setItem = window.__setOrig })
+        if ((await h.marca()) !== marcaF) problems.push(`${label}: o Cupom com a gravação falhando mudou o save ${await h.marca()}`)
+        if (!/Não foi possível salvar/.test(await h.texto()) || /saiu e entrou/.test(await h.texto())) problems.push(`${label}: o Cupom com a gravação falhando: ${await h.texto()}`)
+        m1 = await h.mount('m1')
+        const c1 = (await h.estado()).itemCounter, espera3 = IT.trocarSkill(m1, 'sprint', 1006, c1)
+        await h.confirmar().click()
+        s = await h.estado()
+        m1 = s.mounts.find((m) => m.uid === 'm1')
+        if (!igual(m1.skills, espera3.skills) || m1.skills[0] !== espera3.entra || s.itemCounter !== c1 + 1 || s.mochila.cupom !== 2) problems.push(`${label}: Cupom: ${JSON.stringify(m1.skills)} (esperado ${JSON.stringify(espera3)}), contador ${s.itemCounter}`)
+        if (!(await h.texto()).includes(G.SKILLS.sprint.name + ' saiu e entrou ' + G.SKILLS[espera3.entra].name + '.')) problems.push(`${label}: aviso do Cupom: ${await h.texto()}`)
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        if (!igual((await h.mount('m1')).skills, espera3.skills) || (await h.estado()).itemCounter !== c1 + 1) problems.push(`${label}: depois de recarregar, o Cupom mudou`)
+        // ---- Cupom pela mochila: Ipê sem skill nas vagas apagado; Faísca escolhe a skill que sai; cancelar na escolha da skill ----
+        await h.irMochila()
+        await h.usarMochila('cupom').click()
+        if (!(await h.mount('m4')).skills.length) await h.apagado(h.cavalo('m4'), /skill nas vagas/, 'Cupom em Ipê (sem skill nas vagas)')
+        await h.cavalo('m3').click()
+        if (!/"passo":"skill"/.test(await h.uiItem()) || (await pg.locator('#tela [data-acao="item-skill"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id')))).join() !== 'arranque') problems.push(`${label}: a escolha da skill de Faísca ${await h.uiItem()}`)
+        await h.cancela('Cupom, na escolha da skill', 'loja:mochila')
+        await h.usarMochila('cupom').click()
+        await h.cavalo('m3').click()
+        await pg.locator('#tela [data-acao="item-skill"][data-id="arranque"]').click()
+        const m3 = await h.mount('m3'), c2 = (await h.estado()).itemCounter, espera4 = IT.trocarSkill(m3, 'arranque', 1006, c2)
+        await h.confirmar().click()
+        s = await h.estado()
+        if (!igual(s.mounts.find((m) => m.uid === 'm3').skills, espera4.skills) || s.itemCounter !== c2 + 1 || s.mochila.cupom !== 1) problems.push(`${label}: Cupom pela mochila: ${JSON.stringify(s.mounts.find((m) => m.uid === 'm3').skills)} (esperado ${JSON.stringify(espera4.skills)})`)
+        // ---- Rédea nova pela mochila: vai à aba Status do cavalo, com o foco no Redistribuir; a grátis primeiro ----
+        await h.usarMochila('redea').click()
+        await h.apagado(h.cavalo('m4'), /Nenhum ponto/, 'Rédea em Ipê (sem pontos distribuídos)')
+        await h.cavalo('m2').click()
+        await pg.waitForSelector('#t-montaria')
+        const foco = await pg.evaluate(() => { const u = window.__galope.ui, e = document.activeElement; return u.screen + ':' + u.montaria.uid + ':' + u.montaria.aba + ':' + (e && e.getAttribute('data-acao')) })
+        if (foco !== 'montaria:m2:status:redistribuir') problems.push(`${label}: a Rédea pela mochila foi a ${foco} (esperado a aba Status de Maré com o foco no Redistribuir)`)
+        await pg.locator('#tela [data-acao="redistribuir"]').click()
+        await pg.locator('#tela [data-acao="redistribuir"]').click()
+        s = await h.estado()
+        if (s.redeas !== 2 || s.mounts.find((m) => m.uid === 'm2').respecFree !== false || S.STAT_KEYS.some((k) => s.mounts.find((m) => m.uid === 'm2').alloc[k])) problems.push(`${label}: Rédea em Maré (com a grátis): redeas ${s.redeas}`)
+        await h.irMochila()
+        await h.usarMochila('redea').click()
+        await h.cavalo('m1').click()
+        await pg.waitForSelector('#t-montaria')
+        await pg.locator('#tela [data-acao="redistribuir"]').click()
+        await pg.locator('#tela [data-acao="redistribuir"]').click()
+        s = await h.estado()
+        if (s.redeas !== 1 || S.STAT_KEYS.some((k) => s.mounts.find((m) => m.uid === 'm1').alloc[k])) problems.push(`${label}: Rédea em Brasa (sem a grátis): redeas ${s.redeas} (esperado 1)`)
+        // ---- Ruling 1: o ponto do Torrão também aparece depois de uma corrida que sobe o nível ----
+        await pg.evaluate(() => { window.__galope.state.mounts[0].xp = 1e7 })
+        await abrirSala(pg, 50)
+        await pg.getByRole('button', { name: /^Largar/ }).click()
+        await pg.waitForSelector('#pista')
+        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pg.waitForSelector('#t-resultado')
+        const R = await pg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.ui.result)))
+        m1 = await h.mount('m1')
+        if (!(R.levels > 0) || R.after.free !== S.freePoints(m1) || S.freePoints(m1) !== S.freePoints({ ...m1, torroes: 0 }) + 2) problems.push(`${label}: Ruling 1: depois da corrida, pontos ${R.after.free} (esperado ${S.freePoints(m1)}, com os 2 torrões; níveis ${R.levels})`)
+        await pg.locator('#tela [data-acao="voltar"]').first().click()
+        await pg.waitForSelector('#t-correr')
+        await h.ficha('m1')
+        if ((await h.pontos()) !== h.pontosEsperado(m1)) problems.push(`${label}: Ruling 1: a ficha depois da corrida diz "${await h.pontos()}" (esperado "${h.pontosEsperado(m1)}")`)
+        await checkOverflow(pg, label)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 10b. sala aberta: Cupom e Manual apagados no ativo (mochila e ficha) e aceitos em outro cavalo; Torrão e Estrela aceitos
+    //      no ativo; a sala e o resultado da corrida aberta, simulado antes e depois, não mudam
+    {
+      const label = 'itens-usar-sala'
+      const pg = await newPage(browser, VP, label, saveT4({ mochila: { torrao: 5, estrela: 2, cupom: 2, manual: 2 } }))
+      const h = usoHelpers(pg, label)
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await abrirSala(pg, 50)
+        const pend = (await h.estado()).pending, sim0 = await simSala(pg)
+        await pg.getByRole('button', { name: /^Voltar/ }).click()
+        await pg.waitForSelector('#t-correr')
+        await h.irMochila()
+        for (const [id, outro] of [['cupom', 'm3'], ['manual', 'm2']]) {
+          await h.usarMochila(id).click()
+          await h.apagado(h.cavalo('m1'), /páreo aberto/, `${id} no ativo com a sala aberta, pela mochila`)
+          if (await indisp(h.cavalo(outro))) problems.push(`${label}: ${id} recusado em ${outro} (não é o ativo)`)
+          await h.cancela(`${id} com a sala aberta`, 'loja:mochila')
+        }
+        await h.ficha('m1', 'skills')
+        await h.apagado(h.trocar('sprint'), /páreo aberto/, 'Trocar no ativo com a sala aberta, pela ficha')
+        await h.apagado(h.usarFicha('manual'), /páreo aberto/, 'Manual no ativo com a sala aberta, pela ficha')
+        // aceitos em outro cavalo: Cupom em Faísca, Manual em Maré
+        await h.ficha('m3', 'skills')
+        const m3 = await h.mount('m3'), e1 = IT.trocarSkill(m3, 'arranque', 1006, 0)
+        await h.trocar('arranque').click()
+        await h.confirmar().click()
+        if (!igual((await h.mount('m3')).skills, e1.skills)) problems.push(`${label}: Cupom em Faísca com a sala aberta: ${JSON.stringify((await h.mount('m3')).skills)}`)
+        await h.ficha('m2', 'skills')
+        const e2 = IT.tentarDoma(await h.mount('m2'), 1006, 1)
+        await h.usarFicha('manual').click()
+        await h.confirmar().click()
+        if (!igual((await h.mount('m2')).skills, e2.skills)) problems.push(`${label}: Manual em Maré com a sala aberta: ${JSON.stringify((await h.mount('m2')).skills)}`)
+        // Torrão e Estrela no ativo, com a sala aberta
+        await h.ficha('m1')
+        await h.usarFicha('torrao').click()
+        await h.confirmar().click()
+        await h.usarFicha('estrela').click()
+        await h.confirmar().click()
+        let m1 = await h.mount('m1')
+        if (m1.torroes !== 1 || m1.grau !== 3) problems.push(`${label}: Torrão e Estrela no ativo com a sala aberta: torroes ${m1.torroes}, grau ${m1.grau}`)
+        if (!igual((await h.estado()).pending, pend)) problems.push(`${label}: a sala guardada mudou com os usos ${JSON.stringify((await h.estado()).pending)}`)
+        if ((await simSala(pg)) !== sim0) problems.push(`${label}: o resultado da corrida aberta mudou com os usos`)
+        // os pontos novos só entram até o Poder da sala: o sugerido que passa dele não grava, nem forçado
+        const sug = pg.locator('#tela [data-acao="pontos-sugerir"]')
+        if ((await sug.count()) && !(await indisp(sug))) {
+          await sug.click()
+          const cf = pg.locator('#tela [data-acao="pontos-confirmar"]')
+          await esperaBarra(pg)
+          for (let k = 0; k < 2; k++) await cf.evaluate((b) => { b.removeAttribute('aria-disabled'); b.click() }).catch(() => {})
+          await sleep(100)
+        }
+        m1 = await h.mount('m1')
+        if (S.powerRating(m1) > pend.pr) problems.push(`${label}: com a sala aberta o Poder do ativo passou do da sala (${S.powerRating(m1)} > ${pend.pr})`)
+        if ((await simSala(pg)) !== sim0) problems.push(`${label}: o resultado da corrida aberta mudou com os pontos`)
+        await checkOverflow(pg, label)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 10c. Review Focus 5: com a confirmação aberta, outra aba muda o cavalo (vira o ativo com a sala aberta; sai do save):
+    //      o "Confirmar" confere tudo de novo, recusa com o motivo e a mochila não muda
+    {
+      const label = 'itens-usar-rf5'
+      const pg = await newPage(browser, VP, label, saveT4({ mochila: { ...ZERO_MOCHILA, manual: 2 } }))
+      const h = usoHelpers(pg, label)
+      // grava o save mudado por "outra aba" e dispara o evento storage
+      const outraAba = (src) => pg.evaluate(([k, src]) => {
+        const s = JSON.parse(localStorage.getItem(k))
+        ;(new Function('s', src))(s)
+        s.rev += 10
+        const raw = JSON.stringify(s)
+        localStorage.setItem(k, raw)
+        window.dispatchEvent(new StorageEvent('storage', { key: k, newValue: raw }))
+      }, [DEVK, src])
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await h.irMochila()
+        await h.usarMochila('manual').click()
+        await h.cavalo('m2').click()
+        await outraAba("s.activeId = 'm2'; s.raceCounter += 1; s.pending = { counter: s.raceCounter, training: false, fee: 50, pr: 1, gear: null, alloc: s.mounts[1].alloc }")
+        await sleep(200)
+        const s = await h.estado()
+        if (s.activeId !== 'm2' || !s.pending) problems.push(`${label}: o save da outra aba não foi adotado ${JSON.stringify({ ativo: s.activeId, sala: !!s.pending })}`)
+        if (!/"passo":"confirma"/.test(await h.uiItem())) problems.push(`${label}: a confirmação sumiu com o save da outra aba ${await h.uiItem()}`)
+        await h.apagado(h.confirmar(), /páreo aberto/, 'Confirmar depois de Maré virar a ativa com a sala aberta')
+        if ((await h.estado()).mochila.manual !== 2) problems.push(`${label}: a mochila mudou`)
+        await h.cancela('depois da outra aba', 'loja:mochila')
+        // o cavalo sai do save (Ipê) entre escolher e confirmar
+        await h.usarMochila('manual').click()
+        await h.cavalo('m4').click()
+        await outraAba("s.mounts = s.mounts.filter(function (m) { return m.uid !== 'm4' })")
+        await sleep(200)
+        if ((await h.estado()).mounts.some((m) => m.uid === 'm4')) problems.push(`${label}: Ipê continua no save adotado`)
+        await h.apagado(h.confirmar(), /não está mais no estábulo/, 'Confirmar depois de Ipê sair do save')
+        if ((await h.estado()).mochila.manual !== 2 || (await h.estado()).itemCounter !== 0) problems.push(`${label}: Ipê fora do save: a mochila ou o contador mudou`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 10d. duas abas no mesmo save: a 2ª não recebe o aviso de gravação (aba velha); o toque nela não gasta de novo nem sorteia
+    //      de novo (decide a revisão do save, que já existe)
+    {
+      const label = 'itens-duas-abas'
+      const pa = await newPage(browser, VP, label + ' A', saveT4({ mochila: { ...ZERO_MOCHILA, manual: 1 } }))
+      const pb = await pa.context().newPage()
+      pb.on('console', (m) => { if (m.type() === 'error') problems.push(`[${label} B] console: ${m.text()}`) })
+      pb.on('pageerror', (e) => problems.push(`[${label} B] pageerror: ${e.message}`))
+      const ha = usoHelpers(pa, label + ' A'), hb = usoHelpers(pb, label + ' B')
+      try {
+        await pa.waitForSelector('#t-estabulo')
+        await pb.addInitScript(() => window.addEventListener('storage', (e) => e.stopImmediatePropagation(), true))
+        await pb.goto(BASE + 'preview.html?dev=1', { waitUntil: 'domcontentloaded' })
+        await pb.waitForSelector('#t-estabulo')
+        await ha.irMochila()
+        await hb.irMochila()
+        // A usa o Manual em Maré; B ainda mostra o Manual
+        const e1 = IT.tentarDoma(await ha.mount('m2'), 1006, 0)
+        await ha.usarMochila('manual').click()
+        await ha.cavalo('m2').click()
+        await ha.confirmar().click()
+        if ((await hb.usarMochila('manual').count()) !== 1) problems.push(`${label}: a 2ª aba já não mostra o Manual (o teste não prova nada)`)
+        await hb.usarMochila('manual').click()
+        await pb.waitForSelector('#t-estabulo')
+        let sb = await hb.estado(), d = await hb.disco()
+        if (sb.mochila.manual !== 0 || sb.itemCounter !== 1 || d.itemCounter !== 1 || d.mochila.manual !== 0 || !igual(sb.mounts.find((m) => m.uid === 'm2').skills, e1.skills)) problems.push(`${label}: o toque na 2ª aba gastou ou sorteou de novo ${JSON.stringify({ mochila: sb.mochila.manual, c: sb.itemCounter, disco: d.itemCounter })}`)
+        if (!/outra aba/.test(await hb.texto())) problems.push(`${label}: a 2ª aba não avisa que o jogo mudou em outra aba`)
+        // com a confirmação aberta na 2ª aba: A gasta o último Manual; o Confirmar de B recusa
+        await devAbrir(pa); await pa.fill('#dev-mochila-manual', '1'); await pa.locator('.dev-gaveta [data-acao="dev-mochila"]').click(); await devFechar(pa)
+        await pb.reload({ waitUntil: 'domcontentloaded' })
+        await pb.waitForSelector('#t-estabulo')
+        await hb.irMochila()
+        await hb.usarMochila('manual').click()
+        await hb.cavalo('m4').click()
+        await ha.irMochila()
+        await ha.usarMochila('manual').click()
+        await ha.cavalo('m4').click()
+        await ha.confirmar().click()
+        const depoisA = await ha.marcaDisco()
+        await hb.confirmar().click()
+        await sleep(150)
+        sb = await hb.estado()
+        if ((await hb.marcaDisco()) !== depoisA || sb.itemCounter !== 2 || sb.mochila.manual !== 0) problems.push(`${label}: o Confirmar da 2ª aba gastou de novo ${JSON.stringify({ c: sb.itemCounter, mochila: sb.mochila.manual })}`)
+        if (/aprendeu|Não foi desta vez/.test(await hb.texto())) problems.push(`${label}: a 2ª aba mostrou um resultado`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pa.context().close()
+      }
+    }
+    // 10e. Review Focus 4, "sem candidata": com o catálogo reduzido à Sprint (antes de o jogo carregar), Brasa (Sprint) não tem
+    //      para que trocar e Ipê (vaga livre) não tem o que aprender
+    {
+      const label = 'itens-usar-semcand'
+      const init = () => {
+        let gd
+        Object.defineProperty(window, 'GameData', { configurable: true, get: () => gd, set: (v) => { Object.keys(v.SKILLS).forEach((k) => { if (k !== 'sprint') delete v.SKILLS[k] }); gd = v } })
+      }
+      // Tição (Mágico, 2 vagas) já tem a Sprint: tem vaga livre e nada para aprender
+      const ticao = G.WILD_HORSES.find((x) => x.id === 'w-ticao')
+      const base = saveT4({ mochila: { ...ZERO_MOCHILA, cupom: 1, manual: 1 }, mounts: SAVE_T4.mounts.slice(0, 2).concat([cav(ticao, { uid: 'm3', level: 6, skills: ['sprint'] })]), nextUid: 4 })
+      const pg = await newPage(browser, VP, label, { ...base, init: { content: base.init.content + ';(' + init.toString() + ')()' } })
+      const h = usoHelpers(pg, label)
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        if ((await pg.evaluate(() => Object.keys(window.GameData.SKILLS).join())) !== 'sprint') problems.push(`${label}: o catálogo não foi reduzido (o teste não prova nada)`)
+        await h.ficha('m1', 'skills')
+        await h.apagado(h.trocar('sprint'), /skill nova/, 'Trocar sem candidata')
+        await h.irMochila()
+        await h.usarMochila('manual').click()
+        await h.apagado(h.cavalo('m3'), /skill nova/, 'Manual sem candidata (Tição, vaga livre)')
+        await h.cancela('Manual sem candidata', 'loja:mochila')
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -5040,6 +5507,51 @@ try {
   // (§5, que vence quando as metas brigam): a aba Status da ativa (SAVE_3A, 360x780, sem rascunho) fica na altura medida
   // com a linha única (medi 1.454 px a 2,625 de dpr e 1.457 a 2,75; teto 1.470), e as 7 linhas cabem inteiras numa tela com as abas no topo
   const ALTURA_STATUS_3B = 1470
+
+  // ---------------- itens na aba Status (Tarefa 4 da frente de itens, spec de itens §8): sem Torrão e sem Estrela na mochila,
+  // a aba tem a altura de hoje (o teto da 3b); com os dois, cresce no máximo 120 px e as 7 linhas continuam na primeira tela ----------------
+  if (quer('itens')) {
+    const label = 'itens-status-altura'
+    const DIARIA = { prox: 0, ciclos: 0, ultimo: null }, LOJA = { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null }
+    const medeStatus = async (mochila, vp) => {
+      const p = await newPage(browser, vp, label, comSave(Object.assign({}, SAVE_3A, { v: 7, mochila, diaria: DIARIA, lojaItens: LOJA, itemCounter: 0 })))
+      try {
+        await p.waitForSelector('#t-estabulo')
+        await p.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await p.waitForSelector('#t-montaria')
+        const alt = await p.evaluate(() => document.documentElement.scrollHeight)
+        const usos = await p.locator('#tela .item-usos [data-acao="item-usar"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id') + ':' + Math.round(b.getBoundingClientRect().height)))
+        await checkOverflow(p, `${label} ${vp.width} ${JSON.stringify(mochila)}`)
+        let fora = null
+        if (vp.width < 600) {   // as 7 linhas inteiras numa tela com a linha de abas da ficha no topo (como o bloco celular mede)
+          await p.evaluate(() => { const e = document.querySelector('#tela .subabas'), t = document.querySelector('.app-topo').getBoundingClientRect().bottom; window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - t) })
+          fora = await p.evaluate(() => {
+            const topo = document.querySelector('.app-topo').getBoundingClientRect().bottom, abas = document.querySelector('.app-abas').getBoundingClientRect().top
+            const ls = [...document.querySelectorAll('#tela .build-linha')]
+            return ls.length !== 7 ? ['só ' + ls.length + ' linhas'] : ls.filter((l) => { const b = l.getBoundingClientRect(); return b.top < topo - 0.5 || b.bottom > abas + 0.5 }).map((l) => l.getAttribute('data-status'))
+          })
+        }
+        return { alt, usos, fora }
+      } finally {
+        await p.context().close()
+      }
+    }
+    try {
+      const vazia = { torrao: 0, estrela: 0, cupom: 0, manual: 0 }
+      const sem = await medeStatus(vazia, { width: 360, height: 780 })
+      const soSkills = await medeStatus({ ...vazia, cupom: 3, manual: 3 }, { width: 360, height: 780 })
+      const com = await medeStatus({ ...vazia, torrao: 3, estrela: 1 }, { width: 360, height: 780 })
+      await medeStatus({ ...vazia, torrao: 3, estrela: 1 }, { width: 1280, height: 800 })
+      notes[label] = { sem: sem.alt, soSkills: soSkills.alt, com: com.alt, usos: com.usos }
+      if (sem.alt > ALTURA_STATUS_3B || sem.usos.length) problems.push(`${label}: sem itens, a aba Status tem ${sem.alt}px (teto ${ALTURA_STATUS_3B}) e ${sem.usos.length} botões de item`)
+      if (soSkills.alt !== sem.alt || soSkills.usos.length) problems.push(`${label}: só com Cupom e Manual (que são da aba Skills), a aba Status mudou: ${soSkills.alt}px (sem itens ${sem.alt}px), botões ${soSkills.usos.join(',')}`)
+      if (com.usos.map((u) => u.split(':')[0]).join() !== 'torrao,estrela' || com.usos.some((u) => Number(u.split(':')[1]) < 44)) problems.push(`${label}: com Torrão e Estrela, os botões de item ${com.usos.join(',')} (esperado torrao,estrela com 44 px ou mais)`)
+      if (com.alt - sem.alt > 120) problems.push(`${label}: com Torrão e Estrela, a aba Status cresceu ${com.alt - sem.alt}px (máximo 120)`)
+      for (const [n, r] of [['sem itens', sem], ['com Torrão e Estrela', com]]) if (r.fora.length) problems.push(`${label}: ${n}, linhas de status fora da primeira tela: ${r.fora.join(',')}`)
+    } catch (e) {
+      problems.push(`[${label}] ` + e.message)
+    }
+  }
 
   if (quer('acabamento')) {
     // sem border-image no elemento nem no ::before/::after (as peças de pixel entram por pseudo-elemento)

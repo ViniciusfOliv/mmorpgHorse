@@ -412,6 +412,26 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .item-linha--vazia { background: var(--painel); }
 .item-linha--vazia .item-nome, .item-linha--vazia .item-qtd { color: var(--texto-2); }
 .item-linha--vazia .item-icone { opacity: 0.5; }
+.item-compra--usar { justify-content: flex-end; }   /* o "Usar" da Mochila, à direita */
+/* ---------- uso dos itens (spec de itens §5, §8): os botões da ficha (Status e Skills), a escolha do cavalo e a confirmação.
+   A linha do cavalo que não pode receber o item fica apagada (a opacidade do botão indisponível) e o motivo escrito embaixo ---------- */
+.item-uso { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-width: 0; }
+.item-uso > .nota, .item-uso > .motivo { flex-basis: 100%; margin: 0; }
+/* na aba Status, Torrão e Estrela numa grade (os botões na mesma largura, as linhas de informação ao lado): uma linha de
+   botão por item, para a aba crescer pouco (spec de itens §8) */
+.item-usos { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 8px; }
+.item-usos > .item-uso { display: contents; }
+.item-usos > .item-uso > .btn { justify-content: flex-start; padding-inline: 8px; }
+.item-usos > .item-uso > .nota, .item-usos > .item-uso > .motivo { grid-column: 1 / -1; }
+.item-uso-info { min-width: 0; font-size: var(--t-xs); line-height: 20px; color: var(--texto-2); }
+.item-uso-info > span { display: block; }
+.item-uso--skill { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; }
+.item-uso--skill > .nota, .item-uso--skill > .motivo { grid-column: 1 / -1; }
+.item-escolha > li { display: flex; flex-direction: column; gap: 6px; }
+.item-escolha > li > .nota { margin: 0 4px; }
+.montaria-linha[aria-disabled="true"] { opacity: 0.42; cursor: not-allowed; }
+.item-skills { grid-template-columns: minmax(0, 1fr); }
+.item-skill { justify-content: flex-start; }
 
 /* opções selecionáveis (aria-pressed) */
 .opcoes { display: grid; gap: 10px; }
@@ -1287,6 +1307,7 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   .btn, .opcao, .caixa, .app-aba, .montaria--ativa, .montaria-linha { border: 2px solid ButtonText; }
   .item-linha { border: 2px solid CanvasText; }   /* produto da loja e linha da mochila (a parte aberta: .opcao em Highlight) */
   .item-linha--vazia { border-color: GrayText; }
+  .montaria-linha[aria-disabled="true"] { border-color: GrayText; color: GrayText; }   /* o cavalo que não pode receber o item */
   .app-aba { padding-block: 0; }   /* sem bisel: a borda ocupa o lugar dele, e o ícone e o rótulo continuam cabendo */
   .opcao[aria-pressed="true"], .app-aba--ativa, .montaria--ativa { border-color: Highlight; }
   /* indisponível por aria-disabled (o foco fica no botão): as mesmas cores do disabled nativo */
@@ -4296,7 +4317,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // Uso dos itens (Torrão, Estrela, Cupom, Manual). A Rédea nova usa o Redistribuir do game.js.
   // ---------------------------------------------------------------------------------------------
   var MOTIVO = {
-    sala: 'O cavalo ativo não pode usar este item com a sala aberta.',
+    sala: 'Este item não pode ser usado no cavalo que está no páreo aberto.',
     torroes: 'Este cavalo já tem ' + I.torrao.cap + ' torrões.',
     estrelas: 'Este cavalo já tem ★★★.',
     semSkill: 'Este cavalo não tem skill nas vagas para trocar.',
@@ -9338,7 +9359,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return ' aria-disabled="true" data-motivo="' + esc(motivo) + '" title="' + esc(motivo) + '"';
   }
   // onde a linha do motivo entra: 'in' no fim do bloco, 'after' logo depois dele (a 1ª regra que casar)
-  var MOTIVO_ONDE = [['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
+  var MOTIVO_ONDE = [['.item-escolha > li', 'in'], ['.item-uso', 'in'], ['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
     ['.montaria-acoes', 'after'], ['.acoes', 'after'], ['.item-linha', 'in']];
   // região viva fixa (fora da tela que redesenha): leitores de tela anunciam o texto escrito nela, e o .motivo criado já
   // com o texto muitas vezes passa em silêncio. Limpa antes de escrever, para o mesmo texto ser anunciado de novo.
@@ -10135,6 +10156,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   var ui = { screen: 'inicial', lobby: null, result: null, resultAba: 'chegada', confirmReset: false, confirmLiberar: null, notice: null, haras: null, montaria: null, tab: 'estabulo',
     lojaParte: 'comprar',   // parte aberta da aba Loja: 'comprar' | 'mochila'
     lojaMsg: null,          // aviso da última compra da Loja de itens: { id, txt } (na linha do item)
+    // uso de um item (seção "Usar os itens"): { id, mountUid, skillId, passo: 'cavalo' | 'skill' | 'confirma', origem:
+    // 'mochila' | 'ficha', msg } ou null; itemMsg: o aviso do último uso, { id, uid, origem, txt }. Zerados em toda troca de tela
+    item: null, itemMsg: null,
     motionKeep: null,   // "Recomeçar": a opção Animações passa para o save novo
     joqueiKeep: null,   // e o jóquei também (padrão e capacete)
     // modo DEV (só com DEV_MODE): gaveta, confirmação do "Zerar" e valores armados para a próxima corrida
@@ -10198,6 +10222,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (ui.screen === 'corrida' || ui.screen === 'resultado') return;  // o resultado já mostrado continua válido
     ui.notice = 'O jogo foi atualizado em outra aba; este é o progresso mais recente.';
     ui.lobby = null;
+    // com o uso de um item aberto (escolha do cavalo, da skill ou a confirmação), a tela fica: ela é desenhada de novo com o
+    // save adotado e confere tudo outra vez (o cavalo que saiu, virou o ativo com a sala aberta ou o item que acabou)
+    if (ui.item && (ui.screen === 'loja' || ui.screen === 'montaria')) { itemPasso(); return; }
     go(ui.screen === 'inicial' ? 'inicial' : 'estabulo');
   }
 
@@ -10499,6 +10526,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   function go(screen) {
     if (saveBloqueado) screen = 'bloqueio';   // a tela de bloqueio não tem saída (só o Recarregar)
     if (raceView && screen !== 'corrida') { raceView.destroy(); raceView = null; }
+    ui.item = null; ui.itemMsg = null;   // o uso de item aberto e o aviso dele não passam para outra tela
     if (screen !== ui.screen) {
       ui.confirmReset = false; ui.confirmLiberar = null;
       SP.limparCacheMoldes();   // os moldes recoloridos da tela anterior não voltam a ser usados
@@ -11373,13 +11401,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // #N, a raridade e as estrelas (e o selo "Ativa" na ativa), o tipo e o Poder (sem equipamento, spec 1b §7), e a seta.
   // Sexo, cruzas, Corcel e XP ficam na ficha; "Tornar ativa" também.
   var SETA_ROWS = ['..#.....', '..##....', '...##...', '....##..', '...##...', '..##....', '..#.....', '........'];
-  function mountRowHtml(m, isActive) {
+  // o: a linha na escolha do cavalo de um item: { acao (no lugar de "montaria"), fim (no lugar de "Abrir ficha."), motivo
+  // (a linha apagada, no padrão indisponivel) }
+  function mountRowHtml(m, isActive, o) {
     var n = uidNum(m.uid);
     var pq = pontosQueCabem(m);
     var rotulo = m.name + ' #' + n + ', nível ' + m.level + (isActive ? ', ativa' : '') +
-      (pq > 0 ? ', ' + pq + (pq === 1 ? ' ponto' : ' pontos') + ' para distribuir' : '') + '. Abrir ficha.';
-    return '<button type="button" class="montaria-linha' + (isActive ? ' montaria--ativa' : '') + '" data-acao="montaria" data-id="' + esc(m.uid) +
-        '" aria-label="' + esc(rotulo) + '">' +
+      (pq > 0 ? ', ' + pq + (pq === 1 ? ' ponto' : ' pontos') + ' para distribuir' : '') + '. ' + (o ? o.fim : 'Abrir ficha.');
+    return '<button type="button" class="montaria-linha' + (isActive ? ' montaria--ativa' : '') + '" data-acao="' + (o ? o.acao : 'montaria') + '" data-id="' + esc(m.uid) +
+        '" aria-label="' + esc(rotulo) + '"' + (o ? indisponivel(o.motivo) : '') + '>' +
       '<span class="montaria-linha-retrato" aria-hidden="true">' + portraitHtml(m, { tamanho: 'pequeno', selo: true, pontos: pq }) + '</span>' +
       '<span class="montaria-linha-nome">' + esc(m.name) + '<small>#' + esc(n) + '</small></span>' +
       '<span class="montaria-linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) +
@@ -11976,14 +12006,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return pode.custo === 'gratis' ? 'Grátis: a primeira deste cavalo'
       : 'Usa 1 Rédea nova; você tem ' + state.redeas;
   }
-  // bloco do botão (só quando o cavalo tem pontos comprados), embaixo e separado dos botões de compra
-  function redistribuirHtml(m) {
-    if (!temPontos(m)) return '';
+  // bloco do botão (só quando o cavalo tem pontos comprados), embaixo e separado dos botões de compra. itens: os botões de
+  // Torrão e Estrela (itensStatusHtml), que entram no mesmo bloco, acima do Redistribuir; sem pontos comprados, ficam sozinhos
+  function redistribuirHtml(m, itens) {
+    if (!temPontos(m)) return itens || '';
     var M = ui.montaria, pode = podeRedistribuir(m);
     if (!pode.ok) M.confirmaRedist = false;
     var conf = M.confirmaRedist && pode.ok
       ? '<p class="aviso" role="status">' + esc(custoRedistribuirTxt(pode) + '. Todos os pontos voltam para distribuir. Toque em Redistribuir pontos de novo para confirmar.') + '</p>' : '';
-    return '<div class="redistribuir">' + conf +
+    return '<div class="redistribuir">' + (itens || '') + conf +
       '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="redistribuir"' +
         indisponivel(pode.ok ? '' : pode.motivo) + '>Redistribuir pontos</button>' + ajudaBtn('redea', 'a Rédea nova') + '</div>' +
       (pode.ok ? '' : '<p class="nota">' + esc(pode.motivo) + '</p>') + '</div>';
@@ -12102,7 +12133,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="pontos-confirmar"' + indisponivel(motivoConf) + '>Confirmar</button></div></div></div>';
     }
     return avisos + '<section class="caixa" aria-label="Status">' + topo +
-      '<ul class="build">' + linhas + '</ul>' + acoes + redistribuirHtml(m) +
+      '<ul class="build">' + linhas + '</ul>' + acoes + redistribuirHtml(m, itensStatusHtml(m)) +
       '<p class="nota build-rodape">' + esc('Nota de genética (C, B, A ou S): vem do nascimento. A barra vai até ' + cap + '. O custo do ponto sobe a cada ' + RS.TUNING.costStep + ' pontos no mesmo status.') + '</p>' +
       barra + '</section>';
   }
@@ -12188,7 +12219,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // e liga; o XP. Abaixo, as sub-abas; ações e os outros dados ficam na aba Ficha.
   function renderMontaria() {
     var m = ui.montaria ? mountByUid(ui.montaria.uid) : null;
-    if (!m) { ui.montaria = null; ui.screen = ui.tab; syncHistory(ui.tab); return renderTab(ui.tab); } // montaria sumiu (liberada, outra aba): volta à aba
+    if (!m) { ui.montaria = null; ui.item = null; ui.screen = ui.tab; syncHistory(ui.tab); return renderTab(ui.tab); } // montaria sumiu (liberada, outra aba): volta à aba
     var M = ui.montaria;
     var isActive = m.uid === state.activeId;
     var rating = RS.powerRating(clone(m));
@@ -12212,10 +12243,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (M.aba === 'skills') {
       var vagas = (GD.RARITIES[m.rarity] || GD.RARITIES.comum).skillSlots - m.skills.length;
       corpo = '<section class="caixa" aria-label="Skills">' + vagaTipoHtml(m) +
-        (m.skills.length ? m.skills.map(function (id) { return skillHtml(id, 32); }).join('') : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
+        (m.skills.length ? skillsVagasHtml(m) : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
         '<p class="nota">' + (vagas > 0
           ? vagas + (vagas === 1 ? ' vaga livre' : ' vagas livres') + ' · ' + Math.round(RS.TUNING.learnChance * 100) + '% de chance de aprender uma skill nova a cada nível'
-          : 'Sem vagas livres') + '</p></section>';
+          : 'Sem vagas livres') + '</p>' +
+        (itemQtd('manual') > 0 ? itemUsoHtml('manual', m, [naMochilaTxt('manual'), Math.round(GD.ITEMS.manual.chance * 100) + '% de chance de aprender']) : '') + '</section>';
     } else if (M.aba === 'equip' && GEAR_ON) {
       corpo = montariaEquipHtml(m);
     } else if (M.aba === 'ficha') {
@@ -12223,6 +12255,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     } else {
       corpo = montariaStatusHtml(m);
     }
+    // o uso de um item aberto pela ficha deste cavalo: o passo dele no lugar da sub-aba; o aviso do último uso, em cima dela
+    if (ui.item && ui.item.origem === 'ficha' && ui.item.mountUid === m.uid) corpo = itemPassoHtml();
+    else if (ui.itemMsg && ui.itemMsg.origem === 'ficha' && ui.itemMsg.uid === m.uid) corpo = '<p class="aviso" role="status">' + esc(ui.itemMsg.txt) + '</p>' + corpo;
 
     return '<section class="tela" aria-labelledby="t-montaria">' +
       '<button type="button" class="btn btn--pequeno" data-acao="montaria-voltar">Voltar</button>' +
@@ -12306,11 +12341,16 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return '<section class="caixa item-lista" aria-label="Itens à venda">' + LOJA_ITENS.map(lojaProdutoHtml).join('') +
       itemLinhaHtml('redea', { qtd: itemQtd('redea'), forma: 'tem', classe: 'item-linha--fora', texto: GD.ITEMS.redea.origem }) + '</section>';
   }
-  // os cinco, na ordem do catálogo; com 0, a linha apagada diz de onde o item vem (o "Usar" entra com o uso dos itens)
+  // os cinco, na ordem do catálogo; com 0, a linha apagada diz de onde o item vem (sem "Usar"); o aviso do último uso
+  // pela Mochila fica na linha do item
   function lojaMochilaHtml() {
+    var msg = ui.itemMsg && ui.itemMsg.origem === 'mochila' ? ui.itemMsg : null;
     return '<section class="caixa item-lista" aria-label="Mochila">' + Object.keys(GD.ITEMS).map(function (id) {
       var n = itemQtd(id);
-      return itemLinhaHtml(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? GD.ITEMS[id].origem : null });
+      var usar = n > 0 ? '<div class="item-compra item-compra--usar"><button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="' + esc(id) + '">Usar' +
+        '<span class="sr"> ' + esc(GD.ITEMS[id].name) + '</span></button></div>' : '';
+      return itemLinhaHtml(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? GD.ITEMS[id].origem : null, extra: usar,
+        aviso: msg && msg.id === id ? msg.txt : null });
     }).join('') + '</section>';
   }
   function renderLoja() {
@@ -12319,8 +12359,165 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var partes = '<div class="subabas" role="group" aria-label="Partes da loja">' + LOJA_PARTES.map(function (a) {
       return '<button type="button" class="btn opcao opcao--centro" data-acao="loja-parte" data-id="' + esc(a.id) + '" aria-pressed="' + (ui.lojaParte === a.id) + '">' + esc(a.rotulo) + '</button>';
     }).join('') + '</div>';
+    // com o uso de um item aberto pela Mochila, o passo dele no lugar das partes
+    if (ui.item && ui.item.origem === 'mochila') return '<section class="tela" aria-labelledby="t-loja">' + head + itemPassoHtml() + '</section>';
     var corpo = ui.lojaParte === 'mochila' ? lojaMochilaHtml() : reservaHtml() + lojaComprarHtml() + (GEAR_ON ? lojaEquipHtml() : '');
     return '<section class="tela" aria-labelledby="t-loja">' + head + partes + corpo + '</section>';
+  }
+
+  // ===========================================================================
+  // Usar os itens (spec de itens §4, §5, §8): pela Mochila (a escolha do cavalo, no Cupom a da skill que sai, e a
+  // confirmação) e pela ficha (Torrão e Estrela na aba Status; Manual e "Trocar" na aba Skills; direto à confirmação). As
+  // regras são do Itens: aqui cada passo confere de novo com o estado atual, e usaItem grava o uso de uma vez. O resultado
+  // do Cupom e do Manual só é sorteado no Confirmar (a confirmação diz o que o item faz e a chance, nunca o resultado). A
+  // Rédea nova não passa por usaItem: ela só escolhe o cavalo e leva ao Redistribuir da ficha dele (o custo é o de sempre).
+  // ===========================================================================
+  var CAVALO_SAIU = 'Este cavalo não está mais no estábulo.';
+  var SKILL_SAIU = 'Esta skill não está mais nas vagas deste cavalo.';
+  // por que o item não pode ser usado neste cavalo agora ('' quando pode); m null: o cavalo saiu do save
+  function motivoUso(id, m) {
+    if (!m) return CAVALO_SAIU;
+    if (id === 'redea') { var pr = podeRedistribuir(m); return pr.ok ? '' : pr.motivo; }
+    var p = IT.podeUsar(id, m, { tem: itemQtd(id), ativaComSala: m.uid === state.activeId && !!state.pending });
+    return p.ok ? '' : p.motivo;
+  }
+  // o Cupom precisa que a skill escolhida continue nas vagas (outra aba pode tê-la trocado)
+  function motivoUsoSkill(id, m, skillId) {
+    var mot = motivoUso(id, m);
+    if (!mot && id === 'cupom' && (m.skills.indexOf(skillId) < 0 || !hasOwn(GD.SKILLS, skillId))) mot = SKILL_SAIU;
+    return mot;
+  }
+  function skillNome(id) { return hasOwn(GD.SKILLS, id) ? GD.SKILLS[id].name : String(id); }
+  function torroesTxt(m) { return 'Torrões usados: ' + RS.torroesOf(m) + ' de ' + GD.ITEMS.torrao.cap; }
+  function naMochilaTxt(id) { return 'Na mochila: ' + fmt(itemQtd(id)); }
+  // um botão de uso na ficha ("Usar Torrão de açúcar"), ao lado das linhas de informação (o que o jogador tem, ...) e,
+  // quando não pode, com o motivo escrito embaixo
+  function itemUsoHtml(id, m, infos) {
+    var mot = motivoUso(id, m);
+    return '<div class="item-uso"><button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="' + esc(id) + '" data-mount="' + esc(m.uid) + '"' +
+      indisponivel(mot) + '>' + esc('Usar ' + GD.ITEMS[id].name) + '</button><span class="item-uso-info">' +
+      infos.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</span>' + (mot ? '<p class="nota">' + esc(mot) + '</p>' : '') + '</div>';
+  }
+  // aba Status: Torrão e Estrela, só quando a mochila tem o item (sem eles, a aba fica como era)
+  function itensStatusHtml(m) {
+    var usos = [];
+    if (itemQtd('torrao') > 0) usos.push(itemUsoHtml('torrao', m, [naMochilaTxt('torrao'), torroesTxt(m)]));
+    if (itemQtd('estrela') > 0) usos.push(itemUsoHtml('estrela', m, [naMochilaTxt('estrela')]));
+    return usos.length ? '<div class="item-usos">' + usos.join('') + '</div>' : '';
+  }
+  // aba Skills: as skills das vagas, cada uma com "Trocar" quando há Cupom (a skill de tipo não ocupa vaga e nunca troca)
+  function skillsVagasHtml(m) {
+    var cupom = itemQtd('cupom') > 0, mot = cupom ? motivoUso('cupom', m) : '', algum = false;
+    var lista = m.skills.map(function (id) {
+      if (!cupom || !hasOwn(GD.SKILLS, id)) return skillHtml(id, 32);
+      algum = true;
+      return '<div class="item-uso item-uso--skill">' + skillHtml(id, 32) +
+        '<button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="cupom" data-mount="' + esc(m.uid) + '" data-skill="' + esc(id) + '"' + indisponivel(mot) + '>' +
+        'Trocar<span class="sr"> ' + esc(skillNome(id) + ' (usa 1 ' + GD.ITEMS.cupom.name + ')') + '</span></button></div>';
+    }).join('');
+    return lista + (algum && mot ? '<p class="nota">' + esc('Trocar: ' + mot) + '</p>' : '');
+  }
+  // o que o item vai fazer, no passo da confirmação (sem sortear nada)
+  function confirmaTxt(F, m) {
+    var fim = ' O item é gasto e não tem volta.';
+    switch (F.id) {
+      case 'torrao': return m.name + ' ganha 1 ponto a mais para distribuir, para sempre (' + torroesTxt(m) + ').' + fim;
+      case 'estrela':
+        var g = RS.starsOf(m);
+        return (g < 3 ? m.name + ' sobe de ' + g + ' para ' + (g + 1) + ' estrelas; os pontos a mais aparecem para distribuir.' : m.name + ' já tem 3 estrelas.') + fim;
+      case 'cupom': return skillNome(F.skillId) + ' sai das vagas de ' + m.name + ' e entra outra skill, sorteada entre as que ele pode aprender.' + fim;
+      default: return m.name + ' tenta aprender uma skill nova na hora: ' + Math.round(GD.ITEMS.manual.chance * 100) + '% de chance. Aprendendo ou não, o manual é gasto e não tem volta.';
+    }
+  }
+  // o passo aberto do uso (ui.item): a escolha do cavalo (as linhas do Estábulo, apagadas com o motivo), a da skill que sai
+  // (Cupom) ou a confirmação. Desenhado a cada vez com o estado atual: o que mudou (outra aba) aparece apagado com o motivo.
+  function itemPassoHtml() {
+    var F = ui.item, it = GD.ITEMS[F.id], m = F.mountUid ? mountByUid(F.mountUid) : null, corpo = '', confirmar = '';
+    if (F.passo === 'cavalo') {
+      corpo = '<p class="nota">Escolha o cavalo.</p><ul class="montarias item-escolha">' + state.mounts.map(function (c) {
+        var mot = motivoUso(F.id, c);
+        return '<li>' + mountRowHtml(c, c.uid === state.activeId, { acao: 'item-cavalo', fim: 'Usar ' + it.name + ' neste cavalo.', motivo: mot }) +
+          (mot ? '<p class="nota">' + esc(mot) + '</p>' : '') + '</li>';
+      }).join('') + '</ul>';
+    } else if (F.passo === 'skill') {
+      var motS = motivoUso(F.id, m);
+      if (m) {
+        corpo = '<p>' + esc('Qual skill sai das vagas de ' + m.name + '? Entra outra, sorteada entre as que ele pode aprender.') + '</p>' +
+          '<div class="opcoes item-skills">' + m.skills.filter(function (s) { return hasOwn(GD.SKILLS, s); }).map(function (s) {
+            return '<button type="button" class="btn item-skill" data-acao="item-skill" data-id="' + esc(s) + '"' + indisponivel(motS) + '>' + skillIcone(s, 16) + esc(skillNome(s)) + '</button>';
+          }).join('') + '</div>';
+      }
+      if (motS) corpo += '<p class="nota">' + esc(motS) + '</p>';
+    } else {
+      var motC = motivoUsoSkill(F.id, m, F.skillId), falha = ui.itemMsg && ui.itemMsg.passo ? ui.itemMsg.txt : '';
+      corpo = (m ? '<p class="item-confirma-txt">' + esc(confirmaTxt(F, m)) + '</p>' : '') + (motC ? '<p class="nota">' + esc(motC) + '</p>' : '') +
+        (falha ? '<p class="aviso" role="status">' + esc(falha) + '</p>' : '');
+      confirmar = '<button type="button" class="btn btn--ouro" data-acao="item-confirmar"' + indisponivel(motC) + '>Confirmar</button>';
+    }
+    return '<section class="caixa item-passo" aria-labelledby="t-item">' + noticeHtml() +
+      '<h2 class="titulo" id="t-item" tabindex="-1" data-foco-item>' + esc('Usar ' + it.name) + '</h2>' +
+      itemLinhaHtml(F.id, { qtd: itemQtd(F.id), forma: 'tem', nivel: 'h3' }) + corpo +
+      '<div class="acoes">' + confirmar + '<button type="button" class="btn" data-acao="item-cancelar">Cancelar</button></div></section>';
+  }
+  // desenha o passo do uso (ou a tela de origem, sem ele) do topo, com o foco no título do passo
+  function itemPasso() {
+    render();
+    try { window.scrollTo(0, 0); } catch (e) { /* ignora */ }
+    var h = telaEl.querySelector('[data-foco-item]') || telaEl.querySelector('[data-foco]');
+    if (h) { try { h.focus({ preventScroll: true }); } catch (e2) { h.focus(); } }
+  }
+  // de volta à tela de origem (depois de usar ou cancelar): o foco no botão de onde o uso começou, se ele continua lá
+  function itemVolta(F) {
+    render();
+    var el = telaEl.querySelector('[data-acao="item-usar"][data-id="' + F.id + '"]' + (F.origem === 'ficha' && F.skillId ? '[data-skill="' + F.skillId + '"]' : ''));
+    if (!el) { itemPasso(); return; }
+    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+    if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+  }
+  // toque recusado num passo: desenha de novo (a tela pode estar velha) e diz o porquê, como no botão indisponível
+  function recusaItem(sel, txt) {
+    rerenderKeepScroll();
+    var bt = sel ? telaEl.querySelector(sel) : null;
+    if (bt && bt.getAttribute('data-motivo') === txt) mostraMotivo(bt); else motivoVivo(txt);
+  }
+  function seletorDe(b) {
+    var s = '[data-acao="' + b.getAttribute('data-acao') + '"]';
+    ['data-id', 'data-mount', 'data-skill'].forEach(function (a) { var v = b.getAttribute(a); if (v != null) s += '[' + a + '="' + v + '"]'; });
+    return s;
+  }
+  // Usa o item no cavalo: confere de novo (depois de sincronizar com outras abas), aplica numa cópia do estado, soma 1 ao
+  // contador de usos sorteados (Cupom, Manual: o sorteio é o da seed do save com esse contador), tira 1 da mochila e grava
+  // tudo de uma vez (gravaGasto). Devolve 'ok' (o aviso do resultado fica em ui.itemMsg), 'outra-aba' (um save de outra
+  // aba foi adotado e a tela já foi desenhada de novo: nada foi gasto nem sorteado) ou o motivo da recusa (FALHA_SALVAR
+  // se a gravação falhou: o state volta ao de antes e nenhum resultado aparece).
+  function usaItem(id, uid, skillId) {
+    if (id !== 'torrao' && id !== 'estrela' && id !== 'cupom' && id !== 'manual') return IT.podeUsar(id, null, {}).motivo;
+    var s0 = state;
+    persist();
+    if (state !== s0) return 'outra-aba';
+    var m = mountByUid(uid), mot = motivoUsoSkill(id, m, skillId);
+    if (mot) return mot;
+    var antes = clone(state), livres0 = RS.freePoints(m), r = null, txt;
+    if (id === 'cupom' || id === 'manual') {
+      r = id === 'cupom' ? IT.trocarSkill(m, skillId, state.seedBase, state.itemCounter) : IT.tentarDoma(m, state.seedBase, state.itemCounter);
+      if (!r) return 'Este item não pode ser usado neste cavalo agora.';   // não acontece: podeUsar já garantiu a skill, a vaga e a candidata
+      m.skills = r.skills;
+      state.itemCounter += 1;
+      txt = id === 'cupom' ? skillNome(r.sai) + ' saiu e entrou ' + skillNome(r.entra) + '.'
+        : r.aprendeu ? m.name + ' aprendeu ' + skillNome(r.aprendeu) + '!' : 'Não foi desta vez: ' + m.name + ' não aprendeu. O manual foi usado.';
+    } else if (id === 'torrao') {
+      m.torroes = IT.usarTorrao(m).torroes;
+      txt = m.name + ' ganhou 1 ponto para distribuir. ' + torroesTxt(m) + '.';
+    } else {
+      m.grau = IT.usarEstrela(m).grau;
+      txt = m.name + ' agora tem ' + m.grau + ' estrelas e ganhou ' + pontosTxt(RS.freePoints(m) - livres0) + ' para distribuir.';
+    }
+    state.mochila[id] -= 1;
+    var g = gravaGasto(s0, antes);
+    if (g === 'outra-aba') return 'outra-aba';
+    if (g === 'falhou') return FALHA_SALVAR;
+    ui.itemMsg = { id: id, uid: m.uid, origem: ui.item ? ui.item.origem : 'mochila', txt: txt };
+    return 'ok';
   }
 
   // ===========================================================================
@@ -13982,7 +14179,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       // ---- Loja de itens (fora do portão do equipamento): a parte aberta e a compra de um toque ----
       case 'loja-parte':
         if (ui.screen !== 'loja' || !LOJA_PARTES.some(function (a) { return a.id === id; })) break;
-        ui.lojaParte = id; ui.lojaMsg = null;
+        ui.lojaParte = id; ui.lojaMsg = null; ui.item = null; ui.itemMsg = null;
         rerenderKeepScroll(); break;   // o foco volta ao botão da parte
       case 'item-comprar': {
         // nunca confia no botão: confere de novo pelas regras do Itens, depois de sincronizar com outras abas; um toque
@@ -14012,6 +14209,67 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         rerenderKeepScroll();
         motivoVivo(ui.lojaMsg.txt);   // a região viva anuncia (o aviso na linha é só para ver)
         break;
+      }
+      // ---- Usar os itens (seção "Usar os itens"): nunca confia no botão; cada passo confere de novo com o estado atual ----
+      case 'item-usar': {
+        // da Mochila abre a escolha do cavalo; da ficha (data-mount) vai direto à confirmação, ou à escolha da skill no
+        // Cupom ("Trocar" já traz a skill em data-skill)
+        var uidU = b.getAttribute('data-mount'), skU = b.getAttribute('data-skill'), naFicha = uidU != null;
+        if (!hasOwn(GD.ITEMS, id)) break;
+        if (naFicha ? ui.screen !== 'montaria' || !ui.montaria || ui.montaria.uid !== uidU || id === 'redea' : ui.screen !== 'loja') break;
+        var sU = state;
+        persist();                    // tela velha (outra aba): adota o save mais novo antes de abrir o uso
+        if (state !== sU) break;
+        ui.itemMsg = null;
+        var motU = itemQtd(id) < 1 ? 'Você não tem ' + GD.ITEMS[id].name + '.' : naFicha ? (skU ? motivoUsoSkill(id, mountByUid(uidU), skU) : motivoUso(id, mountByUid(uidU))) : '';
+        if (motU) { recusaItem(seletorDe(b), motU); break; }
+        ui.item = { id: id, mountUid: naFicha ? uidU : null, skillId: null, passo: 'cavalo', origem: naFicha ? 'ficha' : 'mochila' };
+        if (naFicha && id === 'cupom' && skU) { ui.item.skillId = skU; ui.item.passo = 'confirma'; }
+        else if (naFicha) ui.item.passo = id === 'cupom' ? 'skill' : 'confirma';
+        itemPasso(); break;
+      }
+      case 'item-cavalo': {
+        var FC = ui.item;
+        if (!FC || FC.passo !== 'cavalo' || ui.screen !== 'loja') break;
+        var motCv = motivoUso(FC.id, mountByUid(id));
+        if (motCv) { recusaItem(seletorDe(b), motCv); break; }
+        if (FC.id === 'redea') {   // a Rédea nova: a aba Status do cavalo, com o foco no Redistribuir (o custo é o de sempre)
+          goMontaria(id, 'status');
+          var bRd = telaEl.querySelector('[data-acao="redistribuir"]');
+          if (bRd) { try { bRd.focus({ preventScroll: true }); } catch (e1) { bRd.focus(); } if (bRd.scrollIntoView) bRd.scrollIntoView({ block: 'center' }); }
+          break;
+        }
+        FC.mountUid = id; FC.passo = FC.id === 'cupom' ? 'skill' : 'confirma';
+        itemPasso(); break;
+      }
+      case 'item-skill': {
+        var FS = ui.item;
+        if (!FS || FS.passo !== 'skill' || FS.id !== 'cupom') break;
+        var motSk = motivoUsoSkill('cupom', mountByUid(FS.mountUid), id);
+        if (motSk) { recusaItem(seletorDe(b), motSk); break; }
+        FS.skillId = id; FS.passo = 'confirma';
+        itemPasso(); break;
+      }
+      case 'item-confirmar': {
+        var FF = ui.item;
+        if (!FF || FF.passo !== 'confirma') break;
+        ui.itemMsg = null;
+        var rU = usaItem(FF.id, FF.mountUid, FF.skillId);
+        if (rU === 'outra-aba') break;   // o save de outra aba foi adotado e a tela já foi desenhada de novo
+        if (rU !== 'ok') {               // recusado (o motivo fica no Confirmar apagado) ou a gravação falhou (nada mudou)
+          if (rU === FALHA_SALVAR) ui.itemMsg = { passo: true, txt: rU };
+          recusaItem('[data-acao="item-confirmar"]', rU); break;
+        }
+        ui.item = null;
+        itemVolta(FF);
+        motivoVivo(ui.itemMsg.txt);   // a região viva anuncia; o aviso fica na tela
+        break;
+      }
+      case 'item-cancelar': {
+        var FX = ui.item;
+        if (!FX) break;
+        ui.item = null; ui.itemMsg = null;
+        itemVolta(FX); break;
       }
       case 'loja-tab':
         if (!ui.loja || LOJA_TABS.indexOf(id) < 0) break;
@@ -14068,6 +14326,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         ui.montaria.rascunho = null; ui.montaria.confirmaPontos = false; ui.montaria.pontosMsg = null;   // o rascunho não sai da aba Status
         ui.montaria.confirmaRedist = false;
         ui.montaria.renomear = null; ui.confirmLiberar = null;   // nem o campo de renomear e a confirmação de liberar da aba Ficha
+        ui.item = null; ui.itemMsg = null;                       // nem o uso de item aberto
         rerenderKeepScroll(); break;
       case 'ponto-mais': {
         // +1, +5 ou +10 (data-n): soma exatamente N ao rascunho, ou nada

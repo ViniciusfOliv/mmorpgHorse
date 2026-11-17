@@ -61,7 +61,7 @@
   // Uso dos itens (Torrão, Estrela, Cupom, Manual). A Rédea nova usa o Redistribuir do game.js.
   // ---------------------------------------------------------------------------------------------
   var MOTIVO = {
-    sala: 'O cavalo ativo não pode usar este item com a sala aberta.',
+    sala: 'Este item não pode ser usado no cavalo que está no páreo aberto.',
     torroes: 'Este cavalo já tem ' + I.torrao.cap + ' torrões.',
     estrelas: 'Este cavalo já tem ★★★.',
     semSkill: 'Este cavalo não tem skill nas vagas para trocar.',
