@@ -1888,7 +1888,66 @@ test('diária com ultimo corrompido conta como já resgatada (no dia pedido); nu
     assert.strictEqual(IT.resgatar(d, 51, sempre), null, 'ultimo ' + String(u) + ': continua recusado até o save ser saneado');
   });
   assert.strictEqual(IT.diariaEstado({ prox: 3, ciclos: 1, ultimo: null }, 50).pode, true, 'null: nunca resgatou');
-  assert.strictEqual(IT.diariaEstado(undefined, 50).pode, true, 'sem diária: save novo');
+});
+// Rulings 7 e 8: dado de dia ou de limite corrompido não libera nada; null continua sendo "nunca".
+var DIAS_LIXO = ['x', -3, 1e9, 2.5, NaN, {}, true];
+test('diária que não é objeto ou ultimo fora da faixa: já resgatada hoje', function () {
+  var sempre = function () { return true; };
+  ['x', 5, undefined, null, [], true].forEach(function (d) {
+    assert.strictEqual(IT.diariaEstado(d, 50).pode, false, 'diária ' + JSON.stringify(d) + ': não libera');
+    assert.strictEqual(IT.resgatar(d, 50, sempre), null, 'diária ' + JSON.stringify(d) + ': resgate recusado');
+  });
+  [-3, -1, IT.DIA_MAX + 1, 1e9].forEach(function (u) {
+    assert.strictEqual(IT.diariaEstado({ prox: 2, ciclos: 0, ultimo: u }, 50).pode, false, 'ultimo ' + u + ' fora da faixa');
+  });
+  assert.strictEqual(IT.diariaEstado({ prox: 2, ciclos: 0, ultimo: IT.DIA_MAX }, 50).pode, false, 'DIA_MAX é um dia válido (no futuro)');
+  assert.strictEqual(IT.diaLocal(9999, 11, 31), IT.DIA_MAX);
+});
+test('loja com dia corrompido vale hoje: as compras do dia não voltam', function () {
+  DIAS_LIXO.forEach(function (dl) {
+    var L = { dia: dl, comprados: { torrao: 2, manual: 1, cupom: 0 }, estrelaDia: null };
+    var l = IT.lojaDoDia(L, 10);
+    assert.strictEqual(l.dia, 10, 'dia ' + String(dl) + ' vale hoje');
+    assert.deepStrictEqual(l.comprados, { torrao: 2, manual: 1, cupom: 0 }, 'dia ' + String(dl) + ': compras mantidas');
+    assert.deepStrictEqual(IT.podeComprar('torrao', L, 10, 1000, 1000, 0), { ok: false, motivo: 'limite' }, 'dia ' + String(dl) + ': torrão no limite');
+    assert.deepStrictEqual(IT.podeComprar('cupom', L, 10, 1000, 1000, 0), { ok: true, restam: 1 }, 'dia ' + String(dl) + ': o que não foi comprado continua');
+  });
+  assert.strictEqual(IT.lojaDoDia({ dia: IT.DIA_MAX + 1, comprados: { torrao: 2, manual: 0, cupom: 0 }, estrelaDia: null }, 10).dia, 10, 'acima de DIA_MAX');
+});
+test('loja com estrelaDia corrompido vale hoje: a Estrela espera os 7 dias', function () {
+  DIAS_LIXO.concat([IT.DIA_MAX + 1]).forEach(function (ed) {
+    var L = { dia: 10, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: ed };
+    assert.strictEqual(IT.lojaDoDia(L, 10).estrelaDia, 10, 'estrelaDia ' + String(ed));
+    assert.deepStrictEqual(IT.podeComprar('estrela', L, 10, 5000, 5000, 0), { ok: false, motivo: 'limite', emDias: G.ITEMS.estrela.everyDays }, 'estrelaDia ' + String(ed));
+  });
+});
+test('loja que não é objeto: dia de hoje, compras no teto e Estrela de hoje', function () {
+  var teto = { torrao: G.ITEMS.torrao.perDay, manual: G.ITEMS.manual.perDay, cupom: G.ITEMS.cupom.perDay };
+  ['x', 5, undefined, null, [], true].forEach(function (L) {
+    assert.deepStrictEqual(IT.lojaDoDia(L, 10), { dia: 10, comprados: teto, estrelaDia: 10 }, 'loja ' + JSON.stringify(L));
+    ['torrao', 'manual', 'cupom', 'estrela'].forEach(function (id) {
+      assert.strictEqual(IT.podeComprar(id, L, 10, 5000, 5000, 0).motivo, 'limite', 'loja ' + JSON.stringify(L) + ': ' + id);
+    });
+    // o módulo não guarda nada: sem a loja, nenhum hoje libera; o sanitize do game.js grava o dia de hoje no lugar
+    assert.strictEqual(IT.podeComprar('torrao', L, 11, 5000, 5000, 0).motivo, 'limite', 'continua recusado até o save ser saneado');
+  });
+});
+test('comprados corrompido vale o teto do dia', function () {
+  var L = { dia: 10, comprados: { torrao: 'x', manual: -1, cupom: 5 }, estrelaDia: null };
+  assert.deepStrictEqual(IT.lojaDoDia(L, 10).comprados, { torrao: 2, manual: 1, cupom: 1 });
+  [{ torrao: 1.5, manual: null, cupom: {} }].forEach(function (c) {
+    assert.deepStrictEqual(IT.lojaDoDia({ dia: 10, comprados: c, estrelaDia: null }, 10).comprados, { torrao: 2, manual: 1, cupom: 1 });
+  });
+  ['x', null, undefined, []].forEach(function (c) {
+    assert.deepStrictEqual(IT.lojaDoDia({ dia: 10, comprados: c, estrelaDia: null }, 10).comprados, { torrao: 2, manual: 1, cupom: 1 }, 'comprados ' + JSON.stringify(c));
+  });
+  assert.deepStrictEqual(IT.lojaDoDia({ dia: 10, comprados: { torrao: 1, manual: 0, cupom: 1 }, estrelaDia: null }, 10).comprados, { torrao: 1, manual: 0, cupom: 1 }, 'valores bons ficam');
+});
+test('null continua sendo "nunca": diária e loja zeradas liberam tudo', function () {
+  assert.strictEqual(IT.diariaEstado({ prox: 0, ciclos: 0, ultimo: null }, 50).pode, true);
+  var L0 = { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null };
+  ['torrao', 'manual', 'cupom', 'estrela'].forEach(function (id) { assert.strictEqual(IT.podeComprar(id, L0, 10, 5000, 5000, 0).ok, true, id); });
+  assert.deepStrictEqual(IT.lojaDoDia(L0, 10), { dia: 10, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null });
 });
 test('podeUsar sem cavalo recusa todos os itens', function () {
   ['torrao', 'estrela', 'cupom', 'manual'].forEach(function (id) {

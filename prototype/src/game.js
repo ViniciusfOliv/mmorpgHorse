@@ -547,9 +547,9 @@
   // começa zerado, com a diária no dia 1 para resgatar; nada do save antigo muda. Campos novos da v7 (inteiro fora da
   // faixa, fração, texto, null ou objeto voltam ao padrão):
   //   state.mochila = { torrao, estrela, cupom, manual }: 0 a GameData.BAG_MAX (a Rédea nova fica em state.redeas);
-  //   state.diaria = { prox: 0–6, ciclos: ≥ 0, ultimo: dia do último resgate | null } (ultimo corrompido, nem dia nem
-  //     null, vale hojeDia(): na dúvida, já resgatado hoje; Itens.diariaEstado faz o mesmo);
+  //   state.diaria = { prox: 0–6, ciclos: ≥ 0, ultimo: dia do último resgate | null };
   //   state.lojaItens = { dia: dia | null, comprados: { torrao, manual, cupom } (0 ao limite do dia), estrelaDia: dia | null };
+  //   (dia ou limite corrompido num save v7 não libera nada: vale hojeDia() ou o limite; ver sanitize e Itens);
   //   state.itemCounter: usos sorteados (Cupom, Manual), inteiro ≥ 0; mount.torroes: 0 ao teto do Torrão;
   //   o deslocamento de dias da gaveta DEV: −400 a 400, só no save de teste (no jogo real o campo não existe; o nome
   //   fica nos blocos DEV, e o build.mjs falha se ele aparecer no jogo de produção).
@@ -559,7 +559,7 @@
   var REDEAS_MAX = 999;
   var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual
   var LOJA_LIMITADOS = ['torrao', 'manual', 'cupom'];   // os que têm limite por dia (perDay)
-  var DIA_MAX = IT.diaLocal(9999, 11, 31);   // dia guardado no save: inteiro de 0 a este
+  var DIA_MAX = IT.DIA_MAX;   // dia guardado no save: inteiro de 0 a este (diaLocal(9999, 11, 31))
   var BR = E.breeding;
   var MAX_LEVEL = E.maxLevel || 50;
 
@@ -854,19 +854,22 @@
     /*@dev:inicio*/
     if (DEV_MODE) base.devDias = inteiroOu(s.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX);
     /*@dev:fim*/
+    // Num save v7, dado de dia ou de limite corrompido não libera nada (Rulings 7 e 8): dia (ultimo, dia, estrelaDia)
+    // que não é null nem inteiro de 0 a DIA_MAX vale hoje; compra do dia corrompida vale o limite; diária ou loja que
+    // não é objeto é tudo isso junto. null continua sendo "nunca". Mochila, torrões e itemCounter corrompidos: 0.
     if (v7) {
-      var mch = objetoOu(s.mochila) || {}, di = objetoOu(s.diaria), lj = objetoOu(s.lojaItens) || {}, cp = objetoOu(lj.comprados) || {};
+      var hoje = hojeDia(base);
+      var diaOu = function (x) { return x === null ? null : inteiroOu(x, hoje, 0, DIA_MAX); };
+      var mch = objetoOu(s.mochila) || {}, di = objetoOu(s.diaria), lj = objetoOu(s.lojaItens), cp = lj && objetoOu(lj.comprados) || {};
       MOCHILA_IDS.forEach(function (id) { base.mochila[id] = inteiroOu(mch[id], 0, 0, GD.BAG_MAX); });
-      if (di) {
-        base.diaria = {
-          prox: inteiroOu(di.prox, 0, 0, GD.DAILY.dias.length - 1),
-          ciclos: inteiroOu(di.ciclos, 0, 0, 1e9),
-          ultimo: di.ultimo === null ? null : inteiroOu(di.ultimo, hojeDia(base), 0, DIA_MAX)
-        };
-      }
-      LOJA_LIMITADOS.forEach(function (id) { base.lojaItens.comprados[id] = inteiroOu(cp[id], 0, 0, GD.ITEMS[id].perDay); });
-      base.lojaItens.dia = inteiroOu(lj.dia, null, 0, DIA_MAX);
-      base.lojaItens.estrelaDia = inteiroOu(lj.estrelaDia, null, 0, DIA_MAX);
+      base.diaria = {
+        prox: inteiroOu(di && di.prox, 0, 0, GD.DAILY.dias.length - 1),
+        ciclos: inteiroOu(di && di.ciclos, 0, 0, 1e9),
+        ultimo: di ? diaOu(di.ultimo) : hoje
+      };
+      LOJA_LIMITADOS.forEach(function (id) { base.lojaItens.comprados[id] = inteiroOu(cp[id], GD.ITEMS[id].perDay, 0, GD.ITEMS[id].perDay); });
+      base.lojaItens.dia = lj ? diaOu(lj.dia) : hoje;
+      base.lojaItens.estrelaDia = lj ? diaOu(lj.estrelaDia) : hoje;
       base.itemCounter = inteiroOu(s.itemCounter, 0, 0, 1e9);
     }
     // Poder da sala (R16) = o maior entre o Poder do retrato dos pontos de quando a sala abriu (pending.alloc, tirado
@@ -1082,10 +1085,10 @@
     /*@dev:fim*/
     return dia;
   }
-  // Save gravado por uma versão mais nova do jogo: só quando v é número maior que SAVE_VERSION (v ausente ou lixo
-  // segue o caminho de sempre do sanitize).
+  // Save gravado por uma versão mais nova do jogo: Number(v) > SAVE_VERSION (vale também "8" em texto, que o sanitize
+  // leria como v7+; v ausente ou lixo dá NaN e segue o caminho de sempre do sanitize).
   function saveMaisNovo(s) {
-    return !!s && typeof s === 'object' && typeof s.v === 'number' && Number(s.v) > SAVE_VERSION;
+    return !!s && typeof s === 'object' && Number(s.v) > SAVE_VERSION;
   }
   // Achou um save mais novo (na leitura ao abrir, no evento de outra aba, no estado do hot ou ao gravar): o jogo
   // larga o state (nada mais grava: persist() sai sem tocar na chave) e mostra só a tela de bloqueio, com o

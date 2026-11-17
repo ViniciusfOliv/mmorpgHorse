@@ -21,6 +21,8 @@
  * DIA: inteiro de dias desde 1970-01-01 da data local (diaLocal; mes de 0 a 11, como no Date).
  * DIÁRIA: { prox: 0–6 (próximo dia do calendário), ciclos: calendários completos, ultimo: dia do último
  *   resgate | null }. Pode resgatar se ultimo é null ou hoje > ultimo (relógio para trás não libera).
+ *   Dia guardado: inteiro de 0 a DIA_MAX. Dado de dia ou de limite corrompido nunca libera nada (vale hoje, ou o
+ *   limite do dia); só null é "nunca".
  *   Prêmio: { ouro, itens: { id: qtd } }; no 7º dia, se o calendário que fecha (ciclos + 1) é múltiplo de
  *   GameData.DAILY.estrelaACada, também { estrela: 1 }.
  * LOJA: { dia: inteiro | null, comprados: { torrao, manual, cupom }, estrelaDia: inteiro | null }.
@@ -36,12 +38,16 @@
     ? require('./sim.js') : root.RaceSim;
 
   var SAL = 0x49540000;
+  var DIA_MAX = Math.floor(Date.UTC(9999, 11, 31) / 86400000);   // diaLocal(9999, 11, 31): o maior dia guardado
   var I = G.ITEMS, D = G.DAILY;
   var LIMITADOS = ['torrao', 'manual', 'cupom'];   // os que têm limite por dia (perDay)
 
   function temChave(o, k) { return !!o && Object.prototype.hasOwnProperty.call(o, k); }
   function inteiro(x) { return typeof x === 'number' && isFinite(x) && x === Math.floor(x); }
   function skillsDe(mount) { return mount && Array.isArray(mount.skills) ? mount.skills : []; }
+  function objeto(o) { return o && typeof o === 'object' && !Array.isArray(o) ? o : null; }
+  // dia guardado válido (inteiro de 0 a DIA_MAX) ou, se corrompido, `hoje`
+  function diaOu(x, hoje) { return inteiro(x) && x >= 0 && x <= DIA_MAX ? x : hoje; }
   function sorteio(seedBase, contador) { return S.mulberry32(S.hash2(seedBase, SAL + contador)); }
 
   // ---------------------------------------------------------------------------------------------
@@ -111,14 +117,15 @@
   // ---------------------------------------------------------------------------------------------
   // Recompensa diária
   // ---------------------------------------------------------------------------------------------
-  // Sem diária (save novo): nunca resgatou. ultimo null: nunca resgatou. ultimo corrompido (nem inteiro
-  // nem null): na dúvida, conta como resgatado hoje (o próximo resgate é amanhã).
+  // ultimo null: nunca resgatou. Na dúvida, nada é liberado (Rulings 7 e 8): diária que não é objeto, ou ultimo
+  // corrompido (nem dia de 0 a DIA_MAX nem null), conta como resgatada hoje (o próximo resgate é amanhã). O save
+  // novo e a migração da v6 chegam aqui com { prox: 0, ciclos: 0, ultimo: null }, pelo game.js.
   function diariaSaneada(diaria, hoje) {
-    var d = diaria || {};
+    var obj = objeto(diaria), d = obj || {};
     return {
       prox: inteiro(d.prox) && d.prox >= 0 && d.prox < D.dias.length ? d.prox : 0,
       ciclos: inteiro(d.ciclos) && d.ciclos >= 0 ? d.ciclos : 0,
-      ultimo: inteiro(d.ultimo) ? d.ultimo : (!diaria || d.ultimo === null ? null : hoje)
+      ultimo: obj && d.ultimo === null ? null : diaOu(d.ultimo, hoje)
     };
   }
   // Pode resgatar: só com hoje inteiro, e se nunca resgatou ou hoje passou do último resgate.
@@ -157,14 +164,21 @@
   // ---------------------------------------------------------------------------------------------
   // Loja
   // ---------------------------------------------------------------------------------------------
-  function lojaSaneada(loja) {
-    var l = loja || {}, c = l.comprados || {}, comprados = {};
-    LIMITADOS.forEach(function (id) { comprados[id] = inteiro(c[id]) && c[id] > 0 ? c[id] : 0; });
-    return { dia: inteiro(l.dia) ? l.dia : null, comprados: comprados, estrelaDia: inteiro(l.estrelaDia) ? l.estrelaDia : null };
+  // Na dúvida, nada é liberado (Rulings 7 e 8): dia ou estrelaDia corrompido (nem dia de 0 a DIA_MAX nem null) vale
+  // hoje; compra do dia corrompida (nem inteiro de 0 ao limite) vale o limite; loja que não é objeto é tudo isso
+  // junto. null continua sendo "nunca".
+  function lojaSaneada(loja, hoje) {
+    var obj = objeto(loja), l = obj || {}, c = objeto(l.comprados) || {}, comprados = {};
+    LIMITADOS.forEach(function (id) { comprados[id] = inteiro(c[id]) && c[id] >= 0 && c[id] <= I[id].perDay ? c[id] : I[id].perDay; });
+    return {
+      dia: obj && l.dia === null ? null : diaOu(l.dia, hoje),
+      comprados: comprados,
+      estrelaDia: obj && l.estrelaDia === null ? null : diaOu(l.estrelaDia, hoje)
+    };
   }
   // Com hoje que não é inteiro, nada volta: a loja fica como está.
   function lojaDoDia(loja, hoje) {
-    var l = lojaSaneada(loja);
+    var l = lojaSaneada(loja, hoje);
     if (!inteiro(hoje) || (l.dia !== null && hoje <= l.dia)) return l;
     var zerados = {};
     LIMITADOS.forEach(function (id) { zerados[id] = 0; });
@@ -199,6 +213,7 @@
 
   var Itens = {
     SAL: SAL,
+    DIA_MAX: DIA_MAX,
     diaLocal: diaLocal,
     podeUsar: podeUsar,
     usarTorrao: usarTorrao,

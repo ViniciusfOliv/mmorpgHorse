@@ -1128,6 +1128,11 @@ try {
     const ZERO_MOCHILA = { torrao: 0, estrela: 0, cupom: 0, manual: 0 }
     const DIARIA_0 = { prox: 0, ciclos: 0, ultimo: null }
     const LOJA_0 = { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null }
+    const LOJA_TETO = (hoje) => ({ dia: hoje, comprados: { torrao: G.ITEMS.torrao.perDay, manual: G.ITEMS.manual.perDay, cupom: G.ITEMS.cupom.perDay }, estrelaDia: hoje })
+    // nem a diária nem nenhuma compra liberadas hoje (pelas regras puras, com o dia do jogo)
+    // (ids: os itens que têm de estar no limite; os outros têm de estar à venda)
+    const nadaLiberado = (pg, ids = ['torrao', 'manual', 'cupom', 'estrela']) => pg.evaluate((ids) => { const g = window.__galope, h = g.hojeDia(), I = window.Itens
+      return !I.diariaEstado(g.state.diaria, h).pode && ['torrao', 'manual', 'cupom', 'estrela'].every((id) => (I.podeComprar(id, g.state.lojaItens, h, 1e6, 1e6, 0).motivo === 'limite') === ids.includes(id)) }, ids)
     const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
     // 1. save v6 -> v7: tudo novo zerado, a diária no dia 1, o resto igual (na memória e no disco)
     {
@@ -1144,6 +1149,11 @@ try {
           if (!igual(s.lojaItens, LOJA_0)) erro('limites da loja ' + JSON.stringify(s.lojaItens))
           if (s.itemCounter !== 0) erro('itemCounter ' + s.itemCounter)
           if ('devDias' in s) erro('devDias no save real: ' + s.devDias)
+          if (onde === 'memória') {   // a migração libera a diária do dia 1 e a loja inteira (Rulings 7 e 8 não valem aqui)
+            const livre = await pg.evaluate(() => { const g = window.__galope, h = g.hojeDia(), I = window.Itens
+              return { diaria: I.diariaEstado(g.state.diaria, h).pode, loja: ['torrao', 'manual', 'cupom', 'estrela'].map((id) => I.podeComprar(id, g.state.lojaItens, h, 1e6, 1e6, 0).ok) } })
+            if (!livre.diaria || livre.loja.some((x) => !x)) erro('migração da v6 não liberou a diária e a loja ' + JSON.stringify(livre))
+          }
           if (s.gold !== 777 || s.redeas !== 3 || s.races !== 2) erro('Ouro/Rédeas/corridas ' + JSON.stringify({ gold: s.gold, redeas: s.redeas, races: s.races }))
           if (s.mounts.length !== 2) erro('cavalos ' + s.mounts.length)
           for (const m0 of SAVE_6.mounts) {
@@ -1175,8 +1185,24 @@ try {
         const s = await estadoDe(pg), hoje = await hojeReal(pg)
         if (!igual(s.mochila, ZERO_MOCHILA)) problems.push(`${label}: mochila ` + JSON.stringify(s.mochila))
         if (!igual(s.diaria, { prox: 0, ciclos: 0, ultimo: hoje })) problems.push(`${label}: diária ${JSON.stringify(s.diaria)} (ultimo corrompido = hoje ${hoje})`)
-        if (!igual(s.lojaItens, LOJA_0)) problems.push(`${label}: limites da loja ` + JSON.stringify(s.lojaItens))
+        // Rulings 7 e 8: dia corrompido vale hoje e compra corrompida vale o limite do dia (nada é liberado)
+        if (!igual(s.lojaItens, LOJA_TETO(hoje))) problems.push(`${label}: limites da loja ${JSON.stringify(s.lojaItens)} (esperado o dia de hoje e os tetos)`)
+        if (!(await nadaLiberado(pg))) problems.push(`${label}: dado corrompido liberou resgate ou compra`)
         if (s.itemCounter !== 0) problems.push(`${label}: itemCounter ` + s.itemCounter)
+        // diária e loja que não são objeto; ultimo, dia e estrelaDia fora da faixa
+        for (const [diaria, lojaItens, esperado, travados] of [
+          [7, 'x', { diaria: { prox: 0, ciclos: 0, ultimo: hoje }, lojaItens: LOJA_TETO(hoje) }],
+          [[1], [2], { diaria: { prox: 0, ciclos: 0, ultimo: hoje }, lojaItens: LOJA_TETO(hoje) }],
+          // compras válidas ficam (o Cupom, sem compra hoje, continua à venda); o dia e a Estrela corrompidos valem hoje
+          [{ prox: 3, ciclos: 1, ultimo: 1e9 }, { dia: -3, comprados: { torrao: 2, manual: 1, cupom: 0 }, estrelaDia: 3e6 },
+            { diaria: { prox: 3, ciclos: 1, ultimo: hoje }, lojaItens: { dia: hoje, comprados: { torrao: 2, manual: 1, cupom: 0 }, estrelaDia: hoje } }, ['torrao', 'manual', 'estrela']]]) {
+          await pg.evaluate(([k, raw]) => localStorage.setItem(k, raw), [REAL, JSON.stringify(Object.assign({}, lixo, { rev: 60, diaria, lojaItens }))])
+          await pg.reload({ waitUntil: 'domcontentloaded' })
+          await pg.waitForSelector('#t-estabulo')
+          const x = await estadoDe(pg)
+          if (!igual(x.diaria, esperado.diaria) || !igual(x.lojaItens, esperado.lojaItens)) problems.push(`${label}: diária ${JSON.stringify(diaria)} e loja ${JSON.stringify(lojaItens)} viraram ${JSON.stringify({ diaria: x.diaria, lojaItens: x.lojaItens })}`)
+          if (!(await nadaLiberado(pg, travados))) problems.push(`${label}: diária ${JSON.stringify(diaria)} / loja ${JSON.stringify(lojaItens)} liberou resgate ou compra`)
+        }
         if (s.mounts.some((m) => m.torroes !== 0)) problems.push(`${label}: torroes ` + JSON.stringify(s.mounts.map((m) => m.torroes)))
         // valores bons ficam como estão
         const bom = Object.assign({}, lixo, {
@@ -1220,10 +1246,13 @@ try {
       await sleep(500)
       if ((await bruto(pg, chave)) !== raw) problems.push(`${label}: a chave ${chave} mudou depois de recarregar`)
     }
-    for (const [label, chave, extra] of [['itens-v8', REAL, {}], ['itens-v8-dev', DEVK, { query: '?dev=1' }], ['itens-v8-producao', REAL, { pagina: 'producao.html' }]]) {
-      const pg = await newPage(browser, VP, label, comSave(chave, SAVE_8, extra))
+    // v como texto ("8"): Number("8") > 7, também é mais novo (o sanitize o leria como v7+ e gravaria v7 por cima)
+    const SAVE_8_TXT = JSON.stringify(Object.assign(JSON.parse(SAVE_8), { v: '8' }))
+    for (const [label, chave, extra, raw] of [['itens-v8', REAL, {}, SAVE_8], ['itens-v8-dev', DEVK, { query: '?dev=1' }, SAVE_8],
+      ['itens-v8-producao', REAL, { pagina: 'producao.html' }, SAVE_8], ['itens-v8-texto', REAL, {}, SAVE_8_TXT]]) {
+      const pg = await newPage(browser, VP, label, comSave(chave, raw, extra))
       try {
-        await conferirBloqueio(pg, label, chave, SAVE_8)
+        await conferirBloqueio(pg, label, chave, raw)
         if (chave === DEVK && (await bruto(pg, REAL)) !== null) problems.push(`${label}: o modo DEV gravou o save real`)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)

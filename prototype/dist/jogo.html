@@ -4157,6 +4157,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  * DIA: inteiro de dias desde 1970-01-01 da data local (diaLocal; mes de 0 a 11, como no Date).
  * DIÁRIA: { prox: 0–6 (próximo dia do calendário), ciclos: calendários completos, ultimo: dia do último
  *   resgate | null }. Pode resgatar se ultimo é null ou hoje > ultimo (relógio para trás não libera).
+ *   Dia guardado: inteiro de 0 a DIA_MAX. Dado de dia ou de limite corrompido nunca libera nada (vale hoje, ou o
+ *   limite do dia); só null é "nunca".
  *   Prêmio: { ouro, itens: { id: qtd } }; no 7º dia, se o calendário que fecha (ciclos + 1) é múltiplo de
  *   GameData.DAILY.estrelaACada, também { estrela: 1 }.
  * LOJA: { dia: inteiro | null, comprados: { torrao, manual, cupom }, estrelaDia: inteiro | null }.
@@ -4172,12 +4174,16 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     ? require('./sim.js') : root.RaceSim;
 
   var SAL = 0x49540000;
+  var DIA_MAX = Math.floor(Date.UTC(9999, 11, 31) / 86400000);   // diaLocal(9999, 11, 31): o maior dia guardado
   var I = G.ITEMS, D = G.DAILY;
   var LIMITADOS = ['torrao', 'manual', 'cupom'];   // os que têm limite por dia (perDay)
 
   function temChave(o, k) { return !!o && Object.prototype.hasOwnProperty.call(o, k); }
   function inteiro(x) { return typeof x === 'number' && isFinite(x) && x === Math.floor(x); }
   function skillsDe(mount) { return mount && Array.isArray(mount.skills) ? mount.skills : []; }
+  function objeto(o) { return o && typeof o === 'object' && !Array.isArray(o) ? o : null; }
+  // dia guardado válido (inteiro de 0 a DIA_MAX) ou, se corrompido, `hoje`
+  function diaOu(x, hoje) { return inteiro(x) && x >= 0 && x <= DIA_MAX ? x : hoje; }
   function sorteio(seedBase, contador) { return S.mulberry32(S.hash2(seedBase, SAL + contador)); }
 
   // ---------------------------------------------------------------------------------------------
@@ -4247,14 +4253,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ---------------------------------------------------------------------------------------------
   // Recompensa diária
   // ---------------------------------------------------------------------------------------------
-  // Sem diária (save novo): nunca resgatou. ultimo null: nunca resgatou. ultimo corrompido (nem inteiro
-  // nem null): na dúvida, conta como resgatado hoje (o próximo resgate é amanhã).
+  // ultimo null: nunca resgatou. Na dúvida, nada é liberado (Rulings 7 e 8): diária que não é objeto, ou ultimo
+  // corrompido (nem dia de 0 a DIA_MAX nem null), conta como resgatada hoje (o próximo resgate é amanhã). O save
+  // novo e a migração da v6 chegam aqui com { prox: 0, ciclos: 0, ultimo: null }, pelo game.js.
   function diariaSaneada(diaria, hoje) {
-    var d = diaria || {};
+    var obj = objeto(diaria), d = obj || {};
     return {
       prox: inteiro(d.prox) && d.prox >= 0 && d.prox < D.dias.length ? d.prox : 0,
       ciclos: inteiro(d.ciclos) && d.ciclos >= 0 ? d.ciclos : 0,
-      ultimo: inteiro(d.ultimo) ? d.ultimo : (!diaria || d.ultimo === null ? null : hoje)
+      ultimo: obj && d.ultimo === null ? null : diaOu(d.ultimo, hoje)
     };
   }
   // Pode resgatar: só com hoje inteiro, e se nunca resgatou ou hoje passou do último resgate.
@@ -4293,14 +4300,21 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ---------------------------------------------------------------------------------------------
   // Loja
   // ---------------------------------------------------------------------------------------------
-  function lojaSaneada(loja) {
-    var l = loja || {}, c = l.comprados || {}, comprados = {};
-    LIMITADOS.forEach(function (id) { comprados[id] = inteiro(c[id]) && c[id] > 0 ? c[id] : 0; });
-    return { dia: inteiro(l.dia) ? l.dia : null, comprados: comprados, estrelaDia: inteiro(l.estrelaDia) ? l.estrelaDia : null };
+  // Na dúvida, nada é liberado (Rulings 7 e 8): dia ou estrelaDia corrompido (nem dia de 0 a DIA_MAX nem null) vale
+  // hoje; compra do dia corrompida (nem inteiro de 0 ao limite) vale o limite; loja que não é objeto é tudo isso
+  // junto. null continua sendo "nunca".
+  function lojaSaneada(loja, hoje) {
+    var obj = objeto(loja), l = obj || {}, c = objeto(l.comprados) || {}, comprados = {};
+    LIMITADOS.forEach(function (id) { comprados[id] = inteiro(c[id]) && c[id] >= 0 && c[id] <= I[id].perDay ? c[id] : I[id].perDay; });
+    return {
+      dia: obj && l.dia === null ? null : diaOu(l.dia, hoje),
+      comprados: comprados,
+      estrelaDia: obj && l.estrelaDia === null ? null : diaOu(l.estrelaDia, hoje)
+    };
   }
   // Com hoje que não é inteiro, nada volta: a loja fica como está.
   function lojaDoDia(loja, hoje) {
-    var l = lojaSaneada(loja);
+    var l = lojaSaneada(loja, hoje);
     if (!inteiro(hoje) || (l.dia !== null && hoje <= l.dia)) return l;
     var zerados = {};
     LIMITADOS.forEach(function (id) { zerados[id] = 0; });
@@ -4335,6 +4349,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 
   var Itens = {
     SAL: SAL,
+    DIA_MAX: DIA_MAX,
     diaLocal: diaLocal,
     podeUsar: podeUsar,
     usarTorrao: usarTorrao,
@@ -9273,9 +9288,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // começa zerado, com a diária no dia 1 para resgatar; nada do save antigo muda. Campos novos da v7 (inteiro fora da
   // faixa, fração, texto, null ou objeto voltam ao padrão):
   //   state.mochila = { torrao, estrela, cupom, manual }: 0 a GameData.BAG_MAX (a Rédea nova fica em state.redeas);
-  //   state.diaria = { prox: 0–6, ciclos: ≥ 0, ultimo: dia do último resgate | null } (ultimo corrompido, nem dia nem
-  //     null, vale hojeDia(): na dúvida, já resgatado hoje; Itens.diariaEstado faz o mesmo);
+  //   state.diaria = { prox: 0–6, ciclos: ≥ 0, ultimo: dia do último resgate | null };
   //   state.lojaItens = { dia: dia | null, comprados: { torrao, manual, cupom } (0 ao limite do dia), estrelaDia: dia | null };
+  //   (dia ou limite corrompido num save v7 não libera nada: vale hojeDia() ou o limite; ver sanitize e Itens);
   //   state.itemCounter: usos sorteados (Cupom, Manual), inteiro ≥ 0; mount.torroes: 0 ao teto do Torrão;
   //   o deslocamento de dias da gaveta DEV: −400 a 400, só no save de teste (no jogo real o campo não existe; o nome
   //   fica nos blocos DEV, e o build.mjs falha se ele aparecer no jogo de produção).
@@ -9285,7 +9300,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   var REDEAS_MAX = 999;
   var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual
   var LOJA_LIMITADOS = ['torrao', 'manual', 'cupom'];   // os que têm limite por dia (perDay)
-  var DIA_MAX = IT.diaLocal(9999, 11, 31);   // dia guardado no save: inteiro de 0 a este
+  var DIA_MAX = IT.DIA_MAX;   // dia guardado no save: inteiro de 0 a este (diaLocal(9999, 11, 31))
   var BR = E.breeding;
   var MAX_LEVEL = E.maxLevel || 50;
 
@@ -9576,19 +9591,22 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     base.avisoV6 = v6 ? s.avisoV6 === true : true;
     // Itens, loja e diária (v7): save de antes da v7 fica com o padrão do newState (tudo zerado, o dia 1 para resgatar)
     
+    // Num save v7, dado de dia ou de limite corrompido não libera nada (Rulings 7 e 8): dia (ultimo, dia, estrelaDia)
+    // que não é null nem inteiro de 0 a DIA_MAX vale hoje; compra do dia corrompida vale o limite; diária ou loja que
+    // não é objeto é tudo isso junto. null continua sendo "nunca". Mochila, torrões e itemCounter corrompidos: 0.
     if (v7) {
-      var mch = objetoOu(s.mochila) || {}, di = objetoOu(s.diaria), lj = objetoOu(s.lojaItens) || {}, cp = objetoOu(lj.comprados) || {};
+      var hoje = hojeDia(base);
+      var diaOu = function (x) { return x === null ? null : inteiroOu(x, hoje, 0, DIA_MAX); };
+      var mch = objetoOu(s.mochila) || {}, di = objetoOu(s.diaria), lj = objetoOu(s.lojaItens), cp = lj && objetoOu(lj.comprados) || {};
       MOCHILA_IDS.forEach(function (id) { base.mochila[id] = inteiroOu(mch[id], 0, 0, GD.BAG_MAX); });
-      if (di) {
-        base.diaria = {
-          prox: inteiroOu(di.prox, 0, 0, GD.DAILY.dias.length - 1),
-          ciclos: inteiroOu(di.ciclos, 0, 0, 1e9),
-          ultimo: di.ultimo === null ? null : inteiroOu(di.ultimo, hojeDia(base), 0, DIA_MAX)
-        };
-      }
-      LOJA_LIMITADOS.forEach(function (id) { base.lojaItens.comprados[id] = inteiroOu(cp[id], 0, 0, GD.ITEMS[id].perDay); });
-      base.lojaItens.dia = inteiroOu(lj.dia, null, 0, DIA_MAX);
-      base.lojaItens.estrelaDia = inteiroOu(lj.estrelaDia, null, 0, DIA_MAX);
+      base.diaria = {
+        prox: inteiroOu(di && di.prox, 0, 0, GD.DAILY.dias.length - 1),
+        ciclos: inteiroOu(di && di.ciclos, 0, 0, 1e9),
+        ultimo: di ? diaOu(di.ultimo) : hoje
+      };
+      LOJA_LIMITADOS.forEach(function (id) { base.lojaItens.comprados[id] = inteiroOu(cp[id], GD.ITEMS[id].perDay, 0, GD.ITEMS[id].perDay); });
+      base.lojaItens.dia = lj ? diaOu(lj.dia) : hoje;
+      base.lojaItens.estrelaDia = lj ? diaOu(lj.estrelaDia) : hoje;
       base.itemCounter = inteiroOu(s.itemCounter, 0, 0, 1e9);
     }
     // Poder da sala (R16) = o maior entre o Poder do retrato dos pontos de quando a sala abriu (pending.alloc, tirado
@@ -9801,10 +9819,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     
     return dia;
   }
-  // Save gravado por uma versão mais nova do jogo: só quando v é número maior que SAVE_VERSION (v ausente ou lixo
-  // segue o caminho de sempre do sanitize).
+  // Save gravado por uma versão mais nova do jogo: Number(v) > SAVE_VERSION (vale também "8" em texto, que o sanitize
+  // leria como v7+; v ausente ou lixo dá NaN e segue o caminho de sempre do sanitize).
   function saveMaisNovo(s) {
-    return !!s && typeof s === 'object' && typeof s.v === 'number' && Number(s.v) > SAVE_VERSION;
+    return !!s && typeof s === 'object' && Number(s.v) > SAVE_VERSION;
   }
   // Achou um save mais novo (na leitura ao abrir, no evento de outra aba, no estado do hot ou ao gravar): o jogo
   // larga o state (nada mais grava: persist() sai sem tocar na chave) e mostra só a tela de bloqueio, com o
