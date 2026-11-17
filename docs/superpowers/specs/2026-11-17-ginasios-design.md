@@ -82,8 +82,9 @@ Cada ginásio tem **4 soldados e o líder**, sempre com cavalos do elemento do g
   repete (a revanche é só do líder, seção 8).
 - Os três ginásios têm **os mesmos níveis, entradas e prêmios** ("dificuldade comum"); mudam o elemento, a pista e os
   nomes. O jogador pode fazer as três trilhas em qualquer ordem e alternar entre elas.
-- Os cavalos dos soldados são **fixos no catálogo**: cada um tem cavalo-base (dos que o jogo já tem daquele elemento),
-  nível, estrelas, a distribuição de pontos dos bots e as skills. Nada neles é sorteado e nada muda com o jogador.
+- Os cavalos dos soldados são **fixos no catálogo**: todos têm a genética do cavalo inicial do elemento do ginásio, e
+  cada um tem o seu nível, as suas estrelas, a distribuição de pontos dos bots e as skills. Nada neles é sorteado e nada
+  muda com o jogador. (Nome e aparência próprios para cada cavalo, sem mexer na força, ficam para a lista de gosto.)
 - Raridade: Comum nos soldados 1 a 3; o soldado 4 e o líder podem ter um cavalo de raridade acima, se a calibração
   pedir para as metas da seção 12.
 - **Nomes** (proposta, gosto do Vinicius): ginásio "da Fornalha" (Fogo, líder Capitã Labareda), "do Remanso" (Água,
@@ -238,9 +239,9 @@ pontos dos cavalos dos soldados, a pista de cada ginásio, o percentual da vanta
 do cansaço e o XP por duelo. Se as metas não fecharem dentro disso, o executor para e leva a medição ao controlador,
 que decide com o Vinicius. A tabela final é mostrada ao Vinicius antes de as telas serem construídas.
 
-Em todas as metas, "time" é um time **do tamanho do time do adversário** naquela etapa: nas etapas de 1 cavalo, o
-cavalo inicial daquele elemento, sozinho; nas de 2 e 3, o inicial mais o Comum selvagem do elemento, alternados (os dois
-Comuns de um elemento têm forças bem diferentes). Metas (G2 e G3 ajustadas pela medição da calibração, 2026-11-17):
+Em todas as metas, "time" é um time **do tamanho do time do adversário** naquela etapa, feito do cavalo inicial daquele
+elemento repetido (os Comuns selvagens têm forças bem diferentes entre os elementos, e com eles a comparação entre os
+ginásios media o catálogo). Metas (G2 e G3 ajustadas pela medição da calibração, 2026-11-17):
 
 - **G1 — Na medida:** um time de cavalos Comuns do **mesmo elemento do ginásio**, no nível da etapa, com a
   distribuição sugerida, vence a etapa entre 40% e 55% das vezes. Vale para as cinco etapas; na primeira, é o cavalo
