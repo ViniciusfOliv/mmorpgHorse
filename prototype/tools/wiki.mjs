@@ -272,7 +272,7 @@ export function descreverAba(rotulo, F) {
     case 'Expedição': return `vitrine de ${F.vitrine.length} cavalos selvagens. Expedições e captura ainda não existem no protótipo.`
     case 'Haras': return 'cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.'
     case 'Loja': {
-      const venda = Object.keys(G.ITEMS).filter((id) => G.ITEMS[id].price != null).sort((x, y) => G.ITEMS[x].price - G.ITEMS[y].price)
+      const venda = G.SHOP_ORDER   // a ordem fixa da loja (Ruling 11)
       const itens = `em **Comprar**, os itens de uso (${lista(venda.map((id) => G.ITEMS[id].name))}) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os ${Object.keys(G.ITEMS).length} itens e quantos você tem de cada`
       return F.gearOn ? `${itens}; também peças de equipamento (menos as de raridade ${lista([...new Set(Object.keys(G.GEAR).filter((id) => !G.GEAR[id].shop).map((id) => nomeRar(G.GEAR[id].rarity)))])}) e Pedras Negras.` : itens + '.'
     }

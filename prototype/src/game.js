@@ -558,9 +558,8 @@
   var AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.';
   var REDEAS_MAX = 999;
   var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual
-  // os itens à venda (price), na ordem da loja: pelo preço (spec de itens §6: Torrão, Manual, Cupom, Estrela)
-  var LOJA_ITENS = Object.keys(GD.ITEMS).filter(function (id) { return GD.ITEMS[id].price != null; })
-    .sort(function (a, b) { return GD.ITEMS[a].price - GD.ITEMS[b].price; });
+  // os itens à venda, na ordem fixa da loja (GameData.SHOP_ORDER, spec de itens §6: Torrão, Manual, Cupom, Estrela)
+  var LOJA_ITENS = GD.SHOP_ORDER.filter(function (id) { return hasOwn(GD.ITEMS, id) && GD.ITEMS[id].price != null; });
   // os que têm limite por dia (perDay), tirados do catálogo (o itens.js lê os mesmos campos): torrao, manual, cupom
   var LOJA_LIMITADOS = LOJA_ITENS.filter(function (id) { return !!GD.ITEMS[id].perDay; });
   var DIA_MAX = IT.DIA_MAX;   // dia guardado no save: inteiro de 0 a este (diaLocal(9999, 11, 31))
@@ -3169,17 +3168,16 @@
   // (itens.js); aqui só se mostra e se grava. Com GEAR_ON, a parte Comprar também mostra as peças e as Pedras.
   // ===========================================================================
   var LOJA_PARTES = [{ id: 'comprar', rotulo: 'Comprar' }, { id: 'mochila', rotulo: 'Mochila' }];
-  // o plural do nome, para a quantidade lida como "3 Torrões de açúcar" (spec §13)
-  var ITEM_PLURAL = { torrao: 'Torrões de açúcar', estrela: 'Estrelas de treino', redea: 'Rédeas novas',
-    cupom: 'Cupons de troca de skill', manual: 'Manuais de doma' };
-  // o rótulo do botão de compra por motivo do Itens.podeComprar
+  // o rótulo do botão de compra por motivo do Itens.podeComprar (motivo sem rótulo: LOJA_ROTULO_OUTRO, nunca "Comprar")
+  var LOJA_ROTULO_OUTRO = 'Indisponível';
   var LOJA_ROTULO = { 'sem-ouro': 'Sem Ouro', reservado: 'Reservado', limite: 'Limite de hoje', cheia: 'Mochila cheia', 'nao-vende': 'Não está à venda' };
   // quantos o jogador tem do item (a Rédea nova fica em state.redeas; a mochila só a mostra)
   function itemQtd(id) {
     if (id === 'redea') return state.redeas;
     return state.mochila && hasOwn(state.mochila, id) ? state.mochila[id] : 0;
   }
-  function itemQtdTxt(id, n) { return fmt(n) + ' ' + (n === 1 ? GD.ITEMS[id].name : ITEM_PLURAL[id]); }
+  // a quantidade lida como "3 Torrões de açúcar" (spec §13): o plural vem do catálogo
+  function itemQtdTxt(id, n) { return fmt(n) + ' ' + (n === 1 ? GD.ITEMS[id].name : GD.ITEMS[id].plural); }
   // o ícone do item (peça de pixel item-<id> do interface-arte.mjs, em background): decorativo, o nome vem ao lado
   function itemIconeHtml(id) {
     return hasOwn(GD.ITEMS, id) ? '<span class="item-icone item-icone--' + esc(id) + '" aria-hidden="true"></span>' : '';
@@ -3187,7 +3185,7 @@
   // A linha de um item: ícone, nome, a quantidade e a linha de para que serve. Usada na loja, na mochila e na escolha
   // do uso. opções: { qtd: número (sem ele, não mostra a quantidade), forma: 'x' (×3, padrão) | 'tem' (tem 3), texto: a
   // linha de baixo (padrão: o para que serve do catálogo), apagada: true (a linha de quantidade 0), classe: classe a mais,
-  // extra: html no fim da linha (preço, botões), nivel: 'h2' (padrão) | 'h3' }. O leitor de tela lê a quantidade como
+  // extra: html no fim da linha (preço, botões), aviso: texto de um aviso no fim da linha, nivel: 'h2' (padrão) | 'h3' }. O leitor de tela lê a quantidade como
   // "3 Torrões de açúcar" (o ×3 é aria-hidden).
   function itemLinhaHtml(id, o) {
     if (!hasOwn(GD.ITEMS, id)) return '';
@@ -3198,7 +3196,7 @@
       qtd = '<span class="item-qtd"><span aria-hidden="true">' + (tem ? 'tem ' : '×') + fmt(o.qtd) + '</span>' +
         '<span class="sr">' + esc((tem ? 'Você tem ' : '') + itemQtdTxt(id, o.qtd)) + '</span></span>';
     }
-    var aviso = ui.lojaMsg && ui.lojaMsg.id === id && ui.screen === 'loja' ? '<p class="aviso item-aviso">' + esc(ui.lojaMsg.txt) + '</p>' : '';
+    var aviso = o.aviso ? '<p class="aviso item-aviso">' + esc(o.aviso) + '</p>' : '';
     return '<article class="item-linha' + (o.classe ? ' ' + o.classe : '') + (o.apagada ? ' item-linha--vazia' : '') + '" data-item="' + esc(id) + '">' +
       itemIconeHtml(id) + '<' + h + ' class="item-nome">' + esc(it.name) + '</' + h + '>' + qtd +
       '<p class="item-desc">' + esc(o.texto != null ? o.texto : it.desc) + '</p>' + (o.extra || '') + aviso + '</article>';
@@ -3217,21 +3215,21 @@
       default: return it.name + ' não está à venda.';
     }
   }
-  // o limite do dia do produto, sem contar Ouro nem mochila ("1 de 2 hoje"; na Estrela, "disponível" ou "de novo em N dias")
+  // o limite do dia do produto, sem contar Ouro nem mochila ("Restam 1 de 2 hoje", Ruling 10; na Estrela, "disponível" ou "de novo em N dias")
   function lojaLimiteHtml(id, hoje) {
     var it = GD.ITEMS[id], l = IT.podeComprar(id, state.lojaItens, hoje, Infinity, Infinity, 0);
     if (it.everyDays) {
       var txt = l.ok ? 'disponível' : l.emDias ? 'de novo em ' + l.emDias + (l.emDias === 1 ? ' dia' : ' dias') : 'Limite de hoje';
       return '<span class="item-limite">' + esc(txt) + '</span>';
     }
-    return '<span class="item-limite"><span class="sr">Ainda pode comprar </span>' + esc((l.ok ? l.restam : 0) + ' de ' + it.perDay + ' hoje') + '</span>';
+    return '<span class="item-limite">' + esc('Restam ' + (l.ok ? l.restam : 0) + ' de ' + it.perDay + ' hoje') + '</span>';
   }
   function lojaProdutoHtml(id) {
     var it = GD.ITEMS[id], hoje = hojeDia(), tem = itemQtd(id);
     var p = IT.podeComprar(id, state.lojaItens, hoje, state.gold, ouroLivre(), tem);
     var botao = '<button type="button" class="btn btn--ouro btn--pequeno" data-acao="item-comprar" data-id="' + esc(id) + '"' +
-      (p.ok ? '' : indisponivel(lojaMotivo(id, p))) + '>' + esc(p.ok ? 'Comprar' : LOJA_ROTULO[p.motivo] || 'Comprar') + '<span class="sr"> ' + esc(it.name) + '</span></button>';
-    return itemLinhaHtml(id, { qtd: tem, forma: 'tem', classe: 'item-linha--produto',
+      (p.ok ? '' : indisponivel(lojaMotivo(id, p))) + '>' + esc(p.ok ? 'Comprar' : hasOwn(LOJA_ROTULO, p.motivo) ? LOJA_ROTULO[p.motivo] : LOJA_ROTULO_OUTRO) + '<span class="sr"> ' + esc(it.name) + '</span></button>';
+    return itemLinhaHtml(id, { qtd: tem, forma: 'tem', classe: 'item-linha--produto', aviso: ui.lojaMsg && ui.lojaMsg.id === id ? ui.lojaMsg.txt : null,
       extra: '<div class="item-compra"><span class="item-preco">' + ouroHtml(it.price) + lojaLimiteHtml(id, hoje) + '</span>' + botao + '</div>' });
   }
   function lojaComprarHtml() {

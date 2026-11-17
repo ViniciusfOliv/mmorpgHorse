@@ -372,7 +372,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .item-qtd { grid-column: 3; grid-row: 1; justify-self: end; font-weight: 700; line-height: 24px; white-space: nowrap; }
 .item-desc { grid-column: 2 / -1; margin: 0; font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }
 .item-compra { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
-.item-preco { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; min-width: 0; }
+.item-preco { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }   /* o preço e, embaixo, o limite do dia */
+.item-compra .btn { margin-left: auto; }   /* sem espaço na linha, o botão desce para a direita */
 .item-limite { font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }
 .item-linha > .aviso, .item-linha > .motivo { grid-column: 1 / -1; margin: 4px 0 0; }
 /* quantidade 0 (mochila): a linha apagada, com a frase de onde o item vem */

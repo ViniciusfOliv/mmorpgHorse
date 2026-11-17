@@ -471,36 +471,40 @@
   // lugar, para ajustar depois de jogar (spec 2026-11-16 §4, §6, §7 e §11).
   //   price: Ouro na loja (null = não se vende); perDay: compras por dia; everyDays: 1 compra a cada N dias;
   //   cap (Torrão): torrões por cavalo; chance (Manual): chance de aprender.
+  //   plural: o nome no plural (a quantidade lida como "3 Torrões de açúcar");
   //   desc: para que serve; origem: de onde vem (a mochila mostra com quantidade 0). Sem números de
   //   regra no texto: quem mostra o limite ou a chance lê os campos acima.
   // ---------------------------------------------------------------------------------------------
   var ITEMS = {
     torrao: {
-      id: 'torrao', name: 'Torrão de açúcar', price: 120, perDay: 2, cap: 10,
+      id: 'torrao', name: 'Torrão de açúcar', plural: 'Torrões de açúcar', price: 120, perDay: 2, cap: 10,
       desc: 'O cavalo ganha 1 ponto a mais para distribuir, para sempre.',
       origem: 'Compre na loja ou ganhe no 2º dia da recompensa diária.'
     },
     estrela: {
-      id: 'estrela', name: 'Estrela de treino', price: 2000, everyDays: 7,
+      id: 'estrela', name: 'Estrela de treino', plural: 'Estrelas de treino', price: 2000, everyDays: 7,
       desc: 'O cavalo sobe 1 estrela; os pontos a mais aparecem para distribuir.',
       origem: null   // montada abaixo, com os números de everyDays e de DAILY.estrelaACada
     },
     redea: {
-      id: 'redea', name: 'Rédea nova', price: null,
+      id: 'redea', name: 'Rédea nova', plural: 'Rédeas novas', price: null,
       desc: 'Redistribui os pontos do cavalo (a primeira redistribuição de cada cavalo é grátis).',
       origem: 'Vem no 7º dia da recompensa diária; não está à venda.'
     },
     cupom: {
-      id: 'cupom', name: 'Cupom de troca de skill', price: 250, perDay: 1,
+      id: 'cupom', name: 'Cupom de troca de skill', plural: 'Cupons de troca de skill', price: 250, perDay: 1,
       desc: 'Uma skill das vagas sai e entra outra, sorteada entre as que o cavalo pode aprender.',
       origem: 'Compre na loja ou ganhe no 6º dia da recompensa diária.'
     },
     manual: {
-      id: 'manual', name: 'Manual de doma', price: 200, perDay: 1, chance: 0.35,
+      id: 'manual', name: 'Manual de doma', plural: 'Manuais de doma', price: 200, perDay: 1, chance: 0.35,
       desc: 'O cavalo tenta aprender uma skill na hora; o manual é gasto mesmo se ele não aprender.',
       origem: 'Compre na loja ou ganhe no 4º dia da recompensa diária.'
     }
   };
+  // A ordem dos produtos na loja: fixa, a da spec §6 (não segue o preço); só itens com price. A mochila mostra os cinco
+  // na ordem das chaves de ITEMS.
+  var SHOP_ORDER = ['torrao', 'manual', 'cupom', 'estrela'];
   // Teto da mochila por item (Torrão, Estrela, Cupom, Manual); a Rédea nova tem o teto dela no save (999).
   var BAG_MAX = 99;
   // Recompensa diária: calendário de 7 dias, sem sorteio. O 7º dia de cada estrelaACada-ésimo calendário
@@ -589,6 +593,7 @@
     LEAGUES: LEAGUES,
     ECONOMY: ECONOMY,
     ITEMS: ITEMS,
+    SHOP_ORDER: SHOP_ORDER,
     BAG_MAX: BAG_MAX,
     DAILY: DAILY,
     FOAL_NAMES: FOAL_NAMES,

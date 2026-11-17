@@ -1603,7 +1603,15 @@ test('catálogo: 5 itens na ordem, preços, limites, chance, mochila e diária',
     assert.strictEqual(I[k].id, k);
     assert.ok(typeof I[k].desc === 'string' && I[k].desc.length > 10 && I[k].desc.indexOf('\n') < 0, k + ' desc');
     assert.ok(typeof I[k].origem === 'string' && I[k].origem.length > 10 && I[k].origem.indexOf('\n') < 0, k + ' origem');
+    // o plural do nome (a quantidade lida como "3 Torrões de açúcar"): texto, diferente do nome
+    assert.ok(typeof I[k].name === 'string' && I[k].name.length > 3, k + ' name');
+    assert.ok(typeof I[k].plural === 'string' && I[k].plural.length > 3 && I[k].plural !== I[k].name, k + ' plural');
   });
+  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].plural; }), ['Torrões de açúcar', 'Estrelas de treino', 'Rédeas novas', 'Cupons de troca de skill', 'Manuais de doma']);
+  // a ordem da loja é fixa no catálogo (Ruling 11, spec §6), não a do preço: só itens à venda, cada um uma vez
+  assert.deepStrictEqual(G.SHOP_ORDER, ['torrao', 'manual', 'cupom', 'estrela']);
+  G.SHOP_ORDER.forEach(function (k) { assert.ok(Object.prototype.hasOwnProperty.call(I, k) && I[k].price > 0, 'SHOP_ORDER: ' + k + ' sem preço'); });
+  assert.deepStrictEqual(Object.keys(I).filter(function (k) { return I[k].price != null; }).sort(), G.SHOP_ORDER.slice().sort(), 'SHOP_ORDER tem todos os itens à venda');
   assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].price; }), [120, 2000, null, 250, 200]);
   assert.strictEqual(I.torrao.perDay, 2); assert.strictEqual(I.cupom.perDay, 1); assert.strictEqual(I.manual.perDay, 1);
   assert.strictEqual(I.torrao.cap, 10); assert.strictEqual(I.estrela.everyDays, 7); assert.strictEqual(I.manual.chance, 0.35);

@@ -1422,6 +1422,8 @@ try {
         if (disco.gold !== d.gold || !igual(disco.mochila, d.mochila) || !igual(disco.lojaItens, d.lojaItens)) problems.push(`${label} ${tag}: a compra de ${id} não foi gravada junto (Ouro, mochila e limites)`)
         const foco = await pg.evaluate(() => { const e = document.activeElement; return e && e.getAttribute('data-acao') + ':' + e.getAttribute('data-id') })
         if (foco !== 'item-comprar:' + id) problems.push(`${label} ${tag}: o foco saiu do botão de compra (${foco})`)
+        // o aviso da compra entra na linha daquele produto (e só nela)
+        if (!(await linha(id).locator('.item-aviso').textContent().catch(() => '')).includes('Comprou 1 ' + G.ITEMS[id].name) || (await pg.locator('#tela .item-aviso').count()) !== 1) problems.push(`${label} ${tag}: sem o aviso da compra só na linha de ${id}`)
       }
       try {
         await pg.waitForSelector('#t-estabulo')   // o modo DEV abre direto no Estábulo
@@ -1447,16 +1449,17 @@ try {
         }
         if ((await linha('redea').count()) !== 1 || (await linha('redea').locator('button').count()) !== 0 || (await botao('redea').count()) !== 0) problems.push(`${label}: a linha da Rédea nova falta ou tem botão`)
         else if (!(await textoAcessivel(linha('redea'))).includes(G.ITEMS.redea.origem)) problems.push(`${label}: a linha da Rédea nova não diz de onde ela vem: ${await textoAcessivel(linha('redea'))}`)
-        if (!/2 de 2 hoje/.test(await txtLinha('torrao')) || !/1 de 1 hoje/.test(await txtLinha('manual')) || !/disponível/.test(await txtLinha('estrela'))) problems.push(`${label}: limites de hoje antes de comprar: ${await txtLinha('torrao')} | ${await txtLinha('estrela')}`)
+        if (!/Restam 2 de 2 hoje/.test(await txtLinha('torrao')) || !/Restam 1 de 1 hoje/.test(await txtLinha('manual')) || !/disponível/.test(await txtLinha('estrela'))) problems.push(`${label}: limites de hoje antes de comprar: ${await txtLinha('torrao')} | ${await txtLinha('estrela')}`)
         // Torrão: 1, 2 e o 3º no limite; o dia seguinte devolve o limite e voltar o dia não
         await compra('torrao', '1º torrão')
-        if (!/1 de 2 hoje/.test(await txtLinha('torrao'))) problems.push(`${label}: depois de 1 torrão: ${await txtLinha('torrao')}`)
+        if (!/Restam 1 de 2 hoje/.test(await txtLinha('torrao'))) problems.push(`${label}: depois de 1 torrão: ${await txtLinha('torrao')}`)
+        if (/Ainda pode comprar/.test(await txtLinha('torrao')) || !/^Restam 1 de 2 hoje$/.test(((await linha('torrao').locator('.item-limite').textContent()) || '').trim())) problems.push(`${label}: o limite não se lê "Restam 1 de 2 hoje" (visível e para o leitor de tela): ${await txtLinha('torrao')}`)
         if (!/tem 1\b/.test(await txtLinha('torrao'))) problems.push(`${label}: o produto não diz quantos o jogador tem: ${await txtLinha('torrao')}`)
         await compra('torrao', '2º torrão')
         await recusa('torrao', 'Limite de hoje', '3º torrão')
-        if (!/0 de 2 hoje/.test(await txtLinha('torrao'))) problems.push(`${label}: no limite: ${await txtLinha('torrao')}`)
+        if (!/Restam 0 de 2 hoje/.test(await txtLinha('torrao'))) problems.push(`${label}: no limite: ${await txtLinha('torrao')}`)
         await dev('dev-dia-mais')
-        if ((await txtBotao('torrao')).indexOf('Comprar') !== 0 || !/2 de 2 hoje/.test(await txtLinha('torrao'))) problems.push(`${label}: "Avançar 1 dia" não devolveu o limite: ${await txtLinha('torrao')}`)
+        if ((await txtBotao('torrao')).indexOf('Comprar') !== 0 || !/Restam 2 de 2 hoje/.test(await txtLinha('torrao'))) problems.push(`${label}: "Avançar 1 dia" não devolveu o limite: ${await txtLinha('torrao')}`)
         await compra('torrao', 'torrão do dia seguinte')
         await compra('torrao', '2º torrão do dia seguinte')
         await dev('dev-dia-menos')
@@ -1535,6 +1538,29 @@ try {
         await pg.waitForSelector('#t-largada')
         const sala2 = await salaAtual(pg)
         if (sala2.seed !== sala.seed || sala2.counter !== sala.counter || sala2.rivais !== sala.rivais) problems.push(`${label}: a sala foi re-sorteada depois do toque em "Reservado" ${JSON.stringify({ sala, sala2 })}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 8b. a ordem da loja é a do catálogo (GameData.SHOP_ORDER, Ruling 11), não a do preço: com os preços trocados antes de o
+    //     jogo carregar (o Torrão o mais caro, a Estrela o mais barato), a loja e o rótulo de preço seguem na mesma ordem
+    {
+      const label = 'itens-loja-ordem'
+      const init = () => {
+        let gd
+        Object.defineProperty(window, 'GameData', { configurable: true, get: () => gd, set: (v) => { v.ITEMS.torrao.price = 5000; v.ITEMS.estrela.price = 50; v.ITEMS.manual.price = 900; v.ITEMS.cupom.price = 300; gd = v } })
+      }
+      const pg = await newPage(browser, VP, label, { query: '?dev=1', init })
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        if ((await pg.evaluate(() => window.GameData.ITEMS.torrao.price)) !== 5000) problems.push(`${label}: os preços não foram trocados (o teste não prova nada)`)
+        await pg.locator('[data-acao="aba"][data-id="loja"]').click()
+        await pg.waitForSelector('#t-loja')
+        const prods = await pg.locator('#tela .item-linha--produto').evaluateAll((ls) => ls.map((l) => l.getAttribute('data-item')))
+        if (!igual(prods, G.SHOP_ORDER) || !igual(prods, ['torrao', 'manual', 'cupom', 'estrela'])) problems.push(`${label}: com os preços trocados, a loja ficou em ${prods.join(',')} (esperado torrao,manual,cupom,estrela)`)
+        if (!/5\.000/.test((await pg.locator('#tela .item-linha[data-item="torrao"]').textContent()) || '')) problems.push(`${label}: o Torrão não mostra o preço trocado`)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
