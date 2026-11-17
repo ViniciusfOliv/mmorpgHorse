@@ -1,6 +1,6 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-16._
+_Atualizado em 2026-11-17._
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
 durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o
@@ -173,13 +173,58 @@ do Vinicius, antes de ele jogar; a lista de gosto abaixo continua aberta.
   https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 12). Os artefatos oficiais (jogo, DEV e wiki, em "Onde jogar")
   foram republicados no mesmo dia, depois da integração na `main`, com o build e9460f4.
 
+## Itens, mochila, loja e recompensa diária (pronta em 2026-11-17 na `claude/itens-loja-diaria`, sem merge)
+Spec aprovada pelo Vinicius em `docs/superpowers/specs/2026-11-16-itens-loja-diaria-design.md`, plano em
+`docs/superpowers/plans/2026-11-16-itens-loja-diaria.md` (6 tarefas); regra em `docs/GDD.md` §8.2 e §8.2a; números no
+wiki (seção "Itens e recompensa diária"); decisões em `decisoes.md` (2026-11-16 e 2026-11-17). **A frente está pronta na
+branch e não entrou na `main`: quem decide a integração é o Vinicius.**
+- **O que entrou:** os cinco itens (Torrão de açúcar, Estrela de treino, Rédea nova, Cupom de troca de skill e Manual de
+  doma); a aba **Loja** de volta como 5ª aba, com as partes Comprar (só Ouro: Torrão 120, 2 por dia; Manual 200, 1 por dia;
+  Cupom 250, 1 por dia; Estrela 2.000, 1 a cada 7 dias) e Mochila (até 99 de cada; Rédeas até 999); o uso pela Mochila e
+  pela ficha do cavalo (Torrão e Estrela na aba Status; Manual e o Trocar do Cupom na aba Skills); a recompensa diária num
+  cartão no topo do Estábulo, com um ponto na aba Estábulo enquanto há prêmio (7 dias: 60 de Ouro · Torrão · 100 de Ouro ·
+  Manual · 150 de Ouro · Cupom · 200 de Ouro e Rédea nova; a cada 4 calendários, também uma Estrela). Save na versão 7,
+  com a proteção contra save de versão mais nova (não é adotado nem gravado por cima). Os números ficam em
+  `GameData.ITEMS` e `GameData.DAILY` (`prototype/src/data.js`). A Rédea nova passa a vir jogando (7º dia da diária).
+- **Verificação:** `./scripts/check.sh` termina em `VERIFICAÇÃO COMPLETA: OK` (157 testes de simulação, 117 de efeitos, 171 de moldes, 650 conferências do wiki, 87 metas no balanço rápido e o
+  teste de interface; contagem de 2026-11-17, fim da frente). O `balance.js` completo rodou em 2026-11-17 (279 s): as 165 metas passam, sem mudança (os bots não usam
+  itens). Capturas oficiais de `prototype/screens/` regeneradas, com quatro novas: `final-20-loja.png`,
+  `final-21-mochila.png`, `final-22-diaria.png` (o Estábulo com o cartão grande) e `final-23-ficha-itens.png` (aba Status
+  com "Usar Torrão de açúcar" e "Usar Estrela de treino"). Folha da interface com o produto da loja, a linha da mochila e
+  o cartão da diária (seções 4.18 a 4.20).
+- **A confirmar com o Vinicius (gosto, itens):**
+  1. **Ícone da Rédea nova:** pouco reconhecível. Os cinco ícones de item são desenhos em código (16×16), sem créditos.
+  2. **Loja, texto do limite:** "Restam N de M hoje"; na Estrela, em quantos dias ela volta.
+  3. **Loja, ordem dos produtos:** fixa (Torrão, Manual, Cupom, Estrela), e não por preço.
+  4. **Loja, botão quando não dá para comprar:** "Limite de hoje", "Reservado", "Sem Ouro" ou "Mochila cheia". Não há
+     botão ⓘ por item: a explicação é a linha de descrição do próprio produto.
+  5. **Loja, aviso de compra:** fica na linha do produto até trocar de parte.
+  6. **Ficha, aba Status:** "Usar Torrão de açúcar" e "Usar Estrela de treino" ficam dentro do bloco do Redistribuir e
+     só aparecem com o item na mochila; com os dois, a aba fica 116 px mais alta.
+  7. **Confirmação do Manual de doma:** mostra a chance (35%) e avisa que o manual é gasto mesmo se o cavalo não aprender;
+     o resultado só é sorteado depois do "Confirmar".
+  8. **Outra aba no meio de um uso de item:** a tela fica onde está, é desenhada de novo com o progresso mais recente e
+     confere tudo de novo (antes voltava ao Estábulo).
+  9. **Diária, altura:** com prêmio para resgatar, o Estábulo de 3 cavalos não cabe mais numa tela (836 px numa tela de
+     780; 860 no dia da Estrela); com a diária resgatada mede 780. Com 6 cavalos: 1.172 com prêmio (1.196 no dia da
+     Estrela; limite 1.210) e 1.076 resgatada.
+  10. **Diária, depois de resgatar:** o cartão vira uma linha com o prêmio de amanhã, sem "Ver os 7 dias" (os sete dias só
+      se veem quando há prêmio para resgatar).
+  11. **Diária, arranjo do cartão grande:** o "N / 7" abre a linha do prêmio (no esboço da spec ficava na linha do título)
+      e o prêmio vai só em texto, sem ícone — o ícone fazia o prêmio mais longo passar do limite de altura.
+  12. **Ponto na aba Estábulo:** só visual, como o da aba Correr (sem texto para leitor de tela).
+- **Pendências aceitas:**
+  - **Relógio para a frente:** adiantar a data do aparelho libera a diária e os limites da loja. Sem servidor não há como
+    impedir; fica aceito até o online (o Vinicius foi avisado em 2026-11-16). Voltar o relógio não libera nada.
+  - **Loja de equipamento** (suspensa, `GEAR_ON = false`): quando religada, aparece dentro da parte "Comprar"; esse caminho
+    não tem teste ligado.
+
 ## Em andamento
-- **Itens, mochila, loja e recompensa diária (branch `claude/itens-loja-diaria`, em execução desde 2026-11-16):** spec
-  aprovada pelo Vinicius (`docs/superpowers/specs/2026-11-16-itens-loja-diaria-design.md`), plano em
-  `docs/superpowers/plans/2026-11-16-itens-loja-diaria.md` (6 tarefas, por subagentes). Decisões em `decisoes.md`
-  (2026-11-16). Os ginásios são o desenho seguinte. O galope ficou como está (decisão dele no mesmo dia).
-- **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); desenho depois do bloco 1b, que também traz a fonte da Rédea nova. Cada ginásio tem o
-  foco num elemento.
+- **Itens, mochila, loja e recompensa diária:** pronta na branch `claude/itens-loja-diaria`, **sem merge** (seção própria,
+  acima). A integração na `main` é decisão do Vinicius. Os ginásios são o desenho seguinte. O galope ficou como está
+  (decisão dele em 2026-11-16).
+- **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); o desenho vem depois da frente de itens e usa os itens como prêmio.
+  Cada ginásio tem o foco num elemento.
 - **Frente "interface" da Visuais 2 integrada na `main` em 2026-11-16, com as listas de gosto abertas:** a 3c (tela da
   corrida) ficou pronta em 2026-11-16 (seção própria acima, com a lista "A confirmar com o Vinicius (gosto, 3c)"); com a 3a
   e a 3b, a frente está inteira. O Vinicius escolheu integrar antes de jogar; o que ele mudar ao jogar entra como ajuste
@@ -239,8 +284,9 @@ do Vinicius, antes de ele jogar; a lista de gosto abaixo continua aberta.
 - **Blocos 2 a 7 do redesenho** (`docs/GDD.md` §8), cada um com spec própria: preparação com relógio,
   empacotamento (espera a resposta sobre o Capacitor), itens de treino e gastos de Ouro, tempo e
   estábulo ativo, loja de Gemas, online.
-- **Redistribuição:** a primeira de cada cavalo é grátis; depois só com a Rédea nova, que não tem fonte no
-  jogo normal até os ginásios (só a gaveta DEV). Nenhum item sobe estrela até o bloco 4.
+- **Redistribuição:** a primeira de cada cavalo é grátis; depois só com a Rédea nova. Na `main` ela ainda só vem da
+  gaveta DEV; na `claude/itens-loja-diaria` (sem merge) vem no 7º dia da recompensa diária, e a Estrela de treino sobe
+  estrela.
 - **O Vinicius ainda não jogou o modelo novo:** os números saíram de simulação.
 - **Balanço:** M6, M9, P1, S1 e A1 só são vigiadas pelo `balance.js` completo.
 
@@ -251,7 +297,9 @@ do Vinicius, antes de ele jogar; a lista de gosto abaixo continua aberta.
 - **Os iniciais no nível 25 caem para a Prata** (eram Ouro): o meio da progressão ficou mais lento.
 - **A Sorte vale pouco** (0,7 p.p. na corrida), por desenho: só de nascimento, mexe no Dado e na chance de skill.
 - **Sem fonte de Rédea nova** no jogo normal até os ginásios: quem gastar a redistribuição grátis só muda a build pelo DEV.
-- **O Ouro tem menos uso:** a loja de peças some; sobram entradas, cruza e troca do Haras.
+  (Resolvido na `claude/itens-loja-diaria`, sem merge: a Rédea vem no 7º dia da recompensa diária.)
+- **O Ouro tem menos uso:** a loja de peças some; sobram entradas, cruza e troca do Haras. (Na `claude/itens-loja-diaria`,
+  sem merge, a loja de itens e a diária dão entrada e saída de Ouro.)
 - **Folga de ~1 p.p.** nas metas rebaseadas sobre o pior caso de 4 bases de seed; mexer na RNG pede a faixa de novo.
 - **Equipamento suspenso:** voltar (talvez como cosmético) e a ferradura de tração do bloco 2 ficam em aberto.
 - **Decisões do Vinicius ainda abertas:** o empacotador (a pergunta sobre o Capacitor ficou sem
@@ -270,11 +318,18 @@ do Vinicius, antes de ele jogar; a lista de gosto abaixo continua aberta.
   0,47–0,57 s em x1 (1,8 a 2,1 por segundo; o galope real fica em 2,2–2,5) e 1,2–1,6 s na câmera lenta. Sugestão do
   teste: ritmo 1,25×, abertura 100%, balanço 1, tempo 40%. **Decisão do Vinicius depois de ver o teste (2026-11-16): o galope fica como está**; nada entrou no jogo, e o assunto só volta com a 2c (quadros novos), se ele quiser.
 - **Antes do próximo aumento de versão do save:** pôr uma guarda para save de versão maior que a do
-  código (não adotar nem gravar por cima, e avisar para atualizar a página).
+  código (não adotar nem gravar por cima, e avisar para atualizar a página). (Feito na `claude/itens-loja-diaria`, junto
+  com o save versão 7; entra na `main` com a frente.)
 - **Pendências menores:** `docs/memoria/bugs.md`.
 - **GDD §9+:** expedições, tecnologia do servidor, anti-trapaça, PVP assíncrono e ranqueada.
 
 ## Próximos passos
+- **Frente de itens:** o Vinicius joga a `claude/itens-loja-diaria`, decide a lista "A confirmar com o Vinicius (gosto,
+  itens)" e se ela entra na `main`.
+- **Ginásios (`docs/GDD.md` §8.6):** desenho próprio (spec, revisão do Vinicius, plano e execução), usando os itens como
+  prêmio.
+- **Depois da frente de itens: acelerar o teste de interface**, rodando os blocos em paralelo, para o `check.sh` voltar a
+  ~5 min (decisão do Vinicius de 2026-11-17, em `decisoes.md`).
 0. O Vinicius joga a 3a, a 3b e a 3c nos artefatos oficiais (jogo, DEV e wiki, republicados com a integração; a folha
    da interface mostra os componentes) e decide as listas "A confirmar com o Vinicius (gosto, 3a)", "(gosto, 3b)" e
    "(gosto, 3c)" (acima); o que ele mudar entra como ajuste por cima da `main`.

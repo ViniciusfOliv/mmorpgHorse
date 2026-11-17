@@ -209,6 +209,11 @@ for (const [dia, premio] of [['1º', '60 de Ouro'], ['2º', '1 Torrão de açúc
   confere(a.md.includes(`| ${dia} | ${premio} |`), `tabela da recompensa diária: ${dia} dia devia dar ${premio}`)
 }
 confere(!a.md.includes('Ainda não existe item que sobe estrela'), 'seção Raridades ainda diz que não existe item que sobe estrela')
+// a loja como o jogo a mostra (Tarefa 6): a ordem fixa, o "Restam N de M hoje" e os rótulos do botão; onde cada item se usa
+confere(a.md.includes('nesta ordem: Torrão de açúcar, Manual de doma, Cupom de troca de skill e Estrela de treino'), 'wiki sem a ordem fixa da loja')
+confere(a.md.includes('"Restam 1 de 2 hoje"') && ['Limite de hoje', 'Mochila cheia', 'Sem Ouro', 'Reservado'].every((r) => a.md.includes(`"${r}"`)), 'wiki sem o limite do dia ("Restam N de M hoje") ou sem os rótulos do botão de compra')
+confere(/\*\*Onde se usa:\*\*[^\n]*aba Status[^\n]*aba Skills/.test(a.md), 'wiki sem onde cada item se usa (Mochila e ficha)')
+confere(!/recursos que vão usá-los \(Rédeas/.test(a.md), 'wiki ainda diz que as Rédeas não existem no jogo (Ícones reservados)')
 
 // 3. chave desconhecida quebra
 lanca(() => descreverEfeito({ speedMult: 1.1, chaveInventada: 3 }), 'effect com chave inventada')

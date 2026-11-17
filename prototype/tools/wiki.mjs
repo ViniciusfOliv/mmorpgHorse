@@ -84,7 +84,9 @@ function lerFonte() {
     notas: extrair(game, /function notaGenetica\(g\) \{ return g >= (\d+) \? 'S' : g >= (\d+) \? 'A' : g >= (\d+) \? 'B' : 'C'; \}/, 'as notas de genética (notaGenetica)').slice(1, 4).map(Number),
     moldePista: extrair(sim, /var c1 = corte\(([\d.]+)\), c2 = corte\(([\d.]+)\), c3 = corte\(([\d.]+)\), c4 = corte\(([\d.]+)\);/, 'o molde fixo da pista').slice(1, 5).map(Number),
     statMin: numDe(sim, /clamp\(Math\.round\(naturalStat\(horse, k\) \+ alloc\[k\]\), (\d+), T\.statMax\)/, 'o piso do status (computeStats)'),
-    redeasMax: numDe(game, /var REDEAS_MAX = (\d+);/, 'REDEAS_MAX')
+    redeasMax: numDe(game, /var REDEAS_MAX = (\d+);/, 'REDEAS_MAX'),
+    // os rótulos do botão de compra da loja de itens, por motivo (LOJA_ROTULO), na ordem em que o Itens.podeComprar confere
+    lojaRotulo: Object.fromEntries([...extrair(game, /var LOJA_ROTULO = \{([^}]*)\};/, 'LOJA_ROTULO')[1].matchAll(/'?([\w-]+)'?: '([^']+)'/g)].map((m) => [m[1], m[2]]))
   }
 }
 
@@ -267,13 +269,13 @@ export function efeitoGeralClima(id) {
 /** O que cada aba do jogo faz hoje. Lança erro em aba desconhecida. */
 export function descreverAba(rotulo, F) {
   switch (rotulo) {
-    case 'Estábulo': return `suas montarias (${BR.stableSlotsStart} vagas no começo, até ${BR.stableSlotsMax}), status, ${F.gearOn ? 'skills e equipamento' : 'skills e a redistribuição dos pontos'}; escolher a ativa.`
+    case 'Estábulo': return `o cartão da recompensa do dia, no topo; suas montarias (${BR.stableSlotsStart} vagas no começo, até ${BR.stableSlotsMax}), status, ${F.gearOn ? 'skills e equipamento' : 'skills e a redistribuição dos pontos'}; escolher a ativa.`
     case 'Correr': return `escolher a entrada (${lista(E.entryTiers.map((t) => num(t)), 'ou')} de Ouro) e procurar corrida; sem Ouro para a menor entrada, treino gratuito.`
     case 'Expedição': return `vitrine de ${F.vitrine.length} cavalos selvagens. Expedições e captura ainda não existem no protótipo.`
     case 'Haras': return 'cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.'
     case 'Loja': {
       const venda = G.SHOP_ORDER   // a ordem fixa da loja (Ruling 11)
-      const itens = `em **Comprar**, os itens de uso (${lista(venda.map((id) => G.ITEMS[id].name))}) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os ${Object.keys(G.ITEMS).length} itens e quantos você tem de cada`
+      const itens = `em **Comprar**, os itens de uso (${lista(venda.map((id) => G.ITEMS[id].name))}) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os ${Object.keys(G.ITEMS).length} itens, quantos você tem de cada e o botão Usar`
       return F.gearOn ? `${itens}; também peças de equipamento (menos as de raridade ${lista([...new Set(Object.keys(G.GEAR).filter((id) => !G.GEAR[id].shop).map((id) => nomeRar(G.GEAR[id].rarity)))])}) e Pedras Negras.` : itens + '.'
     }
     default: throw new Error(`wiki: aba desconhecida "${rotulo}" — descreva-a em descreverAba (prototype/tools/wiki.mjs)`)
@@ -906,12 +908,14 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `**Torrão:** os pontos do cavalo passam a ser os do level, da raridade e das estrelas mais os torrões (somados depois do piso; ver Status). O teto de ${T.statMax} por status não muda. Os torrões são do cavalo e saem com ele na Troca do Haras.` },
     { t: 'p', txt: `**Estrela:** só muda as estrelas do cavalo; os pontos a mais aparecem para distribuir. Vale como qualquer estrela, inclusive na cruza (ver Cruzamento).` },
     { t: 'p', txt: `**Cupom e Manual:** as candidatas são as mesmas do aprendizado por level (as skills gerais e as do tipo do cavalo, menos as que ele já tem); no Cupom, a skill que sai não volta no mesmo sorteio e a nova fica na mesma posição. O sorteio sai da seed do save e de um contador de usos que é gravado junto com o resultado: recarregar a página não muda nada. O aprendizado por level continua com ${pct(T.learnChance, 0)} por level.` },
+    { t: 'p', txt: `**Onde se usa:** na Loja, parte Mochila, o botão Usar abre a escolha do cavalo (no Cupom, também a da skill que sai) e depois a confirmação. Na ficha do cavalo, só quando a mochila tem o item: ${nomeItem('torrao')} e ${nomeItem('estrela')} na aba Status; ${nomeItem('manual')} e o Trocar de cada skill (Cupom) na aba Skills. A ${nomeItem('redea')} usada pela Mochila leva ao Redistribuir da ficha do cavalo escolhido. O cavalo que não pode receber o item aparece apagado, com o motivo.` },
     { t: 'h3', txt: 'Limites da loja', id: 'loja-limites' },
+    { t: 'p', txt: `A loja mostra os itens sempre nesta ordem: ${lista(G.SHOP_ORDER.map(nomeItem))}. Cada produto diz quantos ainda dá para comprar hoje ("Restam 1 de ${IT.torrao.perDay} hoje"; na ${nomeItem('estrela')}, "disponível" ou "de novo em N dias"). Quando não dá, o botão diz por quê, nesta ordem: ${lista(['limite', 'cheia', 'sem-ouro', 'reservado'].map((k) => { if (!F.lojaRotulo[k]) throw new Error(`wiki: rótulo "${k}" fora do LOJA_ROTULO`); return `"${F.lojaRotulo[k]}"` }), 'ou')} (o Ouro que sobra está guardado para a entrada da sala aberta).` },
     { t: 'p', txt: `Os limites por dia voltam a zero quando o dia muda; o da ${nomeItem('estrela')} conta ${IT.estrela.everyDays} dias desde a última compra. Com a mochila cheia (${num(G.BAG_MAX)}) aquele item não se compra. A ${nomeItem('redea')} não está à venda: vem no ${ordinal(DY.dias.length)} dia da recompensa diária.` },
     { t: 'h3', txt: 'Recompensa diária', id: 'diaria' },
     { t: 'p', txt: `Um calendário de ${DY.dias.length} dias com prêmios fixos, sem sorteio. Resgata-se uma vez por dia, só de abrir o jogo e tocar em Resgatar (não precisa correr). Não zera: quem falta continua de onde parou. Depois do ${ordinal(DY.dias.length)} dia recomeça no 1º, e a cada ${DY.estrelaACada} calendários completos o ${ordinal(DY.dias.length)} dia também dá 1 ${nomeItem('estrela')} (o ${ordinal(DY.dias.length * DY.estrelaACada)} resgate é o primeiro). Um save novo já começa com o dia 1 para resgatar.` },
     { t: 'tabela', rotulo: 'Recompensa diária', cab: ['Dia', 'Prêmio'], linhas: DY.dias.map((d, i) => [N(ordinal(i + 1)), premioTxt(d) + (i === DY.dias.length - 1 ? `; a cada ${DY.estrelaACada} calendários completos, também 1 ${nomeItem('estrela')}` : '')]) },
-    { t: 'p', txt: `O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver cheia daquele item, o resgate do dia espera. Por calendário: ${num(ouroCiclo)} de Ouro e ${lista(itensCiclo.map((d) => nomeItem(d.item)))} (${num(itensCiclo.reduce((a, d) => a + IT[d.item].price, 0))} de Ouro pelo preço da loja), mais a ${nomeItem('redea')}.` },
+    { t: 'p', txt: `O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver cheia daquele item (${num(G.BAG_MAX)}, ou ${num(F.redeasMax)} ${IT.redea.plural}), o resgate do dia espera e o cartão diz por quê. Depois do resgate, o cartão vira uma linha com o prêmio de amanhã. Por calendário: ${num(ouroCiclo)} de Ouro e ${lista(itensCiclo.map((d) => nomeItem(d.item)))} (${num(itensCiclo.reduce((a, d) => a + IT[d.item].price, 0))} de Ouro pelo preço da loja), mais a ${nomeItem('redea')}.` },
     { t: 'p', txt: '**O dia** é a data do aparelho, no fuso dele, guardada como número de dias. Com o relógio para trás (o dia de hoje menor que o do último resgate ou da loja), nem o resgate nem os limites da loja voltam até a data passar de novo do último dia guardado; nada se perde.' }
   ])
 
@@ -923,7 +927,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     return [{ md: icMd(id) + `\`${id}\``, html: icone(id, '', 'ic ic32', 32) + `<code>${esc(id)}</code>` }, ic.desc, ic.cor]
   })
   add('icones-reservados', 'Ícones reservados', 'Ícones reservados', [
-    { t: 'p', txt: 'Estes cinco ícones já estão em `prototype/assets/icons/`, mas ainda não aparecem no jogo: esperam os recursos que vão usá-los (Rédeas, loja de Gemas, insígnias dos ginásios). Até lá, só o wiki os mostra.' },
+    { t: 'p', txt: 'Estes cinco ícones já estão em `prototype/assets/icons/`, mas ainda não aparecem no jogo: esperam os recursos que vão usá-los (loja de Gemas, insígnias dos ginásios). A Rédea nova já existe no jogo, mas com o ícone desenhado em código, como os outros quatro itens; o `item-redea` daqui continua guardado. Até lá, só o wiki os mostra.' },
     { t: 'tabela', rotulo: 'Ícones reservados', cab: ['Ícone', 'Descrição', 'Cor'], linhas: reservados.map(([c, d, cor]) => [c, d, { md: `\`${cor}\``, html: `<span class="amostra" style="--c:${cor}"></span><code>${esc(cor)}</code>` }]) }
   ])
 

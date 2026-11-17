@@ -5,6 +5,11 @@
 // game.css acrescenta às mesmas regras de :focus-visible e :active. Cores forçadas (forced-colors) não são simuladas:
 // o ui-test cobre esse modo com forcedColors: 'active'.
 
+import { createRequire } from 'node:module'
+
+// nomes, preços, descrições e o calendário da diária vêm do catálogo do jogo (GameData.ITEMS, DAILY, BAG_MAX)
+const G = createRequire(import.meta.url)('../src/data.js')
+
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 // uma cena de demonstração: rótulo + conteúdo (nas duas larguras: 360 px e larga)
@@ -29,6 +34,59 @@ const setaSvg = () => {
   SETA_ROWS.forEach((r, y) => { for (let x = 0; x < r.length;) { if (r[x] === '#') { const x0 = x; while (x < r.length && r[x] === '#') x++; d += `M${x0} ${y}h${x - x0}v1h-${x - x0}z`; } else x++; } });
   return `<svg class="montaria-linha-seta" viewBox="0 0 8 8" aria-hidden="true" shape-rendering="crispEdges"><path d="${d}"/></svg>`;
 };
+
+// ---- itens, loja e recompensa diária: o markup do itemLinhaHtml, lojaProdutoHtml, lojaMochilaHtml e diariaCartaoHtml do game.js ----
+const fmt = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+// o botão indisponível como o indisponivel(motivo) do game.js: aria-disabled, com o motivo em data-motivo e no title
+const indisp = motivo => motivo ? ` aria-disabled="true" data-motivo="${esc(motivo)}" title="${esc(motivo)}"` : '';
+const itemQtdTxt = (id, n) => `${fmt(n)} ${n === 1 ? G.ITEMS[id].name : G.ITEMS[id].plural}`;
+// a linha de um item (itemLinhaHtml): ícone, nome, quantidade (×3 ou "tem 3"), para que serve e o extra (preço e botão)
+function itemLinha(id, { qtd = null, forma = 'x', texto = null, apagada = false, classe = '', extra = '', aviso = '' } = {}) {
+  const it = G.ITEMS[id], tem = forma === 'tem';
+  const q = qtd == null ? '' : `<span class="item-qtd"><span aria-hidden="true">${tem ? 'tem ' : '×'}${fmt(qtd)}</span>` +
+    `<span class="sr">${esc((tem ? 'Você tem ' : '') + itemQtdTxt(id, qtd))}</span></span>`;
+  return `<article class="item-linha${classe ? ' ' + classe : ''}${apagada ? ' item-linha--vazia' : ''}" data-item="${esc(id)}">` +
+    `<span class="item-icone item-icone--${esc(id)}" aria-hidden="true"></span><h2 class="item-nome">${esc(it.name)}</h2>${q}` +
+    `<p class="item-desc">${esc(texto != null ? texto : it.desc)}</p>${extra}${aviso ? `<p class="aviso item-aviso">${esc(aviso)}</p>` : ''}</article>`;
+}
+// um produto da loja (lojaProdutoHtml): o rótulo do botão e o motivo, como o LOJA_ROTULO e o lojaMotivo do game.js
+function produto(id, { tem, limite, rotulo = 'Comprar', motivo = '', aviso = '' }) {
+  const it = G.ITEMS[id];
+  const botao = `<button type="button" class="btn btn--ouro btn--pequeno" data-acao="item-comprar" data-id="${esc(id)}"${indisp(motivo)}>${esc(rotulo)}<span class="sr"> ${esc(it.name)}</span></button>`;
+  return `<section class="caixa item-lista" aria-label="Itens à venda">` + itemLinha(id, { qtd: tem, forma: 'tem', classe: 'item-linha--produto', aviso,
+    extra: `<div class="item-compra"><span class="item-preco">${moeda(fmt(it.price))}<span class="item-limite">${esc(limite)}</span></span>${botao}</div>` }) + '</section>';
+}
+// uma linha da mochila (lojaMochilaHtml): com o item, o Usar; com 0, apagada e com a frase de onde o item vem
+function mochila(id, n, aviso = '') {
+  const usar = n > 0 ? `<div class="item-compra item-compra--usar"><button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="${esc(id)}">Usar<span class="sr"> ${esc(G.ITEMS[id].name)}</span></button></div>` : '';
+  return `<section class="caixa item-lista" aria-label="Mochila">` + itemLinha(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? G.ITEMS[id].origem : null, extra: usar, aviso }) + '</section>';
+}
+// o prêmio em texto (premioTxt): "200 de Ouro, 1 Rédea nova e 1 Estrela de treino"
+function premioTxt(prox, ciclos) {
+  const d = G.DAILY.dias[prox], partes = d.ouro ? [fmt(d.ouro) + ' de Ouro'] : [];
+  if (d.item) partes.push(itemQtdTxt(d.item, 1));
+  if (prox === G.DAILY.dias.length - 1 && (ciclos + 1) % G.DAILY.estrelaACada === 0) partes.push(itemQtdTxt('estrela', 1));
+  return partes.length > 1 ? partes.slice(0, -1).join(', ') + ' e ' + partes[partes.length - 1] : partes.join('');
+}
+// o cartão da recompensa diária (diariaCartaoHtml): grande com prêmio para resgatar (prox: o dia do calendário, 0 a 6), com o
+// motivo do resgate travado e os 7 dias abertos (diariaDiasHtml) quando pedidos; ou a linha de depois do resgate
+function diaria({ prox, ciclos = 0, motivo = '', ver = false }) {
+  const n = G.DAILY.dias.length, dia = prox + 1, premio = premioTxt(prox, ciclos);
+  const dias = !ver ? '' : '<ol class="diaria-dias" id="diaria-dias">' + G.DAILY.dias.map((x, i) => {
+    const feito = i < prox, atual = i === prox;
+    return `<li class="diaria-dia${feito ? ' diaria-dia--feito' : ''}"${atual ? ' aria-current="date"' : ''}><span class="diaria-dia-n">Dia ${i + 1}</span>` +
+      `<span class="diaria-dia-premio">${esc(premioTxt(i, ciclos))}</span>${feito || atual ? `<span class="diaria-dia-marca">${feito ? 'Resgatado' : 'Hoje'}</span>` : ''}</li>`;
+  }).join('') + '</ol>';
+  return '<section class="caixa diaria diaria--grande" aria-label="Recompensa do dia">' +
+    `<h2 class="titulo">Recompensa do dia<span class="sr">${esc(', dia ' + dia + ' de ' + n + ': ' + premio)}</span></h2>` +
+    `<p class="diaria-premio" aria-hidden="true"><span class="diaria-num">${dia} / ${n}</span> ${esc(premio)}</p>` +
+    (motivo ? `<p class="nota diaria-motivo">${esc(motivo)}</p>` : '') +
+    `<div class="diaria-acoes"><button type="button" class="btn btn--texto diaria-ver" data-acao="diaria-ver" aria-expanded="${ver}" aria-controls="diaria-dias">Ver os 7 dias</button>` +
+    `<button type="button" class="btn btn--ouro btn--pequeno" data-acao="diaria-resgatar"${indisp(motivo)}>Resgatar<span class="sr"> ${esc(premio)}</span></button></div>` +
+    dias + '</section>';
+}
+const diariaLinha = (prox, ciclos = 0) => '<section class="caixa diaria diaria--linha" aria-label="Recompensa do dia"><p class="diaria-linha" tabindex="-1">' +
+  esc('Recompensa: amanhã ' + premioTxt(prox, ciclos)) + '</p></section>';
 
 const RARIDADES = [['comum', 'Comum'], ['magico', 'Mágico'], ['raro', 'Raro'], ['lendario', 'Lendário'], ['mitico', 'Mítico']];
 const LIGAS = [['bronze', 'Bronze'], ['prata', 'Prata'], ['ouro', 'Ouro'], ['platina', 'Platina'], ['diamante', 'Diamante'], ['lenda', 'Lenda']];
@@ -157,6 +215,36 @@ function secoes() {
     estados([
       ['Chegada aberta', subabas('chegada')],
       ['Momentos aberta', subabas('momentos')]
+    ])));
+  // 4.18 Produto da loja (spec de itens §6): o botão de compra em cada estado, com o motivo do indisponível
+  const I = G.ITEMS;
+  s.push(secao('4.18', 'Produto da loja', 'Loja, parte Comprar: .item-linha.item-linha--produto (ícone, nome, quantos tem, para que serve, preço, o limite do dia em .item-limite e o botão). Sem poder comprar, o botão fica apagado (aria-disabled) com o motivo; o aviso da compra fica na linha do produto.',
+    estados([
+      ['Comprar', produto('torrao', { tem: 3, limite: `Restam ${I.torrao.perDay} de ${I.torrao.perDay} hoje` })],
+      ['Comprar, com o aviso da compra', produto('torrao', { tem: 4, limite: `Restam ${I.torrao.perDay - 1} de ${I.torrao.perDay} hoje`, aviso: `Comprou 1 ${I.torrao.name}. Agora você tem 4 na mochila.` })],
+      ['Limite de hoje', produto('manual', { tem: 1, limite: `Restam 0 de ${I.manual.perDay} hoje`, rotulo: 'Limite de hoje', motivo: `Você já comprou ${I.manual.perDay} hoje, o limite do dia. Amanhã tem de novo.` })],
+      ['Limite de hoje (Estrela)', produto('estrela', { tem: 0, limite: 'de novo em 3 dias', rotulo: 'Limite de hoje', motivo: `${I.estrela.name} volta à venda em 3 dias.` })],
+      ['Sem Ouro', produto('estrela', { tem: 0, limite: 'disponível', rotulo: 'Sem Ouro', motivo: `Faltam ${fmt(I.estrela.price - 1200)} de Ouro para comprar ${I.estrela.name}.` })],
+      ['Reservado', produto('cupom', { tem: 0, limite: `Restam ${I.cupom.perDay} de ${I.cupom.perDay} hoje`, rotulo: 'Reservado', motivo: '100 de Ouro reservados para a entrada do páreo aberto: sobram 150 para gastar.' })],
+      ['Mochila cheia', produto('torrao', { tem: G.BAG_MAX, limite: `Restam ${I.torrao.perDay} de ${I.torrao.perDay} hoje`, rotulo: 'Mochila cheia', motivo: `A mochila já tem ${itemQtdTxt('torrao', G.BAG_MAX)}, o máximo.` })],
+      ['Rédea nova (não se vende)', '<section class="caixa item-lista" aria-label="Itens à venda">' + itemLinha('redea', { qtd: 0, forma: 'tem', classe: 'item-linha--fora', texto: I.redea.origem }) + '</section>']
+    ])));
+  // 4.19 Linha da mochila (spec de itens §5)
+  s.push(secao('4.19', 'Linha da mochila', 'Loja, parte Mochila: .item-linha.item-linha--mochila. Com o item, a quantidade e o Usar; com 0, a linha apagada (.item-linha--vazia) diz de onde o item vem.',
+    estados([
+      ['com o item', mochila('torrao', 3)],
+      ['com o item, depois de um uso', mochila('torrao', 2, 'Brasa ganhou 1 ponto para distribuir. Torrões usados: 1 de ' + I.torrao.cap + '.')],
+      ['sem o item', mochila('cupom', 0)]
+    ])));
+  // 4.20 Cartão da recompensa diária (spec de itens §7, §8; Rulings 16 e 17)
+  const ultimo = G.DAILY.dias.length - 1;
+  s.push(secao('4.20', 'Cartão da recompensa diária', 'Topo do Estábulo: .diaria.diaria--grande com prêmio para resgatar (o "N / 7" abre a linha do prêmio, só em texto), "Ver os 7 dias" e Resgatar; com a mochila cheia daquele item, o Resgatar apagado com o motivo; depois do resgate, .diaria.diaria--linha com o prêmio de amanhã.',
+    estados([
+      ['grande', diaria({ prox: 3 })],
+      ['grande, 7º dia com a Estrela', diaria({ prox: ultimo, ciclos: G.DAILY.estrelaACada - 1 })],
+      ['grande, com os 7 dias abertos', diaria({ prox: 3, ver: true })],
+      ['grande, resgate travado', diaria({ prox: 1, motivo: `A mochila já tem ${itemQtdTxt('torrao', G.BAG_MAX)}, o máximo. O resgate espera até sobrar espaço.` })],
+      ['de uma linha (já resgatado)', diariaLinha(1)]
     ])));
   return s.join('\n');
 }

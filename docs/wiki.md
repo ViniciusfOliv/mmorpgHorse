@@ -38,11 +38,11 @@
 
 ### Abas do jogo
 
-- **Estábulo:** suas montarias (3 vagas no começo, até 8), status, skills e a redistribuição dos pontos; escolher a ativa.
+- **Estábulo:** o cartão da recompensa do dia, no topo; suas montarias (3 vagas no começo, até 8), status, skills e a redistribuição dos pontos; escolher a ativa.
 - **Correr:** escolher a entrada (50, 100 ou 250 de Ouro) e procurar corrida; sem Ouro para a menor entrada, treino gratuito.
 - **Expedição:** vitrine de 6 cavalos selvagens. Expedições e captura ainda não existem no protótipo.
 - **Haras:** cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.
-- **Loja:** em **Comprar**, os itens de uso (Torrão de açúcar, Manual de doma, Cupom de troca de skill e Estrela de treino) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os 5 itens e quantos você tem de cada.
+- **Loja:** em **Comprar**, os itens de uso (Torrão de açúcar, Manual de doma, Cupom de troca de skill e Estrela de treino) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os 5 itens, quantos você tem de cada e o botão Usar.
 
 > Ainda não existem no protótipo: Gemas, passe, ovos, contas, servidor, expedições e captura. A única moeda é o Ouro; as Pedras Negras são material de melhoria.
 
@@ -1174,7 +1174,11 @@ São 5 itens de uso único; cada uso vale para um cavalo, pede confirmação e n
 
 **Cupom e Manual:** as candidatas são as mesmas do aprendizado por level (as skills gerais e as do tipo do cavalo, menos as que ele já tem); no Cupom, a skill que sai não volta no mesmo sorteio e a nova fica na mesma posição. O sorteio sai da seed do save e de um contador de usos que é gravado junto com o resultado: recarregar a página não muda nada. O aprendizado por level continua com 8% por level.
 
+**Onde se usa:** na Loja, parte Mochila, o botão Usar abre a escolha do cavalo (no Cupom, também a da skill que sai) e depois a confirmação. Na ficha do cavalo, só quando a mochila tem o item: Torrão de açúcar e Estrela de treino na aba Status; Manual de doma e o Trocar de cada skill (Cupom) na aba Skills. A Rédea nova usada pela Mochila leva ao Redistribuir da ficha do cavalo escolhido. O cavalo que não pode receber o item aparece apagado, com o motivo.
+
 ### Limites da loja
+
+A loja mostra os itens sempre nesta ordem: Torrão de açúcar, Manual de doma, Cupom de troca de skill e Estrela de treino. Cada produto diz quantos ainda dá para comprar hoje ("Restam 1 de 2 hoje"; na Estrela de treino, "disponível" ou "de novo em N dias"). Quando não dá, o botão diz por quê, nesta ordem: "Limite de hoje", "Mochila cheia", "Sem Ouro" ou "Reservado" (o Ouro que sobra está guardado para a entrada da sala aberta).
 
 Os limites por dia voltam a zero quando o dia muda; o da Estrela de treino conta 7 dias desde a última compra. Com a mochila cheia (99) aquele item não se compra. A Rédea nova não está à venda: vem no 7º dia da recompensa diária.
 
@@ -1192,7 +1196,7 @@ Um calendário de 7 dias com prêmios fixos, sem sorteio. Resgata-se uma vez por
 | 6º | 1 Cupom de troca de skill |
 | 7º | 200 de Ouro e 1 Rédea nova; a cada 4 calendários completos, também 1 Estrela de treino |
 
-O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver cheia daquele item, o resgate do dia espera. Por calendário: 510 de Ouro e Torrão de açúcar, Manual de doma e Cupom de troca de skill (570 de Ouro pelo preço da loja), mais a Rédea nova.
+O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver cheia daquele item (99, ou 999 Rédeas novas), o resgate do dia espera e o cartão diz por quê. Depois do resgate, o cartão vira uma linha com o prêmio de amanhã. Por calendário: 510 de Ouro e Torrão de açúcar, Manual de doma e Cupom de troca de skill (570 de Ouro pelo preço da loja), mais a Rédea nova.
 
 **O dia** é a data do aparelho, no fuso dele, guardada como número de dias. Com o relógio para trás (o dia de hoje menor que o do último resgate ou da loja), nem o resgate nem os limites da loja voltam até a data passar de novo do último dia guardado; nada se perde.
 
@@ -1200,7 +1204,7 @@ O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver ch
 
 ## Ícones reservados
 
-Estes cinco ícones já estão em `prototype/assets/icons/`, mas ainda não aparecem no jogo: esperam os recursos que vão usá-los (Rédeas, loja de Gemas, insígnias dos ginásios). Até lá, só o wiki os mostra.
+Estes cinco ícones já estão em `prototype/assets/icons/`, mas ainda não aparecem no jogo: esperam os recursos que vão usá-los (loja de Gemas, insígnias dos ginásios). A Rédea nova já existe no jogo, mas com o ícone desenhado em código, como os outros quatro itens; o `item-redea` daqui continua guardado. Até lá, só o wiki os mostra.
 
 | Ícone | Descrição | Cor |
 | --- | --- | --- |

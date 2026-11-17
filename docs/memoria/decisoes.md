@@ -3,6 +3,50 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-17 — Itens, mochila, loja e recompensa diária — decisões da execução (controlador)
+Tudo abaixo é do controlador (nada foi decidido pelo Vinicius). Plano em `docs/superpowers/plans/2026-11-16-itens-loja-diaria.md`.
+O que é gosto e espera a palavra dele está em `ESTADO.md` ("A confirmar com o Vinicius (gosto, itens)"). Cada linha:
+decisão — motivo — custo se estiver errada. A decisão dele sobre o ritmo (testes da parte mexida na rodada de correção)
+está na seção seguinte.
+- **(controlador) Os torrões entram nos pontos para distribuir em todo lugar do jogo que conta esses pontos** — cada tela
+  monta o cavalo do seu jeito, e a tarefa de uso conferiu uma por uma. Se errado: o Torrão não daria ponto em alguma tela.
+- **(controlador) Dois grupos de testes mudaram o valor esperado, por consequência da spec:** os que fixavam o save na
+  versão 6 (agora 7) e os que contam os pontos da barra de abas (agora esperam o ponto do Estábulo quando há prêmio, o caso
+  de todo jogo novo). Não é afrouxar teste: são os valores novos. Se errado: nada.
+- **(controlador) O teste antigo "o catálogo de itens das versões 1 a 3 não existe" virou dois com a mesma intenção**
+  (nenhum item antigo existe; nenhum item novo tem bônus de status nem raridade), porque o catálogo novo usa o mesmo nome
+  (`GameData.ITEMS`). Se errado: renomear o catálogo é uma busca e troca.
+- **(controlador) O número que separa os sorteios de item dos outros sorteios da seed é `0x49540000`** — o do plano caía em
+  cima dos sorteios de aprendizado por nível e de sala. Se errado: nada na tela.
+- **(controlador) O wiki descreveu a loja e a diária antes de as telas existirem na branch**; no fim conferi o texto contra o
+  jogo pronto e acertei o que faltava. Se errado: o wiki da branch ficou alguns commits à frente do jogo.
+- **(controlador) O "pular dias" do modo DEV só existe no save de teste**; o build de produção falha se o nome aparecer no
+  jogo. Se errado: nada na tela.
+- **(controlador) Num save da versão 7, dado de dia ou de limite estragado nunca libera compra nem resgate:** vale "já
+  resgatou hoje" e "limite do dia gasto". O save que vem da versão 6 começa zerado e com a diária liberada — "na dúvida, não
+  libera". Se errado: um save estragado espera um dia (7, na Estrela) para comprar e resgatar.
+- **(controlador) O limite do dia na loja se lê "Restam N de M hoje"** — "0 de 2 hoje" ao lado de "Limite de hoje" se lia
+  como "comprei 0 de 2". Se errado: é um texto.
+- **(controlador) A ordem da loja é fixa e vem do catálogo (Torrão, Manual, Cupom, Estrela), não do preço** — mudar um
+  preço não pode embaralhar a loja. Se errado: uma lista de ordem a mais no catálogo.
+- **(controlador) O botão fica "Mochila cheia" com 99, e a explicação de cada item é a linha de descrição do produto, sem
+  botão ⓘ** — menos um toque. Se errado: o ⓘ é um padrão que já existe no jogo.
+- **(controlador) O ícone da Rédea nova fica como está e vai para a lista de gosto** — os cinco ícones são desenho em
+  código, sem créditos. Se errado: redesenhar um desenho de 16×16.
+- **(controlador) Dois commits da branch (`90c5a2f` e `634173a`) saíram com a linha de autoria de outro modelo; o
+  histórico já enviado não é reescrito por isso** — reescrever pede um envio forçado. Se errado: uma linha de autoria
+  diferente em dois commits.
+- **(controlador) Com um uso de item aberto, o save que chega de outra aba não leva ao Estábulo:** a tela fica, é desenhada
+  de novo e confere tudo outra vez — só assim o Confirmar pode recusar com o motivo. Se errado: voltar ao jeito antigo é
+  uma linha.
+- **(controlador) Os limites de altura do Estábulo com prêmio para resgatar valem em todos os dias do calendário,
+  inclusive o 7º com a Estrela;** ficam de fora só o cartão com o resgate travado (mochila em 99 ou 999 Rédeas) e o cartão
+  com os 7 dias abertos — são raros ou abertos pelo jogador, e o motivo tem de caber inteiro. Se errado: mais um caso de
+  altura para apertar.
+- **(controlador) No cartão grande da diária, o "N / 7" abre a linha do prêmio e o prêmio vai só em texto, sem ícone** — a
+  360 px o ícone fazia o prêmio mais longo quebrar em 3 linhas e passar do limite de altura. Se errado: é o arranjo de um
+  cartão; está na lista de gosto.
+
 ## 2026-11-17 — Ritmo do trabalho (decisão do Vinicius)
 Ele perguntou por que às vezes demora. Causas medidas: o `check.sh` passou de ~6 para ~12 min (o teste de interface
 cresceu a cada parte) e rodava inteiro em toda rodada de correção; cada tarefa passa por implementador, revisor e

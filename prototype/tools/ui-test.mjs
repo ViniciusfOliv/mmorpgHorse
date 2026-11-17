@@ -6221,7 +6221,7 @@ try {
     }
     {
       // folha da interface (dist/interface.html): uma seção por componente da spec §4 e cada peça ampliada x4
-      const COMPONENTES = ['4.1', '4.2', '4.3', '4.4', '4.5', '4.6', '4.7', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13', '4.14', '4.15', '4.16', '4.17']
+      const COMPONENTES = ['4.1', '4.2', '4.3', '4.4', '4.5', '4.6', '4.7', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13', '4.14', '4.15', '4.16', '4.17', '4.18', '4.19', '4.20']
       for (const [larg, alt] of [[360, 780], [1280, 800]]) {
         const pg = await newPage(browser, { width: larg, height: alt }, `acabamento-folha-${larg}`, { pagina: 'interface.html', moldes: false })
         try {
@@ -6321,6 +6321,79 @@ try {
           }))
           if (ab.length !== 2 || ab.some((x) => x.n !== 2 || x.apertadas !== 1 || x.linhas !== 1)) problems.push(`acabamento (folha ${larg}): abas do resultado fora do esperado (${JSON.stringify(ab)})`)
           await abaAtual(pg, `folha ${larg}`, '[data-componente="4.17"] .subabas .opcao[aria-pressed="true"]', 'topo')
+          // itens, loja e diária (Tarefa 6 da frente de itens): o markup do itemLinhaHtml (ícone, nome, quantidade, para que serve,
+          // nessa ordem, e o extra), com o ícone desenhado e em 32 px; botão de pelo menos 44 px; indisponível com aria-disabled
+          // (nunca disabled) e o motivo em data-motivo
+          const it = await pg.evaluate(() => {
+            const col = (c) => document.querySelector(`[data-componente="${c}"] .col--estreita`)
+            const linha = (a) => {
+              const kids = [...a.children].map((c) => c.className)
+              const ic = a.querySelector('.item-icone'), r = ic ? ic.getBoundingClientRect() : null
+              return { item: a.getAttribute('data-item'), inicio: kids.slice(0, 2).join('|') + '|' + kids.slice(2).filter((k) => k === 'item-qtd' || k === 'item-desc').join('|'), icone: !!ic && getComputedStyle(ic).backgroundImage.startsWith('url('), ic32: !!r && Math.round(r.width) === 32 && Math.round(r.height) === 32 }
+            }
+            const botao = (b) => ({ txt: b.childNodes[0] ? b.childNodes[0].textContent : '', h: Math.round(b.getBoundingClientRect().height), aria: b.getAttribute('aria-disabled') === 'true', disabled: b.hasAttribute('disabled'), motivo: b.getAttribute('data-motivo') || '', sr: (b.querySelector('.sr') || {}).textContent || '' })
+            const est = (c) => [...col(c).querySelectorAll('.estado')]
+            return {
+              produtos: est('4.18').map((e) => {
+                const a = e.querySelector('.item-linha'), b = a && a.querySelector('[data-acao="item-comprar"]')
+                return { rot: e.querySelector('.estado-rot').textContent, cls: a ? a.className : '', ...(a ? linha(a) : {}), limite: a && a.querySelector('.item-compra .item-preco .ouro + .item-limite') ? a.querySelector('.item-limite').textContent : null, botao: b ? botao(b) : null, aviso: a ? a.querySelectorAll(':scope > .aviso.item-aviso').length : 0 }
+              }),
+              mochila: est('4.19').map((e) => {
+                const a = e.querySelector('.item-linha'), b = a && a.querySelector('.item-compra--usar [data-acao="item-usar"]')
+                return { rot: e.querySelector('.estado-rot').textContent, cls: a ? a.className : '', ...(a ? linha(a) : {}), qtd: a ? a.querySelector('.item-qtd [aria-hidden="true"]').textContent : '', botao: b ? botao(b) : null }
+              }),
+              diaria: est('4.20').map((e) => {
+                const d = e.querySelector('.diaria'), r = d && d.querySelector('[data-acao="diaria-resgatar"]'), v = d && d.querySelector('[data-acao="diaria-ver"]')
+                return { rot: e.querySelector('.estado-rot').textContent, cls: d ? d.className : '', h2: !!(d && d.querySelector('h2.titulo .sr')), num: d && d.querySelector('.diaria-premio[aria-hidden="true"] > .diaria-num') ? d.querySelector('.diaria-num').textContent : null,
+                  resgatar: r ? botao(r) : null, ver: v ? { h: Math.round(v.getBoundingClientRect().height), exp: v.getAttribute('aria-expanded') } : null, dias: d ? d.querySelectorAll('.diaria-dias > .diaria-dia').length : 0, hoje: d ? d.querySelectorAll('.diaria-dia[aria-current="date"]').length : 0,
+                  linha: d && d.querySelector('p.diaria-linha') ? d.querySelector('p.diaria-linha').textContent : null, botoes: d ? d.querySelectorAll('button').length : 0, motivo: !!(d && d.querySelector('.nota.diaria-motivo')) }
+              })
+            }
+          })
+          const ESTRUTURA = 'item-icone item-icone--X|item-nome|item-qtd|item-desc'
+          const estruturaOk = (x) => x.inicio === ESTRUTURA.replace('X', x.item) && x.icone && x.ic32
+          // produto: os quatro estados do botão da spec (Comprar, Sem Ouro, Reservado, Limite de hoje), mais Mochila cheia; só "Comprar" sem motivo
+          const rotulos = it.produtos.filter((x) => x.botao).map((x) => x.botao.txt)
+          for (const r of ['Comprar', 'Limite de hoje', 'Sem Ouro', 'Reservado', 'Mochila cheia']) if (!rotulos.includes(r)) problems.push(`acabamento (folha ${larg}): o produto da loja sem o estado "${r}" (${rotulos.join(', ')})`)
+          for (const x of it.produtos) {
+            const ruim = []
+            if (!estruturaOk(x)) ruim.push(`markup diferente do jogo (${x.inicio}, ícone ${x.icone ? 'desenhado' : 'sem arte'}, ${x.ic32 ? '32 px' : 'fora de 32 px'})`)
+            if (x.item === 'redea') { if (x.botao || !/item-linha--fora/.test(x.cls)) ruim.push('a Rédea nova com botão de compra ou sem .item-linha--fora') }
+            else {
+              if (!/item-linha--produto/.test(x.cls) || !x.botao || x.limite == null) ruim.push('sem .item-linha--produto, sem o botão ou sem o preço com o limite do dia')
+              else {
+                if (x.botao.h < 44) ruim.push(`botão com ${x.botao.h} px de altura`)
+                if (x.botao.disabled) ruim.push('botão com disabled (o padrão é aria-disabled)')
+                if ((x.botao.txt === 'Comprar') === (x.botao.aria || !!x.botao.motivo)) ruim.push(`"${x.botao.txt}" ${x.botao.aria ? 'apagado' : 'sem aria-disabled'}${x.botao.motivo ? ' com motivo' : ' sem motivo'}`)
+                if (!x.botao.sr.trim()) ruim.push('o botão sem o nome do item para o leitor de tela')
+                if (!(/^Restam \d+ de \d+ hoje$/.test(x.limite) || /^(disponível|de novo em \d+ dias?)$/.test(x.limite))) ruim.push(`limite do dia "${x.limite}"`)
+              }
+            }
+            if (ruim.length) problems.push(`acabamento (folha ${larg}): produto "${x.rot}": ${ruim.join('; ')}`)
+          }
+          if (!it.produtos.some((x) => x.aviso === 1)) problems.push(`acabamento (folha ${larg}): o produto da loja sem o estado com o aviso da compra na linha`)
+          // mochila: com o item (×N e o Usar) e sem (apagada, sem o Usar)
+          const comItem = it.mochila.filter((x) => !/item-linha--vazia/.test(x.cls)), semItem = it.mochila.filter((x) => /item-linha--vazia/.test(x.cls))
+          if (!comItem.length || !semItem.length) problems.push(`acabamento (folha ${larg}): a linha da mochila sem os dois estados (com ${comItem.length}, sem ${semItem.length})`)
+          for (const x of it.mochila) {
+            const vazia = /item-linha--vazia/.test(x.cls), ruim = []
+            if (!/item-linha--mochila/.test(x.cls) || !estruturaOk(x)) ruim.push(`markup diferente do jogo (${x.cls}; ${x.inicio})`)
+            if (vazia ? x.botao || x.qtd !== '×0' : !x.botao || x.botao.h < 44 || x.botao.aria || x.botao.txt !== 'Usar' || !/^×[1-9]/.test(x.qtd)) ruim.push(`quantidade ${x.qtd} e botão ${JSON.stringify(x.botao)}`)
+            if (ruim.length) problems.push(`acabamento (folha ${larg}): mochila "${x.rot}": ${ruim.join('; ')}`)
+          }
+          // diária: o cartão grande (título com o texto do leitor de tela, "N / 7" na linha do prêmio, "Ver os 7 dias" e Resgatar,
+          // ambos de 44 px), os 7 dias abertos com o de hoje marcado, o resgate travado (aria-disabled com o motivo) e a linha
+          const grandes = it.diaria.filter((x) => /diaria--grande/.test(x.cls)), linhas = it.diaria.filter((x) => /diaria--linha/.test(x.cls))
+          if (!grandes.length || !linhas.length || !grandes.some((x) => x.dias) || !grandes.some((x) => x.motivo)) problems.push(`acabamento (folha ${larg}): o cartão da diária sem os estados grande, com os 7 dias, travado e de uma linha (${it.diaria.map((x) => x.rot).join(', ')})`)
+          for (const x of grandes) {
+            const ruim = []
+            if (!x.h2 || !/^\d \/ 7$/.test(x.num || '')) ruim.push(`título ou "N / 7" fora do markup do jogo (${x.num})`)
+            if (!x.resgatar || x.resgatar.txt !== 'Resgatar' || x.resgatar.h < 44 || x.resgatar.disabled || x.resgatar.aria !== x.motivo || x.resgatar.aria !== !!x.resgatar.motivo) ruim.push(`Resgatar ${JSON.stringify(x.resgatar)}`)
+            if (!x.ver || x.ver.h < 44 || x.ver.exp !== String(!!x.dias)) ruim.push(`"Ver os 7 dias" ${JSON.stringify(x.ver)}`)
+            if (x.dias && (x.dias !== 7 || x.hoje !== 1)) ruim.push(`${x.dias} dias abertos, ${x.hoje} marcado como hoje`)
+            if (ruim.length) problems.push(`acabamento (folha ${larg}): diária "${x.rot}": ${ruim.join('; ')}`)
+          }
+          for (const x of linhas) if (x.botoes || !/^Recompensa: amanhã /.test(x.linha || '')) problems.push(`acabamento (folha ${larg}): diária "${x.rot}": a linha "${x.linha}" com ${x.botoes} botão(ões)`)
         } catch (e) {
           problems.push(`acabamento-folha-${larg}: ` + e.message)
         } finally {
@@ -9646,6 +9719,53 @@ try {
     await curvas({ width: 390, height: 844 }, 'curvas390', 'final-19-tracado.png', 'final-18-curva.png')
     await curvas({ width: 1280, height: 800 }, 'curvas1280', 'final-desktop-tracado.png', 'final-desktop-curva.png')
     await curvas({ width: 844, height: 390 }, 'curvas-paisagem', null, 'final-18b-curva-paisagem.png')
+  }
+
+  // ---------------- capturas da frente de itens (spec de itens §15): Estábulo com o cartão grande da diária, Loja (Comprar e
+  // Mochila) e a ficha com os botões de item na aba Status. O estado é posto direto no jogo (sem a gaveta DEV, que muda a tela)
+  {
+    const it = await newPage(browser, { width: 390, height: 844 }, 'itens-capturas')
+    try {
+      await it.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await it.waitForSelector('#t-estabulo')
+      // 4º dia do calendário para resgatar; 1.500 de Ouro (a Estrela fica "Sem Ouro"); na mochila, Torrão, Estrela e Manual
+      await it.evaluate(() => {
+        const s = window.__galope.state, hoje = window.__galope.hojeDia()
+        s.diaria = { prox: 3, ciclos: 0, ultimo: hoje - 1 }
+        s.gold = 1500
+        s.mochila = { torrao: 3, estrela: 1, cupom: 0, manual: 1 }
+      })
+      await it.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await it.waitForSelector('#tela .diaria--grande')
+      if (!/4 \/ 7/.test((await it.locator('#tela .diaria-num').textContent()) || '')) problems.push('itens-capturas: o cartão da diária não mostra o 4º dia')
+      await it.evaluate(() => window.scrollTo(0, 0)); await sleep(300)
+      await checkOverflow(it, 'itens-capturas-estabulo')
+      await it.screenshot({ path: join(SHOTS, 'final-22-diaria.png') })
+      await it.locator('[data-acao="aba"][data-id="loja"]').click()
+      await it.waitForSelector('#t-loja')
+      const rot = await it.locator('#tela [data-acao="item-comprar"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id') + ':' + b.childNodes[0].textContent))
+      if (rot.join() !== 'torrao:Comprar,manual:Comprar,cupom:Comprar,estrela:Sem Ouro') problems.push(`itens-capturas: botões da loja ${rot.join()}`)
+      await sleep(300)
+      await checkOverflow(it, 'itens-capturas-loja')
+      await it.screenshot({ path: join(SHOTS, 'final-20-loja.png') })
+      await it.locator('#tela [data-acao="loja-parte"][data-id="mochila"]').click()
+      await it.waitForSelector('#tela .item-linha--mochila')
+      await it.evaluate(() => window.scrollTo(0, 0)); await sleep(300)
+      await checkOverflow(it, 'itens-capturas-mochila')
+      await it.screenshot({ path: join(SHOTS, 'final-21-mochila.png') })
+      await it.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await it.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await it.waitForSelector('#t-montaria')
+      const usos = await it.locator('#tela .item-usos [data-acao="item-usar"]').evaluateAll((bs) => bs.map((b) => b.textContent.trim()))
+      if (usos.join('|') !== 'Usar Torrão de açúcar|Usar Estrela de treino') problems.push(`itens-capturas: a aba Status mostra os usos ${usos.join('|')}`)
+      await it.locator('#tela .item-usos').evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(300)
+      await checkOverflow(it, 'itens-capturas-ficha')
+      await it.screenshot({ path: join(SHOTS, 'final-23-ficha-itens.png') })
+    } catch (e) {
+      problems.push('itens-capturas: ' + e.message)
+    } finally {
+      await it.context().close()
+    }
   }
 
   // ---------------- loja: abas, comprar (com recusa sem Ouro), Pedras Negras e resumo na largada ----------------

@@ -243,16 +243,40 @@ Conjuntos: **Sol** (clima do Fogo), **Chuva** (Água), **Névoa** (Grama). No de
 A Gema compra tempo, espaço, conveniência e aparência; nunca poder nem Ouro. Tudo que fortalece o
 cavalo existe de graça, jogando. Item comprado com Gema nunca tem resultado sorteado.
 
-| Item | Por Ouro ou jogando | Por Gemas |
-|---|---|---|
-| Torrão de açúcar (um ponto a mais para distribuir, limite por cavalo) | sim | não |
-| Estrela de treino (sobe uma estrela) | sim, rara | não |
-| Rédea nova (redistribui os pontos; a primeira de cada cavalo é grátis) | jogando (ginásios, missões; **por enquanto só pela gaveta DEV**), **nunca por Ouro** | sim |
-| Cupom de troca de skill | sim, skill sorteada | sim, skill escolhida numa lista |
-| Manual de doma | sim, aumenta a chance de aprender | sim, garante aprender |
-| Acelerador de cruza · vaga extra de estábulo (até 3) · redefinir cruzas · mudar aparência | não | sim |
+**No jogo desde a frente de itens (spec `docs/superpowers/specs/2026-11-16-itens-loja-diaria-design.md`):** os cinco
+itens de treino, a mochila e a loja por Ouro. Cada item é de uso único, vale para um cavalo, pede confirmação e não tem
+volta. Os números ficam juntos em `GameData.ITEMS` (`prototype/src/data.js`), para ajustar depois de jogar.
 
-Gemas também caem de graça, em pouca quantidade, por missões. A skill de tipo nunca troca.
+| Item | O que faz | Por Ouro ou jogando (no jogo) | Por Gemas (bloco 6) |
+|---|---|---|---|
+| Torrão de açúcar | 1 ponto a mais para distribuir, para sempre; até 10 por cavalo | loja: 120 de Ouro, 2 por dia; diária: 2º dia | não |
+| Estrela de treino | sobe 1 estrela (não passa de ★★★) | loja: 2.000 de Ouro, 1 a cada 7 dias; diária: 7º dia a cada 4 calendários | não |
+| Rédea nova | redistribui os pontos; a primeira de cada cavalo é grátis | jogando: 7º dia da diária (depois também ginásios e missões); **nunca por Ouro** | sim |
+| Cupom de troca de skill | uma skill das vagas sai e entra outra, sorteada entre as que o cavalo pode aprender | loja: 250 de Ouro, 1 por dia; diária: 6º dia | sim, skill escolhida numa lista |
+| Manual de doma | tentativa na hora: 35% de chance de aprender uma skill; o manual é gasto mesmo se não aprender | loja: 200 de Ouro, 1 por dia; diária: 4º dia | sim, garante aprender |
+| Acelerador de cruza · vaga extra de estábulo (até 3) · redefinir cruzas · mudar aparência | — | não | sim |
+
+- **Mochila:** até 99 de cada item; a Rédea nova tem o teto dela, 999. Fica na aba **Loja**, parte Mochila, com o botão
+  Usar; Torrão e Estrela também se usam na ficha do cavalo (aba Status), Manual e Cupom na aba Skills.
+- **Loja de itens:** só Ouro, e nunca gasta o Ouro guardado para a entrada da sala aberta. Ordem fixa: Torrão, Manual,
+  Cupom, Estrela. O limite do dia volta a zero quando o dia muda; o da Estrela conta 7 dias desde a última compra.
+- **Cupom e Manual** não se usam no cavalo ativo com a sala aberta, e o sorteio sai da seed do save (recarregar a
+  página não muda o resultado). A skill de tipo nunca troca. O aprendizado por nível continua com 8% por nível.
+
+Gemas também caem de graça, em pouca quantidade, por missões.
+
+### 8.2a Recompensa diária (frente de itens)
+- **Calendário de 7 dias, com prêmios fixos e sem sorteio:** 60 de Ouro · 1 Torrão · 100 de Ouro · 1 Manual · 150 de
+  Ouro · 1 Cupom · 200 de Ouro e 1 Rédea nova. A cada 4 calendários completos, o 7º dia também dá 1 Estrela de treino
+  (o 28º resgate é o primeiro).
+- **Uma vez por dia, só de abrir o jogo** e tocar em Resgatar; não pede corrida. **Não zera:** quem falta um dia continua
+  de onde parou. Um jogo novo já começa com o dia 1 para resgatar.
+- **Onde:** um cartão no topo do Estábulo (e um ponto na aba Estábulo enquanto há prêmio). Depois do resgate, o cartão
+  vira uma linha com o prêmio de amanhã.
+- **Mochila cheia** daquele item (99, ou 999 Rédeas): o resgate espera e o cartão diz por quê.
+- **O dia é a data do aparelho.** Voltar o relógio não libera nada; adiantar libera a diária e os limites da loja. Sem
+  servidor não há como impedir; fica aceito até o online.
+- **Por calendário:** 510 de Ouro, mais Torrão, Manual e Cupom (570 de Ouro pelo preço da loja) e a Rédea nova.
 
 ### 8.3 Ouro, circuito e aluguel (blocos 4 e 5)
 - **O Ouro entra devagar** (prêmio de corrida, circuito, aluguel, missões, venda de peça) **e sai por
