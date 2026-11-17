@@ -121,10 +121,12 @@ também têm a genética do inicial (Brasa, Maré, Ipê), mudando nível e estre
 | G8 duração de um duelo (5%–95%) | 75,8–84,9 s (média 78,5–81,8 s) | 55–90 s |
 
 O que a calibração mudou: a vantagem de 3% para **4%** (o status é inteiro: nos status de 50 a 62 de hoje, 3% e
-4% somam os mesmos 2 pontos; os 4% valem cerca de 3 a 4 níveis num duelo); os limites das faixas do cansaço de
-5/20 m para **1/8 m** (entre cavalos iguais, numa pista de 1.200 m com subidas, a chegada ou é colada ou é
-longe: com 5/20 m a faixa do meio ficava em 6–7%); uma pista de 1.200 m por ginásio, com subidas (em pista
-plana e curta o Fogo vence 70–85% dos duelos); os cavalos dos soldados e do líder passam a ser o inicial do
+4% somam os mesmos 2 pontos; com 3%, nas seeds do `balance.js`, o time em desvantagem chegava a 37,9% no soldado 2
+do Remanso e a distância da G3 a 29,9 pontos no soldado 1 da Fornalha; os 4% valem cerca de 3 a 4 níveis num
+duelo); os limites das faixas do cansaço de 5/20 m para **1/8 m** (entre iniciais iguais, nas pistas novas, a
+chegada ou é colada ou é longe: com 5/20 m a faixa do meio ficava em 6–7% do 1º duelo); uma pista de 1.200 m
+por ginásio, com subidas (na pista de partida, 1.200 m de grama com uma curva de 300 m e uma subida de 250 m, o
+Fogo vencia 71–77% dos duelos contra Água e Grama sem a vantagem); os cavalos dos soldados e do líder passam a ser o inicial do
 elemento (com os selvagens Comuns, o Lambari vale ~7 níveis a menos que a Maré, e as metas mediam a diferença
 entre os cavalos, não entre os ginásios); no do Remanso, um cavalo ★★★ no soldado 4 e no líder (para a G5). Os
 níveis (4/8/12/16/20), os descontos do cansaço, o teto e o XP não mudaram. Um desafio do líder tem ~4,7 duelos e

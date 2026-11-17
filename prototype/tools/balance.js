@@ -632,7 +632,7 @@ function report(R) {
     'Cavalos sintéticos das metas M (como na calibração): genética de 0 a 31 sorteada pela seed, skills normais sorteadas (as nascidas mais as aprendidas esperadas pelo nível) e pontos livres pela build dos bots (`RaceSim.botAlloc`), salvo indicação. ' +
     'Duelos com largada alternada.' +
     (QUICK ? ' Amostras menores no --quick.' : ''));
-  if (QUICK) { log(''); log('> **--quick: as metas M6, M9, P1, S1 e A1 (e as G1, G2, G3, G5 e G7 dos ginásios) só contam no completo** (aqui aparecem só como informação, porque com poucas amostras o ruído passa da margem da faixa). Para medi-las: `node prototype/tools/balance.js`.'); }
+  if (QUICK) { log(''); log('> **--quick: as metas M6, M9, P1, S1 e A1 (e as G1, G2, G3, G5 e G7 dos ginásios) só contam no completo** (aqui as cinco primeiras aparecem só como informação, porque com poucas amostras o ruído passa da margem da faixa; as dos ginásios não rodam, só uma nota na seção G). Para medi-las: `node prototype/tools/balance.js`.'); }
   log('');
 
   // -------------------------------------------------------------------------
@@ -1212,9 +1212,13 @@ function reportGym(R) {
       casos.push({ gymId: gid, etapa: e, time: gymRef(EL3[(gi + e) % 3], gymLevel(gid, e) + (e - 2), G.GYMS[gid].etapas[e].cavalos.length), seedBase: seedOf(7900, gi * 10 + e), contador: gi + e });
     });
   });
-  var mr = Math.random, dn = Date.now, usou = false, ida, volta, resim = true, outro;
+  var mr = Math.random, dn = Date.now, DataOrig = global.Date, usou = false, ida, volta, resim = true, outro;
   Math.random = function () { usou = true; return mr.apply(Math, arguments); };
-  Date.now = function () { usou = true; return dn.apply(Date, arguments); };
+  Date.now = function () { usou = true; return dn.apply(DataOrig, arguments); };
+  // new Date(…) e Date(…) também contam: a global vira um detector (com o Date.now acima) até o finally
+  var Detector = function () { usou = true; return new (Function.prototype.bind.apply(DataOrig, [null].concat([].slice.call(arguments))))(); };
+  Detector.now = Date.now;
+  global.Date = Detector;
   try {
     ida = casos.map(function (c) { return JSON.stringify(GY.resolver(c)); });
     volta = casos.slice().reverse().map(function (c) { return JSON.stringify(GY.resolver(c)); }).reverse();
@@ -1225,10 +1229,10 @@ function reportGym(R) {
       });
     });
     outro = casos.map(function (c) { var c2 = copy(c); c2.contador += 1; return JSON.stringify(GY.resolver(c2)); });
-  } finally { Math.random = mr; Date.now = dn; }
+  } finally { Math.random = mr; DataOrig.now = dn; global.Date = DataOrig; }
   var iguais = ida.every(function (j, i) { return j === volta[i]; });
   checkBool('G9', 'Ginásio: mesma seed e mesma configuração dão o mesmo desafio, duelo a duelo (' + casos.length + ' desafios, reexecução em ordem inversa; cada duelo refeito pelo cfg dá o mesmo vencedor e a mesma distância)', iguais && resim);
-  checkBool('G9', 'Ginásio: nada no caminho do desafio chama Math.random nem Date.now', !usou);
+  checkBool('G9', 'Ginásio: nada no caminho do desafio chama Math.random, Date.now nem new Date', !usou);
   checkBool('G9', 'Ginásio: o contador seguinte dá outro desafio', outro.every(function (j, i) { return j !== ida[i]; }));
 }
 function wrG4(R, gid, el) { var x = R['g4-' + gid + '-' + el]; return pct(x.wA, x.n); }
