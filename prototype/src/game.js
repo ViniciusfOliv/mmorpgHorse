@@ -1522,6 +1522,19 @@
     if (!uid || ui.screen !== 'estabulo') return;
     focoNaLinha('montaria', uid);
   }
+  // rola a página na hora (sem animação) só o que precisar para el ficar inteiro entre o cabeçalho fixo (com a faixa DEV
+  // acima dele) e a barra de abas (a 900 px ou mais as abas são a coluna da esquerda: o limite é o fim da janela). Não mexe
+  // no foco; sem el, ou já inteiro, não rola.
+  function mostraInteiro(el) {
+    if (!el) return;
+    var topoEl = document.querySelector('.app-topo'), abasEl = document.querySelector('.app-abas');
+    var topo = topoEl ? topoEl.getBoundingClientRect().bottom : 0, base = window.innerHeight;
+    if (abasEl) { var ab = abasEl.getBoundingClientRect(); if (ab.width >= window.innerWidth) base = ab.top; }
+    var r = el.getBoundingClientRect(), dy = 0;
+    if (r.bottom > base) dy = r.bottom - base;
+    if (r.top - dy < topo) dy = r.top - topo;   // mais alto que o espaço: o topo dele fica à vista
+    if (dy) window.scrollTo({ top: window.scrollY + dy, left: 0, behavior: 'instant' });
+  }
   // o foco no botão (acao, id) e a página rolando só o que precisar para ele aparecer
   function focoNaLinha(acao, id) {
     focusAction(acao, id);
@@ -5660,7 +5673,11 @@
       case 'ginasio-abrir':
         if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id)) break;
         ui.gym = { id: id, etapa: null };
-        go('ginasio'); break;
+        go('ginasio');
+        // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola na hora o
+        // mínimo para ela aparecer inteira; o foco fica no título
+        mostraInteiro(telaEl.querySelector('.etapa[data-estado="proxima"]'));
+        break;
       case 'ginasio-etapa': {
         // só a etapa próxima abre (o aria-disabled só avisa: confere de novo pelo progresso salvo)
         var gE = ui.gym, iE = Number(id);

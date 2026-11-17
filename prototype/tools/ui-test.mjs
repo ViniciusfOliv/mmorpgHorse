@@ -3348,6 +3348,69 @@ try {
       }
     }
 
+    // 8b. Ruling 17: ao abrir a trilha pelo cartão, a etapa próxima aparece inteira entre a barra do topo (ou a faixa fixa em
+    //     cima) e a barra de abas, rolando na hora o mínimo; com a insígnia (sem etapa próxima) a trilha fica no topo; o foco
+    //     continua no título. A 1280×800 o caso real é medido antes (cabe sem rolar ou não) e a asserção é a desse caso.
+    const ginVisivel = (pg) => pg.evaluate(() => {
+      const fixos = [...document.querySelectorAll('.app-topo, .dev-faixa')].filter((e) => getComputedStyle(e).position === 'fixed').map((e) => e.getBoundingClientRect())
+      const topo = Math.max(0, ...fixos.filter((r) => r.top < window.innerHeight / 2).map((r) => r.bottom))
+      const ab = document.querySelector('.app-abas').getBoundingClientRect()
+      const base = ab.width < window.innerWidth ? window.innerHeight : ab.top   // a 1280 as abas são a coluna da esquerda
+      const li = document.querySelector('#tela .etapa[data-estado="proxima"]'), r = li ? li.getBoundingClientRect() : null
+      return { topo, base, r: r && { top: r.top, bottom: r.bottom }, y: window.scrollY, foco: document.activeElement && document.activeElement.id,
+        ok: !!r && r.top >= topo - 0.5 && r.bottom <= base + 0.5 }
+    })
+    for (const vp of [{ width: 360, height: 780 }, { width: 360, height: 640 }]) {
+      for (const [id, etapa] of [['grama', 0], ['fogo', 2], ['agua', 5]]) {
+        const label = `ginasio-rola-${vp.width}x${vp.height}-${id}-${etapa}`
+        const pg = await ginAbre(label, { save: ginSave({ ginasios: Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { [id]: { etapa, revDia: null, revVitorias: 0 } }) }), chave: GIN_DEV, vp })
+        try {
+          await ginAbreAba(pg)
+          await pg.locator(`[data-acao="ginasio-abrir"][data-id="${id}"]`).scrollIntoViewIfNeeded()
+          await ginAbreTrilha(pg, id)
+          if (etapa < 5) {
+            await pg.waitForFunction(() => {
+              const li = document.querySelector('#tela .etapa[data-estado="proxima"]'), ab = document.querySelector('.app-abas'), tp = document.querySelector('.app-topo')
+              if (!li || !ab || !tp) return false
+              const r = li.getBoundingClientRect()
+              return r.top >= tp.getBoundingClientRect().bottom - 0.5 && r.bottom <= ab.getBoundingClientRect().top + 0.5
+            }, null, { timeout: 2000 }).catch(() => {})
+            const v = await ginVisivel(pg)
+            if (!v.ok) problems.push(`${label}: a etapa próxima não está inteira na tela ${JSON.stringify(v)}`)
+            // em todos estes casos ela começa abaixo da barra de abas (medido: no topo, a base dela passa da barra), então
+            // rola, e o mínimo: a base dela fica rente à barra de abas
+            if (!(v.y > 0) || Math.abs(v.r.bottom - v.base) > 1) problems.push(`${label}: a rolagem não foi a mínima ${JSON.stringify(v)}`)
+            if (v.foco !== 't-ginasio') problems.push(`${label}: abrir a trilha mudou o foco (${v.foco})`)
+          } else {
+            const v = await ginVisivel(pg)
+            if (v.y !== 0 || v.r !== null) problems.push(`${label}: com a insígnia a trilha devia abrir no topo ${JSON.stringify(v)}`)
+          }
+        } catch (e) {
+          problems.push(`[${label}] ` + e.message)
+        } finally {
+          await pg.context().close()
+        }
+      }
+    }
+    {
+      // 1280×800, 0 vencidas: medido nesta tela, no topo a etapa próxima NÃO cabe (a base dela fica em ~1.028 px numa
+      // janela de 800), então vale a regra das 360: inteira na tela, com a rolagem mínima (base rente ao fim da janela)
+      const label = 'ginasio-rola-1280x800'
+      const pg = await ginAbre(label, { save: ginSave(), chave: GIN_DEV, vp: { width: 1280, height: 800 } })
+      try {
+        await ginAbreAba(pg)
+        await ginAbreTrilha(pg, 'fogo')
+        const v = await ginVisivel(pg)
+        if (!(v.r.bottom + v.y > v.base)) problems.push(`${label}: a etapa próxima já caberia sem rolar; reveja o caso ${JSON.stringify(v)}`)
+        if (!v.ok || Math.abs(v.r.bottom - v.base) > 1) problems.push(`${label}: a etapa próxima não ficou inteira com a rolagem mínima ${JSON.stringify(v)}`)
+        if (v.foco !== 't-ginasio') problems.push(`${label}: abrir a trilha mudou o foco (${v.foco})`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
     // 9. cores forçadas: cartões e etapas com borda de 2 px em cor do sistema (a fechada em GrayText, a próxima em
     //    Highlight); movimento reduzido: nada na aba, na trilha e no detalhe anima ou tem transição
     {
