@@ -24,7 +24,7 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
 - **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (158 testes de simulação, 117 de
   efeitos, 171 de moldes, 651 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de
   interface; contagem de 2026-11-17, na `main` com a frente de itens integrada). Com o teste de interface em paralelo
-  (2026-11-17, na branch da sessão) a verificação leva ~8 min; antes, ~16.
+  (2026-11-17) a verificação leva ~8 min; antes, ~16.
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
 | Frente | Entrega | Spec |
@@ -246,8 +246,8 @@ wiki (seção "Itens e recompensa diária"); decisões em `decisoes.md` (2026-11
     não tem teste ligado.
 
 ## Em andamento
-- **Teste de interface em paralelo (feito em 2026-11-17, commit `b3dda3d` na `claude/nifty-newton-e8u133`; falta entrar na
-  `main`):** o `check.sh` roda o `prototype/tools/ui-test-paralelo.mjs`, um processo por bloco (68 blocos, 4 por vez, e os 8
+- **Teste de interface em paralelo (feito em 2026-11-17, commit `b3dda3d`; na `main` desde o mesmo dia, por decisão do
+  Vinicius):** o `check.sh` roda o `prototype/tools/ui-test-paralelo.mjs`, um processo por bloco (68 blocos, 4 por vez, e os 8
   com medição de tempo depois, um por vez). A verificação caiu de ~16 para ~8 min. A meta de ~5 min não fechou: o que
   falta é a fase em série (~3,5 min) e o bloco `itens` (~1,5 min sozinho). O jeito antigo (`ui-test.mjs` sem `UI_SO`)
   continua igual e é o que regrava as capturas oficiais.
@@ -355,7 +355,7 @@ wiki (seção "Itens e recompensa diária"); decisões em `decisoes.md` (2026-11
   (gosto, itens)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Ginásios (`docs/GDD.md` §8.6):** desenho próprio (spec, revisão do Vinicius, plano e execução), usando os itens como
   prêmio.
-- **Teste de interface em paralelo:** feito (~8 min); decidir se entra na `main` e se vale buscar os ~5 min (dividir o bloco
+- **Teste de interface em paralelo:** feito e na `main` (~8 min); em aberto se vale buscar os ~5 min (dividir o bloco
   `itens` e encurtar a fase em série).
 0. O Vinicius joga a 3a, a 3b e a 3c nos artefatos oficiais (jogo, DEV e wiki, republicados com a integração; a folha
    da interface mostra os componentes) e decide as listas "A confirmar com o Vinicius (gosto, 3a)", "(gosto, 3b)" e
