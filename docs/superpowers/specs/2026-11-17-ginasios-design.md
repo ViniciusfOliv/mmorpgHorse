@@ -238,14 +238,18 @@ pontos dos cavalos dos soldados, a pista de cada ginásio, o percentual da vanta
 do cansaço e o XP por duelo. Se as metas não fecharem dentro disso, o executor para e leva a medição ao controlador,
 que decide com o Vinicius. A tabela final é mostrada ao Vinicius antes de as telas serem construídas.
 
-Em todas as metas, "time" é um time **do tamanho do time do adversário** naquela etapa. Metas de partida:
+Em todas as metas, "time" é um time **do tamanho do time do adversário** naquela etapa: nas etapas de 1 cavalo, o
+cavalo inicial daquele elemento, sozinho; nas de 2 e 3, o inicial mais o Comum selvagem do elemento, alternados (os dois
+Comuns de um elemento têm forças bem diferentes). Metas (G2 e G3 ajustadas pela medição da calibração, 2026-11-17):
 
 - **G1 — Na medida:** um time de cavalos Comuns do **mesmo elemento do ginásio**, no nível da etapa, com a
   distribuição sugerida, vence a etapa entre 40% e 55% das vezes. Vale para as cinco etapas; na primeira, é o cavalo
   inicial daquele elemento, sozinho, no nível 4.
-- **G2 — Nível manda:** o mesmo time 4 níveis acima vence 70% ou mais; 4 níveis abaixo, 25% ou menos.
-- **G3 — Ponto fraco vale:** o time do elemento que vence o ginásio, no nível da etapa, vence entre 60% e 80%; o do
-  elemento que o ginásio vence, 25% ou menos.
+- **G2 — Nível manda:** o mesmo time 4 níveis acima vence 70% ou mais; 4 níveis abaixo, 35% ou menos. (Era 25%: num
+  duelo de 1 contra 1 a sorte de uma corrida só pesa mais; medido, ±4 níveis dão 73–80% e 19–35%.)
+- **G3 — Ponto fraco vale:** o time do elemento que vence o ginásio, no nível da etapa, vence de 60% a 85%; o do
+  elemento que o ginásio vence, 35% ou menos; e em toda etapa há pelo menos 30 pontos entre as duas taxas. (Era 60–80% e
+  25%, pelos mesmos números da G2.)
 - **G4 — A pista não anula o ponto fraco:** em cada ginásio, com a vantagem de elemento desligada, nenhum elemento
   fica mais de 8 pontos acima ou abaixo de 50% no duelo de nível igual.
 - **G5 — Os três ginásios são parecidos:** as taxas de G1 e G3 dos três ginásios ficam a no máximo 8 pontos uma da
