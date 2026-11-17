@@ -732,6 +732,64 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .selvagem--raro { box-shadow: inset 0 -4px 0 0 var(--r-raro); }
 .selvagem--lendario { box-shadow: inset 0 -4px 0 0 var(--r-lendario); }
 .selvagem--mitico { box-shadow: inset 0 -4px 0 0 var(--r-mitico); }
+/* ---------- Expedição: ginásios e a trilha (spec 2026-11-17-ginasios §10) ---------- */
+/* cartão do ginásio e etapa tocável: a moldura do botão (§4.4), como a linha do Estábulo; avança 4px sobre o respiro do painel */
+.ginasios, .trilha { list-style: none; margin: 0 -4px; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+.ginasios > li, .trilha > li { display: block; min-width: 0; }
+/* a trilha de baixo para cima: o DOM vai da 1ª etapa ao líder (ordem de leitura e de foco), a coluna mostra o líder no topo */
+.trilha { flex-direction: column-reverse; gap: 12px; }
+.ginasio-cartao, .etapa-btn {
+  appearance: none; border: 0; margin: 0; width: 100%; min-width: 0; min-height: 48px; position: relative;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 10px; row-gap: 2px;
+  padding: 8px 10px; background: var(--painel-2); color: var(--texto); font: inherit; text-align: left;
+  touch-action: manipulation; -webkit-user-select: none; user-select: none;
+}
+.ginasio-cartao, .etapa--proxima .etapa-btn {
+  cursor: pointer;
+  box-shadow:
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    0 4px 0 0 var(--sombra),
+    inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
+    inset 0 2px 0 0 var(--linha-luz), inset 2px 0 0 0 var(--linha-luz);
+}
+.ginasio-cartao:hover, .etapa--proxima .etapa-btn:hover { background: var(--painel-3); }
+.ginasio-cartao:active, .etapa--proxima .etapa-btn:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
+    inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
+    inset 0 2px 0 0 var(--linha-luz), inset 2px 0 0 0 var(--linha-luz);
+}
+.ginasio-cartao:focus-visible, .etapa-btn:focus-visible { outline-offset: 5px; }
+.ginasio-cartao-nome {
+  grid-column: 1; min-width: 0; overflow-wrap: anywhere;
+  font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; color: var(--texto); text-shadow: 2px 2px 0 var(--sombra);
+}
+.ginasio-cartao-meta { grid-column: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: var(--t-s); line-height: 1.25; }
+.ginasio-cartao-seta { grid-column: 2; grid-row: 1 / span 4; margin: 0 -2px 0 0; }
+.ginasio-progresso { color: var(--texto-2); }
+.ginasio-insignia { display: flex; align-items: center; gap: 8px; margin: 0; }
+.ginasio-revanche { background: var(--ouro); color: var(--tinta); padding: 2px 6px; font-size: var(--t-xs); line-height: 1.2; }
+.ginasio-topo { display: flex; flex-direction: column; gap: 8px; }
+.ginasio-fraco, .ginasio-pista { margin: 0; color: var(--texto); }
+/* etapa: rótulo e estado na 1ª linha, o nome (e a insígnia do líder) na 2ª, a meta e o motivo embaixo */
+.etapa-rotulo { grid-column: 1; color: var(--texto-2); font-size: var(--t-s); line-height: 1.2; }
+.etapa-estado { grid-column: 2; grid-row: 1; justify-self: end; font-size: var(--t-xs); line-height: 1.2; padding: 2px 6px; background: var(--painel); color: var(--texto-2); }
+.etapa-estado--vencida { color: var(--ganho); }
+.etapa-estado--proxima { background: var(--ouro); color: var(--tinta); }
+.etapa-nome { grid-column: 1; min-width: 0; overflow-wrap: anywhere; font-size: var(--t-l); line-height: 1.1; color: var(--texto); }
+.etapa-insignia { grid-column: 2; grid-row: 2; justify-self: end; line-height: 0; }
+.etapa-meta, .etapa-motivo { grid-column: 1 / -1; font-size: var(--t-s); line-height: 1.25; color: var(--texto-2); }
+.etapa-motivo { color: var(--texto); }
+/* vencida: só texto, com o filete verde à esquerda; fechada: apagada (sem o bisel), com o motivo escrito */
+.etapa--vencida .etapa-btn { background: var(--painel); box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 14px; }
+.etapa--proxima .etapa-btn { background: var(--painel-3); }
+.etapa--fechada .etapa-btn { background: var(--painel); box-shadow: inset 0 0 0 2px var(--linha); cursor: not-allowed; }
+.etapa--fechada .etapa-nome { color: var(--texto-2); }
+/* detalhe da etapa: os cavalos do adversário, um por linha (retrato pequeno e os dados) */
+.adv-cavalos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.adv-cavalo { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; background: var(--painel-2); padding: 6px 8px; }
+.adv-cavalo-info { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 /* cartão da montaria: só o do potro no resultado do Haras (o Estábulo é a lista de linhas, abaixo) */
 .montaria { background: var(--painel-2); padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .montaria .retrato, .montaria .retrato-moldura { align-self: center; }
@@ -1305,6 +1363,15 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   /* indisponível por aria-disabled (o foco fica no botão): as mesmas cores do disabled nativo */
   .btn[aria-disabled="true"], .opcao[aria-disabled="true"] { color: GrayText; border-color: GrayText; }
   .montaria-linha-seta { fill: ButtonText; }   /* o svg não ganha a cor do sistema sozinho */
+  /* ginásios: o cartão e a etapa tocável com borda de botão; a próxima em Highlight; a fechada em GrayText; a vencida (só
+     texto) e a plaquinha de estado e de revanche com borda da cor do texto */
+  .ginasio-cartao, .etapa-btn { border: 2px solid ButtonText; }
+  .etapa--vencida .etapa-btn { border-color: CanvasText; }
+  .etapa--proxima .etapa-btn { border-color: Highlight; }
+  .etapa--fechada .etapa-btn { border-color: GrayText; color: GrayText; }
+  .etapa--fechada .etapa-nome, .etapa--fechada .etapa-meta, .etapa--fechada .etapa-motivo, .etapa--fechada .etapa-rotulo { color: GrayText; }
+  .etapa-estado, .ginasio-revanche { border: 2px solid CanvasText; }
+  .adv-cavalo { border: 2px solid CanvasText; }
   /* a plaquinha "Ativa" da linha perde o contorno de sombra: borda na cor do texto do botão em volta (3c §9.3) */
   .montaria-linha .badge-ativa { border: 2px solid ButtonText; }
   .motivo-alvo { outline-color: Highlight; }   /* a frase do motivo destacada: o item atual */

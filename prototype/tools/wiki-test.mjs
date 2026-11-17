@@ -191,9 +191,15 @@ confere(comArquivo === alvos.length, `só ${comArquivo} de ${alvos.length} dos �
 const linksImg = [...a.md.matchAll(/!\[\]\(\.\.\/prototype\/assets\/icons\/([a-z0-9-]+)\.png\)/g)].map((m) => m[1])
 confere(linksImg.length >= 40, `md com só ${linksImg.length} imagens de ícone`)
 for (const id of linksImg) confere(temIcone(id), `link do md para ícone que não existe: ${id}`)
-// seção de reservados: os 5 da spec §2.6, em 32 px no html e com link no md
+// seção de reservados: os 2 que ainda não têm tela (as insígnias saíram na Tarefa 4 dos ginásios, Ruling 16), em 32 px
+// no html e com link no md
 confere(a.html.includes('id="icones-reservados"') && /## Ícones reservados/.test(a.md), 'falta a seção "Ícones reservados"')
-for (const id of ['item-redea', 'moeda-gema', 'ins-fogo', 'ins-agua', 'ins-grama']) {
+{
+  const ini = a.md.indexOf('## Ícones reservados'), sec = ini >= 0 ? a.md.slice(ini, a.md.indexOf('\n## ', ini + 5)) : ''
+  for (const id of ['ins-fogo', 'ins-agua', 'ins-grama']) confere(sec.length > 0 && !sec.includes('`' + id + '`'), `a insígnia ${id} ainda está nos Ícones reservados`)
+  confere(/Estes dois ícones/.test(sec) && !/insígnias dos ginásios/.test(sec), 'o texto dos Ícones reservados ainda fala de cinco ícones ou das insígnias')
+}
+for (const id of ['item-redea', 'moeda-gema']) {
   confere(a.md.includes(`![](../prototype/assets/icons/${id}.png)`) && a.md.includes('`' + id + '`'), `reservado ${id} sem imagem/nome no md`)
   confere(new RegExp('<img class="ic ic32" src="data:image/png;base64,[A-Za-z0-9+/=]+" alt="" width="32" height="32">(?:<[^>]+>)*<code>' + id + '</code>').test(a.html), `reservado ${id} sem <img> de 32 px no html`)
 }
@@ -223,6 +229,18 @@ confere(!/recursos que vão usá-los \(Rédeas/.test(a.md), 'wiki ainda diz que 
   const ini = a.md.indexOf('## Ginásios da Expedição'), fim = a.md.indexOf('## Ícones reservados')
   const sec = ini >= 0 && fim > ini ? a.md.slice(ini, fim) : ''
   confere(sec.length > 0 && a.html.includes('id="ginasios"'), 'falta a seção "Ginásios da Expedição" (antes dos Ícones reservados)')
+  // as insígnias com o ícone delas (Ruling 16): link no md e <img> no html, na linha do ginásio
+  for (const id of G.GYM_ORDER) {
+    const g = G.GYMS[id], ic = g.insignia.icone
+    confere(sec.includes(`![](../prototype/assets/icons/${ic}.png) ${g.insignia.name}`), `a insígnia ${g.insignia.name} sem o ícone ${ic} na tabela do md`)
+    confere(new RegExp('<img class="ic" src="data:image/png;base64,[A-Za-z0-9+/=]+" alt="" width="16" height="16">' + escHtml(g.insignia.name)).test(a.html), `a insígnia ${g.insignia.name} sem o <img> no html`)
+  }
+  // a aba Expedição no wiki (Tarefa 4): os ginásios, a trilha e a vitrine, com nomes e números do catálogo
+  const exp = (a.md.match(/^- \*\*Expedição:\*\* (.*)$/m) || [])[1] || ''
+  for (const id of G.GYM_ORDER) confere(exp.includes(G.GYMS[id].name), `a aba Expedição no wiki sem o ${G.GYMS[id].name}: ${exp}`)
+  confere(exp.includes(`${G.GYMS[G.GYM_ORDER[0]].etapas.length} etapas`) && /trilha/.test(exp) && /de baixo para cima/.test(exp), `a aba Expedição no wiki sem a trilha de ${G.GYMS[G.GYM_ORDER[0]].etapas.length} etapas: ${exp}`)
+  confere(/Ponto fraco/.test(exp) && /revanche/.test(exp) && /vitrine de 6 cavalos selvagens/.test(exp), `a aba Expedição no wiki sem o ponto fraco, a revanche ou a vitrine: ${exp}`)
+  confere(!/Expedições e captura ainda não existem/.test(exp), 'a aba Expedição no wiki ainda é só a vitrine')
   for (const id of G.GYM_ORDER) {
     const g = G.GYMS[id]
     for (const [tipo, nome] of [['ginásio', g.name], ['líder', g.lider], ['insígnia', g.insignia.name], ...g.etapas.map((e) => ['soldado', e.nome])]) {

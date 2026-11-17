@@ -3103,6 +3103,312 @@ try {
     }
     // a mesma corrida (valendo) com e sem cada insígnia: ordem, tempos e eventos idênticos
     for (const nome of ['fogo', 'agua', 'grama', 'sala-aberta']) if (corridas[nome] && corridas.nenhuma && corridas[nome] !== corridas.nenhuma) problems.push(`ginasio-bonus: a corrida com "${nome}" difere da sem insígnia`)
+
+    // ---------------- Tarefa 4: a aba Expedição e a trilha (spec §4, §8, §9, §10) ----------------
+    // os textos esperados saem do catálogo (nomes, níveis, entradas, prêmios, pista): nada fixado à mão além do formato
+    const ginFmt = (n) => Math.round(n).toLocaleString('pt-BR')
+    const ginCavTxt = (n) => n === 1 ? '1 cavalo' : n + ' cavalos'
+    const ginFraco = (id) => `Ponto fraco: ${G.ELEMENTS[G.GYMS[id].fraco].name} vence ${G.ELEMENTS[id].name}`
+    const ginTotal = (id) => G.GYMS[id].etapas.length
+    const ginLimpa = (s) => String(s || '').replace(/\s+/g, ' ').trim()
+    // a aba Expedição: os cartões (na ordem da tela), o ponto da aba, a vitrine e as posições
+    const ginAba = (pg) => pg.evaluate(() => {
+      const r = (e) => e.getBoundingClientRect()
+      const cartoes = [...document.querySelectorAll('#tela .ginasio-cartao')].map((b) => ({
+        tag: b.tagName, acao: b.getAttribute('data-acao'), id: b.getAttribute('data-id'), txt: b.textContent.replace(/\s+/g, ' ').trim(),
+        h: r(b).height, w: r(b).width, top: r(b).top + window.scrollY, ins: [...b.querySelectorAll('img.icone')].map((i) => i.className) }))
+      const sel = document.getElementById('t-selvagens')
+      return { cartoes, ponto: !!document.querySelector('.app-aba--ponto[data-id="expedicao"]'),
+        pontos: [...document.querySelectorAll('.app-aba--ponto')].map((b) => b.getAttribute('data-id')).join(','),
+        selvagens: document.querySelectorAll('#tela .selvagem').length, selvagensTxt: sel ? sel.textContent : null,
+        selvagensTop: sel ? r(sel).top + window.scrollY : null, abertura: (document.querySelector('#tela .tela > .nota') || {}).textContent || '' }
+    })
+    // a trilha aberta: as etapas na ordem do DOM (0 a 4), com o estado, o botão e a posição na tela
+    const ginTrilha = (pg) => pg.evaluate(() => {
+      const r = (e) => e.getBoundingClientRect()
+      return { titulo: (document.getElementById('t-ginasio') || {}).textContent || null, txt: document.getElementById('tela').textContent.replace(/\s+/g, ' '),
+        etapas: [...document.querySelectorAll('#tela .etapa')].map((li) => {
+          const b = li.querySelector('.etapa-btn')
+          return { n: li.getAttribute('data-etapa'), estado: li.getAttribute('data-estado'), txt: li.textContent.replace(/\s+/g, ' ').trim(), top: r(li).top,
+            tag: b && b.tagName, acao: b && b.getAttribute('data-acao'), id: b && b.getAttribute('data-id'), dis: b && b.getAttribute('aria-disabled'),
+            motivo: b && b.getAttribute('data-motivo'), cur: b && b.getAttribute('aria-current'), h: b ? r(b).height : 0,
+            ins: [...li.querySelectorAll('img.icone')].map((i) => i.className) }
+        }),
+        botoes: [...document.querySelectorAll('#tela button')].map((b) => b.getAttribute('data-acao')) }
+    })
+    const ginAbreAba = async (pg) => { await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao') }
+    const ginAbreTrilha = async (pg, id) => {
+      await pg.locator(`[data-acao="ginasio-abrir"][data-id="${id}"]`).click()
+      await pg.waitForFunction((n) => { const h = document.getElementById('t-ginasio'); return !!h && h.textContent.includes(n) }, G.GYMS[id].name, { timeout: 4000 })
+    }
+    // o cartão do ginásio: nome, elemento, "N de 5 vencidos", a insígnia (ícone e nome) só com as cinco, "Revanche hoje"
+    // só quando a revanche está livre; é um botão de 44 px ou mais que abre a trilha
+    const ginConfereCartao = (label, c, id, etapa, revanche) => {
+      const g = G.GYMS[id]
+      if (!c) { problems.push(`${label}: sem o cartão de ${id}`); return }
+      if (c.tag !== 'BUTTON' || c.acao !== 'ginasio-abrir' || c.h < 44) problems.push(`${label}: o cartão de ${id} não é um botão de 44 px que abre a trilha ${JSON.stringify(c)}`)
+      for (const t of [g.name, G.ELEMENTS[g.element].name, `${etapa} de ${ginTotal(id)} vencidos`]) if (!c.txt.includes(t)) problems.push(`${label}: o cartão de ${id} sem "${t}": ${c.txt}`)
+      const temIns = etapa === ginTotal(id)
+      if (temIns !== c.txt.includes(g.insignia.name) || temIns !== c.ins.some((k) => k.includes('icone--' + g.insignia.icone))) problems.push(`${label}: a insígnia de ${id} (etapa ${etapa}) ${JSON.stringify(c)}`)
+      if (revanche !== c.txt.includes('Revanche hoje')) problems.push(`${label}: "Revanche hoje" no cartão de ${id} devia ser ${revanche}: ${c.txt}`)
+    }
+    // a trilha: cinco etapas de baixo para cima (a 1ª embaixo), cada uma com o nome, os cavalos e o nível, a entrada e o
+    // estado; vencida: sem botão; próxima: o único botão tocável (aria-current); fechada: aria-disabled com o motivo escrito
+    const ginConfereTrilha = (label, t, id, etapa) => {
+      const g = G.GYMS[id]
+      if (!t.titulo || !t.titulo.includes(g.name)) problems.push(`${label}: trilha sem o nome ${g.name} (${t.titulo})`)
+      if (!t.txt.includes(ginFraco(id))) problems.push(`${label}: trilha sem "${ginFraco(id)}"`)
+      if (t.etapas.length !== ginTotal(id)) { problems.push(`${label}: ${t.etapas.length} etapas na trilha`); return }
+      t.etapas.forEach((e, i) => {
+        const def = g.etapas[i], esp = i < etapa ? 'vencida' : i === etapa ? 'proxima' : 'fechada'
+        if (e.n !== String(i)) problems.push(`${label}: etapa ${i} fora de ordem no DOM (${e.n})`)
+        for (const txt of [def.nome, ginCavTxt(def.cavalos.length), 'Nível ' + def.cavalos[0].level, `Entrada: ${ginFmt(def.entrada)} de Ouro`]) if (!e.txt.includes(txt)) problems.push(`${label}: etapa ${i} sem "${txt}": ${e.txt}`)
+        if (e.estado !== esp) problems.push(`${label}: etapa ${i} ${e.estado} (esperado ${esp})`)
+        if (i > 0 && !(e.top < t.etapas[i - 1].top)) problems.push(`${label}: a etapa ${i} não fica acima da ${i - 1} (${e.top} >= ${t.etapas[i - 1].top})`)
+        if (esp === 'vencida' && (e.tag === 'BUTTON' || !e.txt.includes('Vencida'))) problems.push(`${label}: etapa ${i} vencida tocável ou sem "Vencida" ${JSON.stringify(e)}`)
+        if (esp === 'proxima' && (e.tag !== 'BUTTON' || e.acao !== 'ginasio-etapa' || e.id !== String(i) || e.dis !== null || e.cur !== 'step' || e.h < 44 || !e.txt.includes('Próxima'))) problems.push(`${label}: etapa ${i} próxima ${JSON.stringify(e)}`)
+        if (esp === 'fechada' && (e.tag !== 'BUTTON' || e.dis !== 'true' || e.motivo !== 'Vença a etapa anterior' || !e.txt.includes('Vença a etapa anterior') || e.cur !== null || e.h < 44)) problems.push(`${label}: etapa ${i} fechada ${JSON.stringify(e)}`)
+        if (def.lider && (etapa === ginTotal(id)) !== e.ins.some((k) => k.includes('icone--' + g.insignia.icone))) problems.push(`${label}: a etapa do líder com a insígnia devia ser ${etapa === ginTotal(id)}`)
+      })
+      if (etapa === ginTotal(id) && !t.txt.includes(g.insignia.name)) problems.push(`${label}: trilha com a insígnia sem o nome dela`)
+      const tocaveis = t.etapas.filter((e) => e.tag === 'BUTTON' && e.dis === null).length
+      if (tocaveis !== (etapa < ginTotal(id) ? 1 : 0)) problems.push(`${label}: ${tocaveis} etapas tocáveis (esperado ${etapa < ginTotal(id) ? 1 : 0})`)
+      if (t.botoes.some((a) => !a)) problems.push(`${label}: botão sem ação na trilha ${t.botoes.join(',')}`)
+    }
+    // o detalhe da etapa (só leitura nesta tarefa): os cavalos do adversário (nível, estrelas, elemento, Poder do cavalo
+    // fixo do catálogo), a pista da casa numa frase, a entrada e o prêmio com os nomes dos itens; nenhum botão sem ação
+    const ginConfereDetalhe = async (label, pg, id, i) => {
+      const g = G.GYMS[id], def = g.etapas[i]
+      const d = await pg.evaluate(() => ({ titulo: (document.getElementById('t-etapa') || {}).textContent || null, txt: document.getElementById('tela').textContent.replace(/\s+/g, ' '),
+        cavalos: [...document.querySelectorAll('#tela .adv-cavalo')].map((c) => ({ txt: c.textContent.replace(/\s+/g, ' '), retrato: !!c.querySelector('canvas.retrato'),
+          estrelas: (c.querySelector('.estrelas') || { getAttribute: () => null }).getAttribute('aria-label') })),
+        botoes: [...document.querySelectorAll('#tela button')].map((b) => b.getAttribute('data-acao')) }))
+      if (!d.titulo || !d.titulo.includes(def.nome)) problems.push(`${label}: detalhe sem o nome ${def.nome} (${d.titulo})`)
+      if (d.cavalos.length !== def.cavalos.length) problems.push(`${label}: detalhe com ${d.cavalos.length} cavalos (esperado ${def.cavalos.length})`)
+      def.cavalos.forEach((c, k) => {
+        const h = GN.cavalo(c), x = d.cavalos[k]
+        if (!x) return
+        for (const t of [h.name, 'Nível ' + c.level, G.ELEMENTS[h.element].name, 'Poder ' + S.powerRating(h)]) if (!x.txt.includes(t)) problems.push(`${label}: cavalo ${k} do detalhe sem "${t}": ${x.txt}`)
+        if (!x.retrato || !x.estrelas || !x.estrelas.includes(String(c.grau))) problems.push(`${label}: cavalo ${k} do detalhe sem retrato ou sem as ${c.grau} estrelas ${JSON.stringify(x)}`)
+      })
+      const p = g.pista
+      for (const t of [ginFmt(p.distance) + ' m', G.SURFACES[p.surface].name.toLowerCase(), ...p.blocks.map((b) => `${G.BLOCK_TYPES[b.type].name.toLowerCase()} ${ginFmt(b.to - b.from)} m`),
+        `Entrada: ${ginFmt(def.entrada)} de Ouro`, `${ginFmt(def.premio.ouro)} de Ouro`, ...def.premio.itens.map((it) => '1 ' + G.ITEMS[it].name), ginFraco(id)]) {
+        if (!d.txt.includes(t)) problems.push(`${label}: detalhe sem "${t}"`)
+      }
+      if (def.lider && !d.txt.includes(g.insignia.name)) problems.push(`${label}: detalhe do líder sem a insígnia no prêmio`)
+      if (d.botoes.some((a) => !a) || d.botoes.some((a) => /desafiar/i.test(a))) problems.push(`${label}: botão sem ação no detalhe ${d.botoes.join(',')}`)
+    }
+
+    // 7. save novo, a 360×780 e a 1280: os três cartões com "0 de 5 vencidos", sem insígnia nem ponto; a vitrine abaixo; a
+    //    trilha com só a 1ª aberta; tocar numa fechada só diz o motivo; o detalhe da 1ª; o "Voltar" do aparelho fecha o
+    //    detalhe (volta à trilha, com o foco na etapa) e depois a trilha; o botão "Voltar" faz o mesmo
+    for (const vp of [{ width: 360, height: 780 }, { width: 1280, height: 800 }, { width: 360, height: 640 }]) {
+      const label = 'ginasio-aba-' + vp.width + 'x' + vp.height
+      const pg = await ginAbre(label, { save: ginSave(), chave: GIN_DEV, vp })
+      try {
+        await ginAbreAba(pg)
+        await checkOverflow(pg, label + ' aba')
+        const a = await ginAba(pg)
+        if (a.cartoes.map((c) => c.id).join() !== G.GYM_ORDER.join()) problems.push(`${label}: cartões ${a.cartoes.map((c) => c.id).join()} (esperado ${G.GYM_ORDER.join()})`)
+        G.GYM_ORDER.forEach((id) => ginConfereCartao(label, a.cartoes.find((c) => c.id === id), id, 0, false))
+        if (a.ponto) problems.push(`${label}: ponto na aba Expedição num save novo`)
+        // a vitrine continua (Ruling 4), abaixo dos ginásios, com os textos dela
+        if (a.selvagens !== 6 || !/Cavalos selvagens/.test(a.selvagensTxt || '') || !(a.selvagensTop > Math.max(...a.cartoes.map((c) => c.top)))) problems.push(`${label}: a vitrine não está abaixo dos ginásios ${JSON.stringify({ n: a.selvagens, t: a.selvagensTop, c: a.cartoes.map((c) => c.top) })}`)
+        if (!/Exemplos de achados em expedições\. A captura ainda não está neste protótipo\./.test(await pg.locator('#tela').textContent())) problems.push(`${label}: a nota da vitrine mudou`)
+        if (/Em breve/.test(a.abertura) || !/ginásio/i.test(a.abertura)) problems.push(`${label}: a abertura da aba não fala dos ginásios ou ainda diz "Em breve": ${a.abertura}`)
+        for (const id of G.GYM_ORDER) {
+          await ginAbreTrilha(pg, id)
+          await checkOverflow(pg, label + ' trilha ' + id)
+          ginConfereTrilha(label + ' ' + id, await ginTrilha(pg), id, 0)
+          if (id === 'fogo') {
+            // tocar numa etapa fechada: fica na trilha e diz o motivo (região viva); nada abre
+            await pg.locator('[data-acao="ginasio-etapa"][data-id="2"]').click({ force: true })   // o toque real (aria-disabled: o Playwright não clica sem force)
+            await pg.waitForFunction(() => (document.getElementById('motivo-vivo') || {}).textContent === 'Vença a etapa anterior', null, { timeout: 2000 })
+              .catch(() => problems.push(`${label}: tocar na etapa fechada não anunciou o motivo`))
+            if (await pg.locator('#t-etapa').count()) problems.push(`${label}: a etapa fechada abriu o detalhe`)
+            // forçar o toque (sem o aria-disabled) também não abre
+            await pg.evaluate(() => { const b = document.querySelector('[data-acao="ginasio-etapa"][data-id="3"]'); b.removeAttribute('aria-disabled'); b.click() })
+            if (await pg.locator('#t-etapa').count()) problems.push(`${label}: a etapa fechada forçada abriu o detalhe`)
+            // a próxima: o detalhe
+            await pg.locator('[data-acao="ginasio-etapa"][data-id="0"]').click()
+            await pg.waitForSelector('#t-etapa')
+            await checkOverflow(pg, label + ' detalhe')
+            await ginConfereDetalhe(label, pg, id, 0)
+            // "Voltar" do aparelho: o detalhe fecha (a trilha, com o foco na etapa), depois a trilha (a aba)
+            await pg.goBack()
+            await pg.waitForSelector('#t-ginasio')
+            if (await pg.locator('#t-etapa').count()) problems.push(`${label}: o voltar do aparelho não fechou o detalhe`)
+            await pg.waitForFunction(() => { const e = document.activeElement; return !!e && e.getAttribute('data-acao') === 'ginasio-etapa' && e.getAttribute('data-id') === '0' }, null, { timeout: 2000 })
+              .catch(() => problems.push(`${label}: ao fechar o detalhe o foco não voltou à etapa`))
+            await pg.goBack()
+            await pg.waitForSelector('#t-expedicao')
+            // o botão "Voltar" faz o mesmo caminho
+            await ginAbreTrilha(pg, id)
+            await pg.locator('[data-acao="ginasio-etapa"][data-id="0"]').click()
+            await pg.waitForSelector('#t-etapa')
+            await pg.locator('#tela [data-acao="ginasio-voltar"]').click()
+            await pg.waitForSelector('#t-ginasio')
+            await pg.locator('#tela [data-acao="ginasio-voltar"]').click()
+            await pg.waitForSelector('#t-expedicao')
+            await pg.waitForFunction((i) => { const e = document.activeElement; return !!e && e.getAttribute('data-acao') === 'ginasio-abrir' && e.getAttribute('data-id') === i }, id, { timeout: 2000 })
+              .catch(() => problems.push(`${label}: ao fechar a trilha o foco não voltou ao cartão`))
+            // depois de voltar pela tela, o voltar do aparelho não deixa nada para trás (a aba continua)
+            if (vp.width === 360 && vp.height === 780) {
+              await ginAbreTrilha(pg, id)
+              await pg.goBack()
+              await pg.waitForSelector('#t-expedicao')
+            }
+          } else {
+            await pg.goBack()
+            await pg.waitForSelector('#t-expedicao')
+          }
+        }
+        if (!(await pg.evaluate(() => window.__galope.ui.gym === null))) problems.push(`${label}: ui.gym ficou aberto na aba`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 8. com progresso pela gaveta DEV: Fogo com 2 de 5, Água com a insígnia e a revanche livre, Grama sem nada. Vencidas
+    //    marcadas, a insígnia no cartão e na trilha, "Revanche hoje" e o ponto na aba só com a revanche livre; depois de
+    //    tentar hoje (revDia = hoje) o ponto sai; o dia vira com o jogo aberto (gaveta "Avançar 1 dia") e ele volta;
+    //    "Liberar revanche" também o traz; recarregar mantém
+    {
+      const label = 'ginasio-progresso'
+      const pg = await ginAbre(label, { save: ginSave(), chave: GIN_DEV })
+      try {
+        await ginDevEtapas(pg, { fogo: 2, agua: 5, grama: 0 })
+        await ginAbreAba(pg)
+        await checkOverflow(pg, label + ' aba')
+        let a = await ginAba(pg)
+        ginConfereCartao(label, a.cartoes.find((c) => c.id === 'fogo'), 'fogo', 2, false)
+        ginConfereCartao(label, a.cartoes.find((c) => c.id === 'agua'), 'agua', 5, true)
+        ginConfereCartao(label, a.cartoes.find((c) => c.id === 'grama'), 'grama', 0, false)
+        if (!a.ponto) problems.push(`${label}: sem o ponto na aba com a revanche livre (${a.pontos})`)
+        await ginAbreTrilha(pg, 'fogo')
+        ginConfereTrilha(label + ' fogo', await ginTrilha(pg), 'fogo', 2)
+        await pg.locator('[data-acao="ginasio-etapa"][data-id="2"]').click()
+        await pg.waitForSelector('#t-etapa')
+        await ginConfereDetalhe(label + ' fogo 2', pg, 'fogo', 2)
+        await pg.goBack()
+        await pg.waitForSelector('#t-ginasio')
+        await pg.goBack()
+        await pg.waitForSelector('#t-expedicao')
+        await ginAbreTrilha(pg, 'agua')
+        await checkOverflow(pg, label + ' trilha agua')
+        ginConfereTrilha(label + ' agua', await ginTrilha(pg), 'agua', 5)
+        await pg.goBack()
+        await pg.waitForSelector('#t-expedicao')
+        // já tentou hoje: sem "Revanche hoje" e sem ponto (em qualquer aba)
+        const hoje = await ginHoje(pg)
+        await pg.evaluate((h) => { window.__galope.state.ginasios.agua.revDia = h }, hoje)
+        await ginDevEtapas(pg, {})   // grava pela gaveta (devGrava redesenha a tela)
+        a = await ginAba(pg)
+        ginConfereCartao(label + ' tentou hoje', a.cartoes.find((c) => c.id === 'agua'), 'agua', 5, false)
+        if (a.ponto) problems.push(`${label}: ponto na aba com a revanche de hoje já tentada`)
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.waitForSelector('#t-estabulo')
+        if (await pg.locator('.app-aba--ponto[data-id="expedicao"]').count()) problems.push(`${label}: ponto na Expedição (no Estábulo) com a revanche já tentada`)
+        // o dia vira com o jogo aberto: a revanche volta, com o ponto
+        await devAbrir(pg)
+        await pg.locator('[data-acao="dev-dia-mais"]').click()
+        await devFechar(pg)
+        await pg.waitForFunction(() => !!document.querySelector('.app-aba--ponto[data-id="expedicao"]'), null, { timeout: 3000 })
+          .catch(() => problems.push(`${label}: o dia virou e o ponto da Expedição não voltou`))
+        await ginAbreAba(pg)
+        ginConfereCartao(label + ' dia seguinte', (await ginAba(pg)).cartoes.find((c) => c.id === 'agua'), 'agua', 5, true)
+        // de volta ao dia de hoje (já tentou): sem ponto; "Liberar revanche" o traz de volta
+        await devAbrir(pg)
+        await pg.locator('[data-acao="dev-dia-menos"]').click()
+        await devFechar(pg)
+        await pg.waitForFunction(() => !document.querySelector('.app-aba--ponto[data-id="expedicao"]'), null, { timeout: 3000 })
+          .catch(() => problems.push(`${label}: o relógio voltou e o ponto ficou`))
+        await ginDevAcao(pg, 'revanche')
+        await pg.waitForFunction(() => !!document.querySelector('.app-aba--ponto[data-id="expedicao"]'), null, { timeout: 3000 })
+          .catch(() => problems.push(`${label}: "Liberar revanche" não trouxe o ponto`))
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        if (!(await pg.locator('.app-aba--ponto[data-id="expedicao"]').count())) problems.push(`${label}: recarregar tirou o ponto da revanche livre`)
+        // só a insígnia de Fogo, sem a de Água: o ponto segue o ginásio com a revanche
+        await ginDevEtapas(pg, { fogo: 5, agua: 4 })
+        await ginAbreAba(pg)
+        a = await ginAba(pg)
+        ginConfereCartao(label + ' fogo', a.cartoes.find((c) => c.id === 'fogo'), 'fogo', 5, true)
+        ginConfereCartao(label + ' fogo', a.cartoes.find((c) => c.id === 'agua'), 'agua', 4, false)
+        if (!a.ponto) problems.push(`${label}: sem o ponto com a revanche de Fogo livre`)
+        await ginDevAcao(pg, 'zerar')
+        if ((await ginAba(pg)).ponto) problems.push(`${label}: ponto depois de zerar os ginásios`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 9. cores forçadas: cartões e etapas com borda de 2 px em cor do sistema (a fechada em GrayText, a próxima em
+    //    Highlight); movimento reduzido: nada na aba, na trilha e no detalhe anima ou tem transição
+    {
+      const label = 'ginasio-forcado'
+      const pg = await ginAbre(label, { save: ginSave(), chave: GIN_DEV, forcedColors: 'active' })
+      try {
+        await ginDevEtapas(pg, { fogo: 2 })
+        await ginAbreAba(pg)
+        const borda = () => pg.evaluate(() => {
+          const sonda = (c) => { const d = document.createElement('i'); d.style.border = '2px solid ' + c; document.body.appendChild(d); const v = getComputedStyle(d).borderTopColor; d.remove(); return v }
+          const b = (e) => { const cs = getComputedStyle(e); return { w: cs.borderTopWidth, s: cs.borderTopStyle, c: cs.borderTopColor } }
+          return { ativo: matchMedia('(forced-colors: active)').matches, hl: sonda('Highlight'), gray: sonda('GrayText'), sis: ['CanvasText', 'ButtonText', 'GrayText', 'Highlight'].map(sonda),
+            cartoes: [...document.querySelectorAll('#tela .ginasio-cartao')].map(b),
+            etapas: [...document.querySelectorAll('#tela .etapa')].map((li) => ({ estado: li.getAttribute('data-estado'), ...b(li.querySelector('.etapa-btn')) })) }
+        })
+        let f = await borda()
+        if (!f.ativo) problems.push(`[${label}] a página não está em cores forçadas`)
+        if (f.cartoes.length !== 3 || f.cartoes.some((c) => c.w !== '2px' || c.s !== 'solid' || !f.sis.includes(c.c))) problems.push(`[${label}] cartões sem borda de 2 px em cor do sistema ${JSON.stringify(f.cartoes)}`)
+        await ginAbreTrilha(pg, 'fogo')
+        f = await borda()
+        if (f.etapas.length !== 5 || f.etapas.some((e) => e.w !== '2px' || e.s !== 'solid' || !f.sis.includes(e.c))) problems.push(`[${label}] etapas sem borda de 2 px em cor do sistema ${JSON.stringify(f.etapas)}`)
+        if (f.etapas.filter((e) => e.estado === 'fechada').some((e) => e.c !== f.gray)) problems.push(`[${label}] etapa fechada sem a borda em GrayText ${JSON.stringify(f.etapas)}`)
+        if (f.etapas.filter((e) => e.estado === 'proxima').some((e) => e.c !== f.hl)) problems.push(`[${label}] etapa próxima sem a borda em Highlight ${JSON.stringify(f.etapas)}`)
+        await checkOverflow(pg, label)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    {
+      const label = 'ginasio-reduzido'
+      const pg = await ginAbre(label, { save: ginSave(), chave: GIN_DEV, reducedMotion: 'reduce' })
+      const parado = async (tag) => {
+        const r = await pg.evaluate(() => {
+          const c = document.querySelector('#tela .tela'), els = c ? [c, ...c.querySelectorAll('*')] : []
+          return { n: els.length, anim: document.getAnimations().filter((a) => a.effect && a.effect.target && c && c.contains(a.effect.target)).length,
+            css: els.filter((e) => { const cs = getComputedStyle(e); return cs.animationName !== 'none' || cs.transitionDuration.split(',').some((t) => parseFloat(t) > 0) }).map((e) => e.className) }
+        })
+        if (!r.n || r.anim || r.css.length) problems.push(`[${label}] ${tag}: algo se move ${JSON.stringify(r)}`)
+      }
+      try {
+        await ginDevEtapas(pg, { agua: 5 })
+        await ginAbreAba(pg)
+        await parado('aba')
+        await ginAbreTrilha(pg, 'fogo')
+        await parado('trilha')
+        await pg.locator('[data-acao="ginasio-etapa"][data-id="0"]').click()
+        await pg.waitForSelector('#t-etapa')
+        await parado('detalhe')
+        await pg.goBack()
+        await pg.waitForSelector('#t-ginasio')
+        await pg.goBack()
+        await ginAbreTrilha(pg, 'agua')
+        await parado('trilha com a insígnia')
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
   }
 
   // ---------------- corrida redimensionada: continua cabendo na altura da janela ----------------

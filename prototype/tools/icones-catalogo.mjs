@@ -10,7 +10,7 @@ export const FAMILIAS = [
   { id: 'sk', nome: 'Skills' },
   { id: 'cl-pi', nome: 'Clima e piso' },
   { id: 'liga-rar-podio', nome: 'Ligas, raridades e pódio' },
-  { id: 'reservado', nome: 'Reservados para recursos que estão chegando' },
+  { id: 'reservado', nome: 'Reservados (Rédea e Gema) e insígnias dos ginásios' },
 ];
 
 // Fogo #ff8a4c, Água #62b8ff, Grama #86d86a, gerais #f2c230
@@ -86,8 +86,9 @@ const TABELA = [
 
 export const ICONES_NOVOS = TABELA.map(([familia, id, desc, cor, op = {}], i) => ({ id, familia, desc, cor, seed: op.seed || 2201 + i }));
 
-// Ícones sem tela ainda (spec §2.6): só o wiki e a folha de conferência os mostram.
-export const RESERVADOS = ['item-redea', 'moeda-gema', 'ins-fogo', 'ins-agua', 'ins-grama'];
+// Ícones sem tela ainda (spec §2.6): só o wiki e a folha de conferência os mostram. As três insígnias (ins-*) saíram
+// daqui com a aba Expedição dos ginásios (Ruling 16): aparecem no cartão e na trilha de cada ginásio.
+export const RESERVADOS = ['item-redea', 'moeda-gema'];
 
 // Os 16 ícones de hoje (lote `icones`).
 export const ANTIGOS = [

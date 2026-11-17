@@ -1252,9 +1252,18 @@ section('Catálogo de ícones');
     const tem = new Set(arquivos.map(f => f.slice(0, -4)));
     for (const id of conhecidos) if (!tem.has(id)) console.log('  aviso: sem arquivo: ' + id);
   });
-  test('RESERVADOS são os 5 da spec §2.6 e estão no catálogo', () => {
-    assert.deepStrictEqual(RESERVADOS, ['item-redea', 'moeda-gema', 'ins-fogo', 'ins-agua', 'ins-grama']);
+  // Ruling 16 dos ginásios: as três insígnias saem dos reservados (aparecem na aba Expedição); ficam a Rédea e a Gema
+  test('RESERVADOS são os 2 que ainda não têm tela e estão no catálogo', () => {
+    assert.deepStrictEqual(RESERVADOS, ['item-redea', 'moeda-gema']);
     for (const r of RESERVADOS) assert.strictEqual(ICONES_NOVOS.find(i => i.id === r).familia, 'reservado', r);
+  });
+  test('o ícone de cada insígnia de ginásio está no catálogo, fora dos reservados', () => {
+    const icones = GameData.GYM_ORDER.map(id => GameData.GYMS[id].insignia.icone);
+    assert.deepStrictEqual(icones, ['ins-fogo', 'ins-agua', 'ins-grama']);
+    for (const ic of icones) {
+      assert.ok(ICONES_NOVOS.some(i => i.id === ic), ic + ' fora do catálogo');
+      assert.ok(!RESERVADOS.includes(ic), ic + ' ainda nos reservados');
+    }
   });
   test('folha: cada id do catálogo e dos 16 aparece; sem arquivo vira "falta"; reservado marcado', () => {
     const html = htmlFolhaIcones({ 'st-vel': 'data:image/png;base64,AA==' }, ICONES_NOVOS, ANTIGOS);

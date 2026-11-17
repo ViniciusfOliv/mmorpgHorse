@@ -41,7 +41,7 @@
 
 - **Estábulo:** o cartão da recompensa do dia, no topo; suas montarias (3 vagas no começo, até 8), status, skills e a redistribuição dos pontos; escolher a ativa.
 - **Correr:** escolher a entrada (50, 100 ou 250 de Ouro) e procurar corrida; sem Ouro para a menor entrada, treino gratuito.
-- **Expedição:** vitrine de 6 cavalos selvagens. Expedições e captura ainda não existem no protótipo.
+- **Expedição:** os 3 ginásios (Ginásio da Fornalha, Ginásio do Remanso e Ginásio da Capoeira), cada um com quantas etapas já venceu ("N de 5 vencidos"), a insígnia conquistada e "Revanche hoje" quando a revanche do líder está livre (o ponto na aba avisa). Tocar no ginásio abre a trilha: as 5 etapas de baixo para cima (Soldado 1, Soldado 2, Soldado 3, Soldado 4 e o Líder), cada uma vencida, próxima (a única que se toca) ou fechada ("Vença a etapa anterior"), e o ponto fraco escrito ("Ponto fraco: Água vence Fogo"). A etapa próxima mostra os cavalos do adversário, a pista da casa, a entrada e o prêmio. Embaixo, a vitrine de 6 cavalos selvagens (a captura ainda não existe no protótipo).
 - **Haras:** cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.
 - **Loja:** em **Comprar**, os itens de uso (Torrão de açúcar, Manual de doma, Cupom de troca de skill e Estrela de treino) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os 5 itens, quantos você tem de cada e o botão Usar.
 
@@ -1206,13 +1206,13 @@ O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver ch
 
 ## Ginásios da Expedição
 
-São 3 ginásios, um por elemento, cada um com 4 soldados e o líder, sempre com cavalos do elemento do ginásio. As etapas abrem em ordem; etapa vencida fica marcada e não se repete. Os cavalos dos soldados são fixos (a montaria-base do catálogo no level e nas estrelas da etapa, com a build dos bots e as skills dela). As regras e os números já estão no código; as telas chegam nas próximas partes.
+São 3 ginásios, um por elemento, cada um com 4 soldados e o líder, sempre com cavalos do elemento do ginásio. As etapas abrem em ordem; etapa vencida fica marcada e não se repete. Os cavalos dos soldados são fixos (a montaria-base do catálogo no level e nas estrelas da etapa, com a build dos bots e as skills dela). A aba Expedição mostra os ginásios e a trilha de cada um (ver Visão geral, Abas); o desafio na tela chega nas próximas partes.
 
 | Ginásio | Elemento | Líder | Ponto fraco | Pista da casa | Insígnia |
 | --- | --- | --- | --- | --- | --- |
-| **Ginásio da Fornalha** | Fogo | Capitã Labareda | Água | 1.200 m, terra: subida 650 m, curva 350 m, subida 200 m | Insígnia da Fornalha: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo) |
-| **Ginásio do Remanso** | Água | Mestre Aguaceiro | Grama | 1.200 m, areia: curva 100 m, subida 250 m, reta 250 m, curva 200 m, subida 400 m | Insígnia do Remanso: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado) |
-| **Ginásio da Capoeira** | Grama | Dona Capineira | Fogo | 1.200 m, grama: subida 800 m, reta 50 m, curva 350 m | Insígnia da Capoeira: +3 pontos na chance de aprender skill ao subir de level (8% → 11%) |
+| **Ginásio da Fornalha** | Fogo | Capitã Labareda | Água | 1.200 m, terra: subida 650 m, curva 350 m, subida 200 m | ![](../prototype/assets/icons/ins-fogo.png) Insígnia da Fornalha: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo) |
+| **Ginásio do Remanso** | Água | Mestre Aguaceiro | Grama | 1.200 m, areia: curva 100 m, subida 250 m, reta 250 m, curva 200 m, subida 400 m | ![](../prototype/assets/icons/ins-agua.png) Insígnia do Remanso: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado) |
+| **Ginásio da Capoeira** | Grama | Dona Capineira | Fogo | 1.200 m, grama: subida 800 m, reta 50 m, curva 350 m | ![](../prototype/assets/icons/ins-grama.png) Insígnia da Capoeira: +3 pontos na chance de aprender skill ao subir de level (8% → 11%) |
 
 ### Trilha do Ginásio da Fornalha
 
@@ -1266,15 +1266,12 @@ O time do jogador tem no máximo o tamanho do time do adversário (pode levar me
 
 ## Ícones reservados
 
-Estes cinco ícones já estão em `prototype/assets/icons/`, mas ainda não aparecem no jogo: esperam os recursos que vão usá-los (loja de Gemas, insígnias dos ginásios). A Rédea nova já existe no jogo, mas com o ícone desenhado em código, como os outros quatro itens; o `item-redea` daqui continua guardado. Até lá, só o wiki os mostra.
+Estes dois ícones já estão em `prototype/assets/icons/`, mas ainda não aparecem no jogo: o `moeda-gema` espera a loja de Gemas. A Rédea nova já existe no jogo, mas com o ícone desenhado em código, como os outros quatro itens; o `item-redea` daqui continua guardado. Até lá, só o wiki os mostra. Os ícones das insígnias já aparecem na aba Expedição (ver Ginásios da Expedição).
 
 | Ícone | Descrição | Cor |
 | --- | --- | --- |
 | ![](../prototype/assets/icons/item-redea.png) `item-redea` | coiled leather horse reins with a metal buckle | `#9a6b3f` |
 | ![](../prototype/assets/icons/moeda-gema.png) `moeda-gema` | faceted cut gemstone with a sparkle | `#5fd3c8` |
-| ![](../prototype/assets/icons/ins-fogo.png) `ins-fogo` | round pin badge with a flame emblem inside a ring | `#ff8a4c` |
-| ![](../prototype/assets/icons/ins-agua.png) `ins-agua` | round pin badge with a water drop emblem inside a ring | `#62b8ff` |
-| ![](../prototype/assets/icons/ins-grama.png) `ins-grama` | round pin badge with a leaf emblem inside a ring | `#86d86a` |
 
 <a id="dev"></a>
 

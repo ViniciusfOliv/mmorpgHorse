@@ -272,7 +272,10 @@ export function descreverAba(rotulo, F) {
   switch (rotulo) {
     case 'Estábulo': return `o cartão da recompensa do dia, no topo; suas montarias (${BR.stableSlotsStart} vagas no começo, até ${BR.stableSlotsMax}), status, ${F.gearOn ? 'skills e equipamento' : 'skills e a redistribuição dos pontos'}; escolher a ativa.`
     case 'Correr': return `escolher a entrada (${lista(E.entryTiers.map((t) => num(t)), 'ou')} de Ouro) e procurar corrida; sem Ouro para a menor entrada, treino gratuito.`
-    case 'Expedição': return `vitrine de ${F.vitrine.length} cavalos selvagens. Expedições e captura ainda não existem no protótipo.`
+    case 'Expedição': {
+      const g0 = G.GYMS[G.GYM_ORDER[0]]
+      return `os ${G.GYM_ORDER.length} ginásios (${lista(G.GYM_ORDER.map((id) => G.GYMS[id].name))}), cada um com quantas etapas já venceu ("N de ${g0.etapas.length} vencidos"), a insígnia conquistada e "Revanche hoje" quando a revanche do líder está livre (o ponto na aba avisa). Tocar no ginásio abre a trilha: as ${g0.etapas.length} etapas de baixo para cima (${lista([...g0.etapas.filter((e) => !e.lider).map((e, i) => `Soldado ${i + 1}`), 'o Líder'])}), cada uma vencida, próxima (a única que se toca) ou fechada ("Vença a etapa anterior"), e o ponto fraco escrito ("Ponto fraco: ${G.ELEMENTS[g0.fraco].name} vence ${G.ELEMENTS[g0.element].name}"). A etapa próxima mostra os cavalos do adversário, a pista da casa, a entrada e o prêmio. Embaixo, a vitrine de ${F.vitrine.length} cavalos selvagens (a captura ainda não existe no protótipo).`
+    }
     case 'Haras': return 'cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.'
     case 'Loja': {
       const venda = G.SHOP_ORDER   // a ordem fixa da loja (Ruling 11)
@@ -942,10 +945,10 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
   const faixaTxt = (f, i) => f.ate === null ? `${num(fx[i - 1].ate)} m ou mais` : i === 0 ? `menos de ${num(f.ate)} m` : `de ${num(fx[i - 1].ate)} a menos de ${num(f.ate)} m`
   const cicloTxt = GY.revanche.ciclo.map((c) => c.ouro ? `${num(c.ouro)} de Ouro` : `1 ${nomeItem(c.item)}`)
   add('ginasios', 'Ginásios da Expedição', 'Ginásios', [
-    { t: 'p', txt: `São ${gyIds.length} ginásios, um por elemento, cada um com ${G.GYMS[gyIds[0]].etapas.length - 1} soldados e o líder, sempre com cavalos do elemento do ginásio. As etapas abrem em ordem; etapa vencida fica marcada e não se repete. Os cavalos dos soldados são fixos (a montaria-base do catálogo no level e nas estrelas da etapa, com a build dos bots e as skills dela). As regras e os números já estão no código; as telas chegam nas próximas partes.` },
+    { t: 'p', txt: `São ${gyIds.length} ginásios, um por elemento, cada um com ${G.GYMS[gyIds[0]].etapas.length - 1} soldados e o líder, sempre com cavalos do elemento do ginásio. As etapas abrem em ordem; etapa vencida fica marcada e não se repete. Os cavalos dos soldados são fixos (a montaria-base do catálogo no level e nas estrelas da etapa, com a build dos bots e as skills dela). A aba Expedição mostra os ginásios e a trilha de cada um (ver Visão geral, Abas); o desafio na tela chega nas próximas partes.` },
     { t: 'tabela', rotulo: 'Ginásios', cab: ['Ginásio', 'Elemento', 'Líder', 'Ponto fraco', 'Pista da casa', 'Insígnia'], linhas: gyIds.map((id) => {
       const g = G.GYMS[id]
-      return [{ md: `**${g.name}**`, html: `<strong>${esc(g.name)}</strong>` }, elCel(g.element), g.lider, elCel(g.fraco), pistaGym(g.pista), `${g.insignia.name}: ${bonusIns(id)}`]
+      return [{ md: `**${g.name}**`, html: `<strong>${esc(g.name)}</strong>` }, elCel(g.element), g.lider, elCel(g.fraco), pistaGym(g.pista), { md: `${icMd(g.insignia.icone)}${g.insignia.name}: ${bonusIns(id)}`, html: `${icone(g.insignia.icone)}${esc(g.insignia.name)}: ${esc(bonusIns(id))}` }]
     }) },
     ...gyIds.flatMap((id) => {
       const g = G.GYMS[id]
@@ -965,14 +968,15 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
   ])
 
   // 13. Ícones reservados --------------------------------------------------------------------------------
-  // Os 5 da spec (2.6): já existem como arquivo, mas só entram nas telas com recursos que ainda vão chegar.
+  // Os da spec (2.6) ainda sem tela: já existem como arquivo, mas só entram nas telas com recursos que ainda vão chegar
+  // (as três insígnias saíram daqui com a aba Expedição dos ginásios).
   const reservados = RESERVADOS.map((id) => {
     const ic = ICONES_NOVOS.find((x) => x.id === id)
     if (!ic) throw new Error(`wiki: reservado "${id}" fora do catálogo de ícones`)
     return [{ md: icMd(id) + `\`${id}\``, html: icone(id, '', 'ic ic32', 32) + `<code>${esc(id)}</code>` }, ic.desc, ic.cor]
   })
   add('icones-reservados', 'Ícones reservados', 'Ícones reservados', [
-    { t: 'p', txt: 'Estes cinco ícones já estão em `prototype/assets/icons/`, mas ainda não aparecem no jogo: esperam os recursos que vão usá-los (loja de Gemas, insígnias dos ginásios). A Rédea nova já existe no jogo, mas com o ícone desenhado em código, como os outros quatro itens; o `item-redea` daqui continua guardado. Até lá, só o wiki os mostra.' },
+    { t: 'p', txt: 'Estes dois ícones já estão em `prototype/assets/icons/`, mas ainda não aparecem no jogo: o `moeda-gema` espera a loja de Gemas. A Rédea nova já existe no jogo, mas com o ícone desenhado em código, como os outros quatro itens; o `item-redea` daqui continua guardado. Até lá, só o wiki os mostra. Os ícones das insígnias já aparecem na aba Expedição (ver Ginásios da Expedição).' },
     { t: 'tabela', rotulo: 'Ícones reservados', cab: ['Ícone', 'Descrição', 'Cor'], linhas: reservados.map(([c, d, cor]) => [c, d, { md: `\`${cor}\``, html: `<span class="amostra" style="--c:${cor}"></span><code>${esc(cor)}</code>` }]) }
   ])
 
