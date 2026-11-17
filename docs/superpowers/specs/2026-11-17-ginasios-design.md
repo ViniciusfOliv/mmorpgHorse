@@ -1,6 +1,7 @@
 # Ginásios da Expedição — desenho
 
-_Data: 2026-11-17. Estado: para aprovação do Vinicius. Fecha o que o GDD §8.6 deixava "a decidir"._
+_Data: 2026-11-17. Estado: para aprovação do Vinicius. Fecha o que o GDD §8.6 deixava "a decidir". As decisões do
+controlador (seção 19) passam a valer com a aprovação deste documento; o plano só começa depois dela._
 
 ## 1. Intenção e o porquê
 
@@ -92,8 +93,10 @@ Cada ginásio tem **4 soldados e o líder**, sempre com cavalos do elemento do g
 ## 5. O desafio
 
 1. **Preparo.** Ao tocar numa etapa aberta, o jogador vê o adversário (cavalos, nível, elemento, Poder), a pista da
-   casa, a entrada e o prêmio, e monta o **time**: de 1 a 3 cavalos seus, na **ordem** em que vão correr. A tela
-   mostra, para cada cavalo escolhido, se ele tem vantagem, desvantagem ou nada contra o elemento do ginásio.
+   casa, a entrada e o prêmio, e monta o **time**, na **ordem** em que os cavalos vão correr. O time tem **no máximo o
+   tamanho do time do adversário**: 1 cavalo contra os soldados 1 e 2, até 2 contra os soldados 3 e 4, até 3 contra o
+   líder (pode levar menos). A tela mostra, para cada cavalo escolhido, se ele tem vantagem, desvantagem ou nada contra
+   o elemento do ginásio.
 2. **Pagar.** "Desafiar" cobra a entrada (respeitando o Ouro reservado da sala aberta) e, **só então**, simula o
    desafio inteiro com a seed.
 3. **Duelos.** O 1º cavalo do jogador corre contra o 1º do adversário. Quem perde sai; quem vence fica e enfrenta o
@@ -110,6 +113,8 @@ Cada ginásio tem **4 soldados e o líder**, sempre com cavalos do elemento do g
   durante o desafio não muda os cavalos naquele desafio (valem como estavam ao pagar).
 - **Sala de corrida aberta:** o cavalo ativo **não entra no time** enquanto houver sala aberta (ganhar XP mudaria o
   Poder que a sala viu); os outros cavalos entram. O motivo aparece na linha do cavalo.
+- **Jogador com um cavalo só:** os soldados 1 e 2 são 1 contra 1, então a trilha começa com o cavalo inicial. Se esse
+  único cavalo é o ativo de uma sala aberta, não há time: a tela diz para correr ou fechar a sala primeiro.
 - **Mochila cheia:** se o prêmio da etapa tem um item e a mochila já está no teto dele (99; Rédea 999), o botão
   "Desafiar" fica apagado com o motivo, antes de pagar.
 - **Tudo numa gravação só:** a entrada, o resultado, o Ouro, o XP, os itens, o progresso e o contador do sorteio são
@@ -201,7 +206,7 @@ DESAFIO: Sargento (Fogo)                    RESUMO
  Seu time (toque para pôr na ordem):         Vitória! +160 de Ouro
   1 Maré   Água  Nv 11  vantagem             Maré +65 XP · Brasa +50 XP
   2 Brasa  Fogo  Nv 13                       Tenente liberado
-  3 (vazio)
+  (até 2 cavalos: o Sargento tem 2)
  [ Desafiar (40 de Ouro) ]
 ```
 
@@ -224,11 +229,20 @@ DESAFIO: Sargento (Fogo)                    RESUMO
 ## 12. Calibração e metas
 
 Os números das seções 4, 6, 7 e a pista de cada ginásio saem de simulação, como nas frentes anteriores. O `balance.js`
-ganha um grupo de metas G, e os números finais vão para o wiki. Metas de partida (o executor pode propor outros
-limites, com a medição, antes de fixar):
+ganha um grupo de metas G, e os números finais vão para o wiki.
 
-- **G1 — Na medida:** um time de 3 cavalos Comuns do **mesmo elemento do ginásio**, no nível da etapa, com a
-  distribuição sugerida, vence a etapa entre 35% e 55% das vezes.
+**O que é fixo e o que a calibração pode mexer.** Fixos: a estrutura (4 soldados e o líder; times de 1, 1, 2, 2 e 3; as
+etapas em ordem; a forma dos prêmios; três faixas de cansaço; a vantagem como um percentual nos seis status de corrida).
+Ajustáveis para fechar as metas: o nível de cada etapa (até 2 para cima ou para baixo), a raridade, as skills e os
+pontos dos cavalos dos soldados, a pista de cada ginásio, o percentual da vantagem (de 2% a 5%), os limites e descontos
+do cansaço e o XP por duelo. Se as metas não fecharem dentro disso, o executor para e leva a medição ao controlador,
+que decide com o Vinicius. A tabela final é mostrada ao Vinicius antes de as telas serem construídas.
+
+Em todas as metas, "time" é um time **do tamanho do time do adversário** naquela etapa. Metas de partida:
+
+- **G1 — Na medida:** um time de cavalos Comuns do **mesmo elemento do ginásio**, no nível da etapa, com a
+  distribuição sugerida, vence a etapa entre 40% e 55% das vezes. Vale para as cinco etapas; na primeira, é o cavalo
+  inicial daquele elemento, sozinho, no nível 4.
 - **G2 — Nível manda:** o mesmo time 4 níveis acima vence 70% ou mais; 4 níveis abaixo, 25% ou menos.
 - **G3 — Ponto fraco vale:** o time do elemento que vence o ginásio, no nível da etapa, vence entre 60% e 80%; o do
   elemento que o ginásio vence, 25% ou menos.
@@ -298,7 +312,8 @@ fino das telas dentro do que a seção 10 mostra; o sal do sorteio; a ordem das 
 ## 19. Decisões
 
 - **Do Vinicius:** as 9 da seção 1.
-- **Do controlador (a confirmar na leitura):** 4 soldados por trilha e os tamanhos dos times; os três ginásios com a
+- **Do controlador (a confirmar na leitura):** 4 soldados por trilha e os tamanhos dos times; o time do jogador
+  limitado ao tamanho do time do adversário; o que a calibração pode mexer (seção 12); os três ginásios com a
   mesma dificuldade; os números das tabelas; XP por duelo; o cavalo ativo fora do time com sala aberta; a mochila
   cheia travando o desafio; o desafio inteiro acertado na gravação do pagamento; clima Nublado na largada; revanche
   como 1 tentativa por dia por ginásio e o rodízio do prêmio; qual insígnia dá qual bônus; o ponto de aviso na aba; os
