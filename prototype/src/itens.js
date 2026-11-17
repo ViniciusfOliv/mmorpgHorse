@@ -19,6 +19,10 @@
  *   usos (0x17E5 do plano caía em 61 × 100 + 17: o aprendizado do páreo 61 no nível 17).
  *   Ginásios (ginasio.js): 0x47490000 ("GI") + contador de desafios × 8 + nº do duelo (0–4), abaixo deste SAL,
  *   com folga de ~4 milhões de desafios.
+ *   Skill ao subir de nível num desafio de ginásio (game.js, desafia; Ruling 18): o applyXp com seedTag =
+ *   20.000.000 + contador de desafios × 4 + posição no time (0–2), ou seja x = 2.000.000.000 + contador × 400 +
+ *   posição × 100 + nível (0x77359400 em diante), acima de todos os outros (hash2 lê x >>> 0: ~5,7 milhões de
+ *   desafios antes de dar a volta nos 32 bits).
  *
  * DIA: inteiro de dias desde 1970-01-01 da data local (diaLocal; mes de 0 a 11, como no Date).
  * DIÁRIA: { prox: 0–6 (próximo dia do calendário), ciclos: calendários completos, ultimo: dia do último

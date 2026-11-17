@@ -43,7 +43,7 @@ const DURACOES = {
   escala: 5, 'fluxo-dev': 4, selo: 4, retrato: 3, gravacao2: 3, 'fluxo-capturas-itens': 3, 'selo-teto': 3, reserva: 3,
   areasegura: 3, texto: 3, 'vaga-tipo': 3, gravacao: 3, 'nivel-pontos': 3, 'fluxo-saves': 3, adulterado: 2,
   corrompido: 2, treino: 2, 'fluxo-equipamento': 2, aviso: 2, 'fluxo-sem-icones': 2, 'build-nivel1': 2, inicial: 2,
-  'fluxo-build-teste': 2, 'valor-peca': 1, 'fluxo-loja': 1, ginasio: 30
+  'fluxo-build-teste': 2, 'valor-peca': 1, 'fluxo-loja': 1, ginasio: 48
 }
 
 const lista = execFileSync(process.execPath, [UI, '--blocos'], { encoding: 'utf8' }).split('\n').map((x) => x.trim()).filter(Boolean)

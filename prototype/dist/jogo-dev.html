@@ -821,6 +821,25 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .adv-cavalos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .adv-cavalo { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; background: var(--painel-2); padding: 6px 8px; }
 .adv-cavalo-info { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+/* preparo do desafio: o time são as linhas do Estábulo; a escolhida fica em destaque (fundo e filete dourado à esquerda) e
+   mostra a posição no lugar da seta; a vantagem é uma plaquinha escrita (nunca só cor) */
+.gin-time .montaria-linha[aria-pressed="true"] { background: var(--painel-3); }
+.gin-time .montaria-linha[aria-pressed="true"]::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--ouro); }
+.gin-pos { grid-column: 3; grid-row: 1 / span 3; min-width: 32px; text-align: center; font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; color: var(--ouro); text-shadow: 2px 2px 0 var(--sombra); }
+.gin-vant { padding: 2px 6px; font-size: var(--t-xs); line-height: 1.2; background: var(--painel); color: var(--texto); white-space: nowrap; }
+.gin-vant--mais { box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 8px; }
+.gin-vant--menos { box-shadow: inset 4px 0 0 0 var(--perda); padding-left: 8px; }
+.gin-desafio .acoes .btn { width: 100%; }
+/* resumo: um duelo por linha (o texto, a plaquinha de quem venceu e o fôlego de quem seguiu), o XP de cada cavalo e a etapa liberada */
+.gin-duelos, .gin-xp { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.gin-duelo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; background: var(--painel-2); padding: 6px 8px; min-width: 0; }
+.gin-duelo-txt { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; }
+.gin-duelo-tag { font-size: var(--t-xs); line-height: 1.2; padding: 2px 6px; background: var(--painel); color: var(--texto-2); }
+.gin-duelo--vitoria .gin-duelo-tag { background: var(--ouro); color: var(--tinta); }
+.gin-duelo-folego { font-size: var(--t-s); line-height: 1.25; color: var(--texto-2); }
+.gin-xp > li { min-width: 0; overflow-wrap: anywhere; }
+.gin-ganhos > p { margin: 0; }
+.gin-liberada { margin: 0; padding: 8px 10px; background: var(--painel-3); box-shadow: inset 4px 0 0 0 var(--ouro); }
 /* cartão da montaria: só o do potro no resultado do Haras (o Estábulo é a lista de linhas, abaixo) */
 .montaria { background: var(--painel-2); padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .montaria .retrato, .montaria .retrato-moldura { align-self: center; }
@@ -1403,6 +1422,9 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   .etapa--fechada .etapa-nome, .etapa--fechada .etapa-meta, .etapa--fechada .etapa-motivo, .etapa--fechada .etapa-rotulo { color: GrayText; }
   .etapa-estado, .ginasio-revanche { border: 2px solid CanvasText; }
   .adv-cavalo { border: 2px solid CanvasText; }
+  /* o desafio: o cavalo escolhido em Highlight; as plaquinhas, os duelos e a etapa liberada com borda da cor do texto */
+  .gin-time .montaria-linha[aria-pressed="true"] { border-color: Highlight; }
+  .gin-vant, .gin-duelo, .gin-duelo-tag, .gin-liberada { border: 2px solid CanvasText; }
   /* a plaquinha "Ativa" da linha perde o contorno de sombra: borda na cor do texto do botão em volta (3c §9.3) */
   .montaria-linha .badge-ativa { border: 2px solid ButtonText; }
   .motivo-alvo { outline-color: Highlight; }   /* a frase do motivo destacada: o item atual */
@@ -4464,6 +4486,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   usos (0x17E5 do plano caía em 61 × 100 + 17: o aprendizado do páreo 61 no nível 17).
  *   Ginásios (ginasio.js): 0x47490000 ("GI") + contador de desafios × 8 + nº do duelo (0–4), abaixo deste SAL,
  *   com folga de ~4 milhões de desafios.
+ *   Skill ao subir de nível num desafio de ginásio (game.js, desafia; Ruling 18): o applyXp com seedTag =
+ *   20.000.000 + contador de desafios × 4 + posição no time (0–2), ou seja x = 2.000.000.000 + contador × 400 +
+ *   posição × 100 + nível (0x77359400 em diante), acima de todos os outros (hash2 lê x >>> 0: ~5,7 milhões de
+ *   desafios antes de dar a volta nos 32 bits).
  *
  * DIA: inteiro de dias desde 1970-01-01 da data local (diaLocal; mes de 0 a 11, como no Date).
  * DIÁRIA: { prox: 0–6 (próximo dia do calendário), ciclos: calendários completos, ultimo: dia do último
@@ -10741,6 +10767,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     // com o uso de um item aberto (escolha do cavalo, da skill ou a confirmação), a tela fica: ela é desenhada de novo com o
     // save adotado e confere tudo outra vez (o cavalo que saiu, virou o ativo com a sala aberta ou o item que acabou)
     if (ui.item && (ui.screen === 'loja' || ui.screen === 'montaria')) { itemPasso(); return; }
+    // na subtela do ginásio, também: o preparo é desenhado de novo com o save adotado e confere tudo outra vez (o "Desafiar"
+    // apagado com o motivo); o progresso que andou volta à trilha; o resumo de um desafio já gravado continua
+    if (ui.screen === 'ginasio' && ui.gym) { rerenderKeepScroll(); return; }
     go(ui.screen === 'inicial' ? 'inicial' : 'estabulo');
   }
 
@@ -11070,8 +11099,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // para a linha aparecer (o scroll-padding desconta o cabeçalho e a barra de abas)
   function voltaDaSubtela() {
     // ginásio: do detalhe da etapa volta à trilha (foco na etapa); da trilha, à aba (foco no cartão do ginásio)
+    // do resumo do desafio, à trilha (já atualizada), mostrando a etapa próxima como ao abrir
     if (ui.screen === 'ginasio' && ui.gym) {
       var gym = ui.gym;
+      if (gym.res) {
+        gym.res = null; gym.etapa = null; gym.time = []; gym.msg = null;
+        go('ginasio');
+        mostraInteiro(telaEl.querySelector('.etapa[data-estado="proxima"]'));
+        return;
+      }
       if (gym.etapa !== null) { var ie = gym.etapa; gym.etapa = null; go('ginasio'); focoNaLinha('ginasio-etapa', String(ie)); return; }
       go(ui.tab);
       if (ui.screen === 'expedicao') focoNaLinha('ginasio-abrir', gym.id);
@@ -11980,21 +12016,22 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // Sexo, cruzas, Corcel e XP ficam na ficha; "Tornar ativa" também.
   var SETA_ROWS = ['..#.....', '..##....', '...##...', '....##..', '...##...', '..##....', '..#.....', '........'];
   // o: a linha na escolha do cavalo de um item: { acao (no lugar de "montaria"), fim (no lugar de "Abrir ficha."), motivo
-  // (a linha apagada, no padrão indisponivel) }
+  // (a linha apagada, no padrão indisponivel) } e, no time do ginásio, também pressed (aria-pressed), meta (html no fim da
+  // linha do elemento e do Poder) e lado (html no lugar da seta)
   function mountRowHtml(m, isActive, o) {
     var n = uidNum(m.uid);
     var pq = pontosQueCabem(m);
     var rotulo = m.name + ' #' + n + ', nível ' + m.level + (isActive ? ', ativa' : '') +
       (pq > 0 ? ', ' + pq + (pq === 1 ? ' ponto' : ' pontos') + ' para distribuir' : '') + '. ' + (o ? o.fim : 'Abrir ficha.');
     return '<button type="button" class="montaria-linha' + (isActive ? ' montaria--ativa' : '') + '" data-acao="' + (o ? o.acao : 'montaria') + '" data-id="' + esc(m.uid) +
-        '" aria-label="' + esc(rotulo) + '"' + (o ? indisponivel(o.motivo) : '') + '>' +
+        '" aria-label="' + esc(rotulo) + '"' + (o ? indisponivel(o.motivo) : '') + (o && o.pressed != null ? ' aria-pressed="' + !!o.pressed + '"' : '') + '>' +
       '<span class="montaria-linha-retrato" aria-hidden="true">' + portraitHtml(m, { tamanho: 'pequeno', selo: true, pontos: pq }) + '</span>' +
       '<span class="montaria-linha-nome">' + esc(m.name) + '<small>#' + esc(n) + '</small></span>' +
       '<span class="montaria-linha-meta">' + rarityHtml(m.rarity) + estrelasHtml(m.grau) +
         (isActive ? '<span class="badge-ativa">Ativa</span>' : '') + '</span>' +
       '<span class="montaria-linha-meta">' + elementHtml(m.element) +
-        '<span class="montaria-linha-poder">Poder <b>' + RS.powerRating(m) + '</b></span></span>' +
-      pixelSvg(SETA_ROWS, 'montaria-linha-seta') +
+        '<span class="montaria-linha-poder">Poder <b>' + RS.powerRating(m) + '</b></span>' + (o && o.meta ? o.meta : '') + '</span>' +
+      (o && o.lado != null ? o.lado : pixelSvg(SETA_ROWS, 'montaria-linha-seta')) +
     '</button>';
   }
 
@@ -12218,9 +12255,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 
   // Subtela "ginasio" (ui.gym = { id, etapa }): a trilha do ginásio (etapa null) ou o detalhe da etapa próxima (etapa
   // 0–4). O detalhe só abre na etapa próxima; se o progresso mudou (outra aba, gaveta DEV), volta à trilha.
+  // Com o resumo de um desafio pago (ui.gym.res), o resumo. O cavalo do time que saiu do save (outra aba) sai do time.
   function renderGinasio() {
     var G0 = ui.gym;
     if (!G0 || !hasOwn(GD.GYMS, G0.id)) return renderExpedicao();
+    if (G0.res) return ginResumoHtml(G0.res);
+    G0.time = (G0.time || []).filter(function (u) { return !!mountByUid(u); });
     if (G0.etapa !== null && G0.etapa !== ginProgresso(G0.id)) G0.etapa = null;
     return G0.etapa === null ? trilhaTelaHtml(G0.id) : etapaDetalheHtml(G0.id, G0.etapa);
   }
@@ -12285,13 +12325,180 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       '<p>' + esc(ginEntradaTxt(e)) + '</p>' +
       '<p>Prêmio da 1ª vitória: ' + esc(ginPremioTxt(id, e)) + '</p></section>';
   }
+  // O detalhe é também o preparo (Tarefa 5): embaixo do adversário, da pista e do prêmio, o "Seu time" e o "Desafiar"
   function etapaDetalheHtml(id, i) {
     var g = GD.GYMS[id], e = g.etapas[i];
     return '<section class="tela" aria-labelledby="t-etapa">' +
       '<button type="button" class="btn btn--pequeno" data-acao="ginasio-voltar">Voltar</button>' +
       '<header class="tela-cabeca placa"><span class="rotulo">' + esc(g.name + ' · ' + ginEtapaRotulo(e, i)) + '</span>' +
         '<h1 class="titulo titulo--tela" id="t-etapa" tabindex="-1" data-foco>' + esc(e.nome) + '</h1></header>' + noticeHtml() +
-      etapaAdversarioHtml(e) + etapaPistaHtml(id) + etapaPremioHtml(id, e) +
+      etapaAdversarioHtml(e) + etapaPistaHtml(id) + etapaPremioHtml(id, e) + etapaTimeHtml(id, i) + etapaDesafiarHtml(id, i) +
+      '</section>';
+  }
+
+  // ---- O desafio (spec §5, §7, §8): o time, o pagamento e o resumo ----
+  // ui.gym = { id, etapa, time: [uids na ordem dos toques], res: null | o resumo do desafio já pago e gravado, msg: o
+  // aviso da gravação que falhou (no preparo) }. Nada do desafio é calculado antes do toque em "Desafiar": o preparo só
+  // mostra o catálogo, o time e a vantagem de elemento (Ginasio.vantagem); o resultado sai no desafia, já pago.
+  var GIN_SALA_TXT = 'Está na sala aberta. Corra ou feche a sala primeiro.';
+  var GIN_SO_UM_TXT = 'Seu único cavalo está na sala aberta. Corra ou feche a sala primeiro.';
+  // o sorteio de skill ao subir de nível num desafio (Ruling 18): seedTag = GIN_SEED_TAG + contador · 4 + posição no time
+  var GIN_SEED_TAG = 20000000;
+  function ginLimite(id, i) { return GD.GYMS[id].etapas[i].cavalos.length; }
+  // o cavalo não entra no time: o ativo de uma sala aberta (ganhar XP mudaria o Poder que a sala viu; spec §5). A aba
+  // Correr não tem outro estado em que um cavalo não possa correr.
+  function ginPreso(m) { return !!state.pending && m.uid === state.activeId; }
+  function ginLivres() { return state.mounts.filter(function (m) { return !ginPreso(m); }); }
+  // "Vantagem", "Desvantagem" ou '' contra o elemento do ginásio
+  function ginVantTxt(m, id) {
+    var v = GN.vantagem(m.element, GD.GYMS[id].element);
+    return v === 1 ? 'Vantagem' : v === -1 ? 'Desvantagem' : '';
+  }
+  function ginCheioTxt(n) { return n === 1 ? 'O time já tem 1 cavalo. Toque nele para tirar.' : 'O time já tem ' + n + ' cavalos. Toque num deles para tirar.'; }
+  // o desafio desta etapa seria a revanche (a Tarefa 7 a mostra; aqui só a entrada certa)
+  function ginRevanche(id, i) { return ginProgresso(id) === ginEtapasTotal(id) && i === ginEtapasTotal(id) - 1; }
+  function ginEntrada(id, i) { return ginRevanche(id, i) ? GD.GYM.revanche.entrada : GD.GYMS[id].etapas[i].entrada; }
+  // os itens que o prêmio da vitória daria (o da revanche segue o rodízio)
+  function ginItensPremio(id, i) {
+    if (!ginRevanche(id, i)) return GD.GYMS[id].etapas[i].premio.itens;
+    var c = GD.GYM.revanche.ciclo, p = c[state.ginasios[id].revVitorias % c.length];
+    return p.item ? [p.item] : [];
+  }
+  // o motivo da mochila cheia, com o nome e o teto do catálogo (a Rédea nova mora fora da mochila: 999)
+  function ginCheiaTxt(it) {
+    return (it === 'redea' ? 'Você já tem ' + fmt(REDEAS_MAX) : 'A mochila já tem ' + fmt(GD.BAG_MAX)) + ' de ' + GD.ITEMS[it].name +
+      '. Use ' + (it === 'redea' || it === 'estrela' ? 'uma' : 'um') + ' antes de desafiar.';
+  }
+  // o texto de cada recusa do Ginasio.podeDesafiar
+  function ginMotivoTxt(id, i, motivo) {
+    switch (motivo) {
+      case 'sem-time': return 'Escolha pelo menos 1 cavalo.';
+      case 'sem-ouro':
+        return 'Falta Ouro: a entrada custa ' + fmt(ginEntrada(id, i)) + ' de Ouro.' +
+          (ouroReservado() ? ' ' + reservaTxt() + ': sobram ' + fmt(ouroLivre()) + ' para gastar.' : '');
+      case 'cheia': {
+        var its = ginItensPremio(id, i);
+        for (var k = 0; k < its.length; k++) if (!diariaCabe(its[k], 1)) return ginCheiaTxt(its[k]);
+        return 'A mochila está cheia. Use um item antes de desafiar.';
+      }
+      case 'time-grande': return 'O time passou do limite: até ' + ginCavalosTxt(ginLimite(id, i)) + '.';
+      case 'vencida': return 'Esta etapa já foi vencida.';
+      case 'revanche-hoje': return 'A revanche de hoje já foi feita. Volte amanhã.';
+      default: return 'Esta etapa ainda não está aberta.';
+    }
+  }
+  // Confere o desafio: { motivo ('' quando pode), revanche }. Na ordem: nenhum cavalo livre; a regra do Ginasio.podeDesafiar
+  // (etapa, dia, Ouro livre, mochila, tamanho do time); o time (cada uid no estábulo, sem repetir, nenhum preso na sala
+  // aberta). O botão "Desafiar" e o desafia (de novo, depois de sincronizar com as outras abas) usam esta mesma conferência.
+  function ginConfere(id, i, uids) {
+    if (!hasOwn(GD.GYMS, id)) return { motivo: ginMotivoTxt(id, i, 'fechada') };
+    if (!ginLivres().length) return { motivo: GIN_SO_UM_TXT };
+    var lista = Array.isArray(uids) ? uids : [];
+    var r = GN.podeDesafiar({ gymId: id, etapa: i, progresso: state.ginasios, hoje: hojeDia(), ouroLivre: ouroLivre(), cabe: diariaCabe, timeLen: lista.length });
+    if (!r.ok) return { motivo: ginMotivoTxt(id, i, r.motivo) };
+    for (var k = 0; k < lista.length; k++) {
+      var m = typeof lista[k] === 'string' ? mountByUid(lista[k]) : null;
+      if (!m) return { motivo: 'Um cavalo do time não está mais no estábulo.' };
+      if (lista.indexOf(lista[k]) !== k) return { motivo: 'O mesmo cavalo está duas vezes no time.' };
+      if (ginPreso(m)) return { motivo: m.name + ' está na sala aberta. Corra ou feche a sala primeiro.' };
+    }
+    return { motivo: '', revanche: r.revanche };
+  }
+  // "Seu time": as linhas do Estábulo (mountRowHtml), na ordem do estábulo. Tocar põe no fim do time; tocar de novo tira.
+  // A linha escolhida mostra a posição e tem aria-pressed. Com o time cheio, as de fora ficam apagadas com o motivo; o ativo
+  // da sala aberta também (no time, ele mostra o motivo e ainda pode sair). Sem nenhum cavalo livre, a frase do que fazer.
+  function etapaTimeHtml(id, i) {
+    var G0 = ui.gym, lim = ginLimite(id, i), time = G0.time, cheio = time.length >= lim, el = elementOf(GD.GYMS[id].element).name;
+    var cab = '<section class="caixa" aria-labelledby="t-time"><h2 class="titulo" id="t-time">Seu time <span class="nota">(até ' + esc(ginCavalosTxt(lim)) + ')</span></h2>';
+    if (!ginLivres().length) return cab + '<p class="aviso">' + esc(GIN_SO_UM_TXT) + '</p></section>';
+    var linhas = state.mounts.map(function (m) {
+      var pos = time.indexOf(m.uid), dentro = pos >= 0, preso = ginPreso(m);
+      var motivo = dentro ? '' : preso ? GIN_SALA_TXT : cheio ? ginCheioTxt(lim) : '';
+      var nota = preso ? GIN_SALA_TXT : motivo, vt = ginVantTxt(m, id);
+      var fim = (vt ? vt + ' contra ' + el + '. ' : '') + (dentro ? (pos + 1) + 'º do time. Toque para tirar.' : 'Toque para pôr no time.');
+      return '<li>' + mountRowHtml(m, m.uid === state.activeId, { acao: 'ginasio-time', fim: fim, motivo: motivo, pressed: dentro,
+          meta: vt ? '<span class="gin-vant gin-vant--' + (vt === 'Vantagem' ? 'mais' : 'menos') + '">' + esc(vt) + '</span>' : '',
+          lado: '<span class="gin-pos" aria-hidden="true">' + (dentro ? (pos + 1) + 'º' : '') + '</span>' }) +
+        (nota ? '<p class="nota">' + esc(nota) + '</p>' : '') + '</li>';
+    }).join('');
+    return cab + '<p class="nota">Toque nos cavalos na ordem em que vão correr.</p><ul class="montarias item-escolha gin-time">' + linhas + '</ul></section>';
+  }
+  function etapaDesafiarHtml(id, i) {
+    var G0 = ui.gym, c = ginConfere(id, i, G0.time);
+    return '<section class="caixa gin-desafio" aria-label="Desafiar">' + (G0.msg ? '<p class="aviso" role="status">' + esc(G0.msg) + '</p>' : '') +
+      '<div class="acoes"><button type="button" class="btn btn--ouro btn--grande" data-acao="ginasio-desafiar"' + indisponivel(c.motivo) + '>' +
+        esc('Desafiar (' + fmt(ginEntrada(id, i)) + ' de Ouro)') + '</button></div>' +
+      (c.motivo ? '<p class="nota">' + esc(c.motivo) + '</p>' : '') + '</section>';
+  }
+  // Paga e acerta o desafio, tudo numa gravação só (o padrão do usaItem): sincroniza com as outras abas (persist), confere
+  // de novo (ginConfere), só então resolve (Ginasio.resolver, com os cavalos como estão ao pagar) e acerta (Ginasio.acerto);
+  // aplica a entrada, o prêmio, os itens, o XP de cada cavalo (com o bônus das insígnias de ANTES: a ganha agora vale dali em
+  // diante), o progresso e o contador + 1, e grava (gravaGasto). 'ok' (o resumo em ui.gym.res), 'outra-aba' (um save de outra
+  // aba foi adotado: nada foi cobrado nem sorteado) ou o motivo da recusa (FALHA_SALVAR: o state volta ao de antes, sem resumo).
+  function desafia(gymId, etapa, uids) {
+    var s0 = state;
+    persist();
+    if (state !== s0) return 'outra-aba';
+    var c = ginConfere(gymId, etapa, uids);
+    if (c.motivo) return c.motivo;
+    var antes = clone(state), contador = state.gymCounter, et = GD.GYMS[gymId].etapas[etapa];
+    var res = GN.resolver({ gymId: gymId, etapa: etapa, time: uids.map(function (u) { return clone(mountByUid(u)); }), seedBase: state.seedBase, contador: contador });
+    var ac = res ? GN.acerto({ gymId: gymId, etapa: etapa, revanche: c.revanche, progresso: state.ginasios, resultado: res, hoje: hojeDia(), timeLen: uids.length }) : null;
+    if (!ac) return 'Este desafio não pode ser feito agora.';   // não acontece: o ginConfere já passou pelo podeDesafiar
+    var entrada = ginEntrada(gymId, etapa);
+    state.gold = state.gold - entrada + ac.ouro;   // o prêmio do ginásio não leva o bônus de Ouro (só a corrida valendo)
+    ac.itens.forEach(function (it) { if (it === 'redea') state.redeas += 1; else state.mochila[it] += 1; });
+    var cavalos = uids.map(function (u, k) {
+      var m = mountByUid(u), xp = xpComBonus(ac.xp[k]);
+      var g = applyXp(m, xp, GIN_SEED_TAG + contador * 4 + k);
+      return { uid: u, nome: m.name, correu: res.duelos.some(function (d) { return d.a === k; }), xp: xp, levels: g.levels, nivel: m.level, learned: g.learned };
+    });
+    state.ginasios = ac.progresso;
+    state.gymCounter = contador + 1;
+    var gv = gravaGasto(s0, antes);
+    if (gv === 'outra-aba') return 'outra-aba';
+    if (gv === 'falhou') return FALHA_SALVAR;
+    var prox = ac.progresso[gymId].etapa;
+    var R = { gymId: gymId, etapa: etapa, revanche: c.revanche, contador: contador, venceu: res.venceu, entrada: entrada, ouro: ac.ouro, itens: ac.itens,
+      insignia: ac.insignia, proxima: res.venceu && !c.revanche && prox < ginEtapasTotal(gymId) ? prox : null, cavalos: cavalos,
+      adversario: et.cavalos.map(function (d) { return GN.cavalo(d).name; }), duelos: res.duelos };
+    if (ui.gym) ui.gym.res = R;
+    return 'ok';
+  }
+  // O resumo (só leitura; não é gravado: recarregar mostra a trilha já atualizada). R = ui.gym.res: { gymId, etapa,
+  // revanche, contador, venceu, entrada, ouro, itens, insignia, proxima (índice da etapa aberta ou null), cavalos: [{ uid,
+  // nome, correu, xp, levels, nivel, learned }], adversario: [nomes], duelos: os do Ginasio.resolver (com a cfg de cada um) }
+  function ginDueloHtml(R, d, k) {
+    var a = R.cavalos[d.a].nome, b = R.adversario[d.b], jog = d.vencedor === 'jogador', quem = jog ? a : b;
+    var m = Math.max(0, Math.round(d.metros)), prox = R.duelos[k + 1];
+    var folego = prox ? (jog ? prox.folegoA : prox.folegoB) : 1;
+    return '<li class="gin-duelo gin-duelo--' + (jog ? 'vitoria' : 'derrota') + '">' +
+      '<span class="gin-duelo-txt">' + esc('Duelo ' + (k + 1) + ': ' + a + ' × ' + b + ' — ' + quem + ' vence ' + (m === 0 ? 'por menos de 1 m' : 'por ' + m + ' m')) + '</span>' +
+      '<span class="gin-duelo-tag">' + (jog ? 'Você venceu' : 'Você perdeu') + '</span>' +
+      (folego < 1 ? '<span class="gin-duelo-folego">' + esc(quem + ' segue com ' + Math.round(folego * 100) + '% do fôlego') + '</span>' : '') + '</li>';
+  }
+  function ginResumoHtml(R) {
+    var g = GD.GYMS[R.gymId], e = g.etapas[R.etapa];
+    var ouro = '<p>' + esc('Entrada: −' + fmt(R.entrada) + ' de Ouro') + '</p>' + (R.ouro ? '<p>' + esc('Prêmio: +' + fmt(R.ouro) + ' de Ouro') + '</p>' : '') +
+      (R.itens.length ? '<p>' + esc('Itens: ' + ginJunta(R.itens.map(function (it) { return itemQtdTxt(it, 1); }))) + '</p>' : '');
+    var cavalos = R.cavalos.map(function (c) {
+      var partes = [c.correu ? c.nome + ': +' + c.xp + ' XP' : c.nome + ': não correu'];
+      if (c.levels) partes.push('subiu ' + (c.levels === 1 ? '1 nível' : c.levels + ' níveis') + ' (Nível ' + c.nivel + ')');
+      c.learned.forEach(function (s) { partes.push('aprendeu ' + skillNome(s)); });
+      return '<li data-uid="' + esc(c.uid) + '">' + esc(partes.join(' · ')) + '</li>';
+    }).join('');
+    return '<section class="tela" aria-labelledby="t-resumo">' +
+      '<header class="tela-cabeca placa"><span class="rotulo">' + esc(g.name + ' · ' + ginEtapaRotulo(e, R.etapa) + ' · ' + e.nome) + '</span>' +
+        '<h1 class="titulo titulo--tela" id="t-resumo" tabindex="-1" data-foco>' + (R.venceu ? 'Vitória!' : 'Derrota') + '</h1></header>' + noticeHtml() +
+      '<section class="caixa" aria-labelledby="t-duelos"><h2 class="titulo" id="t-duelos">Duelos</h2><ol class="gin-duelos">' +
+        R.duelos.map(function (d, k) { return ginDueloHtml(R, d, k); }).join('') + '</ol></section>' +
+      '<section class="caixa gin-ganhos" aria-labelledby="t-ganhos"><h2 class="titulo" id="t-ganhos">Ouro e itens</h2>' + ouro + '</section>' +
+      '<section class="caixa" aria-labelledby="t-xp-time"><h2 class="titulo" id="t-xp-time">Seu time</h2><ul class="gin-xp">' + cavalos + '</ul></section>' +
+      (R.insignia ? '<section class="caixa"><p class="ginasio-insignia">' + ginInsigniaIcone(R.gymId) + '<span><b>' + esc(g.insignia.name) + ' conquistada:</b> ' + esc(ginBonusTxt(R.gymId)) + '.</span></p></section>' : '') +
+      (R.proxima !== null ? '<p class="gin-liberada">' + esc('Próxima etapa liberada: ' + g.etapas[R.proxima].nome) + '</p>' : '') +
+      '<div class="acoes acoes--linha">' +
+        (R.venceu ? '' : '<button type="button" class="btn btn--ouro" data-acao="ginasio-resumo" data-id="denovo">Tentar de novo</button>') +
+        '<button type="button" class="btn" data-acao="ginasio-resumo" data-id="trilha">Voltar à trilha</button></div>' +
       '</section>';
   }
 
@@ -15233,7 +15440,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       // ---- Ginásios (aba Expedição): abrir a trilha, abrir o detalhe da etapa próxima, voltar ----
       case 'ginasio-abrir':
         if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id)) break;
-        ui.gym = { id: id, etapa: null };
+        ui.gym = { id: id, etapa: null, time: [], res: null, msg: null };
         go('ginasio');
         // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola na hora o
         // mínimo para ela aparecer inteira; o foco fica no título
@@ -15243,8 +15450,54 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         // só a etapa próxima abre (o aria-disabled só avisa: confere de novo pelo progresso salvo)
         var gE = ui.gym, iE = Number(id);
         if (ui.screen !== 'ginasio' || !gE || gE.etapa !== null || iE !== ginProgresso(gE.id) || !(iE < ginEtapasTotal(gE.id))) break;
-        gE.etapa = iE;
+        gE.etapa = iE; gE.time = []; gE.res = null; gE.msg = null;   // o preparo abre com o time vazio
         go('ginasio'); break;
+      }
+      // o time do preparo: tocar põe no fim, tocar de novo tira (os de trás sobem). Confere de novo: o cavalo existe, não está
+      // preso na sala aberta e cabe no time (o aria-disabled só avisa)
+      case 'ginasio-time': {
+        var gT = ui.gym, mT = mountByUid(id);
+        if (ui.screen !== 'ginasio' || !gT || gT.etapa === null || gT.res || !mT) break;
+        var pT = gT.time.indexOf(id);
+        if (pT >= 0) gT.time.splice(pT, 1);
+        else if (!ginPreso(mT) && gT.time.length < ginLimite(gT.id, gT.etapa)) gT.time.push(id);
+        else break;
+        gT.msg = null;
+        rerenderKeepScroll(); break;
+      }
+      case 'ginasio-desafiar': {
+        var gDf = ui.gym;
+        if (ui.screen !== 'ginasio' || !gDf || gDf.etapa === null || gDf.res) break;
+        var rDf = desafia(gDf.id, gDf.etapa, gDf.time.slice());
+        if (rDf === 'ok') {
+          go('ginasio');   // o resumo, com o foco no título dele
+          motivoVivo(gDf.res.venceu ? 'Vitória!' : 'Derrota');
+          break;
+        }
+        var bDf;
+        if (rDf === 'outra-aba') {
+          // o save da outra aba já foi adotado e a tela, desenhada de novo: diz por que o "Desafiar" ficou apagado, se ficou
+          bDf = telaEl.querySelector('[data-acao="ginasio-desafiar"]');
+          if (bDf && bDf.getAttribute('aria-disabled') === 'true') mostraMotivo(bDf);
+          break;
+        }
+        if (ui.gym) ui.gym.msg = rDf === FALHA_SALVAR ? FALHA_SALVAR : null;
+        rerenderKeepScroll();
+        bDf = telaEl.querySelector('[data-acao="ginasio-desafiar"]');
+        if (bDf && bDf.getAttribute('data-motivo') === rDf) mostraMotivo(bDf); else motivoVivo(rDf);
+        break;
+      }
+      // os botões do resumo: "Voltar à trilha" e, na derrota, "Tentar de novo" (o preparo com o mesmo time, só os cavalos
+      // que ainda podem entrar)
+      case 'ginasio-resumo': {
+        var gR2 = ui.gym;
+        if (ui.screen !== 'ginasio' || !gR2 || !gR2.res) break;
+        if (id === 'denovo' && !gR2.res.venceu && gR2.etapa === ginProgresso(gR2.id)) {
+          gR2.time = gR2.res.cavalos.map(function (c) { return c.uid; }).filter(function (u) { var m = mountByUid(u); return !!m && !ginPreso(m); });
+          gR2.res = null; gR2.msg = null;
+          go('ginasio');
+        } else if (id === 'trilha' || id === 'denovo') voltaDaSubtela();
+        break;
       }
       case 'ginasio-voltar':
       case 'montaria-voltar':

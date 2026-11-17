@@ -825,6 +825,25 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .adv-cavalos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .adv-cavalo { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; background: var(--painel-2); padding: 6px 8px; }
 .adv-cavalo-info { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+/* preparo do desafio: o time são as linhas do Estábulo; a escolhida fica em destaque (fundo e filete dourado à esquerda) e
+   mostra a posição no lugar da seta; a vantagem é uma plaquinha escrita (nunca só cor) */
+.gin-time .montaria-linha[aria-pressed="true"] { background: var(--painel-3); }
+.gin-time .montaria-linha[aria-pressed="true"]::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--ouro); }
+.gin-pos { grid-column: 3; grid-row: 1 / span 3; min-width: 32px; text-align: center; font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; color: var(--ouro); text-shadow: 2px 2px 0 var(--sombra); }
+.gin-vant { padding: 2px 6px; font-size: var(--t-xs); line-height: 1.2; background: var(--painel); color: var(--texto); white-space: nowrap; }
+.gin-vant--mais { box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 8px; }
+.gin-vant--menos { box-shadow: inset 4px 0 0 0 var(--perda); padding-left: 8px; }
+.gin-desafio .acoes .btn { width: 100%; }
+/* resumo: um duelo por linha (o texto, a plaquinha de quem venceu e o fôlego de quem seguiu), o XP de cada cavalo e a etapa liberada */
+.gin-duelos, .gin-xp { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.gin-duelo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; background: var(--painel-2); padding: 6px 8px; min-width: 0; }
+.gin-duelo-txt { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; }
+.gin-duelo-tag { font-size: var(--t-xs); line-height: 1.2; padding: 2px 6px; background: var(--painel); color: var(--texto-2); }
+.gin-duelo--vitoria .gin-duelo-tag { background: var(--ouro); color: var(--tinta); }
+.gin-duelo-folego { font-size: var(--t-s); line-height: 1.25; color: var(--texto-2); }
+.gin-xp > li { min-width: 0; overflow-wrap: anywhere; }
+.gin-ganhos > p { margin: 0; }
+.gin-liberada { margin: 0; padding: 8px 10px; background: var(--painel-3); box-shadow: inset 4px 0 0 0 var(--ouro); }
 /* cartão da montaria: só o do potro no resultado do Haras (o Estábulo é a lista de linhas, abaixo) */
 .montaria { background: var(--painel-2); padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .montaria .retrato, .montaria .retrato-moldura { align-self: center; }
@@ -1349,6 +1368,9 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   .etapa--fechada .etapa-nome, .etapa--fechada .etapa-meta, .etapa--fechada .etapa-motivo, .etapa--fechada .etapa-rotulo { color: GrayText; }
   .etapa-estado, .ginasio-revanche { border: 2px solid CanvasText; }
   .adv-cavalo { border: 2px solid CanvasText; }
+  /* o desafio: o cavalo escolhido em Highlight; as plaquinhas, os duelos e a etapa liberada com borda da cor do texto */
+  .gin-time .montaria-linha[aria-pressed="true"] { border-color: Highlight; }
+  .gin-vant, .gin-duelo, .gin-duelo-tag, .gin-liberada { border: 2px solid CanvasText; }
   /* a plaquinha "Ativa" da linha perde o contorno de sombra: borda na cor do texto do botão em volta (3c §9.3) */
   .montaria-linha .badge-ativa { border: 2px solid ButtonText; }
   .motivo-alvo { outline-color: Highlight; }   /* a frase do motivo destacada: o item atual */
