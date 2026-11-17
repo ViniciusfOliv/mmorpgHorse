@@ -2810,6 +2810,21 @@ test('cada peça do catálogo passa na validação contra o game.css', () => {
   IA.validarCatalogo(IA.PECAS, TOK);
   for (const n of ['rebite', 'prego', 'veio', 'ajuda', 'ajuda-ativa']) assert.ok(IA.PECAS.some(p => p.nome === n), n);
 });
+test('os cinco ícones de item (spec de itens §13): uma peça item-<id> de 16x16 por item do catálogo, com contorno', () => {
+  const ITENS = createRequire(import.meta.url)('../src/data.js').ITEMS;
+  const ids = Object.keys(ITENS);
+  assert.deepStrictEqual(ids, ['torrao', 'estrela', 'redea', 'cupom', 'manual']);
+  const desenhos = new Set();
+  for (const id of ids) {
+    const p = IA.PECAS.find(x => x.nome === 'item-' + id);
+    assert.ok(p, 'falta a peça item-' + id);
+    assert.strictEqual(p.mapa.length, 16, id); assert.strictEqual(p.mapa[0].length, 16, id);
+    assert.ok(Object.values(p.legenda).includes('--sombra'), id + ': sem o contorno --sombra');
+    assert.ok(Object.keys(p.legenda).length >= 3, id + ': menos de 3 cores');
+    desenhos.add(p.mapa.join('/'));
+  }
+  assert.strictEqual(desenhos.size, ids.length, 'dois ícones de item com o mesmo desenho');
+});
 test('ida e volta do PNG: cada pixel tem a cor do token (alfa 255) ou alfa 0', () => {
   for (const p of IA.PECAS) {
     const d = decodePng(encodePng(IA.pecaRgba(p, TOK)));

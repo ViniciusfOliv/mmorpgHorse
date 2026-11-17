@@ -53,7 +53,7 @@ const listaJs = (txt) => JSON.parse(txt.replace(/'/g, '"'))
 function lerFonte() {
   const game = 'src/game.js', sim = 'src/sim.js', breed = 'src/breed.js', fx = 'src/fx.js'
   const abas = extrair(game, /var ABAS = \[(.*)\];/, 'a lista ABAS')[1]
-  // equipamento suspenso (bloco 1b): com GEAR_ON = false a Loja sai da barra de abas
+  // equipamento suspenso (bloco 1b): com GEAR_ON = false a Loja só vende itens (as peças e as Pedras ficam escondidas)
   const gearOn = extrair(game, /var GEAR_ON = (true|false);/, 'a constante GEAR_ON')[1] === 'true'
   const ventos = extrair(fx, /a < ([\d.]+) \? 'calmo' : a < ([\d.]+) \? 'brisa' : 'ventania'/, 'a distribuição do vento (RaceFx.wind)')
   const alvo = extrair(game, /var target = pr \* \(([\d.]+) \+ ([\d.]+) \* rng\(\)\)/, 'a faixa de Poder dos bots')
@@ -61,7 +61,7 @@ function lerFonte() {
     treinoOuro: listaJs(extrair(game, /var TRAINING_GOLD = (\[[^\]]*\]);/, 'TRAINING_GOLD')[1]),
     treinoXpDiv: numDe(game, /xpGain = L\.training \? Math\.round\(xpBase \/ (\d+)\)/, 'a divisão do XP do treino'),
     vitrine: listaJs(extrair(game, /var WILD_SHOWCASE = (\[[^\]]*\]);/, 'WILD_SHOWCASE')[1]),
-    abas: [...abas.matchAll(/rotulo: '([^']+)'/g)].map((m) => m[1]).filter((a) => gearOn || a !== 'Loja'),
+    abas: [...abas.matchAll(/rotulo: '([^']+)'/g)].map((m) => m[1]),
     gearOn,
     pistas: listaJs('[' + extrair(game, /var TRACK_NAMES = \[([\s\S]*?)\];/, 'TRACK_NAMES')[1] + ']'),
     retrato: extrair(game, /var PORTRAIT_W = (\d+), PORTRAIT_H = (\d+);/, 'o tamanho do retrato').slice(1, 3).map(Number),
@@ -271,7 +271,11 @@ export function descreverAba(rotulo, F) {
     case 'Correr': return `escolher a entrada (${lista(E.entryTiers.map((t) => num(t)), 'ou')} de Ouro) e procurar corrida; sem Ouro para a menor entrada, treino gratuito.`
     case 'Expedição': return `vitrine de ${F.vitrine.length} cavalos selvagens. Expedições e captura ainda não existem no protótipo.`
     case 'Haras': return 'cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.'
-    case 'Loja': return `comprar peças de equipamento (menos as de raridade ${lista([...new Set(Object.keys(G.GEAR).filter((id) => !G.GEAR[id].shop).map((id) => nomeRar(G.GEAR[id].rarity)))])}) e Pedras Negras.`
+    case 'Loja': {
+      const venda = Object.keys(G.ITEMS).filter((id) => G.ITEMS[id].price != null).sort((x, y) => G.ITEMS[x].price - G.ITEMS[y].price)
+      const itens = `em **Comprar**, os itens de uso (${lista(venda.map((id) => G.ITEMS[id].name))}) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os ${Object.keys(G.ITEMS).length} itens e quantos você tem de cada`
+      return F.gearOn ? `${itens}; também peças de equipamento (menos as de raridade ${lista([...new Set(Object.keys(G.GEAR).filter((id) => !G.GEAR[id].shop).map((id) => nomeRar(G.GEAR[id].rarity)))])}) e Pedras Negras.` : itens + '.'
+    }
     default: throw new Error(`wiki: aba desconhecida "${rotulo}" — descreva-a em descreverAba (prototype/tools/wiki.mjs)`)
   }
 }

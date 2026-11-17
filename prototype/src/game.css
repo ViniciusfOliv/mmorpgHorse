@@ -352,6 +352,33 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .produto-stats { margin: 0; font-weight: 700; }
 .produto-diff { margin: 0; font-size: var(--t-s); color: var(--texto-2); }
 .produto-preco { display: flex; justify-content: flex-end; }
+/* ---------- Loja de itens e mochila (spec de itens §5, §6, §13): a linha de um item — o ícone (peça de 16x16 pixels de
+   arte em 32px), o nome, a quantidade e a linha de para que serve; no produto, o preço, o limite do dia e o botão ---------- */
+.item-lista { gap: 10px; }
+.item-linha {
+  display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; column-gap: 10px; row-gap: 4px; align-items: center;
+  padding: 8px 10px 8px 12px; min-width: 0; background: var(--painel-2); box-shadow: inset 4px 0 0 0 var(--linha);
+}
+.item-icone {
+  grid-row: 1 / span 2; align-self: start; width: 32px; height: 32px; image-rendering: pixelated;
+  background-position: 0 0; background-size: 32px 32px; background-repeat: no-repeat;
+}
+.item-icone--torrao { background-image: var(--arte-item-torrao); }
+.item-icone--estrela { background-image: var(--arte-item-estrela); }
+.item-icone--redea { background-image: var(--arte-item-redea); }
+.item-icone--cupom { background-image: var(--arte-item-cupom); }
+.item-icone--manual { background-image: var(--arte-item-manual); }
+.item-nome { grid-column: 2; margin: 0; font-size: var(--t-m); line-height: 24px; overflow-wrap: anywhere; }
+.item-qtd { grid-column: 3; grid-row: 1; justify-self: end; font-weight: 700; line-height: 24px; white-space: nowrap; }
+.item-desc { grid-column: 2 / -1; margin: 0; font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }
+.item-compra { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
+.item-preco { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; min-width: 0; }
+.item-limite { font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }
+.item-linha > .aviso, .item-linha > .motivo { grid-column: 1 / -1; margin: 4px 0 0; }
+/* quantidade 0 (mochila): a linha apagada, com a frase de onde o item vem */
+.item-linha--vazia { background: var(--painel); }
+.item-linha--vazia .item-nome, .item-linha--vazia .item-qtd { color: var(--texto-2); }
+.item-linha--vazia .item-icone { opacity: 0.5; }
 
 /* opções selecionáveis (aria-pressed) */
 .opcoes { display: grid; gap: 10px; }
@@ -1225,6 +1252,8 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
    ficam escondidas. O ⓘ vira um "i" num quadro, para o botão não sumir ---------- */
 @media (forced-colors: active) {
   .btn, .opcao, .caixa, .app-aba, .montaria--ativa, .montaria-linha { border: 2px solid ButtonText; }
+  .item-linha { border: 2px solid CanvasText; }   /* produto da loja e linha da mochila (a parte aberta: .opcao em Highlight) */
+  .item-linha--vazia { border-color: GrayText; }
   .app-aba { padding-block: 0; }   /* sem bisel: a borda ocupa o lugar dele, e o ícone e o rótulo continuam cabendo */
   .opcao[aria-pressed="true"], .app-aba--ativa, .montaria--ativa { border-color: Highlight; }
   /* indisponível por aria-disabled (o foco fica no botão): as mesmas cores do disabled nativo */

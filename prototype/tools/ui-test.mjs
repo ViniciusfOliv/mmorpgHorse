@@ -1376,6 +1376,198 @@ try {
       if (/devDias/.test(prod)) problems.push('itens-producao: dist/jogo.html contém devDias')
       if (!/devDias/.test(await readFile(join(ROOT, 'build.mjs'), 'utf8'))) problems.push('itens-producao: build.mjs não proíbe devDias na produção')
     }
+    // 8. aba Loja (spec de itens §5, §6, §8, §13): a 5ª aba, as partes Comprar e Mochila, a compra de um toque, os limites
+    //    do dia (o dia anda pela gaveta DEV), "Sem Ouro", "Reservado" com a sala aberta (sem re-sortear a sala) e a mochila cheia
+    {
+      const label = 'itens-loja'
+      const pg = await newPage(browser, VP, label, { query: '?dev=1' })
+      // o texto que o leitor de tela lê (sem o que é aria-hidden)
+      const textoAcessivel = (loc) => loc.evaluate((el) => { const c = el.cloneNode(true); c.querySelectorAll('[aria-hidden="true"]').forEach((x) => x.remove()); return c.textContent.replace(/\s+/g, ' ').trim() })
+      const linha = (id) => pg.locator(`#tela .item-linha[data-item="${id}"]`)
+      const botao = (id) => pg.locator(`#tela [data-acao="item-comprar"][data-id="${id}"]`)
+      const txtLinha = async (id) => ((await linha(id).textContent()) || '').replace(/\s+/g, ' ')
+      const txtBotao = async (id) => ((await botao(id).textContent()) || '').replace(/\s+/g, ' ').trim()
+      const dev = async (acao, n = 1) => { await devAbrir(pg); for (let i = 0; i < n; i++) await pg.locator(`.dev-gaveta [data-acao="${acao}"]`).click(); await devFechar(pg) }
+      const devMochila = async (q) => {
+        await devAbrir(pg)
+        for (const id of ['torrao', 'estrela', 'cupom', 'manual']) await pg.fill('#dev-mochila-' + id, String(q[id] != null ? q[id] : 0))
+        await pg.locator('.dev-gaveta [data-acao="dev-mochila"]').click()
+        await devFechar(pg)
+      }
+      const ouro = async (n) => { await pg.evaluate((n) => { window.__galope.state.gold = n }, n); await pg.locator('#tela [data-acao="loja-parte"][data-id="comprar"]').click() }
+      const saldoMochila = async () => { const s = await estadoDe(pg); return { gold: s.gold, mochila: s.mochila, lojaItens: s.lojaItens, pending: s.pending } }
+      // toque recusado (normal e forçado, sem o aria-disabled): nada muda no state nem no save gravado
+      const recusa = async (id, rotulo, tag) => {
+        if ((await txtBotao(id)).indexOf(rotulo) !== 0) problems.push(`${label} ${tag}: o botão de ${id} diz "${await txtBotao(id)}" (esperado "${rotulo}")`)
+        if (!(await indisp(botao(id)))) problems.push(`${label} ${tag}: o botão "${rotulo}" de ${id} não está indisponível com aria-disabled`)
+        const motivo = await botao(id).getAttribute('data-motivo')
+        if (!motivo) problems.push(`${label} ${tag}: o botão "${rotulo}" sem o motivo`)
+        const antes = await saldoMochila(), contador = (await estadoDe(pg)).raceCounter
+        await botao(id).click({ force: true })   // o toque real (o click() normal espera o botão habilitado)
+        await sleep(120)
+        if (!new RegExp(motivo ? motivo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '^$').test((await pg.locator('#motivo-vivo').textContent()) || '')) problems.push(`${label} ${tag}: o toque em "${rotulo}" não pôs o motivo na região viva`)
+        await pg.evaluate((i) => { const b = document.querySelector(`#tela [data-acao="item-comprar"][data-id="${i}"]`); b.removeAttribute('aria-disabled'); b.click() }, id)
+        if (!igual(await saldoMochila(), antes)) problems.push(`${label} ${tag}: o toque em "${rotulo}" mudou o Ouro, a mochila, os limites ou a sala: ${JSON.stringify(await saldoMochila())}`)
+        // o toque forçado grava (sincroniza com outras abas antes de conferir): o save gravado tem o que havia antes do toque
+        const disco = JSON.parse(await bruto(pg, DEVK))
+        for (const k of ['gold', 'mochila', 'lojaItens', 'pending']) if (!igual(disco[k], antes[k])) problems.push(`${label} ${tag}: o toque em "${rotulo}" gravou ${k} ${JSON.stringify(disco[k])} (antes ${JSON.stringify(antes[k])})`)
+        if (disco.raceCounter !== contador) problems.push(`${label} ${tag}: o toque em "${rotulo}" mudou o contador de salas`)
+      }
+      const compra = async (id, tag) => {
+        const a = await saldoMochila()
+        await botao(id).click()
+        const d = await saldoMochila()
+        if (d.gold !== a.gold - G.ITEMS[id].price || d.mochila[id] !== a.mochila[id] + 1) problems.push(`${label} ${tag}: comprar ${id} levou o Ouro ${a.gold} -> ${d.gold} e a mochila ${a.mochila[id]} -> ${d.mochila[id]}`)
+        const disco = JSON.parse(await bruto(pg, DEVK))
+        if (disco.gold !== d.gold || !igual(disco.mochila, d.mochila) || !igual(disco.lojaItens, d.lojaItens)) problems.push(`${label} ${tag}: a compra de ${id} não foi gravada junto (Ouro, mochila e limites)`)
+        const foco = await pg.evaluate(() => { const e = document.activeElement; return e && e.getAttribute('data-acao') + ':' + e.getAttribute('data-id') })
+        if (foco !== 'item-comprar:' + id) problems.push(`${label} ${tag}: o foco saiu do botão de compra (${foco})`)
+      }
+      try {
+        await pg.waitForSelector('#t-estabulo')   // o modo DEV abre direto no Estábulo
+        await devAbrir(pg)
+        await pg.setChecked('#dev-ouroinf', false)
+        await devFechar(pg)
+        await pg.evaluate(() => { window.__galope.state.gold = 0 })
+        await dev('dev-ouro', 3)   // 3.000 de Ouro pela gaveta
+        // a barra: 5 abas, a última a Loja (com ícone e rótulo)
+        const abas = await pg.locator('.app-abas [data-acao="aba"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id') + ':' + b.querySelector('.app-aba-rotulo').textContent.trim()))
+        if (!igual(abas, ['estabulo:Estábulo', 'correr:Correr', 'expedicao:Expedição', 'haras:Haras', 'loja:Loja'])) problems.push(`${label}: abas ${abas.join(',')} (esperado as 5, com a Loja por último)`)
+        await pg.locator('[data-acao="aba"][data-id="loja"]').click()
+        await pg.waitForSelector('#t-loja')
+        if ((await pg.evaluate(() => window.__galope.ui.lojaParte)) !== 'comprar') problems.push(`${label}: a Loja não abriu na parte Comprar`)
+        const partes = await pg.locator('#tela .subabas[role="group"][aria-label="Partes da loja"] .btn.opcao.opcao--centro[data-acao="loja-parte"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id') + ':' + b.textContent.trim() + ':' + b.getAttribute('aria-pressed')))
+        if (!igual(partes, ['comprar:Comprar:true', 'mochila:Mochila:false'])) problems.push(`${label}: partes da loja ${partes.join(',')}`)
+        // quatro produtos na ordem e com os preços; a Rédea nova sem botão de compra
+        const prods = await pg.locator('#tela .item-linha--produto').evaluateAll((ls) => ls.map((l) => l.getAttribute('data-item')))
+        if (!igual(prods, ['torrao', 'manual', 'cupom', 'estrela'])) problems.push(`${label}: produtos ${prods.join(',')} (esperado torrao,manual,cupom,estrela)`)
+        for (const [id, preco] of [['torrao', '120'], ['manual', '200'], ['cupom', '250'], ['estrela', '2.000']]) {
+          if (!new RegExp('(^|\\D)' + preco.replace('.', '\\.') + '(\\D|$)').test(await txtLinha(id))) problems.push(`${label}: ${id} sem o preço ${preco}: ${await txtLinha(id)}`)
+          if ((await botao(id).count()) !== 1 || (await txtBotao(id)).indexOf('Comprar') !== 0) problems.push(`${label}: ${id} sem o botão Comprar (${await txtBotao(id)})`)
+        }
+        if ((await linha('redea').count()) !== 1 || (await linha('redea').locator('button').count()) !== 0 || (await botao('redea').count()) !== 0) problems.push(`${label}: a linha da Rédea nova falta ou tem botão`)
+        else if (!(await textoAcessivel(linha('redea'))).includes(G.ITEMS.redea.origem)) problems.push(`${label}: a linha da Rédea nova não diz de onde ela vem: ${await textoAcessivel(linha('redea'))}`)
+        if (!/2 de 2 hoje/.test(await txtLinha('torrao')) || !/1 de 1 hoje/.test(await txtLinha('manual')) || !/disponível/.test(await txtLinha('estrela'))) problems.push(`${label}: limites de hoje antes de comprar: ${await txtLinha('torrao')} | ${await txtLinha('estrela')}`)
+        // Torrão: 1, 2 e o 3º no limite; o dia seguinte devolve o limite e voltar o dia não
+        await compra('torrao', '1º torrão')
+        if (!/1 de 2 hoje/.test(await txtLinha('torrao'))) problems.push(`${label}: depois de 1 torrão: ${await txtLinha('torrao')}`)
+        if (!/tem 1\b/.test(await txtLinha('torrao'))) problems.push(`${label}: o produto não diz quantos o jogador tem: ${await txtLinha('torrao')}`)
+        await compra('torrao', '2º torrão')
+        await recusa('torrao', 'Limite de hoje', '3º torrão')
+        if (!/0 de 2 hoje/.test(await txtLinha('torrao'))) problems.push(`${label}: no limite: ${await txtLinha('torrao')}`)
+        await dev('dev-dia-mais')
+        if ((await txtBotao('torrao')).indexOf('Comprar') !== 0 || !/2 de 2 hoje/.test(await txtLinha('torrao'))) problems.push(`${label}: "Avançar 1 dia" não devolveu o limite: ${await txtLinha('torrao')}`)
+        await compra('torrao', 'torrão do dia seguinte')
+        await compra('torrao', '2º torrão do dia seguinte')
+        await dev('dev-dia-menos')
+        await recusa('torrao', 'Limite de hoje', 'voltar 1 dia depois de comprar')
+        await dev('dev-dia-mais')
+        // Estrela: compra com 2.000, depois "de novo em 7 dias"; 7 dias depois, compra de novo
+        if ((await saldoMochila()).gold !== 3000 - 4 * 120) problems.push(`${label}: Ouro ${(await saldoMochila()).gold} depois de 4 torrões`)
+        await compra('estrela', '1ª estrela')
+        if (!/de novo em 7 dias/.test(await txtLinha('estrela'))) problems.push(`${label}: depois da Estrela: ${await txtLinha('estrela')}`)
+        await recusa('estrela', 'Limite de hoje', 'estrela no mesmo dia')
+        await dev('dev-dia-mais', 6)
+        if (!/de novo em 1 dia(?!s)/.test(await txtLinha('estrela'))) problems.push(`${label}: 6 dias depois da Estrela: ${await txtLinha('estrela')}`)
+        await dev('dev-dia-mais')
+        await dev('dev-ouro', 2)
+        if (!/disponível/.test(await txtLinha('estrela'))) problems.push(`${label}: 7 dias depois da Estrela: ${await txtLinha('estrela')}`)
+        await compra('estrela', 'estrela 7 dias depois')
+        // Sem Ouro (100 de Ouro) e mochila cheia (99 torrões, pela gaveta)
+        await ouro(100)
+        await recusa('torrao', 'Sem Ouro', 'com 100 de Ouro')
+        await ouro(5000)
+        await devMochila({ torrao: G.BAG_MAX })
+        await recusa('torrao', 'Mochila cheia', 'com 99 torrões')
+        if (!/99/.test((await botao('torrao').getAttribute('data-motivo')) || '')) problems.push(`${label}: o motivo da mochila cheia não diz o teto`)
+        // a parte Mochila: os cinco na ordem do catálogo, com as quantidades; 0 apagado com a frase de origem
+        await devMochila({ torrao: 3, estrela: 0, cupom: 0, manual: 1 })
+        await devAbrir(pg); await pg.fill('#dev-redeas', '2'); await pg.locator('.dev-gaveta [data-acao="dev-redeas"]').click(); await devFechar(pg)
+        await pg.locator('#tela [data-acao="loja-parte"][data-id="mochila"]').click()
+        const focoParte = await pg.evaluate(() => { const e = document.activeElement; return e && e.getAttribute('data-acao') + ':' + e.getAttribute('data-id') + ':' + e.getAttribute('aria-pressed') })
+        if (focoParte !== 'loja-parte:mochila:true') problems.push(`${label}: o foco depois de abrir a Mochila ficou em ${focoParte}`)
+        if ((await pg.evaluate(() => window.__galope.ui.lojaParte)) !== 'mochila') problems.push(`${label}: ui.lojaParte não é mochila`)
+        if (await pg.locator('#tela [data-acao="item-comprar"]').count()) problems.push(`${label}: a Mochila mostra botão de compra`)
+        const bag = await pg.locator('#tela .item-linha--mochila').evaluateAll((ls) => ls.map((l) => l.getAttribute('data-item')))
+        if (!igual(bag, Object.keys(G.ITEMS))) problems.push(`${label}: mochila ${bag.join(',')} (esperado a ordem do catálogo)`)
+        for (const [id, n, falado] of [['torrao', 3, '3 Torrões de açúcar'], ['estrela', 0, '0 Estrelas de treino'], ['redea', 2, '2 Rédeas novas'], ['cupom', 0, '0 Cupons de troca de skill'], ['manual', 1, '1 Manual de doma']]) {
+          const t = await txtLinha(id), a = await textoAcessivel(linha(id)), vazia = await linha(id).evaluate((l) => l.classList.contains('item-linha--vazia'))
+          if (!a.includes(falado) || /[x×]\s*\d/.test(a)) problems.push(`${label}: o leitor de tela lê a linha de ${id} como "${a}" (esperado "${falado}", sem "x${n}")`)
+          if (n === 0 && (!vazia || !a.includes(G.ITEMS[id].origem))) problems.push(`${label}: ${id} com 0 não está apagado com a origem: ${a}`)
+          if (n > 0 && (vazia || !a.includes(G.ITEMS[id].desc) || t.includes(G.ITEMS[id].origem))) problems.push(`${label}: ${id} com ${n} apagado ou sem o para que serve: ${a}`)
+        }
+        // medidas: sem rolagem lateral (360x780, 360x640, 1280x800), botões e linhas ≥ 44 px, os rótulos das 5 abas inteiros
+        const medir = () => pg.evaluate(() => ({
+          botoes: [...document.querySelectorAll('#tela .item-linha button, #tela .subabas .opcao')].map((b) => Math.round(b.getBoundingClientRect().height)),
+          linhas: [...document.querySelectorAll('#tela .item-linha')].map((l) => l.getAttribute('data-item') + ':' + Math.round(l.getBoundingClientRect().height)),
+          abas: [...document.querySelectorAll('.app-aba')].map((b) => { const r = b.querySelector('.app-aba-rotulo'); return b.getAttribute('data-id') + ':' + Math.round(b.getBoundingClientRect().width) + (r.scrollWidth > r.clientWidth ? ':cortado' : '') })
+        }))
+        const medidas = {}
+        for (const [vp, tag] of [[VP, '360x780'], [{ width: 360, height: 640 }, '360x640'], [{ width: 1280, height: 800 }, '1280x800']]) {
+          await pg.setViewportSize(vp)
+          for (const parte of ['comprar', 'mochila']) {
+            await pg.locator(`#tela [data-acao="loja-parte"][data-id="${parte}"]`).click()
+            await sleep(100)
+            await checkOverflow(pg, `${label} ${tag} ${parte}`)
+            const m = await medir()
+            medidas[tag + ' ' + parte] = m
+            if (m.botoes.some((h) => h < 44)) problems.push(`${label} ${tag} ${parte}: botão com menos de 44 px (${m.botoes.join(',')})`)
+            if (m.abas.some((a) => /cortado/.test(a))) problems.push(`${label} ${tag}: rótulo de aba cortado (${m.abas.join(',')})`)
+          }
+        }
+        notes[label] = medidas
+        await pg.setViewportSize(VP)
+        // Reservado: sala de 50 aberta com 150 de Ouro (100 livres < 120); o toque não muda nada nem re-sorteia a sala
+        await ouro(150)
+        await devMochila({ torrao: 0 })
+        await dev('dev-dia-mais')
+        const sala = await abrirSala(pg, 50)
+        const pend = (await estadoDe(pg)).pending
+        await pg.getByRole('button', { name: /^Voltar/ }).click()
+        await pg.waitForSelector('#t-correr')
+        await pg.locator('[data-acao="aba"][data-id="loja"]').click()
+        await pg.waitForSelector('#t-loja')
+        if (!/50 de Ouro reservados/.test((await pg.locator('#tela').textContent()) || '')) problems.push(`${label}: a Loja não avisa o Ouro reservado`)
+        await recusa('torrao', 'Reservado', 'sala aberta')
+        if (!igual((await estadoDe(pg)).pending, pend)) problems.push(`${label}: o toque em "Reservado" mudou a sala guardada`)
+        await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+        await pg.locator('[data-acao="procurar"]').click()
+        await pg.waitForSelector('#t-largada')
+        const sala2 = await salaAtual(pg)
+        if (sala2.seed !== sala.seed || sala2.counter !== sala.counter || sala2.rivais !== sala.rivais) problems.push(`${label}: a sala foi re-sorteada depois do toque em "Reservado" ${JSON.stringify({ sala, sala2 })}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 9. cores forçadas: produtos e linhas da mochila com borda de 2 px em cor do sistema e a parte aberta em Highlight
+    {
+      const label = 'itens-loja-forcado'
+      const pg = await newPage(browser, VP, label, { query: '?dev=1', forcedColors: 'active' })
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await pg.locator('[data-acao="aba"][data-id="loja"]').click()
+        await pg.waitForSelector('#t-loja')
+        for (const parte of ['comprar', 'mochila']) {
+          await pg.locator(`#tela [data-acao="loja-parte"][data-id="${parte}"]`).click()
+          const fc = await pg.evaluate(() => {
+            const sonda = (c) => { const d = document.createElement('i'); d.style.border = '2px solid ' + c; document.body.appendChild(d); const v = getComputedStyle(d).borderTopColor; d.remove(); return v }
+            const borda = (e) => { const cs = getComputedStyle(e); return { w: cs.borderTopWidth, s: cs.borderTopStyle, c: cs.borderTopColor } }
+            return { ativo: matchMedia('(forced-colors: active)').matches, hl: sonda('Highlight'), sis: ['CanvasText', 'ButtonText', 'GrayText'].map(sonda),
+              linhas: [...document.querySelectorAll('#tela .item-linha')].map(borda),
+              aberta: [...document.querySelectorAll('#tela .subabas [data-acao="loja-parte"][aria-pressed="true"]')].map(borda) }
+          })
+          if (!fc.ativo) problems.push(`[${label}] a página não está em cores forçadas`)
+          if (fc.linhas.length < 5 || fc.linhas.some((b) => b.w !== '2px' || b.s !== 'solid' || !fc.sis.includes(b.c))) problems.push(`[${label}] ${parte}: linhas sem borda de 2 px em cor do sistema ${JSON.stringify(fc.linhas)} (${fc.sis.join(' / ')})`)
+          if (fc.aberta.length !== 1 || fc.aberta[0].c !== fc.hl) problems.push(`[${label}] ${parte}: a parte aberta sem Highlight ${JSON.stringify(fc.aberta)} (Highlight = ${fc.hl})`)
+        }
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
   }
 
   // ---------------- corrida redimensionada: continua cabendo na altura da janela ----------------
@@ -5299,7 +5491,9 @@ try {
         if (!(await pg.locator('.levelup').count())) problems.push('acabamento-telas: o resultado não mostrou a subida de nível')
         await pg.locator('[data-acao="voltar"]').click()   // o resultado não tem a casca: "Voltar" leva à aba Correr
         await pg.waitForSelector('#t-correr')
-        for (const id of ['haras', 'expedicao']) { await aba(id); await confere(id) }
+        for (const id of ['haras', 'expedicao', 'loja']) { await aba(id); await confere(id) }
+        await pg.locator('[data-acao="loja-parte"][data-id="mochila"]').click()   // a Loja de itens (spec de itens §13), nas duas partes
+        await confere('loja mochila')
         await pg.locator('[data-acao="perfil"]').click()
         await pg.waitForSelector('#t-perfil')
         await confere('perfil')
@@ -5322,7 +5516,7 @@ try {
         await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
         await pg.waitForSelector('#t-montaria')
         for (const sub of ['status', 'skills', 'ficha']) { await pg.locator(`[data-acao="montaria-aba"][data-id="${sub}"]`).click(); await checkOverflow(pg, 'acabamento-desktop montaria ' + sub) }
-        for (const id of ['correr', 'haras', 'expedicao']) {
+        for (const id of ['correr', 'haras', 'expedicao', 'loja']) {
           await aba(id)
           await checkOverflow(pg, 'acabamento-desktop ' + id)
           await abaAtual(pg, 'desktop ' + id, '.app-aba--ativa', 'esquerda')
@@ -6478,7 +6672,8 @@ try {
         await pg.waitForSelector('#t-estabulo')
         if (!igual((await estado(pg)).mounts[0].alloc, mL.alloc)) problems.push(`${label}: recarregar o alloc cortado mudou o alloc`)
 
-        // sem equipamento: 4 abas (sem a Loja), sem Pedras no cabeçalho, sem resumo de peças no Estábulo
+        // sem equipamento: 5 abas (a Loja de itens volta como 5ª, spec de itens §6), a Loja sem peças nem Pedras, sem Pedras
+        // no cabeçalho, sem resumo de peças no Estábulo
         // (uma peça solta e o conjunto do Sol inteiro na Brasa: o Poder e a chance de skill ignoram os dois)
         await montaSave(pg, (raw) => {
           raw.items = GR.SLOTS.map((sl, i) => ({ uid: 'i' + (i + 1), id: sl + '-sol-lendario', plus: 4 })).concat([{ uid: 'i9', id: 'sela-magico', plus: 0 }])
@@ -6486,10 +6681,13 @@ try {
           raw.mounts[0].equip = Object.fromEntries(GR.SLOTS.map((sl, i) => [sl, 'i' + (i + 1)]))
         })
         const abas = await pg.locator('.app-abas [data-acao="aba"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id')))
-        if (!igual(abas, ['estabulo', 'correr', 'expedicao', 'haras'])) problems.push(`${label}: abas ${abas.join(',')} (esperado estabulo,correr,expedicao,haras)`)
+        if (!igual(abas, ['estabulo', 'correr', 'expedicao', 'haras', 'loja'])) problems.push(`${label}: abas ${abas.join(',')} (esperado estabulo,correr,expedicao,haras,loja)`)
         await forca(pg, 'aba', 'loja')
-        if (await pg.locator('#t-loja').count()) problems.push(`${label}: a Loja abriu pelo botão forçado`)
+        if (!(await pg.locator('#t-loja').count())) problems.push(`${label}: a Loja não abriu`)
+        if (await pg.locator('#tela [data-acao="loja-tab"], #tela [data-acao="comprar"], #tela [data-acao="comprar-pedra"], #tela .loja-grade').count()) problems.push(`${label}: a Loja mostra peças ou Pedras com o equipamento suspenso`)
         if (await pg.locator('.app-topo .pedras').count()) problems.push(`${label}: saldo de Pedras no cabeçalho`)
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.waitForSelector('#t-estabulo')
         if (await pg.locator('#tela .slots, #tela .set-badge').count()) problems.push(`${label}: resumo de peças no Estábulo`)
         s = await estado(pg)
         const m1 = s.mounts[0]
@@ -6966,8 +7164,8 @@ try {
   await checkOverflow(page, 'estabulo')
   await page.screenshot({ path: join(SHOTS, 'final-02-estabulo.png') })
   // ícones do PixelLab: barra de abas e saldos do cabeçalho (img decorativa + rótulo de texto ao lado)
-  // (a Loja só com o equipamento ligado: suspenso, a barra tem 4 abas)
-  const ABAS_UI = [['estabulo', 'Estábulo'], ['correr', 'Correr'], ['expedicao', 'Expedição'], ['haras', 'Haras']].concat(GEAR_ON ? [['loja', 'Loja']] : [])
+  // (a Loja de itens está sempre na barra: 5 abas, também com o equipamento suspenso)
+  const ABAS_UI = [['estabulo', 'Estábulo'], ['correr', 'Correr'], ['expedicao', 'Expedição'], ['haras', 'Haras'], ['loja', 'Loja']]
   if ((await page.locator('.app-aba').count()) !== ABAS_UI.length) problems.push(`abas: ${await page.locator('.app-aba').count()} na barra (esperado ${ABAS_UI.length})`)
   for (const [aba, rotulo] of ABAS_UI) {
     const b = page.locator(`.app-aba[data-id="${aba}"]`)
@@ -7430,8 +7628,8 @@ try {
       // Ruling 19: seedBase fixo (o save novo sorteia o dele com crypto.getRandomValues), para as capturas 03, 04, 10 e 11
       // (saldo e XP depois da corrida abaixo) só mudarem quando a interface muda
       await mn.evaluate(() => { window.__galope.state.seedBase = 7 })
-      // 1. as abas (5; 4 com o equipamento suspenso, sem a Loja) abrem e focam o h1 certo
-      for (const [id, h1] of [['correr', 't-correr'], ['expedicao', 't-expedicao'], ['haras', 't-haras']].concat(GEAR_ON ? [['loja', 't-loja']] : []).concat([['estabulo', 't-estabulo']])) {
+      // 1. as 5 abas (a Loja de itens também com o equipamento suspenso) abrem e focam o h1 certo
+      for (const [id, h1] of [['correr', 't-correr'], ['expedicao', 't-expedicao'], ['haras', 't-haras'], ['loja', 't-loja'], ['estabulo', 't-estabulo']]) {
         await mn.locator(`[data-acao="aba"][data-id="${id}"]`).click()
         await mn.waitForSelector('#' + h1)
         const focused = await mn.evaluate(() => document.activeElement && document.activeElement.id)
@@ -7442,7 +7640,7 @@ try {
       // 2. trocar de aba não empilha histórico: abas são raízes, sem o estado de guarda { galope: 1 }
       //    (só history.length não pega a regressão: o guarda único mantém o comprimento estável)
       const len0 = await mn.evaluate(() => history.length)
-      const cicloAbas = GEAR_ON ? ['correr', 'haras', 'loja', 'estabulo', 'expedicao'] : ['correr', 'haras', 'estabulo', 'expedicao']
+      const cicloAbas = ['correr', 'haras', 'loja', 'estabulo', 'expedicao']
       for (let i = 0; i < 10; i++) {
         const id = cicloAbas[i % cicloAbas.length]
         await mn.locator(`[data-acao="aba"][data-id="${id}"]`).click()
@@ -8777,7 +8975,7 @@ try {
       await sem.waitForSelector('#t-estabulo')
       if ((await sem.locator('img').count()) !== 0) problems.push('sem-icones: há <img> no estábulo')
       const icones = await sem.locator('.app-aba-icone').allTextContents()
-      if (icones.join('') !== '🐴🏁🧭💞' + (GEAR_ON ? '🛒' : '')) problems.push('sem-icones: abas sem os emojis de antes: ' + icones.join('|'))
+      if (icones.join('') !== '🐴🏁🧭💞🛒') problems.push('sem-icones: abas sem os emojis de antes: ' + icones.join('|'))
       if (GEAR_ON && !/🪨/.test((await sem.locator('.app-topo .pedras').textContent()) || '')) problems.push('sem-icones: saldo de Pedras sem o emoji')
       if ((await sem.locator('.app-topo .saldo svg').count()) !== 1) problems.push('sem-icones: saldo de Ouro sem a moeda em SVG')
       if (((await sem.locator('.app-topo .logo-mini').textContent()) || '').trim() !== 'Galope Elemental') problems.push('sem-icones: cabeçalho sem o texto da marca')

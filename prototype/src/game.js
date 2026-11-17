@@ -270,7 +270,7 @@
   }
   // onde a linha do motivo entra: 'in' no fim do bloco, 'after' logo depois dele (a 1ª regra que casar)
   var MOTIVO_ONDE = [['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
-    ['.montaria-acoes', 'after'], ['.acoes', 'after']];
+    ['.montaria-acoes', 'after'], ['.acoes', 'after'], ['.item-linha', 'in']];
   // região viva fixa (fora da tela que redesenha): leitores de tela anunciam o texto escrito nela, e o .motivo criado já
   // com o texto muitas vezes passa em silêncio. Limpa antes de escrever, para o mesmo texto ser anunciado de novo.
   var motivoVivoTimer = 0;
@@ -558,7 +558,11 @@
   var AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.';
   var REDEAS_MAX = 999;
   var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual
-  var LOJA_LIMITADOS = ['torrao', 'manual', 'cupom'];   // os que têm limite por dia (perDay)
+  // os itens à venda (price), na ordem da loja: pelo preço (spec de itens §6: Torrão, Manual, Cupom, Estrela)
+  var LOJA_ITENS = Object.keys(GD.ITEMS).filter(function (id) { return GD.ITEMS[id].price != null; })
+    .sort(function (a, b) { return GD.ITEMS[a].price - GD.ITEMS[b].price; });
+  // os que têm limite por dia (perDay), tirados do catálogo (o itens.js lê os mesmos campos): torrao, manual, cupom
+  var LOJA_LIMITADOS = LOJA_ITENS.filter(function (id) { return !!GD.ITEMS[id].perDay; });
   var DIA_MAX = IT.DIA_MAX;   // dia guardado no save: inteiro de 0 a este (diaLocal(9999, 11, 31))
   var BR = E.breeding;
   var MAX_LEVEL = E.maxLevel || 50;
@@ -1061,6 +1065,8 @@
   // ===========================================================================
   var state = null;
   var ui = { screen: 'inicial', lobby: null, result: null, resultAba: 'chegada', confirmReset: false, confirmLiberar: null, notice: null, haras: null, montaria: null, tab: 'estabulo',
+    lojaParte: 'comprar',   // parte aberta da aba Loja: 'comprar' | 'mochila'
+    lojaMsg: null,          // aviso da última compra da Loja de itens: { id, txt } (na linha do item)
     motionKeep: null,   // "Recomeçar": a opção Animações passa para o save novo
     joqueiKeep: null,   // e o jóquei também (padrão e capacete)
     // modo DEV (só com DEV_MODE): gaveta, confirmação do "Zerar" e valores armados para a próxima corrida
@@ -1399,10 +1405,9 @@
   // Tipos de tela: 'aba' (raiz, com cabeçalho e barra; não empilha histórico), 'sub' (com cabeçalho e barra;
   // empilha um estado e o Voltar devolve a ui.tab) e 'full' (tela cheia, sem casca).
   var SCREEN_KIND = { bloqueio: 'full', inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', largada: 'full', corrida: 'full', resultado: 'full' };
-  // a Loja só vende peças e Pedras Negras: com o equipamento suspenso (GEAR_ON), sai da barra (e não abre nem pelo
-  // botão forçado: o handler 'aba' só abre as abas desta lista)
+  // as 5 abas da barra (o handler 'aba' só abre as desta lista; o wiki lê esta linha). A Loja (itens e mochila, spec de
+  // itens §6) fica sempre: o que é do equipamento dentro dela (peças e Pedras Negras) continua atrás do GEAR_ON
   var ABAS = [{ id: 'estabulo', icone: '🐴', rotulo: 'Estábulo' }, { id: 'correr', icone: '🏁', rotulo: 'Correr' }, { id: 'expedicao', icone: '🧭', rotulo: 'Expedição' }, { id: 'haras', icone: '💞', rotulo: 'Haras' }, { id: 'loja', icone: '🛒', rotulo: 'Loja' }];
-  ABAS = ABAS.filter(function (a) { return GEAR_ON || a.id !== 'loja'; });   // (o wiki lê a lista acima e o GEAR_ON)
   function abaVisivel(id) { return ABAS.some(function (a) { return a.id === id; }); }
   function kindOf(screen) { return hasOwn(SCREEN_KIND, screen) ? SCREEN_KIND[screen] : 'full'; }
   var guardPushed = false, ignorePop = false;
@@ -1436,6 +1441,8 @@
     if (screen !== 'montaria') ui.montaria = null;   // sair da Montaria descarta o "Desfazer venda" e a confirmação
     // a Loja guarda o estado enquanto uma sub-tela aberta a partir dela está por cima
     if (screen !== 'loja' && !(kindOf(screen) === 'sub' && ui.tab === 'loja')) ui.loja = null;
+    // entrar na aba Loja abre na parte Comprar (voltar de uma sub-tela aberta a partir dela mantém a parte)
+    if (screen === 'loja' && ui.screen !== 'loja' && !voltaMesmaAba) { ui.lojaParte = 'comprar'; ui.lojaMsg = null; }
     if (kindOf(screen) === 'aba') ui.tab = screen;   // a barra de abas lê ui.tab
     ui.screen = screen;
     if (appEl) appEl.classList.toggle('app--corrida', screen === 'corrida');
@@ -3156,6 +3163,100 @@
   }
 
   // ===========================================================================
+  // Loja de itens e mochila (spec 2026-11-16-itens-loja-diaria §5, §6, §8, §13): a aba Loja, sempre na barra, com
+  // as partes Comprar (os itens à venda, um toque por compra, só com Ouro) e Mochila (os cinco itens, com a quantidade).
+  // As regras (limites do dia, a Estrela a cada 7 dias, a mochila cheia, Ouro e Ouro reservado) são do Itens
+  // (itens.js); aqui só se mostra e se grava. Com GEAR_ON, a parte Comprar também mostra as peças e as Pedras.
+  // ===========================================================================
+  var LOJA_PARTES = [{ id: 'comprar', rotulo: 'Comprar' }, { id: 'mochila', rotulo: 'Mochila' }];
+  // o plural do nome, para a quantidade lida como "3 Torrões de açúcar" (spec §13)
+  var ITEM_PLURAL = { torrao: 'Torrões de açúcar', estrela: 'Estrelas de treino', redea: 'Rédeas novas',
+    cupom: 'Cupons de troca de skill', manual: 'Manuais de doma' };
+  // o rótulo do botão de compra por motivo do Itens.podeComprar
+  var LOJA_ROTULO = { 'sem-ouro': 'Sem Ouro', reservado: 'Reservado', limite: 'Limite de hoje', cheia: 'Mochila cheia', 'nao-vende': 'Não está à venda' };
+  // quantos o jogador tem do item (a Rédea nova fica em state.redeas; a mochila só a mostra)
+  function itemQtd(id) {
+    if (id === 'redea') return state.redeas;
+    return state.mochila && hasOwn(state.mochila, id) ? state.mochila[id] : 0;
+  }
+  function itemQtdTxt(id, n) { return fmt(n) + ' ' + (n === 1 ? GD.ITEMS[id].name : ITEM_PLURAL[id]); }
+  // o ícone do item (peça de pixel item-<id> do interface-arte.mjs, em background): decorativo, o nome vem ao lado
+  function itemIconeHtml(id) {
+    return hasOwn(GD.ITEMS, id) ? '<span class="item-icone item-icone--' + esc(id) + '" aria-hidden="true"></span>' : '';
+  }
+  // A linha de um item: ícone, nome, a quantidade e a linha de para que serve. Usada na loja, na mochila e na escolha
+  // do uso. opções: { qtd: número (sem ele, não mostra a quantidade), forma: 'x' (×3, padrão) | 'tem' (tem 3), texto: a
+  // linha de baixo (padrão: o para que serve do catálogo), apagada: true (a linha de quantidade 0), classe: classe a mais,
+  // extra: html no fim da linha (preço, botões), nivel: 'h2' (padrão) | 'h3' }. O leitor de tela lê a quantidade como
+  // "3 Torrões de açúcar" (o ×3 é aria-hidden).
+  function itemLinhaHtml(id, o) {
+    if (!hasOwn(GD.ITEMS, id)) return '';
+    o = o || {};
+    var it = GD.ITEMS[id], h = o.nivel === 'h3' ? 'h3' : 'h2', qtd = '';
+    if (o.qtd != null) {
+      var tem = o.forma === 'tem';
+      qtd = '<span class="item-qtd"><span aria-hidden="true">' + (tem ? 'tem ' : '×') + fmt(o.qtd) + '</span>' +
+        '<span class="sr">' + esc((tem ? 'Você tem ' : '') + itemQtdTxt(id, o.qtd)) + '</span></span>';
+    }
+    var aviso = ui.lojaMsg && ui.lojaMsg.id === id && ui.screen === 'loja' ? '<p class="aviso item-aviso">' + esc(ui.lojaMsg.txt) + '</p>' : '';
+    return '<article class="item-linha' + (o.classe ? ' ' + o.classe : '') + (o.apagada ? ' item-linha--vazia' : '') + '" data-item="' + esc(id) + '">' +
+      itemIconeHtml(id) + '<' + h + ' class="item-nome">' + esc(it.name) + '</' + h + '>' + qtd +
+      '<p class="item-desc">' + esc(o.texto != null ? o.texto : it.desc) + '</p>' + (o.extra || '') + aviso + '</article>';
+  }
+  // por que o item não pode ser comprado agora (p: o { ok: false, motivo, emDias } do Itens.podeComprar)
+  function lojaMotivo(id, p) {
+    var it = GD.ITEMS[id];
+    switch (p.motivo) {
+      case 'sem-ouro': return 'Faltam ' + fmt(it.price - state.gold) + ' de Ouro para comprar ' + it.name + '.';
+      case 'reservado': return reservaTxt() + ': sobram ' + fmt(ouroLivre()) + ' para gastar.';
+      case 'cheia': return 'A mochila já tem ' + itemQtdTxt(id, GD.BAG_MAX) + ', o máximo.';
+      case 'limite':
+        if (it.everyDays && p.emDias) return it.name + ' volta à venda em ' + p.emDias + (p.emDias === 1 ? ' dia.' : ' dias.');
+        if (it.perDay) return 'Você já comprou ' + it.perDay + ' hoje, o limite do dia. Amanhã tem de novo.';
+        return 'Limite de hoje.';
+      default: return it.name + ' não está à venda.';
+    }
+  }
+  // o limite do dia do produto, sem contar Ouro nem mochila ("1 de 2 hoje"; na Estrela, "disponível" ou "de novo em N dias")
+  function lojaLimiteHtml(id, hoje) {
+    var it = GD.ITEMS[id], l = IT.podeComprar(id, state.lojaItens, hoje, Infinity, Infinity, 0);
+    if (it.everyDays) {
+      var txt = l.ok ? 'disponível' : l.emDias ? 'de novo em ' + l.emDias + (l.emDias === 1 ? ' dia' : ' dias') : 'Limite de hoje';
+      return '<span class="item-limite">' + esc(txt) + '</span>';
+    }
+    return '<span class="item-limite"><span class="sr">Ainda pode comprar </span>' + esc((l.ok ? l.restam : 0) + ' de ' + it.perDay + ' hoje') + '</span>';
+  }
+  function lojaProdutoHtml(id) {
+    var it = GD.ITEMS[id], hoje = hojeDia(), tem = itemQtd(id);
+    var p = IT.podeComprar(id, state.lojaItens, hoje, state.gold, ouroLivre(), tem);
+    var botao = '<button type="button" class="btn btn--ouro btn--pequeno" data-acao="item-comprar" data-id="' + esc(id) + '"' +
+      (p.ok ? '' : indisponivel(lojaMotivo(id, p))) + '>' + esc(p.ok ? 'Comprar' : LOJA_ROTULO[p.motivo] || 'Comprar') + '<span class="sr"> ' + esc(it.name) + '</span></button>';
+    return itemLinhaHtml(id, { qtd: tem, forma: 'tem', classe: 'item-linha--produto',
+      extra: '<div class="item-compra"><span class="item-preco">' + ouroHtml(it.price) + lojaLimiteHtml(id, hoje) + '</span>' + botao + '</div>' });
+  }
+  function lojaComprarHtml() {
+    // a Rédea nova não se vende: uma linha diz de onde ela vem, sem botão
+    return '<section class="caixa item-lista" aria-label="Itens à venda">' + LOJA_ITENS.map(lojaProdutoHtml).join('') +
+      itemLinhaHtml('redea', { qtd: itemQtd('redea'), forma: 'tem', classe: 'item-linha--fora', texto: GD.ITEMS.redea.origem }) + '</section>';
+  }
+  // os cinco, na ordem do catálogo; com 0, a linha apagada diz de onde o item vem (o "Usar" entra com o uso dos itens)
+  function lojaMochilaHtml() {
+    return '<section class="caixa item-lista" aria-label="Mochila">' + Object.keys(GD.ITEMS).map(function (id) {
+      var n = itemQtd(id);
+      return itemLinhaHtml(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? GD.ITEMS[id].origem : null });
+    }).join('') + '</section>';
+  }
+  function renderLoja() {
+    if (!LOJA_PARTES.some(function (a) { return a.id === ui.lojaParte; })) ui.lojaParte = 'comprar';
+    var head = '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>';
+    var partes = '<div class="subabas" role="group" aria-label="Partes da loja">' + LOJA_PARTES.map(function (a) {
+      return '<button type="button" class="btn opcao opcao--centro" data-acao="loja-parte" data-id="' + esc(a.id) + '" aria-pressed="' + (ui.lojaParte === a.id) + '">' + esc(a.rotulo) + '</button>';
+    }).join('') + '</div>';
+    var corpo = ui.lojaParte === 'mochila' ? lojaMochilaHtml() : reservaHtml() + lojaComprarHtml() + (GEAR_ON ? lojaEquipHtml() : '');
+    return '<section class="tela" aria-labelledby="t-loja">' + head + partes + corpo + '</section>';
+  }
+
+  // ===========================================================================
   // Loja: peças do catálogo (shop) por slot e Pedras Negras. Compra não equipa.
   // ===========================================================================
   var LOJA_TABS = GR.SLOTS.concat(['pedras']);
@@ -3199,10 +3300,10 @@
       '<div class="produto-preco">' + lojaBotaoHtml('comprar-pedra', String(n), n * GE.stonePrice) + '</div>' +
     '</article>';
   }
-  function renderLoja() {
+  // a seção de peças e Pedras da aba Loja (só com GEAR_ON; o renderLoja, na seção da Loja de itens, a põe na parte Comprar)
+  function lojaEquipHtml() {
     if (!ui.loja || LOJA_TABS.indexOf(ui.loja.tab) < 0) ui.loja = { tab: LOJA_TABS[0], msg: null };
     var Q = ui.loja;
-    var head = '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>';
     var msg = Q.msg ? '<p class="aviso" role="status">' + esc(Q.msg) + '</p>' : '';
     var abas = '<div class="abas abas--loja" role="group" aria-label="Seção da loja">' + LOJA_TABS.map(function (t) {
       var nome = t === 'pedras' ? 'Pedras' : GD.GEAR_SLOT_INFO[t].name;
@@ -3218,10 +3319,8 @@
     }
     var nota = Q.tab === 'pedras' ? 'Pedras Negras melhoram peças (+1 a +10) na aba Equipamento da montaria.'
       : 'A diferença compara com a peça que ' + activeMount().name + ' (ativa) usa neste slot. Comprar não equipa.';
-    return '<section class="tela" aria-labelledby="t-loja">' + head + msg + reservaHtml() +
-      '<section class="caixa">' + abas + '<p class="nota">' + esc(nota) + '</p>' +
-        '<div class="loja-grade">' + produtos + '</div></section>' +
-    '</section>';
+    return msg + '<section class="caixa" aria-label="Equipamento">' + abas + '<p class="nota">' + esc(nota) + '</p>' +
+        '<div class="loja-grade">' + produtos + '</div></section>';
   }
 
   // ===========================================================================
@@ -4813,6 +4912,40 @@
       case 'perfil':
         if (state) go('perfil');
         break;
+      // ---- Loja de itens (fora do portão do equipamento): a parte aberta e a compra de um toque ----
+      case 'loja-parte':
+        if (ui.screen !== 'loja' || !LOJA_PARTES.some(function (a) { return a.id === id; })) break;
+        ui.lojaParte = id; ui.lojaMsg = null;
+        rerenderKeepScroll(); break;   // o foco volta ao botão da parte
+      case 'item-comprar': {
+        // nunca confia no botão: confere de novo pelas regras do Itens, depois de sincronizar com outras abas; um toque
+        // recusado só diz o porquê (não grava nada, nem toca na sala aberta)
+        if (ui.screen !== 'loja' || !hasOwn(GD.ITEMS, id)) break;
+        var sI = state;
+        persist();
+        if (state !== sI) break;
+        var hojeI = hojeDia(), itI = GD.ITEMS[id];
+        var pI = IT.podeComprar(id, state.lojaItens, hojeI, state.gold, ouroLivre(), itemQtd(id));
+        if (!pI.ok) {
+          // a tela estava velha (outra aba, o dia virou): redesenha e diz o porquê como no botão indisponível
+          var txtI = lojaMotivo(id, pI);
+          ui.lojaMsg = null;
+          rerenderKeepScroll();
+          var bI = telaEl.querySelector('[data-acao="item-comprar"][data-id="' + id + '"]');
+          if (bI && bI.getAttribute('data-motivo') === txtI) mostraMotivo(bI); else motivoVivo(txtI);
+          break;
+        }
+        var antesI = clone(state);
+        state.gold -= itI.price;
+        state.mochila[id] += 1;
+        state.lojaItens = IT.comprar(id, state.lojaItens, hojeI);
+        var gI = gravaGasto(sI, antesI);
+        if (gI === 'outra-aba') break;
+        ui.lojaMsg = { id: id, txt: gI === 'falhou' ? FALHA_SALVAR : 'Comprou 1 ' + itI.name + '. Agora você tem ' + fmt(state.mochila[id]) + ' na mochila.' };
+        rerenderKeepScroll();
+        motivoVivo(ui.lojaMsg.txt);   // a região viva anuncia (o aviso na linha é só para ver)
+        break;
+      }
       case 'loja-tab':
         if (!ui.loja || LOJA_TABS.indexOf(id) < 0) break;
         ui.loja.tab = id; ui.loja.msg = null;
