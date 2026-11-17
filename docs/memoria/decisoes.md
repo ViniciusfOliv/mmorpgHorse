@@ -3,6 +3,25 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-17 — Ginásios da Expedição (decisões do Vinicius)
+Conversa de desenho; spec aprovada em `docs/superpowers/specs/2026-11-17-ginasios-design.md` (as decisões do controlador
+estão na seção 19 dela e valem com a aprovação).
+- **Antes do líder há soldados, cada um mais forte que o anterior, com força fixa** — eles não acompanham o nível do
+  jogador: o caminho é uma régua que só se passa evoluindo os cavalos.
+- **Trilha por ginásio, de baixo para cima, com o líder no topo** — cabe no celular e não pede arte nova; o mapa da região
+  fica para quando houver mais ginásios.
+- **Prêmio cheio uma vez; depois da insígnia, 1 revanche por dia com o líder, com prêmio pequeno** — dá motivo para voltar
+  sem virar fábrica de Ouro.
+- **Quem vence chega cansado, e o cansaço depende de quão apertada foi a vitória** (ideia dele): pouca distância na chegada,
+  mais cansaço.
+- **Três ginásios de uma vez: Fogo, Água e Grama** — com dois, um elemento ficava de fora.
+- **Entrada pequena em Ouro por desafio** — a corrida tem sorte; sem custo, dava para insistir até passar.
+- **O ginásio tem ponto fraco: o elemento que o vence leva vantagem**, pela vantagem direta no duelo (3% nos status, só nos
+  ginásios), com pista própria em cada um — escolhido entre quatro formas depois de ver a medição: com a casa a favor do
+  ginásio, um desafiante de outro elemento no mesmo nível vencia só 12% a 22% dos duelos.
+- **Aprovou os números de partida e a spec** ("Sim"), incluindo o time do jogador limitado ao tamanho do time do
+  adversário. Os números finais saem da calibração e a tabela é mostrada a ele antes das telas.
+
 ## 2026-11-17 — Teste de interface em paralelo (controlador)
 - **Integrado na `main` em 2026-11-17 por decisão do Vinicius** ("Sim, pode integrar na main") — com o `check.sh` em OK
   na árvore integrada. Só o teste em paralelo entrou; o desenho dos ginásios ficou na branch da sessão, esperando a

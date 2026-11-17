@@ -251,8 +251,11 @@ wiki (seção "Itens e recompensa diária"); decisões em `decisoes.md` (2026-11
   com medição de tempo depois, um por vez). A verificação caiu de ~16 para ~8 min. A meta de ~5 min não fechou: o que
   falta é a fase em série (~3,5 min) e o bloco `itens` (~1,5 min sozinho). O jeito antigo (`ui-test.mjs` sem `UI_SO`)
   continua igual e é o que regrava as capturas oficiais.
-- **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); é o próximo desenho, e usa os itens como prêmio. Cada ginásio tem o
-  foco num elemento. O galope ficou como está (decisão do Vinicius em 2026-11-16).
+- **Ginásios da Expedição (em execução desde 2026-11-17, na `claude/nifty-newton-e8u133`):** spec aprovada pelo Vinicius
+  (`docs/superpowers/specs/2026-11-17-ginasios-design.md`) e plano em `docs/superpowers/plans/2026-11-17-ginasios.md` (8
+  tarefas, por subagentes). Três ginásios (Fogo, Água, Grama), trilha de 4 soldados e o líder, duelo em que quem vence
+  fica, cansaço pela distância na chegada, vantagem de elemento, insígnias e revanche diária. Decisões em `decisoes.md`
+  (2026-11-17). O galope ficou como está (decisão do Vinicius em 2026-11-16).
 - **Frente "interface" da Visuais 2 integrada na `main` em 2026-11-16, com as listas de gosto abertas:** a 3c (tela da
   corrida) ficou pronta em 2026-11-16 (seção própria acima, com a lista "A confirmar com o Vinicius (gosto, 3c)"); com a 3a
   e a 3b, a frente está inteira. O Vinicius escolheu integrar antes de jogar; o que ele mudar ao jogar entra como ajuste

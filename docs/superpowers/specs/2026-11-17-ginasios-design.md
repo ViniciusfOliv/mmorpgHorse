@@ -1,7 +1,7 @@
 # Ginásios da Expedição — desenho
 
-_Data: 2026-11-17. Estado: para aprovação do Vinicius. Fecha o que o GDD §8.6 deixava "a decidir". As decisões do
-controlador (seção 19) passam a valer com a aprovação deste documento; o plano só começa depois dela._
+_Data: 2026-11-17. Estado: **aprovado pelo Vinicius em 2026-11-17**. Fecha o que o GDD §8.6 deixava "a decidir". As
+decisões do controlador (seção 19) valem com essa aprovação. Plano: `docs/superpowers/plans/2026-11-17-ginasios.md`._
 
 ## 1. Intenção e o porquê
 
