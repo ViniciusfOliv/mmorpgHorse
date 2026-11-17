@@ -145,8 +145,8 @@ Quem vence um duelo começa o seguinte com **menos fôlego**, e o desconto depen
 
 | Vitória | Distância na chegada | Fôlego perdido (partida) |
 |---|---|---|
-| Folgada | mais de 20 m | 5% |
-| Normal | de 5 a 20 m | 15% |
+| Folgada | 20 m ou mais | 5% |
+| Normal | de 5 a menos de 20 m | 15% |
 | Apertada | menos de 5 m | 25% |
 
 - Os descontos **somam** a cada vitória seguida, até o teto de 50%. Vale para os dois lados.
