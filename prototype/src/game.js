@@ -270,7 +270,7 @@
   }
   // onde a linha do motivo entra: 'in' no fim do bloco, 'after' logo depois dele (a 1ª regra que casar)
   var MOTIVO_ONDE = [['.item-escolha > li', 'in'], ['.item-uso', 'in'], ['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
-    ['.montaria-acoes', 'after'], ['.acoes', 'after'], ['.item-linha', 'in']];
+    ['.montaria-acoes', 'after'], ['.acoes', 'after'], ['.item-linha', 'in'], ['.diaria', 'in']];
   // região viva fixa (fora da tela que redesenha): leitores de tela anunciam o texto escrito nela, e o .motivo criado já
   // com o texto muitas vezes passa em silêncio. Limpa antes de escrever, para o mesmo texto ser anunciado de novo.
   var motivoVivoTimer = 0;
@@ -1069,6 +1069,7 @@
     // uso de um item (seção "Usar os itens"): { id, mountUid, skillId, passo: 'cavalo' | 'skill' | 'confirma', origem:
     // 'mochila' | 'ficha', msg } ou null; itemMsg: o aviso do último uso, { id, uid, origem, txt }. Zerados em toda troca de tela
     item: null, itemMsg: null,
+    diariaVer: false,   // "Ver os 7 dias" aberto no cartão da recompensa diária (Estábulo); fecha ao trocar de tela
     motionKeep: null,   // "Recomeçar": a opção Animações passa para o save novo
     joqueiKeep: null,   // e o jóquei também (padrão e capacete)
     // modo DEV (só com DEV_MODE): gaveta, confirmação do "Zerar" e valores armados para a próxima corrida
@@ -1438,7 +1439,7 @@
     if (raceView && screen !== 'corrida') { raceView.destroy(); raceView = null; }
     ui.item = null; ui.itemMsg = null;   // o uso de item aberto e o aviso dele não passam para outra tela
     if (screen !== ui.screen) {
-      ui.confirmReset = false; ui.confirmLiberar = null;
+      ui.confirmReset = false; ui.confirmLiberar = null; ui.diariaVer = false;
       SP.limparCacheMoldes();   // os moldes recoloridos da tela anterior não voltam a ser usados
     }
     // voltar de uma sub-tela (Perfil, Montaria) para a mesma aba de origem preserva o estado do Haras e da Loja
@@ -2124,7 +2125,9 @@
   function appAbasHtml() {
     return '<nav class="app-abas" role="navigation" aria-label="Seções">' + ABAS.map(function (a) {
       var ativa = ui.tab === a.id;
-      var cls = 'app-aba' + (ativa ? ' app-aba--ativa' : '') + (a.id === 'correr' && state.pending ? ' app-aba--ponto' : '');
+      // o ponto: na aba Correr com o páreo aberto; na aba Estábulo com a recompensa do dia para resgatar (o dia é lido agora)
+      var ponto = a.id === 'correr' ? !!state.pending : a.id === 'estabulo' && IT.diariaEstado(state.diaria, hojeDia()).pode;
+      var cls = 'app-aba' + (ativa ? ' app-aba--ativa' : '') + (ponto ? ' app-aba--ponto' : '');
       return '<button type="button" class="' + cls + '" data-acao="aba" data-id="' + esc(a.id) + '"' + (ativa ? ' aria-current="page"' : '') + '>' +
         '<span class="app-aba-icone" aria-hidden="true">' + iconeHtml('aba-' + a.id, a.icone, 32) + '</span><span class="app-aba-rotulo">' + esc(a.rotulo) + '</span></button>';
     }).join('') + '</nav>';
@@ -2351,12 +2354,62 @@
     return html;
   }
 
-  // Aba Estábulo: só a lista de montarias
+  // ---- Recompensa diária (spec de itens §7, §8, §9, §13): o cartão no topo do Estábulo. As regras são as do Itens; o dia é
+  // lido só ao desenhar (hojeDia), sem temporizador: o dia que vira com o jogo aberto aparece no próximo desenho da tela ----
+  // o prêmio em texto, com os nomes do catálogo: "60 de Ouro", "1 Torrão de açúcar", "200 de Ouro, 1 Rédea nova e 1 Estrela de treino"
+  function premioTxt(p) {
+    var partes = p.ouro ? [fmt(p.ouro) + ' de Ouro'] : [];
+    Object.keys(p.itens).forEach(function (id) { partes.push(itemQtdTxt(id, p.itens[id])); });
+    return partes.length > 1 ? partes.slice(0, -1).join(', ') + ' e ' + partes[partes.length - 1] : partes.join('');
+  }
+  // o `cabe` do Itens.resgatar: o teto de cada prêmio é de quem chama (o Itens não sabe onde a Rédea mora): 99 de cada item
+  // na mochila (GameData.BAG_MAX) e 999 Rédeas novas (state.redeas, REDEAS_MAX)
+  function diariaCabe(id, n) {
+    return id === 'redea' ? state.redeas + n <= REDEAS_MAX : itemQtd(id) + n <= GD.BAG_MAX;
+  }
+  function diariaCheiaTxt(id) {
+    return (id === 'redea' ? 'Você já tem ' + itemQtdTxt(id, REDEAS_MAX) : 'A mochila já tem ' + itemQtdTxt(id, GD.BAG_MAX)) +
+      ', o máximo. O resgate espera até sobrar espaço.';
+  }
+  // os 7 dias do calendário em curso (o cartão grande: hoje há prêmio): os já resgatados marcados, o de hoje em destaque
+  function diariaDiasHtml(e) {
+    var ciclos = state.diaria.ciclos, hoje = e.dia - 1;
+    return '<ol class="diaria-dias" id="diaria-dias">' + GD.DAILY.dias.map(function (x, i) {
+      // o prêmio do dia i deste calendário: o estado de um calendário parado nesse dia (com o mesmo nº de calendários completos)
+      var p = IT.diariaEstado({ prox: i, ciclos: ciclos, ultimo: null }, 0).premio, feito = i < hoje, atual = i === hoje;
+      return '<li class="diaria-dia' + (feito ? ' diaria-dia--feito' : '') + '"' + (atual ? ' aria-current="date"' : '') + '>' +
+        '<span class="diaria-dia-n">Dia ' + (i + 1) + '</span><span class="diaria-dia-premio">' + esc(premioTxt(p)) + '</span>' +
+        (feito || atual ? '<span class="diaria-dia-marca">' + (feito ? 'Resgatado' : 'Hoje') + '</span>' : '') + '</li>';
+    }).join('') + '</ol>';
+  }
+  // Grande com prêmio para resgatar (o título; o dia "N / 7" sobre o prêmio, ao lado do Resgatar; o "Ver os 7 dias"); depois do resgate, uma linha
+  // com o prêmio de amanhã (com o relógio para trás, só "volte amanhã"). A mochila cheia daquele item apaga o botão e o
+  // cartão diz por quê. O leitor de tela lê o título, o dia e o prêmio num texto só (o h2).
+  function diariaCartaoHtml() {
+    var hoje = hojeDia(), e = IT.diariaEstado(state.diaria, hoje), n = GD.DAILY.dias.length;
+    if (!e.pode) {
+      var atras = state.diaria.ultimo !== null && hoje < state.diaria.ultimo;
+      return '<section class="caixa diaria diaria--linha" aria-label="Recompensa do dia"><p class="diaria-linha" tabindex="-1">' +
+        esc(atras ? 'Recompensa: volte amanhã' : 'Recompensa: amanhã ' + premioTxt(e.amanha)) + '</p></section>';
+    }
+    var r = IT.resgatar(state.diaria, hoje, diariaCabe), motivo = r && r.cheia ? diariaCheiaTxt(r.cheia) : '', premio = premioTxt(e.premio);
+    return '<section class="caixa diaria diaria--grande" aria-label="Recompensa do dia">' +
+      '<h2 class="titulo">Recompensa do dia<span class="sr">' + esc(', dia ' + e.dia + ' de ' + n + ': ' + premio) + '</span></h2>' +
+      '<div class="diaria-premio"><span class="diaria-premio-txt" aria-hidden="true">' + Object.keys(e.premio.itens).map(itemIconeHtml).join('') +
+        '<span class="diaria-premio-col"><span class="diaria-num">' + e.dia + ' / ' + n + '</span><span>' + esc(premio) + '</span></span></span>' +
+        '<button type="button" class="btn btn--ouro btn--pequeno" data-acao="diaria-resgatar"' + indisponivel(motivo) + '>Resgatar' +
+          '<span class="sr"> ' + esc(premio) + '</span></button></div>' +
+      (motivo ? '<p class="nota diaria-motivo">' + esc(motivo) + '</p>' : '') +
+      '<button type="button" class="btn btn--texto diaria-ver" data-acao="diaria-ver" aria-expanded="' + !!ui.diariaVer + '" aria-controls="diaria-dias">Ver os 7 dias</button>' +
+      (ui.diariaVer ? diariaDiasHtml(e) : '') + '</section>';
+  }
+
+  // Aba Estábulo: o cartão da recompensa diária e a lista de montarias
   function renderEstabulo() {
     return '<section class="tela" aria-labelledby="t-estabulo">' +
       '<h1 class="titulo titulo--tela" id="t-estabulo" tabindex="-1" data-foco>Estábulo <span class="nota">' +
         state.mounts.length + '/' + state.stableSlots + ' vagas</span></h1>' + noticeHtml() +
-      montariasHtml() +
+      diariaCartaoHtml() + montariasHtml() +
       '</section>';
   }
 
@@ -5120,6 +5173,44 @@
         motivoVivo(ui.lojaMsg.txt);   // a região viva anuncia (o aviso na linha é só para ver)
         break;
       }
+      // ---- Recompensa diária (cartão do Estábulo): o resgate no padrão do item-comprar e o "Ver os 7 dias" ----
+      case 'diaria-resgatar': {
+        // nunca confia no botão: sincroniza com outras abas, confere de novo pelo Itens com o dia deste instante, e o Ouro, os
+        // itens e a diária vão numa gravação só; um toque recusado só diz o porquê (não grava nada)
+        if (ui.screen !== 'estabulo') break;
+        var sD = state;
+        persist();
+        if (state !== sD) break;      // outra aba gravou depois: adoptExternal já levou ao Estábulo com o save dela
+        var hojeD = hojeDia();
+        var rD = IT.resgatar(state.diaria, hojeD, diariaCabe);
+        if (!rD || rD.cheia) {
+          // a tela estava velha (o dia virou, voltou) ou a mochila está cheia: redesenha e diz o porquê
+          var txtD = rD ? diariaCheiaTxt(rD.cheia) : 'A recompensa de hoje já foi resgatada. Volte amanhã.';
+          rerenderKeepScroll();
+          var bD = telaEl.querySelector('[data-acao="diaria-resgatar"]');
+          if (bD && bD.getAttribute('data-motivo') === txtD) mostraMotivo(bD); else motivoVivo(txtD);
+          break;
+        }
+        var antesD = clone(state);
+        state.gold += rD.ouro;
+        Object.keys(rD.itens).forEach(function (iid) {
+          if (iid === 'redea') state.redeas += rD.itens[iid]; else state.mochila[iid] += rD.itens[iid];
+        });
+        state.diaria = rD.diaria;
+        var gD = gravaGasto(sD, antesD);
+        if (gD === 'outra-aba') break;
+        if (gD === 'falhou') { ui.notice = FALHA_SALVAR; rerenderKeepScroll(); motivoVivo(FALHA_SALVAR); break; }
+        ui.diariaVer = false;
+        rerenderKeepScroll();
+        var lD = telaEl.querySelector('.diaria-linha');   // o botão saiu: o foco fica no cartão de uma linha
+        if (lD) { try { lD.focus({ preventScroll: true }); } catch (e3) { lD.focus(); } }
+        motivoVivo('Você recebeu ' + premioTxt({ ouro: rD.ouro, itens: rD.itens }) + '.');
+        break;
+      }
+      case 'diaria-ver':
+        if (ui.screen !== 'estabulo') break;
+        ui.diariaVer = !ui.diariaVer;
+        rerenderKeepScroll(); break;   // o foco volta ao botão, agora com o aria-expanded novo
       // ---- Usar os itens (seção "Usar os itens"): nunca confia no botão; cada passo confere de novo com o estado atual ----
       case 'item-usar': {
         // da Mochila abre a escolha do cavalo; da ficha (data-mount) vai direto à confirmação, ou à escolha da skill no
@@ -5680,9 +5771,11 @@
     var acao = active && active.getAttribute && active.getAttribute('data-acao');
     var id = active && active.getAttribute && active.getAttribute('data-id');
     var n = active && active.getAttribute && active.getAttribute('data-n');
+    var naDiaria = !!(active && active.classList && active.classList.contains('diaria-linha'));   // o foco depois do resgate
     render();
     window.scrollTo(0, y);
     if (acao) focusAction(acao, id, n);
+    else if (naDiaria) { var ld = telaEl.querySelector('.diaria-linha'); if (ld) { try { ld.focus({ preventScroll: true }); } catch (e) { ld.focus(); } } }
   }
 
   // ===========================================================================

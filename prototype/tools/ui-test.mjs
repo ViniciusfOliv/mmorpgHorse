@@ -2061,6 +2061,331 @@ try {
         await pg.context().close()
       }
     }
+    // 11. recompensa diária (Tarefa 5; spec de itens §7, §8, §9, §13): o cartão no topo do Estábulo, o ponto na aba, o resgate
+    //     (uma vez por dia, gravado junto com o prêmio), o dia que vira sem recarregar (Review Focus 2), o relógio para trás
+    //     (Review Focus 3), os 7 dias e a Estrela no 28º resgate, a mochila cheia e a Rédea no teto. O dia anda pela gaveta DEV.
+    // a tabela da spec §7, escrita à mão (não lida do catálogo): o que cada dia do calendário dá e como o cartão o escreve
+    const PREMIOS_DIARIA = [
+      { ouro: 60, txt: '60 de Ouro' }, { torrao: 1, txt: '1 Torrão de açúcar' }, { ouro: 100, txt: '100 de Ouro' },
+      { manual: 1, txt: '1 Manual de doma' }, { ouro: 150, txt: '150 de Ouro' }, { cupom: 1, txt: '1 Cupom de troca de skill' },
+      { ouro: 200, redea: 1, txt: '200 de Ouro e 1 Rédea nova' }]
+    const premioDiaria = (k) => k % 28 === 0   // o k-ésimo resgate (1, 2, …): no 28º (4 calendários), também a Estrela
+      ? { ...PREMIOS_DIARIA[6], estrela: 1, txt: '200 de Ouro, 1 Rédea nova e 1 Estrela de treino' } : PREMIOS_DIARIA[(k - 1) % 7]
+    const diariaHelpers = (pg, label) => {
+      const h = {}
+      h.cartao = () => pg.locator('#tela .diaria')
+      h.botao = () => pg.locator('#tela [data-acao="diaria-resgatar"]')
+      h.ver = () => pg.locator('#tela [data-acao="diaria-ver"]')
+      h.texto = async () => ((await h.cartao().first().textContent().catch(() => '')) || '').replace(/\s+/g, ' ').trim()
+      h.pontos = () => pg.locator('.app-abas .app-aba--ponto').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id')).join(','))
+      h.vivo = async () => { await sleep(150); return (await pg.locator('#motivo-vivo').textContent()) || '' }
+      h.hoje = () => pg.evaluate(() => window.__galope.hojeDia())
+      const marca = (s) => JSON.stringify({ gold: s.gold, mochila: s.mochila, redeas: s.redeas, diaria: s.diaria })
+      h.marca = async () => marca(await estadoDe(pg))
+      h.marcaDisco = async () => marca(JSON.parse(await bruto(pg, DEVK)))
+      h.dev = async (acao, n = 1) => { await devAbrir(pg); for (let i = 0; i < n; i++) await pg.locator(`.dev-gaveta [data-acao="${acao}"]`).click(); await devFechar(pg) }
+      // o Ouro infinito do perfil de teste repõe o saldo a cada gravação: desligado, o saldo é o que o resgate deu
+      h.preparar = async () => { await pg.waitForSelector('#t-estabulo'); await devAbrir(pg); await pg.setChecked('#dev-ouroinf', false); await devFechar(pg) }
+      // o cartão grande: o título, o dia "N / 7", o prêmio de hoje e o botão Resgatar (≥ 44 px), no topo do Estábulo; o ponto na aba
+      h.grande = async (dia, txt, tag) => {
+        const t = await h.texto()
+        if ((await h.cartao().count()) !== 1 || !(await h.cartao().evaluate((c) => c.classList.contains('diaria--grande')))) problems.push(`${label} ${tag}: sem o cartão grande (${await h.cartao().count()})`)
+        if (!t.includes('Recompensa do dia') || !t.includes(`${dia} / 7`) || !t.includes(txt)) problems.push(`${label} ${tag}: o cartão diz "${t}" (esperado "Recompensa do dia", "${dia} / 7" e "${txt}")`)
+        const b = await h.botao().evaluateAll((bs) => bs.map((x) => ({ txt: x.textContent.replace(/\s+/g, ' ').trim(), h: x.getBoundingClientRect().height, w: x.getBoundingClientRect().width })))
+        if (b.length !== 1 || b[0].txt.indexOf('Resgatar') !== 0 || b[0].h < 44 || b[0].w < 44) problems.push(`${label} ${tag}: o botão Resgatar ${JSON.stringify(b)}`)
+        const v = await h.ver().evaluateAll((bs) => bs.map((x) => x.getBoundingClientRect().height))
+        if (v.length !== 1 || v[0] < 44) problems.push(`${label} ${tag}: o botão "Ver os 7 dias" ${JSON.stringify(v)}`)
+        const topo = await pg.evaluate(() => { const c = document.querySelector('#tela .diaria'), l = document.querySelector('#tela .caixa[aria-label="Suas montarias"]'); return !!(c && l && c.getBoundingClientRect().bottom <= l.getBoundingClientRect().top) })
+        if (!topo) problems.push(`${label} ${tag}: o cartão não está acima da lista de cavalos`)
+        if ((await h.pontos()) !== 'estabulo') problems.push(`${label} ${tag}: pontos na barra de abas "${await h.pontos()}" (esperado só o do Estábulo)`)
+      }
+      // o cartão de uma linha: sem botão, o texto pedido e sem o ponto na aba
+      h.linha = async (re, tag) => {
+        const t = await h.texto()
+        if ((await h.cartao().count()) !== 1 || !(await h.cartao().evaluate((c) => c.classList.contains('diaria--linha')))) problems.push(`${label} ${tag}: sem o cartão de uma linha`)
+        if ((await h.botao().count()) !== 0 || (await h.ver().count()) !== 0) problems.push(`${label} ${tag}: o cartão de uma linha tem botão`)
+        if (!re.test(t)) problems.push(`${label} ${tag}: o cartão diz "${t}" (esperado ${re})`)
+        if ((await h.pontos()) !== '') problems.push(`${label} ${tag}: pontos na barra de abas "${await h.pontos()}" (esperado nenhum)`)
+      }
+      // o toque na ação sem o botão na tela (um botão posto à mão): nada muda, nem no state nem no disco
+      h.forcado = async (tag) => {
+        const antes = await h.marca()
+        await pg.evaluate(() => { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-acao', 'diaria-resgatar'); b.textContent = 'x'; document.querySelector('#tela .tela').appendChild(b); b.click() })
+        await sleep(100)
+        if ((await h.marca()) !== antes) problems.push(`${label} ${tag}: o toque forçado em Resgatar mudou o save: ${await h.marca()}`)
+        if ((await h.marcaDisco()) !== antes) problems.push(`${label} ${tag}: o toque forçado em Resgatar gravou outra coisa: ${await h.marcaDisco()}`)
+      }
+      // o k-ésimo resgate: o Ouro e os itens do dia entram (a Rédea em state.redeas), o calendário anda e tudo vai junto ao disco;
+      // o cartão vira uma linha com o prêmio de amanhã, o ponto some e a região viva diz o que entrou
+      h.resgata = async (k, tag) => {
+        const p = premioDiaria(k), a = await estadoDe(pg), hoje = await h.hoje()
+        await h.botao().click()
+        const d = await estadoDe(pg)
+        const esperado = { gold: a.gold + (p.ouro || 0), redeas: a.redeas + (p.redea || 0), diaria: { prox: k % 7, ciclos: Math.floor(k / 7), ultimo: hoje },
+          mochila: Object.fromEntries(Object.keys(a.mochila).map((id) => [id, a.mochila[id] + (p[id] || 0)])) }
+        const veio = { gold: d.gold, redeas: d.redeas, diaria: d.diaria, mochila: d.mochila }
+        if (!igual(veio, esperado)) problems.push(`${label} ${tag} (resgate ${k}): ${JSON.stringify(veio)} (esperado ${JSON.stringify(esperado)})`)
+        if ('redea' in d.mochila) problems.push(`${label} ${tag}: a Rédea nova entrou na mochila`)
+        if ((await h.marcaDisco()) !== (await h.marca())) problems.push(`${label} ${tag}: o resgate ${k} não foi gravado junto (Ouro, itens e diária): ${await h.marcaDisco()}`)
+        await h.linha(new RegExp('amanhã ' + premioDiaria(k + 1).txt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), tag + ' depois de resgatar')
+        if (!(await h.vivo()).includes(p.txt)) problems.push(`${label} ${tag}: a região viva não diz o que entrou (${p.txt}): "${await h.vivo()}"`)
+        const foco = await pg.evaluate(() => { const e = document.activeElement; return !!(e && e !== document.body && e.closest('#tela .diaria')) })
+        if (!foco) problems.push(`${label} ${tag}: depois do resgate o foco saiu do cartão`)
+      }
+      return h
+    }
+    // 11a. save novo (o perfil de teste): o cartão grande, o resgate, o dia seguinte sem recarregar, o relógio para trás, os 7
+    //      dias abertos e os 28 resgates
+    {
+      const label = 'itens-diaria'
+      const pg = await newPage(browser, VP, label, { query: '?dev=1' })
+      const h = diariaHelpers(pg, label)
+      try {
+        await h.preparar()
+        await pg.evaluate(() => { window.__galope.state.gold = 1000 })
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.waitForSelector('#t-estabulo')
+        const s0 = await estadoDe(pg), hoje0 = await h.hoje()
+        if (!igual(s0.diaria, DIARIA_0)) problems.push(`${label}: o save novo não começa no dia 1 para resgatar: ${JSON.stringify(s0.diaria)}`)
+        await h.grande(1, '60 de Ouro', 'save novo')
+        // o leitor de tela lê o título, o dia e o prêmio num texto só
+        const titulo = await pg.locator('#tela .diaria h2').evaluate((e) => e.textContent.replace(/\s+/g, ' ').trim())
+        if (!/^Recompensa do dia\b.*\b1 de 7\b.*60 de Ouro/.test(titulo)) problems.push(`${label}: o título do cartão não lê o dia e o prêmio juntos: "${titulo}"`)
+        for (const [vp, tag] of [[VP, '360x780'], [{ width: 360, height: 640 }, '360x640'], [{ width: 1280, height: 800 }, '1280x800']]) {
+          await pg.setViewportSize(vp)
+          await checkOverflow(pg, `${label} ${tag} cartão grande`)
+          await h.ver().click()
+          await checkOverflow(pg, `${label} ${tag} 7 dias`)
+          await h.ver().click()
+        }
+        await pg.setViewportSize(VP)
+        await h.resgata(1, 'dia 1')
+        if ((await estadoDe(pg)).gold !== 1060) problems.push(`${label}: o saldo não somou 60 (${(await estadoDe(pg)).gold})`)
+        for (const [vp, tag] of [[VP, '360x780'], [{ width: 360, height: 640 }, '360x640'], [{ width: 1280, height: 800 }, '1280x800']]) {
+          await pg.setViewportSize(vp)
+          await checkOverflow(pg, `${label} ${tag} cartão de uma linha`)
+        }
+        await pg.setViewportSize(VP)
+        // de novo no mesmo dia: não há botão, e o toque forçado não dá nada
+        await h.forcado('mesmo dia')
+        await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await h.linha(/amanhã 1 Torrão de açúcar/, 'voltar ao Estábulo no mesmo dia')
+        // Review Focus 2: o dia vira com o jogo aberto (sem recarregar): o cartão volta a ser grande e os limites do dia da loja
+        // voltam (a Estrela, comprada hoje, só volta em 7 dias)
+        await pg.evaluate((L) => { window.__galope.state.lojaItens = L }, LOJA_TETO(hoje0))
+        await h.dev('dev-dia-mais')
+        await h.grande(2, '1 Torrão de açúcar', 'Avançar 1 dia')
+        const loja = await pg.evaluate(() => { const g = window.__galope, hj = g.hojeDia(); return ['torrao', 'manual', 'cupom', 'estrela'].map((id) => window.Itens.podeComprar(id, g.state.lojaItens, hj, 1e6, 1e6, 0).ok) })
+        if (!igual(loja, [true, true, true, false])) problems.push(`${label}: "Avançar 1 dia" e os limites da loja (Torrão, Manual, Cupom, Estrela) ${JSON.stringify(loja)} (esperado os 3 do dia de volta)`)
+        await pg.locator('[data-acao="aba"][data-id="loja"]').click()
+        await pg.waitForSelector('#t-loja')
+        const rotulos = await pg.locator('#tela [data-acao="item-comprar"]').evaluateAll((bs) => bs.map((b) => b.textContent.replace(/\s+/g, ' ').trim()))
+        if (rotulos.length !== 4 || rotulos.slice(0, 3).some((t) => t.indexOf('Comprar') !== 0) || rotulos[3].indexOf('Limite de hoje') !== 0) problems.push(`${label}: na Loja do dia seguinte os botões dizem ${JSON.stringify(rotulos)}`)
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.waitForSelector('#t-estabulo')
+        await h.resgata(2, 'dia 2')
+        if ((await estadoDe(pg)).mochila.torrao !== 1) problems.push(`${label}: o dia 2 não pôs 1 Torrão na mochila`)
+        // Review Focus 3: o relógio para trás não libera e não tira nada; o cartão só diz "volte amanhã"
+        const antesAtras = await h.marca()
+        await h.dev('dev-dia-menos')
+        await h.linha(/volte amanhã/, 'voltar 1 dia')
+        await h.forcado('relógio para trás')
+        if ((await h.marca()) !== antesAtras) problems.push(`${label}: voltar 1 dia mudou o save ${await h.marca()}`)
+        await h.dev('dev-dia-mais')   // de volta ao dia do último resgate: ainda não
+        await h.linha(/amanhã 100 de Ouro/, 'de volta ao dia do último resgate')
+        await h.dev('dev-dia-mais')   // passou do último dia guardado: vale, do dia certo do calendário
+        await h.grande(3, '100 de Ouro', 'depois de passar do último dia')
+        await h.resgata(3, 'dia 3')
+        // "Ver os 7 dias" no meio do calendário (dia 4 para resgatar): os 3 resgatados marcados e o de hoje em destaque
+        await h.dev('dev-dia-mais')
+        await h.grande(4, '1 Manual de doma', 'dia 4')
+        if ((await h.ver().getAttribute('aria-expanded')) !== 'false' || (await pg.locator('#tela .diaria-dia').count()) !== 0) problems.push(`${label}: os 7 dias abertos antes do toque`)
+        await h.ver().click()
+        const cal = await pg.evaluate(() => ({
+          exp: document.querySelector('#tela [data-acao="diaria-ver"]').getAttribute('aria-expanded'),
+          foco: document.activeElement && document.activeElement.getAttribute('data-acao'),
+          dias: [...document.querySelectorAll('#tela .diaria-dia')].map((d) => ({ txt: d.textContent.replace(/\s+/g, ' ').trim(), feito: d.classList.contains('diaria-dia--feito'), atual: d.getAttribute('aria-current') }))
+        }))
+        if (cal.exp !== 'true' || cal.foco !== 'diaria-ver') problems.push(`${label}: "Ver os 7 dias" com aria-expanded ${cal.exp} e o foco em ${cal.foco}`)
+        if (cal.dias.length !== 7) problems.push(`${label}: ${cal.dias.length} células nos 7 dias`)
+        cal.dias.forEach((d, i) => {
+          if (!d.txt.includes('Dia ' + (i + 1)) || !d.txt.includes(PREMIOS_DIARIA[i].txt)) problems.push(`${label}: a célula ${i + 1} diz "${d.txt}" (esperado "Dia ${i + 1}" e "${PREMIOS_DIARIA[i].txt}")`)
+          if (d.feito !== (i < 3) || (i < 3 && !/Resgatado/.test(d.txt))) problems.push(`${label}: a célula ${i + 1} ${d.feito ? '' : 'não '}está marcada como resgatada: "${d.txt}"`)
+          if ((d.atual !== null) !== (i === 3)) problems.push(`${label}: a célula ${i + 1} com aria-current ${d.atual}`)
+        })
+        for (const [vp, tag] of [[VP, '360x780'], [{ width: 360, height: 640 }, '360x640'], [{ width: 1280, height: 800 }, '1280x800']]) {
+          await pg.setViewportSize(vp)
+          await checkOverflow(pg, `${label} ${tag} 7 dias no meio`)
+        }
+        await pg.setViewportSize(VP)
+        await h.ver().click()
+        if ((await h.ver().getAttribute('aria-expanded')) !== 'false' || (await pg.locator('#tela .diaria-dia').count()) !== 0) problems.push(`${label}: o 2º toque não fechou os 7 dias`)
+        await h.resgata(4, 'dia 4')
+        // faltar 3 dias não muda o dia do calendário
+        await h.dev('dev-dia-mais', 4)
+        await h.grande(5, '150 de Ouro', 'depois de 3 dias sem abrir')
+        // os resgates 5 a 28: os 7 dias em sequência, o recomeço no dia 1 e a Estrela só no 28º (não no 7º, 14º e 21º)
+        for (let k = 5; k <= 28; k++) {
+          if (k > 5) {
+            await h.dev('dev-dia-mais')
+            await h.grande((k - 1) % 7 + 1, premioDiaria(k).txt, `resgate ${k}`)
+          }
+          await h.resgata(k, `resgate ${k}`)
+          const st = (await estadoDe(pg)).mochila.estrela
+          if (st !== (k >= 28 ? 1 : 0)) problems.push(`${label}: depois do resgate ${k}, ${st} Estrela(s) de treino na mochila`)
+        }
+        await h.dev('dev-dia-mais')
+        await h.grande(1, '60 de Ouro', 'o 29º resgate é o dia 1')
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 11b. o teto de cada prêmio: mochila com 99 torrões no dia 2 e 999 Rédeas no dia 7 apagam o botão com o motivo e o
+    //      calendário não anda; gastando 1 (o Torrão usado em Brasa, a Rédea pela gaveta), resgata
+    for (const [label, o, motivo, id] of [
+      ['itens-diaria-cheia', { mochila: { ...ZERO_MOCHILA, torrao: G.BAG_MAX }, diaria: { prox: 1, ciclos: 0, ultimo: null } }, /99 Torrões de açúcar/, 'torrao'],
+      ['itens-diaria-redeas', { redeas: 999, diaria: { prox: 6, ciclos: 0, ultimo: null } }, /999 Rédeas novas/, 'redea']]) {
+      const pg = await newPage(browser, VP, label, saveT4(o))
+      const h = diariaHelpers(pg, label), u = usoHelpers(pg, label)
+      try {
+        await h.preparar()
+        const k = o.diaria.prox + 1
+        await h.grande(k, PREMIOS_DIARIA[k - 1].txt, 'no teto')
+        if (!(await indisp(h.botao()))) problems.push(`${label}: o botão Resgatar não está apagado (aria-disabled)`)
+        const m = (await h.botao().getAttribute('data-motivo')) || ''
+        if (!motivo.test(m)) problems.push(`${label}: motivo "${m}" (esperado ${motivo})`)
+        if (!m || !(await h.texto()).includes(m)) problems.push(`${label}: o motivo "${m}" não está escrito no cartão`)
+        const antes = await h.marca()
+        await h.botao().click({ force: true })
+        if (!(await h.vivo()).includes(m)) problems.push(`${label}: o toque não pôs o motivo na região viva`)
+        await h.botao().evaluate((b) => { b.removeAttribute('aria-disabled'); b.click() })
+        await sleep(100)
+        if ((await h.marca()) !== antes || (await h.marcaDisco()) !== antes) problems.push(`${label}: o toque forçado no teto mudou o save: ${await h.marca()} / disco ${await h.marcaDisco()}`)
+        if (id === 'torrao') {
+          await u.irMochila()
+          await u.usarMochila('torrao').click()
+          await u.cavalo('m1').click()
+          await u.confirmar().click()
+          await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+          await pg.waitForSelector('#t-estabulo')
+        } else {
+          await devAbrir(pg); await pg.fill('#dev-redeas', '998'); await pg.locator('.dev-gaveta [data-acao="dev-redeas"]').click(); await devFechar(pg)
+        }
+        await h.grande(k, PREMIOS_DIARIA[k - 1].txt, 'gastando 1')
+        if (await indisp(h.botao())) problems.push(`${label}: gastando 1, o botão continua apagado`)
+        await h.resgata(k, 'gastando 1')
+        const s = await estadoDe(pg)
+        if ((id === 'redea' ? s.redeas : s.mochila[id]) !== (id === 'redea' ? 999 : G.BAG_MAX)) problems.push(`${label}: depois do resgate ${id} ficou em ${id === 'redea' ? s.redeas : s.mochila[id]}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 11c. a gravação que falha: o resgate volta atrás (nada é dado, o calendário não anda) e o aviso de falha aparece
+    {
+      const label = 'itens-diaria-falha'
+      const pg = await newPage(browser, VP, label, saveT4())
+      const h = diariaHelpers(pg, label)
+      try {
+        await h.preparar()
+        await h.grande(1, '60 de Ouro', 'antes da falha')
+        const antes = await h.marca(), antesDisco = await h.marcaDisco()
+        await pg.evaluate(() => { window.__setOrig = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new DOMException('cheio', 'QuotaExceededError') } })
+        await h.botao().click()
+        await pg.evaluate(() => { Storage.prototype.setItem = window.__setOrig })
+        if ((await h.marca()) !== antes || (await h.marcaDisco()) !== antesDisco) problems.push(`${label}: o resgate sem gravar mudou o save: ${await h.marca()}`)
+        if (!((await pg.locator('#tela').textContent()) || '').includes('Não foi possível salvar')) problems.push(`${label}: sem o aviso de falha ao salvar`)
+        if (/Você recebeu/.test(await h.vivo())) problems.push(`${label}: a região viva anunciou um prêmio que não foi gravado`)
+        await h.grande(1, '60 de Ouro', 'depois da falha')
+        await h.resgata(1, 'com a gravação de volta')
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 11d. aba velha: duas páginas com o mesmo save; resgata na 1ª; a 2ª, que ainda mostra o botão (sem o evento de outra aba),
+    //      não dá o prêmio de novo: sincroniza, adota o save da 1ª e não mostra resultado
+    {
+      const label = 'itens-diaria-duas-abas'
+      const pa = await newPage(browser, VP, label + ' A', saveT4())
+      const pb = await pa.context().newPage()
+      pb.on('console', (m) => { if (m.type() === 'error') problems.push(`[${label} B] console: ${m.text()}`) })
+      pb.on('pageerror', (e) => problems.push(`[${label} B] pageerror: ${e.message}`))
+      const ha = diariaHelpers(pa, label + ' A'), hb = diariaHelpers(pb, label + ' B')
+      try {
+        await ha.preparar()
+        await pb.addInitScript(() => window.addEventListener('storage', (e) => e.stopImmediatePropagation(), true))
+        await pb.goto(BASE + 'preview.html?dev=1', { waitUntil: 'domcontentloaded' })
+        await hb.preparar()
+        await ha.resgata(1, 'na 1ª aba')
+        const depoisA = await ha.marcaDisco()
+        if ((await hb.botao().count()) !== 1) problems.push(`${label}: a 2ª aba já não mostra o Resgatar (o teste não prova nada)`)
+        await hb.botao().click()
+        await sleep(150)
+        if ((await hb.marcaDisco()) !== depoisA || (await hb.marca()) !== depoisA) problems.push(`${label}: o toque na 2ª aba deu o prêmio de novo: ${await hb.marca()} (depois da 1ª: ${depoisA})`)
+        if (!/outra aba/.test((await pb.locator('#tela').textContent()) || '')) problems.push(`${label}: a 2ª aba não avisa que o jogo mudou em outra aba`)
+        if (/Você recebeu/.test(await hb.vivo())) problems.push(`${label}: a 2ª aba anunciou um prêmio`)
+        await hb.linha(/amanhã 1 Torrão de açúcar/, 'a 2ª aba depois de adotar')
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pa.context().close()
+      }
+    }
+    // 11e. cores forçadas (o cartão com borda em cor do sistema, o dia de hoje em Highlight) e movimento reduzido (nada se move)
+    {
+      const label = 'itens-diaria-forcado'
+      const pg = await newPage(browser, VP, label, { ...saveT4({ diaria: { prox: 2, ciclos: 0, ultimo: null } }), forcedColors: 'active' })
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await pg.locator('#tela [data-acao="diaria-ver"]').click()
+        const fc = await pg.evaluate(() => {
+          const sonda = (c) => { const d = document.createElement('i'); d.style.border = '2px solid ' + c; document.body.appendChild(d); const v = getComputedStyle(d).borderTopColor; d.remove(); return v }
+          const borda = (e) => { const cs = getComputedStyle(e); return { w: cs.borderTopWidth, s: cs.borderTopStyle, c: cs.borderTopColor } }
+          return { ativo: matchMedia('(forced-colors: active)').matches, hl: sonda('Highlight'), sis: ['CanvasText', 'ButtonText', 'GrayText'].map(sonda),
+            cartao: borda(document.querySelector('#tela .diaria')), hoje: [...document.querySelectorAll('#tela .diaria-dia[aria-current]')].map(borda),
+            outros: [...document.querySelectorAll('#tela .diaria-dia:not([aria-current])')].map(borda) }
+        })
+        if (!fc.ativo) problems.push(`[${label}] a página não está em cores forçadas`)
+        if (fc.cartao.w !== '2px' || fc.cartao.s !== 'solid' || !fc.sis.includes(fc.cartao.c)) problems.push(`[${label}] o cartão sem borda de 2 px em cor do sistema ${JSON.stringify(fc.cartao)} (${fc.sis.join(' / ')})`)
+        if (fc.hoje.length !== 1 || fc.hoje[0].c !== fc.hl || fc.hoje[0].w !== '2px') problems.push(`[${label}] o dia de hoje sem a borda em Highlight ${JSON.stringify(fc.hoje)} (Highlight = ${fc.hl})`)
+        if (fc.outros.length !== 6 || fc.outros.some((b) => b.w !== '2px' || !fc.sis.includes(b.c))) problems.push(`[${label}] os outros dias sem borda em cor do sistema ${JSON.stringify(fc.outros)}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    {
+      const label = 'itens-diaria-reduzido'
+      const pg = await newPage(browser, VP, label, { ...saveT4(), reducedMotion: 'reduce' })
+      // nada no cartão anima nem tem transição (no cartão grande, com os 7 dias abertos e no de uma linha)
+      const parado = async (tag) => {
+        const r = await pg.evaluate(() => {
+          const c = document.querySelector('#tela .diaria'), els = c ? [c, ...c.querySelectorAll('*')] : []
+          return { n: els.length, anim: document.getAnimations().filter((a) => a.effect && a.effect.target && c && c.contains(a.effect.target)).length,
+            css: els.filter((e) => { const cs = getComputedStyle(e); return cs.animationName !== 'none' || cs.transitionDuration.split(',').some((t) => parseFloat(t) > 0) }).map((e) => e.className) }
+        })
+        if (!r.n || r.anim || r.css.length) problems.push(`[${label}] ${tag}: algo se move no cartão ${JSON.stringify(r)}`)
+      }
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await parado('cartão grande')
+        await pg.locator('#tela [data-acao="diaria-ver"]').click()
+        await parado('7 dias abertos')
+        await pg.locator('#tela [data-acao="diaria-resgatar"]').click()
+        await parado('cartão de uma linha')
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
   }
 
   // ---------------- corrida redimensionada: continua cabendo na altura da janela ----------------
@@ -5486,7 +5811,8 @@ try {
     nextUid: 11, stableSlots: 10, items: [], nextItemUid: 1
   })
   SAVE_3A_LONGO.mounts[0] = mod(G.STARTERS.find((h) => h.id === 'brasa'), { uid: 'm1', name: NOME_LONGO, level: 20, xp: 10, skills: ['sprint'] })
-  // 3b §2: o mesmo padrão com 6 cavalos (as metas de altura do Estábulo: 3 cavalos ≤ 780 px, 6 ≤ 1.100 px)
+  // 3b §2: o mesmo padrão com 6 cavalos (as metas de altura do Estábulo: 3 cavalos ≤ 780 px, 6 ≤ 1.100 px; com o cartão da
+  // recompensa diária, spec de itens §8: 820 e 1.140 com a diária resgatada, 890 e 1.210 com prêmio)
   const SAVE_3B_6 = Object.assign({}, SAVE_3A, {
     mounts: SAVE_3A.mounts.concat([
       mod(G.WILD_HORSES.find((h) => h.id === 'w-fogareu'), { uid: 'm4', level: 30 }),
@@ -5497,6 +5823,12 @@ try {
   })
   // abre o jogo com o save pedido (só no 1º carregamento da aba: um reload continua com o que o jogo gravou)
   const comSave = (save) => ({ init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(JSON.stringify(save))}) } } catch (e) {}` } })
+  // o mesmo, com a recompensa diária já resgatada hoje (Tarefa 5 da frente de itens): o save vai como v7, com os campos novos
+  // zerados e o último resgate no dia de hoje do aparelho (a conta do Itens.diaLocal, feita aqui porque o init roda antes do
+  // jogo). Para os testes que medem ou conferem o Estábulo e não são sobre a diária: o cartão fica no de uma linha
+  const comSaveResgatada = (save) => ({ init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); var s = ${JSON.stringify(save)}, d = new Date(); s.v = 7;` +
+    ` s.mochila = { torrao: 0, estrela: 0, cupom: 0, manual: 0 }; s.lojaItens = { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null }; s.itemCounter = 0;` +
+    ` s.diaria = { prox: 1, ciclos: 0, ultimo: Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000) }; localStorage.setItem('galope-elemental:v1', JSON.stringify(s)) } } catch (e) {}` } })
 
   // ---------------- acabamento da interface (Visuais 2, parte 3a): fontes embutidas, sem border-image, altura, peças, títulos compridos ----------------
   // alturas da página a 360x780 com o CSS de antes da 3a (as peças e as fontes embutidas não mudam métrica)
@@ -5550,6 +5882,35 @@ try {
       for (const [n, r] of [['sem itens', sem], ['com Torrão e Estrela', com]]) if (r.fora.length) problems.push(`${label}: ${n}, linhas de status fora da primeira tela: ${r.fora.join(',')}`)
     } catch (e) {
       problems.push(`[${label}] ` + e.message)
+    }
+  }
+  // ---------------- altura do Estábulo com o cartão da recompensa diária (Tarefa 5 da frente de itens, spec de itens §8): 3 cavalos
+  // ≤ 820 px com a diária resgatada e ≤ 890 com prêmio para resgatar; 6 cavalos ≤ 1.140 e ≤ 1.210; a lista de cavalos com a
+  // altura de antes do cartão nos dois estados (medida em 90c5a2f, antes da Tarefa 5, a 360x780: 412 px com 3 e 748 com 6) ----------------
+  if (quer('itens')) {
+    const label = 'itens-diaria-altura'
+    const LISTA_ANTES = { 3: 412, 6: 748 }
+    for (const [n, save, comPremio, resgatada] of [[3, SAVE_3A, 890, 820], [6, SAVE_3B_6, 1210, 1140]]) {
+      const p = await newPage(browser, { width: 360, height: 780 }, `${label}-${n}`, comSave(save))
+      const mede = () => p.evaluate(() => ({ doc: document.documentElement.scrollHeight, lista: Math.round(document.querySelector('#tela .caixa[aria-label="Suas montarias"]').getBoundingClientRect().height),
+        grande: !!document.querySelector('#tela .diaria--grande'), linha: !!document.querySelector('#tela .diaria--linha') }))
+      try {
+        await p.waitForSelector('#t-estabulo')
+        const a = await mede()
+        if (!a.grande) problems.push(`${label} ${n} cavalos: o save da v6 não abriu com o cartão grande`)
+        if (a.doc > comPremio) problems.push(`${label} ${n} cavalos: com prêmio para resgatar, o Estábulo tem ${a.doc}px (limite ${comPremio})`)
+        if (a.lista !== LISTA_ANTES[n]) problems.push(`${label} ${n} cavalos: com o cartão grande, a lista tem ${a.lista}px (antes do cartão ${LISTA_ANTES[n]})`)
+        await p.locator('#tela [data-acao="diaria-resgatar"]').click()
+        const b = await mede()
+        if (!b.linha) problems.push(`${label} ${n} cavalos: depois do resgate, sem o cartão de uma linha`)
+        if (b.doc > resgatada) problems.push(`${label} ${n} cavalos: com a diária resgatada, o Estábulo tem ${b.doc}px (limite ${resgatada})`)
+        if (b.lista !== LISTA_ANTES[n]) problems.push(`${label} ${n} cavalos: com o cartão de uma linha, a lista tem ${b.lista}px (antes do cartão ${LISTA_ANTES[n]})`)
+        notes[`${label} ${n}`] = { comPremio: a, resgatada: b }
+      } catch (e) {
+        problems.push(`[${label} ${n}] ` + e.message)
+      } finally {
+        await p.context().close()
+      }
     }
   }
 
@@ -5753,17 +6114,17 @@ try {
       }
     }
     {
-      // altura: Estábulo e aba Status da ativa, save v6 com 3 montarias, a 360x780
-      const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-altura', {
-        init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(JSON.stringify(SAVE_3A))}) } } catch (e) {}` }
-      })
+      // altura: Estábulo e aba Status da ativa, save com 3 montarias, a 360x780 (Tarefa 5 da frente de itens: medido com a
+      // recompensa diária já resgatada, o cartão de uma linha no topo; com prêmio, o bloco itens mede contra 890)
+      const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-altura', comSaveResgatada(SAVE_3A))
       try {
         await pg.waitForSelector('#t-estabulo')
         const altura = () => pg.evaluate(() => document.documentElement.scrollHeight)
         const aEst = await altura()
         notes.alturaAcabamento = { estabulo: aEst }
-        // 3b §2: o Estábulo em lista de linhas cabe numa tela (era 1,04 × a medida de antes da 3a)
-        if (aEst > 780) problems.push(`acabamento: Estábulo com ${aEst}px (limite 780, spec 3b §2; antes da 3a ${ALTURA_ANTES_3A.estabulo})`)
+        // 3b §2: o Estábulo em lista de linhas cabia numa tela (780); o cartão da diária custa 40 px (spec de itens §8)
+        if (!(await pg.locator('#tela .diaria--linha').count())) problems.push('acabamento: o Estábulo não abriu com a diária resgatada (cartão de uma linha)')
+        if (aEst > 820) problems.push(`acabamento: Estábulo com ${aEst}px (limite 820 com a diária resgatada, spec de itens §8; antes da 3a ${ALTURA_ANTES_3A.estabulo})`)
         await semBorderImage(pg, 'estabulo')
         // painel, saldo e título com as peças; molduras do painel, do destaque (montaria ativa), do saldo e do retrato
         await pecasNoLugar(pg, 'estabulo', ['.caixa', '.saldo', 'h1.titulo--tela', '.montaria--ativa'])
@@ -6434,11 +6795,11 @@ try {
       if ((await p.evaluate(() => window.__galope.state.activeId)) !== uid) problems.push(`${label}: "Tornar ativa" da ficha não ativou ${uid}`)
     }
     {
-      // SAVE_3A (3 cavalos) a 360x780: a tela inteira cabe numa tela
-      const p3 = await newPage(browser, { width: 360, height: 780 }, label + '-estabulo3', comSave(SAVE_3A))
+      // SAVE_3A (3 cavalos) a 360x780: ≤ 820 px com a diária resgatada (o cartão de uma linha; spec de itens §8, eram 780)
+      const p3 = await newPage(browser, { width: 360, height: 780 }, label + '-estabulo3', comSaveResgatada(SAVE_3A))
       try {
         await p3.waitForSelector('#t-estabulo')
-        await confereLista(p3, '3 cavalos', 780)
+        await confereLista(p3, '3 cavalos', 820)
         // tocar na 2ª linha abre a ficha daquele cavalo; "Voltar" devolve o foco à linha dele
         await p3.locator('#tela .montaria-linha').nth(1).click()
         await p3.waitForSelector('#t-montaria')
@@ -6460,7 +6821,7 @@ try {
         await focoNaLinha(p3, 'm3', '3 cavalos, Voltar depois de ativar a m3')
         const ordem = (await linhasDe(p3)).map((l) => l.id)
         if (JSON.stringify(ordem) !== '["m1","m2","m3"]') problems.push(`${label}: depois de trocar a ativa, as linhas ficaram na ordem ${JSON.stringify(ordem)} (esperado m1, m2, m3)`)
-        await confereLista(p3, '3 cavalos, m3 ativa', 780)
+        await confereLista(p3, '3 cavalos, m3 ativa', 820)
       } catch (e) {
         problems.push(`${label}-estabulo3: ${e.message}`)
       } finally {
@@ -6468,11 +6829,12 @@ try {
       }
     }
     {
-      // SAVE_3B_6 (6 cavalos) a 360x780: ≤ 1.100 px; a 6ª linha (abaixo da dobra) recebe o foco e aparece ao voltar
-      const p6 = await newPage(browser, { width: 360, height: 780 }, label + '-estabulo6', comSave(SAVE_3B_6))
+      // SAVE_3B_6 (6 cavalos) a 360x780: ≤ 1.140 px com a diária resgatada (spec de itens §8, eram 1.100); a 6ª linha (abaixo
+      // da dobra) recebe o foco e aparece ao voltar
+      const p6 = await newPage(browser, { width: 360, height: 780 }, label + '-estabulo6', comSaveResgatada(SAVE_3B_6))
       try {
         await p6.waitForSelector('#t-estabulo')
-        await confereLista(p6, '6 cavalos', 1100)
+        await confereLista(p6, '6 cavalos', 1140)
         await p6.locator('button[data-acao="montaria"][data-id="m6"]').click()
         await p6.waitForSelector('#t-montaria')
         await p6.locator('[data-acao="montaria-voltar"]').click()
@@ -8207,7 +8569,9 @@ try {
       await checkOverflow(mn, 'menu-390')
       await mn.getByRole('button', { name: /^Voltar/ }).click()
       await mn.waitForSelector('#t-correr')
-      if ((await mn.locator('.app-aba--ponto').count()) !== 0) problems.push('menu: ponto na aba Correr depois da corrida')
+      // o único ponto na barra é o do Estábulo (save novo: a recompensa do dia ainda para resgatar; spec de itens §8, Ruling 2)
+      const pontosMn = await mn.locator('.app-aba--ponto').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id')).join(','))
+      if (pontosMn !== 'estabulo') problems.push(`menu: depois da corrida, pontos na barra "${pontosMn}" (esperado só o do Estábulo, da recompensa do dia)`)
       // 4. ponto na aba Correr com páreo aberto; Voltar da largada volta à aba Correr com a mesma sala
       await mn.locator('[data-acao="aba"][data-id="correr"]').click()
       await mn.getByRole('button', { name: 'Procurar corrida' }).click()

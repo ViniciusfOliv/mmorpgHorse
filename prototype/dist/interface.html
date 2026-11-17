@@ -416,6 +416,30 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .item-linha--vazia .item-nome, .item-linha--vazia .item-qtd { color: var(--texto-2); }
 .item-linha--vazia .item-icone { opacity: 0.5; }
 .item-compra--usar { justify-content: flex-end; }   /* o "Usar" da Mochila, à direita */
+/* ---------- recompensa diária (spec de itens §7, §8, §13): o cartão no topo do Estábulo. Grande com prêmio para resgatar (o
+   título e o dia, o prêmio e o Resgatar, o "Ver os 7 dias" com os sete dias embaixo); depois do resgate, uma linha. Nada se
+   move (sem transição nem animação) ---------- */
+.diaria { gap: 8px; padding-block: 10px; }
+.diaria--linha { padding-block: 8px; }
+.diaria-linha { margin: 0; font-size: var(--t-xs); line-height: 24px; color: var(--texto-2); }
+.diaria-premio-col { display: flex; flex-direction: column; min-width: 0; }
+.diaria-num { font-size: var(--t-xs); line-height: 20px; color: var(--ouro); white-space: nowrap; }
+.diaria-premio { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.diaria-premio-txt { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
+.diaria-premio-txt .item-icone { flex: none; align-self: center; }
+.diaria-premio .btn { margin-left: auto; }   /* sem espaço na linha, o botão desce para a direita */
+.diaria-ver { align-self: flex-start; min-height: 44px; padding-inline: 4px; }
+.diaria-dias { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.diaria-dia {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; column-gap: 8px; align-items: center;
+  padding: 4px 8px 4px 12px; background: var(--painel-2); box-shadow: inset 4px 0 0 0 var(--linha); font-size: var(--t-s); line-height: 24px;
+}
+.diaria-dia-n { font-weight: 700; white-space: nowrap; }
+.diaria-dia-premio { min-width: 0; overflow-wrap: anywhere; }
+.diaria-dia-marca { font-size: var(--t-xs); color: var(--texto-2); white-space: nowrap; }
+.diaria-dia--feito { background: var(--painel); color: var(--texto-2); }
+.diaria-dia[aria-current] { background: var(--painel-3); box-shadow: inset 4px 0 0 0 var(--ouro); }
+.diaria-dia[aria-current] .diaria-dia-marca { color: var(--ouro); }
 /* ---------- uso dos itens (spec de itens §5, §8): os botões da ficha (Status e Skills), a escolha do cavalo e a confirmação.
    A linha do cavalo que não pode receber o item fica apagada (a opacidade do botão indisponível) e o motivo escrito embaixo ---------- */
 .item-uso { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-width: 0; }
@@ -1252,6 +1276,8 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   .btn, .opcao, .caixa, .app-aba, .montaria--ativa, .montaria-linha { border: 2px solid ButtonText; }
   .item-linha { border: 2px solid CanvasText; }   /* produto da loja e linha da mochila (a parte aberta: .opcao em Highlight) */
   .item-linha--vazia { border-color: GrayText; }
+  .diaria-dia { border: 2px solid CanvasText; }   /* os 7 dias da recompensa: o de hoje em Highlight (o cartão: .caixa) */
+  .diaria-dia[aria-current] { border-color: Highlight; }
   .montaria-linha[aria-disabled="true"] { border-color: GrayText; color: GrayText; }   /* o cavalo que não pode receber o item */
   .app-aba { padding-block: 0; }   /* sem bisel: a borda ocupa o lugar dele, e o ícone e o rótulo continuam cabendo */
   .opcao[aria-pressed="true"], .app-aba--ativa, .montaria--ativa { border-color: Highlight; }
