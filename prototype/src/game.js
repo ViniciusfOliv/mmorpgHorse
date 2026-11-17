@@ -2778,10 +2778,10 @@
     var c = GD.GYM.revanche.ciclo, p = c[state.ginasios[id].revVitorias % c.length];
     return p.item ? [p.item] : [];
   }
-  // o motivo da mochila cheia, com o nome e o teto do catálogo (a Rédea nova mora fora da mochila: 999)
+  // o motivo da mochila cheia, com o nome e o teto do catálogo (itemQtdTxt; a Rédea nova mora fora da mochila: 999)
   function ginCheiaTxt(it) {
-    return (it === 'redea' ? 'Você já tem ' + fmt(REDEAS_MAX) : 'A mochila já tem ' + fmt(GD.BAG_MAX)) + ' de ' + GD.ITEMS[it].name +
-      '. Use ' + (it === 'redea' || it === 'estrela' ? 'uma' : 'um') + ' antes de desafiar.';
+    return 'Você já tem ' + (it === 'redea' ? itemQtdTxt(it, REDEAS_MAX) + ', o máximo.' : itemQtdTxt(it, GD.BAG_MAX) + ', o máximo da mochila.') +
+      ' Use antes de desafiar.';
   }
   // o texto de cada recusa do Ginasio.podeDesafiar
   function ginMotivoTxt(id, i, motivo) {
@@ -2804,11 +2804,12 @@
   // Confere o desafio: { motivo ('' quando pode), revanche }. Na ordem: nenhum cavalo livre; a regra do Ginasio.podeDesafiar
   // (etapa, dia, Ouro livre, mochila, tamanho do time); o time (cada uid no estábulo, sem repetir, nenhum preso na sala
   // aberta). O botão "Desafiar" e o desafia (de novo, depois de sincronizar com as outras abas) usam esta mesma conferência.
-  function ginConfere(id, i, uids) {
+  // hoje: o dia já lido por quem chama (o desafia lê uma vez só); sem ele, hojeDia()
+  function ginConfere(id, i, uids, hoje) {
     if (!hasOwn(GD.GYMS, id)) return { motivo: ginMotivoTxt(id, i, 'fechada') };
     if (!ginLivres().length) return { motivo: GIN_SO_UM_TXT };
     var lista = Array.isArray(uids) ? uids : [];
-    var r = GN.podeDesafiar({ gymId: id, etapa: i, progresso: state.ginasios, hoje: hojeDia(), ouroLivre: ouroLivre(), cabe: diariaCabe, timeLen: lista.length });
+    var r = GN.podeDesafiar({ gymId: id, etapa: i, progresso: state.ginasios, hoje: hoje === undefined ? hojeDia() : hoje, ouroLivre: ouroLivre(), cabe: diariaCabe, timeLen: lista.length });
     if (!r.ok) return { motivo: ginMotivoTxt(id, i, r.motivo) };
     for (var k = 0; k < lista.length; k++) {
       var m = typeof lista[k] === 'string' ? mountByUid(lista[k]) : null;
@@ -2829,7 +2830,8 @@
       var pos = time.indexOf(m.uid), dentro = pos >= 0, preso = ginPreso(m);
       var motivo = dentro ? '' : preso ? GIN_SALA_TXT : cheio ? ginCheioTxt(lim) : '';
       var nota = preso ? GIN_SALA_TXT : motivo, vt = ginVantTxt(m, id);
-      var fim = (vt ? vt + ' contra ' + el + '. ' : '') + (dentro ? (pos + 1) + 'º do time. Toque para tirar.' : 'Toque para pôr no time.');
+      // a linha apagada diz o motivo no lugar da instrução (o toque nela não põe no time)
+      var fim = (vt ? vt + ' contra ' + el + '. ' : '') + (dentro ? (pos + 1) + 'º do time. Toque para tirar.' : motivo || 'Toque para pôr no time.');
       return '<li>' + mountRowHtml(m, m.uid === state.activeId, { acao: 'ginasio-time', fim: fim, motivo: motivo, pressed: dentro,
           meta: vt ? '<span class="gin-vant gin-vant--' + (vt === 'Vantagem' ? 'mais' : 'menos') + '">' + esc(vt) + '</span>' : '',
           lado: '<span class="gin-pos" aria-hidden="true">' + (dentro ? (pos + 1) + 'º' : '') + '</span>' }) +
@@ -2853,13 +2855,14 @@
     var s0 = state;
     persist();
     if (state !== s0) return 'outra-aba';
-    var c = ginConfere(gymId, etapa, uids);
+    var hoje = hojeDia();   // o dia lido uma vez: a conferência e o acerto usam o mesmo
+    var c = ginConfere(gymId, etapa, uids, hoje);
     if (c.motivo) return c.motivo;
     var antes = clone(state), contador = state.gymCounter, et = GD.GYMS[gymId].etapas[etapa];
     var res = GN.resolver({ gymId: gymId, etapa: etapa, time: uids.map(function (u) { return clone(mountByUid(u)); }), seedBase: state.seedBase, contador: contador });
-    var ac = res ? GN.acerto({ gymId: gymId, etapa: etapa, revanche: c.revanche, progresso: state.ginasios, resultado: res, hoje: hojeDia(), timeLen: uids.length }) : null;
+    var ac = res ? GN.acerto({ gymId: gymId, etapa: etapa, revanche: c.revanche, progresso: state.ginasios, resultado: res, hoje: hoje, timeLen: uids.length }) : null;
     if (!ac) return 'Este desafio não pode ser feito agora.';   // não acontece: o ginConfere já passou pelo podeDesafiar
-    var entrada = ginEntrada(gymId, etapa);
+    var entrada = c.revanche ? GD.GYM.revanche.entrada : et.entrada;   // a entrada cobrada é a do que o Ginasio.podeDesafiar decidiu
     state.gold = state.gold - entrada + ac.ouro;   // o prêmio do ginásio não leva o bônus de Ouro (só a corrida valendo)
     ac.itens.forEach(function (it) { if (it === 'redea') state.redeas += 1; else state.mochila[it] += 1; });
     var cavalos = uids.map(function (u, k) {

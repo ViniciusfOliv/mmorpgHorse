@@ -3730,6 +3730,9 @@ try {
         if (l2.pressed !== 'true' || l2.pos !== '1º' || !l2.label.includes('1º do time')) problems.push(`${label}: Maré devia ser o 1º ${JSON.stringify(l2)}`)
         if (l1.pressed !== 'true' || l1.pos !== '2º' || !l1.label.includes('2º do time')) problems.push(`${label}: Brasa devia ser o 2º ${JSON.stringify(l1)}`)
         if (l3.pressed !== 'false' || l3.dis !== 'true' || l3.motivo !== ginCheioTxt(2) || l3.nota !== ginCheioTxt(2)) problems.push(`${label}: com o time cheio o Ipê devia estar apagado com o motivo ${JSON.stringify(l3)}`)
+        // o nome acessível da linha apagada diz o motivo, não a instrução que não funciona
+        if (!l3.label.includes(ginCheioTxt(2)) || /Toque para pôr no time/.test(l3.label)) problems.push(`${label}: o nome acessível do Ipê apagado devia dizer o motivo: ${l3.label}`)
+        if (!l2.label.includes('Toque para tirar') || /Toque para pôr no time/.test(t.linhas[0].label + l2.label)) problems.push(`${label}: nomes acessíveis dos escolhidos`)
         if (!t.desafiar || t.desafiar.dis !== null || t.desafiar.nota) problems.push(`${label}: com 2 cavalos o Desafiar devia estar livre ${JSON.stringify(t.desafiar)}`)
         // o toque real no apagado diz o motivo; o forçado não põe no time
         await pg.locator('#tela [data-acao="ginasio-time"][data-id="m3"]').click({ force: true })
@@ -3953,7 +3956,7 @@ try {
       ['some', 0, "s.mounts = s.mounts.filter(function (m) { return m.uid !== 'm2' })", 'Escolha pelo menos 1 cavalo.', []],
       ['sala', 0, ginSalaSrc('m2'), 'Maré está na sala aberta. Corra ou feche a sala primeiro.', ['m2']],
       ['ouro', 0, 's.gold = 60; ' + ginSalaSrc('m1'), 'Falta Ouro: a entrada custa 20 de Ouro. 50 de Ouro reservados para a entrada do páreo aberto: sobram 10 para gastar.', ['m2']],
-      ['mochila', 1, 's.mochila.torrao = 99', 'A mochila já tem 99 de Torrão de açúcar. Use um antes de desafiar.', ['m2']]]) {
+      ['mochila', 1, 's.mochila.torrao = 99', `Você já tem ${ginFmt(G.BAG_MAX)} ${G.ITEMS.torrao.plural}, o máximo da mochila. Use antes de desafiar.`, ['m2']]]) {
       const label = 'ginasio-rf2-' + nome
       const pg = await ginAbre(label, { save: ginSave({ ginasios: ginComProgresso({ fogo: { etapa, revDia: null, revVitorias: 0 } }) }) })
       try {
@@ -3984,6 +3987,34 @@ try {
           await ginVivo(pg, 'Um cavalo do time não está mais no estábulo.', label + ' uid')
           await ginNadaCobrado(label + ' uid', pg, sRef, dRef)
         }
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 14b. a conferência na hora de pagar (decisão 9), com o time ou a etapa forçados por fora da tela: uid repetido, time
+    //      acima do limite e etapa fechada. Recusa com o motivo, nada cobrado, nenhum sorteio, nenhum resumo, disco igual
+    for (const [nome, forca, motivo] of [
+      ['repetido', "g.time = ['m2', 'm2']", 'O mesmo cavalo está duas vezes no time.'],
+      ['time-grande', "g.time = ['m1', 'm2', 'm3']", 'O time passou do limite: até 2 cavalos.'],
+      ['fechada', "g.etapa = 3; g.time = ['m2']", 'Esta etapa ainda não está aberta.']]) {
+      const label = 'ginasio-confere-' + nome
+      const mounts = [ginCav(ginBrasa, { uid: 'm1', level: 10 }), ginCav(ginMare, { uid: 'm2', level: 4 }), ginCav(ginIpe, { uid: 'm3', level: 6 })]
+      const pg = await ginAbre(label, { save: ginSave({ mounts, nextUid: 4, ginasios: ginComProgresso({ fogo: { etapa: 2, revDia: null, revVitorias: 0 } }) }) })
+      try {
+        await ginOuroInf(pg, false)
+        await ginPreparo(pg, 'fogo', 2)
+        await ginToca(pg, 'm2')
+        await ginEsperaTime(pg, ['m2'], label)
+        const sRef = await ginEstado(pg), dRef = await ginDisco(pg)
+        await ginEspiaSorteio(pg)
+        await pg.evaluate((src) => { const g = window.__galope.ui.gym; (new Function('g', src))(g) }, forca)
+        if (!(await ginForca(pg, '#tela [data-acao="ginasio-desafiar"]'))) problems.push(`${label}: sem o Desafiar`)
+        await ginVivo(pg, motivo, label)
+        await ginNadaCobrado(label, pg, sRef, dRef)
+        if ((await ginSorteios(pg)) !== 0) problems.push(`${label}: sorteou os duelos (${await ginSorteios(pg)} vezes)`)
+        if (!(await pg.evaluate(() => window.__galope.ui.gym.res === null))) problems.push(`${label}: guardou um resumo`)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -4027,8 +4058,8 @@ try {
     //     deixa state.pending e a corrida simulada da sala idênticos
     for (const [nome, o, id, etapa, motivo] of [
       ['sem-livre', { mounts: [ginCav(ginBrasa, { uid: 'm1', level: 10 })], nextUid: 2, raceCounter: 3, pending: ginPend }, 'fogo', 0, ginSoUmTxt],
-      ['mochila-99', { mochila: { torrao: 99, estrela: 0, cupom: 0, manual: 0 }, ginasios: ginComProgresso({ fogo: { etapa: 1, revDia: null, revVitorias: 0 } }) }, 'fogo', 1, 'A mochila já tem 99 de Torrão de açúcar. Use um antes de desafiar.'],
-      ['redeas-999', { redeas: 999, ginasios: ginComProgresso({ agua: { etapa: 4, revDia: null, revVitorias: 0 } }) }, 'agua', 4, 'Você já tem 999 de Rédea nova. Use uma antes de desafiar.']]) {
+      ['mochila-99', { mochila: { torrao: G.BAG_MAX, estrela: 0, cupom: 0, manual: 0 }, ginasios: ginComProgresso({ fogo: { etapa: 1, revDia: null, revVitorias: 0 } }) }, 'fogo', 1, `Você já tem ${ginFmt(G.BAG_MAX)} ${G.ITEMS.torrao.plural}, o máximo da mochila. Use antes de desafiar.`],
+      ['redeas-999', { redeas: 999, ginasios: ginComProgresso({ agua: { etapa: 4, revDia: null, revVitorias: 0 } }) }, 'agua', 4, `Você já tem ${ginFmt(999)} ${G.ITEMS.redea.plural}, o máximo. Use antes de desafiar.`]]) {
       const label = 'ginasio-limite-' + nome
       const pg = await ginAbre(label, { save: ginSave(o) })
       try {
