@@ -3,6 +3,16 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-17 — Ritmo do trabalho (decisão do Vinicius)
+Ele perguntou por que às vezes demora. Causas medidas: o `check.sh` passou de ~6 para ~12 min (o teste de interface
+cresceu a cada parte) e rodava inteiro em toda rodada de correção; cada tarefa passa por implementador, revisor e
+correções; as tarefas rodam uma de cada vez; e a máquina da sessão reiniciou três vezes no dia.
+- **Em rodada de correção rodam só os testes da parte mexida; o `check.sh` inteiro roda uma vez por tarefa e no fim da
+  frente** — economiza ~12 min por rodada. Se errado: uma regressão de uma correção só aparece no check seguinte.
+- **Depois da frente de itens, loja e diária: acelerar o teste de interface** (blocos em paralelo), para o `check.sh`
+  voltar a ~5 min — vale para tudo que vier depois.
+- **A revisão de cada tarefa continua** — tirar seria o maior ganho e o maior risco.
+
 ## 2026-11-16 — Itens, mochila, loja e recompensa diária (decisões do Vinicius)
 Spec em `docs/superpowers/specs/2026-11-16-itens-loja-diaria-design.md` (aprovada por ele); branch `claude/itens-loja-diaria`.
 - **A primeira entrega junta itens, mochila, loja e recompensa diária; os ginásios vêm depois, em desenho próprio** — um
