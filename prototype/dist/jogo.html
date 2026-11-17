@@ -1828,8 +1828,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     DAILY.estrelaACada + 'º calendário completo da recompensa diária.';
 
   // ---------------------------------------------------------------------------------------------
-  // Ginásios da Expedição (spec 2026-11-17-ginasios §4 a §9). Regras em ginasio.js; números de partida aqui, num
-  // só lugar, para a calibração (Tarefa 2) e para ajustar depois de jogar.
+  // Ginásios da Expedição (spec 2026-11-17-ginasios §4 a §9). Regras em ginasio.js; os números, num só lugar,
+  // calibrados pelas metas G1 a G9 do tools/balance.js (Tarefa 2) e para ajustar depois de jogar.
   //   vantagem: quanto os seis status de corrida sobem para o cavalo cujo elemento vence o do adversário;
   //   fadiga.faixas: a distância na chegada (m) separa as vitórias em faixas meio abertas (metros < ate; a última,
   //     ate null, pega o resto); perde: fôlego perdido por quem vence, somado a cada vitória seguida até o teto;
@@ -1837,11 +1837,14 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   //   insignias: o bônus da conta de cada uma (ouro: prêmios de corrida; xp: XP somado; skill: chance de skill por nível).
   // ---------------------------------------------------------------------------------------------
   var GYM = {
-    vantagem: 0.03,
+    // calibrado na Tarefa 2 (metas G1 a G9 do balance.js): o status inteiro arredonda, então nos status de 50 a 62
+    // de hoje os 4% somam cerca de 2 pontos (a vantagem anda em degraus de 1 ponto de status)
+    vantagem: 0.04,
     fadiga: {
+      // entre cavalos iguais as chegadas se dividem entre "colado" e "longe"; 1 e 8 m deixam cada faixa com 18% ou mais
       faixas: [
-        { id: 'apertada', name: 'Apertada', ate: 5, perde: 0.25 },
-        { id: 'normal', name: 'Normal', ate: 20, perde: 0.15 },
+        { id: 'apertada', name: 'Apertada', ate: 1, perde: 0.25 },
+        { id: 'normal', name: 'Normal', ate: 8, perde: 0.15 },
         { id: 'folgada', name: 'Folgada', ate: null, perde: 0.05 }
       ],
       teto: 0.5
@@ -1851,13 +1854,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     insignias: { fogo: { tipo: 'ouro', valor: 0.03 }, agua: { tipo: 'xp', valor: 0.03 }, grama: { tipo: 'skill', valor: 0.03 } }
   };
   var GYM_ORDER = ['fogo', 'agua', 'grama'];
-  // Pista de partida dos três (a Tarefa 2 calibra uma por ginásio): 1.200 m com uma curva e uma subida.
-  function pistaGym(surface) {
-    return { distance: 1200, surface: surface, blocks: [
-      { type: 'reta', from: 0, to: 250 }, { type: 'curva', from: 250, to: 550 }, { type: 'reta', from: 550, to: 750 },
-      { type: 'subida', from: 750, to: 1000 }, { type: 'reta', from: 1000, to: 1200 }] };
+  // Pista da casa (1.200 m, uma por ginásio): blocos dados como [tipo, metros], em sequência a partir de 0.
+  function pistaGym(surface, partes) {
+    var at = 0, blocks = partes.map(function (p) { var b = { type: p[0], from: at, to: at + p[1] }; at += p[1]; return b; });
+    return { distance: at, surface: surface, blocks: blocks };
   }
-  // As cinco etapas (mesmos níveis, entradas e prêmios nos três; spec §4). cavalos: [base (id do catálogo), base…].
+  // As cinco etapas (mesmos níveis, entradas e prêmios nos três; spec §4).
   var GYM_ETAPAS = [
     { id: 'soldado-1', lider: false, level: 4, entrada: 20, premio: { ouro: 80, itens: [] } },
     { id: 'soldado-2', lider: false, level: 8, entrada: 30, premio: { ouro: 120, itens: ['torrao'] } },
@@ -1865,13 +1867,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     { id: 'soldado-4', lider: false, level: 16, entrada: 50, premio: { ouro: 200, itens: ['manual'] } },
     { id: 'lider', lider: true, level: 20, entrada: 100, premio: { ouro: 400, itens: ['redea', 'cupom'] } }
   ];
-  function gym(id, name, lider, fraco, surface, soldados, bases, insignia) {
+  // Os cavalos de todas as etapas têm a genética do inicial do elemento (base); graus: as estrelas de cada cavalo,
+  // por etapa (o tamanho de cada lista é o tamanho do time).
+  function gym(id, name, lider, fraco, pista, base, graus, soldados, insignia) {
     return {
-      id: id, element: id, name: name, lider: lider, fraco: fraco, pista: pistaGym(surface),
+      id: id, element: id, name: name, lider: lider, fraco: fraco, pista: pista,
       etapas: GYM_ETAPAS.map(function (e, i) {
         return {
           id: e.id, nome: e.lider ? lider : soldados[i], lider: e.lider,
-          cavalos: bases[i].map(function (b) { return { base: b, level: e.level, grau: 2 }; }),
+          cavalos: graus[i].map(function (gr) { return { base: base, level: e.level, grau: gr }; }),
           entrada: e.entrada, premio: { ouro: e.premio.ouro, itens: e.premio.itens.slice() }
         };
       }),
@@ -1879,17 +1883,23 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     };
   }
   var GYMS = {
-    fogo: gym('fogo', 'Ginásio da Fornalha', 'Capitã Labareda', 'agua', 'grama',
+    // Fornalha: terra, uma subida longa até a curva e outra subida na chegada
+    fogo: gym('fogo', 'Ginásio da Fornalha', 'Capitã Labareda', 'agua',
+      pistaGym('terra', [['subida', 650], ['curva', 350], ['subida', 200]]), 'brasa',
+      [[2], [2], [2, 2], [2, 2], [2, 2, 2]],
       ['Recruta Fagulha', 'Cabo Tocha', 'Sargento Candeeiro', 'Tenente Coivara'],
-      [['w-faisca'], ['brasa'], ['w-faisca', 'brasa'], ['brasa', 'w-faisca'], ['w-faisca', 'brasa', 'brasa']],
       'Insígnia da Fornalha'),
-    agua: gym('agua', 'Ginásio do Remanso', 'Mestre Aguaceiro', 'grama', 'grama',
+    // Remanso: areia, com uma reta no meio e a subida mais longa no fim
+    agua: gym('agua', 'Ginásio do Remanso', 'Mestre Aguaceiro', 'grama',
+      pistaGym('areia', [['curva', 100], ['subida', 250], ['reta', 250], ['curva', 200], ['subida', 400]]), 'mare',
+      [[2], [2], [2, 2], [2, 3], [2, 3, 2]],
       ['Recruta Orvalho', 'Cabo Goteira', 'Sargento Correnteza', 'Tenente Cacimba'],
-      [['w-lambari'], ['mare'], ['w-lambari', 'mare'], ['mare', 'w-lambari'], ['w-lambari', 'mare', 'mare']],
       'Insígnia do Remanso'),
-    grama: gym('grama', 'Ginásio da Capoeira', 'Dona Capineira', 'fogo', 'grama',
+    // Capoeira: grama, uma subida de 800 m e a curva da chegada
+    grama: gym('grama', 'Ginásio da Capoeira', 'Dona Capineira', 'fogo',
+      pistaGym('grama', [['subida', 800], ['reta', 50], ['curva', 350]]), 'ipe',
+      [[2], [2], [2, 2], [2, 2], [2, 2, 2]],
       ['Recruta Broto', 'Cabo Carrapicho', 'Sargento Juazeiro', 'Tenente Aroeira'],
-      [['w-capim'], ['ipe'], ['w-capim', 'ipe'], ['ipe', 'w-capim'], ['w-capim', 'ipe', 'ipe']],
       'Insígnia da Capoeira')
   };
 

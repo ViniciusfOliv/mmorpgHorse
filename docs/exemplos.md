@@ -6,7 +6,7 @@ suspenso). Spec e tabelas: `docs/superpowers/specs/2026-11-12-crescimento-livre-
 dados estão em `docs/wiki.md`, gerado do código. Para refazer as medições:
 
 ```bash
-node prototype/tools/balance.js            # relatório completo com as 165 metas (~2,5 min)
+node prototype/tools/balance.js            # relatório completo com as 300 metas (~5,5 min)
 node prototype/tools/balance.js --exemplo  # uma corrida narrada
 ```
 
@@ -101,7 +101,36 @@ metade herdada: o status no nível 1 sai dela e da raridade (base = início da f
 faixa por estrela. No bloco 1b o início da faixa do Lendário passou de 55 para 54, e por isso o Trovão perdeu 1
 ponto em cada status (era 65/64/65/62/69/68/63); os Comuns não mudaram. O potro nasce sem pontos comprados.
 
-## 5. Para revisar (decisões de design em aberto)
+## 5. Ginásios da Expedição (metas G1 a G9, 2026-11-17)
+
+Spec: `docs/superpowers/specs/2026-11-17-ginasios-design.md` §12 (metas ajustadas pela medição: G2 "4 abaixo
+≤ 35%"; G3 "com vantagem 60–85%, em desvantagem ≤ 35% e 30 pontos entre as duas"). Time de referência: o
+inicial do elemento, repetido até o tamanho do time do adversário, com a build dos bots; os cavalos dos ginásios
+também têm a genética do inicial (Brasa, Maré, Ipê), mudando nível e estrelas. Desafios pelo `Ginasio.resolver`,
+3.000 por célula, no `balance.js` completo.
+
+| Meta | Medido (pior caso nos três ginásios e cinco etapas) | Faixa |
+|---|---|---|
+| G1 mesmo elemento, nível da etapa | 46,1–50,9% | 40–55% |
+| G2 4 níveis acima / abaixo | 73,0–81,5% / 15,8–32,9% (na etapa de nível 4, "abaixo" é o nível 1) | ≥ 70% / ≤ 35% |
+| G3 com vantagem / em desvantagem / distância | 70,3–78,2% / 17,2–32,3% / 38,1–59,6 pontos | 60–85% / ≤ 35% / ≥ 30 |
+| G4 sem a vantagem, nível igual, 1 contra 1 | 44,1–53,9% | 42–58% |
+| G5 diferença entre os ginásios (G1 / com vantagem / em desvantagem) | 4,7 / 4,2 / 7,5 pontos | ≤ 8 |
+| G6 faixas do cansaço no 1º duelo (apertada / normal / folgada) | 18,6–28,9% / 19,7–31,5% / 47,9–51,7% | ≥ 15% cada |
+| G7 inicial 4 níveis acima, sozinho, contra o líder | 2,2–2,4%; sem o cansaço 39,5–41,3 pontos a mais | ≤ 35%; ≥ +15 |
+| G8 duração de um duelo (5%–95%) | 75,8–84,9 s (média 78,5–81,8 s) | 55–90 s |
+
+O que a calibração mudou: a vantagem de 3% para **4%** (o status é inteiro: nos status de 50 a 62 de hoje, 3% e
+4% somam os mesmos 2 pontos; os 4% valem cerca de 3 a 4 níveis num duelo); os limites das faixas do cansaço de
+5/20 m para **1/8 m** (entre cavalos iguais, numa pista de 1.200 m com subidas, a chegada ou é colada ou é
+longe: com 5/20 m a faixa do meio ficava em 6–7%); uma pista de 1.200 m por ginásio, com subidas (em pista
+plana e curta o Fogo vence 70–85% dos duelos); os cavalos dos soldados e do líder passam a ser o inicial do
+elemento (com os selvagens Comuns, o Lambari vale ~7 níveis a menos que a Maré, e as metas mediam a diferença
+entre os cavalos, não entre os ginásios); no do Remanso, um cavalo ★★★ no soldado 4 e no líder (para a G5). Os
+níveis (4/8/12/16/20), os descontos do cansaço, o teto e o XP não mudaram. Um desafio do líder tem ~4,7 duelos e
+leva ~6 min de corrida.
+
+## 6. Para revisar (decisões de design em aberto)
 
 Do bloco 1b (spec §15; detalhes no `docs/memoria/ESTADO.md`), **ainda em aberto** até o Vinicius jogar:
 - **A build equilibrada é a mais forte** (o bot a 60–65% no nível 50; as inclinadas em 44–54%). Mudar a regra

@@ -2163,6 +2163,7 @@ test('ginásio: faixa (limites meio abertos, Ruling 5) e metros (com chegada emp
   assert.deepStrictEqual(pega(f[1].ate), { id: 'folgada', name: f[2].name, perde: f[2].perde });
   assert.strictEqual(pega(5000).id, 'folgada');
   // os pontos do resumo (4,9 / 5 / 19,9 / 20), com os limites de partida
+  // (com os limites calibrados na Tarefa 2, 1 e 8 m, esta conferência se desliga sozinha; as de cima seguem os limites do catálogo)
   if (f[0].ate === 5 && f[1].ate === 20) assert.deepStrictEqual([4.9, 5, 19.9, 20].map(function (m) { return pega(m).id; }), ['apertada', 'normal', 'normal', 'folgada']);
   // metros: (tPerdedor − tVencedor) × distância / tPerdedor, uma casa
   assert.strictEqual(GY.metros({ finishOrder: [1, 0], finishTimes: [62, 60], conditions: { distance: 1200 } }), 38.7);

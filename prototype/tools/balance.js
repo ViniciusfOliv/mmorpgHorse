@@ -5,7 +5,8 @@
  * Sorte, skills com chance; sem tática; o equipamento não mexe em status por enquanto).
  *
  *   node tools/balance.js            # relatório completo (todas as metas)
- *   node tools/balance.js --quick    # menos corridas; as metas ruidosas demais (M6, M9, P1, S1, A1) só no completo
+ *   node tools/balance.js --quick    # menos corridas; as metas ruidosas demais (M6, M9, P1, S1, A1) e as dos desafios de
+ *                                    # ginásio (G1, G2, G3, G5, G7) só no completo
  *   node tools/balance.js --tune '{"curveBase":0.84}'   # sobrescreve RaceSim.TUNING (só p/ ajuste)
  *   node tools/balance.js --exemplo  # imprime a corrida de exemplo usada em docs/exemplos.md
  *
@@ -26,6 +27,7 @@
 var G = require('../src/data.js');
 var S = require('../src/sim.js');
 var GR = require('../src/gear.js');
+var GY = require('../src/ginasio.js');
 var WT = require('worker_threads');
 
 var args = process.argv.slice(2);
@@ -420,8 +422,61 @@ function tSkillObs(P, a, b) {
   }
   return o;
 }
+// ---------------------------------------------------------------------------
+// Ginásios da Expedição (metas G1–G9; spec 2026-11-17-ginasios §12, com as Rulings 8, 11 e 12 da frente).
+// Time de referência: o inicial do elemento, repetido até o tamanho do time do adversário, no nível pedido,
+// com a build dos bots ("Distribuir sugerido"). O desafio é o Ginasio.resolver de verdade (clima Nublado, pista
+// da casa, vantagem e cansaço do catálogo).
+// ---------------------------------------------------------------------------
+var GYM_STARTER = { fogo: 'brasa', agua: 'mare', grama: 'ipe' };
+var GYM_FORTE = { fogo: 'grama', agua: 'fogo', grama: 'agua' };   // o elemento que o ginásio vence
+function gymLevel(gid, e) { return G.GYMS[gid].etapas[e].cavalos[0].level; }
+function gymRef(el, level, size) {
+  var h = cat(starterById(GYM_STARTER[el]), Math.max(1, level)), t = [];
+  for (var i = 0; i < size; i++) t.push(h);
+  return t;
+}
+function gymCond(gid) { var p = G.GYMS[gid].pista; return { distance: p.distance, surface: p.surface, weather: 'nublado', blocks: p.blocks }; }
+// Taxa de vitória de um desafio (G1, G2, G3, G7). P: { gym, etapa, el, dL, size, semCansaco, seed }
+function tGym(P, a, b) {
+  var o = { n: 0, w: 0 }, fx = G.GYM.fadiga.faixas, guarda = fx.map(function (f) { return f.perde; });
+  try {
+    if (P.semCansaco) fx.forEach(function (f) { f.perde = 0; });
+    var time = gymRef(P.el, gymLevel(P.gym, P.etapa) + (P.dL || 0), P.size || G.GYMS[P.gym].etapas[P.etapa].cavalos.length);
+    for (var k = a; k < b; k++) {
+      var r = GY.resolver({ gymId: P.gym, etapa: P.etapa, time: time, seedBase: S.hash2(P.seed, k), contador: 0 });
+      o.n++; if (r.venceu) o.w++;
+    }
+  } finally { fx.forEach(function (f, i) { f.perde = guarda[i]; }); }
+  return o;
+}
+// G4: duelo 1 contra 1 na pista do ginásio, sem a vantagem de elemento, nível igual (os cinco níveis das etapas em
+// rodízio), clima Nublado, largada alternada: o inicial de `el` contra o inicial do ginásio. P: { gym, el, seed }
+function tGymPista(P, a, b) {
+  var cond = gymCond(P.gym), lv = [0, 1, 2, 3, 4].map(function (e) { return gymLevel(P.gym, e); }), o = { n: 0, wA: 0 };
+  var As = lv.map(function (L) { return cat(starterById(GYM_STARTER[P.el]), L); }), Bs = lv.map(function (L) { return cat(starterById(GYM_STARTER[P.gym]), L); });
+  for (var k = a; k < b; k++) {
+    var A = As[k % 5], B = Bs[k % 5], pair = Math.floor(k / 5) % 2 ? [A, B] : [B, A];
+    var res = run(seedOf(P.seed, k), cond, pair.map(function (h) { return racer(h); }));
+    o.n++; if (pair[res.finishOrder[0]] === A) o.wA++;
+  }
+  return o;
+}
+// G6 e G8: o inicial do ginásio, sozinho e no nível da etapa (as cinco em rodízio), desafia a etapa; o 1º duelo é
+// entre cavalos de nível igual e descansados (a faixa dele conta na G6); a duração de cada duelo (até os dois
+// cruzarem a linha) conta na G8. P: { gym, seed }
+function tGymPrimeiro(P, a, b) {
+  var o = { n: 0, f: [0, 0, 0], lists: { dur: [], m: [] } }, ids = G.GYM.fadiga.faixas.map(function (f) { return f.id; });
+  var times = [0, 1, 2, 3, 4].map(function (e) { return gymRef(P.gym, gymLevel(P.gym, e), 1); });
+  for (var k = a; k < b; k++) {
+    var e = k % 5, r = GY.resolver({ gymId: P.gym, etapa: e, time: times[e], seedBase: S.hash2(P.seed, k), contador: 0 });
+    o.n++; o.f[ids.indexOf(r.duelos[0].faixa.id)]++; o.lists.m.push(r.duelos[0].metros);
+    r.duelos.forEach(function (d) { var x = S.simulate(d.cfg); o.lists.dur.push(Math.max(x.finishTimes[0], x.finishTimes[1])); });
+  }
+  return o;
+}
 var TASKS = { starters: tStarters, duel: tDuel, catDuel: tCatDuel, spec: tSpec, typeGain: tTypeGain, audit: tAudit,
-  lobby: tLobby, m9: tM9, robin: tRobin, pvp8: tPvp8, flips: tFlips, skillObs: tSkillObs };
+  lobby: tLobby, m9: tM9, robin: tRobin, pvp8: tPvp8, flips: tFlips, skillObs: tSkillObs, gym: tGym, gymPista: tGymPista, gymPrimeiro: tGymPrimeiro };
 
 if (!WT.isMainThread) {
   WT.parentPort.on('message', function (m) { WT.parentPort.postMessage({ id: m.id, data: TASKS[m.task](m.params, m.a, m.b) }); });
@@ -532,6 +587,23 @@ var miticos = G.WILD_HORSES.filter(function (h) { return h.rarity === 'mitico'; 
 var comuns = G.WILD_HORSES.filter(function (h) { return h.rarity === 'comum'; });
 miticos.forEach(function (M, mi) { comuns.forEach(function (C, ci2) { job('4a-' + M.id + '-' + C.id, 'catDuel', { A: [M.id, 1], B: [C.id, 1], test: 400 + mi * 10 + ci2 }, N_4A, 1); }); });
 RAR_IDS.forEach(function (rid, ri) { job('skill-' + rid, 'skillObs', { rid: rid, ri: ri }, N_SKILL, 2); });
+// Ginásios (G): G4, G6 e G8 nos dois modos (mesmo N: duelos baratos, margem curta); os desafios (G1, G2, G3, G5, G7)
+// só no completo. G7 com e sem cansaço usa as mesmas seeds (comparação pareada).
+var N_G = 3000, N_G4 = 5000, N_G6 = 1500;
+var G_KINDS = [['g1', 'mesmo', 0], ['g2a', 'mesmo', 4], ['g2b', 'mesmo', -4], ['g3a', 'fraco', 0], ['g3d', 'forte', 0]];
+G.GYM_ORDER.forEach(function (gid, gi) {
+  EL3.forEach(function (el, ei) { if (el !== gid) job('g4-' + gid + '-' + el, 'gymPista', { gym: gid, el: el, seed: 7100 + gi * 10 + ei }, N_G4, 4); });
+  job('g6-' + gid, 'gymPrimeiro', { gym: gid, seed: 7200 + gi }, N_G6, 4);
+  if (QUICK) return;
+  [0, 1, 2, 3, 4].forEach(function (e) {
+    G_KINDS.forEach(function (kd, ki) {
+      var el = kd[1] === 'mesmo' ? gid : (kd[1] === 'fraco' ? G.GYMS[gid].fraco : GYM_FORTE[gid]);
+      job(kd[0] + '-' + gid + '-' + e, 'gym', { gym: gid, etapa: e, el: el, dL: kd[2], seed: 7300 + gi * 100 + e * 10 + ki }, N_G, 8);
+    });
+  });
+  job('g7-' + gid, 'gym', { gym: gid, etapa: 4, el: gid, dL: 4, size: 1, seed: 7700 + gi }, N_G, 8);
+  job('g7s-' + gid, 'gym', { gym: gid, etapa: 4, el: gid, dL: 4, size: 1, semCansaco: true, seed: 7700 + gi }, N_G, 8);
+});
 
 // ---------------------------------------------------------------------------
 // Saída: seções em ordem; cada check fica na seção em que aparece
@@ -560,7 +632,7 @@ function report(R) {
     'Cavalos sintéticos das metas M (como na calibração): genética de 0 a 31 sorteada pela seed, skills normais sorteadas (as nascidas mais as aprendidas esperadas pelo nível) e pontos livres pela build dos bots (`RaceSim.botAlloc`), salvo indicação. ' +
     'Duelos com largada alternada.' +
     (QUICK ? ' Amostras menores no --quick.' : ''));
-  if (QUICK) { log(''); log('> **--quick: as metas M6, M9, P1, S1 e A1 só contam no completo** (aqui aparecem só como informação, porque com poucas amostras o ruído passa da margem da faixa). Para medi-las: `node prototype/tools/balance.js`.'); }
+  if (QUICK) { log(''); log('> **--quick: as metas M6, M9, P1, S1 e A1 (e as G1, G2, G3, G5 e G7 dos ginásios) só contam no completo** (aqui aparecem só como informação, porque com poucas amostras o ruído passa da margem da faixa). Para medi-las: `node prototype/tools/balance.js`.'); }
   log('');
 
   // -------------------------------------------------------------------------
@@ -1040,8 +1112,126 @@ function report(R) {
   log('| Skills normais ativadas por corrida | ' + f2(inf.skills / r1.n) + ' (os iniciais nascem sem skill normal) |');
   log('');
 
+  reportGym(R);
   finish();
 }
+
+// ---------------------------------------------------------------------------
+// G) Ginásios da Expedição
+// ---------------------------------------------------------------------------
+function reportGym(R) {
+  var EN = function (el) { return G.ELEMENTS[el].name; };
+  var ETN = ['Soldado 1', 'Soldado 2', 'Soldado 3', 'Soldado 4', 'Líder'];
+  var pistaTxt = function (p) { return p.distance + ' m, ' + G.SURFACES[p.surface].name.toLowerCase() + ': ' + p.blocks.map(function (b) { return b.type + ' ' + (b.to - b.from); }).join(', '); };
+  var fx = G.GYM.fadiga.faixas;
+  log('### G. Ginásios da Expedição (metas G1–G9)');
+  log('');
+  log('Desafios pelo `Ginasio.resolver` de verdade (clima inicial Nublado, a pista da casa, vantagem de elemento de ' + f1(100 * G.GYM.vantagem) + '% e o cansaço do catálogo). ' +
+    'Time de referência: o **inicial** do elemento (Brasa, Maré ou Ipê), repetido até o tamanho do time do adversário, no nível da etapa (ou 4 acima ou abaixo), com a build dos bots. ' +
+    'Os adversários têm a genética do inicial do ginásio; mudam o nível e as estrelas. "Com vantagem": o elemento que vence o ginásio; "em desvantagem": o que o ginásio vence. ' +
+    'Na etapa de nível 4, "4 abaixo" é o nível 1 (3 abaixo: não há nível 0). ' + (QUICK ? '' : N_G + ' desafios por célula.'));
+  log('');
+  // G4, G6, G8 (nos dois modos)
+  log('**Pistas** (G4: duelo 1 contra 1 sem a vantagem, nível igual nos cinco níveis das etapas, ' + N_G4 + ' duelos por par; G6: o 1º duelo de ' + N_G6 + ' desafios do inicial do ginásio sozinho; G8: todos os duelos desses desafios, do largar até os dois cruzarem a linha).');
+  log('');
+  log('| Ginásio | Pista | G4: vitórias contra o ginásio | G6: faixas ' + fx.map(function (f) { return f.name.toLowerCase(); }).join(' / ') + ' | G8: duração média (5%–95%) |');
+  log('|---|---|---|---|---|');
+  G.GYM_ORDER.forEach(function (gid) {
+    var g4 = EL3.filter(function (el) { return el !== gid; }).map(function (el) {
+      var v = wrG4(R, gid, el);
+      check('G4', G.GYMS[gid].name + ': ' + EN(el) + ' contra ' + EN(gid) + ' sem a vantagem, nível igual', v, 42, 58);
+      return EN(el) + ' ' + f1(v) + '%';
+    });
+    var r6 = R['g6-' + gid], tot = r6.f[0] + r6.f[1] + r6.f[2];
+    var f6 = r6.f.map(function (x, i) { var v = pct(x, tot); check('G6', G.GYMS[gid].name + ': faixa ' + fx[i].name.toLowerCase() + ' no 1º duelo (nível igual)', v, 15, 100); return f1(v) + '%'; });
+    var du = r6.lists.dur, dm = mean(du), d5 = quant(du, 0.05), d95 = quant(du, 0.95);
+    check('G8', G.GYMS[gid].name + ': duração de um duelo, 5% mais curtos', d5, 55, 90, ' s');
+    check('G8', G.GYMS[gid].name + ': duração de um duelo, 5% mais longos', d95, 55, 90, ' s');
+    log('| ' + G.GYMS[gid].name + ' | ' + pistaTxt(G.GYMS[gid].pista) + ' | ' + g4.join(' · ') + ' | ' + f6.join(' / ') + ' | ' + f1(dm) + ' s (' + f1(d5) + '–' + f1(d95) + ' s; ' + du.length + ' duelos) |');
+  });
+  log('');
+  log('Faixas do cansaço: ' + fx.map(function (f, i) { return f.name.toLowerCase() + ' ' + (i === 0 ? 'abaixo de ' + f.ate + ' m' : (f.ate === null ? fx[i - 1].ate + ' m ou mais' : 'de ' + fx[i - 1].ate + ' a menos de ' + f.ate + ' m')) + ' (perde ' + Math.round(100 * f.perde) + '% do fôlego)'; }).join(', ') + '; teto ' + Math.round(100 * G.GYM.fadiga.teto) + '%. ' +
+    'Distância no 1º duelo (mediana): ' + G.GYM_ORDER.map(function (gid) { return G.GYMS[gid].name.replace('Ginásio ', '') + ' ' + f1(quant(R['g6-' + gid].lists.m, 0.5)) + ' m'; }).join(', ') + '.');
+  log('');
+  if (QUICK) {
+    log('_G1, G2, G3, G5 e G7 só no modo completo (' + (5 * G_KINDS.length + 2) * G.GYM_ORDER.length + ' células de ' + N_G + ' desafios)._');
+    log('');
+  } else {
+    var tab = {};
+    G.GYM_ORDER.forEach(function (gid) {
+      var g = G.GYMS[gid];
+      log('**' + g.name + '** (' + EN(gid) + '; com vantagem: ' + EN(g.fraco) + '; em desvantagem: ' + EN(GYM_FORTE[gid]) + ')');
+      log('');
+      log('| Etapa | Nível | Adversário | G1 mesmo elemento | G2 4 acima | G2 4 abaixo | G3 com vantagem | G3 em desvantagem | G3 distância |');
+      log('|---|---|---|---|---|---|---|---|---|');
+      tab[gid] = [];
+      g.etapas.forEach(function (et, e) {
+        var L = gymLevel(gid, e), v = {};
+        G_KINDS.forEach(function (kd) { var x = R[kd[0] + '-' + gid + '-' + e]; v[kd[0]] = pct(x.w, x.n); });
+        tab[gid][e] = v;
+        var nm = g.name + ', ' + ETN[e];
+        check('G1', nm + ': mesmo elemento, nível ' + L, v.g1, 40, 55);
+        check('G2', nm + ': 4 níveis acima (' + (L + 4) + ')', v.g2a, 70, 100);
+        check('G2', nm + ': 4 níveis abaixo (' + Math.max(1, L - 4) + ')', v.g2b, 0, 35);
+        check('G3', nm + ': com vantagem (' + EN(g.fraco) + ')', v.g3a, 60, 85);
+        check('G3', nm + ': em desvantagem (' + EN(GYM_FORTE[gid]) + ')', v.g3d, 0, 35);
+        check('G3', nm + ': distância entre com vantagem e em desvantagem', v.g3a - v.g3d, 30, 100, ' p.p.');
+        var adv = et.cavalos.map(function (c) { return starterById(c.base) ? starterById(c.base).name + ' ' + '★★★'.slice(0, c.grau) : c.base; }).join(' + ');
+        log('| ' + ETN[e] + ' | ' + L + ' | ' + adv + ' | **' + f1(v.g1) + '%** | ' + f1(v.g2a) + '% | ' + f1(v.g2b) + '% | ' + f1(v.g3a) + '% | ' + f1(v.g3d) + '% | ' + f1(v.g3a - v.g3d) + ' |');
+      });
+      log('');
+    });
+    log('**G5.** Diferença entre o maior e o menor dos três ginásios, por etapa (meta: no máximo 8 pontos em cada coluna).');
+    log('');
+    log('| Etapa | G1 | G3 com vantagem | G3 em desvantagem |');
+    log('|---|---|---|---|');
+    ETN.forEach(function (nm, e) {
+      log('| ' + nm + ' | ' + ['g1', 'g3a', 'g3d'].map(function (k) {
+        var xs = G.GYM_ORDER.map(function (gid) { return tab[gid][e][k]; }), d = Math.max.apply(null, xs) - Math.min.apply(null, xs);
+        check('G5', nm + ': ' + { g1: 'G1', g3a: 'G3 com vantagem', g3d: 'G3 em desvantagem' }[k] + ' entre os três ginásios', d, 0, 8, ' p.p.');
+        return f1(d);
+      }).join(' | ') + ' |');
+    });
+    log('');
+    log('**G7.** Contra o líder, um inicial sozinho 4 níveis acima (meta: vence os três em no máximo 35%; sem o cansaço, pelo menos 15 pontos a mais; mesmas seeds).');
+    log('');
+    log('| Ginásio | Com cansaço | Sem cansaço | Diferença |');
+    log('|---|---|---|---|');
+    G.GYM_ORDER.forEach(function (gid) {
+      var a = pct(R['g7-' + gid].w, R['g7-' + gid].n), b = pct(R['g7s-' + gid].w, R['g7s-' + gid].n);
+      check('G7', G.GYMS[gid].name + ': um cavalo 4 níveis acima vence o líder', a, 0, 35);
+      check('G7', G.GYMS[gid].name + ': sem o cansaço, a mais', b - a, 15, 100, ' p.p.');
+      log('| ' + G.GYMS[gid].name + ' | ' + f1(a) + '% | ' + f1(b) + '% | ' + f1(b - a) + ' |');
+    });
+    log('');
+  }
+  // G9: determinismo e nada de Math.random / relógio no caminho
+  var casos = [];
+  G.GYM_ORDER.forEach(function (gid, gi) {
+    [0, 2, 4].forEach(function (e) {
+      casos.push({ gymId: gid, etapa: e, time: gymRef(EL3[(gi + e) % 3], gymLevel(gid, e) + (e - 2), G.GYMS[gid].etapas[e].cavalos.length), seedBase: seedOf(7900, gi * 10 + e), contador: gi + e });
+    });
+  });
+  var mr = Math.random, dn = Date.now, usou = false, ida, volta, resim = true, outro;
+  Math.random = function () { usou = true; return mr.apply(Math, arguments); };
+  Date.now = function () { usou = true; return dn.apply(Date, arguments); };
+  try {
+    ida = casos.map(function (c) { return JSON.stringify(GY.resolver(c)); });
+    volta = casos.slice().reverse().map(function (c) { return JSON.stringify(GY.resolver(c)); }).reverse();
+    ida.forEach(function (j) {
+      JSON.parse(j).duelos.forEach(function (d) {
+        var x = S.simulate(d.cfg);
+        if ((x.finishOrder[0] === 0 ? 'jogador' : 'adversario') !== d.vencedor || GY.metros(x) !== d.metros) resim = false;
+      });
+    });
+    outro = casos.map(function (c) { var c2 = copy(c); c2.contador += 1; return JSON.stringify(GY.resolver(c2)); });
+  } finally { Math.random = mr; Date.now = dn; }
+  var iguais = ida.every(function (j, i) { return j === volta[i]; });
+  checkBool('G9', 'Ginásio: mesma seed e mesma configuração dão o mesmo desafio, duelo a duelo (' + casos.length + ' desafios, reexecução em ordem inversa; cada duelo refeito pelo cfg dá o mesmo vencedor e a mesma distância)', iguais && resim);
+  checkBool('G9', 'Ginásio: nada no caminho do desafio chama Math.random nem Date.now', !usou);
+  checkBool('G9', 'Ginásio: o contador seguinte dá outro desafio', outro.every(function (j, i) { return j !== ida[i]; }));
+}
+function wrG4(R, gid, el) { var x = R['g4-' + gid + '-' + el]; return pct(x.wA, x.n); }
 
 function finish() {
   log('### Resultado das metas');
