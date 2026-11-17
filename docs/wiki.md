@@ -87,14 +87,15 @@ No jogo, o botão ⓘ ao lado de cada rótulo mostra estas frases (no computador
 ```text
 base   = início da faixa da raridade + 16 × g / 31      (nada cresce sozinho com o level)
 status = base + pontos comprados, arredondado e preso entre 1 e 150
-pontos(L) = piso(fator da raridade × fator das estrelas × [(L − 1) × 2 + 4 × (L − 1)(L − 2) / 96])
+pontos(L) = piso(fator da raridade × fator das estrelas × [(L − 1) × 2 + 4 × (L − 1)(L − 2) / 96]) + torrões
 custo do i-ésimo ponto num mesmo status (i = 0, 1, …) = 1 + piso(i / 10)
 ```
 
 - **Genética (g):** de 0 a 31 por status, só do nascimento. Define onde o status nasce dentro da faixa da raridade (16 pontos de largura). Nota da genética no jogo: C 0–7 · B 8–15 · A 16–23 · S 24–31.
 - **Pontos por level:** a taxa sobe em linha reta de 2 pontos no Nv 2 a 6 no Nv 50 (antes dos fatores de raridade e estrelas; ver Level e XP, Raridades e Estrelas). O jogador compra status com eles na aba Status e confirma.
 - **Custo por faixa:** os 10 primeiros pontos num status custam 1 cada, os 10 seguintes 2, depois 3, e assim por diante. A genética não entra no custo. Por isso pôr tudo num status só rende pouco.
-- **Teto:** base + pontos ≤ 150 em cada status. Ninguém chega lá: o pior caso (Mítico ★★★ no Nv 50, genética 31, todos os pontos num status) fica em 146.
+- **Torrões:** cada Torrão de açúcar usado no cavalo é 1 ponto a mais, somado depois do piso; até 10 por cavalo (ver Itens).
+- **Teto:** base + pontos ≤ 150 em cada status. Ninguém chega lá: o pior caso (Mítico ★★★ no Nv 50, genética 31, com os 10 torrões e todos os pontos num status) fica em 148.
 - **Sorte:** só de nascimento, não recebe pontos: fica na base, de 40 (Comum, genética 0) a 76 (Mítico, genética 31).
 - **Equipamento:** suspenso; as peças não mexem nos status (ver Equipamento).
 
@@ -1078,7 +1079,7 @@ O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, Fogo). 
 
 ## Economia
 
-Moeda única hoje: **Ouro**. Começa com 500. Ganha-se Ouro correndo (prêmios e treino) e vendendo peças; gasta-se em entradas, peças, Pedras Negras, aluguel e registro de cruza, Troca e vagas do estábulo.
+Moeda única hoje: **Ouro**. Começa com 500. Ganha-se Ouro correndo (prêmios e treino), na recompensa diária (Ouro que entra sem precisar correr; ver Itens) e vendendo peças; gasta-se em entradas, na loja de itens, em peças, Pedras Negras, aluguel e registro de cruza, Troca e vagas do estábulo.
 
 ### Entradas e prêmios
 
@@ -1198,7 +1199,7 @@ Um calendário de 7 dias com prêmios fixos, sem sorteio. Resgata-se uma vez por
 
 O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver cheia daquele item (99, ou 999 Rédeas novas), o resgate do dia espera e o cartão diz por quê. Depois do resgate, o cartão vira uma linha com o prêmio de amanhã. Por calendário: 510 de Ouro e Torrão de açúcar, Manual de doma e Cupom de troca de skill (570 de Ouro pelo preço da loja), mais a Rédea nova.
 
-**O dia** é a data do aparelho, no fuso dele, guardada como número de dias. Com o relógio para trás (o dia de hoje menor que o do último resgate ou da loja), nem o resgate nem os limites da loja voltam até a data passar de novo do último dia guardado; nada se perde.
+**O dia** é a data do aparelho, no fuso dele, guardada como número de dias. Cada registro guarda o seu último dia: a diária, o do último resgate; a loja, o da última compra; a Estrela de treino, o da última Estrela de treino. Com o relógio para trás, o registro não volta até a data passar de novo do último dia dele; nada se perde. Sem servidor, quem mexe no relógio do aparelho consegue resgates e compras a mais (por exemplo: último resgate no dia 90; pondo o relógio em 91, 92 … 100, são 10 resgates no mesmo dia real); isso só se fecha com o servidor.
 
 <a id="icones-reservados"></a>
 
@@ -1221,8 +1222,9 @@ Estes cinco ícones já estão em `prototype/assets/icons/`, mas ainda não apar
 Para testar: abra `prototype/dist/preview.html?dev=1` ou o build de teste `prototype/dist/jogo-dev.html` (liga sozinho; é o que vai para o artefato, que não repassa `?dev=1`). O save é separado (`galope-elemental:dev`): o jogo real não é lido nem gravado.
 
 - **Moedas:** Ouro infinito (volta a 999.999 depois de cada gasto) e Pedras Negras à vontade.
+- **Itens e dia:** os itens de uso e o dia do jogo: Definir mochila (quantos de cada um: Torrão de açúcar, Estrela de treino, Cupom de troca de skill e Manual de doma, de 0 a 99); Avançar 1 dia e Voltar 1 dia (o dia do jogo vai de 400 dias antes a 400 dias depois do aparelho, só no save de teste); Zerar diária e limites (a recompensa volta ao dia 1 para resgatar e os limites da loja zeram).
 - **Cavalo:** cria ou substitui um cavalo com qualquer tipo, raridade, sexo, estrelas, level (1–50), genética (máxima ou por status), pontos distribuídos e até 5 skills (inclusive de outro tipo); copia iniciais e aluguéis; +10 levels; +1 cruza; devolve os pontos da ativa.
-- **Itens:** qualquer peça do catálogo, inclusive Lendária, com qualquer melhoria; conjunto completo de uma vez.
+- **Itens:** só peças de equipamento: qualquer peça do catálogo, inclusive Lendária, com qualquer melhoria; conjunto completo de uma vez.
 - **Próxima corrida:** clima inicial, piso, distância, traçado (mais curvas, mais subidas ou lista de blocos), vento, seed e "skills sempre ativam".
 - **Perfil:** zerar o perfil de teste (volta à Brasa).
 

@@ -85,6 +85,7 @@ function lerFonte() {
     moldePista: extrair(sim, /var c1 = corte\(([\d.]+)\), c2 = corte\(([\d.]+)\), c3 = corte\(([\d.]+)\), c4 = corte\(([\d.]+)\);/, 'o molde fixo da pista').slice(1, 5).map(Number),
     statMin: numDe(sim, /clamp\(Math\.round\(naturalStat\(horse, k\) \+ alloc\[k\]\), (\d+), T\.statMax\)/, 'o piso do status (computeStats)'),
     redeasMax: numDe(game, /var REDEAS_MAX = (\d+);/, 'REDEAS_MAX'),
+    devDiasMax: numDe(game, /var DEV_DIAS_MAX = (\d+);/, 'DEV_DIAS_MAX'),
     // os rótulos do botão de compra da loja de itens, por motivo (LOJA_ROTULO), na ordem em que o Itens.podeComprar confere
     lojaRotulo: Object.fromEntries([...extrair(game, /var LOJA_ROTULO = \{([^}]*)\};/, 'LOJA_ROTULO')[1].matchAll(/'?([\w-]+)'?: '([^']+)'/g)].map((m) => [m[1], m[2]]))
   }
@@ -439,7 +440,8 @@ function secoes(F, A) {
   // pontos e builds de exemplo (tudo do código: freePoints, costOf, weightedAlloc, botAlloc)
   const cav = (r, st, L, g, el) => { const h = { element: el || 'fogo', rarity: r, grau: st, level: L, potential: {}, skills: [] }; G.STAT_KEYS.forEach((k) => { h.potential[k] = g }); return h }
   const tudoNum = (h, k) => S.computeStats({ ...h, alloc: S.weightedAlloc(h, { [k]: 1 }) })[k]
-  const piorCaso = tudoNum(cav('mitico', T.starMult.length, M, 31), 'vel')
+  // o pior caso tem também o teto de torrões (cada torrão é 1 ponto a mais)
+  const piorCaso = tudoNum({ ...cav('mitico', T.starMult.length, M, 31), torroes: G.ITEMS.torrao.cap }, 'vel')
 
   // 1. Visão geral ---------------------------------------------------------------------------------------
   add('visao', 'Visão geral', 'Visão geral', [
@@ -469,13 +471,14 @@ function secoes(F, A) {
     { t: 'h3', txt: 'Como o status é calculado' },
     { t: 'formula', txt: `base   = início da faixa da raridade + ${num(T.gBand)} × g / 31      (nada cresce sozinho com o level)
 status = base + pontos comprados, arredondado e preso entre ${lim.baixo} e ${lim.alto}
-pontos(L) = piso(fator da raridade × fator das estrelas × [(L − 1) × ${num(T.ptsRate0)} + ${num(T.ptsRate1 - T.ptsRate0)} × (L − 1)(L − 2) / ${2 * (M - 2)}])
+pontos(L) = piso(fator da raridade × fator das estrelas × [(L − 1) × ${num(T.ptsRate0)} + ${num(T.ptsRate1 - T.ptsRate0)} × (L − 1)(L − 2) / ${2 * (M - 2)}]) + torrões
 custo do i-ésimo ponto num mesmo status (i = 0, 1, …) = 1 + piso(i / ${T.costStep})` },
     { t: 'lista', itens: [
       `**Genética (g):** de 0 a 31 por status, só do nascimento. Define onde o status nasce dentro da faixa da raridade (${num(T.gBand)} pontos de largura). Nota da genética no jogo: C 0–${F.notas[2] - 1} · B ${F.notas[2]}–${F.notas[1] - 1} · A ${F.notas[1]}–${F.notas[0] - 1} · S ${F.notas[0]}–31.`,
       `**Pontos por level:** a taxa sobe em linha reta de ${num(T.ptsRate0)} pontos no Nv 2 a ${num(T.ptsRate1)} no Nv ${M} (antes dos fatores de raridade e estrelas; ver Level e XP, Raridades e Estrelas). O jogador compra status com eles na aba Status e confirma.`,
       `**Custo por faixa:** os ${T.costStep} primeiros pontos num status custam 1 cada, os ${T.costStep} seguintes 2, depois 3, e assim por diante. A genética não entra no custo. Por isso pôr tudo num status só rende pouco.`,
-      `**Teto:** base + pontos ≤ ${lim.alto} em cada status. Ninguém chega lá: o pior caso (${nomeRar('mitico')} ${estrelas(T.starMult.length)} no Nv ${M}, genética 31, todos os pontos num status) fica em ${piorCaso}.`,
+      `**Torrões:** cada ${G.ITEMS.torrao.name} usado no cavalo é 1 ponto a mais, somado depois do piso; até ${num(G.ITEMS.torrao.cap)} por cavalo (ver Itens).`,
+      `**Teto:** base + pontos ≤ ${lim.alto} em cada status. Ninguém chega lá: o pior caso (${nomeRar('mitico')} ${estrelas(T.starMult.length)} no Nv ${M}, genética 31, com os ${num(G.ITEMS.torrao.cap)} torrões e todos os pontos num status) fica em ${piorCaso}.`,
       `**${nomeStat('sorte')}:** só de nascimento, não recebe pontos: fica na base, de ${num(G.RARITIES.comum.baseLo)} (${nomeRar('comum')}, genética 0) a ${num(G.RARITIES.mitico.baseLo + T.gBand)} (${nomeRar('mitico')}, genética 31).`,
       `**Equipamento:** suspenso; as peças não mexem nos status (ver Equipamento).`
     ] },
@@ -856,7 +859,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
   const pesos = {}
   skIds.forEach((id) => { const t = G.SKILLS[id].trigger.indexOf('weather:') === 0 ? 'weather:*' : G.SKILLS[id].trigger; pesos[t] = pesoSkill(id) })
   add('economia', 'Economia', 'Economia', [
-    { t: 'p', txt: `Moeda única hoje: **Ouro**. Começa com ${num(E.startingGold)}. Ganha-se Ouro correndo (prêmios e treino) e vendendo peças; gasta-se em entradas, peças, Pedras Negras, aluguel e registro de cruza, Troca e vagas do estábulo.` },
+    { t: 'p', txt: `Moeda única hoje: **Ouro**. Começa com ${num(E.startingGold)}. Ganha-se Ouro correndo (prêmios e treino), na recompensa diária (Ouro que entra sem precisar correr; ver Itens) e vendendo peças; gasta-se em entradas, na loja de itens, em peças, Pedras Negras, aluguel e registro de cruza, Troca e vagas do estábulo.` },
     { t: 'h3', txt: 'Entradas e prêmios' },
     { t: 'p', txt: `Entradas: ${lista(E.entryTiers.map((t) => num(t)), 'ou')} de Ouro. Todos pagam a mesma entrada; a casa fica com ${pct(E.houseFee, 0)} do pote (arredondado) e o resto é dividido conforme o tamanho do campo. Quem leva prêmio nunca sai no prejuízo.` },
     { t: 'tabela', rotulo: 'Divisão do prêmio', cab: ['Corredores', 'Divisão', ...nR.length ? [`Exemplo com entrada ${num(entradaEx)}: pote / casa / prêmios`] : []], linhas: nR.map((n) => {
@@ -916,7 +919,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `Um calendário de ${DY.dias.length} dias com prêmios fixos, sem sorteio. Resgata-se uma vez por dia, só de abrir o jogo e tocar em Resgatar (não precisa correr). Não zera: quem falta continua de onde parou. Depois do ${ordinal(DY.dias.length)} dia recomeça no 1º, e a cada ${DY.estrelaACada} calendários completos o ${ordinal(DY.dias.length)} dia também dá 1 ${nomeItem('estrela')} (o ${ordinal(DY.dias.length * DY.estrelaACada)} resgate é o primeiro). Um save novo já começa com o dia 1 para resgatar.` },
     { t: 'tabela', rotulo: 'Recompensa diária', cab: ['Dia', 'Prêmio'], linhas: DY.dias.map((d, i) => [N(ordinal(i + 1)), premioTxt(d) + (i === DY.dias.length - 1 ? `; a cada ${DY.estrelaACada} calendários completos, também 1 ${nomeItem('estrela')}` : '')]) },
     { t: 'p', txt: `O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver cheia daquele item (${num(G.BAG_MAX)}, ou ${num(F.redeasMax)} ${IT.redea.plural}), o resgate do dia espera e o cartão diz por quê. Depois do resgate, o cartão vira uma linha com o prêmio de amanhã. Por calendário: ${num(ouroCiclo)} de Ouro e ${lista(itensCiclo.map((d) => nomeItem(d.item)))} (${num(itensCiclo.reduce((a, d) => a + IT[d.item].price, 0))} de Ouro pelo preço da loja), mais a ${nomeItem('redea')}.` },
-    { t: 'p', txt: '**O dia** é a data do aparelho, no fuso dele, guardada como número de dias. Com o relógio para trás (o dia de hoje menor que o do último resgate ou da loja), nem o resgate nem os limites da loja voltam até a data passar de novo do último dia guardado; nada se perde.' }
+    { t: 'p', txt: `**O dia** é a data do aparelho, no fuso dele, guardada como número de dias. Cada registro guarda o seu último dia: a diária, o do último resgate; a loja, o da última compra; a ${nomeItem('estrela')}, o da última ${nomeItem('estrela')}. Com o relógio para trás, o registro não volta até a data passar de novo do último dia dele; nada se perde. Sem servidor, quem mexe no relógio do aparelho consegue resgates e compras a mais (por exemplo: último resgate no dia 90; pondo o relógio em 91, 92 … 100, são 10 resgates no mesmo dia real); isso só se fecha com o servidor.` }
   ])
 
   // 13. Ícones reservados --------------------------------------------------------------------------------
@@ -936,8 +939,9 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `Para testar: abra \`prototype/dist/preview.html?dev=1\` ou o build de teste \`prototype/dist/jogo-dev.html\` (liga sozinho; é o que vai para o artefato, que não repassa \`?dev=1\`). O save é separado (\`${DV.SAVE_KEY}\`): o jogo real não é lido nem gravado.` },
     { t: 'dl', itens: [
       ['Moedas', `Ouro infinito (volta a ${num(DV.GOLD_INF)} depois de cada gasto) e Pedras Negras à vontade.`],
+      ['Itens e dia', `os itens de uso e o dia do jogo: Definir mochila (quantos de cada um: ${lista(Object.keys(G.ITEMS).filter((id) => id !== 'redea').map(nomeItem))}, de 0 a ${num(G.BAG_MAX)}); Avançar 1 dia e Voltar 1 dia (o dia do jogo vai de ${F.devDiasMax} dias antes a ${F.devDiasMax} dias depois do aparelho, só no save de teste); Zerar diária e limites (a recompensa volta ao dia 1 para resgatar e os limites da loja zeram).`],
       ['Cavalo', `cria ou substitui um cavalo com qualquer tipo, raridade, sexo, estrelas, level (1–${E.maxLevel}), genética (máxima ou por status), pontos distribuídos e até ${F.devVagas} skills (inclusive de outro tipo); copia iniciais e aluguéis; +10 levels; +1 cruza; devolve os pontos da ativa.`],
-      ['Itens', 'qualquer peça do catálogo, inclusive Lendária, com qualquer melhoria; conjunto completo de uma vez.'],
+      ['Itens', 'só peças de equipamento: qualquer peça do catálogo, inclusive Lendária, com qualquer melhoria; conjunto completo de uma vez.'],
       ['Próxima corrida', 'clima inicial, piso, distância, traçado (mais curvas, mais subidas ou lista de blocos), vento, seed e "skills sempre ativam".'],
       ['Perfil', 'zerar o perfil de teste (volta à Brasa).']
     ] }

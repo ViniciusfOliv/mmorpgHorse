@@ -33,9 +33,10 @@ está na seção seguinte.
   botão ⓘ** — menos um toque. Se errado: o ⓘ é um padrão que já existe no jogo.
 - **(controlador) O ícone da Rédea nova fica como está e vai para a lista de gosto** — os cinco ícones são desenho em
   código, sem créditos. Se errado: redesenhar um desenho de 16×16.
-- **(controlador) Dois commits da branch (`90c5a2f` e `634173a`) saíram com a linha de autoria de outro modelo; o
-  histórico já enviado não é reescrito por isso** — reescrever pede um envio forçado. Se errado: uma linha de autoria
-  diferente em dois commits.
+- **(controlador) A linha de autoria de cada commit é a da sessão que o fez:** os commits dos ajudantes (`90c5a2f`,
+  `634173a`, `73954ec`, `76216c0` e o da onda final de correção) levam a linha que a sessão de cada um indica; os do
+  controlador levam a dele. O histórico já enviado não é reescrito por isso — reescrever pede um envio forçado. Se errado:
+  linhas de autoria diferentes na mesma branch.
 - **(controlador) Com um uso de item aberto, o save que chega de outra aba não leva ao Estábulo:** a tela fica, é desenhada
   de novo e confere tudo outra vez — só assim o Confirmar pode recusar com o motivo. Se errado: voltar ao jeito antigo é
   uma linha.
@@ -46,6 +47,26 @@ está na seção seguinte.
 - **(controlador) No cartão grande da diária, o "N / 7" abre a linha do prêmio e o prêmio vai só em texto, sem ícone** — a
   360 px o ícone fazia o prêmio mais longo quebrar em 3 linhas e passar do limite de altura. Se errado: é o arranjo de um
   cartão; está na lista de gosto.
+- **(controlador) Todas as frases velhas do GDD achadas na revisão final foram corrigidas, e só elas** (o pior caso de 146
+  que virou 148 com os torrões; a barra de 5 abas; a parte de peças escondida na Loja; as estrelas que sobem com a Estrela
+  de treino; o título e o aviso da seção 8; a 8.3; a fonte da Rédea na 8.5) — o GDD é a fonte da verdade e não podia dizer
+  4 abas nem que a Rédea só vem da gaveta DEV. Se errado: frases de documento.
+- **(controlador) O dia que vira com o jogo aberto atualiza a tela sem relógio rodando:** ao voltar à aba, ou no primeiro
+  toque, se o dia mudou desde o último desenho, a tela é desenhada de novo (e esse toque não vale: o jogador vê a tela do
+  dia novo e toca de novo). Nunca na corrida nem no resultado — antes, uma aba aberta de um dia para o outro mostrava o
+  cartão de ontem e recusava a compra com um motivo falso. Se errado: um toque perdido na virada do dia; desfazer são
+  poucas linhas.
+- **(controlador) O relógio para trás é conferido registro a registro** (a diária pelo último resgate, a loja pela última
+  compra, a Estrela pela última Estrela), como o plano definiu; em vez de amarrar a loja à diária, a frase dos documentos foi
+  acertada — amarrar não fecharia nada que o relógio para a frente já não abra. Se errado: quem volta o relógio entre as
+  duas datas compra o que compraria adiantando.
+- **(controlador) Um dia ou limite estragado no progresso salvo é gravado já consertado ao abrir o jogo** — assim o
+  bloqueio dura um dia, como a decisão do "dado de dia estragado" dizia; antes, ele se renovava a cada abertura até alguma
+  ação gravar. Se errado: uma gravação a mais ao abrir um progresso estragado.
+- **(controlador) O que a revisão final achou e não quebra regra fica registrado em `bugs.md`, sem conserto nesta frente**
+  (o "Voltar" do aparelho com um item aberto pela Mochila, frases e conferências repetidas entre `game.js` e `itens.js`,
+  esperas fixas no teste de interface e casos provados certos sem teste) — nenhum perde Ouro nem item. Se errado: cada um é
+  um conserto pequeno depois.
 
 ## 2026-11-17 — Ritmo do trabalho (decisão do Vinicius)
 Ele perguntou por que às vezes demora. Causas medidas: o `check.sh` passou de ~6 para ~12 min (o teste de interface

@@ -16,6 +16,15 @@ empacotamento está em `docs/cronograma.md`; as decisões de design em aberto, e
 ## Save
 - Quem apaga `pending.gear` e **aumenta** o Poder no save troca peças com a sala aberta (os rivais ficam mais fortes na mesma medida); só o servidor fecha. O caminho inverso (retrato rebaixado à mão para atrair rivais mais fracos que o próprio cavalo) está fechado desde a R16: o Poder da sala nunca fica abaixo do da ativa. Editar o retrato (`pending.gear` ou `pending.alloc`) ainda refaz os rivais da mesma sala, sempre do Poder do cavalo para cima; isso só o servidor fecha — `prototype/src/game.js` (`sanitize`).
 
+## Itens, loja e diária
+- O "Voltar" do aparelho com um passo de item aberto pela Mochila sai do jogo em vez de fechar o passo (aberto pela ficha, volta ao Estábulo); nada é gasto. Fica para o empacotamento — `prototype/src/game.js` (histórico, `popstate`).
+- O saneamento dos dados de dia (dia ou limite estragado não libera nada) existe em dois lugares, e a frase "Você não tem …" também; `Itens.podeUsar` devolve a frase pronta e `Itens.podeComprar` devolve um código (para o servidor, código é melhor) — `prototype/src/game.js` (`sanitize`, bloco da v7, e o `item-usar` do clique) e `prototype/src/itens.js` (`diariaSaneada`, `lojaSaneada`, `podeUsar`).
+- Esperas fixas antes de ler a região viva (`#motivo-vivo`): `sleep(120)` e `sleep(150)`; trocar por `waitForFunction` quando os blocos rodarem em paralelo — `prototype/tools/ui-test.mjs` (`recusa` da `itens-loja`, `vivo` do `usoHelpers` e do `diariaHelpers`).
+- Não provado: depois de um toque recusado, o foco pode ir para o primeiro "Trocar" quando o cavalo tem duas ou mais skills (`rerenderKeepScroll` só distingue o botão pelo `data-id`) — `prototype/src/game.js`.
+- O motivo da Estrela num cavalo ★★★ tem "★★★" escrito fixo no texto (não sai do número de estrelas) — `prototype/src/itens.js`.
+- O "Sim" do Recomeçar grava as chaves auxiliares (animações e jóquei) antes de o `wipeSave` recusar um save de versão mais nova (inócuo: o save não é tocado) — `prototype/src/game.js` (`reset-sim`).
+- Sem teste (provados certos pelas sondas da revisão final): o corte do deslocamento de ±400 dias do modo DEV; o save de versão mais nova chegando de outra aba com a corrida na tela ou a confirmação aberta; a tela velha com "Comprar" e a regra recusando no toque; a loja de peças dentro da parte Comprar com `GEAR_ON = true` — `prototype/tools/ui-test.mjs`.
+
 ## PixelLab
 - O script conta HTTP 502 como geração cobrada (corrigir antes da próxima geração paga) — `prototype/tools/pixellab-moldes.mjs`.
 - A referência de passada de chamas não tem piso fixo (`passadaRef ≥ 30`) — `prototype/tools/moldes-test.mjs`.

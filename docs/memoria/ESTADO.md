@@ -194,6 +194,7 @@ branch e não entrou na `main`: quem decide a integração é o Vinicius.**
   o cartão da diária (seções 4.18 a 4.20).
 - **A confirmar com o Vinicius (gosto, itens):**
   1. **Ícone da Rédea nova:** pouco reconhecível. Os cinco ícones de item são desenhos em código (16×16), sem créditos.
+     Existe o `item-redea.png` do PixelLab, já pago em 2026-11-12 e guardado: trocar custa zero créditos, é só decidir.
   2. **Loja, texto do limite:** "Restam N de M hoje"; na Estrela, em quantos dias ela volta.
   3. **Loja, ordem dos produtos:** fixa (Torrão, Manual, Cupom, Estrela), e não por preço.
   4. **Loja, botão quando não dá para comprar:** "Limite de hoje", "Reservado", "Sem Ouro" ou "Mochila cheia". Não há
@@ -203,7 +204,7 @@ branch e não entrou na `main`: quem decide a integração é o Vinicius.**
      só aparecem com o item na mochila; com os dois, a aba fica 116 px mais alta.
   7. **Confirmação do Manual de doma:** mostra a chance (35%) e avisa que o manual é gasto mesmo se o cavalo não aprender;
      o resultado só é sorteado depois do "Confirmar".
-  8. **Outra aba no meio de um uso de item:** a tela fica onde está, é desenhada de novo com o progresso mais recente e
+  8. **Outra aba no meio de um uso de item:** a tela fica onde está, é atualizada com o progresso mais recente e
      confere tudo de novo (antes voltava ao Estábulo).
   9. **Diária, altura:** com prêmio para resgatar, o Estábulo de 3 cavalos não cabe mais numa tela (836 px numa tela de
      780; 860 no dia da Estrela); com a diária resgatada mede 780. Com 6 cavalos: 1.172 com prêmio (1.196 no dia da
@@ -213,9 +214,21 @@ branch e não entrou na `main`: quem decide a integração é o Vinicius.**
   11. **Diária, arranjo do cartão grande:** o "N / 7" abre a linha do prêmio (no esboço da spec ficava na linha do título)
       e o prêmio vai só em texto, sem ícone — o ícone fazia o prêmio mais longo passar do limite de altura.
   12. **Ponto na aba Estábulo:** só visual, como o da aba Correr (sem texto para leitor de tela).
+  13. **Jogo aberto de um dia para o outro:** deixe o jogo aberto, volte à aba no dia seguinte: o cartão da diária e a
+      loja têm de se atualizar sozinhos. Se o dia virou e você toca na tela antes, ela se atualiza e esse toque não vale
+      (toque de novo).
+  14. **Números de partida da economia:** os preços da loja, os 35% do Manual e os prêmios da diária são para você
+      ajustar jogando (ficam juntos em `prototype/src/data.js`).
 - **Pendências aceitas:**
   - **Relógio para a frente:** adiantar a data do aparelho libera a diária e os limites da loja. Sem servidor não há como
-    impedir; fica aceito até o online (o Vinicius foi avisado em 2026-11-16). Voltar o relógio não libera nada.
+    impedir; fica aceito até o online (o Vinicius foi avisado em 2026-11-16). Cada registro guarda o seu último dia (a
+    diária, o do último resgate; a loja, o da última compra; a Estrela, o da última Estrela), e voltar o relógio para antes
+    desse dia não libera aquele registro. Mas quem mexe no relógio consegue resgates e compras a mais: com o último resgate
+    no dia 90, pondo o relógio em 91, 92 … 100, são 10 resgates no mesmo dia real.
+  - **Relógio adiantado por engano e depois corrigido:** a diária (e a loja, se comprou no dia adiantado) fica parada até
+    passar daquela data, e o cartão diz só "volte amanhã" (escolha da spec §9, sem acusar ninguém).
+  - **Nunca abrir um jogo antigo (de antes da versão 7 do progresso salvo) sobre um progresso novo:** o código antigo não
+    tem a proteção e apagaria a mochila, a diária e os limites da loja.
   - **Loja de equipamento** (suspensa, `GEAR_ON = false`): quando religada, aparece dentro da parte "Comprar"; esse caminho
     não tem teste ligado.
 

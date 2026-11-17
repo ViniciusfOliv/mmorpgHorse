@@ -35,7 +35,8 @@ fechado obrigatório.
 compras), em cerca de **5–7 semanas**, e o lançamento público espera o PVP assíncrono (etapa 4). As
 etapas 1 a 3 valem para o teste fechado; a 4 corre em paralelo com ele. Durante o teste entram, como
 atualizações, os blocos 4 a 6 do redesenho (itens de treino e gastos de Ouro; cruza com relógio,
-circuito ocioso e aluguel; loja de Gemas sem compra real). A conta de
+circuito ocioso e aluguel; loja de Gemas sem compra real). Do bloco 4 já estão no jogo, na branch
+`claude/itens-loja-diaria`, os itens de treino, a mochila, a loja por Ouro e a recompensa diária. A conta de
 desenvolvedor e o recrutamento dos 12 testadores podem começar já: são o que mais atrasa.
 
 ## Checklist de publicação

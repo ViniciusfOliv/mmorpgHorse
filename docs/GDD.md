@@ -55,7 +55,7 @@ comprados** pelo jogador, e só isso:
 - **Custo por faixa, até 150:** num mesmo status, os 10 primeiros pontos custam 1 cada, do 11º ao 20º
   custam 2, do 21º ao 30º custam 3, e assim por diante (comprar 10 custa 10; 20, 30; 30, 60; 50, 150).
   A genética não entra no custo. O teto é um só, **150 em cada status**, igual para todas as raridades;
-  ninguém chega lá (o pior caso, Mítico ★★★ nível 50 com tudo num status, dá 146). Isso substitui o
+  ninguém chega lá (o pior caso, Mítico ★★★ nível 50 com os 10 torrões e tudo num status, dá 148). Isso substitui o
   limite de 34% e o teto por raridade: o custo crescente é o que impede "tudo em um status" de vencer
   (numa sonda, sem custo ele vencia 86% dos duelos; com custo, cinco builds diferentes ficaram entre 47%
   e 62%).
@@ -122,7 +122,7 @@ cada faixa de distância). No nível 25 caem na Prata (Poder 782–791).
 
 `prototype/` contém o protótipo web (sprites, simulação e fluxo de aposta). Em 2026-11-10 ficou decidido que ele vira a base do jogo: a mesma base web empacotada para Android, com os módulos de regra indo para o servidor.
 
-**Fluxo de telas.** O jogo tem uma barra de 4 abas (Estábulo, Correr, Expedição, Haras; a Loja de peças está escondida com o equipamento), embaixo no celular e à esquerda no desktop (≥ 900 px), e um cabeçalho com o saldo (Ouro) e o botão Perfil (estatísticas e "Recomeçar"). O Estábulo é uma lista de linhas (retrato pequeno com o nível e os pontos a distribuir, nome, raridade e estrelas, tipo e Poder; a ativa leva a plaquinha "Ativa" e a ordem nunca muda); tocar numa linha abre a ficha da Montaria, com o cavalo em retrato grande e três abas: Status, Skills e Ficha (a de Equipamento está escondida). A aba Ficha guarda "Tornar ativa", renomear, liberar, porte, marcas, cruzas restantes e pais. A aba Status põe cada status numa linha, com +1/+5/+10, e prende a barra do Confirmar (com o Poder do rascunho) embaixo da tela. Botão indisponível mostra o motivo no toque. Largada, corrida e resultado são telas cheias, sem barra. A corrida PVP continua automática; a aba Expedição é um espaço reservado até o subprojeto 4.
+**Fluxo de telas.** O jogo tem uma barra de 5 abas (Estábulo, Correr, Expedição, Haras e Loja; na Loja, a parte de peças está escondida com o equipamento), embaixo no celular e à esquerda no desktop (≥ 900 px), e um cabeçalho com o saldo (Ouro) e o botão Perfil (estatísticas e "Recomeçar"). O Estábulo tem no topo o cartão da recompensa diária (8.2a) e, embaixo, uma lista de linhas (retrato pequeno com o nível e os pontos a distribuir, nome, raridade e estrelas, tipo e Poder; a ativa leva a plaquinha "Ativa" e a ordem nunca muda); tocar numa linha abre a ficha da Montaria, com o cavalo em retrato grande e três abas: Status, Skills e Ficha (a de Equipamento está escondida). A aba Ficha guarda "Tornar ativa", renomear, liberar, porte, marcas, cruzas restantes e pais. A aba Status põe cada status numa linha, com +1/+5/+10, e prende a barra do Confirmar (com o Poder do rascunho) embaixo da tela. Botão indisponível mostra o motivo no toque. Largada, corrida e resultado são telas cheias, sem barra. A corrida PVP continua automática; a aba Expedição é um espaço reservado até o subprojeto 4.
 
 **Arte do protótipo.** Os cavalos usam moldes gerados no PixelLab (retrato, parado e galope de 9 quadros por estilo de crina), recoloridos na hora com a paleta de cada montaria; ícones também do PixelLab, logotipo e capa do Canva; pista, clima e interface por código. Na corrida, o Dado da Sorte, as skills, a Garra e o cansaço aparecem no próprio cavalo, e o clima e o vento (só visual) aparecem na pista. Detalhes: `docs/superpowers/specs/2026-11-08-visuais-design.md` e `docs/superpowers/specs/2026-11-09-corrida-viva-design.md`.
 
@@ -136,7 +136,7 @@ Spec completa e algoritmo: `docs/superpowers/specs/2026-11-06-cruzamento-design.
 
 **Estábulo:** começa com 3 vagas; +1 vaga por 300 Ouro, até 8. Cada montaria tem nome, raridade + estrelas, tipo, sexo, nível e cruzamentos restantes (♂ 2 / ♀ 1). O selo da montaria mostra os pontos que ainda dá para distribuir. Uma delas é a ativa (a que corre). Liberar não devolve Ouro; a ativa e a última montaria não podem ser liberadas.
 
-**Estrelas (★/★★/★★★):** saem do cruzamento (regra abaixo) e multiplicam os pontos por nível do potro (§3). O status do potro sai só da genética e da raridade; as estrelas não mexem nele.
+**Estrelas (★/★★/★★★):** saem do cruzamento (regra abaixo), sobem com a Estrela de treino (8.2) e multiplicam os pontos por nível do potro (§3). O status do potro sai só da genética e da raridade; as estrelas não mexem nele.
 
 **Haras:** o jogador escolhe uma montaria sua e um parceiro de sexo oposto: outra sua ou um reprodutor de aluguel (selvagens não Míticos). Aluguel = base da raridade (Comum 100 · Mágico 250 · Raro 600 · Lendário 1500) × estrelas (★ ×1 / ★★ ×1,25 / ★★★ ×1,5), arredondado. Dois seus: 50 Ouro. **Troca:** dois seus de sexos opostos, 50 Ouro, qualquer número de cruzamentos restantes; os dois pais somem e o potro ocupa a vaga de um deles. A calculadora mostra chances de raridade e de estrelas antes de pagar. Resultado instantâneo (gestação com timer fica para depois).
 
@@ -170,7 +170,7 @@ A base é a menor raridade entre os pais. **Estrelas do potro:** se a raridade s
 ## 7. Equipamentos
 
 > **Suspenso (bloco 1b, 2026-11-13).** Por enquanto o equipamento não tem efeito: a corrida, o Poder e os
-> status ignoram as peças, os bots não ganham peças, a sub-aba Equipamento e a aba Loja ficam escondidas
+> status ignoram as peças, os bots não ganham peças, a sub-aba Equipamento e a parte de peças da Loja ficam escondidas
 > (uma constante desliga, `GEAR_ON` no `game.js`) e a Pedra Negra do pódio não cai. O save guarda peças,
 > melhorias, o que está equipado e as Pedras, sem mudança e sem venda. Volta a ser validado depois
 > (talvez como cosmético). **O texto abaixo descreve o desenho guardado, não o que vale hoje.**
@@ -226,11 +226,12 @@ Conjuntos: **Sol** (clima do Fogo), **Chuva** (Água), **Névoa** (Grama). No de
 
 **Depois (fora do protótipo):** durabilidade e reparo · limite de vagas no inventário · Lendário na loja (hoje só pelo painel `?dev=1`, até as expedições) · peça Mítica · mercado entre jogadores · cosméticos por Gemas · desmanche · expedições e pacotes como fonte de peças · transferência de peças entre contas.
 
-## 8. Redesenho aprovado em 2026-11-10 (blocos 2 a 7 ainda não implementados)
+## 8. Redesenho aprovado em 2026-11-10 (blocos 2 a 7: do bloco 4 já entraram os itens de treino e a loja por Ouro; o resto não está implementado)
 
 > Aprovado em conversa com o Vinicius, parte por parte. Entra em blocos, cada um com spec própria em
 > `docs/superpowers/specs/`. **O bloco 1 (status, tipo e pistas sem extremos) está implementado desde
-> 2026-11-11 e o 1b (crescimento livre) desde 2026-11-13**, e já são a regra das seções 3, 4, 6 e 7. Enquanto um bloco não é implementado, vale o que
+> 2026-11-11 e o 1b (crescimento livre) desde 2026-11-13**, e já são a regra das seções 3, 4, 6 e 7. Do bloco 4, os itens de
+> treino, a mochila, a loja por Ouro (8.2) e a recompensa diária (8.2a) estão no jogo. Enquanto um bloco não é implementado, vale o que
 > as seções 3 a 7 e o `docs/wiki.md` descrevem. Os números saem de simulação e ficam na spec de cada bloco.
 
 ### 8.1 Preparação (bloco 2)
@@ -274,14 +275,18 @@ Gemas também caem de graça, em pouca quantidade, por missões.
 - **Onde:** um cartão no topo do Estábulo (e um ponto na aba Estábulo enquanto há prêmio). Depois do resgate, o cartão
   vira uma linha com o prêmio de amanhã.
 - **Mochila cheia** daquele item (99, ou 999 Rédeas): o resgate espera e o cartão diz por quê.
-- **O dia é a data do aparelho.** Voltar o relógio não libera nada; adiantar libera a diária e os limites da loja. Sem
+- **O dia é a data do aparelho.** Cada registro guarda o seu último dia: a diária, o do último resgate; a loja, o da
+  última compra; a Estrela, o da última Estrela. Voltar o relógio para antes desse dia não libera aquele registro;
+  adiantar libera a diária e os limites da loja. Quem mexe no relógio do aparelho consegue resgates e compras a mais
+  (por exemplo: último resgate no dia 90; pondo o relógio em 91, 92 … 100, são 10 resgates no mesmo dia real). Sem
   servidor não há como impedir; fica aceito até o online.
 - **Por calendário:** 510 de Ouro, mais Torrão, Manual e Cupom (570 de Ouro pelo preço da loja) e a Rédea nova.
 
 ### 8.3 Ouro, circuito e aluguel (blocos 4 e 5)
-- **O Ouro entra devagar** (prêmio de corrida, circuito, aluguel, missões, venda de peça) **e sai por
-  muitas portas:** entrada, registro de cruza que cresce com a raridade, taxa por tentativa de melhoria,
-  itens de treino, subir estrela, vagas com preço crescente, ração (bônus de XP) e, no futuro, despertar,
+- **O Ouro entra devagar** (prêmio de corrida, recompensa diária — no jogo, 8.2a —, circuito, aluguel, missões,
+  venda de peça) **e sai por muitas portas:** entrada, registro de cruza que cresce com a raridade, taxa por
+  tentativa de melhoria, itens de treino e a Estrela de treino, que sobe estrela (no jogo, 8.2), vagas com preço
+  crescente, ração (bônus de XP) e, no futuro, despertar,
   taxa do mercado e inscrição em copas.
 - **Cruza demora de 12 a 24 horas;** a égua fica ocupada.
 - **Circuito ocioso:** cavalos fora da ativa correm treinos sozinhos com o jogo fechado, até 8 horas
@@ -311,8 +316,8 @@ Spec e medições: `docs/superpowers/specs/2026-11-12-crescimento-livre-design.m
 - **Poder sem equipamento:** `2,5·VEL + 2,0·ACE + 2,2·MAN + 2,4·FOR + 2,4·EST + 1,5·GAR`, mais 14 por
   peso de gatilho de skill, 20·(nível − 1)/49 e 28·ordem da raridade/4. Ligas: Bronze 0 · Prata 710 · Ouro 800 ·
   Platina 890 · Diamante 980 · Lenda 1070.
-- **Redistribuir:** a primeira é grátis em cada cavalo; as seguintes usam a Rédea nova (8.2), que **por
-  enquanto só vem da gaveta DEV** (a fonte jogando chega com os ginásios, nunca por Ouro). A ativa não
+- **Redistribuir:** a primeira é grátis em cada cavalo; as seguintes usam a Rédea nova (8.2), que vem no 7º
+  dia da recompensa diária (8.2a) e, depois, dos ginásios e missões; **nunca por Ouro**. A ativa não
   redistribui com páreo aberto.
 - **Equipamento suspenso** (seção 7).
 - **Save v6:** a migração devolve todos os pontos (aviso único no Estábulo), dá a redistribuição grátis a

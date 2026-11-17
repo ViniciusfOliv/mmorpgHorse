@@ -61,7 +61,9 @@ confere(a.md.includes('custo do i-ésimo ponto num mesmo status (i = 0, 1, …) 
 for (const [faixa, custo, total] of [['1º a 10º', 1, 10], ['11º a 20º', 2, 30], ['21º a 30º', 3, 60], ['41º a 50º', 5, 150]]) {
   confere(a.md.includes(`| ${faixa} | ${custo} | ${total} |`), `tabela do custo por faixa: ${faixa} devia custar ${custo} (total ${total})`)
 }
-confere(/pior caso[^\n]*fica em 146/.test(a.md), 'seção Status sem o pior caso (146) do teto')
+// o pior caso conta os torrões (teto de 10 por cavalo): 146 sem eles, 148 com eles (revisão final da frente de itens)
+confere(/pior caso[^\n]*10 torrões[^\n]*fica em 148/.test(a.md), 'seção Status sem o pior caso (148, com os 10 torrões) do teto')
+confere(a.md.includes('/ 96]) + torrões'), 'seção Status sem os torrões na fórmula dos pontos')
 confere(/\*\*Sorte:\*\* só de nascimento, não recebe pontos[^\n]*de 40 \(Comum, genética 0\) a 76 \(Mítico, genética 31\)/.test(a.md), 'seção Status sem a Sorte de nascimento (40 a 76)')
 confere(/nota da genética[^\n]*C 0–7 · B 8–15 · A 16–23 · S 24–31/i.test(a.md), 'seção Status sem as notas de genética (C 0–7 … S 24–31)')
 // pontos por level da spec §2 (Comum / Mítico nos Nv 11, 30 e 50)
