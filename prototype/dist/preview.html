@@ -9512,11 +9512,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
-  if (!GD || !RS || !SP || !GR || !FX || !IT || !telaEl) {
-    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, itens.js, sprites.js ou fx.js).';
+  if (!GD || !RS || !SP || !GR || !FX || !IT || !GN || !telaEl) {
+    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, itens.js, ginasio.js, sprites.js ou fx.js).';
     return;
   }
   // Modo DEV: decidido uma vez, na carga. O código DEV fica entre marcadores de bloco "@dev" (e o gancho de
@@ -10046,8 +10046,16 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   //   state.itemCounter: usos sorteados (Cupom, Manual), inteiro ≥ 0; mount.torroes: 0 ao teto do Torrão;
   //   o deslocamento de dias da gaveta DEV: −400 a 400, só no save de teste (no jogo real o campo não existe; o nome
   //   fica nos blocos DEV, e o build.mjs falha se ele aparecer no jogo de produção).
+  // v7 -> v8 (Ginásios da Expedição; spec 2026-11-17-ginasios §14), em sanitize e gravado logo ao abrir: os três ginásios
+  // começam zerados (nenhuma etapa vencida) e o contador de desafios em 0; nada do save antigo muda (o que um save v7
+  // tiver nesses campos não é lido). Campos novos da v8:
+  //   state.ginasios = a forma de Ginasio.sanear: { fogo|agua|grama: { etapa: 0–5 (etapas vencidas; a insígnia é a etapa
+  //     5, sem campo próprio), revDia: null | dia da última revanche, revVitorias: inteiro ≥ 0 } } — num save v8, lixo
+  //     volta ao coerente pelo Ginasio.sanear (etapa fora de 0–5 vale 0; dia estragado vale hoje, "já tentou hoje", e é
+  //     gravado consertado ao abrir, como a diária: ver start);
+  //   state.gymCounter: desafios sorteados (a seed de cada duelo), inteiro ≥ 0 (lixo: 0).
   // Save de versão MAIOR que SAVE_VERSION (saveMaisNovo) nunca é adotado nem gravado por cima: tela de bloqueio.
-  var SAVE_VERSION = 7;
+  var SAVE_VERSION = 8;
   var AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.';
   var REDEAS_MAX = 999;
   var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual
@@ -10140,6 +10148,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       diaria: { prox: 0, ciclos: 0, ultimo: null },   // save novo: o dia 1 para resgatar
       lojaItens: lojaItensVazia(),
       itemCounter: 0,
+      ginasios: GN.sanear(null, 0),   // os três ginásios sem nenhuma etapa vencida (revDia null: nunca tentou a revanche)
+      gymCounter: 0,
       settings: { motion: 'sistema' },
       joquei: joqueiInicial()
     };
@@ -10283,7 +10293,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (!s || typeof s !== 'object') return null;
     var mounts, activeId, nextUid, stableSlots, breedCounter;
     var start = BR.stableSlotsStart, max = BR.stableSlotsMax;
-    var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4, v6 = Number(s.v) >= 6, v7 = Number(s.v) >= 7;
+    var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4, v6 = Number(s.v) >= 6, v7 = Number(s.v) >= 7, v8 = Number(s.v) >= 8;
     var seedBase = num(s.seedBase, null, 0, 4294967295);
     if (seedBase == null) seedBase = freshSeedBase(0);
     var rawEquip = {};   // uid da montaria -> equip cru do save (validado depois das peças)
@@ -10367,6 +10377,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       base.lojaItens.dia = lj ? diaOu(lj.dia) : hoje;
       base.lojaItens.estrelaDia = lj ? diaOu(lj.estrelaDia) : hoje;
       base.itemCounter = inteiroOu(s.itemCounter, 0, 0, 1e9);
+    }
+    // Ginásios (v8): save de antes da v8 fica com o padrão do newState (tudo zerado). Num save v8, o Ginasio.sanear (dia
+    // estragado vale hoje) e o contador inteiro ≥ 0 (lixo: 0)
+    if (v8) {
+      base.ginasios = GN.sanear(s.ginasios, hojeDia(base));
+      base.gymCounter = inteiroOu(s.gymCounter, 0, 0, 1e9);
     }
     // Poder da sala (R16) = o maior entre o Poder do retrato dos pontos de quando a sala abriu (pending.alloc, tirado
     // em openLobby) e o Poder com que a ativa corre agora. Nem mais (liberaria pontos acima do que a sala viu) nem
@@ -10533,8 +10549,19 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return null;
   }
 
+  // Bônus das insígnias (spec dos ginásios §9): da conta, nunca da simulação. { ouro, xp, skill }, a soma das
+  // insígnias conquistadas (Ginasio.bonus; sem insígnia, tudo 0 e o jogo é o de antes dos ginásios).
+  function bonusConta() { return GN.bonus(state.ginasios); }
+  // Todo XP somado a um cavalo passa por aqui uma vez (corrida valendo, treino e, na Tarefa 5, os duelos): o XP mais o
+  // bônus da insígnia de Água, arredondado.
+  function xpComBonus(xp) { return xp + Math.round(xp * bonusConta().xp); }
+  // O prêmio de Ouro da corrida valendo mais o bônus da insígnia de Fogo, arredondado para baixo (o 1e-9 só segura o
+  // erro do ponto flutuante: 0,03 × 100 não pode dar 2,999…).
+  function ouroComBonus(premio) { return premio + Math.floor(premio * bonusConta().ouro + 1e-9); }
+
   // XP ganho -> níveis (até o máximo) e, a cada nível, chance de aprender uma skill
-  // (sorteio determinístico pela seed do save, pelo seedTag (nº do páreo) e pelo nível alcançado).
+  // (sorteio determinístico pela seed do save, pelo seedTag (nº do páreo) e pelo nível alcançado). A chance soma o
+  // bônus da insígnia de Grama (o XP chega aqui já com o bônus de Água: xpComBonus).
   function applyXp(mount, xpGain, seedTag) {
     var levels = 0, learned = [];
     mount.xp += xpGain;
@@ -10546,7 +10573,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (mount.level >= MAX_LEVEL) mount.xp = Math.min(mount.xp, E.xpToLevel(mount.level));
     for (var k = 1; k <= levels; k++) {
       var lrng = RS.mulberry32(RS.hash2(state.seedBase, seedTag * 100 + (mount.level - levels + k)));
-      var sid = RS.learnSkill({ id: mount.templateId, element: mount.element, rarity: mount.rarity, skills: mount.skills }, lrng);
+      var sid = RS.learnSkill({ id: mount.templateId, element: mount.element, rarity: mount.rarity, skills: mount.skills }, lrng, bonusConta().skill);
       if (sid) { mount.skills.push(sid); learned.push(sid); }
     }
     return { levels: levels, learned: learned };
@@ -11242,6 +11269,19 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       '<div class="dev-acoes">' + devBotao('dev-dia-menos', 'Voltar 1 dia') + devBotao('dev-dia-mais', 'Avançar 1 dia') + '</div>' +
       '<div class="dev-acoes">' + devBotao('dev-zerar-diaria', 'Zerar diária e limites') + '</div>');
 
+    // Ginásios (spec dos ginásios §15): a etapa de cada trilha (5 = as cinco vencidas, com a insígnia), liberar a revanche
+    // de hoje nos três e zerar o progresso (o contador de desafios fica: as seeds dos desafios nunca se repetem)
+    var etapasGin = [];
+    for (var ge = 0; ge <= 5; ge++) etapasGin.push([String(ge), ge === 0 ? '0 (nenhuma vencida)' : ge === 5 ? '5 (insígnia)' : ge + ' vencida' + (ge > 1 ? 's' : '')]);
+    var ginasios = devGrupo('ginasios', 'Ginásios',
+      '<p class="nota">Etapas vencidas de cada trilha; a 5ª é o líder e dá a insígnia (o bônus da conta vale na hora).</p>' +
+      '<div class="dev-campos">' + GD.GYM_ORDER.map(function (id) {
+        var v = f['gin-' + id];
+        return devSelect('gin-' + id, GD.GYMS[id].name + ' (' + GD.ELEMENTS[GD.GYMS[id].element].name + ')', etapasGin, v != null ? v : String(state.ginasios[id].etapa));
+      }).join('') + '</div>' +
+      '<div class="dev-acoes">' + devBotao('dev-gin-etapas', 'Definir etapas') + devBotao('dev-gin-revanche', 'Liberar revanche') +
+        devBotao('dev-gin-zerar', 'Zerar ginásios', 'btn--perigo') + '</div>');
+
     var cavalo = devGrupo('cavalo', 'Cavalo',
       '<p class="nota">Cria um cavalo novo (entra no estábulo sem limite de vagas e vira a ativa) ou substitui a ativa (status, skills, cores, marcas e porte; mantém equipamento e cruzas).</p>' +
       '<div class="dev-campos dev-campos--1">' + devEntrada('nome', 'Nome', 'type="text" maxlength="16" autocomplete="off"', f.nome) + '</div>' +
@@ -11323,7 +11363,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return '<div class="dev-gaveta" id="dev-gaveta" role="region" aria-labelledby="dev-titulo">' +
       '<div class="dev-cabeca"><h2 class="titulo" id="dev-titulo" tabindex="-1">Modo DEV</h2>' + devBotao('dev-fechar', 'Fechar') + '</div>' +
       '<p class="' + (ui.dev.msg ? 'aviso' : 'sr') + '" role="status" id="dev-msg">' + esc(ui.dev.msg) + '</p>' +
-      moedas + itensDia + cavalo + itens + corrida + perfil +
+      moedas + itensDia + ginasios + cavalo + itens + corrida + perfil +
     '</div>';
   }
 
@@ -11399,6 +11439,23 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       case 'dev-dia-menos':
         state.devDias = clamp(inteiroOu(state.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX) + (acao === 'dev-dia-mais' ? 1 : -1), -DEV_DIAS_MAX, DEV_DIAS_MAX);
         devGrava('Dia do jogo: ' + (state.devDias > 0 ? '+' : state.devDias < 0 ? '−' : '') + Math.abs(state.devDias) + ' dia(s) do aparelho.'); break;
+      case 'dev-gin-etapas': {
+        var ge2 = {};
+        for (var gi = 0; gi < GD.GYM_ORDER.length; gi++) {
+          var gid = GD.GYM_ORDER[gi], gv = Number(f['gin-' + gid] == null ? state.ginasios[gid].etapa : f['gin-' + gid]);
+          ge2[gid] = inteiroOu(gv, state.ginasios[gid].etapa, 0, 5);
+          f['gin-' + gid] = null;
+        }
+        GD.GYM_ORDER.forEach(function (id) { state.ginasios[id].etapa = ge2[id]; });
+        devGrava('Ginásios: ' + GD.GYM_ORDER.map(function (id) { return GD.ELEMENTS[GD.GYMS[id].element].name + ' ' + ge2[id] + '/5'; }).join(', ') + '.'); break;
+      }
+      case 'dev-gin-revanche':
+        GD.GYM_ORDER.forEach(function (id) { state.ginasios[id].revDia = null; f['gin-' + id] = null; });
+        devGrava('Revanche liberada hoje nos três ginásios.'); break;
+      case 'dev-gin-zerar':
+        state.ginasios = GN.sanear(null, 0);
+        GD.GYM_ORDER.forEach(function (id) { f['gin-' + id] = null; });
+        devGrava('Ginásios zerados: nenhuma etapa vencida.'); break;
       case 'dev-zerar-diaria':
         state.diaria = { prox: 0, ciclos: 0, ultimo: null };
         state.lojaItens = lojaItensVazia();
@@ -13404,10 +13461,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     } else {
       pay = RS.payouts(L.fee, L.n, order);
       var mine = pay.prizes.filter(function (p) { return p.racer === L.playerIdx; })[0];
-      prize = mine ? mine.amount : 0;
+      prize = ouroComBonus(mine ? mine.amount : 0);   // o pago (e o mostrado no resultado), com a insígnia de Fogo
     }
     var xpBase = E.xpPerPlace[place - 1] || E.xpPerPlace[E.xpPerPlace.length - 1];
     var xpGain = L.training ? Math.round(xpBase / 2) : xpBase;
+    xpGain = xpComBonus(xpGain);   // com a insígnia de Água (o treino também: todo XP somado passa por aqui)
 
     state.gold = state.gold - L.fee + prize;
     // Pedra Negra do pódio: só em corrida valendo, pela seed da sala, na mesma gravação do Ouro. Com o equipamento
@@ -14576,7 +14634,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       var r = L.racers[ri], info = sim.racerInfo ? sim.racerInfo[ri] : null;
       var t = sim.finishTimes[ri];
       var gap = k === 0 ? 'vencedor' : '+' + (t - winT).toFixed(2).replace('.', ',') + 's';
-      var prize = R.training ? (r.isPlayer ? '+' + R.prize : '—') : (prizeOf[ri] ? fmt(prizeOf[ri]) : '—');
+      // a linha do jogador mostra o prêmio pago (com o bônus da insígnia de Fogo); a dos rivais, o da tabela do pote
+      var prize = R.training ? (r.isPlayer ? '+' + R.prize : '—') : r.isPlayer ? (R.prize ? fmt(R.prize) : '—') : (prizeOf[ri] ? fmt(prizeOf[ri]) : '—');
       return '<tr class="' + (r.isPlayer ? 'voce' : '') + '"><td class="pos" aria-label="' + (k + 1) + ' lugar">' + podioIcone(k + 1) + (k + 1) + 'º</td>' +
         // duas linhas de texto (3c §8): o nome numa; dono, nível e chance de skill na outra. Esta quebra só entre os
         // pedaços (Ruling 17): cada um sem quebra por dentro e o " ·" no fim do pedaço de cima
@@ -15343,6 +15402,19 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     return { save: state, dev: DEV_MODE };   // o snapshot de um modo nunca é adotado pelo outro
   }
 
+  // O saneamento consertou o dia da revanche de algum ginásio? (o do disco, bruto, contra o saneado) Ginásio ausente não
+  // conta (vira novo, revDia null, sem dia para consertar); presente e não objeto, ou com revDia que não é null nem um dia
+  // válido, conta (o saneado vale hoje).
+  function revDiaConsertado(bruto, gs) {
+    var b = objetoOu(bruto);
+    if (!b) return false;
+    return GD.GYM_ORDER.some(function (id) {
+      if (!hasOwn(b, id) || b[id] === undefined) return false;
+      var o = objetoOu(b[id]);
+      return !o || o.revDia !== gs[id].revDia;
+    });
+  }
+
   var started = false;
   function start(data) {
     if (started) return;   // nunca dois laços de animação
@@ -15365,10 +15437,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       // save de versão anterior migrado: grava já a versão nova (a migração acontece uma vez só; o Neutro
       // convertido, os pontos devolvidos e o Poder da sala recalculado ficam no disco)
       if (state && ((lido && typeof lido === 'object' && !(Number(lido.v) >= SAVE_VERSION)) || gravaAviso)) persist();
-      // save v7 do disco com dia ou limite corrompido (diária, limites da loja): grava já o consertado, para o bloqueio durar
+      // save da versão atual do disco com dia ou limite corrompido (diária, limites da loja): grava já o consertado, para o bloqueio durar
       // um dia (Rulings 8 e 21); sem isso, cada abertura tornava a valer "hoje". O persist() de sempre (guarda do save mais novo)
+      // O mesmo para o dia da revanche de um ginásio (save v8; Ruling 3 dos ginásios): estragado vale hoje e vai já ao disco
       else if (state && !doHotOk && lido && typeof lido === 'object' && Number(lido.v) >= SAVE_VERSION &&
-        (JSON.stringify(lido.diaria) !== JSON.stringify(state.diaria) || JSON.stringify(lido.lojaItens) !== JSON.stringify(state.lojaItens))) persist();
+        (JSON.stringify(lido.diaria) !== JSON.stringify(state.diaria) || JSON.stringify(lido.lojaItens) !== JSON.stringify(state.lojaItens) ||
+          revDiaConsertado(lido.ginasios, state.ginasios))) persist();
       if (!state && !saveBloqueado && devHooks) { state = devHooks.novoPerfil(); persist(); }   // perfil DEV novo: Brasa, sem a escolha inicial
       if (!state && !saveBloqueado) { ui.motionKeep = leMotionKeep(); ui.joqueiKeep = leJoqueiKeep(); }   // "Recomeçar" e a aba fechou na escolha: as escolhas continuam
     }
@@ -15424,6 +15498,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       // monta a sala de um pending ({ counter, training, fee, pr }) sem gravar nada (medição do pareamento no ui-test)
       buildLobby: function (P) { return buildLobby(P); },
       hojeDia: function () { return hojeDia(); },
+      bonusConta: function () { return bonusConta(); },
       GEAR_ON: GEAR_ON
     };
     // rascunho dos pontos livres da tela da Montaria (null sem rascunho), para o teste ler

@@ -38,7 +38,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // os blocos, na ordem em que aparecem no arquivo: todo if (quer(nome)) usa um nome daqui (quer() lança erro se não), e o
 // ui-test-paralelo.mjs roda exatamente esta lista. Bloco novo entra aqui, no lugar dele.
 const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
-  'corrompido', 'areasegura', 'texto', 'producao', 'itens', 'redimensiona', 'escala', 'teto',
+  'corrompido', 'areasegura', 'texto', 'producao', 'itens', 'ginasio', 'redimensiona', 'escala', 'teto',
   'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
   'corrida-lugar-dado-redimensiona', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
   'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
@@ -581,11 +581,14 @@ try {
       await gv.locator('[data-acao="procurar"]').click()
       await gv.waitForSelector('#t-largada')
       // 3. "Largar!" sem gravar: nada de corrida nem de resultado, Ouro intacto, a sala continua
-      const g0 = (await st()).gold
+      // (com as três insígnias, postas direto na memória: o bônus também não entra sem gravar)
+      await gv.evaluate(() => { const g = window.__galope.state.ginasios; g.fogo.etapa = 5; g.agua.etapa = 5; g.grama.etapa = 5 })
+      const g0 = (await st()).gold, m0 = JSON.stringify((await st()).mounts), gin0 = JSON.stringify((await st()).ginasios)
       await quebrar()
       await gv.getByRole('button', { name: /^Largar/ }).click()
       await sleep(300)
       s = await st()
+      if (JSON.stringify(s.mounts) !== m0 || JSON.stringify(s.ginasios) !== gin0 || s.gymCounter !== 0) problems.push('gravacao: Largar sem gravar mudou o cavalo ou os ginásios ' + JSON.stringify({ ginasios: s.ginasios, gymCounter: s.gymCounter }))
       const lob = await gv.evaluate(() => ({ sim: !!window.__galope.ui.lobby.sim, result: !!window.__galope.ui.result, screen: window.__galope.ui.screen }))
       if (s.gold !== g0 || !s.pending || s.races !== 0 || lob.sim || lob.result || lob.screen !== 'largada' || (await gv.locator('#pista, #t-resultado').count())) problems.push('gravacao: Largar sem gravar ' + JSON.stringify({ gold: s.gold, g0, pending: !!s.pending, races: s.races, ...lob }))
       if (!(await temAviso())) problems.push('gravacao: Largar sem gravar não avisou')
@@ -728,6 +731,9 @@ try {
   const conferirMigrado = (s, rotulo) => {
     const out = []
     if (s.v !== SAVE_V) out.push(`${rotulo}: versão ${s.v}`)
+    // ginásios (save v8): o save antigo chega com os três zerados e o contador de desafios em 0
+    const ginZero = { etapa: 0, revDia: null, revVitorias: 0 }
+    if (JSON.stringify(s.ginasios) !== JSON.stringify({ fogo: ginZero, agua: ginZero, grama: ginZero }) || s.gymCounter !== 0) out.push(`${rotulo}: ginásios ${JSON.stringify(s.ginasios)}, gymCounter ${s.gymCounter}`)
     if (s.redeas !== 0 || s.avisoV6 !== false) out.push(`${rotulo}: redeas ${s.redeas}, avisoV6 ${s.avisoV6}`)
     if (s.mounts.length !== 3) out.push(`${rotulo}: ${s.mounts.length} montarias (eram 3)`)
     for (const m of s.mounts) {
@@ -1140,6 +1146,10 @@ try {
         if (!/Vitória|Você chegou em/.test(fim)) problems.push(`[${label}] resultado estranho: ` + fim)
         const ls = await pd.evaluate(() => ({ dev: localStorage.getItem('galope-elemental:dev'), real: localStorage.getItem('galope-elemental:v1') }))
         if (ls.dev !== null || !ls.real) problems.push(`[${label}] produção deveria gravar só o save real ` + JSON.stringify({ dev: ls.dev, real: !!ls.real }))
+        // save v8 com os ginásios (zerados; o bônus das insígnias é da conta, não do modo DEV) e nada da gaveta "Ginásios"
+        const sv = JSON.parse(ls.real), gz = { etapa: 0, revDia: null, revVitorias: 0 }
+        if (sv.v !== SAVE_V || JSON.stringify(sv.ginasios) !== JSON.stringify({ fogo: gz, agua: gz, grama: gz }) || sv.gymCounter !== 0) problems.push(`[${label}] save da produção sem os ginásios ` + JSON.stringify({ v: sv.v, ginasios: sv.ginasios, gymCounter: sv.gymCounter }))
+        if (/dev-gin-|Zerar ginásios|Liberar revanche/.test(await pd.evaluate(() => document.documentElement.outerHTML))) problems.push(`[${label}] produção com a gaveta DEV "Ginásios"`)
         await pd.getByRole('button', { name: 'Correr de novo' }).click()
         await pd.waitForSelector('#t-largada')
       } catch (e) {
@@ -1183,7 +1193,7 @@ try {
     const nadaLiberado = (pg, ids = ['torrao', 'manual', 'cupom', 'estrela']) => pg.evaluate((ids) => { const g = window.__galope, h = g.hojeDia(), I = window.Itens
       return !I.diariaEstado(g.state.diaria, h).pode && ['torrao', 'manual', 'cupom', 'estrela'].every((id) => (I.podeComprar(id, g.state.lojaItens, h, 1e6, 1e6, 0).motivo === 'limite') === ids.includes(id)) }, ids)
     const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
-    // 1. save v6 -> v7: tudo novo zerado, a diária no dia 1, o resto igual (na memória e no disco)
+    // 1. save v6 -> v8 (passa pela v7): tudo novo zerado, a diária no dia 1, o resto igual (na memória e no disco)
     {
       const label = 'itens-v6'
       const pg = await newPage(browser, VP, label, comSave(REAL, JSON.stringify(SAVE_6)))
@@ -1192,7 +1202,7 @@ try {
         const disco = JSON.parse(await bruto(pg, REAL))
         for (const [onde, s] of [['memória', await estadoDe(pg)], ['disco', disco]]) {
           const erro = (t) => problems.push(`${label} (${onde}): ${t}`)
-          if (s.v !== 7) erro('versão ' + s.v)
+          if (s.v !== 8) erro('versão ' + s.v)
           if (!igual(s.mochila, ZERO_MOCHILA)) erro('mochila ' + JSON.stringify(s.mochila))
           if (!igual(s.diaria, DIARIA_0)) erro('diária ' + JSON.stringify(s.diaria))
           if (!igual(s.lojaItens, LOJA_0)) erro('limites da loja ' + JSON.stringify(s.lojaItens))
@@ -1271,8 +1281,9 @@ try {
         await pg.context().close()
       }
     }
-    // 3. save de versão 8: tela de bloqueio, sem Estábulo, e a chave fica byte a byte igual (real, de teste e produção)
-    const SAVE_8 = JSON.stringify(Object.assign({}, SAVE_6, { v: 8, rev: 3, coisaNova: { a: [1, 2] }, gold: 123456 }))
+    // 3. save de versão 9 (mais nova que a 8 do jogo): tela de bloqueio, sem Estábulo, e a chave fica byte a byte igual
+    //    (real, de teste e produção)
+    const SAVE_9 = JSON.stringify(Object.assign({}, SAVE_6, { v: 9, rev: 3, coisaNova: { a: [1, 2] }, gold: 123456 }))
     const conferirBloqueio = async (pg, label, chave, raw) => {
       await pg.waitForSelector('#t-bloqueio', { timeout: 5000 })
       const txt = (await pg.locator('#tela').textContent()) || ''
@@ -1295,10 +1306,10 @@ try {
       await sleep(500)
       if ((await bruto(pg, chave)) !== raw) problems.push(`${label}: a chave ${chave} mudou depois de recarregar`)
     }
-    // v como texto ("8"): Number("8") > 7, também é mais novo (o sanitize o leria como v7+ e gravaria v7 por cima)
-    const SAVE_8_TXT = JSON.stringify(Object.assign(JSON.parse(SAVE_8), { v: '8' }))
-    for (const [label, chave, extra, raw] of [['itens-v8', REAL, {}, SAVE_8], ['itens-v8-dev', DEVK, { query: '?dev=1' }, SAVE_8],
-      ['itens-v8-producao', REAL, { pagina: 'producao.html' }, SAVE_8], ['itens-v8-texto', REAL, {}, SAVE_8_TXT]]) {
+    // v como texto ("9"): Number("9") > 8, também é mais novo (o sanitize o leria como v8+ e gravaria v8 por cima)
+    const SAVE_9_TXT = JSON.stringify(Object.assign(JSON.parse(SAVE_9), { v: '9' }))
+    for (const [label, chave, extra, raw] of [['itens-v9', REAL, {}, SAVE_9], ['itens-v9-dev', DEVK, { query: '?dev=1' }, SAVE_9],
+      ['itens-v9-producao', REAL, { pagina: 'producao.html' }, SAVE_9], ['itens-v9-texto', REAL, {}, SAVE_9_TXT]]) {
       const pg = await newPage(browser, VP, label, comSave(chave, raw, extra))
       try {
         await conferirBloqueio(pg, label, chave, raw)
@@ -1309,8 +1320,8 @@ try {
         await pg.context().close()
       }
     }
-    // 4. outra aba grava um save v8 com o jogo aberto num v7: o evento storage leva à tela de bloqueio; sem o evento, a
-    //    próxima gravação (persist) e o "Recomeçar" (que apaga o save) também não tocam no v8, no jogo real e no DEV
+    // 4. outra aba grava um save v9 com o jogo aberto num v8: o evento storage leva à tela de bloqueio; sem o evento, a
+    //    próxima gravação (persist) e o "Recomeçar" (que apaga o save) também não tocam no v9, no jogo real e no DEV
     for (const [label, comEvento, gatilho, query, chave] of [['itens-outra-aba', true, null, '', REAL], ['itens-outra-aba-persist', false, 'procurar', '', REAL],
       ['itens-outra-aba-recomecar', false, 'recomecar', '', REAL], ['itens-outra-aba-recomecar-dev', false, 'recomecar', '?dev=1', DEVK]]) {
       const pg = await newPage(browser, VP, label, { query })
@@ -1318,8 +1329,8 @@ try {
         if (!query) await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
         await pg.waitForSelector('#t-estabulo')
         // revisão menor que a do jogo aberto: a versão vale mais que a revisão
-        const raw8 = JSON.stringify(Object.assign(JSON.parse(SAVE_8), { rev: 0 }))
-        if (gatilho === 'recomecar') {   // chega até o "Sim" do Recomeçar antes de o v8 aparecer
+        const raw9 = JSON.stringify(Object.assign(JSON.parse(SAVE_9), { rev: 0 }))
+        if (gatilho === 'recomecar') {   // chega até o "Sim" do Recomeçar antes de o v9 aparecer
           await pg.locator('[data-acao="perfil"]').click()
           await pg.locator('[data-acao="reset"]').click()
           await pg.waitForSelector('[data-acao="reset-sim"]')
@@ -1327,21 +1338,21 @@ try {
         await pg.evaluate(([k, raw, ev]) => {
           localStorage.setItem(k, raw)
           if (ev) window.dispatchEvent(new StorageEvent('storage', { key: k, newValue: raw }))
-        }, [chave, raw8, comEvento])
+        }, [chave, raw9, comEvento])
         if (gatilho === 'procurar') await pg.locator('[data-acao="aba"][data-id="correr"]').click().then(() => pg.locator('[data-acao="procurar"]').click())
         if (gatilho === 'recomecar') await pg.locator('[data-acao="reset-sim"]').click()
-        await conferirBloqueio(pg, label, chave, raw8)
+        await conferirBloqueio(pg, label, chave, raw9)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
         await pg.context().close()
       }
     }
-    // 5. estado da atualização ao vivo (window.claude.hot) com save v8: bloqueio, e o save do disco (v7) não muda
+    // 5. estado da atualização ao vivo (window.claude.hot) com save v9: bloqueio, e o save do disco (v7) não muda
     {
       const label = 'itens-hot'
       const raw7 = JSON.stringify(Object.assign({}, SAVE_6, { v: 7, rev: 40 }))
-      const hot = `window.claude = { hot: { data: { save: ${SAVE_8}, dev: false } } };`
+      const hot = `window.claude = { hot: { data: { save: ${SAVE_9}, dev: false } } };`
       const pg = await newPage(browser, VP, label, comSave(REAL, raw7, { depois: hot }))
       try {
         await pg.waitForSelector('#t-bloqueio', { timeout: 5000 })
@@ -1652,7 +1663,7 @@ try {
     const ALLOC0 = { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 }
     // seed 1006: o 1º Manual (contador 0) num cavalo de Água sem skill aprende; o 2º (contador 1), num de Grama, não
     const SAVE_T4 = Object.assign({}, SAVE_6, {
-      v: 7, rev: 5, seedBase: 1006, gold: 5000, redeas: 0, mochila: ZERO_MOCHILA, diaria: DIARIA_0, lojaItens: LOJA_0, itemCounter: 0,
+      v: 8, rev: 5, seedBase: 1006, gold: 5000, redeas: 0, mochila: ZERO_MOCHILA, diaria: DIARIA_0, lojaItens: LOJA_0, itemCounter: 0,
       mounts: [
         cav(brasa, { uid: 'm1', level: 12, skills: ['sprint'], alloc: { ...ALLOC0, vel: 3, acel: 2, est: 1 }, respecFree: false, torroes: 0 }),
         cav(mare, { uid: 'm2', level: 10, skills: [], alloc: { ...ALLOC0, vel: 2 }, respecFree: true, torroes: 0 }),
@@ -2707,7 +2718,7 @@ try {
         await pg.context().close()
       }
     }
-    // 14. dado de dia corrompido num save v7 (decisões 8 e 21): ao abrir, o disco recebe o valor consertado (o dia de hoje); no
+    // 14. dado de dia corrompido num save v8 (decisões 8 e 21): ao abrir, o disco recebe o valor consertado (o dia de hoje); no
     //     dia seguinte, abrindo sem fazer mais nada, o cartão está para resgatar e o Torrão à venda
     {
       const label = 'itens-dia-corrompido'
@@ -2726,19 +2737,372 @@ try {
         await h.grande(3, '100 de Ouro', 'no dia seguinte, sem outra ação')
         const loja = await pg.evaluate(() => { const g = window.__galope, hj = g.hojeDia(); return ['torrao', 'estrela'].map((id) => window.Itens.podeComprar(id, g.state.lojaItens, hj, 1e6, 1e6, 0).ok) })
         if (!igual(loja, [true, false])) problems.push(`${label}: no dia seguinte, Torrão e Estrela à venda ${JSON.stringify(loja)} (esperado o Torrão sim; a Estrela só 7 dias depois do conserto)`)
-        // um save v7 bom não é regravado ao abrir
+        // um save v8 bom não é regravado ao abrir
         const bom = JSON.stringify(Object.assign({}, SAVE_T4, { rev: 70, diaria: { prox: 2, ciclos: 0, ultimo: D17 }, lojaItens: { dia: D17, comprados: { torrao: 1, manual: 0, cupom: 0 }, estrelaDia: null } }))
         await pg.evaluate(([k, raw]) => localStorage.setItem(k, raw), [REAL, bom])
         await pg.reload({ waitUntil: 'domcontentloaded' })
         await pg.waitForSelector('#t-estabulo')
         await sleep(300)
-        if ((await bruto(pg, REAL)) !== bom) problems.push(`${label}: um save v7 sem nada para consertar foi regravado ao abrir`)
+        if ((await bruto(pg, REAL)) !== bom) problems.push(`${label}: um save v8 sem nada para consertar foi regravado ao abrir`)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
         await pg.context().close()
       }
     }
+  }
+
+  // ---------------- Ginásios da Expedição (spec 2026-11-17-ginasios §9, §14, §15, §16) ----------------
+  // Tarefa 3: save versão 8 (novo, migrado da 7 com sala aberta, lixo, insígnia sem as cinco etapas, versão 9 bloqueia), os
+  // bônus das insígnias (Ouro no prêmio da corrida valendo, XP em todo XP somado, chance de skill por nível; nada na
+  // simulação) e a gaveta DEV "Ginásios". As próximas tarefas crescem este bloco com os ajudantes gin* abaixo.
+  const GN = require('../src/ginasio.js')
+  const GIN_REAL = 'galope-elemental:v1', GIN_DEV = 'galope-elemental:dev'
+  const GIN_ZERO = GN.sanear(null, 0)   // os três ginásios sem nada: { etapa: 0, revDia: null, revVitorias: 0 }
+  // abre a página com o save (objeto ou texto) gravado na chave antes de o jogo carregar, uma vez só (recarregar não
+  // regrava: o que fica é o que o jogo deixou). Padrão: o build de teste (jogo-dev.html) e o save de teste.
+  const ginAbre = async (label, { save = null, chave = GIN_DEV, pagina = 'jogo-dev.html', vp = { width: 360, height: 780 }, espera = '#t-estabulo', ...extra } = {}) => {
+    const raw = save == null ? null : (typeof save === 'string' ? save : JSON.stringify(save))
+    const init = raw == null ? null : { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem(${JSON.stringify(chave)}, ${JSON.stringify(raw)}) } } catch (e) {}` }
+    const pg = await newPage(browser, vp, label, { pagina, ...(init ? { init } : {}), ...extra })
+    if (espera) await pg.waitForSelector(espera, { timeout: 8000 }).catch(() => problems.push(`[${label}] a página não chegou a ${espera}`))
+    return pg
+  }
+  const ginEstado = (pg) => pg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+  const ginDisco = (pg, chave = GIN_DEV) => pg.evaluate((k) => localStorage.getItem(k), chave)
+  const ginHoje = (pg) => pg.evaluate(() => window.__galope.hojeDia())
+  const ginBonus = (pg) => pg.evaluate(() => window.__galope.bonusConta())
+  // gaveta DEV, grupo "Ginásios": etapas = { fogo: 0–5, … } (só os dados mudam); acao: 'revanche' | 'zerar'
+  const ginDevEtapas = async (pg, etapas) => {
+    await devAbrir(pg)
+    for (const [id, e] of Object.entries(etapas)) await pg.selectOption('#dev-gin-' + id, String(e))
+    await pg.locator('[data-acao="dev-gin-etapas"]').click()
+    await devFechar(pg)
+  }
+  const ginDevAcao = async (pg, acao) => {
+    await devAbrir(pg)
+    await pg.locator(`[data-acao="dev-gin-${acao}"]`).click()
+    await devFechar(pg)
+  }
+  // "Ouro infinito" da gaveta (ligado ao abrir o build de teste): desligado, o Ouro do save é o que a regra deu
+  const ginOuroInf = async (pg, on) => { await devAbrir(pg); await pg.setChecked('#dev-ouroinf', on); await devFechar(pg) }
+  // a corrida da sala aberta simulada de novo do save (sem gravar nada): ordem, tempos e eventos
+  const ginSimSala = (pg) => pg.evaluate(() => {
+    const g = window.__galope, L = g.buildLobby(g.state.pending)
+    const r = window.RaceSim.simulate({ seed: L.seed, conditions: L.cond, racers: L.racers.map((x) => ({ horse: x.horse, gear: x.gear, name: x.name, isPlayer: x.isPlayer })) })
+    return JSON.stringify({ seed: L.seed, ordem: r.finishOrder, tempos: r.finishTimes, eventos: r.events })
+  })
+  // seed do save: no 1º páreo (contador 1) a Brasa sobe do nível 10 ao 11 e o sorteio da skill desse nível cai entre 8% e
+  // 11% (sem a insígnia de Grama não aprende; com ela, aprende), e ela chega num lugar pago com prêmio de 34 ou mais
+  // (o +3% de Ouro aparece). Conferido abaixo: se o pareamento mudar, o teste diz qual condição deixou de valer.
+  const GIN_SEED = 79
+  const ginBrasa = G.STARTERS.find((h) => h.id === 'brasa'), ginMare = G.STARTERS.find((h) => h.id === 'mare')
+  const ginCav = (tpl, o) => Object.assign({ uid: 'm1', templateId: tpl.id, name: tpl.name, especie: 'cavalo', element: tpl.element, rarity: tpl.rarity,
+    grau: tpl.grau || 2, sex: tpl.sex, level: 1, xp: 0, skills: tpl.skills.slice(), potential: JSON.parse(JSON.stringify(tpl.potential)),
+    palette: JSON.parse(JSON.stringify(tpl.palette)), breedLeft: 2, parents: null, born: 0, equip: {}, respecFree: false, torroes: 0,
+    alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } }, o)
+  // um save versão 8 completo (o:  campos trocados)
+  const ginSave = (o = {}) => Object.assign({
+    v: 8, rev: 5, gold: 5000, tier: 50, seedBase: GIN_SEED, raceCounter: 0, pending: null, races: 0, wins: 0, podiums: 0, goldWon: 0,
+    mounts: [ginCav(ginBrasa, { uid: 'm1', level: 10, xp: 295 }), ginCav(ginMare, { uid: 'm2', level: 4 })],
+    activeId: 'm1', nextUid: 3, stableSlots: 3, breedCounter: 0, items: [], nextItemUid: 1, pedras: 0, enhanceCounter: 0,
+    redeas: 0, avisoV6: false, mochila: { torrao: 0, estrela: 0, cupom: 0, manual: 0 }, diaria: { prox: 0, ciclos: 0, ultimo: null },
+    lojaItens: { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null }, itemCounter: 0,
+    ginasios: JSON.parse(JSON.stringify(GIN_ZERO)), gymCounter: 0,
+    settings: { motion: 'sistema' }, joquei: { padrao: G.JOQUEI.padrao, capacete: G.JOQUEI.capacete }
+  }, o)
+  // o applyXp do jogo, no node: XP somado, níveis e a skill sorteada por nível (seedTag: o nº do páreo)
+  const ginApplyXp = (m0, ganho, seedBase, seedTag, bonusSkill) => {
+    const m = JSON.parse(JSON.stringify(m0)), learned = []
+    let levels = 0
+    m.xp += ganho
+    while (m.level < 50 && m.xp >= G.ECONOMY.xpToLevel(m.level)) { m.xp -= G.ECONOMY.xpToLevel(m.level); m.level += 1; levels += 1 }
+    for (let k = 1; k <= levels; k++) {
+      const rng = S.mulberry32(S.hash2(seedBase, seedTag * 100 + (m.level - levels + k)))
+      const sid = S.learnSkill({ id: m.templateId, element: m.element, rarity: m.rarity, skills: m.skills }, rng, bonusSkill)
+      if (sid) { m.skills.push(sid); learned.push(sid) }
+    }
+    return { m, levels, learned }
+  }
+  const ginIgual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+  if (quer('ginasio')) {
+    const VP = { width: 360, height: 780 }
+    // 1. save novo (jogo real e build de teste): versão 8, ginásios zerados, contador 0, na memória e no disco
+    for (const [label, pagina, chave] of [['ginasio-novo', 'preview.html', GIN_REAL], ['ginasio-novo-dev', 'jogo-dev.html', GIN_DEV]]) {
+      const pg = await ginAbre(label, { pagina, chave, espera: pagina === 'preview.html' ? '.inicial' : '#t-estabulo' })
+      try {
+        if (pagina === 'preview.html') {
+          await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+          await pg.waitForSelector('#t-estabulo')
+        }
+        const disco = JSON.parse(await ginDisco(pg, chave))
+        for (const [onde, s] of [['memória', await ginEstado(pg)], ['disco', disco]]) {
+          if (s.v !== 8 || !ginIgual(s.ginasios, GIN_ZERO) || s.gymCounter !== 0) problems.push(`${label} (${onde}): ` + JSON.stringify({ v: s.v, ginasios: s.ginasios, gymCounter: s.gymCounter }))
+        }
+        if (!ginIgual(await ginBonus(pg), { ouro: 0, xp: 0, skill: 0 })) problems.push(`${label}: bônus sem insígnia ` + JSON.stringify(await ginBonus(pg)))
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 2. migração da versão 7 com sala aberta (Review Focus 5): ginásios zerados (o que um save v7 tiver nesses campos não
+    //    é lido), o resto igual ao do mesmo save já na versão 8, a sala idêntica (pending, rivais, seed e a corrida), na
+    //    memória e no disco, e de novo depois de recarregar
+    {
+      const label = 'ginasio-migracao'
+      const pend = { counter: 3, training: false, fee: 50, pr: 600, gear: [], alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } }
+      const s8 = ginSave({ raceCounter: 3, pending: pend })
+      const s7 = Object.assign(JSON.parse(JSON.stringify(s8)), { v: 7, ginasios: { fogo: { etapa: 5, revDia: 1, revVitorias: 4 } }, gymCounter: 9 })
+      const ref = await ginAbre(label + '-ref', { save: s8, chave: GIN_REAL, pagina: 'preview.html' })
+      const pg = await ginAbre(label, { save: s7, chave: GIN_REAL, pagina: 'preview.html' })
+      try {
+        const semRev = (s) => { const c = JSON.parse(JSON.stringify(s)); delete c.rev; return c }
+        const eRef = await ginEstado(ref), simRef = await ginSimSala(ref)
+        const e7 = await ginEstado(pg), d7 = JSON.parse(await ginDisco(pg, GIN_REAL))
+        for (const [onde, s] of [['memória', e7], ['disco', d7]]) {
+          if (s.v !== 8 || !ginIgual(s.ginasios, GIN_ZERO) || s.gymCounter !== 0) problems.push(`${label} (${onde}): ginásios da v7 não zerados ` + JSON.stringify({ v: s.v, ginasios: s.ginasios, gymCounter: s.gymCounter }))
+          if (!ginIgual(semRev(s), semRev(eRef))) problems.push(`${label} (${onde}): o save migrado difere do mesmo save na versão 8 ` + JSON.stringify(semRev(s)).slice(0, 400))
+          if (!s.pending || s.pending.counter !== 3 || s.pending.fee !== 50 || s.pending.training !== false || !ginIgual(s.pending, eRef.pending)) problems.push(`${label} (${onde}): sala aberta ` + JSON.stringify(s.pending))
+        }
+        if (!(d7.rev > s7.rev)) problems.push(`${label}: o save migrado não foi gravado ao abrir (rev ${d7.rev})`)
+        if ((await ginSimSala(pg)) !== simRef) problems.push(`${label}: a corrida da sala aberta mudou com a migração`)
+        if (JSON.parse(simRef).seed !== (S.hash2(GIN_SEED, 3) >>> 0)) problems.push(`${label}: seed da sala ${JSON.parse(simRef).seed}`)
+        const salaRef = await abrirSala(ref), sala7 = await abrirSala(pg)
+        for (const c of ['seed', 'counter', 'fee', 'training', 'track', 'blocks', 'weather', 'rivais', 'gold']) if (salaRef[c] !== sala7[c]) problems.push(`${label}: a sala mudou (${c}: ${salaRef[c]} -> ${sala7[c]})`)
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        const r = await ginEstado(pg)
+        if (!ginIgual(semRev(r), semRev(e7)) || (await ginSimSala(pg)) !== simRef) problems.push(`${label}: recarregar o save migrado mudou o save ou a sala`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+        await ref.context().close()
+      }
+    }
+
+    // 3. lixo em cada campo (save v8): o progresso volta ao coerente (Ginasio.sanear), a insígnia só existe com as cinco
+    //    etapas (não há campo de insígnia), o contador volta a 0; dia da revanche estragado vale hoje e é gravado
+    //    consertado ao abrir (Ruling 3); um save bom não é regravado
+    {
+      const label = 'ginasio-lixo'
+      const casos = [
+        [7, -1], ['x', 'x'], [[1], 2.5], [null, null], [{}, 1e12],
+        [{ fogo: 'x', agua: 5, grama: null }, -0.5],
+        [{ fogo: { etapa: 6 }, agua: { etapa: -1, revDia: null }, grama: { etapa: 2.5, revDia: null } }, '3'],
+        [{ fogo: { etapa: '5', revDia: null }, agua: { etapa: 5, revDia: 'x', revVitorias: -1 }, grama: { etapa: 4, insignia: true, revDia: null, revVitorias: 1.5 } }, { n: 1 }],
+        [{ fogo: { etapa: 5, revDia: -3, revVitorias: 2 }, agua: { etapa: 5, revDia: 1e9 }, grama: { etapa: 5, revDia: null, revVitorias: 2 } }, 7]
+      ]
+      const pg = await ginAbre(label, { save: ginSave(), chave: GIN_REAL, pagina: 'preview.html' })
+      try {
+        const hoje = await ginHoje(pg)
+        let rev = 100
+        for (const [gin, cont] of casos) {
+          rev += 10
+          const raw = JSON.stringify(ginSave({ rev, ginasios: gin, gymCounter: cont }))
+          await pg.evaluate(([k, r]) => localStorage.setItem(k, r), [GIN_REAL, raw])
+          await pg.reload({ waitUntil: 'domcontentloaded' })
+          await pg.waitForSelector('#t-estabulo')
+          await sleep(200)
+          const s = await ginEstado(pg), disco = await ginDisco(pg, GIN_REAL), esperado = GN.sanear(gin, hoje)
+          const caso = JSON.stringify(gin) + ' / ' + JSON.stringify(cont)
+          if (!ginIgual(s.ginasios, esperado)) problems.push(`${label}: ${caso} virou ${JSON.stringify(s.ginasios)} (esperado ${JSON.stringify(esperado)})`)
+          const esperadoCont = typeof cont === 'number' && cont === Math.floor(cont) && cont >= 0 && cont <= 1e9 ? cont : 0
+          if (s.gymCounter !== esperadoCont) problems.push(`${label}: gymCounter ${JSON.stringify(cont)} virou ${s.gymCounter}`)
+          for (const id of G.GYM_ORDER) {
+            const e = s.ginasios[id]
+            if (!e || Object.keys(e).sort().join() !== 'etapa,revDia,revVitorias' || !(Number.isInteger(e.etapa) && e.etapa >= 0 && e.etapa <= 5)) problems.push(`${label}: ${caso}: ${id} incoerente ${JSON.stringify(e)}`)
+          }
+          if (!ginIgual(await ginBonus(pg), GN.bonus(esperado))) problems.push(`${label}: ${caso}: bônus ${JSON.stringify(await ginBonus(pg))}`)
+          // o dia da revanche foi consertado (estava estragado: vale hoje)? então o disco já tem o consertado; senão, nada
+          // de dia mudou e, se o resto estava bom, o disco fica byte a byte igual
+          const b = gin && typeof gin === 'object' && !Array.isArray(gin) ? gin : null
+          const diaConsertado = !!b && G.GYM_ORDER.some((id) => id in b && b[id] !== undefined &&
+            (!(b[id] && typeof b[id] === 'object' && !Array.isArray(b[id])) || b[id].revDia !== esperado[id].revDia))
+          if (diaConsertado) {
+            const d = JSON.parse(disco)
+            if (!ginIgual(G.GYM_ORDER.map((id) => d.ginasios && d.ginasios[id] && d.ginasios[id].revDia), G.GYM_ORDER.map((id) => esperado[id].revDia)) || !(d.rev > rev)) problems.push(`${label}: ${caso}: o dia consertado não foi gravado ao abrir ` + JSON.stringify({ ginasios: d.ginasios, rev: d.rev }))
+          }
+        }
+        // casos fixados à mão (não só "o mesmo que o módulo"): etapa fora da faixa vale 0; insígnia sem as cinco etapas não
+        // existe; dia estragado vale hoje; dia bom e null ficam
+        const fix = GN.sanear(casos[7][0], hoje), fix2 = GN.sanear(casos[8][0], hoje)
+        if (fix.fogo.etapa !== 0 || fix.agua.etapa !== 5 || fix.agua.revDia !== hoje || fix.agua.revVitorias !== 0 || fix.grama.etapa !== 4 || 'insignia' in fix.grama) problems.push(`${label}: casos fixos ` + JSON.stringify(fix))
+        if (!ginIgual(GN.bonus(fix), { ouro: 0, xp: 0.03, skill: 0 }) || !ginIgual(GN.bonus(fix2), { ouro: 0.03, xp: 0.03, skill: 0.03 }) || fix2.fogo.revDia !== hoje || fix2.agua.revDia !== hoje || fix2.grama.revDia !== null) problems.push(`${label}: casos fixos (bônus) ` + JSON.stringify(fix2))
+        // um save v8 bom (dia da revanche válido e null) não é regravado ao abrir
+        const bom = JSON.stringify(ginSave({ rev: 500, gymCounter: 4, ginasios: { fogo: { etapa: 5, revDia: hoje - 1, revVitorias: 3 }, agua: { etapa: 2, revDia: null, revVitorias: 0 }, grama: { etapa: 0, revDia: null, revVitorias: 0 } } }))
+        await pg.evaluate(([k, r]) => localStorage.setItem(k, r), [GIN_REAL, bom])
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        await sleep(300)
+        if ((await ginDisco(pg, GIN_REAL)) !== bom) problems.push(`${label}: um save v8 sem nada para consertar foi regravado ao abrir`)
+        const sb = await ginEstado(pg)
+        if (!ginIgual(sb.ginasios, JSON.parse(bom).ginasios) || sb.gymCounter !== 4) problems.push(`${label}: save bom mudou na memória ` + JSON.stringify({ ginasios: sb.ginasios, gymCounter: sb.gymCounter }))
+        // e o consertado, aberto de novo, também não é regravado (o conserto acontece uma vez)
+        const estragado = JSON.stringify(ginSave({ rev: 600, ginasios: { fogo: { etapa: 5, revDia: 'x', revVitorias: 0 } } }))
+        await pg.evaluate(([k, r]) => localStorage.setItem(k, r), [GIN_REAL, estragado])
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        const consertado = await ginDisco(pg, GIN_REAL)
+        if (JSON.parse(consertado).ginasios.fogo.revDia !== hoje) problems.push(`${label}: dia "x" não foi gravado como hoje ` + consertado.slice(0, 200))
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        await sleep(300)
+        if ((await ginDisco(pg, GIN_REAL)) !== consertado) problems.push(`${label}: o save consertado foi regravado de novo ao abrir`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 4. save de versão 9 (também "9" em texto): tela de bloqueio, e a chave fica byte a byte igual (real e de teste)
+    for (const [label, pagina, chave, raw] of [['ginasio-v9', 'preview.html', GIN_REAL, JSON.stringify(ginSave({ v: 9, coisaNova: 1 }))],
+      ['ginasio-v9-dev', 'jogo-dev.html', GIN_DEV, JSON.stringify(ginSave({ v: 9 }))], ['ginasio-v9-texto', 'preview.html', GIN_REAL, JSON.stringify(ginSave({ v: '9' }))]]) {
+      const pg = await ginAbre(label, { save: raw, chave, pagina, espera: '#t-bloqueio' })
+      try {
+        if (await pg.locator('#t-estabulo, .app-abas, .dev-botao').count()) problems.push(`${label}: a tela de bloqueio mostra o jogo`)
+        await sleep(1000)
+        if ((await ginDisco(pg, chave)) !== raw) problems.push(`${label}: a chave mudou`)
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-bloqueio', { timeout: 5000 })
+        await sleep(300)
+        if ((await ginDisco(pg, chave)) !== raw) problems.push(`${label}: a chave mudou depois de recarregar`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 5. gaveta DEV "Ginásios": a etapa de cada trilha (5 dá a insígnia), liberar a revanche, zerar; cada um grava no save de
+    //    teste (o save real não é tocado)
+    {
+      const label = 'ginasio-dev'
+      const pg = await ginAbre(label, { save: ginSave(), chave: GIN_DEV })
+      try {
+        await devAbrir(pg)
+        const grupo = (await pg.locator('#dev-g-ginasios').textContent().catch(() => '')) || ''
+        if (!/Ginásios/.test(grupo)) problems.push(`${label}: sem o grupo "Ginásios" na gaveta`)
+        for (const id of G.GYM_ORDER) {
+          const opts = await pg.locator(`#dev-gin-${id} option`).evaluateAll((os) => os.map((o) => o.value))
+          if (opts.join() !== '0,1,2,3,4,5') problems.push(`${label}: as etapas de ${id} na gaveta são ${opts.join()}`)
+        }
+        await devFechar(pg)
+        await ginDevEtapas(pg, { fogo: 5, agua: 3, grama: 0 })
+        let s = await ginEstado(pg), d = JSON.parse(await ginDisco(pg))
+        for (const [onde, x] of [['memória', s], ['disco', d]]) {
+          if (x.ginasios.fogo.etapa !== 5 || x.ginasios.agua.etapa !== 3 || x.ginasios.grama.etapa !== 0) problems.push(`${label} (${onde}): etapas ` + JSON.stringify(x.ginasios))
+        }
+        if (!ginIgual(await ginBonus(pg), { ouro: 0.03, xp: 0, skill: 0 })) problems.push(`${label}: bônus com a insígnia de Fogo ` + JSON.stringify(await ginBonus(pg)))
+        // dar e tirar insígnia
+        await ginDevEtapas(pg, { fogo: 4, agua: 5, grama: 5 })
+        if (!ginIgual(await ginBonus(pg), { ouro: 0, xp: 0.03, skill: 0.03 })) problems.push(`${label}: tirar a de Fogo e dar as outras ` + JSON.stringify(await ginBonus(pg)))
+        // liberar a revanche: o dia da última revanche dos três volta a null; nada mais muda
+        await pg.evaluate(() => { const g = window.__galope.state.ginasios; g.fogo.revDia = 3; g.agua.revDia = 4; g.grama.revDia = 5; g.grama.revVitorias = 2 })
+        await ginDevAcao(pg, 'revanche')
+        s = await ginEstado(pg); d = JSON.parse(await ginDisco(pg))
+        for (const [onde, x] of [['memória', s], ['disco', d]]) {
+          if (G.GYM_ORDER.some((id) => x.ginasios[id].revDia !== null) || x.ginasios.grama.revVitorias !== 2 || x.ginasios.agua.etapa !== 5 || x.ginasios.fogo.etapa !== 4) problems.push(`${label} (${onde}): liberar a revanche ` + JSON.stringify(x.ginasios))
+        }
+        // zerar: os três ginásios voltam ao começo
+        await pg.evaluate(() => { window.__galope.state.ginasios.fogo.revDia = 9 })
+        await ginDevAcao(pg, 'zerar')
+        s = await ginEstado(pg); d = JSON.parse(await ginDisco(pg))
+        for (const [onde, x] of [['memória', s], ['disco', d]]) if (!ginIgual(x.ginasios, GIN_ZERO)) problems.push(`${label} (${onde}): zerar ` + JSON.stringify(x.ginasios))
+        if (!ginIgual(await ginBonus(pg), { ouro: 0, xp: 0, skill: 0 })) problems.push(`${label}: bônus depois de zerar ` + JSON.stringify(await ginBonus(pg)))
+        // recarregar mantém o que a gaveta gravou
+        await ginDevEtapas(pg, { grama: 5 })
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        if ((await ginEstado(pg)).ginasios.grama.etapa !== 5) problems.push(`${label}: recarregar perdeu a etapa dada pela gaveta`)
+        if ((await ginDisco(pg, GIN_REAL)) !== null) problems.push(`${label}: o modo DEV gravou o save real`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 6. os bônus numa corrida (build de teste, o mesmo save e a mesma sala em todos): o prêmio da corrida valendo sobe 3%
+    //    para baixo com a de Fogo; o XP 3% arredondado com a de Água (também no treino, que não ganha o Ouro); a chance de
+    //    skill por nível usa o bônus com a de Grama (comparado com RaceSim.learnSkill aqui no node); sem insígnia tudo é o
+    //    de hoje; a ordem de chegada, os tempos e os eventos são idênticos em todos. 'sala-aberta': as três insígnias vêm
+    //    pela gaveta com a sala já aberta: a sala e a corrida dela não mudam; o bônus só aparece no acerto.
+    const corridas = {}
+    for (const [nome, etapas, treino, antesDaSala] of [['nenhuma', {}, false, true], ['fogo', { fogo: 5 }, false, true], ['agua', { agua: 5 }, false, true],
+      ['grama', { grama: 5 }, false, true], ['sala-aberta', { fogo: 5, agua: 5, grama: 5 }, false, false], ['treino', { fogo: 5, agua: 5, grama: 5 }, true, true]]) {
+      const label = 'ginasio-bonus-' + nome
+      const pg = await ginAbre(label, { save: ginSave(treino ? { gold: 30 } : {}), chave: GIN_DEV })
+      try {
+        await ginOuroInf(pg, false)
+        if (antesDaSala && Object.keys(etapas).length) await ginDevEtapas(pg, etapas)
+        await pg.locator('[data-acao="aba"][data-id="correr"]').click()
+        await pg.waitForSelector('#t-correr')
+        await pg.locator(treino ? '[data-acao="treino"]' : '[data-acao="procurar"]').click()
+        await pg.waitForSelector('#t-largada')
+        const sim0 = await ginSimSala(pg), pend0 = JSON.stringify((await ginEstado(pg)).pending), sala0 = await salaAtual(pg)
+        if (!antesDaSala) {
+          await ginDevEtapas(pg, etapas)
+          const pend1 = JSON.stringify((await ginEstado(pg)).pending), disco1 = JSON.stringify(JSON.parse(await ginDisco(pg)).pending), sala1 = await salaAtual(pg)
+          if (pend1 !== pend0 || disco1 !== pend0) problems.push(`${label}: a insígnia com a sala aberta mudou state.pending ` + JSON.stringify({ antes: pend0, depois: pend1, disco: disco1 }))
+          if ((await ginSimSala(pg)) !== sim0) problems.push(`${label}: a insígnia com a sala aberta mudou a corrida simulada da sala`)
+          for (const c of ['seed', 'counter', 'fee', 'training', 'track', 'blocks', 'weather', 'rivais', 'gold']) if (sala0[c] !== sala1[c]) problems.push(`${label}: a sala mudou (${c}: ${sala0[c]} -> ${sala1[c]})`)
+        }
+        const antes = await ginEstado(pg)
+        const bonus = await ginBonus(pg)
+        const L = await pg.evaluate(() => { const L = window.__galope.ui.lobby; return { playerIdx: L.playerIdx, n: L.n, fee: L.fee, training: L.training } })
+        await pg.getByRole('button', { name: /^Largar/ }).click()
+        await pg.waitForSelector('#pista')
+        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pg.waitForSelector('#t-resultado')
+        const R = await pg.evaluate(() => {
+          const g = window.__galope, L = g.ui.lobby, r = g.ui.result
+          return { sim: JSON.stringify({ seed: L.seed, ordem: L.sim.finishOrder, tempos: L.sim.finishTimes, eventos: L.sim.events }), prize: r.prize, xpGain: r.xpGain, learned: r.learned, levels: r.levels, place: r.place }
+        })
+        const depois = await ginEstado(pg), disco = JSON.parse(await ginDisco(pg))
+        const balanco = (await pg.locator('.balanco').textContent()) || '', voce = (await pg.locator('tr.voce').first().textContent()) || ''
+        corridas[nome] = R.sim
+        if (R.sim !== sim0) problems.push(`${label}: a corrida corrida difere da simulada da sala (a insígnia entrou na simulação?)`)
+        // o esperado, aqui no node, com as fórmulas de hoje mais o bônus
+        const ordem = JSON.parse(R.sim).ordem, lugar = ordem.indexOf(L.playerIdx) + 1
+        const b = { ouro: etapas.fogo === 5 ? 0.03 : 0, xp: etapas.agua === 5 ? 0.03 : 0, skill: etapas.grama === 5 ? 0.03 : 0 }
+        if (!ginIgual(bonus, b)) problems.push(`${label}: bonusConta ${JSON.stringify(bonus)} (esperado ${JSON.stringify(b)})`)
+        const TREINO_OURO = [30, 22, 16, 12, 10, 10, 10, 10]
+        let base
+        if (treino) base = TREINO_OURO[lugar - 1] || 10
+        else { const mine = S.payouts(L.fee, L.n, ordem).prizes.find((p) => p.racer === L.playerIdx); base = mine ? mine.amount : 0 }
+        const premio = treino ? base : base + Math.floor(base * b.ouro + 1e-9)
+        const xpBase = G.ECONOMY.xpPerPlace[lugar - 1] || G.ECONOMY.xpPerPlace[G.ECONOMY.xpPerPlace.length - 1]
+        const xp0 = treino ? Math.round(xpBase / 2) : xpBase
+        const xp = xp0 + Math.round(xp0 * b.xp)
+        const ap = ginApplyXp(antes.mounts[0], xp, GIN_SEED, antes.raceCounter, b.skill)
+        notes[label] = { lugar, base, premio, xp0, xp, aprendeu: ap.learned, nivel: ap.m.level }
+        if (R.place !== lugar || R.prize !== premio) problems.push(`${label}: prêmio ${R.prize} no ${R.place}º (esperado ${premio} no ${lugar}º; base ${base})`)
+        if (depois.gold !== antes.gold - L.fee + premio || depois.goldWon !== antes.goldWon + (treino ? 0 : premio) || disco.gold !== depois.gold) problems.push(`${label}: Ouro ${JSON.stringify({ antes: antes.gold, depois: depois.gold, disco: disco.gold, goldWon: depois.goldWon, premio })}`)
+        if (R.xpGain !== xp) problems.push(`${label}: XP ${R.xpGain} (esperado ${xp}; base ${xp0})`)
+        const m1 = depois.mounts[0]
+        if (m1.level !== ap.m.level || m1.xp !== ap.m.xp || !ginIgual(m1.skills, ap.m.skills) || !ginIgual(R.learned, ap.learned) || R.levels !== ap.levels) problems.push(`${label}: cavalo ${JSON.stringify({ level: m1.level, xp: m1.xp, skills: m1.skills, learned: R.learned })} (esperado ${JSON.stringify({ level: ap.m.level, xp: ap.m.xp, skills: ap.m.skills, learned: ap.learned })})`)
+        if (!ginIgual(disco.mounts[0].skills, m1.skills) || disco.mounts[0].xp !== m1.xp) problems.push(`${label}: o cavalo do disco difere do da memória`)
+        // o que torna cada bônus visível com este save (se o pareamento mudar, diz qual condição caiu)
+        if (ap.levels !== 1) problems.push(`${label}: o teste precisa de exatamente 1 nível no páreo (subiu ${ap.levels})`)
+        if (!treino && !(base >= 34)) problems.push(`${label}: o teste precisa de um prêmio base de 34 ou mais (veio ${base} no ${lugar}º); troque GIN_SEED`)
+        if (nome === 'nenhuma' && ap.learned.length !== 0) problems.push(`${label}: sem insígnia a skill do nível 11 não deveria sair com GIN_SEED`)
+        if (nome === 'grama' && ap.learned.length !== 1) problems.push(`${label}: com a insígnia de Grama a skill do nível 11 deveria sair com GIN_SEED`)
+        // o resultado mostra o prêmio pago (no balanço e na linha do jogador)
+        if (premio && (!balanco.includes('+' + premio) || !voce.includes(String(premio)))) problems.push(`${label}: o resultado não mostra o prêmio pago ${premio}: ${JSON.stringify({ balanco, voce })}`)
+        if (!balanco.includes('+' + premio) && treino) problems.push(`${label}: o treino não mostra o Ouro ${premio}`)
+        if (!((await pg.locator('#tela').textContent()) || '').includes('+' + xp + ' XP')) problems.push(`${label}: o resultado não mostra +${xp} XP`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // a mesma corrida (valendo) com e sem cada insígnia: ordem, tempos e eventos idênticos
+    for (const nome of ['fogo', 'agua', 'grama', 'sala-aberta']) if (corridas[nome] && corridas.nenhuma && corridas[nome] !== corridas.nenhuma) problems.push(`ginasio-bonus: a corrida com "${nome}" difere da sem insígnia`)
   }
 
   // ---------------- corrida redimensionada: continua cabendo na altura da janela ----------------
@@ -7883,7 +8247,7 @@ try {
         const s = await estado(pg), d = await disco(pg)
         for (const [onde, x] of [['memória', s], ['disco', d]]) {
           const erro = (t) => problems.push(`${label} (${onde}): ${t}`)
-          if (x.v !== 7) erro('versão ' + x.v)
+          if (x.v !== 8) erro('versão ' + x.v)
           if (x.redeas !== 0) erro('redeas ' + x.redeas)
           if (x.avisoV6 !== false) erro('avisoV6 ' + x.avisoV6 + ' depois de mostrar o aviso')
           for (const m of x.mounts) {
@@ -7976,7 +8340,7 @@ try {
         await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
         await pg.waitForSelector('#t-estabulo')
         let s = await estado(pg)
-        if (s.v !== 7 || s.redeas !== 0 || s.avisoV6 !== false || s.mounts[0].respecFree !== true || !igual(s.mounts[0].alloc, ZERO)) problems.push(`${label}: jogo novo ` + JSON.stringify({ v: s.v, redeas: s.redeas, avisoV6: s.avisoV6, m1: s.mounts[0] }))
+        if (s.v !== 8 || s.redeas !== 0 || s.avisoV6 !== false || s.mounts[0].respecFree !== true || !igual(s.mounts[0].alloc, ZERO)) problems.push(`${label}: jogo novo ` + JSON.stringify({ v: s.v, redeas: s.redeas, avisoV6: s.avisoV6, m1: s.mounts[0] }))
         if ((await avisos(pg)).includes(AVISO_V6)) problems.push(`${label}: o jogo novo mostrou o aviso da migração`)
         // abrir a sala (pareamento): a 1ª monta a memória do Poder dos bots; as seguintes ficam bem abaixo de 15 ms
         const t = await pg.evaluate(() => {
@@ -8705,7 +9069,7 @@ try {
     const s = window.__galope.state
     return {
       ok: s.mounts.length === 1 && s.mounts[0].templateId === 'mare' && JSON.stringify(s.mounts[0].skills) === '[]' && s.activeId === 'm1' && s.gold === 777 && s.level === undefined &&
-        s.v === 7 && !('base' in s.mounts[0]) && s.items.length === 1 && s.items[0].id === 'sela-comum' && s.mounts[0].equip.sela === null && s.pedras === 0 &&
+        s.v === 8 && !('base' in s.mounts[0]) && s.items.length === 1 && s.items[0].id === 'sela-comum' && s.mounts[0].equip.sela === null && s.pedras === 0 &&
         s.inventory === undefined && s.equipped === undefined,
       tactic: s.tactic, save: JSON.stringify(s)
     }
@@ -8772,7 +9136,7 @@ try {
   {
     const s = await openSave('save-v3-completo', V3_FULL)
     const arm = s.items.filter((it) => it.id === 'armadura-magico')[0]
-    const ok = s.v === 7 && s.items.length === 9 && s.pedras === 3 && arm && s.mounts[0].equip.armadura === arm.uid &&
+    const ok = s.v === 8 && s.items.length === 9 && s.pedras === 3 && arm && s.mounts[0].equip.armadura === arm.uid &&
       s.gold === 999 && s.nextItemUid === 10 && s.inventory === undefined && s.equipped === undefined
     if (!ok) problems.push('save v3 completo não migrou os itens: ' + JSON.stringify({ items: s.items, equip: s.mounts[0] && s.mounts[0].equip, pedras: s.pedras, gold: s.gold, nextItemUid: s.nextItemUid }))
   }
