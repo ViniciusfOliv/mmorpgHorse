@@ -2382,9 +2382,10 @@
         (feito || atual ? '<span class="diaria-dia-marca">' + (feito ? 'Resgatado' : 'Hoje') + '</span>' : '') + '</li>';
     }).join('') + '</ol>';
   }
-  // Grande com prêmio para resgatar (o título; o dia "N / 7" sobre o prêmio, ao lado do Resgatar; o "Ver os 7 dias"); depois do resgate, uma linha
-  // com o prêmio de amanhã (com o relógio para trás, só "volte amanhã"). A mochila cheia daquele item apaga o botão e o
-  // cartão diz por quê. O leitor de tela lê o título, o dia e o prêmio num texto só (o h2).
+  // Grande com prêmio para resgatar: o título; o dia "N / 7" e o prêmio na largura inteira (o do 7º dia pode ocupar duas
+  // linhas); o "Ver os 7 dias" e o Resgatar na mesma linha. Depois do resgate, uma linha com o prêmio de amanhã (com o relógio
+  // para trás, só "volte amanhã"). A mochila cheia daquele item apaga o botão e o cartão diz por quê. O leitor de tela lê o
+  // título, o dia e o prêmio num texto só (o h2).
   function diariaCartaoHtml() {
     var hoje = hojeDia(), e = IT.diariaEstado(state.diaria, hoje), n = GD.DAILY.dias.length;
     if (!e.pode) {
@@ -2395,12 +2396,12 @@
     var r = IT.resgatar(state.diaria, hoje, diariaCabe), motivo = r && r.cheia ? diariaCheiaTxt(r.cheia) : '', premio = premioTxt(e.premio);
     return '<section class="caixa diaria diaria--grande" aria-label="Recompensa do dia">' +
       '<h2 class="titulo">Recompensa do dia<span class="sr">' + esc(', dia ' + e.dia + ' de ' + n + ': ' + premio) + '</span></h2>' +
-      '<div class="diaria-premio"><span class="diaria-premio-txt" aria-hidden="true">' + Object.keys(e.premio.itens).map(itemIconeHtml).join('') +
-        '<span class="diaria-premio-col"><span class="diaria-num">' + e.dia + ' / ' + n + '</span><span>' + esc(premio) + '</span></span></span>' +
+      '<p class="diaria-premio" aria-hidden="true"><span class="diaria-num">' + e.dia + ' / ' + n + '</span> ' + esc(premio) + '</p>' +
+      (motivo ? '<p class="nota diaria-motivo">' + esc(motivo) + '</p>' : '') +
+      '<div class="diaria-acoes"><button type="button" class="btn btn--texto diaria-ver" data-acao="diaria-ver" aria-expanded="' + !!ui.diariaVer +
+        '" aria-controls="diaria-dias">Ver os 7 dias</button>' +
         '<button type="button" class="btn btn--ouro btn--pequeno" data-acao="diaria-resgatar"' + indisponivel(motivo) + '>Resgatar' +
           '<span class="sr"> ' + esc(premio) + '</span></button></div>' +
-      (motivo ? '<p class="nota diaria-motivo">' + esc(motivo) + '</p>' : '') +
-      '<button type="button" class="btn btn--texto diaria-ver" data-acao="diaria-ver" aria-expanded="' + !!ui.diariaVer + '" aria-controls="diaria-dias">Ver os 7 dias</button>' +
       (ui.diariaVer ? diariaDiasHtml(e) : '') + '</section>';
   }
 

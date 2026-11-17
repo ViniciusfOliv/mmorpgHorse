@@ -414,18 +414,16 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .item-linha--vazia .item-icone { opacity: 0.5; }
 .item-compra--usar { justify-content: flex-end; }   /* o "Usar" da Mochila, à direita */
 /* ---------- recompensa diária (spec de itens §7, §8, §13): o cartão no topo do Estábulo. Grande com prêmio para resgatar (o
-   título e o dia, o prêmio e o Resgatar, o "Ver os 7 dias" com os sete dias embaixo); depois do resgate, uma linha. Nada se
-   move (sem transição nem animação) ---------- */
+   título; o dia e o prêmio na largura inteira, em linhas de 24 px; o "Ver os 7 dias" e o Resgatar na mesma linha; os sete dias
+   embaixo); depois do resgate, uma linha. Alturas pares (grade de 2 px). Nada se move (sem transição nem animação) ---------- */
 .diaria { gap: 8px; padding-block: 10px; }
 .diaria--linha { padding-block: 8px; }
 .diaria-linha { margin: 0; font-size: var(--t-xs); line-height: 24px; color: var(--texto-2); }
-.diaria-premio-col { display: flex; flex-direction: column; min-width: 0; }
-.diaria-num { font-size: var(--t-xs); line-height: 20px; color: var(--ouro); white-space: nowrap; }
-.diaria-premio { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
-.diaria-premio-txt { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
-.diaria-premio-txt .item-icone { flex: none; align-self: center; }
-.diaria-premio .btn { margin-left: auto; }   /* sem espaço na linha, o botão desce para a direita */
-.diaria-ver { align-self: flex-start; min-height: 44px; padding-inline: 4px; }
+.diaria-premio { margin: 0; font-size: var(--t-m); font-weight: 700; line-height: 24px; overflow-wrap: anywhere; }
+.diaria-num { margin-right: 8px; font-size: var(--t-xs); color: var(--ouro); white-space: nowrap; vertical-align: top; }   /* no topo da linha de 24 px: a fonte menor não estica a linha */
+.diaria-acoes { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
+.diaria-acoes .btn--ouro { margin-left: auto; }   /* sem espaço na linha, o Resgatar desce para a direita */
+.diaria-ver { min-height: 44px; padding-inline: 4px; }
 .diaria-dias { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .diaria-dia {
   display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; column-gap: 8px; align-items: center;
@@ -11498,9 +11496,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         (feito || atual ? '<span class="diaria-dia-marca">' + (feito ? 'Resgatado' : 'Hoje') + '</span>' : '') + '</li>';
     }).join('') + '</ol>';
   }
-  // Grande com prêmio para resgatar (o título; o dia "N / 7" sobre o prêmio, ao lado do Resgatar; o "Ver os 7 dias"); depois do resgate, uma linha
-  // com o prêmio de amanhã (com o relógio para trás, só "volte amanhã"). A mochila cheia daquele item apaga o botão e o
-  // cartão diz por quê. O leitor de tela lê o título, o dia e o prêmio num texto só (o h2).
+  // Grande com prêmio para resgatar: o título; o dia "N / 7" e o prêmio na largura inteira (o do 7º dia pode ocupar duas
+  // linhas); o "Ver os 7 dias" e o Resgatar na mesma linha. Depois do resgate, uma linha com o prêmio de amanhã (com o relógio
+  // para trás, só "volte amanhã"). A mochila cheia daquele item apaga o botão e o cartão diz por quê. O leitor de tela lê o
+  // título, o dia e o prêmio num texto só (o h2).
   function diariaCartaoHtml() {
     var hoje = hojeDia(), e = IT.diariaEstado(state.diaria, hoje), n = GD.DAILY.dias.length;
     if (!e.pode) {
@@ -11511,12 +11510,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var r = IT.resgatar(state.diaria, hoje, diariaCabe), motivo = r && r.cheia ? diariaCheiaTxt(r.cheia) : '', premio = premioTxt(e.premio);
     return '<section class="caixa diaria diaria--grande" aria-label="Recompensa do dia">' +
       '<h2 class="titulo">Recompensa do dia<span class="sr">' + esc(', dia ' + e.dia + ' de ' + n + ': ' + premio) + '</span></h2>' +
-      '<div class="diaria-premio"><span class="diaria-premio-txt" aria-hidden="true">' + Object.keys(e.premio.itens).map(itemIconeHtml).join('') +
-        '<span class="diaria-premio-col"><span class="diaria-num">' + e.dia + ' / ' + n + '</span><span>' + esc(premio) + '</span></span></span>' +
+      '<p class="diaria-premio" aria-hidden="true"><span class="diaria-num">' + e.dia + ' / ' + n + '</span> ' + esc(premio) + '</p>' +
+      (motivo ? '<p class="nota diaria-motivo">' + esc(motivo) + '</p>' : '') +
+      '<div class="diaria-acoes"><button type="button" class="btn btn--texto diaria-ver" data-acao="diaria-ver" aria-expanded="' + !!ui.diariaVer +
+        '" aria-controls="diaria-dias">Ver os 7 dias</button>' +
         '<button type="button" class="btn btn--ouro btn--pequeno" data-acao="diaria-resgatar"' + indisponivel(motivo) + '>Resgatar' +
           '<span class="sr"> ' + esc(premio) + '</span></button></div>' +
-      (motivo ? '<p class="nota diaria-motivo">' + esc(motivo) + '</p>' : '') +
-      '<button type="button" class="btn btn--texto diaria-ver" data-acao="diaria-ver" aria-expanded="' + !!ui.diariaVer + '" aria-controls="diaria-dias">Ver os 7 dias</button>' +
       (ui.diariaVer ? diariaDiasHtml(e) : '') + '</section>';
   }
 

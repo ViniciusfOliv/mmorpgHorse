@@ -5886,30 +5886,46 @@ try {
   }
   // ---------------- altura do Estábulo com o cartão da recompensa diária (Tarefa 5 da frente de itens, spec de itens §8): 3 cavalos
   // ≤ 820 px com a diária resgatada e ≤ 890 com prêmio para resgatar; 6 cavalos ≤ 1.140 e ≤ 1.210; a lista de cavalos com a
-  // altura de antes do cartão nos dois estados (medida em 90c5a2f, antes da Tarefa 5, a 360x780: 412 px com 3 e 748 com 6) ----------------
+  // altura de antes do cartão nos dois estados (medida em 90c5a2f, antes da Tarefa 5, a 360x780: 412 px com 3 e 748 com 6).
+  // Ruling 16: o limite com prêmio vale em todo dia do calendário; mede o dia 1 (o save da v6 migrado), o 6 e o 7 (os prêmios
+  // de texto mais longo) e o 7 do 4º calendário (com a Estrela, o 28º resgate); a altura do cartão é par (grade de 2 px) ----------------
   if (quer('itens')) {
     const label = 'itens-diaria-altura'
     const LISTA_ANTES = { 3: 412, 6: 748 }
+    const v7 = (save, diaria) => Object.assign({}, save, { v: 7, mochila: { torrao: 0, estrela: 0, cupom: 0, manual: 0 }, diaria, itemCounter: 0,
+      lojaItens: { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null } })
+    // [nome, diária do save (null: o save da v6, que migra no dia 1), o dia "N / 7" esperado]
+    const DIAS = [['dia 1', null, 1], ['dia 6', { prox: 5, ciclos: 0, ultimo: null }, 6], ['dia 7', { prox: 6, ciclos: 0, ultimo: null }, 7],
+      ['dia 7 do 4º calendário', { prox: 6, ciclos: 3, ultimo: null }, 7]]
     for (const [n, save, comPremio, resgatada] of [[3, SAVE_3A, 890, 820], [6, SAVE_3B_6, 1210, 1140]]) {
-      const p = await newPage(browser, { width: 360, height: 780 }, `${label}-${n}`, comSave(save))
-      const mede = () => p.evaluate(() => ({ doc: document.documentElement.scrollHeight, lista: Math.round(document.querySelector('#tela .caixa[aria-label="Suas montarias"]').getBoundingClientRect().height),
-        grande: !!document.querySelector('#tela .diaria--grande'), linha: !!document.querySelector('#tela .diaria--linha') }))
-      try {
-        await p.waitForSelector('#t-estabulo')
-        const a = await mede()
-        if (!a.grande) problems.push(`${label} ${n} cavalos: o save da v6 não abriu com o cartão grande`)
-        if (a.doc > comPremio) problems.push(`${label} ${n} cavalos: com prêmio para resgatar, o Estábulo tem ${a.doc}px (limite ${comPremio})`)
-        if (a.lista !== LISTA_ANTES[n]) problems.push(`${label} ${n} cavalos: com o cartão grande, a lista tem ${a.lista}px (antes do cartão ${LISTA_ANTES[n]})`)
-        await p.locator('#tela [data-acao="diaria-resgatar"]').click()
-        const b = await mede()
-        if (!b.linha) problems.push(`${label} ${n} cavalos: depois do resgate, sem o cartão de uma linha`)
-        if (b.doc > resgatada) problems.push(`${label} ${n} cavalos: com a diária resgatada, o Estábulo tem ${b.doc}px (limite ${resgatada})`)
-        if (b.lista !== LISTA_ANTES[n]) problems.push(`${label} ${n} cavalos: com o cartão de uma linha, a lista tem ${b.lista}px (antes do cartão ${LISTA_ANTES[n]})`)
-        notes[`${label} ${n}`] = { comPremio: a, resgatada: b }
-      } catch (e) {
-        problems.push(`[${label} ${n}] ` + e.message)
-      } finally {
-        await p.context().close()
+      for (const [dia, diaria, k] of DIAS) {
+        const tag = `${n} cavalos, ${dia}`
+        const p = await newPage(browser, { width: 360, height: 780 }, `${label}-${n}`, comSave(diaria ? v7(save, diaria) : save))
+        const mede = () => p.evaluate(() => { const c = document.querySelector('#tela .diaria'); return { doc: document.documentElement.scrollHeight,
+          lista: Math.round(document.querySelector('#tela .caixa[aria-label="Suas montarias"]').getBoundingClientRect().height),
+          cartao: c ? c.getBoundingClientRect().height : null, txt: c ? c.textContent.replace(/\s+/g, ' ').trim() : '',
+          grande: !!document.querySelector('#tela .diaria--grande'), linha: !!document.querySelector('#tela .diaria--linha') } })
+        const par = (h) => h != null && Math.abs(h - 2 * Math.round(h / 2)) < 0.01
+        try {
+          await p.waitForSelector('#t-estabulo')
+          const a = await mede()
+          if (!a.grande || !a.txt.includes(`${k} / 7`)) problems.push(`${label} ${tag}: o save não abriu com o cartão grande do dia ${k}: "${a.txt}"`)
+          if (dia.includes('4º') && !a.txt.includes('Estrela de treino')) problems.push(`${label} ${tag}: o cartão do 28º resgate não mostra a Estrela: "${a.txt}"`)
+          if (a.doc > comPremio) problems.push(`${label} ${tag}: com prêmio para resgatar, o Estábulo tem ${a.doc}px (limite ${comPremio}; cartão ${a.cartao}px)`)
+          if (!par(a.cartao)) problems.push(`${label} ${tag}: o cartão grande tem ${a.cartao}px (altura ímpar, fora da grade de 2 px)`)
+          if (a.lista !== LISTA_ANTES[n]) problems.push(`${label} ${tag}: com o cartão grande, a lista tem ${a.lista}px (antes do cartão ${LISTA_ANTES[n]})`)
+          await p.locator('#tela [data-acao="diaria-resgatar"]').click()
+          const b = await mede()
+          if (!b.linha) problems.push(`${label} ${tag}: depois do resgate, sem o cartão de uma linha`)
+          if (b.doc > resgatada) problems.push(`${label} ${tag}: com a diária resgatada, o Estábulo tem ${b.doc}px (limite ${resgatada})`)
+          if (!par(b.cartao)) problems.push(`${label} ${tag}: o cartão de uma linha tem ${b.cartao}px (altura ímpar, fora da grade de 2 px)`)
+          if (b.lista !== LISTA_ANTES[n]) problems.push(`${label} ${tag}: com o cartão de uma linha, a lista tem ${b.lista}px (antes do cartão ${LISTA_ANTES[n]})`)
+          notes[`${label} ${tag}`] = { comPremio: { doc: a.doc, cartao: a.cartao }, resgatada: { doc: b.doc, cartao: b.cartao } }
+        } catch (e) {
+          problems.push(`[${label} ${tag}] ` + e.message)
+        } finally {
+          await p.context().close()
+        }
       }
     }
   }
