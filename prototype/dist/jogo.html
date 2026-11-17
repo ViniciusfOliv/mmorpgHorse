@@ -4569,7 +4569,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   vantagem de elemento corre com statMul = 1 + GYM.vantagem; o outro fica em 1. Clima inicial Nublado e a pista do
  *   ginásio; o Dado da Sorte é o de sempre.
  * METROS: (tPerdedor − tVencedor) × distância / tPerdedor, uma casa (quanto faltava ao perdedor quando o vencedor
- *   cruzou). Tempos iguais: 0. Perdedor sem tempo: a distância da pista (a maior faixa).
+ *   cruzou). Tempos iguais: 0. Qualquer tempo ausente (do perdedor, do vencedor ou dos dois): a distância da pista
+ *   (a maior faixa, folgada).
+ * ACERTO: só acerta o desafio que o podeDesafiar permitiria quanto à etapa e à revanche, e exige hoje inteiro sempre
+ *   (Ruling 7); senão devolve null (nada de Ouro, XP ou progresso). Ouro livre, mochila e tamanho do time são só do
+ *   podeDesafiar.
  */
 (function (root) {
   'use strict';
@@ -4580,7 +4584,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     ? require('./sim.js') : root.RaceSim;
 
   var SAL = 0x47490000;
-  var DUELOS_MAX = 8;          // passo do contador na seed (um desafio tem no máximo 5 duelos)
+  var PASSO_DUELO = 8;         // passo do contador na seed: cada desafio reserva 8 seeds (usa no máximo 5, um por duelo)
   var DIA_MAX = 2932896;       // o mesmo Itens.DIA_MAX (31/12/9999): o maior dia guardado
   // quem vence quem: Fogo > Grama > Água > Fogo
   var VENCE = { fogo: 'grama', grama: 'agua', agua: 'fogo' };
@@ -4620,8 +4624,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var d = res.conditions.distance;
     if (!(typeof d === 'number' && d > 0)) return 0;
     var tv = res.finishTimes[res.finishOrder[0]], tp = res.finishTimes[res.finishOrder[1]];
-    if (!(typeof tv === 'number' && isFinite(tv))) return 0;
-    if (!(typeof tp === 'number' && isFinite(tp) && tp > 0)) return d;
+    // tempo ausente (de qualquer um) conta como a maior faixa
+    if (!(typeof tv === 'number' && isFinite(tv)) || !(typeof tp === 'number' && isFinite(tp) && tp > 0)) return d;
     if (!(tp > tv)) return 0;
     return Math.round((tp - tv) * d / tp * 10) / 10;
   }
@@ -4662,7 +4666,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       var v = vantagem(time[i].element, adv[j].element);
       var folegoA = folegoDe(perdaA), folegoB = folegoDe(perdaB);
       var cfg = {
-        seed: S.hash2(e.seedBase, SAL + e.contador * DUELOS_MAX + d),
+        seed: S.hash2(e.seedBase, SAL + e.contador * PASSO_DUELO + d),
         recordFrames: false,
         conditions: copia(cond),
         racers: [
@@ -4746,11 +4750,14 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     }
     return true;
   }
-  // e = { gymId, etapa, revanche, progresso, resultado (do resolver), hoje (inteiro; obrigatório na revanche),
-  // timeLen (tamanho do time) } -> { ouro, itens: [ids], xp: [um por cavalo do time; 0 para quem não correu],
-  // progresso (os três ginásios, novo), insignia } | null (entrada malformada). Sem o bônus das insígnias (quem soma
-  // aplica). Fora da revanche: o prêmio só na 1ª vitória da etapa aberta (a etapa anda; a insígnia ao vencer a 4).
-  // Na revanche: revDia = hoje vencendo ou perdendo; na vitória, o prêmio do rodízio e revVitorias + 1.
+  // e = { gymId, etapa, revanche, progresso, resultado (do resolver), hoje (inteiro, sempre), timeLen (tamanho do
+  // time) } -> { ouro, itens: [ids], xp: [um por cavalo do time; 0 para quem não correu], progresso (os três
+  // ginásios, novo), insignia } | null. Sem o bônus das insígnias (quem soma aplica).
+  // null (Ruling 7): hoje não inteiro; gymId, etapa, timeLen ou resultado malformados; fora da revanche, etapa que não
+  // é a próxima não vencida (inclusive o líder já vencido); na revanche, sem o líder vencido, etapa que não é a 4 ou
+  // já tentou hoje (relógio para trás e dia estragado não liberam).
+  // Fora da revanche: na vitória, o prêmio da etapa (a etapa anda; a insígnia ao vencer a 4). Na revanche: revDia =
+  // hoje vencendo ou perdendo; na vitória, o prêmio do rodízio e revVitorias + 1.
   function acerto(e) {
     if (!objeto(e)) return null;
     var gym = gymDe(e.gymId);
@@ -4758,10 +4765,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var et = gym.etapas[e.etapa];
     if (!inteiro(e.timeLen) || e.timeLen < 1 || e.timeLen > et.cavalos.length) return null;
     if (!resultadoOk(e.resultado, et.cavalos.length, e.timeLen)) return null;
-    var revanche = e.revanche === true;
-    if (revanche && !inteiro(e.hoje)) return null;
+    if (!inteiro(e.hoje) || typeof e.revanche !== 'boolean') return null;
+    var revanche = e.revanche;
     var prog = sanear(e.progresso, e.hoje), p = prog[gym.id];
-    if (revanche && (p.etapa !== 5 || e.etapa !== 4)) return null;
+    if (revanche) {
+      if (p.etapa !== 5 || e.etapa !== 4 || !revancheLivre(p, e.hoje)) return null;
+    } else if (p.etapa !== e.etapa) return null;   // vencida, fechada ou o líder já vencido (p.etapa 5)
     var X = G.GYM.xp, xp = [];
     for (var k = 0; k < e.timeLen; k++) xp.push(0);
     e.resultado.duelos.forEach(function (d) { xp[d.a] += d.vencedor === 'jogador' ? X.vence : X.perde; });
@@ -4774,7 +4783,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         if (pr.item) itens.push(pr.item);
         p.revVitorias += 1;
       }
-    } else if (venceu && p.etapa === e.etapa) {
+    } else if (venceu) {
       ouro = et.premio.ouro;
       itens = et.premio.itens.slice();
       p.etapa += 1;
