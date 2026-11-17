@@ -10788,13 +10788,14 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     focoNaLinha('montaria', uid);
   }
   // rola a página na hora (sem animação) só o que precisar para el ficar inteiro entre o cabeçalho fixo (com a faixa DEV
-  // acima dele) e a barra de abas (a 900 px ou mais as abas são a coluna da esquerda: o limite é o fim da janela). Não mexe
-  // no foco; sem el, ou já inteiro, não rola.
+  // acima dele) e a barra de abas. A barra é a de baixo quando o topo dela está na metade de baixo da janela; senão é a
+  // coluna da esquerda (900 px ou mais) e o limite é o fim da janela. Decide pela posição, não pela largura: com a barra de
+  // rolagem clássica a barra de baixo fica mais estreita que a janela. Não mexe no foco; sem el, ou já inteiro, não rola.
   function mostraInteiro(el) {
     if (!el) return;
     var topoEl = document.querySelector('.app-topo'), abasEl = document.querySelector('.app-abas');
     var topo = topoEl ? topoEl.getBoundingClientRect().bottom : 0, base = window.innerHeight;
-    if (abasEl) { var ab = abasEl.getBoundingClientRect(); if (ab.width >= window.innerWidth) base = ab.top; }
+    if (abasEl) { var ab = abasEl.getBoundingClientRect(); if (ab.top > window.innerHeight / 2) base = ab.top; }
     var r = el.getBoundingClientRect(), dy = 0;
     if (r.bottom > base) dy = r.bottom - base;
     if (r.top - dy < topo) dy = r.top - topo;   // mais alto que o espaço: o topo dele fica à vista
@@ -11392,7 +11393,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // Detalhe da etapa (só leitura): os cavalos do adversário, a pista da casa, a entrada e o prêmio. A Tarefa 5 junta o
   // time e o "Desafiar" (etapaDetalheHtml monta a tela com as partes abaixo; cada parte é uma função).
   function etapaAdversarioHtml(e) {
-    return '<section class="caixa" aria-labelledby="t-adversario"><h2 class="titulo" id="t-adversario">Adversário<span class="nota">' + esc(ginCavalosTxt(e.cavalos.length)) + '</span></h2>' +
+    return '<section class="caixa" aria-labelledby="t-adversario"><h2 class="titulo" id="t-adversario">Adversário<span class="sr">, </span><span class="nota">' + esc(ginCavalosTxt(e.cavalos.length)) + '</span></h2>' +
       '<ol class="adv-cavalos">' + e.cavalos.map(function (c) {
         var h = GN.cavalo(c);
         return '<li class="adv-cavalo">' + portraitHtml(h, { tamanho: 'pequeno' }) +

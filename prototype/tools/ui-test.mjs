@@ -3179,11 +3179,12 @@ try {
     // fixo do catálogo), a pista da casa numa frase, a entrada e o prêmio com os nomes dos itens; nenhum botão sem ação
     const ginConfereDetalhe = async (label, pg, id, i) => {
       const g = G.GYMS[id], def = g.etapas[i]
-      const d = await pg.evaluate(() => ({ titulo: (document.getElementById('t-etapa') || {}).textContent || null, txt: document.getElementById('tela').textContent.replace(/\s+/g, ' '),
+      const d = await pg.evaluate(() => ({ titulo: (document.getElementById('t-etapa') || {}).textContent || null, adv: (document.getElementById('t-adversario') || {}).textContent || null, txt: document.getElementById('tela').textContent.replace(/\s+/g, ' '),
         cavalos: [...document.querySelectorAll('#tela .adv-cavalo')].map((c) => ({ txt: c.textContent.replace(/\s+/g, ' '), retrato: !!c.querySelector('canvas.retrato'),
           estrelas: (c.querySelector('.estrelas') || { getAttribute: () => null }).getAttribute('aria-label') })),
         botoes: [...document.querySelectorAll('#tela button')].map((b) => b.getAttribute('data-acao')) }))
       if (!d.titulo || !d.titulo.includes(def.nome)) problems.push(`${label}: detalhe sem o nome ${def.nome} (${d.titulo})`)
+      if (d.adv !== 'Adversário, ' + ginCavTxt(def.cavalos.length)) problems.push(`${label}: o título dos cavalos do adversário é lido como "${d.adv}"`)
       if (d.cavalos.length !== def.cavalos.length) problems.push(`${label}: detalhe com ${d.cavalos.length} cavalos (esperado ${def.cavalos.length})`)
       def.cavalos.forEach((c, k) => {
         const h = GN.cavalo(c), x = d.cavalos[k]
@@ -3351,14 +3352,20 @@ try {
     // 8b. Ruling 17: ao abrir a trilha pelo cartão, a etapa próxima aparece inteira entre a barra do topo (ou a faixa fixa em
     //     cima) e a barra de abas, rolando na hora o mínimo; com a insígnia (sem etapa próxima) a trilha fica no topo; o foco
     //     continua no título. A 1280×800 o caso real é medido antes (cabe sem rolar ou não) e a asserção é a desse caso.
+    // a área visível medida pelo que as barras fixas cobrem de verdade (correção 2): cada barra (faixa DEV, cabeçalho,
+    // abas) que passa na mesma faixa horizontal da etapa tira a parte de cima (se está acima do meio dela) ou a de baixo;
+    // uma barra que não cruza a etapa na horizontal (a coluna de abas a 1280) não tira nada. Não usa o critério do jogo.
     const ginVisivel = (pg) => pg.evaluate(() => {
-      const fixos = [...document.querySelectorAll('.app-topo, .dev-faixa')].filter((e) => getComputedStyle(e).position === 'fixed').map((e) => e.getBoundingClientRect())
-      const topo = Math.max(0, ...fixos.filter((r) => r.top < window.innerHeight / 2).map((r) => r.bottom))
-      const ab = document.querySelector('.app-abas').getBoundingClientRect()
-      const base = ab.width < window.innerWidth ? window.innerHeight : ab.top   // a 1280 as abas são a coluna da esquerda
       const li = document.querySelector('#tela .etapa[data-estado="proxima"]'), r = li ? li.getBoundingClientRect() : null
+      let topo = 0, base = window.innerHeight
+      for (const e of document.querySelectorAll('.dev-faixa, .app-topo, .app-abas')) {
+        const b = e.getBoundingClientRect()
+        if (getComputedStyle(e).position !== 'fixed' || !b.width || !b.height || !r || b.right <= r.left || b.left >= r.right) continue
+        if ((b.top + b.bottom) / 2 < (r.top + r.bottom) / 2) topo = Math.max(topo, b.bottom); else base = Math.min(base, b.top)
+      }
+      const ab = document.querySelector('.app-abas').getBoundingClientRect()
       return { topo, base, r: r && { top: r.top, bottom: r.bottom }, y: window.scrollY, foco: document.activeElement && document.activeElement.id,
-        ok: !!r && r.top >= topo - 0.5 && r.bottom <= base + 0.5 }
+        abas: { w: ab.width, top: ab.top }, ok: !!r && r.top >= topo - 0.5 && r.bottom <= base + 0.5 }
     })
     for (const vp of [{ width: 360, height: 780 }, { width: 360, height: 640 }]) {
       for (const [id, etapa] of [['grama', 0], ['fogo', 2], ['agua', 5]]) {
@@ -3390,6 +3397,41 @@ try {
         } finally {
           await pg.context().close()
         }
+      }
+    }
+    {
+      // barra de rolagem clássica (Windows, o painel do artefato com menos de 900 px): a barra de abas fica 17 px mais
+      // estreita que a janela. O Chromium headless esconde as barras de rolagem, então o estreitamento é simulado com um
+      // estilo injetado antes de abrir a trilha; a etapa próxima tem de ficar acima da barra de abas mesmo assim
+      const label = 'ginasio-rola-barra-classica'
+      const pg = await ginAbre(label, { save: ginSave(), chave: GIN_DEV })
+      try {
+        await pg.addStyleTag({ content: '.app-abas { right: 17px !important; }' })
+        await ginAbreAba(pg)
+        await ginAbreTrilha(pg, 'grama')
+        const v = await ginVisivel(pg)
+        if (!(v.abas.w < 360 && v.base === v.abas.top)) problems.push(`${label}: a simulação da barra clássica não pegou ${JSON.stringify(v)}`)
+        if (!v.ok || Math.abs(v.r.bottom - v.base) > 1) problems.push(`${label}: a etapa próxima ficou por baixo da barra de abas ${JSON.stringify(v)}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    {
+      // já cabe: com 4 vencidas a próxima é o líder, no topo da trilha (medido: a 360×780 ele está inteiro na 1ª tela);
+      // a trilha abre sem rolar
+      const label = 'ginasio-rola-cabe-360x780'
+      const pg = await ginAbre(label, { save: ginSave({ ginasios: Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { fogo: { etapa: 4, revDia: null, revVitorias: 0 } }) }), chave: GIN_DEV })
+      try {
+        await ginAbreAba(pg)
+        await ginAbreTrilha(pg, 'fogo')
+        const v = await ginVisivel(pg)
+        if (v.y !== 0 || !v.ok) problems.push(`${label}: a etapa próxima já cabia e a tela rolou (ou ela não está inteira) ${JSON.stringify(v)}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
       }
     }
     {
