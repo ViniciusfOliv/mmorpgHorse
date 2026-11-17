@@ -517,6 +517,72 @@
     DAILY.estrelaACada + 'º calendário completo da recompensa diária.';
 
   // ---------------------------------------------------------------------------------------------
+  // Ginásios da Expedição (spec 2026-11-17-ginasios §4 a §9). Regras em ginasio.js; números de partida aqui, num
+  // só lugar, para a calibração (Tarefa 2) e para ajustar depois de jogar.
+  //   vantagem: quanto os seis status de corrida sobem para o cavalo cujo elemento vence o do adversário;
+  //   fadiga.faixas: a distância na chegada (m) separa as vitórias em faixas meio abertas (metros < ate; a última,
+  //     ate null, pega o resto); perde: fôlego perdido por quem vence, somado a cada vitória seguida até o teto;
+  //   xp: por duelo corrido; revanche: a entrada e o rodízio fixo do prêmio (contado por ginásio);
+  //   insignias: o bônus da conta de cada uma (ouro: prêmios de corrida; xp: XP somado; skill: chance de skill por nível).
+  // ---------------------------------------------------------------------------------------------
+  var GYM = {
+    vantagem: 0.03,
+    fadiga: {
+      faixas: [
+        { id: 'apertada', name: 'Apertada', ate: 5, perde: 0.25 },
+        { id: 'normal', name: 'Normal', ate: 20, perde: 0.15 },
+        { id: 'folgada', name: 'Folgada', ate: null, perde: 0.05 }
+      ],
+      teto: 0.5
+    },
+    xp: { vence: 50, perde: 15 },
+    revanche: { entrada: 50, ciclo: [{ ouro: 100 }, { item: 'torrao' }, { ouro: 100 }, { item: 'manual' }, { ouro: 100 }, { item: 'cupom' }] },
+    insignias: { fogo: { tipo: 'ouro', valor: 0.03 }, agua: { tipo: 'xp', valor: 0.03 }, grama: { tipo: 'skill', valor: 0.03 } }
+  };
+  var GYM_ORDER = ['fogo', 'agua', 'grama'];
+  // Pista de partida dos três (a Tarefa 2 calibra uma por ginásio): 1.200 m com uma curva e uma subida.
+  function pistaGym(surface) {
+    return { distance: 1200, surface: surface, blocks: [
+      { type: 'reta', from: 0, to: 250 }, { type: 'curva', from: 250, to: 550 }, { type: 'reta', from: 550, to: 750 },
+      { type: 'subida', from: 750, to: 1000 }, { type: 'reta', from: 1000, to: 1200 }] };
+  }
+  // As cinco etapas (mesmos níveis, entradas e prêmios nos três; spec §4). cavalos: [base (id do catálogo), base…].
+  var GYM_ETAPAS = [
+    { id: 'soldado-1', lider: false, level: 4, entrada: 20, premio: { ouro: 80, itens: [] } },
+    { id: 'soldado-2', lider: false, level: 8, entrada: 30, premio: { ouro: 120, itens: ['torrao'] } },
+    { id: 'soldado-3', lider: false, level: 12, entrada: 40, premio: { ouro: 160, itens: [] } },
+    { id: 'soldado-4', lider: false, level: 16, entrada: 50, premio: { ouro: 200, itens: ['manual'] } },
+    { id: 'lider', lider: true, level: 20, entrada: 100, premio: { ouro: 400, itens: ['redea', 'cupom'] } }
+  ];
+  function gym(id, name, lider, fraco, surface, soldados, bases, insignia) {
+    return {
+      id: id, element: id, name: name, lider: lider, fraco: fraco, pista: pistaGym(surface),
+      etapas: GYM_ETAPAS.map(function (e, i) {
+        return {
+          id: e.id, nome: e.lider ? lider : soldados[i], lider: e.lider,
+          cavalos: bases[i].map(function (b) { return { base: b, level: e.level, grau: 2 }; }),
+          entrada: e.entrada, premio: { ouro: e.premio.ouro, itens: e.premio.itens.slice() }
+        };
+      }),
+      insignia: { icone: 'ins-' + id, name: insignia }
+    };
+  }
+  var GYMS = {
+    fogo: gym('fogo', 'Ginásio da Fornalha', 'Capitã Labareda', 'agua', 'grama',
+      ['Recruta Fagulha', 'Cabo Tocha', 'Sargento Candeeiro', 'Tenente Coivara'],
+      [['w-faisca'], ['brasa'], ['w-faisca', 'brasa'], ['brasa', 'w-faisca'], ['w-faisca', 'brasa', 'brasa']],
+      'Insígnia da Fornalha'),
+    agua: gym('agua', 'Ginásio do Remanso', 'Mestre Aguaceiro', 'grama', 'grama',
+      ['Recruta Orvalho', 'Cabo Goteira', 'Sargento Correnteza', 'Tenente Cacimba'],
+      [['w-lambari'], ['mare'], ['w-lambari', 'mare'], ['mare', 'w-lambari'], ['w-lambari', 'mare', 'mare']],
+      'Insígnia do Remanso'),
+    grama: gym('grama', 'Ginásio da Capoeira', 'Dona Capineira', 'fogo', 'grama',
+      ['Recruta Broto', 'Cabo Carrapicho', 'Sargento Juazeiro', 'Tenente Aroeira'],
+      [['w-capim'], ['ipe'], ['w-capim', 'ipe'], ['ipe', 'w-capim'], ['w-capim', 'ipe', 'ipe']],
+      'Insígnia da Capoeira')
+  };
+
+  // ---------------------------------------------------------------------------------------------
   // Equipamento: 5 slots por montaria. Cada peça dá um status principal e um secundário, definidos
   // pelo slot (GEAR_SLOT_INFO) e pela raridade (ECONOMY.gear.main/sub).
   //   id: '<slot>-<raridade>' (solta: Comum/Mágico) ou '<slot>-<conjunto>-<raridade>' (Raro/Lendário).
@@ -596,6 +662,9 @@
     SHOP_ORDER: SHOP_ORDER,
     BAG_MAX: BAG_MAX,
     DAILY: DAILY,
+    GYM: GYM,
+    GYM_ORDER: GYM_ORDER,
+    GYMS: GYMS,
     FOAL_NAMES: FOAL_NAMES,
     BREED_LEFT: BREED_LEFT
   };

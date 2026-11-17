@@ -217,6 +217,27 @@ confere(a.md.includes('"Restam 1 de 2 hoje"') && ['Limite de hoje', 'Mochila che
 confere(/\*\*Onde se usa:\*\*[^\n]*aba Status[^\n]*aba Skills/.test(a.md), 'wiki sem onde cada item se usa (Mochila e ficha)')
 confere(!/recursos que vão usá-los \(Rédeas/.test(a.md), 'wiki ainda diz que as Rédeas não existem no jogo (Ícones reservados)')
 
+// ginásios da Expedição (Tarefa 1 dos ginásios): a seção lê tudo de GameData.GYM e GYMS; os nomes dos ginásios, dos
+// líderes, dos soldados e das insígnias aparecem no md e no html, e as três faixas do cansaço com os números do catálogo
+{
+  const ini = a.md.indexOf('## Ginásios da Expedição'), fim = a.md.indexOf('## Ícones reservados')
+  const sec = ini >= 0 && fim > ini ? a.md.slice(ini, fim) : ''
+  confere(sec.length > 0 && a.html.includes('id="ginasios"'), 'falta a seção "Ginásios da Expedição" (antes dos Ícones reservados)')
+  for (const id of G.GYM_ORDER) {
+    const g = G.GYMS[id]
+    for (const [tipo, nome] of [['ginásio', g.name], ['líder', g.lider], ['insígnia', g.insignia.name], ...g.etapas.map((e) => ['soldado', e.nome])]) {
+      confere(sec.includes(nome), `${tipo} "${nome}" não aparece na seção Ginásios do md`)
+      confere(a.html.includes(escHtml(nome)), `${tipo} "${nome}" não aparece no html`)
+    }
+    confere(a.html.includes(`id="ginasio-${id}"`), `trilha do ginásio ${id} sem âncora no html`)
+    g.etapas.forEach((e, i) => confere(new RegExp(`\\| ${e.lider ? 'Líder' : 'Soldado ' + (i + 1)} \\| ${e.nome} \\|[^\\n]*\\| ${e.entrada} \\| ${e.premio.ouro} de Ouro`).test(sec), `trilha ${id}: etapa ${i + 1} sem entrada ${e.entrada} ou prêmio ${e.premio.ouro}`))
+  }
+  const fx = G.GYM.fadiga.faixas
+  confere(sec.includes(`| ${fx[0].name} | menos de ${fx[0].ate} m | ${Math.round(fx[0].perde * 100)}% |`) && sec.includes(`| ${fx[1].name} | de ${fx[0].ate} a menos de ${fx[1].ate} m | ${Math.round(fx[1].perde * 100)}% |`) && sec.includes(`| ${fx[2].name} | ${fx[1].ate} m ou mais | ${Math.round(fx[2].perde * 100)}% |`), 'tabela do cansaço não confere com GameData.GYM.fadiga')
+  confere(sec.includes(`até ${Math.round(G.GYM.fadiga.teto * 100)}%`) && sec.includes(`${Math.round(G.GYM.vantagem * 100)}% maiores`), 'seção Ginásios sem o teto do cansaço ou o percentual da vantagem')
+  confere(sec.includes(`entrada de ${G.GYM.revanche.entrada} de Ouro`) && sec.includes(`${G.GYM.xp.vence} de XP por duelo vencido e ${G.GYM.xp.perde} por duelo perdido`), 'seção Ginásios sem a revanche ou o XP por duelo')
+}
+
 // 3. chave desconhecida quebra
 lanca(() => descreverEfeito({ speedMult: 1.1, chaveInventada: 3 }), 'effect com chave inventada')
 lanca(() => descreverGatilho('gatilhoInventado'), 'gatilho inventado')

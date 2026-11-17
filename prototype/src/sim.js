@@ -33,6 +33,9 @@
  *   weightedAlloc(horse, w, from): um ponto por vez no status de menor (a+1)/w que ainda cabe.
  *   botAlloc(horse, from): weightedAlloc com T.botW[tipo] (os seis valem 1; × 1,2 nos dois status do tipo);
  *   sem RNG; com `from` continua a distribuição do jogador ("Distribuir sugerido").
+ *   entry.statMul (vantagem de elemento nos duelos de ginásio; ginasio.js): número de 0,9 a 1,1 que multiplica os
+ *   seis status de corrida (todos menos a Sorte), arredondado e preso a 1–150, antes do statAdd; ausente,
+ *   inválido ou fora da faixa vale 1 (a corrida é a de sempre).
  *   entry.statAdd (gancho de teste do balance.js, como noTypeSkill): soma ao status, preso a 1–150.
  *
  * CLIMA (sol / chuva / nevoa / nublado). weatherMult(elemento, clima, dobrado):
@@ -89,6 +92,9 @@
  *   × skill de subida), vácuo −10% (para todos, a 0,5–4 m atrás de alguém), skills.
  *   Boosts (Garra, skills) elevam o teto SEM custo extra. Pistas longas apertam mais o tanque.
  *   Estamina 0 => ritmo cai para 0,75 até o fim + evento 'cansou'.
+ *   entry.folego (cansaço nos duelos de ginásio; ginasio.js): a estamina inicial (fração do tanque), número de
+ *   0,5 a 1; ausente, inválido ou fora da faixa vale 1. O cavalo corre igual no começo e cansa mais cedo (o
+ *   jóquei já lê o tanque restante).
  *
  * GARRA: a arrancada começa em garraFrom = 0.80 − 0.14*(n(garra) − 0.5) da pista (mais Garra, mais cedo;
  *   o gatilho 'final' das skills vale no mesmo ponto). Lá rola chance = min(0.95, 0.50 + 0.15*nc(garra) + bônus de skill).
@@ -103,6 +109,8 @@
  *   speedMult, drainMult (por distanceM ou durationS), curveBonus, hillBonus, hillDrainMult
  *   (até o fim do bloco), staminaRestore, garraChanceBonus, garraBoostBonus, extraDice,
  *   weatherDouble. O equipamento (Gear.resolve) não entra na corrida por enquanto. Evento 'skill'.
+ *   Ao subir de nível (learnSkill(mount, rng, bonus), fora da corrida): aprende se rng() < T.learnChance + bonus
+ *   (bonus opcional de 0 a 0,2, a insígnia da Grama; ausente ou inválido vale 0, e a ordem das chamadas não muda).
  *
  * SKILL DE TIPO (GameData.TYPE_SKILLS, uma por elemento; typeSkill/typePower). Sempre ativa, sem
  *   sorteio e sem consumir a RNG, no terço [zone[0]·D, zone[1]·D) da pista: os dois status do tipo valem
@@ -517,12 +525,14 @@
     return cands;
   }
   // Sorteia uma skill nova ao subir de nível (ou null). Não muta a montaria.
-  // Ordem das chamadas de rng: 1) portão de T.learnChance, 2) escolha do candidato.
-  function learnSkill(mount, rng) {
+  // Ordem das chamadas de rng: 1) portão de T.learnChance (+ bonus), 2) escolha do candidato.
+  // bonus (opcional; a insígnia da Grama): número de 0 a 0,2 somado à chance; ausente ou inválido vale 0.
+  function learnSkill(mount, rng, bonus) {
     var rar = rarityOf(mount);
     var owned = mount.skills || [];
     if (owned.length >= rar.skillSlots) return null;
-    if (rng() >= T.learnChance) return null;
+    var b = typeof bonus === 'number' && bonus >= 0 && bonus <= 0.2 ? bonus : 0;
+    if (rng() >= T.learnChance + b) return null;
     var cands = skillCandidates(mount);
     if (!cands.length) return null;
     return cands[Math.floor(rng() * cands.length)];
@@ -765,9 +775,18 @@
   //   A skill de tipo não consome a RNG.
   function buildRacer(entry, index, cond, rng) {
     var horse = entry.horse;
-    // o equipamento não entra na corrida (por enquanto). entry.statAdd: gancho de teste do balance.js
-    // (como noTypeSkill): soma ao status, preso a 1–statMax.
+    // o equipamento não entra na corrida (por enquanto). entry.statMul (vantagem de elemento do ginásio): 0,9–1,1,
+    // multiplica os seis status de corrida (não a Sorte), arredonda e prende a 1–statMax; fora da faixa vale 1.
+    // entry.statAdd: gancho de teste do balance.js (como noTypeSkill): soma ao status depois, preso a 1–statMax.
     var stats = computeStats(horse);
+    var sm = entry.statMul;
+    if (typeof sm === 'number' && sm >= 0.9 && sm <= 1.1 && sm !== 1) {
+      for (var sq = 0; sq < STAT_KEYS.length; sq++) {
+        if (STAT_KEYS[sq] !== 'sorte') stats[STAT_KEYS[sq]] = clamp(Math.round(stats[STAT_KEYS[sq]] * sm), 1, T.statMax);
+      }
+    }
+    // entry.folego (cansaço do ginásio): a stamina inicial, 0,5–1; fora da faixa vale 1 (tanque cheio).
+    var folego = typeof entry.folego === 'number' && entry.folego >= 0.5 && entry.folego <= 1 ? entry.folego : 1;
     if (entry.statAdd && typeof entry.statAdd === 'object') {
       for (var sa = 0; sa < STAT_KEYS.length; sa++) {
         var sk0 = STAT_KEYS[sa], add = Number(entry.statAdd[sk0]);
@@ -798,7 +817,7 @@
       blockIdx: -1,
       tried: {},
       effects: [],
-      pos: 0, v: 0, stamina: 1,
+      pos: 0, v: 0, stamina: folego,
       exhausted: false, finished: false, finishTime: null,
       garraRolled: false, garraMult: 1,
       // início da arrancada: garraZone, adiantado pela Garra (garraZoneK por unidade de n, centrado em 50)

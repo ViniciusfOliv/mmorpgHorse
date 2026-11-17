@@ -17,6 +17,8 @@
  *   (applyXp), 0xE4A0 + contador (melhoria) e 0xB0B0 / 0x4D410000 / 0x504F0000 + contador (cruza). Todos
  *   ficam abaixo de 0x10000000 ou a partir de 0x4D410000; o SAL fica no meio, com folga de 50 milhões de
  *   usos (0x17E5 do plano caía em 61 × 100 + 17: o aprendizado do páreo 61 no nível 17).
+ *   Ginásios (ginasio.js): 0x47490000 ("GI") + contador de desafios × 8 + nº do duelo (0–4), abaixo deste SAL,
+ *   com folga de ~4 milhões de desafios.
  *
  * DIA: inteiro de dias desde 1970-01-01 da data local (diaLocal; mes de 0 a 11, como no Date).
  * DIÁRIA: { prox: 0–6 (próximo dia do calendário), ciclos: calendários completos, ultimo: dia do último

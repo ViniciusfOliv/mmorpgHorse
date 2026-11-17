@@ -922,6 +922,48 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `**O dia** é a data do aparelho, no fuso dele, guardada como número de dias. Cada registro guarda o seu último dia: a diária, o do último resgate; a loja, o da última compra; a ${nomeItem('estrela')}, o da última ${nomeItem('estrela')}. Com o relógio para trás, o registro não volta até a data passar de novo do último dia dele; nada se perde. Sem servidor, quem mexe no relógio do aparelho consegue resgates e compras a mais (por exemplo: último resgate no dia 90; pondo o relógio em 91, 92 … 100, são 10 resgates no mesmo dia real); isso só se fecha com o servidor.` }
   ])
 
+  // 12c. Ginásios ----------------------------------------------------------------------------------------
+  // tudo de GameData.GYM / GYM_ORDER / GYMS (nenhum número escrito aqui); tipo de insígnia desconhecido quebra o wiki
+  const GY = G.GYM, gyIds = G.GYM_ORDER
+  const nomeCatalogo = (id) => { const h = G.STARTERS.concat(G.WILD_HORSES).find((x) => x.id === id); if (!h) throw new Error(`wiki: cavalo de ginásio com base desconhecida "${id}"`); return h }
+  const cavaloGym = (c) => `${nomeCatalogo(c.base).name} (Nv ${c.level}, ${estrelas(c.grau)}, ${nomeRar(nomeCatalogo(c.base).rarity)})`
+  const premioGym = (p) => [p.ouro ? `${num(p.ouro)} de Ouro` : null, ...p.itens.map((id) => `1 ${nomeItem(id)}`)].filter(Boolean).join(', ')
+  const pistaGym = (p) => `${num(p.distance)} m, ${G.SURFACES[p.surface].name.toLowerCase()}: ${p.blocks.map((b) => `${G.BLOCK_TYPES[b.type].name.toLowerCase()} ${num(b.to - b.from)} m`).join(', ')}`
+  const bonusIns = (id) => {
+    const ins = GY.insignias[id]
+    switch (ins.tipo) {
+      case 'ouro': return `+${pct(ins.valor, 1)} de Ouro nos prêmios das corridas valendo (arredondado para baixo)`
+      case 'xp': return `+${pct(ins.valor, 1)} de XP para os cavalos, nas corridas e nos duelos (arredondado)`
+      case 'skill': return `+${num(ins.valor * 100, 1)} pontos na chance de aprender skill ao subir de level (${pct(T.learnChance, 0)} → ${pct(T.learnChance + ins.valor, 0)})`
+      default: throw new Error(`wiki: insígnia com tipo desconhecido "${ins.tipo}"`)
+    }
+  }
+  const fx = GY.fadiga.faixas
+  const faixaTxt = (f, i) => f.ate === null ? `${num(fx[i - 1].ate)} m ou mais` : i === 0 ? `menos de ${num(f.ate)} m` : `de ${num(fx[i - 1].ate)} a menos de ${num(f.ate)} m`
+  const cicloTxt = GY.revanche.ciclo.map((c) => c.ouro ? `${num(c.ouro)} de Ouro` : `1 ${nomeItem(c.item)}`)
+  add('ginasios', 'Ginásios da Expedição', 'Ginásios', [
+    { t: 'p', txt: `São ${gyIds.length} ginásios, um por elemento, cada um com ${G.GYMS[gyIds[0]].etapas.length - 1} soldados e o líder, sempre com cavalos do elemento do ginásio. As etapas abrem em ordem; etapa vencida fica marcada e não se repete. Os cavalos dos soldados são fixos (a montaria-base do catálogo no level e nas estrelas da etapa, com a build dos bots e as skills dela). As regras e os números já estão no código; as telas chegam nas próximas partes.` },
+    { t: 'tabela', rotulo: 'Ginásios', cab: ['Ginásio', 'Elemento', 'Líder', 'Ponto fraco', 'Pista da casa', 'Insígnia'], linhas: gyIds.map((id) => {
+      const g = G.GYMS[id]
+      return [{ md: `**${g.name}**`, html: `<strong>${esc(g.name)}</strong>` }, elCel(g.element), g.lider, elCel(g.fraco), pistaGym(g.pista), `${g.insignia.name}: ${bonusIns(id)}`]
+    }) },
+    ...gyIds.flatMap((id) => {
+      const g = G.GYMS[id]
+      return [
+        { t: 'h3', txt: `Trilha do ${g.name}`, id: 'ginasio-' + id },
+        { t: 'tabela', rotulo: `Trilha do ${g.name}`, cab: ['Etapa', 'Adversário', 'Cavalos (na ordem)', 'Entrada', 'Prêmio da 1ª vitória'], linhas: g.etapas.map((e, i) => [
+          N(e.lider ? 'Líder' : `Soldado ${i + 1}`), e.nome, e.cavalos.map(cavaloGym).join(' · '), ouroCel(e.entrada), premioGym(e.premio) + (e.lider ? ` e a ${g.insignia.name}` : '')]) }
+      ]
+    }),
+    { t: 'h3', txt: 'O desafio', id: 'ginasio-desafio' },
+    { t: 'p', txt: `O time do jogador tem no máximo o tamanho do time do adversário (pode levar menos) e corre na ordem escolhida. A entrada é paga antes (só Ouro, respeitando o reservado da sala aberta) e só então o desafio inteiro é simulado com a seed do save. O 1º cavalo corre contra o 1º do adversário; quem perde sai, quem vence fica e enfrenta o próximo do outro lado, já cansado. Acaba quando um lado fica sem cavalos. Cada cavalo do jogador ganha ${num(GY.xp.vence)} de XP por duelo vencido e ${num(GY.xp.perde)} por duelo perdido. Derrota: só se perde a entrada.` },
+    { t: 'p', txt: `**Vantagem de elemento** (só nos duelos de ginásio): ${lista(gyIds.map((id) => `${nomeEl(G.GYMS[id].fraco)} vence ${nomeEl(id)}`))}. O cavalo cujo elemento vence o do adversário corre com os seis status de corrida ${pct(GY.vantagem, 0)} maiores (a ${nomeStat('sorte')} não muda); elementos iguais, nada. O duelo começa ${nomeClima('nublado')}, para o triângulo não contar duas vezes; o Dado da Sorte é o de sempre. Na corrida valendo, o triângulo continua agindo só pelo clima.` },
+    { t: 'p', txt: `**Cansaço:** quem vence um duelo larga o seguinte com menos fôlego (o tanque de estamina abaixo de cheio: corre igual no começo e cansa mais cedo). O desconto depende da distância na chegada (quanto faltava ao perdedor quando o vencedor cruzou a linha) e soma a cada vitória seguida, até ${pct(GY.fadiga.teto, 0)}. Quem entra descansado larga com o tanque cheio. Vale para os dois lados.` },
+    { t: 'tabela', rotulo: 'Cansaço', cab: ['Vitória', 'Distância na chegada', 'Fôlego perdido'], linhas: fx.map((f, i) => [f.name, faixaTxt(f, i), N(pct(f.perde, 0))]) },
+    { t: 'p', txt: `**Revanche do líder:** depois da insígnia, 1 tentativa por dia em cada ginásio (vencendo ou perdendo), com entrada de ${num(GY.revanche.entrada)} de Ouro. O prêmio de cada vitória segue um rodízio fixo, sem sorteio, contado por ginásio: ${cicloTxt.join(' · ')}, e recomeça. Com o relógio para trás não libera; dia estragado no save conta como "já tentou hoje".` },
+    { t: 'p', txt: `**Insígnias:** cada líder dá uma, para sempre. O bônus é da conta e não entra na simulação da corrida. ${gyIds.map((id) => `${G.GYMS[id].insignia.name}: ${bonusIns(id)}`).join('; ')}.` }
+  ])
+
   // 13. Ícones reservados --------------------------------------------------------------------------------
   // Os 5 da spec (2.6): já existem como arquivo, mas só entram nas telas com recursos que ainda vão chegar.
   const reservados = RESERVADOS.map((id) => {
