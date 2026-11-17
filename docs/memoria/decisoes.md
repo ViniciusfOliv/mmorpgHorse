@@ -3,6 +3,19 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-17 — Teste de interface em paralelo (controlador)
+- **O `check.sh` roda o teste de interface em paralelo: um processo por bloco, 4 por vez, e os blocos que medem tempo
+  depois, um por vez** — a verificação levava ~16 min e roda uma vez por tarefa; ficou em ~8. Nenhum teste saiu nem
+  ficou mais fraco: os 68 blocos rodados um a um registram as mesmas 1.277 medições da rodada antiga. Se errado: o
+  `check.sh` volta ao jeito antigo trocando uma linha.
+- **Bloco que falha de vez em quando em paralelo vai para a fase em série; não se afrouxa limite nem se repete o bloco
+  sozinho** — repetir esconderia defeito de verdade. Se errado: a fase em série cresce e o ganho diminui.
+- **A meta de ~5 min não fechou e ficou assim por ora** — chegar lá pede dividir o bloco `itens` e encurtar os blocos que
+  medem tempo; é trabalho à parte. Se errado: 3 minutos a mais por verificação.
+- **O implementador foi parado no meio (a interrupção de uma pergunta ao Vinicius parou o agente); o controlador revisou
+  o que estava escrito, rodou as provas e commitou** — o código estava completo e a harness não deixa relançar agente sem
+  o Vinicius pedir. Se errado: a revisão independente desta mudança não aconteceu; pode ser pedida depois.
+
 ## 2026-11-17 — Integração da frente de itens, loja e diária na `main` (decisão do Vinicius)
 - **Integrar a `claude/itens-loja-diaria` na `main` antes de jogar** (resposta "1" ao menu de fechamento, com "continue o
   resto") — como nas frentes anteriores: o que ele achar jogando vira ajuste por cima da `main`. Feito por fast-forward

@@ -23,8 +23,8 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   voltar o dia), Cavalo, Itens (peças), Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
 - **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (158 testes de simulação, 117 de
   efeitos, 171 de moldes, 651 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de
-  interface; contagem de 2026-11-17, na `main` com a frente de itens integrada). Hoje leva ~16 min, quase tudo no teste de
-  interface; acelerar isso é a tarefa em andamento.
+  interface; contagem de 2026-11-17, na `main` com a frente de itens integrada). Com o teste de interface em paralelo
+  (2026-11-17, na branch da sessão) a verificação leva ~8 min; antes, ~16.
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
 | Frente | Entrega | Spec |
@@ -246,8 +246,11 @@ wiki (seção "Itens e recompensa diária"); decisões em `decisoes.md` (2026-11
     não tem teste ligado.
 
 ## Em andamento
-- **Acelerar o teste de interface** (começou em 2026-11-17, logo depois da integração da frente de itens): rodar os blocos
-  do `ui-test.mjs` em paralelo para o `check.sh` voltar a ~5 min (hoje ~16). Decisão do Vinicius em `decisoes.md`.
+- **Teste de interface em paralelo (feito em 2026-11-17, commit `b3dda3d` na `claude/nifty-newton-e8u133`; falta entrar na
+  `main`):** o `check.sh` roda o `prototype/tools/ui-test-paralelo.mjs`, um processo por bloco (68 blocos, 4 por vez, e os 8
+  com medição de tempo depois, um por vez). A verificação caiu de ~16 para ~8 min. A meta de ~5 min não fechou: o que
+  falta é a fase em série (~3,5 min) e o bloco `itens` (~1,5 min sozinho). O jeito antigo (`ui-test.mjs` sem `UI_SO`)
+  continua igual e é o que regrava as capturas oficiais.
 - **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); é o próximo desenho, e usa os itens como prêmio. Cada ginásio tem o
   foco num elemento. O galope ficou como está (decisão do Vinicius em 2026-11-16).
 - **Frente "interface" da Visuais 2 integrada na `main` em 2026-11-16, com as listas de gosto abertas:** a 3c (tela da
@@ -352,8 +355,8 @@ wiki (seção "Itens e recompensa diária"); decisões em `decisoes.md` (2026-11
   (gosto, itens)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Ginásios (`docs/GDD.md` §8.6):** desenho próprio (spec, revisão do Vinicius, plano e execução), usando os itens como
   prêmio.
-- **Acelerar o teste de interface** (em andamento), rodando os blocos em paralelo, para o `check.sh` voltar a ~5 min
-  (decisão do Vinicius de 2026-11-17, em `decisoes.md`).
+- **Teste de interface em paralelo:** feito (~8 min); decidir se entra na `main` e se vale buscar os ~5 min (dividir o bloco
+  `itens` e encurtar a fase em série).
 0. O Vinicius joga a 3a, a 3b e a 3c nos artefatos oficiais (jogo, DEV e wiki, republicados com a integração; a folha
    da interface mostra os componentes) e decide as listas "A confirmar com o Vinicius (gosto, 3a)", "(gosto, 3b)" e
    "(gosto, 3c)" (acima); o que ele mudar entra como ajuste por cima da `main`.
