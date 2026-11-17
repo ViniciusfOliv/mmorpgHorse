@@ -3,6 +3,14 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-17 — Integração da frente de itens, loja e diária na `main` (decisão do Vinicius)
+- **Integrar a `claude/itens-loja-diaria` na `main` antes de jogar** (resposta "1" ao menu de fechamento, com "continue o
+  resto") — como nas frentes anteriores: o que ele achar jogando vira ajuste por cima da `main`. Feito por fast-forward
+  (`ccc40de` → `3a73b63`), com o `check.sh` em OK na `main` já integrada; os artefatos oficiais foram republicados (jogo
+  na versão 8, DEV na 6, wiki na 7). A lista "A confirmar com o Vinicius (gosto, itens)" do `ESTADO.md` continua aberta.
+- **Ordem do que vem depois, confirmada por ele:** primeiro acelerar o teste de interface (a verificação completa subiu
+  para ~16 min), depois o desenho dos ginásios.
+
 ## 2026-11-17 — Itens, mochila, loja e recompensa diária — decisões da execução (controlador)
 Tudo abaixo é do controlador (nada foi decidido pelo Vinicius). Plano em `docs/superpowers/plans/2026-11-16-itens-loja-diaria.md`.
 O que é gosto e espera a palavra dele está em `ESTADO.md` ("A confirmar com o Vinicius (gosto, itens)"). Cada linha:

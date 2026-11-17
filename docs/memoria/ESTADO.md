@@ -7,22 +7,24 @@ durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (
 protótipo vira o jogo, a mesma base web empacotada para Android, com os módulos de regra no servidor.
 
 ## Onde estamos
-- **Branches:** a `main` tem tudo até o bloco 1b e a Visuais 2 até a parte 3 (`claude/cavalos-v3` integrada em
-  2026-11-14 e `claude/visuais-2` em 2026-11-16, as duas por fast-forward). A parte 3 é a frente "interface" inteira
-  (3a acabamento, 3b Estábulo e montaria no celular, 3c tela da corrida). O Vinicius escolheu integrar antes de jogar: as
-  listas "A confirmar com o Vinicius (gosto, 3a)", "(gosto, 3b)" e "(gosto, 3c)" continuam abertas e viram ajustes por
-  cima da `main`. Em aberto só a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta como bloco 3).
-  Trabalho novo sai da `main`.
+- **Branches:** a `main` tem tudo até o bloco 1b, a Visuais 2 até a parte 3 e a frente de itens, mochila, loja e
+  recompensa diária (`claude/cavalos-v3` integrada em 2026-11-14, `claude/visuais-2` em 2026-11-16 e
+  `claude/itens-loja-diaria` em 2026-11-17, as três por fast-forward). O Vinicius escolheu integrar antes de jogar: as
+  listas "A confirmar com o Vinicius (gosto, 3a)", "(gosto, 3b)", "(gosto, 3c)" e "(gosto, itens)" continuam abertas e
+  viram ajustes por cima da `main`. Em aberto só a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta
+  como bloco 3). Trabalho novo sai da `main`.
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build; os três foram republicados em
-  2026-11-16 com o build e9460f4, o da integração da parte 3 da Visuais 2: jogo na versão 7, DEV na 5 e wiki na 6):
+  2026-11-17 com o build 3a73b63, o da integração da frente de itens: jogo na versão 8, DEV na 6 e wiki na 7):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
   - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
   - wiki: https://claude.ai/artifact/Bp47f9qE3tSswu1A9zdF2y (`prototype/dist/wiki.html`)
   - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
-- **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Cavalo, Itens,
-  Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
-- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (129 testes de simulação, 117 de efeitos, 170 de moldes, 615 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de interface; contagem de 2026-11-16, parte 3c da Visuais 2, refeita depois da onda de correção da revisão final: 129 / 117 / 170 / 615 / 87, sem mudança nas regras; os testes de efeitos
-  passaram de 104 para 117 com a 3c).
+- **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Itens e dia (mochila; avançar e
+  voltar o dia), Cavalo, Itens (peças), Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
+- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (158 testes de simulação, 117 de
+  efeitos, 171 de moldes, 651 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de
+  interface; contagem de 2026-11-17, na `main` com a frente de itens integrada). Hoje leva ~16 min, quase tudo no teste de
+  interface; acelerar isso é a tarefa em andamento.
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
 | Frente | Entrega | Spec |
@@ -173,11 +175,11 @@ do Vinicius, antes de ele jogar; a lista de gosto abaixo continua aberta.
   https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 12). Os artefatos oficiais (jogo, DEV e wiki, em "Onde jogar")
   foram republicados no mesmo dia, depois da integração na `main`, com o build e9460f4.
 
-## Itens, mochila, loja e recompensa diária (pronta em 2026-11-17 na `claude/itens-loja-diaria`, sem merge)
+## Itens, mochila, loja e recompensa diária (pronta e integrada na `main` em 2026-11-17)
 Spec aprovada pelo Vinicius em `docs/superpowers/specs/2026-11-16-itens-loja-diaria-design.md`, plano em
 `docs/superpowers/plans/2026-11-16-itens-loja-diaria.md` (6 tarefas); regra em `docs/GDD.md` §8.2 e §8.2a; números no
-wiki (seção "Itens e recompensa diária"); decisões em `decisoes.md` (2026-11-16 e 2026-11-17). **A frente está pronta na
-branch e não entrou na `main`: quem decide a integração é o Vinicius.**
+wiki (seção "Itens e recompensa diária"); decisões em `decisoes.md` (2026-11-16 e 2026-11-17). **Integrada na `main` em
+2026-11-17 por decisão do Vinicius, antes de ele jogar: a lista de gosto abaixo continua aberta e vira ajuste por cima da `main`.**
 - **O que entrou:** os cinco itens (Torrão de açúcar, Estrela de treino, Rédea nova, Cupom de troca de skill e Manual de
   doma); a aba **Loja** de volta como 5ª aba, com as partes Comprar (só Ouro: Torrão 120, 2 por dia; Manual 200, 1 por dia;
   Cupom 250, 1 por dia; Estrela 2.000, 1 a cada 7 dias) e Mochila (até 99 de cada; Rédeas até 999); o uso pela Mochila e
@@ -202,7 +204,7 @@ branch e não entrou na `main`: quem decide a integração é o Vinicius.**
 - **Publicação (feita em 2026-11-17, build `fb10d22`):** build de teste com o modo DEV
   https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 13) e a folha da interface
   https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 7). Os artefatos oficiais (jogo, DEV e wiki, em "Onde jogar")
-  continuam com o que está na `main` e só mudam com a integração.
+  foram republicados com a integração, no mesmo dia.
 - **A confirmar com o Vinicius (gosto, itens):**
   1. **Ícone da Rédea nova:** pouco reconhecível. Os cinco ícones de item são desenhos em código (16×16), sem créditos.
      Existe o `item-redea.png` do PixelLab, já pago em 2026-11-12 e guardado: trocar custa zero créditos, é só decidir.
@@ -244,11 +246,10 @@ branch e não entrou na `main`: quem decide a integração é o Vinicius.**
     não tem teste ligado.
 
 ## Em andamento
-- **Itens, mochila, loja e recompensa diária:** pronta na branch `claude/itens-loja-diaria`, **sem merge** (seção própria,
-  acima). A integração na `main` é decisão do Vinicius. Os ginásios são o desenho seguinte. O galope ficou como está
-  (decisão dele em 2026-11-16).
-- **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); o desenho vem depois da frente de itens e usa os itens como prêmio.
-  Cada ginásio tem o foco num elemento.
+- **Acelerar o teste de interface** (começou em 2026-11-17, logo depois da integração da frente de itens): rodar os blocos
+  do `ui-test.mjs` em paralelo para o `check.sh` voltar a ~5 min (hoje ~16). Decisão do Vinicius em `decisoes.md`.
+- **Ginásios:** ideia registrada (`docs/GDD.md` §8.6); é o próximo desenho, e usa os itens como prêmio. Cada ginásio tem o
+  foco num elemento. O galope ficou como está (decisão do Vinicius em 2026-11-16).
 - **Frente "interface" da Visuais 2 integrada na `main` em 2026-11-16, com as listas de gosto abertas:** a 3c (tela da
   corrida) ficou pronta em 2026-11-16 (seção própria acima, com a lista "A confirmar com o Vinicius (gosto, 3c)"); com a 3a
   e a 3b, a frente está inteira. O Vinicius escolheu integrar antes de jogar; o que ele mudar ao jogar entra como ajuste
@@ -308,9 +309,8 @@ branch e não entrou na `main`: quem decide a integração é o Vinicius.**
 - **Blocos 2 a 7 do redesenho** (`docs/GDD.md` §8), cada um com spec própria: preparação com relógio,
   empacotamento (espera a resposta sobre o Capacitor), itens de treino e gastos de Ouro, tempo e
   estábulo ativo, loja de Gemas, online.
-- **Redistribuição:** a primeira de cada cavalo é grátis; depois só com a Rédea nova. Na `main` ela ainda só vem da
-  gaveta DEV; na `claude/itens-loja-diaria` (sem merge) vem no 7º dia da recompensa diária, e a Estrela de treino sobe
-  estrela.
+- **Redistribuição:** a primeira de cada cavalo é grátis; depois só com a Rédea nova. A Rédea nova vem no 7º dia da
+  recompensa diária (frente de itens, na `main` desde 2026-11-17), e a Estrela de treino sobe estrela.
 - **O Vinicius ainda não jogou o modelo novo:** os números saíram de simulação.
 - **Balanço:** M6, M9, P1, S1 e A1 só são vigiadas pelo `balance.js` completo.
 
@@ -321,9 +321,9 @@ branch e não entrou na `main`: quem decide a integração é o Vinicius.**
 - **Os iniciais no nível 25 caem para a Prata** (eram Ouro): o meio da progressão ficou mais lento.
 - **A Sorte vale pouco** (0,7 p.p. na corrida), por desenho: só de nascimento, mexe no Dado e na chance de skill.
 - **Sem fonte de Rédea nova** no jogo normal até os ginásios: quem gastar a redistribuição grátis só muda a build pelo DEV.
-  (Resolvido na `claude/itens-loja-diaria`, sem merge: a Rédea vem no 7º dia da recompensa diária.)
-- **O Ouro tem menos uso:** a loja de peças some; sobram entradas, cruza e troca do Haras. (Na `claude/itens-loja-diaria`,
-  sem merge, a loja de itens e a diária dão entrada e saída de Ouro.)
+  (Resolvido em 2026-11-17: a Rédea vem no 7º dia da recompensa diária.)
+- **O Ouro tem menos uso:** a loja de peças some; sobram entradas, cruza e troca do Haras. (Desde 2026-11-17 a loja de
+  itens e a diária dão entrada e saída de Ouro.)
 - **Folga de ~1 p.p.** nas metas rebaseadas sobre o pior caso de 4 bases de seed; mexer na RNG pede a faixa de novo.
 - **Equipamento suspenso:** voltar (talvez como cosmético) e a ferradura de tração do bloco 2 ficam em aberto.
 - **Decisões do Vinicius ainda abertas:** o empacotador (a pergunta sobre o Capacitor ficou sem
@@ -342,18 +342,18 @@ branch e não entrou na `main`: quem decide a integração é o Vinicius.**
   0,47–0,57 s em x1 (1,8 a 2,1 por segundo; o galope real fica em 2,2–2,5) e 1,2–1,6 s na câmera lenta. Sugestão do
   teste: ritmo 1,25×, abertura 100%, balanço 1, tempo 40%. **Decisão do Vinicius depois de ver o teste (2026-11-16): o galope fica como está**; nada entrou no jogo, e o assunto só volta com a 2c (quadros novos), se ele quiser.
 - **Antes do próximo aumento de versão do save:** pôr uma guarda para save de versão maior que a do
-  código (não adotar nem gravar por cima, e avisar para atualizar a página). (Feito na `claude/itens-loja-diaria`, junto
-  com o save versão 7; entra na `main` com a frente.)
+  código (não adotar nem gravar por cima, e avisar para atualizar a página). (Feito em 2026-11-17, junto com o save versão 7,
+  na frente de itens.)
 - **Pendências menores:** `docs/memoria/bugs.md`.
 - **GDD §9+:** expedições, tecnologia do servidor, anti-trapaça, PVP assíncrono e ranqueada.
 
 ## Próximos passos
-- **Frente de itens:** o Vinicius joga a `claude/itens-loja-diaria`, decide a lista "A confirmar com o Vinicius (gosto,
-  itens)" e se ela entra na `main`.
+- **Frente de itens (na `main`):** o Vinicius joga nos artefatos oficiais e decide a lista "A confirmar com o Vinicius
+  (gosto, itens)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Ginásios (`docs/GDD.md` §8.6):** desenho próprio (spec, revisão do Vinicius, plano e execução), usando os itens como
   prêmio.
-- **Depois da frente de itens: acelerar o teste de interface**, rodando os blocos em paralelo, para o `check.sh` voltar a
-  ~5 min (decisão do Vinicius de 2026-11-17, em `decisoes.md`).
+- **Acelerar o teste de interface** (em andamento), rodando os blocos em paralelo, para o `check.sh` voltar a ~5 min
+  (decisão do Vinicius de 2026-11-17, em `decisoes.md`).
 0. O Vinicius joga a 3a, a 3b e a 3c nos artefatos oficiais (jogo, DEV e wiki, republicados com a integração; a folha
    da interface mostra os componentes) e decide as listas "A confirmar com o Vinicius (gosto, 3a)", "(gosto, 3b)" e
    "(gosto, 3c)" (acima); o que ele mudar entra como ajuste por cima da `main`.
@@ -371,6 +371,6 @@ branch e não entrou na `main`: quem decide a integração é o Vinicius.**
 ## Branches para apagar no GitHub
 Todas já integradas na `main`: `claude/equipamentos`, `claude/cruzamento`, `claude/nucleo-corrida-v2`,
 `claude/analise-regras-arquivo-3j3zv1`, `claude/kind-thompson-gsqj7r`, `claude/menu-abas`,
-`claude/visuais`, `claude/corrida-viva`, `claude/pente-fino`, `claude/cavalos-v3` e `claude/visuais-2` (a parte 3
-inteira, a frente "interface", entrou na `main` em 2026-11-16). A `claude/nifty-newton-e8u133` é a
+`claude/visuais`, `claude/corrida-viva`, `claude/pente-fino`, `claude/cavalos-v3`, `claude/visuais-2` (a parte 3
+inteira, a frente "interface", entrou na `main` em 2026-11-16) e `claude/itens-loja-diaria` (entrou em 2026-11-17). A `claude/nifty-newton-e8u133` é a
 branch desta sessão e acompanha a `main`. A sessão não consegue apagar branch remota (o proxy bloqueia).
