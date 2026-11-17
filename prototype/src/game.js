@@ -641,7 +641,7 @@
       nextItemUid: 1,
       pedras: 0,
       enhanceCounter: 0,
-      redeas: 0,          // Rédeas novas (bloco 1b §9): só a gaveta DEV dá, por enquanto
+      redeas: 0,          // Rédeas novas (bloco 1b §9): vêm no 7º dia da recompensa diária (e da gaveta DEV)
       avisoV6: false,     // aviso da migração v5 -> v6 ainda por mostrar (só em save migrado)
       mochila: mochilaVazia(),
       diaria: { prox: 0, ciclos: 0, ultimo: null },   // save novo: o dia 1 para resgatar
@@ -1067,9 +1067,12 @@
     lojaParte: 'comprar',   // parte aberta da aba Loja: 'comprar' | 'mochila'
     lojaMsg: null,          // aviso da última compra da Loja de itens: { id, txt } (na linha do item)
     // uso de um item (seção "Usar os itens"): { id, mountUid, skillId, passo: 'cavalo' | 'skill' | 'confirma', origem:
-    // 'mochila' | 'ficha', msg } ou null; itemMsg: o aviso do último uso, { id, uid, origem, txt }. Zerados em toda troca de tela
+    // 'mochila' | 'ficha' } ou null; itemMsg: o aviso do último uso, em duas formas: { id, uid, origem, txt } (o resultado,
+    // na linha do item ou na ficha) ou { passo: true, txt } (a gravação que falhou, no passo de confirmação). Zerados em
+    // toda troca de tela
     item: null, itemMsg: null,
     diariaVer: false,   // "Ver os 7 dias" aberto no cartão da recompensa diária (Estábulo); fecha ao trocar de tela
+    diaTela: null,      // o dia (hojeDia) do último desenho da tela: o dia que vira com o jogo aberto (diaVirou)
     motionKeep: null,   // "Recomeçar": a opção Animações passa para o save novo
     joqueiKeep: null,   // e o jóquei também (padrão e capacete)
     // modo DEV (só com DEV_MODE): gaveta, confirmação do "Zerar" e valores armados para a próxima corrida
@@ -1093,6 +1096,21 @@
     if (DEV_MODE && st) dia += inteiroOu(st.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX);
     /*@dev:fim*/
     return dia;
+  }
+  // O dia virou com o jogo aberto (decisão 19 do controlador): sem temporizador, o dia só é conferido quando a aba volta a
+  // ficar visível (visibilitychange, no start) e no começo de um toque (o clique delegado da tela). Se hojeDia() mudou desde
+  // o último desenho, a tela é desenhada de novo (redesenhaDia) e esse toque não vale (o alvo era da tela de ontem). Nunca
+  // na corrida nem no resultado (a corrida não para nem é redesenhada por isso), nem na tela de bloqueio ou sem save.
+  function diaVirou() {
+    return !!state && !saveBloqueado && ui.screen !== 'corrida' && ui.screen !== 'resultado' && ui.screen !== 'bloqueio' &&
+      ui.diaTela !== null && hojeDia() !== ui.diaTela;
+  }
+  // a tela atual de novo, com a rolagem; o uso de um item aberto continua aberto e é conferido de novo (como com o save de
+  // outra aba); o aviso da última compra ("Comprou 1 …") é de ontem e sai
+  function redesenhaDia() {
+    ui.lojaMsg = null;
+    if (ui.item && (ui.screen === 'loja' || ui.screen === 'montaria')) itemPasso(); else rerenderKeepScroll();
+    motivoVivo('Virou o dia: a tela foi atualizada.');
   }
   // Save gravado por uma versão mais nova do jogo: Number(v) > SAVE_VERSION (vale também "8" em texto, que o sanitize
   // leria como v7+; v ausente ou lixo dá NaN e segue o caminho de sempre do sanitize).
@@ -1713,7 +1731,7 @@
       devCheck('ouroinf', 'Ouro infinito (volta a ' + fmt(DV.GOLD_INF) + ' depois de cada gasto)', ui.dev.ouroInf) +
       '<div class="dev-campos">' + devEntrada('pedras', 'Pedras Negras', 'type="number" min="0" max="1000000" inputmode="numeric"', f.pedras != null ? f.pedras : state.pedras) +
         '<div class="dev-acoes dev-acoes--base">' + devBotao('dev-pedras', 'Definir Pedras') + '</div></div>' +
-      // Rédeas novas (bloco 1b §9): pagam a redistribuição depois da primeira; no jogo normal ainda não há fonte
+      // Rédeas novas (bloco 1b §9): pagam a redistribuição depois da primeira; no jogo normal vêm no 7º dia da diária
       '<div class="dev-campos">' + devEntrada('redeas', 'Rédeas novas', 'type="number" min="0" max="' + REDEAS_MAX + '" inputmode="numeric"', f.redeas != null ? f.redeas : state.redeas) +
         '<div class="dev-acoes dev-acoes--base">' + devBotao('dev-redeas', 'Definir Rédeas') + '</div></div>' +
       '<div class="dev-acoes">' + devBotao('dev-ouro', '+' + fmt(1000) + ' Ouro') + '</div>');
@@ -2070,6 +2088,7 @@
 
   function render() {
     ui.avisoNaTela = null;   // noticeHtml() o preenche se a tela desenhar um aviso
+    ui.diaTela = hojeDia();  // o dia que esta tela mostra (diária, limites da loja): diaVirou compara com ele
     tiraAlvo();   // o destaque da frase do motivo não passa para a tela nova
     if (visObs) visObs.disconnect();
     live = [];
@@ -2399,7 +2418,8 @@
       '<p class="diaria-premio" aria-hidden="true"><span class="diaria-num">' + e.dia + ' / ' + n + '</span> ' + esc(premio) + '</p>' +
       (motivo ? '<p class="nota diaria-motivo">' + esc(motivo) + '</p>' : '') +
       '<div class="diaria-acoes"><button type="button" class="btn btn--texto diaria-ver" data-acao="diaria-ver" aria-expanded="' + !!ui.diariaVer +
-        '" aria-controls="diaria-dias">Ver os 7 dias</button>' +
+        // aria-controls só aponta para a lista quando ela está na tela (aberta)
+        '"' + (ui.diariaVer ? ' aria-controls="diaria-dias"' : '') + '>Ver os 7 dias</button>' +
         '<button type="button" class="btn btn--ouro btn--pequeno" data-acao="diaria-resgatar"' + indisponivel(motivo) + '>Resgatar' +
           '<span class="sr"> ' + esc(premio) + '</span></button></div>' +
       (ui.diariaVer ? diariaDiasHtml(e) : '') + '</section>';
@@ -2726,6 +2746,7 @@
     foal.equip = GR.emptyEquip();   // entra no estábulo sem peças (Breed.foal não sabe de equipamento)
     foal.alloc = zeroAlloc();       // e sem pontos distribuídos (nasce no nível 1: nenhum ponto livre)
     foal.respecFree = true;         // com a primeira redistribuição grátis, como todo cavalo (bloco 1b §9)
+    foal.torroes = 0;               // e sem torrões (os torrões são de cada cavalo)
     state.nextUid += 1;
     state.breedCounter += 1;
     return foal;
@@ -2949,7 +2970,7 @@
 
   // ---- Redistribuir (bloco 1b §9): devolve todos os pontos comprados (o alloc volta a zero) ----
   // A primeira de cada cavalo é grátis (mount.respecFree, que nasce true e vira false ao usar); as seguintes gastam
-  // 1 Rédea nova (state.redeas; neste bloco só a gaveta DEV dá Rédeas, nunca o Ouro). Com páreo aberto, a montaria
+  // 1 Rédea nova (state.redeas; vem no 7º dia da recompensa diária, nunca por Ouro). Com páreo aberto, a montaria
   // ativa não redistribui (o retrato dos pontos da sala já foi tirado); as outras podem. Dois toques no mesmo botão,
   // como o Confirmar dos pontos, e grava como um gasto (gravaGasto: se a gravação falha, nada muda).
   // Devolve { ok, motivo, custo: 'gratis' | 'redea' } (motivo: o texto do botão indisponível (aria-disabled); '' quando ok).
@@ -5124,6 +5145,7 @@
       if (rb) window.location.reload();
       return;
     }
+    if (diaVirou()) { redesenhaDia(); return; }   // o dia virou desde o último desenho: a tela nova, e este toque não vale
     tiraMotivo(e.target);   // qualquer toque tira a linha do motivo (também o do ⓘ, que abre a ajuda); nunca há duas na tela
     var aj = e.target.closest ? e.target.closest('[data-ajuda]') : null;
     if (aj) { alternaAjuda(aj); return; }   // "ⓘ" (ou o nome do status): abre/fecha o texto, sem re-renderizar nem acionar o cartão em volta
@@ -5839,7 +5861,8 @@
     // save de versão mais nova no disco ou no estado do hot: nada é saneado, migrado nem gravado (tela de bloqueio)
     if (saveMaisNovo(doHot) || saveMaisNovo(lido)) bloqueiaSaveNovo(true);
     if (!saveBloqueado) {
-      state = sanitize(doHot) || sanitize(lido);
+      var doHotOk = sanitize(doHot);
+      state = doHotOk || sanitize(lido);
       // JSON válido mas que não vira save (sanitize null): também guarda a cópia antes de recomeçar
       if (!state && lido != null && !saveCorrompido) { try { guardaCorrompido(window.localStorage.getItem(SAVE_KEY)); } catch (e) { /* ignora */ } }
 
@@ -5850,6 +5873,10 @@
       // save de versão anterior migrado: grava já a versão nova (a migração acontece uma vez só; o Neutro
       // convertido, os pontos devolvidos e o Poder da sala recalculado ficam no disco)
       if (state && ((lido && typeof lido === 'object' && !(Number(lido.v) >= SAVE_VERSION)) || gravaAviso)) persist();
+      // save v7 do disco com dia ou limite corrompido (diária, limites da loja): grava já o consertado, para o bloqueio durar
+      // um dia (Rulings 8 e 21); sem isso, cada abertura tornava a valer "hoje". O persist() de sempre (guarda do save mais novo)
+      else if (state && !doHotOk && lido && typeof lido === 'object' && Number(lido.v) >= SAVE_VERSION &&
+        (JSON.stringify(lido.diaria) !== JSON.stringify(state.diaria) || JSON.stringify(lido.lojaItens) !== JSON.stringify(state.lojaItens))) persist();
       if (!state && !saveBloqueado && devHooks) { state = devHooks.novoPerfil(); persist(); }   // perfil DEV novo: Brasa, sem a escolha inicial
       if (!state && !saveBloqueado) { ui.motionKeep = leMotionKeep(); ui.joqueiKeep = leJoqueiKeep(); }   // "Recomeçar" e a aba fechou na escolha: as escolhas continuam
     }
@@ -5893,6 +5920,10 @@
       try { raw = ev.newValue ? JSON.parse(ev.newValue) : null; } catch (e) { raw = null; }
       if (raw && state && !saveMaisNovo(raw) && Number(raw.rev) <= state.rev) return;
       adoptExternal(raw);
+    });
+    // a aba voltou a ficar visível (o jogo ficou aberto de um dia para o outro): se o dia virou, a tela é desenhada de novo
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible' && diaVirou()) redesenhaDia();
     });
     /*@teste:inicio*/
     // ganchos para testes automatizados (fora do jogo de produção)

@@ -73,16 +73,19 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 // extra.pagina: arquivo de dist/ (padrão preview.html); extra.query: sufixo da URL; extra.init: função para
 // page.addInitScript (roda antes dos scripts da página);
 // extra.bloquear: padrões de URL abortados (ctx.route) antes do goto;
+// extra.relogio: Date em que o relógio do navegador começa (page.clock.install, antes do goto; o tempo segue andando e
+// page.clock.setSystemTime muda o dia) — use com timezoneId para o dia local não depender da máquina;
 // extra.moldes (padrão true): espera os moldes do PixelLab carregarem (Sprites.moldsReady === true) — o jogo
 // re-renderiza a tela quando eles chegam, e esperar evita clicar num botão que está sendo trocado.
 async function newPage(browser, viewport, label, extra = {}) {
-  const { pagina = 'preview.html', query = '', init = null, moldes = true, bloquear = [], ...ctxExtra } = extra
+  const { pagina = 'preview.html', query = '', init = null, moldes = true, bloquear = [], relogio = null, ...ctxExtra } = extra
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2, ...ctxExtra })
   const page = await ctx.newPage()
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`[${label}] console: ${m.text()}`) })
   page.on('pageerror', (e) => problems.push(`[${label}] pageerror: ${e.message}`))
   for (const padrao of bloquear) await ctx.route(padrao, (r) => r.abort())   // sem rede para esses endereços
   if (init) await page.addInitScript(init)
+  if (relogio) await page.clock.install({ time: relogio })
   await page.goto(BASE + pagina + query, { waitUntil: 'domcontentloaded' })
   await Promise.race([page.evaluate(() => document.fonts && document.fonts.ready), sleep(4000)])
   if (moldes) {
@@ -1828,7 +1831,7 @@ try {
         // ---- Cupom pela mochila: Ipê sem skill nas vagas apagado; Faísca escolhe a skill que sai; cancelar na escolha da skill ----
         await h.irMochila()
         await h.usarMochila('cupom').click()
-        if (!(await h.mount('m4')).skills.length) await h.apagado(h.cavalo('m4'), /skill nas vagas/, 'Cupom em Ipê (sem skill nas vagas)')
+        await h.apagado(h.cavalo('m4'), /skill nas vagas/, 'Cupom em Ipê (sem skill nas vagas)')   // Ipê sem skill: o 2º Manual não ensinou (conferido acima)
         await h.cavalo('m3').click()
         if (!/"passo":"skill"/.test(await h.uiItem()) || (await pg.locator('#tela [data-acao="item-skill"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id')))).join() !== 'arranque') problems.push(`${label}: a escolha da skill de Faísca ${await h.uiItem()}`)
         await h.cancela('Cupom, na escolha da skill', 'loja:mochila')
@@ -1923,14 +1926,15 @@ try {
         if (!igual((await h.estado()).pending, pend)) problems.push(`${label}: a sala guardada mudou com os usos ${JSON.stringify((await h.estado()).pending)}`)
         if ((await simSala(pg)) !== sim0) problems.push(`${label}: o resultado da corrida aberta mudou com os usos`)
         // os pontos novos só entram até o Poder da sala: o sugerido que passa dele não grava, nem forçado
+        // (sem o botão, ou com ele apagado, a tentativa não roda: é problema, para a asserção abaixo não passar à toa)
         const sug = pg.locator('#tela [data-acao="pontos-sugerir"]')
-        if ((await sug.count()) && !(await indisp(sug))) {
-          await sug.click()
-          const cf = pg.locator('#tela [data-acao="pontos-confirmar"]')
-          await esperaBarra(pg)
-          for (let k = 0; k < 2; k++) await cf.evaluate((b) => { b.removeAttribute('aria-disabled'); b.click() }).catch(() => {})
-          await sleep(100)
-        }
+        if ((await sug.count()) !== 1 || (await indisp(sug))) problems.push(`${label}: sem o "Distribuir sugerido" disponível no ativo (a tentativa de passar do Poder da sala não rodou)`)
+        await sug.click()
+        const cf = pg.locator('#tela [data-acao="pontos-confirmar"]')
+        await esperaBarra(pg)
+        if ((await cf.count()) !== 1) problems.push(`${label}: sem o Confirmar dos pontos depois do sugerido`)
+        for (let k = 0; k < 2; k++) await cf.evaluate((b) => { b.removeAttribute('aria-disabled'); b.click() }).catch(() => {})
+        await sleep(100)
         m1 = await h.mount('m1')
         if (S.powerRating(m1) > pend.pr) problems.push(`${label}: com a sala aberta o Poder do ativo passou do da sala (${S.powerRating(m1)} > ${pend.pr})`)
         if ((await simSala(pg)) !== sim0) problems.push(`${label}: o resultado da corrida aberta mudou com os pontos`)
@@ -2095,6 +2099,9 @@ try {
         if (b.length !== 1 || b[0].txt.indexOf('Resgatar') !== 0 || b[0].h < 44 || b[0].w < 44) problems.push(`${label} ${tag}: o botão Resgatar ${JSON.stringify(b)}`)
         const v = await h.ver().evaluateAll((bs) => bs.map((x) => x.getBoundingClientRect().height))
         if (v.length !== 1 || v[0] < 44) problems.push(`${label} ${tag}: o botão "Ver os 7 dias" ${JSON.stringify(v)}`)
+        // aria-controls só aponta para um id que existe na tela (a lista dos 7 dias só existe aberta)
+        const ctl = await h.ver().evaluateAll((bs) => bs.map((b) => { const id = b.getAttribute('aria-controls'); return id === null || !!document.getElementById(id) }))
+        if (ctl.some((x) => !x)) problems.push(`${label} ${tag}: o "Ver os 7 dias" tem aria-controls para um id que não está na tela`)
         const topo = await pg.evaluate(() => { const c = document.querySelector('#tela .diaria'), l = document.querySelector('#tela .caixa[aria-label="Suas montarias"]'); return !!(c && l && c.getBoundingClientRect().bottom <= l.getBoundingClientRect().top) })
         if (!topo) problems.push(`${label} ${tag}: o cartão não está acima da lista de cavalos`)
         if ((await h.pontos()) !== 'estabulo') problems.push(`${label} ${tag}: pontos na barra de abas "${await h.pontos()}" (esperado só o do Estábulo)`)
@@ -2208,6 +2215,8 @@ try {
           dias: [...document.querySelectorAll('#tela .diaria-dia')].map((d) => ({ txt: d.textContent.replace(/\s+/g, ' ').trim(), feito: d.classList.contains('diaria-dia--feito'), atual: d.getAttribute('aria-current') }))
         }))
         if (cal.exp !== 'true' || cal.foco !== 'diaria-ver') problems.push(`${label}: "Ver os 7 dias" com aria-expanded ${cal.exp} e o foco em ${cal.foco}`)
+        const ctlAberto = await h.ver().evaluate((b) => { const id = b.getAttribute('aria-controls'), el = id && document.getElementById(id); return !!el && el.querySelectorAll('.diaria-dia').length })
+        if (ctlAberto !== 7) problems.push(`${label}: com os 7 dias abertos, o aria-controls do "Ver os 7 dias" não aponta para a lista (${ctlAberto})`)
         if (cal.dias.length !== 7) problems.push(`${label}: ${cal.dias.length} células nos 7 dias`)
         cal.dias.forEach((d, i) => {
           if (!d.txt.includes('Dia ' + (i + 1)) || !d.txt.includes(PREMIOS_DIARIA[i].txt)) problems.push(`${label}: a célula ${i + 1} diz "${d.txt}" (esperado "Dia ${i + 1}" e "${PREMIOS_DIARIA[i].txt}")`)
@@ -2380,6 +2389,291 @@ try {
         await parado('7 dias abertos')
         await pg.locator('#tela [data-acao="diaria-resgatar"]').click()
         await parado('cartão de uma linha')
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 12. regras de dinheiro sem teste até a revisão final (E1 a E4): a sala aberta com o ativo de pontos todos gastos, as
+    //     quatro compras na tela, a compra com a gravação falhando e os pontos de Torrão e Estrela gastos e recarregados
+    // 12a. sala aberta, o ativo com TODOS os pontos gastos (o Poder dele é o da sala): Torrão e Estrela dão pontos novos, que
+    //      são os únicos que sobram; nenhum +N abre, o sugerido forçado não grava e a sala e o resultado não mudam, nem
+    //      depois de recarregar
+    {
+      const label = 'itens-usar-sala-cheio'
+      const m1 = cav(brasa, { uid: 'm1', level: 12, skills: ['sprint'], torroes: 0 })
+      m1.alloc = S.botAlloc(m1)
+      const pg = await newPage(browser, VP, label, saveT4({ mochila: { ...ZERO_MOCHILA, torrao: 2, estrela: 1 }, mounts: [m1, SAVE_T4.mounts[1]], nextUid: 3 }))
+      const h = usoHelpers(pg, label)
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        const i0 = S.allocInfo(await h.mount('m1'))
+        if (i0.left !== 0 || !(i0.used > 0)) problems.push(`${label}: o preparo não tem os pontos todos gastos ${JSON.stringify({ left: i0.left, used: i0.used })} (o teste não prova nada)`)
+        await abrirSala(pg, 50)
+        const pend = (await h.estado()).pending, sim0 = await simSala(pg)
+        if (pend.pr !== S.powerRating(await h.mount('m1'))) problems.push(`${label}: o Poder da sala ${pend.pr} não é o do ativo ${S.powerRating(await h.mount('m1'))}`)
+        await pg.getByRole('button', { name: /^Voltar/ }).click()
+        await pg.waitForSelector('#t-correr')
+        await h.ficha('m1')
+        for (const id of ['torrao', 'torrao', 'estrela']) { await h.usarFicha(id).click(); await h.confirmar().click() }
+        let a = await h.mount('m1')
+        const i1 = S.allocInfo(a)
+        if (a.torroes !== 2 || a.grau !== 3 || !(i1.left > 0) || i1.used !== i0.used) problems.push(`${label}: depois de 2 Torrões e 1 Estrela: torroes ${a.torroes}, grau ${a.grau}, sobram ${i1.left}, gastos ${i1.used}`)
+        const mais = await pg.locator('#tela [data-acao="ponto-mais"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('aria-disabled') === 'true'))
+        if (!mais.length || mais.some((x) => !x)) problems.push(`${label}: com o Poder igual ao da sala, ${mais.filter((x) => !x).length} de ${mais.length} botões +N abertos (esperado nenhum, e algum na tela)`)
+        await pg.evaluate(() => { document.querySelectorAll('#tela [data-acao="ponto-mais"]').forEach((b) => { b.removeAttribute('aria-disabled'); b.click() }) })
+        await sleep(100)
+        if ((await pg.evaluate(() => JSON.stringify(window.__galope.ui.rascunho))) !== 'null') problems.push(`${label}: os +N forçados montaram um rascunho ${await pg.evaluate(() => JSON.stringify(window.__galope.ui.rascunho))}`)
+        const sug = pg.locator('#tela [data-acao="pontos-sugerir"]')
+        if ((await sug.count()) !== 1) problems.push(`${label}: sem o "Distribuir sugerido" (a tentativa de passar do Poder da sala não rodou)`)
+        await sug.evaluate((b) => { b.removeAttribute('aria-disabled'); b.click() })
+        await esperaBarra(pg)
+        const cf = pg.locator('#tela [data-acao="pontos-confirmar"]')
+        if ((await cf.count()) !== 1 || !(await indisp(cf)) || !/Páreo aberto/.test((await cf.getAttribute('data-motivo')) || '')) problems.push(`${label}: o Confirmar do sugerido não está apagado com o motivo do páreo aberto (${await cf.count()}, ${await cf.getAttribute('data-motivo').catch(() => '')})`)
+        for (let k = 0; k < 2; k++) await cf.evaluate((b) => { b.removeAttribute('aria-disabled'); b.click() }).catch(() => {})
+        await sleep(100)
+        a = await h.mount('m1')
+        const d = await h.disco(), dm = d.mounts.find((m) => m.uid === 'm1')
+        if (!igual(a.alloc, m1.alloc) || !igual(dm.alloc, m1.alloc)) problems.push(`${label}: o sugerido forçado gravou pontos: memória ${JSON.stringify(a.alloc)}, disco ${JSON.stringify(dm.alloc)} (antes ${JSON.stringify(m1.alloc)})`)
+        if (S.powerRating(a) > pend.pr) problems.push(`${label}: o Poder do ativo passou do da sala (${S.powerRating(a)} > ${pend.pr})`)
+        if (!igual((await h.estado()).pending, pend) || !igual(d.pending, pend)) problems.push(`${label}: a sala guardada mudou ${JSON.stringify((await h.estado()).pending)}`)
+        if ((await simSala(pg)) !== sim0) problems.push(`${label}: o resultado da corrida aberta mudou`)
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        if (!igual((await h.estado()).pending, pend)) problems.push(`${label}: depois de recarregar, a sala mudou ${JSON.stringify((await h.estado()).pending)} (antes ${JSON.stringify(pend)})`)
+        if ((await simSala(pg)) !== sim0) problems.push(`${label}: depois de recarregar, o resultado da corrida aberta mudou`)
+        if (!igual((await h.mount('m1')).alloc, m1.alloc)) problems.push(`${label}: depois de recarregar, os pontos do ativo mudaram ${JSON.stringify((await h.mount('m1')).alloc)}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 12b. as quatro compras na tela, cada uma conferida no saldo, na mochila, no limite e no disco ("Restam 0 de 1 hoje" no
+    //      Manual e no Cupom); e a compra com a gravação falhando: nada muda na memória nem no disco, o aviso de falha aparece
+    //      e nenhum item entra; com a gravação de volta, compra
+    {
+      const label = 'itens-loja-compras'
+      const pg = await newPage(browser, VP, label, saveT4())
+      const bt = (id) => pg.locator(`#tela [data-acao="item-comprar"][data-id="${id}"]`)
+      const linhaTxt = async (id) => ((await pg.locator(`#tela .item-linha--produto[data-item="${id}"]`).textContent()) || '').replace(/\s+/g, ' ')
+      const marca = (s) => JSON.stringify({ gold: s.gold, mochila: s.mochila, lojaItens: s.lojaItens, redeas: s.redeas, pending: s.pending })
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await devAbrir(pg); await pg.setChecked('#dev-ouroinf', false); await devFechar(pg)
+        await pg.locator('[data-acao="aba"][data-id="loja"]').click()
+        await pg.waitForSelector('#t-loja')
+        const hoje = await pg.evaluate(() => window.__galope.hojeDia())
+        let gold = (await estadoDe(pg)).gold
+        if (gold !== 5000) problems.push(`${label}: o preparo tem ${gold} de Ouro (esperado 5.000)`)
+        for (const [id, limite] of [['torrao', /Restam 1 de 2 hoje/], ['manual', /Restam 0 de 1 hoje/], ['cupom', /Restam 0 de 1 hoje/], ['estrela', /de novo em 7 dias/]]) {
+          const a = await estadoDe(pg)
+          await bt(id).click()
+          const s = await estadoDe(pg), d = JSON.parse(await bruto(pg, DEVK))
+          gold -= G.ITEMS[id].price
+          const esperado = Object.assign({}, a.mochila, { [id]: a.mochila[id] + 1 })
+          if (s.gold !== gold || !igual(s.mochila, esperado)) problems.push(`${label} ${id}: Ouro ${a.gold} -> ${s.gold} (esperado ${gold}), mochila ${JSON.stringify(s.mochila)} (esperado ${JSON.stringify(esperado)})`)
+          if (id === 'estrela' ? s.lojaItens.estrelaDia !== hoje : s.lojaItens.comprados[id] !== a.lojaItens.comprados[id] + 1 || s.lojaItens.dia !== hoje) problems.push(`${label} ${id}: o limite gravado ${JSON.stringify(s.lojaItens)}`)
+          if (marca(d) !== marca(s)) problems.push(`${label} ${id}: a compra não foi gravada junto (disco ${marca(d)})`)
+          if (!limite.test(await linhaTxt(id))) problems.push(`${label} ${id}: depois da compra a linha diz "${await linhaTxt(id)}" (esperado ${limite})`)
+          if (id !== 'torrao' && ((await bt(id).textContent()) || '').trim().indexOf('Limite de hoje') !== 0) problems.push(`${label} ${id}: depois da única compra do dia o botão diz "${((await bt(id).textContent()) || '').trim()}"`)
+        }
+        // a gravação falhando: o 2º Torrão do dia
+        const antes = marca(await estadoDe(pg)), antesDisco = await bruto(pg, DEVK)
+        await pg.evaluate(() => { window.__setOrig = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new DOMException('cheio', 'QuotaExceededError') } })
+        await bt('torrao').click()
+        await pg.evaluate(() => { Storage.prototype.setItem = window.__setOrig })
+        if (marca(await estadoDe(pg)) !== antes) problems.push(`${label}: a compra com a gravação falhando mudou a memória ${marca(await estadoDe(pg))} (antes ${antes})`)
+        if ((await bruto(pg, DEVK)) !== antesDisco) problems.push(`${label}: a compra com a gravação falhando mudou o disco`)
+        const aviso = (await pg.locator('#tela .item-linha--produto[data-item="torrao"] .item-aviso').textContent().catch(() => '')) || ''
+        if (!/Não foi possível salvar/.test(aviso) || /Comprou/.test((await pg.locator('#tela').textContent()) || '')) problems.push(`${label}: o aviso da compra com a gravação falhando: "${aviso}"`)
+        await pg.waitForFunction(() => /Não foi possível salvar/.test(document.getElementById('motivo-vivo').textContent), null, { timeout: 3000 }).catch(() => problems.push(`${label}: a região viva não diz que não salvou`))
+        if (!/Restam 1 de 2 hoje/.test(await linhaTxt('torrao'))) problems.push(`${label}: depois da falha o limite diz "${await linhaTxt('torrao')}"`)
+        await bt('torrao').click()
+        const s = await estadoDe(pg), d = JSON.parse(await bruto(pg, DEVK))
+        if (s.mochila.torrao !== 2 || s.gold !== gold - G.ITEMS.torrao.price || marca(d) !== marca(s)) problems.push(`${label}: com a gravação de volta, a compra ${JSON.stringify({ torrao: s.mochila.torrao, gold: s.gold })}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 12c. os pontos que o Torrão e a Estrela deram, depois de GASTOS, continuam depois de recarregar e depois de adotar o save
+    //      de outra aba (os torrões e as estrelas entram no cavalo antes de os pontos guardados serem conferidos)
+    {
+      const label = 'itens-pontos-recarregar'
+      const m1 = cav(brasa, { uid: 'm1', level: 5, skills: [], torroes: 0 })
+      const pg = await newPage(browser, VP, label, saveT4({ mochila: { ...ZERO_MOCHILA, torrao: 2, estrela: 1 }, mounts: [m1, SAVE_T4.mounts[1]], nextUid: 3 }))
+      const h = usoHelpers(pg, label)
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await h.ficha('m1')
+        for (const id of ['torrao', 'torrao', 'estrela']) { await h.usarFicha(id).click(); await h.confirmar().click() }
+        let a = await h.mount('m1')
+        const livres = S.freePoints(a), semItens = S.freePoints({ ...a, torroes: 0, grau: m1.grau })
+        if (a.torroes !== 2 || a.grau !== 3 || !(livres > semItens)) problems.push(`${label}: depois dos itens: torroes ${a.torroes}, grau ${a.grau}, pontos ${semItens} -> ${livres}`)
+        // gasta todos os pontos, 1 de cada vez, em 6 status
+        const ks = ['vel', 'acel', 'man', 'forca', 'est', 'garra']
+        for (let i = 0; i < livres; i++) {
+          await pg.locator(`#tela [data-acao="ponto-mais"][data-id="${ks[i % ks.length]}"][data-n="1"]`).click()
+          if (i === 0) await esperaBarra(pg)
+        }
+        await pg.locator('#tela [data-acao="pontos-confirmar"]').click()
+        await pg.locator('#tela [data-acao="pontos-confirmar"]').click()
+        a = await h.mount('m1')
+        const gastos = JSON.stringify(a.alloc), info = S.allocInfo(a)
+        if (info.used !== livres || info.left !== 0) problems.push(`${label}: os ${livres} pontos não foram todos gastos (gastos ${info.used}, sobram ${info.left})`)
+        if (!(info.used > semItens)) problems.push(`${label}: os pontos gastos (${info.used}) não passam dos de sem os itens (${semItens}): o teste não prova nada`)
+        if (JSON.stringify((await h.disco()).mounts.find((m) => m.uid === 'm1').alloc) !== gastos) problems.push(`${label}: os pontos gastos não foram gravados`)
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        a = await h.mount('m1')
+        if (JSON.stringify(a.alloc) !== gastos || a.torroes !== 2 || a.grau !== 3) problems.push(`${label}: depois de recarregar, os pontos ${JSON.stringify(a.alloc)} (antes ${gastos}), torroes ${a.torroes}, grau ${a.grau}`)
+        // o save de outra aba (o mesmo, com 1 de Ouro a mais) chega pelo evento storage e é adotado
+        await pg.evaluate((k) => { const x = JSON.parse(localStorage.getItem(k)); x.rev += 10; x.gold += 1; const raw = JSON.stringify(x); localStorage.setItem(k, raw); window.dispatchEvent(new StorageEvent('storage', { key: k, newValue: raw })) }, DEVK)
+        await pg.waitForFunction((g) => window.__galope.state.gold === g, (await h.disco()).gold, { timeout: 3000 }).catch(() => problems.push(`${label}: o save da outra aba não foi adotado`))
+        a = await h.mount('m1')
+        if (JSON.stringify(a.alloc) !== gastos) problems.push(`${label}: depois de adotar o save de outra aba, os pontos ${JSON.stringify(a.alloc)} (antes ${gastos})`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 13. o dia vira com o jogo aberto (decisão 19 do controlador): sem temporizador, a tela é desenhada de novo quando a aba volta
+    //     a ficar visível e no começo de um toque (e esse toque não vale: o alvo era da tela de ontem); nunca na corrida. O relógio
+    //     do navegador é o do Playwright (page.clock), no fuso de São Paulo; o deslocamento de dias da gaveta DEV fica em 0.
+    const FUSO = { timezoneId: 'America/Sao_Paulo' }
+    const D17 = IT.diaLocal(2026, 10, 17)
+    // a aba sai de vista e volta (o navegador sem janela nunca esconde a aba: o estado e o evento são simulados)
+    const visibilidade = (pg, v) => pg.evaluate((v) => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => v }); document.dispatchEvent(new Event('visibilitychange')) }, v)
+    const vivoTem = (pg, re) => pg.waitForFunction((src) => new RegExp(src).test(document.getElementById('motivo-vivo').textContent), re.source, { timeout: 3000 }).then(() => true, () => false)
+    // 13a. resgata às 23:58; a aba sai de vista; 00:01; a aba volta: o cartão grande e o ponto na aba, sem recarregar nem navegar
+    {
+      const label = 'itens-virada-aba'
+      const pg = await newPage(browser, VP, label, { query: '?dev=1', ...FUSO, relogio: new Date('2026-11-17T23:58:00-03:00') })
+      const h = diariaHelpers(pg, label)
+      try {
+        await h.preparar()   // o perfil de teste novo (o deslocamento de dias da gaveta fica em 0: o dia é o do relógio)
+        if ((await h.hoje()) !== D17) problems.push(`${label}: o dia do jogo é ${await h.hoje()} (esperado ${D17}, o relógio do teste)`)
+        await h.botao().click()
+        await h.linha(/amanhã 1 Torrão de açúcar/, 'resgatado às 23:58')
+        await pg.evaluate(() => { window.__semRecarregar = true })
+        await visibilidade(pg, 'hidden')
+        await pg.clock.setSystemTime(new Date('2026-11-18T00:01:00-03:00'))
+        await visibilidade(pg, 'visible')
+        await pg.waitForFunction(() => !!document.querySelector('#tela .diaria--grande'), null, { timeout: 3000 }).catch(() => problems.push(`${label}: ao voltar à aba no dia seguinte, o cartão não voltou a ser grande`))
+        await h.grande(2, '1 Torrão de açúcar', 'ao voltar à aba no dia seguinte')
+        const onde = await pg.evaluate(() => ({ mesma: window.__semRecarregar === true, tela: window.__galope.ui.screen }))
+        if (!onde.mesma || onde.tela !== 'estabulo') problems.push(`${label}: a volta à aba recarregou ou navegou ${JSON.stringify(onde)}`)
+        if (!(await vivoTem(pg, /Virou o dia/))) problems.push(`${label}: a região viva não diz que o dia virou`)
+        await h.resgata(2, 'o resgate do dia novo')
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 13b. a Loja no limite do Torrão (com o aviso da compra); o dia vira sem a aba sair de vista; o toque em "Limite de hoje"
+    //      desenha a tela de novo (o botão volta a "Comprar", o aviso de ontem some) e não compra nada; o toque seguinte compra
+    {
+      const label = 'itens-virada-loja'
+      const save = Object.assign({}, SAVE_T4, { lojaItens: { dia: D17, comprados: { torrao: 1, manual: 0, cupom: 0 }, estrelaDia: null }, diaria: { prox: 1, ciclos: 0, ultimo: D17 } })
+      const pg = await newPage(browser, VP, label, { ...comSave(REAL, JSON.stringify(save)), ...FUSO, relogio: new Date('2026-11-17T23:58:00-03:00') })
+      const bt = () => pg.locator('#tela [data-acao="item-comprar"][data-id="torrao"]')
+      const txt = async () => ((await bt().textContent()) || '').replace(/\s+/g, ' ').trim()
+      const linhaTxt = async () => ((await pg.locator('#tela .item-linha--produto[data-item="torrao"]').textContent()) || '').replace(/\s+/g, ' ')
+      const marca = (s) => JSON.stringify({ gold: s.gold, mochila: s.mochila, lojaItens: s.lojaItens })
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await pg.locator('[data-acao="aba"][data-id="loja"]').click()
+        await pg.waitForSelector('#t-loja')
+        await bt().click()   // o 2º Torrão do dia: o limite
+        if (!/Comprou 1 Torrão/.test((await pg.locator('#tela .item-linha--produto[data-item="torrao"] .item-aviso').textContent().catch(() => '')) || '')) problems.push(`${label}: sem o aviso da compra antes da virada`)
+        if ((await txt()).indexOf('Limite de hoje') !== 0) problems.push(`${label}: antes da virada o botão diz "${await txt()}" (esperado "Limite de hoje")`)
+        await pg.clock.setSystemTime(new Date('2026-11-18T00:01:00-03:00'))
+        const antes = marca(await estadoDe(pg)), antesDisco = await bruto(pg, REAL)
+        await bt().click({ force: true })   // o toque no botão apagado de ontem
+        await pg.waitForFunction(() => { const b = document.querySelector('#tela [data-acao="item-comprar"][data-id="torrao"]'); return !!b && /^\s*Comprar/.test(b.textContent) }, null, { timeout: 3000 }).catch(() => problems.push(`${label}: o toque depois da virada não desenhou a Loja do dia novo (o botão diz "Limite de hoje")`))
+        if (marca(await estadoDe(pg)) !== antes || (await bruto(pg, REAL)) !== antesDisco) problems.push(`${label}: o toque da virada comprou ou gravou: ${marca(await estadoDe(pg))} (antes ${antes})`)
+        if (await pg.locator('#tela .item-aviso').count()) problems.push(`${label}: o aviso da compra de ontem continua na tela`)
+        if (!/Restam 2 de 2 hoje/.test(await linhaTxt())) problems.push(`${label}: depois da virada a linha diz "${await linhaTxt()}"`)
+        if (!(await vivoTem(pg, /Virou o dia/))) problems.push(`${label}: a região viva não diz que o dia virou`)
+        const foco = await pg.evaluate(() => { const e = document.activeElement; return e && e.getAttribute('data-acao') + ':' + e.getAttribute('data-id') })
+        if (foco !== 'item-comprar:torrao') problems.push(`${label}: depois da virada o foco ficou em ${foco}`)
+        await bt().click()
+        const s = await estadoDe(pg), d = JSON.parse(await bruto(pg, REAL))
+        if (s.mochila.torrao !== 2 || s.gold !== 5000 - 2 * G.ITEMS.torrao.price || s.lojaItens.dia !== D17 + 1 || s.lojaItens.comprados.torrao !== 1 || marca(d) !== marca(s)) problems.push(`${label}: o toque seguinte não comprou no dia novo: ${marca(s)} (disco ${marca(d)})`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 13c. o dia vira durante a corrida (a aba sai de vista e volta, e um toque na pista): a corrida segue (a mesma, na tela) e o
+    //      resultado é o simulado com a sala antes da largada; depois do resultado, o Estábulo já é o do dia novo
+    {
+      const label = 'itens-virada-corrida'
+      const save = Object.assign({}, SAVE_T4, { diaria: { prox: 1, ciclos: 0, ultimo: D17 } })
+      const pg = await newPage(browser, VP, label, { ...comSave(REAL, JSON.stringify(save)), ...FUSO, relogio: new Date('2026-11-17T23:59:00-03:00') })
+      const h = diariaHelpers(pg, label)
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await abrirSala(pg, 50)
+        const esperado = await simSala(pg)
+        await pg.getByRole('button', { name: /^Largar/ }).click()
+        await pg.waitForSelector('#pista')
+        await pg.evaluate(() => { window.__corrida0 = window.__galope.race })
+        await visibilidade(pg, 'hidden')
+        await pg.clock.setSystemTime(new Date('2026-11-18T00:01:00-03:00'))
+        await visibilidade(pg, 'visible')
+        await pg.locator('#pista').click()
+        await sleep(200)
+        const durante = await pg.evaluate(() => ({ tela: window.__galope.ui.screen, mesma: !!window.__corrida0 && window.__galope.race === window.__corrida0, hoje: window.__galope.hojeDia() }))
+        if (durante.tela !== 'corrida' || !durante.mesma) problems.push(`${label}: a virada do dia mexeu na corrida ${JSON.stringify(durante)}`)
+        if (durante.hoje !== D17 + 1) problems.push(`${label}: o relógio não virou o dia (${durante.hoje}): o teste não prova nada`)
+        await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+        await pg.waitForSelector('#t-resultado')
+        const veio = await pg.evaluate(() => { const L = window.__galope.ui.lobby; return JSON.stringify({ seed: L.seed, ordem: L.sim.finishOrder, tempos: L.sim.finishTimes }) })
+        if (veio !== esperado) problems.push(`${label}: o resultado da corrida ${veio} não é o simulado antes da largada ${esperado}`)
+        await pg.locator('#tela [data-acao="voltar"]').first().click()
+        await pg.waitForSelector('#t-correr')
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.waitForSelector('#t-estabulo')
+        await h.grande(2, '1 Torrão de açúcar', 'depois da corrida, no dia novo')
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // 14. dado de dia corrompido num save v7 (decisões 8 e 21): ao abrir, o disco recebe o valor consertado (o dia de hoje); no
+    //     dia seguinte, abrindo sem fazer mais nada, o cartão está para resgatar e o Torrão à venda
+    {
+      const label = 'itens-dia-corrompido'
+      const save = Object.assign({}, SAVE_T4, { rev: 20, diaria: { prox: 2, ciclos: 0, ultimo: 'x' }, lojaItens: { dia: 'x', comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: 'x' } })
+      const pg = await newPage(browser, VP, label, { ...comSave(REAL, JSON.stringify(save)), ...FUSO, relogio: new Date('2026-11-17T10:00:00-03:00') })
+      const h = diariaHelpers(pg, label)
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        const d = JSON.parse(await bruto(pg, REAL))
+        if (d.diaria.ultimo !== D17 || d.lojaItens.dia !== D17 || d.lojaItens.estrelaDia !== D17 || !(d.rev > 20)) problems.push(`${label}: ao abrir, o disco ficou com ${JSON.stringify({ diaria: d.diaria, loja: d.lojaItens, rev: d.rev })} (esperado o dia ${D17} gravado)`)
+        if (d.diaria.prox !== 2 || d.mochila.torrao !== 0 || d.gold !== SAVE_T4.gold) problems.push(`${label}: o conserto mexeu em outra coisa ${JSON.stringify({ prox: d.diaria.prox, mochila: d.mochila, gold: d.gold })}`)
+        await h.linha(/amanhã 100 de Ouro/, 'no dia do conserto')
+        await pg.clock.setSystemTime(new Date('2026-11-18T10:00:00-03:00'))
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        await h.grande(3, '100 de Ouro', 'no dia seguinte, sem outra ação')
+        const loja = await pg.evaluate(() => { const g = window.__galope, hj = g.hojeDia(); return ['torrao', 'estrela'].map((id) => window.Itens.podeComprar(id, g.state.lojaItens, hj, 1e6, 1e6, 0).ok) })
+        if (!igual(loja, [true, false])) problems.push(`${label}: no dia seguinte, Torrão e Estrela à venda ${JSON.stringify(loja)} (esperado o Torrão sim; a Estrela só 7 dias depois do conserto)`)
+        // um save v7 bom não é regravado ao abrir
+        const bom = JSON.stringify(Object.assign({}, SAVE_T4, { rev: 70, diaria: { prox: 2, ciclos: 0, ultimo: D17 }, lojaItens: { dia: D17, comprados: { torrao: 1, manual: 0, cupom: 0 }, estrelaDia: null } }))
+        await pg.evaluate(([k, raw]) => localStorage.setItem(k, raw), [REAL, bom])
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        await sleep(300)
+        if ((await bruto(pg, REAL)) !== bom) problems.push(`${label}: um save v7 sem nada para consertar foi regravado ao abrir`)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -6138,7 +6432,8 @@ try {
         const altura = () => pg.evaluate(() => document.documentElement.scrollHeight)
         const aEst = await altura()
         notes.alturaAcabamento = { estabulo: aEst }
-        // 3b §2: o Estábulo em lista de linhas cabia numa tela (780); o cartão da diária custa 40 px (spec de itens §8)
+        // 3b §2: o Estábulo em lista de linhas cabia numa tela (780); o cartão da diária de uma linha mede 40 px e custa 64 px de
+        // altura ao Estábulo, com o espaço até a lista (medido com 6 cavalos: 1.012 antes do cartão, 1.076 com ele; spec de itens §8)
         if (!(await pg.locator('#tela .diaria--linha').count())) problems.push('acabamento: o Estábulo não abriu com a diária resgatada (cartão de uma linha)')
         if (aEst > 820) problems.push(`acabamento: Estábulo com ${aEst}px (limite 820 com a diária resgatada, spec de itens §8; antes da 3a ${ALTURA_ANTES_3A.estabulo})`)
         await semBorderImage(pg, 'estabulo')

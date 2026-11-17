@@ -40,7 +40,9 @@
   var SAL = 0x49540000;
   var DIA_MAX = Math.floor(Date.UTC(9999, 11, 31) / 86400000);   // diaLocal(9999, 11, 31): o maior dia guardado
   var I = G.ITEMS, D = G.DAILY;
-  var LIMITADOS = ['torrao', 'manual', 'cupom'];   // os que têm limite por dia (perDay)
+  // os que têm limite por dia (perDay), lidos do catálogo a cada uso (hoje: torrao, manual, cupom): item novo com perDay
+  // entra no limite sem mexer aqui
+  function limitados() { return Object.keys(I).filter(function (id) { return !!I[id].perDay; }); }
 
   function temChave(o, k) { return !!o && Object.prototype.hasOwnProperty.call(o, k); }
   function inteiro(x) { return typeof x === 'number' && isFinite(x) && x === Math.floor(x); }
@@ -169,7 +171,7 @@
   // junto. null continua sendo "nunca".
   function lojaSaneada(loja, hoje) {
     var obj = objeto(loja), l = obj || {}, c = objeto(l.comprados) || {}, comprados = {};
-    LIMITADOS.forEach(function (id) { comprados[id] = inteiro(c[id]) && c[id] >= 0 && c[id] <= I[id].perDay ? c[id] : I[id].perDay; });
+    limitados().forEach(function (id) { comprados[id] = inteiro(c[id]) && c[id] >= 0 && c[id] <= I[id].perDay ? c[id] : I[id].perDay; });
     return {
       dia: obj && l.dia === null ? null : diaOu(l.dia, hoje),
       comprados: comprados,
@@ -181,7 +183,7 @@
     var l = lojaSaneada(loja, hoje);
     if (!inteiro(hoje) || (l.dia !== null && hoje <= l.dia)) return l;
     var zerados = {};
-    LIMITADOS.forEach(function (id) { zerados[id] = 0; });
+    limitados().forEach(function (id) { zerados[id] = 0; });
     return { dia: hoje, comprados: zerados, estrelaDia: l.estrelaDia };
   }
   // ouro: saldo; ouroLivre: o que sobra fora do reservado para a entrada da sala aberta; tem: na mochila.
@@ -195,7 +197,7 @@
       restam = 1;
     } else {
       restam = it.perDay - l.comprados[id];
-      if (restam <= 0) return { ok: false, motivo: 'limite' };
+      if (!(restam > 0)) return { ok: false, motivo: 'limite' };   // NaN (limite ausente) também para
     }
     if (Number(tem) >= G.BAG_MAX) return { ok: false, motivo: 'cheia' };
     if (!(ouro >= it.price)) return { ok: false, motivo: 'sem-ouro' };
@@ -207,7 +209,7 @@
     var l = lojaDoDia(loja, hoje);
     if (!inteiro(hoje)) return l;
     if (temChave(I, id) && I[id].everyDays) l.estrelaDia = hoje;
-    else if (LIMITADOS.indexOf(id) >= 0) l.comprados[id] += 1;
+    else if (limitados().indexOf(id) >= 0) l.comprados[id] += 1;
     return l;
   }
 

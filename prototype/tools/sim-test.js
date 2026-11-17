@@ -1859,6 +1859,23 @@ test('loja: Estrela a cada 7 dias, Rédea não vende, Sem Ouro, Reservado e moch
   assert.deepStrictEqual(IT.podeComprar('manual', L0, 10, 1000, 1000, 98), { ok: true, restam: 1 });
   assert.deepStrictEqual(L0, { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null }, 'não muta');
 });
+test('loja: o limite por dia sai do catálogo (um item novo com perDay também para no limite)', function () {
+  // item de teste posto no catálogo só durante o teste: a lista dos limitados não pode ser escrita à mão no itens.js
+  G.ITEMS.teste = { id: 'teste', name: 'Item de teste', plural: 'Itens de teste', price: 10, perDay: 1, desc: 'x', origem: 'x' };
+  try {
+    var L0 = congela({ dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null });
+    assert.deepStrictEqual(IT.podeComprar('teste', L0, 10, 1000, 1000, 0), { ok: true, restam: 1 });
+    var L1 = congela(IT.comprar('teste', L0, 10));
+    assert.strictEqual(L1.comprados.teste, 1, 'a compra conta no limite do item novo');
+    assert.deepStrictEqual(IT.podeComprar('teste', L1, 10, 1000, 1000, 1), { ok: false, motivo: 'limite' }, 'a 2ª compra no mesmo dia');
+    assert.deepStrictEqual(IT.podeComprar('teste', L1, 11, 1000, 1000, 1), { ok: true, restam: 1 }, 'no dia seguinte volta');
+    // limite do item novo ausente do save (save de antes do item): vale o limite, como todo limite corrompido
+    assert.deepStrictEqual(IT.podeComprar('teste', congela({ dia: 10, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null }), 10, 1000, 1000, 0), { ok: false, motivo: 'limite' })
+  } finally {
+    delete G.ITEMS.teste;
+  }
+  assert.deepStrictEqual(IT.lojaDoDia({ dia: null, comprados: {}, estrelaDia: null }, 10).comprados, { torrao: 0, manual: 0, cupom: 0 }, 'sem o item de teste, os limitados voltam aos três');
+});
 test('diaLocal: dias inteiros da data, sem ler o relógio', function () {
   assert.strictEqual(IT.diaLocal(1970, 0, 1), 0);
   assert.strictEqual(IT.diaLocal(2026, 10, 16) + 1, IT.diaLocal(2026, 10, 17));
