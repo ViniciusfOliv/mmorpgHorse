@@ -3,6 +3,8 @@
 # moldes, wiki, balanceamento rápido e interface.
 #   ./scripts/check.sh
 # Não altera as capturas oficiais (prototype/screens/): o teste de UI grava numa pasta temporária.
+# A interface roda em paralelo (prototype/tools/ui-test-paralelo.mjs: um processo por bloco, UI_JOBS=4, e os blocos
+# sensíveis a tempo depois, um por vez). Para regravar as capturas oficiais: node prototype/tools/ui-test.mjs (sem UI_SO).
 # Sai com código diferente de zero se qualquer etapa falhar.
 set -euo pipefail
 
@@ -45,8 +47,8 @@ step "7/8 Balanceamento rápido"
 node prototype/tools/balance.js --quick > "$SHOTS_DIR/balance.txt" || { cat "$SHOTS_DIR/balance.txt"; exit 1; }
 grep -E 'metas passaram|❌' "$SHOTS_DIR/balance.txt" || true
 
-step "8/8 Interface (Playwright)"
-node prototype/tools/ui-test.mjs > "$SHOTS_DIR/ui.txt" 2>&1 || { cat "$SHOTS_DIR/ui.txt"; exit 1; }
+step "8/8 Interface (Playwright, em paralelo)"
+node prototype/tools/ui-test-paralelo.mjs > "$SHOTS_DIR/ui.txt" 2>&1 || { cat "$SHOTS_DIR/ui.txt"; exit 1; }
 tail -n 1 "$SHOTS_DIR/ui.txt"
 
 printf '\nVERIFICAÇÃO COMPLETA: OK\n'

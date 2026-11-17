@@ -8,13 +8,21 @@
 // Também confere a entrada reservada do páreo aberto, a gravação que falha, o save adulterado ou corrompido,
 // o jogo de produção (jogo.html sem DEV nem gancho), a área segura do topo, o tamanho mínimo do texto e o teto
 // de chamadas de canvas por quadro na corrida mais cara.
-//   UI_SO=reserva,gravacao,adulterado,corrompido,areasegura,texto,producao,itens,redimensiona,escala,teto,corrida,resultado,marcas,portes,crescimento,ajuda,acabamento,celular node tools/ui-test.mjs  -> só esses
+// Os blocos têm nome (lista BLOCOS abaixo, na ordem do arquivo; cada um no seu contexto do navegador):
+//   node tools/ui-test.mjs --blocos             -> imprime os nomes, um por linha (sem abrir navegador nem servidor)
+//   UI_SO=reserva,corrida-8,fluxo-loja node tools/ui-test.mjs  -> só esses (nome fora da lista é erro)
+//   node tools/ui-test-paralelo.mjs             -> todos, um processo por bloco (é o que o scripts/check.sh roda)
+// Sem UI_SO roda tudo, num processo só, e regrava as capturas oficiais (é assim que elas são regeneradas). Com UI_SO,
+// os blocos do fluxo (fluxo, fluxo-*) gravam numa pasta temporária se não houver SHOTS_DIR, e a captura oficial do bloco
+// build (final-03b/03c) só sai fora da pasta oficial: uma rodada à mão com UI_SO nunca regrava essas capturas.
+// O tempo de cada bloco executado sai nas notas (temposBlocos, em segundos).
 // Equipamento suspenso (bloco 1b, GEAR_ON = false no game.js): os blocos das telas de peças e da Loja conferem que elas
 // não aparecem e que as ações de peça não fazem nada; com GEAR_ON = true voltam a testar as telas (GEAR_ON abaixo).
 import { createRequire } from 'node:module'
 import { dirname, extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { mkdir, readFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { createServer } from 'node:http'
 import { PECAS as PECAS_ARTE } from './interface-arte.mjs'
 
@@ -27,6 +35,25 @@ const GR = require('../src/gear.js')
 const IT = require('../src/itens.js')
 const G_ELS = Object.keys(G.ELEMENTS)
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+// os blocos, na ordem em que aparecem no arquivo: todo if (quer(nome)) usa um nome daqui (quer() lança erro se não), e o
+// ui-test-paralelo.mjs roda exatamente esta lista. Bloco novo entra aqui, no lugar dele.
+const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
+  'corrompido', 'areasegura', 'texto', 'producao', 'itens', 'redimensiona', 'escala', 'teto',
+  'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
+  'corrida-lugar-dado-redimensiona', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
+  'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
+  'resultado', 'build', 'valor-peca', 'nivel-pontos', 'selo-teto', 'build-nivel1', 'selo', 'vaga-tipo', 'inicial', 'aura',
+  'skills', 'icones', 'marcas', 'marcas-corrida', 'portes', 'portes-corrida', 'ajuda', 'acabamento', 'celular', 'crescimento',
+  'crescimento-jogo',
+  'fluxo', 'fluxo-saves', 'fluxo-cruzamento', 'fluxo-abas', 'fluxo-equipamento', 'fluxo-dev', 'fluxo-build-teste', 'fluxo-dado',
+  'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
+  'fluxo-pequeno']
+if (process.argv.includes('--blocos')) { console.log(BLOCOS.join('\n')); process.exit(0) }
+// UI_SO=reserva,gravacao,...: roda só os blocos com esses nomes (para desenvolver um teste sem esperar o resto); sem UI_SO
+// (a rodada completa), roda tudo
+const SO = (process.env.UI_SO || '').split(',').map((x) => x.trim()).filter(Boolean)
+const SO_FORA = SO.filter((n) => !BLOCOS.includes(n))
+if (SO_FORA.length) throw new Error(`ui-test: UI_SO com bloco que não existe: ${SO_FORA.join(', ')} (a lista: node tools/ui-test.mjs --blocos)`)
 // prototype/dist/ servido por http://127.0.0.1:<porta livre> (node:http, sem dependências; fecha no fim): em
 // file:// o localStorage deste Chromium às vezes some num reload e o check.sh falhava de vez em quando
 const DIST = join(ROOT, 'dist')
@@ -55,7 +82,14 @@ const servidor = createServer(async (req, res) => {
 await new Promise((ok, falha) => { servidor.once('error', falha); servidor.listen(0, '127.0.0.1', ok) })
 const BASE = `http://127.0.0.1:${servidor.address().port}/`
 const URL = BASE + 'preview.html'
-const SHOTS = process.env.SHOTS_DIR || join(ROOT, 'screens') // SHOTS_DIR: usado pelo scripts/check.sh
+// SHOTS_DIR: usado pelo scripts/check.sh e pelo ui-test-paralelo.mjs. Com UI_SO de um bloco do fluxo e sem SHOTS_DIR, as
+// capturas (que levam os nomes das oficiais) vão para uma pasta temporária
+const SHOTS_OFICIAL = join(ROOT, 'screens')
+const SHOTS = process.env.SHOTS_DIR ||
+  (SO.some((n) => n === 'fluxo' || n.startsWith('fluxo-')) ? await mkdtemp(join(tmpdir(), 'ui-test-fluxo-')) : SHOTS_OFICIAL)
+const SHOTS_SAO_OFICIAIS = resolve(SHOTS) === resolve(SHOTS_OFICIAL)
+if (SHOTS !== process.env.SHOTS_DIR && !SHOTS_SAO_OFICIAIS) console.error('ui-test: capturas do fluxo em ' + SHOTS + ' (sem SHOTS_DIR)')
+if (process.env.UI_PARALELO === '1' && SHOTS_SAO_OFICIAIS) throw new Error('ui-test: o modo paralelo nunca grava em prototype/screens/ (passe SHOTS_DIR)')
 // versão do save e equipamento (spec 1b §8, §10), lidos do jogo gerado: o teste segue o que o build tem
 const PREVIEW_JS = await readFile(join(DIST, 'preview.html'), 'utf8')
 const SAVE_V = Number((PREVIEW_JS.match(/var SAVE_VERSION = (\d+);/) || [])[1])
@@ -87,7 +121,8 @@ async function newPage(browser, viewport, label, extra = {}) {
   if (init) await page.addInitScript(init)
   if (relogio) await page.clock.install({ time: relogio })
   await page.goto(BASE + pagina + query, { waitUntil: 'domcontentloaded' })
-  await Promise.race([page.evaluate(() => document.fonts && document.fonts.ready), sleep(4000)])
+  // o teto de 4 s não segura o processo aberto no fim (unref): com um processo por bloco, cada um saía até 4 s depois
+  await Promise.race([page.evaluate(() => document.fonts && document.fonts.ready), new Promise((r) => setTimeout(r, 4000).unref())])
   if (moldes) {
     try {
       await page.waitForFunction(() => window.Sprites && window.Sprites.moldsReady === true, null, { timeout: 8000 })
@@ -234,10 +269,20 @@ async function pickShotTime(page) {
 }
 
 const browser = await chromium.launch()
-// UI_SO=reserva,gravacao,...: roda só os contextos com esses nomes (para desenvolver um teste sem esperar os
-// ~5 min do resto); sem UI_SO (o check.sh), roda tudo.
-const SO = (process.env.UI_SO || '').split(',').map((x) => x.trim()).filter(Boolean)
-const quer = (nome) => !SO.length || SO.includes(nome)
+// quer(nome): roda o bloco? (sem UI_SO, sempre). Também anota a ordem em que os blocos aparecem (conferida com BLOCOS no
+// fim) e o tempo de cada bloco executado: os blocos rodam um depois do outro, então o tempo de um vai do quer() dele até o
+// quer() do próximo bloco executado (ou até o fim)
+const perguntados = []
+const temposBlocos = {}
+let blocoAberto = null, blocoT0 = 0
+const fechaBloco = () => { if (blocoAberto) temposBlocos[blocoAberto] = (temposBlocos[blocoAberto] || 0) + (Date.now() - blocoT0); blocoAberto = null }
+const quer = (nome) => {
+  if (!BLOCOS.includes(nome)) throw new Error(`ui-test: bloco "${nome}" fora da lista BLOCOS (ponha o nome lá, na ordem do arquivo)`)
+  if (!perguntados.includes(nome)) perguntados.push(nome)
+  const roda = !SO.length || SO.includes(nome)
+  if (roda && blocoAberto !== nome) { fechaBloco(); blocoAberto = nome; blocoT0 = Date.now() }
+  return roda
+}
 // botão indisponível pela regra da 3b: aria-disabled="true" e NÃO disabled (o toque e o teclado ainda o alcançam e mostram o motivo)
 const indisp = (loc) => loc.evaluate((b) => b.getAttribute('aria-disabled') === 'true' && !b.hasAttribute('disabled'))
 // a barra presa dos pontos (aba Status, 3b §6) deixa o toque passar por ~400 ms depois de aparecer (.barra-acao--chegando):
@@ -1408,7 +1453,9 @@ try {
         if (!motivo) problems.push(`${label} ${tag}: o botão "${rotulo}" sem o motivo`)
         const antes = await saldoMochila(), contador = (await estadoDe(pg)).raceCounter
         await botao(id).click({ force: true })   // o toque real (o click() normal espera o botão habilitado)
-        await sleep(120)
+        // espera o motivo chegar à região viva (até 3 s, com a máquina carregada); se não chegar, a linha de baixo acusa
+        await pg.waitForFunction((src) => new RegExp(src).test(document.getElementById('motivo-vivo').textContent || ''),
+          motivo ? motivo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '^$', { timeout: 3000 }).catch(() => {})
         if (!new RegExp(motivo ? motivo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '^$').test((await pg.locator('#motivo-vivo').textContent()) || '')) problems.push(`${label} ${tag}: o toque em "${rotulo}" não pôs o motivo na região viva`)
         await pg.evaluate((i) => { const b = document.querySelector(`#tela [data-acao="item-comprar"][data-id="${i}"]`); b.removeAttribute('aria-disabled'); b.click() }, id)
         if (!igual(await saldoMochila(), antes)) problems.push(`${label} ${tag}: o toque em "${rotulo}" mudou o Ouro, a mochila, os limites ou a sala: ${JSON.stringify(await saldoMochila())}`)
@@ -1647,7 +1694,13 @@ try {
       h.confirmar = () => pg.locator('#tela [data-acao="item-confirmar"]')
       h.cancelar = () => pg.locator('#tela [data-acao="item-cancelar"]')
       h.texto = async () => ((await pg.locator('#tela').textContent()) || '').replace(/\s+/g, ' ')
-      h.vivo = async () => { await sleep(150); return (await pg.locator('#motivo-vivo').textContent()) || '' }
+      // h.vivo(texto): espera (até 3 s) a região viva ter o texto e a devolve (se não chegar, quem chamou acusa);
+      // h.vivo() sem texto, para conferir que algo NÃO foi anunciado: lê depois de uma espera fixa
+      h.vivo = async (espera) => {
+        if (espera == null) await sleep(150)
+        else await pg.waitForFunction((t) => (document.getElementById('motivo-vivo').textContent || '').includes(t), espera, { timeout: 3000 }).catch(() => {})
+        return (await pg.locator('#motivo-vivo').textContent()) || ''
+      }
       h.pontos = async () => ((await pg.locator('#tela .pontos-livres b').textContent()) || '').trim()   // "sobram L de F"
       h.pontosEsperado = (m) => { const i = S.allocInfo(m); return `sobram ${i.left} de ${i.free}` }
       // o que um uso recusado ou cancelado não pode mudar: mochila, Rédeas, contador, sala e os cavalos
@@ -1666,7 +1719,7 @@ try {
         if (/\b\d+ de \d+\b/.test(motivo.replace(/[A-Za-zÀ-ú]+: \d+ de \d+/g, ''))) problems.push(`${label} ${tag}: motivo com "N de M" solto: "${motivo}"`)
         const antes = await h.marca(), antesDisco = await h.marcaDisco()
         await loc.click({ force: true })
-        if (!(await h.vivo()).includes(motivo)) problems.push(`${label} ${tag}: o toque não pôs o motivo na região viva`)
+        if (!(await h.vivo(motivo)).includes(motivo)) problems.push(`${label} ${tag}: o toque não pôs o motivo na região viva`)
         await loc.evaluate((b) => { b.removeAttribute('aria-disabled'); b.click() }).catch(() => {})
         await sleep(100)
         if ((await h.marca()) !== antes) problems.push(`${label} ${tag}: o toque forçado mudou o save: ${await h.marca()}`)
@@ -1731,7 +1784,7 @@ try {
         if (onde !== 'loja:mochila:null') problems.push(`${label}: depois do Torrão a tela ficou em ${onde} (esperado a Mochila)`)
         const avisoT = (await pg.locator('#tela .item-linha--mochila[data-item="torrao"] .item-aviso').textContent().catch(() => '')) || ''
         if (!/Brasa ganhou 1 ponto para distribuir/.test(avisoT) || !/Torrões usados: 1 de 10/.test(avisoT)) problems.push(`${label}: o aviso do Torrão na linha: "${avisoT}"`)
-        if (!(await h.vivo()).includes('Brasa ganhou 1 ponto')) problems.push(`${label}: o aviso do Torrão não foi para a região viva`)
+        if (!(await h.vivo('Brasa ganhou 1 ponto')).includes('Brasa ganhou 1 ponto')) problems.push(`${label}: o aviso do Torrão não foi para a região viva`)
         // ---- pela ficha: os pontos para distribuir sobem 1 e o cavalo mostra quantos torrões já usou ----
         await h.ficha('m1')
         if ((await h.pontos()) !== h.pontosEsperado(m1)) problems.push(`${label}: a ficha diz "${await h.pontos()}" (esperado "${h.pontosEsperado(m1)}", com o torrão)`)
@@ -2082,7 +2135,13 @@ try {
       h.ver = () => pg.locator('#tela [data-acao="diaria-ver"]')
       h.texto = async () => ((await h.cartao().first().textContent().catch(() => '')) || '').replace(/\s+/g, ' ').trim()
       h.pontos = () => pg.locator('.app-abas .app-aba--ponto').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id')).join(','))
-      h.vivo = async () => { await sleep(150); return (await pg.locator('#motivo-vivo').textContent()) || '' }
+      // h.vivo(texto): espera (até 3 s) a região viva ter o texto e a devolve (se não chegar, quem chamou acusa);
+      // h.vivo() sem texto, para conferir que algo NÃO foi anunciado: lê depois de uma espera fixa
+      h.vivo = async (espera) => {
+        if (espera == null) await sleep(150)
+        else await pg.waitForFunction((t) => (document.getElementById('motivo-vivo').textContent || '').includes(t), espera, { timeout: 3000 }).catch(() => {})
+        return (await pg.locator('#motivo-vivo').textContent()) || ''
+      }
       h.hoje = () => pg.evaluate(() => window.__galope.hojeDia())
       const marca = (s) => JSON.stringify({ gold: s.gold, mochila: s.mochila, redeas: s.redeas, diaria: s.diaria })
       h.marca = async () => marca(await estadoDe(pg))
@@ -2135,7 +2194,7 @@ try {
         if ('redea' in d.mochila) problems.push(`${label} ${tag}: a Rédea nova entrou na mochila`)
         if ((await h.marcaDisco()) !== (await h.marca())) problems.push(`${label} ${tag}: o resgate ${k} não foi gravado junto (Ouro, itens e diária): ${await h.marcaDisco()}`)
         await h.linha(new RegExp('amanhã ' + premioDiaria(k + 1).txt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), tag + ' depois de resgatar')
-        if (!(await h.vivo()).includes(p.txt)) problems.push(`${label} ${tag}: a região viva não diz o que entrou (${p.txt}): "${await h.vivo()}"`)
+        if (!(await h.vivo(p.txt)).includes(p.txt)) problems.push(`${label} ${tag}: a região viva não diz o que entrou (${p.txt}): "${await h.vivo()}"`)
         const foco = await pg.evaluate(() => { const e = document.activeElement; return !!(e && e !== document.body && e.closest('#tela .diaria')) })
         if (!foco) problems.push(`${label} ${tag}: depois do resgate o foco saiu do cartão`)
       }
@@ -2269,7 +2328,7 @@ try {
         if (!m || !(await h.texto()).includes(m)) problems.push(`${label}: o motivo "${m}" não está escrito no cartão`)
         const antes = await h.marca()
         await h.botao().click({ force: true })
-        if (!(await h.vivo()).includes(m)) problems.push(`${label}: o toque não pôs o motivo na região viva`)
+        if (!(await h.vivo(m)).includes(m)) problems.push(`${label}: o toque não pôs o motivo na região viva`)
         await h.botao().evaluate((b) => { b.removeAttribute('aria-disabled'); b.click() })
         await sleep(100)
         if ((await h.marca()) !== antes || (await h.marcaDisco()) !== antes) problems.push(`${label}: o toque forçado no teto mudou o save: ${await h.marca()} / disco ${await h.marcaDisco()}`)
@@ -2813,7 +2872,7 @@ try {
   // A faixa de ordem (entre a pista e a narração) segue ranking(st, simT) do quadro que a pista mostra, é reescrita no
   // máximo a cada 250 ms (a linha dos vizinhos a cada 500 ms) e tem altura fixa; em tela baixa (< 700 px) fica com a
   // linha dos corredores só, e a narração com 1 frase em 1 linha. Seeds: 16 (7 corredores; dois Faísca, então a Garra de um rival sai com o dono), 4242 (8), 5 (6) e 1 (4).
-  if (quer('corrida')) {
+  {   // corrida (e as partes corrida-*, cada uma na sua página): as ajudas abaixo valem para todas
     const SEED7 = 16, SEED8 = 4242, SEED4 = 1, SEED6 = 5
     // arma a seed, abre a sala (onde a faixa não existe) e larga; devolve o n da sala
     // antesDeLargar(pg): roda na sala, antes do "Largar" (a simulação sai no Largar, com a sala como estiver)
@@ -3259,7 +3318,7 @@ try {
     const SHOTS_C = process.env.SHOTS_CORRIDA || null   // pasta (fora do repositório) para as capturas de conferência
 
     // 360x780 e 360x640 (tela baixa): ordem, vizinhos, alturas fixas, narração e o limite de reescritas
-    for (const [vp, baixa] of [[{ width: 360, height: 780 }, false], [{ width: 360, height: 640 }, true]]) {
+    if (quer('corrida')) for (const [vp, baixa] of [[{ width: 360, height: 780 }, false], [{ width: 360, height: 640 }, true]]) {
       const label = `corrida-${vp.width}x${vp.height}`
       const pg = await newPage(browser, vp, label, { query: '?dev=1' })
       try {
@@ -3351,7 +3410,7 @@ try {
     }
 
     // 390x844: sem rolagem lateral com o .sr dos ordinais na narração e na faixa
-    {
+    if (quer('corrida-390')) {
       const label = 'corrida-390x844'
       const pg = await newPage(browser, { width: 390, height: 844 }, label, { query: '?dev=1' })
       try {
@@ -3366,7 +3425,7 @@ try {
     }
 
     // cores forçadas: o item do jogador com Highlight e os outros com borda em cor do sistema
-    {
+    if (quer('corrida-forcado')) {
       const label = 'corrida-forcado'
       const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1', forcedColors: 'active' })
       try {
@@ -3391,7 +3450,7 @@ try {
 
     // Review Focus 2: girar no meio da corrida (360x780 → 780x360 → 360x780) numa sala de n ≤ 6 (Ruling 3: com 7–8
     // corredores a paisagem já estourava na BASE — a raia mínima de 12 do compacto —, pendência conhecida)
-    {
+    if (quer('corrida-girar')) {
       const label = 'corrida-girar'
       const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
       try {
@@ -3422,7 +3481,7 @@ try {
       }
     }
     // Ruling 3: em paisagem, com a sala de 8, a faixa vai para a linha dos controles e não soma altura
-    {
+    if (quer('corrida-paisagem-8')) {
       const label = 'corrida-paisagem-8'
       const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
       try {
@@ -3456,7 +3515,7 @@ try {
 
     // Review Focus 3: sala de 8 com o cavalo do jogador renomeado (16 letras) pelo save e os rivais renomeados (16
     // letras, na sala, antes do "Largar": os vizinhos do jogador também têm nome comprido), contra a sala de 4
-    {
+    if (quer('corrida-8')) {
       const label = 'corrida-8'
       const NOME = 'Relampagodourado'
       const RIVAIS = 'ABCDEFGH'.split('').map((c) => 'Tempestadeserra' + c)   // 16 letras, um nome por raia
@@ -3512,7 +3571,7 @@ try {
 
     // Ruling 11: com o jogador na raia 1 (seed 102), a faixa do Dado vai para o pé da pista e não cobre o cavalo dele;
     // com o jogador na raia 7 (seed 4242), fica em cima. Nos dois casos, um lugar por Dado.
-    for (const [seed, embaixo] of [[102, true], [SEED8, false]]) {
+    if (quer('corrida-lugar-dado')) for (const [seed, embaixo] of [[102, true], [SEED8, false]]) {
       for (const vp of [{ width: 360, height: 780 }, { width: 360, height: 640 }]) {
         const label = `corrida-lugar-dado-${seed}-${vp.width}x${vp.height}`
         const pg = await newPage(browser, vp, label, { query: '?dev=1' })
@@ -3536,7 +3595,7 @@ try {
     // girar ou redimensionar no meio de um Dado refaz a decisão do lugar da faixa: na seed 9 (jogador na raia 2), o 1º Dado
     // decide em cima a 360x780 e, a 360x640, a faixa em cima cruzaria o cavalo dele; depois do novo layout, nenhum quadro
     // do Dado tem a faixa sobre o cavalo do jogador
-    {
+    if (quer('corrida-lugar-dado-redimensiona')) {
       const label = 'corrida-lugar-dado-redimensiona'
       const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
       try {
@@ -3580,7 +3639,7 @@ try {
     // fora da câmera), então o teste afasta os rivais das raias 1 e 2 (150 m à frente e atrás, nos quadros da simulação
     // em volta do Dado, que só o desenho lê) e desenha à mão a janela do 1º Dado a 360x640, onde a etiqueta da raia 1
     // cairia embaixo da faixa
-    {
+    if (quer('corrida-etiquetas-dado')) {
       const label = 'corrida-etiquetas-dado'
       const pg = await newPage(browser, { width: 360, height: 640 }, label, { query: '?dev=1' })
       try {
@@ -3619,7 +3678,7 @@ try {
     // faixa do lugar: vitória (seed 3, jogador em 1º), pódio (seed 12, 3º; com o jogador na raia 2 a 360x640 a faixa vai
     // para o pé) e Ruling 14 com o jogador na raia 1 (seed 102, 8º): a faixa não cruza o cavalo dele em nenhum quadro, a
     // 360x780 e a 360x640
-    for (const [seed, esperado, vp] of [[3, 'VITÓRIA!', { width: 360, height: 780 }], [12, '3º LUGAR', { width: 360, height: 640 }],
+    if (quer('corrida-faixa-lugar')) for (const [seed, esperado, vp] of [[3, 'VITÓRIA!', { width: 360, height: 780 }], [12, '3º LUGAR', { width: 360, height: 640 }],
       [102, '8º LUGAR', { width: 360, height: 780 }], [102, '8º LUGAR', { width: 360, height: 640 }]]) {
       const label = `corrida-faixa-lugar-${seed}-${vp.width}x${vp.height}`
       const pg = await newPage(browser, vp, label, { query: '?dev=1' })
@@ -3644,7 +3703,7 @@ try {
     }
     // Review Focus 5a: "Pular" com a faixa do lugar na tela leva ao resultado sem deixar a faixa presa; pular antes de
     // cruzar nunca mostra a faixa
-    {
+    if (quer('corrida-faixa-lugar-pular')) {
       const label = 'corrida-faixa-lugar-pular'
       const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
       try {
@@ -3663,7 +3722,7 @@ try {
         await pg.context().close()
       }
     }
-    {
+    if (quer('corrida-faixa-lugar-pular-antes')) {
       const label = 'corrida-faixa-lugar-pular-antes'
       const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
       try {
@@ -3696,7 +3755,7 @@ try {
     }
 
     // Ruling 12 com movimento reduzido: a revelação é em t0, então a narração, o #anuncio e o painel não esperam
-    {
+    if (quer('corrida-dado-reduzido')) {
       const label = 'corrida-dado-reduzido'
       const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1', reducedMotion: 'reduce' })
       try {
@@ -4127,8 +4186,9 @@ try {
         if (!l.barra || l.mais !== (l.k === 'sorte' ? '' : '1,5,10')) problems.push('build: linha sem barra ou com os botões errados ' + JSON.stringify(l))
       }
       await confereLegivel(bd, ['.pontos-livres', '.nota-genetica', '.selo-nivel', '[data-status]'], 'build-360')
-      // capturas oficiais (só na rodada completa): aba Status com os pontos e aba Skills com a vaga de tipo
-      if (!SO.length) {
+      // capturas oficiais (na rodada completa; com UI_SO, só fora da pasta oficial, como no ui-test-paralelo.mjs):
+      // aba Status com os pontos e aba Skills com a vaga de tipo
+      if (!SO.length || !SHOTS_SAO_OFICIAIS) {
         // janela de 360 px com as sub-abas no topo (página inteira deixaria a barra de abas fixa no meio)
         const subabasNoTopo = () => bd.evaluate(() => { const e = document.querySelector('.subabas'); window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - 8) })
         await subabasNoTopo()
@@ -5083,7 +5143,7 @@ try {
   // marcas da montaria (3 seletores, texto sem símbolos); o potro nasce com marcas que ficam no save. A corrida DEV
   // com 8 Míticos (Review Focus 5) monta os quadros de cada cavalo na largada (o cache dos moldes não cresce depois)
   // e fica abaixo dos 6 ms por quadro que o teste de desempenho usa de teto. Nada quebra nem rola de lado a 360 px.
-  if (quer('marcas')) {
+  {   // marcas (e marcas-corrida, a parte com o teto de tempo por quadro): as ajudas abaixo valem para todas
     const JQ0 = { padrao: G.JOQUEI.padrao, capacete: G.JOQUEI.capacete }
     const TETO_MS = 6   // o mesmo teto do teste de desempenho (Completas − Reduzidas)
     const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
@@ -5145,7 +5205,7 @@ try {
     const daAtiva = (s) => s.mounts.find((m) => m.uid === s.activeId)
 
     // 1. save real sem marcas e sem jóquei, com lixo e com o alugado de antes da 2a (360 px)
-    {
+    if (quer('marcas')) {
       const label = 'marcas-save'
       const pg = await newPage(browser, { width: 360, height: 780 }, label)
       try {
@@ -5215,7 +5275,7 @@ try {
     }
 
     // 2. gaveta DEV (marcas da montaria) e corrida DEV com 8 Míticos (1280: o canvas maior)
-    {
+    if (quer('marcas-corrida')) {
       const label = 'marcas-corrida'
       // 8 corredores numa sala DEV: a seed armada é a da sala; o nº de corredores é o 2º sorteio do rng da sala
       let SEED8_DEV = 0
@@ -5363,7 +5423,7 @@ try {
     }
 
     // 3. cruzar no DEV (360): o potro nasce com marcas válidas (as do Breed.foal) e elas ficam no save
-    {
+    if (quer('marcas')) {
       const label = 'marcas-potro'
       const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
       try {
@@ -5404,7 +5464,7 @@ try {
     }
 
     // 4. telas (Task 5): editor do jóquei no Perfil, linha "Marcas:" na ficha e no Haras (360 e 1280)
-    {
+    if (quer('marcas')) {
       const label = 'marcas-telas'
       const PADROES = { liso: 'Liso', listras: 'Listras', faixa: 'Faixa', xadrez: 'Xadrez', estrelas: 'Estrelas', losangos: 'Losangos' }
       const CORES = { '#f2c230': 'Dourado', '#ff6b5e': 'Vermelho', '#62b8ff': 'Azul', '#86d86a': 'Verde', '#c77dff': 'Roxo', '#ff9f43': 'Laranja', '#f1e9d4': 'Creme', '#2a2a2a': 'Preto' }
@@ -5551,7 +5611,7 @@ try {
   // portes alternados fica abaixo do teto de 6 ms e o cache dos moldes não cresce depois da largada (Review Focus 5).
   // Desde a T7 os moldes são os 12 dos portes: cada porte desenha o seu molde, e aqui se confere que o porte chega a cada
   // desenho (com os 4 moldes antigos, antes da T7, todo porte desenhava igual e só isso se conferia).
-  if (quer('portes')) {
+  {   // portes (e portes-corrida, a parte com o teto de tempo por quadro): as ajudas abaixo valem para todas
     const TETO_MS = 6   // o mesmo teto do bloco marcas (e do teste de desempenho: Completas − Reduzidas)
     const PV = G.PORTES.valores, NOMES = G.PORTES.nomes, MUT = Math.round(G.PORTES.mutacao * 100)
     const CAT = G.STARTERS.concat(G.WILD_HORSES)
@@ -5657,7 +5717,7 @@ try {
     const deModelo = (uid, id, o = {}) => { const t = CAT.find((x) => x.id === id); return outro(uid, { templateId: id, element: t.element, rarity: t.rarity, sex: t.sex, name: t.name, ...o }) }
 
     // 1. save de antes da 2b (sem porte, com o alugado de Pororoca: RF4) e save com lixo no porte (RF1), a 360 px
-    {
+    if (quer('portes')) {
       const label = 'portes-save'
       const pg = await newPage(browser, { width: 360, height: 780 }, label)
       try {
@@ -5726,7 +5786,7 @@ try {
     }
 
     // 2. Haras (360 e 1280): as linhas dos pais com o porte e a linha do porte do potro na Calculadora
-    for (const vp of [{ width: 360, height: 780 }, { width: 1280, height: 800 }]) {
+    if (quer('portes')) for (const vp of [{ width: 360, height: 780 }, { width: 1280, height: 800 }]) {
       const tag = `portes-haras-${vp.width}`
       const pg = await newPage(browser, vp, tag)
       try {
@@ -5784,7 +5844,7 @@ try {
 
     // 3. gaveta DEV (360): o seletor de porte vai ao save DEV e nunca toca no save real; com a ativa em cada porte,
     // ela fica inteira no cartão do estábulo e na raia (RF3) e o porte de cada rival é o do modelo dele
-    {
+    if (quer('portes')) {
       const label = 'portes-dev'
       const REAL = JSON.stringify({ v: 2, starterId: 'mare', level: 4, xp: 0, skills: [], gold: 555, races: 1, wins: 0, podiums: 0, goldWon: 0, seedBase: 777, raceCounter: 1 })
       const init = { content: `(() => {
@@ -5908,7 +5968,7 @@ try {
     // rivais, na ordem das raias, esguio, robusto, padrão, robusto, esguio, robusto, padrão (4 robustos, 2 esguios e 2
     // padrões ao todo; Míticos e portes trocados na sala aberta, só neste teste). Abaixo do teto de 6 ms por quadro, o
     // cache dos moldes montado na largada e sem crescer depois, e o porte de cada um na pista e no pódio.
-    {
+    if (quer('portes-corrida')) {
       const label = 'portes-corrida'
       let SEED8_DEV = 0   // 8 corredores numa sala DEV: o nº de corredores é o 2º sorteio do rng da sala (como no bloco marcas)
       for (let sd = 1; sd <= 2000 && !SEED8_DEV; sd++) {
@@ -7768,7 +7828,7 @@ try {
     }
   }
 
-  if (quer('crescimento')) {
+  {   // crescimento (e crescimento-jogo, a parte que mede o tempo de abrir a sala): as ajudas abaixo valem para todas
     const AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.'
     const FALHA = 'Não foi possível salvar. Libere espaço e tente de novo.'
     const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
@@ -7811,7 +7871,7 @@ try {
         { uid: 'i4', id: 'estribos-magico', plus: 2 }, { uid: 'i5', id: 'testeira-comum', plus: 0 }],
       nextItemUid: 6, pedras: 7, enhanceCounter: 3, settings: { motion: 'sistema' }, joquei: { padrao: 'xadrez', capacete: '#62b8ff' }
     }
-    {
+    if (quer('crescimento')) {
       const label = 'crescimento-migracao'
       const pg = await newPage(browser, { width: 390, height: 844 }, label, {
         init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem('galope-elemental:v1', ${JSON.stringify(JSON.stringify(MIG_V5))}) } } catch (e) {}` }
@@ -7909,7 +7969,7 @@ try {
     }
 
     // 2. lixo no save novo (RF2), sem equipamento na tela, pareamento rápido, potro e jóquei mantido (jogo real, 360 px)
-    {
+    if (quer('crescimento-jogo')) {
       const label = 'crescimento-jogo'
       const pg = await newPage(browser, { width: 360, height: 780 }, label)
       try {
@@ -8065,7 +8125,7 @@ try {
     // 3. Redistribuir (modo DEV, com a espia do localStorage): a 1ª grátis, a 2ª sem Rédea desabilitada, com Rédea gasta 1,
     //    dois toques, gravação que falha (RF4), páreo aberto (a ativa não, as outras sim) e a gaveta DEV (Rédeas e a caixa
     //    da redistribuição grátis), sem nunca tocar no save real
-    {
+    if (quer('crescimento')) {
       const label = 'crescimento-redistribuir'
       const REAL = JSON.stringify({ v: 2, starterId: 'mare', level: 7, xp: 10, skills: [], gold: 777, races: 3, wins: 1, podiums: 2, goldWon: 300, seedBase: 4242, raceCounter: 3 })
       const init = { content: `(() => {
@@ -8206,7 +8266,7 @@ try {
     //    de nascimento, o topo "sobram X de Y" e "Poder A → B", a barra até 150, "Distribuir sugerido" (e RF3: com páreo
     //    aberto, o rascunho sugerido passa do Poder da sala, o Confirmar fica bloqueado e nada é gravado), os dois avisos do
     //    Confirmar, o rodapé, a skill de tipo em pontos e o selo "+N" do Estábulo
-    {
+    if (quer('crescimento')) {
       const label = 'crescimento-status'
       const pg = await newPage(browser, { width: 360, height: 780 }, label)
       const rascunho = () => pg.evaluate(() => { const r = window.__galope.ui.rascunho; return r ? JSON.parse(JSON.stringify(r)) : null })
@@ -8428,8 +8488,10 @@ try {
     }
   }
 
-  if (!SO.length) {   // o resto do teste (fluxo completo e contextos antigos) só roda sem UI_SO
+  // ---------------- o fluxo completo e os contextos antigos: um bloco por contexto (fluxo, fluxo-*) ----------------
+  let goldBefore, after, trainGold   // do bloco fluxo, para o resumo do fim
   // ---------------- celular 390x844 ----------------
+  if (quer('fluxo')) {
   // newPage já espera Sprites.moldsReady === true (moldes do PixelLab embutidos pelo build e decodificados)
   const page = await newPage(browser, { width: 390, height: 844 }, 'mobile')
   await page.waitForSelector('.inicial')
@@ -8542,7 +8604,7 @@ try {
   await checkOverflow(page, 'largada')
   await page.screenshot({ path: join(SHOTS, 'final-05-largada.png') })
 
-  const goldBefore = await page.evaluate(() => window.__galope.state.gold)
+  goldBefore = await page.evaluate(() => window.__galope.state.gold)
   // a narração só mostra as 6 últimas linhas: um observador registra se o Dado apareceu em algum momento
   // (a linha do Dado leva o ícone ui-dado no lugar do 🎲; sem o arquivo, o emoji)
   await page.evaluate(() => {
@@ -8578,7 +8640,7 @@ try {
   if (!(await page.evaluate(() => !!document.getElementById('t-dados')))) problems.push('resultado sem a seção de momentos/dados')
   await checkOverflow(page, 'resultado-momentos')
   await page.locator('[data-acao="resultado-aba"][data-id="chegada"]').click()
-  const after = await page.evaluate(() => ({ gold: window.__galope.state.gold, pedras: window.__galope.state.pedras, level: window.__galope.state.mounts.filter((m) => m.uid === window.__galope.state.activeId)[0].level, xp: window.__galope.state.mounts.filter((m) => m.uid === window.__galope.state.activeId)[0].xp, result: window.__galope.ui.result, pending: window.__galope.state.pending }))
+  after = await page.evaluate(() => ({ gold: window.__galope.state.gold, pedras: window.__galope.state.pedras, level: window.__galope.state.mounts.filter((m) => m.uid === window.__galope.state.activeId)[0].level, xp: window.__galope.state.mounts.filter((m) => m.uid === window.__galope.state.activeId)[0].xp, result: window.__galope.ui.result, pending: window.__galope.state.pending }))
   if (after.gold !== goldBefore - after.result.fee + after.result.prize) problems.push(`ouro: ${after.gold} != ${goldBefore} - ${after.result.fee} + ${after.result.prize}`)
   if (after.pending) problems.push('sala continuou pendente depois de correr')
   // pedra do pódio: determinística pela seed da sala (1ª sala do save)
@@ -8624,11 +8686,13 @@ try {
   await page.getByRole('button', { name: /^Largar treino/ }).click()
   await page.getByRole('button', { name: /Pular/ }).click()
   await page.waitForSelector('#t-resultado')
-  const trainGold = await page.evaluate(() => window.__galope.state.gold)
+  trainGold = await page.evaluate(() => window.__galope.state.gold)
   if (!(trainGold > 20)) problems.push(`treino não pagou Ouro: ${trainGold}`)
   await page.context().close()
+  }
 
   // save antigo (v1, com tática e sem skills) é lido e migrado
+  if (quer('fluxo-saves')) {
   const oldCtx = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const old = await oldCtx.newPage()
   old.on('console', (m) => { if (m.type() === 'error') problems.push(`[save-antigo] console: ${m.text()}`) })
@@ -8727,9 +8791,10 @@ try {
       s.pedras === 0 && s.enhanceCounter === 0 && s.nextItemUid === 4 && s.gold === 444
     if (!ok) problems.push('save v4 corrompido não foi saneado: ' + JSON.stringify({ items: s.items, e1: m1.equip, e2: m2.equip, pedras: s.pedras, enh: s.enhanceCounter, next: s.nextItemUid, gold: s.gold }))
   }
+  }
 
   // ---------------- cruzamento (haras): aluguel, determinismo ponta a ponta, bloqueios e Troca ----------------
-  {
+  if (quer('fluxo-cruzamento')) {
     const cz = await newPage(browser, { width: 390, height: 844 }, 'cruzamento', { query: '?dev=1' })
     const avisos = async () => (await cz.locator('.aviso').allTextContents()).join(' | ')
     const rerender = async () => { await cz.locator('[data-acao="aba"][data-id="correr"]').click(); await cz.locator('[data-acao="tier"][data-id="50"]').first().click() }
@@ -8904,7 +8969,7 @@ try {
   }
 
   // ---------------- menu de abas: casca, foco, aria-current e histórico ----------------
-  {
+  if (quer('fluxo-abas')) {
     const mn = await newPage(browser, { width: 390, height: 844 }, 'menu')
     try {
       await mn.getByRole('button', { name: 'Escolher Brasa' }).click()
@@ -9069,7 +9134,7 @@ try {
 
   // ---------------- equipamento: dev, equipar/tirar, melhorar determinístico, venda com desfazer e trava ----------------
   // (com o equipamento suspenso, GEAR_ON = false: a gaveta dá peças, a tela não as mostra e as ações forçadas não fazem nada)
-  {
+  if (quer('fluxo-equipamento')) {
     const eq = await newPage(browser, { width: 390, height: 844 }, 'equipamento', { query: '?dev=1' })
     try {
       const st = () => eq.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
@@ -9309,7 +9374,7 @@ try {
   }
 
   // ---------------- modo DEV: save separado, Ouro infinito, cavalo, peça e corrida forçada ----------------
-  {
+  if (quer('fluxo-dev')) {
     // save real conhecido (v2) já gravado antes de a página carregar; uma espia anota toda chave que a página
     // lê, grava ou apaga no localStorage (instalada depois da gravação, a cada carga; o teste lê pelo
     // getItem original, __lsGet, para não entrar no registro)
@@ -9511,7 +9576,7 @@ try {
   // ---------------- build de teste (jogo-dev.html) e jogo.html, sem query ----------------
   // O artefato do claude.ai não repassa ?dev=1: o jogo-dev.html liga o modo DEV sozinho (window.__GALOPE_DEV), com o
   // save de teste e um aviso no lugar de "Voltar ao jogo real". O jogo.html sem query não tem nada do DEV.
-  {
+  if (quer('fluxo-build-teste')) {
     const jd = await newPage(browser, { width: 390, height: 844 }, 'jogo-dev', { pagina: 'jogo-dev.html' })
     try {
       await jd.waitForSelector('#t-estabulo', { timeout: 5000 })   // perfil DEV novo: Brasa, sem a escolha inicial
@@ -9543,7 +9608,7 @@ try {
   // ---------------- Dado da Sorte na pista (DEV, seed fixa): plaquinhas, faixa, câmera lenta e "Pular" ----------------
   // A seed 101 no perfil DEV novo (Brasa nível 1) dá 7 cavalos e o vencedor do 1º Dado na tela (390 e 1280 px).
   // Se a corrida mudar (rivais, balanceamento), as seeds seguintes são tentadas até o vencedor aparecer.
-  {
+  if (quer('fluxo-dado')) {
     const DADO_SEEDS = [101, 102, 103, 104, 105, 106]
     // corre até o 1º Dado; devolve o quadro logo depois da revelação (vencedor dourado, ainda na câmera lenta)
     const correAteDado = async (pg, seed, primeira) => {
@@ -9645,7 +9710,7 @@ try {
   }
 
   // ---------------- Natureza, vento e opção "Animações" (Task 5) ----------------
-  {
+  {   // fluxo-natureza (e fluxo-desempenho, a parte que mede o desenho por quadro): as ajudas abaixo valem para todas
     // largada DEV com a próxima corrida armada: do resultado pelo "Correr de novo"; senão pela aba Correr
     const largaDev = async (pg, arma) => {
       await devArmar(pg, arma)
@@ -9708,7 +9773,7 @@ try {
 
     // 1. Save sem settings (como os saves de antes da opção): carrega com "Seguir o sistema" sem perder
     //    nada; a escolha grava no save e vale para o CSS (Review Focus 3)
-    {
+    if (quer('fluxo-natureza')) {
       const p1 = await newPage(browser, { width: 390, height: 844 }, 'save-antigo')
       try {
         await p1.getByRole('button', { name: 'Escolher Brasa' }).click()
@@ -9781,7 +9846,7 @@ try {
     //    com tudo ligado (chuva, ventania, "skills sempre ativam") até o 1º Dado na tela: selo do vento, chuva,
     //    skill do jogador, sem rolagem horizontal e com o canvas dentro da tela (Review Focus 5); depois a
     //    captura da chuva com ventania.
-    {
+    if (quer('fluxo-natureza')) {
       const pg = await newPage(browser, { width: 360, height: 780 }, 'animacoes', { query: '?dev=1', reducedMotion: 'reduce' })
       try {
         await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
@@ -9841,7 +9906,7 @@ try {
 
     // 3. Desempenho (1280, chuva + ventania, traçado "curvas": sem o relevo da subida, que é lento por si):
     //    msQuadro médio em "Completas" menos o de "Reduzidas" ≤ 6 ms (meta da spec: 2 ms)
-    {
+    if (quer('fluxo-desempenho')) {
       const pg = await newPage(browser, { width: 1280, height: 800 }, 'desempenho', { query: '?dev=1' })
       try {
         await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
@@ -9877,7 +9942,7 @@ try {
     }
 
     // 4. Sol (piso de terra: poeira dos cascos, raios e calor) e névoa (camadas de trás e da frente) em 390
-    {
+    if (quer('fluxo-natureza')) {
       const pg = await newPage(browser, { width: 390, height: 844 }, 'natureza390', { query: '?dev=1' })
       try {
         await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
@@ -9917,7 +9982,7 @@ try {
   // (pixels: o trilho branco com a borda escura em cima), as caixas dos cavalos (usadas por balões e
   // plaquinhas) sobem junto, o minimapa é desenhado fora do layout compacto e o cavalo nunca sai da tela
   // (startCamMonitor, também na vertical).
-  {
+  if (quer('fluxo-curvas')) {
     const corCurva = G.BLOCK_TYPES.curva.color
     const curvas = async (vp, label, shotSala, shotCorrida) => {
       const pg = await newPage(browser, vp, label, { query: '?dev=1' })
@@ -10018,7 +10083,7 @@ try {
 
   // ---------------- capturas da frente de itens (spec de itens §15): Estábulo com o cartão grande da diária, Loja (Comprar e
   // Mochila) e a ficha com os botões de item na aba Status. O estado é posto direto no jogo (sem a gaveta DEV, que muda a tela)
-  {
+  if (quer('fluxo-capturas-itens')) {
     const it = await newPage(browser, { width: 390, height: 844 }, 'itens-capturas')
     try {
       await it.getByRole('button', { name: 'Escolher Brasa' }).click()
@@ -10066,6 +10131,7 @@ try {
   // ---------------- loja: abas, comprar (com recusa sem Ouro), Pedras Negras e resumo na largada ----------------
   // Só com o equipamento ligado: suspenso (GEAR_ON = false), a Loja sai da barra (o bloco crescimento confere que ela não
   // abre e que comprar não faz nada); a captura final-09-loja.png não é gerada.
+  if (quer('fluxo-loja')) {
   if (!GEAR_ON) notes.loja = 'pulado: equipamento suspenso (GEAR_ON = false, spec 1b §8)'
   else {
     const lj = await newPage(browser, { width: 390, height: 844 }, 'loja')
@@ -10143,8 +10209,10 @@ try {
     }
     await lj.context().close()
   }
+  }
 
   // ---------------- desktop 1280x800 ----------------
+  if (quer('fluxo-desktop')) {
   const desk = await newPage(browser, { width: 1280, height: 800 }, 'desktop')
   await desk.waitForSelector('.inicial')
   await sleep(300)
@@ -10165,8 +10233,10 @@ try {
   await desk.waitForSelector('#t-resultado', { timeout: 90000 })
   notes.cam1280 = await desk.evaluate(() => window.__cc)
   await desk.context().close()
+  }
 
   // ---------------- moldes: queda para o código e teto do cache ----------------
+  if (quer('fluxo-moldes')) {
   await corridaSemMoldes(browser, 'semmoldes', { query: '?semmoldes=1' })
   // build sem arte: a página vê uma tabela vazia. O build atribui window.__MOLDES num script inline que roda
   // depois do init script, então a propriedade ignora a atribuição (setter vazio) e continua vazia.
@@ -10291,9 +10361,10 @@ try {
     }
     await mc.context().close()
   }
+  }
 
   // ---------------- sem ícones nem logotipo: volta aos caracteres, sem <img> quebrado ----------------
-  {
+  if (quer('fluxo-sem-icones')) {
     const sem = await newPage(browser, { width: 390, height: 844 }, 'sem-icones', {
       init: () => {
         Object.defineProperty(window, '__ICONES', { get: () => ({}), set: () => {}, configurable: true })
@@ -10360,6 +10431,7 @@ try {
   }
 
   // ---------------- celular pequeno, paisagem e movimento reduzido ----------------
+  if (quer('fluxo-pequeno')) {
   for (const [label, vp] of [['m360', { width: 360, height: 740 }], ['land', { width: 844, height: 390 }]]) {
     const p = await newPage(browser, vp, label)
     await p.getByRole('button', { name: 'Escolher Ipê' }).click()
@@ -10393,14 +10465,21 @@ try {
   await rm.getByRole('button', { name: /Pular/ }).click()
   await rm.waitForSelector('#t-resultado')
   await rm.context().close()
+  }
 
+  // depois de todos os blocos: as câmeras anotadas pelo fluxo, fluxo-desktop e fluxo-pequeno (só as que rodaram)
   for (const k of ['cam390', 'cam1280', 'camm360', 'camland']) {
     const c = notes[k]
     if (c && (c.partial > 0 || c.off > 0)) problems.push(`${k}: cavalo do jogador saiu da tela (${c.partial} quadros parciais, ${c.off} fora de ${c.frames})`)
   }
-  console.log(JSON.stringify({ goldBefore, after: { gold: after.gold, level: after.level, xp: after.xp, place: after.result.place, prize: after.result.prize, xpGain: after.result.xpGain }, trainGold, notes }, null, 1))
-  }   // fim do if (!SO.length)
-  if (SO.length) console.log(JSON.stringify({ so: SO, notes }, null, 1))
+  fechaBloco()
+  notes.temposBlocos = Object.fromEntries(Object.entries(temposBlocos).map(([k, ms]) => [k, +(ms / 1000).toFixed(1)]))
+  // a lista BLOCOS é a do arquivo: todo nome dela tem o seu if (quer(...)), na mesma ordem
+  const semBloco = BLOCOS.filter((n) => !perguntados.includes(n))
+  if (semBloco.length) problems.push('ui-test: nomes da lista BLOCOS sem if (quer(...)) no arquivo: ' + semBloco.join(', '))
+  else if (perguntados.join() !== BLOCOS.join()) problems.push('ui-test: a lista BLOCOS fora da ordem do arquivo: ' + perguntados.join(','))
+  if (!SO.length) console.log(JSON.stringify({ goldBefore, after: { gold: after.gold, level: after.level, xp: after.xp, place: after.result.place, prize: after.result.prize, xpGain: after.result.xpGain }, trainGold, notes }, null, 1))
+  else console.log(JSON.stringify({ so: SO, notes }, null, 1))
 } finally {
   await browser.close()
   await new Promise((ok) => servidor.close(ok))
