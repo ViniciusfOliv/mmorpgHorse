@@ -11,7 +11,20 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
   para 36,1 s em x1 e de 17,9 s para 20,5 s em x2. Com a corrida mais lenta, o teste da narração do bloco `corrida`
   passou a falhar por acaso: em x2 frases a 0,1 s uma da outra caíam no mesmo quadro e a Garra do rival com dono já
   chegava escondida; o teste agora volta a x1 depois da conferência de 2 s em x2 (só na tela que confere essa frase), e a
-  verificação completa passou a levar ~11 min.
+  verificação completa passou a levar ~11 min. No mesmo dia, um segundo pedido ("adicione um pouco mais de tempo") levou
+  a mais +20%: de 25–42,5 s para 30–51 s (50% acima do original); o duelo passou a 42,1 s em x1 e 23,5 s em x2.
+
+## 2026-11-18 — A aba Skills explica quando cada skill ativa (pedido do Vinicius)
+- **A aba Skills da montaria mostra a chance de cada skill ativar com a conta (raridade + nível + Sorte, teto 95%), o
+  "Quando" de cada skill (o gatilho, com os números da corrida; na arrancada final, o ponto da pista deste cavalo) e um
+  quadro da Garra (onde começa, a chance e a força; com a Arrancada Final, os números se ela ativar)** — o Vinicius pediu
+  essas informações "de acordo com o cavalo", atualizadas quando ele melhora. Os números saem do `sim.js` (`skillChance` e
+  a função nova `garraInfo`, que usa as contas da corrida e a Garra da Maré Alta quando a arrancada começa no terço dela);
+  um teste confere em 2.400 corridas que a Garra sai na frequência e no ponto que a tela diz. Se errado: é texto de tela.
+- **A base do limite de altura da aba Skills nos testes passou de 1.145 px (antes da 3a) para 1.426 px (a medida com as
+  informações novas), com a mesma folga de 4%** (controlador) — as informações pedidas ocupam ~280 px a mais no cavalo do
+  teste; os textos foram encurtados antes. Se errado: a aba fica mais comprida no celular; dá para recolher o quadro da
+  Garra num "Como funciona".
 
 ## 2026-11-18 — Integração dos ginásios da Expedição na `main` (decisão do Vinicius)
 - **Integrar a `claude/nifty-newton-e8u133` na `main` antes de jogar** (o Vinicius escolheu a opção 1 de "integrar na

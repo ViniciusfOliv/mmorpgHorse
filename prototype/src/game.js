@@ -73,8 +73,9 @@
   var PLAYER_NAME = 'Você';
   // Quanto a corrida dura na tela em x1, sem as câmeras lentas: TELA_S_MIN segundos numa pista de 1000 m até TELA_S_MAX
   // numa de 2400 m (em linha reta entre os dois). Só a animação: a simulação e o resultado não mudam.
-  // 2026-11-18: +25% a pedido do Vinicius ("as corridas estão muito rápidas"); era de 20 a 34 s.
-  var TELA_S_MIN = 25, TELA_S_MAX = 42.5;
+  // 2026-11-18: +25% a pedido do Vinicius ("as corridas estão muito rápidas"; era de 20 a 34 s) e, no mesmo dia, mais
+  // +20% ("adicione um pouco mais de tempo"): 50% acima do original.
+  var TELA_S_MIN = 30, TELA_S_MAX = 51;
   var PLAYER_SILKS = '#f2c230';
   var BOT_SILKS = SP.SILKS.filter(function (c) { return c.toLowerCase() !== PLAYER_SILKS; });
   var PORTRAIT_SCALE = 3;        // escala dos retratos (portraitHtml sem opts.tamanho)
@@ -1393,10 +1394,58 @@
       '<div class="barra barra--xp" role="img" aria-label="' + esc('Experiência ' + Math.round(pct) + '%') + '"><i style="width:' + (Math.round(pct / 5) * 5) + '%"></i></div></div>';
   }
   // tam: tamanho do ícone (32 na aba Skills; 16 no resto)
-  function skillHtml(id, tam) {
+  function skillHtml(id, tam, quando) {
     var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
     if (!sk) return '';
-    return '<div class="habilidade"><b>' + skillIcone(id, tam) + esc(sk.name) + '</b><span>' + esc(sk.desc) + '</span></div>';
+    return '<div class="habilidade"><b>' + skillIcone(id, tam) + esc(sk.name) + '</b><span>' + esc(sk.desc) + '</span>' +
+      (quando ? '<span class="habilidade-quando">' + esc(quando) + '</span>' : '') + '</div>';
+  }
+  // Porcentagem para texto: inteira quando é redonda, senão com uma casa ("44,5%").
+  function pctTxt(x) {
+    var v = Math.round(x * 1000) / 10;
+    return (v === Math.round(v) ? String(v) : v.toFixed(1).replace('.', ',')) + '%';
+  }
+  // Quando cada skill de vaga tenta ativar (o gatilho dela, GameData.SKILLS[id].trigger), com os números da corrida
+  // (RaceSim.TUNING) e, na arrancada final, o ponto da pista deste cavalo (RaceSim.garraInfo). Cada skill tenta uma vez
+  // por corrida; as de bloco (blockScoped: Drift, Fôlego de Montanha, Casco Firme), uma vez em cada curva ou subida.
+  function skillQuandoTxt(id, m) {
+    var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
+    if (!sk) return '';
+    var t = sk.trigger, T = RS.TUNING, bloco = !!(sk.effect && sk.effect.blockScoped), q;
+    if (t === 'start') q = 'na largada';
+    else if (t === 'straight') q = 'na 1ª reta de ' + T.straightMinM + ' m ou mais (fora a da largada)';
+    else if (t === 'curve') q = bloco ? 'ao entrar em cada curva' : 'ao entrar na 1ª curva';
+    else if (t === 'curveExit') q = 'ao sair da 1ª curva';
+    else if (t === 'hill') q = bloco ? 'ao entrar em cada subida' : 'ao entrar na 1ª subida';
+    else if (t === 'lowStamina') q = 'quando a estamina cai a ' + pctTxt(T.lowStaminaAt);
+    else if (t === 'final') q = 'na arrancada final, aos ' + pctTxt(RS.garraInfo(m).from) + ' da pista (junto com a Garra)';
+    else if (t === 'dice') q = 'antes do 1º Dado da Sorte';
+    else if (t.indexOf('weather:') === 0 && hasOwn(GD.WEATHERS, t.slice(8))) q = 'quando o clima for ' + GD.WEATHERS[t.slice(8)].name;
+    else return '';
+    return 'Quando: ' + q + (bloco ? '' : ' · 1 vez por corrida') + '.';
+  }
+  // A chance de cada skill de vaga ativar quando o momento dela chega, com a conta (RaceSim.skillChance): a base da
+  // raridade, + por nível acima do 1, + por ponto de Sorte; o teto do TUNING.
+  function skillChanceHtml(m) {
+    var T = RS.TUNING, st = RS.computeStats(m), rar = RS.rarityOf(m), nv = RS.sanitizeLevel(m.level);
+    var total = RS.skillChance(m, st, 0), bruto = rar.skillChance + T.skillPerLevel * (nv - 1) + T.skillPerSorte * st.sorte;
+    var conta = rar.name + ' ' + pctTxt(rar.skillChance) + ' + nível ' + nv + ': +' + pctTxt(T.skillPerLevel * (nv - 1)).replace('%', '') + ' + Sorte ' + st.sorte +
+      ': +' + pctTxt(T.skillPerSorte * st.sorte).replace('%', '') + (bruto > T.skillChanceMax ? '; máximo ' + pctTxt(T.skillChanceMax) : '');
+    return '<p class="skill-chance">Chance de cada skill ativar: <strong>' + pctTxt(total) + '</strong> (' + esc(conta) + ').</p>';
+  }
+  // A Garra deste cavalo (RaceSim.garraInfo, as contas da corrida, sem clima): onde a arrancada começa, a chance e o teto;
+  // com a Arrancada Final, os números se ela ativar.
+  function garraInfoHtml(m) {
+    var g = RS.garraInfo(m), st = RS.computeStats(m), linhas = [];
+    linhas.push('1 vez por corrida, aos ' + pctTxt(g.from) + ' da pista: ' + pctTxt(g.chance) + ' de chance' + (g.tipo ? ' (com a ' + RS.typeSkill(m).name + ')' : '') +
+      '. Se der certo: velocidade máxima ×' + g.boost.toFixed(2).replace('.', ',') + ' até a chegada.');
+    if (m.skills.indexOf('arrancada-final') >= 0 && hasOwn(GD.SKILLS, 'arrancada-final')) {
+      var e = GD.SKILLS['arrancada-final'].effect, gb = RS.garraInfo(m, { chance: e.garraChanceBonus, boost: e.garraBoostBonus });
+      linhas.push('Com a ' + GD.SKILLS['arrancada-final'].name + ' ativa: ' + pctTxt(gb.chance) + ' de chance e ×' + gb.boost.toFixed(2).replace('.', ',') + '.');
+    }
+    linhas.push('Mais Garra: começa antes, com mais chance e mais força.');
+    return '<div class="habilidade habilidade--garra"><b>' + iconeHtml('st-garra', '', 32) + 'Garra ' + st.garra + ' · todo cavalo tem</b>' +
+      linhas.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + '</div>';
   }
   // Skill de tipo: vaga própria, sempre ativa, num terço da pista; o efeito já multiplicado pela força P
   // (RaceSim.typeSkill), os mesmos números que a simulação usa.
@@ -3805,11 +3854,12 @@
     if (M.aba === 'skills') {
       var vagas = (GD.RARITIES[m.rarity] || GD.RARITIES.comum).skillSlots - m.skills.length;
       corpo = '<section class="caixa" aria-label="Skills">' + vagaTipoHtml(m) +
-        (m.skills.length ? skillsVagasHtml(m) : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
+        (m.skills.length ? skillChanceHtml(m) + skillsVagasHtml(m) : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
         '<p class="nota">' + (vagas > 0
           ? vagas + (vagas === 1 ? ' vaga livre' : ' vagas livres') + ' · ' + Math.round(chanceSkillNivel() * 100) + '% de chance de aprender uma skill nova a cada nível'
           : 'Sem vagas livres') + '</p>' +
-        (itemQtd('manual') > 0 ? itemUsoHtml('manual', m, [naMochilaTxt('manual'), Math.round(GD.ITEMS.manual.chance * 100) + '% de chance de aprender']) : '') + '</section>';
+        (itemQtd('manual') > 0 ? itemUsoHtml('manual', m, [naMochilaTxt('manual'), Math.round(GD.ITEMS.manual.chance * 100) + '% de chance de aprender']) : '') +
+        garraInfoHtml(m) + '</section>';
     } else if (M.aba === 'equip' && GEAR_ON) {
       corpo = montariaEquipHtml(m);
     } else if (M.aba === 'ficha') {
@@ -3971,9 +4021,9 @@
   function skillsVagasHtml(m) {
     var cupom = itemQtd('cupom') > 0, mot = cupom ? motivoUso('cupom', m) : '', algum = false;
     var lista = m.skills.map(function (id) {
-      if (!cupom || !hasOwn(GD.SKILLS, id)) return skillHtml(id, 32);
+      if (!cupom || !hasOwn(GD.SKILLS, id)) return skillHtml(id, 32, skillQuandoTxt(id, m));
       algum = true;
-      return '<div class="item-uso item-uso--skill">' + skillHtml(id, 32) +
+      return '<div class="item-uso item-uso--skill">' + skillHtml(id, 32, skillQuandoTxt(id, m)) +
         '<button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="cupom" data-mount="' + esc(m.uid) + '" data-skill="' + esc(id) + '"' + indisponivel(mot) + '>' +
         'Trocar<span class="sr"> ' + esc(skillNome(id) + ' (usa 1 ' + GD.ITEMS.cupom.name + ')') + '</span></button></div>';
     }).join('');

@@ -396,8 +396,9 @@ ninguém jogou ainda.
   - **tempo de corrida** (o relógio da própria corrida, não o tempo que você espera): um duelo dura cerca de 1 min 20 s, e
     o desafio do líder, em média, uns 6 minutos (são de 3 a 5 duelos, cerca de 4,7 em média; 3 só raramente);
   - **tempo na tela** (o que você espera assistindo): a corrida passa mais rápido que o relógio dela. Um duelo leva cerca de
-    36 s em x1 e 20 s em x2 (medido em 2026-11-18, depois de a corrida na tela ficar 25% mais longa; antes eram 30 s e
-    18 s); um desafio do líder de 5 duelos, cerca de 3 min em x1 e 1 min 40 s em x2, sem contar o tempo parado nos cartões.
+    42 s em x1 e 24 s em x2 (medido em 2026-11-18, depois de a corrida na tela ficar 50% mais longa, em dois passos a
+    pedido do Vinicius; antes eram 30 s e 18 s); um desafio do líder de 5 duelos, cerca de 3 min 30 s em x1 e 2 min em x2,
+    sem contar o tempo parado nos cartões.
 - **Com servidor (bloco 7):** o +3% de Ouro sobre prêmios pagos por outros jogadores cria Ouro do nada; isso tem de ser
   revisto antes do online.
 - **Online (extra, bloco 7):** quatro ginásios dominados por jogadores (Fogo, Água, Grama e um acima dos

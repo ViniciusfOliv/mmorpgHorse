@@ -36,7 +36,7 @@ const EM_SERIE = {
 // núcleos (2026-11-17): só ordena a fila (os mais demorados primeiro). Bloco que não está aqui entra como o mais demorado.
 const DURACOES = {
   itens: 89, 'corrida-lugar-dado': 63, 'fluxo-curvas': 45, fluxo: 42, 'fluxo-moldes': 39, skills: 36,
-  'fluxo-natureza': 36, celular: 34, 'fluxo-desktop': 31, 'fluxo-dado': 25, portes: 23, 'fluxo-pequeno': 21,
+  'fluxo-natureza': 36, 'skills-aba': 8, celular: 34, 'fluxo-desktop': 31, 'fluxo-dado': 25, portes: 23, 'fluxo-pequeno': 21,
   'corrida-faixa-lugar-pular': 21, 'corrida-390': 19, 'corrida-lugar-dado-redimensiona': 19, crescimento: 15,
   'corrida-paisagem-8': 13, 'corrida-girar': 13, 'corrida-faixa-lugar-pular-antes': 12, marcas: 12, build: 12,
   acabamento: 14, redimensiona: 10, resultado: 9, aura: 8, ajuda: 8, icones: 8, 'fluxo-abas': 7, 'corrida-forcado': 7,

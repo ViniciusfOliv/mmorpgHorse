@@ -24,7 +24,8 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   voltar o dia), Ginásios (etapas vencidas de cada trilha, liberar a revanche, zerar), Cavalo, Itens (peças), Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
 - **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (178 testes de simulação, 117 de
   efeitos, 172 de moldes, 759 conferências do wiki, 111 metas de balanço no modo rápido e 300 no completo, e 71 blocos do
-  teste de interface; contagem de 2026-11-18, na `main` com os ginásios integrados). A verificação leva ~11 min (com o
+  teste de interface; contagem de 2026-11-18, na `main` com os ginásios integrados; na branch da sessão, 179 testes de
+  simulação e 72 blocos, com a aba Skills nova). A verificação leva ~12 min (com o
   teste de interface em paralelo desde 2026-11-17; antes dele, ~16 min com menos testes).
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
@@ -270,8 +271,8 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   18,6% ou mais das vitórias (a menor é a apertada da Fornalha); G7 um cavalo sozinho 4 níveis acima vence o
   líder 2,2% a 2,4% (sem o cansaço, 39,5 a 41,3 pontos a mais); G8 um duelo de 75,8 a 84,9 s no relógio da corrida; G9
   determinismo e nada de `Math.random` nem relógio. Os números são os mesmos da tabela que o Vinicius viu em 2026-11-17.
-- **Na tela** (medido em 2026-11-18, depois de a corrida na tela ficar 25% mais longa): um duelo leva cerca de 36 s em x1
-  e 20 s em x2 (eram 30 s e 18 s); um desafio do líder de 5 duelos, cerca de 3 min em x1 e 1 min 40 s em x2 (sem o tempo
+- **Na tela** (medido em 2026-11-18, depois de a corrida na tela ficar 50% mais longa): um duelo leva cerca de 42 s em x1
+  e 24 s em x2 (eram 30 s e 18 s); um desafio do líder de 5 duelos, cerca de 3 min 30 s em x1 e 2 min em x2 (sem o tempo
   parado nos cartões).
 - **Capturas oficiais:** regeneradas em 2026-11-18 (`node prototype/tools/ui-test.mjs`), com cinco novas:
   `final-24-expedicao-ginasios.png` (a aba com os três cartões: um no meio da trilha, um com a insígnia e "Revanche hoje",
@@ -303,8 +304,8 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
      Capineira) e dos 12 soldados.
   3. **O cansaço e a vantagem:** as faixas em 1 m e 8 m (apertada: menos de 1 m; normal: de 1 a menos de 8 m; folgada: 8 m
      ou mais), o fôlego perdido (25%, 15% e 5%), o teto de 50%, e a vantagem de elemento de "cerca de 4%".
-  4. **Quanto tempo leva:** um duelo, cerca de 36 s na tela em x1 e 20 s em x2; um desafio do líder de 5 duelos, cerca de
-     3 min em x1 e 1 min 40 s em x2 (já com a corrida 25% mais longa na tela, de 2026-11-18).
+  4. **Quanto tempo leva:** um duelo, cerca de 42 s na tela em x1 e 24 s em x2; um desafio do líder de 5 duelos, cerca de
+     3 min 30 s em x1 e 2 min em x2 (já com a corrida 50% mais longa na tela, de 2026-11-18).
   5. **Os cavalos de 3 estrelas do Remanso** (um do soldado 4 e o do meio do líder), postos para o Remanso ficar tão difícil
      quanto os outros.
   6. **A tela não diz quantos duelos faltam:** "Duelo 2", e não "Duelo 2 de 3".
@@ -423,8 +424,9 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
 - **A build equilibrada domina:** é a mais forte (o bot a 60–65% no nível 50; as inclinadas em 44–54%). Mudar a regra
   (custo que para de subir, retorno extra por concentrar) fica para depois de o Vinicius jogar.
 - **A sensação da corrida mudou:** mais curta, "Cansou" some, a Garra dispara em 58% das corridas. Olhar a animação no artefato.
-  Em 2026-11-18 o Vinicius achou as corridas rápidas demais e a corrida na tela ficou 25% mais longa (só a animação: de
-  20–34 s para 25–42,5 s em x1, conforme a distância, mais as câmeras lentas; `TELA_S_MIN`/`TELA_S_MAX` no `game.js`).
+  Em 2026-11-18 o Vinicius achou as corridas rápidas demais e a corrida na tela ficou mais longa em dois passos (só a
+  animação: de 20–34 s para 25–42,5 s e depois 30–51 s em x1, conforme a distância, mais as câmeras lentas;
+  `TELA_S_MIN`/`TELA_S_MAX` no `game.js`).
 - **Os iniciais no nível 25 caem para a Prata** (eram Ouro): o meio da progressão ficou mais lento.
 - **A Sorte vale pouco** (0,7 p.p. na corrida), por desenho: só de nascimento, mexe no Dado e na chance de skill.
 - **A Rédea nova é rara:** vem no 7º dia da recompensa diária e, com os ginásios, na 1ª vitória sobre cada líder; quem
@@ -459,6 +461,13 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
 ## Próximos passos
 - **Frente de itens (na `main`):** o Vinicius joga nos artefatos oficiais e decide a lista "A confirmar com o Vinicius
   (gosto, itens)"; o que ele mudar entra como ajuste por cima da `main`.
+- **Pedidos de 2026-11-18 (na `claude/nifty-newton-e8u133`, sem merge):** feitos: a corrida 50% mais longa na tela e, na
+  aba Skills da montaria, a chance de cada skill ativar (com a conta: raridade + nível + Sorte), o "Quando" de cada skill e
+  o quadro da Garra deste cavalo (onde começa, chance e força; com a Arrancada Final), tudo calculado pelo `sim.js` e
+  atualizado quando o cavalo melhora. **Esperando o Vinicius:** (1) a curva na pista: duas maquetes do arco preso à tela
+  (o meio da pista mais alto, ou as pontas mais altas), em vez do arco de 6 px de hoje; (2) a arte do ginásio: o oponente
+  e o cavalo dele, no topo da etapa e numa tela de desafio antes do duelo; a maquete usa uma personagem provisória feita
+  à mão, e a definitiva sairia do PixelLab (gasta gerações: pedir confirmação); (3) integrar na `main`.
 - **Ginásios (`docs/GDD.md` §8.6), na `main` desde 2026-11-18:** o Vinicius joga nos artefatos oficiais e decide a lista
   "A confirmar com o Vinicius (gosto, ginásios)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Teste de interface em paralelo:** feito e na `main` (a verificação inteira leva ~10 min com os ginásios); em aberto se vale buscar os ~5 min (dividir o bloco

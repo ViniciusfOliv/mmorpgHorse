@@ -99,6 +99,7 @@
  * GARRA: a arrancada começa em garraFrom = 0.80 − 0.14*(n(garra) − 0.5) da pista (mais Garra, mais cedo;
  *   o gatilho 'final' das skills vale no mesmo ponto). Lá rola chance = min(0.95, 0.50 + 0.15*nc(garra) + bônus de skill).
  *   Sucesso: teto ×(1.02 + 0.26*nc(garra) + bônus de skill) até a chegada. Evento 'garra'.
+ *   garraInfo(horse, bonus) dá esses três números para a tela, sem clima (a ficha do cavalo, aba Skills).
  *
  * SKILLS (gatilhos e efeitos em data.js). Quando o gatilho acontece, UMA tentativa contra
  *   skillChance = min(0.95, raridade.skillChance + 0.005*(level−1) + 0.001*sorte)
@@ -512,6 +513,27 @@
     var c = rar.skillChance + T.skillPerLevel * (sanitizeLevel(horse.level) - 1) + T.skillPerSorte * ((stats && stats.sorte) || 0) + (bonus || 0);
     return Math.min(T.skillChanceMax, c);
   }
+  // A Garra de um cavalo, para a tela (fora da corrida, sem clima): onde a arrancada começa (fração da pista), a chance e
+  // o teto da velocidade se ela der certo. As contas são as da corrida (buildRacer e derive): se a arrancada começa dentro
+  // do terço da skill de tipo que multiplica a Garra (a Maré Alta, da Água), vale a Garra do terço (tipo: true).
+  // bonus (opcional): { chance, boost } somados como os de uma skill que ativou (a Arrancada Final).
+  function garraInfo(horse, bonus) {
+    var stats = computeStats(horse), n = stats.garra / 100, ng = n;
+    var from = clamp(T.garraZone - T.garraZoneK * (n - 0.5), 0.5, 0.95);
+    var ts = typeSkill(horse);
+    if (ts && ts.effect.statMul && from >= ts.zone[0] && from < ts.zone[1]) {
+      var keys = ts.effect.statKeys || TYPE_STATS[horse.element];
+      if (keys && keys.indexOf('garra') >= 0) ng = n * (1 + ts.effect.statMul * ts.power);
+    }
+    var bc = (bonus && Number(bonus.chance)) || 0, bb = (bonus && Number(bonus.boost)) || 0;
+    return {
+      from: from,
+      chance: clamp(T.garraChanceBase + T.garraChanceRange * ng + bc, 0, T.garraChanceMax),
+      boost: 1 + T.garraBoostBase + T.garraBoostRange * ng + bb,
+      tipo: ng !== n
+    };
+  }
+
   // Skills que a montaria pode aprender: as gerais e as do elemento dela, menos as que já tem, na ordem de
   // GameData.SKILLS (a skill de tipo não está lá: nunca é candidata). Usada pelo nível, pelo Cupom e pelo Manual.
   function skillCandidates(mount) {
@@ -1256,6 +1278,7 @@
     powerRating: powerRating,
     botAlloc: botAlloc,
     skillChance: skillChance,
+    garraInfo: garraInfo,
     weatherMult: weatherMult,
     learnSkill: learnSkill,
     skillCandidates: skillCandidates,

@@ -2492,6 +2492,43 @@ test('ginásio: bonus e sanear (lixo em cada campo)', function () {
   assert.strictEqual(GY.sanear({ fogo: { etapa: 5, revDia: 'a', revVitorias: 0 } }, NaN).fogo.revDia, IT.DIA_MAX);
   assert.strictEqual(GY.DIA_MAX, IT.DIA_MAX);
 });
+test('garraInfo (a tela) dá os números da Garra que a corrida usa: onde começa, a chance e o terço da Maré Alta', function () {
+  var T = S.TUNING;
+  function cav(i, nivel, garra) { var h = clone(G.STARTERS[i]); h.level = nivel; h.skills = []; h.alloc = { garra: garra }; return h; }
+  // a conta, com os números do TUNING (Fogo: sem skill de tipo na Garra)
+  var f = cav(0, 30, 20), nf = S.computeStats(f).garra / 100, gf = S.garraInfo(f);
+  assert.strictEqual(gf.from, Math.min(0.95, Math.max(0.5, T.garraZone - T.garraZoneK * (nf - 0.5))));
+  assert.strictEqual(gf.chance, Math.min(T.garraChanceMax, T.garraChanceBase + T.garraChanceRange * nf));
+  assert.strictEqual(gf.boost, 1 + T.garraBoostBase + T.garraBoostRange * nf);
+  assert.strictEqual(gf.tipo, false);
+  // o bônus de uma skill (Arrancada Final) soma como na corrida; a chance para no teto
+  var af = G.SKILLS['arrancada-final'].effect, gb = S.garraInfo(f, { chance: af.garraChanceBonus, boost: af.garraBoostBonus });
+  assert.ok(Math.abs(gb.chance - Math.min(T.garraChanceMax, gf.chance + af.garraChanceBonus)) < 1e-12 && Math.abs(gb.boost - (gf.boost + af.garraBoostBonus)) < 1e-12);
+  assert.strictEqual(S.garraInfo(f, { chance: 5 }).chance, T.garraChanceMax);
+  // Água: a arrancada dentro do último terço usa a Garra da Maré Alta; começando antes dele, não
+  var a = cav(1, 30, 20), ga = S.garraInfo(a), ts = S.typeSkill(a);
+  assert.ok(ga.from >= ts.zone[0] && ga.tipo === true, 'Maré com Garra média: começa no terço da Maré Alta');
+  var na = S.computeStats(a).garra / 100 * (1 + ts.effect.statMul * ts.power);
+  assert.ok(Math.abs(ga.chance - (T.garraChanceBase + T.garraChanceRange * na)) < 1e-12);
+  var a2 = clone(a); a2.rarity = 'mitico'; a2.grau = 3; a2.level = 50; a2.potential = Object.assign({}, a2.potential, { garra: 31 }); a2.alloc = { garra: 70 };
+  var ga2 = S.garraInfo(a2);
+  assert.ok(ga2.from < ts.zone[0] && ga2.tipo === false, 'Garra alta começa antes do terço: sem a Maré Alta (' + ga2.from + ')');
+  // na corrida, com Nublado e sem skills de vaga: a Garra sai na fração prevista e começa no ponto previsto
+  [f, a].forEach(function (h) {
+    var info = S.garraInfo(h), vezes = 0, corridas = 2400, longe = 0;
+    for (var sd = 1; sd <= corridas; sd++) {
+      var res = S.simulate({ seed: sd * 7919, conditions: { weather: 'nublado' }, recordFrames: true, racers: [{ horse: h, name: 'A' }, { horse: clone(G.STARTERS[2]), name: 'B' }] });
+      var ev = res.events.filter(function (e) { return e.type === 'garra' && e.racer === 0; })[0];
+      if (!ev) continue;
+      vezes++;
+      var k = Math.round(ev.t * 10), D = res.conditions.distance;
+      if (!(res.frames[k + 1].pos[0] / D >= info.from - 1e-9 && res.frames[k].pos[0] / D < info.from + 0.02)) longe++;
+    }
+    var frac = vezes / corridas;
+    assert.ok(Math.abs(frac - info.chance) < 0.03, h.element + ': Garra em ' + (frac * 100).toFixed(1) + '% das corridas; a tela diz ' + (info.chance * 100).toFixed(1) + '%');
+    assert.strictEqual(longe, 0, h.element + ': a Garra começou fora do ponto previsto em ' + longe + ' corridas');
+  });
+});
 test('ginasio.js é puro: sem Math.random, relógio, tela nem estado global; carrega no navegador e no build', function () {
   var fs = require('fs'), path = require('path');
   var fonte = fs.readFileSync(path.join(__dirname, '../src/ginasio.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');

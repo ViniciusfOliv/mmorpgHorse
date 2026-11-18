@@ -42,9 +42,9 @@ lançamento: `docs/cronograma.md`.
 | Wiki: regerar (`--check` só confere) / testar (determinismo, cobertura, navegador) | `node prototype/tools/wiki.mjs` / `node prototype/tools/wiki-test.mjs` | <1 s / 2 s |
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~45 s |
 | Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~5 min |
-| Teste de interface em paralelo (o que o `check.sh` usa; não grava capturas) | `node prototype/tools/ui-test-paralelo.mjs` | ~10 min |
+| Teste de interface em paralelo (o que o `check.sh` usa; não grava capturas) | `node prototype/tools/ui-test-paralelo.mjs` | ~11 min |
 | Teste de interface num processo só + capturas em `prototype/screens/` (`UI_SO=bloco` roda só um; `--blocos` lista) | `node prototype/tools/ui-test.mjs` | ~20 min |
-| **Verificação completa** (8 etapas: build, simulação, efeitos, dist, moldes, wiki, balanço, UI; não toca nas capturas) | `./scripts/check.sh` | ~11 min |
+| **Verificação completa** (8 etapas: build, simulação, efeitos, dist, moldes, wiki, balanço, UI; não toca nas capturas) | `./scripts/check.sh` | ~12 min |
 
 Mudou número de regra (status, skill, pista, peça, Poder, ginásio)? Rode também o `balance.js` completo: as metas
 M6, M9, P1, S1 e A1 só contam nele (no `--quick`, que o `check.sh` usa, são só informação), e as dos ginásios G1, G2,

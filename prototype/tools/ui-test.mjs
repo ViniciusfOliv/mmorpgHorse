@@ -43,7 +43,7 @@ const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adultera
   'corrida-lugar-dado-redimensiona', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
   'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
   'resultado', 'build', 'valor-peca', 'nivel-pontos', 'selo-teto', 'build-nivel1', 'selo', 'vaga-tipo', 'inicial', 'aura',
-  'skills', 'icones', 'marcas', 'marcas-corrida', 'portes', 'portes-corrida', 'ajuda', 'acabamento', 'celular', 'crescimento',
+  'skills', 'skills-aba', 'icones', 'marcas', 'marcas-corrida', 'portes', 'portes-corrida', 'ajuda', 'acabamento', 'celular', 'crescimento',
   'crescimento-jogo',
   'fluxo', 'fluxo-saves', 'fluxo-cruzamento', 'fluxo-abas', 'fluxo-equipamento', 'fluxo-dev', 'fluxo-build-teste', 'fluxo-dado',
   'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'fluxo-capturas-ginasio', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
@@ -7495,6 +7495,87 @@ try {
     await skillsNaPista({ width: 390, height: 844 }, 'skills390-reduzido', 'final-13-skills-reduzido.png', { reducedMotion: 'reduce' })
   }
 
+  // ---------------- aba Skills: quando cada skill tenta, a chance deste cavalo e a Garra (2026-11-18, pedido do Vinicius) ----------------
+  // Os números da tela são os da corrida, calculados no node pelo sim.js com o cavalo do save (skillChance e garraInfo),
+  // e mudam quando o cavalo melhora: +10 níveis (a chance de skill sobe) e +5 pontos na Garra (a Garra começa antes).
+  if (quer('skills-aba')) {
+    const label = 'skills-aba'
+    const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1' })
+    const pctT = (x) => { const v = Math.round(x * 1000) / 10; return (v === Math.round(v) ? String(v) : v.toFixed(1).replace('.', ',')) + '%' }
+    const vezes = (x) => '×' + x.toFixed(2).replace('.', ',')
+    const cavalo = () => pg.evaluate(() => { const st = window.__galope.state; return JSON.parse(JSON.stringify(st.mounts.find((m) => m.uid === st.activeId))) })
+    const abaSkills = async () => {
+      await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+      await pg.waitForSelector('#t-estabulo')
+      await pg.locator('[data-acao="montaria"][data-id="' + (await cavalo()).uid + '"]').first().click()
+      await pg.waitForSelector('#t-montaria')
+      await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+      await pg.waitForSelector('section[aria-label="Skills"] .habilidade--garra')
+      return pg.evaluate(() => {
+        const sec = document.querySelector('section[aria-label="Skills"]')
+        return { chance: (sec.querySelector('.skill-chance') || {}).textContent || '', garra: sec.querySelector('.habilidade--garra').textContent,
+          quando: Array.from(sec.querySelectorAll('.habilidade:not(.habilidade--garra)')).map((h) => ({ nome: h.querySelector('b').textContent.trim(), q: (h.querySelector('.habilidade-quando') || {}).textContent || '' })) }
+      })
+    }
+    const confere = (t, h, rot) => {
+      const st = S.computeStats(h), rar = S.rarityOf(h), nv = S.sanitizeLevel(h.level), T = S.TUNING
+      const c = S.skillChance(h, st, 0)
+      for (const pedaco of [pctT(c), rar.name + ' ' + pctT(rar.skillChance), 'nível ' + nv + ': +' + pctT(T.skillPerLevel * (nv - 1)).replace('%', ''), 'Sorte ' + st.sorte])
+        if (!t.chance.includes(pedaco)) problems.push(`[${label}] ${rot}: a chance de skill não diz "${pedaco}": ${t.chance}`)
+      const g = S.garraInfo(h)
+      for (const pedaco of ['aos ' + pctT(g.from) + ' da pista', pctT(g.chance) + ' de chance', vezes(g.boost), 'Garra ' + st.garra + ' · '])
+        if (!t.garra.includes(pedaco)) problems.push(`[${label}] ${rot}: a Garra não diz "${pedaco}": ${t.garra}`)
+      const ef = G.SKILLS['arrancada-final'].effect, gb = S.garraInfo(h, { chance: ef.garraChanceBonus, boost: ef.garraBoostBonus })
+      if (!t.garra.includes(pctT(gb.chance) + ' de chance e ' + vezes(gb.boost))) problems.push(`[${label}] ${rot}: a Garra não diz o que muda com a Arrancada Final (${pctT(gb.chance)}, ${vezes(gb.boost)}): ${t.garra}`)
+      const q = Object.fromEntries(t.quando.map((x) => [x.nome, x.q]))
+      if (q[G.SKILLS.arranque.name] !== 'Quando: na largada · 1 vez por corrida.') problems.push(`[${label}] ${rot}: o quando do Arranque: ${q[G.SKILLS.arranque.name]}`)
+      if (q[G.SKILLS['arrancada-final'].name] !== 'Quando: na arrancada final, aos ' + pctT(g.from) + ' da pista (junto com a Garra) · 1 vez por corrida.')
+        problems.push(`[${label}] ${rot}: o quando da Arrancada Final: ${q[G.SKILLS['arrancada-final'].name]}`)
+      if (q[G.SKILLS.drift.name] !== 'Quando: ao entrar em cada curva.') problems.push(`[${label}] ${rot}: o quando do Drift: ${q[G.SKILLS.drift.name]}`)
+      return { chance: c, from: g.from, garra: st.garra }
+    }
+    try {
+      await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+      // um Raro de Fogo nível 1 com três skills, criado e ativado pela gaveta DEV
+      await devAbrir(pg)
+      await pg.fill('#dev-nome', 'Aba Skills')
+      await pg.selectOption('#dev-elemento', 'fogo')
+      await pg.selectOption('#dev-raridade', 'raro')
+      await pg.fill('#dev-nivel', '1')
+      const sks = ['arranque', 'arrancada-final', 'drift', '', '']
+      for (let k = 0; k < 5; k++) await pg.selectOption('#dev-skill' + k, sks[k])
+      await pg.locator('[data-acao="dev-criar"]').click()
+      await devFechar(pg)
+      const h0 = await cavalo()
+      if (h0.name !== 'Aba Skills' || h0.skills.join() !== 'arranque,arrancada-final,drift') throw new Error('o cenário precisa do cavalo da gaveta ativo: ' + h0.name + ' ' + h0.skills)
+      const a = confere(await abaSkills(), h0, 'nível 1')
+      await checkOverflow(pg, label + ' nível 1')
+      // +10 níveis (gaveta DEV): a chance de skill sobe 5 pontos e a tela acompanha
+      await devAbrir(pg)
+      await pg.locator('[data-acao="dev-niveis"]').click()
+      await devFechar(pg)
+      const h1 = await cavalo()
+      if (h1.level !== h0.level + 10) throw new Error('o +10 níveis não andou: ' + h0.level + ' -> ' + h1.level)
+      const b = confere(await abaSkills(), h1, 'nível ' + h1.level)
+      if (!(b.chance > a.chance)) problems.push(`[${label}] a chance de skill não subiu com +10 níveis (${a.chance} -> ${b.chance})`)
+      // +5 pontos na Garra (aba Status, Confirmar): a Garra começa antes e a tela acompanha
+      await pg.locator('[data-acao="montaria-aba"][data-id="status"]').click()
+      await pg.locator('[data-acao="ponto-mais"][data-id="garra"][data-n="5"]').click()
+      await pg.locator('[data-acao="pontos-confirmar"]').click()   // 1º toque: o aviso de como mudar depois
+      await pg.waitForSelector('text=Toque em Confirmar de novo para gravar.')
+      await pg.locator('[data-acao="pontos-confirmar"]').click()   // 2º toque: grava
+      await pg.waitForFunction((g0) => { const st = window.__galope.state, m = st.mounts.find((x) => x.uid === st.activeId); return m.alloc && m.alloc.garra >= 5 }, h1.alloc ? h1.alloc.garra || 0 : 0, { timeout: 5000 })
+      const h2 = await cavalo()
+      const c2 = confere(await abaSkills(), h2, '+5 na Garra')
+      if (!(c2.garra > b.garra && c2.from < b.from)) problems.push(`[${label}] a Garra não mudou com +5 pontos (${b.garra} aos ${b.from} -> ${c2.garra} aos ${c2.from})`)
+      await checkOverflow(pg, label + ' +5 na Garra')
+    } catch (e) {
+      problems.push(`[${label}] ${e.message}`)
+    } finally {
+      await pg.close()
+    }
+  }
+
   // ---------------- ícones nas telas (Visuais 2, parte 1: spec 2026-11-12-icones §4 e §5) ----------------
   // Em cada tela principal (Estábulo, Montaria: Status e Skills, Haras, Perfil, sala aberta, corrida, resultado e a
   // escolha do inicial), no celular (360) e no computador (1280): os símbolos trocados (👤 🎲 ♂ ♀ ★ ☆ ⚑) somem do
@@ -8766,6 +8847,10 @@ try {
   // medido em 2026-11-14 na `main` (7fe5124), antes da 3a: build da `main`, o mesmo save (SAVE_3A) e o mesmo caminho do
   // bloco acabamento (servidor deste teste, 360x780, scrollHeight; Skills é a aba da montaria ativa). Usado também no celular.
   const ALTURA_ANTES_3A = { estabulo: 1284, status: 1894, correr: 802, skills: 1145 }
+  // 2026-11-18, pedido do Vinicius: a aba Skills ganhou a chance de cada skill ativar (com a conta), o "Quando" de cada
+  // skill e o quadro da Garra; a base da aba Skills passou a ser a medida com isso (SAVE_3A, 360x780, mesmo caminho), com
+  // a mesma folga de 4% de antes
+  const ALTURA_SKILLS_INFO = 1426
   // 3b §2 e decisão do controlador na Tarefa 4: a meta de 1.200 px da aba Status não fecha com a cabeça do retrato grande
   // (§5, que vence quando as metas brigam): a aba Status da ativa (SAVE_3A, 360x780, sem rascunho) fica na altura medida
   // com a linha única (medi 1.454 px a 2,625 de dpr e 1.457 a 2,75; teto 1.470), e as 7 linhas cabem inteiras numa tela com as abas no topo
@@ -9094,7 +9179,7 @@ try {
         await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
         const aSk = await altura()
         notes.alturaAcabamento.skills = aSk
-        if (aSk > 1.04 * ALTURA_ANTES_3A.skills) problems.push(`acabamento: aba Skills com ${aSk}px (limite ${Math.round(1.04 * ALTURA_ANTES_3A.skills)}, antes ${ALTURA_ANTES_3A.skills})`)
+        if (aSk > 1.04 * ALTURA_SKILLS_INFO) problems.push(`acabamento: aba Skills com ${aSk}px (limite ${Math.round(1.04 * ALTURA_SKILLS_INFO)}, medida de 2026-11-18 ${ALTURA_SKILLS_INFO}; antes da 3a ${ALTURA_ANTES_3A.skills})`)
         await semBorderImage(pg, 'skills')
         await pg.locator('[data-acao="aba"][data-id="correr"]').click()
         await pg.waitForSelector('#t-correr')
@@ -10175,7 +10260,7 @@ try {
         await pf.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
         const aSk = await pf.evaluate(() => document.documentElement.scrollHeight)
         notes[`${label} altura skills`] = aSk
-        if (aSk > 1.04 * ALTURA_ANTES_3A.skills) problems.push(`${label}: aba Skills da ativa com ${aSk}px (limite ${Math.round(1.04 * ALTURA_ANTES_3A.skills)})`)
+        if (aSk > 1.04 * ALTURA_SKILLS_INFO) problems.push(`${label}: aba Skills da ativa com ${aSk}px (limite ${Math.round(1.04 * ALTURA_SKILLS_INFO)})`)
         if (m1) await confereAbaFicha(pf, 'ficha da ativa', m1, null)
         // Review Focus 5: com rascunho na aba Status, ir para a Ficha (ou Skills) e voltar: o rascunho some e nada é gravado
         for (const outra of ['ficha', 'skills']) {
