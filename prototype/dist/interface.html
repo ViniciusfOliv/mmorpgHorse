@@ -882,6 +882,93 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .gin-placa-quem { overflow-wrap: anywhere; color: var(--texto); }
 .gin-placa-cavalo { overflow-wrap: anywhere; }
 .gin-cena-vant { margin: 0; line-height: 1.35; color: var(--texto-2); }
+/* O mapa da Expedição (spec 2026-11-18-mapa-expedicao): a arte do PixelLab ao fundo (um <img> em escala inteira: --u é
+   quantos px de tela vale um pixel de arte) e, por cima, os lugares: cada um é uma âncora de tamanho zero no ponto do
+   mapa (left/top em pixels de arte × --u), com o botão de verdade (a figura ou a construção e a plaquinha) pendurado
+   nela. O mapa-múndi (.mapa--mundo) tem os ginásios; o mapa do ginásio (.mapa--ginasio) tem a trilha dos oponentes */
+.mapa {
+  --u: 2px;
+  position: relative; align-self: center; flex: none; overflow: hidden;
+  width: calc(var(--mw) * var(--u)); height: calc(var(--mh) * var(--u)); max-width: calc(100% + 8px); margin: 0 -4px;   /* 336 px numa coluna de 328: sangra 4 px de cada lado, como os cartões */
+  box-shadow: 0 0 0 2px var(--sombra), 0 0 0 4px var(--linha);
+}
+@media (min-width: 560px) and (min-height: 501px) { .mapa { --u: 3px; } }
+@media (max-width: 359px) { .mapa { --u: 1.5px; } }
+.mapa-fundo { position: absolute; left: 0; top: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.mapa img { image-rendering: pixelated; }
+.mapa ul, .mapa ol { list-style: none; margin: 0; padding: 0; position: static; display: block; }
+.mapa-no { position: absolute; width: 0; height: 0; display: block; }
+/* a plaquinha de um lugar: escura, curta, logo abaixo do ponto; --dx (px de arte) afasta da borda do mapa */
+.mapa-placa {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; flex: none;
+  width: max-content; max-width: calc(78 * var(--u)); min-width: 0; margin-top: 2px; padding: 3px 7px 4px;
+  transform: translateX(calc(var(--dx, 0) * var(--u)));
+  background: var(--painel); color: var(--texto); box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 1px var(--linha);
+  font-size: var(--t-s); line-height: 1.2; text-align: center;
+}
+.mapa-icone { width: 16px; height: 16px; flex: none; vertical-align: -3px; }
+/* o marcador "você está aqui": em cima do lugar, subindo e descendo devagar (parado em movimento reduzido) */
+.mapa-pino { position: absolute; left: 50%; width: 32px; height: 32px; margin-left: -16px; pointer-events: none; animation: mapa-pino 1.2s steps(2, end) infinite; }
+@keyframes mapa-pino { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.mov-reduzido .mapa-pino { animation: none; }
+/* ---- mapa-múndi: cada ginásio é um botão (a construção em cima do ponto, a plaquinha embaixo) */
+.mapa--mundo .ginasio-cartao {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, calc(-32 * var(--u)));
+  display: flex; flex-direction: column; align-items: center; gap: 0; width: calc(40 * var(--u)); min-height: 44px;
+  margin: 0; padding: 0; border: 0; background: none; box-shadow: none; color: inherit; font: inherit; text-align: center; cursor: pointer;
+}
+.mapa--mundo .ginasio-cartao:hover, .mapa--mundo .ginasio-cartao:active { background: none; box-shadow: none; transform: translate(-50%, calc(-32 * var(--u))); }
+.mapa--mundo .ginasio-cartao:hover .mapa-placa { background: var(--painel-3); }
+.mapa--mundo .ginasio-cartao:focus-visible { outline-offset: 2px; }
+.mapa-predio { flex: none; display: block; }
+.mapa--mundo .mapa-pino { top: calc(-13 * var(--u)); }
+.mapa--mundo .ginasio-cartao-nome { font-size: var(--t-s); line-height: 1.2; color: var(--texto); }
+.mapa--mundo .ginasio-cartao-meta { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 6px; font-size: var(--t-xs); line-height: 1.25; color: var(--texto-2); }
+.mapa--mundo .ginasio-cartao-seta { display: none; }
+.mapa-no--atual .mapa-placa { box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 2px var(--ouro); }
+.mapa-no--vencido .mapa-placa { box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 2px var(--ganho); }
+.mapa-no--fechado .mapa-predio { filter: grayscale(1) brightness(0.5); }
+.mapa-no--fechado .ginasio-cartao { cursor: not-allowed; }
+.mapa-no--fechado .mapa-placa, .mapa-no--fechado .ginasio-cartao-nome { color: var(--texto-2); }
+/* o estábulo do jogador (enfeite) e a terra desconhecida (futuras atualizações): não são botões */
+.mapa-casa, .mapa-desconhecido { position: absolute; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, calc(-32 * var(--u))); pointer-events: none; }
+.mapa-casa .mapa-placa { font-size: var(--t-xs); color: var(--texto-2); padding: 2px 6px 3px; }
+.mapa-desconhecido { transform: translate(-50%, -50%); }
+.mapa-desconhecido .mapa-placa { margin: 0; color: var(--texto-2); }
+.mapa-desconhecido b { color: var(--texto); font-weight: 400; }
+.mapa-secao { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mapa-secao > .nota { margin: 0; }
+/* ---- mapa do ginásio: a trilha. Cada etapa é a figura do oponente (os pés no ponto) com a plaquinha embaixo */
+.trilha--mapa .etapa-btn {
+  position: absolute; left: calc(-32 * var(--u)); top: calc(-1 * var(--pe, 61) * var(--u)); width: calc(64 * var(--u));
+  display: flex; flex-direction: column; align-items: center; gap: 0; min-height: 44px;
+  margin: 0; padding: 0; border: 0; background: none; box-shadow: none; color: inherit; font: inherit; text-align: center;
+}
+.trilha--mapa .etapa-btn:hover, .trilha--mapa .etapa-btn:active { background: none; box-shadow: none; transform: none; }
+.trilha--mapa button.etapa-btn { cursor: pointer; }
+.trilha--mapa .etapa--fechada button.etapa-btn { cursor: not-allowed; }
+.trilha--mapa .etapa-btn:focus-visible { outline-offset: -2px; }
+.mapa-figura { display: block; flex: none; width: calc(64 * var(--u)); height: calc(64 * var(--u)); }
+.mapa-voce { position: absolute; pointer-events: none; }
+.trilha--mapa .mapa-placa { margin-top: calc((var(--pe, 61) - 62) * var(--u)); }
+.trilha--mapa .etapa-rotulo, .trilha--mapa .etapa-nome, .trilha--mapa .etapa-meta, .trilha--mapa .etapa-motivo { grid-column: auto; }
+.trilha--mapa .etapa-nome { font-size: var(--t-s); line-height: 1.2; }
+.trilha--mapa .etapa-meta, .trilha--mapa .etapa-motivo { font-size: var(--t-xs); line-height: 1.25; }
+.trilha--mapa .etapa-estado { position: static; justify-self: auto; margin-top: 1px; }
+.trilha--mapa .etapa-insignia { line-height: 0; }
+.trilha--mapa .mapa-pino { top: calc(-9 * var(--u)); }
+.trilha--mapa .mapa-selo { position: absolute; right: calc(8 * var(--u)); top: calc(6 * var(--u)); width: 24px; height: 24px; }
+.trilha--mapa .etapa--proxima .mapa-placa, .trilha--mapa .etapa--revanche .mapa-placa { background: var(--painel-3); box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 2px var(--ouro); }
+.trilha--mapa .etapa--vencida .mapa-placa { box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 2px var(--ganho); }
+/* o que a plaquinha mostra em cada estado (o resto continua no texto, para o leitor de tela: escondido como o .sr) */
+.trilha--mapa .etapa-rotulo,
+.trilha--mapa .etapa--vencida .etapa-meta, .trilha--mapa .etapa--feita .etapa-meta, .trilha--mapa .etapa--feita .etapa-estado,
+.trilha--mapa .etapa--fechada .etapa-nome, .trilha--mapa .etapa--fechada .etapa-meta, .trilha--mapa .etapa--fechada .etapa-estado, .trilha--mapa .etapa--fechada .etapa-motivo {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.trilha--mapa .etapa--fechada .etapa-rotulo { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; color: var(--texto-2); font-size: var(--t-s); }
+/* oponente ainda fechado: só a silhueta */
+.trilha--mapa .etapa--fechada .mapa-figura { filter: brightness(0) opacity(0.72); }
 /* em paisagem (tela baixa): a cena à esquerda; o cabeçalho, a vantagem e os botões, um sobre o outro, à direita */
 @media (max-height: 500px) {
   .tela--desafio { max-width: 760px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: start; }

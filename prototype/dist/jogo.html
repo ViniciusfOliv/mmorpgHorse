@@ -878,6 +878,93 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .gin-placa-quem { overflow-wrap: anywhere; color: var(--texto); }
 .gin-placa-cavalo { overflow-wrap: anywhere; }
 .gin-cena-vant { margin: 0; line-height: 1.35; color: var(--texto-2); }
+/* O mapa da Expedição (spec 2026-11-18-mapa-expedicao): a arte do PixelLab ao fundo (um <img> em escala inteira: --u é
+   quantos px de tela vale um pixel de arte) e, por cima, os lugares: cada um é uma âncora de tamanho zero no ponto do
+   mapa (left/top em pixels de arte × --u), com o botão de verdade (a figura ou a construção e a plaquinha) pendurado
+   nela. O mapa-múndi (.mapa--mundo) tem os ginásios; o mapa do ginásio (.mapa--ginasio) tem a trilha dos oponentes */
+.mapa {
+  --u: 2px;
+  position: relative; align-self: center; flex: none; overflow: hidden;
+  width: calc(var(--mw) * var(--u)); height: calc(var(--mh) * var(--u)); max-width: calc(100% + 8px); margin: 0 -4px;   /* 336 px numa coluna de 328: sangra 4 px de cada lado, como os cartões */
+  box-shadow: 0 0 0 2px var(--sombra), 0 0 0 4px var(--linha);
+}
+@media (min-width: 560px) and (min-height: 501px) { .mapa { --u: 3px; } }
+@media (max-width: 359px) { .mapa { --u: 1.5px; } }
+.mapa-fundo { position: absolute; left: 0; top: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.mapa img { image-rendering: pixelated; }
+.mapa ul, .mapa ol { list-style: none; margin: 0; padding: 0; position: static; display: block; }
+.mapa-no { position: absolute; width: 0; height: 0; display: block; }
+/* a plaquinha de um lugar: escura, curta, logo abaixo do ponto; --dx (px de arte) afasta da borda do mapa */
+.mapa-placa {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; flex: none;
+  width: max-content; max-width: calc(78 * var(--u)); min-width: 0; margin-top: 2px; padding: 3px 7px 4px;
+  transform: translateX(calc(var(--dx, 0) * var(--u)));
+  background: var(--painel); color: var(--texto); box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 1px var(--linha);
+  font-size: var(--t-s); line-height: 1.2; text-align: center;
+}
+.mapa-icone { width: 16px; height: 16px; flex: none; vertical-align: -3px; }
+/* o marcador "você está aqui": em cima do lugar, subindo e descendo devagar (parado em movimento reduzido) */
+.mapa-pino { position: absolute; left: 50%; width: 32px; height: 32px; margin-left: -16px; pointer-events: none; animation: mapa-pino 1.2s steps(2, end) infinite; }
+@keyframes mapa-pino { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.mov-reduzido .mapa-pino { animation: none; }
+/* ---- mapa-múndi: cada ginásio é um botão (a construção em cima do ponto, a plaquinha embaixo) */
+.mapa--mundo .ginasio-cartao {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, calc(-32 * var(--u)));
+  display: flex; flex-direction: column; align-items: center; gap: 0; width: calc(40 * var(--u)); min-height: 44px;
+  margin: 0; padding: 0; border: 0; background: none; box-shadow: none; color: inherit; font: inherit; text-align: center; cursor: pointer;
+}
+.mapa--mundo .ginasio-cartao:hover, .mapa--mundo .ginasio-cartao:active { background: none; box-shadow: none; transform: translate(-50%, calc(-32 * var(--u))); }
+.mapa--mundo .ginasio-cartao:hover .mapa-placa { background: var(--painel-3); }
+.mapa--mundo .ginasio-cartao:focus-visible { outline-offset: 2px; }
+.mapa-predio { flex: none; display: block; }
+.mapa--mundo .mapa-pino { top: calc(-13 * var(--u)); }
+.mapa--mundo .ginasio-cartao-nome { font-size: var(--t-s); line-height: 1.2; color: var(--texto); }
+.mapa--mundo .ginasio-cartao-meta { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 6px; font-size: var(--t-xs); line-height: 1.25; color: var(--texto-2); }
+.mapa--mundo .ginasio-cartao-seta { display: none; }
+.mapa-no--atual .mapa-placa { box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 2px var(--ouro); }
+.mapa-no--vencido .mapa-placa { box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 2px var(--ganho); }
+.mapa-no--fechado .mapa-predio { filter: grayscale(1) brightness(0.5); }
+.mapa-no--fechado .ginasio-cartao { cursor: not-allowed; }
+.mapa-no--fechado .mapa-placa, .mapa-no--fechado .ginasio-cartao-nome { color: var(--texto-2); }
+/* o estábulo do jogador (enfeite) e a terra desconhecida (futuras atualizações): não são botões */
+.mapa-casa, .mapa-desconhecido { position: absolute; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, calc(-32 * var(--u))); pointer-events: none; }
+.mapa-casa .mapa-placa { font-size: var(--t-xs); color: var(--texto-2); padding: 2px 6px 3px; }
+.mapa-desconhecido { transform: translate(-50%, -50%); }
+.mapa-desconhecido .mapa-placa { margin: 0; color: var(--texto-2); }
+.mapa-desconhecido b { color: var(--texto); font-weight: 400; }
+.mapa-secao { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mapa-secao > .nota { margin: 0; }
+/* ---- mapa do ginásio: a trilha. Cada etapa é a figura do oponente (os pés no ponto) com a plaquinha embaixo */
+.trilha--mapa .etapa-btn {
+  position: absolute; left: calc(-32 * var(--u)); top: calc(-1 * var(--pe, 61) * var(--u)); width: calc(64 * var(--u));
+  display: flex; flex-direction: column; align-items: center; gap: 0; min-height: 44px;
+  margin: 0; padding: 0; border: 0; background: none; box-shadow: none; color: inherit; font: inherit; text-align: center;
+}
+.trilha--mapa .etapa-btn:hover, .trilha--mapa .etapa-btn:active { background: none; box-shadow: none; transform: none; }
+.trilha--mapa button.etapa-btn { cursor: pointer; }
+.trilha--mapa .etapa--fechada button.etapa-btn { cursor: not-allowed; }
+.trilha--mapa .etapa-btn:focus-visible { outline-offset: -2px; }
+.mapa-figura { display: block; flex: none; width: calc(64 * var(--u)); height: calc(64 * var(--u)); }
+.mapa-voce { position: absolute; pointer-events: none; }
+.trilha--mapa .mapa-placa { margin-top: calc((var(--pe, 61) - 62) * var(--u)); }
+.trilha--mapa .etapa-rotulo, .trilha--mapa .etapa-nome, .trilha--mapa .etapa-meta, .trilha--mapa .etapa-motivo { grid-column: auto; }
+.trilha--mapa .etapa-nome { font-size: var(--t-s); line-height: 1.2; }
+.trilha--mapa .etapa-meta, .trilha--mapa .etapa-motivo { font-size: var(--t-xs); line-height: 1.25; }
+.trilha--mapa .etapa-estado { position: static; justify-self: auto; margin-top: 1px; }
+.trilha--mapa .etapa-insignia { line-height: 0; }
+.trilha--mapa .mapa-pino { top: calc(-9 * var(--u)); }
+.trilha--mapa .mapa-selo { position: absolute; right: calc(8 * var(--u)); top: calc(6 * var(--u)); width: 24px; height: 24px; }
+.trilha--mapa .etapa--proxima .mapa-placa, .trilha--mapa .etapa--revanche .mapa-placa { background: var(--painel-3); box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 2px var(--ouro); }
+.trilha--mapa .etapa--vencida .mapa-placa { box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 2px var(--ganho); }
+/* o que a plaquinha mostra em cada estado (o resto continua no texto, para o leitor de tela: escondido como o .sr) */
+.trilha--mapa .etapa-rotulo,
+.trilha--mapa .etapa--vencida .etapa-meta, .trilha--mapa .etapa--feita .etapa-meta, .trilha--mapa .etapa--feita .etapa-estado,
+.trilha--mapa .etapa--fechada .etapa-nome, .trilha--mapa .etapa--fechada .etapa-meta, .trilha--mapa .etapa--fechada .etapa-estado, .trilha--mapa .etapa--fechada .etapa-motivo {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.trilha--mapa .etapa--fechada .etapa-rotulo { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; color: var(--texto-2); font-size: var(--t-s); }
+/* oponente ainda fechado: só a silhueta */
+.trilha--mapa .etapa--fechada .mapa-figura { filter: brightness(0) opacity(0.72); }
 /* em paisagem (tela baixa): a cena à esquerda; o cabeçalho, a vantagem e os botões, um sobre o outro, à direita */
 @media (max-height: 500px) {
   .tela--desafio { max-width: 760px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: start; }
@@ -11007,7 +11094,14 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
     try { window.scrollTo(0, 0); } catch (e) { /* ignora */ }
     var h = telaEl.querySelector('[data-foco]');
     if (h) { try { h.focus({ preventScroll: true }); } catch (e2) { h.focus(); } }
+    rolaParaMarcado();
     syncHistory(screen);
+  }
+  // o mapa do ginásio é mais alto que a janela: ao abrir, a página rola até o próximo oponente (data-rola) ficar no meio
+  function rolaParaMarcado() {
+    var alvo = telaEl.querySelector('[data-rola]');
+    if (!alvo || !alvo.scrollIntoView) return;
+    try { alvo.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) { alvo.scrollIntoView(); }
   }
   // "Voltar" (ou o voltar do aparelho) de uma sub-tela (Montaria, Perfil) para a aba de origem. Da ficha para o Estábulo
   // o foco vai para a linha daquele cavalo, não para o título (3b, Review Focus 2), e a página rola só o que precisar
@@ -11627,7 +11721,9 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
   // o detalhe. Fechada: botão apagado (aria-disabled) com o motivo escrito. Com a insígnia, o líder mostra o ícone dela e
   // vira a revanche (o módulo diz qual, ginModo): livre hoje, um botão como a próxima ("Revanche hoje", a entrada da revanche
   // e o prêmio de hoje do rodízio); já tentada hoje, só texto ("Revanche de hoje feita. Volte amanhã.").
-  function trilhaEtapaHtml(id, e, i) {
+  // No mapa do ginásio (pos = o ponto dos pés, em pixels de arte): a mesma etapa, com a figura do oponente em cima do
+  // ponto (em silhueta enquanto fechada), o marcador na próxima, o selo na vencida e os textos numa plaquinha embaixo.
+  function trilhaEtapaHtml(id, e, i, pos) {
     var p = ginProgresso(id), modo = e.lider && ginTemInsignia(id) ? ginModo(id, i) : null;
     var estado = modo && modo.revanche ? (modo.pode ? 'revanche' : 'feita') : i < p ? 'vencida' : i === p ? 'proxima' : 'fechada';
     var MOTIVO = 'Vença a etapa anterior';
@@ -11641,16 +11737,44 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
       (estado === 'revanche' ? '<span class="etapa-motivo">' + esc('Prêmio de hoje: ' + ginRevPremioTxt(id)) + '</span>' : '') +
       (estado === 'feita' ? '<span class="etapa-motivo">Revanche de hoje feita. Volte amanhã.</span>' : '') +
       (e.lider && ginTemInsignia(id) ? '<span class="etapa-insignia">' + ginInsigniaIcone(id) + '</span>' : '');
+    var noMapa = '', estilo = '';
+    if (pos) {
+      var tid = ginTreinadorId(e.nome), src = window.__TREINADORES && hasOwn(window.__TREINADORES, tid) ? window.__TREINADORES[tid] : '';
+      var pe = MAPA.pes && MAPA.pes[tid] > 0 ? MAPA.pes[tid] : 61, mw = MAPA.mapa.ginasios[id].w;
+      var vez = estado === 'proxima' || estado === 'revanche';
+      // a plaquinha não passa da borda do mapa: --dx a puxa para dentro
+      var dx = clamp(pos[0], 41, mw - 41) - pos[0];
+      noMapa = (src ? '<img class="mapa-figura" src="' + esc(src) + '" alt="">' : '<span class="mapa-figura"></span>') +
+        (vez ? mapaImgHtml('icone-marcador', 'mapa-pino') : '') + (estado === 'vencida' ? mapaImgHtml('icone-vencido', 'mapa-selo') : '');
+      corpo = noMapa + '<span class="mapa-placa"' + (dx ? ' style="--dx:' + dx + '"' : '') + '>' + (estado === 'fechada' ? mapaImgHtml('icone-cadeado', 'mapa-icone') : '') + corpo + '</span>';
+      estilo = ' style="' + mapaPos(pos) + ';--pe:' + pe + '"';
+    }
     var caixa = estado === 'vencida' || estado === 'feita'
       ? '<div class="etapa-btn">' + corpo + '</div>'
       : '<button type="button" class="etapa-btn" data-acao="ginasio-etapa" data-id="' + i + '"' +
-          (estado === 'proxima' || estado === 'revanche' ? ' aria-current="step"' : indisponivel(MOTIVO)) + '>' + corpo + '</button>';
-    return '<li class="etapa etapa--' + estado + (e.lider ? ' etapa--lider' : '') + '" data-etapa="' + i + '" data-estado="' + estado + '">' + caixa + '</li>';
+          (estado === 'proxima' || estado === 'revanche' ? ' aria-current="step"' + (pos ? ' data-rola' : '') : indisponivel(MOTIVO)) + '>' + corpo + '</button>';
+    return '<li class="etapa etapa--' + estado + (e.lider ? ' etapa--lider' : '') + (pos ? ' mapa-no' : '') + '" data-etapa="' + i + '" data-estado="' + estado + '"' + estilo + '>' + caixa + '</li>';
   }
   // A trilha: de baixo para cima (a 1ª etapa embaixo; o DOM vai da 1ª à 5ª, o CSS vira a coluna)
+  // Com a arte do mapa do ginásio (window.__MAPA), a trilha é o mapa: a arte ao fundo, cada etapa no seu tablado e a
+  // figura do jogador, de costas, na entrada. Sem ela, a lista de antes.
+  function ginTemMapa(id) {
+    var mg = MAPA && MAPA.mapa.ginasios[id];
+    return !!(mg && mapaArte('ginasio-' + id) && mg.etapas && mg.etapas.length === GD.GYMS[id].etapas.length);
+  }
   function trilhaHtml(id) {
-    var g = GD.GYMS[id];
-    return '<ol class="trilha">' + g.etapas.map(function (e, i) { return trilhaEtapaHtml(id, e, i); }).join('') + '</ol>';
+    var g = GD.GYMS[id], mg = MAPA && MAPA.mapa.ginasios[id], arte = mapaArte('ginasio-' + id);
+    if (!ginTemMapa(id)) {
+      return '<ol class="trilha">' + g.etapas.map(function (e, i) { return trilhaEtapaHtml(id, e, i); }).join('') + '</ol>';
+    }
+    var cor = validJoquei(joqueiDoJogador()).capacete, voce = '';
+    if (mg.voce && mapaArte('jogador')) {
+      voce = '<img class="mapa-figura mapa-voce" data-jogador="' + esc(cor) + '" src="' + esc(jogadorUrl(cor)) + '" alt="" style="left:calc(' + (mg.voce[0] - 32) +
+        ' * var(--u));top:calc(' + (mg.voce[1] - jogadorPe()) + ' * var(--u))">';
+    }
+    return '<div class="mapa mapa--ginasio mapa--' + esc(id) + '" style="--mw:' + mg.w + ';--mh:' + mg.h + '">' +
+      '<img class="mapa-fundo" src="' + esc(arte) + '" alt="">' +
+      '<ol class="trilha trilha--mapa">' + g.etapas.map(function (e, i) { return trilhaEtapaHtml(id, e, i, mg.etapas[i]); }).join('') + '</ol>' + voce + '</div>';
   }
   // A tela da trilha: o elemento, o progresso, o ponto fraco escrito e, com a insígnia, o nome e o bônus dela; embaixo, a trilha
   function trilhaTelaHtml(id) {
@@ -11663,8 +11787,9 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
         '<p class="ginasio-fraco">' + esc(ginFracoTxt(id)) + '</p>' +
         (ginTemInsignia(id) ? '<p class="ginasio-insignia">' + ginInsigniaIcone(id) + '<span><b>' + esc(g.insignia.name) + ':</b> ' + esc(ginBonusTxt(id)) + '.</span></p>' : '') +
       '</div>' +
-      '<section class="caixa" aria-labelledby="t-trilha"><h2 class="titulo" id="t-trilha">Trilha</h2>' +
-        '<p class="nota">Vença as etapas em ordem, de baixo para cima.</p>' + trilhaHtml(id) +
+      // com o mapa, a trilha sai da caixa: o mapa ocupa a largura inteira da coluna
+      '<section class="' + (ginTemMapa(id) ? 'mapa-secao' : 'caixa') + '" aria-labelledby="t-trilha"><h2 class="titulo" id="t-trilha">Trilha</h2>' +
+        '<p class="nota">' + (ginTemMapa(id) ? 'Toque no próximo oponente para desafiar. O líder espera no alto.' : 'Vença as etapas em ordem, de baixo para cima.') + '</p>' + trilhaHtml(id) +
       '</section>' +
       '</section>';
   }
@@ -11970,6 +12095,7 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
   // a cena fica só com o cavalo dele. Só desenho: nada grava nem muda o state.
   // ---------------------------------------------------------------------------------------------
   var CENA_W = 160, CENA_H = 112, CENA_PISO = 30;   // a cena em pixels de arte (o canvas sai em escala inteira, 1 a 3)
+  var CENA_JOG_X = -10, CENA_JOG_BASE = 110;       // a figura do jogador na cena: a esquerda do quadro dela e a linha dos pés
   // o fundo de cada ginásio: parede (tijolo na Fornalha, pedra com um filete de água no Remanso, tábuas com cipó na
   // Capoeira), duas luzes, o piso e os dois tablados
   var CENA_CORES = {
@@ -12046,6 +12172,62 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
       ctx.fillRect(x + i * u, top + y * u, u, u);
     }
   }
+  // A arte do mapa da Expedição (window.__MAPA, do build: tools/arte-embutida.mjs lerMapa): { arte: { nome: data: },
+  // mapa: os lugares em pixels de arte, pes: a última linha opaca de cada figura }. Sem o mapa-múndi, null (a aba fica
+  // com os cartões e a trilha em lista, e a cena com a figura desenhada por código).
+  var MAPA = (function () {
+    var m = window.__MAPA;
+    return m && m.arte && typeof m.arte.mundo === 'string' && m.mapa && m.mapa.mundo && m.mapa.ginasios ? m : null;
+  })();
+  function mapaArte(nome) { return MAPA && typeof MAPA.arte[nome] === 'string' ? MAPA.arte[nome] : ''; }
+  // um ponto do mapa (pixels de arte) como left/top; --u (CSS) é quantos px de tela vale um pixel de arte
+  function mapaPos(p) { return 'left:calc(' + p[0] + ' * var(--u));top:calc(' + p[1] + ' * var(--u))'; }
+  // uma peça da arte do mapa como <img> (sem texto: quem dá o nome é o botão em volta); w × h em pixels de arte
+  function mapaImgHtml(nome, cls, w, h) {
+    var src = mapaArte(nome);
+    if (!src) return '';
+    return '<img class="' + cls + '" src="' + esc(src) + '" alt=""' + (w ? ' style="width:calc(' + w + ' * var(--u));height:calc(' + h + ' * var(--u))"' : '') + '>';
+  }
+  // A figura do jogador do PixelLab (arte `jogador`, 64 × 64: um jóquei de costas, de capacete branco, jaqueta dourada —
+  // a seda do jogador — e culote branco). O capacete sai na cor do jóquei do Perfil: os pixels claros e sem cor das
+  // linhas do capacete são multiplicados pela cor (a sombra do desenho fica). Uma tela por cor, feita quando a imagem
+  // chega; ao chegar, as cenas e as figuras da tela são desenhadas de novo. Sem a arte (ou antes de ela chegar), null.
+  var JOGADOR_CAPACETE_ATE = 10;   // a última linha do capacete na arte
+  var jogadorBase = null, jogadorTelas = {};
+  function jogadorTela(cor) {
+    if (!mapaArte('jogador')) return null;
+    if (!jogadorBase) {
+      jogadorBase = new Image();
+      jogadorBase.onload = function () {
+        cenaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); });
+        var imgs = document.querySelectorAll('img[data-jogador]');
+        for (var i = 0; i < imgs.length; i++) imgs[i].src = jogadorUrl(imgs[i].getAttribute('data-jogador'));
+      };
+      jogadorBase.src = mapaArte('jogador');
+    }
+    if (!jogadorBase.complete || !jogadorBase.naturalWidth) return null;
+    if (jogadorTelas[cor]) return jogadorTelas[cor];
+    var cv = document.createElement('canvas'), w = jogadorBase.naturalWidth, h = jogadorBase.naturalHeight;
+    cv.width = w; cv.height = h;
+    var g = cv.getContext('2d');
+    g.drawImage(jogadorBase, 0, 0);
+    var c = parseInt(cor.slice(1), 16), cr = (c >> 16) & 255, cg = (c >> 8) & 255, cb = c & 255;
+    var im = g.getImageData(0, 0, w, Math.min(h, JOGADOR_CAPACETE_ATE + 1)), d = im.data;
+    for (var i = 0; i < d.length; i += 4) {
+      var mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+      if (d[i + 3] < 40 || mn < 120 || mx - mn > 45) continue;
+      d[i] = Math.round(d[i] * cr / 255); d[i + 1] = Math.round(d[i + 1] * cg / 255); d[i + 2] = Math.round(d[i + 2] * cb / 255);
+    }
+    g.putImageData(im, 0, 0);
+    return (jogadorTelas[cor] = cv);
+  }
+  // a linha dos pés da figura na arte (a última linha opaca, medida no build)
+  function jogadorPe() { return MAPA && MAPA.pes && MAPA.pes.jogador > 0 ? MAPA.pes.jogador : 63; }
+  // a mesma figura para um <img> (o mapa do ginásio): data: da tela da cor; antes de a arte chegar, a arte crua
+  function jogadorUrl(cor) {
+    var t = jogadorTela(cor);
+    return t ? t.toDataURL() : mapaArte('jogador');
+  }
   // as placas e o palco da cena do duelo k (o canvas é desenhado no hydrate: drawGinCena)
   function ginCenaHtml(R, k) {
     var d = R.duelos[k], dono = GD.GYMS[R.gymId].etapas[R.etapa].nome;
@@ -12114,8 +12296,12 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
         cavalo(e.b, visB, 116, 64, tt + 0.9, true);   // o cavalo do oponente, virado para a esquerda
         img = img || treinadorImg(ginTreinadorId(e.dono));
         if (img) ctx.drawImage(img, 96 * k, 0, 64 * k, 64 * k);
-        drawJogador(ctx, 0, 108 * k, hk, joqueiDoJogador());   // o jogador, de costas, atrás do cavalo dele
-        cavalo(e.a, visA, 14, 106, tt, false);
+        // o jogador, de costas, em primeiro plano, à esquerda do cavalo dele (a arte do PixelLab; sem ela, a figura
+        // desenhada por código, atrás do cavalo)
+        var fig = jogadorTela(validJoquei(joqueiDoJogador()).capacete);
+        if (!fig) drawJogador(ctx, 0, 108 * k, hk, joqueiDoJogador());
+        cavalo(e.a, visA, fig ? 16 : 14, 106, tt, false);
+        if (fig) ctx.drawImage(fig, CENA_JOG_X * k, (CENA_JOG_BASE - jogadorPe()) * k, fig.width * k, fig.height * k);
       }
     };
     item.draw(0);
