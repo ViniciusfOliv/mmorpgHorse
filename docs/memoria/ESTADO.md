@@ -16,7 +16,9 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   altas) entraram na `main` no mesmo dia, também por fast-forward. Em aberto: a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta como bloco 3). Trabalho
   novo sai da `main`.
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build; os três foram republicados em
-  2026-11-18 com o build 3b26519, o da integração dos pedidos do dia: jogo na versão 10, DEV na 8 e wiki na 9):
+  2026-11-18 com o build 3b26519, o da integração dos pedidos do dia: jogo na versão 10, DEV na 8 e wiki na 9; no mesmo
+  dia, jogo e DEV de novo com o build 48194bf, o do Recomeçar do DEV pela escolha do cavalo, que está na branch da sessão
+  e ainda não na `main`: jogo na versão 11 e DEV na 9):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
   - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
   - wiki: https://claude.ai/artifact/Bp47f9qE3tSswu1A9zdF2y (`prototype/dist/wiki.html`)
