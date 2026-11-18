@@ -100,3 +100,47 @@ níveis baixos (onde 4 níveis são poucos pontos) são rebaseadas ao medido, co
   desenhado), o mapa do ginásio (o mesmo contrato da trilha: `data-etapa` e `data-estado`) e a figura do jogador na cena.
 - `balance.js` completo (metas G), wiki (gerado), `docs/GDD.md` §8.6, memória e capturas oficiais (a interface muda de
   propósito).
+
+## Notas da execução
+
+### Seção 1 (ginásios em sequência), 2026-11-18
+
+Feito como na tabela; as seções 2 a 4 (mapas e arte) ficaram para a outra frente.
+
+- **Regra no módulo:** `Ginasio.aberto(gymId, progresso)` (o primeiro de `GYM_ORDER`, o anterior com a insígnia, ou o
+  próprio com etapa > 0; progresso saneado; id desconhecido é fechado) e `Ginasio.anterior(gymId)` (para a tela montar o
+  motivo com o nome do catálogo). O `podeDesafiar` devolve `'ginasio-fechado'` logo depois de validar ginásio e etapa.
+  **A mais:** o `acerto` também devolve `null` para um ginásio fechado (o servidor não acerta o que o `podeDesafiar`
+  recusaria).
+- **Números:** `GYM_ETAPAS` guarda só o que é igual nos três (id, líder, itens); os níveis, entradas e Ouro ficam em
+  `GYM_NUMEROS`, por ginásio. `GYMS` e `GYM_ORDER` na ordem Capoeira, Remanso, Fornalha (também no Perfil, na gaveta DEV e
+  no wiki). `GYM.insignias` não mudou de ordem.
+- **Tela (o mínimo, sem mexer nos contratos do DOM):** o cartão fechado continua `button.ginasio-cartao[data-acao=
+  "ginasio-abrir"][data-id]`, com a classe `ginasio-cartao--fechado`, `aria-disabled` e o motivo ("Vença o líder do
+  Ginásio da Capoeira") escrito no cartão (`.ginasio-cartao-motivo`), no lugar de "N de 5 vencidos" ("Fechado") e sem a
+  seta. Tocar só diz o motivo; a trilha de um ginásio que fechou (gaveta DEV, outra aba) volta à Expedição; o "Desafiar"
+  forçado recusa sem cobrar nem sortear.
+- **Medido (`balance.js` completo, 298 metas OK):** G1 de 48,2% a 51,9% em todas as etapas. Três rebaseadas, com o motivo
+  no arquivo:
+  - **G4**, Fornalha, Grama contra Fogo sem vantagem: 64,5% (teto 60 → 67 só nesse par). A pista da Fornalha favorece o
+    Ipê mais quanto mais alto o nível (fora do `balance.js`, na mesma pista: 56% nos níveis 2–10, 60% nos 11–20, 64% nos
+    21–30; nas outras pistas, 43% a 50%). Com a Fornalha nos níveis 21 a 30, aparece;
+  - **G3**, Fornalha: a Grama em desvantagem vence 40,9% a 46,0% (teto 40 → 49) e a distância cai a 29,3 p.p. no soldado
+    2 (piso 30 → 26). É o mesmo efeito da pista. O ajuste de verdade é a pista da Fornalha, que ficou fora deste escopo
+    (o pedido não muda as pistas): **sugestão para o próximo passo**;
+  - **G2**, Capoeira, soldado 1: "4 níveis abaixo" do nível 2 é o nível 1, só 1 nível de diferença: 43,6% (teto 38 → 48
+    quando a diferença real é de 1 ou 2 níveis). Confirma o "quase parelho" da spec: um inicial no nível 1 vence o
+    Recruta da Capoeira em 24% (Maré) a 65% (Brasa) das seeds.
+  - G7 (um cavalo 4 níveis acima contra o líder): 0,1% a 1,0% com cansaço, 33,5% a 56,8% sem; dentro da faixa.
+- **Testes:** `sim-test.js` com `aberto`, `anterior`, o motivo novo, o acerto recusado e os números por ginásio;
+  `ui-test.mjs` com o bloco da sequência (`ginasio-sequencia` e `ginasio-sequencia-antigo`: save novo com Remanso e
+  Fornalha fechados e o motivo escrito, tocar/forçar não abre, o "Desafiar" forçado recusa, vencer o líder da Capoeira
+  abre o Remanso, a gaveta DEV fechando a trilha aberta, save antigo com a Fornalha em 2 continua aberto). Cenários de
+  seed fixa refeitos com os níveis do catálogo: o da Tarefa 6 (`GIN_T6`: seed 545 → 39, Maré e Brasa no nível do
+  Sargento + 1 e + 0, com a build dos bots, porque no nível 25 com os pontos por distribuir nenhum vence), o
+  `ginasio-vence` (seed 43 → 9, Maré 12 níveis acima do Cabo Tocha, com a build), o `ginasio-perde` e o
+  `ginasio-falha-outra-aba` (seed 79 → 80: o Ipê nível 1 vence o Recruta da Capoeira com a 79). Os testes que pediam
+  "um ginásio na etapa 0" passaram a usar o 1º da sequência (`GIN_1`); os números (entradas, prêmios, "Desafiar (N de
+  Ouro)") saem do catálogo.
+- **Não feito aqui:** a folha de interface não ganhou o estado "fechado" do cartão (o teste de acabamento compara a folha
+  com um save em que os três estão abertos); capturas oficiais e memória ficaram para quem integra.

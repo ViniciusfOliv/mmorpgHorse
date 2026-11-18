@@ -351,23 +351,28 @@ Spec aprovada pelo Vinicius: `docs/superpowers/specs/2026-11-17-ginasios-design.
 números ficam em `GameData.GYM` e `GameData.GYMS` (`prototype/src/data.js`) e as regras em `prototype/src/ginasio.js`; as
 tabelas completas estão no wiki ("Ginásios da Expedição"). Os números saíram de simulação (metas G1 a G9 do `balance.js`):
 ninguém jogou ainda.
-- **Três ginásios, um por elemento:** o da Fornalha (Fogo; líder Capitã Labareda), o do Remanso (Água; líder Mestre
-  Aguaceiro) e o da Capoeira (Grama; líder Dona Capineira). Dá para fazer as três trilhas em qualquer ordem.
+- **Três ginásios, um por elemento, em sequência** (desde 2026-11-18, spec `2026-11-18-mapa-expedicao-design.md` §1):
+  1º o da Capoeira (Grama; líder Dona Capineira), 2º o do Remanso (Água; líder Mestre Aguaceiro) e 3º o da Fornalha
+  (Fogo; líder Capitã Labareda). O 1º está aberto desde o começo; cada um dos outros abre quando o líder do anterior é
+  vencido (a insígnia). Ginásio fechado aparece apagado na aba, com o motivo ("Vença o líder do Ginásio da Capoeira"), e
+  o desafio dele é recusado antes de pagar. Um ginásio que já tinha alguma etapa vencida num save de antes da sequência
+  continua aberto (ninguém perde o que já fez). Antes, as três trilhas valiam em qualquer ordem.
 - **Trilha:** 4 soldados e o líder, de baixo para cima. As etapas abrem em ordem; etapa vencida fica marcada e não se
-  repete. Os três ginásios têm os mesmos níveis, entradas e prêmios:
+  repete. Cada ginásio é mais forte (o nível dos cavalos), mais caro e paga mais que o anterior; o jogador novo (inicial no
+  nível 1) já pode tentar o Recruta da Capoeira, um duelo quase parelho:
 
-  | Etapa | Cavalos | Nível | Entrada | Prêmio da 1ª vitória |
+  | Ginásio | Níveis (4 soldados e o líder) | Entradas (Ouro) | Ouro da 1ª vitória | Trilha inteira de primeira |
   |---|---|---|---|---|
-  | Soldado 1 | 1 | 4 | 20 de Ouro | 80 de Ouro |
-  | Soldado 2 | 1 | 8 | 30 de Ouro | 120 de Ouro e 1 Torrão de açúcar |
-  | Soldado 3 | 2 | 12 | 40 de Ouro | 160 de Ouro |
-  | Soldado 4 | 2 | 16 | 50 de Ouro | 200 de Ouro e 1 Manual de doma |
-  | Líder | 3 | 20 | 100 de Ouro | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill e a insígnia |
+  | 1º Capoeira | 2 · 4 · 6 · 8 · 10 | 10 · 15 · 20 · 25 · 50 | 50 · 75 · 100 · 125 · 250 | dá 600, custa 120 |
+  | 2º Remanso | 11 · 13 · 15 · 17 · 20 | 20 · 30 · 40 · 50 · 100 | 80 · 120 · 160 · 200 · 400 | dá 960, custa 240 |
+  | 3º Fornalha | 21 · 23 · 25 · 27 · 30 | 30 · 45 · 60 · 75 · 150 | 120 · 180 · 240 · 300 · 600 | dá 1.440, custa 360 |
 
-  Uma trilha inteira dá 960 de Ouro e custa 240 de entrada, se vencida de primeira.
+  Os times (1, 1, 2, 2 e 3 cavalos) e os itens da 1ª vitória são iguais nos três: 1 Torrão de açúcar no soldado 2, 1 Manual
+  de doma no soldado 4 e, no líder, 1 Rédea nova, 1 Cupom de troca de skill e a insígnia. Até 2026-11-18 os três tinham os
+  números de hoje do Remanso.
 - **Os cavalos do adversário** são fixos e não acompanham o jogador: todos são o cavalo inicial do elemento (Brasa, Maré
-  ou Ipê), Comuns de 2 estrelas, no nível da etapa, com os pontos distribuídos como os dos bots. No Remanso, um cavalo do
-  soldado 4 e o do meio do líder têm 3 estrelas: assim os três ginásios ficam igualmente difíceis.
+  ou Ipê), Comuns de 2 estrelas, no nível da etapa, com os pontos distribuídos como os dos bots. (Até 2026-11-18, no
+  Remanso, um cavalo do soldado 4 e o do meio do líder tinham 3 estrelas; com a Garra nova a compensação saiu.)
 - **Pista da casa** (1.200 m, a mesma em todas as etapas do ginásio): Fornalha em terra (subida 650 m, curva 350 m,
   subida 200 m); Remanso em areia (curva 100 m, subida 250 m, reta 250 m, curva 200 m, subida 400 m); Capoeira em grama
   (subida 800 m, reta 50 m, curva 350 m). O duelo começa Nublado; o Dado da Sorte é o de sempre e pode virar o clima.
@@ -416,11 +421,13 @@ ninguém jogou ainda.
   A insígnia ganha num desafio vale dali em diante. As insígnias aparecem na aba Expedição e no Perfil.
 - **O que a simulação mediu** (3.000 desafios por caso; o time do jogador é o cavalo inicial do elemento, repetido até o
   tamanho do time do adversário, no nível da etapa):
-  - do mesmo elemento do ginásio, vence de 48% a 52% dos desafios; com o elemento do ponto fraco, de 65% a 85%; com o
-    elemento que o ginásio vence, de 14% a 38% (medido em 2026-11-18, com a Garra nova e a vantagem de elemento em 2%; a
-    pista de cada ginásio passou a pesar mais e será recalibrada com a sequência dos ginásios);
-  - 4 níveis acima, vence de 74% a 94%; 4 níveis abaixo, de 3% a 35%;
-  - contra o líder, um cavalo sozinho 4 níveis acima vence só cerca de 2% das vezes (sem o cansaço, venceria 42% a 44%):
+  - do mesmo elemento do ginásio, vence de 48% a 52% dos desafios; com o elemento do ponto fraco, de 63% a 83%; com o
+    elemento que o ginásio vence, de 15% a 33% na Capoeira e no Remanso e de 41% a 46% na Fornalha (medido em 2026-11-18,
+    com os níveis da sequência: a pista da Fornalha, de terra e 850 m de subida, favorece o Ipê mais quanto mais alto o
+    nível; nos níveis 21 a 30 a Grama vence o Fogo em 64% dos duelos sem vantagem. É o próximo ajuste: a pista dela);
+  - 4 níveis acima, vence de 70% a 97%; 4 níveis abaixo, de 5% a 35% (no Recruta da Capoeira, nível 2, "4 abaixo" é o
+    nível 1: 44%, um duelo quase parelho);
+  - contra o líder, um cavalo sozinho 4 níveis acima vence no máximo 1% das vezes (sem o cansaço, venceria 34% a 57%):
     o time importa;
   - **tempo de corrida** (o relógio da própria corrida, não o tempo que você espera): um duelo dura cerca de 1 min 20 s, e
     o desafio do líder, em média, uns 6 minutos (são de 3 a 5 duelos, cerca de 4,7 em média; 3 só raramente);

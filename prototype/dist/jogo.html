@@ -803,6 +803,11 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .ginasio-cartao-meta { grid-column: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: var(--t-s); line-height: 1.25; }
 .ginasio-cartao-seta { grid-column: 2; grid-row: 1 / span 4; margin: 0 -2px 0 0; }
 .ginasio-progresso { color: var(--texto-2); }
+/* ginásio fechado na sequência (spec 2026-11-18-mapa-expedicao §1): apagado como a etapa fechada, com o motivo escrito */
+.ginasio-cartao--fechado, .ginasio-cartao--fechado:hover { background: var(--painel); box-shadow: inset 0 0 0 2px var(--linha); cursor: not-allowed; }
+.ginasio-cartao--fechado:active { transform: none; box-shadow: inset 0 0 0 2px var(--linha); }
+.ginasio-cartao--fechado .ginasio-cartao-nome { color: var(--texto-2); }
+.ginasio-cartao-motivo { color: var(--texto); }
 .ginasio-insignia { display: flex; align-items: center; gap: 8px; margin: 0; }
 .ginasio-revanche { background: var(--ouro); color: var(--tinta); padding: 2px 6px; font-size: var(--t-xs); line-height: 1.2; }
 .ginasio-revanche-amanha { color: var(--texto-2); font-size: var(--t-xs); line-height: 1.2; }   /* sem destaque (decisão 3) */
@@ -1509,7 +1514,8 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   .perfil-insignia { border: 2px solid CanvasText; }
   .perfil-insignia--falta { border-color: GrayText; color: GrayText; }
   .ginasio-revanche-amanha { color: CanvasText; }
-  .etapa--fechada .etapa-btn { border-color: GrayText; color: GrayText; }
+  .etapa--fechada .etapa-btn, .ginasio-cartao--fechado { border-color: GrayText; color: GrayText; }
+  .ginasio-cartao--fechado .ginasio-cartao-nome, .ginasio-cartao--fechado .ginasio-cartao-meta { color: GrayText; }
   .etapa--fechada .etapa-nome, .etapa--fechada .etapa-meta, .etapa--fechada .etapa-motivo, .etapa--fechada .etapa-rotulo { color: GrayText; }
   .etapa-estado, .ginasio-revanche { border: 2px solid CanvasText; }
   .adv-cavalo { border: 2px solid CanvasText; }
@@ -2103,42 +2109,52 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
     revanche: { entrada: 50, ciclo: [{ ouro: 100 }, { item: 'torrao' }, { ouro: 100 }, { item: 'manual' }, { ouro: 100 }, { item: 'cupom' }] },
     insignias: { fogo: { tipo: 'ouro', valor: 0.03 }, agua: { tipo: 'xp', valor: 0.03 }, grama: { tipo: 'skill', valor: 0.03 } }
   };
-  var GYM_ORDER = ['fogo', 'agua', 'grama'];
+  // A sequência da Expedição (spec 2026-11-18-mapa-expedicao §1): cada ginásio só abre com a insígnia do anterior
+  // (regra em ginasio.js, aberto). É também a ordem do Perfil, da gaveta DEV e do wiki; GYMS segue a mesma ordem.
+  var GYM_ORDER = ['grama', 'agua', 'fogo'];
   // Pista da casa (1.200 m, uma por ginásio): blocos dados como [tipo, metros], em sequência a partir de 0.
   function pistaGym(surface, partes) {
     var at = 0, blocks = partes.map(function (p) { var b = { type: p[0], from: at, to: at + p[1] }; at += p[1]; return b; });
     return { distance: at, surface: surface, blocks: blocks };
   }
-  // As cinco etapas (mesmos níveis, entradas e prêmios nos três; spec §4).
+  // As cinco etapas: o que é igual nos três ginásios (id, líder e os itens da 1ª vitória; spec 2026-11-17 §4).
   var GYM_ETAPAS = [
-    { id: 'soldado-1', lider: false, level: 4, entrada: 20, premio: { ouro: 80, itens: [] } },
-    { id: 'soldado-2', lider: false, level: 8, entrada: 30, premio: { ouro: 120, itens: ['torrao'] } },
-    { id: 'soldado-3', lider: false, level: 12, entrada: 40, premio: { ouro: 160, itens: [] } },
-    { id: 'soldado-4', lider: false, level: 16, entrada: 50, premio: { ouro: 200, itens: ['manual'] } },
-    { id: 'lider', lider: true, level: 20, entrada: 100, premio: { ouro: 400, itens: ['redea', 'cupom'] } }
+    { id: 'soldado-1', lider: false, itens: [] },
+    { id: 'soldado-2', lider: false, itens: ['torrao'] },
+    { id: 'soldado-3', lider: false, itens: [] },
+    { id: 'soldado-4', lider: false, itens: ['manual'] },
+    { id: 'lider', lider: true, itens: ['redea', 'cupom'] }
   ];
+  // E o que muda por ginásio (spec 2026-11-18-mapa-expedicao §1): cada um mais forte que o anterior na sequência.
+  //   level: o nível dos cavalos da etapa; entrada: o Ouro pago antes de correr; ouro: o prêmio da 1ª vitória.
+  var GYM_NUMEROS = {
+    grama: { level: [2, 4, 6, 8, 10], entrada: [10, 15, 20, 25, 50], ouro: [50, 75, 100, 125, 250] },
+    agua: { level: [11, 13, 15, 17, 20], entrada: [20, 30, 40, 50, 100], ouro: [80, 120, 160, 200, 400] },
+    fogo: { level: [21, 23, 25, 27, 30], entrada: [30, 45, 60, 75, 150], ouro: [120, 180, 240, 300, 600] }
+  };
   // Os cavalos de todas as etapas têm a genética do inicial do elemento (base); graus: as estrelas de cada cavalo,
   // por etapa (o tamanho de cada lista é o tamanho do time).
   function gym(id, name, lider, fraco, pista, base, graus, soldados, insignia) {
     return {
       id: id, element: id, name: name, lider: lider, fraco: fraco, pista: pista,
       etapas: GYM_ETAPAS.map(function (e, i) {
+        var n = GYM_NUMEROS[id];
         return {
           id: e.id, nome: e.lider ? lider : soldados[i], lider: e.lider,
-          cavalos: graus[i].map(function (gr) { return { base: base, level: e.level, grau: gr }; }),
-          entrada: e.entrada, premio: { ouro: e.premio.ouro, itens: e.premio.itens.slice() }
+          cavalos: graus[i].map(function (gr) { return { base: base, level: n.level[i], grau: gr }; }),
+          entrada: n.entrada[i], premio: { ouro: n.ouro[i], itens: e.itens.slice() }
         };
       }),
       insignia: { icone: 'ins-' + id, name: insignia }
     };
   }
   var GYMS = {
-    // Fornalha: terra, uma subida longa até a curva e outra subida na chegada
-    fogo: gym('fogo', 'Ginásio da Fornalha', 'Capitã Labareda', 'agua',
-      pistaGym('terra', [['subida', 650], ['curva', 350], ['subida', 200]]), 'brasa',
+    // Capoeira: grama, uma subida de 800 m e a curva da chegada
+    grama: gym('grama', 'Ginásio da Capoeira', 'Dona Capineira', 'fogo',
+      pistaGym('grama', [['subida', 800], ['reta', 50], ['curva', 350]]), 'ipe',
       [[2], [2], [2, 2], [2, 2], [2, 2, 2]],
-      ['Recruta Fagulha', 'Cabo Tocha', 'Sargento Candeeiro', 'Tenente Coivara'],
-      'Insígnia da Fornalha'),
+      ['Recruta Broto', 'Cabo Carrapicho', 'Sargento Juazeiro', 'Tenente Aroeira'],
+      'Insígnia da Capoeira'),
     // Remanso: areia, com uma reta no meio e a subida mais longa no fim
     agua: gym('agua', 'Ginásio do Remanso', 'Mestre Aguaceiro', 'grama',
       pistaGym('areia', [['curva', 100], ['subida', 250], ['reta', 250], ['curva', 200], ['subida', 400]]), 'mare',
@@ -2147,12 +2163,12 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
       [[2], [2], [2, 2], [2, 2], [2, 2, 2]],
       ['Recruta Orvalho', 'Cabo Goteira', 'Sargento Correnteza', 'Tenente Cacimba'],
       'Insígnia do Remanso'),
-    // Capoeira: grama, uma subida de 800 m e a curva da chegada
-    grama: gym('grama', 'Ginásio da Capoeira', 'Dona Capineira', 'fogo',
-      pistaGym('grama', [['subida', 800], ['reta', 50], ['curva', 350]]), 'ipe',
+    // Fornalha: terra, uma subida longa até a curva e outra subida na chegada
+    fogo: gym('fogo', 'Ginásio da Fornalha', 'Capitã Labareda', 'agua',
+      pistaGym('terra', [['subida', 650], ['curva', 350], ['subida', 200]]), 'brasa',
       [[2], [2], [2, 2], [2, 2], [2, 2, 2]],
-      ['Recruta Broto', 'Cabo Carrapicho', 'Sargento Juazeiro', 'Tenente Aroeira'],
-      'Insígnia da Capoeira')
+      ['Recruta Fagulha', 'Cabo Tocha', 'Sargento Candeeiro', 'Tenente Coivara'],
+      'Insígnia da Fornalha')
   };
 
   // ---------------------------------------------------------------------------------------------
@@ -4858,6 +4874,11 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
  *   quem chama grava o contador novo junto com a entrada e o resultado. O mapa de todos os sais do save está no topo
  *   do itens.js (um só mapa); o deste módulo fica abaixo do SAL do itens.js, com folga de ~4 milhões de desafios.
  *
+ * SEQUÊNCIA (spec 2026-11-18-mapa-expedicao §1): aberto(gymId, progresso) -> o ginásio é o primeiro de GYM_ORDER, ou
+ *   o anterior de GYM_ORDER tem a insígnia (etapa 5), ou ele mesmo já tem etapa > 0 (save de antes da regra: ninguém
+ *   perde o que já fez). Ginásio fechado: o podeDesafiar recusa ('ginasio-fechado') e o acerto devolve null.
+ *   anterior(gymId) -> o id do ginásio antes dele na sequência (null para o primeiro ou id desconhecido).
+ *
  * ETAPA: nas funções, `etapa` é o índice 0–4 em GYMS[id].etapas (4 = o líder). PROGRESSO por ginásio:
  *   { etapa: 0–5 (etapas vencidas; a próxima a desafiar é a de índice `etapa`; 5 = insígnia),
  *     revDia: null (nunca) | dia da última revanche, revVitorias: revanches vencidas (o rodízio do prêmio) }.
@@ -5015,13 +5036,32 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
   // Pode tentar a revanche hoje: só com hoje inteiro e se nunca tentou ou hoje passou do último dia.
   function revancheLivre(p, hoje) { return inteiro(hoje) && (p.revDia === null || hoje > p.revDia); }
 
+  // O ginásio antes de `id` na sequência (null: o primeiro ou um id desconhecido).
+  function anterior(id) {
+    var i = G.GYM_ORDER.indexOf(id);
+    return i > 0 ? G.GYM_ORDER[i - 1] : null;
+  }
+  // Aberto: o primeiro da sequência, o anterior com a insígnia ou ele mesmo com alguma etapa vencida. Id desconhecido:
+  // false. O progresso é saneado (o dia não importa aqui).
+  function aberto(gymId, progresso) {
+    var gym = gymDe(gymId);
+    if (!gym) return false;
+    var i = G.GYM_ORDER.indexOf(gym.id);
+    if (i === 0) return true;
+    var p = sanear(progresso, 0);
+    if (p[gym.id].etapa > 0) return true;
+    return i > 0 && p[G.GYM_ORDER[i - 1]].etapa === 5;
+  }
+
   // e = { gymId, etapa, progresso, hoje, ouroLivre (Ouro fora do reservado da sala aberta), cabe(id, n), timeLen }
-  // -> { ok: true, revanche } | { ok: false, motivo }. Na ordem: 'fechada', 'vencida', 'revanche-hoje', 'sem-ouro',
+  // -> { ok: true, revanche } | { ok: false, motivo }. Na ordem: 'fechada' (ginásio ou etapa malformados),
+  // 'ginasio-fechado' (o ginásio ainda não abriu na sequência), 'fechada' (etapa depois da próxima), 'vencida', 'revanche-hoje', 'sem-ouro',
   // 'cheia', 'sem-time', 'time-grande'.
   function podeDesafiar(e) {
     if (!objeto(e)) return { ok: false, motivo: 'fechada' };
     var gym = gymDe(e.gymId);
     if (!gym || !etapaOk(e.etapa)) return { ok: false, motivo: 'fechada' };
+    if (!aberto(gym.id, e.progresso)) return { ok: false, motivo: 'ginasio-fechado' };
     var p = sanear(e.progresso, e.hoje)[gym.id];
     var revanche = false;
     if (p.etapa === 5) {
@@ -5054,8 +5094,8 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
   // e = { gymId, etapa, revanche, progresso, resultado (do resolver), hoje (inteiro, sempre), timeLen (tamanho do
   // time) } -> { ouro, itens: [ids], xp: [um por cavalo do time; 0 para quem não correu], progresso (os três
   // ginásios, novo), insignia } | null. Sem o bônus das insígnias (quem soma aplica).
-  // null (Ruling 7): hoje não inteiro; gymId, etapa, timeLen ou resultado malformados; fora da revanche, etapa que não
-  // é a próxima não vencida (inclusive o líder já vencido); na revanche, sem o líder vencido, etapa que não é a 4 ou
+  // null (Ruling 7): hoje não inteiro; gymId, etapa, timeLen ou resultado malformados; ginásio fechado na sequência;
+  // fora da revanche, etapa que não é a próxima não vencida (inclusive o líder já vencido); na revanche, sem o líder vencido, etapa que não é a 4 ou
   // já tentou hoje (relógio para trás e dia estragado não liberam).
   // Fora da revanche: na vitória, o prêmio da etapa (a etapa anda; a insígnia ao vencer a 4). Na revanche: revDia =
   // hoje vencendo ou perdendo; na vitória, o prêmio do rodízio e revVitorias + 1.
@@ -5068,6 +5108,7 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
     if (!resultadoOk(e.resultado, et.cavalos.length, e.timeLen)) return null;
     if (!inteiro(e.hoje) || typeof e.revanche !== 'boolean') return null;
     var revanche = e.revanche;
+    if (!aberto(gym.id, e.progresso)) return null;   // ginásio que ainda não abriu na sequência
     var prog = sanear(e.progresso, e.hoje), p = prog[gym.id];
     if (revanche) {
       if (p.etapa !== 5 || e.etapa !== 4 || !revancheLivre(p, e.hoje)) return null;
@@ -5114,6 +5155,8 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
     resolver: resolver,
     acerto: acerto,
     podeDesafiar: podeDesafiar,
+    aberto: aberto,
+    anterior: anterior,
     revanchePremio: revanchePremio,
     bonus: bonus,
     sanear: sanear
@@ -9795,7 +9838,7 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
     return ' aria-disabled="true" data-motivo="' + esc(motivo) + '" title="' + esc(motivo) + '"';
   }
   // onde a linha do motivo entra: 'in' no fim do bloco, 'after' logo depois dele (a 1ª regra que casar)
-  var MOTIVO_ONDE = [['.item-escolha > li', 'in'], ['.etapa', 'in'], ['.item-uso', 'in'], ['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
+  var MOTIVO_ONDE = [['.item-escolha > li', 'in'], ['.etapa', 'in'], ['.ginasios > li', 'in'], ['.item-uso', 'in'], ['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
     ['.montaria-acoes', 'after'], ['.acoes', 'after'], ['.item-linha', 'in'], ['.diaria', 'in']];
   // região viva fixa (fora da tela que redesenha): leitores de tela anunciam o texto escrito nela, e o .motivo criado já
   // com o texto muitas vezes passa em silêncio. Limpa antes de escrever, para o mesmo texto ser anunciado de novo.
@@ -11671,10 +11714,26 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
       ginJunta(p.blocks.map(function (b) { return GD.BLOCK_TYPES[b.type].name.toLowerCase() + ' ' + fmt(b.to - b.from) + ' m'; })) + '.';
   }
 
+  // A sequência dos ginásios (spec 2026-11-18-mapa-expedicao §1): a regra é do módulo (Ginasio.aberto); a tela só mostra.
+  function ginAberto(id) { return GN.aberto(id, state.ginasios); }
+  // o motivo de um ginásio fechado, com o nome do anterior do catálogo: "Vença o líder do Ginásio da Capoeira"
+  function ginFechadoTxt(id) {
+    var ant = GN.anterior(id);
+    return ant ? 'Vença o líder do ' + GD.GYMS[ant].name : 'Este ginásio ainda não está aberto';
+  }
   // Cartão do ginásio na aba (um botão que abre a trilha): nome, elemento, "N de 5 vencidos", a insígnia conquistada e
-  // "Revanche hoje" quando a revanche do líder está livre (ou "Revanche amanhã", sem destaque, com a de hoje já tentada)
+  // "Revanche hoje" quando a revanche do líder está livre (ou "Revanche amanhã", sem destaque, com a de hoje já tentada).
+  // Fechado na sequência: o mesmo botão apagado (aria-disabled, não abre nada), com o motivo escrito e sem a seta.
   function ginasioCartaoHtml(id) {
     var g = GD.GYMS[id], ins = ginTemInsignia(id);
+    if (!ginAberto(id)) {
+      var mot = ginFechadoTxt(id);
+      return '<li><button type="button" class="ginasio-cartao ginasio-cartao--' + esc(g.element) + ' ginasio-cartao--fechado" data-acao="ginasio-abrir" data-id="' + esc(id) + '"' + indisponivel(mot) + '>' +
+        '<span class="ginasio-cartao-nome">' + esc(g.name) + '</span>' +
+        '<span class="ginasio-cartao-meta">' + elementHtml(g.element) + '<span class="ginasio-progresso">Fechado</span></span>' +
+        '<span class="ginasio-cartao-meta ginasio-cartao-motivo">' + esc(mot) + '</span>' +
+      '</button></li>';
+    }
     return '<li><button type="button" class="ginasio-cartao ginasio-cartao--' + esc(g.element) + '" data-acao="ginasio-abrir" data-id="' + esc(id) + '">' +
       '<span class="ginasio-cartao-nome">' + esc(g.name) + '</span>' +
       '<span class="ginasio-cartao-meta">' + elementHtml(g.element) + '<span class="ginasio-progresso">' + esc(ginProgressoTxt(id)) + '</span></span>' +
@@ -11694,7 +11753,7 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
     }).join('');
     return '<section class="tela" aria-labelledby="t-expedicao">' +
       '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>' +
-      '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
+      '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia. Vença um ginásio para abrir o próximo.</p>' +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
         '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
       '</section>' +
@@ -11713,6 +11772,8 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
     var G0 = ui.gym;
     if (!G0 || !hasOwn(GD.GYMS, G0.id)) return renderExpedicao();
     if (G0.res) return ginResumoHtml(G0.res);
+    // ginásio fechado na sequência (progresso mudado em outra aba ou na gaveta DEV): não abre a trilha, volta à Expedição
+    if (!ginAberto(G0.id)) { ui.gym = null; ui.screen = ui.tab; syncHistory(ui.tab); return renderTab(ui.tab); }
     G0.time = (G0.time || []).filter(function (u) { return !!mountByUid(u); });
     if (G0.etapa !== null && !ginModo(G0.id, G0.etapa).pode) G0.etapa = null;
     return G0.etapa === null ? trilhaTelaHtml(G0.id) : etapaDetalheHtml(G0.id, G0.etapa);
@@ -11881,6 +11942,7 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
       case 'time-grande': return 'O time passou do limite: até ' + ginCavalosTxt(ginLimite(id, i)) + '.';
       case 'vencida': return 'Esta etapa já foi vencida.';
       case 'revanche-hoje': return 'A revanche de hoje já foi feita. Volte amanhã.';
+      case 'ginasio-fechado': return ginFechadoTxt(id) + '.';
       default: return 'Esta etapa ainda não está aberta.';
     }
   }
@@ -15334,7 +15396,7 @@ window.__MAPA = {"arte":{"ginasio-agua":"data:image/png;base64,iVBORw0KGgoAAAANS
       }
       // ---- Ginásios (aba Expedição): abrir a trilha, abrir o detalhe da etapa próxima, voltar ----
       case 'ginasio-abrir':
-        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id)) break;
+        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id) || !ginAberto(id)) break;   // fechado: não abre
         ui.gym = { id: id, etapa: null, time: [], res: null, msg: null };
         go('ginasio');
         // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola na hora o

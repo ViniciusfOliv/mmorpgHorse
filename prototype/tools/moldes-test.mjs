@@ -1259,7 +1259,7 @@ section('Catálogo de ícones');
   });
   test('o ícone de cada insígnia de ginásio está no catálogo, fora dos reservados', () => {
     const icones = GameData.GYM_ORDER.map(id => GameData.GYMS[id].insignia.icone);
-    assert.deepStrictEqual(icones, ['ins-fogo', 'ins-agua', 'ins-grama']);
+    assert.deepStrictEqual(icones, ['ins-grama', 'ins-agua', 'ins-fogo']);
     for (const ic of icones) {
       assert.ok(ICONES_NOVOS.some(i => i.id === ic), ic + ' fora do catálogo');
       assert.ok(!RESERVADOS.includes(ic), ic + ' ainda nos reservados');

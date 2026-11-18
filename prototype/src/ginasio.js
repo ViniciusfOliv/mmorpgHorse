@@ -10,6 +10,11 @@
  *   quem chama grava o contador novo junto com a entrada e o resultado. O mapa de todos os sais do save está no topo
  *   do itens.js (um só mapa); o deste módulo fica abaixo do SAL do itens.js, com folga de ~4 milhões de desafios.
  *
+ * SEQUÊNCIA (spec 2026-11-18-mapa-expedicao §1): aberto(gymId, progresso) -> o ginásio é o primeiro de GYM_ORDER, ou
+ *   o anterior de GYM_ORDER tem a insígnia (etapa 5), ou ele mesmo já tem etapa > 0 (save de antes da regra: ninguém
+ *   perde o que já fez). Ginásio fechado: o podeDesafiar recusa ('ginasio-fechado') e o acerto devolve null.
+ *   anterior(gymId) -> o id do ginásio antes dele na sequência (null para o primeiro ou id desconhecido).
+ *
  * ETAPA: nas funções, `etapa` é o índice 0–4 em GYMS[id].etapas (4 = o líder). PROGRESSO por ginásio:
  *   { etapa: 0–5 (etapas vencidas; a próxima a desafiar é a de índice `etapa`; 5 = insígnia),
  *     revDia: null (nunca) | dia da última revanche, revVitorias: revanches vencidas (o rodízio do prêmio) }.
@@ -167,13 +172,32 @@
   // Pode tentar a revanche hoje: só com hoje inteiro e se nunca tentou ou hoje passou do último dia.
   function revancheLivre(p, hoje) { return inteiro(hoje) && (p.revDia === null || hoje > p.revDia); }
 
+  // O ginásio antes de `id` na sequência (null: o primeiro ou um id desconhecido).
+  function anterior(id) {
+    var i = G.GYM_ORDER.indexOf(id);
+    return i > 0 ? G.GYM_ORDER[i - 1] : null;
+  }
+  // Aberto: o primeiro da sequência, o anterior com a insígnia ou ele mesmo com alguma etapa vencida. Id desconhecido:
+  // false. O progresso é saneado (o dia não importa aqui).
+  function aberto(gymId, progresso) {
+    var gym = gymDe(gymId);
+    if (!gym) return false;
+    var i = G.GYM_ORDER.indexOf(gym.id);
+    if (i === 0) return true;
+    var p = sanear(progresso, 0);
+    if (p[gym.id].etapa > 0) return true;
+    return i > 0 && p[G.GYM_ORDER[i - 1]].etapa === 5;
+  }
+
   // e = { gymId, etapa, progresso, hoje, ouroLivre (Ouro fora do reservado da sala aberta), cabe(id, n), timeLen }
-  // -> { ok: true, revanche } | { ok: false, motivo }. Na ordem: 'fechada', 'vencida', 'revanche-hoje', 'sem-ouro',
+  // -> { ok: true, revanche } | { ok: false, motivo }. Na ordem: 'fechada' (ginásio ou etapa malformados),
+  // 'ginasio-fechado' (o ginásio ainda não abriu na sequência), 'fechada' (etapa depois da próxima), 'vencida', 'revanche-hoje', 'sem-ouro',
   // 'cheia', 'sem-time', 'time-grande'.
   function podeDesafiar(e) {
     if (!objeto(e)) return { ok: false, motivo: 'fechada' };
     var gym = gymDe(e.gymId);
     if (!gym || !etapaOk(e.etapa)) return { ok: false, motivo: 'fechada' };
+    if (!aberto(gym.id, e.progresso)) return { ok: false, motivo: 'ginasio-fechado' };
     var p = sanear(e.progresso, e.hoje)[gym.id];
     var revanche = false;
     if (p.etapa === 5) {
@@ -206,8 +230,8 @@
   // e = { gymId, etapa, revanche, progresso, resultado (do resolver), hoje (inteiro, sempre), timeLen (tamanho do
   // time) } -> { ouro, itens: [ids], xp: [um por cavalo do time; 0 para quem não correu], progresso (os três
   // ginásios, novo), insignia } | null. Sem o bônus das insígnias (quem soma aplica).
-  // null (Ruling 7): hoje não inteiro; gymId, etapa, timeLen ou resultado malformados; fora da revanche, etapa que não
-  // é a próxima não vencida (inclusive o líder já vencido); na revanche, sem o líder vencido, etapa que não é a 4 ou
+  // null (Ruling 7): hoje não inteiro; gymId, etapa, timeLen ou resultado malformados; ginásio fechado na sequência;
+  // fora da revanche, etapa que não é a próxima não vencida (inclusive o líder já vencido); na revanche, sem o líder vencido, etapa que não é a 4 ou
   // já tentou hoje (relógio para trás e dia estragado não liberam).
   // Fora da revanche: na vitória, o prêmio da etapa (a etapa anda; a insígnia ao vencer a 4). Na revanche: revDia =
   // hoje vencendo ou perdendo; na vitória, o prêmio do rodízio e revVitorias + 1.
@@ -220,6 +244,7 @@
     if (!resultadoOk(e.resultado, et.cavalos.length, e.timeLen)) return null;
     if (!inteiro(e.hoje) || typeof e.revanche !== 'boolean') return null;
     var revanche = e.revanche;
+    if (!aberto(gym.id, e.progresso)) return null;   // ginásio que ainda não abriu na sequência
     var prog = sanear(e.progresso, e.hoje), p = prog[gym.id];
     if (revanche) {
       if (p.etapa !== 5 || e.etapa !== 4 || !revancheLivre(p, e.hoje)) return null;
@@ -266,6 +291,8 @@
     resolver: resolver,
     acerto: acerto,
     podeDesafiar: podeDesafiar,
+    aberto: aberto,
+    anterior: anterior,
     revanchePremio: revanchePremio,
     bonus: bonus,
     sanear: sanear
