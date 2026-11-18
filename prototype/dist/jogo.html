@@ -11925,15 +11925,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     motivoVivo(gym.res.venceu ? 'Vitória!' : 'Derrota');
   }
 
-  // "Recomeçar com outro inicial" com confirmação (vai para o Perfil). No modo DEV, zera o perfil de teste
-  // (volta à Brasa, sem a escolha inicial; o botão DEV continua), como o "Zerar" da gaveta.
+  // "Recomeçar com outro inicial" com confirmação (vai para o Perfil): apaga o save e volta à escolha do inicial. No modo
+  // DEV faz o mesmo com o perfil de teste (desde 2026-11-18; antes voltava direto à Brasa, que segue no "Zerar" da gaveta).
   function resetHtml() {
     return ui.confirmReset
       ? '<div class="confirma" role="group" aria-label="Confirmar recomeço"><span>' +
-          (DEV_MODE ? 'Zerar o perfil de teste? Ele volta a começar com a Brasa (o save do jogo real não é tocado).' : 'Apagar o progresso e escolher outro inicial?') + '</span>' +
-        '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="reset-sim">' + (DEV_MODE ? 'Sim, zerar' : 'Sim, recomeçar') + '</button>' +
+          (DEV_MODE ? 'Apagar o perfil de teste e escolher outro inicial? (O save do jogo real não é tocado.)' : 'Apagar o progresso e escolher outro inicial?') + '</span>' +
+        '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="reset-sim">Sim, recomeçar</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="reset-nao">Cancelar</button></div>'
-      : '<button type="button" class="btn btn--texto" data-acao="reset">' + (DEV_MODE ? 'Recomeçar (zera o perfil de teste)' : 'Recomeçar com outro inicial') + '</button>';
+      : '<button type="button" class="btn btn--texto" data-acao="reset">Recomeçar com outro inicial</button>';
   }
 
   // ===========================================================================
@@ -15059,6 +15059,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         persist();
         guardaMotionKeep(null);   // a preferência agora está no save
         guardaJoqueiKeep(null);
+        if (devHooks) devHooks.escolha(false);   // modo DEV: a escolha feita tira a marca do "Recomeçar"
         go('estabulo');
         break;
       case 'ver-inicial': {
@@ -15253,13 +15254,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       case 'reset-nao':
         ui.confirmReset = false; rerenderKeepScroll(); focusAction('reset'); break;
       case 'reset-sim':
-        if (devHooks) { devHooks.zerarPerfil(); go('estabulo'); break; }   // perfil de teste: volta à Brasa, sem a escolha
         ui.motionKeep = motionPref();
         guardaMotionKeep(ui.motionKeep);
         ui.joqueiKeep = validJoquei(joqueiDoJogador());
         guardaJoqueiKeep(ui.joqueiKeep);
         ui.confirmReset = false;
         if (!wipeSave()) break;   // save de versão mais nova: tela de bloqueio
+        if (devHooks) devHooks.recomecaEscolha();   // perfil de teste: a escolha fica marcada (recarregar não cria a Brasa)
         state = null; ui.lobby = null; ui.result = null; go('inicial'); break;
     }
   });
@@ -15409,7 +15410,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       else if (state && !doHotOk && lido && typeof lido === 'object' && Number(lido.v) >= SAVE_VERSION &&
         (JSON.stringify(lido.diaria) !== JSON.stringify(state.diaria) || JSON.stringify(lido.lojaItens) !== JSON.stringify(state.lojaItens) ||
           revDiaConsertado(lido.ginasios, state.ginasios))) persist();
-      if (!state && !saveBloqueado && devHooks) { state = devHooks.novoPerfil(); persist(); }   // perfil DEV novo: Brasa, sem a escolha inicial
+      // perfil DEV novo: Brasa, sem a escolha inicial (menos depois do "Recomeçar com outro inicial": aí a escolha continua)
+      if (!state && !saveBloqueado && devHooks && !devHooks.escolha()) { state = devHooks.novoPerfil(); persist(); }
       if (!state && !saveBloqueado) { ui.motionKeep = leMotionKeep(); ui.joqueiKeep = leJoqueiKeep(); }   // "Recomeçar" e a aba fechou na escolha: as escolhas continuam
     }
     ui.screen = saveBloqueado ? 'bloqueio' : state ? 'estabulo' : 'inicial';

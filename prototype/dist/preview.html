@@ -11299,8 +11299,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ---------------------------------------------------------------------------
   // - Save: SAVE_KEY = Dev.SAVE_KEY ('galope-elemental:dev'); o save real nunca é lido nem gravado.
   //   Perfil novo (ou apagado) nasce com a Brasa, sem a escolha inicial (devNovoPerfil). "Zerar perfil de
-  //   teste" (confirmação em dois passos na gaveta: window.confirm não abre num iframe sem allow-modals) e o
-  //   "Recomeçar" do Perfil fazem o mesmo (devZerarPerfil).
+  //   teste" (confirmação em dois passos na gaveta: window.confirm não abre num iframe sem allow-modals) faz o
+  //   mesmo (devZerarPerfil). O "Recomeçar com outro inicial" do Perfil volta à escolha, como no jogo real
+  //   (devRecomecaEscolha, com a marca devEscolha).
   // - "Voltar ao jogo real" é um link para a página sem dev=1; no build jogo-dev.html vira um aviso curto.
   // - Ouro infinito (ui.dev.ouroInf, ligado por padrão): persist() chama Dev.refillGold.
   // - O painel cria cavalos fora das regras: sanitize aceita o templateId 'dev-<n>' e qualquer skill
@@ -11332,8 +11333,26 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     if (ui.dev.ouroInf) DV.refillGold(st);
     return st;
   }
-  // "Zerar perfil de teste" (gaveta) e "Recomeçar" (Perfil) no modo DEV: o save de teste volta à Brasa, sem a
-  // escolha inicial; a opção Animações e o jóquei continuam. Quem chama navega.
+  // "Recomeçar com outro inicial" (Perfil) no modo DEV, como no jogo real (pedido do Vinicius, 2026-11-18): o save de
+  // teste é apagado e a tela volta à escolha do inicial. A marca em SAVE_KEY + ':escolha' segura a escolha se a aba
+  // recarregar antes de escolher (sem ela, a abertura do DEV criaria a Brasa); o "Escolher" apaga a marca.
+  // devEscolha(): a marca existe? devEscolha(true/false): põe ou tira.
+  var DEV_ESCOLHA_KEY = SAVE_KEY + ':escolha';
+  function devEscolha(liga) {
+    try {
+      if (liga === undefined) return window.localStorage.getItem(DEV_ESCOLHA_KEY) === '1';
+      if (liga) window.localStorage.setItem(DEV_ESCOLHA_KEY, '1');
+      else window.localStorage.removeItem(DEV_ESCOLHA_KEY);
+    } catch (e) { /* sem armazenamento: vale só nesta aba */ }
+    return false;
+  }
+  // depois de apagar o save de teste para a escolha: a gaveta, a próxima corrida armada e os campos voltam ao começo
+  function devRecomecaEscolha() {
+    ui.devNext = null; ui.dev.f = null; ui.dev.confirmZerar = false; ui.dev.aberto = false; ui.dev.msg = '';
+    devEscolha(true);
+  }
+  // "Zerar perfil de teste" (gaveta) no modo DEV: o save de teste volta à Brasa, sem a escolha inicial; a opção
+  // Animações e o jóquei continuam. Quem chama navega.
   function devZerarPerfil() {
     var motion = motionPref(), joquei = validJoquei(joqueiDoJogador());
     if (!wipeSave()) return;   // save de versão mais nova: tela de bloqueio
@@ -11625,7 +11644,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       '<p class="dev-armado' + (ui.devNext ? ' dev-armado--on' : '') + '" id="dev-armado">' + esc(devResumoArmado(ui.devNext)) + '</p>' +
       '<div class="dev-acoes">' + devBotao('dev-armar', 'Armar', 'btn--ouro') + devBotao('dev-limpar', 'Limpar') + '</div>');
 
-    // Perfil: "Zerar perfil de teste" em dois passos, na própria gaveta (como o "Recomeçar" do Perfil), e
+    // Perfil: "Zerar perfil de teste" em dois passos, na própria gaveta (volta à Brasa; o "Recomeçar" do Perfil volta à escolha), e
     // "Voltar ao jogo real" (a página sem dev=1; no build de teste jogo-dev.html, um aviso: não há para onde voltar)
     var acoes = [];
     if (!ui.dev.confirmZerar) acoes.push(devBotao('dev-zerar', 'Zerar perfil de teste', 'btn--perigo'));
@@ -11870,7 +11889,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     });
   }
   // o que o resto do jogo chama do modo DEV (no jogo de produção, devHooks fica null)
-  if (DEV_MODE) devHooks = { templateId: devTemplateId, novoPerfil: devNovoPerfil, zerarPerfil: devZerarPerfil, condicoes: devCondicoes, render: renderDev };
+  if (DEV_MODE) devHooks = { templateId: devTemplateId, novoPerfil: devNovoPerfil, zerarPerfil: devZerarPerfil, condicoes: devCondicoes, render: renderDev,
+    escolha: devEscolha, recomecaEscolha: devRecomecaEscolha };
   /*@dev:fim*/
 
   // A barra presa dos pontos (aba Status, 3b §6) aparece no 1º +N do rascunho e pode surgir por cima do botão que acabou
@@ -12800,15 +12820,15 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     motivoVivo(gym.res.venceu ? 'Vitória!' : 'Derrota');
   }
 
-  // "Recomeçar com outro inicial" com confirmação (vai para o Perfil). No modo DEV, zera o perfil de teste
-  // (volta à Brasa, sem a escolha inicial; o botão DEV continua), como o "Zerar" da gaveta.
+  // "Recomeçar com outro inicial" com confirmação (vai para o Perfil): apaga o save e volta à escolha do inicial. No modo
+  // DEV faz o mesmo com o perfil de teste (desde 2026-11-18; antes voltava direto à Brasa, que segue no "Zerar" da gaveta).
   function resetHtml() {
     return ui.confirmReset
       ? '<div class="confirma" role="group" aria-label="Confirmar recomeço"><span>' +
-          (DEV_MODE ? 'Zerar o perfil de teste? Ele volta a começar com a Brasa (o save do jogo real não é tocado).' : 'Apagar o progresso e escolher outro inicial?') + '</span>' +
-        '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="reset-sim">' + (DEV_MODE ? 'Sim, zerar' : 'Sim, recomeçar') + '</button>' +
+          (DEV_MODE ? 'Apagar o perfil de teste e escolher outro inicial? (O save do jogo real não é tocado.)' : 'Apagar o progresso e escolher outro inicial?') + '</span>' +
+        '<button type="button" class="btn btn--pequeno btn--perigo" data-acao="reset-sim">Sim, recomeçar</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="reset-nao">Cancelar</button></div>'
-      : '<button type="button" class="btn btn--texto" data-acao="reset">' + (DEV_MODE ? 'Recomeçar (zera o perfil de teste)' : 'Recomeçar com outro inicial') + '</button>';
+      : '<button type="button" class="btn btn--texto" data-acao="reset">Recomeçar com outro inicial</button>';
   }
 
   // ===========================================================================
@@ -15936,6 +15956,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         persist();
         guardaMotionKeep(null);   // a preferência agora está no save
         guardaJoqueiKeep(null);
+        if (devHooks) devHooks.escolha(false);   // modo DEV: a escolha feita tira a marca do "Recomeçar"
         go('estabulo');
         break;
       case 'ver-inicial': {
@@ -16130,13 +16151,13 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       case 'reset-nao':
         ui.confirmReset = false; rerenderKeepScroll(); focusAction('reset'); break;
       case 'reset-sim':
-        if (devHooks) { devHooks.zerarPerfil(); go('estabulo'); break; }   // perfil de teste: volta à Brasa, sem a escolha
         ui.motionKeep = motionPref();
         guardaMotionKeep(ui.motionKeep);
         ui.joqueiKeep = validJoquei(joqueiDoJogador());
         guardaJoqueiKeep(ui.joqueiKeep);
         ui.confirmReset = false;
         if (!wipeSave()) break;   // save de versão mais nova: tela de bloqueio
+        if (devHooks) devHooks.recomecaEscolha();   // perfil de teste: a escolha fica marcada (recarregar não cria a Brasa)
         state = null; ui.lobby = null; ui.result = null; go('inicial'); break;
     }
   });
@@ -16286,7 +16307,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       else if (state && !doHotOk && lido && typeof lido === 'object' && Number(lido.v) >= SAVE_VERSION &&
         (JSON.stringify(lido.diaria) !== JSON.stringify(state.diaria) || JSON.stringify(lido.lojaItens) !== JSON.stringify(state.lojaItens) ||
           revDiaConsertado(lido.ginasios, state.ginasios))) persist();
-      if (!state && !saveBloqueado && devHooks) { state = devHooks.novoPerfil(); persist(); }   // perfil DEV novo: Brasa, sem a escolha inicial
+      // perfil DEV novo: Brasa, sem a escolha inicial (menos depois do "Recomeçar com outro inicial": aí a escolha continua)
+      if (!state && !saveBloqueado && devHooks && !devHooks.escolha()) { state = devHooks.novoPerfil(); persist(); }
       if (!state && !saveBloqueado) { ui.motionKeep = leMotionKeep(); ui.joqueiKeep = leJoqueiKeep(); }   // "Recomeçar" e a aba fechou na escolha: as escolhas continuam
     }
     ui.screen = saveBloqueado ? 'bloqueio' : state ? 'estabulo' : 'inicial';

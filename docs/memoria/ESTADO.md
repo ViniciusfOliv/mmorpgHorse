@@ -22,7 +22,9 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   - wiki: https://claude.ai/artifact/Bp47f9qE3tSswu1A9zdF2y (`prototype/dist/wiki.html`)
   - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
 - **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Itens e dia (mochila; avançar e
-  voltar o dia), Ginásios (etapas vencidas de cada trilha, liberar a revanche, zerar), Cavalo, Itens (peças), Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
+  voltar o dia), Ginásios (etapas vencidas de cada trilha, liberar a revanche, zerar), Cavalo, Itens (peças), Próxima corrida (pista, clima, vento, skills sempre) e Perfil ("Zerar perfil de teste" volta à Brasa). Nunca toca no save
+  real. O "Recomeçar com outro inicial" do Perfil (👤) volta à escolha do cavalo inicial nos dois builds (no DEV desde
+  2026-11-18; antes voltava direto à Brasa).
 - **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (178 testes de simulação, 117 de
   efeitos, 172 de moldes, 759 conferências do wiki, 111 metas de balanço no modo rápido e 300 no completo, e 71 blocos do
   teste de interface; contagem de 2026-11-18, na `main` com os ginásios integrados; com os pedidos do mesmo dia, 179

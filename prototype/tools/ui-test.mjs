@@ -12373,20 +12373,33 @@ try {
       if (!/Perfil de teste zerado/.test((await dv.locator('#tela .aviso').allTextContents()).join(' '))) problems.push('dev: sem o aviso de perfil zerado no estábulo')
       if (s.mounts.length !== 1 || s.mounts[0].templateId !== 'brasa' || s.items.length !== 2 || s.gold !== 999999) problems.push('dev: zerar perfil ' + JSON.stringify({ n: s.mounts.length, t: s.mounts[0].templateId, itens: s.items.length, gold: s.gold }))
       await conferirReal('depois de zerar')
-      // 9. no modo DEV o "Recomeçar" do Perfil zera o perfil de teste: Brasa nível 1, sem a escolha inicial, e o
-      //    botão DEV continua
+      // 9. no modo DEV o "Recomeçar com outro inicial" do Perfil faz como no jogo real (pedido de 2026-11-18): apaga o
+      //    perfil de teste e volta à escolha do inicial, com a faixa e sem o botão DEV até escolher. Recarregar a aba na
+      //    escolha não cria a Brasa (a marca ':escolha'); escolher a Maré começa com ela no nível 1 e o Ouro infinito, o
+      //    botão DEV volta e a marca sai
+      const lsDev = (sufixo) => dv.evaluate((k) => window.__lsGet.call(localStorage, k), 'galope-elemental:dev' + sufixo)
       await devAbrir(dv)
       await dv.locator('[data-acao="dev-niveis"]').click()
       await devFechar(dv)
       const lv9 = (await st()).mounts[0].level
       await dv.locator('[data-acao="perfil"]').click()
       await dv.waitForSelector('#t-perfil')
-      await dv.locator('[data-acao="reset"]').click()
+      await dv.getByRole('button', { name: 'Recomeçar com outro inicial' }).click()
       await dv.locator('[data-acao="reset-sim"]').click()
+      await dv.waitForSelector('.inicial', { timeout: 5000 })
+      if (lv9 !== 11) problems.push('dev: "+10 níveis" antes do Recomeçar não deu o nível 11 (' + lv9 + ')')
+      if ((await dv.locator('.inicial').count()) !== 3) problems.push('dev: a escolha do Recomeçar não mostra os 3 iniciais')
+      if ((await dv.locator('.dev-botao').count()) !== 0 || (await dv.locator('.dev-faixa').count()) !== 1) problems.push('dev: na escolha do Recomeçar, o botão DEV apareceu ou a faixa sumiu')
+      if ((await lsDev('')) !== null || (await lsDev(':escolha')) !== '1') problems.push('dev: o Recomeçar não apagou o perfil de teste ou não marcou a escolha')
+      await dv.reload()
+      await dv.waitForSelector('.inicial', { timeout: 5000 })
+      if ((await lsDev('')) !== null) problems.push('dev: recarregar na escolha criou um perfil de teste (a Brasa)')
+      await dv.getByRole('button', { name: 'Escolher Maré' }).click()
       await dv.waitForSelector('#t-estabulo')
       s = await st()
-      if (lv9 !== 11 || s.mounts.length !== 1 || s.mounts[0].templateId !== 'brasa' || s.mounts[0].level !== 1 || s.gold !== 999999) problems.push('dev: Recomeçar no modo DEV ' + JSON.stringify({ lv9, n: s.mounts.length, t: s.mounts[0].templateId, lv: s.mounts[0].level, gold: s.gold }))
-      if ((await dv.locator('.inicial').count()) !== 0 || (await dv.locator('.dev-botao').count()) !== 1) problems.push('dev: Recomeçar no modo DEV abriu a escolha inicial ou tirou o botão DEV')
+      if (s.mounts.length !== 1 || s.mounts[0].templateId !== 'mare' || s.mounts[0].level !== 1 || s.gold !== 999999) problems.push('dev: escolha depois do Recomeçar ' + JSON.stringify({ n: s.mounts.length, t: s.mounts[0].templateId, lv: s.mounts[0].level, gold: s.gold }))
+      if ((await dv.locator('.dev-botao').count()) !== 1) problems.push('dev: depois da escolha, sem o botão DEV')
+      if ((await lsDev(':escolha')) !== null) problems.push('dev: a marca da escolha ficou depois de escolher')
       await conferirReal('depois do Recomeçar')
     } catch (e) {
       problems.push('dev: ' + e.message)

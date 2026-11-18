@@ -3,6 +3,15 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-18 — Recomeçar pela escolha do cavalo também no modo DEV (pedido do Vinicius)
+- **No build de teste (DEV), o "Recomeçar com outro inicial" do Perfil passa a fazer o mesmo que no jogo: apaga o perfil
+  de teste e volta à escolha do cavalo inicial (Brasa, Maré ou Ipê)** — o Vinicius pediu "opção nos 2 artefatos para
+  reiniciar e começar da escolha do cavalo"; no jogo o botão já existia (Perfil → "Recomeçar com outro inicial"), no DEV
+  ele voltava direto à Brasa. O "Zerar perfil de teste" da gaveta continua voltando à Brasa (atalho de teste). Uma marca
+  em `galope-elemental:dev:escolha` segura a escolha se a página recarregar antes de escolher (sem ela, a abertura do DEV
+  criaria a Brasa); o "Escolher" apaga a marca. O teste `fluxo-dev` confere a escolha, o recarregar e o Ouro infinito
+  depois da escolha. Se errado: a mudança é só do modo DEV (o jogo de produção sai sem esse código).
+
 ## 2026-11-18 — Integração dos pedidos do dia na `main` e os cavalos na curva (decisões do Vinicius)
 - **Os cavalos não "fazem a curva": ficam só subindo com o arco da pista** (o Vinicius escolheu a opção 1 de três
   maquetes: só o arco; os cavalos inclinam com a pista; inclinam e fecham para dentro) — o arco já dá a ideia da curva.
