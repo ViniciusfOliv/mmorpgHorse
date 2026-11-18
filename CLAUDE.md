@@ -47,7 +47,8 @@ lançamento: `docs/cronograma.md`.
 | **Verificação completa** (8 etapas: build, simulação, efeitos, dist, moldes, wiki, balanço, UI; não toca nas capturas) | `./scripts/check.sh` | ~10 min |
 
 Mudou número de regra (status, skill, pista, peça, Poder, ginásio)? Rode também o `balance.js` completo: as metas
-M6, M9, P1, S1, A1 e as dos ginásios G1, G2, G3, G5 e G7 só contam nele (no `--quick`, que o `check.sh` usa, são só informação).
+M6, M9, P1, S1 e A1 só contam nele (no `--quick`, que o `check.sh` usa, são só informação), e as dos ginásios G1, G2,
+G3, G5 e G7 só rodam nele.
 
 Abrir o jogo localmente: `prototype/dist/preview.html` no navegador. O `prototype/dist/jogo.html` é o
 build de produção: sai sem modo DEV e sem gancho de teste (o build falha se sobrar algum).
