@@ -467,8 +467,11 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   Garra deste cavalo, tudo calculado pelo `sim.js` e atualizado quando o cavalo melhora; e a curva visível na pista
   (escolha dele: "as pontas mais altas", um arco preso à tela de até 20 px; os cavalos só sobem com o arco, sem
   inclinar). **Em andamento:** a tela de desafio do ginásio ("Cena 2": antes de cada duelo, o oponente e o cavalo dele no
-  alto à direita, o cavalo do jogador embaixo à esquerda), com a arte do PixelLab: primeiro o piloto da Capitã Labareda
-  (até 4 gerações); os outros dois líderes e os 12 soldados só com a aprovação do piloto e nova confirmação do gasto.
+  alto à direita, o cavalo do jogador embaixo à esquerda), com a arte do PixelLab. O piloto da Capitã Labareda saiu em
+  2026-11-18 (4 gerações, `prototype/tools/pixellab-treinadores.mjs --lote piloto`; 4 candidatas em
+  `prototype/assets/pixellab/treinadores/`, seeds 4101–4104, saldo do plano 1697/2000). **Esperando o Vinicius:** escolher
+  a candidata e confirmar o gasto dos outros dois líderes (~8) e dos 12 soldados (24–48, ou menos reaproveitando um corpo
+  por ginásio); a tela em si (desenho e testes) começa com a escolha.
 - **Ginásios (`docs/GDD.md` §8.6), na `main` desde 2026-11-18:** o Vinicius joga nos artefatos oficiais e decide a lista
   "A confirmar com o Vinicius (gosto, ginásios)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Teste de interface em paralelo:** feito e na `main` (a verificação inteira leva ~10 min com os ginásios); em aberto se vale buscar os ~5 min (dividir o bloco

@@ -1,0 +1,29 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-18T14:39:00.812Z",
+  "pedido": {
+    "description": "full body pixel art game character, standing, whole figure visible from head to boots, clean silhouette, fire gym leader, a confident young woman captain with brown hair in a short ponytail, red captain hat with a small orange flame plume, red military coat with orange trim, gold buttons and gold epaulettes, white riding trousers, tall black riding boots, holding a short riding crop, warm fire colors",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "side",
+    "direction": "south",
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "detail": "medium detail",
+    "no_background": true,
+    "seed": 4103
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1767 bytes, sha256 7ca72b1bbe6e72fe>",
+      "format": "png"
+    }
+  }
+}

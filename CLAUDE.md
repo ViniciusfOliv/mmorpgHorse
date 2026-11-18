@@ -78,7 +78,8 @@ Leia no início de cada sessão e atualize ao final:
 Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`.
 - **PixelLab** (moldes de cavalo e ícones): API v2 via `prototype/tools/pixellab-moldes.mjs --lote
   moldes|icones|tudo` — dry-run por padrão, `--gerar` para gastar, `--teto N` limita as gerações,
-  `--reprocessar` refaz sem rede. **Gasta créditos — sempre pedir confirmação antes.**
+  `--reprocessar` refaz sem rede; oponentes dos ginásios: `prototype/tools/pixellab-treinadores.mjs` (mesmas regras).
+  **Gasta créditos — sempre pedir confirmação antes.**
 - **Canva** (capa, ícone, imagens de loja) e **ElevenLabs** (sons/vozes) — quando conectados;
   também pedem confirmação antes de gastar créditos.
 - **Artefato do claude.ai** (onde o Vinicius joga): publicar `prototype/dist/jogo.html`; para o modo DEV, publicar
