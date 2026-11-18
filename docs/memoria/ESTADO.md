@@ -7,26 +7,25 @@ durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (
 protótipo vira o jogo, a mesma base web empacotada para Android, com os módulos de regra no servidor.
 
 ## Onde estamos
-- **Branches:** a `main` tem tudo até o bloco 1b, a Visuais 2 até a parte 3 e a frente de itens, mochila, loja e
-  recompensa diária (`claude/cavalos-v3` integrada em 2026-11-14, `claude/visuais-2` em 2026-11-16 e
-  `claude/itens-loja-diaria` em 2026-11-17, as três por fast-forward). O Vinicius escolheu integrar antes de jogar: as
-  listas "A confirmar com o Vinicius (gosto, 3a)", "(gosto, 3b)", "(gosto, 3c)" e "(gosto, itens)" continuam abertas e
-  viram ajustes por cima da `main`. Em aberto: a `claude/nifty-newton-e8u133`, com a frente dos **ginásios da Expedição
-  pronta e sem merge** (seção própria abaixo), e a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta
-  como bloco 3). Trabalho novo sai da `main`.
+- **Branches:** a `main` tem tudo até o bloco 1b, a Visuais 2 até a parte 3, a frente de itens, mochila, loja e
+  recompensa diária e os **ginásios da Expedição** (`claude/cavalos-v3` integrada em 2026-11-14, `claude/visuais-2` em
+  2026-11-16, `claude/itens-loja-diaria` em 2026-11-17 e `claude/nifty-newton-e8u133`, a dos ginásios, em 2026-11-18, as
+  quatro por fast-forward). O Vinicius escolheu integrar antes de jogar: as listas "A confirmar com o Vinicius (gosto,
+  3a)", "(gosto, 3b)", "(gosto, 3c)", "(gosto, itens)" e "(gosto, ginásios)" continuam abertas e viram ajustes por cima
+  da `main`. Em aberto: a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta como bloco 3). Trabalho
+  novo sai da `main`.
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build; os três foram republicados em
-  2026-11-17 com o build 3a73b63, o da integração da frente de itens: jogo na versão 8, DEV na 6 e wiki na 7):
+  2026-11-18 com o build c3f9fb1, o da integração dos ginásios: jogo na versão 9, DEV na 7 e wiki na 8):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
   - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
   - wiki: https://claude.ai/artifact/Bp47f9qE3tSswu1A9zdF2y (`prototype/dist/wiki.html`)
   - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
 - **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Itens e dia (mochila; avançar e
-  voltar o dia), Ginásios (só na branch dos ginásios: etapas vencidas de cada trilha, liberar a revanche, zerar), Cavalo, Itens (peças), Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
-- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (158 testes de simulação, 117 de
-  efeitos, 171 de moldes, 651 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de
-  interface; contagem de 2026-11-17, na `main` com a frente de itens integrada). Com o teste de interface em paralelo
-  (2026-11-17) a verificação leva ~8 min; antes, ~16. Essa contagem é a da `main`; na branch dos ginásios, a contagem nova
-  está na seção própria ("Ginásios da Expedição").
+  voltar o dia), Ginásios (etapas vencidas de cada trilha, liberar a revanche, zerar), Cavalo, Itens (peças), Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
+- **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (178 testes de simulação, 117 de
+  efeitos, 172 de moldes, 759 conferências do wiki, 111 metas de balanço no modo rápido e 300 no completo, e 71 blocos do
+  teste de interface; contagem de 2026-11-18, na `main` com os ginásios integrados). A verificação leva ~10 min (com o
+  teste de interface em paralelo desde 2026-11-17; antes dele, ~16 min com menos testes).
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
 | Frente | Entrega | Spec |
@@ -247,13 +246,13 @@ wiki (seção "Itens e recompensa diária"); decisões em `decisoes.md` (2026-11
   - **Loja de equipamento** (suspensa, `GEAR_ON = false`): quando religada, aparece dentro da parte "Comprar"; esse caminho
     não tem teste ligado.
 
-## Ginásios da Expedição (prontos em 2026-11-18 na `claude/nifty-newton-e8u133`, **sem merge**)
+## Ginásios da Expedição (prontos e integrados na `main` em 2026-11-18)
 Spec aprovada pelo Vinicius em `docs/superpowers/specs/2026-11-17-ginasios-design.md` (no fim, as "Notas da execução"),
 plano em `docs/superpowers/plans/2026-11-17-ginasios.md` (8 tarefas); regra em `docs/GDD.md` §8.6; números no wiki (seção
 "Ginásios da Expedição") e em `GameData.GYM` e `GameData.GYMS` (`prototype/src/data.js`); regras em
-`prototype/src/ginasio.js`; decisões em `decisoes.md` (2026-11-17, as dele; 2026-11-18, as da execução). **A frente está
-inteira na branch e não foi integrada na `main`; a revisão final da frente foi feita em 2026-11-18 e a correção do que ela
-achou já entrou; falta a decisão do Vinicius sobre integrar.**
+`prototype/src/ginasio.js`; decisões em `decisoes.md` (2026-11-17, as dele; 2026-11-18, as da execução). **A frente foi
+integrada na `main` em 2026-11-18 por fast-forward, por decisão do Vinicius, depois da revisão final e da correção do que
+ela achou; a verificação completa passou na `main` antes do envio. Ninguém jogou ainda.**
 - **O que entrou:** na aba Expedição, três ginásios (da Fornalha, do Remanso e da Capoeira), cada um com uma trilha de 4
   soldados e o líder; o preparo (o adversário, a pista da casa, a entrada, o prêmio e o time, na ordem escolhida, até o
   tamanho do time do adversário); a entrada em Ouro cobrada antes de simular; os duelos na tela de corrida, com 2 raias, o
@@ -294,8 +293,8 @@ achou já entrou; falta a decisão do Vinicius sobre integrar.**
   tem (hoje: "Corra essa corrida primeiro."). Detalhe em `bugs.md`.
 - **Publicação (feita em 2026-11-18, build `d01ca3c`):** build de teste com o modo DEV
   https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 14) e a folha da interface
-  https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 8). Os artefatos oficiais (jogo, DEV e wiki, em "Onde jogar")
-  continuam com a `main`, sem os ginásios, até a integração.
+  https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 8). Depois da integração, no mesmo dia, os artefatos
+  oficiais (em "Onde jogar") foram republicados com o build `c3f9fb1`: jogo na versão 9, DEV na 7 e wiki na 8.
 - **A confirmar com o Vinicius (gosto, ginásios):**
   1. **Os cavalos dos soldados e dos líderes** usam o nome e a aparência do cavalo inicial do elemento ("Brasa, Brasa"):
      quer nomes e aparência próprios? (Não mexe na força.)
@@ -348,12 +347,12 @@ achou já entrou; falta a decisão do Vinicius sobre integrar.**
 ## Em andamento
 - **Teste de interface em paralelo (feito em 2026-11-17, commit `b3dda3d`; na `main` desde o mesmo dia, por decisão do
   Vinicius):** o `check.sh` roda o `prototype/tools/ui-test-paralelo.mjs`, um processo por bloco (68 blocos na `main`, 4 por vez, e os 8
-  com medição de tempo depois, um por vez; na branch dos ginásios são 71 blocos, 9 deles em série). A verificação caiu de ~16 para ~8 min. A meta de ~5 min não fechou: o que
+  com medição de tempo depois, um por vez; com os ginásios são 71 blocos, 9 deles em série). A verificação caiu de ~16 para ~8 min (hoje, com os ginásios, ~10 min). A meta de ~5 min não fechou: o que
   falta é a fase em série (~3,5 min) e o bloco `itens` (~1,5 min sozinho). O jeito antigo (`ui-test.mjs` sem `UI_SO`)
   continua igual e é o que regrava as capturas oficiais.
-- **Ginásios da Expedição (as 8 tarefas prontas em 2026-11-18, na `claude/nifty-newton-e8u133`, sem merge):** seção
-  própria acima, com a lista "A confirmar com o Vinicius (gosto, ginásios)". A revisão final da frente foi feita (e
-  corrigida) em 2026-11-18; falta a decisão do Vinicius sobre integrar na `main`. O galope ficou como está (decisão do Vinicius em 2026-11-16).
+- **Ginásios da Expedição (integrados na `main` em 2026-11-18, com a lista de gosto aberta):** seção própria acima, com
+  a lista "A confirmar com o Vinicius (gosto, ginásios)", de 21 itens. Falta o Vinicius jogar e dizer o que ajustar. O
+  galope ficou como está (decisão do Vinicius em 2026-11-16).
 - **Frente "interface" da Visuais 2 integrada na `main` em 2026-11-16, com as listas de gosto abertas:** a 3c (tela da
   corrida) ficou pronta em 2026-11-16 (seção própria acima, com a lista "A confirmar com o Vinicius (gosto, 3c)"); com a 3a
   e a 3b, a frente está inteira. O Vinicius escolheu integrar antes de jogar; o que ele mudar ao jogar entra como ajuste
@@ -414,7 +413,7 @@ achou já entrou; falta a decisão do Vinicius sobre integrar.**
   empacotamento (espera a resposta sobre o Capacitor), itens de treino e gastos de Ouro, tempo e
   estábulo ativo, loja de Gemas, online.
 - **Redistribuição:** a primeira de cada cavalo é grátis; depois só com a Rédea nova. A Rédea nova vem no 7º dia da
-  recompensa diária (frente de itens, na `main` desde 2026-11-17) e, na branch dos ginásios, também na 1ª vitória sobre
+  recompensa diária (frente de itens, na `main` desde 2026-11-17) e, desde os ginásios (2026-11-18), também na 1ª vitória sobre
   cada líder; a Estrela de treino sobe estrela.
 - **O Vinicius ainda não jogou o modelo novo:** os números saíram de simulação.
 - **Balanço:** M6, M9, P1, S1 e A1 só são vigiadas pelo `balance.js` completo.
@@ -427,7 +426,7 @@ achou já entrou; falta a decisão do Vinicius sobre integrar.**
 - **A Sorte vale pouco** (0,7 p.p. na corrida), por desenho: só de nascimento, mexe no Dado e na chance de skill.
 - **A Rédea nova é rara:** vem no 7º dia da recompensa diária e, com os ginásios, na 1ª vitória sobre cada líder; quem
   gastar a redistribuição grátis espera por uma delas.
-  (Resolvido em 2026-11-17: a Rédea vem no 7º dia da recompensa diária; na branch dos ginásios, também da 1ª vitória sobre
+  (Resolvido em 2026-11-17: a Rédea vem no 7º dia da recompensa diária; desde os ginásios (2026-11-18), também da 1ª vitória sobre
   cada líder.)
 - **O Ouro tem menos uso:** a loja de peças some; sobram entradas, cruza e troca do Haras. (Desde 2026-11-17 a loja de
   itens e a diária dão entrada e saída de Ouro.)
@@ -457,9 +456,9 @@ achou já entrou; falta a decisão do Vinicius sobre integrar.**
 ## Próximos passos
 - **Frente de itens (na `main`):** o Vinicius joga nos artefatos oficiais e decide a lista "A confirmar com o Vinicius
   (gosto, itens)"; o que ele mudar entra como ajuste por cima da `main`.
-- **Ginásios (`docs/GDD.md` §8.6), prontos na `claude/nifty-newton-e8u133`, sem merge:** revisão final da frente; depois o
-  Vinicius joga, decide a lista "A confirmar com o Vinicius (gosto, ginásios)" e se integra na `main`.
-- **Teste de interface em paralelo:** feito e na `main` (~8 min); em aberto se vale buscar os ~5 min (dividir o bloco
+- **Ginásios (`docs/GDD.md` §8.6), na `main` desde 2026-11-18:** o Vinicius joga nos artefatos oficiais e decide a lista
+  "A confirmar com o Vinicius (gosto, ginásios)"; o que ele mudar entra como ajuste por cima da `main`.
+- **Teste de interface em paralelo:** feito e na `main` (a verificação inteira leva ~10 min com os ginásios); em aberto se vale buscar os ~5 min (dividir o bloco
   `itens` e encurtar a fase em série).
 0. O Vinicius joga a 3a, a 3b e a 3c nos artefatos oficiais (jogo, DEV e wiki, republicados com a integração; a folha
    da interface mostra os componentes) e decide as listas "A confirmar com o Vinicius (gosto, 3a)", "(gosto, 3b)" e
@@ -479,5 +478,5 @@ achou já entrou; falta a decisão do Vinicius sobre integrar.**
 Todas já integradas na `main`: `claude/equipamentos`, `claude/cruzamento`, `claude/nucleo-corrida-v2`,
 `claude/analise-regras-arquivo-3j3zv1`, `claude/kind-thompson-gsqj7r`, `claude/menu-abas`,
 `claude/visuais`, `claude/corrida-viva`, `claude/pente-fino`, `claude/cavalos-v3`, `claude/visuais-2` (a parte 3
-inteira, a frente "interface", entrou na `main` em 2026-11-16) e `claude/itens-loja-diaria` (entrou em 2026-11-17). A `claude/nifty-newton-e8u133` é a
-branch desta sessão: tem a `main` e, por cima, a frente dos ginásios, sem merge (não apagar). A sessão não consegue apagar branch remota (o proxy bloqueia).
+inteira, a frente "interface", entrou na `main` em 2026-11-16) `claude/itens-loja-diaria` (entrou em 2026-11-17) e `claude/nifty-newton-e8u133` (a dos ginásios, entrou em 2026-11-18; é a
+branch da sessão que os fez e está igual à `main`). A sessão não consegue apagar branch remota (o proxy bloqueia).

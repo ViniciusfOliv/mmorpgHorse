@@ -3,6 +3,12 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-18 — Integração dos ginásios da Expedição na `main` (decisão do Vinicius)
+- **Integrar a `claude/nifty-newton-e8u133` na `main` antes de jogar** (o Vinicius escolheu a opção 1 de "integrar na
+  `main`, abrir um pull request ou manter a branch") — a frente passou pela revisão final e pela verificação completa; a
+  lista "A confirmar com o Vinicius (gosto, ginásios)" e as decisões da execução (abaixo) viram ajustes por cima da
+  `main`. Feito por fast-forward, com a verificação completa rodada na `main` antes do envio.
+
 ## 2026-11-18 — Ginásios da Expedição — decisões da execução (o controlador decidiu sozinho; a confirmar)
 Nada aqui foi decidido pelo Vinicius. Cada linha é uma decisão que o controlador tomou durante as 8 tarefas (as "Rulings"
 de `.superpowers/sdd/2026-11-17-ginasios/rulings.md`, na ordem): **decisão** — motivo — custo se estiver errada. O que é
