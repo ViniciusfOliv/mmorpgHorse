@@ -841,6 +841,21 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .gin-xp > li { min-width: 0; overflow-wrap: anywhere; }
 .gin-ganhos > p { margin: 0; }
 .gin-liberada { margin: 0; padding: 8px 10px; background: var(--painel-3); box-shadow: inset 4px 0 0 0 var(--ouro); }
+/* Tarefa 6: o cartão entre duelos (curto: cabe sem rolar a 360×640 e em paisagem; nada anima) */
+.gin-cartao { display: flex; flex-direction: column; gap: 8px; }
+.gin-cartao p { margin: 0; line-height: 1.35; }
+.gin-cartao-vant { color: var(--texto-2); }
+/* em paisagem (tela baixa): o texto à esquerda e os dois botões, um sobre o outro, à direita */
+@media (max-height: 500px) {
+  .tela--entreduelos { max-width: 760px; display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 8px 12px; align-items: start; }
+  .tela--entreduelos > .tela-cabeca, .tela--entreduelos > .gin-cartao { grid-column: 1; }
+  .tela--entreduelos > .acoes { grid-column: 2; grid-row: 1 / span 2; grid-template-columns: minmax(0, 1fr); }
+  .gin-cartao { gap: 4px; }
+  /* build de teste: o botão DEV fixo fica no canto de baixo, longe dos botões (em cima, à direita): sem a folga dele */
+  /*@dev:inicio*/
+  .tela--entreduelos + .dev-espaco { display: none; }
+  /*@dev:fim*/
+}
 /* cartão da montaria: só o do potro no resultado do Haras (o Estábulo é a lista de linhas, abaixo) */
 .montaria { background: var(--painel-2); padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .montaria .retrato, .montaria .retrato-moldura { align-self: center; }
@@ -1119,6 +1134,8 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .controles .vel { display: flex; gap: 8px; }
 .controles .vel .btn { min-width: 58px; font-family: var(--fonte-display); font-size: 16px; }
 .controles .pular { margin-left: auto; }
+/* duelo de ginásio: a vantagem de elemento e o fôlego, numa linha abaixo do topo (quebra no celular em pé) */
+.corrida-duelo { margin: 0; font-size: var(--t-s); line-height: 1.3; color: var(--texto); }
 @media (min-width: 860px) {
   .corrida-baixo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; }
   .corrida-baixo .ordem { grid-column: 1 / -1; }   /* a faixa de ordem na largura da pista, acima da narração */
@@ -1129,6 +1146,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
   .tela--corrida { gap: 6px; }
   .corrida-topo { min-height: 40px; }
   .corrida-titulo .rotulo { display: none; }
+  .corrida-duelo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .feed { display: none; }
   .saldo--pote { flex-direction: row; align-items: center; padding: 4px 14px; }
   /* a faixa de ordem (uma linha de 28px) vai para a linha dos controles: não soma altura à tela */
@@ -10715,7 +10733,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // o último desenho, a tela é desenhada de novo (redesenhaDia) e esse toque não vale (o alvo era da tela de ontem). Nunca
   // na corrida nem no resultado (a corrida não para nem é redesenhada por isso), nem na tela de bloqueio ou sem save.
   function diaVirou() {
-    return !!state && !saveBloqueado && ui.screen !== 'corrida' && ui.screen !== 'resultado' && ui.screen !== 'bloqueio' &&
+    return !!state && !saveBloqueado && ui.screen !== 'corrida' && ui.screen !== 'entreduelos' && ui.screen !== 'resultado' && ui.screen !== 'bloqueio' &&
       ui.diaTela !== null && hojeDia() !== ui.diaTela;
   }
   // a tela atual de novo, com a rolagem; o uso de um item aberto continua aberto e é conferido de novo (como com o save de
@@ -10761,7 +10779,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       return;
     }
     state = s;
-    if (ui.screen === 'corrida' || ui.screen === 'resultado') return;  // o resultado já mostrado continua válido
+    // o resultado já mostrado continua válido (também os duelos de um desafio já gravado e o cartão entre eles)
+    if (ui.screen === 'corrida' || ui.screen === 'resultado' || ui.screen === 'entreduelos') return;
     ui.notice = 'O jogo foi atualizado em outra aba; este é o progresso mais recente.';
     ui.lobby = null;
     // com o uso de um item aberto (escolha do cavalo, da skill ou a confirmação), a tela fica: ela é desenhada de novo com o
@@ -11044,7 +11063,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ===========================================================================
   // Tipos de tela: 'aba' (raiz, com cabeçalho e barra; não empilha histórico), 'sub' (com cabeçalho e barra;
   // empilha um estado e o Voltar devolve a ui.tab) e 'full' (tela cheia, sem casca).
-  var SCREEN_KIND = { bloqueio: 'full', inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', ginasio: 'sub', largada: 'full', corrida: 'full', resultado: 'full' };
+  var SCREEN_KIND = { bloqueio: 'full', inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', ginasio: 'sub', largada: 'full', corrida: 'full', entreduelos: 'full', resultado: 'full' };
   // as 5 abas da barra (o handler 'aba' só abre as desta lista; o wiki lê esta linha). A Loja (itens e mochila, spec de
   // itens §6) fica sempre: o que é do equipamento dentro dela (peças e Pedras Negras) continua atrás do GEAR_ON
   var ABAS = [{ id: 'estabulo', icone: '🐴', rotulo: 'Estábulo' }, { id: 'correr', icone: '🏁', rotulo: 'Correr' }, { id: 'expedicao', icone: '🧭', rotulo: 'Expedição' }, { id: 'haras', icone: '💞', rotulo: 'Haras' }, { id: 'loja', icone: '🛒', rotulo: 'Loja' }];
@@ -11064,7 +11083,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   window.addEventListener('popstate', function () {
     if (ignorePop) { ignorePop = false; return; }
     guardPushed = false;
-    if (ui.screen === 'corrida') { if (raceView) raceView.skip(); else go('resultado'); }
+    if (ui.screen === 'corrida') corridaAtual().voltar();
+    else if (ui.screen === 'entreduelos') ginPulaTudo();   // o cartão entre duelos: vale como "Pular tudo" (Ruling 23)
     else if (!isRoot(ui.screen) && state) voltaDaSubtela();
   });
 
@@ -11080,7 +11100,11 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var voltaMesmaAba = kindOf(ui.screen) === 'sub' && screen === ui.tab;
     if (screen === 'haras' && ui.screen !== 'haras' && !voltaMesmaAba) ui.haras = newHaras();
     if (screen !== 'montaria') ui.montaria = null;   // sair da Montaria descarta o "Desfazer venda" e a confirmação
-    if (screen !== 'ginasio') ui.gym = null;   // a trilha (e o detalhe da etapa) só vive na subtela do ginásio
+    // a trilha (e o detalhe da etapa) só vive na subtela do ginásio; os duelos de um desafio pago (ui.gym.ver) passam na
+    // tela de corrida e no cartão entre eles, e saem ao ir a qualquer outra tela
+    var assiste = !!(ui.gym && ui.gym.ver) && (screen === 'corrida' || screen === 'entreduelos');
+    if (screen !== 'ginasio' && !assiste) ui.gym = null;
+    else if (!assiste && ui.gym) ui.gym.ver = null;
     // a Loja guarda o estado enquanto uma sub-tela aberta a partir dela está por cima
     if (screen !== 'loja' && !(kindOf(screen) === 'sub' && ui.tab === 'loja')) ui.loja = null;
     // entrar na aba Loja abre na parte Comprar (voltar de uma sub-tela aberta a partir dela mantém a parte)
@@ -11780,6 +11804,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       case 'estabulo': html = renderEstabulo(); break;
       case 'largada': html = renderLargada(); break;
       case 'corrida': html = renderCorrida(); break;
+      case 'entreduelos': html = renderEntreDuelos(); break;
       case 'resultado': html = renderResultado(); break;
       case 'haras': html = renderHaras(); break;
       case 'montaria': html = renderMontaria(); break;
@@ -11803,7 +11828,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     hydrate(telaEl);
     if (ui.screen === 'corrida') {
       if (raceView) raceView.destroy();
-      raceView = createRaceView(ui.lobby, telaEl);
+      var cor = corridaAtual();
+      raceView = createRaceView(cor.L, telaEl, cor.fim, cor.cab.pularFim);
     }
     if (devHooks) devHooks.render();
     acordaLaco();
@@ -12473,10 +12499,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // nome, correu, xp, levels, nivel, learned }], adversario: [nomes], duelos: os do Ginasio.resolver (com a cfg de cada um) }
   function ginDueloHtml(R, d, k) {
     var a = R.cavalos[d.a].nome, b = R.adversario[d.b], jog = d.vencedor === 'jogador', quem = jog ? a : b;
-    var m = Math.max(0, Math.round(d.metros)), prox = R.duelos[k + 1];
+    var m = d.metros, prox = R.duelos[k + 1];
     var folego = prox ? (jog ? prox.folegoA : prox.folegoB) : 1;
     return '<li class="gin-duelo gin-duelo--' + (jog ? 'vitoria' : 'derrota') + '">' +
-      '<span class="gin-duelo-txt">' + esc('Duelo ' + (k + 1) + ': ' + a + ' × ' + b + ' — ' + quem + ' vence ' + (m === 0 ? 'por menos de 1 m' : 'por ' + m + ' m')) + '</span>' +
+      '<span class="gin-duelo-txt">' + esc('Duelo ' + (k + 1) + ': ' + a + ' × ' + b + ' — ' + quem + ' vence por ' + ginMetrosTxt(m)) + '</span>' +
       '<span class="gin-duelo-tag">' + (jog ? 'Você venceu' : 'Você perdeu') + '</span>' +
       (folego < 1 ? '<span class="gin-duelo-folego">' + esc(quem + ' segue com ' + Math.round(folego * 100) + '% do fôlego') + '</span>' : '') + '</li>';
   }
@@ -12503,6 +12529,97 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         (R.venceu ? '' : '<button type="button" class="btn btn--ouro" data-acao="ginasio-resumo" data-id="denovo">Tentar de novo</button>') +
         '<button type="button" class="btn" data-acao="ginasio-resumo" data-id="trilha">Voltar à trilha</button></div>' +
       '</section>';
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Os duelos na tela (Tarefa 6): depois de pagar (tudo já gravado), duelo 1 → cartão → duelo 2 → … → resumo. Só animação do
+  // que está em ui.gym.res: nada grava nem muda o state. ui.gym.ver = { k (o duelo), tela: 'duelo' | 'cartao', L e cab (a
+  // corrida e o cabeçalho que a tela de corrida mostra, só na tela 'duelo') }. Tudo o que a tela diz de um duelo (nomes,
+  // vantagem, vencedor, metros, faixa, fôlego) sai do R gravado; a simulação refeita com quadros só desenha a corrida.
+  // Nada fala dos duelos seguintes nem de quantos serão (Ruling 22).
+  // ---------------------------------------------------------------------------------------------
+  var GIN_SEDA = { fogo: 0, agua: 1, grama: 4 };   // a seda dos cavalos de cada ginásio (índice em Sprites.SILKS)
+  // metros inteiros da chegada; arredondado a 0, "menos de 1 m" (Ruling 20)
+  function ginMetrosTxt(m) { var r = Math.max(0, Math.round(m)); return r === 0 ? 'menos de 1 m' : r + ' m'; }
+  function ginFolegoTxt(quem, f) { return quem + ' larga com ' + Math.round(f * 100) + '% do fôlego'; }
+  // o duelo k de R: a (o seu cavalo), b (o do adversário, com o dono: os cavalos do adversário têm o nome do inicial), a
+  // vantagem de elemento por escrito e a linha do cabeçalho (com o fôlego de quem larga cansado)
+  function ginDueloTxt(R, k) {
+    var d = R.duelos[k], dono = GD.GYMS[R.gymId].etapas[R.etapa].nome;
+    var a = R.cavalos[d.a].nome, b = R.adversario[d.b] + ' (' + dono + ')';
+    var ea = elementOf(d.cfg.racers[0].horse.element).name, eb = elementOf(d.cfg.racers[1].horse.element).name;
+    var vant = d.vantagem === 1 ? 'Vantagem: ' + a + ' (' + ea + ' vence ' + eb + ')'
+      : d.vantagem === -1 ? 'Vantagem: adversário (' + eb + ' vence ' + ea + ')' : 'Sem vantagem de elemento';
+    var fol = d.folegoA < 1 ? ginFolegoTxt(a, d.folegoA) : d.folegoB < 1 ? ginFolegoTxt(b, d.folegoB) : '';
+    return { a: a, b: b, vant: vant, linha: fol ? vant + ' · ' + fol : vant };
+  }
+  // A corrida do duelo k para a tela de corrida (o L que ela lê, como o da sala, e o cabeçalho): a cfg gravada simulada de
+  // novo com os quadros (a mesma seed e os mesmos cavalos: o mesmo resultado). O nome do dono no 2º corredor só muda o texto
+  // da narração (o RaceSim põe "Brasa (Cabo Tocha)" quando os dois cavalos têm o mesmo nome).
+  function ginDueloVer(R, k) {
+    var d = R.duelos[k], g = GD.GYMS[R.gymId], dono = g.etapas[R.etapa].nome;
+    var cfg = clone(d.cfg);
+    cfg.recordFrames = true;
+    cfg.racers[1].name = dono;
+    var sim = RS.simulate(cfg);
+    var a = cfg.racers[0].horse, b = cfg.racers[1].horse, seda = hasOwn(GIN_SEDA, R.gymId) ? GIN_SEDA[R.gymId] : 0, t = ginDueloTxt(R, k);
+    var L = {
+      counter: 0, seed: sim.seed, training: false, fee: 0, n: 2, cond: withRanges(sim.conditions), trackName: g.name,
+      racers: [
+        { isPlayer: true, name: PLAYER_NAME, horse: a, gear: null, silks: PLAYER_SILKS, silkIdx: -1 },
+        { isPlayer: false, name: dono, horse: b, gear: null, silks: SP.SILKS[seda], silkIdx: seda, rotulo: a.name === b.name ? b.name + ' (' + dono + ')' : null }
+      ],
+      playerIdx: 0, sim: sim, dev: null
+    };
+    return { k: k, tela: 'duelo', L: L, cab: {
+      titulo: g.name, aria: 'Duelo ' + (k + 1) + ': ' + t.a + ' contra ' + t.b, linha: t.linha, pular: 'Pular', pularFim: 'Continuar',
+      placa: '<span class="rotulo">' + esc('Duelo ' + (k + 1)) + '</span>',
+      extra: '<button type="button" class="btn btn--pequeno" data-acao="ginasio-pular-tudo">Pular tudo</button>'
+    } };
+  }
+  // o cartão depois do duelo k (há um seguinte): o resultado do ponto de vista do jogador, quem saiu e quem entra, a faixa com
+  // o fôlego de quem ficou (o do duelo seguinte, gravado) e a vantagem do próximo
+  function ginCartaoTxt(R, k) {
+    var d = R.duelos[k], p = R.duelos[k + 1], jog = d.vencedor === 'jogador', x = ginDueloTxt(R, k), y = ginDueloTxt(R, k + 1);
+    return {
+      titulo: x.a + (jog ? ' venceu por ' : ' perdeu por ') + ginMetrosTxt(d.metros),
+      saiu: jog ? x.b + ' saiu. Entra ' + y.b + ', Nível ' + p.cfg.racers[1].horse.level + '.' : x.a + ' saiu. Entra ' + y.a + '.',
+      folego: 'Vitória ' + d.faixa.name.toLowerCase() + ' (' + ginMetrosTxt(d.metros) + '): ' + ginFolegoTxt(jog ? x.a : x.b, jog ? p.folegoA : p.folegoB),
+      vant: y.vant
+    };
+  }
+  function renderEntreDuelos() {
+    var G0 = ui.gym, v = G0 && G0.ver, R = G0 && G0.res;
+    if (!v || !R || !R.duelos[v.k + 1]) return R ? ginResumoHtml(R) : renderInicial();   // não acontece: go() só vem aqui com o próximo
+    var t = ginCartaoTxt(R, v.k);
+    return '<section class="tela tela--entreduelos" aria-labelledby="t-cartao">' +
+      '<header class="tela-cabeca placa"><span class="rotulo">' + esc(GD.GYMS[R.gymId].name + ' · Duelo ' + (v.k + 1)) + '</span>' +
+        '<h1 class="titulo titulo--tela" id="t-cartao" tabindex="-1" data-foco>' + esc(t.titulo) + '</h1></header>' +
+      '<div class="caixa gin-cartao">' +
+        '<p class="gin-cartao-saiu">' + esc(t.saiu) + '</p>' +
+        '<p class="gin-cartao-folego">' + esc(t.folego) + '</p>' +
+        '<p class="gin-cartao-vant">' + esc(t.vant) + '</p></div>' +
+      '<div class="acoes acoes--linha">' +
+        '<button type="button" class="btn btn--ouro" data-acao="ginasio-proximo">Próximo duelo</button>' +
+        '<button type="button" class="btn" data-acao="ginasio-pular-tudo">Pular tudo</button></div>' +
+      '</section>';
+  }
+  // o duelo acabou (ou foi pulado): o cartão, se há outro duelo; senão o resumo
+  function ginDueloAcabou() {
+    var gym = ui.gym, v = gym && gym.ver;
+    if (!v || !gym.res) return;
+    if (!gym.res.duelos[v.k + 1]) { ginPulaTudo(); return; }
+    v.tela = 'cartao'; v.L = null; v.cab = null;
+    go('entreduelos');   // o foco no título do cartão
+    motivoVivo(ginCartaoTxt(gym.res, v.k).titulo);
+  }
+  // "Pular tudo" (e o "Voltar" do aparelho num duelo ou num cartão, Ruling 23): o resumo
+  function ginPulaTudo() {
+    var gym = ui.gym;
+    if (!gym || !gym.res) return;
+    gym.ver = null;
+    go('ginasio');   // o resumo, com o foco no título dele
+    motivoVivo(gym.res.venceu ? 'Vitória!' : 'Derrota');
   }
 
   // "Recomeçar com outro inicial" com confirmação (vai para o Perfil). No modo DEV, zera o perfil de teste
@@ -13950,8 +14067,23 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // ===========================================================================
   // Tela 4 — Corrida (HUD desenhado dentro do canvas, tela inteira sem rolagem)
   // ===========================================================================
+  // A tela de corrida mostra uma corrida só: a da sala (ui.lobby) ou, depois de pagar um desafio de ginásio, o duelo que
+  // está passando (ui.gym.ver, Tarefa 6). Este é o único ponto que decide: devolve o que mostrar (L, que a tela e o
+  // createRaceView leem, e o cabeçalho cab), o que fazer quando a corrida acaba ou é pulada (fim) e no "Voltar" do aparelho
+  // (voltar). cab: { titulo, aria (o começo do nome do canvas), placa (HTML do canto do topo), linha (texto abaixo do topo
+  // ou null), pular e pularFim (o texto do botão Pular durante e depois da chegada), extra (HTML de botões a mais) }.
+  function corridaAtual() {
+    var v = ui.gym && ui.gym.ver;
+    if (v && v.tela === 'duelo') return { L: v.L, cab: v.cab, fim: ginDueloAcabou, voltar: ginPulaTudo };
+    var L = ui.lobby;
+    return {
+      L: L, fim: function () { go('resultado'); }, voltar: function () { if (raceView) raceView.skip(); else go('resultado'); },
+      cab: { titulo: L.trackName, aria: 'Corrida em ' + L.trackName, linha: null, pular: 'Pular para o resultado', pularFim: 'Ver resultado', extra: '',
+        placa: L.training ? '<span class="rotulo">Treino</span>' : '<span class="rotulo">Pote</span>' + ouroHtml(L.fee * L.n) }
+    };
+  }
   function renderCorrida() {
-    var L = ui.lobby, D = L.cond.distance;
+    var cor = corridaAtual(), L = cor.L, cab = cor.cab, D = L.cond.distance;
     var shp = sharePct(L.cond);
     var tracado = ['curva', 'subida'].map(function (tp) {
       return shp[tp] ? shp[tp] + '% ' + tp : '';
@@ -13961,11 +14093,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var condTxt = D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ' + climaTxt + ' · Vento: ' + ventoFala(ventoDaSala(L)) + ' · ' + tracado;
     return '<section class="tela tela--larga tela--corrida" aria-labelledby="t-corrida">' +
       '<header class="corrida-topo"><div class="corrida-titulo">' +
-        '<h1 class="corrida-nome" id="t-corrida" tabindex="-1" data-foco>' + esc(L.trackName) + '</h1>' +
+        '<h1 class="corrida-nome" id="t-corrida" tabindex="-1" data-foco>' + esc(cab.titulo) + '</h1>' +
         '<span class="rotulo">' + esc(D + ' m · ' + GD.SURFACES[L.cond.surface].name + ' · ') +
           '<span id="clima-atual">' + climaIcone(L.cond.weather) + esc(climaTxt) + '</span>' + esc(' · ' + tracado) + '</span></div>' +
-        '<span class="saldo saldo--pote">' + (L.training ? '<span class="rotulo">Treino</span>' : '<span class="rotulo">Pote</span>' + ouroHtml(L.fee * L.n)) + '</span></header>' +
-      '<div class="palco"><canvas id="pista" role="img" aria-label="' + esc('Corrida em ' + L.trackName + ', ' + condTxt) + '"></canvas></div>' +
+        '<span class="saldo saldo--pote">' + cab.placa + '</span></header>' +
+      (cab.linha ? '<p class="corrida-duelo" id="corrida-duelo">' + esc(cab.linha) + '</p>' : '') +
+      '<div class="palco"><canvas id="pista" role="img" aria-label="' + esc(cab.aria + ', ' + condTxt) + '"></canvas></div>' +
       '<div class="corrida-baixo">' +
         // faixa de ordem (spec 3c §4), logo abaixo da pista: preenchida por atualizaOrdem (createRaceView); altura fixa
         // no CSS. Fica dentro do .corrida-baixo para, em paisagem, ir para a linha dos controles sem somar altura
@@ -13975,14 +14108,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         '<div class="controles" role="group" aria-label="Controles da corrida">' +
           '<div class="vel"><button type="button" class="btn btn--pequeno" data-acao="vel" data-id="1" aria-pressed="true">x1</button>' +
           '<button type="button" class="btn btn--pequeno" data-acao="vel" data-id="2" aria-pressed="false">x2</button></div>' +
-          '<button type="button" class="btn btn--pequeno pular" data-acao="pular" id="btn-pular">Pular para o resultado</button>' +
+          '<button type="button" class="btn btn--pequeno pular" data-acao="pular" id="btn-pular">' + esc(cab.pular) + '</button>' + cab.extra +
         '</div>' +
       '</div>' +
       '<p class="sr" aria-live="polite" id="anuncio"></p>' +
       '</section>';
   }
 
-  function createRaceView(L, root) {
+  // fim: chamado uma vez, quando a corrida acaba ou é pulada; fimTxt: o texto do botão Pular depois da chegada
+  // o nome do corredor na faixa de ordem e na narração: o do cavalo, ou o rótulo que a corrida der (no duelo de ginásio,
+  // "Brasa (Cabo Tocha)" quando os dois cavalos têm o mesmo nome; a sala não tem rótulo)
+  function nomeDoCorredor(r) { return r.rotulo || r.horse.name; }
+  function createRaceView(L, root, fim, fimTxt) {
     var sim = L.sim, n = L.n, D = L.cond.distance, hills = L.cond.hills;
     var blocks = L.cond.blocks;
     // curvas (só visual): o traçado de cima do minimapa e quanto a raia sobe (pixels de arte inteiros, ≥ 0)
@@ -14070,7 +14207,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           if (P[lead] < goal) continue;
           var mine = 1;
           for (var q = 0; q < n; q++) if (q !== me && P[q] > P[me]) mine++;
-          var txt = mk[1](Math.round(goal)) + ': ' + L.racers[lead].horse.name + ' na frente' +
+          var txt = mk[1](Math.round(goal)) + ': ' + nomeDoCorredor(L.racers[lead]) + ' na frente' +
             (lead === me ? ' (é você!)' : '; você em ' + mine + 'º') + '.';
           out.push({ t: frames[f2].t, racer: lead, type: 'narracao', text: txt });
           break;
@@ -14299,7 +14436,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     }
     function vizinhoHtml(rot, j, m) {
       // os espaços ficam dentro dos spans (o texto lido segue "À frente: Nome +3 m"); na tela, o espaço é o gap do flex
-      return '<span class="viz"><span class="viz-rot">' + esc(rot + ' ') + '</span><b class="viz-nome">' + esc(L.racers[j].horse.name) +
+      return '<span class="viz"><span class="viz-rot">' + esc(rot + ' ') + '</span><b class="viz-nome">' + esc(nomeDoCorredor(L.racers[j])) +
         '</b><span class="viz-m">' + esc(' ' + m) + '</span></span>';
     }
     // distância em metros inteiros ("+3 m", "−4 m"); arredondada a 0, "colado" ("+0 m" lê como defeito)
@@ -14335,7 +14472,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           var r = L.racers[j];
           return '<li class="ordem-item' + (r.isPlayer ? ' ordem-item--voce' : '') + '" data-raia="' + j + '">' +
             '<span class="ordem-pos">' + (k + 1) + 'º</span>' + laneChip(r, j, 'raia--mini') + '<span class="ordem-dado"></span>' +
-            '<span class="sr">' + esc(r.horse.name + (r.isPlayer ? ' (você)' : '')) + '</span></li>';
+            '<span class="sr">' + esc(nomeDoCorredor(r) + (r.isPlayer ? ' (você)' : '')) + '</span></li>';
         }).join(''));
       }
       var baixa = tela.classList.contains('tela--baixa');
@@ -14850,12 +14987,12 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         // câmera lenta do Dado da Sorte (fx.js); compõe com a da chegada pelo mínimo
         slowK = Math.min(slowK, FX.slowFactor(fxTl, self.simT, reduced()));
         self.simT += dtReal * ts * self.mult * slowK;
-        if (self.simT >= endT) { self.phase = 'fim'; self.endTimer = 1.2; hud.pular.textContent = 'Ver resultado'; }
+        if (self.simT >= endT) { self.phase = 'fim'; self.endTimer = 1.2; hud.pular.textContent = fimTxt; }
       } else if (self.phase === 'fim') {
         self.simT += dtReal * ts * self.mult * 0.5;
         self.endTimer -= dtReal;
         // a faixa do lugar fica os 2,5 s inteiros mesmo quando o jogador é dos últimos a cruzar ("Ver resultado" pula)
-        if (self.endTimer <= 0 && !self.done && !(self.lugar && self.tReal < self.lugar.ate)) { self.done = true; go('resultado'); return; }
+        if (self.endTimer <= 0 && !self.done && !(self.lugar && self.tReal < self.lugar.ate)) { self.done = true; fim(); return; }
       }
       if (!self.winnerSeen && self.simT >= tWin) { self.winnerSeen = true; if (!reduced()) self.flash = 0.3; }
       if (self.flash > 0) self.flash = Math.max(0, self.flash - dtReal);
@@ -14904,7 +15041,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       frame: frame,
       setSpeed: function (m) { self.mult = m; },
       relayout: function () { layout(); },
-      skip: function () { if (!self.done) { self.done = true; go('resultado'); } },
+      skip: function () { if (!self.done) { self.done = true; fim(); } },
       destroy: function () { clearTimeout(rzTimer); window.removeEventListener('resize', onResize); FX.resetStats(false); },
       _state: self
     };
@@ -15473,8 +15610,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         if (ui.screen !== 'ginasio' || !gDf || gDf.etapa === null || gDf.res) break;
         var rDf = desafia(gDf.id, gDf.etapa, gDf.time.slice());
         if (rDf === 'ok') {
-          go('ginasio');   // o resumo, com o foco no título dele
-          motivoVivo(gDf.res.venceu ? 'Vitória!' : 'Derrota');
+          // tudo já gravado: os duelos passam na tela de corrida, um a um, e depois o resumo (Tarefa 6)
+          gDf.ver = ginDueloVer(gDf.res, 0);
+          go('corrida');
           break;
         }
         var bDf;
@@ -15502,6 +15640,17 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         } else if (id === 'trilha' || id === 'denovo') voltaDaSubtela();
         break;
       }
+      // o cartão entre duelos: o próximo duelo; e, nele e na tela do duelo, "Pular tudo" (o resumo)
+      case 'ginasio-proximo': {
+        var gPx = ui.gym, vPx = gPx && gPx.ver;
+        if (ui.screen !== 'entreduelos' || !vPx || !gPx.res || !gPx.res.duelos[vPx.k + 1]) break;
+        gPx.ver = ginDueloVer(gPx.res, vPx.k + 1);
+        go('corrida');
+        break;
+      }
+      case 'ginasio-pular-tudo':
+        if ((ui.screen === 'corrida' || ui.screen === 'entreduelos') && ui.gym && ui.gym.ver) ginPulaTudo();
+        break;
       case 'ginasio-voltar':
       case 'montaria-voltar':
       case 'perfil-voltar':
@@ -15678,7 +15827,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         });
         break;
       case 'pular':
-        if (raceView) raceView.skip(); else go('resultado');
+        if (raceView) raceView.skip(); else corridaAtual().fim();
         break;
       case 'denovo':
         if (state.gold < MIN_ENTRY) startLobby(true); else startLobby(false);

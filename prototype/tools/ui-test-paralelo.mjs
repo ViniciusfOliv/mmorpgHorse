@@ -28,7 +28,8 @@ const EM_SERIE = {
   'marcas-corrida': 'ms por quadro com 8 Míticos contra o teto TETO_MS (6 ms)',
   'portes-corrida': 'ms por quadro com 8 Míticos de portes alternados contra o teto TETO_MS (6 ms)',
   'crescimento-jogo': 'abrir a sala custa < 15 ms em média (performance.now())',
-  'fluxo-desempenho': 'desenho por quadro a 1280 com chuva e ventania: "Completas" − "Reduzidas" <= 6 ms'
+  'fluxo-desempenho': 'desenho por quadro a 1280 com chuva e ventania: "Completas" − "Reduzidas" <= 6 ms',
+  'ginasio-corrida': 'três duelos assistidos sem tocar: o duelo em x2 mais curto que em x1 (segundos reais, performance.now()) e a faixa do lugar no fim de cada um'
 }
 
 // Duração de cada bloco da fase 1 em segundos (o processo inteiro, com o Chromium), medida com UI_JOBS=4 numa máquina de 4
@@ -43,7 +44,7 @@ const DURACOES = {
   escala: 5, 'fluxo-dev': 4, selo: 4, retrato: 3, gravacao2: 3, 'fluxo-capturas-itens': 3, 'selo-teto': 3, reserva: 3,
   areasegura: 3, texto: 3, 'vaga-tipo': 3, gravacao: 3, 'nivel-pontos': 3, 'fluxo-saves': 3, adulterado: 2,
   corrompido: 2, treino: 2, 'fluxo-equipamento': 2, aviso: 2, 'fluxo-sem-icones': 2, 'build-nivel1': 2, inicial: 2,
-  'fluxo-build-teste': 2, 'valor-peca': 1, 'fluxo-loja': 1, ginasio: 48
+  'fluxo-build-teste': 2, 'valor-peca': 1, 'fluxo-loja': 1, ginasio: 70, 'ginasio-corrida': 67
 }
 
 const lista = execFileSync(process.execPath, [UI, '--blocos'], { encoding: 'utf8' }).split('\n').map((x) => x.trim()).filter(Boolean)

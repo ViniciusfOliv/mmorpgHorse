@@ -38,7 +38,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // os blocos, na ordem em que aparecem no arquivo: todo if (quer(nome)) usa um nome daqui (quer() lança erro se não), e o
 // ui-test-paralelo.mjs roda exatamente esta lista. Bloco novo entra aqui, no lugar dele.
 const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
-  'corrompido', 'areasegura', 'texto', 'producao', 'itens', 'ginasio', 'redimensiona', 'escala', 'teto',
+  'corrompido', 'areasegura', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto',
   'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
   'corrida-lugar-dado-redimensiona', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
   'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
@@ -2827,6 +2827,14 @@ try {
     return { m, levels, learned }
   }
   const ginIgual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+  // Tarefa 6 (blocos ginasio e ginasio-corrida): seed 157, Sargento Candeeiro (2 Brasas, nível 12) contra Maré 13 (m2, com
+  // vantagem) e Brasa 12 (m1), nessa ordem. Duelo 1: a Maré vence por menos de 1 m (apertada) e larga o 2º com 75%; duelo
+  // 2: a Maré perde (a Brasa do Sargento larga o 3º cansada); duelo 3: Brasa contra Brasa e o jogador vence. Conferido nos
+  // testes: se o pareamento mudar, o teste diz qual condição deixou de valer.
+  const GIN_T6 = { id: 'fogo', i: 2, uids: ['m2', 'm1'] }
+  const ginT6Save = (o = {}) => ginSave(Object.assign({ seedBase: 157,
+    mounts: [ginCav(ginBrasa, { uid: 'm1', level: 12 }), ginCav(ginMare, { uid: 'm2', level: 13 })],
+    ginasios: Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { fogo: { etapa: 2, revDia: null, revVitorias: 0 } }) }, o))
   if (quer('ginasio')) {
     const VP = { width: 360, height: 780 }
     // 1. save novo (jogo real e build de teste): versão 8, ginásios zerados, contador 0, na memória e no disco
@@ -3583,10 +3591,11 @@ try {
           nota: ((caixa && caixa.querySelector(':scope > .nota')) || {}).textContent || '' },
         time: window.__galope.ui.gym ? window.__galope.ui.gym.time.slice() : null }
     })
-    // Ruling 2: o ÚNICO caminho do teste do "Desafiar" ao resumo (a Tarefa 6 troca só este ajudante quando os duelos
-    // passarem na tela de corrida)
+    // Ruling 2: o ÚNICO caminho do teste do "Desafiar" ao resumo. Tarefa 6: depois de pagar, o 1º duelo passa na tela de
+    // corrida; o ajudante chega ao resumo pelo "Pular tudo" dela
     const ginDesafia = async (pg) => {
       await pg.locator('#tela [data-acao="ginasio-desafiar"]').click()
+      await pg.locator('#tela .tela--corrida [data-acao="ginasio-pular-tudo"]').click({ timeout: 6000 })
       await pg.waitForSelector('#t-resumo', { timeout: 6000 })
     }
     // toque forçado: tira o aria-disabled e clica (a ação tem de conferir tudo de novo e recusar); false = botão não achado
@@ -3604,7 +3613,7 @@ try {
     // nada do desafio calculado antes de pagar: ui.gym.res null, contador e disco iguais, nenhum texto de resultado na tela
     const ginNadaAntes = async (label, pg, st0, d0) => {
       const x = await pg.evaluate(() => ({ res: window.__galope.ui.gym ? window.__galope.ui.gym.res : 'sem ui.gym', c: window.__galope.state.gymCounter,
-        txt: document.getElementById('tela').textContent, resumo: !!document.getElementById('t-resumo') }))
+        txt: document.getElementById('tela').textContent, resumo: !!document.querySelector('#t-resumo, #t-cartao, .tela--corrida') }))
       if (x.res !== null || x.c !== st0.gymCounter || x.resumo || /Vitória!|Derrota|Duelo \d/.test(x.txt)) problems.push(`${label}: algo do desafio existe antes de pagar ${JSON.stringify({ res: x.res, c: x.c, resumo: x.resumo })}`)
       if ((await ginDisco(pg)) !== d0) problems.push(`${label}: o disco mudou antes de pagar`)
     }
@@ -3615,7 +3624,7 @@ try {
       const s = await ginEstado(pg), raw = await ginDisco(pg)
       if (!ginIgual(ginSemRev(s), ginSemRev(stRef))) problems.push(`${label}: o state mudou (${ginDifere(ginSemRev(s), ginSemRev(stRef))})`)
       if (raw !== dRef && !ginIgual(ginSemRev(JSON.parse(raw)), ginSemRev(stRef))) problems.push(`${label}: o disco mudou (${ginDifere(ginSemRev(JSON.parse(raw)), ginSemRev(stRef))})`)
-      if (await pg.locator('#t-resumo').count()) problems.push(`${label}: apareceu um resumo`)
+      if (await pg.locator('#t-resumo, #t-cartao, .tela--corrida').count()) problems.push(`${label}: apareceu um resumo (ou um duelo)`)
     }
     // espia o Ginasio.resolver da página (o sorteio dos duelos): conta as chamadas a partir de agora
     const ginEspiaSorteio = (pg) => pg.evaluate(() => {
@@ -3939,7 +3948,7 @@ try {
         if ((await ginDisco(pb)) !== dA) problems.push(`${label}: o toque na aba B gravou de novo`)
         const sb = await ginEstado(pb)
         if (!ginIgual(ginSemRev(sb), ginSemRev(JSON.parse(dA))) || sb.gymCounter !== 1) problems.push(`${label}: a aba B não adotou o save da A, ou cobrou de novo ${JSON.stringify({ gold: sb.gold, c: sb.gymCounter })}`)
-        if ((await pb.locator('#t-resumo').count()) || !(await pb.evaluate(() => !window.__galope.ui.gym || window.__galope.ui.gym.res === null))) problems.push(`${label}: a aba B mostrou um resumo`)
+        if ((await pb.locator('#t-resumo, #t-cartao, .tela--corrida').count()) || !(await pb.evaluate(() => !window.__galope.ui.gym || window.__galope.ui.gym.res === null))) problems.push(`${label}: a aba B mostrou um resumo`)
         if ((await ginSorteios(pb)) !== 0) problems.push(`${label}: a aba B sorteou os duelos (${await ginSorteios(pb)} vezes) antes de ver o save da outra aba`)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
@@ -4044,7 +4053,7 @@ try {
         const r0 = JSON.parse(raw)
         if (s.rev !== r0.rev || s.activeId !== 'm2' || !s.pending || s.pending.counter !== r0.pending.counter || s.gold !== r0.gold || s.gymCounter !== 0 ||
           !ginIgual(s.mounts.map((m) => [m.uid, m.level, m.xp]), r0.mounts.map((m) => [m.uid, m.level, m.xp]))) problems.push(`${label}: a aba velha não adotou o save, ou cobrou ${JSON.stringify({ rev: s.rev, a: s.activeId, gold: s.gold, c: s.gymCounter })}`)
-        if (await pg.locator('#t-resumo').count()) problems.push(`${label}: a aba velha mostrou um resumo`)
+        if (await pg.locator('#t-resumo, #t-cartao, .tela--corrida').count()) problems.push(`${label}: a aba velha mostrou um resumo (ou um duelo)`)
         if ((await ginSorteios(pg)) !== 0) problems.push(`${label}: a aba velha sorteou os duelos (${await ginSorteios(pg)} vezes)`)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
@@ -4235,6 +4244,405 @@ try {
       } finally {
         await pg.context().close()
       }
+    }
+
+    // ---------------- Tarefa 6: os duelos na tela de corrida e o cartão entre eles (spec §5.3–5.5, §7; decisões 1–19) ----------------
+    // Tudo o que a tela diz de um duelo sai do ui.gym.res (o gravado) e é montado aqui do esperado no node (ginEsperado) e
+    // do catálogo; a simulação refeita com quadros só desenha, e tem de dar o mesmo vencedor e a mesma distância.
+    const ginDono = (id, i) => G.GYMS[id].etapas[i].nome
+    const ginMTxt = (m) => { const r = Math.max(0, Math.round(m)); return r === 0 ? 'menos de 1 m' : r + ' m' }
+    // o duelo k: os nomes (o do adversário com o dono), a frase da vantagem e a linha do cabeçalho (com o fôlego de quem larga
+    // cansado)
+    const ginDueloEsp = (esp, id, i, k) => {
+      const d = esp.res.duelos[k], et = G.GYMS[id].etapas[i]
+      const a = esp.cavalos[d.a].nome, b = GN.cavalo(et.cavalos[d.b]).name + ' (' + ginDono(id, i) + ')'
+      const ea = G.ELEMENTS[d.cfg.racers[0].horse.element].name, eb = G.ELEMENTS[d.cfg.racers[1].horse.element].name
+      const vant = d.vantagem === 1 ? `Vantagem: ${a} (${ea} vence ${eb})` : d.vantagem === -1 ? `Vantagem: adversário (${eb} vence ${ea})` : 'Sem vantagem de elemento'
+      const fol = d.folegoA < 1 ? `${a} larga com ${Math.round(d.folegoA * 100)}% do fôlego` : d.folegoB < 1 ? `${b} larga com ${Math.round(d.folegoB * 100)}% do fôlego` : null
+      return { a, b, vant, linha: fol ? vant + ' · ' + fol : vant }
+    }
+    // o cartão depois do duelo k (há um seguinte): o resultado do ponto de vista do jogador, quem saiu e quem entra, a faixa
+    // (pela distância, de G.GYM.fadiga) com o fôlego de quem ficou e a vantagem do próximo
+    const ginEntreEsp = (esp, id, i, k) => {
+      const d = esp.res.duelos[k], p = esp.res.duelos[k + 1], jog = d.vencedor === 'jogador'
+      const x = ginDueloEsp(esp, id, i, k), y = ginDueloEsp(esp, id, i, k + 1)
+      const faixa = G.GYM.fadiga.faixas.find((f) => f.ate === null || d.metros < f.ate).name.toLowerCase()
+      return {
+        rotulo: `${G.GYMS[id].name} · Duelo ${k + 1}`,
+        titulo: `${x.a} ${jog ? 'venceu' : 'perdeu'} por ${ginMTxt(d.metros)}`,
+        saiu: jog ? `${x.b} saiu. Entra ${y.b}, Nível ${G.GYMS[id].etapas[i].cavalos[p.b].level}.` : `${x.a} saiu. Entra ${y.a}.`,
+        folego: `Vitória ${faixa} (${ginMTxt(d.metros)}): ${jog ? x.a : x.b} larga com ${Math.round((jog ? p.folegoA : p.folegoB) * 100)}% do fôlego`,
+        vant: y.vant
+      }
+    }
+    // a corrida do duelo simulada de novo aqui no node (com os quadros): os tempos de chegada
+    const ginTempos = (d) => { const c = JSON.parse(JSON.stringify(d.cfg)); c.recordFrames = true; return S.simulate(c).finishTimes }
+    const ginDueloDom = (pg) => pg.evaluate(() => {
+      const q = (s) => document.querySelector(s), tx = (e) => (e ? e.textContent.replace(/\s+/g, ' ').trim() : null)
+      const g = window.__galope, ver = g.ui.gym && g.ui.gym.ver, sim = ver && ver.L && ver.L.sim
+      return { titulo: tx(q('#t-corrida')), placa: tx(q('.corrida-topo .saldo')), linha: tx(q('#corrida-duelo')), aria: q('#pista') && q('#pista').getAttribute('aria-label'),
+        txt: tx(q('#tela')), foco: document.activeElement && document.activeElement.id, vw: document.documentElement.clientWidth,
+        botoes: [...document.querySelectorAll('#tela .controles button')].map((b) => { const r = b.getBoundingClientRect(); return { acao: b.getAttribute('data-acao'), txt: tx(b), h: r.height, l: r.left, r: r.right, t: r.top } }),
+        k: ver ? ver.k : null, n: ver ? ver.L.n : null, lobby: g.ui.lobby === (ver && ver.L),
+        ordem: [...document.querySelectorAll('#ordem-lista > li')].map((li) => ({ voce: li.classList.contains('ordem-item--voce'), nome: tx(li.querySelector(':scope > .sr')) })),
+        sim: sim && { ordem: sim.finishOrder, tempos: sim.finishTimes, metros: window.Ginasio.metros(sim) } }
+    })
+    // a tela do duelo k: o ginásio no título, "Duelo N" no lugar do pote (nunca "de N"), a linha da vantagem e do fôlego, os
+    // dois cavalos no nome do canvas e na faixa de ordem (o seu marcado; o do adversário com o dono quando os nomes são
+    // iguais), os controles (x1, x2, Pular, Pular tudo: 44 px, numa linha, dentro da tela) e a corrida refeita igual à gravada
+    const ginConfereDuelo = async (label, pg, esp, id, i, k) => {
+      await pg.waitForFunction((kk) => { const v = window.__galope.ui.gym && window.__galope.ui.gym.ver; return !!v && v.k === kk && !!document.getElementById('t-corrida') && document.querySelectorAll('#ordem-lista > li').length === 2 }, k, { timeout: 6000 })
+        .catch(() => problems.push(`${label}: a tela do duelo ${k + 1} não abriu`))
+      const x = await ginDueloDom(pg), e = ginDueloEsp(esp, id, i, k), d = esp.res.duelos[k]
+      if (x.titulo !== G.GYMS[id].name || x.placa !== `Duelo ${k + 1}` || x.linha !== e.linha) problems.push(`${label}: cabeçalho do duelo ${k + 1} ${JSON.stringify({ titulo: x.titulo, placa: x.placa, linha: x.linha })} (esperado ${JSON.stringify([G.GYMS[id].name, 'Duelo ' + (k + 1), e.linha])})`)
+      if (x.foco !== 't-corrida') problems.push(`${label}: o foco não foi ao título do duelo ${k + 1} (${x.foco})`)
+      // nada do que vem depois (decisão 2, Ruling 22): nem o total de duelos, nem o resultado do desafio, nem o prêmio
+      if (/Duelo \d+ de \d+|\d+ duelos|Vitória|Derrota|venceu|perdeu|Pote|Prêmio|de Ouro/.test(x.txt)) problems.push(`${label}: a tela do duelo ${k + 1} entrega o que vem depois: ${x.txt.slice(0, 300)}`)
+      if (!x.aria || !x.aria.startsWith(`Duelo ${k + 1}: ${e.a} contra ${e.b}, `)) problems.push(`${label}: nome acessível do canvas do duelo ${k + 1}: ${x.aria}`)
+      const mesmo = e.a === GN.cavalo(G.GYMS[id].etapas[i].cavalos[d.b]).name
+      const nomes = x.ordem.map((o) => o.voce + ':' + o.nome).sort().join('|')
+      const espN = ['false:' + (mesmo ? e.b : GN.cavalo(G.GYMS[id].etapas[i].cavalos[d.b]).name), 'true:' + e.a + ' (você)'].sort().join('|')
+      if (x.n !== 2 || x.ordem.length !== 2 || nomes !== espN) problems.push(`${label}: duelo ${k + 1} com ${x.n} raias, faixa de ordem ${nomes} (esperado ${espN})`)
+      if (x.lobby) problems.push(`${label}: o duelo usou o ui.lobby`)
+      // a corrida desenhada é a gravada: o mesmo vencedor e a mesma distância do res, e os tempos da simulação aqui no node
+      if (!x.sim || (x.sim.ordem[0] === 0) !== (d.vencedor === 'jogador') || x.sim.metros !== d.metros || JSON.stringify(x.sim.tempos) !== JSON.stringify(ginTempos(d))) problems.push(`${label}: a corrida do duelo ${k + 1} difere da gravada ${JSON.stringify({ tela: x.sim, vencedor: d.vencedor, metros: d.metros })}`)
+      const acoes = x.botoes.map((b) => b.acao + ':' + b.txt).join(',')
+      if (acoes !== 'vel:x1,vel:x2,pular:Pular,ginasio-pular-tudo:Pular tudo') problems.push(`${label}: controles do duelo ${acoes}`)
+      if (x.botoes.some((b) => b.h < 44 || b.l < 0 || b.r > x.vw + 0.5 || Math.abs(b.t - x.botoes[0].t) > 2)) problems.push(`${label}: os controles do duelo não cabem numa linha de 44 px ${JSON.stringify(x.botoes)} (largura ${x.vw})`)
+      await checkRaceFits(pg, label + ' duelo ' + (k + 1))
+      await checkOverflow(pg, label + ' duelo ' + (k + 1))
+      return x
+    }
+    const ginEntreDom = (pg) => pg.evaluate(() => {
+      const q = (s) => document.querySelector(s), tx = (e) => (e ? e.textContent.replace(/\s+/g, ' ').trim() : null)
+      return { rotulo: tx(q('#tela .tela--entreduelos .rotulo')), titulo: tx(q('#t-cartao')), saiu: tx(q('#tela .gin-cartao-saiu')), folego: tx(q('#tela .gin-cartao-folego')),
+        vant: tx(q('#tela .gin-cartao-vant')), txt: tx(q('#tela')), foco: document.activeElement && document.activeElement.id,
+        botoes: [...document.querySelectorAll('#tela .tela button')].map((b) => ({ acao: b.getAttribute('data-acao'), txt: tx(b), h: b.getBoundingClientRect().height, bottom: b.getBoundingClientRect().bottom })),
+        sh: document.documentElement.scrollHeight, ih: window.innerHeight, k: window.__galope.ui.gym && window.__galope.ui.gym.ver && window.__galope.ui.gym.ver.k }
+    })
+    // o cartão depois do duelo k: os textos, o foco no título, o resultado na região viva, os dois botões e sem rolar
+    const ginConfereEntre = async (label, pg, esp, id, i, k) => {
+      await pg.waitForSelector('#t-cartao', { timeout: 6000 }).catch(() => problems.push(`${label}: o cartão depois do duelo ${k + 1} não abriu`))
+      const x = await ginEntreDom(pg), e = ginEntreEsp(esp, id, i, k)
+      for (const c of ['rotulo', 'titulo', 'saiu', 'folego', 'vant']) if (x[c] !== e[c]) problems.push(`${label}: cartão ${k + 1}, ${c} "${x[c]}" (esperado "${e[c]}")`)
+      if (x.foco !== 't-cartao') problems.push(`${label}: o foco não foi ao título do cartão (${x.foco})`)
+      if (/Vitória!|Derrota|Prêmio|de Ouro|Duelo \d+ de \d+|\d+ duelos/.test(x.txt)) problems.push(`${label}: o cartão ${k + 1} entrega o que vem depois: ${x.txt}`)
+      const acoes = x.botoes.map((b) => b.acao + ':' + b.txt).join(',')
+      if (acoes !== 'ginasio-proximo:Próximo duelo,ginasio-pular-tudo:Pular tudo' || x.botoes.some((b) => b.h < 44)) problems.push(`${label}: botões do cartão ${JSON.stringify(x.botoes)}`)
+      if (x.sh > x.ih || x.botoes.some((b) => b.bottom > x.ih)) problems.push(`${label}: o cartão ${k + 1} não cabe sem rolar (${x.sh} > ${x.ih})`)
+      await checkOverflow(pg, label + ' cartão ' + (k + 1))
+      await ginVivo(pg, e.titulo, label + ' cartão ' + (k + 1))
+      return x
+    }
+    // do preparo do Sargento ao 1º duelo (pago), com o esperado no node e o disco logo depois de pagar
+    const ginT6Paga = async (label, pg) => {
+      await ginOuroInf(pg, false)
+      await ginPreparo(pg, GIN_T6.id, GIN_T6.i)
+      for (const [k, u] of GIN_T6.uids.entries()) { await ginToca(pg, u); await ginEsperaTime(pg, GIN_T6.uids.slice(0, k + 1), label) }
+      const st0 = await ginEstado(pg), esp = ginEsperado(st0, GIN_T6.id, GIN_T6.i, GIN_T6.uids, await ginHoje(pg))
+      const D = esp.res.duelos
+      if (!esp.res.venceu || D.length !== 3 || D[0].vencedor !== 'jogador' || !(D[0].metros < 1) || D[0].vantagem !== 1 || D[1].vencedor !== 'adversario' || D[1].folegoA !== 0.75 ||
+        D[2].vencedor !== 'jogador' || D[2].folegoB === 1) problems.push(`${label}: o cenário mudou (seed 157): ${JSON.stringify(D.map((d) => [d.a, d.b, d.vencedor, d.metros, d.folegoA, d.folegoB, d.vantagem]))}`)
+      await pg.locator('#tela [data-acao="ginasio-desafiar"]').click()
+      await pg.waitForSelector('#t-corrida', { timeout: 6000 })
+      return { st0, esp, disco: await ginDisco(pg) }
+    }
+    // assistir não grava nem muda nada: o state é o esperado do acerto e o disco é o de logo depois de pagar (byte a byte)
+    const ginNadaGravado = async (label, pg, esp, disco) => {
+      if (!ginIgual(ginSemRev(await ginEstado(pg)), esp.depois)) problems.push(`${label}: o state mudou depois de pagar`)
+      if ((await ginDisco(pg)) !== disco) problems.push(`${label}: assistir aos duelos gravou o save`)
+    }
+
+    // 20. a sequência inteira (decisões 1–8, 12, 13, 17), a 360×780 e 360×640: o acerto já gravado ao pagar; duelo 1 →
+    //     "Pular" → cartão → "Próximo duelo" → duelo 2 (com o fôlego no cabeçalho) → cartão da derrota → duelo 3 (Brasa
+    //     contra Brasa: o dono na faixa de ordem) → "Pular" no último → o resumo; nada é gravado enquanto assiste
+    for (const vp of [{ width: 360, height: 780 }, { width: 360, height: 640 }]) {
+      const label = `ginasio-duelos-${vp.width}x${vp.height}`
+      const pg = await ginAbre(label, { save: ginT6Save(), vp })
+      try {
+        const { esp, disco } = await ginT6Paga(label, pg)
+        await ginNadaGravado(label, pg, esp, disco)
+        for (let k = 0; k < 3; k++) {
+          await ginConfereDuelo(label, pg, esp, GIN_T6.id, GIN_T6.i, k)
+          await pg.locator('#btn-pular').click()
+          if (k === 2) break
+          await ginConfereEntre(label, pg, esp, GIN_T6.id, GIN_T6.i, k)
+          await pg.locator('#tela [data-acao="ginasio-proximo"]').click()
+        }
+        await pg.waitForSelector('#t-resumo', { timeout: 6000 })
+        await ginConfereResumo(label, pg, esp, GIN_T6.id, GIN_T6.i)
+        await ginNadaGravado(label + ' resumo', pg, esp, disco)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 21. em paisagem (780×360): o duelo e o cartão cabem, sem rolar de lado, com os controles numa linha
+    {
+      const label = 'ginasio-duelos-780x360'
+      const pg = await ginAbre(label, { save: ginT6Save(), vp: { width: 780, height: 360 } })
+      try {
+        const { esp } = await ginT6Paga(label, pg)
+        await ginConfereDuelo(label, pg, esp, GIN_T6.id, GIN_T6.i, 0)
+        await pg.locator('#btn-pular').click()
+        await ginConfereEntre(label, pg, esp, GIN_T6.id, GIN_T6.i, 0)
+        await pg.locator('#tela [data-acao="ginasio-proximo"]').click()
+        await ginConfereDuelo(label, pg, esp, GIN_T6.id, GIN_T6.i, 1)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 22. "Pular tudo" no cartão e o "Voltar" do aparelho (Ruling 23): no duelo e no cartão vão ao resumo; no resumo, à trilha
+    for (const [label, onde, como] of [['ginasio-pular-tudo-cartao', 'cartao', 'toque'], ['ginasio-voltar-duelo', 'duelo', 'voltar'], ['ginasio-voltar-cartao', 'cartao', 'voltar']]) {
+      const pg = await ginAbre(label, { save: ginT6Save() })
+      try {
+        const { esp, disco } = await ginT6Paga(label, pg)
+        if (onde === 'cartao') {
+          await pg.locator('#btn-pular').click()
+          await pg.waitForSelector('#t-cartao', { timeout: 6000 })
+        }
+        if (como === 'toque') await pg.locator('#tela [data-acao="ginasio-pular-tudo"]').click()
+        else await pg.goBack()
+        await pg.waitForSelector('#t-resumo', { timeout: 6000 })
+        await ginConfereResumo(label, pg, esp, GIN_T6.id, GIN_T6.i)
+        if (await pg.locator('#t-corrida, #t-cartao').count()) problems.push(`${label}: o duelo ou o cartão continuaram depois do resumo`)
+        if (await pg.evaluate(() => !!(window.__galope.race || (window.__galope.ui.gym && window.__galope.ui.gym.ver)))) problems.push(`${label}: a corrida do duelo continuou viva no resumo`)
+        await ginNadaGravado(label, pg, esp, disco)
+        await pg.goBack()
+        await pg.waitForSelector('#t-ginasio', { timeout: 6000 })
+        ginConfereTrilha(label + ' trilha', await ginTrilha(pg), GIN_T6.id, GIN_T6.i + 1)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 23. recarregar no meio de um duelo ou de um cartão (decisão 18): o jogo abre no Estábulo e a trilha já tem a etapa
+    //     vencida, com o Ouro e o XP gravados
+    for (const [label, onde] of [['ginasio-recarrega-duelo', 'duelo'], ['ginasio-recarrega-cartao', 'cartao']]) {
+      const pg = await ginAbre(label, { save: ginT6Save() })
+      try {
+        const { esp } = await ginT6Paga(label, pg)
+        if (onde === 'cartao') {
+          await pg.locator('#btn-pular').click()
+          await pg.waitForSelector('#t-cartao', { timeout: 6000 })
+        }
+        await pg.reload({ waitUntil: 'domcontentloaded' })
+        await pg.waitForSelector('#t-estabulo')
+        if (!ginIgual(ginSemRev(await ginEstado(pg)), esp.depois)) problems.push(`${label}: depois de recarregar o save não é o do acerto`)
+        if (await pg.locator('#t-corrida, #t-cartao, #t-resumo').count()) problems.push(`${label}: recarregar voltou ao desafio`)
+        await ginAbreAba(pg)
+        ginConfereCartao(label, (await ginAba(pg)).cartoes.find((c) => c.id === GIN_T6.id), GIN_T6.id, GIN_T6.i + 1, false)
+        await ginAbreTrilha(pg, GIN_T6.id)
+        ginConfereTrilha(label, await ginTrilha(pg), GIN_T6.id, GIN_T6.i + 1)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 24. o que o cartão diz sai do ui.gym.res, não da corrida refeita (decisão 3): com o res mudado depois de pagar, o
+    //     cartão mostra o res
+    {
+      const label = 'ginasio-cartao-do-res'
+      const pg = await ginAbre(label, { save: ginT6Save() })
+      try {
+        const { esp } = await ginT6Paga(label, pg)
+        await pg.evaluate(() => { const D = window.__galope.ui.gym.res.duelos; D[0].metros = 3.2; D[0].faixa = { id: 'normal', name: 'Normal', perde: 0.15 }; D[1].folegoA = 0.6 })
+        const mud = JSON.parse(JSON.stringify(esp))
+        mud.res.duelos[0].metros = 3.2; mud.res.duelos[1].folegoA = 0.6
+        await pg.locator('#btn-pular').click()
+        const x = await ginConfereEntre(label, pg, mud, GIN_T6.id, GIN_T6.i, 0)
+        if (x.titulo !== 'Maré venceu por 3 m' || x.folego !== 'Vitória normal (3 m): Maré larga com 60% do fôlego') problems.push(`${label}: o cartão não seguiu o res ${JSON.stringify(x)}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 25. a sala aberta (decisão 5): state.pending, o ui.lobby e a corrida simulada da sala ficam idênticos depois de
+    //     assistir; a sala continua a mesma na aba Correr
+    {
+      const label = 'ginasio-duelo-sala'
+      const pg = await ginAbre(label, { save: ginT6Save({ raceCounter: 3, pending: ginPend }) })
+      try {
+        await ginOuroInf(pg, false)
+        const sala0 = await abrirSala(pg)
+        await pg.locator('#tela [data-acao="voltar"]').click()
+        await pg.waitForSelector('#t-correr')
+        const lob = () => pg.evaluate(() => JSON.stringify(window.__galope.ui.lobby))
+        const lobby0 = await lob(), pend0 = JSON.stringify((await ginEstado(pg)).pending), sim0 = await ginSimSala(pg)
+        if (lobby0 === 'null') problems.push(`${label}: o teste precisa da sala aberta em ui.lobby`)
+        await ginPreparo(pg, 'fogo', 2)
+        await ginToca(pg, 'm2')
+        await ginEsperaTime(pg, ['m2'], label)
+        const esp = ginEsperado(await ginEstado(pg), 'fogo', 2, ['m2'], await ginHoje(pg))
+        await pg.locator('#tela [data-acao="ginasio-desafiar"]').click()
+        // cada duelo do desafio (quantos o node diz) até o fim, com o cartão entre eles
+        for (let k = 0; k < esp.res.duelos.length; k++) {
+          await ginConfereDuelo(label, pg, esp, 'fogo', 2, k)
+          if ((await lob()) !== lobby0) problems.push(`${label}: o duelo ${k + 1} mudou o ui.lobby`)
+          await pg.locator('#btn-pular').click()
+          if (k === esp.res.duelos.length - 1) break
+          await ginConfereEntre(label, pg, esp, 'fogo', 2, k)
+          await pg.locator('#tela [data-acao="ginasio-proximo"]').click()
+        }
+        await pg.waitForSelector('#t-resumo', { timeout: 6000 })
+        const s1 = await ginEstado(pg), d1 = JSON.parse(await ginDisco(pg))
+        if ((await lob()) !== lobby0) problems.push(`${label}: assistir aos duelos mudou o ui.lobby`)
+        if (JSON.stringify(s1.pending) !== pend0 || JSON.stringify(d1.pending) !== pend0) problems.push(`${label}: assistir mudou state.pending`)
+        if ((await ginSimSala(pg)) !== sim0) problems.push(`${label}: assistir mudou a corrida simulada da sala`)
+        await pg.locator('#tela [data-acao="ginasio-resumo"][data-id="trilha"]').click()
+        await pg.waitForSelector('#t-ginasio')
+        const sala1 = await abrirSala(pg)
+        for (const c of ['seed', 'counter', 'fee', 'training', 'track', 'blocks', 'weather', 'rivais']) if (sala0[c] !== sala1[c]) problems.push(`${label}: a sala mudou (${c}: ${sala0[c]} -> ${sala1[c]})`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 26. outra aba grava durante um duelo e durante um cartão (decisão 11): como na corrida de hoje, a tela continua (o save
+    //     é adotado por baixo); o resumo é o do desafio gravado; a trilha, a do save adotado
+    {
+      const label = 'ginasio-duelo-outra-aba'
+      const pg = await ginAbre(label, { save: ginT6Save() })
+      try {
+        const { esp } = await ginT6Paga(label, pg)
+        await ginOutraAba(pg, 's.gold += 7')
+        await pg.waitForFunction((g) => window.__galope.state.gold === g, esp.depois.gold + 7, { timeout: 3000 }).catch(() => problems.push(`${label}: o save da outra aba não foi adotado`))
+        if (!(await pg.locator('#t-corrida').count()) || !(await pg.evaluate(() => !!window.__galope.race))) problems.push(`${label}: o duelo parou com o save da outra aba`)
+        await pg.locator('#btn-pular').click()
+        await pg.waitForSelector('#t-cartao', { timeout: 6000 })
+        await ginOutraAba(pg, 's.gold += 5')
+        await pg.waitForFunction((g) => window.__galope.state.gold === g, esp.depois.gold + 12, { timeout: 3000 }).catch(() => problems.push(`${label}: o 2º save da outra aba não foi adotado`))
+        await sleep(200)
+        if (!(await pg.locator('#t-cartao').count())) problems.push(`${label}: o cartão saiu com o save da outra aba`)
+        await pg.locator('#tela [data-acao="ginasio-pular-tudo"]').click()
+        await pg.waitForSelector('#t-resumo', { timeout: 6000 })
+        await ginConfereResumo(label, pg, esp, GIN_T6.id, GIN_T6.i)
+        await pg.goBack()
+        await pg.waitForSelector('#t-ginasio', { timeout: 6000 })
+        ginConfereTrilha(label + ' trilha', await ginTrilha(pg), GIN_T6.id, GIN_T6.i + 1)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 27. movimento reduzido (do aparelho) e efeitos reduzidos (opção do jogo), decisão 10: o duelo começa com a contagem
+    //     curta, como a corrida de hoje; o cartão fica parado; o anel de foco aparece no botão do cartão
+    for (const [label, extra, settings] of [['ginasio-duelo-reduzido', { reducedMotion: 'reduce' }, { motion: 'sistema' }], ['ginasio-duelo-efeitos', {}, { motion: 'reduzidas' }]]) {
+      const pg = await ginAbre(label, { save: ginT6Save({ settings }), ...extra })
+      try {
+        await ginT6Paga(label, pg)
+        // a contagem começa em 1,2 s com movimento reduzido (2,4 s sem): durante ela, count + tReal é o valor inicial
+        const c0 = await pg.evaluate(() => { const s = window.__galope.race._state; return s.phase === 'contagem' ? +(s.count + s.tReal).toFixed(3) : 'passou: ' + s.phase })
+        if (c0 !== 1.2) problems.push(`${label}: a contagem do duelo não é a curta do movimento reduzido (${c0})`)
+        await pg.locator('#btn-pular').click()
+        await pg.waitForSelector('#t-cartao', { timeout: 6000 })
+        const r = await pg.evaluate(() => {
+          const c = document.querySelector('#tela .tela'), els = c ? [c, ...c.querySelectorAll('*')] : []
+          return { n: els.length, anim: document.getAnimations().filter((a) => a.effect && a.effect.target && c && c.contains(a.effect.target)).length,
+            css: els.filter((e) => { const cs = getComputedStyle(e); return cs.animationName !== 'none' || cs.transitionDuration.split(',').some((t) => parseFloat(t) > 0) }).map((e) => e.className) }
+        })
+        if (!r.n || r.anim || r.css.length) problems.push(`[${label}] o cartão se move ${JSON.stringify(r)}`)
+        await pg.keyboard.press('Tab')
+        const foco = await pg.evaluate(() => { const a = document.activeElement, cs = getComputedStyle(a); return { acao: a.getAttribute('data-acao'), s: cs.outlineStyle, w: cs.outlineWidth } })
+        if (foco.acao !== 'ginasio-proximo' || foco.s === 'none' || parseFloat(foco.w) < 2) problems.push(`[${label}] o foco do teclado no "Próximo duelo" não aparece ${JSON.stringify(foco)}`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+
+    // 28. cores forçadas: os botões do duelo e do cartão com borda de 2 px em cor do sistema
+    {
+      const label = 'ginasio-duelo-forcado'
+      const pg = await ginAbre(label, { save: ginT6Save(), forcedColors: 'active' })
+      try {
+        await ginT6Paga(label, pg)
+        const borda = (sel) => pg.evaluate((s) => {
+          const sonda = (c) => { const d = document.createElement('i'); d.style.border = '2px solid ' + c; document.body.appendChild(d); const v = getComputedStyle(d).borderTopColor; d.remove(); return v }
+          return { sis: ['CanvasText', 'ButtonText', 'GrayText', 'Highlight'].map(sonda),
+            els: [...document.querySelectorAll(s)].map((e) => { const cs = getComputedStyle(e); return { w: cs.borderTopWidth, s: cs.borderTopStyle, c: cs.borderTopColor } }) }
+        }, sel)
+        let f = await borda('#tela .controles button')
+        if (f.els.length !== 4 || f.els.some((e) => e.w !== '2px' || e.s !== 'solid' || !f.sis.includes(e.c))) problems.push(`[${label}] controles do duelo sem borda de 2 px em cor do sistema ${JSON.stringify(f.els)}`)
+        await pg.locator('#btn-pular').click()
+        await pg.waitForSelector('#t-cartao', { timeout: 6000 })
+        f = await borda('#tela .tela button')
+        if (f.els.length !== 2 || f.els.some((e) => e.w !== '2px' || e.s !== 'solid' || !f.sis.includes(e.c))) problems.push(`[${label}] botões do cartão sem borda de 2 px em cor do sistema ${JSON.stringify(f.els)}`)
+        await checkOverflow(pg, label)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+  }
+
+  // ---------------- Tarefa 6: os duelos assistidos em tempo real (bloco em série: mede o relógio) ----------------
+  // O 1º duelo do cenário GIN_T6 em x2 e o 2º em x1, sem tocar: cada um acaba sozinho e vai ao cartão; a faixa do lugar no
+  // fim é a do vencedor gravado; o cavalo do jogador fica sempre na tela; o 3º, em x2, acaba sozinho e vai ao resumo. Os
+  // tempos (segundos reais) ficam nas notas.
+  if (quer('ginasio-corrida')) {
+    const label = 'ginasio-corrida'
+    const raw = JSON.stringify(ginT6Save())
+    const pg = await newPage(browser, { width: 360, height: 780 }, label, { pagina: 'jogo-dev.html',
+      init: { content: `try { if (!sessionStorage.getItem('ja')) { sessionStorage.setItem('ja', '1'); localStorage.setItem(${JSON.stringify(GIN_DEV)}, ${JSON.stringify(raw)}) } } catch (e) {}` } })
+    try {
+      await pg.waitForSelector('#t-estabulo')
+      await devAbrir(pg); await pg.setChecked('#dev-ouroinf', false); await devFechar(pg)
+      await pg.locator('[data-acao="aba"][data-id="expedicao"]').click()
+      await pg.locator(`[data-acao="ginasio-abrir"][data-id="${GIN_T6.id}"]`).click()
+      await pg.locator(`[data-acao="ginasio-etapa"][data-id="${GIN_T6.i}"]`).click()
+      for (const u of GIN_T6.uids) await pg.locator(`#tela [data-acao="ginasio-time"][data-id="${u}"]`).click()
+      await pg.waitForFunction((u) => JSON.stringify(window.__galope.ui.gym.time) === JSON.stringify(u), GIN_T6.uids, { timeout: 3000 })
+      const st0 = await pg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+      const res = GN.resolver({ gymId: GIN_T6.id, etapa: GIN_T6.i, time: GIN_T6.uids.map((u) => st0.mounts.find((m) => m.uid === u)), seedBase: st0.seedBase, contador: st0.gymCounter })
+      if (res.duelos.length !== 3) problems.push(`${label}: o cenário mudou (${res.duelos.length} duelos)`)
+      await pg.locator('#tela [data-acao="ginasio-desafiar"]').click()
+      const tempos = {}
+      for (const [k, vel] of [[0, 2], [1, 1], [2, 2]]) {
+        await pg.waitForFunction((kk) => { const v = window.__galope.ui.gym && window.__galope.ui.gym.ver; return !!v && v.k === kk && !!window.__galope.race }, k, { timeout: 8000 })
+        if (vel === 2) await pg.getByRole('button', { name: 'x2' }).click()
+        await startCamMonitor(pg)
+        // a faixa do lugar quando o jogador cruza a linha (FX._stats.faixaLugar), anotada quadro a quadro
+        await pg.evaluate(() => {
+          const w = window.__fimDuelo = { faixa: null, t0: performance.now(), antes: 0 }
+          const tick = () => { const r = window.__galope.race; if (!r) return; const s = r._state; if (s.crossed && !w.faixa && window.RaceFx._stats.faixaLugar) w.faixa = window.RaceFx._stats.faixaLugar; if (!s.crossed && window.RaceFx._stats.faixaLugar) w.antes++; requestAnimationFrame(tick) }
+          requestAnimationFrame(tick)
+        })
+        const fim = k < 2 ? '#t-cartao' : '#t-resumo'
+        await pg.waitForSelector(fim, { timeout: 90000 })
+        const w = await pg.evaluate(() => Object.assign({}, window.__fimDuelo, { s: (performance.now() - window.__fimDuelo.t0) / 1000, cc: window.__cc }))
+        tempos['duelo' + (k + 1) + '-x' + vel] = +w.s.toFixed(1)
+        const esperado = res.duelos[k].vencedor === 'jogador' ? 'VITÓRIA!' : '2º LUGAR'
+        if (w.faixa !== esperado || w.antes) problems.push(`${label}: duelo ${k + 1}: a faixa do lugar foi ${JSON.stringify(w.faixa)} (esperado ${esperado}; ${w.antes} quadros antes de cruzar)`)
+        if (!w.cc || w.cc.frames < 50 || w.cc.partial || w.cc.off) problems.push(`${label}: duelo ${k + 1}: o cavalo do jogador saiu da tela ${JSON.stringify(w.cc)}`)
+        if (k < 2) await pg.locator('#tela [data-acao="ginasio-proximo"]').click()
+      }
+      notes[label] = tempos
+      // x2 leva bem menos tempo real que x1 (mesma pista, mesma reprodução comprimida)
+      if (!(tempos['duelo1-x2'] < tempos['duelo2-x1'] * 0.8)) problems.push(`${label}: o duelo em x2 não foi mais curto que em x1 ${JSON.stringify(tempos)}`)
+      const s1 = await pg.evaluate(() => window.__galope.ui.gym.res.venceu)
+      if (s1 !== res.venceu) problems.push(`${label}: o resumo não é o do desafio`)
+    } catch (e) {
+      problems.push(`[${label}] ` + e.message)
+    } finally {
+      await pg.context().close()
     }
   }
 

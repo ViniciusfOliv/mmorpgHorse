@@ -844,6 +844,19 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .gin-xp > li { min-width: 0; overflow-wrap: anywhere; }
 .gin-ganhos > p { margin: 0; }
 .gin-liberada { margin: 0; padding: 8px 10px; background: var(--painel-3); box-shadow: inset 4px 0 0 0 var(--ouro); }
+/* Tarefa 6: o cartão entre duelos (curto: cabe sem rolar a 360×640 e em paisagem; nada anima) */
+.gin-cartao { display: flex; flex-direction: column; gap: 8px; }
+.gin-cartao p { margin: 0; line-height: 1.35; }
+.gin-cartao-vant { color: var(--texto-2); }
+/* em paisagem (tela baixa): o texto à esquerda e os dois botões, um sobre o outro, à direita */
+@media (max-height: 500px) {
+  .tela--entreduelos { max-width: 760px; display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 8px 12px; align-items: start; }
+  .tela--entreduelos > .tela-cabeca, .tela--entreduelos > .gin-cartao { grid-column: 1; }
+  .tela--entreduelos > .acoes { grid-column: 2; grid-row: 1 / span 2; grid-template-columns: minmax(0, 1fr); }
+  .gin-cartao { gap: 4px; }
+  /* build de teste: o botão DEV fixo fica no canto de baixo, longe dos botões (em cima, à direita): sem a folga dele */
+  
+}
 /* cartão da montaria: só o do potro no resultado do Haras (o Estábulo é a lista de linhas, abaixo) */
 .montaria { background: var(--painel-2); padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .montaria .retrato, .montaria .retrato-moldura { align-self: center; }
@@ -1122,6 +1135,8 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .controles .vel { display: flex; gap: 8px; }
 .controles .vel .btn { min-width: 58px; font-family: var(--fonte-display); font-size: 16px; }
 .controles .pular { margin-left: auto; }
+/* duelo de ginásio: a vantagem de elemento e o fôlego, numa linha abaixo do topo (quebra no celular em pé) */
+.corrida-duelo { margin: 0; font-size: var(--t-s); line-height: 1.3; color: var(--texto); }
 @media (min-width: 860px) {
   .corrida-baixo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; }
   .corrida-baixo .ordem { grid-column: 1 / -1; }   /* a faixa de ordem na largura da pista, acima da narração */
@@ -1132,6 +1147,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
   .tela--corrida { gap: 6px; }
   .corrida-topo { min-height: 40px; }
   .corrida-titulo .rotulo { display: none; }
+  .corrida-duelo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .feed { display: none; }
   .saldo--pote { flex-direction: row; align-items: center; padding: 4px 14px; }
   /* a faixa de ordem (uma linha de 28px) vai para a linha dos controles: não soma altura à tela */
