@@ -11980,7 +11980,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     if (visObs) visObs.disconnect();
     live = [];
     portraitQueue = [];
-    cenaQueue = [];
+    cenaQueue = []; cenaItems = [];
     var html;
     if (saveBloqueado) ui.screen = 'bloqueio';
     switch (ui.screen) {
@@ -12848,6 +12848,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     grama: { parede: '#33240f', junta: '#46321a', piso: '#3d6b2a', risco: '#4c7d33', borda: '#1e3612', palco: '#7a5a2e', palco2: '#4a3418', luz: '#8ee06a', luz2: '#e8f8a0', suporte: '#5a4a32', cipo: '#3f8a3a' }
   };
   var cenaQueue = [];   // as cenas da tela atual (como o portraitQueue): { gymId, dono, a, b }
+  var cenaItems = [];   // os desenhos dessas cenas (para redesenhar só o canvas quando a arte do oponente chega)
   var treinadorImgs = {};
   // o id da arte do oponente: o nome do catálogo sem acento, em minúsculas e com hífen ("Capitã Labareda" → capita-labareda)
   function ginTreinadorId(nome) {
@@ -12855,15 +12856,15 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     if (s.normalize) s = s.normalize('NFD').replace(/[̀-ͯ]/g, '');
     return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   }
-  // a imagem do oponente, carregada uma vez; ao chegar, a tela de desafio é desenhada de novo. null enquanto não chega
-  // (ou sem arte para ele)
+  // a imagem do oponente, carregada uma vez; ao chegar, só as cenas na tela são desenhadas de novo (redesenhar a tela
+  // inteira tiraria o foco do título). null enquanto não chega (ou sem arte para ele)
   function treinadorImg(id) {
     var m = window.__TREINADORES;
     if (!m || !hasOwn(m, id)) return null;
     var im = treinadorImgs[id];
     if (!im) {
       im = treinadorImgs[id] = new Image();
-      im.onload = function () { if (ui.screen === 'desafio') redesenhoPassivo(); };
+      im.onload = function () { cenaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
       im.src = m[id];
     }
     return im.complete && im.naturalWidth ? im : null;
@@ -12929,6 +12930,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       draw: function (t) {
         if (item.drawn && reduced()) return;
         item.drawn = true;
+        item.t = t;
         var tt = reduced() ? 0.5 : t;
         ctx.clearRect(0, 0, cv.width, cv.height);
         fundo();
@@ -12940,6 +12942,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     };
     item.draw(0);
     vivo(item, cv);
+    cenaItems.push(item);
   }
   // a tela de desafio do duelo k (go() só chega aqui com o desafio pago e o duelo k gravado)
   function renderDesafio() {
