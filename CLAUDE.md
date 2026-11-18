@@ -11,7 +11,7 @@ para `docs/` e aqui fica só o caminho, entre crases (sem `@`, para não carrega
   (compradas; cosméticos e passe). Pacote de montaria só com moeda ganha jogando.
 - **Tecnologia:** base web (HTML/CSS/JS puro, sem dependências), em `prototype/`. Decidido em
   2026-11-10: o protótipo **vira o jogo**, empacotado para Android, e os módulos de regra (`sim.js`,
-  `data.js`, `breed.js`, `gear.js`, `itens.js`) vão para o servidor. Empacotador e servidor ainda a definir.
+  `data.js`, `breed.js`, `gear.js`, `itens.js`, `ginasio.js`) vão para o servidor. Empacotador e servidor ainda a definir.
 - **Fonte da verdade:** `docs/GDD.md`. Números reais do protótipo: `docs/wiki.md` e
   `prototype/dist/wiki.html` (gerados do código pelo build; não editar). Medições de balanceamento:
   `docs/exemplos.md`. Fórmulas da simulação: comentário no topo de `prototype/src/sim.js`.
@@ -41,13 +41,13 @@ lançamento: `docs/cronograma.md`.
 | Testes dos moldes de cavalo (PNGs e âncoras gerados) | `node prototype/tools/moldes-test.mjs` | <1 s |
 | Wiki: regerar (`--check` só confere) / testar (determinismo, cobertura, navegador) | `node prototype/tools/wiki.mjs` / `node prototype/tools/wiki-test.mjs` | <1 s / 2 s |
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~45 s |
-| Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~4,5 min |
-| Teste de interface em paralelo (o que o `check.sh` usa; não grava capturas) | `node prototype/tools/ui-test-paralelo.mjs` | ~7 min |
-| Teste de interface num processo só + capturas em `prototype/screens/` (`UI_SO=bloco` roda só um; `--blocos` lista) | `node prototype/tools/ui-test.mjs` | ~15 min |
-| **Verificação completa** (8 etapas: build, simulação, efeitos, dist, moldes, wiki, balanço, UI; não toca nas capturas) | `./scripts/check.sh` | ~8 min |
+| Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~5 min |
+| Teste de interface em paralelo (o que o `check.sh` usa; não grava capturas) | `node prototype/tools/ui-test-paralelo.mjs` | ~9 min |
+| Teste de interface num processo só + capturas em `prototype/screens/` (`UI_SO=bloco` roda só um; `--blocos` lista) | `node prototype/tools/ui-test.mjs` | ~20 min |
+| **Verificação completa** (8 etapas: build, simulação, efeitos, dist, moldes, wiki, balanço, UI; não toca nas capturas) | `./scripts/check.sh` | ~10 min |
 
-Mudou número de regra (status, skill, pista, peça, Poder)? Rode também o `balance.js` completo: as metas
-M6, M9, P1, S1 e A1 só contam nele (no `--quick`, que o `check.sh` usa, são só informação).
+Mudou número de regra (status, skill, pista, peça, Poder, ginásio)? Rode também o `balance.js` completo: as metas
+M6, M9, P1, S1, A1 e as dos ginásios G1, G2, G3, G5 e G7 só contam nele (no `--quick`, que o `check.sh` usa, são só informação).
 
 Abrir o jogo localmente: `prototype/dist/preview.html` no navegador. O `prototype/dist/jogo.html` é o
 build de produção: sai sem modo DEV e sem gancho de teste (o build falha se sobrar algum).
@@ -98,6 +98,9 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
 - Melhoria de peça e Pedra Negra do pódio só pela RNG da seed (`prototype/src/gear.js`); Lendário nunca à venda.
 - Cupom de troca de skill e Manual de doma só sorteiam pela RNG da seed, e só depois de confirmar
   (`prototype/src/itens.js`); a loja de itens só aceita Ouro e a Rédea nova nunca é vendida.
+- Desafio de ginásio só é sorteado depois de a entrada (Ouro) ser paga, pela RNG da seed, e é gravado inteiro numa
+  gravação só (`prototype/src/ginasio.js`); a tela só anima o que foi gravado. Revanche do líder: uma por dia em cada
+  ginásio. Bônus de insígnia é da conta e nunca entra na simulação da corrida.
 - Item comprado com Gema nunca tem resultado sorteado, e Gema nunca acelera o que paga Ouro. O Ouro
   nunca é vendido por Gemas. Todo sorteio novo (troca de skill, genética do potro, circuito) sai da seed.
 
