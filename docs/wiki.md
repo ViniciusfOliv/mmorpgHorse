@@ -41,10 +41,10 @@
 
 - **Estábulo:** o cartão da recompensa do dia, no topo; suas montarias (3 vagas no começo, até 8), status, skills e a redistribuição dos pontos; escolher a ativa.
 - **Correr:** escolher a entrada (50, 100 ou 250 de Ouro) e procurar corrida; sem Ouro para a menor entrada, treino gratuito.
-- **Expedição:** os 3 ginásios (Ginásio da Fornalha, Ginásio do Remanso e Ginásio da Capoeira), cada um com quantas etapas já venceu ("N de 5 vencidos"), a insígnia conquistada e "Revanche hoje" quando a revanche do líder está livre (o ponto na aba avisa) ou "Revanche amanhã" depois de tentada a de hoje. Tocar no ginásio abre a trilha: as 5 etapas de baixo para cima (Soldado 1, Soldado 2, Soldado 3, Soldado 4 e o Líder), cada uma vencida, próxima (a única que se toca) ou fechada ("Vença a etapa anterior"), e o ponto fraco escrito ("Ponto fraco: Água vence Fogo"); ao abrir, a trilha rola o mínimo para a etapa que se pode tocar aparecer inteira. **Preparo:** a etapa próxima mostra os cavalos do adversário (nível, estrelas, elemento e Poder), a pista da casa, a entrada e o prêmio da 1ª vitória; em "Seu time" você toca nos seus cavalos na ordem em que vão correr, até o tamanho do time do adversário (tocar de novo tira). Cada linha diz "Vantagem" ou "Desvantagem" contra o elemento do ginásio; com uma sala de corrida aberta (valendo ou treino), o cavalo ativo fica de fora, com o motivo escrito. **Pagar:** "Desafiar (N de Ouro)" cobra a entrada e só então o desafio é simulado; sem time, sem Ouro (o reservado para a sala aberta não conta) ou com a mochila cheia do item do prêmio, o botão fica apagado com o motivo. **Duelos:** cada duelo passa na tela de corrida, com 2 raias: a placa diz "Duelo N" (nunca quantos serão), e uma linha diz a vantagem de elemento e o fôlego de quem larga cansado; "Pular" termina o duelo (depois da chegada ele diz "Continuar") e "Pular tudo" vai direto ao resumo. Entre um duelo e outro, um cartão diz como foi o seu cavalo e por quantos metros, quem saiu e quem entra, a faixa do cansaço com o fôlego de quem ficou ("Vitória apertada (menos de 1 m): … larga com 75% do fôlego") e a vantagem do próximo duelo, com "Próximo duelo" e "Pular tudo". Os metros são truncados para baixo (7,6 m aparece como 7 m); abaixo de 1 m, "menos de 1 m". **Resumo:** cada duelo com "Você venceu" ou "Você perdeu", os metros e o fôlego de quem seguiu; a entrada, o prêmio e os itens; o XP de cada cavalo (os níveis e as skills que aprendeu, ou "não correu"); a insígnia e a etapa liberada. Perdendo, "Tentar de novo" volta ao preparo com o mesmo time; sempre há "Voltar à trilha". **Revanche:** depois da insígnia, a etapa do líder vira a revanche, uma vez por dia: "Revanche hoje", com a entrada de 50 de Ouro e o prêmio de hoje do rodízio; tentada a de hoje, a etapa diz "Feita hoje" e "Revanche de hoje feita. Volte amanhã.", e a revanche perdida não tem "Tentar de novo". Embaixo, a vitrine de 6 cavalos selvagens (a captura ainda não existe no protótipo).
+- **Expedição:** os 3 ginásios, na ordem da sequência (Ginásio da Capoeira, Ginásio do Remanso e Ginásio da Fornalha), cada um com quantas etapas já venceu ("N de 5 vencidos"), a insígnia conquistada e "Revanche hoje" quando a revanche do líder está livre (o ponto na aba avisa) ou "Revanche amanhã" depois de tentada a de hoje. Ginásio ainda fechado na sequência fica apagado, com o motivo escrito ("Vença o líder do Ginásio da Capoeira", no Ginásio do Remanso), e tocar nele não abre nada. Tocar no ginásio abre a trilha: as 5 etapas de baixo para cima (Soldado 1, Soldado 2, Soldado 3, Soldado 4 e o Líder), cada uma vencida, próxima (a única que se toca) ou fechada ("Vença a etapa anterior"), e o ponto fraco escrito ("Ponto fraco: Fogo vence Grama"); ao abrir, a trilha rola o mínimo para a etapa que se pode tocar aparecer inteira. **Preparo:** a etapa próxima mostra os cavalos do adversário (nível, estrelas, elemento e Poder), a pista da casa, a entrada e o prêmio da 1ª vitória; em "Seu time" você toca nos seus cavalos na ordem em que vão correr, até o tamanho do time do adversário (tocar de novo tira). Cada linha diz "Vantagem" ou "Desvantagem" contra o elemento do ginásio; com uma sala de corrida aberta (valendo ou treino), o cavalo ativo fica de fora, com o motivo escrito. **Pagar:** "Desafiar (N de Ouro)" cobra a entrada e só então o desafio é simulado; sem time, sem Ouro (o reservado para a sala aberta não conta) ou com a mochila cheia do item do prêmio, o botão fica apagado com o motivo. **Duelos:** cada duelo passa na tela de corrida, com 2 raias: a placa diz "Duelo N" (nunca quantos serão), e uma linha diz a vantagem de elemento e o fôlego de quem larga cansado; "Pular" termina o duelo (depois da chegada ele diz "Continuar") e "Pular tudo" vai direto ao resumo. Entre um duelo e outro, um cartão diz como foi o seu cavalo e por quantos metros, quem saiu e quem entra, a faixa do cansaço com o fôlego de quem ficou ("Vitória apertada (menos de 1 m): … larga com 75% do fôlego") e a vantagem do próximo duelo, com "Próximo duelo" e "Pular tudo". Os metros são truncados para baixo (7,6 m aparece como 7 m); abaixo de 1 m, "menos de 1 m". **Resumo:** cada duelo com "Você venceu" ou "Você perdeu", os metros e o fôlego de quem seguiu; a entrada, o prêmio e os itens; o XP de cada cavalo (os níveis e as skills que aprendeu, ou "não correu"); a insígnia e a etapa liberada. Perdendo, "Tentar de novo" volta ao preparo com o mesmo time; sempre há "Voltar à trilha". **Revanche:** depois da insígnia, a etapa do líder vira a revanche, uma vez por dia: "Revanche hoje", com a entrada de 50 de Ouro e o prêmio de hoje do rodízio; tentada a de hoje, a etapa diz "Feita hoje" e "Revanche de hoje feita. Volte amanhã.", e a revanche perdida não tem "Tentar de novo". Embaixo, a vitrine de 6 cavalos selvagens (a captura ainda não existe no protótipo).
 - **Haras:** cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.
 - **Loja:** em **Comprar**, os itens de uso (Torrão de açúcar, Manual de doma, Cupom de troca de skill e Estrela de treino) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os 5 itens, quantos você tem de cada e o botão Usar.
-- **Perfil (o botão do cabeçalho):** as estatísticas (corridas, vitórias, pódios e prêmios), o Ouro e quantas montarias você tem; as insígnias dos ginásios ("Insígnias (N de 3)", as 3 na ordem Insígnia da Fornalha, Insígnia do Remanso e Insígnia da Capoeira: a conquistada com o ícone, o nome e o bônus; a que falta apagada, com "Vença o líder do …"); o seu jóquei (seda e capacete); as animações; e "Recomeçar com outro inicial".
+- **Perfil (o botão do cabeçalho):** as estatísticas (corridas, vitórias, pódios e prêmios), o Ouro e quantas montarias você tem; as insígnias dos ginásios ("Insígnias (N de 3)", as 3 na ordem Insígnia da Capoeira, Insígnia do Remanso e Insígnia da Fornalha: a conquistada com o ícone, o nome e o bônus; a que falta apagada, com "Vença o líder do …"); o seu jóquei (seda e capacete); as animações; e "Recomeçar com outro inicial".
 
 > Ainda não existem no protótipo: Gemas, passe, ovos, contas, servidor, as expedições fora os ginásios e a captura. A única moeda é o Ouro; as Pedras Negras são material de melhoria.
 
@@ -1211,49 +1211,49 @@ O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver ch
 
 ## Ginásios da Expedição
 
-São 3 ginásios, um por elemento, cada um com 4 soldados e o líder, sempre com cavalos do elemento do ginásio. As etapas abrem em ordem; etapa vencida fica marcada e não se repete. Os cavalos dos soldados são fixos (a montaria-base do catálogo no level e nas estrelas da etapa, com a build dos bots e as skills dela). A aba Expedição mostra os ginásios, a trilha de cada um, o preparo, os duelos e o resumo (ver Visão geral, Abas).
+São 3 ginásios, um por elemento, cada um com 4 soldados e o líder, sempre com cavalos do elemento do ginásio. **Em sequência:** 1º Ginásio da Capoeira, 2º Ginásio do Remanso e 3º Ginásio da Fornalha; o 1º está aberto desde o começo e cada um dos outros abre quando o líder do anterior é vencido (a insígnia). Cada ginásio é mais forte (o nível dos cavalos), mais caro e paga mais que o anterior. Um ginásio que já tinha alguma etapa vencida num save de antes da sequência continua aberto. As etapas abrem em ordem; etapa vencida fica marcada e não se repete. Os cavalos dos soldados são fixos (a montaria-base do catálogo no level e nas estrelas da etapa, com a build dos bots e as skills dela). A aba Expedição mostra os ginásios, a trilha de cada um, o preparo, os duelos e o resumo (ver Visão geral, Abas).
 
-| Ginásio | Elemento | Líder | Ponto fraco | Pista da casa | Insígnia |
-| --- | --- | --- | --- | --- | --- |
-| **Ginásio da Fornalha** | Fogo | Capitã Labareda | Água | 1.200 m, terra: subida 650 m, curva 350 m, subida 200 m | ![](../prototype/assets/icons/ins-fogo.png) Insígnia da Fornalha: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo) |
-| **Ginásio do Remanso** | Água | Mestre Aguaceiro | Grama | 1.200 m, areia: curva 100 m, subida 250 m, reta 250 m, curva 200 m, subida 400 m | ![](../prototype/assets/icons/ins-agua.png) Insígnia do Remanso: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado) |
-| **Ginásio da Capoeira** | Grama | Dona Capineira | Fogo | 1.200 m, grama: subida 800 m, reta 50 m, curva 350 m | ![](../prototype/assets/icons/ins-grama.png) Insígnia da Capoeira: +3 pontos na chance de aprender skill ao subir de level (8% → 11%) |
-
-### Trilha do Ginásio da Fornalha
-
-| Etapa | Adversário | Cavalos (na ordem) | Entrada | Prêmio da 1ª vitória |
-| ---: | --- | --- | --- | --- |
-| Soldado 1 | Recruta Fagulha | Brasa (Nv 4, ★★, Comum) | 20 | 80 de Ouro |
-| Soldado 2 | Cabo Tocha | Brasa (Nv 8, ★★, Comum) | 30 | 120 de Ouro, 1 Torrão de açúcar |
-| Soldado 3 | Sargento Candeeiro | Brasa (Nv 12, ★★, Comum) · Brasa (Nv 12, ★★, Comum) | 40 | 160 de Ouro |
-| Soldado 4 | Tenente Coivara | Brasa (Nv 16, ★★, Comum) · Brasa (Nv 16, ★★, Comum) | 50 | 200 de Ouro, 1 Manual de doma |
-| Líder | Capitã Labareda | Brasa (Nv 20, ★★, Comum) · Brasa (Nv 20, ★★, Comum) · Brasa (Nv 20, ★★, Comum) | 100 | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill e a Insígnia da Fornalha |
-
-### Trilha do Ginásio do Remanso
-
-| Etapa | Adversário | Cavalos (na ordem) | Entrada | Prêmio da 1ª vitória |
-| ---: | --- | --- | --- | --- |
-| Soldado 1 | Recruta Orvalho | Maré (Nv 4, ★★, Comum) | 20 | 80 de Ouro |
-| Soldado 2 | Cabo Goteira | Maré (Nv 8, ★★, Comum) | 30 | 120 de Ouro, 1 Torrão de açúcar |
-| Soldado 3 | Sargento Correnteza | Maré (Nv 12, ★★, Comum) · Maré (Nv 12, ★★, Comum) | 40 | 160 de Ouro |
-| Soldado 4 | Tenente Cacimba | Maré (Nv 16, ★★, Comum) · Maré (Nv 16, ★★, Comum) | 50 | 200 de Ouro, 1 Manual de doma |
-| Líder | Mestre Aguaceiro | Maré (Nv 20, ★★, Comum) · Maré (Nv 20, ★★, Comum) · Maré (Nv 20, ★★, Comum) | 100 | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill e a Insígnia do Remanso |
+| Ordem | Ginásio | Abre | Elemento | Líder | Níveis | Ponto fraco | Pista da casa | Insígnia |
+| ---: | --- | --- | --- | --- | ---: | --- | --- | --- |
+| 1º | **Ginásio da Capoeira** | desde o começo | Grama | Dona Capineira | 2 a 10 | Fogo | 1.200 m, grama: subida 800 m, reta 50 m, curva 350 m | ![](../prototype/assets/icons/ins-grama.png) Insígnia da Capoeira: +3 pontos na chance de aprender skill ao subir de level (8% → 11%) |
+| 2º | **Ginásio do Remanso** | com a Insígnia da Capoeira | Água | Mestre Aguaceiro | 11 a 20 | Grama | 1.200 m, areia: curva 100 m, subida 250 m, reta 250 m, curva 200 m, subida 400 m | ![](../prototype/assets/icons/ins-agua.png) Insígnia do Remanso: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado) |
+| 3º | **Ginásio da Fornalha** | com a Insígnia do Remanso | Fogo | Capitã Labareda | 21 a 30 | Água | 1.200 m, terra: subida 650 m, curva 350 m, subida 200 m | ![](../prototype/assets/icons/ins-fogo.png) Insígnia da Fornalha: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo) |
 
 ### Trilha do Ginásio da Capoeira
 
 | Etapa | Adversário | Cavalos (na ordem) | Entrada | Prêmio da 1ª vitória |
 | ---: | --- | --- | --- | --- |
-| Soldado 1 | Recruta Broto | Ipê (Nv 4, ★★, Comum) | 20 | 80 de Ouro |
-| Soldado 2 | Cabo Carrapicho | Ipê (Nv 8, ★★, Comum) | 30 | 120 de Ouro, 1 Torrão de açúcar |
-| Soldado 3 | Sargento Juazeiro | Ipê (Nv 12, ★★, Comum) · Ipê (Nv 12, ★★, Comum) | 40 | 160 de Ouro |
-| Soldado 4 | Tenente Aroeira | Ipê (Nv 16, ★★, Comum) · Ipê (Nv 16, ★★, Comum) | 50 | 200 de Ouro, 1 Manual de doma |
-| Líder | Dona Capineira | Ipê (Nv 20, ★★, Comum) · Ipê (Nv 20, ★★, Comum) · Ipê (Nv 20, ★★, Comum) | 100 | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill e a Insígnia da Capoeira |
+| Soldado 1 | Recruta Broto | Ipê (Nv 2, ★★, Comum) | 10 | 50 de Ouro |
+| Soldado 2 | Cabo Carrapicho | Ipê (Nv 4, ★★, Comum) | 15 | 75 de Ouro, 1 Torrão de açúcar |
+| Soldado 3 | Sargento Juazeiro | Ipê (Nv 6, ★★, Comum) · Ipê (Nv 6, ★★, Comum) | 20 | 100 de Ouro |
+| Soldado 4 | Tenente Aroeira | Ipê (Nv 8, ★★, Comum) · Ipê (Nv 8, ★★, Comum) | 25 | 125 de Ouro, 1 Manual de doma |
+| Líder | Dona Capineira | Ipê (Nv 10, ★★, Comum) · Ipê (Nv 10, ★★, Comum) · Ipê (Nv 10, ★★, Comum) | 50 | 250 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill e a Insígnia da Capoeira |
+
+### Trilha do Ginásio do Remanso
+
+| Etapa | Adversário | Cavalos (na ordem) | Entrada | Prêmio da 1ª vitória |
+| ---: | --- | --- | --- | --- |
+| Soldado 1 | Recruta Orvalho | Maré (Nv 11, ★★, Comum) | 20 | 80 de Ouro |
+| Soldado 2 | Cabo Goteira | Maré (Nv 13, ★★, Comum) | 30 | 120 de Ouro, 1 Torrão de açúcar |
+| Soldado 3 | Sargento Correnteza | Maré (Nv 15, ★★, Comum) · Maré (Nv 15, ★★, Comum) | 40 | 160 de Ouro |
+| Soldado 4 | Tenente Cacimba | Maré (Nv 17, ★★, Comum) · Maré (Nv 17, ★★, Comum) | 50 | 200 de Ouro, 1 Manual de doma |
+| Líder | Mestre Aguaceiro | Maré (Nv 20, ★★, Comum) · Maré (Nv 20, ★★, Comum) · Maré (Nv 20, ★★, Comum) | 100 | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill e a Insígnia do Remanso |
+
+### Trilha do Ginásio da Fornalha
+
+| Etapa | Adversário | Cavalos (na ordem) | Entrada | Prêmio da 1ª vitória |
+| ---: | --- | --- | --- | --- |
+| Soldado 1 | Recruta Fagulha | Brasa (Nv 21, ★★, Comum) | 30 | 120 de Ouro |
+| Soldado 2 | Cabo Tocha | Brasa (Nv 23, ★★, Comum) | 45 | 180 de Ouro, 1 Torrão de açúcar |
+| Soldado 3 | Sargento Candeeiro | Brasa (Nv 25, ★★, Comum) · Brasa (Nv 25, ★★, Comum) | 60 | 240 de Ouro |
+| Soldado 4 | Tenente Coivara | Brasa (Nv 27, ★★, Comum) · Brasa (Nv 27, ★★, Comum) | 75 | 300 de Ouro, 1 Manual de doma |
+| Líder | Capitã Labareda | Brasa (Nv 30, ★★, Comum) · Brasa (Nv 30, ★★, Comum) · Brasa (Nv 30, ★★, Comum) | 150 | 600 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill e a Insígnia da Fornalha |
 
 ### O desafio
 
 O time do jogador tem no máximo o tamanho do time do adversário (pode levar menos) e corre na ordem escolhida. A entrada é paga antes (só Ouro, respeitando o reservado da sala aberta) e só então o desafio inteiro é simulado com a seed do save. O 1º cavalo corre contra o 1º do adversário; quem perde sai, quem vence fica e enfrenta o próximo do outro lado, já cansado. Acaba quando um lado fica sem cavalos. Cada cavalo do jogador ganha 50 de XP por duelo vencido e 15 por duelo perdido. Derrota: só se perde a entrada.
 
-**Vantagem de elemento** (só nos duelos de ginásio): Água vence Fogo, Grama vence Água e Fogo vence Grama. O cavalo cujo elemento vence o do adversário corre com os seis status de corrida 2% maiores (a Sorte não muda; cada status continua inteiro, arredondado, então nos cavalos de hoje a vantagem soma cerca de 2 pontos em cada um); elementos iguais, nada. O duelo começa Nublado, para o triângulo não contar duas vezes; o Dado da Sorte é o de sempre. Na corrida valendo, o triângulo continua agindo só pelo clima.
+**Vantagem de elemento** (só nos duelos de ginásio): Fogo vence Grama, Grama vence Água e Água vence Fogo. O cavalo cujo elemento vence o do adversário corre com os seis status de corrida 2% maiores (a Sorte não muda; cada status continua inteiro, arredondado, então nos cavalos de hoje a vantagem soma cerca de 2 pontos em cada um); elementos iguais, nada. O duelo começa Nublado, para o triângulo não contar duas vezes; o Dado da Sorte é o de sempre. Na corrida valendo, o triângulo continua agindo só pelo clima.
 
 **Cansaço:** quem vence um duelo larga o seguinte com menos fôlego (o tanque de estamina abaixo de cheio: corre igual no começo e cansa mais cedo). O desconto depende da distância na chegada (quanto faltava ao perdedor quando o vencedor cruzou a linha) e soma a cada vitória seguida, até 50%. Quem entra descansado larga com o tanque cheio. Vale para os dois lados.
 
@@ -1265,7 +1265,7 @@ O time do jogador tem no máximo o tamanho do time do adversário (pode levar me
 
 **Revanche do líder:** depois da insígnia, 1 tentativa por dia em cada ginásio (vencendo ou perdendo), com entrada de 50 de Ouro. O prêmio de cada vitória segue um rodízio fixo, sem sorteio, contado por ginásio: 100 de Ouro · 1 Torrão de açúcar · 100 de Ouro · 1 Manual de doma · 100 de Ouro · 1 Cupom de troca de skill, e recomeça. Com o relógio para trás não libera; dia estragado no save conta como "já tentou hoje".
 
-**Insígnias:** cada líder dá uma, para sempre. O bônus é da conta e não entra na simulação da corrida. Insígnia da Fornalha: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo); Insígnia do Remanso: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado); Insígnia da Capoeira: +3 pontos na chance de aprender skill ao subir de level (8% → 11%). O Perfil mostra as 3 ("Insígnias (N de 3)"): a conquistada com o bônus, a que falta apagada, com o líder a vencer.
+**Insígnias:** cada líder dá uma, para sempre. O bônus é da conta e não entra na simulação da corrida. Insígnia da Capoeira: +3 pontos na chance de aprender skill ao subir de level (8% → 11%); Insígnia do Remanso: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado); Insígnia da Fornalha: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo). O Perfil mostra as 3 ("Insígnias (N de 3)"): a conquistada com o bônus, a que falta apagada, com o líder a vencer.
 
 <a id="icones-reservados"></a>
 

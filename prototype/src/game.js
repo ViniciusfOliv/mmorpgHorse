@@ -274,7 +274,7 @@
     return ' aria-disabled="true" data-motivo="' + esc(motivo) + '" title="' + esc(motivo) + '"';
   }
   // onde a linha do motivo entra: 'in' no fim do bloco, 'after' logo depois dele (a 1ª regra que casar)
-  var MOTIVO_ONDE = [['.item-escolha > li', 'in'], ['.etapa', 'in'], ['.item-uso', 'in'], ['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
+  var MOTIVO_ONDE = [['.item-escolha > li', 'in'], ['.etapa', 'in'], ['.ginasios > li', 'in'], ['.item-uso', 'in'], ['.build-linha', 'in'], ['.barra-acao', 'in'], ['.build-acoes', 'after'], ['.redistribuir', 'in'],
     ['.montaria-acoes', 'after'], ['.acoes', 'after'], ['.item-linha', 'in'], ['.diaria', 'in']];
   // região viva fixa (fora da tela que redesenha): leitores de tela anunciam o texto escrito nela, e o .motivo criado já
   // com o texto muitas vezes passa em silêncio. Limpa antes de escrever, para o mesmo texto ser anunciado de novo.
@@ -2750,10 +2750,26 @@
       ginJunta(p.blocks.map(function (b) { return GD.BLOCK_TYPES[b.type].name.toLowerCase() + ' ' + fmt(b.to - b.from) + ' m'; })) + '.';
   }
 
+  // A sequência dos ginásios (spec 2026-11-18-mapa-expedicao §1): a regra é do módulo (Ginasio.aberto); a tela só mostra.
+  function ginAberto(id) { return GN.aberto(id, state.ginasios); }
+  // o motivo de um ginásio fechado, com o nome do anterior do catálogo: "Vença o líder do Ginásio da Capoeira"
+  function ginFechadoTxt(id) {
+    var ant = GN.anterior(id);
+    return ant ? 'Vença o líder do ' + GD.GYMS[ant].name : 'Este ginásio ainda não está aberto';
+  }
   // Cartão do ginásio na aba (um botão que abre a trilha): nome, elemento, "N de 5 vencidos", a insígnia conquistada e
-  // "Revanche hoje" quando a revanche do líder está livre (ou "Revanche amanhã", sem destaque, com a de hoje já tentada)
+  // "Revanche hoje" quando a revanche do líder está livre (ou "Revanche amanhã", sem destaque, com a de hoje já tentada).
+  // Fechado na sequência: o mesmo botão apagado (aria-disabled, não abre nada), com o motivo escrito e sem a seta.
   function ginasioCartaoHtml(id) {
     var g = GD.GYMS[id], ins = ginTemInsignia(id);
+    if (!ginAberto(id)) {
+      var mot = ginFechadoTxt(id);
+      return '<li><button type="button" class="ginasio-cartao ginasio-cartao--' + esc(g.element) + ' ginasio-cartao--fechado" data-acao="ginasio-abrir" data-id="' + esc(id) + '"' + indisponivel(mot) + '>' +
+        '<span class="ginasio-cartao-nome">' + esc(g.name) + '</span>' +
+        '<span class="ginasio-cartao-meta">' + elementHtml(g.element) + '<span class="ginasio-progresso">Fechado</span></span>' +
+        '<span class="ginasio-cartao-meta ginasio-cartao-motivo">' + esc(mot) + '</span>' +
+      '</button></li>';
+    }
     return '<li><button type="button" class="ginasio-cartao ginasio-cartao--' + esc(g.element) + '" data-acao="ginasio-abrir" data-id="' + esc(id) + '">' +
       '<span class="ginasio-cartao-nome">' + esc(g.name) + '</span>' +
       '<span class="ginasio-cartao-meta">' + elementHtml(g.element) + '<span class="ginasio-progresso">' + esc(ginProgressoTxt(id)) + '</span></span>' +
@@ -2773,7 +2789,7 @@
     }).join('');
     return '<section class="tela" aria-labelledby="t-expedicao">' +
       '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>' +
-      '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
+      '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia. Vença um ginásio para abrir o próximo.</p>' +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
         '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
       '</section>' +
@@ -2792,6 +2808,8 @@
     var G0 = ui.gym;
     if (!G0 || !hasOwn(GD.GYMS, G0.id)) return renderExpedicao();
     if (G0.res) return ginResumoHtml(G0.res);
+    // ginásio fechado na sequência (progresso mudado em outra aba ou na gaveta DEV): não abre a trilha, volta à Expedição
+    if (!ginAberto(G0.id)) { ui.gym = null; ui.screen = ui.tab; syncHistory(ui.tab); return renderTab(ui.tab); }
     G0.time = (G0.time || []).filter(function (u) { return !!mountByUid(u); });
     if (G0.etapa !== null && !ginModo(G0.id, G0.etapa).pode) G0.etapa = null;
     return G0.etapa === null ? trilhaTelaHtml(G0.id) : etapaDetalheHtml(G0.id, G0.etapa);
@@ -2929,6 +2947,7 @@
       case 'time-grande': return 'O time passou do limite: até ' + ginCavalosTxt(ginLimite(id, i)) + '.';
       case 'vencida': return 'Esta etapa já foi vencida.';
       case 'revanche-hoje': return 'A revanche de hoje já foi feita. Volte amanhã.';
+      case 'ginasio-fechado': return ginFechadoTxt(id) + '.';
       default: return 'Esta etapa ainda não está aberta.';
     }
   }
@@ -6323,7 +6342,7 @@
       }
       // ---- Ginásios (aba Expedição): abrir a trilha, abrir o detalhe da etapa próxima, voltar ----
       case 'ginasio-abrir':
-        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id)) break;
+        if (!state || ui.screen !== 'expedicao' || !hasOwn(GD.GYMS, id) || !ginAberto(id)) break;   // fechado: não abre
         ui.gym = { id: id, etapa: null, time: [], res: null, msg: null };
         go('ginasio');
         // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola na hora o

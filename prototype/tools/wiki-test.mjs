@@ -236,12 +236,25 @@ confere(!/recursos que vão usá-los \(Rédeas/.test(a.md), 'wiki ainda diz que 
     confere(sec.includes(`![](../prototype/assets/icons/${ic}.png) ${g.insignia.name}`), `a insígnia ${g.insignia.name} sem o ícone ${ic} na tabela do md`)
     confere(new RegExp('<img class="ic" src="data:image/png;base64,[A-Za-z0-9+/=]+" alt="" width="16" height="16">' + escHtml(g.insignia.name)).test(a.html), `a insígnia ${g.insignia.name} sem o <img> no html`)
   }
+  // a sequência (spec 2026-11-18-mapa-expedicao §1): a ordem de GYM_ORDER no texto e na tabela (coluna Abre), e os níveis,
+  // entradas e prêmios de cada ginásio nas trilhas, tirados do catálogo (cada ginásio tem os seus)
+  const O = G.GYM_ORDER
+  confere(sec.includes('**Em sequência:** ' + O.map((id, i) => `${i + 1}º ${G.GYMS[id].name}`).slice(0, -1).join(', ') + ' e ' + `${O.length}º ${G.GYMS[O[O.length - 1]].name}`), `a seção dos ginásios sem a sequência: ${sec.slice(0, 600)}`)
+  O.forEach((id, i) => {
+    const g = G.GYMS[id], abre = i === 0 ? 'desde o começo' : `com a ${G.GYMS[O[i - 1]].insignia.name}`
+    confere(new RegExp(`^\\| ${i + 1}º \\| \\*\\*${g.name}\\*\\* \\| ${abre} \\|`, 'm').test(sec), `a tabela dos ginásios sem a linha ${i + 1}º ${g.name} (abre ${abre})`)
+    const ini2 = sec.indexOf(`### Trilha do ${g.name}`), tr = ini2 >= 0 ? sec.slice(ini2, sec.indexOf('###', ini2 + 4)) : ''
+    g.etapas.forEach((e) => {
+      confere(tr.includes(`Nv ${e.cavalos[0].level},`) && tr.includes(`| ${e.entrada.toLocaleString('pt-BR')} |`.replace(/ \|$/, '')) && tr.includes(`${e.premio.ouro.toLocaleString('pt-BR')} de Ouro`), `a trilha do ${g.name} sem os números da etapa ${e.nome} (Nv ${e.cavalos[0].level}, entrada ${e.entrada}, prêmio ${e.premio.ouro})`)
+    })
+  })
   // a aba Expedição no wiki (Tarefa 4): os ginásios, a trilha e a vitrine, com nomes e números do catálogo
   const exp = (a.md.match(/^- \*\*Expedição:\*\* (.*)$/m) || [])[1] || ''
   for (const id of G.GYM_ORDER) confere(exp.includes(G.GYMS[id].name), `a aba Expedição no wiki sem o ${G.GYMS[id].name}: ${exp}`)
   confere(exp.includes(`${G.GYMS[G.GYM_ORDER[0]].etapas.length} etapas`) && /trilha/.test(exp) && /de baixo para cima/.test(exp), `a aba Expedição no wiki sem a trilha de ${G.GYMS[G.GYM_ORDER[0]].etapas.length} etapas: ${exp}`)
   confere(/Ponto fraco/.test(exp) && /revanche/.test(exp) && /vitrine de 6 cavalos selvagens/.test(exp), `a aba Expedição no wiki sem o ponto fraco, a revanche ou a vitrine: ${exp}`)
   confere(!/Expedições e captura ainda não existem/.test(exp), 'a aba Expedição no wiki ainda é só a vitrine')
+  confere(exp.includes(`"Vença o líder do ${G.GYMS[O[0]].name}", no ${G.GYMS[O[1]].name}`) && /fechado na sequência fica apagado/.test(exp), `a aba Expedição no wiki sem o ginásio fechado: ${exp}`)
   // Tarefa 8: o desafio inteiro na aba (preparo, time, pagamento, duelos na tela de corrida, cartão, resumo e revanche), sem
   // a frase velha "chega nas próximas partes"; o Perfil com as insígnias; a gaveta DEV com o grupo Ginásios
   for (const [o, re] of [['o preparo e o time', /\*\*Preparo:\*\*.*"Seu time".*na ordem em que vão correr.*"Vantagem" ou "Desvantagem"/],

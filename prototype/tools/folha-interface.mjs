@@ -317,7 +317,8 @@ function secoes() {
       ['de uma linha (já resgatado)', diariaLinha(1)]
     ])));
   // 4.21 a 4.24 Ginásios da Expedição (spec dos ginásios §10): o cartão da aba, a trilha, a linha do time e o cartão entre duelos
-  const [F, A, C] = G.GYM_ORDER   // Fornalha, Remanso, Capoeira
+  // os ginásios pelo elemento (a ordem da sequência, GYM_ORDER, é Capoeira, Remanso, Fornalha)
+  const F = 'fogo', A = 'agua', C = 'grama'   // Fornalha, Remanso, Capoeira
   const nEt = G.GYMS[F].etapas.length, lider = nEt - 1
   s.push(secao('4.21', 'Cartão de ginásio', 'Aba Expedição: .ginasio-cartao (um botão que abre a trilha) com o nome, o elemento, "N de 5 vencidos", a insígnia conquistada (.ginasio-insignia) e "Revanche hoje" (.ginasio-revanche, quando a revanche do líder está livre) ou "Revanche amanhã" (.ginasio-revanche-amanha, sem destaque).',
     estados([

@@ -276,7 +276,9 @@ export function descreverAba(rotulo, F) {
     case 'Expedição': {
       const g0 = G.GYMS[G.GYM_ORDER[0]]
       const ap = G.GYM.fadiga.faixas[0]
-      return `os ${G.GYM_ORDER.length} ginásios (${lista(G.GYM_ORDER.map((id) => G.GYMS[id].name))}), cada um com quantas etapas já venceu ("N de ${g0.etapas.length} vencidos"), a insígnia conquistada e "Revanche hoje" quando a revanche do líder está livre (o ponto na aba avisa) ou "Revanche amanhã" depois de tentada a de hoje. ` +
+      const g1 = G.GYMS[G.GYM_ORDER[1]]
+      return `os ${G.GYM_ORDER.length} ginásios, na ordem da sequência (${lista(G.GYM_ORDER.map((id) => G.GYMS[id].name))}), cada um com quantas etapas já venceu ("N de ${g0.etapas.length} vencidos"), a insígnia conquistada e "Revanche hoje" quando a revanche do líder está livre (o ponto na aba avisa) ou "Revanche amanhã" depois de tentada a de hoje. ` +
+        `Ginásio ainda fechado na sequência fica apagado, com o motivo escrito ("Vença o líder do ${g0.name}", no ${g1.name}), e tocar nele não abre nada. ` +
         `Tocar no ginásio abre a trilha: as ${g0.etapas.length} etapas de baixo para cima (${lista([...g0.etapas.filter((e) => !e.lider).map((e, i) => `Soldado ${i + 1}`), 'o Líder'])}), cada uma vencida, próxima (a única que se toca) ou fechada ("Vença a etapa anterior"), e o ponto fraco escrito ("Ponto fraco: ${G.ELEMENTS[g0.fraco].name} vence ${G.ELEMENTS[g0.element].name}"); ao abrir, a trilha rola o mínimo para a etapa que se pode tocar aparecer inteira. ` +
         `**Preparo:** a etapa próxima mostra os cavalos do adversário (nível, estrelas, elemento e Poder), a pista da casa, a entrada e o prêmio da 1ª vitória; em "Seu time" você toca nos seus cavalos na ordem em que vão correr, até o tamanho do time do adversário (tocar de novo tira). Cada linha diz "Vantagem" ou "Desvantagem" contra o elemento do ginásio; com uma sala de corrida aberta (valendo ou treino), o cavalo ativo fica de fora, com o motivo escrito. ` +
         `**Pagar:** "Desafiar (N de Ouro)" cobra a entrada e só então o desafio é simulado; sem time, sem Ouro (o reservado para a sala aberta não conta) ou com a mochila cheia do item do prêmio, o botão fica apagado com o motivo. ` +
@@ -972,10 +974,11 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
   const faixaTxt = (f, i) => f.ate === null ? `${num(fx[i - 1].ate)} m ou mais` : i === 0 ? `menos de ${num(f.ate)} m` : `de ${num(fx[i - 1].ate)} a menos de ${num(f.ate)} m`
   const cicloTxt = GY.revanche.ciclo.map((c) => c.ouro ? `${num(c.ouro)} de Ouro` : `1 ${nomeItem(c.item)}`)
   add('ginasios', 'Ginásios da Expedição', 'Ginásios', [
-    { t: 'p', txt: `São ${gyIds.length} ginásios, um por elemento, cada um com ${G.GYMS[gyIds[0]].etapas.length - 1} soldados e o líder, sempre com cavalos do elemento do ginásio. As etapas abrem em ordem; etapa vencida fica marcada e não se repete. Os cavalos dos soldados são fixos (a montaria-base do catálogo no level e nas estrelas da etapa, com a build dos bots e as skills dela). A aba Expedição mostra os ginásios, a trilha de cada um, o preparo, os duelos e o resumo (ver Visão geral, Abas).` },
-    { t: 'tabela', rotulo: 'Ginásios', cab: ['Ginásio', 'Elemento', 'Líder', 'Ponto fraco', 'Pista da casa', 'Insígnia'], linhas: gyIds.map((id) => {
-      const g = G.GYMS[id]
-      return [{ md: `**${g.name}**`, html: `<strong>${esc(g.name)}</strong>` }, elCel(g.element), g.lider, elCel(g.fraco), pistaGym(g.pista), { md: `${icMd(g.insignia.icone)}${g.insignia.name}: ${bonusIns(id)}`, html: `${icone(g.insignia.icone)}${esc(g.insignia.name)}: ${esc(bonusIns(id))}` }]
+    { t: 'p', txt: `São ${gyIds.length} ginásios, um por elemento, cada um com ${G.GYMS[gyIds[0]].etapas.length - 1} soldados e o líder, sempre com cavalos do elemento do ginásio. **Em sequência:** ${lista(gyIds.map((id, i) => `${i + 1}º ${G.GYMS[id].name}`))}; o 1º está aberto desde o começo e cada um dos outros abre quando o líder do anterior é vencido (a insígnia). Cada ginásio é mais forte (o nível dos cavalos), mais caro e paga mais que o anterior. Um ginásio que já tinha alguma etapa vencida num save de antes da sequência continua aberto. As etapas abrem em ordem; etapa vencida fica marcada e não se repete. Os cavalos dos soldados são fixos (a montaria-base do catálogo no level e nas estrelas da etapa, com a build dos bots e as skills dela). A aba Expedição mostra os ginásios, a trilha de cada um, o preparo, os duelos e o resumo (ver Visão geral, Abas).` },
+    { t: 'tabela', rotulo: 'Ginásios', cab: ['Ordem', 'Ginásio', 'Abre', 'Elemento', 'Líder', 'Níveis', 'Ponto fraco', 'Pista da casa', 'Insígnia'], linhas: gyIds.map((id, i) => {
+      const g = G.GYMS[id], niveis = [...new Set(g.etapas.flatMap((e) => e.cavalos.map((c) => c.level)))]
+      const abre = i === 0 ? 'desde o começo' : `com a ${G.GYMS[gyIds[i - 1]].insignia.name}`
+      return [N(`${i + 1}º`), { md: `**${g.name}**`, html: `<strong>${esc(g.name)}</strong>` }, abre, elCel(g.element), g.lider, N(`${num(Math.min(...niveis))} a ${num(Math.max(...niveis))}`), elCel(g.fraco), pistaGym(g.pista), { md: `${icMd(g.insignia.icone)}${g.insignia.name}: ${bonusIns(id)}`, html: `${icone(g.insignia.icone)}${esc(g.insignia.name)}: ${esc(bonusIns(id))}` }]
     }) },
     ...gyIds.flatMap((id) => {
       const g = G.GYMS[id]

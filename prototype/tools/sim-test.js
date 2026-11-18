@@ -2107,8 +2107,15 @@ function progNovo() { return { fogo: { etapa: 0, revDia: null, revVitorias: 0 },
 function progCom(gym, p) { var o = progNovo(); Object.keys(p).forEach(function (k) { o[gym][k] = p[k]; }); return o; }
 var HOJE = 20500;
 test('ginásio: catálogo (três ginásios, cinco etapas, times, elementos, bases, entradas, prêmios, fraco)', function () {
-  assert.deepStrictEqual(G.GYM_ORDER, ['fogo', 'agua', 'grama']);
+  // a sequência da Expedição (spec 2026-11-18-mapa-expedicao §1): Capoeira, Remanso, Fornalha
+  assert.deepStrictEqual(G.GYM_ORDER, ['grama', 'agua', 'fogo']);
   assert.deepStrictEqual(Object.keys(G.GYMS), G.GYM_ORDER);
+  // os números por ginásio (a tabela da spec): níveis, entradas e o Ouro da 1ª vitória
+  var NUM = {
+    grama: { level: [2, 4, 6, 8, 10], entrada: [10, 15, 20, 25, 50], ouro: [50, 75, 100, 125, 250] },
+    agua: { level: [11, 13, 15, 17, 20], entrada: [20, 30, 40, 50, 100], ouro: [80, 120, 160, 200, 400] },
+    fogo: { level: [21, 23, 25, 27, 30], entrada: [30, 45, 60, 75, 150], ouro: [120, 180, 240, 300, 600] }
+  };
   var nomes = { fogo: ['Fornalha', 'Capitã Labareda'], agua: ['Remanso', 'Mestre Aguaceiro'], grama: ['Capoeira', 'Dona Capineira'] };
   var fracoEsperado = { fogo: 'agua', agua: 'grama', grama: 'fogo' };
   var patentes = ['Recruta', 'Cabo', 'Sargento', 'Tenente'];
@@ -2127,9 +2134,12 @@ test('ginásio: catálogo (três ginásios, cinco etapas, times, elementos, base
     assert.strictEqual(g.etapas.length, 5);
     assert.deepStrictEqual(g.etapas.map(function (e) { return e.cavalos.length; }), [1, 1, 2, 2, 3]);
     assert.deepStrictEqual(g.etapas.map(function (e) { return e.lider; }), [false, false, false, false, true]);
-    assert.deepStrictEqual(g.etapas.map(function (e) { return e.entrada; }), [20, 30, 40, 50, 100]);
-    assert.deepStrictEqual(g.etapas.map(function (e) { return e.premio; }), [
-      { ouro: 80, itens: [] }, { ouro: 120, itens: ['torrao'] }, { ouro: 160, itens: [] }, { ouro: 200, itens: ['manual'] }, { ouro: 400, itens: ['redea', 'cupom'] }]);
+    assert.deepStrictEqual(g.etapas.map(function (e) { return e.entrada; }), NUM[id].entrada, id + ' entradas');
+    assert.deepStrictEqual(g.etapas.map(function (e) { return e.cavalos.map(function (c) { return c.level; }); }),
+      NUM[id].level.map(function (lv, i) { return g.etapas[i].cavalos.map(function () { return lv; }); }), id + ' níveis (todos os cavalos da etapa no mesmo)');
+    assert.deepStrictEqual(g.etapas.map(function (e) { return e.cavalos.map(function (c) { return c.grau; }); }), [[2], [2], [2, 2], [2, 2], [2, 2, 2]], id + ' estrelas');
+    var itens = [[], ['torrao'], [], ['manual'], ['redea', 'cupom']];
+    assert.deepStrictEqual(g.etapas.map(function (e) { return e.premio; }), NUM[id].ouro.map(function (o, i) { return { ouro: o, itens: itens[i] }; }), id + ' prêmios');
     g.etapas.forEach(function (e, i) {
       assert.ok(typeof e.id === 'string' && e.id.length, id + ' etapa ' + i + ' id');
       if (i < 4) assert.ok(e.nome.indexOf(patentes[i]) === 0, id + ' etapa ' + i + ': ' + e.nome);
@@ -2160,7 +2170,15 @@ test('ginásio: catálogo (três ginásios, cinco etapas, times, elementos, base
   assert.strictEqual(Y.revanche.entrada, 50);
   assert.deepStrictEqual(Y.revanche.ciclo, [{ ouro: 100 }, { item: 'torrao' }, { ouro: 100 }, { item: 'manual' }, { ouro: 100 }, { item: 'cupom' }]);
   assert.deepStrictEqual(Object.keys(Y.insignias), ['fogo', 'agua', 'grama']);
-  assert.deepStrictEqual(G.GYM_ORDER.map(function (k) { return Y.insignias[k].tipo; }), ['ouro', 'xp', 'skill']);
+  assert.deepStrictEqual(G.GYM_ORDER.map(function (k) { return Y.insignias[k].tipo; }), ['skill', 'xp', 'ouro']);
+  // cada ginásio mais forte e mais caro que o anterior: o líder abaixo do 1º soldado do próximo, entradas e prêmios crescendo
+  for (var q = 1; q < G.GYM_ORDER.length; q++) {
+    var ga = G.GYMS[G.GYM_ORDER[q - 1]], gb = G.GYMS[G.GYM_ORDER[q]];
+    assert.ok(ga.etapas[4].cavalos[0].level < gb.etapas[0].cavalos[0].level, gb.id + ' começa acima do líder de ' + ga.id);
+    gb.etapas.forEach(function (e, i) {
+      assert.ok(e.entrada > ga.etapas[i].entrada && e.premio.ouro > ga.etapas[i].premio.ouro, gb.id + ' etapa ' + i + ': entrada e prêmio maiores');
+    });
+  }
   G.GYM_ORDER.forEach(function (k) { assert.ok(Y.insignias[k].valor > 0 && Y.insignias[k].valor <= 0.2, k + ' valor da insígnia'); });
 });
 test('ginásio: vantagem (os nove pares)', function () {
@@ -2260,10 +2278,10 @@ test('ginásio: resolver — o fôlego soma e para no teto; time de 1 contra 3',
   var forte = timeDe([['mare', 50, 3]]), fraco = timeDe([['w-lambari', 1, 1]]);
   var achou3 = false;
   for (var c = 0; c < 20; c++) {
-    var r = GY.resolver({ gymId: 'fogo', etapa: 4, time: forte, seedBase: 7, contador: c });
+    var r = GY.resolver({ gymId: 'grama', etapa: 4, time: forte, seedBase: 7, contador: c });
     confereSequencia(r, 1, 3, 'forte ' + c);
     if (r.venceu) { achou3 = true; assert.strictEqual(r.duelos.length, 3); assert.deepStrictEqual(r.duelos.map(function (d) { return d.b; }), [0, 1, 2]); }
-    var rf = GY.resolver({ gymId: 'fogo', etapa: 4, time: fraco, seedBase: 7, contador: c });
+    var rf = GY.resolver({ gymId: 'grama', etapa: 4, time: fraco, seedBase: 7, contador: c });
     assert.strictEqual(rf.venceu, false); assert.strictEqual(rf.duelos.length, 1, 'o fraco perde e o desafio acaba');
   }
   assert.ok(achou3, 'um cavalo sozinho vence os três');
@@ -2273,7 +2291,7 @@ test('ginásio: resolver — o fôlego soma e para no teto; time de 1 contra 3',
     G.GYM.fadiga.faixas.forEach(function (f) { f.perde = 0.3; });
     var viu = false;
     for (var k = 0; k < 30 && !viu; k++) {
-      var rt = GY.resolver({ gymId: 'fogo', etapa: 4, time: forte, seedBase: 11, contador: k });
+      var rt = GY.resolver({ gymId: 'grama', etapa: 4, time: forte, seedBase: 11, contador: k });
       confereSequencia(rt, 1, 3, 'teto ' + k);
       if (rt.duelos.length === 3 && rt.duelos[2].a === 0) {
         viu = true;
@@ -2308,48 +2326,48 @@ test('ginásio: resolver — determinismo, seed por (contador, duelo), sal próp
 // resultado montado à mão: [a, b, quem venceu]
 function resMao(lista, venceu) { return { venceu: venceu, duelos: lista.map(function (x) { return { a: x[0], b: x[1], vencedor: x[2] ? 'jogador' : 'adversario', metros: 10, faixa: GY.faixa(10) }; }) }; }
 test('ginásio: acerto — prêmio só na 1ª vitória, derrota só XP, XP por duelo, insígnia na etapa 5', function () {
-  var X = G.GYM.xp, P = G.GYMS.fogo.etapas;
+  var X = G.GYM.xp, P = G.GYMS.grama.etapas;
   var p0 = congela(progNovo());
-  var v = GY.acerto({ gymId: 'fogo', etapa: 0, revanche: false, progresso: p0, resultado: resMao([[0, 0, 1]], true), hoje: HOJE, timeLen: 1 });
-  assert.deepStrictEqual(v, { ouro: P[0].premio.ouro, itens: [], xp: [X.vence], progresso: progCom('fogo', { etapa: 1 }), insignia: false });
-  var de2 = GY.acerto({ gymId: 'fogo', etapa: 0, revanche: false, progresso: congela(progCom('fogo', { etapa: 1 })), resultado: resMao([[0, 0, 1]], true), hoje: HOJE, timeLen: 1 });
+  var v = GY.acerto({ gymId: 'grama', etapa: 0, revanche: false, progresso: p0, resultado: resMao([[0, 0, 1]], true), hoje: HOJE, timeLen: 1 });
+  assert.deepStrictEqual(v, { ouro: P[0].premio.ouro, itens: [], xp: [X.vence], progresso: progCom('grama', { etapa: 1 }), insignia: false });
+  var de2 = GY.acerto({ gymId: 'grama', etapa: 0, revanche: false, progresso: congela(progCom('grama', { etapa: 1 })), resultado: resMao([[0, 0, 1]], true), hoje: HOJE, timeLen: 1 });
   assert.strictEqual(de2, null, 'etapa já vencida: nada (nem XP) — Ruling 7');
   var it = GY.acerto({ gymId: 'agua', etapa: 1, revanche: false, progresso: progCom('agua', { etapa: 1 }), resultado: resMao([[0, 0, 1]], true), hoje: HOJE, timeLen: 1 });
-  assert.deepStrictEqual([it.ouro, it.itens, it.progresso.agua.etapa], [P[1].premio.ouro, ['torrao'], 2]);
-  var perde = GY.acerto({ gymId: 'fogo', etapa: 2, revanche: false, progresso: progCom('fogo', { etapa: 2 }), resultado: resMao([[0, 0, 1], [0, 1, 0], [1, 1, 0]], false), hoje: HOJE, timeLen: 2 });
-  assert.deepStrictEqual(perde, { ouro: 0, itens: [], xp: [X.vence + X.perde, X.perde], progresso: progCom('fogo', { etapa: 2 }), insignia: false });
+  assert.deepStrictEqual([it.ouro, it.itens, it.progresso.agua.etapa], [G.GYMS.agua.etapas[1].premio.ouro, ['torrao'], 2]);
+  var perde = GY.acerto({ gymId: 'grama', etapa: 2, revanche: false, progresso: progCom('grama', { etapa: 2 }), resultado: resMao([[0, 0, 1], [0, 1, 0], [1, 1, 0]], false), hoje: HOJE, timeLen: 2 });
+  assert.deepStrictEqual(perde, { ouro: 0, itens: [], xp: [X.vence + X.perde, X.perde], progresso: progCom('grama', { etapa: 2 }), insignia: false });
   var lider = GY.acerto({ gymId: 'grama', etapa: 4, revanche: false, progresso: progCom('grama', { etapa: 4 }), resultado: resMao([[0, 0, 1], [0, 1, 0], [1, 1, 1], [1, 2, 1]], true), hoje: HOJE, timeLen: 3 });
   assert.deepStrictEqual(lider, { ouro: G.GYMS.grama.etapas[4].premio.ouro, itens: ['redea', 'cupom'], xp: [X.vence + X.perde, 2 * X.vence, 0], progresso: progCom('grama', { etapa: 5 }), insignia: true });
-  var fechada = GY.acerto({ gymId: 'fogo', etapa: 3, revanche: false, progresso: progNovo(), resultado: resMao([[0, 0, 1], [0, 1, 1]], true), hoje: HOJE, timeLen: 2 });
+  var fechada = GY.acerto({ gymId: 'grama', etapa: 3, revanche: false, progresso: progNovo(), resultado: resMao([[0, 0, 1], [0, 1, 1]], true), hoje: HOJE, timeLen: 2 });
   assert.strictEqual(fechada, null, 'etapa fechada: nada (nem XP) — Ruling 7');
   // hoje é obrigatório sempre (Ruling 7)
-  assert.strictEqual(GY.acerto({ gymId: 'fogo', etapa: 0, revanche: false, progresso: progNovo(), resultado: resMao([[0, 0, 1]], true), timeLen: 1 }), null, 'sem hoje');
+  assert.strictEqual(GY.acerto({ gymId: 'grama', etapa: 0, revanche: false, progresso: progNovo(), resultado: resMao([[0, 0, 1]], true), timeLen: 1 }), null, 'sem hoje');
 });
 test('ginásio: acerto — só o desafio que o podeDesafiar permitiria quanto à etapa e à revanche (Ruling 7)', function () {
   var R = resMao([[0, 0, 1]], true), Rp = resMao([[0, 0, 0]], false);
-  var ac = function (o) { return GY.acerto(Object.assign({ gymId: 'fogo', etapa: 0, revanche: false, progresso: progNovo(), resultado: R, hoje: HOJE, timeLen: 1 }, o)); };
+  var ac = function (o) { return GY.acerto(Object.assign({ gymId: 'grama', etapa: 0, revanche: false, progresso: progNovo(), resultado: R, hoje: HOJE, timeLen: 1 }, o)); };
   assert.ok(ac({}), 'o caso válido acerta');
   // hoje não inteiro: null em qualquer caso
   [undefined, null, NaN, 1.5, '20500', Infinity].forEach(function (h) {
     assert.strictEqual(ac({ hoje: h }), null, 'fora da revanche, hoje ' + h);
     assert.strictEqual(ac({ hoje: h, resultado: Rp }), null, 'derrota, hoje ' + h);
-    assert.strictEqual(ac({ hoje: h, etapa: 4, revanche: true, progresso: progCom('fogo', { etapa: 5 }) }), null, 'revanche, hoje ' + h);
+    assert.strictEqual(ac({ hoje: h, etapa: 4, revanche: true, progresso: progCom('grama', { etapa: 5 }) }), null, 'revanche, hoje ' + h);
   });
   // fora da revanche: só a próxima etapa não vencida, vencendo ou perdendo
   for (var pe = 0; pe <= 5; pe++) for (var et = 0; et <= 4; et++) {
-    var n = G.GYMS.fogo.etapas[et].cavalos.length;
+    var n = G.GYMS.grama.etapas[et].cavalos.length;
     [R, Rp].forEach(function (res) {
-      var r = ac({ etapa: et, progresso: progCom('fogo', { etapa: pe }), resultado: res, timeLen: n });
+      var r = ac({ etapa: et, progresso: progCom('grama', { etapa: pe }), resultado: res, timeLen: n });
       if (et === pe) assert.ok(r, 'etapa ' + et + ' com progresso ' + pe + ' acerta');
       else assert.strictEqual(r, null, 'etapa ' + et + ' com progresso ' + pe + ' (' + (et < pe ? 'vencida' : 'fechada') + ')');
     });
   }
   // revanche que não bate com o progresso
-  assert.strictEqual(ac({ etapa: 4, revanche: false, progresso: progCom('fogo', { etapa: 5, revDia: HOJE - 1 }), timeLen: 3 }), null, 'false com o líder vencido');
-  assert.strictEqual(ac({ etapa: 4, revanche: true, progresso: progCom('fogo', { etapa: 4 }), timeLen: 3 }), null, 'true sem o líder vencido');
-  [0, 1, 2, 3].forEach(function (et) { assert.strictEqual(ac({ etapa: et, revanche: true, progresso: progCom('fogo', { etapa: 5 }) }), null, 'revanche na etapa ' + et); });
+  assert.strictEqual(ac({ etapa: 4, revanche: false, progresso: progCom('grama', { etapa: 5, revDia: HOJE - 1 }), timeLen: 3 }), null, 'false com o líder vencido');
+  assert.strictEqual(ac({ etapa: 4, revanche: true, progresso: progCom('grama', { etapa: 4 }), timeLen: 3 }), null, 'true sem o líder vencido');
+  [0, 1, 2, 3].forEach(function (et) { assert.strictEqual(ac({ etapa: et, revanche: true, progresso: progCom('grama', { etapa: 5 }) }), null, 'revanche na etapa ' + et); });
   // revanche: nenhuma tentativa hoje (mesma regra do podeDesafiar)
-  var rev = function (p, res) { return ac({ etapa: 4, revanche: true, progresso: progCom('fogo', Object.assign({ etapa: 5 }, p)), resultado: res || R }); };
+  var rev = function (p, res) { return ac({ etapa: 4, revanche: true, progresso: progCom('grama', Object.assign({ etapa: 5 }, p)), resultado: res || R }); };
   assert.ok(rev({ revDia: null }), 'nunca tentou');
   assert.ok(rev({ revDia: HOJE - 1 }), 'tentou ontem');
   [HOJE, HOJE + 3, 'lixo', -5, 1.5, {}, undefined, 1e15].forEach(function (d) {
@@ -2429,29 +2447,29 @@ test('ginásio: acerto — timeLen e resultado malformados devolvem null; não a
   assert.strictEqual(ac.progresso.fogo.etapa, res.venceu ? 4 : 3);
 });
 test('ginásio: podeDesafiar — cada motivo; a revanche uma vez por dia; relógio para trás e dia estragado não liberam', function () {
-  var base = { gymId: 'fogo', etapa: 0, progresso: progNovo(), hoje: HOJE, ouroLivre: 1000, cabe: function () { return true; }, timeLen: 1 };
+  var base = { gymId: 'grama', etapa: 0, progresso: progNovo(), hoje: HOJE, ouroLivre: 1000, cabe: function () { return true; }, timeLen: 1 };
   var com = function (o) { var x = {}; Object.keys(base).forEach(function (k) { x[k] = base[k]; }); Object.keys(o).forEach(function (k) { x[k] = o[k]; }); return x; };
   var pode = function (o) { return GY.podeDesafiar(com(o)); };
   assert.deepStrictEqual(pode({}), { ok: true, revanche: false });
   assert.deepStrictEqual(pode({ etapa: 1 }), { ok: false, motivo: 'fechada' });
   assert.deepStrictEqual(pode({ gymId: 'lava' }), { ok: false, motivo: 'fechada' });
   assert.deepStrictEqual(pode({ etapa: 7 }), { ok: false, motivo: 'fechada' });
-  assert.deepStrictEqual(pode({ etapa: 0, progresso: progCom('fogo', { etapa: 1 }) }), { ok: false, motivo: 'vencida' });
-  assert.deepStrictEqual(pode({ etapa: 2, progresso: progCom('fogo', { etapa: 5 }) }), { ok: false, motivo: 'vencida' });
-  var E = G.GYMS.fogo.etapas;
-  assert.deepStrictEqual(pode({ etapa: 2, progresso: progCom('fogo', { etapa: 2 }), timeLen: 2, ouroLivre: E[2].entrada }), { ok: true, revanche: false }, 'a entrada exata basta');
-  assert.deepStrictEqual(pode({ etapa: 2, progresso: progCom('fogo', { etapa: 2 }), timeLen: 2, ouroLivre: E[2].entrada - 1 }), { ok: false, motivo: 'sem-ouro' });
+  assert.deepStrictEqual(pode({ etapa: 0, progresso: progCom('grama', { etapa: 1 }) }), { ok: false, motivo: 'vencida' });
+  assert.deepStrictEqual(pode({ etapa: 2, progresso: progCom('grama', { etapa: 5 }) }), { ok: false, motivo: 'vencida' });
+  var E = G.GYMS.grama.etapas;
+  assert.deepStrictEqual(pode({ etapa: 2, progresso: progCom('grama', { etapa: 2 }), timeLen: 2, ouroLivre: E[2].entrada }), { ok: true, revanche: false }, 'a entrada exata basta');
+  assert.deepStrictEqual(pode({ etapa: 2, progresso: progCom('grama', { etapa: 2 }), timeLen: 2, ouroLivre: E[2].entrada - 1 }), { ok: false, motivo: 'sem-ouro' });
   assert.deepStrictEqual(pode({ ouroLivre: NaN }), { ok: false, motivo: 'sem-ouro' });
   var pedidos = [];
-  assert.deepStrictEqual(pode({ etapa: 1, progresso: progCom('fogo', { etapa: 1 }), cabe: function (id, n) { pedidos.push(id + n); return id !== 'torrao'; } }), { ok: false, motivo: 'cheia' });
+  assert.deepStrictEqual(pode({ etapa: 1, progresso: progCom('grama', { etapa: 1 }), cabe: function (id, n) { pedidos.push(id + n); return id !== 'torrao'; } }), { ok: false, motivo: 'cheia' });
   assert.deepStrictEqual(pedidos, ['torrao1']);
-  assert.deepStrictEqual(pode({ etapa: 4, progresso: progCom('fogo', { etapa: 4 }), timeLen: 3, cabe: function (id) { return id !== 'redea'; } }), { ok: false, motivo: 'cheia' });
+  assert.deepStrictEqual(pode({ etapa: 4, progresso: progCom('grama', { etapa: 4 }), timeLen: 3, cabe: function (id) { return id !== 'redea'; } }), { ok: false, motivo: 'cheia' });
   assert.deepStrictEqual(pode({ etapa: 0, cabe: function () { return false; } }), { ok: true, revanche: false }, 'prêmio sem item não pede mochila');
   [0, undefined, -1, 1.5, '1'].forEach(function (t) { assert.deepStrictEqual(pode({ timeLen: t }), { ok: false, motivo: 'sem-time' }, 'timeLen ' + t); });
   assert.deepStrictEqual(pode({ timeLen: 2 }), { ok: false, motivo: 'time-grande' });
-  assert.deepStrictEqual(pode({ etapa: 2, progresso: progCom('fogo', { etapa: 2 }), timeLen: 3 }), { ok: false, motivo: 'time-grande' });
+  assert.deepStrictEqual(pode({ etapa: 2, progresso: progCom('grama', { etapa: 2 }), timeLen: 3 }), { ok: false, motivo: 'time-grande' });
   // revanche
-  var rev = function (p, o) { return pode(Object.assign({ etapa: 4, timeLen: 3, progresso: progCom('fogo', Object.assign({ etapa: 5 }, p)) }, o || {})); };
+  var rev = function (p, o) { return pode(Object.assign({ etapa: 4, timeLen: 3, progresso: progCom('grama', Object.assign({ etapa: 5 }, p)) }, o || {})); };
   assert.deepStrictEqual(rev({ revDia: null }), { ok: true, revanche: true });
   assert.deepStrictEqual(rev({ revDia: HOJE - 1 }), { ok: true, revanche: true });
   assert.deepStrictEqual(rev({ revDia: HOJE }), { ok: false, motivo: 'revanche-hoje' });
@@ -2463,14 +2481,70 @@ test('ginásio: podeDesafiar — cada motivo; a revanche uma vez por dia; relóg
   assert.deepStrictEqual(rev({ revDia: null, revVitorias: 1 }, { cabe: function (id) { return id !== 'torrao'; } }), { ok: false, motivo: 'cheia' }, 'dia de Torrão com a mochila cheia');
   assert.deepStrictEqual(rev({ revDia: null, revVitorias: 0 }, { cabe: function () { return false; } }), { ok: true, revanche: true }, 'dia de Ouro não pede mochila');
   // uma por dia: tenta, o acerto grava o dia, no mesmo dia não pode; no seguinte pode
-  var p = progCom('fogo', { etapa: 5 });
+  var p = progCom('grama', { etapa: 5 });
   assert.ok(pode({ etapa: 4, timeLen: 1, progresso: p }).ok);
-  var a = GY.acerto({ gymId: 'fogo', etapa: 4, revanche: true, progresso: p, resultado: resMao([[0, 0, 0]], false), hoje: HOJE, timeLen: 1 });
+  var a = GY.acerto({ gymId: 'grama', etapa: 4, revanche: true, progresso: p, resultado: resMao([[0, 0, 0]], false), hoje: HOJE, timeLen: 1 });
   assert.deepStrictEqual(pode({ etapa: 4, timeLen: 1, progresso: a.progresso }), { ok: false, motivo: 'revanche-hoje' });
   assert.deepStrictEqual(pode({ etapa: 4, timeLen: 1, progresso: a.progresso, hoje: HOJE + 1 }), { ok: true, revanche: true });
   assert.deepStrictEqual(pode({ etapa: 4, timeLen: 1, progresso: a.progresso, gymId: 'agua' }), { ok: false, motivo: 'fechada' }, 'cada ginásio tem a sua');
   assert.doesNotThrow(function () { GY.podeDesafiar(null); GY.podeDesafiar({}); });
   assert.strictEqual(GY.podeDesafiar(null).ok, false);
+});
+test('ginásio: aberto — a sequência (o primeiro, a insígnia do anterior ou etapa já vencida); lixo não abre', function () {
+  assert.strictEqual(typeof GY.aberto, 'function', 'aberto exportada');
+  var O = G.GYM_ORDER, prim = O[0], seg = O[1], ter = O[2];
+  // save novo: só o primeiro
+  assert.deepStrictEqual(O.map(function (id) { return GY.aberto(id, progNovo()); }), [true, false, false]);
+  [null, undefined, 'x', [], 7].forEach(function (b) { assert.deepStrictEqual(O.map(function (id) { return GY.aberto(id, b); }), [true, false, false], 'progresso ' + String(b)); });
+  // o anterior em 1 a 4 não abre; com a insígnia (5), abre o seguinte (só ele)
+  for (var e = 0; e <= 4; e++) assert.strictEqual(GY.aberto(seg, progCom(prim, { etapa: e })), false, prim + ' em ' + e);
+  assert.deepStrictEqual(O.map(function (id) { return GY.aberto(id, progCom(prim, { etapa: 5 })); }), [true, true, false]);
+  var dois = progCom(prim, { etapa: 5 }); dois[seg].etapa = 5;
+  assert.deepStrictEqual(O.map(function (id) { return GY.aberto(id, dois); }), [true, true, true]);
+  // save de antes da regra: o ginásio com alguma etapa vencida continua aberto, mesmo sem a insígnia do anterior
+  for (var k = 1; k <= 5; k++) assert.strictEqual(GY.aberto(ter, progCom(ter, { etapa: k })), true, ter + ' com ' + k + ' vencidas');
+  assert.strictEqual(GY.aberto(ter, progCom(seg, { etapa: 3 })), false, 'o anterior sem a insígnia não abre');
+  // a insígnia de um ginásio que não é o anterior não abre
+  assert.strictEqual(GY.aberto(ter, progCom(prim, { etapa: 5 })), false, 'a insígnia do primeiro não abre o terceiro');
+  // lixo no progresso é saneado (etapa estragada vale 0)
+  [6, -1, 2.5, '5', null].forEach(function (x) { assert.strictEqual(GY.aberto(seg, progCom(prim, { etapa: x })), false, 'etapa estragada ' + x); });
+  // id desconhecido: fechado
+  [null, undefined, 'lava', 'constructor', 'toString', 3].forEach(function (id) { assert.strictEqual(GY.aberto(id, progNovo()), false, 'id ' + String(id)); });
+  // anterior: o vizinho de trás na sequência
+  assert.deepStrictEqual(O.map(GY.anterior), [null, prim, seg]);
+  assert.strictEqual(GY.anterior('lava'), null);
+  // não altera a entrada
+  assert.doesNotThrow(function () { GY.aberto(seg, congela(progCom(prim, { etapa: 5 }))); });
+});
+test('ginásio: podeDesafiar e acerto — ginásio fechado é recusado antes de pagar (\'ginasio-fechado\'), antes dos outros motivos', function () {
+  var O = G.GYM_ORDER, seg = O[1], ter = O[2];
+  var base = { etapa: 0, progresso: progNovo(), hoje: HOJE, ouroLivre: 1000, cabe: function () { return true; }, timeLen: 1 };
+  var pode = function (o) { return GY.podeDesafiar(Object.assign({}, base, o)); };
+  [seg, ter].forEach(function (id) {
+    assert.deepStrictEqual(pode({ gymId: id }), { ok: false, motivo: 'ginasio-fechado' }, id + ' fechado num save novo');
+    // vem antes de 'fechada' (etapa depois da próxima), Ouro, mochila e time
+    assert.deepStrictEqual(pode({ gymId: id, etapa: 3 }), { ok: false, motivo: 'ginasio-fechado' }, id + ' etapa 3');
+    assert.deepStrictEqual(pode({ gymId: id, ouroLivre: 0, cabe: function () { return false; }, timeLen: 0 }), { ok: false, motivo: 'ginasio-fechado' }, id + ' sem Ouro nem time');
+  });
+  // ginásio ou etapa malformados continuam 'fechada' (vem antes)
+  assert.deepStrictEqual(pode({ gymId: ter, etapa: 9 }), { ok: false, motivo: 'fechada' });
+  assert.deepStrictEqual(pode({ gymId: 'lava' }), { ok: false, motivo: 'fechada' });
+  // com a insígnia do anterior, abre e segue as regras de sempre
+  var p = progCom(O[0], { etapa: 5 });
+  assert.deepStrictEqual(pode({ gymId: seg, progresso: p }), { ok: true, revanche: false });
+  assert.deepStrictEqual(pode({ gymId: seg, progresso: p, etapa: 1 }), { ok: false, motivo: 'fechada' });
+  assert.deepStrictEqual(pode({ gymId: ter, progresso: p }), { ok: false, motivo: 'ginasio-fechado' });
+  // save de antes da regra (etapa > 0 sem a insígnia do anterior): continua de onde parou
+  assert.deepStrictEqual(pode({ gymId: ter, etapa: 2, timeLen: 2, progresso: progCom(ter, { etapa: 2 }) }), { ok: true, revanche: false });
+  assert.deepStrictEqual(pode({ gymId: ter, etapa: 4, timeLen: 1, progresso: progCom(ter, { etapa: 5, revDia: null }) }), { ok: true, revanche: true }, 'revanche de um ginásio vencido antes da regra');
+  // o acerto também recusa um ginásio fechado (nada de Ouro, XP ou progresso)
+  var R = resMao([[0, 0, 1]], true);
+  assert.strictEqual(GY.acerto({ gymId: seg, etapa: 0, revanche: false, progresso: progNovo(), resultado: R, hoje: HOJE, timeLen: 1 }), null, 'acerto de ginásio fechado');
+  assert.ok(GY.acerto({ gymId: seg, etapa: 0, revanche: false, progresso: p, resultado: R, hoje: HOJE, timeLen: 1 }), 'com a insígnia do anterior acerta');
+  var ac = GY.acerto({ gymId: O[0], etapa: 4, revanche: false, progresso: progCom(O[0], { etapa: 4 }), resultado: resMao([[0, 0, 1], [0, 1, 1], [0, 2, 1]], true), hoje: HOJE, timeLen: 1 });
+  assert.strictEqual(ac.insignia, true);
+  assert.strictEqual(GY.aberto(seg, ac.progresso), true, 'vencer o líder do primeiro abre o segundo');
+  assert.deepStrictEqual(GY.podeDesafiar(Object.assign({}, base, { gymId: seg, progresso: ac.progresso })), { ok: true, revanche: false });
 });
 test('ginásio: bonus e sanear (lixo em cada campo)', function () {
   var I = G.GYM.insignias;

@@ -772,6 +772,11 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .ginasio-cartao-meta { grid-column: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: var(--t-s); line-height: 1.25; }
 .ginasio-cartao-seta { grid-column: 2; grid-row: 1 / span 4; margin: 0 -2px 0 0; }
 .ginasio-progresso { color: var(--texto-2); }
+/* ginásio fechado na sequência (spec 2026-11-18-mapa-expedicao §1): apagado como a etapa fechada, com o motivo escrito */
+.ginasio-cartao--fechado, .ginasio-cartao--fechado:hover { background: var(--painel); box-shadow: inset 0 0 0 2px var(--linha); cursor: not-allowed; }
+.ginasio-cartao--fechado:active { transform: none; box-shadow: inset 0 0 0 2px var(--linha); }
+.ginasio-cartao--fechado .ginasio-cartao-nome { color: var(--texto-2); }
+.ginasio-cartao-motivo { color: var(--texto); }
 .ginasio-insignia { display: flex; align-items: center; gap: 8px; margin: 0; }
 .ginasio-revanche { background: var(--ouro); color: var(--tinta); padding: 2px 6px; font-size: var(--t-xs); line-height: 1.2; }
 .ginasio-revanche-amanha { color: var(--texto-2); font-size: var(--t-xs); line-height: 1.2; }   /* sem destaque (decisão 3) */
@@ -1453,7 +1458,8 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   .perfil-insignia { border: 2px solid CanvasText; }
   .perfil-insignia--falta { border-color: GrayText; color: GrayText; }
   .ginasio-revanche-amanha { color: CanvasText; }
-  .etapa--fechada .etapa-btn { border-color: GrayText; color: GrayText; }
+  .etapa--fechada .etapa-btn, .ginasio-cartao--fechado { border-color: GrayText; color: GrayText; }
+  .ginasio-cartao--fechado .ginasio-cartao-nome, .ginasio-cartao--fechado .ginasio-cartao-meta { color: GrayText; }
   .etapa--fechada .etapa-nome, .etapa--fechada .etapa-meta, .etapa--fechada .etapa-motivo, .etapa--fechada .etapa-rotulo { color: GrayText; }
   .etapa-estado, .ginasio-revanche { border: 2px solid CanvasText; }
   .adv-cavalo { border: 2px solid CanvasText; }
