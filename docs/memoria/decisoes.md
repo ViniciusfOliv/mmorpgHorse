@@ -3,6 +3,17 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-18 — Integração dos pedidos do dia na `main` e os cavalos na curva (decisões do Vinicius)
+- **Os cavalos não "fazem a curva": ficam só subindo com o arco da pista** (o Vinicius escolheu a opção 1 de três
+  maquetes: só o arco; os cavalos inclinam com a pista; inclinam e fecham para dentro) — o arco já dá a ideia da curva.
+  Se mudar de ideia: inclinar cada cavalo pela inclinação do arco sob ele é só desenho.
+- **Integrar na `main` a corrida 50% mais longa, as informações da aba Skills e a curva com as pontas mais altas**
+  ("3 - sim") — por fast-forward, com a verificação completa rodada na `main` antes do envio; os artefatos oficiais (jogo,
+  DEV e wiki) republicados com o build da integração.
+- **A arte do oponente e do cavalo dele na tela de desafio do ginásio ("Cena 2") sai do PixelLab** ("2 - pixel lab") —
+  começa pelo piloto da Capitã Labareda (até 4 gerações); os outros dois líderes e os 12 soldados só depois de o
+  Vinicius aprovar o piloto e confirmar o gasto.
+
 ## 2026-11-18 — Curva visível na pista: as pontas mais altas (escolha do Vinicius)
 - **Na corrida, a curva aparece como um arco preso à tela: o meio da tela fica onde está e as duas pontas sobem, até 20
   px de arte no centro de uma curva cheia (as arquibancadas sobem 10/6 disso)** — o Vinicius viu duas maquetes (o meio

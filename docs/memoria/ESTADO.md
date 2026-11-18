@@ -12,7 +12,8 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   2026-11-16, `claude/itens-loja-diaria` em 2026-11-17 e `claude/nifty-newton-e8u133`, a dos ginásios, em 2026-11-18, as
   quatro por fast-forward). O Vinicius escolheu integrar antes de jogar: as listas "A confirmar com o Vinicius (gosto,
   3a)", "(gosto, 3b)", "(gosto, 3c)", "(gosto, itens)" e "(gosto, ginásios)" continuam abertas e viram ajustes por cima
-  da `main`. Em aberto: a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta como bloco 3). Trabalho
+  da `main`. Os pedidos de 2026-11-18 (corrida 50% mais longa, informações da aba Skills e a curva com as pontas mais
+  altas) entraram na `main` no mesmo dia, também por fast-forward. Em aberto: a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta como bloco 3). Trabalho
   novo sai da `main`.
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build; os três foram republicados em
   2026-11-18 com o build c3f9fb1, o da integração dos ginásios: jogo na versão 9, DEV na 7 e wiki na 8):
@@ -24,8 +25,8 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   voltar o dia), Ginásios (etapas vencidas de cada trilha, liberar a revanche, zerar), Cavalo, Itens (peças), Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
 - **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (178 testes de simulação, 117 de
   efeitos, 172 de moldes, 759 conferências do wiki, 111 metas de balanço no modo rápido e 300 no completo, e 71 blocos do
-  teste de interface; contagem de 2026-11-18, na `main` com os ginásios integrados; na branch da sessão, 179 testes de
-  simulação e 72 blocos, com a aba Skills nova). A verificação leva ~12 min (com o
+  teste de interface; contagem de 2026-11-18, na `main` com os ginásios integrados; com os pedidos do mesmo dia, 179
+  testes de simulação, 118 de efeitos e 72 blocos). A verificação leva ~12 min (com o
   teste de interface em paralelo desde 2026-11-17; antes dele, ~16 min com menos testes).
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
@@ -461,15 +462,13 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
 ## Próximos passos
 - **Frente de itens (na `main`):** o Vinicius joga nos artefatos oficiais e decide a lista "A confirmar com o Vinicius
   (gosto, itens)"; o que ele mudar entra como ajuste por cima da `main`.
-- **Pedidos de 2026-11-18 (na `claude/nifty-newton-e8u133`, sem merge):** feitos: a corrida 50% mais longa na tela e, na
-  aba Skills da montaria, a chance de cada skill ativar (com a conta: raridade + nível + Sorte), o "Quando" de cada skill e
-  o quadro da Garra deste cavalo (onde começa, chance e força; com a Arrancada Final), tudo calculado pelo `sim.js` e
-  atualizado quando o cavalo melhora; e a curva visível na pista enquanto os cavalos correm (escolha dele: "as pontas
-  mais altas", um arco preso à tela de até 20 px). **Esperando o Vinicius:** (1) se os cavalos também "fazem a curva"
-  (maquete com eles inclinando, e inclinando e fechando para dentro); (2) a arte do ginásio: ele escolheu a "Cena 2" (tela
-  de desafio antes de cada duelo, oponente e cavalo dele no alto à direita, o cavalo do jogador embaixo à esquerda); a
-  maquete usa uma personagem provisória feita à mão, e a definitiva sairia do PixelLab (gasta gerações: pedir
-  confirmação); (3) integrar na `main`.
+- **Pedidos de 2026-11-18 (na `main` desde o mesmo dia):** feitos: a corrida 50% mais longa na tela; na aba Skills da
+  montaria, a chance de cada skill ativar (com a conta: raridade + nível + Sorte), o "Quando" de cada skill e o quadro da
+  Garra deste cavalo, tudo calculado pelo `sim.js` e atualizado quando o cavalo melhora; e a curva visível na pista
+  (escolha dele: "as pontas mais altas", um arco preso à tela de até 20 px; os cavalos só sobem com o arco, sem
+  inclinar). **Em andamento:** a tela de desafio do ginásio ("Cena 2": antes de cada duelo, o oponente e o cavalo dele no
+  alto à direita, o cavalo do jogador embaixo à esquerda), com a arte do PixelLab: primeiro o piloto da Capitã Labareda
+  (até 4 gerações); os outros dois líderes e os 12 soldados só com a aprovação do piloto e nova confirmação do gasto.
 - **Ginásios (`docs/GDD.md` §8.6), na `main` desde 2026-11-18:** o Vinicius joga nos artefatos oficiais e decide a lista
   "A confirmar com o Vinicius (gosto, ginásios)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Teste de interface em paralelo:** feito e na `main` (a verificação inteira leva ~10 min com os ginásios); em aberto se vale buscar os ~5 min (dividir o bloco
