@@ -477,6 +477,27 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   `prototype/assets/pixellab/treinadores/escolhas.json`; no build de teste https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch,
   versão 18, com o build 53e4ced). **Esperando o Vinicius:** jogar e dizer se troca alguma das 14
   escolhas do controlador (as candidatas estão na mesma pasta; trocar é mudar um número no `escolhas.json`).
+- **Pedido novo de 2026-11-18 (em desenho, nada construído):** o Vinicius quer (1) a interface mais visual, com menos
+  botões: um mapa-múndi em pixel art (a referência dele é o mapa de um jogo que existe: fazer um mapa nosso no mesmo
+  espírito, sem copiar a arte), com um marcador por ginásio; tocar abre o mapa do ginásio, com a trilha dos oponentes até
+  o líder; tocar num oponente mostra a cena "oponente + cavalo × você", agora com a figura do jogador atrás do cavalo
+  dele; (2) os ginásios em sequência (só luta com um vencendo o anterior; a ordem é do controlador); (3) balanço: o
+  começo está difícil demais e ele quer saber se há combo de skill imbatível. **Medido em 2026-11-18** (scripts
+  descartáveis; refazer com `__galope.buildLobby` + `RaceSim.simulate` e com duelos do mesmo cavalo no `sim.js`):
+  - *Salas da aba Correr:* o inicial vence 8–10% (o justo com 4 a 8 corredores seria ~18%) e perde ~18 de Ouro por
+    corrida com a entrada de 50. Causa: os rivais saem de 91,5% a 111,5% do Poder do jogador; numa sala quase sempre há
+    um ~8% mais forte, e +8% vence ~78% dos duelos. Em sala de 8 o inicial vence 1–3%.
+  - *Ginásios:* o inicial no nível 1 vence o 1º recruta (nível 4) em 23–34% das vezes sem vantagem de elemento e em 63%
+    com ela. Hoje os três ginásios abrem juntos e têm os mesmos níveis (4/8/12/16/20).
+  - *Status maior sempre vence?* Não. Mesmo cavalo (Raro nível 20), um com +X% em todos os status de corrida, duelo sem
+    skills: +1% a +10% vence 72–78% (o resto é do Dado da Sorte); +15% 88%; +20% 98%; +30% 100%. Com 3 skills iguais dos
+    dois lados: +2% 57%, +5% 68%, +10% 81%. Sala de 6 (justo 17%): +5% ~50%, +10% ~64%, +20% ~90%.
+  - *Combos de skill:* não há imbatível, mas há receita melhor. Mesmo cavalo dos dois lados, só o combo muda, contra
+    combos sorteados: o melhor trio (Arranque + Drift + a skill de clima do tipo) vence 64–66% no Raro; melhor × pior
+    66–72%; no Mítico (5 skills) o melhor vence 77% e melhor × pior 81%. Por skill (média dos combos que a têm): Drift,
+    a de clima e Arranque 53–56%; Dado Viciado 42% (quase uma vaga vazia); Sprint, Saída Rápida, Nascente e Fôlego de
+    Montanha 47–48%.
+  Proposta em conversa (esperando o Vinicius): dois projetos, primeiro o balanço do começo e das skills, depois o mapa.
 - **Ginásios (`docs/GDD.md` §8.6), na `main` desde 2026-11-18:** o Vinicius joga nos artefatos oficiais e decide a lista
   "A confirmar com o Vinicius (gosto, ginásios)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Teste de interface em paralelo:** feito e na `main` (a verificação inteira leva ~10 min com os ginásios); em aberto se vale buscar os ~5 min (dividir o bloco
