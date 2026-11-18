@@ -1,0 +1,25 @@
+{
+  "endpoint": "/create-image-pixen",
+  "data": "2026-11-18T23:06:33.580Z",
+  "pedido": {
+    "description": "Top-down map of a volcanic training ground for a 16-bit SNES JRPG, tall portrait format. A grey cobblestone path enters at the bottom center and winds upward in a wide zigzag to the top, passing five round stone slab platforms spaced evenly along it; the last platform at the top is bigger, with red banners and braziers. Dark cracked volcanic rock with glowing embers, rivers of bright orange lava flowing along the left and right edges. Bright cheerful colors, clean detailed pixel art, no text, no letters, no characters, no interface.",
+    "image_size": {
+      "width": 168,
+      "height": 400
+    },
+    "view": "high top-down",
+    "outline": "selective outline",
+    "detail": "highly detailed",
+    "no_background": false,
+    "seed": 5321
+  },
+  "resposta": {
+    "imagens": [
+      {
+        "type": "base64",
+        "base64": "<base64 omitido: 57875 bytes, sha256 af9380302af036f5>",
+        "format": "png"
+      }
+    ]
+  }
+}

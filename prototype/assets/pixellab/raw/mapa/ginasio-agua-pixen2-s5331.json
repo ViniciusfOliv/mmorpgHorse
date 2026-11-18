@@ -1,0 +1,25 @@
+{
+  "endpoint": "/create-image-pixen",
+  "data": "2026-11-18T23:32:22.639Z",
+  "pedido": {
+    "description": "Top-down map of a riverside training ground for a 16-bit SNES JRPG, tall portrait format. A sandy footpath enters at the bottom center and winds upward in a very wide zigzag to the top, passing exactly four small round wooden dock platforms, alternating far left and far right, widely spaced, far apart from each other, and ending at one large round wooden stage with blue banners at the very top. Green river banks with reeds and lily pads, clear blue river water with foam and small waterfalls along the left and right edges. Bright cheerful colors, clean detailed pixel art, no text, no letters, no characters, no interface.",
+    "image_size": {
+      "width": 168,
+      "height": 400
+    },
+    "view": "high top-down",
+    "outline": "selective outline",
+    "detail": "highly detailed",
+    "no_background": false,
+    "seed": 5331
+  },
+  "resposta": {
+    "imagens": [
+      {
+        "type": "base64",
+        "base64": "<base64 omitido: 50094 bytes, sha256 5bf6b1cba6aa2725>",
+        "format": "png"
+      }
+    ]
+  }
+}

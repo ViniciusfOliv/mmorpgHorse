@@ -1,0 +1,25 @@
+{
+  "endpoint": "/create-image-pixen",
+  "data": "2026-11-18T23:01:28.253Z",
+  "pedido": {
+    "description": "Top-down overworld map for a 16-bit SNES JRPG, portrait format. A whole tropical island fills the lower two thirds of the image, surrounded by deep blue ocean on the left, right and bottom, with sandy beaches. On the island: a dense pine forest and green meadows in the south-west, a blue lake with reeds in the east, orange desert badlands with cactus and a big volcano with glowing lava in the north. A pale dirt road with round stopping points links the south beach, the forest, the lake and the volcano and ends at a small wooden pier on the north shore. The top third of the image is open sea leading to a mysterious unexplored land completely hidden under a thick bank of white clouds and fog. Bright cheerful colors, clean detailed pixel art, no text, no letters, no characters, no interface.",
+    "image_size": {
+      "width": 168,
+      "height": 304
+    },
+    "view": "high top-down",
+    "outline": "selective outline",
+    "detail": "highly detailed",
+    "no_background": false,
+    "seed": 5156
+  },
+  "resposta": {
+    "imagens": [
+      {
+        "type": "base64",
+        "base64": "<base64 omitido: 28631 bytes, sha256 6e08b6853c06d3fd>",
+        "format": "png"
+      }
+    ]
+  }
+}

@@ -4,12 +4,14 @@
 //   lerIcones(root)         -> { nome: dataUrl }  (window.__ICONES; a pasta raw/ fica de fora)
 //   lerMarca(root)          -> { logo, w, h } ou { logo: null }  (window.__MARCA)
 //   lerTreinadores(root)    -> { id: dataUrl }  (window.__TREINADORES: a candidata escolhida de cada oponente dos ginásios)
+//   lerMapa(root)           -> { arte: { nome: dataUrl }, mapa, pes } ou {}  (window.__MAPA: o mapa da Expedição)
 //   jsonJs(v)               -> JSON seguro dentro de <script> (nada de "<" literal)
 // root = a pasta prototype/. Arquivo de arte ausente nunca falha: a parte correspondente fica vazia
 // (o molde inválido vira um aviso em `avisos`) e quem usa cai no desenho por código / no texto.
 import { readFile, readdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { decodePng } from './png.mjs'
 
 export const dataUrl = async (root, rel) => 'data:image/png;base64,' + (await readFile(join(root, rel))).toString('base64')
 const listar = async (root, rel) => (existsSync(join(root, rel)) ? (await readdir(join(root, rel))).sort() : [])
@@ -77,6 +79,36 @@ export async function lerTreinadores(root) {
     if (/^[a-z0-9-]+$/.test(id) && Number.isInteger(escolhas[id]) && existsSync(join(root, png))) out[id] = await dataUrl(root, png)
   }
   return out
+}
+
+// Mapa da Expedição (spec 2026-11-18-mapa-expedicao): assets/pixellab/mapa/escolhas.json = { nome: candidata } diz as
+// peças que vão para o jogo (cada uma em <nome>.png, da pixellab-mapa.mjs --escolher): o mapa-múndi (`mundo`), o mapa de
+// cada ginásio (`ginasio-<id>`), as construções (`lugar-<id>`), os ícones (`icone-<nome>`) e a figura do jogador
+// (`jogador`). mapa.json dá os lugares de cada mapa (em pixels de arte). `pes` é a última linha opaca de cada figura
+// (o jogador e os oponentes escolhidos), para os pés ficarem em cima do ponto do mapa. Sem a pasta, sem um dos dois
+// JSON ou sem o mapa-múndi: {} (a aba Expedição fica com os cartões e a trilha em lista).
+const NOME_OK = /^[a-z0-9-]+$/
+function ultimaLinhaOpaca(buf) {
+  const d = decodePng(buf)
+  for (let y = d.height - 1; y >= 0; y--) for (let x = 0; x < d.width; x++) if (d.rgba[(y * d.width + x) * 4 + 3] > 40) return y
+  return d.height - 1
+}
+export async function lerMapa(root) {
+  const dir = 'assets/pixellab/mapa', arqMapa = join(root, dir, 'mapa.json'), arqEsc = join(root, dir, 'escolhas.json')
+  if (!existsSync(arqMapa) || !existsSync(arqEsc) || !existsSync(join(root, dir, 'mundo.png'))) return {}
+  const mapa = JSON.parse(await readFile(arqMapa, 'utf8')), arte = {}, pes = {}
+  delete mapa.nota
+  for (const nome of Object.keys(JSON.parse(await readFile(arqEsc, 'utf8'))).sort()) {
+    if (NOME_OK.test(nome) && existsSync(join(root, dir, nome + '.png'))) arte[nome] = await dataUrl(root, join(dir, nome + '.png'))
+  }
+  if (arte.jogador) pes.jogador = ultimaLinhaOpaca(await readFile(join(root, dir, 'jogador.png')))
+  const dirT = 'assets/pixellab/treinadores', arqT = join(root, dirT, 'escolhas.json')
+  const esc = existsSync(arqT) ? JSON.parse(await readFile(arqT, 'utf8')) : {}
+  for (const id of Object.keys(esc).sort()) {
+    const png = join(root, dirT, `${id}-s${esc[id]}.png`)
+    if (NOME_OK.test(id) && existsSync(png)) pes[id] = ultimaLinhaOpaca(await readFile(png))
+  }
+  return { arte, mapa, pes }
 }
 
 // Logotipo: data: URL e o tamanho em px (lido do cabeçalho IHDR do PNG), para o <img> reservar o espaço.

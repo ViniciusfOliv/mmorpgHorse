@@ -1,0 +1,412 @@
+{
+  "endpoint": "/generate-image-v2",
+  "data": "2026-11-18T23:17:14.269Z",
+  "pedido": {
+    "description": "tiny building icon for a 16-bit SNES JRPG overworld map, seen from above at a three-quarter angle, a small dark stone forge temple with a red tiled roof, glowing orange windows and a red flame banner flag on top, compact, centered, clean detailed pixel art, no text",
+    "image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "seed": 5403,
+    "no_background": true,
+    "style_image": {
+      "image": {
+        "type": "base64",
+        "base64": "<base64 omitido: 1007 bytes, sha256 b1d6f37738285eda>",
+        "format": "png"
+      },
+      "size": {
+        "width": 32,
+        "height": 32
+      }
+    }
+  },
+  "resposta": {
+    "imagens": [
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1439 bytes, sha256 a37733e51340ecb0>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1401 bytes, sha256 abdc78387cc2a4db>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1488 bytes, sha256 69beea79cd863ef1>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1335 bytes, sha256 b33e4c83bb44d37c>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1435 bytes, sha256 674eb111e553504a>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1570 bytes, sha256 08eee44e7cb3be0a>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1507 bytes, sha256 0ca94f304adb6129>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1427 bytes, sha256 849e5a2e8fa91a7a>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1435 bytes, sha256 ee1c0b27bb78e31c>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1440 bytes, sha256 b34eb66d8cba0f91>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1622 bytes, sha256 ae06a6ec45055a17>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1423 bytes, sha256 af551d7adefa11a0>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1421 bytes, sha256 e15e491963148a24>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1418 bytes, sha256 cd764ff0ef23c8ed>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1605 bytes, sha256 de29ec9c77351590>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1455 bytes, sha256 cd34bebc77e01e07>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1651 bytes, sha256 33173e839f260bd0>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1578 bytes, sha256 d47c0b8d8a52ccf0>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1534 bytes, sha256 262de74d64f1e463>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1522 bytes, sha256 4d8b8ebad0dfd7a8>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1558 bytes, sha256 9daac8c5f2e2dcf0>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1583 bytes, sha256 5d4f6600718c0e43>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1646 bytes, sha256 f6ca6c2794316f7d>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1651 bytes, sha256 5c230b3a8fb5f28d>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1367 bytes, sha256 b56ca7cb6c580842>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1592 bytes, sha256 e60268e04a51dd3d>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1535 bytes, sha256 b69c3dc5a99b042f>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1444 bytes, sha256 5b2cefbe35690a18>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1429 bytes, sha256 0965a6fdc1413538>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1510 bytes, sha256 e3bbd9680629cd32>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1596 bytes, sha256 be030983dca50a73>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1248 bytes, sha256 f817e8eeedf5a479>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1483 bytes, sha256 b9f1489f30c6a23f>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1357 bytes, sha256 fc7810ff0112848c>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1664 bytes, sha256 b39f59271b8af4e6>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1697 bytes, sha256 9ae18844600e766f>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1480 bytes, sha256 2adf1c5592d5f345>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1456 bytes, sha256 0ba7b739c21ccf0e>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1607 bytes, sha256 b561a187054fa3f6>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1605 bytes, sha256 b0e07e31c651339e>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1530 bytes, sha256 5731e2d1ac83657a>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1548 bytes, sha256 36d86e7eb3a5cceb>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1687 bytes, sha256 f2c97f0853a34d7a>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1576 bytes, sha256 a065df3071ca63a4>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1599 bytes, sha256 8a08d9182a4604d9>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1540 bytes, sha256 b41d21eedaa96b47>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1582 bytes, sha256 f355609ad4f1d81b>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1610 bytes, sha256 95d189bddd531d21>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1515 bytes, sha256 01009d5a208572a7>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1629 bytes, sha256 a55cff294a53f51a>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1628 bytes, sha256 c2cc2e57b9ae30d5>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1496 bytes, sha256 d606f45c8e980fa3>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1512 bytes, sha256 148b34141b0d4ec9>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1777 bytes, sha256 9009f35da1670837>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1675 bytes, sha256 35175adbc137340a>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1599 bytes, sha256 ad299e888767ac40>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1516 bytes, sha256 c9cbd2a2371a6c94>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1430 bytes, sha256 ebd7ae8df5a31ecf>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1502 bytes, sha256 d9755ddfa5b14cfa>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1528 bytes, sha256 69b7dc45b9c327d5>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1500 bytes, sha256 a1d660c7531fc3c0>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1511 bytes, sha256 fdc4188a9acf0ba7>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1515 bytes, sha256 67431c2171ed4adb>",
+        "height": 32
+      },
+      {
+        "type": "base64",
+        "width": 32,
+        "base64": "<base64 omitido: 1540 bytes, sha256 010398dfec5c5b8a>",
+        "height": 32
+      }
+    ]
+  }
+}

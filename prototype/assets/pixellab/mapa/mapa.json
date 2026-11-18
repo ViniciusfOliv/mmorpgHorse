@@ -1,0 +1,35 @@
+{
+ "nota": "Os lugares de cada mapa da Expedição, em pixels de arte, marcados em cima da arte escolhida (escolhas.json). Trocou a arte de um mapa? Marque os lugares dele de novo aqui. mundo.lugares: o meio da base de cada construção (desconhecido: o meio do rótulo). ginasios.<id>.etapas: os pés de cada oponente, do Recruta ao líder; voce: os pés da figura do jogador.",
+ "escala": 2,
+ "mundo": {
+  "w": 168,
+  "h": 304,
+  "lugares": {
+   "casa": [57, 264],
+   "grama": [45, 198],
+   "agua": [92, 216],
+   "fogo": [98, 162],
+   "desconhecido": [84, 58]
+  }
+ },
+ "ginasios": {
+  "grama": {
+   "w": 168,
+   "h": 400,
+   "voce": [92, 397],
+   "etapas": [[112, 335], [60, 265], [112, 192], [60, 120], [87, 62]]
+  },
+  "agua": {
+   "w": 168,
+   "h": 400,
+   "voce": [84, 397],
+   "etapas": [[44, 324], [131, 252], [44, 199], [131, 154], [89, 66]]
+  },
+  "fogo": {
+   "w": 168,
+   "h": 400,
+   "voce": [49, 337],
+   "etapas": [[119, 283], [49, 227], [119, 178], [49, 122], [86, 66]]
+  }
+ }
+}

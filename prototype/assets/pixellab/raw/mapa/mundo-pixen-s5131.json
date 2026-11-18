@@ -1,0 +1,25 @@
+{
+  "endpoint": "/create-image-pixen",
+  "data": "2026-11-18T22:56:56.758Z",
+  "pedido": {
+    "description": "overworld map of a fantasy island for a 16-bit SNES JRPG, seen from above, bright cheerful colors, deep blue ocean with small white wave crests, sandy beaches all around the coast, a dense green forest and meadows in the south, a blue lake with reeds in the east, dry orange badlands with cactus and a big volcano with glowing lava in the north of the island, a pale dirt trail linking four small clearings, and in the far north of the map an unexplored land completely hidden under a thick bank of white clouds and fog, clean detailed pixel art, no text, no letters, no characters, no interface",
+    "image_size": {
+      "width": 168,
+      "height": 304
+    },
+    "view": "high top-down",
+    "outline": "selective outline",
+    "detail": "highly detailed",
+    "no_background": false,
+    "seed": 5131
+  },
+  "resposta": {
+    "imagens": [
+      {
+        "type": "base64",
+        "base64": "<base64 omitido: 37558 bytes, sha256 b976199b99937b2b>",
+        "format": "png"
+      }
+    ]
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "endpoint": "/generate-image-v2",
+  "data": "2026-11-18T23:10:23.306Z",
+  "pedido": {
+    "description": "full body pixel art game character seen from behind, back view, standing with his back to the viewer, a horse racing jockey: plain white jockey helmet, golden yellow racing silks jacket, white riding breeches, tall black riding boots with brown tops, holding a short riding crop, whole figure visible from helmet to boots, clean silhouette",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "seed": 5421,
+    "no_background": true,
+    "style_image": {
+      "image": {
+        "type": "base64",
+        "base64": "<base64 omitido: 1947 bytes, sha256 71ab7b592c343ba4>",
+        "format": "png"
+      },
+      "size": {
+        "width": 64,
+        "height": 64
+      }
+    }
+  },
+  "resposta": {
+    "imagens": [
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2187 bytes, sha256 325670f300ab9596>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2253 bytes, sha256 2c85b5cbc536d1a4>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2393 bytes, sha256 1e3beaed9b0359bf>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2343 bytes, sha256 9a7602b8383a0ebd>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2439 bytes, sha256 9b4cd5b38be1d164>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2432 bytes, sha256 2a570130ffdcb250>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2302 bytes, sha256 59d6c399524fd23b>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2388 bytes, sha256 30d55a4f9c599371>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2375 bytes, sha256 d63e9e725d2d3d74>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2366 bytes, sha256 8deba9c36b831254>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2448 bytes, sha256 cd455ec890313a61>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2315 bytes, sha256 92ba85f5d4916e90>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2242 bytes, sha256 da4c62ab28239005>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2521 bytes, sha256 4f8c6072de2c72d0>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2271 bytes, sha256 2cc645e5c63f8e50>",
+        "height": 64
+      },
+      {
+        "type": "base64",
+        "width": 64,
+        "base64": "<base64 omitido: 2264 bytes, sha256 92f23ab218f02d75>",
+        "height": 64
+      }
+    ]
+  }
+}

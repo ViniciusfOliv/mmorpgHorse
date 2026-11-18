@@ -18,7 +18,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { lerMoldes, lerIcones, lerMarca, lerTreinadores, jsonJs } from './tools/arte-embutida.mjs'
+import { lerMoldes, lerIcones, lerMarca, lerTreinadores, lerMapa, jsonJs } from './tools/arte-embutida.mjs'
 import { htmlFolhaIcones } from './tools/folha-icones.mjs'
 import { ICONES_NOVOS, ANTIGOS } from './tools/icones-catalogo.mjs'
 import { gravarWiki } from './tools/wiki.mjs'
@@ -76,10 +76,11 @@ const arteJs = [
   `window.__MOLDES = ${jsonJs(MOLDES)};`,
   `window.__ICONES = ${jsonJs(await lerIcones(ROOT))};`,
   `window.__MARCA = ${jsonJs(await lerMarca(ROOT))};`,
-  `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`
+  `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`,
+  `window.__MAPA = ${jsonJs(await lerMapa(ROOT))};`
 ].join('\n')
 
-const arteTag = `<script>\n/* arte embutida (moldes, ícones, marca, oponentes dos ginásios) */\n${arteJs}\n</script>`
+const arteTag = `<script>\n/* arte embutida (moldes, ícones, marca, oponentes dos ginásios, mapa da Expedição) */\n${arteJs}\n</script>`
 const scripts = [arteTag], scriptsProd = [arteTag]
 for (const file of SCRIPTS) {
   const fonte = await read(file)
