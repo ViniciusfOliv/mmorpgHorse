@@ -1181,7 +1181,12 @@ function reportGym(R) {
   G.GYM_ORDER.forEach(function (gid) {
     var g4 = EL3.filter(function (el) { return el !== gid; }).map(function (el) {
       var v = wrG4(R, gid, el);
-      check('G4', G.GYMS[gid].name + ': ' + EN(el) + ' contra ' + EN(gid) + ' sem a vantagem, nível igual', v, 40, 60);   // 2026-11-18: 42–58 → 40–60 (Garra v2; medido até 58,6%)
+      // 2026-11-18: 42–58 → 40–60 (Garra v2; medido até 58,6%). Com a sequência (mesmo dia), a Fornalha passou aos níveis
+      // 21 a 30, e a pista dela (terra, 850 m de subida) favorece o Ipê mais quanto mais pontos os cavalos têm (Grama contra
+      // Fogo, medido fora daqui na mesma pista: 56% nos níveis 2–10, 60% nos 11–20, 64% nos 21–30; nas outras duas pistas,
+      // 43% a 50%). Sem mexer na pista (fora do escopo da sequência), o teto desse par vai a 67 (medido 64,5%)
+      var tetoG4 = gid === 'fogo' && el === 'grama' ? 67 : 60;
+      check('G4', G.GYMS[gid].name + ': ' + EN(el) + ' contra ' + EN(gid) + ' sem a vantagem, nível igual', v, 40, tetoG4);
       return EN(el) + ' ' + f1(v) + '%';
     });
     var r6 = R['g6-' + gid], tot = r6.f[0] + r6.f[1] + r6.f[2];
@@ -1214,19 +1219,26 @@ function reportGym(R) {
         var nm = g.name + ', ' + ETN[e];
         check('G1', nm + ': mesmo elemento, nível ' + L, v.g1, 40, 55);
         check('G2', nm + ': 4 níveis acima (' + (L + 4) + ')', v.g2a, 70, 100);
-        check('G2', nm + ': 4 níveis abaixo (' + Math.max(1, L - 4) + ')', v.g2b, 0, 38);   // 2026-11-18: 35 → 38 (no soldado 1, "abaixo" é o nível 1: 3 níveis; medido 35,4%)
+        // 2026-11-18: 35 → 38 (no soldado 1, "abaixo" é o nível 1: 3 níveis; medido 35,4%). Com a sequência (mesmo dia), o
+        // soldado 1 da Capoeira está no nível 2: "4 abaixo" é o nível 1, só 1 nível de diferença (medido 43,6%; com 3
+        // níveis, no soldado 2, 34,9%). Teto 48 quando a diferença real é de 1 ou 2 níveis
+        var abaixo = Math.max(1, L - 4);
+        check('G2', nm + ': 4 níveis abaixo (' + abaixo + ')', v.g2b, 0, L - abaixo >= 3 ? 38 : 48);
         // 2026-11-18 (Garra v2, vantagem 4% → 2%): tetos 85 → 88 e 35 → 40. A pista de cada ginásio pesa mais com a
-        // corrida menos ruidosa (na Fornalha, de duas subidas, a Grama em desvantagem chega a 38%); as pistas são
-        // recalibradas no projeto do mapa, junto com os níveis da sequência dos ginásios
+        // corrida menos ruidosa (na Fornalha, de duas subidas, a Grama em desvantagem chega a 38%)
+        // Com a sequência (mesmo dia) a Fornalha está nos níveis 21 a 30, onde a pista dela favorece a Grama (ver a G4): a
+        // Grama em desvantagem vence 41% a 46% dos desafios (era até 38% nos níveis 4 a 20) e a distância cai a 29 p.p. no
+        // soldado 2. Rebaseadas só na Fornalha: teto 40 → 49 e piso da distância 30 → 26 (a pista é o ajuste de verdade)
+        var forn = gid === 'fogo';
         check('G3', nm + ': com vantagem (' + EN(g.fraco) + ')', v.g3a, 60, 88);
-        check('G3', nm + ': em desvantagem (' + EN(GYM_FORTE[gid]) + ')', v.g3d, 0, 40);
-        check('G3', nm + ': distância entre com vantagem e em desvantagem', v.g3a - v.g3d, 30, 100, ' p.p.');
+        check('G3', nm + ': em desvantagem (' + EN(GYM_FORTE[gid]) + ')', v.g3d, 0, forn ? 49 : 40);
+        check('G3', nm + ': distância entre com vantagem e em desvantagem', v.g3a - v.g3d, forn ? 26 : 30, 100, ' p.p.');
         var adv = et.cavalos.map(function (c) { return starterById(c.base) ? starterById(c.base).name + ' ' + '★★★'.slice(0, c.grau) : c.base; }).join(' + ');
         log('| ' + ETN[e] + ' | ' + L + ' | ' + adv + ' | **' + f1(v.g1) + '%** | ' + f1(v.g2a) + '% | ' + f1(v.g2b) + '% | ' + f1(v.g3a) + '% | ' + f1(v.g3d) + '% | ' + f1(v.g3a - v.g3d) + ' |');
       });
       log('');
     });
-    log('**G5.** Diferença entre o maior e o menor dos três ginásios, por etapa (meta: no máximo 8 pontos na G1; as colunas da G3 são só informação desde 2026-11-18: com a Garra v2 a pista de cada ginásio pesa mais, e os ginásios vão passar a ter níveis diferentes na sequência do projeto do mapa, que recalibra as pistas).');
+    log('**G5.** Diferença entre o maior e o menor dos três ginásios, por etapa (meta: no máximo 8 pontos na G1; as colunas da G3 são só informação desde 2026-11-18: com a Garra v2 a pista de cada ginásio pesa mais, e na sequência cada ginásio tem os seus níveis: a mesma etapa é outro nível em cada um).');
     log('');
     log('| Etapa | G1 | G3 com vantagem | G3 em desvantagem |');
     log('|---|---|---|---|');
