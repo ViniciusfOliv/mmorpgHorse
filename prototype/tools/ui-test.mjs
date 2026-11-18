@@ -7585,10 +7585,12 @@ try {
       for (const pedaco of [pctT(c), rar.name + ' ' + pctT(rar.skillChance), 'nível ' + nv + ': +' + pctT(T.skillPerLevel * (nv - 1)).replace('%', ''), 'Sorte ' + st.sorte])
         if (!t.chance.includes(pedaco)) problems.push(`[${label}] ${rot}: a chance de skill não diz "${pedaco}": ${t.chance}`)
       const g = S.garraInfo(h)
-      for (const pedaco of ['aos ' + pctT(g.from) + ' da pista', pctT(g.chance) + ' de chance', vezes(g.boost), 'Garra ' + st.garra + ' · '])
+      // Garra v2 (2026-11-18): sempre sai; a tela diz o ponto e a faixa do teto (da arrancada mais fraca à cheia)
+      for (const pedaco of ['Sempre sai, aos ' + pctT(g.from) + ' da pista', 'de ' + vezes(g.boostMin) + ' a ' + vezes(g.boost) + ' até a chegada', 'Um sorteio decide a força', 'Garra ' + st.garra + ' · '])
         if (!t.garra.includes(pedaco)) problems.push(`[${label}] ${rot}: a Garra não diz "${pedaco}": ${t.garra}`)
-      const ef = G.SKILLS['arrancada-final'].effect, gb = S.garraInfo(h, { chance: ef.garraChanceBonus, boost: ef.garraBoostBonus })
-      if (!t.garra.includes(pctT(gb.chance) + ' de chance e ' + vezes(gb.boost))) problems.push(`[${label}] ${rot}: a Garra não diz o que muda com a Arrancada Final (${pctT(gb.chance)}, ${vezes(gb.boost)}): ${t.garra}`)
+      if (/de chance/.test(t.garra)) problems.push(`[${label}] ${rot}: a Garra ainda fala em chance: ${t.garra}`)
+      const ef = G.SKILLS['arrancada-final'].effect, gb = S.garraInfo(h, { floor: ef.garraFloorBonus, boost: ef.garraBoostBonus })
+      if (!(gb.boostMin > g.boostMin && gb.boost > g.boost) || !t.garra.includes('ativa: de ' + vezes(gb.boostMin) + ' a ' + vezes(gb.boost) + '.')) problems.push(`[${label}] ${rot}: a Garra não diz o que muda com a Arrancada Final (${vezes(gb.boostMin)} a ${vezes(gb.boost)}): ${t.garra}`)
       const q = Object.fromEntries(t.quando.map((x) => [x.nome, x.q]))
       if (q[G.SKILLS.arranque.name] !== 'Quando: na largada · 1 vez por corrida.') problems.push(`[${label}] ${rot}: o quando do Arranque: ${q[G.SKILLS.arranque.name]}`)
       if (q[G.SKILLS['arrancada-final'].name] !== 'Quando: na arrancada final, aos ' + pctT(g.from) + ' da pista (junto com a Garra) · 1 vez por corrida.')
@@ -10876,6 +10878,46 @@ try {
         notes.crescimentoSalaMs = { primeira: +t[0].toFixed(2), media20: +media.toFixed(2), max20: +Math.max(...t.slice(1)).toFixed(2) }
         if (!(media < 15)) problems.push(`${label}: abrir a sala custa ${media.toFixed(1)} ms em média (esperado < 15 ms; a 1ª: ${t[0].toFixed(1)} ms)`)
         if ((await estado(pg)).raceCounter !== 0) problems.push(`${label}: medir o pareamento gravou uma sala`)
+        // estreia e rampa (2026-11-18, GD.ECONOMY.sala): pelo número da sala. Nas 10 primeiras, 4 ou 5 corredores e nenhum
+        // rival acima do teto da faixa de estreia (o que passaria corre com a genética reduzida); no normal (da 21ª em
+        // diante), 4 a 8 corredores, a genética do catálogo e o teto da faixa normal (+ a tolerância de 6% do modelo);
+        // na rampa, entre os dois; e a mesma sala montada duas vezes é idêntica (recarregar não muda os rivais)
+        const par = await pg.evaluate(() => {
+          const g = window.__galope, RS = window.RaceSim, GD = window.GameData, pr = RS.powerRating(g.state.mounts[0]), seed0 = g.state.seedBase
+          const cat = {}; GD.WILD_HORSES.concat(GD.STARTERS).forEach((h) => { cat[h.id] = h })
+          const fase = (conts) => {
+            const o = { ns: {}, max: 0, soma: 0, nb: 0, fracos: 0, difere: 0 }
+            for (let i = 0; i < 60; i++) {
+              g.state.seedBase = 5000 + i * 131
+              const P = { counter: conts[i % conts.length], training: false, fee: 50, pr }
+              const L = g.buildLobby(P), L2 = g.buildLobby(P)
+              if (JSON.stringify(L.racers.map((r) => r.horse)) !== JSON.stringify(L2.racers.map((r) => r.horse))) o.difere++
+              o.ns[L.n] = (o.ns[L.n] || 0) + 1
+              L.racers.forEach((r) => {
+                if (r.isPlayer) return
+                o.nb++; o.soma += r.rating / pr; o.max = Math.max(o.max, r.rating / pr)
+                if (r.rating !== RS.powerRating(r.horse)) o.difere++
+                if (JSON.stringify(r.horse.potential) !== JSON.stringify(cat[r.horse.id.replace(/-b\d+$/, '')].potential)) o.fracos++
+              })
+            }
+            return { ns: Object.keys(o.ns).map(Number).sort(), max: o.max, media: o.soma / o.nb, fracos: o.fracos, nb: o.nb, difere: o.difere }
+          }
+          const r = { pr, sala: GD.ECONOMY.sala, estreia: fase([1, 2, 5, 10]), rampa: fase([15]), normal: fase([21, 30, 500]) }
+          g.state.seedBase = seed0
+          return r
+        })
+        const SL = par.sala
+        notes.crescimentoEstreia = { estreia: par.estreia, rampa: par.rampa, normal: par.normal }
+        if (SL.estreia !== 10 || SL.rampa !== 10 || !(SL.faixaEstreia[1] < SL.faixa[1]) || !(SL.faixaEstreia[1] - SL.faixaEstreia[0] <= SL.faixa[1] - SL.faixa[0])) problems.push(`${label}: GD.ECONOMY.sala mudou ${JSON.stringify(SL)}`)
+        if (par.estreia.ns.some((n) => n < 4 || n > SL.maxEstreia) || par.estreia.ns.length !== 2) problems.push(`${label}: sala de estreia com ${par.estreia.ns} corredores (esperado 4 e ${SL.maxEstreia})`)
+        if (!(par.estreia.max <= SL.faixaEstreia[1] + 0.002)) problems.push(`${label}: rival de estreia com ${(par.estreia.max * 100).toFixed(1)}% do Poder do jogador (teto ${SL.faixaEstreia[1] * 100}%)`)
+        if (!(par.estreia.media > 0.9 && par.estreia.media < 1) || !(par.estreia.fracos > 0)) problems.push(`${label}: rivais de estreia fora do esperado ${JSON.stringify(par.estreia)}`)
+        if (par.normal.fracos !== 0) problems.push(`${label}: rival com a genética reduzida numa sala normal (${par.normal.fracos} de ${par.normal.nb})`)
+        if (par.normal.ns[0] !== 4 || par.normal.ns[par.normal.ns.length - 1] !== 8) problems.push(`${label}: salas normais com ${par.normal.ns} corredores (esperado de 4 a 8)`)
+        if (!(par.normal.max <= SL.faixa[1] * 1.06 + 0.002) || !(par.normal.max > par.estreia.max)) problems.push(`${label}: rival mais forte da sala normal com ${(par.normal.max * 100).toFixed(1)}% (estreia ${(par.estreia.max * 100).toFixed(1)}%; teto ${(SL.faixa[1] * 106).toFixed(1)}%)`)
+        if (!(par.rampa.max <= (SL.faixaEstreia[1] + SL.faixa[1]) / 2 + 0.002) || par.rampa.ns.some((n) => n > 7)) problems.push(`${label}: a rampa (sala 15) não fica entre a estreia e o normal ${JSON.stringify(par.rampa)}`)
+        if (par.estreia.difere || par.rampa.difere || par.normal.difere) problems.push(`${label}: a mesma sala montada duas vezes saiu diferente, ou o Poder mostrado não é o do cavalo ${JSON.stringify([par.estreia.difere, par.rampa.difere, par.normal.difere])}`)
+        if ((await estado(pg)).raceCounter !== 0) problems.push(`${label}: medir a estreia gravou uma sala`)
 
         // RF2: lixo em respecFree, redeas e avisoV6 volta ao padrão; valores válidos ficam
         for (const rd of [-3, 2.5, 'x', 5000, null, '4']) {
@@ -11467,7 +11509,7 @@ try {
   })
   botGear.bots.forEach((b) => { b.league = S.leagueFor(b.rating).id })
   notes.botGear = botGear
-  const alvoMax = S.leagueFor(botGear.pr * 1.115).id
+  const alvoMax = S.leagueFor(botGear.pr * G.ECONOMY.sala.faixa[1]).id
   if (!GEAR_ON) { if (botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: bot com peças com o equipamento suspenso ' + JSON.stringify(botGear)) }
   else if (alvoMax === 'bronze' ? botGear.bots.some((b) => b.pieces !== 0) : !botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: equipamento dos bots fora da liga do alvo (' + alvoMax + ') ' + JSON.stringify(botGear))
   await page.getByRole('button', { name: /^Voltar/ }).click()

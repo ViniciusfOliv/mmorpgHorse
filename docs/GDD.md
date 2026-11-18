@@ -32,7 +32,7 @@ progressão de nível, estrelas e raridade. Fórmulas e tabelas completas: `docs
 | Manobra (MAN) | Quanto da velocidade segura nas curvas |
 | Força (FOR) | Velocidade na subida, piso pesado (terra/areia) e disputa no pelotão |
 | Estamina (EST) | Tamanho do tanque de fôlego e ritmo no meio e no sprint |
-| Garra (GAR) | Chance e força da arrancada final; com mais Garra ela começa mais cedo |
+| Garra (GAR) | Força da arrancada final (ela sempre sai; um sorteio decide quanto do bônus vale); com mais Garra começa mais cedo e sai mais forte e mais regular |
 | Sorte (SOR) | Chance de rolar um segundo dado no Dado da Sorte e de ativar skills; **só de nascimento** |
 
 **Nada cresce sozinho.** O status de um cavalo é a **base** (raridade + genética) mais os **pontos
@@ -90,11 +90,14 @@ tipo** nesse terço (× (1 + m·P)); a força P cresce com nível e raridade, de
 
 Como a skill multiplica os status que o jogador comprou, investir no tipo tem sinergia: a build "forte
 no tipo" fica em 48–53% contra as outras. A meta que vale é o **equilíbrio dos tipos** num campo misto
-(cada tipo vence perto do justo, de 16,3% a 17,2%). As oito skills **gerais** servem a qualquer tipo; as
+(cada tipo vence perto do justo, de 15,6% a 17,9%, recalibrado em 2026-11-18 com a Garra nova: Labareda +22%, Raízes
+Firmes +18% e Maré Alta +31% nos dois status do tipo). As oito skills **gerais** servem a qualquer tipo, e todas as
+skills de vaga valem parecido (de 5 a 7 pontos de vitória numa sala de 6; antes iam de 1 a 13, e o melhor trio vencia
+65% dos duelos contra outros trios; hoje, contra um cavalo de outro tipo, nenhuma skill passa de 2 pontos da média); as
 de um tipo só ele aprende (Fogo 2, Água 3, Grama 2). Skill que atrapalha rival fica fora por enquanto
 (rever depois do teste fechado).
 
-O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima** na corrida valendo; nos duelos de ginásio ele também vale como vantagem de elemento (8.6). O dono do clima tem os status ×1,03 (×1,07 com 4 peças do conjunto do clima; ×1,08 com a skill de clima do elemento); o penalizado, ×0,97.
+O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima** na corrida valendo; nos duelos de ginásio ele também vale como vantagem de elemento (8.6). O dono do clima tem os status ×1,02 (×1,06 com a skill de clima do elemento; com o equipamento suspenso, o bônus de 4 peças do conjunto não entra); o penalizado, ×0,98. Até 2026-11-18 eram ×1,03, ×1,08 e ×0,97: com a Garra nova a corrida ficou menos ruidosa, e o clima de 3% decidia 8 em cada 10 corridas entre iniciais iguais.
 
 | Clima | Favorece | Penaliza | Efeito geral |
 |---|---|---|---|
@@ -106,6 +109,23 @@ O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima** na corrida val
 **Dado da Sorte:** quando o líder cruza 1/3 e 2/3 da pista, todas as montarias rolam um dado de 1 a 100; a chance de rolar um segundo dado e ficar com o melhor é **(Sorte − 40)/40**, de 0 (Sorte 40) a 1 (Sorte 80 ou mais): a Sorte nasce entre 40 e 76, e a conta começa onde ela começa.
 O maior dado vence (empate: só os empatados rolam de novo) e o clima vira o do tipo do vencedor; se já for esse, o clima segura.
 Tudo sai da seed da corrida: a sorte vicia o dado, não o decide (um Mítico de genética 31 contra sete Comuns de genética 0 vence o Dado em 20,8%; o justo é 12,5%). A Sorte vale pouco na corrida (0,7 p.p. entre os extremos de genética), por desenho.
+
+**Cavalo superior vence (regra de desenho, 2026-11-18, pedido do Vinicius):** quanto maior a vantagem de um cavalo, mais
+certo o resultado; entre cavalos parecidos a corrida segue incerta. Medido com o mesmo cavalo e as mesmas skills dos
+dois lados, um deles com todos os status de corrida maiores: em duelo, +2% vence 57%, +5% vence 79%, +10% vence 98%
+e +15% vence sempre; numa sala de 6 em que ele é o melhor (o justo seria 17%), +5% vence 62% e +10% vence 97%.
+Para isso a **Garra** mudou: a arrancada final **sempre sai**, e o sorteio (da seed, um por cavalo) decide a força,
+do piso do cavalo a 100% do bônus dele. Antes a Garra saía inteira ou não saía (cerca de 60% de chance) e valia mais
+que +10% em todos os status: quando só o cavalo mais fraco tirava a Garra, ele vencia, e um cavalo com +1% ou com +10%
+vencia os mesmos 72% a 78%. A sorte que sobra é a que se vê: o Dado da Sorte (clima), a força da arrancada e as skills.
+
+**Salas da aba Correr (pareamento, 2026-11-18):** os rivais são sorteados com Poder entre 93,5% e 104,5% do seu
+(antes, 91,5% a 111,5%: quase sempre havia um rival ~8% mais forte e o jogador vencia 9% das corridas, metade do
+justo). Assim o jogador vence perto do justo (medido 14% a 20%, média 17,0%; o justo com 4 a 8 corredores é 17,6%).
+**Estreia:** nas 10 primeiras salas do save a sala tem 4 ou 5 corredores e os rivais ficam entre 94,5% e 101,5% do
+seu Poder (o jogador vence perto de 45%, o dobro do justo); da 11ª à 20ª a sala volta ao normal aos poucos. No começo não há rival fraco
+o bastante no catálogo, então o rival de estreia que passaria do alvo corre com a genética reduzida até caber nele (o
+Poder mostrado é o que ele corre). O número da sala já está no save: recarregar não muda os rivais.
 
 **Mapa aleatório, sem extremos:** cada corrida sorteia pela seed uma pista de 1.400 a 2.000 m (de 50 em
 50) dividida em 5 a 9 blocos de **reta** (Velocidade), **curva** (Manobra) ou **subida** (Força); o
@@ -369,14 +389,15 @@ ninguém jogou ainda.
 
   | Vitória | Distância na chegada | Fôlego perdido |
   |---|---|---|
-  | Apertada | menos de 1 m | 25% |
-  | Normal | de 1 m a menos de 8 m | 15% |
+  | Apertada | menos de 3 m | 25% |
+  | Normal | de 3 m a menos de 8 m | 15% |
   | Folgada | 8 m ou mais | 5% |
 
   Os descontos somam a cada vitória seguida, até no máximo 50% do fôlego.
 - **Ponto fraco do ginásio:** Água vence Fogo, Fogo vence Grama e Grama vence Água. Num duelo de ginásio, o cavalo cujo
-  elemento vence o do adversário corre com os seis status de corrida **cerca de 4%** maiores (o status é um número
-  inteiro: nos cavalos de hoje, cerca de 2 pontos em cada um). Isso vale cerca de 3 a 4 níveis. Fora do ginásio nada muda.
+  elemento vence o do adversário corre com os seis status de corrida **cerca de 2%** maiores (o status é um número
+  inteiro: nos cavalos de hoje, cerca de 1 ponto em cada um). Até 2026-11-18 eram 4%; com a Garra nova a mesma vantagem
+  vence mais vezes, e 2% deixam o desafio com vantagem em 65% a 85%. Fora do ginásio nada muda.
 - **XP:** cada cavalo do time ganha 50 de XP por duelo vencido e 15 por duelo perdido; quem não correu não ganha. Na
   derrota só se perde a entrada, e dá para tentar de novo na hora.
 - **Revanche do líder:** depois da insígnia, 1 tentativa por dia em cada ginásio (vencendo ou perdendo), com entrada de
@@ -393,9 +414,10 @@ ninguém jogou ainda.
   A insígnia ganha num desafio vale dali em diante. As insígnias aparecem na aba Expedição e no Perfil.
 - **O que a simulação mediu** (3.000 desafios por caso; o time do jogador é o cavalo inicial do elemento, repetido até o
   tamanho do time do adversário, no nível da etapa):
-  - do mesmo elemento do ginásio, vence de 46% a 51% dos desafios; com o elemento do ponto fraco, de 70% a 78%; com o
-    elemento que o ginásio vence, de 17% a 32%;
-  - 4 níveis acima, vence de 73% a 82%; 4 níveis abaixo, de 16% a 33%;
+  - do mesmo elemento do ginásio, vence de 48% a 52% dos desafios; com o elemento do ponto fraco, de 65% a 85%; com o
+    elemento que o ginásio vence, de 14% a 38% (medido em 2026-11-18, com a Garra nova e a vantagem de elemento em 2%; a
+    pista de cada ginásio passou a pesar mais e será recalibrada com a sequência dos ginásios);
+  - 4 níveis acima, vence de 74% a 94%; 4 níveis abaixo, de 3% a 35%;
   - contra o líder, um cavalo sozinho 4 níveis acima vence só cerca de 2% das vezes (sem o cansaço, venceria 42% a 44%):
     o time importa;
   - **tempo de corrida** (o relógio da própria corrida, não o tempo que você espera): um duelo dura cerca de 1 min 20 s, e

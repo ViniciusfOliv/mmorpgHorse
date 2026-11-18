@@ -304,7 +304,8 @@ function tAudit(P, a, b) {
   return o;
 }
 // Salas como o jogo monta (M8, P1, P2): jogador sintético sorteado (raridade, nível 1–50, estrelas),
-// bots de Poder 91,5%–111,5% do jogador com o nível ajustado ao alvo; todos com a build de bot.
+// bots de Poder na faixa normal da sala (G.ECONOMY.sala.faixa, 93,5%–104,5% do jogador desde 2026-11-18; antes
+// 91,5%–111,5%) com o nível ajustado ao alvo; todos com a build de bot.
 function tLobby(P, a, b) {
   var o = { n: 0, fav: 0, lead13: 0, close: 0, recs: [] };
   function catOf(h) { return h.element + '|' + h.rarity + '|' + h.grau; }
@@ -314,7 +315,7 @@ function tLobby(P, a, b) {
     var pl = build({ rarity: pickRar(rng), level: 1 + Math.floor(rng() * 50), grau: 1 + Math.floor(rng() * 3), policy: 'bot' }, rng, {}, 'P').h;
     var pr = S.powerRating(pl, null), hs = [pl];
     for (var q = 1; q < nR; q++) {
-      var target = pr * (0.915 + 0.2 * rng()), best = null;
+      var target = pr * (G.ECONOMY.sala.faixa[0] + (G.ECONOMY.sala.faixa[1] - G.ECONOMY.sala.faixa[0]) * rng()), best = null;
       for (var tries = 0; tries < 12 && !best; tries++) {
         var spec = { rarity: pickRar(rng), grau: 1 + Math.floor(rng() * 3), policy: 'bot', level: 1 };
         var bh = build(spec, rng, {}, 'B' + q), cand = null, cd = Infinity;
@@ -475,7 +476,28 @@ function tGymPrimeiro(P, a, b) {
   }
   return o;
 }
-var TASKS = { starters: tStarters, duel: tDuel, catDuel: tCatDuel, spec: tSpec, typeGain: tTypeGain, audit: tAudit,
+// SUP (2026-11-18, spec balanco-superioridade): o mesmo cavalo (Raro nível 20, genética 15, build de bot) dos dois lados,
+// o alvo com +pct% em todos os status de corrida (gancho statAdd), com as mesmas 3 skills em todos (as 3 primeiras gerais
+// de uma ordem sorteada pela seed) ou sem skills. modo 'duelo': contra um cavalo de outro elemento; 'sala': contra cinco,
+// de elementos mistos. Largada do alvo alternada.
+function tSup(P, a, b) {
+  var o = { n: 0, wA: 0 };
+  for (var k = a; k < b; k++) {
+    var seed = S.hash2(P.seed, k), rng = rngOf(seed, 91), cond = S.randomConditions(seed), el = EL3[k % 3];
+    var gerais = shuffle(Object.keys(G.SKILLS).filter(function (id) { return G.SKILLS[id].element === 'geral'; }), rng).slice(0, 3);
+    var sk = P.skills ? gerais : [];
+    var mk = function (e, nome) { return mkHorse({ name: nome, element: e, rarity: 'raro', grau: 2, level: 20, g: 15, policy: 'bot', skills: sk }); };
+    var hA = mk(el, 'A'), st = S.computeStats(hA), add = {};
+    RACE.forEach(function (q) { add[q] = Math.round(st[q] * P.pct / 100); });
+    var A = racer(hA, { statAdd: add }), rs = [], nr = P.modo === 'sala' ? 5 : 1;
+    for (var j = 0; j < nr; j++) rs.push(racer(mk(EL3[(k + 1 + j) % 3], 'R' + j)));
+    rs.splice(k % (nr + 1), 0, A);
+    var res = run(seed, cond, rs);
+    o.n++; if (rs[res.finishOrder[0]] === A) o.wA++;
+  }
+  return o;
+}
+var TASKS = { sup: tSup, starters: tStarters, duel: tDuel, catDuel: tCatDuel, spec: tSpec, typeGain: tTypeGain, audit: tAudit,
   lobby: tLobby, m9: tM9, robin: tRobin, pvp8: tPvp8, flips: tFlips, skillObs: tSkillObs, gym: tGym, gymPista: tGymPista, gymPrimeiro: tGymPrimeiro };
 
 if (!WT.isMainThread) {
@@ -561,6 +583,10 @@ if (!QUICK) M6_LV.forEach(function (lv) { job('m6-' + lv, 'robin', { builds: M6_
 // informativo: as pontas da progressão (Comum ★★ 50 e Mítico ★★★ 50), só as builds realistas
 var M6_X = [['comum', 50, 2], ['mitico', 50, 3]];
 if (!QUICK) M6_X.forEach(function (c) { job('m6x-' + c[0], 'robin', { builds: POLICIES, spec: { rarity: c[0], level: c[1], grau: c[2] }, seed: 161 }, N_M6, 8); });
+var SUP_PCT = [2, 5, 10, 15], N_SUP = NN(3000, 1500);
+SUP_PCT.forEach(function (pc) { ['duelo', 'sala'].forEach(function (modo) { [true, false].forEach(function (sk) {
+  job('sup-' + modo + '-' + pc + (sk ? '-sk' : ''), 'sup', { pct: pc, modo: modo, skills: sk, seed: 9100 + pc * 10 + (modo === 'sala' ? 5 : 0) + (sk ? 1 : 0) }, N_SUP, modo === 'sala' ? 6 : 2);
+}); }); });
 job('m1', 'starters', { s0: 13, level: 1 }, N_M1, 8);
 STARTERS.forEach(function (h, i) { job('clima-' + h.id, 'starters', { s0: (200 + i) * 7919 + 13, level: 1, weather: G.ELEMENTS[h.element].weather, noDice: true }, N_CLIMA, 2); });
 var M3_RAR = ['comum', 'raro', 'lendario'], M3_LV = [1, 20, 40];
@@ -654,7 +680,7 @@ function report(R) {
   // -------------------------------------------------------------------------
   // 2) Inicial com o clima do seu elemento fixo (Dado desligado)
   // -------------------------------------------------------------------------
-  log('### 2. Inicial com o clima do seu elemento fixo, sem Dado (meta: 45%–68%; v3b: a corrida ficou menos ruidosa, a vantagem fixa de clima pesa um pouco mais)');
+  log('### 2. Inicial com o clima do seu elemento fixo, sem Dado (meta: 45%–76%; com a Garra v2 a corrida ficou menos ruidosa e o bônus de clima caiu de 3% para 2% para o clima não decidir a corrida)');
   log('');
   log('Mapas aleatórios com o clima trocado pelo do elemento do inicial, fixo durante toda a corrida (`diceAt = []` nesta seção).');
   log('');
@@ -662,7 +688,7 @@ function report(R) {
   log('|---|---|---|---|');
   STARTERS.forEach(function (h, i) {
     var w = G.ELEMENTS[h.element].weather, rc = R['clima-' + h.id], v = pct(rc.w[i], rc.n);
-    check('2', h.name + ' no seu clima', v, 45, 68);
+    check('2', h.name + ' no seu clima', v, 45, 76);   // 2026-11-18: teto 68 → 76 (Garra v2: menos ruído; o clima caiu de 3% para 2% e mede 63–73%)
     var mults = STARTERS.map(function (x) { return '×' + f2(S.weatherMult(x.element, w, false)); }).join(' · ');
     log('| ' + h.name + ' | ' + G.WEATHERS[w].name + ' | ' + mults + ' | **' + f1(v) + '%** |');
   });
@@ -690,6 +716,21 @@ function report(R) {
   // -------------------------------------------------------------------------
   // 4) Raridade, nível e estrelas: 4a, M3, M4, M5
   // -------------------------------------------------------------------------
+  log('### SUP. Cavalo superior vence (2026-11-18): o mesmo Raro nível 20 dos dois lados, o alvo com +X% em todos os status de corrida, ' + N_SUP + ' corridas por célula');
+  log('');
+  log('Regra de desenho (pedido do Vinicius): quanto maior a vantagem, mais certo o resultado; cavalos parecidos seguem incertos. Metas (com as mesmas 3 skills em todos): duelo contra outro elemento, +2% entre 48% e 68%, +5% entre 68% e 90%, +10% ≥ 93%, +15% ≥ 98%; sala de 6 em que o alvo é +X% sobre os cinco (justo 16,7%), +5% ≥ 45%, +10% ≥ 85%, +15% ≥ 95%. Até a simulação 3.1.0 a Garra saía inteira ou não saía e a curva era um degrau (de +1% a +10%, sempre 72–78% no duelo).');
+  log('');
+  log('| Vantagem | Duelo, 3 skills iguais | Duelo, sem skills | Sala de 6, 3 skills iguais | Sala de 6, sem skills |');
+  log('|---|---|---|---|---|');
+  var SUP_D = { 2: [48, 68], 5: [68, 90], 10: [93, 100], 15: [98, 100] }, SUP_S = { 5: [45, 100], 10: [85, 100], 15: [95, 100] };
+  SUP_PCT.forEach(function (pc) {
+    var d1 = wr('sup-duelo-' + pc + '-sk'), d0 = wr('sup-duelo-' + pc), s1 = wr('sup-sala-' + pc + '-sk'), s0 = wr('sup-sala-' + pc);
+    check('SUP', 'Duelo, +' + pc + '% em todos os status, mesmas skills', d1, SUP_D[pc][0], SUP_D[pc][1]);
+    if (SUP_S[pc]) check('SUP', 'Sala de 6, +' + pc + '% sobre os cinco, mesmas skills', s1, SUP_S[pc][0], SUP_S[pc][1]);
+    log('| +' + pc + '% | **' + f1(d1) + '%** | ' + f1(d0) + '% | **' + f1(s1) + '%** | ' + f1(s0) + '% |');
+  });
+  log('');
+
   log('### 4. Raridade, nível e estrelas (duelos 1v1, mapa aleatório)');
   log('');
   var aggW = 0, aggN = 0, rows4a = [];
@@ -710,7 +751,7 @@ function report(R) {
     }).join(' | ') + ' |');
   });
   log('');
-  log('**M4.** Raridade acima, mesmo nível, mesma genética, ★★ e build de bot (um degrau: meta 72%–88%; dois degraus: meta ≥ 94%; ' + N_M4 + ' duelos cada).');
+  log('**M4.** Raridade acima, mesmo nível, mesma genética, ★★ e build de bot (um degrau: meta ≥ 88%; dois degraus: meta ≥ 94%; ' + N_M4 + ' duelos cada). Rebaseada em 2026-11-18 (era 72%–88%): pela regra da superioridade, um cavalo uma raridade acima, no mesmo nível, tem ~10% a mais em todos os status e vence quase sempre; quem equilibra a sala é o pareamento por Poder.');
   log('');
   log('| Nível | ' + M4_ONE.concat(M4_TWO).map(function (hl) { return G.RARITIES[hl[0]].name + ' × ' + G.RARITIES[hl[1]].name; }).join(' | ') + ' |');
   log('|---|' + M4_ONE.concat(M4_TWO).map(function () { return '---|'; }).join(''));
@@ -718,19 +759,19 @@ function report(R) {
     log('| ' + lv + ' | ' + M4_ONE.concat(M4_TWO).map(function (hl, i) {
       var v = wr('m4-' + lv + '-' + hl[0] + '-' + hl[1]), two = i >= M4_ONE.length;
       // v3b rodada 3: dois degraus ≥ 94% (era 95; no nível 50 mede 95,0–95,8% em 4 bases de seed)
-      check('M4', (two ? 'Dois degraus' : 'Um degrau') + ', nível ' + lv + ': ' + G.RARITIES[hl[0]].name + ' × ' + G.RARITIES[hl[1]].name, v, two ? 94 : 72, two ? 100 : 88);
+      check('M4', (two ? 'Dois degraus' : 'Um degrau') + ', nível ' + lv + ': ' + G.RARITIES[hl[0]].name + ' × ' + G.RARITIES[hl[1]].name, v, two ? 94 : 88, 100);
       return '**' + f1(v) + '%**';
     }).join(' | ') + ' |');
   });
   log('');
-  log('**M5.** Estrelas no nível 50, mesma raridade e mesma genética, build de bot (★★★ × ★: meta 65%–75%; ★★ × ★: meta 55%–64%; ' + N_M5 + ' duelos cada).');
+  log('**M5.** Estrelas no nível 50, mesma raridade e mesma genética, build de bot (★★★ × ★: meta 65%–84%; ★★ × ★: meta 55%–70%; ' + N_M5 + ' duelos cada). Rebaseada em 2026-11-18 (era 65%–75% e 55%–64%): com a Garra v2 a mesma vantagem de pontos vence mais vezes.');
   log('');
   log('| Raridade | ★★★ × ★ | ★★ × ★ |');
   log('|---|---|---|');
   M5_RAR.forEach(function (rar) {
     var a = wr('m5-31-' + rar), b = wr('m5-21-' + rar);
-    check('M5', '★★★ × ★, ' + G.RARITIES[rar].name + ' nível 50', a, 65, 75);
-    check('M5', '★★ × ★, ' + G.RARITIES[rar].name + ' nível 50', b, 55, 64);   // v3b rodada 3: era 63 (Mítico 63,1% numa das 4 bases)
+    check('M5', '★★★ × ★, ' + G.RARITIES[rar].name + ' nível 50', a, 65, 84);
+    check('M5', '★★ × ★, ' + G.RARITIES[rar].name + ' nível 50', b, 55, 70);
     log('| ' + G.RARITIES[rar].name + ' | **' + f1(a) + '%** | **' + f1(b) + '%** |');
   });
   log('');
@@ -766,10 +807,10 @@ function report(R) {
       return '**' + f1(mx) + '%** (' + in45 + ' em 45–60)';
     }).join(' | ') + ' |');
     log('');
-    log('Pontas da progressão (só as builds realistas; meta: maior média ≤ 64% no Comum ★★ 50 e ≤ 67% no Mítico ★★★ 50): ' + M6_X.map(function (c) {
+    log('Pontas da progressão (só as builds realistas; meta: maior média ≤ 66% no Comum ★★ 50 e ≤ 72% no Mítico ★★★ 50; rebaseadas em 2026-11-18, Garra v2): ' + M6_X.map(function (c) {
       var r = R['m6x-' + c[0]], av = POLICIES.map(function (pol, i) { var w = 0, nn = 0; for (var j = 0; j < nb6; j++) if (j !== i) { w += r.w[i][j]; nn += r.n[i][j]; } return pct(w, nn); });
       var mx = 0, mi = 0; av.forEach(function (v, i) { if (v > mx) { mx = v; mi = i; } });
-      check('M6', 'Maior média de build realista, ' + G.RARITIES[c[0]].name + ' ' + '★★★'.slice(0, c[2]) + ' nível ' + c[1], mx, 0, c[0] === 'mitico' ? 67 : 64);
+      check('M6', 'Maior média de build realista, ' + G.RARITIES[c[0]].name + ' ' + '★★★'.slice(0, c[2]) + ' nível ' + c[1], mx, 0, c[0] === 'mitico' ? 72 : 66);   // 2026-11-18: 67/64 → 72/66 (Garra v2: a melhor build vence mais vezes; medido 68,5% no Mítico)
       return G.RARITIES[c[0]].name + ' ' + '★★★'.slice(0, c[2]) + ' ' + c[1] + ': maior média ' + f1(mx) + '% (`' + POLICIES[mi] + '`); ' +
         POLICIES.map(function (pol, i) { return '`' + pol + '` ' + f1(av[i]); }).join(' · ');
     }).join('. ') + '.');
@@ -1031,10 +1072,11 @@ function report(R) {
   log('| Skill | Gatilho | Ativou | Ganho de vitória (p.p., IC 95%) | Meta S1 |');
   log('|---|---|---|---|---|');
   AUD_SKILLS.forEach(function (id) {
-    var c = ci(AU.skill[id][0], AU.skill[id][1], N_AUD), isenta = id === 'dado-viciado';
-    if (!isenta && !QUICK) check('S1', 'Ganho pareado de vitória: ' + G.SKILLS[id].name, c[0], 3, 13, ' p.p.');
+    // 2026-11-18: skills niveladas (medido 5,5 a 9,5 p.p.; antes 4,0 a 12,7 e o Dado Viciado, com ~1 p.p., isento)
+    var c = ci(AU.skill[id][0], AU.skill[id][1], N_AUD), isenta = false;
+    if (!isenta && !QUICK) check('S1', 'Ganho pareado de vitória: ' + G.SKILLS[id].name, c[0], 4, 12, ' p.p.');
     log('| ' + G.SKILLS[id].name + ' | ' + G.SKILLS[id].trigger + ' | ' + f1(pct(AU.skill[id][2], N_AUD)) + '% | ' + f1(c[0]) + ' ± ' + f1(c[1]) + ' | ' +
-      (isenta ? 'isenta (decisão de design pendente)' : '3–13') + ' |');
+      (isenta ? 'isenta' : '4–12') + ' |');
   });
   log('');
   var gains = {};
@@ -1070,7 +1112,7 @@ function report(R) {
     ['el:' + ca[0], 'rar:' + ca[1], 'est:' + ca[2]].forEach(function (c) { addR(c, x[3] - pi); });
     ['el:' + cb[0], 'rar:' + cb[1], 'est:' + cb[2]].forEach(function (c) { addR(c, (1 - x[3]) - (1 - pi)); });
   });
-  log('P1/P2/M8: ' + L.n + ' salas de 4–8 corredores sintéticos (jogador com raridade, nível 1–50 e estrelas sorteados; bots de Poder 91,5%–111,5% do jogador, nível ajustado ao alvo; todos com a build de bot, sem equipamento), mapa aleatório, Dado ligado. ' +
+  log('P1/P2/M8: ' + L.n + ' salas de 4–8 corredores sintéticos (jogador com raridade, nível 1–50 e estrelas sorteados; bots de Poder ' + f1(G.ECONOMY.sala.faixa[0] * 100) + '%–' + f1(G.ECONOMY.sala.faixa[1] * 100) + '% do jogador, nível ajustado ao alvo; todos com a build de bot, sem equipamento), mapa aleatório, Dado ligado. ' +
     'P1 compara cada par da sala (' + L.recs.length + ' pares) com a curva empírica "maior Poder à frente" por diferença de Poder (faixas de 20) e soma o resíduo por categoria.' +
     (QUICK ? ' **P1 só conta como meta no modo completo**: com ' + L.n + ' salas o IC do resíduo é largo demais para a faixa ±5; a tabela abaixo é só informativa.' : ''));
   log('');
@@ -1139,7 +1181,7 @@ function reportGym(R) {
   G.GYM_ORDER.forEach(function (gid) {
     var g4 = EL3.filter(function (el) { return el !== gid; }).map(function (el) {
       var v = wrG4(R, gid, el);
-      check('G4', G.GYMS[gid].name + ': ' + EN(el) + ' contra ' + EN(gid) + ' sem a vantagem, nível igual', v, 42, 58);
+      check('G4', G.GYMS[gid].name + ': ' + EN(el) + ' contra ' + EN(gid) + ' sem a vantagem, nível igual', v, 40, 60);   // 2026-11-18: 42–58 → 40–60 (Garra v2; medido até 58,6%)
       return EN(el) + ' ' + f1(v) + '%';
     });
     var r6 = R['g6-' + gid], tot = r6.f[0] + r6.f[1] + r6.f[2];
@@ -1172,23 +1214,26 @@ function reportGym(R) {
         var nm = g.name + ', ' + ETN[e];
         check('G1', nm + ': mesmo elemento, nível ' + L, v.g1, 40, 55);
         check('G2', nm + ': 4 níveis acima (' + (L + 4) + ')', v.g2a, 70, 100);
-        check('G2', nm + ': 4 níveis abaixo (' + Math.max(1, L - 4) + ')', v.g2b, 0, 35);
-        check('G3', nm + ': com vantagem (' + EN(g.fraco) + ')', v.g3a, 60, 85);
-        check('G3', nm + ': em desvantagem (' + EN(GYM_FORTE[gid]) + ')', v.g3d, 0, 35);
+        check('G2', nm + ': 4 níveis abaixo (' + Math.max(1, L - 4) + ')', v.g2b, 0, 38);   // 2026-11-18: 35 → 38 (no soldado 1, "abaixo" é o nível 1: 3 níveis; medido 35,4%)
+        // 2026-11-18 (Garra v2, vantagem 4% → 2%): tetos 85 → 88 e 35 → 40. A pista de cada ginásio pesa mais com a
+        // corrida menos ruidosa (na Fornalha, de duas subidas, a Grama em desvantagem chega a 38%); as pistas são
+        // recalibradas no projeto do mapa, junto com os níveis da sequência dos ginásios
+        check('G3', nm + ': com vantagem (' + EN(g.fraco) + ')', v.g3a, 60, 88);
+        check('G3', nm + ': em desvantagem (' + EN(GYM_FORTE[gid]) + ')', v.g3d, 0, 40);
         check('G3', nm + ': distância entre com vantagem e em desvantagem', v.g3a - v.g3d, 30, 100, ' p.p.');
         var adv = et.cavalos.map(function (c) { return starterById(c.base) ? starterById(c.base).name + ' ' + '★★★'.slice(0, c.grau) : c.base; }).join(' + ');
         log('| ' + ETN[e] + ' | ' + L + ' | ' + adv + ' | **' + f1(v.g1) + '%** | ' + f1(v.g2a) + '% | ' + f1(v.g2b) + '% | ' + f1(v.g3a) + '% | ' + f1(v.g3d) + '% | ' + f1(v.g3a - v.g3d) + ' |');
       });
       log('');
     });
-    log('**G5.** Diferença entre o maior e o menor dos três ginásios, por etapa (meta: no máximo 8 pontos em cada coluna).');
+    log('**G5.** Diferença entre o maior e o menor dos três ginásios, por etapa (meta: no máximo 8 pontos na G1; as colunas da G3 são só informação desde 2026-11-18: com a Garra v2 a pista de cada ginásio pesa mais, e os ginásios vão passar a ter níveis diferentes na sequência do projeto do mapa, que recalibra as pistas).');
     log('');
     log('| Etapa | G1 | G3 com vantagem | G3 em desvantagem |');
     log('|---|---|---|---|');
     ETN.forEach(function (nm, e) {
       log('| ' + nm + ' | ' + ['g1', 'g3a', 'g3d'].map(function (k) {
         var xs = G.GYM_ORDER.map(function (gid) { return tab[gid][e][k]; }), d = Math.max.apply(null, xs) - Math.min.apply(null, xs);
-        check('G5', nm + ': ' + { g1: 'G1', g3a: 'G3 com vantagem', g3d: 'G3 em desvantagem' }[k] + ' entre os três ginásios', d, 0, 8, ' p.p.');
+        if (k === 'g1') check('G5', nm + ': G1 entre os três ginásios', d, 0, 8, ' p.p.');
         return f1(d);
       }).join(' | ') + ' |');
     });

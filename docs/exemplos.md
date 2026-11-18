@@ -10,6 +10,48 @@ node prototype/tools/balance.js            # relatório completo com as 300 meta
 node prototype/tools/balance.js --exemplo  # uma corrida narrada
 ```
 
+## 0. Atualização de 2026-11-18: cavalo superior vence (simulação 3.2.0)
+
+Pedido do Vinicius: "um cavalo superior precisa ter vantagem sobre outros, e se meu cavalo tem status maiores que todos
+os outros da corrida e as mesmas skills, supostamente eu ganharia". Desenho e causa:
+`docs/superpowers/specs/2026-11-18-balanco-superioridade-design.md`. **As seções 1 a 5 abaixo são as medições de
+2026-11-13 e 2026-11-17 (simulação 3.1.0); o que mudou está nesta tabela** (relatório completo: 298 metas, todas dentro
+da faixa).
+
+| O que | Antes (3.1.0) | Agora (3.2.0) |
+|---|---|---|
+| Mesmo cavalo e mesmas skills, +2% / +5% / +10% / +15% em todos os status, duelo | 57% / 68% / 81% / 88% (sem skills: 72–78% de +1% a +10%) | **57% / 79% / 98% / 100%** |
+| O mesmo, numa sala de 6 em que ele é o melhor (justo 17%) | +5% ~50%, +10% ~64% | **+5% 62%, +10% 97%, +15% 100%** |
+| Garra | sai inteira (~60%) ou não sai; vale mais que +10% em todos os status | sempre sai; o sorteio dá de 30% a 100% do bônus (o piso sobe com a Garra) |
+| M3 dez níveis a mais | 75–78% | 90–96% |
+| M4 uma / duas raridades acima | 78–85% / 95–99% | 96–99% / 100% |
+| M5 ★★★ × ★ / ★★ × ★ no nível 50 | 69–71% / 60–62% | 76–78% / 61–63% |
+| M6 melhor build no nível 50 (Raro / Comum ★★ / Mítico ★★★) | 60% / 61% / 65% | 61,5% / 63,8% / 66,8% |
+| M8 líder em 1/3 vence / chegada com < 1 m | 38% / 5,6% | 30% / 9,6% |
+| M9 tipos em campo misto (justo 16,7%) | 16,3–17,2% | 15,6–17,9% (skills de tipo recalibradas: Labareda 22%, Raízes Firmes 18%, Maré Alta 31%) |
+| P2 favorito do Poder vence na sala | 52% | 48% (a faixa dos rivais ficou mais estreita) |
+| A1 +10 num status (maior ÷ menor) | 9,6–11,0 p.p. (1,15) | ~15 p.p. cada (1,2) |
+| S1 ganho de uma skill | 4,0 (Chama Final) a 12,7 p.p. (Drift); Dado Viciado ~1, isento | **5,1 a 7,4 p.p., as 15** (meta 4–12) |
+| Clima do dono / com a skill de clima / penalizado | ×1,03 / ×1,08 / ×0,97 | ×1,02 / ×1,06 / ×0,98 |
+| Inicial no seu clima fixo | 45–68% | 69–73% |
+| Iniciais no nível 1 (M1) | 31,8 / 33,3 / 34,9% | 31,4 / 34,4 / 34,2% |
+| Ginásio, mesmo elemento (G1) | 46–51% | 48–51% |
+| Ginásio, com vantagem / em desvantagem (G3) | 70–78% / 17–32% (vantagem de 4%) | 65–85% / 14–38% (vantagem de 2%) |
+| Faixas do cansaço (apertada / normal / folgada) | menos de 1 m / de 1 a 8 m / 8 m ou mais | menos de 3 m / de 3 a 8 m / 8 m ou mais (23–31% / 34–39% / 30–44%) |
+
+**Salas da aba Correr, medidas com o pareamento do jogo** (`buildLobby` + `RaceSim`, 500 salas por caso, os três iniciais):
+
+| Fase | Antes | Agora |
+|---|---|---|
+| Salas 1 a 10 (estreia: 4 ou 5 corredores, rivais de 94,5% a 101,5% do Poder) | vencia 8–10%; perdia ~18 de Ouro por corrida (entrada 50) | vence **44–47%**; ganha ~30 de Ouro por corrida |
+| Salas 11 a 20 (rampa) | idem | vence ~34% |
+| Da sala 21 em diante (rivais de 93,5% a 104,5%) | vencia 8–13% (justo 17,6%) | vence **14–20%, média 17,0%**; Ouro por corrida perto de zero (−5 a +6) |
+
+**Combos de skill** (mesmo cavalo dos dois lados, Raro nível 20, só o combo muda): antes o melhor trio (Arranque +
+Drift + a skill de clima) vencia 64–66% contra trios sorteados e 66–72% contra o pior; contra outro elemento, hoje
+nenhuma skill fica a mais de 2,2 pontos da média e o melhor trio fica ~10 pontos acima dela. Em duelo de mesmo elemento
+(caso do ginásio) a skill de clima do tipo ainda vale mais (o clima vira o do tipo dos dois): o melhor trio vence 65%.
+
 ## 1. Os três iniciais (Comuns ★★, nível 1, mapas aleatórios)
 
 Meta M1: 30% a 37% no geral e 22% a 45% em cada faixa de distância. Medido: **Brasa 31,8%, Maré 33,3% e Ipê 34,9%**

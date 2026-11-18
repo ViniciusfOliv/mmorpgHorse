@@ -96,6 +96,8 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
   de graça; com páreo aberto, peça ou ponto que suba o Poder do cavalo ativo acima do que a sala viu
   não entra (o `ui-test.mjs` verifica).
 - Dado da Sorte e viradas de clima só com a RNG da seed (nada de `Math.random`).
+- **Cavalo superior vence:** quanto maior a vantagem de status, mais certo o resultado (meta SUP do `balance.js`). A Garra
+  sempre sai; o sorteio (da seed) só decide a força. Não reintroduzir sorte "tudo ou nada" maior que a diferença de status.
 - Potro gerado só pela RNG da seed (`prototype/src/breed.js`); Mítico nunca nasce de cruzamento.
 - Melhoria de peça e Pedra Negra do pódio só pela RNG da seed (`prototype/src/gear.js`); Lendário nunca à venda.
 - Cupom de troca de skill e Manual de doma só sorteiam pela RNG da seed, e só depois de confirmar

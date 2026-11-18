@@ -363,11 +363,13 @@ var MISTA = { distance: 1800, surface: 'terra', weather: 'nublado', blocks: [{ t
   { type: 'curva', from: 800, to: 1100 }, { type: 'subida', from: 1100, to: 1300 }, { type: 'curva', from: 1300, to: 1600 }, { type: 'reta', from: 1600, to: 1800 }] };
 test('skill de tipo: os dois status do tipo valem × (1 + m·P) no terço dela', function () {
   // com o terço estendido à pista toda, o cavalo com a skill corre igual (frame a frame) ao cavalo sem ela com os
-  // dois status × (1 + m): 100 → 119 (Fogo), 115 (Grama) e 133 (Água), Comum nível 1 (P = 1). Status que entram
+  // dois status × (1 + m): 100 → 122 (Fogo), 118 (Grama) e 131 (Água), Comum nível 1 (P = 1; números de 2026-11-18,
+  // Garra v2). Status que entram
   // fora do terço (atraso de largada pela Aceleração, tanque pela Estamina, início da arrancada pela Garra) ficam
   // presos pelo TUNING de teste, para a comparação ser exata.
   var T = S.TUNING, salvo = { sd: T.startDelayMax, pe: T.poolEst, gz: T.garraZoneK }, zonas = {};
-  var casos = [['fogo', { vel: 119, acel: 119 }], ['grama', { forca: 115, man: 115 }], ['agua', { est: 133, garra: 133 }]];
+  var casos = [['fogo', { vel: 122, acel: 122 }, 100], ['grama', { forca: 118, man: 118 }, 100], ['agua', { est: 131, garra: 131 }, 100]];
+  casos.forEach(function (c) { var m = G.TYPE_SKILLS[c[0]].effect.statMul; Object.keys(c[1]).forEach(function (k) { assert.strictEqual(c[1][k], c[2] * (1 + m), c[0] + ': o teste usa o statMul do catálogo'); }); });
   T.startDelayMax = 0; T.poolEst = 0; T.garraZoneK = 0;
   casos.forEach(function (c) { zonas[c[0]] = G.TYPE_SKILLS[c[0]].zone; G.TYPE_SKILLS[c[0]].zone = [0, 1]; });
   try {
@@ -375,7 +377,7 @@ test('skill de tipo: os dois status do tipo valem × (1 + m·P) no terço dela',
       assert.strictEqual(S.typePower({ element: c[0], rarity: 'comum', level: 1 }), 1);
       for (var s = 1; s <= 4; s++) {
         var cond = s === 1 ? MISTA : S.randomConditions(s);
-        var com = solo(s, cond, plano(c[0], 100)), sem = solo(s, cond, plano(c[0], 100, c[1]), true), nada = solo(s, cond, plano(c[0], 100), true);
+        var com = solo(s, cond, plano(c[0], c[2])), sem = solo(s, cond, plano(c[0], c[2], c[1]), true), nada = solo(s, cond, plano(c[0], c[2]), true);
         assert.deepStrictEqual(com.frames, sem.frames, c[0] + ' seed ' + s + ': frames iguais aos do status multiplicado');
         assert.deepStrictEqual(com.finishTimes, sem.finishTimes);
         assert.notDeepStrictEqual(com.frames, nada.frames, c[0] + ' seed ' + s + ': a skill muda a corrida');
@@ -406,11 +408,11 @@ test('skill de tipo: fora do terço, os valores normais', function () {
   });
 });
 test('física linear até 150: com todos os status em 50/80/110/140, +10 em VEL, ACE, MAN, FOR, EST e GAR melhora o tempo médio', function () {
-  // corrida solo (elemento desconhecido: sem clima e sem skill de tipo), pareada por seed e mapa. A Garra dispara
-  // sempre (chance presa em 1 só neste teste): numa corrida solo o cara ou coroa da Garra domina o ruído do
-  // tempo (±2 s em 24 seeds); sem ele, cada ganho fica com intervalo de ±0,1 s. Medido: 0,36 a 0,73 s.
-  var SEIS = ['vel', 'acel', 'man', 'forca', 'est', 'garra'], N = 24, ganhos = {}, T = S.TUNING, gc = [T.garraChanceBase, T.garraChanceMax];
-  T.garraChanceBase = 1; T.garraChanceMax = 1;
+  // corrida solo (elemento desconhecido: sem clima e sem skill de tipo), pareada por seed e mapa. A arrancada sai
+  // sempre cheia (piso preso em 1 só neste teste): numa corrida solo o sorteio da força da Garra domina o ruído do
+  // tempo; sem ele, cada ganho fica com intervalo de ±0,1 s. Medido: 0,36 a 0,73 s.
+  var SEIS = ['vel', 'acel', 'man', 'forca', 'est', 'garra'], N = 24, ganhos = {}, T = S.TUNING, gc = [T.garraFloorBase, T.garraFloorMax];
+  T.garraFloorBase = 1; T.garraFloorMax = 1;
   try {
     [50, 80, 110, 140].forEach(function (X) {
       var base = [], i;
@@ -421,11 +423,11 @@ test('física linear até 150: com todos os status em 50/80/110/140, +10 em VEL,
         ganhos[X + ' ' + k] = d / N;
       });
     });
-  } finally { T.garraChanceBase = gc[0]; T.garraChanceMax = gc[1]; }
+  } finally { T.garraFloorBase = gc[0]; T.garraFloorMax = gc[1]; }
   Object.keys(ganhos).forEach(function (q) { assert.ok(ganhos[q] > 0.15, '+10 em ' + q + ': ganho médio ' + ganhos[q].toFixed(3) + ' s'); });
 });
-test('determinismo: mesma seed e configuração, mesmo resultado; VERSION do bloco 1b', function () {
-  assert.strictEqual(S.VERSION, '3.1.0'); assert.notStrictEqual(S.VERSION, '3.0.0', 'subiu do bloco 1');
+test('determinismo: mesma seed e configuração, mesmo resultado; VERSION da Garra v2 (2026-11-18)', function () {
+  assert.strictEqual(S.VERSION, '3.2.0'); assert.notStrictEqual(S.VERSION, '3.1.0', 'subiu do bloco 1b');
   var cfg = function () { return { seed: 77, recordFrames: true, racers: G.STARTERS.map(function (h, i) { var c = clone(h); c.level = 20; c.alloc = S.botAlloc(c); return { horse: c, name: 'r' + i }; }) }; };
   assert.strictEqual(JSON.stringify(S.simulate(cfg())), JSON.stringify(S.simulate(cfg())));
   assert.notStrictEqual(JSON.stringify(S.simulate(cfg()).finishTimes), JSON.stringify(S.simulate(Object.assign(cfg(), { seed: 78 })).finishTimes));
@@ -508,9 +510,9 @@ test('especialista de reta vence o de curva em reta pura; de subida vence em sub
   for (var s = 0; s < 80; s++) { if (race(s, RETA, [mk({ vel: 90 }), mk({ man: 90 })]).finishOrder[0] === 0) w++; if (race(s, SUBIDA, [mk({ forca: 90 }), mk({ vel: 90 })]).finishOrder[0] === 0) h++; }
   assert.ok(w >= 44 && h >= 44, 'reta ' + w + ', subida ' + h);
 });
-test('weatherMult: dono T.weatherMult (1,03–1,07), dobrado T.weatherMultDouble (1,08), penalizado 2 − T.weatherMult, neutro 1', function () {
-  var wm = S.TUNING.weatherMult; assert.ok(wm >= 1.03 && wm <= 1.07, 'weatherMult ' + wm);
-  assert.strictEqual(S.weatherMult('fogo', 'sol', false), wm); assert.strictEqual(S.weatherMult('fogo', 'sol', true), S.TUNING.weatherMultDouble); assert.strictEqual(S.TUNING.weatherMultDouble, 1.08);
+test('weatherMult: dono T.weatherMult (1,02; até 2026-11-18 era 1,03), dobrado T.weatherMultDouble (1,06), penalizado 2 − T.weatherMult, neutro 1', function () {
+  var wm = S.TUNING.weatherMult; assert.ok(wm >= 1.015 && wm <= 1.03, 'weatherMult ' + wm);
+  assert.strictEqual(S.weatherMult('fogo', 'sol', false), wm); assert.strictEqual(S.weatherMult('fogo', 'sol', true), S.TUNING.weatherMultDouble); assert.strictEqual(S.TUNING.weatherMultDouble, 1.06);
   assert.ok(Math.abs(S.weatherMult('grama', 'sol', false) - (2 - wm)) < 1e-9); assert.strictEqual(S.weatherMult('agua', 'sol', false), 1); assert.strictEqual(S.weatherMult('neutro', 'chuva', false), 1);
 });
 test('skills disparam pela chance: mítico lv50 sorte 100 ativa Arranque ≥ 85% das vezes; comum lv1 sorte 0 ≤ 50%', function () {
@@ -545,15 +547,15 @@ test('v3: três tipos sem bônus fixo e uma skill de tipo para cada', function (
   var TS = G.TYPE_SKILLS;
   assert.deepStrictEqual(Object.keys(TS).sort(), TIPOS.slice().sort());
   // bloco 1b: a skill de tipo multiplica os dois status do tipo no seu terço (statMul; spec §5)
-  assert.strictEqual(TS.fogo.id, 'labareda'); assert.deepStrictEqual(TS.fogo.zone, [0, 1 / 3]); assert.deepStrictEqual(TS.fogo.effect, { statMul: 0.19 });
-  assert.strictEqual(TS.grama.id, 'raizes-firmes'); assert.deepStrictEqual(TS.grama.zone, [1 / 3, 2 / 3]); assert.deepStrictEqual(TS.grama.effect, { statMul: 0.15 });
-  assert.strictEqual(TS.agua.id, 'mare-alta'); assert.deepStrictEqual(TS.agua.zone, [2 / 3, 1]); assert.deepStrictEqual(TS.agua.effect, { statMul: 0.33 });
+  assert.strictEqual(TS.fogo.id, 'labareda'); assert.deepStrictEqual(TS.fogo.zone, [0, 1 / 3]); assert.deepStrictEqual(TS.fogo.effect, { statMul: 0.22 });   // recalibradas em 2026-11-18 (Garra v2): eram 0,19 / 0,15 / 0,33
+  assert.strictEqual(TS.grama.id, 'raizes-firmes'); assert.deepStrictEqual(TS.grama.zone, [1 / 3, 2 / 3]); assert.deepStrictEqual(TS.grama.effect, { statMul: 0.18 });
+  assert.strictEqual(TS.agua.id, 'mare-alta'); assert.deepStrictEqual(TS.agua.zone, [2 / 3, 1]); assert.deepStrictEqual(TS.agua.effect, { statMul: 0.31 });
   TIPOS.forEach(function (e) { var t = TS[e]; assert.ok(t.name && t.short && t.short.length <= 12 && t.desc, e + ' nome, nome curto e descrição'); });
-  assert.ok(/19%/.test(TS.fogo.desc) && /15%/.test(TS.grama.desc) && /33%/.test(TS.agua.desc), 'a descrição diz o %');
+  assert.ok(/22%/.test(TS.fogo.desc) && /18%/.test(TS.grama.desc) && /31%/.test(TS.agua.desc), 'a descrição diz o %');
   ['labareda', 'mare-alta', 'raizes-firmes'].forEach(function (id) { assert.strictEqual(G.SKILLS[id], undefined, id + ' fora das skills de vaga'); });
   var T = S.TUNING;
   assert.deepStrictEqual([T.typeBase, T.typeLevel, T.typeRar, T.distMin, T.distMax, T.distStep, T.trackMaxShare, T.trackTries],
-    [1, { fogo: -0.15, agua: 0, grama: 0.25 }, { fogo: 0.15, agua: 0.15, grama: 0.40 }, 1400, 2000, 50, 0.5, 60]);
+    [1, { fogo: -0.08, agua: 0.3, grama: 0.94 }, { fogo: 0.22, agua: 0.08, grama: 0.23 }, 1400, 2000, 50, 0.5, 60]);
 });
 test('v3: catálogo sem Pangaré e com Ventania de Grama', function () {
   var todos = G.STARTERS.concat(G.WILD_HORSES);
@@ -564,16 +566,16 @@ test('v3: catálogo sem Pangaré e com Ventania de Grama', function () {
 test('v3: força da skill de tipo (P = 1 + nívelT·(L − 1)/49 + raridadeT·ordem/4, por tipo)', function () {
   function P(e, r, L) { return S.typePower({ element: e, rarity: r, level: L }); }
   TIPOS.forEach(function (e) { assert.strictEqual(P(e, 'comum', 1), 1, e + ' Comum nível 1'); });
-  // Fogo −0,15/0,15 · Água 0/0,15 · Grama 0,25/0,40
-  assert.ok(Math.abs(P('fogo', 'raro', 30) - (1 - 0.15 * 29 / 49 + 0.15 * 2 / 4)) < 1e-9);
-  assert.ok(Math.abs(P('agua', 'raro', 30) - 1.075) < 1e-9);
-  assert.ok(Math.abs(P('grama', 'raro', 30) - (1 + 0.25 * 29 / 49 + 0.2)) < 1e-9);
-  assert.deepStrictEqual(TIPOS.map(function (e) { return Math.round(P(e, 'mitico', 50) * 1e9) / 1e9; }), [1, 1.15, 1.65]);
-  assert.ok(Math.abs(P('fogo', 'lendario', 50) - 0.9625) < 1e-9, 'o P do Fogo cai com o nível');
+  // Fogo −0,08/0,22 · Água 0,3/0,08 · Grama 0,94/0,23 (2026-11-18, Garra v2; antes −0,15/0,15 · 0/0,15 · 0,25/0,40)
+  assert.ok(Math.abs(P('fogo', 'raro', 30) - (1 - 0.08 * 29 / 49 + 0.22 * 2 / 4)) < 1e-9);
+  assert.ok(Math.abs(P('agua', 'raro', 30) - (1 + 0.3 * 29 / 49 + 0.08 * 2 / 4)) < 1e-9);
+  assert.ok(Math.abs(P('grama', 'raro', 30) - (1 + 0.94 * 29 / 49 + 0.23 * 2 / 4)) < 1e-9);
+  assert.deepStrictEqual(TIPOS.map(function (e) { return Math.round(P(e, 'mitico', 50) * 1e9) / 1e9; }), [1.14, 1.38, 2.17]);
+  assert.ok(P('fogo', 'comum', 50) < 1 && Math.abs(P('fogo', 'lendario', 50) - (1 - 0.08 + 0.22 * 3 / 4)) < 1e-9, 'o P do Fogo cai com o nível e sobe com a raridade');
   assert.strictEqual(P('fogo', 'comum', 'x'), 1, 'nível malformado vale 1');
   assert.strictEqual(S.typePower({ rarity: 'mitico', level: 50 }), 1, 'sem elemento: só a base');
   var ts = S.typeSkill({ element: 'agua', rarity: 'lendario', level: 50 });
-  assert.strictEqual(ts.id, 'mare-alta'); assert.strictEqual(ts.name, 'Maré Alta'); assert.ok(Math.abs(ts.power - 1.1125) < 1e-9); assert.deepStrictEqual(ts.zone, [2 / 3, 1]);
+  assert.strictEqual(ts.id, 'mare-alta'); assert.strictEqual(ts.name, 'Maré Alta'); assert.ok(Math.abs(ts.power - (1 + 0.3 + 0.08 * 3 / 4)) < 1e-9); assert.deepStrictEqual(ts.zone, [2 / 3, 1]);
 });
 // campo dos três tipos com skills de gatilho garantido (largada, Dado, 80%) e o modo "skills sempre ativam"
 function campoTipos() {
@@ -1259,13 +1261,14 @@ function refRace(seed, dev) {
 function refHash(res) {
   return crypto.createHash('sha1').update(JSON.stringify({ finishOrder: res.finishOrder, finishTimes: res.finishTimes, events: res.events })).digest('hex');
 }
-var REF_HASHES = ['9dd501e55d7bc83a45e9683a45ec82a01738ffee', 'fb80220d718a9ed103f3f85b608007a8b9c2a04e', '32838948c70521bc4bb26da7421108f0f3ce2d9d',
-  '644487e444fbd536f1d6eea979aaf5e29ce3ee8e', 'dbd97fa663398bef8e786b5924ebb8492cc7bf8e', 'f7bfb3bd9edfc882a304c487f9f6644571b9fd8e',
-  '6295742d06dacf97ccafce329a32f6e393f812a8', 'a8ec95046dc46c5e6f958cf87a23f7991981f710', '02aa2a7427726c28597f9a3cbc7f6c9aede2513d',
-  'bb36d56153deacc66c9c57c0b43358f7fa5b19e7', '4b97fd406ec7c55951dce895ae5d7baeab9fadfb', 'fc4aa36ee9c32202af0916e146513008b40cc851',
-  'b33f5fe923fe63336cba9a20281833ae6e965b12', '7729f5b9818551b01f5dd278fa913462fceac52a', '76e9075ff88d32eb485eb008b858c15146d4571e',
-  '809912b968637bf10dd06ddeec2b79caf0039fea', 'bea973f423a74fce738be0b9d530cd99e6e9ad36', 'b5365ac0103ff278a1dd03d07bca86e1234cfa39',
-  '1541246f097b5911734d884cbdc4aa11f44d9866', 'f2a44ad7be971f2ec22fef70ac5455528297e392'];
+// regerados em 2026-11-18 com a simulação 3.2.0 (Garra v2, clima de 2%, skills e skills de tipo recalibradas)
+var REF_HASHES = ['b073cf9ab3ec9ef27c4778b090cb72546f175b89', '43255c8bb9fec2f43ddc43f35711c2e99550edc4', '88fe700ddc1e4ac21d874ffaa5f1facd6dfdde7b',
+  'ce2938f62dc174c60f3ca3fda801d8785d6f5f0e', '2bec626f12cebc23a9dceccc295363b9d7d1d67b', 'd5ac72eef0cdc03d8f72c4bceabe49778f2e2d4e',
+  'e3702526a4c216232dd1ebd9f97b653336c636a3', 'a926b86af6546a2ba9a63393165bfc21e04b6d74', '00dd811fb0ce5e33104a0f082f3d1ed4a36b8d28',
+  '497a14f184c2030d10c003f497bf6daa521809c1', 'ba2884373ac3865b9058dad1d46fff1a3f7c9ea7', '2d60376ad37cf54d2014bbb98fa7e0c01dd0e9d2',
+  'c835f8c0d1d3b5acb568702bac7f5ad64ad06cd5', 'e076fcb0a5fd4042807ecfb5ec0727f6a10ed721', '1cf7415c46b0de07617fce2fd391d46608bbaed6',
+  'adf03ab351e7fb338d7afb47359cc7cefa67f353', '19ae082a689e54003f39670dae2cdaf9f09ca8bd', 'e516655b55212f902c0ae0b40e2b4b1821cbe2a1',
+  'b849629afba74f1feef44aa46fe76f576d2b244d', '9d8bfdfb29c101a2541c28aba35faf0d80cdcd9c'];
 test('sem config.dev o resultado é o de antes', function () {
   assert.deepStrictEqual(CAMPO_REF.map(function (h) { return h.id; }), ['brasa', 'mare', 'ipe', 'w-faisca', 'w-lambari', 'w-capim', 'w-ticao', 'w-garoa']);
   var diff = [];
@@ -2492,28 +2495,31 @@ test('ginásio: bonus e sanear (lixo em cada campo)', function () {
   assert.strictEqual(GY.sanear({ fogo: { etapa: 5, revDia: 'a', revVitorias: 0 } }, NaN).fogo.revDia, IT.DIA_MAX);
   assert.strictEqual(GY.DIA_MAX, IT.DIA_MAX);
 });
-test('garraInfo (a tela) dá os números da Garra que a corrida usa: onde começa, a chance e o terço da Maré Alta', function () {
+test('Garra v2: a arrancada sempre sai e o sorteio decide a força; garraInfo (a tela) dá o ponto, o piso e a faixa que a corrida usa', function () {
   var T = S.TUNING;
   function cav(i, nivel, garra) { var h = clone(G.STARTERS[i]); h.level = nivel; h.skills = []; h.alloc = { garra: garra }; return h; }
   // a conta, com os números do TUNING (Fogo: sem skill de tipo na Garra)
   var f = cav(0, 30, 20), nf = S.computeStats(f).garra / 100, gf = S.garraInfo(f);
   assert.strictEqual(gf.from, Math.min(0.95, Math.max(0.5, T.garraZone - T.garraZoneK * (nf - 0.5))));
-  assert.strictEqual(gf.chance, Math.min(T.garraChanceMax, T.garraChanceBase + T.garraChanceRange * nf));
+  assert.strictEqual(gf.floor, Math.min(T.garraFloorMax, T.garraFloorBase + T.garraFloorRange * nf));
   assert.strictEqual(gf.boost, 1 + T.garraBoostBase + T.garraBoostRange * nf);
+  assert.ok(Math.abs(gf.boostMin - (1 + (gf.boost - 1) * gf.floor)) < 1e-12 && gf.boostMin > 1 && gf.boostMin < gf.boost, 'a arrancada mais fraca fica entre 1 e o teto cheio');
   assert.strictEqual(gf.tipo, false);
-  // o bônus de uma skill (Arrancada Final) soma como na corrida; a chance para no teto
-  var af = G.SKILLS['arrancada-final'].effect, gb = S.garraInfo(f, { chance: af.garraChanceBonus, boost: af.garraBoostBonus });
-  assert.ok(Math.abs(gb.chance - Math.min(T.garraChanceMax, gf.chance + af.garraChanceBonus)) < 1e-12 && Math.abs(gb.boost - (gf.boost + af.garraBoostBonus)) < 1e-12);
-  assert.strictEqual(S.garraInfo(f, { chance: 5 }).chance, T.garraChanceMax);
+  assert.strictEqual(gf.chance, undefined, 'a Garra não tem mais chance de sair: sempre sai');
+  // o bônus de uma skill (Arrancada Final) soma como na corrida; o piso para no teto
+  var af = G.SKILLS['arrancada-final'].effect, gb = S.garraInfo(f, { floor: af.garraFloorBonus, boost: af.garraBoostBonus });
+  assert.ok(af.garraFloorBonus > 0 && af.garraChanceBonus === undefined);
+  assert.ok(Math.abs(gb.floor - Math.min(T.garraFloorMax, gf.floor + af.garraFloorBonus)) < 1e-12 && Math.abs(gb.boost - (gf.boost + af.garraBoostBonus)) < 1e-12);
+  assert.strictEqual(S.garraInfo(f, { floor: 5 }).floor, T.garraFloorMax);
   // Água: a arrancada dentro do último terço usa a Garra da Maré Alta; começando antes dele, não
   var a = cav(1, 30, 20), ga = S.garraInfo(a), ts = S.typeSkill(a);
   assert.ok(ga.from >= ts.zone[0] && ga.tipo === true, 'Maré com Garra média: começa no terço da Maré Alta');
   var na = S.computeStats(a).garra / 100 * (1 + ts.effect.statMul * ts.power);
-  assert.ok(Math.abs(ga.chance - (T.garraChanceBase + T.garraChanceRange * na)) < 1e-12);
+  assert.ok(Math.abs(ga.floor - (T.garraFloorBase + T.garraFloorRange * na)) < 1e-12);
   var a2 = clone(a); a2.rarity = 'mitico'; a2.grau = 3; a2.level = 50; a2.potential = Object.assign({}, a2.potential, { garra: 31 }); a2.alloc = { garra: 70 };
   var ga2 = S.garraInfo(a2);
   assert.ok(ga2.from < ts.zone[0] && ga2.tipo === false, 'Garra alta começa antes do terço: sem a Maré Alta (' + ga2.from + ')');
-  // na corrida, com Nublado e sem skills de vaga: a Garra sai na fração prevista e começa no ponto previsto
+  // na corrida, com Nublado e sem skills de vaga: o evento sai na metade de cima do sorteio (T.garraShow) e no ponto previsto
   [f, a].forEach(function (h) {
     var info = S.garraInfo(h), vezes = 0, corridas = 2400, longe = 0;
     for (var sd = 1; sd <= corridas; sd++) {
@@ -2525,9 +2531,27 @@ test('garraInfo (a tela) dá os números da Garra que a corrida usa: onde começ
       if (!(res.frames[k + 1].pos[0] / D >= info.from - 1e-9 && res.frames[k].pos[0] / D < info.from + 0.02)) longe++;
     }
     var frac = vezes / corridas;
-    assert.ok(Math.abs(frac - info.chance) < 0.03, h.element + ': Garra em ' + (frac * 100).toFixed(1) + '% das corridas; a tela diz ' + (info.chance * 100).toFixed(1) + '%');
+    assert.ok(Math.abs(frac - (1 - T.garraShow)) < 0.03, h.element + ': evento de Garra em ' + (frac * 100).toFixed(1) + '% das corridas; o esperado é ' + ((1 - T.garraShow) * 100).toFixed(0) + '%');
     assert.strictEqual(longe, 0, h.element + ': a Garra começou fora do ponto previsto em ' + longe + ' corridas');
   });
+  // a arrancada SEMPRE sai: em toda corrida solo o tempo é melhor que sem bônus nenhum e não passa do tempo com a
+  // arrancada cheia (piso 1); e o sorteio muda a força (os tempos não são todos o da cheia nem todos iguais ao piso)
+  var salvo = { fb: T.garraFloorBase, fm: T.garraFloorMax, bb: T.garraBoostBase, br: T.garraBoostRange }, N = 240, iguaisCheia = 0;
+  function tempo(sd) { return S.simulate({ seed: sd * 104729, conditions: { weather: 'nublado' }, recordFrames: false, racers: [{ horse: f, name: 'A' }] }).finishTimes[0]; }
+  var normal = [], cheia = [], sem = [], sd;
+  for (sd = 1; sd <= N; sd++) normal.push(tempo(sd));
+  try {
+    T.garraFloorBase = 1; T.garraFloorMax = 1;
+    for (sd = 1; sd <= N; sd++) cheia.push(tempo(sd));
+    T.garraFloorBase = salvo.fb; T.garraFloorMax = salvo.fm; T.garraBoostBase = 0; T.garraBoostRange = 0;
+    for (sd = 1; sd <= N; sd++) sem.push(tempo(sd));
+  } finally { T.garraFloorBase = salvo.fb; T.garraFloorMax = salvo.fm; T.garraBoostBase = salvo.bb; T.garraBoostRange = salvo.br; }
+  for (sd = 0; sd < N; sd++) {
+    assert.ok(normal[sd] < sem[sd], 'seed ' + (sd + 1) + ': a arrancada não saiu (' + normal[sd] + ' s com ela, ' + sem[sd] + ' s sem bônus)');
+    assert.ok(normal[sd] >= cheia[sd], 'seed ' + (sd + 1) + ': a arrancada passou da cheia (' + normal[sd] + ' < ' + cheia[sd] + ')');
+    if (normal[sd] === cheia[sd]) iguaisCheia++;
+  }
+  assert.ok(iguaisCheia < N * 0.1, 'o sorteio quase nunca dá a arrancada cheia (' + iguaisCheia + ' de ' + N + ')');
 });
 test('ginasio.js é puro: sem Math.random, relógio, tela nem estado global; carrega no navegador e no build', function () {
   var fs = require('fs'), path = require('path');

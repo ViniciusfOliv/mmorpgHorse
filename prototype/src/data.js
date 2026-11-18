@@ -60,7 +60,7 @@
     man: 'Rendimento nas curvas: quem tem mais perde menos velocidade nelas.',
     forca: 'Rendimento nas subidas, nos pisos pesados e para passar pelo pelotão.',
     est: 'Fôlego para manter o ritmo até o fim; também deixa correr mais forte no meio e no sprint.',
-    garra: 'Chance e força da arrancada final; com mais Garra ela começa mais cedo.',
+    garra: 'Força da arrancada final; com mais Garra ela começa mais cedo e sai mais regular.',
     sorte: 'Vem do nascimento e não recebe pontos. Chance de jogar o Dado da Sorte duas vezes.',
     genetica: 'Nota S, A, B ou C: o quanto o status já nasce alto. Vem do nascimento e não muda.',
     estrelas: 'Grau do cavalo, de 1 a 3 estrelas: mais estrelas, mais pontos para distribuir a cada nível.',
@@ -119,18 +119,18 @@
   var TYPE_SKILLS = {
     fogo: {
       id: 'labareda', name: 'Labareda', short: 'LABAREDA', zone: [0, 1 / 3],
-      effect: { statMul: 0.19 },
-      desc: 'No primeiro terço da pista, a largada pega fogo: Velocidade e Aceleração valem +19% com intensidade ×1 (varia com nível e raridade).'
+      effect: { statMul: 0.22 },
+      desc: 'No primeiro terço da pista, a largada pega fogo: Velocidade e Aceleração valem +22% com intensidade ×1 (cresce com a raridade).'
     },
     grama: {
       id: 'raizes-firmes', name: 'Raízes Firmes', short: 'RAÍZES FIRM.', zone: [1 / 3, 2 / 3],
-      effect: { statMul: 0.15 },
-      desc: 'No terço do meio, finca os cascos: Força e Manobra valem +15% com intensidade ×1 (varia com nível e raridade).'
+      effect: { statMul: 0.18 },
+      desc: 'No terço do meio, finca os cascos: Força e Manobra valem +18% com intensidade ×1 (cresce com o nível e a raridade).'
     },
     agua: {
       id: 'mare-alta', name: 'Maré Alta', short: 'MARÉ ALTA', zone: [2 / 3, 1],
-      effect: { statMul: 0.33 },
-      desc: 'No último terço, a maré sobe: Estamina e Garra valem +33% com intensidade ×1 (cresce com a raridade).'
+      effect: { statMul: 0.31 },
+      desc: 'No último terço, a maré sobe: Estamina e Garra valem +31% com intensidade ×1 (cresce com o nível e a raridade).'
     }
   };
 
@@ -145,8 +145,8 @@
   //     curveBonus / hillBonus / hillDrainMult: bônus nos blocos de curva/subida;
   //     blockScoped: vale uma vez por bloco (curva/subida), não uma vez por corrida;
   //     staminaRestore: recupera fração do tanque (instantâneo);
-  //     garraChanceBonus / garraBoostBonus: reforça a arrancada de Garra;
-  //     extraDice: dados extras; weatherDouble: o bônus do clima vira T.weatherMultDouble (×1,08 no lugar de ×1,03).
+  //     garraFloorBonus / garraBoostBonus: reforça a arrancada de Garra (o piso do sorteio da força e o bônus cheio);
+  //     extraDice: dados extras; weatherDouble: o bônus do clima vira T.weatherMultDouble (×1,06 no lugar de ×1,02).
   //   short (opcional): nome de até 12 letras para o balão da corrida (só apresentação, não é regra).
   //   element: 'geral' (qualquer tipo aprende) ou o tipo que aprende.
   // ---------------------------------------------------------------------------
@@ -154,81 +154,81 @@
     // --- Gerais (qualquer tipo) ---
     'arranque': {
       id: 'arranque', name: 'Arranque', element: 'geral', trigger: 'start',
-      desc: 'Largada explosiva: +18% de aceleração nos primeiros 100 m.',
-      effect: { accelMult: 1.18, distanceM: 100 }
+      desc: 'Largada explosiva: +8,5% de aceleração nos primeiros 100 m.',
+      effect: { accelMult: 1.085, distanceM: 100 }
     },
     'sprint': {
       id: 'sprint', name: 'Sprint', element: 'geral', trigger: 'straight',
-      desc: 'Numa reta de 150 m ou mais (fora a da largada): +6% de velocidade por 150 m.',
-      effect: { speedMult: 1.06, drainMult: 1.0, distanceM: 150 }
+      desc: 'Numa reta de 150 m ou mais (fora a da largada): +7% de velocidade por 150 m.',
+      effect: { speedMult: 1.07, drainMult: 1.0, distanceM: 150 }
     },
     'drift': {
       id: 'drift', name: 'Drift', element: 'geral', trigger: 'curve',
-      desc: 'Em cada curva: +2,5% de rendimento na curva.',
-      effect: { curveBonus: 0.025, blockScoped: true }
+      desc: 'Em cada curva: +1,3% de rendimento na curva.',
+      effect: { curveBonus: 0.013, blockScoped: true }
     },
     'saida-rapida': {
       id: 'saida-rapida', name: 'Saída Rápida', element: 'geral', trigger: 'curveExit',
-      desc: 'Ao sair da curva: +40% de aceleração e +6% de velocidade por 6s.',
-      effect: { accelMult: 1.4, speedMult: 1.06, durationS: 6 }
+      desc: 'Ao sair da curva: +40% de aceleração e +6% de velocidade por 7s.',
+      effect: { accelMult: 1.4, speedMult: 1.06, durationS: 7 }
     },
     'folego-de-montanha': {
       id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'geral', trigger: 'hill',
-      desc: 'Em cada subida: gasta 80% menos estamina extra da subida.',
-      effect: { hillDrainMult: 0.2, blockScoped: true }
+      desc: 'Em cada subida: gasta 90% menos estamina extra da subida.',
+      effect: { hillDrainMult: 0.1, blockScoped: true }
     },
     'segundo-ar': {
       id: 'segundo-ar', name: 'Segundo Ar', element: 'geral', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 30%, recupera 15% e ganha +5% de velocidade por 8s.',
-      effect: { staminaRestore: 0.15, speedMult: 1.05, durationS: 8 }
+      desc: 'Quando a estamina cai a 30%, recupera 20% e ganha +6% de velocidade por 8s.',
+      effect: { staminaRestore: 0.2, speedMult: 1.06, durationS: 8 }
     },
     'arrancada-final': {
       id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'geral', trigger: 'final',
-      desc: 'Na reta final: +15% de chance de Garra e +3% de força na arrancada.',
-      effect: { garraChanceBonus: 0.15, garraBoostBonus: 0.03 }
+      desc: 'Na reta final: a arrancada fica mais regular (+15% no piso da força) e +3% mais forte.',
+      effect: { garraFloorBonus: 0.15, garraBoostBonus: 0.03 }
     },
     'dado-viciado': {
       id: 'dado-viciado', name: 'Dado Viciado', element: 'geral', trigger: 'dice',
-      desc: 'Uma tentativa por corrida, antes do 1º Dado da Sorte: se ativar, rola 1 dado extra em todos os Dados da corrida.',
-      effect: { extraDice: 1 }
+      desc: 'Uma tentativa por corrida, antes do 1º Dado da Sorte: se ativar, rola 1 dado extra em todos os Dados da corrida e ganha +3% de velocidade por 10s.',
+      effect: { extraDice: 1, speedMult: 1.03, durationS: 10 }
     },
     // --- Fogo ---
     'sol-a-pino': {
       id: 'sol-a-pino', name: 'Sol a Pino', element: 'fogo', trigger: 'weather:sol',
-      desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +8%.',
+      desc: 'Com sol: o bônus do clima para o Fogo sobe de +2% para +6%.',
       effect: { weatherDouble: true }
     },
     'chama-final': {
       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
-      desc: 'Na reta final, +5% de velocidade por 9,5s.',
-      effect: { speedMult: 1.05, durationS: 9.5 }
+      desc: 'Na reta final, +5% de velocidade por 10,5s.',
+      effect: { speedMult: 1.05, durationS: 10.5 }
     },
     // --- Água ---
     'pe-na-chuva': {
       id: 'pe-na-chuva', name: 'Pé na Chuva', element: 'agua', trigger: 'weather:chuva',
-      desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +8%.',
+      desc: 'Com chuva: o bônus do clima para a Água sobe de +2% para +6%.',
       effect: { weatherDouble: true }
     },
     'canto-da-iara': {
       id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
-      desc: 'Na reta final, +6% de velocidade por 9s e gasta 30% menos estamina.',
-      effect: { speedMult: 1.06, drainMult: 0.7, durationS: 9 }
+      desc: 'Na reta final, +6% de velocidade por 10,5s e gasta 30% menos estamina.',
+      effect: { speedMult: 1.06, drainMult: 0.7, durationS: 10.5 }
     },
     'nascente': {
       id: 'nascente', name: 'Nascente', element: 'agua', trigger: 'straight',
-      desc: 'Numa reta de 150 m ou mais (fora a da largada), recupera 12% de estamina.',
-      effect: { staminaRestore: 0.12 }
+      desc: 'Numa reta de 150 m ou mais (fora a da largada), recupera 14% de estamina.',
+      effect: { staminaRestore: 0.14 }
     },
     // --- Grama ---
     'nevoa-amiga': {
       id: 'nevoa-amiga', name: 'Névoa Amiga', element: 'grama', trigger: 'weather:nevoa',
-      desc: 'Com névoa: o bônus do clima para a Grama sobe de +3% para +8%.',
+      desc: 'Com névoa: o bônus do clima para a Grama sobe de +2% para +6%.',
       effect: { weatherDouble: true }
     },
     'casco-firme': {
       id: 'casco-firme', name: 'Casco Firme', element: 'grama', trigger: 'hill',
-      desc: 'Em cada subida: +2% de rendimento na subida.',
-      effect: { hillBonus: 0.02, blockScoped: true }
+      desc: 'Em cada subida: +1,2% de rendimento na subida.',
+      effect: { hillBonus: 0.012, blockScoped: true }
     }
   };
 
@@ -435,6 +435,13 @@
     startingGold: 500,
     minRacers: 4,
     maxRacers: 8,
+    // Rivais da sala da aba Correr, pelo número da sala (o contador de salas do save; spec 2026-11-18-balanco-superioridade):
+    //   as `estreia` primeiras salas têm 4 a `maxEstreia` corredores e rivais com Poder entre faixaEstreia[0] e [1] do
+    //   Poder do jogador (um pouco mais fracos: quem começa vence perto de 45%, o dobro do justo); nas `rampa` salas
+    //   seguintes a faixa e o tamanho voltam aos poucos ao normal (`faixa` e minRacers–maxRacers), em que o jogador vence
+    //   perto do justo (medido 14–20%, média 17,0%, com o justo em 17,6%). Com a Garra v2 um rival 8% mais forte vence
+    //   9 em 10 duelos: a faixa é estreita de propósito.
+    sala: { estreia: 10, rampa: 10, maxEstreia: 5, faixaEstreia: [0.945, 1.015], faixa: [0.935, 1.045] },
     maxLevel: 50,
     // XP por colocação (1º..8º).
     xpPerPlace: [100, 70, 50, 35, 25, 20, 15, 10],
@@ -528,11 +535,14 @@
   var GYM = {
     // calibrado na Tarefa 2 (metas G1 a G9 do balance.js): o status inteiro arredonda, então nos status de 50 a 62
     // de hoje os 4% somam cerca de 2 pontos (a vantagem anda em degraus de 1 ponto de status)
-    vantagem: 0.04,
+    // 2026-11-18: 4% → 2%. Com a Garra v2 a mesma vantagem vence mais vezes (com 4%, 85% a 96% dos desafios; a meta G3
+    // é 60% a 85%); com 2% o status ganha cerca de 1 ponto
+    vantagem: 0.02,
     fadiga: {
-      // entre cavalos iguais as chegadas se dividem entre "colado" e "longe"; 1 e 8 m deixam cada faixa com 18% ou mais
+      // com a Garra v2 (2026-11-18) as chegadas entre cavalos iguais se espalham (mediana ~6 m): 3 e 8 m deixam cada
+      // faixa com 24% ou mais (antes, com a Garra tudo ou nada, a chegada ou era colada ou era longe, e os limites eram 1 e 8 m)
       faixas: [
-        { id: 'apertada', name: 'Apertada', ate: 1, perde: 0.25 },
+        { id: 'apertada', name: 'Apertada', ate: 3, perde: 0.25 },
         { id: 'normal', name: 'Normal', ate: 8, perde: 0.15 },
         { id: 'folgada', name: 'Folgada', ate: null, perde: 0.05 }
       ],
@@ -581,7 +591,9 @@
     // Remanso: areia, com uma reta no meio e a subida mais longa no fim
     agua: gym('agua', 'Ginásio do Remanso', 'Mestre Aguaceiro', 'grama',
       pistaGym('areia', [['curva', 100], ['subida', 250], ['reta', 250], ['curva', 200], ['subida', 400]]), 'mare',
-      [[2], [2], [2, 2], [2, 3], [2, 3, 2]],
+      // (até 2026-11-18 o soldado 4 e o líder tinham um cavalo ★★★, para compensar a Água mais fraca; com os tipos
+      // recalibrados para a Garra v2 a compensação deixava o Remanso mais difícil que os outros)
+      [[2], [2], [2, 2], [2, 2], [2, 2, 2]],
       ['Recruta Orvalho', 'Cabo Goteira', 'Sargento Correnteza', 'Tenente Cacimba'],
       'Insígnia do Remanso'),
     // Capoeira: grama, uma subida de 800 m e a curva da chegada

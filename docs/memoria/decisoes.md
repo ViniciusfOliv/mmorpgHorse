@@ -3,6 +3,40 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-18 — Cavalo superior vence: Garra v2, skills niveladas e começo mais leve (pedido do Vinicius)
+Spec: `docs/superpowers/specs/2026-11-18-balanco-superioridade-design.md`. Medições: `docs/exemplos.md` §0.
+- **Regra nova de desenho: quanto maior a vantagem de status, mais certo o resultado** (o Vinicius: "um cavalo superior
+  precisa ter vantagem sobre outros, e se meu cavalo tem status maiores que todos os outros da corrida e as mesmas skills,
+  supostamente eu ganharia. Faça uma otimização e prossiga") — antes, de +1% a +10% em tudo o duelo dava sempre 72–78%.
+  Agora: +2% 57%, +5% 79%, +10% 98%, +15% 100%. Entrou no `CLAUDE.md` §8 e virou a meta SUP do `balance.js`.
+- **A Garra sempre sai; o sorteio decide a força, do piso (0,20 + 0,15·n) a 100% do bônus** (controlador; a causa medida
+  do degrau era a Garra "tudo ou nada", que valia mais que +10% em todos os status) — o mesmo sorteio da seed, no mesmo
+  ponto: a ordem da RNG não muda. O evento de GARRA (narração e efeito) fica para a metade de cima do sorteio. O bônus
+  ficou mais inclinado (−0,04 + 0,35·n; começa 0,20·(n − 0,5) antes) para +10 de Garra render como +10 nos outros status.
+  Se errado: os números estão no `TUNING` (`garraFloor*`, `garraBoost*`, `garraZoneK`); a simulação subiu para 3.2.0.
+- **O bônus de clima caiu de 3% para 2% (6% com a skill de clima; penalizado 0,98)** (controlador) — com menos ruído, o
+  clima de 3% decidia 76–84% das corridas entre iniciais iguais (a meta era 45–68%). Se errado: `weatherMult` no `TUNING`.
+- **Skills niveladas: as 15 valem de 5,1 a 7,4 pontos de vitória numa sala de 6** (antes 4,0 a 12,7, e o Dado Viciado ~1)
+  — Arranque 18% → 8,5%; Drift 2,5% → 1,3%; Casco Firme 2% → 1,2%; Sprint 6% → 7%; Saída Rápida 6 s → 7 s; Fôlego de
+  Montanha 80% → 90%; Segundo Ar 15%/+5%/8 s → 20%/+6%/8 s; Nascente 12% → 14%; Chama Final 9,5 s → 10,5 s; Canto da
+  Iara 9 s → 10,5 s; **Dado Viciado ganhou +3% de velocidade por 10 s** além do dado extra (sozinho, o dado extra quase
+  não valia). A Arrancada Final passou de "+15% de chance de Garra" para "+15% no piso da força". Se errado: `data.js`.
+- **Skills de tipo recalibradas pela meta M9** (controlador, por mínimos quadrados sobre as 3 configurações da meta):
+  Labareda 19% → 22%, Raízes Firmes 15% → 18%, Maré Alta 33% → 31%, e as curvas de nível e raridade (`typeLevel`,
+  `typeRar`). A Maré Alta rendia pela chance de Garra, que acabou: sem recalibrar, a Água caía a 14% num campo misto.
+- **Rivais da sala pela faixa nova e estreia nas 10 primeiras salas** (o Vinicius: "diminua a força dos oponentes
+  iniciais"; as metas ele aprovou: "pode seguir com as metas") — normal 93,5%–104,5% do Poder (era 91,5%–111,5%);
+  estreia 94,5%–101,5% com 4 ou 5 corredores; rampa da 11ª à 20ª. Medido: estreia 44–47% de vitória, normal 17,0% (o
+  justo é 17,6%). O rival de estreia acima do alvo corre com a genética reduzida (não há rival mais fraco no catálogo).
+  Os números ficam em `GameData.ECONOMY.sala`; a fase sai do contador de salas, que já está no save.
+- **Ginásios, provisório até o projeto do mapa:** a vantagem de elemento caiu de 4% para 2% (com 4% dava 85–96%); o
+  Remanso perdeu os dois cavalos ★★★ (compensavam a Água fraca de antes); as faixas do cansaço passaram de 1/8 m para
+  3/8 m; a meta G5 (ginásios iguais entre si) só conta na G1, porque a pista de cada ginásio passou a pesar mais e os
+  ginásios vão ter níveis diferentes na sequência.
+- **Metas rebaseadas, com o motivo no `balance.js`:** M4 (um degrau de raridade ≥ 88%, era 72–88%), M5 (65–84% e
+  55–70%), M6 (tetos 66% e 72%), "2" (45–76%), S1 (4–12 p.p., sem isenção), G2 (≤ 38%), G3 (≤ 88% e ≤ 40%), G4 (40–60%).
+  São consequência direta da regra nova: a mesma vantagem vence mais vezes.
+
 ## 2026-11-18 — Integração da tela de desafio e do Recomeçar do DEV na `main` (decisão do Vinicius)
 - **Integrar na `main` e republicar o jogo e o DEV oficiais** ("sim, integra na main e republica") — por fast-forward;
   o código é o mesmo que passou na verificação completa (53e4ced; depois dele só mudou a memória); o wiki não mudou e

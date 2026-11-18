@@ -64,6 +64,26 @@ Dado Viciado ganha um efeito próprio se o dado extra não bastar.
 Ginásios (sequência, níveis e a força dos primeiros oponentes), mapa e cena de desafio: projeto 2. Equipamento continua
 suspenso. Nada muda nas regras de Ouro e Gemas, e todo sorteio continua saindo da seed.
 
-## Notas da execução
+## Notas da execução (2026-11-18)
 
-(preenchido ao final: números escolhidos e medidos)
+O que saiu diferente do desenho, e os números finais (medições em `docs/exemplos.md` §0; decisões em
+`docs/memoria/decisoes.md`):
+
+- **Superioridade:** medido +2% 57%, +5% 79%, +10% 98%, +15% 100% no duelo; sala de 6: +5% 62%, +10% 97%, +15% 100%.
+  Piso da Garra 0,20 + 0,15·n (não o 0,50 de antes: com piso alto, +3% já vencia 84%).
+- **Efeitos em cadeia que o desenho não previa:** (1) com menos ruído, o clima de 3% decidia a corrida: caiu para 2%;
+  (2) a Maré Alta (Água) rendia pela chance de Garra: as três skills de tipo foram recalibradas pela M9; (3) +10 de Garra
+  passou a render 0,8× os outros status: o bônus ficou mais inclinado (meta A1); (4) nos ginásios, a vantagem de elemento
+  de 4% dava 85–96%: caiu para 2%, o Remanso perdeu os ★★★ e as faixas do cansaço mudaram de 1/8 m para 3/8 m.
+- **Começo:** a meta era "perto de 40%" nas 10 primeiras salas; ficou em 44–47% (faixa 94,5%–101,5%, 4 ou 5
+  corredores). A primeira tentativa (80%–98%) dava 84%: com a curva nova, rival 10% mais fraco quase nunca vence. Como
+  o catálogo não tem rival mais fraco que o inicial no nível 1, o rival de estreia acima do alvo corre com a genética
+  reduzida. Normal: 93,5%–104,5%, 17,0% de vitória (justo 17,6%).
+- **Skills:** a meta "cada skill entre 47% e 53% contra combos sorteados" vale contra outro elemento (todas a até 2,2
+  pontos da média). Em duelo de mesmo elemento a skill de clima do tipo ainda fica em ~54% (o clima vira o do tipo dos
+  dois corredores), e o melhor trio vence 65% (a meta era ~60%). No Mítico (5 skills) o melhor combo fica ~19 pontos
+  acima da média (a medição tem ruído alto: 150 duelos por combo). O Dado Viciado ganhou velocidade além do dado extra.
+- **Ficou para o projeto 2 (mapa e sequência dos ginásios):** as pistas dos ginásios (a pista de cada um pesa mais com a
+  corrida menos ruidosa: G3 em desvantagem vai de 14% a 38% e a G5 só conta na G1) e a força dos primeiros oponentes.
+- **Verificação:** `balance.js` completo com 298 metas dentro da faixa; `sim-test.js` 179 testes (hashes de referência
+  regerados: as corridas mudaram de propósito); teste novo da estreia no bloco `crescimento-jogo` do `ui-test.mjs`.

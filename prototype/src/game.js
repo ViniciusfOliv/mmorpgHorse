@@ -1435,17 +1435,19 @@
       ': +' + pctTxt(T.skillPerSorte * st.sorte).replace('%', '') + (bruto > T.skillChanceMax ? '; máximo ' + pctTxt(T.skillChanceMax) : '');
     return '<p class="skill-chance">Chance de cada skill ativar: <strong>' + pctTxt(total) + '</strong> (' + esc(conta) + ').</p>';
   }
-  // A Garra deste cavalo (RaceSim.garraInfo, as contas da corrida, sem clima): onde a arrancada começa, a chance e o teto;
-  // com a Arrancada Final, os números se ela ativar.
+  // A Garra deste cavalo (RaceSim.garraInfo, as contas da corrida, sem clima): onde a arrancada começa e a faixa do teto
+  // de velocidade (a arrancada sempre sai; o sorteio decide a força, da mais fraca à cheia); com a Arrancada Final, os
+  // números se ela ativar.
+  function vezesTxt(x) { return x.toFixed(2).replace('.', ','); }
   function garraInfoHtml(m) {
     var g = RS.garraInfo(m), st = RS.computeStats(m), linhas = [];
-    linhas.push('1 vez por corrida, aos ' + pctTxt(g.from) + ' da pista: ' + pctTxt(g.chance) + ' de chance' + (g.tipo ? ' (com a ' + RS.typeSkill(m).name + ')' : '') +
-      '. Se der certo: velocidade máxima ×' + g.boost.toFixed(2).replace('.', ',') + ' até a chegada.');
+    linhas.push('Sempre sai, aos ' + pctTxt(g.from) + ' da pista' + (g.tipo ? ' (com a ' + RS.typeSkill(m).name + ')' : '') +
+      ': velocidade máxima de ×' + vezesTxt(g.boostMin) + ' a ×' + vezesTxt(g.boost) + ' até a chegada. Um sorteio decide a força.');
     if (m.skills.indexOf('arrancada-final') >= 0 && hasOwn(GD.SKILLS, 'arrancada-final')) {
-      var e = GD.SKILLS['arrancada-final'].effect, gb = RS.garraInfo(m, { chance: e.garraChanceBonus, boost: e.garraBoostBonus });
-      linhas.push('Com a ' + GD.SKILLS['arrancada-final'].name + ' ativa: ' + pctTxt(gb.chance) + ' de chance e ×' + gb.boost.toFixed(2).replace('.', ',') + '.');
+      var e = GD.SKILLS['arrancada-final'].effect, gb = RS.garraInfo(m, { floor: e.garraFloorBonus, boost: e.garraBoostBonus });
+      linhas.push('Com a ' + GD.SKILLS['arrancada-final'].name + ' ativa: de ×' + vezesTxt(gb.boostMin) + ' a ×' + vezesTxt(gb.boost) + '.');
     }
-    linhas.push('Mais Garra: começa antes, com mais chance e mais força.');
+    linhas.push('Mais Garra: começa antes, mais forte e mais regular.');
     return '<div class="habilidade habilidade--garra"><b>' + iconeHtml('st-garra', '', 32) + 'Garra ' + st.garra + ' · todo cavalo tem</b>' +
       linhas.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + '</div>';
   }
@@ -4389,6 +4391,17 @@
     for (var i = 0; i < GD.LEAGUES.length; i++) if (GD.LEAGUES[i].id === id) return i;
     return 0;
   }
+  // Rival de estreia: se o Poder passa do alvo, a genética inteira encolhe (de 31/31 para k/31 do catálogo, k o maior
+  // que cabe no alvo; no mínimo zero) e os pontos são redistribuídos. Sem RNG: o mesmo cavalo e o mesmo alvo dão o mesmo.
+  function enfraquece(horse, target) {
+    if (RS.powerRating(horse) <= target) return;
+    var g0 = clone(horse.potential), k;
+    for (k = 30; k >= 0; k--) {
+      for (var i = 0; i < STAT_KEYS.length; i++) horse.potential[STAT_KEYS[i]] = Math.floor(g0[STAT_KEYS[i]] * k / 31);
+      horse.alloc = RS.botAlloc(horse);
+      if (RS.powerRating(horse) <= target) return;
+    }
+  }
   // Faixa de nível plausível para um cavalo selvagem: perto do nível em que ele é achado.
   function levelBand(tpl) {
     var L0 = tpl.level || 1;
@@ -4444,7 +4457,13 @@
     if (dv && dv.cond && devHooks) cond = devHooks.condicoes(dv.cond, cond, seed);
     withRanges(cond);
 
-    var n = (E.minRacers || 4) + Math.floor(rng() * ((E.maxRacers || 8) - (E.minRacers || 4) + 1));
+    // estreia e rampa (GD.ECONOMY.sala): pelo número da sala, que já está no pending (recarregar monta a mesma sala).
+    // f = 0 nas salas de estreia, sobe de sala em sala na rampa e vale 1 no normal; a faixa de Poder dos rivais e o
+    // máximo de corredores vão do valor da estreia ao normal. As chamadas da RNG são as mesmas (uma para n, duas por bot)
+    var SL = E.sala, fSala = clamp((counter - SL.estreia) / SL.rampa, 0, 1);
+    var faixaLo = SL.faixaEstreia[0] + (SL.faixa[0] - SL.faixaEstreia[0]) * fSala, faixaHi = SL.faixaEstreia[1] + (SL.faixa[1] - SL.faixaEstreia[1]) * fSala;
+    var nMin = E.minRacers || 4, nMax = Math.round(SL.maxEstreia + ((E.maxRacers || 8) - SL.maxEstreia) * fSala);
+    var n = nMin + Math.floor(rng() * (nMax - nMin + 1));
     var pr = P.pr;
     var player = {
       isPlayer: true, name: PLAYER_NAME, horse: playerHorse(), gear: corredorGear(),
@@ -4459,9 +4478,10 @@
     var silkOrder = shuffle(BOT_SILKS.map(function (c, i) { return i; }), rng);
     var bots = [];
     for (var b = 0; b < n - 1; b++) {
-      // alvo em torno do rating do jogador (−8,5%..+11,5%); o rating já pesa cada habilidade pela chance
-      // do gatilho. O leve viés para cima mantém a margem da casa (~10%) também contra bots.
-      var target = pr * (0.915 + 0.2 * rng());
+      // alvo em torno do rating do jogador, na faixa da sala (GD.ECONOMY.sala: 93,5%–104,5% no normal, 94,5%–101,5% na
+      // estreia); o rating já pesa cada habilidade pela chance do gatilho. Até 2026-11-18 a faixa era 91,5%–111,5%:
+      // numa sala quase sempre havia um rival ~8% mais forte e o jogador vencia metade do justo
+      var target = pr * (faixaLo + (faixaHi - faixaLo) * rng());
       // equipamento do bot pela liga do alvo e pelo elemento do template; com o equipamento suspenso (GEAR_ON) o bot
       // corre sem peças, mas o sorteio continua consumido (a ordem da RNG da sala não muda com a constante)
       var gpick = rng();
@@ -4487,6 +4507,10 @@
       var horse = clone(choice.tpl);   // genética do catálogo; os pontos livres pela build fixa
       horse.level = choice.fit.level;
       horse.alloc = RS.botAlloc(horse);
+      // estreia e rampa: no começo não há rival fraco o bastante no catálogo (o mais fraco no nível 1 tem 96% do Poder
+      // do inicial); o rival acima do alvo corre com a genética reduzida até caber nele (um potro mais fraco, com o
+      // Poder que a sala mostra), sem sorteio
+      if (fSala < 1) enfraquece(horse, target);
       horse.id = choice.tpl.id + '-b' + b;
       var silkIdx = SP.SILKS.indexOf(BOT_SILKS[silkOrder[b % silkOrder.length]]);
       bots.push({

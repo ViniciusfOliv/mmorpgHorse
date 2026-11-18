@@ -39,8 +39,8 @@
  *   entry.statAdd (gancho de teste do balance.js, como noTypeSkill): soma ao status, preso a 1–150.
  *
  * CLIMA (sol / chuva / nevoa / nublado). weatherMult(elemento, clima, dobrado):
- *   dono do clima ×1,03 (T.weatherMult; ×1,08 = T.weatherMultDouble com a skill de clima
- *   ativa), elemento penalizado ×0,97 (2 − weatherMult), resto e Nublado ×1.
+ *   dono do clima ×1,02 (T.weatherMult; ×1,06 = T.weatherMultDouble com a skill de clima
+ *   ativa), elemento penalizado ×0,98 (2 − weatherMult), resto e Nublado ×1.
  *   applyWeather(r, clima) recalcula, com m = weatherMult e o clima somado a n: nc(x) = n(x) + (m−1)·0,5
  *   (o mesmo efeito do inicial em qualquer nível):
  *     vMax  = (19.0 + 1.13*nc(vel)) * (1 + 0.10*(m-1))   (weatherVel: um extra direto na vMax)
@@ -96,10 +96,15 @@
  *   0,5 a 1; ausente, inválido ou fora da faixa vale 1. O cavalo corre igual no começo e cansa mais cedo (o
  *   jóquei já lê o tanque restante).
  *
- * GARRA: a arrancada começa em garraFrom = 0.80 − 0.14*(n(garra) − 0.5) da pista (mais Garra, mais cedo;
- *   o gatilho 'final' das skills vale no mesmo ponto). Lá rola chance = min(0.95, 0.50 + 0.15*nc(garra) + bônus de skill).
- *   Sucesso: teto ×(1.02 + 0.26*nc(garra) + bônus de skill) até a chegada. Evento 'garra'.
- *   garraInfo(horse, bonus) dá esses três números para a tela, sem clima (a ficha do cavalo, aba Skills).
+ * GARRA (v2, 2026-11-18: a arrancada sempre sai; o sorteio decide a força, não mais "sai ou não sai"): começa em
+ *   garraFrom = 0.80 − 0.20*(n(garra) − 0.5) da pista (mais Garra, mais cedo; o gatilho 'final' das skills vale no
+ *   mesmo ponto). Lá o corredor sorteia u (uma chamada da RNG dele, a mesma de antes) e a arrancada vale a fração
+ *   q = piso + (1 − piso)·u do bônus dele, com piso = min(0.95, 0.20 + 0.15*nc(garra) + bônus de skill):
+ *   teto ×(1 + q·(−0.04 + 0.35*nc(garra) + bônus de skill)) até a chegada. Mais Garra: arrancada mais forte, mais
+ *   cedo e mais regular. Evento 'garra' só nas arrancadas fortes (u ≥ T.garraShow, a metade de cima do sorteio).
+ *   Antes (até a 3.1.0) a Garra saía inteira ou não saía (chance 0,50 + 0,15·n): valia mais que +10% em todos os
+ *   status, e um cavalo claramente superior perdia 1 em cada 4 duelos (spec 2026-11-18-balanco-superioridade).
+ *   garraInfo(horse, bonus) dá o ponto, o piso e a faixa do teto para a tela, sem clima (a ficha do cavalo, aba Skills).
  *
  * SKILLS (gatilhos e efeitos em data.js). Quando o gatilho acontece, UMA tentativa contra
  *   skillChance = min(0.95, raridade.skillChance + 0.005*(level−1) + 0.001*sorte)
@@ -108,7 +113,7 @@
  *   lowStamina (estamina ≤30%), final (início da arrancada, garraFrom), dice (uma tentativa por corrida, antes do 1º Dado da Sorte),
  *   weather:<clima> (checado a cada tick com o clima vigente). Chaves de effect: accelMult,
  *   speedMult, drainMult (por distanceM ou durationS), curveBonus, hillBonus, hillDrainMult
- *   (até o fim do bloco), staminaRestore, garraChanceBonus, garraBoostBonus, extraDice,
+ *   (até o fim do bloco), staminaRestore, garraFloorBonus, garraBoostBonus, extraDice,
  *   weatherDouble. O equipamento (Gear.resolve) não entra na corrida por enquanto. Evento 'skill'.
  *   Ao subir de nível (learnSkill(mount, rng, bonus), fora da corrida): aprende se rng() < T.learnChance + bonus
  *   (bonus opcional de 0 a 0,2, a insígnia da Grama; ausente ou inválido vale 0, e a ordem das chamadas não muda).
@@ -117,11 +122,11 @@
  *   sorteio e sem consumir a RNG, no terço [zone[0]·D, zone[1]·D) da pista: os dois status do tipo valem
  *   × (1 + statMul·P) (sinergia: rende mais para quem investe neles), com
  *   P = 1 + nívelT·(level − 1)/49 + raridadeT·ordemDaRaridade/4, por tipo (T.typeLevel / T.typeRar):
- *   Fogo −0,15/0,15 · Água 0/0,15 · Grama 0,25/0,40 (Comum nível 1 = 1 para todos; o efeito cresce também
- *   com os status, por isso o P quase não cresce):
- *     Labareda (Fogo, 0–D/3): Velocidade e Aceleração × (1 + 0,19·P);
- *     Raízes Firmes (Grama, D/3–2D/3): Força e Manobra × (1 + 0,15·P);
- *     Maré Alta (Água, 2D/3–D): Estamina (teto do ritmo) e Garra × (1 + 0,33·P).
+ *   Fogo −0,08/0,22 · Água 0,3/0,08 · Grama 0,94/0,23 (Comum nível 1 = 1 para todos; o efeito cresce também
+ *   com os status; recalibrado com a Garra v2, 2026-11-18):
+ *     Labareda (Fogo, 0–D/3): Velocidade e Aceleração × (1 + 0,22·P);
+ *     Raízes Firmes (Grama, D/3–2D/3): Força e Manobra × (1 + 0,18·P);
+ *     Maré Alta (Água, 2D/3–D): Estamina (teto do ritmo) e Garra × (1 + 0,31·P).
  *   Vira um efeito com fromPos/untilPos em buildRacer. Na entrada do terço sai um evento
  *   { t, racer, type: 'skill', text, typeSkill: true }. Elemento desconhecido: sem skill de tipo.
  *   entry.noTypeSkill: true desliga (comparações do balance.js).
@@ -176,7 +181,7 @@
 
   // Versão das regras da simulação: suba a cada mudança que altere resultados (exposta como
   // RaceSim.VERSION e gravada em cada resultado como simVersion, junto do tuningHash).
-  var VERSION = '3.1.0';
+  var VERSION = '3.2.0';
 
   // Constantes de balanceamento (ajustadas por tools/balance.js). Exposto como RaceSim.TUNING.
   var T = {
@@ -195,8 +200,11 @@
     // skill de tipo: força P = typeBase + typeLevel[tipo]·(nível − 1)/49 + typeRar[tipo]·ordemDaRaridade/4;
     // no seu terço, os dois status do tipo valem × (1 + statMul·P) (GameData.TYPE_SKILLS)
     typeBase: 1,
-    typeLevel: { fogo: -0.15, agua: 0, grama: 0.25 },
-    typeRar: { fogo: 0.15, agua: 0.15, grama: 0.40 },
+    // 2026-11-18 (Garra v2): recalibrados para a M9 por mínimos quadrados sobre as 3 configurações da meta (a Maré Alta
+    // rendia pela chance de Garra, que acabou: a Água caiu a 14% num campo misto; depois a Garra ganhou inclinação e a
+    // Água passou de 21%). Antes: typeLevel −0,15 / 0 / 0,25, typeRar 0,15 / 0,15 / 0,40 e statMul 0,19 / 0,33 / 0,15
+    typeLevel: { fogo: -0.08, agua: 0.3, grama: 0.94 },
+    typeRar: { fogo: 0.22, agua: 0.08, grama: 0.23 },
     // pista: D = distMin + distStep·k (até distMax); blocos re-sorteados até ter curva e subida e nenhum
     // tipo acima de trackMaxShare de D; depois de trackTries tentativas, molde fixo
     distMin: 1400, distMax: 2000, distStep: 50, trackMaxShare: 0.5, trackTries: 60,
@@ -225,14 +233,19 @@
     crowdRange: 2.5, crowdSlow: 0.03, forcaCrowdRelief: 0.6,
     draftMin: 0.5, draftRange: 4.0, draftSave: 0.10,   // vácuo: vale para todos
     rainSlow: 0.015, sunDrain: 1.04,
-    // clima: dono ×1,03 (×1,08 com skill de clima), penalizado ×0,97. O multiplicador m entra como soma
+    // clima: dono ×1,02 (×1,06 com skill de clima), penalizado ×0,98 (até 2026-11-18: ×1,03, ×1,08 e ×0,97; com a
+    // Garra v2 a corrida ficou menos ruidosa e o clima de 3% decidia 80% das corridas entre iniciais iguais). O multiplicador m entra como soma
     // fixa em n: n + (m − 1)·weatherAdd (o mesmo efeito do inicial em qualquer nível);
     // weatherVel: fração extra do desvio que vai direto na vMax
-    weatherMult: 1.03, weatherMultDouble: 1.08, weatherVel: 0.10, weatherAdd: 0.5,
-    // garra: a arrancada começa em garraZone − garraZoneK·(n − 0,5) da pista; chance e força crescem com n
-    garraZone: 0.8, garraZoneK: 0.14,
-    garraChanceBase: 0.50, garraChanceRange: 0.15, garraChanceMax: 0.95,
-    garraBoostBase: 0.02, garraBoostRange: 0.26,
+    weatherMult: 1.02, weatherMultDouble: 1.06, weatherVel: 0.10, weatherAdd: 0.5,
+    // garra (v2): a arrancada começa em garraZone − garraZoneK·(n − 0,5) da pista e sempre sai; o sorteio u decide a
+    // fração do bônus, de garraFloor (o piso: Base + Range·n, até Max) a 1; o bônus cheio é garraBoostBase +
+    // garraBoostRange·n; o evento 'garra' (narração e efeito) só sai com u ≥ garraShow
+    // (zoneK 0,14 → 0,20 e bônus 0,02 + 0,26·n → −0,04 + 0,35·n: o mesmo bônus em n = 0,66 e mais inclinado, para +10 de
+    // Garra render como +10 nos outros status, meta A1; com a arrancada sempre saindo, a Garra tinha caído a 0,8× a mediana)
+    garraZone: 0.8, garraZoneK: 0.20,
+    garraFloorBase: 0.20, garraFloorRange: 0.15, garraFloorMax: 0.95, garraShow: 0.5,
+    garraBoostBase: -0.04, garraBoostRange: 0.35,
     // Dado da Sorte: chance do 2º dado = (sorte − sorteDiceLo) / (sorteDiceFull − sorteDiceLo); Sorte real 40–76
     sorteDiceLo: 40, sorteDiceFull: 80,
     // skills
@@ -513,10 +526,11 @@
     var c = rar.skillChance + T.skillPerLevel * (sanitizeLevel(horse.level) - 1) + T.skillPerSorte * ((stats && stats.sorte) || 0) + (bonus || 0);
     return Math.min(T.skillChanceMax, c);
   }
-  // A Garra de um cavalo, para a tela (fora da corrida, sem clima): onde a arrancada começa (fração da pista), a chance e
-  // o teto da velocidade se ela der certo. As contas são as da corrida (buildRacer e derive): se a arrancada começa dentro
-  // do terço da skill de tipo que multiplica a Garra (a Maré Alta, da Água), vale a Garra do terço (tipo: true).
-  // bonus (opcional): { chance, boost } somados como os de uma skill que ativou (a Arrancada Final).
+  // A Garra de um cavalo, para a tela (fora da corrida, sem clima): onde a arrancada começa (fração da pista), o piso do
+  // sorteio da força (floor), o teto da velocidade com a arrancada cheia (boost) e com a mais fraca (boostMin). As
+  // contas são as da corrida (buildRacer e derive): se a arrancada começa dentro do terço da skill de tipo que
+  // multiplica a Garra (a Maré Alta, da Água), vale a Garra do terço (tipo: true).
+  // bonus (opcional): { floor, boost } somados como os de uma skill que ativou (a Arrancada Final).
   function garraInfo(horse, bonus) {
     var stats = computeStats(horse), n = stats.garra / 100, ng = n;
     var from = clamp(T.garraZone - T.garraZoneK * (n - 0.5), 0.5, 0.95);
@@ -525,13 +539,10 @@
       var keys = ts.effect.statKeys || TYPE_STATS[horse.element];
       if (keys && keys.indexOf('garra') >= 0) ng = n * (1 + ts.effect.statMul * ts.power);
     }
-    var bc = (bonus && Number(bonus.chance)) || 0, bb = (bonus && Number(bonus.boost)) || 0;
-    return {
-      from: from,
-      chance: clamp(T.garraChanceBase + T.garraChanceRange * ng + bc, 0, T.garraChanceMax),
-      boost: 1 + T.garraBoostBase + T.garraBoostRange * ng + bb,
-      tipo: ng !== n
-    };
+    var bf = (bonus && Number(bonus.floor)) || 0, bb = (bonus && Number(bonus.boost)) || 0;
+    var floor = clamp(T.garraFloorBase + T.garraFloorRange * ng + bf, 0, T.garraFloorMax);
+    var cheio = T.garraBoostBase + T.garraBoostRange * ng + bb;
+    return { from: from, floor: floor, boost: 1 + cheio, boostMin: 1 + cheio * floor, tipo: ng !== n };
   }
 
   // Skills que a montaria pode aprender: as gerais e as do elemento dela, menos as que já tem, na ordem de
@@ -785,7 +796,7 @@
     o.nm = nx('man');
     o.estN = sn.est * (mul && mul.est ? mul.est : 1);
     var ng = nx('garra');
-    o.garraChance = clamp(T.garraChanceBase + T.garraChanceRange * ng + r.garraBonusTotal, 0, T.garraChanceMax);
+    o.garraFloor = clamp(T.garraFloorBase + T.garraFloorRange * ng + r.garraBonusTotal, 0, T.garraFloorMax);
     o.garraBoost = 1 + T.garraBoostBase + T.garraBoostRange * ng + r.garraBoostBonusTotal;
   }
 
@@ -947,7 +958,7 @@
       if (e.staminaRestore && !r.exhausted) r.stamina = Math.min(1, r.stamina + e.staminaRestore);
       if (e.extraDice) r.extraDice += e.extraDice;
       var reweather = false;
-      if (e.garraChanceBonus) { r.garraBonusTotal += e.garraChanceBonus; reweather = true; }
+      if (e.garraFloorBonus) { r.garraBonusTotal += e.garraFloorBonus; reweather = true; }
       if (e.garraBoostBonus) { r.garraBoostBonusTotal += e.garraBoostBonus; reweather = true; }
       if (e.weatherDouble) { r.weatherDouble = true; reweather = true; }
       if (reweather) applyWeather(r, cond.weatherAtual);
@@ -1042,10 +1053,10 @@
         // Garra
         if (!r.garraRolled && p >= r.garraFrom) {
           r.garraRolled = true;
-          if (r.rng() < Z.garraChance) {
-            r.garraMult = Z.garraBoost;
-            ev(tPrev, i, 'garra', r.label + ' mostrou GARRA na reta final!');
-          }
+          // v2: sempre sai; o sorteio u dá a fração do bônus, do piso a 1 (o evento só nas arrancadas fortes)
+          var uG = r.rng();
+          r.garraMult = 1 + (Z.garraBoost - 1) * (Z.garraFloor + (1 - Z.garraFloor) * uG);
+          if (uG >= T.garraShow) ev(tPrev, i, 'garra', r.label + ' mostrou GARRA na reta final!');
         }
 
         // terreno e bloco
