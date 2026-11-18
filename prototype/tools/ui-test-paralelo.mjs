@@ -35,16 +35,16 @@ const EM_SERIE = {
 // Duração de cada bloco da fase 1 em segundos (o processo inteiro, com o Chromium), medida com UI_JOBS=4 numa máquina de 4
 // núcleos (2026-11-17): só ordena a fila (os mais demorados primeiro). Bloco que não está aqui entra como o mais demorado.
 const DURACOES = {
-  itens: 87, 'corrida-lugar-dado': 63, 'fluxo-curvas': 45, fluxo: 42, 'fluxo-moldes': 39, skills: 36,
+  itens: 89, 'corrida-lugar-dado': 63, 'fluxo-curvas': 45, fluxo: 42, 'fluxo-moldes': 39, skills: 36,
   'fluxo-natureza': 36, celular: 34, 'fluxo-desktop': 31, 'fluxo-dado': 25, portes: 23, 'fluxo-pequeno': 21,
   'corrida-faixa-lugar-pular': 21, 'corrida-390': 19, 'corrida-lugar-dado-redimensiona': 19, crescimento: 15,
   'corrida-paisagem-8': 13, 'corrida-girar': 13, 'corrida-faixa-lugar-pular-antes': 12, marcas: 12, build: 12,
   acabamento: 14, redimensiona: 10, resultado: 9, aura: 8, ajuda: 8, icones: 8, 'fluxo-abas': 7, 'corrida-forcado': 7,
   teto: 7, 'fluxo-cruzamento': 7, producao: 6, migracao: 5, 'adulterado-v5': 5, 'corrida-etiquetas-dado': 5,
   escala: 5, 'fluxo-dev': 4, selo: 4, retrato: 3, gravacao2: 3, 'fluxo-capturas-itens': 3, 'selo-teto': 3, reserva: 3,
-  areasegura: 3, texto: 3, 'vaga-tipo': 3, gravacao: 3, 'nivel-pontos': 3, 'fluxo-saves': 3, adulterado: 2,
+  areasegura: 3, texto: 3, 'vaga-tipo': 3, gravacao: 4, 'nivel-pontos': 3, 'fluxo-saves': 3, adulterado: 2,
   corrompido: 2, treino: 2, 'fluxo-equipamento': 2, aviso: 2, 'fluxo-sem-icones': 2, 'build-nivel1': 2, inicial: 2,
-  'fluxo-build-teste': 2, 'valor-peca': 1, 'fluxo-loja': 1, ginasio: 98, 'ginasio-corrida': 86, 'fluxo-capturas-ginasio': 14
+  'fluxo-build-teste': 2, 'valor-peca': 1, 'fluxo-loja': 1, ginasio: 104, 'ginasio-corrida': 86, 'fluxo-capturas-ginasio': 14
 }
 
 const lista = execFileSync(process.execPath, [UI, '--blocos'], { encoding: 'utf8' }).split('\n').map((x) => x.trim()).filter(Boolean)

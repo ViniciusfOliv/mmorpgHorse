@@ -6,7 +6,7 @@ suspenso). Spec e tabelas: `docs/superpowers/specs/2026-11-12-crescimento-livre-
 dados estão em `docs/wiki.md`, gerado do código. Para refazer as medições:
 
 ```bash
-node prototype/tools/balance.js            # relatório completo com as 300 metas (~5,5 min)
+node prototype/tools/balance.js            # relatório completo com as 300 metas (~5 min)
 node prototype/tools/balance.js --exemplo  # uma corrida narrada
 ```
 
@@ -141,7 +141,8 @@ Do bloco 1b (spec §15; detalhes no `docs/memoria/ESTADO.md`), **ainda em aberto
 - **Iniciais no nível 25 caem para a Prata** (eram Ouro).
 - **A Sorte vale pouco** (0,7 p.p.; o Dado Viciado, 1,3 p.p. no modelo anterior): é só de nascimento, por desenho.
   Proposta antiga ainda aberta: a Sorte pesar mais na chance de skill, com a base de cada raridade compensada para baixo.
-- **Sem fonte de Rédea nova** no jogo normal até os ginásios; **menos uso para o Ouro** com a loja suspensa.
+- **Rédea nova é rara:** vem só no 7º dia da recompensa diária e na 1ª vitória sobre cada um dos 3 líderes de
+  ginásio; não está à venda. **Menos uso para o Ouro** com a loja suspensa.
 - **Conjunto de 3 peças:** medido em 2026-11-10 (+1 p.p., e +14 no salto para 4 peças); com o equipamento
   suspenso, a decisão (efeito real ou degrau assumido) espera o equipamento voltar.
 - **Garra e "Cansou":** a Garra agora dispara em 58% (não é momento raro); o erro do jóquei caiu e "Cansou" quase some.

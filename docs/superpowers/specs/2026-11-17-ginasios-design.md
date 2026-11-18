@@ -371,6 +371,9 @@ decidiu algo que a spec não dizia ou dizia diferente. Cada linha cita a decisã
   "Você perdeu" (os dois cavalos podem ter o mesmo nome).
 - **Sala aberta (Ruling 21):** o cavalo ativo fica fora do time com qualquer sala aberta, valendo ou treino; o Ouro
   reservado continua sendo só o da sala valendo.
+- **"Corra essa corrida primeiro" (Ruling 29):** a seção 5 falava em "correr ou fechar a sala primeiro", mas o jogo não
+  tem como fechar uma sala sem correr. A tela diz "Está na sala aberta. Corra essa corrida primeiro." e, quando o único
+  cavalo é o da sala, "Seu único cavalo está na sala aberta. Corra essa corrida primeiro.".
 - **A tela nunca diz quantos duelos faltam (Ruling 22):** "Duelo 2", e não "Duelo 2 de 3"; tudo o que a tela mostra de um
   duelo sai do resultado gravado.
 - **"Voltar" do aparelho durante um duelo ou num cartão (Ruling 23):** vale como "Pular tudo" (vai ao resumo).

@@ -394,7 +394,7 @@ ninguém jogou ainda.
   - contra o líder, um cavalo sozinho 4 níveis acima vence só cerca de 2% das vezes (sem o cansaço, venceria 42% a 44%):
     o time importa;
   - **tempo de corrida** (o relógio da própria corrida, não o tempo que você espera): um duelo dura cerca de 1 min 20 s, e
-    o desafio do líder, em média, uns 6 minutos (são 4 a 5 duelos, cerca de 4,7 em média);
+    o desafio do líder, em média, uns 6 minutos (são de 3 a 5 duelos, cerca de 4,7 em média; 3 só raramente);
   - **tempo na tela** (o que você espera assistindo): a corrida passa mais rápido que o relógio dela. Um duelo leva cerca de
     30 s em x1 e 18 s em x2 (medido na Tarefa 6 e de novo em 2026-11-18); um desafio do líder de 5 duelos levou cerca de
     2 min 30 s em x1 e 1 min 30 s em x2, sem contar o tempo parado nos cartões.

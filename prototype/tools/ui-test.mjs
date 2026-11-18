@@ -616,6 +616,40 @@ try {
       problems.push('gravacao: ' + e.message)
     }
     await gv.context().close()
+    // 6. revisão final dos ginásios, item 1: "Largar!" falha 2 vezes ao gravar; a revisão da memória continua a do disco
+    //    (caso direto); outra aba grava uma vez (sem o evento storage nesta); o "Largar!" seguinte adota o save dela e
+    //    não grava por cima (nada de corrida)
+    const go = await newPage(browser, { width: 390, height: 844 }, 'gravacao-outra-aba')
+    try {
+      const K = 'galope-elemental:v1'
+      const disco = async () => JSON.parse(await go.evaluate((k) => localStorage.getItem(k), K))
+      const revMem = () => go.evaluate(() => window.__galope.state.rev)
+      await go.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await go.waitForSelector('#t-estabulo')
+      await abrirSala(go)
+      const d0 = await disco()
+      await go.evaluate(() => { window.__setOrig = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new DOMException('cheio', 'QuotaExceededError') } })
+      for (const k of [1, 2]) {
+        await go.getByRole('button', { name: /^Largar/ }).click()
+        await go.waitForFunction((f) => document.getElementById('tela').textContent.includes(f), 'Não foi possível salvar. Libere espaço e tente de novo.', { timeout: 3000 }).catch(() => problems.push(`gravacao-outra-aba: Largar ${k} sem gravar não avisou`))
+        await sleep(100)
+        if ((await revMem()) !== (await disco()).rev) problems.push(`gravacao-outra-aba: depois da falha ${k}, a revisão da memória (${await revMem()}) ficou à frente do disco (${(await disco()).rev})`)
+      }
+      await go.evaluate(() => { Storage.prototype.setItem = window.__setOrig })
+      if ((await disco()).rev !== d0.rev || (await go.locator('#pista').count())) problems.push('gravacao-outra-aba: a falha gravou ou largou')
+      // a outra aba grava uma vez (revisão + 1, 7 de Ouro a mais), sem o evento storage nesta aba
+      const raw = await go.evaluate((k) => { const s = JSON.parse(localStorage.getItem(k)); s.rev += 1; s.gold += 7; const r = JSON.stringify(s); localStorage.setItem(k, r); return r }, K)
+      await go.getByRole('button', { name: /^Largar/ }).click()
+      await go.waitForFunction(() => /outra aba/.test(document.getElementById('tela').textContent), null, { timeout: 3000 }).catch(() => problems.push('gravacao-outra-aba: o Largar não avisou que o jogo mudou em outra aba'))
+      const s = await go.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+      const dRaw = await go.evaluate((k) => localStorage.getItem(k), K)
+      if (dRaw !== raw) problems.push(`gravacao-outra-aba: o Largar gravou por cima do save da outra aba ${JSON.stringify({ rev: JSON.parse(dRaw).rev, gold: JSON.parse(dRaw).gold, races: JSON.parse(dRaw).races, pending: !!JSON.parse(dRaw).pending })}`)
+      if (s.gold !== JSON.parse(raw).gold || s.rev !== JSON.parse(raw).rev || s.races !== 0 || !s.pending) problems.push(`gravacao-outra-aba: o save da outra aba não foi adotado ${JSON.stringify({ gold: s.gold, rev: s.rev, races: s.races, pending: !!s.pending })}`)
+      if (await go.locator('#pista, #t-resultado').count()) problems.push('gravacao-outra-aba: o Largar correu a sala com o save velho')
+    } catch (e) {
+      problems.push('gravacao-outra-aba: ' + e.message)
+    }
+    await go.context().close()
   }
 
   // ---------------- save adulterado: Poder da sala, status base (campo que saiu na v5) e campo morto ----------------
@@ -2101,6 +2135,43 @@ try {
         await pa.context().close()
       }
     }
+    // 10d2. revisão final dos ginásios, item 1: o Torrão falha 2 vezes ao gravar (a revisão da memória continua a do disco);
+    //       outra aba grava uma vez (sem o evento storage nesta); o Confirmar seguinte adota o save dela e não grava por cima
+    {
+      const label = 'itens-falha-outra-aba'
+      const pg = await newPage(browser, VP, label, saveT4({ mochila: { ...ZERO_MOCHILA, torrao: 3 } }))
+      const h = usoHelpers(pg, label)
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        await h.irMochila()
+        await h.usarMochila('torrao').click()
+        await h.cavalo('m1').click()
+        const d0 = await bruto(pg, DEVK)
+        await pg.evaluate(() => { window.__setOrig = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new DOMException('cheio', 'QuotaExceededError') } })
+        for (const k of [1, 2]) {
+          await h.confirmar().click()
+          if (!/Não foi possível salvar/.test(await h.texto())) problems.push(`${label}: o Torrão ${k} sem gravar não avisou`)
+          const rev = (await h.estado()).rev
+          if (rev !== (await h.disco()).rev) problems.push(`${label}: depois da falha ${k}, a revisão da memória (${rev}) ficou à frente do disco (${(await h.disco()).rev})`)
+        }
+        await pg.evaluate(() => { Storage.prototype.setItem = window.__setOrig })
+        if ((await bruto(pg, DEVK)) !== d0) problems.push(`${label}: a gravação que falha mudou o disco`)
+        if ((await h.confirmar().count()) !== 1) problems.push(`${label}: a confirmação sumiu depois da falha (o teste não prova nada)`)
+        // a outra aba grava uma vez (revisão + 1, 7 de Ouro a mais), sem o evento storage nesta aba
+        const raw = await pg.evaluate((k) => { const s = JSON.parse(localStorage.getItem(k)); s.rev += 1; s.gold += 7; const r = JSON.stringify(s); localStorage.setItem(k, r); return r }, DEVK)
+        await h.confirmar().click()
+        await sleep(150)
+        const s = await h.estado(), r0 = JSON.parse(raw)
+        if ((await bruto(pg, DEVK)) !== raw) problems.push(`${label}: o Confirmar gravou por cima do save da outra aba ${JSON.stringify({ rev: (await h.disco()).rev, torrao: (await h.disco()).mochila.torrao })}`)
+        if (s.gold !== r0.gold || s.rev !== r0.rev || s.mochila.torrao !== 3 || s.mounts.find((m) => m.uid === 'm1').torroes !== r0.mounts.find((m) => m.uid === 'm1').torroes) problems.push(`${label}: o save da outra aba não foi adotado, ou o Torrão foi usado ${JSON.stringify({ gold: s.gold, rev: s.rev, torrao: s.mochila.torrao })}`)
+        if (!/outra aba/.test(await h.texto())) problems.push(`${label}: não avisa que o jogo mudou em outra aba`)
+        if (/ganhou 1 ponto/.test(await h.texto())) problems.push(`${label}: mostrou o resultado do Torrão`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
     // 10e. Review Focus 4, "sem candidata": com o catálogo reduzido à Sprint (antes de o jogo carregar), Brasa (Sprint) não tem
     //      para que trocar e Ipê (vaga livre) não tem o que aprender
     {
@@ -3035,6 +3106,36 @@ try {
         await pg.context().close()
       }
     }
+    // 5b. revisão final, item 2: a aba Skills diz a chance de aprender por nível que o sorteio usa: sem a insígnia, a do
+    //     catálogo (8%); com a Insígnia da Capoeira (a de tipo skill), a do catálogo mais o bônus dela (11%)
+    {
+      const label = 'ginasio-skills-chance'
+      const pg = await ginAbre(label, { save: ginSave(), chave: GIN_DEV })
+      const insSk = G.GYM_ORDER.find((g) => G.GYM.insignias[g].tipo === 'skill'), lc = S.TUNING.learnChance
+      const frase = (pct) => `1 vaga livre · ${pct}% de chance de aprender uma skill nova a cada nível`
+      const notaSkills = async () => {
+        await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
+        await pg.waitForSelector('#t-estabulo')
+        await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
+        await pg.waitForSelector('#t-montaria')
+        await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+        return pg.evaluate(() => [...document.querySelectorAll('#tela .nota')].map((n) => n.textContent.replace(/\s+/g, ' ').trim()).find((t) => /de chance de aprender uma skill nova/.test(t)) || '')
+      }
+      try {
+        let t = await notaSkills()
+        if (t !== frase(Math.round(lc * 100))) problems.push(`${label}: sem a insígnia, a aba Skills diz "${t}" (esperado "${frase(Math.round(lc * 100))}")`)
+        await ginDevEtapas(pg, { [insSk]: 5 })
+        const b = await ginBonus(pg)
+        if (b.skill !== G.GYM.insignias[insSk].valor) problems.push(`${label}: o bônus de skill com a ${G.GYMS[insSk].insignia.name} é ${b.skill}`)
+        t = await notaSkills()
+        const com = Math.round((lc + G.GYM.insignias[insSk].valor) * 100)
+        if (t !== frase(com) || com !== Math.round((lc + b.skill) * 100)) problems.push(`${label}: com a ${G.GYMS[insSk].insignia.name}, a aba Skills diz "${t}" (esperado "${frase(com)}", a chance do sorteio)`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
 
     // 6. os bônus numa corrida (build de teste, o mesmo save e a mesma sala em todos): o prêmio da corrida valendo sobe 3%
     //    para baixo com a de Fogo; o XP 3% arredondado com a de Água (também no treino, que não ganha o Ouro); a chance de
@@ -3567,8 +3668,10 @@ try {
     // partir do state lido da página antes de pagar (a seed do save é fixa em cada cenário); nada de número copiado à mão.
     const GIN_TAG_XP = 20000000   // Ruling 18: seedTag do sorteio de skill = 20000000 + contador · 4 + posição no time
     const ginIpe = G.STARTERS.find((h) => h.id === 'ipe')
-    const ginSalaTxt = 'Está na sala aberta. Corra ou feche a sala primeiro.'
-    const ginSoUmTxt = 'Seu único cavalo está na sala aberta. Corra ou feche a sala primeiro.'
+    // Ruling 29: o jogo não tem como fechar uma sala sem correr; as frases dizem só o que existe (uma constante só aqui)
+    const GIN_CORRA_TXT = 'Corra essa corrida primeiro.'
+    const ginSalaTxt = `Está na sala aberta. ${GIN_CORRA_TXT}`
+    const ginSoUmTxt = `Seu único cavalo está na sala aberta. ${GIN_CORRA_TXT}`
     const ginCheioTxt = (n) => n === 1 ? 'O time já tem 1 cavalo. Toque nele para tirar.' : `O time já tem ${n} cavalos. Toque num deles para tirar.`
     const GIN_FALHA = 'Não foi possível salvar. Libere espaço e tente de novo.'
     const ginSemRev = (s) => { const c = JSON.parse(JSON.stringify(s)); delete c.rev; return c }
@@ -3996,6 +4099,67 @@ try {
         await pa.context().close()
       }
     }
+    // 13b. revisão final, item 1: a aba A falha 2 vezes ao gravar (a gravação que falha não pode deixar a revisão da memória
+    //      à frente do disco); a aba B paga o Recruta com o Ipê e perde; A, sem o evento storage, toca em "Desafiar" com a
+    //      Maré: responde "outra aba", nada é cobrado, nenhum sorteio, o disco fica como B deixou e o aviso da falha some
+    {
+      const label = 'ginasio-falha-outra-aba'
+      const mounts = [ginCav(ginBrasa, { uid: 'm1', level: 10 }), ginCav(ginMare, { uid: 'm2', level: 4 }), ginCav(ginIpe, { uid: 'm3', level: 1 })]
+      const pb = await ginAbre(label + ' B', { save: ginSave({ mounts, nextUid: 4, gold: 500 }) })
+      const pa = await pb.context().newPage()
+      pa.on('console', (m) => { if (m.type() === 'error') problems.push(`[${label} A] console: ${m.text()}`) })
+      pa.on('pageerror', (e) => problems.push(`[${label} A] pageerror: ${e.message}`))
+      try {
+        await pa.addInitScript(() => window.addEventListener('storage', (e) => e.stopImmediatePropagation(), true))
+        await pa.goto(BASE + 'jogo-dev.html', { waitUntil: 'domcontentloaded' })
+        await pa.waitForSelector('#t-estabulo')
+        await ginOuroInf(pa, false)
+        await ginOuroInf(pb, false)
+        // A: o preparo com a Maré; duas gravações falhadas
+        await ginPreparo(pa, 'fogo', 0)
+        await ginToca(pa, 'm2')
+        await ginEsperaTime(pa, ['m2'], label + ' A')
+        const d0 = await ginDisco(pa)
+        await pa.evaluate(() => { window.__setOrig = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new DOMException('cheio', 'QuotaExceededError') } })
+        for (const k of [1, 2]) {
+          await pa.locator('#tela [data-acao="ginasio-desafiar"]').click()
+          await ginVivo(pa, GIN_FALHA, `${label} A, falha ${k}`)
+          await sleep(100)
+          // caso direto: depois de uma gravação que falha, a revisão da memória é a do disco
+          const rev = await pa.evaluate(() => window.__galope.state.rev)
+          if (rev !== JSON.parse(await ginDisco(pa)).rev) problems.push(`${label}: depois da falha ${k}, a revisão da memória (${rev}) ficou à frente do disco (${JSON.parse(await ginDisco(pa)).rev})`)
+        }
+        await pa.evaluate(() => { Storage.prototype.setItem = window.__setOrig })
+        if ((await ginDisco(pa)) !== d0) problems.push(`${label}: a gravação que falha mudou o disco`)
+        if (!(await pa.locator('#tela').textContent()).includes(GIN_FALHA)) problems.push(`${label}: a aba A não mostra o aviso da falha (o teste não prova nada)`)
+        // B: paga o Recruta com o Ipê e perde
+        await ginPreparo(pb, 'fogo', 0)
+        await ginToca(pb, 'm3')
+        await ginEsperaTime(pb, ['m3'], label + ' B')
+        const stB = await ginEstado(pb), esp = ginEsperado(stB, 'fogo', 0, ['m3'], await ginHoje(pb))
+        if (esp.res.venceu || stB.gymCounter !== 0) problems.push(`${label}: o cenário precisa de B perdendo o 1º desafio (troque o nível do Ipê) ${JSON.stringify({ v: esp.res.venceu, c: stB.gymCounter })}`)
+        await ginDesafia(pb)
+        const dB = await ginDisco(pb)
+        if (!ginIgual(ginSemRev(JSON.parse(dB)), esp.depois)) problems.push(`${label}: a aba B não gravou o desafio esperado`)
+        // A ainda mostra o "Desafiar" livre (sem o evento): o toque adota o save de B, não cobra nem sorteia
+        const ta = (await ginTimeDom(pa)).desafiar
+        if (!ta || ta.dis !== null) problems.push(`${label}: a aba A já não mostra o Desafiar livre (o teste não prova nada) ${JSON.stringify(ta)}`)
+        await ginEspiaSorteio(pa)
+        await pa.locator('#tela [data-acao="ginasio-desafiar"]').click()
+        await pa.waitForFunction(() => /outra aba/.test(document.getElementById('tela').textContent), null, { timeout: 3000 }).catch(() => problems.push(`${label}: a aba A não avisa que o jogo mudou em outra aba`))
+        const dA = await ginDisco(pa), sa = await ginEstado(pa), dBo = JSON.parse(dB), dAo = JSON.parse(dA)
+        if (dA !== dB) problems.push(`${label}: a aba A gravou por cima do save de B ${JSON.stringify({ gold: dAo.gold, c: dAo.gymCounter, etapa: dAo.ginasios.fogo.etapa, xpIpe: dAo.mounts[2].xp, xpMare: dAo.mounts[1].xp })} (B deixou ${JSON.stringify({ gold: dBo.gold, c: dBo.gymCounter, etapa: dBo.ginasios.fogo.etapa, xpIpe: dBo.mounts[2].xp })})`)
+        if (!ginIgual(ginSemRev(sa), ginSemRev(dBo)) || sa.rev !== dBo.rev) problems.push(`${label}: a aba A não adotou o save de B ${JSON.stringify({ gold: sa.gold, c: sa.gymCounter, rev: sa.rev, revB: dBo.rev })}`)
+        if ((await ginSorteios(pa)) !== 0) problems.push(`${label}: a aba A sorteou os duelos (${await ginSorteios(pa)} vezes)`)
+        if ((await pa.locator('#t-resumo, #t-cartao, .tela--corrida').count()) || !(await pa.evaluate(() => !window.__galope.ui.gym || window.__galope.ui.gym.res === null))) problems.push(`${label}: a aba A mostrou um resumo (ou um duelo)`)
+        // o aviso da falha não fica no preparo depois de o save de outra aba ser adotado
+        if ((await pa.locator('#tela').textContent()).includes(GIN_FALHA) || (await pa.evaluate(() => window.__galope.ui.gym && window.__galope.ui.gym.msg))) problems.push(`${label}: o aviso da falha continuou no preparo depois de adotar o save de B`)
+      } catch (e) {
+        problems.push(`[${label}] ` + e.message)
+      } finally {
+        await pb.context().close()
+      }
+    }
 
     // 14. Review Focus 2: com o preparo aberto, outra aba muda o save (com o evento storage): o cavalo sai do save; vira o
     //     ativo de uma sala aberta; o Ouro fica reservado; a mochila enche. O "Desafiar" recusa com o motivo e nada é
@@ -4003,7 +4167,7 @@ try {
     const ginSalaSrc = (uid) => `s.activeId = '${uid}'; s.raceCounter += 1; s.pending = { counter: s.raceCounter, training: false, fee: 50, pr: 1, gear: null, alloc: s.mounts.find(function (m) { return m.uid === '${uid}' }).alloc }`
     for (const [nome, etapa, src, motivo, uidsDepois] of [
       ['some', 0, "s.mounts = s.mounts.filter(function (m) { return m.uid !== 'm2' })", 'Escolha pelo menos 1 cavalo.', []],
-      ['sala', 0, ginSalaSrc('m2'), 'Maré está na sala aberta. Corra ou feche a sala primeiro.', ['m2']],
+      ['sala', 0, ginSalaSrc('m2'), `Maré está na sala aberta. ${GIN_CORRA_TXT}`, ['m2']],
       ['ouro', 0, 's.gold = 60; ' + ginSalaSrc('m1'), 'Falta Ouro: a entrada custa 20 de Ouro. 50 de Ouro reservados para a entrada do páreo aberto: sobram 10 para gastar.', ['m2']],
       ['mochila', 1, 's.mochila.torrao = 99', `Você já tem ${ginFmt(G.BAG_MAX)} ${G.ITEMS.torrao.plural}, o máximo da mochila. Use antes de desafiar.`, ['m2']]]) {
       const label = 'ginasio-rf2-' + nome
@@ -4087,7 +4251,7 @@ try {
         if ((await ginTimeDom(pg)).desafiar.dis !== null) problems.push(`${label}: a aba velha já mostra o Desafiar apagado (o teste não prova nada)`)
         await ginEspiaSorteio(pg)
         await pg.locator('#tela [data-acao="ginasio-desafiar"]').click()
-        await ginVivo(pg, 'Maré está na sala aberta. Corra ou feche a sala primeiro.', label)
+        await ginVivo(pg, `Maré está na sala aberta. ${GIN_CORRA_TXT}`, label)
         if ((await ginDisco(pg)) !== raw) problems.push(`${label}: o toque na aba velha gravou`)
         const s = await ginEstado(pg)
         const r0 = JSON.parse(raw)
@@ -4135,9 +4299,11 @@ try {
         await pg.context().close()
       }
     }
-    {
-      const label = 'ginasio-sala-aberta'
-      const pg = await ginAbre(label, { save: ginSave({ raceCounter: 3, pending: ginPend }) })
+    // Ruling 21 (revisão final, item 3): com a sala de treino aberta o ativo também fica fora do time, e o Ouro não fica
+    // reservado (a entrada de 20 é paga com 30 de Ouro)
+    for (const [label, o] of [['ginasio-sala-aberta', { raceCounter: 3, pending: ginPend }],
+      ['ginasio-sala-treino', { raceCounter: 3, gold: 30, pending: { ...ginPend, training: true, fee: 0 } }]]) {
+      const pg = await ginAbre(label, { save: ginSave(o) })
       try {
         await ginOuroInf(pg, false)
         const pend0 = JSON.stringify((await ginEstado(pg)).pending), sim0 = await ginSimSala(pg)
@@ -4151,6 +4317,12 @@ try {
         await ginToca(pg, 'm2')
         await ginEsperaTime(pg, ['m2'], label)
         const st0 = await ginEstado(pg), esp = ginEsperado(st0, 'fogo', 0, ['m2'], await ginHoje(pg))
+        if (o.pending.training) {
+          // nada reservado: com 30 de Ouro, a entrada de 20 pode ser paga (o "Desafiar" livre, sem motivo)
+          const dz = (await ginTimeDom(pg)).desafiar
+          if (st0.gold !== 30 || esp.entrada !== 20 || !st0.pending.training) problems.push(`${label}: o cenário precisa de 30 de Ouro, entrada 20 e a sala de treino ${JSON.stringify({ gold: st0.gold, entrada: esp.entrada })}`)
+          if (!dz || dz.dis !== null || dz.motivo !== null) problems.push(`${label}: com a sala de treino o "Desafiar" devia estar livre (nada reservado) ${JSON.stringify(dz)}`)
+        }
         await ginDesafia(pg)
         const s1 = await ginEstado(pg), d1 = JSON.parse(await ginDisco(pg))
         if (!ginIgual(ginSemRev(s1), esp.depois)) problems.push(`${label}: o desafio com a sala aberta difere do esperado`)

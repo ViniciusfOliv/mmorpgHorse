@@ -252,7 +252,8 @@ Spec aprovada pelo Vinicius em `docs/superpowers/specs/2026-11-17-ginasios-desig
 plano em `docs/superpowers/plans/2026-11-17-ginasios.md` (8 tarefas); regra em `docs/GDD.md` §8.6; números no wiki (seção
 "Ginásios da Expedição") e em `GameData.GYM` e `GameData.GYMS` (`prototype/src/data.js`); regras em
 `prototype/src/ginasio.js`; decisões em `decisoes.md` (2026-11-17, as dele; 2026-11-18, as da execução). **A frente está
-inteira na branch e não foi integrada na `main`; falta a revisão final da frente e a decisão do Vinicius sobre integrar.**
+inteira na branch e não foi integrada na `main`; a revisão final da frente foi feita em 2026-11-18 e a correção do que ela
+achou já entrou; falta a decisão do Vinicius sobre integrar.**
 - **O que entrou:** na aba Expedição, três ginásios (da Fornalha, do Remanso e da Capoeira), cada um com uma trilha de 4
   soldados e o líder; o preparo (o adversário, a pista da casa, a entrada, o prêmio e o time, na ordem escolhida, até o
   tamanho do time do adversário); a entrada em Ouro cobrada antes de simular; os duelos na tela de corrida, com 2 raias, o
@@ -260,9 +261,9 @@ inteira na branch e não foi integrada na `main`; falta a revisão final da fren
   nos status, só nos duelos de ginásio); o resumo; os prêmios da 1ª vitória; as insígnias com bônus da conta (+3% de Ouro
   nas corridas valendo, +3% de XP, +3 pontos na chance de skill por nível); a revanche diária do líder, com o ponto na aba;
   as insígnias no Perfil. Save na versão 8 (a migração da 7 zera os ginásios). Gaveta DEV com o grupo "Ginásios".
-- **Verificação:** `./scripts/check.sh` termina em `VERIFICAÇÃO COMPLETA: OK` (177 testes de simulação, 117 de
-  efeitos, 172 de moldes, 744 conferências do wiki, 111 metas no balanço rápido e 71 blocos do teste de interface, em
-  ~9 min; contagem de 2026-11-18, na branch, no fim da Tarefa 8).
+- **Verificação:** `./scripts/check.sh` termina em `VERIFICAÇÃO COMPLETA: OK` (178 testes de simulação, 117 de
+  efeitos, 172 de moldes, 759 conferências do wiki, 111 metas no balanço rápido e 71 blocos do teste de interface, em
+  ~9 min; contagem de 2026-11-18, na branch, depois da correção da revisão final).
 - **Balanço completo** (`node prototype/tools/balance.js`, 2026-11-18, 281 s): **as 300 metas passam**, 135 delas dos
   ginásios (G1 a G9). Medido: G1 (mesmo elemento) 46,1% a 50,9%; G2 4 níveis acima 73,0% a 81,5% e 4 abaixo 15,8% a 32,9%;
   G3 com o ponto fraco 70,3% a 78,2%, em desvantagem 17,2% a 32,3%, e 38,1 a 59,6 pontos entre os dois; G4 (sem a
@@ -314,8 +315,19 @@ inteira na branch e não foi integrada na `main`; falta a revisão final da fren
   17. **A meta G1 fica perto de 50% quase por construção:** o time de referência é o mesmo cavalo do adversário (o inicial
       do elemento, no mesmo nível), então "vence metade das vezes" é esperado; o que a G1 prova é que nada no ginásio
       desequilibra o duelo.
+  18. **As metas G2 e G3 foram afrouxadas pela medição** (a spec, §12, dizia que isso se decide com ele): um cavalo 4
+      níveis abaixo ainda vence até cerca de 33% das vezes, e um em desvantagem de elemento até cerca de 32% (as duas
+      metas eram de no máximo 25% e passaram a no máximo 35%).
+  19. **O bônus de Ouro e de XP das insígnias não aparece em nenhuma linha do resultado da corrida:** o jogador recebe
+      mais do que a tabela do pote mostra, sem a tela dizer por quê.
+  20. **Contra o líder, um cavalo sozinho vence só cerca de 2% das vezes** (mesmo 4 níveis acima): é preciso ter um time.
 - **Pendências:** os achados pequenos das revisões das tarefas estão em `bugs.md` ("Ginásios da Expedição"); nenhum cobra
   Ouro errado nem dá prêmio duas vezes. Ninguém jogou ainda: os números saíram de simulação.
+  - **Para o servidor:** o módulo `ginasio.js` devolver a entrada a cobrar (hoje a tela refaz a conta em `ginEntrada`), e
+    os arredondamentos dos bônus das insígnias e as regras do time (sem repetir cavalo, o ativo preso na sala aberta)
+    irem para o módulo.
+  - **Medir num celular de verdade o tempo do toque em "Desafiar":** o desafio inteiro é resolvido de uma vez, no toque;
+    num computador levou de 56 a 92 ms (seis toques no líder, 2026-11-18).
 - **Com servidor (bloco 7):** o +3% de Ouro da Insígnia da Fornalha sobre prêmios pagos por outros jogadores cria Ouro do
   nada; rever antes do online.
 
@@ -326,8 +338,8 @@ inteira na branch e não foi integrada na `main`; falta a revisão final da fren
   falta é a fase em série (~3,5 min) e o bloco `itens` (~1,5 min sozinho). O jeito antigo (`ui-test.mjs` sem `UI_SO`)
   continua igual e é o que regrava as capturas oficiais.
 - **Ginásios da Expedição (as 8 tarefas prontas em 2026-11-18, na `claude/nifty-newton-e8u133`, sem merge):** seção
-  própria acima, com a lista "A confirmar com o Vinicius (gosto, ginásios)". Falta a revisão final da frente e a decisão
-  do Vinicius sobre integrar na `main`. O galope ficou como está (decisão do Vinicius em 2026-11-16).
+  própria acima, com a lista "A confirmar com o Vinicius (gosto, ginásios)". A revisão final da frente foi feita (e
+  corrigida) em 2026-11-18; falta a decisão do Vinicius sobre integrar na `main`. O galope ficou como está (decisão do Vinicius em 2026-11-16).
 - **Frente "interface" da Visuais 2 integrada na `main` em 2026-11-16, com as listas de gosto abertas:** a 3c (tela da
   corrida) ficou pronta em 2026-11-16 (seção própria acima, com a lista "A confirmar com o Vinicius (gosto, 3c)"); com a 3a
   e a 3b, a frente está inteira. O Vinicius escolheu integrar antes de jogar; o que ele mudar ao jogar entra como ajuste

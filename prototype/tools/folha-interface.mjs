@@ -333,7 +333,7 @@ function secoes() {
       ['líder com a revanche livre', trilha(etapa(A, lider, 'revanche'))],
       ['líder com a revanche de hoje feita', trilha(etapa(A, lider, 'feita'))]
     ])));
-  const cheio = 'O time já tem 2 cavalos. Toque num deles para tirar.', sala = 'Está na sala aberta. Corra ou feche a sala primeiro.'
+  const cheio = 'O time já tem 2 cavalos. Toque num deles para tirar.', sala = 'Está na sala aberta. Corra essa corrida primeiro.'
   s.push(secao('4.23', 'Linha do time', 'Preparo do desafio, "Seu time": a linha do Estábulo (.montaria-linha) dentro de .gin-time, com aria-pressed. A escolhida mostra a posição (.gin-pos, no lugar da seta) e o fundo com o filete dourado; a vantagem ou a desvantagem contra o elemento do ginásio é uma plaquinha escrita (.gin-vant); a apagada (aria-disabled) tem o motivo escrito embaixo.',
     estados([
       ['1º do time, com vantagem', time(linhaTime({ uid: 'm2', base: 'mare', nivel: 13, contra: F, pos: 1 }))],

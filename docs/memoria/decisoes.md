@@ -75,6 +75,16 @@ gosto e espera a palavra dele está em `ESTADO.md` ("A confirmar com o Vinicius 
 - **(R28) O texto "de onde vem" do Torrão, da Rédea nova, do Cupom e do Manual passou a citar os ginásios** (é o texto da
   Mochila, da linha da Rédea na Loja e do wiki) — os quatro são prêmio de alguma etapa ou do rodízio da revanche, e o texto
   antigo dizia que só vinham da loja e da diária. Só texto, nenhuma regra. Se errado: quatro frases do catálogo.
+- **(R29) "Corra ou feche a sala primeiro" virou "Corra essa corrida primeiro"** ("Está na sala aberta. Corra essa corrida
+  primeiro." e "Seu único cavalo está na sala aberta. Corra essa corrida primeiro.") — o jogo não tem como fechar uma sala
+  sem correr; a frase vinha da spec (§5), que ganhou uma nota no fim. Se errado: é texto.
+- **(R30) O que a revisão final apontou e fica como está:** prever o resultado pelo console do navegador (a seed está no
+  save; vale também para corrida e itens, e só o servidor fecha); adiantar o relógio para ganhar mais revanches (a regra é
+  a da diária); um dia de revanche no futuro mostra "Volte amanhã" por muitos dias (só com o relógio mexido); save
+  adulterado (o saneamento deixa coerente); o +3% de Ouro incide sobre o prêmio inteiro, com a entrada de volta (está na
+  spec; anotado para o servidor); o resumo se perde ao recarregar (a spec manda); as capturas não foram comparadas uma a
+  uma. Foram para a lista do Vinicius o balanço do líder (um cavalo sozinho vence o líder em cerca de 2% das vezes) e para
+  as pendências do `ESTADO.md` o tempo do toque em "Desafiar" num celular fraco. Se errado: cada item se desfaz sozinho; nenhum cria Ouro nem muda regra.
 
 Além das Rulings, na Tarefa 8 (documentos), decididas por quem a executou:
 - **(Tarefa 8) A folha da interface ganhou o cartão de ginásio, a trilha, a linha do time e o cartão entre duelos

@@ -468,9 +468,12 @@
     var guardado = storedInfo(), sr = guardado.rev;
     if (guardado.novo) { bloqueiaSaveNovo(); return false; }
     if (sr > state.rev) { adoptExternal(loadSave()); return false; }   // outra aba gravou depois: não sobrescreve
+    var revAntes = state.rev;
     state.rev = Math.max(state.rev, sr) + 1;
     if (!STORAGE_OK) return true;
-    try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(state)); return true; } catch (e) { return false; }
+    // a gravação que falha não muda a revisão: a da memória nunca fica à frente do disco (senão a gravação de outra aba,
+    // com revisão menor ou igual à desta, seria sobrescrita em vez de adotada)
+    try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(state)); return true; } catch (e) { state.rev = revAntes; return false; }
   }
   var FALHA_SALVAR = 'Não foi possível salvar. Libere espaço e tente de novo.';
   // Grava uma ação que gasta (o débito e o resultado vão juntos na mesma gravação). s0: o state de antes da
@@ -1062,6 +1065,10 @@
   // Todo XP somado a um cavalo passa por aqui uma vez (corrida valendo, treino e, na Tarefa 5, os duelos): o XP mais o
   // bônus da insígnia de Água, arredondado.
   function xpComBonus(xp) { return xp + Math.round(xp * bonusConta().xp); }
+  // A chance de aprender uma skill nova a cada nível, com o bônus da insígnia de Grama: o applyXp sorteia com este bônus
+  // (RaceSim.learnSkill soma learnChance + bônus) e a aba Skills mostra chanceSkillNivel (a mesma conta)
+  function bonusSkillNivel() { return bonusConta().skill; }
+  function chanceSkillNivel() { return RS.TUNING.learnChance + bonusSkillNivel(); }
   // O prêmio de Ouro da corrida valendo mais o bônus da insígnia de Fogo, arredondado para baixo (o 1e-9 só segura o
   // erro do ponto flutuante: 0,03 × 100 não pode dar 2,999…).
   function ouroComBonus(premio) { return premio + Math.floor(premio * bonusConta().ouro + 1e-9); }
@@ -1080,7 +1087,7 @@
     if (mount.level >= MAX_LEVEL) mount.xp = Math.min(mount.xp, E.xpToLevel(mount.level));
     for (var k = 1; k <= levels; k++) {
       var lrng = RS.mulberry32(RS.hash2(state.seedBase, seedTag * 100 + (mount.level - levels + k)));
-      var sid = RS.learnSkill({ id: mount.templateId, element: mount.element, rarity: mount.rarity, skills: mount.skills }, lrng, bonusConta().skill);
+      var sid = RS.learnSkill({ id: mount.templateId, element: mount.element, rarity: mount.rarity, skills: mount.skills }, lrng, bonusSkillNivel());
       if (sid) { mount.skills.push(sid); learned.push(sid); }
     }
     return { levels: levels, learned: learned };
@@ -1184,7 +1191,8 @@
     if (ui.item && (ui.screen === 'loja' || ui.screen === 'montaria')) { itemPasso(); return; }
     // na subtela do ginásio, também: o preparo é desenhado de novo com o save adotado e confere tudo outra vez (o "Desafiar"
     // apagado com o motivo); o progresso que andou volta à trilha; o resumo de um desafio já gravado continua
-    if (ui.screen === 'ginasio' && ui.gym) { rerenderKeepScroll(); return; }
+    // (o aviso de uma gravação que falhou nesta aba sai: o save agora é o da outra aba)
+    if (ui.screen === 'ginasio' && ui.gym) { ui.gym.msg = null; rerenderKeepScroll(); return; }
     go(ui.screen === 'inicial' ? 'inicial' : 'estabulo');
   }
 
@@ -2792,8 +2800,10 @@
   // ui.gym = { id, etapa, time: [uids na ordem dos toques], res: null | o resumo do desafio já pago e gravado, msg: o
   // aviso da gravação que falhou (no preparo) }. Nada do desafio é calculado antes do toque em "Desafiar": o preparo só
   // mostra o catálogo, o time e a vantagem de elemento (Ginasio.vantagem); o resultado sai no desafia, já pago.
-  var GIN_SALA_TXT = 'Está na sala aberta. Corra ou feche a sala primeiro.';
-  var GIN_SO_UM_TXT = 'Seu único cavalo está na sala aberta. Corra ou feche a sala primeiro.';
+  // Ruling 29: o jogo não tem como fechar uma sala sem correr; a frase diz só o que existe
+  var GIN_CORRA_TXT = 'Corra essa corrida primeiro.';
+  var GIN_SALA_TXT = 'Está na sala aberta. ' + GIN_CORRA_TXT;
+  var GIN_SO_UM_TXT = 'Seu único cavalo está na sala aberta. ' + GIN_CORRA_TXT;
   // o sorteio de skill ao subir de nível num desafio (Ruling 18): seedTag = GIN_SEED_TAG + contador · 4 + posição no time
   var GIN_SEED_TAG = 20000000;
   function ginLimite(id, i) { return GD.GYMS[id].etapas[i].cavalos.length; }
@@ -2858,7 +2868,7 @@
       var m = typeof lista[k] === 'string' ? mountByUid(lista[k]) : null;
       if (!m) return { motivo: 'Um cavalo do time não está mais no estábulo.', revanche: r.revanche };
       if (lista.indexOf(lista[k]) !== k) return { motivo: 'O mesmo cavalo está duas vezes no time.', revanche: r.revanche };
-      if (ginPreso(m)) return { motivo: m.name + ' está na sala aberta. Corra ou feche a sala primeiro.', revanche: r.revanche };
+      if (ginPreso(m)) return { motivo: m.name + ' está na sala aberta. ' + GIN_CORRA_TXT, revanche: r.revanche };
     }
     return { motivo: '', revanche: r.revanche };
   }
@@ -3793,7 +3803,7 @@
       corpo = '<section class="caixa" aria-label="Skills">' + vagaTipoHtml(m) +
         (m.skills.length ? skillsVagasHtml(m) : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
         '<p class="nota">' + (vagas > 0
-          ? vagas + (vagas === 1 ? ' vaga livre' : ' vagas livres') + ' · ' + Math.round(RS.TUNING.learnChance * 100) + '% de chance de aprender uma skill nova a cada nível'
+          ? vagas + (vagas === 1 ? ' vaga livre' : ' vagas livres') + ' · ' + Math.round(chanceSkillNivel() * 100) + '% de chance de aprender uma skill nova a cada nível'
           : 'Sem vagas livres') + '</p>' +
         (itemQtd('manual') > 0 ? itemUsoHtml('manual', m, [naMochilaTxt('manual'), Math.round(GD.ITEMS.manual.chance * 100) + '% de chance de aprender']) : '') + '</section>';
     } else if (M.aba === 'equip' && GEAR_ON) {

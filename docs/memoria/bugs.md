@@ -27,7 +27,14 @@ empacotamento está em `docs/cronograma.md`; as decisões de design em aberto, e
 
 ## Ginásios da Expedição
 Achados pequenos das revisões das tarefas (2026-11-17 e 18), deixados para depois; nenhum cobra Ouro errado nem dá prêmio
-duas vezes. A revisão final da frente ainda não aconteceu.
+duas vezes. A revisão final da frente foi feita em 2026-11-18; o defeito que ela achou está consertado (o primeiro item).
+- **Consertado (2026-11-18, revisão final):** a gravação que falhava somava a revisão do save (`state.rev`) mesmo sem gravar,
+  e a revisão da memória ficava à frente da do disco. Reprodução: a aba A falha 2 vezes ao gravar; a aba B paga o Recruta
+  com o Ipê e perde; A toca em "Desafiar" com a Maré e grava por cima do save de B (a entrada de B voltava, o XP do Ipê
+  sumia e o mesmo sorteio era usado de novo com outro time). O mesmo valia para "Largar!" e o uso de um item. Conserto:
+  a gravação que falha devolve a revisão de antes, e o aviso da falha sai do preparo quando o save de outra aba é adotado.
+  Testes: `ginasio-falha-outra-aba`, `gravacao-outra-aba` e `itens-falha-outra-aba` — `prototype/src/game.js` (`persist`,
+  `adoptExternal`).
 - Com o preparo do líder aberto (antes da insígnia), se outra aba conquista a insígnia, o preparo vira o da revanche sem voltar à trilha (nada é cobrado errado; foge do padrão "o progresso andou, volta à trilha") — `prototype/src/game.js` (`renderGinasio`).
 - `ginRevPremio` cai em `{}` se `Ginasio.revanchePremio` devolver `undefined`, e a tela diria "Prêmio de hoje: 0 de Ouro" (não acontece com o save saneado; esconderia um erro) — `prototype/src/game.js`.
 - Caminho que não acontece hoje: com o duelo sem corrida (`ui.gym.ver.L` nulo), um `go('corrida')` leva à aba Correr sem limpar `ui.gym.ver` — `prototype/src/game.js` (`go`, `corridaAtual`).
