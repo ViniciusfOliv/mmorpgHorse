@@ -3,6 +3,11 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-18 — Integração da tela de desafio e do Recomeçar do DEV na `main` (decisão do Vinicius)
+- **Integrar na `main` e republicar o jogo e o DEV oficiais** ("sim, integra na main e republica") — por fast-forward;
+  o código é o mesmo que passou na verificação completa (53e4ced; depois dele só mudou a memória); o wiki não mudou e
+  não foi republicado.
+
 ## 2026-11-18 — A tela de desafio do ginásio (a "Cena 2", com a arte do PixelLab)
 - **Antes de cada duelo de ginásio, uma tela de desafio: o oponente e o cavalo dele em cima, à direita, o seu cavalo
   embaixo, à esquerda, com as placas, o fundo do ginásio e a vantagem de elemento; "Começar duelo" e "Pular tudo"** — o

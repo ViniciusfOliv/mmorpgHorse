@@ -13,12 +13,13 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   quatro por fast-forward). O Vinicius escolheu integrar antes de jogar: as listas "A confirmar com o Vinicius (gosto,
   3a)", "(gosto, 3b)", "(gosto, 3c)", "(gosto, itens)" e "(gosto, ginásios)" continuam abertas e viram ajustes por cima
   da `main`. Os pedidos de 2026-11-18 (corrida 50% mais longa, informações da aba Skills e a curva com as pontas mais
-  altas) entraram na `main` no mesmo dia, também por fast-forward. Em aberto: a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta como bloco 3). Trabalho
+  altas) entraram na `main` no mesmo dia, também por fast-forward, e depois deles o Recomeçar do DEV pela escolha do cavalo
+  e a tela de desafio do ginásio (com a arte dos 15 oponentes). Em aberto: a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta como bloco 3). Trabalho
   novo sai da `main`.
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build; os três foram republicados em
   2026-11-18 com o build 3b26519, o da integração dos pedidos do dia: jogo na versão 10, DEV na 8 e wiki na 9; no mesmo
-  dia, jogo e DEV de novo com o build 48194bf, o do Recomeçar do DEV pela escolha do cavalo, que está na branch da sessão
-  e ainda não na `main`: jogo na versão 11 e DEV na 9):
+  dia, jogo e DEV de novo com o build 53e4ced, o da tela de desafio do ginásio e do Recomeçar do DEV, já na `main`: jogo
+  na versão 12 e DEV na 10; o wiki não mudou):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
   - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
   - wiki: https://claude.ai/artifact/Bp47f9qE3tSswu1A9zdF2y (`prototype/dist/wiki.html`)
@@ -470,12 +471,12 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   montaria, a chance de cada skill ativar (com a conta: raridade + nível + Sorte), o "Quando" de cada skill e o quadro da
   Garra deste cavalo, tudo calculado pelo `sim.js` e atualizado quando o cavalo melhora; e a curva visível na pista
   (escolha dele: "as pontas mais altas", um arco preso à tela de até 20 px; os cavalos só sobem com o arco, sem
-  inclinar). **Feito na branch da sessão (sem merge):** a tela de desafio do ginásio ("Cena 2": antes de
+  inclinar). **Feito e na `main` desde o mesmo dia:** a tela de desafio do ginásio ("Cena 2": antes de
   cada duelo, o oponente e o cavalo dele em cima, à direita, o cavalo do jogador embaixo, à esquerda; GDD §8.6), com a arte
   dos 15 oponentes do PixelLab (36 gerações no total; saldo do plano 1665/2000; escolhas em
   `prototype/assets/pixellab/treinadores/escolhas.json`; no build de teste https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch,
-  versão 18, com o build 53e4ced). **Esperando o Vinicius:** jogar, dizer se troca alguma das 14
-  escolhas do controlador (as candidatas estão na mesma pasta) e se integra na `main` (junto com o Recomeçar do DEV).
+  versão 18, com o build 53e4ced). **Esperando o Vinicius:** jogar e dizer se troca alguma das 14
+  escolhas do controlador (as candidatas estão na mesma pasta; trocar é mudar um número no `escolhas.json`).
 - **Ginásios (`docs/GDD.md` §8.6), na `main` desde 2026-11-18:** o Vinicius joga nos artefatos oficiais e decide a lista
   "A confirmar com o Vinicius (gosto, ginásios)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Teste de interface em paralelo:** feito e na `main` (a verificação inteira leva ~10 min com os ginásios); em aberto se vale buscar os ~5 min (dividir o bloco
