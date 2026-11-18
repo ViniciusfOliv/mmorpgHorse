@@ -284,6 +284,18 @@ achou já entrou; falta a decisão do Vinicius sobre integrar.**
   dos itens passou a citar os ginásios).
 - **Folha da interface:** seções novas 4.21 (cartão de ginásio), 4.22 (trilha), 4.23 (linha do time) e 4.24 (cartão entre
   duelos); o teste da folha confere que o markup de cada estado é o mesmo que o jogo desenha.
+- **Revisão final (2026-11-18):** a branch inteira foi revista depois das 8 tarefas. Nenhum defeito grave nas regras
+  (nada é sorteado antes de pagar; a gravação é uma só; a sala aberta e a corrida normal ficam como eram). Três pontos
+  foram corrigidos numa rodada única: (1) uma gravação que falhava deixava a revisão do save em memória à frente do
+  disco e, com duas falhas numa aba e outra aba pagando no meio, a aba velha podia refazer um desafio já pago (o
+  conserto vale para o jogo todo: gravação que falha não muda a revisão); (2) a aba Skills dizia 8% de chance de
+  aprender skill mesmo com a Insígnia da Capoeira (o sorteio já usava 11%; agora a tela mostra o mesmo número); (3) o
+  teste da sala de treino aberta, que faltava. Também saiu a frase "feche a sala", que mandava fazer o que o jogo não
+  tem (hoje: "Corra essa corrida primeiro."). Detalhe em `bugs.md`.
+- **Publicação (feita em 2026-11-18, build `d01ca3c`):** build de teste com o modo DEV
+  https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 14) e a folha da interface
+  https://claude.ai/artifact/YF8h6twHtSK6SRpvnC2UoR (versão 8). Os artefatos oficiais (jogo, DEV e wiki, em "Onde jogar")
+  continuam com a `main`, sem os ginásios, até a integração.
 - **A confirmar com o Vinicius (gosto, ginásios):**
   1. **Os cavalos dos soldados e dos líderes** usam o nome e a aparência do cavalo inicial do elemento ("Brasa, Brasa"):
      quer nomes e aparência próprios? (Não mexe na força.)
@@ -321,6 +333,8 @@ achou já entrou; falta a decisão do Vinicius sobre integrar.**
   19. **O bônus de Ouro e de XP das insígnias não aparece em nenhuma linha do resultado da corrida:** o jogador recebe
       mais do que a tabela do pote mostra, sem a tela dizer por quê.
   20. **Contra o líder, um cavalo sozinho vence só cerca de 2% das vezes** (mesmo 4 níveis acima): é preciso ter um time.
+  21. **Entre times iguais, cerca de 7 em cada 10 desafios do líder vão até o 5º duelo** (70% a 73%, medido na revisão
+      final; não está no `exemplos.md`): o desafio do líder quase sempre é longo.
 - **Pendências:** os achados pequenos das revisões das tarefas estão em `bugs.md` ("Ginásios da Expedição"); nenhum cobra
   Ouro errado nem dá prêmio duas vezes. Ninguém jogou ainda: os números saíram de simulação.
   - **Para o servidor:** o módulo `ginasio.js` devolver a entrada a cobrar (hoje a tela refaz a conta em `ginEntrada`), e
@@ -400,7 +414,8 @@ achou já entrou; falta a decisão do Vinicius sobre integrar.**
   empacotamento (espera a resposta sobre o Capacitor), itens de treino e gastos de Ouro, tempo e
   estábulo ativo, loja de Gemas, online.
 - **Redistribuição:** a primeira de cada cavalo é grátis; depois só com a Rédea nova. A Rédea nova vem no 7º dia da
-  recompensa diária (frente de itens, na `main` desde 2026-11-17), e a Estrela de treino sobe estrela.
+  recompensa diária (frente de itens, na `main` desde 2026-11-17) e, na branch dos ginásios, também na 1ª vitória sobre
+  cada líder; a Estrela de treino sobe estrela.
 - **O Vinicius ainda não jogou o modelo novo:** os números saíram de simulação.
 - **Balanço:** M6, M9, P1, S1 e A1 só são vigiadas pelo `balance.js` completo.
 
@@ -410,7 +425,8 @@ achou já entrou; falta a decisão do Vinicius sobre integrar.**
 - **A sensação da corrida mudou:** mais curta, "Cansou" some, a Garra dispara em 58% das corridas. Olhar a animação no artefato.
 - **Os iniciais no nível 25 caem para a Prata** (eram Ouro): o meio da progressão ficou mais lento.
 - **A Sorte vale pouco** (0,7 p.p. na corrida), por desenho: só de nascimento, mexe no Dado e na chance de skill.
-- **Sem fonte de Rédea nova** no jogo normal até os ginásios: quem gastar a redistribuição grátis só muda a build pelo DEV.
+- **A Rédea nova é rara:** vem no 7º dia da recompensa diária e, com os ginásios, na 1ª vitória sobre cada líder; quem
+  gastar a redistribuição grátis espera por uma delas.
   (Resolvido em 2026-11-17: a Rédea vem no 7º dia da recompensa diária; na branch dos ginásios, também da 1ª vitória sobre
   cada líder.)
 - **O Ouro tem menos uso:** a loja de peças some; sobram entradas, cruza e troca do Haras. (Desde 2026-11-17 a loja de
