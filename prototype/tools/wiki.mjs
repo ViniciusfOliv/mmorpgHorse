@@ -274,7 +274,15 @@ export function descreverAba(rotulo, F) {
     case 'Correr': return `escolher a entrada (${lista(E.entryTiers.map((t) => num(t)), 'ou')} de Ouro) e procurar corrida; sem Ouro para a menor entrada, treino gratuito.`
     case 'Expedição': {
       const g0 = G.GYMS[G.GYM_ORDER[0]]
-      return `os ${G.GYM_ORDER.length} ginásios (${lista(G.GYM_ORDER.map((id) => G.GYMS[id].name))}), cada um com quantas etapas já venceu ("N de ${g0.etapas.length} vencidos"), a insígnia conquistada e "Revanche hoje" quando a revanche do líder está livre (o ponto na aba avisa). Tocar no ginásio abre a trilha: as ${g0.etapas.length} etapas de baixo para cima (${lista([...g0.etapas.filter((e) => !e.lider).map((e, i) => `Soldado ${i + 1}`), 'o Líder'])}), cada uma vencida, próxima (a única que se toca) ou fechada ("Vença a etapa anterior"), e o ponto fraco escrito ("Ponto fraco: ${G.ELEMENTS[g0.fraco].name} vence ${G.ELEMENTS[g0.element].name}"). Depois da insígnia, a etapa do líder vira a revanche: "Revanche hoje", com a entrada de ${G.GYM.revanche.entrada} de Ouro e o prêmio de hoje do rodízio, uma vez por dia; tentada a de hoje, ela diz "Revanche de hoje feita. Volte amanhã." e o cartão do ginásio, "Revanche amanhã". A etapa próxima mostra os cavalos do adversário, a pista da casa, a entrada e o prêmio. Embaixo, a vitrine de ${F.vitrine.length} cavalos selvagens (a captura ainda não existe no protótipo).`
+      const ap = G.GYM.fadiga.faixas[0]
+      return `os ${G.GYM_ORDER.length} ginásios (${lista(G.GYM_ORDER.map((id) => G.GYMS[id].name))}), cada um com quantas etapas já venceu ("N de ${g0.etapas.length} vencidos"), a insígnia conquistada e "Revanche hoje" quando a revanche do líder está livre (o ponto na aba avisa) ou "Revanche amanhã" depois de tentada a de hoje. ` +
+        `Tocar no ginásio abre a trilha: as ${g0.etapas.length} etapas de baixo para cima (${lista([...g0.etapas.filter((e) => !e.lider).map((e, i) => `Soldado ${i + 1}`), 'o Líder'])}), cada uma vencida, próxima (a única que se toca) ou fechada ("Vença a etapa anterior"), e o ponto fraco escrito ("Ponto fraco: ${G.ELEMENTS[g0.fraco].name} vence ${G.ELEMENTS[g0.element].name}"); ao abrir, a trilha rola o mínimo para a etapa que se pode tocar aparecer inteira. ` +
+        `**Preparo:** a etapa próxima mostra os cavalos do adversário (nível, estrelas, elemento e Poder), a pista da casa, a entrada e o prêmio da 1ª vitória; em "Seu time" você toca nos seus cavalos na ordem em que vão correr, até o tamanho do time do adversário (tocar de novo tira). Cada linha diz "Vantagem" ou "Desvantagem" contra o elemento do ginásio; com uma sala de corrida aberta (valendo ou treino), o cavalo ativo fica de fora, com o motivo escrito. ` +
+        `**Pagar:** "Desafiar (N de Ouro)" cobra a entrada e só então o desafio é simulado; sem time, sem Ouro (o reservado para a sala aberta não conta) ou com a mochila cheia do item do prêmio, o botão fica apagado com o motivo. ` +
+        `**Duelos:** cada duelo passa na tela de corrida, com 2 raias: a placa diz "Duelo N" (nunca quantos serão), e uma linha diz a vantagem de elemento e o fôlego de quem larga cansado; "Pular" termina o duelo (depois da chegada ele diz "Continuar") e "Pular tudo" vai direto ao resumo. Entre um duelo e outro, um cartão diz como foi o seu cavalo e por quantos metros, quem saiu e quem entra, a faixa do cansaço com o fôlego de quem ficou ("Vitória ${ap.name.toLowerCase()} (menos de 1 m): … larga com ${num(Math.round((1 - ap.perde) * 100))}% do fôlego") e a vantagem do próximo duelo, com "Próximo duelo" e "Pular tudo". Os metros são truncados para baixo (7,6 m aparece como 7 m); abaixo de 1 m, "menos de 1 m". ` +
+        `**Resumo:** cada duelo com "Você venceu" ou "Você perdeu", os metros e o fôlego de quem seguiu; a entrada, o prêmio e os itens; o XP de cada cavalo (os níveis e as skills que aprendeu, ou "não correu"); a insígnia e a etapa liberada. Perdendo, "Tentar de novo" volta ao preparo com o mesmo time; sempre há "Voltar à trilha". ` +
+        `**Revanche:** depois da insígnia, a etapa do líder vira a revanche, uma vez por dia: "Revanche hoje", com a entrada de ${num(G.GYM.revanche.entrada)} de Ouro e o prêmio de hoje do rodízio; tentada a de hoje, a etapa diz "Feita hoje" e "Revanche de hoje feita. Volte amanhã.", e a revanche perdida não tem "Tentar de novo". ` +
+        `Embaixo, a vitrine de ${F.vitrine.length} cavalos selvagens (a captura ainda não existe no protótipo).`
     }
     case 'Haras': return 'cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.'
     case 'Loja': {
@@ -284,6 +292,12 @@ export function descreverAba(rotulo, F) {
     }
     default: throw new Error(`wiki: aba desconhecida "${rotulo}" — descreva-a em descreverAba (prototype/tools/wiki.mjs)`)
   }
+}
+
+/** O Perfil (o botão do cabeçalho, fora da barra de abas): o que a tela mostra, na ordem do renderPerfil do game.js. */
+export function descreverPerfil() {
+  const n = G.GYM_ORDER.length
+  return `as estatísticas (corridas, vitórias, pódios e prêmios), o Ouro e quantas montarias você tem; as insígnias dos ginásios ("Insígnias (N de ${n})", as ${n} na ordem ${lista(G.GYM_ORDER.map((id) => G.GYMS[id].insignia.name))}: a conquistada com o ícone, o nome e o bônus; a que falta apagada, com "Vença o líder do …"); o seu jóquei (seda e capacete); as animações; e "Recomeçar com outro inicial".`
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -458,8 +472,8 @@ function secoes(F, A) {
       `**Prêmio e XP.** A casa fica com ${pct(E.houseFee, 0)} do pote e o resto vai para os primeiros colocados. Todos ganham XP pela colocação${F.gearOn ? ', e o pódio pode dar uma Pedra Negra' : ''}.`
     ] },
     { t: 'h3', txt: 'Abas do jogo' },
-    { t: 'dl', itens: F.abas.map((a) => [a, descreverAba(a, F)]) },
-    { t: 'nota', txt: 'Ainda não existem no protótipo: Gemas, passe, ovos, contas, servidor, expedições e captura. A única moeda é o Ouro; as Pedras Negras são material de melhoria.' },
+    { t: 'dl', itens: [...F.abas.map((a) => [a, descreverAba(a, F)]), ['Perfil (o botão do cabeçalho)', descreverPerfil()]] },
+    { t: 'nota', txt: 'Ainda não existem no protótipo: Gemas, passe, ovos, contas, servidor, as expedições fora os ginásios e a captura. A única moeda é o Ouro; as Pedras Negras são material de melhoria.' },
     { t: 'p', txt: `Versão dos dados: \`${G.version}\`. Este wiki é gerado do código (\`prototype/src/\`) por \`prototype/tools/wiki.mjs\`; não edite à mão.` }
   ])
 
@@ -945,7 +959,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
   const faixaTxt = (f, i) => f.ate === null ? `${num(fx[i - 1].ate)} m ou mais` : i === 0 ? `menos de ${num(f.ate)} m` : `de ${num(fx[i - 1].ate)} a menos de ${num(f.ate)} m`
   const cicloTxt = GY.revanche.ciclo.map((c) => c.ouro ? `${num(c.ouro)} de Ouro` : `1 ${nomeItem(c.item)}`)
   add('ginasios', 'Ginásios da Expedição', 'Ginásios', [
-    { t: 'p', txt: `São ${gyIds.length} ginásios, um por elemento, cada um com ${G.GYMS[gyIds[0]].etapas.length - 1} soldados e o líder, sempre com cavalos do elemento do ginásio. As etapas abrem em ordem; etapa vencida fica marcada e não se repete. Os cavalos dos soldados são fixos (a montaria-base do catálogo no level e nas estrelas da etapa, com a build dos bots e as skills dela). A aba Expedição mostra os ginásios e a trilha de cada um (ver Visão geral, Abas); o desafio na tela chega nas próximas partes.` },
+    { t: 'p', txt: `São ${gyIds.length} ginásios, um por elemento, cada um com ${G.GYMS[gyIds[0]].etapas.length - 1} soldados e o líder, sempre com cavalos do elemento do ginásio. As etapas abrem em ordem; etapa vencida fica marcada e não se repete. Os cavalos dos soldados são fixos (a montaria-base do catálogo no level e nas estrelas da etapa, com a build dos bots e as skills dela). A aba Expedição mostra os ginásios, a trilha de cada um, o preparo, os duelos e o resumo (ver Visão geral, Abas).` },
     { t: 'tabela', rotulo: 'Ginásios', cab: ['Ginásio', 'Elemento', 'Líder', 'Ponto fraco', 'Pista da casa', 'Insígnia'], linhas: gyIds.map((id) => {
       const g = G.GYMS[id]
       return [{ md: `**${g.name}**`, html: `<strong>${esc(g.name)}</strong>` }, elCel(g.element), g.lider, elCel(g.fraco), pistaGym(g.pista), { md: `${icMd(g.insignia.icone)}${g.insignia.name}: ${bonusIns(id)}`, html: `${icone(g.insignia.icone)}${esc(g.insignia.name)}: ${esc(bonusIns(id))}` }]
@@ -960,7 +974,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     }),
     { t: 'h3', txt: 'O desafio', id: 'ginasio-desafio' },
     { t: 'p', txt: `O time do jogador tem no máximo o tamanho do time do adversário (pode levar menos) e corre na ordem escolhida. A entrada é paga antes (só Ouro, respeitando o reservado da sala aberta) e só então o desafio inteiro é simulado com a seed do save. O 1º cavalo corre contra o 1º do adversário; quem perde sai, quem vence fica e enfrenta o próximo do outro lado, já cansado. Acaba quando um lado fica sem cavalos. Cada cavalo do jogador ganha ${num(GY.xp.vence)} de XP por duelo vencido e ${num(GY.xp.perde)} por duelo perdido. Derrota: só se perde a entrada.` },
-    { t: 'p', txt: `**Vantagem de elemento** (só nos duelos de ginásio): ${lista(gyIds.map((id) => `${nomeEl(G.GYMS[id].fraco)} vence ${nomeEl(id)}`))}. O cavalo cujo elemento vence o do adversário corre com os seis status de corrida ${pct(GY.vantagem, 0)} maiores (a ${nomeStat('sorte')} não muda); elementos iguais, nada. O duelo começa ${nomeClima('nublado')}, para o triângulo não contar duas vezes; o Dado da Sorte é o de sempre. Na corrida valendo, o triângulo continua agindo só pelo clima.` },
+    { t: 'p', txt: `**Vantagem de elemento** (só nos duelos de ginásio): ${lista(gyIds.map((id) => `${nomeEl(G.GYMS[id].fraco)} vence ${nomeEl(id)}`))}. O cavalo cujo elemento vence o do adversário corre com os seis status de corrida ${pct(GY.vantagem, 0)} maiores (a ${nomeStat('sorte')} não muda; cada status continua inteiro, arredondado, então nos cavalos de hoje a vantagem soma cerca de 2 pontos em cada um); elementos iguais, nada. O duelo começa ${nomeClima('nublado')}, para o triângulo não contar duas vezes; o Dado da Sorte é o de sempre. Na corrida valendo, o triângulo continua agindo só pelo clima.` },
     { t: 'p', txt: `**Cansaço:** quem vence um duelo larga o seguinte com menos fôlego (o tanque de estamina abaixo de cheio: corre igual no começo e cansa mais cedo). O desconto depende da distância na chegada (quanto faltava ao perdedor quando o vencedor cruzou a linha) e soma a cada vitória seguida, até ${pct(GY.fadiga.teto, 0)}. Quem entra descansado larga com o tanque cheio. Vale para os dois lados.` },
     { t: 'tabela', rotulo: 'Cansaço', cab: ['Vitória', 'Distância na chegada', 'Fôlego perdido'], linhas: fx.map((f, i) => [f.name, faixaTxt(f, i), N(pct(f.perde, 0))]) },
     { t: 'p', txt: `**Revanche do líder:** depois da insígnia, 1 tentativa por dia em cada ginásio (vencendo ou perdendo), com entrada de ${num(GY.revanche.entrada)} de Ouro. O prêmio de cada vitória segue um rodízio fixo, sem sorteio, contado por ginásio: ${cicloTxt.join(' · ')}, e recomeça. Com o relógio para trás não libera; dia estragado no save conta como "já tentou hoje".` },
@@ -986,6 +1000,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'dl', itens: [
       ['Moedas', `Ouro infinito (volta a ${num(DV.GOLD_INF)} depois de cada gasto) e Pedras Negras à vontade.`],
       ['Itens e dia', `os itens de uso e o dia do jogo: Definir mochila (quantos de cada um: ${lista(Object.keys(G.ITEMS).filter((id) => id !== 'redea').map(nomeItem))}, de 0 a ${num(G.BAG_MAX)}); Avançar 1 dia e Voltar 1 dia (o dia do jogo vai de ${F.devDiasMax} dias antes a ${F.devDiasMax} dias depois do aparelho, só no save de teste); Zerar diária e limites (a recompensa volta ao dia 1 para resgatar e os limites da loja zeram).`],
+      ['Ginásios', `quantas etapas de cada trilha estão vencidas (de 0 a ${num(G.GYMS[G.GYM_ORDER[0]].etapas.length)}; com todas, a insígnia, e o bônus dela vale na hora): Definir etapas; Liberar revanche (a de hoje, nos ${G.GYM_ORDER.length} ginásios); Zerar ginásios (nenhuma etapa vencida; o contador de desafios continua, para as seeds dos desafios não se repetirem).`],
       ['Cavalo', `cria ou substitui um cavalo com qualquer tipo, raridade, sexo, estrelas, level (1–${E.maxLevel}), genética (máxima ou por status), pontos distribuídos e até ${F.devVagas} skills (inclusive de outro tipo); copia iniciais e aluguéis; +10 levels; +1 cruza; devolve os pontos da ativa.`],
       ['Itens', 'só peças de equipamento: qualquer peça do catálogo, inclusive Lendária, com qualquer melhoria; conjunto completo de uma vez.'],
       ['Próxima corrida', 'clima inicial, piso, distância, traçado (mais curvas, mais subidas ou lista de blocos), vento, seed e "skills sempre ativam".'],

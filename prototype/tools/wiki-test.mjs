@@ -241,6 +241,26 @@ confere(!/recursos que vão usá-los \(Rédeas/.test(a.md), 'wiki ainda diz que 
   confere(exp.includes(`${G.GYMS[G.GYM_ORDER[0]].etapas.length} etapas`) && /trilha/.test(exp) && /de baixo para cima/.test(exp), `a aba Expedição no wiki sem a trilha de ${G.GYMS[G.GYM_ORDER[0]].etapas.length} etapas: ${exp}`)
   confere(/Ponto fraco/.test(exp) && /revanche/.test(exp) && /vitrine de 6 cavalos selvagens/.test(exp), `a aba Expedição no wiki sem o ponto fraco, a revanche ou a vitrine: ${exp}`)
   confere(!/Expedições e captura ainda não existem/.test(exp), 'a aba Expedição no wiki ainda é só a vitrine')
+  // Tarefa 8: o desafio inteiro na aba (preparo, time, pagamento, duelos na tela de corrida, cartão, resumo e revanche), sem
+  // a frase velha "chega nas próximas partes"; o Perfil com as insígnias; a gaveta DEV com o grupo Ginásios
+  for (const [o, re] of [['o preparo e o time', /\*\*Preparo:\*\*.*"Seu time".*na ordem em que vão correr.*"Vantagem" ou "Desvantagem"/],
+    ['o ativo da sala aberta fora do time', /sala de corrida aberta \(valendo ou treino\), o cavalo ativo fica de fora/],
+    ['o pagamento', /\*\*Pagar:\*\* "Desafiar \(N de Ouro\)" cobra a entrada e só então o desafio é simulado/],
+    ['os duelos na tela de corrida', /\*\*Duelos:\*\* cada duelo passa na tela de corrida, com 2 raias: a placa diz "Duelo N" \(nunca quantos serão\)/],
+    ['Pular e Pular tudo', /"Pular" termina o duelo.*"Pular tudo" vai direto ao resumo/],
+    ['o cartão entre duelos', /Entre um duelo e outro, um cartão.*"Próximo duelo" e "Pular tudo"/],
+    ['os metros truncados', /truncados para baixo.*"menos de 1 m"/],
+    ['o resumo', /\*\*Resumo:\*\* cada duelo com "Você venceu" ou "Você perdeu".*"Tentar de novo" volta ao preparo com o mesmo time/],
+    ['a revanche', new RegExp(`\\*\\*Revanche:\\*\\*.*"Revanche hoje", com a entrada de ${G.GYM.revanche.entrada} de Ouro.*"Revanche de hoje feita\\. Volte amanhã\\."`)]]) {
+    confere(re.test(exp), `a aba Expedição no wiki sem ${o}: ${exp}`)
+  }
+  const fx0 = G.GYM.fadiga.faixas[0]
+  confere(exp.includes(`Vitória ${fx0.name.toLowerCase()} (menos de 1 m): … larga com ${Math.round((1 - fx0.perde) * 100)}% do fôlego`), 'a aba Expedição no wiki sem o exemplo do cartão com a faixa do catálogo')
+  confere(!/próximas partes/.test(a.md) && !/próximas partes/.test(a.html), 'o wiki ainda diz que algo dos ginásios "chega nas próximas partes"')
+  const perfil = (a.md.match(/^- \*\*Perfil \(o botão do cabeçalho\):\*\* (.*)$/m) || [])[1] || ''
+  confere(perfil.includes(`"Insígnias (N de ${G.GYM_ORDER.length})"`) && G.GYM_ORDER.every((id) => perfil.includes(G.GYMS[id].insignia.name)) && /Vença o líder do/.test(perfil), `o Perfil no wiki sem as insígnias: ${perfil}`)
+  const devGin = (a.md.match(/^- \*\*Ginásios:\*\* (.*)$/m) || [])[1] || ''
+  confere(/Definir etapas/.test(devGin) && /Liberar revanche/.test(devGin) && /Zerar ginásios/.test(devGin), `o Modo DEV no wiki sem o grupo Ginásios: ${devGin}`)
   for (const id of G.GYM_ORDER) {
     const g = G.GYMS[id]
     for (const [tipo, nome] of [['ginásio', g.name], ['líder', g.lider], ['insígnia', g.insignia.name], ...g.etapas.map((e) => ['soldado', e.nome])]) {

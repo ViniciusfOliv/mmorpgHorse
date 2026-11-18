@@ -46,7 +46,7 @@ const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adultera
   'skills', 'icones', 'marcas', 'marcas-corrida', 'portes', 'portes-corrida', 'ajuda', 'acabamento', 'celular', 'crescimento',
   'crescimento-jogo',
   'fluxo', 'fluxo-saves', 'fluxo-cruzamento', 'fluxo-abas', 'fluxo-equipamento', 'fluxo-dev', 'fluxo-build-teste', 'fluxo-dado',
-  'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
+  'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'fluxo-capturas-ginasio', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
   'fluxo-pequeno']
 if (process.argv.includes('--blocos')) { console.log(BLOCOS.join('\n')); process.exit(0) }
 // UI_SO=reserva,gravacao,...: roda só os blocos com esses nomes (para desenvolver um teste sem esperar o resto); sem UI_SO
@@ -8976,7 +8976,8 @@ try {
     }
     {
       // folha da interface (dist/interface.html): uma seção por componente da spec §4 e cada peça ampliada x4
-      const COMPONENTES = ['4.1', '4.2', '4.3', '4.4', '4.5', '4.6', '4.7', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13', '4.14', '4.15', '4.16', '4.17', '4.18', '4.19', '4.20']
+      const COMPONENTES = ['4.1', '4.2', '4.3', '4.4', '4.5', '4.6', '4.7', '4.8', '4.9', '4.10', '4.11', '4.12', '4.13', '4.14', '4.15', '4.16', '4.17', '4.18', '4.19', '4.20',
+        '4.21', '4.22', '4.23', '4.24']
       for (const [larg, alt] of [[360, 780], [1280, 800]]) {
         const pg = await newPage(browser, { width: larg, height: alt }, `acabamento-folha-${larg}`, { pagina: 'interface.html', moldes: false })
         try {
@@ -9149,10 +9150,168 @@ try {
             if (ruim.length) problems.push(`acabamento (folha ${larg}): diária "${x.rot}": ${ruim.join('; ')}`)
           }
           for (const x of linhas) if (x.botoes || !/^Recompensa: amanhã /.test(x.linha || '')) problems.push(`acabamento (folha ${larg}): diária "${x.rot}": a linha "${x.linha}" com ${x.botoes} botão(ões)`)
+          // ginásios (Tarefa 8 dos ginásios): o cartão da aba, a trilha, a linha do time e o cartão entre duelos. Aqui, os estados e
+          // as regras de tela (botão de 44 px ou mais, aria-disabled com o motivo escrito, o líder no topo, nenhum total de duelos);
+          // que o markup é o do jogo, no bloco seguinte (acabamento-folha-ginasio), contra as telas de verdade
+          const gy = await pg.evaluate(() => {
+            const col = (c) => document.querySelector(`[data-componente="${c}"] .col--estreita`)
+            const alt = (e) => Math.round(e.getBoundingClientRect().height)
+            const txt = (e, sel) => (e.querySelector(sel) || {}).textContent || ''
+            return {
+              cartoes: [...col('4.21').querySelectorAll('.ginasio-cartao')].map((b) => ({ tag: b.tagName, h: alt(b), prog: txt(b, '.ginasio-progresso'),
+                ins: [...b.querySelectorAll('.ginasio-insignia img.icone--32')].map((i) => i.naturalWidth), rev: !!b.querySelector('.ginasio-revanche'),
+                amanha: !!b.querySelector('.ginasio-revanche-amanha'), seta: !!b.querySelector('svg.ginasio-cartao-seta') })),
+              trilhas: [...col('4.22').querySelectorAll('.trilha')].map((ol) => [...ol.children].map((li) => {
+                const b = li.querySelector('.etapa-btn'), r = b.getBoundingClientRect()
+                return { estado: li.getAttribute('data-estado'), lider: li.classList.contains('etapa--lider'), tag: b.tagName, h: Math.round(r.height), top: Math.round(r.top),
+                  acao: b.getAttribute('data-acao'), atual: b.getAttribute('aria-current'), aria: b.getAttribute('aria-disabled'), motivo: b.getAttribute('data-motivo') || '',
+                  escrito: txt(li, '.etapa-motivo'), estadoTxt: txt(li, '.etapa-estado'), ins: [...li.querySelectorAll('.etapa-insignia img')].map((i) => i.naturalWidth) }
+              })),
+              time: [...col('4.23').querySelectorAll('.gin-time > li')].map((li) => {
+                const b = li.querySelector('.montaria-linha')
+                return { h: alt(b), pressed: b.getAttribute('aria-pressed'), aria: b.getAttribute('aria-disabled'), motivo: b.getAttribute('data-motivo') || '',
+                  // a posição como o leitor de tela a lê: o "o" desenhado do ordinal (sup.ord) fica de fora
+                  nota: txt(li, ':scope > p.nota'), pos: [...(b.querySelector('.gin-pos') || { childNodes: [] }).childNodes].filter((n) => !(n.classList && n.classList.contains('ord'))).map((n) => n.textContent).join(''),
+                  vant: txt(b, '.gin-vant'), label: b.getAttribute('aria-label') || '', seta: !!b.querySelector('svg') }
+              }),
+              duelos: [...col('4.24').querySelectorAll('.tela--entreduelos')].map((t) => ({ rot: txt(t, '.placa .rotulo'), titulo: txt(t, 'h1.titulo--tela'),
+                ps: t.querySelectorAll('.gin-cartao > p').length, botoes: [...t.querySelectorAll('.acoes button')].map((b) => [b.getAttribute('data-acao'), alt(b)]) }))
+            }
+          })
+          const ginF = (msg) => problems.push(`acabamento (folha ${larg}): ${msg}`)
+          const nEt = G.GYMS[G.GYM_ORDER[0]].etapas.length
+          // 4.21: os quatro estados do cartão (0, no meio, com a insígnia e a revanche livre, com a revanche de hoje feita)
+          if (gy.cartoes.length !== 4 || !gy.cartoes.some((c) => c.rev) || !gy.cartoes.some((c) => c.amanha)) ginF(`cartão de ginásio sem os 4 estados (${JSON.stringify(gy.cartoes.map((c) => [c.prog, c.rev, c.amanha]))})`)
+          for (const c of gy.cartoes) {
+            const ins = c.prog === `${nEt} de ${nEt} vencidos`
+            if (c.tag !== 'BUTTON' || c.h < 44 || !c.seta || !new RegExp(`^\\d de ${nEt} vencidos$`).test(c.prog)) ginF(`cartão de ginásio fora do jogo ${JSON.stringify(c)}`)
+            if (ins ? !(c.ins.length === 1 && c.ins[0] > 0) : c.ins.length) ginF(`cartão "${c.prog}" com a insígnia ${JSON.stringify(c.ins)}`)
+            if ((c.rev || c.amanha) && !ins) ginF(`cartão "${c.prog}" com a revanche sem a insígnia`)
+          }
+          // 4.22: a trilha no meio (2 vencidas, a próxima, as fechadas, o líder no topo) e o líder com a revanche livre e feita
+          const ESTADO_TXT = { vencida: 'Vencida', proxima: 'Próxima', fechada: 'Fechada', revanche: 'Revanche hoje', feita: 'Feita hoje' }
+          const meio = gy.trilhas.find((t) => t.length === nEt), rev = gy.trilhas.flat().find((e) => e.estado === 'revanche'), feita = gy.trilhas.flat().find((e) => e.estado === 'feita')
+          if (!meio || meio.map((e) => e.estado).join() !== 'vencida,vencida,proxima,fechada,fechada' || !meio[nEt - 1].lider || meio.slice(0, -1).some((e) => e.lider)) ginF(`a trilha no meio fora do esperado ${JSON.stringify(meio && meio.map((e) => [e.estado, e.lider]))}`)
+          else for (let i = 1; i < nEt; i++) if (!(meio[i].top < meio[i - 1].top)) ginF(`na trilha a etapa ${i + 1} não fica acima da ${i}`)
+          for (const e of gy.trilhas.flat()) {
+            const ruim = []
+            if (e.estadoTxt !== ESTADO_TXT[e.estado]) ruim.push(`estado escrito "${e.estadoTxt}"`)
+            if (e.estado === 'vencida' || e.estado === 'feita') { if (e.tag !== 'DIV' || e.acao) ruim.push('tocável (devia ser só texto)') }
+            else if (e.tag !== 'BUTTON' || e.acao !== 'ginasio-etapa' || e.h < 44) ruim.push(`botão ${e.tag} ${e.acao} de ${e.h} px`)
+            if ((e.estado === 'proxima' || e.estado === 'revanche') && (e.atual !== 'step' || e.aria)) ruim.push(`aria-current ${e.atual}, aria-disabled ${e.aria}`)
+            if (e.estado === 'fechada' && (e.aria !== 'true' || e.motivo !== 'Vença a etapa anterior' || e.escrito !== e.motivo || e.atual)) ruim.push(`apagada sem o motivo escrito (${e.motivo} / ${e.escrito})`)
+            if (e.estado === 'revanche' && !/^Prêmio de hoje: /.test(e.escrito)) ruim.push(`sem o prêmio de hoje ("${e.escrito}")`)
+            if (e.estado === 'feita' && e.escrito !== 'Revanche de hoje feita. Volte amanhã.') ruim.push(`texto "${e.escrito}"`)
+            if ((e.estado === 'revanche' || e.estado === 'feita') !== (e.ins.length === 1 && e.ins[0] > 0)) ruim.push(`insígnia ${JSON.stringify(e.ins)}`)
+            if (ruim.length) ginF(`etapa "${e.estado}": ${ruim.join('; ')}`)
+          }
+          if (!rev || !feita) ginF('a trilha sem o líder com a revanche livre e a revanche feita')
+          // 4.23: a escolhida com a posição, a vantagem escrita, a apagada com o motivo escrito embaixo, sem seta
+          if (!gy.time.some((x) => x.pressed === 'true') || !gy.time.some((x) => x.aria === 'true') || !gy.time.some((x) => x.vant === 'Vantagem') || !gy.time.some((x) => x.vant === 'Desvantagem') ||
+            !gy.time.some((x) => x.pressed === 'false' && x.aria !== 'true')) ginF(`a linha do time sem os estados escolhida, livre, apagada, Vantagem e Desvantagem (${JSON.stringify(gy.time.map((x) => [x.pressed, x.aria, x.vant]))})`)
+          for (const x of gy.time) {
+            const ruim = [], dentro = x.pressed === 'true'
+            if (x.h < 44 || x.seta || (x.pressed !== 'true' && x.pressed !== 'false')) ruim.push(`${x.h} px, seta ${x.seta}, aria-pressed ${x.pressed}`)
+            if (dentro ? !/^[123]º$/.test(x.pos) || x.aria : x.pos !== '') ruim.push(`posição "${x.pos}"`)
+            if (x.aria === 'true' ? !x.motivo || x.nota !== x.motivo || !x.label.endsWith(x.motivo) : x.motivo || x.nota) ruim.push(`motivo "${x.motivo}" / escrito "${x.nota}"`)
+            if (!['', 'Vantagem', 'Desvantagem'].includes(x.vant) || (x.vant ? !x.label.includes(x.vant + ' contra ') : / contra /.test(x.label))) ruim.push(`vantagem "${x.vant}" e nome "${x.label}"`)
+            if (ruim.length) ginF(`linha do time "${x.label}": ${ruim.join('; ')}`)
+          }
+          // 4.24: depois de uma vitória e de uma derrota; o número do duelo sem o total; os 2 botões de 44 px ou mais
+          if (gy.duelos.length !== 2 || !gy.duelos.some((d) => / venceu por /.test(d.titulo)) || !gy.duelos.some((d) => / perdeu por /.test(d.titulo))) ginF(`o cartão entre duelos sem a vitória e a derrota (${gy.duelos.map((d) => d.titulo).join(' | ')})`)
+          for (const d of gy.duelos) {
+            if (!/ · Duelo \d+$/.test(d.rot) || /Duelo \d+ de \d/.test(d.rot + ' ' + d.titulo) || d.ps !== 3) ginF(`cartão entre duelos "${d.rot}" / "${d.titulo}" com ${d.ps} frases`)
+            if (JSON.stringify(d.botoes.map((b) => b[0])) !== '["ginasio-proximo","ginasio-pular-tudo"]' || d.botoes.some((b) => b[1] < 44)) ginF(`cartão entre duelos com os botões ${JSON.stringify(d.botoes)}`)
+          }
         } catch (e) {
           problems.push(`acabamento-folha-${larg}: ` + e.message)
         } finally {
           await pg.context().close()
+        }
+      }
+      {
+        // a folha usa o markup do jogo (decisão 9 da Tarefa 8 dos ginásios): a assinatura de cada estado dos ginásios na folha
+        // (tags, classes e os atributos de estado, sem texto, ícones nem o desenho do retrato) tem de aparecer nas telas de
+        // verdade: o cartão da aba, as etapas da trilha, a linha do time no preparo e o cartão entre duelos
+        const label = 'acabamento-folha-ginasio'
+        const sigs = (pg, sel) => pg.evaluate((s) => {
+          const sig = (el) => {
+            const tag = el.tagName.toLowerCase()
+            if (el.namespaceURI !== 'http://www.w3.org/1999/xhtml' || tag === 'img' || tag === 'canvas') return ''
+            const cls = [...el.classList].sort().join('.')
+            const at = ['data-acao', 'aria-current', 'aria-disabled', 'aria-pressed', 'data-estado'].filter((a) => el.hasAttribute(a))
+              .map((a) => a === 'data-estado' || a === 'aria-pressed' ? a + '=' + el.getAttribute(a) : a).join(',')
+            const filhos = el.classList.contains('montaria-linha-retrato') || el.classList.contains('estrelas') ? '' : [...el.children].map(sig).join('')
+            return '<' + tag + (cls ? '.' + cls : '') + (at ? '[' + at + ']' : '') + '>' + filhos + '</' + tag + '>'
+          }
+          return [...document.querySelectorAll(s)].map(sig)
+        }, sel)
+        const SEL = { cartao: ['4.21', '.ginasio-cartao'], etapa: ['4.22', '.trilha > li'], time: ['4.23', '.gin-time > li'], duelo: ['4.24', '.tela--entreduelos'] }
+        const daFolha = {}, doJogo = { cartao: new Set(), etapa: new Set(), time: new Set(), duelo: new Set() }
+        const fo = await newPage(browser, { width: 360, height: 780 }, label + '-folha', { pagina: 'interface.html', moldes: false })
+        try {
+          await fo.waitForSelector('[data-componente]')
+          for (const [k, [c, sel]] of Object.entries(SEL)) daFolha[k] = await sigs(fo, `[data-componente="${c}"] .col--estreita ${sel}`)
+        } catch (e) {
+          problems.push(`${label} (folha): ` + e.message)
+        } finally {
+          await fo.context().close()
+        }
+        // o jogo: Fornalha com 2 etapas vencidas, Remanso com a insígnia e a revanche livre, Capoeira do zero; no estábulo a Maré 13
+        // (vantagem contra o Fogo), a Brasa 12 e o Ipê 12 (desvantagem). O desafio do Sargento Candeeiro com Maré e Brasa é o da
+        // Tarefa 6 (seed 157): vitória da Maré, derrota da Maré, e os dois cartões entre os três duelos
+        const ginIpe = G.STARTERS.find((h) => h.id === 'ipe')
+        const save = ginT6Save({ nextUid: 4,
+          mounts: [ginCav(ginBrasa, { uid: 'm1', level: 12 }), ginCav(ginMare, { uid: 'm2', level: 13 }), ginCav(ginIpe, { uid: 'm3', level: 12 })],
+          ginasios: Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { fogo: { etapa: 2, revDia: null, revVitorias: 0 }, agua: { etapa: 5, revDia: null, revVitorias: 0 } }) })
+        const pg = await ginAbre(label, { save, chave: GIN_REAL, pagina: 'preview.html' })
+        const junta = async (k, sel) => { for (const x of await sigs(pg, sel)) doJogo[k].add(x) }
+        const trilha = async (id) => { await pg.locator(`[data-acao="ginasio-abrir"][data-id="${id}"]`).click(); await pg.waitForSelector('#t-ginasio'); await junta('etapa', '#tela .trilha > li') }
+        const aba = async () => { await pg.locator('[data-acao="ginasio-voltar"]').click(); await pg.waitForSelector('#t-expedicao'); await junta('cartao', '#tela .ginasio-cartao') }
+        try {
+          await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao')
+          await junta('cartao', '#tela .ginasio-cartao')
+          await trilha('agua'); await aba()
+          // a revanche de hoje feita (o dia do save; a tela lê o state ao desenhar): a trilha "feita" e o cartão "Revanche amanhã"
+          await pg.evaluate(() => { const g = window.__galope; g.state.ginasios.agua.revDia = g.hojeDia() })
+          await trilha('agua'); await aba()
+          await trilha('fogo')
+          await pg.locator('#tela [data-acao="ginasio-etapa"][data-id="2"]').click(); await pg.waitForSelector('#t-etapa')
+          await junta('time', '#tela .gin-time > li')
+          for (const uid of ['m2', 'm1']) {
+            await pg.locator(`#tela [data-acao="ginasio-time"][data-id="${uid}"]`).click()
+            await pg.waitForSelector(`#tela [data-acao="ginasio-time"][data-id="${uid}"][aria-pressed="true"]`)
+            await junta('time', '#tela .gin-time > li')
+          }
+          await pg.locator('#tela [data-acao="ginasio-desafiar"]').click()
+          for (let k = 0; k < 2; k++) {
+            await pg.waitForSelector('#tela .tela--corrida #btn-pular', { timeout: 6000 })
+            await pg.locator('#btn-pular').click()
+            await pg.waitForSelector('#t-cartao', { timeout: 6000 })
+            await junta('duelo', '#tela .tela--entreduelos')
+            await pg.locator('#tela [data-acao="ginasio-proximo"]').click()
+          }
+        } catch (e) {
+          problems.push(`${label} (jogo): ` + e.message)
+        } finally {
+          await pg.context().close()
+        }
+        // a linha da ativa presa na sala aberta: o mesmo estábulo com uma sala valendo aberta (a Brasa é a ativa)
+        const pend = { counter: 3, training: false, fee: 50, pr: 600, gear: [], alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } }
+        const ps = await ginAbre(label + '-sala', { save: Object.assign({}, save, { raceCounter: 3, pending: pend }), chave: GIN_REAL, pagina: 'preview.html' })
+        try {
+          await ps.locator('[data-acao="aba"][data-id="expedicao"]').click(); await ps.waitForSelector('#t-expedicao')
+          await ps.locator('[data-acao="ginasio-abrir"][data-id="fogo"]').click(); await ps.waitForSelector('#t-ginasio')
+          await ps.locator('#tela [data-acao="ginasio-etapa"][data-id="2"]').click(); await ps.waitForSelector('#t-etapa')
+          for (const x of await sigs(ps, '#tela .gin-time > li')) doJogo.time.add(x)
+        } catch (e) {
+          problems.push(`${label} (sala aberta): ` + e.message)
+        } finally {
+          await ps.context().close()
+        }
+        for (const k of Object.keys(SEL)) {
+          if (!(daFolha[k] || []).length) problems.push(`${label}: a folha não tem a seção ${SEL[k][0]}`)
+          for (const x of daFolha[k] || []) if (!doJogo[k].has(x)) problems.push(`${label}: a folha (${SEL[k][0]}) tem um markup que o jogo não gera: ${x}` + (process.env.DEBUG_SIG ? '\nJOGO: ' + [...doJogo[k]].join('\nJOGO: ') : ''))
         }
       }
       // densidade fracionada (2,625): captura para o controlador conferir as emendas (fora de prototype/screens/)
@@ -12525,6 +12684,76 @@ try {
       problems.push('itens-capturas: ' + e.message)
     } finally {
       await it.context().close()
+    }
+  }
+
+  // ---------------- capturas dos ginásios (spec dos ginásios §17): a aba Expedição com os três cartões, a trilha como ela abre,
+  // o preparo com o time escolhido, um duelo no meio da corrida e o resumo. O jogo (preview.html, sem a faixa DEV) abre com o
+  // save posto antes de carregar: Fornalha com 2 etapas vencidas, Remanso com a insígnia e a revanche livre, Capoeira do zero;
+  // no estábulo a Brasa 12 (a ativa), a Maré 13 e o Ipê 12. O desafio do Sargento Candeeiro com Maré e Brasa é o da Tarefa 6
+  // (seed 157): três duelos e vitória (conferido abaixo: se o pareamento mudar, o teste diz)
+  if (quer('fluxo-capturas-ginasio')) {
+    const label = 'ginasio-capturas'
+    const ginIpe = G.STARTERS.find((h) => h.id === 'ipe')
+    const save = ginT6Save({ nextUid: 4,
+      mounts: [ginCav(ginBrasa, { uid: 'm1', level: 12 }), ginCav(ginMare, { uid: 'm2', level: 13 }), ginCav(ginIpe, { uid: 'm3', level: 12 })],
+      ginasios: Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { fogo: { etapa: 2, revDia: null, revVitorias: 0 }, agua: { etapa: 5, revDia: null, revVitorias: 0 } }) })
+    const pg = await ginAbre(label, { save, chave: GIN_REAL, pagina: 'preview.html', vp: { width: 390, height: 844 } })
+    try {
+      await pg.locator('[data-acao="aba"][data-id="expedicao"]').click()
+      await pg.waitForSelector('#t-expedicao')
+      const cartoes = await pg.locator('#tela .ginasio-cartao').evaluateAll((bs) => bs.map((b) => b.textContent.replace(/\s+/g, ' ').trim()))
+      if (cartoes.length !== 3 || !/Revanche hoje/.test(cartoes[1] || '')) problems.push(`${label}: os cartões da Expedição ${JSON.stringify(cartoes)}`)
+      await pg.evaluate(() => window.scrollTo(0, 0)); await sleep(300)
+      await checkOverflow(pg, label + '-expedicao')
+      await pg.screenshot({ path: join(SHOTS, 'final-24-expedicao-ginasios.png') })
+      // a trilha da Fornalha como ela abre (rolada até a etapa próxima)
+      await pg.locator('[data-acao="ginasio-abrir"][data-id="fogo"]').click()
+      await pg.waitForSelector('#t-ginasio')
+      await sleep(300)
+      const prox = await pg.locator('#tela .etapa--proxima .etapa-nome').textContent()
+      if (prox !== G.GYMS.fogo.etapas[2].nome) problems.push(`${label}: a etapa próxima da trilha é "${prox}"`)
+      await checkOverflow(pg, label + '-trilha')
+      await pg.screenshot({ path: join(SHOTS, 'final-25-trilha.png') })
+      // o preparo: Maré 1º (vantagem) e Brasa 2º; o Ipê apagado com o motivo do time cheio; a tela começa no "Seu time"
+      await pg.locator('#tela [data-acao="ginasio-etapa"][data-id="2"]').click()
+      await pg.waitForSelector('#t-etapa')
+      for (const uid of ['m2', 'm1']) {
+        await pg.locator(`#tela [data-acao="ginasio-time"][data-id="${uid}"]`).click()
+        await pg.waitForSelector(`#tela [data-acao="ginasio-time"][data-id="${uid}"][aria-pressed="true"]`)
+      }
+      await pg.evaluate(() => {
+        const sec = document.getElementById('t-time').closest('section'), topo = document.querySelector('.app-topo').getBoundingClientRect().bottom
+        window.scrollTo(0, window.scrollY + sec.getBoundingClientRect().top - topo - 8)
+      })
+      await sleep(300)
+      const des = await pg.locator('#tela [data-acao="ginasio-desafiar"]').evaluate((b) => ({ dis: b.getAttribute('aria-disabled'), txt: b.textContent }))
+      if (des.dis || des.txt !== `Desafiar (${G.GYMS.fogo.etapas[2].entrada} de Ouro)`) problems.push(`${label}: o "Desafiar" ${JSON.stringify(des)}`)
+      await checkOverflow(pg, label + '-preparo')
+      await pg.screenshot({ path: join(SHOTS, 'final-26-desafio.png') })
+      // o 1º duelo (Maré com vantagem contra a Brasa do Sargento; a chegada é colada) no meio da corrida, em x2
+      await pg.locator('#tela [data-acao="ginasio-desafiar"]').click()
+      await pg.waitForSelector('#tela .tela--corrida #btn-pular', { timeout: 6000 })
+      await pg.getByRole('button', { name: 'x2' }).click()
+      const meio = await pg.evaluate(() => { const L = window.__galope.ui.gym.ver.L; return 0.55 * Math.min(...L.sim.finishTimes) })
+      await pg.waitForFunction((t) => window.__galope.race && window.__galope.race._state.simT >= t, meio, { timeout: 60000 })
+      const duelo = await pg.evaluate(() => ({ placa: (document.querySelector('#tela .tela--corrida .saldo--pote .rotulo') || {}).textContent, linha: (document.getElementById('corrida-duelo') || {}).textContent }))
+      if (duelo.placa !== 'Duelo 1' || !/^Vantagem: Maré \(/.test(duelo.linha || '')) problems.push(`${label}: o duelo capturado ${JSON.stringify(duelo)}`)
+      await checkRaceFits(pg, label + '-duelo')
+      await checkOverflow(pg, label + '-duelo')
+      await pg.screenshot({ path: join(SHOTS, 'final-27-duelo.png') })
+      // o resumo, do topo
+      await pg.locator('#tela .tela--corrida [data-acao="ginasio-pular-tudo"]').click()
+      await pg.waitForSelector('#t-resumo')
+      const res = await pg.evaluate(() => ({ titulo: document.getElementById('t-resumo').textContent, duelos: document.querySelectorAll('#tela .gin-duelo').length }))
+      if (res.titulo !== 'Vitória!' || res.duelos !== 3) problems.push(`${label}: o resumo ${JSON.stringify(res)} (esperado vitória em 3 duelos)`)
+      await pg.evaluate(() => window.scrollTo(0, 0)); await sleep(300)
+      await checkOverflow(pg, label + '-resumo')
+      await pg.screenshot({ path: join(SHOTS, 'final-28-resumo.png') })
+    } catch (e) {
+      problems.push(`[${label}] ` + e.message)
+    } finally {
+      await pg.context().close()
     }
   }
 

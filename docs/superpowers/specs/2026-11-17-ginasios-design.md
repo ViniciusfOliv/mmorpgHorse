@@ -347,3 +347,38 @@ fino das telas dentro do que a seção 10 mostra; o sal do sorteio; a ordem das 
   100/70/50/…, `xpToLevel = 50 + 25·nível`).
 - **Testes:** metas no `balance.js` com `check(id, rótulo, valor, mínimo, máximo)`; blocos do `ui-test.mjs` na lista
   `BLOCOS`; o build de produção proíbe nomes do modo DEV no `jogo.html`.
+
+## 21. Notas da execução
+
+_Acrescentado em 2026-11-18, no fim da execução. As seções acima ficam como foram aprovadas; aqui está onde a execução
+decidiu algo que a spec não dizia ou dizia diferente. Cada linha cita a decisão do controlador ("Ruling", em
+`.superpowers/sdd/2026-11-17-ginasios/rulings.md`); o porquê está em `docs/memoria/decisoes.md`._
+
+- **Faixas do cansaço com o limite de cima aberto (Ruling 5):** uma distância exatamente no limite cai na faixa de cima
+  (com os limites finais, 1 m já é "normal" e 8 m já é "folgada").
+- **Metas G2 e G3 ajustadas pela medição (Ruling 8):** já escritas na seção 12.
+- **Cavalos dos soldados e dos líderes com a genética do inicial do elemento (Ruling 11):** já escrito nas seções 4 e 12;
+  na tela eles aparecem com o nome do inicial ("Brasa, Brasa").
+- **Faixas do cansaço em 1 m e 8 m (Rulings 12 e 14):** a tabela da seção 7 dizia 5 m e 20 m. Os descontos (25%, 15%,
+  5%) e o teto de 50% não mudaram.
+- **Vantagem de elemento de cerca de 4% (Ruling 13, tabela da calibração):** a seção 6 dizia 3%. Cada status continua
+  inteiro (arredondado), então a vantagem anda em degraus de 1 ponto; a tela e o wiki dizem "cerca de 4%".
+- **A trilha abre rolada até a etapa que se pode tocar (Rulings 17 e 27):** a tela rola o mínimo para a etapa próxima, ou
+  a revanche livre de hoje, aparecer inteira; sem nada tocável, fica no topo.
+- **Sorteio de skill ao subir de nível num desafio (Ruling 18):** usa um sal próprio do ginásio (20.000.000 + contador ·
+  4 + posição no time), separado dos sorteios das corridas e do cruzamento.
+- **Resumo (Ruling 20):** distância abaixo de 1 m aparece como "por menos de 1 m", e cada duelo traz "Você venceu" ou
+  "Você perdeu" (os dois cavalos podem ter o mesmo nome).
+- **Sala aberta (Ruling 21):** o cavalo ativo fica fora do time com qualquer sala aberta, valendo ou treino; o Ouro
+  reservado continua sendo só o da sala valendo.
+- **A tela nunca diz quantos duelos faltam (Ruling 22):** "Duelo 2", e não "Duelo 2 de 3"; tudo o que a tela mostra de um
+  duelo sai do resultado gravado.
+- **"Voltar" do aparelho durante um duelo ou num cartão (Ruling 23):** vale como "Pular tudo" (vai ao resumo).
+- **Metros truncados para baixo (Ruling 24):** no cartão e no resumo, 7,6 m aparece como "7 m", para o número nunca
+  contradizer a faixa do cansaço.
+- **`Ginasio.revanchePremio` exportada (Ruling 26):** a tela pergunta ao módulo o "Prêmio de hoje" da revanche, a mesma
+  função que o acerto usa para pagar; nenhuma regra mudou.
+- **Textos que a spec não fixava:** o cavalo do adversário aparece com o nome do dono ("Brasa (Sargento Candeeiro)");
+  depois da chegada de um duelo o botão diz "Continuar"; a etapa do líder com a revanche de hoje feita mostra "Feita hoje"
+  e "Revanche de hoje feita. Volte amanhã."; a primeira revanche já fica livre no dia da insígnia. Todos estão na lista
+  "A confirmar com o Vinicius (gosto, ginásios)" do `docs/memoria/ESTADO.md`.

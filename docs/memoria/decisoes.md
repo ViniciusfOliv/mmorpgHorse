@@ -3,6 +3,86 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-18 — Ginásios da Expedição — decisões da execução (o controlador decidiu sozinho; a confirmar)
+Nada aqui foi decidido pelo Vinicius. Cada linha é uma decisão que o controlador tomou durante as 8 tarefas (as "Rulings"
+de `.superpowers/sdd/2026-11-17-ginasios/rulings.md`, na ordem): **decisão** — motivo — custo se estiver errada. O que é
+gosto e espera a palavra dele está em `ESTADO.md` ("A confirmar com o Vinicius (gosto, ginásios)"); o que mudou em relação
+à spec está nas "Notas da execução", no fim dela.
+- **(R1) Os testes das regras fixam por número só a forma do catálogo** (3 ginásios, 5 etapas, times de 1, 1, 2, 2 e 3,
+  entradas e prêmios); os números da calibração são lidos do catálogo — assim calibrar não mexe em teste. Se errado: um
+  número digitado errado no catálogo passa sem um teste apontar.
+- **(R2) Os testes de tela chegam ao resumo por um só ajudante** — quando os duelos entraram na tela, só ele mudou. Se
+  errado: nada no jogo.
+- **(R3) O dia da revanche estragado no save é gravado já consertado ao abrir o jogo**, como na recompensa diária. Se
+  errado: uma gravação a mais ao abrir.
+- **(R4) A vitrine "Cavalos selvagens" continua na aba Expedição, embaixo dos ginásios.** Se errado: tirar é uma linha.
+- **(R5) As faixas do cansaço são fechadas embaixo e abertas em cima** (com os limites finais, exatamente 1 m já é
+  "normal" e 8 m já é "folgada") — a spec deixava o número exato do limite sem dono. Se errado: uma vitória exatamente no
+  limite cansa 10 pontos a mais ou a menos.
+- **(R6) Detalhes da regra do acerto:** ele recebe o dia de hoje e o tamanho do time, e o sorteio de cada duelo tem um sal
+  próprio do ginásio. Se errado: nada na tela.
+- **(R7) O acerto só paga um desafio que a regra deixaria fazer** (a etapa certa, a revanche livre hoje); em qualquer
+  outro caso não dá nem XP — com o progresso velho de outra aba, daria XP em dobro. Se errado: um desafio certo recusado
+  apareceria como falha nos testes.
+- **(R8) Metas G2 e G3 ajustadas pela medição:** 4 níveis abaixo vence no máximo 35% (era 25%); com o ponto fraco, de 60%
+  a 85% (era até 80%); em desvantagem, no máximo 35% (era 25%) — num duelo de 1 contra 1 a sorte de uma corrida pesa mais.
+  Se errado: um desafiante 4 níveis abaixo vence o soldado até 1 vez em 3, e não 1 em 4.
+- **(R9, trocada pela R11) O time de referência das metas** mudou durante a calibração. Se errado: nada; ver R11.
+- **(R10) O que a calibração podia mexer:** os níveis (4, 8, 12, 16 e 20) ficaram os que o Vinicius aprovou; a vantagem
+  ficou no menor valor redondo entre 3% e 5% que fecha as metas. Se errado: são números do catálogo.
+- **(R11) Todos os cavalos dos soldados e dos líderes são o cavalo inicial do elemento** (Brasa, Maré ou Ipê), mudando só
+  o nível, as estrelas e os pontos — os Comuns selvagens têm forças muito diferentes (o Lambari vale uns 7 níveis a menos
+  que a Maré) e um ginásio ficava bem mais fácil que outro. Se errado: todos os cavalos de um ginásio têm o mesmo nome e
+  desenho (nome e aparência próprios estão na lista de gosto).
+- **(R12) Os limites do cansaço foram medidos de novo para cada faixa acontecer pelo menos 15% das vezes.** Se errado: uma
+  das faixas aparece pouco.
+- **(R13) A vantagem de elemento é de cerca de 4%** e o status continua inteiro (arredondado), então ela anda em degraus de
+  1 ponto (cerca de 2 pontos nos cavalos de hoje); o texto para o jogador diz "cerca de 4%". Se errado: 3% e 4% dão o mesmo
+  resultado em parte dos níveis.
+- **(R14) As faixas do cansaço ficam em 1 m e 8 m** (apertada: menos de 1 m; normal: de 1 a menos de 8 m; folgada: 8 m ou
+  mais) — entre cavalos parecidos a chegada é colada ou distante; com 5 m e 20 m a vitória "normal" quase não acontecia. Se
+  errado: dois números do catálogo; estão na tabela que o Vinicius viu.
+- **(R15) Com o save na versão 8, os testes que representam "a versão atual" e "uma versão mais nova" andaram um número**
+  (7 → 8 e 8 → 9). Se errado: nada; são valores de teste.
+- **(R16) Os três ícones de insígnia saíram da lista de "reservados"** e aparecem no jogo (já estavam pagos desde
+  2026-11-12). Se errado: nada; são listas.
+- **(R17) Ao abrir a trilha, a tela rola na hora o mínimo para a etapa que se pode tocar aparecer inteira** — com etapas de
+  ~127 px, a próxima ficava escondida embaixo. Se errado: o Vinicius prefere ver primeiro o topo; desfazer é tirar uma
+  chamada.
+- **(R18) O sorteio de skill ao subir de nível num desafio tem um sal próprio** (20.000.000 + contador · 4 + posição no
+  time), e cada cavalo do time tem o seu sorteio. Se errado: trocar o sal muda quais skills saem em saves de teste.
+- **(R19) O teste "o detalhe da etapa não tem Desafiar" virou "tem exatamente um Desafiar"** — o botão entrou nessa tela
+  de propósito. Se errado: nada.
+- **(R20) No resumo, distância abaixo de 1 m aparece como "por menos de 1 m", e cada duelo traz "Você venceu" ou "Você
+  perdeu"** — com os cavalos do adversário usando o nome do inicial, "Brasa × Brasa — Brasa vence" não diria quem ganhou.
+  Se errado: é texto; está na lista de gosto.
+- **(R21) Com qualquer sala de corrida aberta (valendo ou treino), o cavalo ativo fica fora do time;** o Ouro reservado
+  continua sendo só o da sala valendo — a regra do projeto vale para todo páreo aberto. Se errado: quem tem uma sala de
+  treino aberta precisa correr ou fechar o treino antes de usar aquele cavalo no ginásio.
+- **(R22) A tela nunca diz quantos duelos o desafio terá** ("Duelo 2", não "Duelo 2 de 3") — num 2 contra 2, "de 3" já diz
+  que o desafio foi ao terceiro duelo, e o jogo não mostra resultado antes da hora. Se errado: é um texto.
+- **(R23) O "Voltar" do aparelho durante um duelo ou num cartão vale como "Pular tudo"** (vai ao resumo): o desafio já
+  está gravado, e o resumo é onde o jogador vê o que ganhou. Se errado: troca-se o destino para a trilha.
+- **(R24) Os metros de um duelo na tela são truncados para baixo** (7,6 m aparece como 7 m; abaixo de 1 m, "menos de 1
+  m") — arredondando, a tela dizia "Vitória apertada (1 m)", e apertada é menos de 1 m. Se errado: o número mostrado fica
+  até 1 m menor; é texto.
+- **(R25) Quatro testes de "nada apareceu antes de pagar" ficaram mais fortes:** agora falham também se aparecer um duelo
+  ou um cartão. Se errado: nada.
+- **(R26) O módulo dos ginásios passou a responder qual é o prêmio de hoje da revanche** (a mesma função que paga), e a
+  cópia dessa conta na tela saiu — uma fonte só para o prêmio mostrado e o pago. Se errado: nada; é uma exportação.
+- **(R27) Com a insígnia, a trilha rola até a revanche livre de hoje, como rolava até a etapa próxima;** com a revanche de
+  hoje feita (nada para tocar), fica no topo. Se errado: nada; é a mesma regra da R17.
+
+Além das Rulings, na Tarefa 8 (documentos), decididas por quem a executou:
+- **(Tarefa 8) A folha da interface ganhou o cartão de ginásio, a trilha, a linha do time e o cartão entre duelos
+  (seções 4.21 a 4.24), e um teste confere que o markup de cada estado na folha é o mesmo que o jogo desenha** — sem isso,
+  a folha podia ficar diferente do jogo sem ninguém ver (o teste achou duas diferenças na hora: o "1º" do jogo passa pelo
+  desenho do ordinal, e o cavalo ativo leva a plaquinha "Ativa"). Se errado: um teste a mais no bloco `acabamento`.
+- **(Tarefa 8) As cinco capturas novas (`final-24` a `final-28`) saem de um bloco próprio do teste de interface,
+  `fluxo-capturas-ginasio`, com o jogo de verdade (sem a faixa DEV) e o desafio do Sargento Candeeiro da Tarefa 6** (três
+  duelos e vitória); a do duelo é o 1º duelo no meio da corrida, com os dois cavalos na tela. Se errado: trocar a cena é
+  mexer só nesse bloco.
+
 ## 2026-11-17 — Ginásios da Expedição (decisões do Vinicius)
 Conversa de desenho; spec aprovada em `docs/superpowers/specs/2026-11-17-ginasios-design.md` (as decisões do controlador
 estão na seção 19 dela e valem com a aprovação).
@@ -12,15 +92,18 @@ estão na seção 19 dela e valem com a aprovação).
   fica para quando houver mais ginásios.
 - **Prêmio cheio uma vez; depois da insígnia, 1 revanche por dia com o líder, com prêmio pequeno** — dá motivo para voltar
   sem virar fábrica de Ouro.
+- **Duelo de time: quem vence fica, quem perde sai; perde o lado que ficar sem cavalos** — já estava no GDD §8.6.
 - **Quem vence chega cansado, e o cansaço depende de quão apertada foi a vitória** (ideia dele): pouca distância na chegada,
   mais cansaço.
 - **Três ginásios de uma vez: Fogo, Água e Grama** — com dois, um elemento ficava de fora.
 - **Entrada pequena em Ouro por desafio** — a corrida tem sorte; sem custo, dava para insistir até passar.
 - **O ginásio tem ponto fraco: o elemento que o vence leva vantagem**, pela vantagem direta no duelo (3% nos status, só nos
   ginásios), com pista própria em cada um — escolhido entre quatro formas depois de ver a medição: com a casa a favor do
-  ginásio, um desafiante de outro elemento no mesmo nível vencia só 12% a 22% dos duelos.
+  ginásio, um desafiante de outro elemento no mesmo nível vencia só 12% a 22% dos duelos. (A calibração passou a vantagem
+  para cerca de 4%: ver as decisões da execução, 2026-11-18.)
 - **Aprovou os números de partida e a spec** ("Sim"), incluindo o time do jogador limitado ao tamanho do time do
-  adversário. Os números finais saem da calibração e a tabela é mostrada a ele antes das telas.
+  adversário. Os números finais saem da calibração e a tabela é mostrada a ele antes das telas. (A tabela dos números
+  calibrados foi mostrada a ele em 2026-11-17, antes das telas; é a fonte dos números do GDD §8.6.)
 
 ## 2026-11-17 — Teste de interface em paralelo (controlador)
 - **Integrado na `main` em 2026-11-17 por decisão do Vinicius** ("Sim, pode integrar na main") — com o `check.sh` em OK

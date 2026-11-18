@@ -25,6 +25,21 @@ empacotamento está em `docs/cronograma.md`; as decisões de design em aberto, e
 - Sem teste (provados certos pelas sondas da revisão final): o corte do deslocamento de ±400 dias do modo DEV; o save de versão mais nova chegando de outra aba com a corrida na tela ou a confirmação aberta; a tela velha com "Comprar" e a regra recusando no toque; a loja de peças dentro da parte Comprar com `GEAR_ON = true` — `prototype/tools/ui-test.mjs`.
 - Se o dia vira com o campo "Renomear" da ficha aberto, a atualização da tela perde o texto digitado e o foco (os redesenhos que já existiam, como os moldes chegando, têm o mesmo efeito) — `prototype/src/game.js` (`redesenhaDia`).
 
+## Ginásios da Expedição
+Achados pequenos das revisões das tarefas (2026-11-17 e 18), deixados para depois; nenhum cobra Ouro errado nem dá prêmio
+duas vezes. A revisão final da frente ainda não aconteceu.
+- Com o preparo do líder aberto (antes da insígnia), se outra aba conquista a insígnia, o preparo vira o da revanche sem voltar à trilha (nada é cobrado errado; foge do padrão "o progresso andou, volta à trilha") — `prototype/src/game.js` (`renderGinasio`).
+- `ginRevPremio` cai em `{}` se `Ginasio.revanchePremio` devolver `undefined`, e a tela diria "Prêmio de hoje: 0 de Ouro" (não acontece com o save saneado; esconderia um erro) — `prototype/src/game.js`.
+- Caminho que não acontece hoje: com o duelo sem corrida (`ui.gym.ver.L` nulo), um `go('corrida')` leva à aba Correr sem limpar `ui.gym.ver` — `prototype/src/game.js` (`go`, `corridaAtual`).
+- `renderGinasio` tira do time, enquanto desenha, o cavalo que saiu do save (seria melhor no `adoptExternal`) — `prototype/src/game.js`.
+- A gravação que falha no "Desafiar" aparece num aviso com `role="status"` e também na região viva: o leitor de tela pode ler duas vezes — `prototype/src/game.js` (`etapaDesafiarHtml`, ação `ginasio-desafiar`).
+- O texto do bônus das insígnias existe em dois lugares (`ginBonusTxt` no jogo e `bonusIns` no wiki): um tipo novo de insígnia pede mudar os dois — `prototype/src/game.js`, `prototype/tools/wiki.mjs`.
+- `Ginasio.cavalo` não confere o nível nem as estrelas que recebe (só o catálogo chama) — `prototype/src/ginasio.js`.
+- A família de ícones "reservado" passou a se chamar "Reservados (Rédea e Gema) e insígnias dos ginásios" e mistura duas coisas — `prototype/tools/icones-catalogo.mjs`.
+- Sem teste: o relógio do navegador voltando para trás na tela da revanche (só o "Voltar 1 dia" da gaveta DEV e o módulo); dia de revanche estragado chegando de outra aba junto com um save de versão 9 — `prototype/tools/ui-test.mjs`.
+- No `sim-test.js`, a conferência das distâncias exatamente no limite do cansaço (feita para os limites antigos de 5 e 20 m) se desligou com os limites novos; o limite exato (8,0 m) só está nas asserções genéricas — `prototype/tools/sim-test.js`.
+- No `balance.js`, a G4 mede só os dois elementos "de fora" contra o do ginásio (o rótulo não diz), a G6 é somada por ginásio (por etapa também passa: nenhuma faixa abaixo de 17%) e o detector da G9 não procura `Date.parse` nem `Date.UTC` — `prototype/tools/balance.js`.
+
 ## PixelLab
 - O script conta HTTP 502 como geração cobrada (corrigir antes da próxima geração paga) — `prototype/tools/pixellab-moldes.mjs`.
 - A referência de passada de chamas não tem piso fixo (`passadaRef ≥ 30`) — `prototype/tools/moldes-test.mjs`.

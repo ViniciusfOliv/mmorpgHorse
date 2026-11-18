@@ -70,7 +70,7 @@ poucos pontos percentuais abaixo (spec 1b §15).
 
 A chance de uma skill disparar quando o gatilho acontece = base da raridade + 0,5 p.p. por nível + 0,1
 p.p. por ponto de Sorte (teto 95%). A cada nível ganho há 8% de chance de aprender uma skill nova, se
-houver vaga. Cada montaria também tem **sexo** (macho/fêmea), para o cruzamento.
+houver vaga (11% com a Insígnia da Capoeira, 8.6). Cada montaria também tem **sexo** (macho/fêmea), para o cruzamento.
 
 ## 4. Tipos, clima e Dado da Sorte
 
@@ -94,7 +94,7 @@ no tipo" fica em 48–53% contra as outras. A meta que vale é o **equilíbrio d
 de um tipo só ele aprende (Fogo 2, Água 3, Grama 2). Skill que atrapalha rival fica fora por enquanto
 (rever depois do teste fechado).
 
-O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima**. O dono do clima tem os status ×1,03 (×1,07 com 4 peças do conjunto do clima; ×1,08 com a skill de clima do elemento); o penalizado, ×0,97.
+O triângulo (Fogo > Grama > Água > Fogo) age **só pelo clima** na corrida valendo; nos duelos de ginásio ele também vale como vantagem de elemento (8.6). O dono do clima tem os status ×1,03 (×1,07 com 4 peças do conjunto do clima; ×1,08 com a skill de clima do elemento); o penalizado, ×0,97.
 
 | Clima | Favorece | Penaliza | Efeito geral |
 |---|---|---|---|
@@ -122,7 +122,7 @@ cada faixa de distância). No nível 25 caem na Prata (Poder 782–791).
 
 `prototype/` contém o protótipo web (sprites, simulação e fluxo de aposta). Em 2026-11-10 ficou decidido que ele vira a base do jogo: a mesma base web empacotada para Android, com os módulos de regra indo para o servidor.
 
-**Fluxo de telas.** O jogo tem uma barra de 5 abas (Estábulo, Correr, Expedição, Haras e Loja; na Loja, a parte de peças está escondida com o equipamento), embaixo no celular e à esquerda no desktop (≥ 900 px), e um cabeçalho com o saldo (Ouro) e o botão Perfil (estatísticas e "Recomeçar"). O Estábulo tem no topo o cartão da recompensa diária (8.2a) e, embaixo, uma lista de linhas (retrato pequeno com o nível e os pontos a distribuir, nome, raridade e estrelas, tipo e Poder; a ativa leva a plaquinha "Ativa" e a ordem nunca muda); tocar numa linha abre a ficha da Montaria, com o cavalo em retrato grande e três abas: Status, Skills e Ficha (a de Equipamento está escondida). A aba Ficha guarda "Tornar ativa", renomear, liberar, porte, marcas, cruzas restantes e pais. A aba Status põe cada status numa linha, com +1/+5/+10, e prende a barra do Confirmar (com o Poder do rascunho) embaixo da tela. Botão indisponível mostra o motivo no toque. Largada, corrida e resultado são telas cheias, sem barra. A corrida PVP continua automática; a aba Expedição é um espaço reservado até o subprojeto 4.
+**Fluxo de telas.** O jogo tem uma barra de 5 abas (Estábulo, Correr, Expedição, Haras e Loja; na Loja, a parte de peças está escondida com o equipamento), embaixo no celular e à esquerda no desktop (≥ 900 px), e um cabeçalho com o saldo (Ouro) e o botão Perfil (estatísticas, insígnias dos ginásios e "Recomeçar"). O Estábulo tem no topo o cartão da recompensa diária (8.2a) e, embaixo, uma lista de linhas (retrato pequeno com o nível e os pontos a distribuir, nome, raridade e estrelas, tipo e Poder; a ativa leva a plaquinha "Ativa" e a ordem nunca muda); tocar numa linha abre a ficha da Montaria, com o cavalo em retrato grande e três abas: Status, Skills e Ficha (a de Equipamento está escondida). A aba Ficha guarda "Tornar ativa", renomear, liberar, porte, marcas, cruzas restantes e pais. A aba Status põe cada status numa linha, com +1/+5/+10, e prende a barra do Confirmar (com o Poder do rascunho) embaixo da tela. Botão indisponível mostra o motivo no toque. Largada, corrida e resultado são telas cheias, sem barra. A corrida PVP continua automática. A aba Expedição tem os três ginásios (8.6) e, embaixo, a vitrine dos cavalos selvagens (a captura ainda não existe).
 
 **Arte do protótipo.** Os cavalos usam moldes gerados no PixelLab (retrato, parado e galope de 9 quadros por estilo de crina), recoloridos na hora com a paleta de cada montaria; ícones também do PixelLab, logotipo e capa do Canva; pista, clima e interface por código. Na corrida, o Dado da Sorte, as skills, a Garra e o cansaço aparecem no próprio cavalo, e o clima e o vento (só visual) aparecem na pista. Detalhes: `docs/superpowers/specs/2026-11-08-visuais-design.md` e `docs/superpowers/specs/2026-11-09-corrida-viva-design.md`.
 
@@ -226,12 +226,12 @@ Conjuntos: **Sol** (clima do Fogo), **Chuva** (Água), **Névoa** (Grama). No de
 
 **Depois (fora do protótipo):** durabilidade e reparo · limite de vagas no inventário · Lendário na loja (hoje só pelo painel `?dev=1`, até as expedições) · peça Mítica · mercado entre jogadores · cosméticos por Gemas · desmanche · expedições e pacotes como fonte de peças · transferência de peças entre contas.
 
-## 8. Redesenho aprovado em 2026-11-10 (blocos 2 a 7: do bloco 4 já entraram os itens de treino e a loja por Ouro; o resto não está implementado)
+## 8. Redesenho aprovado em 2026-11-10 (blocos 2 a 7: do bloco 4 já entraram os itens de treino e a loja por Ouro, e os ginásios da Expedição estão no jogo; o resto não está implementado)
 
 > Aprovado em conversa com o Vinicius, parte por parte. Entra em blocos, cada um com spec própria em
 > `docs/superpowers/specs/`. **O bloco 1 (status, tipo e pistas sem extremos) está implementado desde
 > 2026-11-11 e o 1b (crescimento livre) desde 2026-11-13**, e já são a regra das seções 3, 4, 6 e 7. Do bloco 4, os itens de
-> treino, a mochila, a loja por Ouro (8.2) e a recompensa diária (8.2a) estão no jogo. Enquanto um bloco não é implementado, vale o que
+> treino, a mochila, a loja por Ouro (8.2) e a recompensa diária (8.2a) estão no jogo, e os ginásios da Expedição (8.6) também. Enquanto um bloco não é implementado, vale o que
 > as seções 3 a 7 e o `docs/wiki.md` descrevem. Os números saem de simulação e ficam na spec de cada bloco.
 
 ### 8.1 Preparação (bloco 2)
@@ -252,7 +252,7 @@ volta. Os números ficam juntos em `GameData.ITEMS` (`prototype/src/data.js`), p
 |---|---|---|---|
 | Torrão de açúcar | 1 ponto a mais para distribuir, para sempre; até 10 por cavalo | loja: 120 de Ouro, 2 por dia; diária: 2º dia | não |
 | Estrela de treino | sobe 1 estrela (não passa de ★★★) | loja: 2.000 de Ouro, 1 a cada 7 dias; diária: 7º dia a cada 4 calendários | não |
-| Rédea nova | redistribui os pontos; a primeira de cada cavalo é grátis | jogando: 7º dia da diária (depois também ginásios e missões); **nunca por Ouro** | sim |
+| Rédea nova | redistribui os pontos; a primeira de cada cavalo é grátis | jogando: 7º dia da diária e a 1ª vitória sobre cada líder de ginásio (8.6); depois também missões; **nunca por Ouro** | sim |
 | Cupom de troca de skill | uma skill das vagas sai e entra outra, sorteada entre as que o cavalo pode aprender | loja: 250 de Ouro, 1 por dia; diária: 6º dia | sim, skill escolhida numa lista |
 | Manual de doma | tentativa na hora: 35% de chance de aprender uma skill; o manual é gasto mesmo se não aprender | loja: 200 de Ouro, 1 por dia; diária: 4º dia | sim, garante aprender |
 | Acelerador de cruza · vaga extra de estábulo (até 3) · redefinir cruzas · mudar aparência | — | não | sim |
@@ -262,7 +262,7 @@ volta. Os números ficam juntos em `GameData.ITEMS` (`prototype/src/data.js`), p
 - **Loja de itens:** só Ouro, e nunca gasta o Ouro guardado para a entrada da sala aberta. Ordem fixa: Torrão, Manual,
   Cupom, Estrela. O limite do dia volta a zero quando o dia muda; o da Estrela conta 7 dias desde a última compra.
 - **Cupom e Manual** não se usam no cavalo ativo com a sala aberta, e o sorteio sai da seed do save (recarregar a
-  página não muda o resultado). A skill de tipo nunca troca. O aprendizado por nível continua com 8% por nível.
+  página não muda o resultado). A skill de tipo nunca troca. O aprendizado por nível continua com 8% por nível (11% com a Insígnia da Capoeira, 8.6).
 
 Gemas também caem de graça, em pouca quantidade, por missões.
 
@@ -283,7 +283,7 @@ Gemas também caem de graça, em pouca quantidade, por missões.
 - **Por calendário:** 510 de Ouro, mais Torrão, Manual e Cupom (570 de Ouro pelo preço da loja) e a Rédea nova.
 
 ### 8.3 Ouro, circuito e aluguel (blocos 4 e 5)
-- **O Ouro entra devagar** (prêmio de corrida, recompensa diária — no jogo, 8.2a —, circuito, aluguel, missões,
+- **O Ouro entra devagar** (prêmio de corrida, recompensa diária — no jogo, 8.2a —, prêmios dos ginásios — no jogo, 8.6 —, circuito, aluguel, missões,
   venda de peça) **e sai por muitas portas:** entrada, registro de cruza que cresce com a raridade, taxa por
   tentativa de melhoria, itens de treino e a Estrela de treino, que sobe estrela (no jogo, 8.2), vagas com preço
   crescente, ração (bônus de XP) e, no futuro, despertar,
@@ -317,7 +317,7 @@ Spec e medições: `docs/superpowers/specs/2026-11-12-crescimento-livre-design.m
   peso de gatilho de skill, 20·(nível − 1)/49 e 28·ordem da raridade/4. Ligas: Bronze 0 · Prata 710 · Ouro 800 ·
   Platina 890 · Diamante 980 · Lenda 1070.
 - **Redistribuir:** a primeira é grátis em cada cavalo; as seguintes usam a Rédea nova (8.2), que vem no 7º
-  dia da recompensa diária (8.2a) e, depois, dos ginásios e missões; **nunca por Ouro**. A ativa não
+  dia da recompensa diária (8.2a) e da 1ª vitória sobre cada líder de ginásio (8.6) e, depois, das missões; **nunca por Ouro**. A ativa não
   redistribui com páreo aberto.
 - **Equipamento suspenso** (seção 7).
 - **Save v6:** a migração devolve todos os pontos (aviso único no Estábulo), dá a redistribuição grátis a
@@ -326,13 +326,78 @@ Spec e medições: `docs/superpowers/specs/2026-11-12-crescimento-livre-design.m
 - **Explicações na tela:** cada status, nota, estrela, raridade, skill de tipo, Poder, liga, clima, piso
   e Dado ganham uma explicação curta (mouse no computador, toque no celular); o texto é o mesmo do wiki.
 
-### 8.6 Ginásios (Expedição; online no bloco 7)
-- **Expedição:** começa com 2 ginásios básicos de dificuldade comum. O líder tem até 3 cavalos e o
-  jogador leva até 3; cada corrida é um duelo, quem vence continua e quem perde sai; perde quem ficar
-  sem cavalos. A vitória dá uma insígnia com bônus de conta pequeno (% de Ouro, % de XP, % de chance de
-  skill nova), que não mexe na corrida.
-- **A decidir:** o cansaço de quem vence (proposta: começar a próxima com 15% menos fôlego por vitória
-  seguida, valendo para os dois lados), quais são os 2 primeiros, entrada e prêmio.
+### 8.6 Ginásios (Expedição; implementados em 2026-11-18; online no bloco 7)
+Spec aprovada pelo Vinicius: `docs/superpowers/specs/2026-11-17-ginasios-design.md` (com as notas da execução no fim). Os
+números ficam em `GameData.GYM` e `GameData.GYMS` (`prototype/src/data.js`) e as regras em `prototype/src/ginasio.js`; as
+tabelas completas estão no wiki ("Ginásios da Expedição"). Os números saíram de simulação (metas G1 a G9 do `balance.js`):
+ninguém jogou ainda.
+- **Três ginásios, um por elemento:** o da Fornalha (Fogo; líder Capitã Labareda), o do Remanso (Água; líder Mestre
+  Aguaceiro) e o da Capoeira (Grama; líder Dona Capineira). Dá para fazer as três trilhas em qualquer ordem.
+- **Trilha:** 4 soldados e o líder, de baixo para cima. As etapas abrem em ordem; etapa vencida fica marcada e não se
+  repete. Os três ginásios têm os mesmos níveis, entradas e prêmios:
+
+  | Etapa | Cavalos | Nível | Entrada | Prêmio da 1ª vitória |
+  |---|---|---|---|---|
+  | Soldado 1 | 1 | 4 | 20 de Ouro | 80 de Ouro |
+  | Soldado 2 | 1 | 8 | 30 de Ouro | 120 de Ouro e 1 Torrão de açúcar |
+  | Soldado 3 | 2 | 12 | 40 de Ouro | 160 de Ouro |
+  | Soldado 4 | 2 | 16 | 50 de Ouro | 200 de Ouro e 1 Manual de doma |
+  | Líder | 3 | 20 | 100 de Ouro | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill e a insígnia |
+
+  Uma trilha inteira dá 960 de Ouro e custa 240 de entrada, se vencida de primeira.
+- **Os cavalos do adversário** são fixos e não acompanham o jogador: todos são o cavalo inicial do elemento (Brasa, Maré
+  ou Ipê), Comuns de 2 estrelas, no nível da etapa, com os pontos distribuídos como os dos bots. No Remanso, um cavalo do
+  soldado 4 e o do meio do líder têm 3 estrelas: assim os três ginásios ficam igualmente difíceis.
+- **Pista da casa** (1.200 m, a mesma em todas as etapas do ginásio): Fornalha em terra (subida 650 m, curva 350 m,
+  subida 200 m); Remanso em areia (curva 100 m, subida 250 m, reta 250 m, curva 200 m, subida 400 m); Capoeira em grama
+  (subida 800 m, reta 50 m, curva 350 m). O duelo começa Nublado; o Dado da Sorte é o de sempre e pode virar o clima.
+- **O time:** no máximo o tamanho do time do adversário (1, 1, 2, 2 e 3 cavalos), na ordem que o jogador escolhe; pode
+  levar menos. Com uma sala de corrida aberta (valendo ou treino), o cavalo ativo fica fora do time.
+- **Pagar:** a entrada é só em Ouro e não usa o Ouro reservado da sala aberta. O desafio só é simulado depois de pago, com
+  a seed do save, e a entrada, o resultado, o Ouro, o XP, os itens e o progresso são gravados juntos. Se o prêmio tem um
+  item e a mochila já está cheia dele, o "Desafiar" fica apagado antes de pagar.
+- **Duelos:** o 1º cavalo de cada lado corre contra o 1º do outro; quem perde sai, quem vence fica e enfrenta o próximo.
+  Perde o lado que ficar sem cavalos. Cada duelo passa na tela de corrida, com 2 raias; entre um duelo e outro, um cartão
+  diz quem saiu, quem entra e o fôlego de quem ficou; "Pular tudo" vai direto ao resumo.
+- **Cansaço:** quem vence larga o duelo seguinte com menos fôlego (o tanque de estamina abaixo de cheio: corre igual no
+  começo e cansa mais cedo). Vale para os dois lados, e ao fim do desafio todo cavalo volta inteiro.
+
+  | Vitória | Distância na chegada | Fôlego perdido |
+  |---|---|---|
+  | Apertada | menos de 1 m | 25% |
+  | Normal | de 1 m a menos de 8 m | 15% |
+  | Folgada | 8 m ou mais | 5% |
+
+  Os descontos somam a cada vitória seguida, até no máximo 50% do fôlego.
+- **Ponto fraco do ginásio:** Água vence Fogo, Fogo vence Grama e Grama vence Água. Num duelo de ginásio, o cavalo cujo
+  elemento vence o do adversário corre com os seis status de corrida **cerca de 4%** maiores (o status é um número
+  inteiro: nos cavalos de hoje, cerca de 2 pontos em cada um). Isso vale cerca de 3 a 4 níveis. Fora do ginásio nada muda.
+- **XP:** cada cavalo do time ganha 50 de XP por duelo vencido e 15 por duelo perdido; quem não correu não ganha. Na
+  derrota só se perde a entrada, e dá para tentar de novo na hora.
+- **Revanche do líder:** depois da insígnia, 1 tentativa por dia em cada ginásio (vencendo ou perdendo), com entrada de
+  50 de Ouro. O prêmio de cada vitória segue um rodízio fixo, sem sorteio, contado por ginásio: 100 de Ouro · 1 Torrão de
+  açúcar · 100 de Ouro · 1 Manual de doma · 100 de Ouro · 1 Cupom de troca de skill, e recomeça. A primeira já fica livre
+  no dia em que a insígnia é conquistada. Relógio para trás não libera; dia estragado no save conta como "já tentou hoje".
+  O ponto na aba Expedição avisa quando há revanche livre.
+- **Insígnias:** cada líder dá uma, para sempre. O bônus é da conta e não entra na simulação da corrida:
+  - Insígnia da Fornalha: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo; o prêmio do ginásio não
+    leva esse bônus);
+  - Insígnia do Remanso: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado);
+  - Insígnia da Capoeira: +3 pontos na chance de aprender skill ao subir de nível (de 8% para 11%).
+
+  A insígnia ganha num desafio vale dali em diante. As insígnias aparecem na aba Expedição e no Perfil.
+- **O que a simulação mediu** (3.000 desafios por caso; o time do jogador é o cavalo inicial do elemento, repetido até o
+  tamanho do time do adversário, no nível da etapa):
+  - do mesmo elemento do ginásio, vence de 46% a 51% dos desafios; com o elemento do ponto fraco, de 70% a 78%; com o
+    elemento que o ginásio vence, de 17% a 32%;
+  - 4 níveis acima, vence de 73% a 82%; 4 níveis abaixo, de 16% a 33%;
+  - contra o líder, um cavalo sozinho 4 níveis acima vence só cerca de 2% das vezes (sem o cansaço, venceria 42% a 44%):
+    o time importa;
+  - um duelo dura cerca de 1 min 20 s no relógio da corrida, e o desafio do líder, uns 6 minutos. Na tela a corrida passa
+    mais rápido: medido em 2026-11-18, um duelo leva cerca de 30 s em x1 e 18 s em x2, e um desafio do líder de 5 duelos,
+    cerca de 2 min 30 s em x1 e 1 min 30 s em x2 (sem contar o tempo parado nos cartões).
+- **Com servidor (bloco 7):** o +3% de Ouro sobre prêmios pagos por outros jogadores cria Ouro do nada; isso tem de ser
+  revisto antes do online.
 - **Online (extra, bloco 7):** quatro ginásios dominados por jogadores (Fogo, Água, Grama e um acima dos
   três), desafiáveis pelo trono. Riscos a tratar na spec: um jogador segurar o trono para sempre
   (proposta: um conjunto por liga e temporadas) e conluio entre contas.

@@ -1,6 +1,6 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-17._
+_Atualizado em 2026-11-18._
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
 durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o
@@ -11,7 +11,8 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   recompensa diária (`claude/cavalos-v3` integrada em 2026-11-14, `claude/visuais-2` em 2026-11-16 e
   `claude/itens-loja-diaria` em 2026-11-17, as três por fast-forward). O Vinicius escolheu integrar antes de jogar: as
   listas "A confirmar com o Vinicius (gosto, 3a)", "(gosto, 3b)", "(gosto, 3c)" e "(gosto, itens)" continuam abertas e
-  viram ajustes por cima da `main`. Em aberto só a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta
+  viram ajustes por cima da `main`. Em aberto: a `claude/nifty-newton-e8u133`, com a frente dos **ginásios da Expedição
+  pronta e sem merge** (seção própria abaixo), e a `claude/empacotamento` (em pausa, só com as decisões iniciais; volta
   como bloco 3). Trabalho novo sai da `main`.
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build; os três foram republicados em
   2026-11-17 com o build 3a73b63, o da integração da frente de itens: jogo na versão 8, DEV na 6 e wiki na 7):
@@ -20,7 +21,7 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   - wiki: https://claude.ai/artifact/Bp47f9qE3tSswu1A9zdF2y (`prototype/dist/wiki.html`)
   - no computador: `prototype/dist/preview.html` (com `?dev=1` para o modo DEV).
 - **Modo DEV:** save separado (`galope-elemental:dev`), gaveta "DEV" com Moedas, Itens e dia (mochila; avançar e
-  voltar o dia), Cavalo, Itens (peças), Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
+  voltar o dia), Ginásios (só na branch dos ginásios: etapas vencidas de cada trilha, liberar a revanche, zerar), Cavalo, Itens (peças), Próxima corrida (pista, clima, vento, skills sempre) e Perfil. Nunca toca no save real.
 - **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (158 testes de simulação, 117 de
   efeitos, 171 de moldes, 651 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de
   interface; contagem de 2026-11-17, na `main` com a frente de itens integrada). Com o teste de interface em paralelo
@@ -245,17 +246,85 @@ wiki (seção "Itens e recompensa diária"); decisões em `decisoes.md` (2026-11
   - **Loja de equipamento** (suspensa, `GEAR_ON = false`): quando religada, aparece dentro da parte "Comprar"; esse caminho
     não tem teste ligado.
 
+## Ginásios da Expedição (prontos em 2026-11-18 na `claude/nifty-newton-e8u133`, **sem merge**)
+Spec aprovada pelo Vinicius em `docs/superpowers/specs/2026-11-17-ginasios-design.md` (no fim, as "Notas da execução"),
+plano em `docs/superpowers/plans/2026-11-17-ginasios.md` (8 tarefas); regra em `docs/GDD.md` §8.6; números no wiki (seção
+"Ginásios da Expedição") e em `GameData.GYM` e `GameData.GYMS` (`prototype/src/data.js`); regras em
+`prototype/src/ginasio.js`; decisões em `decisoes.md` (2026-11-17, as dele; 2026-11-18, as da execução). **A frente está
+inteira na branch e não foi integrada na `main`; falta a revisão final da frente e a decisão do Vinicius sobre integrar.**
+- **O que entrou:** na aba Expedição, três ginásios (da Fornalha, do Remanso e da Capoeira), cada um com uma trilha de 4
+  soldados e o líder; o preparo (o adversário, a pista da casa, a entrada, o prêmio e o time, na ordem escolhida, até o
+  tamanho do time do adversário); a entrada em Ouro cobrada antes de simular; os duelos na tela de corrida, com 2 raias, o
+  cartão entre duelos, "Pular" e "Pular tudo"; o cansaço pela distância na chegada; o ponto fraco por elemento (cerca de 4%
+  nos status, só nos duelos de ginásio); o resumo; os prêmios da 1ª vitória; as insígnias com bônus da conta (+3% de Ouro
+  nas corridas valendo, +3% de XP, +3 pontos na chance de skill por nível); a revanche diária do líder, com o ponto na aba;
+  as insígnias no Perfil. Save na versão 8 (a migração da 7 zera os ginásios). Gaveta DEV com o grupo "Ginásios".
+- **Verificação:** `./scripts/check.sh` termina em `VERIFICAÇÃO COMPLETA: OK` (177 testes de simulação, 117 de
+  efeitos, 172 de moldes, 744 conferências do wiki, 111 metas no balanço rápido e 71 blocos do teste de interface, em
+  ~9 min; contagem de 2026-11-18, na branch, no fim da Tarefa 8).
+- **Balanço completo** (`node prototype/tools/balance.js`, 2026-11-18, 281 s): **as 300 metas passam**, 135 delas dos
+  ginásios (G1 a G9). Medido: G1 (mesmo elemento) 46,1% a 50,9%; G2 4 níveis acima 73,0% a 81,5% e 4 abaixo 15,8% a 32,9%;
+  G3 com o ponto fraco 70,3% a 78,2%, em desvantagem 17,2% a 32,3%, e 38,1 a 59,6 pontos entre os dois; G4 (sem a
+  vantagem, nível igual) 44,1% a 53,9%; G5 até 7,5 pontos entre os três ginásios; G6 cada faixa do cansaço acontece em
+  18,6% ou mais das vitórias (a menor é a apertada da Fornalha); G7 um cavalo sozinho 4 níveis acima vence o
+  líder 2,2% a 2,4% (sem o cansaço, 39,5 a 41,3 pontos a mais); G8 um duelo de 75,8 a 84,9 s no relógio da corrida; G9
+  determinismo e nada de `Math.random` nem relógio. Os números são os mesmos da tabela que o Vinicius viu em 2026-11-17.
+- **Na tela** (medido em 2026-11-18): um duelo leva cerca de 30 s em x1 e 18 s em x2; um desafio do líder de 5 duelos,
+  cerca de 2 min 30 s em x1 e 1 min 30 s em x2 (sem o tempo parado nos cartões).
+- **Capturas oficiais:** regeneradas em 2026-11-18 (`node prototype/tools/ui-test.mjs`), com cinco novas:
+  `final-24-expedicao-ginasios.png` (a aba com os três cartões: um no meio da trilha, um com a insígnia e "Revanche hoje",
+  um do zero), `final-25-trilha.png` (a trilha da Fornalha como abre, rolada até a etapa próxima),
+  `final-26-desafio.png` (o preparo com Maré 1º e Brasa 2º, o Ipê apagado e o "Desafiar"), `final-27-duelo.png` (o 1º
+  duelo no meio da corrida) e `final-28-resumo.png` (o resumo de uma vitória em 3 duelos). Mudaram também a aba
+  Expedição (`final-10`), o Perfil (`final-11`, `final-17` e as duas `marcas-perfil-*`, com as insígnias) e as capturas
+  de corrida, que mudam um pouco a cada rodada.
+- **Folha da interface:** seções novas 4.21 (cartão de ginásio), 4.22 (trilha), 4.23 (linha do time) e 4.24 (cartão entre
+  duelos); o teste da folha confere que o markup de cada estado é o mesmo que o jogo desenha.
+- **A confirmar com o Vinicius (gosto, ginásios):**
+  1. **Os cavalos dos soldados e dos líderes** usam o nome e a aparência do cavalo inicial do elemento ("Brasa, Brasa"):
+     quer nomes e aparência próprios? (Não mexe na força.)
+  2. **Os nomes** dos ginásios (da Fornalha, do Remanso, da Capoeira), dos líderes (Capitã Labareda, Mestre Aguaceiro, Dona
+     Capineira) e dos 12 soldados.
+  3. **O cansaço e a vantagem:** as faixas em 1 m e 8 m (apertada: menos de 1 m; normal: de 1 a menos de 8 m; folgada: 8 m
+     ou mais), o fôlego perdido (25%, 15% e 5%), o teto de 50%, e a vantagem de elemento de "cerca de 4%".
+  4. **Quanto tempo leva:** um duelo, cerca de 30 s na tela em x1 e 18 s em x2; um desafio do líder de 5 duelos, cerca de
+     2 min 30 s em x1 e 1 min 30 s em x2.
+  5. **Os cavalos de 3 estrelas do Remanso** (um do soldado 4 e o do meio do líder), postos para o Remanso ficar tão difícil
+     quanto os outros.
+  6. **A tela não diz quantos duelos faltam:** "Duelo 2", e não "Duelo 2 de 3".
+  7. **Textos:** "por menos de 1 m" (abaixo de 1 m), as plaquinhas "Você venceu" e "Você perdeu" no resumo e "Vantagem:
+     adversário" quando o cavalo do ginásio é que leva a vantagem.
+  8. **O nome do dono no cavalo do adversário:** "Brasa (Sargento Candeeiro)" sempre no cabeçalho do duelo e no cartão; na
+     faixa de ordem e na narração, só quando os dois cavalos têm o mesmo nome.
+  9. **Depois de uma derrota, a frase do cansaço no cartão fala do adversário** ("Vitória normal (5 m): Brasa (Sargento
+     Candeeiro) larga com 85% do fôlego").
+  10. **Depois da chegada de um duelo, o botão diz "Continuar"** (na corrida da sala diz "Ver resultado").
+  11. **Os metros dos duelos são truncados para baixo** (7,6 m aparece como "7 m"; abaixo de 1 m, "por menos de 1 m"), para
+      o número nunca contradizer a faixa do cansaço.
+  12. **A trilha abre já rolada** até a etapa que se pode tocar (ou a revanche livre de hoje), e não no topo.
+  13. **Com uma sala de treino aberta, o cavalo ativo também não entra no time** (como com a sala valendo).
+  14. **No nível máximo, o resumo mostra "+N XP" inteiro**, como a tela de resultado da corrida, embora o XP pare no teto.
+  15. **A revanche já fica livre no mesmo dia em que a insígnia é conquistada:** a primeira pode ser feita logo depois de
+      vencer o líder.
+  16. **A etapa do líder com a revanche de hoje feita** mostra a plaquinha "Feita hoje" e também a frase "Revanche de hoje
+      feita. Volte amanhã.".
+  17. **A meta G1 fica perto de 50% quase por construção:** o time de referência é o mesmo cavalo do adversário (o inicial
+      do elemento, no mesmo nível), então "vence metade das vezes" é esperado; o que a G1 prova é que nada no ginásio
+      desequilibra o duelo.
+- **Pendências:** os achados pequenos das revisões das tarefas estão em `bugs.md` ("Ginásios da Expedição"); nenhum cobra
+  Ouro errado nem dá prêmio duas vezes. Ninguém jogou ainda: os números saíram de simulação.
+- **Com servidor (bloco 7):** o +3% de Ouro da Insígnia da Fornalha sobre prêmios pagos por outros jogadores cria Ouro do
+  nada; rever antes do online.
+
 ## Em andamento
 - **Teste de interface em paralelo (feito em 2026-11-17, commit `b3dda3d`; na `main` desde o mesmo dia, por decisão do
   Vinicius):** o `check.sh` roda o `prototype/tools/ui-test-paralelo.mjs`, um processo por bloco (68 blocos, 4 por vez, e os 8
   com medição de tempo depois, um por vez). A verificação caiu de ~16 para ~8 min. A meta de ~5 min não fechou: o que
   falta é a fase em série (~3,5 min) e o bloco `itens` (~1,5 min sozinho). O jeito antigo (`ui-test.mjs` sem `UI_SO`)
   continua igual e é o que regrava as capturas oficiais.
-- **Ginásios da Expedição (em execução desde 2026-11-17, na `claude/nifty-newton-e8u133`):** spec aprovada pelo Vinicius
-  (`docs/superpowers/specs/2026-11-17-ginasios-design.md`) e plano em `docs/superpowers/plans/2026-11-17-ginasios.md` (8
-  tarefas, por subagentes). Três ginásios (Fogo, Água, Grama), trilha de 4 soldados e o líder, duelo em que quem vence
-  fica, cansaço pela distância na chegada, vantagem de elemento, insígnias e revanche diária. Decisões em `decisoes.md`
-  (2026-11-17). O galope ficou como está (decisão do Vinicius em 2026-11-16).
+- **Ginásios da Expedição (as 8 tarefas prontas em 2026-11-18, na `claude/nifty-newton-e8u133`, sem merge):** seção
+  própria acima, com a lista "A confirmar com o Vinicius (gosto, ginásios)". Falta a revisão final da frente e a decisão
+  do Vinicius sobre integrar na `main`. O galope ficou como está (decisão do Vinicius em 2026-11-16).
 - **Frente "interface" da Visuais 2 integrada na `main` em 2026-11-16, com as listas de gosto abertas:** a 3c (tela da
   corrida) ficou pronta em 2026-11-16 (seção própria acima, com a lista "A confirmar com o Vinicius (gosto, 3c)"); com a 3a
   e a 3b, a frente está inteira. O Vinicius escolheu integrar antes de jogar; o que ele mudar ao jogar entra como ajuste
@@ -327,7 +396,8 @@ wiki (seção "Itens e recompensa diária"); decisões em `decisoes.md` (2026-11
 - **Os iniciais no nível 25 caem para a Prata** (eram Ouro): o meio da progressão ficou mais lento.
 - **A Sorte vale pouco** (0,7 p.p. na corrida), por desenho: só de nascimento, mexe no Dado e na chance de skill.
 - **Sem fonte de Rédea nova** no jogo normal até os ginásios: quem gastar a redistribuição grátis só muda a build pelo DEV.
-  (Resolvido em 2026-11-17: a Rédea vem no 7º dia da recompensa diária.)
+  (Resolvido em 2026-11-17: a Rédea vem no 7º dia da recompensa diária; na branch dos ginásios, também da 1ª vitória sobre
+  cada líder.)
 - **O Ouro tem menos uso:** a loja de peças some; sobram entradas, cruza e troca do Haras. (Desde 2026-11-17 a loja de
   itens e a diária dão entrada e saída de Ouro.)
 - **Folga de ~1 p.p.** nas metas rebaseadas sobre o pior caso de 4 bases de seed; mexer na RNG pede a faixa de novo.
@@ -356,8 +426,8 @@ wiki (seção "Itens e recompensa diária"); decisões em `decisoes.md` (2026-11
 ## Próximos passos
 - **Frente de itens (na `main`):** o Vinicius joga nos artefatos oficiais e decide a lista "A confirmar com o Vinicius
   (gosto, itens)"; o que ele mudar entra como ajuste por cima da `main`.
-- **Ginásios (`docs/GDD.md` §8.6):** desenho próprio (spec, revisão do Vinicius, plano e execução), usando os itens como
-  prêmio.
+- **Ginásios (`docs/GDD.md` §8.6), prontos na `claude/nifty-newton-e8u133`, sem merge:** revisão final da frente; depois o
+  Vinicius joga, decide a lista "A confirmar com o Vinicius (gosto, ginásios)" e se integra na `main`.
 - **Teste de interface em paralelo:** feito e na `main` (~8 min); em aberto se vale buscar os ~5 min (dividir o bloco
   `itens` e encurtar a fase em série).
 0. O Vinicius joga a 3a, a 3b e a 3c nos artefatos oficiais (jogo, DEV e wiki, republicados com a integração; a folha
@@ -369,8 +439,8 @@ wiki (seção "Itens e recompensa diária"); decisões em `decisoes.md` (2026-11
    pedido dele de 2026-11-16: o galope tem de parecer esforço para vencer, não trote ("O que falta", acima).
 3. O Vinicius apaga as branches antigas no GitHub (lista abaixo).
 4. **Bloco 2, preparação com relógio:** spec, revisão do Vinicius, plano e execução.
-5. **Bloco 3, empacotamento:** retomar pela pergunta do Capacitor; o teste fechado começa aqui. Os ginásios
-   têm desenho depois do bloco 1b (seção "Em andamento").
+5. **Bloco 3, empacotamento:** retomar pela pergunta do Capacitor; o teste fechado começa aqui. Os ginásios (o conteúdo
+   offline do teste fechado) estão prontos na branch (seção própria acima).
 6. Abrir a conta de desenvolvedor do Play e começar a juntar os 12 testadores (é o que mais atrasa).
 7. Blocos 4 a 6 chegam como atualizações durante o teste fechado; o bloco 7 (online) vem depois.
 
@@ -379,4 +449,4 @@ Todas já integradas na `main`: `claude/equipamentos`, `claude/cruzamento`, `cla
 `claude/analise-regras-arquivo-3j3zv1`, `claude/kind-thompson-gsqj7r`, `claude/menu-abas`,
 `claude/visuais`, `claude/corrida-viva`, `claude/pente-fino`, `claude/cavalos-v3`, `claude/visuais-2` (a parte 3
 inteira, a frente "interface", entrou na `main` em 2026-11-16) e `claude/itens-loja-diaria` (entrou em 2026-11-17). A `claude/nifty-newton-e8u133` é a
-branch desta sessão e acompanha a `main`. A sessão não consegue apagar branch remota (o proxy bloqueia).
+branch desta sessão: tem a `main` e, por cima, a frente dos ginásios, sem merge (não apagar). A sessão não consegue apagar branch remota (o proxy bloqueia).

@@ -6,9 +6,14 @@
 // o ui-test cobre esse modo com forcedColors: 'active'.
 
 import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
 
-// nomes, preços, descrições e o calendário da diária vêm do catálogo do jogo (GameData.ITEMS, DAILY, BAG_MAX)
-const G = createRequire(import.meta.url)('../src/data.js')
+// nomes, preços, descrições e o calendário da diária vêm do catálogo do jogo (GameData.ITEMS, DAILY, BAG_MAX); os dos
+// ginásios, de GameData.GYM, GYM_ORDER e GYMS
+const req = createRequire(import.meta.url)
+const G = req('../src/data.js')
+// a vantagem de elemento e o Poder dos cavalos do time de exemplo saem das regras (Ginasio.vantagem, Ginasio.cavalo, RaceSim.powerRating)
+const GN = req('../src/ginasio.js'), RS = req('../src/sim.js')
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -21,18 +26,18 @@ const secao = (num, titulo, nota, corpo) =>
   `<div class="estado-par"><div class="col col--estreita">${corpo}</div><div class="col col--larga" aria-hidden="true">${corpo}</div></div></section>`;
 
 const btn = (cls, txt, extra = '') => `<button type="button" class="btn ${cls}"${extra ? ' ' + extra : ''}>${esc(txt)}</button>`;
-const retrato = (w, h) => `<span class="retrato-moldura"><span class="retrato" style="display:block;width:${w}px;height:${h}px;background:var(--painel-3)"></span>` +
-  `<span class="selo-nivel">Nv 20</span><span class="pontos-livres--selo">+3</span></span>`;
+const retrato = (w, h, nivel = 20, pontos = 3) => `<span class="retrato-moldura"><span class="retrato" style="display:block;width:${w}px;height:${h}px;background:var(--painel-3)"></span>` +
+  `<span class="selo-nivel">Nv ${nivel}</span>${pontos ? `<span class="pontos-livres--selo">+${pontos}</span>` : ''}</span>`;
 // o botão de ajuda como o ajudaBtn do game.js: sem texto, a peça de pixel vem do ::before
 const ajuda = (extra = '', aberto = false) => `<button type="button" class="ajuda${extra}" aria-expanded="${aberto}" aria-label="O que é o Poder?" title="O Poder resume o cavalo."></button>`;
 const moeda = n => `<span class="ouro"><span aria-hidden="true">🪙</span><span>${n}</span><span class="sr">Ouro</span></span>`;
 
 // a seta da linha do Estábulo: mesmas linhas de pixel (SETA_ROWS) e mesmo caminho que o pixelSvg do game.js gera
 const SETA_ROWS = ['..#.....', '..##....', '...##...', '....##..', '...##...', '..##....', '..#.....', '........'];
-const setaSvg = () => {
+const setaSvg = (cls = 'montaria-linha-seta') => {
   let d = '';
   SETA_ROWS.forEach((r, y) => { for (let x = 0; x < r.length;) { if (r[x] === '#') { const x0 = x; while (x < r.length && r[x] === '#') x++; d += `M${x0} ${y}h${x - x0}v1h-${x - x0}z`; } else x++; } });
-  return `<svg class="montaria-linha-seta" viewBox="0 0 8 8" aria-hidden="true" shape-rendering="crispEdges"><path d="${d}"/></svg>`;
+  return `<svg class="${cls}" viewBox="0 0 8 8" aria-hidden="true" shape-rendering="crispEdges"><path d="${d}"/></svg>`;
 };
 
 // ---- itens, loja e recompensa diária: o markup do itemLinhaHtml, lojaProdutoHtml, lojaMochilaHtml e diariaCartaoHtml do game.js ----
@@ -87,6 +92,71 @@ function diaria({ prox, ciclos = 0, motivo = '', ver = false }) {
 }
 const diariaLinha = (prox, ciclos = 0) => '<section class="caixa diaria diaria--linha" aria-label="Recompensa do dia"><p class="diaria-linha" tabindex="-1">' +
   esc('Recompensa: amanhã ' + premioTxt(prox, ciclos)) + '</p></section>';
+
+// ---- ginásios da Expedição: o markup do ginasioCartaoHtml, trilhaEtapaHtml, mountRowHtml (com as opções do time) e
+// renderEntreDuelos do game.js; nomes, números e textos do catálogo (GameData.GYMS, GYM) montados como o game.js monta ----
+// o ícone da insígnia como o iconeHtml do game.js (o mesmo PNG que o build embute em window.__ICONES)
+const insigniaSrc = (id) => 'data:image/png;base64,' + readFileSync(new URL(`../assets/icons/${G.GYMS[id].insignia.icone}.png`, import.meta.url)).toString('base64');
+const insigniaIcone = (id) => `<img class="icone icone--${esc(G.GYMS[id].insignia.icone)} icone--32" src="${insigniaSrc(id)}" alt="" width="32" height="32">`;
+const elNome = (el) => G.ELEMENTS[el].name;
+const elHtml = (el) => `<span class="el el--${esc(el)}">${esc(elNome(el))}</span>`;
+const ginCavalosTxt = (n) => n === 1 ? '1 cavalo' : n + ' cavalos';
+// o cartão do ginásio na aba (ginasioCartaoHtml): etapas = quantas vencidas; rev: 'hoje' | 'amanha' | null
+function ginasioCartao(id, etapas, rev = null) {
+  const g = G.GYMS[id], ins = etapas === g.etapas.length;
+  return `<li><button type="button" class="ginasio-cartao ginasio-cartao--${esc(g.element)}" data-acao="ginasio-abrir" data-id="${esc(id)}">` +
+    `<span class="ginasio-cartao-nome">${esc(g.name)}</span>` +
+    `<span class="ginasio-cartao-meta">${elHtml(g.element)}<span class="ginasio-progresso">${etapas} de ${g.etapas.length} vencidos</span></span>` +
+    (ins ? `<span class="ginasio-cartao-meta ginasio-insignia">${insigniaIcone(id)}<span>${esc(g.insignia.name)}</span></span>` : '') +
+    (rev === 'hoje' ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche">Revanche hoje</span></span>'
+      : rev === 'amanha' ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche-amanha">Revanche amanhã</span></span>' : '') +
+    setaSvg('montaria-linha-seta ginasio-cartao-seta') + '</button></li>';
+}
+const ginasios = (cartoes) => `<section class="caixa" aria-label="Ginásios"><ul class="ginasios">${cartoes}</ul></section>`;
+// uma etapa da trilha (trilhaEtapaHtml): estado 'vencida' | 'proxima' | 'fechada' | 'revanche' | 'feita'
+function etapa(id, i, estado) {
+  const g = G.GYMS[id], e = g.etapas[i], rev = estado === 'revanche' || estado === 'feita', MOTIVO = 'Vença a etapa anterior';
+  const lv = e.cavalos.map((c) => c.level), nivel = 'Nível ' + Math.min(...lv) + (Math.max(...lv) > Math.min(...lv) ? ' a ' + Math.max(...lv) : '');
+  const entrada = rev ? G.GYM.revanche.entrada : e.entrada, p0 = G.GYM.revanche.ciclo[0];
+  const premioHoje = p0.ouro ? fmt(p0.ouro) + ' de Ouro' : itemQtdTxt(p0.item, 1);
+  const corpo = `<span class="etapa-rotulo">${e.lider ? 'Líder' : 'Soldado ' + (i + 1)}</span><span class="etapa-nome">${esc(e.nome)}</span>` +
+    `<span class="etapa-meta">${esc(ginCavalosTxt(e.cavalos.length) + ' · ' + nivel + ' · Entrada: ' + fmt(entrada) + ' de Ouro')}</span>` +
+    `<span class="etapa-estado etapa-estado--${estado}">${{ vencida: 'Vencida', proxima: 'Próxima', fechada: 'Fechada', revanche: 'Revanche hoje', feita: 'Feita hoje' }[estado]}</span>` +
+    (estado === 'fechada' ? `<span class="etapa-motivo">${MOTIVO}</span>` : '') +
+    (estado === 'revanche' ? `<span class="etapa-motivo">${esc('Prêmio de hoje: ' + premioHoje)}</span>` : '') +
+    (estado === 'feita' ? '<span class="etapa-motivo">Revanche de hoje feita. Volte amanhã.</span>' : '') +
+    (e.lider && rev ? `<span class="etapa-insignia">${insigniaIcone(id)}</span>` : '');
+  const caixa = estado === 'vencida' || estado === 'feita' ? `<div class="etapa-btn">${corpo}</div>`
+    : `<button type="button" class="etapa-btn" data-acao="ginasio-etapa" data-id="${i}"${estado === 'proxima' || estado === 'revanche' ? ' aria-current="step"' : indisp(MOTIVO)}>${corpo}</button>`;
+  return `<li class="etapa etapa--${estado}${e.lider ? ' etapa--lider' : ''}" data-etapa="${i}" data-estado="${estado}">${caixa}</li>`;
+}
+const trilha = (itens) => `<section class="caixa" aria-label="Trilha"><ol class="trilha">${itens}</ol></section>`;
+// uma linha do time no preparo (mountRowHtml com { acao: 'ginasio-time', fim, motivo, pressed, meta, lado }), contra um ginásio
+// do elemento contra: pos (1, 2, 3 ou 0 = fora do time), motivo (a linha apagada), nota (a frase escrita embaixo da linha)
+// (ativa: a montaria ativa, com a plaquinha "Ativa"; a posição "1º" passa pelo ordFix, como todo ordinal do jogo)
+function linhaTime({ uid, base, nivel, contra, ativa = false, pos = 0, motivo = '', nota = '' }) {
+  const h = GN.cavalo({ base, level: nivel, grau: 2 }), nome = h.name, el = h.element, poder = RS.powerRating(h);
+  const n = uid.replace(/^m/, ''), v = GN.vantagem(el, contra), ganha = v === 1;
+  const vt = v === 1 ? 'Vantagem' : v === -1 ? 'Desvantagem' : '';
+  const fim = (vt ? vt + ' contra ' + elNome(contra) + '. ' : '') + (pos ? pos + 'º do time. Toque para tirar.' : motivo || 'Toque para pôr no time.');
+  return `<li><button type="button" class="montaria-linha${ativa ? ' montaria--ativa' : ''}" data-acao="ginasio-time" data-id="${esc(uid)}" aria-label="${esc(nome + ' #' + n + ', nível ' + nivel + (ativa ? ', ativa' : '') + '. ' + fim)}"${indisp(motivo)} aria-pressed="${pos > 0}">` +
+    `<span class="montaria-linha-retrato" aria-hidden="true">${retrato(96, 72, nivel, 0)}</span>` +
+    `<span class="montaria-linha-nome">${esc(nome)}<small>#${esc(n)}</small></span>` +
+    `<span class="montaria-linha-meta"><span class="raridade raridade--comum">Comum</span><span class="estrelas" role="img" aria-label="2 de 3 estrelas">★★☆</span>${ativa ? '<span class="badge-ativa">Ativa</span>' : ''}</span>` +
+    `<span class="montaria-linha-meta">${elHtml(el)}<span class="montaria-linha-poder">Poder <b>${poder}</b></span>` +
+      (vt ? `<span class="gin-vant gin-vant--${ganha ? 'mais' : 'menos'}">${vt}</span>` : '') + '</span>' +
+    ordFix(`<span class="gin-pos" aria-hidden="true">${pos ? pos + 'º' : ''}</span>`) + '</button>' +
+    (nota ? `<p class="nota">${esc(nota)}</p>` : '') + '</li>';
+}
+const time = (linhas) => `<section class="caixa" aria-label="Seu time"><ul class="montarias item-escolha gin-time">${linhas}</ul></section>`;
+// o cartão entre dois duelos (renderEntreDuelos), com os textos do ginCartaoTxt
+function cartaoDuelo(id, k, { titulo, saiu, folego, vant }) {
+  return '<section class="tela tela--entreduelos" aria-label="Entre os duelos">' +
+    `<header class="tela-cabeca placa"><span class="rotulo">${esc(G.GYMS[id].name + ' · Duelo ' + k)}</span><h1 class="titulo titulo--tela" tabindex="-1">${esc(titulo)}</h1></header>` +
+    `<div class="caixa gin-cartao"><p class="gin-cartao-saiu">${esc(saiu)}</p><p class="gin-cartao-folego">${esc(folego)}</p><p class="gin-cartao-vant">${esc(vant)}</p></div>` +
+    '<div class="acoes acoes--linha"><button type="button" class="btn btn--ouro" data-acao="ginasio-proximo">Próximo duelo</button>' +
+    '<button type="button" class="btn" data-acao="ginasio-pular-tudo">Pular tudo</button></div></section>';
+}
 
 const RARIDADES = [['comum', 'Comum'], ['magico', 'Mágico'], ['raro', 'Raro'], ['lendario', 'Lendário'], ['mitico', 'Mítico']];
 const LIGAS = [['bronze', 'Bronze'], ['prata', 'Prata'], ['ouro', 'Ouro'], ['platina', 'Platina'], ['diamante', 'Diamante'], ['lenda', 'Lenda']];
@@ -245,6 +315,41 @@ function secoes() {
       ['grande, com os 7 dias abertos', diaria({ prox: 3, ver: true })],
       ['grande, resgate travado', diaria({ prox: 1, motivo: `A mochila já tem ${itemQtdTxt('torrao', G.BAG_MAX)}, o máximo. O resgate espera até sobrar espaço.` })],
       ['de uma linha (já resgatado)', diariaLinha(1)]
+    ])));
+  // 4.21 a 4.24 Ginásios da Expedição (spec dos ginásios §10): o cartão da aba, a trilha, a linha do time e o cartão entre duelos
+  const [F, A, C] = G.GYM_ORDER   // Fornalha, Remanso, Capoeira
+  const nEt = G.GYMS[F].etapas.length, lider = nEt - 1
+  s.push(secao('4.21', 'Cartão de ginásio', 'Aba Expedição: .ginasio-cartao (um botão que abre a trilha) com o nome, o elemento, "N de 5 vencidos", a insígnia conquistada (.ginasio-insignia) e "Revanche hoje" (.ginasio-revanche, quando a revanche do líder está livre) ou "Revanche amanhã" (.ginasio-revanche-amanha, sem destaque).',
+    estados([
+      ['nenhuma etapa vencida', ginasios(ginasioCartao(C, 0))],
+      ['no meio da trilha', ginasios(ginasioCartao(F, 2))],
+      ['com a insígnia e a revanche livre', ginasios(ginasioCartao(A, nEt, 'hoje'))],
+      ['com a insígnia, revanche de hoje feita', ginasios(ginasioCartao(A, nEt, 'amanha'))]
+    ])));
+  const et = (id, est) => est.map((e, i) => etapa(id, i, e)).join('')
+  s.push(secao('4.22', 'Trilha', 'Subtela do ginásio: .trilha (o DOM vai da 1ª etapa ao líder; o CSS põe o líder no topo). Cada .etapa: vencida (só texto, filete verde), próxima (o único botão tocável, aria-current="step"), fechada (apagada, aria-disabled, com "Vença a etapa anterior" escrito); com a insígnia, o líder vira a revanche (botão, com o prêmio de hoje) ou "feita" (só texto).',
+    estados([
+      ['no meio da trilha (2 vencidas)', trilha(et(F, ['vencida', 'vencida', 'proxima', 'fechada', 'fechada']))],
+      ['líder com a revanche livre', trilha(etapa(A, lider, 'revanche'))],
+      ['líder com a revanche de hoje feita', trilha(etapa(A, lider, 'feita'))]
+    ])));
+  const cheio = 'O time já tem 2 cavalos. Toque num deles para tirar.', sala = 'Está na sala aberta. Corra ou feche a sala primeiro.'
+  s.push(secao('4.23', 'Linha do time', 'Preparo do desafio, "Seu time": a linha do Estábulo (.montaria-linha) dentro de .gin-time, com aria-pressed. A escolhida mostra a posição (.gin-pos, no lugar da seta) e o fundo com o filete dourado; a vantagem ou a desvantagem contra o elemento do ginásio é uma plaquinha escrita (.gin-vant); a apagada (aria-disabled) tem o motivo escrito embaixo.',
+    estados([
+      ['1º do time, com vantagem', time(linhaTime({ uid: 'm2', base: 'mare', nivel: 13, contra: F, pos: 1 }))],
+      ['2º do time, sem vantagem (a ativa)', time(linhaTime({ uid: 'm1', base: 'brasa', nivel: 12, contra: F, ativa: true, pos: 2 }))],
+      ['fora do time, com desvantagem', time(linhaTime({ uid: 'm3', base: 'ipe', nivel: 12, contra: F }))],
+      ['apagada: o time está cheio', time(linhaTime({ uid: 'm3', base: 'ipe', nivel: 12, contra: F, motivo: cheio, nota: cheio }))],
+      ['apagada: a ativa, na sala aberta', time(linhaTime({ uid: 'm1', base: 'brasa', nivel: 12, contra: F, ativa: true, motivo: sala, nota: sala }))]
+    ])));
+  const sg = G.GYMS[F].etapas[2], dono = (n) => n + ' (' + sg.nome + ')', brasa = G.STARTERS.find((h) => h.id === sg.cavalos[0].base).name
+  const fx = G.GYM.fadiga.faixas
+  s.push(secao('4.24', 'Cartão entre duelos', 'Tela cheia entre dois duelos (.tela--entreduelos): a placa com o ginásio e o número do duelo (nunca o total), o resultado no título, quem saiu e quem entra, a faixa do cansaço com o fôlego de quem ficou e a vantagem do próximo duelo (.gin-cartao); "Próximo duelo" e "Pular tudo". Em tela baixa, o texto à esquerda e os botões à direita.',
+    estados([
+      ['depois de uma vitória', cartaoDuelo(F, 1, { titulo: 'Maré venceu por menos de 1 m', saiu: `${dono(brasa)} saiu. Entra ${dono(brasa)}, Nível ${sg.cavalos[1].level}.`,
+        folego: `Vitória ${fx[0].name.toLowerCase()} (menos de 1 m): Maré larga com ${Math.round((1 - fx[0].perde) * 100)}% do fôlego`, vant: `Vantagem: Maré (${elNome('agua')} vence ${elNome('fogo')})` })],
+      ['depois de uma derrota', cartaoDuelo(F, 2, { titulo: 'Maré perdeu por 5 m', saiu: 'Maré saiu. Entra Brasa.',
+        folego: `Vitória ${fx[1].name.toLowerCase()} (5 m): ${dono(brasa)} larga com ${Math.round((1 - fx[1].perde) * 100)}% do fôlego`, vant: 'Sem vantagem de elemento' })]
     ])));
   return s.join('\n');
 }
