@@ -267,6 +267,10 @@ confere(!/recursos que vão usá-los \(Rédeas/.test(a.md), 'wiki ainda diz que 
   for (const id of Object.keys(G.ITEMS)) {
     const daGin = G.GYM_ORDER.some((g) => G.GYMS[g].etapas.some((e) => e.premio.itens.includes(id))) || G.GYM.revanche.ciclo.some((c) => c.item === id)
     confere(daGin === dosGin.includes(G.ITEMS[id].name), `Itens: ${G.ITEMS[id].name} ${daGin ? 'vem dos ginásios e o wiki não diz' : 'aparece como prêmio de ginásio sem ser'}: ${dosGin}`)
+    // a coluna "De onde vem" da tabela é o texto origem do catálogo (Ruling 28): cita os ginásios só quando eles dão o item
+    const linhaTab = (secItens.match(new RegExp(`^\\| \\*\\*${G.ITEMS[id].name}\\*\\* \\|.*$`, 'm')) || [''])[0]
+    const deOnde = linhaTab.split('|').map((x) => x.trim()).filter(Boolean).pop() || ''
+    confere(deOnde === G.ITEMS[id].origem && daGin === /ginásio/.test(deOnde), `Itens: a coluna "De onde vem" de ${G.ITEMS[id].name} é "${deOnde}"`)
     if (daGin && G.ITEMS[id].price == null) {
       const venda = (secItens.match(new RegExp(`A ${G.ITEMS[id].name} não está à venda: [^.]*\\.`)) || [''])[0]
       confere(/ginásio/.test(venda), `Itens: a frase "${G.ITEMS[id].name} não está à venda" não fala dos ginásios: ${venda}`)

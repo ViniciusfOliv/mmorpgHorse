@@ -72,6 +72,9 @@ gosto e espera a palavra dele está em `ESTADO.md` ("A confirmar com o Vinicius 
   cópia dessa conta na tela saiu — uma fonte só para o prêmio mostrado e o pago. Se errado: nada; é uma exportação.
 - **(R27) Com a insígnia, a trilha rola até a revanche livre de hoje, como rolava até a etapa próxima;** com a revanche de
   hoje feita (nada para tocar), fica no topo. Se errado: nada; é a mesma regra da R17.
+- **(R28) O texto "de onde vem" do Torrão, da Rédea nova, do Cupom e do Manual passou a citar os ginásios** (é o texto da
+  Mochila, da linha da Rédea na Loja e do wiki) — os quatro são prêmio de alguma etapa ou do rodízio da revanche, e o texto
+  antigo dizia que só vinham da loja e da diária. Só texto, nenhuma regra. Se errado: quatro frases do catálogo.
 
 Além das Rulings, na Tarefa 8 (documentos), decididas por quem a executou:
 - **(Tarefa 8) A folha da interface ganhou o cartão de ginásio, a trilha, a linha do time e o cartão entre duelos

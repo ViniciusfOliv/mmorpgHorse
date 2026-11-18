@@ -479,7 +479,7 @@
     torrao: {
       id: 'torrao', name: 'Torrão de açúcar', plural: 'Torrões de açúcar', price: 120, perDay: 2, cap: 10,
       desc: 'O cavalo ganha 1 ponto a mais para distribuir, para sempre.',
-      origem: 'Compre na loja ou ganhe no 2º dia da recompensa diária.'
+      origem: 'Compre na loja, ganhe no 2º dia da recompensa diária ou nos ginásios.'
     },
     estrela: {
       id: 'estrela', name: 'Estrela de treino', plural: 'Estrelas de treino', price: 2000, everyDays: 7,
@@ -489,17 +489,17 @@
     redea: {
       id: 'redea', name: 'Rédea nova', plural: 'Rédeas novas', price: null,
       desc: 'Redistribui os pontos do cavalo (a primeira redistribuição de cada cavalo é grátis).',
-      origem: 'Vem no 7º dia da recompensa diária; não está à venda.'
+      origem: 'Vem no 7º dia da recompensa diária e na 1ª vitória sobre cada líder de ginásio; não está à venda.'
     },
     cupom: {
       id: 'cupom', name: 'Cupom de troca de skill', plural: 'Cupons de troca de skill', price: 250, perDay: 1,
       desc: 'Uma skill das vagas sai e entra outra, sorteada entre as que o cavalo pode aprender.',
-      origem: 'Compre na loja ou ganhe no 6º dia da recompensa diária.'
+      origem: 'Compre na loja, ganhe no 6º dia da recompensa diária ou nos ginásios.'
     },
     manual: {
       id: 'manual', name: 'Manual de doma', plural: 'Manuais de doma', price: 200, perDay: 1, chance: 0.35,
       desc: 'O cavalo tenta aprender uma skill na hora; o manual é gasto mesmo se ele não aprender.',
-      origem: 'Compre na loja ou ganhe no 4º dia da recompensa diária.'
+      origem: 'Compre na loja, ganhe no 4º dia da recompensa diária ou nos ginásios.'
     }
   };
   // A ordem dos produtos na loja: fixa, a da spec §6 (não segue o preço); só itens com price. A mochila mostra os cinco

@@ -2002,6 +2002,18 @@ test('Estrela de treino diz de onde vem, com os números do catálogo', function
   assert.ok(o.indexOf(G.DAILY.estrelaACada + 'º') >= 0, 'a cada N calendários: ' + o);
   assert.ok(/loja/.test(o) && /7º dia/.test(o) && !/de tempos em tempos/.test(o), o);
 });
+test('a origem de cada item cita os ginásios só quando algum ginásio dá o item (Ruling 28 dos ginásios)', function () {
+  // a verdade sai do catálogo: o prêmio de alguma etapa de algum ginásio ou o rodízio da revanche do líder
+  Object.keys(G.ITEMS).forEach(function (id) {
+    var daGin = G.GYM_ORDER.some(function (g) { return G.GYMS[g].etapas.some(function (e) { return e.premio.itens.indexOf(id) >= 0; }); }) ||
+      G.GYM.revanche.ciclo.some(function (c) { return c.item === id; });
+    assert.strictEqual(/ginásio/.test(G.ITEMS[id].origem), daGin, id + ': ' + G.ITEMS[id].origem);
+  });
+  // e a recompensa diária continua citada no dia certo, para cada item que ela dá
+  G.DAILY.dias.forEach(function (d, i) {
+    if (d.item) assert.ok(G.ITEMS[d.item].origem.indexOf((i + 1) + 'º dia') >= 0, d.item + ': ' + G.ITEMS[d.item].origem);
+  });
+});
 
 // =============================================================================================================
 // Ginásios da Expedição (Tarefa 1): as duas entradas novas da simulação, o bônus da chance de skill e o ginasio.js.

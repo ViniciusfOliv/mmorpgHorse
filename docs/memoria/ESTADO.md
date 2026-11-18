@@ -279,7 +279,8 @@ inteira na branch e não foi integrada na `main`; falta a revisão final da fren
   `final-26-desafio.png` (o preparo com Maré 1º e Brasa 2º, o Ipê apagado e o "Desafiar"), `final-27-duelo.png` (o 1º
   duelo no meio da corrida) e `final-28-resumo.png` (o resumo de uma vitória em 3 duelos). Mudaram também a aba
   Expedição (`final-10`), o Perfil (`final-11`, `final-17` e as duas `marcas-perfil-*`, com as insígnias) e as capturas
-  de corrida, que mudam um pouco a cada rodada.
+  de corrida, que mudam um pouco a cada rodada. Depois, `final-21-mochila.png` foi regravada sozinha (o texto "de onde vem"
+  dos itens passou a citar os ginásios).
 - **Folha da interface:** seções novas 4.21 (cartão de ginásio), 4.22 (trilha), 4.23 (linha do time) e 4.24 (cartão entre
   duelos); o teste da folha confere que o markup de cada estado é o mesmo que o jogo desenha.
 - **A confirmar com o Vinicius (gosto, ginásios):**
