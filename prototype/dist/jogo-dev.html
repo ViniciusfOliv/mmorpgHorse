@@ -14183,7 +14183,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     // estreia e rampa (GD.ECONOMY.sala): pelo número da sala, que já está no pending (recarregar monta a mesma sala).
     // f = 0 nas salas de estreia, sobe de sala em sala na rampa e vale 1 no normal; a faixa de Poder dos rivais e o
     // máximo de corredores vão do valor da estreia ao normal. As chamadas da RNG são as mesmas (uma para n, duas por bot)
-    var SL = E.sala, fSala = clamp((counter - SL.estreia) / SL.rampa, 0, 1);
+    // (modo DEV com a próxima corrida armada: sala normal; quem arma uma seed ou uma pista quer o cenário de sempre)
+    var SL = E.sala, fSala = dv ? 1 : clamp((counter - SL.estreia) / SL.rampa, 0, 1);
     var faixaLo = SL.faixaEstreia[0] + (SL.faixa[0] - SL.faixaEstreia[0]) * fSala, faixaHi = SL.faixaEstreia[1] + (SL.faixa[1] - SL.faixaEstreia[1]) * fSala;
     var nMin = E.minRacers || 4, nMax = Math.round(SL.maxEstreia + ((E.maxRacers || 8) - SL.maxEstreia) * fSala);
     var n = nMin + Math.floor(rng() * (nMax - nMin + 1));

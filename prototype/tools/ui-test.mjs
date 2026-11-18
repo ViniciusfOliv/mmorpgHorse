@@ -2910,12 +2910,12 @@ try {
     return { m, levels, learned }
   }
   const ginIgual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
-  // Tarefa 6 (blocos ginasio e ginasio-corrida): seed 157, Sargento Candeeiro (2 Brasas, nível 12) contra Maré 13 (m2, com
+  // Tarefa 6 (blocos ginasio e ginasio-corrida): seed 545 (até 2026-11-18, 157: a simulação 3.2.0 mudou as corridas), Sargento Candeeiro (2 Brasas, nível 12) contra Maré 13 (m2, com
   // vantagem) e Brasa 12 (m1), nessa ordem. Duelo 1: a Maré vence por menos de 1 m (apertada) e larga o 2º com 75%; duelo
   // 2: a Maré perde (a Brasa do Sargento larga o 3º cansada); duelo 3: Brasa contra Brasa e o jogador vence. Conferido nos
   // testes: se o pareamento mudar, o teste diz qual condição deixou de valer.
   const GIN_T6 = { id: 'fogo', i: 2, uids: ['m2', 'm1'] }
-  const ginT6Save = (o = {}) => ginSave(Object.assign({ seedBase: 157,
+  const ginT6Save = (o = {}) => ginSave(Object.assign({ seedBase: 545,
     mounts: [ginCav(ginBrasa, { uid: 'm1', level: 12 }), ginCav(ginMare, { uid: 'm2', level: 13 })],
     ginasios: Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { fogo: { etapa: 2, revDia: null, revVitorias: 0 } }) }, o))
   if (quer('ginasio')) {
@@ -3952,14 +3952,14 @@ try {
       }
     }
 
-    // 11. vencer uma etapa (seed 94: a Maré vence o Cabo Tocha, sobe 1 nível e aprende uma skill): Ouro (− entrada +
+    // 11. vencer uma etapa (seed 43, até 2026-11-18 a 94: a Maré vence o Cabo Tocha, sobe 1 nível e aprende uma skill): Ouro (− entrada +
     //     prêmio), o XP, o item na mochila, a etapa marcada, a seguinte aberta, gymCounter + 1, igual no disco; o resumo; o
     //     voltar do aparelho leva à trilha (a etapa vencida não se toca de novo); o desafio forçado da etapa vencida recusa;
     //     recarregar mostra a trilha já atualizada
     {
       const label = 'ginasio-vence'
       const mounts = [ginCav(ginBrasa, { uid: 'm1', level: 10 }), ginCav(ginMare, { uid: 'm2', level: 20, xp: G.ECONOMY.xpToLevel(20) - 10 })]
-      const pg = await ginAbre(label, { save: ginSave({ seedBase: 94, gold: 1000, mounts, mochila: { torrao: 3, estrela: 0, cupom: 0, manual: 0 }, ginasios: ginComProgresso({ fogo: { etapa: 1, revDia: null, revVitorias: 0 } }) }) })
+      const pg = await ginAbre(label, { save: ginSave({ seedBase: 43, gold: 1000, mounts, mochila: { torrao: 3, estrela: 0, cupom: 0, manual: 0 }, ginasios: ginComProgresso({ fogo: { etapa: 1, revDia: null, revVitorias: 0 } }) }) })
       try {
         await ginOuroInf(pg, false)
         await ginPreparo(pg, 'fogo', 1)
@@ -3968,7 +3968,7 @@ try {
         const st0 = await ginEstado(pg), d0 = await ginDisco(pg), hoje = await ginHoje(pg)
         const esp = ginEsperado(st0, 'fogo', 1, ['m2'], hoje)
         if (!esp.res.venceu || esp.cavalos[0].levels !== 1 || esp.cavalos[0].learned.length !== 1 || esp.ac.itens.join() !== 'torrao') problems.push(`${label}: o cenário precisa de uma vitória com 1 nível, 1 skill e o Torrão (troque a seedBase) ${JSON.stringify({ v: esp.res.venceu, c: esp.cavalos[0], it: esp.ac.itens })}`)
-        if (esp.res.duelos[0].cfg.seed !== S.hash2(94, GN.SAL + 0)) problems.push(`${label}: a seed do duelo não é a do contador 0`)
+        if (esp.res.duelos[0].cfg.seed !== S.hash2(43, GN.SAL + 0)) problems.push(`${label}: a seed do duelo não é a do contador 0`)
         await ginNadaAntes(label, pg, st0, d0)
         await ginDesafia(pg)
         const s1 = await ginEstado(pg), disco = JSON.parse(await ginDisco(pg))
@@ -4611,7 +4611,7 @@ try {
       const st0 = await ginEstado(pg), esp = ginEsperado(st0, GIN_T6.id, GIN_T6.i, GIN_T6.uids, await ginHoje(pg))
       const D = esp.res.duelos
       if (!esp.res.venceu || D.length !== 3 || D[0].vencedor !== 'jogador' || !(D[0].metros < 1) || D[0].vantagem !== 1 || D[1].vencedor !== 'adversario' || D[1].folegoA !== 0.75 ||
-        D[2].vencedor !== 'jogador' || D[2].folegoB === 1) problems.push(`${label}: o cenário mudou (seed 157): ${JSON.stringify(D.map((d) => [d.a, d.b, d.vencedor, d.metros, d.folegoA, d.folegoB, d.vantagem]))}`)
+        D[2].vencedor !== 'jogador' || D[2].folegoB === 1) problems.push(`${label}: o cenário mudou (seed 545): ${JSON.stringify(D.map((d) => [d.a, d.b, d.vencedor, d.metros, d.folegoA, d.folegoB, d.vantagem]))}`)
       await pg.locator('#tela [data-acao="ginasio-desafiar"]').click()
       if (parar) { await ginConfereDesafio(label, pg, esp, GIN_T6.id, GIN_T6.i, 0); return { st0, esp, disco: await ginDisco(pg) } }
       await ginPassaDesafio(label, pg, esp, GIN_T6.id, GIN_T6.i, 0)
@@ -6032,9 +6032,9 @@ try {
           if (um > 1) problems.push(`[${label}] tela baixa com ${um} frases na narração (esperado 1)`)
         }
         await checkOverflow(pg, label + ' chegada')
-        // por último (a tela vai para o resultado quando a faixa some): a faixa do lugar (o jogador chega em 7º de 7 na
+        // por último (a tela vai para o resultado quando a faixa some): a faixa do lugar (o jogador chega em 6º de 7 na
         // seed 16) e as plaquinhas dos rivais
-        await confereLugar(pg, label, '7º LUGAR')
+        await confereLugar(pg, label, '6º LUGAR')
         const bv = await pg.evaluate(() => window.__baloesVigia)
         notes[label + '-baloes'] = bv
         if (bv.linhas !== (baixa ? 1 : 2)) problems.push(`[${label}] nome da skill nos balões em ${bv.linhas} linha(s) com raias de ${bv.lane} (esperado ${baixa ? 1 : 2})`)
@@ -6314,22 +6314,22 @@ try {
       }
     }
 
-    // faixa do lugar: vitória (seed 3, jogador em 1º), pódio (seed 12, 3º; com o jogador na raia 2 a 360x640 a faixa vai
-    // para o pé) e Ruling 14 com o jogador na raia 1 (seed 102, 8º): a faixa não cruza o cavalo dele em nenhum quadro, a
-    // 360x780 e a 360x640
-    if (quer('corrida-faixa-lugar')) for (const [seed, esperado, vp] of [[3, 'VITÓRIA!', { width: 360, height: 780 }], [12, '3º LUGAR', { width: 360, height: 640 }],
-      [102, '8º LUGAR', { width: 360, height: 780 }], [102, '8º LUGAR', { width: 360, height: 640 }]]) {
+    // faixa do lugar: vitória (seed 3, jogador em 1º), pódio (seed 9, 3º de 5; com o jogador na raia 2 a 360x640 a faixa
+    // vai para o pé) e Ruling 14 com o jogador na raia 1 (seed 266, 8º de 8): a faixa não cruza o cavalo dele em nenhum
+    // quadro, a 360x780 e a 360x640 (seeds achadas de novo em 2026-11-18, com a simulação 3.2.0)
+    if (quer('corrida-faixa-lugar')) for (const [seed, esperado, vp] of [[3, 'VITÓRIA!', { width: 360, height: 780 }], [9, '3º LUGAR', { width: 360, height: 640 }],
+      [266, '8º LUGAR', { width: 360, height: 780 }], [266, '8º LUGAR', { width: 360, height: 640 }]]) {
       const label = `corrida-faixa-lugar-${seed}-${vp.width}x${vp.height}`
       const pg = await newPage(browser, vp, label, { query: '?dev=1' })
       try {
         await abreCorrida(pg, label, seed)
         const me = await pg.evaluate(() => window.__galope.ui.lobby.playerIdx)
-        if (seed === 102 && me !== 0) problems.push(`[${label}] a seed 102 pôs o jogador na raia ${me + 1} (o teste conta com a raia 1)`)
+        if (seed === 266 && me !== 0) problems.push(`[${label}] a seed 266 pôs o jogador na raia ${me + 1} (o teste conta com a raia 1)`)
         await vigiaLugar(pg)
         await pg.getByRole('button', { name: 'x2' }).click()
         const w = await confereLugar(pg, label, esperado)
         // com o jogador na raia 1, a faixa em cima cruzaria o cavalo dele: fica no pé da pista
-        if (seed === 102 && w.caixas.length && JSON.parse(w.caixas[0]).y < w.artH / 2) problems.push(`[${label}] Ruling 14: com o jogador na raia 1 a faixa do lugar ficou em cima (${w.caixas[0]})`)
+        if (seed === 266 && w.caixas.length && JSON.parse(w.caixas[0]).y < w.artH / 2) problems.push(`[${label}] Ruling 14: com o jogador na raia 1 a faixa do lugar ficou em cima (${w.caixas[0]})`)
         // em cima, logo abaixo da etiqueta "FOTO DE CHEGADA"; no pé, encostada na borda de baixo (sem Dado na chegada)
         const cx = w.caixas.length ? JSON.parse(w.caixas[0]) : null
         if (cx && (cx.y < w.artH / 2 ? cx.y !== w.hudH + 15 : cx.y + cx.h !== w.artH - 2)) problems.push(`[${label}] faixa do lugar fora das duas posições (${w.caixas[0]}; hudH ${w.hudH}, artH ${w.artH})`)
@@ -6405,7 +6405,7 @@ try {
         await pg.getByRole('button', { name: 'x2' }).click()
         await confereVigiaDado(pg, label)
         // com movimento reduzido, o mesmo texto (aparece e some sem animação: drawPlaceBanner é parado)
-        await confereLugar(pg, label, '7º LUGAR')
+        await confereLugar(pg, label, '6º LUGAR')
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -6416,12 +6416,12 @@ try {
 
   // ---------------- resultado numa tela, com abas Chegada | Momentos (3c §8) ----------------
   if (quer('resultado')) {
-    // seeds DEV (perfil DEV novo): 16 = 7 corredores, o jogador em 7º, sem subir de nível; 70 = vitória (7 corredores);
-    // 12 = 5 corredores com o jogador em 3º (pódio sem prêmio)
-    const SEED7 = 16, SEED_VITORIA = 70, SEED_SEM_PREMIO = 12
+    // seeds DEV (perfil DEV novo): 16 = 7 corredores, o jogador em 6º, sem subir de nível; 70 = vitória (7 corredores);
+    // 9 = 5 corredores com o jogador em 3º (pódio sem prêmio)
+    const SEED7 = 16, SEED_VITORIA = 70, SEED_SEM_PREMIO = 9
     // seedBase do perfil DEV fixo (Ruling 21): o perfil novo sorteia o dele (crypto.getRandomValues), e a skill que o
     // cavalo aprende ao subir de nível sai de hash2(seedBase, …). Com uma skill aprendida na vitória, o Poder sobe, a sala
-    // da seed 12 vem com rivais mais fortes e o resultado deixa de ser o pódio sem prêmio (falhava ~1 em 10)
+    // da seed do pódio sem prêmio vem com rivais mais fortes e o resultado deixa de ser o pódio sem prêmio (falhava ~1 em 10)
     const SEED_BASE_RES = 7
     const MIN_ENTRADA = Math.min(...G.ECONOMY.entryTiers)
     // do resultado (ou de qualquer tela com a casca) até o próximo resultado da seed; prep(pg) roda na largada
@@ -8841,7 +8841,7 @@ try {
       await confereAjuda(pg, '.vaga-tipo', 'skillTipo', OUTROS.skillTipo, 'ajuda-skills')
       // o texto da descrição da skill de tipo diz o % e "varia"/"cresce" uma vez só
       const vt = ((x) => x.replace(/\s+/g, ' ').trim())(await pg.locator('.vaga-tipo').textContent())
-      if (!/\+19%/.test(vt) || (vt.match(/varia com|cresce com/g) || []).length !== 1) problems.push(`ajuda-skills: descrição da skill de tipo "${vt}"`)
+      if (!vt.includes('+' + Math.round(G.TYPE_SKILLS.fogo.effect.statMul * 100) + '%') || (vt.match(/varia com|cresce com/g) || []).length !== 1) problems.push(`ajuda-skills: descrição da skill de tipo "${vt}"`)
       // aba Correr, cartão "Montaria ativa": Poder e liga
       await pg.locator('[data-acao="aba"][data-id="correr"]').click()
       await pg.waitForSelector('#t-correr')
@@ -9585,7 +9585,7 @@ try {
         }
         // o jogo: Fornalha com 2 etapas vencidas, Remanso com a insígnia e a revanche livre, Capoeira do zero; no estábulo a Maré 13
         // (vantagem contra o Fogo), a Brasa 12 e o Ipê 12 (desvantagem). O desafio do Sargento Candeeiro com Maré e Brasa é o da
-        // Tarefa 6 (seed 157): vitória da Maré, derrota da Maré, e os dois cartões entre os três duelos
+        // Tarefa 6 (seed 545): vitória da Maré, derrota da Maré, e os dois cartões entre os três duelos
         const ginIpe = G.STARTERS.find((h) => h.id === 'ipe')
         const save = ginT6Save({ nextUid: 4,
           mounts: [ginCav(ginBrasa, { uid: 'm1', level: 12 }), ginCav(ginMare, { uid: 'm2', level: 13 }), ginCav(ginIpe, { uid: 'm3', level: 12 })],
@@ -10805,7 +10805,10 @@ try {
         if (salaA.blocks !== JSON.stringify(S.randomConditions(salaA.seed).blocks)) problems.push(`${label}: o mapa da sala não é o da seed`)
         const rng = S.mulberry32(S.hash2(salaA.seed, 0xA11CE))
         rng()   // o nome da pista
-        const n = G.ECONOMY.minRacers + Math.floor(rng() * (G.ECONOMY.maxRacers - G.ECONOMY.minRacers + 1))
+        // a 4ª sala do save ainda é de estreia: no máximo ECONOMY.sala.maxEstreia corredores
+        const SL = G.ECONOMY.sala, fSala = Math.min(1, Math.max(0, (salaA.counter - SL.estreia) / SL.rampa))
+        const nMax = Math.round(SL.maxEstreia + (G.ECONOMY.maxRacers - SL.maxEstreia) * fSala)
+        const n = G.ECONOMY.minRacers + Math.floor(rng() * (nMax - G.ECONOMY.minRacers + 1))
         const nomes = G.BOT_NAMES.slice()
         for (let i = nomes.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = nomes[i]; nomes[i] = nomes[j]; nomes[j] = t }
         if (salaA.nomes !== nomes.slice(0, n - 1).sort().join('|')) problems.push(`${label}: rivais ${salaA.nomes} (da seed: ${nomes.slice(0, n - 1).sort().join('|')})`)
@@ -12928,7 +12931,7 @@ try {
       const pg = await newPage(browser, vp, label, { query: '?dev=1' })
       try {
         await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
-        await devArmar(pg, { clima: 'sol', vento: 'calmo', tracado: 'curvas', distancia: 1600, seed: 4247 })
+        await devArmar(pg, { clima: 'sol', vento: 'calmo', tracado: 'curvas', distancia: 1600, seed: 4271 })
         await pg.locator('[data-acao="aba"][data-id="correr"]').click()
         await pg.waitForSelector('#t-correr')
         await pg.getByRole('button', { name: 'Procurar corrida' }).click()
@@ -13094,7 +13097,7 @@ try {
   // o preparo com o time escolhido, um duelo no meio da corrida e o resumo. O jogo (preview.html, sem a faixa DEV) abre com o
   // save posto antes de carregar: Fornalha com 2 etapas vencidas, Remanso com a insígnia e a revanche livre, Capoeira do zero;
   // no estábulo a Brasa 12 (a ativa), a Maré 13 e o Ipê 12. O desafio do Sargento Candeeiro com Maré e Brasa é o da Tarefa 6
-  // (seed 157): três duelos e vitória (conferido abaixo: se o pareamento mudar, o teste diz)
+  // (seed 545): três duelos e vitória (conferido abaixo: se o pareamento mudar, o teste diz)
   if (quer('fluxo-capturas-ginasio')) {
     const label = 'ginasio-capturas'
     const ginIpe = G.STARTERS.find((h) => h.id === 'ipe')
@@ -13282,11 +13285,13 @@ try {
     init: () => { Object.defineProperty(window, '__MOLDES', { configurable: true, get: () => ({}), set: () => {} }) }
   })
   {
-    // corrida de 8: a 1ª sala do save sai de hash2(seedBase, 1); o nº de corredores é o 2º sorteio do rng da sala
-    // (o 1º escolhe o nome da pista). Conferido no navegador abaixo (L.n === 8).
+    // corrida de 8: a sala sai de hash2(seedBase, nº da sala); o nº de corredores é o 2º sorteio do rng da sala (o 1º
+    // escolhe o nome da pista). As salas de estreia têm no máximo 5 corredores, então o save entra com as salas de
+    // estreia e de rampa já corridas (ECONOMY.sala). Conferido no navegador abaixo (L.n === 8).
+    const SALAS_CORRIDAS = G.ECONOMY.sala.estreia + G.ECONOMY.sala.rampa
     let SEED8 = 0
     for (let sd = 1; sd <= 500 && !SEED8; sd++) {
-      const rng = S.mulberry32(S.hash2(S.hash2(sd, 1), 0xA11CE))
+      const rng = S.mulberry32(S.hash2(S.hash2(sd, SALAS_CORRIDAS + 1), 0xA11CE))
       rng()
       if (4 + Math.floor(rng() * 5) === 8) SEED8 = sd
     }
@@ -13369,7 +13374,7 @@ try {
       sil.erros.forEach((e) => problems.push('contorno da skill: ' + e))
       await mc.getByRole('button', { name: 'Escolher Ipê' }).click()
       await mc.waitForSelector('#t-estabulo')
-      await mc.evaluate((sd) => { window.__galope.state.seedBase = sd }, SEED8)
+      await mc.evaluate(([sd, c]) => { const st = window.__galope.state; st.seedBase = sd; st.raceCounter = c }, [SEED8, SALAS_CORRIDAS])
       await mc.locator('[data-acao="aba"][data-id="correr"]').click()
       await mc.waitForSelector('#t-correr')
       await mc.getByRole('button', { name: 'Procurar corrida' }).click()
