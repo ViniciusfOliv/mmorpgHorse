@@ -888,6 +888,36 @@ test('curveOffset: 0 fora das curvas (e nas pontas), −6 no meio e simétrico',
   }
   assert.strictEqual(FX.CURVA.arco, 6); assert.strictEqual(FX.CURVA.arquibancada, 10);
 });
+test('curveOffsetTela: o arco preso à tela, com as pontas mais altas (escolha do Vinicius, 2026-11-18)', function () {
+  var T = FX.CURVA.tela, longa = [[100, 700]], meia = 40;
+  assert.strictEqual(T, 20);
+  // sem câmera, sem curva ou com o meio da tela fora da curva: reta
+  assert.strictEqual(FX.curveOffsetTela(longa, 400), 0);
+  assert.strictEqual(FX.curveOffsetTela(longa, 400, { c: 400, meia: 0 }), 0);
+  assert.strictEqual(FX.curveOffsetTela([], 400, { c: 400, meia: meia }), 0);
+  assert.strictEqual(FX.curveOffsetTela(null, 400, { c: 400, meia: meia }), 0);
+  [50, 99, 700, 760].forEach(function (c) { assert.strictEqual(FX.curveOffsetTela(longa, c + 10, { c: c, meia: meia }), 0, 'meio da tela em ' + c + ' m'); });
+  // no platô (intensidade 1): o meio da tela fica onde está, as pontas sobem CURVA.tela, u² no caminho, simétrico
+  var cam = { c: 400, meia: meia };
+  assert.strictEqual(FX.curveOffsetTela(longa, 400, cam), -0);
+  assert.strictEqual(FX.curveOffsetTela(longa, 400 - meia, cam), -T);
+  assert.strictEqual(FX.curveOffsetTela(longa, 400 + meia, cam), -T);
+  for (var u = -1; u <= 1.0001; u += 0.125) {
+    var v = FX.curveOffsetTela(longa, 400 + u * meia, cam);
+    assert.ok(Math.abs(v - -T * u * u) < 1e-9, 'u = ' + u + ': ' + v);
+  }
+  // fora da tela não passa das pontas; a forma vale mesmo onde o metro já saiu da curva (a tela é que se arqueia)
+  assert.strictEqual(FX.curveOffsetTela(longa, 400 + 3 * meia, cam), -T);
+  var perto = { c: 120, meia: meia };
+  assert.ok(FX.curveOffsetTela(longa, 80, perto) < 0, 'o metro 80 é reta, mas está na tela de uma curva');
+  // a intensidade é a do meio da tela: na rampa de entrada, a mesma fração de curveOffset
+  [110, 160, 220, 640, 690].forEach(function (c) {
+    var k = -FX.curveOffset(longa, c) / FX.CURVA.arco;
+    assert.ok(Math.abs(FX.curveOffsetTela(longa, c + meia, { c: c, meia: meia }) - -T * k) < 1e-9, 'rampa no meio da tela em ' + c + ' m');
+    assert.ok(k > 0 && k <= 1);
+  });
+  assert.ok(Math.abs(FX.curveOffsetTela(longa, 160 + meia, { c: 160, meia: meia }) - -T * Math.sin(Math.PI / 4)) < 1e-9, 'meia rampa');
+});
 
 // desenho do traçado com o contexto falso (só fillRect)
 var BOX_MAPA = { x: 4, y: 3, w: 60, h: 30, P: 2 };

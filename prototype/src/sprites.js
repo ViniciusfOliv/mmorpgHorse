@@ -24,10 +24,10 @@
  *     wind = { intensity: 'calmo'|'brisa'|'ventania', dir: 1|-1 } (só visual; padrão brisa ←): bandeirinhas
  *     da arquibancada, grama da borda e nuvens seguem o vento
  *     curves = [[a, b], …] (metros): as SEQUÊNCIAS de curva (a corrida passa RaceFx.curveRuns(cond.curves):
- *     blocos de curva colados viram um intervalo só). Com o fx.js carregado, dentro de uma curva a pista faz
- *     um arco ancorado no mundo — cerca externa, piso, raias, linhas e campo interno sobem
- *     round(−RaceFx.curveOffset) pixels de arte por coluna (até 6 no meio; numa curva longa, 6 em todo o
- *     platô), a arquibancada até 10; por intervalo: tracejados de início e fim, placas CURVA (início) e FIM
+ *     blocos de curva colados viram um intervalo só). Com o fx.js carregado, enquanto o meio da tela está numa
+ *     curva a pista se arqueia NA TELA, com as pontas mais altas — cerca externa, piso, raias, linhas e campo
+ *     interno sobem round(−RaceFx.curveOffsetTela) pixels de arte por coluna (0 no meio da tela, até 20 nas
+ *     pontas), a arquibancada 10/6 disso; por intervalo: tracejados de início e fim, placas CURVA (início) e FIM
  *     nos postes e placas "CURVA" presas à cerca a cada 40 m. O chamador soma o mesmo deslocamento no y dos
  *     cavalos. Sem fx.js, a pista fica reta. curveScale (0..1) encolhe o arco quando falta espaço acima da
  *     pista (o y dos cavalos usa o mesmo fator).
@@ -2077,7 +2077,7 @@
   }
 
   // Curvas: RaceFx (fx.js) dá o arco (curveOffset e CURVA); sem ele, a pista fica reta.
-  function curvaApi() { var FX = fxApi(); return FX && FX.curveOffset && FX.CURVA ? FX : null; }
+  function curvaApi() { var FX = fxApi(); return FX && FX.curveOffsetTela && FX.CURVA ? FX : null; }
   var CURVA_PLACA_M = 40;   // placas "CURVA" na cerca a cada 40 m dentro da curva
 
   // Hachura diagonal das subidas: em cada linha de arte r (y = laneTop + r·P) da faixa, retângulos de 3P × P
@@ -2217,19 +2217,18 @@
     // copas de árvores na colina próxima
     ridge(0.15, 2, 6, 0.08, HC.near, 90);
 
-    // --- curvas (o.curves): arco da pista lateral, ancorado no mundo. Dentro de uma curva a cerca, as raias
-    // e os cavalos (no game.js) sobem −RaceFx.curveOffset (até 6 px de arte no meio) e a arquibancada sobe
-    // até 10 px de arte; placas "CURVA" na cerca. Precisa do fx.js (RaceFx); sem ele a pista fica reta.
+    // --- curvas (o.curves): arco da pista NA TELA (RaceFx.curveOffsetTela, "as pontas mais altas"). Com o meio da
+    // tela numa curva, a cerca, as raias e os cavalos (no game.js, com o mesmo camTela) sobem até 20 px de arte
+    // nas pontas da tela e a arquibancada 10/6 disso; placas "CURVA" na cerca. Precisa do fx.js (RaceFx); sem ele
+    // a pista fica reta.
     var curves = o.curves || [];
     var FXc = curves.length ? curvaApi() : null, arco = false;
-    if (FXc) {
-      var mVis0 = cam - 60 * P / ppm, mVis1 = cam + (W + 60 * P) / ppm;
-      for (var cq = 0; cq < curves.length; cq++) if (curves[cq][1] > mVis0 && curves[cq][0] < mVis1) { arco = true; break; }
-    }
+    var camTela = { c: cam + W / ppm / 2, meia: W / ppm / 2 };
+    if (FXc) arco = -FXc.curveOffset(curves, camTela.c) > 0;
     // quanto sobe (pixels de arte, ≥ 0) no metro m: k = 1 para a cerca e as raias, 10/6 para a arquibancada.
     // o.curveScale (0..1, padrão 1) encolhe o arco quando falta espaço acima da pista (como hillMaxLift)
     var escArco = o.curveScale >= 0 && o.curveScale < 1 ? o.curveScale : 1;
-    function arcoEm(m, k) { return arco ? Math.round(-FXc.curveOffset(curves, m) * (k * escArco)) || 0 : 0; }
+    function arcoEm(m, k) { return arco ? Math.round(-FXc.curveOffsetTela(curves, m, camTela) * (k * escArco)) || 0 : 0; }
     // trechos de colunas com a mesma subida: [xa, xb, dy em pixels de arte]
     function trechosArco(k) {
       var out = [], xa = 0, dyA = null;

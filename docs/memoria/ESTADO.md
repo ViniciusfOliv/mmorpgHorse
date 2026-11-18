@@ -464,10 +464,12 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
 - **Pedidos de 2026-11-18 (na `claude/nifty-newton-e8u133`, sem merge):** feitos: a corrida 50% mais longa na tela e, na
   aba Skills da montaria, a chance de cada skill ativar (com a conta: raridade + nível + Sorte), o "Quando" de cada skill e
   o quadro da Garra deste cavalo (onde começa, chance e força; com a Arrancada Final), tudo calculado pelo `sim.js` e
-  atualizado quando o cavalo melhora. **Esperando o Vinicius:** (1) a curva na pista: duas maquetes do arco preso à tela
-  (o meio da pista mais alto, ou as pontas mais altas), em vez do arco de 6 px de hoje; (2) a arte do ginásio: o oponente
-  e o cavalo dele, no topo da etapa e numa tela de desafio antes do duelo; a maquete usa uma personagem provisória feita
-  à mão, e a definitiva sairia do PixelLab (gasta gerações: pedir confirmação); (3) integrar na `main`.
+  atualizado quando o cavalo melhora; e a curva visível na pista enquanto os cavalos correm (escolha dele: "as pontas
+  mais altas", um arco preso à tela de até 20 px). **Esperando o Vinicius:** (1) se os cavalos também "fazem a curva"
+  (maquete com eles inclinando, e inclinando e fechando para dentro); (2) a arte do ginásio: ele escolheu a "Cena 2" (tela
+  de desafio antes de cada duelo, oponente e cavalo dele no alto à direita, o cavalo do jogador embaixo à esquerda); a
+  maquete usa uma personagem provisória feita à mão, e a definitiva sairia do PixelLab (gasta gerações: pedir
+  confirmação); (3) integrar na `main`.
 - **Ginásios (`docs/GDD.md` §8.6), na `main` desde 2026-11-18:** o Vinicius joga nos artefatos oficiais e decide a lista
   "A confirmar com o Vinicius (gosto, ginásios)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Teste de interface em paralelo:** feito e na `main` (a verificação inteira leva ~10 min com os ginásios); em aberto se vale buscar os ~5 min (dividir o bloco

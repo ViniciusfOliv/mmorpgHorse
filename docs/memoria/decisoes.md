@@ -3,6 +3,20 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-18 — Curva visível na pista: as pontas mais altas (escolha do Vinicius)
+- **Na corrida, a curva aparece como um arco preso à tela: o meio da tela fica onde está e as duas pontas sobem, até 20
+  px de arte no centro de uma curva cheia (as arquibancadas sobem 10/6 disso)** — o Vinicius viu duas maquetes (o meio
+  mais alto e as pontas mais altas) e escolheu "por enquanto as pontas é o melhor". O arco antigo (6 px, puxando a pista
+  inteira para cima) parecia a pista deslocada em curva longa. A intensidade continua a de `FX.curveOffset` (entra e sai
+  da curva em rampa de 120 m); a forma nova é `FX.curveOffsetTela(curvas, m, cam)` = −20·k·u², com k a intensidade no
+  centro da tela e u a posição na tela (−1 a 1). Cavalos, sombras e caixas de toque sobem junto com a pista. Em paisagem,
+  onde quase não sobra céu, o arco encolhe (`lay.arcoK`; ~4 px). É só desenho: a simulação e o resultado não mudam. Se
+  errado: muda um número (`FX.CURVA.tela`) ou volta ao arco antigo.
+- **O teste `fluxo-curvas` confere a forma, não um número fixo** (controlador) — a pista sobe nas pontas (≥ 60% da
+  borda esperada em 80% das colunas), o meio fica no lugar (≤ 1 px), o cavalo do jogador e a etiqueta "VOCÊ" sobem o
+  mesmo que a pista sob eles, e a borda mínima é 4 px (a mesma exigência de antes). Se errado: o teste deixa passar um
+  arco torto em alguma tela que ele não mede.
+
 ## 2026-11-18 — Corrida mais longa na tela (pedido do Vinicius)
 - **A corrida na tela ficou 25% mais longa: de 20–34 s para 25–42,5 s em x1, conforme a distância** ("aumente um pouco a
   duração das corridas, estão muito rápidas") — mudou só a velocidade da animação (`TELA_S_MIN` e `TELA_S_MAX` no

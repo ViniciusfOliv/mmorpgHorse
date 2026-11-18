@@ -128,10 +128,18 @@
  *   RaceFx.curveOffset(curves, m) -> px de arte, por SEQUÊNCIA [a, b] (intervalos colados da lista, em ordem,
  *     contam como um só): −6 × sen(π/2 × min(1, (m − a)/R, (b − m)/R)), R = min((b − a)/2, CURVA.rampa = 120 m)
  *     — o mesmo −6·sen(πu) de sempre até 240 m; numa curva mais longa o arco fica inteiro no meio (platô).
- *     0 fora e nas pontas. A pista lateral (Sprites.drawTrack) sobe −round(curveOffset) por coluna; a tela
- *     soma o mesmo no y dos cavalos (as duas recebem curveRuns(cond.curves)).
- *   RaceFx.CURVA = { arco: 6, arquibancada: 10, rampa: 120, … } (pixels de arte no meio da curva; metros da
- *     rampa do arco; giros do traçado).
+ *     0 fora e nas pontas. É a INTENSIDADE da curva (−curveOffset/6, de 0 a 1, com a rampa de entrada e saída);
+ *     o desenho usa curveOffsetTela.
+ *   RaceFx.curveOffsetTela(curves, m, cam) -> px de arte: o arco da pista NA TELA (escolha do Vinicius em
+ *     2026-11-18, "as pontas mais altas"): com cam = { c: metro no meio da tela, meia: meia largura da tela em
+ *     metros }, −CURVA.tela × k × u², u = (m − c)/meia preso a −1..1 e k = −curveOffset(curves, c)/CURVA.arco
+ *     (a intensidade no meio da tela). O meio da tela fica onde está e as pontas sobem até CURVA.tela px; numa
+ *     curva longa o arco fica na tela o tempo todo. 0 sem cam ou com o meio da tela fora de curva. A pista
+ *     lateral (Sprites.drawTrack) sobe −round(curveOffsetTela) por coluna; a tela soma o mesmo no y dos cavalos
+ *     (as duas recebem curveRuns(cond.curves) e o mesmo cam).
+ *   RaceFx.CURVA = { arco: 6, arquibancada: 10, rampa: 120, tela: 20, … } (arco: a escala da intensidade;
+ *     arquibancada/arco: quanto a arquibancada sobe a mais que a pista; rampa: metros da entrada e da saída;
+ *     tela: pixels de arte que as pontas da tela sobem; giros do traçado).
  *
  * ================================= DESENHO ==================================
  * Canvas 2D em pixel art (x, y em px do canvas; S = px por pixel de arte). Precisa de window.Sprites
@@ -726,7 +734,8 @@
   // CURVA.arco: pixels de arte que a cerca e as raias sobem no meio de uma curva (pista lateral);
   // CURVA.arquibancada: quanto a arquibancada sobe no mesmo ponto; CURVA.rampa: metros da entrada (e da
   // saída) até o arco inteiro numa curva longa. giro*: graus por curva (traçado).
-  var CURVA = { arco: 6, arquibancada: 10, rampa: 120, giroPor150m: 90, giroMin: 45, giroMax: 180, passoM: 10 };
+  // CURVA.tela: pixels de arte que as pontas da tela sobem no meio de uma curva (curveOffsetTela; 2026-11-18)
+  var CURVA = { arco: 6, arquibancada: 10, rampa: 120, tela: 20, giroPor150m: 90, giroMin: 45, giroMax: 180, passoM: 10 };
   function giroCurva(len) { return Math.max(CURVA.giroMin, Math.min(CURVA.giroMax, len / 150 * CURVA.giroPor150m)); }
 
   // Sequências de curva para o DESENHO: junta os intervalos [a, b] em que a é o b do anterior (|Δ| < EPS).
@@ -815,6 +824,18 @@
       return -CURVA.arco * Math.sin(Math.PI / 2 * Math.min(1, (m - a) / R, (b - m) / R));
     }
     return 0;
+  }
+
+  // O arco da pista NA TELA (escolha do Vinicius, 2026-11-18: "as pontas mais altas"): enquanto o meio da tela está numa
+  // curva, a cerca, as raias e os cavalos sobem −CURVA.tela·k·u² pixels de arte, u = posição na tela (−1 na ponta
+  // esquerda, 0 no meio, 1 na direita), k = a intensidade da curva no meio da tela (curveOffset normalizado: a mesma
+  // rampa de entrada e de saída). cam = { c: metro no meio da tela, meia: meia largura da tela em metros }.
+  function curveOffsetTela(curves, m, cam) {
+    if (!cam || !(cam.meia > 0) || !curves || !curves.length) return 0;
+    var k = -curveOffset(curves, cam.c) / CURVA.arco;
+    if (!(k > 0)) return 0;
+    var u = Math.max(-1, Math.min(1, (m - cam.c) / cam.meia));
+    return -CURVA.tela * k * u * u;
   }
 
   // ===========================================================================
@@ -1751,6 +1772,7 @@
     trackPath: trackPath,
     pathAt: pathAt,
     curveOffset: curveOffset,
+    curveOffsetTela: curveOffsetTela,
     NATUREZA: NATUREZA,
     RAIN: RAIN,
     SOMBRA_NUVEM: SOMBRA_NUVEM,

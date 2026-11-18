@@ -5011,10 +5011,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *     wind = { intensity: 'calmo'|'brisa'|'ventania', dir: 1|-1 } (só visual; padrão brisa ←): bandeirinhas
  *     da arquibancada, grama da borda e nuvens seguem o vento
  *     curves = [[a, b], …] (metros): as SEQUÊNCIAS de curva (a corrida passa RaceFx.curveRuns(cond.curves):
- *     blocos de curva colados viram um intervalo só). Com o fx.js carregado, dentro de uma curva a pista faz
- *     um arco ancorado no mundo — cerca externa, piso, raias, linhas e campo interno sobem
- *     round(−RaceFx.curveOffset) pixels de arte por coluna (até 6 no meio; numa curva longa, 6 em todo o
- *     platô), a arquibancada até 10; por intervalo: tracejados de início e fim, placas CURVA (início) e FIM
+ *     blocos de curva colados viram um intervalo só). Com o fx.js carregado, enquanto o meio da tela está numa
+ *     curva a pista se arqueia NA TELA, com as pontas mais altas — cerca externa, piso, raias, linhas e campo
+ *     interno sobem round(−RaceFx.curveOffsetTela) pixels de arte por coluna (0 no meio da tela, até 20 nas
+ *     pontas), a arquibancada 10/6 disso; por intervalo: tracejados de início e fim, placas CURVA (início) e FIM
  *     nos postes e placas "CURVA" presas à cerca a cada 40 m. O chamador soma o mesmo deslocamento no y dos
  *     cavalos. Sem fx.js, a pista fica reta. curveScale (0..1) encolhe o arco quando falta espaço acima da
  *     pista (o y dos cavalos usa o mesmo fator).
@@ -7064,7 +7064,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   }
 
   // Curvas: RaceFx (fx.js) dá o arco (curveOffset e CURVA); sem ele, a pista fica reta.
-  function curvaApi() { var FX = fxApi(); return FX && FX.curveOffset && FX.CURVA ? FX : null; }
+  function curvaApi() { var FX = fxApi(); return FX && FX.curveOffsetTela && FX.CURVA ? FX : null; }
   var CURVA_PLACA_M = 40;   // placas "CURVA" na cerca a cada 40 m dentro da curva
 
   // Hachura diagonal das subidas: em cada linha de arte r (y = laneTop + r·P) da faixa, retângulos de 3P × P
@@ -7204,19 +7204,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     // copas de árvores na colina próxima
     ridge(0.15, 2, 6, 0.08, HC.near, 90);
 
-    // --- curvas (o.curves): arco da pista lateral, ancorado no mundo. Dentro de uma curva a cerca, as raias
-    // e os cavalos (no game.js) sobem −RaceFx.curveOffset (até 6 px de arte no meio) e a arquibancada sobe
-    // até 10 px de arte; placas "CURVA" na cerca. Precisa do fx.js (RaceFx); sem ele a pista fica reta.
+    // --- curvas (o.curves): arco da pista NA TELA (RaceFx.curveOffsetTela, "as pontas mais altas"). Com o meio da
+    // tela numa curva, a cerca, as raias e os cavalos (no game.js, com o mesmo camTela) sobem até 20 px de arte
+    // nas pontas da tela e a arquibancada 10/6 disso; placas "CURVA" na cerca. Precisa do fx.js (RaceFx); sem ele
+    // a pista fica reta.
     var curves = o.curves || [];
     var FXc = curves.length ? curvaApi() : null, arco = false;
-    if (FXc) {
-      var mVis0 = cam - 60 * P / ppm, mVis1 = cam + (W + 60 * P) / ppm;
-      for (var cq = 0; cq < curves.length; cq++) if (curves[cq][1] > mVis0 && curves[cq][0] < mVis1) { arco = true; break; }
-    }
+    var camTela = { c: cam + W / ppm / 2, meia: W / ppm / 2 };
+    if (FXc) arco = -FXc.curveOffset(curves, camTela.c) > 0;
     // quanto sobe (pixels de arte, ≥ 0) no metro m: k = 1 para a cerca e as raias, 10/6 para a arquibancada.
     // o.curveScale (0..1, padrão 1) encolhe o arco quando falta espaço acima da pista (como hillMaxLift)
     var escArco = o.curveScale >= 0 && o.curveScale < 1 ? o.curveScale : 1;
-    function arcoEm(m, k) { return arco ? Math.round(-FXc.curveOffset(curves, m) * (k * escArco)) || 0 : 0; }
+    function arcoEm(m, k) { return arco ? Math.round(-FXc.curveOffsetTela(curves, m, camTela) * (k * escArco)) || 0 : 0; }
     // trechos de colunas com a mesma subida: [xa, xb, dy em pixels de arte]
     function trechosArco(k) {
       var out = [], xa = 0, dyA = null;
@@ -7712,10 +7711,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
  *   RaceFx.curveOffset(curves, m) -> px de arte, por SEQUÊNCIA [a, b] (intervalos colados da lista, em ordem,
  *     contam como um só): −6 × sen(π/2 × min(1, (m − a)/R, (b − m)/R)), R = min((b − a)/2, CURVA.rampa = 120 m)
  *     — o mesmo −6·sen(πu) de sempre até 240 m; numa curva mais longa o arco fica inteiro no meio (platô).
- *     0 fora e nas pontas. A pista lateral (Sprites.drawTrack) sobe −round(curveOffset) por coluna; a tela
- *     soma o mesmo no y dos cavalos (as duas recebem curveRuns(cond.curves)).
- *   RaceFx.CURVA = { arco: 6, arquibancada: 10, rampa: 120, … } (pixels de arte no meio da curva; metros da
- *     rampa do arco; giros do traçado).
+ *     0 fora e nas pontas. É a INTENSIDADE da curva (−curveOffset/6, de 0 a 1, com a rampa de entrada e saída);
+ *     o desenho usa curveOffsetTela.
+ *   RaceFx.curveOffsetTela(curves, m, cam) -> px de arte: o arco da pista NA TELA (escolha do Vinicius em
+ *     2026-11-18, "as pontas mais altas"): com cam = { c: metro no meio da tela, meia: meia largura da tela em
+ *     metros }, −CURVA.tela × k × u², u = (m − c)/meia preso a −1..1 e k = −curveOffset(curves, c)/CURVA.arco
+ *     (a intensidade no meio da tela). O meio da tela fica onde está e as pontas sobem até CURVA.tela px; numa
+ *     curva longa o arco fica na tela o tempo todo. 0 sem cam ou com o meio da tela fora de curva. A pista
+ *     lateral (Sprites.drawTrack) sobe −round(curveOffsetTela) por coluna; a tela soma o mesmo no y dos cavalos
+ *     (as duas recebem curveRuns(cond.curves) e o mesmo cam).
+ *   RaceFx.CURVA = { arco: 6, arquibancada: 10, rampa: 120, tela: 20, … } (arco: a escala da intensidade;
+ *     arquibancada/arco: quanto a arquibancada sobe a mais que a pista; rampa: metros da entrada e da saída;
+ *     tela: pixels de arte que as pontas da tela sobem; giros do traçado).
  *
  * ================================= DESENHO ==================================
  * Canvas 2D em pixel art (x, y em px do canvas; S = px por pixel de arte). Precisa de window.Sprites
@@ -8310,7 +8317,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
   // CURVA.arco: pixels de arte que a cerca e as raias sobem no meio de uma curva (pista lateral);
   // CURVA.arquibancada: quanto a arquibancada sobe no mesmo ponto; CURVA.rampa: metros da entrada (e da
   // saída) até o arco inteiro numa curva longa. giro*: graus por curva (traçado).
-  var CURVA = { arco: 6, arquibancada: 10, rampa: 120, giroPor150m: 90, giroMin: 45, giroMax: 180, passoM: 10 };
+  // CURVA.tela: pixels de arte que as pontas da tela sobem no meio de uma curva (curveOffsetTela; 2026-11-18)
+  var CURVA = { arco: 6, arquibancada: 10, rampa: 120, tela: 20, giroPor150m: 90, giroMin: 45, giroMax: 180, passoM: 10 };
   function giroCurva(len) { return Math.max(CURVA.giroMin, Math.min(CURVA.giroMax, len / 150 * CURVA.giroPor150m)); }
 
   // Sequências de curva para o DESENHO: junta os intervalos [a, b] em que a é o b do anterior (|Δ| < EPS).
@@ -8399,6 +8407,18 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       return -CURVA.arco * Math.sin(Math.PI / 2 * Math.min(1, (m - a) / R, (b - m) / R));
     }
     return 0;
+  }
+
+  // O arco da pista NA TELA (escolha do Vinicius, 2026-11-18: "as pontas mais altas"): enquanto o meio da tela está numa
+  // curva, a cerca, as raias e os cavalos sobem −CURVA.tela·k·u² pixels de arte, u = posição na tela (−1 na ponta
+  // esquerda, 0 no meio, 1 na direita), k = a intensidade da curva no meio da tela (curveOffset normalizado: a mesma
+  // rampa de entrada e de saída). cam = { c: metro no meio da tela, meia: meia largura da tela em metros }.
+  function curveOffsetTela(curves, m, cam) {
+    if (!cam || !(cam.meia > 0) || !curves || !curves.length) return 0;
+    var k = -curveOffset(curves, cam.c) / CURVA.arco;
+    if (!(k > 0)) return 0;
+    var u = Math.max(-1, Math.min(1, (m - cam.c) / cam.meia));
+    return -CURVA.tela * k * u * u;
   }
 
   // ===========================================================================
@@ -9335,6 +9355,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     trackPath: trackPath,
     pathAt: pathAt,
     curveOffset: curveOffset,
+    curveOffsetTela: curveOffsetTela,
     NATUREZA: NATUREZA,
     RAIN: RAIN,
     SOMBRA_NUVEM: SOMBRA_NUVEM,
@@ -13414,7 +13435,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     var pisoCor = (GD.SURFACES[L.cond.surface] || {}).color || C.palha;
     var silksCores = L.racers.map(function (r) { return r.silks; });
     // (o fator lay.arcoK encolhe o arco quando falta espaço acima da raia 1, como o maxLift das subidas)
-    function arcoArt(m) { return curves.length ? Math.round(-FX.curveOffset(curves, m) * self.lay.arcoK) || 0 : 0; }
+    function arcoArt(m) { return curves.length ? Math.round(-FX.curveOffsetTela(curves, m, self.camTela) * self.lay.arcoK) || 0 : 0; }
     // clima em cada instante: o inicial, trocado por cada evento 'clima' (Dado da Sorte) já ocorrido
     var climaEvs = sim.events.filter(function (ev) { return ev.type === 'clima'; });
     // o Dado de um evento ('dado', ou a virada de clima com o mesmo t), ou null
@@ -13597,7 +13618,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
           maxLift: clamp(top - hudH - 12, 4, 24),   // a subida não invade o HUD
           // arco da curva: o cavalo da raia 1 (pés em top + lane − 3, sprite de FOOT_Y + 1 de altura) não sai
           // por cima do canvas; só o layout compacto (raias de 12) fica abaixo dos 6 px de arte
-          arcoK: clamp(top + lane - 3 - (SP.FOOT_Y + 1), 0, FX.CURVA.arco) / FX.CURVA.arco
+          arcoK: clamp(top + lane - 3 - (SP.FOOT_Y + 1), 0, FX.CURVA.tela) / FX.CURVA.tela
         };
       });
       // escala de trabalho: com o canvas acima de CANVAS_MAX_PX, desenha em S/d (d inteiro) e o CSS amplia d vezes
@@ -13893,6 +13914,8 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       var lineX = (D - follow) / visM;
       self.finishCam = self.phase === 'corrida' && self.simT > tWin - 1.1 && self.simT < tWin + 0.7 && p < D - 2 && (lineX > 0.95 || lineX < 0.08);
       var cam = self.finishCam ? D - 0.62 * visM : follow;
+      // o arco das curvas é preso à tela (RaceFx.curveOffsetTela): o meio da tela e a meia largura, em metros
+      self.camTela = { c: cam + visM / 2, meia: visM / 2 };
       var laneH = lay.laneArt * S, laneTop = lay.laneTopArt * S;
       var tr = self.tReal, red = reduced();
       var clima = climaMostrado(self.simT);
@@ -13972,7 +13995,7 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
         }
         if (gl) SP.drawHorseSilhouette(ctx, x, y, cavalo, gl.cor, gl.alpha);
         SP.drawHorse(ctx, x, y, cavalo);
-        FX._stats.caixasCavalos.push({ racer: j, x: Math.round(caixaCav.x / S), y: Math.round(caixaCav.y / S), w: Math.round(caixaCav.w / S), h: Math.round(caixaCav.h / S) });
+        FX._stats.caixasCavalos.push({ racer: j, x: Math.round(caixaCav.x / S), y: Math.round(caixaCav.y / S), w: Math.round(caixaCav.w / S), h: Math.round(caixaCav.h / S), arco: arcoJ });
         // vento, "+" e faíscas da skill / Garra no próprio cavalo (fx.js)
         for (var ei = 0; ei < efeitoItens.length; ei++) {
           if (efeitoItens[ei].racer === j) FX.drawSkillAura(ctx, { x: caixaCav.x, y: caixaCav.y, w: caixaCav.w, h: caixaCav.h, S: S }, efeitoItens[ei], self.simT, reduced());

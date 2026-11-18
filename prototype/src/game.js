@@ -4642,7 +4642,7 @@
     var pisoCor = (GD.SURFACES[L.cond.surface] || {}).color || C.palha;
     var silksCores = L.racers.map(function (r) { return r.silks; });
     // (o fator lay.arcoK encolhe o arco quando falta espaço acima da raia 1, como o maxLift das subidas)
-    function arcoArt(m) { return curves.length ? Math.round(-FX.curveOffset(curves, m) * self.lay.arcoK) || 0 : 0; }
+    function arcoArt(m) { return curves.length ? Math.round(-FX.curveOffsetTela(curves, m, self.camTela) * self.lay.arcoK) || 0 : 0; }
     // clima em cada instante: o inicial, trocado por cada evento 'clima' (Dado da Sorte) já ocorrido
     var climaEvs = sim.events.filter(function (ev) { return ev.type === 'clima'; });
     // o Dado de um evento ('dado', ou a virada de clima com o mesmo t), ou null
@@ -4825,7 +4825,7 @@
           maxLift: clamp(top - hudH - 12, 4, 24),   // a subida não invade o HUD
           // arco da curva: o cavalo da raia 1 (pés em top + lane − 3, sprite de FOOT_Y + 1 de altura) não sai
           // por cima do canvas; só o layout compacto (raias de 12) fica abaixo dos 6 px de arte
-          arcoK: clamp(top + lane - 3 - (SP.FOOT_Y + 1), 0, FX.CURVA.arco) / FX.CURVA.arco
+          arcoK: clamp(top + lane - 3 - (SP.FOOT_Y + 1), 0, FX.CURVA.tela) / FX.CURVA.tela
         };
       });
       // escala de trabalho: com o canvas acima de CANVAS_MAX_PX, desenha em S/d (d inteiro) e o CSS amplia d vezes
@@ -5121,6 +5121,8 @@
       var lineX = (D - follow) / visM;
       self.finishCam = self.phase === 'corrida' && self.simT > tWin - 1.1 && self.simT < tWin + 0.7 && p < D - 2 && (lineX > 0.95 || lineX < 0.08);
       var cam = self.finishCam ? D - 0.62 * visM : follow;
+      // o arco das curvas é preso à tela (RaceFx.curveOffsetTela): o meio da tela e a meia largura, em metros
+      self.camTela = { c: cam + visM / 2, meia: visM / 2 };
       var laneH = lay.laneArt * S, laneTop = lay.laneTopArt * S;
       var tr = self.tReal, red = reduced();
       var clima = climaMostrado(self.simT);
@@ -5200,7 +5202,7 @@
         }
         if (gl) SP.drawHorseSilhouette(ctx, x, y, cavalo, gl.cor, gl.alpha);
         SP.drawHorse(ctx, x, y, cavalo);
-        FX._stats.caixasCavalos.push({ racer: j, x: Math.round(caixaCav.x / S), y: Math.round(caixaCav.y / S), w: Math.round(caixaCav.w / S), h: Math.round(caixaCav.h / S) });
+        FX._stats.caixasCavalos.push({ racer: j, x: Math.round(caixaCav.x / S), y: Math.round(caixaCav.y / S), w: Math.round(caixaCav.w / S), h: Math.round(caixaCav.h / S), arco: arcoJ });
         // vento, "+" e faíscas da skill / Garra no próprio cavalo (fx.js)
         for (var ei = 0; ei < efeitoItens.length; ei++) {
           if (efeitoItens[ei].racer === j) FX.drawSkillAura(ctx, { x: caixaCav.x, y: caixaCav.y, w: caixaCav.w, h: caixaCav.h, S: S }, efeitoItens[ei], self.simT, reduced());
