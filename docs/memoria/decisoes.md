@@ -3,6 +3,23 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-18 — Mapa da Expedição: desenho, maquetes e a figura do jogador na cena (pedido do Vinicius)
+Spec: `docs/superpowers/specs/2026-11-18-mapa-expedicao-design.md`. Estado: maquetes mostradas, à espera da reação dele;
+só a figura do jogador foi construída.
+- **Só a aba Expedição vira mapa; ordem Capoeira → Remanso → Fornalha; cada ginásio mais forte que o anterior** (o
+  Vinicius: "os ginásios devem seguir uma sequência, você só consegue lutar com um, vencendo o anterior (pode decidir o
+  primeiro, segundo e último)"; depois "pode seguir com as metas e mapas") — o vulcão fica como o último lugar do mapa;
+  a Capoeira abre a trilha com o Recruta no nível 2. Números de partida na spec (níveis 2–10, 11–20 e 21–30).
+- **O mapa é arte nossa, desenhada por código, no espírito da referência dele** (controlador) — a referência é o mapa de
+  um jogo que existe: copiar a arte não pode; e desenhado por código não gasta créditos e muda com o progresso (caminho
+  percorrido, cadeado, marcador). Os lugares são botões de verdade por cima do canvas (leitor de tela e 44 px).
+- **A figura do jogador é desenhada por código, de costas, com as cores do jóquei do Perfil** (controlador) — o pedido é
+  "a imagem do nosso jogador ao lado do cavalo, estilo pokemon onde os treinadores ficam atrás"; a arte do PixelLab tem
+  cor fixa e gasta créditos (só com confirmação), e a figura por código acompanha o capacete e o padrão que o jogador
+  escolheu. Entrou na tela de desafio que já existe; no preparo ela entra junto com o mapa.
+- **A sequência e os níveis novos entram junto com o mapa, não antes** (controlador) — os testes de ginásio do
+  `ui-test.mjs` (cerca de 2 mil linhas) dependem da trilha em cartões e dos números de hoje: mexer uma vez só.
+
 ## 2026-11-18 — Cavalo superior vence: Garra v2, skills niveladas e começo mais leve (pedido do Vinicius)
 Spec: `docs/superpowers/specs/2026-11-18-balanco-superioridade-design.md`. Medições: `docs/exemplos.md` §0.
 - **Regra nova de desenho: quanto maior a vantagem de status, mais certo o resultado** (o Vinicius: "um cavalo superior

@@ -484,16 +484,29 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   força; clima de 2%; as 15 skills niveladas (5 a 7 pontos de vitória cada); skills de tipo recalibradas; rivais da sala
   de 93,5% a 104,5% do Poder, com estreia nas 10 primeiras salas (4 ou 5 corredores, 44–47% de vitória) e rampa até a
   20ª; nos ginásios, vantagem de elemento de 2%, Remanso sem ★★★ e faixas do cansaço de 3/8 m. `balance.js` completo:
-  298 metas dentro da faixa. **Esperando o Vinicius:** jogar e dizer se a corrida ficou previsível demais ou no ponto
-  (os números ficam no `TUNING` do `sim.js`, em `data.js` e em `GameData.ECONOMY.sala`).
-- **Projeto seguinte (em desenho, nada construído): mapa da Expedição.** O Vinicius pediu um mapa-múndi em pixel art (a
+  298 metas dentro da faixa. O teste de interface foi ajustado ao balanço (a corrida armada no DEV usa a sala normal, até
+  8 corredores; seeds e colocações dos cenários fixos achadas de novo) e a verificação completa passou. Para jogar: o build
+  de teste com modo DEV https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 19: o balanço e a figura do jogador na
+  cena de desafio); os artefatos oficiais ainda estão com o jogo de antes do balanço. **Esperando o Vinicius:** jogar e
+  dizer se a corrida ficou previsível demais ou no ponto (os números ficam no `TUNING` do `sim.js`, em `data.js` e em
+  `GameData.ECONOMY.sala`) e se o balanço entra na `main`.
+- **Projeto seguinte (spec escrita, maquetes mostradas, à espera da reação do Vinicius): mapa da Expedição.** Spec:
+  `docs/superpowers/specs/2026-11-18-mapa-expedicao-design.md`; maquetes e o roteiro que as desenha em
+  `docs/superpowers/specs/anexos/2026-11-18-mapa-expedicao-maquete-*`. O Vinicius pediu um mapa-múndi em pixel art (a
   referência dele é o mapa de um jogo que existe: fazer um mapa nosso no mesmo espírito, sem copiar a arte), com um
   marcador por ginásio; tocar abre o mapa do ginásio, com a trilha dos oponentes até o líder; tocar num oponente abre a
   cena "oponente + cavalo × você", com a figura do jogador atrás do cavalo dele, e dali se escolhe o time e desafia. Os
   ginásios passam a ser em sequência. Combinado com ele: só a aba Expedição vira mapa (as outras abas ficam); ordem
-  Capoeira → Remanso → Fornalha; cada ginásio mais forte que o anterior e o primeiro mais fácil (recruta no nível 2).
-  Falta: maquetes do mapa para ele reagir, recalibrar as pistas e os níveis dos ginásios (metas G) e a figura do
-  jogador (PixelLab só com confirmação).
+  Capoeira → Remanso → Fornalha; cada ginásio mais forte que o anterior e o primeiro mais fácil (recruta no nível 2;
+  níveis 2–10, 11–20 e 21–30, entradas e prêmios na spec).
+  **Feito (na branch da sessão):** a figura do jogador na tela de desafio que já existe (de costas, atrás do cavalo,
+  desenhada por código com a seda, o padrão e o capacete do jóquei do Perfil; `drawJogador` no `game.js`).
+  **Perguntado ao Vinicius:** se o visual das maquetes serve; se os números da sequência servem; se quer candidatas do
+  PixelLab para a figura do jogador (gasta créditos); e se o balanço entra na `main` agora.
+  **Falta construir (depois da resposta):** a sequência no módulo (`Ginasio.aberto`, motivo `'ginasio-fechado'`), os
+  níveis, entradas e prêmios por ginásio (metas G no `balance.js` completo), o mapa-múndi, o mapa do ginásio e a cena no
+  preparo. Atenção: os testes de ginásio do `ui-test.mjs` (cerca de 2 mil linhas, com seeds e números fixos) dependem
+  da trilha em cartões e dos números de hoje: mexer uma vez só, com tudo junto.
 - **Ginásios (`docs/GDD.md` §8.6), na `main` desde 2026-11-18:** o Vinicius joga nos artefatos oficiais e decide a lista
   "A confirmar com o Vinicius (gosto, ginásios)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Teste de interface em paralelo:** feito e na `main` (a verificação inteira leva ~10 min com os ginásios); em aberto se vale buscar os ~5 min (dividir o bloco

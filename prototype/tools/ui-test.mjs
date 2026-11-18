@@ -4566,7 +4566,8 @@ try {
     }
     // a tela de desafio do duelo k (2026-11-18): o rótulo e o título, as placas (o dono e o cavalo dele, com o nível e o tipo;
     // você e o seu), a linha da vantagem (a mesma do duelo), o nome do canvas, o foco no título, os dois botões à vista sem
-    // rolar, nada do que vem depois, e a cena desenhada em escala inteira, com o oponente quando o build tem a arte dele
+    // rolar, nada do que vem depois, e a cena desenhada em escala inteira, com o oponente quando o build tem a arte dele e a
+    // figura do jogador, de costas, à esquerda (o capacete do jóquei dele, a seda e o culote, em três pontos da figura)
     const ginSlug = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
     const ginConfereDesafio = async (label, pg, esp, id, i, k) => {
       await pg.waitForSelector('#t-desafio', { timeout: 6000 }).catch(() => problems.push(`${label}: a tela de desafio do duelo ${k + 1} não abriu`))
@@ -4579,7 +4580,14 @@ try {
         return { rotulo: tx(q('#tela .tela--desafio .rotulo')), titulo: tx(q('#t-desafio')), rival: placa('rival'), voce: placa('voce'), vant: tx(q('#tela .gin-cena-vant')),
           aria: cv && cv.getAttribute('aria-label'), cw: cv && cv.width, ch: cv && cv.height, cores: eval(cores), txt: tx(q('#tela')), foco: document.activeElement && document.activeElement.id,
           botoes: [...document.querySelectorAll('#tela .tela--desafio .acoes button')].map((b) => ({ acao: b.getAttribute('data-acao'), txt: tx(b), h: b.getBoundingClientRect().height, bottom: b.getBoundingClientRect().bottom })),
-          ih: window.innerHeight, k: window.__galope.ui.gym && window.__galope.ui.gym.ver && window.__galope.ui.gym.ver.k }
+          ih: window.innerHeight, k: window.__galope.ui.gym && window.__galope.ui.gym.ver && window.__galope.ui.gym.ver.k,
+          // a figura do jogador: 18 × 40 pontos de u pixels (a escala dos cavalos da cena), com os pés em y = 108 de arte
+          jog: (() => {
+            if (!cv || !cv.width) return null
+            const kk = cv.width / 160, u = Math.max(1, Math.round(kk * 1.5)), g = cv.getContext('2d'), top = 108 * kk - 40 * u
+            const cor = (px, py) => { const d = g.getImageData(Math.floor((px + 0.5) * u), Math.floor(top + (py + 0.5) * u), 1, 1).data; return '#' + [d[0], d[1], d[2]].map((v) => v.toString(16).padStart(2, '0')).join('') }
+            return { capacete: cor(8, 4), seda: cor(8, 12), culote: cor(6, 26), esperado: String((window.__galope.state.joquei || {}).capacete).toLowerCase() }
+          })() }
       }, GIN_CENA_CORES)
       const e = ginDueloEsp(esp, id, i, k), papel = esp.revanche ? 'Revanche' : et.lider ? 'Líder' : 'Soldado ' + (i + 1)
       const espx = { rotulo: `${G.GYMS[id].name} · ${papel} · Duelo ${k + 1}`, titulo: k === 0 ? `${dono} desafia você!` : `${dono} entra com ${bn}!`,
@@ -4594,6 +4602,7 @@ try {
       if (acoes !== 'ginasio-comecar:Começar duelo,ginasio-pular-tudo:Pular tudo' || x.botoes.some((b) => b.h < 44 || b.bottom > x.ih)) problems.push(`${label}: botões do desafio ${k + 1} ${JSON.stringify(x.botoes)} (janela ${x.ih})`)
       if (!x.cw || x.cw % 160 || x.ch !== x.cw / 160 * 112) problems.push(`${label}: a cena do desafio ${k + 1} fora da escala inteira (${x.cw}×${x.ch})`)
       if ((x.cores > 12) !== temArte) problems.push(`${label}: desafio ${k + 1}: ${temArte ? 'sem' : 'com'} o oponente na cena (${x.cores} cores na faixa dele; arte no build: ${temArte})`)
+      if (!x.jog || x.jog.capacete !== x.jog.esperado || x.jog.seda !== '#f2c230' || x.jog.culote !== '#f1e9d4') problems.push(`${label}: desafio ${k + 1}: sem a figura do jogador na cena ${JSON.stringify(x.jog)}`)
       await checkOverflow(pg, label + ' desafio ' + (k + 1))
       return x
     }

@@ -12,6 +12,14 @@ treinadores ficam atrás e o pokemon na frente". Depois: "Pode seguir com as met
 dele é o mapa de um jogo que existe: o nosso mapa segue o mesmo espírito (uma ilha vista de cima, caminhos pontilhados e
 marcadores), com arte nossa, desenhada por código. Nada da arte da referência é copiado.
 
+**Maquetes** (em `anexos/`): `2026-11-18-mapa-expedicao-maquete-mundo.png` (o mapa-múndi com a Capoeira vencida, o
+Remanso em 2 de 5 e a Fornalha fechada) e `2026-11-18-mapa-expedicao-maquete-ginasio.png` (o mapa do Remanso); o roteiro
+que as desenha é o `2026-11-18-mapa-expedicao-maquete.mjs`, e o desenho dele serve de partida para a tela.
+
+**Estado (2026-11-18):** maquetes mostradas ao Vinicius, à espera da reação dele. Construído: só a figura do jogador
+na tela de desafio que já existe (seção 4). A sequência, os níveis novos e os dois mapas entram juntos, depois da
+resposta dele (os testes de ginásio do `ui-test.mjs` dependem da trilha em cartões e dos números de hoje).
+
 ## Combinado
 
 - Só a aba **Expedição** vira mapa; as outras abas ficam como estão.

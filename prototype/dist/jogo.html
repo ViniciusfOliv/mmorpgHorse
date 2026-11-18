@@ -11998,6 +11998,53 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     }
     return im.complete && im.naturalWidth ? im : null;
   }
+  // A figura do jogador na cena (pedido de 2026-11-18): de costas, em pé atrás do cavalo dele, como o treinador nos jogos
+  // de monstrinhos. Desenhada por código, com a seda do jogador (PLAYER_SILKS e o padrão do jóquei) e o capacete do jóquei
+  // dele, as mesmas cores da corrida. 18 × 40 pontos: c capacete, l o brilho e C a sombra dele, h cabelo, p pele, P a
+  // sombra dela, s seda (o padrão entra aqui), S a sombra dela, b culote, B a sombra dele, t o cano e k a bota.
+  var JOGADOR_ROWS = [
+    '......cccccc......', '....cllccccccc....', '...cllcccccccCC...', '...ccccccccccCC...', '...ccccccccccCC...',
+    '...ccccccccccCC...', '...CCCCCCCCCCCC...', '....hhhhhhhhhh....', '.....hpppppph.....', '.......pppP.......',
+    '....ssssssssss....', '..ssssssssssssSS..', '.sssssssssssssSSS.', '.ss.sssssssssS.SS.', '.ss.sssssssssS.SS.',
+    '.ss.sssssssssS.SS.', '.ss.sssssssssS.SS.', '.ss.sssssssssS.SS.', '.ss.sssssssssS.SS.', '.ss.sssssssssS.SS.',
+    '.ss.sssssssssS.SS.', '.ss.sssssssssS.SS.', '.pp.sssssssssS.pP.', '....sssssssssS....', '....SSSSSSSSSS....',
+    '....bbbbbbbbbB....', '....bbbbbbbbbB....', '....bbbbBBbbbB....', '....bbbbBBbbbB....', '....bbbbBBbbbB....',
+    '....bbbbBBbbbB....', '....bbbbBBbbbB....', '....bbbbBBbbbB....', '....tttt..tttt....', '....kkkk..kkkk....',
+    '....kkkk..kkkk....', '....kkkk..kkkk....', '....kkkk..kkkk....', '....kkkk..kkkk....', '...kkkkk..kkkkk...'
+  ];
+  // mistura de duas cores '#rrggbb' (t = 0 dá a, t = 1 dá b)
+  function corMix(a, b, t) {
+    var A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16), out = 0;
+    for (var sh = 16; sh >= 0; sh -= 8) { var x = (A >> sh) & 255, y = (B >> sh) & 255; out = out * 256 + Math.round(x + (y - x) * t); }
+    return '#' + ('000000' + out.toString(16)).slice(-6);
+  }
+  // o padrão da seda nas costas (o mesmo nome do editor do jóquei; no ponto x, y da figura)
+  function jogadorPadrao(padrao, x, y) {
+    if (padrao === 'listras') return x % 4 >= 2;
+    if (padrao === 'faixa') return y >= 15 && y <= 17;
+    if (padrao === 'xadrez') return ((x >> 1) + (y >> 1)) % 2 === 1;
+    if (padrao === 'estrelas') return x % 4 === 1 && y % 4 === 2;
+    if (padrao === 'losangos') return Math.abs(x - 8.5) + Math.abs(y - 17) <= 3.5;
+    return false;
+  }
+  // x: a esquerda da figura e base: os pés, em pixels do canvas; u: pixels do canvas por ponto da figura
+  function drawJogador(ctx, x, base, u, joquei) {
+    var j = validJoquei(joquei), ESCURO = '#24122e', R = JOGADOR_ROWS, H = R.length, W = R[0].length, top = base - H * u, i, y, ch;
+    var cor = { c: j.capacete, l: corMix(j.capacete, '#fff4d6', 0.5), C: corMix(j.capacete, ESCURO, 0.35), h: '#4a2c1a', p: '#e8b58a',
+      P: '#c08a62', s: PLAYER_SILKS, S: corMix(PLAYER_SILKS, ESCURO, 0.42), b: '#f1e9d4', B: '#bdb49c', t: '#8a5a2c', k: '#2a1c14' };
+    var tom2 = corMix(PLAYER_SILKS, ESCURO, 0.25);
+    function cheio(xx, yy) { return yy >= 0 && yy < H && xx >= 0 && xx < W && R[yy].charAt(xx) !== '.'; }
+    ctx.fillStyle = '#140c10';   // o contorno: um ponto escuro em volta da silhueta
+    for (y = -1; y <= H; y++) for (i = -1; i <= W; i++) {
+      if (!cheio(i, y) && (cheio(i - 1, y) || cheio(i + 1, y) || cheio(i, y - 1) || cheio(i, y + 1))) ctx.fillRect(x + i * u, top + y * u, u, u);
+    }
+    for (y = 0; y < H; y++) for (i = 0; i < W; i++) {
+      ch = R[y].charAt(i);
+      if (ch === '.') continue;
+      ctx.fillStyle = ch === 's' && jogadorPadrao(j.padrao, i, y) ? tom2 : cor[ch];
+      ctx.fillRect(x + i * u, top + y * u, u, u);
+    }
+  }
   // as placas e o palco da cena do duelo k (o canvas é desenhado no hydrate: drawGinCena)
   function ginCenaHtml(R, k) {
     var d = R.duelos[k], dono = GD.GYMS[R.gymId].etapas[R.etapa].nome;
@@ -12043,7 +12090,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       for (y = P + 3; y < CENA_H; y += 4) px(0, y, CENA_W, 1, c.risco);
       px(0, P, CENA_W, 1, c.borda);
       palco(104, 64, 52, 5);
-      palco(38, 106, 36, 5);
+      palco(38, 106, 40, 5);
     }
     function cavalo(h, vis, x, base, t, espelha) {
       vis.reduzido = reduced();
@@ -12066,7 +12113,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         cavalo(e.b, visB, 116, 64, tt + 0.9, true);   // o cavalo do oponente, virado para a esquerda
         img = img || treinadorImg(ginTreinadorId(e.dono));
         if (img) ctx.drawImage(img, 96 * k, 0, 64 * k, 64 * k);
-        cavalo(e.a, visA, 4, 106, tt, false);
+        drawJogador(ctx, 0, 108 * k, hk, joqueiDoJogador());   // o jogador, de costas, atrás do cavalo dele
+        cavalo(e.a, visA, 14, 106, tt, false);
       }
     };
     item.draw(0);
