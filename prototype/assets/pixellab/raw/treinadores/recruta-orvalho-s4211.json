@@ -1,0 +1,29 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-18T15:23:38.424Z",
+  "pedido": {
+    "description": "full body pixel art game character, standing, whole figure visible from head to boots, clean silhouette, water gym recruit, a shy young boy with light blue hair, white sailor cap, white and light blue sailor uniform with a blue neckerchief, blue shorts, brown shoes, cool water colors",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "side",
+    "direction": "south",
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "detail": "medium detail",
+    "no_background": true,
+    "seed": 4211
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1773 bytes, sha256 e17e257783974371>",
+      "format": "png"
+    }
+  }
+}

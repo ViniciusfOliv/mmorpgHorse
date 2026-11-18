@@ -1,0 +1,29 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-18T15:25:34.513Z",
+  "pedido": {
+    "description": "full body pixel art game character, standing, whole figure visible from head to boots, clean silhouette, water gym lieutenant, a calm woman with long dark blue hair, white officer cap with a blue band, teal naval officer coat with silver buttons, holding a brass spyglass, white trousers, tall black boots, cool water colors",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "side",
+    "direction": "south",
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "detail": "medium detail",
+    "no_background": true,
+    "seed": 4242
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1555 bytes, sha256 f199f5228eaf3d3a>",
+      "format": "png"
+    }
+  }
+}

@@ -3,6 +3,27 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-18 — A tela de desafio do ginásio (a "Cena 2", com a arte do PixelLab)
+- **Antes de cada duelo de ginásio, uma tela de desafio: o oponente e o cavalo dele em cima, à direita, o seu cavalo
+  embaixo, à esquerda, com as placas, o fundo do ginásio e a vantagem de elemento; "Começar duelo" e "Pular tudo"** — o
+  Vinicius pediu "imagem do oponente e um cavalo do lado, do tipo dele, 2D, parecido com Pokémon", escolheu a maquete
+  "Cena 2" e aprovou o PixelLab ("2 - pixel lab", depois "2 - sim" para o gasto). Os cavalos são os de verdade do duelo
+  (os moldes do jogo, parados e respirando); o oponente é uma figura 64×64 por etapa. É só desenho: a tela abre depois de
+  pagar (tudo já gravado) e mostra só o que o cartão e a tela do duelo já mostram (Ruling 22).
+- **A tela de desafio vem antes de cada duelo, não dentro do cartão entre duelos** (controlador) — a proposta era pôr a
+  cena no cartão, mas o cartão tem de caber sem rolar a 360×640 e em paisagem (testado); com a cena ele passaria. Custa um
+  toque a mais por duelo (cartão → "Próximo duelo" → desafio → "Começar duelo"). Se errado: o cartão ganha uma cena menor e
+  o desafio fica só antes do 1º duelo.
+- **A arte: 15 oponentes, 36 gerações do PixelLab no total (piloto da Capitã Labareda, 4; os outros dois líderes, 4 cada;
+  os 12 soldados, 2 cada), todos de frente, no mesmo estilo; o Vinicius escolheu a Labareda (a 3ª) e o controlador
+  escolheu os outros 14** (pela leitura em tamanho pequeno e pela pose de frente) — a escolha fica em
+  `prototype/assets/pixellab/treinadores/escolhas.json` (trocar uma é mudar um número) e o build embute só as escolhidas
+  (+33 KB no jogo). Cada ginásio tem o seu tema de roupa (Fornalha: farda vermelha; Remanso: marinheiro azul; Capoeira:
+  vaqueiro e guarda verde) e as patentes na roupa (recruta sem divisa, cabo 1, sargento 3, tenente de oficial).
+- **A cena: 160×112 pixels de arte em escala inteira (1 a 3, a que cabe sem rolar), os cavalos a 1,5× (o quadro de 36 px
+  vira 54) e o oponente a 1×; em paisagem a cena vai à esquerda e o resto à direita** (controlador) — cabe a 360×640, a
+  780×360 e no computador; o teste confere a escala, as placas, os textos e que a arte do oponente foi desenhada.
+
 ## 2026-11-18 — Recomeçar pela escolha do cavalo também no modo DEV (pedido do Vinicius)
 - **No build de teste (DEV), o "Recomeçar com outro inicial" do Perfil passa a fazer o mesmo que no jogo: apaga o perfil
   de teste e volta à escolha do cavalo inicial (Brasa, Maré ou Ipê)** — o Vinicius pediu "opção nos 2 artefatos para

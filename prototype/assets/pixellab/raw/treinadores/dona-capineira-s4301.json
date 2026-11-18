@@ -1,0 +1,29 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-18T15:20:11.967Z",
+  "pedido": {
+    "description": "full body pixel art game character, standing, whole figure visible from head to boots, clean silhouette, grass gym leader, a strong older woman with grey hair in a bun, wide straw hat with green leaves, green and brown leather jacket of a Brazilian backlands cowboy, a long green skirt, brown boots, holding a wooden walking cane, fresh grass colors",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "side",
+    "direction": "south",
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "detail": "medium detail",
+    "no_background": true,
+    "seed": 4301
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1490 bytes, sha256 e3ab430f58bcd8f4>",
+      "format": "png"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-18T15:23:22.927Z",
+  "pedido": {
+    "description": "full body pixel art game character, standing, whole figure visible from head to boots, clean silhouette, fire gym lieutenant, a tall woman with dark braided hair, red officer cap, dark red military coat with gold buttons and a gold sash, brown leather gloves, white trousers, tall black boots, warm fire colors",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "side",
+    "direction": "south",
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "detail": "medium detail",
+    "no_background": true,
+    "seed": 4142
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1744 bytes, sha256 a894f0856f72523d>",
+      "format": "png"
+    }
+  }
+}

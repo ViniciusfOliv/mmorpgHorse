@@ -1,0 +1,29 @@
+{
+  "endpoint": "/create-image-pixflux",
+  "data": "2026-11-18T15:19:06.739Z",
+  "pedido": {
+    "description": "full body pixel art game character, standing, whole figure visible from head to boots, clean silhouette, water gym leader, an old riverboat master with a long white beard and bushy eyebrows, navy blue captain hat with a silver wave emblem, long dark blue coat with silver buttons and silver epaulettes, a teal scarf, holding a wooden walking staff, dark trousers, black boots, cool water colors",
+    "image_size": {
+      "width": 64,
+      "height": 64
+    },
+    "view": "side",
+    "direction": "south",
+    "outline": "single color black outline",
+    "shading": "basic shading",
+    "detail": "medium detail",
+    "no_background": true,
+    "seed": 4202
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<base64 omitido: 1592 bytes, sha256 43f72414950e6800>",
+      "format": "png"
+    }
+  }
+}

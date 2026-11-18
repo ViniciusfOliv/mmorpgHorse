@@ -357,8 +357,13 @@ ninguém jogou ainda.
   a seed do save, e a entrada, o resultado, o Ouro, o XP, os itens e o progresso são gravados juntos. Se o prêmio tem um
   item e a mochila já está cheia dele, o "Desafiar" fica apagado antes de pagar.
 - **Duelos:** o 1º cavalo de cada lado corre contra o 1º do outro; quem perde sai, quem vence fica e enfrenta o próximo.
-  Perde o lado que ficar sem cavalos. Cada duelo passa na tela de corrida, com 2 raias; entre um duelo e outro, um cartão
-  diz quem saiu, quem entra e o fôlego de quem ficou; "Pular tudo" vai direto ao resumo.
+  Perde o lado que ficar sem cavalos. Antes de cada duelo, uma **tela de desafio** (desde 2026-11-18, no estilo de
+  apresentação de batalha): o oponente (arte do PixelLab, um por etapa) e o cavalo dele em cima, à direita, virados para o
+  seu cavalo, embaixo, à esquerda, com as placas (nome, cavalo, nível e tipo), o fundo do ginásio (tijolo e tochas na
+  Fornalha, pedra e água no Remanso, tábuas e cipó na Capoeira) e a vantagem de elemento; "Começar duelo" leva ao duelo.
+  Cada duelo passa na tela de corrida, com 2 raias; entre um duelo e outro, um cartão diz quem saiu, quem entra e o fôlego
+  de quem ficou; "Pular tudo" (no desafio, no duelo ou no cartão) vai direto ao resumo. A tela de desafio só mostra o que
+  já se sabe do duelo seguinte, nunca o resultado nem quantos duelos faltam.
 - **Cansaço:** quem vence larga o duelo seguinte com menos fôlego (o tanque de estamina abaixo de cheio: corre igual no
   começo e cansa mais cedo). Vale para os dois lados, e ao fim do desafio todo cavalo volta inteiro.
 

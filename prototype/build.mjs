@@ -12,13 +12,13 @@
 //   dist/moldes.js    -> só a tabela window.__MOLDES, para o comparativo.html (que abre por file://
 //                        e não pode ler PNG de arquivo num canvas)
 //   dist/wiki.html e ../docs/wiki.md -> o wiki gerado do código (tools/wiki.mjs), no fim
-// A arte (moldes do PixelLab, ícones, logotipo) entra como data: num <script> antes dos scripts do jogo.
+// A arte (moldes do PixelLab, ícones, logotipo, oponentes dos ginásios) entra como data: num <script> antes dos scripts do jogo.
 // Arquivo de arte ausente nunca falha o build: a parte correspondente fica vazia e o jogo cai no
 // desenho por código / no texto.
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { lerMoldes, lerIcones, lerMarca, jsonJs } from './tools/arte-embutida.mjs'
+import { lerMoldes, lerIcones, lerMarca, lerTreinadores, jsonJs } from './tools/arte-embutida.mjs'
 import { htmlFolhaIcones } from './tools/folha-icones.mjs'
 import { ICONES_NOVOS, ANTIGOS } from './tools/icones-catalogo.mjs'
 import { gravarWiki } from './tools/wiki.mjs'
@@ -75,10 +75,11 @@ const MOLDES = await lerMoldes(ROOT, avisos)
 const arteJs = [
   `window.__MOLDES = ${jsonJs(MOLDES)};`,
   `window.__ICONES = ${jsonJs(await lerIcones(ROOT))};`,
-  `window.__MARCA = ${jsonJs(await lerMarca(ROOT))};`
+  `window.__MARCA = ${jsonJs(await lerMarca(ROOT))};`,
+  `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`
 ].join('\n')
 
-const arteTag = `<script>\n/* arte embutida (moldes, ícones, marca) */\n${arteJs}\n</script>`
+const arteTag = `<script>\n/* arte embutida (moldes, ícones, marca, oponentes dos ginásios) */\n${arteJs}\n</script>`
 const scripts = [arteTag], scriptsProd = [arteTag]
 for (const file of SCRIPTS) {
   const fonte = await read(file)

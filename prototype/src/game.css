@@ -827,6 +827,36 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .gin-cartao { display: flex; flex-direction: column; gap: 8px; }
 .gin-cartao p { margin: 0; line-height: 1.35; }
 .gin-cartao-vant { color: var(--texto-2); }
+/* A tela de desafio antes de cada duelo (2026-11-18): a placa do oponente em cima, à esquerda; a cena (canvas em escala
+   inteira, centrado, com o "VS" no canto vazio, embaixo à direita); a sua placa embaixo, à direita; a linha da vantagem e
+   os dois botões. Cabe sem rolar a 360×640 e em paisagem */
+.gin-cena { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.gin-cena-palco { position: relative; display: flex; justify-content: center; min-width: 0; }
+.gin-cena-tela { display: block; image-rendering: pixelated; box-shadow: 0 0 0 2px var(--sombra); }
+.gin-vs {
+  position: absolute; left: 72%; top: 80%; transform: translate(-50%, -50%);
+  font-family: var(--fonte-display); font-size: 12px; line-height: 1; padding: 6px 8px;
+  background: var(--painel); color: var(--ouro); box-shadow: 0 0 0 2px var(--sombra);
+}
+.gin-placa {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; max-width: 100%; min-width: 0;
+  padding: 3px 10px 3px 12px; font-size: var(--t-s); line-height: 1.25; background: var(--painel-2); box-shadow: inset 4px 0 0 0 var(--linha);
+}
+.gin-placa--rival { align-self: flex-start; }
+.gin-placa--voce { align-self: flex-end; box-shadow: inset 4px 0 0 0 var(--ouro); }
+.gin-placa-quem { overflow-wrap: anywhere; color: var(--texto); }
+.gin-placa-cavalo { overflow-wrap: anywhere; }
+.gin-cena-vant { margin: 0; line-height: 1.35; color: var(--texto-2); }
+/* em paisagem (tela baixa): a cena à esquerda; o cabeçalho, a vantagem e os botões, um sobre o outro, à direita */
+@media (max-height: 500px) {
+  .tela--desafio { max-width: 760px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: start; }
+  .tela--desafio > .gin-cena { grid-column: 1; grid-row: 1 / span 3; }
+  .tela--desafio > .tela-cabeca, .tela--desafio > .gin-cena-vant, .tela--desafio > .acoes { grid-column: 2; }
+  .tela--desafio > .acoes { grid-template-columns: minmax(0, 1fr); }
+  /*@dev:inicio*/
+  .tela--desafio + .dev-espaco { display: none; }
+  /*@dev:fim*/
+}
 /* em paisagem (tela baixa): o texto à esquerda e os dois botões, um sobre o outro, à direita */
 @media (max-height: 500px) {
   .tela--entreduelos { max-width: 760px; display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 8px 12px; align-items: start; }

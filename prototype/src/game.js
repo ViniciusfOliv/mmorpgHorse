@@ -1141,7 +1141,7 @@
   // o último desenho, a tela é desenhada de novo (redesenhaDia) e esse toque não vale (o alvo era da tela de ontem). Nunca
   // na corrida nem no resultado (a corrida não para nem é redesenhada por isso), nem na tela de bloqueio ou sem save.
   function diaVirou() {
-    return !!state && !saveBloqueado && ui.screen !== 'corrida' && ui.screen !== 'entreduelos' && ui.screen !== 'resultado' && ui.screen !== 'bloqueio' &&
+    return !!state && !saveBloqueado && ui.screen !== 'corrida' && ui.screen !== 'entreduelos' && ui.screen !== 'desafio' && ui.screen !== 'resultado' && ui.screen !== 'bloqueio' &&
       ui.diaTela !== null && hojeDia() !== ui.diaTela;
   }
   // a tela atual de novo, com a rolagem; o uso de um item aberto continua aberto e é conferido de novo (como com o save de
@@ -1187,8 +1187,8 @@
       return;
     }
     state = s;
-    // o resultado já mostrado continua válido (também os duelos de um desafio já gravado e o cartão entre eles)
-    if (ui.screen === 'corrida' || ui.screen === 'resultado' || ui.screen === 'entreduelos') return;
+    // o resultado já mostrado continua válido (também os duelos de um desafio já gravado, a tela de desafio e o cartão entre eles)
+    if (ui.screen === 'corrida' || ui.screen === 'resultado' || ui.screen === 'entreduelos' || ui.screen === 'desafio') return;
     ui.notice = 'O jogo foi atualizado em outra aba; este é o progresso mais recente.';
     ui.lobby = null;
     // com o uso de um item aberto (escolha do cavalo, da skill ou a confirmação), a tela fica: ela é desenhada de novo com o
@@ -1334,6 +1334,8 @@
     for (var q = 0; q < perfis.length; q++) drawProfileCanvas(perfis[q]);
     var podios = root.querySelectorAll('canvas[data-podio]');
     for (var z = 0; z < podios.length; z++) setupPodium(podios[z]);
+    var cenas = root.querySelectorAll('canvas[data-cena]');
+    for (var w = 0; w < cenas.length; w++) drawGinCena(cenas[w]);
   }
 
   // ===========================================================================
@@ -1520,7 +1522,7 @@
   // ===========================================================================
   // Tipos de tela: 'aba' (raiz, com cabeçalho e barra; não empilha histórico), 'sub' (com cabeçalho e barra;
   // empilha um estado e o Voltar devolve a ui.tab) e 'full' (tela cheia, sem casca).
-  var SCREEN_KIND = { bloqueio: 'full', inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', ginasio: 'sub', largada: 'full', corrida: 'full', entreduelos: 'full', resultado: 'full' };
+  var SCREEN_KIND = { bloqueio: 'full', inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', ginasio: 'sub', largada: 'full', corrida: 'full', desafio: 'full', entreduelos: 'full', resultado: 'full' };
   // as 5 abas da barra (o handler 'aba' só abre as desta lista; o wiki lê esta linha). A Loja (itens e mochila, spec de
   // itens §6) fica sempre: o que é do equipamento dentro dela (peças e Pedras Negras) continua atrás do GEAR_ON
   var ABAS = [{ id: 'estabulo', icone: '🐴', rotulo: 'Estábulo' }, { id: 'correr', icone: '🏁', rotulo: 'Correr' }, { id: 'expedicao', icone: '🧭', rotulo: 'Expedição' }, { id: 'haras', icone: '💞', rotulo: 'Haras' }, { id: 'loja', icone: '🛒', rotulo: 'Loja' }];
@@ -1541,7 +1543,7 @@
     if (ignorePop) { ignorePop = false; return; }
     guardPushed = false;
     if (ui.screen === 'corrida') corridaAtual().voltar();
-    else if (ui.screen === 'entreduelos') ginPulaTudo();   // o cartão entre duelos: vale como "Pular tudo" (Ruling 23)
+    else if (ui.screen === 'entreduelos' || ui.screen === 'desafio') ginPulaTudo();   // o cartão e a tela de desafio: vale como "Pular tudo" (Ruling 23)
     else if (!isRoot(ui.screen) && state) voltaDaSubtela();
   });
 
@@ -1550,6 +1552,7 @@
     // sem o que mostrar, a navegação leva a um lugar que existe: sem cartão, o resumo (ou o Estábulo); sem corrida, a aba
     // Correr (não acontece: só garante que a tela de corrida e o cartão nunca são desenhados vazios)
     if (screen === 'entreduelos' && !ginTemCartao()) { if (ui.gym) ui.gym.ver = null; screen = ui.gym && ui.gym.res ? 'ginasio' : 'estabulo'; }
+    if (screen === 'desafio' && !(ui.gym && ui.gym.ver && ui.gym.res && ui.gym.res.duelos[ui.gym.ver.k])) { if (ui.gym) ui.gym.ver = null; screen = ui.gym && ui.gym.res ? 'ginasio' : 'estabulo'; }
     if (screen === 'corrida' && !corridaAtual().L) screen = state ? 'correr' : 'inicial';
     if (raceView && screen !== 'corrida') { raceView.destroy(); raceView = null; }
     ui.item = null; ui.itemMsg = null;   // o uso de item aberto e o aviso dele não passam para outra tela
@@ -1562,8 +1565,8 @@
     if (screen === 'haras' && ui.screen !== 'haras' && !voltaMesmaAba) ui.haras = newHaras();
     if (screen !== 'montaria') ui.montaria = null;   // sair da Montaria descarta o "Desfazer venda" e a confirmação
     // a trilha (e o detalhe da etapa) só vive na subtela do ginásio; os duelos de um desafio pago (ui.gym.ver) passam na
-    // tela de corrida e no cartão entre eles, e saem ao ir a qualquer outra tela
-    var assiste = !!(ui.gym && ui.gym.ver) && (screen === 'corrida' || screen === 'entreduelos');
+    // tela de desafio, na tela de corrida e no cartão entre eles, e saem ao ir a qualquer outra tela
+    var assiste = !!(ui.gym && ui.gym.ver) && (screen === 'corrida' || screen === 'entreduelos' || screen === 'desafio');
     if (screen !== 'ginasio' && !assiste) ui.gym = null;
     else if (!assiste && ui.gym) ui.gym.ver = null;
     // a Loja guarda o estado enquanto uma sub-tela aberta a partir dela está por cima
@@ -2278,6 +2281,7 @@
     if (visObs) visObs.disconnect();
     live = [];
     portraitQueue = [];
+    cenaQueue = [];
     var html;
     if (saveBloqueado) ui.screen = 'bloqueio';
     switch (ui.screen) {
@@ -2285,6 +2289,7 @@
       case 'estabulo': html = renderEstabulo(); break;
       case 'largada': html = renderLargada(); break;
       case 'corrida': html = renderCorrida(); break;
+      case 'desafio': html = renderDesafio(); break;
       case 'entreduelos': html = renderEntreDuelos(); break;
       case 'resultado': html = renderResultado(); break;
       case 'haras': html = renderHaras(); break;
@@ -3049,7 +3054,7 @@
 
   // ---------------------------------------------------------------------------------------------
   // Os duelos na tela (Tarefa 6): depois de pagar (tudo já gravado), duelo 1 → cartão → duelo 2 → … → resumo. Só animação do
-  // que está em ui.gym.res: nada grava nem muda o state. ui.gym.ver = { k (o duelo), tela: 'duelo' | 'cartao', L e cab (a
+  // que está em ui.gym.res: nada grava nem muda o state. ui.gym.ver = { k (o duelo), tela: 'desafio' | 'duelo' | 'cartao', L e cab (a
   // corrida e o cabeçalho que a tela de corrida mostra, só na tela 'duelo') }. Tudo o que a tela diz de um duelo (nomes,
   // vantagem, vencedor, metros, faixa, fôlego) sai do R gravado; a simulação refeita com quadros só desenha a corrida.
   // Nada fala dos duelos seguintes nem de quantos serão (Ruling 22).
@@ -3126,6 +3131,135 @@
         '<button type="button" class="btn btn--ouro" data-acao="ginasio-proximo">Próximo duelo</button>' +
         '<button type="button" class="btn" data-acao="ginasio-pular-tudo">Pular tudo</button></div>' +
       '</section>';
+  }
+  // ---------------------------------------------------------------------------------------------
+  // A tela de desafio antes de cada duelo (a "Cena 2" que o Vinicius escolheu em 2026-11-18): o oponente (arte do PixelLab,
+  // window.__TREINADORES, embutida pelo build) e o cavalo dele em cima, à direita, virado para o seu cavalo, embaixo, à
+  // esquerda; as placas com o nome, o cavalo, o nível e o tipo; e a linha da vantagem de elemento. Só mostra o que o cartão
+  // e a tela do duelo já mostram: nada do resultado nem dos duelos seguintes (Ruling 22). ui.gym.ver = { k, tela:
+  // 'desafio' }; "Começar duelo" leva ao duelo k; "Pular tudo" e o voltar do aparelho, ao resumo. Sem a arte do oponente,
+  // a cena fica só com o cavalo dele. Só desenho: nada grava nem muda o state.
+  // ---------------------------------------------------------------------------------------------
+  var CENA_W = 160, CENA_H = 112, CENA_PISO = 30;   // a cena em pixels de arte (o canvas sai em escala inteira, 1 a 3)
+  // o fundo de cada ginásio: parede (tijolo na Fornalha, pedra com um filete de água no Remanso, tábuas com cipó na
+  // Capoeira), duas luzes, o piso e os dois tablados
+  var CENA_CORES = {
+    fogo: { parede: '#3a1410', junta: '#4c1a12', piso: '#6a2a14', risco: '#7c3418', borda: '#2c1008', palco: '#8c3c1c', palco2: '#4a1c10', luz: '#ff6a1a', luz2: '#ffb020', suporte: '#5a4a4c' },
+    agua: { parede: '#142c38', junta: '#1d3a48', piso: '#24505e', risco: '#2d606f', borda: '#0c1e26', palco: '#3f7c8c', palco2: '#1a3a46', luz: '#62b8ff', luz2: '#c8ecff', suporte: '#4a5a64', agua: '#2f7fa8', espuma: '#7fc8e8' },
+    grama: { parede: '#33240f', junta: '#46321a', piso: '#3d6b2a', risco: '#4c7d33', borda: '#1e3612', palco: '#7a5a2e', palco2: '#4a3418', luz: '#8ee06a', luz2: '#e8f8a0', suporte: '#5a4a32', cipo: '#3f8a3a' }
+  };
+  var cenaQueue = [];   // as cenas da tela atual (como o portraitQueue): { gymId, dono, a, b }
+  var treinadorImgs = {};
+  // o id da arte do oponente: o nome do catálogo sem acento, em minúsculas e com hífen ("Capitã Labareda" → capita-labareda)
+  function ginTreinadorId(nome) {
+    var s = String(nome);
+    if (s.normalize) s = s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+  // a imagem do oponente, carregada uma vez; ao chegar, a tela de desafio é desenhada de novo. null enquanto não chega
+  // (ou sem arte para ele)
+  function treinadorImg(id) {
+    var m = window.__TREINADORES;
+    if (!m || !hasOwn(m, id)) return null;
+    var im = treinadorImgs[id];
+    if (!im) {
+      im = treinadorImgs[id] = new Image();
+      im.onload = function () { if (ui.screen === 'desafio') redesenhoPassivo(); };
+      im.src = m[id];
+    }
+    return im.complete && im.naturalWidth ? im : null;
+  }
+  // as placas e o palco da cena do duelo k (o canvas é desenhado no hydrate: drawGinCena)
+  function ginCenaHtml(R, k) {
+    var d = R.duelos[k], dono = GD.GYMS[R.gymId].etapas[R.etapa].nome;
+    var a = d.cfg.racers[0].horse, b = d.cfg.racers[1].horse, an = R.cavalos[d.a].nome, bn = R.adversario[d.b];
+    var n = cenaQueue.length;
+    cenaQueue.push({ gymId: R.gymId, dono: dono, a: a, b: b });
+    var placa = function (cls, quem, nome, h) {
+      return '<div class="gin-placa gin-placa--' + cls + '"><b class="gin-placa-quem">' + esc(quem) + '</b>' +
+        '<span class="gin-placa-cavalo">' + esc(nome + ' · Nv ' + h.level) + '</span>' + elementHtml(h.element) + '</div>';
+    };
+    return '<div class="gin-cena gin-cena--' + esc(R.gymId) + '">' + placa('rival', dono, bn, b) +
+      '<div class="gin-cena-palco"><canvas class="gin-cena-tela" data-cena="' + n + '" role="img" aria-label="' +
+        esc(dono + ' e ' + bn + ' contra você e ' + an) + '"></canvas><span class="gin-vs" aria-hidden="true">VS</span></div>' +
+      placa('voce', 'Você', an, a) + '</div>';
+  }
+  function drawGinCena(cv) {
+    var e = cenaQueue[Number(cv.getAttribute('data-cena'))];
+    if (!e) return;
+    // escala inteira que cabe na largura do palco e deixa a tela inteira sem rolar (em paisagem, só a cena ao lado)
+    var larg = cv.parentNode && cv.parentNode.clientWidth ? cv.parentNode.clientWidth : CENA_W * 2;
+    var alt = window.innerHeight - (window.innerHeight <= 500 ? 150 : 340);
+    var s = setupCanvas(cv, CENA_W, CENA_H, clamp(Math.floor(Math.min(larg / CENA_W, alt / CENA_H)), 1, 3));
+    var k = s.k, ctx = s.ctx, c = CENA_CORES[e.gymId] || CENA_CORES.fogo;
+    var hk = Math.max(1, Math.round(k * 1.5));   // os cavalos a 1,5× (o quadro de 36 px de arte vira 54)
+    var visB = opcoesVisuais(e.b, null), visA = opcoesVisuais(e.a, null), img = null;
+    function px(x, y, w, h, cor) { ctx.fillStyle = cor; ctx.fillRect(x * k, y * k, w * k, h * k); }
+    function palco(cx, cy, rx, ry) {
+      for (var y = -ry; y <= ry; y++) { var w = Math.round(rx * Math.sqrt(1 - (y * y) / (ry * ry))); px(cx - w, cy + y, 2 * w, 1, y < 0 ? c.palco : c.palco2); }
+    }
+    function fundo() {
+      var x, y, P = CENA_PISO;
+      px(0, 0, CENA_W, P, c.parede);
+      if (e.gymId === 'grama') {
+        for (x = 0; x < CENA_W; x += 6) px(x, 0, 1, P, c.junta);
+        for (x = 3; x < CENA_W; x += 23) { var comp = 6 + (x * 7) % 9; px(x, 0, 1, comp, c.cipo); px(x + 1, comp - 2, 1, 2, c.cipo); }
+      } else {
+        var alto = e.gymId === 'agua' ? 6 : 4, largo = e.gymId === 'agua' ? 12 : 8;
+        for (y = 0; y < P; y += alto) { px(0, y, CENA_W, 1, c.junta); for (x = (y / alto) % 2 ? 0 : largo / 2; x < CENA_W; x += largo) px(x, y, 1, alto, c.junta); }
+      }
+      if (e.gymId === 'agua') { px(0, P - 4, CENA_W, 4, c.agua); for (x = 0; x < CENA_W; x += 8) px(x, P - 4, 3, 1, c.espuma); }
+      [6, CENA_W - 9].forEach(function (tx) { px(tx, 8, 3, 6, c.suporte); px(tx, 4, 3, 4, c.luz); px(tx + 1, 2, 1, 3, c.luz2); px(tx, 14, 3, 1, c.borda); });
+      px(0, P, CENA_W, CENA_H - P, c.piso);
+      for (y = P + 3; y < CENA_H; y += 4) px(0, y, CENA_W, 1, c.risco);
+      px(0, P, CENA_W, 1, c.borda);
+      palco(104, 64, 52, 5);
+      palco(38, 106, 36, 5);
+    }
+    function cavalo(h, vis, x, base, t, espelha) {
+      vis.reduzido = reduced();
+      var o = comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: hk, jockey: false, silks: PLAYER_SILKS,
+        quadro: { topo: base * k - 36 * hk, base: base * k } }, vis);
+      if (!espelha) { SP.drawHorse(ctx, x * k, base * k - 36 * hk, o); return; }
+      ctx.save(); ctx.translate(x * k, 0); ctx.scale(-1, 1);
+      SP.drawHorse(ctx, 0, base * k - 36 * hk, o);
+      ctx.restore();
+    }
+    var item = {
+      drawn: false,
+      draw: function (t) {
+        if (item.drawn && reduced()) return;
+        item.drawn = true;
+        var tt = reduced() ? 0.5 : t;
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        fundo();
+        cavalo(e.b, visB, 116, 64, tt + 0.9, true);   // o cavalo do oponente, virado para a esquerda
+        img = img || treinadorImg(ginTreinadorId(e.dono));
+        if (img) ctx.drawImage(img, 96 * k, 0, 64 * k, 64 * k);
+        cavalo(e.a, visA, 4, 106, tt, false);
+      }
+    };
+    item.draw(0);
+    vivo(item, cv);
+  }
+  // a tela de desafio do duelo k (go() só chega aqui com o desafio pago e o duelo k gravado)
+  function renderDesafio() {
+    var v = ui.gym.ver, R = ui.gym.res, g = GD.GYMS[R.gymId], e = g.etapas[R.etapa], d = R.duelos[v.k];
+    var t = ginDueloTxt(R, v.k);
+    return '<section class="tela tela--desafio" aria-labelledby="t-desafio">' +
+      '<header class="tela-cabeca placa"><span class="rotulo">' + esc(g.name + ' · ' + (R.revanche ? 'Revanche' : ginEtapaRotulo(e, R.etapa)) + ' · Duelo ' + (v.k + 1)) + '</span>' +
+        '<h1 class="titulo titulo--tela" id="t-desafio" tabindex="-1" data-foco>' + esc(v.k === 0 ? e.nome + ' desafia você!' : e.nome + ' entra com ' + R.adversario[d.b] + '!') + '</h1></header>' +
+      ginCenaHtml(R, v.k) +
+      '<p class="gin-cena-vant">' + esc(t.linha) + '</p>' +
+      '<div class="acoes acoes--linha">' +
+        '<button type="button" class="btn btn--ouro" data-acao="ginasio-comecar">Começar duelo</button>' +
+        '<button type="button" class="btn" data-acao="ginasio-pular-tudo">Pular tudo</button></div>' +
+      '</section>';
+  }
+  // a tela de desafio do duelo k (depois de pagar, k = 0; depois do cartão, o duelo seguinte)
+  function ginDesafio(k) {
+    ui.gym.ver = { k: k, tela: 'desafio', L: null, cab: null };
+    go('desafio');   // o foco no título
   }
   // o duelo k na tela de corrida; se a corrida refeita não bate com o gravado, direto ao que vem depois dele
   function ginAssiste(k) {
@@ -6145,8 +6279,8 @@
         if (ui.screen !== 'ginasio' || !gDf || gDf.etapa === null || gDf.res) break;
         var rDf = desafia(gDf.id, gDf.etapa, gDf.time.slice());
         if (rDf === 'ok') {
-          // tudo já gravado: os duelos passam na tela de corrida, um a um, e depois o resumo (Tarefa 6)
-          ginAssiste(0);
+          // tudo já gravado: a tela de desafio e o duelo, um a um, com o cartão entre eles, e depois o resumo (Tarefa 6)
+          ginDesafio(0);
           break;
         }
         var bDf;
@@ -6174,15 +6308,22 @@
         } else if (id === 'trilha' || id === 'denovo') voltaDaSubtela();
         break;
       }
-      // o cartão entre duelos: o próximo duelo; e, nele e na tela do duelo, "Pular tudo" (o resumo)
+      // o cartão entre duelos: a tela de desafio do próximo duelo; e, nele, na tela de desafio e na do duelo, "Pular tudo" (o resumo)
       case 'ginasio-proximo': {
         var gPx = ui.gym, vPx = gPx && gPx.ver;
         if (ui.screen !== 'entreduelos' || !vPx || !gPx.res || !gPx.res.duelos[vPx.k + 1]) break;
-        ginAssiste(vPx.k + 1);
+        ginDesafio(vPx.k + 1);
+        break;
+      }
+      // a tela de desafio: "Começar duelo" (o duelo k na tela de corrida)
+      case 'ginasio-comecar': {
+        var gCm = ui.gym, vCm = gCm && gCm.ver;
+        if (ui.screen !== 'desafio' || !vCm || !gCm.res || !gCm.res.duelos[vCm.k]) break;
+        ginAssiste(vCm.k);
         break;
       }
       case 'ginasio-pular-tudo':
-        if ((ui.screen === 'corrida' || ui.screen === 'entreduelos') && ui.gym && ui.gym.ver) ginPulaTudo();
+        if ((ui.screen === 'corrida' || ui.screen === 'entreduelos' || ui.screen === 'desafio') && ui.gym && ui.gym.ver) ginPulaTudo();
         break;
       case 'ginasio-voltar':
       case 'montaria-voltar':

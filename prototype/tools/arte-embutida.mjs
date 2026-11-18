@@ -3,6 +3,7 @@
 //                           build lê; a folha dos portes, tools/folha-portes.mjs, passa a pasta de espera 'assets/pixellab/novos')
 //   lerIcones(root)         -> { nome: dataUrl }  (window.__ICONES; a pasta raw/ fica de fora)
 //   lerMarca(root)          -> { logo, w, h } ou { logo: null }  (window.__MARCA)
+//   lerTreinadores(root)    -> { id: dataUrl }  (window.__TREINADORES: a candidata escolhida de cada oponente dos ginásios)
 //   jsonJs(v)               -> JSON seguro dentro de <script> (nada de "<" literal)
 // root = a pasta prototype/. Arquivo de arte ausente nunca falha: a parte correspondente fica vazia
 // (o molde inválido vira um aviso em `avisos`) e quem usa cai no desenho por código / no texto.
@@ -60,6 +61,20 @@ export async function lerIcones(root) {
   for (const nome of await listar(root, 'assets/icons')) {
     const mm = nome.match(/^([a-z0-9-]+)\.png$/)
     if (mm) out[mm[1]] = await dataUrl(root, join('assets/icons', nome))
+  }
+  return out
+}
+
+// Oponentes dos ginásios (a tela de desafio): assets/pixellab/treinadores/escolhas.json = { id: seed } diz qual
+// candidata de cada um vai para o jogo (<id>-s<seed>.png, da pixellab-treinadores.mjs). O id é o nome do oponente sem
+// acento, em minúsculas e com hífen. Sem o JSON ou sem o PNG, o oponente fica de fora (a tela mostra só o cavalo dele).
+export async function lerTreinadores(root) {
+  const dir = 'assets/pixellab/treinadores', arq = join(root, dir, 'escolhas.json'), out = {}
+  if (!existsSync(arq)) return out
+  const escolhas = JSON.parse(await readFile(arq, 'utf8'))
+  for (const id of Object.keys(escolhas).sort()) {
+    const png = join(dir, `${id}-s${escolhas[id]}.png`)
+    if (/^[a-z0-9-]+$/.test(id) && Number.isInteger(escolhas[id]) && existsSync(join(root, png))) out[id] = await dataUrl(root, png)
   }
   return out
 }

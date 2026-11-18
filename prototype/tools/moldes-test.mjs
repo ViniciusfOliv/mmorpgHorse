@@ -2880,5 +2880,28 @@ test('o game.css não importa fontes da rede', () => {
   assert.ok(!/fonts\.googleapis/.test(GAME_CSS));
 });
 
+section('Oponentes dos ginásios (tela de desafio, 2026-11-18)');
+// cada oponente do catálogo (GameData.GYMS) tem a candidata escolhida em treinadores/escolhas.json: o id é o nome sem
+// acento, em minúsculas e com hífen (o mesmo que o game.js usa para achar a arte), e o PNG é 64×64 com o fundo transparente
+test('os 15 oponentes dos ginásios têm a arte escolhida, 64×64 e sem fundo', () => {
+  const G = createRequire(import.meta.url)('../src/data.js');
+  const dirT = path.join(DIR, 'treinadores'), escolhas = JSON.parse(fs.readFileSync(path.join(dirT, 'escolhas.json'), 'utf8'));
+  const slug = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const ids = [];
+  for (const g of G.GYM_ORDER) for (const e of G.GYMS[g].etapas) ids.push(slug(e.nome));
+  assert.strictEqual(ids.length, 15);
+  assert.deepStrictEqual(Object.keys(escolhas).sort(), ids.slice().sort(), 'escolhas.json tem de cobrir só os oponentes do catálogo');
+  for (const id of ids) {
+    const f = path.join(dirT, `${id}-s${escolhas[id]}.png`);
+    assert.ok(Number.isInteger(escolhas[id]) && fs.existsSync(f), `${id}: falta ${path.basename(f)}`);
+    const d = decodePng(fs.readFileSync(f));
+    assert.ok(d.width === 64 && d.height === 64, `${id}: ${d.width}×${d.height}`);
+    for (const [x, y] of [[0, 0], [63, 0], [0, 63], [63, 63]]) assert.strictEqual(d.rgba[(y * 64 + x) * 4 + 3], 0, `${id}: o canto ${x},${y} não é transparente`);
+    let opacos = 0;
+    for (let i = 3; i < d.rgba.length; i += 4) if (d.rgba[i] > 0) opacos++;
+    assert.ok(opacos > 400, `${id}: só ${opacos} pixels desenhados`);
+  }
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);
