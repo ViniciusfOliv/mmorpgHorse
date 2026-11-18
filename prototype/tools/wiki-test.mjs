@@ -86,9 +86,10 @@ confere(!/statCap|freeCapShare|statLimit|limite por status|limite num status|tet
 confere(/### Skill de tipo/.test(a.md) && a.html.includes('id="skills-tipo"'), 'falta a seção da skill de tipo (md e html)')
 confere(a.md.includes('P = 1 + nívelT × (level − 1) / 49 + raridadeT × ordem da raridade / 4'), 'skill de tipo sem a fórmula da força P')
 for (const [nome, el, terco, efeito] of [
-  ['Labareda', 'Fogo', 'primeiro terço (da largada a 1/3)', 'Velocidade e Aceleração ×1,19 (+19%) | −0,15 | 0,15'],
-  ['Raízes Firmes', 'Grama', 'terço do meio (de 1/3 a 2/3)', 'Força e Manobra ×1,15 (+15%) | 0,25 | 0,4'],
-  ['Maré Alta', 'Água', 'último terço (de 2/3 à chegada)', 'Estamina e Garra ×1,33 (+33%) | 0 | 0,15']
+  // recalibradas em 2026-11-18 (Garra v2): eram ×1,19 (−0,15 | 0,15), ×1,15 (0,25 | 0,4) e ×1,33 (0 | 0,15)
+  ['Labareda', 'Fogo', 'primeiro terço (da largada a 1/3)', 'Velocidade e Aceleração ×1,22 (+22%) | −0,08 | 0,22'],
+  ['Raízes Firmes', 'Grama', 'terço do meio (de 1/3 a 2/3)', 'Força e Manobra ×1,18 (+18%) | 0,94 | 0,23'],
+  ['Maré Alta', 'Água', 'último terço (de 2/3 à chegada)', 'Estamina e Garra ×1,31 (+31%) | 0,3 | 0,08']
 ]) {
   confere(a.md.includes(`| ![](../prototype/assets/icons/sk-tipo-${{ Fogo: 'fogo', Água: 'agua', Grama: 'grama' }[el]}.png) **${nome}** | ${el} | ${terco} | ${efeito} |`), `skill de tipo ${nome}: linha com elemento, terço e efeito (P = 1) não confere`)
 }
