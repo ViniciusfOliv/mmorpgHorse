@@ -14,6 +14,7 @@
  *   { etapa: 0–5 (etapas vencidas; a próxima a desafiar é a de índice `etapa`; 5 = insígnia),
  *     revDia: null (nunca) | dia da última revanche, revVitorias: revanches vencidas (o rodízio do prêmio) }.
  *   Dia estragado vale `hoje` (conta como "já tentou hoje"); relógio para trás não libera (só hoje > revDia).
+ *   revanchePremio(revVitorias) -> { ouro } | { item }: o prêmio do rodízio da próxima revanche vencida (o que o acerto paga).
  *
  * DUELOS (resolver): o 1º cavalo do time corre contra o 1º do adversário; quem perde sai, quem vence fica e enfrenta
  *   o próximo do outro lado. Fôlego de quem larga: 1 − (soma dos `perde` das faixas das vitórias seguidas dele neste
@@ -265,6 +266,7 @@
     resolver: resolver,
     acerto: acerto,
     podeDesafiar: podeDesafiar,
+    revanchePremio: revanchePremio,
     bonus: bonus,
     sanear: sanear
   };

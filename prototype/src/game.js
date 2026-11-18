@@ -1529,7 +1529,7 @@
       if (gym.res) {
         gym.res = null; gym.etapa = null; gym.time = []; gym.msg = null;
         go('ginasio');
-        mostraInteiro(telaEl.querySelector('.etapa[data-estado="proxima"]'));
+        mostraInteiro(telaEl.querySelector('.etapa[data-estado="proxima"], .etapa[data-estado="revanche"]'));
         return;
       }
       if (gym.etapa !== null) { var ie = gym.etapa; gym.etapa = null; go('ginasio'); focoNaLinha('ginasio-etapa', String(ie)); return; }
@@ -2313,8 +2313,20 @@
         '<div class="linha-meta"><span>' + esc(state.mounts.length) + (state.mounts.length === 1 ? ' montaria' : ' montarias') +
           (GEAR_ON ? ' · ' + esc(state.items.length) + (state.items.length === 1 ? ' peça' : ' peças') : '') + '</span></div>' +
       '</div>' +
-      joqueiHtml() + animacoesHtml() +
+      perfilInsigniasHtml() + joqueiHtml() + animacoesHtml() +
       '<footer class="caixa">' + resetHtml() + '</footer></section>';
+  }
+  // As insígnias no Perfil (spec §9), as três na ordem de GYM_ORDER: a conquistada com o ícone, o nome e o bônus (o mesmo
+  // texto da trilha, ginBonusTxt); a que falta apagada, sem o bônus, com o que falta escrito
+  function perfilInsigniasHtml() {
+    var n = GD.GYM_ORDER.filter(ginTemInsignia).length;
+    var lis = GD.GYM_ORDER.map(function (id) {
+      var g = GD.GYMS[id], tem = ginTemInsignia(id);
+      return '<li class="perfil-insignia' + (tem ? '' : ' perfil-insignia--falta') + '" data-gym="' + esc(id) + '">' + ginInsigniaIcone(id) +
+        '<span><b>' + esc(g.insignia.name) + '</b><br>' + esc(tem ? ginBonusTxt(id) + '.' : 'Vença o líder do ' + g.name + '.') + '</span></li>';
+    }).join('');
+    return '<section class="caixa" aria-labelledby="t-insignias"><h2 class="titulo" id="t-insignias">Insígnias (' + n + ' de ' + GD.GYM_ORDER.length + ')</h2>' +
+      '<ul class="perfil-insignias">' + lis + '</ul></section>';
   }
   // opção "Animações": mesmo controle de escolhas (aria-pressed) da entrada e das abas internas
   var MOTION_ROTULOS = { sistema: 'Seguir o sistema', completas: 'Completas', reduzidas: 'Reduzidas' };
@@ -2604,14 +2616,18 @@
   function ginProgressoTxt(id) { return ginProgresso(id) + ' de ' + ginEtapasTotal(id) + ' vencidos'; }
   // "Ponto fraco: Água vence Fogo" (o elemento que vence o do ginásio)
   function ginFracoTxt(id) { return 'Ponto fraco: ' + elementOf(GD.GYMS[id].fraco).name + ' vence ' + elementOf(GD.GYMS[id].element).name; }
-  // A revanche do líder está livre hoje: pergunta ao Ginasio.podeDesafiar só a parte do dia (Ouro, mochila e time à
-  // vontade): com a insígnia, ok + revanche; já tentou hoje, 'revanche-hoje'; sem a insígnia, a etapa do líder não é revanche.
-  function ginRevancheHoje(id) {
-    var lider = ginEtapasTotal(id) - 1;
-    var r = GN.podeDesafiar({ gymId: id, etapa: lider, progresso: state.ginasios, hoje: hojeDia(), ouroLivre: Infinity,
+  // O modo da etapa i hoje, perguntado ao Ginasio.podeDesafiar só pela parte da etapa e do dia (Ouro, mochila e time à
+  // vontade): { pode: o preparo abre (a etapa próxima, ou a revanche do líder livre hoje), revanche: é a revanche do líder
+  // (livre hoje, ou já tentada hoje: o motivo 'revanche-hoje') }. A regra do dia e da revanche fica inteira no módulo: a tela
+  // nunca decide sozinha se é revanche (o texto, a entrada mostrada e a cobrada saem daqui ou do mesmo podeDesafiar).
+  function ginModo(id, i, hoje) {
+    var r = GN.podeDesafiar({ gymId: id, etapa: i, progresso: state.ginasios, hoje: hoje === undefined ? hojeDia() : hoje, ouroLivre: Infinity,
       cabe: function () { return true; }, timeLen: 1 });
-    return r.ok && r.revanche === true;
+    return { pode: r.ok, revanche: r.ok ? r.revanche === true : r.motivo === 'revanche-hoje' };
   }
+  // a revanche do líder livre hoje / já tentada hoje (com a insígnia; sem ela, nenhuma das duas)
+  function ginRevancheHoje(id) { var m = ginModo(id, ginEtapasTotal(id) - 1); return m.pode && m.revanche; }
+  function ginRevancheFeita(id) { var m = ginModo(id, ginEtapasTotal(id) - 1); return !m.pode && m.revanche; }
   function ginAlgumaRevanche() { return GD.GYM_ORDER.some(ginRevancheHoje); }
   // o bônus da insígnia em uma frase (o mesmo do wiki, mais curto)
   function ginBonusTxt(id) {
@@ -2647,14 +2663,15 @@
   }
 
   // Cartão do ginásio na aba (um botão que abre a trilha): nome, elemento, "N de 5 vencidos", a insígnia conquistada e
-  // "Revanche hoje" quando a revanche do líder está livre
+  // "Revanche hoje" quando a revanche do líder está livre (ou "Revanche amanhã", sem destaque, com a de hoje já tentada)
   function ginasioCartaoHtml(id) {
     var g = GD.GYMS[id], ins = ginTemInsignia(id);
     return '<li><button type="button" class="ginasio-cartao ginasio-cartao--' + esc(g.element) + '" data-acao="ginasio-abrir" data-id="' + esc(id) + '">' +
       '<span class="ginasio-cartao-nome">' + esc(g.name) + '</span>' +
       '<span class="ginasio-cartao-meta">' + elementHtml(g.element) + '<span class="ginasio-progresso">' + esc(ginProgressoTxt(id)) + '</span></span>' +
       (ins ? '<span class="ginasio-cartao-meta ginasio-insignia">' + ginInsigniaIcone(id) + '<span>' + esc(g.insignia.name) + '</span></span>' : '') +
-      (ginRevancheHoje(id) ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche">Revanche hoje</span></span>' : '') +
+      (ginRevancheHoje(id) ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche">Revanche hoje</span></span>'
+        : ginRevancheFeita(id) ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche-amanha">Revanche amanhã</span></span>' : '') +
       pixelSvg(SETA_ROWS, 'montaria-linha-seta ginasio-cartao-seta') +
     '</button></li>';
   }
@@ -2680,32 +2697,39 @@
   }
 
   // Subtela "ginasio" (ui.gym = { id, etapa }): a trilha do ginásio (etapa null) ou o detalhe da etapa próxima (etapa
-  // 0–4). O detalhe só abre na etapa próxima; se o progresso mudou (outra aba, gaveta DEV), volta à trilha.
+  // 0–4) ou da revanche do líder. O detalhe só fica aberto enquanto o módulo deixa (ginModo: a etapa próxima, ou a revanche
+  // livre hoje); se o progresso mudou (outra aba, gaveta DEV, a revanche de hoje feita em outra aba), volta à trilha.
   // Com o resumo de um desafio pago (ui.gym.res), o resumo. O cavalo do time que saiu do save (outra aba) sai do time.
   function renderGinasio() {
     var G0 = ui.gym;
     if (!G0 || !hasOwn(GD.GYMS, G0.id)) return renderExpedicao();
     if (G0.res) return ginResumoHtml(G0.res);
     G0.time = (G0.time || []).filter(function (u) { return !!mountByUid(u); });
-    if (G0.etapa !== null && G0.etapa !== ginProgresso(G0.id)) G0.etapa = null;
+    if (G0.etapa !== null && !ginModo(G0.id, G0.etapa).pode) G0.etapa = null;
     return G0.etapa === null ? trilhaTelaHtml(G0.id) : etapaDetalheHtml(G0.id, G0.etapa);
   }
   // Uma etapa da trilha. Vencida: só texto (não se repete). Próxima: o único botão tocável (aria-current="step"), que abre
-  // o detalhe. Fechada: botão apagado (aria-disabled) com o motivo escrito. Com a insígnia, o líder mostra o ícone dela.
+  // o detalhe. Fechada: botão apagado (aria-disabled) com o motivo escrito. Com a insígnia, o líder mostra o ícone dela e
+  // vira a revanche (o módulo diz qual, ginModo): livre hoje, um botão como a próxima ("Revanche hoje", a entrada da revanche
+  // e o prêmio de hoje do rodízio); já tentada hoje, só texto ("Revanche de hoje feita. Volte amanhã.").
   function trilhaEtapaHtml(id, e, i) {
-    var p = ginProgresso(id), estado = i < p ? 'vencida' : i === p ? 'proxima' : 'fechada';
+    var p = ginProgresso(id), modo = e.lider && ginTemInsignia(id) ? ginModo(id, i) : null;
+    var estado = modo && modo.revanche ? (modo.pode ? 'revanche' : 'feita') : i < p ? 'vencida' : i === p ? 'proxima' : 'fechada';
     var MOTIVO = 'Vença a etapa anterior';
-    var estadoTxt = { vencida: 'Vencida', proxima: 'Próxima', fechada: 'Fechada' }[estado];
+    var estadoTxt = { vencida: 'Vencida', proxima: 'Próxima', fechada: 'Fechada', revanche: 'Revanche hoje', feita: 'Feita hoje' }[estado];
+    var rev = estado === 'revanche' || estado === 'feita';
     var corpo = '<span class="etapa-rotulo">' + esc(ginEtapaRotulo(e, i)) + '</span>' +
       '<span class="etapa-nome">' + esc(e.nome) + '</span>' +
-      '<span class="etapa-meta">' + esc(ginCavalosTxt(e.cavalos.length)) + ' · ' + esc(ginNivelTxt(e)) + ' · ' + esc(ginEntradaTxt(e)) + '</span>' +
+      '<span class="etapa-meta">' + esc(ginCavalosTxt(e.cavalos.length)) + ' · ' + esc(ginNivelTxt(e)) + ' · ' + esc(ginEntradaTxt({ entrada: ginEntrada(id, i, rev) })) + '</span>' +
       '<span class="etapa-estado etapa-estado--' + estado + '">' + esc(estadoTxt) + '</span>' +
       (estado === 'fechada' ? '<span class="etapa-motivo">' + esc(MOTIVO) + '</span>' : '') +
+      (estado === 'revanche' ? '<span class="etapa-motivo">' + esc('Prêmio de hoje: ' + ginRevPremioTxt(id)) + '</span>' : '') +
+      (estado === 'feita' ? '<span class="etapa-motivo">Revanche de hoje feita. Volte amanhã.</span>' : '') +
       (e.lider && ginTemInsignia(id) ? '<span class="etapa-insignia">' + ginInsigniaIcone(id) + '</span>' : '');
-    var caixa = estado === 'vencida'
+    var caixa = estado === 'vencida' || estado === 'feita'
       ? '<div class="etapa-btn">' + corpo + '</div>'
       : '<button type="button" class="etapa-btn" data-acao="ginasio-etapa" data-id="' + i + '"' +
-          (estado === 'proxima' ? ' aria-current="step"' : indisponivel(MOTIVO)) + '>' + corpo + '</button>';
+          (estado === 'proxima' || estado === 'revanche' ? ' aria-current="step"' : indisponivel(MOTIVO)) + '>' + corpo + '</button>';
     return '<li class="etapa etapa--' + estado + (e.lider ? ' etapa--lider' : '') + '" data-etapa="' + i + '" data-estado="' + estado + '">' + caixa + '</li>';
   }
   // A trilha: de baixo para cima (a 1ª etapa embaixo; o DOM vai da 1ª à 5ª, o CSS vira a coluna)
@@ -2746,19 +2770,21 @@
       '<p class="ginasio-pista">' + esc(ginPistaTxt(GD.GYMS[id].pista)) + '</p>' +
       '<p class="ginasio-fraco">' + esc(ginFracoTxt(id)) + '</p></section>';
   }
-  function etapaPremioHtml(id, e) {
+  // rev: a revanche do líder (a entrada da revanche e o prêmio de hoje do rodízio no lugar do da 1ª vitória)
+  function etapaPremioHtml(id, e, i, rev) {
     return '<section class="caixa" aria-labelledby="t-premio-etapa"><h2 class="titulo" id="t-premio-etapa">Entrada e prêmio</h2>' +
-      '<p>' + esc(ginEntradaTxt(e)) + '</p>' +
-      '<p>Prêmio da 1ª vitória: ' + esc(ginPremioTxt(id, e)) + '</p></section>';
+      '<p>' + esc(ginEntradaTxt({ entrada: ginEntrada(id, i, rev) })) + '</p>' +
+      (rev ? '<p>' + esc('Prêmio de hoje: ' + ginRevPremioTxt(id)) + '</p>' : '<p>Prêmio da 1ª vitória: ' + esc(ginPremioTxt(id, e)) + '</p>') + '</section>';
   }
-  // O detalhe é também o preparo (Tarefa 5): embaixo do adversário, da pista e do prêmio, o "Seu time" e o "Desafiar"
+  // O detalhe é também o preparo (Tarefa 5): embaixo do adversário, da pista e do prêmio, o "Seu time" e o "Desafiar". Na
+  // revanche do líder (o módulo diz, ginModo), "Revanche" no título, a entrada da revanche e o prêmio de hoje.
   function etapaDetalheHtml(id, i) {
-    var g = GD.GYMS[id], e = g.etapas[i];
+    var g = GD.GYMS[id], e = g.etapas[i], rev = ginModo(id, i).revanche;
     return '<section class="tela" aria-labelledby="t-etapa">' +
       '<button type="button" class="btn btn--pequeno" data-acao="ginasio-voltar">Voltar</button>' +
       '<header class="tela-cabeca placa"><span class="rotulo">' + esc(g.name + ' · ' + ginEtapaRotulo(e, i)) + '</span>' +
-        '<h1 class="titulo titulo--tela" id="t-etapa" tabindex="-1" data-foco>' + esc(e.nome) + '</h1></header>' + noticeHtml() +
-      etapaAdversarioHtml(e) + etapaPistaHtml(id) + etapaPremioHtml(id, e) + etapaTimeHtml(id, i) + etapaDesafiarHtml(id, i) +
+        '<h1 class="titulo titulo--tela" id="t-etapa" tabindex="-1" data-foco>' + esc((rev ? 'Revanche: ' : '') + e.nome) + '</h1></header>' + noticeHtml() +
+      etapaAdversarioHtml(e) + etapaPistaHtml(id) + etapaPremioHtml(id, e, i, rev) + etapaTimeHtml(id, i) + etapaDesafiarHtml(id, i) +
       '</section>';
   }
 
@@ -2781,13 +2807,16 @@
     return v === 1 ? 'Vantagem' : v === -1 ? 'Desvantagem' : '';
   }
   function ginCheioTxt(n) { return n === 1 ? 'O time já tem 1 cavalo. Toque nele para tirar.' : 'O time já tem ' + n + ' cavalos. Toque num deles para tirar.'; }
-  // o desafio desta etapa seria a revanche (a Tarefa 7 a mostra; aqui só a entrada certa)
-  function ginRevanche(id, i) { return ginProgresso(id) === ginEtapasTotal(id) && i === ginEtapasTotal(id) - 1; }
-  function ginEntrada(id, i) { return ginRevanche(id, i) ? GD.GYM.revanche.entrada : GD.GYMS[id].etapas[i].entrada; }
-  // os itens que o prêmio da vitória daria (o da revanche segue o rodízio)
-  function ginItensPremio(id, i) {
-    if (!ginRevanche(id, i)) return GD.GYMS[id].etapas[i].premio.itens;
-    var c = GD.GYM.revanche.ciclo, p = c[state.ginasios[id].revVitorias % c.length];
+  // a entrada da etapa i, com rev (é a revanche) vindo do Ginasio.podeDesafiar (ginModo ou ginConfere): o botão e o desafia
+  // usam esta mesma função com a resposta do módulo
+  function ginEntrada(id, i, rev) { return rev ? GD.GYM.revanche.entrada : GD.GYMS[id].etapas[i].entrada; }
+  // o prêmio da próxima revanche vencida, perguntado ao módulo (Ginasio.revanchePremio, o mesmo que o acerto paga; Ruling 26)
+  function ginRevPremio(id) { return GN.revanchePremio(state.ginasios[id].revVitorias) || {}; }
+  function ginRevPremioTxt(id) { var p = ginRevPremio(id); return p.item ? itemQtdTxt(p.item, 1) : fmt(p.ouro || 0) + ' de Ouro'; }
+  // os itens que o prêmio da vitória daria (o da revanche, o de hoje do rodízio)
+  function ginItensPremio(id, i, rev) {
+    if (!rev) return GD.GYMS[id].etapas[i].premio.itens;
+    var p = ginRevPremio(id);
     return p.item ? [p.item] : [];
   }
   // o motivo da mochila cheia, com o nome e o teto do catálogo (itemQtdTxt; a Rédea nova mora fora da mochila: 999)
@@ -2796,14 +2825,14 @@
       ' Use antes de desafiar.';
   }
   // o texto de cada recusa do Ginasio.podeDesafiar
-  function ginMotivoTxt(id, i, motivo) {
+  function ginMotivoTxt(id, i, motivo, rev) {
     switch (motivo) {
       case 'sem-time': return 'Escolha pelo menos 1 cavalo.';
       case 'sem-ouro':
-        return 'Falta Ouro: a entrada custa ' + fmt(ginEntrada(id, i)) + ' de Ouro.' +
+        return 'Falta Ouro: a entrada custa ' + fmt(ginEntrada(id, i, rev)) + ' de Ouro.' +
           (ouroReservado() ? ' ' + reservaTxt() + ': sobram ' + fmt(ouroLivre()) + ' para gastar.' : '');
       case 'cheia': {
-        var its = ginItensPremio(id, i);
+        var its = ginItensPremio(id, i, rev);
         for (var k = 0; k < its.length; k++) if (!diariaCabe(its[k], 1)) return ginCheiaTxt(its[k]);
         return 'A mochila está cheia. Use um item antes de desafiar.';
       }
@@ -2815,19 +2844,21 @@
   }
   // Confere o desafio: { motivo ('' quando pode), revanche }. Na ordem: nenhum cavalo livre; a regra do Ginasio.podeDesafiar
   // (etapa, dia, Ouro livre, mochila, tamanho do time); o time (cada uid no estábulo, sem repetir, nenhum preso na sala
-  // aberta). O botão "Desafiar" e o desafia (de novo, depois de sincronizar com as outras abas) usam esta mesma conferência.
-  // hoje: o dia já lido por quem chama (o desafia lê uma vez só); sem ele, hojeDia()
+  // aberta). O botão "Desafiar" (o número e o motivo) e o desafia (a entrada cobrada; de novo, depois de sincronizar com as
+  // outras abas) usam esta mesma conferência. revanche: a do podeDesafiar que passou; se ele recusa, a do ginModo (o mesmo
+  // módulo, para o número do botão e o texto do motivo). hoje: o dia já lido por quem chama (o desafia lê uma vez só)
   function ginConfere(id, i, uids, hoje) {
-    if (!hasOwn(GD.GYMS, id)) return { motivo: ginMotivoTxt(id, i, 'fechada') };
-    if (!ginLivres().length) return { motivo: GIN_SO_UM_TXT };
+    if (!hasOwn(GD.GYMS, id)) return { motivo: ginMotivoTxt(id, i, 'fechada'), revanche: false };
+    var hj = hoje === undefined ? hojeDia() : hoje, rev = ginModo(id, i, hj).revanche;
+    if (!ginLivres().length) return { motivo: GIN_SO_UM_TXT, revanche: rev };
     var lista = Array.isArray(uids) ? uids : [];
-    var r = GN.podeDesafiar({ gymId: id, etapa: i, progresso: state.ginasios, hoje: hoje === undefined ? hojeDia() : hoje, ouroLivre: ouroLivre(), cabe: diariaCabe, timeLen: lista.length });
-    if (!r.ok) return { motivo: ginMotivoTxt(id, i, r.motivo) };
+    var r = GN.podeDesafiar({ gymId: id, etapa: i, progresso: state.ginasios, hoje: hj, ouroLivre: ouroLivre(), cabe: diariaCabe, timeLen: lista.length });
+    if (!r.ok) return { motivo: ginMotivoTxt(id, i, r.motivo, rev), revanche: rev };
     for (var k = 0; k < lista.length; k++) {
       var m = typeof lista[k] === 'string' ? mountByUid(lista[k]) : null;
-      if (!m) return { motivo: 'Um cavalo do time não está mais no estábulo.' };
-      if (lista.indexOf(lista[k]) !== k) return { motivo: 'O mesmo cavalo está duas vezes no time.' };
-      if (ginPreso(m)) return { motivo: m.name + ' está na sala aberta. Corra ou feche a sala primeiro.' };
+      if (!m) return { motivo: 'Um cavalo do time não está mais no estábulo.', revanche: r.revanche };
+      if (lista.indexOf(lista[k]) !== k) return { motivo: 'O mesmo cavalo está duas vezes no time.', revanche: r.revanche };
+      if (ginPreso(m)) return { motivo: m.name + ' está na sala aberta. Corra ou feche a sala primeiro.', revanche: r.revanche };
     }
     return { motivo: '', revanche: r.revanche };
   }
@@ -2855,7 +2886,7 @@
     var G0 = ui.gym, c = ginConfere(id, i, G0.time);
     return '<section class="caixa gin-desafio" aria-label="Desafiar">' + (G0.msg ? '<p class="aviso" role="status">' + esc(G0.msg) + '</p>' : '') +
       '<div class="acoes"><button type="button" class="btn btn--ouro btn--grande" data-acao="ginasio-desafiar"' + indisponivel(c.motivo) + '>' +
-        esc('Desafiar (' + fmt(ginEntrada(id, i)) + ' de Ouro)') + '</button></div>' +
+        esc('Desafiar (' + fmt(ginEntrada(id, i, c.revanche)) + ' de Ouro)') + '</button></div>' +
       (c.motivo ? '<p class="nota">' + esc(c.motivo) + '</p>' : '') + '</section>';
   }
   // Paga e acerta o desafio, tudo numa gravação só (o padrão do usaItem): sincroniza com as outras abas (persist), confere
@@ -2874,7 +2905,7 @@
     var res = GN.resolver({ gymId: gymId, etapa: etapa, time: uids.map(function (u) { return clone(mountByUid(u)); }), seedBase: state.seedBase, contador: contador });
     var ac = res ? GN.acerto({ gymId: gymId, etapa: etapa, revanche: c.revanche, progresso: state.ginasios, resultado: res, hoje: hoje, timeLen: uids.length }) : null;
     if (!ac) return 'Este desafio não pode ser feito agora.';   // não acontece: o ginConfere já passou pelo podeDesafiar
-    var entrada = c.revanche ? GD.GYM.revanche.entrada : et.entrada;   // a entrada cobrada é a do que o Ginasio.podeDesafiar decidiu
+    var entrada = ginEntrada(gymId, etapa, c.revanche);   // a entrada cobrada: a mesma conta do número do botão, com o revanche do podeDesafiar
     state.gold = state.gold - entrada + ac.ouro;   // o prêmio do ginásio não leva o bônus de Ouro (só a corrida valendo)
     ac.itens.forEach(function (it) { if (it === 'redea') state.redeas += 1; else state.mochila[it] += 1; });
     var cavalos = uids.map(function (u, k) {
@@ -2917,7 +2948,7 @@
       return '<li data-uid="' + esc(c.uid) + '">' + esc(partes.join(' · ')) + '</li>';
     }).join('');
     return '<section class="tela" aria-labelledby="t-resumo">' +
-      '<header class="tela-cabeca placa"><span class="rotulo">' + esc(g.name + ' · ' + ginEtapaRotulo(e, R.etapa) + ' · ' + e.nome) + '</span>' +
+      '<header class="tela-cabeca placa"><span class="rotulo">' + esc(g.name + ' · ' + (R.revanche ? 'Revanche' : ginEtapaRotulo(e, R.etapa)) + ' · ' + e.nome) + '</span>' +
         '<h1 class="titulo titulo--tela" id="t-resumo" tabindex="-1" data-foco>' + (R.venceu ? 'Vitória!' : 'Derrota') + '</h1></header>' + noticeHtml() +
       '<section class="caixa" aria-labelledby="t-duelos"><h2 class="titulo" id="t-duelos">Duelos</h2><ol class="gin-duelos">' +
         R.duelos.map(function (d, k) { return ginDueloHtml(R, d, k); }).join('') + '</ol></section>' +
@@ -2925,8 +2956,10 @@
       '<section class="caixa" aria-labelledby="t-xp-time"><h2 class="titulo" id="t-xp-time">Seu time</h2><ul class="gin-xp">' + cavalos + '</ul></section>' +
       (R.insignia ? '<section class="caixa"><p class="ginasio-insignia">' + ginInsigniaIcone(R.gymId) + '<span><b>' + esc(g.insignia.name) + ' conquistada:</b> ' + esc(ginBonusTxt(R.gymId)) + '.</span></p></section>' : '') +
       (R.proxima !== null ? '<p class="gin-liberada">' + esc('Próxima etapa liberada: ' + g.etapas[R.proxima].nome) + '</p>' : '') +
+      // a revanche perdida gastou a tentativa do dia: sem "Tentar de novo"
+      (R.revanche && !R.venceu ? '<p class="nota">Volte amanhã para tentar de novo.</p>' : '') +
       '<div class="acoes acoes--linha">' +
-        (R.venceu ? '' : '<button type="button" class="btn btn--ouro" data-acao="ginasio-resumo" data-id="denovo">Tentar de novo</button>') +
+        (R.venceu || R.revanche ? '' : '<button type="button" class="btn btn--ouro" data-acao="ginasio-resumo" data-id="denovo">Tentar de novo</button>') +
         '<button type="button" class="btn" data-acao="ginasio-resumo" data-id="trilha">Voltar à trilha</button></div>' +
       '</section>';
   }
@@ -5998,12 +6031,13 @@
         go('ginasio');
         // exceção ao "go() volta ao topo" (Ruling 17): a etapa próxima é a única ação da trilha, então a tela rola na hora o
         // mínimo para ela aparecer inteira; o foco fica no título
-        mostraInteiro(telaEl.querySelector('.etapa[data-estado="proxima"]'));
+        mostraInteiro(telaEl.querySelector('.etapa[data-estado="proxima"], .etapa[data-estado="revanche"]'));
         break;
       case 'ginasio-etapa': {
-        // só a etapa próxima abre (o aria-disabled só avisa: confere de novo pelo progresso salvo)
+        // só abre o que o módulo deixa hoje (ginModo): a etapa próxima ou a revanche do líder livre hoje (o aria-disabled só
+        // avisa: confere de novo pelo progresso salvo e pelo dia)
         var gE = ui.gym, iE = Number(id);
-        if (ui.screen !== 'ginasio' || !gE || gE.etapa !== null || iE !== ginProgresso(gE.id) || !(iE < ginEtapasTotal(gE.id))) break;
+        if (ui.screen !== 'ginasio' || !gE || gE.etapa !== null || !(iE >= 0 && iE < ginEtapasTotal(gE.id)) || !ginModo(gE.id, iE).pode) break;
         gE.etapa = iE; gE.time = []; gE.res = null; gE.msg = null;   // o preparo abre com o time vazio
         go('ginasio'); break;
       }
@@ -6046,7 +6080,7 @@
       case 'ginasio-resumo': {
         var gR2 = ui.gym;
         if (ui.screen !== 'ginasio' || !gR2 || !gR2.res) break;
-        if (id === 'denovo' && !gR2.res.venceu && gR2.etapa === ginProgresso(gR2.id)) {
+        if (id === 'denovo' && !gR2.res.venceu && !gR2.res.revanche && gR2.etapa === ginProgresso(gR2.id)) {
           gR2.time = gR2.res.cavalos.map(function (c) { return c.uid; }).filter(function (u) { var m = mountByUid(u); return !!m && !ginPreso(m); });
           gR2.res = null; gR2.msg = null;
           go('ginasio');

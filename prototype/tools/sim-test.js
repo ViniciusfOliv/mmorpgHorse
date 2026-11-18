@@ -2366,6 +2366,30 @@ test('ginásio: acerto — rodízio da revanche por revVitorias; o dia é gravad
   assert.strictEqual(GY.acerto({ gymId: 'fogo', etapa: 4, revanche: true, progresso: progCom('fogo', { etapa: 4 }), resultado: resMao([[0, 0, 0]], false), hoje: HOJE, timeLen: 1 }), null, 'revanche sem a insígnia');
   assert.strictEqual(GY.acerto({ gymId: 'fogo', etapa: 3, revanche: true, progresso: pr5, resultado: resMao([[0, 0, 0]], false), hoje: HOJE, timeLen: 1 }), null, 'revanche fora do líder');
 });
+test('ginásio: revanchePremio — o prêmio de hoje do rodízio é o que o acerto paga (Ruling 26)', function () {
+  var C = G.GYM.revanche.ciclo;
+  assert.strictEqual(typeof GY.revanchePremio, 'function', 'revanchePremio exportada');
+  for (var n = 0; n <= 12; n++) {
+    var p = GY.revanchePremio(n);
+    assert.deepStrictEqual(p, C[n % C.length], 'revVitorias ' + n);
+    G.GYM_ORDER.forEach(function (id) {
+      var pr = congela(progCom(id, { etapa: 5, revDia: HOJE - 1, revVitorias: n }));
+      var r = GY.acerto({ gymId: id, etapa: 4, revanche: true, progresso: pr, resultado: resMao([[0, 0, 1], [0, 1, 1], [0, 2, 1]], true), hoje: HOJE, timeLen: 1 });
+      assert.strictEqual(r.ouro, p.ouro || 0, id + ': Ouro pago com revVitorias ' + n);
+      assert.deepStrictEqual(r.itens, p.item ? [p.item] : [], id + ': item pago com revVitorias ' + n);
+    });
+  }
+  // entrada estranha: o comportamento de hoje, só fixado (o jogo só passa revVitorias saneado, inteiro ≥ 0)
+  [-1, -6, 1.5, NaN, undefined, null, '2'].forEach(function (x) {
+    var esperado = C[x % C.length];
+    assert.deepStrictEqual(GY.revanchePremio(x), esperado, 'revanchePremio(' + String(x) + ')');
+  });
+  assert.strictEqual(GY.revanchePremio(-1), undefined, 'negativo: nenhum prêmio');
+  assert.strictEqual(GY.revanchePremio(1.5), undefined, 'não inteiro: nenhum prêmio');
+  assert.strictEqual(GY.revanchePremio(undefined), undefined, 'undefined: nenhum prêmio');
+  assert.deepStrictEqual(GY.revanchePremio(null), C[0], 'null vale 0');
+  assert.deepStrictEqual(GY.revanchePremio('2'), C[2], 'texto numérico vale o número');
+});
 test('ginásio: acerto — timeLen e resultado malformados devolvem null; não altera a entrada', function () {
   var ok = { gymId: 'fogo', etapa: 4, revanche: false, progresso: progCom('fogo', { etapa: 4 }), resultado: resMao([[0, 0, 1], [0, 1, 0], [1, 1, 0]], false), hoje: HOJE, timeLen: 2 };
   assert.ok(GY.acerto(ok));

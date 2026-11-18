@@ -779,7 +779,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
   padding: 8px 10px; background: var(--painel-2); color: var(--texto); font: inherit; text-align: left;
   touch-action: manipulation; -webkit-user-select: none; user-select: none;
 }
-.ginasio-cartao, .etapa--proxima .etapa-btn {
+.ginasio-cartao, .etapa--proxima .etapa-btn, .etapa--revanche .etapa-btn {
   cursor: pointer;
   box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
@@ -787,8 +787,8 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
     inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
     inset 0 2px 0 0 var(--linha-luz), inset 2px 0 0 0 var(--linha-luz);
 }
-.ginasio-cartao:hover, .etapa--proxima .etapa-btn:hover { background: var(--painel-3); }
-.ginasio-cartao:active, .etapa--proxima .etapa-btn:active {
+.ginasio-cartao:hover, .etapa--proxima .etapa-btn:hover, .etapa--revanche .etapa-btn:hover { background: var(--painel-3); }
+.ginasio-cartao:active, .etapa--proxima .etapa-btn:active, .etapa--revanche .etapa-btn:active {
   transform: translateY(2px);
   box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
@@ -805,22 +805,32 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .ginasio-progresso { color: var(--texto-2); }
 .ginasio-insignia { display: flex; align-items: center; gap: 8px; margin: 0; }
 .ginasio-revanche { background: var(--ouro); color: var(--tinta); padding: 2px 6px; font-size: var(--t-xs); line-height: 1.2; }
+.ginasio-revanche-amanha { color: var(--texto-2); font-size: var(--t-xs); line-height: 1.2; }   /* sem destaque (decisão 3) */
 .ginasio-topo { display: flex; flex-direction: column; gap: 8px; }
 .ginasio-fraco, .ginasio-pista { margin: 0; color: var(--texto); }
 /* etapa: rótulo e estado na 1ª linha, o nome (e a insígnia do líder) na 2ª, a meta e o motivo embaixo */
 .etapa-rotulo { grid-column: 1; color: var(--texto-2); font-size: var(--t-s); line-height: 1.2; }
 .etapa-estado { grid-column: 2; grid-row: 1; justify-self: end; font-size: var(--t-xs); line-height: 1.2; padding: 2px 6px; background: var(--painel); color: var(--texto-2); }
 .etapa-estado--vencida { color: var(--ganho); }
-.etapa-estado--proxima { background: var(--ouro); color: var(--tinta); }
+.etapa-estado--proxima, .etapa-estado--revanche { background: var(--ouro); color: var(--tinta); }
 .etapa-nome { grid-column: 1; min-width: 0; overflow-wrap: anywhere; font-size: var(--t-l); line-height: 1.1; color: var(--texto); }
 .etapa-insignia { grid-column: 2; grid-row: 2; justify-self: end; line-height: 0; }
 .etapa-meta, .etapa-motivo { grid-column: 1 / -1; font-size: var(--t-s); line-height: 1.25; color: var(--texto-2); }
 .etapa-motivo { color: var(--texto); }
 /* vencida: só texto, com o filete verde à esquerda; fechada: apagada (sem o bisel), com o motivo escrito */
 .etapa--vencida .etapa-btn { background: var(--painel); box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 14px; }
-.etapa--proxima .etapa-btn { background: var(--painel-3); }
+.etapa--proxima .etapa-btn, .etapa--revanche .etapa-btn { background: var(--painel-3); }
+/* a revanche já feita hoje: só texto, como a vencida, com o filete apagado */
+.etapa--feita .etapa-btn { background: var(--painel); box-shadow: inset 4px 0 0 0 var(--linha-luz); padding-left: 14px; }
 .etapa--fechada .etapa-btn { background: var(--painel); box-shadow: inset 0 0 0 2px var(--linha); cursor: not-allowed; }
 .etapa--fechada .etapa-nome { color: var(--texto-2); }
+/* Perfil: as três insígnias, uma por linha (ícone, nome e o bônus ou o que falta); a que falta, apagada por cor, com o motivo
+   escrito e o ícone em cinza */
+.perfil-insignias { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.perfil-insignia { display: flex; align-items: center; gap: 10px; background: var(--painel-2); padding: 6px 8px; font-size: var(--t-s); line-height: 1.25; color: var(--texto); }
+.perfil-insignia > span { min-width: 0; overflow-wrap: anywhere; }
+.perfil-insignia--falta { background: var(--painel); color: var(--texto-2); box-shadow: inset 0 0 0 2px var(--linha); }
+.perfil-insignia--falta .icone { filter: grayscale(1) brightness(0.6); }
 /* detalhe da etapa: os cavalos do adversário, um por linha (retrato pequeno e os dados) */
 .adv-cavalos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .adv-cavalo { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; background: var(--painel-2); padding: 6px 8px; }
@@ -1379,7 +1389,11 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
      texto) e a plaquinha de estado e de revanche com borda da cor do texto */
   .ginasio-cartao, .etapa-btn { border: 2px solid ButtonText; }
   .etapa--vencida .etapa-btn { border-color: CanvasText; }
-  .etapa--proxima .etapa-btn { border-color: Highlight; }
+  .etapa--proxima .etapa-btn, .etapa--revanche .etapa-btn { border-color: Highlight; }
+  .etapa--feita .etapa-btn { border-color: CanvasText; }
+  .perfil-insignia { border: 2px solid CanvasText; }
+  .perfil-insignia--falta { border-color: GrayText; color: GrayText; }
+  .ginasio-revanche-amanha { color: CanvasText; }
   .etapa--fechada .etapa-btn { border-color: GrayText; color: GrayText; }
   .etapa--fechada .etapa-nome, .etapa--fechada .etapa-meta, .etapa--fechada .etapa-motivo, .etapa--fechada .etapa-rotulo { color: GrayText; }
   .etapa-estado, .ginasio-revanche { border: 2px solid CanvasText; }
