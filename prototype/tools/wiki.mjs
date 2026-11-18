@@ -459,6 +459,16 @@ function secoes(F, A) {
   const tudoNum = (h, k) => S.computeStats({ ...h, alloc: S.weightedAlloc(h, { [k]: 1 }) })[k]
   // o pior caso tem também o teto de torrões (cada torrão é 1 ponto a mais)
   const piorCaso = tudoNum({ ...cav('mitico', T.starMult.length, M, 31), torroes: G.ITEMS.torrao.cap }, 'vel')
+  // de onde os ginásios dão cada item (GameData.GYMS e GYM.revanche): "na 1ª vitória sobre o Soldado 2 de cada ginásio e
+  // no rodízio da revanche do líder"; '' se nenhum ginásio dá o item
+  const etapaRot = (e, i) => e.lider ? 'o líder' : `o Soldado ${i + 1}`
+  const fonteGin = (id) => {
+    const et = [...new Set(G.GYM_ORDER.flatMap((g) => G.GYMS[g].etapas.map((e, i) => e.premio.itens.includes(id) ? etapaRot(e, i) : null).filter(Boolean)))]
+    const partes = et.length ? [`na 1ª vitória sobre ${lista(et)} de cada ginásio`] : []
+    if (G.GYM.revanche.ciclo.some((c) => c.item === id)) partes.push('no rodízio da revanche do líder')
+    return lista(partes)
+  }
+  const insSkill = G.GYM_ORDER.find((g) => G.GYM.insignias[g].tipo === 'skill'), insXp = G.GYM_ORDER.find((g) => G.GYM.insignias[g].tipo === 'xp')
 
   // 1. Visão geral ---------------------------------------------------------------------------------------
   add('visao', 'Visão geral', 'Visão geral', [
@@ -529,6 +539,7 @@ custo do i-ésimo ponto num mesmo status (i = 0, 1, …) = 1 + piso(i / ${T.cost
     { t: 'h3', txt: 'XP por colocação e treino' },
     { t: 'tabela', rotulo: 'XP por colocação', cab: ['Colocação', 'XP (corrida valendo)', 'XP (treino)', 'Ouro do treino'], linhas: E.xpPerPlace.map((x, i) => [ordinal(i + 1), N(num(x)), N(num(Math.round(x / F.treinoXpDiv))), ouroCel(F.treinoOuro[i] != null ? F.treinoOuro[i] : F.treinoOuro[F.treinoOuro.length - 1])]) },
     { t: 'p', txt: `**Treino gratuito:** aparece quando seu Ouro não cobre a menor entrada (${num(minE)}). Não cobra entrada, rende 1/${F.treinoXpDiv} do XP e de ${num(Math.min(...F.treinoOuro))} a ${num(Math.max(...F.treinoOuro))} de Ouro pela colocação, e não dá Pedra Negra.` },
+    { t: 'p', txt: `**Duelos de ginásio:** cada cavalo do time ganha ${num(G.GYM.xp.vence)} de XP por duelo vencido e ${num(G.GYM.xp.perde)} por duelo perdido (ver Ginásios da Expedição). Com a ${G.GYMS[insXp].insignia.name}, todo XP somado a um cavalo (corridas, treino e duelos) ganha +${pct(G.GYM.insignias[insXp].valor, 0)}, arredondado.` },
     { t: 'h3', txt: 'XP necessário por level' },
     { t: 'grade', classe: 'grade--xp', cab: ['Level', 'XP', 'Acumulado'], linhas: xpLinhas },
     { t: 'h3', txt: 'Pontos por level' },
@@ -537,7 +548,7 @@ custo do i-ésimo ponto num mesmo status (i = 0, 1, …) = 1 + piso(i / ${T.cost
     { t: 'tabela', rotulo: 'Pontos por estrela', titulo: `Pontos acumulados, ${nomeRar('comum')} / ${nomeRar('mitico')}`, cab: ['Estrelas', ...[11, 30, E.maxLevel].map((l) => `Nv ${l}`)], linhas: T.starMult.map((x, i) => [N(estrelas(i + 1)), ...[11, 30, E.maxLevel].map((l) => N(`${S.freePoints({ rarity: 'comum', grau: i + 1, level: l })} / ${S.freePoints({ rarity: 'mitico', grau: i + 1, level: l })}`))]) },
     exemploBuild(),
     { t: 'h3', txt: 'Aprender skill ao subir de level' },
-    { t: 'p', txt: `A cada level ganho há ${pct(T.learnChance, 0)} de chance de aprender uma skill nova (sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: geral ou do próprio elemento, nunca repetida.` },
+    { t: 'p', txt: `A cada level ganho há ${pct(T.learnChance, 0)} de chance de aprender uma skill nova (${pct(T.learnChance + G.GYM.insignias[insSkill].valor, 0)} com a ${G.GYMS[insSkill].insignia.name}, ver Ginásios; sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: geral ou do próprio elemento, nunca repetida.` },
     { t: 'h3', txt: 'Exemplo: as iniciais por level (build dos bots)' },
     { t: 'tabela', rotulo: 'Iniciais por level', cab: ['Montaria', 'Level', ...G.STAT_KEYS.map(siglaStat), 'Poder', 'Liga'], linhas: G.STARTERS.flatMap((h) => niveisEx.map((l) => { const x0 = { ...h, level: l }, x = { ...x0, alloc: S.botAlloc(x0) }; const st = S.computeStats(x), pr = S.powerRating(x); return [h.name, N(String(l)), ...G.STAT_KEYS.map((k) => N(String(st[k]))), N(num(pr)), S.leagueFor(pr).name] })) }
   ])
@@ -876,7 +887,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
   const pesos = {}
   skIds.forEach((id) => { const t = G.SKILLS[id].trigger.indexOf('weather:') === 0 ? 'weather:*' : G.SKILLS[id].trigger; pesos[t] = pesoSkill(id) })
   add('economia', 'Economia', 'Economia', [
-    { t: 'p', txt: `Moeda única hoje: **Ouro**. Começa com ${num(E.startingGold)}. Ganha-se Ouro correndo (prêmios e treino), na recompensa diária (Ouro que entra sem precisar correr; ver Itens) e vendendo peças; gasta-se em entradas, na loja de itens, em peças, Pedras Negras, aluguel e registro de cruza, Troca e vagas do estábulo.` },
+    { t: 'p', txt: `Moeda única hoje: **Ouro**. Começa com ${num(E.startingGold)}. Ganha-se Ouro correndo (prêmios e treino), na recompensa diária (Ouro que entra sem precisar correr; ver Itens), nos prêmios dos ginásios (a 1ª vitória de cada etapa e a revanche do líder; ver Ginásios da Expedição) e vendendo peças; gasta-se em entradas (das corridas e dos ginásios), na loja de itens, em peças, Pedras Negras, aluguel e registro de cruza, Troca e vagas do estábulo.` },
     { t: 'h3', txt: 'Entradas e prêmios' },
     { t: 'p', txt: `Entradas: ${lista(E.entryTiers.map((t) => num(t)), 'ou')} de Ouro. Todos pagam a mesma entrada; a casa fica com ${pct(E.houseFee, 0)} do pote (arredondado) e o resto é dividido conforme o tamanho do campo. Quem leva prêmio nunca sai no prejuízo.` },
     { t: 'tabela', rotulo: 'Divisão do prêmio', cab: ['Corredores', 'Divisão', ...nR.length ? [`Exemplo com entrada ${num(entradaEx)}: pote / casa / prêmios`] : []], linhas: nR.map((n) => {
@@ -925,18 +936,19 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `São ${itIds.length} itens de uso único; cada uso vale para um cavalo, pede confirmação e não tem volta. A mochila guarda até ${num(G.BAG_MAX)} de cada (a ${nomeItem('redea')} tem o teto dela, ${num(F.redeasMax)}). A loja só aceita Ouro e respeita o Ouro reservado para a entrada da sala aberta.` },
     { t: 'tabela', rotulo: 'Itens', cab: ['Item', 'Para que serve', 'Limites e quando não pode', 'Preço na loja', 'Compra', 'De onde vem'], linhas: itIds.map((id) => [
       { md: `**${IT[id].name}**`, html: `<strong>${esc(IT[id].name)}</strong>` }, IT[id].desc, limiteItem(id), IT[id].price == null ? '**não se vende**' : ouroCel(IT[id].price), N(compraItem(id)), IT[id].origem]) },
+    { t: 'p', txt: `**Dos ginásios** (ver Ginásios da Expedição), além do que a tabela diz: ${itIds.filter((id) => fonteGin(id)).map((id) => `${nomeItem(id)}, ${fonteGin(id)}`).join('; ')}.` },
     { t: 'p', txt: `**Torrão:** os pontos do cavalo passam a ser os do level, da raridade e das estrelas mais os torrões (somados depois do piso; ver Status). O teto de ${T.statMax} por status não muda. Os torrões são do cavalo e saem com ele na Troca do Haras.` },
     { t: 'p', txt: `**Estrela:** só muda as estrelas do cavalo; os pontos a mais aparecem para distribuir. Vale como qualquer estrela, inclusive na cruza (ver Cruzamento).` },
     { t: 'p', txt: `**Cupom e Manual:** as candidatas são as mesmas do aprendizado por level (as skills gerais e as do tipo do cavalo, menos as que ele já tem); no Cupom, a skill que sai não volta no mesmo sorteio e a nova fica na mesma posição. O sorteio sai da seed do save e de um contador de usos que é gravado junto com o resultado: recarregar a página não muda nada. O aprendizado por level continua com ${pct(T.learnChance, 0)} por level.` },
     { t: 'p', txt: `**Onde se usa:** na Loja, parte Mochila, o botão Usar abre a escolha do cavalo (no Cupom, também a da skill que sai) e depois a confirmação. Na ficha do cavalo, só quando a mochila tem o item: ${nomeItem('torrao')} e ${nomeItem('estrela')} na aba Status; ${nomeItem('manual')} e o Trocar de cada skill (Cupom) na aba Skills. A ${nomeItem('redea')} usada pela Mochila leva ao Redistribuir da ficha do cavalo escolhido. O cavalo que não pode receber o item aparece apagado, com o motivo.` },
     { t: 'h3', txt: 'Limites da loja', id: 'loja-limites' },
     { t: 'p', txt: `A loja mostra os itens sempre nesta ordem: ${lista(G.SHOP_ORDER.map(nomeItem))}. Cada produto diz quantos ainda dá para comprar hoje ("Restam 1 de ${IT.torrao.perDay} hoje"; na ${nomeItem('estrela')}, "disponível" ou "de novo em N dias"). Quando não dá, o botão diz por quê, nesta ordem: ${lista(['limite', 'cheia', 'sem-ouro', 'reservado'].map((k) => { if (!F.lojaRotulo[k]) throw new Error(`wiki: rótulo "${k}" fora do LOJA_ROTULO`); return `"${F.lojaRotulo[k]}"` }), 'ou')} (o Ouro que sobra está guardado para a entrada da sala aberta).` },
-    { t: 'p', txt: `Os limites por dia voltam a zero quando o dia muda; o da ${nomeItem('estrela')} conta ${IT.estrela.everyDays} dias desde a última compra. Com a mochila cheia (${num(G.BAG_MAX)}) aquele item não se compra. A ${nomeItem('redea')} não está à venda: vem no ${ordinal(DY.dias.length)} dia da recompensa diária.` },
+    { t: 'p', txt: `Os limites por dia voltam a zero quando o dia muda; o da ${nomeItem('estrela')} conta ${IT.estrela.everyDays} dias desde a última compra. Com a mochila cheia (${num(G.BAG_MAX)}) aquele item não se compra. A ${nomeItem('redea')} não está à venda: vem no ${ordinal(DY.dias.length)} dia da recompensa diária${fonteGin('redea') ? ' e ' + fonteGin('redea') : ''}.` },
     { t: 'h3', txt: 'Recompensa diária', id: 'diaria' },
     { t: 'p', txt: `Um calendário de ${DY.dias.length} dias com prêmios fixos, sem sorteio. Resgata-se uma vez por dia, só de abrir o jogo e tocar em Resgatar (não precisa correr). Não zera: quem falta continua de onde parou. Depois do ${ordinal(DY.dias.length)} dia recomeça no 1º, e a cada ${DY.estrelaACada} calendários completos o ${ordinal(DY.dias.length)} dia também dá 1 ${nomeItem('estrela')} (o ${ordinal(DY.dias.length * DY.estrelaACada)} resgate é o primeiro). Um save novo já começa com o dia 1 para resgatar.` },
     { t: 'tabela', rotulo: 'Recompensa diária', cab: ['Dia', 'Prêmio'], linhas: DY.dias.map((d, i) => [N(ordinal(i + 1)), premioTxt(d) + (i === DY.dias.length - 1 ? `; a cada ${DY.estrelaACada} calendários completos, também 1 ${nomeItem('estrela')}` : '')]) },
     { t: 'p', txt: `O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver cheia daquele item (${num(G.BAG_MAX)}, ou ${num(F.redeasMax)} ${IT.redea.plural}), o resgate do dia espera e o cartão diz por quê. Depois do resgate, o cartão vira uma linha com o prêmio de amanhã. Por calendário: ${num(ouroCiclo)} de Ouro e ${lista(itensCiclo.map((d) => nomeItem(d.item)))} (${num(itensCiclo.reduce((a, d) => a + IT[d.item].price, 0))} de Ouro pelo preço da loja), mais a ${nomeItem('redea')}.` },
-    { t: 'p', txt: `**O dia** é a data do aparelho, no fuso dele, guardada como número de dias. Cada registro guarda o seu último dia: a diária, o do último resgate; a loja, o da última compra; a ${nomeItem('estrela')}, o da última ${nomeItem('estrela')}. Com o relógio para trás, o registro não volta até a data passar de novo do último dia dele; nada se perde. Sem servidor, quem mexe no relógio do aparelho consegue resgates e compras a mais (por exemplo: último resgate no dia 90; pondo o relógio em 91, 92 … 100, são 10 resgates no mesmo dia real); isso só se fecha com o servidor.` }
+    { t: 'p', txt: `**O dia** é a data do aparelho, no fuso dele, guardada como número de dias. Cada registro guarda o seu último dia: a diária, o do último resgate; a loja, o da última compra; a ${nomeItem('estrela')}, o da última ${nomeItem('estrela')}; a revanche de cada ginásio, o da última tentativa. Com o relógio para trás, o registro não volta até a data passar de novo do último dia dele; nada se perde. Sem servidor, quem mexe no relógio do aparelho consegue resgates e compras a mais (por exemplo: último resgate no dia 90; pondo o relógio em 91, 92 … 100, são 10 resgates no mesmo dia real); isso só se fecha com o servidor.` }
   ])
 
   // 12c. Ginásios ----------------------------------------------------------------------------------------

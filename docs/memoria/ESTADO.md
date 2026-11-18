@@ -25,7 +25,8 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
 - **Verificação:** `./scripts/check.sh` em 8 etapas termina em `VERIFICAÇÃO COMPLETA: OK` (158 testes de simulação, 117 de
   efeitos, 171 de moldes, 651 conferências do wiki, 87 metas de balanço no modo rápido e 165 no completo, e o teste de
   interface; contagem de 2026-11-17, na `main` com a frente de itens integrada). Com o teste de interface em paralelo
-  (2026-11-17) a verificação leva ~8 min; antes, ~16.
+  (2026-11-17) a verificação leva ~8 min; antes, ~16. Essa contagem é a da `main`; na branch dos ginásios, a contagem nova
+  está na seção própria ("Ginásios da Expedição").
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
 | Frente | Entrega | Spec |
@@ -273,7 +274,8 @@ inteira na branch e não foi integrada na `main`; falta a revisão final da fren
   cerca de 2 min 30 s em x1 e 1 min 30 s em x2 (sem o tempo parado nos cartões).
 - **Capturas oficiais:** regeneradas em 2026-11-18 (`node prototype/tools/ui-test.mjs`), com cinco novas:
   `final-24-expedicao-ginasios.png` (a aba com os três cartões: um no meio da trilha, um com a insígnia e "Revanche hoje",
-  um do zero), `final-25-trilha.png` (a trilha da Fornalha como abre, rolada até a etapa próxima),
+  um do zero), `final-25-trilha.png` (a trilha da Fornalha como abre: no topo, porque a etapa próxima, o Sargento
+  Candeeiro, já cabe inteira na primeira tela),
   `final-26-desafio.png` (o preparo com Maré 1º e Brasa 2º, o Ipê apagado e o "Desafiar"), `final-27-duelo.png` (o 1º
   duelo no meio da corrida) e `final-28-resumo.png` (o resumo de uma vitória em 3 duelos). Mudaram também a aba
   Expedição (`final-10`), o Perfil (`final-11`, `final-17` e as duas `marcas-perfil-*`, com as insígnias) e as capturas
@@ -318,8 +320,8 @@ inteira na branch e não foi integrada na `main`; falta a revisão final da fren
 
 ## Em andamento
 - **Teste de interface em paralelo (feito em 2026-11-17, commit `b3dda3d`; na `main` desde o mesmo dia, por decisão do
-  Vinicius):** o `check.sh` roda o `prototype/tools/ui-test-paralelo.mjs`, um processo por bloco (68 blocos, 4 por vez, e os 8
-  com medição de tempo depois, um por vez). A verificação caiu de ~16 para ~8 min. A meta de ~5 min não fechou: o que
+  Vinicius):** o `check.sh` roda o `prototype/tools/ui-test-paralelo.mjs`, um processo por bloco (68 blocos na `main`, 4 por vez, e os 8
+  com medição de tempo depois, um por vez; na branch dos ginásios são 71 blocos, 9 deles em série). A verificação caiu de ~16 para ~8 min. A meta de ~5 min não fechou: o que
   falta é a fase em série (~3,5 min) e o bloco `itens` (~1,5 min sozinho). O jeito antigo (`ui-test.mjs` sem `UI_SO`)
   continua igual e é o que regrava as capturas oficiais.
 - **Ginásios da Expedição (as 8 tarefas prontas em 2026-11-18, na `claude/nifty-newton-e8u133`, sem merge):** seção

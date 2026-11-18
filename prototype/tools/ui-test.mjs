@@ -12687,7 +12687,7 @@ try {
     }
   }
 
-  // ---------------- capturas dos ginásios (spec dos ginásios §17): a aba Expedição com os três cartões, a trilha como ela abre,
+  // ---------------- capturas dos ginásios (spec dos ginásios §17): a aba Expedição com os três cartões, a trilha como ela abre (no topo: a etapa próxima já cabe na primeira tela),
   // o preparo com o time escolhido, um duelo no meio da corrida e o resumo. O jogo (preview.html, sem a faixa DEV) abre com o
   // save posto antes de carregar: Fornalha com 2 etapas vencidas, Remanso com a insígnia e a revanche livre, Capoeira do zero;
   // no estábulo a Brasa 12 (a ativa), a Maré 13 e o Ipê 12. O desafio do Sargento Candeeiro com Maré e Brasa é o da Tarefa 6
@@ -12707,7 +12707,7 @@ try {
       await pg.evaluate(() => window.scrollTo(0, 0)); await sleep(300)
       await checkOverflow(pg, label + '-expedicao')
       await pg.screenshot({ path: join(SHOTS, 'final-24-expedicao-ginasios.png') })
-      // a trilha da Fornalha como ela abre (rolada até a etapa próxima)
+      // a trilha da Fornalha como ela abre: a 390×844 a etapa próxima (Sargento Candeeiro) já cabe inteira, então fica no topo
       await pg.locator('[data-acao="ginasio-abrir"][data-id="fogo"]').click()
       await pg.waitForSelector('#t-ginasio')
       await sleep(300)

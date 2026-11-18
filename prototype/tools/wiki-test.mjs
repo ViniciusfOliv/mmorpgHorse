@@ -259,6 +259,27 @@ confere(!/recursos que vão usá-los \(Rédeas/.test(a.md), 'wiki ainda diz que 
   confere(!/próximas partes/.test(a.md) && !/próximas partes/.test(a.html), 'o wiki ainda diz que algo dos ginásios "chega nas próximas partes"')
   const perfil = (a.md.match(/^- \*\*Perfil \(o botão do cabeçalho\):\*\* (.*)$/m) || [])[1] || ''
   confere(perfil.includes(`"Insígnias (N de ${G.GYM_ORDER.length})"`) && G.GYM_ORDER.every((id) => perfil.includes(G.GYMS[id].insignia.name)) && /Vença o líder do/.test(perfil), `o Perfil no wiki sem as insígnias: ${perfil}`)
+  // correção 1 da Tarefa 8: o que os ginásios deixaram velho fora da seção deles, com a verdade tirada do catálogo
+  //  - todo item que alguma etapa de ginásio dá (ou o rodízio da revanche) tem os ginásios como origem na seção Itens; a Rédea
+  //    nova, que não se vende, diz isso também na frase "não está à venda"
+  const secItens = a.md.slice(a.md.indexOf('## Itens e recompensa diária'), a.md.indexOf('## Ginásios da Expedição'))
+  const dosGin = (secItens.match(/^\*\*Dos ginásios\*\*.*$/m) || [''])[0]
+  for (const id of Object.keys(G.ITEMS)) {
+    const daGin = G.GYM_ORDER.some((g) => G.GYMS[g].etapas.some((e) => e.premio.itens.includes(id))) || G.GYM.revanche.ciclo.some((c) => c.item === id)
+    confere(daGin === dosGin.includes(G.ITEMS[id].name), `Itens: ${G.ITEMS[id].name} ${daGin ? 'vem dos ginásios e o wiki não diz' : 'aparece como prêmio de ginásio sem ser'}: ${dosGin}`)
+    if (daGin && G.ITEMS[id].price == null) {
+      const venda = (secItens.match(new RegExp(`A ${G.ITEMS[id].name} não está à venda: [^.]*\\.`)) || [''])[0]
+      confere(/ginásio/.test(venda), `Itens: a frase "${G.ITEMS[id].name} não está à venda" não fala dos ginásios: ${venda}`)
+    }
+  }
+  //  - a chance de skill por level com a insígnia de tipo 'skill' (a base do sim.js e o bônus do catálogo)
+  const insSk = G.GYM_ORDER.find((g) => G.GYM.insignias[g].tipo === 'skill'), lc = S.TUNING.learnChance
+  confere(a.md.includes(`A cada level ganho há ${Math.round(lc * 100)}% de chance de aprender uma skill nova (${Math.round((lc + G.GYM.insignias[insSk].valor) * 100)}% com a ${G.GYMS[insSk].insignia.name}`), 'Level e XP: a chance de skill sem o bônus da insígnia')
+  //  - o XP dos duelos e o bônus de XP fora da seção dos ginásios; o Ouro dos ginásios; o dia da revanche
+  const insXpId = G.GYM_ORDER.find((g) => G.GYM.insignias[g].tipo === 'xp')
+  confere(a.md.includes(`ganha ${G.GYM.xp.vence} de XP por duelo vencido e ${G.GYM.xp.perde} por duelo perdido`) && a.md.includes(`Com a ${G.GYMS[insXpId].insignia.name}, todo XP somado`), 'Level e XP: sem o XP dos duelos de ginásio ou o bônus da insígnia de XP')
+  confere(/Ganha-se Ouro correndo[^.]*nos prêmios dos ginásios/.test(a.md), 'Economia: o Ouro dos ginásios não aparece entre as fontes de Ouro')
+  confere(/\*\*O dia\*\*[^\n]*a revanche de cada ginásio, o da última tentativa/.test(a.md), 'O dia: sem o registro da revanche')
   const devGin = (a.md.match(/^- \*\*Ginásios:\*\* (.*)$/m) || [])[1] || ''
   confere(/Definir etapas/.test(devGin) && /Liberar revanche/.test(devGin) && /Zerar ginásios/.test(devGin), `o Modo DEV no wiki sem o grupo Ginásios: ${devGin}`)
   for (const id of G.GYM_ORDER) {

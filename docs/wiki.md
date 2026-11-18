@@ -137,6 +137,8 @@ Level máximo: **50**. Para subir do level L para L + 1 são 50 + 25 × L de XP.
 
 **Treino gratuito:** aparece quando seu Ouro não cobre a menor entrada (50). Não cobra entrada, rende 1/2 do XP e de 10 a 30 de Ouro pela colocação, e não dá Pedra Negra.
 
+**Duelos de ginásio:** cada cavalo do time ganha 50 de XP por duelo vencido e 15 por duelo perdido (ver Ginásios da Expedição). Com a Insígnia do Remanso, todo XP somado a um cavalo (corridas, treino e duelos) ganha +3%, arredondado.
+
 ### XP necessário por level
 
 | Level | XP | Acumulado |
@@ -219,7 +221,7 @@ Exemplo: Brasa (Comum ★★) no Nv 50 tem 213 pontos. Com a build dos bots (a m
 
 ### Aprender skill ao subir de level
 
-A cada level ganho há 8% de chance de aprender uma skill nova (sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: geral ou do próprio elemento, nunca repetida.
+A cada level ganho há 8% de chance de aprender uma skill nova (11% com a Insígnia da Capoeira, ver Ginásios; sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: geral ou do próprio elemento, nunca repetida.
 
 ### Exemplo: as iniciais por level (build dos bots)
 
@@ -1081,7 +1083,7 @@ O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, Fogo). 
 
 ## Economia
 
-Moeda única hoje: **Ouro**. Começa com 500. Ganha-se Ouro correndo (prêmios e treino), na recompensa diária (Ouro que entra sem precisar correr; ver Itens) e vendendo peças; gasta-se em entradas, na loja de itens, em peças, Pedras Negras, aluguel e registro de cruza, Troca e vagas do estábulo.
+Moeda única hoje: **Ouro**. Começa com 500. Ganha-se Ouro correndo (prêmios e treino), na recompensa diária (Ouro que entra sem precisar correr; ver Itens), nos prêmios dos ginásios (a 1ª vitória de cada etapa e a revanche do líder; ver Ginásios da Expedição) e vendendo peças; gasta-se em entradas (das corridas e dos ginásios), na loja de itens, em peças, Pedras Negras, aluguel e registro de cruza, Troca e vagas do estábulo.
 
 ### Entradas e prêmios
 
@@ -1171,6 +1173,8 @@ São 5 itens de uso único; cada uso vale para um cavalo, pede confirmação e n
 | **Cupom de troca de skill** | Uma skill das vagas sai e entra outra, sorteada entre as que o cavalo pode aprender. | precisa de skill nas vagas e de candidata; a skill de tipo nunca troca; não no cavalo ativo com a sala aberta | 250 | 1 por dia | Compre na loja ou ganhe no 6º dia da recompensa diária. |
 | **Manual de doma** | O cavalo tenta aprender uma skill na hora; o manual é gasto mesmo se ele não aprender. | 35% de chance de aprender; precisa de vaga livre e de candidata; não no cavalo ativo com a sala aberta | 200 | 1 por dia | Compre na loja ou ganhe no 4º dia da recompensa diária. |
 
+**Dos ginásios** (ver Ginásios da Expedição), além do que a tabela diz: Torrão de açúcar, na 1ª vitória sobre o Soldado 2 de cada ginásio e no rodízio da revanche do líder; Rédea nova, na 1ª vitória sobre o líder de cada ginásio; Cupom de troca de skill, na 1ª vitória sobre o líder de cada ginásio e no rodízio da revanche do líder; Manual de doma, na 1ª vitória sobre o Soldado 4 de cada ginásio e no rodízio da revanche do líder.
+
 **Torrão:** os pontos do cavalo passam a ser os do level, da raridade e das estrelas mais os torrões (somados depois do piso; ver Status). O teto de 150 por status não muda. Os torrões são do cavalo e saem com ele na Troca do Haras.
 
 **Estrela:** só muda as estrelas do cavalo; os pontos a mais aparecem para distribuir. Vale como qualquer estrela, inclusive na cruza (ver Cruzamento).
@@ -1183,7 +1187,7 @@ São 5 itens de uso único; cada uso vale para um cavalo, pede confirmação e n
 
 A loja mostra os itens sempre nesta ordem: Torrão de açúcar, Manual de doma, Cupom de troca de skill e Estrela de treino. Cada produto diz quantos ainda dá para comprar hoje ("Restam 1 de 2 hoje"; na Estrela de treino, "disponível" ou "de novo em N dias"). Quando não dá, o botão diz por quê, nesta ordem: "Limite de hoje", "Mochila cheia", "Sem Ouro" ou "Reservado" (o Ouro que sobra está guardado para a entrada da sala aberta).
 
-Os limites por dia voltam a zero quando o dia muda; o da Estrela de treino conta 7 dias desde a última compra. Com a mochila cheia (99) aquele item não se compra. A Rédea nova não está à venda: vem no 7º dia da recompensa diária.
+Os limites por dia voltam a zero quando o dia muda; o da Estrela de treino conta 7 dias desde a última compra. Com a mochila cheia (99) aquele item não se compra. A Rédea nova não está à venda: vem no 7º dia da recompensa diária e na 1ª vitória sobre o líder de cada ginásio.
 
 ### Recompensa diária
 
@@ -1201,7 +1205,7 @@ Um calendário de 7 dias com prêmios fixos, sem sorteio. Resgata-se uma vez por
 
 O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver cheia daquele item (99, ou 999 Rédeas novas), o resgate do dia espera e o cartão diz por quê. Depois do resgate, o cartão vira uma linha com o prêmio de amanhã. Por calendário: 510 de Ouro e Torrão de açúcar, Manual de doma e Cupom de troca de skill (570 de Ouro pelo preço da loja), mais a Rédea nova.
 
-**O dia** é a data do aparelho, no fuso dele, guardada como número de dias. Cada registro guarda o seu último dia: a diária, o do último resgate; a loja, o da última compra; a Estrela de treino, o da última Estrela de treino. Com o relógio para trás, o registro não volta até a data passar de novo do último dia dele; nada se perde. Sem servidor, quem mexe no relógio do aparelho consegue resgates e compras a mais (por exemplo: último resgate no dia 90; pondo o relógio em 91, 92 … 100, são 10 resgates no mesmo dia real); isso só se fecha com o servidor.
+**O dia** é a data do aparelho, no fuso dele, guardada como número de dias. Cada registro guarda o seu último dia: a diária, o do último resgate; a loja, o da última compra; a Estrela de treino, o da última Estrela de treino; a revanche de cada ginásio, o da última tentativa. Com o relógio para trás, o registro não volta até a data passar de novo do último dia dele; nada se perde. Sem servidor, quem mexe no relógio do aparelho consegue resgates e compras a mais (por exemplo: último resgate no dia 90; pondo o relógio em 91, 92 … 100, são 10 resgates no mesmo dia real); isso só se fecha com o servidor.
 
 <a id="ginasios"></a>
 

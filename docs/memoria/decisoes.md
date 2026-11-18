@@ -40,7 +40,7 @@ gosto e espera a palavra dele está em `ESTADO.md` ("A confirmar com o Vinicius 
   1 ponto (cerca de 2 pontos nos cavalos de hoje); o texto para o jogador diz "cerca de 4%". Se errado: 3% e 4% dão o mesmo
   resultado em parte dos níveis.
 - **(R14) As faixas do cansaço ficam em 1 m e 8 m** (apertada: menos de 1 m; normal: de 1 a menos de 8 m; folgada: 8 m ou
-  mais) — entre cavalos parecidos a chegada é colada ou distante; com 5 m e 20 m a vitória "normal" quase não acontecia. Se
+  mais) — entre cavalos parecidos a chegada é colada ou distante; com 5 m e 20 m a vitória "normal" ficava em só 6% a 7% dos primeiros duelos. Se
   errado: dois números do catálogo; estão na tabela que o Vinicius viu.
 - **(R15) Com o save na versão 8, os testes que representam "a versão atual" e "uma versão mais nova" andaram um número**
   (7 → 8 e 8 → 9). Se errado: nada; são valores de teste.

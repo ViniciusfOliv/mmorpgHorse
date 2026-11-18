@@ -393,9 +393,11 @@ ninguém jogou ainda.
   - 4 níveis acima, vence de 73% a 82%; 4 níveis abaixo, de 16% a 33%;
   - contra o líder, um cavalo sozinho 4 níveis acima vence só cerca de 2% das vezes (sem o cansaço, venceria 42% a 44%):
     o time importa;
-  - um duelo dura cerca de 1 min 20 s no relógio da corrida, e o desafio do líder, uns 6 minutos. Na tela a corrida passa
-    mais rápido: medido em 2026-11-18, um duelo leva cerca de 30 s em x1 e 18 s em x2, e um desafio do líder de 5 duelos,
-    cerca de 2 min 30 s em x1 e 1 min 30 s em x2 (sem contar o tempo parado nos cartões).
+  - **tempo de corrida** (o relógio da própria corrida, não o tempo que você espera): um duelo dura cerca de 1 min 20 s, e
+    o desafio do líder, em média, uns 6 minutos (são 4 a 5 duelos, cerca de 4,7 em média);
+  - **tempo na tela** (o que você espera assistindo): a corrida passa mais rápido que o relógio dela. Um duelo leva cerca de
+    30 s em x1 e 18 s em x2 (medido na Tarefa 6 e de novo em 2026-11-18); um desafio do líder de 5 duelos levou cerca de
+    2 min 30 s em x1 e 1 min 30 s em x2, sem contar o tempo parado nos cartões.
 - **Com servidor (bloco 7):** o +3% de Ouro sobre prêmios pagos por outros jogadores cria Ouro do nada; isso tem de ser
   revisto antes do online.
 - **Online (extra, bloco 7):** quatro ginásios dominados por jogadores (Fogo, Água, Grama e um acima dos
