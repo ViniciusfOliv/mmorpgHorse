@@ -3,6 +3,16 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-18 — Corrida mais longa na tela (pedido do Vinicius)
+- **A corrida na tela ficou 25% mais longa: de 20–34 s para 25–42,5 s em x1, conforme a distância** ("aumente um pouco a
+  duração das corridas, estão muito rápidas") — mudou só a velocidade da animação (`TELA_S_MIN` e `TELA_S_MAX` no
+  `game.js`); a simulação, o resultado, o balanço e o relógio da corrida no HUD são os mesmos. O "um pouco" virou 25% por
+  decisão do controlador; os dois números ajustam a duração sem tocar em mais nada. Um duelo de ginásio passou de 30,5 s
+  para 36,1 s em x1 e de 17,9 s para 20,5 s em x2. Com a corrida mais lenta, o teste da narração do bloco `corrida`
+  passou a falhar por acaso: em x2 frases a 0,1 s uma da outra caíam no mesmo quadro e a Garra do rival com dono já
+  chegava escondida; o teste agora volta a x1 depois da conferência de 2 s em x2 (só na tela que confere essa frase), e a
+  verificação completa passou a levar ~11 min.
+
 ## 2026-11-18 — Integração dos ginásios da Expedição na `main` (decisão do Vinicius)
 - **Integrar a `claude/nifty-newton-e8u133` na `main` antes de jogar** (o Vinicius escolheu a opção 1 de "integrar na
   `main`, abrir um pull request ou manter a branch") — a frente passou pela revisão final e pela verificação completa; a

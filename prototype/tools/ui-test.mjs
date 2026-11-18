@@ -5923,6 +5923,11 @@ try {
         notes[label + '-escritas2s'] = escritas
         if (escritas > 8) problems.push(`[${label}] a lista da faixa de ordem foi reescrita ${escritas} vezes em 2 s (máximo 8)`)
         await confereVigiaOrdem(pg, label)
+        // volta a x1 onde a narração é conferida ao chegar (a Garra de um rival com dono, abaixo): em x2 cada quadro anda
+        // 0,12–0,15 s de corrida, e frases a 0,1 s uma da outra caem no mesmo quadro (a mais velha já chega escondida
+        // embaixo das novas), então a frase vista dependia da fase dos quadros. Em x1 (~0,06 s por quadro) cada uma chega
+        // no seu quadro.
+        if (!baixa) await pg.getByRole('button', { name: 'x1' }).click()
         // meio
         await esperaFracao(pg, 0.5)
         const meio = await listaEstavel(pg)

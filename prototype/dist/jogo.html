@@ -9403,6 +9403,10 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
     'Hipódromo do Planalto', 'Raia da Ventania', 'Prado das Palmeiras', 'Hipódromo do Sertão Velho'
   ];
   var PLAYER_NAME = 'Você';
+  // Quanto a corrida dura na tela em x1, sem as câmeras lentas: TELA_S_MIN segundos numa pista de 1000 m até TELA_S_MAX
+  // numa de 2400 m (em linha reta entre os dois). Só a animação: a simulação e o resultado não mudam.
+  // 2026-11-18: +25% a pedido do Vinicius ("as corridas estão muito rápidas"); era de 20 a 34 s.
+  var TELA_S_MIN = 25, TELA_S_MAX = 42.5;
   var PLAYER_SILKS = '#f2c230';
   var BOT_SILKS = SP.SILKS.filter(function (c) { return c.toLowerCase() !== PLAYER_SILKS; });
   var PORTRAIT_SCALE = 3;        // escala dos retratos (portraitHtml sem opts.tamanho)
@@ -13418,8 +13422,9 @@ window.__MARCA = {"logo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAA/
       return out;
     }
     // Reprodução comprimida: a corrida dura 55–170 s no relógio da simulação (que o HUD mostra),
-    // mas é assistida em ~20 s (1000 m) a ~34 s (2400 m) em x1, com câmera lenta na chegada.
-    var realTarget = 20 + 14 * clamp((D - 1000) / 1400, 0, 1);
+    // mas é assistida em TELA_S_MIN (1000 m) a TELA_S_MAX (2400 m) segundos em x1, mais as câmeras lentas.
+    // Só a animação: o resultado da corrida não muda.
+    var realTarget = TELA_S_MIN + (TELA_S_MAX - TELA_S_MIN) * clamp((D - 1000) / 1400, 0, 1);
     var ts = sim.duration / realTarget;
     // Efeitos (fx.js): a linha do tempo é montada uma vez. Os Dados recebem a escala de reprodução
     // (segundos de simulação por segundo real em x1): câmera lenta ~2 s, giro ~1 s, brilho do vencedor
