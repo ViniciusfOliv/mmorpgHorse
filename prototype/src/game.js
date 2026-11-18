@@ -1486,6 +1486,10 @@
 
   function go(screen) {
     if (saveBloqueado) screen = 'bloqueio';   // a tela de bloqueio não tem saída (só o Recarregar)
+    // sem o que mostrar, a navegação leva a um lugar que existe: sem cartão, o resumo (ou o Estábulo); sem corrida, a aba
+    // Correr (não acontece: só garante que a tela de corrida e o cartão nunca são desenhados vazios)
+    if (screen === 'entreduelos' && !ginTemCartao()) { if (ui.gym) ui.gym.ver = null; screen = ui.gym && ui.gym.res ? 'ginasio' : 'estabulo'; }
+    if (screen === 'corrida' && !corridaAtual().L) screen = state ? 'correr' : 'inicial';
     if (raceView && screen !== 'corrida') { raceView.destroy(); raceView = null; }
     ui.item = null; ui.itemMsg = null;   // o uso de item aberto e o aviso dele não passam para outra tela
     if (screen !== ui.screen) {
@@ -2935,8 +2939,9 @@
   // Nada fala dos duelos seguintes nem de quantos serão (Ruling 22).
   // ---------------------------------------------------------------------------------------------
   var GIN_SEDA = { fogo: 0, agua: 1, grama: 4 };   // a seda dos cavalos de cada ginásio (índice em Sprites.SILKS)
-  // metros inteiros da chegada; arredondado a 0, "menos de 1 m" (Ruling 20)
-  function ginMetrosTxt(m) { var r = Math.max(0, Math.round(m)); return r === 0 ? 'menos de 1 m' : r + ' m'; }
+  // metros da chegada truncados para baixo (Ruling 24: as faixas do cansaço têm limites inteiros, e o número nunca as
+  // contradiz); abaixo de 1 m, "menos de 1 m" (Ruling 20)
+  function ginMetrosTxt(m) { var r = Math.floor(m); return r < 1 ? 'menos de 1 m' : r + ' m'; }
   function ginFolegoTxt(quem, f) { return quem + ' larga com ' + Math.round(f * 100) + '% do fôlego'; }
   // o duelo k de R: a (o seu cavalo), b (o do adversário, com o dono: os cavalos do adversário têm o nome do inicial), a
   // vantagem de elemento por escrito e a linha do cabeçalho (com o fôlego de quem larga cansado)
@@ -2958,6 +2963,12 @@
     cfg.recordFrames = true;
     cfg.racers[1].name = dono;
     var sim = RS.simulate(cfg);
+    // a corrida refeita tem de ser a gravada (o mesmo vencedor e a mesma distância); se não for (regra de outra versão), o
+    // duelo não é animado: a tela nunca mostra uma chegada que contradiz o que foi gravado
+    if ((sim.finishOrder[0] === 0) !== (d.vencedor === 'jogador') || GN.metros(sim) !== d.metros) {
+      if (window.console && window.console.warn) window.console.warn('Duelo ' + (k + 1) + ': a corrida refeita não bate com o gravado; o duelo não é animado.');
+      return { k: k, tela: 'duelo', L: null, cab: null };
+    }
     var a = cfg.racers[0].horse, b = cfg.racers[1].horse, seda = hasOwn(GIN_SEDA, R.gymId) ? GIN_SEDA[R.gymId] : 0, t = ginDueloTxt(R, k);
     var L = {
       counter: 0, seed: sim.seed, training: false, fee: 0, n: 2, cond: withRanges(sim.conditions), trackName: g.name,
@@ -2985,8 +2996,8 @@
     };
   }
   function renderEntreDuelos() {
-    var G0 = ui.gym, v = G0 && G0.ver, R = G0 && G0.res;
-    if (!v || !R || !R.duelos[v.k + 1]) return R ? ginResumoHtml(R) : renderInicial();   // não acontece: go() só vem aqui com o próximo
+    // go() só chega aqui com um cartão a mostrar (ginTemCartao)
+    var v = ui.gym.ver, R = ui.gym.res;
     var t = ginCartaoTxt(R, v.k);
     return '<section class="tela tela--entreduelos" aria-labelledby="t-cartao">' +
       '<header class="tela-cabeca placa"><span class="rotulo">' + esc(GD.GYMS[R.gymId].name + ' · Duelo ' + (v.k + 1)) + '</span>' +
@@ -3000,6 +3011,13 @@
         '<button type="button" class="btn" data-acao="ginasio-pular-tudo">Pular tudo</button></div>' +
       '</section>';
   }
+  // o duelo k na tela de corrida; se a corrida refeita não bate com o gravado, direto ao que vem depois dele
+  function ginAssiste(k) {
+    ui.gym.ver = ginDueloVer(ui.gym.res, k);
+    if (ui.gym.ver.L) go('corrida'); else ginDueloAcabou();
+  }
+  // há um cartão a mostrar: um desafio assistido e um duelo depois do atual
+  function ginTemCartao() { return !!(ui.gym && ui.gym.ver && ui.gym.res && ui.gym.res.duelos[ui.gym.ver.k + 1]); }
   // o duelo acabou (ou foi pulado): o cartão, se há outro duelo; senão o resumo
   function ginDueloAcabou() {
     var gym = ui.gym, v = gym && gym.ver;
@@ -4474,7 +4492,7 @@
     var L = ui.lobby;
     return {
       L: L, fim: function () { go('resultado'); }, voltar: function () { if (raceView) raceView.skip(); else go('resultado'); },
-      cab: { titulo: L.trackName, aria: 'Corrida em ' + L.trackName, linha: null, pular: 'Pular para o resultado', pularFim: 'Ver resultado', extra: '',
+      cab: !L ? null : { titulo: L.trackName, aria: 'Corrida em ' + L.trackName, linha: null, pular: 'Pular para o resultado', pularFim: 'Ver resultado', extra: '',
         placa: L.training ? '<span class="rotulo">Treino</span>' : '<span class="rotulo">Pote</span>' + ouroHtml(L.fee * L.n) }
     };
   }
@@ -6007,8 +6025,7 @@
         var rDf = desafia(gDf.id, gDf.etapa, gDf.time.slice());
         if (rDf === 'ok') {
           // tudo já gravado: os duelos passam na tela de corrida, um a um, e depois o resumo (Tarefa 6)
-          gDf.ver = ginDueloVer(gDf.res, 0);
-          go('corrida');
+          ginAssiste(0);
           break;
         }
         var bDf;
@@ -6040,8 +6057,7 @@
       case 'ginasio-proximo': {
         var gPx = ui.gym, vPx = gPx && gPx.ver;
         if (ui.screen !== 'entreduelos' || !vPx || !gPx.res || !gPx.res.duelos[vPx.k + 1]) break;
-        gPx.ver = ginDueloVer(gPx.res, vPx.k + 1);
-        go('corrida');
+        ginAssiste(vPx.k + 1);
         break;
       }
       case 'ginasio-pular-tudo':
