@@ -473,7 +473,8 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   inclinar). **Feito na branch da sessão (sem merge):** a tela de desafio do ginásio ("Cena 2": antes de
   cada duelo, o oponente e o cavalo dele em cima, à direita, o cavalo do jogador embaixo, à esquerda; GDD §8.6), com a arte
   dos 15 oponentes do PixelLab (36 gerações no total; saldo do plano 1665/2000; escolhas em
-  `prototype/assets/pixellab/treinadores/escolhas.json`). **Esperando o Vinicius:** jogar, dizer se troca alguma das 14
+  `prototype/assets/pixellab/treinadores/escolhas.json`; no build de teste https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch,
+  versão 18, com o build 53e4ced). **Esperando o Vinicius:** jogar, dizer se troca alguma das 14
   escolhas do controlador (as candidatas estão na mesma pasta) e se integra na `main` (junto com o Recomeçar do DEV).
 - **Ginásios (`docs/GDD.md` §8.6), na `main` desde 2026-11-18:** o Vinicius joga nos artefatos oficiais e decide a lista
   "A confirmar com o Vinicius (gosto, ginásios)"; o que ele mudar entra como ajuste por cima da `main`.
