@@ -526,6 +526,26 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   2026-11-16) segue parado; (4) menos botões nas outras abas, uma por vez, com maquete antes; (5) balanço fino (pista da
   Fornalha); (6) empacotamento e Play. Sem áudio no jogo até hoje. Perguntado a ele: confirmar a `main`, o que mais
   incomoda nas imagens e mapas, e um teto de gerações do PixelLab por rodada.
+- **Fluidez das trocas de tela (feita em 2026-11-19, no branch da sessão; a tela final não muda).** Medição nova e
+  repetível: `node prototype/tools/fluidez.mjs` (CPU 4× mais lenta, 360 × 780, dpr 3, mediana de 5 rodadas; do toque ao
+  2º quadro) e o bloco `fluidez` do teste de interface (teto de 120 ms, em série). Antes → depois, em ms: aba Expedição
+  139 → 59 (2ª vez 98 → 38); abrir o ginásio 60 → 56; preparo da etapa 85 → 81; voltar 35 → 31; Estábulo e Correr ~40
+  (sem ganho); carga 748 → 702. (Esses números não batem com os de cima porque a ferramenta mede dentro da página.)
+  O que mudou em `game.js`: os retratos fora da tela são desenhados depois do 1º quadro (`adiaDesenho`); as `<img>` da
+  arte do mapa voltam de uma tela para a outra em vez de nascerem de novo (`data-reuso`, `guardaImagens`/`poeImagens`);
+  o `data:` da figura do jogador fica guardado por cor; o fundo da cena do desafio é pintado uma vez por ginásio.
+  **Ficou acima da meta de 60 ms:** o preparo da etapa (canvas grande da cena, layout forçado e moldes frios). **Ideias
+  não feitas:** transição curta entre telas (120–150 ms; mexe em foco e capturas), não refazer o cabeçalho e as abas a
+  cada troca, esquentar os moldes da próxima tela provável, `content-visibility` nos selvagens.
+- **Conversa de desenho em aberto (2026-11-19): o que prende o jogador.** O Vinicius pediu ideias com referências de
+  outros jogos, um rank de quem tem o cavalo de maior Poder e perguntou da fazenda "igual Stardew Valley". Proposto a
+  ele (nada aprovado, nada construído): falta o objetivo do dia e o da semana; liga semanal em grupos de 30 que zera
+  toda semana (estilo Duolingo) + "Hall dos cavalos" de maior Poder só como vitrine; rancho leve (5–6 construções que são
+  a porta de sistemas do bloco 5 do cronograma, melhorias em Ouro, decoração em Gemas) em vez de um Stardew inteiro;
+  limite diário como bônus dos primeiros pódios, nunca como trava nem mexendo no pote; missões do dia, torneio da
+  semana, linhagem, álbum. Rank entre jogadores de verdade depende do servidor (bloco 7); no protótipo, só contra
+  "haras rivais" que são personagens. Ordem sugerida: dia e semana → rancho → linhagem. **Perguntado a ele:** como é o
+  dia do jogador (uma sentada de 10–15 min, várias visitas de 2 min ou sem limite).
 - **Ginásios (`docs/GDD.md` §8.6), na `main` desde 2026-11-18:** o Vinicius joga nos artefatos oficiais e decide a lista
   "A confirmar com o Vinicius (gosto, ginásios)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Teste de interface em paralelo:** feito e na `main` (a verificação inteira leva ~10 min com os ginásios); em aberto se vale buscar os ~5 min (dividir o bloco
