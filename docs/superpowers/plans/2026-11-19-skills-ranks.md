@@ -224,9 +224,9 @@ tabela de chance; entram a escala, os marcos, o custo e o Pergaminho), comentár
 - [x] **Passo 1:** atualizar GDD e wiki; `node prototype/tools/wiki.mjs` e `node prototype/tools/wiki-test.mjs` passam.
 - [ ] **Passo 2:** `node prototype/build.mjs`; `./scripts/check.sh` → "VERIFICAÇÃO COMPLETA: OK"; `node prototype/tools/balance.js`
   completo → todas as metas passam. Colar as duas saídas no relatório.
-- [ ] **Passo 3:** a interface mudou de propósito: rodar `node prototype/tools/ui-test.mjs` para regenerar as capturas e
+- [ ] **Passo 3 (em parte: só as capturas dos blocos `skills` e `ranks`; a rodada oficial fica para depois das decisões pendentes):** a interface mudou de propósito: rodar `node prototype/tools/ui-test.mjs` para regenerar as capturas e
   commitar as que mudaram.
 - [ ] **Passo 4:** memória: `ESTADO.md` (frente pronta, contagens), `decisoes.md` (números finais da recalibração), `bugs.md`
   se houver. Commit "documenta as skills com ranks" e push.
-- [ ] **Passo 5:** publicar `prototype/dist/jogo-dev.html` como um **artefato novo** de teste (não sobrescrever os oficiais
+- [x] **Passo 5:** publicar `prototype/dist/jogo-dev.html` como um **artefato novo** de teste (não sobrescrever os oficiais
   antes de o Vinicius aprovar) e avisar a coordenação com o link.

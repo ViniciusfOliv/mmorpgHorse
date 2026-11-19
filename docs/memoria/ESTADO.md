@@ -2,9 +2,10 @@
 
 _Atualizado em 2026-11-19._
 
-**Em andamento (2026-11-19):** redesenho das skills (100% de ativação + ranks que sobem com Ouro e um item ganho
-jogando), em brainstorming neste chat de coordenação; e o teste de engine web × Godot 4 num chat próprio
-(`claude/teste-engine`). Decisões em `decisoes.md` (2026-11-19).
+**Em andamento (2026-11-19):** as **skills com 100% de ativação e ranks** estão implementadas na `claude/skills-ranks`
+(não integrada na `main`; seção própria abaixo), **esperando duas decisões do Vinicius sobre metas do `balance.js`** antes
+da revisão final; e o teste de engine web × Godot 4 num chat próprio (`claude/teste-engine`). Decisões em `decisoes.md`
+(2026-11-19).
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
 durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o
@@ -355,6 +356,31 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
     num computador levou de 56 a 92 ms (seis toques no líder, 2026-11-18).
 - **Com servidor (bloco 7):** o +3% de Ouro da Insígnia da Fornalha sobre prêmios pagos por outros jogadores cria Ouro do
   nada; rever antes do online.
+
+## Skills com 100% e ranks (implementadas em 2026-11-19, na `claude/skills-ranks`; fora da `main`)
+Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/superpowers/plans/2026-11-19-skills-ranks.md`
+(tarefas 1 a 8 marcadas; da 9 faltam a verificação final verde e as capturas oficiais), regra no `docs/GDD.md` §3 e
+§8.2, números no wiki (seção Skills, "Rank das skills"), medições em `docs/exemplos.md` §3, decisões em `decisoes.md`.
+- **Regra:** a skill de vaga ativa sempre que o gatilho acontece (sem sorteio; `RaceSim.VERSION` 4.0.0); rank I a V por
+  cavalo (`skillRanks`), fator 1,00 a 1,60 só na parte de bônus e um marco no V; o rank entra no Poder; bots com o rank
+  médio do cavalo do jogador; potro herda rank − 1; Cupom e Manual entram no rank I. Sobe com Ouro + Pergaminho de técnica
+  (150+1, 400+2, 900+4, 2.000+7), sem falhar; o cavalo ativo não sobe com o páreo aberto. Pergaminho: pódio de corrida
+  valendo (50/30/15%, pela seed da sala) e ginásios (1 nos soldados 2 e 4, 3 no líder, só na 1ª vitória).
+- **Telas:** aba Skills com as 5 marcas, o efeito de agora e o do próximo rank, o custo e "Subir rank" (com confirmação);
+  balão e faixa com o rank em romano, dourados no V; gaveta DEV com o rank por skill (saiu o "skills sempre ativam");
+  ícone do Pergaminho feito por código (a arte do PixelLab fica para quando o Vinicius confirmar). **Save v9.**
+- **Verificação (2026-11-19):** 201 testes de simulação, 129 de efeitos, 173 de moldes, 989 conferências do wiki e os 73
+  blocos do teste de interface passam. **O `balance.js` não fecha:** 10 de 344 metas falham no completo e 3 no rápido
+  (por isso o `./scripts/check.sh` para na etapa 7).
+- **Esperando o Vinicius (duas decisões, detalhe em `decisoes.md`):**
+  1. **S5 de três skills** (Saída Rápida, Arrancada Final, Chama Final) não fecha só com os valores base; fecha com os
+     três marcos um pouco menores (7 s, ×1,01, 11 s), medido.
+  2. **Sete metas antigas no limite** (M4 dois degraus no nível 50 ×2, M5 ★★ × ★ Mítico, M6 ×2, M9 Fogo e Grama no
+     Lendário 50) saíram da faixa por 0,1 a 0,7 p.p. (no rápido, a M5 por 2,3): sem o sorteio, a raridade deixou de dar
+     vantagem na ativação. Não é ajuste de valor base de skill: ou as faixas são rebaseadas ao medido, ou o modelo é
+     recalibrado (TUNING).
+- **Build de teste desta branch:** artefato novo (link na entrada de 2026-11-19 do `decisoes.md`); os três oficiais não
+  foram tocados.
 
 ## Em andamento
 - **Teste de interface em paralelo (feito em 2026-11-17, commit `b3dda3d`; na `main` desde o mesmo dia, por decisão do

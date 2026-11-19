@@ -5,6 +5,8 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 
 ## 2026-11-19 — Skills com 100% e ranks: o que o construtor decidiu (chat de implementação, `claude/skills-ranks`)
 Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/superpowers/plans/2026-11-19-skills-ranks.md`.
+Build de teste desta branch (modo DEV, artefato novo; os oficiais não foram tocados): https://claude.ai/artifact/77SCN1gGcMb9DjMcUXwfkQ
+(versão 1, build do commit que fecha o teste de interface; é o `prototype/dist/jogo-dev.html` com outro título).
 - **Valores base do rank 1 (recalibração, só a parte de bônus; medição do `balance.js --skills`, 8.000 pares por skill)** —
   Arranque ×1,108 de aceleração · Sprint ×1,04 · Drift +1,3% · Saída Rápida ×1,32 e ×1,045 · Fôlego de Montanha ×0,40 ·
   Segundo Ar 10% e ×1,03 · Arrancada Final +10 p.p. e +2 p.p. · clima +0,04 (×1,03 → ×1,07) · Chama Final ×1,04 · Canto da
@@ -16,6 +18,12 @@ Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/sup
   efeito inteiro (8 s contra 6 s; 12 s contra 9,5 s), e o ×1,02 até a chegada vale ~6,6 p.p. sozinho, quase o rank 1 da
   skill. Com Saída Rápida 7 s, Chama Final 11 s e Arrancada Final ×1,01, as 58 metas das skills passam (2,08×, 2,07× e
   2,06×). O código está com os marcos da spec (as três metas falham no `balance.js` completo) até ele escolher.
+- **PENDENTE DO VINICIUS: sete metas antigas do modelo saíram da faixa por pouco no `balance.js` completo** — M4 dois
+  degraus no nível 50 (Raro × Comum 93,7% e Mítico × Raro 93,5%; piso 94), M5 ★★ × ★ Mítico 64,4% (teto 64; no modo
+  rápido 66,3%), M6 `inc:acel` no nível 11 44,6% (piso 45) e a maior build no nível 50 62,7% (teto 62), M9 no Lendário
+  50 (Fogo 18,0% no teto, Grama 15,2%; faixa 15,3 a 18). Causa provável: sem o sorteio, a raridade não dá mais vantagem
+  de ativação (antes 35% a 75%), e toda skill pesa sempre. Valor base de skill não resolve; as saídas são rebasear as
+  faixas ao medido ou recalibrar o TUNING. Por isso o `check.sh` para na etapa 7 (as três do modo rápido).
 - **O Dado Viciado continua isento do S1 e da razão do S5** (rank 1: 0,2 p.p.; rank 5: 1,4 p.p.) — o dado extra só mexe
   na virada do clima; os tetos (20 p.p. e 2× a mediana) valem para ele. A spec pedia recalibrar "inclusive o Dado
   Viciado", mas não há valor base que o leve a 3 p.p. Se errado: o dado extra precisa de outro efeito (regra nova).

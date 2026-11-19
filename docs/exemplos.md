@@ -58,15 +58,33 @@ do que o Poder prevê.
 ## 3. Quanto vale cada skill e cada status
 
 Comparação pareada: a mesma corrida (seed e rivais) com e sem a mudança, 6 Raros nível 20, mapa
-aleatório, Dado ligado. O número é o ganho na taxa de vitória (a base é ~17%). Meta S1: 3 a 13 p.p.
+aleatório, Dado ligado. O número é o ganho na taxa de vitória (a base é ~17%).
 
-| Skill | Ganho (p.p.) | | Skill | Ganho (p.p.) | | Skill | Ganho (p.p.) |
-|---|---|---|---|---|---|---|---|
-| Drift | 12,7 | | Casco Firme | 9,3 | | Fôlego de Montanha | 5,7 |
-| Arranque | 12,4 | | Arrancada Final | 8,8 | | Canto da Iara | 5,4 |
-| Pé na Chuva | 8,1 | | Nascente | 7,8 | | Segundo Ar | 5,3 |
-| Sol a Pino | 6,3 | | Névoa Amiga | 6,3 | | Saída Rápida | 5,1 |
-| Sprint | 4,9 | | Chama Final | 4,0 | | | |
+**Skills com rank (2026-11-19, simulação 4.0.0):** a skill de vaga ativa sempre que o gatilho acontece, e o efeito cresce
+com o rank (fator 1,00 a 1,60, mais o marco no rank V). Metas: S1, rank I de 3 a 13 p.p.; S5, rank V de 1,4× a 2,2× o
+rank I e até 20 p.p.; S6, rank V até 2× a mediana. Medição de 8.000 pares por skill (`node prototype/tools/balance.js --skills`).
+
+| Skill | Antes (com sorteio) | Rank I | Rank V | V ÷ I |
+|---|---|---|---|---|
+| Arranque | 12,4 | 10,4 | 17,3 | 1,66× |
+| Drift | 12,7 | 9,3 | 18,4 | 1,98× |
+| Pé na Chuva | 8,1 | 8,7 | 16,8 | 1,94× |
+| Névoa Amiga | 6,3 | 8,2 | 15,4 | 1,88× |
+| Casco Firme | 9,3 | 8,0 | 16,1 | 2,01× |
+| Arrancada Final | 8,8 | 7,6 | 19,1 | **2,51×** |
+| Sol a Pino | 6,3 | 7,4 | 15,7 | 2,12× |
+| Fôlego de Montanha | 5,7 | 7,0 | 14,7 | 2,11× |
+| Nascente | 7,8 | 6,2 | 9,9 | 1,60× |
+| Saída Rápida | 5,1 | 5,3 | 12,9 | **2,46×** |
+| Chama Final | 4,0 | 5,1 | 11,7 | **2,30×** |
+| Sprint | 4,9 | 5,0 | 8,5 | 1,71× |
+| Canto da Iara | 5,4 | 4,8 | 7,2 | 1,52× |
+| Segundo Ar | 5,3 | 4,7 | 8,9 | 1,88× |
+| Dado Viciado (isento) | 1,3 | 0,2 | 1,4 | — |
+
+Em negrito, as três que passam do teto de 2,2× da S5 com os marcos da spec (decisão pendente, `decisoes.md` de
+2026-11-19): com Saída Rápida 7 s, Arrancada Final ×1,01 e Chama Final 11 s ficam em 2,08×, 2,06× e 2,07×
+(rank V de 11,0, 15,7 e 10,5 p.p.).
 
 | +10 pontos em | Manobra | Velocidade | Aceleração | Estamina | Força | Garra | Sorte |
 |---|---|---|---|---|---|---|---|
