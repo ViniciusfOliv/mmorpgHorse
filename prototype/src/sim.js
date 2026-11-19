@@ -97,10 +97,12 @@
  *   jóquei já lê o tanque restante).
  *
  * GARRA: a arrancada começa em garraFrom = 0.80 − 0.14*(n(garra) − 0.5) da pista (mais Garra, mais cedo;
- *   o gatilho 'final' das skills vale no mesmo ponto). Lá a arrancada ACONTECE SEMPRE (sem sorteio, sem consumir a RNG):
- *   teto ×(1 + garraBoostBase + garraBoostRange*nc(garra) + bônus de skill) até a chegada. Evento 'garra'.
- *   A Garra (o status) decide o quando (começa antes) e o quanto (empurra mais). garraInfo(horse, bonus) dá os dois
- *   números para a tela, sem clima (a ficha do cavalo, aba Skills).
+ *   o gatilho 'final' das skills vale no mesmo ponto). Lá a arrancada ACONTECE SEMPRE (não há chance de falhar). A força
+ *   média é F = garraBoostBase + garraBoostRange*nc(garra) + bônus de skill; a de cada corrida é F × f, com
+ *   f = 1 − garraSpread + 2·garraSpread·rng() (uma chamada da RNG do corredor, na montagem: de 0 a 2× a média com garraSpread 1), e o
+ *   teto de velocidade fica ×(1 + F·f) até a chegada. Evento 'garra' (com `forca` = f). A Garra (o status) decide o
+ *   quando (começa antes) e o quanto, em média (empurra mais). garraInfo(horse, bonus) dá { from, boost (média),
+ *   boostMin, boostMax, tipo } para a tela, sem clima (a ficha do cavalo, aba Skills).
  *
  * SKILLS (gatilhos e efeitos em data.js). Quando o gatilho acontece, a skill ATIVA SEMPRE, sem sorteio e sem
  *   consumir a RNG, uma vez por gatilho (por corrida; por bloco se effect.blockScoped). Gatilhos: start (largada),
@@ -162,7 +164,7 @@
  *   grau por starsOf (não numérico vale 2, fora da faixa é preso a 1–3); alloc por validAlloc.
  *
  * ORDEM DAS CHAMADAS DE r.rng() (fluxo de cada corredor; manter estável):
- *   montagem: 1) startDelay, 2) jockeyErr; por tick: 3) jitter (a Garra não é sorteada).
+ *   montagem: 1) startDelay, 2) jockeyErr, 3) a força da Garra; por tick: 4) jitter.
  *   As skills (de vaga e de tipo) não chamam r.rng().
  *   Detalhes junto de buildRacer.
  * ============================================================================
@@ -237,7 +239,7 @@
     weatherMult: 1.03, weatherMultDouble: 1.08, weatherVel: 0.10, weatherAdd: 0.5,
     // garra: a arrancada começa em garraZone − garraZoneK·(n − 0,5) da pista; chance e força crescem com n
     garraZone: 0.8, garraZoneK: 0.14,
-    garraBoostBase: 0, garraBoostRange: 0.19,
+    garraBoostBase: 0, garraBoostRange: 0.19, garraSpread: 1,   // força média; a de cada corrida vai de (1 − spread) a (1 + spread) vezes ela
     // Dado da Sorte: chance do 2º dado = (sorte − sorteDiceLo) / (sorteDiceFull − sorteDiceLo); Sorte real 40–76
     sorteDiceLo: 40, sorteDiceFull: 80,
     // skills
@@ -643,6 +645,8 @@
     return {
       from: from,
       boost: 1 + T.garraBoostBase + T.garraBoostRange * ng + bb,
+      boostMin: 1 + (T.garraBoostBase + T.garraBoostRange * ng + bb) * (1 - T.garraSpread),
+      boostMax: 1 + (T.garraBoostBase + T.garraBoostRange * ng + bb) * (1 + T.garraSpread),
       tipo: ng !== n
     };
   }
@@ -906,7 +910,7 @@
 
   // Ordem das chamadas de r.rng() (fluxo próprio de cada corredor; manter estável):
   //   montagem: 1) startDelay, 2) jockeyErr;
-  //   por tick: 3) jitter. A Garra não é sorteada: acontece sempre, ao cruzar r.garraFrom.
+  //   3) garraForca (a força da Garra nesta corrida; ela acontece sempre, ao cruzar r.garraFrom); por tick: 4) jitter.
   //   As skills de vaga e a skill de tipo não consomem a RNG (a ativação não é sorteada).
   function buildRacer(entry, index, cond, rng) {
     var horse = entry.horse;
@@ -954,6 +958,8 @@
       extraDice: 0, diceTeto: 100,
       startDelay: rng() * T.startDelayMax * (1 - T.startAcelK * clamp(statsN.acel, 0, T.startAcelMax)),
       jockeyErr: T.jockeyErrMin + rng() * (T.jockeyErrMax - T.jockeyErrMin),
+      // força da Garra nesta corrida: fator de (1 − garraSpread) a (1 + garraSpread) sobre a força média do status
+      garraForca: 1 - T.garraSpread + 2 * T.garraSpread * rng(),
       rng: rng,
       skills: skills,
       started: false,
@@ -1176,9 +1182,10 @@
         // Garra
         if (!r.garraRolled && p >= r.garraFrom) {
           r.garraRolled = true;
-          // a arrancada acontece sempre (sem sorteio, sem consumir a RNG): a Garra decide onde ela começa e a força
-          r.garraMult = Z.garraBoost;
-          ev(tPrev, i, 'garra', r.label + ' mostrou GARRA na reta final!');
+          // a arrancada acontece sempre: a Garra decide onde ela começa e a força MÉDIA; r.garraForca (sorteada na
+          // montagem do corredor) diz se hoje ela veio mais fraca ou mais forte
+          r.garraMult = 1 + (Z.garraBoost - 1) * r.garraForca;
+          events.push({ t: r2(tPrev), racer: i, type: 'garra', text: r.label + ' mostrou GARRA na reta final!', forca: r2(r.garraForca) });
         }
 
         // terreno e bloco

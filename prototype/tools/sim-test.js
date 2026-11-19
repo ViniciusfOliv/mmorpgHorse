@@ -1402,13 +1402,13 @@ function refRace(seed, dev) {
 function refHash(res) {
   return crypto.createHash('sha1').update(JSON.stringify({ finishOrder: res.finishOrder, finishTimes: res.finishTimes, events: res.events })).digest('hex');
 }
-var REF_HASHES = ['94aea7863c5d800b1f36d92b182fcc1a85f92b93', '08ab4caf48e0d90d2aaf46841796254d8caeff3e', '67797e9b8780fe05854d126a6f3e1d9f212ea55a',
-  'dfe4c484d9d00181c6d458d8099cdf0913812ab7', 'ab8cc4f7ab405e4bd204172eccc3a2ff1a7f04fd', '27042ce38cffffd33e1e5420ebc9aaa37eaf48c6',
-  '2c85b1cc361b3f8f66742cf7a1bdf687edf3fc38', '890c9cc49b6c52e5353938a046c8d3b661e03bba', '678afa8254dfa207454f14c8f9469f299e992ab2',
-  '7e2145c73cb1518d04dee5ca1ee4f98cf94d487c', 'f74f470a648887db0b906b8a2e14ac26f2d9999d', '3fd3b00135f1f2b08c23d75977dc99ea04eaf5e6',
-  '6e5ab233f75633b5f6dfa49263633237bd6eb3ec', '2404903c4c8b2d9c76652598340ed51718feff50', '6ddf80f8906bf900a37b728afd617233fd06c5a2',
-  '633ff913614575d6b89efcef7e62a1d607dd1ec5', 'a10075663dcd17353bf35450e6d3f4537b9bb41e', '9ea753d8d40f9ebf5a356e702098ad5dbd7eac51',
-  'cba8edbe47b5767bd9c5d7f068019580d17489ee', '61e8cdd4adf14f23adcabb944f4a4083d46bd04b'];
+var REF_HASHES = ['c7bd6ec725da9baff215edf02069668324a1a6c8', '23d02cf83f681a0d22b6217366262f98d8b7eada', 'f2137c6b3b8f4bf06c6a27721143aa38e429ca2b',
+  'e7e7f917fbf2e7a67406eace2731d80f5fc61ec3', '97ad7443d3cd8465853456bf136318ca198881fb', '080fa83bf03cfbe7bb2aa72c8415865506214985',
+  '15466d6dd1d8e755d918f9a1d10daa8cd7162bfa', '62b409f8d2e249ffcd2770b1e53f7d39f1ede336', '91c2a4d5cada464cfcb04cfed8000a32ea2d091e',
+  '8470f28a998603c542ad34208997e9dba2714661', '8b05ee00141e9b971999c0b86049997cdc812288', '2aa51f18630ab92e3653983e3ebdccaf0ecab42d',
+  '6ac9744a199e5cfd5bd54df9cd998ab791fa685d', 'a91629dd18f87e649ad17a4ecc07d99bc4f94cbe', '0c60b25797c99b64ab629eb731578ed8dd7f8252',
+  'bebc16b01d1c21dda95b89b074fa4a5ee8380d74', 'ce56cbc0157175952e640e09ad53dd1e7ab08c6c', '7fa375c80622dabd0edb293bc8c73430fc2b48f2',
+  'bb54a73db517efae350dc34e50af2d9853179573', '781866ea36a643e90280671ba57fad3143b8d351'];
 test('sem config.dev o resultado é o de antes', function () {
   assert.deepStrictEqual(CAMPO_REF.map(function (h) { return h.id; }), ['brasa', 'mare', 'ipe', 'w-faisca', 'w-lambari', 'w-capim', 'w-ticao', 'w-garoa']);
   var diff = [];
@@ -2768,6 +2768,7 @@ test('garraInfo (a tela) dá os números da Garra que a corrida usa: onde começ
   assert.strictEqual(gf.from, Math.min(0.95, Math.max(0.5, T.garraZone - T.garraZoneK * (nf - 0.5))));
   assert.strictEqual(gf.chance, undefined, 'a Garra não tem mais chance'); ['garraChanceBase', 'garraChanceRange', 'garraChanceMax'].forEach(function (k) { assert.strictEqual(T[k], undefined, k); });
   assert.strictEqual(gf.boost, 1 + T.garraBoostBase + T.garraBoostRange * nf);
+  assert.strictEqual(T.garraSpread, 1); assert.ok(Math.abs(gf.boostMin - 1) < 1e-12 && Math.abs(gf.boostMax - (1 + 2 * (gf.boost - 1))) < 1e-12, 'a força de cada corrida vai de 0 a 2× a média');
   assert.strictEqual(gf.tipo, false);
   // o bônus de uma skill (Arrancada Final) soma na força, como na corrida
   var af = G.SKILLS['arrancada-final'].effect, gb = S.garraInfo(f, { boost: af.garraBoostBonus });
@@ -2782,16 +2783,18 @@ test('garraInfo (a tela) dá os números da Garra que a corrida usa: onde começ
   assert.ok(ga2.from < ts.zone[0] && ga2.tipo === false, 'Garra alta começa antes do terço: sem a Maré Alta (' + ga2.from + ')');
   // na corrida, com Nublado e sem skills de vaga: a Garra sai na fração prevista e começa no ponto previsto
   [f, a].forEach(function (h) {
-    var info = S.garraInfo(h), vezes = 0, corridas = 600, longe = 0;
+    var info = S.garraInfo(h), vezes = 0, corridas = 600, longe = 0, somaF = 0, fracas = 0, fortes = 0;
     for (var sd = 1; sd <= corridas; sd++) {
       var res = S.simulate({ seed: sd * 7919, conditions: { weather: 'nublado' }, recordFrames: true, racers: [{ horse: h, name: 'A' }, { horse: clone(G.STARTERS[2]), name: 'B' }] });
       var ev = res.events.filter(function (e) { return e.type === 'garra' && e.racer === 0; })[0];
       if (!ev) continue;
       vezes++;
+      assert.ok(ev.forca >= 0 && ev.forca <= 2, 'força ' + ev.forca); somaF += ev.forca; if (ev.forca < 0.5) fracas++; if (ev.forca > 1.5) fortes++;
       var k = Math.round(ev.t * 10), D = res.conditions.distance;
       if (!(res.frames[k + 1].pos[0] / D >= info.from - 1e-9 && res.frames[k].pos[0] / D < info.from + 0.02)) longe++;
     }
     assert.strictEqual(vezes, corridas, h.element + ': a Garra tem de sair em toda corrida (saiu em ' + vezes + ' de ' + corridas + ')');
+    assert.ok(Math.abs(somaF / corridas - 1) < 0.06 && fracas > 100 && fortes > 100, h.element + ': a força varia em torno da média (média ' + (somaF / corridas).toFixed(2) + ', ' + fracas + ' fracas, ' + fortes + ' fortes)');
     assert.strictEqual(longe, 0, h.element + ': a Garra começou fora do ponto previsto em ' + longe + ' corridas');
   });
 });

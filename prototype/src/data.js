@@ -59,7 +59,7 @@
     man: 'Rendimento nas curvas: quem tem mais perde menos velocidade nelas.',
     forca: 'Rendimento nas subidas, nos pisos pesados e para passar pelo pelotão.',
     est: 'Fôlego para manter o ritmo até o fim; também deixa correr mais forte no meio e no sprint.',
-    garra: 'Força da arrancada final, que acontece sempre; com mais Garra ela começa mais cedo e empurra mais.',
+    garra: 'Força média da arrancada final, que acontece sempre; com mais Garra ela começa mais cedo e empurra mais.',
     sorte: 'Vem do nascimento e não recebe pontos. Chance de jogar o Dado da Sorte duas vezes.',
     genetica: 'Nota S, A, B ou C: o quanto o status já nasce alto. Vem do nascimento e não muda.',
     estrelas: 'Grau do cavalo, de 1 a 3 estrelas: mais estrelas, mais pontos para distribuir a cada nível.',
@@ -193,8 +193,8 @@
     },
     'folego-de-montanha': {
       id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'geral', trigger: 'hill',
-      desc: 'Em cada subida: gasta 60% menos estamina extra da subida.',
-      effect: { hillDrainMult: 0.4, blockScoped: true },
+      desc: 'Em cada subida: gasta 70% menos estamina extra da subida.',
+      effect: { hillDrainMult: 0.3, blockScoped: true },
       rank5: { exitRestore: 0.03 }
     },
     'segundo-ar': {
@@ -568,10 +568,11 @@
     // de hoje os 4% somam cerca de 2 pontos (a vantagem anda em degraus de 1 ponto de status)
     vantagem: 0.04,
     fadiga: {
-      // entre cavalos iguais as chegadas se dividem entre "colado" e "longe"; 1 e 8 m deixam cada faixa com 18% ou mais
+      // entre cavalos iguais as chegadas se dividem entre "colado" e "longe"; 4 e 12 m deixam cada faixa com 15% ou mais
+      // (2026-11-19: eram 1 e 8 m; com a Garra saindo sempre, com força variável, as chegadas ficaram mais espalhadas)
       faixas: [
-        { id: 'apertada', name: 'Apertada', ate: 1, perde: 0.25 },
-        { id: 'normal', name: 'Normal', ate: 8, perde: 0.15 },
+        { id: 'apertada', name: 'Apertada', ate: 4, perde: 0.25 },
+        { id: 'normal', name: 'Normal', ate: 12, perde: 0.15 },
         { id: 'folgada', name: 'Folgada', ate: null, perde: 0.05 }
       ],
       teto: 0.5

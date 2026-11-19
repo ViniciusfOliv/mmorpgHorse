@@ -32,7 +32,7 @@ progressão de nível, estrelas e raridade. Fórmulas e tabelas completas: `docs
 | Manobra (MAN) | Quanto da velocidade segura nas curvas |
 | Força (FOR) | Velocidade na subida, piso pesado (terra/areia) e disputa no pelotão |
 | Estamina (EST) | Tamanho do tanque de fôlego e ritmo no meio e no sprint |
-| Garra (GAR) | Força da arrancada final, que acontece sempre; com mais Garra ela começa mais cedo e empurra mais |
+| Garra (GAR) | Força média da arrancada final, que acontece sempre (a de cada corrida varia pela seed); com mais Garra ela começa mais cedo e empurra mais |
 | Sorte (SOR) | Chance de rolar um segundo dado no Dado da Sorte (não mexe nas skills, que ativam sempre); **só de nascimento** |
 
 **Nada cresce sozinho.** O status de um cavalo é a **base** (raridade + genética) mais os **pontos

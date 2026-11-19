@@ -63,7 +63,7 @@ Cada montaria tem 7 status na escala de 1 a 150. Na corrida o motor usa n(x) = s
 | MAN | ![](../prototype/assets/icons/st-man.png) Manobra | Rendimento nas curvas: quem tem mais perde menos velocidade nelas. | Fator da curva = min(1, 0,704 + 0,185 × n(MAN)): de 79,7% (MAN 50) a 98,2% (MAN 150) da velocidade dentro da curva. |
 | FOR | ![](../prototype/assets/icons/st-forca.png) Força | Rendimento nas subidas, nos pisos pesados e para passar pelo pelotão. | Fator da subida = min(1, 0,824 + 0,11 × n(FOR)): de 87,9% (FOR 50) a 98,9% (FOR 150). Alivia o piso pesado (20% × n(FOR) da perda), o aperto do pelotão (60% × n(FOR), até zerar) e o gasto extra da subida (+30% × (1 − 0,5 × n(FOR))). |
 | EST | ![](../prototype/assets/icons/st-est.png) Estamina | Fôlego para manter o ritmo até o fim; também deixa correr mais forte no meio e no sprint. | Tanque = 66 + 20 × n(EST) (EST 50 → 76). Também sobe o teto do ritmo: + 3,5% × (n(EST) − 0,5) no meio e + 6,5% × (n(EST) − 0,5) no sprint final, então rende mesmo com tanque de sobra. O clima não mexe na Estamina. |
-| GAR | ![](../prototype/assets/icons/st-garra.png) Garra | Força da arrancada final, que acontece sempre; com mais Garra ela começa mais cedo e empurra mais. | A arrancada começa em 80% − 14% × (n(GAR) − 0,5) da pista (GAR 50 → 80%; GAR 100 → 73%). Lá ela acontece **sempre**, sem sorteio: o teto de velocidade vai a ×1 + 0,19 × n(GAR) até a chegada. Mais Garra: começa antes e empurra mais. |
+| GAR | ![](../prototype/assets/icons/st-garra.png) Garra | Força média da arrancada final, que acontece sempre; com mais Garra ela começa mais cedo e empurra mais. | A arrancada começa em 80% − 14% × (n(GAR) − 0,5) da pista (GAR 50 → 80%; GAR 100 → 73%). Lá ela acontece **sempre**. A força média é F = 0 + 0,19 × n(GAR); a de cada corrida vai de 0% a 200% dela, pela seed, e o teto de velocidade vai a ×(1 + força) até a chegada. Mais Garra: começa antes e empurra mais. |
 | SOR | ![](../prototype/assets/icons/st-sorte.png) Sorte | Vem do nascimento e não recebe pontos. Chance de jogar o Dado da Sorte duas vezes. | Vem do nascimento: não recebe pontos. No Dado da Sorte, a chance de rolar um 2º dado é (SOR − 40) / 40, presa entre 0% e 100% (SOR 40 → 0%; SOR 80 → 100%). Não entra em mais nada: as skills ativam sempre, sem sorteio. |
 
 ### Explicações do botão ⓘ
@@ -374,7 +374,7 @@ Cada skill de vaga de cada cavalo tem um rank, de I a V (a skill de tipo não te
 Como o fator entra em cada formato de efeito (os exemplos do último rank são antes do marco):
 
 - **Multiplicador que ajuda** (aceleração e velocidade), m no rank I: 1 + (m − 1) × s. Exemplo: aceleração de Arranque, ×1,108 no rank I e ×1,173 no rank V.
-- **Multiplicador que reduz gasto** (gasto extra da subida e gasto de estamina), m no rank I: 1 − (1 − m) × s, nunca abaixo de ×0,05. Exemplo: gasto de estamina de Canto da Iara, ×0,8 no rank I e ×0,68 no rank V. Bate no piso: Fôlego de Montanha (gasto extra da subida) a partir do rank V.
+- **Multiplicador que reduz gasto** (gasto extra da subida e gasto de estamina), m no rank I: 1 − (1 − m) × s, nunca abaixo de ×0,05. Exemplo: gasto de estamina de Canto da Iara, ×0,8 no rank I e ×0,68 no rank V. Bate no piso: Fôlego de Montanha (gasto extra da subida) a partir do rank IV.
 - **Bônus somado** (fator da curva, impulso da Garra e fator da subida), b no rank I: b × s. Exemplo: fator da curva de Drift, +1,3% no rank I e +2,08% no rank V.
 - **Recuperação** (recuperação de estamina), x no rank I: x × s. Exemplo: recuperação de estamina de Segundo Ar, 10% no rank I e 16% no rank V.
 - **Reforço de clima** (Sol a Pino, Pé na Chuva e Névoa Amiga), b no rank I: o bônus do dono do clima passa de ×1,03 para ×(1,03 + b × s): ×1,07 · ×1,076 · ×1,082 · ×1,088 · ×1,094 do rank I ao V.
@@ -426,7 +426,7 @@ Sobe o rank de uma skill do cavalo, junto com Ouro, na aba Skills. Só se ganha 
 | ![](../prototype/assets/icons/sk-sprint.png) Sprint | Numa reta de 150 m ou mais (fora a da largada): +4% de velocidade por 150 m. | Numa reta de 100 m ou mais (fora a da largada): +6,4% de velocidade por 150 m. | dispara também em retas de 100 m ou mais |
 | ![](../prototype/assets/icons/sk-drift.png) Drift | Em cada curva: +1,3% de rendimento na curva. | Em cada curva: +2,1% de rendimento na curva e 15% menos gasto de estamina. | na curva, também gasta 15% menos estamina |
 | ![](../prototype/assets/icons/sk-saida-rapida.png) Saída Rápida | Ao sair da curva: +32% de aceleração e +4,5% de velocidade por 6s. | Ao sair da curva: +51,2% de aceleração e +7,2% de velocidade por 7s. | dura 7s em vez de 6s |
-| ![](../prototype/assets/icons/sk-folego-de-montanha.png) Fôlego de Montanha | Em cada subida: gasta 60% menos estamina extra da subida. | Em cada subida: gasta 95% menos estamina extra da subida e, ao sair dela, recupera 3%. | ao sair da subida, recupera 3% de estamina |
+| ![](../prototype/assets/icons/sk-folego-de-montanha.png) Fôlego de Montanha | Em cada subida: gasta 70% menos estamina extra da subida. | Em cada subida: gasta 95% menos estamina extra da subida e, ao sair dela, recupera 3%. | ao sair da subida, recupera 3% de estamina |
 | ![](../prototype/assets/icons/sk-segundo-ar.png) Segundo Ar | Quando a estamina cai a 30%, recupera 10% e ganha +3% de velocidade por 8s. | Quando a estamina cai a 35%, recupera 16% e ganha +4,8% de velocidade por 8s. | dispara com 35% de estamina em vez de 30% |
 | ![](../prototype/assets/icons/sk-arrancada-final.png) Arrancada Final | Na reta final: +2,8% de força na arrancada de Garra. | Na reta final: +4,5% de força na arrancada de Garra, e +1% de velocidade até a chegada. | também +1% de velocidade até a chegada |
 | ![](../prototype/assets/icons/sk-dado-viciado.png) Dado Viciado | Antes do 1º Dado da Sorte: rola 1 dado extra, de 1 a 60, em todos os Dados da corrida. | Antes do 1º Dado da Sorte: rola 2 dados extras, de 1 a 100, em todos os Dados da corrida. | 2 dados extras, os dois de 1 a 100 |
@@ -452,7 +452,7 @@ Sobe o rank de uma skill do cavalo, junto com Ouro, na aba Skills. Só se ganha 
 | ![](../prototype/assets/icons/sk-sprint.png) **Sprint** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | velocidade ×1,04 (+4%), por 150 m | Numa reta de 150 m ou mais (fora a da largada): +4% de velocidade por 150 m. | dispara também em retas de 100 m ou mais | qualquer tipo | Ventania | 14 | SPRINT |
 | ![](../prototype/assets/icons/sk-drift.png) **Drift** | Entra numa curva | fator da curva +1,3% (somado, teto 1), em cada bloco, até o fim dele | Em cada curva: +1,3% de rendimento na curva. | na curva, também gasta 15% menos estamina | qualquer tipo | Boitatá | 11,2 | DRIFT |
 | ![](../prototype/assets/icons/sk-saida-rapida.png) **Saída Rápida** | Sai de uma curva | aceleração ×1,32 (+32%); velocidade ×1,045 (+4,5%), por 6 s | Ao sair da curva: +32% de aceleração e +4,5% de velocidade por 6s. | dura 7s em vez de 6s | qualquer tipo | — | 11,2 | SAÍDA RÁPIDA |
-| ![](../prototype/assets/icons/sk-folego-de-montanha.png) **Fôlego de Montanha** | Entra numa subida | gasto extra da subida ×0,4 (−60%), em cada bloco, até o fim dele | Em cada subida: gasta 60% menos estamina extra da subida. | ao sair da subida, recupera 3% de estamina | qualquer tipo | Jequitibá | 8,4 | FÔLEGO MONT. |
+| ![](../prototype/assets/icons/sk-folego-de-montanha.png) **Fôlego de Montanha** | Entra numa subida | gasto extra da subida ×0,3 (−70%), em cada bloco, até o fim dele | Em cada subida: gasta 70% menos estamina extra da subida. | ao sair da subida, recupera 3% de estamina | qualquer tipo | Jequitibá | 8,4 | FÔLEGO MONT. |
 | ![](../prototype/assets/icons/sk-segundo-ar.png) **Segundo Ar** | Estamina cai a 30% ou menos | recupera 10% do tanque na hora; velocidade ×1,03 (+3%), por 8 s | Quando a estamina cai a 30%, recupera 10% e ganha +3% de velocidade por 8s. | dispara com 35% de estamina em vez de 30% | qualquer tipo | Capim, Garoa, Jequitibá | 11,2 | SEGUNDO AR |
 | ![](../prototype/assets/icons/sk-arrancada-final.png) **Arrancada Final** | Começa a arrancada do cavalo (reta final): em 80% da pista − 14% × (n(GAR) − 0,5), mais cedo com mais Garra | impulso da Garra +2,8 p.p. | Na reta final: +2,8% de força na arrancada de Garra. | também +1% de velocidade até a chegada | qualquer tipo | Ventania | 14 | ARR. FINAL |
 | ![](../prototype/assets/icons/sk-dado-viciado.png) **Dado Viciado** | Antes do 1º Dado da Sorte (vale para todos os Dados da corrida) | +1 dado no Dado da Sorte, de 1 a 60 (até o fim da corrida) | Antes do 1º Dado da Sorte: rola 1 dado extra, de 1 a 60, em todos os Dados da corrida. | 2 dados extras, os dois de 1 a 100 | qualquer tipo | — | 2,8 | DADO VICIADO |
@@ -576,7 +576,7 @@ Boosts (Garra e skills) sobem o teto sem custo extra de estamina. Pistas longas 
 
 #### Garra
 
-A arrancada de cada montaria começa em 80% − 14% × (n(GAR) − 0,5) da pista (mais Garra, mais cedo; as skills de reta final disparam no mesmo ponto). Lá a arrancada acontece **sempre**, sem sorteio: o teto de velocidade fica ×1 + 0,19 × nc(GAR) (+ bônus de skill) até a chegada. A Garra decide o quando e o quanto.
+A arrancada de cada montaria começa em 80% − 14% × (n(GAR) − 0,5) da pista (mais Garra, mais cedo; as skills de reta final disparam no mesmo ponto). Lá a arrancada acontece **sempre** (não há chance de falhar). A força média é F = 0 + 0,19 × nc(GAR) (+ bônus de skill); a de cada corrida é F × f, com f sorteado pela seed entre 0 e 2, e o teto de velocidade fica ×(1 + F × f) até a chegada. A Garra decide o quando e o quanto, em média; a seed decide se ela veio fraca ou forte naquela corrida.
 
 #### Cansaço
 
@@ -1333,9 +1333,9 @@ O time do jogador tem no máximo o tamanho do time do adversário (pode levar me
 
 | Vitória | Distância na chegada | Fôlego perdido |
 | --- | --- | ---: |
-| Apertada | menos de 1 m | 25% |
-| Normal | de 1 a menos de 8 m | 15% |
-| Folgada | 8 m ou mais | 5% |
+| Apertada | menos de 4 m | 25% |
+| Normal | de 4 a menos de 12 m | 15% |
+| Folgada | 12 m ou mais | 5% |
 
 **Revanche do líder:** depois da insígnia, 1 tentativa por dia em cada ginásio (vencendo ou perdendo), com entrada de 50 de Ouro. O prêmio de cada vitória segue um rodízio fixo, sem sorteio, contado por ginásio: 100 de Ouro · 1 Torrão de açúcar · 100 de Ouro · 1 Manual de doma · 100 de Ouro · 1 Cupom de troca de skill, e recomeça. A revanche não dá Pergaminhos de técnica. Os cavalos do líder correm com o mesmo rank de skills da etapa dele. Com o relógio para trás não libera; dia estragado no save conta como "já tentou hoje".
 

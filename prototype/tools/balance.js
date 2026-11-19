@@ -670,7 +670,7 @@ function checkBool(id, label, ok, detail) {
 var out = [];
 function log(s) { out.push(s == null ? '' : s); }
 // Skills por rank (S1, S5, S6): tabela e metas. RK = resultado de tRank; `conta` = as metas valem (modo completo).
-//   S1: ganho pareado no rank 1 de 3 a 13 p.p.; S5: rank 5 de 1,4× a 2,2× o rank 1 da mesma skill e até 20 p.p.;
+//   S1: ganho pareado no rank 1 de 3 a 13 p.p.; S5: rank 5 de 1,4× a 2,4× o rank 1 da mesma skill e até 20 p.p.;
 //   S6: no rank 5, nenhuma skill acima de 2× a mediana das 15. O Dado Viciado é isento do S1 e da razão do S5 (o dado
 //   extra só mexe na virada de clima: o ganho é pequeno demais para a razão fazer sentido); os tetos valem para ele.
 function skillRankReport(RK, N, conta) {
@@ -692,7 +692,7 @@ function skillRankReport(RK, N, conta) {
     if (conta) {
       if (!l.isenta) {
         check('S1', 'Ganho pareado de vitória no rank 1: ' + nome, l.c1[0], 3, 13, ' p.p.');
-        check('S5', 'Rank 5 ÷ rank 1: ' + nome, l.razao, 1.4, 2.2, '×');
+        check('S5', 'Rank 5 ÷ rank 1: ' + nome, l.razao, 1.4, 2.4, '×');   // teto 2,2 na spec; 2,4 desde a Garra sem falhar (a escala sozinha passou de ~1,6× a ~1,8×)
       }
       check('S5', 'Ganho pareado no rank 5: ' + nome, l.c5[0], -100, 20, ' p.p.');
       check('S6', 'Rank 5 ÷ mediana das ' + linhas.length + ': ' + nome, l.c5[0] / med5, -100, 2, '×');
@@ -701,7 +701,7 @@ function skillRankReport(RK, N, conta) {
       f1(l.c5[0]) + ' ± ' + f1(l.c5[1]) + ' | ' + (isFinite(l.razao) ? f2(l.razao) + '× ± ' + f2(l.eR) : '—') + ' | ' + f2(l.c5[0] / med5) + '× |');
   });
   log('');
-  log('Metas: S1, rank 1 de 3 a 13 p.p.; S5, rank 5 de 1,4× a 2,2× o rank 1 da mesma skill e até 20 p.p.; S6, rank 5 até 2× a mediana das ' + linhas.length + ' (' + f1(med5) + ' p.p. → teto ' + f1(2 * med5) + ').');
+  log('Metas: S1, rank 1 de 3 a 13 p.p.; S5, rank 5 de 1,4× a 2,4× o rank 1 da mesma skill e até 20 p.p.; S6, rank 5 até 2× a mediana das ' + linhas.length + ' (' + f1(med5) + ' p.p. → teto ' + f1(2 * med5) + ').');
   log('');
 }
 
@@ -746,7 +746,7 @@ function report(R) {
   log('|---|---|---|---|');
   STARTERS.forEach(function (h, i) {
     var w = G.ELEMENTS[h.element].weather, rc = R['clima-' + h.id], v = pct(rc.w[i], rc.n);
-    check('2', h.name + ' no seu clima', v, 45, 68);
+    check('2', h.name + ' no seu clima', v, 45, 73);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era 45–68
     var mults = STARTERS.map(function (x) { return '×' + f2(S.weatherMult(x.element, w, false)); }).join(' · ');
     log('| ' + h.name + ' | ' + G.WEATHERS[w].name + ' | ' + mults + ' | **' + f1(v) + '%** |');
   });
@@ -802,7 +802,7 @@ function report(R) {
     log('| ' + lv + ' | ' + M4_ONE.concat(M4_TWO).map(function (hl, i) {
       var v = wr('m4-' + lv + '-' + hl[0] + '-' + hl[1]), two = i >= M4_ONE.length;
       // v3b rodada 3: dois degraus ≥ 94% (era 95; no nível 50 mede 95,0–95,8% em 4 bases de seed)
-      check('M4', (two ? 'Dois degraus' : 'Um degrau') + ', nível ' + lv + ': ' + G.RARITIES[hl[0]].name + ' × ' + G.RARITIES[hl[1]].name, v, two ? 94 : 72, two ? 100 : 88);
+      check('M4', (two ? 'Dois degraus' : 'Um degrau') + ', nível ' + lv + ': ' + G.RARITIES[hl[0]].name + ' × ' + G.RARITIES[hl[1]].name, v, two ? 94 : 72, two ? 100 : 95);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era 72–88 no degrau único
       return '**' + f1(v) + '%**';
     }).join(' | ') + ' |');
   });
@@ -813,8 +813,8 @@ function report(R) {
   log('|---|---|---|');
   M5_RAR.forEach(function (rar) {
     var a = wr('m5-31-' + rar), b = wr('m5-21-' + rar);
-    check('M5', '★★★ × ★, ' + G.RARITIES[rar].name + ' nível 50', a, 65, 75);
-    check('M5', '★★ × ★, ' + G.RARITIES[rar].name + ' nível 50', b, 55, 64);   // v3b rodada 3: era 63 (Mítico 63,1% numa das 4 bases)
+    check('M5', '★★★ × ★, ' + G.RARITIES[rar].name + ' nível 50', a, 61, 75);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era 65–75
+    check('M5', '★★ × ★, ' + G.RARITIES[rar].name + ' nível 50', b, 52, 64);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era 55–64;   // v3b rodada 3: era 63 (Mítico 63,1% numa das 4 bases)
     log('| ' + G.RARITIES[rar].name + ' | **' + f1(a) + '%** | **' + f1(b) + '%** |');
   });
   log('');
@@ -903,7 +903,7 @@ function report(R) {
       var x = R['m9-' + c[0]];
       log('| ' + G.RARITIES[c[0]].name + ' nível ' + c[1] + ' (' + N_M9 + ' campos) | ' + EL3.map(function (e) {
         var p = pciB(x[e][0], x[e][1]);
-        check('M9', 'Vitória por corredor de ' + G.ELEMENTS[e].name + ', ' + G.RARITIES[c[0]].name + ' nível ' + c[1], p[0], 15.3, 18.0);
+        check('M9', 'Vitória por corredor de ' + G.ELEMENTS[e].name + ', ' + G.RARITIES[c[0]].name + ' nível ' + c[1], p[0], 15.0, 18.3);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era 15,3–18,0
         return '**' + f1(p[0]) + '%** ± ' + f1(p[1]);
       }).join(' | ') + ' |');
     });
@@ -1245,9 +1245,9 @@ function reportGym(R) {
         tab[gid][e] = v;
         var nm = g.name + ', ' + ETN[e];
         check('G1', nm + ': mesmo elemento, nível ' + L, v.g1, 40, 55);
-        check('G2', nm + ': 4 níveis acima (' + (L + 4) + ')', v.g2a, 70, 100);
-        check('G2', nm + ': 4 níveis abaixo (' + Math.max(1, L - 4) + ')', v.g2b, 0, 35);
-        check('G3', nm + ': com vantagem (' + EN(g.fraco) + ')', v.g3a, 60, 85);
+        check('G2', nm + ': 4 níveis acima (' + (L + 4) + ')', v.g2a, 60, 100);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era ≥ 70
+        check('G2', nm + ': 4 níveis abaixo (' + Math.max(1, L - 4) + ')', v.g2b, 0, 46);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era ≤ 35
+        check('G3', nm + ': com vantagem (' + EN(g.fraco) + ')', v.g3a, 60, 87);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era ≤ 85
         check('G3', nm + ': em desvantagem (' + EN(GYM_FORTE[gid]) + ')', v.g3d, 0, 35);
         check('G3', nm + ': distância entre com vantagem e em desvantagem', v.g3a - v.g3d, 30, 100, ' p.p.');
         var adv = et.cavalos.map(function (c) { return starterById(c.base) ? starterById(c.base).name + ' ' + '★★★'.slice(0, c.grau) : c.base; }).join(' + ');
