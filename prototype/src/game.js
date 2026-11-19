@@ -1467,13 +1467,13 @@
   // com a Arrancada Final, os números se ela ativar.
   function garraInfoHtml(m) {
     var g = RS.garraInfo(m), st = RS.computeStats(m), linhas = [];
-    linhas.push('1 vez por corrida, aos ' + pctTxt(g.from) + ' da pista: ' + pctTxt(g.chance) + ' de chance' + (g.tipo ? ' (com a ' + RS.typeSkill(m).name + ')' : '') +
-      '. Se der certo: velocidade máxima ×' + g.boost.toFixed(2).replace('.', ',') + ' até a chegada.');
+    linhas.push('Sempre, 1 vez por corrida, aos ' + pctTxt(g.from) + ' da pista: velocidade máxima ×' + g.boost.toFixed(2).replace('.', ',') + ' até a chegada' +
+      (g.tipo ? ' (com a ' + RS.typeSkill(m).name + ')' : '') + '.');
     if (m.skills.indexOf('arrancada-final') >= 0 && hasOwn(GD.SKILLS, 'arrancada-final')) {
-      var e = RS.skillEffect('arrancada-final', RS.rankOf(m, 'arrancada-final')), gb = RS.garraInfo(m, { chance: e.garraChanceBonus, boost: e.garraBoostBonus });
-      linhas.push('Com a ' + GD.SKILLS['arrancada-final'].name + ' ativa: ' + pctTxt(gb.chance) + ' de chance e ×' + gb.boost.toFixed(2).replace('.', ',') + '.');
+      var e = RS.skillEffect('arrancada-final', RS.rankOf(m, 'arrancada-final')), gb = RS.garraInfo(m, { boost: e.garraBoostBonus });
+      linhas.push('Com a ' + GD.SKILLS['arrancada-final'].name + ': ×' + gb.boost.toFixed(2).replace('.', ',') + '.');
     }
-    linhas.push('Mais Garra: começa antes, com mais chance e mais força.');
+    linhas.push('Mais Garra: começa antes e empurra mais.');
     return '<div class="habilidade habilidade--garra"><b>' + iconeHtml('st-garra', '', 32) + 'Garra ' + st.garra + ' · todo cavalo tem</b>' +
       linhas.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + '</div>';
   }

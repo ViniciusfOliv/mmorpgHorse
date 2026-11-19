@@ -59,7 +59,7 @@
     man: 'Rendimento nas curvas: quem tem mais perde menos velocidade nelas.',
     forca: 'Rendimento nas subidas, nos pisos pesados e para passar pelo pelotão.',
     est: 'Fôlego para manter o ritmo até o fim; também deixa correr mais forte no meio e no sprint.',
-    garra: 'Chance e força da arrancada final; com mais Garra ela começa mais cedo.',
+    garra: 'Força da arrancada final, que acontece sempre; com mais Garra ela começa mais cedo e empurra mais.',
     sorte: 'Vem do nascimento e não recebe pontos. Chance de jogar o Dado da Sorte duas vezes.',
     genetica: 'Nota S, A, B ou C: o quanto o status já nasce alto. Vem do nascimento e não muda.',
     estrelas: 'Grau do cavalo, de 1 a 3 estrelas: mais estrelas, mais pontos para distribuir a cada nível.',
@@ -145,7 +145,7 @@
   //     curveBonus / hillBonus / hillDrainMult: bônus nos blocos de curva/subida;
   //     blockScoped: vale uma vez por bloco (curva/subida), não uma vez por corrida;
   //     staminaRestore: recupera fração do tanque (instantâneo);
-  //     garraChanceBonus / garraBoostBonus: reforça a arrancada de Garra;
+  //     garraBoostBonus: soma à força da arrancada de Garra (que acontece sempre);
   //     extraDice: dados extras no Dado da Sorte (cada um de 1 até SKILL_RANKS.diceTeto do rank);
   //     weatherBonus: soma ao bônus do clima do próprio elemento (×1,03 → ×(1,03 + bônus)).
   //   Os valores de effect são os do RANK 1; RaceSim.skillEffect(id, rank) dá os do rank (escala SKILL_RANKS.step
@@ -189,7 +189,7 @@
       id: 'saida-rapida', name: 'Saída Rápida', element: 'geral', trigger: 'curveExit',
       desc: 'Ao sair da curva: +32% de aceleração e +4,5% de velocidade por 6s.',
       effect: { accelMult: 1.32, speedMult: 1.045, durationS: 6 },
-      rank5: { durationS: 8 }
+      rank5: { durationS: 7 }
     },
     'folego-de-montanha': {
       id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'geral', trigger: 'hill',
@@ -205,9 +205,9 @@
     },
     'arrancada-final': {
       id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'geral', trigger: 'final',
-      desc: 'Na reta final: +10% de chance de Garra e +2% de força na arrancada.',
-      effect: { garraChanceBonus: 0.1, garraBoostBonus: 0.02 },
-      rank5: { speedMult: 1.02, untilFinish: true }
+      desc: 'Na reta final: +2,8% de força na arrancada de Garra.',
+      effect: { garraBoostBonus: 0.028 },
+      rank5: { speedMult: 1.01, untilFinish: true }
     },
     'dado-viciado': {
       id: 'dado-viciado', name: 'Dado Viciado', element: 'geral', trigger: 'dice',
@@ -226,7 +226,7 @@
       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
       desc: 'Na reta final: +4% de velocidade por 9,5s.',
       effect: { speedMult: 1.04, durationS: 9.5 },
-      rank5: { durationS: 12 }
+      rank5: { durationS: 11 }
     },
     // --- Água ---
     'pe-na-chuva': {

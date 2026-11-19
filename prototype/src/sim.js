@@ -97,9 +97,10 @@
  *   jóquei já lê o tanque restante).
  *
  * GARRA: a arrancada começa em garraFrom = 0.80 − 0.14*(n(garra) − 0.5) da pista (mais Garra, mais cedo;
- *   o gatilho 'final' das skills vale no mesmo ponto). Lá rola chance = min(0.95, 0.50 + 0.15*nc(garra) + bônus de skill).
- *   Sucesso: teto ×(1.02 + 0.26*nc(garra) + bônus de skill) até a chegada. Evento 'garra'.
- *   garraInfo(horse, bonus) dá esses três números para a tela, sem clima (a ficha do cavalo, aba Skills).
+ *   o gatilho 'final' das skills vale no mesmo ponto). Lá a arrancada ACONTECE SEMPRE (sem sorteio, sem consumir a RNG):
+ *   teto ×(1 + garraBoostBase + garraBoostRange*nc(garra) + bônus de skill) até a chegada. Evento 'garra'.
+ *   A Garra (o status) decide o quando (começa antes) e o quanto (empurra mais). garraInfo(horse, bonus) dá os dois
+ *   números para a tela, sem clima (a ficha do cavalo, aba Skills).
  *
  * SKILLS (gatilhos e efeitos em data.js). Quando o gatilho acontece, a skill ATIVA SEMPRE, sem sorteio e sem
  *   consumir a RNG, uma vez por gatilho (por corrida; por bloco se effect.blockScoped). Gatilhos: start (largada),
@@ -107,7 +108,7 @@
  *   lowStamina (estamina ≤30%), final (início da arrancada, garraFrom), dice (antes do 1º Dado da Sorte),
  *   weather:<clima> (checado a cada tick com o clima vigente). Chaves de effect: accelMult,
  *   speedMult, drainMult (por distanceM ou durationS), curveBonus, hillBonus, hillDrainMult
- *   (até o fim do bloco), staminaRestore, garraChanceBonus, garraBoostBonus, extraDice,
+ *   (até o fim do bloco), staminaRestore, garraBoostBonus, extraDice,
  *   weatherBonus. O equipamento (Gear.resolve) não entra na corrida por enquanto. Evento 'skill' (com `rank`).
  *   RANK (por cavalo, horse.skillRanks = { id: 1..5 }; rankOf: ausente ou inválido = 1): o efeito de cada skill é
  *   skillEffect(id, rank, entry.skillScale), com o fator s(r) = 1 + 0,15·(r − 1) (rankScale) só na parte de bônus:
@@ -161,7 +162,7 @@
  *   grau por starsOf (não numérico vale 2, fora da faixa é preso a 1–3); alloc por validAlloc.
  *
  * ORDEM DAS CHAMADAS DE r.rng() (fluxo de cada corredor; manter estável):
- *   montagem: 1) startDelay, 2) jockeyErr; por tick: 3) sorteio da Garra (uma vez, em garraFrom), 4) jitter.
+ *   montagem: 1) startDelay, 2) jockeyErr; por tick: 3) jitter (a Garra não é sorteada).
  *   As skills (de vaga e de tipo) não chamam r.rng().
  *   Detalhes junto de buildRacer.
  * ============================================================================
@@ -181,7 +182,7 @@
 
   // Versão das regras da simulação: suba a cada mudança que altere resultados (exposta como
   // RaceSim.VERSION e gravada em cada resultado como simVersion, junto do tuningHash).
-  var VERSION = '4.0.0';
+  var VERSION = '4.1.0';
 
   // Constantes de balanceamento (ajustadas por tools/balance.js). Exposto como RaceSim.TUNING.
   var T = {
@@ -236,8 +237,7 @@
     weatherMult: 1.03, weatherMultDouble: 1.08, weatherVel: 0.10, weatherAdd: 0.5,
     // garra: a arrancada começa em garraZone − garraZoneK·(n − 0,5) da pista; chance e força crescem com n
     garraZone: 0.8, garraZoneK: 0.14,
-    garraChanceBase: 0.50, garraChanceRange: 0.15, garraChanceMax: 0.95,
-    garraBoostBase: 0.02, garraBoostRange: 0.26,
+    garraBoostBase: 0, garraBoostRange: 0.19,
     // Dado da Sorte: chance do 2º dado = (sorte − sorteDiceLo) / (sorteDiceFull − sorteDiceLo); Sorte real 40–76
     sorteDiceLo: 40, sorteDiceFull: 80,
     // skills
@@ -533,7 +533,7 @@
   // minStraightM, exitRestore, weatherLingerS, untilFinish e extraDice substituem; multiplicadores se multiplicam;
   // staminaRestore e os bônus somados somam.
   var RANK_MULT_UP = { speedMult: 1, accelMult: 1 }, RANK_MULT_DOWN = { drainMult: 1, hillDrainMult: 1 };
-  var RANK_ADD = { curveBonus: 1, hillBonus: 1, garraChanceBonus: 1, garraBoostBonus: 1, staminaRestore: 1, weatherBonus: 1 };
+  var RANK_ADD = { curveBonus: 1, hillBonus: 1, garraBoostBonus: 1, staminaRestore: 1, weatherBonus: 1 };
   function skillEffect(id, rank, extraScale) {
     var sk = GameData.SKILLS[id];
     if (!sk) return {};
@@ -592,7 +592,7 @@
       case 'saida-rapida': return 'Ao sair da curva: ' + up(e.accelMult) + ' de aceleração e ' + up(e.speedMult) + ' de velocidade por ' + numBr(e.durationS) + 's.';
       case 'folego-de-montanha': return 'Em cada subida: gasta ' + cut(e.hillDrainMult) + ' menos estamina extra da subida' + (e.exitRestore ? ' e, ao sair dela, recupera ' + pctBr(e.exitRestore) : '') + '.';
       case 'segundo-ar': return 'Quando a estamina cai a ' + pctBr(e.lowStaminaAt || T.lowStaminaAt) + ', recupera ' + pctBr(e.staminaRestore) + ' e ganha ' + up(e.speedMult) + ' de velocidade por ' + numBr(e.durationS) + 's.';
-      case 'arrancada-final': return 'Na reta final: +' + pctBr(e.garraChanceBonus) + ' de chance de Garra e +' + pctBr(e.garraBoostBonus) + ' de força na arrancada' + (e.speedMult ? ', e ' + up(e.speedMult) + ' de velocidade até a chegada' : '') + '.';
+      case 'arrancada-final': return 'Na reta final: +' + pctBr(e.garraBoostBonus) + ' de força na arrancada de Garra' + (e.speedMult ? ', e ' + up(e.speedMult) + ' de velocidade até a chegada' : '') + '.';
       case 'dado-viciado': return 'Antes do 1º Dado da Sorte: rola ' + (e.extraDice > 1 ? e.extraDice + ' dados extras' : '1 dado extra') + ', de 1 a ' + e.diceTeto + ', em todos os Dados da corrida.';
       case 'sol-a-pino': case 'pe-na-chuva': case 'nevoa-amiga':
         var cl = { 'sol-a-pino': ['sol', 'o Fogo'], 'pe-na-chuva': ['chuva', 'a Água'], 'nevoa-amiga': ['névoa', 'a Grama'] }[id];
@@ -630,7 +630,7 @@
   // A Garra de um cavalo, para a tela (fora da corrida, sem clima): onde a arrancada começa (fração da pista), a chance e
   // o teto da velocidade se ela der certo. As contas são as da corrida (buildRacer e derive): se a arrancada começa dentro
   // do terço da skill de tipo que multiplica a Garra (a Maré Alta, da Água), vale a Garra do terço (tipo: true).
-  // bonus (opcional): { chance, boost } somados como os de uma skill que ativou (a Arrancada Final).
+  // bonus (opcional): { boost } somado como o de uma skill que ativou (a Arrancada Final).
   function garraInfo(horse, bonus) {
     var stats = computeStats(horse), n = stats.garra / 100, ng = n;
     var from = clamp(T.garraZone - T.garraZoneK * (n - 0.5), 0.5, 0.95);
@@ -639,10 +639,9 @@
       var keys = ts.effect.statKeys || TYPE_STATS[horse.element];
       if (keys && keys.indexOf('garra') >= 0) ng = n * (1 + ts.effect.statMul * ts.power);
     }
-    var bc = (bonus && Number(bonus.chance)) || 0, bb = (bonus && Number(bonus.boost)) || 0;
+    var bb = (bonus && Number(bonus.boost)) || 0;
     return {
       from: from,
-      chance: clamp(T.garraChanceBase + T.garraChanceRange * ng + bc, 0, T.garraChanceMax),
       boost: 1 + T.garraBoostBase + T.garraBoostRange * ng + bb,
       tipo: ng !== n
     };
@@ -902,13 +901,12 @@
     o.nm = nx('man');
     o.estN = sn.est * (mul && mul.est ? mul.est : 1);
     var ng = nx('garra');
-    o.garraChance = clamp(T.garraChanceBase + T.garraChanceRange * ng + r.garraBonusTotal, 0, T.garraChanceMax);
     o.garraBoost = 1 + T.garraBoostBase + T.garraBoostRange * ng + r.garraBoostBonusTotal;
   }
 
   // Ordem das chamadas de r.rng() (fluxo próprio de cada corredor; manter estável):
   //   montagem: 1) startDelay, 2) jockeyErr;
-  //   por tick: 3) sorteio da Garra (uma vez, ao cruzar r.garraFrom), 4) jitter.
+  //   por tick: 3) jitter. A Garra não é sorteada: acontece sempre, ao cruzar r.garraFrom.
   //   As skills de vaga e a skill de tipo não consomem a RNG (a ativação não é sorteada).
   function buildRacer(entry, index, cond, rng) {
     var horse = entry.horse;
@@ -951,7 +949,6 @@
       skillRanks: skillRanks,
       lowAt: lowAt,
       pool: T.poolBase + T.poolEst * statsN.est,   // tanque fixo (sem clima)
-      garraBonusTotal: 0,
       garraBoostBonusTotal: 0,
       weatherBonus: 0, weatherLingerS: 0, lingerUntil: null, lingerM: 1,
       extraDice: 0, diceTeto: 100,
@@ -1069,7 +1066,6 @@
       if (e.staminaRestore && !r.exhausted) r.stamina = Math.min(1, r.stamina + e.staminaRestore);
       if (e.extraDice) { r.extraDice = Math.max(r.extraDice, e.extraDice); r.diceTeto = e.diceTeto || 100; }
       var reweather = false;
-      if (e.garraChanceBonus) { r.garraBonusTotal += e.garraChanceBonus; reweather = true; }
       if (e.garraBoostBonus) { r.garraBoostBonusTotal += e.garraBoostBonus; reweather = true; }
       if (e.weatherBonus) { r.weatherBonus = Math.max(r.weatherBonus, e.weatherBonus); r.weatherLingerS = e.weatherLingerS || 0; reweather = true; }
       if (reweather) applyWeather(r, cond.weatherAtual);
@@ -1180,10 +1176,9 @@
         // Garra
         if (!r.garraRolled && p >= r.garraFrom) {
           r.garraRolled = true;
-          if (r.rng() < Z.garraChance) {
-            r.garraMult = Z.garraBoost;
-            ev(tPrev, i, 'garra', r.label + ' mostrou GARRA na reta final!');
-          }
+          // a arrancada acontece sempre (sem sorteio, sem consumir a RNG): a Garra decide onde ela começa e a força
+          r.garraMult = Z.garraBoost;
+          ev(tPrev, i, 'garra', r.label + ' mostrou GARRA na reta final!');
         }
 
         // terreno e bloco

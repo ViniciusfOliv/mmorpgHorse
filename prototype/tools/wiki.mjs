@@ -185,7 +185,6 @@ export function descreverEfeito(effect) {
       case 'hillBonus': partes.push(`fator da subida ${sinalPct(v, 1)} (somado, teto 1)`); break
       case 'hillDrainMult': partes.push(`gasto extra da subida ${mult(v)} (${sinalPct(v - 1, 1)})`); break
       case 'staminaRestore': partes.push(`recupera ${pct(v, 1)} do tanque na hora`); break
-      case 'garraChanceBonus': partes.push(`chance de Garra ${'+' + pp(v, 1)}`); break
       case 'garraBoostBonus': partes.push(`impulso da Garra ${'+' + pp(v, 1)}`); break
       case 'extraDice': partes.push(`${'+' + num(v)} dado no Dado da Sorte, de 1 a ${num(G.SKILL_RANKS.diceTeto[0])} (até o fim da corrida)`); break
       case 'weatherBonus': partes.push(`bônus do clima do próprio elemento ${multF(T.weatherMult)} → ${multF(T.weatherMult + v, 3)} (até o fim da corrida)`); break
@@ -209,7 +208,7 @@ export function formatoRank(k) {
   switch (k) {
     case 'speedMult': case 'accelMult': return 'ajuda'
     case 'drainMult': case 'hillDrainMult': return 'gasto'
-    case 'curveBonus': case 'hillBonus': case 'garraChanceBonus': case 'garraBoostBonus': return 'somado'
+    case 'curveBonus': case 'hillBonus': case 'garraBoostBonus': return 'somado'
     case 'staminaRestore': return 'recupera'
     case 'weatherBonus': return 'clima'
     case 'extraDice': return 'dado'
@@ -226,7 +225,6 @@ export function nomeChaveEfeito(k) {
     case 'hillDrainMult': return 'gasto extra da subida'
     case 'curveBonus': return 'fator da curva'
     case 'hillBonus': return 'fator da subida'
-    case 'garraChanceBonus': return 'chance de Garra'
     case 'garraBoostBonus': return 'impulso da Garra'
     case 'staminaRestore': return 'recuperação de estamina'
     case 'weatherBonus': return 'reforço de clima'
@@ -310,7 +308,7 @@ export function papelDoStatus(k, F) {
     case 'man': return `Fator da curva = min(1, ${n(T.curveBase)} + ${n(T.curveRange)} × n(MAN)): de ${pct(T.curveBase + T.curveRange * 0.5, 1)} (MAN 50) a ${pct(T.curveBase + T.curveRange * T.statMax / 100, 1)} (MAN ${T.statMax}) da velocidade dentro da curva.`
     case 'forca': return `Fator da subida = min(1, ${n(T.hillBase)} + ${n(T.hillRange)} × n(FOR)): de ${pct(T.hillBase + T.hillRange * 0.5, 1)} (FOR 50) a ${pct(T.hillBase + T.hillRange * T.statMax / 100, 1)} (FOR ${T.statMax}). Alivia o piso pesado (${pct(T.forcaSurfRelief, 0)} × n(FOR) da perda), o aperto do pelotão (${pct(T.forcaCrowdRelief, 0)} × n(FOR), até zerar) e o gasto extra da subida (+${pct(T.hillDrain, 0)} × (1 − ${num(F.subidaForca)} × n(FOR))).`
     case 'est': return `Tanque = ${n(T.poolBase)} + ${n(T.poolEst)} × n(EST) (EST 50 → ${num(T.poolBase + T.poolEst * 0.5)}). Também sobe o teto do ritmo: + ${pct(T.pace.midEst, 1)} × (n(EST) − 0,5) no meio e + ${pct(T.pace.spurtEst, 1)} × (n(EST) − 0,5) no sprint final, então rende mesmo com tanque de sobra. O clima não mexe na Estamina.`
-    case 'garra': return `A arrancada começa em ${pct(T.garraZone, 0)} − ${pct(T.garraZoneK, 0)} × (n(GAR) − 0,5) da pista (GAR 50 → ${pct(T.garraZone, 0)}; GAR 100 → ${pct(T.garraZone - T.garraZoneK * 0.5, 0)}). Lá: chance = min(${pct(T.garraChanceMax, 0)}, ${pct(T.garraChanceBase, 0)} + ${pct(T.garraChanceRange, 0)} × n(GAR)). Se sair, o teto de velocidade vai a ${mult(1 + T.garraBoostBase, 2)} + ${num(T.garraBoostRange, 3)} × n(GAR) até a chegada.`
+    case 'garra': return `A arrancada começa em ${pct(T.garraZone, 0)} − ${pct(T.garraZoneK, 0)} × (n(GAR) − 0,5) da pista (GAR 50 → ${pct(T.garraZone, 0)}; GAR 100 → ${pct(T.garraZone - T.garraZoneK * 0.5, 0)}). Lá ela acontece **sempre**, sem sorteio: o teto de velocidade vai a ${mult(1 + T.garraBoostBase, 2)} + ${num(T.garraBoostRange, 3)} × n(GAR) até a chegada. Mais Garra: começa antes e empurra mais.`
     case 'sorte': return `Vem do nascimento: não recebe pontos. No Dado da Sorte, a chance de rolar um 2º dado é (SOR − ${num(T.sorteDiceLo)}) / ${num(T.sorteDiceFull - T.sorteDiceLo)}, presa entre 0% e 100% (SOR ${num(T.sorteDiceLo)} → 0%; SOR ${num(T.sorteDiceFull)} → 100%). Não entra em mais nada: as skills ativam sempre, sem sorteio.`
     default: throw new Error(`wiki: status desconhecido "${k}" — descreva-o em papelDoStatus (prototype/tools/wiki.mjs)`)
   }
@@ -873,7 +871,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'h4', txt: 'Vácuo e pelotão' },
     { t: 'p', txt: `**Vácuo:** quem corre de ${num(T.draftMin)} a ${num(T.draftRange)} m atrás de alguém gasta ${pct(T.draftSave, 0)} menos estamina. **Pelotão:** com vizinhos a até ${num(T.crowdRange)} m, a velocidade cai até ${pct(T.crowdSlow, 0)} (teto com ${F.pelotaoMax} vizinhos); a Força alivia ${pct(T.forcaCrowdRelief, 0)} × n(FOR) disso (até zerar).` },
     { t: 'h4', txt: 'Garra' },
-    { t: 'p', txt: `A arrancada de cada montaria começa em ${pct(T.garraZone, 0)} − ${pct(T.garraZoneK, 0)} × (n(GAR) − 0,5) da pista (mais Garra, mais cedo; as skills de reta final disparam no mesmo ponto). Lá ela sorteia a Garra uma vez: chance = min(${pct(T.garraChanceMax, 0)}, ${pct(T.garraChanceBase, 0)} + ${pct(T.garraChanceRange, 0)} × nc(GAR) + bônus de skill). Se sair, o teto de velocidade fica ${mult(1 + T.garraBoostBase, 2)} + ${num(T.garraBoostRange, 3)} × nc(GAR) (+ bônus de skill) até a chegada.` },
+    { t: 'p', txt: `A arrancada de cada montaria começa em ${pct(T.garraZone, 0)} − ${pct(T.garraZoneK, 0)} × (n(GAR) − 0,5) da pista (mais Garra, mais cedo; as skills de reta final disparam no mesmo ponto). Lá a arrancada acontece **sempre**, sem sorteio: o teto de velocidade fica ${mult(1 + T.garraBoostBase, 2)} + ${num(T.garraBoostRange, 3)} × nc(GAR) (+ bônus de skill) até a chegada. A Garra decide o quando e o quanto.` },
     { t: 'h4', txt: 'Cansaço' },
     { t: 'p', txt: `Estamina zerada: o ritmo cai para ${pct(T.exhaustPace, 0)} até o fim. Se ainda faltar mais de ${pct(F.cansouFalta, 0)} da pista, aparece o aviso "cansou".` },
     { t: 'h4', txt: 'Largada e eventos' },
