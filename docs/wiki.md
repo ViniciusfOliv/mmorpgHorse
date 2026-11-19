@@ -35,15 +35,15 @@
 2. **Procurar sala.** Na aba Correr você escolhe a entrada (50, 100 ou 250 de Ouro). A sala tem de 4 a 8 corredores: você e bots com Poder perto do seu. Pista, clima e rivais saem da seed da sala e não mudam até você correr.
 3. **Pagar a entrada.** Só depois de "Largar!" a corrida é simulada; o resultado nunca é calculado antes.
 4. **Corrida automática.** O jóquei dosa o ritmo pela estamina; skills disparam nos gatilhos; o Dado da Sorte rola em 1/3 e 2/3 da pista e pode virar o clima; a Garra decide a reta final.
-5. **Prêmio e XP.** A casa fica com 10% do pote e o resto vai para os primeiros colocados. Todos ganham XP pela colocação.
+5. **Prêmio e XP.** A casa fica com 10% do pote e o resto vai para os primeiros colocados. Todos ganham XP pela colocação. No pódio de corrida valendo pode cair um Pergaminho de técnica (ver Skills, Rank das skills).
 
 ### Abas do jogo
 
-- **Estábulo:** o cartão da recompensa do dia, no topo; suas montarias (3 vagas no começo, até 8), status, skills e a redistribuição dos pontos; escolher a ativa.
+- **Estábulo:** o cartão da recompensa do dia, no topo; suas montarias (3 vagas no começo, até 8), status, skills (com o rank de cada uma e o botão Subir rank) e a redistribuição dos pontos; escolher a ativa.
 - **Correr:** escolher a entrada (50, 100 ou 250 de Ouro) e procurar corrida; sem Ouro para a menor entrada, treino gratuito.
 - **Expedição:** os 3 ginásios (Ginásio da Fornalha, Ginásio do Remanso e Ginásio da Capoeira), cada um com quantas etapas já venceu ("N de 5 vencidos"), a insígnia conquistada e "Revanche hoje" quando a revanche do líder está livre (o ponto na aba avisa) ou "Revanche amanhã" depois de tentada a de hoje. Tocar no ginásio abre a trilha: as 5 etapas de baixo para cima (Soldado 1, Soldado 2, Soldado 3, Soldado 4 e o Líder), cada uma vencida, próxima (a única que se toca) ou fechada ("Vença a etapa anterior"), e o ponto fraco escrito ("Ponto fraco: Água vence Fogo"); ao abrir, a trilha rola o mínimo para a etapa que se pode tocar aparecer inteira. **Preparo:** a etapa próxima mostra os cavalos do adversário (nível, estrelas, elemento e Poder), a pista da casa, a entrada e o prêmio da 1ª vitória; em "Seu time" você toca nos seus cavalos na ordem em que vão correr, até o tamanho do time do adversário (tocar de novo tira). Cada linha diz "Vantagem" ou "Desvantagem" contra o elemento do ginásio; com uma sala de corrida aberta (valendo ou treino), o cavalo ativo fica de fora, com o motivo escrito. **Pagar:** "Desafiar (N de Ouro)" cobra a entrada e só então o desafio é simulado; sem time, sem Ouro (o reservado para a sala aberta não conta) ou com a mochila cheia do item do prêmio, o botão fica apagado com o motivo. **Duelos:** cada duelo passa na tela de corrida, com 2 raias: a placa diz "Duelo N" (nunca quantos serão), e uma linha diz a vantagem de elemento e o fôlego de quem larga cansado; "Pular" termina o duelo (depois da chegada ele diz "Continuar") e "Pular tudo" vai direto ao resumo. Entre um duelo e outro, um cartão diz como foi o seu cavalo e por quantos metros, quem saiu e quem entra, a faixa do cansaço com o fôlego de quem ficou ("Vitória apertada (menos de 1 m): … larga com 75% do fôlego") e a vantagem do próximo duelo, com "Próximo duelo" e "Pular tudo". Os metros são truncados para baixo (7,6 m aparece como 7 m); abaixo de 1 m, "menos de 1 m". **Resumo:** cada duelo com "Você venceu" ou "Você perdeu", os metros e o fôlego de quem seguiu; a entrada, o prêmio e os itens; o XP de cada cavalo (os níveis e as skills que aprendeu, ou "não correu"); a insígnia e a etapa liberada. Perdendo, "Tentar de novo" volta ao preparo com o mesmo time; sempre há "Voltar à trilha". **Revanche:** depois da insígnia, a etapa do líder vira a revanche, uma vez por dia: "Revanche hoje", com a entrada de 50 de Ouro e o prêmio de hoje do rodízio; tentada a de hoje, a etapa diz "Feita hoje" e "Revanche de hoje feita. Volte amanhã.", e a revanche perdida não tem "Tentar de novo". Embaixo, a vitrine de 6 cavalos selvagens (a captura ainda não existe no protótipo).
 - **Haras:** cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.
-- **Loja:** em **Comprar**, os itens de uso (Torrão de açúcar, Manual de doma, Cupom de troca de skill e Estrela de treino) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os 6 itens, quantos você tem de cada e o botão Usar.
+- **Loja:** em **Comprar**, os itens de uso (Torrão de açúcar, Manual de doma, Cupom de troca de skill e Estrela de treino) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os 6 itens, quantos você tem de cada e o botão Usar (o Pergaminho de técnica não tem Usar: é gasto ao subir rank, na aba Skills do cavalo).
 - **Perfil (o botão do cabeçalho):** as estatísticas (corridas, vitórias, pódios e prêmios), o Ouro e quantas montarias você tem; as insígnias dos ginásios ("Insígnias (N de 3)", as 3 na ordem Insígnia da Fornalha, Insígnia do Remanso e Insígnia da Capoeira: a conquistada com o ícone, o nome e o bônus; a que falta apagada, com "Vença o líder do …"); o seu jóquei (seda e capacete); as animações; e "Recomeçar com outro inicial".
 
 > Ainda não existem no protótipo: Gemas, passe, ovos, contas, servidor, as expedições fora os ginásios e a captura. A única moeda é o Ouro; as Pedras Negras são material de melhoria.
@@ -136,7 +136,7 @@ Level máximo: **50**. Para subir do level L para L + 1 são 50 + 25 × L de XP.
 | 7º | 15 | 8 | 10 |
 | 8º | 10 | 5 | 10 |
 
-**Treino gratuito:** aparece quando seu Ouro não cobre a menor entrada (50). Não cobra entrada, rende 1/2 do XP e de 10 a 30 de Ouro pela colocação, e não dá Pedra Negra.
+**Treino gratuito:** aparece quando seu Ouro não cobre a menor entrada (50). Não cobra entrada, rende 1/2 do XP e de 10 a 30 de Ouro pela colocação, e não dá Pedra Negra nem Pergaminho de técnica.
 
 **Duelos de ginásio:** cada cavalo do time ganha 50 de XP por duelo vencido e 15 por duelo perdido (ver Ginásios da Expedição). Com a Insígnia do Remanso, todo XP somado a um cavalo (corridas, treino e duelos) ganha +3%, arredondado.
 
@@ -222,7 +222,7 @@ Exemplo: Brasa (Comum ★★) no Nv 50 tem 213 pontos. Com a build dos bots (a m
 
 ### Aprender skill ao subir de level
 
-A cada level ganho há 8% de chance de aprender uma skill nova (11% com a Insígnia da Capoeira, ver Ginásios; sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: geral ou do próprio elemento, nunca repetida.
+A cada level ganho há 8% de chance de aprender uma skill nova (11% com a Insígnia da Capoeira, ver Ginásios; sorteio pela seed do save). Só entra se houver vaga (vagas da raridade) e a skill sorteada é uma das que a montaria pode ter: geral ou do próprio elemento, nunca repetida. A skill aprendida entra no rank I (ver Skills, Rank das skills).
 
 ### Exemplo: as iniciais por level (build dos bots)
 
@@ -302,7 +302,7 @@ São 3 tipos (elementos). Cada um tem a sua skill de tipo, sempre ativa num ter�
 
 ### Multiplicador de clima (m)
 
-Elemento dono do clima: ×1,03; com a skill de clima ativa, ×1,08. Elemento penalizado: ×0,97. O resto, e todos no Nublado, ×1. O multiplicador entra somado a n(x): nc(x) = n(x) + (m − 1) × 0,5, o mesmo efeito em qualquer nível.
+Elemento dono do clima: ×1,03; com a skill de clima ativa (Sol a Pino, Pé na Chuva e Névoa Amiga), de ×1,07 no rank I a ×1,094 no rank V (ver Skills, Rank das skills). Elemento penalizado: ×0,97. O resto, e todos no Nublado, ×1. O multiplicador entra somado a n(x): nc(x) = n(x) + (m − 1) × 0,5, o mesmo efeito em qualquer nível.
 
 | Elemento | Sol | Chuva | Névoa | Nublado |
 | --- | ---: | ---: | ---: | ---: |
@@ -327,7 +327,7 @@ Cada sala tem um vento sorteado pela seed: calmo 35%, brisa 40% e ventania 25%, 
 
 ## Skills
 
-Toda montaria tem a **skill de tipo** do seu elemento, em vaga própria e sempre ativa (abaixo). Além dela, há 15 skills de vaga normal. Cada uma tem um gatilho; quando ele acontece, a skill **ativa sempre**, sem sorteio (uma vez por corrida, ou uma vez por bloco nas skills de curva e subida marcadas "em cada bloco"), e o efeito vale pelo tempo ou pela distância indicados. Raridade, level e Sorte não mudam a ativação.
+Toda montaria tem a **skill de tipo** do seu elemento, em vaga própria e sempre ativa (abaixo). Além dela, há 15 skills de vaga normal. Cada uma tem um gatilho; quando ele acontece, a skill **ativa sempre**, sem sorteio (uma vez por corrida, ou uma vez por bloco nas skills de curva e subida marcadas "em cada bloco"), e o efeito vale pelo tempo ou pela distância indicados. Raridade, level e Sorte não mudam a ativação. Cada skill de vaga tem um **rank**, de I a V, por cavalo, que aumenta o efeito (ver Rank das skills, abaixo).
 
 **Skills de largada** disparam no sinal (t = 0), antes do atraso de reação do cavalo (até 0,56 s, menor com ACE alta). A duração conta desde o sinal, então esse atraso consome parte dela.
 
@@ -357,46 +357,127 @@ P = 1 + nívelT × (level − 1) / 49 + raridadeT × ordem da raridade / 4      
 
 Exemplo com P = 1: na Labareda, Velocidade 60 vale 71,4 no terço; com 100, vale 119. A Maré Alta multiplica a Estamina só no teto do ritmo (o tanque não muda). Elemento sem skill de tipo corre sem ela. A skill de tipo não troca, não conta nas vagas e não entra no Poder (lá, level e raridade valem o mesmo para os três tipos).
 
+### Rank das skills
+
+Cada skill de vaga de cada cavalo tem um rank, de I a V (a skill de tipo não tem rank). O rank é do cavalo, não da conta: a mesma skill pode estar no rank I num cavalo e no V em outro. A skill ativa sempre em qualquer rank; o que muda é a força. O fator do rank r é s(r) = 1 + 0,15 × (r − 1), e ele age **só na parte de bônus** do efeito do rank I (tabela "Skills de vaga", abaixo). No rank V a skill ganha também o **marco**, um efeito próprio somado ao que já foi escalado.
+
+**Fator do rank**
+
+| Rank | Fator s | A mais que o rank I |
+| ---: | ---: | ---: |
+| I | ×1,00 | — |
+| II | ×1,15 | +15% |
+| III | ×1,30 | +30% |
+| IV | ×1,45 | +45% |
+| V | ×1,60 | +60% |
+
+Como o fator entra em cada formato de efeito (os exemplos do último rank são antes do marco):
+
+- **Multiplicador que ajuda** (aceleração e velocidade), m no rank I: 1 + (m − 1) × s. Exemplo: aceleração de Arranque, ×1,108 no rank I e ×1,173 no rank V.
+- **Multiplicador que reduz gasto** (gasto extra da subida e gasto de estamina), m no rank I: 1 − (1 − m) × s, nunca abaixo de ×0,05. Exemplo: gasto de estamina de Canto da Iara, ×0,8 no rank I e ×0,68 no rank V. Bate no piso: Fôlego de Montanha (gasto extra da subida) a partir do rank V.
+- **Bônus somado** (fator da curva, chance de Garra, impulso da Garra e fator da subida), b no rank I: b × s. Exemplo: fator da curva de Drift, +1,3% no rank I e +2,08% no rank V.
+- **Recuperação** (recuperação de estamina), x no rank I: x × s. Exemplo: recuperação de estamina de Segundo Ar, 10% no rank I e 16% no rank V.
+- **Reforço de clima** (Sol a Pino, Pé na Chuva e Névoa Amiga), b no rank I: o bônus do dono do clima passa de ×1,03 para ×(1,03 + b × s): ×1,07 · ×1,076 · ×1,082 · ×1,088 · ×1,094 do rank I ao V.
+- **Dado extra** (Dado Viciado): fora da escala. O dado extra rola de 1 até o teto do rank: 60 · 70 · 80 · 90 · 100 do rank I ao V (ver Dado da Sorte).
+- **Duração e distância** não crescem com o rank, nem o "em cada bloco" das skills de curva e subida (só o marco do rank V muda a duração, quando ele diz).
+
+#### Custo para subir
+
+Sobe-se um rank por vez, na ficha do cavalo, aba Skills, no botão **Subir rank** de cada skill: paga-se Ouro e Pergaminhos de técnica. Não há sorteio: a subida nunca falha, e não tem volta. O Ouro guardado para a entrada do páreo aberto não entra na conta. Com o páreo aberto (valendo ou treino), **o cavalo ativo não sobe rank**, porque o Poder dele não pode passar do que a sala viu; os outros cavalos sobem. O botão apagado diz o motivo: falta Ouro, faltam Pergaminhos, rank máximo ou páreo aberto.
+
+**Custo para subir o rank de uma skill**
+
+| Passo | Ouro | Pergaminhos de técnica |
+| ---: | --- | ---: |
+| I → II | 150 | 1 |
+| II → III | 400 | 2 |
+| III → IV | 900 | 4 |
+| IV → V | 2.000 | 7 |
+| **Total (I → V)** | 3.450 | 14 |
+
+Um cavalo Mítico com as 5 vagas no rank V custa 17.250 de Ouro e 70 Pergaminhos de técnica.
+
+#### Pergaminho de técnica
+
+Sobe o rank de uma skill do cavalo, junto com Ouro, na aba Skills. Só se ganha jogando:
+
+- **Pódio de corrida valendo** (entrada paga): 1º lugar 50%, 2º lugar 30%, 3º lugar 15%. O sorteio sai da seed da sala, na liquidação do prêmio, e dá no máximo 1 por corrida. O treino não sorteia.
+- **Nos ginásios:** junto do prêmio, na 1ª vitória sobre o Soldado 2 (1), o Soldado 4 (1) e o líder (3) de cada ginásio (o número entre parênteses é quantos vêm): 5 por ginásio, 15 nos 3. A revanche do líder não dá Pergaminho.
+- **Nunca** na loja (não tem preço em Ouro), nunca por Gemas, e a recompensa diária não dá.
+- **Mochila:** até 99. No pódio, o Pergaminho que não cabe se perde (o resultado avisa "Mochila cheia"); no ginásio, o desafio não começa enquanto os Pergaminhos do prêmio não couberem.
+- Não tem botão Usar: só é gasto ao subir rank.
+
+#### O rank no resto do jogo
+
+- **Poder:** cada skill soma 14 × o peso do gatilho × o fator do rank (o marco não soma à parte). Uma skill no rank V vale ×1,60 os pontos dela no rank I (ver Economia, Poder e ligas).
+- **Potro:** a skill herdada nasce 1 rank abaixo do pai que a tem (se os dois têm, vale o maior), nunca abaixo do I; a skill sorteada para completar o mínimo nasce no rank I. O rank do potro não usa sorteio (ver Cruzamento).
+- **Cupom de troca de skill:** a skill nova entra no rank I e o rank da que sai é perdido (a confirmação avisa, por exemplo "Rank IV de Sprint será perdido").
+- **Manual de doma e aprendizado por level:** a skill aprendida entra no rank I. As chances deles (35% e 8%) são de **aprender**, não de ativar.
+- **Bots da sala:** todas as skills de vaga de todos os bots ficam no mesmo rank: a média, arredondada, dos ranks das skills de vaga do seu cavalo (rank I se ele não tem skill de vaga). Sem sorteio; o rank entra no Poder do bot. A sala mostra "skills rank N" nos rivais.
+- **Oponentes dos ginásios:** rank fixo por etapa, sem sorteio (coluna "Rank das skills" de cada trilha, em Ginásios da Expedição); a revanche usa o do líder. Hoje as montarias-base dos ginásios (Brasa, Maré e Ipê) não têm skill de vaga, então esse rank ainda não muda nada na prática.
+- **Na pista:** o balão da skill mostra o rank em algarismo romano a partir do II, no fim do nome ("ARRANQUE III"); o rank I não aparece.
+- **Conjunto de equipamento (suspenso):** o bônus de 3 peças seria +5% no efeito das skills, multiplicando o fator do rank (ver Equipamento).
+
+**Skills por rank (o texto do jogo no rank I e no V; o do V já traz o marco)**
+
+| Skill | Rank I | Rank V | Marco do rank V |
+| --- | --- | --- | --- |
+| ![](../prototype/assets/icons/sk-arranque.png) Arranque | Largada explosiva: +10,8% de aceleração nos primeiros 100 m. | Largada explosiva: +17,3% de aceleração e +3% de velocidade nos primeiros 100 m. | também +3% de velocidade nos mesmos 100 m |
+| ![](../prototype/assets/icons/sk-sprint.png) Sprint | Numa reta de 150 m ou mais (fora a da largada): +4% de velocidade por 150 m. | Numa reta de 100 m ou mais (fora a da largada): +6,4% de velocidade por 150 m. | dispara também em retas de 100 m ou mais |
+| ![](../prototype/assets/icons/sk-drift.png) Drift | Em cada curva: +1,3% de rendimento na curva. | Em cada curva: +2,1% de rendimento na curva e 15% menos gasto de estamina. | na curva, também gasta 15% menos estamina |
+| ![](../prototype/assets/icons/sk-saida-rapida.png) Saída Rápida | Ao sair da curva: +32% de aceleração e +4,5% de velocidade por 6s. | Ao sair da curva: +51,2% de aceleração e +7,2% de velocidade por 8s. | dura 8s em vez de 6s |
+| ![](../prototype/assets/icons/sk-folego-de-montanha.png) Fôlego de Montanha | Em cada subida: gasta 60% menos estamina extra da subida. | Em cada subida: gasta 95% menos estamina extra da subida e, ao sair dela, recupera 3%. | ao sair da subida, recupera 3% de estamina |
+| ![](../prototype/assets/icons/sk-segundo-ar.png) Segundo Ar | Quando a estamina cai a 30%, recupera 10% e ganha +3% de velocidade por 8s. | Quando a estamina cai a 35%, recupera 16% e ganha +4,8% de velocidade por 8s. | dispara com 35% de estamina em vez de 30% |
+| ![](../prototype/assets/icons/sk-arrancada-final.png) Arrancada Final | Na reta final: +10% de chance de Garra e +2% de força na arrancada. | Na reta final: +16% de chance de Garra e +3,2% de força na arrancada, e +2% de velocidade até a chegada. | também +2% de velocidade até a chegada |
+| ![](../prototype/assets/icons/sk-dado-viciado.png) Dado Viciado | Antes do 1º Dado da Sorte: rola 1 dado extra, de 1 a 60, em todos os Dados da corrida. | Antes do 1º Dado da Sorte: rola 2 dados extras, de 1 a 100, em todos os Dados da corrida. | 2 dados extras, os dois de 1 a 100 |
+| ![](../prototype/assets/icons/sk-sol-a-pino.png) Sol a Pino | Com sol: o bônus do clima para o Fogo sobe de +3% para +7%. | Com sol: o bônus do clima para o Fogo sobe de +3% para +9,4% e continua por 15s depois que o clima muda. | o reforço continua por 15s depois que o clima muda |
+| ![](../prototype/assets/icons/sk-chama-final.png) Chama Final | Na reta final: +4% de velocidade por 9,5s. | Na reta final: +6,4% de velocidade por 12s. | dura 12s em vez de 9,5s |
+| ![](../prototype/assets/icons/sk-pe-na-chuva.png) Pé na Chuva | Com chuva: o bônus do clima para a Água sobe de +3% para +7%. | Com chuva: o bônus do clima para a Água sobe de +3% para +9,4% e continua por 15s depois que o clima muda. | o reforço continua por 15s depois que o clima muda |
+| ![](../prototype/assets/icons/sk-canto-da-iara.png) Canto da Iara | Na reta final: +4% de velocidade e 20% menos gasto de estamina por 9s. | Na reta final: +6,4% de velocidade e 32% menos gasto de estamina por 9s, e recupera 5% de estamina ao ativar. | também recupera 5% de estamina ao ativar |
+| ![](../prototype/assets/icons/sk-nascente.png) Nascente | Numa reta de 150 m ou mais (fora a da largada): recupera 4,5% de estamina. | Numa reta de 150 m ou mais (fora a da largada): recupera 7,2% de estamina e ganha +3% de velocidade por 4s. | também +3% de velocidade por 4s |
+| ![](../prototype/assets/icons/sk-nevoa-amiga.png) Névoa Amiga | Com névoa: o bônus do clima para a Grama sobe de +3% para +7%. | Com névoa: o bônus do clima para a Grama sobe de +3% para +9,4% e continua por 15s depois que o clima muda. | o reforço continua por 15s depois que o clima muda |
+| ![](../prototype/assets/icons/sk-casco-firme.png) Casco Firme | Em cada subida: +1,2% de rendimento na subida. | Em cada subida: +1,9% de rendimento na subida e gasta 30% menos estamina extra. | na subida, também gasta 30% menos estamina extra |
+
 ### Skills de vaga
 
 **Quem pode ter:** as skills gerais servem para qualquer tipo; as de um tipo, só para aquele tipo. O número de skills é limitado pelas vagas da raridade.
 
-**Pontos no Poder:** cada skill soma 14 × o peso do gatilho no Poder (gatilhos que nem sempre acontecem valem menos). **Balão:** o texto que aparece na pista quando a skill ativa.
+**Efeito e descrição:** os números desta lista são os do rank I; o rank multiplica a parte de bônus (ver Rank das skills). **Marco do rank V:** o que a skill ganha a mais no último rank. **Pontos no Poder:** cada skill soma 14 × o peso do gatilho × o fator do rank (gatilhos que nem sempre acontecem valem menos); a lista mostra os pontos no rank I. **Balão:** o texto que aparece na pista quando a skill ativa.
 
 ### Gerais (8)
 
-| Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
-| --- | --- | --- | --- | --- | --- | ---: | --- |
-| ![](../prototype/assets/icons/sk-arranque.png) **Arranque** | Largada | aceleração ×1,108 (+10,8%), por 100 m | Largada explosiva: +10,8% de aceleração nos primeiros 100 m. | qualquer tipo | Faísca, Fogaréu | 14 | ARRANQUE |
-| ![](../prototype/assets/icons/sk-sprint.png) **Sprint** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | velocidade ×1,04 (+4%), por 150 m | Numa reta de 150 m ou mais (fora a da largada): +4% de velocidade por 150 m. | qualquer tipo | Ventania | 14 | SPRINT |
-| ![](../prototype/assets/icons/sk-drift.png) **Drift** | Entra numa curva | fator da curva +1,3% (somado, teto 1), em cada bloco, até o fim dele | Em cada curva: +1,3% de rendimento na curva. | qualquer tipo | Boitatá | 11,2 | DRIFT |
-| ![](../prototype/assets/icons/sk-saida-rapida.png) **Saída Rápida** | Sai de uma curva | aceleração ×1,32 (+32%); velocidade ×1,045 (+4,5%), por 6 s | Ao sair da curva: +32% de aceleração e +4,5% de velocidade por 6s. | qualquer tipo | — | 11,2 | SAÍDA RÁPIDA |
-| ![](../prototype/assets/icons/sk-folego-de-montanha.png) **Fôlego de Montanha** | Entra numa subida | gasto extra da subida ×0,4 (−60%), em cada bloco, até o fim dele | Em cada subida: gasta 60% menos estamina extra da subida. | qualquer tipo | Jequitibá | 8,4 | FÔLEGO MONT. |
-| ![](../prototype/assets/icons/sk-segundo-ar.png) **Segundo Ar** | Estamina cai a 30% ou menos | recupera 10% do tanque na hora; velocidade ×1,03 (+3%), por 8 s | Quando a estamina cai a 30%, recupera 10% e ganha +3% de velocidade por 8s. | qualquer tipo | Capim, Garoa, Jequitibá | 11,2 | SEGUNDO AR |
-| ![](../prototype/assets/icons/sk-arrancada-final.png) **Arrancada Final** | Começa a arrancada do cavalo (reta final): em 80% da pista − 14% × (n(GAR) − 0,5), mais cedo com mais Garra | chance de Garra +10 p.p.; impulso da Garra +2 p.p. | Na reta final: +10% de chance de Garra e +2% de força na arrancada. | qualquer tipo | Ventania | 14 | ARR. FINAL |
-| ![](../prototype/assets/icons/sk-dado-viciado.png) **Dado Viciado** | Antes do 1º Dado da Sorte (vale para todos os Dados da corrida) | +1 dado no Dado da Sorte, de 1 a 60 (até o fim da corrida) | Antes do 1º Dado da Sorte: rola 1 dado extra, de 1 a 60, em todos os Dados da corrida. | qualquer tipo | — | 2,8 | DADO VICIADO |
+| Skill | Gatilho | Efeito (rank I) | Descrição no jogo (rank I) | Marco do rank V | Quem pode ter | Começa em | Pontos no Poder (rank I; × o fator do rank) | Balão |
+| --- | --- | --- | --- | --- | --- | --- | ---: | --- |
+| ![](../prototype/assets/icons/sk-arranque.png) **Arranque** | Largada | aceleração ×1,108 (+10,8%), por 100 m | Largada explosiva: +10,8% de aceleração nos primeiros 100 m. | também +3% de velocidade nos mesmos 100 m | qualquer tipo | Faísca, Fogaréu | 14 | ARRANQUE |
+| ![](../prototype/assets/icons/sk-sprint.png) **Sprint** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | velocidade ×1,04 (+4%), por 150 m | Numa reta de 150 m ou mais (fora a da largada): +4% de velocidade por 150 m. | dispara também em retas de 100 m ou mais | qualquer tipo | Ventania | 14 | SPRINT |
+| ![](../prototype/assets/icons/sk-drift.png) **Drift** | Entra numa curva | fator da curva +1,3% (somado, teto 1), em cada bloco, até o fim dele | Em cada curva: +1,3% de rendimento na curva. | na curva, também gasta 15% menos estamina | qualquer tipo | Boitatá | 11,2 | DRIFT |
+| ![](../prototype/assets/icons/sk-saida-rapida.png) **Saída Rápida** | Sai de uma curva | aceleração ×1,32 (+32%); velocidade ×1,045 (+4,5%), por 6 s | Ao sair da curva: +32% de aceleração e +4,5% de velocidade por 6s. | dura 8s em vez de 6s | qualquer tipo | — | 11,2 | SAÍDA RÁPIDA |
+| ![](../prototype/assets/icons/sk-folego-de-montanha.png) **Fôlego de Montanha** | Entra numa subida | gasto extra da subida ×0,4 (−60%), em cada bloco, até o fim dele | Em cada subida: gasta 60% menos estamina extra da subida. | ao sair da subida, recupera 3% de estamina | qualquer tipo | Jequitibá | 8,4 | FÔLEGO MONT. |
+| ![](../prototype/assets/icons/sk-segundo-ar.png) **Segundo Ar** | Estamina cai a 30% ou menos | recupera 10% do tanque na hora; velocidade ×1,03 (+3%), por 8 s | Quando a estamina cai a 30%, recupera 10% e ganha +3% de velocidade por 8s. | dispara com 35% de estamina em vez de 30% | qualquer tipo | Capim, Garoa, Jequitibá | 11,2 | SEGUNDO AR |
+| ![](../prototype/assets/icons/sk-arrancada-final.png) **Arrancada Final** | Começa a arrancada do cavalo (reta final): em 80% da pista − 14% × (n(GAR) − 0,5), mais cedo com mais Garra | chance de Garra +10 p.p.; impulso da Garra +2 p.p. | Na reta final: +10% de chance de Garra e +2% de força na arrancada. | também +2% de velocidade até a chegada | qualquer tipo | Ventania | 14 | ARR. FINAL |
+| ![](../prototype/assets/icons/sk-dado-viciado.png) **Dado Viciado** | Antes do 1º Dado da Sorte (vale para todos os Dados da corrida) | +1 dado no Dado da Sorte, de 1 a 60 (até o fim da corrida) | Antes do 1º Dado da Sorte: rola 1 dado extra, de 1 a 60, em todos os Dados da corrida. | 2 dados extras, os dois de 1 a 100 | qualquer tipo | — | 2,8 | DADO VICIADO |
 
 ### Fogo (2)
 
-| Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
-| --- | --- | --- | --- | --- | --- | ---: | --- |
-| ![](../prototype/assets/icons/sk-sol-a-pino.png) **Sol a Pino** | Clima Sol valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,07 (até o fim da corrida) | Com sol: o bônus do clima para o Fogo sobe de +3% para +7%. | só Fogo | Fogaréu, Boitatá | 11,2 | SOL A PINO |
-| ![](../prototype/assets/icons/sk-chama-final.png) **Chama Final** | Começa a arrancada do cavalo (reta final): em 80% da pista − 14% × (n(GAR) − 0,5), mais cedo com mais Garra | velocidade ×1,04 (+4%), por 9,5 s | Na reta final: +4% de velocidade por 9,5s. | só Fogo | Tição, Fogaréu, Boitatá | 14 | CHAMA FINAL |
+| Skill | Gatilho | Efeito (rank I) | Descrição no jogo (rank I) | Marco do rank V | Quem pode ter | Começa em | Pontos no Poder (rank I; × o fator do rank) | Balão |
+| --- | --- | --- | --- | --- | --- | --- | ---: | --- |
+| ![](../prototype/assets/icons/sk-sol-a-pino.png) **Sol a Pino** | Clima Sol valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,07 (até o fim da corrida) | Com sol: o bônus do clima para o Fogo sobe de +3% para +7%. | o reforço continua por 15s depois que o clima muda | só Fogo | Fogaréu, Boitatá | 11,2 | SOL A PINO |
+| ![](../prototype/assets/icons/sk-chama-final.png) **Chama Final** | Começa a arrancada do cavalo (reta final): em 80% da pista − 14% × (n(GAR) − 0,5), mais cedo com mais Garra | velocidade ×1,04 (+4%), por 9,5 s | Na reta final: +4% de velocidade por 9,5s. | dura 12s em vez de 9,5s | só Fogo | Tição, Fogaréu, Boitatá | 14 | CHAMA FINAL |
 
 ### Água (3)
 
-| Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
-| --- | --- | --- | --- | --- | --- | ---: | --- |
-| ![](../prototype/assets/icons/sk-pe-na-chuva.png) **Pé na Chuva** | Clima Chuva valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,07 (até o fim da corrida) | Com chuva: o bônus do clima para a Água sobe de +3% para +7%. | só Água | Garoa, Pororoca, Iara | 11,2 | PÉ NA CHUVA |
-| ![](../prototype/assets/icons/sk-canto-da-iara.png) **Canto da Iara** | Começa a arrancada do cavalo (reta final): em 80% da pista − 14% × (n(GAR) − 0,5), mais cedo com mais Garra | velocidade ×1,04 (+4%); gasto de estamina ×0,8 (−20%), por 9 s | Na reta final: +4% de velocidade e 20% menos gasto de estamina por 9s. | só Água | Iara | 14 | CANTO IARA |
-| ![](../prototype/assets/icons/sk-nascente.png) **Nascente** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | recupera 4,5% do tanque na hora | Numa reta de 150 m ou mais (fora a da largada): recupera 4,5% de estamina. | só Água | Pororoca, Iara | 14 | NASCENTE |
+| Skill | Gatilho | Efeito (rank I) | Descrição no jogo (rank I) | Marco do rank V | Quem pode ter | Começa em | Pontos no Poder (rank I; × o fator do rank) | Balão |
+| --- | --- | --- | --- | --- | --- | --- | ---: | --- |
+| ![](../prototype/assets/icons/sk-pe-na-chuva.png) **Pé na Chuva** | Clima Chuva valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,07 (até o fim da corrida) | Com chuva: o bônus do clima para a Água sobe de +3% para +7%. | o reforço continua por 15s depois que o clima muda | só Água | Garoa, Pororoca, Iara | 11,2 | PÉ NA CHUVA |
+| ![](../prototype/assets/icons/sk-canto-da-iara.png) **Canto da Iara** | Começa a arrancada do cavalo (reta final): em 80% da pista − 14% × (n(GAR) − 0,5), mais cedo com mais Garra | velocidade ×1,04 (+4%); gasto de estamina ×0,8 (−20%), por 9 s | Na reta final: +4% de velocidade e 20% menos gasto de estamina por 9s. | também recupera 5% de estamina ao ativar | só Água | Iara | 14 | CANTO IARA |
+| ![](../prototype/assets/icons/sk-nascente.png) **Nascente** | Entra numa reta de 150 m ou mais (a reta da largada não conta) | recupera 4,5% do tanque na hora | Numa reta de 150 m ou mais (fora a da largada): recupera 4,5% de estamina. | também +3% de velocidade por 4s | só Água | Pororoca, Iara | 14 | NASCENTE |
 
 ### Grama (2)
 
-| Skill | Gatilho | Efeito | Descrição no jogo | Quem pode ter | Começa em | Pontos no Poder | Balão |
-| --- | --- | --- | --- | --- | --- | ---: | --- |
-| ![](../prototype/assets/icons/sk-nevoa-amiga.png) **Névoa Amiga** | Clima Névoa valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,07 (até o fim da corrida) | Com névoa: o bônus do clima para a Grama sobe de +3% para +7%. | só Grama | — | 11,2 | NÉVOA AMIGA |
-| ![](../prototype/assets/icons/sk-casco-firme.png) **Casco Firme** | Entra numa subida | fator da subida +1,2% (somado, teto 1), em cada bloco, até o fim dele | Em cada subida: +1,2% de rendimento na subida. | só Grama | Mandacaru, Jequitibá | 8,4 | CASCO FIRME |
+| Skill | Gatilho | Efeito (rank I) | Descrição no jogo (rank I) | Marco do rank V | Quem pode ter | Começa em | Pontos no Poder (rank I; × o fator do rank) | Balão |
+| --- | --- | --- | --- | --- | --- | --- | ---: | --- |
+| ![](../prototype/assets/icons/sk-nevoa-amiga.png) **Névoa Amiga** | Clima Névoa valendo (checado a cada instante; vale também se o Dado virar o clima) | bônus do clima do próprio elemento ×1,03 → ×1,07 (até o fim da corrida) | Com névoa: o bônus do clima para a Grama sobe de +3% para +7%. | o reforço continua por 15s depois que o clima muda | só Grama | — | 11,2 | NÉVOA AMIGA |
+| ![](../prototype/assets/icons/sk-casco-firme.png) **Casco Firme** | Entra numa subida | fator da subida +1,2% (somado, teto 1), em cada bloco, até o fim dele | Em cada subida: +1,2% de rendimento na subida. | na subida, também gasta 30% menos estamina extra | só Grama | Mandacaru, Jequitibá | 8,4 | CASCO FIRME |
 
 <a id="dado"></a>
 
@@ -406,7 +487,7 @@ Quando o líder cruza 1/3 e 2/3 da distância, **todos** rolam o Dado da Sorte (
 
 1. Cada montaria rola um dado de 1 a 100.
 2. Com chance (SOR − 40) / 40 (presa entre 0% e 100%), rola um 2º dado e fica com o melhor. A Sorte vai de 40 a 76 (só de nascimento), então a fórmula começa onde a Sorte começa.
-3. Dado Viciado ativa uma vez por corrida, antes do 1º Dado, e soma um dado extra nos 2 Dados: de 1 até o teto do rank (60, 70, 80, 90, 100 do rank I ao V); no rank V são 2 dados extras (no máximo 4 dados).
+3. Dado Viciado ativa uma vez por corrida, antes do 1º Dado, e soma um dado extra nos 2 Dados: de 1 até o teto do rank (60, 70, 80, 90, 100 do rank I ao V); no rank V, o marco: 2 dados extras, os dois de 1 a 100 (no máximo 4 dados por montaria).
 4. O maior dado vence. Empate no topo: só os empatados rolam de novo.
 5. O clima vira o do elemento do vencedor. Se já for esse clima, o clima "segura".
 
@@ -945,6 +1026,7 @@ As estrelas do potro multiplicam os pontos que ele ganha por level (ver Raridade
 3. Cada candidata restante passa com 35% de chance.
 4. Corte nas vagas da raridade do potro.
 5. Se ficou abaixo das skills ao nascer da raridade, completa com skills sorteadas que servem para o tipo.
+6. Rank: cada skill herdada nasce 1 rank abaixo do pai que a tem (se os dois têm, vale o maior), nunca abaixo do I; a skill sorteada para completar nasce no rank I. O rank não usa sorteio (ver Skills, Rank das skills).
 
 <a id="equipamento"></a>
 
@@ -1048,8 +1130,8 @@ Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela see
 | Peças | Bônus |
 | ---: | --- |
 | 3 | +5 Sorte; efeito das skills de vaga +5% (o fator do rank × 1,05) |
-| 4 | +5 Sorte; efeito das skills de vaga +5% (o fator do rank × 1,05); no clima do conjunto, reforçaria o bônus do elemento dono |
-| 5 | +5 Sorte; efeito das skills de vaga +5% (o fator do rank × 1,05); no clima do conjunto, reforçaria o bônus do elemento dono; anula a penalidade de clima (×0,97 vira ×1) |
+| 4 | +5 Sorte; efeito das skills de vaga +5% (o fator do rank × 1,05); no clima do conjunto, reforçaria o bônus do elemento dono para ×1,08 (não acumula com a skill de clima: vale o maior) |
+| 5 | +5 Sorte; efeito das skills de vaga +5% (o fator do rank × 1,05); no clima do conjunto, reforçaria o bônus do elemento dono para ×1,08 (não acumula com a skill de clima: vale o maior); anula a penalidade de clima (×0,97 vira ×1) |
 
 Cada linha é o total daquele patamar, não soma com as de cima: +5 Sorte e +5% no efeito das skills valem uma vez a partir de 3 peças. Vale o conjunto com mais peças equipadas (empate: Sol, Chuva e Névoa, nessa ordem). Enquanto o equipamento estiver suspenso, nenhum bônus de conjunto vale.
 
@@ -1070,7 +1152,7 @@ O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, Fogo). 
 
 ## Economia
 
-Moeda única hoje: **Ouro**. Começa com 500. Ganha-se Ouro correndo (prêmios e treino), na recompensa diária (Ouro que entra sem precisar correr; ver Itens), nos prêmios dos ginásios (a 1ª vitória de cada etapa e a revanche do líder; ver Ginásios da Expedição) e vendendo peças; gasta-se em entradas (das corridas e dos ginásios), na loja de itens, em peças, Pedras Negras, aluguel e registro de cruza, Troca e vagas do estábulo.
+Moeda única hoje: **Ouro**. Começa com 500. Ganha-se Ouro correndo (prêmios e treino), na recompensa diária (Ouro que entra sem precisar correr; ver Itens), nos prêmios dos ginásios (a 1ª vitória de cada etapa e a revanche do líder; ver Ginásios da Expedição) e vendendo peças; gasta-se em entradas (das corridas e dos ginásios), na subida de rank das skills (junto com Pergaminhos de técnica; ver Skills), na loja de itens, em peças, Pedras Negras, aluguel e registro de cruza, Troca e vagas do estábulo.
 
 ### Entradas e prêmios
 
@@ -1095,17 +1177,17 @@ Treino (quando o Ouro não cobre 50): sem entrada, 1º 30, 2º 22, 3º 16, 4º 1
 
 ### Poder e ligas
 
-O **Poder** resume a montaria, sem equipamento: soma ponderada dos status (com os pontos comprados) + skills + level e raridade. Os pesos vêm de uma regressão sobre milhares de salas; o tipo não entra (level e raridade valem o mesmo para os três). Ele define a liga e os rivais da sala.
+O **Poder** resume a montaria, sem equipamento: soma ponderada dos status (com os pontos comprados) + skills (com o rank de cada uma) + level e raridade. Os pesos vêm de uma regressão sobre milhares de salas; o tipo não entra (level e raridade valem o mesmo para os três). Ele define a liga e os rivais da sala.
 
 ```text
 Poder = 2,5·VEL + 2·ACE + 2,2·MAN + 2,4·FOR + 2,4·EST + 1,5·GAR + 0·SOR
-      + 14 × peso do gatilho, por skill
+      + 14 × peso do gatilho × fator do rank, por skill      (fator do rank: I ×1,00, II ×1,15, III ×1,30, IV ×1,45, V ×1,60)
       + 20 × (level − 1) / 49 + 28 × ordem da raridade / 4
 ```
 
 **Peso do gatilho no Poder**
 
-| Gatilho | Peso | Pontos por skill |
+| Gatilho | Peso | Pontos por skill (rank I) |
 | --- | ---: | ---: |
 | Largada | 1 | 14 |
 | Entra numa reta de 150 m ou mais (a reta da largada não conta) | 1 | 14 |
@@ -1126,7 +1208,7 @@ Poder = 2,5·VEL + 2·ACE + 2,2·MAN + 2,4·FOR + 2,4·EST + 1,5·GAR + 0·SOR
 | ![](../prototype/assets/icons/liga-diamante.png) Diamante | 980–1.069 | #7ab8ff |
 | ![](../prototype/assets/icons/liga-lenda.png) Lenda | 1.070 ou mais | #ff7a3d |
 
-**Rivais da sala:** cada bot mira um Poder entre −8,5% e +11,5% do seu (leve viés para cima). Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de 10 levels abaixo a 20 acima do level dele, entre 1 e 50. O modelo só entra se ficar a até 6% do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos 3 modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem.
+**Rivais da sala:** cada bot mira um Poder entre −8,5% e +11,5% do seu (leve viés para cima). Para cada modelo (selvagens e iniciais), procura o level mais perto do alvo só na faixa do modelo: de 10 levels abaixo a 20 acima do level dele, entre 1 e 50. O modelo só entra se ficar a até 6% do alvo (prefere modelos ainda não usados na sala). Sem nenhum candidato, usa um dos 3 modelos mais próximos, em qualquer level. Nenhum bot usa o modelo de uma montaria que você tem. As skills de vaga dos bots ficam todas no rank médio (arredondado) das skills de vaga do seu cavalo, e esse rank entra no Poder do bot (ver Skills, Rank das skills).
 
 **Build dos bots** (sem sorteio; é também o botão "Distribuir sugerido", que continua do que o jogador já comprou): um ponto por vez no status de menor (pontos + 1) / peso, entre os que ainda aceitam (peso acima de 0, abaixo de 150 e com o próximo ponto cabendo no que sobra); empate na ordem VEL, ACE, MAN, FOR, EST e GAR. A Sorte não recebe pontos.
 
@@ -1150,7 +1232,7 @@ Poder = 2,5·VEL + 2·ACE + 2,2·MAN + 2,4·FOR + 2,4·EST + 1,5·GAR + 0·SOR
 
 ## Itens e recompensa diária
 
-São 6 itens de uso único; cada uso vale para um cavalo, pede confirmação e não tem volta. A mochila guarda até 99 de cada (a Rédea nova tem o teto dela, 999). A loja só aceita Ouro e respeita o Ouro reservado para a entrada da sala aberta.
+São 6 itens. 5 são de uso único: cada uso vale para um cavalo, pede confirmação e não tem volta. O Pergaminho de técnica não se usa pela mochila: é gasto, com Ouro, ao subir o rank de uma skill (ver Skills, Rank das skills). A mochila guarda até 99 de cada (a Rédea nova tem o teto dela, 999). A loja só aceita Ouro e respeita o Ouro reservado para a entrada da sala aberta.
 
 | Item | Para que serve | Limites e quando não pode | Preço na loja | Compra | De onde vem |
 | --- | --- | --- | --- | ---: | --- |
@@ -1161,15 +1243,17 @@ São 6 itens de uso único; cada uso vale para um cavalo, pede confirmação e n
 | **Manual de doma** | O cavalo tenta aprender uma skill na hora; o manual é gasto mesmo se ele não aprender. | 35% de chance de aprender; precisa de vaga livre e de candidata; não no cavalo ativo com a sala aberta | 200 | 1 por dia | Compre na loja, ganhe no 4º dia da recompensa diária ou nos ginásios. |
 | **Pergaminho de técnica** | Sobe o rank de uma skill do cavalo, junto com Ouro, na aba Skills. | não se usa pela mochila: é gasto, com Ouro, ao subir o rank de uma skill (aba Skills do cavalo); o cavalo ativo não sobe rank com a sala aberta | **não se vende** | — | Cai no pódio das corridas valendo e vem nos ginásios; não está à venda. |
 
-**Dos ginásios**, qual etapa dá cada item (ver Ginásios da Expedição): Torrão de açúcar, na 1ª vitória sobre o Soldado 2 de cada ginásio e no rodízio da revanche do líder; Rédea nova, na 1ª vitória sobre o líder de cada ginásio; Cupom de troca de skill, na 1ª vitória sobre o líder de cada ginásio e no rodízio da revanche do líder; Manual de doma, na 1ª vitória sobre o Soldado 4 de cada ginásio e no rodízio da revanche do líder.
+**Dos ginásios**, qual etapa dá cada item (ver Ginásios da Expedição): Torrão de açúcar, na 1ª vitória sobre o Soldado 2 de cada ginásio e no rodízio da revanche do líder; Rédea nova, na 1ª vitória sobre o líder de cada ginásio; Cupom de troca de skill, na 1ª vitória sobre o líder de cada ginásio e no rodízio da revanche do líder; Manual de doma, na 1ª vitória sobre o Soldado 4 de cada ginásio e no rodízio da revanche do líder; Pergaminho de técnica, na 1ª vitória sobre o Soldado 2 (1), o Soldado 4 (1) e o líder (3) de cada ginásio.
 
 **Torrão:** os pontos do cavalo passam a ser os do level, da raridade e das estrelas mais os torrões (somados depois do piso; ver Status). O teto de 150 por status não muda. Os torrões são do cavalo e saem com ele na Troca do Haras.
 
 **Estrela:** só muda as estrelas do cavalo; os pontos a mais aparecem para distribuir. Vale como qualquer estrela, inclusive na cruza (ver Cruzamento).
 
-**Cupom e Manual:** as candidatas são as mesmas do aprendizado por level (as skills gerais e as do tipo do cavalo, menos as que ele já tem); no Cupom, a skill que sai não volta no mesmo sorteio e a nova fica na mesma posição. O sorteio sai da seed do save e de um contador de usos que é gravado junto com o resultado: recarregar a página não muda nada. O aprendizado por level continua com 8% por level.
+**Cupom e Manual:** as candidatas são as mesmas do aprendizado por level (as skills gerais e as do tipo do cavalo, menos as que ele já tem); no Cupom, a skill que sai não volta no mesmo sorteio e a nova fica na mesma posição. A skill que entra (pelo Cupom ou pelo Manual) fica no rank I; no Cupom, o rank da que sai é perdido, e a confirmação avisa. O sorteio sai da seed do save e de um contador de usos que é gravado junto com o resultado: recarregar a página não muda nada. O aprendizado por level continua com 8% por level.
 
-**Onde se usa:** na Loja, parte Mochila, o botão Usar abre a escolha do cavalo (no Cupom, também a da skill que sai) e depois a confirmação. Na ficha do cavalo, só quando a mochila tem o item: Torrão de açúcar e Estrela de treino na aba Status; Manual de doma e o Trocar de cada skill (Cupom) na aba Skills. A Rédea nova usada pela Mochila leva ao Redistribuir da ficha do cavalo escolhido. O cavalo que não pode receber o item aparece apagado, com o motivo.
+**Pergaminho:** O Pergaminho de técnica não está à venda: cai no pódio das corridas valendo (1º lugar 50%, 2º lugar 30%, 3º lugar 15%, pela seed da sala; nunca em treino) e vem na 1ª vitória sobre o Soldado 2 (1), o Soldado 4 (1) e o líder (3) de cada ginásio, entre parênteses quantos. Nunca por Gemas. Custo de cada rank e as regras: ver Skills, Rank das skills.
+
+**Onde se usa:** na Loja, parte Mochila, o botão Usar abre a escolha do cavalo (no Cupom, também a da skill que sai) e depois a confirmação. Na ficha do cavalo, só quando a mochila tem o item: Torrão de açúcar e Estrela de treino na aba Status; Manual de doma e o Trocar de cada skill (Cupom) na aba Skills. A Rédea nova usada pela Mochila leva ao Redistribuir da ficha do cavalo escolhido. O Pergaminho de técnica aparece na Mochila sem o botão Usar; a aba Skills mostra quantos há e o custo de cada subida. O cavalo que não pode receber o item aparece apagado, com o motivo.
 
 ### Limites da loja
 
@@ -1199,7 +1283,7 @@ O Ouro entra direto no saldo; o item vai para a mochila. Se a mochila estiver ch
 
 ## Ginásios da Expedição
 
-São 3 ginásios, um por elemento, cada um com 4 soldados e o líder, sempre com cavalos do elemento do ginásio. As etapas abrem em ordem; etapa vencida fica marcada e não se repete. Os cavalos dos soldados são fixos (a montaria-base do catálogo no level e nas estrelas da etapa, com a build dos bots e as skills dela). A aba Expedição mostra os ginásios, a trilha de cada um, o preparo, os duelos e o resumo (ver Visão geral, Abas).
+São 3 ginásios, um por elemento, cada um com 4 soldados e o líder, sempre com cavalos do elemento do ginásio. As etapas abrem em ordem; etapa vencida fica marcada e não se repete. Os cavalos dos soldados são fixos (a montaria-base do catálogo no level e nas estrelas da etapa, com a build dos bots e as skills de vaga dela no rank fixo da etapa, sem sorteio). A aba Expedição mostra os ginásios, a trilha de cada um, o preparo, os duelos e o resumo (ver Visão geral, Abas).
 
 | Ginásio | Elemento | Líder | Ponto fraco | Pista da casa | Insígnia |
 | --- | --- | --- | --- | --- | --- |
@@ -1209,33 +1293,35 @@ São 3 ginásios, um por elemento, cada um com 4 soldados e o líder, sempre com
 
 ### Trilha do Ginásio da Fornalha
 
-| Etapa | Adversário | Cavalos (na ordem) | Entrada | Prêmio da 1ª vitória |
-| ---: | --- | --- | --- | --- |
-| Soldado 1 | Recruta Fagulha | Brasa (Nv 4, ★★, Comum) | 20 | 80 de Ouro |
-| Soldado 2 | Cabo Tocha | Brasa (Nv 8, ★★, Comum) | 30 | 120 de Ouro, 1 Torrão de açúcar |
-| Soldado 3 | Sargento Candeeiro | Brasa (Nv 12, ★★, Comum) · Brasa (Nv 12, ★★, Comum) | 40 | 160 de Ouro |
-| Soldado 4 | Tenente Coivara | Brasa (Nv 16, ★★, Comum) · Brasa (Nv 16, ★★, Comum) | 50 | 200 de Ouro, 1 Manual de doma |
-| Líder | Capitã Labareda | Brasa (Nv 20, ★★, Comum) · Brasa (Nv 20, ★★, Comum) · Brasa (Nv 20, ★★, Comum) | 100 | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill e a Insígnia da Fornalha |
+| Etapa | Adversário | Cavalos (na ordem) | Rank das skills | Entrada | Prêmio da 1ª vitória |
+| ---: | --- | --- | ---: | --- | --- |
+| Soldado 1 | Recruta Fagulha | Brasa (Nv 4, ★★, Comum) | I | 20 | 80 de Ouro |
+| Soldado 2 | Cabo Tocha | Brasa (Nv 8, ★★, Comum) | I | 30 | 120 de Ouro, 1 Torrão de açúcar, 1 Pergaminho de técnica |
+| Soldado 3 | Sargento Candeeiro | Brasa (Nv 12, ★★, Comum) · Brasa (Nv 12, ★★, Comum) | I | 40 | 160 de Ouro |
+| Soldado 4 | Tenente Coivara | Brasa (Nv 16, ★★, Comum) · Brasa (Nv 16, ★★, Comum) | II | 50 | 200 de Ouro, 1 Manual de doma, 1 Pergaminho de técnica |
+| Líder | Capitã Labareda | Brasa (Nv 20, ★★, Comum) · Brasa (Nv 20, ★★, Comum) · Brasa (Nv 20, ★★, Comum) | II | 100 | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill, 3 Pergaminhos de técnica e a Insígnia da Fornalha |
 
 ### Trilha do Ginásio do Remanso
 
-| Etapa | Adversário | Cavalos (na ordem) | Entrada | Prêmio da 1ª vitória |
-| ---: | --- | --- | --- | --- |
-| Soldado 1 | Recruta Orvalho | Maré (Nv 4, ★★, Comum) | 20 | 80 de Ouro |
-| Soldado 2 | Cabo Goteira | Maré (Nv 8, ★★, Comum) | 30 | 120 de Ouro, 1 Torrão de açúcar |
-| Soldado 3 | Sargento Correnteza | Maré (Nv 12, ★★, Comum) · Maré (Nv 12, ★★, Comum) | 40 | 160 de Ouro |
-| Soldado 4 | Tenente Cacimba | Maré (Nv 16, ★★, Comum) · Maré (Nv 16, ★★★, Comum) | 50 | 200 de Ouro, 1 Manual de doma |
-| Líder | Mestre Aguaceiro | Maré (Nv 20, ★★, Comum) · Maré (Nv 20, ★★★, Comum) · Maré (Nv 20, ★★, Comum) | 100 | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill e a Insígnia do Remanso |
+| Etapa | Adversário | Cavalos (na ordem) | Rank das skills | Entrada | Prêmio da 1ª vitória |
+| ---: | --- | --- | ---: | --- | --- |
+| Soldado 1 | Recruta Orvalho | Maré (Nv 4, ★★, Comum) | I | 20 | 80 de Ouro |
+| Soldado 2 | Cabo Goteira | Maré (Nv 8, ★★, Comum) | I | 30 | 120 de Ouro, 1 Torrão de açúcar, 1 Pergaminho de técnica |
+| Soldado 3 | Sargento Correnteza | Maré (Nv 12, ★★, Comum) · Maré (Nv 12, ★★, Comum) | I | 40 | 160 de Ouro |
+| Soldado 4 | Tenente Cacimba | Maré (Nv 16, ★★, Comum) · Maré (Nv 16, ★★★, Comum) | II | 50 | 200 de Ouro, 1 Manual de doma, 1 Pergaminho de técnica |
+| Líder | Mestre Aguaceiro | Maré (Nv 20, ★★, Comum) · Maré (Nv 20, ★★★, Comum) · Maré (Nv 20, ★★, Comum) | II | 100 | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill, 3 Pergaminhos de técnica e a Insígnia do Remanso |
 
 ### Trilha do Ginásio da Capoeira
 
-| Etapa | Adversário | Cavalos (na ordem) | Entrada | Prêmio da 1ª vitória |
-| ---: | --- | --- | --- | --- |
-| Soldado 1 | Recruta Broto | Ipê (Nv 4, ★★, Comum) | 20 | 80 de Ouro |
-| Soldado 2 | Cabo Carrapicho | Ipê (Nv 8, ★★, Comum) | 30 | 120 de Ouro, 1 Torrão de açúcar |
-| Soldado 3 | Sargento Juazeiro | Ipê (Nv 12, ★★, Comum) · Ipê (Nv 12, ★★, Comum) | 40 | 160 de Ouro |
-| Soldado 4 | Tenente Aroeira | Ipê (Nv 16, ★★, Comum) · Ipê (Nv 16, ★★, Comum) | 50 | 200 de Ouro, 1 Manual de doma |
-| Líder | Dona Capineira | Ipê (Nv 20, ★★, Comum) · Ipê (Nv 20, ★★, Comum) · Ipê (Nv 20, ★★, Comum) | 100 | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill e a Insígnia da Capoeira |
+| Etapa | Adversário | Cavalos (na ordem) | Rank das skills | Entrada | Prêmio da 1ª vitória |
+| ---: | --- | --- | ---: | --- | --- |
+| Soldado 1 | Recruta Broto | Ipê (Nv 4, ★★, Comum) | I | 20 | 80 de Ouro |
+| Soldado 2 | Cabo Carrapicho | Ipê (Nv 8, ★★, Comum) | I | 30 | 120 de Ouro, 1 Torrão de açúcar, 1 Pergaminho de técnica |
+| Soldado 3 | Sargento Juazeiro | Ipê (Nv 12, ★★, Comum) · Ipê (Nv 12, ★★, Comum) | I | 40 | 160 de Ouro |
+| Soldado 4 | Tenente Aroeira | Ipê (Nv 16, ★★, Comum) · Ipê (Nv 16, ★★, Comum) | II | 50 | 200 de Ouro, 1 Manual de doma, 1 Pergaminho de técnica |
+| Líder | Dona Capineira | Ipê (Nv 20, ★★, Comum) · Ipê (Nv 20, ★★, Comum) · Ipê (Nv 20, ★★, Comum) | II | 100 | 400 de Ouro, 1 Rédea nova, 1 Cupom de troca de skill, 3 Pergaminhos de técnica e a Insígnia da Capoeira |
+
+**Rank das skills:** o rank de todas as skills de vaga dos cavalos da etapa (ver Skills, Rank das skills). Hoje as montarias-base dos ginásios (Brasa, Maré e Ipê) não têm skill de vaga, então ele ainda não muda nada na prática. **Pergaminhos de técnica:** vêm só no prêmio da 1ª vitória; com a mochila sem espaço para eles (o máximo é 99), o desafio não começa.
 
 ### O desafio
 
@@ -1251,7 +1337,7 @@ O time do jogador tem no máximo o tamanho do time do adversário (pode levar me
 | Normal | de 1 a menos de 8 m | 15% |
 | Folgada | 8 m ou mais | 5% |
 
-**Revanche do líder:** depois da insígnia, 1 tentativa por dia em cada ginásio (vencendo ou perdendo), com entrada de 50 de Ouro. O prêmio de cada vitória segue um rodízio fixo, sem sorteio, contado por ginásio: 100 de Ouro · 1 Torrão de açúcar · 100 de Ouro · 1 Manual de doma · 100 de Ouro · 1 Cupom de troca de skill, e recomeça. Com o relógio para trás não libera; dia estragado no save conta como "já tentou hoje".
+**Revanche do líder:** depois da insígnia, 1 tentativa por dia em cada ginásio (vencendo ou perdendo), com entrada de 50 de Ouro. O prêmio de cada vitória segue um rodízio fixo, sem sorteio, contado por ginásio: 100 de Ouro · 1 Torrão de açúcar · 100 de Ouro · 1 Manual de doma · 100 de Ouro · 1 Cupom de troca de skill, e recomeça. A revanche não dá Pergaminhos de técnica. Os cavalos do líder correm com o mesmo rank de skills da etapa dele. Com o relógio para trás não libera; dia estragado no save conta como "já tentou hoje".
 
 **Insígnias:** cada líder dá uma, para sempre. O bônus é da conta e não entra na simulação da corrida. Insígnia da Fornalha: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo); Insígnia do Remanso: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado); Insígnia da Capoeira: +3 pontos na chance de aprender skill ao subir de level (8% → 11%). O Perfil mostra as 3 ("Insígnias (N de 3)"): a conquistada com o bônus, a que falta apagada, com o líder a vencer.
 
@@ -1259,7 +1345,7 @@ O time do jogador tem no máximo o tamanho do time do adversário (pode levar me
 
 ## Ícones reservados
 
-Estes dois ícones já estão em `prototype/assets/icons/`, mas ainda não aparecem no jogo: o `moeda-gema` espera a loja de Gemas. A Rédea nova já existe no jogo, mas com o ícone desenhado em código, como os outros quatro itens; o `item-redea` daqui continua guardado. Até lá, só o wiki os mostra. Os ícones das insígnias já aparecem na aba Expedição (ver Ginásios da Expedição).
+Estes dois ícones já estão em `prototype/assets/icons/`, mas ainda não aparecem no jogo: o `moeda-gema` espera a loja de Gemas. A Rédea nova já existe no jogo, mas com o ícone desenhado em código, como os outros itens; o `item-redea` daqui continua guardado. Até lá, só o wiki os mostra. Os ícones das insígnias já aparecem na aba Expedição (ver Ginásios da Expedição).
 
 | Ícone | Descrição | Cor |
 | --- | --- | --- |
@@ -1275,8 +1361,8 @@ Para testar: abra `prototype/dist/preview.html?dev=1` ou o build de teste `proto
 - **Moedas:** Ouro infinito (volta a 999.999 depois de cada gasto) e Pedras Negras à vontade.
 - **Itens e dia:** os itens de uso e o dia do jogo: Definir mochila (quantos de cada um: Torrão de açúcar, Estrela de treino, Cupom de troca de skill, Manual de doma e Pergaminho de técnica, de 0 a 99); Avançar 1 dia e Voltar 1 dia (o dia do jogo vai de 400 dias antes a 400 dias depois do aparelho, só no save de teste); Zerar diária e limites (a recompensa volta ao dia 1 para resgatar e os limites da loja zeram).
 - **Ginásios:** quantas etapas de cada trilha estão vencidas (de 0 a 5; com todas, a insígnia, e o bônus dela vale na hora): Definir etapas; Liberar revanche (a de hoje, nos 3 ginásios); Zerar ginásios (nenhuma etapa vencida; o contador de desafios continua, para as seeds dos desafios não se repetirem).
-- **Cavalo:** cria ou substitui um cavalo com qualquer tipo, raridade, sexo, estrelas, level (1–50), genética (máxima ou por status), pontos distribuídos e até 5 skills (inclusive de outro tipo); copia iniciais e aluguéis; +10 levels; +1 cruza; devolve os pontos da ativa.
+- **Cavalo:** cria ou substitui um cavalo com qualquer tipo, raridade, sexo, estrelas, level (1–50), genética (máxima ou por status), pontos distribuídos e até 5 skills (inclusive de outro tipo), cada uma com o seu rank (seletor de I a V); copia iniciais e aluguéis; +10 levels; +1 cruza; devolve os pontos da ativa.
 - **Itens:** só peças de equipamento: qualquer peça do catálogo, inclusive Lendária, com qualquer melhoria; conjunto completo de uma vez.
-- **Próxima corrida:** clima inicial, piso, distância, traçado (mais curvas, mais subidas ou lista de blocos), vento e seed.
+- **Próxima corrida:** clima inicial, piso, distância, traçado (mais curvas, mais subidas ou lista de blocos), vento e seed. Não há mais a opção de forçar a ativação das skills: toda skill de vaga já ativa quando o gatilho acontece.
 - **Perfil:** zerar o perfil de teste (volta à Brasa).
 

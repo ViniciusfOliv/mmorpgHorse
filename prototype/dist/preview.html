@@ -10847,6 +10847,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       level: num(m.level, 1, 1, MAX_LEVEL),
       xp: num(m.xp, 0, 0, 1e7),
       skills: [],
+      skillRanks: {},             // preenchido abaixo, depois das skills (a ordem das chaves é a do instanceFromTemplate)
       potential: potential,
       alloc: null,
       // só booleano; ausente ou lixo (e todo save de antes da v6): true
@@ -13091,7 +13092,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     var entrada = ginEntrada(gymId, etapa, c.revanche);   // a entrada cobrada: a mesma conta do número do botão, com o revanche do podeDesafiar
     state.gold = state.gold - entrada + ac.ouro;   // o prêmio do ginásio não leva o bônus de Ouro (só a corrida valendo)
     ac.itens.forEach(function (it) { if (it === 'redea') state.redeas += 1; else state.mochila[it] += 1; });
-    state.mochila.pergaminho = Math.min(GD.BAG_MAX, state.mochila.pergaminho + ac.pergaminhos);   // o podeDesafiar já conferiu que cabem
+    state.mochila.pergaminho = Math.min(GD.BAG_MAX, itemQtd('pergaminho') + ac.pergaminhos);   // o podeDesafiar já conferiu que cabem
     var cavalos = uids.map(function (u, k) {
       var m = mountByUid(u), xp = xpComBonus(ac.xp[k]);
       var g = applyXp(m, xp, GIN_SEED_TAG + contador * 4 + k);
@@ -14346,7 +14347,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     if (!r) return 'Rank máximo.';   // não acontece: o podeSubirRank já conferiu
     m.skillRanks = r.skillRanks;
     state.gold -= r.ouro;
-    state.mochila.pergaminho -= r.perg;
+    state.mochila.pergaminho = itemQtd('pergaminho') - r.perg;
     var g = gravaGasto(s0, antes);
     if (g === 'outra-aba') return 'outra-aba';
     if (g === 'falhou') return FALHA_SALVAR;
@@ -14898,8 +14899,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     // Pergaminho de técnica do pódio: só em corrida valendo (o treino nem chama o sorteio), pela seed da sala (RNG
     // própria: não desloca nada), na mesma gravação do Ouro. Com a mochila no teto, não entra (pergCheia avisa).
     var perg = L.training ? 0 : IT.pergaminhoPodio(L.seed, place), pergCheia = false;
-    if (perg && state.mochila.pergaminho + perg > GD.BAG_MAX) { perg = 0; pergCheia = true; }
-    state.mochila.pergaminho += perg;
+    if (perg && itemQtd('pergaminho') + perg > GD.BAG_MAX) { perg = 0; pergCheia = true; }
+    state.mochila.pergaminho = itemQtd('pergaminho') + perg;
     var gained = applyXp(activeMount(), xpGain, state.raceCounter);
     var levels = gained.levels, learned = gained.learned;
     state.races += 1;
