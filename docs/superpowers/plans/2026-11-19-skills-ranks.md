@@ -149,10 +149,10 @@ testes em `sim-test.js`.
 **Interfaces:** o potro sai com `skillRanks`: para cada skill herdada, `max(1, maior rank entre os pais que a têm − 1)`; a
 skill sorteada para completar o mínimo fica no rank 1. **Nenhuma chamada nova de `rng()`**.
 
-- [ ] **Passo 1:** testes: `potro herda Sprint rank 3 de pai com rank 4`; `pais com Sprint 2 e 5 → potro rank 4`; `skill
+- [x] **Passo 1:** testes: `potro herda Sprint rank 3 de pai com rank 4`; `pais com Sprint 2 e 5 → potro rank 4`; `skill
   sorteada nasce rank 1`; `a sequência do potro (genética, skills, nome, paleta, marcas) é a mesma de antes para a mesma
   seed` (comparar com o resultado gravado antes da mudança, sem `skillRanks`).
-- [ ] **Passo 2:** rodar → falha. **Passo 3:** implementar. **Passo 4:** passa. **Passo 5:** commit "faz o potro herdar o rank das skills".
+- [x] **Passo 2:** rodar → falha. **Passo 3:** implementar. **Passo 4:** passa. **Passo 5:** commit "faz o potro herdar o rank das skills".
 
 ### Tarefa 6: Pergaminho de técnica e as fontes
 

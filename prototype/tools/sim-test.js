@@ -5,6 +5,7 @@ var G = require('../src/data.js');
 var S = require('../src/sim.js');
 var B = require('../src/breed.js');
 var GR = require('../src/gear.js');
+var crypto = require('crypto');
 var fails = 0, count = 0;
 function section(t) { console.log('\n## ' + t); }
 function test(name, fn) {
@@ -1025,6 +1026,8 @@ test('snapshot dourado dos potros de exemplos.md', function () {
     assert.ok(B.marcasValidas(x.marcas), 'marcas do potro ' + i); delete x.marcas;
     // `porte` também tem fluxo próprio (spec 2b §3), conferido na seção "Portes"
     assert.ok(B.porteValido(x.porte), 'porte do potro ' + i); delete x.porte;
+    // rank das skills (2026-11-19): os pais do exemplo não têm rank, então todas nascem no rank 1 (sem chamada de rng)
+    var rk1 = {}; x.skills.forEach(function (id) { rk1[id] = 1; }); assert.deepStrictEqual(x.skillRanks, rk1, 'ranks do potro ' + i); delete x.skillRanks;
     assert.deepStrictEqual(x, {
       uid: 'm2', templateId: null, name: c.name, especie: 'cavalo', element: c.element, rarity: c.rarity, grau: c.grau, sex: c.sex,
       level: 1, xp: 0, skills: c.skills, potential: st(c.potential), palette: c.palette, breedLeft: c.breedLeft,
@@ -1033,6 +1036,39 @@ test('snapshot dourado dos potros de exemplos.md', function () {
     }, 'potro ' + i);
     assert.deepStrictEqual(S.computeStats(x, null), st(c.stats), 'status do potro ' + i + ' no nível 1');
   });
+});
+test('potro herda o rank do pai menos 1 (mínimo 1; o maior, se os dois têm); a skill sorteada nasce no rank 1', function () {
+  var viu = { herdou3: 0, herdou4: 0, sorteada: 0, piso: 0 };
+  for (var s = 0; s < 400; s++) {
+    var f = mk2({ sex: 'f', skills: ['sprint', 'drift'] }), m = mk2({ skills: ['sprint', 'arranque'] });
+    f.skillRanks = { sprint: 2, drift: 1 }; m.skillRanks = { sprint: 5, arranque: 4 };
+    var c = B.foal({ f: f, m: m, seedBase: 31, breedCounter: s, nextUid: 1 });
+    assert.deepStrictEqual(Object.keys(c.skillRanks).sort(), c.skills.slice().sort(), 'um rank por skill do potro');
+    c.skills.forEach(function (id) {
+      // herdada: Sprint 2 e 5 → 4; Arranque 4 → 3; Drift 1 → 1. Sorteada para completar o mínimo (até uma que um
+      // dos pais tem, mas o potro não herdou): 1
+      var herdada = id === 'sprint' ? 4 : id === 'arranque' ? 3 : 1, rk = c.skillRanks[id];
+      assert.ok(rk === herdada || rk === 1, 'seed ' + s + ' ' + id + ': ' + rk);
+      if (rk === 4) viu.herdou4++; else if (rk === 3) viu.herdou3++; else if (id === 'drift') viu.piso++; else viu.sorteada++;
+    });
+  }
+  assert.ok(viu.herdou4 > 20 && viu.herdou3 > 20 && viu.piso > 20 && viu.sorteada > 20, JSON.stringify(viu));
+  // pai sem skillRanks (save antigo) ou com rank inválido: vale 1, e o potro nasce no 1
+  var c2 = B.foal({ f: mk2({ sex: 'f', skills: ['sprint'] }), m: Object.assign(mk2({ skills: ['sprint'] }), { skillRanks: { sprint: 9 } }), seedBase: 31, breedCounter: 2, nextUid: 1 });
+  c2.skills.forEach(function (id) { assert.strictEqual(c2.skillRanks[id], 1); });
+});
+test('o rank herdado não consome a RNG: 400 potros saem iguais aos de antes da mudança (tirando o skillRanks)', function () {
+  var els = ['fogo', 'agua', 'grama'], rars = ['comum', 'magico', 'raro', 'lendario'], ids = Object.keys(G.SKILLS), acc = [];
+  for (var s = 0; s < 400; s++) {
+    var mk = function (sex, q) { return { uid: sex + s, name: sex, element: els[(s + q) % 3], rarity: rars[(s >> q) % 4], grau: 1 + (s + q) % 3, sex: sex, level: 5 + (s * 7 + q) % 45,
+      skills: ids.filter(function (id, i) { return (i + s + q * 3) % 5 === 0; }).slice(0, 3), skillRanks: { sprint: 4, drift: 5, arranque: 2 },
+      potential: { vel: s % 32, acel: 10, man: 10, forca: 10, est: 10, garra: 10, sorte: 10 }, palette: { coat: '#c4471d', coatShade: '#7f2a0e', mane: '#ffb02e', accent: '#ffe066' } }; };
+    var c = B.foal({ f: mk('f', 0), m: mk('m', 1), seedBase: 777 + s, breedCounter: s % 9, nextUid: 5 });
+    assert.ok(c.skillRanks && typeof c.skillRanks === 'object');
+    delete c.skillRanks; acc.push(c);
+  }
+  // impressão digital gravada com o breed.js de antes das skills com rank (commit 92a58fb), pelos mesmos pais e seeds
+  assert.strictEqual(crypto.createHash('sha1').update(JSON.stringify(acc)).digest('hex'), 'e5a1fa4e3b614f3c5a37f0739d7c71ba4c48cc3e');
 });
 
 section('Marcas');
@@ -1138,7 +1174,7 @@ test('portes: sorteios antigos intactos', function () {
     var f = JSON.parse(JSON.stringify(cat[i % cat.length])), m = JSON.parse(JSON.stringify(cat[(i * 7 + 3) % cat.length]));
     f.sex = 'f'; m.sex = 'm'; f.level = 30; m.level = 30; f.uid = 'f' + i; m.uid = null;
     var x = B.foal({ f: f, m: m, seedBase: i, breedCounter: i % 7, nextUid: i });
-    assert.ok(B.porteValido(x.porte)); delete x.porte; lista.push(x);
+    assert.ok(B.porteValido(x.porte)); delete x.porte; delete x.skillRanks; lista.push(x);
   }
   assert.strictEqual(B.hashChave(JSON.stringify(lista)), IMPRESSAO_FOAL_2A);
 });
@@ -1354,7 +1390,6 @@ section('dev');
 // conferido: o sim antigo sem o sorteio dá o mesmo que o novo com os valores antigos). Antes: bloco 1b (Dado
 // (Sorte − 40)/40; seeds 1001…1020; os 3 iniciais + 5 aluguéis do Haras, com o equipamento de bot de cada liga,
 // que a corrida agora ignora). Mudou a simulação de propósito? Regrave a tabela.
-var crypto = require('crypto');
 var ALUGUEIS = G.WILD_HORSES.filter(function (h) { return h.rarity !== 'mitico' && B.rentalPrice(h) != null; }).slice(0, 5);
 var CAMPO_REF = G.STARTERS.concat(ALUGUEIS);
 function refRace(seed, dev) {

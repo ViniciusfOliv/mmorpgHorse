@@ -37,6 +37,7 @@
  *   4. sexo (1 chamada: < 0,5 ⇒ fêmea)
  *   5. genética: 2 chamadas por chave de STAT_KEYS, nos dois ramos. 1ª = porta (< potInherit ⇒ herda).
  *      Herda: 2ª escolhe o pai (< 0,5 ⇒ égua). Não herda: 2ª é o valor floor(rng()·32).
+ *      (o rank de cada skill do potro, skillRanks, sai sem chamada: herdada = rank do pai − 1, mínimo 1; sorteada = 1)
  *   6. skills: se corcel com 1 pai só (g=1): 1 chamada (< 0,5 ⇒ g=2); depois min(g, candidatas) chamadas
  *      de índice (garantidas, sem reposição); 1 chamada (< skillInherit) por candidata restante, na
  *      ordem égua→garanhão; corte em skillSlots; preenchimento até bornSkills: 1 chamada de índice cada.
@@ -367,9 +368,22 @@
     for (id in G.SKILLS) {
       if (Object.prototype.hasOwnProperty.call(G.SKILLS, id) && compatible(id, element) && inherited.indexOf(id) < 0) pool.push(id);
     }
+    var herdadas = inherited.length;   // daqui para a frente, só as sorteadas para completar o mínimo
     while (inherited.length < R.bornSkills && pool.length) {
       idx = Math.floor(rng() * pool.length);
       inherited.push(pool.splice(idx, 1)[0]);
+    }
+    // rank das skills (sem chamada de rng): a herdada fica um rank abaixo do pai que a tem (o maior, se os dois
+    // têm; mínimo 1); a sorteada para completar o mínimo nasce no rank 1
+    var skillRanks = {};
+    for (i = 0; i < inherited.length; i++) {
+      var rk = 1;
+      if (i < herdadas) {
+        var rf = (f.skills || []).indexOf(inherited[i]) >= 0 ? S.rankOf(f, inherited[i]) : 0;
+        var rm = (m.skills || []).indexOf(inherited[i]) >= 0 ? S.rankOf(m, inherited[i]) : 0;
+        rk = Math.max(1, Math.max(rf, rm) - 1);
+      }
+      skillRanks[inherited[i]] = rk;
     }
 
     // 7. nome
@@ -389,7 +403,7 @@
 
     return {
       uid: 'm' + opts.nextUid, templateId: null, name: name, especie: 'cavalo', element: element, rarity: rarity, grau: grau, sex: sex,
-      level: 1, xp: 0, skills: inherited, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
+      level: 1, xp: 0, skills: inherited, skillRanks: skillRanks, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
       parents: { f: { uid: f.uid || null, name: f.name }, m: { uid: m.uid || null, name: m.name } },
       born: breedCounter,
       marcas: rollMarcas(opts),
