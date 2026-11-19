@@ -513,6 +513,19 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   `main`. **Sugestão em aberto:** recalibrar a pista da Fornalha (com ela nos níveis 21–30, a Grama em desvantagem
   vence 41–46%; as metas G3/G4 foram rebaseadas ao medido). **Ideias que ficaram de fora:** animação no mapa (nuvens,
   água), música, a figura do jogador com o padrão da seda.
+- **Próximos passos propostos em 2026-11-19 (à espera da escolha do Vinicius).** Ele aprovou o mapa ("Ok, aprovado,
+  precisamos melhorar as imagens e mapas ainda (...) Sempre priorizar qualidade de imagem, jogo fluido, entre outros") e
+  pediu a ordem dos próximos passos. **A integração na `main` não foi feita:** a tentativa de push foi barrada pelas
+  permissões da sessão; falta ele confirmar com todas as letras (e então republicar os três artefatos oficiais).
+  Ordem proposta: (1) mapa v2: plaquinhas menores, vida no mapa (nuvens, água, fumaça, o jogador andando entre os
+  tablados), trocar as artes que ele apontar e um cenário do PixelLab para a cena de desafio (hoje a parede é desenhada
+  por código); (2) fluidez: a aba Expedição leva ~150 ms para abrir num celular simples (medido com a CPU 4× mais lenta:
+  carga 1,7 s; Expedição 133–174 ms; ginásio 60; preparo 84; Estábulo 29; Correr 59) e nenhuma tela tem transição; meta
+  de abrir qualquer tela em menos de 60 ms, transições curtas e a volta do duelo direto ao mapa do ginásio; (3) arte da
+  corrida: pista, céu, arquibancada e baias ainda são desenhados por código, e o galope "com esforço" (pedido de
+  2026-11-16) segue parado; (4) menos botões nas outras abas, uma por vez, com maquete antes; (5) balanço fino (pista da
+  Fornalha); (6) empacotamento e Play. Sem áudio no jogo até hoje. Perguntado a ele: confirmar a `main`, o que mais
+  incomoda nas imagens e mapas, e um teto de gerações do PixelLab por rodada.
 - **Ginásios (`docs/GDD.md` §8.6), na `main` desde 2026-11-18:** o Vinicius joga nos artefatos oficiais e decide a lista
   "A confirmar com o Vinicius (gosto, ginásios)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Teste de interface em paralelo:** feito e na `main` (a verificação inteira leva ~10 min com os ginásios); em aberto se vale buscar os ~5 min (dividir o bloco
