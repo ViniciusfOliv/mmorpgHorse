@@ -2871,7 +2871,7 @@
       var pe = MAPA.pes && MAPA.pes[tid] > 0 ? MAPA.pes[tid] : 61, mw = MAPA.mapa.ginasios[id].w;
       var vez = estado === 'proxima' || estado === 'revanche';
       // a plaquinha não passa da borda do mapa: --dx a puxa para dentro
-      var dx = clamp(pos[0], 41, mw - 41) - pos[0];
+      var dx = clamp(pos[0], 41, mw - 41) - pos[0] + (MAPA.mapa.ginasios[id].dx && Number(MAPA.mapa.ginasios[id].dx[i]) || 0);
       noMapa = (src ? '<img class="mapa-figura" src="' + esc(src) + '" alt="">' : '<span class="mapa-figura"></span>') +
         (vez ? mapaImgHtml('icone-marcador', 'mapa-pino') : '') + (estado === 'vencida' ? mapaImgHtml('icone-vencido', 'mapa-selo') : '');
       corpo = noMapa + '<span class="mapa-placa"' + (dx ? ' style="--dx:' + dx + '"' : '') + '>' + (estado === 'fechada' ? mapaImgHtml('icone-cadeado', 'mapa-icone') : '') + corpo + '</span>';

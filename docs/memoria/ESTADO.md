@@ -505,6 +505,9 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   - **Cena no preparo e na tela de desafio** com a figura do jogador do PixelLab (capacete na cor do Perfil).
   - **Arte:** 126 gerações do PixelLab (saldo 1539/2000); roteiro `prototype/tools/pixellab-mapa.mjs`; os lugares de
     cada mapa em `prototype/assets/pixellab/mapa/mapa.json`; o build embute tudo em `window.__MAPA`.
+  Verificado: `./scripts/check.sh` em `VERIFICAÇÃO COMPLETA: OK` e o `balance.js` completo com as 298 metas na faixa.
+  Para jogar: o build de teste com modo DEV https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch (versão 21); os artefatos
+  oficiais e a `main` continuam sem o balanço e sem o mapa.
   **Esperando o Vinicius:** jogar no build de teste e dizer se troca alguma arte (as candidatas estão em
   `prototype/assets/pixellab/mapa/candidatas/`), se os níveis da sequência servem e se isto e o balanço entram na
   `main`. **Sugestão em aberto:** recalibrar a pista da Fornalha (com ela nos níveis 21–30, a Grama em desvantagem

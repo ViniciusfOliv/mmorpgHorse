@@ -1,5 +1,5 @@
 {
- "nota": "Os lugares de cada mapa da Expedição, em pixels de arte, marcados em cima da arte escolhida (escolhas.json). Trocou a arte de um mapa? Marque os lugares dele de novo aqui. mundo.lugares: o meio da base de cada construção (desconhecido: o meio do rótulo); mundo.placas: de que lado fica a plaquinha de um lugar (o padrão é embaixo); mundo.dx: quantos pixels de arte ela anda para o lado. ginasios.<id>.etapas: os pés de cada oponente, do Recruta ao líder; voce: os pés da figura do jogador.",
+ "nota": "Os lugares de cada mapa da Expedição, em pixels de arte, marcados em cima da arte escolhida (escolhas.json). Trocou a arte de um mapa? Marque os lugares dele de novo aqui. mundo.lugares: o meio da base de cada construção (desconhecido: o meio do rótulo); mundo.placas: de que lado fica a plaquinha de um lugar (o padrão é embaixo); mundo.dx: quantos pixels de arte ela anda para o lado. ginasios.<id>.etapas: os pés de cada oponente, do Recruta ao líder; voce: os pés da figura do jogador; dx (opcional): quantos pixels de arte a plaquinha de cada etapa anda para o lado (para não ficar atrás da figura do jogador).",
  "escala": 2,
  "mundo": {
   "w": 168,
@@ -18,8 +18,9 @@
   "grama": {
    "w": 168,
    "h": 400,
-   "voce": [92, 397],
-   "etapas": [[112, 335], [60, 265], [112, 192], [60, 120], [87, 62]]
+   "voce": [80, 397],
+   "etapas": [[112, 335], [60, 265], [112, 192], [60, 120], [87, 62]],
+   "dx": [20, 0, 0, 0, 0]
   },
   "agua": {
    "w": 168,

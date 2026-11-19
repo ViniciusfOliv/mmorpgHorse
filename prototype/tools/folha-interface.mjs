@@ -148,7 +148,7 @@ function etapa(id, i, estado) {
     (estado === 'feita' ? '<span class="etapa-motivo">Revanche de hoje feita. Volte amanhã.</span>' : '') +
     (e.lider && rev ? `<span class="etapa-insignia">${insigniaIcone(id)}</span>` : '');
   const mg = MAPA.mapa.ginasios[id], pos = mg.etapas[i], tid = treinadorId(e.nome), pe = MAPA.pes[tid] > 0 ? MAPA.pes[tid] : 61;
-  const vez = estado === 'proxima' || estado === 'revanche', dx = Math.min(Math.max(pos[0], 41), mg.w - 41) - pos[0];
+  const vez = estado === 'proxima' || estado === 'revanche', dx = Math.min(Math.max(pos[0], 41), mg.w - 41) - pos[0] + ((mg.dx && mg.dx[i]) || 0);
   const corpo = `<img class="mapa-figura" src="${TREINADORES[tid]}" alt="">` + (vez ? mapaImg('icone-marcador', 'mapa-pino') : '') + (estado === 'vencida' ? mapaImg('icone-vencido', 'mapa-selo') : '') +
     `<span class="mapa-placa"${dx ? ` style="--dx:${dx}"` : ''}>${estado === 'fechada' ? mapaImg('icone-cadeado', 'mapa-icone') : ''}${textos}</span>`;
   const caixa = estado === 'vencida' || estado === 'feita' ? `<div class="etapa-btn">${corpo}</div>`
