@@ -530,6 +530,52 @@ test('nenhuma chamada a Math.random nem ao relógio durante simulate', function 
   assert.ok(!usou);
 });
 
+test('linha do tempo: o item da skill traz o rank do evento; o balão mostra o rank em romano a partir do II', function () {
+  var hs = [comRank(BRASA, ['arranque'], { arranque: 3 }), comRank(MARE, ['arranque'], { arranque: 1 }), comRank(IPE, ['arranque'], { arranque: 5 })];
+  var racers = hs.map(function (h, i) { return { horse: h, name: 'r' + i, noTypeSkill: true, silks: CORES[i] }; });
+  var sim = S.simulate({ seed: 5, recordFrames: true, conditions: cl(PISTA_R), racers: racers });
+  var itens = FX.timeline(sim, racers).filter(function (it) { return it.kind === 'skill'; });
+  assert.deepStrictEqual(itens.map(function (it) { return it.rank; }), [3, 1, 5]);
+  assert.deepStrictEqual(itens.map(function (it) { return FX.linhasBalao(it, FX.BALAO.textoMax, 2); }), [['ARRANQUE III'], ['ARRANQUE'], ['ARRANQUE V']]);
+  assert.deepStrictEqual([1, 2, 3, 4, 5, 0, 6, '3', undefined].map(FX.rankRomano), ['', 'II', 'III', 'IV', 'V', '', '', '', '']);
+  assert.deepStrictEqual(itens.map(FX.rankMax), [false, false, true]);
+  // nome em duas linhas: o rank vai no fim da última; o balão cresce com o texto
+  var fm = { kind: 'skill', nome: 'Fôlego de Montanha', nomeCurto: 'FÔLEGO MONT.', rank: 4, t0: 0, escala: 1 };
+  assert.deepStrictEqual(FX.linhasBalao(fm, FX.BALAO.textoMax, 2), ['FÔLEGO DE', 'MONTANHA IV']);
+  assert.deepStrictEqual(FX.linhasBalao(fm, FX.BALAO.textoMax, 1), ['FÔLEGO MONT. IV']);
+  var semRank = { kind: 'skill', nome: 'Arranque', nomeCurto: 'ARRANQUE', rank: 1, t0: 0, escala: 1 }, com = { kind: 'skill', nome: 'Arranque', nomeCurto: 'ARRANQUE', rank: 3, t0: 0, escala: 1 };
+  assert.ok(FX.balloonSize(com, 0).w > FX.balloonSize(semRank, 0).w, 'sem linhas, o balão usa o nome curto com o rank');
+  assert.strictEqual(FX.balloonSize(com, 0, FX.linhasBalao(com, FX.BALAO.textoMax, 2)).w, FX.balloonSize(com, 0).w);
+  // a skill de tipo e a Garra não têm rank
+  assert.deepStrictEqual(FX.linhasBalao({ kind: 'skill', typeSkill: true, nome: 'Labareda', nomeCurto: 'LABAREDA', rank: 5 }, FX.BALAO.textoMax, 2), ['LABAREDA']);
+  assert.strictEqual(FX.rankMax({ kind: 'skill', typeSkill: true, rank: 5 }), false); assert.strictEqual(FX.rankMax({ kind: 'garra', rank: 5 }), false); assert.strictEqual(FX.rankMax(null), false);
+});
+test('rank V: o balão e o brilho ficam dourados; a duração do item segue o marco (Saída Rápida 8 s, Arrancada Final até a chegada)', function () {
+  var pintou = [];
+  var ctx = { globalAlpha: 1, set fillStyle(v) { this._f = v; }, get fillStyle() { return this._f; }, fillRect: function () { pintou.push(this._f); }, drawImage: function () {} };
+  function cores(rank) { pintou = []; FX.drawBalloon(ctx, 10, 10, 2, { kind: 'skill', nome: 'Sprint', nomeCurto: 'SPRINT', rank: rank, t0: 0, escala: 1, element: 'geral', cavalo: 'fogo', raia: 1, silks: '#d8353b' }, 0.5, 0); return pintou.slice(); }
+  var c4 = cores(4), c5 = cores(5);
+  assert.strictEqual(c5[0].toLowerCase(), '#f2c230', 'a moldura dourada é o primeiro retângulo');
+  assert.notStrictEqual(c4[0].toLowerCase(), '#f2c230', 'no rank IV o primeiro retângulo é o contorno escuro'); assert.strictEqual(c5[1], c4[0], 'depois da moldura, o contorno de sempre');
+  assert.ok(c5.indexOf('#ffe27a') >= 0 && c4.indexOf('#ffe27a') < 0, 'o texto do rank V é ouro claro');
+  var g4 = FX.glow({ kind: 'skill', rank: 4, t0: 0, t1: 5, escala: 1, element: 'geral', cavalo: 'agua' }, 1, true), g5 = FX.glow({ kind: 'skill', rank: 5, t0: 0, t1: 5, escala: 1, element: 'geral', cavalo: 'agua' }, 1, true);
+  assert.notStrictEqual(g5.cor, g4.cor); assert.ok(g5.alpha > g4.alpha);
+  // duração: o item do rank 5 dura o que o marco manda
+  var cond = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 300 }, { type: 'curva', from: 300, to: 500 }, { type: 'reta', from: 500, to: 1600 }] };
+  function dur(id, rank) {
+    var h = comRank(BRASA, [id], {}); h.skillRanks[id] = rank;
+    var racers = [{ horse: h, name: 'a', noTypeSkill: true }, { horse: cl(MARE), name: 'b', noTypeSkill: true }];
+    var sim = S.simulate({ seed: 9, recordFrames: true, conditions: cl(cond), racers: racers });
+    var it = FX.timeline(sim, racers).filter(function (x) { return x.kind === 'skill' && x.racer === 0; })[0];
+    return { d: it.t1 - it.t0, fim: sim.finishTimes[0], t0: it.t0 };
+  }
+  assert.ok(Math.abs(dur('saida-rapida', 4).d - Math.min(FX.BALAO.efeitoMax, G.SKILLS['saida-rapida'].effect.durationS)) < 1e-9);
+  assert.ok(Math.abs(dur('saida-rapida', 5).d - Math.min(FX.BALAO.efeitoMax, G.SKILLS['saida-rapida'].rank5.durationS)) < 1e-9);
+  var a4 = dur('arrancada-final', 4), a5 = dur('arrancada-final', 5);
+  assert.ok(Math.abs(a4.d - FX.BALAO.efeitoMin) < 1e-9, 'sem o marco, o efeito é instantâneo (vale o mínimo): ' + a4.d);
+  assert.ok(Math.abs(a5.d - Math.max(FX.BALAO.efeitoMin, Math.min(FX.BALAO.efeitoMax, a5.fim - a5.t0))) < 1e-6, 'com o marco, até a chegada (ou o teto): ' + a5.d);
+});
+
 section('balão e contorno (desenho com contexto falso)');
 // contexto que só registra fillRect/estilo: o suficiente para contar o que foi desenhado
 function ctxFalso() {

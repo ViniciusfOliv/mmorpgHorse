@@ -29,6 +29,7 @@
   --arte-item-redea: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAc0lEQVR4nGNgoDZg4+X6jw8T1NyV4oAX4zQEppmQC3AagleSGDVUMSDbS5ugATjVUGQALIBgktgMwakGxHj25iUKxmUAVnUwCZipsxYvwGsAhjqYBEgAhvEZgFUduv+ICUSSY4IYC1AUYsMENSMbQmxOBAACLNaHQ1zETwAAAABJRU5ErkJggg==);
   --arte-item-cupom: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAV0lEQVR4nGNgGBSAjZfrPzkYrllrxwayMNgQYgz4+PIKcQaAFOLDWA0gxht4NSMHJEl+xxYTZBuArhlXoBHlf1ICEmc0EuMCFAOMQ9zIwijeIDspDzgAAIGsiTp9B2zbAAAAAElFTkSuQmCC);
   --arte-item-manual: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAPklEQVR4nGNgoAZg4+X6Tw5GMSDIXOH/DVNrojHtDfh0yAAvfwgYANMEw/QPxCFqwMeXV4jGGAZQlBcGFAAAIxFyLVET1YcAAAAASUVORK5CYII=);
+  --arte-item-pergaminho: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAWklEQVR4nGNgoBZg4+X6TwrG0Pzx5RWSMIohIM7mQ5tIwlhdQbYXSPEKTs3IBgSZK2DFRBtAdReQbABVXQDi3zC1BmOyXADTDMN4oxAbxmYAyUkZ2QuDLykDAAUJnpPuDhP4AAAAAElFTkSuQmCC);
 }
 /* Layout: uma coluna central (até 520px) de painéis no estilo "programa de corrida";
    a pista quebra a coluna (sangra até a borda no celular, cresce até 1120px no desktop).
@@ -400,6 +401,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .item-icone--redea { background-image: var(--arte-item-redea); }
 .item-icone--cupom { background-image: var(--arte-item-cupom); }
 .item-icone--manual { background-image: var(--arte-item-manual); }
+.item-icone--pergaminho { background-image: var(--arte-item-pergaminho); }
 .item-nome { grid-column: 2; margin: 0; font-size: var(--t-m); line-height: 24px; overflow-wrap: anywhere; }
 .item-qtd { grid-column: 3; grid-row: 1; justify-self: end; font-weight: 700; line-height: 24px; white-space: nowrap; }
 .item-desc { grid-column: 2 / -1; margin: 0; font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }
@@ -738,8 +740,38 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .habilidade span { font-size: var(--t-s); color: var(--texto-2); }
 .habilidade .habilidade-quando { color: var(--texto); }
 .habilidade--garra { margin-top: 8px; }
-.skill-chance { font-size: var(--t-s); color: var(--texto-2); margin: 0 0 8px; }
-.skill-chance strong { color: var(--texto); }
+/* Rank das skills de vaga (aba Skills): o topo, as 5 marcas, a linha do próximo rank, o custo e o "Subir rank" */
+.rank-topo { justify-content: space-between; margin: 0 0 8px; color: var(--texto-2); }
+.rank-topo strong { color: var(--texto); }
+.rank-tem { display: inline-flex; align-items: center; gap: 4px; }
+.rank-tem .item-icone, .rank-perg .item-icone { width: 16px; height: 16px; flex: none; }
+.rank-marcas { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; }
+.habilidade .rank-marcas .rank-romano { min-width: 20px; margin-right: 3px; font-size: var(--t-s); font-weight: 700; color: var(--ouro); text-align: right; }
+.rank-pip { display: block; width: 7px; height: 7px; background: var(--painel-3); box-shadow: inset 0 0 0 1px var(--linha-luz); }
+.rank-pip--on { background: var(--ouro); box-shadow: inset 0 0 0 1px var(--ouro-escuro); }
+.rank-marcas--max .rank-pip--on { background: var(--ouro-claro); }
+.habilidade--max { box-shadow: inset 4px 0 0 0 var(--ouro-claro); }
+.habilidade .rank-prox { margin-top: 2px; padding-top: 4px; border-top: 1px solid var(--linha); color: var(--texto-2); }
+.habilidade .rank-prox b { color: var(--texto); font-weight: 600; }
+.habilidade .rank-prox .rank-marco, .rank-antes-depois .rank-marco { color: var(--ouro-claro); }
+.habilidade .rank-prox--max { color: var(--ouro-claro); }
+.skill-rank { grid-template-columns: minmax(0, 1fr); gap: 0; margin-bottom: 8px; }
+.skill-rank > .rank-acoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 8px; padding: 6px 10px 8px; background: var(--painel-2); box-shadow: inset 4px 0 0 0 var(--ouro-escuro); }
+.skill-rank > .motivo, .skill-rank > .nota { padding: 0 10px 6px; background: var(--painel-2); }
+.rank-custo { display: inline-flex; align-items: center; gap: 4px; margin-right: auto; font-size: var(--t-s); color: var(--texto); }
+.rank-perg { display: inline-flex; align-items: center; gap: 3px; }
+.rank-mais { color: var(--texto-3); }
+.rank-max-selo { font-size: var(--t-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ouro-claro); }
+.rank-passo .rank-de-para { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 8px; }
+.rank-passo .rank-de-para .rank-marcas { margin-left: 0; }
+.rank-passo .rank-romano { min-width: 20px; margin-right: 3px; font-weight: 700; color: var(--ouro); text-align: right; }
+.rank-antes-depois { display: grid; gap: 6px; margin: 0 0 8px; }
+.rank-antes-depois > div { background: var(--painel-2); padding: 6px 10px; }
+.rank-antes-depois dt { font-size: var(--t-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto-3); }
+.rank-antes-depois dd { margin: 0; font-size: var(--t-s); color: var(--texto); }
+.rank-custo-linha { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; }
+.rank-custo-linha .rank-custo { margin-right: 0; }
+.item-nota-uso { margin: 0; }
 
 .afinidade { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; font-size: var(--t-s); }
 .afinidade dt { color: var(--texto-3); font-weight: 600; text-transform: uppercase; font-size: 0.875rem; letter-spacing: 0.08em; padding-top: 2px; }
@@ -1564,16 +1596,15 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   //   ptsMult: fator da raridade nos pontos por nível (RaceSim.freePoints).
   //   skillSlots: nº máximo de habilidades; bornSkills: nº MÍNIMO ao nascer (o potro completa
   //   com skills compatíveis até esse número, limitado às vagas);
-  //   skillChance: chance base de ativar cada skill quando o gatilho acontece.
   //   baseLo: início da faixa de 16 pontos (RaceSim.TUNING.gBand) onde nasce cada status, conforme a
   //   genética: base = baseLo + 16 × g / 31 (nada cresce sozinho com o nível; o resto são pontos comprados).
   // ---------------------------------------------------------------------------
   var RARITIES = {
-    comum:    { id: 'comum',    name: 'Comum',    color: '#9e9e9e', ptsMult: 1.00, skillSlots: 1, bornSkills: 1, skillChance: 0.35, order: 0, baseLo: 40 },
-    magico:   { id: 'magico',   name: 'Mágico',   color: '#4caf50', ptsMult: 1.05, skillSlots: 2, bornSkills: 1, skillChance: 0.45, order: 1, baseLo: 44 },
-    raro:     { id: 'raro',     name: 'Raro',     color: '#2196f3', ptsMult: 1.10, skillSlots: 3, bornSkills: 2, skillChance: 0.55, order: 2, baseLo: 49 },
-    lendario: { id: 'lendario', name: 'Lendário', color: '#ff9800', ptsMult: 1.15, skillSlots: 4, bornSkills: 2, skillChance: 0.65, order: 3, baseLo: 54 },
-    mitico:   { id: 'mitico',   name: 'Mítico',   color: '#9c27b0', ptsMult: 1.20, skillSlots: 5, bornSkills: 3, skillChance: 0.75, order: 4, baseLo: 60 }
+    comum:    { id: 'comum',    name: 'Comum',    color: '#9e9e9e', ptsMult: 1.00, skillSlots: 1, bornSkills: 1, order: 0, baseLo: 40 },
+    magico:   { id: 'magico',   name: 'Mágico',   color: '#4caf50', ptsMult: 1.05, skillSlots: 2, bornSkills: 1, order: 1, baseLo: 44 },
+    raro:     { id: 'raro',     name: 'Raro',     color: '#2196f3', ptsMult: 1.10, skillSlots: 3, bornSkills: 2, order: 2, baseLo: 49 },
+    lendario: { id: 'lendario', name: 'Lendário', color: '#ff9800', ptsMult: 1.15, skillSlots: 4, bornSkills: 2, order: 3, baseLo: 54 },
+    mitico:   { id: 'mitico',   name: 'Mítico',   color: '#9c27b0', ptsMult: 1.20, skillSlots: 5, bornSkills: 3, order: 4, baseLo: 60 }
   };
 
   // ---------------------------------------------------------------------------
@@ -1598,7 +1629,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     piso: 'Piso mais pesado tira velocidade e gasta mais fôlego; a Força ajuda a perder menos.',
     dado: 'Duas vezes por corrida, quem tira o maior dado puxa o clima para o seu elemento. Sorte alta rola dois dados.',
     custo: 'O custo de cada ponto sobe a cada 10 pontos comprados no mesmo status. Os pontos que sobram ficam guardados para depois.',
-    redea: 'Devolve todos os pontos para você distribuir de novo. A primeira de cada cavalo é grátis; depois gasta 1 Rédea nova.'
+    redea: 'Devolve todos os pontos para você distribuir de novo. A primeira de cada cavalo é grátis; depois gasta 1 Rédea nova.',
+    rank: 'Skill de vaga ativa sempre. O rank (I a V) dá +15% de efeito por passo e, no V, um marco. Sobe com Ouro e Pergaminhos de técnica, sem falhar e sem volta.'
   };
 
   var STAT_KEYS = ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
@@ -1672,89 +1704,119 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   //     blockScoped: vale uma vez por bloco (curva/subida), não uma vez por corrida;
   //     staminaRestore: recupera fração do tanque (instantâneo);
   //     garraChanceBonus / garraBoostBonus: reforça a arrancada de Garra;
-  //     extraDice: dados extras; weatherDouble: o bônus do clima vira T.weatherMultDouble (×1,08 no lugar de ×1,03).
+  //     extraDice: dados extras no Dado da Sorte (cada um de 1 até SKILL_RANKS.diceTeto do rank);
+  //     weatherBonus: soma ao bônus do clima do próprio elemento (×1,03 → ×(1,03 + bônus)).
+  //   Os valores de effect são os do RANK 1; RaceSim.skillEffect(id, rank) dá os do rank (escala SKILL_RANKS.step
+  //   só na parte de bônus; duração e distância não crescem).
+  //   rank5: o marco do rank 5, somado ao efeito já escalado. durationS, lowStaminaAt (gatilho do Segundo Ar),
+  //     minStraightM (reta mínima do Sprint) e extraDice substituem; multiplicadores se multiplicam; staminaRestore
+  //     soma; exitRestore: recupera ao sair da subida; weatherLingerS: o reforço do clima dura mais N s depois
+  //     de o clima mudar; untilFinish: o efeito vale até a chegada.
   //   short (opcional): nome de até 12 letras para o balão da corrida (só apresentação, não é regra).
   //   element: 'geral' (qualquer tipo aprende) ou o tipo que aprende.
   // ---------------------------------------------------------------------------
+  // Ranks das skills de vaga (por cavalo, em horse.skillRanks): 1 a max. O fator do rank r é 1 + step × (r − 1).
+  // custo[r]: Ouro e Pergaminhos de técnica para subir de r para r + 1 (sem sorteio). diceTeto[r − 1]: até quanto
+  // rola o dado extra do Dado Viciado.
+  var SKILL_RANKS = {
+    max: 5, step: 0.15,
+    custo: { 1: { ouro: 150, perg: 1 }, 2: { ouro: 400, perg: 2 }, 3: { ouro: 900, perg: 4 }, 4: { ouro: 2000, perg: 7 } },
+    diceTeto: [60, 70, 80, 90, 100]
+  };
   var SKILLS = {
     // --- Gerais (qualquer tipo) ---
     'arranque': {
       id: 'arranque', name: 'Arranque', element: 'geral', trigger: 'start',
-      desc: 'Largada explosiva: +18% de aceleração nos primeiros 100 m.',
-      effect: { accelMult: 1.18, distanceM: 100 }
+      desc: 'Largada explosiva: +10,8% de aceleração nos primeiros 100 m.',
+      effect: { accelMult: 1.108, distanceM: 100 },
+      rank5: { speedMult: 1.03 }
     },
     'sprint': {
       id: 'sprint', name: 'Sprint', element: 'geral', trigger: 'straight',
-      desc: 'Numa reta de 150 m ou mais (fora a da largada): +6% de velocidade por 150 m.',
-      effect: { speedMult: 1.06, drainMult: 1.0, distanceM: 150 }
+      desc: 'Numa reta de 150 m ou mais (fora a da largada): +4% de velocidade por 150 m.',
+      effect: { speedMult: 1.04, distanceM: 150 },
+      rank5: { minStraightM: 100 }
     },
     'drift': {
       id: 'drift', name: 'Drift', element: 'geral', trigger: 'curve',
-      desc: 'Em cada curva: +2,5% de rendimento na curva.',
-      effect: { curveBonus: 0.025, blockScoped: true }
+      desc: 'Em cada curva: +1,3% de rendimento na curva.',
+      effect: { curveBonus: 0.013, blockScoped: true },
+      rank5: { drainMult: 0.85 }
     },
     'saida-rapida': {
       id: 'saida-rapida', name: 'Saída Rápida', element: 'geral', trigger: 'curveExit',
-      desc: 'Ao sair da curva: +40% de aceleração e +6% de velocidade por 6s.',
-      effect: { accelMult: 1.4, speedMult: 1.06, durationS: 6 }
+      desc: 'Ao sair da curva: +32% de aceleração e +4,5% de velocidade por 6s.',
+      effect: { accelMult: 1.32, speedMult: 1.045, durationS: 6 },
+      rank5: { durationS: 8 }
     },
     'folego-de-montanha': {
       id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'geral', trigger: 'hill',
-      desc: 'Em cada subida: gasta 80% menos estamina extra da subida.',
-      effect: { hillDrainMult: 0.2, blockScoped: true }
+      desc: 'Em cada subida: gasta 60% menos estamina extra da subida.',
+      effect: { hillDrainMult: 0.4, blockScoped: true },
+      rank5: { exitRestore: 0.03 }
     },
     'segundo-ar': {
       id: 'segundo-ar', name: 'Segundo Ar', element: 'geral', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 30%, recupera 15% e ganha +5% de velocidade por 8s.',
-      effect: { staminaRestore: 0.15, speedMult: 1.05, durationS: 8 }
+      desc: 'Quando a estamina cai a 30%, recupera 10% e ganha +3% de velocidade por 8s.',
+      effect: { staminaRestore: 0.1, speedMult: 1.03, durationS: 8 },
+      rank5: { lowStaminaAt: 0.35 }
     },
     'arrancada-final': {
       id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'geral', trigger: 'final',
-      desc: 'Na reta final: +15% de chance de Garra e +3% de força na arrancada.',
-      effect: { garraChanceBonus: 0.15, garraBoostBonus: 0.03 }
+      desc: 'Na reta final: +10% de chance de Garra e +2% de força na arrancada.',
+      effect: { garraChanceBonus: 0.1, garraBoostBonus: 0.02 },
+      rank5: { speedMult: 1.02, untilFinish: true }
     },
     'dado-viciado': {
       id: 'dado-viciado', name: 'Dado Viciado', element: 'geral', trigger: 'dice',
-      desc: 'Uma tentativa por corrida, antes do 1º Dado da Sorte: se ativar, rola 1 dado extra em todos os Dados da corrida.',
-      effect: { extraDice: 1 }
+      desc: 'Antes do 1º Dado da Sorte: rola 1 dado extra, de 1 a 60, em todos os Dados da corrida.',
+      effect: { extraDice: 1 },
+      rank5: { extraDice: 2 }
     },
     // --- Fogo ---
     'sol-a-pino': {
       id: 'sol-a-pino', name: 'Sol a Pino', element: 'fogo', trigger: 'weather:sol',
-      desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +8%.',
-      effect: { weatherDouble: true }
+      desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +7%.',
+      effect: { weatherBonus: 0.04 },
+      rank5: { weatherLingerS: 15 }
     },
     'chama-final': {
       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
-      desc: 'Na reta final, +5% de velocidade por 9,5s.',
-      effect: { speedMult: 1.05, durationS: 9.5 }
+      desc: 'Na reta final: +4% de velocidade por 9,5s.',
+      effect: { speedMult: 1.04, durationS: 9.5 },
+      rank5: { durationS: 12 }
     },
     // --- Água ---
     'pe-na-chuva': {
       id: 'pe-na-chuva', name: 'Pé na Chuva', element: 'agua', trigger: 'weather:chuva',
-      desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +8%.',
-      effect: { weatherDouble: true }
+      desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +7%.',
+      effect: { weatherBonus: 0.04 },
+      rank5: { weatherLingerS: 15 }
     },
     'canto-da-iara': {
       id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
-      desc: 'Na reta final, +6% de velocidade por 9s e gasta 30% menos estamina.',
-      effect: { speedMult: 1.06, drainMult: 0.7, durationS: 9 }
+      desc: 'Na reta final: +4% de velocidade e 20% menos gasto de estamina por 9s.',
+      effect: { speedMult: 1.04, drainMult: 0.8, durationS: 9 },
+      rank5: { staminaRestore: 0.05 }
     },
     'nascente': {
       id: 'nascente', name: 'Nascente', element: 'agua', trigger: 'straight',
-      desc: 'Numa reta de 150 m ou mais (fora a da largada), recupera 12% de estamina.',
-      effect: { staminaRestore: 0.12 }
+      desc: 'Numa reta de 150 m ou mais (fora a da largada): recupera 4,5% de estamina.',
+      effect: { staminaRestore: 0.045 },
+      rank5: { speedMult: 1.03, durationS: 4 }
     },
     // --- Grama ---
     'nevoa-amiga': {
       id: 'nevoa-amiga', name: 'Névoa Amiga', element: 'grama', trigger: 'weather:nevoa',
-      desc: 'Com névoa: o bônus do clima para a Grama sobe de +3% para +8%.',
-      effect: { weatherDouble: true }
+      desc: 'Com névoa: o bônus do clima para a Grama sobe de +3% para +7%.',
+      effect: { weatherBonus: 0.04 },
+      rank5: { weatherLingerS: 15 }
     },
     'casco-firme': {
       id: 'casco-firme', name: 'Casco Firme', element: 'grama', trigger: 'hill',
-      desc: 'Em cada subida: +2% de rendimento na subida.',
-      effect: { hillBonus: 0.02, blockScoped: true }
+      desc: 'Em cada subida: +1,2% de rendimento na subida.',
+      effect: { hillBonus: 0.012, blockScoped: true },
+      rank5: { hillDrainMult: 0.7 }
     }
   };
 
@@ -1986,7 +2048,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       enhanceChance: [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25],
       enhanceCost: [1, 1, 1, 1, 1, 1, 2, 2, 2, 2],
       enhanceDropFrom: 6,
-      setBonus: { pieces: [3, 4, 5], skillChance: 0.05, sorte: 5, ratingPts: [3, 15, 20] },
+      setBonus: { pieces: [3, 4, 5], skillEffect: 0.05, sorte: 5, ratingPts: [3, 15, 20] },
       podiumStone: [0.6, 0.4, 0.25],
       startGear: ['sela-comum', 'ferraduras-comum']
     }
@@ -2026,9 +2088,17 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       id: 'manual', name: 'Manual de doma', plural: 'Manuais de doma', price: 200, perDay: 1, chance: 0.35,
       desc: 'O cavalo tenta aprender uma skill na hora; o manual é gasto mesmo se ele não aprender.',
       origem: 'Compre na loja, ganhe no 4º dia da recompensa diária ou nos ginásios.'
+    },
+    // Pergaminho de técnica: só se ganha jogando (nunca na loja: sem price; nunca por Gemas; nunca em treino).
+    //   cap: o teto na mochila; podio: chance de cair no 1º, 2º e 3º lugar de uma corrida valendo (Itens.pergaminhoPodio,
+    //   pela seed da sala). Não se usa pela mochila: é gasto, com Ouro, ao subir o rank de uma skill (SKILL_RANKS.custo).
+    pergaminho: {
+      id: 'pergaminho', name: 'Pergaminho de técnica', plural: 'Pergaminhos de técnica', cap: 99, podio: [0.5, 0.3, 0.15],
+      desc: 'Sobe o rank de uma skill do cavalo, junto com Ouro, na aba Skills.',
+      origem: 'Cai no pódio das corridas valendo e vem nos ginásios; não está à venda.'
     }
   };
-  // A ordem dos produtos na loja: fixa, a da spec §6 (não segue o preço); só itens com price. A mochila mostra os cinco
+  // A ordem dos produtos na loja: fixa, a da spec §6 (não segue o preço); só itens com price. A mochila mostra todos
   // na ordem das chaves de ITEMS.
   var SHOP_ORDER = ['torrao', 'manual', 'cupom', 'estrela'];
   // Teto da mochila por item (Torrão, Estrela, Cupom, Manual); a Rédea nova tem o teto dela no save (999).
@@ -2075,12 +2145,14 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     return { distance: at, surface: surface, blocks: blocks };
   }
   // As cinco etapas (mesmos níveis, entradas e prêmios nos três; spec §4).
+  // premio.pergaminhos: Pergaminhos de técnica a mais na 1ª vitória (a revanche não dá: o rodízio não muda).
+  // rank: o rank de todas as skills de vaga dos cavalos da etapa (fixo, sem sorteio; a revanche usa o do líder).
   var GYM_ETAPAS = [
-    { id: 'soldado-1', lider: false, level: 4, entrada: 20, premio: { ouro: 80, itens: [] } },
-    { id: 'soldado-2', lider: false, level: 8, entrada: 30, premio: { ouro: 120, itens: ['torrao'] } },
-    { id: 'soldado-3', lider: false, level: 12, entrada: 40, premio: { ouro: 160, itens: [] } },
-    { id: 'soldado-4', lider: false, level: 16, entrada: 50, premio: { ouro: 200, itens: ['manual'] } },
-    { id: 'lider', lider: true, level: 20, entrada: 100, premio: { ouro: 400, itens: ['redea', 'cupom'] } }
+    { id: 'soldado-1', lider: false, level: 4, rank: 1, entrada: 20, premio: { ouro: 80, itens: [] } },
+    { id: 'soldado-2', lider: false, level: 8, rank: 1, entrada: 30, premio: { ouro: 120, itens: ['torrao'], pergaminhos: 1 } },
+    { id: 'soldado-3', lider: false, level: 12, rank: 1, entrada: 40, premio: { ouro: 160, itens: [] } },
+    { id: 'soldado-4', lider: false, level: 16, rank: 2, entrada: 50, premio: { ouro: 200, itens: ['manual'], pergaminhos: 1 } },
+    { id: 'lider', lider: true, level: 20, rank: 2, entrada: 100, premio: { ouro: 400, itens: ['redea', 'cupom'], pergaminhos: 3 } }
   ];
   // Os cavalos de todas as etapas têm a genética do inicial do elemento (base); graus: as estrelas de cada cavalo,
   // por etapa (o tamanho de cada lista é o tamanho do time).
@@ -2090,8 +2162,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       etapas: GYM_ETAPAS.map(function (e, i) {
         return {
           id: e.id, nome: e.lider ? lider : soldados[i], lider: e.lider,
-          cavalos: graus[i].map(function (gr) { return { base: base, level: e.level, grau: gr }; }),
-          entrada: e.entrada, premio: { ouro: e.premio.ouro, itens: e.premio.itens.slice() }
+          cavalos: graus[i].map(function (gr) { return { base: base, level: e.level, grau: gr, rank: e.rank }; }),
+          entrada: e.entrada, premio: { ouro: e.premio.ouro, itens: e.premio.itens.slice(), pergaminhos: e.premio.pergaminhos || 0 }
         };
       }),
       insignia: { icone: 'ins-' + id, name: insignia }
@@ -2182,6 +2254,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     WEATHERS: WEATHERS,
     BLOCK_TYPES: BLOCK_TYPES,
     SKILLS: SKILLS,
+    SKILL_RANKS: SKILL_RANKS,
     GEAR_SLOTS: GEAR_SLOTS,
     GEAR_SLOT_INFO: GEAR_SLOT_INFO,
     GEAR_SETS: GEAR_SETS,
@@ -2242,7 +2315,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
  *   n(x) = status/100. allocInfo(horse): { free, used (custo gasto), left, perStat, next (custo do
  *   próximo ponto), room (quantos pontos ainda cabem) }.
  *   powerRating = round(2,5·VEL + 2,0·ACE + 2,2·MAN + 2,4·FOR + 2,4·EST + 1,5·GAR + 0·SOR
- *   + 14 × peso do gatilho (skillWeight) por skill + 20·(nível−1)/49 + 28·ordemDaRaridade/4); ligas em GameData.LEAGUES.
+ *   + 14 × peso do gatilho (skillWeight) × fator do rank (rankScale) por skill + 20·(nível−1)/49 + 28·ordemDaRaridade/4); ligas em GameData.LEAGUES.
  *   weightedAlloc(horse, w, from): um ponto por vez no status de menor (a+1)/w que ainda cabe.
  *   botAlloc(horse, from): weightedAlloc com T.botW[tipo] (os seis valem 1; × 1,2 nos dois status do tipo);
  *   sem RNG; com `from` continua a distribuição do jogador ("Distribuir sugerido").
@@ -2251,9 +2324,9 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
  *   inválido ou fora da faixa vale 1 (a corrida é a de sempre).
  *   entry.statAdd (gancho de teste do balance.js, como noTypeSkill): soma ao status, preso a 1–150.
  *
- * CLIMA (sol / chuva / nevoa / nublado). weatherMult(elemento, clima, dobrado):
- *   dono do clima ×1,03 (T.weatherMult; ×1,08 = T.weatherMultDouble com a skill de clima
- *   ativa), elemento penalizado ×0,97 (2 − weatherMult), resto e Nublado ×1.
+ * CLIMA (sol / chuva / nevoa / nublado). weatherMult(elemento, clima, bônus):
+ *   dono do clima ×1,03 (T.weatherMult; com a skill de clima ativa, × (1,03 + weatherBonus do rank)),
+ *   elemento penalizado ×0,97 (2 − weatherMult), resto e Nublado ×1.
  *   applyWeather(r, clima) recalcula, com m = weatherMult e o clima somado a n: nc(x) = n(x) + (m−1)·0,5
  *   (o mesmo efeito do inicial em qualquer nível):
  *     vMax  = (19.0 + 1.13*nc(vel)) * (1 + 0.10*(m-1))   (weatherVel: um extra direto na vMax)
@@ -2314,15 +2387,24 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
  *   Sucesso: teto ×(1.02 + 0.26*nc(garra) + bônus de skill) até a chegada. Evento 'garra'.
  *   garraInfo(horse, bonus) dá esses três números para a tela, sem clima (a ficha do cavalo, aba Skills).
  *
- * SKILLS (gatilhos e efeitos em data.js). Quando o gatilho acontece, UMA tentativa contra
- *   skillChance = min(0.95, raridade.skillChance + 0.005*(level−1) + 0.001*sorte)
- *   (por corrida; por bloco se effect.blockScoped). Gatilhos: start (largada), straight (entrou
- *   numa reta ≥150 m que não é a da largada), curve, curveExit, hill (entrou no bloco),
- *   lowStamina (estamina ≤30%), final (início da arrancada, garraFrom), dice (uma tentativa por corrida, antes do 1º Dado da Sorte),
+ * SKILLS (gatilhos e efeitos em data.js). Quando o gatilho acontece, a skill ATIVA SEMPRE, sem sorteio e sem
+ *   consumir a RNG, uma vez por gatilho (por corrida; por bloco se effect.blockScoped). Gatilhos: start (largada),
+ *   straight (entrou numa reta ≥150 m que não é a da largada), curve, curveExit, hill (entrou no bloco),
+ *   lowStamina (estamina ≤30%), final (início da arrancada, garraFrom), dice (antes do 1º Dado da Sorte),
  *   weather:<clima> (checado a cada tick com o clima vigente). Chaves de effect: accelMult,
  *   speedMult, drainMult (por distanceM ou durationS), curveBonus, hillBonus, hillDrainMult
  *   (até o fim do bloco), staminaRestore, garraChanceBonus, garraBoostBonus, extraDice,
- *   weatherDouble. O equipamento (Gear.resolve) não entra na corrida por enquanto. Evento 'skill'.
+ *   weatherBonus. O equipamento (Gear.resolve) não entra na corrida por enquanto. Evento 'skill' (com `rank`).
+ *   RANK (por cavalo, horse.skillRanks = { id: 1..5 }; rankOf: ausente ou inválido = 1): o efeito de cada skill é
+ *   skillEffect(id, rank, entry.skillScale), com o fator s(r) = 1 + 0,15·(r − 1) (rankScale) só na parte de bônus:
+ *   multiplicador que ajuda 1 + (m − 1)·s; de gasto 1 − (1 − m)·s (piso 0,05); bônus somado, recuperação e reforço
+ *   do clima b·s; o dado extra do Dado Viciado rola de 1 até SKILL_RANKS.diceTeto[r − 1]. Duração e distância não
+ *   crescem. No rank 5 entra o marco (SKILLS[id].rank5): Arranque também velocidade; Sprint em reta ≥100 m; Drift
+ *   gasta menos na curva; Saída Rápida e Chama Final duram mais; Fôlego de Montanha recupera ao sair da subida;
+ *   Segundo Ar dispara com 35%; Arrancada Final também velocidade até a chegada; Dado Viciado 2 dados extras;
+ *   skills de clima: o multiplicador reforçado continua por 15 s depois de o clima mudar; Canto da Iara recupera
+ *   ao ativar; Nascente também velocidade; Casco Firme gasta menos na subida. entry.skillScale (1 a 1,1; fora da
+ *   faixa vale 1) multiplica o fator do rank (o bônus de 3 peças do conjunto, suspenso, passaria 1,05).
  *   Ao subir de nível (learnSkill(mount, rng, bonus), fora da corrida): aprende se rng() < T.learnChance + bonus
  *   (bonus opcional de 0 a 0,2, a insígnia da Grama; ausente ou inválido vale 0, e a ordem das chamadas não muda).
  *
@@ -2341,7 +2423,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
  *
  * DADO DA SORTE: quando o líder cruza 1/3 e 2/3 de D (T.diceAt), todos rolam (inclusive quem
  *   já chegou), no fluxo próprio do Dado. rollDice: d1 = 1..100; Sorte = chance de rolar um
- *   segundo dado ((sorte − 40)/40) e ficar com o melhor; Dado Viciado soma um dado extra (até 3).
+ *   segundo dado ((sorte − 40)/40) e ficar com o melhor; Dado Viciado soma um dado extra de 1 até o teto do rank
+ *   (2 extras de 1 a 100 no rank 5; até 4 dados).
  *   Maior dado vence; empate no topo => re-rola só os empatados. O clima vira o do elemento do
  *   vencedor (Fogo sol, Água chuva, Grama névoa); se já for esse (ou o elemento for desconhecido),
  *   o clima "segura". Eventos 'dado' { at, rolls, winner, weather, changed } e, se virou, 'clima'.
@@ -2354,23 +2437,18 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
  *   (pos === distance => chegou) e a velocidade cai a 0 em ~2 s. Simula até TODOS
  *   chegarem. config.recordFrames === false pula os frames (usado no balance.js).
  *
- * MODO DEV (opcional): config.dev = { skillsAlways: true } faz toda tentativa de skill ativar. O
- *   r.rng() da tentativa continua sendo chamado (os fluxos não se deslocam); só a comparação com a
- *   chance é ignorada. Sem config.dev (ou com skillsAlways falso), o resultado é exatamente o de sempre.
- *
  * RESULTADO: { seed, simVersion (RaceSim.VERSION), tuningHash (impressão digital do TUNING e dos
  *   dados de skills/raridades/clima usados), conditions (iniciais normalizadas), weatherFinal (clima
  *   depois dos Dados), dt, duration, frames, events, finishOrder, finishTimes,
- *   racerInfo[i] = { name, horseName, stats, skillChance, typeSkill: { id, name, from, to } (metros) | null } }.
+ *   racerInfo[i] = { name, horseName, stats, skillRanks: { id: rank }, typeSkill: { id, name, from, to } (metros) | null } }.
  *
  * ENTRADAS MALFORMADAS: level e potencial passam por sanitizeLevel/sanitizePotential (Number;
- *   não finito vale 1 / 0; level inteiro 1–50, potencial 0–31), em computeStats e skillChance;
+ *   não finito vale 1 / 0; level inteiro 1–50, potencial 0–31), em computeStats;
  *   grau por starsOf (não numérico vale 2, fora da faixa é preso a 1–3); alloc por validAlloc.
  *
  * ORDEM DAS CHAMADAS DE r.rng() (fluxo de cada corredor; manter estável):
- *   montagem: 1) startDelay, 2) jockeyErr; por tick: 3) tentativas de skill (só quando um
- *   gatilho acontece), 4) sorteio da Garra (uma vez, em garraFrom), 5) jitter; depois do movimento,
- *   quando o Dado vai rolar: tentativa do gatilho 'dice'. A skill de tipo não chama r.rng().
+ *   montagem: 1) startDelay, 2) jockeyErr; por tick: 3) sorteio da Garra (uma vez, em garraFrom), 4) jitter.
+ *   As skills (de vaga e de tipo) não chamam r.rng().
  *   Detalhes junto de buildRacer.
  * ============================================================================
  *
@@ -2389,7 +2467,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
 
   // Versão das regras da simulação: suba a cada mudança que altere resultados (exposta como
   // RaceSim.VERSION e gravada em cada resultado como simVersion, junto do tuningHash).
-  var VERSION = '3.1.0';
+  var VERSION = '4.0.0';
 
   // Constantes de balanceamento (ajustadas por tools/balance.js). Exposto como RaceSim.TUNING.
   var T = {
@@ -2465,8 +2543,6 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       agua:  { vel: 1, acel: 1, man: 1, forca: 1, est: 1.2, garra: 1.2 },
       grama: { vel: 1, acel: 1, man: 1.2, forca: 1.2, est: 1, garra: 1 }
     },
-    // chance de a skill disparar no gatilho: base da raridade + nível + sorte (teto 95%)
-    skillPerLevel: 0.005, skillPerSorte: 0.001, skillChanceMax: 0.95,
     learnChance: 0.08,   // chance de aprender uma skill nova ao subir de nível
     // eventos
     leadMinP: 0.12, leadConfirmS: 1.5, leadMinGapS: 4.0,
@@ -2526,7 +2602,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   }
   // Impressão digital das regras: FNV-1a de 32 bits (duas bases, 16 hex) sobre o JSON do TUNING, dos
   // pesos de gatilho e dos dados de jogo que a simulação lê (skills: gatilho e efeito; raridades:
-  // início da faixa de nascimento, multiplicador de pontos, chance de skill e ordem; skills de tipo: terço e efeito; elementos,
+  // início da faixa de nascimento, multiplicador de pontos e ordem; ranks das skills; skills de tipo: terço e efeito; elementos,
   // pisos e climas; level máximo). Recalculada a cada
   // simulate (o TUNING pode ser trocado em teste/ajuste); um servidor pode guardar o par
   // simVersion + tuningHash para auditar corridas antigas depois de um rebalanceamento.
@@ -2545,8 +2621,9 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   function tuningHash() {
     var str = JSON.stringify({
       T: T, w: SKILL_TRIGGER_WEIGHT,
-      skills: pick(GameData.SKILLS, ['element', 'trigger', 'effect']),
-      rarities: pick(GameData.RARITIES, ['ptsMult', 'baseLo', 'skillChance', 'order']),
+      skills: pick(GameData.SKILLS, ['element', 'trigger', 'effect', 'rank5']),
+      ranks: GameData.SKILL_RANKS,
+      rarities: pick(GameData.RARITIES, ['ptsMult', 'baseLo', 'order']),
       elements: pick(GameData.ELEMENTS, ['weather']),
       typeSkills: pick(GameData.TYPE_SKILLS, ['zone', 'effect']),
       surfaces: pick(GameData.SURFACES, ['slow', 'drain']),
@@ -2563,7 +2640,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   // ---------------------------------------------------------------------------
   // Status
   // ---------------------------------------------------------------------------
-  // Saneamento único de level e potencial (computeStats, skillChance): vira número; não finito
+  // Saneamento único de level e potencial (computeStats): vira número; não finito
   // vale o mínimo; level inteiro em 1–maxLevel, potencial em 0–31.
   function sanitizeLevel(v) {
     var x = Number(v);
@@ -2704,7 +2781,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   }
 
   // Rating de Poder: soma ponderada dos status + habilidades + nível e raridade (sem equipamento).
-  // Cada habilidade vale T.ratingSkillPts (14) × o peso do seu gatilho; nível e raridade somam
+  // Cada habilidade vale T.ratingSkillPts (14) × o peso do seu gatilho × o fator do rank dela (rankScale; o marco
+  // do rank 5 não soma à parte); nível e raridade somam
   // T.ratingLevel·(nível − 1)/49 + T.ratingRar·ordem/4 (o mesmo para os três tipos).
   // Para curva, subida e estamina baixa o peso segue a
   // chance de o gatilho acontecer numa corrida típica; clima (0.8) e dice (0.2) são pesos calibrados no
@@ -2720,11 +2798,120 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     if (trig.indexOf('weather:') === 0) trig = 'weather';
     return SKILL_TRIGGER_WEIGHT[trig] != null ? SKILL_TRIGGER_WEIGHT[trig] : 1;
   }
-  // Chance de uma skill disparar quando o gatilho acontece.
-  function skillChance(horse, stats, bonus) {
-    var rar = rarityOf(horse);
-    var c = rar.skillChance + T.skillPerLevel * (sanitizeLevel(horse.level) - 1) + T.skillPerSorte * ((stats && stats.sorte) || 0) + (bonus || 0);
-    return Math.min(T.skillChanceMax, c);
+  // ---------------------------------------------------------------------------
+  // Ranks das skills de vaga (GameData.SKILL_RANKS): por cavalo, em horse.skillRanks = { id: 1..5 }.
+  // ---------------------------------------------------------------------------
+  // Fator do rank: 1 + step × (r − 1). Número fora de 1..max é preso à faixa; o que não é número vale 1.
+  function rankScale(r) {
+    var K = GameData.SKILL_RANKS;
+    var n = (typeof r === 'number' && isFinite(r)) ? clamp(Math.floor(r), 1, K.max) : 1;
+    return 1 + K.step * (n - 1);
+  }
+  // Rank de uma skill do cavalo: inteiro de 1 a max; ausente ou inválido vale 1.
+  function rankOf(horse, id) {
+    var v = horse && horse.skillRanks ? horse.skillRanks[id] : null;
+    return (typeof v === 'number' && v % 1 === 0 && v >= 1 && v <= GameData.SKILL_RANKS.max) ? v : 1;
+  }
+  // Efeito de uma skill num rank: objeto novo (não muta GameData.SKILLS). O fator f = rankScale(rank) × extraScale
+  // age só na parte de bônus: multiplicador que ajuda 1 + (m − 1)·f; multiplicador de gasto 1 − (1 − m)·f (piso 0,05);
+  // bônus somado, recuperação e reforço de clima b·f. Duração e distância não mudam. O Dado Viciado ganha diceTeto
+  // (o teto do dado extra, pelo rank). No rank máximo entra o marco (SKILLS[id].rank5): durationS, lowStaminaAt,
+  // minStraightM, exitRestore, weatherLingerS, untilFinish e extraDice substituem; multiplicadores se multiplicam;
+  // staminaRestore e os bônus somados somam.
+  var RANK_MULT_UP = { speedMult: 1, accelMult: 1 }, RANK_MULT_DOWN = { drainMult: 1, hillDrainMult: 1 };
+  var RANK_ADD = { curveBonus: 1, hillBonus: 1, garraChanceBonus: 1, garraBoostBonus: 1, staminaRestore: 1, weatherBonus: 1 };
+  function skillEffect(id, rank, extraScale) {
+    var sk = GameData.SKILLS[id];
+    if (!sk) return {};
+    var K = GameData.SKILL_RANKS, base = sk.effect || {}, out = {};
+    var r = (typeof rank === 'number' && isFinite(rank)) ? clamp(Math.floor(rank), 1, K.max) : 1;
+    var x = (typeof extraScale === 'number' && extraScale >= 1 && extraScale <= 1.1) ? extraScale : 1;
+    var f = rankScale(r) * x;
+    Object.keys(base).forEach(function (k) {
+      var v = base[k];
+      if (RANK_MULT_UP[k]) out[k] = 1 + (v - 1) * f;
+      else if (RANK_MULT_DOWN[k]) out[k] = Math.max(0.05, 1 - (1 - v) * f);
+      else if (RANK_ADD[k]) out[k] = v * f;
+      else out[k] = v;
+    });
+    if (out.extraDice) out.diceTeto = K.diceTeto[r - 1];
+    if (r >= K.max && sk.rank5) {
+      Object.keys(sk.rank5).forEach(function (k) {
+        var v = sk.rank5[k];
+        if (RANK_MULT_UP[k] || RANK_MULT_DOWN[k]) out[k] = (out[k] == null ? 1 : out[k]) * v;
+        else if (RANK_ADD[k]) out[k] = (out[k] || 0) + v;
+        else out[k] = v;
+      });
+    }
+    return out;
+  }
+  // Rank dos bots de uma sala: a média arredondada dos ranks das skills de vaga do cavalo do jogador (1 sem skill),
+  // sem sorteio. A sala espelha o investimento do jogador.
+  function botRank(horse) {
+    var ids = ((horse && horse.skills) || []).filter(function (id) { return !!GameData.SKILLS[id]; });
+    if (!ids.length) return 1;
+    var soma = 0;
+    ids.forEach(function (id) { soma += rankOf(horse, id); });
+    return clamp(Math.round(soma / ids.length), 1, GameData.SKILL_RANKS.max);
+  }
+  // Cópia do cavalo com todas as skills de vaga no rank dado (bots da sala, oponentes dos ginásios, testes).
+  function withRanks(horse, rank) {
+    var h = JSON.parse(JSON.stringify(horse)), K = GameData.SKILL_RANKS;
+    var r = (typeof rank === 'number' && isFinite(rank)) ? clamp(Math.floor(rank), 1, K.max) : 1;
+    h.skillRanks = {};
+    (h.skills || []).forEach(function (id) { if (GameData.SKILLS[id]) h.skillRanks[id] = r; });
+    return h;
+  }
+  // Texto da skill com os números do rank (a desc de GameData.SKILLS é a do rank 1; o sim-test confere).
+  function pctBr(x) { var v = Math.round(x * 1000) / 10; return String(v).replace('.', ',') + '%'; }
+  function numBr(x) { return String(Math.round(x * 10) / 10).replace('.', ','); }
+  function skillDesc(id, rank, extraScale) {
+    var sk = GameData.SKILLS[id];
+    if (!sk) return '';
+    var e = skillEffect(id, rank, extraScale);
+    var up = function (m) { return '+' + pctBr(m - 1); }, cut = function (m) { return pctBr(1 - m); };
+    var reta = 'Numa reta de ' + (e.minStraightM || T.straightMinM) + ' m ou mais (fora a da largada): ';
+    switch (id) {
+      case 'arranque': return 'Largada explosiva: ' + up(e.accelMult) + ' de aceleração' + (e.speedMult ? ' e ' + up(e.speedMult) + ' de velocidade' : '') + ' nos primeiros ' + e.distanceM + ' m.';
+      case 'sprint': return reta + up(e.speedMult) + ' de velocidade por ' + e.distanceM + ' m.';
+      case 'drift': return 'Em cada curva: +' + pctBr(e.curveBonus) + ' de rendimento na curva' + (e.drainMult ? ' e ' + cut(e.drainMult) + ' menos gasto de estamina' : '') + '.';
+      case 'saida-rapida': return 'Ao sair da curva: ' + up(e.accelMult) + ' de aceleração e ' + up(e.speedMult) + ' de velocidade por ' + numBr(e.durationS) + 's.';
+      case 'folego-de-montanha': return 'Em cada subida: gasta ' + cut(e.hillDrainMult) + ' menos estamina extra da subida' + (e.exitRestore ? ' e, ao sair dela, recupera ' + pctBr(e.exitRestore) : '') + '.';
+      case 'segundo-ar': return 'Quando a estamina cai a ' + pctBr(e.lowStaminaAt || T.lowStaminaAt) + ', recupera ' + pctBr(e.staminaRestore) + ' e ganha ' + up(e.speedMult) + ' de velocidade por ' + numBr(e.durationS) + 's.';
+      case 'arrancada-final': return 'Na reta final: +' + pctBr(e.garraChanceBonus) + ' de chance de Garra e +' + pctBr(e.garraBoostBonus) + ' de força na arrancada' + (e.speedMult ? ', e ' + up(e.speedMult) + ' de velocidade até a chegada' : '') + '.';
+      case 'dado-viciado': return 'Antes do 1º Dado da Sorte: rola ' + (e.extraDice > 1 ? e.extraDice + ' dados extras' : '1 dado extra') + ', de 1 a ' + e.diceTeto + ', em todos os Dados da corrida.';
+      case 'sol-a-pino': case 'pe-na-chuva': case 'nevoa-amiga':
+        var cl = { 'sol-a-pino': ['sol', 'o Fogo'], 'pe-na-chuva': ['chuva', 'a Água'], 'nevoa-amiga': ['névoa', 'a Grama'] }[id];
+        return 'Com ' + cl[0] + ': o bônus do clima para ' + cl[1] + ' sobe de ' + up(T.weatherMult) + ' para ' + up(T.weatherMult + e.weatherBonus) +
+          (e.weatherLingerS ? ' e continua por ' + e.weatherLingerS + 's depois que o clima muda' : '') + '.';
+      case 'chama-final': return 'Na reta final: ' + up(e.speedMult) + ' de velocidade por ' + numBr(e.durationS) + 's.';
+      case 'canto-da-iara': return 'Na reta final: ' + up(e.speedMult) + ' de velocidade e ' + cut(e.drainMult) + ' menos gasto de estamina por ' + numBr(e.durationS) + 's' + (e.staminaRestore ? ', e recupera ' + pctBr(e.staminaRestore) + ' de estamina ao ativar' : '') + '.';
+      case 'nascente': return reta + 'recupera ' + pctBr(e.staminaRestore) + ' de estamina' + (e.speedMult ? ' e ganha ' + up(e.speedMult) + ' de velocidade por ' + numBr(e.durationS) + 's' : '') + '.';
+      case 'casco-firme': return 'Em cada subida: +' + pctBr(e.hillBonus) + ' de rendimento na subida' + (e.hillDrainMult ? ' e gasta ' + cut(e.hillDrainMult) + ' menos estamina extra' : '') + '.';
+    }
+    return sk.desc;
+  }
+
+  // O marco do rank 5 de uma skill, numa frase (com os números de SKILLS[id].rank5).
+  function skillMarcoDesc(id) {
+    var sk = GameData.SKILLS[id], m = sk && sk.rank5, e = sk && sk.effect;
+    if (!m) return '';
+    var up = function (x) { return '+' + pctBr(x - 1); }, cut = function (x) { return pctBr(1 - x); };
+    switch (id) {
+      case 'arranque': return 'também ' + up(m.speedMult) + ' de velocidade nos mesmos ' + e.distanceM + ' m';
+      case 'sprint': return 'dispara também em retas de ' + m.minStraightM + ' m ou mais';
+      case 'drift': return 'na curva, também gasta ' + cut(m.drainMult) + ' menos estamina';
+      case 'saida-rapida': case 'chama-final': return 'dura ' + numBr(m.durationS) + 's em vez de ' + numBr(e.durationS) + 's';
+      case 'folego-de-montanha': return 'ao sair da subida, recupera ' + pctBr(m.exitRestore) + ' de estamina';
+      case 'segundo-ar': return 'dispara com ' + pctBr(m.lowStaminaAt) + ' de estamina em vez de ' + pctBr(T.lowStaminaAt);
+      case 'arrancada-final': return 'também ' + up(m.speedMult) + ' de velocidade até a chegada';
+      case 'dado-viciado': return m.extraDice + ' dados extras, os dois de 1 a ' + GameData.SKILL_RANKS.diceTeto[GameData.SKILL_RANKS.max - 1];
+      case 'sol-a-pino': case 'pe-na-chuva': case 'nevoa-amiga': return 'o reforço continua por ' + m.weatherLingerS + 's depois que o clima muda';
+      case 'canto-da-iara': return 'também recupera ' + pctBr(m.staminaRestore) + ' de estamina ao ativar';
+      case 'nascente': return 'também ' + up(m.speedMult) + ' de velocidade por ' + numBr(m.durationS) + 's';
+      case 'casco-firme': return 'na subida, também gasta ' + cut(m.hillDrainMult) + ' menos estamina extra';
+    }
+    return '';
   }
   // A Garra de um cavalo, para a tela (fora da corrida, sem clima): onde a arrancada começa (fração da pista), a chance e
   // o teto da velocidade se ela der certo. As contas são as da corrida (buildRacer e derive): se a arrancada começa dentro
@@ -2775,7 +2962,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   function powerRating(horse) {
     var s = computeStats(horse);
     var skillPts = 0;
-    (horse.skills || []).forEach(function (id) { skillPts += T.ratingSkillPts * skillWeight(id); });
+    (horse.skills || []).forEach(function (id) { skillPts += T.ratingSkillPts * skillWeight(id) * rankScale(rankOf(horse, id)); });
     var w = T.ratingW, sum = 0;
     for (var i = 0; i < STAT_KEYS.length; i++) sum += s[STAT_KEYS[i]] * w[STAT_KEYS[i]];
     // nível e raridade (skill de tipo, chance de skill): termos próprios, iguais para os três tipos
@@ -2965,13 +3152,14 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     return nthRoot(x, T.drainExp - 1);
   }
 
-  // Multiplicador de clima de um elemento: dono do clima => T.weatherMult (T.weatherMultDouble
-  // com skill de clima ativa); elemento penalizado => 2 - T.weatherMult (0,97); senão 1.
-  function weatherMult(element, weather, doubled) {
+  // Multiplicador de clima de um elemento: dono do clima => T.weatherMult + bonus (o reforço da skill de clima
+  // ativa, weatherBonus do rank; `true` = T.weatherMultDouble, o reforço das 4 peças do conjunto, hoje suspenso:
+  // os dois não acumulam, vale o maior); elemento penalizado => 2 - T.weatherMult (0,97); senão 1.
+  function weatherMult(element, weather, bonus) {
     var w = GameData.WEATHERS[weather];
     var el = GameData.ELEMENTS[element];
     if (!w || !el) return 1;
-    if (el.weather === weather) return doubled ? T.weatherMultDouble : T.weatherMult;
+    if (el.weather === weather) return bonus === true ? T.weatherMultDouble : T.weatherMult + (typeof bonus === 'number' && bonus > 0 ? bonus : 0);
     if (w.penalizes === element) return 2 - T.weatherMult;
     return 1;
   }
@@ -2979,7 +3167,9 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   // (Re)calcula os números do corredor que dependem do clima. Pode ser chamada de novo no meio da
   // corrida (troca de clima, skill que reforça o bônus, bônus de Garra): só lê statsN e os totais.
   function applyWeather(r, weather) {
-    var m = weatherMult(r.element, weather, r.weatherDouble);
+    // marco das skills de clima (weatherLingerS): depois que o clima muda, o multiplicador reforçado continua
+    // valendo até r.lingerUntil (o laço da corrida limpa e chama applyWeather de novo)
+    var m = r.lingerUntil != null ? r.lingerM : weatherMult(r.element, weather, r.weatherBonus);
     r.weatherM = m;
     derive(r, r, m, null);
     // skill de tipo com statMul: no seu terço, os dois status do tipo valem × (1 + mul) (valores em r.Z)
@@ -3004,10 +3194,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
 
   // Ordem das chamadas de r.rng() (fluxo próprio de cada corredor; manter estável):
   //   montagem: 1) startDelay, 2) jockeyErr;
-  //   por tick: 3) tentativas de skill (só quando um gatilho acontece; na ordem dos gatilhos
-  //   start/bloco/clima/lowStamina/final e, dentro de cada gatilho, na ordem da lista de skills),
-  //   4) sorteio da Garra (uma vez, ao cruzar r.garraFrom), 5) jitter.
-  //   A skill de tipo não consome a RNG.
+  //   por tick: 3) sorteio da Garra (uma vez, ao cruzar r.garraFrom), 4) jitter.
+  //   As skills de vaga e a skill de tipo não consomem a RNG (a ativação não é sorteada).
   function buildRacer(entry, index, cond, rng) {
     var horse = entry.horse;
     // o equipamento não entra na corrida (por enquanto). entry.statMul (vantagem de elemento do ginásio): 0,9–1,1,
@@ -3031,6 +3219,13 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     var statsN = {};
     for (var i = 0; i < STAT_KEYS.length; i++) statsN[STAT_KEYS[i]] = stats[STAT_KEYS[i]] / 100;
     var skills = (horse.skills || []).filter(function (id) { return !!GameData.SKILLS[id]; });
+    // efeito pronto de cada skill, pelo rank do cavalo (entry.skillScale: 1–1,1, o bônus de 3 peças do conjunto)
+    var skillFx = {}, skillRanks = {}, lowAt = -1;
+    skills.forEach(function (id) {
+      skillRanks[id] = rankOf(horse, id);
+      skillFx[id] = skillEffect(id, skillRanks[id], entry.skillScale);
+      if (GameData.SKILLS[id].trigger === 'lowStamina') lowAt = Math.max(lowAt, skillFx[id].lowStaminaAt || T.lowStaminaAt);
+    });
     var r = {
       index: index,
       name: entry.name || horse.name,
@@ -3038,12 +3233,14 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       element: horse.element,
       stats: stats,
       statsN: statsN,
-      skillChance: skillChance(horse, stats, 0),
+      skillFx: skillFx,
+      skillRanks: skillRanks,
+      lowAt: lowAt,
       pool: T.poolBase + T.poolEst * statsN.est,   // tanque fixo (sem clima)
       garraBonusTotal: 0,
       garraBoostBonusTotal: 0,
-      weatherDouble: false,
-      extraDice: 0,
+      weatherBonus: 0, weatherLingerS: 0, lingerUntil: null, lingerM: 1,
+      extraDice: 0, diceTeto: 100,
       startDelay: rng() * T.startDelayMax * (1 - T.startAcelK * clamp(statsN.acel, 0, T.startAcelMax)),
       jockeyErr: T.jockeyErrMin + rng() * (T.jockeyErrMax - T.jockeyErrMin),
       rng: rng,
@@ -3084,13 +3281,15 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   // Dado da Sorte de uma montaria. Ordem das chamadas de rng() (manter estável): d1, sorteio do
   // 2º dado (sempre consumido, mesmo com sorte 0 ou 100), d2 (se houver), dado extra (Dado Viciado).
   // Chance de rolar o 2º dado e ficar com o melhor = (sorte − sorteDiceLo)/(sorteDiceFull − sorteDiceLo), presa a
-  // 0–1 (Sorte 40 → 0, 60 → 0,5, 80 ou mais → 1); extraDice limitado a 1 (até 3 dados).
-  function rollDice(rng, sorte, extraDice) {
+  // 0–1 (Sorte 40 → 0, 60 → 0,5, 80 ou mais → 1); extraDice limitado a 2 (até 4 dados); cada dado extra rola de 1 a
+  // diceTeto (inteiro de 1 a 100; ausente ou inválido vale 100).
+  function rollDice(rng, sorte, extraDice, diceTeto) {
     var dice = [1 + Math.floor(rng() * 100)];
     var p = clamp(((sorte || 0) - T.sorteDiceLo) / (T.sorteDiceFull - T.sorteDiceLo), 0, 1);
     if (rng() < p) dice.push(1 + Math.floor(rng() * 100));
-    var extra = clamp(Math.floor(extraDice || 0), 0, 1);
-    for (var k = 0; k < extra; k++) dice.push(1 + Math.floor(rng() * 100));
+    var extra = clamp(Math.floor(extraDice || 0), 0, 2);
+    var teto = (typeof diceTeto === 'number' && diceTeto >= 1 && diceTeto <= 100) ? Math.floor(diceTeto) : 100;
+    for (var k = 0; k < extra; k++) dice.push(1 + Math.floor(rng() * teto));
     var best = dice[0];
     for (k = 1; k < dice.length; k++) if (dice[k] > best) best = dice[k];
     return { dice: dice, best: best };
@@ -3108,7 +3307,6 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     var n = entries.length;
     var dt = T.dt;
     var record = config.recordFrames !== false;
-    var skillsAlways = !!(config.dev && config.dev.skillsAlways);   // modo DEV (ver o cabeçalho)
     var surf = GameData.SURFACES[cond.surface];
     // efeitos gerais do clima vigente (recalculados quando o Dado vira o clima)
     var weatherDrain, weatherSlow;
@@ -3146,23 +3344,20 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     }
     pushFrame(0);
 
-    // Uma tentativa por gatilho (por corrida; por bloco se blockScoped): sorteia contra r.skillChance.
+    // O gatilho aconteceu: a skill ativa, sem sorteio. Uma vez por gatilho (por corrida; por bloco se blockScoped).
+    // O efeito é o do rank do cavalo (r.skillFx, montado em buildRacer).
     function tryFire(r, id, t, pos, blockTo) {
       var sk = GameData.SKILLS[id];
-      var e = sk.effect || {};
+      var e = r.skillFx[id] || {};
       var key = e.blockScoped ? id + '#' + r.blockIdx : id;
       if (r.tried[key]) return;
       r.tried[key] = true;
-      // o número é sempre sorteado (a ordem das chamadas não muda); com config.dev.skillsAlways
-      // (só o modo DEV) a skill ativa mesmo que ele saia acima da chance
-      var roll = r.rng();
-      if (!(roll < r.skillChance) && !skillsAlways) return;
       if (e.staminaRestore && !r.exhausted) r.stamina = Math.min(1, r.stamina + e.staminaRestore);
-      if (e.extraDice) r.extraDice += e.extraDice;
+      if (e.extraDice) { r.extraDice = Math.max(r.extraDice, e.extraDice); r.diceTeto = e.diceTeto || 100; }
       var reweather = false;
       if (e.garraChanceBonus) { r.garraBonusTotal += e.garraChanceBonus; reweather = true; }
       if (e.garraBoostBonus) { r.garraBoostBonusTotal += e.garraBoostBonus; reweather = true; }
-      if (e.weatherDouble) { r.weatherDouble = true; reweather = true; }
+      if (e.weatherBonus) { r.weatherBonus = Math.max(r.weatherBonus, e.weatherBonus); r.weatherLingerS = e.weatherLingerS || 0; reweather = true; }
       if (reweather) applyWeather(r, cond.weatherAtual);
       if (e.speedMult || e.accelMult || e.drainMult || e.curveBonus || e.hillBonus || e.hillDrainMult) {
         r.effects.push({
@@ -3176,13 +3371,27 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
           hillDrainMult: e.hillDrainMult || 1
         });
       }
-      ev(t, r.index, 'skill', r.label + ' ativou ' + sk.name + '!');
+      events.push({ t: r2(t), racer: r.index, type: 'skill', text: r.label + ' ativou ' + sk.name + '!', rank: r.skillRanks[id] || 1 });
     }
 
-    // Tenta todas as skills do corredor com o gatilho dado (na ordem da lista).
-    function trigger(r, trig, t, pos, blockTo) {
+    // Ativa todas as skills do corredor com o gatilho dado (na ordem da lista). `val` é a medida do gatilho, comparada
+    // com o limite da própria skill (que o marco do rank 5 pode mudar): o comprimento da reta ('straight': precisa de
+    // minStraightM, senão T.straightMinM) ou a estamina ('lowStamina': até lowStaminaAt, senão T.lowStaminaAt).
+    function trigger(r, trig, t, pos, blockTo, val) {
       for (var s = 0; s < r.skills.length; s++) {
-        if (GameData.SKILLS[r.skills[s]].trigger === trig) tryFire(r, r.skills[s], t, pos, blockTo);
+        var id = r.skills[s];
+        if (GameData.SKILLS[id].trigger !== trig) continue;
+        var fx = r.skillFx[id];
+        if (trig === 'straight' && val < (fx.minStraightM || T.straightMinM)) continue;
+        if (trig === 'lowStamina' && val > (fx.lowStaminaAt || T.lowStaminaAt)) continue;
+        tryFire(r, id, t, pos, blockTo);
+      }
+    }
+    // Saída da subida: a skill de subida que ativou nesse bloco e tem exitRestore (marco do Fôlego de Montanha) recupera.
+    function hillExit(r, bloco) {
+      for (var s = 0; s < r.skills.length; s++) {
+        var fx = r.skillFx[r.skills[s]];
+        if (fx.exitRestore && r.tried[r.skills[s] + '#' + bloco] && !r.exhausted) r.stamina = Math.min(1, r.stamina + fx.exitRestore);
       }
     }
 
@@ -3220,14 +3429,16 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
           r.blockIdx = bi;
           var bTo = blocks[bi].to;
           if (prevB >= 0 && blocks[prevB].type === 'curva') trigger(r, 'curveExit', tPrev, pos, bTo);
+          else if (prevB >= 0 && blocks[prevB].type === 'subida') hillExit(r, prevB);
           if (blocks[bi].type === 'curva') trigger(r, 'curve', tPrev, pos, bTo);
           else if (blocks[bi].type === 'subida') trigger(r, 'hill', tPrev, pos, bTo);
-          else if (bi > 0 && blocks[bi].to - blocks[bi].from >= T.straightMinM) trigger(r, 'straight', tPrev, pos, bTo);
+          else if (bi > 0) trigger(r, 'straight', tPrev, pos, bTo, blocks[bi].to - blocks[bi].from);
         }
         var blk = blocks[r.blockIdx];
         // clima (checado a cada tick: pode passar a valer quando o clima mudar)
+        if (r.lingerUntil != null && tPrev >= r.lingerUntil) { r.lingerUntil = null; applyWeather(r, cond.weatherAtual); }
         trigger(r, 'weather:' + cond.weatherAtual, tPrev, pos, blk.to);
-        if (r.stamina <= T.lowStaminaAt && !r.exhausted) trigger(r, 'lowStamina', tPrev, pos, blk.to);
+        if (r.stamina <= r.lowAt && !r.exhausted) trigger(r, 'lowStamina', tPrev, pos, blk.to, r.stamina);
         if (p >= r.garraFrom) trigger(r, 'final', tPrev, pos, blk.to);   // reta final = início da arrancada do cavalo
 
         // skill de tipo: entrada no terço (uma vez): recupera estamina (se não estiver exausto) e narra
@@ -3339,11 +3550,11 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       var maxPos = 0;
       for (i = 0; i < n; i++) if (R[i].pos > maxPos) maxPos = R[i].pos;
       while (n > 0 && diceIdx < diceAt.length && maxPos >= diceAt[diceIdx] * D) {
-        // gatilho 'dice' (Dado Viciado): tenta no fluxo do próprio corredor, antes de rolar
+        // gatilho 'dice' (Dado Viciado): ativa antes de rolar (sem sorteio)
         for (i = 0; i < n; i++) trigger(R[i], 'dice', t, R[i].pos, null);
         var rolls = [], cands = [];
         for (i = 0; i < n; i++) {
-          var rd = rollDice(diceRng, R[i].stats.sorte, R[i].extraDice);
+          var rd = rollDice(diceRng, R[i].stats.sorte, R[i].extraDice, R[i].diceTeto);
           rolls.push({ racer: i, dice: rd.dice, best: rd.best, rerolls: 0 });
           cands.push(i);
         }
@@ -3360,7 +3571,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
           cands = tied;
           for (q = 0; q < cands.length; q++) {
             var ro = rolls[cands[q]];
-            var rr = rollDice(diceRng, R[cands[q]].stats.sorte, R[cands[q]].extraDice);
+            var rr = rollDice(diceRng, R[cands[q]].stats.sorte, R[cands[q]].extraDice, R[cands[q]].diceTeto);
             ro.dice = rr.dice; ro.best = rr.best; ro.rerolls++;
           }
         }
@@ -3369,9 +3580,17 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         var novo = (wEl && wEl.weather) || cond.weatherAtual;
         var changed = novo !== cond.weatherAtual;
         if (changed) {
+          var antigo = cond.weatherAtual;
           cond.weatherAtual = novo;
           setWeatherGlobals(novo);
-          for (i = 0; i < n; i++) applyWeather(R[i], novo);
+          for (i = 0; i < n; i++) {
+            // marco das skills de clima: quem estava com o reforço ativo no clima do seu elemento segura o
+            // multiplicador reforçado por weatherLingerS segundos; se o clima voltar a ser o dele, o prazo acaba
+            var rw = R[i], dono = GameData.ELEMENTS[rw.element] && GameData.ELEMENTS[rw.element].weather;
+            if (dono === novo) rw.lingerUntil = null;
+            else if (dono === antigo && rw.weatherBonus > 0 && rw.weatherLingerS > 0 && rw.lingerUntil == null) { rw.lingerUntil = t + rw.weatherLingerS; rw.lingerM = rw.weatherM; }
+            applyWeather(rw, novo);
+          }
         }
         events.push({
           t: r2(t), racer: win, type: 'dado', at: diceAt[diceIdx], rolls: rolls, winner: win,
@@ -3438,7 +3657,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     // Extra (fora do contrato mínimo): resumo por corredor para dicas na UI.
     var racerInfo = R.map(function (r) {
       return {
-        name: r.name, horseName: r.horseName, stats: r.stats, skillChance: r.skillChance,
+        name: r.name, horseName: r.horseName, stats: r.stats, skillRanks: r.skillRanks,
         typeSkill: r.typeSkill ? { id: r.typeSkill.id, name: r.typeSkill.name, from: r.typeSkill.from, to: r.typeSkill.to } : null
       };
     });
@@ -3490,7 +3709,13 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     typeSkill: typeSkill,
     powerRating: powerRating,
     botAlloc: botAlloc,
-    skillChance: skillChance,
+    rankScale: rankScale,
+    rankOf: rankOf,
+    skillEffect: skillEffect,
+    skillDesc: skillDesc,
+    skillMarcoDesc: skillMarcoDesc,
+    botRank: botRank,
+    withRanks: withRanks,
     garraInfo: garraInfo,
     weatherMult: weatherMult,
     learnSkill: learnSkill,
@@ -3552,6 +3777,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
  *   4. sexo (1 chamada: < 0,5 ⇒ fêmea)
  *   5. genética: 2 chamadas por chave de STAT_KEYS, nos dois ramos. 1ª = porta (< potInherit ⇒ herda).
  *      Herda: 2ª escolhe o pai (< 0,5 ⇒ égua). Não herda: 2ª é o valor floor(rng()·32).
+ *      (o rank de cada skill do potro, skillRanks, sai sem chamada: herdada = rank do pai − 1, mínimo 1; sorteada = 1)
  *   6. skills: se corcel com 1 pai só (g=1): 1 chamada (< 0,5 ⇒ g=2); depois min(g, candidatas) chamadas
  *      de índice (garantidas, sem reposição); 1 chamada (< skillInherit) por candidata restante, na
  *      ordem égua→garanhão; corte em skillSlots; preenchimento até bornSkills: 1 chamada de índice cada.
@@ -3882,9 +4108,22 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     for (id in G.SKILLS) {
       if (Object.prototype.hasOwnProperty.call(G.SKILLS, id) && compatible(id, element) && inherited.indexOf(id) < 0) pool.push(id);
     }
+    var herdadas = inherited.length;   // daqui para a frente, só as sorteadas para completar o mínimo
     while (inherited.length < R.bornSkills && pool.length) {
       idx = Math.floor(rng() * pool.length);
       inherited.push(pool.splice(idx, 1)[0]);
+    }
+    // rank das skills (sem chamada de rng): a herdada fica um rank abaixo do pai que a tem (o maior, se os dois
+    // têm; mínimo 1); a sorteada para completar o mínimo nasce no rank 1
+    var skillRanks = {};
+    for (i = 0; i < inherited.length; i++) {
+      var rk = 1;
+      if (i < herdadas) {
+        var rf = (f.skills || []).indexOf(inherited[i]) >= 0 ? S.rankOf(f, inherited[i]) : 0;
+        var rm = (m.skills || []).indexOf(inherited[i]) >= 0 ? S.rankOf(m, inherited[i]) : 0;
+        rk = Math.max(1, Math.max(rf, rm) - 1);
+      }
+      skillRanks[inherited[i]] = rk;
     }
 
     // 7. nome
@@ -3904,7 +4143,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
 
     return {
       uid: 'm' + opts.nextUid, templateId: null, name: name, especie: 'cavalo', element: element, rarity: rarity, grau: grau, sex: sex,
-      level: 1, xp: 0, skills: inherited, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
+      level: 1, xp: 0, skills: inherited, skillRanks: skillRanks, potential: potential, palette: palette, breedLeft: G.BREED_LEFT[sex],
       parents: { f: { uid: f.uid || null, name: f.name }, m: { uid: m.uid || null, name: m.name } },
       born: breedCounter,
       marcas: rollMarcas(opts),
@@ -4397,13 +4636,13 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
  *
  * OBJETO RESOLVIDO (resolve e botGear):
  *   { mods: { vel, acel, man, forca, est, garra, sorte },        // sempre as 7 chaves
- *     special: { skillChanceBonus, weatherDoubleClimate, ignoreWeatherPenalty },
+ *     special: { skillEffectBonus, weatherDoubleClimate, ignoreWeatherPenalty },
  *     set: { id, count },                                         // id null e count 0 sem peças de conjunto
  *     pieces: [{ slot, uid, id, plus }] }                         // ordem de GEAR_SLOTS, só peças válidas
  * Cada peça soma main + plus × plusStep (0,5) no status principal do slot e sub no secundário; os mods
  * podem ser fracionários (RaceSim.computeStats arredonda uma vez só, no fim).
  * Conjunto = o que tem mais peças (empate: ordem sol/chuva/nevoa). Bônus acumulam:
- *   >= 3: sorte +5 e skillChanceBonus 0,05 · >= 4: weatherDoubleClimate = set.id (o bônus do clima
+ *   >= 3: sorte +5 e skillEffectBonus 0,05 (o efeito das skills × 1,05: entry.skillScale da corrida) · >= 4: weatherDoubleClimate = set.id (o bônus do clima
  *   sobe para ×1,07 só se a montaria for do elemento dono do clima do conjunto; para os outros não
  *   muda nada) · >= 5: ignoreWeatherPenalty.
  *
@@ -4438,7 +4677,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   function resolve(mount, itemsByUid) {
     var mods = {};
     G.STAT_KEYS.forEach(function (k) { mods[k] = 0; });
-    var special = { skillChanceBonus: 0, weatherDoubleClimate: null, ignoreWeatherPenalty: false };
+    var special = { skillEffectBonus: 0, weatherDoubleClimate: null, ignoreWeatherPenalty: false };
     var pieces = [];
     var counts = {};
     var equip = (mount && mount.equip) || {};
@@ -4462,7 +4701,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       if ((counts[id] || 0) > count) { setId = id; count = counts[id]; }
     });
     var sb = EG.setBonus;
-    if (count >= sb.pieces[0]) { mods.sorte += sb.sorte; special.skillChanceBonus = sb.skillChance; }
+    if (count >= sb.pieces[0]) { mods.sorte += sb.sorte; special.skillEffectBonus = sb.skillEffect; }
     if (count >= sb.pieces[1]) special.weatherDoubleClimate = setId;
     if (count >= sb.pieces[2]) special.ignoreWeatherPenalty = true;
     return { mods: mods, special: special, set: { id: setId, count: count }, pieces: pieces };
@@ -4565,10 +4804,17 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
  *   - trocarSkill(mount, skillId, seedBase, contador): UMA chamada, a escolha da candidata
  *     (cands[floor(rng() · n)], cands = RaceSim.skillCandidates(mount)). Sem sortear, devolve null se
  *     skillId não está nas vagas (ou não é skill do catálogo, como a de tipo) ou se não há candidata.
+ *     Devolve também skillRanks (a que sai é apagada, a que entra fica no rank 1) e rankPerdido.
  *   - tentarDoma(mount, seedBase, contador): 1) aprende se rng() < GameData.ITEMS.manual.chance;
  *     2) só se aprendeu, a candidata (cands[floor(rng() · n)]). Sem sortear, devolve null se as vagas
  *     estão cheias ou se não há candidata.
  *   - O contador é o de usos sorteados do save: quem chama grava o contador novo junto com o resultado.
+ *   - pergaminhoPodio(seed, place): UMA chamada por lugar, rng = mulberry32(hash2(seed, SAL_PERGAMINHO + place)),
+ *     com a seed DA SALA (não a do save), só se place é 1, 2 ou 3 (senão devolve 0 sem sortear). Sai 1 se
+ *     rng() < GameData.ITEMS.pergaminho.podio[place − 1]. Quem chama só chama em corrida valendo, na liquidação.
+ *     SAL_PERGAMINHO = 0x50450000 ("PE"): com a seed da sala só se usam índice do corredor + 1, 0xC0FFEE (mapa),
+ *     0xD1CE (Dado), 0xA11CE (sala), 0xB1AC + lugar (Pedra Negra) e 0x4A4F0000 + raia (jóquei).
+ *   - subirRank e podeSubirRank não sorteiam (a subida de rank nunca falha).
  *   - Nenhuma outra função sorteia.
  * SAL: hash2(seedBase, x) já é usado com x = contador da sala (buildLobby), nº do páreo × 100 + nível
  *   (applyXp), 0xE4A0 + contador (melhoria) e 0xB0B0 / 0x4D410000 / 0x504F0000 + contador (cruza). Todos
@@ -4601,6 +4847,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     ? require('./sim.js') : root.RaceSim;
 
   var SAL = 0x49540000;
+  var SAL_PERGAMINHO = 0x50450000;
   var DIA_MAX = Math.floor(Date.UTC(9999, 11, 31) / 86400000);   // diaLocal(9999, 11, 31): o maior dia guardado
   var I = G.ITEMS, D = G.DAILY;
   // os que têm limite por dia (perDay), lidos do catálogo a cada uso (hoje: torrao, manual, cupom): item novo com perDay
@@ -4633,10 +4880,12 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     semCandidata: 'Não há skill nova que este cavalo possa aprender.',
     vagasCheias: 'As vagas de skill deste cavalo estão cheias.',
     semCavalo: 'Escolha um cavalo para usar este item.',
+    pergaminho: 'O Pergaminho de técnica é gasto ao subir o rank de uma skill, na aba Skills do cavalo.',
     outro: 'Este item não se usa por aqui.'
   };
   // ctx = { tem: quantos o jogador tem, ativaComSala: o cavalo é o ativo e há sala aberta }
   function podeUsar(id, mount, ctx) {
+    if (id === 'pergaminho') return { ok: false, motivo: MOTIVO.pergaminho };
     if (id !== 'torrao' && id !== 'estrela' && id !== 'cupom' && id !== 'manual') return { ok: false, motivo: MOTIVO.outro };
     if (!mount || typeof mount !== 'object') return { ok: false, motivo: MOTIVO.semCavalo };
     var c = ctx || {};
@@ -4665,7 +4914,11 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     var entra = cands[Math.floor(sorteio(seedBase, contador)() * cands.length)];
     var novas = skills.slice();
     novas[pos] = entra;
-    return { sai: skillId, entra: entra, skills: novas };
+    // rank: o da skill que sai é perdido (rankPerdido, para o aviso) e a que entra começa no rank 1
+    var ranks = sanearRanks(skills, mount.skillRanks), perdido = ranks[skillId];
+    delete ranks[skillId];
+    ranks[entra] = 1;
+    return { sai: skillId, entra: entra, skills: novas, skillRanks: ranks, rankPerdido: perdido };
   }
 
   function tentarDoma(mount, seedBase, contador) {
@@ -4674,9 +4927,65 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     var cands = S.skillCandidates(mount);
     if (!cands.length) return null;
     var rng = sorteio(seedBase, contador);
-    if (rng() >= I.manual.chance) return { aprendeu: null, skills: skills.slice() };
+    var ranks = sanearRanks(skills, mount.skillRanks);
+    if (rng() >= I.manual.chance) return { aprendeu: null, skills: skills.slice(), skillRanks: ranks };
     var id = cands[Math.floor(rng() * cands.length)];
-    return { aprendeu: id, skills: skills.concat([id]) };
+    ranks[id] = 1;   // a skill aprendida entra no rank 1
+    return { aprendeu: id, skills: skills.concat([id]), skillRanks: ranks };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Rank das skills de vaga (por cavalo: mount.skillRanks = { id: 1..max }). Números em GameData.SKILL_RANKS.
+  // ---------------------------------------------------------------------------------------------
+  // Os ranks coerentes com a lista de skills: uma chave por skill do catálogo que o cavalo tem; inteiro de 1 ao máximo
+  // fica, qualquer outra coisa (ausente, 0, 7, "3", NaN) vale 1; rank de skill que o cavalo não tem some.
+  function sanearRanks(skills, ranks) {
+    var out = {}, r = objeto(ranks), max = G.SKILL_RANKS.max;
+    (Array.isArray(skills) ? skills : []).forEach(function (id) {
+      if (typeof id !== 'string' || !temChave(G.SKILLS, id)) return;
+      var v = r && temChave(r, id) ? r[id] : 1;
+      out[id] = inteiro(v) && v >= 1 && v <= max ? v : 1;
+    });
+    return out;
+  }
+  function milhar(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+  // ctx = { ouroLivre: Ouro fora do reservado para a entrada da sala aberta, ouro: o saldo todo (opcional; separa
+  // "falta Ouro" de "o Ouro está reservado"), pergaminhos: quantos há na mochila, salaAbertaAtivo: o cavalo é o ativo e
+  // há páreo aberto } -> { ok, motivo?, custo?: { ouro, perg }, rank }. Não sorteia: subir rank nunca falha.
+  function podeSubirRank(mount, skillId, ctx) {
+    var skills = skillsDe(mount), c = ctx || {};
+    if (skills.indexOf(skillId) < 0 || !temChave(G.SKILLS, skillId)) return { ok: false, motivo: 'Este cavalo não tem essa skill nas vagas.' };
+    var rank = sanearRanks(skills, mount.skillRanks)[skillId];
+    if (rank >= G.SKILL_RANKS.max) return { ok: false, motivo: 'Rank máximo', rank: rank };
+    var custo = { ouro: G.SKILL_RANKS.custo[rank].ouro, perg: G.SKILL_RANKS.custo[rank].perg };
+    if (c.salaAbertaAtivo) return { ok: false, motivo: 'Com o páreo aberto, o cavalo ativo não sobe rank', custo: custo, rank: rank };
+    if (!(Number(c.ouroLivre) >= custo.ouro)) {
+      var reservado = Number(c.ouro) >= custo.ouro;
+      return { ok: false, motivo: reservado ? 'O Ouro guardado para a entrada do páreo aberto não entra (precisa de ' + milhar(custo.ouro) + ' livres)' : 'Falta Ouro (precisa de ' + milhar(custo.ouro) + ')',
+        custo: custo, rank: rank };
+    }
+    if (!(Number(c.pergaminhos) >= custo.perg)) return { ok: false, motivo: 'Faltam Pergaminhos (precisa de ' + custo.perg + ')', custo: custo, rank: rank };
+    return { ok: true, custo: custo, rank: rank };
+  }
+  // O rank novo e o custo a descontar (quem chama confere podeSubirRank e grava tudo junto). null: skill que o cavalo
+  // não tem ou já no rank máximo.
+  function subirRank(mount, skillId) {
+    var skills = skillsDe(mount);
+    if (skills.indexOf(skillId) < 0 || !temChave(G.SKILLS, skillId)) return null;
+    var ranks = sanearRanks(skills, mount.skillRanks), rank = ranks[skillId];
+    if (rank >= G.SKILL_RANKS.max) return null;
+    ranks[skillId] = rank + 1;
+    return { skillRanks: ranks, ouro: G.SKILL_RANKS.custo[rank].ouro, perg: G.SKILL_RANKS.custo[rank].perg };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Pergaminho de técnica
+  // ---------------------------------------------------------------------------------------------
+  // Pergaminho do pódio de uma corrida valendo: 0 ou 1, pela seed da sala (um sorteio por lugar, independentes).
+  function pergaminhoPodio(seed, place) {
+    if (place !== 1 && place !== 2 && place !== 3) return 0;
+    var roll = S.mulberry32(S.hash2(seed >>> 0, SAL_PERGAMINHO + place))();
+    return roll < I.pergaminho.podio[place - 1] ? 1 : 0;
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -4778,6 +5087,11 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
 
   var Itens = {
     SAL: SAL,
+    SAL_PERGAMINHO: SAL_PERGAMINHO,
+    pergaminhoPodio: pergaminhoPodio,
+    sanearRanks: sanearRanks,
+    podeSubirRank: podeSubirRank,
+    subirRank: subirRank,
     DIA_MAX: DIA_MAX,
     diaLocal: diaLocal,
     podeUsar: podeUsar,
@@ -4859,7 +5173,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     if (temChave(VENCE, dele) && VENCE[dele] === meu) return -1;
     return 0;
   }
-  // O cavalo fixo da etapa: a base do catálogo (cópia) no nível e nas estrelas dados, com a build dos bots.
+  // O cavalo fixo da etapa: a base do catálogo (cópia) no nível e nas estrelas dados, com a build dos bots e as
+  // skills de vaga no rank da etapa.
   function cavalo(def) {
     if (!objeto(def)) return null;
     var lista = G.STARTERS.concat(G.WILD_HORSES), base = null;
@@ -4869,7 +5184,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     h.level = def.level;
     h.grau = def.grau;
     h.alloc = S.botAlloc(h);
-    return h;
+    // skills de vaga no rank fixo da etapa (sem sorteio; ausente ou inválido vale 1)
+    return S.withRanks(h, def.rank);
   }
   // Distância na chegada de um duelo (resultado do simulate com 2 corredores), em metros, uma casa.
   function metros(res) {
@@ -4989,6 +5305,9 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     for (var i = 0; i < itens.length; i++) {
       if (typeof e.cabe !== 'function' || !e.cabe(itens[i], 1)) return { ok: false, motivo: 'cheia' };
     }
+    // os Pergaminhos de técnica da 1ª vitória também têm de caber
+    var pergs = revanche ? 0 : (et.premio.pergaminhos || 0);
+    if (pergs > 0 && (typeof e.cabe !== 'function' || !e.cabe('pergaminho', pergs))) return { ok: false, motivo: 'cheia' };
     if (!inteiro(e.timeLen) || e.timeLen < 1) return { ok: false, motivo: 'sem-time' };
     if (e.timeLen > et.cavalos.length) return { ok: false, motivo: 'time-grande' };
     return { ok: true, revanche: revanche };
@@ -5004,7 +5323,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     return true;
   }
   // e = { gymId, etapa, revanche, progresso, resultado (do resolver), hoje (inteiro, sempre), timeLen (tamanho do
-  // time) } -> { ouro, itens: [ids], xp: [um por cavalo do time; 0 para quem não correu], progresso (os três
+  // time) } -> { ouro, itens: [ids], pergaminhos (Pergaminhos de técnica da 1ª vitória; 0 na revanche), xp: [um por cavalo do time; 0 para quem não correu], progresso (os três
   // ginásios, novo), insignia } | null. Sem o bônus das insígnias (quem soma aplica).
   // null (Ruling 7): hoje não inteiro; gymId, etapa, timeLen ou resultado malformados; fora da revanche, etapa que não
   // é a próxima não vencida (inclusive o líder já vencido); na revanche, sem o líder vencido, etapa que não é a 4 ou
@@ -5027,7 +5346,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     var X = G.GYM.xp, xp = [];
     for (var k = 0; k < e.timeLen; k++) xp.push(0);
     e.resultado.duelos.forEach(function (d) { xp[d.a] += d.vencedor === 'jogador' ? X.vence : X.perde; });
-    var venceu = e.resultado.venceu, ouro = 0, itens = [], insignia = false;
+    var venceu = e.resultado.venceu, ouro = 0, itens = [], insignia = false, pergaminhos = 0;
     if (revanche) {
       p.revDia = e.hoje;
       if (venceu) {
@@ -5039,10 +5358,11 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     } else if (venceu) {
       ouro = et.premio.ouro;
       itens = et.premio.itens.slice();
+      pergaminhos = et.premio.pergaminhos || 0;   // só na 1ª vitória (como a Rédea nova do líder); a revanche não dá
       p.etapa += 1;
       insignia = p.etapa === 5;
     }
-    return { ouro: ouro, itens: itens, xp: xp, progresso: prog, insignia: insignia };
+    return { ouro: ouro, itens: itens, pergaminhos: pergaminhos, xp: xp, progresso: prog, insignia: insignia };
   }
 
   // A soma dos bônus das insígnias conquistadas (etapa 5): { ouro, xp, skill }.
@@ -7689,7 +8009,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
  *       'dado' { t0: ev.t, t1: ev.t + 2.4·escala, racer: winner, winner, rolls (cópia), changed,
  *                weather, escala, frase }   — um por evento 'dado'. frase = o efeito, como na narração: o trecho
  *                de ev.text depois de ' — ' ('o sol abre!', 'o clima segura!'…).
- *       'skill' { t0: ev.t, t1, racer, skillId, icon, clima, element, cavalo, nome, nomeCurto, silks, raia,
+ *       'skill' { t0: ev.t, t1, racer, skillId, icon, clima, element, cavalo, nome, nomeCurto, rank (1..5, do evento), silks, raia,
  *                escala } — um por
  *                evento 'skill'. t1 = t0 + duração do efeito real da simulação (durationS; ou o
  *                tempo para o cavalo andar distanceM pelos frames; ou até sair do bloco se
@@ -7717,7 +8037,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
  *     tipo usam 'chama' | 'folha' | 'onda', desenhados como os outros ícones de 8×8)
  *     Primeira chave presente em skill.effect, nesta ordem: speedMult→vel, accelMult→ace,
  *     staminaRestore→folego, drainMult(<1)→folego, curveBonus→curva, hillBonus→subida,
- *     hillDrainMult→subida, extraDice→dado, weatherDouble→clima, garraChanceBonus→garra,
+ *     hillDrainMult→subida, extraDice→dado, weatherBonus→clima, garraChanceBonus→garra,
  *     garraBoostBonus→garra; nenhuma (ou sem skill) ⇒ 'vel'.
  *   RaceFx.nomeCurto(nome, short) -> texto do balão: o nome inteiro em maiúsculas se couber em 12
  *     letras; senão o campo opcional `short` do catálogo (data.js), ou, sem ele, o nome cortado
@@ -8038,7 +8358,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   var ICON_ORDEM = [
     ['speedMult', 'vel'], ['accelMult', 'ace'], ['staminaRestore', 'folego'], ['drainMult', 'folego'],
     ['curveBonus', 'curva'], ['hillBonus', 'subida'], ['hillDrainMult', 'subida'], ['extraDice', 'dado'],
-    ['weatherDouble', 'clima'], ['garraChanceBonus', 'garra'], ['garraBoostBonus', 'garra']
+    ['weatherBonus', 'clima'], ['garraChanceBonus', 'garra'], ['garraBoostBonus', 'garra']
   ];
   function skillIcon(skill) {
     var ef = skill && skill.effect;
@@ -8102,6 +8422,10 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   // duração (em segundos de simulação) do efeito real da skill; instantâneo ⇒ 0 (o mínimo vale)
   function duracaoSkill(sim, ev, sk) {
     var ef = (sk && sk.effect) || {};
+    // rank V: o marco pode mudar a duração (durationS) ou valer até a chegada (untilFinish)
+    var m5 = sk && sk.rank5 && rankDe(ev.rank) >= 5 ? sk.rank5 : null;
+    if (m5 && m5.untilFinish) { var fimM = sim && sim.finishTimes && sim.finishTimes[ev.racer]; return fimM != null ? fimM - ev.t : BALAO.efeitoMax; }
+    if (m5 && m5.durationS && (ef.durationS || !ef.distanceM && !ef.blockScoped)) return m5.durationS;
     if (ef.durationS) return ef.durationS;
     var frames = sim && sim.frames, dt = (sim && sim.dt) || 0.1;
     if (!frames || !frames.length || (!ef.distanceM && !ef.blockScoped)) return 0;
@@ -8180,6 +8504,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
           kind: 'skill', t0: ev.t, t1: ev.t + dur, racer: ev.racer, skillId: sk ? sk.id : null, icon: skillIcon(sk), clima: trig,
           element: sk ? sk.element : (horse && horse.element) || 'neutro', cavalo: (horse && horse.element) || 'neutro',
           nome: sk ? sk.name : '', nomeCurto: nomeCurto(sk ? sk.name : '', sk && sk.short),
+          rank: rankDe(ev.rank),
           silks: (r && r.silks) || null, raia: ev.racer + 1, escala: e
         });
       } else if (ev.type === 'garra') {
@@ -8752,8 +9077,26 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   function textoBalao(item) {
     if (item.kind === 'garra') return 'GARRA!';
     if (item.kind === 'cansou') return 'CANSOU';
-    return item.nomeCurto || nomeCurto(item.nome);
+    return comRank([item.nomeCurto || nomeCurto(item.nome)], item)[0];
   }
+  // Rank da skill de vaga no balão (o evento 'skill' da simulação traz rank 1..5): em algarismo romano a partir do II,
+  // colado no fim do nome ("ARRANQUE III"); o rank I não aparece. A skill de tipo não tem rank.
+  var ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V'];
+  function rankDe(x) { return typeof x === 'number' && x % 1 === 0 && x >= 1 && x <= 5 ? x : 1; }
+  function rankRomano(rank) { var r = rankDe(rank); return r >= 2 ? ROMANOS[r] : ''; }
+  function comRank(linhas, item) {
+    var rm = item && item.kind === 'skill' && !item.typeSkill ? rankRomano(item.rank) : '';
+    if (!rm || !linhas || !linhas.length) return linhas;
+    var out = linhas.slice();
+    out[out.length - 1] = out[out.length - 1] + ' ' + rm;
+    return out;
+  }
+  // O texto do balão de uma skill, em linhas: o nome (nomeEmLinhas) com o rank no fim da última linha.
+  function linhasBalao(item, larguraMax, linhasMax) {
+    return comRank(nomeEmLinhas(item.nome, larguraMax, linhasMax, item.nomeCurto), item);
+  }
+  // rank máximo: o balão fica dourado e o brilho do cavalo também (o marco da skill está valendo)
+  function rankMax(item) { return !!item && item.kind === 'skill' && !item.typeSkill && rankDe(item.rank) >= 5; }
   // Balão preso à raia do cavalo: à frente do focinho, com chip do número e borda na cor da seda.
   // Altura 11 (cabe duas vezes na raia de 26 px); pilha > 0 vira só o chip + ícone (cresce para a frente).
   var BAL_H = 11, BAL_ICONE_X = 9;
@@ -8818,12 +9161,14 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     var y0 = y + (BALAO.sobe - sobe) * S;              // entra 2 px mais baixo e sobe até o lugar
     var cansou = item.kind === 'cansou', garra = item.kind === 'garra';
     var seda = item.silks || COR.texto3;
-    var cor = cansou ? COR.cinza : garra ? COR.ouro : corElemento(item);
-    var fundo = cansou ? COR.fundoCinza : COR.painel;
-    var txt = cansou ? COR.cinzaClaro : mix(cor, '#ffffff', 0.35);
+    var r5 = rankMax(item);
+    var cor = cansou ? COR.cinza : garra || r5 ? COR.ouro : corElemento(item);
+    var fundo = cansou ? COR.fundoCinza : r5 ? mix(COR.painel, COR.ouroEscuro, 0.45) : COR.painel;
+    var txt = cansou ? COR.cinzaClaro : r5 ? COR.ouroClaro : mix(cor, '#ffffff', 0.35);
     var prev = ctx.globalAlpha;
     ctx.globalAlpha = prev * alpha;
     function R(dx, dy, ww, hh, col) { ctx.fillStyle = col; ctx.fillRect(x + dx * S, y0 + dy * S, ww * S, hh * S); }
+    if (r5) R(-2, -2, w + 4, h + 4, COR.ouro);          // rank V: moldura dourada por fora do contorno
     R(-1, -1, w + 2, h + 2, COR.sombra);                // contorno escuro por fora da seda
     R(0, 0, w, h, seda);
     R(1, 1, w - 2, h - 2, fundo);
@@ -8850,6 +9195,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     var d = (simT - item.t0) / e, sai = (item.t1 - simT) / e;
     var amp = Math.max(0, Math.min(1, d / 0.15, sai / 0.3));
     var pulso = reduced ? 0.5 : 0.5 + 0.5 * Math.sin(d * 2 * Math.PI / 0.7);
+    // rank V: o contorno brilha em ouro e um pouco mais forte
+    if (rankMax(item)) return { cor: mix(COR.ouro, '#ffffff', 0.3), alpha: amp * (0.7 + 0.3 * pulso) };
     return { cor: mix(corElemento(item), '#ffffff', 0.25), alpha: amp * (0.55 + 0.4 * pulso) };
   }
 
@@ -8891,6 +9238,14 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         var sy = by + bh - 4 - Math.round(ph * 7);
         R(sx, sy, 1, 1, COR.faisca, 1 - ph);
         R(sx - 1, sy, 1, 1, '#ffb347', 0.6 * (1 - ph));
+        stats.particulas++;
+      }
+    }
+    if (rankMax(item)) {                               // rank V: estrelinhas douradas subindo em volta do cavalo
+      for (k = 0; k < 4; k++) {
+        ph = frac(d * 1.3 + k * 0.25);
+        var gx = bx + Math.round(bw * (0.15 + 0.7 * ((k * 3) % 4) / 3)), gy = by + 2 + Math.round((bh - 8) * ((k * 5) % 4) / 3) - Math.round(ph * 4);
+        R(gx - 1, gy, 3, 1, COR.ouro, 0.7 * (1 - ph)); R(gx, gy - 1, 1, 3, COR.ouro, 0.7 * (1 - ph)); R(gx, gy, 1, 1, COR.faisca, 1 - ph);
         stats.particulas++;
       }
     }
@@ -9422,6 +9777,9 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     skillIcon: skillIcon,
     nomeCurto: nomeCurto,
     nomeEmLinhas: nomeEmLinhas,
+    linhasBalao: linhasBalao,
+    rankRomano: rankRomano,
+    rankMax: rankMax,
     lugarLayout: lugarLayout,
     slowFactor: slowFactor,
     diceState: diceState,
@@ -10269,10 +10627,14 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   //     gravado consertado ao abrir, como a diária: ver start);
   //   state.gymCounter: desafios sorteados (a seed de cada duelo), inteiro ≥ 0 (lixo: 0).
   // Save de versão MAIOR que SAVE_VERSION (saveMaisNovo) nunca é adotado nem gravado por cima: tela de bloqueio.
-  var SAVE_VERSION = 8;
+  // Campo novo da v9 (skills com rank, 2026-11-19): cada montaria tem skillRanks = { id: 1..5 }, uma chave por skill de
+  //   vaga. Save de antes da v9 (sem o campo): toda skill fica no rank 1, sem aviso. Em qualquer versão o campo passa
+  //   pelo Itens.sanearRanks: rank ausente ou inválido (0, 7, "3", NaN) vale 1 e rank de skill que o cavalo não tem some.
+  //   A mochila ganha o Pergaminho de técnica (ausente: 0).
+  var SAVE_VERSION = 9;
   var AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.';
   var REDEAS_MAX = 999;
-  var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual
+  var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual, pergaminho
   // os itens à venda, na ordem fixa da loja (GameData.SHOP_ORDER, spec de itens §6: Torrão, Manual, Cupom, Estrela)
   var LOJA_ITENS = GD.SHOP_ORDER.filter(function (id) { return hasOwn(GD.ITEMS, id) && GD.ITEMS[id].price != null; });
   // os que têm limite por dia (perDay), tirados do catálogo (o itens.js lê os mesmos campos): torrao, manual, cupom
@@ -10294,6 +10656,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       level: 1,
       xp: 0,
       skills: tpl.skills.slice(),
+      skillRanks: IT.sanearRanks(tpl.skills, tpl.skillRanks),   // modelo do catálogo: tudo no rank 1
       potential: clone(tpl.potential),
       alloc: zeroAlloc(),
       respecFree: true,   // a primeira redistribuição dos pontos é grátis (bloco 1b §9)
@@ -10500,6 +10863,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     };
     out.alloc = RS.validAlloc(out, v6 ? m.alloc : null);   // save antigo: zerado; inválido: cortado pelo teto e pelo custo
     out.skills = validSkills(m.skills, out);
+    out.skillRanks = IT.sanearRanks(out.skills, m.skillRanks);   // v9; save antigo (sem o campo): tudo no rank 1
     return out;
   }
 
@@ -10519,6 +10883,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       m1.level = num(s.level, 1, 1, MAX_LEVEL);
       m1.xp = num(s.xp, 0, 0, 1e7);
       m1.skills = validSkills(s.skills, m1);
+      m1.skillRanks = IT.sanearRanks(m1.skills, null);
       mounts = [m1]; activeId = 'm1'; nextUid = 2; stableSlots = start; breedCounter = 0;
     } else {
       // v3+: mounts que não é array vira [] (recria o inicial e mantém o Ouro)
@@ -10792,7 +11157,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     for (var k = 1; k <= levels; k++) {
       var lrng = RS.mulberry32(RS.hash2(state.seedBase, seedTag * 100 + (mount.level - levels + k)));
       var sid = RS.learnSkill({ id: mount.templateId, element: mount.element, rarity: mount.rarity, skills: mount.skills }, lrng, bonusSkillNivel());
-      if (sid) { mount.skills.push(sid); learned.push(sid); }
+      if (sid) { mount.skills.push(sid); mount.skillRanks = IT.sanearRanks(mount.skills, mount.skillRanks); learned.push(sid); }   // a aprendida entra no rank 1
     }
     return { levels: levels, learned: learned };
   }
@@ -11095,44 +11460,64 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       '<div class="barra barra--xp" role="img" aria-label="' + esc('Experiência ' + Math.round(pct) + '%') + '"><i style="width:' + (Math.round(pct / 5) * 5) + '%"></i></div></div>';
   }
   // tam: tamanho do ícone (32 na aba Skills; 16 no resto)
-  function skillHtml(id, tam, quando) {
+  // rank (opcional, 1 a 5): o texto do efeito com os números do rank (RaceSim.skillDesc), as 5 marcas e o selo em
+  // romano; extra (opcional): HTML a mais dentro do bloco (a linha do próximo rank)
+  function skillHtml(id, tam, quando, rank, extra) {
     var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
     if (!sk) return '';
-    return '<div class="habilidade"><b>' + skillIcone(id, tam) + esc(sk.name) + '</b><span>' + esc(sk.desc) + '</span>' +
-      (quando ? '<span class="habilidade-quando">' + esc(quando) + '</span>' : '') + '</div>';
+    return '<div class="habilidade' + (rank >= GD.SKILL_RANKS.max ? ' habilidade--max' : '') + '"><b>' + skillIcone(id, tam) + esc(sk.name) + (rank ? rankMarcasHtml(rank) : '') + '</b>' +
+      '<span class="habilidade-efeito">' + esc(rank ? RS.skillDesc(id, rank) : sk.desc) + '</span>' +
+      (quando ? '<span class="habilidade-quando">' + esc(quando) + '</span>' : '') + (extra || '') + '</div>';
+  }
+  // as 5 marcas do rank (cheias até o rank) e o algarismo romano; o leitor de tela lê "Rank III de V"
+  var ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V'];   // o rank das skills na tela (1 a 5)
+  function rankMarcasHtml(rank) {
+    var max = GD.SKILL_RANKS.max, pips = '';
+    for (var i = 1; i <= max; i++) pips += '<i class="rank-pip' + (i <= rank ? ' rank-pip--on' : '') + '"></i>';
+    return '<span class="rank-marcas' + (rank >= max ? ' rank-marcas--max' : '') + '" role="img" aria-label="Rank ' + ROMANOS[rank] + ' de ' + ROMANOS[max] + '">' +
+      '<span class="rank-romano" aria-hidden="true">' + ROMANOS[rank] + '</span>' + pips + '</span>';
   }
   // Porcentagem para texto: inteira quando é redonda, senão com uma casa ("44,5%").
   function pctTxt(x) {
     var v = Math.round(x * 1000) / 10;
     return (v === Math.round(v) ? String(v) : v.toFixed(1).replace('.', ',')) + '%';
   }
-  // Quando cada skill de vaga tenta ativar (o gatilho dela, GameData.SKILLS[id].trigger), com os números da corrida
-  // (RaceSim.TUNING) e, na arrancada final, o ponto da pista deste cavalo (RaceSim.garraInfo). Cada skill tenta uma vez
-  // por corrida; as de bloco (blockScoped: Drift, Fôlego de Montanha, Casco Firme), uma vez em cada curva ou subida.
+  // Quando cada skill de vaga ativa (o gatilho dela, GameData.SKILLS[id].trigger; sem sorteio: o gatilho aconteceu, ela
+  // ativa), com os números da corrida (RaceSim.TUNING, e os do rank do cavalo) e, na arrancada final, o ponto da pista
+  // deste cavalo (RaceSim.garraInfo). Cada skill ativa uma vez por corrida; as de bloco (blockScoped: Drift, Fôlego de
+  // Montanha, Casco Firme), uma vez em cada curva ou subida.
   function skillQuandoTxt(id, m) {
     var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
     if (!sk) return '';
     var t = sk.trigger, T = RS.TUNING, bloco = !!(sk.effect && sk.effect.blockScoped), q;
+    var ef = RS.skillEffect(id, RS.rankOf(m, id));   // o marco do rank V pode mudar o gatilho (reta de 100 m, estamina a 35%)
     if (t === 'start') q = 'na largada';
-    else if (t === 'straight') q = 'na 1ª reta de ' + T.straightMinM + ' m ou mais (fora a da largada)';
+    else if (t === 'straight') q = 'na 1ª reta de ' + (ef.minStraightM || T.straightMinM) + ' m ou mais (fora a da largada)';
     else if (t === 'curve') q = bloco ? 'ao entrar em cada curva' : 'ao entrar na 1ª curva';
     else if (t === 'curveExit') q = 'ao sair da 1ª curva';
     else if (t === 'hill') q = bloco ? 'ao entrar em cada subida' : 'ao entrar na 1ª subida';
-    else if (t === 'lowStamina') q = 'quando a estamina cai a ' + pctTxt(T.lowStaminaAt);
+    else if (t === 'lowStamina') q = 'quando a estamina cai a ' + pctTxt(ef.lowStaminaAt || T.lowStaminaAt);
     else if (t === 'final') q = 'na arrancada final, aos ' + pctTxt(RS.garraInfo(m).from) + ' da pista (junto com a Garra)';
     else if (t === 'dice') q = 'antes do 1º Dado da Sorte';
     else if (t.indexOf('weather:') === 0 && hasOwn(GD.WEATHERS, t.slice(8))) q = 'quando o clima for ' + GD.WEATHERS[t.slice(8)].name;
     else return '';
-    return 'Quando: ' + q + (bloco ? '' : ' · 1 vez por corrida') + '.';
+    return 'Ativa sempre: ' + q + (bloco ? '' : ' · 1 vez por corrida') + '.';
   }
-  // A chance de cada skill de vaga ativar quando o momento dela chega, com a conta (RaceSim.skillChance): a base da
-  // raridade, + por nível acima do 1, + por ponto de Sorte; o teto do TUNING.
-  function skillChanceHtml(m) {
-    var T = RS.TUNING, st = RS.computeStats(m), rar = RS.rarityOf(m), nv = RS.sanitizeLevel(m.level);
-    var total = RS.skillChance(m, st, 0), bruto = rar.skillChance + T.skillPerLevel * (nv - 1) + T.skillPerSorte * st.sorte;
-    var conta = rar.name + ' ' + pctTxt(rar.skillChance) + ' + nível ' + nv + ': +' + pctTxt(T.skillPerLevel * (nv - 1)).replace('%', '') + ' + Sorte ' + st.sorte +
-      ': +' + pctTxt(T.skillPerSorte * st.sorte).replace('%', '') + (bruto > T.skillChanceMax ? '; máximo ' + pctTxt(T.skillChanceMax) : '');
-    return '<p class="skill-chance">Chance de cada skill ativar: <strong>' + pctTxt(total) + '</strong> (' + esc(conta) + ').</p>';
+  // "2 de 3 vagas · rank III, I" (linha da ficha) e "skills rank II" (a linha do resultado: o rank médio arredondado, o
+  // mesmo número que vale para os bots; sem skill de vaga, nada)
+  function skillsFichaTxt(h) {
+    var slots = RS.rarityOf(h).skillSlots, ids = (h.skills || []).filter(function (id) { return hasOwn(GD.SKILLS, id); });
+    return '<b>' + ids.length + '</b> de ' + slots + (slots === 1 ? ' vaga' : ' vagas') + (ids.length ? ' · rank ' + ids.map(function (id) { return ROMANOS[RS.rankOf(h, id)]; }).join(', ') : '');
+  }
+  function skillsRankTxt(h) {
+    var ids = ((h && h.skills) || []).filter(function (id) { return hasOwn(GD.SKILLS, id); });
+    return ids.length ? 'skills rank ' + ROMANOS[RS.botRank(h)] : '';
+  }
+  // O topo das skills de vaga: elas ativam sempre (sem sorteio), o ⓘ do rank e quantos Pergaminhos de técnica há.
+  function skillRankTopoHtml() {
+    var n = itemQtd('pergaminho');
+    return '<div class="linha-meta rank-topo"><span>Skills de vaga: <strong>ativam sempre</strong>' + ajudaBtn('rank', 'o rank das skills') + '</span>' +
+      '<span class="rank-tem">' + itemIconeHtml('pergaminho') + '<span class="sr">' + esc(GD.ITEMS.pergaminho.plural) + ': </span><b>' + fmt(n) + '</b></span></div>';
   }
   // A Garra deste cavalo (RaceSim.garraInfo, as contas da corrida, sem clima): onde a arrancada começa, a chance e o teto;
   // com a Arrancada Final, os números se ela ativar.
@@ -11141,7 +11526,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     linhas.push('1 vez por corrida, aos ' + pctTxt(g.from) + ' da pista: ' + pctTxt(g.chance) + ' de chance' + (g.tipo ? ' (com a ' + RS.typeSkill(m).name + ')' : '') +
       '. Se der certo: velocidade máxima ×' + g.boost.toFixed(2).replace('.', ',') + ' até a chegada.');
     if (m.skills.indexOf('arrancada-final') >= 0 && hasOwn(GD.SKILLS, 'arrancada-final')) {
-      var e = GD.SKILLS['arrancada-final'].effect, gb = RS.garraInfo(m, { chance: e.garraChanceBonus, boost: e.garraBoostBonus });
+      var e = RS.skillEffect('arrancada-final', RS.rankOf(m, 'arrancada-final')), gb = RS.garraInfo(m, { chance: e.garraChanceBonus, boost: e.garraBoostBonus });
       linhas.push('Com a ' + GD.SKILLS['arrancada-final'].name + ' ativa: ' + pctTxt(gb.chance) + ' de chance e ×' + gb.boost.toFixed(2).replace('.', ',') + '.');
     }
     linhas.push('Mais Garra: começa antes, com mais chance e mais força.');
@@ -11340,9 +11725,10 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   // - Ouro infinito (ui.dev.ouroInf, ligado por padrão): persist() chama Dev.refillGold.
   // - O painel cria cavalos fora das regras: sanitize aceita o templateId 'dev-<n>' e qualquer skill
   //   do catálogo (devTemplateId, validSkills); o estábulo cresce sem limite de vagas.
-  // - Próxima corrida: ui.devNext = { seed, cond, wind, skillsAlways } (cond = filtro de Dev.conditions,
-  //   sem a sala; null = nada armado). buildLobby aplica seed e condições e grava L.dev = { wind,
-  //   skillsAlways } para a tela da corrida; settle passa skillsAlways ao RaceSim e limpa ui.devNext.
+  // - Próxima corrida: ui.devNext = { seed, cond, wind } (cond = filtro de Dev.conditions,
+  //   sem a sala; null = nada armado). buildLobby aplica seed e condições e grava L.dev = { wind } para a tela da
+  //   corrida; settle limpa ui.devNext. O antigo "skills sempre ativam" saiu (toda skill já ativa quando o gatilho
+  //   acontece); no lugar, a aba Cavalo escolhe o rank (I a V) de cada skill.
   // - A gaveta mora em #dev (fora de #tela): re-renderizar a tela não perde a rolagem dela; os campos
   //   ficam em ui.dev.f (lidos do DOM a cada mudança e antes de cada ação).
   // As funções puras (cavalo, peça, condições, vento, seed, Ouro) estão em dev.js.
@@ -11417,10 +11803,10 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   function devForm() {
     if (!ui.dev.f) {
       ui.dev.f = {
-        pedras: null, redeas: null, 'mochila-torrao': null, 'mochila-estrela': null, 'mochila-cupom': null, 'mochila-manual': null,
+        pedras: null, redeas: null, 'mochila-torrao': null, 'mochila-estrela': null, 'mochila-cupom': null, 'mochila-manual': null, 'mochila-pergaminho': null,
         copiar: GD.STARTERS[0].id,
         slot: GR.SLOTS[0], conjunto: 'sol', rpeca: 'lendario', melhoria: '0', equipar: false,
-        clima: '', piso: '', distancia: '', tracado: 'normal', blocos: '', vento: '', direcao: '1', seed: '', sempre: false
+        clima: '', piso: '', distancia: '', tracado: 'normal', blocos: '', vento: '', direcao: '1', seed: ''
       };
       devCavaloDaAtiva();
     }
@@ -11437,7 +11823,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     // genética por status (vale com "Genética: por status") e pontos distribuídos, da ativa
     var al = RS.validAlloc(a, a.alloc);
     STAT_KEYS.forEach(function (k) { f['gen-' + k] = String(a.potential[k]); f['pt-' + k] = String(al[k]); });
-    for (var i = 0; i < DEV_SKILL_VAGAS; i++) f['skill' + i] = a.skills[i] || '';
+    for (var i = 0; i < DEV_SKILL_VAGAS; i++) { f['skill' + i] = a.skills[i] || ''; f['rank' + i] = String(a.skills[i] ? RS.rankOf(a, a.skills[i]) : 1); }
     f.coat = pal.coat.toLowerCase(); f.coatshade = pal.coatShade.toLowerCase();
     f.mane = pal.mane.toLowerCase(); f.accent = pal.accent.toLowerCase();
     var mk = marcasDe(a.marcas, a.templateId, a.uid);
@@ -11468,6 +11854,12 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       marcas: { cara: f.cara, patas: f.patas, corpo: f.corpo },
       porte: f.porte
     };
+  }
+  // o rank escolhido para cada skill da gaveta: { id: 1..5 } (o Itens.sanearRanks corta o que não vale)
+  function devRanks(f) {
+    var out = {};
+    for (var i = 0; i < DEV_SKILL_VAGAS; i++) if (f['skill' + i]) out[f['skill' + i]] = Math.floor(Number(f['rank' + i])) || 1;
+    return out;
   }
   // pontos do template (inteiros ≥ 0) cortados pelo teto de 150 e pelo custo, com os pontos do nível da instância
   function devAplicaPontos(m, tpl) { m.alloc = RS.validAlloc(m, tpl.alloc); }
@@ -11500,8 +11892,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     var wind = f.vento ? DV.wind({ intensity: f.vento, dir: Number(f.direcao) }) : null;
     var hasCond = false;
     for (var k in cond) if (hasOwn(cond, k)) hasCond = true;
-    var dv = (hasCond || seed != null || wind || f.sempre)
-      ? { seed: seed, cond: hasCond ? cond : null, wind: wind, skillsAlways: !!f.sempre } : null;
+    var dv = (hasCond || seed != null || wind)
+      ? { seed: seed, cond: hasCond ? cond : null, wind: wind } : null;
     return { next: dv, erros: erros };
   }
   function devResumoArmado(dv) {
@@ -11515,7 +11907,6 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     else if (Array.isArray(c.tracado)) p.push('blocos ' + c.tracado.join(' '));
     if (dv.wind) p.push('vento ' + dv.wind.intensity + (dv.wind.dir > 0 ? ' →' : ' ←'));
     if (dv.seed != null) p.push('seed ' + dv.seed);
-    if (dv.skillsAlways) p.push('skills sempre ativam');
     return 'Armado para a próxima corrida: ' + p.join(' · ') + '.';
   }
   // a sala aberta na tela reflete o que acabou de ser armado (o resultado ainda não existe)
@@ -11563,7 +11954,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       return [id, sk.name + ' · ' + elementOf(sk.element).name];
     }));
     var skillSel = '';
-    for (var i = 0; i < DEV_SKILL_VAGAS; i++) skillSel += devSelect('skill' + i, 'Skill ' + (i + 1), skillOpts, f['skill' + i]);
+    var rankOpts = [1, 2, 3, 4, 5].map(function (r) { return [String(r), 'Rank ' + ROMANOS[r]]; });
+    for (var i = 0; i < DEV_SKILL_VAGAS; i++) skillSel += devSelect('skill' + i, 'Skill ' + (i + 1), skillOpts, f['skill' + i]) + devSelect('rank' + i, 'Rank da skill ' + (i + 1), rankOpts, f['rank' + i] || '1');
     var prontos = devProntos().map(function (h) {
       return [h.id, h.name + ' (' + GD.RARITIES[h.rarity].name + ', ' + GD.ELEMENTS[h.element].name + ', Nv ' + (h.level || 1) + ')'];
     });
@@ -11674,7 +12066,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         devSelect('vento', 'Vento', [['', '— sorteado —']].concat(DV.WIND_INTENSITIES.map(function (w) { return [w, w.charAt(0).toUpperCase() + w.slice(1)]; })), f.vento) +
         devSelect('direcao', 'Direção do vento', [['1', '→ Direita'], ['-1', '← Esquerda']], f.direcao) +
         devEntrada('seed', 'Seed', 'type="text" inputmode="numeric" autocomplete="off" placeholder="da sala"', f.seed) +
-      '</div>' + devCheck('sempre', 'Skills sempre ativam', f.sempre) +
+      '</div>' +
       '<p class="dev-armado' + (ui.devNext ? ' dev-armado--on' : '') + '" id="dev-armado">' + esc(devResumoArmado(ui.devNext)) + '</p>' +
       '<div class="dev-acoes">' + devBotao('dev-armar', 'Armar', 'btn--ouro') + devBotao('dev-limpar', 'Limpar') + '</div>');
 
@@ -11814,6 +12206,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       case 'dev-criar':
         tpl = DV.horseTemplate(devCavaloEscolhido(f), state.nextUid);
         m = instanceFromTemplate(tpl, 'm' + state.nextUid);
+        m.skillRanks = IT.sanearRanks(m.skills, devRanks(f));
         m.level = devNivel(f); m.xp = 0;
         devAplicaPontos(m, tpl);
         state.nextUid += 1;
@@ -11824,7 +12217,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         tpl = DV.horseTemplate(devCavaloEscolhido(f), uidNum(a.uid));
         a.name = tpl.name; a.element = tpl.element; a.rarity = tpl.rarity; a.sex = tpl.sex; a.grau = tpl.grau;
         a.level = devNivel(f); a.xp = 0;
-        a.skills = tpl.skills.slice(); a.potential = clone(tpl.potential); a.palette = clone(tpl.palette);
+        a.skills = tpl.skills.slice(); a.skillRanks = IT.sanearRanks(a.skills, devRanks(f)); a.potential = clone(tpl.potential); a.palette = clone(tpl.palette);
         a.marcas = clone(tpl.marcas);
         a.porte = tpl.porte;
         devAplicaPontos(a, tpl);
@@ -12438,6 +12831,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   function ginPremioTxt(id, e) {
     var partes = e.premio.ouro ? [fmt(e.premio.ouro) + ' de Ouro'] : [];
     e.premio.itens.forEach(function (it) { partes.push(itemQtdTxt(it, 1)); });
+    if (e.premio.pergaminhos) partes.push(itemQtdTxt('pergaminho', e.premio.pergaminhos));
     if (e.lider) partes.push('a ' + GD.GYMS[id].insignia.name);
     return ginJunta(partes);
   }
@@ -12621,6 +13015,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       case 'cheia': {
         var its = ginItensPremio(id, i, rev);
         for (var k = 0; k < its.length; k++) if (!diariaCabe(its[k], 1)) return ginCheiaTxt(its[k]);
+        var pgs = rev ? 0 : GD.GYMS[id].etapas[i].premio.pergaminhos;
+        if (pgs && !diariaCabe('pergaminho', pgs)) return 'A mochila não tem espaço para ' + itemQtdTxt('pergaminho', pgs) + ' (o máximo é ' + GD.BAG_MAX + '). Suba o rank de uma skill antes de desafiar.';
         return 'A mochila está cheia. Use um item antes de desafiar.';
       }
       case 'time-grande': return 'O time passou do limite: até ' + ginCavalosTxt(ginLimite(id, i)) + '.';
@@ -12695,6 +13091,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     var entrada = ginEntrada(gymId, etapa, c.revanche);   // a entrada cobrada: a mesma conta do número do botão, com o revanche do podeDesafiar
     state.gold = state.gold - entrada + ac.ouro;   // o prêmio do ginásio não leva o bônus de Ouro (só a corrida valendo)
     ac.itens.forEach(function (it) { if (it === 'redea') state.redeas += 1; else state.mochila[it] += 1; });
+    state.mochila.pergaminho = Math.min(GD.BAG_MAX, state.mochila.pergaminho + ac.pergaminhos);   // o podeDesafiar já conferiu que cabem
     var cavalos = uids.map(function (u, k) {
       var m = mountByUid(u), xp = xpComBonus(ac.xp[k]);
       var g = applyXp(m, xp, GIN_SEED_TAG + contador * 4 + k);
@@ -12706,7 +13103,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     if (gv === 'outra-aba') return 'outra-aba';
     if (gv === 'falhou') return FALHA_SALVAR;
     var prox = ac.progresso[gymId].etapa;
-    var R = { gymId: gymId, etapa: etapa, revanche: c.revanche, contador: contador, venceu: res.venceu, entrada: entrada, ouro: ac.ouro, itens: ac.itens,
+    var R = { gymId: gymId, etapa: etapa, revanche: c.revanche, contador: contador, venceu: res.venceu, entrada: entrada, ouro: ac.ouro, itens: ac.itens, pergaminhos: ac.pergaminhos,
       insignia: ac.insignia, proxima: res.venceu && !c.revanche && prox < ginEtapasTotal(gymId) ? prox : null, cavalos: cavalos,
       adversario: et.cavalos.map(function (d) { return GN.cavalo(d).name; }), duelos: res.duelos };
     if (ui.gym) ui.gym.res = R;
@@ -12727,7 +13124,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   function ginResumoHtml(R) {
     var g = GD.GYMS[R.gymId], e = g.etapas[R.etapa];
     var ouro = '<p>' + esc('Entrada: −' + fmt(R.entrada) + ' de Ouro') + '</p>' + (R.ouro ? '<p>' + esc('Prêmio: +' + fmt(R.ouro) + ' de Ouro') + '</p>' : '') +
-      (R.itens.length ? '<p>' + esc('Itens: ' + ginJunta(R.itens.map(function (it) { return itemQtdTxt(it, 1); }))) + '</p>' : '');
+      (R.itens.length || R.pergaminhos ? '<p>' + esc('Itens: ' + ginJunta(R.itens.map(function (it) { return itemQtdTxt(it, 1); })
+        .concat(R.pergaminhos ? [itemQtdTxt('pergaminho', R.pergaminhos)] : []))) + '</p>' : '');
     var cavalos = R.cavalos.map(function (c) {
       var partes = [c.correu ? c.nome + ': +' + c.xp + ' XP' : c.nome + ': não correu'];
       if (c.levels) partes.push('subiu ' + (c.levels === 1 ? '1 nível' : c.levels + ' níveis') + ' (Nível ' + c.nivel + ')');
@@ -13295,7 +13693,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     var st = gear.set, sb = GE.setBonus;
     if (!st || !st.id || !st.count || !hasOwn(GD.GEAR_SETS, st.id)) return '<p class="set-linha nota">sem conjunto</p>';
     var bon = [];
-    if (st.count >= sb.pieces[0]) bon.push('+' + sb.sorte + ' Sorte e +' + Math.round(sb.skillChance * 100) + '% de skill');
+    if (st.count >= sb.pieces[0]) bon.push('+' + sb.sorte + ' Sorte e +' + Math.round(sb.skillEffect * 100) + '% no efeito das skills');
     if (st.count >= sb.pieces[1]) bon.push('bônus do clima reforçado (×1,07)');
     if (st.count >= sb.pieces[2]) bon.push('sem penalidade de clima');
     return '<p class="set-linha"><span class="set-badge">' + esc(GD.GEAR_SETS[st.id].name + ' ×' + st.count) + '</span> ' +
@@ -13648,7 +14046,6 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     var M = ui.montaria, P = state.pending, uid = esc(m.uid), isActive = m.uid === state.activeId;
     var h = clone(m);
     // a corrida não usa mais o bônus de chance de skill do conjunto (o equipamento não entra: sim.js)
-    var skillPct = Math.round(RS.skillChance(h, RS.computeStats(h), 0) * 100);
     var corcel = window.Breed && window.Breed.isCorcel(m)
       ? fichaLinha('Corcel', '<span class="corcel" title="Corcel: herança garantida">' + iconeHtml('ui-corcel', '⚑', 16) + ' herança garantida</span>') : '';
     // renomear: campo na própria tela (window.prompt não abre num iframe sem allow-modals, como o do artefato)
@@ -13675,7 +14072,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         fichaLinhaTexto(porteTexto(m)) +
         fichaLinhaTexto(marcasTexto(m)) +
         fichaLinha('Cruzas restantes', esc(m.breedLeft)) +
-        fichaLinha('Skills', '<b>' + skillPct + '%</b> de ativar') +
+        fichaLinha('Skills', skillsFichaTxt(h)) +
         (m.parents ? fichaLinha('Pais', paiHtml(m.parents.f) + ' e ' + paiHtml(m.parents.m)) : '') +
       '</ul></section>';
   }
@@ -13710,7 +14107,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     if (M.aba === 'skills') {
       var vagas = (GD.RARITIES[m.rarity] || GD.RARITIES.comum).skillSlots - m.skills.length;
       corpo = '<section class="caixa" aria-label="Skills">' + vagaTipoHtml(m) +
-        (m.skills.length ? skillChanceHtml(m) + skillsVagasHtml(m) : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
+        (m.skills.length ? skillsVagasHtml(m) : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
         '<p class="nota">' + (vagas > 0
           ? vagas + (vagas === 1 ? ' vaga livre' : ' vagas livres') + ' · ' + Math.round(chanceSkillNivel() * 100) + '% de chance de aprender uma skill nova a cada nível'
           : 'Sem vagas livres') + '</p>' +
@@ -13725,6 +14122,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     }
     // o uso de um item aberto pela ficha deste cavalo: o passo dele no lugar da sub-aba; o aviso do último uso, em cima dela
     if (ui.item && ui.item.origem === 'ficha' && ui.item.mountUid === m.uid) corpo = itemPassoHtml();
+    else if (M.aba === 'skills' && M.rank && m.skills.indexOf(M.rank.skillId) >= 0) corpo = rankPassoHtml(m);   // a confirmação do "Subir rank"
     else if (ui.itemMsg && ui.itemMsg.origem === 'ficha' && ui.itemMsg.uid === m.uid) corpo = '<p class="aviso" role="status">' + esc(ui.itemMsg.txt) + '</p>' + corpo;
 
     return '<section class="tela" aria-labelledby="t-montaria">' +
@@ -13809,15 +14207,15 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     return '<section class="caixa item-lista" aria-label="Itens à venda">' + LOJA_ITENS.map(lojaProdutoHtml).join('') +
       itemLinhaHtml('redea', { qtd: itemQtd('redea'), forma: 'tem', classe: 'item-linha--fora', texto: GD.ITEMS.redea.origem }) + '</section>';
   }
-  // os cinco, na ordem do catálogo; com 0, a linha apagada diz de onde o item vem (sem "Usar"); o aviso do último uso
+  // todos os itens, na ordem do catálogo; com 0, a linha apagada diz de onde o item vem (sem "Usar"); o aviso do último uso
   // pela Mochila fica na linha do item
   function lojaMochilaHtml() {
     var msg = ui.itemMsg && ui.itemMsg.origem === 'mochila' ? ui.itemMsg : null;
     return '<section class="caixa item-lista" aria-label="Mochila">' + Object.keys(GD.ITEMS).map(function (id) {
-      var n = itemQtd(id);
-      var usar = n > 0 ? '<div class="item-compra item-compra--usar"><button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="' + esc(id) + '">Usar' +
+      var n = itemQtd(id), semUso = id === 'pergaminho';   // o Pergaminho é gasto ao subir rank, na aba Skills
+      var usar = n > 0 && !semUso ? '<div class="item-compra item-compra--usar"><button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="' + esc(id) + '">Usar' +
         '<span class="sr"> ' + esc(GD.ITEMS[id].name) + '</span></button></div>' : '';
-      return itemLinhaHtml(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? GD.ITEMS[id].origem : null, extra: usar,
+      return itemLinhaHtml(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? GD.ITEMS[id].origem : null, extra: usar + (n > 0 && semUso ? '<p class="nota item-nota-uso">Use em Subir rank, na aba Skills do cavalo.</p>' : ''),
         aviso: msg && msg.id === id ? msg.txt : null });
     }).join('') + '</section>';
   }
@@ -13873,17 +14271,89 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     if (itemQtd('estrela') > 0) usos.push(itemUsoHtml('estrela', m, [naMochilaTxt('estrela')]));
     return usos.length ? '<div class="item-usos">' + usos.join('') + '</div>' : '';
   }
-  // aba Skills: as skills das vagas, cada uma com "Trocar" quando há Cupom (a skill de tipo não ocupa vaga e nunca troca)
+  // ---- Rank das skills de vaga (spec 2026-11-19): sobe com Ouro + Pergaminhos de técnica, sem sorteio e sem volta.
+  // o contexto do Itens.podeSubirRank: o Ouro fora do reservado para a entrada da sala aberta, o saldo todo, os
+  // Pergaminhos da mochila e se o cavalo é o ativo com páreo aberto (o Poder dele não pode passar do que a sala viu)
+  function rankCtx(m) {
+    return { ouroLivre: ouroLivre(), ouro: state.gold, pergaminhos: itemQtd('pergaminho'), salaAbertaAtivo: m.uid === state.activeId && !!state.pending };
+  }
+  function rankCustoHtml(custo) {
+    return '<span class="rank-custo">' + ouroHtml(custo.ouro) + '<span class="rank-mais" aria-hidden="true">+</span>' +
+      '<span class="rank-perg">' + itemIconeHtml('pergaminho') + '<span class="sr"> e </span><b>' + custo.perg + '</b><span class="sr"> ' +
+      esc(custo.perg === 1 ? GD.ITEMS.pergaminho.name : GD.ITEMS.pergaminho.plural) + '</span></span></span>';
+  }
+  // a linha do próximo rank dentro do bloco da skill: o efeito que vem (no IV → V, também o marco); no V, o marco ativo
+  function rankProxHtml(id, rank) {
+    var max = GD.SKILL_RANKS.max;
+    if (rank >= max) return '<span class="rank-prox rank-prox--max">' + esc('Rank máximo. Marco ativo: ' + RS.skillMarcoDesc(id) + '.') + '</span>';
+    return '<span class="rank-prox"><b>' + esc('Rank ' + ROMANOS[rank + 1] + ': ') + '</b>' + esc(RS.skillDesc(id, rank + 1)) +
+      (rank + 1 === max ? ' <b class="rank-marco">' + esc('Marco: ' + RS.skillMarcoDesc(id) + '.') + '</b>' : '') + '</span>';
+  }
+  // aba Skills: as skills das vagas, cada uma com o rank (5 marcas), o efeito de agora e o do próximo rank, o custo e
+  // "Subir rank"; e "Trocar" quando há Cupom (a skill de tipo não ocupa vaga, não tem rank e nunca troca)
   function skillsVagasHtml(m) {
-    var cupom = itemQtd('cupom') > 0, mot = cupom ? motivoUso('cupom', m) : '', algum = false;
+    var cupom = itemQtd('cupom') > 0, mot = cupom ? motivoUso('cupom', m) : '', algum = false, ctx = rankCtx(m);
     var lista = m.skills.map(function (id) {
-      if (!cupom || !hasOwn(GD.SKILLS, id)) return skillHtml(id, 32, skillQuandoTxt(id, m));
-      algum = true;
-      return '<div class="item-uso item-uso--skill">' + skillHtml(id, 32, skillQuandoTxt(id, m)) +
-        '<button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="cupom" data-mount="' + esc(m.uid) + '" data-skill="' + esc(id) + '"' + indisponivel(mot) + '>' +
-        'Trocar<span class="sr"> ' + esc(skillNome(id) + ' (usa 1 ' + GD.ITEMS.cupom.name + ')') + '</span></button></div>';
+      if (!hasOwn(GD.SKILLS, id)) return '';
+      var rank = RS.rankOf(m, id), p = IT.podeSubirRank(m, id, ctx), noMax = rank >= GD.SKILL_RANKS.max;
+      var subir = noMax ? '<span class="rank-max-selo">Rank máximo</span>'
+        : '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="rank-subir" data-mount="' + esc(m.uid) + '" data-skill="' + esc(id) + '"' + indisponivel(p.ok ? '' : p.motivo + '.') + '>' +
+          'Subir rank<span class="sr"> ' + esc('de ' + skillNome(id) + ' para ' + ROMANOS[rank + 1]) + '</span></button>';
+      var trocar = '';
+      if (cupom) {
+        algum = true;
+        trocar = '<button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="cupom" data-mount="' + esc(m.uid) + '" data-skill="' + esc(id) + '"' + indisponivel(mot) + '>' +
+          'Trocar<span class="sr"> ' + esc(skillNome(id) + ' (usa 1 ' + GD.ITEMS.cupom.name + ')') + '</span></button>';
+      }
+      return '<div class="item-uso item-uso--skill skill-rank" data-skill="' + esc(id) + '" data-rank="' + rank + '">' + skillHtml(id, 32, skillQuandoTxt(id, m), rank, rankProxHtml(id, rank)) +
+        '<div class="rank-acoes">' + (noMax ? '' : rankCustoHtml(p.custo)) + subir + trocar + '</div></div>';
     }).join('');
-    return lista + (algum && mot ? '<p class="nota">' + esc('Trocar: ' + mot) + '</p>' : '');
+    return skillRankTopoHtml() + lista + (algum && mot ? '<p class="nota">' + esc('Trocar: ' + mot) + '</p>' : '');
+  }
+  // o passo de confirmação do "Subir rank" (ui.montaria.rank = { skillId }), no lugar da sub-aba: o antes e o depois, o
+  // custo e o Poder; sem sorteio e sem volta. Desenhado com o estado atual (o que mudou aparece apagado, com o motivo).
+  function rankPassoHtml(m) {
+    var id = ui.montaria.rank.skillId, rank = RS.rankOf(m, id), max = GD.SKILL_RANKS.max;
+    var p = IT.podeSubirRank(m, id, rankCtx(m)), mot = p.ok ? '' : p.motivo + '.';
+    var falha = ui.itemMsg && ui.itemMsg.passo ? ui.itemMsg.txt : '';
+    var corpo = '';
+    if (rank < max) {
+      var depois = clone(m); depois.skillRanks = IT.subirRank(m, id).skillRanks;
+      corpo = '<p class="rank-de-para">' + skillIcone(id, 32) + '<b>' + esc(skillNome(id)) + '</b>' + rankMarcasHtml(rank) + '<span aria-hidden="true">→</span><span class="sr"> para </span>' + rankMarcasHtml(rank + 1) + '</p>' +
+        '<dl class="rank-antes-depois"><div><dt>' + esc('Agora (rank ' + ROMANOS[rank] + ')') + '</dt><dd>' + esc(RS.skillDesc(id, rank)) + '</dd></div>' +
+        '<div><dt>' + esc('Depois (rank ' + ROMANOS[rank + 1] + ')') + '</dt><dd>' + esc(RS.skillDesc(id, rank + 1)) +
+          (rank + 1 === max ? ' <b class="rank-marco">' + esc('Marco: ' + RS.skillMarcoDesc(id) + '.') + '</b>' : '') + '</dd></div></dl>' +
+        '<p class="rank-custo-linha">Custo: ' + rankCustoHtml(p.custo) + '</p>' +
+        '<p class="nota">' + esc('Poder ' + RS.powerRating(m) + ' → ' + RS.powerRating(depois) + '. Subir rank não falha e não tem volta.') + '</p>';
+    }
+    return '<section class="caixa item-passo rank-passo" aria-labelledby="t-rank">' + noticeHtml() +
+      '<h2 class="titulo" id="t-rank" tabindex="-1" data-foco-item>Subir rank</h2>' + corpo +
+      (mot ? '<p class="nota rank-motivo">' + esc(mot) + '</p>' : '') + (falha ? '<p class="aviso" role="status">' + esc(falha) + '</p>' : '') +
+      '<div class="acoes"><button type="button" class="btn btn--ouro" data-acao="rank-confirmar"' + indisponivel(mot) + '>Confirmar</button>' +
+      '<button type="button" class="btn" data-acao="rank-cancelar">Cancelar</button></div></section>';
+  }
+  // Sobe o rank: confere de novo (depois de sincronizar com outras abas), desconta o Ouro e os Pergaminhos e grava tudo de
+  // uma vez (gravaGasto, o padrão do usaItem). 'ok', 'outra-aba' ou o motivo da recusa (FALHA_SALVAR se não gravou).
+  function sobeRank(uid, skillId) {
+    var s0 = state;
+    persist();
+    if (state !== s0) return 'outra-aba';
+    var m = mountByUid(uid);
+    if (!m) return 'Este cavalo não está mais no estábulo.';
+    var p = IT.podeSubirRank(m, skillId, rankCtx(m));
+    if (!p.ok) return p.motivo + '.';
+    var antes = clone(state), r = IT.subirRank(m, skillId);
+    if (!r) return 'Rank máximo.';   // não acontece: o podeSubirRank já conferiu
+    m.skillRanks = r.skillRanks;
+    state.gold -= r.ouro;
+    state.mochila.pergaminho -= r.perg;
+    var g = gravaGasto(s0, antes);
+    if (g === 'outra-aba') return 'outra-aba';
+    if (g === 'falhou') return FALHA_SALVAR;
+    var novo = r.skillRanks[skillId];
+    ui.itemMsg = { id: 'pergaminho', uid: m.uid, origem: 'ficha', txt: skillNome(skillId) + ' subiu para o rank ' + ROMANOS[novo] + '.' +
+      (novo >= GD.SKILL_RANKS.max ? ' Marco liberado: ' + RS.skillMarcoDesc(skillId) + '.' : '') };
+    return 'ok';
   }
   // o que o item vai fazer, no passo da confirmação (sem sortear nada)
   function confirmaTxt(F, m) {
@@ -13893,7 +14363,10 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       case 'estrela':
         var g = RS.starsOf(m);
         return (g < 3 ? m.name + ' sobe de ' + g + ' para ' + (g + 1) + ' estrelas; os pontos a mais aparecem para distribuir.' : m.name + ' já tem 3 estrelas.') + fim;
-      case 'cupom': return skillNome(F.skillId) + ' sai das vagas de ' + m.name + ' e entra outra skill, sorteada entre as que ele pode aprender.' + fim;
+      case 'cupom':
+        var rkSai = RS.rankOf(m, F.skillId);
+        return skillNome(F.skillId) + ' sai das vagas de ' + m.name + ' e entra outra skill, sorteada entre as que ele pode aprender, no rank I.' +
+          (rkSai > 1 ? ' Rank ' + ROMANOS[rkSai] + ' de ' + skillNome(F.skillId) + ' será perdido.' : '') + fim;
       default: return m.name + ' tenta aprender uma skill nova na hora: ' + Math.round(GD.ITEMS.manual.chance * 100) + '% de chance. Aprendendo ou não, o manual é gasto e não tem volta.';
     }
   }
@@ -13942,6 +14415,15 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
     if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
   }
+  // de volta à aba Skills depois de subir o rank ou cancelar: o foco no "Subir rank" da mesma skill (ou no bloco dela,
+  // se ela chegou ao rank máximo e o botão saiu)
+  function rankVolta(skillId) {
+    render();
+    var el = telaEl.querySelector('[data-acao="rank-subir"][data-skill="' + skillId + '"]');
+    if (!el) { var h = telaEl.querySelector('[data-foco]'); if (h) { try { h.focus({ preventScroll: true }); } catch (e0) { h.focus(); } } return; }
+    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+    if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+  }
   // toque recusado num passo: desenha de novo (a tela pode estar velha) e diz o porquê, como no botão indisponível
   function recusaItem(sel, txt) {
     rerenderKeepScroll();
@@ -13970,8 +14452,9 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       r = id === 'cupom' ? IT.trocarSkill(m, skillId, state.seedBase, state.itemCounter) : IT.tentarDoma(m, state.seedBase, state.itemCounter);
       if (!r) return 'Este item não pode ser usado neste cavalo agora.';   // não acontece: podeUsar já garantiu a skill, a vaga e a candidata
       m.skills = r.skills;
+      m.skillRanks = r.skillRanks;   // a que entra (Cupom) ou a aprendida (Manual) fica no rank 1; a que sai perde o rank
       state.itemCounter += 1;
-      txt = id === 'cupom' ? skillNome(r.sai) + ' saiu e entrou ' + skillNome(r.entra) + '.'
+      txt = id === 'cupom' ? skillNome(r.sai) + (r.rankPerdido > 1 ? ' (rank ' + ROMANOS[r.rankPerdido] + ')' : '') + ' saiu e entrou ' + skillNome(r.entra) + (r.rankPerdido > 1 ? ', no rank I.' : '.')
         : r.aprendeu ? m.name + ' aprendeu ' + skillNome(r.aprendeu) + '!' : 'Não foi desta vez: ' + m.name + ' não aprendeu. O manual foi usado.';
     } else if (id === 'torrao') {
       m.torroes = IT.usarTorrao(m).torroes;
@@ -14064,20 +14547,21 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   // (~57 ms no Node, contra ~11 ms antes do 1b; com a memória, ~13 ms a 1ª sala e menos de 1 ms as seguintes).
   // Só os modelos fixos do catálogo (GD.WILD_HORSES e GD.STARTERS) passam por aqui.
   var poderBotMemo = {};
-  function poderBot(template, L) {
-    var k = template.id + '|' + L;
+  // O rank das skills do bot (RS.botRank do cavalo do jogador) entra no Poder dele, então também entra na chave.
+  function poderBot(template, L, rank) {
+    var k = template.id + '|' + L + '|' + rank;
     if (!hasOwn(poderBotMemo, k)) {
-      var h = clone(template);
+      var h = RS.withRanks(template, rank);
       h.level = L;
       h.alloc = RS.botAlloc(h);
       poderBotMemo[k] = RS.powerRating(h);
     }
     return poderBotMemo[k];
   }
-  function bestLevelFor(template, target, lo, hi) {
+  function bestLevelFor(template, target, lo, hi, rank) {
     var best = lo || 1, bestD = Infinity;
     for (var L = (lo || 1); L <= (hi || E.maxLevel || 50); L++) {
-      var d = Math.abs(poderBot(template, L) - target);
+      var d = Math.abs(poderBot(template, L, rank) - target);
       if (d < bestD - 0.5) { bestD = d; best = L; }
     }
     return { level: best, diff: bestD };
@@ -14157,6 +14641,9 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     var used = {};
     var silkOrder = shuffle(BOT_SILKS.map(function (c, i) { return i; }), rng);
     var bots = [];
+    // rank das skills dos bots: a média (arredondada) dos ranks das skills de vaga do cavalo do jogador, sem sorteio.
+    // Sai antes do Poder do bot (entra na escolha do nível). Com o páreo aberto o rank da ativa não muda.
+    var rankBots = RS.botRank(player.horse);
     for (var b = 0; b < n - 1; b++) {
       // alvo em torno do rating do jogador (−8,5%..+11,5%); o rating já pesa cada habilidade pela chance
       // do gatilho. O leve viés para cima mantém a margem da casa (~10%) também contra bots.
@@ -14168,7 +14655,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       var botGear = function (tpl) { return GEAR_ON ? GR.botGear(leagueIdx, tpl.element, gpick) : null; };
       var inBand = pool.map(function (tpl) {
         var bd = levelBand(tpl);
-        return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, bd[0], bd[1]) };
+        return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, bd[0], bd[1], rankBots) };
       })
         .filter(function (c) { return c.fit.diff <= target * 0.06; });
       var fresh = inBand.filter(function (c) { return !used[c.tpl.id]; });
@@ -14176,14 +14663,14 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       if (!cands.length) {
         // ninguém plausível na faixa: o mais próximo do alvo em qualquer nível
         var all = pool.map(function (tpl) {
-          return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target) };
+          return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, null, null, rankBots) };
         });
         all.sort(function (x, y) { return x.fit.diff - y.fit.diff; });
         cands = all.slice(0, 3);
       }
       var choice = pick(cands, rng);
       used[choice.tpl.id] = true;
-      var horse = clone(choice.tpl);   // genética do catálogo; os pontos livres pela build fixa
+      var horse = RS.withRanks(choice.tpl, rankBots);   // genética do catálogo; os pontos livres pela build fixa
       horse.level = choice.fit.level;
       horse.alloc = RS.botAlloc(horse);
       horse.id = choice.tpl.id + '-b' + b;
@@ -14201,8 +14688,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       counter: counter, seed: seed, training: !!P.training, fee: P.fee || 0, n: n,
       cond: cond, trackName: trackName,
       racers: racers, playerIdx: playerIdx, sim: null,
-      // modo DEV: vento forçado (a tela da corrida o desenha) e "skills sempre ativam" (vai ao RaceSim)
-      dev: dv ? { wind: dv.wind, skillsAlways: !!dv.skillsAlways } : null
+      // modo DEV: vento forçado (a tela da corrida o desenha)
+      dev: dv ? { wind: dv.wind } : null
     };
   }
   // vento da corrida (só visual): o forçado no modo DEV (L.dev é null sem nada armado) ou o da seed da sala
@@ -14379,10 +14866,12 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       seed: L.seed,
       conditions: L.cond,
       racers: L.racers.map(function (r) {
-        return { horse: r.horse, gear: r.gear, name: r.name, isPlayer: r.isPlayer };
+        // bônus de 3 peças do conjunto (suspenso com o equipamento): o efeito das skills × (1 + skillEffectBonus)
+        var e = { horse: r.horse, gear: r.gear, name: r.name, isPlayer: r.isPlayer };
+        if (r.gear && r.gear.special && r.gear.special.skillEffectBonus) e.skillScale = 1 + r.gear.special.skillEffectBonus;
+        return e;
       })
     };
-    if (DEV_MODE && L.dev && L.dev.skillsAlways) cfg.dev = { skillsAlways: true };   // só o modo DEV
     L.sim = RS.simulate(cfg);
     L.cond = withRanges(L.sim.conditions);
     var order = L.sim.finishOrder;
@@ -14406,6 +14895,11 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     // suspenso (GEAR_ON) não cai: o podiumStone (RNG própria, da seed da sala) nem é chamado; o resto não muda
     var stone = L.training || !GEAR_ON ? 0 : GR.podiumStone(L.seed, place, L.fee);
     state.pedras += stone;
+    // Pergaminho de técnica do pódio: só em corrida valendo (o treino nem chama o sorteio), pela seed da sala (RNG
+    // própria: não desloca nada), na mesma gravação do Ouro. Com a mochila no teto, não entra (pergCheia avisa).
+    var perg = L.training ? 0 : IT.pergaminhoPodio(L.seed, place), pergCheia = false;
+    if (perg && state.mochila.pergaminho + perg > GD.BAG_MAX) { perg = 0; pergCheia = true; }
+    state.mochila.pergaminho += perg;
     var gained = applyXp(activeMount(), xpGain, state.raceCounter);
     var levels = gained.levels, learned = gained.learned;
     state.races += 1;
@@ -14418,7 +14912,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
 
     var hAfter = playerHorse();
     return {
-      place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone,
+      place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone, pergaminho: perg, pergCheia: pergCheia,
       xpGain: xpGain, levels: levels, learned: learned,
       before: before,
       after: { level: hAfter.level, xp: hAfter.xp, gold: state.gold, stats: RS.computeStats(hAfter),
@@ -15143,7 +15637,8 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       var faixa = null, fx0 = null;
       for (k = 0; k < faixasJogador.length; k++) if (t >= faixasJogador[k].a && t < faixasJogador[k].b) fx0 = faixasJogador[k];
       if (fx0) {
-        var ft = fx0.item.nome.toUpperCase() + '!', skId = FX.iconNameOf(fx0.item);
+        var rmF = fx0.item.typeSkill ? '' : FX.rankRomano(fx0.item.rank);   // "SPRINT III!"; no rank V a faixa fica dourada
+        var ft = fx0.item.nome.toUpperCase() + (rmF ? ' ' + rmF : '') + '!', skId = FX.iconNameOf(fx0.item);
         var bl = FX.skillBannerLayout(ft, lay.artW, S, !!FX.iconImage(skId), tw), fs = bl.fs, fw = bl.w, fh = bl.h;
         var fxx = bl.x, fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
         // com o Dado na pista, logo abaixo da faixa dele
@@ -15151,7 +15646,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         // com a faixa do lugar em cima, logo abaixo dela
         if (lCaixa && !lugarFaixa.embaixo) fyy = Math.max(fyy, lCaixa.y + lCaixa.h + 2);
         var esc0 = (t - fx0.a) / fx0.item.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
-        var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
+        var cor = FX.rankMax(fx0.item) ? C.ouro : ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
         box(fxx, fyy, fw, fh, C.veu, cor);
         if (bl.icone) FX.drawIconPng(ctx, skId, bl.iconX * S, (fyy + bl.iconDy) * S, 8 * fs, S);
@@ -15179,7 +15674,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         lista = lista.slice(-3);
         // o nome da skill no balão mais novo: inteiro numa linha, ou em duas quando a raia comporta (self.linhasBalao)
         var novo = lista[lista.length - 1];
-        var linhas = novo.kind === 'skill' ? FX.nomeEmLinhas(novo.nome, FX.BALAO.textoMax, self.linhasBalao, novo.nomeCurto) : null;
+        var linhas = novo.kind === 'skill' ? FX.linhasBalao(novo, FX.BALAO.textoMax, self.linhasBalao) : null;   // com o rank em romano (II a V)
         var h0 = FX.balloonSize(novo, 0, linhas).h;
         var y0 = lay.laneTopArt + v.j * lay.laneArt - (v.sobe || 0), y1 = y0 + lay.laneArt;
         // na altura do jóquei (como o "◀VOCÊ"), mas sempre dentro da faixa da raia (o de duas linhas, que só existe em
@@ -15215,7 +15710,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
           // no de texto): então ele e os mais velhos ficam de fora
           if (ant && bate(r, ant)) break;
           if (FX.drawBalloon(ctx, r.x * S, r.y * S, S, item, t, q, q ? null : linhas)) {
-            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, tipo: !!item.typeSkill, texto: q ? '' : linhas ? linhas.join(' ') : (item.nomeCurto || ''), pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
+            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, tipo: !!item.typeSkill, texto: q ? '' : linhas ? linhas.join(' ') : (item.nomeCurto || ''), rank: item.rank || 0, dourado: FX.rankMax(item), pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
           }
           bx = r.x + r.w + 2; ant = r;
         }
@@ -15542,7 +16037,9 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
       : par('Entrada', '−' + fmt(R.fee), 'menos-t') +
         par('Prêmio (' + R.place + 'º lugar)', R.prize ? '+' + fmt(R.prize) : '0', R.prize ? 'mais' : '') +
         par('Resultado', signed(net), net > 0 ? 'mais' : net < 0 ? 'menos-t' : '') +
-        (R.stone ? par('Pedra Negra', iconeHtml('pedra-negra', '🪨') + ' +1', 'mais') : '')) + '</dl>';
+        (R.stone ? par('Pedra Negra', iconeHtml('pedra-negra', '🪨') + ' +1', 'mais') : '') +
+        (R.pergaminho ? par(GD.ITEMS.pergaminho.name, itemIconeHtml('pergaminho') + ' +' + R.pergaminho, 'mais') : '') +
+        (R.pergCheia ? par(GD.ITEMS.pergaminho.name, 'Mochila cheia (' + GD.BAG_MAX + '): não coube') : '')) + '</dl>';
 
     var lvl = '';
     if (R.levels > 0) {
@@ -15598,7 +16095,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         // pedaços (Ruling 17): cada um sem quebra por dentro e o " ·" no fim do pedaço de cima
         '<td><div class="quem"><b>' + laneChip(r, ri, 'raia--mini') + esc(r.horse.name) +
         (r.isPlayer ? ' <span class="tag-voce">VOCÊ</span>' : '') + '</b>' +
-        '<small>' + (r.isPlayer ? [] : [r.name]).concat(['Nv ' + r.horse.level]).concat(info ? ['skills ' + Math.round(info.skillChance * 100) + '%'] : [])
+        '<small>' + (r.isPlayer ? [] : [r.name]).concat(['Nv ' + r.horse.level]).concat(skillsRankTxt(r.horse) ? [skillsRankTxt(r.horse)] : [])
           .map(function (p, i, ps) { return '<span class="quem-peca">' + esc(p + (i < ps.length - 1 ? ' ·' : '')) + '</span>'; }).join(' ') + '</small></div></td>' +
         '<td class="num"><span class="tempo">' + fmtSec(t) + '</span><small>' + gap + '</small></td><td class="num">' + prize + '</td></tr>';
     }).join('');
@@ -15755,6 +16252,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         ui.itemMsg = null;
         var motU = itemQtd(id) < 1 ? 'Você não tem ' + GD.ITEMS[id].name + '.' : naFicha ? (skU ? motivoUsoSkill(id, mountByUid(uidU), skU) : motivoUso(id, mountByUid(uidU))) : '';
         if (motU) { recusaItem(seletorDe(b), motU); break; }
+        if (ui.montaria) ui.montaria.rank = null;
         ui.item = { id: id, mountUid: naFicha ? uidU : null, skillId: null, passo: 'cavalo', origem: naFicha ? 'ficha' : 'mochila' };
         if (naFicha && id === 'cupom' && skU) { ui.item.skillId = skU; ui.item.passo = 'confirma'; }
         else if (naFicha) ui.item.passo = id === 'cupom' ? 'skill' : 'confirma';
@@ -15796,6 +16294,42 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         itemVolta(FF);
         motivoVivo(ui.itemMsg.txt);   // a região viva anuncia; o aviso fica na tela
         break;
+      }
+      case 'rank-subir': {
+        // abre a confirmação (o antes e o depois, o custo); botão indisponível só diz o motivo
+        var uidR = b.getAttribute('data-mount'), skR = b.getAttribute('data-skill');
+        if (ui.screen !== 'montaria' || !ui.montaria || ui.montaria.uid !== uidR || ui.montaria.aba !== 'skills') break;
+        var sR0 = state;
+        persist();                    // tela velha (outra aba): adota o save mais novo antes de abrir
+        if (state !== sR0) break;
+        var mR = mountByUid(uidR), pR = mR ? IT.podeSubirRank(mR, skR, rankCtx(mR)) : null;
+        if (!pR) break;
+        ui.itemMsg = null;
+        if (!pR.ok) { recusaItem(seletorDe(b), pR.motivo + '.'); break; }
+        ui.item = null;
+        ui.montaria.rank = { skillId: skR };
+        itemPasso(); break;
+      }
+      case 'rank-confirmar': {
+        var MR = ui.montaria;
+        if (ui.screen !== 'montaria' || !MR || !MR.rank) break;
+        ui.itemMsg = null;
+        var skC = MR.rank.skillId, rR = sobeRank(MR.uid, skC);
+        if (rR === 'outra-aba') break;
+        if (rR !== 'ok') {
+          if (rR === FALHA_SALVAR) ui.itemMsg = { passo: true, txt: rR };
+          recusaItem('[data-acao="rank-confirmar"]', rR); break;
+        }
+        MR.rank = null;
+        rankVolta(skC);
+        motivoVivo(ui.itemMsg.txt);
+        break;
+      }
+      case 'rank-cancelar': {
+        if (!ui.montaria || !ui.montaria.rank) break;
+        var skX = ui.montaria.rank.skillId;
+        ui.montaria.rank = null; ui.itemMsg = null;
+        rankVolta(skX); break;
       }
       case 'item-cancelar': {
         var FX = ui.item;
@@ -15859,6 +16393,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         ui.montaria.confirmaRedist = false;
         ui.montaria.renomear = null; ui.confirmLiberar = null;   // nem o campo de renomear e a confirmação de liberar da aba Ficha
         ui.item = null; ui.itemMsg = null;                       // nem o uso de item aberto
+        ui.montaria.rank = null;                                 // nem a confirmação do "Subir rank"
         rerenderKeepScroll(); break;
       case 'ponto-mais': {
         // +1, +5 ou +10 (data-n): soma exatamente N ao rascunho, ou nada

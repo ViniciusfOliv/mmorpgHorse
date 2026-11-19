@@ -606,6 +606,27 @@
     return sk.desc;
   }
 
+  // O marco do rank 5 de uma skill, numa frase (com os números de SKILLS[id].rank5).
+  function skillMarcoDesc(id) {
+    var sk = GameData.SKILLS[id], m = sk && sk.rank5, e = sk && sk.effect;
+    if (!m) return '';
+    var up = function (x) { return '+' + pctBr(x - 1); }, cut = function (x) { return pctBr(1 - x); };
+    switch (id) {
+      case 'arranque': return 'também ' + up(m.speedMult) + ' de velocidade nos mesmos ' + e.distanceM + ' m';
+      case 'sprint': return 'dispara também em retas de ' + m.minStraightM + ' m ou mais';
+      case 'drift': return 'na curva, também gasta ' + cut(m.drainMult) + ' menos estamina';
+      case 'saida-rapida': case 'chama-final': return 'dura ' + numBr(m.durationS) + 's em vez de ' + numBr(e.durationS) + 's';
+      case 'folego-de-montanha': return 'ao sair da subida, recupera ' + pctBr(m.exitRestore) + ' de estamina';
+      case 'segundo-ar': return 'dispara com ' + pctBr(m.lowStaminaAt) + ' de estamina em vez de ' + pctBr(T.lowStaminaAt);
+      case 'arrancada-final': return 'também ' + up(m.speedMult) + ' de velocidade até a chegada';
+      case 'dado-viciado': return m.extraDice + ' dados extras, os dois de 1 a ' + GameData.SKILL_RANKS.diceTeto[GameData.SKILL_RANKS.max - 1];
+      case 'sol-a-pino': case 'pe-na-chuva': case 'nevoa-amiga': return 'o reforço continua por ' + m.weatherLingerS + 's depois que o clima muda';
+      case 'canto-da-iara': return 'também recupera ' + pctBr(m.staminaRestore) + ' de estamina ao ativar';
+      case 'nascente': return 'também ' + up(m.speedMult) + ' de velocidade por ' + numBr(m.durationS) + 's';
+      case 'casco-firme': return 'na subida, também gasta ' + cut(m.hillDrainMult) + ' menos estamina extra';
+    }
+    return '';
+  }
   // A Garra de um cavalo, para a tela (fora da corrida, sem clima): onde a arrancada começa (fração da pista), a chance e
   // o teto da velocidade se ela der certo. As contas são as da corrida (buildRacer e derive): se a arrancada começa dentro
   // do terço da skill de tipo que multiplica a Garra (a Maré Alta, da Água), vale a Garra do terço (tipo: true).
@@ -1406,6 +1427,7 @@
     rankOf: rankOf,
     skillEffect: skillEffect,
     skillDesc: skillDesc,
+    skillMarcoDesc: skillMarcoDesc,
     botRank: botRank,
     withRanks: withRanks,
     garraInfo: garraInfo,

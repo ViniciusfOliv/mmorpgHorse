@@ -1403,44 +1403,64 @@
       '<div class="barra barra--xp" role="img" aria-label="' + esc('Experiência ' + Math.round(pct) + '%') + '"><i style="width:' + (Math.round(pct / 5) * 5) + '%"></i></div></div>';
   }
   // tam: tamanho do ícone (32 na aba Skills; 16 no resto)
-  function skillHtml(id, tam, quando) {
+  // rank (opcional, 1 a 5): o texto do efeito com os números do rank (RaceSim.skillDesc), as 5 marcas e o selo em
+  // romano; extra (opcional): HTML a mais dentro do bloco (a linha do próximo rank)
+  function skillHtml(id, tam, quando, rank, extra) {
     var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
     if (!sk) return '';
-    return '<div class="habilidade"><b>' + skillIcone(id, tam) + esc(sk.name) + '</b><span>' + esc(sk.desc) + '</span>' +
-      (quando ? '<span class="habilidade-quando">' + esc(quando) + '</span>' : '') + '</div>';
+    return '<div class="habilidade' + (rank >= GD.SKILL_RANKS.max ? ' habilidade--max' : '') + '"><b>' + skillIcone(id, tam) + esc(sk.name) + (rank ? rankMarcasHtml(rank) : '') + '</b>' +
+      '<span class="habilidade-efeito">' + esc(rank ? RS.skillDesc(id, rank) : sk.desc) + '</span>' +
+      (quando ? '<span class="habilidade-quando">' + esc(quando) + '</span>' : '') + (extra || '') + '</div>';
+  }
+  // as 5 marcas do rank (cheias até o rank) e o algarismo romano; o leitor de tela lê "Rank III de V"
+  var ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V'];   // o rank das skills na tela (1 a 5)
+  function rankMarcasHtml(rank) {
+    var max = GD.SKILL_RANKS.max, pips = '';
+    for (var i = 1; i <= max; i++) pips += '<i class="rank-pip' + (i <= rank ? ' rank-pip--on' : '') + '"></i>';
+    return '<span class="rank-marcas' + (rank >= max ? ' rank-marcas--max' : '') + '" role="img" aria-label="Rank ' + ROMANOS[rank] + ' de ' + ROMANOS[max] + '">' +
+      '<span class="rank-romano" aria-hidden="true">' + ROMANOS[rank] + '</span>' + pips + '</span>';
   }
   // Porcentagem para texto: inteira quando é redonda, senão com uma casa ("44,5%").
   function pctTxt(x) {
     var v = Math.round(x * 1000) / 10;
     return (v === Math.round(v) ? String(v) : v.toFixed(1).replace('.', ',')) + '%';
   }
-  // Quando cada skill de vaga tenta ativar (o gatilho dela, GameData.SKILLS[id].trigger), com os números da corrida
-  // (RaceSim.TUNING) e, na arrancada final, o ponto da pista deste cavalo (RaceSim.garraInfo). Cada skill tenta uma vez
-  // por corrida; as de bloco (blockScoped: Drift, Fôlego de Montanha, Casco Firme), uma vez em cada curva ou subida.
+  // Quando cada skill de vaga ativa (o gatilho dela, GameData.SKILLS[id].trigger; sem sorteio: o gatilho aconteceu, ela
+  // ativa), com os números da corrida (RaceSim.TUNING, e os do rank do cavalo) e, na arrancada final, o ponto da pista
+  // deste cavalo (RaceSim.garraInfo). Cada skill ativa uma vez por corrida; as de bloco (blockScoped: Drift, Fôlego de
+  // Montanha, Casco Firme), uma vez em cada curva ou subida.
   function skillQuandoTxt(id, m) {
     var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
     if (!sk) return '';
     var t = sk.trigger, T = RS.TUNING, bloco = !!(sk.effect && sk.effect.blockScoped), q;
+    var ef = RS.skillEffect(id, RS.rankOf(m, id));   // o marco do rank V pode mudar o gatilho (reta de 100 m, estamina a 35%)
     if (t === 'start') q = 'na largada';
-    else if (t === 'straight') q = 'na 1ª reta de ' + T.straightMinM + ' m ou mais (fora a da largada)';
+    else if (t === 'straight') q = 'na 1ª reta de ' + (ef.minStraightM || T.straightMinM) + ' m ou mais (fora a da largada)';
     else if (t === 'curve') q = bloco ? 'ao entrar em cada curva' : 'ao entrar na 1ª curva';
     else if (t === 'curveExit') q = 'ao sair da 1ª curva';
     else if (t === 'hill') q = bloco ? 'ao entrar em cada subida' : 'ao entrar na 1ª subida';
-    else if (t === 'lowStamina') q = 'quando a estamina cai a ' + pctTxt(T.lowStaminaAt);
+    else if (t === 'lowStamina') q = 'quando a estamina cai a ' + pctTxt(ef.lowStaminaAt || T.lowStaminaAt);
     else if (t === 'final') q = 'na arrancada final, aos ' + pctTxt(RS.garraInfo(m).from) + ' da pista (junto com a Garra)';
     else if (t === 'dice') q = 'antes do 1º Dado da Sorte';
     else if (t.indexOf('weather:') === 0 && hasOwn(GD.WEATHERS, t.slice(8))) q = 'quando o clima for ' + GD.WEATHERS[t.slice(8)].name;
     else return '';
-    return 'Quando: ' + q + (bloco ? '' : ' · 1 vez por corrida') + '.';
+    return 'Ativa sempre: ' + q + (bloco ? '' : ' · 1 vez por corrida') + '.';
   }
-  // A chance de cada skill de vaga ativar quando o momento dela chega, com a conta (RaceSim.skillChance): a base da
-  // raridade, + por nível acima do 1, + por ponto de Sorte; o teto do TUNING.
-  function skillChanceHtml(m) {
-    var T = RS.TUNING, st = RS.computeStats(m), rar = RS.rarityOf(m), nv = RS.sanitizeLevel(m.level);
-    var total = RS.skillChance(m, st, 0), bruto = rar.skillChance + T.skillPerLevel * (nv - 1) + T.skillPerSorte * st.sorte;
-    var conta = rar.name + ' ' + pctTxt(rar.skillChance) + ' + nível ' + nv + ': +' + pctTxt(T.skillPerLevel * (nv - 1)).replace('%', '') + ' + Sorte ' + st.sorte +
-      ': +' + pctTxt(T.skillPerSorte * st.sorte).replace('%', '') + (bruto > T.skillChanceMax ? '; máximo ' + pctTxt(T.skillChanceMax) : '');
-    return '<p class="skill-chance">Chance de cada skill ativar: <strong>' + pctTxt(total) + '</strong> (' + esc(conta) + ').</p>';
+  // "2 de 3 vagas · rank III, I" (linha da ficha) e "skills rank II" (a linha do resultado: o rank médio arredondado, o
+  // mesmo número que vale para os bots; sem skill de vaga, nada)
+  function skillsFichaTxt(h) {
+    var slots = RS.rarityOf(h).skillSlots, ids = (h.skills || []).filter(function (id) { return hasOwn(GD.SKILLS, id); });
+    return '<b>' + ids.length + '</b> de ' + slots + (slots === 1 ? ' vaga' : ' vagas') + (ids.length ? ' · rank ' + ids.map(function (id) { return ROMANOS[RS.rankOf(h, id)]; }).join(', ') : '');
+  }
+  function skillsRankTxt(h) {
+    var ids = ((h && h.skills) || []).filter(function (id) { return hasOwn(GD.SKILLS, id); });
+    return ids.length ? 'skills rank ' + ROMANOS[RS.botRank(h)] : '';
+  }
+  // O topo das skills de vaga: elas ativam sempre (sem sorteio), o ⓘ do rank e quantos Pergaminhos de técnica há.
+  function skillRankTopoHtml() {
+    var n = itemQtd('pergaminho');
+    return '<div class="linha-meta rank-topo"><span>Skills de vaga: <strong>ativam sempre</strong>' + ajudaBtn('rank', 'o rank das skills') + '</span>' +
+      '<span class="rank-tem">' + itemIconeHtml('pergaminho') + '<span class="sr">' + esc(GD.ITEMS.pergaminho.plural) + ': </span><b>' + fmt(n) + '</b></span></div>';
   }
   // A Garra deste cavalo (RaceSim.garraInfo, as contas da corrida, sem clima): onde a arrancada começa, a chance e o teto;
   // com a Arrancada Final, os números se ela ativar.
@@ -1449,7 +1469,7 @@
     linhas.push('1 vez por corrida, aos ' + pctTxt(g.from) + ' da pista: ' + pctTxt(g.chance) + ' de chance' + (g.tipo ? ' (com a ' + RS.typeSkill(m).name + ')' : '') +
       '. Se der certo: velocidade máxima ×' + g.boost.toFixed(2).replace('.', ',') + ' até a chegada.');
     if (m.skills.indexOf('arrancada-final') >= 0 && hasOwn(GD.SKILLS, 'arrancada-final')) {
-      var e = GD.SKILLS['arrancada-final'].effect, gb = RS.garraInfo(m, { chance: e.garraChanceBonus, boost: e.garraBoostBonus });
+      var e = RS.skillEffect('arrancada-final', RS.rankOf(m, 'arrancada-final')), gb = RS.garraInfo(m, { chance: e.garraChanceBonus, boost: e.garraBoostBonus });
       linhas.push('Com a ' + GD.SKILLS['arrancada-final'].name + ' ativa: ' + pctTxt(gb.chance) + ' de chance e ×' + gb.boost.toFixed(2).replace('.', ',') + '.');
     }
     linhas.push('Mais Garra: começa antes, com mais chance e mais força.');
@@ -1648,9 +1668,10 @@
   // - Ouro infinito (ui.dev.ouroInf, ligado por padrão): persist() chama Dev.refillGold.
   // - O painel cria cavalos fora das regras: sanitize aceita o templateId 'dev-<n>' e qualquer skill
   //   do catálogo (devTemplateId, validSkills); o estábulo cresce sem limite de vagas.
-  // - Próxima corrida: ui.devNext = { seed, cond, wind, skillsAlways } (cond = filtro de Dev.conditions,
-  //   sem a sala; null = nada armado). buildLobby aplica seed e condições e grava L.dev = { wind,
-  //   skillsAlways } para a tela da corrida; settle passa skillsAlways ao RaceSim e limpa ui.devNext.
+  // - Próxima corrida: ui.devNext = { seed, cond, wind } (cond = filtro de Dev.conditions,
+  //   sem a sala; null = nada armado). buildLobby aplica seed e condições e grava L.dev = { wind } para a tela da
+  //   corrida; settle limpa ui.devNext. O antigo "skills sempre ativam" saiu (toda skill já ativa quando o gatilho
+  //   acontece); no lugar, a aba Cavalo escolhe o rank (I a V) de cada skill.
   // - A gaveta mora em #dev (fora de #tela): re-renderizar a tela não perde a rolagem dela; os campos
   //   ficam em ui.dev.f (lidos do DOM a cada mudança e antes de cada ação).
   // As funções puras (cavalo, peça, condições, vento, seed, Ouro) estão em dev.js.
@@ -1728,7 +1749,7 @@
         pedras: null, redeas: null, 'mochila-torrao': null, 'mochila-estrela': null, 'mochila-cupom': null, 'mochila-manual': null, 'mochila-pergaminho': null,
         copiar: GD.STARTERS[0].id,
         slot: GR.SLOTS[0], conjunto: 'sol', rpeca: 'lendario', melhoria: '0', equipar: false,
-        clima: '', piso: '', distancia: '', tracado: 'normal', blocos: '', vento: '', direcao: '1', seed: '', sempre: false
+        clima: '', piso: '', distancia: '', tracado: 'normal', blocos: '', vento: '', direcao: '1', seed: ''
       };
       devCavaloDaAtiva();
     }
@@ -1745,7 +1766,7 @@
     // genética por status (vale com "Genética: por status") e pontos distribuídos, da ativa
     var al = RS.validAlloc(a, a.alloc);
     STAT_KEYS.forEach(function (k) { f['gen-' + k] = String(a.potential[k]); f['pt-' + k] = String(al[k]); });
-    for (var i = 0; i < DEV_SKILL_VAGAS; i++) f['skill' + i] = a.skills[i] || '';
+    for (var i = 0; i < DEV_SKILL_VAGAS; i++) { f['skill' + i] = a.skills[i] || ''; f['rank' + i] = String(a.skills[i] ? RS.rankOf(a, a.skills[i]) : 1); }
     f.coat = pal.coat.toLowerCase(); f.coatshade = pal.coatShade.toLowerCase();
     f.mane = pal.mane.toLowerCase(); f.accent = pal.accent.toLowerCase();
     var mk = marcasDe(a.marcas, a.templateId, a.uid);
@@ -1776,6 +1797,12 @@
       marcas: { cara: f.cara, patas: f.patas, corpo: f.corpo },
       porte: f.porte
     };
+  }
+  // o rank escolhido para cada skill da gaveta: { id: 1..5 } (o Itens.sanearRanks corta o que não vale)
+  function devRanks(f) {
+    var out = {};
+    for (var i = 0; i < DEV_SKILL_VAGAS; i++) if (f['skill' + i]) out[f['skill' + i]] = Math.floor(Number(f['rank' + i])) || 1;
+    return out;
   }
   // pontos do template (inteiros ≥ 0) cortados pelo teto de 150 e pelo custo, com os pontos do nível da instância
   function devAplicaPontos(m, tpl) { m.alloc = RS.validAlloc(m, tpl.alloc); }
@@ -1808,8 +1835,8 @@
     var wind = f.vento ? DV.wind({ intensity: f.vento, dir: Number(f.direcao) }) : null;
     var hasCond = false;
     for (var k in cond) if (hasOwn(cond, k)) hasCond = true;
-    var dv = (hasCond || seed != null || wind || f.sempre)
-      ? { seed: seed, cond: hasCond ? cond : null, wind: wind, skillsAlways: !!f.sempre } : null;
+    var dv = (hasCond || seed != null || wind)
+      ? { seed: seed, cond: hasCond ? cond : null, wind: wind } : null;
     return { next: dv, erros: erros };
   }
   function devResumoArmado(dv) {
@@ -1823,7 +1850,6 @@
     else if (Array.isArray(c.tracado)) p.push('blocos ' + c.tracado.join(' '));
     if (dv.wind) p.push('vento ' + dv.wind.intensity + (dv.wind.dir > 0 ? ' →' : ' ←'));
     if (dv.seed != null) p.push('seed ' + dv.seed);
-    if (dv.skillsAlways) p.push('skills sempre ativam');
     return 'Armado para a próxima corrida: ' + p.join(' · ') + '.';
   }
   // a sala aberta na tela reflete o que acabou de ser armado (o resultado ainda não existe)
@@ -1871,7 +1897,8 @@
       return [id, sk.name + ' · ' + elementOf(sk.element).name];
     }));
     var skillSel = '';
-    for (var i = 0; i < DEV_SKILL_VAGAS; i++) skillSel += devSelect('skill' + i, 'Skill ' + (i + 1), skillOpts, f['skill' + i]);
+    var rankOpts = [1, 2, 3, 4, 5].map(function (r) { return [String(r), 'Rank ' + ROMANOS[r]]; });
+    for (var i = 0; i < DEV_SKILL_VAGAS; i++) skillSel += devSelect('skill' + i, 'Skill ' + (i + 1), skillOpts, f['skill' + i]) + devSelect('rank' + i, 'Rank da skill ' + (i + 1), rankOpts, f['rank' + i] || '1');
     var prontos = devProntos().map(function (h) {
       return [h.id, h.name + ' (' + GD.RARITIES[h.rarity].name + ', ' + GD.ELEMENTS[h.element].name + ', Nv ' + (h.level || 1) + ')'];
     });
@@ -1982,7 +2009,7 @@
         devSelect('vento', 'Vento', [['', '— sorteado —']].concat(DV.WIND_INTENSITIES.map(function (w) { return [w, w.charAt(0).toUpperCase() + w.slice(1)]; })), f.vento) +
         devSelect('direcao', 'Direção do vento', [['1', '→ Direita'], ['-1', '← Esquerda']], f.direcao) +
         devEntrada('seed', 'Seed', 'type="text" inputmode="numeric" autocomplete="off" placeholder="da sala"', f.seed) +
-      '</div>' + devCheck('sempre', 'Skills sempre ativam', f.sempre) +
+      '</div>' +
       '<p class="dev-armado' + (ui.devNext ? ' dev-armado--on' : '') + '" id="dev-armado">' + esc(devResumoArmado(ui.devNext)) + '</p>' +
       '<div class="dev-acoes">' + devBotao('dev-armar', 'Armar', 'btn--ouro') + devBotao('dev-limpar', 'Limpar') + '</div>');
 
@@ -2122,6 +2149,7 @@
       case 'dev-criar':
         tpl = DV.horseTemplate(devCavaloEscolhido(f), state.nextUid);
         m = instanceFromTemplate(tpl, 'm' + state.nextUid);
+        m.skillRanks = IT.sanearRanks(m.skills, devRanks(f));
         m.level = devNivel(f); m.xp = 0;
         devAplicaPontos(m, tpl);
         state.nextUid += 1;
@@ -2132,7 +2160,7 @@
         tpl = DV.horseTemplate(devCavaloEscolhido(f), uidNum(a.uid));
         a.name = tpl.name; a.element = tpl.element; a.rarity = tpl.rarity; a.sex = tpl.sex; a.grau = tpl.grau;
         a.level = devNivel(f); a.xp = 0;
-        a.skills = tpl.skills.slice(); a.skillRanks = IT.sanearRanks(a.skills, null); a.potential = clone(tpl.potential); a.palette = clone(tpl.palette);
+        a.skills = tpl.skills.slice(); a.skillRanks = IT.sanearRanks(a.skills, devRanks(f)); a.potential = clone(tpl.potential); a.palette = clone(tpl.palette);
         a.marcas = clone(tpl.marcas);
         a.porte = tpl.porte;
         devAplicaPontos(a, tpl);
@@ -3608,7 +3636,7 @@
     var st = gear.set, sb = GE.setBonus;
     if (!st || !st.id || !st.count || !hasOwn(GD.GEAR_SETS, st.id)) return '<p class="set-linha nota">sem conjunto</p>';
     var bon = [];
-    if (st.count >= sb.pieces[0]) bon.push('+' + sb.sorte + ' Sorte e +' + Math.round(sb.skillChance * 100) + '% de skill');
+    if (st.count >= sb.pieces[0]) bon.push('+' + sb.sorte + ' Sorte e +' + Math.round(sb.skillEffect * 100) + '% no efeito das skills');
     if (st.count >= sb.pieces[1]) bon.push('bônus do clima reforçado (×1,07)');
     if (st.count >= sb.pieces[2]) bon.push('sem penalidade de clima');
     return '<p class="set-linha"><span class="set-badge">' + esc(GD.GEAR_SETS[st.id].name + ' ×' + st.count) + '</span> ' +
@@ -3961,7 +3989,6 @@
     var M = ui.montaria, P = state.pending, uid = esc(m.uid), isActive = m.uid === state.activeId;
     var h = clone(m);
     // a corrida não usa mais o bônus de chance de skill do conjunto (o equipamento não entra: sim.js)
-    var skillPct = Math.round(RS.skillChance(h, RS.computeStats(h), 0) * 100);
     var corcel = window.Breed && window.Breed.isCorcel(m)
       ? fichaLinha('Corcel', '<span class="corcel" title="Corcel: herança garantida">' + iconeHtml('ui-corcel', '⚑', 16) + ' herança garantida</span>') : '';
     // renomear: campo na própria tela (window.prompt não abre num iframe sem allow-modals, como o do artefato)
@@ -3988,7 +4015,7 @@
         fichaLinhaTexto(porteTexto(m)) +
         fichaLinhaTexto(marcasTexto(m)) +
         fichaLinha('Cruzas restantes', esc(m.breedLeft)) +
-        fichaLinha('Skills', '<b>' + skillPct + '%</b> de ativar') +
+        fichaLinha('Skills', skillsFichaTxt(h)) +
         (m.parents ? fichaLinha('Pais', paiHtml(m.parents.f) + ' e ' + paiHtml(m.parents.m)) : '') +
       '</ul></section>';
   }
@@ -4023,7 +4050,7 @@
     if (M.aba === 'skills') {
       var vagas = (GD.RARITIES[m.rarity] || GD.RARITIES.comum).skillSlots - m.skills.length;
       corpo = '<section class="caixa" aria-label="Skills">' + vagaTipoHtml(m) +
-        (m.skills.length ? skillChanceHtml(m) + skillsVagasHtml(m) : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
+        (m.skills.length ? skillsVagasHtml(m) : '<p class="nota">Nenhuma skill de vaga ainda.</p>') +
         '<p class="nota">' + (vagas > 0
           ? vagas + (vagas === 1 ? ' vaga livre' : ' vagas livres') + ' · ' + Math.round(chanceSkillNivel() * 100) + '% de chance de aprender uma skill nova a cada nível'
           : 'Sem vagas livres') + '</p>' +
@@ -4038,6 +4065,7 @@
     }
     // o uso de um item aberto pela ficha deste cavalo: o passo dele no lugar da sub-aba; o aviso do último uso, em cima dela
     if (ui.item && ui.item.origem === 'ficha' && ui.item.mountUid === m.uid) corpo = itemPassoHtml();
+    else if (M.aba === 'skills' && M.rank && m.skills.indexOf(M.rank.skillId) >= 0) corpo = rankPassoHtml(m);   // a confirmação do "Subir rank"
     else if (ui.itemMsg && ui.itemMsg.origem === 'ficha' && ui.itemMsg.uid === m.uid) corpo = '<p class="aviso" role="status">' + esc(ui.itemMsg.txt) + '</p>' + corpo;
 
     return '<section class="tela" aria-labelledby="t-montaria">' +
@@ -4186,20 +4214,91 @@
     if (itemQtd('estrela') > 0) usos.push(itemUsoHtml('estrela', m, [naMochilaTxt('estrela')]));
     return usos.length ? '<div class="item-usos">' + usos.join('') + '</div>' : '';
   }
-  // aba Skills: as skills das vagas, cada uma com "Trocar" quando há Cupom (a skill de tipo não ocupa vaga e nunca troca)
+  // ---- Rank das skills de vaga (spec 2026-11-19): sobe com Ouro + Pergaminhos de técnica, sem sorteio e sem volta.
+  // o contexto do Itens.podeSubirRank: o Ouro fora do reservado para a entrada da sala aberta, o saldo todo, os
+  // Pergaminhos da mochila e se o cavalo é o ativo com páreo aberto (o Poder dele não pode passar do que a sala viu)
+  function rankCtx(m) {
+    return { ouroLivre: ouroLivre(), ouro: state.gold, pergaminhos: itemQtd('pergaminho'), salaAbertaAtivo: m.uid === state.activeId && !!state.pending };
+  }
+  function rankCustoHtml(custo) {
+    return '<span class="rank-custo">' + ouroHtml(custo.ouro) + '<span class="rank-mais" aria-hidden="true">+</span>' +
+      '<span class="rank-perg">' + itemIconeHtml('pergaminho') + '<span class="sr"> e </span><b>' + custo.perg + '</b><span class="sr"> ' +
+      esc(custo.perg === 1 ? GD.ITEMS.pergaminho.name : GD.ITEMS.pergaminho.plural) + '</span></span></span>';
+  }
+  // a linha do próximo rank dentro do bloco da skill: o efeito que vem (no IV → V, também o marco); no V, o marco ativo
+  function rankProxHtml(id, rank) {
+    var max = GD.SKILL_RANKS.max;
+    if (rank >= max) return '<span class="rank-prox rank-prox--max">' + esc('Rank máximo. Marco ativo: ' + RS.skillMarcoDesc(id) + '.') + '</span>';
+    return '<span class="rank-prox"><b>' + esc('Rank ' + ROMANOS[rank + 1] + ': ') + '</b>' + esc(RS.skillDesc(id, rank + 1)) +
+      (rank + 1 === max ? ' <b class="rank-marco">' + esc('Marco: ' + RS.skillMarcoDesc(id) + '.') + '</b>' : '') + '</span>';
+  }
+  // aba Skills: as skills das vagas, cada uma com o rank (5 marcas), o efeito de agora e o do próximo rank, o custo e
+  // "Subir rank"; e "Trocar" quando há Cupom (a skill de tipo não ocupa vaga, não tem rank e nunca troca)
   function skillsVagasHtml(m) {
-    var cupom = itemQtd('cupom') > 0, mot = cupom ? motivoUso('cupom', m) : '', algum = false;
+    var cupom = itemQtd('cupom') > 0, mot = cupom ? motivoUso('cupom', m) : '', algum = false, ctx = rankCtx(m);
     var lista = m.skills.map(function (id) {
-      if (!cupom || !hasOwn(GD.SKILLS, id)) return skillHtml(id, 32, skillQuandoTxt(id, m));
-      algum = true;
-      return '<div class="item-uso item-uso--skill">' + skillHtml(id, 32, skillQuandoTxt(id, m)) +
-        '<button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="cupom" data-mount="' + esc(m.uid) + '" data-skill="' + esc(id) + '"' + indisponivel(mot) + '>' +
-        'Trocar<span class="sr"> ' + esc(skillNome(id) + ' (usa 1 ' + GD.ITEMS.cupom.name + ')') + '</span></button></div>';
+      if (!hasOwn(GD.SKILLS, id)) return '';
+      var rank = RS.rankOf(m, id), p = IT.podeSubirRank(m, id, ctx), noMax = rank >= GD.SKILL_RANKS.max;
+      var subir = noMax ? '<span class="rank-max-selo">Rank máximo</span>'
+        : '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="rank-subir" data-mount="' + esc(m.uid) + '" data-skill="' + esc(id) + '"' + indisponivel(p.ok ? '' : p.motivo + '.') + '>' +
+          'Subir rank<span class="sr"> ' + esc('de ' + skillNome(id) + ' para ' + ROMANOS[rank + 1]) + '</span></button>';
+      var trocar = '';
+      if (cupom) {
+        algum = true;
+        trocar = '<button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="cupom" data-mount="' + esc(m.uid) + '" data-skill="' + esc(id) + '"' + indisponivel(mot) + '>' +
+          'Trocar<span class="sr"> ' + esc(skillNome(id) + ' (usa 1 ' + GD.ITEMS.cupom.name + ')') + '</span></button>';
+      }
+      return '<div class="item-uso item-uso--skill skill-rank" data-skill="' + esc(id) + '" data-rank="' + rank + '">' + skillHtml(id, 32, skillQuandoTxt(id, m), rank, rankProxHtml(id, rank)) +
+        '<div class="rank-acoes">' + (noMax ? '' : rankCustoHtml(p.custo)) + subir + trocar + '</div></div>';
     }).join('');
-    return lista + (algum && mot ? '<p class="nota">' + esc('Trocar: ' + mot) + '</p>' : '');
+    return skillRankTopoHtml() + lista + (algum && mot ? '<p class="nota">' + esc('Trocar: ' + mot) + '</p>' : '');
+  }
+  // o passo de confirmação do "Subir rank" (ui.montaria.rank = { skillId }), no lugar da sub-aba: o antes e o depois, o
+  // custo e o Poder; sem sorteio e sem volta. Desenhado com o estado atual (o que mudou aparece apagado, com o motivo).
+  function rankPassoHtml(m) {
+    var id = ui.montaria.rank.skillId, rank = RS.rankOf(m, id), max = GD.SKILL_RANKS.max;
+    var p = IT.podeSubirRank(m, id, rankCtx(m)), mot = p.ok ? '' : p.motivo + '.';
+    var falha = ui.itemMsg && ui.itemMsg.passo ? ui.itemMsg.txt : '';
+    var corpo = '';
+    if (rank < max) {
+      var depois = clone(m); depois.skillRanks = IT.subirRank(m, id).skillRanks;
+      corpo = '<p class="rank-de-para">' + skillIcone(id, 32) + '<b>' + esc(skillNome(id)) + '</b>' + rankMarcasHtml(rank) + '<span aria-hidden="true">→</span><span class="sr"> para </span>' + rankMarcasHtml(rank + 1) + '</p>' +
+        '<dl class="rank-antes-depois"><div><dt>' + esc('Agora (rank ' + ROMANOS[rank] + ')') + '</dt><dd>' + esc(RS.skillDesc(id, rank)) + '</dd></div>' +
+        '<div><dt>' + esc('Depois (rank ' + ROMANOS[rank + 1] + ')') + '</dt><dd>' + esc(RS.skillDesc(id, rank + 1)) +
+          (rank + 1 === max ? ' <b class="rank-marco">' + esc('Marco: ' + RS.skillMarcoDesc(id) + '.') + '</b>' : '') + '</dd></div></dl>' +
+        '<p class="rank-custo-linha">Custo: ' + rankCustoHtml(p.custo) + '</p>' +
+        '<p class="nota">' + esc('Poder ' + RS.powerRating(m) + ' → ' + RS.powerRating(depois) + '. Subir rank não falha e não tem volta.') + '</p>';
+    }
+    return '<section class="caixa item-passo rank-passo" aria-labelledby="t-rank">' + noticeHtml() +
+      '<h2 class="titulo" id="t-rank" tabindex="-1" data-foco-item>Subir rank</h2>' + corpo +
+      (mot ? '<p class="nota rank-motivo">' + esc(mot) + '</p>' : '') + (falha ? '<p class="aviso" role="status">' + esc(falha) + '</p>' : '') +
+      '<div class="acoes"><button type="button" class="btn btn--ouro" data-acao="rank-confirmar"' + indisponivel(mot) + '>Confirmar</button>' +
+      '<button type="button" class="btn" data-acao="rank-cancelar">Cancelar</button></div></section>';
+  }
+  // Sobe o rank: confere de novo (depois de sincronizar com outras abas), desconta o Ouro e os Pergaminhos e grava tudo de
+  // uma vez (gravaGasto, o padrão do usaItem). 'ok', 'outra-aba' ou o motivo da recusa (FALHA_SALVAR se não gravou).
+  function sobeRank(uid, skillId) {
+    var s0 = state;
+    persist();
+    if (state !== s0) return 'outra-aba';
+    var m = mountByUid(uid);
+    if (!m) return 'Este cavalo não está mais no estábulo.';
+    var p = IT.podeSubirRank(m, skillId, rankCtx(m));
+    if (!p.ok) return p.motivo + '.';
+    var antes = clone(state), r = IT.subirRank(m, skillId);
+    if (!r) return 'Rank máximo.';   // não acontece: o podeSubirRank já conferiu
+    m.skillRanks = r.skillRanks;
+    state.gold -= r.ouro;
+    state.mochila.pergaminho -= r.perg;
+    var g = gravaGasto(s0, antes);
+    if (g === 'outra-aba') return 'outra-aba';
+    if (g === 'falhou') return FALHA_SALVAR;
+    var novo = r.skillRanks[skillId];
+    ui.itemMsg = { id: 'pergaminho', uid: m.uid, origem: 'ficha', txt: skillNome(skillId) + ' subiu para o rank ' + ROMANOS[novo] + '.' +
+      (novo >= GD.SKILL_RANKS.max ? ' Marco liberado: ' + RS.skillMarcoDesc(skillId) + '.' : '') };
+    return 'ok';
   }
   // o que o item vai fazer, no passo da confirmação (sem sortear nada)
-  var ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V'];   // o rank das skills na tela (1 a 5)
   function confirmaTxt(F, m) {
     var fim = ' O item é gasto e não tem volta.';
     switch (F.id) {
@@ -4256,6 +4355,15 @@
     render();
     var el = telaEl.querySelector('[data-acao="item-usar"][data-id="' + F.id + '"]' + (F.origem === 'ficha' && F.skillId ? '[data-skill="' + F.skillId + '"]' : ''));
     if (!el) { itemPasso(); return; }
+    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+    if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+  }
+  // de volta à aba Skills depois de subir o rank ou cancelar: o foco no "Subir rank" da mesma skill (ou no bloco dela,
+  // se ela chegou ao rank máximo e o botão saiu)
+  function rankVolta(skillId) {
+    render();
+    var el = telaEl.querySelector('[data-acao="rank-subir"][data-skill="' + skillId + '"]');
+    if (!el) { var h = telaEl.querySelector('[data-foco]'); if (h) { try { h.focus({ preventScroll: true }); } catch (e0) { h.focus(); } } return; }
     try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
     if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
   }
@@ -4523,8 +4631,8 @@
       counter: counter, seed: seed, training: !!P.training, fee: P.fee || 0, n: n,
       cond: cond, trackName: trackName,
       racers: racers, playerIdx: playerIdx, sim: null,
-      // modo DEV: vento forçado (a tela da corrida o desenha) e "skills sempre ativam" (vai ao RaceSim)
-      dev: dv ? { wind: dv.wind, skillsAlways: !!dv.skillsAlways } : null
+      // modo DEV: vento forçado (a tela da corrida o desenha)
+      dev: dv ? { wind: dv.wind } : null
     };
   }
   // vento da corrida (só visual): o forçado no modo DEV (L.dev é null sem nada armado) ou o da seed da sala
@@ -4701,10 +4809,12 @@
       seed: L.seed,
       conditions: L.cond,
       racers: L.racers.map(function (r) {
-        return { horse: r.horse, gear: r.gear, name: r.name, isPlayer: r.isPlayer };
+        // bônus de 3 peças do conjunto (suspenso com o equipamento): o efeito das skills × (1 + skillEffectBonus)
+        var e = { horse: r.horse, gear: r.gear, name: r.name, isPlayer: r.isPlayer };
+        if (r.gear && r.gear.special && r.gear.special.skillEffectBonus) e.skillScale = 1 + r.gear.special.skillEffectBonus;
+        return e;
       })
     };
-    if (DEV_MODE && L.dev && L.dev.skillsAlways) cfg.dev = { skillsAlways: true };   // só o modo DEV
     L.sim = RS.simulate(cfg);
     L.cond = withRanges(L.sim.conditions);
     var order = L.sim.finishOrder;
@@ -5470,7 +5580,8 @@
       var faixa = null, fx0 = null;
       for (k = 0; k < faixasJogador.length; k++) if (t >= faixasJogador[k].a && t < faixasJogador[k].b) fx0 = faixasJogador[k];
       if (fx0) {
-        var ft = fx0.item.nome.toUpperCase() + '!', skId = FX.iconNameOf(fx0.item);
+        var rmF = fx0.item.typeSkill ? '' : FX.rankRomano(fx0.item.rank);   // "SPRINT III!"; no rank V a faixa fica dourada
+        var ft = fx0.item.nome.toUpperCase() + (rmF ? ' ' + rmF : '') + '!', skId = FX.iconNameOf(fx0.item);
         var bl = FX.skillBannerLayout(ft, lay.artW, S, !!FX.iconImage(skId), tw), fs = bl.fs, fw = bl.w, fh = bl.h;
         var fxx = bl.x, fyy = lay.hudH + (lay.compact ? 3 : 12) + (topoOcupado ? 17 : 0);
         // com o Dado na pista, logo abaixo da faixa dele
@@ -5478,7 +5589,7 @@
         // com a faixa do lugar em cima, logo abaixo dela
         if (lCaixa && !lugarFaixa.embaixo) fyy = Math.max(fyy, lCaixa.y + lCaixa.h + 2);
         var esc0 = (t - fx0.a) / fx0.item.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
-        var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
+        var cor = FX.rankMax(fx0.item) ? C.ouro : ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
         box(fxx, fyy, fw, fh, C.veu, cor);
         if (bl.icone) FX.drawIconPng(ctx, skId, bl.iconX * S, (fyy + bl.iconDy) * S, 8 * fs, S);
@@ -5506,7 +5617,7 @@
         lista = lista.slice(-3);
         // o nome da skill no balão mais novo: inteiro numa linha, ou em duas quando a raia comporta (self.linhasBalao)
         var novo = lista[lista.length - 1];
-        var linhas = novo.kind === 'skill' ? FX.nomeEmLinhas(novo.nome, FX.BALAO.textoMax, self.linhasBalao, novo.nomeCurto) : null;
+        var linhas = novo.kind === 'skill' ? FX.linhasBalao(novo, FX.BALAO.textoMax, self.linhasBalao) : null;   // com o rank em romano (II a V)
         var h0 = FX.balloonSize(novo, 0, linhas).h;
         var y0 = lay.laneTopArt + v.j * lay.laneArt - (v.sobe || 0), y1 = y0 + lay.laneArt;
         // na altura do jóquei (como o "◀VOCÊ"), mas sempre dentro da faixa da raia (o de duas linhas, que só existe em
@@ -5542,7 +5653,7 @@
           // no de texto): então ele e os mais velhos ficam de fora
           if (ant && bate(r, ant)) break;
           if (FX.drawBalloon(ctx, r.x * S, r.y * S, S, item, t, q, q ? null : linhas)) {
-            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, tipo: !!item.typeSkill, texto: q ? '' : linhas ? linhas.join(' ') : (item.nomeCurto || ''), pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
+            FX._stats.caixasBaloes.push({ racer: item.racer, kind: item.kind, tipo: !!item.typeSkill, texto: q ? '' : linhas ? linhas.join(' ') : (item.nomeCurto || ''), rank: item.rank || 0, dourado: FX.rankMax(item), pilha: q, x: r.x, y: r.y, w: r.w, h: r.h, y0: y0, y1: y1 });
           }
           bx = r.x + r.w + 2; ant = r;
         }
@@ -5927,7 +6038,7 @@
         // pedaços (Ruling 17): cada um sem quebra por dentro e o " ·" no fim do pedaço de cima
         '<td><div class="quem"><b>' + laneChip(r, ri, 'raia--mini') + esc(r.horse.name) +
         (r.isPlayer ? ' <span class="tag-voce">VOCÊ</span>' : '') + '</b>' +
-        '<small>' + (r.isPlayer ? [] : [r.name]).concat(['Nv ' + r.horse.level]).concat(info ? ['skills ' + Math.round(info.skillChance * 100) + '%'] : [])
+        '<small>' + (r.isPlayer ? [] : [r.name]).concat(['Nv ' + r.horse.level]).concat(skillsRankTxt(r.horse) ? [skillsRankTxt(r.horse)] : [])
           .map(function (p, i, ps) { return '<span class="quem-peca">' + esc(p + (i < ps.length - 1 ? ' ·' : '')) + '</span>'; }).join(' ') + '</small></div></td>' +
         '<td class="num"><span class="tempo">' + fmtSec(t) + '</span><small>' + gap + '</small></td><td class="num">' + prize + '</td></tr>';
     }).join('');
@@ -6084,6 +6195,7 @@
         ui.itemMsg = null;
         var motU = itemQtd(id) < 1 ? 'Você não tem ' + GD.ITEMS[id].name + '.' : naFicha ? (skU ? motivoUsoSkill(id, mountByUid(uidU), skU) : motivoUso(id, mountByUid(uidU))) : '';
         if (motU) { recusaItem(seletorDe(b), motU); break; }
+        if (ui.montaria) ui.montaria.rank = null;
         ui.item = { id: id, mountUid: naFicha ? uidU : null, skillId: null, passo: 'cavalo', origem: naFicha ? 'ficha' : 'mochila' };
         if (naFicha && id === 'cupom' && skU) { ui.item.skillId = skU; ui.item.passo = 'confirma'; }
         else if (naFicha) ui.item.passo = id === 'cupom' ? 'skill' : 'confirma';
@@ -6125,6 +6237,42 @@
         itemVolta(FF);
         motivoVivo(ui.itemMsg.txt);   // a região viva anuncia; o aviso fica na tela
         break;
+      }
+      case 'rank-subir': {
+        // abre a confirmação (o antes e o depois, o custo); botão indisponível só diz o motivo
+        var uidR = b.getAttribute('data-mount'), skR = b.getAttribute('data-skill');
+        if (ui.screen !== 'montaria' || !ui.montaria || ui.montaria.uid !== uidR || ui.montaria.aba !== 'skills') break;
+        var sR0 = state;
+        persist();                    // tela velha (outra aba): adota o save mais novo antes de abrir
+        if (state !== sR0) break;
+        var mR = mountByUid(uidR), pR = mR ? IT.podeSubirRank(mR, skR, rankCtx(mR)) : null;
+        if (!pR) break;
+        ui.itemMsg = null;
+        if (!pR.ok) { recusaItem(seletorDe(b), pR.motivo + '.'); break; }
+        ui.item = null;
+        ui.montaria.rank = { skillId: skR };
+        itemPasso(); break;
+      }
+      case 'rank-confirmar': {
+        var MR = ui.montaria;
+        if (ui.screen !== 'montaria' || !MR || !MR.rank) break;
+        ui.itemMsg = null;
+        var skC = MR.rank.skillId, rR = sobeRank(MR.uid, skC);
+        if (rR === 'outra-aba') break;
+        if (rR !== 'ok') {
+          if (rR === FALHA_SALVAR) ui.itemMsg = { passo: true, txt: rR };
+          recusaItem('[data-acao="rank-confirmar"]', rR); break;
+        }
+        MR.rank = null;
+        rankVolta(skC);
+        motivoVivo(ui.itemMsg.txt);
+        break;
+      }
+      case 'rank-cancelar': {
+        if (!ui.montaria || !ui.montaria.rank) break;
+        var skX = ui.montaria.rank.skillId;
+        ui.montaria.rank = null; ui.itemMsg = null;
+        rankVolta(skX); break;
       }
       case 'item-cancelar': {
         var FX = ui.item;
@@ -6188,6 +6336,7 @@
         ui.montaria.confirmaRedist = false;
         ui.montaria.renomear = null; ui.confirmLiberar = null;   // nem o campo de renomear e a confirmação de liberar da aba Ficha
         ui.item = null; ui.itemMsg = null;                       // nem o uso de item aberto
+        ui.montaria.rank = null;                                 // nem a confirmação do "Subir rank"
         rerenderKeepScroll(); break;
       case 'ponto-mais': {
         // +1, +5 ou +10 (data-n): soma exatamente N ao rascunho, ou nada

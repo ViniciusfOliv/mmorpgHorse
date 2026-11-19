@@ -117,7 +117,9 @@ test('a desc de cada skill é o texto do rank 1 (skillDesc), e o do rank 5 cita 
     assert.notStrictEqual(S.skillDesc(id, 5), S.skillDesc(id, 4), id + ': o rank 5 tem de dizer o marco');
     assert.notStrictEqual(S.skillDesc(id, 2), S.skillDesc(id, 1), id + ': o rank muda o texto');
   });
-  assert.strictEqual(S.skillDesc('sprint', 5), 'Numa reta de 100 m ou mais (fora a da largada): +5,8% de velocidade por 150 m.');
+  // o texto usa os números do rank: no rank 5 do Sprint, a reta de 100 m (o marco) e a velocidade × 1,6
+  var pct5 = String(Math.round((G.SKILLS.sprint.effect.speedMult - 1) * 1.6 * 1000) / 10).replace('.', ',');
+  assert.strictEqual(S.skillDesc('sprint', 5), 'Numa reta de 100 m ou mais (fora a da largada): +' + pct5 + '% de velocidade por 150 m.');
 });
 test('Poder sobe com o rank: cada skill soma 14 × peso do gatilho × fator do rank', function () {
   var h = cl(G.WILD_HORSES.filter(function (x) { return x.rarity === 'raro'; })[0]); h.skills = ['sprint']; h.skillRanks = { sprint: 1 };
@@ -1260,7 +1262,7 @@ test('ECONOMY.gear', function () {
   assert.deepStrictEqual(g.enhanceChance, [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25]);
   assert.deepStrictEqual(g.enhanceCost, [1, 1, 1, 1, 1, 1, 2, 2, 2, 2]);
   assert.strictEqual(g.enhanceDropFrom, 6);
-  assert.deepStrictEqual(g.setBonus, { pieces: [3, 4, 5], skillChance: 0.05, sorte: 5, ratingPts: [3, 15, 20] });
+  assert.deepStrictEqual(g.setBonus, { pieces: [3, 4, 5], skillEffect: 0.05, sorte: 5, ratingPts: [3, 15, 20] });
   assert.deepStrictEqual(g.podiumStone, [0.6, 0.4, 0.25]);
   assert.deepStrictEqual(g.startGear, ['sela-comum', 'ferraduras-comum']);
 });
@@ -1274,7 +1276,7 @@ test('resolve soma principal + plus × 0,5 e secundário; sem equip zera', funct
   var g = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2' }), items);
   assert.deepStrictEqual(g.mods, { vel: 2, acel: 0, man: 0, forca: 0, est: 4.5, garra: 2, sorte: 0 });
   assert.deepStrictEqual(g.set, { id: 'sol', count: 1 });
-  assert.deepStrictEqual(g.special, { skillChanceBonus: 0, weatherDoubleClimate: null, ignoreWeatherPenalty: false });
+  assert.deepStrictEqual(g.special, { skillEffectBonus: 0, weatherDoubleClimate: null, ignoreWeatherPenalty: false });
   assert.deepStrictEqual(g.pieces.map(function (p) { return p.uid; }), ['i2', 'i1']);
   var z = GR.resolve({}, {});
   assert.deepStrictEqual(z.mods, { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 });
@@ -1289,14 +1291,14 @@ test('conjunto: 3/4/5 peças com raridades misturadas; 2+2+1 não ativa', functi
   var items = byUid([gi('i1', 'sela-chuva-raro'), gi('i2', 'ferraduras-chuva-lendario', 2), gi('i3', 'estribos-chuva-raro'), gi('i4', 'testeira-chuva-raro'), gi('i5', 'armadura-chuva-lendario'), gi('i6', 'testeira-sol-raro'), gi('i7', 'armadura-nevoa-raro')]);
   var g3 = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', estribos: 'i3' }), items);
   assert.deepStrictEqual(g3.set, { id: 'chuva', count: 3 }); assert.strictEqual(g3.mods.sorte, 7); // 2 (sub do estribo Raro) + 5 (conjunto)
-  assert.deepStrictEqual(g3.special, { skillChanceBonus: 0.05, weatherDoubleClimate: null, ignoreWeatherPenalty: false });
+  assert.deepStrictEqual(g3.special, { skillEffectBonus: 0.05, weatherDoubleClimate: null, ignoreWeatherPenalty: false });
   var g4 = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', estribos: 'i3', testeira: 'i4' }), items);
   assert.strictEqual(g4.special.weatherDoubleClimate, 'chuva'); assert.strictEqual(g4.special.ignoreWeatherPenalty, false);
   var g5 = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', estribos: 'i3', testeira: 'i4', armadura: 'i5' }), items);
   assert.deepStrictEqual(g5.set, { id: 'chuva', count: 5 }); assert.strictEqual(g5.special.ignoreWeatherPenalty, true);
   assert.strictEqual(g5.mods.vel, 5); // lendário 4 + 2 × 0,5
   var gx = GR.resolve(gm({ sela: 'i1', ferraduras: 'i2', testeira: 'i6', armadura: 'i7' }), items);
-  assert.strictEqual(gx.set.count, 2); assert.strictEqual(gx.mods.sorte, 0); assert.strictEqual(gx.special.skillChanceBonus, 0);
+  assert.strictEqual(gx.set.count, 2); assert.strictEqual(gx.mods.sorte, 0); assert.strictEqual(gx.special.skillEffectBonus, 0);
 });
 test('enhanceOdds segue a tabela', function () {
   assert.deepStrictEqual(GR.enhanceOdds(0), { chance: 1, cost: 1, dropTo: 0 });
@@ -1402,13 +1404,13 @@ function refRace(seed, dev) {
 function refHash(res) {
   return crypto.createHash('sha1').update(JSON.stringify({ finishOrder: res.finishOrder, finishTimes: res.finishTimes, events: res.events })).digest('hex');
 }
-var REF_HASHES = ['0aab80196979c718e3db4ca07ee291a5981e28d5', '7301dd6182d4be1da41d30b22b1204224af4cf84', '390c4f50e6715bcea0eb084f1864f8ecfaab4fda',
-  '2c2f7c0150a00e730c8859d0362b6e576ed6c796', '2342595975513dfa2d3595e6f452285373528111', '908d214439ff9c1d39f4f52296f7a73a993db494',
-  '3202a4ea4bb961a7b44eb6665f0b75d44821e701', '305e88794f07023cb9d927e07e1e9000993fa9ea', 'e6ec6987b2abb17fd546f6687b7e1d4dae5edf99',
-  '42ecf94635b39b50208d0abf94ec6e4e35e0e106', 'c3bb34d33f2399a40819ea4230aee497614d6eba', '7b261556c3a710afa9eba777dd76118df78a50fe',
-  '19c480dc739baec961c17107dc36bde9426c0344', 'a8a18da013d71bf11d9db1c21160a93ebd549c0d', '408c2c8e4594f494c3868f8e530cbc9b1145ce4c',
-  '2cb153ca946559cb0a7f8228c1bb2a82946d39e6', '7155c4d2fd281617ec733eb7e4f44ebd8185b9ee', 'bade3b77ce0810c9e1705177265d5dc0513eb305',
-  '4ff3aa527de764d18c7bbb3becfdb0fea0a9861f', 'd7886b52bdcbc1521bd5c558f1befe17b2a344fa'];
+var REF_HASHES = ['796d7a2966633542295c872e3f7a41425a41aac5', '17f22ec19663daefb6140d954a3d966c86338a01', '5a559af22854068a154df6cb1d11ae61e1b4575b',
+  '41417be95fd2cee3cdeeafc83e61cd040ce6298d', 'cae235d1ed717201440dd4c8ebff899bb79ad88f', '6e80505323d5606cbbe0728bda0f7c820576cb28',
+  '942beef479c9b27e26d6c14b8a9a487463bb4ade', '1251cf71481178f2121abf41407de59f6c0673f8', '01a9049b7c95afa7b7c16f9dbf61573888cafc9d',
+  '1b603f5d636a199285842fc4e667f539e74df269', 'e6aa6d06d8023f59394092218583461a98eaa9f4', '63cc75d4f95b007e9d556ab4847f10ad7b506dba',
+  '30225c5347412d18b4863e1aa358c381137165a6', '39c722e685084f87382766d2b2be0ab4a0d0ac9c', 'cbe163cc4e6045d55af3f5ff964ad491ba5adbe1',
+  'bbe067a9b3ced9b35b7199687be5c4d32aaef666', '546a03b91cee39faaebe2e1b0d1d39b7467a19f6', '69f828101807acc3d185aac705dd48d9aa29a879',
+  'cf5252b477001808568b8dc36906c201b04b9228', 'e809c4482005adda7204e3d3802be16f7f90df11'];
 test('sem config.dev o resultado é o de antes', function () {
   assert.deepStrictEqual(CAMPO_REF.map(function (h) { return h.id; }), ['brasa', 'mare', 'ipe', 'w-faisca', 'w-lambari', 'w-capim', 'w-ticao', 'w-garoa']);
   var diff = [];
