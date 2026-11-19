@@ -538,7 +538,8 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   o `data:` da figura do jogador fica guardado por cor; o fundo da cena do desafio é pintado uma vez por ginásio.
   **Ficou acima da meta de 60 ms:** o preparo da etapa (canvas grande da cena, layout forçado e moldes frios). **Ideias
   não feitas:** transição curta entre telas (120–150 ms; mexe em foco e capturas), não refazer o cabeçalho e as abas a
-  cada troca, esquentar os moldes da próxima tela provável, `content-visibility` nos selvagens.
+  cada troca, esquentar os moldes da próxima tela provável, `content-visibility` nos selvagens. No build de teste
+  https://claude.ai/artifact/Jx3fxnrdzCEGiQGjqV7rch desde a versão 22 (build 7639b6a); a `main` segue sem isto.
 - **Conversa de desenho em aberto (2026-11-19): o que prende o jogador.** O Vinicius pediu ideias com referências de
   outros jogos, um rank de quem tem o cavalo de maior Poder e perguntou da fazenda "igual Stardew Valley". Proposto a
   ele (nada aprovado, nada construído): falta o objetivo do dia e o da semana; liga semanal em grupos de 30 que zera
