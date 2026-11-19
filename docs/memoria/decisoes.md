@@ -3,6 +3,31 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-19 — Marcos menores, Garra sem falhar e faixas rebaseadas (decisões do Vinicius, no chat de implementação)
+- **Os três marcos menores** ("usa os três marcos menores") — Saída Rápida 7 s, Chama Final 11 s e Arrancada Final ×1,01
+  até a chegada, no rank V (a spec dizia 8 s, 12 s e ×1,02).
+- **A Garra também é 100%: a arrancada final sai sempre, e o status decide o quanto** ("Garra deve ser 100% também, com o
+  status modificando o quanto ela afeta") — antes era um sorteio de 50% a 72%. Mais Garra: começa antes e empurra mais.
+- **A força da Garra varia a cada corrida, pela seed, de 0 a 2× a média do status** (o Vinicius escolheu "Força variável"
+  entre quatro opções) — o sorteio da Garra era a maior fonte de incerteza da corrida. Com força fixa, medido: favorito do
+  Poder 69,2% (meta 35–55%), um degrau de raridade 97–99%, +10 num status 18 p.p. Com a força variável: favorito 51,1%.
+  Números: força média = 0,19 × n(Garra) (era 0,02 + 0,26 × n com a chance; a média esperada ficou parecida), fator
+  sorteado uma vez na montagem do corredor (`garraSpread` 1); o evento `garra` traz `forca`. A Arrancada Final deixou de
+  dar chance: soma 2,8 p.p. na força (rank I). `RaceSim.VERSION` 4.1.0. Se errado: `garraSpread` menor dá uma Garra mais
+  constante e uma corrida mais previsível (0 = força fixa).
+- **Faixas rebaseadas ao medido** ("rebaseia as faixas"), todas no `balance.js`, com o valor antigo no comentário:
+  bônus de clima do inicial 45–68 → 45–73; M4 um degrau 72–88 → 72–95; M5 ★★★ × ★ 65–75 → 61–75 e ★★ × ★ 55–64 →
+  52–64; M9 15,3–18,0 → 15,0–18,3; G2 quatro níveis acima ≥ 70 → ≥ 60 e abaixo ≤ 35 → ≤ 46; G3 com vantagem ≤ 85 → ≤ 87;
+  S5 (rank V ÷ rank I) teto 2,2× → 2,4×. Motivo: sem o cara ou coroa da ativação e da Garra, quem é melhor vence um pouco
+  mais nos confrontos diretos de um degrau e um pouco menos nos de estrelas e de nível; a escala do rank sozinha passou
+  de ~1,6× a ~1,8×. As metas de previsibilidade (P2, M8) e as de justiça entre tipos e status (M1, M9, A1, P1) não
+  precisaram de folga além dessas.
+- **Faixas de vitória do ginásio: apertada até 4 m e normal até 12 m (eram 1 e 8 m)** (construtor) — com a força da Garra
+  variando, as chegadas entre cavalos iguais ficaram mais espalhadas e só ~5% caíam em "apertada"; com 4 e 12 m cada
+  faixa volta a ter 15% ou mais (meta G6). A perda de fôlego de cada faixa não mudou.
+- **Fôlego de Montanha no rank I: gasta 70% menos (×0,30)** (construtor) — para a razão do rank V caber; do rank IV em
+  diante bate no piso de ×0,05.
+
 ## 2026-11-19 — Skills com 100% e ranks: o que o construtor decidiu (chat de implementação, `claude/skills-ranks`)
 Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/superpowers/plans/2026-11-19-skills-ranks.md`.
 Build de teste desta branch (modo DEV, artefato novo; os oficiais não foram tocados): https://claude.ai/artifact/77SCN1gGcMb9DjMcUXwfkQ
@@ -13,12 +38,12 @@ Build de teste desta branch (modo DEV, artefato novo; os oficiais não foram toc
   Iara ×1,04 e ×0,80 · Nascente 4,5% · Casco Firme +1,2% · Dado Viciado sem valor base (teto 60 a 100). O rank 1 das 14
   skills fica de 4,7 a 10,4 p.p. (S1: 3 a 13). O Drift e o Arranque ficaram abaixo do de antes (12,7 e 12,4) de propósito:
   com mais base, o rank 5 passava de 20 p.p.
-- **PENDENTE DO VINICIUS: três marcos não fecham a S5 (rank 5 de 1,4× a 2,2× o rank 1) só com a base** — Saída Rápida
+- **(Resolvido no mesmo dia: ver a entrada acima.) Três marcos não fechavam a S5 (rank 5 de 1,4× a 2,2× o rank 1) só com a base** — Saída Rápida
   2,46×, Arrancada Final 2,51× e Chama Final 2,30×, medidos em dois níveis de base cada. O marco de duração multiplica o
   efeito inteiro (8 s contra 6 s; 12 s contra 9,5 s), e o ×1,02 até a chegada vale ~6,6 p.p. sozinho, quase o rank 1 da
   skill. Com Saída Rápida 7 s, Chama Final 11 s e Arrancada Final ×1,01, as 58 metas das skills passam (2,08×, 2,07× e
   2,06×). O código está com os marcos da spec (as três metas falham no `balance.js` completo) até ele escolher.
-- **PENDENTE DO VINICIUS: sete metas antigas do modelo saíram da faixa por pouco no `balance.js` completo** — M4 dois
+- **(Resolvido no mesmo dia: ver a entrada acima.) Sete metas antigas do modelo saíram da faixa por pouco no `balance.js` completo** — M4 dois
   degraus no nível 50 (Raro × Comum 93,7% e Mítico × Raro 93,5%; piso 94), M5 ★★ × ★ Mítico 64,4% (teto 64; no modo
   rápido 66,3%), M6 `inc:acel` no nível 11 44,6% (piso 45) e a maior build no nível 50 62,7% (teto 62), M9 no Lendário
   50 (Fogo 18,0% no teto, Grama 15,2%; faixa 15,3 a 18). Causa provável: sem o sorteio, a raridade não dá mais vantagem

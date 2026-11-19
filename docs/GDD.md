@@ -388,9 +388,9 @@ ninguém jogou ainda.
 
   | Vitória | Distância na chegada | Fôlego perdido |
   |---|---|---|
-  | Apertada | menos de 1 m | 25% |
-  | Normal | de 1 m a menos de 8 m | 15% |
-  | Folgada | 8 m ou mais | 5% |
+  | Apertada | menos de 4 m | 25% |
+  | Normal | de 4 m a menos de 12 m | 15% |
+  | Folgada | 12 m ou mais | 5% |
 
   Os descontos somam a cada vitória seguida, até no máximo 50% do fôlego.
 - **Ponto fraco do ginásio:** Água vence Fogo, Fogo vence Grama e Grama vence Água. Num duelo de ginásio, o cavalo cujo
