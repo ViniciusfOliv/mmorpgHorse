@@ -108,6 +108,7 @@
     var Sn = Math.max(1, Math.round(2 * dpr)), S;
     if (CFG.escala === '1x') S = 1;
     else if (CFG.escala === '2x') S = 2;
+    else if (CFG.escala === '3x') S = 3;   // a menor escala em que os moldes (1,5 px de molde por pixel de arte) ficam iguais
     else if (CFG.escala === 'nativo') S = Sn;
     else S = Sn / reducaoEscala(Sn, artW * artH);
     L = {
@@ -537,6 +538,7 @@
     { nome: '12, jogo, sem câmera (sem zoom)', n: 12, escala: 'jogo', camadas: sem(['camera']), s: 6 },
     { nome: '12, jogo, sem parallax extra', n: 12, escala: 'jogo', camadas: sem(['parallax']), s: 6 },
     { nome: '12, jogo, sem cenário (drawTrack)', n: 12, escala: 'jogo', camadas: sem(['cenario']), s: 6 },
+    { nome: '12, escala 3x, tudo', n: 12, escala: '3x', camadas: TUDO, s: 6 },
     { nome: '12, escala 2x, tudo', n: 12, escala: '2x', camadas: TUDO, s: 6 },
     { nome: '12, escala 1x, tudo', n: 12, escala: '1x', camadas: TUDO, s: 6 },
     { nome: '20 cavalos, jogo, tudo', n: 20, escala: 'jogo', camadas: TUDO, s: 6 },

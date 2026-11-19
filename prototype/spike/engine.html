@@ -125,7 +125,7 @@ textarea:focus-visible { outline: 2px solid var(--foco); }
   <p class="vizinhos" id="vizinhos">Largada em instantes</p>
 
   <section class="acoes">
-    <button type="button" id="b-bateria" class="primario">Rodar bateria (~66 s)</button>
+    <button type="button" id="b-bateria" class="primario">Rodar bateria (~72 s)</button>
     <button type="button" id="b-livre">Rodada livre (60 s)</button>
     <span class="estado" id="estado" role="status">Modo livre: mexa nas camadas abaixo.</span>
   </section>
@@ -140,7 +140,7 @@ textarea:focus-visible { outline: 2px solid var(--foco); }
     <div class="grupo">
       <span class="g-r">Escala</span>
       <div class="seg" data-grupo="escala">
-        <button type="button" data-v="1x">1×</button><button type="button" data-v="2x">2×</button><button type="button" data-v="jogo">jogo</button><button type="button" data-v="nativo">nativo</button>
+        <button type="button" data-v="1x">1×</button><button type="button" data-v="2x">2×</button><button type="button" data-v="3x">3×</button><button type="button" data-v="jogo">jogo</button><button type="button" data-v="nativo">nativo</button>
       </div>
     </div>
     <div class="grupo">
@@ -162,7 +162,7 @@ textarea:focus-visible { outline: 2px solid var(--foco); }
       </div>
     </div>
     <p class="nota">Escala: <b>1×</b> e <b>2×</b> desenham 1 ou 2 pixels de canvas por pixel de arte e o navegador
-      amplia; <b>jogo</b> é a regra do jogo hoje (pixel do aparelho, reduzida acima de 1,5 milhão de pixels);
+      amplia (nessas duas os cavalos mudam de tamanho); <b>3×</b> é a menor que deixa os cavalos iguais; <b>jogo</b> é a regra do jogo hoje (pixel do aparelho, reduzida acima de 1,5 milhão de pixels);
       <b>nativo</b> é o pixel do aparelho sem redução.</p>
   </section>
 
@@ -7127,6 +7127,7 @@ window.__ICONES = {"cl-chuva":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACA
     var Sn = Math.max(1, Math.round(2 * dpr)), S;
     if (CFG.escala === '1x') S = 1;
     else if (CFG.escala === '2x') S = 2;
+    else if (CFG.escala === '3x') S = 3;   // a menor escala em que os moldes (1,5 px de molde por pixel de arte) ficam iguais
     else if (CFG.escala === 'nativo') S = Sn;
     else S = Sn / reducaoEscala(Sn, artW * artH);
     L = {
@@ -7556,6 +7557,7 @@ window.__ICONES = {"cl-chuva":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACA
     { nome: '12, jogo, sem câmera (sem zoom)', n: 12, escala: 'jogo', camadas: sem(['camera']), s: 6 },
     { nome: '12, jogo, sem parallax extra', n: 12, escala: 'jogo', camadas: sem(['parallax']), s: 6 },
     { nome: '12, jogo, sem cenário (drawTrack)', n: 12, escala: 'jogo', camadas: sem(['cenario']), s: 6 },
+    { nome: '12, escala 3x, tudo', n: 12, escala: '3x', camadas: TUDO, s: 6 },
     { nome: '12, escala 2x, tudo', n: 12, escala: '2x', camadas: TUDO, s: 6 },
     { nome: '12, escala 1x, tudo', n: 12, escala: '1x', camadas: TUDO, s: 6 },
     { nome: '20 cavalos, jogo, tudo', n: 20, escala: 'jogo', camadas: TUDO, s: 6 },
