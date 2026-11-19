@@ -42,7 +42,7 @@
  *     tipo usam 'chama' | 'folha' | 'onda', desenhados como os outros ícones de 8×8)
  *     Primeira chave presente em skill.effect, nesta ordem: speedMult→vel, accelMult→ace,
  *     staminaRestore→folego, drainMult(<1)→folego, curveBonus→curva, hillBonus→subida,
- *     hillDrainMult→subida, extraDice→dado, weatherDouble→clima, garraChanceBonus→garra,
+ *     hillDrainMult→subida, extraDice→dado, weatherBonus→clima, garraChanceBonus→garra,
  *     garraBoostBonus→garra; nenhuma (ou sem skill) ⇒ 'vel'.
  *   RaceFx.nomeCurto(nome, short) -> texto do balão: o nome inteiro em maiúsculas se couber em 12
  *     letras; senão o campo opcional `short` do catálogo (data.js), ou, sem ele, o nome cortado
@@ -363,7 +363,7 @@
   var ICON_ORDEM = [
     ['speedMult', 'vel'], ['accelMult', 'ace'], ['staminaRestore', 'folego'], ['drainMult', 'folego'],
     ['curveBonus', 'curva'], ['hillBonus', 'subida'], ['hillDrainMult', 'subida'], ['extraDice', 'dado'],
-    ['weatherDouble', 'clima'], ['garraChanceBonus', 'garra'], ['garraBoostBonus', 'garra']
+    ['weatherBonus', 'clima'], ['garraChanceBonus', 'garra'], ['garraBoostBonus', 'garra']
   ];
   function skillIcon(skill) {
     var ef = skill && skill.effect;

@@ -507,6 +507,83 @@
     if (trig.indexOf('weather:') === 0) trig = 'weather';
     return SKILL_TRIGGER_WEIGHT[trig] != null ? SKILL_TRIGGER_WEIGHT[trig] : 1;
   }
+  // ---------------------------------------------------------------------------
+  // Ranks das skills de vaga (GameData.SKILL_RANKS): por cavalo, em horse.skillRanks = { id: 1..5 }.
+  // ---------------------------------------------------------------------------
+  // Fator do rank: 1 + step × (r − 1). Número fora de 1..max é preso à faixa; o que não é número vale 1.
+  function rankScale(r) {
+    var K = GameData.SKILL_RANKS;
+    var n = (typeof r === 'number' && isFinite(r)) ? clamp(Math.floor(r), 1, K.max) : 1;
+    return 1 + K.step * (n - 1);
+  }
+  // Rank de uma skill do cavalo: inteiro de 1 a max; ausente ou inválido vale 1.
+  function rankOf(horse, id) {
+    var v = horse && horse.skillRanks ? horse.skillRanks[id] : null;
+    return (typeof v === 'number' && v % 1 === 0 && v >= 1 && v <= GameData.SKILL_RANKS.max) ? v : 1;
+  }
+  // Efeito de uma skill num rank: objeto novo (não muta GameData.SKILLS). O fator f = rankScale(rank) × extraScale
+  // age só na parte de bônus: multiplicador que ajuda 1 + (m − 1)·f; multiplicador de gasto 1 − (1 − m)·f (piso 0,05);
+  // bônus somado, recuperação e reforço de clima b·f. Duração e distância não mudam. O Dado Viciado ganha diceTeto
+  // (o teto do dado extra, pelo rank). No rank máximo entra o marco (SKILLS[id].rank5): durationS, lowStaminaAt,
+  // minStraightM, exitRestore, weatherLingerS, untilFinish e extraDice substituem; multiplicadores se multiplicam;
+  // staminaRestore e os bônus somados somam.
+  var RANK_MULT_UP = { speedMult: 1, accelMult: 1 }, RANK_MULT_DOWN = { drainMult: 1, hillDrainMult: 1 };
+  var RANK_ADD = { curveBonus: 1, hillBonus: 1, garraChanceBonus: 1, garraBoostBonus: 1, staminaRestore: 1, weatherBonus: 1 };
+  function skillEffect(id, rank, extraScale) {
+    var sk = GameData.SKILLS[id];
+    if (!sk) return {};
+    var K = GameData.SKILL_RANKS, base = sk.effect || {}, out = {};
+    var r = (typeof rank === 'number' && isFinite(rank)) ? clamp(Math.floor(rank), 1, K.max) : 1;
+    var x = (typeof extraScale === 'number' && extraScale >= 1 && extraScale <= 1.1) ? extraScale : 1;
+    var f = rankScale(r) * x;
+    Object.keys(base).forEach(function (k) {
+      var v = base[k];
+      if (RANK_MULT_UP[k]) out[k] = 1 + (v - 1) * f;
+      else if (RANK_MULT_DOWN[k]) out[k] = Math.max(0.05, 1 - (1 - v) * f);
+      else if (RANK_ADD[k]) out[k] = v * f;
+      else out[k] = v;
+    });
+    if (out.extraDice) out.diceTeto = K.diceTeto[r - 1];
+    if (r >= K.max && sk.rank5) {
+      Object.keys(sk.rank5).forEach(function (k) {
+        var v = sk.rank5[k];
+        if (RANK_MULT_UP[k] || RANK_MULT_DOWN[k]) out[k] = (out[k] == null ? 1 : out[k]) * v;
+        else if (RANK_ADD[k]) out[k] = (out[k] || 0) + v;
+        else out[k] = v;
+      });
+    }
+    return out;
+  }
+  // Texto da skill com os números do rank (a desc de GameData.SKILLS é a do rank 1; o sim-test confere).
+  function pctBr(x) { var v = Math.round(x * 1000) / 10; return String(v).replace('.', ',') + '%'; }
+  function numBr(x) { return String(Math.round(x * 10) / 10).replace('.', ','); }
+  function skillDesc(id, rank, extraScale) {
+    var sk = GameData.SKILLS[id];
+    if (!sk) return '';
+    var e = skillEffect(id, rank, extraScale);
+    var up = function (m) { return '+' + pctBr(m - 1); }, cut = function (m) { return pctBr(1 - m); };
+    var reta = 'Numa reta de ' + (e.minStraightM || T.straightMinM) + ' m ou mais (fora a da largada): ';
+    switch (id) {
+      case 'arranque': return 'Largada explosiva: ' + up(e.accelMult) + ' de aceleração' + (e.speedMult ? ' e ' + up(e.speedMult) + ' de velocidade' : '') + ' nos primeiros ' + e.distanceM + ' m.';
+      case 'sprint': return reta + up(e.speedMult) + ' de velocidade por ' + e.distanceM + ' m.';
+      case 'drift': return 'Em cada curva: +' + pctBr(e.curveBonus) + ' de rendimento na curva' + (e.drainMult ? ' e ' + cut(e.drainMult) + ' menos gasto de estamina' : '') + '.';
+      case 'saida-rapida': return 'Ao sair da curva: ' + up(e.accelMult) + ' de aceleração e ' + up(e.speedMult) + ' de velocidade por ' + numBr(e.durationS) + 's.';
+      case 'folego-de-montanha': return 'Em cada subida: gasta ' + cut(e.hillDrainMult) + ' menos estamina extra da subida' + (e.exitRestore ? ' e, ao sair dela, recupera ' + pctBr(e.exitRestore) : '') + '.';
+      case 'segundo-ar': return 'Quando a estamina cai a ' + pctBr(e.lowStaminaAt || T.lowStaminaAt) + ', recupera ' + pctBr(e.staminaRestore) + ' e ganha ' + up(e.speedMult) + ' de velocidade por ' + numBr(e.durationS) + 's.';
+      case 'arrancada-final': return 'Na reta final: +' + pctBr(e.garraChanceBonus) + ' de chance de Garra e +' + pctBr(e.garraBoostBonus) + ' de força na arrancada' + (e.speedMult ? ', e ' + up(e.speedMult) + ' de velocidade até a chegada' : '') + '.';
+      case 'dado-viciado': return 'Antes do 1º Dado da Sorte: rola ' + (e.extraDice > 1 ? e.extraDice + ' dados extras' : '1 dado extra') + ', de 1 a ' + e.diceTeto + ', em todos os Dados da corrida.';
+      case 'sol-a-pino': case 'pe-na-chuva': case 'nevoa-amiga':
+        var cl = { 'sol-a-pino': ['sol', 'o Fogo'], 'pe-na-chuva': ['chuva', 'a Água'], 'nevoa-amiga': ['névoa', 'a Grama'] }[id];
+        return 'Com ' + cl[0] + ': o bônus do clima para ' + cl[1] + ' sobe de ' + up(T.weatherMult) + ' para ' + up(T.weatherMult + e.weatherBonus) +
+          (e.weatherLingerS ? ' e continua por ' + e.weatherLingerS + 's depois que o clima muda' : '') + '.';
+      case 'chama-final': return 'Na reta final: ' + up(e.speedMult) + ' de velocidade por ' + numBr(e.durationS) + 's.';
+      case 'canto-da-iara': return 'Na reta final: ' + up(e.speedMult) + ' de velocidade e ' + cut(e.drainMult) + ' menos gasto de estamina por ' + numBr(e.durationS) + 's' + (e.staminaRestore ? ', e recupera ' + pctBr(e.staminaRestore) + ' de estamina ao ativar' : '') + '.';
+      case 'nascente': return reta + 'recupera ' + pctBr(e.staminaRestore) + ' de estamina' + (e.speedMult ? ' e ganha ' + up(e.speedMult) + ' de velocidade por ' + numBr(e.durationS) + 's' : '') + '.';
+      case 'casco-firme': return 'Em cada subida: +' + pctBr(e.hillBonus) + ' de rendimento na subida' + (e.hillDrainMult ? ' e gasta ' + cut(e.hillDrainMult) + ' menos estamina extra' : '') + '.';
+    }
+    return sk.desc;
+  }
+
   // Chance de uma skill disparar quando o gatilho acontece.
   function skillChance(horse, stats, bonus) {
     var rar = rarityOf(horse);
@@ -949,7 +1026,7 @@
       var reweather = false;
       if (e.garraChanceBonus) { r.garraBonusTotal += e.garraChanceBonus; reweather = true; }
       if (e.garraBoostBonus) { r.garraBoostBonusTotal += e.garraBoostBonus; reweather = true; }
-      if (e.weatherDouble) { r.weatherDouble = true; reweather = true; }
+      if (e.weatherBonus) { r.weatherDouble = true; reweather = true; }
       if (reweather) applyWeather(r, cond.weatherAtual);
       if (e.speedMult || e.accelMult || e.drainMult || e.curveBonus || e.hillBonus || e.hillDrainMult) {
         r.effects.push({
@@ -1278,6 +1355,10 @@
     powerRating: powerRating,
     botAlloc: botAlloc,
     skillChance: skillChance,
+    rankScale: rankScale,
+    rankOf: rankOf,
+    skillEffect: skillEffect,
+    skillDesc: skillDesc,
     garraInfo: garraInfo,
     weatherMult: weatherMult,
     learnSkill: learnSkill,

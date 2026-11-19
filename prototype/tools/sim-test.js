@@ -52,6 +52,73 @@ test('catálogo de skills', function () {
   Object.keys(G.ITEMS || {}).forEach(function (id) { assert.ok(!('mods' in G.ITEMS[id]) && !('rarity' in G.ITEMS[id]), 'catálogo antigo de itens removido: ' + id + ' sem mods/raridade'); });
 });
 
+section('ranks');
+test('rankScale: 1,00 1,15 1,30 1,45 1,60; 0, 6, "3" e NaN viram 1, 5, 1 e 1', function () {
+  [1, 1.15, 1.30, 1.45, 1.60].forEach(function (v, i) { assert.ok(Math.abs(S.rankScale(i + 1) - v) < 1e-12, 'rank ' + (i + 1)); });
+  assert.strictEqual(S.rankScale(0), S.rankScale(1)); assert.strictEqual(S.rankScale(6), S.rankScale(5));
+  assert.strictEqual(S.rankScale('3'), 1); assert.strictEqual(S.rankScale(NaN), 1); assert.strictEqual(S.rankScale(), 1);
+});
+test('SKILL_RANKS: 5 ranks, passo 0,15, custo 150+1 · 400+2 · 900+4 · 2.000+7 e teto do dado extra 60 a 100', function () {
+  assert.deepStrictEqual(G.SKILL_RANKS, { max: 5, step: 0.15, custo: { 1: { ouro: 150, perg: 1 }, 2: { ouro: 400, perg: 2 }, 3: { ouro: 900, perg: 4 }, 4: { ouro: 2000, perg: 7 } }, diceTeto: [60, 70, 80, 90, 100] });
+});
+test('skillEffect escala só a parte de bônus, por formato; duração e distância não crescem', function () {
+  var near = function (a, b, m) { assert.ok(Math.abs(a - b) < 1e-12, m + ': ' + a + ' ≠ ' + b); };
+  var ba = G.SKILLS.arranque.effect;
+  near(S.skillEffect('arranque', 3).accelMult, 1 + (ba.accelMult - 1) * 1.30, 'multiplicador que ajuda');
+  assert.strictEqual(S.skillEffect('arranque', 3).distanceM, ba.distanceM);
+  assert.strictEqual(S.skillEffect('arranque', 4).speedMult, undefined, 'o marco só entra no rank 5');
+  var bc = G.SKILLS['canto-da-iara'].effect;
+  near(S.skillEffect('canto-da-iara', 4).drainMult, 1 - (1 - bc.drainMult) * 1.45, 'multiplicador de gasto');
+  near(S.skillEffect('drift', 2).curveBonus, G.SKILLS.drift.effect.curveBonus * 1.15, 'bônus somado');
+  near(S.skillEffect('nascente', 4).staminaRestore, G.SKILLS.nascente.effect.staminaRestore * 1.45, 'recuperação');
+  near(S.skillEffect('sol-a-pino', 3).weatherBonus, G.SKILLS['sol-a-pino'].effect.weatherBonus * 1.30, 'reforço do clima');
+  near(S.skillEffect('sprint', 1).speedMult, G.SKILLS.sprint.effect.speedMult, 'rank 1 é a base');
+  near(S.skillEffect('sprint', 2, 1.05).speedMult, 1 + (G.SKILLS.sprint.effect.speedMult - 1) * 1.15 * 1.05, 'extraScale multiplica o fator');
+  near(S.skillEffect('sprint', 2, 3).speedMult, S.skillEffect('sprint', 2).speedMult, 'extraScale fora de 1–1,1 vale 1');
+  assert.strictEqual(S.skillEffect('drift', 5).blockScoped, true);
+});
+test('marcos do rank 5: substituem duração e gatilho, multiplicam multiplicadores, somam recuperação', function () {
+  var near = function (a, b, m) { assert.ok(Math.abs(a - b) < 1e-12, m + ': ' + a + ' ≠ ' + b); };
+  var bf = G.SKILLS['folego-de-montanha'].effect.hillDrainMult, f5 = S.skillEffect('folego-de-montanha', 5);
+  assert.ok(f5.hillDrainMult >= 0.05); near(f5.hillDrainMult, Math.max(0.05, 1 - (1 - bf) * 1.6), 'Fôlego'); assert.strictEqual(f5.exitRestore, 0.03);
+  var c5 = S.skillEffect('casco-firme', 5); assert.strictEqual(c5.hillDrainMult, 0.7); near(c5.hillBonus, G.SKILLS['casco-firme'].effect.hillBonus * 1.6, 'Casco Firme');
+  assert.strictEqual(S.skillEffect('saida-rapida', 5).durationS, 8); assert.strictEqual(S.skillEffect('saida-rapida', 4).durationS, G.SKILLS['saida-rapida'].effect.durationS);
+  assert.strictEqual(S.skillEffect('chama-final', 5).durationS, 12);
+  var a5 = S.skillEffect('arranque', 5); assert.strictEqual(a5.speedMult, 1.03); near(a5.accelMult, 1 + (G.SKILLS.arranque.effect.accelMult - 1) * 1.6, 'Arranque');
+  assert.strictEqual(S.skillEffect('sprint', 5).minStraightM, 100); assert.strictEqual(S.skillEffect('sprint', 4).minStraightM, undefined);
+  var d5 = S.skillEffect('drift', 5); assert.strictEqual(d5.drainMult, 0.85);
+  assert.strictEqual(S.skillEffect('segundo-ar', 5).lowStaminaAt, 0.35);
+  var af = S.skillEffect('arrancada-final', 5); assert.strictEqual(af.speedMult, 1.02); assert.strictEqual(af.untilFinish, true); assert.strictEqual(af.durationS, undefined);
+  ['sol-a-pino', 'pe-na-chuva', 'nevoa-amiga'].forEach(function (id) { assert.strictEqual(S.skillEffect(id, 5).weatherLingerS, 15, id); assert.strictEqual(S.skillEffect(id, 4).weatherLingerS, undefined, id); });
+  var ci = S.skillEffect('canto-da-iara', 5); assert.strictEqual(ci.staminaRestore, 0.05);
+  var na = S.skillEffect('nascente', 5); assert.strictEqual(na.speedMult, 1.03); assert.strictEqual(na.durationS, 4); near(na.staminaRestore, G.SKILLS.nascente.effect.staminaRestore * 1.6, 'Nascente');
+  var s5 = S.skillEffect('segundo-ar', 5); near(s5.staminaRestore, G.SKILLS['segundo-ar'].effect.staminaRestore * 1.6, 'Segundo Ar: a recuperação da base escala e o marco não soma nela');
+});
+test('Dado Viciado: 1 dado extra com teto pelo rank; no rank 5, 2 dados de 1 a 100', function () {
+  assert.deepStrictEqual(S.skillEffect('dado-viciado', 2), { extraDice: 1, diceTeto: 70 });
+  assert.deepStrictEqual(S.skillEffect('dado-viciado', 5), { extraDice: 2, diceTeto: 100 });
+  assert.deepStrictEqual(S.skillEffect('dado-viciado', 1, 1.05), { extraDice: 1, diceTeto: 60 });
+});
+test('skillEffect não muta GameData.SKILLS; todo id tem marco; skill desconhecida dá {}', function () {
+  var antes = JSON.stringify(G.SKILLS);
+  Object.keys(G.SKILLS).forEach(function (id) { for (var r = 0; r <= 6; r++) { var e = S.skillEffect(id, r, 1.05); e.speedMult = 99; e.novo = 1; } assert.ok(G.SKILLS[id].rank5 && Object.keys(G.SKILLS[id].rank5).length, id + ' sem rank5'); });
+  assert.strictEqual(JSON.stringify(G.SKILLS), antes);
+  assert.deepStrictEqual(S.skillEffect('nao-existe', 3), {});
+});
+test('rankOf lê horse.skillRanks; ausente ou inválido vale 1', function () {
+  assert.strictEqual(S.rankOf({ skillRanks: { sprint: 4 } }, 'sprint'), 4); assert.strictEqual(S.rankOf({}, 'sprint'), 1);
+  [9, 0, '3', NaN, 2.5, null, -1].forEach(function (v) { assert.strictEqual(S.rankOf({ skillRanks: { sprint: v } }, 'sprint'), 1, String(v)); });
+  assert.strictEqual(S.rankOf(null, 'sprint'), 1); assert.strictEqual(S.rankOf({ skillRanks: { sprint: 5 } }, 'drift'), 1);
+});
+test('a desc de cada skill é o texto do rank 1 (skillDesc), e o do rank 5 cita o marco', function () {
+  Object.keys(G.SKILLS).forEach(function (id) {
+    assert.strictEqual(G.SKILLS[id].desc, S.skillDesc(id, 1), id);
+    assert.notStrictEqual(S.skillDesc(id, 5), S.skillDesc(id, 4), id + ': o rank 5 tem de dizer o marco');
+    assert.notStrictEqual(S.skillDesc(id, 2), S.skillDesc(id, 1), id + ': o rank muda o texto');
+  });
+  assert.strictEqual(S.skillDesc('sprint', 5), 'Numa reta de 100 m ou mais (fora a da largada): +5,8% de velocidade por 150 m.');
+});
+
 section('status');
 test('computeStats devolve 7 chaves: base + pontos comprados, sem teto por raridade', function () {
   var h = JSON.parse(JSON.stringify(G.STARTERS[0])); h.level = 50; h.alloc = { vel: 20, acel: 20 };

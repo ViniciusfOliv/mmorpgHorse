@@ -59,7 +59,7 @@ nevoa-amiga `{ weatherLingerS: 15 }` · chama-final `{ durationS: 12 }` · canto
 `{ speedMult: 1.03, durationS: 4 }` · casco-firme `{ hillDrainMult: 0.7 }`. No marco, `durationS` e `lowStaminaAt`
 **substituem**; os outros **somam** ao efeito escalado (multiplicadores se multiplicam; restore e bônus se somam).
 
-- [ ] **Passo 1:** testes que falham, em `sim-test.js`, seção `ranks`:
+- [x] **Passo 1:** testes que falham, em `sim-test.js`, seção `ranks`:
   - `rankScale: 1,00 1,15 1,30 1,45 1,60; 0, 6, '3' e NaN viram 1, 5, 1 e 1`;
   - `skillEffect('arranque', 3).accelMult ≈ 1 + (base − 1) × 1,30` (base = `SKILLS.arranque.effect.accelMult`);
   - `skillEffect('folego-de-montanha', 5).hillDrainMult >= 0.05` e igual a `max(0.05, 1 − (1 − base) × 1,6) × 0,7`;
@@ -68,12 +68,12 @@ nevoa-amiga `{ weatherLingerS: 15 }` · chama-final `{ durationS: 12 }` · canto
   - `skillEffect` não muta `GameData.SKILLS` (comparar um `JSON.stringify` antes e depois);
   - `rankOf({ skillRanks: { sprint: 4 } }, 'sprint') === 4`, `rankOf({}, 'sprint') === 1`, `rankOf({ skillRanks: { sprint: 9 } }, 'sprint') === 1`;
   - todo id de `SKILLS` tem `rank5`, e `GameData.RARITIES.*.skillChance` é `undefined` (troca a asserção antiga de 0,55).
-- [ ] **Passo 2:** `node prototype/tools/sim-test.js` → falham os testes novos.
-- [ ] **Passo 3:** implementar no `data.js` e no `sim.js`. Valores base do rank 1 **provisórios**: a parte de bônus de hoje
+- [x] **Passo 2:** `node prototype/tools/sim-test.js` → falham os testes novos.
+- [x] **Passo 3:** implementar no `data.js` e no `sim.js`. Valores base do rank 1 **provisórios**: a parte de bônus de hoje
   × 0,6 (a tarefa 4 recalibra pela medição). Atualizar as `desc` para usar números do rank (a tela formata na tarefa 8; aqui
   a `desc` fica com o texto do rank 1).
-- [ ] **Passo 4:** `node prototype/tools/sim-test.js` → passa.
-- [ ] **Passo 5:** commit "adiciona a escala de rank e os marcos das skills".
+- [x] **Passo 4:** `node prototype/tools/sim-test.js` → passa.
+- [x] **Passo 5:** commit "adiciona a escala de rank e os marcos das skills".
 
 ### Tarefa 2: a corrida usa 100% e o rank
 

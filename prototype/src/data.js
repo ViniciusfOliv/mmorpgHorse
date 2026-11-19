@@ -146,89 +146,119 @@
   //     blockScoped: vale uma vez por bloco (curva/subida), não uma vez por corrida;
   //     staminaRestore: recupera fração do tanque (instantâneo);
   //     garraChanceBonus / garraBoostBonus: reforça a arrancada de Garra;
-  //     extraDice: dados extras; weatherDouble: o bônus do clima vira T.weatherMultDouble (×1,08 no lugar de ×1,03).
+  //     extraDice: dados extras no Dado da Sorte (cada um de 1 até SKILL_RANKS.diceTeto do rank);
+  //     weatherBonus: soma ao bônus do clima do próprio elemento (×1,03 → ×(1,03 + bônus)).
+  //   Os valores de effect são os do RANK 1; RaceSim.skillEffect(id, rank) dá os do rank (escala SKILL_RANKS.step
+  //   só na parte de bônus; duração e distância não crescem).
+  //   rank5: o marco do rank 5, somado ao efeito já escalado. durationS, lowStaminaAt (gatilho do Segundo Ar),
+  //     minStraightM (reta mínima do Sprint) e extraDice substituem; multiplicadores se multiplicam; staminaRestore
+  //     soma; exitRestore: recupera ao sair da subida; weatherLingerS: o reforço do clima dura mais N s depois
+  //     de o clima mudar; untilFinish: o efeito vale até a chegada.
   //   short (opcional): nome de até 12 letras para o balão da corrida (só apresentação, não é regra).
   //   element: 'geral' (qualquer tipo aprende) ou o tipo que aprende.
   // ---------------------------------------------------------------------------
+  // Ranks das skills de vaga (por cavalo, em horse.skillRanks): 1 a max. O fator do rank r é 1 + step × (r − 1).
+  // custo[r]: Ouro e Pergaminhos de técnica para subir de r para r + 1 (sem sorteio). diceTeto[r − 1]: até quanto
+  // rola o dado extra do Dado Viciado.
+  var SKILL_RANKS = {
+    max: 5, step: 0.15,
+    custo: { 1: { ouro: 150, perg: 1 }, 2: { ouro: 400, perg: 2 }, 3: { ouro: 900, perg: 4 }, 4: { ouro: 2000, perg: 7 } },
+    diceTeto: [60, 70, 80, 90, 100]
+  };
   var SKILLS = {
     // --- Gerais (qualquer tipo) ---
     'arranque': {
       id: 'arranque', name: 'Arranque', element: 'geral', trigger: 'start',
-      desc: 'Largada explosiva: +18% de aceleração nos primeiros 100 m.',
-      effect: { accelMult: 1.18, distanceM: 100 }
+      desc: 'Largada explosiva: +10,8% de aceleração nos primeiros 100 m.',
+      effect: { accelMult: 1.108, distanceM: 100 },
+      rank5: { speedMult: 1.03 }
     },
     'sprint': {
       id: 'sprint', name: 'Sprint', element: 'geral', trigger: 'straight',
-      desc: 'Numa reta de 150 m ou mais (fora a da largada): +6% de velocidade por 150 m.',
-      effect: { speedMult: 1.06, drainMult: 1.0, distanceM: 150 }
+      desc: 'Numa reta de 150 m ou mais (fora a da largada): +3,6% de velocidade por 150 m.',
+      effect: { speedMult: 1.036, distanceM: 150 },
+      rank5: { minStraightM: 100 }
     },
     'drift': {
       id: 'drift', name: 'Drift', element: 'geral', trigger: 'curve',
-      desc: 'Em cada curva: +2,5% de rendimento na curva.',
-      effect: { curveBonus: 0.025, blockScoped: true }
+      desc: 'Em cada curva: +1,5% de rendimento na curva.',
+      effect: { curveBonus: 0.015, blockScoped: true },
+      rank5: { drainMult: 0.85 }
     },
     'saida-rapida': {
       id: 'saida-rapida', name: 'Saída Rápida', element: 'geral', trigger: 'curveExit',
-      desc: 'Ao sair da curva: +40% de aceleração e +6% de velocidade por 6s.',
-      effect: { accelMult: 1.4, speedMult: 1.06, durationS: 6 }
+      desc: 'Ao sair da curva: +24% de aceleração e +3,6% de velocidade por 6s.',
+      effect: { accelMult: 1.24, speedMult: 1.036, durationS: 6 },
+      rank5: { durationS: 8 }
     },
     'folego-de-montanha': {
       id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'geral', trigger: 'hill',
-      desc: 'Em cada subida: gasta 80% menos estamina extra da subida.',
-      effect: { hillDrainMult: 0.2, blockScoped: true }
+      desc: 'Em cada subida: gasta 48% menos estamina extra da subida.',
+      effect: { hillDrainMult: 0.52, blockScoped: true },
+      rank5: { exitRestore: 0.03 }
     },
     'segundo-ar': {
       id: 'segundo-ar', name: 'Segundo Ar', element: 'geral', trigger: 'lowStamina',
-      desc: 'Quando a estamina cai a 30%, recupera 15% e ganha +5% de velocidade por 8s.',
-      effect: { staminaRestore: 0.15, speedMult: 1.05, durationS: 8 }
+      desc: 'Quando a estamina cai a 30%, recupera 9% e ganha +3% de velocidade por 8s.',
+      effect: { staminaRestore: 0.09, speedMult: 1.03, durationS: 8 },
+      rank5: { lowStaminaAt: 0.35 }
     },
     'arrancada-final': {
       id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'geral', trigger: 'final',
-      desc: 'Na reta final: +15% de chance de Garra e +3% de força na arrancada.',
-      effect: { garraChanceBonus: 0.15, garraBoostBonus: 0.03 }
+      desc: 'Na reta final: +9% de chance de Garra e +1,8% de força na arrancada.',
+      effect: { garraChanceBonus: 0.09, garraBoostBonus: 0.018 },
+      rank5: { speedMult: 1.02, untilFinish: true }
     },
     'dado-viciado': {
       id: 'dado-viciado', name: 'Dado Viciado', element: 'geral', trigger: 'dice',
-      desc: 'Uma tentativa por corrida, antes do 1º Dado da Sorte: se ativar, rola 1 dado extra em todos os Dados da corrida.',
-      effect: { extraDice: 1 }
+      desc: 'Antes do 1º Dado da Sorte: rola 1 dado extra, de 1 a 60, em todos os Dados da corrida.',
+      effect: { extraDice: 1 },
+      rank5: { extraDice: 2 }
     },
     // --- Fogo ---
     'sol-a-pino': {
       id: 'sol-a-pino', name: 'Sol a Pino', element: 'fogo', trigger: 'weather:sol',
-      desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +8%.',
-      effect: { weatherDouble: true }
+      desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +6%.',
+      effect: { weatherBonus: 0.03 },
+      rank5: { weatherLingerS: 15 }
     },
     'chama-final': {
       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
-      desc: 'Na reta final, +5% de velocidade por 9,5s.',
-      effect: { speedMult: 1.05, durationS: 9.5 }
+      desc: 'Na reta final: +3% de velocidade por 9,5s.',
+      effect: { speedMult: 1.03, durationS: 9.5 },
+      rank5: { durationS: 12 }
     },
     // --- Água ---
     'pe-na-chuva': {
       id: 'pe-na-chuva', name: 'Pé na Chuva', element: 'agua', trigger: 'weather:chuva',
-      desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +8%.',
-      effect: { weatherDouble: true }
+      desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +6%.',
+      effect: { weatherBonus: 0.03 },
+      rank5: { weatherLingerS: 15 }
     },
     'canto-da-iara': {
       id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
-      desc: 'Na reta final, +6% de velocidade por 9s e gasta 30% menos estamina.',
-      effect: { speedMult: 1.06, drainMult: 0.7, durationS: 9 }
+      desc: 'Na reta final: +3,6% de velocidade e 18% menos gasto de estamina por 9s.',
+      effect: { speedMult: 1.036, drainMult: 0.82, durationS: 9 },
+      rank5: { staminaRestore: 0.05 }
     },
     'nascente': {
       id: 'nascente', name: 'Nascente', element: 'agua', trigger: 'straight',
-      desc: 'Numa reta de 150 m ou mais (fora a da largada), recupera 12% de estamina.',
-      effect: { staminaRestore: 0.12 }
+      desc: 'Numa reta de 150 m ou mais (fora a da largada): recupera 7,2% de estamina.',
+      effect: { staminaRestore: 0.072 },
+      rank5: { speedMult: 1.03, durationS: 4 }
     },
     // --- Grama ---
     'nevoa-amiga': {
       id: 'nevoa-amiga', name: 'Névoa Amiga', element: 'grama', trigger: 'weather:nevoa',
-      desc: 'Com névoa: o bônus do clima para a Grama sobe de +3% para +8%.',
-      effect: { weatherDouble: true }
+      desc: 'Com névoa: o bônus do clima para a Grama sobe de +3% para +6%.',
+      effect: { weatherBonus: 0.03 },
+      rank5: { weatherLingerS: 15 }
     },
     'casco-firme': {
       id: 'casco-firme', name: 'Casco Firme', element: 'grama', trigger: 'hill',
-      desc: 'Em cada subida: +2% de rendimento na subida.',
-      effect: { hillBonus: 0.02, blockScoped: true }
+      desc: 'Em cada subida: +1,2% de rendimento na subida.',
+      effect: { hillBonus: 0.012, blockScoped: true },
+      rank5: { hillDrainMult: 0.7 }
     }
   };
 
@@ -656,6 +686,7 @@
     WEATHERS: WEATHERS,
     BLOCK_TYPES: BLOCK_TYPES,
     SKILLS: SKILLS,
+    SKILL_RANKS: SKILL_RANKS,
     GEAR_SLOTS: GEAR_SLOTS,
     GEAR_SLOT_INFO: GEAR_SLOT_INFO,
     GEAR_SETS: GEAR_SETS,
