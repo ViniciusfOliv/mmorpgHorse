@@ -7036,7 +7036,7 @@ window.__ICONES = {"cl-chuva":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACA
 (function () {
   'use strict';
   var SP = window.Sprites, FX = window.RaceFx, GD = window.GameData;
-  var VERSAO = 'spike-engine v2 (2026-11-19)';
+  var VERSAO = 'spike-engine v3 (2026-11-19)';
   function el(id) { return document.getElementById(id); }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function hsh(i, s) { var x = Math.sin(i * 127.1 + (s || 0) * 311.7) * 43758.5453; return x - Math.floor(x); }
@@ -7533,14 +7533,21 @@ window.__ICONES = {"cl-chuva":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACA
   // ===================================================================
   // Laço
   // ===================================================================
-  var ultimo = null, ultimaPart = 0, calibrando = null;
+  var ultimo = null, ultimoBruto = null, ACUM = 0, ultimaPart = 0, calibrando = null;
   function laco(agora) {
     window.requestAnimationFrame(laco);
-    if (ultimo == null) { ultimo = agora; return; }
+    if (ultimo == null) { ultimo = agora; ultimoBruto = agora; return; }
+    var bruto = agora - ultimoBruto; ultimoBruto = agora;
+    if (calibrando) { ultimo = agora; if (bruto <= 250) calibrando.push(bruto); return; }
+    // travado em 60: um acumulador no ritmo da tela (numa tela de 120 Hz, desenha uma batida sim, uma não). A v2 comparava
+    // o tempo desde o último quadro com 13 ms: uma batida que chegava um tico cedo era pulada e o quadro saía com 25 ms
+    // (3 batidas de 8,3 ms), o que derrubava o 1% low sem o jogo ter atrasado nada.
+    if (CFG.limite === '60' && bruto <= 250) {
+      ACUM += bruto;
+      if (ACUM < 12.5) return;
+      ACUM = clamp(ACUM - 1000 / 60, -4, 4);
+    }
     var dtMs = agora - ultimo;
-    if (calibrando) { ultimo = agora; if (dtMs <= 250) calibrando.push(dtMs); return; }
-    // travado em 60: pula a batida da tela que vem cedo demais (numa tela de 120 Hz, desenha uma sim, uma não)
-    if (CFG.limite === '60' && dtMs < 13) return;
     ultimo = agora;
     if (dtMs > 250) return;   // aba escondida ou pausa longa
     var t0 = performance.now();

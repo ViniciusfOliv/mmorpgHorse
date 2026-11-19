@@ -353,14 +353,17 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   nada; rever antes do online.
 
 ## Em andamento
-- **Teste de engine, web × Godot 4 (spike de 2026-11-19, branch `claude/teste-engine`, fora da `main`; 1ª rodada no celular: média de 103 FPS a 120 Hz, mas 1% low de 35 por engasgos; esperando a bateria v2, seção 4 do relatório):** relatório em
-  `docs/teste-engine.md`; página de carga em `prototype/spike/` (descartável, fora do `check.sh` e do build), publicada
-  como artefato: https://claude.ai/artifact/UvJifXrNdRyHJngmAaJHTm (`prototype/spike/engine.html`, gerado por
-  `node prototype/spike/gerar-engine.mjs`; bateria no contêiner: `node prototype/spike/medir-engine.mjs`). No contêiner
-  (sem GPU), o JS da corrida custa ~1 ms por quadro (9 ms com CPU 6×); o gargalo é rasterizar o canvas em S5. Desenhar em
-  3× (a menor escala em que os moldes ficam iguais) leva o pior caso de 25 para 58 FPS com CPU 4×. Recomendação: ficar na
-  web e desenhar a pista em 3×, se o celular fizer ≥ 55 FPS no 1% low na fase 1 ou na fase 7 (3×). **Falta:** o
-  Vinicius rodar a bateria no celular e colar o resumo; aí fechar a decisão (seção 7 do relatório).
+- **Teste de engine, web × Godot 4 (spike de 2026-11-19, branch `claude/teste-engine`, fora da `main`): resultado,
+  fica web.** Relatório em `docs/teste-engine.md`; decisão em `decisoes.md` (o Vinicius pode vetar). Página de carga em
+  `prototype/spike/` (descartável, fora do `check.sh` e do build), publicada como artefato:
+  https://claude.ai/artifact/UvJifXrNdRyHJngmAaJHTm (`prototype/spike/engine.html`, gerado por
+  `node prototype/spike/gerar-engine.mjs`; bateria no contêiner: `node prototype/spike/medir-engine.mjs`).
+  - No celular do Vinicius, na WebView do app do Claude, o pior caso fez 119,6 FPS a 120 Hz, com 1% low de 82,4 e
+    JS de 3,2 ms.
+  - A fase "travada em 60" reprovou por defeito do limitador do spike, corrigido na v3.
+  - **Falta:** uma rodada longa (Rodada livre de 60 s, limite 60 FPS, v3) no celular e a bateria num Android fraco antes
+    do lançamento.
+  - **No jogo, quando for a hora:** travar a corrida em 60 FPS com o acumulador do spike.
 - **Teste de interface em paralelo (feito em 2026-11-17, commit `b3dda3d`; na `main` desde o mesmo dia, por decisão do
   Vinicius):** o `check.sh` roda o `prototype/tools/ui-test-paralelo.mjs`, um processo por bloco (68 blocos na `main`, 4 por vez, e os 8
   com medição de tempo depois, um por vez; com os ginásios são 71 blocos, 9 deles em série). A verificação caiu de ~16 para ~8 min (hoje, com os ginásios, ~10 min). A meta de ~5 min não fechou: o que
@@ -473,8 +476,9 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
 - **GDD §9+:** expedições, tecnologia do servidor, anti-trapaça, PVP assíncrono e ranqueada.
 
 ## Próximos passos
-- **Teste de engine:** com o resumo do celular, preencher a seção 4 de `docs/teste-engine.md` e registrar a decisão.
-  Se ficar web e passar só em 3×, a mudança no `layout()` do `game.js` é de meio dia.
+- **Teste de engine:** decidido, fica web. Falta a rodada longa no celular (60 s travada em 60, spike v3) e, perto do
+  lançamento, a bateria num Android fraco (checklist do empacotamento). Travar a corrida em 60 FPS no `game.js` leva
+  ½ dia e pode entrar com o bloco de empacotamento.
 - **Frente de itens (na `main`):** o Vinicius joga nos artefatos oficiais e decide a lista "A confirmar com o Vinicius
   (gosto, itens)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Pedidos de 2026-11-18 (na `main` desde o mesmo dia):** feitos: a corrida 50% mais longa na tela; na aba Skills da

@@ -6,14 +6,21 @@ _2026-11-19 · branch `claude/teste-engine` · spike descartável em `prototype/
 lançamento, com FPS estável em Android fraco? Ou vale migrar para Godot 4? (A Unity já foi descartada na análise
 anterior.)
 
-**Resposta curta (parcial):**
+**Resposta curta: fica web.** No celular do Vinicius, a base web desenhou o pior caso a **120 FPS** numa tela de 120
+Hz, dentro da WebView do Android:
 
-- **No contêiner:** o JavaScript cabe com folga e o gargalo é rasterizar o canvas em alta resolução. Isso se resolve
-  barato desenhando em 3×.
-- **No celular do Vinicius** (primeira rodada, seção 4.1): o jogo já desenhava em 3× e fez em média 103 FPS numa tela
-  de 120 Hz, ou seja, sobra para 60. Mas houve engasgos: 1% low de 35 e 4,5% dos quadros acima de 20 ms. Engasgo não é
-  falta de força bruta, e por isso a decisão ainda não fecha.
-- **Falta:** a bateria v2, que mede o pior caso travado em 60 FPS e mostra que parte do quadro trava (seções 4.2 e 7).
+- 12 cavalos, clima, partículas, explosões, parallax, câmera com zoom e tremida, todos ligados;
+- 99% dos quadros em até 8,5 ms;
+- 3,2 ms de JavaScript por quadro.
+
+Na resolução nativa (1152×1452) e com 20 cavalos o resultado é o mesmo. Isso é o dobro do que um jogo a 60 FPS
+precisa. O Godot não traria visual nem FPS que justifiquem de 2 a 4 meses de reescrita.
+
+Ficam dois cuidados antes do lançamento (seção 7):
+
+- confirmar uma rodada longa, de 60 s travada em 60 FPS, porque a primeira rodada do celular teve engasgos que a
+  bateria não repetiu;
+- medir num Android fraco.
 
 ## 1. O que foi montado
 
@@ -40,7 +47,7 @@ trocam o número de cavalos e a escala:
 - **jogo**: a regra de hoje, com o pixel do aparelho reduzido acima de 1,5 milhão de pixels;
 - **nativo**.
 
-A **bateria** (cerca de 83 s) roda 12 fases seguidas (na v2) e gera um resumo para copiar.
+A **bateria** (cerca de 83 s) roda 12 fases seguidas e gera um resumo para copiar. A v3 corrige o limitador de 60 FPS (seção 4.2).
 
 Rodar no contêiner: `node prototype/spike/medir-engine.mjs [--sem-vsync] [--so desktop,celular,celular-4x,celular-6x]`.
 
@@ -105,8 +112,9 @@ número sobe para 27,5 ms em 4×.
 5. **Engasgos isolados.** Mesmo com folga, apareceram quadros de mais de 20 ms (1 em 720 no pior caso). No relatório
    de 1% low eles valem: esse índice derruba o resultado com 2 a 3 quadros ruins numa fase curta.
 
-**Limite desta medição:** no celular de verdade, o canvas 2D do Chrome é rasterizado na **GPU** (Skia). A maior parte
-do gargalo 1 e do 2 sai da CPU, então o real deve ficar entre as colunas "1×" e "4×". Só o celular responde isso.
+**Limite desta medição, confirmado pelo celular (seção 4.2):** no aparelho, o canvas 2D é rasterizado na **GPU**.
+Lá, a resolução e as camadas de alfa (gargalos 1 e 2) quase não pesam: a escala nativa S6 deu o mesmo FPS que a S3.
+Esses gargalos eram do desenho por software do contêiner. O que o contêiner mede bem é o JavaScript, e ele cabe.
 
 ## 4. Números no celular do Vinicius
 
@@ -149,24 +157,64 @@ O que o spike v2 acrescenta para responder isso:
 - o tempo de JS por parte do quadro (cenário, cavalos, efeitos, câmera, HUD), com média, p95 e máximo;
 - para cada quadro com mais de 12 ms de JS, qual parte pesou mais.
 
-### 4.2 Bateria completa (spike v2)
+### 4.2 Bateria completa (spike v2, 2026-11-19)
 
-_Pendente:_ rodar **Rodar bateria** (não a Rodada livre) e colar o resumo.
+Mesmo aparelho e mesmo ambiente (app do Claude, WebView, cerca de 119 Hz). "Livre" acompanha a tela de 120 Hz, então o
+orçamento é de 8,3 ms por quadro, a metade do de 60 FPS.
 
-| Fase | FPS médio | 1% low | Observação |
-|---|---|---|---|
-| 1. Pior caso (escala jogo, livre) | | | |
-| 2. Pior caso travado em 60 FPS | | | |
-| 5. Sem câmera | | | |
-| 8. Escala 3× | | | |
-| 10. Escala 1× | | | |
-| 11. 20 cavalos | | | |
+| Fase | Canvas | FPS médio | 1% low | ms p99 | Quadros > 20 ms | JS méd/p95 (ms) |
+|---|---|---|---|---|---|---|
+| 1. Pior caso, escala jogo, livre | 576×726 (S3) | **119,6** | **82,4** | **8,5** | 1 / 1.434 | 3,2 / 4,1 |
+| 2. Pior caso travado em 60 FPS | 576×726 (S3) | 59,5 | 35,4 | 25,0 | 8 / 595 | 4,5 / 6,2 |
+| 3. Escala nativo | 1152×1452 (S6) | 119,5 | 82,6 | 8,5 | 1 / 717 | 2,1 / 3,0 |
+| 4. Sem clima, poeira e skills | 576×726 | 119,2 | 70,9 | 8,5 | 1 / 715 | 1,8 / 2,3 |
+| 5. Sem câmera | 576×726 | 120,0 | 109,1 | 8,5 | 0 / 721 | 2,3 / 2,9 |
+| 6. Sem parallax extra | 576×726 | 119,7 | 92,9 | 8,5 | 0 / 718 | 2,8 / 3,6 |
+| 7. Sem cenário | 576×726 | 120,0 | 110,7 | 8,5 | 0 / 720 | 2,4 / 3,1 |
+| 8. Escala 3× | 576×726 | 118,7 | 58,3 | 12,3 | 2 / 712 | 2,7 / 3,5 |
+| 9. Escala 2× | 384×484 | 119,2 | 61,8 | 8,5 | 3 / 717 | 2,7 / 3,6 |
+| 10. Escala 1× | 192×242 | 118,7 | 56,5 | 8,6 | 2 / 713 | 2,8 / 3,5 |
+| 11. 20 cavalos | 576×1038 | 119,7 | 94,6 | 8,4 | 1 / 718 | 3,0 / 3,8 |
+| 12. 6 cavalos | 1152×1014 (S6) | 118,7 | 53,0 | 9,2 | 4 / 714 | 1,8 / 2,5 |
+
+JS por parte na fase 1 (média / p95 / máximo, em ms):
+
+| Parte | Tempo |
+|---|---|
+| Cenário | 0,9 / 1,5 / 7,0 |
+| Cavalos | 0,8 / 1,1 / 2,1 |
+| Efeitos | 0,4 / 0,6 / 1,3 |
+| Câmera | 0,7 / 1,0 / 3,5 |
+| HUD | 0,3 / 0,5 / 1,4 |
+
+Na fase 1, só 1 quadro passou de 12 ms de JS. Na fase 2, nenhum.
+
+**Leitura:**
+
+1. **O pior caso roda a 120 FPS.** O p99 é de 8,5 ms em quase todas as fases, e mesmo a escala nativa e os 20 cavalos
+   não mudam nada. Para 60 FPS, a folga é de cerca de 2 vezes.
+2. **O 1% low abaixo de 82 em algumas fases vem de 1 a 4 quadros soltos, menos de 0,6%.** Eles não acompanham a carga:
+   6 cavalos deu 53,0 e 20 cavalos deu 94,6. São soluços do sistema ou do coletor de lixo. Numa fase de cerca de 715
+   quadros, o 1% low é a média dos 7 piores, e esses soluços pesam nela.
+3. **A fase 2 reprovou por um defeito do limitador do spike, não do jogo.** Os sinais:
+   - o p99 foi de exatamente 25,0 ms, que são 3 batidas de 8,3 ms;
+   - o JS chegou no máximo a 4,8 ms;
+   - nenhum quadro teve JS acima de 12 ms.
+
+   O limitador da v2 comparava o tempo desde o último quadro com 13 ms. Uma batida que chegava um tico cedo era pulada,
+   e o quadro só saía na terceira. A v3 troca isso por um acumulador no ritmo da tela; no contêiner sem vsync, ela dá
+   60,6 FPS com p99 de 17,7 ms. **Este é o jeito certo de limitar o jogo a 60 FPS numa tela de 120 Hz.**
+4. **A primeira rodada (seção 4.1) ficou pior** (103 FPS, 4,5% dos quadros acima de 20 ms) com o mesmo conteúdo. A
+   diferença foi a duração: 60 s seguidos, contra fases de 6 a 12 s. Pode ter sido aquecimento do aparelho, modo de
+   economia de energia ou um toque e rolagem da página durante o teste. É o único sinal vermelho que sobrou, e se
+   confirma com uma rodada longa (seção 7).
 
 ## 5. O que custaria cada ambição visual na web
 
 | Ambição | Custo na web | Efeito no FPS |
 |---|---|---|
-| Desenhar a corrida em 3× fixo (a CSS amplia) | ½ dia: mudar a regra do `layout()` do `game.js`; os moldes já são compatíveis | é o maior ganho medido (cerca de 2,3× em 4×) |
+| Travar em 60 FPS em tela de 120 Hz (acumulador no ritmo da tela, como o spike v3) | ½ dia no laço da corrida do `game.js` | metade do trabalho por segundo e menos bateria; o quadro tem 16,7 ms em vez de 8,3 |
+| Desenhar a corrida em 3× fixo (a CSS amplia) | ½ dia: mudar a regra do `layout()` do `game.js`; os moldes já são compatíveis | no celular com GPU não fez diferença; fica de reserva para aparelho fraco (no contêiner, cerca de 2,3× em 4×) |
 | Explosões, tremida e zoom de câmera como no spike | 2 a 3 dias: o código do spike já serve de base | zoom é uma passada de tela cheia; em 3× é barato |
 | Parallax em várias camadas (bitmaps prontos) | 1 a 2 dias, mais arte (PixelLab: pede confirmação) | 2 `drawImage` por camada; o semitransparente custa mais |
 | Pré-desenhar o cenário estático do `drawTrack` (serras e arquibancada) em bitmaps | 2 a 3 dias | tira cerca de 1.000 chamadas por quadro (fase 6) |
@@ -190,22 +238,36 @@ Nada disso exige reescrever as telas, a regra nem os testes.
 
 ## 7. Recomendação
 
-**Ficar na web e desenhar a pista da corrida em 3×**, se o celular passar no critério abaixo.
+**Fica web.** Não migrar para Godot.
 
-- **Critério:** se o pior caso (12 cavalos, tudo ligado) fizer **≥ 55 FPS no 1% low** no celular do Vinicius, fica web.
-  Vale a fase 1 numa tela de 60 Hz, e a fase 2 (travada em 60 FPS) numa tela acima de 75 Hz. Se passar só em 3× (fase
-  8), adotar 3× no jogo (½ dia).
-- **Se não passar nem em 3×, mas passar em 1×:** o gargalo é preenchimento de pixels. O próximo passo é o desenhador
-  WebGL2 da pista (1 a 2 semanas), não o Godot. A GPU do aparelho é a mesma para os dois.
-- **Só reabrir o Godot se** a fase 10 (1×, onde quase não há pixel para preencher) ficar **abaixo de 45 FPS no 1%
-  low**. Isso mostraria que o gargalo é a WebView em si, e aí nenhuma otimização web resolve.
+**Critério que sustenta a decisão:** no celular do Vinicius, o pior caso do lançamento (12 cavalos, tudo ligado) fez
+**≥ 55 FPS no 1% low**. Fez 82,4, e numa tela de 120 Hz, que é mais exigente que 60, com 99% dos quadros em até 8,5 ms
+e o JavaScript em 3,2 ms.
 
-O que sustenta a recomendação:
+Os motivos:
 
-1. A medição mostra um gargalo que a web resolve barato (resolução) e um JavaScript que já cabe.
-2. O ganho visual do Godot (shaders, partículas na GPU) também é alcançável com WebGL2 na pista, sem tocar no resto.
-3. O Godot custaria meses de reescrita e o artefato como meio de teste do Vinicius.
-4. O Godot traria o risco de a corrida do cliente divergir da do servidor, que é a regra que mais protege o jogo.
+1. **O visual do lançamento cabe com sobra.** As camadas que pensamos para o lançamento custaram cerca de 4 ms de um
+   orçamento de 16,7: explosões, parallax, zoom e tremida, clima e 20 cavalos.
+2. **O Godot não teria vantagem nesse aparelho.** A GPU é a mesma, e a web já entrega o teto da tela.
+3. **O que o Godot faz melhor também é alcançável na web.** Shaders, luz 2D e milhares de partículas cabem num
+   desenhador WebGL2 só para a pista (1 a 2 semanas), sem mexer nas telas.
+4. **O Godot custaria caro.** São 2 a 4 meses de reescrita. O Vinicius perderia o artefato como meio de teste. E
+   haveria o risco de a corrida do cliente divergir do `sim.js` do servidor.
+
+**Antes do lançamento (entra no checklist do `docs/cronograma.md` quando o empacotamento voltar):**
+
+1. **Rodada longa no celular:** Rodada livre de 60 s com Limite em 60 FPS, no spike v3. Passa se tiver menos de 1% dos
+   quadros acima de 20 ms. É o que falta para descartar os engasgos da primeira rodada.
+2. **Android fraco:** a mesma bateria num aparelho de entrada, pelo relatório de pré-lançamento do Play ou por um
+   aparelho emprestado. Se o pior caso travado em 60 ficar abaixo de 55 no 1% low, há três alavancas, nesta ordem, todas
+   sem reescrita:
+   - escala 3× ou 2×;
+   - menos camadas de clima em tela cheia;
+   - desenhador WebGL2.
+3. **No jogo:** travar a corrida em 60 FPS com o acumulador do spike v3, e guardar a regra de escala de reserva.
+
+**Quando reabrir o Godot:** só se um aparelho-alvo ficar abaixo de 45 FPS no 1% low **até em escala 1×**, onde quase
+não há pixel para preencher. Isso mostraria que o limite é a WebView em si.
 
 ## 8. Arquivos
 

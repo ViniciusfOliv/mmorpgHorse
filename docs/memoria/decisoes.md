@@ -3,14 +3,19 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
-## 2026-11-19 — Teste de engine (critério proposto; decisão pendente do número do celular)
-- **A escolha web × Godot sai de uma medição no celular do Vinicius, com critério fixado antes** (o Vinicius decidiu
-  que a qualidade vem primeiro, e a coordenação pediu evidência) — spike em `prototype/spike/`, relatório em
-  `docs/teste-engine.md`. Proposta: fica web se o pior caso (12 cavalos, tudo ligado) fizer ≥ 55 FPS no 1% low na escala
-  do jogo ou em 3×; abaixo disso, mas acima em 1×, o próximo passo é um desenhador WebGL2 da pista, não o Godot. O Godot
-  só volta à mesa se nem 1× passar de 45 (gargalo na WebView). Motivo: no contêiner o JS cabe e o gargalo é o
-  preenchimento de pixels, que a web resolve barato; o Godot custaria 2 a 4 meses, o artefato como meio de teste e o
-  risco de a corrida do cliente divergir do `sim.js` do servidor. **A confirmar com o Vinicius.**
+## 2026-11-19 — Teste de engine: fica web (o Vinicius pode vetar)
+- **A base web continua: não migrar para Godot** — o pior caso do lançamento (12 cavalos com clima, partículas,
+  explosões de skill, parallax, câmera com zoom e tremida) rodou no celular do Vinicius, na WebView do app do Claude, a
+  119,6 FPS numa tela de 120 Hz. O 1% low foi de 82,4, o p99 de 8,5 ms e o JS de 3,2 ms por quadro. O critério fixado
+  antes do teste era ≥ 55 no 1% low. Na resolução nativa e com 20 cavalos o resultado foi o mesmo. O Godot custaria 2 a
+  4 meses, o artefato como meio de teste e o risco de a corrida do cliente divergir do `sim.js` do servidor. Relatório
+  em `docs/teste-engine.md`.
+- **A corrida trava em 60 FPS em tela de 120 Hz, com um acumulador no ritmo da tela** (o do spike v3) — o limitador
+  simples (pular a batida que chega antes de 13 ms) gerou quadros de 25 ms e reprovou a fase 2 sem o jogo atrasar nada.
+- **Antes do lançamento: uma rodada longa (60 s, travada em 60) no celular e a bateria num Android fraco** — a primeira
+  rodada de 60 s teve 4,5% de quadros acima de 20 ms, e a bateria não repetiu isso. Se um aparelho fraco não passar, as
+  alavancas, sem reescrita, são: escala 3× ou 2×, menos camadas de clima em tela cheia e um desenhador WebGL2 da pista.
+  O Godot só volta se o aparelho-alvo ficar abaixo de 45 no 1% low até em escala 1×.
 
 ## 2026-11-18 — Integração da tela de desafio e do Recomeçar do DEV na `main` (decisão do Vinicius)
 - **Integrar na `main` e republicar o jogo e o DEV oficiais** ("sim, integra na main e republica") — por fast-forward;
