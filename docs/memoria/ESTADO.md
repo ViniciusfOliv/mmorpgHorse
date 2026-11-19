@@ -1,6 +1,6 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-18._
+_Atualizado em 2026-11-19._
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
 durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o
@@ -32,7 +32,8 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   efeitos, 172 de moldes, 759 conferências do wiki, 111 metas de balanço no modo rápido e 300 no completo, e 71 blocos do
   teste de interface; contagem de 2026-11-18, na `main` com os ginásios integrados; com os pedidos do mesmo dia, 179
   testes de simulação, 118 de efeitos, 173 de moldes e 72 blocos; com o balanço do mesmo dia, 118 metas no modo rápido e
-  298 no completo). A verificação leva ~12 min (com o
+  298 no completo; com o mapa da Expedição, em 2026-11-19, na branch da sessão: 181 testes de simulação, 174 de moldes,
+  779 conferências do wiki e 73 blocos, com o bloco novo `mapa`). A verificação leva ~12 min (com o
   teste de interface em paralelo desde 2026-11-17; antes dele, ~16 min com menos testes).
 
 ## Pronto (o detalhe de cada frente está na spec, em `docs/superpowers/specs/`)
@@ -490,23 +491,25 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   cena de desafio); os artefatos oficiais ainda estão com o jogo de antes do balanço. **Esperando o Vinicius:** jogar e
   dizer se a corrida ficou previsível demais ou no ponto (os números ficam no `TUNING` do `sim.js`, em `data.js` e em
   `GameData.ECONOMY.sala`) e se o balanço entra na `main`.
-- **Projeto seguinte (spec escrita, maquetes mostradas, à espera da reação do Vinicius): mapa da Expedição.** Spec:
-  `docs/superpowers/specs/2026-11-18-mapa-expedicao-design.md`; maquetes e o roteiro que as desenha em
-  `docs/superpowers/specs/anexos/2026-11-18-mapa-expedicao-maquete-*`. O Vinicius pediu um mapa-múndi em pixel art (a
-  referência dele é o mapa de um jogo que existe: fazer um mapa nosso no mesmo espírito, sem copiar a arte), com um
-  marcador por ginásio; tocar abre o mapa do ginásio, com a trilha dos oponentes até o líder; tocar num oponente abre a
-  cena "oponente + cavalo × você", com a figura do jogador atrás do cavalo dele, e dali se escolhe o time e desafia. Os
-  ginásios passam a ser em sequência. Combinado com ele: só a aba Expedição vira mapa (as outras abas ficam); ordem
-  Capoeira → Remanso → Fornalha; cada ginásio mais forte que o anterior e o primeiro mais fácil (recruta no nível 2;
-  níveis 2–10, 11–20 e 21–30, entradas e prêmios na spec).
-  **Feito (na branch da sessão):** a figura do jogador na tela de desafio que já existe (de costas, atrás do cavalo,
-  desenhada por código com a seda, o padrão e o capacete do jóquei do Perfil; `drawJogador` no `game.js`).
-  **Perguntado ao Vinicius:** se o visual das maquetes serve; se os números da sequência servem; se quer candidatas do
-  PixelLab para a figura do jogador (gasta créditos); e se o balanço entra na `main` agora.
-  **Falta construir (depois da resposta):** a sequência no módulo (`Ginasio.aberto`, motivo `'ginasio-fechado'`), os
-  níveis, entradas e prêmios por ginásio (metas G no `balance.js` completo), o mapa-múndi, o mapa do ginásio e a cena no
-  preparo. Atenção: os testes de ginásio do `ui-test.mjs` (cerca de 2 mil linhas, com seeds e números fixos) dependem
-  da trilha em cartões e dos números de hoje: mexer uma vez só, com tudo junto.
+- **Mapa da Expedição (feito em 2026-11-19, na branch da sessão, sem merge):** spec
+  `docs/superpowers/specs/2026-11-18-mapa-expedicao-design.md` (com "Notas da execução"); decisões em `decisoes.md`;
+  arte em `assets.md`. O que entrou:
+  - **Ginásios em sequência:** Capoeira → Remanso → Fornalha; cada um abre com a insígnia do anterior (regra no módulo:
+    `Ginasio.aberto` e o motivo `'ginasio-fechado'`); níveis 2–10, 11–20 e 21–30, com entradas e prêmios por ginásio
+    (`GYM_NUMEROS` no `data.js`). Save antigo com etapa vencida num ginásio continua com ele aberto.
+  - **Mapa-múndi** na aba Expedição (arte do PixelLab): a ilha com os três ginásios como construções-botão, o marcador
+    no ginásio da vez, cadeado nos fechados, a insígnia nos vencidos e, no alto, as **Terras desconhecidas** ("Em
+    breve": o lugar das futuras atualizações).
+  - **Mapa de cada ginásio:** a trilha com a figura de cada oponente no seu tablado (silhueta nas fechadas, selo nas
+    vencidas, marcador na próxima) e o jogador de costas na entrada.
+  - **Cena no preparo e na tela de desafio** com a figura do jogador do PixelLab (capacete na cor do Perfil).
+  - **Arte:** 126 gerações do PixelLab (saldo 1539/2000); roteiro `prototype/tools/pixellab-mapa.mjs`; os lugares de
+    cada mapa em `prototype/assets/pixellab/mapa/mapa.json`; o build embute tudo em `window.__MAPA`.
+  **Esperando o Vinicius:** jogar no build de teste e dizer se troca alguma arte (as candidatas estão em
+  `prototype/assets/pixellab/mapa/candidatas/`), se os níveis da sequência servem e se isto e o balanço entram na
+  `main`. **Sugestão em aberto:** recalibrar a pista da Fornalha (com ela nos níveis 21–30, a Grama em desvantagem
+  vence 41–46%; as metas G3/G4 foram rebaseadas ao medido). **Ideias que ficaram de fora:** animação no mapa (nuvens,
+  água), música, a figura do jogador com o padrão da seda.
 - **Ginásios (`docs/GDD.md` §8.6), na `main` desde 2026-11-18:** o Vinicius joga nos artefatos oficiais e decide a lista
   "A confirmar com o Vinicius (gosto, ginásios)"; o que ele mudar entra como ajuste por cima da `main`.
 - **Teste de interface em paralelo:** feito e na `main` (a verificação inteira leva ~10 min com os ginásios); em aberto se vale buscar os ~5 min (dividir o bloco

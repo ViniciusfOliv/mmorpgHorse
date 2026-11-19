@@ -357,6 +357,16 @@ ninguém jogou ainda.
   vencido (a insígnia). Ginásio fechado aparece apagado na aba, com o motivo ("Vença o líder do Ginásio da Capoeira"), e
   o desafio dele é recusado antes de pagar. Um ginásio que já tinha alguma etapa vencida num save de antes da sequência
   continua aberto (ninguém perde o que já fez). Antes, as três trilhas valiam em qualquer ordem.
+- **O mapa da Expedição** (desde 2026-11-18; pedido do Vinicius: "algo mais visual e intuitivo", com a arte toda do
+  PixelLab): a aba é um **mapa-múndi** em pixel art, uma ilha com a floresta da Capoeira, o lago do Remanso e o vulcão
+  da Fornalha, o estábulo do jogador na praia do sul e, no alto, sob as nuvens, as **Terras desconhecidas** ("Em breve":
+  o lugar das futuras atualizações). Cada ginásio é uma construção no seu lugar e um botão de verdade: o da vez leva o
+  marcador dourado; o vencido, a insígnia e "Revanche hoje"; o fechado fica cinza, com o cadeado (tocar nele mostra o
+  motivo). Tocar num ginásio aberto abre o **mapa do ginásio**: uma trilha que sobe do jogador (de costas, na entrada)
+  até o líder, no alto, com a figura de cada oponente no seu tablado; a vencida leva o selo verde, a próxima o marcador
+  (é a única tocável) e as fechadas aparecem em silhueta. Tocar na próxima abre o preparo, com a **cena** no alto: o
+  oponente e o 1º cavalo dele contra você e o 1º cavalo do seu time. Sem a arte no build, a aba volta aos cartões e à
+  trilha em lista. Os lugares de cada mapa ficam em `prototype/assets/pixellab/mapa/mapa.json`.
 - **Trilha:** 4 soldados e o líder, de baixo para cima. As etapas abrem em ordem; etapa vencida fica marcada e não se
   repete. Cada ginásio é mais forte (o nível dos cavalos), mais caro e paga mais que o anterior; o jogador novo (inicial no
   nível 1) já pode tentar o Recruta da Capoeira, um duelo quase parelho:
@@ -384,8 +394,9 @@ ninguém jogou ainda.
 - **Duelos:** o 1º cavalo de cada lado corre contra o 1º do outro; quem perde sai, quem vence fica e enfrenta o próximo.
   Perde o lado que ficar sem cavalos. Antes de cada duelo, uma **tela de desafio** (desde 2026-11-18, no estilo de
   apresentação de batalha): o oponente (arte do PixelLab, um por etapa) e o cavalo dele em cima, à direita, virados para o
-  seu cavalo, embaixo, à esquerda, com **a figura do jogador de costas, atrás do cavalo dele** (desenhada por código, com
-  a seda do jogador, o padrão e o capacete do jóquei do Perfil), as placas (nome, cavalo, nível e tipo), o fundo do ginásio
+  seu cavalo, embaixo, à esquerda, com **a figura do jogador de costas, em primeiro plano** (arte do PixelLab no traço
+  dos oponentes: um jóquei de jaqueta dourada, a seda do jogador, com o capacete na cor escolhida no Perfil; sem a arte,
+  a figura desenhada por código), as placas (nome, cavalo, nível e tipo), o fundo do ginásio
   (tijolo e tochas na Fornalha, pedra e água no Remanso, tábuas e cipó na Capoeira) e a vantagem de elemento; "Começar
   duelo" leva ao duelo.
   Cada duelo passa na tela de corrida, com 2 raias; entre um duelo e outro, um cartão diz quem saiu, quem entra e o fôlego

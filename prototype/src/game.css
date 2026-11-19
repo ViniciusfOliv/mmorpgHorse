@@ -877,6 +877,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
   font-size: var(--t-s); line-height: 1.2; text-align: center;
 }
 .mapa-icone { width: 16px; height: 16px; flex: none; vertical-align: -3px; }
+.mapa-icone--24 { width: 24px; height: 24px; }
 /* o marcador "você está aqui": em cima do lugar, subindo e descendo devagar (parado em movimento reduzido) */
 .mapa-pino { position: absolute; left: 50%; width: 32px; height: 32px; margin-left: -16px; pointer-events: none; animation: mapa-pino 1.2s steps(2, end) infinite; }
 @keyframes mapa-pino { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
@@ -892,12 +893,38 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .mapa--mundo .ginasio-cartao:focus-visible { outline-offset: 2px; }
 .mapa-predio { flex: none; display: block; }
 .mapa--mundo .mapa-pino { top: calc(-13 * var(--u)); }
-.mapa--mundo .ginasio-cartao-nome { font-size: var(--t-s); line-height: 1.2; color: var(--texto); }
+.mapa--mundo .ginasio-cartao-nome { font-family: inherit; font-size: var(--t-s); line-height: 1.2; color: var(--texto); text-shadow: none; }
+/* a plaquinha ao lado da construção (onde embaixo ela cobriria outro lugar) */
+.mapa-placa--direita { position: absolute; left: calc(100% - 3 * var(--u)); top: calc(16 * var(--u)); margin: 0; transform: translateY(-50%); max-width: calc(50 * var(--u)); }
+/* o que a plaquinha do ginásio mostra: o nome curto, o progresso (ou o cadeado e "Fechado"), o ícone da insígnia e a
+   revanche. O elemento, o nome da insígnia e o motivo ficam só no texto (escondidos como o .sr) */
+.mapa--mundo .ginasio-cartao-meta .el, .mapa--mundo .ginasio-insignia > span, .mapa--mundo .ginasio-cartao-motivo {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.mapa--mundo .ginasio-insignia { margin: 0; gap: 0; }
+/* ao tocar no ginásio fechado, o motivo aparece embaixo da plaquinha (o destaque de sempre: .motivo-alvo, por 2 s) */
+.mapa--mundo .ginasio-cartao-motivo.motivo-alvo {
+  position: absolute; left: 50%; top: 100%; z-index: 3; width: max-content; max-width: calc(70 * var(--u)); height: auto; margin: 4px 0 0; padding: 3px 7px 4px;
+  overflow: visible; clip: auto; white-space: normal; transform: translateX(-50%);
+  background: var(--painel-3); color: var(--texto); box-shadow: 0 0 0 2px var(--sombra); outline: 2px solid var(--ouro); outline-offset: 0;
+  font-size: var(--t-xs); line-height: 1.25; text-align: center;
+}
 .mapa--mundo .ginasio-cartao-meta { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 6px; font-size: var(--t-xs); line-height: 1.25; color: var(--texto-2); }
 .mapa--mundo .ginasio-cartao-seta { display: none; }
 .mapa-no--atual .mapa-placa { box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 2px var(--ouro); }
 .mapa-no--vencido .mapa-placa { box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 2px var(--ganho); }
-.mapa-no--fechado .mapa-predio { filter: grayscale(1) brightness(0.5); }
+.mapa-no--fechado .mapa-predio { filter: grayscale(1) brightness(0.8) contrast(0.85); }
+/* ginásio vencido: a insígnia ao lado do nome e a revanche embaixo ("5 de 5 vencidos" fica só no texto), para a
+   plaquinha não cobrir o lugar de baixo */
+.mapa-no--vencido .mapa-placa { display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; gap: 2px 6px; }
+.mapa-no--vencido .ginasio-insignia { grid-column: 1; grid-row: 1; }
+.mapa-no--vencido .ginasio-cartao-nome { grid-column: 2; grid-row: 1; }
+.mapa-no--vencido .ginasio-cartao-meta { grid-column: 1 / -1; }
+.mapa-no--vencido .ginasio-insignia.ginasio-cartao-meta { grid-column: 1; }
+.mapa-no--vencido .ginasio-insignia img { width: 24px; height: 24px; }
+.mapa--mundo .mapa-no--vencido .ginasio-cartao-meta:not(.ginasio-insignia):first-of-type, .mapa--mundo .mapa-no--vencido .ginasio-progresso {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 .mapa-no--fechado .ginasio-cartao { cursor: not-allowed; }
 .mapa-no--fechado .mapa-placa, .mapa-no--fechado .ginasio-cartao-nome { color: var(--texto-2); }
 /* o estábulo do jogador (enfeite) e a terra desconhecida (futuras atualizações): não são botões */
@@ -908,10 +935,11 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .mapa-desconhecido b { color: var(--texto); font-weight: 400; }
 .mapa-secao { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .mapa-secao > .nota { margin: 0; }
-/* ---- mapa do ginásio: a trilha. Cada etapa é a figura do oponente (os pés no ponto) com a plaquinha embaixo */
+/* ---- mapa do ginásio: a trilha. Cada etapa (<li>) é a caixa da figura do oponente, com os pés no ponto do mapa
+   (left/top vêm do jogo) e a plaquinha logo abaixo; a página rola até a próxima ficar inteira (mostraInteiro) */
+.trilha--mapa > .etapa { position: absolute; width: calc(64 * var(--u)); display: flex; flex-direction: column; align-items: center; }
 .trilha--mapa .etapa-btn {
-  position: absolute; left: calc(-32 * var(--u)); top: calc(-1 * var(--pe, 61) * var(--u)); width: calc(64 * var(--u));
-  display: flex; flex-direction: column; align-items: center; gap: 0; min-height: 44px;
+  position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 0; min-height: 44px;
   margin: 0; padding: 0; border: 0; background: none; box-shadow: none; color: inherit; font: inherit; text-align: center;
 }
 .trilha--mapa .etapa-btn:hover, .trilha--mapa .etapa-btn:active { background: none; box-shadow: none; transform: none; }
@@ -937,6 +965,13 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 .trilha--mapa .etapa--fechada .etapa-rotulo { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; color: var(--texto-2); font-size: var(--t-s); }
+/* ao tocar na etapa fechada, o motivo aparece embaixo da plaquinha dela (o destaque de sempre: .motivo-alvo, por 2 s) */
+.trilha--mapa .etapa--fechada .etapa-motivo.motivo-alvo {
+  position: absolute; left: 50%; top: 100%; z-index: 3; width: max-content; max-width: calc(70 * var(--u)); height: auto; margin: 4px 0 0; padding: 3px 7px 4px;
+  overflow: visible; clip: auto; white-space: normal; transform: translateX(-50%);
+  background: var(--painel-3); color: var(--texto); box-shadow: 0 0 0 2px var(--sombra); outline: 2px solid var(--ouro); outline-offset: 0;
+  font-size: var(--t-xs); line-height: 1.25; text-align: center;
+}
 /* oponente ainda fechado: só a silhueta */
 .trilha--mapa .etapa--fechada .mapa-figura { filter: brightness(0) opacity(0.72); }
 /* em paisagem (tela baixa): a cena à esquerda; o cabeçalho, a vantagem e os botões, um sobre o outro, à direita */
@@ -1538,7 +1573,12 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   .montaria-linha-seta { fill: ButtonText; }   /* o svg não ganha a cor do sistema sozinho */
   /* ginásios: o cartão e a etapa tocável com borda de botão; a próxima em Highlight; a fechada em GrayText; a vencida (só
      texto) e a plaquinha de estado e de revanche com borda da cor do texto */
-  .ginasio-cartao, .etapa-btn { border: 2px solid ButtonText; }
+  .ginasio-cartao, .etapa-btn, .mapa--mundo .ginasio-cartao, .trilha--mapa .etapa-btn { border: 2px solid ButtonText; }
+  .trilha--mapa .etapa--vencida .etapa-btn, .trilha--mapa .etapa--feita .etapa-btn { border-color: CanvasText; }
+  .trilha--mapa .etapa--proxima .etapa-btn, .trilha--mapa .etapa--revanche .etapa-btn { border-color: Highlight; }
+  .trilha--mapa .etapa--fechada .etapa-btn { border-color: GrayText; color: GrayText; }
+  .mapa-placa, .trilha--mapa .etapa--fechada .etapa-motivo.motivo-alvo, .mapa--mundo .ginasio-cartao-motivo.motivo-alvo { border: 1px solid CanvasText; background: Canvas; color: CanvasText; }
+  .mapa-no--fechado .mapa-predio, .trilha--mapa .etapa--fechada .mapa-figura { filter: none; opacity: 0.5; }
   .etapa--vencida .etapa-btn { border-color: CanvasText; }
   .etapa--proxima .etapa-btn, .etapa--revanche .etapa-btn { border-color: Highlight; }
   .etapa--feita .etapa-btn { border-color: CanvasText; }

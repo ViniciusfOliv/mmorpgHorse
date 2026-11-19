@@ -1582,14 +1582,7 @@
     try { window.scrollTo(0, 0); } catch (e) { /* ignora */ }
     var h = telaEl.querySelector('[data-foco]');
     if (h) { try { h.focus({ preventScroll: true }); } catch (e2) { h.focus(); } }
-    rolaParaMarcado();
     syncHistory(screen);
-  }
-  // o mapa do ginásio é mais alto que a janela: ao abrir, a página rola até o próximo oponente (data-rola) ficar no meio
-  function rolaParaMarcado() {
-    var alvo = telaEl.querySelector('[data-rola]');
-    if (!alvo || !alvo.scrollIntoView) return;
-    try { alvo.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) { alvo.scrollIntoView(); }
   }
   // "Voltar" (ou o voltar do aparelho) de uma sub-tela (Montaria, Perfil) para a aba de origem. Da ficha para o Estábulo
   // o foco vai para a linha daquele cavalo, não para o título (3b, Review Focus 2), e a página rola só o que precisar
@@ -2767,24 +2760,53 @@
   // Cartão do ginásio na aba (um botão que abre a trilha): nome, elemento, "N de 5 vencidos", a insígnia conquistada e
   // "Revanche hoje" quando a revanche do líder está livre (ou "Revanche amanhã", sem destaque, com a de hoje já tentada).
   // Fechado na sequência: o mesmo botão apagado (aria-disabled, não abre nada), com o motivo escrito e sem a seta.
+  // No mapa-múndi (com a arte: window.__MAPA) o mesmo botão vira um lugar do mapa: a construção em cima do ponto, o
+  // marcador no ginásio da vez, o cadeado no fechado e os mesmos textos numa plaquinha (o nome curto à vista; o elemento,
+  // o nome da insígnia e o motivo ficam para o leitor de tela — o motivo aparece ao tocar no ginásio fechado).
+  function ginNomeCurto(nome) {
+    var m = /^(Ginásio d[aeo]s? )(.+)$/.exec(nome);
+    return m ? '<span class="sr">' + esc(m[1]) + '</span>' + esc(m[2]) : esc(nome);
+  }
+  // o ginásio da vez: o primeiro aberto sem a insígnia (onde o marcador fica)
+  function ginDaVez() {
+    for (var i = 0; i < GD.GYM_ORDER.length; i++) { var id = GD.GYM_ORDER[i]; if (ginAberto(id) && !ginTemInsignia(id)) return id; }
+    return null;
+  }
   function ginasioCartaoHtml(id) {
-    var g = GD.GYMS[id], ins = ginTemInsignia(id);
-    if (!ginAberto(id)) {
-      var mot = ginFechadoTxt(id);
-      return '<li><button type="button" class="ginasio-cartao ginasio-cartao--' + esc(g.element) + ' ginasio-cartao--fechado" data-acao="ginasio-abrir" data-id="' + esc(id) + '"' + indisponivel(mot) + '>' +
-        '<span class="ginasio-cartao-nome">' + esc(g.name) + '</span>' +
-        '<span class="ginasio-cartao-meta">' + elementHtml(g.element) + '<span class="ginasio-progresso">Fechado</span></span>' +
-        '<span class="ginasio-cartao-meta ginasio-cartao-motivo">' + esc(mot) + '</span>' +
-      '</button></li>';
+    var g = GD.GYMS[id], ins = ginTemInsignia(id), aberto = ginAberto(id), mot = aberto ? '' : ginFechadoTxt(id);
+    var pos = MAPA && MAPA.mapa.mundo.lugares[id], noMapa = !!(pos && mapaArte('lugar-' + id));
+    var linhas = aberto
+      ? '<span class="ginasio-cartao-meta">' + elementHtml(g.element) + '<span class="ginasio-progresso">' + esc(ginProgressoTxt(id)) + '</span></span>' +
+        (ins ? '<span class="ginasio-cartao-meta ginasio-insignia">' + ginInsigniaIcone(id) + '<span>' + esc(g.insignia.name) + '</span></span>' : '') +
+        (ginRevancheHoje(id) ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche">Revanche hoje</span></span>'
+          : ginRevancheFeita(id) ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche-amanha">Revanche amanhã</span></span>' : '')
+      : '<span class="ginasio-cartao-meta">' + elementHtml(g.element) + (noMapa ? mapaImgHtml('icone-cadeado', 'mapa-icone') : '') + '<span class="ginasio-progresso">Fechado</span></span>' +
+        '<span class="ginasio-cartao-meta ginasio-cartao-motivo">' + esc(mot) + '</span>';
+    var abre = '<button type="button" class="ginasio-cartao ginasio-cartao--' + esc(g.element) + (aberto ? '' : ' ginasio-cartao--fechado') +
+      '" data-acao="ginasio-abrir" data-id="' + esc(id) + '"' + (aberto ? '' : indisponivel(mot)) + '>';
+    if (noMapa) {
+      var vez = id === ginDaVez(), estado = !aberto ? 'fechado' : ins ? 'vencido' : 'aberto';
+      var lado = MAPA.mapa.mundo.placas && MAPA.mapa.mundo.placas[id] === 'direita' ? ' mapa-placa--direita' : '';
+      var dx = MAPA.mapa.mundo.dx && Number(MAPA.mapa.mundo.dx[id]) || 0;   // a plaquinha um pouco para o lado, para não cobrir a vizinha
+      return '<li class="mapa-no mapa-no--' + estado + (vez ? ' mapa-no--atual' : '') + '" style="' + mapaPos(pos) + '">' + abre +
+        mapaImgHtml('lugar-' + id, 'mapa-predio', 32, 32) + (vez ? mapaImgHtml('icone-marcador', 'mapa-pino') : '') +
+        '<span class="mapa-placa' + lado + '"' + (dx ? ' style="--dx:' + dx + '"' : '') + '><span class="ginasio-cartao-nome">' + ginNomeCurto(g.name) + '</span>' + linhas + '</span></button></li>';
     }
-    return '<li><button type="button" class="ginasio-cartao ginasio-cartao--' + esc(g.element) + '" data-acao="ginasio-abrir" data-id="' + esc(id) + '">' +
-      '<span class="ginasio-cartao-nome">' + esc(g.name) + '</span>' +
-      '<span class="ginasio-cartao-meta">' + elementHtml(g.element) + '<span class="ginasio-progresso">' + esc(ginProgressoTxt(id)) + '</span></span>' +
-      (ins ? '<span class="ginasio-cartao-meta ginasio-insignia">' + ginInsigniaIcone(id) + '<span>' + esc(g.insignia.name) + '</span></span>' : '') +
-      (ginRevancheHoje(id) ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche">Revanche hoje</span></span>'
-        : ginRevancheFeita(id) ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche-amanha">Revanche amanhã</span></span>' : '') +
-      pixelSvg(SETA_ROWS, 'montaria-linha-seta ginasio-cartao-seta') +
-    '</button></li>';
+    return '<li>' + abre + '<span class="ginasio-cartao-nome">' + esc(g.name) + '</span>' + linhas +
+      (aberto ? pixelSvg(SETA_ROWS, 'montaria-linha-seta ginasio-cartao-seta') : '') + '</button></li>';
+  }
+  // O mapa-múndi: a ilha dos três ginásios (cada um um botão no seu lugar), o estábulo do jogador na praia do sul e, no
+  // alto, a terra desconhecida sob as nuvens (as futuras atualizações): enfeite e aviso, sem botão.
+  function mapaMundoHtml() {
+    var M = MAPA.mapa.mundo, L = M.lugares;
+    return '<div class="mapa mapa--mundo" style="--mw:' + M.w + ';--mh:' + M.h + '">' +
+      '<img class="mapa-fundo" src="' + esc(mapaArte('mundo')) + '" alt="">' +
+      (L.casa && mapaArte('lugar-casa') ? '<div class="mapa-casa" style="' + mapaPos(L.casa) + '">' + mapaImgHtml('lugar-casa', 'mapa-predio', 32, 32) +
+        '<span class="mapa-placa">Seu estábulo</span></div>' : '') +
+      '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
+      (L.desconhecido ? '<div class="mapa-desconhecido" style="' + mapaPos(L.desconhecido) + '"><span class="mapa-placa">' + mapaImgHtml('icone-misterio', 'mapa-icone mapa-icone--24') +
+        '<b>Terras desconhecidas</b><span>Em breve</span></span></div>' : '') +
+      '</div>';
   }
   function renderExpedicao() {
     var wild = WILD_SHOWCASE.map(horseById).filter(Boolean).map(function (w) {
@@ -2797,9 +2819,11 @@
     return '<section class="tela" aria-labelledby="t-expedicao">' +
       '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>' +
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia. Vença um ginásio para abrir o próximo.</p>' +
-      '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
-        '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
-      '</section>' +
+      (MAPA
+        ? '<section class="mapa-secao" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
+            '<p class="nota">Toque num ginásio do mapa para entrar.</p>' + mapaMundoHtml() + '</section>'
+        : '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
+            '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul></section>') +
       '<section class="caixa" aria-labelledby="t-selvagens"><h2 class="titulo" id="t-selvagens">Cavalos selvagens</h2>' +
         '<p class="nota">Exemplos de achados em expedições. A captura ainda não está neste protótipo.</p>' +
         '<div class="selvagens">' + wild + '</div>' +
@@ -2851,13 +2875,13 @@
       noMapa = (src ? '<img class="mapa-figura" src="' + esc(src) + '" alt="">' : '<span class="mapa-figura"></span>') +
         (vez ? mapaImgHtml('icone-marcador', 'mapa-pino') : '') + (estado === 'vencida' ? mapaImgHtml('icone-vencido', 'mapa-selo') : '');
       corpo = noMapa + '<span class="mapa-placa"' + (dx ? ' style="--dx:' + dx + '"' : '') + '>' + (estado === 'fechada' ? mapaImgHtml('icone-cadeado', 'mapa-icone') : '') + corpo + '</span>';
-      estilo = ' style="' + mapaPos(pos) + ';--pe:' + pe + '"';
+      estilo = ' style="' + mapaPos([pos[0] - 32, pos[1] - pe]) + ';--pe:' + pe + '"';   // o <li> é a caixa da figura: os pés dela caem no ponto
     }
     var caixa = estado === 'vencida' || estado === 'feita'
       ? '<div class="etapa-btn">' + corpo + '</div>'
       : '<button type="button" class="etapa-btn" data-acao="ginasio-etapa" data-id="' + i + '"' +
-          (estado === 'proxima' || estado === 'revanche' ? ' aria-current="step"' + (pos ? ' data-rola' : '') : indisponivel(MOTIVO)) + '>' + corpo + '</button>';
-    return '<li class="etapa etapa--' + estado + (e.lider ? ' etapa--lider' : '') + (pos ? ' mapa-no' : '') + '" data-etapa="' + i + '" data-estado="' + estado + '"' + estilo + '>' + caixa + '</li>';
+          (estado === 'proxima' || estado === 'revanche' ? ' aria-current="step"' : indisponivel(MOTIVO)) + '>' + corpo + '</button>';
+    return '<li class="etapa etapa--' + estado + (e.lider ? ' etapa--lider' : '') + '" data-etapa="' + i + '" data-estado="' + estado + '"' + estilo + '>' + caixa + '</li>';
   }
   // A trilha: de baixo para cima (a 1ª etapa embaixo; o DOM vai da 1ª à 5ª, o CSS vira a coluna)
   // Com a arte do mapa do ginásio (window.__MAPA), a trilha é o mapa: a arte ao fundo, cada etapa no seu tablado e a
@@ -2928,7 +2952,7 @@
       '<button type="button" class="btn btn--pequeno" data-acao="ginasio-voltar">Voltar</button>' +
       '<header class="tela-cabeca placa"><span class="rotulo">' + esc(g.name + ' · ' + ginEtapaRotulo(e, i)) + '</span>' +
         '<h1 class="titulo titulo--tela" id="t-etapa" tabindex="-1" data-foco>' + esc((rev ? 'Revanche: ' : '') + e.nome) + '</h1></header>' + noticeHtml() +
-      etapaAdversarioHtml(e) + etapaPistaHtml(id) + etapaPremioHtml(id, e, i, rev) + etapaTimeHtml(id, i) + etapaDesafiarHtml(id, i) +
+      ginCenaPreparoHtml(id, i) + etapaAdversarioHtml(e) + etapaPistaHtml(id) + etapaPremioHtml(id, e, i, rev) + etapaTimeHtml(id, i) + etapaDesafiarHtml(id, i) +
       '</section>';
   }
 
@@ -3348,6 +3372,22 @@
         esc(dono + ' e ' + bn + ' contra você e ' + an) + '"></canvas><span class="gin-vs" aria-hidden="true">VS</span></div>' +
       placa('voce', 'Você', an, a) + '</div>';
   }
+  // A mesma cena no preparo da etapa (spec 2026-11-18-mapa-expedicao §4): o oponente e o 1º cavalo dele contra você e o
+  // 1º cavalo do seu time (sem time ainda, só você). Tudo do catálogo e do time escolhido: nada foi pago nem sorteado.
+  function ginCenaPreparoHtml(id, i) {
+    var e = GD.GYMS[id].etapas[i], b = GN.cavalo(e.cavalos[0]);
+    var a = ((ui.gym && ui.gym.time) || []).map(mountByUid).filter(Boolean)[0] || null;
+    var n = cenaQueue.length;
+    cenaQueue.push({ gymId: id, dono: e.nome, a: a, b: b });
+    var placa = function (cls, quem, linha, h) {
+      return '<div class="gin-placa gin-placa--' + cls + '"><b class="gin-placa-quem">' + esc(quem) + '</b>' +
+        '<span class="gin-placa-cavalo">' + esc(linha) + '</span>' + (h ? elementHtml(h.element) : '') + '</div>';
+    };
+    return '<div class="gin-cena gin-cena--' + esc(id) + ' gin-cena--preparo">' + placa('rival', e.nome, b.name + ' · Nv ' + b.level, b) +
+      '<div class="gin-cena-palco"><canvas class="gin-cena-tela" data-cena="' + n + '" role="img" aria-label="' +
+        esc(a ? e.nome + ' e ' + b.name + ' contra você e ' + a.name : e.nome + ' e ' + b.name + ' esperam o seu time') + '"></canvas><span class="gin-vs" aria-hidden="true">VS</span></div>' +
+      (a ? placa('voce', 'Você', a.name + ' · Nv ' + a.level, a) : placa('voce', 'Você', 'Escolha o seu time', null)) + '</div>';
+  }
   function drawGinCena(cv) {
     var e = cenaQueue[Number(cv.getAttribute('data-cena'))];
     if (!e) return;
@@ -3357,7 +3397,7 @@
     var s = setupCanvas(cv, CENA_W, CENA_H, clamp(Math.floor(Math.min(larg / CENA_W, alt / CENA_H)), 1, 3));
     var k = s.k, ctx = s.ctx, c = CENA_CORES[e.gymId] || CENA_CORES.fogo;
     var hk = Math.max(1, Math.round(k * 1.5));   // os cavalos a 1,5× (o quadro de 36 px de arte vira 54)
-    var visB = opcoesVisuais(e.b, null), visA = opcoesVisuais(e.a, null), img = null;
+    var visB = opcoesVisuais(e.b, null), visA = e.a ? opcoesVisuais(e.a, null) : null, img = null;
     function px(x, y, w, h, cor) { ctx.fillStyle = cor; ctx.fillRect(x * k, y * k, w * k, h * k); }
     function palco(cx, cy, rx, ry) {
       for (var y = -ry; y <= ry; y++) { var w = Math.round(rx * Math.sqrt(1 - (y * y) / (ry * ry))); px(cx - w, cy + y, 2 * w, 1, y < 0 ? c.palco : c.palco2); }
@@ -3405,7 +3445,7 @@
         // desenhada por código, atrás do cavalo)
         var fig = jogadorTela(validJoquei(joqueiDoJogador()).capacete);
         if (!fig) drawJogador(ctx, 0, 108 * k, hk, joqueiDoJogador());
-        cavalo(e.a, visA, fig ? 16 : 14, 106, tt, false);
+        if (e.a) cavalo(e.a, visA, fig ? 16 : 14, 106, tt, false);
         if (fig) ctx.drawImage(fig, CENA_JOG_X * k, (CENA_JOG_BASE - jogadorPe()) * k, fig.width * k, fig.height * k);
       }
     };

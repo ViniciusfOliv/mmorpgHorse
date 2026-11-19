@@ -78,7 +78,7 @@ Leia no início de cada sessão e atualize ao final:
 Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`.
 - **PixelLab** (moldes de cavalo e ícones): API v2 via `prototype/tools/pixellab-moldes.mjs --lote
   moldes|icones|tudo` — dry-run por padrão, `--gerar` para gastar, `--teto N` limita as gerações,
-  `--reprocessar` refaz sem rede; oponentes dos ginásios: `prototype/tools/pixellab-treinadores.mjs` (mesmas regras).
+  `--reprocessar` refaz sem rede; oponentes dos ginásios: `pixellab-treinadores.mjs`; mapa da Expedição: `pixellab-mapa.mjs` (mesmas regras).
   **Gasta créditos — sempre pedir confirmação antes.**
 - **Canva** (capa, ícone, imagens de loja) e **ElevenLabs** (sons/vozes) — quando conectados;
   também pedem confirmação antes de gastar créditos.
@@ -104,7 +104,8 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
   (`prototype/src/itens.js`); a loja de itens só aceita Ouro e a Rédea nova nunca é vendida.
 - Desafio de ginásio só é sorteado depois de a entrada (Ouro) ser paga, pela RNG da seed, e é gravado inteiro numa
   gravação só (`prototype/src/ginasio.js`); a tela só anima o que foi gravado. Revanche do líder: uma por dia em cada
-  ginásio. Bônus de insígnia é da conta e nunca entra na simulação da corrida.
+  ginásio. Ginásios em sequência: cada um abre com a insígnia do anterior (regra do módulo). Bônus de insígnia é da conta e
+  nunca entra na simulação da corrida.
 - Item comprado com Gema nunca tem resultado sorteado, e Gema nunca acelera o que paga Ouro. O Ouro
   nunca é vendido por Gemas. Todo sorteio novo (troca de skill, genética do potro, circuito) sai da seed.
 

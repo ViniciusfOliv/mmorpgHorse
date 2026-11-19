@@ -46,7 +46,7 @@ const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adultera
   'skills', 'skills-aba', 'icones', 'marcas', 'marcas-corrida', 'portes', 'portes-corrida', 'ajuda', 'acabamento', 'celular', 'crescimento',
   'crescimento-jogo',
   'fluxo', 'fluxo-saves', 'fluxo-cruzamento', 'fluxo-abas', 'fluxo-equipamento', 'fluxo-dev', 'fluxo-build-teste', 'fluxo-dado',
-  'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'fluxo-capturas-ginasio', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
+  'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'mapa', 'fluxo-capturas-ginasio', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
   'fluxo-pequeno']
 if (process.argv.includes('--blocos')) { console.log(BLOCOS.join('\n')); process.exit(0) }
 // UI_SO=reserva,gravacao,...: roda só os blocos com esses nomes (para desenvolver um teste sem esperar o resto); sem UI_SO
@@ -3541,7 +3541,7 @@ try {
     // Ruling 27: com a insígnia, a única etapa tocável é a revanche livre hoje (o caso 'agua', 5, com revDia null). Medido: a
     // 360×780 ela já cabe no topo (scrollY 0); a 360×640 a base dela passa da barra de abas (a etapa do líder começa em ~485 px
     // e tem ~118 px), então rola o mínimo. Com a revanche de hoje já feita (caso 'agua-feita'), nenhuma etapa tocável: no topo.
-    const GIN_REV_ROLA = { 780: false, 640: true }
+    const GIN_REV_ROLA = { 780: true, 640: true }   // no mapa do ginásio (2026-11-18) o líder e a plaquinha dele passam da barra de abas nas duas alturas
     for (const vp of [{ width: 360, height: 780 }, { width: 360, height: 640 }]) {
       for (const [id, etapa, feita] of [['grama', 0], ['fogo', 2], ['agua', 5], ['agua', 5, true]]) {
         const label = `ginasio-rola-${vp.width}x${vp.height}-${id}-${etapa}${feita ? '-feita' : ''}`
@@ -4600,7 +4600,9 @@ try {
     // a tela de desafio do duelo k (2026-11-18): o rótulo e o título, as placas (o dono e o cavalo dele, com o nível e o tipo;
     // você e o seu), a linha da vantagem (a mesma do duelo), o nome do canvas, o foco no título, os dois botões à vista sem
     // rolar, nada do que vem depois, e a cena desenhada em escala inteira, com o oponente quando o build tem a arte dele e a
-    // figura do jogador, de costas, à esquerda (o capacete do jóquei dele, a seda e o culote, em três pontos da figura)
+    // figura do jogador, de costas, à esquerda: a arte do PixelLab (window.__MAPA.arte.jogador) em primeiro plano, com o
+    // capacete na cor do jóquei do Perfil (os pixels claros do capacete multiplicados pela cor); a jaqueta e o culote como
+    // na arte. Três pontos da figura comparados com a própria arte.
     const ginSlug = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
     const ginConfereDesafio = async (label, pg, esp, id, i, k) => {
       await pg.waitForSelector('#t-desafio', { timeout: 6000 }).catch(() => problems.push(`${label}: a tela de desafio do duelo ${k + 1} não abriu`))
@@ -4613,14 +4615,7 @@ try {
         return { rotulo: tx(q('#tela .tela--desafio .rotulo')), titulo: tx(q('#t-desafio')), rival: placa('rival'), voce: placa('voce'), vant: tx(q('#tela .gin-cena-vant')),
           aria: cv && cv.getAttribute('aria-label'), cw: cv && cv.width, ch: cv && cv.height, cores: eval(cores), txt: tx(q('#tela')), foco: document.activeElement && document.activeElement.id,
           botoes: [...document.querySelectorAll('#tela .tela--desafio .acoes button')].map((b) => ({ acao: b.getAttribute('data-acao'), txt: tx(b), h: b.getBoundingClientRect().height, bottom: b.getBoundingClientRect().bottom })),
-          ih: window.innerHeight, k: window.__galope.ui.gym && window.__galope.ui.gym.ver && window.__galope.ui.gym.ver.k,
-          // a figura do jogador: 18 × 40 pontos de u pixels (a escala dos cavalos da cena), com os pés em y = 108 de arte
-          jog: (() => {
-            if (!cv || !cv.width) return null
-            const kk = cv.width / 160, u = Math.max(1, Math.round(kk * 1.5)), g = cv.getContext('2d'), top = 108 * kk - 40 * u
-            const cor = (px, py) => { const d = g.getImageData(Math.floor((px + 0.5) * u), Math.floor(top + (py + 0.5) * u), 1, 1).data; return '#' + [d[0], d[1], d[2]].map((v) => v.toString(16).padStart(2, '0')).join('') }
-            return { capacete: cor(8, 4), seda: cor(8, 12), culote: cor(6, 26), esperado: String((window.__galope.state.joquei || {}).capacete).toLowerCase() }
-          })() }
+          ih: window.innerHeight, k: window.__galope.ui.gym && window.__galope.ui.gym.ver && window.__galope.ui.gym.ver.k }
       }, GIN_CENA_CORES)
       const e = ginDueloEsp(esp, id, i, k), papel = esp.revanche ? 'Revanche' : et.lider ? 'Líder' : 'Soldado ' + (i + 1)
       const espx = { rotulo: `${G.GYMS[id].name} · ${papel} · Duelo ${k + 1}`, titulo: k === 0 ? `${dono} desafia você!` : `${dono} entra com ${bn}!`,
@@ -4635,7 +4630,21 @@ try {
       if (acoes !== 'ginasio-comecar:Começar duelo,ginasio-pular-tudo:Pular tudo' || x.botoes.some((b) => b.h < 44 || b.bottom > x.ih)) problems.push(`${label}: botões do desafio ${k + 1} ${JSON.stringify(x.botoes)} (janela ${x.ih})`)
       if (!x.cw || x.cw % 160 || x.ch !== x.cw / 160 * 112) problems.push(`${label}: a cena do desafio ${k + 1} fora da escala inteira (${x.cw}×${x.ch})`)
       if ((x.cores > 12) !== temArte) problems.push(`${label}: desafio ${k + 1}: ${temArte ? 'sem' : 'com'} o oponente na cena (${x.cores} cores na faixa dele; arte no build: ${temArte})`)
-      if (!x.jog || x.jog.capacete !== x.jog.esperado || x.jog.seda !== '#f2c230' || x.jog.culote !== '#f1e9d4') problems.push(`${label}: desafio ${k + 1}: sem a figura do jogador na cena ${JSON.stringify(x.jog)}`)
+      // a figura do jogador na cena: a esquerda do quadro dela em x = -10 e os pés em y = 110 (CENA_JOG_X e CENA_JOG_BASE do game.js)
+      const jog = await pg.evaluate(async () => {
+        const cv = document.querySelector('#tela .gin-cena-tela'), M = window.__MAPA
+        if (!cv || !cv.width || !M || !M.arte || !M.arte.jogador) return null
+        const im = new Image(); im.src = M.arte.jogador; await im.decode()
+        const t = document.createElement('canvas'); t.width = im.naturalWidth; t.height = im.naturalHeight
+        const tg = t.getContext('2d'); tg.drawImage(im, 0, 0)
+        const kk = cv.width / 160, g = cv.getContext('2d'), pe = M.pes.jogador
+        const arte = (x, y) => [...tg.getImageData(x, y, 1, 1).data].slice(0, 3)
+        const cena = (x, y) => [...g.getImageData(Math.floor((-10 + x + 0.5) * kk), Math.floor((110 - pe + y + 0.5) * kk), 1, 1).data].slice(0, 3)
+        const cap = String((window.__galope.state.joquei || {}).capacete || '#f2c230'), c = [1, 3, 5].map((i) => parseInt(cap.slice(i, i + 2), 16))
+        return { capacete: cena(32, 5), capaceteEsp: arte(32, 5).map((v, i) => Math.round(v * c[i] / 255)), jaqueta: cena(30, 18), jaquetaEsp: arte(30, 18), culote: cena(28, 38), culoteEsp: arte(28, 38) }
+      })
+      const perto = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 2)
+      if (!jog || !perto(jog.capacete, jog.capaceteEsp) || !perto(jog.jaqueta, jog.jaquetaEsp) || !perto(jog.culote, jog.culoteEsp)) problems.push(`${label}: desafio ${k + 1}: sem a figura do jogador na cena ${JSON.stringify(jog)}`)
       await checkOverflow(pg, label + ' desafio ' + (k + 1))
       return x
     }
@@ -9656,11 +9665,13 @@ try {
           })
           const ginF = (msg) => problems.push(`acabamento (folha ${larg}): ${msg}`)
           const nEt = G.GYMS[G.GYM_ORDER[0]].etapas.length
-          // 4.21: os quatro estados do cartão (0, no meio, com a insígnia e a revanche livre, com a revanche de hoje feita)
-          if (gy.cartoes.length !== 4 || !gy.cartoes.some((c) => c.rev) || !gy.cartoes.some((c) => c.amanha)) ginF(`cartão de ginásio sem os 4 estados (${JSON.stringify(gy.cartoes.map((c) => [c.prog, c.rev, c.amanha]))})`)
+          // 4.21: o mapa-múndi em três momentos (save novo, no meio, tudo vencido), com os três ginásios em cada um: os estados
+          // do cartão (0, no meio, com a insígnia e a revanche livre, com a revanche de hoje feita e fechado)
+          const nGin = G.GYM_ORDER.length
+          if (gy.cartoes.length !== 3 * nGin || !gy.cartoes.some((c) => c.rev) || !gy.cartoes.some((c) => c.amanha) || !gy.cartoes.some((c) => c.prog === 'Fechado')) ginF(`cartão de ginásio sem os estados (${JSON.stringify(gy.cartoes.map((c) => [c.prog, c.rev, c.amanha]))})`)
           for (const c of gy.cartoes) {
             const ins = c.prog === `${nEt} de ${nEt} vencidos`
-            if (c.tag !== 'BUTTON' || c.h < 44 || !c.seta || !new RegExp(`^\\d de ${nEt} vencidos$`).test(c.prog)) ginF(`cartão de ginásio fora do jogo ${JSON.stringify(c)}`)
+            if (c.tag !== 'BUTTON' || c.h < 44 || c.seta || !(c.prog === 'Fechado' || new RegExp(`^\\d de ${nEt} vencidos$`).test(c.prog))) ginF(`cartão de ginásio fora do jogo ${JSON.stringify(c)}`)
             if (ins ? !(c.ins.length === 1 && c.ins[0] > 0) : c.ins.length) ginF(`cartão "${c.prog}" com a insígnia ${JSON.stringify(c.ins)}`)
             if ((c.rev || c.amanha) && !ins) ginF(`cartão "${c.prog}" com a revanche sem a insígnia`)
           }
@@ -9786,6 +9797,22 @@ try {
           problems.push(`${label} (sala aberta): ` + e.message)
         } finally {
           await ps.context().close()
+        }
+        // os cartões do mapa-múndi nos três momentos da folha: save novo (só a Capoeira aberta), no meio (Capoeira vencida com a
+        // revanche livre, Remanso em 2 de 5, Fornalha fechada) e tudo vencido (a revanche de hoje feita só na Capoeira)
+        const pm = await ginAbre(label + '-mapa', { save, chave: GIN_REAL, pagina: 'preview.html' })
+        try {
+          const N = G.GYMS.grama.etapas.length, zero = { etapa: 0, revDia: null, revVitorias: 0 }, com = (o) => Object.assign({}, zero, o)
+          for (const [g, a, f, hoje] of [[zero, zero, zero, false], [com({ etapa: N }), com({ etapa: 2 }), zero, false], [com({ etapa: N }), com({ etapa: N }), com({ etapa: N }), true]]) {
+            await pm.evaluate(([g, a, f, hoje]) => { const G0 = window.__galope; G0.state.ginasios = { grama: g, agua: a, fogo: f }; if (hoje) G0.state.ginasios.grama.revDia = G0.hojeDia() }, [g, a, f, hoje])
+            await pm.locator('[data-acao="aba"][data-id="estabulo"]').click(); await pm.waitForSelector('#t-estabulo')
+            await pm.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pm.waitForSelector('#t-expedicao')
+            for (const x of await sigs(pm, '#tela .ginasio-cartao')) doJogo.cartao.add(x)
+          }
+        } catch (e) {
+          problems.push(`${label} (mapa): ` + e.message)
+        } finally {
+          await pm.context().close()
         }
         for (const k of Object.keys(SEL)) {
           if (!(daFolha[k] || []).length) problems.push(`${label}: a folha não tem a seção ${SEL[k][0]}`)
@@ -13249,6 +13276,181 @@ try {
   // save posto antes de carregar: Fornalha com 2 etapas vencidas, Remanso com a insígnia e a revanche livre, Capoeira do zero;
   // no estábulo a Brasa (a ativa), a Maré e o Ipê, nos níveis do cenário GIN_T6. O desafio do Sargento Candeeiro com Maré e
   // Brasa é o da Tarefa 6 (GIN_T6): três duelos e vitória (conferido abaixo: se o pareamento mudar, o teste diz)
+  // ---------------- Mapa da Expedição (spec 2026-11-18-mapa-expedicao §2–§4) ----------------
+  // O mapa-múndi na aba (a arte do PixelLab ao fundo, um botão de verdade por ginásio no seu lugar, o marcador no ginásio da
+  // vez, o cadeado e o motivo no fechado, a terra desconhecida no alto), o mapa do ginásio (a figura de cada oponente com os
+  // pés no seu ponto, a silhueta das fechadas, o selo das vencidas, o jogador de costas na entrada) e a cena no preparo.
+  // A sequência em si (o que abre e o que não abre) é do bloco `ginasio` (ginasio-sequencia).
+  if (quer('mapa')) {
+    const ESP = JSON.parse(await readFile(join(ROOT, 'assets', 'pixellab', 'mapa', 'mapa.json'), 'utf8')), GNm = require('../src/ginasio.js')
+    const ORDEM = G.GYM_ORDER, N = G.GYMS[ORDEM[0]].etapas.length
+    for (const vp of [{ width: 360, height: 780 }, { width: 1280, height: 800 }]) {
+      const label = `mapa-${vp.width}x${vp.height}`, U = vp.width >= 560 ? 3 : 2
+      const pg = await newPage(browser, vp, label, { query: '?dev=1' })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        // põe o progresso dos ginásios e desenha a aba Expedição de novo
+        const poe = async (prog) => {
+          await pg.evaluate((p) => { const g = window.__galope; g.state.gold = 5000; for (const k in p) Object.assign(g.state.ginasios[k], p[k]) }, prog)
+          await pg.locator('[data-acao="aba"][data-id="estabulo"]').click(); await pg.waitForSelector('#t-estabulo')
+          await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao')
+        }
+        const mundo = () => pg.evaluate(async () => {
+          const q = (s, r = document) => r.querySelector(s), m = q('#tela .mapa--mundo')
+          if (!m) return null
+          const imgs = [...m.querySelectorAll('img')]
+          await Promise.all(imgs.map((i) => i.decode().catch(() => {})))
+          const mr = m.getBoundingClientRect()
+          const dentro = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= mr.left - 0.5 && r.right <= mr.right + 0.5 && r.top >= mr.top - 0.5 && r.bottom <= mr.bottom + 0.5 }
+          return { u: parseFloat(getComputedStyle(m).getPropertyValue('--u')), w: mr.width, h: mr.height, fundo: q('.mapa-fundo', m).naturalWidth + 'x' + q('.mapa-fundo', m).naturalHeight,
+            semArte: imgs.filter((i) => !i.naturalWidth).length, botoes: m.querySelectorAll('button').length,
+            nos: [...m.querySelectorAll('.ginasios > li')].map((li) => {
+              const b = q('.ginasio-cartao', li), r = b.getBoundingClientRect(), pl = q('.mapa-placa', li), pr = q('.mapa-predio', li), lr = li.getBoundingClientRect(), ins = q('.ginasio-insignia img', li)
+              return { id: b.getAttribute('data-id'), cls: li.className, dis: b.getAttribute('aria-disabled'), motivo: b.getAttribute('data-motivo'), w: r.width, h: r.height,
+                x: lr.left - mr.left, y: lr.top - mr.top, pino: !!q('.mapa-pino', li), cadeado: !!q('.mapa-icone', li), predio: pr ? pr.naturalWidth : 0,
+                predioBase: pr ? pr.getBoundingClientRect().bottom - lr.top : null, filtro: pr ? getComputedStyle(pr).filter : '', nome: q('.ginasio-cartao-nome', li).textContent,
+                placaDentro: dentro(pl), insignia: ins ? ins.naturalWidth : 0, txt: pl.textContent.replace(/\s+/g, ' ').trim() }
+            }),
+            desconhecido: (q('.mapa-desconhecido', m) || {}).textContent || '', desconhecidoDentro: !!q('.mapa-desconhecido .mapa-placa', m) && dentro(q('.mapa-desconhecido .mapa-placa', m)),
+            casa: (q('.mapa-casa', m) || {}).textContent || '', casaPredio: (q('.mapa-casa img', m) || {}).naturalWidth || 0 }
+        })
+        const erro = (t) => problems.push(`${label}: ${t}`)
+        // 1) save novo: só o 1º ginásio aberto (com o marcador); os outros fechados, com o cadeado e o motivo
+        await poe({})
+        let m = await mundo()
+        if (!m) throw new Error('a aba Expedição sem o mapa-múndi (.mapa--mundo)')
+        if (m.u !== U || Math.abs(m.w - ESP.mundo.w * U) > 0.5 || Math.abs(m.h - ESP.mundo.h * U) > 0.5 || m.fundo !== `${ESP.mundo.w}x${ESP.mundo.h}` || m.semArte) erro(`mapa-múndi fora da escala inteira ou sem arte ${JSON.stringify({ u: m.u, w: m.w, h: m.h, fundo: m.fundo, semArte: m.semArte })}`)
+        if (m.botoes !== ORDEM.length || m.nos.map((n) => n.id).join() !== ORDEM.join()) erro(`o mapa-múndi devia ter um botão por ginásio, na ordem da sequência (${m.nos.map((n) => n.id)}; ${m.botoes} botões)`)
+        m.nos.forEach((n, i) => {
+          const g = G.GYMS[n.id], p = ESP.mundo.lugares[n.id]
+          if (n.w < 44 || n.h < 44 || n.predio !== 32 || n.nome !== g.name || !n.placaDentro) erro(`lugar ${n.id}: botão pequeno, sem a construção, com outro nome ou com a plaquinha fora do mapa ${JSON.stringify(n)}`)
+          if (Math.abs(n.x - p[0] * U) > 0.6 || Math.abs(n.y - p[1] * U) > 0.6 || Math.abs(n.predioBase) > 1) erro(`lugar ${n.id} fora do ponto do mapa (${n.x}, ${n.y}; a base da construção a ${n.predioBase} px do ponto)`)
+          if (i === 0 ? !(/mapa-no--aberto/.test(n.cls) && /mapa-no--atual/.test(n.cls) && n.pino && n.dis === null && !n.cadeado && n.filtro === 'none' && n.txt.includes(`0 de ${N} vencidos`))
+            : !(/mapa-no--fechado/.test(n.cls) && !n.pino && n.dis === 'true' && n.cadeado && n.filtro !== 'none' && n.motivo === `Vença o líder do ${G.GYMS[ORDEM[i - 1]].name}` && n.txt.includes('Fechado'))) {
+            erro(`lugar ${n.id} com o estado errado no save novo ${JSON.stringify(n)}`)
+          }
+        })
+        if (!/Terras desconhecidas/.test(m.desconhecido) || !/Em breve/.test(m.desconhecido) || !m.desconhecidoDentro || !/Seu estábulo/.test(m.casa) || m.casaPredio !== 32) erro(`a terra desconhecida ou o estábulo fora do mapa ${JSON.stringify({ d: m.desconhecido, dentro: m.desconhecidoDentro, casa: m.casa, predio: m.casaPredio })}`)
+        await checkOverflow(pg, label + ' mundo')
+        // tocar no ginásio fechado: não abre e o motivo aparece escrito embaixo da plaquinha dele
+        await pg.locator(`#tela [data-acao="ginasio-abrir"][data-id="${ORDEM[1]}"]`).click({ force: true })   // aria-disabled: o toque de verdade passa
+        await pg.waitForSelector('#tela .ginasio-cartao-motivo.motivo-alvo', { timeout: 2000 }).catch(() => erro('tocar no ginásio fechado não destacou o motivo'))
+        const dica = await pg.evaluate(() => {
+          const e = document.querySelector('#tela .ginasio-cartao-motivo.motivo-alvo'), r = e ? e.getBoundingClientRect() : null
+          return { tela: !!document.getElementById('t-expedicao'), txt: e ? e.textContent : '', w: r ? r.width : 0, h: r ? r.height : 0, esq: r ? r.left : -1, dir: r ? r.right : -1, vw: document.documentElement.clientWidth }
+        })
+        if (!dica.tela || dica.txt !== `Vença o líder do ${G.GYMS[ORDEM[0]].name}` || dica.h < 14 || dica.w < 60 || dica.esq < 0 || dica.dir > dica.vw) erro(`o motivo do ginásio fechado não ficou à vista ${JSON.stringify(dica)}`)
+        // 2) no meio: o 1º vencido (a insígnia, sem o marcador), o 2º aberto com o marcador, o 3º fechado
+        await poe({ [ORDEM[0]]: { etapa: N }, [ORDEM[1]]: { etapa: 2 } })
+        m = await mundo()
+        const [a, b, c] = m.nos
+        if (!(/mapa-no--vencido/.test(a.cls) && !a.pino && a.insignia > 0 && a.dis === null)) erro(`o ginásio vencido sem a insígnia ou com o marcador ${JSON.stringify(a)}`)
+        if (!(/mapa-no--aberto/.test(b.cls) && /mapa-no--atual/.test(b.cls) && b.pino && b.txt.includes(`2 de ${N} vencidos`))) erro(`o ginásio da vez sem o marcador ${JSON.stringify(b)}`)
+        if (!(/mapa-no--fechado/.test(c.cls) && c.dis === 'true')) erro(`o 3º ginásio devia continuar fechado ${JSON.stringify(c)}`)
+        if (m.nos.some((n) => !n.placaDentro)) erro(`plaquinha fora do mapa no meio da jornada ${JSON.stringify(m.nos.filter((n) => !n.placaDentro))}`)
+        await checkOverflow(pg, label + ' mundo no meio')
+        // 3) o mapa do 2º ginásio: a arte, as cinco figuras nos seus pontos, os estados e o jogador na entrada
+        const id = ORDEM[1], eg = ESP.ginasios[id]
+        await pg.locator(`#tela [data-acao="ginasio-abrir"][data-id="${id}"]`).click()
+        await pg.waitForSelector('#t-ginasio')
+        const gin = () => pg.evaluate(async () => {
+          const q = (s, r = document) => r.querySelector(s), m = q('#tela .mapa--ginasio')
+          if (!m) return null
+          await Promise.all([...m.querySelectorAll('img')].map((i) => i.decode().catch(() => {})))
+          const mr = m.getBoundingClientRect(), M = window.__MAPA
+          const slug = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+          const voce = q('.mapa-voce', m), vr = voce ? voce.getBoundingClientRect() : null
+          const tp = q('.app-topo'), ab = q('.app-abas'), abr = ab.getBoundingClientRect()
+          return { u: parseFloat(getComputedStyle(m).getPropertyValue('--u')), w: mr.width, h: mr.height, fundo: q('.mapa-fundo', m).naturalWidth + 'x' + q('.mapa-fundo', m).naturalHeight,
+            semArte: [...m.querySelectorAll('img')].filter((i) => !i.naturalWidth).length, peJog: M.pes.jogador,
+            voce: voce ? { nat: voce.naturalWidth, cor: voce.getAttribute('data-jogador'), data: voce.src.slice(0, 15), x: vr.left - mr.left, y: vr.top - mr.top } : null,
+            etapas: [...m.querySelectorAll('.trilha--mapa > li')].map((li) => {
+              const r = li.getBoundingClientRect(), b = q('.etapa-btn', li), f = q('.mapa-figura', li), fr = f.getBoundingClientRect(), pl = q('.mapa-placa', li), pr = pl.getBoundingClientRect()
+              return { n: Number(li.getAttribute('data-etapa')), estado: li.getAttribute('data-estado'), tag: b.tagName, cur: b.getAttribute('aria-current'), dis: b.getAttribute('aria-disabled'),
+                nome: q('.etapa-nome', li).textContent, pe: M.pes[slug(q('.etapa-nome', li).textContent)], fig: f.naturalWidth || 0, figX: fr.left - mr.left, figY: fr.top - mr.top, figW: fr.width,
+                filtro: getComputedStyle(f).filter, pino: !!q('.mapa-pino', li), selo: !!q('.mapa-selo', li), cadeado: !!q('.mapa-icone', li), h: r.height,
+                placaDentro: pr.width > 0 && pr.left >= mr.left - 0.5 && pr.right <= mr.right + 0.5, topo: r.top, base: r.bottom }
+            }),
+            visTopo: tp && getComputedStyle(tp).position === 'fixed' ? tp.getBoundingClientRect().bottom : 0, visBase: abr.top > window.innerHeight / 2 ? abr.top : window.innerHeight }
+        })
+        let t = await gin()
+        if (!t) throw new Error('a subtela do ginásio sem o mapa (.mapa--ginasio)')
+        if (t.u !== U || Math.abs(t.w - eg.w * U) > 0.5 || Math.abs(t.h - eg.h * U) > 0.5 || t.fundo !== `${eg.w}x${eg.h}` || t.semArte) erro(`mapa do ginásio fora da escala inteira ou sem arte ${JSON.stringify({ u: t.u, w: t.w, h: t.h, fundo: t.fundo, semArte: t.semArte })}`)
+        if (t.etapas.map((e) => e.estado).join() !== 'vencida,vencida,proxima,fechada,fechada') erro(`estados da trilha no mapa: ${t.etapas.map((e) => e.estado)}`)
+        t.etapas.forEach((e, i) => {
+          const p = eg.etapas[i]
+          if (e.fig !== 64 || Math.abs(e.figW - 64 * U) > 0.5 || Math.abs(e.figX - (p[0] - 32) * U) > 0.6 || Math.abs(e.figY - (p[1] - e.pe) * U) > 0.6) erro(`etapa ${i + 1}: a figura fora do ponto do mapa (os pés deviam cair em ${p}) ${JSON.stringify(e)}`)
+          if (e.h < 44 || !e.placaDentro || e.nome !== G.GYMS[id].etapas[i].nome) erro(`etapa ${i + 1}: pequena, com a plaquinha fora do mapa ou com outro nome ${JSON.stringify(e)}`)
+          const ok = e.estado === 'vencida' ? e.tag === 'DIV' && e.selo && !e.pino && e.filtro === 'none'
+            : e.estado === 'proxima' ? e.tag === 'BUTTON' && e.cur === 'step' && e.pino && !e.selo && e.filtro === 'none'
+              : e.tag === 'BUTTON' && e.dis === 'true' && e.cadeado && !e.pino && e.filtro !== 'none'
+          if (!ok) erro(`etapa ${i + 1} (${e.estado}) com as marcas erradas ${JSON.stringify(e)}`)
+        })
+        const prox = t.etapas[2]
+        if (prox.topo < t.visTopo - 0.5 || prox.base > t.visBase + 0.5) erro(`a próxima etapa não ficou inteira à vista ao abrir o mapa ${JSON.stringify({ topo: prox.topo, base: prox.base, de: t.visTopo, ate: t.visBase })}`)
+        if (!t.voce || t.voce.nat !== 64 || t.voce.cor !== '#f2c230' || t.voce.data !== 'data:image/png;' || Math.abs(t.voce.x - (eg.voce[0] - 32) * U) > 0.6 || Math.abs(t.voce.y - (eg.voce[1] - t.peJog) * U) > 0.6) erro(`a figura do jogador fora da entrada do mapa ${JSON.stringify(t.voce)}`)
+        await checkOverflow(pg, label + ' ginásio')
+        // tocar numa etapa fechada: fica na trilha e o motivo (que fica só no texto) aparece embaixo da plaquinha dela
+        await pg.locator('#tela .etapa[data-estado="fechada"] .etapa-btn').first().click({ force: true })
+        await pg.waitForSelector('#tela .etapa[data-estado="fechada"] .etapa-motivo.motivo-alvo', { timeout: 2000 }).catch(() => erro('tocar na etapa fechada não destacou o motivo'))
+        const mot = await pg.evaluate(() => {
+          const e = document.querySelector('#tela .etapa[data-estado="fechada"] .etapa-motivo.motivo-alvo'), r = e ? e.getBoundingClientRect() : null
+          return { tela: !!document.getElementById('t-ginasio'), txt: e ? e.textContent : '', w: r ? r.width : 0, h: r ? r.height : 0, esq: r ? r.left : -1, dir: r ? r.right : -1, vw: document.documentElement.clientWidth }
+        })
+        if (!mot.tela || mot.txt !== 'Vença a etapa anterior' || mot.h < 14 || mot.w < 60 || mot.esq < 0 || mot.dir > mot.vw) erro(`o motivo da etapa fechada não ficou à vista ${JSON.stringify(mot)}`)
+        await checkOverflow(pg, label + ' ginásio com o motivo')
+        // 4) o preparo da próxima: a cena com o oponente e você; sem time, só você; com o 1º cavalo do time, ele entra na cena
+        await pg.locator('#tela .etapa[data-estado="proxima"] .etapa-btn').click()
+        await pg.waitForSelector('#t-etapa')
+        const et = G.GYMS[id].etapas[2], cav = GNm.cavalo(et.cavalos[0])
+        const cena = () => pg.evaluate(() => {
+          const q = (s) => document.querySelector(s), cv = q('#tela .gin-cena--preparo .gin-cena-tela'), tx = (e) => (e ? e.textContent.replace(/\s+/g, ' ').trim() : null)
+          return { aria: cv && cv.getAttribute('aria-label'), w: cv ? cv.width : 0, h: cv ? cv.height : 0, rival: tx(q('#tela .gin-cena--preparo .gin-placa--rival')), voce: tx(q('#tela .gin-cena--preparo .gin-placa--voce')),
+            pintado: cv ? new Set(cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data.filter((v, i) => i % 4 === 0)).size : 0 }
+        })
+        let ce = await cena()
+        if (ce.aria !== `${et.nome} e ${cav.name} esperam o seu time` || !ce.w || ce.w % 160 || ce.h !== ce.w / 160 * 112 || ce.pintado < 12 || !ce.rival.startsWith(et.nome) || !/Escolha o seu time/.test(ce.voce)) erro(`a cena do preparo sem time fora do esperado ${JSON.stringify(ce)}`)
+        await pg.locator('#tela [data-acao="ginasio-time"]').first().click()
+        await pg.waitForSelector('#tela [data-acao="ginasio-time"][aria-pressed="true"]')
+        ce = await cena()
+        const meu = await pg.evaluate(() => { const g = window.__galope, u = g.ui.gym.time[0], x = g.state.mounts.find((y) => y.uid === u); return x ? x.name + ' · Nv ' + x.level : null })
+        if (!meu || ce.aria !== `${et.nome} e ${cav.name} contra você e ${meu.split(' · ')[0]}` || !ce.voce.includes(meu)) erro(`a cena do preparo não acompanhou o time ${JSON.stringify({ ce, meu })}`)
+        if (/Vitória|Derrota|venceu|perdeu/.test(ce.rival + ce.voce)) erro('a cena do preparo entrega resultado')
+        await checkOverflow(pg, label + ' preparo')
+        // 5) o capacete do jóquei muda a figura do jogador no mapa
+        await pg.evaluate(() => { window.__galope.state.joquei.capacete = '#62b8ff' })
+        await pg.locator('[data-acao="ginasio-voltar"]').click()
+        await pg.waitForSelector('#t-ginasio')
+        const azul = await pg.evaluate(() => { const v = document.querySelector('#tela .mapa-voce'); return v ? { cor: v.getAttribute('data-jogador'), src: v.src.length } : null })
+        if (!azul || azul.cor !== '#62b8ff' || !(azul.src > 100)) erro(`a figura do jogador não acompanhou o capacete ${JSON.stringify(azul)}`)
+      } catch (e) {
+        problems.push(`${label}: ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+    // sem a arte do mapa (window.__MAPA vazio): a aba fica com os cartões em lista e a trilha em lista, sem erro
+    {
+      const label = 'mapa-sem-arte'
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { query: '?dev=1', init: () => { Object.defineProperty(window, '__MAPA', { configurable: true, get: () => ({}), set: () => {} }) } })
+      try {
+        await pg.waitForSelector('#t-estabulo', { timeout: 5000 })
+        await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao')
+        const l = await pg.evaluate(() => ({ mapa: document.querySelectorAll('#tela .mapa').length, cartoes: document.querySelectorAll('#tela .caixa > .ginasios > li > .ginasio-cartao').length,
+          setas: document.querySelectorAll('#tela .ginasio-cartao-seta').length }))
+        if (l.mapa || l.cartoes !== ORDEM.length || l.setas !== 1) problems.push(`${label}: sem a arte a aba devia ficar com os cartões em lista ${JSON.stringify(l)}`)
+        await pg.locator(`#tela [data-acao="ginasio-abrir"][data-id="${ORDEM[0]}"]`).click(); await pg.waitForSelector('#t-ginasio')
+        const tr = await pg.evaluate(() => ({ mapa: document.querySelectorAll('#tela .mapa').length, etapas: document.querySelectorAll('#tela .caixa > .trilha > li.etapa').length, figuras: document.querySelectorAll('#tela .mapa-figura').length }))
+        if (tr.mapa || tr.etapas !== N || tr.figuras) problems.push(`${label}: sem a arte a trilha devia ficar em lista ${JSON.stringify(tr)}`)
+        await checkOverflow(pg, label)
+      } catch (e) {
+        problems.push(`${label}: ` + e.message)
+      } finally {
+        await pg.context().close()
+      }
+    }
+  }
+
   if (quer('fluxo-capturas-ginasio')) {
     const label = 'ginasio-capturas'
     const ginIpe = G.STARTERS.find((h) => h.id === 'ipe')

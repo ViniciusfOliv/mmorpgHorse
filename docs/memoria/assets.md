@@ -97,7 +97,31 @@ no cartão do ginásio na aba Expedição (com a insígnia conquistada), no topo
 desafio que dá a insígnia, nas três insígnias do Perfil (a que falta, em cinza) e no wiki (tabela "Ginásios"). O jogador
 vê esses ícones: entram na declaração de IA como os outros do lote `icones2`.
 
+**Arte do mapa da Expedição (2026-11-18 e 19; pedido do Vinicius: "Use pixellab para TUDO, sempre priorizar
+qualidade"):** os oito lotes `mapa/candidatas/` acima (126 gerações). **O que foi para o jogo** (a escolha fica em
+`prototype/assets/pixellab/mapa/escolhas.json`; o build embute os PNGs de `prototype/assets/pixellab/mapa/<nome>.png`):
+- `mundo` = `mundo-pixen2-s5152` (o mapa-múndi, 168×304, com as Terras desconhecidas sob as nuvens no alto);
+- `ginasio-grama` = `ginasio-grama-pixen-s5303`, `ginasio-agua` = `ginasio-agua-pixen2-s5333`, `ginasio-fogo` =
+  `ginasio-fogo-pixen-s5322` (o mapa de cada ginásio, 168×400);
+- `lugar-grama` = `lugar-grama-s5401-1`, `lugar-agua` = `lugar-agua-s5402-0`, `lugar-fogo` = `lugar-fogo-s5403-1`,
+  `lugar-casa` = `lugar-casa-s5404-0` (as construções do mapa-múndi, 32×32, sem fundo);
+- `icone-cadeado` = `icone-cadeado-s5411-3`, `icone-marcador` = `icone-marcador-s5412-0`, `icone-vencido` =
+  `icone-vencido-s5413-5`, `icone-misterio` = `icone-misterio-s5414-0` (32×32, sem fundo);
+- `jogador` = `jogador-s5421-0` (a figura do jogador de costas, 64×64, sem fundo; aparece na cena de desafio, no preparo
+  e na entrada do mapa de cada ginásio, com o capacete recolorido pelo jogo na cor do jóquei).
+Modelos: os quatro mapas saíram do `/create-image-pixen` só com texto; as peças soltas e a figura do jogador, do
+`/generate-image-v2` (Pro) com imagem de estilo (um recorte do mapa escolhido, o ícone `ins-grama` e o Sargento
+Correnteza). O texto de cada receita está em `prototype/tools/pixellab-mapa.mjs`; o pedido e a resposta de cada
+chamada, em `prototype/assets/pixellab/raw/mapa/*.json`. As candidatas que não entraram (o piloto com rascunho, o
+Pro do mapa-múndi, as outras 540 imagens) ficam versionadas para o Vinicius poder trocar uma escolha
+(`node prototype/tools/pixellab-mapa.mjs --escolher <nome>=<candidata>`; trocou um mapa, os lugares dele em
+`mapa/mapa.json` têm de ser marcados de novo). Tudo o que está em `escolhas.json` o jogador vê: entra na declaração de IA.
+
 ## Custo
+- **PixelLab, mapa da Expedição (2026-11-18 e 19):** 126 gerações da cota do plano (saldo 1665 → 1539), US$ 0 avulso.
+  Piloto do mapa-múndi 7 (pixflux com rascunho e pixen), mais 6 do pixen e 1 chamada do Pro (10); mapas dos ginásios
+  9 + 4 (Remanso de novo, com os tablados mais espaçados); figura do jogador 10 (Pro, 16 candidatas); construções 40
+  (4 chamadas do Pro, 64 candidatas cada); ícones 40 (idem).
 - **PixelLab:** 69 gerações da cota do plano entre 2026-11-08 e 09 (saldo 1994 → 1925), US$ 0 avulso.
   O número inclui o experimento de paleta, tentativas rejeitadas e a rodada de crinas próprias por
   estilo, que não passou nos critérios (os galopes guiados pelo de chamas ficaram).

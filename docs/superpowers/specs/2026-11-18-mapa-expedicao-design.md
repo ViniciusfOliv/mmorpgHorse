@@ -16,9 +16,10 @@ marcadores), com arte nossa, desenhada por código. Nada da arte da referência 
 Remanso em 2 de 5 e a Fornalha fechada) e `2026-11-18-mapa-expedicao-maquete-ginasio.png` (o mapa do Remanso); o roteiro
 que as desenha é o `2026-11-18-mapa-expedicao-maquete.mjs`, e o desenho dele serve de partida para a tela.
 
-**Estado (2026-11-18):** maquetes mostradas ao Vinicius, à espera da reação dele. Construído: só a figura do jogador
-na tela de desafio que já existe (seção 4). A sequência, os níveis novos e os dois mapas entram juntos, depois da
-resposta dele (os testes de ginásio do `ui-test.mjs` dependem da trilha em cartões e dos números de hoje).
+**Estado (2026-11-19):** construído. Depois das maquetes o Vinicius respondeu: "Melhore o mapa, faça bem feito e
+aumente com uma parte desconhecida (futuras atualizações). Use pixellab para TUDO, sempre priorizar qualidade." A arte
+passou a ser toda do PixelLab (as maquetes desenhadas por código ficam só como registro do começo) e o mapa-múndi ganhou
+as Terras desconhecidas. O que mudou em relação a este desenho está na seção "Notas da execução", no fim.
 
 ## Combinado
 
@@ -144,3 +145,38 @@ Feito como na tabela; as seções 2 a 4 (mapas e arte) ficaram para a outra fren
   Ouro)") saem do catálogo.
 - **Não feito aqui:** a folha de interface não ganhou o estado "fechado" do cartão (o teste de acabamento compara a folha
   com um save em que os três estão abertos); capturas oficiais e memória ficaram para quem integra.
+
+### Mapas, arte e cena (seções 2 a 4), 2026-11-19
+
+- **Arte toda do PixelLab** (pedido dele depois das maquetes; 126 gerações da cota, saldo 1665 → 1539). O piloto comparou
+  três caminhos para o mapa-múndi: o modelo antigo com um rascunho meu como base (`pixflux`: segue a composição, mas sai
+  chapado), o modelo Pro com o rascunho como referência (segue a composição, traço limpo) e o modelo novo sem rascunho
+  (`pixen`: de longe o mais rico). Ficou o `pixen` para os quatro mapas; como ele não aceita rascunho, **os lugares
+  foram marcados depois, em cima da arte escolhida** (`prototype/assets/pixellab/mapa/mapa.json`), e não o contrário.
+  As peças soltas saíram do Pro com imagem de estilo (64 candidatas por chamada nas de 32 px, 16 na de 64 px): as
+  construções no traço do mapa, os ícones no traço dos ícones da interface e a figura do jogador no traço dos oponentes.
+  Roteiro: `prototype/tools/pixellab-mapa.mjs` (dry-run por padrão, `--gerar` com `--teto`, `--escolher`).
+- **Terras desconhecidas:** o mapa-múndi tem 168 × 304 px de arte; o terço de cima é um continente cinzento sob as
+  nuvens, com a placa "Terras desconhecidas · Em breve". É aviso, não botão.
+- **Mapa do ginásio com 168 × 400 px de arte** (mais alto que a janela: a página rola até a próxima etapa ficar
+  inteira, com a rolagem mínima que a trilha já tinha). As figuras dos oponentes entram no tamanho da arte (64 × 64),
+  sem reduzir; por isso o Remanso trocou de candidata (na primeira os tablados ficavam juntos demais). Na Fornalha o
+  mapa tem um tablado a mais, embaixo: é onde a figura do jogador fica.
+- **Tudo é HTML por cima da arte**, sem canvas: o fundo é um `<img>` em escala inteira (`--u`: 2 px de tela por pixel de
+  arte no celular, 3 no computador) e cada lugar é um botão de verdade posicionado em pixels de arte. Os contratos do
+  DOM dos cartões e da trilha foram mantidos (`.ginasio-cartao`, `.trilha > li.etapa[data-etapa][data-estado]`), então
+  os testes de ginásio seguiram valendo; o que a plaquinha não mostra (elemento, nome da insígnia, motivo, rótulo da
+  etapa) continua no texto, para o leitor de tela. Tocar num lugar fechado mostra o motivo por 2 s.
+- **A figura do jogador** é a do PixelLab (jóquei de costas): a jaqueta é a seda do jogador (dourada) e o capacete sai
+  na cor escolhida no Perfil (os pixels claros do capacete são multiplicados pela cor). O padrão da seda não aparece
+  nela. A figura desenhada por código ficou só como reserva para o build sem a arte.
+- **A cena no preparo** mostra só você enquanto o time está vazio ("Escolha o seu time") e ganha o 1º cavalo do time
+  quando ele é escolhido. Na cena, o jogador fica em primeiro plano, à esquerda do cavalo (não atrás dele).
+- **Sem a arte no build** (`window.__MAPA` vazio) a aba volta aos cartões e à trilha em lista (o bloco `mapa` confere).
+- **Testes:** bloco novo `mapa` no `ui-test.mjs` (360 × 780 e 1280 × 800: escala inteira, um botão por ginásio no seu
+  ponto, estados, o motivo ao tocar no fechado, as figuras com os pés no ponto, o jogador na entrada, a cena do preparo
+  acompanhando o time, o capacete, e o caso sem arte); teste da arte e dos lugares no `moldes-test.mjs`; a folha da
+  interface (`dist/interface.html`) mostra o mapa-múndi em três momentos e o mapa do ginásio em três estados, e o teste
+  de acabamento compara com o jogo nesses momentos (agora com o estado "fechado").
+- **Ficou de fora:** recalibrar a pista da Fornalha (as notas acima); animação no mapa (nuvens, água); música. O
+  rascunho das maquetes (`anexos/2026-11-18-mapa-expedicao-maquete*`) não é mais o desenho da tela.

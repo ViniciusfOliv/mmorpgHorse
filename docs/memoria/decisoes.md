@@ -3,6 +3,29 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-19 — Mapa da Expedição construído, com a arte toda do PixelLab (pedido do Vinicius)
+Spec: `docs/superpowers/specs/2026-11-18-mapa-expedicao-design.md` ("Notas da execução"). Assets: `assets.md`.
+- **A arte do mapa é toda do PixelLab, e o mapa-múndi tem uma região desconhecida para as futuras atualizações** (o
+  Vinicius, depois de ver as maquetes desenhadas por código: "Melhore o mapa, faça bem feito e aumente com uma parte
+  desconhecida (futuras atualziações). Use pixellab para TUDO, sempre priorizar qualidade.") — tomei a frase como a
+  confirmação do gasto para esta frente; gastei 126 gerações (saldo 1665 → 1539) com teto em cada lote.
+- **Os mapas saem do modelo `pixen`, só com texto, e os lugares são marcados depois em cima da arte** (controlador) — no
+  piloto, o `pixflux` com um rascunho meu como base seguia a composição mas saía chapado; o `pixen`, que não aceita
+  rascunho, saiu muito mais rico. Qualidade primeiro: a composição se adapta à arte (`mapa/mapa.json`), não o contrário.
+- **As peças soltas saem do modo Pro com imagem de estilo** (controlador) — uma chamada de 10 gerações devolve 64
+  candidatas de 32 px (ou 16 de 64 px) já no traço do que está no jogo: dá para escolher em vez de aceitar a primeira.
+- **Os oponentes entram no mapa do ginásio no tamanho da arte (64×64), sem reduzir** (controlador) — reduzir pixel art
+  pela metade borra; por isso o mapa do ginásio ficou alto (400 px de arte) e a página rola até a próxima etapa.
+- **O mapa é HTML por cima da arte (um botão de verdade por lugar), com os contratos do DOM de antes** (controlador) —
+  leitor de tela, foco e toque de 44 px continuam valendo, e os ~2 mil linhas de teste de ginásio não foram reescritas.
+- **A figura do jogador é a do PixelLab, com o capacete recolorido na cor do Perfil; o padrão da seda não aparece nela**
+  (controlador) — a arte tem cor fixa; o capacete é branco na arte de propósito, para aceitar a cor por multiplicação.
+- **A sequência (regras, níveis e testes) foi feita por um subagente numa cópia isolada, em paralelo com a arte**
+  (controlador) — eram frentes sem arquivo em comum; a junção não teve conflito.
+- **Não rebaseei nem mexi na pista da Fornalha** (controlador) — com a Fornalha nos níveis 21 a 30, a Grama em
+  desvantagem vence 41–46% nela (as metas G3 e G4 foram rebaseadas ao medido, com o motivo); recalibrar a pista é um
+  ajuste de balanço à parte, para decidir com o Vinicius.
+
 ## 2026-11-18 — Mapa da Expedição: desenho, maquetes e a figura do jogador na cena (pedido do Vinicius)
 Spec: `docs/superpowers/specs/2026-11-18-mapa-expedicao-design.md`. Estado: maquetes mostradas, à espera da reação dele;
 só a figura do jogador foi construída.

@@ -101,36 +101,67 @@ const insigniaIcone = (id) => `<img class="icone icone--${esc(G.GYMS[id].insigni
 const elNome = (el) => G.ELEMENTS[el].name;
 const elHtml = (el) => `<span class="el el--${esc(el)}">${esc(elNome(el))}</span>`;
 const ginCavalosTxt = (n) => n === 1 ? '1 cavalo' : n + ' cavalos';
-// o cartão do ginásio na aba (ginasioCartaoHtml): etapas = quantas vencidas; rev: 'hoje' | 'amanha' | null
-function ginasioCartao(id, etapas, rev = null) {
-  const g = G.GYMS[id], ins = etapas === g.etapas.length;
-  return `<li><button type="button" class="ginasio-cartao ginasio-cartao--${esc(g.element)}" data-acao="ginasio-abrir" data-id="${esc(id)}">` +
-    `<span class="ginasio-cartao-nome">${esc(g.name)}</span>` +
-    `<span class="ginasio-cartao-meta">${elHtml(g.element)}<span class="ginasio-progresso">${etapas} de ${g.etapas.length} vencidos</span></span>` +
-    (ins ? `<span class="ginasio-cartao-meta ginasio-insignia">${insigniaIcone(id)}<span>${esc(g.insignia.name)}</span></span>` : '') +
-    (rev === 'hoje' ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche">Revanche hoje</span></span>'
-      : rev === 'amanha' ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche-amanha">Revanche amanhã</span></span>' : '') +
-    setaSvg('montaria-linha-seta ginasio-cartao-seta') + '</button></li>';
+// A arte e os lugares do mapa da Expedição, como o jogo recebe em window.__MAPA e window.__TREINADORES (o build passa os
+// dois ao htmlFolhaInterface): a folha monta o mapa-múndi e o mapa do ginásio com o mesmo markup do game.js
+let MAPA = null, TREINADORES = {};
+const mapaPos = (p) => `left:calc(${p[0]} * var(--u));top:calc(${p[1]} * var(--u))`;
+const mapaImg = (nome, cls, w, h) => `<img class="${cls}" src="${MAPA.arte[nome]}" alt=""${w ? ` style="width:calc(${w} * var(--u));height:calc(${h} * var(--u))"` : ''}>`;
+const ginNomeCurto = (nome) => { const m = /^(Ginásio d[aeo]s? )(.+)$/.exec(nome); return m ? `<span class="sr">${esc(m[1])}</span>${esc(m[2])}` : esc(nome); };
+// o cartão do ginásio no mapa-múndi (ginasioCartaoHtml): etapas = quantas vencidas, ou null = fechado; rev: 'hoje' |
+// 'amanha' | null; vez: o ginásio da vez (o marcador)
+function ginasioCartao(id, etapas, rev = null, vez = false) {
+  const g = G.GYMS[id], aberto = etapas !== null, ins = etapas === g.etapas.length, M = MAPA.mapa.mundo;
+  const ant = G.GYM_ORDER[G.GYM_ORDER.indexOf(id) - 1], mot = aberto ? '' : `Vença o líder do ${G.GYMS[ant].name}`;
+  const linhas = aberto
+    ? `<span class="ginasio-cartao-meta">${elHtml(g.element)}<span class="ginasio-progresso">${etapas} de ${g.etapas.length} vencidos</span></span>` +
+      (ins ? `<span class="ginasio-cartao-meta ginasio-insignia">${insigniaIcone(id)}<span>${esc(g.insignia.name)}</span></span>` : '') +
+      (rev === 'hoje' ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche">Revanche hoje</span></span>'
+        : rev === 'amanha' ? '<span class="ginasio-cartao-meta"><span class="ginasio-revanche-amanha">Revanche amanhã</span></span>' : '')
+    : `<span class="ginasio-cartao-meta">${elHtml(g.element)}${mapaImg('icone-cadeado', 'mapa-icone')}<span class="ginasio-progresso">Fechado</span></span>` +
+      `<span class="ginasio-cartao-meta ginasio-cartao-motivo">${esc(mot)}</span>`;
+  const estado = !aberto ? 'fechado' : ins ? 'vencido' : 'aberto', lado = M.placas && M.placas[id] === 'direita' ? ' mapa-placa--direita' : '', dx = (M.dx && M.dx[id]) || 0;
+  return `<li class="mapa-no mapa-no--${estado}${vez ? ' mapa-no--atual' : ''}" style="${mapaPos(M.lugares[id])}">` +
+    `<button type="button" class="ginasio-cartao ginasio-cartao--${esc(g.element)}${aberto ? '' : ' ginasio-cartao--fechado'}" data-acao="ginasio-abrir" data-id="${esc(id)}"${aberto ? '' : indisp(mot)}>` +
+    mapaImg('lugar-' + id, 'mapa-predio', 32, 32) + (vez ? mapaImg('icone-marcador', 'mapa-pino') : '') +
+    `<span class="mapa-placa${lado}"${dx ? ` style="--dx:${dx}"` : ''}><span class="ginasio-cartao-nome">${ginNomeCurto(g.name)}</span>${linhas}</span></button></li>`;
 }
-const ginasios = (cartoes) => `<section class="caixa" aria-label="Ginásios"><ul class="ginasios">${cartoes}</ul></section>`;
-// uma etapa da trilha (trilhaEtapaHtml): estado 'vencida' | 'proxima' | 'fechada' | 'revanche' | 'feita'
+// o mapa-múndi (mapaMundoHtml) com os cartões dados
+function ginasios(cartoes) {
+  const M = MAPA.mapa.mundo, L = M.lugares;
+  return `<section class="mapa-secao" aria-label="Ginásios"><div class="mapa mapa--mundo" style="--mw:${M.w};--mh:${M.h}"><img class="mapa-fundo" src="${MAPA.arte.mundo}" alt="">` +
+    `<div class="mapa-casa" style="${mapaPos(L.casa)}">${mapaImg('lugar-casa', 'mapa-predio', 32, 32)}<span class="mapa-placa">Seu estábulo</span></div>` +
+    `<ul class="ginasios">${cartoes}</ul>` +
+    `<div class="mapa-desconhecido" style="${mapaPos(L.desconhecido)}"><span class="mapa-placa">${mapaImg('icone-misterio', 'mapa-icone mapa-icone--24')}<b>Terras desconhecidas</b><span>Em breve</span></span></div></div></section>`;
+}
+// uma etapa no mapa do ginásio (trilhaEtapaHtml com o lugar): estado 'vencida' | 'proxima' | 'fechada' | 'revanche' | 'feita'
+const treinadorId = (nome) => String(nome).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 function etapa(id, i, estado) {
   const g = G.GYMS[id], e = g.etapas[i], rev = estado === 'revanche' || estado === 'feita', MOTIVO = 'Vença a etapa anterior';
-  const lv = e.cavalos.map((c) => c.level), nivel = 'Nível ' + Math.min(...lv) + (Math.max(...lv) > Math.min(...lv) ? ' a ' + Math.max(...lv) : '');
-  const entrada = rev ? G.GYM.revanche.entrada : e.entrada, p0 = G.GYM.revanche.ciclo[0];
-  const premioHoje = p0.ouro ? fmt(p0.ouro) + ' de Ouro' : itemQtdTxt(p0.item, 1);
-  const corpo = `<span class="etapa-rotulo">${e.lider ? 'Líder' : 'Soldado ' + (i + 1)}</span><span class="etapa-nome">${esc(e.nome)}</span>` +
+  const ns = e.cavalos.map((c) => c.level), lo = Math.min(...ns), hi = Math.max(...ns), nivel = 'Nível ' + lo + (hi > lo ? ' a ' + hi : '');
+  const entrada = rev ? G.GYM.revanche.entrada : e.entrada, p0 = GN.revanchePremio(0);
+  const premioHoje = p0.item ? itemQtdTxt(p0.item, 1) : fmt(p0.ouro || 0) + ' de Ouro';
+  const textos = `<span class="etapa-rotulo">${e.lider ? 'Líder' : 'Soldado ' + (i + 1)}</span><span class="etapa-nome">${esc(e.nome)}</span>` +
     `<span class="etapa-meta">${esc(ginCavalosTxt(e.cavalos.length) + ' · ' + nivel + ' · Entrada: ' + fmt(entrada) + ' de Ouro')}</span>` +
     `<span class="etapa-estado etapa-estado--${estado}">${{ vencida: 'Vencida', proxima: 'Próxima', fechada: 'Fechada', revanche: 'Revanche hoje', feita: 'Feita hoje' }[estado]}</span>` +
     (estado === 'fechada' ? `<span class="etapa-motivo">${MOTIVO}</span>` : '') +
     (estado === 'revanche' ? `<span class="etapa-motivo">${esc('Prêmio de hoje: ' + premioHoje)}</span>` : '') +
     (estado === 'feita' ? '<span class="etapa-motivo">Revanche de hoje feita. Volte amanhã.</span>' : '') +
     (e.lider && rev ? `<span class="etapa-insignia">${insigniaIcone(id)}</span>` : '');
+  const mg = MAPA.mapa.ginasios[id], pos = mg.etapas[i], tid = treinadorId(e.nome), pe = MAPA.pes[tid] > 0 ? MAPA.pes[tid] : 61;
+  const vez = estado === 'proxima' || estado === 'revanche', dx = Math.min(Math.max(pos[0], 41), mg.w - 41) - pos[0];
+  const corpo = `<img class="mapa-figura" src="${TREINADORES[tid]}" alt="">` + (vez ? mapaImg('icone-marcador', 'mapa-pino') : '') + (estado === 'vencida' ? mapaImg('icone-vencido', 'mapa-selo') : '') +
+    `<span class="mapa-placa"${dx ? ` style="--dx:${dx}"` : ''}>${estado === 'fechada' ? mapaImg('icone-cadeado', 'mapa-icone') : ''}${textos}</span>`;
   const caixa = estado === 'vencida' || estado === 'feita' ? `<div class="etapa-btn">${corpo}</div>`
-    : `<button type="button" class="etapa-btn" data-acao="ginasio-etapa" data-id="${i}"${estado === 'proxima' || estado === 'revanche' ? ' aria-current="step"' : indisp(MOTIVO)}>${corpo}</button>`;
-  return `<li class="etapa etapa--${estado}${e.lider ? ' etapa--lider' : ''}" data-etapa="${i}" data-estado="${estado}">${caixa}</li>`;
+    : `<button type="button" class="etapa-btn" data-acao="ginasio-etapa" data-id="${i}"${vez ? ' aria-current="step"' : indisp(MOTIVO)}>${corpo}</button>`;
+  return `<li class="etapa etapa--${estado}${e.lider ? ' etapa--lider' : ''}" data-etapa="${i}" data-estado="${estado}" style="${mapaPos([pos[0] - 32, pos[1] - pe])};--pe:${pe}">${caixa}</li>`;
 }
-const trilha = (itens) => `<section class="caixa" aria-label="Trilha"><ol class="trilha">${itens}</ol></section>`;
+// o mapa do ginásio (trilhaHtml) com as etapas dadas e a figura do jogador na entrada
+function trilha(id, itens) {
+  const mg = MAPA.mapa.ginasios[id];
+  return `<section class="mapa-secao" aria-label="Trilha"><div class="mapa mapa--ginasio mapa--${esc(id)}" style="--mw:${mg.w};--mh:${mg.h}"><img class="mapa-fundo" src="${MAPA.arte['ginasio-' + id]}" alt="">` +
+    `<ol class="trilha trilha--mapa">${itens}</ol>` +
+    `<img class="mapa-figura mapa-voce" src="${MAPA.arte.jogador}" alt="" style="left:calc(${mg.voce[0] - 32} * var(--u));top:calc(${mg.voce[1] - (MAPA.pes.jogador || 63)} * var(--u))"></div></section>`;
+}
 // uma linha do time no preparo (mountRowHtml com { acao: 'ginasio-time', fim, motivo, pressed, meta, lado }), contra um ginásio
 // do elemento contra: pos (1, 2, 3 ou 0 = fora do time), motivo (a linha apagada), nota (a frase escrita embaixo da linha)
 // (ativa: a montaria ativa, com a plaquinha "Ativa"; a posição "1º" passa pelo ordFix, como todo ordinal do jogo)
@@ -320,19 +351,18 @@ function secoes() {
   // os ginásios pelo elemento (a ordem da sequência, GYM_ORDER, é Capoeira, Remanso, Fornalha)
   const F = 'fogo', A = 'agua', C = 'grama'   // Fornalha, Remanso, Capoeira
   const nEt = G.GYMS[F].etapas.length, lider = nEt - 1
-  s.push(secao('4.21', 'Cartão de ginásio', 'Aba Expedição: .ginasio-cartao (um botão que abre a trilha) com o nome, o elemento, "N de 5 vencidos", a insígnia conquistada (.ginasio-insignia) e "Revanche hoje" (.ginasio-revanche, quando a revanche do líder está livre) ou "Revanche amanhã" (.ginasio-revanche-amanha, sem destaque).',
+  s.push(secao('4.21', 'Mapa-múndi', 'Aba Expedição: .mapa.mapa--mundo (a arte do PixelLab ao fundo) com um .ginasio-cartao por ginásio (um botão no lugar dele: a construção, a plaquinha com o nome curto e o progresso; o elemento, o nome da insígnia e o motivo ficam no texto). O ginásio da vez leva o marcador; o vencido, a insígnia e "Revanche hoje"; o fechado fica cinza, com o cadeado e aria-disabled (tocar mostra o motivo). No alto, a terra desconhecida das futuras atualizações.',
     estados([
-      ['nenhuma etapa vencida', ginasios(ginasioCartao(C, 0))],
-      ['no meio da trilha', ginasios(ginasioCartao(F, 2))],
-      ['com a insígnia e a revanche livre', ginasios(ginasioCartao(A, nEt, 'hoje'))],
-      ['com a insígnia, revanche de hoje feita', ginasios(ginasioCartao(A, nEt, 'amanha'))]
+      ['save novo: só a Capoeira aberta', ginasios(ginasioCartao(C, 0, null, true) + ginasioCartao(A, null) + ginasioCartao(F, null))],
+      ['no meio: Capoeira vencida com a revanche livre, Remanso em 2 de 5', ginasios(ginasioCartao(C, nEt, 'hoje') + ginasioCartao(A, 2, null, true) + ginasioCartao(F, null))],
+      ['tudo vencido (revanche de hoje feita na Capoeira)', ginasios(ginasioCartao(C, nEt, 'amanha') + ginasioCartao(A, nEt, 'hoje') + ginasioCartao(F, nEt, 'hoje'))]
     ])));
   const et = (id, est) => est.map((e, i) => etapa(id, i, e)).join('')
-  s.push(secao('4.22', 'Trilha', 'Subtela do ginásio: .trilha (o DOM vai da 1ª etapa ao líder; o CSS põe o líder no topo). Cada .etapa: vencida (só texto, filete verde), próxima (o único botão tocável, aria-current="step"), fechada (apagada, aria-disabled, com "Vença a etapa anterior" escrito); com a insígnia, o líder vira a revanche (botão, com o prêmio de hoje) ou "feita" (só texto).',
+  s.push(secao('4.22', 'Mapa do ginásio', 'Subtela do ginásio: .mapa.mapa--ginasio com a .trilha.trilha--mapa (o DOM vai da 1ª etapa ao líder). Cada .etapa é a figura do oponente no seu tablado com a plaquinha embaixo: vencida (o selo verde), próxima (o único botão tocável, aria-current="step", com o marcador), fechada (em silhueta, com o cadeado e o motivo escrito ao tocar). Com a insígnia, o líder vira a revanche. Na entrada, a figura do jogador, de costas.',
     estados([
-      ['no meio da trilha (2 vencidas)', trilha(et(F, ['vencida', 'vencida', 'proxima', 'fechada', 'fechada']))],
-      ['líder com a revanche livre', trilha(etapa(A, lider, 'revanche'))],
-      ['líder com a revanche de hoje feita', trilha(etapa(A, lider, 'feita'))]
+      ['no meio da trilha (2 vencidas)', trilha(F, et(F, ['vencida', 'vencida', 'proxima', 'fechada', 'fechada']))],
+      ['líder com a revanche livre', trilha(A, et(A, ['vencida', 'vencida', 'vencida', 'vencida', 'revanche']))],
+      ['líder com a revanche de hoje feita', trilha(A, et(A, ['vencida', 'vencida', 'vencida', 'vencida', 'feita']))]
     ])));
   const cheio = 'O time já tem 2 cavalos. Toque num deles para tirar.', sala = 'Está na sala aberta. Corra essa corrida primeiro.'
   s.push(secao('4.23', 'Linha do time', 'Preparo do desafio, "Seu time": a linha do Estábulo (.montaria-linha) dentro de .gin-time, com aria-pressed. A escolhida mostra a posição (.gin-pos, no lugar da seta) e o fundo com o filete dourado; a vantagem ou a desvantagem contra o elemento do ginásio é uma plaquinha escrita (.gin-vant); a apagada (aria-disabled) tem o motivo escrito embaixo.',
@@ -420,7 +450,8 @@ const ESTILO_FOLHA = `
 }
 `;
 
-export function htmlFolhaInterface({ estilo, pecas: lista }) {
+export function htmlFolhaInterface({ estilo, pecas: lista, mapa, treinadores }) {
+  MAPA = mapa; TREINADORES = treinadores || {};
   return `<!doctype html>
 <html lang="pt-BR">
 <head>

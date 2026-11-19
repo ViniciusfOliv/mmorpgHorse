@@ -2903,5 +2903,52 @@ test('os 15 oponentes dos ginásios têm a arte escolhida, 64×64 e sem fundo', 
   }
 });
 
+section('Mapa da Expedição (2026-11-18)');
+// a arte escolhida do mapa (mapa/escolhas.json, da pixellab-mapa.mjs --escolher) e os lugares marcados em cima dela
+// (mapa/mapa.json): o que o build embute em window.__MAPA (tools/arte-embutida.mjs, lerMapa)
+await testA('a arte do mapa da Expedição está escolhida, no tamanho certo, e os lugares caem dentro de cada mapa', async () => {
+  const G = createRequire(import.meta.url)('../src/data.js');
+  const dirM = path.join(DIR, 'mapa'), esc = JSON.parse(fs.readFileSync(path.join(dirM, 'escolhas.json'), 'utf8')), M = JSON.parse(fs.readFileSync(path.join(dirM, 'mapa.json'), 'utf8'));
+  const TAM = { mundo: [M.mundo.w, M.mundo.h], jogador: [64, 64] };
+  for (const id of G.GYM_ORDER) { TAM['ginasio-' + id] = [M.ginasios[id].w, M.ginasios[id].h]; TAM['lugar-' + id] = [32, 32]; }
+  for (const n of ['lugar-casa', 'icone-cadeado', 'icone-marcador', 'icone-vencido', 'icone-misterio']) TAM[n] = [32, 32];
+  assert.deepStrictEqual(Object.keys(esc).sort(), Object.keys(TAM).sort(), 'escolhas.json tem de ter exatamente as peças do mapa');
+  for (const [nome, [w, h]] of Object.entries(TAM)) {
+    const f = path.join(dirM, nome + '.png'), cand = path.join(dirM, 'candidatas', esc[nome] + '.png');
+    assert.ok(fs.existsSync(f) && fs.existsSync(cand), `${nome}: falta o PNG escolhido ou a candidata ${esc[nome]}`);
+    assert.ok(fs.readFileSync(f).equals(fs.readFileSync(cand)), `${nome}: o PNG não é a candidata anotada (${esc[nome]})`);
+    const d = decodePng(fs.readFileSync(f));
+    assert.ok(d.width === w && d.height === h, `${nome}: ${d.width}×${d.height}, esperado ${w}×${h}`);
+    // os mapas são cenas inteiras (sem transparência); as peças soltas têm o fundo transparente
+    const cantos = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]].map(([x, y]) => d.rgba[(y * w + x) * 4 + 3]);
+    if (nome === 'mundo' || nome.startsWith('ginasio-')) assert.ok(cantos.every((a) => a === 255), `${nome}: o mapa tem canto transparente`);
+    else assert.ok(cantos.every((a) => a === 0), `${nome}: a peça não tem o fundo transparente`);
+  }
+  // os lugares do mapa-múndi: um por ginásio, o estábulo e a terra desconhecida, com folga para a construção (32×32) caber
+  const L = M.mundo.lugares;
+  assert.deepStrictEqual(Object.keys(L).sort(), G.GYM_ORDER.concat(['casa', 'desconhecido']).sort());
+  for (const k of G.GYM_ORDER.concat(['casa'])) assert.ok(L[k][0] >= 16 && L[k][0] <= M.mundo.w - 16 && L[k][1] >= 32 && L[k][1] <= M.mundo.h, `mundo: ${k} em ${L[k]} não cabe`);
+  assert.ok(L.desconhecido[1] < Math.min(...G.GYM_ORDER.map((k) => L[k][1])) - 40, 'a terra desconhecida fica acima dos ginásios');
+  // a sequência sobe pelo mapa só na ordem dos ginásios? Não é regra; a regra é cada mapa de ginásio ter as cinco etapas
+  // de baixo para cima (o líder no alto), com a figura de 64×64 inteira dentro do mapa, e o jogador embaixo de todas
+  const { lerMapa } = await import('./arte-embutida.mjs');
+  const emb = await lerMapa(path.join(path.dirname(fileURLToPath(import.meta.url)), '..'));
+  assert.deepStrictEqual(Object.keys(emb.arte).sort(), Object.keys(TAM).sort(), 'o build tem de embutir todas as peças');
+  assert.strictEqual(emb.mapa.nota, undefined);
+  const slug = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  for (const id of G.GYM_ORDER) {
+    const g = M.ginasios[id], et = G.GYMS[id].etapas;
+    assert.strictEqual(g.etapas.length, et.length, `${id}: um ponto por etapa`);
+    g.etapas.forEach((p, i) => {
+      const pe = emb.pes[slug(et[i].nome)];
+      assert.ok(pe >= 50 && pe <= 63, `${id}: a figura de ${et[i].nome} sem a linha dos pés (${pe})`);
+      assert.ok(p[0] - 32 >= 0 && p[0] + 32 <= g.w && p[1] - pe >= 0 && p[1] <= g.h, `${id}: a figura da etapa ${i + 1} em ${p} sai do mapa`);
+      if (i) assert.ok(p[1] < g.etapas[i - 1][1], `${id}: a etapa ${i + 1} tem de ficar acima da ${i}`);
+    });
+    assert.ok(g.voce[1] > g.etapas[0][1] && g.voce[0] - 32 >= 0 && g.voce[0] + 32 <= g.w && g.voce[1] <= g.h, `${id}: o jogador em ${g.voce} não fica na entrada`);
+  }
+  assert.ok(emb.pes.jogador >= 50 && emb.pes.jogador <= 63);
+});
+
 console.log('\n' + count + ' testes, ' + fails + ' falhas');
 process.exit(fails ? 1 : 0);

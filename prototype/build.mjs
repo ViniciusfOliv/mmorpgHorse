@@ -72,12 +72,13 @@ const cssProd = baseCss + '\n' + blocos(cssFonte, 'src/game.css', true).trim()  
 // ---------------------------------------------------------------------------
 const avisos = []
 const MOLDES = await lerMoldes(ROOT, avisos)
+const TREINADORES = await lerTreinadores(ROOT), MAPA = await lerMapa(ROOT)   // também vão para a folha da interface
 const arteJs = [
   `window.__MOLDES = ${jsonJs(MOLDES)};`,
   `window.__ICONES = ${jsonJs(await lerIcones(ROOT))};`,
   `window.__MARCA = ${jsonJs(await lerMarca(ROOT))};`,
-  `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`,
-  `window.__MAPA = ${jsonJs(await lerMapa(ROOT))};`
+  `window.__TREINADORES = ${jsonJs(TREINADORES)};`,
+  `window.__MAPA = ${jsonJs(MAPA)};`
 ].join('\n')
 
 const arteTag = `<script>\n/* arte embutida (moldes, ícones, marca, oponentes dos ginásios, mapa da Expedição) */\n${arteJs}\n</script>`
@@ -137,7 +138,7 @@ await writeFile(join(ROOT, 'dist', 'moldes.js'), moldesJs)
     const { width, height, rgba } = pecaRgba(p, tokens)
     return { nome: p.nome, width, height, dataUrl: 'data:image/png;base64,' + encodePng({ width, height, rgba }).toString('base64') }
   })
-  await writeFile(join(ROOT, 'dist', 'interface.html'), htmlFolhaInterface({ estilo: cssProd, pecas: pecasFolha }))
+  await writeFile(join(ROOT, 'dist', 'interface.html'), htmlFolhaInterface({ estilo: cssProd, pecas: pecasFolha, mapa: MAPA, treinadores: TREINADORES }))
 }
 await writeFile(join(ROOT, 'dist', 'icones.html'), htmlFolhaIcones(await lerIcones(ROOT), ICONES_NOVOS, ANTIGOS))
 const kb = (s) => (Buffer.byteLength(s) / 1024).toFixed(1) + ' KB'
