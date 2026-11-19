@@ -125,7 +125,7 @@ usaria. Dados do aparelho:
 
 - O texto do navegador diz "Android 10; K", mas é o texto reduzido do Chrome: a versão real fica escondida.
 - 10 núcleos, 8 GB, tela de 120 Hz, 384×832 CSS com DPR 2,81 (1080×2340). É o perfil de um topo de linha recente
-  (talvez Galaxy S24 com Exynos 2400). **Modelo a confirmar.**
+  Confirmado pelo Vinicius: **Galaxy S24 FE** (Exynos 2400e).
 - Escala "jogo" nesse aparelho: 576×726 (S3). Ou seja, a redução para 3× já estava valendo.
 
 | Medida | Valor |
@@ -269,7 +269,69 @@ Os motivos:
 **Quando reabrir o Godot:** só se um aparelho-alvo ficar abaixo de 45 FPS no 1% low **até em escala 1×**, onde quase
 não há pixel para preencher. Isso mostraria que o limite é a WebView em si.
 
-## 8. Arquivos
+## 8. Além de web e Godot: outras opções, com jogos de referência
+
+_Pergunta do Vinicius (2026-11-19, depois de decidir que o jogo também vai para a Steam)._ Todas as alternativas
+abaixo, Godot incluído, exigem reescrever o cliente e portar o `sim.js`. Só a web roda o mesmo arquivo de regra no
+cliente e no servidor.
+
+| Caminho | Jogos de referência | Pontos fortes | Pontos contra (para nós) |
+|---|---|---|---|
+| **Web (hoje)** + Capacitor ou TWA no Android + **Electron** na Steam | **Vampire Survivors**: feito em Phaser (JS); a versão de PC continua em JavaScript. **CrossCode**: JS (motor derivado do impact.js), na Steam dentro do NW.js. | Medido: 120 FPS no pior caso no S24 FE. O mesmo `sim.js` no cliente e no servidor. Artefato para testar. Verificação automática que já existe. | A Steam leva um Chromium junto (instalação de ~150 a 250 MB). O overlay da Steam é instável no Electron fora do Windows. **Console não tem navegador.** |
+| **Defold** (Lua, motor da King, gratuito) | Jogos móveis de grande público, como Family Island | O mais leve de todos: APK de poucos MB, motor web de ~1 MB comprimido (caberia no artefato). Feito para celular; exporta para Steam e consoles. | Reescrever tudo em Lua, portar o `sim.js` para Lua com conferência bit a bit, e uma interface sem HTML/CSS. Comunidade menor. |
+| **LÖVE** (Lua) | **Balatro**: PC, consoles, e Android e iOS desde set. 2024 | Leve, simples, bom para 2D. | Celular e web dependem de ferramentas da comunidade; interface toda à mão; mesma reescrita. |
+| **GameMaker** | Undertale, Hyper Light Drifter, Pizza Tower | Feito para pixel art 2D. Exporta para celular, Steam e consoles. | Licença paga para exportar; linguagem própria (GML); difícil de verificar no contêiner. |
+| **MonoGame/FNA** (C#) ou **Heaps** (Haxe) | Stardew Valley e Celeste (XNA/FNA); Dead Cells e Northgard (Heaps) | Desempenho nativo, consoles, controle total. | É um *framework*, não um editor: muito código de base; o celular dá mais trabalho; a mesma reescrita. |
+| **Godot 4** | Brotato (Steam + celular), Halls of Torment, Dome Keeper | Ver seção 6. | Ver seção 6. |
+| **Unity** | **Umamusume** (corrida de cavalos, Cygames); Vampire Survivors **nos consoles** | Padrão da indústria para celular e console. | Descartada antes: pesada para 2D em pixel, licença, depende do editor. |
+
+**O que os jogos de referência ensinam:**
+
+1. **Vampire Survivors é o caso mais parecido com o nosso.** Um jogo em JavaScript (Phaser) que estourou na Steam.
+   Quando precisou de consoles, ganhou uma versão em Unity (agosto de 2023). Segundo a Xbox, o time mantém as duas, o
+   Unity nos consoles e o JavaScript no PC, e manter as duas iguais "é um desafio contínuo". Ou seja:
+   - **dá para lançar e crescer na web, inclusive na Steam**;
+   - a porta para console é uma reescrita que se faz **depois** do sucesso, e custa caro manter duas versões.
+2. **Balatro mostra que motor leve chega a todo lugar.** Mas ele nasceu nesse motor. Trocar agora seria reescrever, não
+   otimizar.
+3. **"Mais otimizado" não muda o que o jogador vê aqui.** No S24 FE a web já entrega 120 FPS, o teto da tela. Um motor
+   nativo ganharia em tamanho de instalação, em aparelho fraco e em console, não em visual.
+
+**Recomendação, com a Steam no escopo:** manter a web. Na Steam, ir de **Electron + steamworks.js**, o caminho mais
+usado por jogos em JS (o NW.js e a biblioteca Greenworks estão em manutenção mínima). O que mudaria a recomendação:
+
+- **Consoles entrarem no escopo:** aí vale planejar, depois do lançamento, uma versão nativa só do cliente (como fez
+  Vampire Survivors). Antes disso, o `sim.js` precisa de arquivos-gabarito para provar que a regra portada dá o mesmo
+  resultado. Candidatos: Defold, pela leveza e pelo celular, ou Godot.
+- **Android fraco reprovar até em escala 1×** (seção 7).
+
+**O que a Steam pede da base web** (entra no `docs/cronograma.md`):
+
+- tela em paisagem (16:9, 1920×1080), porque hoje o jogo é uma coluna de celular;
+- mouse, teclado e controle (Steam Deck);
+- overlay testado no Windows e no Deck;
+- compras de Gemas pela carteira da Steam, mantendo as mesmas regras (Gemas nunca viram Ouro);
+- build Electron assinado e com atualização automática.
+
+Fontes:
+
+- [PC Gamer: Vampire Survivors troca de motor](https://www.pcgamer.com/vampire-survivors-was-such-a-big-hit-its-getting-a-whole-new-engine)
+- [GamingOnLinux: troca para Unity em 17/08/2023](https://www.gamingonlinux.com/2023/07/vampire-survivors-switching-to-new-game-engine-on-august-17)
+- [Xbox Wire: Vampire Survivors refeito para o Xbox](https://news.xbox.com/en-us/?p=192177)
+- [Windows Central: idem](https://www.windowscentral.com/gaming/vampire-survivors-was-rebuilt-just-to-run-well-on-xbox-consoles)
+- [SteamDB: jogos em NW.js](https://steamdb.info/tech/SDK/NWJS)
+- [Notas de CrossCode no NW.js](https://dataswamp.org/~solene/2019-12-09-crosscode-instructions-playing.html)
+- [Defold: tamanho de build](https://github.com/defold/build-size)
+- [Defold: otimizar tamanho](https://defold.com/manuals/optimization-size)
+- [Fórum Defold: tamanho do build HTML5](https://forum.defold.com/t/typical-size-for-html5-build/78216)
+- [Engadget: Balatro no celular](https://www.engadget.com/gaming/balatro-is-an-almost-perfect-mobile-port-163050971.html)
+- [Shacknews: data do Balatro mobile](https://shacknews.com/article/141326/balatro-mobile-release-date-ios-android)
+- [steamworks.js (npm)](https://www.npmjs.com/package/steamworks.js)
+- [Issue do overlay no Electron](https://www.Github.com/ceifa/steamworks.js/issues/102)
+- [Drawize: lançar jogo HTML5 na Steam](https://www.drawize.com/blog/tech-how-to-release-html5-game-on-steam)
+- [Construct: overlay da Steam no WebView2](https://www.construct.net/en/forum/construct-3/how-do-i-8/steam-fallback-steam-overlay-186380)
+
+## 9. Arquivos
 
 - `prototype/spike/gerar-engine.mjs`: gera o `engine.html`.
 - `prototype/spike/engine.js`, `engine.css` e `engine.corpo.html`: a página.

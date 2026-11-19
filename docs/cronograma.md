@@ -78,8 +78,12 @@ desenvolvedor e o recrutamento dos 12 testadores podem começar já: são o que 
 ### Web
 - [ ] Hospedagem com HTTPS; testado em Chrome, Firefox, Safari (iOS) e Android.
 
-### Steam (se entrar no escopo)
+### Steam (no escopo desde 2026-11-19, decisão do Vinicius)
 - [ ] Página publicada cedo; declaração de IA do conteúdo que o jogador vê ou ouve; teste no Steam Deck.
+- [ ] Build desktop com Electron + steamworks.js (mesma base web; ver `docs/teste-engine.md` §8); overlay testado no
+      Windows e no Deck.
+- [ ] Interface em paisagem (16:9, 1920×1080) e controles por mouse, teclado e controle (Deck).
+- [ ] Compras de Gemas pela carteira da Steam, com as mesmas regras (Gemas nunca viram Ouro).
 
 ## O que o servidor precisa ter (achados do pente fino)
 O save local é editável e a seed fica nele: hoje dá para prever corrida, potro e melhoria pelo

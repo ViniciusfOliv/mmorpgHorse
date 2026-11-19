@@ -3,6 +3,14 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-19 — O jogo também vai para a Steam (decisão do Vinicius)
+- **Steam entra no escopo, junto com web e Google Play** — escolha do Vinicius. Caminho recomendado: a mesma base web
+  num build Electron + steamworks.js (é o que jogos em JS como Vampire Survivors e CrossCode fazem no PC). Comparação
+  com Defold, LÖVE, GameMaker, MonoGame/FNA, Heaps, Godot e Unity em `docs/teste-engine.md` §8: todos exigiriam
+  reescrever o cliente e portar o `sim.js`, e nenhum ganharia visual no aparelho medido. Se consoles entrarem no
+  escopo, planejar uma versão nativa só do cliente depois do lançamento, como Vampire Survivors fez com a Unity. O que
+  a Steam pede da base web (paisagem, controle, overlay, compras pela Steam) ficou no checklist do `docs/cronograma.md`.
+
 ## 2026-11-19 — Teste de engine: fica web (o Vinicius pode vetar)
 - **A base web continua: não migrar para Godot** — o pior caso do lançamento (12 cavalos com clima, partículas,
   explosões de skill, parallax, câmera com zoom e tremida) rodou no celular do Vinicius, na WebView do app do Claude, a

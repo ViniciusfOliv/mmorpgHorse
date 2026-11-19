@@ -364,6 +364,9 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   - **Falta:** uma rodada longa (Rodada livre de 60 s, limite 60 FPS, v3) no celular e a bateria num Android fraco antes
     do lançamento.
   - **No jogo, quando for a hora:** travar a corrida em 60 FPS com o acumulador do spike.
+  - Aparelho do Vinicius: Galaxy S24 FE. A rodada longa estava sendo feita por ele em 2026-11-19.
+  - **Steam no escopo (2026-11-19):** caminho Electron + steamworks.js sobre a mesma base web; comparação de motores
+    com jogos de referência no §8 do relatório; itens novos no checklist da Steam no `docs/cronograma.md`.
 - **Teste de interface em paralelo (feito em 2026-11-17, commit `b3dda3d`; na `main` desde o mesmo dia, por decisão do
   Vinicius):** o `check.sh` roda o `prototype/tools/ui-test-paralelo.mjs`, um processo por bloco (68 blocos na `main`, 4 por vez, e os 8
   com medição de tempo depois, um por vez; com os ginásios são 71 blocos, 9 deles em série). A verificação caiu de ~16 para ~8 min (hoje, com os ginásios, ~10 min). A meta de ~5 min não fechou: o que
