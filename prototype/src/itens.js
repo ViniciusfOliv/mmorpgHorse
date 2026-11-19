@@ -12,6 +12,12 @@
  *     2) só se aprendeu, a candidata (cands[floor(rng() · n)]). Sem sortear, devolve null se as vagas
  *     estão cheias ou se não há candidata.
  *   - O contador é o de usos sorteados do save: quem chama grava o contador novo junto com o resultado.
+ *   - pergaminhoPodio(seed, place): UMA chamada por lugar, rng = mulberry32(hash2(seed, SAL_PERGAMINHO + place)),
+ *     com a seed DA SALA (não a do save), só se place é 1, 2 ou 3 (senão devolve 0 sem sortear). Sai 1 se
+ *     rng() < GameData.ITEMS.pergaminho.podio[place − 1]. Quem chama só chama em corrida valendo, na liquidação.
+ *     SAL_PERGAMINHO = 0x50450000 ("PE"): com a seed da sala só se usam índice do corredor + 1, 0xC0FFEE (mapa),
+ *     0xD1CE (Dado), 0xA11CE (sala), 0xB1AC + lugar (Pedra Negra) e 0x4A4F0000 + raia (jóquei).
+ *   - subirRank e podeSubirRank não sorteiam (a subida de rank nunca falha).
  *   - Nenhuma outra função sorteia.
  * SAL: hash2(seedBase, x) já é usado com x = contador da sala (buildLobby), nº do páreo × 100 + nível
  *   (applyXp), 0xE4A0 + contador (melhoria) e 0xB0B0 / 0x4D410000 / 0x504F0000 + contador (cruza). Todos
@@ -44,6 +50,7 @@
     ? require('./sim.js') : root.RaceSim;
 
   var SAL = 0x49540000;
+  var SAL_PERGAMINHO = 0x50450000;
   var DIA_MAX = Math.floor(Date.UTC(9999, 11, 31) / 86400000);   // diaLocal(9999, 11, 31): o maior dia guardado
   var I = G.ITEMS, D = G.DAILY;
   // os que têm limite por dia (perDay), lidos do catálogo a cada uso (hoje: torrao, manual, cupom): item novo com perDay
@@ -76,10 +83,12 @@
     semCandidata: 'Não há skill nova que este cavalo possa aprender.',
     vagasCheias: 'As vagas de skill deste cavalo estão cheias.',
     semCavalo: 'Escolha um cavalo para usar este item.',
+    pergaminho: 'O Pergaminho de técnica é gasto ao subir o rank de uma skill, na aba Skills do cavalo.',
     outro: 'Este item não se usa por aqui.'
   };
   // ctx = { tem: quantos o jogador tem, ativaComSala: o cavalo é o ativo e há sala aberta }
   function podeUsar(id, mount, ctx) {
+    if (id === 'pergaminho') return { ok: false, motivo: MOTIVO.pergaminho };
     if (id !== 'torrao' && id !== 'estrela' && id !== 'cupom' && id !== 'manual') return { ok: false, motivo: MOTIVO.outro };
     if (!mount || typeof mount !== 'object') return { ok: false, motivo: MOTIVO.semCavalo };
     var c = ctx || {};
@@ -120,6 +129,16 @@
     if (rng() >= I.manual.chance) return { aprendeu: null, skills: skills.slice() };
     var id = cands[Math.floor(rng() * cands.length)];
     return { aprendeu: id, skills: skills.concat([id]) };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Pergaminho de técnica
+  // ---------------------------------------------------------------------------------------------
+  // Pergaminho do pódio de uma corrida valendo: 0 ou 1, pela seed da sala (um sorteio por lugar, independentes).
+  function pergaminhoPodio(seed, place) {
+    if (place !== 1 && place !== 2 && place !== 3) return 0;
+    var roll = S.mulberry32(S.hash2(seed >>> 0, SAL_PERGAMINHO + place))();
+    return roll < I.pergaminho.podio[place - 1] ? 1 : 0;
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -221,6 +240,8 @@
 
   var Itens = {
     SAL: SAL,
+    SAL_PERGAMINHO: SAL_PERGAMINHO,
+    pergaminhoPodio: pergaminhoPodio,
     DIA_MAX: DIA_MAX,
     diaLocal: diaLocal,
     podeUsar: podeUsar,

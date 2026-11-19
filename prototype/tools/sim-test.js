@@ -1721,10 +1721,10 @@ function learnSkillAntiga(mount, rng) {
 function contaRng(seed) { var r = S.mulberry32(seed), f = function () { f.n++; return r(); }; f.n = 0; return f; }
 function todasCandidatas(el) { return Object.keys(G.SKILLS).filter(function (id) { return G.SKILLS[id].element === 'geral' || G.SKILLS[id].element === el; }); }
 
-test('catálogo: 5 itens na ordem, preços, limites, chance, mochila e diária', function () {
+test('catálogo: 6 itens na ordem, preços, limites, chance, mochila e diária', function () {
   var I = G.ITEMS;
-  assert.deepStrictEqual(Object.keys(I), ['torrao', 'estrela', 'redea', 'cupom', 'manual']);
-  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].name; }), ['Torrão de açúcar', 'Estrela de treino', 'Rédea nova', 'Cupom de troca de skill', 'Manual de doma']);
+  assert.deepStrictEqual(Object.keys(I), ['torrao', 'estrela', 'redea', 'cupom', 'manual', 'pergaminho']);
+  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].name; }), ['Torrão de açúcar', 'Estrela de treino', 'Rédea nova', 'Cupom de troca de skill', 'Manual de doma', 'Pergaminho de técnica']);
   Object.keys(I).forEach(function (k) {
     assert.strictEqual(I[k].id, k);
     assert.ok(typeof I[k].desc === 'string' && I[k].desc.length > 10 && I[k].desc.indexOf('\n') < 0, k + ' desc');
@@ -1733,12 +1733,12 @@ test('catálogo: 5 itens na ordem, preços, limites, chance, mochila e diária',
     assert.ok(typeof I[k].name === 'string' && I[k].name.length > 3, k + ' name');
     assert.ok(typeof I[k].plural === 'string' && I[k].plural.length > 3 && I[k].plural !== I[k].name, k + ' plural');
   });
-  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].plural; }), ['Torrões de açúcar', 'Estrelas de treino', 'Rédeas novas', 'Cupons de troca de skill', 'Manuais de doma']);
+  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].plural; }), ['Torrões de açúcar', 'Estrelas de treino', 'Rédeas novas', 'Cupons de troca de skill', 'Manuais de doma', 'Pergaminhos de técnica']);
   // a ordem da loja é fixa no catálogo (Ruling 11, spec §6), não a do preço: só itens à venda, cada um uma vez
   assert.deepStrictEqual(G.SHOP_ORDER, ['torrao', 'manual', 'cupom', 'estrela']);
   G.SHOP_ORDER.forEach(function (k) { assert.ok(Object.prototype.hasOwnProperty.call(I, k) && I[k].price > 0, 'SHOP_ORDER: ' + k + ' sem preço'); });
   assert.deepStrictEqual(Object.keys(I).filter(function (k) { return I[k].price != null; }).sort(), G.SHOP_ORDER.slice().sort(), 'SHOP_ORDER tem todos os itens à venda');
-  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].price; }), [120, 2000, null, 250, 200]);
+  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].price; }), [120, 2000, null, 250, 200, undefined]);   // Rédea nova e Pergaminho de técnica: não se vendem
   assert.strictEqual(I.torrao.perDay, 2); assert.strictEqual(I.cupom.perDay, 1); assert.strictEqual(I.manual.perDay, 1);
   assert.strictEqual(I.torrao.cap, 10); assert.strictEqual(I.estrela.everyDays, 7); assert.strictEqual(I.manual.chance, 0.35);
   assert.strictEqual(G.BAG_MAX, 99);
@@ -2131,7 +2131,7 @@ test('Estrela de treino diz de onde vem, com os números do catálogo', function
 test('a origem de cada item cita os ginásios só quando algum ginásio dá o item (Ruling 28 dos ginásios)', function () {
   // a verdade sai do catálogo: o prêmio de alguma etapa de algum ginásio ou o rodízio da revanche do líder
   Object.keys(G.ITEMS).forEach(function (id) {
-    var daGin = G.GYM_ORDER.some(function (g) { return G.GYMS[g].etapas.some(function (e) { return e.premio.itens.indexOf(id) >= 0; }); }) ||
+    var daGin = G.GYM_ORDER.some(function (g) { return G.GYMS[g].etapas.some(function (e) { return e.premio.itens.indexOf(id) >= 0 || (id === 'pergaminho' && e.premio.pergaminhos > 0); }); }) ||
       G.GYM.revanche.ciclo.some(function (c) { return c.item === id; });
     assert.strictEqual(/ginásio/.test(G.ITEMS[id].origem), daGin, id + ': ' + G.ITEMS[id].origem);
   });
@@ -2139,6 +2139,69 @@ test('a origem de cada item cita os ginásios só quando algum ginásio dá o it
   G.DAILY.dias.forEach(function (d, i) {
     if (d.item) assert.ok(G.ITEMS[d.item].origem.indexOf((i + 1) + 'º dia') >= 0, d.item + ': ' + G.ITEMS[d.item].origem);
   });
+});
+
+test('Pergaminho de técnica: no catálogo sem preço nem limite de compra; a loja não lista nem vende', function () {
+  var P = G.ITEMS.pergaminho;
+  assert.deepStrictEqual({ id: P.id, name: P.name, plural: P.plural, cap: P.cap, podio: P.podio }, { id: 'pergaminho', name: 'Pergaminho de técnica', plural: 'Pergaminhos de técnica', cap: 99, podio: [0.5, 0.3, 0.15] });
+  assert.strictEqual(P.price, undefined); assert.strictEqual(P.perDay, undefined); assert.strictEqual(P.everyDays, undefined);
+  assert.ok(G.SHOP_ORDER.indexOf('pergaminho') < 0, 'fora da ordem da loja');
+  var loja = { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null };
+  assert.deepStrictEqual(IT.podeComprar('pergaminho', loja, 10, 999999, 999999, 0), { ok: false, motivo: 'nao-vende' });
+  assert.deepStrictEqual(IT.lojaDoDia(loja, 10).comprados, { torrao: 0, manual: 0, cupom: 0 }, 'não entra nos limites do dia');
+  assert.ok(/não está à venda/.test(P.origem) && /pódio/.test(P.origem) && !/Gema/i.test(P.desc + P.origem));
+});
+test('podeUsar(pergaminho) nunca usa pela mochila: diz que ele é gasto na aba Skills', function () {
+  [cavIt(), null].forEach(function (m) {
+    var r = IT.podeUsar('pergaminho', m, { tem: 5, ativaComSala: false });
+    assert.strictEqual(r.ok, false); assert.ok(/aba Skills/.test(r.motivo) && /rank/.test(r.motivo), r.motivo);
+  });
+});
+test('pergaminhoPodio é determinístico e dá ~50/30/15% em 20.000 seeds (±1,5 p.p.); 4º lugar em diante nunca ganha', function () {
+  var N = 20000, c = [0, 0, 0];
+  for (var s = 0; s < N; s++) {
+    var seed = S.hash2(4242, s);
+    for (var pl = 1; pl <= 3; pl++) {
+      var x = IT.pergaminhoPodio(seed, pl);
+      assert.ok(x === 0 || x === 1); assert.strictEqual(IT.pergaminhoPodio(seed, pl), x, 'mesma seed e lugar, mesmo resultado');
+      c[pl - 1] += x;
+    }
+    [0, 4, 5, 8, -1, 1.5, '1', null, undefined, NaN].forEach(function (pl2) { assert.strictEqual(IT.pergaminhoPodio(seed, pl2), 0, 'lugar ' + pl2); });
+  }
+  [0.5, 0.3, 0.15].forEach(function (p, i) { assert.ok(Math.abs(c[i] / N - p) < 0.015, (i + 1) + 'º: ' + (100 * c[i] / N).toFixed(1) + '%'); });
+  // um sorteio por lugar, independentes: há seeds em que o 3º ganha e o 1º não
+  var so3 = 0; for (s = 0; s < 2000; s++) if (IT.pergaminhoPodio(s, 3) && !IT.pergaminhoPodio(s, 1)) so3++;
+  assert.ok(so3 > 50, 'independentes: ' + so3);
+  // o sal não bate com os outros usos da seed da sala
+  assert.strictEqual(IT.SAL_PERGAMINHO, 0x50450000);
+  assert.notStrictEqual(IT.pergaminhoPodio(77, 1) + ':' + IT.pergaminhoPodio(78, 1) + ':' + IT.pergaminhoPodio(79, 1) + ':' + IT.pergaminhoPodio(80, 1) + ':' + IT.pergaminhoPodio(81, 1) + ':' + IT.pergaminhoPodio(82, 1), '');
+});
+test('ginásios dão Pergaminho: 1 nos soldados 2 e 4, 3 no líder, só na 1ª vitória; a revanche não dá e o rodízio não mudou', function () {
+  var GN = require('../src/ginasio.js');
+  G.GYM_ORDER.forEach(function (gid) {
+    assert.deepStrictEqual(G.GYMS[gid].etapas.map(function (e) { return e.premio.pergaminhos; }), [0, 1, 0, 1, 3], gid);
+  });
+  assert.deepStrictEqual(G.GYM.revanche.ciclo, [{ ouro: 100 }, { item: 'torrao' }, { ouro: 100 }, { item: 'manual' }, { ouro: 100 }, { item: 'cupom' }]);
+  function prog(etapa) { var p = GN.sanear(null, 10); p.fogo.etapa = etapa; return p; }
+  function venceu(n) { return { venceu: true, duelos: [{ a: 0, b: n - 1, vencedor: 'jogador' }] }; }
+  function perdeu() { return { venceu: false, duelos: [{ a: 0, b: 0, vencedor: 'adversario' }] }; }
+  var pg = [0, 1, 0, 1, 3];
+  for (var e = 0; e < 5; e++) {
+    var nAdv = G.GYMS.fogo.etapas[e].cavalos.length;
+    var ac = GN.acerto({ gymId: 'fogo', etapa: e, revanche: false, progresso: prog(e), resultado: venceu(nAdv), hoje: 10, timeLen: 1 });
+    assert.strictEqual(ac.pergaminhos, pg[e], 'etapa ' + e);
+    assert.strictEqual(GN.acerto({ gymId: 'fogo', etapa: e, revanche: false, progresso: prog(e), resultado: perdeu(), hoje: 10, timeLen: 1 }).pergaminhos, 0, 'derrota ' + e);
+  }
+  // líder já vencido: a revanche (vencida ou perdida) não dá Pergaminho
+  var rev = GN.acerto({ gymId: 'fogo', etapa: 4, revanche: true, progresso: prog(5), resultado: venceu(3), hoje: 10, timeLen: 1 });
+  assert.strictEqual(rev.pergaminhos, 0); assert.strictEqual(rev.ouro, 100);
+  // mochila sem espaço para os Pergaminhos do prêmio: o desafio não abre (como os outros itens)
+  var base = { gymId: 'fogo', etapa: 4, progresso: prog(4), hoje: 10, ouroLivre: 9999, timeLen: 1 };
+  assert.deepStrictEqual(GN.podeDesafiar(Object.assign({ cabe: function () { return true; } }, base)), { ok: true, revanche: false });
+  var pedidos = [];
+  assert.deepStrictEqual(GN.podeDesafiar(Object.assign({ cabe: function (id, n) { pedidos.push(id + ':' + n); return id !== 'pergaminho'; } }, base)), { ok: false, motivo: 'cheia' });
+  assert.ok(pedidos.indexOf('pergaminho:3') >= 0, pedidos.join());
+  assert.deepStrictEqual(GN.podeDesafiar(Object.assign({ cabe: function (id) { return id !== 'pergaminho'; } }, base, { etapa: 0, progresso: prog(0) })), { ok: true, revanche: false }, 'etapa sem Pergaminho não pergunta');
 });
 
 // =============================================================================================================
@@ -2252,7 +2315,7 @@ test('ginásio: catálogo (três ginásios, cinco etapas, times, elementos, base
     assert.deepStrictEqual(g.etapas.map(function (e) { return e.lider; }), [false, false, false, false, true]);
     assert.deepStrictEqual(g.etapas.map(function (e) { return e.entrada; }), [20, 30, 40, 50, 100]);
     assert.deepStrictEqual(g.etapas.map(function (e) { return e.premio; }), [
-      { ouro: 80, itens: [] }, { ouro: 120, itens: ['torrao'] }, { ouro: 160, itens: [] }, { ouro: 200, itens: ['manual'] }, { ouro: 400, itens: ['redea', 'cupom'] }]);
+      { ouro: 80, itens: [], pergaminhos: 0 }, { ouro: 120, itens: ['torrao'], pergaminhos: 1 }, { ouro: 160, itens: [], pergaminhos: 0 }, { ouro: 200, itens: ['manual'], pergaminhos: 1 }, { ouro: 400, itens: ['redea', 'cupom'], pergaminhos: 3 }]);
     g.etapas.forEach(function (e, i) {
       assert.ok(typeof e.id === 'string' && e.id.length, id + ' etapa ' + i + ' id');
       if (i < 4) assert.ok(e.nome.indexOf(patentes[i]) === 0, id + ' etapa ' + i + ': ' + e.nome);
@@ -2434,15 +2497,15 @@ test('ginásio: acerto — prêmio só na 1ª vitória, derrota só XP, XP por d
   var X = G.GYM.xp, P = G.GYMS.fogo.etapas;
   var p0 = congela(progNovo());
   var v = GY.acerto({ gymId: 'fogo', etapa: 0, revanche: false, progresso: p0, resultado: resMao([[0, 0, 1]], true), hoje: HOJE, timeLen: 1 });
-  assert.deepStrictEqual(v, { ouro: P[0].premio.ouro, itens: [], xp: [X.vence], progresso: progCom('fogo', { etapa: 1 }), insignia: false });
+  assert.deepStrictEqual(v, { ouro: P[0].premio.ouro, itens: [], pergaminhos: 0, xp: [X.vence], progresso: progCom('fogo', { etapa: 1 }), insignia: false });
   var de2 = GY.acerto({ gymId: 'fogo', etapa: 0, revanche: false, progresso: congela(progCom('fogo', { etapa: 1 })), resultado: resMao([[0, 0, 1]], true), hoje: HOJE, timeLen: 1 });
   assert.strictEqual(de2, null, 'etapa já vencida: nada (nem XP) — Ruling 7');
   var it = GY.acerto({ gymId: 'agua', etapa: 1, revanche: false, progresso: progCom('agua', { etapa: 1 }), resultado: resMao([[0, 0, 1]], true), hoje: HOJE, timeLen: 1 });
   assert.deepStrictEqual([it.ouro, it.itens, it.progresso.agua.etapa], [P[1].premio.ouro, ['torrao'], 2]);
   var perde = GY.acerto({ gymId: 'fogo', etapa: 2, revanche: false, progresso: progCom('fogo', { etapa: 2 }), resultado: resMao([[0, 0, 1], [0, 1, 0], [1, 1, 0]], false), hoje: HOJE, timeLen: 2 });
-  assert.deepStrictEqual(perde, { ouro: 0, itens: [], xp: [X.vence + X.perde, X.perde], progresso: progCom('fogo', { etapa: 2 }), insignia: false });
+  assert.deepStrictEqual(perde, { ouro: 0, itens: [], pergaminhos: 0, xp: [X.vence + X.perde, X.perde], progresso: progCom('fogo', { etapa: 2 }), insignia: false });
   var lider = GY.acerto({ gymId: 'grama', etapa: 4, revanche: false, progresso: progCom('grama', { etapa: 4 }), resultado: resMao([[0, 0, 1], [0, 1, 0], [1, 1, 1], [1, 2, 1]], true), hoje: HOJE, timeLen: 3 });
-  assert.deepStrictEqual(lider, { ouro: G.GYMS.grama.etapas[4].premio.ouro, itens: ['redea', 'cupom'], xp: [X.vence + X.perde, 2 * X.vence, 0], progresso: progCom('grama', { etapa: 5 }), insignia: true });
+  assert.deepStrictEqual(lider, { ouro: G.GYMS.grama.etapas[4].premio.ouro, itens: ['redea', 'cupom'], pergaminhos: 3, xp: [X.vence + X.perde, 2 * X.vence, 0], progresso: progCom('grama', { etapa: 5 }), insignia: true });
   var fechada = GY.acerto({ gymId: 'fogo', etapa: 3, revanche: false, progresso: progNovo(), resultado: resMao([[0, 0, 1], [0, 1, 1]], true), hoje: HOJE, timeLen: 2 });
   assert.strictEqual(fechada, null, 'etapa fechada: nada (nem XP) — Ruling 7');
   // hoje é obrigatório sempre (Ruling 7)

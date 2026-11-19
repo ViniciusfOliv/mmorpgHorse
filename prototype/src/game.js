@@ -573,7 +573,7 @@
   var SAVE_VERSION = 8;
   var AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.';
   var REDEAS_MAX = 999;
-  var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual
+  var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual, pergaminho
   // os itens à venda, na ordem fixa da loja (GameData.SHOP_ORDER, spec de itens §6: Torrão, Manual, Cupom, Estrela)
   var LOJA_ITENS = GD.SHOP_ORDER.filter(function (id) { return hasOwn(GD.ITEMS, id) && GD.ITEMS[id].price != null; });
   // os que têm limite por dia (perDay), tirados do catálogo (o itens.js lê os mesmos campos): torrao, manual, cupom
@@ -1718,7 +1718,7 @@
   function devForm() {
     if (!ui.dev.f) {
       ui.dev.f = {
-        pedras: null, redeas: null, 'mochila-torrao': null, 'mochila-estrela': null, 'mochila-cupom': null, 'mochila-manual': null,
+        pedras: null, redeas: null, 'mochila-torrao': null, 'mochila-estrela': null, 'mochila-cupom': null, 'mochila-manual': null, 'mochila-pergaminho': null,
         copiar: GD.STARTERS[0].id,
         slot: GR.SLOTS[0], conjunto: 'sol', rpeca: 'lendario', melhoria: '0', equipar: false,
         clima: '', piso: '', distancia: '', tracado: 'normal', blocos: '', vento: '', direcao: '1', seed: '', sempre: false
@@ -2739,6 +2739,7 @@
   function ginPremioTxt(id, e) {
     var partes = e.premio.ouro ? [fmt(e.premio.ouro) + ' de Ouro'] : [];
     e.premio.itens.forEach(function (it) { partes.push(itemQtdTxt(it, 1)); });
+    if (e.premio.pergaminhos) partes.push(itemQtdTxt('pergaminho', e.premio.pergaminhos));
     if (e.lider) partes.push('a ' + GD.GYMS[id].insignia.name);
     return ginJunta(partes);
   }
@@ -2922,6 +2923,8 @@
       case 'cheia': {
         var its = ginItensPremio(id, i, rev);
         for (var k = 0; k < its.length; k++) if (!diariaCabe(its[k], 1)) return ginCheiaTxt(its[k]);
+        var pgs = rev ? 0 : GD.GYMS[id].etapas[i].premio.pergaminhos;
+        if (pgs && !diariaCabe('pergaminho', pgs)) return 'A mochila não tem espaço para ' + itemQtdTxt('pergaminho', pgs) + ' (o máximo é ' + GD.BAG_MAX + '). Suba o rank de uma skill antes de desafiar.';
         return 'A mochila está cheia. Use um item antes de desafiar.';
       }
       case 'time-grande': return 'O time passou do limite: até ' + ginCavalosTxt(ginLimite(id, i)) + '.';
@@ -2996,6 +2999,7 @@
     var entrada = ginEntrada(gymId, etapa, c.revanche);   // a entrada cobrada: a mesma conta do número do botão, com o revanche do podeDesafiar
     state.gold = state.gold - entrada + ac.ouro;   // o prêmio do ginásio não leva o bônus de Ouro (só a corrida valendo)
     ac.itens.forEach(function (it) { if (it === 'redea') state.redeas += 1; else state.mochila[it] += 1; });
+    state.mochila.pergaminho = Math.min(GD.BAG_MAX, state.mochila.pergaminho + ac.pergaminhos);   // o podeDesafiar já conferiu que cabem
     var cavalos = uids.map(function (u, k) {
       var m = mountByUid(u), xp = xpComBonus(ac.xp[k]);
       var g = applyXp(m, xp, GIN_SEED_TAG + contador * 4 + k);
@@ -3007,7 +3011,7 @@
     if (gv === 'outra-aba') return 'outra-aba';
     if (gv === 'falhou') return FALHA_SALVAR;
     var prox = ac.progresso[gymId].etapa;
-    var R = { gymId: gymId, etapa: etapa, revanche: c.revanche, contador: contador, venceu: res.venceu, entrada: entrada, ouro: ac.ouro, itens: ac.itens,
+    var R = { gymId: gymId, etapa: etapa, revanche: c.revanche, contador: contador, venceu: res.venceu, entrada: entrada, ouro: ac.ouro, itens: ac.itens, pergaminhos: ac.pergaminhos,
       insignia: ac.insignia, proxima: res.venceu && !c.revanche && prox < ginEtapasTotal(gymId) ? prox : null, cavalos: cavalos,
       adversario: et.cavalos.map(function (d) { return GN.cavalo(d).name; }), duelos: res.duelos };
     if (ui.gym) ui.gym.res = R;
@@ -3028,7 +3032,8 @@
   function ginResumoHtml(R) {
     var g = GD.GYMS[R.gymId], e = g.etapas[R.etapa];
     var ouro = '<p>' + esc('Entrada: −' + fmt(R.entrada) + ' de Ouro') + '</p>' + (R.ouro ? '<p>' + esc('Prêmio: +' + fmt(R.ouro) + ' de Ouro') + '</p>' : '') +
-      (R.itens.length ? '<p>' + esc('Itens: ' + ginJunta(R.itens.map(function (it) { return itemQtdTxt(it, 1); }))) + '</p>' : '');
+      (R.itens.length || R.pergaminhos ? '<p>' + esc('Itens: ' + ginJunta(R.itens.map(function (it) { return itemQtdTxt(it, 1); })
+        .concat(R.pergaminhos ? [itemQtdTxt('pergaminho', R.pergaminhos)] : []))) + '</p>' : '');
     var cavalos = R.cavalos.map(function (c) {
       var partes = [c.correu ? c.nome + ': +' + c.xp + ' XP' : c.nome + ': não correu'];
       if (c.levels) partes.push('subiu ' + (c.levels === 1 ? '1 nível' : c.levels + ' níveis') + ' (Nível ' + c.nivel + ')');
@@ -4110,15 +4115,15 @@
     return '<section class="caixa item-lista" aria-label="Itens à venda">' + LOJA_ITENS.map(lojaProdutoHtml).join('') +
       itemLinhaHtml('redea', { qtd: itemQtd('redea'), forma: 'tem', classe: 'item-linha--fora', texto: GD.ITEMS.redea.origem }) + '</section>';
   }
-  // os cinco, na ordem do catálogo; com 0, a linha apagada diz de onde o item vem (sem "Usar"); o aviso do último uso
+  // todos os itens, na ordem do catálogo; com 0, a linha apagada diz de onde o item vem (sem "Usar"); o aviso do último uso
   // pela Mochila fica na linha do item
   function lojaMochilaHtml() {
     var msg = ui.itemMsg && ui.itemMsg.origem === 'mochila' ? ui.itemMsg : null;
     return '<section class="caixa item-lista" aria-label="Mochila">' + Object.keys(GD.ITEMS).map(function (id) {
-      var n = itemQtd(id);
-      var usar = n > 0 ? '<div class="item-compra item-compra--usar"><button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="' + esc(id) + '">Usar' +
+      var n = itemQtd(id), semUso = id === 'pergaminho';   // o Pergaminho é gasto ao subir rank, na aba Skills
+      var usar = n > 0 && !semUso ? '<div class="item-compra item-compra--usar"><button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="' + esc(id) + '">Usar' +
         '<span class="sr"> ' + esc(GD.ITEMS[id].name) + '</span></button></div>' : '';
-      return itemLinhaHtml(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? GD.ITEMS[id].origem : null, extra: usar,
+      return itemLinhaHtml(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? GD.ITEMS[id].origem : null, extra: usar + (n > 0 && semUso ? '<p class="nota item-nota-uso">Use em Subir rank, na aba Skills do cavalo.</p>' : ''),
         aviso: msg && msg.id === id ? msg.txt : null });
     }).join('') + '</section>';
   }
@@ -4711,6 +4716,11 @@
     // suspenso (GEAR_ON) não cai: o podiumStone (RNG própria, da seed da sala) nem é chamado; o resto não muda
     var stone = L.training || !GEAR_ON ? 0 : GR.podiumStone(L.seed, place, L.fee);
     state.pedras += stone;
+    // Pergaminho de técnica do pódio: só em corrida valendo (o treino nem chama o sorteio), pela seed da sala (RNG
+    // própria: não desloca nada), na mesma gravação do Ouro. Com a mochila no teto, não entra (pergCheia avisa).
+    var perg = L.training ? 0 : IT.pergaminhoPodio(L.seed, place), pergCheia = false;
+    if (perg && state.mochila.pergaminho + perg > GD.BAG_MAX) { perg = 0; pergCheia = true; }
+    state.mochila.pergaminho += perg;
     var gained = applyXp(activeMount(), xpGain, state.raceCounter);
     var levels = gained.levels, learned = gained.learned;
     state.races += 1;
@@ -4723,7 +4733,7 @@
 
     var hAfter = playerHorse();
     return {
-      place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone,
+      place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone, pergaminho: perg, pergCheia: pergCheia,
       xpGain: xpGain, levels: levels, learned: learned,
       before: before,
       after: { level: hAfter.level, xp: hAfter.xp, gold: state.gold, stats: RS.computeStats(hAfter),
@@ -5847,7 +5857,9 @@
       : par('Entrada', '−' + fmt(R.fee), 'menos-t') +
         par('Prêmio (' + R.place + 'º lugar)', R.prize ? '+' + fmt(R.prize) : '0', R.prize ? 'mais' : '') +
         par('Resultado', signed(net), net > 0 ? 'mais' : net < 0 ? 'menos-t' : '') +
-        (R.stone ? par('Pedra Negra', iconeHtml('pedra-negra', '🪨') + ' +1', 'mais') : '')) + '</dl>';
+        (R.stone ? par('Pedra Negra', iconeHtml('pedra-negra', '🪨') + ' +1', 'mais') : '') +
+        (R.pergaminho ? par(GD.ITEMS.pergaminho.name, itemIconeHtml('pergaminho') + ' +' + R.pergaminho, 'mais') : '') +
+        (R.pergCheia ? par(GD.ITEMS.pergaminho.name, 'Mochila cheia (' + GD.BAG_MAX + '): não coube') : '')) + '</dl>';
 
     var lvl = '';
     if (R.levels > 0) {

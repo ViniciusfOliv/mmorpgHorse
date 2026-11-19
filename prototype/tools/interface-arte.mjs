@@ -24,7 +24,7 @@ export const PECAS = [
     'vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv'], legenda: { w: '--madeira', v: '--madeira-2' } },
   { nome: 'ajuda', mapa: AJUDA, legenda: { k: '--sombra', T: '--texto-2' } },
   { nome: 'ajuda-ativa', mapa: AJUDA, legenda: { k: '--sombra', T: '--ouro' } },
-  // ícones dos cinco itens (spec de itens §13; o jogo mostra em 32px: .item-icone--<id> no game.css), 16x16 com
+  // ícones dos itens (spec de itens §13; o Pergaminho de técnica entrou em 2026-11-19; o jogo mostra em 32px: .item-icone--<id> no game.css), 16x16 com
   // contorno --sombra. Torrão: cubo de açúcar (topo claro, as faces em dois tons).
   { nome: 'item-torrao', mapa: [
     '................',
@@ -114,7 +114,26 @@ export const PECAS = [
     '.kBPPPPPPPPPPPk.',
     '.kkkkkkkkkkkkkk.',
     '................',
-    '................'], legenda: { k: '--sombra', B: '--madeira-2', R: '--seda-0', Y: '--ouro', P: '--texto' } }
+    '................'], legenda: { k: '--sombra', B: '--madeira-2', R: '--seda-0', Y: '--ouro', P: '--texto' } },
+  // Pergaminho de técnica: o rolo aberto, com as duas hastes, as linhas escritas e o lacre vermelho (feito por
+  // código; a arte do PixelLab fica para quando o Vinicius confirmar)
+  { nome: 'item-pergaminho', mapa: [
+    '................',
+    '..kkkkkkkkkkkk..',
+    '.kPPPPPPPPPPPPk.',
+    '.kDDDDDDDDDDDDk.',
+    '..kkkkkkkkkkkk..',
+    '...kPPPPPPPPk...',
+    '...kPmmmmmmPk...',
+    '...kPPPPPPPPk...',
+    '...kPmmmmPPPk...',
+    '...kPPPPPPPPk...',
+    '...kPmmmPRRPk...',
+    '...kPPPPRRRRk...',
+    '..kkkkkkRRRRkk..',
+    '.kPPPPPPPRRPPPk.',
+    '.kDDDDDDDDDDDDk.',
+    '..kkkkkkkkkkkk..'], legenda: { k: '--sombra', P: '--texto', D: '--texto-2', m: '--madeira-2', R: '--seda-0' } }
 ];
 
 // Tokens `--nome: #hex;` do primeiro bloco :root { … } (valor em #rrggbb minúsculo; o que não é hex fica de fora).

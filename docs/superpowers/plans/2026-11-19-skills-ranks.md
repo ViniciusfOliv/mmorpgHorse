@@ -168,12 +168,12 @@ código); testes em `sim-test.js` (seção `itens`).
 - Ginásio: soldado-2 e soldado-4 ganham `pergaminhos: 1` no prêmio; líder `pergaminhos: 3`, só na primeira vitória (como a
   Rédea); a revanche fica igual.
 
-- [ ] **Passo 1:** testes: `pergaminhoPodio é determinístico e dá ~50/30/15% em 20.000 seeds (±1,5 p.p.)`; `4º lugar nunca
+- [x] **Passo 1:** testes: `pergaminhoPodio é determinístico e dá ~50/30/15% em 20.000 seeds (±1,5 p.p.)`; `4º lugar nunca
   ganha`; `a loja não lista o pergaminho`; `podeUsar('pergaminho') diz que se usa na aba Skills`; `prêmio do líder dá 3 só na
   primeira vitória`.
-- [ ] **Passo 2:** falha. **Passo 3:** implementar; no `game.js`, o resultado da corrida valendo mostra "+1 Pergaminho" nos
+- [x] **Passo 2:** falha. **Passo 3:** implementar; no `game.js`, o resultado da corrida valendo mostra "+1 Pergaminho" nos
   prêmios quando cai. O treino nunca chama `pergaminhoPodio`. **Passo 4:** passa.
-- [ ] **Passo 5:** commit "adiciona o Pergaminho de técnica e as fontes".
+- [x] **Passo 5:** commit "adiciona o Pergaminho de técnica e as fontes".
 
 ### Tarefa 7: save v9, Cupom e Manual
 

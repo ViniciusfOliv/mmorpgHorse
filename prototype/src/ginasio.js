@@ -191,6 +191,9 @@
     for (var i = 0; i < itens.length; i++) {
       if (typeof e.cabe !== 'function' || !e.cabe(itens[i], 1)) return { ok: false, motivo: 'cheia' };
     }
+    // os Pergaminhos de técnica da 1ª vitória também têm de caber
+    var pergs = revanche ? 0 : (et.premio.pergaminhos || 0);
+    if (pergs > 0 && (typeof e.cabe !== 'function' || !e.cabe('pergaminho', pergs))) return { ok: false, motivo: 'cheia' };
     if (!inteiro(e.timeLen) || e.timeLen < 1) return { ok: false, motivo: 'sem-time' };
     if (e.timeLen > et.cavalos.length) return { ok: false, motivo: 'time-grande' };
     return { ok: true, revanche: revanche };
@@ -206,7 +209,7 @@
     return true;
   }
   // e = { gymId, etapa, revanche, progresso, resultado (do resolver), hoje (inteiro, sempre), timeLen (tamanho do
-  // time) } -> { ouro, itens: [ids], xp: [um por cavalo do time; 0 para quem não correu], progresso (os três
+  // time) } -> { ouro, itens: [ids], pergaminhos (Pergaminhos de técnica da 1ª vitória; 0 na revanche), xp: [um por cavalo do time; 0 para quem não correu], progresso (os três
   // ginásios, novo), insignia } | null. Sem o bônus das insígnias (quem soma aplica).
   // null (Ruling 7): hoje não inteiro; gymId, etapa, timeLen ou resultado malformados; fora da revanche, etapa que não
   // é a próxima não vencida (inclusive o líder já vencido); na revanche, sem o líder vencido, etapa que não é a 4 ou
@@ -229,7 +232,7 @@
     var X = G.GYM.xp, xp = [];
     for (var k = 0; k < e.timeLen; k++) xp.push(0);
     e.resultado.duelos.forEach(function (d) { xp[d.a] += d.vencedor === 'jogador' ? X.vence : X.perde; });
-    var venceu = e.resultado.venceu, ouro = 0, itens = [], insignia = false;
+    var venceu = e.resultado.venceu, ouro = 0, itens = [], insignia = false, pergaminhos = 0;
     if (revanche) {
       p.revDia = e.hoje;
       if (venceu) {
@@ -241,10 +244,11 @@
     } else if (venceu) {
       ouro = et.premio.ouro;
       itens = et.premio.itens.slice();
+      pergaminhos = et.premio.pergaminhos || 0;   // só na 1ª vitória (como a Rédea nova do líder); a revanche não dá
       p.etapa += 1;
       insignia = p.etapa === 5;
     }
-    return { ouro: ouro, itens: itens, xp: xp, progresso: prog, insignia: insignia };
+    return { ouro: ouro, itens: itens, pergaminhos: pergaminhos, xp: xp, progresso: prog, insignia: insignia };
   }
 
   // A soma dos bônus das insígnias conquistadas (etapa 5): { ouro, xp, skill }.

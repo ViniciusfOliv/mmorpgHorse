@@ -529,9 +529,17 @@
       id: 'manual', name: 'Manual de doma', plural: 'Manuais de doma', price: 200, perDay: 1, chance: 0.35,
       desc: 'O cavalo tenta aprender uma skill na hora; o manual é gasto mesmo se ele não aprender.',
       origem: 'Compre na loja, ganhe no 4º dia da recompensa diária ou nos ginásios.'
+    },
+    // Pergaminho de técnica: só se ganha jogando (nunca na loja: sem price; nunca por Gemas; nunca em treino).
+    //   cap: o teto na mochila; podio: chance de cair no 1º, 2º e 3º lugar de uma corrida valendo (Itens.pergaminhoPodio,
+    //   pela seed da sala). Não se usa pela mochila: é gasto, com Ouro, ao subir o rank de uma skill (SKILL_RANKS.custo).
+    pergaminho: {
+      id: 'pergaminho', name: 'Pergaminho de técnica', plural: 'Pergaminhos de técnica', cap: 99, podio: [0.5, 0.3, 0.15],
+      desc: 'Sobe o rank de uma skill do cavalo, junto com Ouro, na aba Skills.',
+      origem: 'Cai no pódio das corridas valendo e vem nos ginásios; não está à venda.'
     }
   };
-  // A ordem dos produtos na loja: fixa, a da spec §6 (não segue o preço); só itens com price. A mochila mostra os cinco
+  // A ordem dos produtos na loja: fixa, a da spec §6 (não segue o preço); só itens com price. A mochila mostra todos
   // na ordem das chaves de ITEMS.
   var SHOP_ORDER = ['torrao', 'manual', 'cupom', 'estrela'];
   // Teto da mochila por item (Torrão, Estrela, Cupom, Manual); a Rédea nova tem o teto dela no save (999).
@@ -578,13 +586,14 @@
     return { distance: at, surface: surface, blocks: blocks };
   }
   // As cinco etapas (mesmos níveis, entradas e prêmios nos três; spec §4).
+  // premio.pergaminhos: Pergaminhos de técnica a mais na 1ª vitória (a revanche não dá: o rodízio não muda).
   // rank: o rank de todas as skills de vaga dos cavalos da etapa (fixo, sem sorteio; a revanche usa o do líder).
   var GYM_ETAPAS = [
     { id: 'soldado-1', lider: false, level: 4, rank: 1, entrada: 20, premio: { ouro: 80, itens: [] } },
-    { id: 'soldado-2', lider: false, level: 8, rank: 1, entrada: 30, premio: { ouro: 120, itens: ['torrao'] } },
+    { id: 'soldado-2', lider: false, level: 8, rank: 1, entrada: 30, premio: { ouro: 120, itens: ['torrao'], pergaminhos: 1 } },
     { id: 'soldado-3', lider: false, level: 12, rank: 1, entrada: 40, premio: { ouro: 160, itens: [] } },
-    { id: 'soldado-4', lider: false, level: 16, rank: 2, entrada: 50, premio: { ouro: 200, itens: ['manual'] } },
-    { id: 'lider', lider: true, level: 20, rank: 2, entrada: 100, premio: { ouro: 400, itens: ['redea', 'cupom'] } }
+    { id: 'soldado-4', lider: false, level: 16, rank: 2, entrada: 50, premio: { ouro: 200, itens: ['manual'], pergaminhos: 1 } },
+    { id: 'lider', lider: true, level: 20, rank: 2, entrada: 100, premio: { ouro: 400, itens: ['redea', 'cupom'], pergaminhos: 3 } }
   ];
   // Os cavalos de todas as etapas têm a genética do inicial do elemento (base); graus: as estrelas de cada cavalo,
   // por etapa (o tamanho de cada lista é o tamanho do time).
@@ -595,7 +604,7 @@
         return {
           id: e.id, nome: e.lider ? lider : soldados[i], lider: e.lider,
           cavalos: graus[i].map(function (gr) { return { base: base, level: e.level, grau: gr, rank: e.rank }; }),
-          entrada: e.entrada, premio: { ouro: e.premio.ouro, itens: e.premio.itens.slice() }
+          entrada: e.entrada, premio: { ouro: e.premio.ouro, itens: e.premio.itens.slice(), pergaminhos: e.premio.pergaminhos || 0 }
         };
       }),
       insignia: { icone: 'ins-' + id, name: insignia }

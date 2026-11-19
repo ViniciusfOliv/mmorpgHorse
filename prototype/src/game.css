@@ -368,6 +368,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .item-icone--redea { background-image: var(--arte-item-redea); }
 .item-icone--cupom { background-image: var(--arte-item-cupom); }
 .item-icone--manual { background-image: var(--arte-item-manual); }
+.item-icone--pergaminho { background-image: var(--arte-item-pergaminho); }
 .item-nome { grid-column: 2; margin: 0; font-size: var(--t-m); line-height: 24px; overflow-wrap: anywhere; }
 .item-qtd { grid-column: 3; grid-row: 1; justify-self: end; font-weight: 700; line-height: 24px; white-space: nowrap; }
 .item-desc { grid-column: 2 / -1; margin: 0; font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }
