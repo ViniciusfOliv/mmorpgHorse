@@ -1320,7 +1320,7 @@ try {
         await pg.reload({ waitUntil: 'domcontentloaded' })
         await pg.waitForSelector('#t-estabulo')
         const b = await estadoDe(pg)
-        for (const k of ['mochila', 'diaria', 'lojaItens', 'itemCounter']) if (!igual(b[k], k === 'mochila' ? Object.assign({ pergaminho: 0 }, bom[k], { pergaminho: (bom[k] && bom[k].pergaminho) || 0 }) : bom[k])) problems.push(`${label}: ${k} bom mudou ${JSON.stringify(b[k])}`)
+        for (const k of ['mochila', 'diaria', 'lojaItens', 'itemCounter']) if (!igual(b[k], k === 'mochila' ? Object.assign({}, bom[k], { pergaminho: 0 }) : bom[k])) problems.push(`${label}: ${k} bom mudou ${JSON.stringify(b[k])}`)
         if (!igual(b.mounts.map((m) => m.torroes), [G.ITEMS.torrao.cap, 4])) problems.push(`${label}: torroes bons ` + JSON.stringify(b.mounts.map((m) => m.torroes)))
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
@@ -6318,22 +6318,22 @@ try {
       }
     }
 
-    // faixa do lugar: vitória (seed 3, jogador em 1º), pódio (seed 12, 3º; com o jogador na raia 2 a 360x640 a faixa vai
-    // para o pé) e Ruling 14 com o jogador na raia 1 (seed 102, 8º): a faixa não cruza o cavalo dele em nenhum quadro, a
+    // faixa do lugar: vitória (seed 3, jogador em 1º), pódio (seed 9, 3º; com o jogador na raia 2 a 360x640 a faixa vai
+    // para o pé) e Ruling 14 com o jogador na raia 1 (seed 249, 8º): a faixa não cruza o cavalo dele em nenhum quadro, a
     // 360x780 e a 360x640
-    if (quer('corrida-faixa-lugar')) for (const [seed, esperado, vp] of [[3, 'VITÓRIA!', { width: 360, height: 780 }], [12, '3º LUGAR', { width: 360, height: 640 }],
-      [102, '8º LUGAR', { width: 360, height: 780 }], [102, '8º LUGAR', { width: 360, height: 640 }]]) {
+    if (quer('corrida-faixa-lugar')) for (const [seed, esperado, vp] of [[3, 'VITÓRIA!', { width: 360, height: 780 }], [9, '3º LUGAR', { width: 360, height: 640 }],
+      [249, '8º LUGAR', { width: 360, height: 780 }], [249, '8º LUGAR', { width: 360, height: 640 }]]) {   // seeds de 2026-11-19 (sim 4.0.0): eram 12 e 102
       const label = `corrida-faixa-lugar-${seed}-${vp.width}x${vp.height}`
       const pg = await newPage(browser, vp, label, { query: '?dev=1' })
       try {
         await abreCorrida(pg, label, seed)
         const me = await pg.evaluate(() => window.__galope.ui.lobby.playerIdx)
-        if (seed === 102 && me !== 0) problems.push(`[${label}] a seed 102 pôs o jogador na raia ${me + 1} (o teste conta com a raia 1)`)
+        if (seed === 249 && me !== 0) problems.push(`[${label}] a seed 249 pôs o jogador na raia ${me + 1} (o teste conta com a raia 1)`)
         await vigiaLugar(pg)
         await pg.getByRole('button', { name: 'x2' }).click()
         const w = await confereLugar(pg, label, esperado)
         // com o jogador na raia 1, a faixa em cima cruzaria o cavalo dele: fica no pé da pista
-        if (seed === 102 && w.caixas.length && JSON.parse(w.caixas[0]).y < w.artH / 2) problems.push(`[${label}] Ruling 14: com o jogador na raia 1 a faixa do lugar ficou em cima (${w.caixas[0]})`)
+        if (seed === 249 && w.caixas.length && JSON.parse(w.caixas[0]).y < w.artH / 2) problems.push(`[${label}] Ruling 14: com o jogador na raia 1 a faixa do lugar ficou em cima (${w.caixas[0]})`)
         // em cima, logo abaixo da etiqueta "FOTO DE CHEGADA"; no pé, encostada na borda de baixo (sem Dado na chegada)
         const cx = w.caixas.length ? JSON.parse(w.caixas[0]) : null
         if (cx && (cx.y < w.artH / 2 ? cx.y !== w.hudH + 15 : cx.y + cx.h !== w.artH - 2)) problems.push(`[${label}] faixa do lugar fora das duas posições (${w.caixas[0]}; hudH ${w.hudH}, artH ${w.artH})`)

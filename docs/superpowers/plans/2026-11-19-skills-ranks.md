@@ -205,15 +205,15 @@ código); testes em `sim-test.js` (seção `itens`).
 - Balão na pista: `NOME` + rank em romano a partir do II; no rank 5, balão dourado e o destaque no `fx.js`.
 - Gaveta DEV, aba Cavalo: um seletor de 1 a 5 por skill (no lugar do "skills sempre ativam", que sai junto de `ui.devNext.skillsAlways`).
 
-- [ ] **Passo 1:** bloco `ranks` no `ui-test.mjs`: subir 1 → 2 desconta 150 de Ouro e 1 Pergaminho e o Poder sobe; sem
+- [x] **Passo 1:** bloco `ranks` no `ui-test.mjs`: subir 1 → 2 desconta 150 de Ouro e 1 Pergaminho e o Poder sobe; sem
   Pergaminho, o toque mostra o motivo; Ouro exato com a entrada da sala reservada mostra o motivo (Foco 3); com a sala aberta, o
   cavalo ativo fica bloqueado; uma corrida com Arranque III mostra o balão "ARRANQUE III"; rank 5 mostra o balão dourado; o
   seletor DEV muda o rank só no save DEV.
-- [ ] **Passo 2:** `UI_SO=ranks node prototype/tools/ui-test.mjs` → falha.
-- [ ] **Passo 3:** implementar, seguindo o visual das specs do estábulo no celular (2026-11-15) e da corrida viva; a tela
+- [x] **Passo 2:** `UI_SO=ranks node prototype/tools/ui-test.mjs` → falha.
+- [x] **Passo 3:** implementar, seguindo o visual das specs do estábulo no celular (2026-11-15) e da corrida viva; a tela
   cabe no celular de 360 px.
-- [ ] **Passo 4:** `UI_SO=ranks node prototype/tools/ui-test.mjs` passa; `node prototype/tools/ui-test-paralelo.mjs` passa inteiro.
-- [ ] **Passo 5:** commit "adiciona a subida de rank na aba Skills e o rank no balão".
+- [x] **Passo 4:** `UI_SO=ranks node prototype/tools/ui-test.mjs` passa; `node prototype/tools/ui-test-paralelo.mjs` passa inteiro.
+- [x] **Passo 5:** commit "adiciona a subida de rank na aba Skills e o rank no balão".
 
 ### Tarefa 9: documentos, build e verificação final
 
@@ -221,7 +221,7 @@ código); testes em `sim-test.js` (seção `itens`).
 tabela de chance; entram a escala, os marcos, o custo e o Pergaminho), comentário do topo de `sim.js`, `docs/memoria/*`,
 `prototype/dist/` e `prototype/screens/`.
 
-- [ ] **Passo 1:** atualizar GDD e wiki; `node prototype/tools/wiki.mjs` e `node prototype/tools/wiki-test.mjs` passam.
+- [x] **Passo 1:** atualizar GDD e wiki; `node prototype/tools/wiki.mjs` e `node prototype/tools/wiki-test.mjs` passam.
 - [ ] **Passo 2:** `node prototype/build.mjs`; `./scripts/check.sh` → "VERIFICAÇÃO COMPLETA: OK"; `node prototype/tools/balance.js`
   completo → todas as metas passam. Colar as duas saídas no relatório.
 - [ ] **Passo 3:** a interface mudou de propósito: rodar `node prototype/tools/ui-test.mjs` para regenerar as capturas e
