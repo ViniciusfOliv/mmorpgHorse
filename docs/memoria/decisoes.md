@@ -3,6 +3,20 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-19 — Arte final sempre pelo PixelLab; conversa de desenho sobre "o que o jogador faz" (Vinicius)
+- **Onde o PixelLab dá a melhor qualidade, a arte final sai dele** (o Vinicius, respondendo aos próximos passos: "3 -
+  correto, vamos ajustar isso com pixellab, se a qualidade melhor é o pixel lab, sempre faça por ele para finalizar.") —
+  o "3" pode ser o passo 3 da lista (a arte da corrida, hoje desenhada por código) ou a pergunta 3 (gastar até 150
+  gerações por rodada sem perguntar de novo). Leitura do controlador: valem os dois: a arte da corrida entra na fila do
+  PixelLab e o teto de 150 gerações por rodada fica como o limite sem nova pergunta (acima disso, perguntar). Dito a
+  ele para corrigir se não for isso. O `CLAUDE.md` §7 não mudou.
+- **A `main` continua sem o balanço e sem o mapa** — ele não respondeu à confirmação pedida duas vezes; o push para a
+  `main` foi barrado pelas permissões da sessão sem um "sim" com todas as letras.
+- **Em aberto, em conversa de desenho (nada decidido):** "o que o usuário tem para fazer?", ranks e recompensas com
+  limite diário ("algo parecido com clash royale? ainda estou em dúvida"). Restrição já apontada a ele: a corrida é
+  aposta de Ouro, então um limite diário não pode cortar o pote (só um bônus por cima), e nada que pague Ouro pode ser
+  acelerado por Gema.
+
 ## 2026-11-19 — Mapa da Expedição construído, com a arte toda do PixelLab (pedido do Vinicius)
 Spec: `docs/superpowers/specs/2026-11-18-mapa-expedicao-design.md` ("Notas da execução"). Assets: `assets.md`.
 - **A arte do mapa é toda do PixelLab, e o mapa-múndi tem uma região desconhecida para as futuras atualizações** (o
