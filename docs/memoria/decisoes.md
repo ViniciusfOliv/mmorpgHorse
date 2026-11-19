@@ -3,6 +3,15 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-19 — Teste de engine (critério proposto; decisão pendente do número do celular)
+- **A escolha web × Godot sai de uma medição no celular do Vinicius, com critério fixado antes** (o Vinicius decidiu
+  que a qualidade vem primeiro, e a coordenação pediu evidência) — spike em `prototype/spike/`, relatório em
+  `docs/teste-engine.md`. Proposta: fica web se o pior caso (12 cavalos, tudo ligado) fizer ≥ 55 FPS no 1% low na escala
+  do jogo ou em 3×; abaixo disso, mas acima em 1×, o próximo passo é um desenhador WebGL2 da pista, não o Godot. O Godot
+  só volta à mesa se nem 1× passar de 45 (gargalo na WebView). Motivo: no contêiner o JS cabe e o gargalo é o
+  preenchimento de pixels, que a web resolve barato; o Godot custaria 2 a 4 meses, o artefato como meio de teste e o
+  risco de a corrida do cliente divergir do `sim.js` do servidor. **A confirmar com o Vinicius.**
+
 ## 2026-11-18 — Integração da tela de desafio e do Recomeçar do DEV na `main` (decisão do Vinicius)
 - **Integrar na `main` e republicar o jogo e o DEV oficiais** ("sim, integra na main e republica") — por fast-forward;
   o código é o mesmo que passou na verificação completa (53e4ced; depois dele só mudou a memória); o wiki não mudou e

@@ -7629,6 +7629,11 @@ window.__ICONES = {"cl-chuva":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACA
       linhas.push('Por clima na fase 1: ' + Object.keys(p.porClima).map(function (k) { return k + ' ' + f1(p.porClima[k].fps) + ' (1% ' + f1(p.porClima[k].low) + ')'; }).join(' · '));
       var meta = Math.min(55, (r.hz || 60) - 5);
       linhas.push('Critério: 1% low da fase 1 >= ' + meta + ' FPS → ' + (p.low1 >= meta ? 'PASSA (' + f1(p.low1) + ')' : 'NÃO PASSA (' + f1(p.low1) + ')'));
+      r.fases.forEach(function (f) {
+        if (!f.st || f.cfg.n !== 12 || (f.cfg.escala !== '3x' && f.cfg.escala !== '1x')) return;
+        var lim = f.cfg.escala === '3x' ? meta : 45;
+        linhas.push('  ' + f.nome + ': 1% low ' + f1(f.st.low1) + (f.st.low1 >= lim ? ' (>= ' + lim + ')' : ' (abaixo de ' + lim + ')'));
+      });
     }
     return linhas.join('\n');
   }
