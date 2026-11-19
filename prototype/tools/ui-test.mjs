@@ -13866,17 +13866,21 @@ try {
 
   // ---------------- fluidez: o tempo das trocas de tela (tools/fluidez.mjs) ----------------
   // Mede as trocas da Expedição, do ginásio e das abas com a CPU 4× mais lenta (mediana de 3 rodadas) contra um teto
-  // folgado (2× a meta de 60 ms), para pegar regressão sem ficar instável. Mede tempo real: roda sozinho (EM_SERIE).
+  // por troca: perto de 2× o medido em 2026-11-19 (a máquina oscila até 1,3× de uma hora para a outra), para pegar
+  // regressão sem ficar instável — a aba Expedição levava 139–167 ms antes da melhoria (98–153 ms na 2ª vez).
+  // Mede tempo real: roda sozinho (EM_SERIE).
   // Confere também o que a melhoria adiou ou reaproveitou: os retratos dos selvagens (fora da primeira dobra) acabam
   // desenhados, e as <img> do mapa que voltam de uma tela para a outra ficam inteiras, sem marcador data-reuso sobrando.
   if (quer('fluidez')) {
     const label = 'fluidez'
-    const TETO_FLUIDEZ = 120
+    const TETO_FLUIDEZ = { expedicao: 120, ginasio: 120, preparo: 170, voltar: 90, estabulo: 90, correr: 110, expedicao2: 90 }
     try {
       const m = await medirFluidez(browser, BASE + 'jogo-dev.html', 3)
       notes.fluidez = { carga: m.carga, ...Object.fromEntries(Object.entries(m.trocas).map(([k, v]) => [k, v.quadro])) }
       for (const [nome, v] of Object.entries(m.trocas)) {
-        if (v.quadro > TETO_FLUIDEZ) problems.push(`${label}: a troca "${nome}" levou ${v.quadro} ms até o 2º quadro (teto ${TETO_FLUIDEZ} ms; mediana de 3, CPU 4× mais lenta)`)
+        const teto = TETO_FLUIDEZ[nome]
+        if (!(teto > 0)) problems.push(`${label}: a troca "${nome}" não tem teto (TETO_FLUIDEZ)`)
+        else if (v.quadro > teto) problems.push(`${label}: a troca "${nome}" levou ${v.quadro} ms até o 2º quadro (teto ${teto} ms; mediana de 3, CPU 4× mais lenta)`)
       }
       const pg = await newPage(browser, { width: 360, height: 780 }, label, { pagina: 'jogo-dev.html', deviceScaleFactor: 3 })
       try {

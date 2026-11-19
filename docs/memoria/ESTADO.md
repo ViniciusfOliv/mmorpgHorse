@@ -528,9 +528,11 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   incomoda nas imagens e mapas, e um teto de gerações do PixelLab por rodada.
 - **Fluidez das trocas de tela (feita em 2026-11-19, no branch da sessão; a tela final não muda).** Medição nova e
   repetível: `node prototype/tools/fluidez.mjs` (CPU 4× mais lenta, 360 × 780, dpr 3, mediana de 5 rodadas; do toque ao
-  2º quadro) e o bloco `fluidez` do teste de interface (teto de 120 ms, em série). Antes → depois, em ms: aba Expedição
-  139 → 59 (2ª vez 98 → 38); abrir o ginásio 60 → 56; preparo da etapa 85 → 81; voltar 35 → 31; Estábulo e Correr ~40
-  (sem ganho); carga 748 → 702. (Esses números não batem com os de cima porque a ferramenta mede dentro da página.)
+  2º quadro) e o bloco `fluidez` do teste de interface (teto por troca, de 90 a 170 ms, em série). Antes → depois, em
+  ms: aba Expedição 139 → 59 (2ª vez 98 → 38); abrir o ginásio 60 → 56; preparo da etapa 85 → 81; voltar 35 → 31;
+  Estábulo e Correr ~40 (sem ganho); carga 748 → 702. Numa segunda medição, com a máquina mais lenta: Expedição
+  167 → 66 (2ª vez 153 → 48), ginásio 93 → 66, preparo 96 → 102 (sem ganho), carga 948 → 813. Medir sempre um build de
+  cada vez: duas medições juntas dobram os números. (Não batem com os de cima porque a ferramenta mede dentro da página.)
   O que mudou em `game.js`: os retratos fora da tela são desenhados depois do 1º quadro (`adiaDesenho`); as `<img>` da
   arte do mapa voltam de uma tela para a outra em vez de nascerem de novo (`data-reuso`, `guardaImagens`/`poeImagens`);
   o `data:` da figura do jogador fica guardado por cor; o fundo da cena do desafio é pintado uma vez por ginásio.

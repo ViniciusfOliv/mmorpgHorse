@@ -29,7 +29,7 @@ const EM_SERIE = {
   'portes-corrida': 'ms por quadro com 8 Míticos de portes alternados contra o teto TETO_MS (6 ms)',
   'crescimento-jogo': 'abrir a sala custa < 15 ms em média (performance.now())',
   'fluxo-desempenho': 'desenho por quadro a 1280 com chuva e ventania: "Completas" − "Reduzidas" <= 6 ms',
-  fluidez: 'o tempo de cada troca de tela (do toque ao 2º quadro, performance.now(), CPU 4× mais lenta) contra o teto de 120 ms',
+  fluidez: 'o tempo de cada troca de tela (do toque ao 2º quadro, performance.now(), CPU 4× mais lenta) contra o teto de cada troca (90 a 170 ms)',
   'ginasio-corrida': 'três duelos assistidos sem tocar: o duelo em x2 mais curto que em x1 (segundos reais, performance.now()) e a faixa do lugar no fim de cada um'
 }
 
