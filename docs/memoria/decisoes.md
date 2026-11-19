@@ -3,6 +3,44 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-19 — Skills com 100% e ranks: o que o construtor decidiu (chat de implementação, `claude/skills-ranks`)
+Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/superpowers/plans/2026-11-19-skills-ranks.md`.
+- **Valores base do rank 1 (recalibração, só a parte de bônus; medição do `balance.js --skills`, 8.000 pares por skill)** —
+  Arranque ×1,108 de aceleração · Sprint ×1,04 · Drift +1,3% · Saída Rápida ×1,32 e ×1,045 · Fôlego de Montanha ×0,40 ·
+  Segundo Ar 10% e ×1,03 · Arrancada Final +10 p.p. e +2 p.p. · clima +0,04 (×1,03 → ×1,07) · Chama Final ×1,04 · Canto da
+  Iara ×1,04 e ×0,80 · Nascente 4,5% · Casco Firme +1,2% · Dado Viciado sem valor base (teto 60 a 100). O rank 1 das 14
+  skills fica de 4,7 a 10,4 p.p. (S1: 3 a 13). O Drift e o Arranque ficaram abaixo do de antes (12,7 e 12,4) de propósito:
+  com mais base, o rank 5 passava de 20 p.p.
+- **PENDENTE DO VINICIUS: três marcos não fecham a S5 (rank 5 de 1,4× a 2,2× o rank 1) só com a base** — Saída Rápida
+  2,46×, Arrancada Final 2,51× e Chama Final 2,30×, medidos em dois níveis de base cada. O marco de duração multiplica o
+  efeito inteiro (8 s contra 6 s; 12 s contra 9,5 s), e o ×1,02 até a chegada vale ~6,6 p.p. sozinho, quase o rank 1 da
+  skill. Com Saída Rápida 7 s, Chama Final 11 s e Arrancada Final ×1,01, as 58 metas das skills passam (2,08×, 2,07× e
+  2,06×). O código está com os marcos da spec (as três metas falham no `balance.js` completo) até ele escolher.
+- **O Dado Viciado continua isento do S1 e da razão do S5** (rank 1: 0,2 p.p.; rank 5: 1,4 p.p.) — o dado extra só mexe
+  na virada do clima; os tetos (20 p.p. e 2× a mediana) valem para ele. A spec pedia recalibrar "inclusive o Dado
+  Viciado", mas não há valor base que o leve a 3 p.p. Se errado: o dado extra precisa de outro efeito (regra nova).
+- **Marco das skills de clima: nos 15 s depois de o clima mudar, o cavalo segura o multiplicador reforçado inteiro
+  (×1,03 + reforço), como se o clima ainda fosse o dele** — a spec dizia "o reforço continua"; só a parte do reforço em
+  cima de um clima contrário quase não se sentiria. Se o clima voltar a ser o dele, o prazo acaba.
+- **Os oponentes dos ginásios não têm skill de vaga (as bases são os iniciais), então o "rank fixo por etapa" fica
+  gravado (`rank` 1, 1, 1, 2, 2) e sem efeito hoje** — vale quando algum oponente ganhar skill.
+- **A skill que um dos pais tem, mas que o potro só ganhou no sorteio para completar o mínimo, nasce no rank 1** — é a
+  letra da spec (herdada = rank do pai − 1; sorteada = 1).
+- **Pergaminho do pódio com a mochila em 99 não entra (o resultado diz "Mochila cheia"); nos ginásios o desafio não abre
+  sem espaço, como os outros itens** — o pódio não tem como esperar. O sal do sorteio é `0x50450000 + lugar`, com a seed da sala.
+- **O bônus de 3 peças do conjunto virou `setBonus.skillEffect` 0,05 (o fator do rank × 1,05, `entry.skillScale`)** — como
+  a spec manda; segue suspenso com o equipamento.
+- **O teste do plano que esperava `hillDrainMult × 0,7` no Fôlego de Montanha estava trocado** (o ×0,7 é o marco do Casco
+  Firme) — os testes seguem a tabela de marcos da spec.
+- **Na tela:** "Ativa sempre: …" no lugar de "Quando: …"; a ficha diz "2 de 3 vagas · rank III, I"; o resultado diz
+  "skills rank II" (o rank médio, o mesmo dos bots) no lugar da chance; o balão e a faixa do jogador trazem o rank em
+  romano a partir do II e ficam dourados no V. O "skills sempre ativam" do DEV saiu; entrou o rank por skill.
+- **`balance.js`: S1, S5 e S6 saem de uma medição própria (`rank`, 8.000 pares; `--skills [N]` roda só ela em ~2 min e
+  `--skilltune` troca valores para ajuste)**; a seção 10 passou a conferir que a skill ativa em 100% das corridas.
+- **Teste de interface:** seeds fixas trocadas onde o desfecho mudou com a simulação 4.0.0 (resultado: 74 e 9; faixa do
+  lugar: 9 e 249); o teto de `fillRect` por quadro foi de 4.500 para 4.700 (mediu 4.523) e a altura de referência da aba
+  Skills de 1.426 para 1.551 px (a interface mudou de propósito).
+
 ## 2026-11-19 — Qualidade primeiro, teste de engine e skills com 100% (decisões do Vinicius)
 - **A qualidade vem sempre primeiro: se Godot (ou Unity) for melhor em visual, FPS e jogabilidade, migramos** — pedido
   do Vinicius. Unity foi descartada na análise (pesada para 2D pixel art, licença, depende do editor, não dá para
