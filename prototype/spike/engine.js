@@ -11,7 +11,7 @@
 (function () {
   'use strict';
   var SP = window.Sprites, FX = window.RaceFx, GD = window.GameData;
-  var VERSAO = 'spike-engine v1 (2026-11-19)';
+  var VERSAO = 'spike-engine v2 (2026-11-19)';
   function el(id) { return document.getElementById(id); }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function hsh(i, s) { var x = Math.sin(i * 127.1 + (s || 0) * 311.7) * 43758.5453; return x - Math.floor(x); }
@@ -28,7 +28,7 @@
   // Configuração (o que os botões mudam)
   // ===================================================================
   var CAMADAS = ['cenario', 'parallax', 'clima', 'poeira', 'skills', 'camera', 'hud'];
-  var CFG = { n: 12, escala: 'jogo', clima: 'ciclo', camadas: {} };
+  var CFG = { n: 12, escala: 'jogo', clima: 'ciclo', limite: 'livre', camadas: {} };   // limite '60': desenha no máximo a 60 FPS
   CAMADAS.forEach(function (c) { CFG.camadas[c] = true; });
   var CANVAS_MAX_PX = 1500000;   // o mesmo teto do game.js
 
@@ -275,7 +275,7 @@
   // ===================================================================
   // Estado da corrida, câmera
   // ===================================================================
-  var R = { T: 0, gal: new Float32Array(20) };
+  var R = { T: 0, gal: new Float32Array(20) }, ULT_SEC = null, SECS = ['cen', 'cav', 'efe', 'cam', 'hud'];
   var CAM = { tremida: 0 };
   var ORD = { html: '', t: -1e9, vizT: -1e9 };
   function climaEm(T) { return CFG.clima === 'ciclo' ? ['sol', 'chuva', 'nevoa'][Math.floor(T / 2) % 3] : CFG.clima; }
@@ -296,6 +296,8 @@
     function arcoArt(m) { return Math.round(-FX.curveOffsetTela(CURVAS, m, camTela) * L.arcoK) || 0; }
     if (C.skills) geraOndas(T);
     var ctx = C.camera ? ctxMundo : ctxTela;
+    var tp = performance.now(), SEC = { cen: 0, cav: 0, efe: 0, cam: 0, hud: 0 };
+    function marca(k) { var a = performance.now(); SEC[k] += a - tp; tp = a; }
 
     // ---- cenário (Sprites.drawTrack: céu, serras, arquibancada, cerca, raias, placas)
     if (C.cenario) {
@@ -316,6 +318,7 @@
       lift: function (px) { var m = cam + px / ppm; return (SP.hillLiftAt(m, MORROS, L.maxLift) + arcoArt(m)) * S; } };
     if (C.clima) FX.drawNature(ctx, natO);
 
+    marca('cen');
     // ---- cavalos (o mesmo passo a passo do game.js)
     var vis = [];
     for (j = 0; j < n; j++) {
@@ -357,6 +360,7 @@
       }
       vis.push({ j: j, x: x, y: y, an: an, caixa: caixa, meus: meus, feetY: feetY });
     }
+    marca('cav');
     if (C.skills || C.poeira) { atualizaParticulas(dt); desenhaParticulas(ctx, camArt); }
     // balões (fx.js) à frente do focinho, dentro da raia
     if (C.skills) vis.forEach(function (v) {
@@ -377,6 +381,7 @@
       SP.drawText(ctx, '◀VOCÊ', (Math.min(yx, L.artW - 30) + 2) * S, (yy + 3) * S, { scale: S, color: '#f2c230' });
     }
 
+    marca('efe');
     // ---- câmera: o mundo vai para a tela com zoom em volta do jogador e tremida das explosões
     if (C.camera) {
       var z = 1 + 0.14 * (0.5 - 0.5 * Math.cos(T * Math.PI * 2 / 8));
@@ -387,7 +392,10 @@
       var sx = clamp(fx - fx / z + tx * S, 0, W - sw), sy = clamp(fy - fy / z + ty * S, 0, H - sh);
       ctxTela.drawImage(mundo, sx, sy, sw, sh, 0, 0, W, H);
     }
+    marca('cam');
     if (C.hud) { desenhaHud(ctxTela, pos, vel, T, clima); atualizaOrdem(pos, vel); }
+    marca('hud');
+    ULT_SEC = SEC;
     var natu = FX._stats.natureza || {};
     return P.n + (FX._stats.particulas || 0) + (natu.pingos || 0) + (natu.respingos || 0) + (natu.folhas || 0) + (natu.poeiraCascos || 0);
   }
@@ -444,7 +452,7 @@
   // ===================================================================
   var JAN = [];   // intervalos do último segundo (medidor ao vivo)
   var GRAV = null;   // gravação da fase/rodada em curso
-  function novaGravacao(nome) { return { nome: nome, cfg: copiaCfg(), res: '', inter: [], js: [], part: [], cham: [], porClima: {}, oculto: false }; }
+  function novaGravacao(nome) { return { nome: nome, cfg: copiaCfg(), res: '', inter: [], js: [], part: [], cham: [], porClima: {}, oculto: false, sec: { cen: [], cav: [], efe: [], cam: [], hud: [] } }; }
   function copiaCfg() { var c = JSON.parse(JSON.stringify(CFG)); return c; }
   function stats(g) {
     var iv = g.inter.slice().sort(function (a, b) { return a - b; }), n = iv.length;
@@ -461,7 +469,10 @@
     return {
       quadros: n, fps: 1000 / (soma / n), low1: 1000 / pior, msMed: soma / n, msP99: iv[Math.min(n - 1, Math.floor(n * 0.99))],
       lentos: iv.filter(function (v) { return v > 20; }).length, jsMed: med(js), jsP95: js[Math.min(js.length - 1, Math.floor(js.length * 0.95))] || 0,
-      part: Math.round(med(g.part)), cham: Math.round(med(g.cham)), porClima: porClima
+      part: Math.round(med(g.part)), cham: Math.round(med(g.cham)), porClima: porClima,
+      sec: SECS.map(function (k) { var v = g.sec[k].slice().sort(function (a, b) { return a - b; }); return { k: k, med: med(v), p95: v[Math.min(v.length - 1, Math.floor(v.length * 0.95))] || 0, max: v[v.length - 1] || 0 }; }),
+      // quadros lentos: a parte do JS que mais pesou em cada um (o JS daquele quadro passou de 12 ms)
+      culpa: (function () { var c = {}; g.js.forEach(function (ms, i) { if (ms <= 12) return; var pior = null; SECS.forEach(function (k) { if (!pior || g.sec[k][i] > g.sec[pior][i]) pior = k; }); c[pior] = (c[pior] || 0) + 1; }); return c; }())
     };
   }
   var HZ = null;
@@ -471,6 +482,7 @@
     if (GRAV && R.T > 0.5) {
       if (document.hidden) GRAV.oculto = true;
       GRAV.inter.push(dtMs); GRAV.js.push(jsMs); GRAV.part.push(part); GRAV.cham.push(CHAM.n);
+      if (ULT_SEC) SECS.forEach(function (k) { GRAV.sec[k].push(ULT_SEC[k]); });
       var cl = climaEm(R.T); (GRAV.porClima[cl] = GRAV.porClima[cl] || []).push(dtMs);
     }
   }
@@ -500,9 +512,12 @@
   function laco(agora) {
     window.requestAnimationFrame(laco);
     if (ultimo == null) { ultimo = agora; return; }
-    var dtMs = agora - ultimo; ultimo = agora;
+    var dtMs = agora - ultimo;
+    if (calibrando) { ultimo = agora; if (dtMs <= 250) calibrando.push(dtMs); return; }
+    // travado em 60: pula a batida da tela que vem cedo demais (numa tela de 120 Hz, desenha uma sim, uma não)
+    if (CFG.limite === '60' && dtMs < 13) return;
+    ultimo = agora;
     if (dtMs > 250) return;   // aba escondida ou pausa longa
-    if (calibrando) { calibrando.push(dtMs); return; }
     var t0 = performance.now();
     CHAM.n = 0;
     FX.beginFrame();
@@ -532,23 +547,25 @@
   var TUDO = {}; CAMADAS.forEach(function (c) { TUDO[c] = true; });
   function sem(lista) { var o = {}; CAMADAS.forEach(function (c) { o[c] = lista.indexOf(c) < 0; }); return o; }
   var FASES = [
-    { nome: 'PIOR CASO: 12 cavalos, escala jogo, tudo ligado', n: 12, escala: 'jogo', camadas: TUDO, s: 12 },
-    { nome: '12, escala nativo, tudo', n: 12, escala: 'nativo', camadas: TUDO, s: 6 },
-    { nome: '12, jogo, sem clima/poeira/skills', n: 12, escala: 'jogo', camadas: sem(['clima', 'poeira', 'skills']), s: 6 },
-    { nome: '12, jogo, sem câmera (sem zoom)', n: 12, escala: 'jogo', camadas: sem(['camera']), s: 6 },
-    { nome: '12, jogo, sem parallax extra', n: 12, escala: 'jogo', camadas: sem(['parallax']), s: 6 },
-    { nome: '12, jogo, sem cenário (drawTrack)', n: 12, escala: 'jogo', camadas: sem(['cenario']), s: 6 },
-    { nome: '12, escala 3x, tudo', n: 12, escala: '3x', camadas: TUDO, s: 6 },
-    { nome: '12, escala 2x, tudo', n: 12, escala: '2x', camadas: TUDO, s: 6 },
-    { nome: '12, escala 1x, tudo', n: 12, escala: '1x', camadas: TUDO, s: 6 },
-    { nome: '20 cavalos, jogo, tudo', n: 20, escala: 'jogo', camadas: TUDO, s: 6 },
-    { nome: '6 cavalos, jogo, tudo', n: 6, escala: 'jogo', camadas: TUDO, s: 6 }
+    { nome: 'PIOR CASO: 12 cavalos, escala jogo, tudo ligado', n: 12, escala: 'jogo', camadas: TUDO, limite: 'livre', s: 12 },
+    { nome: 'PIOR CASO travado em 60 FPS', n: 12, escala: 'jogo', camadas: TUDO, limite: '60', s: 10 },
+    { nome: '12, escala nativo, tudo', n: 12, escala: 'nativo', camadas: TUDO, limite: 'livre', s: 6 },
+    { nome: '12, jogo, sem clima/poeira/skills', n: 12, escala: 'jogo', camadas: sem(['clima', 'poeira', 'skills']), limite: 'livre', s: 6 },
+    { nome: '12, jogo, sem câmera (sem zoom)', n: 12, escala: 'jogo', camadas: sem(['camera']), limite: 'livre', s: 6 },
+    { nome: '12, jogo, sem parallax extra', n: 12, escala: 'jogo', camadas: sem(['parallax']), limite: 'livre', s: 6 },
+    { nome: '12, jogo, sem cenário (drawTrack)', n: 12, escala: 'jogo', camadas: sem(['cenario']), limite: 'livre', s: 6 },
+    { nome: '12, escala 3x, tudo', n: 12, escala: '3x', camadas: TUDO, limite: 'livre', s: 6 },
+    { nome: '12, escala 2x, tudo', n: 12, escala: '2x', camadas: TUDO, limite: 'livre', s: 6 },
+    { nome: '12, escala 1x, tudo', n: 12, escala: '1x', camadas: TUDO, limite: 'livre', s: 6 },
+    { nome: '20 cavalos, jogo, tudo', n: 20, escala: 'jogo', camadas: TUDO, limite: 'livre', s: 6 },
+    { nome: '6 cavalos, jogo, tudo', n: 6, escala: 'jogo', camadas: TUDO, limite: 'livre', s: 6 }
   ];
   var RODADA = null;
   function aplicar(c) {
     if (c.n) CFG.n = c.n;
     if (c.escala) CFG.escala = c.escala;
     if (c.clima) CFG.clima = c.clima;
+    if (c.limite) CFG.limite = c.limite;
     if (c.camadas) CAMADAS.forEach(function (k) { if (k in c.camadas) CFG.camadas[k] = !!c.camadas[k]; });
     montar(); reinicia(); marcaBotoes();
   }
@@ -563,7 +580,7 @@
           i++;
           if (i >= fases.length) { GRAV = null; RODADA = null; return ok(res); }
           var f = fases[i];
-          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas });
+          aplicar({ n: f.n || CFG.n, escala: f.escala || CFG.escala, clima: f.clima || CFG.clima, camadas: f.camadas || CFG.camadas, limite: f.limite || CFG.limite });
           GRAV = novaGravacao(f.nome); GRAV.res = L.W + '×' + L.H + ' (S' + L.S + ')';
           var restante = f.s * 1000 * fator + 500;
           el('estado').textContent = titulo + ': fase ' + (i + 1) + ' de ' + fases.length + ' — ' + f.nome;
@@ -595,6 +612,7 @@
     var a = r.aparelho, linhas = [];
     linhas.push('Galope Elemental — teste de engine · ' + r.versao + ' · ' + r.titulo);
     linhas.push('Navegador: ' + a.ua);
+    linhas.push('Ambiente: ' + (/; wv\)/.test(a.ua) ? 'WebView (dentro de um aplicativo)' : 'navegador') + (/Claude\//.test(a.ua) ? ', app do Claude' : ''));
     linhas.push('Tela: ' + a.css + ' css, DPR ' + a.dpr + ', tela física ' + a.tela + ', ~' + r.hz + ' Hz · núcleos ' + a.nucleos + ' · memória ' + a.memoria + ' GB');
     linhas.push('');
     linhas.push('fase | canvas | FPS méd | 1% low | ms méd | ms p99 | >20ms | JS méd/p95 | partíc. | chamadas');
@@ -608,8 +626,16 @@
     if (p) {
       linhas.push('');
       linhas.push('Por clima na fase 1: ' + Object.keys(p.porClima).map(function (k) { return k + ' ' + f1(p.porClima[k].fps) + ' (1% ' + f1(p.porClima[k].low) + ')'; }).join(' · '));
-      var meta = Math.min(55, (r.hz || 60) - 5);
-      linhas.push('Critério: 1% low da fase 1 >= ' + meta + ' FPS → ' + (p.low1 >= meta ? 'PASSA (' + f1(p.low1) + ')' : 'NÃO PASSA (' + f1(p.low1) + ')'));
+      var NOMES_SEC = { cen: 'cenário', cav: 'cavalos', efe: 'efeitos', cam: 'câmera', hud: 'HUD' };
+      r.fases.forEach(function (f, i) {
+        if (i > 1 || !f.st || !f.st.sec) return;
+        linhas.push('JS por parte na fase ' + (i + 1) + ' (méd/p95/máx ms): ' + f.st.sec.map(function (q) { return NOMES_SEC[q.k] + ' ' + f1(q.med) + '/' + f1(q.p95) + '/' + f1(q.max); }).join(' · '));
+        var cu = Object.keys(f.st.culpa);
+        linhas.push('  quadros com JS > 12 ms, pela parte que mais pesou: ' + (cu.length ? cu.map(function (k) { return NOMES_SEC[k] + ' ' + f.st.culpa[k]; }).join(' · ') : 'nenhum'));
+      });
+      var meta = 55, trav = r.fases.filter(function (f) { return f.cfg.limite === '60' && f.st; })[0];
+      var base = (r.hz || 60) > 75 && trav ? trav : r.fases[0], st0 = base.st;
+      linhas.push('Critério: 1% low >= ' + meta + ' FPS em "' + base.nome + '" → ' + (st0.low1 >= meta ? 'PASSA (' + f1(st0.low1) + ')' : 'NÃO PASSA (' + f1(st0.low1) + ')'));
       r.fases.forEach(function (f) {
         if (!f.st || f.cfg.n !== 12 || (f.cfg.escala !== '3x' && f.cfg.escala !== '1x')) return;
         var lim = f.cfg.escala === '3x' ? meta : 45;
@@ -649,7 +675,7 @@
   });
   el('b-bateria').addEventListener('click', function () { rodar(FASES, 1, 'Bateria'); });
   el('b-livre').addEventListener('click', function () {
-    rodar([{ nome: 'Rodada livre: ' + CFG.n + ' cavalos, escala ' + CFG.escala + ', camadas ' + CAMADAS.filter(function (c) { return CFG.camadas[c]; }).join('+'), s: 60 }], 1, 'Rodada livre');
+    rodar([{ nome: 'Rodada livre: ' + CFG.n + ' cavalos, escala ' + CFG.escala + ', limite ' + CFG.limite + ', camadas ' + CAMADAS.filter(function (c) { return CFG.camadas[c]; }).join('+'), s: 60 }], 1, 'Rodada livre');
   });
   el('b-copiar').addEventListener('click', function () {
     var t = el('resumo'), msg = el('copiado');
