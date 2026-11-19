@@ -1,6 +1,10 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-18._
+_Atualizado em 2026-11-19._
+
+**Em andamento (2026-11-19):** redesenho das skills (100% de ativação + ranks que sobem com Ouro e um item ganho
+jogando), em brainstorming neste chat de coordenação; e o teste de engine web × Godot 4 num chat próprio
+(`claude/teste-engine`). Decisões em `decisoes.md` (2026-11-19).
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
 durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o

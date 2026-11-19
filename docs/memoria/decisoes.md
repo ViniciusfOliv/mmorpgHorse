@@ -3,6 +3,21 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-19 — Qualidade primeiro, teste de engine e skills com 100% (decisões do Vinicius)
+- **A qualidade vem sempre primeiro: se Godot (ou Unity) for melhor em visual, FPS e jogabilidade, migramos** — pedido
+  do Vinicius. Unity foi descartada na análise (pesada para 2D pixel art, licença, depende do editor, não dá para
+  verificar no contêiner); a comparação é web × Godot 4, decidida por **evidência**: um teste de carga da corrida no
+  pior caso visual, medido no celular dele, num chat próprio (`claude/teste-engine`, relatório em `docs/teste-engine.md`).
+  O redesenho das skills segue em paralelo porque as regras vão para o servidor em qualquer engine.
+- **Skills de vaga passam a ativar sempre (100%) quando o gatilho acontece, e ganham ranks** (ideia do Vinicius, nos
+  moldes das fadas do Black Desert) — a skill que falha por sorte tirava valor da estratégia pré-corrida; o rank dá
+  progressão clara. Spec em andamento.
+- **O rank sobe com Ouro + um item ganho jogando (opção B)** — escolha do Vinicius entre só Ouro (A), Ouro + item (B) e
+  uso em corrida (C): obriga a correr valendo e faz o Ouro pesar, sem deixar quem acumula Ouro subir tudo de uma vez.
+- **Chats por frente:** este é a coordenação (decisões, specs, planos, revisão, memória); a implementação das skills vai
+  para um chat próprio com o Fable 5.2 depois da spec e do plano aprovados; o teste de engine roda num chat com Opus em
+  esforço alto.
+
 ## 2026-11-18 — Integração da tela de desafio e do Recomeçar do DEV na `main` (decisão do Vinicius)
 - **Integrar na `main` e republicar o jogo e o DEV oficiais** ("sim, integra na main e republica") — por fast-forward;
   o código é o mesmo que passou na verificação completa (53e4ced; depois dele só mudou a memória); o wiki não mudou e
