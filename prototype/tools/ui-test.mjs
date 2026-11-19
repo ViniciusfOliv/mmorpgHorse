@@ -25,6 +25,7 @@ import { mkdir, mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { createServer } from 'node:http'
 import { PECAS as PECAS_ARTE } from './interface-arte.mjs'
+import { medirFluidez } from './fluidez.mjs'
 
 const require = createRequire(import.meta.url)
 const { chromium } = require('playwright')
@@ -47,7 +48,7 @@ const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adultera
   'crescimento-jogo',
   'fluxo', 'fluxo-saves', 'fluxo-cruzamento', 'fluxo-abas', 'fluxo-equipamento', 'fluxo-dev', 'fluxo-build-teste', 'fluxo-dado',
   'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'mapa', 'fluxo-capturas-ginasio', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
-  'fluxo-pequeno']
+  'fluxo-pequeno', 'fluidez']
 if (process.argv.includes('--blocos')) { console.log(BLOCOS.join('\n')); process.exit(0) }
 // UI_SO=reserva,gravacao,...: roda só os blocos com esses nomes (para desenvolver um teste sem esperar o resto); sem UI_SO
 // (a rodada completa), roda tudo
@@ -13861,6 +13862,52 @@ try {
   await rm.getByRole('button', { name: /Pular/ }).click()
   await rm.waitForSelector('#t-resultado')
   await rm.context().close()
+  }
+
+  // ---------------- fluidez: o tempo das trocas de tela (tools/fluidez.mjs) ----------------
+  // Mede as trocas da Expedição, do ginásio e das abas com a CPU 4× mais lenta (mediana de 3 rodadas) contra um teto
+  // folgado (2× a meta de 60 ms), para pegar regressão sem ficar instável. Mede tempo real: roda sozinho (EM_SERIE).
+  // Confere também o que a melhoria adiou ou reaproveitou: os retratos dos selvagens (fora da primeira dobra) acabam
+  // desenhados, e as <img> do mapa que voltam de uma tela para a outra ficam inteiras, sem marcador data-reuso sobrando.
+  if (quer('fluidez')) {
+    const label = 'fluidez'
+    const TETO_FLUIDEZ = 120
+    try {
+      const m = await medirFluidez(browser, BASE + 'jogo-dev.html', 3)
+      notes.fluidez = { carga: m.carga, ...Object.fromEntries(Object.entries(m.trocas).map(([k, v]) => [k, v.quadro])) }
+      for (const [nome, v] of Object.entries(m.trocas)) {
+        if (v.quadro > TETO_FLUIDEZ) problems.push(`${label}: a troca "${nome}" levou ${v.quadro} ms até o 2º quadro (teto ${TETO_FLUIDEZ} ms; mediana de 3, CPU 4× mais lenta)`)
+      }
+      const pg = await newPage(browser, { width: 360, height: 780 }, label, { pagina: 'jogo-dev.html', deviceScaleFactor: 3 })
+      try {
+        await pg.waitForSelector('#t-estabulo')
+        const vai = async (sel, tit) => { await pg.locator(sel).first().click(); await pg.waitForSelector(tit); await sleep(500) }
+        const imagens = () => pg.evaluate(() => ({ marcadores: document.querySelectorAll('#tela [data-reuso]').length,
+          semArte: [...document.querySelectorAll('#tela img')].filter((i) => !i.complete || !i.naturalWidth || !i.getAttribute('src')).map((i) => i.className),
+          fundo: (document.querySelector('#tela img.mapa-fundo') || {}).naturalWidth || 0 }))
+        const pintados = () => pg.evaluate(() => [...document.querySelectorAll('#tela .selvagem canvas.retrato')].map((c) => {
+          const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0
+          for (let i = 3; i < d.length; i += 4) if (d[i]) n++
+          return n
+        }))
+        await vai('[data-acao="aba"][data-id="expedicao"]', '#t-expedicao')
+        const p1 = await pintados()
+        if (p1.length < 3 || p1.some((n) => !n)) problems.push(`${label}: retratos dos selvagens sem desenho depois da troca ${JSON.stringify(p1)}`)
+        const foco = await pg.evaluate(() => document.activeElement && document.activeElement.id)
+        if (foco !== 't-expedicao') problems.push(`${label}: o foco não foi para o título da Expedição (${foco})`)
+        for (const [sel, tit] of [['[data-acao="ginasio-abrir"][data-id="grama"]', '#t-ginasio'], ['[data-acao="ginasio-voltar"]', '#t-expedicao'],
+          ['[data-acao="ginasio-abrir"][data-id="grama"]', '#t-ginasio']]) {
+          await vai(sel, tit)
+          const im = await imagens()
+          if (im.marcadores || im.semArte.length || !im.fundo) problems.push(`${label}: <img> do mapa depois de ${tit} fora do esperado ${JSON.stringify(im)}`)
+        }
+        await checkOverflow(pg, label)
+      } finally {
+        await pg.context().close()
+      }
+    } catch (e) {
+      problems.push(`${label}: ` + e.message)
+    }
   }
 
   // depois de todos os blocos: as câmeras anotadas pelo fluxo, fluxo-desktop e fluxo-pequeno (só as que rodaram)

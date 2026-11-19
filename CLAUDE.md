@@ -42,6 +42,7 @@ lançamento: `docs/cronograma.md`.
 | Wiki: regerar (`--check` só confere) / testar (determinismo, cobertura, navegador) | `node prototype/tools/wiki.mjs` / `node prototype/tools/wiki-test.mjs` | <1 s / 2 s |
 | Balanceamento rápido (falha se meta quebrar) | `node prototype/tools/balance.js --quick` | ~45 s |
 | Balanceamento completo / corrida de exemplo | `node prototype/tools/balance.js [--exemplo]` | ~5 min |
+| Fluidez: tempo de cada troca de tela, CPU 4× mais lenta (`--teto N` falha acima de N ms) | `node prototype/tools/fluidez.mjs` | ~30 s |
 | Teste de interface em paralelo (o que o `check.sh` usa; não grava capturas) | `node prototype/tools/ui-test-paralelo.mjs` | ~11 min |
 | Teste de interface num processo só + capturas em `prototype/screens/` (`UI_SO=bloco` roda só um; `--blocos` lista) | `node prototype/tools/ui-test.mjs` | ~20 min |
 | **Verificação completa** (8 etapas: build, simulação, efeitos, dist, moldes, wiki, balanço, UI; não toca nas capturas) | `./scripts/check.sh` | ~12 min |
