@@ -38,9 +38,9 @@
  *   inválido ou fora da faixa vale 1 (a corrida é a de sempre).
  *   entry.statAdd (gancho de teste do balance.js, como noTypeSkill): soma ao status, preso a 1–150.
  *
- * CLIMA (sol / chuva / nevoa / nublado). weatherMult(elemento, clima, dobrado):
- *   dono do clima ×1,03 (T.weatherMult; ×1,08 = T.weatherMultDouble com a skill de clima
- *   ativa), elemento penalizado ×0,97 (2 − weatherMult), resto e Nublado ×1.
+ * CLIMA (sol / chuva / nevoa / nublado). weatherMult(elemento, clima, bônus):
+ *   dono do clima ×1,03 (T.weatherMult; com a skill de clima ativa, × (1,03 + weatherBonus do rank)),
+ *   elemento penalizado ×0,97 (2 − weatherMult), resto e Nublado ×1.
  *   applyWeather(r, clima) recalcula, com m = weatherMult e o clima somado a n: nc(x) = n(x) + (m−1)·0,5
  *   (o mesmo efeito do inicial em qualquer nível):
  *     vMax  = (19.0 + 1.13*nc(vel)) * (1 + 0.10*(m-1))   (weatherVel: um extra direto na vMax)
@@ -101,15 +101,24 @@
  *   Sucesso: teto ×(1.02 + 0.26*nc(garra) + bônus de skill) até a chegada. Evento 'garra'.
  *   garraInfo(horse, bonus) dá esses três números para a tela, sem clima (a ficha do cavalo, aba Skills).
  *
- * SKILLS (gatilhos e efeitos em data.js). Quando o gatilho acontece, UMA tentativa contra
- *   skillChance = min(0.95, raridade.skillChance + 0.005*(level−1) + 0.001*sorte)
- *   (por corrida; por bloco se effect.blockScoped). Gatilhos: start (largada), straight (entrou
- *   numa reta ≥150 m que não é a da largada), curve, curveExit, hill (entrou no bloco),
- *   lowStamina (estamina ≤30%), final (início da arrancada, garraFrom), dice (uma tentativa por corrida, antes do 1º Dado da Sorte),
+ * SKILLS (gatilhos e efeitos em data.js). Quando o gatilho acontece, a skill ATIVA SEMPRE, sem sorteio e sem
+ *   consumir a RNG, uma vez por gatilho (por corrida; por bloco se effect.blockScoped). Gatilhos: start (largada),
+ *   straight (entrou numa reta ≥150 m que não é a da largada), curve, curveExit, hill (entrou no bloco),
+ *   lowStamina (estamina ≤30%), final (início da arrancada, garraFrom), dice (antes do 1º Dado da Sorte),
  *   weather:<clima> (checado a cada tick com o clima vigente). Chaves de effect: accelMult,
  *   speedMult, drainMult (por distanceM ou durationS), curveBonus, hillBonus, hillDrainMult
  *   (até o fim do bloco), staminaRestore, garraChanceBonus, garraBoostBonus, extraDice,
- *   weatherDouble. O equipamento (Gear.resolve) não entra na corrida por enquanto. Evento 'skill'.
+ *   weatherBonus. O equipamento (Gear.resolve) não entra na corrida por enquanto. Evento 'skill' (com `rank`).
+ *   RANK (por cavalo, horse.skillRanks = { id: 1..5 }; rankOf: ausente ou inválido = 1): o efeito de cada skill é
+ *   skillEffect(id, rank, entry.skillScale), com o fator s(r) = 1 + 0,15·(r − 1) (rankScale) só na parte de bônus:
+ *   multiplicador que ajuda 1 + (m − 1)·s; de gasto 1 − (1 − m)·s (piso 0,05); bônus somado, recuperação e reforço
+ *   do clima b·s; o dado extra do Dado Viciado rola de 1 até SKILL_RANKS.diceTeto[r − 1]. Duração e distância não
+ *   crescem. No rank 5 entra o marco (SKILLS[id].rank5): Arranque também velocidade; Sprint em reta ≥100 m; Drift
+ *   gasta menos na curva; Saída Rápida e Chama Final duram mais; Fôlego de Montanha recupera ao sair da subida;
+ *   Segundo Ar dispara com 35%; Arrancada Final também velocidade até a chegada; Dado Viciado 2 dados extras;
+ *   skills de clima: o multiplicador reforçado continua por 15 s depois de o clima mudar; Canto da Iara recupera
+ *   ao ativar; Nascente também velocidade; Casco Firme gasta menos na subida. entry.skillScale (1 a 1,1; fora da
+ *   faixa vale 1) multiplica o fator do rank (o bônus de 3 peças do conjunto, suspenso, passaria 1,05).
  *   Ao subir de nível (learnSkill(mount, rng, bonus), fora da corrida): aprende se rng() < T.learnChance + bonus
  *   (bonus opcional de 0 a 0,2, a insígnia da Grama; ausente ou inválido vale 0, e a ordem das chamadas não muda).
  *
@@ -128,7 +137,8 @@
  *
  * DADO DA SORTE: quando o líder cruza 1/3 e 2/3 de D (T.diceAt), todos rolam (inclusive quem
  *   já chegou), no fluxo próprio do Dado. rollDice: d1 = 1..100; Sorte = chance de rolar um
- *   segundo dado ((sorte − 40)/40) e ficar com o melhor; Dado Viciado soma um dado extra (até 3).
+ *   segundo dado ((sorte − 40)/40) e ficar com o melhor; Dado Viciado soma um dado extra de 1 até o teto do rank
+ *   (2 extras de 1 a 100 no rank 5; até 4 dados).
  *   Maior dado vence; empate no topo => re-rola só os empatados. O clima vira o do elemento do
  *   vencedor (Fogo sol, Água chuva, Grama névoa); se já for esse (ou o elemento for desconhecido),
  *   o clima "segura". Eventos 'dado' { at, rolls, winner, weather, changed } e, se virou, 'clima'.
@@ -141,23 +151,18 @@
  *   (pos === distance => chegou) e a velocidade cai a 0 em ~2 s. Simula até TODOS
  *   chegarem. config.recordFrames === false pula os frames (usado no balance.js).
  *
- * MODO DEV (opcional): config.dev = { skillsAlways: true } faz toda tentativa de skill ativar. O
- *   r.rng() da tentativa continua sendo chamado (os fluxos não se deslocam); só a comparação com a
- *   chance é ignorada. Sem config.dev (ou com skillsAlways falso), o resultado é exatamente o de sempre.
- *
  * RESULTADO: { seed, simVersion (RaceSim.VERSION), tuningHash (impressão digital do TUNING e dos
  *   dados de skills/raridades/clima usados), conditions (iniciais normalizadas), weatherFinal (clima
  *   depois dos Dados), dt, duration, frames, events, finishOrder, finishTimes,
- *   racerInfo[i] = { name, horseName, stats, skillChance, typeSkill: { id, name, from, to } (metros) | null } }.
+ *   racerInfo[i] = { name, horseName, stats, skillRanks: { id: rank }, typeSkill: { id, name, from, to } (metros) | null } }.
  *
  * ENTRADAS MALFORMADAS: level e potencial passam por sanitizeLevel/sanitizePotential (Number;
- *   não finito vale 1 / 0; level inteiro 1–50, potencial 0–31), em computeStats e skillChance;
+ *   não finito vale 1 / 0; level inteiro 1–50, potencial 0–31), em computeStats;
  *   grau por starsOf (não numérico vale 2, fora da faixa é preso a 1–3); alloc por validAlloc.
  *
  * ORDEM DAS CHAMADAS DE r.rng() (fluxo de cada corredor; manter estável):
- *   montagem: 1) startDelay, 2) jockeyErr; por tick: 3) tentativas de skill (só quando um
- *   gatilho acontece), 4) sorteio da Garra (uma vez, em garraFrom), 5) jitter; depois do movimento,
- *   quando o Dado vai rolar: tentativa do gatilho 'dice'. A skill de tipo não chama r.rng().
+ *   montagem: 1) startDelay, 2) jockeyErr; por tick: 3) sorteio da Garra (uma vez, em garraFrom), 4) jitter.
+ *   As skills (de vaga e de tipo) não chamam r.rng().
  *   Detalhes junto de buildRacer.
  * ============================================================================
  *
@@ -176,7 +181,7 @@
 
   // Versão das regras da simulação: suba a cada mudança que altere resultados (exposta como
   // RaceSim.VERSION e gravada em cada resultado como simVersion, junto do tuningHash).
-  var VERSION = '3.1.0';
+  var VERSION = '4.0.0';
 
   // Constantes de balanceamento (ajustadas por tools/balance.js). Exposto como RaceSim.TUNING.
   var T = {
@@ -252,8 +257,6 @@
       agua:  { vel: 1, acel: 1, man: 1, forca: 1, est: 1.2, garra: 1.2 },
       grama: { vel: 1, acel: 1, man: 1.2, forca: 1.2, est: 1, garra: 1 }
     },
-    // chance de a skill disparar no gatilho: base da raridade + nível + sorte (teto 95%)
-    skillPerLevel: 0.005, skillPerSorte: 0.001, skillChanceMax: 0.95,
     learnChance: 0.08,   // chance de aprender uma skill nova ao subir de nível
     // eventos
     leadMinP: 0.12, leadConfirmS: 1.5, leadMinGapS: 4.0,
@@ -313,7 +316,7 @@
   }
   // Impressão digital das regras: FNV-1a de 32 bits (duas bases, 16 hex) sobre o JSON do TUNING, dos
   // pesos de gatilho e dos dados de jogo que a simulação lê (skills: gatilho e efeito; raridades:
-  // início da faixa de nascimento, multiplicador de pontos, chance de skill e ordem; skills de tipo: terço e efeito; elementos,
+  // início da faixa de nascimento, multiplicador de pontos e ordem; ranks das skills; skills de tipo: terço e efeito; elementos,
   // pisos e climas; level máximo). Recalculada a cada
   // simulate (o TUNING pode ser trocado em teste/ajuste); um servidor pode guardar o par
   // simVersion + tuningHash para auditar corridas antigas depois de um rebalanceamento.
@@ -332,8 +335,9 @@
   function tuningHash() {
     var str = JSON.stringify({
       T: T, w: SKILL_TRIGGER_WEIGHT,
-      skills: pick(GameData.SKILLS, ['element', 'trigger', 'effect']),
-      rarities: pick(GameData.RARITIES, ['ptsMult', 'baseLo', 'skillChance', 'order']),
+      skills: pick(GameData.SKILLS, ['element', 'trigger', 'effect', 'rank5']),
+      ranks: GameData.SKILL_RANKS,
+      rarities: pick(GameData.RARITIES, ['ptsMult', 'baseLo', 'order']),
       elements: pick(GameData.ELEMENTS, ['weather']),
       typeSkills: pick(GameData.TYPE_SKILLS, ['zone', 'effect']),
       surfaces: pick(GameData.SURFACES, ['slow', 'drain']),
@@ -350,7 +354,7 @@
   // ---------------------------------------------------------------------------
   // Status
   // ---------------------------------------------------------------------------
-  // Saneamento único de level e potencial (computeStats, skillChance): vira número; não finito
+  // Saneamento único de level e potencial (computeStats): vira número; não finito
   // vale o mínimo; level inteiro em 1–maxLevel, potencial em 0–31.
   function sanitizeLevel(v) {
     var x = Number(v);
@@ -584,12 +588,6 @@
     return sk.desc;
   }
 
-  // Chance de uma skill disparar quando o gatilho acontece.
-  function skillChance(horse, stats, bonus) {
-    var rar = rarityOf(horse);
-    var c = rar.skillChance + T.skillPerLevel * (sanitizeLevel(horse.level) - 1) + T.skillPerSorte * ((stats && stats.sorte) || 0) + (bonus || 0);
-    return Math.min(T.skillChanceMax, c);
-  }
   // A Garra de um cavalo, para a tela (fora da corrida, sem clima): onde a arrancada começa (fração da pista), a chance e
   // o teto da velocidade se ela der certo. As contas são as da corrida (buildRacer e derive): se a arrancada começa dentro
   // do terço da skill de tipo que multiplica a Garra (a Maré Alta, da Água), vale a Garra do terço (tipo: true).
@@ -829,13 +827,14 @@
     return nthRoot(x, T.drainExp - 1);
   }
 
-  // Multiplicador de clima de um elemento: dono do clima => T.weatherMult (T.weatherMultDouble
-  // com skill de clima ativa); elemento penalizado => 2 - T.weatherMult (0,97); senão 1.
-  function weatherMult(element, weather, doubled) {
+  // Multiplicador de clima de um elemento: dono do clima => T.weatherMult + bonus (o reforço da skill de clima
+  // ativa, weatherBonus do rank; `true` = T.weatherMultDouble, o reforço das 4 peças do conjunto, hoje suspenso:
+  // os dois não acumulam, vale o maior); elemento penalizado => 2 - T.weatherMult (0,97); senão 1.
+  function weatherMult(element, weather, bonus) {
     var w = GameData.WEATHERS[weather];
     var el = GameData.ELEMENTS[element];
     if (!w || !el) return 1;
-    if (el.weather === weather) return doubled ? T.weatherMultDouble : T.weatherMult;
+    if (el.weather === weather) return bonus === true ? T.weatherMultDouble : T.weatherMult + (typeof bonus === 'number' && bonus > 0 ? bonus : 0);
     if (w.penalizes === element) return 2 - T.weatherMult;
     return 1;
   }
@@ -843,7 +842,9 @@
   // (Re)calcula os números do corredor que dependem do clima. Pode ser chamada de novo no meio da
   // corrida (troca de clima, skill que reforça o bônus, bônus de Garra): só lê statsN e os totais.
   function applyWeather(r, weather) {
-    var m = weatherMult(r.element, weather, r.weatherDouble);
+    // marco das skills de clima (weatherLingerS): depois que o clima muda, o multiplicador reforçado continua
+    // valendo até r.lingerUntil (o laço da corrida limpa e chama applyWeather de novo)
+    var m = r.lingerUntil != null ? r.lingerM : weatherMult(r.element, weather, r.weatherBonus);
     r.weatherM = m;
     derive(r, r, m, null);
     // skill de tipo com statMul: no seu terço, os dois status do tipo valem × (1 + mul) (valores em r.Z)
@@ -868,10 +869,8 @@
 
   // Ordem das chamadas de r.rng() (fluxo próprio de cada corredor; manter estável):
   //   montagem: 1) startDelay, 2) jockeyErr;
-  //   por tick: 3) tentativas de skill (só quando um gatilho acontece; na ordem dos gatilhos
-  //   start/bloco/clima/lowStamina/final e, dentro de cada gatilho, na ordem da lista de skills),
-  //   4) sorteio da Garra (uma vez, ao cruzar r.garraFrom), 5) jitter.
-  //   A skill de tipo não consome a RNG.
+  //   por tick: 3) sorteio da Garra (uma vez, ao cruzar r.garraFrom), 4) jitter.
+  //   As skills de vaga e a skill de tipo não consomem a RNG (a ativação não é sorteada).
   function buildRacer(entry, index, cond, rng) {
     var horse = entry.horse;
     // o equipamento não entra na corrida (por enquanto). entry.statMul (vantagem de elemento do ginásio): 0,9–1,1,
@@ -895,6 +894,13 @@
     var statsN = {};
     for (var i = 0; i < STAT_KEYS.length; i++) statsN[STAT_KEYS[i]] = stats[STAT_KEYS[i]] / 100;
     var skills = (horse.skills || []).filter(function (id) { return !!GameData.SKILLS[id]; });
+    // efeito pronto de cada skill, pelo rank do cavalo (entry.skillScale: 1–1,1, o bônus de 3 peças do conjunto)
+    var skillFx = {}, skillRanks = {}, lowAt = -1;
+    skills.forEach(function (id) {
+      skillRanks[id] = rankOf(horse, id);
+      skillFx[id] = skillEffect(id, skillRanks[id], entry.skillScale);
+      if (GameData.SKILLS[id].trigger === 'lowStamina') lowAt = Math.max(lowAt, skillFx[id].lowStaminaAt || T.lowStaminaAt);
+    });
     var r = {
       index: index,
       name: entry.name || horse.name,
@@ -902,12 +908,14 @@
       element: horse.element,
       stats: stats,
       statsN: statsN,
-      skillChance: skillChance(horse, stats, 0),
+      skillFx: skillFx,
+      skillRanks: skillRanks,
+      lowAt: lowAt,
       pool: T.poolBase + T.poolEst * statsN.est,   // tanque fixo (sem clima)
       garraBonusTotal: 0,
       garraBoostBonusTotal: 0,
-      weatherDouble: false,
-      extraDice: 0,
+      weatherBonus: 0, weatherLingerS: 0, lingerUntil: null, lingerM: 1,
+      extraDice: 0, diceTeto: 100,
       startDelay: rng() * T.startDelayMax * (1 - T.startAcelK * clamp(statsN.acel, 0, T.startAcelMax)),
       jockeyErr: T.jockeyErrMin + rng() * (T.jockeyErrMax - T.jockeyErrMin),
       rng: rng,
@@ -948,13 +956,15 @@
   // Dado da Sorte de uma montaria. Ordem das chamadas de rng() (manter estável): d1, sorteio do
   // 2º dado (sempre consumido, mesmo com sorte 0 ou 100), d2 (se houver), dado extra (Dado Viciado).
   // Chance de rolar o 2º dado e ficar com o melhor = (sorte − sorteDiceLo)/(sorteDiceFull − sorteDiceLo), presa a
-  // 0–1 (Sorte 40 → 0, 60 → 0,5, 80 ou mais → 1); extraDice limitado a 1 (até 3 dados).
-  function rollDice(rng, sorte, extraDice) {
+  // 0–1 (Sorte 40 → 0, 60 → 0,5, 80 ou mais → 1); extraDice limitado a 2 (até 4 dados); cada dado extra rola de 1 a
+  // diceTeto (inteiro de 1 a 100; ausente ou inválido vale 100).
+  function rollDice(rng, sorte, extraDice, diceTeto) {
     var dice = [1 + Math.floor(rng() * 100)];
     var p = clamp(((sorte || 0) - T.sorteDiceLo) / (T.sorteDiceFull - T.sorteDiceLo), 0, 1);
     if (rng() < p) dice.push(1 + Math.floor(rng() * 100));
-    var extra = clamp(Math.floor(extraDice || 0), 0, 1);
-    for (var k = 0; k < extra; k++) dice.push(1 + Math.floor(rng() * 100));
+    var extra = clamp(Math.floor(extraDice || 0), 0, 2);
+    var teto = (typeof diceTeto === 'number' && diceTeto >= 1 && diceTeto <= 100) ? Math.floor(diceTeto) : 100;
+    for (var k = 0; k < extra; k++) dice.push(1 + Math.floor(rng() * teto));
     var best = dice[0];
     for (k = 1; k < dice.length; k++) if (dice[k] > best) best = dice[k];
     return { dice: dice, best: best };
@@ -972,7 +982,6 @@
     var n = entries.length;
     var dt = T.dt;
     var record = config.recordFrames !== false;
-    var skillsAlways = !!(config.dev && config.dev.skillsAlways);   // modo DEV (ver o cabeçalho)
     var surf = GameData.SURFACES[cond.surface];
     // efeitos gerais do clima vigente (recalculados quando o Dado vira o clima)
     var weatherDrain, weatherSlow;
@@ -1010,23 +1019,20 @@
     }
     pushFrame(0);
 
-    // Uma tentativa por gatilho (por corrida; por bloco se blockScoped): sorteia contra r.skillChance.
+    // O gatilho aconteceu: a skill ativa, sem sorteio. Uma vez por gatilho (por corrida; por bloco se blockScoped).
+    // O efeito é o do rank do cavalo (r.skillFx, montado em buildRacer).
     function tryFire(r, id, t, pos, blockTo) {
       var sk = GameData.SKILLS[id];
-      var e = sk.effect || {};
+      var e = r.skillFx[id] || {};
       var key = e.blockScoped ? id + '#' + r.blockIdx : id;
       if (r.tried[key]) return;
       r.tried[key] = true;
-      // o número é sempre sorteado (a ordem das chamadas não muda); com config.dev.skillsAlways
-      // (só o modo DEV) a skill ativa mesmo que ele saia acima da chance
-      var roll = r.rng();
-      if (!(roll < r.skillChance) && !skillsAlways) return;
       if (e.staminaRestore && !r.exhausted) r.stamina = Math.min(1, r.stamina + e.staminaRestore);
-      if (e.extraDice) r.extraDice += e.extraDice;
+      if (e.extraDice) { r.extraDice = Math.max(r.extraDice, e.extraDice); r.diceTeto = e.diceTeto || 100; }
       var reweather = false;
       if (e.garraChanceBonus) { r.garraBonusTotal += e.garraChanceBonus; reweather = true; }
       if (e.garraBoostBonus) { r.garraBoostBonusTotal += e.garraBoostBonus; reweather = true; }
-      if (e.weatherBonus) { r.weatherDouble = true; reweather = true; }
+      if (e.weatherBonus) { r.weatherBonus = Math.max(r.weatherBonus, e.weatherBonus); r.weatherLingerS = e.weatherLingerS || 0; reweather = true; }
       if (reweather) applyWeather(r, cond.weatherAtual);
       if (e.speedMult || e.accelMult || e.drainMult || e.curveBonus || e.hillBonus || e.hillDrainMult) {
         r.effects.push({
@@ -1040,13 +1046,27 @@
           hillDrainMult: e.hillDrainMult || 1
         });
       }
-      ev(t, r.index, 'skill', r.label + ' ativou ' + sk.name + '!');
+      events.push({ t: r2(t), racer: r.index, type: 'skill', text: r.label + ' ativou ' + sk.name + '!', rank: r.skillRanks[id] || 1 });
     }
 
-    // Tenta todas as skills do corredor com o gatilho dado (na ordem da lista).
-    function trigger(r, trig, t, pos, blockTo) {
+    // Ativa todas as skills do corredor com o gatilho dado (na ordem da lista). `val` é a medida do gatilho, comparada
+    // com o limite da própria skill (que o marco do rank 5 pode mudar): o comprimento da reta ('straight': precisa de
+    // minStraightM, senão T.straightMinM) ou a estamina ('lowStamina': até lowStaminaAt, senão T.lowStaminaAt).
+    function trigger(r, trig, t, pos, blockTo, val) {
       for (var s = 0; s < r.skills.length; s++) {
-        if (GameData.SKILLS[r.skills[s]].trigger === trig) tryFire(r, r.skills[s], t, pos, blockTo);
+        var id = r.skills[s];
+        if (GameData.SKILLS[id].trigger !== trig) continue;
+        var fx = r.skillFx[id];
+        if (trig === 'straight' && val < (fx.minStraightM || T.straightMinM)) continue;
+        if (trig === 'lowStamina' && val > (fx.lowStaminaAt || T.lowStaminaAt)) continue;
+        tryFire(r, id, t, pos, blockTo);
+      }
+    }
+    // Saída da subida: a skill de subida que ativou nesse bloco e tem exitRestore (marco do Fôlego de Montanha) recupera.
+    function hillExit(r, bloco) {
+      for (var s = 0; s < r.skills.length; s++) {
+        var fx = r.skillFx[r.skills[s]];
+        if (fx.exitRestore && r.tried[r.skills[s] + '#' + bloco] && !r.exhausted) r.stamina = Math.min(1, r.stamina + fx.exitRestore);
       }
     }
 
@@ -1084,14 +1104,16 @@
           r.blockIdx = bi;
           var bTo = blocks[bi].to;
           if (prevB >= 0 && blocks[prevB].type === 'curva') trigger(r, 'curveExit', tPrev, pos, bTo);
+          else if (prevB >= 0 && blocks[prevB].type === 'subida') hillExit(r, prevB);
           if (blocks[bi].type === 'curva') trigger(r, 'curve', tPrev, pos, bTo);
           else if (blocks[bi].type === 'subida') trigger(r, 'hill', tPrev, pos, bTo);
-          else if (bi > 0 && blocks[bi].to - blocks[bi].from >= T.straightMinM) trigger(r, 'straight', tPrev, pos, bTo);
+          else if (bi > 0) trigger(r, 'straight', tPrev, pos, bTo, blocks[bi].to - blocks[bi].from);
         }
         var blk = blocks[r.blockIdx];
         // clima (checado a cada tick: pode passar a valer quando o clima mudar)
+        if (r.lingerUntil != null && tPrev >= r.lingerUntil) { r.lingerUntil = null; applyWeather(r, cond.weatherAtual); }
         trigger(r, 'weather:' + cond.weatherAtual, tPrev, pos, blk.to);
-        if (r.stamina <= T.lowStaminaAt && !r.exhausted) trigger(r, 'lowStamina', tPrev, pos, blk.to);
+        if (r.stamina <= r.lowAt && !r.exhausted) trigger(r, 'lowStamina', tPrev, pos, blk.to, r.stamina);
         if (p >= r.garraFrom) trigger(r, 'final', tPrev, pos, blk.to);   // reta final = início da arrancada do cavalo
 
         // skill de tipo: entrada no terço (uma vez): recupera estamina (se não estiver exausto) e narra
@@ -1203,11 +1225,11 @@
       var maxPos = 0;
       for (i = 0; i < n; i++) if (R[i].pos > maxPos) maxPos = R[i].pos;
       while (n > 0 && diceIdx < diceAt.length && maxPos >= diceAt[diceIdx] * D) {
-        // gatilho 'dice' (Dado Viciado): tenta no fluxo do próprio corredor, antes de rolar
+        // gatilho 'dice' (Dado Viciado): ativa antes de rolar (sem sorteio)
         for (i = 0; i < n; i++) trigger(R[i], 'dice', t, R[i].pos, null);
         var rolls = [], cands = [];
         for (i = 0; i < n; i++) {
-          var rd = rollDice(diceRng, R[i].stats.sorte, R[i].extraDice);
+          var rd = rollDice(diceRng, R[i].stats.sorte, R[i].extraDice, R[i].diceTeto);
           rolls.push({ racer: i, dice: rd.dice, best: rd.best, rerolls: 0 });
           cands.push(i);
         }
@@ -1224,7 +1246,7 @@
           cands = tied;
           for (q = 0; q < cands.length; q++) {
             var ro = rolls[cands[q]];
-            var rr = rollDice(diceRng, R[cands[q]].stats.sorte, R[cands[q]].extraDice);
+            var rr = rollDice(diceRng, R[cands[q]].stats.sorte, R[cands[q]].extraDice, R[cands[q]].diceTeto);
             ro.dice = rr.dice; ro.best = rr.best; ro.rerolls++;
           }
         }
@@ -1233,9 +1255,17 @@
         var novo = (wEl && wEl.weather) || cond.weatherAtual;
         var changed = novo !== cond.weatherAtual;
         if (changed) {
+          var antigo = cond.weatherAtual;
           cond.weatherAtual = novo;
           setWeatherGlobals(novo);
-          for (i = 0; i < n; i++) applyWeather(R[i], novo);
+          for (i = 0; i < n; i++) {
+            // marco das skills de clima: quem estava com o reforço ativo no clima do seu elemento segura o
+            // multiplicador reforçado por weatherLingerS segundos; se o clima voltar a ser o dele, o prazo acaba
+            var rw = R[i], dono = GameData.ELEMENTS[rw.element] && GameData.ELEMENTS[rw.element].weather;
+            if (dono === novo) rw.lingerUntil = null;
+            else if (dono === antigo && rw.weatherBonus > 0 && rw.weatherLingerS > 0 && rw.lingerUntil == null) { rw.lingerUntil = t + rw.weatherLingerS; rw.lingerM = rw.weatherM; }
+            applyWeather(rw, novo);
+          }
         }
         events.push({
           t: r2(t), racer: win, type: 'dado', at: diceAt[diceIdx], rolls: rolls, winner: win,
@@ -1302,7 +1332,7 @@
     // Extra (fora do contrato mínimo): resumo por corredor para dicas na UI.
     var racerInfo = R.map(function (r) {
       return {
-        name: r.name, horseName: r.horseName, stats: r.stats, skillChance: r.skillChance,
+        name: r.name, horseName: r.horseName, stats: r.stats, skillRanks: r.skillRanks,
         typeSkill: r.typeSkill ? { id: r.typeSkill.id, name: r.typeSkill.name, from: r.typeSkill.from, to: r.typeSkill.to } : null
       };
     });
@@ -1354,7 +1384,6 @@
     typeSkill: typeSkill,
     powerRating: powerRating,
     botAlloc: botAlloc,
-    skillChance: skillChance,
     rankScale: rankScale,
     rankOf: rankOf,
     skillEffect: skillEffect,

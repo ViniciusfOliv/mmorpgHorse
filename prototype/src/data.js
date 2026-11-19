@@ -38,16 +38,15 @@
   //   ptsMult: fator da raridade nos pontos por nível (RaceSim.freePoints).
   //   skillSlots: nº máximo de habilidades; bornSkills: nº MÍNIMO ao nascer (o potro completa
   //   com skills compatíveis até esse número, limitado às vagas);
-  //   skillChance: chance base de ativar cada skill quando o gatilho acontece.
   //   baseLo: início da faixa de 16 pontos (RaceSim.TUNING.gBand) onde nasce cada status, conforme a
   //   genética: base = baseLo + 16 × g / 31 (nada cresce sozinho com o nível; o resto são pontos comprados).
   // ---------------------------------------------------------------------------
   var RARITIES = {
-    comum:    { id: 'comum',    name: 'Comum',    color: '#9e9e9e', ptsMult: 1.00, skillSlots: 1, bornSkills: 1, skillChance: 0.35, order: 0, baseLo: 40 },
-    magico:   { id: 'magico',   name: 'Mágico',   color: '#4caf50', ptsMult: 1.05, skillSlots: 2, bornSkills: 1, skillChance: 0.45, order: 1, baseLo: 44 },
-    raro:     { id: 'raro',     name: 'Raro',     color: '#2196f3', ptsMult: 1.10, skillSlots: 3, bornSkills: 2, skillChance: 0.55, order: 2, baseLo: 49 },
-    lendario: { id: 'lendario', name: 'Lendário', color: '#ff9800', ptsMult: 1.15, skillSlots: 4, bornSkills: 2, skillChance: 0.65, order: 3, baseLo: 54 },
-    mitico:   { id: 'mitico',   name: 'Mítico',   color: '#9c27b0', ptsMult: 1.20, skillSlots: 5, bornSkills: 3, skillChance: 0.75, order: 4, baseLo: 60 }
+    comum:    { id: 'comum',    name: 'Comum',    color: '#9e9e9e', ptsMult: 1.00, skillSlots: 1, bornSkills: 1, order: 0, baseLo: 40 },
+    magico:   { id: 'magico',   name: 'Mágico',   color: '#4caf50', ptsMult: 1.05, skillSlots: 2, bornSkills: 1, order: 1, baseLo: 44 },
+    raro:     { id: 'raro',     name: 'Raro',     color: '#2196f3', ptsMult: 1.10, skillSlots: 3, bornSkills: 2, order: 2, baseLo: 49 },
+    lendario: { id: 'lendario', name: 'Lendário', color: '#ff9800', ptsMult: 1.15, skillSlots: 4, bornSkills: 2, order: 3, baseLo: 54 },
+    mitico:   { id: 'mitico',   name: 'Mítico',   color: '#9c27b0', ptsMult: 1.20, skillSlots: 5, bornSkills: 3, order: 4, baseLo: 60 }
   };
 
   // ---------------------------------------------------------------------------

@@ -88,7 +88,7 @@ de estamina baixa e de saída de subida, clima, `VERSION`, cabeçalho); testes e
   e a chamada `r.rng()` do `tryFire`. `RaceSim.VERSION` sobe.
 - `rollDice(rng, sorte, extraDice, diceTeto)`: aceita até 2 extras; cada extra é `1 + floor(rng() × diceTeto)` (teto 100 sem skill).
 
-- [ ] **Passo 1:** testes que falham em `fx-test.js`:
+- [x] **Passo 1:** testes que falham em `fx-test.js`:
   - `skill sem sorteio: um Comum nível 1 com Arranque ativa em 200 seeds de 200` (pelo evento `skill`);
   - `rank 5 do Segundo Ar dispara com 35% de estamina` (montar um corredor com o tanque caindo; o evento sai antes de 30%);
   - `rank 5 do Sprint dispara numa reta de 100 a 149 m; o rank 4 não`;
@@ -96,14 +96,14 @@ de estamina baixa e de saída de subida, clima, `VERSION`, cabeçalho); testes e
   - `Dado Viciado rank 5 rola 3 ou 4 dados (com o 2º da Sorte); rank 2 nunca passa de 70 no extra`;
   - `mesma seed e mesmos ranks dão o mesmo resultado; subir um rank muda o resultado` (Foco da revisão 5);
   - `nenhuma chamada a Math.random durante simulate` (o mesmo gancho que o `balance.js` usa no G9).
-- [ ] **Passo 2:** `node prototype/tools/fx-test.js` → falham.
-- [ ] **Passo 3:** implementar. O corredor guarda o efeito pronto por skill, `effects[id] = skillEffect(id, rankOf(horse, id),
+- [x] **Passo 2:** `node prototype/tools/fx-test.js` → falham.
+- [x] **Passo 3:** implementar. O corredor guarda o efeito pronto por skill, `effects[id] = skillEffect(id, rankOf(horse, id),
   entry.skillScale)`, na montagem. O `tryFire` lê dali. `minStraightM`, `lowStaminaAt` e `exitRestore` são lidos por
   corredor nos detectores de gatilho. `untilFinish` cria um efeito sem `untilT` nem `untilPos`. `weatherLingerS` guarda o
   fim do reforço quando o clima muda.
-- [ ] **Passo 4:** regenerar os testes de seed fixa que mudaram, **conferindo** cada diferença (a única causa aceita é o fim
+- [x] **Passo 4:** regenerar os testes de seed fixa que mudaram, **conferindo** cada diferença (a única causa aceita é o fim
   do sorteio e a escala). `sim-test.js` e `fx-test.js` passam.
-- [ ] **Passo 5:** commit "faz as skills ativarem sempre, com o efeito do rank".
+- [x] **Passo 5:** commit "faz as skills ativarem sempre, com o efeito do rank".
 
 ### Tarefa 3: Poder, bots e ginásio com rank
 
