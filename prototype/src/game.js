@@ -1295,6 +1295,44 @@
     ctx.fillStyle = C.escuro; ctx.fillRect(0, 31 * k, w * k, k);
   }
 
+  // 1º desenho dos retratos (desempenho da troca de tela): sai no 1º quadro depois da troca (requestAnimationFrame, antes
+  // da pintura), só para os que estão na tela ou perto dela; os de fora da primeira dobra saem depois do 2º quadro, um por
+  // tarefa, ou na hora em que entram na tela (o IntersectionObserver do laço). O 1º quadro pintado é o mesmo de antes: só o
+  // desenho que ninguém vê ainda fica para depois. render() descarta os pendentes da tela anterior (adiadosGer).
+  var ADIADO_MARGEM = 120;   // px além da borda da janela que já contam como "na tela"
+  var adiados = [], adiadosGer = 0;
+  function adiaDesenho(item, cv) {
+    if (typeof window.requestAnimationFrame !== 'function') { item.draw(0); return; }
+    cv.__adiado = item;
+    adiados.push(item);
+    if (adiados.length > 1) return;
+    var g = adiadosGer;
+    window.requestAnimationFrame(function () { if (g === adiadosGer) desenhaAdiadosNaTela(g); });
+  }
+  function desenhaAdiado(item) {
+    if (!item.cv || item.cv.__adiado !== item) return;
+    item.cv.__adiado = null;
+    if (!item.drawn) item.draw(0);
+  }
+  function desenhaAdiadosNaTela(g) {
+    var alt = window.innerHeight || document.documentElement.clientHeight || 0, resto = [];
+    var lista = adiados;
+    adiados = [];
+    for (var i = 0; i < lista.length; i++) {
+      var r = lista[i].cv.getBoundingClientRect();
+      if (r.bottom >= -ADIADO_MARGEM && r.top <= alt + ADIADO_MARGEM) desenhaAdiado(lista[i]);
+      else resto.push(lista[i]);
+    }
+    if (!resto.length) return;
+    // os de fora da tela: depois do 2º quadro (a tela nova já pintada), um por tarefa
+    function proximo() {
+      var it = resto.shift();
+      while (it && it.cv.__adiado !== it) it = resto.shift();
+      if (!it) return;
+      setTimeout(function () { if (g !== adiadosGer) return; desenhaAdiado(it); proximo(); }, 0);
+    }
+    window.requestAnimationFrame(function () { if (g === adiadosGer) proximo(); });
+  }
   function hydrate(root) {
     var icons = root.querySelectorAll('canvas[data-icon]');
     for (var i = 0; i < icons.length; i++) {
@@ -1326,8 +1364,8 @@
             }, vis));
           }
         };
-        item.draw(0);
         vivo(item, cv);
+        adiaDesenho(item, cv);
       })(ps[j]);
     }
     var perfis = root.querySelectorAll('canvas[data-perfil]');
@@ -2283,6 +2321,7 @@
     if (visObs) visObs.disconnect();
     live = [];
     portraitQueue = [];
+    adiados = []; adiadosGer++;
     cenaQueue = []; cenaItems = [];
     var html;
     if (saveBloqueado) ui.screen = 'bloqueio';
@@ -2311,7 +2350,9 @@
     syncMotionClass();
     // folga no fim da tela para o conteúdo rolar acima do botão DEV fixo
     if (DEV_MODE && ui.screen !== 'corrida') html += '<div class="dev-espaco" aria-hidden="true"></div>';
+    guardaImagens(telaEl);
     telaEl.innerHTML = ordFix(html);
+    poeImagens(telaEl);
     barraPontosChegou(telaEl.querySelector('.barra-acao--pontos'));
     hydrate(telaEl);
     if (ui.screen === 'corrida') {
@@ -2800,7 +2841,7 @@
   function mapaMundoHtml() {
     var M = MAPA.mapa.mundo, L = M.lugares;
     return '<div class="mapa mapa--mundo" style="--mw:' + M.w + ';--mh:' + M.h + '">' +
-      '<img class="mapa-fundo" src="' + esc(mapaArte('mundo')) + '" alt="">' +
+      '<img class="mapa-fundo"' + reusoImg('mapa:mundo', mapaArte('mundo')) + ' alt="">' +
       (L.casa && mapaArte('lugar-casa') ? '<div class="mapa-casa" style="' + mapaPos(L.casa) + '">' + mapaImgHtml('lugar-casa', 'mapa-predio', 32, 32) +
         '<span class="mapa-placa">Seu estábulo</span></div>' : '') +
       '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
@@ -2872,7 +2913,7 @@
       var vez = estado === 'proxima' || estado === 'revanche';
       // a plaquinha não passa da borda do mapa: --dx a puxa para dentro
       var dx = clamp(pos[0], 41, mw - 41) - pos[0] + (MAPA.mapa.ginasios[id].dx && Number(MAPA.mapa.ginasios[id].dx[i]) || 0);
-      noMapa = (src ? '<img class="mapa-figura" src="' + esc(src) + '" alt="">' : '<span class="mapa-figura"></span>') +
+      noMapa = (src ? '<img class="mapa-figura"' + reusoImg('treinador:' + tid, src) + ' alt="">' : '<span class="mapa-figura"></span>') +
         (vez ? mapaImgHtml('icone-marcador', 'mapa-pino') : '') + (estado === 'vencida' ? mapaImgHtml('icone-vencido', 'mapa-selo') : '');
       corpo = noMapa + '<span class="mapa-placa"' + (dx ? ' style="--dx:' + dx + '"' : '') + '>' + (estado === 'fechada' ? mapaImgHtml('icone-cadeado', 'mapa-icone') : '') + corpo + '</span>';
       estilo = ' style="' + mapaPos([pos[0] - 32, pos[1] - pe]) + ';--pe:' + pe + '"';   // o <li> é a caixa da figura: os pés dela caem no ponto
@@ -2897,11 +2938,11 @@
     }
     var cor = validJoquei(joqueiDoJogador()).capacete, voce = '';
     if (mg.voce && mapaArte('jogador')) {
-      voce = '<img class="mapa-figura mapa-voce" data-jogador="' + esc(cor) + '" src="' + esc(jogadorUrl(cor)) + '" alt="" style="left:calc(' + (mg.voce[0] - 32) +
+      voce = '<img class="mapa-figura mapa-voce" data-jogador="' + esc(cor) + '"' + reusoImg('jogador:' + cor, jogadorUrl(cor)) + ' alt="" style="left:calc(' + (mg.voce[0] - 32) +
         ' * var(--u));top:calc(' + (mg.voce[1] - jogadorPe()) + ' * var(--u))">';
     }
     return '<div class="mapa mapa--ginasio mapa--' + esc(id) + '" style="--mw:' + mg.w + ';--mh:' + mg.h + '">' +
-      '<img class="mapa-fundo" src="' + esc(arte) + '" alt="">' +
+      '<img class="mapa-fundo"' + reusoImg('mapa:ginasio-' + id, arte) + ' alt="">' +
       '<ol class="trilha trilha--mapa">' + g.etapas.map(function (e, i) { return trilhaEtapaHtml(id, e, i, mg.etapas[i]); }).join('') + '</ol>' + voce + '</div>';
   }
   // A tela da trilha: o elemento, o progresso, o ponto fraco escrito e, com a insígnia, o nome e o bônus dela; embaixo, a trilha
@@ -3234,6 +3275,7 @@
   };
   var cenaQueue = [];   // as cenas da tela atual (como o portraitQueue): { gymId, dono, a, b }
   var cenaItems = [];   // os desenhos dessas cenas (para redesenhar só o canvas quando a arte do oponente chega)
+  var cenaFundos = {};  // o fundo pronto (1×) da cena de cada ginásio (drawGinCena: fundoPronto)
   var treinadorImgs = {};
   // o id da arte do oponente: o nome do catálogo sem acento, em minúsculas e com hífen ("Capitã Labareda" → capita-labareda)
   function ginTreinadorId(nome) {
@@ -3309,13 +3351,45 @@
     return m && m.arte && typeof m.arte.mundo === 'string' && m.mapa && m.mapa.mundo && m.mapa.ginasios ? m : null;
   })();
   function mapaArte(nome) { return MAPA && typeof MAPA.arte[nome] === 'string' ? MAPA.arte[nome] : ''; }
+  // As <img> da arte do mapa (o fundo de ~40–75 KB, as construções, os ícones, as figuras dos oponentes e a do jogador)
+  // voltam de uma tela para a outra em vez de nascerem de novo pelo innerHTML (desempenho da troca de tela: cada <img>
+  // nova com data: decodifica o base64 e a imagem outra vez). O HTML sai com data-reuso="<chave>" no lugar do src;
+  // render() guarda as <img> da tela que sai (guardaImagens) e põe no lugar de cada marcador uma guardada da mesma chave,
+  // ou uma nova (poeImagens), com os mesmos atributos e o src da chave. O DOM final é o de antes (src no lugar do
+  // data-reuso; numa <img> reaproveitada o src fica como o 1º atributo).
+  var reusoSrc = {}, imgSoltas = {};   // chave → o src da última tela que a pediu; chave → <img> fora da página
+  function reusoImg(chave, src) { reusoSrc[chave] = src; return ' data-reuso="' + esc(chave) + '"'; }
+  function guardaImagens(root) {
+    var ims = root.querySelectorAll('img');
+    for (var i = 0; i < ims.length; i++) {
+      var ch = ims[i].__reuso;
+      if (ch) (imgSoltas[ch] || (imgSoltas[ch] = [])).push(ims[i]);
+    }
+  }
+  function poeImagens(root) {
+    var ph = root.querySelectorAll('img[data-reuso]');
+    for (var i = 0; i < ph.length; i++) {
+      var p = ph[i], ch = p.getAttribute('data-reuso'), src = reusoSrc[ch] || '', lista = imgSoltas[ch];
+      var im = lista && lista.length ? lista.pop() : null, a, j;
+      if (im) {
+        for (j = im.attributes.length - 1; j >= 0; j--) if (im.attributes[j].name !== 'src') im.removeAttribute(im.attributes[j].name);
+        for (j = 0; j < p.attributes.length; j++) { a = p.attributes[j]; if (a.name !== 'data-reuso') im.setAttribute(a.name, a.value); }
+        if (im.getAttribute('src') !== src) im.setAttribute('src', src);   // a do jogador muda quando a arte tingida fica pronta
+      } else {
+        im = document.createElement('img');
+        for (j = 0; j < p.attributes.length; j++) { a = p.attributes[j]; if (a.name === 'data-reuso') im.setAttribute('src', src); else im.setAttribute(a.name, a.value); }
+        im.__reuso = ch;
+      }
+      p.parentNode.replaceChild(im, p);
+    }
+  }
   // um ponto do mapa (pixels de arte) como left/top; --u (CSS) é quantos px de tela vale um pixel de arte
   function mapaPos(p) { return 'left:calc(' + p[0] + ' * var(--u));top:calc(' + p[1] + ' * var(--u))'; }
   // uma peça da arte do mapa como <img> (sem texto: quem dá o nome é o botão em volta); w × h em pixels de arte
   function mapaImgHtml(nome, cls, w, h) {
     var src = mapaArte(nome);
     if (!src) return '';
-    return '<img class="' + cls + '" src="' + esc(src) + '" alt=""' + (w ? ' style="width:calc(' + w + ' * var(--u));height:calc(' + h + ' * var(--u))"' : '') + '>';
+    return '<img class="' + cls + '"' + reusoImg('mapa:' + nome, src) + ' alt=""' + (w ? ' style="width:calc(' + w + ' * var(--u));height:calc(' + h + ' * var(--u))"' : '') + '>';
   }
   // A figura do jogador do PixelLab (arte `jogador`, 64 × 64: um jóquei de costas, de capacete branco, jaqueta dourada —
   // a seda do jogador — e culote branco). O capacete sai na cor do jóquei do Perfil: os pixels claros e sem cor das
@@ -3353,9 +3427,12 @@
   // a linha dos pés da figura na arte (a última linha opaca, medida no build)
   function jogadorPe() { return MAPA && MAPA.pes && MAPA.pes.jogador > 0 ? MAPA.pes.jogador : 63; }
   // a mesma figura para um <img> (o mapa do ginásio): data: da tela da cor; antes de a arte chegar, a arte crua
+  // (o data: de cada cor sai uma vez só: a tela da cor nunca muda depois de feita)
+  var jogadorUrls = {};
   function jogadorUrl(cor) {
     var t = jogadorTela(cor);
-    return t ? t.toDataURL() : mapaArte('jogador');
+    if (!t) return mapaArte('jogador');
+    return hasOwn(jogadorUrls, cor) ? jogadorUrls[cor] : (jogadorUrls[cor] = t.toDataURL());
   }
   // as placas e o palco da cena do duelo k (o canvas é desenhado no hydrate: drawGinCena)
   function ginCenaHtml(R, k) {
@@ -3398,7 +3475,8 @@
     var k = s.k, ctx = s.ctx, c = CENA_CORES[e.gymId] || CENA_CORES.fogo;
     var hk = Math.max(1, Math.round(k * 1.5));   // os cavalos a 1,5× (o quadro de 36 px de arte vira 54)
     var visB = opcoesVisuais(e.b, null), visA = e.a ? opcoesVisuais(e.a, null) : null, img = null;
-    function px(x, y, w, h, cor) { ctx.fillStyle = cor; ctx.fillRect(x * k, y * k, w * k, h * k); }
+    var alvo = ctx, pk = k;   // onde o px desenha e em que escala: a cena, ou a tela do fundo pronto, a 1× (fundoPronto)
+    function px(x, y, w, h, cor) { alvo.fillStyle = cor; alvo.fillRect(x * pk, y * pk, w * pk, h * pk); }
     function palco(cx, cy, rx, ry) {
       for (var y = -ry; y <= ry; y++) { var w = Math.round(rx * Math.sqrt(1 - (y * y) / (ry * ry))); px(cx - w, cy + y, 2 * w, 1, y < 0 ? c.palco : c.palco2); }
     }
@@ -3429,6 +3507,18 @@
       SP.drawHorse(ctx, 0, base * k - 36 * hk, o);
       ctx.restore();
     }
+    // o fundo (parede, piso e os dois tablados) não muda de um quadro para o outro: pintado uma vez por ginásio, a 1×
+    // (um pixel de arte = um pixel), numa tela fora da página, e ampliado k vezes a cada quadro, sem suavizar — os mesmos
+    // pixels do px em escala k (cada pixel de arte vira um bloco k × k). Opaco e da cena inteira: cobre o quadro anterior.
+    function fundoPronto() {
+      if (hasOwn(cenaFundos, e.gymId)) return cenaFundos[e.gymId];
+      var t = document.createElement('canvas');
+      t.width = CENA_W; t.height = CENA_H;
+      alvo = t.getContext('2d'); pk = 1;
+      fundo();
+      alvo = ctx; pk = k;
+      return (cenaFundos[e.gymId] = t);
+    }
     var item = {
       drawn: false,
       draw: function (t) {
@@ -3436,8 +3526,8 @@
         item.drawn = true;
         item.t = t;
         var tt = reduced() ? 0.5 : t;
-        ctx.clearRect(0, 0, cv.width, cv.height);
-        fundo();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(fundoPronto(), 0, 0, CENA_W * k, CENA_H * k);
         cavalo(e.b, visB, 116, 64, tt + 0.9, true);   // o cavalo do oponente, virado para a esquerda
         img = img || treinadorImg(ginTreinadorId(e.dono));
         if (img) ctx.drawImage(img, 96 * k, 0, 64 * k, 64 * k);
@@ -6930,7 +7020,10 @@
   // animação e no resultado depois do pódio sair da tela. acordaLaco() religa (render, rolagem, preferência).
   var lastIdle = 0, lacoAtivo = false;
   var visObs = window.IntersectionObserver ? new window.IntersectionObserver(function (ents) {
-    for (var e = 0; e < ents.length; e++) ents[e].target.__visivel = ents[e].isIntersecting;
+    for (var e = 0; e < ents.length; e++) {
+      ents[e].target.__visivel = ents[e].isIntersecting;
+      if (ents[e].isIntersecting && ents[e].target.__adiado) desenhaAdiado(ents[e].target.__adiado);   // entrou na tela antes da vez
+    }
     acordaLaco();
   }) : null;
   function vivo(item, cv) {
