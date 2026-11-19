@@ -117,12 +117,12 @@ testes em `sim-test.js`.
 - `RaceSim.withRanks(horse, rank) -> horse`: cópia com `skillRanks` de todas as skills no rank dado.
 - `GameData` etapas do ginásio: `rank: 1, 1, 1, 2, 2` (soldado-1 … líder); a revanche usa o do líder.
 
-- [ ] **Passo 1:** testes: `Poder sobe ao subir rank (Raro com Sprint rank 1 → 5: +14 × 1 × 0,6, arredondado)`;
+- [x] **Passo 1:** testes: `Poder sobe ao subir rank (Raro com Sprint rank 1 → 5: +14 × 1 × 0,6, arredondado)`;
   `botRank({ skills: ['sprint','drift'], skillRanks: { sprint: 4, drift: 1 } }) === 3` (2,5 arredonda para 3);
   `botRank` de cavalo sem skill === 1; `os oponentes do ginásio saem com skillRanks no rank da etapa`.
-- [ ] **Passo 2:** rodar → falham. **Passo 3:** implementar; os bots da sala recebem `withRanks(bot, botRank(cavaloDoJogador))`
+- [x] **Passo 2:** rodar → falham. **Passo 3:** implementar; os bots da sala recebem `withRanks(bot, botRank(cavaloDoJogador))`
   **antes** do cálculo do Poder do bot. **Passo 4:** `sim-test.js` passa.
-- [ ] **Passo 5:** commit "põe o rank no Poder, nos bots e nos ginásios".
+- [x] **Passo 5:** commit "põe o rank no Poder, nos bots e nos ginásios".
 
 ### Tarefa 4: metas e recalibração
 

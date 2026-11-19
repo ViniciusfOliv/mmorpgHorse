@@ -578,12 +578,13 @@
     return { distance: at, surface: surface, blocks: blocks };
   }
   // As cinco etapas (mesmos níveis, entradas e prêmios nos três; spec §4).
+  // rank: o rank de todas as skills de vaga dos cavalos da etapa (fixo, sem sorteio; a revanche usa o do líder).
   var GYM_ETAPAS = [
-    { id: 'soldado-1', lider: false, level: 4, entrada: 20, premio: { ouro: 80, itens: [] } },
-    { id: 'soldado-2', lider: false, level: 8, entrada: 30, premio: { ouro: 120, itens: ['torrao'] } },
-    { id: 'soldado-3', lider: false, level: 12, entrada: 40, premio: { ouro: 160, itens: [] } },
-    { id: 'soldado-4', lider: false, level: 16, entrada: 50, premio: { ouro: 200, itens: ['manual'] } },
-    { id: 'lider', lider: true, level: 20, entrada: 100, premio: { ouro: 400, itens: ['redea', 'cupom'] } }
+    { id: 'soldado-1', lider: false, level: 4, rank: 1, entrada: 20, premio: { ouro: 80, itens: [] } },
+    { id: 'soldado-2', lider: false, level: 8, rank: 1, entrada: 30, premio: { ouro: 120, itens: ['torrao'] } },
+    { id: 'soldado-3', lider: false, level: 12, rank: 1, entrada: 40, premio: { ouro: 160, itens: [] } },
+    { id: 'soldado-4', lider: false, level: 16, rank: 2, entrada: 50, premio: { ouro: 200, itens: ['manual'] } },
+    { id: 'lider', lider: true, level: 20, rank: 2, entrada: 100, premio: { ouro: 400, itens: ['redea', 'cupom'] } }
   ];
   // Os cavalos de todas as etapas têm a genética do inicial do elemento (base); graus: as estrelas de cada cavalo,
   // por etapa (o tamanho de cada lista é o tamanho do time).
@@ -593,7 +594,7 @@
       etapas: GYM_ETAPAS.map(function (e, i) {
         return {
           id: e.id, nome: e.lider ? lider : soldados[i], lider: e.lider,
-          cavalos: graus[i].map(function (gr) { return { base: base, level: e.level, grau: gr }; }),
+          cavalos: graus[i].map(function (gr) { return { base: base, level: e.level, grau: gr, rank: e.rank }; }),
           entrada: e.entrada, premio: { ouro: e.premio.ouro, itens: e.premio.itens.slice() }
         };
       }),

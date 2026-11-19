@@ -4365,20 +4365,21 @@
   // (~57 ms no Node, contra ~11 ms antes do 1b; com a memória, ~13 ms a 1ª sala e menos de 1 ms as seguintes).
   // Só os modelos fixos do catálogo (GD.WILD_HORSES e GD.STARTERS) passam por aqui.
   var poderBotMemo = {};
-  function poderBot(template, L) {
-    var k = template.id + '|' + L;
+  // O rank das skills do bot (RS.botRank do cavalo do jogador) entra no Poder dele, então também entra na chave.
+  function poderBot(template, L, rank) {
+    var k = template.id + '|' + L + '|' + rank;
     if (!hasOwn(poderBotMemo, k)) {
-      var h = clone(template);
+      var h = RS.withRanks(template, rank);
       h.level = L;
       h.alloc = RS.botAlloc(h);
       poderBotMemo[k] = RS.powerRating(h);
     }
     return poderBotMemo[k];
   }
-  function bestLevelFor(template, target, lo, hi) {
+  function bestLevelFor(template, target, lo, hi, rank) {
     var best = lo || 1, bestD = Infinity;
     for (var L = (lo || 1); L <= (hi || E.maxLevel || 50); L++) {
-      var d = Math.abs(poderBot(template, L) - target);
+      var d = Math.abs(poderBot(template, L, rank) - target);
       if (d < bestD - 0.5) { bestD = d; best = L; }
     }
     return { level: best, diff: bestD };
@@ -4458,6 +4459,9 @@
     var used = {};
     var silkOrder = shuffle(BOT_SILKS.map(function (c, i) { return i; }), rng);
     var bots = [];
+    // rank das skills dos bots: a média (arredondada) dos ranks das skills de vaga do cavalo do jogador, sem sorteio.
+    // Sai antes do Poder do bot (entra na escolha do nível). Com o páreo aberto o rank da ativa não muda.
+    var rankBots = RS.botRank(player.horse);
     for (var b = 0; b < n - 1; b++) {
       // alvo em torno do rating do jogador (−8,5%..+11,5%); o rating já pesa cada habilidade pela chance
       // do gatilho. O leve viés para cima mantém a margem da casa (~10%) também contra bots.
@@ -4469,7 +4473,7 @@
       var botGear = function (tpl) { return GEAR_ON ? GR.botGear(leagueIdx, tpl.element, gpick) : null; };
       var inBand = pool.map(function (tpl) {
         var bd = levelBand(tpl);
-        return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, bd[0], bd[1]) };
+        return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, bd[0], bd[1], rankBots) };
       })
         .filter(function (c) { return c.fit.diff <= target * 0.06; });
       var fresh = inBand.filter(function (c) { return !used[c.tpl.id]; });
@@ -4477,14 +4481,14 @@
       if (!cands.length) {
         // ninguém plausível na faixa: o mais próximo do alvo em qualquer nível
         var all = pool.map(function (tpl) {
-          return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target) };
+          return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, null, null, rankBots) };
         });
         all.sort(function (x, y) { return x.fit.diff - y.fit.diff; });
         cands = all.slice(0, 3);
       }
       var choice = pick(cands, rng);
       used[choice.tpl.id] = true;
-      var horse = clone(choice.tpl);   // genética do catálogo; os pontos livres pela build fixa
+      var horse = RS.withRanks(choice.tpl, rankBots);   // genética do catálogo; os pontos livres pela build fixa
       horse.level = choice.fit.level;
       horse.alloc = RS.botAlloc(horse);
       horse.id = choice.tpl.id + '-b' + b;

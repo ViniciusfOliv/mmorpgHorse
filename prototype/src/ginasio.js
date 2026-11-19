@@ -59,7 +59,8 @@
     if (temChave(VENCE, dele) && VENCE[dele] === meu) return -1;
     return 0;
   }
-  // O cavalo fixo da etapa: a base do catálogo (cópia) no nível e nas estrelas dados, com a build dos bots.
+  // O cavalo fixo da etapa: a base do catálogo (cópia) no nível e nas estrelas dados, com a build dos bots e as
+  // skills de vaga no rank da etapa.
   function cavalo(def) {
     if (!objeto(def)) return null;
     var lista = G.STARTERS.concat(G.WILD_HORSES), base = null;
@@ -69,7 +70,8 @@
     h.level = def.level;
     h.grau = def.grau;
     h.alloc = S.botAlloc(h);
-    return h;
+    // skills de vaga no rank fixo da etapa (sem sorteio; ausente ou inválido vale 1)
+    return S.withRanks(h, def.rank);
   }
   // Distância na chegada de um duelo (resultado do simulate com 2 corredores), em metros, uma casa.
   function metros(res) {

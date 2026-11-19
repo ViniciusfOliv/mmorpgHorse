@@ -29,7 +29,7 @@
  *   n(x) = status/100. allocInfo(horse): { free, used (custo gasto), left, perStat, next (custo do
  *   próximo ponto), room (quantos pontos ainda cabem) }.
  *   powerRating = round(2,5·VEL + 2,0·ACE + 2,2·MAN + 2,4·FOR + 2,4·EST + 1,5·GAR + 0·SOR
- *   + 14 × peso do gatilho (skillWeight) por skill + 20·(nível−1)/49 + 28·ordemDaRaridade/4); ligas em GameData.LEAGUES.
+ *   + 14 × peso do gatilho (skillWeight) × fator do rank (rankScale) por skill + 20·(nível−1)/49 + 28·ordemDaRaridade/4); ligas em GameData.LEAGUES.
  *   weightedAlloc(horse, w, from): um ponto por vez no status de menor (a+1)/w que ainda cabe.
  *   botAlloc(horse, from): weightedAlloc com T.botW[tipo] (os seis valem 1; × 1,2 nos dois status do tipo);
  *   sem RNG; com `from` continua a distribuição do jogador ("Distribuir sugerido").
@@ -495,7 +495,8 @@
   }
 
   // Rating de Poder: soma ponderada dos status + habilidades + nível e raridade (sem equipamento).
-  // Cada habilidade vale T.ratingSkillPts (14) × o peso do seu gatilho; nível e raridade somam
+  // Cada habilidade vale T.ratingSkillPts (14) × o peso do seu gatilho × o fator do rank dela (rankScale; o marco
+  // do rank 5 não soma à parte); nível e raridade somam
   // T.ratingLevel·(nível − 1)/49 + T.ratingRar·ordem/4 (o mesmo para os três tipos).
   // Para curva, subida e estamina baixa o peso segue a
   // chance de o gatilho acontecer numa corrida típica; clima (0.8) e dice (0.2) são pesos calibrados no
@@ -557,6 +558,23 @@
       });
     }
     return out;
+  }
+  // Rank dos bots de uma sala: a média arredondada dos ranks das skills de vaga do cavalo do jogador (1 sem skill),
+  // sem sorteio. A sala espelha o investimento do jogador.
+  function botRank(horse) {
+    var ids = ((horse && horse.skills) || []).filter(function (id) { return !!GameData.SKILLS[id]; });
+    if (!ids.length) return 1;
+    var soma = 0;
+    ids.forEach(function (id) { soma += rankOf(horse, id); });
+    return clamp(Math.round(soma / ids.length), 1, GameData.SKILL_RANKS.max);
+  }
+  // Cópia do cavalo com todas as skills de vaga no rank dado (bots da sala, oponentes dos ginásios, testes).
+  function withRanks(horse, rank) {
+    var h = JSON.parse(JSON.stringify(horse)), K = GameData.SKILL_RANKS;
+    var r = (typeof rank === 'number' && isFinite(rank)) ? clamp(Math.floor(rank), 1, K.max) : 1;
+    h.skillRanks = {};
+    (h.skills || []).forEach(function (id) { if (GameData.SKILLS[id]) h.skillRanks[id] = r; });
+    return h;
   }
   // Texto da skill com os números do rank (a desc de GameData.SKILLS é a do rank 1; o sim-test confere).
   function pctBr(x) { var v = Math.round(x * 1000) / 10; return String(v).replace('.', ',') + '%'; }
@@ -637,7 +655,7 @@
   function powerRating(horse) {
     var s = computeStats(horse);
     var skillPts = 0;
-    (horse.skills || []).forEach(function (id) { skillPts += T.ratingSkillPts * skillWeight(id); });
+    (horse.skills || []).forEach(function (id) { skillPts += T.ratingSkillPts * skillWeight(id) * rankScale(rankOf(horse, id)); });
     var w = T.ratingW, sum = 0;
     for (var i = 0; i < STAT_KEYS.length; i++) sum += s[STAT_KEYS[i]] * w[STAT_KEYS[i]];
     // nível e raridade (skill de tipo, chance de skill): termos próprios, iguais para os três tipos
@@ -1388,6 +1406,8 @@
     rankOf: rankOf,
     skillEffect: skillEffect,
     skillDesc: skillDesc,
+    botRank: botRank,
+    withRanks: withRanks,
     garraInfo: garraInfo,
     weatherMult: weatherMult,
     learnSkill: learnSkill,

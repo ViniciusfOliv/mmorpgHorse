@@ -118,6 +118,48 @@ test('a desc de cada skill é o texto do rank 1 (skillDesc), e o do rank 5 cita 
   });
   assert.strictEqual(S.skillDesc('sprint', 5), 'Numa reta de 100 m ou mais (fora a da largada): +5,8% de velocidade por 150 m.');
 });
+test('Poder sobe com o rank: cada skill soma 14 × peso do gatilho × fator do rank', function () {
+  var h = cl(G.WILD_HORSES.filter(function (x) { return x.rarity === 'raro'; })[0]); h.skills = ['sprint']; h.skillRanks = { sprint: 1 };
+  var p1 = S.powerRating(h); h.skillRanks.sprint = 5; var p5 = S.powerRating(h);
+  assert.ok(p5 - p1 === 8 || p5 - p1 === 9, 'Sprint 1 → 5: +14 × 1 × 0,6 = 8,4, arredondado: ' + (p5 - p1));
+  h.skillRanks = { sprint: 1 }; var semSkill = cl(h); semSkill.skills = [];
+  assert.strictEqual(S.powerRating(h) - S.powerRating(semSkill), 14, 'no rank 1 a skill vale o de sempre');
+  h.skillRanks = { sprint: 9 }; assert.strictEqual(S.powerRating(h), p1, 'rank inválido vale 1');
+  h.skills = ['folego-de-montanha']; h.skillRanks = { 'folego-de-montanha': 3 }; var b3 = S.powerRating(h); h.skillRanks = {};
+  assert.ok(Math.abs((b3 - S.powerRating(h)) - 14 * 0.6 * 0.3) <= 1, 'peso do gatilho × 0,30');
+});
+test('botRank: média arredondada dos ranks das skills de vaga do cavalo; 1 sem skill', function () {
+  assert.strictEqual(S.botRank({ skills: ['sprint', 'drift'], skillRanks: { sprint: 4, drift: 1 } }), 3, '2,5 arredonda para 3');
+  assert.strictEqual(S.botRank({ skills: [] }), 1); assert.strictEqual(S.botRank({}), 1); assert.strictEqual(S.botRank(null), 1);
+  assert.strictEqual(S.botRank({ skills: ['sprint', 'drift', 'arranque'], skillRanks: { sprint: 5, drift: 5, arranque: 5 } }), 5);
+  assert.strictEqual(S.botRank({ skills: ['sprint', 'nao-existe'], skillRanks: { sprint: 4, 'nao-existe': 5 } }), 4, 'skill fora do catálogo não conta');
+  assert.strictEqual(S.botRank({ skills: ['sprint', 'drift'], skillRanks: { sprint: 9, drift: 2 } }), 2, 'rank inválido vale 1: (1 + 2) / 2 = 1,5 → 2');
+});
+test('withRanks: cópia com todas as skills de vaga no rank dado, sem mexer no original', function () {
+  var h = { id: 'x', skills: ['sprint', 'drift'], skillRanks: { sprint: 2 } }, c = S.withRanks(h, 4);
+  assert.deepStrictEqual(c.skillRanks, { sprint: 4, drift: 4 }); assert.deepStrictEqual(h.skillRanks, { sprint: 2 });
+  assert.deepStrictEqual(S.withRanks(h, 9).skillRanks, { sprint: 5, drift: 5 }); assert.deepStrictEqual(S.withRanks(h, 'x').skillRanks, { sprint: 1, drift: 1 });
+  assert.deepStrictEqual(S.withRanks({ skills: [] }, 3).skillRanks, {});
+});
+test('os oponentes do ginásio saem com as skills no rank da etapa: soldados 1 a 3 no rank 1, soldado 4 e líder no 2', function () {
+  var GN = require('../src/ginasio.js');
+  G.GYM_ORDER.forEach(function (gid) {
+    assert.deepStrictEqual(G.GYMS[gid].etapas.map(function (e) { return e.cavalos[0].rank; }), [1, 1, 1, 2, 2], gid);
+    G.GYMS[gid].etapas.forEach(function (et, i) {
+      et.cavalos.forEach(function (def) {
+        var h = GN.cavalo(def), esperado = i >= 3 ? 2 : 1;
+        h.skills.forEach(function (id) { assert.strictEqual(h.skillRanks[id], esperado, gid + ' ' + et.id + ' ' + id); });
+        assert.strictEqual(Object.keys(h.skillRanks).length, h.skills.length);
+      });
+    });
+  });
+  // os cavalos-base dos ginásios (os iniciais) não têm skill de vaga hoje: o rank fica pronto para quando tiverem.
+  // Com uma base que tem skills, o rank da etapa vale para todas; ausente ou inválido vale 1.
+  var comSkill = G.WILD_HORSES.filter(function (x) { return x.skills.length >= 2; })[0];
+  var h2 = GN.cavalo({ base: comSkill.id, level: 16, grau: 2, rank: 2 }), h1 = GN.cavalo({ base: comSkill.id, level: 16, grau: 2 });
+  comSkill.skills.forEach(function (id) { assert.strictEqual(h2.skillRanks[id], 2, id); assert.strictEqual(h1.skillRanks[id], 1, id); });
+  assert.ok(S.powerRating(h2) > S.powerRating(h1), 'o rank entra no Poder do oponente');
+});
 
 section('status');
 test('computeStats devolve 7 chaves: base + pontos comprados, sem teto por raridade', function () {
@@ -2249,7 +2291,7 @@ test('ginásio: faixa (limites meio abertos, Ruling 5) e metros (com chegada emp
 test('ginásio: cavalo (a base do catálogo no nível e nas estrelas, com a build dos bots)', function () {
   var antes = JSON.stringify(CATALOGO);
   var h = GY.cavalo({ base: 'brasa', level: 12, grau: 3 });
-  var esp = cl(catDe('brasa')); esp.level = 12; esp.grau = 3; esp.alloc = S.botAlloc(esp);
+  var esp = cl(catDe('brasa')); esp.level = 12; esp.grau = 3; esp.alloc = S.botAlloc(esp); esp.skillRanks = {};
   assert.deepStrictEqual(h, esp);
   assert.strictEqual(JSON.stringify(CATALOGO), antes, 'não altera o catálogo');
   h.skills.push('x'); assert.deepStrictEqual(catDe('brasa').skills, [], 'devolve uma cópia');
