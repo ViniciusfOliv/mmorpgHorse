@@ -570,7 +570,11 @@
   //     gravado consertado ao abrir, como a diária: ver start);
   //   state.gymCounter: desafios sorteados (a seed de cada duelo), inteiro ≥ 0 (lixo: 0).
   // Save de versão MAIOR que SAVE_VERSION (saveMaisNovo) nunca é adotado nem gravado por cima: tela de bloqueio.
-  var SAVE_VERSION = 8;
+  // Campo novo da v9 (skills com rank, 2026-11-19): cada montaria tem skillRanks = { id: 1..5 }, uma chave por skill de
+  //   vaga. Save de antes da v9 (sem o campo): toda skill fica no rank 1, sem aviso. Em qualquer versão o campo passa
+  //   pelo Itens.sanearRanks: rank ausente ou inválido (0, 7, "3", NaN) vale 1 e rank de skill que o cavalo não tem some.
+  //   A mochila ganha o Pergaminho de técnica (ausente: 0).
+  var SAVE_VERSION = 9;
   var AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.';
   var REDEAS_MAX = 999;
   var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual, pergaminho
@@ -595,6 +599,7 @@
       level: 1,
       xp: 0,
       skills: tpl.skills.slice(),
+      skillRanks: IT.sanearRanks(tpl.skills, tpl.skillRanks),   // modelo do catálogo: tudo no rank 1
       potential: clone(tpl.potential),
       alloc: zeroAlloc(),
       respecFree: true,   // a primeira redistribuição dos pontos é grátis (bloco 1b §9)
@@ -801,6 +806,7 @@
     };
     out.alloc = RS.validAlloc(out, v6 ? m.alloc : null);   // save antigo: zerado; inválido: cortado pelo teto e pelo custo
     out.skills = validSkills(m.skills, out);
+    out.skillRanks = IT.sanearRanks(out.skills, m.skillRanks);   // v9; save antigo (sem o campo): tudo no rank 1
     return out;
   }
 
@@ -820,6 +826,7 @@
       m1.level = num(s.level, 1, 1, MAX_LEVEL);
       m1.xp = num(s.xp, 0, 0, 1e7);
       m1.skills = validSkills(s.skills, m1);
+      m1.skillRanks = IT.sanearRanks(m1.skills, null);
       mounts = [m1]; activeId = 'm1'; nextUid = 2; stableSlots = start; breedCounter = 0;
     } else {
       // v3+: mounts que não é array vira [] (recria o inicial e mantém o Ouro)
@@ -1093,7 +1100,7 @@
     for (var k = 1; k <= levels; k++) {
       var lrng = RS.mulberry32(RS.hash2(state.seedBase, seedTag * 100 + (mount.level - levels + k)));
       var sid = RS.learnSkill({ id: mount.templateId, element: mount.element, rarity: mount.rarity, skills: mount.skills }, lrng, bonusSkillNivel());
-      if (sid) { mount.skills.push(sid); learned.push(sid); }
+      if (sid) { mount.skills.push(sid); mount.skillRanks = IT.sanearRanks(mount.skills, mount.skillRanks); learned.push(sid); }   // a aprendida entra no rank 1
     }
     return { levels: levels, learned: learned };
   }
@@ -2125,7 +2132,7 @@
         tpl = DV.horseTemplate(devCavaloEscolhido(f), uidNum(a.uid));
         a.name = tpl.name; a.element = tpl.element; a.rarity = tpl.rarity; a.sex = tpl.sex; a.grau = tpl.grau;
         a.level = devNivel(f); a.xp = 0;
-        a.skills = tpl.skills.slice(); a.potential = clone(tpl.potential); a.palette = clone(tpl.palette);
+        a.skills = tpl.skills.slice(); a.skillRanks = IT.sanearRanks(a.skills, null); a.potential = clone(tpl.potential); a.palette = clone(tpl.palette);
         a.marcas = clone(tpl.marcas);
         a.porte = tpl.porte;
         devAplicaPontos(a, tpl);
@@ -4192,6 +4199,7 @@
     return lista + (algum && mot ? '<p class="nota">' + esc('Trocar: ' + mot) + '</p>' : '');
   }
   // o que o item vai fazer, no passo da confirmação (sem sortear nada)
+  var ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V'];   // o rank das skills na tela (1 a 5)
   function confirmaTxt(F, m) {
     var fim = ' O item é gasto e não tem volta.';
     switch (F.id) {
@@ -4199,7 +4207,10 @@
       case 'estrela':
         var g = RS.starsOf(m);
         return (g < 3 ? m.name + ' sobe de ' + g + ' para ' + (g + 1) + ' estrelas; os pontos a mais aparecem para distribuir.' : m.name + ' já tem 3 estrelas.') + fim;
-      case 'cupom': return skillNome(F.skillId) + ' sai das vagas de ' + m.name + ' e entra outra skill, sorteada entre as que ele pode aprender.' + fim;
+      case 'cupom':
+        var rkSai = RS.rankOf(m, F.skillId);
+        return skillNome(F.skillId) + ' sai das vagas de ' + m.name + ' e entra outra skill, sorteada entre as que ele pode aprender, no rank I.' +
+          (rkSai > 1 ? ' Rank ' + ROMANOS[rkSai] + ' de ' + skillNome(F.skillId) + ' será perdido.' : '') + fim;
       default: return m.name + ' tenta aprender uma skill nova na hora: ' + Math.round(GD.ITEMS.manual.chance * 100) + '% de chance. Aprendendo ou não, o manual é gasto e não tem volta.';
     }
   }
@@ -4276,8 +4287,9 @@
       r = id === 'cupom' ? IT.trocarSkill(m, skillId, state.seedBase, state.itemCounter) : IT.tentarDoma(m, state.seedBase, state.itemCounter);
       if (!r) return 'Este item não pode ser usado neste cavalo agora.';   // não acontece: podeUsar já garantiu a skill, a vaga e a candidata
       m.skills = r.skills;
+      m.skillRanks = r.skillRanks;   // a que entra (Cupom) ou a aprendida (Manual) fica no rank 1; a que sai perde o rank
       state.itemCounter += 1;
-      txt = id === 'cupom' ? skillNome(r.sai) + ' saiu e entrou ' + skillNome(r.entra) + '.'
+      txt = id === 'cupom' ? skillNome(r.sai) + (r.rankPerdido > 1 ? ' (rank ' + ROMANOS[r.rankPerdido] + ')' : '') + ' saiu e entrou ' + skillNome(r.entra) + (r.rankPerdido > 1 ? ', no rank I.' : '.')
         : r.aprendeu ? m.name + ' aprendeu ' + skillNome(r.aprendeu) + '!' : 'Não foi desta vez: ' + m.name + ' não aprendeu. O manual foi usado.';
     } else if (id === 'torrao') {
       m.torroes = IT.usarTorrao(m).torroes;

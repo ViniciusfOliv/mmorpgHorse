@@ -1698,8 +1698,10 @@ var IT; try { IT = require('../src/itens.js'); } catch (e) { IT = {}; console.lo
 function congela(x) { if (x && typeof x === 'object') { Object.keys(x).forEach(function (k) { congela(x[k]); }); Object.freeze(x); } return x; }
 function cavIt(o) {
   o = o || {};
-  return { uid: 'c1', name: 'Brasa', element: o.element || 'fogo', rarity: o.rarity || 'raro', grau: o.grau == null ? 2 : o.grau, level: o.level == null ? 20 : o.level,
+  var h = { uid: 'c1', name: 'Brasa', element: o.element || 'fogo', rarity: o.rarity || 'raro', grau: o.grau == null ? 2 : o.grau, level: o.level == null ? 20 : o.level,
     skills: o.skills || ['arranque'], torroes: o.torroes == null ? 0 : o.torroes };
+  if (o.skillRanks) h.skillRanks = o.skillRanks;
+  return h;
 }
 var CTX = { tem: 1, ativaComSala: false };
 // cópia da learnSkill de antes desta frente (o teste confere que a nova consome o rng igual e devolve o mesmo)
@@ -2141,6 +2143,83 @@ test('a origem de cada item cita os ginásios só quando algum ginásio dá o it
   });
 });
 
+test('sanearRanks: 0, 7, "3", NaN e ausente valem 1; inteiro de 1 a 5 fica; rank de skill que o cavalo não tem some', function () {
+  var sk = ['sprint', 'drift', 'arranque', 'nascente', 'casco-firme', 'chama-final'];
+  assert.deepStrictEqual(IT.sanearRanks(sk, congela({ sprint: 0, drift: 7, arranque: '3', nascente: NaN, 'chama-final': 4, 'segundo-ar': 5, 'nao-existe': 2 })),
+    { sprint: 1, drift: 1, arranque: 1, nascente: 1, 'casco-firme': 1, 'chama-final': 4 });
+  [1, 2, 3, 4, 5].forEach(function (r) { assert.deepStrictEqual(IT.sanearRanks(['sprint'], { sprint: r }), { sprint: r }); });
+  [2.5, -1, null, undefined, Infinity, true, [], {}].forEach(function (v) { assert.deepStrictEqual(IT.sanearRanks(['sprint'], { sprint: v }), { sprint: 1 }, String(v)); });
+  // save de antes da v9 (sem skillRanks) ou campo que não é objeto: todas no rank 1, nenhuma perdida
+  [undefined, null, 'x', 7, []].forEach(function (rk) { assert.deepStrictEqual(IT.sanearRanks(['sprint', 'drift'], rk), { sprint: 1, drift: 1 }, String(rk)); });
+  assert.deepStrictEqual(IT.sanearRanks([], { sprint: 3 }), {}); assert.deepStrictEqual(IT.sanearRanks(null, { sprint: 3 }), {});
+  assert.deepStrictEqual(IT.sanearRanks(['sprint', 'nao-existe', 7], { sprint: 2 }), { sprint: 2 }, 'skill fora do catálogo não ganha rank');
+  // herdado do Object.prototype não conta como rank
+  assert.deepStrictEqual(IT.sanearRanks(['sprint'], Object.create({ sprint: 5 })), { sprint: 1 });
+});
+test('trocarSkill num rank 4 devolve rankPerdido 4, apaga o rank da que sai e põe a nova no rank 1; as outras ficam', function () {
+  var m = congela(cavIt({ skills: ['sprint', 'drift'], skillRanks: { sprint: 4, drift: 3 } }));
+  for (var c = 0; c < 30; c++) {
+    var r = IT.trocarSkill(m, 'sprint', 99, c);
+    assert.strictEqual(r.rankPerdido, 4); assert.strictEqual(r.sai, 'sprint');
+    var esp = { drift: 3 }; esp[r.entra] = 1;
+    assert.deepStrictEqual(r.skillRanks, esp, 'contador ' + c);
+    assert.deepStrictEqual(Object.keys(r.skillRanks).sort(), r.skills.slice().sort());
+  }
+  // sem skillRanks (save antigo): rankPerdido 1
+  assert.strictEqual(IT.trocarSkill(congela(cavIt({ skills: ['sprint'] })), 'sprint', 99, 0).rankPerdido, 1);
+  // a troca não sorteia nada a mais: a skill que entra é a mesma de antes dos ranks, para a mesma seed e contador
+  var semRank = IT.trocarSkill(congela(cavIt({ skills: ['sprint', 'drift'] })), 'sprint', 99, 7);
+  assert.strictEqual(IT.trocarSkill(m, 'sprint', 99, 7).entra, semRank.entra);
+});
+test('tentarDoma devolve skillRanks: a aprendida no rank 1, as outras como estavam; sem aprender, nada muda', function () {
+  var m = congela(cavIt({ skills: ['sprint'], skillRanks: { sprint: 5 } })), viu = { sim: 0, nao: 0 };
+  for (var c = 0; c < 60; c++) {
+    var r = IT.tentarDoma(m, 5, c);
+    if (r.aprendeu) { viu.sim++; var esp = { sprint: 5 }; esp[r.aprendeu] = 1; assert.deepStrictEqual(r.skillRanks, esp); }
+    else { viu.nao++; assert.deepStrictEqual(r.skillRanks, { sprint: 5 }); }
+  }
+  assert.ok(viu.sim > 5 && viu.nao > 5, JSON.stringify(viu));
+});
+test('podeSubirRank: custo do rank, e cada motivo na ordem (máximo, sala aberta, Ouro, Ouro reservado, Pergaminhos)', function () {
+  var m = congela(cavIt({ skills: ['sprint', 'drift'], skillRanks: { sprint: 1, drift: 5 } }));
+  var rico = { ouroLivre: 99999, ouro: 99999, pergaminhos: 99, salaAbertaAtivo: false };
+  assert.deepStrictEqual(IT.podeSubirRank(m, 'sprint', congela(rico)), { ok: true, custo: { ouro: 150, perg: 1 }, rank: 1 });
+  [[1, 150, 1], [2, 400, 2], [3, 900, 4], [4, 2000, 7]].forEach(function (c) {
+    var h = cavIt({ skills: ['sprint'], skillRanks: { sprint: c[0] } });
+    assert.deepStrictEqual(IT.podeSubirRank(h, 'sprint', rico).custo, { ouro: c[1], perg: c[2] }, 'rank ' + c[0]);
+    // Ouro e Pergaminhos exatos passam; um a menos não
+    assert.strictEqual(IT.podeSubirRank(h, 'sprint', { ouroLivre: c[1], ouro: c[1], pergaminhos: c[2] }).ok, true);
+    assert.strictEqual(IT.podeSubirRank(h, 'sprint', { ouroLivre: c[1] - 1, ouro: c[1] - 1, pergaminhos: c[2] }).motivo, 'Falta Ouro (precisa de ' + (c[1] === 2000 ? '2.000' : c[1]) + ')');
+    assert.strictEqual(IT.podeSubirRank(h, 'sprint', { ouroLivre: c[1], ouro: c[1], pergaminhos: c[2] - 1 }).motivo, 'Faltam Pergaminhos (precisa de ' + c[2] + ')');
+  });
+  assert.deepStrictEqual(IT.podeSubirRank(m, 'drift', rico), { ok: false, motivo: 'Rank máximo', rank: 5 });
+  assert.strictEqual(IT.podeSubirRank(m, 'sprint', Object.assign({}, rico, { salaAbertaAtivo: true })).motivo, 'Com o páreo aberto, o cavalo ativo não sobe rank');
+  // Foco 3: Ouro exato para o custo, mas parte dele reservada para a entrada da sala aberta (de outro cavalo)
+  var res = IT.podeSubirRank(m, 'sprint', { ouroLivre: 50, ouro: 150, pergaminhos: 5, salaAbertaAtivo: false });
+  assert.strictEqual(res.ok, false); assert.ok(/guardado para a entrada/.test(res.motivo) && /150/.test(res.motivo), res.motivo);
+  // sem contexto, skill que o cavalo não tem, skill de fora do catálogo: recusa com frase
+  assert.strictEqual(IT.podeSubirRank(m, 'sprint').ok, false);
+  ['arranque', 'nao-existe', 'labareda', undefined].forEach(function (id) { var r = IT.podeSubirRank(m, id, rico); assert.strictEqual(r.ok, false); assert.ok(r.motivo.length > 8); });
+  assert.strictEqual(IT.podeSubirRank(null, 'sprint', rico).ok, false);
+});
+test('subirRank: +1 no rank e o custo a descontar, sem sortear; do 1 ao 5 custa 3.450 de Ouro e 14 Pergaminhos', function () {
+  var h = cavIt({ skills: ['sprint', 'drift'], skillRanks: { sprint: 1, drift: 2 } }), ouro = 0, perg = 0;
+  var mr = Math.random, usou = false; Math.random = function () { usou = true; return 0.5; };
+  try {
+    for (var k = 0; k < 4; k++) {
+      var antes = JSON.stringify(h), r = IT.subirRank(congela(cl(h)), 'sprint');
+      assert.strictEqual(JSON.stringify(h), antes, 'não muta a montaria');
+      assert.deepStrictEqual(r.skillRanks, { sprint: k + 2, drift: 2 });
+      ouro += r.ouro; perg += r.perg; h.skillRanks = r.skillRanks;
+      assert.deepStrictEqual(IT.subirRank(congela(cl(h)), 'sprint'), IT.subirRank(congela(cl(h)), 'sprint'), 'mesma entrada, mesma saída');
+    }
+  } finally { Math.random = mr; }
+  assert.ok(!usou, 'sem Math.random'); assert.strictEqual(ouro, 3450); assert.strictEqual(perg, 14);
+  assert.strictEqual(IT.subirRank(h, 'sprint'), null, 'rank máximo'); assert.strictEqual(IT.subirRank(h, 'arranque'), null); assert.strictEqual(IT.subirRank(null, 'sprint'), null);
+  // subir rank sobe o Poder (por isso o cavalo ativo fica bloqueado com o páreo aberto)
+  var a = cavIt({ skills: ['sprint'], skillRanks: { sprint: 1 } }), b = cavIt({ skills: ['sprint'], skillRanks: IT.subirRank(a, 'sprint').skillRanks });
+  assert.ok(S.powerRating(b) > S.powerRating(a));
+});
 test('Pergaminho de técnica: no catálogo sem preço nem limite de compra; a loja não lista nem vende', function () {
   var P = G.ITEMS.pergaminho;
   assert.deepStrictEqual({ id: P.id, name: P.name, plural: P.plural, cap: P.cap, podio: P.podio }, { id: 'pergaminho', name: 'Pergaminho de técnica', plural: 'Pergaminhos de técnica', cap: 99, podio: [0.5, 0.3, 0.15] });

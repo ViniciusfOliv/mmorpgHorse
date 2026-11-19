@@ -183,10 +183,10 @@ código); testes em `sim-test.js` (seção `itens`).
 **Interfaces:** `trocarSkill` devolve também `skillRanks` (a que sai é apagada, a que entra fica no rank 1) e
 `rankPerdido`. `tentarDoma` devolve `skillRanks` com a nova no rank 1. O aprender por nível grava o rank 1.
 
-- [ ] **Passo 1:** testes: `save v8 com skills vira v9 com todas no rank 1` (Foco 1); `skillRanks saneado: 0, 7, '3', NaN e
+- [x] **Passo 1:** testes: `save v8 com skills vira v9 com todas no rank 1` (Foco 1); `skillRanks saneado: 0, 7, '3', NaN e
   skill ausente` (Foco 2: 1, 1, 1, 1 e apagada; inteiro 1..5 fica); `trocarSkill num rank 4 devolve rankPerdido 4 e a nova
   rank 1` (Foco 4); `save v10 continua bloqueado` (regra existente).
-- [ ] **Passo 2:** falha. **Passo 3:** implementar; a confirmação do Cupom mostra "Rank IV de Sprint será perdido" quando o
+- [x] **Passo 2:** falha. **Passo 3:** implementar; a confirmação do Cupom mostra "Rank IV de Sprint será perdido" quando o
   rank passa de 1. **Passo 4:** passa. **Passo 5:** commit "grava o rank das skills no save v9".
 
 ### Tarefa 8: subir rank na tela, corrida e DEV

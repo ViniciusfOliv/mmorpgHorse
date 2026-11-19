@@ -8,6 +8,7 @@
  *   - trocarSkill(mount, skillId, seedBase, contador): UMA chamada, a escolha da candidata
  *     (cands[floor(rng() · n)], cands = RaceSim.skillCandidates(mount)). Sem sortear, devolve null se
  *     skillId não está nas vagas (ou não é skill do catálogo, como a de tipo) ou se não há candidata.
+ *     Devolve também skillRanks (a que sai é apagada, a que entra fica no rank 1) e rankPerdido.
  *   - tentarDoma(mount, seedBase, contador): 1) aprende se rng() < GameData.ITEMS.manual.chance;
  *     2) só se aprendeu, a candidata (cands[floor(rng() · n)]). Sem sortear, devolve null se as vagas
  *     estão cheias ou se não há candidata.
@@ -117,7 +118,11 @@
     var entra = cands[Math.floor(sorteio(seedBase, contador)() * cands.length)];
     var novas = skills.slice();
     novas[pos] = entra;
-    return { sai: skillId, entra: entra, skills: novas };
+    // rank: o da skill que sai é perdido (rankPerdido, para o aviso) e a que entra começa no rank 1
+    var ranks = sanearRanks(skills, mount.skillRanks), perdido = ranks[skillId];
+    delete ranks[skillId];
+    ranks[entra] = 1;
+    return { sai: skillId, entra: entra, skills: novas, skillRanks: ranks, rankPerdido: perdido };
   }
 
   function tentarDoma(mount, seedBase, contador) {
@@ -126,9 +131,55 @@
     var cands = S.skillCandidates(mount);
     if (!cands.length) return null;
     var rng = sorteio(seedBase, contador);
-    if (rng() >= I.manual.chance) return { aprendeu: null, skills: skills.slice() };
+    var ranks = sanearRanks(skills, mount.skillRanks);
+    if (rng() >= I.manual.chance) return { aprendeu: null, skills: skills.slice(), skillRanks: ranks };
     var id = cands[Math.floor(rng() * cands.length)];
-    return { aprendeu: id, skills: skills.concat([id]) };
+    ranks[id] = 1;   // a skill aprendida entra no rank 1
+    return { aprendeu: id, skills: skills.concat([id]), skillRanks: ranks };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Rank das skills de vaga (por cavalo: mount.skillRanks = { id: 1..max }). Números em GameData.SKILL_RANKS.
+  // ---------------------------------------------------------------------------------------------
+  // Os ranks coerentes com a lista de skills: uma chave por skill do catálogo que o cavalo tem; inteiro de 1 ao máximo
+  // fica, qualquer outra coisa (ausente, 0, 7, "3", NaN) vale 1; rank de skill que o cavalo não tem some.
+  function sanearRanks(skills, ranks) {
+    var out = {}, r = objeto(ranks), max = G.SKILL_RANKS.max;
+    (Array.isArray(skills) ? skills : []).forEach(function (id) {
+      if (typeof id !== 'string' || !temChave(G.SKILLS, id)) return;
+      var v = r && temChave(r, id) ? r[id] : 1;
+      out[id] = inteiro(v) && v >= 1 && v <= max ? v : 1;
+    });
+    return out;
+  }
+  function milhar(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+  // ctx = { ouroLivre: Ouro fora do reservado para a entrada da sala aberta, ouro: o saldo todo (opcional; separa
+  // "falta Ouro" de "o Ouro está reservado"), pergaminhos: quantos há na mochila, salaAbertaAtivo: o cavalo é o ativo e
+  // há páreo aberto } -> { ok, motivo?, custo?: { ouro, perg }, rank }. Não sorteia: subir rank nunca falha.
+  function podeSubirRank(mount, skillId, ctx) {
+    var skills = skillsDe(mount), c = ctx || {};
+    if (skills.indexOf(skillId) < 0 || !temChave(G.SKILLS, skillId)) return { ok: false, motivo: 'Este cavalo não tem essa skill nas vagas.' };
+    var rank = sanearRanks(skills, mount.skillRanks)[skillId];
+    if (rank >= G.SKILL_RANKS.max) return { ok: false, motivo: 'Rank máximo', rank: rank };
+    var custo = { ouro: G.SKILL_RANKS.custo[rank].ouro, perg: G.SKILL_RANKS.custo[rank].perg };
+    if (c.salaAbertaAtivo) return { ok: false, motivo: 'Com o páreo aberto, o cavalo ativo não sobe rank', custo: custo, rank: rank };
+    if (!(Number(c.ouroLivre) >= custo.ouro)) {
+      var reservado = Number(c.ouro) >= custo.ouro;
+      return { ok: false, motivo: reservado ? 'O Ouro guardado para a entrada do páreo aberto não entra (precisa de ' + milhar(custo.ouro) + ' livres)' : 'Falta Ouro (precisa de ' + milhar(custo.ouro) + ')',
+        custo: custo, rank: rank };
+    }
+    if (!(Number(c.pergaminhos) >= custo.perg)) return { ok: false, motivo: 'Faltam Pergaminhos (precisa de ' + custo.perg + ')', custo: custo, rank: rank };
+    return { ok: true, custo: custo, rank: rank };
+  }
+  // O rank novo e o custo a descontar (quem chama confere podeSubirRank e grava tudo junto). null: skill que o cavalo
+  // não tem ou já no rank máximo.
+  function subirRank(mount, skillId) {
+    var skills = skillsDe(mount);
+    if (skills.indexOf(skillId) < 0 || !temChave(G.SKILLS, skillId)) return null;
+    var ranks = sanearRanks(skills, mount.skillRanks), rank = ranks[skillId];
+    if (rank >= G.SKILL_RANKS.max) return null;
+    ranks[skillId] = rank + 1;
+    return { skillRanks: ranks, ouro: G.SKILL_RANKS.custo[rank].ouro, perg: G.SKILL_RANKS.custo[rank].perg };
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -242,6 +293,9 @@
     SAL: SAL,
     SAL_PERGAMINHO: SAL_PERGAMINHO,
     pergaminhoPodio: pergaminhoPodio,
+    sanearRanks: sanearRanks,
+    podeSubirRank: podeSubirRank,
+    subirRank: subirRank,
     DIA_MAX: DIA_MAX,
     diaLocal: diaLocal,
     podeUsar: podeUsar,
