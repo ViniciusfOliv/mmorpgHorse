@@ -353,7 +353,7 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
   nada; rever antes do online.
 
 ## Em andamento
-- **Teste de engine, web × Godot 4 (spike de 2026-11-19, branch `claude/teste-engine`, fora da `main`):** relatório em
+- **Teste de engine, web × Godot 4 (spike de 2026-11-19, branch `claude/teste-engine`, fora da `main`; 1ª rodada no celular: média de 103 FPS a 120 Hz, mas 1% low de 35 por engasgos; esperando a bateria v2, seção 4 do relatório):** relatório em
   `docs/teste-engine.md`; página de carga em `prototype/spike/` (descartável, fora do `check.sh` e do build), publicada
   como artefato: https://claude.ai/artifact/UvJifXrNdRyHJngmAaJHTm (`prototype/spike/engine.html`, gerado por
   `node prototype/spike/gerar-engine.mjs`; bateria no contêiner: `node prototype/spike/medir-engine.mjs`). No contêiner
