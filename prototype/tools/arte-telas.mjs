@@ -125,6 +125,21 @@ function previas() {
   }
 }
 
+// escolhas do Vinicius (2026-11-20): a cena de cada aba e o mapa de cada ginásio; `--previas` copia para telas/finais/
+export const ESCOLHAS = { cenas: { estabulo: 3, haras: 3, loja: 1, expedicao: 3 }, mapas: { fogo: 's9841', agua: 's9852', grama: 's9862' } };
+function finais() {
+  const F = path.join(DIR, 'telas', 'finais');
+  fs.mkdirSync(F, { recursive: true });
+  for (const [aba, n] of Object.entries(ESCOLHAS.cenas)) {
+    const a = path.join(DIR, 'telas', 'cenas', `${aba}-${n}.png`);
+    if (fs.existsSync(a)) fs.copyFileSync(a, path.join(F, `cena-${aba}.png`));
+  }
+  for (const [g, sd] of Object.entries(ESCOLHAS.mapas)) {
+    const a = path.join(DIR, 'telas', 'mapas', `${g}-${sd}.png`);
+    if (fs.existsSync(a)) fs.copyFileSync(a, path.join(F, `mapa-${g}.png`));
+  }
+}
+
 function folha() {
   const uri = f => 'data:image/png;base64,' + fs.readFileSync(f).toString('base64');
   const sec = ['cenas', 'previas', 'mapas'].map(l => {
@@ -140,7 +155,7 @@ figcaption{color:#9babb2;font-size:12px}</style><div class="p"><h1 style="color:
 }
 
 async function main() {
-  if (process.argv.includes('--previas')) { previas(); folha(); console.log('prévias em prototype/assets/arte/telas/previas/'); return; }
+  if (process.argv.includes('--previas')) { previas(); finais(); folha(); console.log('prévias em prototype/assets/arte/telas/previas/'); return; }
   const a = args(), lista = chamadas(a.lote);
   const usdTab = lista.filter(c => c.api === 'rd').reduce((s, c) => s + c.estimativa, 0), plTab = lista.filter(c => c.api === 'pl').length;
   const tetoUsd = a.tetoUsd ?? Math.ceil(usdTab * 100 + 20) / 100, tetoPl = a.tetoPl ?? plTab * 2;

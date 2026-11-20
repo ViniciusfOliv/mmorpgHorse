@@ -3,6 +3,13 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-20 — Direção de arte: cenas das abas e mapas das trilhas (etapa 6)
+- **Cada aba ganha uma cena 256×160 numa faixa no topo, com a placa do título por cima da borda de baixo** (a lista e os
+  botões continuam iguais); no Estábulo, o cavalo ativo parado na cena, 1:1. Escolhas: Estábulo 3, Haras 3, Loja 1,
+  Expedição 3.
+- **A trilha do ginásio vira mapa visto de cima** (256×384, só o terreno); caminho, paradas e os oponentes de pé (corpo
+  32×48 da etapa 5) por código, de baixo para cima. Mapas: Fornalha 9841, Remanso 9852, Capoeira 9862.
+
 ## 2026-11-20 — Direção de arte: treinadores (etapa 5)
 - **Oponentes dos ginásios em corpo de ~40 px (quadro 32×48) e busto 64×64, pelo Pro do PixelLab com a arte escolhida de
   referência** — a escala dos cavalos 1:1; a altura sai do tamanho do quadro pedido (48 para adultos, 36 para a criança).
