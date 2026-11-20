@@ -128,6 +128,14 @@ button:focus-visible { outline: 3px solid #8ff8e2; outline-offset: 2px; }
           <button type="button" class="pular" disabled title="A amostra não tem tela de resultado">Pular para o resultado</button>
         </div>
       </div>
+      <div class="amostra-ctl" role="group" aria-label="Região da amostra">
+        <span>Região:</span>
+        <button type="button" id="r-cerrado" data-regiao="cerrado" aria-pressed="true">Cerrado</button>
+        <button type="button" id="r-varzea" data-regiao="varzea" aria-pressed="false">Várzea</button>
+        <button type="button" id="r-planalto" data-regiao="planalto" aria-pressed="false">Planalto</button>
+        <button type="button" id="r-sertao" data-regiao="sertao" aria-pressed="false">Sertão</button>
+        <button type="button" id="r-litoral" data-regiao="litoral" aria-pressed="false">Litoral</button>
+      </div>
       <div class="amostra-ctl" role="group" aria-label="Clima da amostra">
         <span>Clima:</span>
         <button type="button" id="c-sol" data-clima="sol" aria-pressed="true">Sol</button>
@@ -147,6 +155,7 @@ button:focus-visible { outline: 3px solid #8ff8e2; outline-offset: 2px; }
       <li><b>Um tamanho de pixel.</b> Cavalo, cenário, cerca, efeitos, letras e a interface usam o mesmo pixel, um número inteiro de pixels do aparelho. Antes, o pixel do cavalo era 3/4 do pixel da pista.</li>
       <li><b>A interface de hoje, no padrão novo.</b> Cabeçalho com o pote, posição, estamina, vento, clima, tempo e velocidade, minimapa, faixa de ordem, vizinhos, narração e botões ficam onde estão; mudam o pixel, a paleta e a fonte.</li>
       <li><b>Velocidade de corrida.</b> Os cavalos galopam no ritmo de velocidade máxima e o cenário passa rápido. A pista continua com 2.000 m e a corrida leva o mesmo tempo.</li>
+      <li><b>Cinco regiões.</b> Cerrado, Várzea, Planalto, Sertão e Litoral, cada uma com a sua paleta de 32 cores e as suas camadas; troque nos botões de região.</li>
       <li><b>Cenário em camadas.</b> Céu em faixas, nuvens, chapadas ao longe (mais claras pela distância), cerrado com ipês e buritis, arquibancada com torcida, pista de terra vermelha e capim na frente. Cada camada anda numa velocidade e emenda sem costura.</li>
       <li><b>Paleta fechada.</b> Toda cor sai da Resurrect 64; o cenário do Cerrado usa 32 delas. O clima troca a paleta das camadas: experimente Chuva e Névoa.</li>
       <li><b>Uma fonte.</b> Galmuri, com todos os acentos.</li>

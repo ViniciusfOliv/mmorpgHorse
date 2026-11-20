@@ -23,9 +23,7 @@
     '0b8a8f', '0eaf9b', '30e1b9', '8ff8e2', '323353', '484a77', '4d65b4', '4d9be6', '8fd3ff', '45293f',
     '6b3e75', '905ea9', 'a884f3', 'eaaded', '753c54', 'a24b6f', 'cf657f', 'ed8099', '831c5d', 'c32454',
     'f04f78', 'f68181', 'fca790', 'fdcbb0'];
-  var REGIAO = ['4d65b4', '4d9be6', '8fd3ff', 'c7dcd0', 'ffffff', '7f708a', '9babb2', '966c6c', 'ab947a', '694f62',
-    '165a4c', '239063', '1ebc73', '91db69', '547e64', '92a984', '676633', 'a2a947', '374e4a', 'f79617', 'f9c22b',
-    'fbb954', '6e2727', '9e4539', 'cd683d', 'e6904e', 'b33831', '4c3e24', '2e222f', '3e3546', 'fdcbb0', 'e83b3b'];
+  // as paletas das regiões chegam em A.regioes[r].paleta (prototype/tools/arte-paleta.mjs)
   var C = {
     tinta: '#2e222f', sombra: '#3e3546', painel: '#313638', painel2: '#374e4a', painel3: '#547e64', texto: '#c7dcd0',
     branco: '#ffffff', ouro: '#f9c22b', ouro2: '#f79617', ouroC: '#fbb954', terra: '#cd683d', terraE: '#9e4539',
@@ -64,8 +62,12 @@
     return (lutCache[clima] = t);
   }
   // perspectiva atmosférica das chapadas: 45% para o claro do céu, resolvida na paleta da região
-  var lutNevoa = {};
-  MESTRA.forEach(function (h) { lutNevoa['#' + h] = perto(mistura('#' + h, '#9babb2', 0.45), REGIAO); });
+  // (por região: o resultado volta para a paleta da região)
+  function lutNevoaDe(paleta) {
+    var t = {};
+    MESTRA.forEach(function (h) { t['#' + h] = perto(mistura('#' + h, '#9babb2', 0.45), paleta); });
+    return t;
+  }
 
   // ---------------------------------------------------------------- utilidades de canvas
   function canvas(w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; var g = c.getContext('2d'); g.imageSmoothingEnabled = false; return c; }
@@ -176,17 +178,18 @@
   Y.frente = Y.pistaFim + 4;               // cerca da frente
   H = Y.frente + 40;                       // 328
   var LARG = 384;                          // largura das camadas que emendam
-  var camadas = {}, cenaPorClima = {};
+  var camadas = {}, porRegiao = {}, cenaPorClima = {};
 
-  function prepararCamadas(imgs) {
-    var ch = imgs.chapadas, cer = imgs.cerrado, fr = imgs.frente, nu = imgs.nuvens, ar = imgs.arquibancada;
-    // os finais já vêm cortados e emendados (arte-regioes.mjs --finalizar)
-    camadas.chapadas = emCanvas(ch, 0, 0, ch.width, ch.height);
-    camadas.cerrado = emCanvas(cer, 0, 0, cer.width, cer.height);
-    camadas.frente = emCanvas(fr, 0, 0, fr.width, fr.height);
-    camadas.nuvens = emCanvas(nu, 0, 0, nu.width, nu.height);
-    camadas.arquibancada = emCanvas(ar, 0, 0, ar.width, ar.height);
-    camadas.chapadas = remapear(camadas.chapadas, lutNevoa);
+  // as camadas de cada região (os finais já vêm cortados e emendados: arte-regioes.mjs --finalizar); a pista, o céu e
+  // o sol são de código e servem a todas
+  function prepararCamadas(imgsPorRegiao) {
+    Object.keys(imgsPorRegiao).forEach(function (r) {
+      var im = imgsPorRegiao[r], c = function (i) { return emCanvas(i, 0, 0, i.width, i.height); };
+      porRegiao[r] = {
+        chapadas: remapear(c(im.horizonte), lutNevoaDe(A.regioes[r].paleta)), cerrado: c(im.meio), frente: c(im.frente),
+        nuvens: c(im.nuvens), arquibancada: c(im.arquibancada)
+      };
+    });
     camadas.pista = desenharPista();
     camadas.ceu = desenharCeu();
     camadas.sol = desenharSol();
@@ -250,15 +253,19 @@
   }
   // todas as camadas do cenário trocadas para um clima, uma vez (guia §9: pré-desenhadas)
   function cenaDoClima(clima) {
-    if (cenaPorClima[clima]) return cenaPorClima[clima];
-    var lut = lutClima(clima), out = {};
-    ['ceu', 'nuvens', 'chapadas', 'cerrado', 'arquibancada', 'pista', 'frente'].forEach(function (k) { out[k] = clima === 'sol' ? camadas[k] : remapear(camadas[k], lut); });
+    var chave = estado.regiao + ':' + clima;
+    if (cenaPorClima[chave]) return cenaPorClima[chave];
+    var lut = lutClima(clima), out = {}, reg = porRegiao[estado.regiao];
+    ['ceu', 'nuvens', 'chapadas', 'cerrado', 'arquibancada', 'pista', 'frente'].forEach(function (k) {
+      var src = reg[k] || camadas[k];
+      out[k] = clima === 'sol' ? src : remapear(src, lut);
+    });
     if (clima === 'nevoa') {   // véu: pontilhado em xadrez de 50% na cor clara (guia §3)
       var v = canvas(LARG, Y.pista0 + 10), vg = v.getContext('2d'); vg.fillStyle = '#c7dcd0';
       for (var y = 40; y < v.height; y++) for (var x = (y % 2); x < LARG; x += 2) if (y > 70 || hash(x, y) < (y - 40) / 30) vg.fillRect(x, y, 1, 1);
       out.veu = v;
     }
-    return (cenaPorClima[clima] = out);
+    return (cenaPorClima[chave] = out);
   }
 
   // ---------------------------------------------------------------- cavalos (moldes 64×64 1:1, recoloridos na mestra)
@@ -331,7 +338,7 @@
   }
 
   // ---------------------------------------------------------------- quadro
-  var estado = { clima: 'sol', t: 0, vel: 1, pausa: false, ultimo: 0, ms: 0, msMedia: 0, narr: '' };
+  var estado = { regiao: 'cerrado', clima: 'sol', t: 0, vel: 1, pausa: false, ultimo: 0, ms: 0, msMedia: 0, narr: '' };
   function camadaRepetida(img, desloc, y) {
     var w = img.width, x = -(((Math.floor(desloc) % w) + w) % w);
     for (; x < W; x += w) D(img, x, y);
@@ -609,6 +616,15 @@
         document.querySelectorAll('[data-clima]').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
       });
     });
+    document.querySelectorAll('[data-regiao]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        estado.regiao = b.getAttribute('data-regiao');
+        document.querySelectorAll('[data-regiao]').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
+        var R0 = A.regioes[estado.regiao];
+        document.querySelector('.pista-nome').textContent = R0.pista;
+        tela.setAttribute('aria-label', 'Corrida de sete cavalos no ' + R0.pista + ', região ' + R0.nome + '.');
+      });
+    });
     var pausa = document.getElementById('pausa');
     pausa.addEventListener('click', function () { estado.pausa = !estado.pausa; pausa.textContent = estado.pausa ? 'Continuar' : 'Pausar'; pausa.setAttribute('aria-pressed', String(estado.pausa)); });
     ['x1', 'x2'].forEach(function (id, i) {
@@ -634,8 +650,13 @@
     if (!document.body.getAttribute('data-vista')) document.body.setAttribute('data-vista', 'novo');
     // as faces vêm do @font-face da página (data: URI); aqui só se espera carregarem
     var fontes = ['8px Galmuri7A', '10px Galmuri9A', '12px Galmuri11A', '12px Galmuri11BA'].map(function (f) { return document.fonts.load(f); });
-    var nomes = ['chapadas', 'cerrado', 'frente', 'nuvens', 'arquibancada'], imgs = {};
-    var carregaCamadas = Promise.all(nomes.map(function (n) { return carregar(A.camadas[n]).then(function (i) { imgs[n] = i; }); }));
+    var imgs = {};
+    var carregaCamadas = Promise.all(Object.keys(A.regioes).map(function (r) {
+      imgs[r] = {};
+      return Promise.all(Object.keys(A.regioes[r].camadas).map(function (n) {
+        return carregar(A.regioes[r].camadas[n]).then(function (i) { imgs[r][n] = i; });
+      }));
+    }));
     var mImgs = {};
     var carregaMoldes = Promise.all(Object.keys(A.moldes).map(function (k) {
       return Promise.all(A.moldes[k].galope.map(carregar)).then(function (l) { mImgs[k] = l; });
@@ -648,7 +669,7 @@
       iconeCabecalho(); iconeClimaCabecalho();
       ligarControles();
       requestAnimationFrame(laco);
-    }).catch(function (e) { document.getElementById('narracao').textContent = 'Erro ao carregar a amostra: ' + e; });
+    }).catch(function (e) { document.getElementById('vizinhos').textContent = 'Erro ao carregar a amostra: ' + e; });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
 })();

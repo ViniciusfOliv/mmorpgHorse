@@ -1,5 +1,5 @@
 {
-  "_doc": "Escolhas das camadas de cada região (docs/arte/guia.md; plano da direção de arte, etapa 3). origem = arquivo quantizado em prototype/assets/arte/; corte = linhas a manter { y, h } (h negativo: tira do fim); recorte 'opaco' = caixa dos pixels opacos (objetos). O final vai para prototype/assets/arte/<regiao>/<camada>.png pelo `node prototype/tools/arte-regioes.mjs --finalizar <regiao>` e é conferido pelo arte-check.mjs. escolhas = os crus da fase 1 (raw/<regiao>/) que vão para as emendas da fase 2; ajustes = corte e chave aplicados ao final.",
+  "_doc": "Escolhas das camadas de cada região (docs/arte/guia.md; plano da direção de arte, etapa 3). origem = arquivo quantizado em prototype/assets/arte/; corte = linhas a manter { y, h } (h negativo: tira do fim); recorte 'opaco' = caixa dos pixels opacos (objetos). O final vai para prototype/assets/arte/<regiao>/<camada>.png pelo `node prototype/tools/arte-regioes.mjs --finalizar <regiao>` e é conferido pelo arte-check.mjs. escolhas = os crus da fase 1 (raw/<regiao>/) que vão para as emendas da fase 2; chave 'topo' = céu pintado apagado por código (arte-regioes.mjs, chaveTopo).",
   "cerrado": {
     "nome": "Cerrado",
     "pistas": [
@@ -43,22 +43,38 @@
       "Hipódromo da Lagoa",
       "Prado Beira-Rio"
     ],
-    "camadas": {},
-    "escolhas": {
-      "horizonte": "horizonte-pl-pixen-s8101-0.png",
-      "meio": "meio-rd-core-s8112-2.png",
-      "frente": "frente-rd-core-s8121-0.png"
-    },
-    "ajustes": {
+    "camadas": {
+      "nuvens": {
+        "origem": "cerrado/nuvens.png",
+        "emenda": true
+      },
       "horizonte": {
+        "origem": "varzea/candidatos/horizonte-pl-pixen-s8101-0-emenda-s8141-0.png",
+        "emenda": true,
         "corte": {
           "y": 44,
           "h": 0
         }
       },
       "meio": {
+        "origem": "varzea/candidatos/meio-rd-core-s8112-2-emenda-s8142-0.png",
+        "emenda": true,
         "chave": "topo"
+      },
+      "frente": {
+        "origem": "varzea/candidatos/frente-rd-core-s8121-0-emenda-s8143-0.png",
+        "emenda": true
+      },
+      "arquibancada": {
+        "origem": "varzea/candidatos/arquibancada-rd-core-s8131-0.png",
+        "emenda": false,
+        "recorte": "opaco"
       }
+    },
+    "escolhas": {
+      "horizonte": "horizonte-pl-pixen-s8101-0.png",
+      "meio": "meio-rd-core-s8112-2.png",
+      "frente": "frente-rd-core-s8121-0.png"
     }
   },
   "planalto": {
@@ -67,19 +83,37 @@
       "Hipódromo do Planalto",
       "Raia da Ventania"
     ],
-    "camadas": {},
-    "escolhas": {
-      "horizonte": "horizonte-pl-pixen-s8202-0.png",
-      "meio": "meio-rd-core-s8212-1.png",
-      "frente": "frente-rd-core-s8221-0.png"
-    },
-    "ajustes": {
+    "camadas": {
+      "nuvens": {
+        "origem": "cerrado/nuvens.png",
+        "emenda": true
+      },
       "horizonte": {
+        "origem": "planalto/candidatos/horizonte-pl-pixen-s8202-0-emenda-s8241-0.png",
+        "emenda": true,
         "corte": {
           "y": 26,
           "h": 0
         }
+      },
+      "meio": {
+        "origem": "planalto/candidatos/meio-rd-core-s8212-1-emenda-s8242-0.png",
+        "emenda": true
+      },
+      "frente": {
+        "origem": "planalto/candidatos/frente-rd-core-s8221-0-emenda-s8243-0.png",
+        "emenda": true
+      },
+      "arquibancada": {
+        "origem": "planalto/candidatos/arquibancada-rd-core-s8231-0.png",
+        "emenda": false,
+        "recorte": "opaco"
       }
+    },
+    "escolhas": {
+      "horizonte": "horizonte-pl-pixen-s8202-0.png",
+      "meio": "meio-rd-core-s8212-1.png",
+      "frente": "frente-rd-core-s8221-0.png"
     }
   },
   "sertao": {
@@ -88,19 +122,37 @@
       "Hipódromo do Sertão Velho",
       "Raia do Engenho"
     ],
-    "camadas": {},
-    "escolhas": {
-      "horizonte": "horizonte-pl-pixen-s8301-0.png",
-      "meio": "meio-rd-core-s8312-0.png",
-      "frente": "frente-rd-core-s8322-1.png"
-    },
-    "ajustes": {
+    "camadas": {
+      "nuvens": {
+        "origem": "cerrado/nuvens.png",
+        "emenda": true
+      },
       "horizonte": {
+        "origem": "sertao/candidatos/horizonte-pl-pixen-s8301-0-emenda-s8341-0.png",
+        "emenda": true,
         "corte": {
           "y": 0,
           "h": 58
         }
+      },
+      "meio": {
+        "origem": "sertao/candidatos/meio-rd-core-s8312-0-emenda-s8342-0.png",
+        "emenda": true
+      },
+      "frente": {
+        "origem": "sertao/candidatos/frente-rd-core-s8322-1-emenda-s8343-0.png",
+        "emenda": true
+      },
+      "arquibancada": {
+        "origem": "sertao/candidatos/arquibancada-rd-core-s8331-1.png",
+        "emenda": false,
+        "recorte": "opaco"
       }
+    },
+    "escolhas": {
+      "horizonte": "horizonte-pl-pixen-s8301-0.png",
+      "meio": "meio-rd-core-s8312-0.png",
+      "frente": "frente-rd-core-s8322-1.png"
     }
   },
   "litoral": {
@@ -108,7 +160,33 @@
     "pistas": [
       "Prado das Palmeiras"
     ],
-    "camadas": {},
+    "camadas": {
+      "nuvens": {
+        "origem": "cerrado/nuvens.png",
+        "emenda": true
+      },
+      "horizonte": {
+        "origem": "litoral/candidatos/horizonte-pl-pixen-s8401-0-emenda-s8441-0.png",
+        "emenda": true
+      },
+      "meio": {
+        "origem": "litoral/candidatos/meio-rd-core-s8411-0-emenda-s8442-0.png",
+        "emenda": true
+      },
+      "frente": {
+        "origem": "litoral/candidatos/frente-rd-core-s8422-1-emenda-s8443-0.png",
+        "emenda": true
+      },
+      "arquibancada": {
+        "origem": "litoral/candidatos/arquibancada-rd-core-s8431-0.png",
+        "emenda": false,
+        "corte": {
+          "y": 0,
+          "h": 68
+        },
+        "recorte": "opaco"
+      }
+    },
     "escolhas": {
       "horizonte": "horizonte-pl-pixen-s8401-0.png",
       "meio": "meio-rd-core-s8411-0.png",

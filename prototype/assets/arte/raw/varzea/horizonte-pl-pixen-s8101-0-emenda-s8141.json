@@ -1,0 +1,13 @@
+{
+  "assinatura": "bb9d4e18c76a",
+  "api": "rd-edit",
+  "pedido": {
+    "input_image": "<37696 chars>",
+    "tile_x": true,
+    "tile_y": false,
+    "seed": 8141
+  },
+  "arquivos": [
+    "horizonte-pl-pixen-s8101-0-emenda-s8141-0.png"
+  ]
+}

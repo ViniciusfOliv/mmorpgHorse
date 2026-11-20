@@ -145,7 +145,7 @@ function gravarCandidato(r, nome, buf) {
 
 // --finalizar: o final de cada camada a partir das escolhas (corte, recorte opaco, requantização na paleta da região)
 function cortar(img, y, h) {
-  if (h < 0) h = img.height - y + h;
+  if (h <= 0) h = img.height - y + h;   // 0 = até o fim; negativo = tira do fim
   const out = new Uint8Array(img.width * h * 4);
   out.set(img.rgba.subarray(y * img.width * 4, (y + h) * img.width * 4));
   return { width: img.width, height: h, rgba: out };

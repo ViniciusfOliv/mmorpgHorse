@@ -1,6 +1,6 @@
 {
   "pl": 14,
-  "usd": 4.680000000000002,
+  "usd": 6.920000000000004,
   "chamadas": [
     {
       "base": "chapadas-rd-plus-s7101",
@@ -206,6 +206,86 @@
       "base": "litoral/frente-rd-core-s8422",
       "usd": 0.2,
       "data": "2026-11-20T02:42:11.892Z"
+    },
+    {
+      "base": "varzea/arquibancada-rd-core-s8131",
+      "usd": 0.2,
+      "data": "2026-11-20T02:50:10.076Z"
+    },
+    {
+      "base": "varzea/horizonte-pl-pixen-s8101-0-emenda-s8141",
+      "usd": 0.12,
+      "data": "2026-11-20T02:50:14.751Z"
+    },
+    {
+      "base": "varzea/meio-rd-core-s8112-2-emenda-s8142",
+      "usd": 0.12,
+      "data": "2026-11-20T02:50:20.553Z"
+    },
+    {
+      "base": "varzea/frente-rd-core-s8121-0-emenda-s8143",
+      "usd": 0.12,
+      "data": "2026-11-20T02:50:23.844Z"
+    },
+    {
+      "base": "planalto/arquibancada-rd-core-s8231",
+      "usd": 0.2,
+      "data": "2026-11-20T02:50:46.692Z"
+    },
+    {
+      "base": "planalto/horizonte-pl-pixen-s8202-0-emenda-s8241",
+      "usd": 0.12,
+      "data": "2026-11-20T02:50:51.394Z"
+    },
+    {
+      "base": "planalto/meio-rd-core-s8212-1-emenda-s8242",
+      "usd": 0.12,
+      "data": "2026-11-20T02:50:55.677Z"
+    },
+    {
+      "base": "planalto/frente-rd-core-s8221-0-emenda-s8243",
+      "usd": 0.12,
+      "data": "2026-11-20T02:50:59.066Z"
+    },
+    {
+      "base": "sertao/arquibancada-rd-core-s8331",
+      "usd": 0.2,
+      "data": "2026-11-20T02:51:25.347Z"
+    },
+    {
+      "base": "sertao/horizonte-pl-pixen-s8301-0-emenda-s8341",
+      "usd": 0.12,
+      "data": "2026-11-20T02:51:30.248Z"
+    },
+    {
+      "base": "sertao/meio-rd-core-s8312-0-emenda-s8342",
+      "usd": 0.12,
+      "data": "2026-11-20T02:51:35.137Z"
+    },
+    {
+      "base": "sertao/frente-rd-core-s8322-1-emenda-s8343",
+      "usd": 0.12,
+      "data": "2026-11-20T02:51:38.581Z"
+    },
+    {
+      "base": "litoral/arquibancada-rd-core-s8431",
+      "usd": 0.2,
+      "data": "2026-11-20T02:52:04.443Z"
+    },
+    {
+      "base": "litoral/horizonte-pl-pixen-s8401-0-emenda-s8441",
+      "usd": 0.12,
+      "data": "2026-11-20T02:52:09.090Z"
+    },
+    {
+      "base": "litoral/meio-rd-core-s8411-0-emenda-s8442",
+      "usd": 0.12,
+      "data": "2026-11-20T02:52:13.620Z"
+    },
+    {
+      "base": "litoral/frente-rd-core-s8422-1-emenda-s8443",
+      "usd": 0.12,
+      "data": "2026-11-20T02:52:30.237Z"
     }
   ]
 }
