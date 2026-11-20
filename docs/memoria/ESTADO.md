@@ -6,7 +6,7 @@ _Atualizado em 2026-11-20._
 jogando), spec (`docs/superpowers/specs/2026-11-19-skills-ranks-design.md`) e plano
 (`docs/superpowers/plans/2026-11-19-skills-ranks.md`) aprovados; implementação no chat "Habilidades: implementação (ranks)",
 Fable 5.2, branch `claude/skills-ranks`, com revisão final no chat de coordenação antes da `main`; o teste de engine web × Godot 4 num chat próprio
-(`claude/teste-engine`); e a direção de arte (guia, custo e corrida amostra) noutro (`claude/direcao-de-arte`: etapas 1 a 3 prontas em 2026-11-20 — pesquisa em `docs/arte/ferramentas.md`, guia em `docs/arte/guia.md`, custos em `docs/arte/custos.md`; **esperando o Vinicius aprovar o guia e confirmar o gasto da amostra**, nada pago gerado). Decisões em `decisoes.md` (2026-11-19).
+(`claude/teste-engine`); e a direção de arte noutro (`claude/direcao-de-arte`): guia aprovado em 2026-11-20 (`docs/arte/guia.md`, pesquisa em `ferramentas.md`, custos em `custos.md`); **amostra da corrida no Cerrado publicada para aprovação** em https://claude.ai/artifact/VnjQHdXSZ1cP45e9xCVsi2 (`prototype/arte/corrida-amostra.html`, gerada por `node prototype/tools/arte-amostra-build.mjs`; assets em `prototype/assets/arte/`, script pago `prototype/tools/arte-amostra.mjs`). Gasto até agora: 6 gerações do PixelLab e US$ 1,96 da Retro Diffusion. Próximo passo: o Vinicius aprova a amostra; aí sai o plano para levar o padrão ao jogo inteiro (etapa 5). Decisões em `decisoes.md` (2026-11-19).
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
 durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o

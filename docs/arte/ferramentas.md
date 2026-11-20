@@ -9,7 +9,7 @@ estão em `docs/arte/custos.md`.
 |---|---|---|
 | Cavalos e jóqueis | **PixelLab** (moldes atuais; novos com `create_image_pro` + referência de estilo, galope com `animate-with-text-v3`) | os 12 moldes já estão pagos, aprovados e recoloridos pelo jogo; a escala do jogo passa a ser a deles (guia §2) |
 | Treinadores e personagens | **PixelLab `create_image_pro`** com paleta travada e o molde do cavalo como referência de estilo | 10 gerações por chamada devolvem 25 candidatos a 48 px (escolhe-se o melhor); paleta exata; mesmo traço dos cavalos |
-| Camadas de cenário por região | **Retro Diffusion `rd_plus` (estilo de ambiente) com `tile_x` e `input_palette`**, a confirmar no piloto contra o PixelLab | é a única que entrega a camada já **sem emenda na horizontal** e já **na paleta**, em pixel nativo, até 384 px de lado, a US$ 0,06 a imagem. No PixelLab a camada sai sem emenda só com uma pintura extra (inpaint) por camada |
+| Camadas de cenário por região | **A melhor de cada camada no piloto: Retro Diffusion Core (`rd_core__platformer`, vegetação, capim, arquibancada) ou PixelLab Pixen (paisagem ao longe), + emenda `seam_tiling` da Retro Diffusion** | é a única que entrega a camada já **sem emenda na horizontal** e já **na paleta**, em pixel nativo, até 384 px de lado, a US$ 0,06 a imagem. No PixelLab a camada sai sem emenda só com uma pintura extra (inpaint) por camada |
 | Objetos de cenário (arquibancada, placas, poste da chegada, torre do juiz) | **PixelLab `create_image_pro`** com o quadro de estilo da região como referência | objetos isolados com fundo transparente, paleta travada, vários candidatos por chamada |
 | Interface (painéis 9-fatias, botões com estados, abas, barras, placas) | **PixelLab `create_ui_asset` + `create_ui_states`**, recortados em peças por script | gera o painel inteiro na paleta exata e os estados (normal, apertado, desligado); o recorte em 9 fatias e a montagem ficam no código, que já faz isso com as peças de hoje (`interface-arte.mjs`) |
 | Fonte | **Galmuri** (OFL; Galmuri11 Bold, Galmuri9, Galmuri7) | única família verificada com vários tamanhos na mesma grade, Bold de verdade, português completo (inclusive º e ª) e licença OFL sem nome reservado; renderizada crispa no tamanho nativo (`fontes-comparacao.png`). O gerador de fontes do PixelLab (15 gerações) não tem acentos: o atlas é só A–Z, a–z, 0–9 e pontuação. Não serve para português |
@@ -19,6 +19,22 @@ estão em `docs/arte/custos.md`.
 
 **O Canva sai da produção de arte**: o logo e a capa passam a ser feitos na grade de pixel. Pode continuar como
 ferramenta de rascunho de diagramação.
+
+## Piloto das camadas (2026-11-20, pago: US$ 0,96 + 6 gerações)
+
+As mesmas 3 camadas do Cerrado (chapadas, cerrado, capim da frente), 384 px de largura, em três caminhos, todas
+quantizadas para a paleta do Cerrado (`prototype/tools/arte-amostra.mjs --lote piloto`; arquivos em
+`prototype/assets/arte/piloto/`).
+
+| Caminho | Resultado |
+|---|---|
+| Retro Diffusion Plus (`rd_plus__default`, `tile_x`) | emenda nativa perfeita, mas desenho pobre: árvores de savana africana, chapadas em faixa; capim aceitável |
+| Retro Diffusion Core (`rd_core__platformer`) | **melhor** no cerrado (ipês, buritis, troncos tortos) e no capim; ruim nas chapadas (pixels dobrados: 73–84% de blocos 2×2 iguais) |
+| PixelLab Pixen | **melhor** nas chapadas (mesas e encostas do cerrado), 1 geração; bom no cerrado |
+
+**Decisão:** nenhuma ferramenta ganha em tudo; cada camada sai da que desenha melhor aquele assunto, e a emenda é
+sempre a ferramenta `seam_tiling` da Retro Diffusion (US$ 0,12, funciona com fundo transparente). A paleta fechada
+dá a unidade entre as duas. Texturas de chão geradas (`rd_plus__textured`) foram reprovadas: o chão da pista é código.
 
 ## PixelLab (API v2), conferido na documentação ao vivo
 

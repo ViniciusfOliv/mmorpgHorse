@@ -3,7 +3,18 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
-## 2026-11-20 — Direção de arte: propostas do guia (aguardam a aprovação do Vinicius)
+## 2026-11-20 — Direção de arte: amostra da corrida (execução)
+- **Guia aprovado pelo Vinicius; gasto da amostra autorizado (até 200 gerações do PixelLab e a conta da Retro Diffusion,
+  US$ 5)** — resposta dele em 2026-11-20. Chave da RD salva pelo formulário seguro da sessão (`X-RD-Token`).
+- **Camadas de cenário: a melhor ferramenta por camada + emenda da RD** — no piloto, a RD Core ganhou no cerrado e no
+  capim, o PixelLab Pixen nas chapadas, a RD Plus só na emenda nativa; a `seam_tiling` da RD emenda qualquer uma.
+- **Chão da pista por código** — as texturas geradas saíram listradas e com ruído.
+- **Quadro de estilo (50 gerações) cortado da amostra** — o piloto já fixou o visual; economiza a cota.
+- **Arquibancada como objeto espaçado (a cada ~1.000 px de paralaxe), não camada repetida** — o diagnóstico apontou a
+  repetição.
+- **Galmuri embutida em subconjunto latino (TTF de ~25 KB cada)** — os originais têm 2,6–4,6 MB por causa do coreano.
+
+## 2026-11-20 — Direção de arte: propostas do guia (aprovadas em 2026-11-20)
 - **Uma escala de pixel para tudo: 1 pixel do molde do cavalo = 1 pixel de arte = `s` pixels do aparelho (inteiro),
   com a largura de arte perto de 256** — hoje o cavalo sai a 3/4 do pixel da pista; os moldes já pagos ditam a escala.
 - **Paleta fechada Resurrect 64, até 32 cores por região** — testada nos treinadores e ícones atuais, que mantêm a leitura.

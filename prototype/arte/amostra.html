@@ -1,0 +1,113 @@
+<title>Corrida no Cerrado</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: duas telas de celular lado a lado (hoje × padrão novo); no estreito, abas trocam entre elas. Visual escuro
+   único de propósito: é tela de jogo, e todas as cores saem da paleta Resurrect 64 do guia de arte. */
+@font-face { font-family: 'Galmuri7A'; src: url(/*__G7__*/) format('truetype'); }
+@font-face { font-family: 'Galmuri9A'; src: url(/*__G9__*/) format('truetype'); }
+@font-face { font-family: 'Galmuri11BA'; src: url(/*__G11__*/) format('truetype'); }
+:root {
+  --fundo: #2e222f; --painel: #313638; --painel-2: #374e4a; --linha: #547e64; --texto: #c7dcd0; --texto-2: #9babb2;
+  --ouro: #f9c22b; --ouro-2: #f79617; --tinta: #2e222f;
+  --px: 1.5px;
+  --f-titulo: 'Galmuri11BA', 'Galmuri9A', monospace; --f-texto: 'Galmuri9A', monospace; --f-mini: 'Galmuri7A', monospace;
+  color-scheme: dark;
+}
+body { background: var(--fundo); color: var(--texto); font-family: var(--f-texto); font-size: 20px; line-height: 28px;
+  -webkit-font-smoothing: none; font-smooth: never; }
+.pagina { max-width: 900px; margin: 0 auto; padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 20px; }
+h1 { font-family: var(--f-titulo); font-weight: normal; font-size: 24px; line-height: 32px; margin: 0; color: var(--ouro);
+  text-shadow: 2px 2px 0 var(--tinta); text-wrap: balance; }
+.sub { margin: 0; color: var(--texto-2); font-size: 20px; max-width: 62ch; }
+.abas { display: none; gap: 8px; }
+.abas button, .controles button {
+  font: inherit; font-size: 20px; color: var(--texto); background: var(--painel); border: 2px solid var(--tinta);
+  box-shadow: inset 0 2px 0 var(--linha), inset 0 -2px 0 var(--tinta); padding: 6px 14px 8px; cursor: pointer; min-height: 44px; }
+.abas button[aria-selected="true"], .controles button[aria-pressed="true"] { background: var(--ouro); color: var(--tinta);
+  box-shadow: inset 0 2px 0 #fbb954, inset 0 -2px 0 var(--ouro-2); }
+button:focus-visible { outline: 3px solid #8ff8e2; outline-offset: 2px; }
+.telas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.tela { min-width: 0; display: grid; gap: 10px; }
+.tela h2 { font-family: var(--f-titulo); font-weight: normal; font-size: 24px; line-height: 32px; margin: 0; }
+.tela h2 small { font-family: var(--f-texto); font-size: 20px; color: var(--texto-2); }
+.hoje img { width: 100%; max-width: 390px; image-rendering: auto; border: 2px solid var(--tinta); display: block; }
+#palco { width: 100%; max-width: 456px; display: grid; gap: calc(var(--px) * 6); background: #313638; border: 2px solid var(--tinta); }
+#corrida { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+#ordem { list-style: none; margin: 0; padding: 0 calc(var(--px) * 4); display: flex; flex-wrap: wrap; gap: calc(var(--px) * 3) calc(var(--px) * 6);
+  font-family: var(--f-mini); font-size: calc(var(--px) * 8); line-height: calc(var(--px) * 10); }
+#ordem li { display: flex; align-items: center; gap: calc(var(--px) * 2); }
+#ordem .pos { color: var(--texto-2); }
+#ordem .seda { width: calc(var(--px) * 4); height: calc(var(--px) * 6); outline: var(--px) solid var(--tinta); }
+#ordem .voce { color: var(--ouro); }
+#narracao { margin: 0; padding: calc(var(--px) * 3) calc(var(--px) * 4) calc(var(--px) * 5); min-height: calc(var(--px) * 14);
+  font-family: var(--f-texto); font-size: calc(var(--px) * 10); line-height: calc(var(--px) * 14);
+  background: var(--painel-2); box-shadow: inset 0 var(--px) 0 var(--linha); }
+.controles { display: flex; flex-wrap: wrap; gap: 8px; }
+.medidas { font-family: var(--f-mini); font-size: 16px; line-height: 20px; color: var(--texto-2); margin: 0; }
+.notas { display: grid; gap: 8px; margin: 0; padding-left: 1.2em; max-width: 70ch; }
+.notas b { color: var(--ouro); font-weight: normal; }
+@media (max-width: 760px) {
+  .abas { display: flex; }
+  .telas { grid-template-columns: minmax(0, 1fr); }
+  body[data-vista="novo"] .hoje, body[data-vista="hoje"] .novo { display: none; }
+}
+</style>
+
+<div class="pagina">
+  <header style="display:grid;gap:8px">
+    <h1>Corrida no Cerrado · padrão novo de arte</h1>
+    <p class="sub">À esquerda, a corrida como está no jogo (captura de 2026-11-18). À direita, a mesma tela refeita pelo guia de arte, rodando ao vivo.</p>
+  </header>
+
+  <div class="abas" role="tablist" aria-label="Qual tela mostrar">
+    <button type="button" id="aba-novo" role="tab" data-aba="novo" aria-selected="true">Padrão novo</button>
+    <button type="button" id="aba-hoje" role="tab" data-aba="hoje" aria-selected="false">Hoje</button>
+  </div>
+
+  <div class="telas">
+    <section class="tela hoje" aria-labelledby="t-hoje">
+      <h2 id="t-hoje">Hoje <small>(captura)</small></h2>
+      <img src="/*__CAPTURA__*/" alt="Captura da corrida atual: céu de um tom, terra com ruído, arquibancada repetida e etiquetas de skill cobrindo as raias." width="390" height="844">
+    </section>
+
+    <section class="tela novo" aria-labelledby="t-novo">
+      <h2 id="t-novo">Padrão novo <small>(ao vivo)</small></h2>
+      <div id="palco">
+        <canvas id="corrida" role="img" aria-label="Corrida de sete cavalos no Prado do Cerrado: chapadas ao longe, cerrado com ipês amarelos, arquibancada, pista de terra vermelha e capim dourado na frente."></canvas>
+        <ol id="ordem" aria-label="Ordem dos corredores"></ol>
+        <p id="narracao" aria-live="polite">Carregando…</p>
+      </div>
+      <div class="controles" role="group" aria-label="Clima">
+        <button type="button" id="c-sol" data-clima="sol" aria-pressed="true">Sol</button>
+        <button type="button" id="c-nublado" data-clima="nublado" aria-pressed="false">Nublado</button>
+        <button type="button" id="c-chuva" data-clima="chuva" aria-pressed="false">Chuva</button>
+        <button type="button" id="c-nevoa" data-clima="nevoa" aria-pressed="false">Névoa</button>
+      </div>
+      <div class="controles">
+        <button type="button" id="pausa" aria-pressed="false">Pausar</button>
+        <button type="button" id="vel">x1</button>
+      </div>
+      <p class="medidas" id="escala"></p>
+      <p class="medidas" id="medidas"></p>
+    </section>
+  </div>
+
+  <section style="display:grid;gap:8px" aria-labelledby="t-mudou">
+    <h2 id="t-mudou" style="font-family:var(--f-titulo);font-weight:normal;font-size:24px;line-height:32px;margin:0">O que mudou</h2>
+    <ul class="notas">
+      <li><b>Um tamanho de pixel.</b> Cavalo, cenário, cerca, efeitos e letras usam o mesmo pixel, um número inteiro de pixels do aparelho. Antes, o pixel do cavalo era 3/4 do pixel da pista.</li>
+      <li><b>Cenário em camadas.</b> Céu em faixas, nuvens, chapadas ao longe (mais claras pela distância), cerrado com ipês e buritis, arquibancada com torcida, pista de terra vermelha e capim na frente. Cada camada anda numa velocidade e emenda sem costura.</li>
+      <li><b>Paleta fechada.</b> Toda cor sai da Resurrect 64; o cenário do Cerrado usa 32 delas. O clima troca a paleta das camadas: experimente Chuva e Névoa.</li>
+      <li><b>Uma fonte.</b> Galmuri em três tamanhos, com todos os acentos.</li>
+      <li><b>Pista limpa.</b> Nas raias só ficam o "VOCÊ" e no máximo dois balões de skill. Posição, tempo e clima estão no céu; ordem e narração, embaixo. Distâncias são placas na cerca.</li>
+      <li><b>Mais leve.</b> A cena é desenhada pequena e ampliada de uma vez; o número de chamadas de desenho por quadro aparece embaixo da corrida (o jogo de hoje chega a 3.905).</li>
+    </ul>
+  </section>
+</div>
+
+<script>window.__ARTE = /*__ARTE__*/;</script>
+<script>
+/*__JS__*/
+</script>
