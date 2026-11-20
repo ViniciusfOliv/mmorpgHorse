@@ -26,8 +26,13 @@ const ANTIGOS = {
   'aba-estabulo': 'horse head icon', 'aba-correr': 'checkered racing flag icon',
   'aba-expedicao': 'round navigation compass, top view, crisp red and white needle pointing straight up, gold rim',
   'aba-haras': 'two hearts icon', 'aba-loja': 'shopping cart icon', 'moeda-ouro': 'gold coin icon',
+  'slot-ferraduras': 'horseshoe icon', 'slot-sela': 'horse saddle icon', 'slot-testeira': 'horse head armor chamfron icon',
+  'slot-armadura': 'horse barding armor icon', 'pedra-negra': 'black polished stone gem icon', 'el-geral': 'grey circle rune icon',
+  'slot-estribos': 'single stirrup iron: D-shaped metal loop with a flat footplate at the bottom, hanging from a short leather strap',
   'el-fogo': 'flame icon', 'el-agua': 'water drop icon', 'el-grama': 'green leaf icon',
 };
+// teste do tamanho 24 × 24 (ícones grandes das abas e de destaque), só pelo /resize: os 3 mais difíceis do piloto
+const TESTE24 = ['aba-estabulo', 'slot-sela', 'liga-ouro'];
 const PILOTO = ['moeda-ouro', 'el-fogo', 'aba-estabulo', 'aba-expedicao', 'st-vel', 'sk-arranque', 'ui-dado', 'liga-ouro'];
 const ESTILO = 'pixel art game ui icon, 16x16, centered, simple bold shapes, readable at small size, dark outline';
 
@@ -47,7 +52,8 @@ function args() {
     else if (v[i] === '--teto-pl') a.tetoPl = Number(v[++i]);
     else throw new Error('opção desconhecida: ' + v[i]);
   }
-  if (a.lote !== 'piloto') throw new Error('lote desconhecido: ' + a.lote + ' (o lote completo entra depois do piloto)');
+  if (!['piloto', 'teste24'].includes(a.lote)) throw new Error('lote desconhecido: ' + a.lote);
+  if (a.lote === 'teste24') a.metodo = 'resize';
   return a;
 }
 const lerJson = (f, p) => (fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : p);
@@ -56,13 +62,14 @@ const assinatura = p => crypto.createHash('sha1').update(JSON.stringify(p)).dige
 
 function chamadas(a) {
   const pal = imagem(encodePng(imagemPaleta(RESURRECT64))), out = [];
-  PILOTO.forEach((id, i) => {
-    const desc = descricao(id), seed = 9101 + i;
+  const t = a.lote === 'teste24' ? 24 : 16;
+  (a.lote === 'teste24' ? TESTE24 : PILOTO).forEach((id, i) => {
+    const desc = descricao(id).replace('16x16', `${t}x${t}`), seed = (t === 24 ? 9201 : 9101) + i;
     if (a.metodo !== 'pixen') {
       const atual = fs.readFileSync(path.join(DIR_ATUAIS, id + '.png'));
-      out.push({ id, metodo: 'resize', endpoint: '/resize', base: `${id}-resize-s${seed}`, pedido: {
-        description: `${desc}, ${ESTILO}`, reference_image: imagem(atual), reference_image_size: { width: 32, height: 32 },
-        target_size: { width: 16, height: 16 }, no_background: true, color_image: pal, seed } });
+      out.push({ id, metodo: 'resize', endpoint: '/resize', base: `${id}-resize${t === 24 ? '24' : ''}-s${seed}`, pedido: {
+        description: `${desc}, ${ESTILO.replace('16x16', `${t}x${t}`)}`, reference_image: imagem(atual), reference_image_size: { width: 32, height: 32 },
+        target_size: { width: t, height: t }, no_background: true, color_image: pal, seed } });
     }
     if (a.metodo !== 'resize') {
       out.push({ id, metodo: 'pixen', endpoint: '/create-image-pixen', base: `${id}-pixen-s${seed}`, pedido: {

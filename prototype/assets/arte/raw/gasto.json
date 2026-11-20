@@ -1,5 +1,5 @@
 {
-  "pl": 30,
+  "pl": 33,
   "usd": 7.1200000000000045,
   "chamadas": [
     {
@@ -371,6 +371,21 @@
       "base": "icones16/liga-ouro-pixen-s9108",
       "geracoes": 1,
       "data": "2026-11-20T03:52:01.223Z"
+    },
+    {
+      "base": "icones16/aba-estabulo-resize24-s9201",
+      "geracoes": 1,
+      "data": "2026-11-20T03:58:41.660Z"
+    },
+    {
+      "base": "icones16/slot-sela-resize24-s9202",
+      "geracoes": 1,
+      "data": "2026-11-20T03:59:03.028Z"
+    },
+    {
+      "base": "icones16/liga-ouro-resize24-s9203",
+      "geracoes": 1,
+      "data": "2026-11-20T03:59:19.610Z"
     }
   ]
 }
