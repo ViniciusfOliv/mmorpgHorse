@@ -22,6 +22,29 @@ const TESTE = {
   'slot-sela': 'a horse riding saddle seen from the side, brown leather with a gold trim, as a game ui icon',
   'liga-ouro': 'a gold shield badge with a dark horse head silhouette in the middle, as a game ui icon',
 };
+// lote complexos (aprovado pelo Vinicius em 2026-11-20, ~170 gerações): os outros 17 ícones de desenho elaborado.
+// raridade e pódio: gera-se um (rar-raro, podio-1) e as outras cores saem por troca de paleta em código.
+const COMPLEXOS = {
+  'slot-armadura': 'horse barding armor with chest and flank plates, seen from the side',
+  'slot-testeira': 'horse head chamfron armor plate with a small crest, seen from the side',
+  'slot-estribos': 'a single stirrup iron, D-shaped metal loop with a flat footplate, hanging from a short leather strap',
+  'ui-perfil': 'jockey riding helmet with a short visor, side view',
+  'ins-fogo': 'round pin badge with a flame emblem inside a ring',
+  'ins-agua': 'round pin badge with a water drop emblem inside a ring',
+  'ins-grama': 'round pin badge with a leaf emblem inside a ring',
+  'rar-raro': 'blue round medallion with a white horse head and four small blue sparkles',
+  'podio-1': 'gold medal hanging from a ribbon',
+  'sk-canto-da-iara': 'seashell with two music notes',
+  'sk-casco-firme': 'horse hoof pressing down on a rock step',
+  'sk-chama-final': 'flame shaped like an arrow pointing right',
+  'sk-folego-de-montanha': 'small mountain with a puff of breath',
+  'sk-nascente': 'small blue water spring bubbling up from a gray rock, single isolated object',
+  'sk-nevoa-amiga': 'soft mist cloud with a small leaf',
+  'sk-pe-na-chuva': 'horseshoe under falling raindrops',
+  'sk-sol-a-pino': 'blazing sun with sharp rays',
+};
+// escolhas do Vinicius no teste (2026-11-20): o número do ícone em limpos/
+export const ESCOLHAS = { 'aba-estabulo': '00', 'liga-ouro': '00', 'slot-sela': '19' };
 const ESTILO = 'pixel art game ui icon, 24x24, centered, clean bold shapes, dark single color outline, light from the upper left';
 
 function folhaEstilo() {
@@ -42,7 +65,7 @@ function args() {
     else if (v[i] === '--teto-pl') a.tetoPl = Number(v[++i]);
     else throw new Error('opção desconhecida: ' + v[i]);
   }
-  if (a.lote !== 'teste') throw new Error('lote desconhecido: ' + a.lote);
+  if (!['teste', 'complexos'].includes(a.lote)) throw new Error('lote desconhecido: ' + a.lote);
   return a;
 }
 const lerJson = (f, p) => (fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : p);
@@ -51,8 +74,9 @@ const assinatura = p => crypto.createHash('sha1').update(JSON.stringify(p)).dige
 
 async function main() {
   const a = args(), estilo = folhaEstilo();
-  const lista = Object.entries(TESTE).map(([id, desc], i) => ({ id, pedido: {
-    description: `${desc}, ${ESTILO}`, image_size: { width: 24, height: 24 }, no_background: true, seed: 9301 + i,
+  const LOTE = a.lote === 'teste' ? TESTE : COMPLEXOS, seed0 = a.lote === 'teste' ? 9301 : 9311;
+  const lista = Object.entries(LOTE).map(([id, desc], i) => ({ id, pedido: {
+    description: `${desc}, ${ESTILO}`, image_size: { width: 24, height: 24 }, no_background: true, seed: seed0 + i,
     reference_images: [{ image: imagem(fs.readFileSync(path.join(RAIZ, 'prototype', 'assets', 'icons', id + '.png'))),
       size: { width: 32, height: 32 }, usage_description: 'the subject and its main shapes (what to draw)' }],
     style_image: { image: imagem(estilo), size: { width: 64, height: 32 }, usage_description: 'the pixel art style: outline, shading and detail level' },
@@ -103,7 +127,7 @@ async function main() {
   await saldo('do PixelLab depois');
   // folha: os candidatos de cada ícone em grade, ampliados 4×, ao lado do atual
   const uri = f => 'data:image/png;base64,' + fs.readFileSync(f).toString('base64');
-  const secoes = Object.keys(TESTE).map(id => {
+  const secoes = Object.keys({ ...TESTE, ...COMPLEXOS }).map(id => {
     const d = path.join(DIR, 'icones24pro', id, 'limpos');
     if (!fs.existsSync(d)) return '';
     const fs_ = fs.readdirSync(d).filter(f => f.endsWith('.png')).sort();

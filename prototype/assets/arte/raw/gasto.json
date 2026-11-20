@@ -1,5 +1,5 @@
 {
-  "pl": 63,
+  "pl": 73,
   "usd": 7.1200000000000045,
   "chamadas": [
     {
@@ -401,6 +401,11 @@
       "base": "icones24pro/liga-ouro",
       "geracoes": 10,
       "data": "2026-11-20T04:18:22.485Z"
+    },
+    {
+      "base": "icones24pro/slot-armadura",
+      "geracoes": 10,
+      "data": "2026-11-20T12:38:41.477Z"
     }
   ]
 }
