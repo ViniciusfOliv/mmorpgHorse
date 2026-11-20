@@ -20,7 +20,7 @@ const SAIDA = path.join(A, 'arte', 'icones');
 export const ESCOLHAS_PRO = {
   'aba-estabulo': '00', 'liga-ouro': '00', 'slot-sela': '19',
   'slot-armadura': '13', 'slot-testeira': '17', 'slot-estribos': '19', 'ui-perfil': '20',
-  'ins-fogo': '00', 'ins-agua': '00', 'ins-grama': '00', 'rar-raro': '00', 'podio-1': '01',
+  'ins-fogo': '00', 'ins-agua': '00', 'ins-grama': '38', 'rar-raro': '00', 'podio-1': '01',
   'sk-canto-da-iara': '37', 'sk-casco-firme': '16', 'sk-chama-final': '04', 'sk-folego-de-montanha': '29',
   'sk-nascente': '12', 'sk-nevoa-amiga': '09', 'sk-pe-na-chuva': '72', 'sk-sol-a-pino': '00',
   'st-forca': '00', 'sk-tipo-grama': '03', 'sk-drift': '13',
@@ -31,14 +31,14 @@ const RAMPAS = {
   platina: ['8ff8e2', '30e1b9', '0eaf9b', '0b8a8f'], diamante: ['8fd3ff', '4d9be6', '4d65b4', '484a77'],
   lenda: ['f57d4a', 'ea4f36', 'b33831', '6e2727'], cinza: ['c7dcd0', '9babb2', '7f708a', '625565'],
   verde: ['91db69', '1ebc73', '239063', '165a4c'], laranja: ['fbb954', 'f79617', 'cd683d', '9e4539'],
-  roxo: ['a884f3', '905ea9', '6b3e75', '45293f'], ouro: ['fbff86', 'f9c22b', 'f79617', 'cd683d'],
+  roxo: ['a884f3', '905ea9', '6b3e75', '45293f'], azulRaro: ['8fd3ff', '4d9be6', '4d65b4', '484a77'], ouro: ['fbff86', 'f9c22b', 'f79617', 'cd683d'],
 };
 const DERIVADOS = {
   'liga-bronze': ['liga-ouro', 'dourado', 'bronze'], 'liga-prata': ['liga-ouro', 'dourado', 'prata'],
   'liga-platina': ['liga-ouro', 'dourado', 'platina'], 'liga-diamante': ['liga-ouro', 'dourado', 'diamante'],
   'liga-lenda': ['liga-ouro', 'dourado', 'lenda'],
-  'rar-comum': ['rar-raro', 'azul', 'cinza'], 'rar-magico': ['rar-raro', 'azul', 'verde'],
-  'rar-lendario': ['rar-raro', 'azul', 'laranja'], 'rar-mitico': ['rar-raro', 'azul', 'roxo'],
+  'rar-comum': ['rar-raro', 'medalhao', 'cinza'], 'rar-magico': ['rar-raro', 'medalhao', 'verde'],
+  'rar-lendario': ['rar-raro', 'medalhao', 'laranja'], 'rar-mitico': ['rar-raro', 'medalhao', 'roxo'],
   'podio-2': ['podio-1', 'dourado', 'prata'], 'podio-3': ['podio-1', 'dourado', 'bronze'],
 };
 
@@ -50,12 +50,19 @@ function hsl([r, g, b]) {
   let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
   return [(h * 60 + 360) % 360, s, l];
 }
-const FAMILIA = { dourado: ([h, s]) => h >= 20 && h <= 65 && s > 0.45, azul: ([h, s]) => h >= 185 && h <= 250 && s > 0.3 };
+const FAMILIA = {
+  dourado: ([h, s]) => h >= 20 && h <= 65 && s > 0.45,
+  azul: ([h, s]) => h >= 185 && h <= 250 && s > 0.3,
+  // raridade: o azul e também o cavalo claro (quase sem cor), para a cor da raridade pegar o medalhão inteiro (pedido do
+  // Vinicius em 2026-11-20: as raridades mudavam pouco entre si)
+  verdeAnel: ([h, s, l]) => h >= 70 && h <= 175 && s > 0.2 && l > 0.15,
+  medalhao: ([h, s, l]) => (h >= 155 && h <= 250 && s > 0.25 && l > 0.18) || (s < 0.25 && l > 0.6),
+};
 // troca as cores da família (pelo matiz) pela rampa nova, pela luminosidade (quartis dos pixels da família)
-function trocarCor(img, familia, rampa) {
+function trocarCor(img, familia, rampa, onde = () => true) {
   const p = new Uint8Array(img.rgba), idx = [];
   for (let i = 0; i < p.length; i += 4) {
-    if (!p[i + 3]) continue;
+    if (!p[i + 3] || !onde((i / 4) % img.width, Math.floor(i / 4 / img.width))) continue;
     const c = hsl([p[i], p[i + 1], p[i + 2]]);
     if (FAMILIA[familia](c)) idx.push([i, c[2]]);
   }
@@ -66,6 +73,12 @@ function trocarCor(img, familia, rampa) {
     p.set(rgbDe(rampa[k]), i);
   }
   return { width: img.width, height: img.height, rgba: p };
+}
+// insígnia da grama: o candidato de folha grande (38) tem o anel verde; o anel vira dourado, como o das insígnias de
+// fogo e água, e a folha continua verde (só os pixels verdes fora do raio da folha mudam)
+function anelDourado(img) {
+  const c = (img.width - 1) / 2, R = 8.5;
+  return trocarCor(img, 'verdeAnel', RAMPAS.ouro, (x, y) => Math.hypot(x - c, y - c) >= R);
 }
 // derrapagem: os rastros escuros (que somem no fundo da interface) viram dourado, com o contorno escuro em volta
 function rastroDourado(img) {
@@ -87,9 +100,10 @@ export function montar() {
   const lados = {};
   const lerPro = id => decodePng(fs.readFileSync(path.join(PRO, id, 'limpos', ESCOLHAS_PRO[id] + '.png')));
   for (const id of Object.keys(ESCOLHAS_PRO)) {
-    const img = id === 'sk-drift' ? rastroDourado(lerPro(id)) : lerPro(id);
+    const img = id === 'sk-drift' ? rastroDourado(lerPro(id)) : id === 'ins-grama' ? anelDourado(lerPro(id)) : lerPro(id);
     fs.writeFileSync(path.join(SAIDA, id + '.png'), encodePng(img)); lados[id] = 24;
   }
+  fs.writeFileSync(path.join(SAIDA, 'rar-raro.png'), encodePng(trocarCor(lerPro('rar-raro'), 'medalhao', RAMPAS.azulRaro)));
   for (const [id, [base, fam, rampa]] of Object.entries(DERIVADOS)) {
     fs.writeFileSync(path.join(SAIDA, id + '.png'), encodePng(trocarCor(lerPro(base), fam, RAMPAS[rampa]))); lados[id] = 24;
   }

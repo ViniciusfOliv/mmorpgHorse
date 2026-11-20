@@ -10,6 +10,8 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 - **O Pro corta os 64 candidatos de uma folha com a grade fora do lugar: o script remonta a folha e separa os ícones**
   (`separarFolha`) — sem isso cada quadro vinha cortado e com pedaços dos vizinhos.
 - **Variações de cor por troca de rampa em código** (ligas, raridades, pódio) — uma geração serve a várias.
+- **Raridade tinge o medalhão inteiro, não só os detalhes azuis** — pedido do Vinicius: as cinco pareciam iguais (cavalo
+  branco com pontos coloridos). Insígnias dos três elementos têm sempre o anel dourado (a da grama troca o anel por código).
 
 ## 2026-11-20 — Direção de arte: regiões de corrida (etapa 3)
 - **5 regiões aprovadas pelo Vinicius**: Cerrado, Várzea, Planalto, Sertão e Litoral, cada uma com paleta de 32 cores; a
