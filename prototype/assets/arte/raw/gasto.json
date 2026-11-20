@@ -1,5 +1,5 @@
 {
-  "pl": 33,
+  "pl": 63,
   "usd": 7.1200000000000045,
   "chamadas": [
     {
@@ -386,6 +386,21 @@
       "base": "icones16/liga-ouro-resize24-s9203",
       "geracoes": 1,
       "data": "2026-11-20T03:59:19.610Z"
+    },
+    {
+      "base": "icones24pro/aba-estabulo",
+      "geracoes": 10,
+      "data": "2026-11-20T04:13:34.307Z"
+    },
+    {
+      "base": "icones24pro/slot-sela",
+      "geracoes": 10,
+      "data": "2026-11-20T04:15:50.531Z"
+    },
+    {
+      "base": "icones24pro/liga-ouro",
+      "geracoes": 10,
+      "data": "2026-11-20T04:18:22.485Z"
     }
   ]
 }

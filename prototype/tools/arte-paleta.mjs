@@ -152,3 +152,69 @@ export function conferir(img, paleta) {
   const emenda = difere(W - 1, 0) / p95;
   return { fora, alfa, opacos, falso, pares: { px0, px1, py0, py1 }, emenda };
 }
+
+// Limpa um candidato recortado de uma folha (o modo Pro do PixelLab corta 64 candidatos de uma folha só e os quadros
+// trazem pedaços dos vizinhos): fica só o maior grupo de pixels opacos (vizinhança de 8), recusa (null) se ele encostar
+// na borda (o ícone saiu cortado) e o centraliza num quadro lado × lado.
+export function limparRecorte(img, lado = img.width) {
+  const W = img.width, H = img.height, p = img.rgba, grupo = new Int32Array(W * H).fill(-1);
+  let melhor = -1, tamMelhor = 0, n = 0;
+  for (let i = 0; i < W * H; i++) {
+    if (p[i * 4 + 3] === 0 || grupo[i] >= 0) continue;
+    const fila = [i]; grupo[i] = n; let tam = 0;
+    while (fila.length) {
+      const j = fila.pop(), x = j % W, y = (j / W) | 0; tam++;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy, k = ny * W + nx;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H || grupo[k] >= 0 || p[k * 4 + 3] === 0) continue;
+        grupo[k] = n; fila.push(k);
+      }
+    }
+    if (tam > tamMelhor) { tamMelhor = tam; melhor = n; }
+    n++;
+  }
+  if (melhor < 0) return null;
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let i = 0; i < W * H; i++) if (grupo[i] === melhor) { const x = i % W, y = (i / W) | 0; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  if (x0 === 0 || y0 === 0 || x1 === W - 1 || y1 === H - 1) return null;
+  const w = x1 - x0 + 1, h = y1 - y0 + 1;
+  if (w > lado || h > lado) return null;
+  const ox = Math.floor((lado - w) / 2), oy = Math.floor((lado - h) / 2), out = new Uint8Array(lado * lado * 4);
+  for (let i = 0; i < W * H; i++) if (grupo[i] === melhor) {
+    const x = i % W - x0 + ox, y = ((i / W) | 0) - y0 + oy;
+    out.set(p.subarray(i * 4, i * 4 + 4), (y * lado + x) * 4);
+  }
+  return { width: lado, height: lado, rgba: out };
+}
+
+// Folha de candidatos do modo Pro remontada (os quadros em ordem, lado a lado): separa cada ícone pelos grupos de pixels
+// opacos (vizinhança de 8). Grupos pequenos demais (< minPx) são sujeira; os maiores que lado × lado são recusados. Cada
+// ícone sai centralizado num quadro lado × lado, na ordem de leitura da folha.
+export function separarFolha(folha, lado, minPx = 40) {
+  const W = folha.width, H = folha.height, p = folha.rgba, grupo = new Int32Array(W * H).fill(-1), caixas = [];
+  for (let i = 0; i < W * H; i++) {
+    if (p[i * 4 + 3] === 0 || grupo[i] >= 0) continue;
+    const id = caixas.length, fila = [i], c = { id, x0: W, y0: H, x1: -1, y1: -1, n: 0 };
+    grupo[i] = id;
+    while (fila.length) {
+      const j = fila.pop(), x = j % W, y = (j / W) | 0;
+      c.n++; c.x0 = Math.min(c.x0, x); c.x1 = Math.max(c.x1, x); c.y0 = Math.min(c.y0, y); c.y1 = Math.max(c.y1, y);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy, k = ny * W + nx;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H || grupo[k] >= 0 || p[k * 4 + 3] === 0) continue;
+        grupo[k] = id; fila.push(k);
+      }
+    }
+    caixas.push(c);
+  }
+  return caixas.filter(c => c.n >= minPx && c.x1 - c.x0 < lado && c.y1 - c.y0 < lado)
+    .sort((a, b) => (Math.floor(a.y0 / lado) - Math.floor(b.y0 / lado)) || (a.x0 - b.x0))
+    .map(c => {
+      const w = c.x1 - c.x0 + 1, h = c.y1 - c.y0 + 1, ox = Math.floor((lado - w) / 2), oy = Math.floor((lado - h) / 2), out = new Uint8Array(lado * lado * 4);
+      for (let y = c.y0; y <= c.y1; y++) for (let x = c.x0; x <= c.x1; x++) {
+        const i = y * W + x;
+        if (grupo[i] === c.id) out.set(p.subarray(i * 4, i * 4 + 4), ((y - c.y0 + oy) * lado + x - c.x0 + ox) * 4);
+      }
+      return { width: lado, height: lado, rgba: out };
+    });
+}
