@@ -1,5 +1,5 @@
 {
-  "pl": 584,
+  "pl": 594,
   "usd": 9.760000000000007,
   "chamadas": [
     {
@@ -751,6 +751,11 @@
       "base": "telas/mapa-grama-s9862",
       "geracoes": 1,
       "data": "2026-11-20T17:12:47.771Z"
+    },
+    {
+      "base": "marca/emblema-s9901",
+      "geracoes": 10,
+      "data": "2026-11-20T18:38:45.512Z"
     }
   ]
 }
