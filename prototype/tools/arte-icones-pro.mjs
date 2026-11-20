@@ -43,6 +43,12 @@ const COMPLEXOS = {
   'sk-pe-na-chuva': 'horseshoe under falling raindrops',
   'sk-sol-a-pino': 'blazing sun with sharp rays',
 };
+// lote complexos2 (aprovado pelo Vinicius em 2026-11-20, 30 gerações): os 3 que não ficaram bons desenhados em código
+const COMPLEXOS2 = {
+  'st-forca': 'a strong flexed arm showing the biceps muscle, side view',
+  'sk-tipo-grama': 'a small tree whose thick roots grip the ground, roots spreading into the soil',
+  'sk-drift': 'two curved black tire skid marks swooping in an arc on the ground, with small gray dust puffs at the end',
+};
 // escolhas do Vinicius no teste (2026-11-20): o número do ícone em limpos/
 export const ESCOLHAS = { 'aba-estabulo': '00', 'liga-ouro': '00', 'slot-sela': '19' };
 const ESTILO = 'pixel art game ui icon, 24x24, centered, clean bold shapes, dark single color outline, light from the upper left';
@@ -65,7 +71,7 @@ function args() {
     else if (v[i] === '--teto-pl') a.tetoPl = Number(v[++i]);
     else throw new Error('opção desconhecida: ' + v[i]);
   }
-  if (!['teste', 'complexos'].includes(a.lote)) throw new Error('lote desconhecido: ' + a.lote);
+  if (!['teste', 'complexos', 'complexos2'].includes(a.lote)) throw new Error('lote desconhecido: ' + a.lote);
   return a;
 }
 const lerJson = (f, p) => (fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : p);
@@ -74,7 +80,8 @@ const assinatura = p => crypto.createHash('sha1').update(JSON.stringify(p)).dige
 
 async function main() {
   const a = args(), estilo = folhaEstilo();
-  const LOTE = a.lote === 'teste' ? TESTE : COMPLEXOS, seed0 = a.lote === 'teste' ? 9301 : 9311;
+  const LOTE = a.lote === 'teste' ? TESTE : a.lote === 'complexos2' ? COMPLEXOS2 : COMPLEXOS;
+  const seed0 = a.lote === 'teste' ? 9301 : a.lote === 'complexos2' ? 9331 : 9311;
   const lista = Object.entries(LOTE).map(([id, desc], i) => ({ id, pedido: {
     description: `${desc}, ${ESTILO}`, image_size: { width: 24, height: 24 }, no_background: true, seed: seed0 + i,
     reference_images: [{ image: imagem(fs.readFileSync(path.join(RAIZ, 'prototype', 'assets', 'icons', id + '.png'))),
@@ -127,7 +134,7 @@ async function main() {
   await saldo('do PixelLab depois');
   // folha: os candidatos de cada ícone em grade, ampliados 4×, ao lado do atual
   const uri = f => 'data:image/png;base64,' + fs.readFileSync(f).toString('base64');
-  const secoes = Object.keys({ ...TESTE, ...COMPLEXOS }).map(id => {
+  const secoes = Object.keys({ ...TESTE, ...COMPLEXOS, ...COMPLEXOS2 }).map(id => {
     const d = path.join(DIR, 'icones24pro', id, 'limpos');
     if (!fs.existsSync(d)) return '';
     const fs_ = fs.readdirSync(d).filter(f => f.endsWith('.png')).sort();
