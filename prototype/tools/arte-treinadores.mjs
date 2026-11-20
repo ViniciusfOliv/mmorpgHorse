@@ -138,13 +138,14 @@ function folha() {
     const d = path.join(DIR, 'treinadores', `${id}-${tipo}`);
     if (!fs.existsSync(d)) return '';
     const info = lerJson(path.join(d, 'info.json'), []), z = tipo === 'corpo' ? 3 : 2;
-    return `<h2>${id} · ${tipo}</h2><div class="grade"><figure><img src="${uri(path.join(DIR_ATUAL, `${id}-s${escolhas[id]}.png`))}" style="width:${64 * z}px"><figcaption>atual (64)</figcaption></figure>`
+    const escala = tipo === 'corpo' && info.length ? `<figure class="escala"><div><img src="${uri(path.join(RAIZ, 'prototype', 'assets', 'pixellab', 'molde-padrao-chamas-parado.png'))}" style="width:192px;margin-bottom:-12px"><img src="${uri(path.join(d, info[0].n + '.png'))}" style="width:96px"></div><figcaption>escala: cavalo 1:1 e o ${info[0].n}</figcaption></figure>` : '';
+    return `<h2>${id} · ${tipo}</h2><div class="grade">${escala}<figure><img src="${uri(path.join(DIR_ATUAL, `${id}-s${escolhas[id]}.png`))}" style="width:${64 * z}px"><figcaption>atual (64)</figcaption></figure>`
       + info.map(i => `<figure><img src="${uri(path.join(d, i.n + '.png'))}" style="width:${(tipo === 'corpo' ? 32 : 64) * z}px"><figcaption>${i.n}${i.altura ? ` · ${i.altura} px` : ''}</figcaption></figure>`).join('') + '</div>';
   })).join('');
   fs.writeFileSync(path.join(RAIZ, 'prototype', 'arte', 'folha-treinadores.html'), `<title>Treinadores 40 px</title>
 <style>:root{color-scheme:dark} body{background:#2e222f;color:#c7dcd0;font:14px monospace;margin:0} .p{padding:16px}
 h2{color:#f9c22b;font-weight:normal} .grade{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end} figure{margin:0;text-align:center}
-img{image-rendering:pixelated;background:#3e3546;display:block} figcaption{color:#9babb2;font-size:12px}</style>
+img{image-rendering:pixelated;background:#3e3546;display:block} figcaption{color:#9babb2;font-size:12px} .escala div{display:flex;align-items:flex-end;background:#3e3546} .escala img{background:none}</style>
 <div class="p"><h1 style="color:#f9c22b;font-weight:normal">Treinadores · corpo 32×48 (3×) e busto 64×64 (2×)</h1>${secoes}</div>`);
 }
 
