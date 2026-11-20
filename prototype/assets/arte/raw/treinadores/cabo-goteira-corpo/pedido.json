@@ -1,0 +1,283 @@
+{
+  "assinatura": "4ec38d79e35e",
+  "pedido": {
+    "description": "<344 chars>",
+    "image_size": {
+      "width": 48,
+      "height": 48
+    },
+    "no_background": true,
+    "seed": 9408,
+    "reference_images": [
+      {
+        "image": {
+          "type": "base64",
+          "base64": "<2248 chars>",
+          "format": "png"
+        },
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "usage_description": "the character: same person, same clothes and colors, redrawn smaller"
+      }
+    ],
+    "target_palette": {
+      "colors": [
+        "#2e222f",
+        "#3e3546",
+        "#625565",
+        "#966c6c",
+        "#ab947a",
+        "#694f62",
+        "#7f708a",
+        "#9babb2",
+        "#c7dcd0",
+        "#ffffff",
+        "#6e2727",
+        "#b33831",
+        "#ea4f36",
+        "#f57d4a",
+        "#ae2334",
+        "#e83b3b",
+        "#fb6b1d",
+        "#f79617",
+        "#f9c22b",
+        "#7a3045",
+        "#9e4539",
+        "#cd683d",
+        "#e6904e",
+        "#fbb954",
+        "#4c3e24",
+        "#676633",
+        "#a2a947",
+        "#d5e04b",
+        "#fbff86",
+        "#165a4c",
+        "#239063",
+        "#1ebc73",
+        "#91db69",
+        "#cddf6c",
+        "#313638",
+        "#374e4a",
+        "#547e64",
+        "#92a984",
+        "#b2ba90",
+        "#0b5e65",
+        "#0b8a8f",
+        "#0eaf9b",
+        "#30e1b9",
+        "#8ff8e2",
+        "#323353",
+        "#484a77",
+        "#4d65b4",
+        "#4d9be6",
+        "#8fd3ff",
+        "#45293f",
+        "#6b3e75",
+        "#905ea9",
+        "#a884f3",
+        "#eaaded",
+        "#753c54",
+        "#a24b6f",
+        "#cf657f",
+        "#ed8099",
+        "#831c5d",
+        "#c32454",
+        "#f04f78",
+        "#f68181",
+        "#fca790",
+        "#fdcbb0"
+      ],
+      "name": "Resurrect 64"
+    }
+  },
+  "resposta": {
+    "post": {
+      "usage": null,
+      "background_job_id": "1bc26f07-de40-46ac-9e56-e554687ac14f",
+      "status": "processing"
+    },
+    "job": {
+      "usage": {
+        "type": "generations",
+        "generations": 10
+      },
+      "id": "1bc26f07-de40-46ac-9e56-e554687ac14f",
+      "status": "completed",
+      "created_at": "2026-11-20T14:12:56.483376+00:00",
+      "last_response": {
+        "seed": 9408,
+        "type": "message_done",
+        "action": "Touching up pixels",
+        "images": [
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1340 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1300 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1408 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1412 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1272 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1292 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1404 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1388 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1224 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1424 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1492 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1396 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1460 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1260 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1224 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1060 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1296 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1052 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1300 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1328 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1508 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1424 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1560 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1148 chars>",
+            "height": 48
+          },
+          {
+            "type": "base64",
+            "width": 48,
+            "base64": "<1440 chars>",
+            "height": 48
+          }
+        ],
+        "progress": 0.85,
+        "billing_usage": {
+          "usd": 0,
+          "type": "generations",
+          "generations": 10
+        },
+        "generation_id": "16df3fd1-6013-48e8-99aa-f5d51a0e6184",
+        "usage_cost_usd": 0.08314872688717312,
+        "billing_charged": true,
+        "style_reference": "general_no_background_32x32.png",
+        "style_selection": null,
+        "style_reference_path": "general_images/general_no_background_32x32.png",
+        "generation_started_at": "2026-11-20T14:13:02.684128+00:00",
+        "original_image_n_colors": 8377,
+        "quantized_image_n_colors": 27
+      }
+    }
+  }
+}

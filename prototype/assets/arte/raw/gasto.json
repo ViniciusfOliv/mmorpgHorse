@@ -1,5 +1,5 @@
 {
-  "pl": 283,
+  "pl": 463,
   "usd": 7.1200000000000045,
   "chamadas": [
     {
@@ -511,6 +511,96 @@
       "base": "treinadores/capita-labareda-busto",
       "geracoes": 10,
       "data": "2026-11-20T13:52:11.597Z"
+    },
+    {
+      "base": "treinadores/recruta-fagulha-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T13:56:34.420Z"
+    },
+    {
+      "base": "treinadores/cabo-tocha-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T13:58:14.371Z"
+    },
+    {
+      "base": "treinadores/sargento-candeeiro-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T13:59:44.610Z"
+    },
+    {
+      "base": "treinadores/tenente-coivara-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:02:21.794Z"
+    },
+    {
+      "base": "treinadores/mestre-aguaceiro-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:10:39.718Z"
+    },
+    {
+      "base": "treinadores/recruta-orvalho-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:12:56.274Z"
+    },
+    {
+      "base": "treinadores/cabo-goteira-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:14:46.372Z"
+    },
+    {
+      "base": "treinadores/sargento-correnteza-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:16:20.509Z"
+    },
+    {
+      "base": "treinadores/tenente-cacimba-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:20:05.608Z"
+    },
+    {
+      "base": "treinadores/dona-capineira-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:21:45.220Z"
+    },
+    {
+      "base": "treinadores/recruta-broto-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:24:54.563Z"
+    },
+    {
+      "base": "treinadores/cabo-carrapicho-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:27:15.763Z"
+    },
+    {
+      "base": "treinadores/sargento-juazeiro-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:29:05.703Z"
+    },
+    {
+      "base": "treinadores/tenente-aroeira-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:31:16.527Z"
+    },
+    {
+      "base": "treinadores/recruta-fagulha-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:34:04.690Z"
+    },
+    {
+      "base": "treinadores/cabo-tocha-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:36:42.121Z"
+    },
+    {
+      "base": "treinadores/sargento-candeeiro-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:38:21.673Z"
+    },
+    {
+      "base": "treinadores/tenente-coivara-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:42:17.832Z"
     }
   ]
 }
