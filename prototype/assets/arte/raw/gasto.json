@@ -1,5 +1,5 @@
 {
-  "pl": 14,
+  "pl": 30,
   "usd": 7.1200000000000045,
   "chamadas": [
     {
@@ -291,6 +291,86 @@
       "base": "sertao/arquibancada-rd-core-s8332",
       "usd": 0.2,
       "data": "2026-11-20T03:25:27.020Z"
+    },
+    {
+      "base": "icones16/moeda-ouro-resize-s9101",
+      "geracoes": 1,
+      "data": "2026-11-20T03:46:08.573Z"
+    },
+    {
+      "base": "icones16/moeda-ouro-pixen-s9101",
+      "geracoes": 1,
+      "data": "2026-11-20T03:46:34.898Z"
+    },
+    {
+      "base": "icones16/el-fogo-resize-s9102",
+      "geracoes": 1,
+      "data": "2026-11-20T03:47:06.019Z"
+    },
+    {
+      "base": "icones16/el-fogo-pixen-s9102",
+      "geracoes": 1,
+      "data": "2026-11-20T03:47:43.971Z"
+    },
+    {
+      "base": "icones16/aba-estabulo-resize-s9103",
+      "geracoes": 1,
+      "data": "2026-11-20T03:48:08.638Z"
+    },
+    {
+      "base": "icones16/aba-estabulo-pixen-s9103",
+      "geracoes": 1,
+      "data": "2026-11-20T03:48:41.298Z"
+    },
+    {
+      "base": "icones16/aba-expedicao-resize-s9104",
+      "geracoes": 1,
+      "data": "2026-11-20T03:49:00.797Z"
+    },
+    {
+      "base": "icones16/aba-expedicao-pixen-s9104",
+      "geracoes": 1,
+      "data": "2026-11-20T03:49:21.653Z"
+    },
+    {
+      "base": "icones16/st-vel-resize-s9105",
+      "geracoes": 1,
+      "data": "2026-11-20T03:49:46.300Z"
+    },
+    {
+      "base": "icones16/st-vel-pixen-s9105",
+      "geracoes": 1,
+      "data": "2026-11-20T03:50:09.427Z"
+    },
+    {
+      "base": "icones16/sk-arranque-resize-s9106",
+      "geracoes": 1,
+      "data": "2026-11-20T03:50:33.236Z"
+    },
+    {
+      "base": "icones16/sk-arranque-pixen-s9106",
+      "geracoes": 1,
+      "data": "2026-11-20T03:50:43.851Z"
+    },
+    {
+      "base": "icones16/ui-dado-resize-s9107",
+      "geracoes": 1,
+      "data": "2026-11-20T03:50:56.965Z"
+    },
+    {
+      "base": "icones16/ui-dado-pixen-s9107",
+      "geracoes": 1,
+      "data": "2026-11-20T03:51:18.597Z"
+    },
+    {
+      "base": "icones16/liga-ouro-resize-s9108",
+      "geracoes": 1,
+      "data": "2026-11-20T03:51:42.071Z"
+    },
+    {
+      "base": "icones16/liga-ouro-pixen-s9108",
+      "geracoes": 1,
+      "data": "2026-11-20T03:52:01.223Z"
     }
   ]
 }

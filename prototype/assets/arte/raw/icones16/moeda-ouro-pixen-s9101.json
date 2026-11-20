@@ -1,0 +1,27 @@
+{
+  "assinatura": "b6be9c8c986a",
+  "endpoint": "/create-image-pixen",
+  "pedido": {
+    "description": "gold coin icon, pixel art game ui icon, 16x16, centered, simple bold shapes, readable at small size, dark outline",
+    "image_size": {
+      "width": 16,
+      "height": 16
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "seed": 9101
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<484 chars>",
+      "format": "png"
+    },
+    "enhanced_prompt": null,
+    "enhance_usage": null
+  }
+}

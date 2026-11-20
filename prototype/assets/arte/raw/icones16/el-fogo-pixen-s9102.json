@@ -1,0 +1,27 @@
+{
+  "assinatura": "4646a858d5e4",
+  "endpoint": "/create-image-pixen",
+  "pedido": {
+    "description": "flame icon, pixel art game ui icon, 16x16, centered, simple bold shapes, readable at small size, dark outline",
+    "image_size": {
+      "width": 16,
+      "height": 16
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "seed": 9102
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<460 chars>",
+      "format": "png"
+    },
+    "enhanced_prompt": null,
+    "enhance_usage": null
+  }
+}
