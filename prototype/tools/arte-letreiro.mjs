@@ -65,9 +65,16 @@ export function duasLinhas() {
   colar(img, a, Math.floor((W - a.width) / 2), 0); colar(img, b, Math.floor((W - b.width) / 2), a.height);
   return img;
 }
-export function logo(emblema) {
-  const t = duasLinhas(), H = Math.max(emblema.height, t.height), img = novo(emblema.width + 4 + t.width, H);
-  colar(img, emblema, 0, Math.floor((H - emblema.height) / 2)); colar(img, t, emblema.width + 4, Math.floor((H - t.height) / 2));
+function aparar(img) {   // tira a margem transparente
+  let x0 = img.width, y0 = img.height, x1 = -1, y1 = -1;
+  for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) if (opaco(img, x, y)) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  const out = novo(x1 - x0 + 1, y1 - y0 + 1);
+  for (let y = 0; y < out.height; y++) out.rgba.set(img.rgba.subarray(((y0 + y) * img.width + x0) * 4, ((y0 + y) * img.width + x1 + 1) * 4), y * out.width * 4);
+  return out;
+}
+export function logo(emblemaBruto) {
+  const emblema = aparar(emblemaBruto), t = duasLinhas(), H = Math.max(emblema.height, t.height), img = novo(emblema.width + 3 + t.width, H);
+  colar(img, emblema, 0, Math.floor((H - emblema.height) / 2)); colar(img, t, emblema.width + 3, Math.floor((H - t.height) / 2));
   return img;
 }
 
@@ -76,6 +83,12 @@ if (process.argv[1] && process.argv[1].endsWith('arte-letreiro.mjs')) {
   const saidas = { 'letreiro-linha.png': linha('GALOPE ELEMENTAL'), 'letreiro-duas.png': duasLinhas() };
   const arqE = ESCOLHA_EMBLEMA === null ? null : path.join(DIR, 'emblema', String(ESCOLHA_EMBLEMA).padStart(2, '0') + '.png');
   if (arqE && fs.existsSync(arqE)) saidas['logo.png'] = logo(decodePng(fs.readFileSync(arqE)));
+  // --previa 10,02,11: o logo montado com cada emblema candidato (para a escolha), em marca/previas/
+  const iP = process.argv.indexOf('--previa');
+  if (iP > 0) {
+    fs.mkdirSync(path.join(DIR, 'previas'), { recursive: true });
+    for (const n of process.argv[iP + 1].split(',')) saidas[`previas/logo-emblema-${n}.png`] = logo(decodePng(fs.readFileSync(path.join(DIR, 'emblema', n + '.png'))));
+  }
   for (const [f, img] of Object.entries(saidas)) {
     const k = conferir(img, RESURRECT64);
     fs.writeFileSync(path.join(DIR, f), encodePng(img));

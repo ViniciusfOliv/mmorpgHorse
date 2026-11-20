@@ -63,7 +63,13 @@ function folha() {
     const z = l === 'emblema' ? 4 : 2;
     return `<h2>${l}</h2><div class="grade">` + fs.readdirSync(d).filter(f => f.endsWith('.png')).sort()
       .map(f => `<figure><img src="${uri(path.join(d, f))}" style="width:${LOTES[l].lado * z}px"><figcaption>${f.replace('.png', '')}</figcaption></figure>`).join('') + '</div>';
-  }).join('');
+  }).join('') + (() => {
+    const d = path.join(DIR, 'marca', 'previas'), l = path.join(DIR, 'marca', 'letreiro-linha.png');
+    const fsP = fs.existsSync(d) ? fs.readdirSync(d).filter(f => f.endsWith('.png')).sort() : [];
+    return '<h2>logo montado em código (3×): letreiro desenhado à mão + emblema</h2><div class="grade">'
+      + fsP.map(f => `<figure><img src="${uri(path.join(d, f))}" style="zoom:3"><figcaption>${f.replace('.png', '')}</figcaption></figure>`).join('')
+      + (fs.existsSync(l) ? `<figure><img src="${uri(l)}" style="zoom:3"><figcaption>letreiro numa linha (cabeçalho)</figcaption></figure>` : '') + '</div>';
+  })();
   fs.writeFileSync(path.join(RAIZ, 'prototype', 'arte', 'folha-marca.html'), `<title>Marca</title>
 <style>:root{color-scheme:dark} body{background:#2e222f;color:#c7dcd0;font:14px monospace;margin:0} .p{padding:16px}
 h2{color:#f9c22b;font-weight:normal} .grade{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end} figure{margin:0;text-align:center}
@@ -72,6 +78,7 @@ img{image-rendering:pixelated;display:block;background:#3e3546} figcaption{color
 }
 
 async function main() {
+  if (process.argv.includes('--folha')) { folha(); console.log('folha em prototype/arte/folha-marca.html'); return; }
   const a = args(), L = LOTES[a.lote], teto = a.tetoPl ?? L.teto, fim = path.join(DIR, 'marca', a.lote);
   const pedidos = L.seeds.map(seed => ({ description: L.desc, image_size: { width: L.lado, height: L.lado }, no_background: a.lote === 'emblema', seed,
     reference_images: [{ image: imagem(simboloAtual()), size: { width: 64, height: 64 }, usage_description: 'the brand symbol to redraw: same horse and mane' }],

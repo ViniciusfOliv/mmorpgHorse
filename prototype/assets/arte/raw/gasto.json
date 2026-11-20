@@ -1,5 +1,5 @@
 {
-  "pl": 594,
+  "pl": 614,
   "usd": 9.760000000000007,
   "chamadas": [
     {
@@ -756,6 +756,16 @@
       "base": "marca/emblema-s9901",
       "geracoes": 10,
       "data": "2026-11-20T18:38:45.512Z"
+    },
+    {
+      "base": "marca/icone-s9911",
+      "geracoes": 10,
+      "data": "2026-11-20T18:41:22.687Z"
+    },
+    {
+      "base": "marca/icone-s9912",
+      "geracoes": 10,
+      "data": "2026-11-20T18:42:36.282Z"
     }
   ]
 }
