@@ -1,6 +1,6 @@
 {
   "pl": 578,
-  "usd": 7.1200000000000045,
+  "usd": 8.080000000000005,
   "chamadas": [
     {
       "base": "chapadas-rd-plus-s7101",
@@ -656,6 +656,36 @@
       "base": "treinadores/recruta-broto-corpo-2",
       "geracoes": 15,
       "data": "2026-11-20T15:12:58.319Z"
+    },
+    {
+      "base": "ginasios/fogo-parede",
+      "usd": 0.2,
+      "data": "2026-11-20T15:27:41.843Z"
+    },
+    {
+      "base": "ginasios/fogo-piso",
+      "usd": 0.12,
+      "data": "2026-11-20T15:27:48.722Z"
+    },
+    {
+      "base": "ginasios/agua-parede",
+      "usd": 0.2,
+      "data": "2026-11-20T15:27:58.746Z"
+    },
+    {
+      "base": "ginasios/agua-piso",
+      "usd": 0.12,
+      "data": "2026-11-20T15:28:05.705Z"
+    },
+    {
+      "base": "ginasios/grama-parede",
+      "usd": 0.2,
+      "data": "2026-11-20T15:28:15.789Z"
+    },
+    {
+      "base": "ginasios/grama-piso",
+      "usd": 0.12,
+      "data": "2026-11-20T15:28:22.576Z"
     }
   ]
 }

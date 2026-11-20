@@ -1,0 +1,16 @@
+{
+  "assinatura": "976f847c0b2a",
+  "pedido": {
+    "prompt": "floor of a fire gym hall: worn dark red clay tiles with soot, scattered embers, warm light, seen from above at an angle, even texture filling the whole image, no characters, no objects in the middle, pixel art game background",
+    "prompt_style": "rd_plus__textured",
+    "width": 256,
+    "height": 96,
+    "num_images": 2,
+    "seed": 9702,
+    "input_palette": "<436 chars>"
+  },
+  "arquivos": [
+    "fogo-piso-0.png",
+    "fogo-piso-1.png"
+  ]
+}

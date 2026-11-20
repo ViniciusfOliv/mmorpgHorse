@@ -48,6 +48,7 @@ function args() {
   const v = process.argv.slice(2);
   for (let i = 0; i < v.length; i++) {
     if (v[i] === '--gerar') a.gerar = true;
+    else if (v[i] === '--montar') a.montar = true;
     else if (v[i] === '--custo') a.custo = true;
     else if (v[i] === '--teto-usd') a.tetoUsd = Number(v[++i]);
     else throw new Error('opção desconhecida: ' + v[i]);
@@ -66,21 +67,93 @@ function chamadas() {
   })));
 }
 
+// --- montagem (sem rede): a parede vem com fundo branco (o estilo platformer desenha um objeto): o branco ligado à borda
+// vira transparente e a parede é recortada; a cena 256 × 160 junta piso, parede, os palcos, um cavalo de exemplo de cada
+// lado (o molde do retrato, pintado de alazão) e o treinador escolhido do ginásio, tudo 1:1
+const rgb = h => [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+function chaveBranco(img) {
+  const W = img.width, H = img.height, p = new Uint8Array(img.rgba), viu = new Uint8Array(W * H), fila = [];
+  const claro = j => p[j * 4 + 3] && p[j * 4] > 225 && p[j * 4 + 1] > 225 && p[j * 4 + 2] > 225;
+  for (let x = 0; x < W; x++) fila.push(x, (H - 1) * W + x);
+  for (let y = 0; y < H; y++) fila.push(y * W, y * W + W - 1);
+  while (fila.length) {
+    const j = fila.pop();
+    if (viu[j] || !claro(j)) continue;
+    viu[j] = 1; p[j * 4 + 3] = 0;
+    const x = j % W, y = (j / W) | 0;
+    if (x > 0) fila.push(j - 1); if (x < W - 1) fila.push(j + 1); if (y > 0) fila.push(j - W); if (y < H - 1) fila.push(j + W);
+  }
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (p[(y * W + x) * 4 + 3]) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  const w = x1 - x0 + 1, h = y1 - y0 + 1, out = new Uint8Array(w * h * 4);
+  for (let y = 0; y < h; y++) out.set(p.subarray(((y0 + y) * W + x0) * 4, ((y0 + y) * W + x1 + 1) * 4), y * w * 4);
+  return { width: w, height: h, rgba: out };
+}
+function colar(dst, src, ox, oy, espelha = false) {
+  for (let y = 0; y < src.height; y++) for (let x = 0; x < src.width; x++) {
+    const sx = espelha ? src.width - 1 - x : x, i = (y * src.width + sx) * 4, X = ox + x, Y = oy + y;
+    if (!src.rgba[i + 3] || X < 0 || Y < 0 || X >= dst.width || Y >= dst.height) continue;
+    dst.rgba.set(src.rgba.subarray(i, i + 4), (Y * dst.width + X) * 4);
+  }
+}
+const PALCO = { fogo: ['9e4539', '6e2727'], agua: ['4d65b4', '323353'], grama: ['a26a35', '6e4a2a'] };
+const ALAZAO = { 25: '2e222f', 50: '6e2727', 75: '9e4539', 100: 'cd683d', 125: 'e6904e', 150: 'fbb954', 175: 'fbb954', 200: 'fbb954', 225: 'fbb954' };
+function cavalo() {
+  const m = decodePng(fs.readFileSync(path.join(RAIZ, 'prototype', 'assets', 'pixellab', 'molde-padrao-chamas-retrato.png'))), p = new Uint8Array(m.rgba);
+  for (let i = 0; i < p.length; i += 4) { const c = ALAZAO[p[i]]; if (!c || !p[i + 3]) p[i + 3] = 0; else p.set(rgb(c), i); }
+  return { width: m.width, height: m.height, rgba: p };
+}
+function compor(g, parede, piso, treinador) {
+  const W = 256, H = 160, cena = { width: W, height: H, rgba: new Uint8Array(W * H * 4) }, fundo = rgb('2e222f');
+  for (let i = 0; i < W * H; i++) cena.rgba.set([...fundo, 255], i * 4);
+  colar(cena, piso, 0, 64);
+  colar(cena, parede, Math.floor((W - parede.width) / 2), 64 - parede.height);
+  const palco = (cx, cy, rx, ry) => {
+    for (let y = -ry; y <= ry; y++) { const w = Math.round(rx * Math.sqrt(1 - (y * y) / (ry * ry))), c = rgb(PALCO[g][y < 0 ? 0 : 1]);
+      for (let x = cx - w; x < cx + w; x++) cena.rgba.set([...c, 255], ((cy + y) * W + x) * 4); }
+  };
+  palco(180, 102, 46, 6); palco(76, 150, 50, 6);
+  const cv = cavalo(), PE = 57;
+  if (treinador) colar(cena, treinador, 202, 100 - treinador.height);
+  colar(cena, cv, 144, 102 - PE, true);   // o do oponente, virado para a esquerda
+  colar(cena, cv, 40, 150 - PE);
+  return cena;
+}
+const LIDER = { fogo: 'capita-labareda', agua: 'mestre-aguaceiro', grama: 'dona-capineira' };
+function montar() {
+  for (const g of Object.keys(GIN)) {
+    const d = path.join(DIR, 'ginasios', g);
+    if (!fs.existsSync(d)) continue;
+    const tr = path.join(DIR, 'treinadores', 'finais', LIDER[g] + '-corpo.png'), treinador = fs.existsSync(tr) ? decodePng(fs.readFileSync(tr)) : null;
+    for (const pa of [0, 1]) {
+      const arq = path.join(d, `parede-${pa}.png`);
+      if (!fs.existsSync(arq)) continue;
+      const parede = chaveBranco(decodePng(fs.readFileSync(arq)));
+      fs.writeFileSync(path.join(d, `parede-${pa}-recorte.png`), encodePng(parede));
+      for (const pi of [0, 1]) {
+        const piso = decodePng(fs.readFileSync(path.join(d, `piso-${pi}.png`)));
+        fs.writeFileSync(path.join(d, `cena-p${pa}-c${pi}.png`), encodePng(compor(g, parede, piso, treinador)));
+      }
+    }
+  }
+}
+
 function folha() {
   const uri = f => 'data:image/png;base64,' + fs.readFileSync(f).toString('base64');
   const sec = Object.entries(GIN).map(([g, G]) => {
     const d = path.join(DIR, 'ginasios', g);
     if (!fs.existsSync(d)) return '';
-    const fs_ = fs.readdirSync(d).filter(f => f.endsWith('.png')).sort();
-    return `<h2>${G.nome}</h2><div class="grade">` + fs_.map(f => `<figure><img src="${uri(path.join(d, f))}" style="width:512px"><figcaption>${f.replace('.png', '')}</figcaption></figure>`).join('') + '</div>';
+    const fs_ = fs.readdirSync(d).filter(f => f.startsWith('cena-')).sort();
+    return `<h2>${G.nome}</h2><div class="grade">` + fs_.map(f => `<figure><img src="${uri(path.join(d, f))}" style="width:512px"><figcaption>${f.replace('.png', '').replace(/cena-p(\d)-c(\d)/, 'parede $1 · piso $2')}</figcaption></figure>`).join('') + '</div>';
   }).join('');
   fs.writeFileSync(path.join(RAIZ, 'prototype', 'arte', 'folha-ginasios.html'), `<title>Fundos dos ginásios</title>
 <style>:root{color-scheme:dark} body{background:#2e222f;color:#c7dcd0;font:14px monospace;margin:0} .p{padding:16px}
 h2{color:#f9c22b;font-weight:normal} .grade{display:flex;flex-wrap:wrap;gap:8px} figure{margin:0} img{image-rendering:pixelated;display:block;max-width:100%}
-figcaption{color:#9babb2;font-size:12px}</style><div class="p"><h1 style="color:#f9c22b;font-weight:normal">Fundos dos ginásios · 2×</h1>${sec}</div>`);
+figcaption{color:#9babb2;font-size:12px}</style><div class="p"><h1 style="color:#f9c22b;font-weight:normal">Cena do desafio 256×160 · 2×</h1><p style="color:#9babb2">Piso e parede da Retro Diffusion; palcos em código; cavalo de exemplo (alazão) dos dois lados e o líder do ginásio, tudo 1:1.</p>${sec}</div>`);
 }
 
 async function main() {
+  if (process.argv.includes('--montar')) { montar(); folha(); console.log('cenas montadas · folha em prototype/arte/folha-ginasios.html'); return; }
   const a = args(), lista = chamadas(), total = lista.reduce((s, c) => s + c.estimativa, 0), teto = a.tetoUsd ?? Math.ceil(total * 100 + 20) / 100;
   console.log(`Fundos dos ginásios: ${lista.length} chamadas na Retro Diffusion, ${lista.reduce((s, c) => s + c.pedido.num_images, 0)} imagens, ~US$ ${total.toFixed(2)} pela tabela. Teto: US$ ${teto.toFixed(2)}`);
   for (const c of lista) console.log(`  ${c.base}  ${c.pedido.prompt_style} ${c.pedido.width}×${c.pedido.height} ×${c.pedido.num_images}, seed ${c.pedido.seed}, ~US$ ${c.estimativa.toFixed(2)}`);
@@ -120,7 +193,7 @@ async function main() {
     });
   }
   console.log('Saldo da Retro Diffusion depois: US$', await rdSaldo());
-  folha();
+  montar(); folha();
   console.log(`Gasto: US$ ${usd.toFixed(2)} · folha em prototype/arte/folha-ginasios.html`);
 }
 main().catch(e => { console.error('ERRO:', e.message); process.exit(1); });

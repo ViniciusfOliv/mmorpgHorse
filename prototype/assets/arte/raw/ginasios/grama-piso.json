@@ -1,0 +1,16 @@
+{
+  "assinatura": "59d210d40c5a",
+  "pedido": {
+    "prompt": "floor of a grass gym hall: packed earth floor with patches of short grass and wooden boards, soft daylight, seen from above at an angle, even texture filling the whole image, no characters, no objects in the middle, pixel art game background",
+    "prompt_style": "rd_plus__textured",
+    "width": 256,
+    "height": 96,
+    "num_images": 2,
+    "seed": 9722,
+    "input_palette": "<436 chars>"
+  },
+  "arquivos": [
+    "grama-piso-0.png",
+    "grama-piso-1.png"
+  ]
+}
