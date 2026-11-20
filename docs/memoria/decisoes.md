@@ -3,6 +3,19 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-20 — Direção de arte: propostas do guia (aguardam a aprovação do Vinicius)
+- **Uma escala de pixel para tudo: 1 pixel do molde do cavalo = 1 pixel de arte = `s` pixels do aparelho (inteiro),
+  com a largura de arte perto de 256** — hoje o cavalo sai a 3/4 do pixel da pista; os moldes já pagos ditam a escala.
+- **Paleta fechada Resurrect 64, até 32 cores por região** — testada nos treinadores e ícones atuais, que mantêm a leitura.
+- **Fonte única Galmuri (11 Bold, 9 e 7; OFL)** — única família verificada com vários tamanhos na mesma grade, Bold e
+  português completo com º e ª; saem Press Start 2P, Jersey 10 e a 3×5.
+- **Canva sai da arte; logo e capa na grade de pixel (PixelLab + composição por código)** — o logo borrado veio de
+  imagem grande reduzida.
+- **Camadas de cenário: Retro Diffusion (`tile_x` + paleta) contra PixelLab, decidido num piloto pequeno** — a RD entrega
+  a camada sem emenda e na paleta a US$ 0,06; o PixelLab precisa de uma pintura extra por emenda.
+- **Efeitos por código, texto fora das raias** (só o "VOCÊ" e até 2 balões nelas) — determinismo e desempenho; o resto
+  vai para o céu e para baixo da pista.
+
 ## 2026-11-20 — Direção de arte (decisões do Vinicius)
 - **Visual com qualidade e desempenho em 100%, sem nada improvisado por ser mais barato; a ferramenta é a melhor para
   cada tipo de asset (PixelLab, outra IA ou software)** — pedido do Vinicius. O diagnóstico da coordenação: escalas de

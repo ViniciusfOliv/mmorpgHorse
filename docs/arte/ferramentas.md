@@ -12,7 +12,7 @@ estão em `docs/arte/custos.md`.
 | Camadas de cenário por região | **Retro Diffusion `rd_plus` (estilo de ambiente) com `tile_x` e `input_palette`**, a confirmar no piloto contra o PixelLab | é a única que entrega a camada já **sem emenda na horizontal** e já **na paleta**, em pixel nativo, até 384 px de lado, a US$ 0,06 a imagem. No PixelLab a camada sai sem emenda só com uma pintura extra (inpaint) por camada |
 | Objetos de cenário (arquibancada, placas, poste da chegada, torre do juiz) | **PixelLab `create_image_pro`** com o quadro de estilo da região como referência | objetos isolados com fundo transparente, paleta travada, vários candidatos por chamada |
 | Interface (painéis 9-fatias, botões com estados, abas, barras, placas) | **PixelLab `create_ui_asset` + `create_ui_states`**, recortados em peças por script | gera o painel inteiro na paleta exata e os estados (normal, apertado, desligado); o recorte em 9 fatias e a montagem ficam no código, que já faz isso com as peças de hoje (`interface-arte.mjs`) |
-| Fonte | **_a definir (pesquisa de fontes)_** | o gerador de fontes do PixelLab (15 gerações) não tem acentos: o atlas é só A–Z, a–z, 0–9 e pontuação. Não serve para português |
+| Fonte | **Galmuri** (OFL; Galmuri11 Bold, Galmuri9, Galmuri7) | única família verificada com vários tamanhos na mesma grade, Bold de verdade, português completo (inclusive º e ª) e licença OFL sem nome reservado; renderizada crispa no tamanho nativo (`fontes-comparacao.png`). O gerador de fontes do PixelLab (15 gerações) não tem acentos: o atlas é só A–Z, a–z, 0–9 e pontuação. Não serve para português |
 | Efeitos (poeira, chuva, rastros, auras, dado) | **Código** (`fx.js`, já existente, refeito na paleta e na grade) | têm de ser determinísticos (sem `Math.random`), baratos por quadro e presos à grade; IA de VFX (PixelLab `/vfx`, Retro Diffusion `rd_animation__vfx`) entrega folhas de sprite com fundo próprio e não respeita a regra de determinismo de graça |
 | Logo | **PixelLab `create_image_pro`** em tamanho de pixel (ex.: 192 × 64) + acabamento por código | um logo desenhado na grade de pixel não borra; o do Canva era imagem grande reduzida |
 | Capa, feature graphic e ícone do Play | **Composição por código** com as camadas, os cavalos e a fonte do jogo, ampliada por fator inteiro (512 × 250 × 2 = 1024 × 500; 128 × 128 × 4 = 512 × 512); a arte-chave que faltar, no PixelLab Pro | fica exatamente no estilo do jogo e é refeita sem custo quando a arte muda; o Canva não garante pixels nítidos na exportação (não verificado) |
@@ -68,7 +68,25 @@ Fontes: `https://github.com/Retro-Diffusion/api-examples`, `https://www.retrodif
 - **GPT Image, Gemini**: geram a partir de ~1K; o pixel sai falso e teria de ser reduzido e requantizado (o guia
   reprova pixel falso). O Gemini põe marca d'água SynthID.
 - **Layer.ai, Ludo.ai**: sem evidência de pixel art de verdade; API cara (Ludo: US$ 300/mês).
-- **Kits de interface prontos**: _ver a pesquisa de fontes e kits_.
+- **Kits de interface prontos** (Kenney Pixel UI Pack e UI Pack Pixel Adventure, CC0; Crusenho Complete UI Essential,
+  CC BY 4.0 com dúvida de "ND" num comentário do autor; Sprout Lands UI, comercial só no Premium e com "sem
+  redistribuição" ambíguo num build web; Ninja Adventure, CC0): servem de referência, não de base. Nenhum está na
+  paleta, na escala ou no traço do jogo, e recolorir um kit genérico daria a mesma cara de outros jogos.
+
+## Fontes verificadas (arquivos baixados e conferidos com fontTools)
+
+| Fonte | Licença | Português completo | Grade (em / maiúscula) | Observação |
+|---|---|---|---|---|
+| **Galmuri 7/9/11/11 Bold/14** | OFL 1.1 | sim, com º ª | 8/7 · 10/9 · 12/11 · 15/14 | **escolhida**; exige subconjunto (arquivos com coreano) |
+| Micro 5 + Jersey 10/15/20/25 | OFL | sim | 11/5; maiúscula 10–25 | mesma autora; a Micro 5 só lê ampliada |
+| m5x7 | CC0 | sim | 16/7 | ótimo texto; o par de títulos (m6x11) não tem licença comercial explícita |
+| Pixel Operator | CC0 | falta º e ª | 16/9 | |
+| Tiny5, Silkscreen, Press Start 2P | OFL | sim | 8/5 · 8/5 · 8/7 | Silkscreen sem minúsculas; Press Start larga demais |
+| Pixelify Sans | OFL | sim | fora da grade | borra em tamanho pequeno |
+| Alagard / Romulus | confusa | | | evitar |
+
+Fontes das licenças: github.com/quiple/galmuri, github.com/scfried/soft-type-micro, github.com/scfried/soft-type-jersey,
+managore.itch.io/m5x7, dafont.com/pixel-operator.font, openfontlicense.org/ofl-faq.
 
 ## Google Play (para a capa e o ícone)
 
@@ -81,5 +99,6 @@ Fontes: `https://github.com/Retro-Diffusion/api-examples`, `https://www.retrodif
 ## Não verificado
 
 - A qualidade real das camadas da Retro Diffusion (nada foi gerado): o piloto da amostra decide entre ela e o PixelLab.
-- Preço mensal do plano do PixelLab em dólares (o site é desenhado no navegador; pesquisa em andamento).
+- Preço mensal do plano do PixelLab em dólares (o site é desenhado no navegador). O crédito avulso sai a ~US$ 0,008 por
+  geração (a API cota 15 gerações = US$ 0,115).
 - Se o Canva exporta sem reamostrar os pixels.

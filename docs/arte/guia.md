@@ -110,7 +110,25 @@ f04f78 f68181 fca790 fdcbb0
 
 ## 6. Fonte
 
-_A definir com a pesquisa de fontes (seção preenchida ao fechar a etapa 1)._
+**Uma família só: Galmuri** (Minseo Lee, licença OFL 1.1 sem nome reservado; github.com/quiple/galmuri). Três
+tamanhos da mesma grade e da mesma autora, desenhados pixel a pixel, com Bold de verdade e o português inteiro
+(á à â ã é ê í ó ô õ ú ü ç, maiúsculas acentuadas, º e ª do "1º lugar"). Comparação com Jersey, Micro 5, m5x7, Pixel
+Operator e Press Start 2P em `docs/arte/fontes-comparacao.png` (renderizadas no tamanho nativo, alfa binário, ampliadas 3×).
+
+| Uso | Fonte | Tamanho (px de arte) | Maiúscula | Entrelinha |
+|---|---|---|---|---|
+| Títulos, saldo, números grandes, botões principais | Galmuri11 Bold | 12 | 11 | 16 |
+| Texto da interface, botões, narração | Galmuri9 | 10 | 9 | 14 |
+| Texto pequeno na pista (balões, "VOCÊ", HUD do céu) e legendas | Galmuri7 | 8 | 7 | 10 |
+
+- **Sai**: Press Start 2P, Jersey 10 e a fonte 3×5 do canvas.
+- Só nos tamanhos da tabela, sem ampliar. Para um título maior (tela inicial, placa de vitória) usa-se a Galmuri14
+  (maiúscula de 14) ou letras desenhadas como arte (o logo), nunca a fonte ampliada.
+- **Subconjunto latino** (os arquivos originais têm 2,6 a 4,6 MB por causa do coreano; com `pyftsubset` ficam em poucos
+  KB). No canvas, um atlas por tamanho gerado no build (PNG + JSON de larguras).
+- Texto claro sobre escuro tem sombra de 1 px `2e222f` embaixo e à direita, nunca contorno de 4 lados (engrossa e embola
+  os acentos). Entrelinha com folga de 2 px acima da maiúscula, para o acento.
+- Crédito e licença OFL na tela de créditos (exigência da licença).
 
 ## 7. Tamanhos por categoria (em pixels de arte, mostrados 1:1)
 
