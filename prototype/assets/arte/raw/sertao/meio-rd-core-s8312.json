@@ -1,0 +1,21 @@
+{
+  "assinatura": "867f5de6c7ad",
+  "api": "rd",
+  "pedido": {
+    "prompt": "<539 chars>",
+    "prompt_style": "rd_core__platformer",
+    "width": 384,
+    "height": 112,
+    "num_images": 2,
+    "seed": 8312,
+    "remove_bg": true,
+    "input_palette": "iVBORw0KGgoAAAANSUhEUgAAACAAAAABCAYAAAC/iqxnAAAAjElEQVR4nAGBAH7/AE2b5v+P0///x9zQ///////mkE7/zWg9/55FOf9uJyf/q5R6/5ZsbP9MPiT//KeQ/2JVZf9/cIr/m6uy/2lPYv8WWkz/I5Bj/1R+ZP+SqYT/Z2Yz/6KpR//V4Ev/zd9s//eWF//5wiv/+7lU//v/hv8uIi//PjVG//3LsP/oOzv/Lq9SzovN7AIAAAAASUVORK5CYII=",
+    "return_non_bg_removed": true
+  },
+  "arquivos": [
+    "meio-rd-core-s8312-0.png",
+    "meio-rd-core-s8312-1.png",
+    "meio-rd-core-s8312-2.png",
+    "meio-rd-core-s8312-3.png"
+  ]
+}

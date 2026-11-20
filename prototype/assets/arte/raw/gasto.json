@@ -1,6 +1,6 @@
 {
   "pl": 14,
-  "usd": 3.680000000000002,
+  "usd": 4.680000000000002,
   "chamadas": [
     {
       "base": "chapadas-rd-plus-s7101",
@@ -181,6 +181,31 @@
       "base": "litoral/frente-rd-core-s8421",
       "usd": 0.2,
       "data": "2026-11-20T02:36:27.880Z"
+    },
+    {
+      "base": "varzea/meio-rd-core-s8112",
+      "usd": 0.2,
+      "data": "2026-11-20T02:40:47.078Z"
+    },
+    {
+      "base": "planalto/meio-rd-core-s8212",
+      "usd": 0.2,
+      "data": "2026-11-20T02:41:09.991Z"
+    },
+    {
+      "base": "sertao/meio-rd-core-s8312",
+      "usd": 0.2,
+      "data": "2026-11-20T02:41:32.949Z"
+    },
+    {
+      "base": "sertao/frente-rd-core-s8322",
+      "usd": 0.2,
+      "data": "2026-11-20T02:41:52.459Z"
+    },
+    {
+      "base": "litoral/frente-rd-core-s8422",
+      "usd": 0.2,
+      "data": "2026-11-20T02:42:11.892Z"
     }
   ]
 }

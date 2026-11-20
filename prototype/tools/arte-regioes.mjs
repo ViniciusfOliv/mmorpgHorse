@@ -125,7 +125,7 @@ function chamadas(r, fase, manifesto) {
     for (const c of ['horizonte', 'meio', 'frente']) if (!esc[c]) throw new Error(`${r}: falta a escolha da fase 1 para "${c}" em regioes.json (escolhas)`);
     const ref = fs.readFileSync(path.join(DIR, 'raw', r, esc.meio)).toString('base64');
     out.push({ regiao: r, camada: 'arquibancada', api: 'rd', usd: 0.2, base: `arquibancada-rd-core-s${s + 31}`,
-      pedido: rdPed('arquibancada', s + 31, { reference_images: [ref] }) });
+      pedido: rdPed('arquibancada', s + 31, { reference_images: [ref], return_non_bg_removed: true }) });   // a versão sem remoção vem junto, sem custo a mais (fase 1b)
     ['horizonte', 'meio', 'frente'].forEach((c, i) => {
       const cru = fs.readFileSync(path.join(DIR, 'raw', r, esc[c]));
       out.push({ regiao: r, camada: c, api: 'rd-edit', usd: 0.12, base: `${path.basename(esc[c], '.png')}-emenda-s${s + 41 + i}`,
@@ -159,11 +159,33 @@ function recorteOpaco(img) {
   for (let y = 0; y < h; y++) out.set(img.rgba.subarray(((y0 + y) * img.width + x0) * 4, ((y0 + y) * img.width + x0 + w) * 4), y * w * 4);
   return { width: w, height: h, rgba: out };
 }
+// chave 'topo': apaga o céu pintado por baixo de uma camada sem a remoção de fundo da RD. Preenche a partir da linha de
+// cima, pelos vizinhos (4 direções), só nas cores que formam a linha de cima (o que está grudado no céu e tem a cor dele).
+export function chaveTopo(img) {
+  const W = img.width, H = img.height, p = img.rgba, cor = i => (p[i] << 16) | (p[i + 1] << 8) | p[i + 2];
+  const contagem = new Map();
+  for (let x = 0; x < W; x++) { const k = cor(x * 4); contagem.set(k, (contagem.get(k) || 0) + 1); }
+  const ceu = new Set([...contagem].filter(([, n]) => n >= W * 0.05).map(([k]) => k));
+  const visto = new Uint8Array(W * H), fila = [];
+  for (let x = 0; x < W; x++) if (ceu.has(cor(x * 4))) { visto[x] = 1; fila.push(x); }
+  while (fila.length) {
+    const i = fila.pop(), x = i % W, y = (i / W) | 0;
+    p[i * 4 + 3] = 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy, j = ny * W + nx;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H || visto[j]) continue;
+      visto[j] = 1;
+      if (p[j * 4 + 3] && ceu.has(cor(j * 4))) fila.push(j);
+    }
+  }
+  return img;
+}
 export function finalizar(r, manifesto) {
   const reg = manifesto[r], dir = path.join(DIR, r);
   fs.mkdirSync(dir, { recursive: true });
   for (const [camada, e] of Object.entries(reg.camadas)) {
     let img = decodePng(fs.readFileSync(path.join(DIR, e.origem)));
+    if (e.chave === 'topo') img = chaveTopo(quantizar(img, REGIOES[r]));
     if (e.corte) img = cortar(img, e.corte.y, e.corte.h);
     if (e.recorte === 'opaco') img = recorteOpaco(img);
     img = quantizar(img, REGIOES[r]);

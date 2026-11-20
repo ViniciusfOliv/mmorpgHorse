@@ -1,18 +1,118 @@
 {
-  "_doc": "Escolhas das camadas de cada região (docs/arte/guia.md; plano da direção de arte, etapa 3). origem = arquivo quantizado em prototype/assets/arte/; corte = linhas a manter { y, h } (h negativo: tira do fim); recorte 'opaco' = caixa dos pixels opacos (objetos). O final vai para prototype/assets/arte/<regiao>/<camada>.png pelo `node prototype/tools/arte-regioes.mjs --finalizar <regiao>` e é conferido pelo arte-check.mjs.",
+  "_doc": "Escolhas das camadas de cada região (docs/arte/guia.md; plano da direção de arte, etapa 3). origem = arquivo quantizado em prototype/assets/arte/; corte = linhas a manter { y, h } (h negativo: tira do fim); recorte 'opaco' = caixa dos pixels opacos (objetos). O final vai para prototype/assets/arte/<regiao>/<camada>.png pelo `node prototype/tools/arte-regioes.mjs --finalizar <regiao>` e é conferido pelo arte-check.mjs. escolhas = os crus da fase 1 (raw/<regiao>/) que vão para as emendas da fase 2; ajustes = corte e chave aplicados ao final.",
   "cerrado": {
     "nome": "Cerrado",
-    "pistas": ["Prado do Cerrado"],
+    "pistas": [
+      "Prado do Cerrado"
+    ],
     "camadas": {
-      "nuvens": { "origem": "emendas/nuvens-rd-plus-s7501-1-emenda-s7404-0.png", "corte": { "y": 0, "h": 56 }, "emenda": true },
-      "horizonte": { "origem": "emendas/chapadas-pl-pixen-s7301-0-emenda-s7402-0.png", "corte": { "y": 0, "h": -5 }, "emenda": true },
-      "meio": { "origem": "emendas/cerrado-rd-core-s7201-0-emenda-s7401-0.png", "emenda": true },
-      "frente": { "origem": "emendas/frente-rd-core-s7201-1-emenda-s7403-0.png", "emenda": true },
-      "arquibancada": { "origem": "camadas/arquibancada-rd-core-s7601-1.png", "recorte": "opaco", "emenda": false }
+      "nuvens": {
+        "origem": "emendas/nuvens-rd-plus-s7501-1-emenda-s7404-0.png",
+        "corte": {
+          "y": 0,
+          "h": 56
+        },
+        "emenda": true
+      },
+      "horizonte": {
+        "origem": "emendas/chapadas-pl-pixen-s7301-0-emenda-s7402-0.png",
+        "corte": {
+          "y": 0,
+          "h": -5
+        },
+        "emenda": true
+      },
+      "meio": {
+        "origem": "emendas/cerrado-rd-core-s7201-0-emenda-s7401-0.png",
+        "emenda": true
+      },
+      "frente": {
+        "origem": "emendas/frente-rd-core-s7201-1-emenda-s7403-0.png",
+        "emenda": true
+      },
+      "arquibancada": {
+        "origem": "camadas/arquibancada-rd-core-s7601-1.png",
+        "recorte": "opaco",
+        "emenda": false
+      }
     }
   },
-  "varzea": { "nome": "Várzea", "pistas": ["Hipódromo da Lagoa", "Prado Beira-Rio"], "camadas": {} },
-  "planalto": { "nome": "Planalto", "pistas": ["Hipódromo do Planalto", "Raia da Ventania"], "camadas": {} },
-  "sertao": { "nome": "Sertão", "pistas": ["Hipódromo do Sertão Velho", "Raia do Engenho"], "camadas": {} },
-  "litoral": { "nome": "Litoral", "pistas": ["Prado das Palmeiras"], "camadas": {} }
+  "varzea": {
+    "nome": "Várzea",
+    "pistas": [
+      "Hipódromo da Lagoa",
+      "Prado Beira-Rio"
+    ],
+    "camadas": {},
+    "escolhas": {
+      "horizonte": "horizonte-pl-pixen-s8101-0.png",
+      "meio": "meio-rd-core-s8112-2.png",
+      "frente": "frente-rd-core-s8121-0.png"
+    },
+    "ajustes": {
+      "horizonte": {
+        "corte": {
+          "y": 44,
+          "h": 0
+        }
+      },
+      "meio": {
+        "chave": "topo"
+      }
+    }
+  },
+  "planalto": {
+    "nome": "Planalto",
+    "pistas": [
+      "Hipódromo do Planalto",
+      "Raia da Ventania"
+    ],
+    "camadas": {},
+    "escolhas": {
+      "horizonte": "horizonte-pl-pixen-s8202-0.png",
+      "meio": "meio-rd-core-s8212-1.png",
+      "frente": "frente-rd-core-s8221-0.png"
+    },
+    "ajustes": {
+      "horizonte": {
+        "corte": {
+          "y": 26,
+          "h": 0
+        }
+      }
+    }
+  },
+  "sertao": {
+    "nome": "Sertão",
+    "pistas": [
+      "Hipódromo do Sertão Velho",
+      "Raia do Engenho"
+    ],
+    "camadas": {},
+    "escolhas": {
+      "horizonte": "horizonte-pl-pixen-s8301-0.png",
+      "meio": "meio-rd-core-s8312-0.png",
+      "frente": "frente-rd-core-s8322-1.png"
+    },
+    "ajustes": {
+      "horizonte": {
+        "corte": {
+          "y": 0,
+          "h": 58
+        }
+      }
+    }
+  },
+  "litoral": {
+    "nome": "Litoral",
+    "pistas": [
+      "Prado das Palmeiras"
+    ],
+    "camadas": {},
+    "escolhas": {
+      "horizonte": "horizonte-pl-pixen-s8401-0.png",
+      "meio": "meio-rd-core-s8411-0.png",
+      "frente": "frente-rd-core-s8422-1.png"
+    }
+  }
 }
