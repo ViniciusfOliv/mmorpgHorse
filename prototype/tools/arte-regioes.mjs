@@ -8,6 +8,8 @@
 //       node prototype/tools/arte-regioes.mjs --finalizar <regiao>|todas     (sem rede: grava os finais do regioes.json)
 //   Sem --gerar é SEMPRE dry-run: lista as chamadas e o custo estimado, sem rede.
 //   fase 1: horizonte (Pixen, 2 sementes), meio e frente (RD Core, 2 imagens cada).
+//   fase 1b: refação das camadas que falharam na fase 1 (REFAZER): pedido de faixa densa e contínua e a versão sem a
+//           remoção de fundo junto (return_non_bg_removed), porque a remoção da RD apagou a mata em alguns casos.
 //   fase 2: arquibancada (RD Core, 2 imagens, com o meio escolhido de referência) e as emendas do horizonte, do meio e
 //           da frente escolhidos (precisa das escolhas da fase 1 em prototype/assets/arte/regioes.json).
 //   Com --gerar: o preço da RD vem do check_cost/estimate (grátis) antes de cada chamada; a que passaria do teto não é
@@ -73,6 +75,11 @@ const TEXTOS = {
       + 'full of a small cheering crowd, seen exactly from the side',
   },
 };
+// camadas que falharam na fase 1 (2026-11-20): a remoção de fundo apagou a mata (várzea), sobrou uma moita isolada
+// (sertão) ou saíram árvores ralas com fantasmas azulados (planalto)
+const REFAZER = { varzea: ['meio'], planalto: ['meio'], sertao: ['meio', 'frente'], litoral: ['frente'] };
+const DENSO = 'dense and continuous, filling the whole width from edge to edge with no gaps and no isolated objects, '
+  + 'solid ground line along the bottom';
 const TAM = { horizonte: [384, 96], meio: [384, 112], frente: [384, 64], arquibancada: [384, 96] };
 
 function args() {
@@ -80,7 +87,7 @@ function args() {
   const v = process.argv.slice(2);
   for (let i = 0; i < v.length; i++) {
     if (v[i] === '--regiao') a.regiao = v[++i];
-    else if (v[i] === '--fase') a.fase = Number(v[++i]);
+    else if (v[i] === '--fase') { a.fase = v[++i]; if (a.fase !== '1b') a.fase = Number(a.fase); }
     else if (v[i] === '--gerar') a.gerar = true;
     else if (v[i] === '--finalizar') a.finalizar = v[++i];
     else if (v[i] === '--teto-pl') a.tetoPl = Number(v[++i]);
@@ -99,6 +106,14 @@ function chamadas(r, fase, manifesto) {
     prompt: `${T[camada]}, ${FAIXA}, ${base(T.lugar)}`, prompt_style: 'rd_core__platformer', width: TAM[camada][0],
     height: TAM[camada][1], num_images: 2, seed, remove_bg: true, input_palette: paletaB64(r), ...extra,
   });
+  if (fase === '1b') {
+    for (const c of REFAZER[r] || []) {
+      const ped = rdPed(c, s + (c === 'meio' ? 12 : 22), { return_non_bg_removed: true });
+      ped.prompt = `${T[c]}, ${DENSO}, ${FAIXA}, ${base(T.lugar)}`;
+      out.push({ regiao: r, camada: c, api: 'rd', usd: 0.2, base: `${c}-rd-core-s${ped.seed}`, pedido: ped });
+    }
+    return out;
+  }
   if (fase === 1) {
     for (const i of [1, 2]) out.push({ regiao: r, camada: 'horizonte', api: 'pl', ger: 1, base: `horizonte-pl-pixen-s${s + i}`,
       pedido: { description: `${T.horizonte}, ${FAIXA}, ${base(T.lugar)}`, image_size: { width: 384, height: 96 },

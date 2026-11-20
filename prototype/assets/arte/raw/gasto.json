@@ -1,6 +1,6 @@
 {
-  "pl": 6,
-  "usd": 2.0800000000000005,
+  "pl": 14,
+  "usd": 3.680000000000002,
   "chamadas": [
     {
       "base": "chapadas-rd-plus-s7101",
@@ -101,6 +101,86 @@
       "base": "nuvens-rd-plus-s7501-1-emenda-s7404",
       "usd": 0.12,
       "data": "2026-11-20T02:00:57.950Z"
+    },
+    {
+      "base": "varzea/horizonte-pl-pixen-s8101",
+      "geracoes": 1,
+      "data": "2026-11-20T02:25:08.555Z"
+    },
+    {
+      "base": "varzea/horizonte-pl-pixen-s8102",
+      "geracoes": 1,
+      "data": "2026-11-20T02:25:55.577Z"
+    },
+    {
+      "base": "varzea/meio-rd-core-s8111",
+      "usd": 0.2,
+      "data": "2026-11-20T02:26:21.693Z"
+    },
+    {
+      "base": "varzea/frente-rd-core-s8121",
+      "usd": 0.2,
+      "data": "2026-11-20T02:26:38.111Z"
+    },
+    {
+      "base": "planalto/horizonte-pl-pixen-s8201",
+      "geracoes": 1,
+      "data": "2026-11-20T02:27:26.653Z"
+    },
+    {
+      "base": "planalto/horizonte-pl-pixen-s8202",
+      "geracoes": 1,
+      "data": "2026-11-20T02:29:22.366Z"
+    },
+    {
+      "base": "planalto/meio-rd-core-s8211",
+      "usd": 0.2,
+      "data": "2026-11-20T02:29:45.274Z"
+    },
+    {
+      "base": "planalto/frente-rd-core-s8221",
+      "usd": 0.2,
+      "data": "2026-11-20T02:30:24.009Z"
+    },
+    {
+      "base": "sertao/horizonte-pl-pixen-s8301",
+      "geracoes": 1,
+      "data": "2026-11-20T02:31:22.014Z"
+    },
+    {
+      "base": "sertao/horizonte-pl-pixen-s8302",
+      "geracoes": 1,
+      "data": "2026-11-20T02:32:28.712Z"
+    },
+    {
+      "base": "sertao/meio-rd-core-s8311",
+      "usd": 0.2,
+      "data": "2026-11-20T02:32:57.892Z"
+    },
+    {
+      "base": "sertao/frente-rd-core-s8321",
+      "usd": 0.2,
+      "data": "2026-11-20T02:33:14.508Z"
+    },
+    {
+      "base": "litoral/horizonte-pl-pixen-s8401",
+      "geracoes": 1,
+      "data": "2026-11-20T02:34:09.334Z"
+    },
+    {
+      "base": "litoral/horizonte-pl-pixen-s8402",
+      "geracoes": 1,
+      "data": "2026-11-20T02:35:48.059Z"
+    },
+    {
+      "base": "litoral/meio-rd-core-s8411",
+      "usd": 0.2,
+      "data": "2026-11-20T02:36:11.243Z"
+    },
+    {
+      "base": "litoral/frente-rd-core-s8421",
+      "usd": 0.2,
+      "data": "2026-11-20T02:36:27.880Z"
     }
   ]
 }

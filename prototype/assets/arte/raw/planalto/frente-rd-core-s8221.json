@@ -1,0 +1,18 @@
+{
+  "assinatura": "175593feb4aa",
+  "api": "rd",
+  "pedido": {
+    "prompt": "<400 chars>",
+    "prompt_style": "rd_core__platformer",
+    "width": 384,
+    "height": 64,
+    "num_images": 2,
+    "seed": 8221,
+    "remove_bg": true,
+    "input_palette": "iVBORw0KGgoAAAANSUhEUgAAACAAAAABCAYAAAC/iqxnAAAAjElEQVR4nAGBAH7/ADIzU/9ISnf/TWW0/02b5v+P0///x9zQ//////9nZjP/oqlH/83fbP+SqYT/srqQ/1R+ZP83Tkr/FlpM/yOQY/9iVWX/f3CK/5ursv9pT2L/TD4k/55FOf/NaD3/5pBO/6uUev+WbGz/LiIv/z41Rv/5wiv/6Ds7/7M4Mf/9y7D/MqJOwRG+V6gAAAAASUVORK5CYII="
+  },
+  "arquivos": [
+    "frente-rd-core-s8221-0.png",
+    "frente-rd-core-s8221-1.png"
+  ]
+}

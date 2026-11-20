@@ -1,0 +1,19 @@
+{
+  "assinatura": "a9ae2feca908",
+  "api": "pl",
+  "pedido": {
+    "description": "<424 chars>",
+    "image_size": {
+      "width": 384,
+      "height": 96
+    },
+    "no_background": true,
+    "view": "side",
+    "outline": "lineless",
+    "detail": "highly detailed",
+    "seed": 8302
+  },
+  "arquivos": [
+    "horizonte-pl-pixen-s8302-0.png"
+  ]
+}

@@ -65,11 +65,19 @@ h1 { color: var(--ouro); font-size: 22px; } h2 { font-size: 18px; margin-top: 28
 <div class="pagina"><h1>${reg.nome} · folha de contato</h1><p>Pistas: ${reg.pistas.join(', ')}. Escala: 1 pixel de arte = ${Z} px.</p>${partes.join('\n')}</div>`;
 }
 
-const alvo = process.argv[2] || 'todas';
+const alvo = process.argv[2] || 'todas', feitas = [];
 for (const r of alvo === 'todas' ? Object.keys(manifesto).filter(k => !k.startsWith('_')) : [alvo]) {
   const temAlgo = Object.keys(manifesto[r].camadas).length || fs.existsSync(path.join(DIR, r, 'candidatos'));
   if (!temAlgo) continue;
-  const saida = path.join(RAIZ, 'prototype', 'arte', `folha-${r}.html`);
-  fs.writeFileSync(saida, folha(r));
+  const saida = path.join(RAIZ, 'prototype', 'arte', `folha-${r}.html`), html = folha(r);
+  fs.writeFileSync(saida, html); feitas.push(html);
+  console.log(`${path.relative(RAIZ, saida)} (${(fs.statSync(saida).size / 1024).toFixed(0)} KB)`);
+}
+// todas: também uma página só com as regiões, para publicar de uma vez (a primeira traz o <title> e o estilo)
+if (alvo === 'todas' && feitas.length > 1) {
+  const corpo = h => h.slice(h.indexOf('<div class="pagina">'));
+  const topo = feitas[0].slice(0, feitas[0].indexOf('<div class="pagina">')).replace(/<title>[^<]*<\/title>/, '<title>Regiões de corrida</title>');
+  const saida = path.join(RAIZ, 'prototype', 'arte', 'folhas-regioes.html');
+  fs.writeFileSync(saida, topo + feitas.map(corpo).join('\n'));
   console.log(`${path.relative(RAIZ, saida)} (${(fs.statSync(saida).size / 1024).toFixed(0)} KB)`);
 }
