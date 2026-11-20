@@ -1,5 +1,5 @@
 {
-  "pl": 73,
+  "pl": 83,
   "usd": 7.1200000000000045,
   "chamadas": [
     {
@@ -406,6 +406,11 @@
       "base": "icones24pro/slot-armadura",
       "geracoes": 10,
       "data": "2026-11-20T12:38:41.477Z"
+    },
+    {
+      "base": "icones24pro/slot-testeira",
+      "geracoes": 10,
+      "data": "2026-11-20T12:42:08.906Z"
     }
   ]
 }
