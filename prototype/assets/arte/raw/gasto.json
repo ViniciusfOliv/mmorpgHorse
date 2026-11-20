@@ -1,6 +1,6 @@
 {
-  "pl": 578,
-  "usd": 8.800000000000006,
+  "pl": 584,
+  "usd": 9.760000000000007,
   "chamadas": [
     {
       "base": "chapadas-rd-plus-s7101",
@@ -701,6 +701,56 @@
       "base": "ginasios/grama-arena",
       "usd": 0.24,
       "data": "2026-11-20T15:45:34.108Z"
+    },
+    {
+      "base": "telas/mapa-fogo-s9841",
+      "geracoes": 1,
+      "data": "2026-11-20T17:07:05.857Z"
+    },
+    {
+      "base": "telas/mapa-fogo-s9842",
+      "geracoes": 1,
+      "data": "2026-11-20T17:07:50.317Z"
+    },
+    {
+      "base": "telas/mapa-agua-s9851",
+      "geracoes": 1,
+      "data": "2026-11-20T17:08:28.949Z"
+    },
+    {
+      "base": "telas/mapa-agua-s9852",
+      "geracoes": 1,
+      "data": "2026-11-20T17:09:01.542Z"
+    },
+    {
+      "base": "telas/mapa-grama-s9861",
+      "geracoes": 1,
+      "data": "2026-11-20T17:09:32.674Z"
+    },
+    {
+      "base": "telas/cena-estabulo",
+      "usd": 0.24,
+      "data": "2026-11-20T17:11:30.113Z"
+    },
+    {
+      "base": "telas/cena-haras",
+      "usd": 0.24,
+      "data": "2026-11-20T17:11:43.573Z"
+    },
+    {
+      "base": "telas/cena-loja",
+      "usd": 0.24,
+      "data": "2026-11-20T17:11:56.950Z"
+    },
+    {
+      "base": "telas/cena-expedicao",
+      "usd": 0.24,
+      "data": "2026-11-20T17:12:07.059Z"
+    },
+    {
+      "base": "telas/mapa-grama-s9862",
+      "geracoes": 1,
+      "data": "2026-11-20T17:12:47.771Z"
     }
   ]
 }

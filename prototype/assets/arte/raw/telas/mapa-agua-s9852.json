@@ -1,0 +1,17 @@
+{
+  "assinatura": "cae9baa0233c",
+  "pedido": {
+    "description": "top-down view of a river delta: pale sand banks, shallow blue water channels, small islands with palm trees, reeds along the water, game world map terrain seen from directly above, no roads, no paths, no buildings, no text, no characters, evenly filled to all edges",
+    "image_size": {
+      "width": 256,
+      "height": 384
+    },
+    "view": "high top-down",
+    "outline": "lineless",
+    "detail": "highly detailed",
+    "seed": 9852
+  },
+  "arquivos": [
+    "mapa-agua-s9852-0.png"
+  ]
+}

@@ -74,13 +74,64 @@ function chamadas(lote) {
       view: 'high top-down', outline: 'lineless', detail: 'highly detailed', seed: M.seed + k } })));
 }
 
+// --- prévias (sem rede): o mapa com o caminho e as 5 paradas, de baixo para cima, cada oponente de pé na sua (o corpo
+// de 32 × 48 escolhido na etapa 5, 1:1). É o desenho que a parte de código da etapa 6 fará na tela da trilha.
+const rgb = h => [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+const ORDEM = {
+  fogo: ['recruta-fagulha', 'cabo-tocha', 'sargento-candeeiro', 'tenente-coivara', 'capita-labareda'],
+  agua: ['recruta-orvalho', 'cabo-goteira', 'sargento-correnteza', 'tenente-cacimba', 'mestre-aguaceiro'],
+  grama: ['recruta-broto', 'cabo-carrapicho', 'sargento-juazeiro', 'tenente-aroeira', 'dona-capineira'],
+};
+const PARADAS = [[88, 360], [168, 292], [84, 224], [168, 156], [128, 84]];   // (x, y do chão) de baixo para cima
+function colar(dst, src, ox, oy) {
+  for (let y = 0; y < src.height; y++) for (let x = 0; x < src.width; x++) {
+    const i = (y * src.width + x) * 4, X = ox + x, Y = oy + y;
+    if (!src.rgba[i + 3] || X < 0 || Y < 0 || X >= dst.width || Y >= dst.height) continue;
+    dst.rgba.set(src.rgba.subarray(i, i + 4), (Y * dst.width + X) * 4);
+  }
+}
+function mapaComTrilha(gin, mapa) {
+  const W = mapa.width, out = { width: W, height: mapa.height, rgba: new Uint8Array(mapa.rgba) };
+  const pinta = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < out.height) out.rgba.set([...rgb(c), 255], (y * W + x) * 4); };
+  // o caminho: tracejado de 3 px (borda escura, miolo claro), em linha reta entre as paradas
+  for (let k = 0; k + 1 < PARADAS.length; k++) {
+    const [x0, y0] = PARADAS[k], [x1, y1] = PARADAS[k + 1], n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let t = 0; t <= n; t++) {
+      if (t % 8 >= 5) continue;
+      const x = Math.round(x0 + (x1 - x0) * t / n), y = Math.round(y0 + (y1 - y0) * t / n);
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) pinta(x + dx, y + dy, '2e222f');
+    }
+    for (let t = 0; t <= n; t++) {
+      if (t % 8 >= 5) continue;
+      const x = Math.round(x0 + (x1 - x0) * t / n), y = Math.round(y0 + (y1 - y0) * t / n);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) pinta(x + dx, y + dy, 'fdcbb0');
+    }
+  }
+  // as paradas: um tablado de pedra e o oponente em cima
+  ORDEM[gin].forEach((id, k) => {
+    const [cx, cy] = PARADAS[k];
+    for (let y = -5; y <= 5; y++) { const w = Math.round(18 * Math.sqrt(1 - (y * y) / 25)); for (let x = -w; x < w; x++) pinta(cx + x, cy + y, Math.abs(y) === 5 || Math.abs(x) >= w - 1 ? '2e222f' : y < 1 ? 'c7dcd0' : '9babb2'); }
+    const arq = path.join(DIR, 'treinadores', 'finais', id + '-corpo.png');
+    if (fs.existsSync(arq)) { const t = decodePng(fs.readFileSync(arq)); colar(out, t, cx - 16, cy - 48 + 1); }
+  });
+  return out;
+}
+function previas() {
+  const d = path.join(DIR, 'telas', 'mapas'), fim = path.join(DIR, 'telas', 'previas');
+  fs.mkdirSync(fim, { recursive: true });
+  for (const f of fs.existsSync(d) ? fs.readdirSync(d).filter(f => f.endsWith('.png')) : []) {
+    const gin = f.split('-')[0];
+    fs.writeFileSync(path.join(fim, 'trilha-' + f), encodePng(mapaComTrilha(gin, decodePng(fs.readFileSync(path.join(d, f))))));
+  }
+}
+
 function folha() {
   const uri = f => 'data:image/png;base64,' + fs.readFileSync(f).toString('base64');
-  const sec = ['cenas', 'mapas'].map(l => {
+  const sec = ['cenas', 'previas', 'mapas'].map(l => {
     const d = path.join(DIR, 'telas', l);
     if (!fs.existsSync(d)) return '';
     const fs_ = fs.readdirSync(d).filter(f => f.endsWith('.png')).sort();
-    return `<h2>${l}</h2><div class="grade">` + fs_.map(f => `<figure><img src="${uri(path.join(d, f))}" style="width:512px"><figcaption>${f.replace('.png', '')}</figcaption></figure>`).join('') + '</div>';
+    return `<h2>${l}</h2><div class="grade">` + fs_.map(f => `<figure><img src="${uri(path.join(d, f))}" style="width:${l === 'cenas' ? 512 : 384}px"><figcaption>${f.replace('.png', '')}</figcaption></figure>`).join('') + '</div>';
   }).join('');
   fs.writeFileSync(path.join(RAIZ, 'prototype', 'arte', 'folha-telas.html'), `<title>Cenas e mapas</title>
 <style>:root{color-scheme:dark} body{background:#2e222f;color:#c7dcd0;font:14px monospace;margin:0} .p{padding:16px}
@@ -89,6 +140,7 @@ figcaption{color:#9babb2;font-size:12px}</style><div class="p"><h1 style="color:
 }
 
 async function main() {
+  if (process.argv.includes('--previas')) { previas(); folha(); console.log('prévias em prototype/assets/arte/telas/previas/'); return; }
   const a = args(), lista = chamadas(a.lote);
   const usdTab = lista.filter(c => c.api === 'rd').reduce((s, c) => s + c.estimativa, 0), plTab = lista.filter(c => c.api === 'pl').length;
   const tetoUsd = a.tetoUsd ?? Math.ceil(usdTab * 100 + 20) / 100, tetoPl = a.tetoPl ?? plTab * 2;
