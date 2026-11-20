@@ -29,7 +29,7 @@ quantizadas para a paleta do Cerrado (`prototype/tools/arte-amostra.mjs --lote p
 | Caminho | Resultado |
 |---|---|
 | Retro Diffusion Plus (`rd_plus__default`, `tile_x`) | emenda nativa perfeita, mas desenho pobre: árvores de savana africana, chapadas em faixa; capim aceitável |
-| Retro Diffusion Core (`rd_core__platformer`) | **melhor** no cerrado (ipês, buritis, troncos tortos) e no capim; ruim nas chapadas (pixels dobrados: 73–84% de blocos 2×2 iguais) |
+| Retro Diffusion Core (`rd_core__platformer`) | **melhor** no cerrado (ipês, buritis, troncos tortos) e no capim; ruim nas chapadas (formas chapadas demais, quase sem textura) |
 | PixelLab Pixen | **melhor** nas chapadas (mesas e encostas do cerrado), 1 geração; bom no cerrado |
 
 **Decisão:** nenhuma ferramenta ganha em tudo; cada camada sai da que desenha melhor aquele assunto, e a emenda é

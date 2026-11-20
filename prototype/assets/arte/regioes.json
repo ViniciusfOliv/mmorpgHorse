@@ -1,0 +1,18 @@
+{
+  "_doc": "Escolhas das camadas de cada região (docs/arte/guia.md; plano da direção de arte, etapa 3). origem = arquivo quantizado em prototype/assets/arte/; corte = linhas a manter { y, h } (h negativo: tira do fim); recorte 'opaco' = caixa dos pixels opacos (objetos). O final vai para prototype/assets/arte/<regiao>/<camada>.png pelo `node prototype/tools/arte-regioes.mjs --finalizar <regiao>` e é conferido pelo arte-check.mjs.",
+  "cerrado": {
+    "nome": "Cerrado",
+    "pistas": ["Prado do Cerrado"],
+    "camadas": {
+      "nuvens": { "origem": "emendas/nuvens-rd-plus-s7501-1-emenda-s7404-0.png", "corte": { "y": 0, "h": 56 }, "emenda": true },
+      "horizonte": { "origem": "emendas/chapadas-pl-pixen-s7301-0-emenda-s7402-0.png", "corte": { "y": 0, "h": -5 }, "emenda": true },
+      "meio": { "origem": "emendas/cerrado-rd-core-s7201-0-emenda-s7401-0.png", "emenda": true },
+      "frente": { "origem": "emendas/frente-rd-core-s7201-1-emenda-s7403-0.png", "emenda": true },
+      "arquibancada": { "origem": "camadas/arquibancada-rd-core-s7601-1.png", "recorte": "opaco", "emenda": false }
+    }
+  },
+  "varzea": { "nome": "Várzea", "pistas": ["Hipódromo da Lagoa", "Prado Beira-Rio"], "camadas": {} },
+  "planalto": { "nome": "Planalto", "pistas": ["Hipódromo do Planalto", "Raia da Ventania"], "camadas": {} },
+  "sertao": { "nome": "Sertão", "pistas": ["Hipódromo do Sertão Velho", "Raia do Engenho"], "camadas": {} },
+  "litoral": { "nome": "Litoral", "pistas": ["Prado das Palmeiras"], "camadas": {} }
+}

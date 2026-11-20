@@ -86,7 +86,7 @@
     g.putImageData(d, 0, 0);
     return c;
   }
-  function caixaOpaca(c) {
+  function caixaOpaca(c) {   // (não usada desde os finais recortados; fica para objetos novos)
     var d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data, x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
     for (var y = 0; y < c.height; y++) for (var x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3] >= 128) {
       if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
@@ -180,12 +180,12 @@
 
   function prepararCamadas(imgs) {
     var ch = imgs.chapadas, cer = imgs.cerrado, fr = imgs.frente, nu = imgs.nuvens, ar = imgs.arquibancada;
-    camadas.chapadas = emCanvas(ch, 0, 0, ch.width, ch.height - 5);          // tira a fileira de baixo
+    // os finais já vêm cortados e emendados (arte-regioes.mjs --finalizar)
+    camadas.chapadas = emCanvas(ch, 0, 0, ch.width, ch.height);
     camadas.cerrado = emCanvas(cer, 0, 0, cer.width, cer.height);
     camadas.frente = emCanvas(fr, 0, 0, fr.width, fr.height);
-    camadas.nuvens = emCanvas(nu, 0, 0, nu.width, 56);                     // só a faixa das nuvens
-    var a = emCanvas(ar, 0, 0, ar.width, ar.height), b = caixaOpaca(a);
-    camadas.arquibancada = emCanvas(a, b.x, b.y, b.w, b.h);
+    camadas.nuvens = emCanvas(nu, 0, 0, nu.width, nu.height);
+    camadas.arquibancada = emCanvas(ar, 0, 0, ar.width, ar.height);
     camadas.chapadas = remapear(camadas.chapadas, lutNevoa);
     camadas.pista = desenharPista();
     camadas.ceu = desenharCeu();

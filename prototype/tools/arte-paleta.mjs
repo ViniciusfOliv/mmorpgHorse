@@ -13,8 +13,8 @@ export const RESURRECT64 = [
   'f04f78', 'f68181', 'fca790', 'fdcbb0',
 ];
 
-// Paletas de região (até 32 cores da mestra; guia §3). Cerrado à tarde: céu, chapadas ao longe, cerrado (verdes
-// secos, ipê amarelo), terra vermelha da pista, escuros violeta para a sombra, pele e uma cor viva para a torcida.
+// Paletas de região (até 32 cores da mestra; guia §3). As 5 regiões das pistas aprovadas pelo Vinicius em 2026-11-20
+// (plano da direção de arte, etapa 3): Cerrado, Várzea, Planalto, Sertão e Litoral.
 export const REGIOES = {
   cerrado: [
     '4d65b4', '4d9be6', '8fd3ff', 'c7dcd0', 'ffffff',            // céu e nuvens
@@ -25,6 +25,48 @@ export const REGIOES = {
     '2e222f', '3e3546',                                          // escuros (contorno, sombra)
     'fdcbb0', 'e83b3b',                                          // pele, torcida
   ],
+  varzea: [
+    '4d65b4', '4d9be6', '8fd3ff', 'c7dcd0', 'ffffff',            // céu, garças
+    '0b5e65', '0b8a8f', '0eaf9b', '30e1b9', '8ff8e2',            // água da lagoa
+    '165a4c', '239063', '1ebc73', '91db69', '547e64', '92a984', '374e4a', // mata ciliar, aguapé
+    '4c3e24', '676633', '9e4539', 'cd683d', 'e6904e', 'ab947a', '966c6c', // madeira, barro
+    '2e222f', '3e3546', '313638',                                // escuros
+    'f9c22b', 'fbb954', 'fdcbb0', 'e83b3b', '9babb2',            // sol, pele, torcida, névoa
+  ],
+  planalto: [
+    '323353', '484a77', '4d65b4', '4d9be6', '8fd3ff', 'c7dcd0', 'ffffff', // céu frio e alto
+    '676633', 'a2a947', 'cddf6c', '92a984', 'b2ba90', '547e64', '374e4a', '165a4c', '239063', // campos, araucárias
+    '625565', '7f708a', '9babb2', '694f62',                      // pedra
+    '4c3e24', '9e4539', 'cd683d', 'e6904e', 'ab947a', '966c6c',  // terra, madeira
+    '2e222f', '3e3546',                                          // escuros
+    'f9c22b', 'e83b3b', 'b33831', 'fdcbb0',                      // flores, telha, torcida, pele
+  ],
+  sertao: [
+    '4d9be6', '8fd3ff', 'c7dcd0', 'ffffff',                      // céu claro e quente
+    'e6904e', 'cd683d', '9e4539', '6e2727', 'ab947a', '966c6c', '4c3e24', 'fca790', // chão, adobe, barro
+    '625565', '7f708a', '9babb2', '694f62',                      // caatinga seca
+    '165a4c', '239063', '547e64', '92a984', '676633', 'a2a947',  // mandacaru, juazeiro
+    'd5e04b', 'cddf6c',                                          // cana
+    'f79617', 'f9c22b', 'fbb954', 'fbff86',                      // sol
+    '2e222f', '3e3546', 'fdcbb0', 'e83b3b',                      // escuros, pele, torcida
+  ],
+  litoral: [
+    '4d65b4', '4d9be6', '8fd3ff', 'c7dcd0', 'ffffff',            // céu
+    '0b5e65', '0b8a8f', '0eaf9b', '30e1b9', '8ff8e2', '323353',  // mar
+    'fdcbb0', 'fca790', 'e6904e', 'ab947a', 'fbb954',            // areia, dunas
+    '165a4c', '239063', '1ebc73', '91db69', '676633', '4c3e24', '9e4539', // coqueiros, troncos
+    '2e222f', '3e3546',                                          // escuros
+    'f9c22b', 'e83b3b', 'f04f78', 'cd683d', '547e64', '966c6c', '9babb2', // flores, toldos, torcida, névoa
+  ],
+};
+
+// Climas: troca de paleta das camadas (guia §3). Cada cor da mestra é misturada `k` com `rumo` e volta para a mestra
+// (a mesma conta da amostra, prototype/arte/amostra.js).
+export const CLIMAS = {
+  sol: { rumo: null, k: 0 },
+  nublado: { rumo: '7f708a', k: 0.38 },
+  chuva: { rumo: '323353', k: 0.42 },
+  nevoa: { rumo: 'c7dcd0', k: 0.5 },
 };
 
 export const rgbDe = h => [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
@@ -66,25 +108,47 @@ export function imagemPaleta(paleta) {
   return { width: paleta.length, height: 1, rgba };
 }
 
-// Conferência do guia §10: cores fora da paleta, alfa não binário e blocos 2×2 repetidos (pixel falso).
+// Conferência do guia §10. Devolve contagens; quem chama decide o que reprova.
+//   fora: pixels opacos fora da paleta · alfa: pixels com alfa parcial
+//   falso: true se a imagem parece ampliada 2× (em x ou em y, os pares alinhados em posição par são quase sempre iguais e
+//          bem mais iguais que os pares em posição ímpar; em pixel art 1:1 as duas taxas ficam parecidas)
+//   emenda: a junta entre a última e a primeira coluna comparada às juntas internas (≤ 1 = não destoa; ver abaixo)
 export function conferir(img, paleta) {
   const ok = new Set(paleta.map(h => h.toLowerCase()));
+  const W = img.width, H = img.height, p = img.rgba;
   let fora = 0, alfa = 0, opacos = 0;
-  const hex = i => [0, 1, 2].map(c => img.rgba[i + c].toString(16).padStart(2, '0')).join('');
-  for (let i = 0; i < img.rgba.length; i += 4) {
-    const a = img.rgba[i + 3];
+  const hex = i => [0, 1, 2].map(c => p[i + c].toString(16).padStart(2, '0')).join('');
+  for (let i = 0; i < p.length; i += 4) {
+    const a = p[i + 3];
     if (a !== 0 && a !== 255) alfa++;
     if (a === 255) { opacos++; if (!ok.has(hex(i))) fora++; }
   }
-  // grade 2×2: fração de blocos alinhados em que os 4 pixels são iguais (pixel art 1:1 fica bem abaixo de 0,9)
-  let iguais = 0, blocos = 0;
-  for (let y = 0; y + 1 < img.height; y += 2) for (let x = 0; x + 1 < img.width; x += 2) {
-    const p = (yy, xx) => ((yy * img.width + xx) * 4);
-    const a = p(y, x), b = p(y, x + 1), c = p(y + 1, x), d = p(y + 1, x + 1);
-    if (img.rgba[a + 3] === 0) continue;
-    blocos++;
-    const eq = (u, v) => img.rgba[u] === img.rgba[v] && img.rgba[u + 1] === img.rgba[v + 1] && img.rgba[u + 2] === img.rgba[v + 2] && img.rgba[u + 3] === img.rgba[v + 3];
-    if (eq(a, b) && eq(a, c) && eq(a, d)) iguais++;
+  const igual = (u, v) => p[u] === p[v] && p[u + 1] === p[v + 1] && p[u + 2] === p[v + 2] && p[u + 3] === p[v + 3];
+  const at = (x, y) => (y * W + x) * 4;
+  function pares(eixoX) {
+    const taxa = [0, 0], tot = [0, 0];
+    for (let y = 0; y < H - (eixoX ? 0 : 1); y++) for (let x = 0; x < W - (eixoX ? 1 : 0); x++) {
+      const u = at(x, y), v = eixoX ? at(x + 1, y) : at(x, y + 1);
+      if (p[u + 3] === 0 && p[v + 3] === 0) continue;
+      const par = (eixoX ? x : y) % 2;
+      tot[par]++; if (igual(u, v)) taxa[par]++;
+    }
+    return [taxa[0] / (tot[0] || 1), taxa[1] / (tot[1] || 1)];
   }
-  return { fora, alfa, opacos, grade2x2: blocos ? iguais / blocos : 0 };
+  const [px0, px1] = pares(true), [py0, py1] = pares(false);
+  const falso = (px0 > 0.97 && px0 - px1 > 0.15) || (py0 > 0.97 && py0 - py1 > 0.15);
+  // emenda: quantas linhas mudam entre a última e a primeira coluna, dividido pelo percentil 95 da mesma contagem entre
+  // colunas vizinhas da própria imagem (contagem, não taxa: uma borda quase vazia não vira alarme). ≤ 1: a junta não é
+  // mais diferente que as juntas internas mais diferentes; bem acima de 1: costura.
+  function difere(xa, xb) {
+    let d = 0;
+    for (let y = 0; y < H; y++) if (!igual(at(xa, y), at(xb, y))) d++;
+    return d;
+  }
+  const internas = [];
+  for (let x = 0; x < W - 1; x++) internas.push(difere(x, x + 1));
+  internas.sort((x, y) => x - y);
+  const p95 = Math.max(2, internas[Math.floor(internas.length * 0.95)] || 0);
+  const emenda = difere(W - 1, 0) / p95;
+  return { fora, alfa, opacos, falso, pares: { px0, px1, py0, py1 }, emenda };
 }

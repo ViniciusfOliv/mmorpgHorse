@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Verificação completa do protótipo, em 8 etapas: build (jogo e wiki), simulação, efeitos, dist em dia,
-# moldes, wiki, balanceamento rápido e interface.
+# moldes e arte (docs/arte/guia.md), wiki, balanceamento rápido e interface.
 #   ./scripts/check.sh
 # Não altera as capturas oficiais (prototype/screens/): o teste de UI grava numa pasta temporária.
 # A interface roda em paralelo (prototype/tools/ui-test-paralelo.mjs: um processo por bloco, UI_JOBS=4, e os blocos
@@ -35,9 +35,11 @@ else
   echo "ok"
 fi
 
-step "5/8 Moldes"
+step "5/8 Moldes e arte"
 node prototype/tools/moldes-test.mjs > "$SHOTS_DIR/moldes.txt" || { cat "$SHOTS_DIR/moldes.txt"; exit 1; }
 tail -n 1 "$SHOTS_DIR/moldes.txt"
+node prototype/tools/arte-check.mjs > "$SHOTS_DIR/arte.txt" || { cat "$SHOTS_DIR/arte.txt"; exit 1; }
+tail -n 1 "$SHOTS_DIR/arte.txt"
 
 step "6/8 Wiki"
 node prototype/tools/wiki-test.mjs > "$SHOTS_DIR/wiki.txt" 2>&1 || { cat "$SHOTS_DIR/wiki.txt"; exit 1; }

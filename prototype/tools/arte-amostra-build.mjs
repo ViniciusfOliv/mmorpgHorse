@@ -8,13 +8,13 @@ import { RAIZ } from './pixellab-comum.mjs';
 
 const ARTE = path.join(RAIZ, 'prototype', 'assets', 'arte');
 const uri = (f, tipo = 'image/png') => `data:${tipo};base64,${fs.readFileSync(f).toString('base64')}`;
-// as camadas escolhidas (docs/memoria/assets.md, 2026-11-20)
+// as camadas finais do Cerrado (prototype/assets/arte/regioes.json → arte-regioes.mjs --finalizar cerrado)
 const camadas = {
-  chapadas: 'emendas/chapadas-pl-pixen-s7301-0-emenda-s7402-0.png',
-  cerrado: 'emendas/cerrado-rd-core-s7201-0-emenda-s7401-0.png',
-  frente: 'emendas/frente-rd-core-s7201-1-emenda-s7403-0.png',
-  nuvens: 'camadas/nuvens-rd-plus-s7501-1.png',
-  arquibancada: 'camadas/arquibancada-rd-core-s7601-1.png',
+  chapadas: 'cerrado/horizonte.png',
+  cerrado: 'cerrado/meio.png',
+  frente: 'cerrado/frente.png',
+  nuvens: 'cerrado/nuvens.png',
+  arquibancada: 'cerrado/arquibancada.png',
 };
 const moldes = {};
 for (const k of ['padrao-chamas', 'esguio-ondas', 'robusto-folhas', 'padrao-ondas', 'robusto-chamas', 'esguio-folhas']) {

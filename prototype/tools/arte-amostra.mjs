@@ -83,10 +83,11 @@ const EMENDAS = [
   { base: 'cerrado-rd-core-s7201-0', seed: 7401 },
   { base: 'chapadas-pl-pixen-s7301-0', seed: 7402 },
   { base: 'frente-rd-core-s7201-1', seed: 7403 },
+  { base: 'nuvens-rd-plus-s7501-1', seed: 7404, pasta: 'camadas' },   // costura achada pelo arte-check.mjs
 ];
 function chamadasEmendas() {
   return EMENDAS.map(e => {
-    const cru = fs.readFileSync(path.join(DIR_RAW, 'piloto', e.base + '.png'));
+    const cru = fs.readFileSync(path.join(DIR_RAW, e.pasta || 'piloto', e.base + '.png'));
     return { camada: e.base.split('-')[0], caminho: 'emenda', api: 'rd-edit', base: `${e.base}-emenda-s${e.seed}`, usd: 0.12,
       pedido: { input_image: cru.toString('base64'), tile_x: true, tile_y: false, seed: e.seed } };
   });
@@ -172,7 +173,7 @@ function gravarFinal(lote, nome, buf) {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, nome + '.png'), encodePng(img));
   const c = conferir(img, PALETA);
-  return `${img.width}×${img.height}, fora da paleta ${c.fora}, alfa parcial ${c.alfa}, blocos 2×2 iguais ${(c.grade2x2 * 100).toFixed(0)}%`;
+  return `${img.width}×${img.height}, fora da paleta ${c.fora}, alfa parcial ${c.alfa}, pixel falso ${c.falso ? 'SIM' : 'não'}, emenda ${c.emenda.toFixed(2)}`;
 }
 
 async function main() {
