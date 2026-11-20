@@ -33,6 +33,7 @@ const troca = (marca, valor) => { if (!html.includes(marca)) throw new Error('fa
 troca('/*__G7__*/', uri(path.join(F, 'galmuri7-latin.ttf'), 'font/ttf'));
 troca('/*__G9__*/', uri(path.join(F, 'galmuri9-latin.ttf'), 'font/ttf'));
 troca('/*__G11__*/', uri(path.join(F, 'galmuri11-bold-latin.ttf'), 'font/ttf'));
+troca('/*__G11R__*/', uri(path.join(F, 'galmuri11-latin.ttf'), 'font/ttf'));
 troca('/*__CAPTURA__*/', uri(path.join(RAIZ, 'prototype', 'screens', 'final-06-corrida.png')));
 troca('/*__ARTE__*/', JSON.stringify(dados));
 troca('/*__JS__*/', js);

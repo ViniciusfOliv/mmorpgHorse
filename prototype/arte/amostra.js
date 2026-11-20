@@ -97,6 +97,7 @@
   function hash(x, y) { var h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
 
   // ---------------------------------------------------------------- estado do desenho
+  var folhaChuva = null;
   var g, buf, tela, gt, s = 3, W = 256, H = 330, chamadas = 0;
   function R(x, y, w, h, cor) { g.fillStyle = cor; g.fillRect(x, y, w, h); chamadas++; }
   function D(img, sx, sy, sw, sh, dx, dy, dw, dh) {
@@ -150,7 +151,8 @@
     sol: ['...#....', '.#...#..', '...##...', '#.####.#', '..####..', '...##...', '.#...#..', '...#....'],
     chuva: ['..###...', '.#####..', '########', '........', '.#..#...', '#..#..#.', '..#..#..', '........'],
     nuvem: ['........', '..###...', '.#####..', '#######.', '########', '.######.', '........', '........'],
-    nevoa: ['........', '######..', '........', '.######.', '........', '######..', '........', '.######.']
+    nevoa: ['........', '######..', '........', '.######.', '........', '######..', '........', '.######.'],
+    seta: ['........', '....#...', '....##..', '#######.', '#######.', '....##..', '....#...', '........']
   };
   var iconeCache = {};
   function icone(nome, cor) {
@@ -309,9 +311,12 @@
   }
 
   // ---------------------------------------------------------------- corrida de mentira (determinística, só para a amostra)
-  var PPM = 2.5;   // pixels de arte por metro
+  // Escala visual da câmera (pedido do Vinicius, 2026-11-20: "velocidade máxima", cenário passando rápido, mesma pista
+  // e mesmo tempo de corrida). 12 px de arte por metro: a 16 m/s o chão passa a 192 px/s, quase uma tela por segundo
+  // (antes 2,5 px/m: 40 px/s). O galope acompanha: ~2,3 passadas por segundo (21 quadros/s no ciclo de 9).
+  var PPM = 12, GALOPE_QPS = 21, VEL = 16, DIST = 2000, DURACAO = DIST / VEL;
   function posicao(j, t) {
-    return 16 * t + [3, -2, 5, 0, -5, 1, -8][j] + 4 * Math.sin(0.23 * t * (1 + j * 0.11) + j * 1.7) + 2 * Math.sin(0.61 * t + j);
+    return VEL * t + [2.5, -1.5, 3.5, 0, -3.5, 1, -6][j] + 2.5 * Math.sin(0.23 * t * (1 + j * 0.11) + j * 1.7) + 1.2 * Math.sin(0.61 * t + j);
   }
   function ordem(t) {
     var idx = CORREDORES.map(function (r, j) { return j; });
@@ -334,22 +339,22 @@
   function quadro() {
     chamadas = 0;
     var LC = lutClima(estado.clima), kc = function (c) { return LC[c] || c; };   // cores do cenário pintadas no quadro seguem o clima
-    var t = estado.t, cena = cenaDoClima(estado.clima), cam = posicao(EU, t) * PPM - Math.round(W * 0.42);
+    var t = estado.t, tc = t % DURACAO, cena = cenaDoClima(estado.clima), cam = posicao(EU, tc) * PPM - Math.round(W * 0.42);
     // céu, sol (de cima e da esquerda), nuvens, chapadas, cerrado, arquibancada
     D(cena.ceu, 0, 0, 4, Y.pista0, 0, 0, W, Y.pista0);
-    if (estado.clima === 'sol') D(camadas.sol, 18, 28);
+    if (estado.clima === 'sol') D(camadas.sol, 66, 24);
     camadaRepetida(cena.nuvens, cam * 0.04 + t * 3, 18);
     camadaRepetida(cena.chapadas, cam * 0.1, 96 - cena.chapadas.height);
     if (cena.veu) D(cena.veu, 0, 0, W, cena.veu.height, 0, 0, W, cena.veu.height);
     camadaRepetida(cena.cerrado, cam * 0.3, Y.railTopo - cena.cerrado.height + 34);
-    var per = 1000, xa = -(((Math.floor(cam * 0.75) % per) + per) % per) + 60;
+    var per = 2600, xa = -(((Math.floor(cam * 0.75) % per) + per) % per) + 60;
     for (; xa < W; xa += per) D(cena.arquibancada, xa, Y.railTopo - cena.arquibancada.height + 2);
     // pista (chão, cercas) e as placas de distância presas à cerca de trás (objetos do cenário: guia §8)
     camadaRepetida(cena.pista, cam, Y.railTopo - 8);
     var m0 = Math.floor(cam / PPM / 100) * 100;
     for (var m = m0; m < m0 + W / PPM + 200; m += 100) {
       if (m % 200) continue;
-      var sx = Math.round(m * PPM - cam), rot = String(2000 - (m % 2000)), lw = larguraTexto(rot, 'g7') + 4;
+      var sx = Math.round(m * PPM - cam), rot = String(Math.max(0, DIST - m)), lw = larguraTexto(rot, 'g7') + 4;
       if (sx < -lw || sx > W) continue;
       R(sx, Y.railTopo - 11, 1, 12, kc(C.texto));
       placa(sx - Math.floor(lw / 2), Y.railTopo - 22, lw, 10, kc(C.texto));
@@ -359,17 +364,17 @@
     var efs = efeitos(t), chuva = estado.clima === 'chuva', fora = [];
     var info = [];
     CORREDORES.forEach(function (r, j) {
-      var px = Math.round(posicao(j, t) * PPM - cam), pes = Y.raia0 + (j + 1) * Y.raia - 4;
-      var x = px - r.nariz, y = pes - r.pes, f = Math.floor(t * 13 + j * 2.3) % 9;
+      var px = Math.round(posicao(j, tc) * PPM - cam), pes = Y.raia0 + (j + 1) * Y.raia - 4;
+      var x = px - r.nariz, y = pes - r.pes, f = Math.floor(t * GALOPE_QPS + j * 2.3) % 9;
       if (x + 60 < 0 || x > W) { fora.push({ r: r, j: j, dir: x > W ? 1 : -1, y: pes - 14 }); return; }
       // sombra no chão (2 tons, 2 px para a direita: luz de cima e da esquerda)
       R(x + 14, pes, 38, 2, kc(C.terraE)); R(x + 20, pes + 1, 26, 1, kc(C.terraEE));
       // poeira dos cascos (ou respingos, na chuva), atrás do cavalo
       var rx = x + r.traseira + 2;
       for (var k = 0; k < 8; k++) {
-        var idade = (t * 2.4 + k / 8 + j * 0.37) % 1;
+        var idade = (t * 3.2 + k / 8 + j * 0.37) % 1;
         if (idade > 0.85) continue;
-        var dx = Math.round(rx - idade * 22 - (k % 3) * 2), dy = Math.round(pes - 1 - Math.sin(idade * Math.PI) * (3 + k % 3));
+        var dx = Math.round(rx - idade * 34 - (k % 3) * 2), dy = Math.round(pes - 1 - Math.sin(idade * Math.PI) * (3 + k % 3));
         R(dx, dy, idade < 0.35 ? 2 : 1, idade < 0.35 ? 2 : 1, chuva ? (idade < 0.4 ? C.texto : C.ceu3) : kc(idade < 0.5 ? C.terraC : C.poeira));
       }
       var ef = efs.filter(function (e) { return e.j === j; })[0];
@@ -389,9 +394,19 @@
       info.push({ r: r, j: j, x: x, y: y, ef: ef });
     });
     // chuva: pingos inclinados pelo vento (≤ 150 partículas)
-    if (chuva) for (var p = 0; p < 140; p++) {
-      var gx = Math.floor(hash(p, 1) * (W + 40)), gy = (hash(p, 2) * H + t * 220) % H;
-      R(Math.round(gx - gy * 0.25) , Math.round(gy), 1, 3, p % 3 ? C.ceu3 : C.texto);
+    // (140 pingos pré-desenhados numa folha da altura da tela; por quadro, 2 cópias deslocadas: guia §9)
+    if (chuva) {
+      if (!folhaChuva || folhaChuva.width !== W + 64) {
+        folhaChuva = canvas(W + 64, H);
+        var fg = folhaChuva.getContext('2d');
+        for (var p = 0; p < 140; p++) {
+          fg.fillStyle = p % 3 ? C.ceu3 : C.texto;
+          var gx = Math.floor(hash(p, 1) * (W + 64)), gy = Math.floor(hash(p, 2) * H);
+          fg.fillRect(gx, gy, 1, 2); fg.fillRect(gx - 1, gy + 2, 1, 2);
+        }
+      }
+      var dy = Math.floor((t * 220) % H), dxc = -Math.floor(dy * 0.25) % 64;
+      D(folhaChuva, dxc - 32, dy - H); D(folhaChuva, dxc - 32 + Math.floor(H * 0.25) % 64 - 0, dy);
     }
     // primeiro plano: chão de fora (sólido) e capim dourado (paralaxe 1,25)
     R(0, Y.frente + 6, W, H - Y.frente - 6, kc('#4c3e24'));
@@ -420,36 +435,140 @@
       for (var i = 0; i < 5; i++) R(o.dir > 0 ? ax + i : ax + 4 - i, o.y - 4 + i, 1, 9 - 2 * i, C.tinta);
       for (i = 0; i < 4; i++) R(o.dir > 0 ? ax + i : ax + 4 - i, o.y - 3 + i, 1, 7 - 2 * i, o.r.sedaPal);
     });
-    // HUD no céu (guia §8): lugar, tempo e clima em placas
-    var ord = ordem(t), lugar = ord.indexOf(EU) + 1;
-    var lugTxt = lugar + 'º', totTxt = '/' + CORREDORES.length;
-    var lw2 = larguraTexto(lugTxt, 'g11') + larguraTexto(totTxt, 'g7') + 8;
-    placa(4, 4, lw2, 17, C.painel, C.ouro);
-    var xl = texto(lugTxt, 8, 18, 'g11', C.ouro, C.tinta);
-    texto(totTxt, xl + 1, 18, 'g7', C.texto);
-    var seg = 52 + Math.floor(t), relogio = Math.floor(seg / 60) + ':' + ('0' + (seg % 60)).slice(-2);
-    var rw = larguraTexto('0:00', 'g9') + 8, rx0 = 4 + lw2 + 5;
-    placa(rx0, 4, rw, 17, C.painel);
-    texto(relogio, rx0 + 4, 17, 'g9', C.texto, C.tinta);
-    var cl = CLIMAS[estado.clima], icn = { sol: 'sol', nublado: 'nuvem', chuva: 'chuva', nevoa: 'nevoa' }[estado.clima];
-    var cw = larguraTexto(cl.nome, 'g7') + 16;
-    placa(W - cw - 4, 4, cw, 17, C.painel);
-    D(icone(icn, estado.clima === 'sol' ? C.ouro : C.texto), W - cw, 9);
-    texto(cl.nome, W - cw + 10, 17, 'g7', C.texto);
+    // HUD no céu (guia §8), com a mesma informação da tela de hoje: lugar, estamina, vento, clima, tempo e velocidade,
+    // e o minimapa embaixo do lugar
+    var ord = ordem(tc);
+    hud(tc, ord);
     // narração e ordem: abaixo da pista (HTML)
-    atualizarHtml(ord, efs);
+    atualizarHtml(ord, efs, tc);
   }
 
-  // ---------------------------------------------------------------- HTML abaixo da pista
-  var htmlOrdem = '', htmlNarr = '';
-  function atualizarHtml(ord, efs) {
-    var h = ord.map(function (j, k) {
-      var r = CORREDORES[j];
-      return '<li' + (r.voce ? ' class="voce"' : '') + '><span class="pos">' + (k + 1) + 'º</span><span class="seda" style="background:' + r.sedaPal + '"></span>' + r.nome + '</li>';
-    }).join('');
-    if (h !== htmlOrdem) { htmlOrdem = h; document.getElementById('ordem').innerHTML = h; }
-    var e = efs[0], n = e ? (e.tipo === 'skill' ? 'Brasa ativou LABAREDA no primeiro terço!' : 'Maré mostrou GARRA na reta!') : htmlNarr || 'Largada no Prado do Cerrado, 2.000 m de terra.';
-    if (n !== htmlNarr) { htmlNarr = n; document.getElementById('narracao').textContent = n; }
+  // ---------------------------------------------------------------- HUD (pixels de arte)
+  var MINI = { w: 44, h: 20 }, miniPista = null;
+  function desenharMini() {
+    // traçado em estádio: duas retas e duas curvas; terra com a borda clara, linha de chegada embaixo no meio
+    var c = canvas(MINI.w, MINI.h), cg = c.getContext('2d'), r = 8, cx0 = r + 1, cx1 = MINI.w - r - 2, cy = Math.floor(MINI.h / 2);
+    function ponto(x, y, cor) { cg.fillStyle = cor; cg.fillRect(x, y, 1, 1); }
+    for (var y = 0; y < MINI.h; y++) for (var x = 0; x < MINI.w; x++) {
+      var dx = x < cx0 ? x - cx0 : x > cx1 ? x - cx1 : 0, d = Math.hypot(dx, y - cy);
+      if (d <= r + 0.5 && d > r - 2.5) ponto(x, y, d > r - 0.5 ? C.texto : C.terra);
+    }
+    var mx = Math.floor((cx0 + cx1) / 2);
+    for (y = cy + r - 2; y <= cy + r; y++) ponto(mx, y, (y % 2) ? C.branco : C.tinta), ponto(mx + 1, y, (y % 2) ? C.tinta : C.branco);
+    MINI.cx0 = cx0; MINI.cx1 = cx1; MINI.cy = cy; MINI.r = r - 1;
+    return c;
+  }
+  // ponto do traçado para a fração u da volta (0 = chegada, embaixo no meio, sentido anti-horário na tela)
+  function pontoMini(u) {
+    var L = MINI.cx1 - MINI.cx0, per = 2 * L + 2 * Math.PI * MINI.r, d = (((u % 1) + 1) % 1) * per, mx = (MINI.cx0 + MINI.cx1) / 2;
+    var seg = [L / 2, Math.PI * MINI.r, L, Math.PI * MINI.r, L / 2];
+    if (d < seg[0]) return [mx + d, MINI.cy + MINI.r];
+    d -= seg[0];
+    if (d < seg[1]) { var a = d / MINI.r; return [MINI.cx1 + Math.sin(a) * MINI.r, MINI.cy + Math.cos(a) * MINI.r]; }
+    d -= seg[1];
+    if (d < seg[2]) return [MINI.cx1 - d, MINI.cy - MINI.r];
+    d -= seg[2];
+    if (d < seg[3]) { a = d / MINI.r; return [MINI.cx0 - Math.sin(a) * MINI.r, MINI.cy - Math.cos(a) * MINI.r]; }
+    d -= seg[3];
+    return [MINI.cx0 + d, MINI.cy + MINI.r];
+  }
+  function hud(tc, ord) {
+    var y = 3, h = 20, n = CORREDORES.length;
+    // lugar
+    var a = (ord.indexOf(EU) + 1) + 'º', b = '/' + n, w1 = larguraTexto(a, 'g11') + larguraTexto(b, 'g7') + 9;
+    placa(3, y, w1, h, C.painel, C.ouro);
+    var xl = texto(a, 7, y + 16, 'g11', C.ouro, C.tinta);
+    texto(b, xl + 1, y + 16, 'g7', C.texto);
+    // estamina: 12 segmentos
+    var x2 = 3 + w1 + 5, w2 = 12 * 4 + 7, est = Math.max(0, 1 - tc / (DURACAO * 1.15)), cheios = Math.round(est * 12);
+    placa(x2, y, w2, h, C.painel);
+    texto('EST', x2 + 4, y + 9, 'g7', C.texto);
+    for (var i = 0; i < 12; i++) R(x2 + 4 + i * 4, y + 12, 3, 5, i < cheios ? C.ouro : C.sombra);
+    // tempo e velocidade (à direita), clima e vento
+    var seg = Math.floor(tc), rel = Math.floor(seg / 60) + ':' + ('0' + (seg % 60)).slice(-2);
+    var kmh = Math.round(VEL * 3.6 + 2 * Math.sin(tc * 0.9)) + ' KM/H';
+    var w3 = Math.max(larguraTexto('0:00', 'g9'), larguraTexto('00 KM/H', 'g7')) + 8, x3 = W - 3 - w3;
+    placa(x3, y, w3, h, C.painel);
+    texto(rel, x3 + w3 - 4 - larguraTexto(rel, 'g9'), y + 10, 'g9', C.texto, C.tinta);
+    texto(kmh, x3 + w3 - 4 - larguraTexto(kmh, 'g7'), y + 18, 'g7', C.texto);
+    var cl = CLIMAS[estado.clima], w4 = Math.max(larguraTexto('CLIMA', 'g7'), larguraTexto(cl.nome, 'g7')) + 8, x4 = x3 - 4 - w4;
+    placa(x4, y, w4, h, C.painel);
+    texto('CLIMA', x4 + 4, y + 9, 'g7', C.cinza);
+    texto(cl.nome, x4 + 4, y + 18, 'g7', C.texto);
+    var w5 = 14, x5 = x4 - 4 - w5;
+    placa(x5, y, w5, h, C.painel);
+    D(icone('seta', C.texto), x5 + 3, y + 2);
+    R(x5 + 4, y + 16, 2, 2, C.texto); R(x5 + 7, y + 14, 2, 4, C.texto); R(x5 + 10, y + 12, 2, 6, C.sombra);
+    // minimapa embaixo do lugar: os corredores na volta, o jogador maior e contornado
+    var my = y + h + 5;
+    placa(3, my, MINI.w + 4, MINI.h + 4, C.painel);
+    if (!miniPista) miniPista = desenharMini();
+    D(miniPista, 5, my + 2);
+    ord.slice().reverse().forEach(function (j) {
+      var r = CORREDORES[j], pt = pontoMini(posicao(j, tc) / DIST), px = Math.round(5 + pt[0]), py = Math.round(my + 2 + pt[1]);
+      if (r.voce) { R(px - 2, py - 2, 5, 5, C.tinta); R(px - 1, py - 1, 3, 3, C.ouro); }
+      else { R(px - 1, py - 1, 3, 3, C.tinta); R(px, py, 1, 1, r.sedaPal); }
+    });
+  }
+
+  // ---------------------------------------------------------------- HTML abaixo da pista (a estrutura da tela de hoje)
+  // Nada é reescrito a cada quadro: a ordem no máximo 4 vezes por segundo, os vizinhos 2, a narração só com frase nova.
+  var ordemHtml = '', ordemT = 0, vizT = 0, narrLog = [], narrChave = '';
+  function raiaHtml(j) {
+    var r = CORREDORES[j], claro = lab(rgb(r.sedaPal))[0] > 60;
+    return '<span class="raia" style="background:' + r.sedaPal + ';color:' + (claro ? C.tinta : C.branco) + '">' + (j + 1) + '</span>';
+  }
+  function fmtRel(seg) { seg = Math.floor(seg); return Math.floor(seg / 60) + ':' + ('0' + (seg % 60)).slice(-2); }
+  function metros(sinal, d) { var m = Math.max(0, Math.round(d)); return m === 0 ? 'colado' : sinal + m + ' m'; }
+  function atualizarHtml(ord, efs, tc) {
+    var agora = performance.now();
+    if (agora - ordemT > 250) {
+      ordemT = agora;
+      var h = ord.map(function (j, k) {
+        return '<li' + (CORREDORES[j].voce ? ' class="voce"' : '') + '><span>' + (k + 1) + 'º</span>' + raiaHtml(j) +
+          '<span class="sr" style="position:absolute;left:-9999px">' + CORREDORES[j].nome + '</span></li>';
+      }).join('');
+      if (h !== ordemHtml) { ordemHtml = h; document.getElementById('ordem').innerHTML = h; }
+    }
+    if (agora - vizT > 500) {
+      vizT = agora;
+      var k = ord.indexOf(EU), partes = [];
+      if (k === 0) partes.push('Você lidera');
+      else { var f = ord[k - 1]; partes.push('À frente: <b>' + CORREDORES[f].nome + '</b> ' + metros('+', posicao(f, tc) - posicao(EU, tc))); }
+      if (k < ord.length - 1) { var a = ord[k + 1]; partes.push('Atrás: <b>' + CORREDORES[a].nome + '</b> ' + metros('−', posicao(EU, tc) - posicao(a, tc))); }
+      document.getElementById('vizinhos').innerHTML = partes.join(' · ');
+    }
+    efs.forEach(function (e) {
+      var chave = e.tipo + Math.floor(estado.t / 8);
+      if (narrChave.indexOf('|' + chave + '|') >= 0) return;
+      narrChave = ('|' + chave + '|' + narrChave).slice(0, 80);
+      var r = CORREDORES[e.j], txt = e.tipo === 'skill' ? r.nome + ' ativou LABAREDA!' : r.nome + ' mostrou GARRA na reta!';
+      narrLog.unshift({ t: tc, j: e.j, txt: txt });
+      narrLog.length = Math.min(narrLog.length, 2);
+      document.getElementById('narr').innerHTML = narrLog.map(function (n) {
+        return '<li' + (CORREDORES[n.j].voce ? ' class="voce"' : '') + '><time>' + fmtRel(n.t) + '</time>' + raiaHtml(n.j) + '<span class="ev">' + n.txt + '</span></li>';
+      }).join('');
+    });
+  }
+
+  // ícones do cabeçalho (moeda 9×9 e clima 8×8), desenhados em código como os da pista
+  function iconeCabecalho() {
+    var c = canvas(9, 9), cg = c.getContext('2d');
+    for (var y = 0; y < 9; y++) for (var x = 0; x < 9; x++) {
+      var d = Math.hypot(x - 4, y - 4);
+      if (d <= 4.4) { cg.fillStyle = d > 3.4 ? C.ouro2 : (x + y < 7 ? '#fbff86' : C.ouro); cg.fillRect(x, y, 1, 1); }
+    }
+    cg.fillStyle = C.ouro2; cg.fillRect(4, 2, 1, 5); cg.fillRect(3, 3, 1, 1); cg.fillRect(5, 5, 1, 1);
+    var mo = document.getElementById('ic-moeda');
+    mo.style.backgroundImage = 'url(' + c.toDataURL() + ')';
+    mo.style.width = 'calc(var(--p) * 9)'; mo.style.height = 'calc(var(--p) * 9)';
+  }
+  function iconeClimaCabecalho() {
+    var nome = { sol: 'sol', nublado: 'nuvem', chuva: 'chuva', nevoa: 'nevoa' }[estado.clima];
+    var el = document.getElementById('ic-clima');
+    el.style.backgroundImage = 'url(' + icone(nome, estado.clima === 'sol' ? C.ouro : C.texto).toDataURL() + ')';
+    el.style.width = 'calc(var(--p) * 8)'; el.style.height = 'calc(var(--p) * 8)';
+    document.getElementById('info-clima').textContent = 'CLIMA: ' + CLIMAS[estado.clima].nome;
   }
 
   // ---------------------------------------------------------------- escala e laço
@@ -486,13 +605,19 @@
     document.querySelectorAll('[data-clima]').forEach(function (b) {
       b.addEventListener('click', function () {
         estado.clima = b.getAttribute('data-clima');
+        iconeClimaCabecalho();
         document.querySelectorAll('[data-clima]').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
       });
     });
     var pausa = document.getElementById('pausa');
     pausa.addEventListener('click', function () { estado.pausa = !estado.pausa; pausa.textContent = estado.pausa ? 'Continuar' : 'Pausar'; pausa.setAttribute('aria-pressed', String(estado.pausa)); });
-    var vel = document.getElementById('vel');
-    vel.addEventListener('click', function () { estado.vel = estado.vel === 1 ? 2 : 1; vel.textContent = 'x' + estado.vel; });
+    ['x1', 'x2'].forEach(function (id, i) {
+      document.getElementById(id).addEventListener('click', function () {
+        estado.vel = i + 1;
+        document.getElementById('x1').setAttribute('aria-pressed', String(i === 0));
+        document.getElementById('x2').setAttribute('aria-pressed', String(i === 1));
+      });
+    });
     document.querySelectorAll('[data-aba]').forEach(function (b) {
       b.addEventListener('click', function () {
         document.body.setAttribute('data-vista', b.getAttribute('data-aba'));
@@ -508,7 +633,7 @@
     tela = document.getElementById('corrida');
     if (!document.body.getAttribute('data-vista')) document.body.setAttribute('data-vista', 'novo');
     // as faces vêm do @font-face da página (data: URI); aqui só se espera carregarem
-    var fontes = ['8px Galmuri7A', '10px Galmuri9A', '12px Galmuri11BA'].map(function (f) { return document.fonts.load(f); });
+    var fontes = ['8px Galmuri7A', '10px Galmuri9A', '12px Galmuri11A', '12px Galmuri11BA'].map(function (f) { return document.fonts.load(f); });
     var nomes = ['chapadas', 'cerrado', 'frente', 'nuvens', 'arquibancada'], imgs = {};
     var carregaCamadas = Promise.all(nomes.map(function (n) { return carregar(A.camadas[n]).then(function (i) { imgs[n] = i; }); }));
     var mImgs = {};
@@ -520,6 +645,7 @@
       prepararCamadas(imgs);
       prepararCavalos(mImgs);
       medir();
+      iconeCabecalho(); iconeClimaCabecalho();
       ligarControles();
       requestAnimationFrame(laco);
     }).catch(function (e) { document.getElementById('narracao').textContent = 'Erro ao carregar a amostra: ' + e; });

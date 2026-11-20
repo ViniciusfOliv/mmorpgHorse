@@ -3,6 +3,13 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-20 — Direção de arte: retorno do Vinicius sobre a amostra
+- **A interface de hoje fica; o padrão novo só troca pixel, paleta e fonte** — "a interface do anterior me parece
+  melhor": a versão 1 da amostra simplificou demais (sem pote, estamina, vento, minimapa, células da ordem, vizinhos e
+  horários na narração) e encolheu o texto. Narração e nomes passam para Galmuri11 (guia §6, §8b).
+- **Corrida em "velocidade máxima" na tela: câmera a 12 px de arte por metro e galope a 21 quadros/s** — "no 1x parece
+  bem lento"; a pista e a distância continuam as mesmas (guia §8a). O resto da amostra foi aprovado.
+
 ## 2026-11-20 — Direção de arte: amostra da corrida (execução)
 - **Guia aprovado pelo Vinicius; gasto da amostra autorizado (até 200 gerações do PixelLab e a conta da Retro Diffusion,
   US$ 5)** — resposta dele em 2026-11-20. Chave da RD salva pelo formulário seguro da sessão (`X-RD-Token`).

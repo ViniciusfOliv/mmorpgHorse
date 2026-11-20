@@ -118,7 +118,8 @@ Operator e Press Start 2P em `docs/arte/fontes-comparacao.png` (renderizadas no 
 | Uso | Fonte | Tamanho (px de arte) | Maiúscula | Entrelinha |
 |---|---|---|---|---|
 | Títulos, saldo, números grandes, botões principais | Galmuri11 Bold | 12 | 11 | 16 |
-| Texto da interface, botões, narração | Galmuri9 | 10 | 9 | 14 |
+| Narração, nomes, botões de texto | Galmuri11 | 12 | 11 | 14 |
+| Texto secundário da interface (vizinhos, horários, legendas) | Galmuri9 | 10 | 9 | 14 |
 | Texto pequeno na pista (balões, "VOCÊ", HUD do céu) e legendas | Galmuri7 | 8 | 7 | 10 |
 
 - **Sai**: Press Start 2P, Jersey 10 e a fonte 3×5 do canvas.
@@ -164,6 +165,22 @@ Todo o resto sai da pista:
 
 Efeitos: desenhados em pixels de arte, com cores da paleta e quadros inteiros (sem rotação nem escala suave), presos à
 grade. Partículas são retângulos de 1 a 2 px. Nada de `Math.random` (hashes da seed e do tempo, como hoje).
+
+## 8a. Movimento da corrida
+
+- **Escala visual da câmera: 12 px de arte por metro** (a do jogo hoje é 2 a 2,5). A 16 m/s o chão passa a ~190 px/s,
+  quase uma tela por segundo: os cavalos parecem em velocidade máxima e o cenário passa rápido. Só a tela muda: a pista
+  continua com os mesmos metros e a corrida com o mesmo tempo (pedido do Vinicius, 2026-11-20).
+- **Galope a ~2,3 passadas por segundo**: 21 quadros por segundo no ciclo de 9 do molde (x2 dobra os dois).
+- Paralaxe (fração da câmera): nuvens 0,04 (mais um vento lento), horizonte 0,1, meio 0,3, arquibancada 0,75, pista 1,
+  primeiro plano 1,25. Partículas de poeira acompanham (rastro mais longo que hoje).
+
+## 8b. Interface
+
+**A estrutura da interface de hoje fica** (Visuais 2, partes 3a a 3c: cabeçalho com o pote, HUD com lugar, estamina,
+vento, clima, tempo, velocidade e minimapa, faixa de ordem em células com o número da raia na cor da seda, linha dos
+vizinhos, narração com horário e chip da raia, botões grandes). O padrão novo troca o pixel (`--px`), a paleta e a
+fonte, não o que a tela mostra nem onde (decisão do Vinicius, 2026-11-20, ao comparar a amostra).
 
 ## 9. Orçamento de desempenho (por quadro, celular médio, 60 qps)
 
