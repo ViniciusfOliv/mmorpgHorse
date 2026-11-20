@@ -1,5 +1,5 @@
 {
-  "pl": 563,
+  "pl": 578,
   "usd": 7.1200000000000045,
   "chamadas": [
     {
@@ -651,6 +651,11 @@
       "base": "treinadores/tenente-aroeira-busto",
       "geracoes": 10,
       "data": "2026-11-20T15:03:32.658Z"
+    },
+    {
+      "base": "treinadores/recruta-broto-corpo-2",
+      "geracoes": 15,
+      "data": "2026-11-20T15:12:58.319Z"
     }
   ]
 }

@@ -41,6 +41,10 @@ const QUEM = {
   'sargento-juazeiro': 'grass gym sergeant, sturdy man with a dark beard, brown leather cowboy hat, leather vest over a green shirt',
   'tenente-aroeira': 'grass gym lieutenant, confident woman with curly dark hair, green officer cap, dark green ranger coat, beige trousers',
 };
+// refação do corpo do Recruta Broto: uma criança, num quadro de 36 × 36 (a figura não passa de ~34 px)
+const BROTO = { lado: 36, cand: 64, seed: 9601,
+  estilo: 'full body pixel art game character standing, facing front, a small child, short, whole figure visible from head to '
+    + 'sandals, small character scale like a horse racing game sprite, dark single color outline, light from the upper left' };
 const TIPOS = {
   corpo: { lado: 48, cand: 25, seed: 9401,
     estilo: 'full body pixel art game character standing, facing front, about 40 pixels tall, whole figure visible from head to boots, '
@@ -53,6 +57,10 @@ const TIPOS = {
 export const ESCOLHAS = {
   'capita-labareda': { corpo: '00', busto: '00' },   // 2026-11-20, piloto
 };
+// 2026-11-20: o Vinicius fechou 00 e 00 para os outros 14 também (as poses neutras, de frente, como a Labareda); o corpo
+// do Recruta Broto vem do lote `broto` (o do lote `corpos` saiu com 43 px, maior que os adultos)
+ESCOLHAS['recruta-broto'] = { corpo: '08', pasta: 'corpo-2', busto: '00' };   // refação: em pé, mãos na cintura, 33 px
+for (const id of Object.keys(QUEM)) ESCOLHAS[id] = ESCOLHAS[id] || { corpo: '00', busto: '00' };
 const IDS = Object.keys(QUEM), OUTROS = IDS.filter(i => i !== 'capita-labareda');
 
 function args() {
@@ -65,7 +73,7 @@ function args() {
     else if (v[i] === '--teto-pl') a.tetoPl = Number(v[++i]);
     else throw new Error('opção desconhecida: ' + v[i]);
   }
-  if (!['piloto', 'corpos', 'bustos'].includes(a.lote)) throw new Error('lote desconhecido: ' + a.lote);
+  if (!['piloto', 'corpos', 'bustos', 'broto', 'finais'].includes(a.lote)) throw new Error('lote desconhecido: ' + a.lote);
   return a;
 }
 const lerJson = (f, p) => (fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : p);
@@ -75,12 +83,13 @@ const assinatura = p => crypto.createHash('sha1').update(JSON.stringify(p)).dige
 function chamadas(lote) {
   const escolhas = JSON.parse(fs.readFileSync(path.join(DIR_ATUAL, 'escolhas.json'), 'utf8'));
   const pares = lote === 'piloto' ? [['capita-labareda', 'corpo'], ['capita-labareda', 'busto']]
+    : lote === 'broto' ? [['recruta-broto', 'corpo', 'broto']]
     : OUTROS.map(id => [id, lote === 'corpos' ? 'corpo' : 'busto']);
-  return pares.map(([id, tipo]) => {
-    const T = TIPOS[tipo], atual = path.join(DIR_ATUAL, `${id}-s${escolhas[id]}.png`);
-    return { id, tipo, base: `${id}-${tipo}`, pedido: {
+  return pares.map(([id, tipo, refazer]) => {
+    const T = refazer ? BROTO : TIPOS[tipo], atual = path.join(DIR_ATUAL, `${id}-s${escolhas[id]}.png`);
+    return { id, tipo, base: `${id}-${tipo}${refazer ? '-2' : ''}`, cand: T.cand, pedido: {
       description: `${QUEM[id]}, ${T.estilo}`, image_size: { width: T.lado, height: T.lado }, no_background: true,
-      seed: T.seed + IDS.indexOf(id),
+      seed: refazer ? T.seed : T.seed + IDS.indexOf(id),
       reference_images: [{ image: imagem(fs.readFileSync(atual)), size: { width: 64, height: 64 },
         usage_description: tipo === 'corpo' ? 'the character: same person, same clothes and colors, redrawn smaller'
           : 'the character: same face, hair, hat and clothes, shown as a head and shoulders portrait' }],
@@ -138,12 +147,16 @@ function processar(c, bufs) {
 function folha() {
   const uri = f => 'data:image/png;base64,' + fs.readFileSync(f).toString('base64');
   const escolhas = JSON.parse(fs.readFileSync(path.join(DIR_ATUAL, 'escolhas.json'), 'utf8'));
-  const secoes = IDS.flatMap(id => ['corpo', 'busto'].map(tipo => {
-    const d = path.join(DIR, 'treinadores', `${id}-${tipo}`);
+  const F = path.join(DIR, 'treinadores', 'finais'), molde = uri(path.join(RAIZ, 'prototype', 'assets', 'pixellab', 'molde-padrao-chamas-parado.png'));
+  const escolhidos = fs.existsSync(F) ? `<h2>Escolhidos · corpo 3× ao lado do cavalo 1:1, e o busto 2×</h2><div class="grade escolhidos"><figure class="escala"><div><img src="${molde}" style="width:192px;margin-bottom:-12px"></div><figcaption>cavalo</figcaption></figure>`
+    + IDS.filter(id => fs.existsSync(path.join(F, id + '-corpo.png'))).map(id => `<figure class="escala"><div><img src="${uri(path.join(F, id + '-corpo.png'))}" style="width:96px"></div><figcaption>${id}</figcaption></figure>`).join('')
+    + '</div><div class="grade">' + IDS.filter(id => fs.existsSync(path.join(F, id + '-busto.png'))).map(id => `<figure><img src="${uri(path.join(F, id + '-busto.png'))}" style="width:128px"><figcaption>${id}</figcaption></figure>`).join('') + '</div>' : '';
+  const secoes = escolhidos + IDS.flatMap(id => ['corpo', 'corpo-2', 'busto'].map(t => {
+    const d = path.join(DIR, 'treinadores', `${id}-${t}`), tipo = t.split('-')[0];
     if (!fs.existsSync(d)) return '';
     const info = lerJson(path.join(d, 'info.json'), []), z = tipo === 'corpo' ? 3 : 2;
     const escala = tipo === 'corpo' && info.length ? `<figure class="escala"><div><img src="${uri(path.join(RAIZ, 'prototype', 'assets', 'pixellab', 'molde-padrao-chamas-parado.png'))}" style="width:192px;margin-bottom:-12px"><img src="${uri(path.join(d, info[0].n + '.png'))}" style="width:96px"></div><figcaption>escala: cavalo 1:1 e o ${info[0].n}</figcaption></figure>` : '';
-    return `<h2>${id} · ${tipo}</h2><div class="grade">${escala}<figure><img src="${uri(path.join(DIR_ATUAL, `${id}-s${escolhas[id]}.png`))}" style="width:${64 * z}px"><figcaption>atual (64)</figcaption></figure>`
+    return `<h2>${id} · ${t === 'corpo-2' ? 'corpo (refeito)' : tipo}</h2><div class="grade">${escala}<figure><img src="${uri(path.join(DIR_ATUAL, `${id}-s${escolhas[id]}.png`))}" style="width:${64 * z}px"><figcaption>atual (64)</figcaption></figure>`
       + info.map(i => `<figure><img src="${uri(path.join(d, i.n + '.png'))}" style="width:${(tipo === 'corpo' ? 32 : 64) * z}px"><figcaption>${i.n}${i.altura ? ` · ${i.altura} px` : ''}</figcaption></figure>`).join('') + '</div>';
   })).join('');
   fs.writeFileSync(path.join(RAIZ, 'prototype', 'arte', 'folha-treinadores.html'), `<title>Treinadores 40 px</title>
@@ -153,10 +166,21 @@ img{image-rendering:pixelated;background:#3e3546;display:block} figcaption{color
 <div class="p"><h1 style="color:#f9c22b;font-weight:normal">Treinadores · corpo 32×48 (3×) e busto 64×64 (2×)</h1>${secoes}</div>`);
 }
 
+// os escolhidos: prototype/assets/arte/treinadores/finais/<id>-corpo.png (32 × 48) e <id>-busto.png (64 × 64)
+function finais() {
+  const fim = path.join(DIR, 'treinadores', 'finais');
+  fs.mkdirSync(fim, { recursive: true });
+  for (const [id, e] of Object.entries(ESCOLHAS)) for (const tipo of ['corpo', 'busto']) {
+    const pasta = tipo === 'corpo' && e.pasta ? e.pasta : tipo, orig = path.join(DIR, 'treinadores', `${id}-${pasta}`, e[tipo] + '.png');
+    if (fs.existsSync(orig)) fs.copyFileSync(orig, path.join(fim, `${id}-${tipo}.png`));
+  }
+}
+
 async function main() {
+  if (process.argv.includes('finais')) { finais(); folha(); console.log('finais em prototype/assets/arte/treinadores/finais/'); return; }
   const a = args(), lista = chamadas(a.lote), teto = a.tetoPl ?? lista.length * 10;
   console.log(`Treinadores, lote ${a.lote}: ${lista.length} chamadas Pro × 10 gerações = ~${lista.length * 10}. Teto: ${teto}`);
-  for (const c of lista) console.log(`  ${c.base}  /generate-image-v2 ${c.pedido.image_size.width}×${c.pedido.image_size.height} (~${TIPOS[c.tipo].cand} candidatos), seed ${c.pedido.seed}`);
+  for (const c of lista) console.log(`  ${c.base}  /generate-image-v2 ${c.pedido.image_size.width}×${c.pedido.image_size.height} (~${c.cand} candidatos), seed ${c.pedido.seed}`);
   if (!a.gerar && !a.reprocessar) { console.log('\nDry-run: nada foi gerado. Use --gerar para gastar.'); return; }
   if (a.gerar) estado.redeLiberada = true;
   const gasto = lerJson(ARQ_GASTO, { pl: 0, usd: 0, chamadas: [] });
@@ -187,7 +211,7 @@ async function main() {
     console.log(`    ${info.length} candidatos inteiros${c.tipo === 'corpo' ? `; alturas ${[...new Set(info.map(i => i.altura))].sort((x, y) => x - y).join(', ')} px` : ''}`);
   }
   if (a.gerar) await saldo('do PixelLab depois');
-  folha();
+  finais(); folha();
   console.log(`Gasto: ${fmt(pl)} gerações do PixelLab · folha em prototype/arte/folha-treinadores.html`);
 }
 main().catch(e => { console.error('ERRO:', e.message); process.exit(1); });

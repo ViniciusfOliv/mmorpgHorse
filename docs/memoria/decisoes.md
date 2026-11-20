@@ -3,6 +3,12 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-20 — Direção de arte: treinadores (etapa 5)
+- **Oponentes dos ginásios em corpo de ~40 px (quadro 32×48) e busto 64×64, pelo Pro do PixelLab com a arte escolhida de
+  referência** — a escala dos cavalos 1:1; a altura sai do tamanho do quadro pedido (48 para adultos, 36 para a criança).
+- **00 e 00 para todos** (escolha do Vinicius): poses neutras, de frente, coerentes entre si. Recruta Broto: corpo refeito
+  (08, 33 px), porque no quadro de 48 a criança saía mais alta que os adultos.
+
 ## 2026-11-20 — Direção de arte: ícones (etapa 4, parte dos assets)
 - **Ícones em dois tamanhos: simples em 16×16 desenhados em código; complexos em 24×24 pelo modo Pro do PixelLab** —
   decisão do Vinicius depois do piloto: em 16×16 nem o `/resize` nem o Pixen ficaram bons, e o `/resize` também falhou em
