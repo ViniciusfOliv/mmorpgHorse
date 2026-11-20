@@ -152,7 +152,7 @@ function montar() {
     const d = path.join(DIR, 'ginasios', g);
     if (!fs.existsSync(d)) continue;
     const tr = path.join(DIR, 'treinadores', 'finais', LIDER[g] + '-corpo.png'), treinador = fs.existsSync(tr) ? decodePng(fs.readFileSync(tr)) : null;
-    for (const n of [0, 1]) {
+    for (const n of [0, 1, 2, 3]) {
       const arq = path.join(d, `arena-${n}.png`);
       if (fs.existsSync(arq)) fs.writeFileSync(path.join(d, `cena-arena-${n}.png`), encodePng(compor(g, null, null, treinador, decodePng(fs.readFileSync(arq)))));
     }

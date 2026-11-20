@@ -1,6 +1,6 @@
 {
   "pl": 578,
-  "usd": 8.080000000000005,
+  "usd": 8.800000000000006,
   "chamadas": [
     {
       "base": "chapadas-rd-plus-s7101",
@@ -686,6 +686,21 @@
       "base": "ginasios/grama-piso",
       "usd": 0.12,
       "data": "2026-11-20T15:28:22.576Z"
+    },
+    {
+      "base": "ginasios/fogo-arena",
+      "usd": 0.24,
+      "data": "2026-11-20T15:45:07.226Z"
+    },
+    {
+      "base": "ginasios/agua-arena",
+      "usd": 0.24,
+      "data": "2026-11-20T15:45:20.582Z"
+    },
+    {
+      "base": "ginasios/grama-arena",
+      "usd": 0.24,
+      "data": "2026-11-20T15:45:34.108Z"
     }
   ]
 }
