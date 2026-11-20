@@ -49,6 +49,10 @@ const TIPOS = {
     estilo: 'pixel art portrait bust, head and shoulders, three-quarter view facing left, expressive face, '
       + 'dark single color outline, light from the upper left, game dialogue portrait' },
 };
+// escolhas do Vinicius (o número do candidato): corpo e busto de cada oponente
+export const ESCOLHAS = {
+  'capita-labareda': { corpo: '00', busto: '00' },   // 2026-11-20, piloto
+};
 const IDS = Object.keys(QUEM), OUTROS = IDS.filter(i => i !== 'capita-labareda');
 
 function args() {
