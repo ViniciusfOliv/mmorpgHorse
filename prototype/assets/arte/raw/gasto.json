@@ -1,5 +1,5 @@
 {
-  "pl": 83,
+  "pl": 263,
   "usd": 7.1200000000000045,
   "chamadas": [
     {
@@ -411,6 +411,96 @@
       "base": "icones24pro/slot-testeira",
       "geracoes": 10,
       "data": "2026-11-20T12:42:08.906Z"
+    },
+    {
+      "base": "icones24pro/slot-estribos",
+      "geracoes": 10,
+      "data": "2026-11-20T12:45:18.578Z"
+    },
+    {
+      "base": "icones24pro/ui-perfil",
+      "geracoes": 10,
+      "data": "2026-11-20T12:47:24.970Z"
+    },
+    {
+      "base": "icones24pro/ins-fogo",
+      "geracoes": 10,
+      "data": "2026-11-20T12:49:47.304Z"
+    },
+    {
+      "base": "icones24pro/ins-agua",
+      "geracoes": 10,
+      "data": "2026-11-20T12:52:35.419Z"
+    },
+    {
+      "base": "icones24pro/ins-grama",
+      "geracoes": 10,
+      "data": "2026-11-20T12:55:02.579Z"
+    },
+    {
+      "base": "icones24pro/rar-raro",
+      "geracoes": 10,
+      "data": "2026-11-20T12:56:58.152Z"
+    },
+    {
+      "base": "icones24pro/podio-1",
+      "geracoes": 10,
+      "data": "2026-11-20T13:02:22.832Z"
+    },
+    {
+      "base": "icones24pro/sk-canto-da-iara",
+      "geracoes": 10,
+      "data": "2026-11-20T13:05:26.051Z"
+    },
+    {
+      "base": "icones24pro/sk-casco-firme",
+      "geracoes": 10,
+      "data": "2026-11-20T13:07:42.331Z"
+    },
+    {
+      "base": "icones24pro/sk-chama-final",
+      "geracoes": 10,
+      "data": "2026-11-20T13:10:14.368Z"
+    },
+    {
+      "base": "icones24pro/sk-folego-de-montanha",
+      "geracoes": 10,
+      "data": "2026-11-20T13:12:25.933Z"
+    },
+    {
+      "base": "icones24pro/sk-nascente",
+      "geracoes": 10,
+      "data": "2026-11-20T13:14:37.009Z"
+    },
+    {
+      "base": "icones24pro/sk-nevoa-amiga",
+      "geracoes": 10,
+      "data": "2026-11-20T13:16:27.429Z"
+    },
+    {
+      "base": "icones24pro/sk-pe-na-chuva",
+      "geracoes": 10,
+      "data": "2026-11-20T13:19:00.049Z"
+    },
+    {
+      "base": "icones24pro/sk-sol-a-pino",
+      "geracoes": 10,
+      "data": "2026-11-20T13:23:06.141Z"
+    },
+    {
+      "base": "icones24pro/st-forca",
+      "geracoes": 10,
+      "data": "2026-11-20T13:25:26.236Z"
+    },
+    {
+      "base": "icones24pro/sk-tipo-grama",
+      "geracoes": 10,
+      "data": "2026-11-20T13:27:32.261Z"
+    },
+    {
+      "base": "icones24pro/sk-drift",
+      "geracoes": 10,
+      "data": "2026-11-20T13:29:48.379Z"
     }
   ]
 }

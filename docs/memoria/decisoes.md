@@ -3,6 +3,14 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-20 — Direção de arte: ícones (etapa 4, parte dos assets)
+- **Ícones em dois tamanhos: simples em 16×16 desenhados em código; complexos em 24×24 pelo modo Pro do PixelLab** —
+  decisão do Vinicius depois do piloto: em 16×16 nem o `/resize` nem o Pixen ficaram bons, e o `/resize` também falhou em
+  24×24; o Pro (64 candidatos por 10 gerações, paleta travada, o ícone atual e os de código como referência) acertou.
+- **O Pro corta os 64 candidatos de uma folha com a grade fora do lugar: o script remonta a folha e separa os ícones**
+  (`separarFolha`) — sem isso cada quadro vinha cortado e com pedaços dos vizinhos.
+- **Variações de cor por troca de rampa em código** (ligas, raridades, pódio) — uma geração serve a várias.
+
 ## 2026-11-20 — Direção de arte: regiões de corrida (etapa 3)
 - **5 regiões aprovadas pelo Vinicius**: Cerrado, Várzea, Planalto, Sertão e Litoral, cada uma com paleta de 32 cores; a
   interface fica por código ("manter por código").
