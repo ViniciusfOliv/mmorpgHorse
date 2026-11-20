@@ -1,5 +1,5 @@
 {
-  "pl": 523,
+  "pl": 563,
   "usd": 7.1200000000000045,
   "chamadas": [
     {
@@ -631,6 +631,26 @@
       "base": "treinadores/dona-capineira-busto",
       "geracoes": 10,
       "data": "2026-11-20T14:54:27.182Z"
+    },
+    {
+      "base": "treinadores/recruta-broto-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:57:05.280Z"
+    },
+    {
+      "base": "treinadores/cabo-carrapicho-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:59:47.591Z"
+    },
+    {
+      "base": "treinadores/sargento-juazeiro-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T15:01:21.938Z"
+    },
+    {
+      "base": "treinadores/tenente-aroeira-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T15:03:32.658Z"
     }
   ]
 }
