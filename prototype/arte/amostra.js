@@ -353,7 +353,7 @@
     camadaRepetida(cena.nuvens, cam * 0.04 + t * 3, 18);
     camadaRepetida(cena.chapadas, cam * 0.1, 96 - cena.chapadas.height);
     if (cena.veu) D(cena.veu, 0, 0, W, cena.veu.height, 0, 0, W, cena.veu.height);
-    camadaRepetida(cena.cerrado, cam * 0.3, Y.railTopo - cena.cerrado.height + 34);
+    camadaRepetida(cena.cerrado, cam * 0.3, Y.railTopo - cena.cerrado.height + 34 + (A.regioes[estado.regiao].posicao.meio || 0));
     var per = 2600, xa = -(((Math.floor(cam * 0.75) % per) + per) % per) + 60;
     for (; xa < W; xa += per) D(cena.arquibancada, xa, Y.railTopo - cena.arquibancada.height + 2);
     // pista (chão, cercas) e as placas de distância presas à cerca de trás (objetos do cenário: guia §8)

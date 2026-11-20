@@ -15,7 +15,7 @@ const PISTA = { cerrado: 'Prado do Cerrado', varzea: 'Hipódromo da Lagoa', plan
 const regioes = {};
 for (const [r, reg] of Object.entries(manifesto)) {
   if (r.startsWith('_')) continue;
-  regioes[r] = { nome: reg.nome, pista: PISTA[r], paleta: REGIOES[r],
+  regioes[r] = { nome: reg.nome, pista: PISTA[r], paleta: REGIOES[r], posicao: reg.posicao || {},
     camadas: Object.fromEntries(Object.keys(reg.camadas).map(k => [k, uri(path.join(ARTE, r, k + '.png'))])) };
 }
 const moldes = {};

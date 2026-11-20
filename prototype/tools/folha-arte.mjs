@@ -25,7 +25,7 @@ function folha(r) {
     const hz = img('horizonte').height, me = img('meio').height;
     const camadas = [
       el('nuvens', 18), el('nuvens', 18, 384), el('horizonte', 96 - hz), el('horizonte', 96 - hz, 384),
-      el('meio', 154 - me), el('meio', 154 - me, 384),
+      el('meio', 154 - me + ((reg.posicao || {}).meio || 0)), el('meio', 154 - me + ((reg.posicao || {}).meio || 0), 384),
       tem('arquibancada') ? el('arquibancada', 122 - img('arquibancada').height, 200) : '',
       `<b style="left:0;top:${112 * Z}px;width:${L * Z}px;height:${16 * Z}px;background:#239063"></b>`,
       `<b style="left:0;top:${128 * Z}px;width:${L * Z}px;height:${160 * Z}px;background:#cd683d"></b>`,

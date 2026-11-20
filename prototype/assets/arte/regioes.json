@@ -1,5 +1,5 @@
 {
-  "_doc": "Escolhas das camadas de cada região (docs/arte/guia.md; plano da direção de arte, etapa 3). origem = arquivo quantizado em prototype/assets/arte/; corte = linhas a manter { y, h } (h negativo: tira do fim); recorte 'opaco' = caixa dos pixels opacos (objetos). O final vai para prototype/assets/arte/<regiao>/<camada>.png pelo `node prototype/tools/arte-regioes.mjs --finalizar <regiao>` e é conferido pelo arte-check.mjs. escolhas = os crus da fase 1 (raw/<regiao>/) que vão para as emendas da fase 2; chave 'topo' = céu pintado apagado por código (arte-regioes.mjs, chaveTopo).",
+  "_doc": "Escolhas das camadas de cada região (docs/arte/guia.md; plano da direção de arte, etapa 3). origem = arquivo quantizado em prototype/assets/arte/; corte = linhas a manter { y, h } (h negativo: tira do fim); recorte 'opaco' = caixa dos pixels opacos (objetos). O final vai para prototype/assets/arte/<regiao>/<camada>.png pelo `node prototype/tools/arte-regioes.mjs --finalizar <regiao>` e é conferido pelo arte-check.mjs. escolhas = os crus da fase 1 (raw/<regiao>/) que vão para as emendas da fase 2; chave 'topo' = céu pintado apagado por código (arte-regioes.mjs, chaveTopo). posicao = px de arte que a camada desce na cena em relação ao padrão (a mata da várzea desce para a lagoa aparecer).",
   "cerrado": {
     "nome": "Cerrado",
     "pistas": [
@@ -75,6 +75,9 @@
       "horizonte": "horizonte-pl-pixen-s8101-0.png",
       "meio": "meio-rd-core-s8112-2.png",
       "frente": "frente-rd-core-s8121-0.png"
+    },
+    "posicao": {
+      "meio": 28
     }
   },
   "planalto": {
@@ -144,9 +147,13 @@
         "emenda": true
       },
       "arquibancada": {
-        "origem": "sertao/candidatos/arquibancada-rd-core-s8331-1.png",
-        "emenda": false,
-        "recorte": "opaco"
+        "origem": "sertao/candidatos/arquibancada-rd-core-s8332-1.png",
+        "corte": {
+          "y": 0,
+          "h": 62
+        },
+        "recorte": "opaco",
+        "emenda": false
       }
     },
     "escolhas": {

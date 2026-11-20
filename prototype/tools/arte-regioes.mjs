@@ -10,6 +10,7 @@
 //   fase 1: horizonte (Pixen, 2 sementes), meio e frente (RD Core, 2 imagens cada).
 //   fase 1b: refação das camadas que falharam na fase 1 (REFAZER): pedido de faixa densa e contínua e a versão sem a
 //           remoção de fundo junto (return_non_bg_removed), porque a remoção da RD apagou a mata em alguns casos.
+//   fase 2b: refação da arquibancada do sertão, que saiu sem torcida (bancos vazios) na fase 2.
 //   fase 2: arquibancada (RD Core, 2 imagens, com o meio escolhido de referência) e as emendas do horizonte, do meio e
 //           da frente escolhidos (precisa das escolhas da fase 1 em prototype/assets/arte/regioes.json).
 //   Com --gerar: o preço da RD vem do check_cost/estimate (grátis) antes de cada chamada; a que passaria do teto não é
@@ -87,7 +88,7 @@ function args() {
   const v = process.argv.slice(2);
   for (let i = 0; i < v.length; i++) {
     if (v[i] === '--regiao') a.regiao = v[++i];
-    else if (v[i] === '--fase') { a.fase = v[++i]; if (a.fase !== '1b') a.fase = Number(a.fase); }
+    else if (v[i] === '--fase') { a.fase = v[++i]; if (a.fase !== '1b' && a.fase !== '2b') a.fase = Number(a.fase); }
     else if (v[i] === '--gerar') a.gerar = true;
     else if (v[i] === '--finalizar') a.finalizar = v[++i];
     else if (v[i] === '--teto-pl') a.tetoPl = Number(v[++i]);
@@ -106,6 +107,16 @@ function chamadas(r, fase, manifesto) {
     prompt: `${T[camada]}, ${FAIXA}, ${base(T.lugar)}`, prompt_style: 'rd_core__platformer', width: TAM[camada][0],
     height: TAM[camada][1], num_images: 2, seed, remove_bg: true, input_palette: paletaB64(r), ...extra,
   });
+  if (fase === '2b') {
+    if (r !== 'sertao') return out;
+    const esc = manifesto[r].escolhas, ref = fs.readFileSync(path.join(DIR, 'raw', r, esc.meio)).toString('base64');
+    const ped = rdPed('arquibancada', s + 32, { reference_images: [ref], return_non_bg_removed: true });
+    ped.prompt = 'a whitewashed adobe racecourse grandstand with a clay tile roof and colorful festa junina bunting flags, '
+      + 'every bench packed full with a small colorful cheering crowd waving their arms, people in straw hats, no empty '
+      + `seats, seen exactly from the side, ${FAIXA}, ${base(T.lugar)}`;
+    out.push({ regiao: r, camada: 'arquibancada', api: 'rd', usd: 0.2, base: `arquibancada-rd-core-s${s + 32}`, pedido: ped });
+    return out;
+  }
   if (fase === '1b') {
     for (const c of REFAZER[r] || []) {
       const ped = rdPed(c, s + (c === 'meio' ? 12 : 22), { return_non_bg_removed: true });

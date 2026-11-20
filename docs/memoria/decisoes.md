@@ -3,6 +3,15 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-20 — Direção de arte: regiões de corrida (etapa 3)
+- **5 regiões aprovadas pelo Vinicius**: Cerrado, Várzea, Planalto, Sertão e Litoral, cada uma com paleta de 32 cores; a
+  interface fica por código ("manter por código").
+- **Na Retro Diffusion, pedir sempre a versão sem a remoção de fundo junto** (`return_non_bg_removed`, sem custo a mais)
+  — a remoção apagou vegetação três vezes; a mata da várzea veio da versão sem remoção, com o céu tirado por código.
+- **Recarga de US$ 5 na Retro Diffusion feita pelo Vinicius** depois de comparar as duas ferramentas; a RD fica para as
+  faixas de vegetação e as emendas, o PixelLab para o resto.
+- **Correções pedidas pelo Vinicius**: arquibancada do Sertão com torcida e mata da Várzea mais baixa para a lagoa aparecer.
+
 ## 2026-11-20 — Direção de arte: amostra aprovada e plano em etapas
 - **Amostra da corrida aprovada (versão 2)** — "aprovado, pode fazer o plano em etapas".
 - **Plano em 9 etapas** (`docs/superpowers/plans/2026-11-20-direcao-de-arte.md`): ferramentas → fundação no jogo →

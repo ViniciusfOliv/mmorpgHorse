@@ -1,6 +1,6 @@
 {
   "pl": 14,
-  "usd": 6.920000000000004,
+  "usd": 7.1200000000000045,
   "chamadas": [
     {
       "base": "chapadas-rd-plus-s7101",
@@ -286,6 +286,11 @@
       "base": "litoral/frente-rd-core-s8422-1-emenda-s8443",
       "usd": 0.12,
       "data": "2026-11-20T02:52:30.237Z"
+    },
+    {
+      "base": "sertao/arquibancada-rd-core-s8332",
+      "usd": 0.2,
+      "data": "2026-11-20T03:25:27.020Z"
     }
   ]
 }
