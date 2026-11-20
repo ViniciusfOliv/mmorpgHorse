@@ -416,6 +416,18 @@ treino e gastos de Ouro · 5. Tempo e estábulo ativo (cruza com relógio, circu
 tela de cruza com os dois pais e a faixa do potro) · 6. Loja de Gemas (sem compra real no teste
 fechado) · 7. Online.
 
+## 8a. Arte (direção aprovada em 2026-11-20)
+
+Fonte da verdade da arte: `docs/arte/guia.md` (grade de pixel, escala inteira, paleta Resurrect 64, fonte Galmuri,
+texto na pista, movimento e orçamento de desempenho). Plano em etapas: `docs/superpowers/plans/2026-11-20-direcao-de-arte.md`.
+Assets prontos e aprovados (ainda fora do jogo; a integração é a parte de código das etapas 1, 2, 4, 5, 6 e 7):
+- **Corrida:** 5 regiões com camadas em paralaxe (`prototype/assets/arte/<regiao>/`), cavalos 1:1, câmera de 12 px/m.
+- **Ícones:** 34 de 24×24 e 40 de 16×16 (`prototype/assets/arte/icones/`).
+- **Ginásios:** 15 treinadores em corpo de ~40 px e busto 64×64, 3 arenas abertas 256×160 para a cena do desafio.
+- **Telas:** cena 256×160 no topo de cada aba (no Estábulo, com o cavalo ativo) e o mapa de cada trilha de ginásio.
+- **Marca:** letreiro desenhado em código, emblema, ícone do app 512, destaque do Play 1024×500 (`prototype/assets/arte/marca/`).
+Créditos e declaração de IA: `docs/arte/creditos.md` e `docs/arte/declaracao-ia.md`.
+
 ## 9+. Seções pendentes
 
 Expedições (fora os ginásios, 8.6) · Tecnologia final do servidor e do empacotamento · Anti-trapaça · PVP assíncrono e ranqueada (propostas em `docs/cronograma.md`).

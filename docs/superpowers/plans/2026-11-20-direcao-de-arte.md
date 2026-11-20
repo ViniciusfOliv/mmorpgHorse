@@ -161,11 +161,13 @@ As 8 pistas viram 5 regiões (proposta; o Vinicius confirma os nomes e o clima d
 
 ## Etapa 8: fechamento
 
-- [ ] Tela de créditos: Galmuri (OFL, texto da licença), Resurrect 64 (Kerrie Lake), ferramentas de IA usadas.
-- [ ] Declaração de IA da Steam a partir de `docs/memoria/assets.md` (tudo que o jogador vê).
-- [ ] Saem do repositório os assets substituídos (ficam no histórico do git): fontes antigas, ícones de 32, logo e capa
-  do Canva, treinadores de 64.
-- [ ] GDD (arte), wiki e memória atualizados.
+- [x] Texto da tela de créditos: `docs/arte/creditos.md` (2026-11-20). **A tela em si** entra com a integração (código).
+- [x] Declaração de IA da Steam: rascunho em `docs/arte/declaracao-ia.md` (2026-11-20), a partir de `docs/memoria/assets.md`.
+- [ ] Saem do repositório os assets substituídos (ficam no histórico do git), **só depois da integração** (hoje o jogo
+  ainda os usa): `prototype/assets/fontes/press-start-2p-latin.woff2` e `jersey-10-latin.woff2` (e os OFL deles),
+  `prototype/assets/icons/*.png` (32×32) e `icons/raw/`, `prototype/assets/marca/logo.png`, `docs/capa.png`,
+  `prototype/assets/pixellab/treinadores/*.png` (64×64) e o `escolhas.json` deles.
+- [x] GDD: seção 8a (arte) em 2026-11-20. Memória atualizada. **Wiki**: é gerado do código, muda com a integração.
 
 ## Riscos
 
