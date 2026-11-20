@@ -6,6 +6,9 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 ## 2026-11-20 — Direção de arte: treinadores (etapa 5)
 - **Oponentes dos ginásios em corpo de ~40 px (quadro 32×48) e busto 64×64, pelo Pro do PixelLab com a arte escolhida de
   referência** — a escala dos cavalos 1:1; a altura sai do tamanho do quadro pedido (48 para adultos, 36 para a criança).
+- **Ginásios ao ar livre** (o Vinicius: "use cenário aberto nos ginásios"): a cena do desafio passa a 256×160 com uma arena
+  aberta por ginásio (uma imagem só, chão e fundo no mesmo ângulo), na paleta da região mais próxima; parede + piso
+  separados não casaram. Escolhidas: Fornalha 1, Remanso 0, Capoeira 2. Os tablados de código viram a sombra dos cavalos.
 - **00 e 00 para todos** (escolha do Vinicius): poses neutras, de frente, coerentes entre si. Recruta Broto: corpo refeito
   (08, 33 px), porque no quadro de 48 a criança saía mais alta que os adultos.
 

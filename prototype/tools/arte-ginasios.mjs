@@ -56,6 +56,8 @@ const ARENA = {
       + 'wooden posts with green banners with a leaf emblem, young trees and dense shrubs around the clearing, twisted '
       + 'savanna trees in the distance under a soft daylight sky' },
 };
+// escolhas do Vinicius (2026-11-20): a arena de cada ginásio; `--montar` copia para prototype/assets/arte/ginasios/finais/<gin>.png
+export const ESCOLHAS = { fogo: 1, agua: 0, grama: 2 };
 const ARENA_EXTRA = 'empty arena with no characters and no people, seen from a raised camera at a three-quarter angle, the ground '
   + 'fills the bottom two thirds of the image and is mostly open and flat, the scenery fills the top third, pixel art game battle background';
 const CAMADAS = {
@@ -148,6 +150,12 @@ function compor(g, parede, piso, treinador, arena = null) {
 }
 const LIDER = { fogo: 'capita-labareda', agua: 'mestre-aguaceiro', grama: 'dona-capineira' };
 function montar() {
+  const F = path.join(DIR, 'ginasios', 'finais');
+  fs.mkdirSync(F, { recursive: true });
+  for (const [g, n] of Object.entries(ESCOLHAS)) {
+    const arq = path.join(DIR, 'ginasios', g, `arena-${n}.png`);
+    if (fs.existsSync(arq)) fs.copyFileSync(arq, path.join(F, g + '.png'));
+  }
   for (const g of Object.keys(GIN)) {
     const d = path.join(DIR, 'ginasios', g);
     if (!fs.existsSync(d)) continue;
