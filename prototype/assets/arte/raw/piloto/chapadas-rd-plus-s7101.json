@@ -1,0 +1,40 @@
+{
+  "assinatura": "465afa3fa811",
+  "api": "retrodiffusion",
+  "pedido": {
+    "prompt": "distant flat-topped plateaus (chapadas) with steep reddish sandstone cliffs on the horizon, hazy blue-violet atmospheric distance, low contrast, one long continuous horizontal band across the whole width, flat bottom edge, empty sky above, 2D side-scrolling game parallax background layer, side view, Brazilian cerrado savanna, late afternoon sunlight from the upper left, no text",
+    "prompt_style": "rd_plus__default",
+    "width": 384,
+    "height": 96,
+    "num_images": 2,
+    "seed": 7101,
+    "remove_bg": true,
+    "input_palette": "iVBORw0KGgoAAAANSUhEUgAAACAAAAABCAYAAAC/iqxnAAAAjElEQVR4nAGBAH7/AE1ltP9Nm+b/j9P//8fc0P//////f3CK/5ursv+WbGz/q5R6/2lPYv8WWkz/I5Bj/x68c/+R22n/VH5k/5KphP9nZjP/oqlH/zdOSv/3lhf/+cIr//u5VP9uJyf/nkU5/81oPf/mkE7/szgx/0w+JP8uIi//PjVG//3LsP/oOzv/+KpPWuCLmaQAAAAASUVORK5CYII=",
+    "tile_x": true
+  },
+  "resposta": {
+    "created_at": 1795136766,
+    "credit_cost": 4,
+    "balance_cost": 0.12,
+    "base64_images": [
+      "<9920 chars>",
+      "<5532 chars>"
+    ],
+    "output_urls": [],
+    "model": "rd_plus",
+    "remaining_credits": 0,
+    "remaining_balance": 4.88,
+    "request_id": "50f200fa-556a-426a-9618-c75ba2ccbcdd",
+    "outputs_retained_until": 1795223156,
+    "billing": {
+      "reason": "no_plan",
+      "source": "balance",
+      "balance_left": 4.88,
+      "balance_charged": 0.12
+    }
+  },
+  "arquivos": [
+    "chapadas-rd-plus-s7101-0.png",
+    "chapadas-rd-plus-s7101-1.png"
+  ]
+}

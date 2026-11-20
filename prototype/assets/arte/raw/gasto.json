@@ -1,0 +1,101 @@
+{
+  "pl": 6,
+  "usd": 1.9600000000000004,
+  "chamadas": [
+    {
+      "base": "chapadas-rd-plus-s7101",
+      "usd": 0.12,
+      "data": "2026-11-20T01:06:09.574Z"
+    },
+    {
+      "base": "chapadas-rd-core-s7201",
+      "usd": 0.2,
+      "data": "2026-11-20T01:06:26.087Z"
+    },
+    {
+      "base": "chapadas-pl-pixen-s7301",
+      "geracoes": 1,
+      "data": "2026-11-20T01:07:51.352Z"
+    },
+    {
+      "base": "chapadas-pl-pixen-s7302",
+      "geracoes": 1,
+      "data": "2026-11-20T01:09:17.561Z"
+    },
+    {
+      "base": "cerrado-rd-plus-s7101",
+      "usd": 0.12,
+      "data": "2026-11-20T01:09:31.132Z"
+    },
+    {
+      "base": "cerrado-rd-core-s7201",
+      "usd": 0.2,
+      "data": "2026-11-20T01:10:06.454Z"
+    },
+    {
+      "base": "cerrado-pl-pixen-s7301",
+      "geracoes": 1,
+      "data": "2026-11-20T01:10:46.591Z"
+    },
+    {
+      "base": "cerrado-pl-pixen-s7302",
+      "geracoes": 1,
+      "data": "2026-11-20T01:11:35.011Z"
+    },
+    {
+      "base": "frente-rd-plus-s7101",
+      "usd": 0.12,
+      "data": "2026-11-20T01:11:51.605Z"
+    },
+    {
+      "base": "frente-rd-core-s7201",
+      "usd": 0.2,
+      "data": "2026-11-20T01:12:49.604Z"
+    },
+    {
+      "base": "frente-pl-pixen-s7301",
+      "geracoes": 1,
+      "data": "2026-11-20T01:13:27.004Z"
+    },
+    {
+      "base": "frente-pl-pixen-s7302",
+      "geracoes": 1,
+      "data": "2026-11-20T01:14:19.329Z"
+    },
+    {
+      "base": "cerrado-rd-core-s7201-0-emenda-s7401",
+      "usd": 0.12,
+      "data": "2026-11-20T01:15:23.067Z"
+    },
+    {
+      "base": "nuvens-rd-plus-s7501",
+      "usd": 0.12,
+      "data": "2026-11-20T01:16:09.265Z"
+    },
+    {
+      "base": "arquibancada-rd-core-s7601",
+      "usd": 0.2,
+      "data": "2026-11-20T01:16:32.412Z"
+    },
+    {
+      "base": "arquibancada-rd-core-s7602",
+      "usd": 0.2,
+      "data": "2026-11-20T01:16:55.843Z"
+    },
+    {
+      "base": "pista-rd-plus-s7701",
+      "usd": 0.12,
+      "data": "2026-11-20T01:17:05.963Z"
+    },
+    {
+      "base": "chapadas-pl-pixen-s7301-0-emenda-s7402",
+      "usd": 0.12,
+      "data": "2026-11-20T01:17:29.162Z"
+    },
+    {
+      "base": "frente-rd-core-s7201-1-emenda-s7403",
+      "usd": 0.12,
+      "data": "2026-11-20T01:17:32.710Z"
+    }
+  ]
+}

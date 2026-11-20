@@ -1,0 +1,33 @@
+{
+  "assinatura": "3bb5d408d130",
+  "api": "pixellab",
+  "endpoint": "/create-image-pixen",
+  "pedido": {
+    "description": "distant flat-topped plateaus (chapadas) with steep reddish sandstone cliffs on the horizon, hazy blue-violet atmospheric distance, low contrast, one long continuous horizontal band across the whole width, flat bottom edge, empty sky above, 2D side-scrolling game parallax background layer, side view, Brazilian cerrado savanna, late afternoon sunlight from the upper left, no text",
+    "image_size": {
+      "width": 384,
+      "height": 96
+    },
+    "no_background": true,
+    "view": "side",
+    "outline": "lineless",
+    "detail": "highly detailed",
+    "seed": 7301
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<47956 chars>",
+      "format": "png"
+    },
+    "enhanced_prompt": null,
+    "enhance_usage": null
+  },
+  "arquivos": [
+    "chapadas-pl-pixen-s7301-0.png"
+  ]
+}
