@@ -57,7 +57,13 @@ const semB64 = o => JSON.parse(JSON.stringify(o, (k, v) => (typeof v === 'string
 
 function folha() {
   const uri = f => 'data:image/png;base64,' + fs.readFileSync(f).toString('base64');
-  const sec = Object.keys(LOTES).map(l => {
+  const M = path.join(DIR, 'marca'), tem = f => fs.existsSync(path.join(M, f));
+  const escolhidos = tem('destaque-1024x500.png') ? '<h2>Escolhidos: emblema 10 e ícone 03 (Vinicius, 2026-11-20); destaque e capa montados em código</h2>'
+    + `<figure><img src="${uri(path.join(M, 'destaque-1024x500.png'))}" style="width:100%;max-width:1024px"><figcaption>destaque do Play 1024×500 (512×250 de arte, 2×; sem alfa)</figcaption></figure>`
+    + '<div class="grade" style="margin-top:8px">'
+    + (tem('icone-512.png') ? `<figure><img src="${uri(path.join(M, 'icone-512.png'))}" style="width:256px"><figcaption>ícone do app 512×512 (128 × 4; sem alfa), mostrado pela metade</figcaption></figure>` : '')
+    + (tem('logo.png') ? `<figure><img src="${uri(path.join(M, 'logo.png'))}" style="zoom:3"><figcaption>logo (3×)</figcaption></figure>` : '') + '</div>' : '';
+  const sec = escolhidos + Object.keys(LOTES).map(l => {
     const d = path.join(DIR, 'marca', l);
     if (!fs.existsSync(d)) return '';
     const z = l === 'emblema' ? 4 : 2;

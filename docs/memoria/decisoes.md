@@ -3,6 +3,12 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-20 — Direção de arte: marca (etapa 7)
+- **Letreiro "GALOPE ELEMENTAL" desenhado à mão em código, letra por letra** (`arte-letreiro.mjs`): a IA erra letras.
+  Emblema do PixelLab Pro (escolhido o 10) ao lado; ícone do app Pro 128×128 (escolhido o 03) ampliado 4×.
+- **Destaque do Play e capa compostos pela própria cena da corrida** (`arte-capa.mjs` captura a amostra no modo
+  `?captura=`): ficam no estilo exato do jogo e são refeitos sem custo quando a arte muda. Saem em RGB sem alfa.
+
 ## 2026-11-20 — Direção de arte: cenas das abas e mapas das trilhas (etapa 6)
 - **Cada aba ganha uma cena 256×160 numa faixa no topo, com a placa do título por cima da borda de baixo** (a lista e os
   botões continuam iguais); no Estábulo, o cavalo ativo parado na cena, 1:1. Escolhas: Estábulo 3, Haras 3, Loja 1,

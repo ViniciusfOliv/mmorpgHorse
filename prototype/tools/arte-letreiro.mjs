@@ -14,7 +14,7 @@ import { decodePng, encodePng } from './png.mjs';
 import { RESURRECT64, conferir } from './arte-paleta.mjs';
 
 const DIR = path.join(RAIZ, 'prototype', 'assets', 'arte', 'marca');
-export const ESCOLHA_EMBLEMA = null;   // número do candidato em marca/emblema/ (o Vinicius escolhe)
+export const ESCOLHA_EMBLEMA = 10;   // escolha do Vinicius (2026-11-20), candidato de marca/emblema/
 const L = {
   A: ['.######.', '########', '##....##', '##....##', '##....##', '########', '########', '##....##', '##....##', '##....##', '##....##', '##....##'],
   E: ['#######', '#######', '##.....', '##.....', '##.....', '######.', '######.', '##.....', '##.....', '##.....', '#######', '#######'],

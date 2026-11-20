@@ -269,6 +269,9 @@ button:focus-visible { outline: 3px solid #8ff8e2; outline-offset: 2px; }
   // ---------------------------------------------------------------- estado do desenho
   var folhaChuva = null;
   var g, buf, tela, gt, s = 3, W = 256, H = 330, chamadas = 0;
+  // ?captura=LARGURA: modo de captura da marca (arte-capa.mjs): a cena com essa largura em pixels de arte, sem texto na
+  // pista, sem setas e sem HUD; o laço fica parado e window.__amostra desenha um quadro no tempo pedido
+  var CAPTURA = /[?&]captura=(\d+)/.exec(location.search);
   function R(x, y, w, h, cor) { g.fillStyle = cor; g.fillRect(x, y, w, h); chamadas++; }
   function D(img, sx, sy, sw, sh, dx, dy, dw, dh) {
     if (arguments.length === 3) g.drawImage(img, sx, sy); else g.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
@@ -586,6 +589,7 @@ button:focus-visible { outline: 3px solid #8ff8e2; outline-offset: 2px; }
     // primeiro plano: chão de fora (sólido) e capim dourado (paralaxe 1,25)
     R(0, Y.frente + 6, W, H - Y.frente - 6, kc('#4c3e24'));
     camadaRepetida(cena.frente, cam * 1.25, Y.frente - 4);
+    if (CAPTURA) return;
     // texto na pista: "VOCÊ" e no máximo 2 balões (guia §8)
     info.forEach(function (v) {
       var topoCav = v.y + v.r.topo;
@@ -751,7 +755,7 @@ button:focus-visible { outline: 3px solid #8ff8e2; outline-offset: 2px; }
     var col = document.getElementById('palco'), dpr = window.devicePixelRatio || 1;
     var L = Math.floor(col.clientWidth * dpr);
     s = Math.max(1, Math.round(L / 256));
-    W = Math.floor(L / s);
+    W = CAPTURA ? Number(CAPTURA[1]) : Math.floor(L / s);
     buf = canvas(W, H); g = buf.getContext('2d');
     tela.width = W * s; tela.height = H * s;
     tela.style.width = (W * s / dpr) + 'px'; tela.style.height = (H * s / dpr) + 'px';
@@ -759,6 +763,7 @@ button:focus-visible { outline: 3px solid #8ff8e2; outline-offset: 2px; }
     document.documentElement.style.setProperty('--px', (s / dpr) + 'px');
     document.getElementById('escala').textContent = 's = ' + s + ' · ' + W + ' × ' + H + ' px de arte · 1 px de arte = ' + (s / dpr).toFixed(2).replace('.', ',') + ' px CSS';
   }
+  window.__amostra = { quadro: function (t, regiao) { estado.pausa = true; estado.t = t; if (regiao) estado.regiao = regiao; quadro(); return buf.toDataURL(); } };
   function laco(agora) {
     var dt = estado.ultimo ? Math.min(0.1, (agora - estado.ultimo) / 1000) : 0;
     estado.ultimo = agora;
