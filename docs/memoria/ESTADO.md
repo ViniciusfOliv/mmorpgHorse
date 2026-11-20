@@ -5,8 +5,8 @@ _Atualizado em 2026-11-19._
 **Em andamento (2026-11-19):** redesenho das skills (100% de ativação + ranks que sobem com Ouro e um item ganho
 jogando), spec (`docs/superpowers/specs/2026-11-19-skills-ranks-design.md`) e plano
 (`docs/superpowers/plans/2026-11-19-skills-ranks.md`) aprovados; implementação no chat "Habilidades: implementação (ranks)",
-Fable 5.2, branch `claude/skills-ranks`, com revisão final no chat de coordenação antes da `main`; e o teste de engine web × Godot 4 num chat próprio
-(`claude/teste-engine`). Decisões em `decisoes.md` (2026-11-19).
+Fable 5.2, branch `claude/skills-ranks`, com revisão final no chat de coordenação antes da `main`; o teste de engine web × Godot 4 num chat próprio
+(`claude/teste-engine`); e a direção de arte (guia, custo e corrida amostra) noutro (`claude/direcao-de-arte`). Decisões em `decisoes.md` (2026-11-19).
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
 durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o

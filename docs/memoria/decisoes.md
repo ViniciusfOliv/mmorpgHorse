@@ -3,6 +3,16 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-20 — Direção de arte (decisões do Vinicius)
+- **Visual com qualidade e desempenho em 100%, sem nada improvisado por ser mais barato; a ferramenta é a melhor para
+  cada tipo de asset (PixelLab, outra IA ou software)** — pedido do Vinicius. O diagnóstico da coordenação: escalas de
+  pixel misturadas, cenário por código genérico, interface sem identidade (três fontes) e logo borrado.
+- **Só IA por enquanto, sem pixel artist contratado** — escolha do Vinicius; o acabamento é por código e a aprovação
+  visual é dele.
+- **Chat próprio de direção de arte** (`claude/direcao-de-arte`, Opus em esforço alto): pesquisa das ferramentas, guia
+  de arte (`docs/arte/guia.md`), estimativa de custo antes de gastar, amostra da tela da corrida refeita no padrão
+  final (`prototype/arte/`, artefato novo) e, aprovada a amostra, o plano para o jogo inteiro.
+
 ## 2026-11-19 — Qualidade primeiro, teste de engine e skills com 100% (decisões do Vinicius)
 - **A qualidade vem sempre primeiro: se Godot (ou Unity) for melhor em visual, FPS e jogabilidade, migramos** — pedido
   do Vinicius. Unity foi descartada na análise (pesada para 2D pixel art, licença, depende do editor, não dá para
