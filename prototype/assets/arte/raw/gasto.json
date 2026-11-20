@@ -1,5 +1,5 @@
 {
-  "pl": 463,
+  "pl": 523,
   "usd": 7.1200000000000045,
   "chamadas": [
     {
@@ -601,6 +601,36 @@
       "base": "treinadores/tenente-coivara-busto",
       "geracoes": 10,
       "data": "2026-11-20T14:42:17.832Z"
+    },
+    {
+      "base": "treinadores/mestre-aguaceiro-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:44:08.494Z"
+    },
+    {
+      "base": "treinadores/recruta-orvalho-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:46:14.660Z"
+    },
+    {
+      "base": "treinadores/cabo-goteira-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:48:41.290Z"
+    },
+    {
+      "base": "treinadores/sargento-correnteza-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:50:31.224Z"
+    },
+    {
+      "base": "treinadores/tenente-cacimba-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:52:47.364Z"
+    },
+    {
+      "base": "treinadores/dona-capineira-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:54:27.182Z"
     }
   ]
 }
