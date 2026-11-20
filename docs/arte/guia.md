@@ -36,6 +36,11 @@ mostrado maior que o tamanho em que foi desenhado (se precisa ser maior, gera-se
   | 412 × 2,625 | 1081 | 4 | 270 | 1,52 |
   | 360 × 3 | 1080 | 4 | 270 | 1,33 |
   | 480 × 1 (computador) | 480 | 2 | 240 | 2 |
+- **Paisagem (computador, Steam, Steam Deck): grade de 640 × 360 px de arte** (regra do checklist da Steam em
+  `docs/cronograma.md`, 2026-11-19): escala exata em 720p (×2), 1080p (×3), 1440p (×4) e 4K (×6); no Steam Deck
+  (1280 × 800) fica 640 × 400 ×2, com mais pista na altura. Os mesmos assets servem aos dois formatos: em paisagem a
+  tela mostra mais pista de lado (as camadas de 384 px repetem), a altura da cena de corrida (~330 px de arte) cabe nos
+  360.
 - **Largura de referência: 256 px de arte** (faixa aceita: 224 a 288). Tudo é desenhado para ler bem nessa largura; um
   aparelho mais largo mostra um pouco mais de pista, não um cavalo maior.
 - **A mesma `s` vale para a tela inteira**: canvas da corrida, cenas (desafio, estábulo), ícones, painéis, texto. Na

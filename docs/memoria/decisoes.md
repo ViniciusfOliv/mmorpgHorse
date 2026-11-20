@@ -3,6 +3,13 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-20 — Direção de arte: amostra aprovada e plano em etapas
+- **Amostra da corrida aprovada (versão 2)** — "aprovado, pode fazer o plano em etapas".
+- **Plano em 9 etapas** (`docs/superpowers/plans/2026-11-20-direcao-de-arte.md`): ferramentas → fundação no jogo →
+  corrida → regiões → interface e ícones → treinadores → cenas e mapas → marca → fechamento. As que tocam
+  `prototype/src/` esperam as skills com ranks entrarem na `main`; os assets pagos podem vir antes.
+- **Paisagem e Steam na grade de 640 × 360** (guia §2), alinhada à regra da Steam do checklist (2026-11-19).
+
 ## 2026-11-20 — Direção de arte: retorno do Vinicius sobre a amostra
 - **A interface de hoje fica; o padrão novo só troca pixel, paleta e fonte** — "a interface do anterior me parece
   melhor": a versão 1 da amostra simplificou demais (sem pote, estamina, vento, minimapa, células da ordem, vizinhos e
