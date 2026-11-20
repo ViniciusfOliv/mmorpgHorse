@@ -3,8 +3,8 @@
 _Atualizado em 2026-11-19._
 
 **Em andamento (2026-11-19):** as **skills com 100% de ativação e ranks** estão implementadas na `claude/skills-ranks`
-(não integrada na `main`; seção própria abaixo), **esperando duas decisões do Vinicius sobre metas do `balance.js`** antes
-da revisão final; e o teste de engine web × Godot 4 num chat próprio (`claude/teste-engine`). Decisões em `decisoes.md`
+(não integrada na `main`; seção própria abaixo), com a Garra também sem falhar, **esperando a revisão do chat de
+coordenação e o Vinicius jogar**; e o teste de engine web × Godot 4 num chat próprio (`claude/teste-engine`). Decisões em `decisoes.md`
 (2026-11-19).
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
@@ -369,18 +369,20 @@ Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/sup
 - **Telas:** aba Skills com as 5 marcas, o efeito de agora e o do próximo rank, o custo e "Subir rank" (com confirmação);
   balão e faixa com o rank em romano, dourados no V; gaveta DEV com o rank por skill (saiu o "skills sempre ativam");
   ícone do Pergaminho feito por código (a arte do PixelLab fica para quando o Vinicius confirmar). **Save v9.**
-- **Verificação (2026-11-19):** 201 testes de simulação, 129 de efeitos, 173 de moldes, 989 conferências do wiki e os 73
-  blocos do teste de interface passam. **O `balance.js` não fecha:** 10 de 344 metas falham no completo e 3 no rápido
-  (por isso o `./scripts/check.sh` para na etapa 7).
-- **Esperando o Vinicius (duas decisões, detalhe em `decisoes.md`):**
-  1. **S5 de três skills** (Saída Rápida, Arrancada Final, Chama Final) não fecha só com os valores base; fecha com os
-     três marcos um pouco menores (7 s, ×1,01, 11 s), medido.
-  2. **Sete metas antigas no limite** (M4 dois degraus no nível 50 ×2, M5 ★★ × ★ Mítico, M6 ×2, M9 Fogo e Grama no
-     Lendário 50) saíram da faixa por 0,1 a 0,7 p.p. (no rápido, a M5 por 2,3): sem o sorteio, a raridade deixou de dar
-     vantagem na ativação. Não é ajuste de valor base de skill: ou as faixas são rebaseadas ao medido, ou o modelo é
-     recalibrado (TUNING).
-- **Build de teste desta branch:** artefato novo (link na entrada de 2026-11-19 do `decisoes.md`); os três oficiais não
-  foram tocados.
+- **Garra sem falhar (pedido do Vinicius, 2026-11-19):** a arrancada final sai sempre; a Garra dá o ponto de início e
+  a força média, e a seed dá a força de cada corrida (de 0 a 2× a média). Os três marcos ficaram menores (Saída Rápida
+  7 s, Chama Final 11 s, Arrancada Final ×1,01). `RaceSim.VERSION` 4.1.0.
+- **Balanço:** as 344 metas do `balance.js` completo e as 111 do rápido passam, com as faixas rebaseadas (lista e motivo
+  no `decisoes.md` de 2026-11-19): favorito do Poder 51,1%, rank I das skills de 4,2 a 8,7 p.p., rank V até 18,0.
+- **Verificação:** 201 testes de simulação, 129 de efeitos, 173 de moldes e 989 conferências do wiki passam; o teste de
+  interface (73 blocos, com o bloco novo `ranks`) estava verde antes da Garra e está sendo refeito nas seeds fixas que
+  mudaram de desfecho (ver o fim desta seção quando fechar).
+- **Esperando o Vinicius:** jogar o build de teste e dizer se os ranks e a Garra se sentem na corrida; aprovar a
+  integração na `main` (a revisão é do chat de coordenação). Pontos de gosto: os números de custo e de pódio do
+  Pergaminho (partida), o quanto a força da Garra varia (`garraSpread`), o desenho da aba Skills e do balão dourado, e a
+  arte do Pergaminho no PixelLab (hoje é um ícone feito por código).
+- **Build de teste desta branch:** https://claude.ai/artifact/77SCN1gGcMb9DjMcUXwfkQ (artefato novo; os três oficiais não
+  foram tocados).
 
 ## Em andamento
 - **Teste de interface em paralelo (feito em 2026-11-17, commit `b3dda3d`; na `main` desde o mesmo dia, por decisão do
