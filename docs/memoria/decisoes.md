@@ -3,6 +3,14 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-21 — Skills com 100% e ranks entram na `main`
+- **Integrar a `claude/skills-ranks` na `main` e republicar os três artefatos oficiais** — pedido do Vinicius ("integra
+  na main e republica os oficiais"), depois de testar o build da branch. A `main` (direção de arte) foi juntada na branch
+  antes (conflito só em `ESTADO.md` e `decisoes.md`); no resultado, `./scripts/check.sh` passou inteiro (201 / 129 / 173
+  testes, 989 conferências do wiki, 111 metas rápidas, 73 blocos de interface) e a `main` avançou sem reescrever nada
+  (merge `97d99df`). O `balance.js` completo (344 metas) tinha passado na branch antes do merge; a `main` só trouxe arte
+  e ferramentas, sem número de regra. Oficiais: jogo na versão 13, DEV na 11 e wiki na 10.
+
 ## 2026-11-20 — Direção de arte: marca (etapa 7)
 - **Letreiro "GALOPE ELEMENTAL" desenhado à mão em código, letra por letra** (`arte-letreiro.mjs`): a IA erra letras.
   Emblema do PixelLab Pro (escolhido o 10) ao lado; ícone do app Pro 128×128 (escolhido o 03) ampliado 4×.

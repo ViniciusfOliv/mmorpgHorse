@@ -23,7 +23,8 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
 - **Onde jogar** (artefatos privados do claude.ai; republicar depois de cada build; os três foram republicados em
   2026-11-18 com o build 3b26519, o da integração dos pedidos do dia: jogo na versão 10, DEV na 8 e wiki na 9; no mesmo
   dia, jogo e DEV de novo com o build 53e4ced, o da tela de desafio do ginásio e do Recomeçar do DEV, já na `main`: jogo
-  na versão 12 e DEV na 10; o wiki não mudou):
+  na versão 12 e DEV na 10; o wiki não mudou; em 2026-11-21, os três com o build 97d99df, o das skills com 100% e ranks
+  junto com a direção de arte: jogo na versão 13, DEV na 11 e wiki na 10):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
   - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
   - wiki: https://claude.ai/artifact/Bp47f9qE3tSswu1A9zdF2y (`prototype/dist/wiki.html`)
@@ -356,7 +357,7 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
 - **Com servidor (bloco 7):** o +3% de Ouro da Insígnia da Fornalha sobre prêmios pagos por outros jogadores cria Ouro do
   nada; rever antes do online.
 
-## Skills com 100% e ranks (implementadas em 2026-11-19, na `claude/skills-ranks`; fora da `main`)
+## Skills com 100% e ranks (implementadas em 2026-11-19 na `claude/skills-ranks`; na `main` desde 2026-11-21)
 Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/superpowers/plans/2026-11-19-skills-ranks.md`
 (tarefas 1 a 8 marcadas; da 9 faltam a verificação final verde e as capturas oficiais), regra no `docs/GDD.md` §3 e
 §8.2, números no wiki (seção Skills, "Rank das skills"), medições em `docs/exemplos.md` §3, decisões em `decisoes.md`.
