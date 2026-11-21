@@ -11284,9 +11284,10 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   });
 
   // Toque duplo no "Largar!": o 2º toque não pode cair no "Pular" da corrida que acabou de abrir (com a Galmuri, a tela da
-  // corrida ficou mais baixa e o "Pular" passou a ficar onde estava o "Largar!"). Por PULAR_GUARDA_MS depois de a tela
-  // da corrida abrir, o "Pular" não faz nada (o teclado e o toque de propósito, depois, valem normalmente).
-  var PULAR_GUARDA_MS = 400, corridaDesde = 0;
+  // corrida ficou mais baixa e o "Pular" passou a ficar onde estava o "Largar!"). Um clique que é o 2º de um toque duplo
+  // (event.detail ≥ 2) até PULAR_GUARDA_MS depois de a corrida abrir não pula; um toque de propósito no "Pular", por mais
+  // rápido que seja, é um clique simples (detail 1) e vale, como o teclado (detail 0).
+  var PULAR_GUARDA_MS = 1000, corridaDesde = 0;
   function go(screen) {
     if (screen === 'corrida' && ui.screen !== 'corrida') corridaDesde = Date.now();
     if (saveBloqueado) screen = 'bloqueio';   // a tela de bloqueio não tem saída (só o Recarregar)
@@ -16246,7 +16247,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         });
         break;
       case 'pular':
-        if (Date.now() - corridaDesde < PULAR_GUARDA_MS) break;   // o 2º toque do "Largar!" (ver PULAR_GUARDA_MS)
+        if (e.detail >= 2 && Date.now() - corridaDesde < PULAR_GUARDA_MS) break;   // o 2º toque do "Largar!" (ver PULAR_GUARDA_MS)
         if (raceView) raceView.skip(); else corridaAtual().fim();
         break;
       case 'denovo':
