@@ -1959,8 +1959,9 @@ test('com moldes (sintéticos): sem as opções novas, o mesmo desenho de hoje (
     casos.push(com(CAVM, { idle: true }), com(CAVM, { idle: true, jockey: false }), com(CAVM, { retrato: true, shadow: false }));
     casos.push(com(CAVM, { idle: true, element: 'grama', palette: PAL.grama, quadro: { topo: 0, base: 108 } }));
     var sig = casos.map(function (o) { return assinatura(desenhaCav(o, 50, 40)); }).join('\n');
-    // assinatura do desenho de antes da parte 2a (sprites.js em 91c48ab), com este mesmo molde sintético
-    assert.strictEqual(fnvTexto(sig), 'b16463ea');
+    // assinatura do desenho sem as opções novas, com este mesmo molde sintético: era b16463ea (sprites.js em 91c48ab, antes da
+    // parte 2a); desde a etapa 1b da direção de arte (2026-11-21) as cores saem da paleta-mestra, o resto igual
+    assert.strictEqual(fnvTexto(sig), '30adc27e');
   });
 });
 
@@ -1985,13 +1986,13 @@ test('com moldes: marcas e jóquei nas cores das camadas; a chave do cache leva 
         assert.strictEqual(Object.keys(cores[k]).length, 1, 'uma cor só na camada ' + k + ': ' + Object.keys(cores[k]));
       });
       function c1(k) { return Object.keys(cores[k])[0]; }
-      assert.strictEqual(c1('m1'), G.MARCAS.branco, 'branco das marcas');
+      assert.strictEqual(c1('m1'), SPR.naMestra(G.MARCAS.branco), 'branco das marcas (na paleta-mestra)');
       assert.ok(lumHex(c1('m2')) < lumHex(G.MARCAS.branco), 'branco sombreado mais escuro que o branco');
       var sombra = hexPx(base, Array.prototype.indexOf.call(idx, 3));
       assert.ok(lumHex(c1('m3')) < lumHex(sombra), 'pinta escura mais escura que a sombra da pelagem');
       if (lumHex(cs[0]) < 0.5) assert.ok(lumHex(c1('j1')) > lumHex(cs[0]), 'seda escura: tom 2 mais claro');
       else assert.ok(lumHex(c1('j1')) < lumHex(cs[0]), 'seda clara: tom 2 mais escuro');
-      assert.strictEqual(c1('j2'), cs[1], 'capacete na cor escolhida');
+      assert.strictEqual(c1('j2'), SPR.naMestra(cs[1]), 'capacete na cor escolhida (na paleta-mestra)');
       assert.ok(lumHex(c1('j3')) < lumHex(cs[1]) || cs[1] === '#2a2a2a' && lumHex(c1('j3')) <= lumHex(cs[1]), 'manta: o capacete escurecido');
     });
     // chave do cache: as mesmas opções reaproveitam; marcas, semente, padrão e capacete fazem entradas novas
@@ -2263,7 +2264,7 @@ test('portes: escala do padrão', function () {
   assert.ok(SINT.porte.robusto.J.larguraUtil > SINT.porte.padrao.J.larguraUtil, 'o robusto sintético é mais largo');
   var portes = escalas(SINT.tabelaDe(SINT.PORTES));
   // os cavalos do padrão ficam do tamanho de antes da 2b: a escala é a dos moldes do padrão sozinhos (o molde sintético
-  // de sempre, o mesmo da assinatura b16463ea)
+  // de sempre, o mesmo da assinatura 30adc27e)
   assert.strictEqual(portes, escalas(SINT.tabelaDe(SINT.PORTES, function () { return 'padrao'; })), 'a mesma escala só com os moldes do padrão');
   // o teste distingue: se os moldes do padrão fossem os mais largos, a escala mudaria
   assert.notStrictEqual(portes, escalas(SINT.tabelaDe(SINT.PORTES, function (ch) { return ch.indexOf('padrao-') === 0 ? 'robusto' : null; })));
