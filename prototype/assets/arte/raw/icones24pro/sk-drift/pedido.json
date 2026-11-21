@@ -1,0 +1,535 @@
+{
+  "assinatura": "a496daebfc02",
+  "pedido": {
+    "description": "two curved black tire skid marks swooping in an arc on the ground, with small gray dust puffs at the end, pixel art game ui icon, 24x24, centered, clean bold shapes, dark single color outline, light from the upper left",
+    "image_size": {
+      "width": 24,
+      "height": 24
+    },
+    "no_background": true,
+    "seed": 9333,
+    "reference_images": [
+      {
+        "image": {
+          "type": "base64",
+          "base64": "<344 chars>",
+          "format": "png"
+        },
+        "size": {
+          "width": 32,
+          "height": 32
+        },
+        "usage_description": "the subject and its main shapes (what to draw)"
+      }
+    ],
+    "style_image": {
+      "image": {
+        "type": "base64",
+        "base64": "<1000 chars>",
+        "format": "png"
+      },
+      "size": {
+        "width": 64,
+        "height": 32
+      },
+      "usage_description": "the pixel art style: outline, shading and detail level"
+    },
+    "style_options": {
+      "color_palette": false,
+      "outline": true,
+      "detail": true,
+      "shading": true
+    },
+    "target_palette": {
+      "colors": [
+        "#2e222f",
+        "#3e3546",
+        "#625565",
+        "#966c6c",
+        "#ab947a",
+        "#694f62",
+        "#7f708a",
+        "#9babb2",
+        "#c7dcd0",
+        "#ffffff",
+        "#6e2727",
+        "#b33831",
+        "#ea4f36",
+        "#f57d4a",
+        "#ae2334",
+        "#e83b3b",
+        "#fb6b1d",
+        "#f79617",
+        "#f9c22b",
+        "#7a3045",
+        "#9e4539",
+        "#cd683d",
+        "#e6904e",
+        "#fbb954",
+        "#4c3e24",
+        "#676633",
+        "#a2a947",
+        "#d5e04b",
+        "#fbff86",
+        "#165a4c",
+        "#239063",
+        "#1ebc73",
+        "#91db69",
+        "#cddf6c",
+        "#313638",
+        "#374e4a",
+        "#547e64",
+        "#92a984",
+        "#b2ba90",
+        "#0b5e65",
+        "#0b8a8f",
+        "#0eaf9b",
+        "#30e1b9",
+        "#8ff8e2",
+        "#323353",
+        "#484a77",
+        "#4d65b4",
+        "#4d9be6",
+        "#8fd3ff",
+        "#45293f",
+        "#6b3e75",
+        "#905ea9",
+        "#a884f3",
+        "#eaaded",
+        "#753c54",
+        "#a24b6f",
+        "#cf657f",
+        "#ed8099",
+        "#831c5d",
+        "#c32454",
+        "#f04f78",
+        "#f68181",
+        "#fca790",
+        "#fdcbb0"
+      ],
+      "name": "Resurrect 64"
+    }
+  },
+  "resposta": {
+    "post": {
+      "usage": null,
+      "background_job_id": "28d82146-e2b8-4040-9cbc-6eba05447db8",
+      "status": "processing"
+    },
+    "job": {
+      "usage": {
+        "type": "generations",
+        "generations": 10
+      },
+      "id": "28d82146-e2b8-4040-9cbc-6eba05447db8",
+      "status": "completed",
+      "created_at": "2026-11-20T13:27:32.458780+00:00",
+      "last_response": {
+        "seed": 9333,
+        "type": "message_done",
+        "action": "Touching up pixels",
+        "images": [
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<324 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<364 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<364 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<384 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<332 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<392 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<376 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<324 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<380 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<408 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<396 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<504 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<444 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<388 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<380 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<380 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAo0lEQVR4nN2WSw6FMAhFuY0rcQG6/9VdJ5rXkILQT2Iek4aB50AtTXHsp4gI5Re4V6q8K4rKh2CWoK5+epSV8KiAskiAGRIt4GxJCZwcKAl7OnirFCoPi+otykpCIu8ntz5Gdhi3BuCB1yJR4LDE6sDbDspABy0JDZlXTGqS4UAw0kEa9tnL7n8EXCVgBU9LvFMUubrRI/CGKP3S0AILHp5cHRfgPiK20QLJ5wAAAABJRU5ErkJggg==",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<392 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<432 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<440 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAnElEQVR4nO2VUQqAIAyGN+kAQQ+9d4C6/5F6CLrBQp9imNt0EkHCwIf5/e53Kq7LBj1H6EoHgMGQS7c5eldACjjVCpABTlaLSIBzIGoFxIWgy8la5AbnFeQOCVvgXECCk3IDqi5ygT8JuMG5RRq/TXDpojXDSwIu8FIXVcFeea7DL/CpLzM3xHZurSDCEnCc5hRc1MsiPI8dYnCRC9ZgHfxFrcXwAAAAAElFTkSuQmCC",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAkklEQVR4nO2WSw6AMAgFC/EkHkDvf7rnRhNtyq+0xoWzMVFkELGWtnUvTnAeKXKNByS/n7/iQgKUBBxITjMEXtAj8FYPLY6TfYdVhKdFVBLwrNZkXzLenqIh38GwMSXHzaTqDEELdBYiCrQVU6L5VIsY7msDfX6K0vwCE+t/ADuFjmdMa0lo+a4FrWS1yNphPDgAsxoaspcGPu0AAAAASUVORK5CYII=",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAiUlEQVR4nO2WUQ6AIAxDKfEkHkDvf7r6o9Eg0DkwUWN/TBbs29ASMI1zcIjrE6oePe5hN6BowA0oKZ2oCQDLFL0nOOnRAN4JoLXuAVD9Ocd67GjO3AuD01iZwwpgoS47rwHYGDAoAC5+zOqa2hYpQ4S3J9mkHyD1/S2i9dwvKQ1aeu3IpdoUsE0LQgsXueoSL4AAAAAASUVORK5CYII=",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAfElEQVR4nO2UQQrAIAwEs6Ev6QPa/79ue/FQpDGpsWDBuYgHM8lCxLGf8gDLCeMeRt8++IWARjxdTBERvhbc4UgBR0g0GAl6JV5EzEosAUZJNNKF+BL2CFqFEBV5EyAwTVO0OQIpBerOWBU2lzEiSG3zFH9RiiVwWRGJxwVprBivdkeunAAAAABJRU5ErkJggg==",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<400 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<368 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<364 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<404 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<480 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<368 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<380 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<412 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<360 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<368 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<424 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<544 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<452 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<320 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAl0lEQVR4nOVV0Q6AIAjsnF/SB9T/fx1trV4YyqG01roX59A7QEBs6750IGqPoH0pT5L3BFLIWwJp5F6KUlDeEMBkyqgILBJx7CZqy3CRiEEE5nEZAZrkf1WUivJ5gUqek9HqYiOAItWNF4rAugi13md63d2dRZ7HYMeFlyI4JK4I8wYwoqFFImWKEZGZPpj69FuITNfTgQPGhyC7SA1NtwAAAABJRU5ErkJggg==",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<476 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<344 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<420 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<416 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<352 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<416 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<416 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<376 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<380 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<372 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<472 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<388 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<492 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<568 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<368 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<348 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<368 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<316 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<560 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<596 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<344 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<416 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<436 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<448 chars>",
+            "height": 24
+          },
+          {
+            "type": "base64",
+            "width": 24,
+            "base64": "<436 chars>",
+            "height": 24
+          }
+        ],
+        "progress": 0.85,
+        "billing_usage": {
+          "usd": 0,
+          "type": "generations",
+          "generations": 10
+        },
+        "generation_id": "a6c906d1-85a4-441e-a016-217ad2a6e52c",
+        "usage_cost_usd": 0.08285210084915161,
+        "billing_charged": true,
+        "style_reference": "user style image",
+        "style_selection": null,
+        "style_reference_path": null,
+        "generation_started_at": "2026-11-20T13:27:38.64474+00:00",
+        "original_image_n_colors": 2034,
+        "quantized_image_n_colors": 13
+      }
+    }
+  }
+}

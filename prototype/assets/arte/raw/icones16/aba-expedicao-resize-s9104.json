@@ -1,0 +1,38 @@
+{
+  "assinatura": "dc95fbec3631",
+  "endpoint": "/resize",
+  "pedido": {
+    "description": "round navigation compass, top view, crisp red and white needle pointing straight up, gold rim, pixel art game ui icon, 16x16, centered, simple bold shapes, readable at small size, dark outline",
+    "reference_image": {
+      "type": "base64",
+      "base64": "<568 chars>",
+      "format": "png"
+    },
+    "reference_image_size": {
+      "width": 32,
+      "height": 32
+    },
+    "target_size": {
+      "width": 16,
+      "height": 16
+    },
+    "no_background": true,
+    "color_image": {
+      "type": "base64",
+      "base64": "<436 chars>",
+      "format": "png"
+    },
+    "seed": 9104
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<868 chars>",
+      "format": "png"
+    }
+  }
+}

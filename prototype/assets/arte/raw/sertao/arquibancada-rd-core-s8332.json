@@ -1,0 +1,24 @@
+{
+  "assinatura": "b5eb70755d6a",
+  "api": "rd",
+  "pedido": {
+    "prompt": "<501 chars>",
+    "prompt_style": "rd_core__platformer",
+    "width": 384,
+    "height": 96,
+    "num_images": 2,
+    "seed": 8332,
+    "remove_bg": true,
+    "input_palette": "iVBORw0KGgoAAAANSUhEUgAAACAAAAABCAYAAAC/iqxnAAAAjElEQVR4nAGBAH7/AE2b5v+P0///x9zQ///////mkE7/zWg9/55FOf9uJyf/q5R6/5ZsbP9MPiT//KeQ/2JVZf9/cIr/m6uy/2lPYv8WWkz/I5Bj/1R+ZP+SqYT/Z2Yz/6KpR//V4Ev/zd9s//eWF//5wiv/+7lU//v/hv8uIi//PjVG//3LsP/oOzv/Lq9SzovN7AIAAAAASUVORK5CYII=",
+    "reference_images": [
+      "<39948 chars>"
+    ],
+    "return_non_bg_removed": true
+  },
+  "arquivos": [
+    "arquibancada-rd-core-s8332-0.png",
+    "arquibancada-rd-core-s8332-1.png",
+    "arquibancada-rd-core-s8332-2.png",
+    "arquibancada-rd-core-s8332-3.png"
+  ]
+}

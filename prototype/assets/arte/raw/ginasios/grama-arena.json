@@ -1,0 +1,18 @@
+{
+  "assinatura": "510c02dec0dc",
+  "pedido": {
+    "prompt": "<514 chars>",
+    "prompt_style": "rd_plus__default",
+    "width": 256,
+    "height": 160,
+    "num_images": 4,
+    "seed": 9751,
+    "input_palette": "iVBORw0KGgoAAAANSUhEUgAAACAAAAABCAYAAAC/iqxnAAAAjElEQVR4nAGBAH7/AE1ltP9Nm+b/j9P//8fc0P//////f3CK/5ursv+WbGz/q5R6/2lPYv8WWkz/I5Bj/x68c/+R22n/VH5k/5KphP9nZjP/oqlH/zdOSv/3lhf/+cIr//u5VP9uJyf/nkU5/81oPf/mkE7/szgx/0w+JP8uIi//PjVG//3LsP/oOzv/+KpPWuCLmaQAAAAASUVORK5CYII="
+  },
+  "arquivos": [
+    "grama-arena-0.png",
+    "grama-arena-1.png",
+    "grama-arena-2.png",
+    "grama-arena-3.png"
+  ]
+}

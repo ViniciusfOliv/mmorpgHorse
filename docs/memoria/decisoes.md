@@ -3,6 +3,95 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-20 — Direção de arte: marca (etapa 7)
+- **Letreiro "GALOPE ELEMENTAL" desenhado à mão em código, letra por letra** (`arte-letreiro.mjs`): a IA erra letras.
+  Emblema do PixelLab Pro (escolhido o 10) ao lado; ícone do app Pro 128×128 (escolhido o 03) ampliado 4×.
+- **Destaque do Play e capa compostos pela própria cena da corrida** (`arte-capa.mjs` captura a amostra no modo
+  `?captura=`): ficam no estilo exato do jogo e são refeitos sem custo quando a arte muda. Saem em RGB sem alfa.
+
+## 2026-11-20 — Direção de arte: cenas das abas e mapas das trilhas (etapa 6)
+- **Cada aba ganha uma cena 256×160 numa faixa no topo, com a placa do título por cima da borda de baixo** (a lista e os
+  botões continuam iguais); no Estábulo, o cavalo ativo parado na cena, 1:1. Escolhas: Estábulo 3, Haras 3, Loja 1,
+  Expedição 3.
+- **A trilha do ginásio vira mapa visto de cima** (256×384, só o terreno); caminho, paradas e os oponentes de pé (corpo
+  32×48 da etapa 5) por código, de baixo para cima. Mapas: Fornalha 9841, Remanso 9852, Capoeira 9862.
+
+## 2026-11-20 — Direção de arte: treinadores (etapa 5)
+- **Oponentes dos ginásios em corpo de ~40 px (quadro 32×48) e busto 64×64, pelo Pro do PixelLab com a arte escolhida de
+  referência** — a escala dos cavalos 1:1; a altura sai do tamanho do quadro pedido (48 para adultos, 36 para a criança).
+- **Ginásios ao ar livre** (o Vinicius: "use cenário aberto nos ginásios"): a cena do desafio passa a 256×160 com uma arena
+  aberta por ginásio (uma imagem só, chão e fundo no mesmo ângulo), na paleta da região mais próxima; parede + piso
+  separados não casaram. Escolhidas: Fornalha 1, Remanso 0, Capoeira 2. Os tablados de código viram a sombra dos cavalos.
+- **00 e 00 para todos** (escolha do Vinicius): poses neutras, de frente, coerentes entre si. Recruta Broto: corpo refeito
+  (08, 33 px), porque no quadro de 48 a criança saía mais alta que os adultos.
+
+## 2026-11-20 — Direção de arte: ícones (etapa 4, parte dos assets)
+- **Ícones em dois tamanhos: simples em 16×16 desenhados em código; complexos em 24×24 pelo modo Pro do PixelLab** —
+  decisão do Vinicius depois do piloto: em 16×16 nem o `/resize` nem o Pixen ficaram bons, e o `/resize` também falhou em
+  24×24; o Pro (64 candidatos por 10 gerações, paleta travada, o ícone atual e os de código como referência) acertou.
+- **O Pro corta os 64 candidatos de uma folha com a grade fora do lugar: o script remonta a folha e separa os ícones**
+  (`separarFolha`) — sem isso cada quadro vinha cortado e com pedaços dos vizinhos.
+- **Variações de cor por troca de rampa em código** (ligas, raridades, pódio) — uma geração serve a várias.
+- **Raridade tinge o medalhão inteiro, não só os detalhes azuis** — pedido do Vinicius: as cinco pareciam iguais (cavalo
+  branco com pontos coloridos). Insígnias dos três elementos têm sempre o anel dourado (a da grama troca o anel por código).
+
+## 2026-11-20 — Direção de arte: regiões de corrida (etapa 3)
+- **5 regiões aprovadas pelo Vinicius**: Cerrado, Várzea, Planalto, Sertão e Litoral, cada uma com paleta de 32 cores; a
+  interface fica por código ("manter por código").
+- **Na Retro Diffusion, pedir sempre a versão sem a remoção de fundo junto** (`return_non_bg_removed`, sem custo a mais)
+  — a remoção apagou vegetação três vezes; a mata da várzea veio da versão sem remoção, com o céu tirado por código.
+- **Recarga de US$ 5 na Retro Diffusion feita pelo Vinicius** depois de comparar as duas ferramentas; a RD fica para as
+  faixas de vegetação e as emendas, o PixelLab para o resto.
+- **Correções pedidas pelo Vinicius**: arquibancada do Sertão com torcida e mata da Várzea mais baixa para a lagoa aparecer.
+
+## 2026-11-20 — Direção de arte: amostra aprovada e plano em etapas
+- **Amostra da corrida aprovada (versão 2)** — "aprovado, pode fazer o plano em etapas".
+- **Plano em 9 etapas** (`docs/superpowers/plans/2026-11-20-direcao-de-arte.md`): ferramentas → fundação no jogo →
+  corrida → regiões → interface e ícones → treinadores → cenas e mapas → marca → fechamento. As que tocam
+  `prototype/src/` esperam as skills com ranks entrarem na `main`; os assets pagos podem vir antes.
+- **Paisagem e Steam na grade de 640 × 360** (guia §2), alinhada à regra da Steam do checklist (2026-11-19).
+
+## 2026-11-20 — Direção de arte: retorno do Vinicius sobre a amostra
+- **A interface de hoje fica; o padrão novo só troca pixel, paleta e fonte** — "a interface do anterior me parece
+  melhor": a versão 1 da amostra simplificou demais (sem pote, estamina, vento, minimapa, células da ordem, vizinhos e
+  horários na narração) e encolheu o texto. Narração e nomes passam para Galmuri11 (guia §6, §8b).
+- **Corrida em "velocidade máxima" na tela: câmera a 12 px de arte por metro e galope a 21 quadros/s** — "no 1x parece
+  bem lento"; a pista e a distância continuam as mesmas (guia §8a). O resto da amostra foi aprovado.
+
+## 2026-11-20 — Direção de arte: amostra da corrida (execução)
+- **Guia aprovado pelo Vinicius; gasto da amostra autorizado (até 200 gerações do PixelLab e a conta da Retro Diffusion,
+  US$ 5)** — resposta dele em 2026-11-20. Chave da RD salva pelo formulário seguro da sessão (`X-RD-Token`).
+- **Camadas de cenário: a melhor ferramenta por camada + emenda da RD** — no piloto, a RD Core ganhou no cerrado e no
+  capim, o PixelLab Pixen nas chapadas, a RD Plus só na emenda nativa; a `seam_tiling` da RD emenda qualquer uma.
+- **Chão da pista por código** — as texturas geradas saíram listradas e com ruído.
+- **Quadro de estilo (50 gerações) cortado da amostra** — o piloto já fixou o visual; economiza a cota.
+- **Arquibancada como objeto espaçado (a cada ~1.000 px de paralaxe), não camada repetida** — o diagnóstico apontou a
+  repetição.
+- **Galmuri embutida em subconjunto latino (TTF de ~25 KB cada)** — os originais têm 2,6–4,6 MB por causa do coreano.
+
+## 2026-11-20 — Direção de arte: propostas do guia (aprovadas em 2026-11-20)
+- **Uma escala de pixel para tudo: 1 pixel do molde do cavalo = 1 pixel de arte = `s` pixels do aparelho (inteiro),
+  com a largura de arte perto de 256** — hoje o cavalo sai a 3/4 do pixel da pista; os moldes já pagos ditam a escala.
+- **Paleta fechada Resurrect 64, até 32 cores por região** — testada nos treinadores e ícones atuais, que mantêm a leitura.
+- **Fonte única Galmuri (11 Bold, 9 e 7; OFL)** — única família verificada com vários tamanhos na mesma grade, Bold e
+  português completo com º e ª; saem Press Start 2P, Jersey 10 e a 3×5.
+- **Canva sai da arte; logo e capa na grade de pixel (PixelLab + composição por código)** — o logo borrado veio de
+  imagem grande reduzida.
+- **Camadas de cenário: Retro Diffusion (`tile_x` + paleta) contra PixelLab, decidido num piloto pequeno** — a RD entrega
+  a camada sem emenda e na paleta a US$ 0,06; o PixelLab precisa de uma pintura extra por emenda.
+- **Efeitos por código, texto fora das raias** (só o "VOCÊ" e até 2 balões nelas) — determinismo e desempenho; o resto
+  vai para o céu e para baixo da pista.
+
+## 2026-11-20 — Direção de arte (decisões do Vinicius)
+- **Visual com qualidade e desempenho em 100%, sem nada improvisado por ser mais barato; a ferramenta é a melhor para
+  cada tipo de asset (PixelLab, outra IA ou software)** — pedido do Vinicius. O diagnóstico da coordenação: escalas de
+  pixel misturadas, cenário por código genérico, interface sem identidade (três fontes) e logo borrado.
+- **Só IA por enquanto, sem pixel artist contratado** — escolha do Vinicius; o acabamento é por código e a aprovação
+  visual é dele.
+- **Chat próprio de direção de arte** (`claude/direcao-de-arte`, Opus em esforço alto): pesquisa das ferramentas, guia
+  de arte (`docs/arte/guia.md`), estimativa de custo antes de gastar, amostra da tela da corrida refeita no padrão
+  final (`prototype/arte/`, artefato novo) e, aprovada a amostra, o plano para o jogo inteiro.
+
 ## 2026-11-19 — Marcos menores, Garra sem falhar e faixas rebaseadas (decisões do Vinicius, no chat de implementação)
 - **Os três marcos menores** ("usa os três marcos menores") — Saída Rápida 7 s, Chama Final 11 s e Arrancada Final ×1,01
   até a chegada, no rank V (a spec dizia 8 s, 12 s e ×1,02).

@@ -122,6 +122,14 @@ export function encodePng({ width, height, rgba }) {
   return montar(width, height, 6, 4, rgba);
 }
 
+// RGB de 24 bits, sem alfa (a loja do Google Play pede o destaque e o ícone sem canal alfa)
+export function encodeRgb({ width, height, rgba }) {
+  if (rgba.length !== width * height * 4) throw new Error('encodeRgb: tamanho de rgba não confere com width×height×4');
+  const rgb = new Uint8Array(width * height * 3);
+  for (let i = 0, j = 0; i < rgba.length; i += 4, j += 3) { rgb[j] = rgba[i]; rgb[j + 1] = rgba[i + 1]; rgb[j + 2] = rgba[i + 2]; }
+  return montar(width, height, 2, 3, rgb);
+}
+
 export function encodeGray({ width, height, data }) {
   if (data.length !== width * height) throw new Error('encodeGray: tamanho de data não confere com width×height');
   return montar(width, height, 0, 1, data);

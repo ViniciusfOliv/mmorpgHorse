@@ -1,0 +1,17 @@
+{
+  "assinatura": "6cf4e7a033d2",
+  "pedido": {
+    "description": "top-down view of dry volcanic backlands: red and orange rocky ground, cracks with glowing lava, dry thorny bushes, scattered boulders, game world map terrain seen from directly above, no roads, no paths, no buildings, no text, no characters, evenly filled to all edges",
+    "image_size": {
+      "width": 256,
+      "height": 384
+    },
+    "view": "high top-down",
+    "outline": "lineless",
+    "detail": "highly detailed",
+    "seed": 9842
+  },
+  "arquivos": [
+    "mapa-fogo-s9842-0.png"
+  ]
+}

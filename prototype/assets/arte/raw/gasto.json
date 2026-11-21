@@ -1,0 +1,771 @@
+{
+  "pl": 614,
+  "usd": 9.760000000000007,
+  "chamadas": [
+    {
+      "base": "chapadas-rd-plus-s7101",
+      "usd": 0.12,
+      "data": "2026-11-20T01:06:09.574Z"
+    },
+    {
+      "base": "chapadas-rd-core-s7201",
+      "usd": 0.2,
+      "data": "2026-11-20T01:06:26.087Z"
+    },
+    {
+      "base": "chapadas-pl-pixen-s7301",
+      "geracoes": 1,
+      "data": "2026-11-20T01:07:51.352Z"
+    },
+    {
+      "base": "chapadas-pl-pixen-s7302",
+      "geracoes": 1,
+      "data": "2026-11-20T01:09:17.561Z"
+    },
+    {
+      "base": "cerrado-rd-plus-s7101",
+      "usd": 0.12,
+      "data": "2026-11-20T01:09:31.132Z"
+    },
+    {
+      "base": "cerrado-rd-core-s7201",
+      "usd": 0.2,
+      "data": "2026-11-20T01:10:06.454Z"
+    },
+    {
+      "base": "cerrado-pl-pixen-s7301",
+      "geracoes": 1,
+      "data": "2026-11-20T01:10:46.591Z"
+    },
+    {
+      "base": "cerrado-pl-pixen-s7302",
+      "geracoes": 1,
+      "data": "2026-11-20T01:11:35.011Z"
+    },
+    {
+      "base": "frente-rd-plus-s7101",
+      "usd": 0.12,
+      "data": "2026-11-20T01:11:51.605Z"
+    },
+    {
+      "base": "frente-rd-core-s7201",
+      "usd": 0.2,
+      "data": "2026-11-20T01:12:49.604Z"
+    },
+    {
+      "base": "frente-pl-pixen-s7301",
+      "geracoes": 1,
+      "data": "2026-11-20T01:13:27.004Z"
+    },
+    {
+      "base": "frente-pl-pixen-s7302",
+      "geracoes": 1,
+      "data": "2026-11-20T01:14:19.329Z"
+    },
+    {
+      "base": "cerrado-rd-core-s7201-0-emenda-s7401",
+      "usd": 0.12,
+      "data": "2026-11-20T01:15:23.067Z"
+    },
+    {
+      "base": "nuvens-rd-plus-s7501",
+      "usd": 0.12,
+      "data": "2026-11-20T01:16:09.265Z"
+    },
+    {
+      "base": "arquibancada-rd-core-s7601",
+      "usd": 0.2,
+      "data": "2026-11-20T01:16:32.412Z"
+    },
+    {
+      "base": "arquibancada-rd-core-s7602",
+      "usd": 0.2,
+      "data": "2026-11-20T01:16:55.843Z"
+    },
+    {
+      "base": "pista-rd-plus-s7701",
+      "usd": 0.12,
+      "data": "2026-11-20T01:17:05.963Z"
+    },
+    {
+      "base": "chapadas-pl-pixen-s7301-0-emenda-s7402",
+      "usd": 0.12,
+      "data": "2026-11-20T01:17:29.162Z"
+    },
+    {
+      "base": "frente-rd-core-s7201-1-emenda-s7403",
+      "usd": 0.12,
+      "data": "2026-11-20T01:17:32.710Z"
+    },
+    {
+      "base": "nuvens-rd-plus-s7501-1-emenda-s7404",
+      "usd": 0.12,
+      "data": "2026-11-20T02:00:57.950Z"
+    },
+    {
+      "base": "varzea/horizonte-pl-pixen-s8101",
+      "geracoes": 1,
+      "data": "2026-11-20T02:25:08.555Z"
+    },
+    {
+      "base": "varzea/horizonte-pl-pixen-s8102",
+      "geracoes": 1,
+      "data": "2026-11-20T02:25:55.577Z"
+    },
+    {
+      "base": "varzea/meio-rd-core-s8111",
+      "usd": 0.2,
+      "data": "2026-11-20T02:26:21.693Z"
+    },
+    {
+      "base": "varzea/frente-rd-core-s8121",
+      "usd": 0.2,
+      "data": "2026-11-20T02:26:38.111Z"
+    },
+    {
+      "base": "planalto/horizonte-pl-pixen-s8201",
+      "geracoes": 1,
+      "data": "2026-11-20T02:27:26.653Z"
+    },
+    {
+      "base": "planalto/horizonte-pl-pixen-s8202",
+      "geracoes": 1,
+      "data": "2026-11-20T02:29:22.366Z"
+    },
+    {
+      "base": "planalto/meio-rd-core-s8211",
+      "usd": 0.2,
+      "data": "2026-11-20T02:29:45.274Z"
+    },
+    {
+      "base": "planalto/frente-rd-core-s8221",
+      "usd": 0.2,
+      "data": "2026-11-20T02:30:24.009Z"
+    },
+    {
+      "base": "sertao/horizonte-pl-pixen-s8301",
+      "geracoes": 1,
+      "data": "2026-11-20T02:31:22.014Z"
+    },
+    {
+      "base": "sertao/horizonte-pl-pixen-s8302",
+      "geracoes": 1,
+      "data": "2026-11-20T02:32:28.712Z"
+    },
+    {
+      "base": "sertao/meio-rd-core-s8311",
+      "usd": 0.2,
+      "data": "2026-11-20T02:32:57.892Z"
+    },
+    {
+      "base": "sertao/frente-rd-core-s8321",
+      "usd": 0.2,
+      "data": "2026-11-20T02:33:14.508Z"
+    },
+    {
+      "base": "litoral/horizonte-pl-pixen-s8401",
+      "geracoes": 1,
+      "data": "2026-11-20T02:34:09.334Z"
+    },
+    {
+      "base": "litoral/horizonte-pl-pixen-s8402",
+      "geracoes": 1,
+      "data": "2026-11-20T02:35:48.059Z"
+    },
+    {
+      "base": "litoral/meio-rd-core-s8411",
+      "usd": 0.2,
+      "data": "2026-11-20T02:36:11.243Z"
+    },
+    {
+      "base": "litoral/frente-rd-core-s8421",
+      "usd": 0.2,
+      "data": "2026-11-20T02:36:27.880Z"
+    },
+    {
+      "base": "varzea/meio-rd-core-s8112",
+      "usd": 0.2,
+      "data": "2026-11-20T02:40:47.078Z"
+    },
+    {
+      "base": "planalto/meio-rd-core-s8212",
+      "usd": 0.2,
+      "data": "2026-11-20T02:41:09.991Z"
+    },
+    {
+      "base": "sertao/meio-rd-core-s8312",
+      "usd": 0.2,
+      "data": "2026-11-20T02:41:32.949Z"
+    },
+    {
+      "base": "sertao/frente-rd-core-s8322",
+      "usd": 0.2,
+      "data": "2026-11-20T02:41:52.459Z"
+    },
+    {
+      "base": "litoral/frente-rd-core-s8422",
+      "usd": 0.2,
+      "data": "2026-11-20T02:42:11.892Z"
+    },
+    {
+      "base": "varzea/arquibancada-rd-core-s8131",
+      "usd": 0.2,
+      "data": "2026-11-20T02:50:10.076Z"
+    },
+    {
+      "base": "varzea/horizonte-pl-pixen-s8101-0-emenda-s8141",
+      "usd": 0.12,
+      "data": "2026-11-20T02:50:14.751Z"
+    },
+    {
+      "base": "varzea/meio-rd-core-s8112-2-emenda-s8142",
+      "usd": 0.12,
+      "data": "2026-11-20T02:50:20.553Z"
+    },
+    {
+      "base": "varzea/frente-rd-core-s8121-0-emenda-s8143",
+      "usd": 0.12,
+      "data": "2026-11-20T02:50:23.844Z"
+    },
+    {
+      "base": "planalto/arquibancada-rd-core-s8231",
+      "usd": 0.2,
+      "data": "2026-11-20T02:50:46.692Z"
+    },
+    {
+      "base": "planalto/horizonte-pl-pixen-s8202-0-emenda-s8241",
+      "usd": 0.12,
+      "data": "2026-11-20T02:50:51.394Z"
+    },
+    {
+      "base": "planalto/meio-rd-core-s8212-1-emenda-s8242",
+      "usd": 0.12,
+      "data": "2026-11-20T02:50:55.677Z"
+    },
+    {
+      "base": "planalto/frente-rd-core-s8221-0-emenda-s8243",
+      "usd": 0.12,
+      "data": "2026-11-20T02:50:59.066Z"
+    },
+    {
+      "base": "sertao/arquibancada-rd-core-s8331",
+      "usd": 0.2,
+      "data": "2026-11-20T02:51:25.347Z"
+    },
+    {
+      "base": "sertao/horizonte-pl-pixen-s8301-0-emenda-s8341",
+      "usd": 0.12,
+      "data": "2026-11-20T02:51:30.248Z"
+    },
+    {
+      "base": "sertao/meio-rd-core-s8312-0-emenda-s8342",
+      "usd": 0.12,
+      "data": "2026-11-20T02:51:35.137Z"
+    },
+    {
+      "base": "sertao/frente-rd-core-s8322-1-emenda-s8343",
+      "usd": 0.12,
+      "data": "2026-11-20T02:51:38.581Z"
+    },
+    {
+      "base": "litoral/arquibancada-rd-core-s8431",
+      "usd": 0.2,
+      "data": "2026-11-20T02:52:04.443Z"
+    },
+    {
+      "base": "litoral/horizonte-pl-pixen-s8401-0-emenda-s8441",
+      "usd": 0.12,
+      "data": "2026-11-20T02:52:09.090Z"
+    },
+    {
+      "base": "litoral/meio-rd-core-s8411-0-emenda-s8442",
+      "usd": 0.12,
+      "data": "2026-11-20T02:52:13.620Z"
+    },
+    {
+      "base": "litoral/frente-rd-core-s8422-1-emenda-s8443",
+      "usd": 0.12,
+      "data": "2026-11-20T02:52:30.237Z"
+    },
+    {
+      "base": "sertao/arquibancada-rd-core-s8332",
+      "usd": 0.2,
+      "data": "2026-11-20T03:25:27.020Z"
+    },
+    {
+      "base": "icones16/moeda-ouro-resize-s9101",
+      "geracoes": 1,
+      "data": "2026-11-20T03:46:08.573Z"
+    },
+    {
+      "base": "icones16/moeda-ouro-pixen-s9101",
+      "geracoes": 1,
+      "data": "2026-11-20T03:46:34.898Z"
+    },
+    {
+      "base": "icones16/el-fogo-resize-s9102",
+      "geracoes": 1,
+      "data": "2026-11-20T03:47:06.019Z"
+    },
+    {
+      "base": "icones16/el-fogo-pixen-s9102",
+      "geracoes": 1,
+      "data": "2026-11-20T03:47:43.971Z"
+    },
+    {
+      "base": "icones16/aba-estabulo-resize-s9103",
+      "geracoes": 1,
+      "data": "2026-11-20T03:48:08.638Z"
+    },
+    {
+      "base": "icones16/aba-estabulo-pixen-s9103",
+      "geracoes": 1,
+      "data": "2026-11-20T03:48:41.298Z"
+    },
+    {
+      "base": "icones16/aba-expedicao-resize-s9104",
+      "geracoes": 1,
+      "data": "2026-11-20T03:49:00.797Z"
+    },
+    {
+      "base": "icones16/aba-expedicao-pixen-s9104",
+      "geracoes": 1,
+      "data": "2026-11-20T03:49:21.653Z"
+    },
+    {
+      "base": "icones16/st-vel-resize-s9105",
+      "geracoes": 1,
+      "data": "2026-11-20T03:49:46.300Z"
+    },
+    {
+      "base": "icones16/st-vel-pixen-s9105",
+      "geracoes": 1,
+      "data": "2026-11-20T03:50:09.427Z"
+    },
+    {
+      "base": "icones16/sk-arranque-resize-s9106",
+      "geracoes": 1,
+      "data": "2026-11-20T03:50:33.236Z"
+    },
+    {
+      "base": "icones16/sk-arranque-pixen-s9106",
+      "geracoes": 1,
+      "data": "2026-11-20T03:50:43.851Z"
+    },
+    {
+      "base": "icones16/ui-dado-resize-s9107",
+      "geracoes": 1,
+      "data": "2026-11-20T03:50:56.965Z"
+    },
+    {
+      "base": "icones16/ui-dado-pixen-s9107",
+      "geracoes": 1,
+      "data": "2026-11-20T03:51:18.597Z"
+    },
+    {
+      "base": "icones16/liga-ouro-resize-s9108",
+      "geracoes": 1,
+      "data": "2026-11-20T03:51:42.071Z"
+    },
+    {
+      "base": "icones16/liga-ouro-pixen-s9108",
+      "geracoes": 1,
+      "data": "2026-11-20T03:52:01.223Z"
+    },
+    {
+      "base": "icones16/aba-estabulo-resize24-s9201",
+      "geracoes": 1,
+      "data": "2026-11-20T03:58:41.660Z"
+    },
+    {
+      "base": "icones16/slot-sela-resize24-s9202",
+      "geracoes": 1,
+      "data": "2026-11-20T03:59:03.028Z"
+    },
+    {
+      "base": "icones16/liga-ouro-resize24-s9203",
+      "geracoes": 1,
+      "data": "2026-11-20T03:59:19.610Z"
+    },
+    {
+      "base": "icones24pro/aba-estabulo",
+      "geracoes": 10,
+      "data": "2026-11-20T04:13:34.307Z"
+    },
+    {
+      "base": "icones24pro/slot-sela",
+      "geracoes": 10,
+      "data": "2026-11-20T04:15:50.531Z"
+    },
+    {
+      "base": "icones24pro/liga-ouro",
+      "geracoes": 10,
+      "data": "2026-11-20T04:18:22.485Z"
+    },
+    {
+      "base": "icones24pro/slot-armadura",
+      "geracoes": 10,
+      "data": "2026-11-20T12:38:41.477Z"
+    },
+    {
+      "base": "icones24pro/slot-testeira",
+      "geracoes": 10,
+      "data": "2026-11-20T12:42:08.906Z"
+    },
+    {
+      "base": "icones24pro/slot-estribos",
+      "geracoes": 10,
+      "data": "2026-11-20T12:45:18.578Z"
+    },
+    {
+      "base": "icones24pro/ui-perfil",
+      "geracoes": 10,
+      "data": "2026-11-20T12:47:24.970Z"
+    },
+    {
+      "base": "icones24pro/ins-fogo",
+      "geracoes": 10,
+      "data": "2026-11-20T12:49:47.304Z"
+    },
+    {
+      "base": "icones24pro/ins-agua",
+      "geracoes": 10,
+      "data": "2026-11-20T12:52:35.419Z"
+    },
+    {
+      "base": "icones24pro/ins-grama",
+      "geracoes": 10,
+      "data": "2026-11-20T12:55:02.579Z"
+    },
+    {
+      "base": "icones24pro/rar-raro",
+      "geracoes": 10,
+      "data": "2026-11-20T12:56:58.152Z"
+    },
+    {
+      "base": "icones24pro/podio-1",
+      "geracoes": 10,
+      "data": "2026-11-20T13:02:22.832Z"
+    },
+    {
+      "base": "icones24pro/sk-canto-da-iara",
+      "geracoes": 10,
+      "data": "2026-11-20T13:05:26.051Z"
+    },
+    {
+      "base": "icones24pro/sk-casco-firme",
+      "geracoes": 10,
+      "data": "2026-11-20T13:07:42.331Z"
+    },
+    {
+      "base": "icones24pro/sk-chama-final",
+      "geracoes": 10,
+      "data": "2026-11-20T13:10:14.368Z"
+    },
+    {
+      "base": "icones24pro/sk-folego-de-montanha",
+      "geracoes": 10,
+      "data": "2026-11-20T13:12:25.933Z"
+    },
+    {
+      "base": "icones24pro/sk-nascente",
+      "geracoes": 10,
+      "data": "2026-11-20T13:14:37.009Z"
+    },
+    {
+      "base": "icones24pro/sk-nevoa-amiga",
+      "geracoes": 10,
+      "data": "2026-11-20T13:16:27.429Z"
+    },
+    {
+      "base": "icones24pro/sk-pe-na-chuva",
+      "geracoes": 10,
+      "data": "2026-11-20T13:19:00.049Z"
+    },
+    {
+      "base": "icones24pro/sk-sol-a-pino",
+      "geracoes": 10,
+      "data": "2026-11-20T13:23:06.141Z"
+    },
+    {
+      "base": "icones24pro/st-forca",
+      "geracoes": 10,
+      "data": "2026-11-20T13:25:26.236Z"
+    },
+    {
+      "base": "icones24pro/sk-tipo-grama",
+      "geracoes": 10,
+      "data": "2026-11-20T13:27:32.261Z"
+    },
+    {
+      "base": "icones24pro/sk-drift",
+      "geracoes": 10,
+      "data": "2026-11-20T13:29:48.379Z"
+    },
+    {
+      "base": "treinadores/capita-labareda-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T13:50:36.340Z"
+    },
+    {
+      "base": "treinadores/capita-labareda-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T13:52:11.597Z"
+    },
+    {
+      "base": "treinadores/recruta-fagulha-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T13:56:34.420Z"
+    },
+    {
+      "base": "treinadores/cabo-tocha-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T13:58:14.371Z"
+    },
+    {
+      "base": "treinadores/sargento-candeeiro-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T13:59:44.610Z"
+    },
+    {
+      "base": "treinadores/tenente-coivara-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:02:21.794Z"
+    },
+    {
+      "base": "treinadores/mestre-aguaceiro-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:10:39.718Z"
+    },
+    {
+      "base": "treinadores/recruta-orvalho-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:12:56.274Z"
+    },
+    {
+      "base": "treinadores/cabo-goteira-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:14:46.372Z"
+    },
+    {
+      "base": "treinadores/sargento-correnteza-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:16:20.509Z"
+    },
+    {
+      "base": "treinadores/tenente-cacimba-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:20:05.608Z"
+    },
+    {
+      "base": "treinadores/dona-capineira-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:21:45.220Z"
+    },
+    {
+      "base": "treinadores/recruta-broto-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:24:54.563Z"
+    },
+    {
+      "base": "treinadores/cabo-carrapicho-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:27:15.763Z"
+    },
+    {
+      "base": "treinadores/sargento-juazeiro-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:29:05.703Z"
+    },
+    {
+      "base": "treinadores/tenente-aroeira-corpo",
+      "geracoes": 10,
+      "data": "2026-11-20T14:31:16.527Z"
+    },
+    {
+      "base": "treinadores/recruta-fagulha-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:34:04.690Z"
+    },
+    {
+      "base": "treinadores/cabo-tocha-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:36:42.121Z"
+    },
+    {
+      "base": "treinadores/sargento-candeeiro-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:38:21.673Z"
+    },
+    {
+      "base": "treinadores/tenente-coivara-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:42:17.832Z"
+    },
+    {
+      "base": "treinadores/mestre-aguaceiro-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:44:08.494Z"
+    },
+    {
+      "base": "treinadores/recruta-orvalho-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:46:14.660Z"
+    },
+    {
+      "base": "treinadores/cabo-goteira-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:48:41.290Z"
+    },
+    {
+      "base": "treinadores/sargento-correnteza-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:50:31.224Z"
+    },
+    {
+      "base": "treinadores/tenente-cacimba-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:52:47.364Z"
+    },
+    {
+      "base": "treinadores/dona-capineira-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:54:27.182Z"
+    },
+    {
+      "base": "treinadores/recruta-broto-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:57:05.280Z"
+    },
+    {
+      "base": "treinadores/cabo-carrapicho-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T14:59:47.591Z"
+    },
+    {
+      "base": "treinadores/sargento-juazeiro-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T15:01:21.938Z"
+    },
+    {
+      "base": "treinadores/tenente-aroeira-busto",
+      "geracoes": 10,
+      "data": "2026-11-20T15:03:32.658Z"
+    },
+    {
+      "base": "treinadores/recruta-broto-corpo-2",
+      "geracoes": 15,
+      "data": "2026-11-20T15:12:58.319Z"
+    },
+    {
+      "base": "ginasios/fogo-parede",
+      "usd": 0.2,
+      "data": "2026-11-20T15:27:41.843Z"
+    },
+    {
+      "base": "ginasios/fogo-piso",
+      "usd": 0.12,
+      "data": "2026-11-20T15:27:48.722Z"
+    },
+    {
+      "base": "ginasios/agua-parede",
+      "usd": 0.2,
+      "data": "2026-11-20T15:27:58.746Z"
+    },
+    {
+      "base": "ginasios/agua-piso",
+      "usd": 0.12,
+      "data": "2026-11-20T15:28:05.705Z"
+    },
+    {
+      "base": "ginasios/grama-parede",
+      "usd": 0.2,
+      "data": "2026-11-20T15:28:15.789Z"
+    },
+    {
+      "base": "ginasios/grama-piso",
+      "usd": 0.12,
+      "data": "2026-11-20T15:28:22.576Z"
+    },
+    {
+      "base": "ginasios/fogo-arena",
+      "usd": 0.24,
+      "data": "2026-11-20T15:45:07.226Z"
+    },
+    {
+      "base": "ginasios/agua-arena",
+      "usd": 0.24,
+      "data": "2026-11-20T15:45:20.582Z"
+    },
+    {
+      "base": "ginasios/grama-arena",
+      "usd": 0.24,
+      "data": "2026-11-20T15:45:34.108Z"
+    },
+    {
+      "base": "telas/mapa-fogo-s9841",
+      "geracoes": 1,
+      "data": "2026-11-20T17:07:05.857Z"
+    },
+    {
+      "base": "telas/mapa-fogo-s9842",
+      "geracoes": 1,
+      "data": "2026-11-20T17:07:50.317Z"
+    },
+    {
+      "base": "telas/mapa-agua-s9851",
+      "geracoes": 1,
+      "data": "2026-11-20T17:08:28.949Z"
+    },
+    {
+      "base": "telas/mapa-agua-s9852",
+      "geracoes": 1,
+      "data": "2026-11-20T17:09:01.542Z"
+    },
+    {
+      "base": "telas/mapa-grama-s9861",
+      "geracoes": 1,
+      "data": "2026-11-20T17:09:32.674Z"
+    },
+    {
+      "base": "telas/cena-estabulo",
+      "usd": 0.24,
+      "data": "2026-11-20T17:11:30.113Z"
+    },
+    {
+      "base": "telas/cena-haras",
+      "usd": 0.24,
+      "data": "2026-11-20T17:11:43.573Z"
+    },
+    {
+      "base": "telas/cena-loja",
+      "usd": 0.24,
+      "data": "2026-11-20T17:11:56.950Z"
+    },
+    {
+      "base": "telas/cena-expedicao",
+      "usd": 0.24,
+      "data": "2026-11-20T17:12:07.059Z"
+    },
+    {
+      "base": "telas/mapa-grama-s9862",
+      "geracoes": 1,
+      "data": "2026-11-20T17:12:47.771Z"
+    },
+    {
+      "base": "marca/emblema-s9901",
+      "geracoes": 10,
+      "data": "2026-11-20T18:38:45.512Z"
+    },
+    {
+      "base": "marca/icone-s9911",
+      "geracoes": 10,
+      "data": "2026-11-20T18:41:22.687Z"
+    },
+    {
+      "base": "marca/icone-s9912",
+      "geracoes": 10,
+      "data": "2026-11-20T18:42:36.282Z"
+    }
+  ]
+}

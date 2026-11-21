@@ -1,0 +1,27 @@
+{
+  "assinatura": "3ff00fa5d21b",
+  "endpoint": "/create-image-pixen",
+  "pedido": {
+    "description": "horse head icon, pixel art game ui icon, 16x16, centered, simple bold shapes, readable at small size, dark outline",
+    "image_size": {
+      "width": 16,
+      "height": 16
+    },
+    "no_background": true,
+    "outline": "single color black outline",
+    "seed": 9103
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<388 chars>",
+      "format": "png"
+    },
+    "enhanced_prompt": null,
+    "enhance_usage": null
+  }
+}

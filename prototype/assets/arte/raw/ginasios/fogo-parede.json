@@ -1,0 +1,16 @@
+{
+  "assinatura": "b184396349f0",
+  "pedido": {
+    "prompt": "<301 chars>",
+    "prompt_style": "rd_core__platformer",
+    "width": 256,
+    "height": 64,
+    "num_images": 2,
+    "seed": 9701,
+    "input_palette": "<436 chars>"
+  },
+  "arquivos": [
+    "fogo-parede-0.png",
+    "fogo-parede-1.png"
+  ]
+}

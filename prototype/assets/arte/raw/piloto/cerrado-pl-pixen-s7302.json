@@ -1,0 +1,33 @@
+{
+  "assinatura": "0b0f7bd2f58b",
+  "api": "pixellab",
+  "endpoint": "/create-image-pixen",
+  "pedido": {
+    "description": "a continuous row of Brazilian cerrado vegetation seen from the side: short twisted trees with thick corky bark and rounded canopies, two yellow flowering ipe trees, one buriti palm, dry golden grass along the bottom, one long continuous horizontal band across the whole width, empty sky above, 2D side-scrolling game parallax background layer, side view, Brazilian cerrado savanna, late afternoon sunlight from the upper left, no text",
+    "image_size": {
+      "width": 384,
+      "height": 112
+    },
+    "no_background": true,
+    "view": "side",
+    "outline": "lineless",
+    "detail": "highly detailed",
+    "seed": 7302
+  },
+  "resposta": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "image": {
+      "type": "base64",
+      "base64": "<43380 chars>",
+      "format": "png"
+    },
+    "enhanced_prompt": null,
+    "enhance_usage": null
+  },
+  "arquivos": [
+    "cerrado-pl-pixen-s7302-0.png"
+  ]
+}

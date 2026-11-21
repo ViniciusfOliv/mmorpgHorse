@@ -1,0 +1,40 @@
+{
+  "assinatura": "5de812d58caa",
+  "api": "retrodiffusion",
+  "pedido": {
+    "prompt": "red clay dirt racetrack surface texture seen from slightly above, raked soil with faint hoof prints and small pebbles, even lighting, seamless texture, no objects, no grass",
+    "prompt_style": "rd_plus__textured",
+    "width": 128,
+    "height": 128,
+    "num_images": 2,
+    "seed": 7701,
+    "input_palette": "iVBORw0KGgoAAAANSUhEUgAAACAAAAABCAYAAAC/iqxnAAAAjElEQVR4nAGBAH7/AE1ltP9Nm+b/j9P//8fc0P//////f3CK/5ursv+WbGz/q5R6/2lPYv8WWkz/I5Bj/x68c/+R22n/VH5k/5KphP9nZjP/oqlH/zdOSv/3lhf/+cIr//u5VP9uJyf/nkU5/81oPf/mkE7/szgx/0w+JP8uIi//PjVG//3LsP/oOzv/+KpPWuCLmaQAAAAASUVORK5CYII=",
+    "tile_x": true,
+    "tile_y": true
+  },
+  "resposta": {
+    "created_at": 1795137422,
+    "credit_cost": 2,
+    "balance_cost": 0.12,
+    "base64_images": [
+      "<9168 chars>",
+      "<11668 chars>"
+    ],
+    "output_urls": [],
+    "model": "rd_plus",
+    "remaining_credits": 0,
+    "remaining_balance": 3.28,
+    "request_id": "c2f266a4-2b38-4939-a527-e18d2f62655a",
+    "outputs_retained_until": 1795223816,
+    "billing": {
+      "reason": "no_plan",
+      "source": "balance",
+      "balance_left": 3.28,
+      "balance_charged": 0.12
+    }
+  },
+  "arquivos": [
+    "pista-rd-plus-s7701-0.png",
+    "pista-rd-plus-s7701-1.png"
+  ]
+}
