@@ -1990,10 +1990,12 @@ test('com moldes: marcas e jóquei nas cores das camadas; a chave do cache leva 
       assert.ok(lumHex(c1('m2')) < lumHex(G.MARCAS.branco), 'branco sombreado mais escuro que o branco');
       var sombra = hexPx(base, Array.prototype.indexOf.call(idx, 3));
       assert.ok(lumHex(c1('m3')) < lumHex(sombra), 'pinta escura mais escura que a sombra da pelagem');
-      if (lumHex(cs[0]) < 0.5) assert.ok(lumHex(c1('j1')) > lumHex(cs[0]), 'seda escura: tom 2 mais claro');
-      else assert.ok(lumHex(c1('j1')) < lumHex(cs[0]), 'seda clara: tom 2 mais escuro');
+      // o tom 2 comparado com a seda como ela é pintada (na paleta-mestra, etapa 1b)
+      if (lumHex(cs[0]) < 0.5) assert.ok(lumHex(c1('j1')) > lumHex(SPR.naMestra(cs[0])), 'seda escura: tom 2 mais claro');
+      else assert.ok(lumHex(c1('j1')) < lumHex(SPR.naMestra(cs[0])), 'seda clara: tom 2 mais escuro');
       assert.strictEqual(c1('j2'), SPR.naMestra(cs[1]), 'capacete na cor escolhida (na paleta-mestra)');
-      assert.ok(lumHex(c1('j3')) < lumHex(cs[1]) || cs[1] === '#2a2a2a' && lumHex(c1('j3')) <= lumHex(cs[1]), 'manta: o capacete escurecido');
+      var capM = SPR.naMestra(cs[1]);
+      assert.ok(lumHex(c1('j3')) < lumHex(capM) || cs[1] === '#2a2a2a' && lumHex(c1('j3')) <= lumHex(capM), 'manta: o capacete escurecido');
     });
     // chave do cache: as mesmas opções reaproveitam; marcas, semente, padrão e capacete fazem entradas novas
     SPR.limparCacheMoldes();

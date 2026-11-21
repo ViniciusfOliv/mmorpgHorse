@@ -6221,29 +6221,37 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
   }
   var MESTRA_LAB = null, mestraCache = {};
-  // a cor da mestra mais perto de hex; com evitar, uma diferente dela e mais escura (para as sombras)
-  function naMestra(hex, evitar) {
+  // a cor da mestra mais perto de hex; com evitar, uma diferente dela e mais escura (para as sombras), ou mais clara
+  // com claro = true
+  function naMestra(hex, evitar, claro) {
     if (!hex) return hex;
-    var chave = hex + '|' + (evitar || '');
+    var chave = hex + '|' + (evitar || '') + (claro ? '+' : '');
     if (mestraCache[chave]) return mestraCache[chave];
     if (!MESTRA_LAB) MESTRA_LAB = MESTRA.map(labDe);
-    var a = labDe(hex), lEvitar = evitar ? labDe(evitar)[0] : Infinity, melhor = null, md = Infinity;
+    var a = labDe(hex), lEvitar = evitar ? labDe(evitar)[0] : 0, melhor = null, md = Infinity;
     for (var i = 0; i < MESTRA.length; i++) {
       var b = MESTRA_LAB[i], h = '#' + MESTRA[i];
-      if (evitar && (h === evitar || b[0] >= lEvitar)) continue;
+      if (evitar && (h === evitar || (claro ? b[0] <= lEvitar : b[0] >= lEvitar))) continue;
       var d = (a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]);
       if (d < md) { md = d; melhor = h; }
     }
     return (mestraCache[chave] = melhor || naMestra(hex));
   }
-  // as cores por papel (coresMolde ou coresComCamadas) levadas à mestra; cada sombra diferente da sua base
-  var SOMBRA_DE = { 3: 2, 5: 4, 11: 10 };
+  // as cores por papel (coresMolde ou coresComCamadas) levadas à mestra; cada tom derivado diferente da sua base e do lado
+  // certo dela: as sombras (pelagem, crina, branco das marcas, a manta sob o capacete) mais escuras; o tom 2 da seda mais
+  // escuro numa seda clara e mais claro numa escura (como o coresComCamadas o deriva)
+  var SOMBRA_DE = { 3: 2, 5: 4, 11: 10, 15: 14 };
   function coresNaMestra(cores) {
     var out = cores.map(function (c) { return c ? naMestra(c.toLowerCase()) : c; });
+    var escuro = function (a, b) { return lum(a) < lum(b); };
     Object.keys(SOMBRA_DE).forEach(function (k) {
       var b = SOMBRA_DE[k];
-      if (out[k] && out[b] && out[k] === out[b]) out[k] = naMestra(cores[k].toLowerCase(), out[b]);
+      if (out[k] && out[b] && !escuro(out[k], out[b])) out[k] = naMestra(cores[k].toLowerCase(), out[b]);
     });
+    if (out[13] && out[7]) {
+      var claro = lum(cores[7]) < 0.5;
+      if (claro ? !escuro(out[7], out[13]) : !escuro(out[13], out[7])) out[13] = naMestra(cores[13].toLowerCase(), out[7], claro);
+    }
     return out;
   }
 
