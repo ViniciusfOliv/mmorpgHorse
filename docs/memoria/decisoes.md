@@ -3,6 +3,15 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-21 — Integração da arte, etapa 1b (paleta e cavalos 1:1 fora da corrida)
+- **Cores da interface pelos papéis do guia** (fundo `2e222f`, painéis `313638`/`374e4a`, destaque `165a4c`, linha
+  `547e64`, texto `c7dcd0`, ouro `f9c22b`). Os painéis são mais claros que o verde-escuro de antes: Fogo `f79617`, Água
+  `8fd3ff`, perda `f68181`, Mítico com texto branco e alguns botões com fundo mais escuro, para passar de 4,5:1.
+- **Cor do cavalo trocada pela mais próxima da Resurrect 64 na hora de recolorir** (CIELAB), sem mudar o save; sombra,
+  tom 2 da seda e manta nunca caem na cor da base.
+- **Cavalo 1:1 em todo retrato** (guia §7): o retrato grande mostra mais baia, não um cavalo maior. **No pódio, o 1º não
+  é mais ampliado**: destaque pelo degrau, holofote e ouro.
+
 ## 2026-11-21 — Integração da arte, etapa 1a (interface na Galmuri)
 - **Ordem nova da etapa 1** (aprovada pelo Vinicius): 1a interface, 1b paleta e cavalos 1:1 fora da corrida; a grade da
   corrida, o texto do canvas e os cavalos 1:1 na corrida vão junto com a etapa 2 (a pista de hoje é da grade grossa).
