@@ -6572,7 +6572,7 @@ try {
       const b = await pg.evaluate((p) => [p, 'voltar'].map((a) => { const el = document.querySelector(`.acoes [data-acao="${a}"]`); if (!el) return null; const r = el.getBoundingClientRect(); return { top: Math.round(r.top), h: r.height } }), primeiro)
       if (!b[0] || !b[1] || Math.abs(b[0].top - b[1].top) > 1 || b[0].h < 44 || b[1].h < 44) problems.push(`[${label}] botões ${primeiro} e voltar fora de uma linha ou baixos: ${JSON.stringify(b)}`)
     }
-    // pódio: os três cavalos inteiros no canvas, sem sobrepor, o 1º maior (window.__galope.podio, em px de CSS do canvas)
+    // pódio: os três cavalos inteiros no canvas, sem sobrepor, o 1º mais alto (window.__galope.podio, em px de CSS do canvas)
     const conferePodio = async (pg, label) => {
       const p = await pg.evaluate(() => { const cv = document.querySelector('canvas[data-podio]').getBoundingClientRect(); return { w: cv.width, h: cv.height, caixas: window.__galope.podio } })
       const ruim = (m) => problems.push(`[${label}] pódio: ${m} ${JSON.stringify(p)}`)
@@ -6585,7 +6585,8 @@ try {
         if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) ruim(`caixas do ${a.lugar}º e do ${b.lugar}º se sobrepõem`)
       }
       const g = por(1)
-      for (const o of [por(2), por(3)]) if (!(g.escala > o.escala && g.w > o.w && g.h > o.h)) ruim(`o 1º não é maior que o ${o.lugar}º`)
+      // etapa 1b da direção de arte: os três 1:1 (o guia não deixa ampliar o molde); o 1º fica no degrau mais alto
+      for (const o of [por(2), por(3)]) if (!(Math.abs(g.escala - o.escala) < 0.001 && g.y + g.h < o.y + o.h)) ruim(`o 1º não está 1:1 e acima do ${o.lugar}º`)
       if (p.w !== 336) ruim(`canvas com ${p.w} px de largura (esperado 336)`)
       return p
     }

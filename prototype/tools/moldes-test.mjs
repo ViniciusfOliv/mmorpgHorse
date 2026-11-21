@@ -2806,13 +2806,20 @@ const pecaOk = { nome: 'x', mapa: ['.k', 'kk'], legenda: { k: '--sombra' } };
 test('lerTokens: só os hex do primeiro :root, em #rrggbb minúsculo', () => {
   const t = IA.lerTokens(':root { --a: #ABC; --b: #112233; --c: 12px; --d: rgb(1,2,3); }\n:root { --e: #000000; }');
   assert.deepStrictEqual(t, { '--a': '#aabbcc', '--b': '#112233' });
-  assert.strictEqual(TOK['--sombra'], '#060d0a');
+  assert.strictEqual(TOK['--sombra'], '#2e222f');
 });
 test('os 4 tokens novos estão no :root', () => {
-  assert.strictEqual(TOK['--linha-luz'], '#4a6e5c');
-  assert.strictEqual(TOK['--ouro-medio'], '#c99a1c');
-  assert.strictEqual(TOK['--prego'], '#9aa3a0');
-  assert.strictEqual(TOK['--prego-luz'], '#e6ece9');
+  assert.strictEqual(TOK['--linha-luz'], '#92a984');
+  assert.strictEqual(TOK['--ouro-medio'], '#f79617');
+  assert.strictEqual(TOK['--prego'], '#9babb2');
+  assert.strictEqual(TOK['--prego-luz'], '#ffffff');
+});
+// etapa 1b da direção de arte (guia §3): todo token de cor em hex do :root é da Resurrect 64
+await testA('os tokens de cor do :root são da paleta-mestra (Resurrect 64)', async () => {
+  const { RESURRECT64 } = await import('./arte-paleta.mjs');
+  const mestra = new Set(RESURRECT64.map(h => '#' + h.toLowerCase()));
+  const fora = Object.entries(TOK).filter(([, v]) => !mestra.has(v)).map(([k, v]) => k + ' ' + v);
+  assert.deepStrictEqual(fora, []);
 });
 test('cada peça do catálogo passa na validação contra o game.css', () => {
   assert.ok(IA.PECAS.length >= 5);

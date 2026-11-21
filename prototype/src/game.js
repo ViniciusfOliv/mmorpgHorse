@@ -1246,6 +1246,18 @@
   function escalaRetrato(tamanho) {
     return tamanho === 'pequeno' ? PORTRAIT_SCALE_PEQUENO : tamanho === 'grande' ? PORTRAIT_SCALE_GRANDE : PORTRAIT_SCALE;
   }
+  // Na grade de pixel (etapa 1b da direção de arte, guia §2 e §7): o retrato tem um tamanho em pixels de arte e sai na
+  // escala da grade (gradeS); o cavalo aparece 1:1 (1 pixel do molde = 1 pixel de arte) em todos os tamanhos — o grande
+  // mostra mais baia, não um cavalo maior. O cavalo parado tem ~52 px até as orelhas: a baia tem pelo menos 56 de altura.
+  var RETRATO_ARTE = { normal: [96, 72], pequeno: [64, 56], grande: [160, 96] };
+  function setupCanvasGrade(cv, artW, artH) {
+    var r = dpr(), k = gradeS || Math.max(1, Math.round(1.5 * r));
+    cv.width = artW * k; cv.height = artH * k;
+    cv.style.width = (artW * k / r) + 'px'; cv.style.height = (artH * k / r) + 'px';
+    var ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    return { ctx: ctx, k: k };
+  }
   function portraitHtml(horse, opts) {
     opts = opts || {};
     var id = portraitQueue.length;
@@ -1322,7 +1334,8 @@
         var entry = portraitQueue[Number(cv.getAttribute('data-retrato'))];
         if (!entry) return;
         var o = entry.opts, horse = entry.horse;
-        var s = setupCanvas(cv, PORTRAIT_W, PORTRAIT_H, escalaRetrato(o.tamanho));
+        var dim = RETRATO_ARTE[o.tamanho === 'pequeno' || o.tamanho === 'grande' ? o.tamanho : 'normal'], RW = dim[0], RH = dim[1];
+        var s = setupCanvasGrade(cv, RW, RH);
         var seed = (horse.name.charCodeAt(0) || 0) + (horse.name.length * 3);
         var phase = (seed % 10) * 0.37;
         var vis = opcoesVisuais(horse, o.jockey ? (o.joquei || joqueiDoJogador()) : null);
@@ -1331,12 +1344,13 @@
           draw: function (t) {
             if (item.drawn && reduced()) return;
             item.drawn = true;
-            drawStall(s.ctx, s.k, PORTRAIT_W, PORTRAIT_H, seed);
-            // quadro: o molde inteiro cabe na altura da baia (o desenho por código já cabe)
+            drawStall(s.ctx, s.k, RW, RH, seed);
+            // o molde 1:1 na grade, com os cascos na palha e o corpo no meio da baia (sem moldes, o desenho por código)
             vis.reduzido = reduced();
-            SP.drawHorse(s.ctx, 5 * s.k, 1 * s.k, comVisuais({
+            SP.drawHorse(s.ctx, Math.round((RW - 40) / 2) * s.k, (RH - 37) * s.k, comVisuais({
               palette: horse.palette, element: horse.element, idle: true, t: reduced() ? 0.5 : t + phase,
-              scale: s.k, jockey: !!o.jockey, silks: o.silks || PLAYER_SILKS, quadro: { topo: 0, base: PORTRAIT_H * s.k }
+              scale: s.k, jockey: !!o.jockey, silks: o.silks || PLAYER_SILKS,
+              quadro: { topo: 0, base: (RH - 3) * s.k, grade: s.k, centro: Math.round(RW / 2) * s.k }
             }, vis));
           }
         };
@@ -3209,11 +3223,10 @@
     var e = cenaQueue[Number(cv.getAttribute('data-cena'))];
     if (!e) return;
     // escala inteira que cabe na largura do palco e deixa a tela inteira sem rolar (em paisagem, só a cena ao lado)
-    var larg = cv.parentNode && cv.parentNode.clientWidth ? cv.parentNode.clientWidth : CENA_W * 2;
-    var alt = window.innerHeight - (window.innerHeight <= 500 ? 150 : 340);
-    var s = setupCanvas(cv, CENA_W, CENA_H, clamp(Math.floor(Math.min(larg / CENA_W, alt / CENA_H)), 1, 3));
+    // na grade da interface (etapa 1b da direção de arte): 1 pixel de arte = gradeS pixels do aparelho, como o resto da
+    // tela; os cavalos 1:1 (antes a 1,5×)
+    var s = setupCanvasGrade(cv, CENA_W, CENA_H);
     var k = s.k, ctx = s.ctx, c = CENA_CORES[e.gymId] || CENA_CORES.fogo;
-    var hk = Math.max(1, Math.round(k * 1.5));   // os cavalos a 1,5× (o quadro de 36 px de arte vira 54)
     var visB = opcoesVisuais(e.b, null), visA = opcoesVisuais(e.a, null), img = null;
     function px(x, y, w, h, cor) { ctx.fillStyle = cor; ctx.fillRect(x * k, y * k, w * k, h * k); }
     function palco(cx, cy, rx, ry) {
@@ -3237,13 +3250,14 @@
       palco(104, 64, 52, 5);
       palco(38, 106, 36, 5);
     }
-    function cavalo(h, vis, x, base, t, espelha) {
+    // o cavalo 1:1 com o corpo centrado em cx e os cascos em base (pixels de arte); espelhado em volta de cx
+    function cavalo(h, vis, cx, base, t, espelha) {
       vis.reduzido = reduced();
-      var o = comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: hk, jockey: false, silks: PLAYER_SILKS,
-        quadro: { topo: base * k - 36 * hk, base: base * k } }, vis);
-      if (!espelha) { SP.drawHorse(ctx, x * k, base * k - 36 * hk, o); return; }
-      ctx.save(); ctx.translate(x * k, 0); ctx.scale(-1, 1);
-      SP.drawHorse(ctx, 0, base * k - 36 * hk, o);
+      var o = comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k, jockey: false, silks: PLAYER_SILKS,
+        quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis);
+      if (!espelha) { SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o); return; }
+      ctx.save(); ctx.translate(2 * cx * k, 0); ctx.scale(-1, 1);
+      SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, o);
       ctx.restore();
     }
     var item = {
@@ -3255,10 +3269,10 @@
         var tt = reduced() ? 0.5 : t;
         ctx.clearRect(0, 0, cv.width, cv.height);
         fundo();
-        cavalo(e.b, visB, 116, 64, tt + 0.9, true);   // o cavalo do oponente, virado para a esquerda
+        cavalo(e.b, visB, 102, 64, tt + 0.9, true);   // o cavalo do oponente, virado para a esquerda
         img = img || treinadorImg(ginTreinadorId(e.dono));
         if (img) ctx.drawImage(img, 96 * k, 0, 64 * k, 64 * k);
-        cavalo(e.a, visA, 4, 106, tt, false);
+        cavalo(e.a, visA, 38, 106, tt, false);
       }
     };
     item.draw(0);
@@ -3408,7 +3422,7 @@
   function harasCardHtml(h, acao, kind, id, on, extra) {
     return '<button type="button" class="btn opcao haras-card' + (on ? ' sel--on' : '') + '" data-acao="' + acao + '"' +
         (kind ? ' data-kind="' + kind + '"' : '') + ' data-id="' + esc(id) + '" aria-pressed="' + on + '">' +
-      portraitHtml(h, { selo: true }) +
+      portraitHtml(h, { selo: true, tamanho: 'pequeno' }) +
       '<b class="haras-nome">' + esc(h.name) + '</b>' +
       '<span class="linha-meta">' + rarityHtml(h.rarity) + estrelasHtml(h.grau) + '</span>' +
       '<span class="linha-meta">' + elementHtml(h.element) + '</span>' +
@@ -5745,7 +5759,7 @@
   // o 2º e o 3º na escala de hoje, cada um centrado no espaço que sobra do seu lado, para as caixas não se tocarem. O
   // canvas tem 168 de arte de largura (336 px) e a altura que o cavalo maior pedir (a caixa dele, mais o lugar da seta
   // do jogador acima). Degraus, números, nomes, holofotes, confete e a seta como antes.
-  var PODIUM_W = 168, PODIUM_H_MIN = 84;
+  var PODIUM_W = 224, PODIUM_H_MIN = 84;   // na grade (etapa 1b): 224 pixels de arte, os cavalos 1:1
   var PODIO_DEGRAU = { 1: 29, 2: 25, 3: 21 };   // altura de cada degrau em arte (o "3" ainda cabe acima da faixa escura)
   var PODIO_BLOCO = { 1: 56, 2: 44, 3: 44 };     // largura de cada degrau em arte
   var PODIO_SETA = 9;                             // arte acima da caixa do cavalo: 1 de folga, a seta (4) e 4 até a caixa
@@ -5754,18 +5768,17 @@
     var L = ui.lobby; if (!L || !L.sim) return;
     var top3 = L.sim.finishOrder.slice(0, 3);
     var playerOnPodium = top3.indexOf(L.playerIdx) >= 0;
-    var k = Math.max(1, Math.round(2 * dpr()));   // a escala do setupCanvas(…, 2) abaixo
-    var passo = Math.max(1, Math.round(k / 2));
-    // cada lugar: o cavalo (opções do drawHorse), a escala e a caixa medida com os cascos em y = 0. O quadro não tem
-    // topo (−1e6): os cascos ficam na base, o molde nunca desce de escala nem é cortado, e a caixa medida aqui é a
-    // desenhada; o canvas cresce para ela caber
+    var k = gradeS || Math.max(1, Math.round(1.5 * dpr()));   // a escala da grade (setupCanvasGrade abaixo)
+    // cada lugar: o cavalo (opções do drawHorse) e a caixa medida com os cascos em y = 0 e o corpo em x = 0. Na grade
+    // (etapa 1b da direção de arte) os três cavalos saem 1:1, do mesmo tamanho: o 1º se destaca pelo degrau mais alto, o
+    // holofote e o ouro (o guia não deixa ampliar o molde); o canvas cresce para a caixa caber
     var slots = [1, 2, 3].map(function (place) {
       var ri = top3[place - 1];
       if (ri == null) return null;
-      var r = L.racers[ri], kS = place === 1 ? k + passo : k;
+      var r = L.racers[ri], kS = k;
       var opts = comVisuais({
         palette: r.horse.palette, element: r.horse.element, idle: true, t: 0,
-        scale: kS, silks: r.silks, shadow: false, quadro: { topo: -1e6, base: 0 }
+        scale: kS, silks: r.silks, shadow: false, quadro: { topo: -1e6, base: 0, grade: k, centro: 0 }
       }, opcoesVisuais(r.horse, joqueiDoCorredor(L, ri)));   // parte 2a
       var b = SP.horseBox(0, -HORSE_PE * kS, opts);
       var alto = Math.max(-b.y, HORSE_PE * kS);   // o desenho por código ocupa HORSE_PE·kS acima dos cascos
@@ -5774,7 +5787,7 @@
     });
     var H = PODIUM_H_MIN;
     slots.forEach(function (sl) { if (sl) H = Math.max(H, PODIO_DEGRAU[sl.place] + Math.ceil(sl.alto / k) + PODIO_SETA); });
-    var s = setupCanvas(cv, PODIUM_W, H, 2), ctx = s.ctx;
+    var s = setupCanvasGrade(cv, PODIUM_W, H), ctx = s.ctx;
     // posições (px do canvas): o 1º centrado; o 2º no meio do espaço à esquerda dele; o 3º no da direita
     var W = PODIUM_W * k, g = slots[0];
     g.left = Math.round(W / 2 - g.bw / 2);
@@ -5787,7 +5800,7 @@
       sl.cx = (sl.left + sl.bw / 2) / k;           // centro do cavalo e do degrau, em arte
       sl.hx = sl.left - sl.bx;
       sl.hy = sl.top * k - HORSE_PE * sl.kS;
-      sl.opts.quadro = { topo: -1e6, base: sl.top * k };   // em pé no degrau (o canvas já tem a altura da caixa)
+      sl.opts.quadro = { topo: -1e6, base: sl.top * k, grade: k, centro: sl.left - sl.bx };   // em pé no degrau, 1:1
       sl.caixa = SP.horseBox(sl.hx, sl.hy, sl.opts);
       podio.push({ lugar: sl.place, x: sl.caixa.x / dpr(), y: sl.caixa.y / dpr(), w: sl.caixa.w / dpr(), h: sl.caixa.h / dpr(), escala: sl.kS / dpr() });
     });

@@ -1554,6 +1554,47 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     return o.idle ? 'parado' : 'galope';
   }
 
+  // Paleta-mestra (guia de arte §3, etapa 1b): toda cor de cavalo pintada sai da Resurrect 64. O dado do cavalo (o hex do
+  // save, a mistura do potro) não muda: a cor é trocada pela mais próxima da mestra (CIELAB) na hora de recolorir. A
+  // sombra de um papel não pode cair na mesma cor da base (a sombra sumiria): aí vale a mais próxima entre as mais escuras.
+  var MESTRA = ('2e222f 3e3546 625565 966c6c ab947a 694f62 7f708a 9babb2 c7dcd0 ffffff 6e2727 b33831 ea4f36 f57d4a ae2334 ' +
+    'e83b3b fb6b1d f79617 f9c22b 7a3045 9e4539 cd683d e6904e fbb954 4c3e24 676633 a2a947 d5e04b fbff86 165a4c 239063 1ebc73 ' +
+    '91db69 cddf6c 313638 374e4a 547e64 92a984 b2ba90 0b5e65 0b8a8f 0eaf9b 30e1b9 8ff8e2 323353 484a77 4d65b4 4d9be6 8fd3ff ' +
+    '45293f 6b3e75 905ea9 a884f3 eaaded 753c54 a24b6f cf657f ed8099 831c5d c32454 f04f78 f68181 fca790 fdcbb0').split(' ');
+  function labDe(hex) {
+    var v = hexToRgb(hex).map(function (c) { c /= 255; return c > 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92; });
+    var f = function (t) { return t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116; };
+    var x = f((v[0] * 0.4124 + v[1] * 0.3576 + v[2] * 0.1805) / 0.95047), y = f(v[0] * 0.2126 + v[1] * 0.7152 + v[2] * 0.0722);
+    var z = f((v[0] * 0.0193 + v[1] * 0.1192 + v[2] * 0.9505) / 1.08883);
+    return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+  }
+  var MESTRA_LAB = null, mestraCache = {};
+  // a cor da mestra mais perto de hex; com evitar, uma diferente dela e mais escura (para as sombras)
+  function naMestra(hex, evitar) {
+    if (!hex) return hex;
+    var chave = hex + '|' + (evitar || '');
+    if (mestraCache[chave]) return mestraCache[chave];
+    if (!MESTRA_LAB) MESTRA_LAB = MESTRA.map(labDe);
+    var a = labDe(hex), lEvitar = evitar ? labDe(evitar)[0] : Infinity, melhor = null, md = Infinity;
+    for (var i = 0; i < MESTRA.length; i++) {
+      var b = MESTRA_LAB[i], h = '#' + MESTRA[i];
+      if (evitar && (h === evitar || b[0] >= lEvitar)) continue;
+      var d = (a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]);
+      if (d < md) { md = d; melhor = h; }
+    }
+    return (mestraCache[chave] = melhor || naMestra(hex));
+  }
+  // as cores por papel (coresMolde ou coresComCamadas) levadas à mestra; cada sombra diferente da sua base
+  var SOMBRA_DE = { 3: 2, 5: 4, 11: 10 };
+  function coresNaMestra(cores) {
+    var out = cores.map(function (c) { return c ? naMestra(c.toLowerCase()) : c; });
+    Object.keys(SOMBRA_DE).forEach(function (k) {
+      var b = SOMBRA_DE[k];
+      if (out[k] && out[b] && out[k] === out[b]) out[k] = naMestra(cores[k].toLowerCase(), out[b]);
+    });
+    return out;
+  }
+
   // Cores por papel (índice 0–9) para as opções do drawHorse.
   function coresMolde(o) {
     var pal = o.palette || PALETTES.neutro;
@@ -1632,12 +1673,12 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   // chave e os pixels de antes da parte 2a.
   // As camadas saem do marcas.js só na falta (uma vez por cavalo e quadro; na corrida, na largada).
   function moldeRecolorido(nome, estado, quadro, o) {
-    var cores = coresMolde(o), v = visuaisMolde(o);
+    var cores = coresNaMestra(coresMolde(o)), v = visuaisMolde(o);
     var key = nome + '|' + estado + '|' + quadro + '|' + cores.slice(2, 8).join(',') + (v ? v.chave : '');
     var c = moldCache.get(key);
     if (!c) {
       var M = moldes[nome], idx = indicesMolde(M, estado, quadro);
-      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v), M.w, M.h, coresComCamadas(cores, v))
+      c = v ? pintaIndices(indicesComCamadas(idx, M.w, M.h, ancoraMolde(M, estado, quadro), v), M.w, M.h, coresNaMestra(coresComCamadas(cores, v)))
         : pintaIndices(idx, M.w, M.h, cores);
       moldCache.set(key, c);
     }
@@ -1681,8 +1722,15 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   // descer de S 3 para S 2 em k = 4 (dpr 1,25 a 1,4, o zoom de 125 % do Windows) e ficar menor que o padrão. O corte de
   // cada molde fica no máximo o do mais alto (com os moldes dos portes, até 6,9 % no retrato do robusto-ondas em k = 3,
   // 6 e 9). A outra saída, tolerar mais corte, cortaria a cabeça do robusto (14 % em k = 4).
+  // quadro.grade (etapa 1b da direção de arte, guia §2 e §7): o molde 1:1 na grade de pixel — 1 pixel do molde = 1 pixel
+  // de arte = quadro.grade pixels do canvas —, com os cascos em quadro.base e o corpo centrado em quadro.centro (pixels do
+  // canvas); nada de escala variável nem de "meia escala"
   function layoutMolde(nome, estado, x, y, k, quadro) {
     var M = moldes[nome], ref = M.estados[estado];
+    if (quadro && quadro.grade) {
+      var G = quadro.grade, peG = quadro.base, oxG = Math.round((quadro.centro != null ? quadro.centro : x) - ref.centro * G);
+      return { S: G, ox: oxG, oy: peG - (ref.footY + 1) * G, pe: peG, topo: peG - ref.altura * G, cx: Math.round(oxG + ref.centro * G), grade: true };
+    }
     var S = moldScale(k), pe = y + (FOOT_Y + 1) * k, ox;
     if (quadro && isFinite(quadro.topo) && isFinite(quadro.base) && quadro.base > quadro.topo) {
       var livre = quadro.base - quadro.topo, alta = Math.max(ref.altura, alturaMaxEstado[estado] || 0);
@@ -1705,9 +1753,15 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     crisp(ctx);
     if (o.shadow !== false) {   // a mesma sombra do sprite por código, sob os cascos e centrada no corpo do molde
       ctx.fillStyle = 'rgba(20,10,20,0.28)';
-      var sy = L.pe - 2 * k;
-      ctx.fillRect(L.cx - 11 * k, sy, 22 * k, k);
-      ctx.fillRect(L.cx - 9 * k, sy + k, 18 * k, k);
+      if (L.grade) {   // na grade: a sombra em pixels do molde (opaca seria mancha; o véu fica até a etapa 2 trocar a pista)
+        var u = L.S, syG = L.pe - 3 * u;
+        ctx.fillRect(L.cx - 16 * u, syG, 32 * u, u);
+        ctx.fillRect(L.cx - 13 * u, syG + u, 26 * u, u);
+      } else {
+        var sy = L.pe - 2 * k;
+        ctx.fillRect(L.cx - 11 * k, sy, 22 * k, k);
+        ctx.fillRect(L.cx - 9 * k, sy + k, 18 * k, k);
+      }
     }
     ctx.drawImage(moldeRecolorido(nome, estado, quadro, o), L.ox, L.oy, M.w * L.S, M.h * L.S);
   }

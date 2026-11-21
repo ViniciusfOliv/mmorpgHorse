@@ -4,75 +4,77 @@
    Grade de pixel (guia de arte §2): molduras, sombras e letras em múltiplos de --px (1 pixel de arte); Galmuri só no
    tamanho nativo de cada arquivo (--t-*). */
 :root {
+  /* cores (guia de arte §3, etapa 1b): toda cor é da Resurrect 64, pelos papéis fixos do guia; os véus translúcidos
+     (--escuro-*, --veu, --brilho-*, --holofote) são da interface, não de sprite */
   color-scheme: dark;
   /* chão e painéis */
-  --noite: #0f1c17;
-  --noite-2: #0b1611;
-  --painel: #16271f;
-  --painel-2: #1e3329;
-  --painel-3: #284438;
-  --linha: #335446;
-  --linha-luz: #4a6e5c;
-  --sombra: #060d0a;
+  --noite: #2e222f;
+  --noite-2: #3e3546;
+  --painel: #313638;
+  --painel-2: #374e4a;
+  --painel-3: #547e64;
+  --linha: #547e64;
+  --linha-luz: #92a984;
+  --sombra: #2e222f;
   /* madeira (placas) */
-  --madeira: #6b4a2b;
-  --madeira-2: #523720;
-  --madeira-luz: #8a6440;
+  --madeira: #9e4539;
+  --madeira-2: #4c3e24;
+  --madeira-luz: #cd683d;
   /* texto */
-  --texto: #f1e9d4;
-  --texto-2: #b3c2b2;
-  --texto-3: #95a99b;
-  --tinta: #1a1405;
+  --texto: #c7dcd0;
+  --texto-2: #9babb2;
+  --texto-3: #92a984;
+  --tinta: #2e222f;
   /* acentos */
-  --ouro: #f2c230;
-  --ouro-claro: #ffe27a;
-  --ouro-escuro: #9c7210;
-  --ouro-medio: #c99a1c;
-  --prego: #9aa3a0;
-  --prego-luz: #e6ece9;
-  --ganho: #7be07a;
-  --perda: #ff6b5e;
-  --foco: #62e6ff;
+  --ouro: #f9c22b;
+  --ouro-claro: #fbff86;
+  --ouro-escuro: #f79617;
+  --ouro-medio: #f79617;
+  --prego: #9babb2;
+  --prego-luz: #ffffff;
+  --ganho: #91db69;
+  --perda: #e83b3b;
+  --foco: #8ff8e2;
   /* elementos (texto legível sobre o painel) */
-  --fogo: #ff8a4c;
-  --agua: #62b8ff;
-  --grama: #86d86a;
-  --geral: #cfc8b4;
+  --fogo: #fb6b1d;
+  --agua: #4d9be6;
+  --grama: #91db69;
+  --geral: #b2ba90;
   /* raridades (GameData.RARITIES) */
-  --r-comum: #9e9e9e;
-  --r-magico: #4caf50;
-  --r-raro: #2196f3;
-  --r-lendario: #ff9800;
-  --r-mitico: #9c27b0;
+  --r-comum: #9babb2;
+  --r-magico: #1ebc73;
+  --r-raro: #4d9be6;
+  --r-lendario: #f79617;
+  --r-mitico: #905ea9;
   /* ligas (GameData.LEAGUES) */
-  --l-bronze: #b0703c;
-  --l-prata: #b8c2cc;
-  --l-ouro: #f2c230;
-  --l-platina: #5fd3c8;
-  --l-diamante: #7ab8ff;
-  --l-lenda: #ff7a3d;
+  --l-bronze: #cd683d;
+  --l-prata: #c7dcd0;
+  --l-ouro: #f9c22b;
+  --l-platina: #8ff8e2;
+  --l-diamante: #8fd3ff;
+  --l-lenda: #f57d4a;
   /* sedas dos jóqueis (Sprites.SILKS) */
-  --seda-0: #d8353b;
-  --seda-1: #2f6fd8;
-  --seda-2: #f2c230;
-  --seda-3: #8a4ad8;
-  --seda-4: #30b060;
-  --seda-5: #f07a2a;
-  --seda-6: #e85aa8;
-  --seda-7: #2ab8b0;
+  --seda-0: #e83b3b;
+  --seda-1: #4d65b4;
+  --seda-2: #f9c22b;
+  --seda-3: #a884f3;
+  --seda-4: #1ebc73;
+  --seda-5: #fb6b1d;
+  --seda-6: #f04f78;
+  --seda-7: #0eaf9b;
   /* pódio */
-  --prata: #c9d3dc;
-  --bronze: #c98a52;
+  --prata: #c7dcd0;
+  --bronze: #e6904e;
   /* cena dos retratos (baia) */
-  --tabua: #243a31;
-  --palha: #a5823f;
-  --palha-2: #6f5526;
+  --tabua: #313638;
+  --palha: #ab947a;
+  --palha-2: #4c3e24;
   /* véus e brilhos (sobreposições) */
   --escuro-35: rgb(0 0 0 / 0.35);
   --escuro-25: rgb(0 0 0 / 0.25);
   --brilho-08: rgb(255 255 255 / 0.08);
   --brilho-33: rgb(255 255 255 / 0.33);
-  --veu: rgb(6 13 10 / 0.74);
+  --veu: rgb(46 34 47 / 0.74);
   --holofote: rgb(255 226 122 / 0.06);
   /* tipografia */
   /* Galmuri (guia de arte §6): cada tamanho tem o seu arquivo e só aparece no tamanho nativo, em múltiplos do pixel
@@ -322,7 +324,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   padding-top: 16px; padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
   margin-bottom: -12px;
   /* degraus de pixel em vez de degradê suave */
-  background: linear-gradient(to bottom, transparent 0 6px, rgb(15 28 23 / 0.6) 6px 10px, var(--noite) 10px);
+  background: linear-gradient(to bottom, transparent 0 6px, rgb(46 34 47 / 0.6) 6px 10px, var(--noite) 10px);
 }
 
 /* resumo do equipamento (um quadrinho por slot + selo do conjunto) */
@@ -554,7 +556,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .status .valor { font-family: var(--fonte-display); font-size: var(--t-m); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 3ch; }
 .status .delta { font-family: var(--fonte-9); font-size: var(--t-s); font-weight: 700; margin-left: 4px; }
 .icone-status { width: 16px; height: 16px; flex: none; fill: var(--ouro); }
-.icone-status--vel { fill: #ffd86a; }
+.icone-status--vel { fill: #fbff86; }
 .icone-status--acel { fill: var(--fogo); }
 .icone-status--est { fill: var(--perda); }
 .icone-status--forca { fill: var(--grama); }
@@ -1019,7 +1021,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .abas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .haras-sel { display: grid; grid-auto-flow: column; grid-auto-columns: 148px; gap: 12px; overflow-x: auto; overscroll-behavior-x: contain; padding: 4px 4px 10px; min-width: 0; position: relative; }
 .haras-card { gap: 4px; padding: 8px; font-family: var(--fonte-9); font-size: var(--t-s); }
-.haras-card .retrato { align-self: center; width: 96px !important; height: 72px !important; margin-bottom: 4px; }
+.haras-card .retrato { align-self: center; margin-bottom: 4px; }   /* o tamanho vem da grade (nunca ampliado nem encolhido pelo CSS) */
 .haras-card .retrato-moldura { align-self: center; margin-bottom: 4px; }
 .haras-card .retrato-moldura .retrato { margin-bottom: 0; }
 .haras-card .linha-meta { gap: 4px 8px; font-family: var(--fonte-9); font-size: var(--t-s); }
