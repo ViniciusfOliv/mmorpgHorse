@@ -619,7 +619,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .linha-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-family: var(--fonte-9); font-size: var(--t-s); }
 .nivel { font-size: inherit; line-height: var(--lh-s); color: var(--texto); white-space: nowrap; }   /* "Nv 3": na fonte do texto em volta, como o selo de nível */
 
-.build-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.build-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+/* o rótulo "Genética ⓘ" em legenda (Galmuri7): com a Galmuri9 o topo não cabia numa linha a 360 px */
+.build-topo > span.nota { font-family: var(--fonte-7); font-size: var(--t-7); line-height: var(--lh-7); }
 .build-topo .pontos-livres { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); color: var(--texto); }   /* Galmuri9: o topo cabe numa linha a 360 px */
 .build-topo .pontos-livres b { color: var(--ganho); }
 .build { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -824,6 +826,8 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .gin-vant--mais { box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 8px; }
 .gin-vant--menos { box-shadow: inset 4px 0 0 0 var(--perda); padding-left: 8px; }
 .gin-desafio .acoes .btn { width: 100%; }
+/* tela de desafio: "Começar duelo" e "Pular tudo" numa linha cada, lado a lado, mesmo a 360 px com a Galmuri11 */
+.tela--desafio > .acoes .btn { padding-left: 8px; padding-right: 8px; white-space: nowrap; }
 /* resumo: um duelo por linha (o texto, a plaquinha de quem venceu e o fôlego de quem seguiu), o XP de cada cavalo e a etapa liberada */
 .gin-duelos, .gin-xp { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .gin-duelo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; background: var(--painel-2); padding: 6px 8px; min-width: 0; }
