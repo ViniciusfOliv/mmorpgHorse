@@ -2863,16 +2863,14 @@ test('cssArte: uma propriedade --arte-<nome> por peça e determinístico', () =>
   assert.ok(a.startsWith(':root {'));
 });
 const FONTES = await IA.cssFontes(PROTO);
-test('cssFontes: dois @font-face, data: antes da URL do gstatic', () => {
-  const f = FONTES;
-  const faces = f.match(/@font-face\s*\{[^}]*\}/g) || [];
-  assert.strictEqual(faces.length, 2);
-  for (const fam of ["'Press Start 2P'", "'Jersey 10'"]) {
-    const face = faces.find(x => x.includes(fam));
+test('cssFontes: as quatro Galmuri embutidas em TTF, sem rede', () => {
+  const faces = FONTES.match(/@font-face\s*\{[^}]*\}/g) || [];
+  assert.strictEqual(faces.length, 4);
+  for (const fam of ["'Galmuri11 Bold'", "'Galmuri11'", "'Galmuri9'", "'Galmuri7'"]) {
+    const face = faces.find(x => x.includes('font-family: ' + fam + ';'));
     assert.ok(face, fam);
-    const d = face.indexOf('data:font/woff2;base64,'), g = face.indexOf('https://fonts.gstatic.com/');
-    assert.ok(d >= 0 && g > d, fam + ': data antes do gstatic');
-    assert.ok(/font-display:\s*swap/.test(face) && /font-weight:\s*400/.test(face) && /font-style:\s*normal/.test(face), fam);
+    assert.ok(face.includes('data:font/ttf;base64,') && !/https?:/.test(face), fam + ': só data:, sem URL de rede');
+    assert.ok(/font-display:\s*block/.test(face) && /font-weight:\s*400/.test(face) && /font-style:\s*normal/.test(face), fam);
   }
 });
 test('o game.css não importa fontes da rede', () => {

@@ -1,7 +1,8 @@
 /* Layout: uma coluna central (até 520px) de painéis no estilo "programa de corrida";
    a pista quebra a coluna (sangra até a borda no celular, cresce até 1120px no desktop).
    Mundo único: estábulo à noite (piso de tábuas), cerca creme e placar dourado.
-   Grade de pixel: molduras e sombras em múltiplos de 2px; Press Start 2P só em 8, 16 ou 24px. */
+   Grade de pixel (guia de arte §2): molduras, sombras e letras em múltiplos de --px (1 pixel de arte); Galmuri só no
+   tamanho nativo de cada arquivo (--t-*). */
 :root {
   color-scheme: dark;
   /* chão e painéis */
@@ -74,13 +75,22 @@
   --veu: rgb(6 13 10 / 0.74);
   --holofote: rgb(255 226 122 / 0.06);
   /* tipografia */
-  --fonte-display: 'Press Start 2P', ui-monospace, 'Courier New', monospace;
-  --fonte-ui: 'Jersey 10', 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', system-ui, sans-serif;
-  --t-xs: 0.9375rem;
-  --t-s: 1.0625rem;
-  --t-m: 1.25rem;
-  --t-l: 1.625rem;
-  /* contorno em pixel (cantos recortados) */
+  /* Galmuri (guia de arte §6): cada tamanho tem o seu arquivo e só aparece no tamanho nativo, em múltiplos do pixel
+     de arte (--px); nunca ampliada nem reduzida. 11 Bold: títulos e números; 11: corpo; 9: secundário; 7: miúdo. */
+  --fonte-display: 'Galmuri11 Bold', 'Galmuri11', monospace;
+  --fonte-ui: 'Galmuri11', monospace;
+  --fonte-9: 'Galmuri9', monospace;
+  --fonte-7: 'Galmuri7', monospace;
+  --t-l: calc(var(--px) * 12);
+  --t-m: calc(var(--px) * 12);
+  --t-s: calc(var(--px) * 10);
+  --t-xs: calc(var(--px) * 10);
+  --t-7: calc(var(--px) * 8);
+  --lh-m: calc(var(--px) * 16);
+  --lh-s: calc(var(--px) * 14);
+  --lh-7: calc(var(--px) * 10);
+  /* 1 pixel de arte em CSS (guia de arte §2): s / devicePixelRatio, com s = round(largura da coluna em pixels do
+     aparelho / 256); o game.js calcula e grava aqui (aplicaGrade). Molduras e sombras de pixel usam múltiplos dele. */
   --px: 2px;
   --sat: env(safe-area-inset-top, 0px);   /* área segura do topo (entalhe/barra de status com viewport-fit=cover) */
   --gl: max(16px, env(safe-area-inset-left, 0px));
@@ -98,14 +108,15 @@ body {
     linear-gradient(90deg, var(--noite-2) 2px, transparent 2px);
   background-size: 100% 32px, 128px 32px;
   color: var(--texto);
-  font: 400 var(--t-m)/1.25 var(--fonte-ui);
+  font: 400 var(--t-s)/var(--lh-s) var(--fonte-9);   /* o texto corrido é secundário (guia §6): Galmuri9; nomes, botões e títulos pedem a 11 */
   font-synthesis: none;
-  -webkit-font-smoothing: antialiased;
+  -webkit-font-smoothing: none;
   -webkit-tap-highlight-color: transparent;
 }
 button { font: inherit; color: inherit; }
 b, strong { font-weight: 400; color: var(--texto); }
-.ord { font-size: 0.5em; vertical-align: 0.8em; line-height: 0; }
+small { font-size: inherit; }   /* o "smaller" do navegador tiraria a Galmuri do tamanho nativo */
+.ord { font-family: var(--fonte-7); font-size: var(--t-7); vertical-align: 0.8em; line-height: 0; }
 /* pixelated por último: é o que o Chrome aplica (crisp-edges fica de reserva); a corrida pode ser ampliada pelo CSS */
 canvas { image-rendering: crisp-edges; image-rendering: pixelated; display: block; }
 [hidden] { display: none !important; }
@@ -132,22 +143,22 @@ canvas { image-rendering: crisp-edges; image-rendering: pixelated; display: bloc
 h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .logo {
   font-family: var(--fonte-display);
-  font-size: 24px;
+  font-size: var(--t-m);
   line-height: 1.5;
   color: var(--ouro);
-  text-shadow: 4px 4px 0 var(--sombra);
+  text-shadow: calc(var(--px) * 2) calc(var(--px) * 2) 0 var(--sombra);
 }
 .logo-mini {
-  font-family: var(--fonte-display); font-size: 8px; color: var(--ouro); line-height: 2;
+  font-family: var(--fonte-7); font-size: var(--t-7); color: var(--ouro); line-height: 2;
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.titulo { font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; color: var(--texto); }
-.titulo--tela { text-shadow: 2px 2px 0 var(--sombra); }
+.titulo { font-family: var(--fonte-display); font-size: var(--t-m); line-height: 1.5; color: var(--texto); }
+.titulo--tela { text-shadow: var(--px) var(--px) 0 var(--sombra); }
 .rotulo {
-  font-size: var(--t-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--texto-3);
+  font-family: var(--fonte-9); font-size: var(--t-s); font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--texto-3);
 }
 .sub { color: var(--texto-2); margin: 0; max-width: 60ch; }
-.nota { color: var(--texto-3); font-size: var(--t-s); margin: 0; }
+.nota { color: var(--texto-3); font-family: var(--fonte-9); font-size: var(--t-s); margin: 0; }
 
 /* ---------- painel (acabamento 3a §4.1): contorno --sombra por fora do friso --linha, bisel de 2px (claro em cima,
    médio à esquerda, escuro embaixo e à direita), sombra projetada de 8px e um rebite em cada canto ---------- */
@@ -198,7 +209,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
   align-self: center; margin-right: -2px;
 }
 .caixa > h2.titulo { justify-content: flex-start; }
-.caixa > h2 .nota { font-family: var(--fonte-ui); font-size: var(--t-s); letter-spacing: 0; margin-left: auto; }
+.caixa > h2 .nota { font-family: var(--fonte-9); font-size: var(--t-s); letter-spacing: 0; margin-left: auto; }
 
 /* placa de madeira (§4.3): a da sala de largada e o título de cada tela (o próprio h1.titulo--tela vira placa).
    Veio repetido (peça de 32x8 pixels de arte em 64x16px), bisel claro em cima e escuro embaixo, contorno --sombra
@@ -227,7 +238,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 /* texto secundário sobre a madeira: --texto (o --texto-2 fica abaixo de 4,5:1 sobre --madeira) */
 .placa .rotulo, .placa .nota, .titulo--tela .nota, .titulo--tela small { color: var(--texto); }
 /* a nota do título ("3/3 vagas") herda a display: 16px, da escala dela (com 17px, "Estábulo 3/3 vagas" quebrava a 360px) */
-.titulo--tela .nota { font-size: 16px; }
+.titulo--tela .nota { font-family: var(--fonte-ui); font-size: var(--t-m); }
 
 /* ---------- botões (§4.4–4.6): contorno --sombra de 2px com os cantos recortados (um deslocamento por lado), bisel em
    3 tons (claro 2px em cima e à esquerda, médio 2px à direita, escuro 4px embaixo) e sombra de 4px. Apertado: desce 2px
@@ -296,8 +307,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     inset 0 -4px 0 0 var(--ouro-escuro), inset -2px 0 0 0 var(--ouro-medio),
     inset 0 2px 0 0 var(--ouro-claro), inset 2px 0 0 0 var(--ouro-claro);
 }
-.btn--grande { min-height: 56px; font-size: var(--t-l); width: calc(100% - 2 * var(--px)); }
-.btn--pequeno { min-height: 48px; padding: 6px 12px; font-size: var(--t-s); }
+.btn--grande { min-height: 56px; font-family: var(--fonte-display); font-size: var(--t-l); width: calc(100% - 2 * var(--px)); }
+.btn--pequeno { min-height: 48px; padding: 6px 12px; font-family: var(--fonte-9); font-size: var(--t-s); }
 /* de texto (§4.6): sem moldura em nenhum estado */
 .btn--texto { background: transparent; color: var(--texto-2); text-decoration: underline; text-underline-offset: 3px; min-height: 48px; }
 .btn--texto, .btn--texto:disabled, .btn--texto:active:not(:disabled), .btn--texto.apertado-demo { box-shadow: none; }
@@ -326,19 +337,19 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 
 /* tela de Equipamento: saldo de pedras, linhas de slot e lista de peças */
 .topo-saldos { display: flex; align-items: center; gap: 8px; flex: none; }
-.pedras { font-family: var(--fonte-display); font-size: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--texto); }
+.pedras { font-family: var(--fonte-display); font-size: var(--t-m); white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--texto); }
 .set-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 4px 0 0; }
 .slot-linhas { display: flex; flex-direction: column; gap: 10px; }
 .slot-linha { display: flex; flex-direction: column; gap: 8px; }
 .slot-linha--aberta { background: var(--painel-2); padding-bottom: 8px; }
 .slot-botao { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; min-height: 56px; }
 .slot-nome { font-weight: 700; }
-.slot-peca { font-size: var(--t-s); color: var(--texto-2); font-weight: 400; overflow-wrap: anywhere; }
+.slot-peca { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); font-weight: 400; overflow-wrap: anywhere; }
 .pecas { display: flex; flex-direction: column; gap: 8px; padding: 0 8px; }
 .peca { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--painel); box-shadow: inset 4px 0 0 0 var(--linha); min-width: 0; }
 .peca--equipada { box-shadow: inset 4px 0 0 0 var(--ouro); }
 .peca-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.peca-poder { font-size: var(--t-s); color: var(--texto-2); }
+.peca-poder { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); }
 .acoes-peca { display: flex; flex-wrap: wrap; gap: 8px; }
 .acoes-peca .btn { flex: 1 1 auto; }
 
@@ -348,9 +359,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .loja-grade { display: grid; grid-template-columns: 1fr; gap: 10px; }
 @media (min-width: 601px) { .loja-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .produto { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--painel-2); box-shadow: inset 4px 0 0 0 var(--linha); min-width: 0; }
-.produto-nome { margin: 0; font-size: var(--t-m); overflow-wrap: anywhere; }
+.produto-nome { margin: 0; font-family: var(--fonte-ui); font-size: var(--t-m); overflow-wrap: anywhere; }
 .produto-stats { margin: 0; font-weight: 700; }
-.produto-diff { margin: 0; font-size: var(--t-s); color: var(--texto-2); }
+.produto-diff { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); }
 .produto-preco { display: flex; justify-content: flex-end; }
 /* ---------- Loja de itens e mochila (spec de itens §5, §6, §13): a linha de um item — o ícone (peça de 16x16 pixels de
    arte em 32px), o nome, a quantidade e a linha de para que serve; no produto, o preço, o limite do dia e o botão ---------- */
@@ -368,13 +379,13 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .item-icone--redea { background-image: var(--arte-item-redea); }
 .item-icone--cupom { background-image: var(--arte-item-cupom); }
 .item-icone--manual { background-image: var(--arte-item-manual); }
-.item-nome { grid-column: 2; margin: 0; font-size: var(--t-m); line-height: 24px; overflow-wrap: anywhere; }
+.item-nome { grid-column: 2; margin: 0; font-family: var(--fonte-ui); font-size: var(--t-m); line-height: 24px; overflow-wrap: anywhere; }
 .item-qtd { grid-column: 3; grid-row: 1; justify-self: end; font-weight: 700; line-height: 24px; white-space: nowrap; }
-.item-desc { grid-column: 2 / -1; margin: 0; font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }
+.item-desc { grid-column: 2 / -1; margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }
 .item-compra { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
 .item-preco { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }   /* o preço e, embaixo, o limite do dia */
 .item-compra .btn { margin-left: auto; }   /* sem espaço na linha, o botão desce para a direita */
-.item-limite { font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }
+.item-limite { font-family: var(--fonte-9); font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }
 .item-linha > .aviso, .item-linha > .motivo { grid-column: 1 / -1; margin: 4px 0 0; }
 /* quantidade 0 (mochila): a linha apagada, com a frase de onde o item vem */
 .item-linha--vazia { background: var(--painel); }
@@ -386,20 +397,20 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
    embaixo); depois do resgate, uma linha. Alturas pares (grade de 2 px). Nada se move (sem transição nem animação) ---------- */
 .diaria { gap: 8px; padding-block: 10px; }
 .diaria--linha { padding-block: 8px; }
-.diaria-linha { margin: 0; font-size: var(--t-xs); line-height: 24px; color: var(--texto-2); }
-.diaria-premio { margin: 0; font-size: var(--t-m); font-weight: 700; line-height: 24px; overflow-wrap: anywhere; }
-.diaria-num { margin-right: 8px; font-size: var(--t-xs); color: var(--ouro); white-space: nowrap; vertical-align: top; }   /* no topo da linha de 24 px: a fonte menor não estica a linha */
+.diaria-linha { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 24px; color: var(--texto-2); }
+.diaria-premio { margin: 0; font-family: var(--fonte-ui); font-size: var(--t-m); font-weight: 700; line-height: 24px; overflow-wrap: anywhere; }
+.diaria-num { margin-right: 8px; font-family: var(--fonte-9); font-size: var(--t-s); color: var(--ouro); white-space: nowrap; vertical-align: top; }   /* no topo da linha de 24 px: a fonte menor não estica a linha */
 .diaria-acoes { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
 .diaria-acoes .btn--ouro { margin-left: auto; }   /* sem espaço na linha, o Resgatar desce para a direita */
 .diaria-ver { min-height: 44px; padding-inline: 4px; }
 .diaria-dias { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .diaria-dia {
   display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; column-gap: 8px; align-items: center;
-  padding: 4px 8px 4px 12px; background: var(--painel-2); box-shadow: inset 4px 0 0 0 var(--linha); font-size: var(--t-s); line-height: 24px;
+  padding: 4px 8px 4px 12px; background: var(--painel-2); box-shadow: inset 4px 0 0 0 var(--linha); font-family: var(--fonte-9); font-size: var(--t-s); line-height: 24px;
 }
 .diaria-dia-n { font-weight: 700; white-space: nowrap; }
 .diaria-dia-premio { min-width: 0; overflow-wrap: anywhere; }
-.diaria-dia-marca { font-size: var(--t-xs); color: var(--texto-2); white-space: nowrap; }
+.diaria-dia-marca { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); white-space: nowrap; }
 .diaria-dia--feito { background: var(--painel); color: var(--texto-2); }
 .diaria-dia[aria-current] { background: var(--painel-3); box-shadow: inset 4px 0 0 0 var(--ouro); }
 .diaria-dia[aria-current] .diaria-dia-marca { color: var(--ouro); }
@@ -413,7 +424,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .item-usos > .item-uso { display: contents; }
 .item-usos > .item-uso > .btn { justify-content: flex-start; padding-inline: 8px; }
 .item-usos > .item-uso > .nota, .item-usos > .item-uso > .motivo { grid-column: 1 / -1; }
-.item-uso-info { min-width: 0; font-size: var(--t-xs); line-height: 20px; color: var(--texto-2); }
+.item-uso-info { min-width: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 20px; color: var(--texto-2); }
 .item-uso-info > span { display: block; }
 .item-uso--skill { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; }
 .item-uso--skill > .nota, .item-uso--skill > .motivo { grid-column: 1 / -1; }
@@ -456,11 +467,11 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
     inset -2px 0 0 0 var(--noite-2);
 }
 .opcao .opcao-nome { font-weight: 700; display: flex; align-items: center; gap: 6px; }
-.opcao .opcao-desc { font-size: var(--t-xs); color: var(--texto-2); font-weight: 400; line-height: 1.3; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.opcao .opcao-desc { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); font-weight: 400; line-height: 1.3; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
 .opcao--centro { align-items: center; text-align: center; justify-content: center; }
 
 /* ---------- moeda, chips, emblemas ---------- */
-.ouro { display: inline-flex; align-items: center; gap: 6px; font-family: var(--fonte-display); font-size: 16px; line-height: 1; color: var(--ouro); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ouro { display: inline-flex; align-items: center; gap: 6px; font-family: var(--fonte-display); font-size: var(--t-m); line-height: 1; color: var(--ouro); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ouro svg { width: 16px; height: 16px; flex: none; }
 /* saldo (§4.11): placar com friso --ouro-escuro, contorno --sombra, bisel e um rebite em cada canto (::before do painel) */
 .saldo {
@@ -486,14 +497,14 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
   background: var(--painel-2); color: var(--texto);
-  padding: 4px 9px; font-size: var(--t-s); font-weight: 500; line-height: 1.3;
+  padding: 4px 9px; font-family: var(--fonte-9); font-size: var(--t-s); font-weight: 500; line-height: 1.3;
   box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
     inset 0 2px 0 0 var(--linha), inset 0 -2px 0 0 var(--noite-2);
   margin: 2px;
 }
 .chip b { font-weight: 700; }
-.chip .rotulo { font-size: 0.875rem; letter-spacing: 0.1em; color: var(--texto-2); }
+.chip .rotulo { font-family: var(--fonte-9); font-size: var(--t-s); letter-spacing: var(--px); color: var(--texto-2); }
 
 .el { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; }
 .el canvas { flex: none; }
@@ -503,7 +514,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .el--geral { color: var(--geral); }   /* skills gerais */
 
 .raridade {
-  display: inline-flex; align-items: center; gap: 4px; font-size: 0.875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  display: inline-flex; align-items: center; gap: 4px; font-family: var(--fonte-9); font-size: var(--t-s); font-weight: 700; text-transform: uppercase; letter-spacing: var(--px);
   padding: 1px 6px; color: var(--tinta); background: var(--r-comum); line-height: 1.5;
   box-shadow: 0 0 0 2px var(--sombra), inset 0 2px 0 0 var(--brilho-33), inset 0 -2px 0 0 var(--escuro-25);
 }
@@ -538,10 +549,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 
 /* ---------- status ---------- */
 .status { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 10px; align-items: center; margin: 0; }
-.status dt { font-family: var(--fonte-ui); font-size: var(--t-s); color: var(--texto-2); display: flex; align-items: center; gap: 6px; min-width: 52px; }
+.status dt { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); display: flex; align-items: center; gap: 6px; min-width: 52px; }
 .status dd { margin: 0; }
-.status .valor { font-family: var(--fonte-display); font-size: 16px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 3ch; }
-.status .delta { font-family: var(--fonte-ui); font-size: var(--t-s); font-weight: 700; margin-left: 4px; }
+.status .valor { font-family: var(--fonte-display); font-size: var(--t-m); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 3ch; }
+.status .delta { font-family: var(--fonte-9); font-size: var(--t-s); font-weight: 700; margin-left: 4px; }
 .icone-status { width: 16px; height: 16px; flex: none; fill: var(--ouro); }
 .icone-status--vel { fill: #ffd86a; }
 .icone-status--acel { fill: var(--fogo); }
@@ -576,7 +587,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .xp { display: flex; flex-direction: column; gap: 4px; }
 .xp .barra { height: 10px; }
 .xp .barra > i { background: var(--agua); box-shadow: inset 0 2px 0 0 var(--brilho-33); }
-.xp-linha { display: flex; justify-content: space-between; font-size: var(--t-xs); color: var(--texto-2); font-variant-numeric: tabular-nums; }
+.xp-linha { display: flex; justify-content: space-between; font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); font-variant-numeric: tabular-nums; }
 
 /* ---------- retrato do cavalo ---------- */
 /* moldura do retrato (§4.12): madeira de 4px (--madeira, --madeira-luz em cima) por fora do contorno de hoje */
@@ -591,7 +602,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .retrato-moldura { position: relative; display: inline-block; flex: none; line-height: 0; }
 .retrato-moldura .retrato { display: block; }
 .selo-nivel, .pontos-livres--selo {
-  position: absolute; font-family: var(--fonte-ui); font-size: var(--t-s); line-height: 1; padding: 4px 6px 3px; white-space: nowrap;
+  position: absolute; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1; padding: 4px 6px 3px; white-space: nowrap;
 }
 .selo-nivel { left: 0; bottom: 0; color: var(--texto); background: var(--sombra); box-shadow: 0 0 0 2px var(--sombra), inset 0 2px 0 0 var(--linha); }
 .pontos-livres--selo {
@@ -603,13 +614,13 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
    o retrato anda 4px para a direita (e o texto fica onde estava), sem mexer na altura */
 .cavalo-cabeca > .retrato, .cavalo-cabeca > .retrato-moldura { margin: 0 -4px 0 4px; }
 .cavalo-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
-.cavalo-nome { font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; color: var(--texto); text-shadow: 2px 2px 0 var(--sombra); }
-.cavalo-titulo { color: var(--texto-2); font-size: var(--t-s); margin: 0; }
-.linha-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: var(--t-s); }
-.nivel { font-size: inherit; line-height: 1.2; color: var(--texto); white-space: nowrap; }   /* "Nv 3": na Jersey do texto em volta, como o selo de nível */
+.cavalo-nome { font-family: var(--fonte-display); font-size: var(--t-m); line-height: 1.5; color: var(--texto); text-shadow: var(--px) var(--px) 0 var(--sombra); }
+.cavalo-titulo { color: var(--texto-2); font-family: var(--fonte-9); font-size: var(--t-s); margin: 0; }
+.linha-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-family: var(--fonte-9); font-size: var(--t-s); }
+.nivel { font-size: inherit; line-height: var(--lh-s); color: var(--texto); white-space: nowrap; }   /* "Nv 3": na fonte do texto em volta, como o selo de nível */
 
 .build-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.build-topo .pontos-livres { margin: 0; font-size: var(--t-m); line-height: 1.25; color: var(--texto); }
+.build-topo .pontos-livres { margin: 0; font-family: var(--fonte-ui); font-size: var(--t-m); line-height: 1.25; color: var(--texto); }
 .build-topo .pontos-livres b { color: var(--ganho); }
 .build { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 /* linha de um status (3b §6): numa linha de 44 px o nome (o botão de ajuda), a nota, o valor com o custo do próximo ponto
@@ -622,7 +633,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 /* o nome é o próprio botão de ajuda (.ajuda--nome): ícone, sigla e a peça ⓘ (o ::before) depois dela, num alvo de 44 px */
 .ajuda.ajuda--nome {
   grid-area: nome; width: 100%; height: 44px; margin: 0; padding: 0 2px; gap: 4px; justify-content: flex-start;
-  color: var(--texto-2); font: 400 var(--t-s)/1 var(--fonte-ui); text-align: left; white-space: nowrap;
+  color: var(--texto-2); font: 400 var(--t-s)/1 var(--fonte-9); text-align: left; white-space: nowrap;
 }
 .ajuda--nome::before { order: 1; }
 .ajuda--nome:hover { color: var(--texto); }
@@ -631,20 +642,20 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 /* barra fina (6 px): os 30 segmentos sem o sulco de 2 px (o contorno --sombra fica por fora), com o brilho e a sombra
    de 2 px nos acesos */
 .barra--seg.build-barra { height: 6px; padding: 0; background: var(--sombra); box-shadow: 0 0 0 2px var(--sombra); }
-/* o valor (Press Start 2P 16) e, embaixo dele, o "+N" do rascunho e o custo do próximo ponto ("·2"), à direita */
+/* o valor (Galmuri11 Bold) e, embaixo dele, o "+N" do rascunho e o custo do próximo ponto ("·2"), à direita */
 .build-valor { grid-area: valor; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 0; }
-.build-linha .valor { font-family: var(--fonte-display); font-size: 16px; line-height: 16px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.build-linha .valor { font-family: var(--fonte-display); font-size: var(--t-m); line-height: 16px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .build-linha .valor--rascunho { color: var(--ganho); }
-.build-sub { display: flex; justify-content: flex-end; gap: 6px; font-size: var(--t-s); line-height: 1; white-space: nowrap; }
-.build-linha .delta { font-family: var(--fonte-ui); font-size: var(--t-s); font-weight: 700; margin: 0; }
-.build-custo { font-size: var(--t-s); line-height: 1; color: var(--texto-3); white-space: nowrap; }
+.build-sub { display: flex; justify-content: flex-end; gap: 6px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1; white-space: nowrap; }
+.build-linha .delta { font-family: var(--fonte-9); font-size: var(--t-s); font-weight: 700; margin: 0; }
+.build-custo { font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1; color: var(--texto-3); white-space: nowrap; }
 /* a Sorte: "de nascimento" no lugar dos botões */
 .build-linha--fixa > .build-custo { grid-area: acao; text-align: right; }
 /* 3 botões de 44 px com a margem de 2 px do .btn (o contorno): 144 px, a última coluna */
 .build-acao { grid-area: acao; display: flex; justify-content: flex-end; gap: 0; }
 .build-mais { width: 44px; min-width: 44px; min-height: 44px; margin-block: 0; padding: 0; }   /* texto do .btn--pequeno ("+10" na display passaria dos 44px) */
 .nota-genetica {
-  grid-area: nota; font-family: var(--fonte-display); font-size: 16px; line-height: 1; padding: 4px; text-align: center; min-width: 2ch;
+  grid-area: nota; font-family: var(--fonte-display); font-size: var(--t-m); line-height: 1; padding: 4px; text-align: center; min-width: 2ch;
   color: var(--tinta); background: var(--r-comum);
 }
 .nota-genetica--b { background: var(--r-magico); }
@@ -656,7 +667,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 /* o botão e o ⓘ da Rédea na mesma linha (na grade das .acoes, o ⓘ caía numa linha só dele) */
 .redistribuir .acoes { display: flex; align-items: center; gap: 8px; }
 .redistribuir .acoes > .btn { flex: 1 1 auto; }
-.build-rodape { font-size: var(--t-xs); }
+.build-rodape { font-family: var(--fonte-9); font-size: var(--t-s); }
 /* a barra presa dos pontos (3b §6): só com rascunho, o último bloco da aba Status (rolando até o fim, ela fica no lugar
    dela, embaixo do rodapé). Presa embaixo, acima da barra de abas do app e da área segura (no computador a barra de abas
    é a coluna da esquerda: presa no fundo da janela), dentro da coluna do painel. É uma bandeja opaca: em cima, o contorno
@@ -673,7 +684,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 /* recém-armada (o 1º toque no Confirmar): os botões não pegam toque, e o toque cai na bandeja (BARRA_GUARDA_MS) */
 .barra-acao--armando .barra-botoes { pointer-events: none; }
 .barra-pontos { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
-.barra-poder { margin: 0; font-size: var(--t-s); line-height: 1.2; color: var(--texto-2); white-space: nowrap; }
+.barra-poder { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); color: var(--texto-2); white-space: nowrap; }
 .barra-poder b { color: var(--texto); }
 .barra-poder .barra-poder-novo { color: var(--ganho); }
 .barra-botoes { display: flex; gap: 6px; margin-left: auto; }
@@ -692,25 +703,25 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .vaga-tipo--agua { box-shadow: inset 4px 0 0 0 var(--agua), inset 0 0 0 2px var(--linha); }
 .vaga-tipo--grama { box-shadow: inset 4px 0 0 0 var(--grama), inset 0 0 0 2px var(--linha); }
 .vaga-tipo b { display: flex; align-items: center; gap: 6px; }
-.vaga-tipo > span { font-size: var(--t-s); color: var(--texto-2); }
-.vaga-tipo .vaga-tipo-rotulo { font-size: var(--t-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto-3); }
-.vaga-tipo .vaga-tipo-forca { font-size: var(--t-xs); color: var(--texto-3); }
+.vaga-tipo > span { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); }
+.vaga-tipo .vaga-tipo-rotulo { font-family: var(--fonte-9); font-size: var(--t-s); font-weight: 600; text-transform: uppercase; letter-spacing: var(--px); color: var(--texto-3); }
+.vaga-tipo .vaga-tipo-forca { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-3); }
 .vaga-tipo .vaga-tipo-pontos { color: var(--texto); font-weight: 600; }   /* o efeito em pontos para este cavalo */
-.vaga-tipo .ord { font-size: 11px; vertical-align: 0.5em; }   /* o "º" de "1º terço": o sobrescrito não fica abaixo do mínimo de 11 px */
+.vaga-tipo .ord { vertical-align: 0.5em; }   /* o "º" de "1º terço": Galmuri7, o menor tamanho nativo */
 .caixa[aria-label="Skills"] .vaga-tipo { margin-bottom: 8px; }
-.inicial-fortes { margin: 0; font-size: var(--t-s); color: var(--texto-2); }
+.inicial-fortes { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); }
 .inicial-fortes b { color: var(--texto); }
 
 .habilidade { display: flex; flex-direction: column; gap: 2px; background: var(--painel-2); padding: 8px 10px; box-shadow: inset 4px 0 0 0 var(--ouro-escuro); }
 .habilidade b { display: flex; align-items: center; gap: 6px; }
-.habilidade span { font-size: var(--t-s); color: var(--texto-2); }
+.habilidade span { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); }
 .habilidade .habilidade-quando { color: var(--texto); }
 .habilidade--garra { margin-top: 8px; }
-.skill-chance { font-size: var(--t-s); color: var(--texto-2); margin: 0 0 8px; }
+.skill-chance { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); margin: 0 0 8px; }
 .skill-chance strong { color: var(--texto); }
 
-.afinidade { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; font-size: var(--t-s); }
-.afinidade dt { color: var(--texto-3); font-weight: 600; text-transform: uppercase; font-size: 0.875rem; letter-spacing: 0.08em; padding-top: 2px; }
+.afinidade { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); }
+.afinidade dt { color: var(--texto-3); font-weight: 600; text-transform: uppercase; font-family: var(--fonte-9); font-size: var(--t-s); letter-spacing: var(--px); padding-top: 2px; }
 .afinidade dd { margin: 0; }
 
 /* ---------- tela inicial ---------- */
@@ -718,8 +729,8 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .inicial > .btn--grande { margin-top: auto; }
 @media (min-width: 960px) { .inicial .cavalo-titulo { min-height: 4.2em; } .iniciais-nav { display: none; } }
 .inicial .retrato-palco { position: relative; display: flex; justify-content: center; background: var(--painel-2); padding: 8px 0 10px; margin: -14px -14px 0; box-shadow: inset 0 -2px 0 0 var(--linha); }
-.inicial .contador { position: absolute; right: 12px; top: 12px; font-family: var(--fonte-ui); font-size: var(--t-s); line-height: 1; color: var(--texto-2); background: var(--sombra); padding: 4px 6px; }   /* 12px: fora do rebite do canto do painel */
-.inicial .cavalo-nome { font-size: 24px; }
+.inicial .contador { position: absolute; right: 12px; top: 12px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1; color: var(--texto-2); background: var(--sombra); padding: 4px 6px; }   /* 12px: fora do rebite do canto do painel */
+.inicial .cavalo-nome { font-size: var(--t-m); }
 .inicial-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .iniciais-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .iniciais-nav .pilula { min-height: 48px; padding-inline: 10px; gap: 6px; }
@@ -729,8 +740,8 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .selvagens { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .selvagem { background: var(--painel-2); padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; min-width: 0; }
 .selvagem .retrato { align-self: center; margin-bottom: 6px; }
-.selvagem b { font-size: var(--t-m); }
-.selvagem .nota { font-size: var(--t-xs); line-height: 1.3; }
+.selvagem b { font-family: var(--fonte-ui); font-size: var(--t-m); }
+.selvagem .nota { font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.3; }
 .selvagem--comum { box-shadow: inset 0 -4px 0 0 var(--r-comum); }
 .selvagem--magico { box-shadow: inset 0 -4px 0 0 var(--r-magico); }
 .selvagem--raro { box-shadow: inset 0 -4px 0 0 var(--r-raro); }
@@ -767,24 +778,24 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .ginasio-cartao:focus-visible, .etapa-btn:focus-visible { outline-offset: 5px; }
 .ginasio-cartao-nome {
   grid-column: 1; min-width: 0; overflow-wrap: anywhere;
-  font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; color: var(--texto); text-shadow: 2px 2px 0 var(--sombra);
+  font-family: var(--fonte-display); font-size: var(--t-m); line-height: 1.5; color: var(--texto); text-shadow: var(--px) var(--px) 0 var(--sombra);
 }
-.ginasio-cartao-meta { grid-column: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: var(--t-s); line-height: 1.25; }
+.ginasio-cartao-meta { grid-column: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; }
 .ginasio-cartao-seta { grid-column: 2; grid-row: 1 / span 4; margin: 0 -2px 0 0; }
 .ginasio-progresso { color: var(--texto-2); }
 .ginasio-insignia { display: flex; align-items: center; gap: 8px; margin: 0; }
-.ginasio-revanche { background: var(--ouro); color: var(--tinta); padding: 2px 6px; font-size: var(--t-xs); line-height: 1.2; }
-.ginasio-revanche-amanha { color: var(--texto-2); font-size: var(--t-xs); line-height: 1.2; }   /* sem destaque (decisão 3) */
+.ginasio-revanche { background: var(--ouro); color: var(--tinta); padding: 2px 6px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); }
+.ginasio-revanche-amanha { color: var(--texto-2); font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); }   /* sem destaque (decisão 3) */
 .ginasio-topo { display: flex; flex-direction: column; gap: 8px; }
 .ginasio-fraco, .ginasio-pista { margin: 0; color: var(--texto); }
 /* etapa: rótulo e estado na 1ª linha, o nome (e a insígnia do líder) na 2ª, a meta e o motivo embaixo */
-.etapa-rotulo { grid-column: 1; color: var(--texto-2); font-size: var(--t-s); line-height: 1.2; }
-.etapa-estado { grid-column: 2; grid-row: 1; justify-self: end; font-size: var(--t-xs); line-height: 1.2; padding: 2px 6px; background: var(--painel); color: var(--texto-2); }
+.etapa-rotulo { grid-column: 1; color: var(--texto-2); font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); }
+.etapa-estado { grid-column: 2; grid-row: 1; justify-self: end; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); padding: 2px 6px; background: var(--painel); color: var(--texto-2); }
 .etapa-estado--vencida { color: var(--ganho); }
 .etapa-estado--proxima, .etapa-estado--revanche { background: var(--ouro); color: var(--tinta); }
-.etapa-nome { grid-column: 1; min-width: 0; overflow-wrap: anywhere; font-size: var(--t-l); line-height: 1.1; color: var(--texto); }
+.etapa-nome { grid-column: 1; min-width: 0; overflow-wrap: anywhere; font-family: var(--fonte-display); font-size: var(--t-l); line-height: var(--lh-s); color: var(--texto); }
 .etapa-insignia { grid-column: 2; grid-row: 2; justify-self: end; line-height: 0; }
-.etapa-meta, .etapa-motivo { grid-column: 1 / -1; font-size: var(--t-s); line-height: 1.25; color: var(--texto-2); }
+.etapa-meta, .etapa-motivo { grid-column: 1 / -1; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; color: var(--texto-2); }
 .etapa-motivo { color: var(--texto); }
 /* vencida: só texto, com o filete verde à esquerda; fechada: apagada (sem o bisel), com o motivo escrito */
 .etapa--vencida .etapa-btn { background: var(--painel); box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 14px; }
@@ -796,7 +807,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 /* Perfil: as três insígnias, uma por linha (ícone, nome e o bônus ou o que falta); a que falta, apagada por cor, com o motivo
    escrito e o ícone em cinza */
 .perfil-insignias { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.perfil-insignia { display: flex; align-items: center; gap: 10px; background: var(--painel-2); padding: 6px 8px; font-size: var(--t-s); line-height: 1.25; color: var(--texto); }
+.perfil-insignia { display: flex; align-items: center; gap: 10px; background: var(--painel-2); padding: 6px 8px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; color: var(--texto); }
 .perfil-insignia > span { min-width: 0; overflow-wrap: anywhere; }
 .perfil-insignia--falta { background: var(--painel); color: var(--texto-2); box-shadow: inset 0 0 0 2px var(--linha); }
 .perfil-insignia--falta .icone { filter: grayscale(1) brightness(0.6); }
@@ -808,8 +819,8 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
    mostra a posição no lugar da seta; a vantagem é uma plaquinha escrita (nunca só cor) */
 .gin-time .montaria-linha[aria-pressed="true"] { background: var(--painel-3); }
 .gin-time .montaria-linha[aria-pressed="true"]::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--ouro); }
-.gin-pos { grid-column: 3; grid-row: 1 / span 3; min-width: 32px; text-align: center; font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; color: var(--ouro); text-shadow: 2px 2px 0 var(--sombra); }
-.gin-vant { padding: 2px 6px; font-size: var(--t-xs); line-height: 1.2; background: var(--painel); color: var(--texto); white-space: nowrap; }
+.gin-pos { grid-column: 3; grid-row: 1 / span 3; min-width: 32px; text-align: center; font-family: var(--fonte-display); font-size: var(--t-m); line-height: 1.5; color: var(--ouro); text-shadow: var(--px) var(--px) 0 var(--sombra); }
+.gin-vant { padding: 2px 6px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); background: var(--painel); color: var(--texto); white-space: nowrap; }
 .gin-vant--mais { box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 8px; }
 .gin-vant--menos { box-shadow: inset 4px 0 0 0 var(--perda); padding-left: 8px; }
 .gin-desafio .acoes .btn { width: 100%; }
@@ -817,9 +828,9 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .gin-duelos, .gin-xp { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .gin-duelo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; background: var(--painel-2); padding: 6px 8px; min-width: 0; }
 .gin-duelo-txt { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; }
-.gin-duelo-tag { font-size: var(--t-xs); line-height: 1.2; padding: 2px 6px; background: var(--painel); color: var(--texto-2); }
+.gin-duelo-tag { font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); padding: 2px 6px; background: var(--painel); color: var(--texto-2); }
 .gin-duelo--vitoria .gin-duelo-tag { background: var(--ouro); color: var(--tinta); }
-.gin-duelo-folego { font-size: var(--t-s); line-height: 1.25; color: var(--texto-2); }
+.gin-duelo-folego { font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; color: var(--texto-2); }
 .gin-xp > li { min-width: 0; overflow-wrap: anywhere; }
 .gin-ganhos > p { margin: 0; }
 .gin-liberada { margin: 0; padding: 8px 10px; background: var(--painel-3); box-shadow: inset 4px 0 0 0 var(--ouro); }
@@ -835,12 +846,12 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .gin-cena-tela { display: block; image-rendering: pixelated; box-shadow: 0 0 0 2px var(--sombra); }
 .gin-vs {
   position: absolute; left: 72%; top: 80%; transform: translate(-50%, -50%);
-  font-family: var(--fonte-display); font-size: 12px; line-height: 1; padding: 6px 8px;
+  font-family: var(--fonte-display); font-size: var(--t-m); line-height: 1; padding: 6px 8px;
   background: var(--painel); color: var(--ouro); box-shadow: 0 0 0 2px var(--sombra);
 }
 .gin-placa {
   display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; max-width: 100%; min-width: 0;
-  padding: 3px 10px 3px 12px; font-size: var(--t-s); line-height: 1.25; background: var(--painel-2); box-shadow: inset 4px 0 0 0 var(--linha);
+  padding: 3px 10px 3px 12px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; background: var(--painel-2); box-shadow: inset 4px 0 0 0 var(--linha);
 }
 .gin-placa--rival { align-self: flex-start; }
 .gin-placa--voce { align-self: flex-end; box-shadow: inset 4px 0 0 0 var(--ouro); }
@@ -875,7 +886,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .montaria .cavalo-nome { overflow-wrap: anywhere; }
 .montaria .cavalo-nome small { color: var(--texto-2); font-size: 1em; text-shadow: none; }   /* "#1": a display do nome, em 16px */
 .estrelas { color: var(--ouro); letter-spacing: 1px; display: inline-flex; align-items: center; gap: 1px; vertical-align: middle; }
-.corcel { color: var(--ouro); font-size: var(--t-xs); }
+.corcel { color: var(--ouro); font-family: var(--fonte-9); font-size: var(--t-s); }
 /* lista do Estábulo (3b §4): uma linha (botão) por cavalo, numa coluna em qualquer largura, na ordem do estábulo. Avança
    4px sobre o respiro do painel (o contorno das linhas não chega aos rebites dos cantos dele) */
 .montarias { list-style: none; margin: 0 -4px; padding: 0; display: flex; flex-direction: column; gap: 16px; }
@@ -919,24 +930,24 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .montaria-linha-retrato { grid-column: 1; grid-row: 1 / span 3; display: block; line-height: 0; margin: 6px 0 6px 6px; }
 .montaria-linha-nome {
   grid-column: 2; min-width: 0; overflow-wrap: anywhere;
-  font-family: var(--fonte-display); font-size: 16px; line-height: 1.5; color: var(--texto); text-shadow: 2px 2px 0 var(--sombra);
+  font-family: var(--fonte-display); font-size: var(--t-m); line-height: 1.5; color: var(--texto); text-shadow: var(--px) var(--px) 0 var(--sombra);
 }
 .montaria-linha-nome small { font-family: var(--fonte-ui); font-size: var(--t-m); line-height: 1; color: var(--texto-2); text-shadow: none; white-space: nowrap; margin-left: 6px; }
-.montaria-linha-meta { grid-column: 2; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--t-s); line-height: 1.25; }
+.montaria-linha-meta { grid-column: 2; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; }
 .montaria-linha-meta .raridade { margin: 2px 0; }
 /* o selo "Ativa" da linha: uma plaquinha presa na borda de cima, sobre o canto da moldura do retrato (não toma a largura
    do texto); os 16px entre as linhas a deixam longe da sombra da linha de cima */
-.montaria-linha .badge-ativa { position: absolute; z-index: 2; top: -8px; left: 18px; width: 48px; text-align: center; font-size: var(--t-xs); padding: 4px 0 3px; }
+.montaria-linha .badge-ativa { position: absolute; z-index: 2; top: -8px; left: 18px; width: 48px; text-align: center; font-family: var(--fonte-9); font-size: var(--t-s); padding: 4px 0 3px; }
 .montaria-linha-poder { color: var(--texto-2); white-space: nowrap; }
 .montaria-linha-poder b { color: var(--texto); }
 /* a seta: o desenho ocupa as colunas 2 a 5 das 8 do svg; as margens deixam 6px entre o texto e ela e 8px até a borda */
 .montaria-linha-seta { grid-column: 3; grid-row: 1 / span 3; width: 16px; height: 16px; margin: 0 -4px 0 -8px; color: var(--texto-2); fill: currentColor; }
 .montaria--ativa .montaria-linha-seta { color: var(--ouro); }
-/* os selos do retrato pequeno: um passo menor (Jersey 15px), para o cavalo continuar à vista */
-.retrato--pequeno ~ .selo-nivel, .retrato--pequeno ~ .pontos-livres--selo { font-size: var(--t-xs); padding: 3px 4px 2px; }
-/* "Ativa"/"Equipada" e "VOCÊ" (largada e resultado): o mesmo selo de ouro, na Jersey no tamanho do texto em volta */
+/* os selos do retrato pequeno: um passo menor (Galmuri9), para o cavalo continuar à vista */
+.retrato--pequeno ~ .selo-nivel, .retrato--pequeno ~ .pontos-livres--selo { font-family: var(--fonte-9); font-size: var(--t-s); padding: 3px 4px 2px; }
+/* "Ativa"/"Equipada" e "VOCÊ" (largada e resultado): o mesmo selo de ouro, na fonte do texto em volta */
 .badge-ativa, .tag-voce {
-  font-family: var(--fonte-ui); font-size: var(--t-s); line-height: 1; color: var(--tinta); background: var(--ouro); padding: 4px 6px 3px;
+  font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1; color: var(--tinta); background: var(--ouro); padding: 4px 6px 3px;
   box-shadow: 0 0 0 2px var(--sombra), inset 0 2px 0 0 var(--ouro-claro), inset 0 -2px 0 0 var(--ouro-escuro);
 }
 .montaria-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -949,9 +960,9 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
   display: flex; justify-content: center; background: var(--painel-2); padding: 8px 0 10px; margin: -14px -14px 0;
   box-shadow: inset 0 -2px 0 0 var(--linha);
 }
-/* os selos do retrato grande: um passo maior (Jersey 20px), na escala do cavalo, e os dois na linha de baixo (a palha):
+/* os selos do retrato grande: um passo maior (Galmuri11), na escala do cavalo, e os dois na linha de baixo (a palha):
    o "+N" desce do canto de cima, onde cobriria a cabeça do cavalo, para o canto de baixo à direita */
-.retrato--grande ~ .selo-nivel, .retrato--grande ~ .pontos-livres--selo { font-size: var(--t-m); padding: 6px 8px 4px; }
+.retrato--grande ~ .selo-nivel, .retrato--grande ~ .pontos-livres--selo { font-family: var(--fonte-ui); font-size: var(--t-m); padding: 6px 8px 4px; }
 .retrato--grande ~ .pontos-livres--selo { top: auto; bottom: 0; }
 /* o nome na placa (h1), com o selo "Ativa" na ponta direita; um nome comprido quebra dentro da placa e leva o selo junto */
 .montaria-cabeca .titulo--tela { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
@@ -962,7 +973,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .subabas .opcao { min-height: 48px; min-width: 0; padding-left: 4px; padding-right: 4px; overflow-wrap: anywhere; }
 /* aba Ficha (3b §5): as ações em cima (o motivo do toque entra logo abaixo delas) e os dados em linhas de rótulo e valor,
    separadas por um tracejado de 2px, como no programa de corrida */
-.ficha-dados { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; font-size: var(--t-m); line-height: 1.25; }
+.ficha-dados { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; font-family: var(--fonte-ui); font-size: var(--t-m); line-height: 1.25; }
 .ficha-dados > li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 8px 0; min-width: 0; }
 .ficha-dados > li + li { background: linear-gradient(90deg, var(--linha) 4px, transparent 0) 0 0 / 8px 2px repeat-x; }
 .ficha-rotulo { color: var(--texto-2); }
@@ -971,7 +982,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .ficha-fora { color: var(--texto-2); }
 /* avisos (§4.14): a faixa de 4px à esquerda (ouro ou perda), contorno --sombra e bisel de 2px */
 .aviso, .motivo {
-  background: var(--painel-2); padding: 10px 12px 10px 14px; color: var(--texto); font-size: var(--t-s); margin: 0;
+  background: var(--painel-2); padding: 10px 12px 10px 14px; color: var(--texto); font-family: var(--fonte-9); font-size: var(--t-s); margin: 0;
   box-shadow:
     0 0 0 2px var(--sombra),
     inset 4px 0 0 0 var(--ouro),
@@ -997,22 +1008,22 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .renomear { display: flex; flex-direction: column; gap: 8px; }
 .campo {
   width: 100%; min-width: 0; min-height: 44px; margin: 0; padding: 6px 8px; border: 2px solid var(--linha); border-radius: 0;
-  background: var(--painel-2); color: var(--texto); font-family: var(--fonte-ui); font-size: 16px;
+  background: var(--painel-2); color: var(--texto); font-family: var(--fonte-ui); font-size: var(--t-m);
 }
 .campo:focus-visible { outline: 2px solid var(--ouro); outline-offset: 2px; }
 /* ---------- haras ---------- */
 .abas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .haras-sel { display: grid; grid-auto-flow: column; grid-auto-columns: 148px; gap: 12px; overflow-x: auto; overscroll-behavior-x: contain; padding: 4px 4px 10px; min-width: 0; position: relative; }
-.haras-card { gap: 4px; padding: 8px; font-size: var(--t-s); }
+.haras-card { gap: 4px; padding: 8px; font-family: var(--fonte-9); font-size: var(--t-s); }
 .haras-card .retrato { align-self: center; width: 96px !important; height: 72px !important; margin-bottom: 4px; }
 .haras-card .retrato-moldura { align-self: center; margin-bottom: 4px; }
 .haras-card .retrato-moldura .retrato { margin-bottom: 0; }
-.haras-card .linha-meta { gap: 4px 8px; font-size: var(--t-xs); }
+.haras-card .linha-meta { gap: 4px 8px; font-family: var(--fonte-9); font-size: var(--t-s); }
 .haras-card.sel--on { background: var(--painel-3); }   /* moldura: o painel em destaque (.opcao[aria-pressed="true"]) */
 .haras-nome { overflow-wrap: anywhere; }
-.calc p { margin: 0; font-size: var(--t-s); }
+.calc p { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); }
 .calc-barras { display: flex; flex-direction: column; gap: 6px; }
-.calc-linha { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 8px; align-items: center; font-size: var(--t-s); }
+.calc-linha { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 8px; align-items: center; font-family: var(--fonte-9); font-size: var(--t-s); }
 .calc-barra { height: 10px; background: var(--painel-2); box-shadow: inset 0 0 0 1px var(--linha); }
 .calc-barra > i { display: block; height: 100%; background: var(--ouro); }
 .calc-barra--comum > i { background: var(--r-comum); }
@@ -1023,7 +1034,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 
 /* ---------- sala de largada ---------- */
 .perfil { margin: 0 auto; }
-.dicas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--t-s); }
+.dicas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-family: var(--fonte-9); font-size: var(--t-s); }
 .dicas li { display: flex; gap: 8px; align-items: baseline; }
 .dicas li::before { content: ""; flex: none; width: 8px; height: 8px; background: var(--texto-3); transform: translateY(-1px); }
 .dicas li.bom::before { background: var(--ganho); }
@@ -1039,20 +1050,20 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .programa li.voce { background: var(--painel-3); box-shadow: inset 0 0 0 2px var(--ouro); }
 .raia {
   width: 34px; height: 34px; display: grid; place-items: center; flex: none;
-  font-family: var(--fonte-display); font-size: 16px; color: var(--texto);
-  text-shadow: 2px 2px 0 var(--sombra); box-shadow: 0 0 0 2px var(--sombra), inset 0 -3px 0 0 var(--escuro-25);
+  font-family: var(--fonte-display); font-size: var(--t-m); color: var(--texto);
+  text-shadow: var(--px) var(--px) 0 var(--sombra); box-shadow: 0 0 0 2px var(--sombra), inset 0 -3px 0 0 var(--escuro-25);
 }
 /* dígito escuro sobre sedas claras (contraste) */
 .raia.seda-2, .raia.seda-4, .raia.seda-5, .raia.seda-6, .raia.seda-7, .raia.seda-voce { color: var(--tinta); text-shadow: none; }
-.raia--mini { width: 20px; height: 20px; font-family: var(--fonte-ui); font-size: var(--t-s); line-height: 1; text-shadow: none; box-shadow: 0 0 0 2px var(--sombra); }
+.raia--mini { width: 20px; height: 20px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1; text-shadow: none; box-shadow: 0 0 0 2px var(--sombra); }
 .raia--mini:not(.seda-2):not(.seda-4):not(.seda-5):not(.seda-6):not(.seda-7):not(.seda-voce) { text-shadow: 1px 1px 0 var(--sombra); }
 .corredor { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .corredor b { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .corredor b .nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.corredor small { color: var(--texto-2); font-size: var(--t-xs); display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; }
+.corredor small { color: var(--texto-2); font-family: var(--fonte-9); font-size: var(--t-s); display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; }
 .poder { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.poder b { font-family: var(--fonte-display); font-size: 16px; line-height: 1.2; font-variant-numeric: tabular-nums; }
-.poder small { font-size: var(--t-xs); color: var(--texto-2); }
+.poder b { font-family: var(--fonte-display); font-size: var(--t-m); line-height: var(--lh-s); font-variant-numeric: tabular-nums; }
+.poder small { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); }
 .tag-voce { flex: none; padding-top: 6px; }   /* selo: com o .badge-ativa; 2px a mais em cima para o acento do "Ê" */
 
 .pote { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; font-variant-numeric: tabular-nums; }
@@ -1062,7 +1073,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .premios { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .premios--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .premio { background: var(--painel-2); padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; box-shadow: inset 0 -4px 0 0 var(--escuro-25); }
-.premio .lugar { font-family: var(--fonte-display); font-size: 16px; }
+.premio .lugar { font-family: var(--fonte-display); font-size: var(--t-m); }
 .premio--1 .lugar { color: var(--ouro); }
 .premio--2 .lugar { color: var(--prata); }
 .premio--3 .lugar { color: var(--bronze); }
@@ -1071,17 +1082,17 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .tela--corrida { gap: 8px; -webkit-user-select: none; user-select: none; }
 .corrida-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 48px; }
 .corrida-titulo { display: flex; flex-direction: column; gap: 0; min-width: 0; }
-.corrida-nome { font-family: var(--fonte-ui); font-size: var(--t-l); line-height: 1.1; color: var(--texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-wrap: nowrap; }
+.corrida-nome { font-family: var(--fonte-display); font-size: var(--t-l); line-height: var(--lh-s); color: var(--texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-wrap: nowrap; }
 .corrida-titulo .rotulo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .saldo--pote { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; padding: 6px 14px; flex: none; }   /* 14px: o texto fora dos rebites */
-.saldo--pote .rotulo { font-size: 0.8125rem; color: var(--texto-2); }
+.saldo--pote .rotulo { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); }
 .palco { position: relative; background: var(--sombra); line-height: 0; overflow: hidden; flex: none; }
 .palco canvas { margin: 0 auto; }
 .corrida-baixo { display: flex; flex-direction: column; gap: 8px; }
 .feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; height: 66px; overflow: hidden; }
 .feed li {
   display: flex; gap: 8px; align-items: center; flex: none;
-  background: var(--painel); padding: 3px 8px; font-size: var(--t-s); line-height: 1.2; min-height: 31px;
+  background: var(--painel); padding: 3px 8px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); min-height: 31px;
 }
 .feed li time { flex: none; width: 34px; color: var(--texto-2); font-variant-numeric: tabular-nums; }
 .feed li > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1119,17 +1130,17 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
   background: var(--painel-3);
   box-shadow: 0 0 0 2px var(--sombra), inset 0 0 0 2px var(--ouro), inset 0 4px 0 0 var(--ouro-escuro);
 }
-.ordem-pos { grid-area: 1 / 1; font-size: var(--t-s); line-height: 1; color: var(--texto); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ordem-pos { grid-area: 1 / 1; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1; color: var(--texto); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ordem-item .raia--mini { grid-area: 1 / 2; }
 .ordem-item--voce .ordem-pos { color: var(--ouro-claro); }
-.ordem-dado { grid-area: 2 / 1 / 3 / 3; justify-self: center; height: 16px; font-size: var(--t-s); line-height: 16px; color: var(--ouro-claro); white-space: nowrap; }
+.ordem-dado { grid-area: 2 / 1 / 3 / 3; justify-self: center; height: 16px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 16px; color: var(--ouro-claro); white-space: nowrap; }
 /* Dado da Sorte (spec 3c §6): o número do maior dado com fundo --ouro (a marca do vencedor); em tela baixa ele fica no
    lugar da posição (.ordem-pos) e a marca vai junto */
 .ordem-item--maior .ordem-dado { padding: 0 2px; background: var(--ouro); color: var(--tinta); }
 .tela--baixa .ordem-item--maior .ordem-pos { padding: 0 2px; background: var(--ouro); color: var(--tinta); }
 .ordem-vizinhos {
   margin: 0; height: 20px; display: flex; justify-content: center; gap: 6px; min-width: 0; overflow: hidden;
-  font-size: var(--t-s); line-height: 20px; color: var(--texto-2); white-space: nowrap;
+  font-family: var(--fonte-9); font-size: var(--t-s); line-height: 20px; color: var(--texto-2); white-space: nowrap;
 }
 .ordem-vizinhos .viz { display: flex; gap: 4px; min-width: 0; }
 .ordem-vizinhos .viz-rot, .ordem-vizinhos .viz-m, .ordem-vizinhos .viz-sep { flex: none; }
@@ -1144,10 +1155,10 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .feed li.tipo-cansou > span:last-child { color: var(--perda); }
 .controles { display: flex; gap: 10px; flex-wrap: nowrap; align-items: center; }
 .controles .vel { display: flex; gap: 8px; }
-.controles .vel .btn { min-width: 58px; font-family: var(--fonte-display); font-size: 16px; }
+.controles .vel .btn { min-width: 58px; font-family: var(--fonte-display); font-size: var(--t-m); }
 .controles .pular { margin-left: auto; }
 /* duelo de ginásio: a vantagem de elemento e o fôlego, numa linha abaixo do topo (quebra no celular em pé) */
-.corrida-duelo { margin: 0; font-size: var(--t-s); line-height: 1.3; color: var(--texto); }
+.corrida-duelo { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.3; color: var(--texto); }
 @media (min-width: 860px) {
   .corrida-baixo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; }
   .corrida-baixo .ordem { grid-column: 1 / -1; }   /* a faixa de ordem na largura da pista, acima da narração */
@@ -1173,10 +1184,10 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .feed--estatica li > span:last-child { white-space: normal; overflow: visible; }
 .podio-palco { display: flex; flex-direction: column; align-items: center; gap: 6px; background: var(--painel); padding: 10px 0 12px; box-shadow: 0 6px 0 0 var(--sombra); margin-bottom: 6px; }
 .podio-nomes { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; max-width: 336px; text-align: center; gap: 4px; }
-.podio-nomes div { display: flex; flex-direction: column; min-width: 0; font-size: var(--t-xs); color: var(--texto-2); line-height: 1.25; }
-.podio-nomes b { color: var(--texto); font-size: var(--t-s); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.podio-nomes div { display: flex; flex-direction: column; min-width: 0; font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); line-height: 1.25; }
+.podio-nomes b { color: var(--texto); font-family: var(--fonte-9); font-size: var(--t-s); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .podio-nomes .voce b { color: var(--ouro); }
-.manchete { font-family: var(--fonte-display); font-size: 16px; line-height: 1.6; color: var(--texto); text-shadow: 2px 2px 0 var(--sombra); }
+.manchete { font-family: var(--fonte-display); font-size: var(--t-m); line-height: calc(var(--px) * 20); color: var(--texto); text-shadow: var(--px) var(--px) 0 var(--sombra); }
 .manchete em { font-style: normal; color: var(--ouro); }
 /* entrada, prêmio e resultado numa linha que quebra (3c §8); o saldo ao lado do XP, com o friso de antes em cima */
 .balanco { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; font-variant-numeric: tabular-nums; }
@@ -1188,29 +1199,29 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .resultado-caixa { gap: 10px; }
 .acoes--linha { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .levelup { background: var(--painel-2); padding: 10px 12px; box-shadow: inset 0 0 0 2px var(--ouro); display: flex; flex-direction: column; gap: 6px; }
-.levelup b { font-size: var(--t-m); line-height: 1.25; color: var(--ouro); }
-.ganhos { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--t-s); }
+.levelup b { font-family: var(--fonte-ui); font-size: var(--t-m); line-height: 1.25; color: var(--ouro); }
+.ganhos { display: flex; flex-wrap: wrap; gap: 6px 14px; font-family: var(--fonte-9); font-size: var(--t-s); }
 .ganhos span { font-variant-numeric: tabular-nums; }
 .rolagem { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
-.tabela { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: var(--t-s); }
-.tabela th { text-align: left; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--texto-2); font-weight: 600; padding: 4px 4px; }
+.tabela { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-family: var(--fonte-9); font-size: var(--t-s); }
+.tabela th { text-align: left; font-family: var(--fonte-9); font-size: var(--t-s); text-transform: uppercase; letter-spacing: var(--px); color: var(--texto-2); font-weight: 600; padding: 4px 4px; }
 /* linha baixa (3c §8: ≤ 70 px): o nome numa linha; dono, nível e skills na outra (que quebra se o nome do dono for longo) */
 .tabela td { padding: 4px 4px; border-top: 2px solid var(--painel-2); vertical-align: top; }
 .tabela td.num, .tabela th.num { text-align: right; white-space: nowrap; }
 .tabela tr.voce td { background: var(--painel-2); }
 .tabela tr.voce td:first-child { box-shadow: inset 4px 0 0 0 var(--ouro); }
-.tabela .pos { font-family: var(--fonte-display); font-size: 16px; white-space: nowrap; }
+.tabela .pos { font-family: var(--fonte-display); font-size: var(--t-m); white-space: nowrap; }
 .tabela .quem { display: flex; flex-direction: column; gap: 0; min-width: 0; }
 .tabela .quem b { display: flex; align-items: center; gap: 6px; font-weight: 700; }
-.tabela .quem small { color: var(--texto-2); font-size: var(--t-xs); line-height: 1.15; }
+.tabela .quem small { color: var(--texto-2); font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.15; }
 .tabela .quem-peca { white-space: nowrap; }   /* Ruling 17: o dono, o nível e as skills nunca se partem */
-.tabela td.num small { display: block; color: var(--texto-2); font-size: var(--t-xs); }
+.tabela td.num small { display: block; color: var(--texto-2); font-family: var(--fonte-9); font-size: var(--t-s); }
 .tabela .tempo { font-weight: 600; }
 
 /* ---------- celular ---------- */
 @media (max-width: 600px) {
   .opcoes--tier .opcao { padding-inline: 6px; }
-  .opcoes--tier .opcao-nome { font-size: var(--t-s); }
+  .opcoes--tier .opcao-nome { font-family: var(--fonte-9); font-size: var(--t-s); }
   .palco { margin-left: calc(-1 * var(--gl)); margin-right: calc(-1 * var(--gr)); }
   .ordem-lista { margin-inline: calc(4px - var(--gl)) calc(4px - var(--gr)); }   /* na largura da pista (8 itens a 360px) */
   /* iniciais em carrossel: o próximo cartão aparece na borda (há 3 para comparar) */
@@ -1258,8 +1269,8 @@ html.mov-reduzido *, html.mov-reduzido *::before, html.mov-reduzido *::after { t
    para a sombra; dentro, o ícone de 32px e o rótulo de 12px entre os biséis */
 .app-aba {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
-  min-width: 0; min-height: 44px; padding: 2px 2px 4px; margin: 2px 2px 4px;
-  background: var(--painel-2); border: 0; color: var(--texto-2); cursor: pointer; font-size: 12px; line-height: 1;
+  min-width: 0; min-height: 44px; padding: 2px 0 4px; margin: 2px 2px 4px;   /* sem folga dos lados: o "Expedição" da Galmuri7 cabe a 360 px */
+  background: var(--painel-2); border: 0; color: var(--texto-2); cursor: pointer; font-family: var(--fonte-7); font-size: var(--t-7); line-height: 1;
   box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
     0 4px 0 0 var(--sombra),
@@ -1290,7 +1301,7 @@ html.app-com-abas { scroll-padding: calc(56px + var(--sat)) 0 calc(72px + env(sa
     padding-top: var(--sat);
     box-shadow: 2px 0 0 0 var(--linha), 4px 0 0 0 var(--sombra);
   }
-  .app-aba { flex-direction: row; gap: 10px; justify-content: flex-start; padding: 2px 12px 4px 16px; margin: 2px 8px 6px; font-size: 14px; }
+  .app-aba { flex-direction: row; gap: 10px; justify-content: flex-start; padding: 2px 12px 4px 16px; margin: 2px 8px 6px; font-family: var(--fonte-9); font-size: var(--t-s); }
   /* aba atual: a marca de ouro fica à esquerda */
   .app-aba--ativa {
     box-shadow:
@@ -1317,12 +1328,12 @@ html.dev-ativo.app-com-abas { scroll-padding-top: calc(80px + var(--sat)); }
 .dev-faixa {
   position: fixed; top: 0; left: 0; right: 0; z-index: 60; height: calc(24px + var(--sat));
   display: flex; align-items: center; justify-content: center; padding: var(--sat) var(--gr) 0 var(--gl);
-  background: var(--perda); color: var(--tinta); font-family: var(--fonte-display); font-size: 8px; line-height: 1;
+  background: var(--perda); color: var(--tinta); font-family: var(--fonte-7); font-size: var(--t-7); line-height: 1;
   white-space: nowrap; overflow: hidden; box-shadow: 0 2px 0 0 var(--sombra);
 }
 .dev-botao {
   position: fixed; right: var(--gr); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 55;
-  margin: 0; min-width: 64px; background: var(--perda); color: var(--tinta); font-family: var(--fonte-display); font-size: 8px;
+  margin: 0; min-width: 64px; background: var(--perda); color: var(--tinta); font-family: var(--fonte-7); font-size: var(--t-7);
 }
 .dev-botao:hover:not(:disabled) { background: var(--perda); filter: brightness(1.1); }
 .dev-botao--armado { box-shadow: 0 0 0 2px var(--sombra), 0 0 0 4px var(--ouro); }
@@ -1346,15 +1357,15 @@ html.dev-ativo:not(.app-com-abas) .barra-acao { bottom: calc(64px + env(safe-are
 .dev-campo .rotulo { overflow-wrap: anywhere; }
 .dev-campo select, .dev-campo input {
   width: 100%; min-width: 0; min-height: 44px; margin: 0; padding: 6px 8px; border: 2px solid var(--linha); border-radius: 0;
-  background: var(--painel-2); color: var(--texto); font-family: var(--fonte-ui); font-size: var(--t-s);
+  background: var(--painel-2); color: var(--texto); font-family: var(--fonte-9); font-size: var(--t-s);
 }
 .dev-campo input[type="color"] { padding: 2px; cursor: pointer; }
-.dev-check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: var(--t-s); cursor: pointer; }
+.dev-check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-family: var(--fonte-9); font-size: var(--t-s); cursor: pointer; }
 .dev-check input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--ouro); }
 .dev-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
 .dev-acoes .btn { flex: 1 1 auto; min-width: 0; }
 .dev-acoes--base { align-self: end; }
-.dev-armado { margin: 0; font-size: var(--t-s); color: var(--texto-3); }
+.dev-armado { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-3); }
 .dev-armado--on { color: var(--ouro-claro); }
 /* a barra presa dos pontos (aba Status) sobe acima do botão DEV, que fica sobre a barra de abas */
 html.dev-ativo .barra-acao--pontos { bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
@@ -1427,7 +1438,7 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
 .ajuda:hover::before, .ajuda[aria-expanded="true"]::before { background-image: var(--arte-ajuda-ativa); }
 .ajuda:focus-visible, .ajuda.foco-demo { outline: 3px solid var(--ouro); outline-offset: -6px; }
 .ajuda-txt { grid-column: 1 / -1; flex: 1 1 100%; margin: 4px 0 0; padding: 6px 8px; background: var(--painel-3); box-shadow: inset 3px 0 0 0 var(--ouro);
-  font-family: var(--fonte-ui); font-size: var(--t-s); font-weight: 400; line-height: 1.4; color: var(--texto); letter-spacing: 0; text-transform: none; white-space: normal; }
+  font-family: var(--fonte-9); font-size: var(--t-s); font-weight: 400; line-height: 1.4; color: var(--texto); letter-spacing: 0; text-transform: none; white-space: normal; }
 
 /* ---------- modo de cores forçadas (alto contraste do sistema, acabamento §3): as sombras somem, então botões, opções,
    painéis e abas ganham borda de 2px em cor do sistema (a escolhida e a aba atual em Highlight) e as peças de pixel
@@ -1473,6 +1484,6 @@ img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }  
   .barra-acao--pontos { background: Canvas; border-top: 2px solid CanvasText; }
   .ajuda::before, .ajuda:hover::before, .ajuda[aria-expanded="true"]::before {
     background-image: none; content: "i"; box-sizing: border-box; border: 2px solid ButtonText;
-    font: 400 8px/10px var(--fonte-display); text-align: center;
+    font: 400 var(--t-7)/var(--lh-7) var(--fonte-7); text-align: center;
   }
 }

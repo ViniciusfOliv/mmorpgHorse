@@ -8917,6 +8917,10 @@ try {
   // (§5, que vence quando as metas brigam): a aba Status da ativa (SAVE_3A, 360x780, sem rascunho) fica na altura medida
   // com a linha única (medi 1.454 px a 2,625 de dpr e 1.457 a 2,75; teto 1.470), e as 7 linhas cabem inteiras numa tela com as abas no topo
   const ALTURA_STATUS_3B = 1470
+  // 2026-11-21, etapa 1a da direção de arte (Galmuri no lugar da Jersey, mais larga: o texto quebra mais linhas): as
+  // alturas medidas com a fonte nova (SAVE_3A, 360x780, mesmo caminho) viram a base, com a mesma folga de 4%
+  const ALTURA_GALMURI = { status: 1502, skills: 1555, correr: 886 }
+  const LIM_STATUS = Math.round(1.04 * ALTURA_GALMURI.status), LIM_SKILLS = Math.round(1.04 * ALTURA_GALMURI.skills)
 
   // ---------------- itens na aba Status (Tarefa 4 da frente de itens, spec de itens §8): sem Torrão e sem Estrela na mochila,
   // a aba tem a altura de hoje (o teto da 3b); com os dois, cresce no máximo 120 px e as 7 linhas continuam na primeira tela ----------------
@@ -8953,7 +8957,7 @@ try {
       const com = await medeStatus({ ...vazia, torrao: 3, estrela: 1 }, { width: 360, height: 780 })
       await medeStatus({ ...vazia, torrao: 3, estrela: 1 }, { width: 1280, height: 800 })
       notes[label] = { sem: sem.alt, soSkills: soSkills.alt, com: com.alt, usos: com.usos }
-      if (sem.alt > ALTURA_STATUS_3B || sem.usos.length) problems.push(`${label}: sem itens, a aba Status tem ${sem.alt}px (teto ${ALTURA_STATUS_3B}) e ${sem.usos.length} botões de item`)
+      if (sem.alt > LIM_STATUS || sem.usos.length) problems.push(`${label}: sem itens, a aba Status tem ${sem.alt}px (teto ${LIM_STATUS}, medida com a Galmuri) e ${sem.usos.length} botões de item`)
       if (soSkills.alt !== sem.alt || soSkills.usos.length) problems.push(`${label}: só com Cupom e Manual (que são da aba Skills), a aba Status mudou: ${soSkills.alt}px (sem itens ${sem.alt}px), botões ${soSkills.usos.join(',')}`)
       if (com.usos.map((u) => u.split(':')[0]).join() !== 'torrao,estrela' || com.usos.some((u) => Number(u.split(':')[1]) < 44)) problems.push(`${label}: com Torrão e Estrela, os botões de item ${com.usos.join(',')} (esperado torrao,estrela com 44 px ou mais)`)
       if (com.alt - sem.alt > 120) problems.push(`${label}: com Torrão e Estrela, a aba Status cresceu ${com.alt - sem.alt}px (máximo 120)`)
@@ -9060,20 +9064,26 @@ try {
       if (fora.length) problems.push(`acabamento (${tag}): o texto sai da placa do título (${fora.join(', ')})`)
     }
     // ---- Tarefa 4: botões, abas, barras, selos, ⓘ e fonte display ----
-    // fonte display (spec §3): nenhum elemento visível com a Press Start 2P fora de 8, 16 ou 24 px
+    // Galmuri só no tamanho nativo (guia de arte §6, etapa 1a): todo elemento visível com texto próprio numa Galmuri tem
+    // font-size = tamanho nativo × --px (11 e 11 Bold: 12; 9: 10; 7: 8), e o --px é s / densidade com s inteiro
     const displayNaEscala = async (pg, tag) => {
-      const ruins = await pg.evaluate(() => {
+      const r = await pg.evaluate(() => {
         const nome = (e) => e.tagName.toLowerCase() + (typeof e.className === 'string' && e.className.trim() ? '.' + e.className.trim().split(/\s+/).join('.') : '')
+        const px = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px')), s = px * Math.max(1, window.devicePixelRatio || 1)
+        const NATIVO = { Galmuri11: 12, 'Galmuri11 Bold': 12, Galmuri9: 10, Galmuri7: 8 }
         const out = new Set()
         for (const e of document.querySelectorAll('body *')) {
           if (!(e.offsetWidth || e.offsetHeight)) continue
-          const cs = getComputedStyle(e)
-          if (!/^\s*["']?Press Start 2P/.test(cs.fontFamily)) continue
-          if (!['8px', '16px', '24px'].includes(cs.fontSize)) out.add((e.parentElement ? nome(e.parentElement) + ' > ' : '') + nome(e) + ' ' + cs.fontSize)
+          if (![...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue
+          if (e.closest('[aria-hidden="true"]')) continue   // ícones (o emoji de reserva) não são texto
+          const cs = getComputedStyle(e), fam = cs.fontFamily.split(',')[0].replace(/["']/g, '').trim()
+          if (!(fam in NATIVO)) { out.add(nome(e) + ' fora da Galmuri (' + fam + ')'); continue }
+          if (Math.abs(parseFloat(cs.fontSize) - NATIVO[fam] * px) > 0.02) out.add((e.parentElement ? nome(e.parentElement) + ' > ' : '') + nome(e) + ' ' + fam + ' ' + cs.fontSize)
         }
-        return [...out].slice(0, 10)
+        return { s, ruins: [...out].slice(0, 10) }
       })
-      if (ruins.length) problems.push(`acabamento (${tag}): Press Start 2P fora de 8/16/24 px em ${ruins.join(', ')}`)
+      if (Math.abs(r.s - Math.round(r.s)) > 0.001) problems.push(`acabamento (${tag}): --px × densidade = ${r.s}, não é inteiro`)
+      if (r.ruins.length) problems.push(`acabamento (${tag}): Galmuri fora do tamanho nativo em ${r.ruins.join(', ')}`)
     }
     // ⓘ desenhado (spec §4.13): sem o caractere no texto; o ::before de 14x14 px com --arte-ajuda (aberto: --arte-ajuda-ativa).
     // O mouse sai de cima antes (com o mouse em cima, a peça é a ativa).
@@ -9184,17 +9194,17 @@ try {
       else if (r.ruins.length) problems.push(`acabamento (${tag}): ${sel} sem o contorno --sombra${comClip ? ' ou sem o canto recortado (clip-path)' : ''}: ${r.ruins.join(', ')}`)
     }
     {
-      // fontes sem rede: os @font-face levam as duas famílias embutidas em data:
+      // fontes sem rede: os @font-face levam as Galmuri embutidas em data:
       const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-fontes', { bloquear: ['**/fonts.googleapis.com/**', '**/fonts.gstatic.com/**'] })
       try {
         await pg.waitForSelector('.inicial')
         const r = await pg.evaluate(async () => {
           await document.fonts.ready
           const carregadas = [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family.replace(/["']/g, ''))
-          return { ps: document.fonts.check('16px "Press Start 2P"'), jy: document.fonts.check('20px "Jersey 10"'), carregadas }
+          return { ok: ['Galmuri11 Bold', 'Galmuri11', 'Galmuri9', 'Galmuri7'].every((f) => document.fonts.check('12px "' + f + '"')), carregadas }
         })
-        if (!r.ps || !r.jy) problems.push(`acabamento: document.fonts.check sem rede deu ${JSON.stringify({ ps: r.ps, jy: r.jy })}`)
-        for (const fam of ['Press Start 2P', 'Jersey 10']) if (!r.carregadas.includes(fam)) problems.push(`acabamento: a face "${fam}" não ficou loaded sem rede (${JSON.stringify(r.carregadas)})`)
+        if (!r.ok) problems.push(`acabamento: document.fonts.check das Galmuri sem rede falhou`)
+        for (const fam of ['Galmuri11 Bold', 'Galmuri11', 'Galmuri9']) if (!r.carregadas.includes(fam)) problems.push(`acabamento: a face "${fam}" não ficou loaded sem rede (${JSON.stringify(r.carregadas)})`)
         await semBorderImage(pg, 'inicial')
         // tela inicial: display na escala, ⓘ desenhado (fechado e aberto) e contraste
         await displayNaEscala(pg, 'inicial')
@@ -9234,20 +9244,20 @@ try {
         const aSt = await altura()
         notes.alturaAcabamento.status = aSt
         // 3b §2: a linha única (era 1,04 × a medida de antes da 3a)
-        if (aSt > ALTURA_STATUS_3B) problems.push(`acabamento: aba Status com ${aSt}px (limite ${ALTURA_STATUS_3B}, Tarefa 4 da 3b; antes da 3a ${ALTURA_ANTES_3A.status})`)
+        if (aSt > Math.max(ALTURA_STATUS_3B, 1.04 * ALTURA_GALMURI.status)) problems.push(`acabamento: aba Status com ${aSt}px (limite ${Math.round(1.04 * ALTURA_GALMURI.status)}, medida com a Galmuri ${ALTURA_GALMURI.status}; Tarefa 4 da 3b ${ALTURA_STATUS_3B}; antes da 3a ${ALTURA_ANTES_3A.status})`)
         await semBorderImage(pg, 'status')
         await pecasNoLugar(pg, 'status', ['.caixa', 'h1.titulo--tela'])
         await temCores(pg, 'status', '.opcao[aria-pressed="true"]', ['--sombra', '--ouro-escuro', '--ouro'])
         await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
         const aSk = await altura()
         notes.alturaAcabamento.skills = aSk
-        if (aSk > 1.04 * ALTURA_SKILLS_INFO) problems.push(`acabamento: aba Skills com ${aSk}px (limite ${Math.round(1.04 * ALTURA_SKILLS_INFO)}, medida de 2026-11-18 ${ALTURA_SKILLS_INFO}; antes da 3a ${ALTURA_ANTES_3A.skills})`)
+        if (aSk > 1.04 * ALTURA_GALMURI.skills) problems.push(`acabamento: aba Skills com ${aSk}px (limite ${Math.round(1.04 * ALTURA_GALMURI.skills)}, medida com a Galmuri ${ALTURA_GALMURI.skills}; de 2026-11-18 ${ALTURA_SKILLS_INFO}; antes da 3a ${ALTURA_ANTES_3A.skills})`)
         await semBorderImage(pg, 'skills')
         await pg.locator('[data-acao="aba"][data-id="correr"]').click()
         await pg.waitForSelector('#t-correr')
         const aCor = await altura()
         notes.alturaAcabamento.correr = aCor
-        if (aCor > 1.04 * ALTURA_ANTES_3A.correr) problems.push(`acabamento: aba Correr com ${aCor}px (limite ${Math.round(1.04 * ALTURA_ANTES_3A.correr)}, antes ${ALTURA_ANTES_3A.correr})`)
+        if (aCor > 1.04 * ALTURA_GALMURI.correr) problems.push(`acabamento: aba Correr com ${aCor}px (limite ${Math.round(1.04 * ALTURA_GALMURI.correr)}, medida com a Galmuri ${ALTURA_GALMURI.correr}; antes da 3a ${ALTURA_ANTES_3A.correr})`)
         await semBorderImage(pg, 'correr')
         await pecasNoLugar(pg, 'correr', ['.caixa', '.saldo', 'h1.titulo--tela'])
         await temCores(pg, 'correr', '.opcao[aria-pressed="true"]', ['--sombra', '--ouro-escuro', '--ouro'])
@@ -10323,7 +10333,7 @@ try {
         await pf.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
         const aSk = await pf.evaluate(() => document.documentElement.scrollHeight)
         notes[`${label} altura skills`] = aSk
-        if (aSk > 1.04 * ALTURA_SKILLS_INFO) problems.push(`${label}: aba Skills da ativa com ${aSk}px (limite ${Math.round(1.04 * ALTURA_SKILLS_INFO)})`)
+        if (aSk > LIM_SKILLS) problems.push(`${label}: aba Skills da ativa com ${aSk}px (limite ${LIM_SKILLS}, medida com a Galmuri)`)
         if (m1) await confereAbaFicha(pf, 'ficha da ativa', m1, null)
         // Review Focus 5: com rascunho na aba Status, ir para a Ficha (ou Skills) e voltar: o rascunho some e nada é gravado
         for (const outra of ['ficha', 'skills']) {
@@ -10487,7 +10497,7 @@ try {
         // altura do documento sem rascunho (decisão da Tarefa 4: a medida da linha única)
         const aSt = await ps.evaluate(() => document.documentElement.scrollHeight)
         notes[`${label} altura status`] = aSt
-        if (aSt > ALTURA_STATUS_3B) problems.push(`${label}: aba Status da ativa com ${aSt}px (limite ${ALTURA_STATUS_3B}, Tarefa 4 da 3b)`)
+        if (aSt > LIM_STATUS) problems.push(`${label}: aba Status da ativa com ${aSt}px (limite ${LIM_STATUS}, medida com a Galmuri)`)
         if (await ps.locator('#tela .barra-acao').count()) problems.push(`${label}: sem rascunho, a barra presa está na tela`)
         // a meta que importa: com a linha de abas no topo (logo abaixo do cabeçalho fixo), as 7 linhas inteiras numa tela
         await ps.evaluate(() => { const e = document.querySelector('#tela .subabas'), t = document.querySelector('.app-topo').getBoundingClientRect().bottom; window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - t) })

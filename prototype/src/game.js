@@ -105,6 +105,17 @@
   }
   function syncMotionClass() { document.documentElement.classList.toggle('mov-reduzido', reduced()); }
   function dpr() { return Math.max(1, window.devicePixelRatio || 1); }
+  // Grade de pixel da interface (guia de arte §2): 1 pixel de arte = s pixels do aparelho, com s inteiro tal que a
+  // coluna do app (até 520 px de CSS) tenha pelo menos 240 pixels de arte (com o arredondamento puro, a densidade 3
+  // de 390 px dava 234 e o rótulo "Expedição" não cabia na aba); o CSS recebe --px = s / densidade e mede
+  // letras, molduras e sombras em múltiplos dele (a Galmuri só fica nítida no tamanho nativo em pixels inteiros)
+  var gradeS = 0;
+  function aplicaGrade() {
+    var L = Math.min(window.innerWidth || 390, 520) * dpr(), s = Math.max(1, Math.floor(L / 240));   // a coluna fica com 240 a 479 pixels de arte
+    if (s === gradeS && document.documentElement.style.getPropertyValue('--px')) return;
+    gradeS = s;
+    document.documentElement.style.setProperty('--px', (s / dpr()) + 'px');
+  }
 
   // Cores de cena lidas dos tokens CSS (fonte única de verdade).
   var C = {};
@@ -6799,11 +6810,13 @@
       var hot = window.claude && window.claude.hot;
       if (hot && typeof hot.snapshot === 'function') hot.snapshot(snapshot);
     } catch (e) { /* opcional */ }
+    aplicaGrade();
     render();   // liga o laço de animação se a tela tiver o que animar
     // só a largura (ou a densidade) muda o layout fora da corrida: a barra de endereço do celular
     // mudando a altura não reconstrói a tela no meio da rolagem
     var resizeTimer = null, lastW = window.innerWidth, lastDpr = dpr();
     window.addEventListener('resize', function () {
+      aplicaGrade();
       if (ui.screen === 'corrida') return;
       if (window.innerWidth === lastW && dpr() === lastDpr) return;
       clearTimeout(resizeTimer);
