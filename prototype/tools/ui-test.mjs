@@ -6587,7 +6587,9 @@ try {
       const g = por(1)
       // etapa 1b da direção de arte: os três 1:1 (o guia não deixa ampliar o molde); o 1º fica no degrau mais alto
       for (const o of [por(2), por(3)]) if (!(Math.abs(g.escala - o.escala) < 0.001 && g.y + g.h < o.y + o.h)) ruim(`o 1º não está 1:1 e acima do ${o.lugar}º`)
-      if (p.w !== 336) ruim(`canvas com ${p.w} px de largura (esperado 336)`)
+      // na grade (etapa 1b): 224 pixels de arte × --px
+      const pxArte = await pg.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px')))
+      if (Math.abs(p.w - 224 * pxArte) > 0.5) ruim(`canvas com ${p.w} px de largura (esperado ${224 * pxArte}: 224 pixels de arte)`)
       return p
     }
 
@@ -8977,13 +8979,14 @@ try {
   if (quer('itens')) {
     const label = 'itens-diaria-altura'
     // 2026-11-21 (Galmuri, etapa 1a): a lista medida com a fonte nova (era 412 e 748 com a Jersey)
-    const LISTA_ANTES = { 3: 411, 6: 761 }
+    // 2026-11-21, etapa 1b: o retrato pequeno passou a 64 × 56 pixels de arte (o cavalo 1:1 inteiro): +12 px por linha
+    const LISTA_ANTES = { 3: 447, 6: 821 }
     const v7 = (save, diaria) => Object.assign({}, save, { v: 7, mochila: { torrao: 0, estrela: 0, cupom: 0, manual: 0 }, diaria, itemCounter: 0,
       lojaItens: { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null } })
     // [nome, diária do save (null: o save da v6, que migra no dia 1), o dia "N / 7" esperado]
     const DIAS = [['dia 1', null, 1], ['dia 6', { prox: 5, ciclos: 0, ultimo: null }, 6], ['dia 7', { prox: 6, ciclos: 0, ultimo: null }, 7],
       ['dia 7 do 4º calendário', { prox: 6, ciclos: 3, ultimo: null }, 7]]
-    for (const [n, save, comPremio, resgatada] of [[3, SAVE_3A, 890, 820], [6, SAVE_3B_6, 1225, 1155]]) {   // 6: +15 px da lista com a Galmuri (761 − 748; 2026-11-21)
+    for (const [n, save, comPremio, resgatada] of [[3, SAVE_3A, 926, 856], [6, SAVE_3B_6, 1285, 1215]]) {   // + as linhas mais altas do retrato pequeno (etapa 1b)   // 6: +15 px da lista com a Galmuri (761 − 748; 2026-11-21)
       for (const [dia, diaria, k] of DIAS) {
         const tag = `${n} cavalos, ${dia}`
         const p = await newPage(browser, { width: 360, height: 780 }, `${label}-${n}`, comSave(diaria ? v7(save, diaria) : save))
@@ -10104,8 +10107,10 @@ try {
         if (faltam.length || l.estrelas !== 1) problems.push(`${label} ${tag}: linha de ${m.uid} sem ${JSON.stringify(faltam)}${l.estrelas !== 1 ? ' e sem as estrelas' : ''}: "${l.txt}"`)
         if (/Macho|Fêmea|cruza|Corcel|XP/.test(l.txt)) problems.push(`${label} ${tag}: linha de ${m.uid} com sexo, cruzas, Corcel ou XP (ficam na ficha): "${l.txt}"`)
         if (!l.retratoOculto) problems.push(`${label} ${tag}: o retrato da linha de ${m.uid} não está aria-hidden`)
-        const k = Math.max(1, Math.round(2 * l.dpr))
-        if (!l.cv || l.cv[0] !== 48 * k || l.cv[1] !== 36 * k || Math.abs(l.cv[2] - 48 * k / l.dpr) > 0.5 || Math.abs(l.cv[3] - 36 * k / l.dpr) > 0.5) problems.push(`${label} ${tag}: retrato da linha de ${m.uid} ${JSON.stringify(l.cv)} (esperado ${48 * k}x${36 * k} pixels em ${48 * k / l.dpr}x${36 * k / l.dpr} px de CSS: escala 2, sem encolher pelo CSS)`)
+        // na grade (etapa 1b da direção de arte): 64 × 56 pixels de arte, k pixels do canvas por pixel de arte (k inteiro), sem o CSS
+        // ampliar nem encolher
+        const k = l.cv ? Math.round(l.cv[0] / 64) : 0
+        if (!l.cv || k < 1 || l.cv[0] !== 64 * k || l.cv[1] !== 56 * k || Math.abs(l.cv[2] - 64 * k / l.dpr) > 0.5 || Math.abs(l.cv[3] - 56 * k / l.dpr) > 0.5) problems.push(`${label} ${tag}: retrato da linha de ${m.uid} ${JSON.stringify(l.cv)} (esperado 64x56 pixels de arte × k inteiro, em CSS sem ampliar nem encolher)`)
         if (l.w < 44 || l.h < 44) problems.push(`${label} ${tag}: linha de ${m.uid} com ${l.w}x${l.h} px (alvo mínimo 44x44)`)
         if (l.sw > l.cw + 1) problems.push(`${label} ${tag}: o conteúdo sai da linha de ${m.uid} (scrollWidth ${l.sw} > ${l.cw})`)
       }
@@ -10176,7 +10181,7 @@ try {
       const p6 = await newPage(browser, { width: 360, height: 780 }, label + '-estabulo6', comSaveResgatada(SAVE_3B_6))
       try {
         await p6.waitForSelector('#t-estabulo')
-        await confereLista(p6, '6 cavalos', 1140)
+        await confereLista(p6, '6 cavalos', 1200)   // 1140 + 6 × 12 px: o retrato pequeno na grade (64 × 56, etapa 1b), um pouco mais alto
         await p6.locator('button[data-acao="montaria"][data-id="m6"]').click()
         await p6.waitForSelector('#t-montaria')
         await p6.locator('[data-acao="montaria-voltar"]').click()
@@ -10279,9 +10284,11 @@ try {
       // retrato grande com os selos nos cantos: "Nv N" e o "+N" dos pontos que cabem
       const pts = podeComprar(m)
       if (c.selo !== 'Nv ' + m.level || c.mais !== (pts ? '+' + pts + (pts === 1 ? ' ponto' : ' pontos') + ' para distribuir' : null)) problems.push(`${label} ${tag}: selos do retrato ${JSON.stringify([c.selo, c.mais])} (esperado Nv ${m.level} e ${pts ? '+' + pts + ' (com o texto para o leitor de tela " pontos para distribuir")' : 'sem +N'})`)
-      const k = Math.max(1, Math.round(ESCALA_GRANDE * c.dpr))
-      if (!c.cv || !c.cv.grande || c.cv.w !== 48 * k || c.cv.h !== 36 * k || Math.abs(c.cv.cw - 48 * k / c.dpr) > 0.5 || Math.abs(c.cv.ch - 36 * k / c.dpr) > 0.5) {
-        problems.push(`${label} ${tag}: retrato grande ${JSON.stringify(c.cv)} (esperado ${48 * k}x${36 * k} pixels em ${(48 * k / c.dpr).toFixed(2)}x${(36 * k / c.dpr).toFixed(2)} px: escala ${ESCALA_GRANDE}, dpr ${c.dpr}, sem encolher pelo CSS)`)
+      // na grade (etapa 1b): 96 pixels de arte de altura e a largura da coluna em pixels de arte inteiros, k inteiro, sem o CSS
+      // ampliar nem encolher
+      const k = c.cv ? Math.round(c.cv.h / 96) : 0
+      if (!c.cv || !c.cv.grande || k < 1 || c.cv.h !== 96 * k || c.cv.w % k || Math.abs(c.cv.cw - c.cv.w / c.dpr) > 0.5 || Math.abs(c.cv.ch - c.cv.h / c.dpr) > 0.5) {
+        problems.push(`${label} ${tag}: retrato grande ${JSON.stringify(c.cv)} (esperado 96 pixels de arte de altura × k inteiro, dpr ${c.dpr}, sem ampliar nem encolher pelo CSS)`)
       } else if (estreita && (c.cv.cw + 12) / c.cab < 0.9) problems.push(`${label} ${tag}: o retrato com a moldura (${(c.cv.cw + 12).toFixed(1)} px) não ocupa a largura da coluna (${c.cab} px)`)
       notes[`${label} ${tag}`] = { abasFundo: c.abasFundo, appAbasTopo: c.appAbasTopo, retrato: c.cv, cabeca: c.cab }
       return m

@@ -1335,6 +1335,11 @@
         if (!entry) return;
         var o = entry.opts, horse = entry.horse;
         var dim = RETRATO_ARTE[o.tamanho === 'pequeno' || o.tamanho === 'grande' ? o.tamanho : 'normal'], RW = dim[0], RH = dim[1];
+        if (o.tamanho === 'grande') {   // a ficha: de borda a borda da coluna (menos a moldura de 6 px de cada lado), em pixels de arte inteiros
+          var kG = gradeS || Math.max(1, Math.round(1.5 * dpr())), caixa = cv.parentNode && cv.parentNode.parentNode;
+          var largG = caixa && caixa.clientWidth ? caixa.clientWidth - 12 : RW * kG / dpr();
+          RW = clamp(Math.floor(largG * dpr() / kG), 112, 256);
+        }
         var s = setupCanvasGrade(cv, RW, RH);
         var seed = (horse.name.charCodeAt(0) || 0) + (horse.name.length * 3);
         var phase = (seed % 10) * 0.37;

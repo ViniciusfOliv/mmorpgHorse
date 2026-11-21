@@ -55,7 +55,7 @@
   --noite-2: #3e3546;
   --painel: #313638;
   --painel-2: #374e4a;
-  --painel-3: #547e64;
+  --painel-3: #165a4c;
   --linha: #547e64;
   --linha-luz: #92a984;
   --sombra: #2e222f;
@@ -76,11 +76,11 @@
   --prego: #9babb2;
   --prego-luz: #ffffff;
   --ganho: #91db69;
-  --perda: #e83b3b;
+  --perda: #f68181;
   --foco: #8ff8e2;
   /* elementos (texto legível sobre o painel) */
-  --fogo: #fb6b1d;
-  --agua: #4d9be6;
+  --fogo: #f79617;
+  --agua: #8fd3ff;
   --grama: #91db69;
   --geral: #b2ba90;
   /* raridades (GameData.RARITIES) */
@@ -359,8 +359,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .btn--texto, .btn--texto:disabled, .btn--texto:active:not(:disabled), .btn--texto.apertado-demo { box-shadow: none; }
 .btn--texto:hover:not(:disabled) { background: transparent; color: var(--texto); }
 /* de perigo (§4.6): o botão com o texto em --perda; no hover o fundo escurece (--perda sobre --painel-3 fica abaixo de 4,5:1) */
-.btn--perigo { color: var(--perda); }
-.btn--perigo:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--painel); }
+.btn--perigo { color: var(--perda); background: var(--painel); }   /* fundo mais escuro: o vermelho da paleta passa de 4,5:1 */
+.btn--perigo:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--noite); }
 .acoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .barra-acao {
   position: sticky; bottom: 0; z-index: 5;
@@ -566,7 +566,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .raridade--magico { background: var(--r-magico); }
 .raridade--raro { background: var(--r-raro); }
 .raridade--lendario { background: var(--r-lendario); }
-.raridade--mitico { background: var(--r-mitico); color: var(--texto); }
+.raridade--mitico { background: var(--r-mitico); color: var(--prego-luz); }   /* branco: o violeta da paleta é claro para o texto c7dcd0 */
 /* selos (§4.10): contorno --sombra, bisel de 2px e o canto recortado de 1 pixel de arte — o clip-path em degraus de 2px
    tira o pixel de cada canto do contorno de fora (os pontos passam 2px da caixa). O chip faz o mesmo sem clip-path */
 .raridade, .selo-nivel, .pontos-livres--selo, .badge-ativa, .tag-voce, .set-badge {
@@ -730,12 +730,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .barra-acao--chegando { pointer-events: none; }
 /* recém-armada (o 1º toque no Confirmar): os botões não pegam toque, e o toque cai na bandeja (BARRA_GUARDA_MS) */
 .barra-acao--armando .barra-botoes { pointer-events: none; }
-.barra-pontos { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
-.barra-poder { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); color: var(--texto-2); white-space: nowrap; }
+.barra-pontos { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 4px; }
+.barra-poder { margin: 0; font-family: var(--fonte-7); font-size: var(--t-7); line-height: var(--lh-7); color: var(--texto-2); white-space: nowrap; }   /* legenda (Galmuri7): o "Poder A → B" e os dois botões numa linha a 360 px */
 .barra-poder b { color: var(--texto); }
 .barra-poder .barra-poder-novo { color: var(--ganho); }
-.barra-botoes { display: flex; gap: 6px; margin-left: auto; }
-.barra-botoes .btn { margin: 2px; }
+.barra-botoes { display: flex; gap: 4px; margin-left: auto; }
+.barra-botoes .btn { margin: 2px; padding-left: 8px; padding-right: 8px; }   /* "Poder A → B", Desfazer e Confirmar numa linha a 360 px com a Galmuri */
 /* o foco por teclado para acima da barra presa: a altura medida dela (--barra-pontos-alt, game.js) mais o que fica
    embaixo (a barra de abas do app e a área segura) e 8 px de folga */
 html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--barra-pontos-alt, 80px) + env(safe-area-inset-bottom, 0px)); }
@@ -780,7 +780,7 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .inicial .cavalo-nome { font-size: var(--t-m); }
 .inicial-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .iniciais-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.iniciais-nav .pilula { min-height: 48px; padding-inline: 10px; gap: 6px; }
+.iniciais-nav .pilula { min-height: 48px; padding-inline: 10px; gap: 6px; background: var(--painel); }   /* o nome na cor do elemento passa de 4,5:1 */
 .iniciais-nav .nota { flex-basis: 100%; }
 
 /* ---------- estábulo ---------- */
@@ -10827,6 +10827,11 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         if (!entry) return;
         var o = entry.opts, horse = entry.horse;
         var dim = RETRATO_ARTE[o.tamanho === 'pequeno' || o.tamanho === 'grande' ? o.tamanho : 'normal'], RW = dim[0], RH = dim[1];
+        if (o.tamanho === 'grande') {   // a ficha: de borda a borda da coluna (menos a moldura de 6 px de cada lado), em pixels de arte inteiros
+          var kG = gradeS || Math.max(1, Math.round(1.5 * dpr())), caixa = cv.parentNode && cv.parentNode.parentNode;
+          var largG = caixa && caixa.clientWidth ? caixa.clientWidth - 12 : RW * kG / dpr();
+          RW = clamp(Math.floor(largG * dpr() / kG), 112, 256);
+        }
         var s = setupCanvasGrade(cv, RW, RH);
         var seed = (horse.name.charCodeAt(0) || 0) + (horse.name.length * 3);
         var phase = (seed % 10) * 0.37;
