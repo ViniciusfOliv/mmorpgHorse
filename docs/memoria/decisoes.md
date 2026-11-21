@@ -3,6 +3,17 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-21 — Integração da arte, etapa 1a (interface na Galmuri)
+- **Ordem nova da etapa 1** (aprovada pelo Vinicius): 1a interface, 1b paleta e cavalos 1:1 fora da corrida; a grade da
+  corrida, o texto do canvas e os cavalos 1:1 na corrida vão junto com a etapa 2 (a pista de hoje é da grade grossa).
+- **Grade da interface: `s = min(floor(L / 240), floor(A / 300))`** (L e A: largura da coluna e altura da tela em
+  pixels do aparelho), no lugar do `round(L / 256)` do guia: a densidade 3 dava 234 px de arte e o rótulo "Expedição"
+  não cabia; deitado, a letra ficava grande demais para a altura.
+- **Galmuri9 é o texto corrido padrão**; a 11 fica para nomes, botões e títulos, a 7 para legendas (rótulos das abas,
+  dono e nível na tabela de chegada, dono no pódio, "Genética"). Com a 11 em tudo, as telas cresciam até 11%.
+- **Limites de altura do `ui-test` remedidos com a fonte nova** (Status 1.502, Skills 1.555, Correr 886, linhas da
+  chegada a 1280 até 82 px, Status com itens +170): a Galmuri é mais larga que a Jersey; a folga de 4% continua.
+
 ## 2026-11-20 — Direção de arte: marca (etapa 7)
 - **Letreiro "GALOPE ELEMENTAL" desenhado à mão em código, letra por letra** (`arte-letreiro.mjs`): a IA erra letras.
   Emblema do PixelLab Pro (escolhido o 10) ao lado; ícone do app Pro 128×128 (escolhido o 03) ampliado 4×.
