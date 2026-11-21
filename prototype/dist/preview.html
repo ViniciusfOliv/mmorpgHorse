@@ -9833,7 +9833,10 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
   // letras, molduras e sombras em múltiplos dele (a Galmuri só fica nítida no tamanho nativo em pixels inteiros)
   var gradeS = 0;
   function aplicaGrade() {
-    var L = Math.min(window.innerWidth || 390, 520) * dpr(), s = Math.max(1, Math.floor(L / 240));   // a coluna fica com 240 a 479 pixels de arte
+    // a coluna fica com 240 a 479 pixels de arte; deitado (pouca altura), a altura também manda: pelo menos 300 pixels de
+    // arte na vertical, senão a letra fica grande demais para a tela (780 × 360: s = 2 em vez de 4)
+    var L = Math.min(window.innerWidth || 390, 520) * dpr(), A = (window.innerHeight || 844) * dpr();
+    var s = Math.max(1, Math.min(Math.floor(L / 240), Math.floor(A / 300)));
     if (s === gradeS && document.documentElement.style.getPropertyValue('--px')) return;
     gradeS = s;
     document.documentElement.style.setProperty('--px', (s / dpr()) + 'px');
@@ -11280,7 +11283,12 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
     else if (!isRoot(ui.screen) && state) voltaDaSubtela();
   });
 
+  // Toque duplo no "Largar!": o 2º toque não pode cair no "Pular" da corrida que acabou de abrir (com a Galmuri, a tela da
+  // corrida ficou mais baixa e o "Pular" passou a ficar onde estava o "Largar!"). Por PULAR_GUARDA_MS depois de a tela
+  // da corrida abrir, o "Pular" não faz nada (o teclado e o toque de propósito, depois, valem normalmente).
+  var PULAR_GUARDA_MS = 400, corridaDesde = 0;
   function go(screen) {
+    if (screen === 'corrida' && ui.screen !== 'corrida') corridaDesde = Date.now();
     if (saveBloqueado) screen = 'bloqueio';   // a tela de bloqueio não tem saída (só o Recarregar)
     // sem o que mostrar, a navegação leva a um lugar que existe: sem cartão, o resumo (ou o Estábulo); sem corrida, a aba
     // Correr (não acontece: só garante que a tela de corrida e o cartão nunca são desenhados vazios)
@@ -16238,6 +16246,7 @@ window.__TREINADORES = {"cabo-carrapicho":"data:image/png;base64,iVBORw0KGgoAAAA
         });
         break;
       case 'pular':
+        if (Date.now() - corridaDesde < PULAR_GUARDA_MS) break;   // o 2º toque do "Largar!" (ver PULAR_GUARDA_MS)
         if (raceView) raceView.skip(); else corridaAtual().fim();
         break;
       case 'denovo':

@@ -434,7 +434,7 @@ ${ESTILO_FOLHA}
 // a mesma grade de pixel do jogo (game.js, aplicaGrade): --px = s / densidade, com s = floor(largura da coluna / 240)
 (function () {
   function grade() {
-    var d = Math.max(1, window.devicePixelRatio || 1), s = Math.max(1, Math.floor(Math.min(window.innerWidth || 390, 520) * d / 240));
+    var d = Math.max(1, window.devicePixelRatio || 1), s = Math.max(1, Math.min(Math.floor(Math.min(window.innerWidth || 390, 520) * d / 240), Math.floor((window.innerHeight || 844) * d / 300)));
     document.documentElement.style.setProperty('--px', (s / d) + 'px');
   }
   grade(); window.addEventListener('resize', grade);
