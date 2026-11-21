@@ -6526,7 +6526,8 @@ try {
         let de = 0
         for (const p of exp) { const i = l.txt.indexOf(p, de); if (i < 0) { ruim(`linha ${k + 1}: ${JSON.stringify(l.txt)} sem ${JSON.stringify(p)} (na ordem ${JSON.stringify(exp)})`); break } de = i + p.length }
         if (l.chip !== exp[1]) ruim(`linha ${k + 1}: raia ${l.chip} (esperado ${exp[1]})`)
-        if (l.h > 70) ruim(`linha ${k + 1} com ${l.h.toFixed(1)} px de altura (máximo 70)`)
+        // 2026-11-21 (Galmuri, etapa 1a): a legenda do cavalo (Galmuri7) pode quebrar em 2 linhas onde a Jersey cabia em 1
+        if (l.h > 82) ruim(`linha ${k + 1} com ${l.h.toFixed(1)} px de altura (máximo 82)`)
         if (l.filhos !== 2) ruim(`linha ${k + 1}: a célula do cavalo com ${l.filhos} linhas de texto (esperado 2: nome; dono, nível e skills)`)
         const nPecas = exp.includes('VOCÊ') ? 2 : 3
         if (l.pecas.length !== nPecas || l.pecas.some((p) => p.rects !== 1) || l.pecas.some((p, i) => (i < l.pecas.length - 1) !== / ·$/.test(p.txt)))
@@ -8960,7 +8961,8 @@ try {
       if (sem.alt > LIM_STATUS || sem.usos.length) problems.push(`${label}: sem itens, a aba Status tem ${sem.alt}px (teto ${LIM_STATUS}, medida com a Galmuri) e ${sem.usos.length} botões de item`)
       if (soSkills.alt !== sem.alt || soSkills.usos.length) problems.push(`${label}: só com Cupom e Manual (que são da aba Skills), a aba Status mudou: ${soSkills.alt}px (sem itens ${sem.alt}px), botões ${soSkills.usos.join(',')}`)
       if (com.usos.map((u) => u.split(':')[0]).join() !== 'torrao,estrela' || com.usos.some((u) => Number(u.split(':')[1]) < 44)) problems.push(`${label}: com Torrão e Estrela, os botões de item ${com.usos.join(',')} (esperado torrao,estrela com 44 px ou mais)`)
-      if (com.alt - sem.alt > 120) problems.push(`${label}: com Torrão e Estrela, a aba Status cresceu ${com.alt - sem.alt}px (máximo 120)`)
+      // 2026-11-21 (Galmuri, etapa 1a): o texto dos dois cartões de item quebra mais linhas que com a Jersey (120 → 170)
+      if (com.alt - sem.alt > 170) problems.push(`${label}: com Torrão e Estrela, a aba Status cresceu ${com.alt - sem.alt}px (máximo 170)`)
       for (const [n, r] of [['sem itens', sem], ['com Torrão e Estrela', com]]) if (r.fora.length) problems.push(`${label}: ${n}, linhas de status fora da primeira tela: ${r.fora.join(',')}`)
     } catch (e) {
       problems.push(`[${label}] ` + e.message)
@@ -8973,13 +8975,14 @@ try {
   // de texto mais longo) e o 7 do 4º calendário (com a Estrela, o 28º resgate); a altura do cartão é par (grade de 2 px) ----------------
   if (quer('itens')) {
     const label = 'itens-diaria-altura'
-    const LISTA_ANTES = { 3: 412, 6: 748 }
+    // 2026-11-21 (Galmuri, etapa 1a): a lista medida com a fonte nova (era 412 e 748 com a Jersey)
+    const LISTA_ANTES = { 3: 411, 6: 761 }
     const v7 = (save, diaria) => Object.assign({}, save, { v: 7, mochila: { torrao: 0, estrela: 0, cupom: 0, manual: 0 }, diaria, itemCounter: 0,
       lojaItens: { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null } })
     // [nome, diária do save (null: o save da v6, que migra no dia 1), o dia "N / 7" esperado]
     const DIAS = [['dia 1', null, 1], ['dia 6', { prox: 5, ciclos: 0, ultimo: null }, 6], ['dia 7', { prox: 6, ciclos: 0, ultimo: null }, 7],
       ['dia 7 do 4º calendário', { prox: 6, ciclos: 3, ultimo: null }, 7]]
-    for (const [n, save, comPremio, resgatada] of [[3, SAVE_3A, 890, 820], [6, SAVE_3B_6, 1210, 1140]]) {
+    for (const [n, save, comPremio, resgatada] of [[3, SAVE_3A, 890, 820], [6, SAVE_3B_6, 1225, 1155]]) {   // 6: +15 px da lista com a Galmuri (761 − 748; 2026-11-21)
       for (const [dia, diaria, k] of DIAS) {
         const tag = `${n} cavalos, ${dia}`
         const p = await newPage(browser, { width: 360, height: 780 }, `${label}-${n}`, comSave(diaria ? v7(save, diaria) : save))

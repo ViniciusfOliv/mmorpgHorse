@@ -663,7 +663,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .nivel { font-size: inherit; line-height: var(--lh-s); color: var(--texto); white-space: nowrap; }   /* "Nv 3": na fonte do texto em volta, como o selo de nível */
 
 .build-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.build-topo .pontos-livres { margin: 0; font-family: var(--fonte-ui); font-size: var(--t-m); line-height: 1.25; color: var(--texto); }
+.build-topo .pontos-livres { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); color: var(--texto); }   /* Galmuri9: o topo cabe numa linha a 360 px */
 .build-topo .pontos-livres b { color: var(--ganho); }
 .build { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 /* linha de um status (3b §6): numa linha de 44 px o nome (o botão de ajuda), a nota, o valor com o custo do próximo ponto
@@ -1223,8 +1223,8 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .feed--estatica li > span:last-child { white-space: normal; overflow: visible; }
 .podio-palco { display: flex; flex-direction: column; align-items: center; gap: 6px; background: var(--painel); padding: 10px 0 12px; box-shadow: 0 6px 0 0 var(--sombra); margin-bottom: 6px; }
 .podio-nomes { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; max-width: 336px; text-align: center; gap: 4px; }
-.podio-nomes div { display: flex; flex-direction: column; min-width: 0; font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); line-height: 1.25; }
-.podio-nomes b { color: var(--texto); font-family: var(--fonte-9); font-size: var(--t-s); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.podio-nomes div { display: block; min-width: 0; font-family: var(--fonte-7); font-size: var(--t-7); color: var(--texto-2); line-height: var(--lh-7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* o dono: legenda (Galmuri7) */
+.podio-nomes b { display: block; color: var(--texto); font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .podio-nomes .voce b { color: var(--ouro); }
 .manchete { font-family: var(--fonte-display); font-size: var(--t-m); line-height: calc(var(--px) * 20); color: var(--texto); text-shadow: var(--px) var(--px) 0 var(--sombra); }
 .manchete em { font-style: normal; color: var(--ouro); }
@@ -1252,9 +1252,9 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .tabela .pos { font-family: var(--fonte-display); font-size: var(--t-m); white-space: nowrap; }
 .tabela .quem { display: flex; flex-direction: column; gap: 0; min-width: 0; }
 .tabela .quem b { display: flex; align-items: center; gap: 6px; font-weight: 700; }
-.tabela .quem small { color: var(--texto-2); font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.15; }
+.tabela .quem small { color: var(--texto-2); font-family: var(--fonte-7); font-size: var(--t-7); line-height: var(--lh-7); }   /* legenda (guia §6): Galmuri7, em 1 linha onde couber */
 .tabela .quem-peca { white-space: nowrap; }   /* Ruling 17: o dono, o nível e as skills nunca se partem */
-.tabela td.num small { display: block; color: var(--texto-2); font-family: var(--fonte-9); font-size: var(--t-s); }
+.tabela td.num small { display: block; color: var(--texto-2); font-family: var(--fonte-7); font-size: var(--t-7); line-height: var(--lh-7); }
 .tabela .tempo { font-weight: 600; }
 
 /* ---------- celular ---------- */
