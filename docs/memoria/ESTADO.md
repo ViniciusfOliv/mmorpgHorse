@@ -359,7 +359,7 @@ ela achou; a verificação completa passou na `main` antes do envio. Ninguém jo
 
 ## Skills com 100% e ranks (implementadas em 2026-11-19 na `claude/skills-ranks`; na `main` desde 2026-11-21)
 Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/superpowers/plans/2026-11-19-skills-ranks.md`
-(tarefas 1 a 8 marcadas; da 9 faltam a verificação final verde e as capturas oficiais), regra no `docs/GDD.md` §3 e
+(as 9 tarefas marcadas), regra no `docs/GDD.md` §3 e
 §8.2, números no wiki (seção Skills, "Rank das skills"), medições em `docs/exemplos.md` §3, decisões em `decisoes.md`.
 - **Regra:** a skill de vaga ativa sempre que o gatilho acontece (sem sorteio; `RaceSim.VERSION` 4.0.0); rank I a V por
   cavalo (`skillRanks`), fator 1,00 a 1,60 só na parte de bônus e um marco no V; o rank entra no Poder; bots com o rank
