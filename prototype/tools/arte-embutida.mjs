@@ -4,12 +4,17 @@
 //   lerIcones(root)         -> { nome: dataUrl }  (window.__ICONES; a pasta raw/ fica de fora)
 //   lerMarca(root)          -> { logo, w, h } ou { logo: null }  (window.__MARCA)
 //   lerTreinadores(root)    -> { id: dataUrl }  (window.__TREINADORES: a candidata escolhida de cada oponente dos ginásios)
+//   lerRegioes(root)        -> { regiao: { nome, pistas, posicao, camadas: { nuvens, horizonte, meio, arquibancada,
+//                              frente } } }  (window.__REGIOES: as camadas da corrida, etapa 2.3; o horizonte já com a
+//                              névoa da distância, como na amostra)
 //   jsonJs(v)               -> JSON seguro dentro de <script> (nada de "<" literal)
 // root = a pasta prototype/. Arquivo de arte ausente nunca falha: a parte correspondente fica vazia
 // (o molde inválido vira um aviso em `avisos`) e quem usa cai no desenho por código / no texto.
 import { readFile, readdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { decodePng, encodePng } from './png.mjs'
+import { REGIOES as PALETAS, quantizar, rgbDe } from './arte-paleta.mjs'
 
 export const dataUrl = async (root, rel) => 'data:image/png;base64,' + (await readFile(join(root, rel))).toString('base64')
 const listar = async (root, rel) => (existsSync(join(root, rel)) ? (await readdir(join(root, rel))).sort() : [])
@@ -86,4 +91,33 @@ export async function lerMarca(root) {
   const buf = await readFile(join(root, logo))
   const png = buf.length > 24 && buf.toString('latin1', 12, 16) === 'IHDR'
   return { logo: 'data:image/png;base64,' + buf.toString('base64'), w: png ? buf.readUInt32BE(16) : 0, h: png ? buf.readUInt32BE(20) : 0 }
+}
+
+// Camadas das regiões: assets/arte/<regiao>/<camada>.png (as finais de arte-regioes.mjs --finalizar, escolhidas em
+// assets/arte/regioes.json). O horizonte vai com a névoa da distância assada (cada cor misturada 45% com 9babb2 e de
+// volta para a paleta da região: a mesma conta da amostra, prototype/arte/amostra.js, lutNevoaDe). Região sem alguma
+// das 5 camadas fica de fora (a pista cai no cenário por código).
+export const CAMADAS_REGIAO = ['nuvens', 'horizonte', 'meio', 'arquibancada', 'frente']
+export function comNevoa(img, paleta, cor = '9babb2', k = 0.45) {
+  const n = rgbDe(cor), out = new Uint8Array(img.rgba)
+  for (let i = 0; i < out.length; i += 4) for (let c = 0; c < 3; c++) out[i + c] = Math.round(out[i + c] + (n[c] - out[i + c]) * k)
+  return quantizar({ width: img.width, height: img.height, rgba: out }, paleta)
+}
+export async function lerRegioes(root) {
+  const man = join(root, 'assets/arte/regioes.json')
+  if (!existsSync(man)) return {}
+  const manifesto = JSON.parse(await readFile(man, 'utf8')), out = {}
+  for (const [r, reg] of Object.entries(manifesto)) {
+    if (r.startsWith('_')) continue
+    const arqs = CAMADAS_REGIAO.map((k) => join(root, 'assets/arte', r, k + '.png'))
+    if (!arqs.every((a) => existsSync(a))) continue
+    const camadas = {}
+    for (const [i, k] of CAMADAS_REGIAO.entries()) {
+      let buf = await readFile(arqs[i])
+      if (k === 'horizonte' && PALETAS[r]) buf = encodePng(comNevoa(decodePng(buf), PALETAS[r]))
+      camadas[k] = 'data:image/png;base64,' + buf.toString('base64')
+    }
+    out[r] = { nome: reg.nome, pistas: reg.pistas || [], posicao: reg.posicao || {}, camadas }
+  }
+  return out
 }

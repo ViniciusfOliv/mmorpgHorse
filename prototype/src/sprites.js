@@ -31,6 +31,11 @@
  *     nos postes e placas "CURVA" presas à cerca a cada 40 m. O chamador soma o mesmo deslocamento no y dos
  *     cavalos. Sem fx.js, a pista fica reta. curveScale (0..1) encolhe o arco quando falta espaço acima da
  *     pista (o y dos cavalos usa o mesmo fator).
+ *     regiao: id de window.__REGIOES já passado ao setRegioes (cerrado, varzea, planalto, sertao, litoral): o fundo vira
+ *     as camadas da região (céu em faixas, nuvens, horizonte, meio, arquibancada, faixa de grama) e o chão de dentro
+ *     fica para o primeiro plano; sem ela, o cenário por código.
+ *   Sprites.setRegioes({ id: { posicao, camadas: { nuvens, horizonte, meio, arquibancada, frente } (Image) } }),
+ *   Sprites.regiaoPronta(id), Sprites.drawTrackFront(ctx) — primeiro plano da região (paralaxe 1,25), depois dos cavalos
  *   Sprites.cloudCanvas(seed, P, tom) — nuvem de pixels em cache (usada pelo nublado do fx.js)
  *   Sprites.drawTrail(ctx, x, y, element, t, intensity, scale)
  *   Sprites.drawElementIcon(ctx, x, y, element, scale)
@@ -2014,10 +2019,11 @@
     nublado: { far: '#8e9fb0', mid: '#69906a', near: '#557d55', tree: '#436a45', treeL: '#5b875a' },
     chuva: { far: '#5d6a78', mid: '#4b6655', near: '#3f5a48', tree: '#33493b', treeL: '#46604c' }
   };
+  // os pisos na paleta-mestra (etapa 2.3; a terra é a da amostra aprovada); cada pixel do tile sai por naMestra
   var SURF = {
-    grama: { a: '#5cb44a', b: '#4ea640', dark: '#3f8f36', lite: '#7ccc5c', edge: '#8a7a4c' },
-    terra: { a: '#a46c3e', b: '#9a6337', dark: '#6e4324', lite: '#c08a58', edge: '#7a5030' },
-    areia: { a: '#e2c98f', b: '#d9be82', dark: '#bf9f62', lite: '#f4e4b8', edge: '#c8aa70' }
+    grama: { a: '#239063', b: '#239063', dark: '#165a4c', lite: '#1ebc73', edge: '#676633' },
+    terra: { a: '#cd683d', b: '#cd683d', dark: '#9e4539', lite: '#e6904e', edge: '#6e2727' },
+    areia: { a: '#fbb954', b: '#fbb954', dark: '#e6904e', lite: '#fdcbb0', edge: '#cd683d' }
   };
 
   // Névoa usa as mesmas cores apagadas do nublado (céu, colinas, gramados, arquibancada).
@@ -2059,7 +2065,7 @@
           if (surface !== 'grama' && pd > 0.42) col = mix(col, '#9fb4c8', 0.35);
           if (surface === 'grama' && h > 0.9) col = mix(col, '#cfe8ff', 0.4);
         }
-        cols[y * TW + x] = col;
+        cols[y * TW + x] = naMestra(col);
       }
     }
     c = gridToCanvas(cols, TW, artH);
@@ -2163,6 +2169,22 @@
     return c;
   }
 
+  // Primeiro plano da região (paralaxe 1,25), por cima dos cavalos: chamar depois deles, no mesmo quadro do drawTrack.
+  // Sem a região (ou sem drawTrack neste quadro) não desenha nada e devolve false
+  function drawTrackFront(ctx) {
+    var F = frenteQuadro;
+    if (!F) return false;
+    var img = F.RG.camadas.frente, P = F.P;
+    if (!F.trA) camadaRepetida(ctx, img, F.camArt * 1.25, F.y, F.W, P);
+    else for (var i = 0; i < F.trA.length; i++) {
+      var tr = F.trA[i];
+      ctx.save(); ctx.beginPath(); ctx.rect(tr[0], 0, tr[1] - tr[0], F.H); ctx.clip();
+      camadaRepetida(ctx, img, F.camArt * 1.25, F.y - tr[2] * P, F.W, P);
+      ctx.restore();
+    }
+    return true;
+  }
+
   // Placa com texto (borda escura), em Galmuri7: 7 da maiúscula e 2 de folga em cima e embaixo. top é o da placa de
   // 9 de antes: a de agora cresce 2 para cima, e o pé (preso no poste) fica onde estava
   function drawBoard(ctx, cx, top, text, P, bg, fg) {
@@ -2170,9 +2192,9 @@
     var w = tw + 4 * P, h = 11 * P;
     var x = Math.round(cx - w / 2);
     top -= 2 * P;
-    ctx.fillStyle = '#1c1820'; ctx.fillRect(x - P, top - P, w + 2 * P, h + 2 * P);
+    ctx.fillStyle = '#2e222f'; ctx.fillRect(x - P, top - P, w + 2 * P, h + 2 * P);
     ctx.fillStyle = bg; ctx.fillRect(x, top, w, h);
-    ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(x, top + h - P, w, P);
+    ctx.fillStyle = naMestra(shade(bg, 0.25), bg); ctx.fillRect(x, top + h - P, w, P);   // a última linha, um tom abaixo
     drawText(ctx, text, x + 2 * P, top + 2 * P, { scale: P, color: fg, fonte: 'g7' });
     return { x: x, y: top, w: w, h: h };
   }
@@ -2303,6 +2325,94 @@
     return trechos.length;
   }
 
+  // ---------------------------------------------------------------------------
+  // Camadas das regiões (etapa 2.3 da direção de arte; guia §7 e §8a): window.__REGIOES (build) vira Image no game.js e
+  // chega aqui por setRegioes({ regiao: { posicao, camadas: { nuvens, horizonte, meio, arquibancada, frente } } }).
+  // Sem a região pronta, a pista cai no cenário por código de antes. Posições como na amostra (prototype/arte/amostra.js),
+  // contadas a partir do topo da pista (laneTop): céu até laneTop; nuvens com o topo em laneTop − 110; horizonte com o pé
+  // em laneTop − 32; meio com o pé em laneTop + 26 (+ posicao.meio); arquibancada com o pé em laneTop − 6, a cada 2600 px
+  // da sua paralaxe; faixa de grama de laneTop − 16 a laneTop; primeiro plano (drawTrackFront) com o topo no pé da pista
+  // − 3. Paralaxe (fração da câmera): nuvens 0,04 (mais o vento), horizonte 0,1, meio 0,3, arquibancada 0,75, pista 1,
+  // primeiro plano 1,25; cada camada arredondada para o pixel de arte.
+  // ---------------------------------------------------------------------------
+  var CAMADAS_REGIAO = ['nuvens', 'horizonte', 'meio', 'arquibancada', 'frente'];
+  var regioesImg = {};
+  function setRegioes(m) { regioesImg = m || {}; }
+  function regiaoPronta(id) {
+    var r = id && regioesImg[id];
+    if (!r || !r.camadas) return null;
+    for (var i = 0; i < CAMADAS_REGIAO.length; i++) if (!r.camadas[CAMADAS_REGIAO[i]]) return null;
+    return r;
+  }
+  // o céu em 4 faixas da paleta com 2 linhas de pontilhado entre elas (guia §3: sem degradê suave); limites como na
+  // amostra (0, 26, 64 e 100 de 128 até o chão)
+  var CEU_REGIAO = {
+    sol: ['#4d65b4', '#4d9be6', '#8fd3ff', '#c7dcd0'],
+    nublado: ['#625565', '#7f708a', '#9babb2', '#c7dcd0'],
+    chuva: ['#323353', '#484a77', '#625565', '#7f708a']
+  };
+  var ceuCache = new Map();
+  function ceuRegiao(weather, alto) {
+    var cores = CEU_REGIAO[weather] || CEU_REGIAO.sol, key = cores.join() + '|' + alto, c = ceuCache.get(key);
+    if (c) return c;
+    c = makeCanvas(4, Math.max(1, alto));
+    var g = c.getContext('2d'), lim = [0, 26, 64, 100].map(function (v) { return alto - 128 + v; });
+    for (var i = 0; i < 4; i++) {
+      var y0 = Math.max(0, lim[i]), y1 = i < 3 ? lim[i + 1] : alto;
+      if (y1 <= 0) continue;
+      g.fillStyle = cores[i]; g.fillRect(0, y0, 4, y1 - y0);
+      if (i < 3 && y1 - 2 >= 0) {
+        g.fillStyle = cores[i + 1]; g.fillRect(0, y1 - 2, 1, 1); g.fillRect(2, y1 - 2, 1, 1); g.fillRect(0, y1 - 1, 4, 1);
+        g.fillStyle = cores[i]; g.fillRect(1, y1 - 1, 1, 1);
+      }
+    }
+    if (ceuCache.size > 20) ceuCache.clear();
+    ceuCache.set(key, c);
+    return c;
+  }
+  var solRegiao = null;
+  function solDaRegiao() {
+    if (solRegiao) return solRegiao;
+    var c = makeCanvas(23, 23), g = c.getContext('2d');
+    for (var y = 0; y < 23; y++) for (var x = 0; x < 23; x++) {
+      var d = Math.sqrt((x - 11) * (x - 11) + (y - 11) * (y - 11));
+      if (d <= 7) g.fillStyle = '#ffffff';
+      else if (d <= 9 || (d <= 11 && (x + y) % 2 === 0)) g.fillStyle = '#fbff86';
+      else continue;
+      g.fillRect(x, y, 1, 1);
+    }
+    return (solRegiao = c);
+  }
+  // a faixa de grama atrás da cerca de trás (16 de altura, 384 de largura, emenda nas pontas), presa à pista
+  var gramaFaixa = null;
+  function faixaGrama() {
+    if (gramaFaixa) return gramaFaixa;
+    var c = makeCanvas(384, 16), g = c.getContext('2d');
+    g.fillStyle = '#239063'; g.fillRect(0, 0, 384, 16);
+    for (var x = 0; x < 384; x++) {
+      var t = hash2(x, 7);
+      if (t < 0.35) { g.fillStyle = '#1ebc73'; g.fillRect(x, t < 0.12 ? 1 : 2, 1, 2); }
+      if (hash2(x, 9) < 0.18) { g.fillStyle = '#165a4c'; g.fillRect(x, 14, 1, 2); }
+    }
+    return (gramaFaixa = c);
+  }
+  // camada repetida na horizontal, deslocada desloc pixels de arte (arredondado), com o topo em y (pixels do canvas)
+  function camadaRepetida(ctx, img, desloc, y, W, P) {
+    var w = img.width * P, x = -mod(Math.floor(desloc) * P, w);
+    for (; x < W; x += w) ctx.drawImage(img, x, y, w, img.height * P);
+  }
+  // o fundo da região: céu, sol, nuvens, horizonte e meio (a arquibancada e a faixa de grama vêm depois, com o arco)
+  function fundoRegiao(ctx, RG, W, laneTop, camArt, t, weather, vento, P) {
+    var lt = Math.round(laneTop / P), cm = RG.camadas;
+    ctx.drawImage(ceuRegiao(skyKey(weather), lt), 0, 0, W, lt * P);
+    if (weather === 'sol') ctx.drawImage(solDaRegiao(), 100 * P, (lt - 104) * P, 23 * P, 23 * P);   // à esquerda (a luz vem de cima e da esquerda), fora do minimapa
+    camadaRepetida(ctx, cm.nuvens, camArt * 0.04 - vento.dir * t * 3 * (vento.k.nuvem || 1), (lt - 110) * P, W, P);
+    camadaRepetida(ctx, cm.horizonte, camArt * 0.1, (lt - 32 - cm.horizonte.height) * P, W, P);
+    camadaRepetida(ctx, cm.meio, camArt * 0.3, (lt + 26 - cm.meio.height + ((RG.posicao || {}).meio || 0)) * P, W, P);
+  }
+  // o que drawTrack deixou para o primeiro plano do mesmo quadro (drawTrackFront): os trechos do arco das curvas
+  var frenteQuadro = null;
+
   function drawTrack(ctx, o) {
     var W = o.width, Hh = o.height;
     var lanes = o.lanes || 6, laneH = o.laneH || 24, laneTop = o.laneTop || Math.round(Hh * 0.35);
@@ -2313,11 +2423,15 @@
     var camPx = cam * ppm, vento = ventoPista(o.wind);
     function sx(m) { return Math.round((m - cam) * ppm); }
     crisp(ctx);
+    var RG = regiaoPronta(o.regiao), camArt = camPx / P;
+    frenteQuadro = null;
+    if (RG) fundoRegiao(ctx, RG, W, laneTop, camArt, t, weather, vento, P);
 
-    // --- céu em faixas
+    // --- céu em faixas (sem a região: o cenário por código de antes)
     var sky = SKY[weather] || SKY.sol;
     var horizon = laneTop - 22 * P; // linha do chão atrás da arquibancada
     var bandH = Math.ceil(horizon / sky.length / P) * P;
+    if (!RG) {
     for (var b = 0; b < sky.length; b++) { ctx.fillStyle = sky[b]; ctx.fillRect(0, b * bandH, W, bandH + 1); }
     if (horizon > sky.length * bandH) { ctx.fillStyle = sky[sky.length - 1]; ctx.fillRect(0, sky.length * bandH, W, horizon - sky.length * bandH); }
 
@@ -2364,6 +2478,7 @@
     ridge(0.08, 4, 14, 0.02, HC.mid, 50);
     // copas de árvores na colina próxima
     ridge(0.15, 2, 6, 0.08, HC.near, 90);
+    }
 
     // --- curvas (o.curves): arco da pista NA TELA (RaceFx.curveOffsetTela, "as pontas mais altas"). Com o meio da
     // tela numa curva, a cerca, as raias e os cavalos (no game.js, com o mesmo camTela) sobem até 20 px de arte
@@ -2391,6 +2506,20 @@
     // arquibancada (tile repetido). Atrás dela, abaixo do horizonte, o pé das colinas (as frestas entre as
     // arquibancadas são transparentes; sem isso ficava o quadro anterior)
     var HCn = (HILLS[weather] || HILLS.sol).near;
+    var gramC = weather === 'chuva' ? '#3f6a3c' : isDim(weather) ? '#4a7c44' : '#58944a';
+    if (RG) {
+      // a da região: um objeto a cada 2600 px da paralaxe 0,75 (a primeira 60 px depois da largada); na curva sobe
+      // como a de código (10/6 do arco da cerca), cada trecho de colunas recortado
+      var ar = RG.camadas.arquibancada, arW = ar.width * P, arY = laneTop - (6 + ar.height) * P, PER_AR = 2600 * P;
+      var arX0 = -mod(Math.floor(camArt * 0.75) * P, PER_AR) + 60 * P;
+      var arTr = arco ? trechosArco(FXc.CURVA.arquibancada / FXc.CURVA.arco) : [[0, W, 0]];
+      for (var ati = 0; ati < arTr.length; ati++) {
+        var atr = arTr[ati], corta = arTr.length > 1;
+        if (corta) { ctx.save(); ctx.beginPath(); ctx.rect(atr[0], 0, atr[1] - atr[0], laneTop); ctx.clip(); }
+        for (var axx = arX0 - PER_AR; axx < W; axx += PER_AR) if (axx + arW > atr[0] && axx < atr[1]) ctx.drawImage(ar, axx, arY - atr[2] * P, arW, ar.height * P);
+        if (corta) ctx.restore();
+      }
+    } else {
     ctx.fillStyle = HCn; ctx.fillRect(0, horizon, W, laneTop - 4 * P - horizon);
     var frame = Math.floor(t * 3) % 2;
     var st = standTile(weather, frame);
@@ -2398,7 +2527,6 @@
     var stY = laneTop - 4 * P - stH;
     var stOff = mod(camPx * 0.35, stW);
     var flagDim = weather === 'chuva' ? 0.35 : isDim(weather) ? 0.15 : 0;
-    var gramC = weather === 'chuva' ? '#3f6a3c' : isDim(weather) ? '#4a7c44' : '#58944a';
     // desenha as arquibancadas que tocam as colunas [xa, xb), dy pixels de arte acima do lugar
     function arquibancadas(xa, xb, dy) {
       var y = stY - dy * P;
@@ -2432,6 +2560,7 @@
     // gramado entre arquibancada e pista
     ctx.fillStyle = gramC;
     ctx.fillRect(0, laneTop - 4 * P, W, 4 * P);
+    }
 
     // --- faixa da pista no arco das curvas: da cerca externa à interna, tudo sobe dyX(x) pixels do canvas na
     // coluna x (0 fora das curvas). Peças por coluna (postes, tracejados, placas) usam dyX; faixas de largura
@@ -2442,6 +2571,19 @@
     function faixaLarga(y, h) {
       if (!trA) { ctx.fillRect(0, y, W, h); return; }
       for (var i = 0; i < trA.length; i++) ctx.fillRect(trA[i][0], y - trA[i][2] * P, trA[i][1] - trA[i][0], h);
+    }
+    // camada presa à pista (paralaxe k) em y, acompanhando o arco: um recorte por trecho de colunas
+    function camadaNoArco(img, k, y) {
+      if (!trA) { camadaRepetida(ctx, img, camArt * k, y, W, P); return; }
+      for (var i = 0; i < trA.length; i++) {
+        ctx.save(); ctx.beginPath(); ctx.rect(trA[i][0], 0, trA[i][1] - trA[i][0], Hh); ctx.clip();
+        camadaRepetida(ctx, img, camArt * k, y - trA[i][2] * P, W, P);
+        ctx.restore();
+      }
+    }
+    if (RG) {
+      camadaNoArco(faixaGrama(), 1, laneTop - 16 * P);
+      frenteQuadro = { RG: RG, trA: trA, camArt: camArt, P: P, W: W, H: Hh, y: trackBottom - 3 * P };
     }
 
     // --- superfície da pista
@@ -2466,12 +2608,12 @@
     var SC = SURF[surface] || SURF.grama;
     for (var l = 1; l < lanes; l++) {
       var ly = laneTop + l * laneH;
-      ctx.fillStyle = rgba('#ffffff', surface === 'areia' ? 0.28 : 0.16);
+      ctx.fillStyle = SC.lite;
       var dash = 6 * P, gap = 4 * P, dOff = mod(camPx, dash + gap);
       for (var dx = -dOff; dx < W; dx += dash + gap) ctx.fillRect(Math.round(dx), ly - Math.floor(P / 2) - dyX(dx + dash / 2), dash, Math.max(1, Math.floor(P / 2) || 1));
     }
     // borda escura no topo da pista (sombra da cerca)
-    ctx.fillStyle = 'rgba(0,0,0,0.18)'; faixaLarga(laneTop, P);
+    ctx.fillStyle = SC.dark; faixaLarga(laneTop, P);
     // raia destacada (a do jogador): faixa dourada translúcida com bordas tracejadas
     var hl = o.highlightLane;
     if (hl != null && hl >= 0 && hl < lanes) {
@@ -2497,7 +2639,7 @@
         hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P);
       }
       // linhas amarelas de início/fim
-      ctx.fillStyle = '#f2c230';
+      ctx.fillStyle = '#f9c22b';
       for (var ly2 = laneTop; ly2 < trackBottom; ly2 += 4 * P) {
         if (a >= 0 && a < W) ctx.fillRect(a, ly2, P, 2 * P);
         if (bb >= 0 && bb < W) ctx.fillRect(bb, ly2, P, 2 * P);
@@ -2508,7 +2650,7 @@
     for (var cvi = 0; cvi < curves.length; cvi++) {
       var ca = sx(curves[cvi][0]), cb = sx(curves[cvi][1]);
       if (cb < -60 * P || ca > W + 60 * P) continue;
-      ctx.fillStyle = '#7ab8ff';
+      ctx.fillStyle = '#8fd3ff';
       for (var ly3 = laneTop; ly3 < trackBottom; ly3 += 4 * P) {
         if (ca >= 0 && ca < W) ctx.fillRect(ca, ly3, P, 2 * P);
         if (cb >= 0 && cb < W) ctx.fillRect(cb, ly3, P, 2 * P);
@@ -2523,12 +2665,12 @@
     for (var mm = mStart; mm <= mEnd; mm += ev) {
       if (mm >= finishM) break;
       var mx = sx(mm), mdy = dyX(mx);
-      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      ctx.fillStyle = SC.lite;
       for (var my = laneTop; my < trackBottom; my += 3 * P) ctx.fillRect(mx, my - mdy, P, P * 2);
     }
     // largada
     var sx0 = sx(0);
-    if (sx0 > -10 && sx0 < W + 10) { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(sx0, laneTop - dyX(sx0), P, trackH); }
+    if (sx0 > -10 && sx0 < W + 10) { ctx.fillStyle = '#ffffff'; ctx.fillRect(sx0, laneTop - dyX(sx0), P, trackH); }
 
     // --- linha de chegada quadriculada
     var fx = sx(finishM);
@@ -2536,7 +2678,7 @@
       var sq = 2 * P, fdy = dyX(fx);
       for (var fy = laneTop, k = 0; fy < trackBottom; fy += sq, k++) {
         for (var col = 0; col < 2; col++) {
-          ctx.fillStyle = (k + col) % 2 ? '#ffffff' : '#141218';
+          ctx.fillStyle = (k + col) % 2 ? '#ffffff' : '#2e222f';
           ctx.fillRect(fx + col * sq, fy - fdy, sq, Math.min(sq, trackBottom - fy));
         }
       }
@@ -2548,24 +2690,25 @@
       var every = 4, ps = Math.floor((cam - 8) / every) * every;
       for (var pm = ps; pm < cam + W / ppm + 8; pm += every) {
         var pxp = sx(pm);
-        ctx.fillStyle = '#c9c2b6';
+        ctx.fillStyle = '#9babb2';
         ctx.fillRect(pxp, y - (postsUp ? 6 * P : 0) - dyX(pxp), P, 6 * P);
       }
-      ctx.fillStyle = '#1c1820'; faixaLarga(y - 6 * P - P, P);
-      ctx.fillStyle = '#f6f2ea'; faixaLarga(y - 6 * P, 2 * P);
-      ctx.fillStyle = '#c9c2b6'; faixaLarga(y - 4 * P, P);
-      ctx.fillStyle = 'rgba(0,0,0,0.25)'; faixaLarga(y - 3 * P, P);
+      ctx.fillStyle = '#2e222f'; faixaLarga(y - 6 * P - P, P);
+      ctx.fillStyle = '#ffffff'; faixaLarga(y - 6 * P, 2 * P);
+      ctx.fillStyle = '#9babb2'; faixaLarga(y - 4 * P, P);
+      ctx.fillStyle = RG ? '#165a4c' : 'rgba(0,0,0,0.25)'; faixaLarga(y - 3 * P, P);
     }
     rail(laneTop, true);
 
     // --- cerca interna e gramado interno (na curva o gramado começa mais acima: o rodapé fica maior)
-    var innerC = weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
+    // (com a região, chão de terra escura: o primeiro plano, drawTrackFront, cobre quase tudo)
+    var innerC = RG ? '#4c3e24' : weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
     ctx.fillStyle = innerC;
     if (!trA) ctx.fillRect(0, trackBottom, W, Hh - trackBottom);
     else for (var iti = 0; iti < trA.length; iti++) ctx.fillRect(trA[iti][0], trackBottom - trA[iti][2] * P, trA[iti][1] - trA[iti][0], Hh - trackBottom + trA[iti][2] * P);
     // tufos e flores do gramado interno
     var inOff = camPx;
-    for (var gi = 0; gi < 40; gi++) {
+    for (var gi = 0; !RG && gi < 40; gi++) {
       var gw = 1200;
       var gx = mod(hash(gi + 300) * gw - inOff, gw);
       if (gx > W) continue;
@@ -2578,17 +2721,17 @@
       ctx.fillRect(Math.round(gx) + 2 * P + tufo, gy - P, P, P);
       if (gi % 4 === 0) { ctx.fillStyle = gi % 8 ? '#f2e04a' : '#f0f0f0'; ctx.fillRect(Math.round(gx) + P, gy - 2 * P, P, P); }
     }
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; faixaLarga(trackBottom, P);
+    ctx.fillStyle = SC.dark; faixaLarga(trackBottom, P);
     // cerca interna (postes para baixo)
     var every2 = 4, ps2 = Math.floor((cam - 8) / every2) * every2;
     for (var pm2 = ps2; pm2 < cam + W / ppm + 8; pm2 += every2) {
       var px2 = sx(pm2);
-      ctx.fillStyle = '#c9c2b6'; ctx.fillRect(px2, trackBottom + P - dyX(px2), P, 4 * P);
+      ctx.fillStyle = '#9babb2'; ctx.fillRect(px2, trackBottom + P - dyX(px2), P, 4 * P);
     }
-    ctx.fillStyle = '#f6f2ea'; faixaLarga(trackBottom + P, 2 * P);
-    ctx.fillStyle = '#1c1820'; faixaLarga(trackBottom + 3 * P, P);
+    ctx.fillStyle = '#ffffff'; faixaLarga(trackBottom + P, 2 * P);
+    ctx.fillStyle = '#2e222f'; faixaLarga(trackBottom + 3 * P, P);
     // grama da borda: folhinhas logo abaixo da cerca interna, presas ao mundo, deitando com o vento
-    if (Hh - trackBottom >= 8 * P) {
+    if (!RG && Hh - trackBottom >= 8 * P) {
       var gBase = weather === 'chuva' ? '#4a7a48' : isDim(weather) ? '#5a8c52' : '#6aa85a';
       var gPonta = weather === 'chuva' ? '#5f8f5a' : isDim(weather) ? '#76a468' : '#8cc46a';
       var camArt = camPx / P, g0 = Math.floor(camArt / 5) * 5;
@@ -2603,31 +2746,31 @@
         if (alto === 3) { ctx.fillStyle = gPonta; ctx.fillRect(gx2 + ginga * P, yb - 2 * P, P, P); }
       }
     }
-    if (fx > -10 && fx < W + 10) { ctx.fillStyle = '#f6f2ea'; ctx.fillRect(fx, trackBottom - dyX(fx), 2 * P, 8 * P); }
+    if (fx > -10 && fx < W + 10) { ctx.fillStyle = '#ffffff'; ctx.fillRect(fx, trackBottom - dyX(fx), 2 * P, 8 * P); }
 
     // --- placas (depois do campo interno; nenhuma passa da cerca para baixo), acompanhando a cerca no arco
     // placas de distância sobre a cerca externa
     for (var m2 = mStart; m2 <= mEnd; m2 += ev) {
       if (m2 >= finishM) break;
       var bx = sx(m2), bdy = dyX(bx);
-      ctx.fillStyle = '#e8e2d6'; ctx.fillRect(bx, laneTop - 18 * P - bdy, P, 18 * P);
-      ctx.fillStyle = '#c83c3c';
+      ctx.fillStyle = '#c7dcd0'; ctx.fillRect(bx, laneTop - 18 * P - bdy, P, 18 * P);
+      ctx.fillStyle = '#b33831';
       for (var sy2 = laneTop - 18 * P; sy2 < laneTop - 6 * P; sy2 += 4 * P) ctx.fillRect(bx, sy2 - bdy, P, 2 * P);
-      drawBoard(ctx, bx, laneTop - 28 * P - bdy, m2 + 'm', P, '#f6f2ea', '#1c1820');
+      drawBoard(ctx, bx, laneTop - 28 * P - bdy, m2 + 'm', P, '#c7dcd0', '#2e222f');
     }
     // placas de subida
     for (var h2 = 0; h2 < hills.length; h2++) {
       var ha = sx(hills[h2][0]), hb = sx(hills[h2][1]);
       if (ha > -40 * P && ha < W + 40 * P) {
-        ctx.fillStyle = '#5a3a24'; ctx.fillRect(ha, laneTop - 16 * P, P, 16 * P);
-        var bd = drawBoard(ctx, ha, laneTop - 26 * P, 'SUBIDA', P, '#f2c230', '#1c1820');
+        ctx.fillStyle = '#4c3e24'; ctx.fillRect(ha, laneTop - 16 * P, P, 16 * P);
+        var bd = drawBoard(ctx, ha, laneTop - 26 * P, 'SUBIDA', P, '#f9c22b', '#2e222f');
         // rampinha
-        ctx.fillStyle = '#1c1820';
+        ctx.fillStyle = '#2e222f';
         for (var q = 0; q < 4; q++) ctx.fillRect(bd.x + bd.w + 2 * P + q * P, laneTop - 19 * P - q * P, P, (q + 1) * P);
       }
       if (hb > -40 * P && hb < W + 40 * P) {
-        ctx.fillStyle = '#5a3a24'; ctx.fillRect(hb, laneTop - 12 * P, P, 12 * P);
-        drawBoard(ctx, hb, laneTop - 22 * P, 'FIM', P, '#f2c230', '#1c1820');
+        ctx.fillStyle = '#4c3e24'; ctx.fillRect(hb, laneTop - 12 * P, P, 12 * P);
+        drawBoard(ctx, hb, laneTop - 22 * P, 'FIM', P, '#f9c22b', '#2e222f');
       }
     }
     // placas de curva: CURVA no poste do início, FIM no do fim e, ao longo da curva, placas "CURVA" presas
@@ -2641,40 +2784,40 @@
         var dm = mod(mp, ev);
         if (dm < 8 || dm > ev - 8) continue;
         var mpx = sx(mp);
-        drawBoard(ctx, mpx, laneTop - 12 * P - dyX(mpx), 'CURVA', P, '#7ab8ff', '#1c1820');
+        drawBoard(ctx, mpx, laneTop - 12 * P - dyX(mpx), 'CURVA', P, '#8fd3ff', '#2e222f');
       }
       if (ka > -40 * P && ka < W + 40 * P) {
-        ctx.fillStyle = '#2a4a78'; ctx.fillRect(ka, laneTop - 16 * P, P, 16 * P);
-        drawBoard(ctx, ka, laneTop - 26 * P, 'CURVA', P, '#7ab8ff', '#1c1820');
+        ctx.fillStyle = '#484a77'; ctx.fillRect(ka, laneTop - 16 * P, P, 16 * P);
+        drawBoard(ctx, ka, laneTop - 26 * P, 'CURVA', P, '#8fd3ff', '#2e222f');
       }
       if (kb > -40 * P && kb < W + 40 * P) {
-        ctx.fillStyle = '#2a4a78'; ctx.fillRect(kb, laneTop - 12 * P, P, 12 * P);
-        drawBoard(ctx, kb, laneTop - 22 * P, 'FIM', P, '#7ab8ff', '#1c1820');
+        ctx.fillStyle = '#484a77'; ctx.fillRect(kb, laneTop - 12 * P, P, 12 * P);
+        drawBoard(ctx, kb, laneTop - 22 * P, 'FIM', P, '#8fd3ff', '#2e222f');
       }
     }
     if (sx0 > -40 * P && sx0 < W + 40 * P) {
-      ctx.fillStyle = '#e8e2d6'; ctx.fillRect(sx0, laneTop - 14 * P, P, 14 * P);
-      drawBoard(ctx, sx0, laneTop - 24 * P, 'LARGADA', P, '#3a7ae0', '#ffffff');
+      ctx.fillStyle = '#c7dcd0'; ctx.fillRect(sx0, laneTop - 14 * P, P, 14 * P);
+      drawBoard(ctx, sx0, laneTop - 24 * P, 'LARGADA', P, '#4d65b4', '#ffffff');
     }
     // poste de chegada + faixa quadriculada
     if (fx > -60 * P && fx < W + 60 * P) {
       var postTop = Math.max(22 * P, laneTop - 40 * P);
-      ctx.fillStyle = '#1c1820'; ctx.fillRect(fx - P, postTop - P, 4 * P, laneTop - postTop + P);
-      ctx.fillStyle = '#f6f2ea'; ctx.fillRect(fx, postTop, 2 * P, laneTop - postTop);
+      ctx.fillStyle = '#2e222f'; ctx.fillRect(fx - P, postTop - P, 4 * P, laneTop - postTop + P);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(fx, postTop, 2 * P, laneTop - postTop);
       // disco vermelho no topo
-      ctx.fillStyle = '#1c1820'; ctx.fillRect(fx - 3 * P, postTop - 7 * P, 8 * P, 7 * P);
-      ctx.fillStyle = '#d83030'; ctx.fillRect(fx - 2 * P, postTop - 6 * P, 6 * P, 5 * P);
-      ctx.fillStyle = '#ff8a7a'; ctx.fillRect(fx - P, postTop - 5 * P, 2 * P, P);
+      ctx.fillStyle = '#2e222f'; ctx.fillRect(fx - 3 * P, postTop - 7 * P, 8 * P, 7 * P);
+      ctx.fillStyle = '#e83b3b'; ctx.fillRect(fx - 2 * P, postTop - 6 * P, 6 * P, 5 * P);
+      ctx.fillStyle = '#f68181'; ctx.fillRect(fx - P, postTop - 5 * P, 2 * P, P);
       // bandeira quadriculada ondulando
       var fw = 14, fh = 8;
       for (var bxi = 0; bxi < fw; bxi++) {
         var wave = Math.round(Math.sin(t * 6 - bxi * 0.6) * 1.2);
         for (var byi = 0; byi < fh; byi++) {
-          ctx.fillStyle = ((bxi >> 1) + (byi >> 1)) % 2 ? '#141218' : '#f6f2ea';
+          ctx.fillStyle = ((bxi >> 1) + (byi >> 1)) % 2 ? '#2e222f' : '#ffffff';
           ctx.fillRect(fx + 2 * P + bxi * P, postTop + 2 * P + (byi + wave) * P, P, P);
         }
       }
-      drawBoard(ctx, fx + P, postTop - 19 * P, 'CHEGADA', P, '#141218', '#ffffff');
+      drawBoard(ctx, fx + P, postTop - 19 * P, 'CHEGADA', P, '#2e222f', '#ffffff');
     }
 
     // --- relevo das subidas: copia as colunas da faixa (da cerca externa para baixo) para cima
@@ -2726,6 +2869,9 @@
     _quadroGalope: quadroGalopeTeste,
     _corBrilho: corBrilho,   // para testes: a cor do brilho da crina (cor da raridade, crina, alfa de pico)
     drawTrack: drawTrack,
+    drawTrackFront: drawTrackFront,
+    setRegioes: setRegioes,
+    regiaoPronta: regiaoPronta,
     cloudCanvas: cloudCanvas,
     drawTrail: drawTrail,
     drawElementIcon: drawElementIcon,

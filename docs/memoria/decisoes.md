@@ -3,6 +3,21 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-22 — Integração da arte, etapa 2 (corrida: 2.1 a 2.3)
+- **A corrida é desenhada num canvas na resolução de arte** (S = 1) e copiada com um `drawImage` ampliado pela mesma `s`
+  da interface; cavalos 1:1 (2.1).
+- **Texto do canvas só na Galmuri, no tamanho nativo** (2.2): atlas de glifos com alfa binário gerado uma vez no Chromium
+  (`fonte-glifos.mjs`), o mesmo no jogo e nos testes. Galmuri7 nos balões, etiquetas, placas e HUD pequeno; Galmuri11
+  Bold nas faixas grandes; **a contagem 3-2-1 em Galmuri14** (entrou no atlas: o guia proíbe ampliar a fonte).
+- **Cenário da corrida pelas camadas da região** (2.3): a pista sorteada escolhe a região (`regioes.json`, "pistas");
+  os ginásios usam a região da arena (Fornalha no Sertão, Remanso no Litoral, Capoeira no Cerrado). Posições e paralaxe
+  como na amostra aprovada; a arquibancada é um objeto a cada 2600 px da paralaxe 0,75. O horizonte vai com a névoa da
+  distância assada no build. A pista, as cercas e as placas continuam de código, agora na Resurrect 64 (a terra é a da
+  amostra). Sem as imagens (Node, ou antes de carregarem), o cenário por código de antes.
+- **Pendências conhecidas da etapa 2** (vão na 2.4/2.5): o primeiro plano mostra só ~14 px (a margem de baixo da pista é
+  a de antes); clima ainda sem troca de paleta nas camadas; véus translúcidos (raia do jogador, subida) ainda com alfa;
+  testes de interface da corrida calibrados na grade antiga.
+
 ## 2026-11-21 — Integração da arte, etapa 1b (paleta e cavalos 1:1 fora da corrida)
 - **Cores da interface pelos papéis do guia** (fundo `2e222f`, painéis `313638`/`374e4a`, destaque `165a4c`, linha
   `547e64`, texto `c7dcd0`, ouro `f9c22b`). Os painéis são mais claros que o verde-escuro de antes: Fogo `f79617`, Água

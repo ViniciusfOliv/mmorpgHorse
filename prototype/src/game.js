@@ -221,6 +221,34 @@
     });
   }
   carregarIconesCorrida();
+  // Camadas das regiões na corrida (window.__REGIOES, embutidas pelo build; etapa 2.3 da direção de arte): uma Image por
+  // camada; a cada onload o Sprites recebe as regiões (só desenha a que tem as 5 camadas; antes disso, o cenário por código)
+  function carregarRegioes() {
+    var m = window.__REGIOES;
+    if (typeof Image !== 'function' || !m || typeof m !== 'object') return;
+    var prontas = {};
+    Object.keys(m).forEach(function (r) {
+      var cam = m[r] && m[r].camadas;
+      if (!cam || typeof cam !== 'object') return;
+      var reg = { posicao: m[r].posicao || {}, camadas: {} };
+      Object.keys(cam).forEach(function (k) {
+        if (typeof cam[k] !== 'string') return;
+        var img = new Image();
+        img.onload = function () { reg.camadas[k] = img; prontas[r] = reg; SP.setRegioes(prontas); };
+        img.src = cam[k];
+      });
+    });
+  }
+  carregarRegioes();
+  // a região do cenário de uma corrida: a do ginásio (Fornalha no Sertão, Remanso no Litoral, Capoeira no Cerrado, as
+  // mesmas paletas das arenas) ou a da pista (regioes.json, "pistas"); senão o Cerrado
+  var GIN_REGIAO = { fogo: 'sertao', agua: 'litoral', grama: 'cerrado' };
+  function regiaoDaPista(L) {
+    var m = window.__REGIOES;
+    if (L && L.regiao) return L.regiao;
+    if (m && typeof m === 'object' && L) for (var r in m) if (hasOwn(m, r) && m[r] && (m[r].pistas || []).indexOf(L.trackName) >= 0) return r;
+    return 'cerrado';
+  }
   function iconeHtml(nome, fallback, tam) {
     var src = iconeSrc(nome);
     if (!src) return fallback || '';
@@ -3132,6 +3160,7 @@
     var a = cfg.racers[0].horse, b = cfg.racers[1].horse, seda = hasOwn(GIN_SEDA, R.gymId) ? GIN_SEDA[R.gymId] : 0, t = ginDueloTxt(R, k);
     var L = {
       counter: 0, seed: sim.seed, training: false, fee: 0, n: 2, cond: withRanges(sim.conditions), trackName: g.name,
+      regiao: hasOwn(GIN_REGIAO, R.gymId) ? GIN_REGIAO[R.gymId] : null,
       racers: [
         { isPlayer: true, name: PLAYER_NAME, horse: a, gear: null, silks: PLAYER_SILKS, silkIdx: -1 },
         { isPlayer: false, name: dono, horse: b, gear: null, silks: SP.SILKS[seda], silkIdx: seda, rotulo: a.name === b.name ? b.name + ' (' + dono + ')' : null }
@@ -5334,7 +5363,7 @@
         width: W, height: H, cameraX: cam, pxPerMeter: ppm, lanes: n, laneTop: laneTop, laneH: laneH,
         surface: L.cond.surface, finishM: D, hills: hills, curves: curves, distanceMarkersEvery: D <= 1000 ? 100 : 200,
         t: red ? tr * 0.4 : tr, weather: clima, pixel: S, highlightLane: me, hillMaxLift: lay.maxLift, wind: self.wind,
-        curveScale: lay.arcoK
+        curveScale: lay.arcoK, regiao: regiaoDaPista(L)
       });
       // natureza, camada de trás (calor, respingos, névoa do fundo): antes dos cavalos. lift acompanha o
       // relevo das subidas e o arco das curvas (os respingos e o calor ficam no chão levantado)
@@ -5413,6 +5442,8 @@
         if (j === me) youTag = { x: x + (an.nose[0] + 3) * S, y: y + 3 * S, place: finished ? rankOf[j] + 1 : 0 };
         else if (finished) badges.push({ x: x + 22 * S, y: y - 2 * S, j: j, place: rankOf[j] + 1 });
       }
+      // primeiro plano da região (capim, paralaxe 1,25) por cima dos cavalos, abaixo das etiquetas
+      SP.drawTrackFront(ctx);
       // segunda passada: etiquetas por cima de todos os cavalos
       badges.forEach(function (b) {
         var t = b.place + 'º', w = tw(t) + 3;   // Galmuri7: 7 da maiúscula, 1 de folga em cima (o º sobe 1) e embaixo

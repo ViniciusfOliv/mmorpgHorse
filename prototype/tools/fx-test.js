@@ -1100,15 +1100,15 @@ test('drawTypeAura: movimento reduzido desenha só o contorno na cor do elemento
   FX.resetStats(true);
 });
 // contraste (WCAG) contra os pisos em que a pista aparece: GameData.SURFACES e os tons das faixas do gramado,
-// da terra e da areia (Sprites, SURF: a, b, dark, lite)
+// da terra e da areia (Sprites, SURF: a, dark, lite, na paleta-mestra desde a etapa 2.3)
 function lumRel(h) {
   var v = [1, 3, 5].map(function (i) { var c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
   return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
 }
 function contraste(a, b) { var x = lumRel(a), y = lumRel(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
 var PISOS = Object.keys(G.SURFACES).map(function (k) { return G.SURFACES[k].color; })
-  .concat(['#5cb44a', '#4ea640', '#3f8f36', '#7ccc5c', '#a46c3e', '#9a6337', '#6e4324', '#c08a58', '#e2c98f', '#d9be82', '#bf9f62', '#f4e4b8']);
-var GRAMADO = ['#5fa34a', '#5cb44a', '#4ea640', '#3f8f36', '#7ccc5c'];
+  .concat(['#239063', '#165a4c', '#1ebc73', '#cd683d', '#9e4539', '#e6904e', '#fbb954', '#fdcbb0']);
+var GRAMADO = ['#5fa34a', '#239063', '#1ebc73'];   // os tons de área (o #165a4c é só o pontilhado)
 test('drawTypeAura Grama: a raiz marrom domina e se destaca em todos os pisos; folhas mais claras que o gramado', function () {
   var A = FX.AURA.grama, area = { raiz: 0, folha: 0, verde: 0 };
   // em todo piso, a raiz (escura com realce claro) tem um dos dois tons a 3:1 ou mais; no gramado, a escura

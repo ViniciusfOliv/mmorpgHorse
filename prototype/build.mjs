@@ -18,7 +18,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { lerMoldes, lerIcones, lerMarca, lerTreinadores, jsonJs } from './tools/arte-embutida.mjs'
+import { lerMoldes, lerIcones, lerMarca, lerTreinadores, lerRegioes, jsonJs } from './tools/arte-embutida.mjs'
 import { htmlFolhaIcones } from './tools/folha-icones.mjs'
 import { ICONES_NOVOS, ANTIGOS } from './tools/icones-catalogo.mjs'
 import { gravarWiki } from './tools/wiki.mjs'
@@ -77,11 +77,13 @@ const arteJs = [
   `window.__ICONES = ${jsonJs(await lerIcones(ROOT))};`,
   `window.__MARCA = ${jsonJs(await lerMarca(ROOT))};`,
   `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`,
+  // as camadas das 5 regiões na corrida (paralaxe; a pista, as cercas e as placas são de código)
+  `window.__REGIOES = ${jsonJs(await lerRegioes(ROOT))};`,
   // os glifos da Galmuri para o texto do canvas (tools/fonte-glifos.mjs; o sprites.js lê o mesmo arquivo no Node)
   `window.__GLIFOS = ${jsonJs(JSON.parse(await read('assets/fontes/galmuri-glifos.json')))};`
 ].join('\n')
 
-const arteTag = `<script>\n/* arte embutida (moldes, ícones, marca, oponentes dos ginásios) */\n${arteJs}\n</script>`
+const arteTag = `<script>\n/* arte embutida (moldes, ícones, marca, oponentes dos ginásios, camadas das regiões) */\n${arteJs}\n</script>`
 const scripts = [arteTag], scriptsProd = [arteTag]
 for (const file of SCRIPTS) {
   const fonte = await read(file)
