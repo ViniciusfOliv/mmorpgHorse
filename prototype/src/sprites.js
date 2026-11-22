@@ -2265,7 +2265,7 @@
     g.fillStyle = cor || 'rgba(255,255,255,0.07)';
     for (var r = 0; r < 10; r++) {
       if (coluna) g.fillRect(r * P, r * P, 1, P);
-      else for (var q = 0; q < 3; q++) g.fillRect(((r + q) % 10) * P, r * P, P, P);
+      else for (var q = 0; q < (cor ? 1 : 3); q++) g.fillRect(((r + q) % 10) * P, r * P, P, P);   // sólida: listra de 1 px
     }
     return (hachuraPadroes[k] = ctx.createPattern(c, 'repeat'));
   }

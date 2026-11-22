@@ -5403,9 +5403,10 @@ try {
     }
   }
 
-  // ---------------- escala de trabalho reduzida (d > 1): DPR 3 em 390x844 desenha com S = 3 em vez de 6 ----------------
-  // cabe na tela, o cavalo tem o mesmo tamanho em pixels de CSS que teria na escala cheia, o canvas é ampliado
-  // pelo CSS com image-rendering: pixelated e nada de erro de console (newPage já registra)
+  // ---------------- grade da corrida (etapa 2.1 da direção de arte): DPR 3 em 390x844 ----------------
+  // a cena é desenhada num canvas na resolução de arte (S = 1) e copiada ampliada sTela vezes, com
+  // sTela = min(floor(largura × DPR / 240), floor(altura × DPR / 300)) = 4; o canvas visível tem W·sTela × H·sTela, o
+  // CSS mostra 1 pixel do canvas por pixel do aparelho, cabe na tela, o cavalo é 1:1 e nada de erro de console
   if (quer('escala')) {
     const label = 'escala-390x844@3'
     const pg = await newPage(browser, { width: 390, height: 844 }, label, { query: '?dev=1', deviceScaleFactor: 3 })
@@ -5418,19 +5419,21 @@ try {
       await pg.waitForFunction(() => window.__galope.race && window.__galope.race._state.phase === 'corrida' && window.RaceFx._stats.caixasCavalos.length, null, { timeout: 20000 })
       const f = await checkRaceFits(pg, label)
       const r = await pg.evaluate(() => {
-        const s = window.__galope.race._state, d = s.lay.reducao, dpr = window.devicePixelRatio, cv = document.getElementById('pista')
+        const s = window.__galope.race._state, dpr = window.devicePixelRatio, cv = document.getElementById('pista')
         const L = window.__galope.ui.lobby, h = L.racers[L.playerIdx].horse, SP = window.Sprites
-        const o = (k) => ({ scale: k, element: h.element, palette: h.palette, frame: 2 })
-        const cav = SP.horseBox(0, 0, o(s.S)), cheio = SP.horseBox(0, 0, o(s.S * d))
-        return { d, S: s.S, dpr, cssCavalo: [cav.w * d / dpr, cav.h * d / dpr], cssCheio: [cheio.w / dpr, cheio.h / dpr],
+        const cav = SP.horseBox(0, 0, { scale: 1, element: h.element, palette: h.palette, frame: 2 })
+        return { S: s.S, sTela: s.sTela, W: s.W, H: s.H, dpr, cavalo: [cav.w, cav.h],
+          esperado: Math.max(1, Math.min(Math.floor(cv.parentElement.clientWidth * dpr / 240), Math.floor(window.innerHeight * dpr / 300))),
           canvas: [cv.width, cv.height], css: [cv.getBoundingClientRect().width, cv.getBoundingClientRect().height],
           render: getComputedStyle(cv).imageRendering, sh: document.documentElement.scrollHeight, vh: window.innerHeight }
       })
       notes[label] = { ...f, ...r }
-      if (!(r.d > 1)) problems.push(`[${label}] a escala de trabalho não foi reduzida (d = ${r.d}, S = ${r.S})`)
+      if (r.S !== 1) problems.push(`[${label}] a cena não é desenhada na resolução de arte (S = ${r.S})`)
+      if (r.sTela !== r.esperado || r.sTela !== 4) problems.push(`[${label}] grade da corrida ${r.sTela}, esperado ${r.esperado} (4)`)
       if (r.sh > r.vh + 1) problems.push(`[${label}] a corrida não cabe na altura da janela: scrollHeight ${r.sh} > ${r.vh}`)
-      if (r.cssCavalo.join() !== r.cssCheio.join()) problems.push(`[${label}] cavalo com tamanho diferente da escala cheia: ${r.cssCavalo} px de CSS contra ${r.cssCheio}`)
-      if (Math.abs(r.css[0] - r.canvas[0] * r.d / r.dpr) > 0.5 || Math.abs(r.css[1] - r.canvas[1] * r.d / r.dpr) > 0.5) problems.push(`[${label}] o CSS não amplia o canvas d vezes: ${r.canvas} → ${r.css}`)
+      if (r.canvas[0] !== r.W * r.sTela || r.canvas[1] !== r.H * r.sTela) problems.push(`[${label}] canvas ${r.canvas} não é a cena ${r.W}×${r.H} ampliada ${r.sTela} vezes`)
+      if (Math.abs(r.css[0] - r.canvas[0] / r.dpr) > 0.5 || Math.abs(r.css[1] - r.canvas[1] / r.dpr) > 0.5) problems.push(`[${label}] o CSS não mostra 1 pixel do canvas por pixel do aparelho: ${r.canvas} → ${r.css}`)
+      if (r.cavalo[0] > 64 || r.cavalo[1] > 64) problems.push(`[${label}] cavalo maior que o molde 1:1: ${r.cavalo}`)
       if (r.render !== 'pixelated') problems.push(`[${label}] canvas sem image-rendering: pixelated (${r.render})`)
       await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
       await pg.waitForSelector('#t-resultado')
@@ -5937,7 +5940,8 @@ try {
           const it = s.fx.filter((x) => (x.kind === 'skill' || x.kind === 'garra' || x.kind === 'cansou') && x.racer === b.racer && t >= x.t0 && t < x.t0 + FX.BALAO.dur * x.escala).pop()
           if (!it || it.kind !== 'skill') return
           w.vistos++
-          const inteiro = it.nome.toUpperCase(), esp = s.linhasBalao === 2 ? inteiro : it.nomeCurto
+          // (Galmuri7: o nome que cabe em BALAO.textoMax sai inteiro numa linha; a mesma conta do jogo)
+          const inteiro = it.nome.toUpperCase(), esp = FX.nomeEmLinhas(it.nome, FX.BALAO.textoMax, s.linhasBalao, it.nomeCurto).join(' ')
           if (b.texto !== esp) { w.ruins++; if (w.ex.length < 4) w.ex.push({ texto: b.texto, esp, linhas: s.linhasBalao }) }
           else if (b.texto === inteiro && inteiro.includes(' ') && inteiro !== it.nomeCurto) w.inteirosLongos++
         })
@@ -7361,11 +7365,12 @@ try {
           // balão na entrada de cada terço: 0,2 s reais depois do evento da skill de tipo
           const entradas = s.fx.filter((it) => it.typeSkill).map((it) => {
             const q = quadro(it.t0 + 0.2 * it.escala)
-            // spec 3c §5: com a raia alta o bastante (s.linhasBalao = 2), o nome inteiro (em duas linhas, se não couber em uma)
-            return { racer: it.racer, el: it.element, curto: s.linhasBalao === 2 ? it.nome.toUpperCase() : it.nomeCurto, visivel: q.vis.includes(it.racer), balao: q.baloes.find((b) => b.racer === it.racer && b.tipo) || null }
+            // spec 3c §5: o nome inteiro numa linha se couber (Galmuri7, BALAO.textoMax); com a raia alta (s.linhasBalao = 2),
+            // em duas linhas; senão o nome curto — a mesma conta do jogo (FX.nomeEmLinhas)
+            return { racer: it.racer, el: it.element, curto: FX.nomeEmLinhas(it.nome, FX.BALAO.textoMax, s.linhasBalao, it.nomeCurto).join(' '), visivel: q.vis.includes(it.racer), balao: q.baloes.find((b) => b.racer === it.racer && b.tipo) || null }
           })
-          // minimapa: pixels exatos das três cores dos elementos dentro da caixa
-          const cv = document.getElementById('pista'), mc = s.lay.mini, S = s.S
+          // minimapa: pixels exatos das três cores dos elementos dentro da caixa (no canvas visível: a cena ampliada sTela vezes)
+          const cv = document.getElementById('pista'), mc = s.lay.mini, S = s.sTela
           const img = cv.getContext('2d').getImageData(mc.x * S, mc.y * S, mc.w * S, mc.h * S).data
           const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]
           const mini = {}
@@ -7392,10 +7397,13 @@ try {
           }
           for (const j of a.vis) if (zona(j, a.pos[j]) && !comAura.includes(j)) problems.push(`[${label}] aura: raia ${j + 1} (${r.els[j]}) no terço sem aura em ${a.f}`)
           const tipos = [...new Set(a.quem.map((q) => q.element))]
-          if (tipos.length !== 1 || tipos[0] !== esperado[a.f]) problems.push(`[${label}] aura: com o pelotão em ${a.f}·D, auras de ${JSON.stringify(tipos)} (esperado só ${esperado[a.f]})`)
+          // com a câmera a 12 px/m (etapa 2.4) cabem ~22 m na tela: pode não haver ninguém do tipo do terço à vista (todo
+          // cavalo visível no terço já tem de ter aura, acima); aura de outro tipo nunca
+          if (tipos.length > 1 || (tipos.length === 1 && tipos[0] !== esperado[a.f])) problems.push(`[${label}] aura: com o pelotão em ${a.f}·D, auras de ${JSON.stringify(tipos)} (esperado só ${esperado[a.f]})`)
           if (a.tercos !== 3) problems.push(`[${label}] aura: minimapa sem os três terços (${a.tercos})`)
           if (extra && extra.reducedMotion === 'reduce' && a.part !== 0) problems.push(`[${label}] aura: movimento reduzido com ${a.part} partículas`)
         }
+        if (!r.amostras.some((a) => a.quem.length)) problems.push(`[${label}] aura: nenhuma aura nos três instantes`)
         const porEl = {}
         for (const e of r.entradas) {
           if (!e.visivel) continue
@@ -12923,7 +12931,7 @@ try {
           const linhas = new Set()
           for (let i = 0; i < d.length; i += 4) {
             if (d[i] === rgb[0] && d[i + 1] === rgb[1] && d[i + 2] === rgb[2]) { curva++; linhas.add(Math.floor(i / 4 / cv.width / k)) }
-            if (d[i] === 0x14 && d[i + 1] === 0x12 && d[i + 2] === 0x18) xadrez++
+            if (d[i] === 0x2e && d[i + 1] === 0x22 && d[i + 2] === 0x2f) xadrez++   // o escuro do xadrez, na mestra
           }
           const r = cv.getBoundingClientRect(), pr = cv.parentElement.getBoundingClientRect()
           return { curva, linhasCurva: linhas.size, xadrez, k, w: Math.round(r.width), h: Math.round(r.height), cabe: r.left >= pr.left - 0.5 && r.right <= pr.right + 0.5 }
@@ -12952,12 +12960,13 @@ try {
           }
           const arcoK = s.lay.arcoK === undefined ? 1 : s.lay.arcoK
           // cerca externa no canvas (o último quadro desenhado): em colunas a cada 3 px de arte, a 1ª linha, de
-          // baixo para cima a partir do topo da raia 1, em que o trilho branco (#f6f2ea) tem a borda escura
-          // (#1c1820) 1 px de arte acima; na reta vale a linha mais comum (placas, cavalos e efeitos cobrem algumas
+          // baixo para cima a partir do topo da raia 1, em que o trilho branco (#ffffff) tem a borda escura
+          // (#2e222f) 1 px de arte acima; na reta vale a linha mais comum (placas, cavalos e efeitos cobrem algumas
           // colunas), só nos 40 % de trás da tela (a frente pode já estar na curva); na curva, a linha de cada coluna
           // e o arco esperado nela (RaceFx.curveOffsetTela, com o mesmo meio de tela que o jogo usou neste quadro)
           const FXr = window.RaceFx, curvasD = FXr.curveRuns(L.cond.curves || []), cam = s.camTela
-          const cvEl = document.getElementById('pista'), g = cvEl.getContext('2d'), S = s.S, top = Math.round(s.lay.laneTopArt * S)
+          // (o canvas visível é a cena ampliada sTela vezes: 1 pixel de arte = sTela pixels do canvas)
+          const cvEl = document.getElementById('pista'), g = cvEl.getContext('2d'), S = s.sTela || s.S, top = Math.round(s.lay.laneTopArt * S)
           const y0 = Math.max(0, top - 44 * S), w = cvEl.width, d = g.getImageData(0, y0, w, top - y0).data
           const ppm = cam ? w / (2 * cam.meia) : 1
           const esperado = (xCanvas) => cam ? Math.round(-FXr.curveOffsetTela(curvasD, cam.c - cam.meia + xCanvas / ppm, cam) * arcoK) || 0 : 0
