@@ -16,7 +16,7 @@ const DIR = path.join(RAIZ, 'prototype', 'assets', 'fontes');
 const FONTES = { g7: ['galmuri7-latin.ttf', 8], g9: ['galmuri9-latin.ttf', 10], g11: ['galmuri11-bold-latin.ttf', 12] };
 let CHARS = '';
 for (let c = 32; c < 127; c++) CHARS += String.fromCharCode(c);
-CHARS += 'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüçºª°·×→←↑↓…–—“”‘’';
+CHARS += 'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüçºª°·×→←…–—“”‘’◀▶▲▼';   // só caracteres que a Galmuri tem (conferido com o fontTools): sem ↑↓↪↻
 
 const b = await chromium.launch();
 const pg = await b.newPage();

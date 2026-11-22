@@ -2167,8 +2167,10 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     }
     return out;
   }
-  function measureText(text, scale) {
+  function measureText(text, scale, fonte) {
     scale = scale || 1;
+    var Fm = fonte ? fontePixel(fonte) : null;
+    if (Fm) return larguraFonte(text, Fm) * scale;
     var gl = textGlyphs(text), w = 0;
     for (var i = 0; i < gl.length; i++) w += (gl[i].g[0].length + 1);
     return Math.max(0, w - 1) * scale;
@@ -2209,8 +2211,66 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     textoCache.set(k, c);
     return c;
   }
+  // Galmuri no canvas (etapa 2.2 da direção de arte, guia §6): os glifos rasterizados uma vez, com alfa binário, em
+  // prototype/assets/fontes/galmuri-glifos.json (tools/fonte-glifos.mjs); o build os embute em window.__GLIFOS e o Node
+  // lê o arquivo, então a largura e os pixels são os mesmos no jogo e nos testes. o.fonte: 'g7' (Galmuri7, 8 px), 'g9'
+  // (Galmuri9, 10 px) ou 'g11' (Galmuri11 Bold, 12 px); o.scale é o tamanho do pixel da fonte (1 no buffer de arte).
+  // O y é o topo da maiúscula (como na fonte 3×5); o acento sobe acima dele e a descendente desce abaixo.
+  var glifosNode = null;
+  function glifosApi() {
+    if (typeof window !== 'undefined' && window.__GLIFOS) return window.__GLIFOS;
+    if (glifosNode === null) {
+      glifosNode = false;
+      if (typeof require === 'function') { try { glifosNode = require('../assets/fontes/galmuri-glifos.json'); } catch (e) { glifosNode = false; } }
+    }
+    return glifosNode || null;
+  }
+  function fontePixel(id) {
+    var G = glifosApi(), F = G && G.fontes && G.fontes[id];
+    if (!F) return null;
+    if (F.capTop == null) {   // a primeira linha acesa do "H": o topo da maiúscula
+      var h = F.glifos.H || [0, 0, 0], r = 0;
+      while (r < h.length - 3 && !h[3 + r]) r++;
+      F.capTop = r;
+    }
+    return F;
+  }
+  function glifoDe(F, ch) { return F.glifos[ch] || F.glifos['?']; }
+  function larguraFonte(text, F) {
+    var w = 0, t = String(text).normalize ? String(text).normalize('NFC') : String(text);
+    for (var i = 0; i < t.length; i++) w += glifoDe(F, t[i])[0];
+    return w;
+  }
+  function pintaFonte(ctx, text, F, x, y, s, col) {
+    ctx.fillStyle = col;
+    var cx = x, t = String(text).normalize ? String(text).normalize('NFC') : String(text), y0 = y - F.capTop * s;
+    for (var i = 0; i < t.length; i++) {
+      var g = glifoDe(F, t[i]), gw = g[2], ox = cx + g[1] * s;
+      for (var r = 3; r < g.length; r++) {
+        var v = g[r]; if (!v) continue;
+        for (var c = 0; c < gw; c++) {
+          if (!((v >> (gw - 1 - c)) & 1)) continue;
+          var c2 = c; while (c2 + 1 < gw && ((v >> (gw - 2 - c2)) & 1)) c2++;
+          ctx.fillRect(ox + c * s, y0 + (r - 3) * s, (c2 - c + 1) * s, s);
+          c = c2;
+        }
+      }
+      cx += g[0] * s;
+    }
+  }
+  function textoFonteCanvas(text, F, id, w, s, col) {
+    var k = id + '|' + s + '|' + col + '|' + text, c = textoCache.get(k);
+    if (c) return c;
+    c = makeCanvas(Math.max(1, w), F.altura * s);
+    c.acima = F.capTop * s;
+    pintaFonte(c.getContext('2d'), text, F, 0, F.capTop * s, s, col);
+    textoCache.set(k, c);
+    return c;
+  }
   function drawText(ctx, text, x, y, o) {
     o = o || {};
+    var Fp = o.fonte ? fontePixel(o.fonte) : null;
+    if (Fp) return drawTextFonte(ctx, text, x, y, o, Fp);
     var s = o.scale || 1, color = o.color || '#ffffff';
     var w = measureText(text, s);
     if (o.align === 'center') x -= Math.round(w / 2);
@@ -2230,6 +2290,30 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     c = textoCanvas(text, gl, w, s, color);
     ctx.drawImage(c, x, y - c.acima);
     return w;
+  }
+  function drawTextFonte(ctx, text, x, y, o, F) {
+    var s = o.scale || 1, color = o.color || '#ffffff', w = larguraFonte(text, F) * s;
+    if (o.align === 'center') x -= Math.round(w / 2);
+    else if (o.align === 'right') x -= w;
+    x = Math.round(x); y = Math.round(y);
+    // a sombra de 1 pixel embaixo e à direita (guia §6: nunca contorno de 4 lados)
+    if (o.volatil || !podeCanvas || w <= 0 || !ctx.drawImage || ctx.globalAlpha !== 1 || !opaca(color) || (o.shadow && !opaca(o.shadow))) {
+      if (o.shadow) pintaFonte(ctx, text, F, x + s, y + s, s, o.shadow);
+      pintaFonte(ctx, text, F, x, y, s, color);
+      return w;
+    }
+    var c;
+    if (o.shadow) { c = textoFonteCanvas(text, F, o.fonte, w, s, o.shadow); ctx.drawImage(c, x + s, y + s - c.acima); }
+    c = textoFonteCanvas(text, F, o.fonte, w, s, color);
+    ctx.drawImage(c, x, y - c.acima);
+    return w;
+  }
+  // a altura da maiúscula de uma fonte (7, 9 ou 11; a fonte 3×5 tem 5), em pixels da fonte
+  function alturaFonte(fonte) {
+    var F = fonte ? fontePixel(fonte) : null;
+    if (!F) return 5;
+    var h = F.glifos.H, r = h.length - 1; while (r > 3 && !h[r]) r--;
+    return r - 3 - F.capTop + 1;
   }
 
   // ===================================================================
@@ -3074,6 +3158,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     randomPalette: randomPalette,
     ELEMENTS: ['fogo', 'agua', 'grama'],   // os três tipos do v3 (a paleta e o estilo 'neutro' ficam como queda)
     drawHorse: drawHorse,
+    alturaFonte: alturaFonte,   // a altura da maiúscula da fonte do canvas ('g7', 'g9', 'g11'; sem fonte: a 3×5)
     naMestra: naMestra,   // a cor da paleta-mestra mais perto de um hex (etapa 1b; os testes conferem as cores por ela)
     drawHorseCodigo: drawHorseCodigo,
     horseBox: horseBox,

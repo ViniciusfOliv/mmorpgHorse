@@ -76,7 +76,9 @@ const arteJs = [
   `window.__MOLDES = ${jsonJs(MOLDES)};`,
   `window.__ICONES = ${jsonJs(await lerIcones(ROOT))};`,
   `window.__MARCA = ${jsonJs(await lerMarca(ROOT))};`,
-  `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`
+  `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`,
+  // os glifos da Galmuri para o texto do canvas (tools/fonte-glifos.mjs; o sprites.js lê o mesmo arquivo no Node)
+  `window.__GLIFOS = ${jsonJs(JSON.parse(await read('assets/fontes/galmuri-glifos.json')))};`
 ].join('\n')
 
 const arteTag = `<script>\n/* arte embutida (moldes, ícones, marca, oponentes dos ginásios) */\n${arteJs}\n</script>`

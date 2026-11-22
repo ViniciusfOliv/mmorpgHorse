@@ -4870,7 +4870,10 @@
     var cv = root.querySelector('#pista');
     var palco = cv.parentNode;
     var tela = root.querySelector('.tela--corrida');
-    var ctx = cv.getContext('2d');
+    // a corrida desenha num canvas do tamanho da arte (etapa 2.1 da direção de arte, guia §2 e §9): 1 pixel de arte = 1
+    // pixel do buffer (self.S = 1, o molde do cavalo 1:1), e cada quadro é copiado para o canvas da tela com um drawImage
+    // só, ampliado s vezes (s inteiro, a grade da interface), sem suavização
+    var vctx = cv.getContext('2d'), buf = document.createElement('canvas'), ctx = buf.getContext('2d');
     var hud = {
       feed: root.querySelector('#feed'), pular: root.querySelector('#btn-pular'), anuncio: root.querySelector('#anuncio'),
       clima: root.querySelector('#clima-atual'),
@@ -4968,7 +4971,7 @@
     // minimapa do HUD (fora do layout compacto): caixa em pixels de arte logo abaixo da linha de cima
     function miniCaixa(artW) {
       var w = clamp(Math.round(artW * 0.2), 40, 72);
-      return { x: 2, y: 18, w: w, h: clamp(Math.round(w * 0.45), 22, 30) };
+      return { x: 3, y: 28, w: w, h: clamp(Math.round(w * 0.45), 22, 30) };   // embaixo do lugar (HUD de 20 + 5)
     }
 
     // maior redutor d (divisor de S, com S/d ≥ 2 e os moldes compatíveis) até o canvas caber em CANVAS_MAX_PX
@@ -5002,44 +5005,36 @@
       var cs = appEl ? getComputedStyle(appEl) : null;
       var padY = cs ? (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) : 16;
       var cssH = Math.max(150, (window.innerHeight || 700) - padY - other);
-      var pick = null;
-      [3, 2].forEach(function (k) {
-        if (pick) return;
-        var S = Math.max(1, Math.round(k * r));
-        var artW = Math.floor(cssW * r / S), artH = Math.floor(cssH * r / S);
-        var compact = artH < 190;
-        var mini = compact ? null : miniCaixa(artW);
-        var hudH = compact ? 15 : Math.max(20 + n, mini.y + mini.h + 2);
-        var bottom = compact ? 8 : 14;
-        var minTop = hudH + (compact ? 12 : 30);
-        var lane = Math.floor((artH - bottom - minTop) / n);
-        if (k === 3 && (lane < 20 || artW < 300)) return;
-        lane = clamp(lane, compact ? 12 : 13, 26);
-        var top = Math.max(minTop, Math.min(artH - bottom - n * lane, minTop + 70));
-        pick = {
-          k: k, S: S, artW: artW, artH: top + n * lane + bottom, laneArt: lane, laneTopArt: top, hudH: hudH, compact: compact, mini: mini,
-          maxLift: clamp(top - hudH - 12, 4, 24),   // a subida não invade o HUD
-          // arco da curva: o cavalo da raia 1 (pés em top + lane − 3, sprite de FOOT_Y + 1 de altura) não sai
-          // por cima do canvas; só o layout compacto (raias de 12) fica abaixo dos 6 px de arte
-          arcoK: clamp(top + lane - 3 - (SP.FOOT_Y + 1), 0, FX.CURVA.tela) / FX.CURVA.tela
-        };
-      });
-      // escala de trabalho: com o canvas acima de CANVAS_MAX_PX, desenha em S/d (d inteiro) e o CSS amplia d vezes
-      // com image-rendering: pixelated — cada pixel de arte continua quadrado e do mesmo tamanho na tela (S/d·d = S
-      // pixels do aparelho). Só quando a escala dos moldes também divide certinho: com os moldes atuais, S = 6, 9 ou
-      // 12 (d = 2, 3 ou 2). S = 6 sai de DPR 2 com k = 3 (janela larga e alta o bastante, ex.: 1280×800@2 conforme a
-      // sala) e de DPR 3 com k = 2 (celular); S = 4 (DPR 2 com k = 2) nunca reduz.
-      var d = reducaoEscala(pick.S, pick.artW * pick.artH), S = pick.S / d;
-      self.S = S; self.lay = pick; pick.reducao = d;
+      // a grade da corrida: s pixels do aparelho por pixel de arte, a mesma regra da interface (aplicaGrade: pelo menos
+      // 240 de largura e 300 de altura da janela em pixels de arte), e a cena com a largura e a altura que sobram
+      var sTela = Math.max(1, Math.min(Math.floor(cssW * r / 240), Math.floor((window.innerHeight || 700) * r / 300)));
+      var artW = Math.floor(cssW * r / sTela), artH = Math.floor(cssH * r / sTela);
+      var compact = artH < 190;
+      var mini = compact ? null : miniCaixa(artW);
+      var hudH = compact ? 15 : Math.max(20 + n, mini.y + mini.h + 2);
+      var bottom = compact ? 8 : 14;
+      var minTop = hudH + (compact ? 12 : 30);
+      var lane = clamp(Math.floor((artH - bottom - minTop) / n), compact ? 12 : 13, 26);
+      var top = Math.max(minTop, Math.min(artH - bottom - n * lane, minTop + 70));
+      var pick = {
+        k: sTela, S: sTela, artW: artW, artH: top + n * lane + bottom, laneArt: lane, laneTopArt: top, hudH: hudH, compact: compact, mini: mini,
+        maxLift: clamp(top - hudH - 12, 4, 24),   // a subida não invade o HUD
+        // arco da curva: o cavalo da raia 1 (pés em top + lane − 3, sprite de FOOT_Y + 1 de altura) não sai
+        // por cima do canvas; só o layout compacto (raias de 12) fica abaixo dos 6 px de arte
+        arcoK: clamp(top + lane - 3 - (SP.FOOT_Y + 1), 0, FX.CURVA.tela) / FX.CURVA.tela
+      };
+      self.S = 1; self.sTela = sTela; self.lay = pick; pick.reducao = 1;
       // nome da skill dos balões em duas linhas só quando o balão alto (BALAO.h2) cabe na raia com a folga de cima (2)
       // e de baixo (1); senão o nome curto numa linha (spec 3c §5)
       self.linhasBalao = pick.laneArt >= FX.BALAO.h2 + 3 ? 2 : 1;
-      self.W = pick.artW * S; self.H = pick.artH * S;
-      cv.width = self.W; cv.height = self.H;
-      cv.style.width = (self.W * d / r) + 'px';
-      cv.style.height = (self.H * d / r) + 'px';
-      palco.style.height = (self.H * d / r) + 'px';
+      self.W = pick.artW; self.H = pick.artH;
+      buf.width = self.W; buf.height = self.H;
       ctx.imageSmoothingEnabled = false;
+      cv.width = self.W * sTela; cv.height = self.H * sTela;
+      cv.style.width = (self.W * sTela / r) + 'px';
+      cv.style.height = (self.H * sTela / r) + 'px';
+      palco.style.height = (self.H * sTela / r) + 'px';
+      vctx.imageSmoothingEnabled = false;
       self.ppmArt = pick.artW < 260 ? 2 : 2.5;
       // a narração ocupa a altura que sobrar (campos pequenos): nada de faixa vazia sob os botões. Só aqui (no
       // redimensionar) a altura dela muda: durante a corrida, a faixa de ordem e a narração têm altura fixa
@@ -5220,85 +5215,95 @@
       ctx.fillStyle = C.escuro; ctx.fillRect(x * S, (y + h - 1) * S, w * S, S);
     }
     // volatil: texto que muda quase a cada quadro (relógio, km/h, distâncias), pintado fora do cache de texto
-    function text(str, x, y, color, scale, align, shadow, volatil) {
-      SP.drawText(ctx, str, x * self.S, y * self.S, { scale: (scale || 1) * self.S, color: color, align: align, shadow: shadow, volatil: volatil });
+    // a fonte do texto da corrida (etapa 2.2 da direção de arte): 'g7', 'g9' ou 'g11' (Galmuri no tamanho nativo); um
+    // número é a escala antiga da fonte 3×5 — 1 vira a Galmuri7, 2 a Galmuri11 Bold, 3 ou mais continua a 3×5 ampliada
+    // (os números grandes da contagem, que são desenho, não letra)
+    function fonteDe(f) { return typeof f === 'string' ? f : (f || 1) >= 3 ? null : (f === 2 ? 'g11' : 'g7'); }
+    function text(str, x, y, color, f, align, shadow, volatil) {
+      var fo = fonteDe(f);
+      return SP.drawText(ctx, str, x * self.S, y * self.S, { fonte: fo, scale: fo ? self.S : (f || 1) * self.S, color: color, align: align, shadow: shadow, volatil: volatil });
     }
-    function tw(str, scale) { return SP.measureText(str, scale || 1); }
+    function tw(str, f) { var fo = fonteDe(f); return fo ? SP.measureText(str, 1, fo) : SP.measureText(str, f || 1); }
     function digitColor(silk) { return hexLum(silk) > 0.5 ? C.tinta : C.texto; }
 
+    // HUD no céu (guia §8, a amostra aprovada): placas de 20 pixels de arte, o lugar em Galmuri11 Bold, rótulos em
+    // Galmuri7 e os números em Galmuri9; o minimapa embaixo do lugar
+    var HUD_Y = 3, HUD_H = 20;
     function drawHud(st, order) {
-      var lay = self.lay, A = lay.artW;
+      var lay = self.lay, A = lay.artW, y = HUD_Y, h = lay.compact ? 14 : HUD_H;
       // posição
       var place = order.indexOf(me) + 1;
-      var big = self.phase === 'contagem' ? '—' : String(place);
+      var big = self.phase === 'contagem' ? '—' : String(place) + 'º';
       var small = '/' + n;
-      var bw = tw(big, 2) + 2 + Math.max(tw('º'), tw(small)) + 6;
-      caixaPainel(2, 2, bw, 14, C.veu, C.ouro);
-      text(big, 5, 4, C.ouro, 2, null, C.sombra);
-      if (self.phase !== 'contagem') text('º', 5 + tw(big, 2) + 2, 3, C.ouro);
-      text(small, 5 + tw(big, 2) + 2, 9, C.texto);
-      // estamina
-      var sx = 2 + bw + 5, barW = clamp(Math.floor(A * 0.28), 32, 84);
+      var bw = tw(big, 'g11') + tw(small, 'g7') + 9;
+      caixaPainel(3, y, bw, h, C.veu, C.ouro);
+      text(big, 7, y + Math.floor((h - 11) / 2), C.ouro, 'g11', null, C.sombra);
+      text(small, 7 + tw(big, 'g11') + 1, y + h - 10, C.texto, 'g7');
+      // estamina: 12 segmentos (ou o que couber)
+      var sx = 3 + bw + 5, segs = clamp(Math.floor((A * 0.28 - 8) / 4), 8, 12), barW = segs * 4 - 1;
       var stam = clamp(st.stamina[me], 0, 1);
-      caixaPainel(sx, 2, barW + 4, 14, C.veu);
-      text('EST', sx + 2, 3, C.texto2);
+      caixaPainel(sx, y, barW + 8, h, C.veu);
+      if (!lay.compact) text('EST', sx + 4, y + 3, C.texto2, 'g7');
       var col = stam > 0.5 ? C.ganho : stam > 0.25 ? C.ouro : C.perda;
-      var segs = Math.floor(barW / 4), on = Math.round(stam * segs);
+      var on = Math.round(stam * segs);
       for (var s = 0; s < segs; s++) {
         ctx.fillStyle = s < on ? col : C.sombra;
-        ctx.fillRect((sx + 2 + s * 4) * self.S, 10 * self.S, 3 * self.S, 4 * self.S);
+        ctx.fillRect((sx + 4 + s * 4) * self.S, (y + h - 8) * self.S, 3 * self.S, 5 * self.S);
       }
       // tempo e velocidade (relógio da corrida)
       var tShown = Math.min(self.simT, fTime[me]);
       var tTxt = fmtClock(tShown), kmh = Math.round(st.speed[me] * 3.6) + ' KM/H';
-      var tw2 = Math.max(tw(tTxt), tw(kmh)) + 4;
-      caixaPainel(A - 2 - tw2, 2, tw2, 14, C.veu);
-      text(tTxt, A - 4, 3, C.texto, 1, 'right', null, true);
-      text(kmh, A - 4, 10, C.texto2, 1, 'right', null, true);
+      var tw2 = Math.max(tw('0:00,0', 'g9'), tw(tTxt, 'g9'), tw(kmh, 'g7'), tw('00 KM/H', 'g7')) + 8, tx = A - 3 - tw2;
+      caixaPainel(tx, y, tw2, h, C.veu);
+      if (lay.compact) text(tTxt, A - 7, y + 3, C.texto, 'g9', 'right', null, true);
+      else {
+        text(tTxt, A - 7, y + 2, C.texto, 'g9', 'right', null, true);
+        text(kmh, A - 7, y + 12, C.texto2, 'g7', 'right', null, true);
+      }
       // clima atual (vira com o Dado da Sorte), à esquerda do relógio; no layout compacto
       // não há espaço (a CURVA/SUBIDA fica ali) e o cabeçalho da tela mostra o clima
       var wName = GD.WEATHERS[climaMostrado(self.simT)].name.toUpperCase();
-      var ww = Math.max(tw('CLIMA'), tw(wName)) + 4, wx = A - 2 - tw2 - 4 - ww;
-      var livre = sx + barW + 4 + 4, climaVisivel = !lay.compact && wx > livre;
+      var ww = Math.max(tw('CLIMA', 'g7'), tw(wName, 'g7')) + 8, wx = tx - 4 - ww;
+      var livre = sx + barW + 8 + 4, climaVisivel = !lay.compact && wx > livre;
       if (climaVisivel) {
-        caixaPainel(wx, 2, ww, 14, C.veu);
-        text('CLIMA', wx + 2, 3, C.texto2);
-        text(wName, wx + 2, 10, C.texto);
+        caixaPainel(wx, y, ww, h, C.veu);
+        text('CLIMA', wx + 4, y + 3, C.texto2, 'g7');
+        text(wName, wx + 4, y + 12, C.texto, 'g7');
       }
       // vento (só visual) à esquerda do clima: "VENTO / BRISA →"; sem espaço, ou no layout compacto (onde
       // o selo CURVA/SUBIDA ocupa o lugar do clima), só o ícone: seta (traço no calmo) e 1–3 barrinhas
-      var vw = self.wind, vNome = ventoTxt(vw).toUpperCase(), dir0 = climaVisivel ? wx : A - 2 - tw2;
-      var vbw = Math.max(tw('VENTO'), tw(vNome)) + 4, vx = dir0 - 4 - vbw;
+      var vw = self.wind, vNome = ventoTxt(vw).toUpperCase(), dir0 = climaVisivel ? wx : tx;
+      var vbw = Math.max(tw('VENTO', 'g7'), tw(vNome, 'g7')) + 8, vx = dir0 - 4 - vbw;
       if (!lay.compact && vx > livre) {
-        caixaPainel(vx, 2, vbw, 14, C.veu);
-        text('VENTO', vx + 2, 3, C.texto2);
-        text(vNome, vx + 2, 10, C.texto);
+        caixaPainel(vx, y, vbw, h, C.veu);
+        text('VENTO', vx + 4, y + 3, C.texto2, 'g7');
+        text(vNome, vx + 4, y + 12, C.texto, 'g7');
         FX._stats.ventoHud = 'texto';
       } else {
-        var reserva = lay.compact ? Math.max(tw('\u25b2SUBIDA'), tw('\u21aaCURVA')) + 4 + 4 : 0;
-        var iw = 9, ix = dir0 - 4 - reserva - iw;
+        var reserva = lay.compact ? Math.max(tw('\u25b2SUBIDA', 'g7'), tw('CURVA', 'g7')) + 8 + 4 : 0;
+        var iw = 14, ix = dir0 - 4 - reserva - iw;
         if (ix > livre) {
-          caixaPainel(ix, 2, iw, 14, C.veu);
+          caixaPainel(ix, y, iw, h, C.veu);
           var seta = vw.intensity === 'calmo' ? '\u2013' : vw.dir > 0 ? '\u2192' : '\u2190';
-          text(seta, ix + Math.round((iw - tw(seta)) / 2), 3, C.texto);
+          text(seta, ix + Math.round((iw - tw(seta, 'g7')) / 2), y + 2, C.texto, 'g7');
           var nivel = ['calmo', 'brisa', 'ventania'].indexOf(vw.intensity) + 1;
           for (var vb = 0; vb < 3; vb++) {
             ctx.fillStyle = vb < nivel ? C.texto : C.sombra;
-            ctx.fillRect((ix + 2 + vb * 2) * self.S, (13 - vb) * self.S, self.S, (vb + 1) * self.S);
+            ctx.fillRect((ix + 3 + vb * 3) * self.S, (y + h - 4 - vb * 2) * self.S, 2 * self.S, (vb * 2 + 2) * self.S);
           }
           FX._stats.ventoHud = 'icone';
         }
       }
       // tipo do bloco do jogador: SUBIDA ou CURVA (nada na reta)
       var bType = blocks[RS.blockAt(blocks, st.pos[me])].type;
-      var lbl = bType === 'subida' ? '▲SUBIDA' : bType === 'curva' ? '↪CURVA' : '';
+      var lbl = bType === 'subida' ? '▲SUBIDA' : bType === 'curva' ? 'CURVA' : '';   // a Galmuri não tem o ↪
       var mc = lay.mini;
       if (lbl && self.phase !== 'contagem') {
-        var lw = tw(lbl) + 4;
-        var hy = lay.compact ? 6 : mc.y + 1;
-        var hx = lay.compact ? A - 2 - tw2 - 4 - lw : mc.x + mc.w + 4;
-        caixaPainel(hx, hy, lw, 7, bType === 'curva' ? GD.BLOCK_TYPES.curva.color : C.ouro);
-        text(lbl, hx + 2, hy + 1, C.tinta);
+        var lw = tw(lbl, 'g7') + 6;
+        var hy = lay.compact ? y + 2 : mc.y + 1;
+        var hx = lay.compact ? tx - 4 - lw : mc.x + mc.w + 4;
+        caixaPainel(hx, hy, lw, 11, bType === 'curva' ? GD.BLOCK_TYPES.curva.color : C.ouro);
+        text(lbl, hx + 3, hy + 2, C.tinta, 'g7');
       }
       if (lay.compact) return;
       // minimapa: o traçado visto de cima (curvas na cor da curva, subidas em ouro, retas na cor do piso) com
@@ -5727,6 +5732,7 @@
       var tDes = window.performance.now();
       FX.beginFrame();
       draw(st, order);
+      vctx.drawImage(buf, 0, 0, cv.width, cv.height);   // a única cópia do quadro para a tela, ampliada s vezes
       FX.endFrame(window.performance.now() - tDes, now);
     }
 
