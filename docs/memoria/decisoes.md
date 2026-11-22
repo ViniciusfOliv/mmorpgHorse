@@ -3,6 +3,16 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-22 — Integração da arte, etapa 5 (treinadores, bustos e arenas)
+- **Cena do desafio sobre a arena do ginásio** (`window.__ARENAS`, 256×160): mostra 256×128 (sem as 32 linhas de cima do
+  céu) e, numa coluna mais estreita, corta as laterais por igual (mínimo 160). O oponente no corpo de ~40 px (quadro
+  32×48) ao lado do cavalo dele, do outro lado do picadeiro; o seu cavalo na frente; tudo 1:1 na grade. O jogo anota
+  `data-arte` e `data-treinador` no canvas (o `ui-test` confere por eles). Sem a arena, fundo liso de painel.
+- **Bustos 64×64 nos cartões da trilha** (coluna à esquerda, 1:1). Com eles o cartão do líder cresce e a revanche a
+  360×780 passa a rolar 6 px (rebaseado). O cabeçalho do duelo na corrida ficou sem busto (mexeria na altura da cena).
+- `window.__TREINADORES` agora é `{ id: { corpo, busto } }`, dos finais em `assets/arte/treinadores/finais/`; a pasta
+  antiga `assets/pixellab/treinadores/` sai na limpeza da etapa 8.
+
 ## 2026-11-22 — Integração da arte, etapa 4 (ícones) e a `main`
 - **Direção de arte (etapas 1 e 2) e skills com ranks juntas na `main`** (pedido do Vinicius): a `main` foi juntada no
   ramo (conflitos no CSS dos ranks, passado para a Galmuri9, no balão/brilho do rank V, levado à paleta, e na memória),
