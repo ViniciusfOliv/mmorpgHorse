@@ -8032,7 +8032,8 @@ try {
         const est = await confereTela(pg, tag + ' estábulo')
         // sexo e Corcel saíram da linha do Estábulo (3b §4) e da cabeça da ficha (3b §5): os ícones e o texto ao lado deles
         // são conferidos na aba Ficha da m1 (Macho, Corcel) e da m2 (Fêmea, Corcel), abaixo
-        espera(est, 'estábulo', ['ui-perfil', 'ui-estrela', 'ui-estrela-vazia', 'rar-comum', 'rar-raro'])
+        // (etapa 4: a medalha de raridade, de 24 px, fica só na ficha e na escolha inicial; a lista leva só o nome)
+        espera(est, 'estábulo', ['ui-perfil', 'ui-estrela', 'ui-estrela-vazia'])
         const fichaTxt = async () => ((await pg.locator('.montaria-ficha').textContent()) || '').replace(/\s+/g, ' ')
         const rotPerfil = await pg.locator('.app-perfil').getAttribute('aria-label')
         if (rotPerfil !== 'Perfil') problems.push(`${tag} estábulo: botão do Perfil com aria-label "${rotPerfil}"`)
