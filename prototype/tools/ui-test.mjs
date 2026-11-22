@@ -3519,7 +3519,9 @@ try {
     // Ruling 27: com a insígnia, a única etapa tocável é a revanche livre hoje (o caso 'agua', 5, com revDia null). Medido: a
     // 360×780 ela já cabe no topo (scrollY 0); a 360×640 a base dela passa da barra de abas (a etapa do líder começa em ~485 px
     // e tem ~118 px), então rola o mínimo. Com a revanche de hoje já feita (caso 'agua-feita'), nenhuma etapa tocável: no topo.
-    const GIN_REV_ROLA = { 780: false, 640: true }
+    // 2026-11-22 (etapa 5 da direção de arte): com o busto do oponente no cartão, a revanche a 360×780 também passa da
+    // barra (por 6 px) e rola o mínimo
+    const GIN_REV_ROLA = { 780: true, 640: true }
     for (const vp of [{ width: 360, height: 780 }, { width: 360, height: 640 }]) {
       for (const [id, etapa, feita] of [['grama', 0], ['fogo', 2], ['agua', 5], ['agua', 5, true]]) {
         const label = `ginasio-rola-${vp.width}x${vp.height}-${id}-${etapa}${feita ? '-feita' : ''}`
