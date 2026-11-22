@@ -1411,9 +1411,11 @@
     var el = elementOf(element);
     return '<span class="el el--' + esc(el.id) + '">' + iconHtml(el.id) + esc(el.name) + '</span>';
   }
-  function rarityHtml(rarity) {
+  // comMedalha: a medalha de 24 px (1:1 na grade) só na ficha do cavalo; nas linhas de lista e nas tabelas a pílula
+  // vai só com o nome na cor da raridade (com a medalha, cada linha crescia ~30 px: etapa 4 da direção de arte)
+  function rarityHtml(rarity, comMedalha) {
     var r = GD.RARITIES[rarity] || GD.RARITIES.comum;
-    return '<span class="raridade raridade--' + esc(r.id) + '">' + raridadeIcone(r.id) + esc(r.name) + '</span>';
+    return '<span class="raridade raridade--' + esc(r.id) + '">' + (comMedalha ? raridadeIcone(r.id) : '') + esc(r.name) + '</span>';
   }
   function leagueHtml(rating) {
     var L = RS.leagueFor(rating), ic = ligaIcone(L.id);
@@ -2551,7 +2553,7 @@
         '<div class="retrato-palco">' + portraitHtml(h) + '<span class="contador">' + (idx + 1) + '/' + GD.STARTERS.length + '</span></div>' +
         '<div class="inicial-topo"><h2 class="cavalo-nome">' + esc(h.name) + '</h2>' + elementHtml(h.element) + '</div>' +
         '<p class="cavalo-titulo"><b>' + esc(h.title) + '.</b> ' + esc(h.bio) + '</p>' +
-        '<div class="linha-meta">' + rarityHtml(h.rarity) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(h.grau) + ajudaBtn('estrelas', 'as estrelas') +
+        '<div class="linha-meta">' + rarityHtml(h.rarity, true) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(h.grau) + ajudaBtn('estrelas', 'as estrelas') +
           '<span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
         '<p class="inicial-fortes">Fortes: <b>' + esc(GD.STATS[fortes[0]].name) + '</b> e <b>' + esc(GD.STATS[fortes[1]].name) + '</b></p>' +
         statsHtml(stats) +
@@ -4099,7 +4101,7 @@
       '<div class="cavalo-info">' +
         '<h1 class="titulo titulo--tela" id="t-montaria" tabindex="-1" data-foco><span class="montaria-nome">' + esc(m.name) + ' <small>#' + esc(uidNum(m.uid)) + '</small></span>' +
           (isActive ? ' <span class="badge-ativa">Ativa</span>' : '') + '</h1>' +   // o espaço: o leitor de tela lê "Brasa #1 Ativa"
-        '<div class="linha-meta">' + rarityHtml(m.rarity) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(m.grau) + ajudaBtn('estrelas', 'as estrelas') + elementHtml(m.element) + '</div>' +
+        '<div class="linha-meta">' + rarityHtml(m.rarity, true) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(m.grau) + ajudaBtn('estrelas', 'as estrelas') + elementHtml(m.element) + '</div>' +
         '<div class="linha-meta"><span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
         xpHtml(m.level, m.xp, true) +
         (GEAR_ON ? gearSummaryHtml(m) : '') +

@@ -9283,13 +9283,14 @@ try {
     const label = 'itens-diaria-altura'
     // 2026-11-21 (Galmuri, etapa 1a): a lista medida com a fonte nova (era 412 e 748 com a Jersey)
     // 2026-11-21, etapa 1b: o retrato pequeno passou a 64 × 56 pixels de arte (o cavalo 1:1 inteiro): +12 px por linha
-    const LISTA_ANTES = { 3: 447, 6: 821 }
+    // 2026-11-22, etapa 4: os ícones 1:1 na grade (o de elemento passa de 16 px de CSS a 16 × --px): +14 na lista de 6
+    const LISTA_ANTES = { 3: 447, 6: 835 }
     const v7 = (save, diaria) => Object.assign({}, save, { v: 7, mochila: { torrao: 0, estrela: 0, cupom: 0, manual: 0 }, diaria, itemCounter: 0,
       lojaItens: { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null } })
     // [nome, diária do save (null: o save da v6, que migra no dia 1), o dia "N / 7" esperado]
     const DIAS = [['dia 1', null, 1], ['dia 6', { prox: 5, ciclos: 0, ultimo: null }, 6], ['dia 7', { prox: 6, ciclos: 0, ultimo: null }, 7],
       ['dia 7 do 4º calendário', { prox: 6, ciclos: 3, ultimo: null }, 7]]
-    for (const [n, save, comPremio, resgatada] of [[3, SAVE_3A, 926, 856], [6, SAVE_3B_6, 1285, 1215]]) {   // + as linhas mais altas do retrato pequeno (etapa 1b)   // 6: +15 px da lista com a Galmuri (761 − 748; 2026-11-21)
+    for (const [n, save, comPremio, resgatada] of [[3, SAVE_3A, 926, 856], [6, SAVE_3B_6, 1299, 1229]]) {   // + as linhas mais altas do retrato pequeno (etapa 1b)   // 6: +15 px da lista com a Galmuri (761 − 748; 2026-11-21)
       for (const [dia, diaria, k] of DIAS) {
         const tag = `${n} cavalos, ${dia}`
         const p = await newPage(browser, { width: 360, height: 780 }, `${label}-${n}`, comSave(diaria ? v7(save, diaria) : save))
