@@ -1398,6 +1398,10 @@
     for (var z = 0; z < podios.length; z++) setupPodium(podios[z]);
     var cenas = root.querySelectorAll('canvas[data-cena]');
     for (var w = 0; w < cenas.length; w++) drawGinCena(cenas[w]);
+    var abas = root.querySelectorAll('canvas[data-cena-aba]');
+    for (var wa = 0; wa < abas.length; wa++) drawCenaAba(abas[wa]);
+    var mapas = root.querySelectorAll('canvas[data-mapa]');
+    for (var wm = 0; wm < mapas.length; wm++) drawMapaTrilha(mapas[wm]);
   }
 
   // ===========================================================================
@@ -2380,7 +2384,7 @@
     if (visObs) visObs.disconnect();
     live = [];
     portraitQueue = [];
-    cenaQueue = []; cenaItems = [];
+    cenaQueue = []; cenaItems = []; telaItems = [];
     var html;
     if (saveBloqueado) ui.screen = 'bloqueio';
     switch (ui.screen) {
@@ -2733,7 +2737,7 @@
 
   // Aba Estábulo: o cartão da recompensa diária e a lista de montarias
   function renderEstabulo() {
-    return '<section class="tela" aria-labelledby="t-estabulo">' +
+    return '<section class="tela" aria-labelledby="t-estabulo">' + cenaAbaHtml('estabulo') +
       '<h1 class="titulo titulo--tela" id="t-estabulo" tabindex="-1" data-foco>Estábulo <span class="nota">' +
         state.mounts.length + '/' + state.stableSlots + ' vagas</span></h1>' + noticeHtml() +
       diariaCartaoHtml() + montariasHtml() +
@@ -2869,7 +2873,7 @@
         elementHtml(w.element) +
         '<span class="nota">' + esc(w.habitat || '') + '</span></div>';
     }).join('');
-    return '<section class="tela" aria-labelledby="t-expedicao">' +
+    return '<section class="tela" aria-labelledby="t-expedicao">' + cenaAbaHtml('expedicao') +
       '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>' +
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
@@ -2898,11 +2902,17 @@
   // o detalhe. Fechada: botão apagado (aria-disabled) com o motivo escrito. Com a insígnia, o líder mostra o ícone dela e
   // vira a revanche (o módulo diz qual, ginModo): livre hoje, um botão como a próxima ("Revanche hoje", a entrada da revanche
   // e o prêmio de hoje do rodízio); já tentada hoje, só texto ("Revanche de hoje feita. Volte amanhã.").
+  // o estado da etapa i na trilha (o cartão e o mapa usam o mesmo)
+  var ETAPA_ESTADO_TXT = { vencida: 'Vencida', proxima: 'Próxima', fechada: 'Fechada', revanche: 'Revanche hoje', feita: 'Feita hoje' };
+  function ginEtapaEstado(id, i) {
+    var e = GD.GYMS[id].etapas[i], p = ginProgresso(id), modo = e.lider && ginTemInsignia(id) ? ginModo(id, i) : null;
+    return modo && modo.revanche ? (modo.pode ? 'revanche' : 'feita') : i < p ? 'vencida' : i === p ? 'proxima' : 'fechada';
+  }
+  function trilhaEstadoTxt(id, i) { return ETAPA_ESTADO_TXT[ginEtapaEstado(id, i)]; }
   function trilhaEtapaHtml(id, e, i) {
-    var p = ginProgresso(id), modo = e.lider && ginTemInsignia(id) ? ginModo(id, i) : null;
-    var estado = modo && modo.revanche ? (modo.pode ? 'revanche' : 'feita') : i < p ? 'vencida' : i === p ? 'proxima' : 'fechada';
+    var estado = ginEtapaEstado(id, i);
     var MOTIVO = 'Vença a etapa anterior';
-    var estadoTxt = { vencida: 'Vencida', proxima: 'Próxima', fechada: 'Fechada', revanche: 'Revanche hoje', feita: 'Feita hoje' }[estado];
+    var estadoTxt = ETAPA_ESTADO_TXT[estado];
     var rev = estado === 'revanche' || estado === 'feita';
     var corpo = '<span class="etapa-rotulo">' + esc(ginEtapaRotulo(e, i)) + '</span>' +
       '<span class="etapa-nome">' + esc(e.nome) + '</span>' +
@@ -2936,7 +2946,7 @@
         (ginTemInsignia(id) ? '<p class="ginasio-insignia">' + ginInsigniaIcone(id) + '<span><b>' + esc(g.insignia.name) + ':</b> ' + esc(ginBonusTxt(id)) + '.</span></p>' : '') +
       '</div>' +
       '<section class="caixa" aria-labelledby="t-trilha"><h2 class="titulo" id="t-trilha">Trilha</h2>' +
-        '<p class="nota">Vença as etapas em ordem, de baixo para cima.</p>' + trilhaHtml(id) +
+        '<p class="nota">Vença as etapas em ordem, de baixo para cima.</p>' + trilhaMapaHtml(id) + trilhaHtml(id) +
       '</section>' +
       '</section>';
   }
@@ -3263,6 +3273,122 @@
     }
     return im.complete && im.naturalWidth ? im : null;
   }
+  // ---------------------------------------------------------------------------------------------
+  // Etapa 6 da direção de arte: a cena de cada aba (256×160, window.__TELAS.cenas, com o pontilhado de baixo assado no
+  // build) numa faixa no topo, com a placa do título por cima da borda de baixo; no Estábulo, o cavalo ativo parado na
+  // cena, 1:1. E o mapa de cada trilha de ginásio (256×384, só o terreno): o caminho, as 5 paradas e os oponentes de pé
+  // (corpo 32×48) por código, de baixo para cima. Numa coluna mais estreita, a arte corta as laterais por igual. Só
+  // desenho: nada grava nem muda o state. Sem a arte, nada (a tela fica como antes).
+  // ---------------------------------------------------------------------------------------------
+  var TELA_W = 256, CENA_ABA_H = 160, MAPA_H = 384;
+  var MAPA_PARADAS = [[88, 360], [168, 292], [84, 224], [168, 156], [128, 84]];   // (x, y do chão), da 1ª etapa ao líder
+  var telaImgs = {}, telaItems = [];
+  function telaImg(tipo, id) {
+    var m = window.__TELAS, src = m && m[tipo] && hasOwn(m[tipo], id) ? m[tipo][id] : null;
+    if (typeof src !== 'string' || typeof Image !== 'function') return null;
+    var key = tipo + ':' + id, im = telaImgs[key];
+    if (!im) {
+      im = telaImgs[key] = new Image();
+      im.onload = function () { telaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
+      im.src = src;
+    }
+    return im.complete && im.naturalWidth ? im : null;
+  }
+  function temTela(tipo, id) { var m = window.__TELAS; return !!(m && m[tipo] && hasOwn(m[tipo], id) && typeof m[tipo][id] === 'string'); }
+  function cenaAbaHtml(aba) { return temTela('cenas', aba) ? '<canvas class="cena-aba" data-cena-aba="' + aba + '" aria-hidden="true"></canvas>' : ''; }
+  // a largura (pixels de arte) que cabe no pai do canvas, até a da arte, e o corte de cada lado
+  function larguraTela(cv) {
+    var r = dpr(), kG = gradeS || Math.max(1, Math.round(1.5 * r)), pai = cv.parentElement ? cv.parentElement.clientWidth : 0;
+    var W = Math.max(160, Math.min(TELA_W, pai ? Math.floor(pai * r / kG) : TELA_W));
+    return { W: W, ox: Math.floor((TELA_W - W) / 2) };
+  }
+  // o cavalo parado 1:1 com o corpo centrado em cx e os cascos em base (pixels de arte do canvas)
+  function cavaloParado(ctx, k, h, vis, cx, base, t) {
+    vis.reduzido = reduced();
+    SP.drawHorse(ctx, (cx - 20) * k, (base - 36) * k, comVisuais({ palette: h.palette, element: h.element, idle: true, t: t, scale: k,
+      jockey: false, silks: PLAYER_SILKS, quadro: { topo: -1e6, base: base * k, grade: k, centro: cx * k } }, vis));
+  }
+  function drawCenaAba(cv) {
+    var aba = cv.getAttribute('data-cena-aba'), L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, CENA_ABA_H), k = s.k, ctx = s.ctx;
+    cv.setAttribute('data-arte', L.W + 'x' + CENA_ABA_H);
+    var h = aba === 'estabulo' ? playerHorse() : null, vis = h ? opcoesVisuais(h, null) : null;
+    var item = {
+      drawn: false,
+      draw: function (t) {
+        if (item.drawn && reduced()) return;
+        var img = telaImg('cenas', aba);
+        item.drawn = !!img; item.t = t;
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        if (!img) return;
+        ctx.drawImage(img, -L.ox * k, 0, TELA_W * k, CENA_ABA_H * k);
+        // o cavalo ativo no meio da baia, com os cascos acima da placa do título (que cobre as últimas ~40 linhas)
+        if (h) cavaloParado(ctx, k, h, vis, TELA_W / 2 - L.ox, 112, reduced() ? 0.5 : t);
+      }
+    };
+    item.draw(0);
+    if (h) vivo(item, cv);
+    telaItems.push(item);
+  }
+  function trilhaMapaHtml(id) {
+    if (!temTela('mapas', id)) return '';
+    var g = GD.GYMS[id], txt = g.etapas.map(function (e, i) { return ginEtapaRotulo(e, i) + ' ' + e.nome + ': ' + trilhaEstadoTxt(id, i); }).join('; ');
+    return '<div class="trilha-mapa-palco"><canvas class="trilha-mapa" data-mapa="' + esc(id) + '" role="img" aria-label="' +
+      esc('Mapa da trilha, de baixo para cima. ' + txt + '.') + '"></canvas></div>';
+  }
+  function drawMapaTrilha(cv) {
+    var id = cv.getAttribute('data-mapa'), g = GD.GYMS[id];
+    if (!g) return;
+    var L = larguraTela(cv), s = setupCanvasGrade(cv, L.W, MAPA_H), k = s.k, ctx = s.ctx, ox = L.ox;
+    cv.setAttribute('data-arte', L.W + 'x' + MAPA_H);
+    var estados = g.etapas.map(function (e, i) { return ginEtapaEstado(id, i); });
+    function px(x, y, w, hh, cor) { ctx.fillStyle = cor; ctx.fillRect((x - ox) * k, y * k, w * k, hh * k); }
+    var item = {
+      drawn: false,
+      draw: function (t) {
+        var img = telaImg('mapas', id);
+        item.drawn = !!img; item.t = t;
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        if (!img) return;
+        ctx.drawImage(img, -ox * k, 0, TELA_W * k, MAPA_H * k);
+        // o caminho: tracejado de 3 px (borda escura, miolo claro); até a etapa seguinte à última vencida, aceso
+        for (var q = 0; q + 1 < MAPA_PARADAS.length; q++) {
+          var a = MAPA_PARADAS[q], b = MAPA_PARADAS[q + 1], n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
+          var aceso = estados[q] === 'vencida' || estados[q] === 'revanche' || estados[q] === 'feita';
+          for (var u = 0; u <= n; u++) {
+            if (u % 8 >= 5) continue;
+            var x = Math.round(a[0] + (b[0] - a[0]) * u / n), y = Math.round(a[1] + (b[1] - a[1]) * u / n);
+            px(x - 2, y - 2, 5, 5, C.sombra);
+            px(x - 1, y - 1, 3, 3, aceso ? C.ouroClaro : '#c7dcd0');
+          }
+        }
+        // as paradas: um tablado de pedra (ouro na vencida e na tocável) e o oponente de pé em cima
+        g.etapas.forEach(function (e, i) {
+          var p = MAPA_PARADAS[i], st = estados[i], ouro = st === 'vencida' || st === 'feita', vez = st === 'proxima' || st === 'revanche';
+          for (var yy = -5; yy <= 5; yy++) {
+            var w = Math.round(18 * Math.sqrt(1 - (yy * yy) / 25));
+            px(p[0] - w, p[1] + yy, 2 * w, 1, Math.abs(yy) === 5 ? C.sombra : yy < 1 ? (vez ? C.ouroClaro : ouro ? C.ouro : '#c7dcd0') : (vez || ouro ? C.ouroEscuro : '#9babb2'));
+            if (Math.abs(yy) < 5) { px(p[0] - w, p[1] + yy, 1, 1, C.sombra); px(p[0] + w - 1, p[1] + yy, 1, 1, C.sombra); }
+          }
+          var corpo = treinadorImg(ginTreinadorId(e.nome));
+          if (corpo) ctx.drawImage(corpo, (p[0] - 16 - ox) * k, (p[1] - corpo.naturalHeight + 1) * k, corpo.naturalWidth * k, corpo.naturalHeight * k);
+        });
+      }
+    };
+    item.draw(0);
+    telaItems.push(item);
+    // tocar numa parada é tocar no cartão dela (só as tocáveis têm botão)
+    cv.addEventListener('click', function (ev) {
+      var r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * L.W + ox, y = (ev.clientY - r.top) / r.height * MAPA_H;
+      for (var i = 0; i < MAPA_PARADAS.length; i++) {
+        var p = MAPA_PARADAS[i];
+        if (Math.abs(x - p[0]) <= 20 && y >= p[1] - 50 && y <= p[1] + 8) {
+          var b = document.querySelector('#tela .trilha .etapa[data-etapa="' + i + '"] button.etapa-btn');
+          if (b && !b.disabled && b.getAttribute('aria-disabled') !== 'true') b.click();
+          return;
+        }
+      }
+    });
+  }
   var cenaQueue = [];   // as cenas da tela atual (como o portraitQueue): { gymId, dono, a, b }
   var cenaItems = [];   // os desenhos dessas cenas (para redesenhar só o canvas quando a arte do oponente chega)
   var treinadorImgs = {};
@@ -3280,7 +3406,8 @@
     var im = treinadorImgs[id];
     if (!im) {
       im = treinadorImgs[id] = new Image();
-      im.onload = function () { cenaItems.forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
+      // ao chegar, as cenas do desafio e os mapas da trilha na tela são desenhados de novo
+      im.onload = function () { cenaItems.concat(telaItems).forEach(function (it) { it.drawn = false; it.draw(it.t || 0); }); };
       im.src = m[id].corpo;
     }
     return im.complete && im.naturalWidth ? im : null;
@@ -3571,7 +3698,7 @@
 
   function renderHaras() {
     var H = harasNormalize();
-    var head = '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>' + noticeHtml();
+    var head = cenaAbaHtml('haras') + '<h1 class="titulo titulo--tela" id="t-haras" tabindex="-1" data-foco>Haras</h1>' + noticeHtml();
     var foal = H.result ? mountByUid(H.result) : null;
     if (foal) return '<section class="tela" aria-labelledby="t-haras">' + head + harasResultHtml(foal) + '</section>';
 
@@ -4232,7 +4359,7 @@
   }
   function renderLoja() {
     if (!LOJA_PARTES.some(function (a) { return a.id === ui.lojaParte; })) ui.lojaParte = 'comprar';
-    var head = '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>';
+    var head = cenaAbaHtml('loja') + '<h1 class="titulo titulo--tela" id="t-loja" tabindex="-1" data-foco>Loja</h1>';
     var partes = '<div class="subabas" role="group" aria-label="Partes da loja">' + LOJA_PARTES.map(function (a) {
       return '<button type="button" class="btn opcao opcao--centro" data-acao="loja-parte" data-id="' + esc(a.id) + '" aria-pressed="' + (ui.lojaParte === a.id) + '">' + esc(a.rotulo) + '</button>';
     }).join('') + '</div>';

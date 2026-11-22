@@ -1531,3 +1531,11 @@ img.icone.icone--n24 { width: calc(var(--px) * 24); height: calc(var(--px) * 24)
     font: 400 var(--t-7)/var(--lh-7) var(--fonte-7); text-align: center;
   }
 }
+
+/* ---------- Etapa 6 da direção de arte: cena no topo das abas e mapa da trilha ---------- */
+/* a cena (256×160 em pixels de arte, 1:1 na grade; o canvas tem o tamanho certo) com a placa do título por cima das
+   últimas 40 linhas (as 24 de baixo já somem em pontilhado) */
+.cena-aba { display: block; margin: 0 auto calc(var(--px) * -40); image-rendering: pixelated; }
+.cena-aba + .titulo--tela { position: relative; }
+.trilha-mapa-palco { display: flex; justify-content: center; margin: 0 0 12px; }
+.trilha-mapa { display: block; image-rendering: pixelated; cursor: pointer; box-shadow: 0 0 0 2px var(--sombra); }

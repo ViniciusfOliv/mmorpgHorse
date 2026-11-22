@@ -7,6 +7,9 @@
 //   lerMarca(root)          -> { logo, w, h } ou { logo: null }  (window.__MARCA)
 //   lerTreinadores(root)    -> { id: { corpo, busto } }  (window.__TREINADORES: os finais da etapa 5 da direção de arte)
 //   lerArenas(root)         -> { fogo, agua, grama }  (window.__ARENAS: o fundo da cena do desafio, 256×160)
+//   lerTelas(root)          -> { cenas: { estabulo, haras, loja, expedicao }, mapas: { fogo, agua, grama } }  (window.__TELAS:
+//                              as cenas das abas, 256×160, com as 24 linhas de baixo sumindo em pontilhado; os mapas das
+//                              trilhas, 256×384, só o terreno; etapa 6)
 //   lerRegioes(root)        -> { regiao: { nome, pistas, posicao, camadas: { nuvens, horizonte, meio, arquibancada,
 //                              frente } } }  (window.__REGIOES: as camadas da corrida, etapa 2.3; o horizonte já com a
 //                              névoa da distância, como na amostra)
@@ -145,6 +148,30 @@ export async function lerRegioes(root) {
       camadas[k] = 'data:image/png;base64,' + buf.toString('base64')
     }
     out[r] = { nome: reg.nome, pistas: reg.pistas || [], posicao: reg.posicao || {}, camadas }
+  }
+  return out
+}
+
+// Cenas das abas e mapas das trilhas (etapa 6 da direção de arte): assets/arte/telas/finais/cena-<aba>.png (256×160) e
+// mapa-<ginásio>.png (256×384). Nas cenas, as últimas 24 linhas somem em pontilhado ordenado (Bayer 4×4, alfa binário),
+// deixando ver o fundo da interface embaixo da placa do título — o mesmo da prévia aprovada (arte-telas-previa.mjs).
+const BAYER4 = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]
+export function cenaComPontilhado(img, linhas = 24) {
+  const out = new Uint8Array(img.rgba), W = img.width, H = img.height
+  for (let y = H - linhas; y < H; y++) for (let x = 0; x < W; x++) {
+    if (BAYER4[y % 4][x % 4] < (y - (H - linhas)) / linhas * 16) out[(y * W + x) * 4 + 3] = 0
+  }
+  return { width: W, height: H, rgba: out }
+}
+export async function lerTelas(root) {
+  const dir = 'assets/arte/telas/finais', out = { cenas: {}, mapas: {} }
+  for (const aba of ['estabulo', 'haras', 'loja', 'expedicao']) {
+    const arq = join(root, dir, `cena-${aba}.png`)
+    if (existsSync(arq)) out.cenas[aba] = 'data:image/png;base64,' + encodePng(cenaComPontilhado(decodePng(await readFile(arq)))).toString('base64')
+  }
+  for (const g of ['fogo', 'agua', 'grama']) {
+    const png = join(dir, `mapa-${g}.png`)
+    if (existsSync(join(root, png))) out.mapas[g] = await dataUrl(root, png)
   }
   return out
 }
