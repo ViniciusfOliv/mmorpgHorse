@@ -7223,12 +7223,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     if (!F) return false;
     var img = F.RG.camadas.frente, P = F.P;
     if (!F.trA) camadaRepetida(ctx, img, F.camArt * 1.25, F.y, F.W, P);
-    else for (var i = 0; i < F.trA.length; i++) {
-      var tr = F.trA[i];
-      ctx.save(); ctx.beginPath(); ctx.rect(tr[0], 0, tr[1] - tr[0], F.H); ctx.clip();
-      camadaRepetida(ctx, img, F.camArt * 1.25, F.y - tr[2] * P, F.W, P);
-      ctx.restore();
-    }
+    else for (var i = 0; i < F.trA.length; i++) camadaColunas(ctx, img, F.camArt * 1.25, F.y - F.trA[i][2] * P, F.trA[i][0], F.trA[i][1], P);
     return true;
   }
 
@@ -7448,6 +7443,16 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     var w = img.width * P, x = -mod(Math.floor(desloc) * P, w);
     for (; x < W; x += w) ctx.drawImage(img, x, y, w, img.height * P);
   }
+  // a mesma camada só nas colunas [xa, xb) do canvas: um drawImage por emenda atravessada (1 ou 2), sem recorte
+  // (no arco das curvas, um trecho de colunas por subida; guia §9: poucas chamadas por quadro)
+  function camadaColunas(ctx, img, desloc, y, xa, xb, P) {
+    var w = img.width, a = Math.round(xa / P), b = Math.round(xb / P), sx = mod(a + Math.floor(desloc), w);
+    while (a < b) {
+      var n = Math.min(b - a, w - sx);
+      ctx.drawImage(img, sx, 0, n, img.height, a * P, y, n * P, img.height * P);
+      a += n; sx = 0;
+    }
+  }
   // o fundo da região: céu, sol, nuvens, horizonte e meio (a arquibancada e a faixa de grama vêm depois, com o arco)
   function fundoRegiao(ctx, RG, W, laneTop, camArt, t, weather, vento, P) {
     var lt = Math.round(laneTop / P), cm = RG.camadas;
@@ -7561,10 +7566,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       var arX0 = -mod(Math.floor(camArt * 0.75) * P, PER_AR) + 60 * P;
       var arTr = arco ? trechosArco(FXc.CURVA.arquibancada / FXc.CURVA.arco) : [[0, W, 0]];
       for (var ati = 0; ati < arTr.length; ati++) {
-        var atr = arTr[ati], corta = arTr.length > 1;
-        if (corta) { ctx.save(); ctx.beginPath(); ctx.rect(atr[0], 0, atr[1] - atr[0], laneTop); ctx.clip(); }
-        for (var axx = arX0 - PER_AR; axx < W; axx += PER_AR) if (axx + arW > atr[0] && axx < atr[1]) ctx.drawImage(ar, axx, arY - atr[2] * P, arW, ar.height * P);
-        if (corta) ctx.restore();
+        var atr = arTr[ati];
+        for (var axx = arX0 - PER_AR; axx < W; axx += PER_AR) {
+          var ca = Math.max(axx, atr[0]), cb = Math.min(axx + arW, atr[1]);   // só as colunas do trecho (sem recorte)
+          if (cb > ca) ctx.drawImage(ar, (ca - axx) / P, 0, (cb - ca) / P, ar.height, ca, arY - atr[2] * P, cb - ca, ar.height * P);
+        }
       }
     } else {
     ctx.fillStyle = HCn; ctx.fillRect(0, horizon, W, laneTop - 4 * P - horizon);
@@ -7622,11 +7628,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // camada presa à pista (paralaxe k) em y, acompanhando o arco: um recorte por trecho de colunas
     function camadaNoArco(img, k, y) {
       if (!trA) { camadaRepetida(ctx, img, camArt * k, y, W, P); return; }
-      for (var i = 0; i < trA.length; i++) {
-        ctx.save(); ctx.beginPath(); ctx.rect(trA[i][0], 0, trA[i][1] - trA[i][0], Hh); ctx.clip();
-        camadaRepetida(ctx, img, camArt * k, y - trA[i][2] * P, W, P);
-        ctx.restore();
-      }
+      for (var i = 0; i < trA.length; i++) camadaColunas(ctx, img, camArt * k, y - trA[i][2] * P, trA[i][0], trA[i][1], P);
     }
     if (RG) {
       camadaNoArco(faixaGrama(), 1, laneTop - 16 * P);
