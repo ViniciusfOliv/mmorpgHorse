@@ -1393,8 +1393,9 @@
     if (xadrezCache && xadrezCache.w >= w + 1 && xadrezCache.h >= h && xadrezCache.cor === cor) return xadrezCache.c;
     var W = Math.max(w + 1, xadrezCache ? xadrezCache.w : 0), H = Math.max(h, xadrezCache ? xadrezCache.h : 0);
     var c = document.createElement('canvas'); c.width = W; c.height = H;
-    var g = c.getContext('2d'); g.fillStyle = cor;
-    for (var y = 0; y < H; y++) for (var x = y % 2; x < W; x += 2) g.fillRect(x, y, 1, 1);
+    var g = c.getContext('2d'), img = g.createImageData(W, H), d = img.data, v = hexRgb(cor);   // por ImageData (poucas chamadas)
+    for (var y = 0; y < H; y++) for (var x = y % 2; x < W; x += 2) { var i = (y * W + x) * 4; d[i] = v[0]; d[i + 1] = v[1]; d[i + 2] = v[2]; d[i + 3] = 255; }
+    g.putImageData(img, 0, 0);
     xadrezCache = { w: W, h: H, cor: cor, c: c };
     return c;
   }
