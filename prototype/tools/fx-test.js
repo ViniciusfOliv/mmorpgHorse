@@ -408,9 +408,10 @@ test('balão de Garra e de cansou: tamanho e cores próprios', function () {
   var z = { kind: 'cansou', t0: 10, t1: 11.5, racer: 0, silks: '#2f6fd8', raia: 2, escala: 1 };
   var cg = ctxFalso(), cz = ctxFalso();
   assert.ok(FX.drawBalloon(cg, 0, 0, 2, g, 10.2, 0) && FX.drawBalloon(cz, 0, 0, 2, z, 10.2, 0));
-  assert.ok(cg.rects.some(function (r) { return r.cor === '#f7d778'; }), 'Garra em dourado (ícone e texto)');
-  assert.ok(cz.rects.every(function (r) { return r.cor !== '#f7d778'; }), 'cansou sem dourado');
-  assert.ok(cz.rects.some(function (r) { return r.cor === '#c3cac6'; }) && cz.rects.some(function (r) { return r.cor === '#2b2f2d'; }), 'cansou em cinza');
+  var GARRA = ['#f9c22b', '#fbff86', '#fbb954'];   // o ouro e os tons claros dele, na mestra
+  assert.ok(cg.rects.some(function (r) { return GARRA.indexOf(r.cor) >= 0; }), 'Garra em dourado (ícone e texto)');
+  assert.ok(cz.rects.every(function (r) { return GARRA.indexOf(r.cor) < 0; }), 'cansou sem dourado');
+  assert.ok(cz.rects.some(function (r) { return r.cor === '#c7dcd0'; }) && cz.rects.some(function (r) { return r.cor === '#3e3546'; }), 'cansou em cinza');
   assert.ok(cg.rects.some(function (r) { return r.cor === '#d8353b'; }), 'borda e chip na cor da seda da raia');
   var sz = FX.balloonSize(ITEM_SKILL, 0), sg = FX.balloonSize(g, 0), sc = FX.balloonSize(z, 0), sp1 = FX.balloonSize(ITEM_SKILL, 1);
   assert.ok(sz.w > 20 && sz.h === 13 && sg.w > 20 && sc.w > 20);
@@ -675,30 +676,33 @@ test('sol por piso: calor e poeira com tom e alfa próprios; na areia a poeira t
   assert.notStrictEqual(ca, ct, 'calor da areia ≠ da terra');
   var aA = Number(ca.replace(/.*,([\d.]+)\)$/, '$1')), aT = Number(ct.replace(/.*,([\d.]+)\)$/, '$1'));
   assert.ok(aA >= 0.3, 'calor na areia mais forte: ' + ca);
-  function lum(c) { var m = c.match(/rgba\((\d+),(\d+),(\d+)/); return 0.299 * m[1] + 0.587 * m[2] + 0.114 * m[3]; }
+  function lum(c) { var m = c.match(/#(..)(..)(..)/); return 0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16); }
   var a = ctxNat(), t = ctxNat();
   FX.drawHoofDust(a, 100, 200, 3, 0.4, 'areia'); FX.drawHoofDust(t, 100, 200, 3, 0.4, 'terra');
-  var cores = {}; a.rects.forEach(function (q) { cores[q.cor.replace(/,[\d.]+\)$/, ')')] = true; });
+  // a poeira dos cascos é sólida, na paleta-mestra (etapa 2.5): sem alfa
+  var cores = {}; a.rects.forEach(function (q) { cores[q.cor] = true; });
   var cs = Object.keys(cores);
   assert.strictEqual(cs.length, 2, 'areia: miolo e borda ' + cs.join(' '));
+  cs.forEach(function (c) { assert.ok(/^#[0-9a-f]{6}$/.test(c), 'poeira sem alfa: ' + c); });
   cs.sort(function (x, y) { return lum(x) - lum(y); });
   assert.ok(lum(cs[1]) - lum(cs[0]) > 60, 'borda bem mais escura que o miolo ' + cs.join(' '));
   assert.ok(t.rects.length < a.rects.length, 'terra sem a borda');
   assert.ok(aT > 0, 'terra com calor');
 });
-test('poeira: nasce atrás do casco (x − 1 px de arte) e só desbota da metade da vida em diante', function () {
-  var S = 3, alfas = [];
+test('poeira: nasce atrás do casco (x − 1 px de arte), sólida, e some no último quinto da vida (sem alfa)', function () {
+  var S = 3, vistas = 0;
   for (var k = 0; k < 20; k++) {
     var c = ctxNat(), t = k / 20 / 2.4;              // uma volta do ciclo da nuvenzinha 0 (ph = k/20)
     FX.drawHoofDust(c, 100, 200, S, t, 'terra', true);   // reduced: uma só (ph = frac(t·2,4·0,4))
+    var ph = frac04(t);
+    if (ph >= 0.8) { assert.strictEqual(c.rects.length, 0, 'no fim da vida não desenha (ph ' + ph.toFixed(2) + ')'); continue; }
     var q = c.rects[c.rects.length - 1];
-    alfas.push({ ph: frac04(t), a: Number(q.cor.replace(/.*,([\d.]+)\)$/, '$1')), x: q.x + q.w });
+    assert.ok(q.x + q.w <= 100, 'a nuvenzinha não passa do casco (borda direita ' + (q.x + q.w) + ')');
+    assert.strictEqual(q.cor, '#fdcbb0', 'cor sólida da mestra (ph ' + ph.toFixed(2) + ')');
+    vistas++;
   }
+  assert.ok(vistas > 0);
   function frac04(t) { var v = t * 2.4 * 0.4; return v - Math.floor(v); }
-  alfas.forEach(function (p) {
-    assert.ok(p.x <= 100, 'a nuvenzinha não passa do casco (borda direita ' + p.x + ')');
-    if (p.ph < 0.5) assert.ok(Math.abs(p.a - alfas[0].a) < 1e-9, 'alfa cheio até a metade (ph ' + p.ph.toFixed(2) + ': ' + p.a + ')');
-  });
 });
 test('teto de partículas por tela (tela enorme, P = 1)', function () {
   ['sol', 'chuva', 'nevoa', 'nublado'].forEach(function (w) {
@@ -1540,7 +1544,7 @@ test('Ruling 13: antes da revelação, o ícone e "DADO DA SORTE" centrados na c
     // o que está dentro da borda (contorno, friso e bisel = 3): o texto, e a imagem do dado
     var miolo = c.rects.filter(function (r) { return A(r.x) >= B.x + 3 && A(r.y) >= B.y + 3 && A(r.x + r.w) <= B.x + B.w - 3 && A(r.y + r.h) <= B.y + B.h - 3; });
     assert.ok(miolo.length > 20, 'o texto foi desenhado');
-    miolo.forEach(function (r) { assert.strictEqual(r.cor, '#f2c230', 'só o texto em ouro dentro da caixa'); });
+    miolo.forEach(function (r) { assert.strictEqual(r.cor, '#f9c22b', 'só o texto em ouro dentro da caixa'); });
     assert.strictEqual(c.imgs.length, 1);
     var im = c.imgs[0], cx = [A(im.args[1])], cy = [A(im.args[2])], cx2 = [A(im.args[1] + im.args[3])], cy2 = [A(im.args[2] + im.args[4])];
     miolo.forEach(function (r) { cx.push(A(r.x)); cy.push(A(r.y)); cx2.push(A(r.x + r.w)); cy2.push(A(r.y + r.h)); });

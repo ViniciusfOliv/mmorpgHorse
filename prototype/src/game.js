@@ -4989,6 +4989,8 @@
       wind: ventoDaSala(L)   // só visual (RaceFx.wind da seed, ou o forçado no DEV)
     };
     for (i = 0; i < n; i++) self.gallop[i] = i * 1.7;
+    // as camadas da região nos climas que trocam a paleta, pré-desenhadas na largada (uma virada de clima não custa um quadro)
+    SP.prepararRegiao(regiaoDaPista(L), ['nublado', 'chuva', 'nevoa']);
     // marcas, jóquei, raridade (parte 2a) e porte (parte 2b) de cada corredor, calculados uma vez; cada cavalo é
     // montado já na largada, no molde do porte (Sprites.prepararCavalo: o parado e todo o galope recoloridos agora,
     // ~0,8 ms por quadro com marcas e jóquei), e não aos poucos no 1º ciclo do galope. Só desenho: a corrida já foi
@@ -5245,8 +5247,9 @@
     function caixaPainel(x, y, w, h, bg, friso) {
       var S = self.S;
       if (friso) { borda(x - 1, y - 1, w + 2, h + 2, C.sombra); box(x, y, w, h, bg, friso); } else box(x, y, w, h, bg, C.sombra);
-      ctx.fillStyle = C.brilho08; ctx.fillRect(x * S, y * S, w * S, S);
-      ctx.fillStyle = C.escuro; ctx.fillRect(x * S, (y + h - 1) * S, w * S, S);
+      // bisel na mestra, sem alfa (guia §3 e a amostra): luz de cima na cor da linha, sombra embaixo
+      ctx.fillStyle = C.linha; ctx.fillRect(x * S, y * S, w * S, S);
+      ctx.fillStyle = C.sombra; ctx.fillRect(x * S, (y + h - 1) * S, w * S, S);
     }
     // volatil: texto que muda quase a cada quadro (relógio, km/h, distâncias), pintado fora do cache de texto
     // a fonte do texto da corrida (etapa 2.2 da direção de arte): 'g7', 'g9' ou 'g11' (Galmuri no tamanho nativo); um
@@ -5270,13 +5273,13 @@
       var big = self.phase === 'contagem' ? '—' : String(place) + 'º';
       var small = '/' + n;
       var bw = tw(big, 'g11') + tw(small, 'g7') + 9;
-      caixaPainel(3, y, bw, h, C.veu, C.ouro);
+      caixaPainel(3, y, bw, h, C.painel, C.ouro);
       text(big, 7, y + Math.floor((h - 11) / 2), C.ouro, 'g11', null, C.sombra);
       text(small, 7 + tw(big, 'g11') + 1, y + h - 10, C.texto, 'g7');
       // estamina: 12 segmentos (ou o que couber)
       var sx = 3 + bw + 5, segs = clamp(Math.floor((A * 0.28 - 8) / 4), 8, 12), barW = segs * 4 - 1;
       var stam = clamp(st.stamina[me], 0, 1);
-      caixaPainel(sx, y, barW + 8, h, C.veu);
+      caixaPainel(sx, y, barW + 8, h, C.painel);
       if (!lay.compact) text('EST', sx + 4, y + 3, C.texto2, 'g7');
       var col = stam > 0.5 ? C.ganho : stam > 0.25 ? C.ouro : C.perda;
       var on = Math.round(stam * segs);
@@ -5288,7 +5291,7 @@
       var tShown = Math.min(self.simT, fTime[me]);
       var tTxt = fmtClock(tShown), kmh = Math.round(st.speed[me] * 3.6) + ' KM/H';
       var tw2 = Math.max(tw('0:00,0', 'g9'), tw(tTxt, 'g9'), tw(kmh, 'g7'), tw('00 KM/H', 'g7')) + 8, tx = A - 3 - tw2;
-      caixaPainel(tx, y, tw2, h, C.veu);
+      caixaPainel(tx, y, tw2, h, C.painel);
       if (lay.compact) text(tTxt, A - 7, y + 3, C.texto, 'g9', 'right', null, true);
       else {
         text(tTxt, A - 7, y + 2, C.texto, 'g9', 'right', null, true);
@@ -5300,7 +5303,7 @@
       var ww = Math.max(tw('CLIMA', 'g7'), tw(wName, 'g7')) + 8, wx = tx - 4 - ww;
       var livre = sx + barW + 8 + 4, climaVisivel = !lay.compact && wx > livre;
       if (climaVisivel) {
-        caixaPainel(wx, y, ww, h, C.veu);
+        caixaPainel(wx, y, ww, h, C.painel);
         text('CLIMA', wx + 4, y + 3, C.texto2, 'g7');
         text(wName, wx + 4, y + 12, C.texto, 'g7');
       }
@@ -5309,7 +5312,7 @@
       var vw = self.wind, vNome = ventoTxt(vw).toUpperCase(), dir0 = climaVisivel ? wx : tx;
       var vbw = Math.max(tw('VENTO', 'g7'), tw(vNome, 'g7')) + 8, vx = dir0 - 4 - vbw;
       if (!lay.compact && vx > livre) {
-        caixaPainel(vx, y, vbw, h, C.veu);
+        caixaPainel(vx, y, vbw, h, C.painel);
         text('VENTO', vx + 4, y + 3, C.texto2, 'g7');
         text(vNome, vx + 4, y + 12, C.texto, 'g7');
         FX._stats.ventoHud = 'texto';
@@ -5317,7 +5320,7 @@
         var reserva = lay.compact ? Math.max(tw('\u25b2SUBIDA', 'g7'), tw('CURVA', 'g7')) + 8 + 4 : 0;
         var iw = 14, ix = dir0 - 4 - reserva - iw;
         if (ix > livre) {
-          caixaPainel(ix, y, iw, h, C.veu);
+          caixaPainel(ix, y, iw, h, C.painel);
           var seta = vw.intensity === 'calmo' ? '\u2013' : vw.dir > 0 ? '\u2192' : '\u2190';
           text(seta, ix + Math.round((iw - tw(seta, 'g7')) / 2), y + 2, C.texto, 'g7');
           var nivel = ['calmo', 'brisa', 'ventania'].indexOf(vw.intensity) + 1;
@@ -5342,7 +5345,7 @@
       if (lay.compact) return;
       // minimapa: o traçado visto de cima (curvas na cor da curva, subidas em ouro, retas na cor do piso) com
       // um ponto por cavalo na cor da raia; o seu é maior, com contorno claro, e vem por cima
-      caixaPainel(mc.x, mc.y, mc.w, mc.h, C.veu);
+      caixaPainel(mc.x, mc.y, mc.w, mc.h, C.painel);
       FX.drawMiniMap(ctx, mapa, st.pos, silksCores, me, { x: mc.x, y: mc.y, w: mc.w, h: mc.h, P: self.S, piso: pisoCor });
     }
 
@@ -5375,6 +5378,7 @@
       var natO = {
         weather: clima, wind: self.wind, t: tr, W: W, H: H, P: S, laneTop: laneTop, trackBottom: laneTop + n * laneH,
         reduced: red, seed: L.seed, cam: cam * ppm, camada: 'tras', surface: L.cond.surface,
+        paleta: !!SP.regiaoPronta(regiaoDaPista(L)),   // cenário da região: o clima já está na paleta, sem véus translúcidos
         lift: hills.length || curves.length ? function (px) { var m = cam + px / ppm; return (SP.hillLiftAt(m, hills, lay.maxLift) + arcoArt(m)) * S; } : null
       };
       FX.drawNature(ctx, natO);
@@ -5425,7 +5429,7 @@
         if (lift > 0 && !standing && !reduced()) {
           // poeira levantada na subida
           var dp = Math.floor(tr * 10 + j) % 3;
-          ctx.fillStyle = 'rgba(214,190,140,0.55)';
+          ctx.fillStyle = '#ab947a';
           ctx.fillRect(x + (4 - dp) * S, feetY - (2 + dp) * S, 2 * S, S);
           ctx.fillRect(x + (1 + dp) * S, feetY - 4 * S, S, S);
         }
@@ -5459,7 +5463,7 @@
       });
       if (youTag) {
         var yb = youTagBox(youTag);
-        box(yb.x, yb.y, yb.w, YOU_H, C.veu, C.ouro);
+        box(yb.x, yb.y, yb.w, YOU_H, C.painel, C.ouro);
         text(yb.txt, yb.x + 2, yb.y + 3, C.ouro);   // 2 de acento (o Ê) e 1 de folga acima da maiúscula
       }
       // Dado ativo e a caixa da faixa dele, uma vez por quadro: a faixa, as plaquinhas, as etiquetas e os balões usam
@@ -5502,7 +5506,7 @@
         var cw = tw(label, 'g14');
         var cy = lay.laneTopArt + Math.round((n * lay.laneArt) / 2) - 7;
         var cx = Math.round(lay.artW / 2);
-        box(cx - Math.round(cw / 2) - 5, cy - 7, cw + 11, 7 + 14 + 6, C.veu, C.ouro);
+        box(cx - Math.round(cw / 2) - 5, cy - 7, cw + 11, 7 + 14 + 6, C.painel, C.ouro);
         text(label, cx, cy, C.ouro, 'g14', 'center', C.sombra);
       }
     }
@@ -5536,7 +5540,7 @@
         var esc0 = (t - fx0.a) / fx0.item.escala, af = esc0 > FX.BALAO.dur - 0.3 ? Math.max(0, (FX.BALAO.dur - esc0) / 0.3) : 1;
         var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
-        box(fxx, fyy, fw, fh, C.veu, cor);
+        box(fxx, fyy, fw, fh, C.painel, cor);
         if (bl.icone) FX.drawIconPng(ctx, skId, bl.iconX * S, (fyy + bl.iconDy) * S, 8, S);   // 1:1 (nada ampliado)
         text(ft, bl.textX, fyy + bl.textDy, C.texto, fs, 'center', C.sombra);
         ctx.globalAlpha = 1;

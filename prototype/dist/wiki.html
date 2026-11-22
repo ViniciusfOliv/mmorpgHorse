@@ -2487,13 +2487,14 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   function skyKey(weather) { return weather === 'nevoa' ? 'nublado' : weather; }
 
   var tileCache = new Map();
-  function surfaceTile(surface, weather, artH) {
-    var key = surface + '|' + weather + '|' + artH;
+  // regiao: o piso no clima por troca de paleta (sem o escurecido e as poças de antes, que eram mistura fora da mestra)
+  function surfaceTile(surface, weather, artH, regiao) {
+    var key = surface + '|' + weather + '|' + artH + (regiao ? '|r' : '');
     var c = tileCache.get(key);
     if (c) return c;
     var TW = 64, S = SURF[surface] || SURF.grama;
     var cols = new Array(TW * artH);
-    var wet = weather === 'chuva';
+    var wet = weather === 'chuva' && !regiao, lutT = regiao ? lutClima(weather) : null;
     for (var y = 0; y < artH; y++) {
       for (var x = 0; x < TW; x++) {
         var h = hash2(x, y), col;
@@ -2521,7 +2522,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
           if (surface !== 'grama' && pd > 0.42) col = mix(col, '#9fb4c8', 0.35);
           if (surface === 'grama' && h > 0.9) col = mix(col, '#cfe8ff', 0.4);
         }
-        cols[y * TW + x] = naMestra(col);
+        cols[y * TW + x] = corClima(lutT, naMestra(col));
       }
     }
     c = gridToCanvas(cols, TW, artH);
@@ -2630,7 +2631,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   function drawTrackFront(ctx) {
     var F = frenteQuadro;
     if (!F) return false;
-    var img = F.RG.camadas.frente, P = F.P;
+    var img = camadasNoClima(F.RG, F.clima).frente, P = F.P;
     if (!F.trA) camadaRepetida(ctx, img, F.camArt * 1.25, F.y, F.W, P);
     else for (var i = 0; i < F.trA.length; i++) camadaColunas(ctx, img, F.camArt * 1.25, F.y - F.trA[i][2] * P, F.trA[i][0], F.trA[i][1], P);
     return true;
@@ -2712,11 +2713,12 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   }
   // padrões (por P) de 10P × 10P: listras inteiras (3P de largura) e só a 1ª coluna de pixel de cada listra
   var hachuraPadroes = {};
-  function hachuraPadrao(ctx, P, coluna) {
-    var k = P + (coluna ? 'c' : 'l'), p = hachuraPadroes[k];
+  // cor: com a região, a listra é sólida, num tom da mestra (sem o branco a 7%)
+  function hachuraPadrao(ctx, P, coluna, cor) {
+    var k = P + (coluna ? 'c' : 'l') + (cor || ''), p = hachuraPadroes[k];
     if (p) return p;
     var step = 10 * P, c = makeCanvas(step, step), g = c.getContext('2d');
-    g.fillStyle = 'rgba(255,255,255,0.07)';
+    g.fillStyle = cor || 'rgba(255,255,255,0.07)';
     for (var r = 0; r < 10; r++) {
       if (coluna) g.fillRect(r * P, r * P, 1, P);
       else for (var q = 0; q < 3; q++) g.fillRect(((r + q) % 10) * P, r * P, P, P);
@@ -2727,9 +2729,9 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   // listra é inteira, de uma vez; nas pontas, a coluna j de cada listra (j = 0..3P−1) vale para os começos em
   // [ini, fim), ou seja, para x em [ini + j, fim + j) — a listra que começa antes de ini não aparece e a que
   // começa antes de fim sai inteira (passa de x1, como antes)
-  function hachura(ctx, h, y, alt, P) {
+  function hachura(ctx, h, y, alt, P, cor) {
     var L = 3 * P, m0 = h.ini + L - 1, m1 = h.fim, j;
-    var lis = hachuraPadrao(ctx, P, false), col = hachuraPadrao(ctx, P, true);
+    var lis = hachuraPadrao(ctx, P, false, cor), col = hachuraPadrao(ctx, P, true, cor);
     function faixa(pat, dx, xa, xb) {
       if (xb <= xa) return;
       var ox = h.org + dx;
@@ -2795,21 +2797,61 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     for (var i = 0; i < CAMADAS_REGIAO.length; i++) if (!r.camadas[CAMADAS_REGIAO[i]]) return null;
     return r;
   }
+  // Clima por troca de paleta (guia §3; a mesma conta da amostra): cada cor da mestra misturada k com o rumo e levada de
+  // volta à mestra. Sol = a paleta como está. As camadas da região, a faixa de grama, o céu, o piso e as cercas trocam
+  // juntos, uma vez por região e clima (pré-desenhados, guia §9).
+  var CLIMA_PALETA = { nublado: ['#7f708a', 0.38], chuva: ['#323353', 0.42], nevoa: ['#c7dcd0', 0.5] };
+  var lutClimas = {};
+  function lutClima(clima) {
+    if (lutClimas[clima]) return lutClimas[clima];
+    var cl = CLIMA_PALETA[clima], t = {};
+    MESTRA.forEach(function (h) { t['#' + h] = cl ? naMestra(mix('#' + h, cl[0], cl[1])) : '#' + h; });
+    return (lutClimas[clima] = t);
+  }
+  function corClima(lut, c) { return (lut && lut[c]) || c; }
+  // uma imagem com as cores trocadas pelo lut (pixels opacos; as cores fora da mestra vão antes para a mais próxima)
+  function remapeia(img, lut) {
+    var c = makeCanvas(img.width, img.height), g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    var d = g.getImageData(0, 0, img.width, img.height), px = d.data, memo = {};
+    for (var i = 0; i < px.length; i += 4) {
+      if (px[i + 3] < 128) continue;
+      var k = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2], o = memo[k];
+      if (!o) { o = hexToRgb(corClima(lut, naMestra(rgbToHex(px[i], px[i + 1], px[i + 2])))); memo[k] = o; }
+      px[i] = o[0]; px[i + 1] = o[1]; px[i + 2] = o[2];
+    }
+    g.putImageData(d, 0, 0);
+    return c;
+  }
+  // as camadas de uma região num clima (cache na própria região)
+  function camadasNoClima(RG, clima) {
+    if (clima === 'sol' || !CLIMA_PALETA[clima]) return RG.camadas;
+    RG.porClima = RG.porClima || {};
+    if (RG.porClima[clima]) return RG.porClima[clima];
+    var lut = lutClima(clima), out = {};
+    CAMADAS_REGIAO.forEach(function (k) { out[k] = remapeia(RG.camadas[k], lut); });
+    out.grama = remapeia(faixaGrama(), lut);
+    return (RG.porClima[clima] = out);
+  }
+  // pré-desenha os climas da corrida (o game.js chama na largada, para a virada de clima não custar um quadro)
+  function prepararRegiao(id, climas) {
+    var RG = regiaoPronta(id);
+    if (!RG) return false;
+    (climas || []).forEach(function (c) { camadasNoClima(RG, c); });
+    return true;
+  }
   // o céu em 4 faixas da paleta com 2 linhas de pontilhado entre elas (guia §3: sem degradê suave); limites como na
-  // amostra (0, 26, 64 e 100 de 128 até o chão)
-  var CEU_REGIAO = {
-    sol: ['#4d65b4', '#4d9be6', '#8fd3ff', '#c7dcd0'],
-    nublado: ['#625565', '#7f708a', '#9babb2', '#c7dcd0'],
-    chuva: ['#323353', '#484a77', '#625565', '#7f708a']
-  };
+  // amostra (0, 26, 64 e 100 de 128 até o chão), nas cores do clima
+  var CEU_REGIAO = ['#4d65b4', '#4d9be6', '#8fd3ff', '#c7dcd0'];
   var ceuCache = new Map();
-  function ceuRegiao(weather, alto) {
-    var cores = CEU_REGIAO[weather] || CEU_REGIAO.sol, key = cores.join() + '|' + alto, c = ceuCache.get(key);
+  function ceuRegiao(clima, alto) {
+    var lut = lutClima(CLIMA_PALETA[clima] ? clima : 'sol'), cores = CEU_REGIAO.map(function (c) { return corClima(lut, c); });
+    var key = cores.join() + '|' + alto, c = ceuCache.get(key);
     if (c) return c;
     c = makeCanvas(4, Math.max(1, alto));
     var g = c.getContext('2d'), lim = [0, 26, 64, 100].map(function (v) { return alto - 128 + v; });
     for (var i = 0; i < 4; i++) {
-      var y0 = Math.max(0, lim[i]), y1 = i < 3 ? lim[i + 1] : alto;
+      var y0 = i === 0 ? 0 : Math.max(0, lim[i]), y1 = i < 3 ? lim[i + 1] : alto;   // a 1ª faixa vai até o topo
       if (y1 <= 0) continue;
       g.fillStyle = cores[i]; g.fillRect(0, y0, 4, y1 - y0);
       if (i < 3 && y1 - 2 >= 0) {
@@ -2819,6 +2861,20 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     }
     if (ceuCache.size > 20) ceuCache.clear();
     ceuCache.set(key, c);
+    return c;
+  }
+  // véu da névoa: pontilhado em xadrez de 50% na cor clara, de laneTop − 88 (rareando) até laneTop + 10 (guia §3)
+  var veuCache = null;
+  function veuNevoa(W, lt) {
+    var key = W + '|' + lt;
+    if (veuCache && veuCache.key === key) return veuCache.c;
+    var h = Math.max(1, lt + 10), c = makeCanvas(Math.max(1, W), h), g = c.getContext('2d');
+    g.fillStyle = '#c7dcd0';
+    for (var y = Math.max(0, lt - 88); y < h; y++) {
+      var r = y - (lt - 88);
+      for (var x = y % 2; x < W; x += 2) if (r > 30 || hash2(x, y) < r / 30) g.fillRect(x, y, 1, 1);
+    }
+    veuCache = { key: key, c: c };
     return c;
   }
   var solRegiao = null;
@@ -2864,11 +2920,12 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
   }
   // o fundo da região: céu, sol, nuvens, horizonte e meio (a arquibancada e a faixa de grama vêm depois, com o arco)
   function fundoRegiao(ctx, RG, W, laneTop, camArt, t, weather, vento, P) {
-    var lt = Math.round(laneTop / P), cm = RG.camadas;
-    ctx.drawImage(ceuRegiao(skyKey(weather), lt), 0, 0, W, lt * P);
+    var lt = Math.round(laneTop / P), cm = camadasNoClima(RG, weather);
+    ctx.drawImage(ceuRegiao(weather, lt), 0, 0, W, lt * P);
     if (weather === 'sol') ctx.drawImage(solDaRegiao(), 100 * P, (lt - 104) * P, 23 * P, 23 * P);   // à esquerda (a luz vem de cima e da esquerda), fora do minimapa
     camadaRepetida(ctx, cm.nuvens, camArt * 0.04 - vento.dir * t * 3 * (vento.k.nuvem || 1), (lt - 110) * P, W, P);
     camadaRepetida(ctx, cm.horizonte, camArt * 0.1, (lt - 32 - cm.horizonte.height) * P, W, P);
+    if (weather === 'nevoa') ctx.drawImage(veuNevoa(Math.ceil(W / P), lt), 0, 0, Math.ceil(W / P) * P, (lt + 10) * P);
     camadaRepetida(ctx, cm.meio, camArt * 0.3, (lt + 26 - cm.meio.height + ((RG.posicao || {}).meio || 0)) * P, W, P);
   }
   // o que drawTrack deixou para o primeiro plano do mesmo quadro (drawTrackFront): os trechos do arco das curvas
@@ -2884,9 +2941,11 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     var camPx = cam * ppm, vento = ventoPista(o.wind);
     function sx(m) { return Math.round((m - cam) * ppm); }
     crisp(ctx);
-    var RG = regiaoPronta(o.regiao), camArt = camPx / P;
+    // (weather junta a névoa ao nublado, para o cenário por código; a troca de paleta da região usa o clima de verdade)
+    var clima = o.weather || 'sol', RG = regiaoPronta(o.regiao), camArt = camPx / P, lutRG = RG ? lutClima(clima) : null;
+    function K(c) { return corClima(lutRG, c); }   // com a região, a cor da cerca e do chão no clima (troca de paleta)
     frenteQuadro = null;
-    if (RG) fundoRegiao(ctx, RG, W, laneTop, camArt, t, weather, vento, P);
+    if (RG) fundoRegiao(ctx, RG, W, laneTop, camArt, t, clima, vento, P);
 
     // --- céu em faixas (sem a região: o cenário por código de antes)
     var sky = SKY[weather] || SKY.sol;
@@ -2971,7 +3030,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     if (RG) {
       // a da região: um objeto a cada 2600 px da paralaxe 0,75 (a primeira 60 px depois da largada); na curva sobe
       // como a de código (10/6 do arco da cerca), cada trecho de colunas recortado
-      var ar = RG.camadas.arquibancada, arW = ar.width * P, arY = laneTop - (6 + ar.height) * P, PER_AR = 2600 * P;
+      var CMc = camadasNoClima(RG, clima), ar = CMc.arquibancada, arW = ar.width * P, arY = laneTop - (6 + ar.height) * P, PER_AR = 2600 * P;
       var arX0 = -mod(Math.floor(camArt * 0.75) * P, PER_AR) + 60 * P;
       var arTr = arco ? trechosArco(FXc.CURVA.arquibancada / FXc.CURVA.arco) : [[0, W, 0]];
       for (var ati = 0; ati < arTr.length; ati++) {
@@ -3040,13 +3099,13 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
       for (var i = 0; i < trA.length; i++) camadaColunas(ctx, img, camArt * k, y - trA[i][2] * P, trA[i][0], trA[i][1], P);
     }
     if (RG) {
-      camadaNoArco(faixaGrama(), 1, laneTop - 16 * P);
-      frenteQuadro = { RG: RG, trA: trA, camArt: camArt, P: P, W: W, H: Hh, y: trackBottom - 3 * P };
+      camadaNoArco(camadasNoClima(RG, clima).grama || faixaGrama(), 1, laneTop - 16 * P);
+      frenteQuadro = { RG: RG, clima: clima, trA: trA, camArt: camArt, P: P, W: W, H: Hh, y: trackBottom - 3 * P };
     }
 
     // --- superfície da pista
     var artH = Math.ceil(trackH / P);
-    var tile = surfaceTile(surface, weather, artH);
+    var tile = surfaceTile(surface, RG ? clima : weather, artH, !!RG);
     var tw = tile.width * P;
     var tOff = mod(camPx, tw);
     function piso(xa, xb, dy) {
@@ -3066,18 +3125,19 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     var SC = SURF[surface] || SURF.grama;
     for (var l = 1; l < lanes; l++) {
       var ly = laneTop + l * laneH;
-      ctx.fillStyle = SC.lite;
+      ctx.fillStyle = K(SC.lite);
       var dash = 6 * P, gap = 4 * P, dOff = mod(camPx, dash + gap);
       for (var dx = -dOff; dx < W; dx += dash + gap) ctx.fillRect(Math.round(dx), ly - Math.floor(P / 2) - dyX(dx + dash / 2), dash, Math.max(1, Math.floor(P / 2) || 1));
     }
     // borda escura no topo da pista (sombra da cerca)
-    ctx.fillStyle = SC.dark; faixaLarga(laneTop, P);
+    ctx.fillStyle = K(SC.dark); faixaLarga(laneTop, P);
     // raia destacada (a do jogador): faixa dourada translúcida com bordas tracejadas
     var hl = o.highlightLane;
     if (hl != null && hl >= 0 && hl < lanes) {
       var hly = laneTop + hl * laneH;
-      ctx.fillStyle = 'rgba(242,194,48,0.12)'; faixaLarga(hly, laneH);
-      ctx.fillStyle = 'rgba(242,194,48,0.6)';
+      // (com a região, sem o véu translúcido: só os tracejados, em ouro sólido)
+      if (!RG) { ctx.fillStyle = 'rgba(242,194,48,0.12)'; faixaLarga(hly, laneH); }
+      ctx.fillStyle = RG ? K('#f9c22b') : 'rgba(242,194,48,0.6)';
       var hd = 4 * P, hOff = mod(camPx, hd * 2);
       for (var hlx = -hOff; hlx < W; hlx += hd * 2) {
         var hdy = dyX(hlx + hd / 2);
@@ -3092,9 +3152,9 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
       if (bb < -60 * P || a > W + 60 * P) continue;
       var x0 = Math.max(0, a), x1 = Math.min(W, bb);
       if (x1 > x0) {
-        ctx.fillStyle = 'rgba(40,20,10,0.22)'; ctx.fillRect(x0, laneTop, x1 - x0, trackH);
+        if (!RG) { ctx.fillStyle = 'rgba(40,20,10,0.22)'; ctx.fillRect(x0, laneTop, x1 - x0, trackH); }
         // hachura diagonal ancorada no mundo
-        hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P);
+        hachura(ctx, hachuraFaixa(x0, x1, camPx, P), laneTop, trackH, P, RG ? K(SC.dark) : null);
       }
       // linhas amarelas de início/fim
       ctx.fillStyle = '#f9c22b';
@@ -3123,7 +3183,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     for (var mm = mStart; mm <= mEnd; mm += ev) {
       if (mm >= finishM) break;
       var mx = sx(mm), mdy = dyX(mx);
-      ctx.fillStyle = SC.lite;
+      ctx.fillStyle = K(SC.lite);
       for (var my = laneTop; my < trackBottom; my += 3 * P) ctx.fillRect(mx, my - mdy, P, P * 2);
     }
     // largada
@@ -3148,19 +3208,19 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
       var every = 4, ps = Math.floor((cam - 8) / every) * every;
       for (var pm = ps; pm < cam + W / ppm + 8; pm += every) {
         var pxp = sx(pm);
-        ctx.fillStyle = '#9babb2';
+        ctx.fillStyle = K('#9babb2');
         ctx.fillRect(pxp, y - (postsUp ? 6 * P : 0) - dyX(pxp), P, 6 * P);
       }
-      ctx.fillStyle = '#2e222f'; faixaLarga(y - 6 * P - P, P);
-      ctx.fillStyle = '#ffffff'; faixaLarga(y - 6 * P, 2 * P);
-      ctx.fillStyle = '#9babb2'; faixaLarga(y - 4 * P, P);
-      ctx.fillStyle = RG ? '#165a4c' : 'rgba(0,0,0,0.25)'; faixaLarga(y - 3 * P, P);
+      ctx.fillStyle = K('#2e222f'); faixaLarga(y - 6 * P - P, P);
+      ctx.fillStyle = K('#ffffff'); faixaLarga(y - 6 * P, 2 * P);
+      ctx.fillStyle = K('#9babb2'); faixaLarga(y - 4 * P, P);
+      ctx.fillStyle = RG ? K('#165a4c') : 'rgba(0,0,0,0.25)'; faixaLarga(y - 3 * P, P);
     }
     rail(laneTop, true);
 
     // --- cerca interna e gramado interno (na curva o gramado começa mais acima: o rodapé fica maior)
     // (com a região, chão de terra escura: o primeiro plano, drawTrackFront, cobre quase tudo)
-    var innerC = RG ? '#4c3e24' : weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
+    var innerC = RG ? K('#4c3e24') : weather === 'chuva' ? '#355c38' : isDim(weather) ? '#41703f' : '#4c8a44';
     ctx.fillStyle = innerC;
     if (!trA) ctx.fillRect(0, trackBottom, W, Hh - trackBottom);
     else for (var iti = 0; iti < trA.length; iti++) ctx.fillRect(trA[iti][0], trackBottom - trA[iti][2] * P, trA[iti][1] - trA[iti][0], Hh - trackBottom + trA[iti][2] * P);
@@ -3179,15 +3239,15 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
       ctx.fillRect(Math.round(gx) + 2 * P + tufo, gy - P, P, P);
       if (gi % 4 === 0) { ctx.fillStyle = gi % 8 ? '#f2e04a' : '#f0f0f0'; ctx.fillRect(Math.round(gx) + P, gy - 2 * P, P, P); }
     }
-    ctx.fillStyle = SC.dark; faixaLarga(trackBottom, P);
+    ctx.fillStyle = K(SC.dark); faixaLarga(trackBottom, P);
     // cerca interna (postes para baixo)
     var every2 = 4, ps2 = Math.floor((cam - 8) / every2) * every2;
     for (var pm2 = ps2; pm2 < cam + W / ppm + 8; pm2 += every2) {
       var px2 = sx(pm2);
-      ctx.fillStyle = '#9babb2'; ctx.fillRect(px2, trackBottom + P - dyX(px2), P, 4 * P);
+      ctx.fillStyle = K('#9babb2'); ctx.fillRect(px2, trackBottom + P - dyX(px2), P, 4 * P);
     }
-    ctx.fillStyle = '#ffffff'; faixaLarga(trackBottom + P, 2 * P);
-    ctx.fillStyle = '#2e222f'; faixaLarga(trackBottom + 3 * P, P);
+    ctx.fillStyle = K('#ffffff'); faixaLarga(trackBottom + P, 2 * P);
+    ctx.fillStyle = K('#2e222f'); faixaLarga(trackBottom + 3 * P, P);
     // grama da borda: folhinhas logo abaixo da cerca interna, presas ao mundo, deitando com o vento
     if (!RG && Hh - trackBottom >= 8 * P) {
       var gBase = weather === 'chuva' ? '#4a7a48' : isDim(weather) ? '#5a8c52' : '#6aa85a';
@@ -3329,6 +3389,7 @@ window.__WIKI_MONTARIAS = {"w":48,"h":36,"escala":3,"lista":{"brasa":{"name":"Br
     drawTrack: drawTrack,
     drawTrackFront: drawTrackFront,
     setRegioes: setRegioes,
+    prepararRegiao: prepararRegiao,
     regiaoPronta: regiaoPronta,
     cloudCanvas: cloudCanvas,
     drawTrail: drawTrail,
