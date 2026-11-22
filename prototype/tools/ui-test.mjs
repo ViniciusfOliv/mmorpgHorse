@@ -8062,12 +8062,13 @@ try {
           // o ui-femea da m2 aparecia aqui pela cabeça da ficha; com o sexo na aba Ficha (3b §5), é conferido lá (acima)
           espera(sk, 'skills ' + uid, uid === 'm1' ? ['sk-arranque', 'sk-tipo-fogo'] : ['sk-arranque', 'sk-sprint', 'sk-drift', 'sk-tipo-agua'])
           const tam = await pg.evaluate(() => Array.prototype.map.call(document.querySelectorAll('.habilidade img.icone, .vaga-tipo img.icone'), (i) => {
-            const b = i.getBoundingClientRect()
-            return { c: i.className, w: i.getAttribute('width'), h: i.getAttribute('height'), rw: Math.round(b.width), rh: Math.round(b.height) }
+            const b = i.getBoundingClientRect(), px = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px'))
+            return { c: i.className, n: i.naturalWidth, nh: i.naturalHeight, px, rw: +b.width.toFixed(2), rh: +b.height.toFixed(2) }
           }))
           const sk32 = tam.filter((t) => /icone--sk-/.test(t.c))
           if (ICONES.some((x) => x.startsWith('sk-')) && !sk32.length) problems.push(`${tag} skills ${uid}: nenhum img.icone--sk-* no cartão`)
-          for (const t of sk32) if (t.w !== '32' || t.h !== '32' || t.rw !== 32 || t.rh !== 32) problems.push(`${tag} skills ${uid}: ícone de skill fora de 32 px ${JSON.stringify(t)}`)
+          // etapa 4 da direção de arte: o ícone 1:1 na grade, no tamanho nativo (16 ou 24) × --px
+          for (const t of sk32) if (![16, 24].includes(t.n) || t.nh !== t.n || Math.abs(t.rw - t.n * t.px) > 0.05 || Math.abs(t.rh - t.n * t.px) > 0.05) problems.push(`${tag} skills ${uid}: ícone de skill fora de 1:1 na grade ${JSON.stringify(t)}`)
           await checkOverflow(pg, `skills ${vp.width} ${uid}`)
         }
         await pg.locator('[data-acao="montaria-voltar"]').click()

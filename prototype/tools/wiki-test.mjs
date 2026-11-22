@@ -195,7 +195,7 @@ for (const [nome, el, terco, efeito] of [
   ['Raízes Firmes', 'Grama', 'terço do meio (de 1/3 a 2/3)', 'Força e Manobra ×1,15 (+15%) | 0,25 | 0,4'],
   ['Maré Alta', 'Água', 'último terço (de 2/3 à chegada)', 'Estamina e Garra ×1,33 (+33%) | 0 | 0,15']
 ]) {
-  confere(a.md.includes(`| ![](../prototype/assets/icons/sk-tipo-${{ Fogo: 'fogo', Água: 'agua', Grama: 'grama' }[el]}.png) **${nome}** | ${el} | ${terco} | ${efeito} |`), `skill de tipo ${nome}: linha com elemento, terço e efeito (P = 1) não confere`)
+  confere(a.md.includes(`| ![](../prototype/assets/arte/icones/sk-tipo-${{ Fogo: 'fogo', Água: 'agua', Grama: 'grama' }[el]}.png) **${nome}** | ${el} | ${terco} | ${efeito} |`), `skill de tipo ${nome}: linha com elemento, terço e efeito (P = 1) não confere`)
 }
 confere(!/neutro/i.test(a.md), 'md ainda fala de "Neutro"')
 confere(!/neutro/i.test(a.html.replace(/<script>\n\/\* src\/sprites\.js \*\/[\s\S]*?<\/script>/, '')), 'html ainda fala de "Neutro" (fora do sprites.js embutido)')
@@ -275,7 +275,7 @@ const temIcone = (id) => existsSync(join(DIR_ICONES, id + '.png'))
 const IMG = '<img class="ic" src="data:image/png;base64,[A-Za-z0-9+/=]+" alt="" width="16" height="16">'
 const reEsc = reEscCedo
 const comIconeHtml = (nome) => new RegExp(IMG + '(?:<[^>]+>)*' + reEsc(escHtml(nome))).test(a.html)
-const comIconeMd = (id, nome) => new RegExp('!\\[\\]\\(\\.\\./prototype/assets/icons/' + id + '\\.png\\) (?:\\*\\*)?' + reEsc(nome)).test(a.md)
+const comIconeMd = (id, nome) => new RegExp('!\\[\\]\\(\\.\\./prototype/assets/arte/icones/' + id + '\\.png\\) (?:\\*\\*)?' + reEsc(nome)).test(a.md)
 const alvos = []
 for (const id in G.SKILLS) alvos.push(['sk-' + id, G.SKILLS[id].name])
 for (const el in G.TYPE_SKILLS) alvos.push(['sk-tipo-' + el, G.TYPE_SKILLS[el].name])
@@ -293,7 +293,7 @@ for (const [id, nome] of alvos) {
 }
 confere(comArquivo === alvos.length, `só ${comArquivo} de ${alvos.length} dos ícones de skill/status/clima/piso/liga/raridade têm arquivo`)
 // todo link de imagem do md aponta para um PNG que existe (nada de link quebrado)
-const linksImg = [...a.md.matchAll(/!\[\]\(\.\.\/prototype\/assets\/icons\/([a-z0-9-]+)\.png\)/g)].map((m) => m[1])
+const linksImg = [...a.md.matchAll(/!\[\]\(\.\.\/prototype\/assets\/arte\/icones\/([a-z0-9-]+)\.png\)/g)].map((m) => m[1])
 confere(linksImg.length >= 40, `md com só ${linksImg.length} imagens de ícone`)
 for (const id of linksImg) confere(temIcone(id), `link do md para ícone que não existe: ${id}`)
 // seção de reservados: os 2 que ainda não têm tela (as insígnias saíram na Tarefa 4 dos ginásios, Ruling 16), em 32 px
@@ -305,7 +305,7 @@ confere(a.html.includes('id="icones-reservados"') && /## Ícones reservados/.tes
   confere(/Estes dois ícones/.test(sec) && !/insígnias dos ginásios/.test(sec), 'o texto dos Ícones reservados ainda fala de cinco ícones ou das insígnias')
 }
 for (const id of ['item-redea', 'moeda-gema']) {
-  confere(a.md.includes(`![](../prototype/assets/icons/${id}.png)`) && a.md.includes('`' + id + '`'), `reservado ${id} sem imagem/nome no md`)
+  confere(a.md.includes(`![](../prototype/assets/arte/icones/${id}.png)`) && a.md.includes('`' + id + '`'), `reservado ${id} sem imagem/nome no md`)
   confere(new RegExp('<img class="ic ic32" src="data:image/png;base64,[A-Za-z0-9+/=]+" alt="" width="32" height="32">(?:<[^>]+>)*<code>' + id + '</code>').test(a.html), `reservado ${id} sem <img> de 32 px no html`)
 }
 
@@ -338,7 +338,7 @@ confere(!/recursos que vão usá-los \(Rédeas/.test(a.md), 'wiki ainda diz que 
   // as insígnias com o ícone delas (Ruling 16): link no md e <img> no html, na linha do ginásio
   for (const id of G.GYM_ORDER) {
     const g = G.GYMS[id], ic = g.insignia.icone
-    confere(sec.includes(`![](../prototype/assets/icons/${ic}.png) ${g.insignia.name}`), `a insígnia ${g.insignia.name} sem o ícone ${ic} na tabela do md`)
+    confere(sec.includes(`![](../prototype/assets/arte/icones/${ic}.png) ${g.insignia.name}`), `a insígnia ${g.insignia.name} sem o ícone ${ic} na tabela do md`)
     confere(new RegExp('<img class="ic" src="data:image/png;base64,[A-Za-z0-9+/=]+" alt="" width="16" height="16">' + escHtml(g.insignia.name)).test(a.html), `a insígnia ${g.insignia.name} sem o <img> no html`)
   }
   // a aba Expedição no wiki (Tarefa 4): os ginásios, a trilha e a vitrine, com nomes e números do catálogo

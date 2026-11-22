@@ -18,7 +18,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { lerMoldes, lerIcones, lerMarca, lerTreinadores, lerRegioes, jsonJs } from './tools/arte-embutida.mjs'
+import { lerMoldes, lerIcones, lerIconesTam, lerMarca, lerTreinadores, lerRegioes, jsonJs } from './tools/arte-embutida.mjs'
 import { htmlFolhaIcones } from './tools/folha-icones.mjs'
 import { ICONES_NOVOS, ANTIGOS } from './tools/icones-catalogo.mjs'
 import { gravarWiki } from './tools/wiki.mjs'
@@ -75,6 +75,7 @@ const MOLDES = await lerMoldes(ROOT, avisos)
 const arteJs = [
   `window.__MOLDES = ${jsonJs(MOLDES)};`,
   `window.__ICONES = ${jsonJs(await lerIcones(ROOT))};`,
+  `window.__ICONES_TAM = ${jsonJs(await lerIconesTam(ROOT))};`,   // 16 ou 24: o ícone aparece 1:1 na grade (--px)
   `window.__MARCA = ${jsonJs(await lerMarca(ROOT))};`,
   `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`,
   // as camadas das 5 regiões na corrida (paralaxe; a pista, as cercas e as placas são de código)

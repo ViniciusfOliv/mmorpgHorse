@@ -210,20 +210,8 @@
     if (!m || typeof m !== 'object' || !hasOwn(m, nome) || typeof m[nome] !== 'string' || !m[nome]) return '';
     return m[nome];
   }
-  // Ícones da corrida (canvas): uma Image por ícone sk-*, cl-* e ui-dado; a cada onload o RaceFx recebe os que já
-  // carregaram (ele só desenha o PNG quando está no cache; antes disso fica o desenho em código). Sem Image (Node): nada.
-  function carregarIconesCorrida() {
-    var m = window.__ICONES;
-    if (typeof Image !== 'function' || !m || typeof m !== 'object') return;
-    var prontas = {};
-    Object.keys(m).forEach(function (nome) {
-      if (!/^(sk-|cl-|ui-dado$)/.test(nome) || !iconeSrc(nome)) return;
-      var img = new Image();
-      img.onload = function () { prontas[nome] = img; FX.setIconImages(prontas); };
-      img.src = iconeSrc(nome);
-    });
-  }
-  carregarIconesCorrida();
+  // Ícones da corrida (canvas): desde a etapa 4 da direção de arte a pista usa só os 8 × 8 em código do fx.js (guia §7:
+  // os PNG de 16 e 24 não encolhem); o RaceFx.setIconImages continua para quem quiser passar imagens 1:1.
   // Camadas das regiões na corrida (window.__REGIOES, embutidas pelo build; etapa 2.3 da direção de arte): uma Image por
   // camada; a cada onload o Sprites recebe as regiões (só desenha a que tem as 5 camadas; antes disso, o cenário por código)
   function carregarRegioes() {
@@ -252,11 +240,13 @@
     if (m && typeof m === 'object' && L) for (var r in m) if (hasOwn(m, r) && m[r] && (m[r].pistas || []).indexOf(L.trackName) >= 0) return r;
     return 'cerrado';
   }
+  // Etapa 4 da direção de arte: o ícone aparece 1:1 na grade, no tamanho nativo (16 ou 24 pixels de arte × --px, pelo
+  // CSS); tam = 32 só marca o uso "cheio" (cartão de skill, insígnia), que não amplia mais nada (guia §7)
   function iconeHtml(nome, fallback, tam) {
     var src = iconeSrc(nome);
     if (!src) return fallback || '';
-    var t = tam || 16;
-    return '<img class="icone icone--' + esc(nome) + (t === 32 ? ' icone--32' : '') + '" src="' + esc(src) + '" alt="" width="' + t + '" height="' + t + '">';
+    var T = window.__ICONES_TAM, n = T && T[nome] === 24 ? 24 : 16;
+    return '<img class="icone icone--' + esc(nome) + ' icone--n' + n + (tam === 32 ? ' icone--32' : '') + '" src="' + esc(src) + '" alt="" width="' + n + '" height="' + n + '">';
   }
   // Logotipo do Canva (window.__MARCA.logo): <img> com o título como alt; sem arquivo, o texto de antes.
   // width/height reservam o espaço antes de a imagem decodificar (sem salto de layout); o build manda o

@@ -96,7 +96,7 @@ const diariaLinha = (prox, ciclos = 0) => '<section class="caixa diaria diaria--
 // ---- ginásios da Expedição: o markup do ginasioCartaoHtml, trilhaEtapaHtml, mountRowHtml (com as opções do time) e
 // renderEntreDuelos do game.js; nomes, números e textos do catálogo (GameData.GYMS, GYM) montados como o game.js monta ----
 // o ícone da insígnia como o iconeHtml do game.js (o mesmo PNG que o build embute em window.__ICONES)
-const insigniaSrc = (id) => 'data:image/png;base64,' + readFileSync(new URL(`../assets/icons/${G.GYMS[id].insignia.icone}.png`, import.meta.url)).toString('base64');
+const insigniaSrc = (id) => 'data:image/png;base64,' + readFileSync(new URL(`../assets/arte/icones/${G.GYMS[id].insignia.icone}.png`, import.meta.url)).toString('base64');
 const insigniaIcone = (id) => `<img class="icone icone--${esc(G.GYMS[id].insignia.icone)} icone--32" src="${insigniaSrc(id)}" alt="" width="32" height="32">`;
 const elNome = (el) => G.ELEMENTS[el].name;
 const elHtml = (el) => `<span class="el el--${esc(el)}">${esc(elNome(el))}</span>`;

@@ -1,7 +1,9 @@
 // Arte embutida (data:) compartilhada entre o build do jogo (build.mjs) e o gerador do wiki (tools/wiki.mjs).
 //   lerMoldes(root, avisos, dir) -> { estilos }   (a tabela window.__MOLDES; dir = 'assets/pixellab', o único que o
 //                           build lê; a folha dos portes, tools/folha-portes.mjs, passa a pasta de espera 'assets/pixellab/novos')
-//   lerIcones(root)         -> { nome: dataUrl }  (window.__ICONES; a pasta raw/ fica de fora)
+//   lerIcones(root)         -> { nome: dataUrl }  (window.__ICONES: os finais da direção de arte, assets/arte/icones/,
+//                              16×16 ou 24×24; etapa 4)
+//   lerIconesTam(root)      -> { nome: 16|24 }  (window.__ICONES_TAM: o lado nativo de cada um, lido do PNG)
 //   lerMarca(root)          -> { logo, w, h } ou { logo: null }  (window.__MARCA)
 //   lerTreinadores(root)    -> { id: dataUrl }  (window.__TREINADORES: a candidata escolhida de cada oponente dos ginásios)
 //   lerRegioes(root)        -> { regiao: { nome, pistas, posicao, camadas: { nuvens, horizonte, meio, arquibancada,
@@ -61,11 +63,24 @@ export async function lerMoldes(root, avisos = [], dir = 'assets/pixellab') {
 }
 
 // Ícones: assets/icons/<nome>.png (a pasta raw/ fica de fora).
-export async function lerIcones(root) {
+// os ícones finais (etapa 4 da direção de arte): 16×16 desenhados em código e 24×24 do PixelLab Pro, mostrados 1:1 na
+// grade (o tamanho nativo vem de lerIconesTam); a pasta antiga assets/icons/ (32×32) sai na limpeza da etapa 8
+export const DIR_ICONES = 'assets/arte/icones'
+export async function lerIcones(root, dir = DIR_ICONES) {
   const out = {}
-  for (const nome of await listar(root, 'assets/icons')) {
+  for (const nome of await listar(root, dir)) {
     const mm = nome.match(/^([a-z0-9-]+)\.png$/)
-    if (mm) out[mm[1]] = await dataUrl(root, join('assets/icons', nome))
+    if (mm) out[mm[1]] = await dataUrl(root, join(dir, nome))
+  }
+  return out
+}
+export async function lerIconesTam(root, dir = DIR_ICONES) {
+  const out = {}
+  for (const nome of await listar(root, dir)) {
+    const mm = nome.match(/^([a-z0-9-]+)\.png$/)
+    if (!mm) continue
+    const buf = await readFile(join(root, dir, nome))
+    if (buf.length > 24 && buf.toString('latin1', 12, 16) === 'IHDR') out[mm[1]] = buf.readUInt32BE(16)
   }
   return out
 }

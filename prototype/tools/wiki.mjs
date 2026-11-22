@@ -450,7 +450,7 @@ function icone(nome, alt = '', cls = 'ic', px = 16) {
   return src ? `<img class="${cls}" src="${src}" alt="${esc(alt)}" width="${px}" height="${px}">` : ''
 }
 // No md o ícone é um link para o PNG da pasta (o md fica em docs/). Sem arquivo: só o nome, sem <img> nem link.
-const DIR_ICONES_MD = '../prototype/assets/icons/'
+const DIR_ICONES_MD = '../prototype/assets/arte/icones/'
 const icMd = (nome) => (ICONES[nome] ? `![](${DIR_ICONES_MD}${nome}.png) ` : '')
 // célula "ícone + nome" (md e html); `html` = nome já formatado, se não for texto puro
 const comIcone = (nome, txt, html) => ({ md: icMd(nome) + txt, html: icone(nome) + (html != null ? html : esc(txt)) })
@@ -1177,7 +1177,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     return [{ md: icMd(id) + `\`${id}\``, html: icone(id, '', 'ic ic32', 32) + `<code>${esc(id)}</code>` }, ic.desc, ic.cor]
   })
   add('icones-reservados', 'Ícones reservados', 'Ícones reservados', [
-    { t: 'p', txt: 'Estes dois ícones já estão em `prototype/assets/icons/`, mas ainda não aparecem no jogo: o `moeda-gema` espera a loja de Gemas. A Rédea nova já existe no jogo, mas com o ícone desenhado em código, como os outros itens; o `item-redea` daqui continua guardado. Até lá, só o wiki os mostra. Os ícones das insígnias já aparecem na aba Expedição (ver Ginásios da Expedição).' },
+    { t: 'p', txt: 'Estes dois ícones já estão em `prototype/assets/arte/icones/`, mas ainda não aparecem no jogo: o `moeda-gema` espera a loja de Gemas. A Rédea nova já existe no jogo, mas com o ícone desenhado em código, como os outros itens; o `item-redea` daqui continua guardado. Até lá, só o wiki os mostra. Os ícones das insígnias já aparecem na aba Expedição (ver Ginásios da Expedição).' },
     { t: 'tabela', rotulo: 'Ícones reservados', cab: ['Ícone', 'Descrição', 'Cor'], linhas: reservados.map(([c, d, cor]) => [c, d, { md: `\`${cor}\``, html: `<span class="amostra" style="--c:${cor}"></span><code>${esc(cor)}</code>` }]) }
   ])
 

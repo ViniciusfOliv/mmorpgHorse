@@ -1416,12 +1416,13 @@ html.dev-ativo.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(128px
 /*@dev:fim*/
 
 /* ---------- ícones do PixelLab e logotipo do Canva ---------- */
-/* 32x32 reduzido a 16px: suavizado (auto) lê melhor; pixelated só em escala 1x (barra de abas). Halo claro para
-   o contorno escuro não sumir no fundo escuro da interface. */
-img.icone { width: 16px; height: 16px; flex: none; image-rendering: auto; vertical-align: middle;
-  filter: drop-shadow(0 0 1px rgba(241, 233, 212, 0.6)) drop-shadow(0 0 1px rgba(241, 233, 212, 0.4)); }
-.app-aba-icone img.icone { width: 32px; height: 32px; display: block; image-rendering: pixelated; }
-img.icone.icone--32 { width: 32px; height: 32px; image-rendering: pixelated; }   /* tamanho cheio (cartão de skill) */
+/* Etapa 4 da direção de arte: cada ícone 1:1 na grade (guia §7), no tamanho nativo — 16 ou 24 pixels de arte —, sem
+   reduzir nem suavizar e sem o halo borrado de antes (o contorno 2e222f é do desenho) */
+img.icone { width: calc(var(--px) * 16); height: calc(var(--px) * 16); flex: none; image-rendering: pixelated; vertical-align: middle; }
+img.icone.icone--n24 { width: calc(var(--px) * 24); height: calc(var(--px) * 24); }
+.app-aba-icone img.icone { display: block; }
+/* a casa do ícone da aba tem a altura do maior (24): o de 16 fica centrado e os rótulos de todas as abas alinham */
+.app-aba-icone:has(img.icone) { display: flex; align-items: center; justify-content: center; height: calc(var(--px) * 24); }
 .estrelas img.icone { margin: 0; }
 /* ícone em linha antes do texto (sem gap de flex) */
 .afinidade dd img.icone, #clima-atual img.icone, .lugar img.icone, .tabela .pos img.icone { margin-right: 4px; }
