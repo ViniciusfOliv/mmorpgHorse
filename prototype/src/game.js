@@ -249,13 +249,18 @@
     return '<img class="icone icone--' + esc(nome) + ' icone--n' + n + (tam === 32 ? ' icone--32' : '') + '" src="' + esc(src) + '" alt="" width="' + n + '" height="' + n + '">';
   }
   // A marca (window.__MARCA, etapa 7 da direção de arte): <img> com o título como alt; sem arquivo, o texto de antes.
-  // mini: o letreiro em duas linhas (sem o emblema) no cabeçalho, 1:1 na grade; senão o logo inteiro (emblema e letreiro)
+  // mini: o letreiro pequeno (sem o emblema) no cabeçalho, 1:1 na grade; senão o logo inteiro (emblema e letreiro)
   // na tela inicial, em 2× da grade quando a coluna tem largura para isso (escala inteira, guia §2), senão 1×. O CSS dá o
   // tamanho em --px (width/height do <img> só reservam o espaço antes de decodificar).
   function logoHtml(fallback, mini) {
     var m = window.__MARCA;
     if (!m || typeof m !== 'object' || typeof m.logo !== 'string' || !m.logo) return fallback;
-    var src = mini && typeof m.mini === 'string' ? m.mini : m.logo, w = mini && m.mini ? m.miniW : m.w, h = mini && m.mini ? m.miniH : m.h;
+    var src = m.logo, w = m.w, h = m.h;
+    if (mini) {
+      // o cabeçalho tem 46 px de CSS por dentro: o letreiro pequeno (22 de altura) cabe em toda grade; se não couber, o texto
+      if (typeof m.mini !== 'string' || m.miniH > Math.floor(46 * dpr() / (gradeS || 1))) return fallback;
+      src = m.mini; w = m.miniW; h = m.miniH;
+    }
     var colArte = Math.floor(Math.min(window.innerWidth || 390, 520) * dpr() / (gradeS || 1));
     var x = mini ? 1 : colArte >= 2 * w + 24 ? 2 : 1;   // (24: as margens da tela)
     return '<img class="logo-img logo-img--x' + x + '" src="' + esc(src) + '" alt="Galope Elemental" width="' + (w * x) + '" height="' + (h * x) + '"' +

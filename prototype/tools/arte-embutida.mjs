@@ -113,11 +113,11 @@ export async function lerArenas(root) {
 
 // Logotipo: data: URL e o tamanho em px (lido do cabeçalho IHDR do PNG), para o <img> reservar o espaço.
 // A marca (etapa 7 da direção de arte): assets/arte/marca/logo.png (o emblema e o letreiro em duas linhas, desenhados na
-// grade) para a tela inicial e letreiro-duas.png (só o letreiro, mais estreito) para o cabeçalho; o tamanho de cada um
+// grade) para a tela inicial e letreiro-mini.png (só o letreiro, letras de 8 px, 67×22) para o cabeçalho; o tamanho de cada um
 // vem do PNG. O logo antigo do Canva (assets/marca/) sai na limpeza da etapa 8.
 const tamPng = (buf) => (buf.length > 24 && buf.toString('latin1', 12, 16) === 'IHDR' ? [buf.readUInt32BE(16), buf.readUInt32BE(20)] : [0, 0])
 export async function lerMarca(root) {
-  const logo = 'assets/arte/marca/logo.png', mini = 'assets/arte/marca/letreiro-duas.png'
+  const logo = 'assets/arte/marca/logo.png', mini = 'assets/arte/marca/letreiro-mini.png'
   if (!existsSync(join(root, logo))) return { logo: null }
   const b = await readFile(join(root, logo)), [w, h] = tamPng(b), out = { logo: 'data:image/png;base64,' + b.toString('base64'), w, h }
   if (existsSync(join(root, mini))) {
