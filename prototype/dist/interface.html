@@ -1423,10 +1423,9 @@ img.icone.icone--n24 { width: calc(var(--px) * 24); height: calc(var(--px) * 24)
 .slot { gap: 4px; }
 .slot-nome { display: inline-flex; align-items: center; gap: 6px; }
 .slot--vazio img.icone { opacity: 0.6; }
-.logo-img { display: block; max-width: 100%; height: auto; image-rendering: pixelated; }
-.logo .logo-img { width: 320px; }
+.logo-img { display: block; image-rendering: pixelated; width: calc(var(--px) * var(--logo-w)); height: calc(var(--px) * var(--logo-h)); }
 .app-topo .logo-mini { display: flex; align-items: center; }
-.app-topo .logo-img { height: 24px; width: auto; max-width: 100%; image-rendering: auto; object-fit: contain; object-position: left center; }   /* 63 -> 24 px: redução suavizada; com saldo grande (5 dígitos ou mais a 360 px) o logotipo encolhe sem deformar */
+/* etapa 7: o letreiro 1:1 na grade (87×32 pixels de arte), sem reduzir nem suavizar */
 
 /* editor do jóquei (Perfil) */
 .joquei-previa { display: flex; justify-content: center; background: var(--painel-2); padding: 8px 0; }

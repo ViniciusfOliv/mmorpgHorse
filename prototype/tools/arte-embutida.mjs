@@ -4,7 +4,7 @@
 //   lerIcones(root)         -> { nome: dataUrl }  (window.__ICONES: os finais da direção de arte, assets/arte/icones/,
 //                              16×16 ou 24×24; etapa 4)
 //   lerIconesTam(root)      -> { nome: 16|24 }  (window.__ICONES_TAM: o lado nativo de cada um, lido do PNG)
-//   lerMarca(root)          -> { logo, w, h } ou { logo: null }  (window.__MARCA)
+//   lerMarca(root)          -> { logo, w, h, mini, miniW, miniH } ou { logo: null }  (window.__MARCA; etapa 7)
 //   lerTreinadores(root)    -> { id: { corpo, busto } }  (window.__TREINADORES: os finais da etapa 5 da direção de arte)
 //   lerArenas(root)         -> { fogo, agua, grama }  (window.__ARENAS: o fundo da cena do desafio, 256×160)
 //   lerTelas(root)          -> { cenas: { estabulo, haras, loja, expedicao }, mapas: { fogo, agua, grama } }  (window.__TELAS:
@@ -89,9 +89,6 @@ export async function lerIconesTam(root, dir = DIR_ICONES) {
   return out
 }
 
-// Oponentes dos ginásios (a tela de desafio): assets/pixellab/treinadores/escolhas.json = { id: seed } diz qual
-// candidata de cada um vai para o jogo (<id>-s<seed>.png, da pixellab-treinadores.mjs). O id é o nome do oponente sem
-// acento, em minúsculas e com hífen. Sem o JSON ou sem o PNG, o oponente fica de fora (a tela mostra só o cavalo dele).
 // Oponentes dos ginásios (etapa 5 da direção de arte): assets/arte/treinadores/finais/<id>-corpo.png (32×48, corpo de
 // ~40 px, a escala dos cavalos) e <id>-busto.png (64×64, para os cartões), escolhidos e copiados por
 // tools/arte-treinadores.mjs finais. Um id só entra com as duas imagens.
@@ -115,12 +112,19 @@ export async function lerArenas(root) {
 }
 
 // Logotipo: data: URL e o tamanho em px (lido do cabeçalho IHDR do PNG), para o <img> reservar o espaço.
+// A marca (etapa 7 da direção de arte): assets/arte/marca/logo.png (o emblema e o letreiro em duas linhas, desenhados na
+// grade) para a tela inicial e letreiro-duas.png (só o letreiro, mais estreito) para o cabeçalho; o tamanho de cada um
+// vem do PNG. O logo antigo do Canva (assets/marca/) sai na limpeza da etapa 8.
+const tamPng = (buf) => (buf.length > 24 && buf.toString('latin1', 12, 16) === 'IHDR' ? [buf.readUInt32BE(16), buf.readUInt32BE(20)] : [0, 0])
 export async function lerMarca(root) {
-  const logo = 'assets/marca/logo.png'
+  const logo = 'assets/arte/marca/logo.png', mini = 'assets/arte/marca/letreiro-duas.png'
   if (!existsSync(join(root, logo))) return { logo: null }
-  const buf = await readFile(join(root, logo))
-  const png = buf.length > 24 && buf.toString('latin1', 12, 16) === 'IHDR'
-  return { logo: 'data:image/png;base64,' + buf.toString('base64'), w: png ? buf.readUInt32BE(16) : 0, h: png ? buf.readUInt32BE(20) : 0 }
+  const b = await readFile(join(root, logo)), [w, h] = tamPng(b), out = { logo: 'data:image/png;base64,' + b.toString('base64'), w, h }
+  if (existsSync(join(root, mini))) {
+    const m = await readFile(join(root, mini)), [mw, mh] = tamPng(m)
+    Object.assign(out, { mini: 'data:image/png;base64,' + m.toString('base64'), miniW: mw, miniH: mh })
+  }
+  return out
 }
 
 // Camadas das regiões: assets/arte/<regiao>/<camada>.png (as finais de arte-regioes.mjs --finalizar, escolhidas em

@@ -248,16 +248,18 @@
     var T = window.__ICONES_TAM, n = T && T[nome] === 24 ? 24 : 16;
     return '<img class="icone icone--' + esc(nome) + ' icone--n' + n + (tam === 32 ? ' icone--32' : '') + '" src="' + esc(src) + '" alt="" width="' + n + '" height="' + n + '">';
   }
-  // Logotipo do Canva (window.__MARCA.logo): <img> com o título como alt; sem arquivo, o texto de antes.
-  // width/height reservam o espaço antes de a imagem decodificar (sem salto de layout); o build manda o
-  // tamanho do PNG em __MARCA.w/h. Com `altura`, a largura sai na mesma proporção.
-  function logoHtml(fallback, altura) {
+  // A marca (window.__MARCA, etapa 7 da direção de arte): <img> com o título como alt; sem arquivo, o texto de antes.
+  // mini: o letreiro em duas linhas (sem o emblema) no cabeçalho, 1:1 na grade; senão o logo inteiro (emblema e letreiro)
+  // na tela inicial, em 2× da grade quando a coluna tem largura para isso (escala inteira, guia §2), senão 1×. O CSS dá o
+  // tamanho em --px (width/height do <img> só reservam o espaço antes de decodificar).
+  function logoHtml(fallback, mini) {
     var m = window.__MARCA;
     if (!m || typeof m !== 'object' || typeof m.logo !== 'string' || !m.logo) return fallback;
-    var w = m.w > 0 ? m.w : 0, h = m.h > 0 ? m.h : 0, tam = '';
-    if (altura) tam = ' height="' + altura + '"' + (w && h ? ' width="' + Math.round(w * altura / h) + '"' : '');
-    else if (w && h) tam = ' width="' + w + '" height="' + h + '"';
-    return '<img class="logo-img" src="' + esc(m.logo) + '" alt="Galope Elemental"' + tam + '>';
+    var src = mini && typeof m.mini === 'string' ? m.mini : m.logo, w = mini && m.mini ? m.miniW : m.w, h = mini && m.mini ? m.miniH : m.h;
+    var colArte = Math.floor(Math.min(window.innerWidth || 390, 520) * dpr() / (gradeS || 1));
+    var x = mini ? 1 : colArte >= 2 * w + 24 ? 2 : 1;   // (24: as margens da tela)
+    return '<img class="logo-img logo-img--x' + x + '" src="' + esc(src) + '" alt="Galope Elemental" width="' + (w * x) + '" height="' + (h * x) + '"' +
+      ' style="--logo-w:' + (w * x) + ';--logo-h:' + (h * x) + '">';
   }
   function ouroHtml(n, extraClass) {
     return '<span class="ouro' + (extraClass ? ' ' + extraClass : '') + '">' + iconeHtml('moeda-ouro', COIN) + '<span>' + fmt(n) + '</span><span class="sr">Ouro</span></span>';
@@ -2428,7 +2430,7 @@
   // Casca: cabeçalho fixo e barra de abas (abas e sub-telas)
   // ===========================================================================
   function appTopoHtml() {
-    return '<header class="app-topo"><span class="logo-mini">' + logoHtml('Galope Elemental', 24) + '</span>' +
+    return '<header class="app-topo"><span class="logo-mini">' + logoHtml('Galope Elemental', true) + '</span>' +
       '<span class="topo-saldos">' + (GEAR_ON ? pedrasSaldoHtml() : '') +
       '<span class="saldo" aria-label="Saldo">' + ouroHtml(state.gold) + '</span></span>' +
       '<button type="button" class="btn btn--pequeno app-perfil" data-acao="perfil" aria-label="Perfil">' + iconeHtml('ui-perfil', '👤', 16) + '</button></header>';
