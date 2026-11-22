@@ -1538,3 +1538,9 @@ img.icone.icone--n24 { width: calc(var(--px) * 24); height: calc(var(--px) * 24)
 .cena-aba + .titulo--tela { position: relative; }
 .trilha-mapa-palco { display: flex; justify-content: center; margin: 0 0 12px; }
 .trilha-mapa { display: block; image-rendering: pixelated; cursor: pointer; box-shadow: 0 0 0 2px var(--sombra); }
+
+/* ---------- Créditos (etapa 8 da direção de arte), uma vista do Perfil ---------- */
+.creditos p { margin: 0 0 6px; }
+.creditos .logo-img { margin: 0 0 8px; }
+.licenca { margin: 8px 0 0; max-height: calc(var(--px) * 200); overflow: auto; padding: 8px; background: var(--noite);
+  color: var(--texto-2); font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -1675,6 +1675,7 @@
     if (screen !== 'loja' && !(kindOf(screen) === 'sub' && ui.tab === 'loja')) ui.loja = null;
     // entrar na aba Loja abre na parte Comprar (voltar de uma sub-tela aberta a partir dela mantém a parte)
     if (screen === 'loja' && ui.screen !== 'loja' && !voltaMesmaAba) { ui.lojaParte = 'comprar'; ui.lojaMsg = null; }
+    if (screen !== 'perfil') { ui.perfilVer = null; ui.licencaAberta = false; }   // os Créditos só vivem dentro do Perfil
     if (kindOf(screen) === 'aba') ui.tab = screen;   // a barra de abas lê ui.tab
     ui.screen = screen;
     if (appEl) appEl.classList.toggle('app--corrida', screen === 'corrida');
@@ -1688,6 +1689,8 @@
   // o foco vai para a linha daquele cavalo, não para o título (3b, Review Focus 2), e a página rola só o que precisar
   // para a linha aparecer (o scroll-padding desconta o cabeçalho e a barra de abas)
   function voltaDaSubtela() {
+    // dos Créditos, de volta ao Perfil (foco no botão "Créditos")
+    if (ui.screen === 'perfil' && ui.perfilVer) { ui.perfilVer = null; ui.licencaAberta = false; go('perfil'); focoNaLinha('perfil-creditos', 'creditos'); return; }
     // ginásio: do detalhe da etapa volta à trilha (foco na etapa); da trilha, à aba (foco no cartão do ginásio)
     // do resumo do desafio, à trilha (já atualizada), mostrando a etapa próxima como ao abrir
     if (ui.screen === 'ginasio' && ui.gym) {
@@ -2498,6 +2501,7 @@
   }
   // Perfil: estatísticas, saldo, inventário e "Recomeçar com outro inicial"
   function renderPerfil() {
+    if (ui.perfilVer === 'creditos') return renderCreditos();
     return '<section class="tela" aria-labelledby="t-perfil">' +
       '<button type="button" class="btn btn--pequeno" data-acao="perfil-voltar">Voltar</button>' +
       '<h1 class="titulo titulo--tela" id="t-perfil" tabindex="-1" data-foco>Perfil</h1>' + noticeHtml() +
@@ -2510,7 +2514,32 @@
           (GEAR_ON ? ' · ' + esc(state.items.length) + (state.items.length === 1 ? ' peça' : ' peças') : '') + '</span></div>' +
       '</div>' +
       perfilInsigniasHtml() + joqueiHtml() + animacoesHtml() +
+      '<section class="caixa" aria-labelledby="t-sobre"><h2 class="titulo" id="t-sobre">Sobre o jogo</h2>' +
+        '<button type="button" class="btn" data-acao="perfil-creditos" data-id="creditos">Créditos</button></section>' +
       '<footer class="caixa">' + resetHtml() + '</footer></section>';
+  }
+  // Créditos (etapa 8 da direção de arte; texto de docs/arte/creditos.md): quem fez o jogo e a arte, a fonte e a paleta. A
+  // licença da Galmuri (SIL OFL 1.1) tem de acompanhar a fonte, que o jogo embute: o botão "Licença da fonte" mostra o
+  // texto inteiro (window.__OFL, embutido pelo build) num painel que rola. Uma vista do Perfil (ui.perfilVer): o "Voltar"
+  // e o voltar do aparelho levam de volta ao Perfil, com o foco no botão "Créditos".
+  function renderCreditos() {
+    var ofl = typeof window.__OFL === 'string' ? window.__OFL : '';
+    return '<section class="tela" aria-labelledby="t-creditos">' +
+      '<button type="button" class="btn btn--pequeno" data-acao="perfil-voltar">Voltar</button>' +
+      '<h1 class="titulo titulo--tela" id="t-creditos" tabindex="-1" data-foco>Créditos</h1>' +
+      '<div class="caixa creditos">' + logoHtml('<b>Galope Elemental</b>') +
+        '<p><b>Jogo, regras e código:</b> Vinicius</p></div>' +
+      '<section class="caixa creditos" aria-labelledby="t-cred-arte"><h2 class="titulo" id="t-cred-arte">Arte</h2>' +
+        '<p>Direção de arte, acabamento e composição por código.</p>' +
+        '<p>Arte gerada com ajuda de IA (PixelLab, Retro Diffusion), escolhida e acabada à mão. Nada é gerado por IA durante o jogo.</p></section>' +
+      '<section class="caixa creditos" aria-labelledby="t-cred-fonte"><h2 class="titulo" id="t-cred-fonte">Fonte</h2>' +
+        '<p>Galmuri, de Lee Minseo — SIL Open Font License 1.1.</p>' +
+        (ofl ? '<button type="button" class="btn" data-acao="creditos-licenca" aria-expanded="' + !!ui.licencaAberta + '" aria-controls="licenca-fonte">Licença da fonte</button>' +
+          (ui.licencaAberta ? '<pre class="licenca" id="licenca-fonte" tabindex="0" aria-label="Licença da fonte Galmuri">' + esc(ofl) + '</pre>' : '') : '') +
+      '</section>' +
+      '<section class="caixa creditos" aria-labelledby="t-cred-paleta"><h2 class="titulo" id="t-cred-paleta">Paleta</h2>' +
+        '<p>Resurrect 64, de Kerrie Lake (Lospec).</p></section>' +
+      '</section>';
   }
   // As insígnias no Perfil (spec §9), as três na ordem de GYM_ORDER: a conquistada com o ícone, o nome e o bônus (o mesmo
   // texto da trilha, ginBonusTxt); a que falta apagada, sem o bônus, com o que falta escrito
@@ -6324,6 +6353,14 @@
       case 'perfil':
         if (state) go('perfil');
         break;
+      case 'perfil-creditos':
+        if (ui.screen !== 'perfil') break;
+        ui.perfilVer = 'creditos'; ui.licencaAberta = false;
+        go('perfil'); break;
+      case 'creditos-licenca':
+        if (ui.screen !== 'perfil' || ui.perfilVer !== 'creditos') break;
+        ui.licencaAberta = !ui.licencaAberta;
+        rerenderKeepScroll(); break;   // o foco volta ao botão
       // ---- Loja de itens (fora do portão do equipamento): a parte aberta e a compra de um toque ----
       case 'loja-parte':
         if (ui.screen !== 'loja' || !LOJA_PARTES.some(function (a) { return a.id === id; })) break;

@@ -1,7 +1,8 @@
 # Créditos da arte — conteúdo da tela de créditos
 
-Texto pronto para a tela de créditos (direção de arte, etapa 8). A tela em si é código (`prototype/src/`) e entra com
-a integração da arte nova; até lá, este arquivo é a fonte do texto. Manter em sincronia com `declaracao-ia.md`.
+Texto da tela de créditos (direção de arte, etapa 8). A tela está no jogo desde 2026-11-22: Perfil → "Créditos"
+(`renderCreditos` no `prototype/src/game.js`; a licença vem de `prototype/assets/fontes/OFL-galmuri.txt` pelo build).
+Mudou o texto aqui? Mude lá também. Manter em sincronia com `declaracao-ia.md`.
 
 ## Texto da tela
 

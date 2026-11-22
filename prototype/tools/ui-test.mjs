@@ -38,7 +38,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // os blocos, na ordem em que aparecem no arquivo: todo if (quer(nome)) usa um nome daqui (quer() lança erro se não), e o
 // ui-test-paralelo.mjs roda exatamente esta lista. Bloco novo entra aqui, no lugar dele.
 const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
-  'corrompido', 'areasegura', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto',
+  'corrompido', 'areasegura', 'creditos', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto',
   'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
   'corrida-lugar-dado-redimensiona', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
   'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
@@ -1128,6 +1128,50 @@ try {
   }
 
   // ---------------- texto legível em 360x640: Poder, Nv, VOCÊ e rótulos das abas ----------------
+  // ---------------- Créditos (etapa 8 da direção de arte) ----------------
+  // Perfil → "Créditos": o título com o foco, as seções (Arte, Fonte, Paleta) e o logo; "Licença da fonte" abre o texto
+  // inteiro da SIL OFL 1.1 (o mesmo arquivo de prototype/assets/fontes/) num painel que rola, com aria-expanded; o "Voltar"
+  // e o voltar do aparelho levam ao Perfil com o foco no botão "Créditos"; sem rolagem horizontal
+  if (quer('creditos')) {
+    const label = 'creditos'
+    const pg = await newPage(browser, { width: 360, height: 780 }, label)
+    try {
+      await pg.waitForSelector('.inicial')
+      await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await pg.waitForSelector('#t-estabulo')
+      await pg.locator('[data-acao="perfil"]').first().click()
+      await pg.waitForSelector('#t-perfil')
+      await pg.locator('[data-acao="perfil-creditos"]').click()
+      await pg.waitForSelector('#t-creditos')
+      const ofl = (await readFile(join(ROOT, 'assets', 'fontes', 'OFL-galmuri.txt'), 'utf8')).replace(/\s+/g, ' ').trim()
+      const a = await pg.evaluate(() => ({ foco: document.activeElement && document.activeElement.id, txt: document.querySelector('#tela').textContent.replace(/\s+/g, ' '),
+        logo: !!document.querySelector('#tela .creditos img.logo-img[alt="Galope Elemental"]'), exp: document.querySelector('[data-acao="creditos-licenca"]').getAttribute('aria-expanded'), pre: !!document.querySelector('#licenca-fonte') }))
+      if (a.foco !== 't-creditos') problems.push(`${label}: foco em ${a.foco} (esperado o título)`)
+      for (const t of ['Arte', 'Fonte', 'Paleta', 'Galmuri, de Lee Minseo', 'SIL Open Font License 1.1', 'Resurrect 64, de Kerrie Lake', 'PixelLab', 'Retro Diffusion', 'Nada é gerado por IA durante o jogo'])
+        if (!a.txt.includes(t)) problems.push(`${label}: falta "${t}"`)
+      if (!a.logo || a.exp !== 'false' || a.pre) problems.push(`${label}: estado inicial ${JSON.stringify({ logo: a.logo, exp: a.exp, pre: a.pre })}`)
+      await pg.locator('[data-acao="creditos-licenca"]').click()
+      const b = await pg.evaluate(() => { const p = document.querySelector('#licenca-fonte'); return p && { txt: p.textContent.replace(/\s+/g, ' ').trim(), rola: p.scrollHeight > p.clientHeight, ov: getComputedStyle(p).overflowY,
+        exp: document.querySelector('[data-acao="creditos-licenca"]').getAttribute('aria-expanded'), foco: document.activeElement && document.activeElement.getAttribute('data-acao') } })
+      if (!b || b.txt !== ofl) problems.push(`${label}: a licença aberta não é o texto inteiro da OFL (${b && b.txt.length} de ${ofl.length} caracteres)`)
+      else if (!b.rola || b.ov !== 'auto' || b.exp !== 'true' || b.foco !== 'creditos-licenca') problems.push(`${label}: painel da licença ${JSON.stringify({ rola: b.rola, ov: b.ov, exp: b.exp, foco: b.foco })}`)
+      await checkOverflow(pg, label)
+      await pg.locator('[data-acao="perfil-voltar"]').click()
+      await pg.waitForSelector('#t-perfil')
+      const f1 = await pg.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-acao'))
+      if (f1 !== 'perfil-creditos') problems.push(`${label}: o "Voltar" levou o foco a ${f1} (esperado o botão "Créditos")`)
+      // de novo, agora pelo voltar do aparelho
+      await pg.locator('[data-acao="perfil-creditos"]').click()
+      await pg.waitForSelector('#t-creditos')
+      await pg.goBack()
+      await pg.waitForSelector('#t-perfil', { timeout: 3000 }).catch(() => problems.push(`${label}: o voltar do aparelho não levou ao Perfil`))
+    } catch (e) {
+      problems.push(`[${label}] ` + e.message)
+    } finally {
+      await pg.context().close()
+    }
+  }
+
   if (quer('texto')) {
     const tx = await newPage(browser, { width: 360, height: 640 }, 'texto')
     const tamanhos = (sels) => tx.evaluate((ss) => ss.map((sel) => {
