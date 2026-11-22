@@ -208,6 +208,10 @@ async function ginComeca(page) {
 }
 // quantas cores há na faixa da cena onde o oponente fica (x 120–144, y 4–60 em pixels de arte): o fundo tem poucas; com a
 // arte do oponente desenhada, passa de 12
+// Etapa 6 da direção de arte: a cena do Estábulo (256×160, a placa do título por cima das 40 linhas de baixo) soma ~120
+// pixels de arte ao topo da aba; a 360×780 (densidade 2, --px 1,5) isso dá 180 px de CSS + o espaço entre os blocos (16).
+// Os limites de altura do Estábulo das specs (3b §2, itens §8) ganham essa parcela.
+const CENA_ESTABULO = 196
 // (etapa 5 da direção de arte: a cena é a arena do ginásio; o jogo anota a caixa do treinador em data-treinador, em pixels
 // de arte, e o tamanho da cena em data-arte — conta as cores dentro da caixa do treinador; 0 sem ele)
 const GIN_CENA_CORES = `(() => { const cv = document.querySelector('#tela .gin-cena-tela'); if (!cv || !cv.width) return -1
@@ -3587,15 +3591,15 @@ try {
       }
     }
     {
-      // já cabe: com 4 vencidas a próxima é o líder, no topo da trilha (medido: a 360×780 ele está inteiro na 1ª tela);
-      // a trilha abre sem rolar
+      // com 4 vencidas a próxima é o líder, no topo da lista; desde a etapa 6 da direção de arte o mapa da trilha fica antes
+      // da lista, então a tela rola o mínimo para o líder ficar inteiro, rente à barra de abas
       const label = 'ginasio-rola-cabe-360x780'
       const pg = await ginAbre(label, { save: ginSave({ ginasios: Object.assign(JSON.parse(JSON.stringify(GIN_ZERO)), { fogo: { etapa: 4, revDia: null, revVitorias: 0 } }) }), chave: GIN_DEV })
       try {
         await ginAbreAba(pg)
         await ginAbreTrilha(pg, 'fogo')
         const v = await ginVisivel(pg)
-        if (v.y !== 0 || !v.ok) problems.push(`${label}: a etapa próxima já cabia e a tela rolou (ou ela não está inteira) ${JSON.stringify(v)}`)
+        if (!v.ok || !(v.y > 0) || Math.abs(v.r.bottom - v.base) > 1) problems.push(`${label}: a rolagem até a etapa próxima não foi a mínima (ou ela não está inteira) ${JSON.stringify(v)}`)
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
       } finally {
@@ -9299,7 +9303,7 @@ try {
     // [nome, diária do save (null: o save da v6, que migra no dia 1), o dia "N / 7" esperado]
     const DIAS = [['dia 1', null, 1], ['dia 6', { prox: 5, ciclos: 0, ultimo: null }, 6], ['dia 7', { prox: 6, ciclos: 0, ultimo: null }, 7],
       ['dia 7 do 4º calendário', { prox: 6, ciclos: 3, ultimo: null }, 7]]
-    for (const [n, save, comPremio, resgatada] of [[3, SAVE_3A, 926, 856], [6, SAVE_3B_6, 1299, 1229]]) {   // + as linhas mais altas do retrato pequeno (etapa 1b)   // 6: +15 px da lista com a Galmuri (761 − 748; 2026-11-21)
+    for (const [n, save, comPremio, resgatada] of [[3, SAVE_3A, 926 + CENA_ESTABULO, 856 + CENA_ESTABULO], [6, SAVE_3B_6, 1299 + CENA_ESTABULO, 1229 + CENA_ESTABULO]]) {   // + as linhas mais altas do retrato pequeno (etapa 1b)   // 6: +15 px da lista com a Galmuri (761 − 748; 2026-11-21)
       for (const [dia, diaria, k] of DIAS) {
         const tag = `${n} cavalos, ${dia}`
         const p = await newPage(browser, { width: 360, height: 780 }, `${label}-${n}`, comSave(diaria ? v7(save, diaria) : save))
@@ -9549,7 +9553,7 @@ try {
         // 3b §2: o Estábulo em lista de linhas cabia numa tela (780); o cartão da diária de uma linha mede 40 px e custa 64 px de
         // altura ao Estábulo, com o espaço até a lista (medido com 6 cavalos: 1.012 antes do cartão, 1.076 com ele; spec de itens §8)
         if (!(await pg.locator('#tela .diaria--linha').count())) problems.push('acabamento: o Estábulo não abriu com a diária resgatada (cartão de uma linha)')
-        if (aEst > 820) problems.push(`acabamento: Estábulo com ${aEst}px (limite 820 com a diária resgatada, spec de itens §8; antes da 3a ${ALTURA_ANTES_3A.estabulo})`)
+        if (aEst > 820 + CENA_ESTABULO) problems.push(`acabamento: Estábulo com ${aEst}px (limite ${820 + CENA_ESTABULO} com a diária resgatada: 820 da spec de itens §8 + a cena da etapa 6; antes da 3a ${ALTURA_ANTES_3A.estabulo})`)
         await semBorderImage(pg, 'estabulo')
         // painel, saldo e título com as peças; molduras do painel, do destaque (montaria ativa), do saldo e do retrato
         await pecasNoLugar(pg, 'estabulo', ['.caixa', '.saldo', 'h1.titulo--tela', '.montaria--ativa'])
@@ -10459,7 +10463,7 @@ try {
       const p3 = await newPage(browser, { width: 360, height: 780 }, label + '-estabulo3', comSaveResgatada(SAVE_3A))
       try {
         await p3.waitForSelector('#t-estabulo')
-        await confereLista(p3, '3 cavalos', 820)
+        await confereLista(p3, '3 cavalos', 820 + CENA_ESTABULO)
         // tocar na 2ª linha abre a ficha daquele cavalo; "Voltar" devolve o foco à linha dele
         await p3.locator('#tela .montaria-linha').nth(1).click()
         await p3.waitForSelector('#t-montaria')
@@ -10481,7 +10485,7 @@ try {
         await focoNaLinha(p3, 'm3', '3 cavalos, Voltar depois de ativar a m3')
         const ordem = (await linhasDe(p3)).map((l) => l.id)
         if (JSON.stringify(ordem) !== '["m1","m2","m3"]') problems.push(`${label}: depois de trocar a ativa, as linhas ficaram na ordem ${JSON.stringify(ordem)} (esperado m1, m2, m3)`)
-        await confereLista(p3, '3 cavalos, m3 ativa', 820)
+        await confereLista(p3, '3 cavalos, m3 ativa', 820 + CENA_ESTABULO)
       } catch (e) {
         problems.push(`${label}-estabulo3: ${e.message}`)
       } finally {
@@ -10494,7 +10498,7 @@ try {
       const p6 = await newPage(browser, { width: 360, height: 780 }, label + '-estabulo6', comSaveResgatada(SAVE_3B_6))
       try {
         await p6.waitForSelector('#t-estabulo')
-        await confereLista(p6, '6 cavalos', 1200)   // 1140 + 6 × 12 px: o retrato pequeno na grade (64 × 56, etapa 1b), um pouco mais alto
+        await confereLista(p6, '6 cavalos', 1200 + CENA_ESTABULO)   // 1140 + 6 × 12 px: o retrato pequeno na grade (64 × 56, etapa 1b), um pouco mais alto
         await p6.locator('button[data-acao="montaria"][data-id="m6"]').click()
         await p6.waitForSelector('#t-montaria')
         await p6.locator('[data-acao="montaria-voltar"]').click()
