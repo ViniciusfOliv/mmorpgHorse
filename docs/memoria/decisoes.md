@@ -3,7 +3,7 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
-## 2026-11-22 — Integração da arte, etapa 2 (corrida: 2.1 a 2.4)
+## 2026-11-22 — Integração da arte, etapa 2 (corrida: 2.1 a 2.5)
 - **A corrida é desenhada num canvas na resolução de arte** (S = 1) e copiada com um `drawImage` ampliado pela mesma `s`
   da interface; cavalos 1:1 (2.1).
 - **Texto do canvas só na Galmuri, no tamanho nativo** (2.2): atlas de glifos com alfa binário gerado uma vez no Chromium
@@ -20,8 +20,17 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
   com a linha a 62% da tela); nela o cavalo do jogador pode sair da tela por um instante, como antes.
 - **Margem de baixo da pista 22 px de arte** (era 14), tirados do teto do topo (minTop + 62): o capim do primeiro plano
   aparece sem a cena crescer.
-- **Pendências conhecidas da etapa 2** (vão na 2.5): clima ainda sem troca de paleta nas camadas; véus translúcidos
-  (raia do jogador, subida) ainda com alfa; testes de interface da corrida calibrados na grade e na câmera antigas.
+- **Clima por troca de paleta** (2.5, guia §3; a conta da amostra): nublado, chuva e névoa trocam as cores das camadas,
+  do céu, da faixa de grama, do piso e das cercas, pré-desenhadas na largada (~25 ms). Névoa com véu em pontilhado de
+  50%. Com o cenário da região, a natureza do `fx.js` sai **sem véus nem tintas de tela inteira** (chuva, nublado, névoa)
+  e **sem os raios de sol translúcidos** (a luz do sol está na paleta, como na amostra); pingos, respingos, folhas,
+  poeira e calor em cores sólidas da mestra. Só o relâmpago tem alfa.
+- **Efeitos e HUD na mestra:** todas as cores do `fx.js` levadas à Resurrect 64 (misturas feitas na hora passam por
+  `naMestra`); painéis do HUD sólidos com bisel (linha em cima, sombra embaixo); a raia do jogador só com os tracejados
+  em ouro, sem o véu; a subida com hachura sólida de 1 px. **Ficam com alfa, de propósito:** o esmaecer dos balões e o
+  pulso do contorno de skill (são fades no tempo, não véus de cor).
+- **Paisagem:** a grade já dá 640 × 360 em 1280 × 720 (s = 2); a cena ocupa a coluna do jogo (560 × 235 ali), com mais
+  pista de lado. Não mudou o layout da tela de corrida.
 
 ## 2026-11-21 — Integração da arte, etapa 1b (paleta e cavalos 1:1 fora da corrida)
 - **Cores da interface pelos papéis do guia** (fundo `2e222f`, painéis `313638`/`374e4a`, destaque `165a4c`, linha
