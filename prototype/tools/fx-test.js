@@ -180,7 +180,7 @@ test('tamanho da plaquinha e números (melhor em destaque, os outros depois)', f
   assert.strictEqual(FX.badgeSize({ dice: [87], best: 87, rerolls: 2 }).w, s1.w + 6, '↻ (5 px + 1) antes do número');
 });
 section('skills, Garra e cansaço');
-// corrida com todas as skills do catálogo distribuídas pelos cavalos e "skills sempre ativam" (modo DEV da simulação);
+// corrida com todas as skills do catálogo distribuídas pelos cavalos (toda skill ativa quando o gatilho acontece);
 // sem a skill de tipo (noTypeSkill): aqui só as skills de vaga (a skill de tipo na pista é outra tarefa)
 function corridaSkills(seed, escala) {
   var ids = Object.keys(G.SKILLS), hs = G.STARTERS.concat(G.WILD_HORSES.slice(0, 5));
@@ -189,7 +189,7 @@ function corridaSkills(seed, escala) {
     c.skills = ids.filter(function (id, q) { return q % hs.length === i; });
     return { horse: c, gear: null, name: 'r' + i, isPlayer: i === 0, silks: CORES[i], noTypeSkill: true };
   });
-  var sim = S.simulate({ seed: seed, recordFrames: true, racers: racers, conditions: { distance: 2000 }, dev: { skillsAlways: true } });
+  var sim = S.simulate({ seed: seed, recordFrames: true, racers: racers, conditions: { distance: 2000 } });
   return { sim: sim, racers: racers, tl: FX.timeline(sim, racers, escala) };
 }
 // Desde o bloco 1b o jóquei erra pouco (−0,5% a +2,5%, abaixo da reserva de 3%) e quase ninguém se cansa. Para
@@ -379,6 +379,203 @@ test('a linha do tempo de skills é a mesma para a mesma seed e não mexe na sim
   assert.deepStrictEqual(a.tl, b.tl);
   FX.timeline(a.sim, a.racers, 3);
   assert.strictEqual(JSON.stringify(a.sim.events), antes);
+});
+
+section('skills com rank na corrida (sem sorteio)');
+// um cavalo de teste: inicial copiado, com as skills e os ranks dados
+function comRank(base, skills, ranks, extra) {
+  var h = cl(base); h.skills = skills; h.skillRanks = ranks || {};
+  if (extra) Object.keys(extra).forEach(function (k) { h[k] = extra[k]; });
+  return h;
+}
+function corre(seed, cond, horses, entradas) {
+  return S.simulate({ seed: seed, recordFrames: true, conditions: cl(cond), racers: horses.map(function (h, i) {
+    var e = { horse: h, name: 'r' + i, noTypeSkill: true };
+    if (entradas && entradas[i]) Object.keys(entradas[i]).forEach(function (k) { e[k] = entradas[i][k]; });
+    return e;
+  }) });
+}
+function skillsDe(res, racer, nome) { return res.events.filter(function (e) { return e.type === 'skill' && !e.typeSkill && e.racer === racer && (!nome || e.text.indexOf(' ativou ' + nome + '!') >= 0); }); }
+var PISTA_R = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 400 }, { type: 'curva', from: 400, to: 700 }, { type: 'subida', from: 700, to: 1000 }, { type: 'reta', from: 1000, to: 1600 }] };
+var BRASA = G.STARTERS[0], MARE = G.STARTERS[1], IPE = G.STARTERS[2];
+test('skill sem sorteio: um Comum nível 1 com Arranque ativa em 200 seeds de 200, e o evento traz o rank', function () {
+  var h = comRank(BRASA, ['arranque'], { arranque: 3 }, { rarity: 'comum', level: 1 });
+  for (var s = 1; s <= 200; s++) {
+    var res = corre(s, PISTA_R, [h, cl(MARE)]), ev = skillsDe(res, 0, 'Arranque');
+    assert.strictEqual(ev.length, 1, 'seed ' + s); assert.strictEqual(ev[0].rank, 3);
+    if (s === 1) assert.deepStrictEqual(res.racerInfo[0].skillRanks, { arranque: 3 });
+  }
+});
+test('rank 5 do Segundo Ar dispara com 35% de estamina; o rank 4 só com 30%', function () {
+  [5, 4].forEach(function (rank) {
+    for (var s = 1; s <= 12; s++) {
+      var res = corre(s, PISTA_R, [comRank(BRASA, ['segundo-ar'], { 'segundo-ar': rank }), cl(MARE)]), ev = skillsDe(res, 0, 'Segundo Ar');
+      assert.strictEqual(ev.length, 1, 'rank ' + rank + ' seed ' + s + ': ativa uma vez');
+      var est = res.frames[Math.round(ev[0].t * 10)].stamina[0];
+      if (rank === 5) assert.ok(est <= 0.35 && est > 0.30, 'rank 5 seed ' + s + ': estamina ' + est);
+      else assert.ok(est <= 0.30 && est > 0.25, 'rank 4 seed ' + s + ': estamina ' + est);
+    }
+  });
+});
+test('rank 5 do Sprint dispara numa reta de 100 a 149 m; o rank 4 não; a Nascente (mesmo gatilho) continua em 150 m', function () {
+  var cond = { distance: 1000, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 300 }, { type: 'curva', from: 300, to: 500 }, { type: 'reta', from: 500, to: 620 }, { type: 'curva', from: 620, to: 1000 }] };
+  for (var s = 1; s <= 10; s++) {
+    var r5 = corre(s, cond, [comRank(MARE, ['sprint', 'nascente'], { sprint: 5, nascente: 5 }), cl(BRASA)]);
+    var r4 = corre(s, cond, [comRank(MARE, ['sprint', 'nascente'], { sprint: 4, nascente: 4 }), cl(BRASA)]);
+    var e5 = skillsDe(r5, 0, 'Sprint');
+    assert.strictEqual(e5.length, 1, 'seed ' + s); assert.strictEqual(e5[0].rank, 5);
+    var pos = r5.frames[Math.round(e5[0].t * 10)].pos[0]; assert.ok(pos >= 500 && pos < 620, 'na reta de 120 m: ' + pos);
+    assert.strictEqual(skillsDe(r4, 0, 'Sprint').length, 0, 'rank 4 seed ' + s);
+    assert.strictEqual(skillsDe(r5, 0, 'Nascente').length, 0, 'a Nascente não ganhou a reta curta');
+  }
+  // reta de 99 m: nem no rank 5
+  cond.blocks[2].to = 599; cond.blocks[3].from = 599;
+  assert.strictEqual(skillsDe(corre(1, cond, [comRank(MARE, ['sprint'], { sprint: 5 }), cl(BRASA)]), 0, 'Sprint').length, 0);
+});
+// troca o marco de uma skill só durante fn (para comparar a corrida com e sem ele)
+function comMarco(id, marco, fn) {
+  var salvo = G.SKILLS[id].rank5; G.SKILLS[id].rank5 = marco;
+  try { return fn(); } finally { G.SKILLS[id].rank5 = salvo; }
+}
+test('marco do clima: com Sol a Pino rank 5, o reforço vale até 15 s depois de o Dado virar o clima, e some depois', function () {
+  var cond = { distance: 2000, surface: 'grama', weather: 'sol', blocks: [{ type: 'reta', from: 0, to: 2000 }] };
+  var fogo = comRank(BRASA, ['sol-a-pino'], { 'sol-a-pino': 5 }), agua = cl(MARE), achou = 0;
+  for (var s = 1; s <= 80 && achou < 3; s++) {
+    var a = corre(s, cond, [fogo, agua]);
+    var virou = a.events.filter(function (e) { return e.type === 'clima'; });
+    if (!virou.length || virou[0].weather === 'sol') continue;
+    var tc = virou[0].t;
+    if (virou.length > 1 && virou[1].t < tc + 25) continue;          // o clima não muda de novo na janela
+    if (a.finishTimes[0] < tc + 25 || tc < 5) continue;
+    achou++;
+    assert.strictEqual(skillsDe(a, 0, 'Sol a Pino').length, 1);
+    var sem = comMarco('sol-a-pino', {}, function () { return corre(s, cond, [fogo, agua]); });
+    var longo = comMarco('sol-a-pino', { weatherLingerS: 1000 }, function () { return corre(s, cond, [fogo, agua]); });
+    var f = function (res, t) { return res.frames[Math.round(t * 10)].pos[0]; };
+    assert.strictEqual(f(a, tc), f(sem, tc), 'seed ' + s + ': até o clima virar, igual a quem não tem o marco');
+    assert.ok(f(a, tc + 10) > f(sem, tc + 10), 'seed ' + s + ': 10 s depois, o marco segura o reforço (' + f(a, tc + 10) + ' × ' + f(sem, tc + 10) + ')');
+    assert.strictEqual(f(a, tc + 15), f(longo, tc + 15), 'seed ' + s + ': nos 15 s, igual a um reforço que não acaba');
+    assert.ok(f(a, tc + 24) < f(longo, tc + 24), 'seed ' + s + ': depois dos 15 s o reforço some');
+    // sem o marco (rank 4), virar o clima tira o reforço na hora
+    var r4 = corre(s, cond, [comRank(BRASA, ['sol-a-pino'], { 'sol-a-pino': 4 }), agua]);
+    var r4longo = comMarco('sol-a-pino', { weatherLingerS: 1000 }, function () { return corre(s, cond, [comRank(BRASA, ['sol-a-pino'], { 'sol-a-pino': 4 }), agua]); });
+    assert.strictEqual(JSON.stringify(r4.frames), JSON.stringify(r4longo.frames), 'o marco só vale no rank 5'); assert.notStrictEqual(r4.tuningHash, r4longo.tuningHash, 'o marco entra na impressão digital das regras');
+  }
+  assert.strictEqual(achou, 3, 'seeds em que o Dado tira o sol');
+});
+test('Dado Viciado rank 5 rola 3 ou 4 dados (com o 2º da Sorte); rank 2 rola 1 extra que nunca passa de 70', function () {
+  var cond = { distance: 1400, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 1400 }] };
+  var maior2 = 0, quatro = 0, tres = 0;
+  for (var s = 1; s <= 120; s++) {
+    var a = corre(s, cond, [comRank(BRASA, ['dado-viciado'], { 'dado-viciado': 5 }), cl(MARE)]);
+    var b = corre(s, cond, [comRank(BRASA, ['dado-viciado'], { 'dado-viciado': 2 }), cl(MARE)]);
+    a.events.filter(function (e) { return e.type === 'dado'; }).forEach(function (d) {
+      var n = d.rolls[0].dice.length; assert.ok(n === 3 || n === 4, 'rank 5: ' + n + ' dados'); if (n === 4) quatro++; else tres++;
+      assert.ok(d.rolls[1].dice.length <= 2, 'quem não tem a skill não ganha dado');
+    });
+    b.events.filter(function (e) { return e.type === 'dado'; }).forEach(function (d) {
+      var dice = d.rolls[0].dice; assert.ok(dice.length === 2 || dice.length === 3, 'rank 2: ' + dice.length + ' dados');
+      var extra = dice[dice.length - 1]; assert.ok(extra >= 1 && extra <= 70, 'extra ' + extra); maior2 = Math.max(maior2, extra);
+    });
+    assert.strictEqual(skillsDe(a, 0, 'Dado Viciado').length, 1);
+  }
+  assert.ok(maior2 > 60, 'o extra do rank 2 passa de 60 às vezes (teto 70): ' + maior2);
+  assert.ok(tres > 0 && quatro > 0, 'com a Sorte da Brasa, há rodadas com e sem o 2º dado: ' + tres + ' / ' + quatro);
+});
+test('mesma seed e mesmos ranks dão o mesmo resultado; subir um rank muda o resultado', function () {
+  for (var s = 1; s <= 10; s++) {
+    var mk = function (r) { return corre(s, PISTA_R, [comRank(BRASA, ['arranque', 'drift'], { arranque: r, drift: 2 }), cl(MARE), cl(IPE)]); };
+    var a = mk(2), b = mk(2), c = mk(3);
+    assert.strictEqual(JSON.stringify(a), JSON.stringify(b), 'seed ' + s);
+    assert.notStrictEqual(JSON.stringify(a.frames), JSON.stringify(c.frames), 'seed ' + s + ': o rank 3 corre diferente do 2');
+    assert.ok(c.frames[40].pos[0] > a.frames[40].pos[0], 'seed ' + s + ': Arranque III sai na frente do II');
+    // rank ausente, inválido ou de skill que o cavalo não tem vale 1
+    var semRank = corre(s, PISTA_R, [comRank(BRASA, ['arranque'], null), cl(MARE)]);
+    var lixo = corre(s, PISTA_R, [comRank(BRASA, ['arranque'], { arranque: 9, sprint: 5 }), cl(MARE)]);
+    var um = corre(s, PISTA_R, [comRank(BRASA, ['arranque'], { arranque: 1 }), cl(MARE)]);
+    assert.strictEqual(JSON.stringify(semRank), JSON.stringify(um)); assert.strictEqual(JSON.stringify(lixo), JSON.stringify(um));
+  }
+});
+test('skillScale (1 a 1,1) reforça o efeito das skills do corredor; fora da faixa vale 1', function () {
+  var hs = [comRank(BRASA, ['arranque'], { arranque: 2 }), cl(MARE)];
+  var base = corre(7, PISTA_R, hs), com = corre(7, PISTA_R, hs, [{ skillScale: 1.05 }]);
+  assert.ok(com.frames[40].pos[0] > base.frames[40].pos[0], 'com 1,05 o Arranque rende mais');
+  [0.9, 1.2, NaN, '1.05', null].forEach(function (x) { assert.strictEqual(JSON.stringify(corre(7, PISTA_R, hs, [{ skillScale: x }])), JSON.stringify(base), String(x)); });
+});
+test('marcos: o Fôlego de Montanha recupera 3% ao sair da subida; a Arrancada Final dá velocidade até a chegada', function () {
+  var hf = [comRank(BRASA, ['folego-de-montanha'], { 'folego-de-montanha': 5 }), cl(MARE)];
+  var a = corre(3, PISTA_R, hf), sem = comMarco('folego-de-montanha', {}, function () { return corre(3, PISTA_R, hf); });
+  var sai = 0; while (a.frames[sai].pos[0] < 1000) sai++;
+  assert.strictEqual(a.frames[sai - 1].stamina[0], sem.frames[sai - 1].stamina[0], 'dentro da subida, igual');
+  var ganho = a.frames[sai + 1].stamina[0] - sem.frames[sai + 1].stamina[0];
+  assert.ok(Math.abs(ganho - 0.03) < 0.002, 'recuperou ' + ganho);
+  var ha = [comRank(BRASA, ['arrancada-final'], { 'arrancada-final': 5 }), cl(MARE)];
+  var b = corre(3, PISTA_R, ha), semB = comMarco('arrancada-final', {}, function () { return corre(3, PISTA_R, ha); });
+  assert.ok(b.finishTimes[0] < semB.finishTimes[0], 'chega antes com o marco: ' + b.finishTimes[0] + ' × ' + semB.finishTimes[0]);
+  var ev = skillsDe(b, 0, 'Arrancada Final')[0], q = Math.round(ev.t * 10);
+  assert.strictEqual(b.frames[q].pos[0], semB.frames[q].pos[0], 'até a arrancada, igual');
+});
+test('nenhuma chamada a Math.random nem ao relógio durante simulate', function () {
+  var mr = Math.random, dn = Date.now, usou = false;
+  Math.random = function () { usou = true; return mr.apply(Math, arguments); };
+  Date.now = function () { usou = true; return dn.apply(Date, arguments); };
+  try {
+    var ids = Object.keys(G.SKILLS), hs = G.STARTERS.concat(G.WILD_HORSES.slice(0, 5));
+    for (var s = 1; s <= 6; s++) {
+      corre(s, { distance: 1800, surface: 'terra', weather: ['sol', 'chuva', 'nevoa'][s % 3], blocks: PISTA_R.blocks.concat([{ type: 'curva', from: 1600, to: 1800 }]) }, hs.map(function (h, i) {
+        var sk = ids.filter(function (id, q) { return q % hs.length === i; }), rk = {};
+        sk.forEach(function (id) { rk[id] = 1 + (s + i) % 5; });
+        return comRank(h, sk, rk);
+      }));
+    }
+  } finally { Math.random = mr; Date.now = dn; }
+  assert.ok(!usou);
+});
+
+test('linha do tempo: o item da skill traz o rank do evento; o balão mostra o rank em romano a partir do II', function () {
+  var hs = [comRank(BRASA, ['arranque'], { arranque: 3 }), comRank(MARE, ['arranque'], { arranque: 1 }), comRank(IPE, ['arranque'], { arranque: 5 })];
+  var racers = hs.map(function (h, i) { return { horse: h, name: 'r' + i, noTypeSkill: true, silks: CORES[i] }; });
+  var sim = S.simulate({ seed: 5, recordFrames: true, conditions: cl(PISTA_R), racers: racers });
+  var itens = FX.timeline(sim, racers).filter(function (it) { return it.kind === 'skill'; });
+  assert.deepStrictEqual(itens.map(function (it) { return it.rank; }), [3, 1, 5]);
+  assert.deepStrictEqual(itens.map(function (it) { return FX.linhasBalao(it, FX.BALAO.textoMax, 2); }), [['ARRANQUE III'], ['ARRANQUE'], ['ARRANQUE V']]);
+  assert.deepStrictEqual([1, 2, 3, 4, 5, 0, 6, '3', undefined].map(FX.rankRomano), ['', 'II', 'III', 'IV', 'V', '', '', '', '']);
+  assert.deepStrictEqual(itens.map(FX.rankMax), [false, false, true]);
+  // nome em duas linhas: o rank vai no fim da última; o balão cresce com o texto
+  var fm = { kind: 'skill', nome: 'Fôlego de Montanha', nomeCurto: 'FÔLEGO MONT.', rank: 4, t0: 0, escala: 1 };
+  assert.deepStrictEqual(FX.linhasBalao(fm, FX.BALAO.textoMax, 2), ['FÔLEGO DE', 'MONTANHA IV']);
+  assert.deepStrictEqual(FX.linhasBalao(fm, FX.BALAO.textoMax, 1), ['FÔLEGO MONT. IV']);
+  var semRank = { kind: 'skill', nome: 'Arranque', nomeCurto: 'ARRANQUE', rank: 1, t0: 0, escala: 1 }, com = { kind: 'skill', nome: 'Arranque', nomeCurto: 'ARRANQUE', rank: 3, t0: 0, escala: 1 };
+  assert.ok(FX.balloonSize(com, 0).w > FX.balloonSize(semRank, 0).w, 'sem linhas, o balão usa o nome curto com o rank');
+  assert.strictEqual(FX.balloonSize(com, 0, FX.linhasBalao(com, FX.BALAO.textoMax, 2)).w, FX.balloonSize(com, 0).w);
+  // a skill de tipo e a Garra não têm rank
+  assert.deepStrictEqual(FX.linhasBalao({ kind: 'skill', typeSkill: true, nome: 'Labareda', nomeCurto: 'LABAREDA', rank: 5 }, FX.BALAO.textoMax, 2), ['LABAREDA']);
+  assert.strictEqual(FX.rankMax({ kind: 'skill', typeSkill: true, rank: 5 }), false); assert.strictEqual(FX.rankMax({ kind: 'garra', rank: 5 }), false); assert.strictEqual(FX.rankMax(null), false);
+});
+test('rank V: o balão e o brilho ficam dourados; a duração do item segue o marco (Saída Rápida 8 s, Arrancada Final até a chegada)', function () {
+  var pintou = [];
+  var ctx = { globalAlpha: 1, set fillStyle(v) { this._f = v; }, get fillStyle() { return this._f; }, fillRect: function () { pintou.push(this._f); }, drawImage: function () {} };
+  function cores(rank) { pintou = []; FX.drawBalloon(ctx, 10, 10, 2, { kind: 'skill', nome: 'Sprint', nomeCurto: 'SPRINT', rank: rank, t0: 0, escala: 1, element: 'geral', cavalo: 'fogo', raia: 1, silks: '#d8353b' }, 0.5, 0); return pintou.slice(); }
+  var c4 = cores(4), c5 = cores(5);
+  assert.strictEqual(c5[0].toLowerCase(), '#f9c22b', 'a moldura dourada é o primeiro retângulo');
+  assert.notStrictEqual(c4[0].toLowerCase(), '#f9c22b', 'no rank IV o primeiro retângulo é o contorno escuro'); assert.strictEqual(c5[1], c4[0], 'depois da moldura, o contorno de sempre');
+  assert.ok(c5.indexOf('#fbff86') >= 0 && c4.indexOf('#fbff86') < 0, 'o texto do rank V é ouro claro');
+  var g4 = FX.glow({ kind: 'skill', rank: 4, t0: 0, t1: 5, escala: 1, element: 'geral', cavalo: 'agua' }, 1, true), g5 = FX.glow({ kind: 'skill', rank: 5, t0: 0, t1: 5, escala: 1, element: 'geral', cavalo: 'agua' }, 1, true);
+  assert.notStrictEqual(g5.cor, g4.cor); assert.ok(g5.alpha > g4.alpha);
+  // duração: o item do rank 5 dura o que o marco manda
+  var cond = { distance: 1600, surface: 'grama', weather: 'nublado', blocks: [{ type: 'reta', from: 0, to: 300 }, { type: 'curva', from: 300, to: 500 }, { type: 'reta', from: 500, to: 1600 }] };
+  function dur(id, rank) {
+    var h = comRank(BRASA, [id], {}); h.skillRanks[id] = rank;
+    var racers = [{ horse: h, name: 'a', noTypeSkill: true }, { horse: cl(MARE), name: 'b', noTypeSkill: true }];
+    var sim = S.simulate({ seed: 9, recordFrames: true, conditions: cl(cond), racers: racers });
+    var it = FX.timeline(sim, racers).filter(function (x) { return x.kind === 'skill' && x.racer === 0; })[0];
+    return { d: it.t1 - it.t0, fim: sim.finishTimes[0], t0: it.t0 };
+  }
+  assert.ok(Math.abs(dur('saida-rapida', 4).d - Math.min(FX.BALAO.efeitoMax, G.SKILLS['saida-rapida'].effect.durationS)) < 1e-9);
+  assert.ok(Math.abs(dur('saida-rapida', 5).d - Math.min(FX.BALAO.efeitoMax, G.SKILLS['saida-rapida'].rank5.durationS)) < 1e-9);
+  var a4 = dur('arrancada-final', 4), a5 = dur('arrancada-final', 5);
+  assert.ok(Math.abs(a4.d - FX.BALAO.efeitoMin) < 1e-9, 'sem o marco, o efeito é instantâneo (vale o mínimo): ' + a4.d);
+  assert.ok(Math.abs(a5.d - Math.max(FX.BALAO.efeitoMin, Math.min(FX.BALAO.efeitoMax, a5.fim - a5.t0))) < 1e-6, 'com o marco, até a chegada (ou o teto): ' + a5.d);
 });
 
 section('balão e contorno (desenho com contexto falso)');

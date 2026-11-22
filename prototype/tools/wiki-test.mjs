@@ -8,7 +8,7 @@
 import { createRequire } from 'node:module'
 import { mkdirSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { gerarWiki, descreverEfeito, descreverEfeitoTipo, descreverGatilho, descreverEspecial, descreverBloco, efeitoGeralClima, papelDoStatus } from './wiki.mjs'
+import { gerarWiki, descreverEfeito, descreverEfeitoTipo, descreverGatilho, descreverEspecial, descreverBloco, efeitoGeralClima, papelDoStatus, formatoRank, nomeChaveEfeito } from './wiki.mjs'
 
 const require = createRequire(import.meta.url)
 const G = require('../src/data.js')
@@ -41,6 +41,7 @@ for (const id in G.GEAR_SLOT_INFO) nomes.push(['slot', G.GEAR_SLOT_INFO[id].name
 for (const id in G.GEAR_SETS) nomes.push(['conjunto', G.GEAR_SETS[id].name])
 for (const id in G.GEAR) nomes.push(['peça', G.GEAR[id].name])
 for (const id in G.ITEMS) nomes.push(['item', G.ITEMS[id].name])
+const reEscCedo = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const escHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 for (const [tipo, nome] of nomes) {
   confere(a.md.includes(nome), `${tipo} "${nome}" não aparece no md`)
@@ -49,8 +50,112 @@ for (const [tipo, nome] of nomes) {
 for (const id in G.GEAR) confere(a.html.includes(`id="peca-${id}"`), `peça ${id} sem linha própria no html`)
 for (const id in G.SKILLS) confere(a.html.includes(`id="skill-${id}"`), `skill ${id} sem cartão no html`)
 
-// chance de skill (o equipamento, suspenso no bloco 1b, não soma): Comum Nv 1 com SOR 50
-confere(/\| Comum \| 40% \| 52% \| 64,5% \|/.test(a.md), 'tabela de chance de skill: Comum com SOR 50 devia mostrar 40% / 52% / 64,5% (Nv 1 / 25 / 50)')
+// skills com 100% de ativação e ranks (spec 2026-11-19): a chance de ativar sumiu; entram o fator do rank, a regra por
+// formato, o custo (com o total), o marco de cada skill, o Pergaminho de técnica e o rank no resto do jogo. Os números
+// esperados saem do catálogo (GameData.SKILL_RANKS, SKILLS, ITEMS, GYMS) e do RaceSim, nunca escritos aqui.
+{
+  const K = G.SKILL_RANKS, ROM = ['', 'I', 'II', 'III', 'IV', 'V']
+  const br = (x) => String(x).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  const fator = (r) => '×' + (1 + K.step * (r - 1)).toFixed(2).replace('.', ',')
+  confere(K.max === 5, 'o teste do wiki conta com 5 ranks (SKILL_RANKS.max): atualize os algarismos romanos do teste')
+  const ini = a.md.indexOf('### Rank das skills'), fim = a.md.indexOf('### Skills de vaga')
+  const sec = ini >= 0 && fim > ini ? a.md.slice(ini, fim) : ''
+  confere(sec.length > 0 && a.html.includes('id="skills-rank"'), 'falta o subtítulo "Rank das skills" (md e html), antes das "Skills de vaga"')
+  confere(!/chance de skill|chance de ativ|tenta ativar|tentativa de ativ|skills sempre ativam|skillChance|skillPerLevel|skillPerSorte|Chance de ativar/i.test(a.md + a.html.replace(/<script>[\s\S]*?<\/script>/g, '')), 'o wiki ainda fala da chance de ativar skill (regra antiga)')
+  confere(/a skill \*\*ativa sempre\*\*, sem sorteio/.test(a.md), 'seção Skills sem "ativa sempre, sem sorteio"')
+  confere(sec.includes(`s(r) = 1 + ${String(K.step).replace('.', ',')} × (r − 1)`) && /só na parte de bônus/.test(sec), 'Rank das skills sem a escala s(r) ou sem "só na parte de bônus"')
+  // fator do rank: uma linha por rank, com o fator de RaceSim.rankScale
+  for (let r = 1; r <= K.max; r++) {
+    confere(Math.abs(S.rankScale(r) - (1 + K.step * (r - 1))) < 1e-12, `RaceSim.rankScale(${r}) não é 1 + step × (r − 1)`)
+    confere(sec.includes(`| ${ROM[r]} | ${fator(r)} |`), `tabela "Fator do rank": o rank ${ROM[r]} devia ter ${fator(r)}`)
+  }
+  // a regra por formato: os formatos que o catálogo usa, o piso do multiplicador de gasto e o teto do dado extra
+  for (const [o, re] of [['o multiplicador que ajuda', /\*\*Multiplicador que ajuda\*\*[^\n]*1 \+ \(m − 1\) × s/], ['o multiplicador que reduz gasto', /\*\*Multiplicador que reduz gasto\*\*[^\n]*1 − \(1 − m\) × s, nunca abaixo de ×0,05/],
+    ['o bônus somado', /\*\*Bônus somado\*\*[^\n]*b × s/], ['a recuperação', /\*\*Recuperação\*\*[^\n]*x × s/], ['o reforço de clima', /\*\*Reforço de clima\*\*/], ['a duração e a distância', /\*\*Duração e distância\*\* não crescem com o rank/]]) {
+    confere(re.test(sec), `Rank das skills sem a regra de ${o}`)
+  }
+  confere(sec.includes(`até o teto do rank: ${K.diceTeto.join(' · ')} do rank I ao V`), 'Rank das skills sem o teto do dado extra por rank (SKILL_RANKS.diceTeto)')
+  const T = S.TUNING, climaIds = Object.keys(G.SKILLS).filter((id) => G.SKILLS[id].effect.weatherBonus)
+  const m3 = (x) => '×' + String(Math.round(x * 1000) / 1000).replace('.', ',')
+  confere(climaIds.length > 0 && sec.includes([1, 2, 3, 4, 5].map((r) => m3(T.weatherMult + S.skillEffect(climaIds[0], r).weatherBonus)).join(' · ')), 'Rank das skills sem o bônus do clima por rank (weatherBonus × fator)')
+  confere(a.md.includes(`com a skill de clima ativa (`) && a.md.includes(`de ${m3(T.weatherMult + S.skillEffect(climaIds[0], 1).weatherBonus)} no rank I a ${m3(T.weatherMult + S.skillEffect(climaIds[0], K.max).weatherBonus)} no rank V`), 'Elementos e clima: o multiplicador com a skill de clima não é o do weatherBonus por rank')
+  confere(!/com a skill de clima ativa, ×1,08/.test(a.md), 'Elementos e clima ainda usa o weatherMultDouble como efeito da skill de clima')
+  // todo effect do catálogo tem formato de rank e nome; chave inventada quebra
+  for (const id in G.SKILLS) for (const k of Object.keys(G.SKILLS[id].effect)) {
+    try { formatoRank(k); nomeChaveEfeito(k) } catch (e) { problemas.push(`skill ${id}: ${e.message}`) }
+  }
+  lanca(() => formatoRank('chaveInventada'), 'formato de rank com chave inventada')
+  lanca(() => nomeChaveEfeito('chaveInventada'), 'nome de chave de effect inventada')
+  // custo para subir: cada passo e o total, somados do catálogo (3.450 de Ouro e 14 Pergaminhos na spec)
+  let ouro = 0, perg = 0
+  for (let r = 1; r < K.max; r++) {
+    const c = K.custo[r]
+    confere(!!c && sec.includes(`| ${ROM[r]} → ${ROM[r + 1]} | ${br(c.ouro)} | ${c.perg} |`), `tabela "Custo para subir": ${ROM[r]} → ${ROM[r + 1]} devia custar ${c && br(c.ouro)} de Ouro e ${c && c.perg} Pergaminhos`)
+    ouro += c.ouro; perg += c.perg
+  }
+  confere(sec.includes(`| **Total (I → V)** | ${br(ouro)} | ${perg} |`), `tabela "Custo para subir" sem a linha do total (${br(ouro)} de Ouro e ${perg} Pergaminhos)`)
+  confere(/<strong>Total \(I → V\)<\/strong>/.test(a.html) && a.html.includes(br(ouro)), 'html sem a linha do total do custo de rank')
+  confere(/nunca falha/.test(sec) && /não tem volta/.test(sec) && /\*\*o cavalo ativo não sobe rank\*\*/.test(sec), 'Custo para subir: sem "nunca falha", "não tem volta" ou o bloqueio do cavalo ativo com o páreo aberto')
+  // skills por rank: uma linha por skill com o texto do rank I, o do V e o marco (RaceSim.skillDesc e skillMarcoDesc)
+  for (const id in G.SKILLS) {
+    const sk = G.SKILLS[id], d1 = S.skillDesc(id, 1), d5 = S.skillDesc(id, K.max), marco = S.skillMarcoDesc(id)
+    confere(!!sk.rank5 && marco.length > 0, `skill ${id} sem marco (rank5) ou sem a frase do marco (RaceSim.skillMarcoDesc)`)
+    confere(d1 === sk.desc, `skill ${id}: a descrição do catálogo não é a do rank I (RaceSim.skillDesc)`)
+    confere(new RegExp(`\\| (?:!\\[\\]\\([^)]*\\) )?${reEscCedo(sk.name)} \\| ${reEscCedo(d1)} \\| ${reEscCedo(d5)} \\| ${reEscCedo(marco)} \\|`).test(sec), `tabela "Skills por rank": a linha de ${sk.name} não traz o rank I, o rank V e o marco`)
+    // o marco também na lista por skill (coluna do md e par dt/dd do cartão html)
+    const linha = (a.md.slice(fim).match(new RegExp(`^\\| (?:!\\[\\]\\([^)]*\\) )?\\*\\*${reEscCedo(sk.name)}\\*\\* \\|.*$`, 'm')) || [''])[0]
+    confere(linha.includes(`| ${marco} |`), `lista de skills (md): ${sk.name} sem o marco do rank V`)
+    const cartao = (a.html.match(new RegExp(`<article id="skill-${id}"[\\s\\S]*?</article>`)) || [''])[0]
+    confere(cartao.includes(`<dt>Marco do rank V</dt><dd>${escHtml(marco)}</dd>`), `cartão da skill ${sk.name} (html) sem o marco do rank V`)
+    confere(/<dt>Pontos no Poder \(rank I\)<\/dt>/.test(cartao) && /× o fator do rank/.test(cartao), `cartão da skill ${sk.name} (html) sem "Pontos no Poder (rank I)" × o fator do rank`)
+    confere(a.html.includes(escHtml(d5)), `html sem o texto do rank V de ${sk.name}`)
+  }
+  confere(/\| Skill \| Gatilho \| Efeito \(rank I\) \| Descrição no jogo \(rank I\) \| Marco do rank V \|[^\n]*\| Pontos no Poder \(rank I; × o fator do rank\) \|/.test(a.md), 'lista de skills (md) sem as colunas do rank (Efeito (rank I), Marco do rank V, Pontos no Poder (rank I; × o fator do rank))')
+  confere(a.md.includes(`+ ${T.ratingSkillPts} × peso do gatilho × fator do rank, por skill`), 'Poder: a fórmula sem o fator do rank na parcela das skills')
+  // Pergaminho de técnica: as chances do pódio, os ginásios (premio.pergaminhos), o teto e o que nunca dá
+  const PG = G.ITEMS.pergaminho
+  const podio = PG.podio.map((x, i) => `${i + 1}º lugar ${Math.round(x * 100)}%`).join(', ')
+  confere(sec.includes(`**Pódio de corrida valendo** (entrada paga): ${podio}.`) && /O treino não sorteia/.test(sec), `Pergaminho: sem as chances do pódio (${podio}) ou sem "O treino não sorteia"`)
+  confere(a.html.includes(podio), 'html sem as chances do Pergaminho no pódio')
+  const g0 = G.GYMS[G.GYM_ORDER[0]], porGin = g0.etapas.reduce((x, e) => x + (e.premio.pergaminhos || 0), 0)
+  const etapasPerg = g0.etapas.map((e, i) => e.premio.pergaminhos ? `${e.lider ? 'o líder' : 'o Soldado ' + (i + 1)} (${e.premio.pergaminhos})` : null).filter(Boolean)
+  confere(porGin > 0 && etapasPerg.every((t) => sec.includes(t)) && sec.includes(`${porGin} por ginásio, ${porGin * G.GYM_ORDER.length} nos ${G.GYM_ORDER.length}`), `Pergaminho: sem as etapas de ginásio que dão (${etapasPerg.join(', ')}) ou sem o total por ginásio (${porGin})`)
+  confere(/A revanche do líder não dá Pergaminho/.test(sec) && /\*\*Nunca\*\* na loja[^\n]*nunca por Gemas/.test(sec) && sec.includes(`**Mochila:** até ${PG.cap}.`), 'Pergaminho: sem a revanche, o "nunca na loja, nunca por Gemas" ou o teto da mochila')
+  confere(PG.price == null && !G.SHOP_ORDER.includes('pergaminho') && !G.DAILY.dias.some((d) => d.item === 'pergaminho') && !G.GYM.revanche.ciclo.some((c) => c.item === 'pergaminho'), 'o Pergaminho de técnica ganhou preço, entrou na loja, na diária ou no rodízio da revanche (o wiki diz que não)')
+  // o rank no resto do jogo: potro, Cupom, Manual, bots, ginásios e pista
+  for (const [o, re] of [['o potro (rank do pai − 1)', /\*\*Potro:\*\* a skill herdada nasce 1 rank abaixo do pai que a tem \(se os dois têm, vale o maior\), nunca abaixo do I/],
+    ['o Cupom', new RegExp(`\\*\\*${G.ITEMS.cupom.name}:\\*\\* a skill nova entra no rank I e o rank da que sai é perdido`)],
+    ['o Manual e o level', new RegExp(`\\*\\*${G.ITEMS.manual.name} e aprendizado por level:\\*\\* a skill aprendida entra no rank I`)],
+    ['os bots da sala', /\*\*Bots da sala:\*\*[^\n]*a média, arredondada, dos ranks das skills de vaga do seu cavalo \(rank I se ele não tem skill de vaga\)/],
+    ['os oponentes dos ginásios', /\*\*Oponentes dos ginásios:\*\* rank fixo por etapa, sem sorteio/],
+    ['o balão', /\*\*Na pista:\*\* o balão da skill mostra o rank em algarismo romano a partir do II/]]) {
+    confere(re.test(sec), `O rank no resto do jogo: sem ${o}`)
+  }
+  // os bots usam mesmo a média arredondada (RaceSim.botRank), e sem skill de vaga é rank I
+  const ids3 = Object.keys(G.SKILLS).slice(0, 3)
+  confere(S.botRank({ skills: ids3, skillRanks: { [ids3[0]]: 5, [ids3[1]]: 4, [ids3[2]]: 2 } }) === 4 && S.botRank({ skills: [] }) === 1, 'RaceSim.botRank não é a média arredondada dos ranks (ou não é 1 sem skill de vaga)')
+  // ginásios: o rank de cada etapa na trilha e os Pergaminhos no prêmio; a ressalva das montarias-base sem skill de vaga
+  const secGin = a.md.slice(a.md.indexOf('## Ginásios da Expedição'), a.md.indexOf('## Ícones reservados'))
+  const catalogo = G.STARTERS.concat(G.WILD_HORSES)
+  let algumaSkill = false
+  for (const id of G.GYM_ORDER) G.GYMS[id].etapas.forEach((e, i) => {
+    const rot = e.lider ? 'Líder' : 'Soldado ' + (i + 1), pg = e.premio.pergaminhos || 0
+    confere(e.cavalos.every((c) => c.rank === e.cavalos[0].rank), `ginásio ${id}, ${rot}: os cavalos da etapa têm ranks diferentes`)
+    const linha = (secGin.match(new RegExp(`^\\| ${rot} \\| ${reEscCedo(e.nome)} \\|.*$`, 'm')) || [''])[0]
+    confere(linha.includes(`| ${ROM[e.cavalos[0].rank]} | ${e.entrada} |`), `trilha ${id}: ${rot} sem o rank ${ROM[e.cavalos[0].rank]} das skills`)
+    confere(pg ? linha.includes(`${pg} ${pg === 1 ? PG.name : PG.plural}`) : !/Pergaminho/.test(linha), `trilha ${id}: ${rot} devia mostrar ${pg} Pergaminho(s) no prêmio`)
+    for (const c of e.cavalos) if ((catalogo.find((h) => h.id === c.base).skills || []).some((s) => G.SKILLS[s])) algumaSkill = true
+  })
+  confere(algumaSkill !== /não têm skill de vaga, então (?:esse rank|ele) ainda não muda nada na prática/.test(secGin), 'Ginásios: a ressalva "as montarias-base não têm skill de vaga" não confere com o catálogo')
+  confere(algumaSkill !== /não têm skill de vaga, então esse rank ainda não muda nada na prática/.test(sec), 'Rank das skills: a ressalva dos oponentes dos ginásios não confere com o catálogo')
+  confere(/A revanche não dá Pergaminhos de técnica/.test(secGin), 'Ginásios: a revanche sem "não dá Pergaminhos"')
+  // cruzamento, itens, equipamento e DEV
+  confere(/Rank: cada skill herdada nasce 1 rank abaixo do pai que a tem/.test(a.md.slice(a.md.indexOf('## Cruzamento'), a.md.indexOf('## Equipamento'))), 'Cruzamento: as skills do potro sem a regra do rank')
+  confere(a.md.includes(`+${Math.round(G.ECONOMY.gear.setBonus.skillEffect * 100)}% no efeito das skills`) && !/p\.p\. na chance de (?:todas as )?skills/.test(a.md), 'Equipamento: o bônus de 3 peças devia ser "+5% no efeito das skills" (setBonus.skillEffect)')
+  const devCav = (a.md.match(/^- \*\*Cavalo:\*\* (.*)$/m) || [])[1] || ''
+  confere(/cada uma com o seu rank \(seletor de I a V\)/.test(devCav), `o Modo DEV no wiki sem o seletor de rank por skill: ${devCav}`)
+  confere(G.HELP.rank.includes(`+${Math.round(K.step * 100)}%`), `HELP.rank não diz "+${Math.round(K.step * 100)}%" por passo (SKILL_RANKS.step): ${G.HELP.rank}`)
+}
 
 // crescimento livre (cavalos v3, bloco 1b): fórmulas do status, pontos por level, custo por faixa, teto 150, Sorte de
 // nascimento, Dado, raridades, estrelas, skill de tipo com statMul, Poder e ligas; nada do modelo do bloco 1
@@ -151,7 +256,7 @@ confere(/<span class="el el--geral"><img /.test(a.html), 'skills gerais sem o í
 
 // 2a. explicações curtas (ⓘ, bloco 1b §11): o wiki usa os mesmos textos de GameData.HELP
 {
-  const CHAVES = ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte', 'genetica', 'estrelas', 'raridade', 'skillTipo', 'poder', 'liga', 'clima', 'piso', 'dado', 'custo', 'redea']
+  const CHAVES = ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte', 'genetica', 'estrelas', 'raridade', 'skillTipo', 'poder', 'liga', 'clima', 'piso', 'dado', 'custo', 'redea', 'rank']
   for (const k of CHAVES) {
     confere(typeof G.HELP[k] === 'string' && G.HELP[k].length > 0, `HELP.${k} não existe`)
     confere(!G.HELP[k] || G.HELP[k].length <= 160, `HELP.${k} passa de 160 caracteres (${(G.HELP[k] || '').length})`)
@@ -168,7 +273,7 @@ confere(/<span class="el el--geral"><img /.test(a.html), 'skills gerais sem o í
 const DIR_ICONES = resolve(import.meta.dirname, '..', 'assets', 'icons')
 const temIcone = (id) => existsSync(join(DIR_ICONES, id + '.png'))
 const IMG = '<img class="ic" src="data:image/png;base64,[A-Za-z0-9+/=]+" alt="" width="16" height="16">'
-const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const reEsc = reEscCedo
 const comIconeHtml = (nome) => new RegExp(IMG + '(?:<[^>]+>)*' + reEsc(escHtml(nome))).test(a.html)
 const comIconeMd = (id, nome) => new RegExp('!\\[\\]\\(\\.\\./prototype/assets/icons/' + id + '\\.png\\) (?:\\*\\*)?' + reEsc(nome)).test(a.md)
 const alvos = []
@@ -204,14 +309,15 @@ for (const id of ['item-redea', 'moeda-gema']) {
   confere(new RegExp('<img class="ic ic32" src="data:image/png;base64,[A-Za-z0-9+/=]+" alt="" width="32" height="32">(?:<[^>]+>)*<code>' + id + '</code>').test(a.html), `reservado ${id} sem <img> de 32 px no html`)
 }
 
-// itens e recompensa diária (spec de itens, loja e diária §4, §6, §7): os cinco itens, com preço, limite e origem,
+// itens e recompensa diária (spec de itens, loja e diária §4, §6, §7): os itens (os cinco de uso e o Pergaminho de técnica, dos ranks), com preço, limite e origem,
 // e a tabela dos 7 dias com a Estrela a cada 4 calendários
 confere(a.html.includes('id="itens"') && /## Itens e recompensa diária/.test(a.md), 'falta a seção "Itens e recompensa diária"')
-confere(Object.keys(G.ITEMS).join() === 'torrao,estrela,redea,cupom,manual', 'catálogo de itens fora da ordem da spec')
-for (const [nome, preco, compra] of [['Torrão de açúcar', '120', '2 por dia'], ['Estrela de treino', '2\\.000', '1 a cada 7 dias'], ['Rédea nova', '\\*\\*não se vende\\*\\*', '—'], ['Cupom de troca de skill', '250', '1 por dia'], ['Manual de doma', '200', '1 por dia']]) {
+confere(Object.keys(G.ITEMS).join() === 'torrao,estrela,redea,cupom,manual,pergaminho', 'catálogo de itens fora da ordem da spec')
+for (const [nome, preco, compra] of [['Torrão de açúcar', '120', '2 por dia'], ['Estrela de treino', '2\\.000', '1 a cada 7 dias'], ['Rédea nova', '\\*\\*não se vende\\*\\*', '—'], ['Cupom de troca de skill', '250', '1 por dia'], ['Manual de doma', '200', '1 por dia'], ['Pergaminho de técnica', '\\*\\*não se vende\\*\\*', '—']]) {
   confere(new RegExp(`\\| \\*\\*${nome}\\*\\* \\|[^\\n]*\\| ${preco} \\| ${compra} \\| [^|\\n]+ \\|`).test(a.md), `tabela de itens: ${nome} devia ter preço ${preco.replace(/\\/g, '')} e compra ${compra}`)
 }
 for (const id in G.ITEMS) confere(a.md.includes(G.ITEMS[id].desc) && a.md.includes(G.ITEMS[id].origem), `item ${id} sem a linha de para que serve ou de onde vem`)
+confere(a.md.includes(`São ${Object.keys(G.ITEMS).length} itens. ${Object.keys(G.ITEMS).length - 1} são de uso único`) && /em \*\*Mochila\*\*, os 6 itens[^\n]*o Pergaminho de técnica não tem Usar/.test(a.md), 'Itens: a contagem (6 itens, 5 de uso único) ou a Mochila sem o Pergaminho')
 confere(/até 10 por cavalo/.test(a.md) && /35% de chance de aprender/.test(a.md), 'tabela de itens sem o teto do Torrão (10) ou a chance do Manual (35%)')
 for (const [dia, premio] of [['1º', '60 de Ouro'], ['2º', '1 Torrão de açúcar'], ['3º', '100 de Ouro'], ['4º', '1 Manual de doma'], ['5º', '150 de Ouro'], ['6º', '1 Cupom de troca de skill'], ['7º', '200 de Ouro e 1 Rédea nova; a cada 4 calendários completos, também 1 Estrela de treino']]) {
   confere(a.md.includes(`| ${dia} | ${premio} |`), `tabela da recompensa diária: ${dia} dia devia dar ${premio}`)
@@ -265,14 +371,14 @@ confere(!/recursos que vão usá-los \(Rédeas/.test(a.md), 'wiki ainda diz que 
   const secItens = a.md.slice(a.md.indexOf('## Itens e recompensa diária'), a.md.indexOf('## Ginásios da Expedição'))
   const dosGin = (secItens.match(/^\*\*Dos ginásios\*\*.*$/m) || [''])[0]
   for (const id of Object.keys(G.ITEMS)) {
-    const daGin = G.GYM_ORDER.some((g) => G.GYMS[g].etapas.some((e) => e.premio.itens.includes(id))) || G.GYM.revanche.ciclo.some((c) => c.item === id)
+    const daGin = G.GYM_ORDER.some((g) => G.GYMS[g].etapas.some((e) => e.premio.itens.includes(id) || (id === 'pergaminho' && e.premio.pergaminhos > 0))) || G.GYM.revanche.ciclo.some((c) => c.item === id)
     confere(daGin === dosGin.includes(G.ITEMS[id].name), `Itens: ${G.ITEMS[id].name} ${daGin ? 'vem dos ginásios e o wiki não diz' : 'aparece como prêmio de ginásio sem ser'}: ${dosGin}`)
     // a coluna "De onde vem" da tabela é o texto origem do catálogo (Ruling 28): cita os ginásios só quando eles dão o item
     const linhaTab = (secItens.match(new RegExp(`^\\| \\*\\*${G.ITEMS[id].name}\\*\\* \\|.*$`, 'm')) || [''])[0]
     const deOnde = linhaTab.split('|').map((x) => x.trim()).filter(Boolean).pop() || ''
     confere(deOnde === G.ITEMS[id].origem && daGin === /ginásio/.test(deOnde), `Itens: a coluna "De onde vem" de ${G.ITEMS[id].name} é "${deOnde}"`)
     if (daGin && G.ITEMS[id].price == null) {
-      const venda = (secItens.match(new RegExp(`A ${G.ITEMS[id].name} não está à venda: [^.]*\\.`)) || [''])[0]
+      const venda = (secItens.match(new RegExp(`(?:A|O) ${G.ITEMS[id].name} não está à venda: [^.]*\\.`)) || [''])[0]
       confere(/ginásio/.test(venda), `Itens: a frase "${G.ITEMS[id].name} não está à venda" não fala dos ginásios: ${venda}`)
     }
   }

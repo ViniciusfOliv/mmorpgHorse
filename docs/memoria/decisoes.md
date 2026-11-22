@@ -32,6 +32,14 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 - **Paisagem:** a grade já dá 640 × 360 em 1280 × 720 (s = 2); a cena ocupa a coluna do jogo (560 × 235 ali), com mais
   pista de lado. Não mudou o layout da tela de corrida.
 
+## 2026-11-21 — Skills com 100% e ranks entram na `main`
+- **Integrar a `claude/skills-ranks` na `main` e republicar os três artefatos oficiais** — pedido do Vinicius ("integra
+  na main e republica os oficiais"), depois de testar o build da branch. A `main` (direção de arte) foi juntada na branch
+  antes (conflito só em `ESTADO.md` e `decisoes.md`); no resultado, `./scripts/check.sh` passou inteiro (201 / 129 / 173
+  testes, 989 conferências do wiki, 111 metas rápidas, 73 blocos de interface) e a `main` avançou sem reescrever nada
+  (merge `97d99df`). O `balance.js` completo (344 metas) tinha passado na branch antes do merge; a `main` só trouxe arte
+  e ferramentas, sem número de regra. Oficiais: jogo na versão 13, DEV na 11 e wiki na 10.
+
 ## 2026-11-21 — Integração da arte, etapa 1b (paleta e cavalos 1:1 fora da corrida)
 - **Cores da interface pelos papéis do guia** (fundo `2e222f`, painéis `313638`/`374e4a`, destaque `165a4c`, linha
   `547e64`, texto `c7dcd0`, ouro `f9c22b`). Os painéis são mais claros que o verde-escuro de antes: Fogo `f79617`, Água
@@ -140,6 +148,77 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 - **Chat próprio de direção de arte** (`claude/direcao-de-arte`, Opus em esforço alto): pesquisa das ferramentas, guia
   de arte (`docs/arte/guia.md`), estimativa de custo antes de gastar, amostra da tela da corrida refeita no padrão
   final (`prototype/arte/`, artefato novo) e, aprovada a amostra, o plano para o jogo inteiro.
+
+## 2026-11-19 — Marcos menores, Garra sem falhar e faixas rebaseadas (decisões do Vinicius, no chat de implementação)
+- **Os três marcos menores** ("usa os três marcos menores") — Saída Rápida 7 s, Chama Final 11 s e Arrancada Final ×1,01
+  até a chegada, no rank V (a spec dizia 8 s, 12 s e ×1,02).
+- **A Garra também é 100%: a arrancada final sai sempre, e o status decide o quanto** ("Garra deve ser 100% também, com o
+  status modificando o quanto ela afeta") — antes era um sorteio de 50% a 72%. Mais Garra: começa antes e empurra mais.
+- **A força da Garra varia a cada corrida, pela seed, de 0 a 2× a média do status** (o Vinicius escolheu "Força variável"
+  entre quatro opções) — o sorteio da Garra era a maior fonte de incerteza da corrida. Com força fixa, medido: favorito do
+  Poder 69,2% (meta 35–55%), um degrau de raridade 97–99%, +10 num status 18 p.p. Com a força variável: favorito 51,1%.
+  Números: força média = 0,19 × n(Garra) (era 0,02 + 0,26 × n com a chance; a média esperada ficou parecida), fator
+  sorteado uma vez na montagem do corredor (`garraSpread` 1); o evento `garra` traz `forca`. A Arrancada Final deixou de
+  dar chance: soma 2,8 p.p. na força (rank I). `RaceSim.VERSION` 4.1.0. Se errado: `garraSpread` menor dá uma Garra mais
+  constante e uma corrida mais previsível (0 = força fixa).
+- **Faixas rebaseadas ao medido** ("rebaseia as faixas"), todas no `balance.js`, com o valor antigo no comentário:
+  bônus de clima do inicial 45–68 → 45–73; M4 um degrau 72–88 → 72–95; M5 ★★★ × ★ 65–75 → 61–75 e ★★ × ★ 55–64 →
+  52–64; M9 15,3–18,0 → 15,0–18,3; G2 quatro níveis acima ≥ 70 → ≥ 60 e abaixo ≤ 35 → ≤ 46; G3 com vantagem ≤ 85 → ≤ 87;
+  S5 (rank V ÷ rank I) teto 2,2× → 2,4×. Motivo: sem o cara ou coroa da ativação e da Garra, quem é melhor vence um pouco
+  mais nos confrontos diretos de um degrau e um pouco menos nos de estrelas e de nível; a escala do rank sozinha passou
+  de ~1,6× a ~1,8×. As metas de previsibilidade (P2, M8) e as de justiça entre tipos e status (M1, M9, A1, P1) não
+  precisaram de folga além dessas.
+- **Faixas de vitória do ginásio: apertada até 4 m e normal até 12 m (eram 1 e 8 m)** (construtor) — com a força da Garra
+  variando, as chegadas entre cavalos iguais ficaram mais espalhadas e só ~5% caíam em "apertada"; com 4 e 12 m cada
+  faixa volta a ter 15% ou mais (meta G6). A perda de fôlego de cada faixa não mudou.
+- **Fôlego de Montanha no rank I: gasta 70% menos (×0,30)** (construtor) — para a razão do rank V caber; do rank IV em
+  diante bate no piso de ×0,05.
+
+## 2026-11-19 — Skills com 100% e ranks: o que o construtor decidiu (chat de implementação, `claude/skills-ranks`)
+Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/superpowers/plans/2026-11-19-skills-ranks.md`.
+Build de teste desta branch (modo DEV, artefato novo; os oficiais não foram tocados): https://claude.ai/artifact/77SCN1gGcMb9DjMcUXwfkQ
+(versão 1, build do commit que fecha o teste de interface; é o `prototype/dist/jogo-dev.html` com outro título).
+- **Valores base do rank 1 (recalibração, só a parte de bônus; medição do `balance.js --skills`, 8.000 pares por skill)** —
+  Arranque ×1,108 de aceleração · Sprint ×1,04 · Drift +1,3% · Saída Rápida ×1,32 e ×1,045 · Fôlego de Montanha ×0,40 ·
+  Segundo Ar 10% e ×1,03 · Arrancada Final +10 p.p. e +2 p.p. · clima +0,04 (×1,03 → ×1,07) · Chama Final ×1,04 · Canto da
+  Iara ×1,04 e ×0,80 · Nascente 4,5% · Casco Firme +1,2% · Dado Viciado sem valor base (teto 60 a 100). O rank 1 das 14
+  skills fica de 4,7 a 10,4 p.p. (S1: 3 a 13). O Drift e o Arranque ficaram abaixo do de antes (12,7 e 12,4) de propósito:
+  com mais base, o rank 5 passava de 20 p.p.
+- **(Resolvido no mesmo dia: ver a entrada acima.) Três marcos não fechavam a S5 (rank 5 de 1,4× a 2,2× o rank 1) só com a base** — Saída Rápida
+  2,46×, Arrancada Final 2,51× e Chama Final 2,30×, medidos em dois níveis de base cada. O marco de duração multiplica o
+  efeito inteiro (8 s contra 6 s; 12 s contra 9,5 s), e o ×1,02 até a chegada vale ~6,6 p.p. sozinho, quase o rank 1 da
+  skill. Com Saída Rápida 7 s, Chama Final 11 s e Arrancada Final ×1,01, as 58 metas das skills passam (2,08×, 2,07× e
+  2,06×). O código está com os marcos da spec (as três metas falham no `balance.js` completo) até ele escolher.
+- **(Resolvido no mesmo dia: ver a entrada acima.) Sete metas antigas do modelo saíram da faixa por pouco no `balance.js` completo** — M4 dois
+  degraus no nível 50 (Raro × Comum 93,7% e Mítico × Raro 93,5%; piso 94), M5 ★★ × ★ Mítico 64,4% (teto 64; no modo
+  rápido 66,3%), M6 `inc:acel` no nível 11 44,6% (piso 45) e a maior build no nível 50 62,7% (teto 62), M9 no Lendário
+  50 (Fogo 18,0% no teto, Grama 15,2%; faixa 15,3 a 18). Causa provável: sem o sorteio, a raridade não dá mais vantagem
+  de ativação (antes 35% a 75%), e toda skill pesa sempre. Valor base de skill não resolve; as saídas são rebasear as
+  faixas ao medido ou recalibrar o TUNING. Por isso o `check.sh` para na etapa 7 (as três do modo rápido).
+- **O Dado Viciado continua isento do S1 e da razão do S5** (rank 1: 0,2 p.p.; rank 5: 1,4 p.p.) — o dado extra só mexe
+  na virada do clima; os tetos (20 p.p. e 2× a mediana) valem para ele. A spec pedia recalibrar "inclusive o Dado
+  Viciado", mas não há valor base que o leve a 3 p.p. Se errado: o dado extra precisa de outro efeito (regra nova).
+- **Marco das skills de clima: nos 15 s depois de o clima mudar, o cavalo segura o multiplicador reforçado inteiro
+  (×1,03 + reforço), como se o clima ainda fosse o dele** — a spec dizia "o reforço continua"; só a parte do reforço em
+  cima de um clima contrário quase não se sentiria. Se o clima voltar a ser o dele, o prazo acaba.
+- **Os oponentes dos ginásios não têm skill de vaga (as bases são os iniciais), então o "rank fixo por etapa" fica
+  gravado (`rank` 1, 1, 1, 2, 2) e sem efeito hoje** — vale quando algum oponente ganhar skill.
+- **A skill que um dos pais tem, mas que o potro só ganhou no sorteio para completar o mínimo, nasce no rank 1** — é a
+  letra da spec (herdada = rank do pai − 1; sorteada = 1).
+- **Pergaminho do pódio com a mochila em 99 não entra (o resultado diz "Mochila cheia"); nos ginásios o desafio não abre
+  sem espaço, como os outros itens** — o pódio não tem como esperar. O sal do sorteio é `0x50450000 + lugar`, com a seed da sala.
+- **O bônus de 3 peças do conjunto virou `setBonus.skillEffect` 0,05 (o fator do rank × 1,05, `entry.skillScale`)** — como
+  a spec manda; segue suspenso com o equipamento.
+- **O teste do plano que esperava `hillDrainMult × 0,7` no Fôlego de Montanha estava trocado** (o ×0,7 é o marco do Casco
+  Firme) — os testes seguem a tabela de marcos da spec.
+- **Na tela:** "Ativa sempre: …" no lugar de "Quando: …"; a ficha diz "2 de 3 vagas · rank III, I"; o resultado diz
+  "skills rank II" (o rank médio, o mesmo dos bots) no lugar da chance; o balão e a faixa do jogador trazem o rank em
+  romano a partir do II e ficam dourados no V. O "skills sempre ativam" do DEV saiu; entrou o rank por skill.
+- **`balance.js`: S1, S5 e S6 saem de uma medição própria (`rank`, 8.000 pares; `--skills [N]` roda só ela em ~2 min e
+  `--skilltune` troca valores para ajuste)**; a seção 10 passou a conferir que a skill ativa em 100% das corridas.
+- **Teste de interface:** seeds fixas trocadas onde o desfecho mudou com a simulação 4.0.0 (resultado: 74 e 9; faixa do
+  lugar: 9 e 249); o teto de `fillRect` por quadro foi de 4.500 para 4.700 (mediu 4.523) e a altura de referência da aba
+  Skills de 1.426 para 1.551 px (a interface mudou de propósito).
 
 ## 2026-11-19 — Qualidade primeiro, teste de engine e skills com 100% (decisões do Vinicius)
 - **A qualidade vem sempre primeiro: se Godot (ou Unity) for melhor em visual, FPS e jogabilidade, migramos** — pedido

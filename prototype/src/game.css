@@ -381,6 +381,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .item-icone--redea { background-image: var(--arte-item-redea); }
 .item-icone--cupom { background-image: var(--arte-item-cupom); }
 .item-icone--manual { background-image: var(--arte-item-manual); }
+.item-icone--pergaminho { background-image: var(--arte-item-pergaminho); }
 .item-nome { grid-column: 2; margin: 0; font-family: var(--fonte-ui); font-size: var(--t-m); line-height: 24px; overflow-wrap: anywhere; }
 .item-qtd { grid-column: 3; grid-row: 1; justify-self: end; font-weight: 700; line-height: 24px; white-space: nowrap; }
 .item-desc { grid-column: 2 / -1; margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }
@@ -721,8 +722,38 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .habilidade span { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); }
 .habilidade .habilidade-quando { color: var(--texto); }
 .habilidade--garra { margin-top: 8px; }
-.skill-chance { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); margin: 0 0 8px; }
-.skill-chance strong { color: var(--texto); }
+/* Rank das skills de vaga (aba Skills): o topo, as 5 marcas, a linha do próximo rank, o custo e o "Subir rank" */
+.rank-topo { justify-content: space-between; margin: 0 0 8px; color: var(--texto-2); }
+.rank-topo strong { color: var(--texto); }
+.rank-tem { display: inline-flex; align-items: center; gap: 4px; }
+.rank-tem .item-icone, .rank-perg .item-icone { width: 16px; height: 16px; flex: none; }
+.rank-marcas { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; }
+.habilidade .rank-marcas .rank-romano { min-width: 20px; margin-right: 3px; font-family: var(--fonte-9); font-size: var(--t-s); font-weight: 700; color: var(--ouro); text-align: right; }
+.rank-pip { display: block; width: 7px; height: 7px; background: var(--painel-3); box-shadow: inset 0 0 0 1px var(--linha-luz); }
+.rank-pip--on { background: var(--ouro); box-shadow: inset 0 0 0 1px var(--ouro-escuro); }
+.rank-marcas--max .rank-pip--on { background: var(--ouro-claro); }
+.habilidade--max { box-shadow: inset 4px 0 0 0 var(--ouro-claro); }
+.habilidade .rank-prox { margin-top: 2px; padding-top: 4px; border-top: 1px solid var(--linha); color: var(--texto-2); }
+.habilidade .rank-prox b { color: var(--texto); font-weight: 600; }
+.habilidade .rank-prox .rank-marco, .rank-antes-depois .rank-marco { color: var(--ouro-claro); }
+.habilidade .rank-prox--max { color: var(--ouro-claro); }
+.skill-rank { grid-template-columns: minmax(0, 1fr); gap: 0; margin-bottom: 8px; }
+.skill-rank > .rank-acoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 8px; padding: 6px 10px 8px; background: var(--painel-2); box-shadow: inset 4px 0 0 0 var(--ouro-escuro); }
+.skill-rank > .motivo, .skill-rank > .nota { padding: 0 10px 6px; background: var(--painel-2); }
+.rank-custo { display: inline-flex; align-items: center; gap: 4px; margin-right: auto; font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto); }
+.rank-perg { display: inline-flex; align-items: center; gap: 3px; }
+.rank-mais { color: var(--texto-3); }
+.rank-max-selo { font-family: var(--fonte-9); font-size: var(--t-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ouro-claro); }
+.rank-passo .rank-de-para { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 8px; }
+.rank-passo .rank-de-para .rank-marcas { margin-left: 0; }
+.rank-passo .rank-romano { min-width: 20px; margin-right: 3px; font-weight: 700; color: var(--ouro); text-align: right; }
+.rank-antes-depois { display: grid; gap: 6px; margin: 0 0 8px; }
+.rank-antes-depois > div { background: var(--painel-2); padding: 6px 10px; }
+.rank-antes-depois dt { font-family: var(--fonte-9); font-size: var(--t-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto-3); }
+.rank-antes-depois dd { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto); }
+.rank-custo-linha { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; }
+.rank-custo-linha .rank-custo { margin-right: 0; }
+.item-nota-uso { margin: 0; }
 
 .afinidade { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); }
 .afinidade dt { color: var(--texto-3); font-weight: 600; text-transform: uppercase; font-family: var(--fonte-9); font-size: var(--t-s); letter-spacing: var(--px); padding-top: 2px; }

@@ -13,13 +13,13 @@
  *
  * OBJETO RESOLVIDO (resolve e botGear):
  *   { mods: { vel, acel, man, forca, est, garra, sorte },        // sempre as 7 chaves
- *     special: { skillChanceBonus, weatherDoubleClimate, ignoreWeatherPenalty },
+ *     special: { skillEffectBonus, weatherDoubleClimate, ignoreWeatherPenalty },
  *     set: { id, count },                                         // id null e count 0 sem peças de conjunto
  *     pieces: [{ slot, uid, id, plus }] }                         // ordem de GEAR_SLOTS, só peças válidas
  * Cada peça soma main + plus × plusStep (0,5) no status principal do slot e sub no secundário; os mods
  * podem ser fracionários (RaceSim.computeStats arredonda uma vez só, no fim).
  * Conjunto = o que tem mais peças (empate: ordem sol/chuva/nevoa). Bônus acumulam:
- *   >= 3: sorte +5 e skillChanceBonus 0,05 · >= 4: weatherDoubleClimate = set.id (o bônus do clima
+ *   >= 3: sorte +5 e skillEffectBonus 0,05 (o efeito das skills × 1,05: entry.skillScale da corrida) · >= 4: weatherDoubleClimate = set.id (o bônus do clima
  *   sobe para ×1,07 só se a montaria for do elemento dono do clima do conjunto; para os outros não
  *   muda nada) · >= 5: ignoreWeatherPenalty.
  *
@@ -54,7 +54,7 @@
   function resolve(mount, itemsByUid) {
     var mods = {};
     G.STAT_KEYS.forEach(function (k) { mods[k] = 0; });
-    var special = { skillChanceBonus: 0, weatherDoubleClimate: null, ignoreWeatherPenalty: false };
+    var special = { skillEffectBonus: 0, weatherDoubleClimate: null, ignoreWeatherPenalty: false };
     var pieces = [];
     var counts = {};
     var equip = (mount && mount.equip) || {};
@@ -78,7 +78,7 @@
       if ((counts[id] || 0) > count) { setId = id; count = counts[id]; }
     });
     var sb = EG.setBonus;
-    if (count >= sb.pieces[0]) { mods.sorte += sb.sorte; special.skillChanceBonus = sb.skillChance; }
+    if (count >= sb.pieces[0]) { mods.sorte += sb.sorte; special.skillEffectBonus = sb.skillEffect; }
     if (count >= sb.pieces[1]) special.weatherDoubleClimate = setId;
     if (count >= sb.pieces[2]) special.ignoreWeatherPenalty = true;
     return { mods: mods, special: special, set: { id: setId, count: count }, pieces: pieces };

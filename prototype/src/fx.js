@@ -14,7 +14,7 @@
  *       'dado' { t0: ev.t, t1: ev.t + 2.4·escala, racer: winner, winner, rolls (cópia), changed,
  *                weather, escala, frase }   — um por evento 'dado'. frase = o efeito, como na narração: o trecho
  *                de ev.text depois de ' — ' ('o sol abre!', 'o clima segura!'…).
- *       'skill' { t0: ev.t, t1, racer, skillId, icon, clima, element, cavalo, nome, nomeCurto, silks, raia,
+ *       'skill' { t0: ev.t, t1, racer, skillId, icon, clima, element, cavalo, nome, nomeCurto, rank (1..5, do evento), silks, raia,
  *                escala } — um por
  *                evento 'skill'. t1 = t0 + duração do efeito real da simulação (durationS; ou o
  *                tempo para o cavalo andar distanceM pelos frames; ou até sair do bloco se
@@ -42,7 +42,7 @@
  *     tipo usam 'chama' | 'folha' | 'onda', desenhados como os outros ícones de 8×8)
  *     Primeira chave presente em skill.effect, nesta ordem: speedMult→vel, accelMult→ace,
  *     staminaRestore→folego, drainMult(<1)→folego, curveBonus→curva, hillBonus→subida,
- *     hillDrainMult→subida, extraDice→dado, weatherDouble→clima, garraChanceBonus→garra,
+ *     hillDrainMult→subida, extraDice→dado, weatherBonus→clima, garraBoostBonus→garra,
  *     garraBoostBonus→garra; nenhuma (ou sem skill) ⇒ 'vel'.
  *   RaceFx.nomeCurto(nome, short) -> texto do balão: o nome inteiro em maiúsculas se couber em 12
  *     letras; senão o campo opcional `short` do catálogo (data.js), ou, sem ele, o nome cortado
@@ -371,7 +371,7 @@
   var ICON_ORDEM = [
     ['speedMult', 'vel'], ['accelMult', 'ace'], ['staminaRestore', 'folego'], ['drainMult', 'folego'],
     ['curveBonus', 'curva'], ['hillBonus', 'subida'], ['hillDrainMult', 'subida'], ['extraDice', 'dado'],
-    ['weatherDouble', 'clima'], ['garraChanceBonus', 'garra'], ['garraBoostBonus', 'garra']
+    ['weatherBonus', 'clima'], ['garraBoostBonus', 'garra']
   ];
   function skillIcon(skill) {
     var ef = skill && skill.effect;
@@ -435,6 +435,10 @@
   // duração (em segundos de simulação) do efeito real da skill; instantâneo ⇒ 0 (o mínimo vale)
   function duracaoSkill(sim, ev, sk) {
     var ef = (sk && sk.effect) || {};
+    // rank V: o marco pode mudar a duração (durationS) ou valer até a chegada (untilFinish)
+    var m5 = sk && sk.rank5 && rankDe(ev.rank) >= 5 ? sk.rank5 : null;
+    if (m5 && m5.untilFinish) { var fimM = sim && sim.finishTimes && sim.finishTimes[ev.racer]; return fimM != null ? fimM - ev.t : BALAO.efeitoMax; }
+    if (m5 && m5.durationS && (ef.durationS || !ef.distanceM && !ef.blockScoped)) return m5.durationS;
     if (ef.durationS) return ef.durationS;
     var frames = sim && sim.frames, dt = (sim && sim.dt) || 0.1;
     if (!frames || !frames.length || (!ef.distanceM && !ef.blockScoped)) return 0;
@@ -513,6 +517,7 @@
           kind: 'skill', t0: ev.t, t1: ev.t + dur, racer: ev.racer, skillId: sk ? sk.id : null, icon: skillIcon(sk), clima: trig,
           element: sk ? sk.element : (horse && horse.element) || 'neutro', cavalo: (horse && horse.element) || 'neutro',
           nome: sk ? sk.name : '', nomeCurto: nomeCurto(sk ? sk.name : '', sk && sk.short),
+          rank: rankDe(ev.rank),
           silks: (r && r.silks) || null, raia: ev.racer + 1, escala: e
         });
       } else if (ev.type === 'garra') {
@@ -1087,8 +1092,26 @@
   function textoBalao(item) {
     if (item.kind === 'garra') return 'GARRA!';
     if (item.kind === 'cansou') return 'CANSOU';
-    return item.nomeCurto || nomeCurto(item.nome);
+    return comRank([item.nomeCurto || nomeCurto(item.nome)], item)[0];
   }
+  // Rank da skill de vaga no balão (o evento 'skill' da simulação traz rank 1..5): em algarismo romano a partir do II,
+  // colado no fim do nome ("ARRANQUE III"); o rank I não aparece. A skill de tipo não tem rank.
+  var ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V'];
+  function rankDe(x) { return typeof x === 'number' && x % 1 === 0 && x >= 1 && x <= 5 ? x : 1; }
+  function rankRomano(rank) { var r = rankDe(rank); return r >= 2 ? ROMANOS[r] : ''; }
+  function comRank(linhas, item) {
+    var rm = item && item.kind === 'skill' && !item.typeSkill ? rankRomano(item.rank) : '';
+    if (!rm || !linhas || !linhas.length) return linhas;
+    var out = linhas.slice();
+    out[out.length - 1] = out[out.length - 1] + ' ' + rm;
+    return out;
+  }
+  // O texto do balão de uma skill, em linhas: o nome (nomeEmLinhas) com o rank no fim da última linha.
+  function linhasBalao(item, larguraMax, linhasMax) {
+    return comRank(nomeEmLinhas(item.nome, larguraMax, linhasMax, item.nomeCurto), item);
+  }
+  // rank máximo: o balão fica dourado e o brilho do cavalo também (o marco da skill está valendo)
+  function rankMax(item) { return !!item && item.kind === 'skill' && !item.typeSkill && rankDe(item.rank) >= 5; }
   // Balão preso à raia do cavalo: à frente do focinho, com chip do número e borda na cor da seda.
   // Altura 11 (cabe duas vezes na raia de 26 px); pilha > 0 vira só o chip + ícone (cresce para a frente).
   var BAL_H = 13, BAL_ICONE_X = 9;   // 4 + 7 da letra + 2 (o acento cabe nos 3 de cima)
@@ -1153,12 +1176,14 @@
     var y0 = y + (BALAO.sobe - sobe) * S;              // entra 2 px mais baixo e sobe até o lugar
     var cansou = item.kind === 'cansou', garra = item.kind === 'garra';
     var seda = item.silks || COR.texto3;
-    var cor = cansou ? COR.cinza : garra ? COR.ouro : corElemento(item);
-    var fundo = cansou ? COR.fundoCinza : COR.painel;
-    var txt = cansou ? COR.cinzaClaro : pal(mix(cor, '#ffffff', 0.35));
+    var r5 = rankMax(item);
+    var cor = cansou ? COR.cinza : garra || r5 ? COR.ouro : corElemento(item);
+    var fundo = cansou ? COR.fundoCinza : r5 ? pal(mix(COR.painel, COR.ouroEscuro, 0.45)) : COR.painel;
+    var txt = cansou ? COR.cinzaClaro : r5 ? COR.ouroClaro : pal(mix(cor, '#ffffff', 0.35));
     var prev = ctx.globalAlpha;
     ctx.globalAlpha = prev * alpha;
     function R(dx, dy, ww, hh, col) { ctx.fillStyle = col; ctx.fillRect(x + dx * S, y0 + dy * S, ww * S, hh * S); }
+    if (r5) R(-2, -2, w + 4, h + 4, COR.ouro);          // rank V: moldura dourada por fora do contorno
     R(-1, -1, w + 2, h + 2, COR.sombra);                // contorno escuro por fora da seda
     R(0, 0, w, h, seda);
     R(1, 1, w - 2, h - 2, fundo);
@@ -1185,6 +1210,8 @@
     var d = (simT - item.t0) / e, sai = (item.t1 - simT) / e;
     var amp = Math.max(0, Math.min(1, d / 0.15, sai / 0.3));
     var pulso = reduced ? 0.5 : 0.5 + 0.5 * Math.sin(d * 2 * Math.PI / 0.7);
+    // rank V: o contorno brilha em ouro e um pouco mais forte
+    if (rankMax(item)) return { cor: pal(mix(COR.ouro, '#ffffff', 0.3)), alpha: amp * (0.7 + 0.3 * pulso) };
     return { cor: pal(mix(corElemento(item), '#ffffff', 0.25)), alpha: amp * (0.55 + 0.4 * pulso) };
   }
 
@@ -1226,6 +1253,14 @@
         var sy = by + bh - 4 - Math.round(ph * 7);
         R(sx, sy, 1, 1, COR.faisca, 1 - ph);
         R(sx - 1, sy, 1, 1, '#fbb954', 0.6 * (1 - ph));
+        stats.particulas++;
+      }
+    }
+    if (rankMax(item)) {                               // rank V: estrelinhas douradas subindo em volta do cavalo
+      for (k = 0; k < 4; k++) {
+        ph = frac(d * 1.3 + k * 0.25);
+        var gx = bx + Math.round(bw * (0.15 + 0.7 * ((k * 3) % 4) / 3)), gy = by + 2 + Math.round((bh - 8) * ((k * 5) % 4) / 3) - Math.round(ph * 4);
+        R(gx - 1, gy, 3, 1, COR.ouro, 0.7 * (1 - ph)); R(gx, gy - 1, 1, 3, COR.ouro, 0.7 * (1 - ph)); R(gx, gy, 1, 1, COR.faisca, 1 - ph);
         stats.particulas++;
       }
     }
@@ -1790,6 +1825,9 @@
     skillIcon: skillIcon,
     nomeCurto: nomeCurto,
     nomeEmLinhas: nomeEmLinhas,
+    linhasBalao: linhasBalao,
+    rankRomano: rankRomano,
+    rankMax: rankMax,
     lugarLayout: lugarLayout,
     slowFactor: slowFactor,
     diceState: diceState,

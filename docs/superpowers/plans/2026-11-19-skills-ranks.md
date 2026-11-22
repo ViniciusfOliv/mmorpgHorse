@@ -59,7 +59,7 @@ nevoa-amiga `{ weatherLingerS: 15 }` · chama-final `{ durationS: 12 }` · canto
 `{ speedMult: 1.03, durationS: 4 }` · casco-firme `{ hillDrainMult: 0.7 }`. No marco, `durationS` e `lowStaminaAt`
 **substituem**; os outros **somam** ao efeito escalado (multiplicadores se multiplicam; restore e bônus se somam).
 
-- [ ] **Passo 1:** testes que falham, em `sim-test.js`, seção `ranks`:
+- [x] **Passo 1:** testes que falham, em `sim-test.js`, seção `ranks`:
   - `rankScale: 1,00 1,15 1,30 1,45 1,60; 0, 6, '3' e NaN viram 1, 5, 1 e 1`;
   - `skillEffect('arranque', 3).accelMult ≈ 1 + (base − 1) × 1,30` (base = `SKILLS.arranque.effect.accelMult`);
   - `skillEffect('folego-de-montanha', 5).hillDrainMult >= 0.05` e igual a `max(0.05, 1 − (1 − base) × 1,6) × 0,7`;
@@ -68,12 +68,12 @@ nevoa-amiga `{ weatherLingerS: 15 }` · chama-final `{ durationS: 12 }` · canto
   - `skillEffect` não muta `GameData.SKILLS` (comparar um `JSON.stringify` antes e depois);
   - `rankOf({ skillRanks: { sprint: 4 } }, 'sprint') === 4`, `rankOf({}, 'sprint') === 1`, `rankOf({ skillRanks: { sprint: 9 } }, 'sprint') === 1`;
   - todo id de `SKILLS` tem `rank5`, e `GameData.RARITIES.*.skillChance` é `undefined` (troca a asserção antiga de 0,55).
-- [ ] **Passo 2:** `node prototype/tools/sim-test.js` → falham os testes novos.
-- [ ] **Passo 3:** implementar no `data.js` e no `sim.js`. Valores base do rank 1 **provisórios**: a parte de bônus de hoje
+- [x] **Passo 2:** `node prototype/tools/sim-test.js` → falham os testes novos.
+- [x] **Passo 3:** implementar no `data.js` e no `sim.js`. Valores base do rank 1 **provisórios**: a parte de bônus de hoje
   × 0,6 (a tarefa 4 recalibra pela medição). Atualizar as `desc` para usar números do rank (a tela formata na tarefa 8; aqui
   a `desc` fica com o texto do rank 1).
-- [ ] **Passo 4:** `node prototype/tools/sim-test.js` → passa.
-- [ ] **Passo 5:** commit "adiciona a escala de rank e os marcos das skills".
+- [x] **Passo 4:** `node prototype/tools/sim-test.js` → passa.
+- [x] **Passo 5:** commit "adiciona a escala de rank e os marcos das skills".
 
 ### Tarefa 2: a corrida usa 100% e o rank
 
@@ -88,7 +88,7 @@ de estamina baixa e de saída de subida, clima, `VERSION`, cabeçalho); testes e
   e a chamada `r.rng()` do `tryFire`. `RaceSim.VERSION` sobe.
 - `rollDice(rng, sorte, extraDice, diceTeto)`: aceita até 2 extras; cada extra é `1 + floor(rng() × diceTeto)` (teto 100 sem skill).
 
-- [ ] **Passo 1:** testes que falham em `fx-test.js`:
+- [x] **Passo 1:** testes que falham em `fx-test.js`:
   - `skill sem sorteio: um Comum nível 1 com Arranque ativa em 200 seeds de 200` (pelo evento `skill`);
   - `rank 5 do Segundo Ar dispara com 35% de estamina` (montar um corredor com o tanque caindo; o evento sai antes de 30%);
   - `rank 5 do Sprint dispara numa reta de 100 a 149 m; o rank 4 não`;
@@ -96,14 +96,14 @@ de estamina baixa e de saída de subida, clima, `VERSION`, cabeçalho); testes e
   - `Dado Viciado rank 5 rola 3 ou 4 dados (com o 2º da Sorte); rank 2 nunca passa de 70 no extra`;
   - `mesma seed e mesmos ranks dão o mesmo resultado; subir um rank muda o resultado` (Foco da revisão 5);
   - `nenhuma chamada a Math.random durante simulate` (o mesmo gancho que o `balance.js` usa no G9).
-- [ ] **Passo 2:** `node prototype/tools/fx-test.js` → falham.
-- [ ] **Passo 3:** implementar. O corredor guarda o efeito pronto por skill, `effects[id] = skillEffect(id, rankOf(horse, id),
+- [x] **Passo 2:** `node prototype/tools/fx-test.js` → falham.
+- [x] **Passo 3:** implementar. O corredor guarda o efeito pronto por skill, `effects[id] = skillEffect(id, rankOf(horse, id),
   entry.skillScale)`, na montagem. O `tryFire` lê dali. `minStraightM`, `lowStaminaAt` e `exitRestore` são lidos por
   corredor nos detectores de gatilho. `untilFinish` cria um efeito sem `untilT` nem `untilPos`. `weatherLingerS` guarda o
   fim do reforço quando o clima muda.
-- [ ] **Passo 4:** regenerar os testes de seed fixa que mudaram, **conferindo** cada diferença (a única causa aceita é o fim
+- [x] **Passo 4:** regenerar os testes de seed fixa que mudaram, **conferindo** cada diferença (a única causa aceita é o fim
   do sorteio e a escala). `sim-test.js` e `fx-test.js` passam.
-- [ ] **Passo 5:** commit "faz as skills ativarem sempre, com o efeito do rank".
+- [x] **Passo 5:** commit "faz as skills ativarem sempre, com o efeito do rank".
 
 ### Tarefa 3: Poder, bots e ginásio com rank
 
@@ -117,12 +117,12 @@ testes em `sim-test.js`.
 - `RaceSim.withRanks(horse, rank) -> horse`: cópia com `skillRanks` de todas as skills no rank dado.
 - `GameData` etapas do ginásio: `rank: 1, 1, 1, 2, 2` (soldado-1 … líder); a revanche usa o do líder.
 
-- [ ] **Passo 1:** testes: `Poder sobe ao subir rank (Raro com Sprint rank 1 → 5: +14 × 1 × 0,6, arredondado)`;
+- [x] **Passo 1:** testes: `Poder sobe ao subir rank (Raro com Sprint rank 1 → 5: +14 × 1 × 0,6, arredondado)`;
   `botRank({ skills: ['sprint','drift'], skillRanks: { sprint: 4, drift: 1 } }) === 3` (2,5 arredonda para 3);
   `botRank` de cavalo sem skill === 1; `os oponentes do ginásio saem com skillRanks no rank da etapa`.
-- [ ] **Passo 2:** rodar → falham. **Passo 3:** implementar; os bots da sala recebem `withRanks(bot, botRank(cavaloDoJogador))`
+- [x] **Passo 2:** rodar → falham. **Passo 3:** implementar; os bots da sala recebem `withRanks(bot, botRank(cavaloDoJogador))`
   **antes** do cálculo do Poder do bot. **Passo 4:** `sim-test.js` passa.
-- [ ] **Passo 5:** commit "põe o rank no Poder, nos bots e nos ginásios".
+- [x] **Passo 5:** commit "põe o rank no Poder, nos bots e nos ginásios".
 
 ### Tarefa 4: metas e recalibração
 
@@ -149,10 +149,10 @@ testes em `sim-test.js`.
 **Interfaces:** o potro sai com `skillRanks`: para cada skill herdada, `max(1, maior rank entre os pais que a têm − 1)`; a
 skill sorteada para completar o mínimo fica no rank 1. **Nenhuma chamada nova de `rng()`**.
 
-- [ ] **Passo 1:** testes: `potro herda Sprint rank 3 de pai com rank 4`; `pais com Sprint 2 e 5 → potro rank 4`; `skill
+- [x] **Passo 1:** testes: `potro herda Sprint rank 3 de pai com rank 4`; `pais com Sprint 2 e 5 → potro rank 4`; `skill
   sorteada nasce rank 1`; `a sequência do potro (genética, skills, nome, paleta, marcas) é a mesma de antes para a mesma
   seed` (comparar com o resultado gravado antes da mudança, sem `skillRanks`).
-- [ ] **Passo 2:** rodar → falha. **Passo 3:** implementar. **Passo 4:** passa. **Passo 5:** commit "faz o potro herdar o rank das skills".
+- [x] **Passo 2:** rodar → falha. **Passo 3:** implementar. **Passo 4:** passa. **Passo 5:** commit "faz o potro herdar o rank das skills".
 
 ### Tarefa 6: Pergaminho de técnica e as fontes
 
@@ -168,12 +168,12 @@ código); testes em `sim-test.js` (seção `itens`).
 - Ginásio: soldado-2 e soldado-4 ganham `pergaminhos: 1` no prêmio; líder `pergaminhos: 3`, só na primeira vitória (como a
   Rédea); a revanche fica igual.
 
-- [ ] **Passo 1:** testes: `pergaminhoPodio é determinístico e dá ~50/30/15% em 20.000 seeds (±1,5 p.p.)`; `4º lugar nunca
+- [x] **Passo 1:** testes: `pergaminhoPodio é determinístico e dá ~50/30/15% em 20.000 seeds (±1,5 p.p.)`; `4º lugar nunca
   ganha`; `a loja não lista o pergaminho`; `podeUsar('pergaminho') diz que se usa na aba Skills`; `prêmio do líder dá 3 só na
   primeira vitória`.
-- [ ] **Passo 2:** falha. **Passo 3:** implementar; no `game.js`, o resultado da corrida valendo mostra "+1 Pergaminho" nos
+- [x] **Passo 2:** falha. **Passo 3:** implementar; no `game.js`, o resultado da corrida valendo mostra "+1 Pergaminho" nos
   prêmios quando cai. O treino nunca chama `pergaminhoPodio`. **Passo 4:** passa.
-- [ ] **Passo 5:** commit "adiciona o Pergaminho de técnica e as fontes".
+- [x] **Passo 5:** commit "adiciona o Pergaminho de técnica e as fontes".
 
 ### Tarefa 7: save v9, Cupom e Manual
 
@@ -183,10 +183,10 @@ código); testes em `sim-test.js` (seção `itens`).
 **Interfaces:** `trocarSkill` devolve também `skillRanks` (a que sai é apagada, a que entra fica no rank 1) e
 `rankPerdido`. `tentarDoma` devolve `skillRanks` com a nova no rank 1. O aprender por nível grava o rank 1.
 
-- [ ] **Passo 1:** testes: `save v8 com skills vira v9 com todas no rank 1` (Foco 1); `skillRanks saneado: 0, 7, '3', NaN e
+- [x] **Passo 1:** testes: `save v8 com skills vira v9 com todas no rank 1` (Foco 1); `skillRanks saneado: 0, 7, '3', NaN e
   skill ausente` (Foco 2: 1, 1, 1, 1 e apagada; inteiro 1..5 fica); `trocarSkill num rank 4 devolve rankPerdido 4 e a nova
   rank 1` (Foco 4); `save v10 continua bloqueado` (regra existente).
-- [ ] **Passo 2:** falha. **Passo 3:** implementar; a confirmação do Cupom mostra "Rank IV de Sprint será perdido" quando o
+- [x] **Passo 2:** falha. **Passo 3:** implementar; a confirmação do Cupom mostra "Rank IV de Sprint será perdido" quando o
   rank passa de 1. **Passo 4:** passa. **Passo 5:** commit "grava o rank das skills no save v9".
 
 ### Tarefa 8: subir rank na tela, corrida e DEV
@@ -205,15 +205,15 @@ código); testes em `sim-test.js` (seção `itens`).
 - Balão na pista: `NOME` + rank em romano a partir do II; no rank 5, balão dourado e o destaque no `fx.js`.
 - Gaveta DEV, aba Cavalo: um seletor de 1 a 5 por skill (no lugar do "skills sempre ativam", que sai junto de `ui.devNext.skillsAlways`).
 
-- [ ] **Passo 1:** bloco `ranks` no `ui-test.mjs`: subir 1 → 2 desconta 150 de Ouro e 1 Pergaminho e o Poder sobe; sem
+- [x] **Passo 1:** bloco `ranks` no `ui-test.mjs`: subir 1 → 2 desconta 150 de Ouro e 1 Pergaminho e o Poder sobe; sem
   Pergaminho, o toque mostra o motivo; Ouro exato com a entrada da sala reservada mostra o motivo (Foco 3); com a sala aberta, o
   cavalo ativo fica bloqueado; uma corrida com Arranque III mostra o balão "ARRANQUE III"; rank 5 mostra o balão dourado; o
   seletor DEV muda o rank só no save DEV.
-- [ ] **Passo 2:** `UI_SO=ranks node prototype/tools/ui-test.mjs` → falha.
-- [ ] **Passo 3:** implementar, seguindo o visual das specs do estábulo no celular (2026-11-15) e da corrida viva; a tela
+- [x] **Passo 2:** `UI_SO=ranks node prototype/tools/ui-test.mjs` → falha.
+- [x] **Passo 3:** implementar, seguindo o visual das specs do estábulo no celular (2026-11-15) e da corrida viva; a tela
   cabe no celular de 360 px.
-- [ ] **Passo 4:** `UI_SO=ranks node prototype/tools/ui-test.mjs` passa; `node prototype/tools/ui-test-paralelo.mjs` passa inteiro.
-- [ ] **Passo 5:** commit "adiciona a subida de rank na aba Skills e o rank no balão".
+- [x] **Passo 4:** `UI_SO=ranks node prototype/tools/ui-test.mjs` passa; `node prototype/tools/ui-test-paralelo.mjs` passa inteiro.
+- [x] **Passo 5:** commit "adiciona a subida de rank na aba Skills e o rank no balão".
 
 ### Tarefa 9: documentos, build e verificação final
 
@@ -221,12 +221,12 @@ código); testes em `sim-test.js` (seção `itens`).
 tabela de chance; entram a escala, os marcos, o custo e o Pergaminho), comentário do topo de `sim.js`, `docs/memoria/*`,
 `prototype/dist/` e `prototype/screens/`.
 
-- [ ] **Passo 1:** atualizar GDD e wiki; `node prototype/tools/wiki.mjs` e `node prototype/tools/wiki-test.mjs` passam.
-- [ ] **Passo 2:** `node prototype/build.mjs`; `./scripts/check.sh` → "VERIFICAÇÃO COMPLETA: OK"; `node prototype/tools/balance.js`
+- [x] **Passo 1:** atualizar GDD e wiki; `node prototype/tools/wiki.mjs` e `node prototype/tools/wiki-test.mjs` passam.
+- [x] **Passo 2:** `node prototype/build.mjs`; `./scripts/check.sh` → "VERIFICAÇÃO COMPLETA: OK"; `node prototype/tools/balance.js`
   completo → todas as metas passam. Colar as duas saídas no relatório.
-- [ ] **Passo 3:** a interface mudou de propósito: rodar `node prototype/tools/ui-test.mjs` para regenerar as capturas e
+- [x] **Passo 3:** a interface mudou de propósito: rodar `node prototype/tools/ui-test.mjs` para regenerar as capturas e
   commitar as que mudaram.
-- [ ] **Passo 4:** memória: `ESTADO.md` (frente pronta, contagens), `decisoes.md` (números finais da recalibração), `bugs.md`
+- [x] **Passo 4:** memória: `ESTADO.md` (frente pronta, contagens), `decisoes.md` (números finais da recalibração), `bugs.md`
   se houver. Commit "documenta as skills com ranks" e push.
-- [ ] **Passo 5:** publicar `prototype/dist/jogo-dev.html` como um **artefato novo** de teste (não sobrescrever os oficiais
+- [x] **Passo 5:** publicar `prototype/dist/jogo-dev.html` como um **artefato novo** de teste (não sobrescrever os oficiais
   antes de o Vinicius aprovar) e avisar a coordenação com o link.

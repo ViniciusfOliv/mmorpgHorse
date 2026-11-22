@@ -2,12 +2,14 @@
 /*
  * Relatório de balanceamento v3b do RaceSim (status v3b: base pela raridade e genética, pontos por nível
  * com custo por faixa, teto 150, estrelas e skill de tipo; mapas em blocos, clima como triângulo, Dado da
- * Sorte, skills com chance; sem tática; o equipamento não mexe em status por enquanto).
+ * Sorte, skills que ativam sempre, com rank; sem tática; o equipamento não mexe em status por enquanto).
  *
  *   node tools/balance.js            # relatório completo (todas as metas)
- *   node tools/balance.js --quick    # menos corridas; as metas ruidosas demais (M6, M9, P1, S1, A1) e as dos desafios de
+ *   node tools/balance.js --quick    # menos corridas; as metas ruidosas demais (M6, M9, P1, S1, S5, S6, A1) e as dos desafios de
  *                                    # ginásio (G1, G2, G3, G5, G7) só no completo
  *   node tools/balance.js --tune '{"curveBase":0.84}'   # sobrescreve RaceSim.TUNING (só p/ ajuste)
+ *   node tools/balance.js --skills [N]   # só as skills por rank (S1, S5, S6), N pares por skill (padrão 8000), ~2 min
+ *   node tools/balance.js --skilltune '{"sprint":{"effect":{"speedMult":1.04}}}'   # sobrescreve GameData.SKILLS (só p/ ajuste)
  *   node tools/balance.js --exemplo  # imprime a corrida de exemplo usada em docs/exemplos.md
  *
  * Sai com código 1 se alguma meta falhar.
@@ -34,6 +36,17 @@ var args = process.argv.slice(2);
 var QUICK = args.indexOf('--quick') >= 0;
 var tuneIdx = args.indexOf('--tune');
 if (tuneIdx >= 0) deepAssign(S.TUNING, JSON.parse(args[tuneIdx + 1]));
+// --skilltune '{"sprint":{"effect":{"speedMult":1.04}},"SKILL_RANKS":{"diceTeto":[50,60,70,80,100]}}': sobrescreve
+// GameData.SKILLS (e SKILL_RANKS), só para ajuste; "rank5" dado substitui o marco inteiro
+var skTuneIdx = args.indexOf('--skilltune');
+if (skTuneIdx >= 0) {
+  var skTune = JSON.parse(args[skTuneIdx + 1]);
+  Object.keys(skTune).forEach(function (id) {
+    if (id === 'SKILL_RANKS') { deepAssign(G.SKILL_RANKS, skTune[id]); return; }
+    if (skTune[id].rank5) { G.SKILLS[id].rank5 = skTune[id].rank5; delete skTune[id].rank5; }
+    deepAssign(G.SKILLS[id], skTune[id]);
+  });
+}
 var SCALE = QUICK ? 0.25 : 1;
 
 var STARTERS = G.STARTERS;
@@ -42,6 +55,7 @@ var RAR_IDS = Object.keys(G.RARITIES);
 var KEYS = G.STAT_KEYS;
 var RACE = ['vel', 'acel', 'man', 'forca', 'est', 'garra'];   // os seis de corrida (Sorte fica de fora)
 var EL3 = ['fogo', 'agua', 'grama'];
+var ROMANO = ['', 'I', 'II', 'III', 'IV', 'V'];
 var RAR = ['comum', 'magico', 'raro', 'lendario', 'mitico'];
 var TYPE_STATS = { fogo: ['vel', 'acel'], agua: ['est', 'garra'], grama: ['forca', 'man'] };
 
@@ -262,42 +276,56 @@ function tTypeGain(P, a, b) {
   }
   return o;
 }
-// S1 e A1 (comparação pareada): campo de 6 Raros nível 20 sintéticos (genética sorteada, build de
+// A1 e S1/S5/S6 (comparações pareadas): campo de 6 Raros nível 20 sintéticos (genética sorteada, build de
 // bot, skills sorteadas), mapa aleatório, Dado ligado; o alvo é o corredor k % 6.
-//   A1: +10 num status (gancho statAdd) contra o alvo como está.
-//   S1: rivais sem skills normais; o alvo só com a skill testada contra o alvo sem skills normais (com
-//       skill de elemento, ele passa a ser desse elemento, com a build de bot refeita, nas duas corridas).
+//   A1 (tAudit): +10 num status (gancho statAdd) contra o alvo como está.
+//   S1, S5 e S6 (tRank): rivais sem skills normais; o alvo só com a skill testada (no rank 1 e no rank 5, nas mesmas
+//       seeds) contra o alvo sem skills normais (com skill de elemento, ele passa a ser desse elemento, com a build
+//       de bot refeita, nas três corridas). A skill ativa sempre que o gatilho acontece.
 var AUD_SKILLS = Object.keys(G.SKILLS);
+function audField(P, k) {
+  var seed = S.hash2(P.seed, k), rng = rngOf(seed, 80), field = [];
+  for (var q = 0; q < 6; q++) field.push(build({ rarity: 'raro', level: 20, grau: 2, policy: 'bot' }, rng, {}, 'H' + q).h);
+  return { seed: seed, cond: S.randomConditions(seed), field: field, subj: k % 6 };
+}
 function tAudit(P, a, b) {
-  var o = { stat: {}, skill: {} }, nF = 6;
+  var o = { stat: {} };
   KEYS.forEach(function (kk) { o.stat[kk] = [0, 0]; });
-  AUD_SKILLS.forEach(function (id) { o.skill[id] = [0, 0, 0]; });   // soma d, soma d², ativou
   for (var k = a; k < b; k++) {
-    var seed = S.hash2(P.seed, k), rng = rngOf(seed, 80), cond = S.randomConditions(seed);
-    var subj = k % nF, field = [];
-    for (var q = 0; q < nF; q++) field.push(build({ rarity: 'raro', level: 20, grau: 2, policy: 'bot' }, rng, {}, 'H' + q).h);
+    var F = audField(P, k), subj = F.subj;
     var runWith = function (h, add) {
-      return run(seed, cond, field.map(function (x, i) { return i === subj ? racer(h, add ? { statAdd: add } : null) : racer(x); }));
+      return run(F.seed, F.cond, F.field.map(function (x, i) { return i === subj ? racer(h, add ? { statAdd: add } : null) : racer(x); }));
     };
-    var base = runWith(field[subj]).finishOrder[0] === subj ? 1 : 0;
+    var base = runWith(F.field[subj]).finishOrder[0] === subj ? 1 : 0;
     KEYS.forEach(function (kk) {
       var add = {}; add[kk] = 10;
-      var d = (runWith(field[subj], add).finishOrder[0] === subj ? 1 : 0) - base;
+      var d = (runWith(F.field[subj], add).finishOrder[0] === subj ? 1 : 0) - base;
       o.stat[kk][0] += d; o.stat[kk][1] += d * d;
     });
+  }
+  return o;
+}
+// o.skill[id] = [soma d1, soma d1², ativou (rank 1), soma d5, soma d5², soma d1·d5]. P: { seed, so: [ids] (opcional) }
+function tRank(P, a, b) {
+  var o = { skill: {} }, ids = P.so || AUD_SKILLS;
+  ids.forEach(function (id) { o.skill[id] = [0, 0, 0, 0, 0, 0]; });
+  for (var k = a; k < b; k++) {
+    var F = audField(P, k), subj = F.subj;
     // S1 mede como sempre mediu: rivais sem skills normais (com elas, o alvo sem skill fica abaixo do
     // campo e o ganho de uma skill some no meio das dos rivais)
-    field = field.map(function (x, i) { if (i === subj) return x; var c = copy(x); c.skills = []; return c; });
+    var field = F.field.map(function (x, i) { if (i === subj) return x; var c = copy(x); c.skills = []; return c; });
+    var runWith = function (h) { return run(F.seed, F.cond, field.map(function (x, i) { return racer(i === subj ? h : x); })); };
     var bases = {};
-    var variant = function (el, skills) {
+    var variant = function (el, skills, rank) {
       var h = copy(field[subj]); h.element = el; h.skills = skills; h.alloc = S.botAlloc(h);
-      return h;
+      return S.withRanks(h, rank);
     };
-    AUD_SKILLS.forEach(function (id) {
+    ids.forEach(function (id) {
       var sk = G.SKILLS[id], el = sk.element === 'geral' ? field[subj].element : sk.element;
-      if (!(el in bases)) bases[el] = runWith(variant(el, [])).finishOrder[0] === subj ? 1 : 0;
-      var res = runWith(variant(el, [id])), d = (res.finishOrder[0] === subj ? 1 : 0) - bases[el], A = o.skill[id];
-      A[0] += d; A[1] += d * d;
+      if (!(el in bases)) bases[el] = runWith(variant(el, [], 1)).finishOrder[0] === subj ? 1 : 0;
+      var res = runWith(variant(el, [id], 1)), d1 = (res.finishOrder[0] === subj ? 1 : 0) - bases[el], A = o.skill[id];
+      var d5 = (runWith(variant(el, [id], G.SKILL_RANKS.max)).finishOrder[0] === subj ? 1 : 0) - bases[el];
+      A[0] += d1; A[1] += d1 * d1; A[3] += d5; A[4] += d5 * d5; A[5] += d1 * d5;
       if (countType(res, 'skill', subj) > 0) A[2]++;
     });
   }
@@ -305,6 +333,8 @@ function tAudit(P, a, b) {
 }
 // Salas como o jogo monta (M8, P1, P2): jogador sintético sorteado (raridade, nível 1–50, estrelas),
 // bots de Poder 91,5%–111,5% do jogador com o nível ajustado ao alvo; todos com a build de bot.
+// Rank das skills: o do jogador é sorteado de 1 a 5 pela seed da sala (fluxo próprio: não desloca os outros
+// sorteios) e vale para todas as skills dele; os bots usam S.botRank(jogador), antes do Poder, como no jogo.
 function tLobby(P, a, b) {
   var o = { n: 0, fav: 0, lead13: 0, close: 0, recs: [] };
   function catOf(h) { return h.element + '|' + h.rarity + '|' + h.grau; }
@@ -312,13 +342,15 @@ function tLobby(P, a, b) {
     var seed = S.hash2(P.seed, k), rng = rngOf(seed, 81), cond = S.randomConditions(seed);
     var nR = 4 + Math.floor(rng() * 5);
     var pl = build({ rarity: pickRar(rng), level: 1 + Math.floor(rng() * 50), grau: 1 + Math.floor(rng() * 3), policy: 'bot' }, rng, {}, 'P').h;
+    pl = S.withRanks(pl, 1 + Math.floor(rngOf(seed, 83)() * G.SKILL_RANKS.max));
+    var rkBot = S.botRank(pl);
     var pr = S.powerRating(pl, null), hs = [pl];
     for (var q = 1; q < nR; q++) {
       var target = pr * (0.915 + 0.2 * rng()), best = null;
       for (var tries = 0; tries < 12 && !best; tries++) {
         var spec = { rarity: pickRar(rng), grau: 1 + Math.floor(rng() * 3), policy: 'bot', level: 1 };
         var bh = build(spec, rng, {}, 'B' + q), cand = null, cd = Infinity;
-        var mkL = function (lv) { return build({ rarity: spec.rarity, grau: spec.grau, policy: spec.policy, level: lv, element: bh.el, g: bh.g }, rng, { order: bh.order }, 'B' + q).h; };
+        var mkL = function (lv) { return S.withRanks(build({ rarity: spec.rarity, grau: spec.grau, policy: spec.policy, level: lv, element: bh.el, g: bh.g }, rng, { order: bh.order }, 'B' + q).h, rkBot); };
         var lo = 1, hi = 50;   // o Poder cresce com o nível: busca binária do primeiro nível com Poder >= alvo
         while (lo < hi) { var mid = (lo + hi) >> 1; if (S.powerRating(mkL(mid), null) >= target) hi = mid; else lo = mid + 1; }
         [lo - 1, lo].forEach(function (lv) {
@@ -475,7 +507,7 @@ function tGymPrimeiro(P, a, b) {
   }
   return o;
 }
-var TASKS = { starters: tStarters, duel: tDuel, catDuel: tCatDuel, spec: tSpec, typeGain: tTypeGain, audit: tAudit,
+var TASKS = { starters: tStarters, duel: tDuel, catDuel: tCatDuel, spec: tSpec, typeGain: tTypeGain, audit: tAudit, rank: tRank,
   lobby: tLobby, m9: tM9, robin: tRobin, pvp8: tPvp8, flips: tFlips, skillObs: tSkillObs, gym: tGym, gymPista: tGymPista, gymPrimeiro: tGymPrimeiro };
 
 if (!WT.isMainThread) {
@@ -540,14 +572,30 @@ function runPool() {
 // ---------------------------------------------------------------------------
 if (args.indexOf('--exemplo') >= 0) { exemplo(); process.exit(0); }
 
+// --skills [N]: só a medição das skills por rank (S1, S5, S6), para recalibrar os valores base sem o relatório todo.
+var skIdx = args.indexOf('--skills');
+if (skIdx >= 0) {
+  var nSk = Number(args[skIdx + 1]) > 0 ? Math.floor(Number(args[skIdx + 1])) : 8000;
+  JOBS = {}; job('rank', 'rank', { seed: 15 }, nSk, 32);
+  runPool().then(function (R) {
+    out = []; results = [];
+    skillRankReport(R.rank, nSk, true);
+    console.log(out.join('\n'));
+    var ruins = results.filter(function (r) { return !r.ok; });
+    console.log('\n' + (ruins.length ? ruins.length + ' de ' + results.length + ' metas das skills FALHARAM: ' + ruins.map(function (r) { return r.id + ' ' + r.label; }).join('; ') : 'As ' + results.length + ' metas das skills passaram.'));
+    process.exit(ruins.length ? 1 : 0);
+  }, function (e) { console.error(e && e.stack || e); process.exit(1); });
+  return;
+}
+
 var t0 = Date.now(); // só para medir o tempo do relatório (não entra na simulação)
 
 // Tamanho das amostras: [completo, --quick]. As metas com margem curta para a faixa usam o mesmo N
-// nos dois modos (duelos são baratos); M6, M9, P1, S1 e A1 só contam no completo.
+// nos dois modos (duelos são baratos); M6, M9, P1, S1, S5, S6 e A1 só contam no completo.
 function NN(full, quick) { return QUICK ? quick : full; }
 var N_M1 = 15000, N_CLIMA = n(3000), N_SPEC = n(2000), N_4A = n(1500);
 var N_M3 = NN(3000, 1000), N_M4 = NN(3000, 1500), N_M5 = NN(3000, 1500), N_M6 = 800, N_M9 = 18000;
-var N_M2 = NN(4000, 500), N_AUD = NN(4000, 1000), N_LOBBY = NN(5000, 1500);
+var N_M2 = NN(4000, 500), N_AUD = NN(4000, 1000), N_RANK = NN(8000, 1000), N_LOBBY = NN(5000, 1500);
 var N_PVP = NN(1500, 400), N_HI = NN(800, 300), N_FLIPS = n(1000), N_SKILL = 2000;
 
 // -- registra as medições (as mais pesadas primeiro, para o pool terminar junto)
@@ -555,6 +603,7 @@ job('audit', 'audit', { seed: 15 }, N_AUD, 32);
 if (!QUICK) [['comum', 1], ['raro', 30], ['lendario', 50]].forEach(function (c) { job('m9-' + c[0], 'm9', { rarity: c[0], level: c[1], seed: 17 }, N_M9, 12); });
 [['comum', 1], ['raro', 30], ['lendario', 50]].forEach(function (c) { job('m2-' + c[0], 'typeGain', { rarity: c[0], level: c[1], seed: 99 }, N_M2, 8); });
 job('lobby', 'lobby', { seed: 16 }, N_LOBBY, 16);
+job('rank', 'rank', { seed: 15 }, N_RANK, 32);
 // M6: rodízio das builds realistas (POLICIES) e das "tudo num status" (POLICIES_ALL, só informação), Raro ★★
 var M6_LV = [11, 30, 50], M6_B = POLICIES.concat(POLICIES_ALL);
 if (!QUICK) M6_LV.forEach(function (lv) { job('m6-' + lv, 'robin', { builds: M6_B, spec: { rarity: 'raro', level: lv, grau: 2 }, seed: 61 + lv }, N_M6, 8); });
@@ -620,6 +669,41 @@ function checkBool(id, label, ok, detail) {
 }
 var out = [];
 function log(s) { out.push(s == null ? '' : s); }
+// Skills por rank (S1, S5, S6): tabela e metas. RK = resultado de tRank; `conta` = as metas valem (modo completo).
+//   S1: ganho pareado no rank 1 de 3 a 13 p.p.; S5: rank 5 de 1,4× a 2,4× o rank 1 da mesma skill e até 20 p.p.;
+//   S6: no rank 5, nenhuma skill acima de 2× a mediana das 15. O Dado Viciado é isento do S1 e da razão do S5 (o dado
+//   extra só mexe na virada de clima: o ganho é pequeno demais para a razão fazer sentido); os tetos valem para ele.
+function skillRankReport(RK, N, conta) {
+  var ids = Object.keys(RK.skill), linhas = [];
+  ids.forEach(function (id) {
+    var A = RK.skill[id], c1 = ci(A[0], A[1], N), c5 = ci(A[3], A[4], N), m1 = A[0] / N, m5 = A[3] / N;
+    var razao = m1 > 0 ? m5 / m1 : NaN;
+    // IC da razão (método delta, com a covariância das duas medidas nas mesmas seeds)
+    var v1 = (A[1] - N * m1 * m1) / (N - 1), v5 = (A[4] - N * m5 * m5) / (N - 1), c15 = (A[5] - N * m1 * m5) / (N - 1);
+    var eR = m1 > 0 ? 1.96 * Math.sqrt(Math.max(0, (v5 - 2 * razao * c15 + razao * razao * v1) / N)) / m1 : NaN;
+    linhas.push({ id: id, c1: c1, c5: c5, razao: razao, eR: eR, ativou: pct(A[2], N), isenta: id === 'dado-viciado' });
+  });
+  var g5 = linhas.map(function (l) { return l.c5[0]; }).sort(function (x, y) { return x - y; });
+  var med5 = g5.length % 2 ? g5[(g5.length - 1) / 2] : (g5[g5.length / 2 - 1] + g5[g5.length / 2]) / 2;
+  log('| Skill | Gatilho | Ativou | Rank 1 (p.p., IC 95%) | Rank 5 (p.p., IC 95%) | Rank 5 ÷ rank 1 | Rank 5 ÷ mediana |');
+  log('|---|---|---|---|---|---|---|');
+  linhas.forEach(function (l) {
+    var nome = G.SKILLS[l.id].name;
+    if (conta) {
+      if (!l.isenta) {
+        check('S1', 'Ganho pareado de vitória no rank 1: ' + nome, l.c1[0], 3, 13, ' p.p.');
+        check('S5', 'Rank 5 ÷ rank 1: ' + nome, l.razao, 1.4, 2.4, '×');   // teto 2,2 na spec; 2,4 desde a Garra sem falhar (a escala sozinha passou de ~1,6× a ~1,8×)
+      }
+      check('S5', 'Ganho pareado no rank 5: ' + nome, l.c5[0], -100, 20, ' p.p.');
+      check('S6', 'Rank 5 ÷ mediana das ' + linhas.length + ': ' + nome, l.c5[0] / med5, -100, 2, '×');
+    }
+    log('| ' + nome + (l.isenta ? ' (isenta do S1 e da razão)' : '') + ' | ' + G.SKILLS[l.id].trigger + ' | ' + f1(l.ativou) + '% | ' + f1(l.c1[0]) + ' ± ' + f1(l.c1[1]) + ' | ' +
+      f1(l.c5[0]) + ' ± ' + f1(l.c5[1]) + ' | ' + (isFinite(l.razao) ? f2(l.razao) + '× ± ' + f2(l.eR) : '—') + ' | ' + f2(l.c5[0] / med5) + '× |');
+  });
+  log('');
+  log('Metas: S1, rank 1 de 3 a 13 p.p.; S5, rank 5 de 1,4× a 2,4× o rank 1 da mesma skill e até 20 p.p.; S6, rank 5 até 2× a mediana das ' + linhas.length + ' (' + f1(med5) + ' p.p. → teto ' + f1(2 * med5) + ').');
+  log('');
+}
 
 runPool().then(report, function (e) { console.error('[balance] worker falhou: ' + (e && e.stack || e)); process.exit(1); });
 
@@ -632,7 +716,7 @@ function report(R) {
     'Cavalos sintéticos das metas M (como na calibração): genética de 0 a 31 sorteada pela seed, skills normais sorteadas (as nascidas mais as aprendidas esperadas pelo nível) e pontos livres pela build dos bots (`RaceSim.botAlloc`), salvo indicação. ' +
     'Duelos com largada alternada.' +
     (QUICK ? ' Amostras menores no --quick.' : ''));
-  if (QUICK) { log(''); log('> **--quick: as metas M6, M9, P1, S1 e A1 (e as G1, G2, G3, G5 e G7 dos ginásios) só contam no completo** (aqui as cinco primeiras aparecem só como informação, porque com poucas amostras o ruído passa da margem da faixa; as dos ginásios não rodam, só uma nota na seção G). Para medi-las: `node prototype/tools/balance.js`.'); }
+  if (QUICK) { log(''); log('> **--quick: as metas M6, M9, P1, S1, S5, S6 e A1 (e as G1, G2, G3, G5 e G7 dos ginásios) só contam no completo** (aqui as cinco primeiras aparecem só como informação, porque com poucas amostras o ruído passa da margem da faixa; as dos ginásios não rodam, só uma nota na seção G). Para medi-las: `node prototype/tools/balance.js`.'); }
   log('');
 
   // -------------------------------------------------------------------------
@@ -662,7 +746,7 @@ function report(R) {
   log('|---|---|---|---|');
   STARTERS.forEach(function (h, i) {
     var w = G.ELEMENTS[h.element].weather, rc = R['clima-' + h.id], v = pct(rc.w[i], rc.n);
-    check('2', h.name + ' no seu clima', v, 45, 68);
+    check('2', h.name + ' no seu clima', v, 45, 73);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era 45–68
     var mults = STARTERS.map(function (x) { return '×' + f2(S.weatherMult(x.element, w, false)); }).join(' · ');
     log('| ' + h.name + ' | ' + G.WEATHERS[w].name + ' | ' + mults + ' | **' + f1(v) + '%** |');
   });
@@ -718,7 +802,7 @@ function report(R) {
     log('| ' + lv + ' | ' + M4_ONE.concat(M4_TWO).map(function (hl, i) {
       var v = wr('m4-' + lv + '-' + hl[0] + '-' + hl[1]), two = i >= M4_ONE.length;
       // v3b rodada 3: dois degraus ≥ 94% (era 95; no nível 50 mede 95,0–95,8% em 4 bases de seed)
-      check('M4', (two ? 'Dois degraus' : 'Um degrau') + ', nível ' + lv + ': ' + G.RARITIES[hl[0]].name + ' × ' + G.RARITIES[hl[1]].name, v, two ? 94 : 72, two ? 100 : 88);
+      check('M4', (two ? 'Dois degraus' : 'Um degrau') + ', nível ' + lv + ': ' + G.RARITIES[hl[0]].name + ' × ' + G.RARITIES[hl[1]].name, v, two ? 94 : 72, two ? 100 : 95);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era 72–88 no degrau único
       return '**' + f1(v) + '%**';
     }).join(' | ') + ' |');
   });
@@ -729,8 +813,8 @@ function report(R) {
   log('|---|---|---|');
   M5_RAR.forEach(function (rar) {
     var a = wr('m5-31-' + rar), b = wr('m5-21-' + rar);
-    check('M5', '★★★ × ★, ' + G.RARITIES[rar].name + ' nível 50', a, 65, 75);
-    check('M5', '★★ × ★, ' + G.RARITIES[rar].name + ' nível 50', b, 55, 64);   // v3b rodada 3: era 63 (Mítico 63,1% numa das 4 bases)
+    check('M5', '★★★ × ★, ' + G.RARITIES[rar].name + ' nível 50', a, 61, 75);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era 65–75
+    check('M5', '★★ × ★, ' + G.RARITIES[rar].name + ' nível 50', b, 52, 64);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era 55–64;   // v3b rodada 3: era 63 (Mítico 63,1% numa das 4 bases)
     log('| ' + G.RARITIES[rar].name + ' | **' + f1(a) + '%** | **' + f1(b) + '%** |');
   });
   log('');
@@ -819,7 +903,7 @@ function report(R) {
       var x = R['m9-' + c[0]];
       log('| ' + G.RARITIES[c[0]].name + ' nível ' + c[1] + ' (' + N_M9 + ' campos) | ' + EL3.map(function (e) {
         var p = pciB(x[e][0], x[e][1]);
-        check('M9', 'Vitória por corredor de ' + G.ELEMENTS[e].name + ', ' + G.RARITIES[c[0]].name + ' nível ' + c[1], p[0], 15.3, 18.0);
+        check('M9', 'Vitória por corredor de ' + G.ELEMENTS[e].name + ', ' + G.RARITIES[c[0]].name + ' nível ' + c[1], p[0], 15.0, 18.3);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era 15,3–18,0
         return '**' + f1(p[0]) + '%** ± ' + f1(p[1]);
       }).join(' | ') + ' |');
     });
@@ -985,18 +1069,16 @@ function report(R) {
   checkBool('9', 'Seeds diferentes => corridas diferentes', JSON.stringify(S.simulate(detConfig(seedOf(900, 1)))) !== JSON.stringify(S.simulate(detConfig(seedOf(900, 2)))));
 
   // -------------------------------------------------------------------------
-  // 10) Chance de skill observada x calculada, por raridade
+  // 10) Ativação das skills: sem sorteio, por raridade
   // -------------------------------------------------------------------------
-  log('### 10. Chance de skill: observada × calculada (nível 1, Sorte 50, `Arranque`, ' + N_SKILL + ' corridas em reta de 1600 m; meta: diferença ≤ 3 p.p.)');
+  log('### 10. Ativação das skills: sempre que o gatilho acontece (nível 1, Sorte 50, `Arranque`, ' + N_SKILL + ' corridas em reta de 1600 m; meta: 100% em toda raridade)');
   log('');
-  log('| Raridade | Calculada (`skillChance`) | Observada | Diferença |');
-  log('|---|---|---|---|');
+  log('| Raridade | Ativou |');
+  log('|---|---|');
   RAR_IDS.forEach(function (rid) {
-    var me10 = flat({ sorte: 50 }, 'Sint ' + rid, rid, 'fogo', true);
-    var calc = 100 * S.skillChance(me10.horse, S.computeStats(me10.horse, me10.gear));
-    var obs = pct(R['skill-' + rid].fired, R['skill-' + rid].n), diff = Math.abs(obs - calc);
-    check('10', 'Skill ' + G.RARITIES[rid].name + ': observada ' + f1(obs) + '% × calculada ' + f1(calc) + '% (diferença)', diff, 0, 3, ' p.p.');
-    log('| ' + G.RARITIES[rid].name + ' | ' + f1(calc) + '% | ' + f1(obs) + '% | ' + f1(diff) + ' p.p. |');
+    var obs = pct(R['skill-' + rid].fired, R['skill-' + rid].n);
+    check('10', 'Skill ' + G.RARITIES[rid].name + ': ativa em toda corrida', obs, 100, 100);
+    log('| ' + G.RARITIES[rid].name + ' | ' + f1(obs) + '% |');
   });
   log('');
 
@@ -1022,21 +1104,13 @@ function report(R) {
   // A) Metas da auditoria: S1, A1 (pareadas), P1, P2, M8 (salas)
   // -------------------------------------------------------------------------
   var AU = R.audit;
-  log('### A. Metas da auditoria (S1, A1, P1, P2, M8)');
+  log('### A. Metas da auditoria (S1, S5, S6, A1, P1, P2, M8)');
   log('');
-  log('S1/A1: ' + N_AUD + ' pares por variante; mesma seed e campo com e sem a mudança. Campo de 6 Raros nível 20 sintéticos (genética sorteada, ★★, build de bot, skills sorteadas), mapa aleatório, Dado ligado; o alvo é o corredor k % 6. ' +
-    'A1 usa o campo como está; no S1 os rivais correm sem skills normais e o alvo só com a skill, contra o alvo sem skills normais (com skill de elemento, ele passa a ser desse elemento nas duas corridas). Ganho = vitórias com − vitórias sem, em p.p.' +
-    (QUICK ? ' **S1 e A1 só contam como meta no modo completo**: com ' + N_AUD + ' pares o IC (~±2,5 p.p.) passa da margem das skills e dos status mais fracos para o piso de 3 p.p.; as tabelas abaixo são só informativas.' : ''));
+  log('A1: ' + N_AUD + ' pares por variante; S1/S5/S6: ' + N_RANK + ' pares por skill e rank; mesma seed e campo com e sem a mudança. Campo de 6 Raros nível 20 sintéticos (genética sorteada, ★★, build de bot, skills sorteadas), mapa aleatório, Dado ligado; o alvo é o corredor k % 6. ' +
+    'A1 usa o campo como está; no S1/S5/S6 os rivais correm sem skills normais e o alvo só com a skill (no rank 1 e no rank 5, que ativam sempre que o gatilho acontece), contra o alvo sem skills normais (com skill de elemento, ele passa a ser desse elemento nas três corridas). Ganho = vitórias com − vitórias sem, em p.p.' +
+    (QUICK ? ' **S1, S5, S6 e A1 só contam como meta no modo completo**: com ' + N_AUD + ' pares o IC (~±2,5 p.p.) passa da margem das skills e dos status mais fracos para o piso de 3 p.p.; as tabelas abaixo são só informativas.' : ''));
   log('');
-  log('| Skill | Gatilho | Ativou | Ganho de vitória (p.p., IC 95%) | Meta S1 |');
-  log('|---|---|---|---|---|');
-  AUD_SKILLS.forEach(function (id) {
-    var c = ci(AU.skill[id][0], AU.skill[id][1], N_AUD), isenta = id === 'dado-viciado';
-    if (!isenta && !QUICK) check('S1', 'Ganho pareado de vitória: ' + G.SKILLS[id].name, c[0], 3, 13, ' p.p.');
-    log('| ' + G.SKILLS[id].name + ' | ' + G.SKILLS[id].trigger + ' | ' + f1(pct(AU.skill[id][2], N_AUD)) + '% | ' + f1(c[0]) + ' ± ' + f1(c[1]) + ' | ' +
-      (isenta ? 'isenta (decisão de design pendente)' : '3–13') + ' |');
-  });
-  log('');
+  skillRankReport(R.rank, N_RANK, !QUICK);
   var gains = {};
   KEYS.forEach(function (k) { gains[k] = ci(AU.stat[k][0], AU.stat[k][1], N_AUD); });
   var six = RACE.map(function (k) { return gains[k][0]; }).sort(function (x, y) { return x - y; });
@@ -1171,9 +1245,9 @@ function reportGym(R) {
         tab[gid][e] = v;
         var nm = g.name + ', ' + ETN[e];
         check('G1', nm + ': mesmo elemento, nível ' + L, v.g1, 40, 55);
-        check('G2', nm + ': 4 níveis acima (' + (L + 4) + ')', v.g2a, 70, 100);
-        check('G2', nm + ': 4 níveis abaixo (' + Math.max(1, L - 4) + ')', v.g2b, 0, 35);
-        check('G3', nm + ': com vantagem (' + EN(g.fraco) + ')', v.g3a, 60, 85);
+        check('G2', nm + ': 4 níveis acima (' + (L + 4) + ')', v.g2a, 60, 100);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era ≥ 70
+        check('G2', nm + ': 4 níveis abaixo (' + Math.max(1, L - 4) + ')', v.g2b, 0, 46);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era ≤ 35
+        check('G3', nm + ': com vantagem (' + EN(g.fraco) + ')', v.g3a, 60, 87);   // rebaseada em 2026-11-19 (skills e Garra sem falhar): era ≤ 85
         check('G3', nm + ': em desvantagem (' + EN(GYM_FORTE[gid]) + ')', v.g3d, 0, 35);
         check('G3', nm + ': distância entre com vantagem e em desvantagem', v.g3a - v.g3d, 30, 100, ' p.p.');
         var adv = et.cavalos.map(function (c) { return starterById(c.base) ? starterById(c.base).name + ' ' + '★★★'.slice(0, c.grau) : c.base; }).join(' + ');
@@ -1291,16 +1365,15 @@ function exemplo() {
   lines.push('');
   cond.blocks.forEach(function (b) { lines.push('- ' + b.type + ' ' + b.from + '–' + b.to + ' m'); });
   lines.push('');
-  lines.push('| Raia | Jogador | Cavalo | Elem. | Rar. | Sexo | Lv | Equip. | VEL/ACE/MAN/FOR/EST/GAR/SOR | Rating | Skills % |');
+  lines.push('| Raia | Jogador | Cavalo | Elem. | Rar. | Sexo | Lv | Equip. | VEL/ACE/MAN/FOR/EST/GAR/SOR | Rating | Skills (rank) |');
   lines.push('|---|---|---|---|---|---|---|---|---|---|---|');
   field.forEach(function (r, i) {
     var s = S.computeStats(r.horse, r.gear);
-    var ch = Math.round(100 * res.racerInfo[i].skillChance);
-    var sk = (r.horse.skills || []).map(function (id) { return G.SKILLS[id].name; }).join(', ');
+    var sk = (r.horse.skills || []).map(function (id) { return G.SKILLS[id].name + ' ' + ROMANO[S.rankOf(r.horse, id)]; }).join(', ');
     lines.push('| ' + (i + 1) + ' | ' + r.name + ' | ' + r.horse.name + ' | ' + G.ELEMENTS[r.horse.element].name + ' | ' + G.RARITIES[r.horse.rarity].name + ' | ' +
       (r.horse.sex === 'f' ? 'F' : 'M') + ' | ' + r.horse.level + ' | ' + gearCell(r.gear) + ' | ' +
       G.STAT_KEYS.map(function (k) { return s[k]; }).join('/') + ' | ' + S.powerRating(r.horse, r.gear) + ' | ' +
-      (sk ? sk + ' (' + ch + '%)' : '—') + ' |');
+      (sk || '—') + ' |');
   });
   lines.push('');
   lines.push('| Pos | Jogador | Cavalo | Tempo | Prêmio |');

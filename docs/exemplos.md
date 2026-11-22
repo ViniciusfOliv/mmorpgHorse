@@ -58,15 +58,36 @@ do que o Poder prevê.
 ## 3. Quanto vale cada skill e cada status
 
 Comparação pareada: a mesma corrida (seed e rivais) com e sem a mudança, 6 Raros nível 20, mapa
-aleatório, Dado ligado. O número é o ganho na taxa de vitória (a base é ~17%). Meta S1: 3 a 13 p.p.
+aleatório, Dado ligado. O número é o ganho na taxa de vitória (a base é ~17%).
 
-| Skill | Ganho (p.p.) | | Skill | Ganho (p.p.) | | Skill | Ganho (p.p.) |
-|---|---|---|---|---|---|---|---|
-| Drift | 12,7 | | Casco Firme | 9,3 | | Fôlego de Montanha | 5,7 |
-| Arranque | 12,4 | | Arrancada Final | 8,8 | | Canto da Iara | 5,4 |
-| Pé na Chuva | 8,1 | | Nascente | 7,8 | | Segundo Ar | 5,3 |
-| Sol a Pino | 6,3 | | Névoa Amiga | 6,3 | | Saída Rápida | 5,1 |
-| Sprint | 4,9 | | Chama Final | 4,0 | | | |
+**Skills com rank e Garra sem falhar (2026-11-19, simulação 4.1.0):** a skill de vaga ativa sempre que o gatilho
+acontece, e o efeito cresce com o rank (fator 1,00 a 1,60, mais o marco no rank V). A Garra também sai sempre; o status
+dá o ponto de início e a força média, e a seed dá a força de cada corrida (de 0 a 2× a média). Metas: S1, rank I de 3 a
+13 p.p.; S5, rank V de 1,4× a 2,4× o rank I e até 20 p.p.; S6, rank V até 2× a mediana. 8.000 pares por skill
+(`node prototype/tools/balance.js --skills`).
+
+| Skill | Antes (com sorteio) | Rank I | Rank V | V ÷ I |
+|---|---|---|---|---|
+| Arranque | 12,4 | 8,7 | 15,7 | 1,80× |
+| Drift | 12,7 | 8,1 | 18,0 | 2,23× |
+| Casco Firme | 9,3 | 7,4 | 16,4 | 2,22× |
+| Sol a Pino | 6,3 | 7,4 | 16,2 | 2,19× |
+| Pé na Chuva | 8,1 | 7,2 | 14,8 | 2,04× |
+| Névoa Amiga | 6,3 | 7,1 | 15,8 | 2,23× |
+| Arrancada Final | 8,8 | 6,9 | 14,1 | 2,04× |
+| Fôlego de Montanha | 5,7 | 6,7 | 14,2 | 2,14× |
+| Chama Final | 4,0 | 5,1 | 10,1 | 1,99× |
+| Nascente | 7,8 | 5,1 | 8,6 | 1,67× |
+| Saída Rápida | 5,1 | 4,8 | 9,4 | 1,96× |
+| Sprint | 4,9 | 4,6 | 7,5 | 1,65× |
+| Segundo Ar | 5,3 | 4,2 | 8,2 | 1,93× |
+| Canto da Iara | 5,4 | 4,2 | 6,5 | 1,57× |
+| Dado Viciado (isento) | 1,3 | 0,2 | 1,5 | — |
+
+Com a Garra sem falhar e força fixa, o favorito do Poder vencia 69,2% e um degrau de raridade 97–99%: a corrida ficava
+previsível. Com a força variável, o favorito vence **51,1%** (meta 35–55%), quem lidera em 1/3 vence 37,8% e 6,0% das
+corridas acabam com menos de 1 m. +10 num status vale de 9,8 (Garra) a 11,8 p.p. (Manobra). As 344 metas do
+`balance.js` completo passam, com as faixas rebaseadas listadas no `decisoes.md` de 2026-11-19.
 
 | +10 pontos em | Manobra | Velocidade | Aceleração | Estamina | Força | Garra | Sorte |
 |---|---|---|---|---|---|---|---|
@@ -137,7 +158,7 @@ leva ~6 min de corrida.
 Do bloco 1b (spec §15; detalhes no `docs/memoria/ESTADO.md`), **ainda em aberto** até o Vinicius jogar:
 - **A build equilibrada é a mais forte** (o bot a 60–65% no nível 50; as inclinadas em 44–54%). Mudar a regra
   (custo que para de subir, retorno extra por concentrar) não foi medido.
-- **A corrida mudou de sensação** (mais curta, "Cansou" some, a Garra dispara em 58% das corridas): olhar a animação.
+- **A corrida mudou de sensação** (mais curta, "Cansou" some, a Garra disparava em 58% das corridas; desde 2026-11-19 sai em todas, com força variável): olhar a animação.
 - **Iniciais no nível 25 caem para a Prata** (eram Ouro).
 - **A Sorte vale pouco** (0,7 p.p.; o Dado Viciado, 1,3 p.p. no modelo anterior): é só de nascimento, por desenho.
   Proposta antiga ainda aberta: a Sorte pesar mais na chance de skill, com a base de cada raridade compensada para baixo.
@@ -145,7 +166,7 @@ Do bloco 1b (spec §15; detalhes no `docs/memoria/ESTADO.md`), **ainda em aberto
   ginásio; não está à venda. **Menos uso para o Ouro** com a loja suspensa.
 - **Conjunto de 3 peças:** medido em 2026-11-10 (+1 p.p., e +14 no salto para 4 peças); com o equipamento
   suspenso, a decisão (efeito real ou degrau assumido) espera o equipamento voltar.
-- **Garra e "Cansou":** a Garra agora dispara em 58% (não é momento raro); o erro do jóquei caiu e "Cansou" quase some.
+- **Garra e "Cansou":** a Garra disparava em 58% (desde 2026-11-19 sai sempre, com força variável); o erro do jóquei caiu e "Cansou" quase some.
 - **Zebra por ruído na velocidade: testada em 2026-11-10 e não recomendada.** Com ±2% o favorito caía de
   49% para 41%, mas a corrida ficava decidida mais cedo. Zebra boa vem do fim da corrida (Garra, cansaço).
 - **Os números saíram de simulação:** o Vinicius ainda não jogou o modelo do crescimento livre.
