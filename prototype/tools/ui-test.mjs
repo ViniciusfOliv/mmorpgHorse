@@ -9223,7 +9223,9 @@ try {
   const ALTURA_STATUS_3B = 1470
   // 2026-11-21, etapa 1a da direção de arte (Galmuri no lugar da Jersey, mais larga: o texto quebra mais linhas): as
   // alturas medidas com a fonte nova (SAVE_3A, 360x780, mesmo caminho) viram a base, com a mesma folga de 4%
-  const ALTURA_GALMURI = { status: 1502, skills: 1555, correr: 886 }
+  // 2026-11-22: com os ranks das skills (main de 2026-11-21: marcas, próximo rank, custo e Subir rank) a aba Skills na
+  // Galmuri mede 1.628 (era 1.555 sem os ranks; sem a Galmuri, com os ranks, 1.551)
+  const ALTURA_GALMURI = { status: 1502, skills: 1628, correr: 886 }
   const LIM_STATUS = Math.round(1.04 * ALTURA_GALMURI.status), LIM_SKILLS = Math.round(1.04 * ALTURA_GALMURI.skills)
 
   // ---------------- itens na aba Status (Tarefa 4 da frente de itens, spec de itens §8): sem Torrão e sem Estrela na mochila,
@@ -13272,7 +13274,10 @@ try {
           for (let x = Math.floor(S / 2); x < (fx.reta ? Math.floor(w * 0.4) : w); x += 3 * S) {
             colunas++
             let achou = null
-            for (let y = top - 1; y - S >= y0; y--) {
+            // só até 12 px de arte acima de onde a cerca deve estar nesta coluna: mais alto que isso é o jóquei ou a seda
+            // de um cavalo da raia 1 (com a câmera a 12 px/m o pelotão passa por cima da cerca), não o trilho
+            const ate = Math.max(y0, top - (Math.max(0, esperado(Math.floor(x / S) * S + S / 2)) + 12) * S)
+            for (let y = top - 1; y - S >= ate; y--) {
               const a = px(x, y), b = px(x, y - S)
               if (Math.min(...a) >= 200 && Math.max(...a) - Math.min(...a) <= 40 && a.every((v, i) => v - b[i] >= 90)) { conta.set(y, (conta.get(y) || 0) + 1); achou = y; break }
             }
