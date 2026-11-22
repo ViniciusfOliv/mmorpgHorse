@@ -4703,11 +4703,11 @@
     ['reta', 'curva', 'subida'].forEach(function (tp) {
       if (!cond.blocks.some(function (bl) { return bl.type === tp; })) return;
       var nome = GD.BLOCK_TYPES[tp].name.toUpperCase();
-      R(lx, ly + 1, 5, 3, tp === 'reta' ? surf : GD.BLOCK_TYPES[tp].color);
-      SP.drawText(ctx, nome, (lx + 7) * k, ly * k, { scale: k, color: C.texto2 });
-      lx += 7 + SP.measureText(nome, 1) + 5;
+      R(lx, ly + 2, 5, 3, tp === 'reta' ? surf : GD.BLOCK_TYPES[tp].color);
+      SP.drawText(ctx, nome, (lx + 7) * k, ly * k, { fonte: 'g7', scale: k, color: C.texto2 });
+      lx += 7 + SP.measureText(nome, 1, 'g7') + 5;
     });
-    SP.drawText(ctx, D + 'm', (artW - 4) * k, ly * k, { scale: k, color: C.texto, align: 'right' });
+    SP.drawText(ctx, D + 'm', (artW - 4) * k, ly * k, { fonte: 'g7', scale: k, color: C.texto, align: 'right' });
   }
 
   // ===========================================================================
@@ -5415,15 +5415,15 @@
       }
       // segunda passada: etiquetas por cima de todos os cavalos
       badges.forEach(function (b) {
-        var t = b.place + 'º', w = tw(t) + 4;
-        var bx = Math.round(b.x / S) - Math.round(w / 2), by = Math.round(b.y / S) - 7;
-        box(bx, by, w, 7, L.racers[b.j].silks, C.sombra);
+        var t = b.place + 'º', w = tw(t) + 3;   // Galmuri7: 7 da maiúscula, 1 de folga em cima (o º sobe 1) e embaixo
+        var bx = Math.round(b.x / S) - Math.round(w / 2), by = Math.round(b.y / S) - 9;
+        box(bx, by, w, 9, L.racers[b.j].silks, C.sombra);
         text(t, bx + 2, by + 1, digitColor(L.racers[b.j].silks));
       });
       if (youTag) {
         var yb = youTagBox(youTag);
-        box(yb.x, yb.y, yb.w, 9, C.veu, C.ouro);
-        text(yb.txt, yb.x + 2, yb.y + 3, C.ouro);
+        box(yb.x, yb.y, yb.w, YOU_H, C.veu, C.ouro);
+        text(yb.txt, yb.x + 2, yb.y + 3, C.ouro);   // 2 de acento (o Ê) e 1 de folga acima da maiúscula
       }
       // Dado ativo e a caixa da faixa dele, uma vez por quadro: a faixa, as plaquinhas, as etiquetas e os balões usam
       // a mesma. Com a etiqueta "FOTO DE CHEGADA" na tela, a faixa do Dado não é desenhada
@@ -5449,8 +5449,8 @@
       if (dItem) drawDadosNaPista(dItem, vis, youTag, dCaixa);
       drawHud(st, order);
       if (foto) {
-        var bt = 'FOTO DE CHEGADA', bw = tw(bt) + 6, bx2 = Math.round(lay.artW / 2 - bw / 2), by2 = lay.hudH + 3;
-        box(bx2, by2, bw, 9, C.sombra, C.ouro);
+        var bt = 'FOTO DE CHEGADA', bw = tw(bt) + 5, bx2 = Math.round(lay.artW / 2 - bw / 2), by2 = lay.hudH + 3;
+        box(bx2, by2, bw, 11, C.sombra, C.ouro);
         text(bt, bx2 + 3, by2 + 2, C.ouro);
       } else if (dItem) {
         FX.drawDiceBanner(ctx, dItem, L.racers, lay, S, self.simT, reduced(), me, lugarDado.embaixo, dCaixa);
@@ -5460,12 +5460,12 @@
       if (self.phase === 'contagem') {
         var c = Math.ceil(self.count / (reduced() ? 0.4 : 0.8));
         var label = c >= 3 ? '3' : c === 2 ? '2' : c === 1 ? '1' : 'JÁ!';
-        var sc = 5, cw = tw(label, sc);
-        var cy = lay.laneTopArt + Math.round((n * lay.laneArt) / 2) - 13;
+        // Galmuri14 (maiúscula de 14, guia §6: título maior numa fonte maior, nunca ampliada); 4 de acento (o Á) em cima
+        var cw = tw(label, 'g14');
+        var cy = lay.laneTopArt + Math.round((n * lay.laneArt) / 2) - 7;
         var cx = Math.round(lay.artW / 2);
-        box(cx - Math.round(cw / 2) - 5, cy - 5, cw + 10, 5 * sc + 10, C.veu, C.ouro);
-        text(label, cx + 1, cy + 1, C.sombra, sc, 'center');
-        text(label, cx, cy, C.ouro, sc, 'center');
+        box(cx - Math.round(cw / 2) - 5, cy - 7, cw + 11, 7 + 14 + 6, C.veu, C.ouro);
+        text(label, cx, cy, C.ouro, 'g14', 'center', C.sombra);
       }
     }
 
@@ -5499,7 +5499,7 @@
         var cor = ({ fogo: C.fogo, agua: C.agua, grama: C.ganho })[fx0.item.element] || C.ouro;
         ctx.globalAlpha = af;
         box(fxx, fyy, fw, fh, C.veu, cor);
-        if (bl.icone) FX.drawIconPng(ctx, skId, bl.iconX * S, (fyy + bl.iconDy) * S, 8 * fs, S);
+        if (bl.icone) FX.drawIconPng(ctx, skId, bl.iconX * S, (fyy + bl.iconDy) * S, 8, S);   // 1:1 (nada ampliado)
         text(ft, bl.textX, fyy + bl.textDy, C.texto, fs, 'center', C.sombra);
         ctx.globalAlpha = 1;
         faixa = { x: fxx - 1, y: fyy - 1, w: fw + 2, h: fh + 2 };
@@ -5516,7 +5516,7 @@
       if (lCaixa) obst.push(lCaixa);
       if (dItem) { obst.push(dCaixa); FX._stats.placas.forEach(function (p) { obst.push(p); }); }
       function bate(a, o) { return a.x < o.x + o.w + 1 && o.x < a.x + a.w + 1 && a.y < o.y + o.h + 1 && o.y < a.y + a.h + 1; }
-      if (youTag && !self.voceRect) { var yb2 = youTagBox(youTag); self.voceRect = { x: yb2.x - 1, y: yb2.y - 1, w: yb2.w + 2, h: 11 }; }
+      if (youTag && !self.voceRect) { var yb2 = youTagBox(youTag); self.voceRect = { x: yb2.x - 1, y: yb2.y - 1, w: yb2.w + 2, h: YOU_H + 2 }; }
       if (self.voceRect) obst.push(self.voceRect);
       vis.forEach(function (v) {
         var lista = porCavalo[v.j];
@@ -5575,8 +5575,9 @@
     }
 
     // etiqueta "◀VOCÊ" (pixels de arte; caixa de 9 de altura, borda por fora): texto e posição
+    var YOU_H = 11, TAG_H = 9;   // a etiqueta "◀VOCÊ" (com o acento) e as de quem está fora da tela, em Galmuri7
     function youTagBox(yt) {
-      var s = '◀VOCÊ' + (yt.place ? ' ' + yt.place + 'º' : ''), w = tw(s) + 4;
+      var s = '◀VOCÊ' + (yt.place ? ' ' + yt.place + 'º' : ''), w = tw(s) + 3;
       return { txt: s, x: Math.min(Math.round(yt.x / self.S), self.lay.artW - w - 2), y: Math.round(yt.y / self.S) - 2, w: w };
     }
 
@@ -5629,7 +5630,7 @@
       if (dCaixa && !dEmCima) base = Math.min(base, dCaixa.y - 2);
       function caixaDe(emb) { return FX.lugarLayout(self.lugar.texto, lay, topo, emb, base); }
       var obst = [dCaixa];
-      if (youTag) { var yb = youTagBox(youTag); obst.push({ x: yb.x - 1, y: yb.y - 1, w: yb.w + 2, h: 11 }); }
+      if (youTag) { var yb = youTagBox(youTag); obst.push({ x: yb.x - 1, y: yb.y - 1, w: yb.w + 2, h: YOU_H + 2 }); }
       var d = decideLugar(vis, self.simT, self.simT + LUGAR_S * ts * 2, caixaDe, obst);
       lugarFaixa.decidida = true; lugarFaixa.embaixo = d.embaixo; lugarFaixa.caixa = caixaDe(d.embaixo);
       self.lugarFaixa = { embaixo: d.embaixo, caixa: lugarFaixa.caixa, cavalo: d.cavalo };   // para o teste e o relatório
@@ -5645,7 +5646,7 @@
       var S = self.S, lay = self.lay, red = reduced(), maior = FX.diceRevealed(item, self.simT, red) ? DADO_MAIOR : 1;
       var topo = lugarDado.embaixo ? lay.hudH + 2 : faixa.y + faixa.h + 2, base = lugarDado.embaixo ? faixa.y - 2 : lay.artH;
       var fixos = [];
-      if (youTag) { var yb = youTagBox(youTag); fixos.push({ x: yb.x - 1, y: yb.y - 1 - topo, w: yb.w + 2, h: 11 }); }
+      if (youTag) { var yb = youTagBox(youTag); fixos.push({ x: yb.x - 1, y: yb.y - 1 - topo, w: yb.w + 2, h: YOU_H + 2 }); }
       self.voceRect = fixos.length ? { x: fixos[0].x, y: fixos[0].y + topo, w: fixos[0].w, h: fixos[0].h } : null;
       var rects = vis.map(function (v) {
         var sz = FX.badgeSize(item.rolls[v.j]), k = v.j === item.winner ? maior : 1;
@@ -5669,22 +5670,23 @@
       var S = self.S, lay = self.lay;
       tags.sort(function (a, b) { return a.y - b.y; });
       var minY = Math.max(lay.compact ? lay.hudH + 2 : lay.hudH + 14, topo || 0);
-      var prev = minY - 9;
+      // Galmuri7 (só números, sinais e "m": sem acento): 7 da maiúscula e 1 de folga em cima e embaixo
+      var prev = minY - TAG_H - 1;
       tags.forEach(function (t) {
-        var y = Math.max(Math.round(t.y / S), prev + 9);
-        y = Math.min(y, lay.artH - 9);
+        var y = Math.max(Math.round(t.y / S), prev + TAG_H + 1);
+        y = Math.min(y, lay.artH - TAG_H - 1);
         prev = y;
-        var r = L.racers[t.j], num = String(t.j + 1);
-        var w = 7 + tw(t.txt) + 4;
+        var r = L.racers[t.j], num = String(t.j + 1), cw = tw(num) + 1;
+        var w = 1 + cw + 2 + tw(t.txt) + 1;
         var bx = right ? lay.artW - w - 1 : 1;
-        box(bx, y, w, 8, C.veu);
-        FX._stats.caixasEtiquetas.push({ racer: t.j, x: right ? bx : bx - 1, y: y, w: w + 1, h: 8 });   // com a setinha
-        box(bx + 1, y + 1, 5, 6, r.silks);
+        box(bx, y, w, TAG_H, C.veu);
+        FX._stats.caixasEtiquetas.push({ racer: t.j, x: right ? bx : bx - 1, y: y, w: w + 1, h: TAG_H });   // com a setinha
+        box(bx + 1, y + 1, cw, TAG_H - 2, r.silks);
         text(num, bx + 2, y + 1, digitColor(r.silks));
-        text(t.txt, bx + 8, y + 1, C.texto, 1, null, null, true);
+        text(t.txt, bx + 1 + cw + 2, y + 1, C.texto, 1, null, null, true);
         ctx.fillStyle = C.texto2;
         var ax = right ? bx + w : bx - 1;
-        ctx.fillRect(ax * S, (y + 3) * S, S, 2 * S);
+        ctx.fillRect(ax * S, (y + 4) * S, S, 2 * S);
       });
     }
 
@@ -5844,7 +5846,7 @@
           R(bx, sl.top, bw, H - sl.top - 4, sl.col);
           R(bx, sl.top, bw, 1, C.brilho);
           R(bx, H - 7, bw, 3, C.escuro);
-          SP.drawText(ctx, String(sl.place), Math.round(sl.cx) * k, (sl.top + 3) * k, { scale: 2 * k, color: C.tinta, align: 'center' });
+          SP.drawText(ctx, String(sl.place), Math.round(sl.cx) * k, (sl.top + 3) * k, { fonte: 'g11', scale: k, color: C.tinta, align: 'center' });
           sl.opts.t = reduced() ? 0.5 : t + sl.place * 0.8;
           sl.opts.reduzido = reduced();
           SP.drawHorse(ctx, sl.hx, sl.hy, sl.opts);

@@ -1,9 +1,9 @@
 // prototype/tools/fonte-glifos.mjs — os glifos da Galmuri para o texto do canvas (etapa 2.2 da direção de arte, guia §6):
-// cada tamanho (Galmuri7 a 8 px, Galmuri9 a 10 px, Galmuri11 Bold a 12 px) rasterizado UMA vez no navegador, no tamanho
+// cada tamanho (Galmuri7 a 8 px, Galmuri9 a 10 px, Galmuri11 Bold a 12 px, Galmuri14 a 15 px: a contagem) rasterizado UMA vez no navegador, no tamanho
 // nativo, com alfa binário (o pixel acende se a cobertura passa de 50%), e gravado em prototype/assets/fontes/
 // galmuri-glifos.json. O jogo (sprites.js, SP.drawText) e os testes em Node leem o mesmo JSON: as larguras e os pixels
 // são iguais nos dois, sem depender da fonte instalada nem do rasterizador do aparelho.
-// Formato: { fontes: { g7|g9|g11: { px, altura, base, glifos: { "<caractere>": [avanço, esq, larg, linhas...] } } } },
+// Formato: { fontes: { g7|g9|g11|g14: { px, altura, base, glifos: { "<caractere>": [avanço, esq, larg, linhas...] } } } },
 // cada linha é um inteiro com os bits da esquerda para a direita (bit mais alto = coluna esq).
 // Uso:  node prototype/tools/fonte-glifos.mjs   (refazer só se mudar a fonte ou o conjunto de caracteres)
 import fs from 'node:fs';
@@ -13,7 +13,7 @@ import { RAIZ } from './pixellab-comum.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const DIR = path.join(RAIZ, 'prototype', 'assets', 'fontes');
-const FONTES = { g7: ['galmuri7-latin.ttf', 8], g9: ['galmuri9-latin.ttf', 10], g11: ['galmuri11-bold-latin.ttf', 12] };
+const FONTES = { g7: ['galmuri7-latin.ttf', 8], g9: ['galmuri9-latin.ttf', 10], g11: ['galmuri11-bold-latin.ttf', 12], g14: ['galmuri14-latin.ttf', 15] };
 let CHARS = '';
 for (let c = 32; c < 127; c++) CHARS += String.fromCharCode(c);
 CHARS += 'ÁÀÂÃÉÊÍÓÔÕÚÜÇáàâãéêíóôõúüçºª°·×→←…–—“”‘’◀▶▲▼';   // só caracteres que a Galmuri tem (conferido com o fontTools): sem ↑↓↪↻

@@ -246,18 +246,19 @@ test('nomeCurto: nome inteiro até 12 letras; campo short nos longos; nenhum cor
 // recurso (raia estreita demais para duas linhas). A fonte só tem maiúsculas: as linhas saem como o nomeCurto, em maiúsculas
 test('nomeEmLinhas: inteiro numa linha se couber; senão duas linhas entre palavras; linhasMax 1 dá o nomeCurto', function () {
   var w = FX.BALAO.textoMax, SP = require('../src/sprites.js');
-  assert.ok(SP.measureText('RAÍZES FIRMES', 1) > w, 'o teste conta com "Raízes Firmes" sem caber numa linha');
-  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', w, 2), ['RAÍZES', 'FIRMES']);
-  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', SP.measureText('RAÍZES FIRMES', 1), 2), ['RAÍZES FIRMES'], 'na largura exata cabe numa linha');
+  function mt(x) { return SP.measureText(x, 1, 'g7'); }   // o balão escreve em Galmuri7
+  assert.ok(mt('ARRANCADA FINAL') > w, 'o teste conta com "Arrancada Final" sem caber numa linha');
+  assert.deepStrictEqual(FX.nomeEmLinhas('Arrancada Final', w, 2), ['ARRANCADA', 'FINAL']);
+  assert.deepStrictEqual(FX.nomeEmLinhas('Arrancada Final', mt('ARRANCADA FINAL'), 2), ['ARRANCADA FINAL'], 'na largura exata cabe numa linha');
   assert.deepStrictEqual(FX.nomeEmLinhas('Labareda', w, 2), ['LABAREDA']);
-  assert.deepStrictEqual(FX.nomeEmLinhas('Saída Rápida', w, 2), ['SAÍDA RÁPIDA'], 'nome de duas palavras que cabe: uma linha');
+  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', w, 2), ['RAÍZES FIRMES'], 'nome de duas palavras que cabe: uma linha');
   assert.deepStrictEqual(FX.nomeEmLinhas('Labareda', w, 1), ['LABAREDA']);
   // linhasMax 1: o nomeCurto de hoje (com o short do catálogo, quando há)
-  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', w, 1), [FX.nomeCurto('Raízes Firmes')]);
-  assert.deepStrictEqual(FX.nomeEmLinhas('Raízes Firmes', w, 1, 'RAÍZES FIRM.'), ['RAÍZES FIRM.']);
+  assert.deepStrictEqual(FX.nomeEmLinhas('Arrancada Final', w, 1), [FX.nomeCurto('Arrancada Final')]);
+  assert.deepStrictEqual(FX.nomeEmLinhas('Arrancada Final', w, 1, 'ARR. FINAL'), ['ARR. FINAL']);
   // três palavras: a quebra de linhas mais equilibradas que caibam
   assert.deepStrictEqual(FX.nomeEmLinhas('Fôlego de Montanha', w, 2), ['FÔLEGO DE', 'MONTANHA']);
-  assert.deepStrictEqual(FX.nomeEmLinhas('Canto da Iara', w, 2), ['CANTO', 'DA IARA']);
+  assert.deepStrictEqual(FX.nomeEmLinhas('Canto da Iara', mt('CANTO DA IARA') - 1, 2), ['CANTO', 'DA IARA']);
   // sem quebra que caiba (uma palavra só, ou uma linha larga demais): o nomeCurto
   assert.deepStrictEqual(FX.nomeEmLinhas('Supercalifragilistico', w, 2), [FX.nomeCurto('Supercalifragilistico')]);
   assert.deepStrictEqual(FX.nomeEmLinhas('Arrancada Final', 20, 2, 'ARR. FINAL'), ['ARR. FINAL']);
@@ -265,7 +266,7 @@ test('nomeEmLinhas: inteiro numa linha se couber; senão duas linhas entre palav
   Object.keys(G.SKILLS).map(function (id) { return G.SKILLS[id]; }).concat(Object.keys(G.TYPE_SKILLS).map(function (k) { return G.TYPE_SKILLS[k]; })).forEach(function (sk) {
     var l = FX.nomeEmLinhas(sk.name, w, 2, sk.short);
     assert.ok(l.length >= 1 && l.length <= 2, sk.name);
-    l.forEach(function (x) { assert.ok(SP.measureText(x, 1) <= w, sk.name + ': "' + x + '" passa de ' + w); });
+    l.forEach(function (x) { assert.ok(mt(x) <= w, sk.name + ': "' + x + '" passa de ' + w); });
     assert.strictEqual(l.join(' '), sk.name.toUpperCase(), sk.name + ' inteiro em até duas linhas');
   });
 });
@@ -273,7 +274,7 @@ test('balão com o nome em duas linhas: mais alto, texto das duas linhas dentro 
   var um = ctxFalso(), dois = ctxFalso(), it = { kind: 'skill', t0: 10, t1: 15, racer: 0, skillId: 'raizes', icon: 'vel', element: 'grama', cavalo: 'grama', nome: 'Raízes Firmes', nomeCurto: 'RAÍZES FIRM.', silks: '#d8353b', raia: 1, escala: 1 };
   var s1 = FX.balloonSize(it, 0), s2 = FX.balloonSize(it, 0, ['RAÍZES', 'FIRMES']), s0 = FX.balloonSize(it, 0, ['RAÍZES FIRM.']);
   assert.deepStrictEqual(s0, s1, 'sem linhas: o nome curto numa linha, do mesmo tamanho');
-  assert.strictEqual(s1.h, 11);
+  assert.strictEqual(s1.h, 13, 'uma linha: 3 de acento + 7 da maiúscula da Galmuri7 + bordas');
   assert.strictEqual(s2.h, FX.BALAO.h2);
   assert.ok(s2.w < s1.w, 'duas linhas curtas: balão mais estreito');
   assert.deepStrictEqual(FX.balloonSize(it, 1, ['RAÍZES', 'FIRMES']), FX.balloonSize(it, 1), 'compacto não muda');
@@ -281,7 +282,8 @@ test('balão com o nome em duas linhas: mais alto, texto das duas linhas dentro 
   // (sobe 2 px ao entrar: aos 0,5 s já está no lugar) nada além do contorno de 1 px em volta do corpo e da pontinha
   dois.rects.forEach(function (r) { assert.ok(r.y >= -1 && r.y + r.h <= s2.h + 1 && r.x >= -3 && r.x + r.w <= s2.w + 1, 'fora do balão: ' + JSON.stringify(r)); });
   var lin = dois.rects.filter(function (r) { return r.x >= 19; });   // o texto começa em x = 19 (chip, ícone e folga antes)
-  assert.ok(lin.some(function (r) { return r.y < 9; }) && lin.some(function (r) { return r.y >= 10 && r.y + r.h <= 16; }), 'texto nas duas linhas');
+  // as maiúsculas em y 4..10 e 14..20 (Galmuri7: 7 px de altura, linhas a cada 10 px)
+  assert.ok(lin.some(function (r) { return r.y >= 4 && r.y + r.h <= 11; }) && lin.some(function (r) { return r.y >= 14 && r.y + r.h <= 21; }), 'texto nas duas linhas');
   FX.resetStats(true);
 });
 test('timeline tem um item por evento skill/garra/cansou', function () { comJoqueiOtimista(function () {
@@ -411,7 +413,7 @@ test('balão de Garra e de cansou: tamanho e cores próprios', function () {
   assert.ok(cz.rects.some(function (r) { return r.cor === '#c3cac6'; }) && cz.rects.some(function (r) { return r.cor === '#2b2f2d'; }), 'cansou em cinza');
   assert.ok(cg.rects.some(function (r) { return r.cor === '#d8353b'; }), 'borda e chip na cor da seda da raia');
   var sz = FX.balloonSize(ITEM_SKILL, 0), sg = FX.balloonSize(g, 0), sc = FX.balloonSize(z, 0), sp1 = FX.balloonSize(ITEM_SKILL, 1);
-  assert.ok(sz.w > 20 && sz.h === 11 && sg.w > 20 && sc.w > 20);
+  assert.ok(sz.w > 20 && sz.h === 13 && sg.w > 20 && sc.w > 20);
   assert.ok(sp1.w < sz.w, 'pilha > 0 é compacta');
   FX.resetStats(true);
 });
@@ -1356,18 +1358,19 @@ function dentroDaPista(B, lay) {
   assert.ok(B.w > 0 && B.h > 0);
 }
 // faixa do lugar na chegada (spec 3c §7, Ruling 14): caixa e desenho
-test('faixa do lugar: escala 3 quando cabe, centrada, no topo pedido ou no pé da pista; a mesma altura para qualquer lugar', function () {
+test('faixa do lugar: Galmuri11 Bold (fs 2) quando cabe, centrada, no topo pedido ou no pé da pista; a mesma altura para qualquer lugar', function () {
   var lay = { artW: 180, artH: 232, hudH: 42 }, topo = 57;
   var V = FX.lugarLayout('VITÓRIA!', lay, topo, false), D = FX.lugarLayout('2º LUGAR', lay, topo, false), O = FX.lugarLayout('8º LUGAR', lay, topo, false);
   assert.strictEqual(V.texto, 'VITÓRIA!');
   [V, D, O].forEach(function (B) {
-    assert.strictEqual(B.fs, 3, B.texto);
+    assert.strictEqual(B.fs, 2, B.texto);
+    assert.strictEqual(B.fonte, 'g11', B.texto);
     assert.strictEqual(B.y, topo);
     assert.ok(B.x >= 2 && B.x + B.w <= lay.artW - 2, 'na largura da pista: ' + JSON.stringify(B));
     assert.ok(Math.abs(B.x + B.w / 2 - lay.artW / 2) <= 0.5, 'centrada');
     assert.strictEqual(B.h, V.h, 'mesma altura');
-    // o texto (5·fs de altura, mais o acento de 2·fs em cima) dentro da caixa, com a borda de 3 em volta
-    assert.ok(B.tx >= B.x + 3 && B.tx + B.tw <= B.x + B.w - 3 && B.ty - (B.acento ? 2 * B.fs : 0) >= B.y + 3 && B.ty + 5 * B.fs <= B.y + B.h - 3, 'texto dentro: ' + JSON.stringify(B));
+    // o texto (11 da maiúscula da Galmuri11 Bold, mais 4 de acento em cima) dentro da caixa, com a borda de 3 em volta
+    assert.ok(B.tx >= B.x + 3 && B.tx + B.tw <= B.x + B.w - 3 && B.ty - 4 >= B.y + 3 && B.ty + 11 <= B.y + B.h - 3, 'texto dentro: ' + JSON.stringify(B));
   });
   assert.ok(V.acento && !D.acento);
   var E = FX.lugarLayout('VITÓRIA!', lay, topo, true);
@@ -1375,9 +1378,9 @@ test('faixa do lugar: escala 3 quando cabe, centrada, no topo pedido ou no pé d
   assert.strictEqual(E.y + E.h, lay.artH - 2, 'encostada no pé da pista');
   assert.strictEqual(E.ty - E.y, V.ty - V.y, 'o texto desce junto');
   assert.strictEqual(FX.lugarLayout('VITÓRIA!', lay, topo, true, 150).y + E.h, 150, 'base pedida (acima de outra faixa no pé)');
-  // pista estreita: a escala cai até caber
-  var N = FX.lugarLayout('8º LUGAR', { artW: 90, artH: 120, hudH: 15 }, 20, false);
-  assert.ok(N.fs < 3 && N.x >= 2 && N.x + N.w <= 88, JSON.stringify(N));
+  // pista estreita: cai para a Galmuri7 até caber
+  var N = FX.lugarLayout('8º LUGAR', { artW: 60, artH: 120, hudH: 15 }, 20, false);
+  assert.ok(N.fs === 1 && N.fonte === 'g7' && N.x >= 2 && N.x + N.w <= 58, JSON.stringify(N));
 });
 test('drawPlaceBanner: moldura na cor do lugar, nada fora da caixa, marca _stats.faixaLugar e a caixa; beginFrame zera', function () {
   var lay = { artW: 180, artH: 232, hudH: 42 }, B = FX.lugarLayout('3º LUGAR', lay, 57, false), c = ctxFalso();
@@ -1527,7 +1530,7 @@ test('Ruling 6: antes da revelação, a mesma caixa só com "DADO DA SORTE"; o v
   assert.strictEqual(FX.diceState(it, revela - 0.01, false, 0).dourado, false);
   assert.strictEqual(FX.diceState(it, revela, false, 0).dourado, true);
 });
-test('Ruling 13: antes da revelação, o ícone e "DADO DA SORTE" centrados na caixa (escala 2 quando cabe)', function () {
+test('Ruling 13: antes da revelação, o ícone e "DADO DA SORTE" centrados na caixa (Galmuri11 Bold quando cabe)', function () {
   var it = dadoFaixa({ escala: 4, t1: 10 + 2.4 * 4 });
   [[RACERS_FAIXA, false], [RACERS_FAIXA, true], [[{ silks: '#d8353b', horse: { name: 'Ipê' } }, RACERS_FAIXA[1]], false]].forEach(function (cs) {
     FX.setIconImages({ 'ui-dado': IMG });
@@ -1545,10 +1548,10 @@ test('Ruling 13: antes da revelação, o ícone e "DADO DA SORTE" centrados na c
     var esq = x0 - B.x, dir = B.x + B.w - x1, cima = y0 - B.y, baixo = B.y + B.h - y1;
     assert.ok(Math.abs(esq - dir) <= 1, 'centrado na horizontal: ' + esq + ' / ' + dir);
     assert.ok(Math.abs(cima - baixo) <= 1, 'centrado na vertical: ' + cima + ' / ' + baixo);
-    // escala 2 quando cabe: a altura do texto (sem o ícone) é 10
+    // Galmuri11 Bold quando cabe: a altura do texto (sem o ícone, sem acento) é a maiúscula, 11; senão a da Galmuri7, 7
     var ty0 = Math.min.apply(null, miolo.map(function (r) { return A(r.y); })), ty1 = Math.max.apply(null, miolo.map(function (r) { return A(r.y + r.h); }));
-    var cabe = 8 + 2 + 2 * require('../src/sprites.js').measureText('DADO DA SORTE', 1) <= B.w - 12;
-    assert.strictEqual(ty1 - ty0, cabe ? 10 : 5, 'escala do rótulo (caixa de ' + B.w + ')');
+    var cabe = 8 + 2 + require('../src/sprites.js').measureText('DADO DA SORTE', 1, 'g11') <= B.w - 12;
+    assert.strictEqual(ty1 - ty0, cabe ? 11 : 7, 'fonte do rótulo (caixa de ' + B.w + ')');
   });
 });
 test('drawDiceBanner com ui-dado (e o ícone do clima) no cache desenha as imagens; o resto é o mesmo', function () {
@@ -1595,7 +1598,8 @@ function nomesFaixa() {
   for (k in G.TYPE_SKILLS) if (Object.prototype.hasOwnProperty.call(G.TYPE_SKILLS, k)) out.push(G.TYPE_SKILLS[k].name.toUpperCase() + '!');
   return out;
 }
-function twFaixa(str, sc) { return SPR2.measureText(str, sc || 1); }
+// a medida do jogo (game.js, tw): fs 2 = Galmuri11 Bold, fs 1 = Galmuri7
+function twFaixa(str, sc) { return SPR2.measureText(str, 1, (sc || 1) >= 2 ? 'g11' : 'g7'); }
 test('faixa de skill: a caixa cabe em [3, artW - 3] para todo nome, com e sem ícone, em S 1 e 2', function () {
   var nomes = nomesFaixa();
   assert.ok(nomes.length >= 10 && nomes.indexOf('FÔLEGO DE MONTANHA!') >= 0, 'nomes do jogo: ' + nomes.length);
@@ -1611,32 +1615,34 @@ test('faixa de skill: a caixa cabe em [3, artW - 3] para todo nome, com e sem í
     });
   });
 });
-test('faixa de skill: a largura do ícone só é reservada quando o ícone vai ser desenhado (imagem no cache e 8·fs·S ≥ 16)', function () {
+test('faixa de skill: a largura do ícone (8 + 2) só é reservada quando há imagem no cache; sai antes da fonte grande', function () {
   var n = 'ARRANQUE!';
   var com = FX.skillBannerLayout(n, 240, 2, true, twFaixa), sem = FX.skillBannerLayout(n, 240, 2, false, twFaixa);
   assert.strictEqual(com.icone, true);
   assert.strictEqual(com.fs, 2);
-  assert.strictEqual(com.w, sem.w + 8 * 2 + 2, 'ícone soma 8·fs + 2');
+  assert.strictEqual(com.w, sem.w + 8 + 2, 'ícone (8 px de arte, 1:1) soma 8 + 2');
   assert.strictEqual(sem.icone, false);
-  // S = 1 e fs = 2: 8·2·1 = 16, desenha; S = 1 e fs = 1 (tela estreita): 8 < 16, não desenha nem reserva
-  var estreito = FX.skillBannerLayout('FÔLEGO DE MONTANHA!', 164, 1, true, twFaixa);
-  assert.strictEqual(estreito.fs, 1);
-  assert.strictEqual(estreito.icone, false);
-  assert.strictEqual(estreito.w, twFaixa('FÔLEGO DE MONTANHA!', 1) + 8);
-  // com S = 2 em tela estreita, cai para fs = 1 e o ícone (8·1·2 = 16) continua, se couber
-  var s2 = FX.skillBannerLayout('FÔLEGO DE MONTANHA!', 164, 2, true, twFaixa);
-  assert.strictEqual(s2.fs, 1);
-  assert.strictEqual(s2.icone, true);
-  assert.strictEqual(s2.w, twFaixa('FÔLEGO DE MONTANHA!', 1) + 8 + 8 + 2);
+  // o ícone é 1:1 na grade: S não muda a decisão
+  assert.deepStrictEqual(FX.skillBannerLayout(n, 240, 1, true, twFaixa), com);
+  // tela estreita: primeiro a Galmuri7 com ícone; se nem assim couber, sem ícone
+  var n2 = 'FÔLEGO DE MONTANHA!', w7 = twFaixa(n2, 1) + 8;
+  [140, 120, 100].forEach(function (artW) {
+    var b = FX.skillBannerLayout(n2, artW, 1, true, twFaixa);
+    if (twFaixa(n2, 2) + 8 + 10 <= artW - 6) assert.strictEqual(b.fs, 2, 'artW ' + artW);
+    else if (w7 + 10 <= artW - 6) { assert.strictEqual(b.fs, 1); assert.strictEqual(b.icone, true); assert.strictEqual(b.w, w7 + 10); }
+    else { assert.strictEqual(b.fs, 1); assert.strictEqual(b.icone, false); assert.strictEqual(b.w, w7); }
+  });
 });
-test('faixa de skill: sem ícone a geometria é a de antes (fs por tw(ft, 2) + 8 <= artW - 6, fh = 5·fs + 6, w = tw + 8)', function () {
+test('faixa de skill: sem ícone, fs 2 (Galmuri11 Bold) quando tw + 8 <= artW - 6; h = maiúscula + acento + 3; w = tw + 8', function () {
   nomesFaixa().forEach(function (n) {
     [160, 164, 170, 200, 240].forEach(function (artW) {
       var fs = twFaixa(n, 2) + 8 <= artW - 6 ? 2 : 1, fw = twFaixa(n, fs) + 8;
       var b = FX.skillBannerLayout(n, artW, 2, false, twFaixa);
       assert.strictEqual(b.fs, fs, n);
+      assert.strictEqual(b.fonte, fs === 2 ? 'g11' : 'g7', n);
       assert.strictEqual(b.w, fw, n);
-      assert.strictEqual(b.h, 5 * fs + 6, n);
+      assert.strictEqual(b.h, fs === 2 ? 11 + 4 + 3 : 7 + 3 + 3, n);
+      assert.strictEqual(b.textDy, b.h - 3 - (fs === 2 ? 11 : 7), n);
       assert.strictEqual(b.x, Math.round(artW / 2 - fw / 2), n);
       assert.strictEqual(b.textX, Math.round(artW / 2), n);
     });

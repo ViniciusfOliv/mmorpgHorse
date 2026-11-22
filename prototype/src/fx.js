@@ -277,12 +277,15 @@
     efeitoMax: 7,
     garraFim: 0.6,     // a Garra segue até finishTime + 0.6
     sobe: 2,           // pixels de arte que o balão sobe ao entrar
-    textoMax: 48,      // largura (pixels de arte) do nome numa linha do balão: a das 12 letras do nomeCurto
-    h2: 17             // altura do balão com o nome em duas linhas (o de uma linha tem 11)
+    textoMax: 60,      // largura (pixels de arte) do nome numa linha do balão: a das 12 letras do nomeCurto (Galmuri7)
+    h2: 23             // altura do balão com o nome em duas linhas (o de uma linha tem 13): 4 + 7 + 3 + 7 + 2
   };
   var EPS = 1e-6;
-  var PLACA_H = 9, PONTA_H = 2, GAP = 1;
-  var MARCA = '\u21bb', MARCA_W = 6;   // "↻" (glifo de 5 colunas na fonte do Sprites) + 1 de espaço
+  // etapa 2.2 da direção de arte: o texto da pista é a Galmuri7 (maiúscula de 7 e 3 pixels para o acento acima dela);
+  // os textos grandes (o nome de quem venceu o Dado, a faixa do lugar, a faixa da skill) são a Galmuri11 Bold
+  var FONTE = 'g7', FONTE_G = 'g11';
+  var PLACA_H = 11, PONTA_H = 2, GAP = 1;
+  var MARCA = '\u21bb', MARCA_W = 6;   // "↻" (a Galmuri não tem: glifo de 5 colunas da fonte 3×5 do Sprites) + 1 de espaço
 
   // paleta (mesmos valores dos tokens de game.css)
   var COR = {
@@ -333,8 +336,11 @@
     return spNode;
   }
   // largura em pixels de arte: dígitos têm sempre 3 colunas (+1 de espaço)
-  function numW(s) { return Math.max(0, String(s).length * 4 - 1); }
-  function textW(s) { var S = sp(); return S ? S.measureText(s, 1) : numW(s); }
+  function numW(s) { return textW(String(s)); }
+  function textW(s, fonte) { var S = sp(); return S ? S.measureText(s, 1, fonte || FONTE) : Math.max(0, String(s).length * 5 - 1); }
+  // altura da maiúscula e o espaço do acento acima dela, por fonte (Galmuri7: 7 e 3; Galmuri11 Bold: 11 e 4)
+  function capDe(fonte) { var S = sp(); return S && S.alturaFonte ? S.alturaFonte(fonte || FONTE) : 7; }
+  function acentoDe(fonte) { return (fonte || FONTE) === FONTE_G ? 4 : 3; }
 
   // ===========================================================================
   // Funções puras
@@ -613,30 +619,31 @@
     var eu = me != null && me >= 0 && me !== w && rolls[me] ? 'VOC\u00ca TIROU ' + rolls[me].best : '';
     var linhas = [F.pre + ' ' + nn, frase];
     if (eu) linhas.push(eu);
-    var A = lay.artW, ic = F.icone + F.gapIcone, preW = textW(F.pre), nnW = textW(nn), fraseW = textW(frase), sepW = textW(F.sep);
+    var A = lay.artW, ic = F.icone + F.gapIcone, preW = textW(F.pre), fraseW = textW(frase), sepW = textW(F.sep);
     var euW = eu ? textW(eu) : 0, maxIn = A - 2 * F.margem - 2 * (F.borda + F.folgaX);
-    function l1W(fs) { return ic + preW + F.gapPre + nnW * fs; }
-    var fs = l1W(2) <= maxIn ? 2 : 1;
+    function l1W(f) { return ic + preW + F.gapPre + textW(nn, f); }
+    var fonteNome = l1W(FONTE_G) <= maxIn ? FONTE_G : FONTE, fs = fonteNome === FONTE_G ? 2 : 1;
     var juntas = !!eu && ic + fraseW + sepW + euW <= maxIn;
-    var inW = Math.max(l1W(fs), ic + textW(ROTULO), ic + fraseW + (juntas ? sepW + euW : 0), eu && !juntas ? ic + euW : 0);
+    var inW = Math.max(l1W(fonteNome), ic + textW(ROTULO), ic + fraseW + (juntas ? sepW + euW : 0), eu && !juntas ? ic + euW : 0);
     var bw = inW + 2 * (F.borda + F.folgaX), x = Math.round((A - bw) / 2), y = lay.hudH + 2;
     var cx = x + F.borda + F.folgaX, cy = y + F.borda + F.folgaY;
     // linha 1
-    var m1 = marcasTexto(nn), h1 = Math.max(F.icone, 5 * fs), y1 = cy + (m1.cima ? 3 * fs : 0);
-    var t1 = y1 + Math.floor((h1 - 5 * fs) / 2), fim = Math.max(y1 + h1, t1 + 5 * fs + (m1.baixo ? fs : 0));
+    var capN = capDe(fonteNome), capP = capDe(FONTE);
+    var m1 = marcasTexto(nn), h1 = Math.max(F.icone, capN), y1 = cy + (m1.cima ? acentoDe(fonteNome) : 0);
+    var t1 = y1 + Math.floor((h1 - capN) / 2), fim = Math.max(y1 + h1, t1 + capN + (m1.baixo ? 2 : 0));
     var L = {
-      x: x, y: y, w: bw, h: 0, linhas: linhas, fs: fs, juntas: juntas, nome: nn, frase: frase, eu: eu,
-      l1: { icone: { x: cx, y: y1 + Math.floor((h1 - F.icone) / 2) }, pre: { x: cx + ic, y: t1 + 5 * fs - 5 }, nome: { x: cx + ic + preW + F.gapPre, y: t1 } }
+      x: x, y: y, w: bw, h: 0, linhas: linhas, fs: fs, fonteNome: fonteNome, juntas: juntas, nome: nn, frase: frase, eu: eu,
+      l1: { icone: { x: cx, y: y1 + Math.floor((h1 - F.icone) / 2) }, pre: { x: cx + ic, y: t1 + capN - capP }, nome: { x: cx + ic + preW + F.gapPre, y: t1 } }
     };
-    // linha 2 (ícone de 8 e texto de 5 no meio dele: o acento do texto sobe 2 acima da linha)
-    var m2 = marcasTexto(juntas ? frase + eu : frase), y2 = fim + F.gap + (m2.cima ? 2 : 0);
-    L.l2 = { icone: { x: cx, y: y2 }, texto: { x: cx + ic, y: y2 + 1 } };
-    if (juntas) { L.l2.sep = { x: cx + ic + fraseW, y: y2 + 1 }; L.l2.eu = { x: cx + ic + fraseW + sepW, y: y2 + 1 }; }
-    fim = y2 + F.icone;
+    // linha 2 (ícone de 8 e o texto de 7 no meio dele: o acento sobe 3 acima da linha)
+    var m2 = marcasTexto(juntas ? frase + eu : frase), y2 = fim + F.gap + (m2.cima ? acentoDe() : 0);
+    L.l2 = { icone: { x: cx, y: y2 }, texto: { x: cx + ic, y: y2 } };
+    if (juntas) { L.l2.sep = { x: cx + ic + fraseW, y: y2 }; L.l2.eu = { x: cx + ic + fraseW + sepW, y: y2 }; }
+    fim = y2 + Math.max(F.icone, capP);
     if (eu && !juntas) {
-      var m3 = marcasTexto(eu), y3 = fim + F.gap + (m3.cima ? 3 : 0);
+      var m3 = marcasTexto(eu), y3 = fim + F.gap + (m3.cima ? acentoDe() : 0);
       L.l3 = { x: cx + ic, y: y3 };
-      fim = y3 + 5 + (m3.baixo ? 1 : 0);
+      fim = y3 + capP + (m3.baixo ? 2 : 0);
     }
     L.h = fim + F.folgaY + F.borda - y;
     // embaixo (a tela decide, um lugar por Dado): a mesma caixa encostada na borda de baixo da pista, com a margem
@@ -892,9 +899,10 @@
   ];
 
   // volatil: números que trocam a cada quadro (o Dado girando), fora do cache de texto do Sprites
-  function texto(ctx, s, x, y, S, color, volatil) {
+  // fonte: 'g7' (padrão), 'g11', ou null para a fonte 3×5 (só o "↻", que a Galmuri não tem)
+  function texto(ctx, s, x, y, S, color, volatil, fonte) {
     var SP = sp();
-    if (SP) SP.drawText(ctx, s, x, y, { scale: S, color: color, volatil: volatil });
+    if (SP) SP.drawText(ctx, s, x, y, { scale: S, color: color, volatil: volatil, fonte: fonte === undefined ? FONTE : fonte });
   }
 
   function drawDice(ctx, x, y, S, roll, estado, isWinner, simT, cor) {
@@ -927,7 +935,7 @@
     R(1, 1, w - 2, PLACA_H - 2, fundo);
     var bx = 3;
     if (L.marca) {
-      texto(ctx, L.marca, x + bx * S, y + 2 * S, S, ouro ? COR.palha2 : COR.ouroClaro);
+      texto(ctx, L.marca, x + bx * S, y + 3 * S, S, ouro ? COR.palha2 : COR.ouroClaro, false, null);
       bx += MARCA_W;
     }
     texto(ctx, L.best, x + bx * S, y + 2 * S, S, tBest, true);
@@ -986,11 +994,11 @@
     if (!diceRevealed(item, simT, reduced)) {
       // dados girando (Ruling 13): a caixa já no tamanho e no lugar finais, só com o ícone do dado e "DADO DA SORTE"
       // (nada do vencedor), centrados na caixa, em escala 2 quando cabe
-      var F = FAIXA, livre = B.w - 2 * (F.borda + F.folgaX), rw = textW(ROTULO);
-      var fr = F.icone + F.gapIcone + 2 * rw <= livre ? 2 : 1, gw = F.icone + F.gapIcone + fr * rw, gh = Math.max(F.icone, 5 * fr);
+      var F = FAIXA, livre = B.w - 2 * (F.borda + F.folgaX), fr = F.icone + F.gapIcone + textW(ROTULO, FONTE_G) <= livre ? FONTE_G : FONTE;
+      var rw = textW(ROTULO, fr), gw = F.icone + F.gapIcone + rw, gh = Math.max(F.icone, capDe(fr));
       var gx = B.x + Math.round((B.w - gw) / 2), gy = B.y + Math.round((B.h - gh) / 2);
       drawIconPng(ctx, 'ui-dado', gx * S, (gy + Math.floor((gh - F.icone) / 2)) * S, 8, S);
-      texto(ctx, ROTULO, (gx + F.icone + F.gapIcone) * S, (gy + Math.floor((gh - 5 * fr) / 2)) * S, S * fr, COR.ouro);
+      texto(ctx, ROTULO, (gx + F.icone + F.gapIcone) * S, (gy + Math.floor((gh - capDe(fr)) / 2)) * S, S, COR.ouro, false, fr);
       stats.faixaDadoLinhas = [ROTULO];
       return B;
     }
@@ -998,7 +1006,7 @@
     drawIconPng(ctx, 'ui-dado', B.l1.icone.x * S, B.l1.icone.y * S, 8, S);
     drawIconPng(ctx, 'cl-' + item.weather, B.l2.icone.x * S, B.l2.icone.y * S, 8, S);
     texto(ctx, FAIXA.pre, B.l1.pre.x * S, B.l1.pre.y * S, S, COR.texto);
-    texto(ctx, B.nome, B.l1.nome.x * S, B.l1.nome.y * S, S * B.fs, COR.ouroClaro);
+    texto(ctx, B.nome, B.l1.nome.x * S, B.l1.nome.y * S, S, COR.ouroClaro, false, B.fonteNome);
     texto(ctx, B.frase, B.l2.texto.x * S, B.l2.texto.y * S, S, COR.texto);
     if (B.l2.eu) {
       texto(ctx, FAIXA.sep, B.l2.sep.x * S, B.l2.sep.y * S, S, COR.texto3);
@@ -1016,19 +1024,19 @@
   // Centrada na largura, com y = topo; com embaixo, encostada em base (padrão: o pé da pista, artH − 2).
   var LUGAR = { borda: 3, folgaX: 6, folgaY: 2, margem: 2 };
   function lugarLayout(texto, lay, topo, embaixo, base) {
-    var F = LUGAR, t = String(texto || '').toUpperCase(), tw0 = textW(t), fs = 1;
-    for (var k = 3; k > 1; k--) if (tw0 * k + 2 * (F.borda + F.folgaX) <= lay.artW - 2 * F.margem) { fs = k; break; }
-    var w = tw0 * fs + 2 * (F.borda + F.folgaX), h = 2 * (F.borda + F.folgaY) + 7 * fs, acento = marcasTexto(t).cima;
+    // a Galmuri11 Bold se couber na pista (margem 2 dos lados), senão a Galmuri7 (fs fica: 2 e 1)
+    var F = LUGAR, t = String(texto || '').toUpperCase(), fonte = textW(t, FONTE_G) + 2 * (F.borda + F.folgaX) <= lay.artW - 2 * F.margem ? FONTE_G : FONTE;
+    var tw0 = textW(t, fonte), fs = fonte === FONTE_G ? 2 : 1, cap = capDe(fonte), ac = acentoDe(fonte);
+    var w = tw0 + 2 * (F.borda + F.folgaX), h = 2 * (F.borda + F.folgaY) + ac + cap, acento = marcasTexto(t).cima;
     var y = embaixo ? (base != null ? base : lay.artH - F.margem) - h : topo, x = Math.round((lay.artW - w) / 2);
-    var alto = (acento ? 2 * fs : 0) + 5 * fs;
-    return { texto: t, fs: fs, acento: acento, x: x, y: y, w: w, h: h, tw: tw0 * fs,
-      tx: x + F.borda + F.folgaX, ty: y + F.borda + F.folgaY + Math.floor((7 * fs - alto) / 2) + (acento ? 2 * fs : 0) };
+    return { texto: t, fs: fs, fonte: fonte, acento: acento, x: x, y: y, w: w, h: h, tw: tw0,
+      tx: x + F.borda + F.folgaX, ty: y + F.borda + F.folgaY + ac };
   }
   // desenha a faixa B (lugarLayout) com o friso e o texto na cor do lugar; parada (aparece e some, sem animação, com ou
   // sem movimento reduzido). Marca _stats.faixaLugar e faixaLugarCaixa
   function drawPlaceBanner(ctx, B, cor, S) {
     moldura(ctx, B, S, cor);
-    texto(ctx, B.texto, B.tx * S, B.ty * S, S * B.fs, cor);
+    texto(ctx, B.texto, B.tx * S, B.ty * S, S, cor, false, B.fonte);
     stats.faixaLugar = B.texto;
     stats.faixaLugarCaixa = { x: B.x, y: B.y, w: B.w, h: B.h };
     return B;
@@ -1081,7 +1089,7 @@
   }
   // Balão preso à raia do cavalo: à frente do focinho, com chip do número e borda na cor da seda.
   // Altura 11 (cabe duas vezes na raia de 26 px); pilha > 0 vira só o chip + ícone (cresce para a frente).
-  var BAL_H = 11, BAL_ICONE_X = 9;
+  var BAL_H = 13, BAL_ICONE_X = 9;   // 4 + 7 da letra + 2 (o acento cabe nos 3 de cima)
   function iconeDe(item) {
     if (item.kind === 'cansou') return 'gota';
     if (item.icon === 'clima') return item.clima === 'chuva' ? 'gota' : item.clima === 'nevoa' ? 'nevoa' : 'sol';
@@ -1102,23 +1110,23 @@
     ctx.drawImage(img, x, y, lado * S, lado * S);
     return true;
   }
+  // fs: 2 = Galmuri11 Bold, 1 = Galmuri7 (textW(texto, fs) mede na fonte do fs); o ícone de 8 sempre 1:1 (nada ampliado)
   function skillBannerLayout(texto, artW, S, temImg, textW) {
     function medida(fs, comIcone) {
-      var skW = comIcone ? 8 * fs + 2 : 0;
+      var skW = comIcone ? 8 + 2 : 0;
       return { fs: fs, icone: comIcone, skW: skW, w: textW(texto, fs) + 8 + skW };
     }
-    function icoOk(fs) { return !!temImg && 8 * fs * S >= 16; }
-    var m = medida(2, icoOk(2));
+    function icoOk() { return !!temImg && 8 * S >= 8; }
+    var m = medida(2, icoOk());
     if (m.w > artW - 6) {
-      // sem ícone vale a regra de sempre (tw(texto, 2) + 8 <= artW - 6); com ícone ele entra na conta
-      m = medida(1, icoOk(1));
+      m = medida(1, icoOk());
       if (m.w > artW - 6 && m.icone) m = medida(1, false);
     }
-    var fs = m.fs, h = Math.max(5 * fs + 6, m.icone ? 8 * fs + 2 : 0), x = Math.round(artW / 2 - m.w / 2);
+    var fs = m.fs, cap = capDe(fs === 2 ? FONTE_G : FONTE), h = Math.max(cap + 3 + acentoDe(fs === 2 ? FONTE_G : FONTE), m.icone ? 8 + 4 : 0), x = Math.round(artW / 2 - m.w / 2);
     return {
-      fs: fs, icone: m.icone, x: x, w: m.w, h: h,
-      iconX: x + 4, iconDy: Math.floor((h - 8 * fs) / 2),
-      textX: Math.round(artW / 2) + Math.round(m.skW / 2), textDy: Math.floor((h - 5 * fs) / 2)
+      fs: fs, fonte: fs === 2 ? FONTE_G : FONTE, icone: m.icone, x: x, w: m.w, h: h,
+      iconX: x + 4, iconDy: Math.floor((h - 8) / 2),
+      textX: Math.round(artW / 2) + Math.round(m.skW / 2), textDy: h - 3 - cap
     };
   }
   // linhas (opcional, do nomeEmLinhas): o texto do balão de skill; sem elas, o de sempre numa linha
@@ -1153,12 +1161,12 @@
     R(0, 0, w, h, seda);
     R(1, 1, w - 2, h - 2, fundo);
     R(1, 1, 7, h - 2, seda);                            // chip com o número da raia
-    texto(ctx, String(item.raia || ''), x + (item.raia > 9 ? 1 : 3) * S, y0 + (3 + meio) * S, S, lum(seda) > 0.5 ? COR.tinta : COR.texto);
-    if (!drawIconPng(ctx, iconNameOf(item), x + BAL_ICONE_X * S, y0 + (1 + meio) * S, 8, S)) desenhaIcone(ctx, iconeDe(item), x + BAL_ICONE_X * S, y0 + (1 + meio) * S, S, txt);
-    // as linhas a cada 7 px: 5 da letra e 2 entre elas, para a cedilha da linha de cima e o acento da de baixo
-    for (var li = 0; !pilha && li < ls.length; li++) texto(ctx, ls[li], x + (BAL_ICONE_X + 10) * S, y0 + (3 + 7 * li) * S, S, txt);
+    texto(ctx, String(item.raia || ''), x + (item.raia > 9 ? 1 : 1) * S, y0 + (4 + meio) * S, S, lum(seda) > 0.5 ? COR.tinta : COR.texto);
+    if (!drawIconPng(ctx, iconNameOf(item), x + BAL_ICONE_X * S, y0 + (2 + meio) * S, 8, S)) desenhaIcone(ctx, iconeDe(item), x + BAL_ICONE_X * S, y0 + (2 + meio) * S, S, txt);
+    // as linhas a cada 10 px: 7 da letra e 3 entre elas, para a descendente da linha de cima e o acento da de baixo
+    for (var li = 0; !pilha && li < ls.length; li++) texto(ctx, ls[li], x + (BAL_ICONE_X + 10) * S, y0 + (4 + 10 * li) * S, S, txt);
     if (!pilha) {                                      // pontinha para o cavalo (na cor da seda)
-      R(-3, 4 + meio, 3, 3, COR.sombra); R(-2, 4 + meio, 2, 3, seda); R(-1, 3 + meio, 1, 5, seda); R(-2, 5 + meio, 1, 1, seda);
+      R(-3, 5 + meio, 3, 3, COR.sombra); R(-2, 5 + meio, 2, 3, seda); R(-1, 4 + meio, 1, 5, seda); R(-2, 6 + meio, 1, 1, seda);
     }
     ctx.globalAlpha = prev;
     stats.baloes++;

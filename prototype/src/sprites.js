@@ -2163,16 +2163,18 @@
     return c;
   }
 
-  // Placa com texto (borda escura)
+  // Placa com texto (borda escura), em Galmuri7: 7 da maiúscula e 2 de folga em cima e embaixo. top é o da placa de
+  // 9 de antes: a de agora cresce 2 para cima, e o pé (preso no poste) fica onde estava
   function drawBoard(ctx, cx, top, text, P, bg, fg) {
-    var tw = measureText(text, P);
-    var w = tw + 4 * P, h = 9 * P;
+    var tw = measureText(text, 1, 'g7') * P;
+    var w = tw + 4 * P, h = 11 * P;
     var x = Math.round(cx - w / 2);
+    top -= 2 * P;
     ctx.fillStyle = '#1c1820'; ctx.fillRect(x - P, top - P, w + 2 * P, h + 2 * P);
     ctx.fillStyle = bg; ctx.fillRect(x, top, w, h);
     ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(x, top + h - P, w, P);
-    drawText(ctx, text, x + 2 * P, top + 2 * P, { scale: P, color: fg });
-    return { x: x, w: w, h: h };
+    drawText(ctx, text, x + 2 * P, top + 2 * P, { scale: P, color: fg, fonte: 'g7' });
+    return { x: x, y: top, w: w, h: h };
   }
 
   // Subidas em relevo: a faixa da pista (e quem corre nela) sobe em rampa ao longo do trecho e
