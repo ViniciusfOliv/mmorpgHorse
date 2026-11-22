@@ -3,7 +3,7 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
-## 2026-11-22 — Integração da arte, etapa 2 (corrida: 2.1 a 2.3)
+## 2026-11-22 — Integração da arte, etapa 2 (corrida: 2.1 a 2.4)
 - **A corrida é desenhada num canvas na resolução de arte** (S = 1) e copiada com um `drawImage` ampliado pela mesma `s`
   da interface; cavalos 1:1 (2.1).
 - **Texto do canvas só na Galmuri, no tamanho nativo** (2.2): atlas de glifos com alfa binário gerado uma vez no Chromium
@@ -14,9 +14,14 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
   como na amostra aprovada; a arquibancada é um objeto a cada 2600 px da paralaxe 0,75. O horizonte vai com a névoa da
   distância assada no build. A pista, as cercas e as placas continuam de código, agora na Resurrect 64 (a terra é a da
   amostra). Sem as imagens (Node, ou antes de carregarem), o cenário por código de antes.
-- **Pendências conhecidas da etapa 2** (vão na 2.4/2.5): o primeiro plano mostra só ~14 px (a margem de baixo da pista é
-  a de antes); clima ainda sem troca de paleta nas camadas; véus translúcidos (raia do jogador, subida) ainda com alfa;
-  testes de interface da corrida calibrados na grade antiga.
+- **Câmera a 12 px de arte por metro e galope a 21 quadros do molde por segundo a 17 m/s** (2.4, guia §8a): cabem
+  ~22 m de pista na tela de retrato, então quase sempre há cavalos fora; **quem sai da tela vira uma seta de 5 × 9 na
+  borda**, na altura da raia e na cor da seda, sem os metros (guia §8). A foto de chegada continua a mesma (câmera parada
+  com a linha a 62% da tela); nela o cavalo do jogador pode sair da tela por um instante, como antes.
+- **Margem de baixo da pista 22 px de arte** (era 14), tirados do teto do topo (minTop + 62): o capim do primeiro plano
+  aparece sem a cena crescer.
+- **Pendências conhecidas da etapa 2** (vão na 2.5): clima ainda sem troca de paleta nas camadas; véus translúcidos
+  (raia do jogador, subida) ainda com alfa; testes de interface da corrida calibrados na grade e na câmera antigas.
 
 ## 2026-11-21 — Integração da arte, etapa 1b (paleta e cavalos 1:1 fora da corrida)
 - **Cores da interface pelos papéis do guia** (fundo `2e222f`, painéis `313638`/`374e4a`, destaque `165a4c`, linha

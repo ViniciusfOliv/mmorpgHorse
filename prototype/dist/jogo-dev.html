@@ -10112,6 +10112,9 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // 2026-11-18: +25% a pedido do Vinicius ("as corridas estão muito rápidas"; era de 20 a 34 s) e, no mesmo dia, mais
   // +20% ("adicione um pouco mais de tempo"): 50% acima do original.
   var TELA_S_MIN = 30, TELA_S_MAX = 51;
+  // câmera da corrida e cadência do galope (guia §8a, etapa 2.4 da direção de arte): 12 px de arte por metro (o chão a
+  // 16 m/s passa a ~190 px/s) e 14 quadros por segundo no ciclo de 6 do código = 21 no ciclo de 9 do molde, a 17 m/s
+  var PPM_ARTE = 12, GALOPE_QPS = 14;
   var PLAYER_SILKS = '#f2c230';
   var BOT_SILKS = SP.SILKS.filter(function (c) { return c.toLowerCase() !== PLAYER_SILKS; });
   var PORTRAIT_SCALE = 3;        // escala dos retratos (portraitHtml sem opts.tamanho)
@@ -15077,10 +15080,12 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       var compact = artH < 190;
       var mini = compact ? null : miniCaixa(artW);
       var hudH = compact ? 15 : Math.max(20 + n, mini.y + mini.h + 2);
-      var bottom = compact ? 8 : 14;
+      // embaixo da pista, o capim do primeiro plano (drawTrackFront): 22 de arte, 8 de cima do teto do topo (a altura da
+      // cena fica a mesma quando o topo está no teto)
+      var bottom = compact ? 8 : 22;
       var minTop = hudH + (compact ? 12 : 30);
       var lane = clamp(Math.floor((artH - bottom - minTop) / n), compact ? 12 : 13, 26);
-      var top = Math.max(minTop, Math.min(artH - bottom - n * lane, minTop + 70));
+      var top = Math.max(minTop, Math.min(artH - bottom - n * lane, minTop + 62));
       var pick = {
         k: sTela, S: sTela, artW: artW, artH: top + n * lane + bottom, laneArt: lane, laneTopArt: top, hudH: hudH, compact: compact, mini: mini,
         maxLift: clamp(top - hudH - 12, 4, 24),   // a subida não invade o HUD
@@ -15100,7 +15105,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       cv.style.height = (self.H * sTela / r) + 'px';
       palco.style.height = (self.H * sTela / r) + 'px';
       vctx.imageSmoothingEnabled = false;
-      self.ppmArt = pick.artW < 260 ? 2 : 2.5;
+      self.ppmArt = PPM_ARTE;   // guia §8a: 12 px de arte por metro (era 2 a 2,5)
       // a narração ocupa a altura que sobrar (campos pequenos): nada de faixa vazia sob os botões. Só aqui (no
       // redimensionar) a altura dela muda: durante a corrida, a faixa de ordem e a narração têm altura fixa
       if (!baixa && hud.feed && getComputedStyle(hud.feed).display !== 'none') {
@@ -15433,8 +15438,9 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         // então a cauda do molde (que passa do x do sprite) não some de uma vez na borda
         var caixaCav = SP.horseBox(x, y, cavalo);
         if (j === me) self.playerRect = { x: caixaCav.x, y: caixaCav.y, w: caixaCav.w, h: caixaCav.h, W: W, H: H };
-        if (caixaCav.x > W - 2 * S) { tagsR.push({ j: j, y: feetY - 12 * S, txt: '+' + Math.round(st.pos[j] - p) + 'm' }); continue; }
-        if (caixaCav.x + caixaCav.w < 2 * S) { tagsL.push({ j: j, y: feetY - 12 * S, txt: '-' + Math.round(p - st.pos[j]) + 'm' }); continue; }
+        // fora da tela: a seta (layoutTags) com o meio na altura do corpo do cavalo
+        if (caixaCav.x > W - 2 * S) { tagsR.push({ j: j, y: feetY - 20 * S }); continue; }
+        if (caixaCav.x + caixaCav.w < 2 * S) { tagsL.push({ j: j, y: feetY - 20 * S }); continue; }
         // aura da skill de tipo enquanto o cavalo está no terço dela (antes do anel e do cavalo: não cobre nada);
         // relógio = segundos de apresentação (simT / ts), deslocado por raia
         if (self.phase !== 'contagem' && FX.typeZone(tipoTerco[j], st.pos[j]) != null &&
@@ -15506,7 +15512,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       var tagsTopo = null;
       if (dCaixa && !foto && !lugarDado.embaixo) tagsTopo = dCaixa.y + dCaixa.h + 2;
       if (lCaixa && !lugarFaixa.embaixo) tagsTopo = Math.max(tagsTopo || 0, lCaixa.y + lCaixa.h + 2);
-      layoutTags(tagsR, true, tagsTopo); layoutTags(tagsL, false, tagsTopo);
+      var tagsObst = [dCaixa && lugarDado.embaixo ? dCaixa : null, lCaixa && lugarFaixa.embaixo ? lCaixa : null];
+      layoutTags(tagsR, true, tagsTopo, tagsObst); layoutTags(tagsL, false, tagsTopo, tagsObst);
       // natureza, camada da frente (véu, pingos, relâmpago, sol, sombras, folhas) e a névoa da frente
       natO.camada = 'frente';
       FX.drawNature(ctx, natO);
@@ -15642,7 +15649,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     }
 
     // etiqueta "◀VOCÊ" (pixels de arte; caixa de 9 de altura, borda por fora): texto e posição
-    var YOU_H = 11, TAG_H = 9;   // a etiqueta "◀VOCÊ" (com o acento) e as de quem está fora da tela, em Galmuri7
+    var YOU_H = 11;   // a etiqueta "◀VOCÊ" (com o acento), em Galmuri7
     function youTagBox(yt) {
       var s = '◀VOCÊ' + (yt.place ? ' ' + yt.place + 'º' : ''), w = tw(s) + 3;
       return { txt: s, x: Math.min(Math.round(yt.x / self.S), self.lay.artW - w - 2), y: Math.round(yt.y / self.S) - 2, w: w };
@@ -15730,30 +15737,24 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       });
     }
 
-    // etiquetas de quem está fora da tela: coluna própria, sem se sobrepor, com nº da raia; topo (opcional) = a
-    // primeira linha livre abaixo de uma faixa no alto da pista (a do Dado). Anota as caixas em _stats.caixasEtiquetas
-    function layoutTags(tags, right, topo) {
+    // quem está fora da tela vira uma seta de 5 × 9 na borda, na altura da raia, na cor da seda e sem metros (guia §8;
+    // etapa 2.4: com a câmera a 12 px/m quase sempre há alguém fora). topo (opcional) = a primeira linha livre abaixo de
+    // uma faixa no alto da pista; obst = caixas que a seta não cobre (uma faixa no pé da pista): ela sobe para cima da
+    // caixa. Anota as caixas em _stats.caixasEtiquetas
+    var SETA_W = 5, SETA_H = 9;
+    function layoutTags(tags, right, topo, obst) {
       if (!tags.length) return;
-      var S = self.S, lay = self.lay;
-      tags.sort(function (a, b) { return a.y - b.y; });
-      var minY = Math.max(lay.compact ? lay.hudH + 2 : lay.hudH + 14, topo || 0);
-      // Galmuri7 (só números, sinais e "m": sem acento): 7 da maiúscula e 1 de folga em cima e embaixo
-      var prev = minY - TAG_H - 1;
+      var lay = self.lay, minY = Math.max(lay.hudH + 2, topo || 0);
       tags.forEach(function (t) {
-        var y = Math.max(Math.round(t.y / S), prev + TAG_H + 1);
-        y = Math.min(y, lay.artH - TAG_H - 1);
-        prev = y;
-        var r = L.racers[t.j], num = String(t.j + 1), cw = tw(num) + 1;
-        var w = 1 + cw + 2 + tw(t.txt) + 1;
-        var bx = right ? lay.artW - w - 1 : 1;
-        box(bx, y, w, TAG_H, C.veu);
-        FX._stats.caixasEtiquetas.push({ racer: t.j, x: right ? bx : bx - 1, y: y, w: w + 1, h: TAG_H });   // com a setinha
-        box(bx + 1, y + 1, cw, TAG_H - 2, r.silks);
-        text(num, bx + 2, y + 1, digitColor(r.silks));
-        text(t.txt, bx + 1 + cw + 2, y + 1, C.texto, 1, null, null, true);
-        ctx.fillStyle = C.texto2;
-        var ax = right ? bx + w : bx - 1;
-        ctx.fillRect(ax * S, (y + 4) * S, S, 2 * S);
+        var y = clamp(Math.round(t.y / self.S), minY, lay.artH - SETA_H - 1);
+        var ax = right ? lay.artW - SETA_W - 1 : 1, i, cx;
+        (obst || []).forEach(function (b) {
+          if (b && ax < b.x + b.w && ax + SETA_W > b.x && y < b.y + b.h && y + SETA_H > b.y) y = b.y - SETA_H - 1;
+        });
+        // contorno escuro e o miolo na cor da seda; a ponta para o lado de fora da tela
+        for (i = 0; i < 5; i++) { cx = right ? ax + i : ax + 4 - i; box(cx, y + i, 1, SETA_H - 2 * i, C.tinta); }
+        for (i = 0; i < 4; i++) { cx = right ? ax + i : ax + 4 - i; box(cx, y + 1 + i, 1, SETA_H - 2 - 2 * i, L.racers[t.j].silks); }
+        FX._stats.caixasEtiquetas.push({ racer: t.j, x: ax, y: y, w: SETA_W, h: SETA_H });
       });
     }
 
@@ -15790,7 +15791,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       }
       var st = sample(self.simT);
       // galope: cadência em tempo real proporcional à velocidade (mais lenta na câmera lenta)
-      for (var j = 0; j < n; j++) self.gallop[j] += dtReal * 13 * (st.speed[j] / 17) * (self.mult > 1 ? 1.3 : 1) * Math.max(0.35, slowK);
+      // (guia §8a: 21 quadros do molde por segundo a 17 m/s = 14 dos 6 do ciclo do código)
+      for (var j = 0; j < n; j++) self.gallop[j] += dtReal * GALOPE_QPS * (st.speed[j] / 17) * (self.mult > 1 ? 1.3 : 1) * Math.max(0.35, slowK);
       // narração
       while (self.phase !== 'contagem' && feedPtr < feedEvents.length && feedEvents[feedPtr].t <= self.simT && !esperaRevelacao(feedEvents[feedPtr])) pushFeed(feedEvents[feedPtr++]);
       var order = ranking(st, self.simT);
