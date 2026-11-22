@@ -880,6 +880,12 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .etapa-insignia { grid-column: 2; grid-row: 2; justify-self: end; line-height: 0; }
 .etapa-meta, .etapa-motivo { grid-column: 1 / -1; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; color: var(--texto-2); }
 .etapa-motivo { color: var(--texto); }
+/* etapa 5 da direção de arte: o busto do oponente (64×64, 1:1 na grade) numa coluna à esquerda do cartão */
+.etapa-busto { grid-column: 1; grid-row: 1 / span 5; align-self: start; width: calc(var(--px) * 64); height: calc(var(--px) * 64); image-rendering: pixelated; }
+.etapa-btn:has(.etapa-busto) { grid-template-columns: calc(var(--px) * 64) minmax(0, 1fr) auto; }
+.etapa-btn:has(.etapa-busto) .etapa-rotulo, .etapa-btn:has(.etapa-busto) .etapa-nome { grid-column: 2; }
+.etapa-btn:has(.etapa-busto) .etapa-estado, .etapa-btn:has(.etapa-busto) .etapa-insignia { grid-column: 3; }
+.etapa-btn:has(.etapa-busto) .etapa-meta, .etapa-btn:has(.etapa-busto) .etapa-motivo { grid-column: 2 / -1; }
 /* vencida: só texto, com o filete verde à esquerda; fechada: apagada (sem o bisel), com o motivo escrito */
 .etapa--vencida .etapa-btn { background: var(--painel); box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 14px; }
 .etapa--proxima .etapa-btn, .etapa--revanche .etapa-btn { background: var(--painel-3); }

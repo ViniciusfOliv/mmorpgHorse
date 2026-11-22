@@ -2885,26 +2885,34 @@ test('o game.css não importa fontes da rede', () => {
   assert.ok(!/fonts\.googleapis/.test(GAME_CSS));
 });
 
-section('Oponentes dos ginásios (tela de desafio, 2026-11-18)');
-// cada oponente do catálogo (GameData.GYMS) tem a candidata escolhida em treinadores/escolhas.json: o id é o nome sem
-// acento, em minúsculas e com hífen (o mesmo que o game.js usa para achar a arte), e o PNG é 64×64 com o fundo transparente
-test('os 15 oponentes dos ginásios têm a arte escolhida, 64×64 e sem fundo', () => {
+section('Oponentes dos ginásios e arenas (etapa 5 da direção de arte)');
+// cada oponente do catálogo (GameData.GYMS) tem o corpo (32×48, ~40 px de altura, a escala dos cavalos) e o busto (64×64)
+// em assets/arte/treinadores/finais/: o id é o nome sem acento, em minúsculas e com hífen (o mesmo que o game.js usa para
+// achar a arte); fundo transparente
+test('os 15 oponentes dos ginásios têm corpo 32×48 e busto 64×64, sem fundo', () => {
   const G = createRequire(import.meta.url)('../src/data.js');
-  const dirT = path.join(DIR, 'treinadores'), escolhas = JSON.parse(fs.readFileSync(path.join(dirT, 'escolhas.json'), 'utf8'));
+  const dirT = path.join(DIR, '..', 'arte', 'treinadores', 'finais');
   const slug = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const ids = [];
   for (const g of G.GYM_ORDER) for (const e of G.GYMS[g].etapas) ids.push(slug(e.nome));
   assert.strictEqual(ids.length, 15);
-  assert.deepStrictEqual(Object.keys(escolhas).sort(), ids.slice().sort(), 'escolhas.json tem de cobrir só os oponentes do catálogo');
-  for (const id of ids) {
-    const f = path.join(dirT, `${id}-s${escolhas[id]}.png`);
-    assert.ok(Number.isInteger(escolhas[id]) && fs.existsSync(f), `${id}: falta ${path.basename(f)}`);
-    const d = decodePng(fs.readFileSync(f));
-    assert.ok(d.width === 64 && d.height === 64, `${id}: ${d.width}×${d.height}`);
-    for (const [x, y] of [[0, 0], [63, 0], [0, 63], [63, 63]]) assert.strictEqual(d.rgba[(y * 64 + x) * 4 + 3], 0, `${id}: o canto ${x},${y} não é transparente`);
-    let opacos = 0;
-    for (let i = 3; i < d.rgba.length; i += 4) if (d.rgba[i] > 0) opacos++;
-    assert.ok(opacos > 400, `${id}: só ${opacos} pixels desenhados`);
+  const arqs = fs.readdirSync(dirT).filter((n) => n.endsWith('.png')).sort();
+  assert.deepStrictEqual(arqs, ids.flatMap((id) => [id + '-busto.png', id + '-corpo.png']).sort(), 'só os oponentes do catálogo, cada um com corpo e busto');
+  for (const id of ids) for (const [parte, w, h, min] of [['corpo', 32, 48, 200], ['busto', 64, 64, 400]]) {
+    const d = decodePng(fs.readFileSync(path.join(dirT, `${id}-${parte}.png`)));
+    assert.ok(d.width === w && d.height === h, `${id} ${parte}: ${d.width}×${d.height}`);
+    for (const [x, y] of [[0, 0], [w - 1, 0]]) assert.strictEqual(d.rgba[(y * w + x) * 4 + 3], 0, `${id} ${parte}: o canto ${x},${y} não é transparente`);
+    let opacos = 0, alto = h, baixo = -1;
+    for (let i = 3; i < d.rgba.length; i += 4) if (d.rgba[i] > 0) { opacos++; const y = Math.floor((i - 3) / 4 / w); alto = Math.min(alto, y); baixo = Math.max(baixo, y); }
+    assert.ok(opacos > min, `${id} ${parte}: só ${opacos} pixels desenhados`);
+    if (parte === 'corpo') assert.ok(baixo - alto + 1 >= 30 && baixo - alto + 1 <= 46, `${id}: corpo com ${baixo - alto + 1} px de altura (guia: ~40)`);
+  }
+});
+test('as arenas dos três ginásios: 256×160, opacas', () => {
+  for (const g of ['fogo', 'agua', 'grama']) {
+    const d = decodePng(fs.readFileSync(path.join(DIR, '..', 'arte', 'ginasios', 'finais', g + '.png')));
+    assert.ok(d.width === 256 && d.height === 160, `${g}: ${d.width}×${d.height}`);
+    for (const [x, y] of [[0, 0], [255, 159]]) assert.strictEqual(d.rgba[(y * 256 + x) * 4 + 3], 255, `${g}: canto ${x},${y} transparente`);
   }
 });
 

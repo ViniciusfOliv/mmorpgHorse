@@ -208,8 +208,12 @@ async function ginComeca(page) {
 }
 // quantas cores há na faixa da cena onde o oponente fica (x 120–144, y 4–60 em pixels de arte): o fundo tem poucas; com a
 // arte do oponente desenhada, passa de 12
+// (etapa 5 da direção de arte: a cena é a arena do ginásio; o jogo anota a caixa do treinador em data-treinador, em pixels
+// de arte, e o tamanho da cena em data-arte — conta as cores dentro da caixa do treinador; 0 sem ele)
 const GIN_CENA_CORES = `(() => { const cv = document.querySelector('#tela .gin-cena-tela'); if (!cv || !cv.width) return -1
-  const k = cv.width / 160, d = cv.getContext('2d').getImageData(120 * k, 4 * k, 24 * k, 56 * k).data, cores = new Set()
+  const a = (cv.getAttribute('data-arte') || '').split('x').map(Number), t = (cv.getAttribute('data-treinador') || '').split(',').map(Number)
+  if (t.length !== 4 || !(a[0] > 0)) return 0
+  const k = cv.width / a[0], d = cv.getContext('2d').getImageData(t[0] * k, t[1] * k, t[2] * k, t[3] * k).data, cores = new Set()
   for (let j = 0; j < d.length; j += 4) cores.add((d[j] << 16) | (d[j + 1] << 8) | d[j + 2])
   return cores.size })()`
 
@@ -4584,7 +4588,7 @@ try {
         const q = (s) => document.querySelector(s), tx = (e) => (e ? e.textContent.replace(/\s+/g, ' ').trim() : null), cv = q('#tela .gin-cena-tela')
         const placa = (c) => ({ quem: tx(q(`#tela .gin-placa--${c} .gin-placa-quem`)), cavalo: tx(q(`#tela .gin-placa--${c} .gin-placa-cavalo`)), el: tx(q(`#tela .gin-placa--${c} .el`)) })
         return { rotulo: tx(q('#tela .tela--desafio .rotulo')), titulo: tx(q('#t-desafio')), rival: placa('rival'), voce: placa('voce'), vant: tx(q('#tela .gin-cena-vant')),
-          aria: cv && cv.getAttribute('aria-label'), cw: cv && cv.width, ch: cv && cv.height, cores: eval(cores), txt: tx(q('#tela')), foco: document.activeElement && document.activeElement.id,
+          aria: cv && cv.getAttribute('aria-label'), cw: cv && cv.width, ch: cv && cv.height, arte: cv && cv.getAttribute('data-arte'), cores: eval(cores), txt: tx(q('#tela')), foco: document.activeElement && document.activeElement.id,
           botoes: [...document.querySelectorAll('#tela .tela--desafio .acoes button')].map((b) => ({ acao: b.getAttribute('data-acao'), txt: tx(b), h: b.getBoundingClientRect().height, bottom: b.getBoundingClientRect().bottom })),
           ih: window.innerHeight, k: window.__galope.ui.gym && window.__galope.ui.gym.ver && window.__galope.ui.gym.ver.k }
       }, GIN_CENA_CORES)
@@ -4599,7 +4603,9 @@ try {
       if (/Vitória|Derrota|venceu|perdeu|Prêmio|de Ouro|Duelo \d+ de \d+|\d+ duelos|Pote/.test(x.txt)) problems.push(`${label}: a tela de desafio ${k + 1} entrega o que vem depois: ${x.txt.slice(0, 300)}`)
       const acoes = x.botoes.map((b) => b.acao + ':' + b.txt).join(',')
       if (acoes !== 'ginasio-comecar:Começar duelo,ginasio-pular-tudo:Pular tudo' || x.botoes.some((b) => b.h < 44 || b.bottom > x.ih)) problems.push(`${label}: botões do desafio ${k + 1} ${JSON.stringify(x.botoes)} (janela ${x.ih})`)
-      if (!x.cw || x.cw % 160 || x.ch !== x.cw / 160 * 112) problems.push(`${label}: a cena do desafio ${k + 1} fora da escala inteira (${x.cw}×${x.ch})`)
+      // a cena: a arena (até 256 de largura, 128 de altura) em escala inteira, a da grade
+      const arte = (x.arte || '').split('x').map(Number)
+      if (!x.cw || !(arte[0] >= 160 && arte[0] <= 256) || arte[1] !== 128 || x.cw % arte[0] || x.ch !== x.cw / arte[0] * arte[1]) problems.push(`${label}: a cena do desafio ${k + 1} fora da escala inteira (${x.cw}×${x.ch}, arte ${x.arte})`)
       if ((x.cores > 12) !== temArte) problems.push(`${label}: desafio ${k + 1}: ${temArte ? 'sem' : 'com'} o oponente na cena (${x.cores} cores na faixa dele; arte no build: ${temArte})`)
       await checkOverflow(pg, label + ' desafio ' + (k + 1))
       return x

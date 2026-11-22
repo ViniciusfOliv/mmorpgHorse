@@ -18,7 +18,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { lerMoldes, lerIcones, lerIconesTam, lerMarca, lerTreinadores, lerRegioes, jsonJs } from './tools/arte-embutida.mjs'
+import { lerMoldes, lerIcones, lerIconesTam, lerMarca, lerTreinadores, lerArenas, lerRegioes, jsonJs } from './tools/arte-embutida.mjs'
 import { htmlFolhaIcones } from './tools/folha-icones.mjs'
 import { ICONES_NOVOS, ANTIGOS } from './tools/icones-catalogo.mjs'
 import { gravarWiki } from './tools/wiki.mjs'
@@ -78,6 +78,7 @@ const arteJs = [
   `window.__ICONES_TAM = ${jsonJs(await lerIconesTam(ROOT))};`,   // 16 ou 24: o ícone aparece 1:1 na grade (--px)
   `window.__MARCA = ${jsonJs(await lerMarca(ROOT))};`,
   `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`,
+  `window.__ARENAS = ${jsonJs(await lerArenas(ROOT))};`,
   // as camadas das 5 regiões na corrida (paralaxe; a pista, as cercas e as placas são de código)
   `window.__REGIOES = ${jsonJs(await lerRegioes(ROOT))};`,
   // os glifos da Galmuri para o texto do canvas (tools/fonte-glifos.mjs; o sprites.js lê o mesmo arquivo no Node)

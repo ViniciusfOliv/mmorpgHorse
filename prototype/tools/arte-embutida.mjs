@@ -5,7 +5,8 @@
 //                              16×16 ou 24×24; etapa 4)
 //   lerIconesTam(root)      -> { nome: 16|24 }  (window.__ICONES_TAM: o lado nativo de cada um, lido do PNG)
 //   lerMarca(root)          -> { logo, w, h } ou { logo: null }  (window.__MARCA)
-//   lerTreinadores(root)    -> { id: dataUrl }  (window.__TREINADORES: a candidata escolhida de cada oponente dos ginásios)
+//   lerTreinadores(root)    -> { id: { corpo, busto } }  (window.__TREINADORES: os finais da etapa 5 da direção de arte)
+//   lerArenas(root)         -> { fogo, agua, grama }  (window.__ARENAS: o fundo da cena do desafio, 256×160)
 //   lerRegioes(root)        -> { regiao: { nome, pistas, posicao, camadas: { nuvens, horizonte, meio, arquibancada,
 //                              frente } } }  (window.__REGIOES: as camadas da corrida, etapa 2.3; o horizonte já com a
 //                              névoa da distância, como na amostra)
@@ -88,13 +89,24 @@ export async function lerIconesTam(root, dir = DIR_ICONES) {
 // Oponentes dos ginásios (a tela de desafio): assets/pixellab/treinadores/escolhas.json = { id: seed } diz qual
 // candidata de cada um vai para o jogo (<id>-s<seed>.png, da pixellab-treinadores.mjs). O id é o nome do oponente sem
 // acento, em minúsculas e com hífen. Sem o JSON ou sem o PNG, o oponente fica de fora (a tela mostra só o cavalo dele).
+// Oponentes dos ginásios (etapa 5 da direção de arte): assets/arte/treinadores/finais/<id>-corpo.png (32×48, corpo de
+// ~40 px, a escala dos cavalos) e <id>-busto.png (64×64, para os cartões), escolhidos e copiados por
+// tools/arte-treinadores.mjs finais. Um id só entra com as duas imagens.
 export async function lerTreinadores(root) {
-  const dir = 'assets/pixellab/treinadores', arq = join(root, dir, 'escolhas.json'), out = {}
-  if (!existsSync(arq)) return out
-  const escolhas = JSON.parse(await readFile(arq, 'utf8'))
-  for (const id of Object.keys(escolhas).sort()) {
-    const png = join(dir, `${id}-s${escolhas[id]}.png`)
-    if (/^[a-z0-9-]+$/.test(id) && Number.isInteger(escolhas[id]) && existsSync(join(root, png))) out[id] = await dataUrl(root, png)
+  const dir = 'assets/arte/treinadores/finais', out = {}
+  const ids = new Set((await listar(root, dir)).map((n) => (n.match(/^([a-z0-9-]+)-(corpo|busto)\.png$/) || [])[1]).filter(Boolean))
+  for (const id of [...ids].sort()) {
+    const corpo = join(dir, id + '-corpo.png'), busto = join(dir, id + '-busto.png')
+    if (existsSync(join(root, corpo)) && existsSync(join(root, busto))) out[id] = { corpo: await dataUrl(root, corpo), busto: await dataUrl(root, busto) }
+  }
+  return out
+}
+// As arenas dos ginásios (etapa 5): assets/arte/ginasios/finais/<fogo|agua|grama>.png, 256×160 ao ar livre
+export async function lerArenas(root) {
+  const out = {}
+  for (const id of ['fogo', 'agua', 'grama']) {
+    const png = join('assets/arte/ginasios/finais', id + '.png')
+    if (existsSync(join(root, png))) out[id] = await dataUrl(root, png)
   }
   return out
 }
