@@ -1,4 +1,6 @@
 // prototype/tools/arte-icones-pro.mjs — ícones complexos em 24 × 24 pelo modo Pro do PixelLab (`/generate-image-v2`),
+// (2026-11-22, etapa 8: os ícones antigos de 32×32 que este script usava como referência saíram de prototype/assets/icons/;
+// para gerar de novo, recupere a pasta do histórico do git. Os finais estão em prototype/assets/arte/icones/.)
 // etapa 4 da direção de arte. O /resize falhou em 16 e em 24 (2026-11-20); o Pro em 16–32 px devolve 64 candidatos por
 // chamada de 10 gerações, já na paleta mestra (target_palette), com:
 //   reference_images  o ícone atual de 32 × 32 (o desenho que o Vinicius já aprovou: o assunto);

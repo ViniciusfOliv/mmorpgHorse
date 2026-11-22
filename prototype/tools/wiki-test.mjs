@@ -270,7 +270,7 @@ confere(/<span class="el el--geral"><img /.test(a.html), 'skills gerais sem o í
 }
 
 // 2b. ícones: skill (e skill de tipo), status, clima, piso, liga e raridade que têm arquivo ganham o <img> antes do nome
-const DIR_ICONES = resolve(import.meta.dirname, '..', 'assets', 'icons')
+const DIR_ICONES = resolve(import.meta.dirname, '..', 'assets', 'arte', 'icones')
 const temIcone = (id) => existsSync(join(DIR_ICONES, id + '.png'))
 const IMG = '<img class="ic" src="data:image/png;base64,[A-Za-z0-9+/=]+" alt="" width="16" height="16">'
 const reEsc = reEscCedo

@@ -1233,24 +1233,26 @@ section('Catálogo de ícones');
     });
     assert.ok(refeitos > 0, 'nenhum item refeito encontrado');
   });
-  // Todo PNG de assets/icons (fora raw/) é conhecido, 32x32, de canto transparente e com algo desenhado.
-  test('PNGs de assets/icons: conhecidos, 32x32, fundo transparente, ao menos um pixel opaco', () => {
-    const dirIcons = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'icons');
+  // Todo PNG de assets/arte/icones (os finais da etapa 4 da direção de arte) é conhecido, 16×16 ou 24×24, de canto
+  // transparente e com algo desenhado; o lado bate com o icones.json (a pasta antiga de 32×32 saiu na etapa 8)
+  test('PNGs de assets/arte/icones: conhecidos, 16 ou 24 de lado (o do icones.json), fundo transparente, ao menos um pixel opaco', () => {
+    const dirIcons = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'arte', 'icones');
+    const lados = JSON.parse(fs.readFileSync(path.join(dirIcons, 'icones.json'), 'utf8'));
     const conhecidos = new Set([...ids, ...ANTIGOS]);
     const arquivos = fs.readdirSync(dirIcons).filter(f => f.endsWith('.png'));
+    assert.ok(arquivos.length >= 70, 'só ' + arquivos.length + ' ícones');
+    assert.ok(!fs.existsSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'icons')), 'a pasta antiga assets/icons/ (32×32) voltou');
     for (const f of arquivos) {
       const id = f.slice(0, -4);
       assert.ok(conhecidos.has(id), f + ': fora do catálogo e dos 16 antigos');
       const { width, height, rgba } = decodePng(fs.readFileSync(path.join(dirIcons, f)));
-      assert.strictEqual(width + 'x' + height, '32x32', f + ': tamanho');
+      assert.ok(width === height && (width === 16 || width === 24), f + ': ' + width + 'x' + height);
+      if (lados[id] === 16 || lados[id] === 24) assert.strictEqual(width, lados[id], f + ': o lado do icones.json');
       assert.strictEqual(rgba[3], 0, f + ': canto superior esquerdo não é transparente');
       let opaco = false;
       for (let p = 3; p < rgba.length; p += 4) if (rgba[p] >= 128) { opaco = true; break; }
       assert.ok(opaco, f + ': sem pixel opaco');
     }
-    // Ícone sem arquivo (ainda não gerado/refeito) é só aviso.
-    const tem = new Set(arquivos.map(f => f.slice(0, -4)));
-    for (const id of conhecidos) if (!tem.has(id)) console.log('  aviso: sem arquivo: ' + id);
   });
   // Ruling 16 dos ginásios: as três insígnias saem dos reservados (aparecem na aba Expedição); ficam a Rédea e a Gema
   test('RESERVADOS são os 2 que ainda não têm tela e estão no catálogo', () => {

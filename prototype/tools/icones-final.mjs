@@ -11,6 +11,7 @@ import { RAIZ } from './pixellab-comum.mjs';
 import { decodePng, encodePng } from './png.mjs';
 import { RESURRECT64, rgbDe, conferir } from './arte-paleta.mjs';
 import { MAPAS, desenhar } from './icones16-mapas.mjs';
+import { ICONES_NOVOS, ANTIGOS } from './icones-catalogo.mjs';
 
 const A = path.join(RAIZ, 'prototype', 'assets');
 const PRO = path.join(A, 'arte', 'icones24pro');
@@ -117,7 +118,8 @@ export function montar() {
 
 if (process.argv[1] && process.argv[1].endsWith('icones-final.mjs')) {
   const lados = montar();
-  const atuais = fs.readdirSync(path.join(A, 'icons')).filter(f => f.endsWith('.png')).map(f => f.replace('.png', ''));
+  // (os ícones que o jogo usava antes, de 32×32, saíram na etapa 8: a lista é a do catálogo)
+  const atuais = [...ICONES_NOVOS.map(i => i.id), ...ANTIGOS];
   const faltam = atuais.filter(id => !lados[id]);
   let problemas = 0;
   for (const id of Object.keys(lados)) {

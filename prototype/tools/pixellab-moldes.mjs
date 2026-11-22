@@ -211,6 +211,9 @@ function lerArgs(argv) {
     else if (k === '--forca') a.forca = Number(argv[++i]);
     else sair('argumento desconhecido: ' + k);
   }
+  // os ícones de 32×32 deste script foram substituídos pelos finais da direção de arte (etapa 4: 16 e 24 px,
+  // prototype/assets/arte/icones/, tools/icones-final.mjs) e a pasta assets/icons/ saiu na etapa 8
+  if (['icones', 'icones2', 'tudo'].includes(a.lote)) sair('os ícones de 32×32 foram substituídos (etapa 4 da direção de arte): use prototype/tools/icones-final.mjs; aqui só --lote moldes|portes');
   if (!['moldes', 'icones', 'icones2', 'tudo', 'portes'].includes(a.lote)) {
     sair('uso: node prototype/tools/pixellab-moldes.mjs --lote moldes|icones|icones2|tudo [--only <id>] [--teto 60] [--gerar]\n'
       + '     node prototype/tools/pixellab-moldes.mjs --lote portes --fase mestres|piloto|versoes [--only <porte>[-<estilo>]] [--teto 90] [--gerar]\n'

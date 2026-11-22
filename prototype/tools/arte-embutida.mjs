@@ -66,9 +66,8 @@ export async function lerMoldes(root, avisos = [], dir = 'assets/pixellab') {
   return { estilos }
 }
 
-// Ícones: assets/icons/<nome>.png (a pasta raw/ fica de fora).
 // os ícones finais (etapa 4 da direção de arte): 16×16 desenhados em código e 24×24 do PixelLab Pro, mostrados 1:1 na
-// grade (o tamanho nativo vem de lerIconesTam); a pasta antiga assets/icons/ (32×32) sai na limpeza da etapa 8
+// grade (o tamanho nativo vem de lerIconesTam); a pasta antiga assets/icons/ (32×32) saiu na etapa 8 (fica no histórico do git)
 export const DIR_ICONES = 'assets/arte/icones'
 export async function lerIcones(root, dir = DIR_ICONES) {
   const out = {}
@@ -114,7 +113,7 @@ export async function lerArenas(root) {
 // Logotipo: data: URL e o tamanho em px (lido do cabeçalho IHDR do PNG), para o <img> reservar o espaço.
 // A marca (etapa 7 da direção de arte): assets/arte/marca/logo.png (o emblema e o letreiro em duas linhas, desenhados na
 // grade) para a tela inicial e letreiro-mini.png (só o letreiro, letras de 8 px, 67×22) para o cabeçalho; o tamanho de cada um
-// vem do PNG. O logo antigo do Canva (assets/marca/) sai na limpeza da etapa 8.
+// vem do PNG. O logo antigo do Canva (assets/marca/) saiu na etapa 8.
 const tamPng = (buf) => (buf.length > 24 && buf.toString('latin1', 12, 16) === 'IHDR' ? [buf.readUInt32BE(16), buf.readUInt32BE(20)] : [0, 0])
 export async function lerMarca(root) {
   const logo = 'assets/arte/marca/logo.png', mini = 'assets/arte/marca/letreiro-mini.png'

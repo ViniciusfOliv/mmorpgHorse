@@ -1,4 +1,6 @@
 // prototype/tools/arte-icones.mjs — ícones de interface em 16 × 16 (plano da direção de arte, etapa 4; guia §7: os
+// (2026-11-22, etapa 8: os ícones antigos de 32×32 que este script usava como referência saíram de prototype/assets/icons/;
+// para gerar de novo, recupere a pasta do histórico do git. Os finais estão em prototype/assets/arte/icones/.)
 // ícones de hoje são 32 × 32 mostrados menores, o que o guia proíbe). Dois caminhos no PixelLab, comparados no piloto:
 //   resize  o ícone atual de 32 × 32 (já aprovado) redesenhado em 16 × 16 pelo /resize (redimensionamento de pixel art,
 //           não uma redução simples), com a paleta mestra forçada;

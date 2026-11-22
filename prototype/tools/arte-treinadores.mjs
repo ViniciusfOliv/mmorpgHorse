@@ -81,6 +81,8 @@ const semB64 = o => JSON.parse(JSON.stringify(o, (k, v) => (typeof v === 'string
 const assinatura = p => crypto.createHash('sha1').update(JSON.stringify(p)).digest('hex').slice(0, 12);
 
 function chamadas(lote) {
+  // a arte de 64×64 de antes era a referência das gerações; saiu do repositório na etapa 8 (fica no histórico do git)
+  if (!fs.existsSync(path.join(DIR_ATUAL, 'escolhas.json'))) throw new Error('a arte antiga dos treinadores (referência das gerações) saiu na etapa 8: recupere prototype/assets/pixellab/treinadores/ do histórico do git para gerar de novo');
   const escolhas = JSON.parse(fs.readFileSync(path.join(DIR_ATUAL, 'escolhas.json'), 'utf8'));
   const pares = lote === 'piloto' ? [['capita-labareda', 'corpo'], ['capita-labareda', 'busto']]
     : lote === 'broto' ? [['recruta-broto', 'corpo', 'broto']]
@@ -146,7 +148,8 @@ function processar(c, bufs) {
 
 function folha() {
   const uri = f => 'data:image/png;base64,' + fs.readFileSync(f).toString('base64');
-  const escolhas = JSON.parse(fs.readFileSync(path.join(DIR_ATUAL, 'escolhas.json'), 'utf8'));
+  const antiga = fs.existsSync(path.join(DIR_ATUAL, 'escolhas.json'));   // (saiu na etapa 8: a folha mostra só os novos)
+  const escolhas = antiga ? JSON.parse(fs.readFileSync(path.join(DIR_ATUAL, 'escolhas.json'), 'utf8')) : {};
   const F = path.join(DIR, 'treinadores', 'finais'), molde = uri(path.join(RAIZ, 'prototype', 'assets', 'pixellab', 'molde-padrao-chamas-parado.png'));
   const escolhidos = fs.existsSync(F) ? `<h2>Escolhidos · corpo 3× ao lado do cavalo 1:1, e o busto 2×</h2><div class="grade escolhidos"><figure class="escala"><div><img src="${molde}" style="width:192px;margin-bottom:-12px"></div><figcaption>cavalo</figcaption></figure>`
     + IDS.filter(id => fs.existsSync(path.join(F, id + '-corpo.png'))).map(id => `<figure class="escala"><div><img src="${uri(path.join(F, id + '-corpo.png'))}" style="width:96px"></div><figcaption>${id}</figcaption></figure>`).join('')
@@ -156,7 +159,7 @@ function folha() {
     if (!fs.existsSync(d)) return '';
     const info = lerJson(path.join(d, 'info.json'), []), z = tipo === 'corpo' ? 3 : 2;
     const escala = tipo === 'corpo' && info.length ? `<figure class="escala"><div><img src="${uri(path.join(RAIZ, 'prototype', 'assets', 'pixellab', 'molde-padrao-chamas-parado.png'))}" style="width:192px;margin-bottom:-12px"><img src="${uri(path.join(d, info[0].n + '.png'))}" style="width:96px"></div><figcaption>escala: cavalo 1:1 e o ${info[0].n}</figcaption></figure>` : '';
-    return `<h2>${id} · ${t === 'corpo-2' ? 'corpo (refeito)' : tipo}</h2><div class="grade">${escala}<figure><img src="${uri(path.join(DIR_ATUAL, `${id}-s${escolhas[id]}.png`))}" style="width:${64 * z}px"><figcaption>atual (64)</figcaption></figure>`
+    return `<h2>${id} · ${t === 'corpo-2' ? 'corpo (refeito)' : tipo}</h2><div class="grade">${escala}${antiga ? `<figure><img src="${uri(path.join(DIR_ATUAL, `${id}-s${escolhas[id]}.png`))}" style="width:${64 * z}px"><figcaption>atual (64)</figcaption></figure>` : ''}`
       + info.map(i => `<figure><img src="${uri(path.join(d, i.n + '.png'))}" style="width:${(tipo === 'corpo' ? 32 : 64) * z}px"><figcaption>${i.n}${i.altura ? ` · ${i.altura} px` : ''}</figcaption></figure>`).join('') + '</div>';
   })).join('');
   fs.writeFileSync(path.join(RAIZ, 'prototype', 'arte', 'folha-treinadores.html'), `<title>Treinadores 40 px</title>

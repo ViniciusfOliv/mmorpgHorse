@@ -2410,7 +2410,7 @@ test('ginásio: catálogo (três ginásios, cinco etapas, times, elementos, base
     });
     assert.strictEqual(new Set(g.etapas.map(function (e) { return e.id; })).size, 5, 'ids das etapas únicos');
     assert.strictEqual(g.insignia.icone, 'ins-' + id);
-    assert.ok(require('fs').existsSync(require('path').join(__dirname, '../assets/icons/ins-' + id + '.png')), 'ícone da insígnia existe');
+    assert.ok(require('fs').existsSync(require('path').join(__dirname, '../assets/arte/icones/ins-' + id + '.png')), 'ícone da insígnia existe');
     assert.ok(typeof g.insignia.name === 'string' && g.insignia.name.length > 3);
   });
   var Y = G.GYM;

@@ -161,9 +161,9 @@ As 8 pistas viram 5 regiões (proposta; o Vinicius confirma os nomes e o clima d
 
 ## Etapa 8: fechamento
 
-- [x] Texto da tela de créditos: `docs/arte/creditos.md` (2026-11-20). **A tela em si** entra com a integração (código).
+- [x] Texto da tela de créditos: `docs/arte/creditos.md` (2026-11-20). **A tela em si** no jogo em 2026-11-22 (Perfil → Créditos, com a licença da Galmuri).
 - [x] Declaração de IA da Steam: rascunho em `docs/arte/declaracao-ia.md` (2026-11-20), a partir de `docs/memoria/assets.md`.
-- [ ] Saem do repositório os assets substituídos (ficam no histórico do git), **só depois da integração** (hoje o jogo
+- [x] (2026-11-22) Saem do repositório os assets substituídos (ficam no histórico do git), **só depois da integração** (hoje o jogo
   ainda os usa): `prototype/assets/fontes/press-start-2p-latin.woff2` e `jersey-10-latin.woff2` (e os OFL deles),
   `prototype/assets/icons/*.png` (32×32) e `icons/raw/`, `prototype/assets/marca/logo.png`, `docs/capa.png`,
   `prototype/assets/pixellab/treinadores/*.png` (64×64) e o `escolhas.json` deles.
