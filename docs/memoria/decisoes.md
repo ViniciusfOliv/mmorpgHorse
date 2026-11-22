@@ -3,6 +3,18 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-22 — Integração da arte, etapa 6 (cenas das abas e mapas das trilhas)
+- **Cena 256×160 no topo de Estábulo, Haras, Loja e Expedição** (`window.__TELAS.cenas`, com as 24 linhas de baixo em
+  pontilhado Bayer assado no build), em canvas 1:1 na grade, cortando as laterais numa coluna mais estreita; a placa do
+  título sobe 40 pixels de arte por cima da borda, como na prévia aprovada. No Estábulo, o cavalo ativo parado e
+  respirando no meio da baia. Correr fica sem cena (a corrida é a cena dela).
+- **Mapa 256×384 da trilha antes da lista de etapas** (a lista, com os bustos, continua sendo os botões e o texto
+  acessível): caminho tracejado (aceso até a etapa da vez), tablados em ouro nas vencidas, ouro claro na da vez, e o
+  oponente de pé (corpo 32×48) em cada parada; tocar numa parada toca no botão do cartão dela. O canvas tem um nome com
+  o estado de cada etapa.
+- **Limites de altura rebaseados:** o Estábulo ganha a parcela da cena (196 px a 360×780) nos limites das specs 3b §2 e
+  itens §8; a trilha agora rola o mínimo até a etapa da vez também quando ela é o líder.
+
 ## 2026-11-22 — Integração da arte, etapa 5 (treinadores, bustos e arenas)
 - **Cena do desafio sobre a arena do ginásio** (`window.__ARENAS`, 256×160): mostra 256×128 (sem as 32 linhas de cima do
   céu) e, numa coluna mais estreita, corta as laterais por igual (mínimo 160). O oponente no corpo de ~40 px (quadro
