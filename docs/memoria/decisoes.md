@@ -3,6 +3,18 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-22 — Integração da arte, etapa 4 (ícones) e a `main`
+- **Direção de arte (etapas 1 e 2) e skills com ranks juntas na `main`** (pedido do Vinicius): a `main` foi juntada no
+  ramo (conflitos no CSS dos ranks, passado para a Galmuri9, no balão/brilho do rank V, levado à paleta, e na memória),
+  `check.sh` completo OK e a `main` avançou sem reescrever nada (dc847ef).
+- **Ícones finais 1:1 na grade**: o jogo e o wiki usam `assets/arte/icones/` (16×16 de código e 24×24 do Pro), cada um no
+  tamanho nativo × `--px`, `pixelated`, sem o halo borrado de antes (`window.__ICONES_TAM` diz o tamanho). A casa do
+  ícone das abas tem 24 de altura para os rótulos alinharem. **A pista fica com os 8 × 8 em código** (o RaceFx não recebe
+  mais PNG: os de 16/24 não encolhem). A pasta antiga `assets/icons/` (32×32) sai na limpeza da etapa 8.
+- **A medalha de raridade (24 px) só na ficha do cavalo e na escolha inicial**; nas listas e tabelas a pílula leva só o
+  nome na cor da raridade — com a medalha, cada linha crescia ~30 px. A lista de 6 cavalos cresce 14 px (o ícone de
+  elemento a 16 × `--px`), rebaseada no `ui-test`.
+
 ## 2026-11-22 — Integração da arte, etapa 2 (corrida: 2.1 a 2.5)
 - **A corrida é desenhada num canvas na resolução de arte** (S = 1) e copiada com um `drawImage` ampliado pela mesma `s`
   da interface; cavalos 1:1 (2.1).
