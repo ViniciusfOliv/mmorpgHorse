@@ -3,6 +3,14 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-22 — Integração da arte, etapa 7 (marca)
+- **O logo do Canva saiu**: a tela inicial mostra o logo desenhado na grade (emblema 10 + letreiro em duas linhas,
+  125×38) em 2× quando a coluna tem 274 pixels de arte ou mais, senão 1×; o cabeçalho, o letreiro pequeno 1:1.
+- **Letreiro pequeno novo para o cabeçalho** (`letreiro-mini.png`, 67×22, letras de 8 px à mão no `arte-letreiro.mjs`,
+  sem custo): o de 12 px (32 de altura em duas linhas) não cabia nos 48 px de CSS do cabeçalho com a grade 1,5 e o de
+  uma linha (152 de largura) não cabia ao lado do saldo a 360 px. Os outros PNGs da marca não mudaram.
+- Ícone 512, destaque 1024×500 e capa são das lojas: ficam em `assets/arte/marca/` para a etapa de lançamento.
+
 ## 2026-11-22 — Integração da arte, etapa 6 (cenas das abas e mapas das trilhas)
 - **Cena 256×160 no topo de Estábulo, Haras, Loja e Expedição** (`window.__TELAS.cenas`, com as 24 linhas de baixo em
   pontilhado Bayer assado no build), em canvas 1:1 na grade, cortando as laterais numa coluna mais estreita; a placa do
