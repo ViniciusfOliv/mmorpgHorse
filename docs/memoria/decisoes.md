@@ -3,6 +3,18 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-22 — Integração da arte, etapa 8 (créditos e limpeza): a direção de arte fecha
+- **Créditos no Perfil** (botão "Créditos" na seção "Sobre o jogo"): quem fez o jogo e a arte, a fonte e a paleta, com o
+  texto de `docs/arte/creditos.md`; "Licença da fonte" abre o texto inteiro da SIL OFL 1.1 (`window.__OFL`, do
+  `OFL-galmuri.txt`) num painel que rola — a licença tem de acompanhar a fonte embutida. Uma vista do Perfil
+  (`ui.perfilVer`): o "Voltar" e o voltar do aparelho voltam ao Perfil com o foco no botão. Autor escrito como
+  "Vinicius" (o nome para a loja ainda a confirmar). Bloco `creditos` novo no `ui-test`.
+- **Saíram do repositório os assets substituídos** (ficam no histórico do git): `assets/icons/` (32×32 e `raw/`),
+  `assets/pixellab/treinadores/` (64×64 e `escolhas.json`), `assets/marca/logo.png` (Canva) e `docs/capa.png`. Os testes e
+  o wiki leem os finais de `assets/arte/`; `pixellab-treinadores.mjs` e os lotes de ícones do `pixellab-moldes.mjs` avisam
+  que foram substituídos; `arte-treinadores.mjs`, `arte-icones*.mjs` dizem como recuperar a referência antiga se for
+  preciso gerar de novo. O CLAUDE.md aponta as ferramentas novas.
+
 ## 2026-11-22 — Integração da arte, etapa 7 (marca)
 - **O logo do Canva saiu**: a tela inicial mostra o logo desenhado na grade (emblema 10 + letreiro em duas linhas,
   125×38) em 2× quando a coluna tem 274 pixels de arte ou mais, senão 1×; o cabeçalho, o letreiro pequeno 1:1.
