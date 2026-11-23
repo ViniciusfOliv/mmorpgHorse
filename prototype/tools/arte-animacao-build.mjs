@@ -28,7 +28,14 @@ for (const k of ['padrao-lisa', 'esguio-ondas', 'robusto-folhas', 'padrao-chamas
     png: { retrato: uri(path.join(PIX, `molde-${k}-retrato.png`)), parado: uri(path.join(PIX, `molde-${k}-parado.png`)) }
   };
 }
-const dados = { imagens, moldes, regioes: { litoral: { posicao: manifesto.litoral.posicao || {} } } };
+// o piloto pago do idle (prototype/tools/arte-animacao-piloto.mjs): quadros em papéis (cinza), quando já gerados
+const piloto = {};
+const DIR_IDLE = path.join(PIX, 'idle');
+if (fs.existsSync(DIR_IDLE)) for (const f of fs.readdirSync(DIR_IDLE).sort()) {
+  const m = /^padrao-lisa-retrato-(\w+)-s(\d+)-(\d+)\.png$/.exec(f); if (!m) continue;
+  (piloto[`${m[1]}-${m[2]}`] ||= [])[+m[3]] = uri(path.join(DIR_IDLE, f));
+}
+const dados = { imagens, moldes, piloto, regioes: { litoral: { posicao: manifesto.litoral.posicao || {} } } };
 
 let html = fs.readFileSync(path.join(RAIZ, 'prototype', 'arte', 'animacao.html'), 'utf8');
 const js = fs.readFileSync(path.join(RAIZ, 'prototype', 'arte', 'animacao.js'), 'utf8');

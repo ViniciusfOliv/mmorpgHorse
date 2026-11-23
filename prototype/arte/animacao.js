@@ -1152,10 +1152,10 @@
       '<span class="tag cod">código</span> <b>Variações raras</b>, sorteadas a cada 3–8 s pela RNG cosmética (fora da seed das regras): piscar (às vezes duas vezes), abanar a cauda, girar a orelha, baixar a cabeça 1–2 px.',
       '<span class="tag cod">código</span> <b>Vento</b> na crina do pescoço e na ponta da cauda (o mesmo vento das outras cenas).',
       '<span class="tag cod">código</span> Tudo sai do molde que já existe (o mapa de papéis), para qualquer pelagem e marca: custo de arte zero, 1 desenho por cavalo.',
-      '<span class="tag pago">PixelLab</span> <b>Cavar</b> e <b>comer</b> (baixar a cabeça até o chão) não ficam naturais por código: são o piloto pago proposto (4 quadros por ação, a partir do molde).',
+      '<span class="tag pago">PixelLab</span> <b>Piloto pago (6 gerações)</b> no painel de baixo: comer e cavar (8 quadros, 2 seeds cada), cauda e respiração (4 quadros), a partir do molde padrão em cores de papel, então servem a qualquer pelagem. O código não chega a baixar a cabeça até o chão nem a levantar a pata: aí o PixelLab ganha. Na cauda e na respiração o código já basta. Comer (B) deixou pixels soltos no fim.',
       'Use os botões para disparar cada variação e a lupa para ver os pixels de perto.'
     ],
-    camadas: [['cavalos', 'Cavalos (idle)'], ['ceu', 'Pássaros'], ['fundo', 'Fundo parado']],
+    camadas: [['cavalos', 'Cavalos (idle)'], ['ceu', 'Pássaros'], ['piloto', 'Painel PixelLab × código'], ['fundo', 'Fundo parado']],
     init: function () {
       var s = this;
       var defs = [['robusto-folhas', 'castanho', 'retrato', 4, 150, false], ['padrao-lisa', 'baio', 'retrato', 62, 156, true], ['esguio-ondas', 'tordilho', 'retrato', 118, 152, false], ['padrao-chamas', 'alazao', 'parado', 186, 158, false]];
@@ -1167,12 +1167,25 @@
       s.revoada = new Revoada({ tipo: 'longe', cor: P.sombra, n: 7, y: 20, v: 16, qps: 8, periodo: 16 });
       s.part = new Particulas(60); s.rng = rngCosmetica(52);
       s.borboletas = [{ x: 40, y: 112, f: 0, cor: P.ouro }, { x: 170, y: 120, f: 2.1, cor: P.branco }, { x: 230, y: 108, f: 4.3, cor: P.ouroC }];
+      // painel do piloto pago: o mesmo cavalo (padrão, baio) por código à esquerda e com os quadros do PixelLab à direita
+      var cores = [0].concat(PELAGENS.baio.slice(1).map(c32));
+      s.pl = { acoes: {}, ordem: [], buf: tela(256, 88), fundo: tela(256, 88), atual: null, t0: 0, fila: 0,
+        codigo: new CavaloIdle(A.moldes['padrao-lisa'], 'retrato', PELAGENS.baio, 777) };
+      s.pl.fundo.getContext('2d').drawImage(IMG['telas/haras'], 0, -72);
+      Object.keys(A.pilotoIdx || {}).forEach(function (k) {
+        s.pl.acoes[k] = A.pilotoIdx[k].map(function (idx) {
+          var b = new Buf(64, 64); for (var i = 0; i < 4096; i++) b.d[i] = idx[i] ? cores[idx[i]] : 0; b.poe(); return b.c;
+        });
+      });
+      s.pl.ordem = ['comer-8102', 'cavar-8111', 'cauda-8121', 'comer-8101', 'cavar-8112', 'respira-8131'].filter(function (k) { return s.pl.acoes[k]; });
+      s.pl.seq = true;
       s.antes = tela(256, 160); var ag = s.antes.getContext('2d'); ag.drawImage(IMG['telas/haras'], 0, 0);
       s.cavalos.forEach(function (h) { ag.drawImage(h.cv.parado(), h.x, h.pe - h.ref); });
     },
     quadro: function (t, dt, L) {
       var s = this;
       mede(L.fundo, function () { D(IMG['telas/haras'], 0, 0); });
+      mede(L.piloto, function () { desenhaPiloto(s, t); });
       mede(L.ceu, function () {
         s.passaros.desenha(t, 0, 256);
         if (!MAIS) return;
@@ -1193,6 +1206,28 @@
         s.cavalos.forEach(function (h) { D(h.cv.parado(), h.x, h.pe - h.ref); });
     }
   };
+
+  // comparação com o piloto pago (só na cena dos cavalos): cada ação toca a 6 q/s e depois o cavalo fica parado
+  // 1,6 s; o cavalo por código faz, ao mesmo tempo, o gesto equivalente que ele sabe fazer (cabeça, cauda)
+  var GESTO_CODIGO = { comer: 'cabeca', cavar: 'orelha', cauda: 'cauda', respira: null };
+  function desenhaPiloto(s, t) {
+    var pl = s.pl; if (!pl.ordem.length) return;
+    if (!pl.atual) { pl.atual = pl.ordem[0]; pl.t0 = t; }
+    var Q = pl.acoes[pl.atual], laco = Q.length <= 5 ? 2 : 1, dur = (Q.length * laco) / 6, u = t - pl.t0;
+    if (u > dur + 1.6) {   // próxima
+      if (pl.seq) { pl.fila = (pl.fila + 1) % pl.ordem.length; pl.atual = pl.ordem[pl.fila]; }
+      pl.t0 = t; u = 0; Q = pl.acoes[pl.atual];
+    }
+    if (pl.disparado !== pl.t0) { var gst = GESTO_CODIGO[pl.atual.split('-')[0]]; if (gst) pl.codigo.dispara(gst, t); pl.disparado = pl.t0; }
+    var q = u < dur ? Math.floor(u * 6) % Q.length : 0;
+    var g0 = g; g = pl.buf.getContext('2d');
+    D(pl.fundo, 0, 0);
+    D(pl.codigo.quadro(t, false), 40, 84 - 57);
+    D(Q[q], 150, 84 - 57);
+    g = g0;
+    var cv = el('piloto'), gp = cv.getContext('2d'); gp.imageSmoothingEnabled = false;
+    gp.drawImage(pl.buf, 0, 0, cv.width, cv.height);
+  }
 
   // ================================================================ interface
   var ORDEM = ['litoral', 'fornalha', 'expedicao', 'cavalos'];
@@ -1216,6 +1251,7 @@
     });
     [gA, gD].forEach(function (x) { x.imageSmoothingEnabled = false; });
     gA.drawImage(c.antes, 0, 0, c.W * escala, c.H * escala);
+    if (c.id === 'cavalos') tamanhoPiloto();
   }
   function montaMedidor(cena) {
     camadas = {}; linhas = {};
@@ -1267,6 +1303,23 @@
     }
     ctl.appendChild(botao('Lupa ×2', estado.lupa, function (b) { estado.lupa = !estado.lupa; b.setAttribute('aria-pressed', estado.lupa); ajustaCanvas(); }));
   }
+  var ROTULO_PILOTO = { 'comer-8102': 'Comer (A)', 'comer-8101': 'Comer (B)', 'cavar-8111': 'Cavar (A)', 'cavar-8112': 'Cavar (B)', 'cauda-8121': 'Cauda', 'respira-8131': 'Respiração' };
+  function montaPiloto(c) {
+    var ctl = el('ctlPiloto'), pl = c.pl; ctl.innerHTML = '';
+    var bs = [];
+    var seq = botao('Todas em sequência', pl.seq, function () { pl.seq = true; pl.fila = 0; pl.atual = pl.ordem[0]; pl.t0 = agora(); marca(seq); });
+    ctl.appendChild(seq); bs.push(seq);
+    pl.ordem.forEach(function (k) {
+      var b = botao(ROTULO_PILOTO[k] || k, false, function () { pl.seq = false; pl.atual = k; pl.t0 = agora(); marca(b); });
+      ctl.appendChild(b); bs.push(b);
+    });
+    function marca(b) { bs.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); }
+    tamanhoPiloto();
+  }
+  function tamanhoPiloto() {
+    var cv = el('piloto'), dpr = window.devicePixelRatio || 1;
+    cv.width = 256 * escala; cv.height = 88 * escala; cv.style.width = (256 * escala / dpr) + 'px'; cv.style.height = (88 * escala / dpr) + 'px';
+  }
   function trocaCena(id) {
     var c = CENAS[id]; c.id = id; estado.cena = id;
     if (!c.pronta) { c.init(); c.pronta = true; }
@@ -1276,6 +1329,9 @@
     montaNotas(c);
     Array.prototype.forEach.call(el('cenas').children, function (b) { b.setAttribute('aria-pressed', b.dataset.cena === id ? 'true' : 'false'); });
     montaMedidor(c); montaControles(c); ajustaCanvas();
+    var temPiloto = id === 'cavalos' && c.pl && c.pl.ordem.length;
+    el('painelPiloto').hidden = !temPiloto;
+    if (temPiloto) montaPiloto(c);
     try { localStorage.setItem('galope-animacao:cena', id); } catch (e) {}
   }
   var T0 = performance.now();
@@ -1337,6 +1393,21 @@
     var nomes = Object.keys(A.imagens), falta = nomes.length;
     nomes.forEach(function (n) {
       var im = new Image(); im.onload = function () { IMG[n] = im; if (--falta === 0) pronto(); }; im.src = A.imagens[n];
+    });
+    // piloto pago: quadros em cinza → mapa de papéis, como os moldes
+    A.pilotoIdx = {};
+    Object.keys(A.piloto || {}).forEach(function (k) {
+      A.pilotoIdx[k] = [];
+      A.piloto[k].forEach(function (u, q) {
+        falta++;
+        var im = new Image(); im.onload = function () {
+          var c = tela(64, 64), cg = c.getContext('2d'); cg.drawImage(im, 0, 0);
+          var d = cg.getImageData(0, 0, 64, 64).data, idx = new Uint8Array(4096);
+          for (var i = 0; i < 4096; i++) idx[i] = d[i * 4 + 3] < 128 ? 0 : Math.round(d[i * 4] / 25);
+          A.pilotoIdx[k][q] = idx; if (--falta === 0) pronto();
+        };
+        im.src = u;
+      });
     });
     // moldes: PNG em cinza → mapa de papéis (como o decodificaMolde do sprites.js)
     Object.keys(A.moldes).forEach(function (k) {
