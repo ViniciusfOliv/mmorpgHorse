@@ -1,12 +1,25 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-23 (blocos A e B do treino AFK)._
+_Atualizado em 2026-11-23 (ajustes de interface, lote 1)._
 
 **Em andamento (2026-11-23): corrida AFK, drops, forja, bestiário e equipamento de PVE**, no branch `claude/afk` (chat
 próprio de implementação). Spec `docs/superpowers/specs/2026-11-23-afk-drops-design.md` e plano
 `docs/superpowers/plans/2026-11-23-afk-drops.md` (blocos A e B), aprovados pelo Vinicius. **Blocos A e B prontos (seções próprias
 abaixo), esperando a revisão do chat de coordenação; nada foi integrado na `main` nem republicado nos oficiais.** O rancho
 ficou só como ideia.
+
+**Ajustes de interface, lote 1 (2026-11-23, ramo `claude/ajustes-1`, a partir de `claude/afk`; fora da `main`):** quatro
+pedidos do Vinicius, um commit cada, com teste. (1) **Câmera centrada no jogador**: 12 px/m de perto, afasta só o
+necessário para caber, inteiro, quem está a até 30 m (à frente ou atrás), suave e sem saltos; além de 30 m, a seta com os
+metros (`RaceFx.CAMERA`, `camZoomAlvo`, `camEsquerda`, `camSuaviza` no `fx.js`; 11 testes no `fx-test`; bloco
+`corrida-camera` no `ui-test`). Escala inteira mantida (o zoom é em metros por pixel de arte). (2) **Skills em resumo**:
+nome, rank e `resumo` (novo em `GameData.SKILLS`, teste no `sim-test`) na aba Skills (vagas, tipo e Garra), na escolha do
+Cupom e no resultado; o texto completo num balão (`skillDicaHtml`/`dicaAreaHtml`, `aria-describedby`; mouse e foco por
+cima, toque embaixo, Esc fecha); bloco `skills-resumo` no `ui-test`. O wiki não muda. (3) **Símbolo ♂/♀** (ícones
+`ui-macho`/`ui-femea`) ao lado do nome no Estábulo e na cabeça da ficha, com "macho"/"fêmea" acessível. (4) **Expedição**:
+os cavalos selvagens viraram um bloco recolhido e desativado com o selo "em breve" (some a vitrine animada que fazia a
+`final-10-expedicao.png` mudar a cada rodada). Decisões em `decisoes.md`; resultado da verificação e artefato de teste na
+seção "Ajustes 1" abaixo.
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um
 aparelho-alvo ficar abaixo de 45 FPS no 1% low até em escala 1×). Steam no escopo (Electron + steamworks.js). Antes do
@@ -201,7 +214,8 @@ do Vinicius, antes de ele jogar; a lista de gosto abaixo continua aberta.
   - nas cores forçadas, o selo "Nv N" da linha do Estábulo continua sem contorno (só aparência);
   - `final-10-expedicao.png` muda a cada rodada completa do teste de interface sem a interface ter mudado: só a área dos
     retratos dos cavalos selvagens (de (152, 748) a (704, 1394) na imagem), porque as faíscas da raridade e o "idle" dos
-    retratos andam no relógio real. O saldo e o XP já não mudam (seed fixa); não se congela a animação;
+    retratos andam no relógio real. O saldo e o XP já não mudam (seed fixa); não se congela a animação (resolvido no
+    ramo `claude/ajustes-1`, 2026-11-23: a vitrine saiu da tela);
   - ajustes pequenos que a revisão final leu e deixou ficar (casos raros ou sem efeito na tela): com um dono de nome
     muito largo, a tabela da chegada pode rolar de lado dentro da própria caixa; a faixa no pé da pista pode cobrir
     a etiqueta de um rival de baixo que esteja fora da tela; o destaque do motivo procura a frase só pelo texto (um texto

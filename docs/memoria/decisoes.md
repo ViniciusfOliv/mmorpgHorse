@@ -3,6 +3,30 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-23 — Ajustes de interface, lote 1 (pedidos do Vinicius; ramo `claude/ajustes-1`, a partir de `claude/afk`)
+- **Câmera da corrida centrada no jogador; afasta só para caber quem está a até 30 m (à frente ou atrás)** — pedido do
+  Vinicius ("focar no meu cavalo e afastar quando os outros se distanciam"); a do refino centrava o meio do grupo e o
+  jogador andava pela tela. Quem passa de 30 m não força zoom e fica pela seta com os metros (no piso, ~2,5 px/m numa tela
+  de 240, os cavalos ainda se separam). Escala de 12 px/m de perto, sem piso fixo: o piso sai do limite.
+- **Zoom pelos metros por pixel de arte, não por degraus de `s`** — o buffer segue ampliado por `s` inteiro e os cavalos
+  1:1 (guia §2); trocar `s` no meio da corrida mudaria o layout das raias e pediria uma transição que pisca. O pedido
+  aceitava as duas formas ("e/ou").
+- **Suavização com velocidade mínima** (`CAMERA.vMin`) — a exponencial sozinha deixava o rival de trás 1–2 px cortado
+  por segundos; o `ui-test` pegou. Afasta mais rápido (~0,2 s) do que aproxima (~0,6 s): ninguém sai da tela ao se
+  afastar e a volta é calma.
+- **`CAMERA.cauda` = 62 px** — medido: o rabo do molde robusto fica 62 px atrás do focinho (esguio 49), 2 px à frente.
+- **Skills em resumo: `GameData.SKILLS[id].resumo` (sem números, até 30 letras)** — os números mudam com o rank e já
+  estão no texto completo; o resumo diz o que a skill faz. Skill de tipo: o resumo é o efeito em pontos; Garra: onde a
+  arrancada começa.
+- **O nome da skill é o gatilho** (botão com a peça ⓘ depois dele, como o nome dos status) na aba Skills e no resultado;
+  na escolha do Cupom o nome já é o botão da ação, então o gatilho é um "ⓘ" ao lado. Mouse (só com `hover: hover`) e
+  foco: balão por cima, sem mexer na tela e sem pegar o mouse; toque/clique: abre embaixo (`aria-expanded`), como os ⓘ;
+  Esc esconde. O balão fica sempre no DOM, ligado por `aria-describedby`.
+- **Símbolo do sexo depois do nome e antes do #N** ("Brasa ♂ #1"), num `span role="img"` com "macho"/"fêmea"; a linha
+  do Estábulo diz o sexo no nome acessível. A palavra "Macho"/"Fêmea" continua só na aba Ficha.
+- **Cavalos selvagens: só o título num botão `disabled` com o selo "em breve"** — sem retratos (a vitrine animada era o
+  que fazia a `final-10-expedicao.png` mudar a cada rodada); a lista `WILD_SHOWCASE` fica no `game.js` porque o wiki a lê.
+
 ## 2026-11-23 — Build dos testadores (`dist/jogo-teste.html`, pedido do Vinicius)
 - **Terceiro build, só para testes rápidos de outras pessoas, sem o modo DEV**: evolução ×10 (XP da corrida, do ginásio e
   do AFK; as comidas não, porque o texto delas diz o valor), iniciais Raros com genética 22 (nota A) em todos os status,
