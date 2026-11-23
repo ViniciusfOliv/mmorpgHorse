@@ -306,13 +306,47 @@ Gemas também caem de graça, em pouca quantidade, por missões.
   crescente, ração (bônus de XP) e, no futuro, despertar,
   taxa do mercado e inscrição em copas.
 - **Cruza demora de 12 a 24 horas;** a égua fica ocupada.
-- **Circuito ocioso:** cavalos fora da ativa correm treinos sozinhos com o jogo fechado, até 8 horas
-  acumuladas. Rende pouco Ouro, XP e chance de item, mais para cavalos de Poder maior. Sem entrada nem
-  pote. O número de cavalos no circuito depende das vagas do estábulo.
+- **Treino AFK (no jogo desde 2026-11-23; substitui o "circuito ocioso"):** seção 8.3a.
 - **Aluguel:** o cavalo fica no haras da vila por 4, 8 ou 12 horas e volta com Ouro conforme a
   qualidade. Com servidor, o aluguel passa a ser entre jogadores.
-- **Um trabalho por vez:** cada cavalo corre valendo, corre no circuito, fica de aluguel ou cruza.
-- Gema nunca acelera o que paga Ouro (circuito e aluguel).
+- **Um trabalho por vez:** cada cavalo corre valendo, fica de aluguel ou cruza (o treino AFK é à parte: só o cavalo
+  ativo com a sala aberta para de treinar).
+- Gema nunca acelera o que paga Ouro (treino AFK e aluguel).
+
+### 8.3a Treino AFK (implementado em 2026-11-23, bloco A: vagas, drops, baú, offline e bestiário)
+Spec: `docs/superpowers/specs/2026-11-23-afk-drops-design.md`; regras em `prototype/src/afk.js`; números em
+`GameData.AFK` (`prototype/src/data.js`) e no wiki (seção "Corrida AFK"); medições em `docs/exemplos.md` §5b.
+- **O que é:** os cavalos correm sozinhos, um duelo atrás do outro, contra oponentes de ginásio **já vencidos**, e
+  rendem XP, um pouco de Ouro e drops. O jogador assiste (as corridas são reais, ao vivo) ou coleta depois (offline).
+  O PVP valendo continua sendo o centro: o Ouro do AFK por hora fica abaixo de 25% do do PVP (meta E1).
+- **Caminho:** Expedição → ginásio → na trilha, cada oponente vencido tem "Treinar (AFK)" → oponente, dificuldade,
+  vaga e cavalo. A tela "Treino AFK" (vagas e baú) e o Bestiário também ficam na Expedição.
+- **Fases e dificuldades:** as 15 etapas dos ginásios × Normal, Difícil (oponente 12 níveis acima, prêmio ×2) e
+  Lendária (25 acima, até o nível 45, prêmio ×4). A Difícil libera com 50 vitórias AFK na Normal da mesma etapa; a
+  Lendária, com 50 na Difícil. A corrida é um duelo nas regras do ginásio (vantagem de elemento, largada Nublada, pista
+  da casa, Dado da Sorte), sem cansaço, contra um cavalo da etapa em rodízio fixo. O treino nunca dá insígnia, Rédea,
+  itens da 1ª vitória, prêmio de revanche, Torrão, Estrela, Manual, Cupom nem Pergaminho de técnica.
+- **Vagas:** até 5 (a 1ª grátis; 1.000 · 3.000 · 8.000 · 20.000 de Ouro); um cavalo ocupa no máximo uma. O cavalo
+  ativo para de treinar enquanto a sala do PVP está aberta (a vaga fica guardada) e volta quando ela fecha. Cavalo que
+  sai do estábulo deixa a vaga; o que ele rendeu fica no baú.
+- **Ganho:** na vitória, XP para o cavalo que correu (40 × (1 + 0,15 × etapa) × dificuldade), Ouro (0,3 a 1,2 por
+  vitória × dificuldade: a fração vira Ouro inteiro pela seed) e os drops: material do ginásio sempre, e às vezes
+  material incomum, Pedra Negra, comida (Feno, Cenoura, Maçã: XP para um cavalo; Aveia dourada: +1 h no próximo
+  período fora), peça de equipamento, Pergaminho de reforja e o troféu do oponente. Na derrota, 30% do XP e 25% do
+  material. Os materiais e o incomum de cada ginásio só caem nele. Todo drop sai da seed da corrida.
+- **Baú:** tudo cai num baú único; "Coletar tudo" passa de uma vez (o XP vai para cada cavalo ao coletar). Item acima
+  do teto da mochila (999; troféus e Pergaminho de reforja, 99) se perde, e a tela avisa antes e pede confirmação.
+- **Ao vivo e offline:** com a tela do treino aberta, cada vaga corre de verdade, no tempo do duelo (~75 s; o
+  resultado sai da seed e é gravado antes de aparecer). Fora dela (outra tela, jogo fechado) o jogo usa a **chance
+  medida**: 2.400 duelos simulados aos poucos para aquele cavalo naquela fase, guardados até o cavalo mudar; as
+  corridas do tempo fora (minutos ÷ duração média, até 8 h, 12 h com a Aveia e o bestiário) são decididas pela seed
+  contra essa chance e rolam os mesmos drops. O ganho esperado é o mesmo nos dois modos (meta E3). O relógio é o do
+  aparelho; relógio para trás não rende.
+- **Bestiário:** uma página por ginásio (oponentes com marcos de 10, 100 e 1.000 vitórias, materiais, peças do
+  conjunto e troféus, vistos e obtidos). Bônus da conta, só no AFK: +1% de drop raro por oponente com 100 vitórias,
+  +2% de XP por oponente com 1.000, +2% de chance de troféu por troféu, +1 h de limite offline por página completa.
+- **Bloco B (a seguir):** forja, equipamento valendo só no PVE (principal de corrida e linhas de farm sorteadas),
+  loja de peças, Pergaminho de reforja e Selo do campeão.
 
 ### 8.4 Mercado entre jogadores (bloco 7, com servidor)
 Só em Ouro, no modelo do Black Desert: sem troca direta, mercado anônimo, preço dentro de faixa e taxa

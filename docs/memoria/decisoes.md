@@ -20,6 +20,17 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
 - **Para o Vinicius (não mudei regra):** o XP do AFK por hora é de 2 a 15 vezes o do PVP com os números de partida;
   os oponentes são fracos para um cavalo Raro; o prêmio quase não cresce com a etapa. Números em `docs/exemplos.md` §5b.
 - **A medição em fatias soma as durações em décimos de segundo inteiros** (a E5 achou a diferença entre fatias).
+- **Relógio do treino na tela (A7):** a corrida ao vivo é gravada ao largar (contador + ganho, antes de aparecer) e a
+  vaga só larga a seguinte quando o tempo real do duelo passa; o tempo fora da tela do treino (outra tela do jogo, aba
+  escondida, jogo fechado) é sempre acertado pela chance medida. "Assistir" anima a corrida em curso no tempo real do
+  duelo; x2 e "Voltar ao treino" não adiantam o treino.
+- **Vaga sem a chance medida não rende fora da tela** (a spec diz que o offline usa a última chance completa): a medição
+  leva ~10 s com o jogo aberto e o resumo avisa quando isso aconteceu.
+- **A Aveia dourada só é gasta quando o período fora passa do limite sem ela** (uma ida rápida a outra tela não a consome).
+- **O resumo "Enquanto você estava fora" aparece para paradas de 10 min ou mais**; ao abrir o jogo, ele abre na tela do
+  treino. Paradas menores são creditadas no baú sem aviso.
+- **Coleta com perda pede um segundo toque** ("Coletar e perder" / "Cancelar"): a spec pede que a tela avise antes.
+- **Ícones dos itens do AFK em código** (18 mapas 16×16, `icones-afk.mjs`); os 15 troféus usam uma taça por ginásio.
 - **Vaga vazia não tem início** (`inicioMin` 0): o save saneado é o mesmo em qualquer hora; o relógio da vaga começa
   quando um cavalo entra.
 - **A vaga guarda a última chance completa** (`ultima`): o offline usa essa enquanto a medida nova (o cavalo mudou) não

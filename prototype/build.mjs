@@ -118,7 +118,7 @@ for (const [nome, html] of [['jogo.html', body], ['jogo-dev.html', bodyDev]]) {
   }
 }
 // produção: nada do modo DEV nem do gancho de teste pode sobrar
-for (const [proibido, o_que] of [[/__galope/i, 'o gancho de teste (__galope / __GALOPE_DEV)'], [/\bDev\./, 'referência a Dev. (dev.js)'], [/galope-elemental:dev/, "a chave do save DEV ('galope-elemental:dev')"], [/\.dev-[a-z]/, 'seletor .dev- (CSS do modo DEV)'], [/devDias/, 'o deslocamento de dias da gaveta DEV (devDias)'], [/dev-gin-/, 'as ações do grupo "Ginásios" da gaveta DEV (dev-gin-)']]) {
+for (const [proibido, o_que] of [[/__galope/i, 'o gancho de teste (__galope / __GALOPE_DEV)'], [/\bDev\./, 'referência a Dev. (dev.js)'], [/galope-elemental:dev/, "a chave do save DEV ('galope-elemental:dev')"], [/\.dev-[a-z]/, 'seletor .dev- (CSS do modo DEV)'], [/devDias/, 'o deslocamento de dias da gaveta DEV (devDias)'], [/devMin/, 'o relógio de teste do treino AFK (state.devMin, só no save DEV)'], [/dev-gin-/, 'as ações do grupo "Ginásios" da gaveta DEV (dev-gin-)']]) {
   const m = body.match(proibido)
   if (m) {
     const linha = body.slice(0, m.index).split('\n').length

@@ -128,7 +128,10 @@ function etapa(id, i, estado) {
     (e.lider && rev ? `<span class="etapa-insignia">${insigniaIcone(id)}</span>` : '');
   const caixa = estado === 'vencida' || estado === 'feita' ? `<div class="etapa-btn">${corpo}</div>`
     : `<button type="button" class="etapa-btn" data-acao="ginasio-etapa" data-id="${i}"${estado === 'proxima' || estado === 'revanche' ? ' aria-current="step"' : indisp(MOTIVO)}>${corpo}</button>`;
-  return `<li class="etapa etapa--${estado}${e.lider ? ' etapa--lider' : ''}" data-etapa="${i}" data-estado="${estado}">${caixa}</li>`;
+  // oponente já vencido no ginásio (as vencidas e o líder com a insígnia): o botão do treino AFK, como o jogo desenha
+  const treinar = estado === 'vencida' || estado === 'revanche' || estado === 'feita'
+    ? `<div class="etapa-treinar"><button type="button" class="btn btn--pequeno" data-acao="afk-treinar" data-id="${esc(id + ':' + i)}">Treinar (AFK)<span class="sr"> contra ${esc(e.nome)}</span></button></div>` : '';
+  return `<li class="etapa etapa--${estado}${e.lider ? ' etapa--lider' : ''}" data-etapa="${i}" data-estado="${estado}">${caixa}${treinar}</li>`;
 }
 const trilha = (itens) => `<section class="caixa" aria-label="Trilha"><ol class="trilha">${itens}</ol></section>`;
 // uma linha do time no preparo (mountRowHtml com { acao: 'ginasio-time', fim, motivo, pressed, meta, lado }), contra um ginásio

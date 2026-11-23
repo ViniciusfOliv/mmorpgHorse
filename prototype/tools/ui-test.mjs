@@ -38,7 +38,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // os blocos, na ordem em que aparecem no arquivo: todo if (quer(nome)) usa um nome daqui (quer() lança erro se não), e o
 // ui-test-paralelo.mjs roda exatamente esta lista. Bloco novo entra aqui, no lugar dele.
 const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
-  'corrompido', 'areasegura', 'creditos', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto',
+  'corrompido', 'areasegura', 'creditos', 'afk', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto',
   'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
   'corrida-lugar-dado-redimensiona', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
   'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
@@ -1176,6 +1176,225 @@ try {
     }
   }
 
+  // ---------------- treino AFK (spec 2026-11-23-afk-drops; plano, tarefa A7) ----------------
+  // No build de teste (save DEV), com o relógio do treino adiantado pelo state.devMin (o mesmo da gaveta DEV).
+  const AFK_DEVK = 'galope-elemental:dev'
+  // abre o jogo, monta o perfil (ginásios, cavalos fortes, Ouro) pelo save e recarrega
+  const afkAbrePerfil = async (label, monta) => {
+    const pg = await newPage(browser, { width: 360, height: 780 }, label, { pagina: 'jogo-dev.html' })
+    await pg.waitForSelector('#t-estabulo')
+    await pg.evaluate(([chave, fn]) => {
+      const g = JSON.parse(JSON.stringify(window.__galope.state)), RS = window.RaceSim
+      const m2 = JSON.parse(JSON.stringify(g.mounts[0])); m2.uid = 'm2'; m2.name = 'Dois'; g.mounts.push(m2); g.nextUid = 3
+      g.mounts.forEach((m) => { m.level = 30; m.alloc = RS.botAlloc(m) })
+      g.ginasios.fogo.etapa = 2; g.gold = 5000
+      new Function('g', fn)(g)
+      g.rev += 1
+      localStorage.setItem(chave, JSON.stringify(g))
+    }, [AFK_DEVK, monta || ''])
+    await pg.reload()
+    await pg.waitForSelector('#t-estabulo, #t-afk')
+    await pg.evaluate(() => { window.__galope.ui.dev.ouroInf = false })   // o Ouro infinito do DEV esconderia os gastos
+    return pg
+  }
+  const afkEst = (pg) => pg.evaluate(() => JSON.parse(JSON.stringify({ afk: window.__galope.state.afk, gold: window.__galope.state.gold, mochila: window.__galope.state.mochila,
+    pending: window.__galope.state.pending, mounts: window.__galope.state.mounts.map((m) => ({ uid: m.uid, level: m.level, xp: m.xp })), tela: window.__galope.ui.screen })))
+  const afkDisco = (pg) => pg.evaluate((k) => JSON.parse(localStorage.getItem(k)), AFK_DEVK)
+  const afkAvanca = (pg, min) => pg.evaluate((m) => { window.__galope.state.devMin = (window.__galope.state.devMin || 0) + m; window.__galope.afkTick() }, min)
+  const afkTxt = (pg, sel) => pg.evaluate((q) => [...document.querySelectorAll(q)].map((e) => e.textContent.replace(/\s+/g, ' ').trim()), sel)
+  const afkVaiTrilha = async (pg, gym) => {
+    await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao')
+    await pg.locator(`[data-acao="ginasio-abrir"][data-id="${gym}"]`).click(); await pg.waitForSelector('#t-ginasio')
+  }
+  const afkEsperaMedida = (pg, vaga) => pg.waitForFunction((i) => !!window.__galope.state.afk.vagas[i].ultima, vaga, { timeout: 60000 })
+  if (quer('afk')) {
+    const label = 'afk'
+    const pg = await afkAbrePerfil(label)
+    try {
+      // 1. na trilha, só os oponentes vencidos mostram "Treinar (AFK)"
+      await afkVaiTrilha(pg, 'fogo')
+      const tr = await pg.evaluate(() => [...document.querySelectorAll('#tela .etapa')].map((li) => ({ e: li.getAttribute('data-etapa'), estado: li.getAttribute('data-estado'), treinar: !!li.querySelector('[data-acao="afk-treinar"]') })))
+      if (JSON.stringify(tr.map((x) => x.treinar)) !== JSON.stringify([true, true, false, false, false])) problems.push(`${label}: "Treinar (AFK)" na trilha ${JSON.stringify(tr)} (esperado só nas 2 vencidas)`)
+      await checkOverflow(pg, label + ' trilha')
+      // 2. a escolha: o oponente tocado vem marcado, a Difícil apagada com o que falta, a vaga 1 livre; começar põe o cavalo
+      await pg.locator('[data-acao="afk-treinar"][data-id="fogo:0"]').click(); await pg.waitForSelector('#t-afk-escolha')
+      const esc = await pg.evaluate(() => ({ fase: [...document.querySelectorAll('[data-acao="afk-esc-fase"][aria-pressed="true"]')].map((b) => b.getAttribute('data-id')),
+        fases: document.querySelectorAll('[data-acao="afk-esc-fase"]').length, dif: document.querySelector('[data-acao="afk-esc-dif"][aria-pressed="true"]').getAttribute('data-id'),
+        dificil: document.querySelector('[data-acao="afk-esc-dif"][data-id="dificil"]').getAttribute('data-motivo'), foco: document.activeElement && document.activeElement.id }))
+      if (esc.fase.join() !== 'fogo:0' || esc.fases !== 2 || esc.dif !== 'normal' || !/Faltam 50 vitórias na Normal/.test(esc.dificil || '') || esc.foco !== 't-afk-escolha') problems.push(`${label}: escolha ${JSON.stringify(esc)}`)
+      await pg.locator('[data-acao="afk-esc-dif"][data-id="dificil"]').click({ force: true })   // apagada: só diz o porquê
+      await pg.evaluate(() => { const b = document.querySelector('[data-acao="afk-esc-dif"][data-id="dificil"]'); b.removeAttribute('aria-disabled'); b.click() })   // e nem o botão forçado escolhe
+      if ((await pg.evaluate(() => window.__galope.ui.afk.escolha.dif)) !== 'normal') problems.push(`${label}: a Difícil sem as 50 vitórias foi escolhida`)
+      await checkOverflow(pg, label + ' escolha')
+      const antes = await afkEst(pg)
+      await pg.locator('[data-acao="afk-esc-comecar"]').click(); await pg.waitForSelector('#t-afk')
+      // 3. uma corrida ao vivo larga logo: o contador e o ganho gravados antes de aparecer; o baú enche
+      await pg.waitForFunction(() => window.__galope.state.afk.vagas[0].contador >= 1, null, { timeout: 5000 }).catch(() => problems.push(`${label}: a 1ª corrida ao vivo não largou`))
+      const s1 = await afkEst(pg), d1 = await afkDisco(pg)
+      if (s1.afk.vagas[0].uid !== 'm1' || s1.afk.vagas[0].faseId !== 'fogo:0:normal') problems.push(`${label}: vaga 1 ${JSON.stringify(s1.afk.vagas[0])}`)
+      if (!(s1.afk.bau.xp.m1 > 0)) problems.push(`${label}: o baú não recebeu o XP da corrida ao vivo ${JSON.stringify(s1.afk.bau)}`)
+      if (JSON.stringify(d1.afk.bau) !== JSON.stringify(s1.afk.bau) || d1.afk.vagas[0].contador !== s1.afk.vagas[0].contador) problems.push(`${label}: o disco não tem a corrida (contador e baú gravados juntos)`)
+      if (!(s1.afk.vagas[0].inicioMin > antes.afk.vagas[0].inicioMin)) problems.push(`${label}: o relógio da vaga não foi para o fim da corrida`)
+      const cartao = (await afkTxt(pg, '.afk-vaga[data-vaga="0"]'))[0] || ''
+      if (!/Brasa/.test(cartao) || !/Contra Recruta Fagulha · Fornalha · Normal/.test(cartao) || !/em curso: faltam/.test(cartao) || !/(Medindo a chance|Chance de vitória)/.test(cartao)) problems.push(`${label}: cartão da vaga "${cartao}"`)
+      // recarregar no meio da corrida não repete a seed nem dá a corrida de novo
+      await pg.reload(); await pg.waitForSelector('#t-estabulo')
+      if ((await afkEst(pg)).afk.vagas[0].contador !== s1.afk.vagas[0].contador) problems.push(`${label}: recarregar mudou o contador da vaga`)
+      await pg.evaluate(() => { window.__galope.ui.dev.ouroInf = false })
+      await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.locator('[data-acao="afk-abrir"]').click(); await pg.waitForSelector('#t-afk')
+      // 2 min depois (a corrida já acabou): a seguinte larga, com outra seed (o contador anda de 1 em 1)
+      await afkAvanca(pg, 2)
+      await pg.waitForFunction((c) => window.__galope.state.afk.vagas[0].contador > c, s1.afk.vagas[0].contador, { timeout: 5000 }).catch(() => problems.push(`${label}: a 2ª corrida não largou depois do tempo da 1ª`))
+      // 4. comprar a 2ª vaga (1.000 de Ouro) e pôr o outro cavalo
+      const g0 = (await afkEst(pg)).gold
+      await pg.locator('[data-acao="afk-comprar"]').click()
+      const s2 = await afkEst(pg)
+      if (s2.afk.vagas.length !== 2 || s2.gold !== g0 - G.AFK.vagaPreco[1]) problems.push(`${label}: compra da vaga ${JSON.stringify({ vagas: s2.afk.vagas.length, gold: s2.gold, antes: g0 })}`)
+      await pg.locator('[data-acao="afk-escolher"][data-id="1"]').click(); await pg.waitForSelector('#t-afk-escolha')
+      await pg.locator('[data-acao="afk-esc-fase"][data-id="fogo:1"]').click()
+      await pg.locator('[data-acao="afk-esc-cavalo"][data-id="m2"]').click()
+      await pg.locator('[data-acao="afk-esc-comecar"]').click(); await pg.waitForSelector('#t-afk')
+      const s3 = await afkEst(pg)
+      if (s3.afk.vagas[1].uid !== 'm2' || s3.afk.vagas[1].faseId !== 'fogo:1:normal' || s3.afk.vagas[0].uid !== 'm1') problems.push(`${label}: 2ª vaga ${JSON.stringify(s3.afk.vagas.map((v) => [v.uid, v.faseId]))}`)
+      await checkOverflow(pg, label + ' vagas')
+      // 5. coletar o baú: o XP vai para os cavalos, o baú esvazia, o aviso diz o que veio
+      await afkEsperaMedida(pg, 0); await afkEsperaMedida(pg, 1)
+      const antesCol = await afkEst(pg)
+      await pg.locator('[data-acao="afk-coletar"]').click()
+      const s4 = await afkEst(pg)
+      const xpAntes = antesCol.afk.bau.xp.m1 || 0
+      if (Object.keys(s4.afk.bau.xp).length || s4.afk.bau.ouro !== 0 || Object.keys(s4.afk.bau.itens).length) problems.push(`${label}: o baú não esvaziou ${JSON.stringify(s4.afk.bau)}`)
+      if (!(xpAntes > 0) || !/Coletado:/.test((await afkTxt(pg, '.afk-coletado'))[0] || '')) problems.push(`${label}: coleta sem o aviso (XP no baú antes: ${xpAntes})`)
+      if (s4.gold !== antesCol.gold + antesCol.afk.bau.ouro) problems.push(`${label}: Ouro da coleta ${antesCol.gold} + ${antesCol.afk.bau.ouro} -> ${s4.gold}`)
+      for (const id of Object.keys(antesCol.afk.bau.itens)) if (s4.mochila[id] !== (antesCol.mochila[id] || 0) + antesCol.afk.bau.itens[id]) problems.push(`${label}: ${id} não entrou na mochila`)
+      // 6. voltar depois de 2 h: o resumo "Enquanto você estava fora", pela chance medida, sem passar do tempo
+      const antesFora = await afkEst(pg)
+      await afkAvanca(pg, 120)
+      await pg.waitForSelector('#t-afk-fora', { timeout: 5000 }).catch(() => problems.push(`${label}: sem o resumo depois de 2 h`))
+      const s5 = await afkEst(pg), resumo = (await afkTxt(pg, '.afk-resumo'))[0] || ''
+      const corr = s5.afk.vagas[0].contador - antesFora.afk.vagas[0].contador, dur = antesFora.afk.vagas[0].ultima.duracaoS
+      if (!(corr >= Math.floor(118 * 60 / dur) - 1 && corr <= Math.floor(120 * 60 / dur) + 1)) problems.push(`${label}: 2 h fora deram ${corr} corridas na vaga 1 (duração média ${dur} s)`)
+      if (!/Em (1 h 5\d min|2 h), 2 vagas correram/.test(resumo) || !/No baú:/.test(resumo)) problems.push(`${label}: resumo "${resumo}"`)
+      if (!(s5.afk.vitorias['fogo:0:normal'] > 30)) problems.push(`${label}: vitórias depois de 2 h ${JSON.stringify(s5.afk.vitorias)}`)
+      await checkOverflow(pg, label + ' resumo')
+      await pg.locator('[data-acao="afk-resumo-ok"]').click()
+      if (await pg.locator('#t-afk-fora').count()) problems.push(`${label}: o resumo não saiu com o "Entendi"`)
+      // relógio que não andou: nada a mais (as corridas ao vivo em curso seguem)
+      const c5 = (await afkEst(pg)).afk.vagas.map((v) => v.contador)
+      await pg.evaluate(() => window.__galope.afkTick())
+      const c6 = (await afkEst(pg)).afk.vagas.map((v) => v.contador)
+      if (c6[0] - c5[0] > 1 || c6[1] - c5[1] > 1) problems.push(`${label}: um tique sem o relógio andar deu corridas a mais ${JSON.stringify([c5, c6])}`)
+      // 7. assistir: a tela de corrida com o cabeçalho do treino; "Voltar ao treino" volta às vagas
+      await pg.waitForFunction(() => !!window.__galope.ui.afk.vivo[0], null, { timeout: 5000 }).catch(() => {})
+      await pg.locator('[data-acao="afk-assistir"][data-id="0"]').click(); await pg.waitForSelector('#t-corrida')
+      const cab = await pg.evaluate(() => ({ t: document.getElementById('t-corrida').textContent, linha: (document.getElementById('corrida-duelo') || {}).textContent, pular: document.getElementById('btn-pular').textContent, outra: !!document.querySelector('[data-acao="afk-outra"]') }))
+      if (cab.t !== 'Treino: Recruta Fagulha' || !/^Normal · corrida \d+ · /.test(cab.linha || '') || cab.pular !== 'Voltar ao treino' || !cab.outra) problems.push(`${label}: tela de assistir ${JSON.stringify(cab)}`)
+      const cAss = (await afkEst(pg)).afk.vagas[0].contador
+      await pg.locator('#btn-pular').click(); await pg.waitForSelector('#t-afk')
+      if ((await afkEst(pg)).afk.vagas[0].contador !== cAss) problems.push(`${label}: sair de assistir mudou o contador (pular não pode adiantar o treino)`)
+      // 8. o ativo sai da vaga com a sala aberta: "Na sala", sem corridas, e volta a contar só quando a sala fecha
+      await pg.locator('[data-acao="aba"][data-id="correr"]').click(); await pg.waitForSelector('#t-correr')
+      await pg.locator('[data-acao="procurar"]').click(); await pg.waitForSelector('#t-largada')
+      if (!(await afkEst(pg)).pending) problems.push(`${label}: a sala não ficou aberta`)
+      await pg.goBack(); await pg.waitForSelector('#t-correr, #t-estabulo')
+      await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.locator('[data-acao="afk-abrir"]').click(); await pg.waitForSelector('#t-afk')
+      const c7 = (await afkEst(pg)).afk.vagas.map((v) => v.contador)
+      await afkAvanca(pg, 60)
+      await pg.waitForFunction((c) => window.__galope.state.afk.vagas[1].contador > c, c7[1], { timeout: 5000 }).catch(() => problems.push(`${label}: a vaga 2 não correu com a sala do ativo aberta`))
+      const s8 = await afkEst(pg), sala = (await afkTxt(pg, '.afk-vaga[data-vaga="0"]'))[0] || ''
+      if (s8.afk.vagas[0].contador !== c7[0]) problems.push(`${label}: o cavalo ativo correu no treino com a sala aberta (${c7[0]} -> ${s8.afk.vagas[0].contador})`)
+      if (!/Na sala/.test(sala) || (await pg.locator('[data-acao="afk-assistir"][data-id="0"]').getAttribute('aria-disabled')) !== 'true') problems.push(`${label}: vaga do ativo com a sala aberta "${sala}"`)
+      // o XP do ativo fica no baú ao coletar
+      const xpPreso = s8.afk.bau.xp.m1 || 0
+      await pg.locator('[data-acao="afk-coletar"]').click()
+      if (((await afkEst(pg)).afk.bau.xp.m1 || 0) !== xpPreso) problems.push(`${label}: o XP do ativo saiu do baú com a sala aberta`)
+      // 9. tirar o cavalo: a vaga fica livre e o contador fica
+      await pg.locator('[data-acao="afk-tirar"][data-id="1"]').click()
+      const s9 = await afkEst(pg)
+      if (s9.afk.vagas[1].uid !== null || !(s9.afk.vagas[1].contador >= s8.afk.vagas[1].contador)) problems.push(`${label}: tirar ${JSON.stringify(s9.afk.vagas[1])}`)
+      await checkOverflow(pg, label + ' fim')
+    } catch (e) {
+      problems.push(`[${label}] ` + e.message)
+    } finally { await pg.context().close() }
+    // 10. o aviso de perdas com a mochila cheia, e a comida: a Cenoura dá 500 de XP ao cavalo escolhido
+    const pg2 = await afkAbrePerfil(label + '-cheia', `g.mochila.carvao = 998; g.mochila.cenoura = 2; g.mounts[1].level = 5; g.mounts[1].xp = 0;
+      g.afk.bau = { ouro: 3, xp: { m1: 40, m9: 25 }, itens: { carvao: 5, 'ferro-bruto': 2 }, pedras: 1, pecas: [] };`)
+    try {
+      await pg2.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg2.locator('[data-acao="afk-abrir"]').click(); await pg2.waitForSelector('#t-afk')
+      const perdas = (await afkTxt(pg2, '.afk-perda')).join(' | ')
+      if (!/ao coletar, 4 Carvões se perdem/.test(perdas) || !/25 de XP eram de um cavalo que saiu do estábulo/.test(perdas)) problems.push(`${label}-cheia: avisos de perda "${perdas}"`)
+      await pg2.locator('[data-acao="afk-coletar"]').click()
+      const a1 = await afkEst(pg2)
+      if (a1.mochila.carvao !== 998 || !(await pg2.locator('[data-acao="afk-coletar-sim"]').count())) problems.push(`${label}-cheia: o 1º toque coletou sem confirmar`)
+      await pg2.locator('[data-acao="afk-coletar-nao"]').click()
+      if ((await afkEst(pg2)).afk.bau.itens.carvao !== 5) problems.push(`${label}-cheia: cancelar mexeu no baú`)
+      await pg2.locator('[data-acao="afk-coletar"]').click(); await pg2.locator('[data-acao="afk-coletar-sim"]').click()
+      const a2 = await afkEst(pg2), col = (await afkTxt(pg2, '.afk-coletado'))[0] || ''
+      if (a2.mochila.carvao !== 999 || a2.mochila['ferro-bruto'] !== 2 || Object.keys(a2.afk.bau.itens).length || Object.keys(a2.afk.bau.xp).length) problems.push(`${label}-cheia: coleta ${JSON.stringify({ m: [a2.mochila.carvao, a2.mochila['ferro-bruto']], bau: a2.afk.bau })}`)
+      if (!/Não coube na mochila: 4 Carvões/.test(col) || !/25 de XP de um cavalo que saiu do estábulo se perderam/.test(col)) problems.push(`${label}-cheia: aviso da coleta "${col}"`)
+      await checkOverflow(pg2, label + '-cheia')
+      // a Cenoura na Mochila
+      await pg2.locator('[data-acao="aba"][data-id="loja"]').click(); await pg2.locator('[data-acao="loja-parte"][data-id="mochila"]').click()
+      const m2a = (await afkEst(pg2)).mounts.find((m) => m.uid === 'm2')
+      await pg2.locator('[data-acao="comida-usar"][data-id="cenoura"]').click()
+      await pg2.locator('[data-acao="comida-dar"][data-id="m2"]').click()
+      const a3 = await afkEst(pg2), m2b = a3.mounts.find((m) => m.uid === 'm2')
+      let xp = 500, lv = m2a.level, resto = m2a.xp
+      while (resto + xp >= G.ECONOMY.xpToLevel(lv)) { xp -= G.ECONOMY.xpToLevel(lv) - resto; resto = 0; lv++ }
+      if (a3.mochila.cenoura !== 1 || m2b.level !== lv || m2b.xp !== resto + xp) problems.push(`${label}-cheia: a Cenoura deu ${JSON.stringify(m2b)} (esperado nível ${lv}, xp ${resto + xp}); sobraram ${a3.mochila.cenoura}`)
+      const avisoC = (await afkTxt(pg2, '[data-item="cenoura"] .item-aviso'))[0] || ''
+      if (!/Dois ganhou 500 de XP/.test(avisoC)) problems.push(`${label}-cheia: aviso da Cenoura "${avisoC}"`)
+      await checkOverflow(pg2, label + '-cheia mochila')
+    } catch (e) {
+      problems.push(`[${label}-cheia] ` + e.message)
+    } finally { await pg2.context().close() }
+    // 11. o jogo abre na tela do treino com o resumo depois de horas fechado (até o limite de 8 h), e save de antes do AFK migra
+    const pg3 = await afkAbrePerfil(label + '-abrir', `g.afk.vagas[0] = { uid: 'm1', faseId: 'fogo:0:normal', inicioMin: Date.now() / 60000 - 3 * 24 * 60, contador: 7, medida: null, ultima: { p: 0.9, duracaoS: 80 } };`)
+    try {
+      await pg3.waitForSelector('#t-afk-fora', { timeout: 5000 }).catch(() => problems.push(`${label}-abrir: o jogo não abriu no resumo do treino`))
+      const b1 = await afkEst(pg3), r3 = (await afkTxt(pg3, '.afk-resumo'))[0] || ''
+      if (b1.tela !== 'afk' || b1.afk.vagas[0].contador !== 7 + Math.floor(G.AFK.offlineMin * 60 / 80)) problems.push(`${label}-abrir: 3 dias fora ${JSON.stringify({ tela: b1.tela, c: b1.afk.vagas[0].contador })} (esperado só o limite de 8 h)`)
+      if (!/Em 8 h, 1 vaga correu 360 corridas/.test(r3) || !/conta até 8 h/.test(r3)) problems.push(`${label}-abrir: resumo "${r3}"`)
+      await pg3.goBack(); await pg3.waitForSelector('#t-expedicao', { timeout: 3000 }).catch(() => problems.push(`${label}-abrir: o voltar do aparelho não levou à Expedição`))
+    } catch (e) {
+      problems.push(`[${label}-abrir] ` + e.message)
+    } finally { await pg3.context().close() }
+  }
+  if (quer('bestiario')) {
+    const label = 'bestiario'
+    const pg = await afkAbrePerfil(label, `g.afk.bestiario = { vitorias: { 'fogo:0': 120, 'fogo:1': 3 }, vistos: { carvao: true, 'trofeu-fogo-0': true }, obtidos: { carvao: true, 'trofeu-fogo-0': true } };`)
+    try {
+      await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao')
+      const cart = (await afkTxt(pg, '[data-acao="bestiario-abrir"]'))[0] || ''
+      if (!/\+1% de drop raro e \+2% de chance de troféu/.test(cart)) problems.push(`${label}: cartão na Expedição "${cart}"`)
+      await pg.locator('[data-acao="bestiario-abrir"]').click(); await pg.waitForSelector('#t-bestiario')
+      const b = await pg.evaluate(() => ({ foco: document.activeElement && document.activeElement.id,
+        ops: [...document.querySelectorAll('.afk-best-op')].map((li) => ({ txt: li.textContent.replace(/\s+/g, ' ').trim(), feitos: li.querySelectorAll('.afk-marco--feito').length })),
+        itens: [...document.querySelectorAll('.afk-best-item')].map((li) => li.className.replace('afk-best-item ', '') + ':' + li.querySelector('.afk-best-nome').textContent) }))
+      if (b.foco !== 't-bestiario' || b.ops.length !== 5 || b.ops[0].feitos !== 2 || b.ops[1].feitos !== 0 || !/Recruta Fagulha ?120 vitórias no treino/.test(b.ops[0].txt)) problems.push(`${label}: oponentes ${JSON.stringify(b.ops.slice(0, 2))}`)
+      if (b.itens.length !== 18 || b.itens[0] !== 'afk-best-item--obtido:Carvão' || b.itens[1] !== 'afk-best-item--oculto:???' || !b.itens.includes('afk-best-item--obtido:Pederneira do Recruta Fagulha')) problems.push(`${label}: coleção ${JSON.stringify(b.itens)}`)
+      await checkOverflow(pg, label)
+      await pg.locator('[data-acao="bestiario-gym"][data-id="agua"]').click()
+      const t2 = (await afkTxt(pg, '#t-best-ops'))[0] || ''
+      if (!/Ginásio do Remanso/.test(t2) || (await pg.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-id'))) !== 'agua') problems.push(`${label}: troca de ginásio "${t2}"`)
+      // uma vitória no treino marca o oponente: a contagem do bestiário anda com a corrida gravada
+      await pg.locator('[data-acao="bestiario-voltar"]').click(); await pg.waitForSelector('#t-expedicao')
+      if ((await pg.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-acao'))) !== 'bestiario-abrir') problems.push(`${label}: o Voltar não devolveu o foco ao cartão do Bestiário`)
+      await afkVaiTrilha(pg, 'fogo')
+      await pg.locator('[data-acao="afk-treinar"][data-id="fogo:1"]').click(); await pg.waitForSelector('#t-afk-escolha')
+      await pg.locator('[data-acao="afk-esc-comecar"]').click(); await pg.waitForSelector('#t-afk')
+      await afkEsperaMedida(pg, 0)
+      await afkAvanca(pg, 60)
+      const s = await afkEst(pg)
+      if (!(s.afk.bestiario.vitorias['fogo:1'] > 3 + 20) || s.afk.bestiario.vitorias['fogo:1'] - 3 !== s.afk.vitorias['fogo:1:normal']) problems.push(`${label}: vitórias no bestiário ${JSON.stringify([s.afk.bestiario.vitorias, s.afk.vitorias])}`)
+      await pg.locator('[data-acao="bestiario-abrir"]').click(); await pg.waitForSelector('#t-bestiario')
+      const op1 = (await afkTxt(pg, '.afk-best-op'))[1] || ''
+      if (!new RegExp(`Cabo Tocha ?${s.afk.bestiario.vitorias["fogo:1"]} vitórias no treino`).test(op1)) problems.push(`${label}: o oponente vencido não aparece marcado "${op1}"`)
+      await pg.goBack(); await pg.waitForSelector('#t-expedicao', { timeout: 3000 }).catch(() => problems.push(`${label}: o voltar do aparelho não levou à Expedição`))
+    } catch (e) {
+      problems.push(`[${label}] ` + e.message)
+    } finally { await pg.context().close() }
+  }
   if (quer('texto')) {
     const tx = await newPage(browser, { width: 360, height: 640 }, 'texto')
     const tamanhos = (sels) => tx.evaluate((ss) => ss.map((sel) => {
@@ -1657,7 +1876,8 @@ try {
         if ((await pg.evaluate(() => window.__galope.ui.lojaParte)) !== 'mochila') problems.push(`${label}: ui.lojaParte não é mochila`)
         if (await pg.locator('#tela [data-acao="item-comprar"]').count()) problems.push(`${label}: a Mochila mostra botão de compra`)
         const bag = await pg.locator('#tela .item-linha--mochila').evaluateAll((ls) => ls.map((l) => l.getAttribute('data-item')))
-        if (!igual(bag, G.ITENS_USO)) problems.push(`${label}: mochila ${bag.join(',')} (esperado a ordem do catálogo)`)
+        const bagAfk = bag.slice(G.ITENS_USO.length)
+        if (!igual(bag.slice(0, G.ITENS_USO.length), G.ITENS_USO) || bagAfk.length < 14 || bagAfk.some((id) => !(G.ITEMS[id] && G.ITEMS[id].grupo))) problems.push(`${label}: mochila ${bag.join(',')} (esperado a ordem do catálogo)`)
         for (const [id, n, falado] of [['torrao', 3, '3 Torrões de açúcar'], ['estrela', 0, '0 Estrelas de treino'], ['redea', 2, '2 Rédeas novas'], ['cupom', 0, '0 Cupons de troca de skill'], ['manual', 1, '1 Manual de doma']]) {
           const t = await txtLinha(id), a = await textoAcessivel(linha(id)), vazia = await linha(id).evaluate((l) => l.classList.contains('item-linha--vazia'))
           if (!a.includes(falado) || /[x×]\s*\d/.test(a)) problems.push(`${label}: o leitor de tela lê a linha de ${id} como "${a}" (esperado "${falado}", sem "x${n}")`)

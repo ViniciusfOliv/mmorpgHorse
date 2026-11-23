@@ -1,10 +1,11 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-23._
+_Atualizado em 2026-11-23 (bloco A do treino AFK)._
 
-**Próxima frente (2026-11-23): corrida AFK, drops, forja, bestiário e equipamento de PVE.** Spec
-`docs/superpowers/specs/2026-11-23-afk-drops-design.md` e plano `docs/superpowers/plans/2026-11-23-afk-drops.md` (blocos A e B)
-aprovados pelo Vinicius; a implementação parte da `main` (que já tem as skills com ranks e a direção de arte). O rancho
+**Em andamento (2026-11-23): corrida AFK, drops, forja, bestiário e equipamento de PVE**, no branch `claude/afk` (chat
+próprio de implementação). Spec `docs/superpowers/specs/2026-11-23-afk-drops-design.md` e plano
+`docs/superpowers/plans/2026-11-23-afk-drops.md` (blocos A e B), aprovados pelo Vinicius. **Bloco A pronto (seção própria
+abaixo), esperando a revisão do chat de coordenação; nada foi integrado na `main` nem republicado nos oficiais.** O rancho
 ficou só como ideia.
 
 **Em andamento (2026-11-21):** as **skills com 100% de ativação e ranks**, com a Garra também sem falhar, **entraram na
@@ -390,6 +391,32 @@ Spec `docs/superpowers/specs/2026-11-19-skills-ranks-design.md`, plano `docs/sup
   arte do Pergaminho no PixelLab (hoje é um ícone feito por código).
 - **Build de teste desta branch:** https://claude.ai/artifact/77SCN1gGcMb9DjMcUXwfkQ (artefato novo, versão 2, com a
   Garra sem falhar; os três oficiais não foram tocados).
+
+## Treino AFK, bloco A (pronto em 2026-11-23 no `claude/afk`; fora da `main`)
+Spec e plano acima; regra no `docs/GDD.md` §8.3a; números no wiki (seção "Corrida AFK") e em `GameData.AFK`
+(`prototype/src/data.js`); regras em `prototype/src/afk.js`; medições em `docs/exemplos.md` §5b; decisões em
+`decisoes.md` (2026-11-23, "execução do bloco A").
+- **O que entrou:** o duelo do ginásio como função (`Ginasio.dueloCfg`); as 45 fases (15 etapas × Normal, Difícil,
+  Lendária), a liberação por 50 vitórias e as 5 vagas; a corrida AFK e a tabela de drops (29 itens novos: materiais,
+  incomuns, comidas, Pergaminho de reforja e 15 troféus; peças com linhas de farm sorteadas); a chance medida (2.400
+  duelos em fatias) e o offline; o baú, o bestiário e as comidas; **save v10** (`state.afk`, itens do AFK na mochila,
+  `linhas` e `rerolls` em cada peça); as telas: cartões "Treino AFK" e "Bestiário" na Expedição, "Treinar (AFK)" nos
+  oponentes vencidos da trilha, a escolha do treino, as vagas com o baú, assistir (a tela de corrida, no tempo real do
+  duelo), "Enquanto você estava fora" (também ao abrir o jogo), o bestiário por ginásio e os itens do treino na Mochila
+  (comidas com "Usar"); o grupo "Treino AFK" na gaveta DEV (relógio, vitórias, itens, zerar). 18 ícones 16×16 feitos em
+  código (`prototype/tools/icones-afk.mjs`), sem créditos.
+- **Como o relógio funciona:** `vaga.inicioMin` é até onde o treino da vaga já foi contado. Com a tela do treino
+  aberta, cada corrida larga quando agora ≥ inicioMin, é gravada (contador + ganho) antes de aparecer e leva inicioMin
+  ao fim dela; fora da tela, o tempo é acertado pelo `Afk.offline` (chance medida) na volta. O cavalo ativo com a sala
+  aberta não treina. Detalhe no comentário da seção "Corrida AFK" do `game.js`.
+- **Metas (balance.js completo):** E1, E3 e E5 passam; a E2 passa na primeira parte ("não é sempre a mais difícil") e a
+  segunda ("1 ou 2 degraus abaixo em metade dos casos") deu 44% e fica como informação até a B2 (as peças dos oponentes).
+  A E4 e a E6 são do bloco B. `node prototype/tools/balance.js --afk` roda só essa seção (~45 s).
+- **Números de partida que mudaram:** Ouro por vitória × 0,15 (E1) e amostra da chance de 400 para 2.400 (E3).
+- **Para o Vinicius decidir** (em `docs/exemplos.md` §5b): o XP do AFK por hora é de 2 a 15 vezes o do PVP; os
+  oponentes são fracos para um cavalo Raro; o prêmio quase não cresce com a etapa.
+- **Falta (bloco B):** peças no AFK e meta E4 (B1, B2), forja (B3), telas do equipamento, loja de peças e forja (B4),
+  reforja e Selo do campeão (B5). O `GEAR_ON` continua desligado: as peças que caem ficam guardadas.
 
 ## Em andamento
 - **Teste de interface em paralelo (feito em 2026-11-17, commit `b3dda3d`; na `main` desde o mesmo dia, por decisão do

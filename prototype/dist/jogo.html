@@ -865,17 +865,17 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .selvagem--mitico { box-shadow: inset 0 -4px 0 0 var(--r-mitico); }
 /* ---------- Expedição: ginásios e a trilha (spec 2026-11-17-ginasios §10) ---------- */
 /* cartão do ginásio e etapa tocável: a moldura do botão (§4.4), como a linha do Estábulo; avança 4px sobre o respiro do painel */
-.ginasios, .trilha { list-style: none; margin: 0 -4px; padding: 0; display: flex; flex-direction: column; gap: 16px; }
-.ginasios > li, .trilha > li { display: block; min-width: 0; }
+.ginasios, .afk-cartoes, .trilha { list-style: none; margin: 0 -4px; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+.ginasios > li, .afk-cartoes > li, .trilha > li { display: block; min-width: 0; }
 /* a trilha de baixo para cima: o DOM vai da 1ª etapa ao líder (ordem de leitura e de foco), a coluna mostra o líder no topo */
 .trilha { flex-direction: column-reverse; gap: 12px; }
-.ginasio-cartao, .etapa-btn {
+.ginasio-cartao, .afk-cartao, .etapa-btn {
   appearance: none; border: 0; margin: 0; width: 100%; min-width: 0; min-height: 48px; position: relative;
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 10px; row-gap: 2px;
   padding: 8px 10px; background: var(--painel-2); color: var(--texto); font: inherit; text-align: left;
   touch-action: manipulation; -webkit-user-select: none; user-select: none;
 }
-.ginasio-cartao, .etapa--proxima .etapa-btn, .etapa--revanche .etapa-btn {
+.ginasio-cartao, .afk-cartao, .etapa--proxima .etapa-btn, .etapa--revanche .etapa-btn {
   cursor: pointer;
   box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
@@ -883,15 +883,15 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
     inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
     inset 0 2px 0 0 var(--linha-luz), inset 2px 0 0 0 var(--linha-luz);
 }
-.ginasio-cartao:hover, .etapa--proxima .etapa-btn:hover, .etapa--revanche .etapa-btn:hover { background: var(--painel-3); }
-.ginasio-cartao:active, .etapa--proxima .etapa-btn:active, .etapa--revanche .etapa-btn:active {
+.ginasio-cartao:hover, .afk-cartao:hover, .etapa--proxima .etapa-btn:hover, .etapa--revanche .etapa-btn:hover { background: var(--painel-3); }
+.ginasio-cartao:active, .afk-cartao:active, .etapa--proxima .etapa-btn:active, .etapa--revanche .etapa-btn:active {
   transform: translateY(2px);
   box-shadow:
     0 -2px 0 0 var(--sombra), 0 2px 0 0 var(--sombra), -2px 0 0 0 var(--sombra), 2px 0 0 0 var(--sombra),
     inset 0 -4px 0 0 var(--noite-2), inset -2px 0 0 0 var(--painel),
     inset 0 2px 0 0 var(--linha-luz), inset 2px 0 0 0 var(--linha-luz);
 }
-.ginasio-cartao:focus-visible, .etapa-btn:focus-visible { outline-offset: 5px; }
+.ginasio-cartao:focus-visible, .afk-cartao:focus-visible, .etapa-btn:focus-visible { outline-offset: 5px; }
 .ginasio-cartao-nome {
   grid-column: 1; min-width: 0; overflow-wrap: anywhere;
   font-family: var(--fonte-display); font-size: var(--t-m); line-height: 1.5; color: var(--texto); text-shadow: var(--px) var(--px) 0 var(--sombra);
@@ -948,6 +948,81 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .gin-desafio .acoes .btn { width: 100%; }
 /* tela de desafio: "Começar duelo" e "Pular tudo" numa linha cada, lado a lado, mesmo a 360 px com a Galmuri11 */
 .tela--desafio > .acoes .btn { padding-left: 8px; padding-right: 8px; white-space: nowrap; }
+/* ---------- treino AFK (spec 2026-11-23-afk-drops; guia de arte §8b: a estrutura das telas de hoje) ----------
+   Vagas em cartões (o retrato pequeno, o oponente, a chance, a barra da corrida em curso, a última corrida e os botões);
+   o baú em linhas; a escolha do treino em grupos de opções; o bestiário com os marcos e a coleção. Alturas pares; nada se
+   move além da barra da corrida (largura em passos de 1%, sem transição). */
+.etapa-treinar { display: flex; justify-content: flex-end; margin-top: 6px; }
+.afk-vagas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.afk-vaga { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 8px 10px; background: var(--painel-2); box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 14px; }
+.afk-vaga--livre, .afk-vaga--comprar { background: var(--painel); box-shadow: inset 0 0 0 2px var(--linha); padding-left: 10px; }
+.afk-vaga--sala { box-shadow: inset 4px 0 0 0 var(--ouro); }
+.afk-vaga-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.afk-vaga-num { font-family: var(--fonte-display); font-size: var(--t-m); line-height: var(--lh-s); }
+.afk-vaga-estado { font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); padding: 2px 6px; background: var(--painel); color: var(--texto-2); }
+.afk-vaga:not(.afk-vaga--livre):not(.afk-vaga--comprar) .afk-vaga-estado { color: var(--ganho); }
+.afk-vaga--sala .afk-vaga-estado { background: var(--ouro); color: var(--tinta) !important; }
+.afk-vaga-corpo { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; }
+.afk-vaga-retrato { line-height: 0; }
+.afk-vaga-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.afk-fase, .afk-chance, .afk-estado, .afk-ultima, .afk-prog-txt { font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; margin: 0; overflow-wrap: anywhere; }
+.afk-chance, .afk-estado, .afk-prog-txt { color: var(--texto-2); }
+.afk-correndo { display: flex; flex-direction: column; gap: 6px; }
+.afk-prog { margin: 2px; }
+.afk-prog > i { width: 0; }
+.afk-ultima { padding: 4px 6px; background: var(--painel); }
+.afk-ultima--vitoria { box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 10px; }
+.afk-ultima--derrota { box-shadow: inset 4px 0 0 0 var(--perda); padding-left: 10px; }
+.afk-vaga-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.afk-vaga-acoes .btn { flex: 1 1 auto; }
+.afk-vaga .acoes .btn { width: 100%; }
+/* o baú: uma linha por coisa (o ícone, o nome e a quantidade à direita) */
+.afk-bau > h2 { justify-content: flex-start; gap: 8px; }
+.afk-bau > h2 .item-icone { grid-row: auto; flex: none; }
+.afk-bau-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.afk-bau-linha { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 2px 8px; background: var(--painel-2); font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; }
+.afk-bau-linha > span:not(.item-icone):not(.raridade) { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.afk-bau-linha > b { margin-left: auto; white-space: nowrap; }
+.afk-bau-linha .item-icone { grid-row: auto; flex: none; width: 16px; height: 16px; background-size: 16px 16px; }
+.afk-bau-linha img.icone { flex: none; }
+.afk-bau .acoes .btn, .afk-comecar .acoes .btn { width: 100%; }
+.afk-perda, .afk-coletado, .afk-resumo-txt, .afk-resumo-ganho, .afk-escolhido { margin: 0; }
+.afk-resumo { box-shadow: inset 4px 0 0 0 var(--ouro); }
+.afk-resumo-ganho { color: var(--ganho); }
+/* a escolha do treino: opções lado a lado quando cabem (duas colunas a 360 px) */
+.afk-grupo { margin: 8px 0 4px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); color: var(--texto-2); font-weight: 400; }
+.afk-opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px 8px; margin: 2px; }
+.afk-opcao { min-height: 48px; text-align: left; }
+.afk-opcao[aria-disabled="true"] { cursor: not-allowed; }
+.afk-opcao[aria-disabled="true"] .opcao-nome { color: var(--texto-2); }
+/* o cartão do treino na Expedição */
+.afk-cartao-bau { grid-row: auto; flex: none; width: 16px; height: 16px; background-size: 16px 16px; }
+/* bestiário */
+.afk-best-bonus p { margin: 0; }
+.afk-best-abas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 2px 2px 6px; }
+.afk-best-aba[aria-pressed="true"] { background: var(--painel-3); box-shadow: 0 0 0 2px var(--sombra), inset 0 -4px 0 0 var(--ouro); }
+.afk-best-ops, .afk-best-itens { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.afk-best-op { display: grid; grid-template-columns: calc(var(--px) * 64) minmax(0, 1fr); align-items: center; gap: 10px; padding: 4px 8px; background: var(--painel-2); }
+.afk-best-op .etapa-busto { grid-column: 1; grid-row: auto; }
+.afk-best-op-info { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.afk-marcos { display: flex; flex-wrap: wrap; gap: 6px; }
+.afk-marco { font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); padding: 2px 6px; background: var(--painel); color: var(--texto-2); box-shadow: inset 0 0 0 2px var(--linha); }
+.afk-marco--feito { background: var(--ouro); color: var(--tinta); box-shadow: none; }
+.afk-best-item { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 2px 8px; background: var(--painel-2); font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; }
+.afk-best-item .item-icone { grid-row: auto; flex: none; width: 16px; height: 16px; background-size: 16px 16px; }
+.afk-best-peca { flex: none; line-height: 0; }
+.afk-best-nome { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.afk-best-estado { margin-left: auto; white-space: nowrap; color: var(--texto-2); }
+.afk-best-item--obtido { box-shadow: inset 4px 0 0 0 var(--ganho); padding-left: 12px; }
+.afk-best-item--obtido .afk-best-estado { color: var(--ganho); }
+.afk-best-item--oculto { background: var(--painel); }
+.afk-best-item--oculto .item-icone, .afk-best-item--oculto .afk-best-peca { opacity: 0.35; }
+.afk-best-item--oculto .afk-best-nome { color: var(--texto-2); }
+/* comidas na Mochila: a escolha do cavalo embaixo da linha do item */
+.item-lista--afk > h2 { margin-bottom: 2px; }
+.comida-cavalos { justify-content: flex-start; }
+.comida-cavalos > .nota { flex: 1 1 100%; }
+.comida-cavalos .btn { margin-left: 0; }
 /* resumo: um duelo por linha (o texto, a plaquinha de quem venceu e o fôlego de quem seguiu), o XP de cada cavalo e a etapa liberada */
 .gin-duelos, .gin-xp { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .gin-duelo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; background: var(--painel-2); padding: 6px 8px; min-width: 0; }
@@ -1519,7 +1594,7 @@ img.icone.icone--n24 { width: calc(var(--px) * 24); height: calc(var(--px) * 24)
   .montaria-linha-seta { fill: ButtonText; }   /* o svg não ganha a cor do sistema sozinho */
   /* ginásios: o cartão e a etapa tocável com borda de botão; a próxima em Highlight; a fechada em GrayText; a vencida (só
      texto) e a plaquinha de estado e de revanche com borda da cor do texto */
-  .ginasio-cartao, .etapa-btn { border: 2px solid ButtonText; }
+  .ginasio-cartao, .afk-cartao, .etapa-btn { border: 2px solid ButtonText; }
   .etapa--vencida .etapa-btn { border-color: CanvasText; }
   .etapa--proxima .etapa-btn, .etapa--revanche .etapa-btn { border-color: Highlight; }
   .etapa--feita .etapa-btn { border-color: CanvasText; }
@@ -12247,11 +12322,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     
     return dia;
   }
-  // O "agora" do AFK, em minutos inteiros desde 1970 (o relógio do aparelho, como o dia da diária): o ÚNICO lugar que lê
+  // O "agora" do AFK, em minutos desde 1970, com fração (o relógio do aparelho, como o dia da diária): o ÚNICO lugar que lê
   // o relógio para as regras do AFK (o afk.js recebe o número). No modo DEV soma o deslocamento de dias da gaveta e o de
   // minutos do AFK (só no save de teste). st: o save do deslocamento (padrão: o state).
   function agoraMin(st) {
-    var min = Math.floor(Date.now() / 60000);
+    var min = Date.now() / 60000;
     
     return min;
   }
@@ -12306,6 +12381,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       return;
     }
     state = s;
+    if (ui.afk) { ui.afk.vivo = {}; ui.afk.ult = {}; ui.afk.coleta = null; ui.afk.confirmaPerda = false; }   // o treino AFK segue o save adotado
     // o resultado já mostrado continua válido (também os duelos de um desafio já gravado, a tela de desafio e o cartão entre eles)
     if (ui.screen === 'corrida' || ui.screen === 'resultado' || ui.screen === 'entreduelos' || ui.screen === 'desafio') return;
     ui.notice = 'O jogo foi atualizado em outra aba; este é o progresso mais recente.';
@@ -12687,7 +12763,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // ===========================================================================
   // Tipos de tela: 'aba' (raiz, com cabeçalho e barra; não empilha histórico), 'sub' (com cabeçalho e barra;
   // empilha um estado e o Voltar devolve a ui.tab) e 'full' (tela cheia, sem casca).
-  var SCREEN_KIND = { bloqueio: 'full', inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', ginasio: 'sub', largada: 'full', corrida: 'full', desafio: 'full', entreduelos: 'full', resultado: 'full' };
+  var SCREEN_KIND = { bloqueio: 'full', inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', ginasio: 'sub', afk: 'sub', bestiario: 'sub', largada: 'full', corrida: 'full', desafio: 'full', entreduelos: 'full', resultado: 'full' };
   // as 5 abas da barra (o handler 'aba' só abre as desta lista; o wiki lê esta linha). A Loja (itens e mochila, spec de
   // itens §6) fica sempre: o que é do equipamento dentro dela (peças e Pedras Negras) continua atrás do GEAR_ON
   var ABAS = [{ id: 'estabulo', icone: '🐴', rotulo: 'Estábulo' }, { id: 'correr', icone: '🏁', rotulo: 'Correr' }, { id: 'expedicao', icone: '🧭', rotulo: 'Expedição' }, { id: 'haras', icone: '💞', rotulo: 'Haras' }, { id: 'loja', icone: '🛒', rotulo: 'Loja' }];
@@ -12727,6 +12803,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     if (screen === 'corrida' && !corridaAtual().L) screen = state ? 'correr' : 'inicial';
     if (raceView && screen !== 'corrida') { raceView.destroy(); raceView = null; }
     ui.item = null; ui.itemMsg = null;   // o uso de item aberto e o aviso dele não passam para outra tela
+    ui.comida = null; ui.comidaMsg = null;   // nem a comida esperando o cavalo
+    // treino AFK: a corrida assistida só vive na tela de corrida; a escolha do treino e os avisos, só na tela dele
+    if (ui.afk && screen !== 'corrida') { window.clearTimeout(afkEsperaTimer); ui.afk.ver = null; }
+    if (ui.afk && screen !== 'afk') { ui.afk.escolha = null; ui.afk.msg = null; ui.afk.coleta = null; ui.afk.confirmaPerda = false; }
+    if (state && !saveBloqueado && screen !== 'corrida') afkConfere();   // cavalo que saiu do estábulo, fase que fechou: a vaga esvazia
     if (screen !== ui.screen) {
       ui.confirmReset = false; ui.confirmLiberar = null; ui.diariaVer = false;
       SP.limparCacheMoldes();   // os moldes recoloridos da tela anterior não voltam a ser usados
@@ -12738,6 +12819,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // a trilha (e o detalhe da etapa) só vive na subtela do ginásio; os duelos de um desafio pago (ui.gym.ver) passam na
     // tela de desafio, na tela de corrida e no cartão entre eles, e saem ao ir a qualquer outra tela
     var assiste = !!(ui.gym && ui.gym.ver) && (screen === 'corrida' || screen === 'entreduelos' || screen === 'desafio');
+    if (screen !== 'bestiario') ui.bestiario = null;
     if (screen !== 'ginasio' && !assiste) ui.gym = null;
     else if (!assiste && ui.gym) ui.gym.ver = null;
     // a Loja guarda o estado enquanto uma sub-tela aberta a partir dela está por cima
@@ -12773,6 +12855,14 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       if (gym.etapa !== null) { var ie = gym.etapa; gym.etapa = null; go('ginasio'); focoNaLinha('ginasio-etapa', String(ie)); return; }
       go(ui.tab);
       if (ui.screen === 'expedicao') focoNaLinha('ginasio-abrir', gym.id);
+      return;
+    }
+    // treino AFK: da escolha do treino volta às vagas; das vagas e do bestiário, à Expedição
+    if (ui.screen === 'afk' && ui.afk && ui.afk.escolha) { ui.afk.escolha = null; go('afk'); return; }
+    if (ui.screen === 'afk' || ui.screen === 'bestiario') {
+      var deBest = ui.screen === 'bestiario';
+      go('expedicao');
+      focoNaLinha(deBest ? 'bestiario-abrir' : 'afk-abrir', null);
       return;
     }
     var uid = ui.screen === 'montaria' && ui.montaria ? ui.montaria.uid : null;
@@ -12875,6 +12965,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       case 'expedicao': html = renderExpedicao(); break;
       case 'perfil': html = renderPerfil(); break;
       case 'ginasio': html = renderGinasio(); break;
+      case 'afk': html = renderAfk(); break;
+      case 'bestiario': html = renderBestiario(); break;
       default: html = renderInicial();
     }
     var comCasca = kindOf(ui.screen) !== 'full';
@@ -12894,6 +12986,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       raceView = createRaceView(cor.L, telaEl, cor.fim, cor.cab.pularFim);
     }
     if (devHooks) devHooks.render();
+    afkLaco();   // o laço do treino AFK (só nas telas dele) e a medição da chance
     acordaLaco();
   }
 
@@ -13377,7 +13470,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
         '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
-      '</section>' +
+      '</section>' + afkCartaoHtml() +
       '<section class="caixa" aria-labelledby="t-selvagens"><h2 class="titulo" id="t-selvagens">Cavalos selvagens</h2>' +
         '<p class="nota">Exemplos de achados em expedições. A captura ainda não está neste protótipo.</p>' +
         '<div class="selvagens">' + wild + '</div>' +
@@ -13426,7 +13519,10 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       ? '<div class="etapa-btn">' + corpo + '</div>'
       : '<button type="button" class="etapa-btn" data-acao="ginasio-etapa" data-id="' + i + '"' +
           (estado === 'proxima' || estado === 'revanche' ? ' aria-current="step"' : indisponivel(MOTIVO)) + '>' + corpo + '</button>';
-    return '<li class="etapa etapa--' + estado + (e.lider ? ' etapa--lider' : '') + '" data-etapa="' + i + '" data-estado="' + estado + '">' + caixa + '</li>';
+    // oponente já vencido no ginásio: o treino AFK contra ele (spec do AFK §5.1)
+    var treinar = i < ginProgresso(id)
+      ? '<div class="etapa-treinar"><button type="button" class="btn btn--pequeno" data-acao="afk-treinar" data-id="' + esc(id + ':' + i) + '">Treinar (AFK)<span class="sr"> contra ' + esc(e.nome) + '</span></button></div>' : '';
+    return '<li class="etapa etapa--' + estado + (e.lider ? ' etapa--lider' : '') + '" data-etapa="' + i + '" data-estado="' + estado + '">' + caixa + treinar + '</li>';
   }
   // A trilha: de baixo para cima (a 1ª etapa embaixo; o DOM vai da 1ª à 5ª, o CSS vira a coluna)
   function trilhaHtml(id) {
@@ -14021,6 +14117,666 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     gym.ver = null;
     go('ginasio');   // o resumo, com o foco no título dele
     motivoVivo(gym.res.venceu ? 'Vitória!' : 'Derrota');
+  }
+
+  // ===========================================================================
+  // Corrida AFK (spec 2026-11-23-afk-drops §5): vagas, baú, offline e bestiário. As regras são do afk.js; aqui só se
+  // grava e se desenha.
+  // ===========================================================================
+  // RELÓGIO DE CADA VAGA: vaga.inicioMin é "até onde o treino desta vaga já foi contado". Ao vivo (tela do AFK aberta), a
+  //   corrida seguinte larga quando agora ≥ inicioMin: o resultado sai da seed (Afk.correr), o contador e o ganho são
+  //   gravados juntos ANTES de qualquer coisa aparecer, e inicioMin passa a ser o fim dessa corrida (agora + duração); a
+  //   tela mostra a barra andando e só revela o resultado quando esse tempo passa. Fora da tela (outra aba do jogo, jogo
+  //   fechado, aba escondida) nada corre: na volta, o tempo desde inicioMin é acertado pelo Afk.offline (a chance medida),
+  //   até o limite, e inicioMin vem para agora. Assim nenhum minuto é contado duas vezes e relógio para trás não rende.
+  // ASSISTIR: a tela de corrida anima a corrida em curso da vaga (a cfg guardada, simulada de novo com os quadros: o mesmo
+  //   resultado) no tempo real do duelo; quando acaba, larga a seguinte. "Voltar ao treino" sai da tela; x2 só adianta a
+  //   animação (a corrida seguinte espera o relógio da vaga).
+  // CAVALO ATIVO COM SALA ABERTA: a vaga fica guardada e parada ("na sala"); o tempo com a sala aberta não conta.
+  // ui.afk (não persistido) = { ver: a corrida assistida ({ idx, L, cab }), resumo: o último acerto de uma parada longa,
+  //   escolha: a escolha do treino aberta, vivo: { vaga: a corrida em curso }, ult: { vaga: o último resultado mostrado },
+  //   msg: aviso, coleta: o resumo da última coleta, confirmaPerda: a coleta com perdas espera o 2º toque }.
+  var AFK_SEED_TAG = 30000000;   // seedTag do applyXp para o XP do AFK (acima do dos ginásios); + state.afk.xpCounter
+  var AFK_FATIA = 10, AFK_FATIA_MS = 40, AFK_GRAVA_A_CADA = 400;   // a medição da chance: duelos por fatia, pausa, gravação
+  var AFK_RESUMO_MIN = 10;       // parada de 10 min ou mais: o resumo "Enquanto você estava fora"
+  var AFK_PARADA_MIN = 1.5;      // com a tela aberta, um atraso maior que este é parada (aba escondida): acerto offline
+  var afkTimer = 0, afkMedeTimer = 0, afkEsperaTimer = 0, afkMedeDesde = 0;
+  function afkUi() {
+    if (!ui.afk) ui.afk = { ver: null, resumo: null, escolha: null, vivo: {}, ult: {}, msg: null, coleta: null, confirmaPerda: false };
+    return ui.afk;
+  }
+  function afkCtx() { return { uids: state.mounts.map(function (m) { return m.uid; }), progresso: state.ginasios, agoraMin: agoraMin() }; }
+  // o save do AFK coerente com o resto (cavalo que saiu do estábulo, fase que deixou de estar liberada): a vaga esvazia
+  function afkConfere() { if (state) state.afk = AF.sanear(state.afk, afkCtx()); }
+  function afkNaTela() { return ui.screen === 'afk' || (ui.screen === 'corrida' && !!(ui.afk && ui.afk.ver)); }
+  function afkPresa(v) { return !!state.pending && !!v.uid && v.uid === state.activeId; }
+  // os bônus de uma vaga: o bestiário (da conta) e, no bloco B, as peças do cavalo
+  function afkBonus(uid) {
+    var b = AF.bestiarioBonus(state.afk.bestiario);
+    return { material: 0, xp: b.xp, raro: b.raro, trofeu: b.trofeu, ouro: 0 };
+  }
+  function afkLimite() { return AF.limiteOffline(state.afk.aveiaMin, AF.bestiarioBonus(state.afk.bestiario).offlineMin); }
+  function afkGinNome(gymId) { return GD.GYMS[gymId].name.replace(/^Ginásio d[aeo] /, ''); }
+  function afkDif(id) { return GD.AFK.difs.filter(function (d) { return d.id === id; })[0]; }
+  function afkOponente(f) { return GD.GYMS[f.gymId].etapas[f.etapa]; }
+  function afkFaseTxt(f) { return afkOponente(f).nome + ' · ' + afkGinNome(f.gymId) + ' · ' + afkDif(f.dif).name; }
+  // "7 h 12 min", "45 min", "menos de 1 min"
+  function afkTempoTxt(min) {
+    var m = Math.floor(min), h = Math.floor(m / 60);
+    if (m < 1) return 'menos de 1 min';
+    return (h ? h + ' h' : '') + (h && m % 60 ? ' ' : '') + (m % 60 || !h ? (m % 60) + ' min' : '');
+  }
+  // "2 Carvões, 1 Brasa viva e 1 Pedra Negra" (itens na ordem do catálogo; as peças e as Pedras no fim)
+  function afkGanhoTxt(g) {
+    var partes = AFK_IDS.filter(function (id) { return g.itens && g.itens[id] > 0; }).map(function (id) { return itemQtdTxt(id, g.itens[id]); });
+    if (g.pedras) partes.push(fmt(g.pedras) + (g.pedras === 1 ? ' Pedra Negra' : ' Pedras Negras'));
+    var np = typeof g.pecas === 'number' ? g.pecas : (g.pecas || []).length;
+    if (np) partes.push(fmt(np) + (np === 1 ? ' peça' : ' peças'));
+    return ginJunta(partes);
+  }
+  // o que o cartão da vaga mostra de uma corrida
+  function afkResumoCorrida(r) {
+    return { venceu: r.venceu, metros: r.metros, xp: r.xp, ouro: r.ouro, itens: r.itens, pedras: r.pedras, pecas: r.pecas.length };
+  }
+  function afkUltimaTxt(u) {
+    var ganho = afkGanhoTxt(u), partes = ['+' + fmt(u.xp) + ' XP'];
+    if (u.ouro) partes.push('+' + fmt(u.ouro) + ' de Ouro');
+    if (ganho) partes.push(ganho);
+    return (u.venceu ? 'Venceu por ' : 'Perdeu por ') + ginMetrosTxt(u.metros) + ': ' + partes.join(', ') + '.';
+  }
+
+  // ---- o relógio: acerto do tempo parado, largada ao vivo e o laço da tela ----
+  // Acerta o tempo parado de todas as vagas (menos a assistida e as que têm corrida ao vivo em curso: inicioMin no
+  // futuro). Uma gravação só. -> o resumo { minutos (a maior parada, já no limite), corridas, vitorias, xp, ouro, itens,
+  // pedras, pecas, vagas, semMedida, noLimite } | null (nada a acertar, ou não gravou)
+  function afkAcerto() {
+    if (!state || saveBloqueado) return null;
+    var U = afkUi(), agora = agoraMin(), ver = U.ver ? U.ver.idx : -1;
+    var parada = function (v, i) { return !!v.uid && i !== ver && agora > v.inicioMin; };
+    if (!state.afk.vagas.some(parada)) return null;
+    var s0 = state;
+    persist();
+    if (state !== s0 || !state) return null;
+    var antes = clone(state), limite = afkLimite(), semAveia = limite - state.afk.aveiaMin, usouAveia = false;
+    var R = { minutos: 0, corridas: 0, vitorias: 0, xp: 0, ouro: 0, itens: {}, pedras: 0, pecas: 0, vagas: 0, semMedida: 0, noLimite: false };
+    for (var i = 0; i < state.afk.vagas.length; i++) {
+      var v = state.afk.vagas[i];
+      if (!parada(v, i)) continue;
+      if (!afkPresa(v)) {
+        var gap = agora - v.inicioMin;
+        if (v.ultima) {
+          var off = AF.offline(v, agora, v.ultima, state.seedBase, afkBonus(v.uid), limite, i);
+          if (off.corridas > 0) {
+            state.afk = AF.creditar(state.afk, i, off);
+            R.vagas += 1; R.corridas += off.corridas; R.vitorias += off.vitorias; R.xp += off.xp; R.ouro += off.ouro; R.pedras += off.pedras; R.pecas += off.pecas.length;
+            Object.keys(off.itens).forEach(function (id) { R.itens[id] = (R.itens[id] || 0) + off.itens[id]; });
+            if (state.afk.aveiaMin > 0 && gap > semAveia) usouAveia = true;
+          }
+        } else if (gap >= AFK_RESUMO_MIN) R.semMedida += 1;
+        if (gap > limite) R.noLimite = true;
+        R.minutos = Math.max(R.minutos, Math.min(gap, limite));
+      }
+      state.afk.vagas[i].inicioMin = agora;
+      delete U.vivo[i];
+    }
+    if (usouAveia) state.afk = AF.aposOffline(state.afk);
+    return gravaGasto(s0, antes) === 'ok' ? R : null;
+  }
+  // Larga a corrida ao vivo da vaga i com o cavalo como está agora. Só larga com o relógio da vaga em dia (agora ≥
+  // inicioMin). O contador novo e o ganho vão na mesma gravação. -> true se largou
+  function afkLarga(i) {
+    var s0 = state, v = state.afk.vagas[i], m = v && v.uid ? mountByUid(v.uid) : null, agora = agoraMin();
+    if (!m || afkPresa(v) || !(agora >= v.inicioMin)) return false;
+    var antes = clone(state);
+    var r = AF.correr(m, v.faseId, state.seedBase, v.contador, afkBonus(v.uid), { vaga: i });
+    var novo = r ? AF.creditar(state.afk, i, r) : null;
+    if (!novo) return false;
+    novo.vagas[i].inicioMin = agora + r.duracaoS / 60;
+    state.afk = novo;
+    if (gravaGasto(s0, antes) !== 'ok') return false;
+    afkUi().vivo[i] = { cfg: r.cfg, ini: agora, fim: novo.vagas[i].inicioMin, duracaoS: r.duracaoS, n: v.contador + 1, res: afkResumoCorrida(r) };
+    return true;
+  }
+  // Um passo do laço (a cada segundo, só com a tela do AFK aberta e visível): acerta paradas, revela as corridas que
+  // terminaram e larga as seguintes. A vaga assistida larga pela tela de corrida (afkFimDaCorrida).
+  function afkTick() {
+    if (!state || saveBloqueado || !afkNaTela() || document.visibilityState === 'hidden') return;
+    var U = afkUi(), agora = agoraMin(), ver = U.ver ? U.ver.idx : -1, mudou = false;
+    if (state.afk.vagas.some(function (v, i) { return !!v.uid && i !== ver && !afkPresa(v) && agora - v.inicioMin >= AFK_PARADA_MIN; })) {
+      var R = afkAcerto();
+      if (R && R.corridas && R.minutos >= AFK_RESUMO_MIN) U.resumo = R;
+      if (!state) return;
+      mudou = true; agora = agoraMin();
+    }
+    for (var i = 0; i < state.afk.vagas.length; i++) {
+      var v = state.afk.vagas[i], viv = U.vivo[i];
+      if (!v.uid) { if (viv) { delete U.vivo[i]; mudou = true; } continue; }
+      if (i === ver) continue;
+      if (viv && agora >= viv.fim) { U.ult[i] = viv.res; delete U.vivo[i]; mudou = true; }
+      if (!afkPresa(v) && agora >= v.inicioMin && afkLarga(i)) mudou = true;
+      if (!state) return;
+    }
+    if (ui.screen !== 'afk') return;
+    if (mudou && !U.escolha) rerenderKeepScroll(); else afkPinta();
+  }
+  // liga o laço nas telas do AFK e o desliga nas outras (chamado pelo render)
+  function afkLaco() {
+    var quer = !!state && !saveBloqueado && afkNaTela();
+    if (quer && !afkTimer) afkTimer = window.setInterval(afkTick, 1000);
+    else if (!quer && afkTimer) { window.clearInterval(afkTimer); afkTimer = 0; }
+    afkMedeAcorda();
+  }
+  // as barras e os textos que andam sem redesenhar a tela: o progresso da corrida em curso e a medição da chance
+  function afkPinta() {
+    var U = afkUi(), agora = agoraMin();
+    var els = telaEl.querySelectorAll('.afk-vaga[data-vaga]');
+    for (var k = 0; k < els.length; k++) {
+      var i = Number(els[k].getAttribute('data-vaga')), v = state.afk.vagas[i], viv = U.vivo[i];
+      var bar = els[k].querySelector('.afk-prog > i'), txt = els[k].querySelector('.afk-prog-txt'), ch = els[k].querySelector('.afk-chance');
+      if (bar && viv) bar.style.width = Math.round(100 * clamp((agora - viv.ini) / Math.max(1e-6, viv.fim - viv.ini), 0, 1)) + '%';
+      if (txt && viv) txt.textContent = afkCorrendoTxt(viv, agora);
+      if (ch && v && v.uid) ch.textContent = afkChanceTxt(v);
+    }
+  }
+  function afkCorrendoTxt(viv, agora) {
+    var s = Math.max(0, Math.ceil((viv.fim - agora) * 60));
+    return 'Corrida ' + fmt(viv.n) + ' em curso: faltam ' + fmtClock(s);
+  }
+  // a chance da vaga: a medida completa da configuração de agora; ou a medição em andamento (com a última completa, se há)
+  function afkChanceTxt(v) {
+    var m = mountByUid(v.uid), pronta = !!m && AF.medidaPronta(v.medida) && v.medida.chave === AF.chaveConfig(m, v.faseId);
+    if (pronta) return 'Chance de vitória: ' + Math.round(v.ultima.p * 100) + '%';
+    var feitos = m && v.medida && v.medida.chave === AF.chaveConfig(m, v.faseId) ? v.medida.feitos : 0;
+    return 'Medindo a chance: ' + Math.floor(100 * feitos / GD.AFK.amostra) + '%' + (v.ultima ? ' (antes: ' + Math.round(v.ultima.p * 100) + '%)' : '');
+  }
+
+  // ---- a medição da chance, aos poucos (fatias de AFK_FATIA duelos; pausa nas corridas, para não pesar na animação) ----
+  function afkPrecisaMedir() {
+    if (!state || saveBloqueado) return -1;
+    for (var i = 0; i < state.afk.vagas.length; i++) {
+      var v = state.afk.vagas[i], m = v.uid ? mountByUid(v.uid) : null;
+      if (m && !(AF.medidaPronta(v.medida) && v.medida.chave === AF.chaveConfig(m, v.faseId))) return i;
+    }
+    return -1;
+  }
+  function afkMedeAcorda() {
+    if (afkMedeTimer || afkPrecisaMedir() < 0) return;
+    afkMedeTimer = window.setTimeout(afkMede, AFK_FATIA_MS);
+  }
+  function afkMede() {
+    afkMedeTimer = 0;
+    var i = afkPrecisaMedir();
+    if (i < 0) return;
+    var parado = document.visibilityState === 'hidden' || ui.screen === 'corrida' || ui.screen === 'largada';
+    if (parado) { afkMedeTimer = window.setTimeout(afkMede, 1000); return; }
+    var v = state.afk.vagas[i];
+    state.afk.vagas[i] = AF.medirVaga(v, mountByUid(v.uid), AFK_FATIA);
+    afkMedeDesde += AFK_FATIA;
+    if (AF.medidaPronta(state.afk.vagas[i].medida) || afkMedeDesde >= AFK_GRAVA_A_CADA) { afkMedeDesde = 0; persist(); }
+    if (state && ui.screen === 'afk') afkPinta();
+    afkMedeAcorda();
+  }
+
+  // ---- assistir ----
+  // A corrida em curso da vaga i para a tela de corrida (o L que ela lê e o cabeçalho), no tempo real do duelo.
+  function afkVer(i) {
+    var viv = afkUi().vivo[i], v = state.afk.vagas[i], f = AF.fase(v.faseId), g = GD.GYMS[f.gymId], dono = afkOponente(f).nome;
+    var cfg = clone(viv.cfg);
+    cfg.recordFrames = true;
+    cfg.racers[1].name = dono;
+    var sim = RS.simulate(cfg);
+    if ((sim.finishOrder[0] === 0) !== viv.res.venceu || GN.metros(sim) !== viv.res.metros) return null;   // nunca uma chegada diferente da gravada
+    var a = cfg.racers[0].horse, b = cfg.racers[1].horse, seda = hasOwn(GIN_SEDA, f.gymId) ? GIN_SEDA[f.gymId] : 0;
+    var ea = elementOf(a.element).name, eb = elementOf(b.element).name, vt = GN.vantagem(a.element, b.element);
+    var vant = vt === 1 ? 'Vantagem: ' + a.name + ' (' + ea + ' vence ' + eb + ')' : vt === -1 ? 'Vantagem: adversário (' + eb + ' vence ' + ea + ')' : 'Sem vantagem de elemento';
+    var outras = state.afk.vagas.some(function (o, k) { return k !== i && !!o.uid && !afkPresa(o); });
+    return { idx: i,
+      L: {
+        counter: 0, seed: sim.seed, training: false, fee: 0, n: 2, cond: withRanges(sim.conditions), trackName: g.name,
+        regiao: hasOwn(GIN_REGIAO, f.gymId) ? GIN_REGIAO[f.gymId] : null,
+        telaS: Math.max(20, viv.duracaoS - 7),   // a corrida na tela dura o tempo do duelo (menos a largada e a chegada)
+        racers: [
+          { isPlayer: true, name: PLAYER_NAME, horse: a, gear: null, silks: PLAYER_SILKS, silkIdx: -1 },
+          { isPlayer: false, name: dono, horse: b, gear: null, silks: SP.SILKS[seda], silkIdx: seda, rotulo: a.name === b.name ? b.name + ' (' + dono + ')' : null }
+        ],
+        playerIdx: 0, sim: sim, dev: null
+      },
+      cab: {
+        titulo: 'Treino: ' + dono, aria: 'Treino AFK da vaga ' + (i + 1) + ': ' + a.name + ' contra ' + b.name + ' (' + dono + ')',
+        linha: afkDif(f.dif).name + ' · corrida ' + fmt(viv.n) + ' · ' + vant, pular: 'Voltar ao treino', pularFim: 'Voltar ao treino',
+        placa: '<span class="rotulo">' + esc('Vaga ' + (i + 1)) + '</span>',
+        extra: outras ? '<button type="button" class="btn btn--pequeno" data-acao="afk-outra">Outra vaga</button>' : ''
+      } };
+  }
+  function afkAssiste(i) {
+    var U = afkUi(), v = state.afk.vagas[i];
+    if (!v || !v.uid) return;
+    if (afkPresa(v)) { U.msg = 'Esse cavalo está na sala aberta. ' + GIN_CORRA_TXT; rerenderKeepScroll(); return; }
+    var agora = agoraMin();
+    if (U.vivo[i] && agora >= U.vivo[i].fim) { U.ult[i] = U.vivo[i].res; delete U.vivo[i]; }
+    if (!U.vivo[i]) afkLarga(i);
+    if (!state) return;
+    if (!U.vivo[i]) { U.msg = 'A corrida desta vaga ainda não pode ser assistida. Espere a próxima largar.'; rerenderKeepScroll(); return; }
+    U.ver = afkVer(i);
+    if (U.ver) go('corrida'); else { U.msg = 'Não foi possível mostrar esta corrida.'; rerenderKeepScroll(); }
+  }
+  // a corrida assistida terminou na tela: mostra o resultado no cartão e larga a seguinte quando o relógio da vaga deixar
+  function afkFimDaCorrida() {
+    var U = afkUi(), ver = U.ver;
+    if (!ver) return;
+    var i = ver.idx;
+    window.clearTimeout(afkEsperaTimer);
+    var proxima = function () {
+      if (!state || !U.ver || U.ver.idx !== i || ui.screen !== 'corrida') return;
+      var v = state.afk.vagas[i];
+      if (U.vivo[i]) { U.ult[i] = U.vivo[i].res; delete U.vivo[i]; }
+      if (!v || !v.uid || afkPresa(v) || !afkLarga(i) || !state) { afkSai(); return; }
+      U.ver = afkVer(i);
+      if (U.ver) go('corrida'); else afkSai();
+    };
+    var espera = (state.afk.vagas[i].inicioMin - agoraMin()) * 60000;
+    if (espera > 30) afkEsperaTimer = window.setTimeout(proxima, Math.min(espera, 180000)); else proxima();
+  }
+  // sai da tela de corrida de volta ao treino (o "Voltar ao treino", o voltar do aparelho)
+  function afkSai() {
+    window.clearTimeout(afkEsperaTimer);
+    if (ui.afk) ui.afk.ver = null;
+    if (state) go('afk');
+  }
+  // "Outra vaga": a próxima vaga ocupada que pode ser assistida
+  function afkOutra() {
+    var U = afkUi(), n = state.afk.vagas.length, de = U.ver ? U.ver.idx : -1;
+    for (var k = 1; k <= n; k++) {
+      var i = (de + k) % n, v = state.afk.vagas[i];
+      if (i !== de && v.uid && !afkPresa(v)) { window.clearTimeout(afkEsperaTimer); U.ver = null; afkAssiste(i); return; }
+    }
+  }
+  // Abre a tela do treino (da Expedição, da trilha, do começo do jogo): confere o save, acerta o tempo parado e guarda o
+  // resumo de uma parada longa.
+  function afkAbre() {
+    afkConfere();
+    var R = afkAcerto();
+    if (!state) return;
+    if (R && (R.corridas || R.semMedida) && R.minutos >= AFK_RESUMO_MIN) afkUi().resumo = R;
+    ui.tab = 'expedicao';
+    go('afk');
+  }
+
+  // ---- o baú ----
+  function afkPresos() { return state.pending ? [state.activeId] : []; }
+  function afkPrevia() { return AF.bauColetar(state.afk.bau, state.mochila, state.mounts.map(function (m) { return m.uid; }), afkPresos()); }
+  // Coleta o baú inteiro numa gravação: itens até o teto (o resto se perde), Ouro, Pedras, peças e o XP de cada cavalo (o
+  // do cavalo preso na sala aberta fica no baú). -> 'ok' | 'outra-aba' | 'falhou'
+  function afkColeta() {
+    var s0 = state;
+    persist();
+    if (state !== s0) return 'outra-aba';
+    var antes = clone(state), c = afkPrevia(), U = afkUi();
+    AFK_IDS.forEach(function (id) { state.mochila[id] = inteiroOu(c.mochila[id], 0, 0, GD.ITEMS[id].cap); });
+    state.gold = Math.min(1e9, state.gold + c.ouro);
+    state.pedras = Math.min(1e6, state.pedras + c.pedras);
+    var pecas = c.pecas.map(function (p) { return addItem(state, p.id, p.linhas); });
+    var subiu = [];
+    Object.keys(c.xpPorCavalo).forEach(function (uid) {
+      var m = mountByUid(uid), g = applyXp(m, c.xpPorCavalo[uid], AFK_SEED_TAG + state.afk.xpCounter);
+      state.afk.xpCounter += 1;
+      if (g.levels) subiu.push({ nome: m.name, nivel: m.level, learned: g.learned });
+    });
+    state.afk.bau = c.bau;
+    state.afk.bestiario = AF.bestiarioObter(state.afk.bestiario, c.entrou, c.pecas);
+    var gv = gravaGasto(s0, antes);
+    if (gv !== 'ok') return gv;
+    U.coleta = { ouro: c.ouro, pedras: c.pedras, pecas: pecas.length, itens: c.entrou, perdidos: c.perdidos, xp: c.xpPorCavalo, xpDescartado: c.xpDescartado, xpRetido: c.xpRetido, subiu: subiu };
+    U.confirmaPerda = false;
+    return 'ok';
+  }
+  function afkBauHtml() {
+    var U = afkUi(), b = state.afk.bau, vazio = AF.bauVazioE(b), c = afkPrevia(), linhas = [];
+    var perde = Object.keys(c.perdidos).length > 0 || c.xpDescartado > 0;
+    if (b.ouro) linhas.push('<li class="afk-bau-linha"><span>Ouro</span><b>' + ouroHtml(b.ouro) + '</b></li>');
+    Object.keys(b.xp).forEach(function (uid) {
+      var m = mountByUid(uid);
+      linhas.push('<li class="afk-bau-linha"><span>' + esc('XP de ' + (m ? m.name : 'um cavalo que saiu do estábulo')) + '</span><b>+' + fmt(b.xp[uid]) + '</b></li>');
+    });
+    AFK_IDS.forEach(function (id) {
+      if (b.itens[id]) linhas.push('<li class="afk-bau-linha">' + itemIconeHtml(id) + '<span>' + esc(GD.ITEMS[id].name) + '</span><b>×' + fmt(b.itens[id]) + '</b></li>');
+    });
+    if (b.pedras) linhas.push('<li class="afk-bau-linha">' + iconeHtml('pedra-negra', '🪨', 16) + '<span>Pedra Negra</span><b>×' + fmt(b.pedras) + '</b></li>');
+    b.pecas.forEach(function (p) {
+      linhas.push('<li class="afk-bau-linha"><span>' + esc(GD.GEAR[p.id].name) + '</span>' + rarityHtml(GD.GEAR[p.id].rarity) + '</li>');
+    });
+    var avisos = '';
+    if (Object.keys(c.perdidos).length) {
+      avisos += '<p class="aviso aviso--perda afk-perda">' + esc('A mochila não tem espaço: ao coletar, ' + afkGanhoTxt({ itens: c.perdidos }) + ' ' +
+        (Object.keys(c.perdidos).length === 1 && c.perdidos[Object.keys(c.perdidos)[0]] === 1 ? 'se perde' : 'se perdem') + '. Use ou gaste antes.') + '</p>';
+    }
+    if (c.xpDescartado) avisos += '<p class="aviso aviso--perda afk-perda">' + esc(fmt(c.xpDescartado) + ' de XP eram de um cavalo que saiu do estábulo: esse XP se perde ao coletar.') + '</p>';
+    if (Object.keys(c.xpRetido).length) avisos += '<p class="nota">' + esc('O XP de ' + mountByUid(state.activeId).name + ' fica no baú enquanto a sala estiver aberta. ' + GIN_CORRA_TXT) + '</p>';
+    var botoes = U.confirmaPerda && perde
+      ? '<div class="acoes acoes--linha"><button type="button" class="btn btn--perigo" data-acao="afk-coletar-sim">Coletar e perder</button>' +
+        '<button type="button" class="btn" data-acao="afk-coletar-nao">Cancelar</button></div>'
+      : '<div class="acoes"><button type="button" class="btn btn--ouro" data-acao="afk-coletar"' + indisponivel(vazio ? 'O baú está vazio.' : '') + '>Coletar tudo</button></div>';
+    return '<section class="caixa afk-bau" aria-labelledby="t-afk-bau"><h2 class="titulo" id="t-afk-bau"><span class="item-icone item-icone--bau" aria-hidden="true"></span>Baú</h2>' +
+      (U.coleta ? afkColetaHtml(U.coleta) : '') +
+      (vazio ? '<p class="nota afk-bau-vazio">O baú está vazio. Tudo o que as vagas rendem cai aqui.</p>' : '<ul class="afk-bau-lista">' + linhas.join('') + '</ul>') +
+      avisos + botoes + '</section>';
+  }
+  function afkColetaHtml(c) {
+    var partes = [];
+    if (c.ouro) partes.push('+' + fmt(c.ouro) + ' de Ouro');
+    var ganho = afkGanhoTxt({ itens: c.itens, pedras: c.pedras, pecas: c.pecas });
+    if (ganho) partes.push(ganho);
+    Object.keys(c.xp).forEach(function (uid) { var m = mountByUid(uid); if (m) partes.push('+' + fmt(c.xp[uid]) + ' XP para ' + m.name); });
+    var txt = partes.length ? 'Coletado: ' + partes.join('; ') + '.' : 'Nada para coletar.';
+    c.subiu.forEach(function (s) { txt += ' ' + s.nome + ' subiu para o nível ' + s.nivel + (s.learned.length ? ' e aprendeu ' + ginJunta(s.learned.map(skillNome)) : '') + '.'; });
+    if (Object.keys(c.perdidos).length) txt += ' Não coube na mochila: ' + afkGanhoTxt({ itens: c.perdidos }) + '.';
+    if (c.xpDescartado) txt += ' ' + fmt(c.xpDescartado) + ' de XP de um cavalo que saiu do estábulo se perderam.';
+    return '<p class="aviso afk-coletado" role="status">' + esc(txt) + '</p>';
+  }
+
+  // ---- as vagas ----
+  function afkVagaHtml(v, i) {
+    var U = afkUi(), agora = agoraMin();
+    if (!v.uid) {
+      var temFase = AF.liberadas(state.ginasios, state.afk.vitorias).length > 0;
+      return '<li class="afk-vaga afk-vaga--livre" data-vaga="' + i + '"><div class="afk-vaga-cab"><span class="afk-vaga-num">' + esc('Vaga ' + (i + 1)) + '</span><span class="afk-vaga-estado">Livre</span></div>' +
+        '<p class="nota">Escolha um oponente que você já venceu num ginásio.</p>' +
+        '<div class="acoes"><button type="button" class="btn" data-acao="afk-escolher" data-id="' + i + '"' +
+          indisponivel(temFase ? '' : 'Vença um oponente num ginásio primeiro.') + '>Escolher treino</button></div></li>';
+    }
+    var m = mountByUid(v.uid), f = AF.fase(v.faseId), viv = U.vivo[i], ult = U.ult[i], presa = afkPresa(v);
+    var vit = state.afk.vitorias[v.faseId] || 0, di = GD.AFK.difs.map(function (d) { return d.id; }).indexOf(f.dif), prox = GD.AFK.difs[di + 1];
+    var falta = prox ? GD.AFK.liberaApos - vit : 0;
+    var estado;
+    if (presa) estado = '<p class="afk-estado afk-estado--sala">Na sala aberta: volta ao treino quando a corrida valendo terminar.</p>';
+    else if (viv && agora < viv.fim) {
+      estado = '<div class="afk-correndo"><span class="afk-prog-txt">' + esc(afkCorrendoTxt(viv, agora)) + '</span>' +
+        '<div class="barra afk-prog" aria-hidden="true"><i style="width:' + Math.round(100 * clamp((agora - viv.ini) / Math.max(1e-6, viv.fim - viv.ini), 0, 1)) + '%"></i></div></div>';
+    } else if (v.inicioMin - agora > 5) estado = '<p class="afk-estado">Parado até o relógio do aparelho passar da última corrida contada.</p>';
+    else estado = '<p class="afk-estado">Pronto para a próxima corrida.</p>';
+    return '<li class="afk-vaga' + (presa ? ' afk-vaga--sala' : '') + '" data-vaga="' + i + '">' +
+      '<div class="afk-vaga-cab"><span class="afk-vaga-num">' + esc('Vaga ' + (i + 1)) + '</span>' +
+        '<span class="afk-vaga-estado">' + (presa ? 'Na sala' : 'Treinando') + '</span></div>' +
+      '<div class="afk-vaga-corpo"><span class="afk-vaga-retrato" aria-hidden="true">' + portraitHtml(m, { tamanho: 'pequeno' }) + '</span>' +
+        '<div class="afk-vaga-info"><b class="cavalo-nome">' + esc(m.name) + '</b>' +
+          '<span class="linha-meta"><span>Nível ' + esc(m.level) + '</span>' + elementHtml(m.element) + '</span>' +
+          '<span class="afk-fase">' + esc('Contra ' + afkFaseTxt(f)) + '</span>' +
+          '<span class="afk-chance">' + esc(afkChanceTxt(v)) + '</span></div></div>' +
+      estado +
+      (ult ? '<p class="afk-ultima afk-ultima--' + (ult.venceu ? 'vitoria' : 'derrota') + '">' + esc('Última corrida. ' + afkUltimaTxt(ult)) + '</p>' : '') +
+      '<p class="nota afk-vitorias">' + esc('Vitórias nesta dificuldade: ' + fmt(vit) + (falta > 0 ? ' (faltam ' + fmt(falta) + ' para liberar a ' + prox.name + ')' : '') + '.') + '</p>' +
+      '<div class="afk-vaga-acoes"><button type="button" class="btn btn--pequeno" data-acao="afk-assistir" data-id="' + i + '"' + indisponivel(presa ? GIN_SALA_TXT : '') + '>Assistir</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="afk-escolher" data-id="' + i + '">Trocar</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="afk-tirar" data-id="' + i + '">Tirar</button></div></li>';
+  }
+  function afkComprarHtml() {
+    var n = state.afk.vagas.length;
+    if (n >= GD.AFK.vagaPreco.length) return '';
+    var p = AF.podeComprarVaga(n, ouroLivre());
+    var motivo = p.ok ? '' : (state.gold >= p.preco && ouroReservado() ? reservaTxt() + '.' : p.motivo + '.');
+    return '<li class="afk-vaga afk-vaga--comprar"><div class="afk-vaga-cab"><span class="afk-vaga-num">' + esc('Vaga ' + (n + 1)) + '</span><span class="afk-vaga-estado">Fechada</span></div>' +
+      '<div class="acoes"><button type="button" class="btn" data-acao="afk-comprar"' + indisponivel(motivo) + '>' + esc('Abrir vaga (' + fmt(p.preco) + ' de Ouro)') + '</button></div></li>';
+  }
+  function afkResumoHtml(R) {
+    var partes = [];
+    if (R.xp) partes.push('+' + fmt(R.xp) + ' XP');
+    if (R.ouro) partes.push('+' + fmt(R.ouro) + ' de Ouro');
+    var ganho = afkGanhoTxt(R);
+    if (ganho) partes.push(ganho);
+    var txt = R.corridas
+      ? 'Em ' + afkTempoTxt(R.minutos) + ', ' + (R.vagas === 1 ? '1 vaga correu ' : R.vagas + ' vagas correram ') + fmt(R.corridas) + (R.corridas === 1 ? ' corrida' : ' corridas') +
+        ' e venceu ' + fmt(R.vitorias) + '.'
+      : 'O treino ficou parado por ' + afkTempoTxt(R.minutos) + '.';
+    return '<section class="caixa afk-resumo" aria-labelledby="t-afk-fora"><h2 class="titulo" id="t-afk-fora">Enquanto você estava fora</h2>' +
+      '<p class="afk-resumo-txt">' + esc(txt) + '</p>' +
+      (partes.length ? '<p class="afk-resumo-ganho">' + esc('No baú: ' + partes.join('; ') + '.') + '</p>' : '') +
+      (R.noLimite ? '<p class="nota">' + esc('O treino parado conta até ' + afkTempoTxt(afkLimite()) + '.') + '</p>' : '') +
+      (R.semMedida ? '<p class="nota">' + esc((R.semMedida === 1 ? 'Uma vaga ainda não tinha' : R.semMedida + ' vagas ainda não tinham') +
+        ' a chance medida e não rendeu fora da tela: a medição termina em poucos segundos com o jogo aberto.') + '</p>' : '') +
+      '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="afk-resumo-ok">Entendi</button></div></section>';
+  }
+  function renderAfk() {
+    var U = afkUi();
+    if (U.escolha) return afkEscolhaHtml();
+    var ocupadas = state.afk.vagas.filter(function (v) { return !!v.uid; }).length;
+    return '<section class="tela tela--afk" aria-labelledby="t-afk">' +
+      '<button type="button" class="btn btn--pequeno" data-acao="afk-voltar">Voltar</button>' +
+      '<h1 class="titulo titulo--tela" id="t-afk" tabindex="-1" data-foco>Treino AFK</h1>' + noticeHtml() +
+      (U.msg ? '<p class="aviso" role="status">' + esc(U.msg) + '</p>' : '') +
+      '<p class="nota">' + esc('Seus cavalos treinam sozinhos contra oponentes que você já venceu. Com esta tela aberta as corridas são ao vivo; fora dela o treino continua (até ' +
+        afkTempoTxt(afkLimite()) + ') e tudo cai no baú.') + '</p>' +
+      (U.resumo ? afkResumoHtml(U.resumo) : '') +
+      '<section class="caixa" aria-labelledby="t-afk-vagas"><h2 class="titulo" id="t-afk-vagas">Vagas <span class="nota">' + esc(ocupadas + ' de ' + state.afk.vagas.length + ' em treino') + '</span></h2>' +
+        '<ul class="afk-vagas">' + state.afk.vagas.map(afkVagaHtml).join('') + afkComprarHtml() + '</ul></section>' +
+      afkBauHtml() +
+      '<div class="acoes"><button type="button" class="btn" data-acao="bestiario-abrir">Bestiário</button></div>' +
+      '</section>';
+  }
+
+  // ---- a escolha do treino: oponente (os vencidos), dificuldade, vaga e cavalo ----
+  // ui.afk.escolha = { gymId, etapa, dif, vaga, uid, msg }
+  function afkVencidos() {
+    var out = [];
+    GD.GYM_ORDER.forEach(function (g) { for (var e = 0; e < Math.min(5, state.ginasios[g].etapa); e++) out.push({ gymId: g, etapa: e }); });
+    return out;
+  }
+  function afkEscolhe(gymId, etapa, vaga) {
+    afkConfere();
+    var U = afkUi(), venc = afkVencidos();
+    if (!venc.length) { U.msg = 'Vença um oponente num ginásio primeiro.'; return false; }
+    var alvo = venc.filter(function (x) { return x.gymId === gymId && x.etapa === etapa; })[0];
+    var atual = vaga != null && state.afk.vagas[vaga] && state.afk.vagas[vaga].uid ? state.afk.vagas[vaga] : null, fa = atual ? AF.fase(atual.faseId) : null;
+    if (!alvo && fa) alvo = { gymId: fa.gymId, etapa: fa.etapa };
+    if (!alvo) alvo = venc[venc.length - 1];
+    var livre = -1;
+    state.afk.vagas.forEach(function (v, i) { if (livre < 0 && !v.uid) livre = i; });
+    var vg = vaga != null && state.afk.vagas[vaga] ? vaga : (livre >= 0 ? livre : 0);
+    var ocupante = state.afk.vagas[vg].uid;
+    var emVaga = {};
+    state.afk.vagas.forEach(function (v) { if (v.uid) emVaga[v.uid] = true; });
+    var solto = state.mounts.filter(function (m) { return !emVaga[m.uid]; })[0];
+    U.escolha = { gymId: alvo.gymId, etapa: alvo.etapa, dif: fa && fa.gymId === alvo.gymId && fa.etapa === alvo.etapa ? fa.dif : 'normal', vaga: vg,
+      uid: ocupante || (solto ? solto.uid : state.mounts[0].uid), msg: null };
+    afkEscolhaAjusta();
+    return true;
+  }
+  // a dificuldade escolhida tem de estar liberada para o oponente escolhido: senão desce
+  function afkEscolhaAjusta() {
+    var E = afkUi().escolha, lib = AF.liberadas(state.ginasios, state.afk.vitorias);
+    while (lib.indexOf(AF.faseId(E.gymId, E.etapa, E.dif)) < 0 && E.dif !== 'normal') {
+      E.dif = GD.AFK.difs[GD.AFK.difs.map(function (d) { return d.id; }).indexOf(E.dif) - 1].id;
+    }
+  }
+  function afkOpcao(acao, id, marcada, nome, desc, motivo) {
+    return '<button type="button" class="opcao afk-opcao" data-acao="' + acao + '" data-id="' + esc(id) + '" aria-pressed="' + !!marcada + '"' + indisponivel(motivo || '') + '>' +
+      '<span class="opcao-nome">' + esc(nome) + '</span>' + (desc ? '<span class="opcao-desc">' + esc(desc) + '</span>' : '') + '</button>';
+  }
+  function afkEscolhaHtml() {
+    var E = afkUi().escolha, lib = AF.liberadas(state.ginasios, state.afk.vitorias), venc = afkVencidos();
+    var oponentes = GD.GYM_ORDER.map(function (g) {
+      var meus = venc.filter(function (x) { return x.gymId === g; });
+      if (!meus.length) return '';
+      return '<h3 class="afk-grupo">' + esc(GD.GYMS[g].name) + '</h3><div class="afk-opcoes">' + meus.map(function (x) {
+        var et = GD.GYMS[g].etapas[x.etapa];
+        return afkOpcao('afk-esc-fase', g + ':' + x.etapa, E.gymId === g && E.etapa === x.etapa, et.nome, ginEtapaRotulo(et, x.etapa) + ' · ' + ginNivelTxt(et));
+      }).join('') + '</div>';
+    }).join('');
+    var difs = GD.AFK.difs.map(function (d, k) {
+      var id = AF.faseId(E.gymId, E.etapa, d.id), f = AF.fase(id), livre = lib.indexOf(id) >= 0, motivo = '';
+      if (!livre) {
+        var ant = GD.AFK.difs[k - 1], tem = state.afk.vitorias[AF.faseId(E.gymId, E.etapa, ant.id)] || 0;
+        motivo = lib.indexOf(AF.faseId(E.gymId, E.etapa, ant.id)) >= 0
+          ? 'Faltam ' + fmt(GD.AFK.liberaApos - tem) + ' vitórias na ' + ant.name + ' deste oponente.' : 'Libere a ' + ant.name + ' primeiro.';
+      }
+      return afkOpcao('afk-esc-dif', d.id, E.dif === d.id, d.name, 'Oponente nível ' + f.nivel + ' · prêmio ×' + d.mult + (livre ? '' : ' · ' + motivo), motivo);
+    }).join('');
+    var vagas = state.afk.vagas.map(function (v, i) {
+      var m = v.uid ? mountByUid(v.uid) : null;
+      return afkOpcao('afk-esc-vaga', String(i), E.vaga === i, 'Vaga ' + (i + 1), m ? 'Hoje: ' + m.name + ' contra ' + afkOponente(AF.fase(v.faseId)).nome : 'Livre');
+    }).join('');
+    var gEl = GD.GYMS[E.gymId].element;
+    var cavalos = state.mounts.map(function (m) {
+      var onde = -1;
+      state.afk.vagas.forEach(function (v, i) { if (v.uid === m.uid) onde = i; });
+      var vt = ginVantTxt(m, E.gymId), preso = ginPreso(m);
+      var fim = (vt ? vt + ' contra ' + elementOf(gEl).name + '. ' : '') + (onde >= 0 && onde !== E.vaga ? 'Hoje na vaga ' + (onde + 1) + ': sai de lá. ' : '') +
+        (preso ? 'Na sala aberta: só treina depois da corrida valendo. ' : '') + (E.uid === m.uid ? 'Escolhido.' : 'Toque para escolher.');
+      return '<li>' + mountRowHtml(m, m.uid === state.activeId, { acao: 'afk-esc-cavalo', fim: fim, motivo: '', pressed: E.uid === m.uid,
+        meta: (vt ? '<span class="gin-vant gin-vant--' + (vt === 'Vantagem' ? 'mais' : 'menos') + '">' + esc(vt) + '</span>' : '') +
+          (onde >= 0 && onde !== E.vaga ? '<span class="gin-vant">' + esc('Vaga ' + (onde + 1)) + '</span>' : ''),
+        lado: '<span class="gin-pos" aria-hidden="true">' + (E.uid === m.uid ? '✓' : '') + '</span>' }) + '</li>';
+    }).join('');
+    var f = AF.fase(AF.faseId(E.gymId, E.etapa, E.dif)), et = afkOponente(f);
+    return '<section class="tela tela--afk" aria-labelledby="t-afk-escolha">' +
+      '<button type="button" class="btn btn--pequeno" data-acao="afk-esc-voltar">Voltar</button>' +
+      '<header class="tela-cabeca placa"><span class="rotulo">Treino AFK</span>' +
+        '<h1 class="titulo titulo--tela" id="t-afk-escolha" tabindex="-1" data-foco>Escolher treino</h1></header>' +
+      '<section class="caixa" aria-labelledby="t-esc-op"><h2 class="titulo" id="t-esc-op">Oponente</h2>' +
+        '<p class="nota">Só os que você já venceu no ginásio. Cada corrida é um duelo na pista da casa, sem cansaço.</p>' + oponentes + '</section>' +
+      '<section class="caixa" aria-labelledby="t-esc-dif"><h2 class="titulo" id="t-esc-dif">Dificuldade</h2><div class="afk-opcoes">' + difs + '</div></section>' +
+      '<section class="caixa" aria-labelledby="t-esc-vaga"><h2 class="titulo" id="t-esc-vaga">Vaga</h2><div class="afk-opcoes">' + vagas + '</div></section>' +
+      '<section class="caixa" aria-labelledby="t-esc-cav"><h2 class="titulo" id="t-esc-cav">Cavalo</h2>' +
+        '<p class="ginasio-fraco">' + esc(ginFracoTxt(E.gymId)) + '</p><ul class="montarias item-escolha gin-time">' + cavalos + '</ul></section>' +
+      '<section class="caixa afk-comecar" aria-label="Começar">' + (E.msg ? '<p class="aviso" role="status">' + esc(E.msg) + '</p>' : '') +
+        '<p class="afk-escolhido">' + esc(mountByUid(E.uid).name + ' contra ' + et.nome + ' (' + afkDif(E.dif).name + ', nível ' + f.nivel + '), na vaga ' + (E.vaga + 1) + '.') + '</p>' +
+        '<div class="acoes"><button type="button" class="btn btn--ouro btn--grande" data-acao="afk-esc-comecar">Começar treino</button></div></section>' +
+      '</section>';
+  }
+  // grava a escolha: o cavalo na vaga, na fase; o relógio da vaga começa agora
+  function afkComeca() {
+    var U = afkUi(), E = U.escolha, s0 = state;
+    persist();
+    if (state !== s0) return;
+    afkConfere();
+    if (!mountByUid(E.uid) || !state.afk.vagas[E.vaga]) { U.escolha = null; go('afk'); return; }
+    var antes = clone(state), r = AF.ocupar(state.afk, E.vaga, E.uid, AF.faseId(E.gymId, E.etapa, E.dif), afkCtx());
+    if (!r.ok) { E.msg = r.motivo; rerenderKeepScroll(); return; }
+    state.afk = r.afk;
+    var gv = gravaGasto(s0, antes);
+    if (gv === 'outra-aba') return;
+    if (gv !== 'ok') { E.msg = FALHA_SALVAR; rerenderKeepScroll(); return; }
+    var vaga = E.vaga;
+    U.vivo = {}; U.ult[vaga] = null; U.escolha = null; U.msg = null;
+    go('afk');
+    focoNaLinha('afk-assistir', String(vaga));
+  }
+
+  // ---- bestiário (ui.bestiario = { gym }) ----
+  function afkBonusTxt() {
+    var b = AF.bestiarioBonus(state.afk.bestiario), partes = [];
+    if (b.raro) partes.push('+' + Math.round(b.raro * 100) + '% de drop raro');
+    if (b.xp) partes.push('+' + Math.round(b.xp * 100) + '% de XP');
+    if (b.trofeu) partes.push('+' + Math.round(b.trofeu * 100) + '% de chance de troféu');
+    if (b.offlineMin) partes.push('+' + afkTempoTxt(b.offlineMin) + ' de treino fora da tela');
+    return partes.length ? ginJunta(partes) : 'nenhum ainda';
+  }
+  function renderBestiario() {
+    var B = GD.AFK.bestiario, gid = ui.bestiario && hasOwn(GD.GYMS, ui.bestiario.gym) ? ui.bestiario.gym : GD.GYM_ORDER[0];
+    var pg = AF.bestiarioPagina(state.afk.bestiario, gid);
+    var abas = GD.GYM_ORDER.map(function (g) {
+      return '<button type="button" class="btn btn--pequeno afk-best-aba" data-acao="bestiario-gym" data-id="' + esc(g) + '" aria-pressed="' + (g === gid) + '">' + esc(afkGinNome(g)) + '</button>';
+    }).join('');
+    var ops = pg.oponentes.map(function (o) {
+      var marcos = B.marcos.map(function (mk, k) {
+        return '<span class="afk-marco' + (o.marcos[k] ? ' afk-marco--feito' : '') + '">' + esc(fmt(mk)) + '<span class="sr">' + (o.marcos[k] ? ' vitórias: marco alcançado' : ' vitórias: falta') + '</span></span>';
+      }).join('');
+      return '<li class="afk-best-op">' + treinadorBustoHtml(o.nome) + '<div class="afk-best-op-info"><b>' + esc(o.nome) + '</b>' +
+        '<span class="nota">' + esc(fmt(o.vitorias) + (o.vitorias === 1 ? ' vitória no treino' : ' vitórias no treino')) + '</span>' +
+        '<span class="afk-marcos" aria-label="Marcos de vitórias">' + marcos + '</span></div></li>';
+    }).join('');
+    var itens = pg.itens.map(function (x) {
+      var nome = x.tipo === 'peca' ? GD.GEAR[x.id].name + ' (' + GD.RARITIES[GD.GEAR[x.id].rarity].name + ')' : GD.ITEMS[x.id].name;
+      var estado = x.obtido ? 'Obtido' : x.visto ? 'Visto' : 'Não visto';
+      return '<li class="afk-best-item afk-best-item--' + (x.obtido ? 'obtido' : x.visto ? 'visto' : 'oculto') + '">' +
+        (x.tipo === 'item' ? itemIconeHtml(x.id) : '<span class="afk-best-peca" aria-hidden="true">' + iconeHtml('slot-' + GD.GEAR[x.id].slot, '◆', 16) + '</span>') +
+        '<span class="afk-best-nome">' + esc(x.visto ? nome : '???') + '</span><span class="afk-best-estado">' + estado + '</span></li>';
+    }).join('');
+    var feitos = pg.itens.filter(function (x) { return x.obtido; }).length;
+    return '<section class="tela tela--afk" aria-labelledby="t-bestiario">' +
+      '<button type="button" class="btn btn--pequeno" data-acao="bestiario-voltar">Voltar</button>' +
+      '<h1 class="titulo titulo--tela" id="t-bestiario" tabindex="-1" data-foco>Bestiário</h1>' +
+      '<div class="caixa afk-best-bonus"><p><b>Bônus da conta (só no treino AFK):</b> ' + esc(afkBonusTxt()) + '.</p>' +
+        '<p class="nota">' + esc('Cada oponente com ' + fmt(B.raro.vitorias) + ' vitórias: +' + Math.round(B.raro.por * 100) + '% de drop raro. Com ' + fmt(B.xp.vitorias) + ': +' + Math.round(B.xp.por * 100) +
+          '% de XP. Cada troféu: +' + Math.round(B.trofeu.por * 100) + '% de chance de troféu. Página completa: +' + afkTempoTxt(B.pagina.min) + ' de treino fora da tela.') + '</p></div>' +
+      '<div class="afk-best-abas" role="group" aria-label="Ginásio">' + abas + '</div>' +
+      '<section class="caixa" aria-labelledby="t-best-ops"><h2 class="titulo" id="t-best-ops">' + esc('Oponentes: ' + GD.GYMS[gid].name) + '</h2><ul class="afk-best-ops">' + ops + '</ul></section>' +
+      '<section class="caixa" aria-labelledby="t-best-itens"><h2 class="titulo" id="t-best-itens">Coleção <span class="nota">' + esc(feitos + ' de ' + pg.itens.length) + '</span></h2>' +
+        '<ul class="afk-best-itens">' + itens + '</ul>' +
+        '<p class="nota">' + esc(pg.completa ? 'Página completa.' : 'Página completa: tudo obtido e ' + fmt(B.marcos[B.marcos.length - 1]) + ' vitórias em cada oponente.') + '</p></section>' +
+      '</section>';
+  }
+
+  // ---- comidas (Mochila): Feno, Cenoura e Maçã dão XP a um cavalo; a Aveia dourada estica o próximo período fora ----
+  // ui.comida = { id } (a comida esperando a escolha do cavalo) | null; ui.comidaMsg = { id, txt } (o aviso do último uso)
+  function comidaMotivo(id, m) {
+    if (m && ginPreso(m)) return GIN_SALA_TXT;
+    var r = AF.usarComida(id, m, state.afk, AF.bestiarioBonus(state.afk.bestiario).offlineMin);
+    return r.ok ? '' : r.motivo;
+  }
+  // -> true se usou (uma gravação: o item gasto e o efeito)
+  function comidaUsa(id, uid) {
+    var s0 = state;
+    persist();
+    if (state !== s0) return false;
+    var m = uid ? mountByUid(uid) : null, it = GD.ITEMS[id];
+    if (itemQtd(id) < 1) { ui.comidaMsg = { id: id, txt: 'Você não tem ' + it.name + '.' }; return false; }
+    var motivo = comidaMotivo(id, m);
+    if (motivo) { ui.comidaMsg = { id: id, txt: motivo }; return false; }
+    var antes = clone(state), r = AF.usarComida(id, m, state.afk, AF.bestiarioBonus(state.afk.bestiario).offlineMin), txt;
+    state.mochila[id] -= 1;
+    if (r.aveiaMin != null) {
+      state.afk.aveiaMin = r.aveiaMin;
+      txt = 'O próximo período fora rende até ' + afkTempoTxt(afkLimite()) + '.';
+    } else {
+      var g = applyXp(m, r.xp, AFK_SEED_TAG + state.afk.xpCounter);
+      state.afk.xpCounter += 1;
+      txt = m.name + ' ganhou ' + fmt(r.xp) + ' de XP' + (g.levels ? ' e subiu para o nível ' + m.level + (g.learned.length ? ', aprendendo ' + ginJunta(g.learned.map(skillNome)) : '') : '') + '.';
+    }
+    var gv = gravaGasto(s0, antes);
+    if (gv === 'outra-aba') return false;
+    ui.comidaMsg = { id: id, txt: gv === 'ok' ? txt : FALHA_SALVAR };
+    ui.comida = null;
+    return gv === 'ok';
+  }
+  // as linhas dos itens do AFK na Mochila, por grupo (as comidas com o Usar; troféus só os que você tem)
+  var AFK_GRUPOS = [['comida', 'Comidas'], ['material', 'Materiais de forja'], ['incomum', 'Materiais incomuns'], ['reforja', 'Reforja'], ['trofeu', 'Troféus']];
+  function mochilaAfkHtml() {
+    return AFK_GRUPOS.map(function (gr) {
+      var ids = AFK_IDS.filter(function (id) { return GD.ITEMS[id].grupo === gr[0] && (gr[0] !== 'trofeu' || itemQtd(id) > 0); });
+      var corpo = ids.map(function (id) {
+        var n = itemQtd(id), comida = gr[0] === 'comida', extra = '';
+        if (comida && n > 0) {
+          if (ui.comida && ui.comida.id === id) {
+            extra = '<div class="item-compra comida-cavalos"><p class="nota">Para qual cavalo?</p>' + state.mounts.map(function (m) {
+              return '<button type="button" class="btn btn--pequeno" data-acao="comida-dar" data-id="' + esc(m.uid) + '"' + indisponivel(comidaMotivo(id, m)) + '>' +
+                esc(m.name + ' (Nv ' + m.level + ')') + '</button>';
+            }).join('') + '<button type="button" class="btn btn--pequeno" data-acao="comida-cancelar" data-id="' + esc(id) + '">Cancelar</button></div>';
+          } else {
+            extra = '<div class="item-compra item-compra--usar"><button type="button" class="btn btn--pequeno" data-acao="comida-usar" data-id="' + esc(id) + '"' +
+              indisponivel(GD.ITEMS[id].aveiaMin ? comidaMotivo(id, null) : '') + '>Usar<span class="sr"> ' + esc(GD.ITEMS[id].name) + '</span></button></div>';
+          }
+        }
+        return itemLinhaHtml(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? GD.ITEMS[id].origem : null, extra: extra,
+          aviso: ui.comidaMsg && ui.comidaMsg.id === id ? ui.comidaMsg.txt : null });
+      }).join('');
+      if (gr[0] === 'trofeu' && !ids.length) corpo = '<p class="nota">Nenhum troféu ainda. Cada oponente vencido no treino AFK pode deixar o dele, raramente.</p>';
+      return '<section class="caixa item-lista item-lista--afk" aria-label="' + esc(gr[1]) + '"><h2 class="titulo">' + esc(gr[1]) + '</h2>' + corpo + '</section>';
+    }).join('');
+  }
+
+  // o cartão do treino na aba Expedição
+  function afkCartaoHtml() {
+    var ocupadas = state.afk.vagas.filter(function (v) { return !!v.uid; }).length, vazio = AF.bauVazioE(state.afk.bau);
+    return '<section class="caixa" aria-labelledby="t-afk-cartao"><h2 class="titulo" id="t-afk-cartao">Treino AFK</h2>' +
+      '<p class="nota">Seus cavalos correm sozinhos contra oponentes já vencidos e rendem XP, materiais e peças.</p>' +
+      '<ul class="afk-cartoes"><li><button type="button" class="afk-cartao" data-acao="afk-abrir">' +
+        '<span class="ginasio-cartao-nome">' + esc(ocupadas ? ocupadas + ' de ' + state.afk.vagas.length + ' vagas em treino' : 'Nenhum cavalo em treino') + '</span>' +
+        '<span class="ginasio-cartao-meta"><span class="item-icone item-icone--bau afk-cartao-bau" aria-hidden="true"></span><span>' + (vazio ? 'Baú vazio' : 'Baú com prêmios para coletar') + '</span></span>' +
+        pixelSvg(SETA_ROWS, 'ginasio-cartao-seta') + '</button></li>' +
+      '<li><button type="button" class="afk-cartao" data-acao="bestiario-abrir">' +
+        '<span class="ginasio-cartao-nome">Bestiário</span>' +
+        '<span class="ginasio-cartao-meta"><span>' + esc('Bônus: ' + afkBonusTxt()) + '</span></span>' +
+        pixelSvg(SETA_ROWS, 'ginasio-cartao-seta') + '</button></li></ul></section>';
   }
 
   // "Recomeçar com outro inicial" com confirmação (vai para o Perfil): apaga o save e volta à escolha do inicial. No modo
@@ -14787,7 +15543,9 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   function itemQtdTxt(id, n) { return fmt(n) + ' ' + (n === 1 ? GD.ITEMS[id].name : GD.ITEMS[id].plural); }
   // o ícone do item (peça de pixel item-<id> do interface-arte.mjs, em background): decorativo, o nome vem ao lado
   function itemIconeHtml(id) {
-    return hasOwn(GD.ITEMS, id) ? '<span class="item-icone item-icone--' + esc(id) + '" aria-hidden="true"></span>' : '';
+    if (!hasOwn(GD.ITEMS, id)) return '';
+    var it = GD.ITEMS[id], nome = it.grupo === 'trofeu' ? 'trofeu-' + it.gymId : id;   // os 15 troféus usam a taça do ginásio deles
+    return '<span class="item-icone item-icone--' + esc(nome) + '" aria-hidden="true"></span>';
   }
   // A linha de um item: ícone, nome, a quantidade e a linha de para que serve. Usada na loja, na mochila e na escolha
   // do uso. opções: { qtd: número (sem ele, não mostra a quantidade), forma: 'x' (×3, padrão) | 'tem' (tem 3), texto: a
@@ -14854,7 +15612,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         '<span class="sr"> ' + esc(GD.ITEMS[id].name) + '</span></button></div>' : '';
       return itemLinhaHtml(id, { qtd: n, classe: 'item-linha--mochila', apagada: n === 0, texto: n === 0 ? GD.ITEMS[id].origem : null, extra: usar + (n > 0 && semUso ? '<p class="nota item-nota-uso">Use em Subir rank, na aba Skills do cavalo.</p>' : ''),
         aviso: msg && msg.id === id ? msg.txt : null });
-    }).join('') + '</section>';
+    }).join('') + '</section>' + mochilaAfkHtml();
   }
   function renderLoja() {
     if (!LOJA_PARTES.some(function (a) { return a.id === ui.lojaParte; })) ui.lojaParte = 'comprar';
@@ -15231,6 +15989,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       if (gR !== 'ok') return null;
     }
     if (!P) {
+      afkAcerto();   // o treino AFK do cavalo ativo conta até aqui; com a sala aberta a vaga dele fica parada
+      if (!state) return null;
       var s0 = state, antes = clone(state);
       var fee = training ? 0 : effectiveTier();
       if (fee == null) { training = true; fee = 0; } // sem Ouro para nenhuma entrada (ex.: save editado): vira treino
@@ -15544,6 +16304,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     if (place <= 3) state.podiums += 1;
     if (!L.training) state.goldWon += prize;
     state.pending = null;
+    // a sala fechou: a vaga do cavalo ativo no treino AFK volta a contar daqui (o tempo com a sala aberta não conta)
+    state.afk.vagas.forEach(function (v) { if (v.uid === state.activeId) v.inicioMin = Math.max(v.inicioMin, agoraMin()); });
     // quem chama grava (gravaGasto) e, se gravou, limpa ui.devNext (os valores armados no painel DEV valem
     // só para esta corrida)
 
@@ -15573,6 +16335,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   function corridaAtual() {
     var v = ui.gym && ui.gym.ver;
     if (v && v.tela === 'duelo') return { L: v.L, cab: v.cab, fim: ginDueloAcabou, voltar: ginPulaTudo };
+    var av = ui.afk && ui.afk.ver;   // a corrida assistida do treino AFK
+    if (av) return { L: av.L, cab: av.cab, fim: afkFimDaCorrida, voltar: afkSai };
     var L = ui.lobby;
     return {
       L: L, fim: function () { go('resultado'); }, voltar: function () { if (raceView) raceView.skip(); else go('resultado'); },
@@ -15719,7 +16483,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // Reprodução comprimida: a corrida dura 55–170 s no relógio da simulação (que o HUD mostra),
     // mas é assistida em TELA_S_MIN (1000 m) a TELA_S_MAX (2400 m) segundos em x1, mais as câmeras lentas.
     // Só a animação: o resultado da corrida não muda.
-    var realTarget = TELA_S_MIN + (TELA_S_MAX - TELA_S_MIN) * clamp((D - 1000) / 1400, 0, 1);
+    // L.telaS (o treino AFK): a duração na tela dada por quem chama (o tempo real do duelo)
+    var realTarget = L.telaS > 0 ? L.telaS : TELA_S_MIN + (TELA_S_MAX - TELA_S_MIN) * clamp((D - 1000) / 1400, 0, 1);
     var ts = sim.duration / realTarget;
     // Efeitos (fx.js): a linha do tempo é montada uma vez. Os Dados recebem a escala de reprodução
     // (segundos de simulação por segundo real em x1): câmera lenta ~2 s, giro ~1 s, brilho do vencedor
@@ -17393,7 +18158,130 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
           x.setAttribute('aria-pressed', String(x === b));
         });
         break;
+      // ---- treino AFK ----
+      case 'afk-abrir':
+        if (state) afkAbre();
+        break;
+      case 'afk-voltar':
+      case 'bestiario-voltar':
+      case 'afk-esc-voltar':
+        if (ui.screen === 'afk' || ui.screen === 'bestiario') voltaDaSubtela();
+        break;
+      case 'afk-resumo-ok':
+        if (ui.screen !== 'afk') break;
+        afkUi().resumo = null; rerenderKeepScroll(); break;
+      case 'afk-treinar': {   // da trilha do ginásio: "<ginásio>:<etapa>"
+        var pt = String(id).split(':');
+        if (!state || !afkEscolhe(pt[0], Number(pt[1]), null)) { rerenderKeepScroll(); break; }
+        ui.tab = 'expedicao';
+        go('afk'); break;
+      }
+      case 'afk-escolher': {   // de uma vaga (livre: escolher; ocupada: trocar)
+        if (ui.screen !== 'afk') break;
+        var ve = Number(id);
+        if (!state.afk.vagas[ve] || !afkEscolhe(null, null, ve)) { rerenderKeepScroll(); break; }
+        go('afk'); break;
+      }
+      case 'afk-esc-fase':
+      case 'afk-esc-dif':
+      case 'afk-esc-vaga':
+      case 'afk-esc-cavalo': {
+        var Es = ui.afk && ui.afk.escolha;
+        if (ui.screen !== 'afk' || !Es) break;
+        if (acaoClicada === 'afk-esc-fase') { var pf = String(id).split(':'); if (AF.faseId(pf[0], Number(pf[1]), 'normal') && Number(pf[1]) < state.ginasios[pf[0]].etapa) { Es.gymId = pf[0]; Es.etapa = Number(pf[1]); } }
+        else if (acaoClicada === 'afk-esc-dif') { if (AF.liberada(AF.faseId(Es.gymId, Es.etapa, id), state.ginasios, state.afk.vitorias)) Es.dif = id; }
+        else if (acaoClicada === 'afk-esc-vaga') { if (state.afk.vagas[Number(id)]) Es.vaga = Number(id); }
+        else if (mountByUid(id)) Es.uid = id;
+        Es.msg = null;
+        afkEscolhaAjusta();
+        rerenderKeepScroll(); break;
+      }
+      case 'afk-esc-comecar':
+        if (ui.screen === 'afk' && ui.afk && ui.afk.escolha) afkComeca();
+        break;
+      case 'afk-assistir':
+        if (ui.screen === 'afk') { afkUi().msg = null; afkAssiste(Number(id)); }
+        break;
+      case 'afk-outra':
+        if (ui.screen === 'corrida' && ui.afk && ui.afk.ver) afkOutra();
+        break;
+      case 'afk-tirar': {
+        if (ui.screen !== 'afk') break;
+        var sTi = state;
+        persist();
+        if (state !== sTi) break;
+        var antesTi = clone(state), semV = AF.esvaziar(state.afk, Number(id));
+        if (!semV) break;
+        state.afk = semV;
+        var gTi = gravaGasto(sTi, antesTi);
+        if (gTi === 'outra-aba') break;
+        delete afkUi().vivo[Number(id)]; afkUi().ult[Number(id)] = null;
+        afkUi().msg = gTi === 'ok' ? null : FALHA_SALVAR;
+        rerenderKeepScroll();
+        if (gTi === 'ok') focusAction('afk-escolher', id);
+        break;
+      }
+      case 'afk-comprar': {
+        if (ui.screen !== 'afk') break;
+        var sCv = state;
+        persist();
+        if (state !== sCv) break;
+        var pcv = AF.podeComprarVaga(state.afk.vagas.length, ouroLivre());
+        if (!pcv.ok) { rerenderKeepScroll(); break; }
+        var antesCv = clone(state);
+        state.gold -= pcv.preco;
+        state.afk = AF.comprarVaga(state.afk);
+        var gCv = gravaGasto(sCv, antesCv);
+        if (gCv === 'outra-aba') break;
+        afkUi().msg = gCv === 'ok' ? null : FALHA_SALVAR;
+        rerenderKeepScroll();
+        if (gCv === 'ok') focusAction('afk-escolher', String(state.afk.vagas.length - 1));
+        break;
+      }
+      case 'afk-coletar':
+      case 'afk-coletar-sim': {
+        if (ui.screen !== 'afk') break;
+        var Uc = afkUi(), prev = afkPrevia();
+        if (AF.bauVazioE(state.afk.bau)) break;
+        // com perdas, o 1º toque só pede a confirmação
+        if (acaoClicada === 'afk-coletar' && (Object.keys(prev.perdidos).length || prev.xpDescartado)) { Uc.confirmaPerda = true; Uc.coleta = null; rerenderKeepScroll(); focusAction('afk-coletar-nao', null); break; }
+        var rc = afkColeta();
+        if (rc === 'outra-aba') break;
+        if (rc !== 'ok') Uc.msg = FALHA_SALVAR;
+        rerenderKeepScroll();
+        focusAction('afk-coletar', null);
+        break;
+      }
+      case 'afk-coletar-nao':
+        if (ui.screen !== 'afk') break;
+        afkUi().confirmaPerda = false; rerenderKeepScroll(); focusAction('afk-coletar', null); break;
+      case 'bestiario-abrir':
+        if (!state) break;
+        ui.tab = 'expedicao'; ui.bestiario = { gym: GD.GYM_ORDER[0] };
+        go('bestiario'); break;
+      case 'bestiario-gym':
+        if (ui.screen !== 'bestiario' || !hasOwn(GD.GYMS, id)) break;
+        ui.bestiario = { gym: id }; rerenderKeepScroll(); break;
+      // ---- comidas (Mochila) ----
+      case 'comida-usar': {
+        if (ui.screen !== 'loja' || !hasOwn(GD.ITEMS, id) || GD.ITEMS[id].grupo !== 'comida') break;
+        ui.comidaMsg = null;
+        if (GD.ITEMS[id].aveiaMin) { comidaUsa(id, null); if (state) { rerenderKeepScroll(); focusAction('comida-usar', id); } break; }   // a Aveia não pede cavalo
+        ui.comida = { id: id };
+        rerenderKeepScroll(); focusAction('comida-cancelar', id); break;
+      }
+      case 'comida-cancelar':
+        if (ui.screen !== 'loja') break;
+        ui.comida = null; rerenderKeepScroll(); focusAction('comida-usar', id); break;
+      case 'comida-dar': {
+        if (ui.screen !== 'loja' || !ui.comida) break;
+        var idC = ui.comida.id;
+        comidaUsa(idC, id);
+        if (!state) break;
+        rerenderKeepScroll(); focusAction(ui.comida ? 'comida-cancelar' : 'comida-usar', idC); break;
+      }
       case 'pular':
+        if (ui.afk && ui.afk.ver) { afkSai(); break; }   // treino AFK: "Voltar ao treino" (o tempo do treino é o do relógio, não se pula)
         if (e.detail >= 2 && Date.now() - corridaDesde < PULAR_GUARDA_MS) break;   // o 2º toque do "Largar!" (ver PULAR_GUARDA_MS)
         if (raceView) raceView.skip(); else corridaAtual().fim();
         break;
@@ -17426,6 +18314,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         ui.confirmLiberar = null;
         if (mountByUid(id) && !motivoLiberar(mountByUid(id))) {
           state.mounts = state.mounts.filter(function (m) { return m.uid !== id; });
+          afkConfere();   // a vaga do treino AFK dele esvazia; o que ele rendeu fica no baú
           persist();
         }
         if (ui.screen === 'montaria') go(ui.tab); else rerenderKeepScroll();
@@ -17500,6 +18389,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         state.mounts = state.mounts.filter(function (m) { return gone.indexOf(m.uid) < 0; });
         state.mounts.push(potroT);
         if (gone.indexOf(state.activeId) >= 0) state.activeId = potroT.uid;
+        afkConfere();   // as vagas do treino AFK dos dois esvaziam; o que renderam fica no baú
         var gT = gravaGasto(sT, antesT);
         if (gT === 'outra-aba') break;
         if (gT === 'falhou') { ui.notice = FALHA_SALVAR; rerenderKeepScroll(); break; }
@@ -17678,6 +18568,14 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       if (!state && !saveBloqueado) { ui.motionKeep = leMotionKeep(); ui.joqueiKeep = leJoqueiKeep(); }   // "Recomeçar" e a aba fechou na escolha: as escolhas continuam
     }
     ui.screen = saveBloqueado ? 'bloqueio' : state ? 'estabulo' : 'inicial';
+    // treino AFK: o tempo com o jogo fechado é acertado ao abrir; se rendeu (ou ficou parado sem medida), o jogo abre na
+    // tela do treino com o resumo "Enquanto você estava fora"
+    var foraAfk = null;
+    if (state && !saveBloqueado) {
+      var Rf = afkAcerto();
+      if (state && Rf && (Rf.corridas || Rf.semMedida) && Rf.minutos >= AFK_RESUMO_MIN) { afkUi().resumo = Rf; ui.screen = 'afk'; ui.tab = 'expedicao'; foraAfk = true; }
+      if (!state) ui.screen = saveBloqueado ? 'bloqueio' : 'inicial';
+    }
     // moldes do PixelLab (embutidos pelo build): decodificam em segundo plano; até lá (ou sem eles, ou
     // com ?semmoldes=1) os cavalos saem do desenho por código. Ao chegarem, a tela é redesenhada — menos
     // a corrida, que redesenha sozinha a cada quadro (re-renderizar recriaria a corrida).
@@ -17691,6 +18589,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     } catch (e) { /* opcional */ }
     aplicaGrade();
     render();   // liga o laço de animação se a tela tiver o que animar
+    if (foraAfk) syncHistory('afk');   // subtela aberta direto: o voltar do aparelho leva à Expedição
     // só a largura (ou a densidade) muda o layout fora da corrida: a barra de endereço do celular
     // mudando a altura não reconstrói a tela no meio da rolagem
     var resizeTimer = null, lastW = window.innerWidth, lastDpr = dpr();
@@ -17723,6 +18622,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // a aba voltou a ficar visível (o jogo ficou aberto de um dia para o outro): se o dia virou, a tela é desenhada de novo
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'visible' && diaVirou()) redesenhaDia();
+      if (document.visibilityState === 'visible') afkTick();   // o treino AFK: o tempo com a aba escondida é acertado na volta
     });
     
   }
