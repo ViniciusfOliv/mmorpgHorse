@@ -153,6 +153,17 @@
     this.saida = origem.clone();
     this.limpo = new Uint32Array(origem.d); for (var i = 0; i < mascara.length; i++) if (mascara[i]) this.limpo[i] = 0;
     this.v = [0, 0];
+    // pixels de cada caixa a até 3 px da peça (dilatação), feitos uma vez: o laço do passo só passa por eles
+    var w = origem.w, h = origem.h, A = 3;
+    caixas.forEach(function (cx) {
+      var perto = new Uint8Array((cx.x1 - cx.x0) * (cx.y1 - cx.y0)), cw = cx.x1 - cx.x0, lista = [];
+      for (var y = cx.y0; y < cx.y1; y++) for (var x = cx.x0; x < cx.x1; x++) {
+        if (mascara[y * w + x] !== cx.id) continue;
+        for (var yy = Math.max(cx.y0, y - A); yy <= Math.min(cx.y1 - 1, y + A); yy++) for (var xx = Math.max(cx.x0, x - A); xx <= Math.min(cx.x1 - 1, x + A); xx++) perto[(yy - cx.y0) * cw + xx - cx.x0] = 1;
+      }
+      for (var k = 0; k < perto.length; k++) if (perto[k]) lista.push((cx.y0 + ((k / cw) | 0)) * w + cx.x0 + k % cw);
+      cx.lista = new Int32Array(lista);
+    });
   }
   Deforma.prototype.precisa = function (t) { return Math.floor(t * this.fps) !== this.passo; };
   Deforma.prototype.atualiza = function (t, origemNova) {
@@ -162,26 +173,48 @@
     if (this.prepara) this.prepara(tq);
     if (origemNova) { for (var q = 0; q < d.length; q++) d[q] = m[q] ? 0 : o[q]; } else d.set(this.limpo);
     for (var c = 0; c < this.caixas.length; c++) {
-      var cx = this.caixas[c], id = cx.id;
-      for (var y = cx.y0; y < cx.y1; y++) for (var x = cx.x0; x < cx.x1; x++) {
-        this.desloc(x, y, cx, tq, v, y * w + x);
+      var cx = this.caixas[c], id = cx.id, L = cx.lista;
+      for (var n = 0; n < L.length; n++) {
+        var i = L[n], x = i % w, y = (i / w) | 0;
+        this.desloc(x, y, cx, tq, v, i);
         var sx = x - v[0], sy = y - v[1];
         if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
         var s = sy * w + sx;
-        if (m[s] === id) d[y * w + x] = o[s];
+        if (m[s] === id) d[i] = o[s];
       }
     }
     return true;
   };
+  // em fatias: a cada chamada, as próximas n peças (rodízio), cada uma no seu tempo, e o putImageData só no retângulo
+  // delas — o custo se espalha pelos quadros (sem pico) e cada peça se renova a ~60/(peças/n) vezes por segundo
+  Deforma.prototype.fatia = function (t, n) {
+    if (this.prepara) this.prepara(t);
+    var w = this.o.w, h = this.o.h, m = this.m, o = this.o.d, d = this.saida.d, v = this.v, lim = this.limpo;
+    var x0 = w, y0 = h, x1 = 0, y1 = 0;
+    this.cur = this.cur || 0;
+    for (var k = 0; k < n; k++) {
+      var cx = this.caixas[this.cur]; this.cur = (this.cur + 1) % this.caixas.length;
+      var id = cx.id, L = cx.lista;
+      for (var q = 0; q < L.length; q++) {
+        var i = L[q], x = i % w, y = (i / w) | 0;
+        this.desloc(x, y, cx, t, v, i);
+        var sx = x - v[0], sy = y - v[1], src = sy * w + sx;
+        d[i] = sx >= 0 && sy >= 0 && sx < w && sy < h && m[src] === id ? o[src] : lim[i];
+      }
+      if (cx.x0 < x0) x0 = cx.x0; if (cx.y0 < y0) y0 = cx.y0; if (cx.x1 > x1) x1 = cx.x1; if (cx.y1 > y1) y1 = cx.y1;
+    }
+    if (x1 > x0) this.saida.g.putImageData(this.saida.img, 0, 0, x0, y0, x1 - x0, y1 - y0);
+  };
+
   // em imagem achatada (sem transparência atrás): lê de src e escreve em dst só dentro das caixas; onde a peça saiu,
   // buraco(x, y, caixa, src) diz o que aparece (sem ele, fica o pixel de antes: a folha "engrossa" 1 px em vez de furar)
   Deforma.prototype.aplica = function (src, dst, tq, buraco) {
     if (this.prepara) this.prepara(tq);
     var w = this.o.w, h = this.o.h, m = this.m, v = this.v;
     for (var c = 0; c < this.caixas.length; c++) {
-      var cx = this.caixas[c], id = cx.id;
-      for (var y = cx.y0; y < cx.y1; y++) for (var x = cx.x0; x < cx.x1; x++) {
-        var i = y * w + x;
+      var cx = this.caixas[c], id = cx.id, L = cx.lista;
+      for (var n = 0; n < L.length; n++) {
+        var i = L[n], x = i % w, y = (i / w) | 0;
         this.desloc(x, y, cx, tq, v, i);
         var sx = x - v[0], sy = y - v[1];
         if (sx >= 0 && sy >= 0 && sx < w && sy < h && m[sy * w + sx] === id) dst[i] = src[sy * w + sx];
@@ -727,10 +760,23 @@
           KX[y * meio.w + x] = 2.4 * w * (dxp < 0 ? 0.7 : 1); KY[y * meio.w + x] = (dxp > 0 ? 1 : -0.5) * 1.2 * w * w;
         }
       });
+      // fase da ondulação por pixel (cresce da coroa para as pontas) e o peso dela (só as pontas)
+      var PH = new Float32Array(meio.w * meio.h), KO = new Float32Array(meio.w * meio.h);
+      pc.caixas.forEach(function (cx) {
+        for (var y = cx.y0; y < cx.y1; y++) for (var x = cx.x0; x < cx.x1; x++) {
+          var dxp = x - cx.cx, dyp = y - cx.coroaY, dist = Math.sqrt(dxp * dxp + dyp * dyp) / cx.raio;
+          PH[y * meio.w + x] = dist * 4.2; KO[y * meio.w + x] = Math.max(0, dist - 0.45) / 0.55;
+        }
+      });
       s.coqueiros = new Deforma(meio, pc.m, pc.caixas, function (x, y, cx, t, v, i) {
-        v[0] = Math.round(cx.bal * KX[i]); v[1] = Math.round(cx.bal * KY[i]);
-      }, 10, function (t) {
-        pc.caixas.forEach(function (cx) { var vv = ventoEm(cx.cx, t); cx.bal = vv * (0.55 + 0.45 * Math.sin(t * (1.6 + vv * 1.8) + cx.fase)) * (MAIS ? 1.45 : 1); });
+        var ko = KO[i] * cx.ond;
+        if (ko) { v[0] = Math.round(cx.bal * KX[i] + ko * fsin(PH[i] - cx.tt)); v[1] = Math.round(cx.bal * KY[i] + ko * 0.6 * fsin(PH[i] - cx.tt + 1.3)); }
+        else { v[0] = Math.round(cx.bal * KX[i]); v[1] = Math.round(cx.bal * KY[i]); }
+      }, 8, function (t) {
+        pc.caixas.forEach(function (cx) {
+          var vv = ventoEm(cx.cx, t); cx.bal = vv * (0.55 + 0.45 * Math.sin(t * (1.6 + vv * 1.8) + cx.fase)) * (MAIS ? 1.45 : 1);
+          cx.ond = MAIS ? 0.75 + vv * 0.6 : 0; cx.tt = t * 3.4 + cx.fase;   // mais movimento: as folhas ondulam sempre
+        });
       });
       s.meioY = lt + 26 - meio.h + (R_.posicao.meio || 0);
       // --- torcida (arquibancada): grupos de 3 colunas pulam 1 px
@@ -753,10 +799,15 @@
       for (var y2 = 0; y2 < 34; y2++) for (var x2 = 0; x2 < fr.w; x2++) if (fr.d[y2 * fr.w + x2]) mf[y2 * fr.w + x2] = 1;
       var ALT = new Float32Array(34), GC = new Float32Array(fr.w);
       for (var ya = 0; ya < 34; ya++) { var al = Math.max(0, 33 - ya) / 27; ALT[ya] = al * al; }
-      s.capim = new Deforma(fr, mf, [{ id: 1, x0: 0, x1: fr.w, y0: 0, y1: 34 }], function (x, y, cx, t, v) {
+      for (var ym = 0; ym < 34; ym++) for (var xm = 0; xm < fr.w; xm++) if (mf[ym * fr.w + xm]) mf[ym * fr.w + xm] = 1 + ((xm / 48) | 0);
+      var faixas = []; for (var fx = 0; fx < fr.w; fx += 48) faixas.push({ id: 1 + fx / 48, x0: Math.max(0, fx - 3), x1: Math.min(fr.w, fx + 51), y0: 0, y1: 34 });
+      s.capim = new Deforma(fr, mf, faixas, function (x, y, cx, t, v) {
         v[0] = Math.round(ALT[y] * GC[x]); v[1] = 0;
-      }, 10, function (t) {
-        for (var x = 0; x < fr.w; x++) { var w = ventoEm(x * 0.9, t), onda = Math.sin(x * 0.07 - t * 3.2) * 0.5 + 0.5; GC[x] = (w * 2.2 + (w - 0.4) * onda * 1.6) * (MAIS ? 1.4 : 1); }
+      }, 8, function (t) {
+        for (var x = 0; x < fr.w; x++) {
+          var w = ventoEm(x * 0.9, t), onda = Math.sin(x * 0.07 - t * 3.2) * 0.5 + 0.5;
+          GC[x] = MAIS ? w * 2.2 + onda * 1.5 + Math.sin(x * 0.23 - t * 5.1) * 0.35 : w * 2.2 + (w - 0.4) * onda * 1.6;   // mais: a onda não para
+        }
       });
       // --- pista, cercas e o pé da cena (fundo parado)
       s.pista = desenhaPistaLitoral(s);
@@ -817,6 +868,14 @@
         }
         repetida(s.mar.saida.c, cam * 0.1, lt - 32 - 96, W);
       })) repetida(IMG['litoral/horizonte'], cam * 0.1, lt - 32 - 96, W);
+      if (MAIS && L.mar.ativo) mede(L.mar, function () {
+        var y = lt - 128 + 87, q = Math.floor(t * 8), off = Math.floor(cam * 0.1), x = 0;
+        while (x < W) {
+          var k = hash3((x + off) >> 2, 5, q >> 1), n = 2 + Math.floor(k * 6);
+          if (k < 0.55) { R(x, y + (k < 0.2 ? -1 : 0), n, 1, k < 0.3 ? P.branco : P.claro); if (k < 0.12) R(x + 1, y - 2, 1, 1, P.branco); }
+          x += n + 1 + Math.floor(hash(x, q) * 4);
+        }
+      });
       if (!mede(L.coqueiros, function () { if (vez === s.coqueiros) s.coqueiros.atualiza(t); repetida(s.coqueiros.saida.c, cam * 0.3, s.meioY, W); }))
         repetida(IMG['litoral/meio'], cam * 0.3, s.meioY, W);
       var arqX = s.arqX - Math.floor(cam * 0.75) % 2600;
@@ -1029,6 +1088,7 @@
         }
         if (!s.rioOn || d <= 1) return d;
         if (MAIS && d >= 3 && hash3(x, y, Math.floor(t * 9 + s.rH[j] * 4)) < 0.05) return 7;   // corredeira: espuma que pisca
+        if (MAIS && d >= 2 && fsin(y * 1.9 - t * 4.5 + x * 0.07) > 0.93) return Math.min(7, d + 3);   // linhas de espuma descendo
         if (d >= 6) return hash3(x, y, Math.floor(t * 6 + s.rH[j] * 5)) < 0.3 ? d - 2 : d;
         var onda = fsin(s.rA[j] - t * s.rS[j] + fsin(s.rB[j]) * 1.4);
         return Math.max(0, Math.min(7, d + (onda > 0.75 ? 1 : onda < -0.8 ? -1 : 0)));
@@ -1068,6 +1128,17 @@
       var mc = new Int16Array(256 * 160);
       for (var y2 = 108; y2 < 160; y2++) for (var x2 = 0; x2 < 256; x2++) if (CAPIM.indexOf(hexDe(b.d[y2 * 256 + x2])) >= 0 && !(x2 >= 50 && x2 <= 64)) mc[y2 * 256 + x2] = 1;
       for (y2 = 30; y2 < 100; y2++) for (x2 = 0; x2 < 256; x2++) { if (!(x2 < 26 || x2 > 236)) continue; if (PINHO.indexOf(hexDe(b.d[y2 * 256 + x2])) >= 0) mc[y2 * 256 + x2] = 2; }
+      // matas do vale (mais movimento): a faixa de cima de cada copa (7 px abaixo do topo da coluna) balança 1 px
+      var mm = new Int16Array(256 * 160), TOPO = new Int16Array(256).fill(999), PESO = new Float32Array(256 * 160);
+      for (y2 = 26; y2 < 112; y2++) for (x2 = 0; x2 < 256; x2++) {
+        var i2 = y2 * 256 + x2; if (mc[i2] || (x2 >= 26 && x2 <= 102 && y2 < 150 && (mp[i2] || (x2 >= 52 && x2 <= 63)))) continue;
+        if (x2 > 186 && x2 < 240 && y2 < 90) continue;   // o vulcão
+        if (PINHO.indexOf(hexDe(b.d[i2])) >= 0) { mm[i2] = 1; if (TOPO[x2] === 999) TOPO[x2] = y2; }
+      }
+      for (y2 = 26; y2 < 112; y2++) for (x2 = 0; x2 < 256; x2++) { var dd2 = y2 - TOPO[x2]; PESO[y2 * 256 + x2] = dd2 >= 0 && dd2 < 7 ? 1 - dd2 / 9 : 0; }
+      s.mata = new Deforma(b, mm, [{ id: 1, x0: 0, x1: 256, y0: 26, y1: 112 }], function (x, y, cx, t, v, i) {
+        v[0] = PESO[i] ? Math.round(PESO[i] * cx.amp * fsin(cx.tt + x * 0.13 + (TOPO[x] & 7) * 0.4)) : 0; v[1] = 0;
+      }, 10, function (t) { var c = s.mata.caixas[0]; c.tt = t * 1.5; c.amp = 0.8 + vento(t) * 0.6; });
       var AC = new Float32Array(160), AP = new Float32Array(160), GC = new Float32Array(256);
       for (y2 = 0; y2 < 160; y2++) { AC[y2] = suave(150, 112, y2); AP[y2] = suave(80, 40, y2); }
       s.capim = new Deforma(b, mc, [{ id: 1, x0: 0, x1: 256, y0: 106, y1: 160 }, { id: 2, x0: 0, x1: 28, y0: 28, y1: 100 }, { id: 2, x0: 234, x1: 256, y0: 28, y1: 100 }], function (x, y, cx, t, v) {
@@ -1075,7 +1146,9 @@
       }, 12, function (t) {
         for (var x = 0; x < 256; x++) {
           var w = ventoEm(x, t);
-          GC[x] = ((x < 28 || x > 233) ? w * 1.3 * (0.6 + 0.4 * Math.sin(t * 1.7 + x * 0.1)) : w * 1.6 + (Math.sin(x * 0.11 - t * 3) * 0.5 + 0.5) * w * 1.2) * (MAIS ? 1.4 : 1);
+          var ondaC = Math.sin(x * 0.11 - t * 3) * 0.5 + 0.5;
+          GC[x] = (x < 28 || x > 233) ? w * 1.3 * (0.6 + 0.4 * Math.sin(t * 1.7 + x * 0.1)) * (MAIS ? 1.6 : 1)
+            : MAIS ? w * 1.6 + ondaC * 1.3 : w * 1.6 + ondaC * w * 1.2;   // mais: o capim ondula sempre
         }
       });
       // nuvens finas (código) na frente das nuvens pintadas; as placas e o poste são redesenhados por cima delas
@@ -1096,7 +1169,7 @@
       s.frente = new Buf(256, 160);
     },
     quadro: function (t, dt, L) {
-      var s = this, q = Math.floor(t * 12), lig = '' + L.vulcao.ativo + L.rio.ativo + L.placas.ativo + L.capim.ativo;
+      var s = this, q = Math.floor(t * 12), lig = '' + L.vulcao.ativo + L.rio.ativo + L.placas.ativo + L.capim.ativo + MAIS;
       if (q !== s.tique || lig !== s.ligadas) {
         s.tique = q; s.ligadas = lig; var tq = q / 12;
         var src = s.base.d, d = s.comp.d;
@@ -1110,7 +1183,7 @@
           for (var y = 26; y < 84; y++) for (var x = 24; x < 104; x++) { var i = y * 256 + x; f[i] = (m[i] && (!mp[i] || d[i] === src[i] || true)) ? d[i] : 0; }
           s.frente.poe();
         });
-        mede(L.capim, function () { s.capim.aplica(src, d, tq); });
+        mede(L.capim, function () { s.capim.aplica(src, d, tq); if (MAIS) s.mata.aplica(src, d, tq); });
         if (!L.placas.ativo) { var f = s.frente.d, m = s.posteMask; for (var i = 0; i < f.length; i++) f[i] = m[i] ? src[i] : 0; s.frente.poe(); }
         s.comp.poe();
       }
@@ -1155,7 +1228,7 @@
       '<span class="tag pago">PixelLab</span> <b>Piloto pago (6 gerações)</b> no painel de baixo: comer e cavar (8 quadros, 2 seeds cada), cauda e respiração (4 quadros), a partir do molde padrão em cores de papel, então servem a qualquer pelagem. O código não chega a baixar a cabeça até o chão nem a levantar a pata: aí o PixelLab ganha. Na cauda e na respiração o código já basta. Comer (B) deixou pixels soltos no fim.',
       'Use os botões para disparar cada variação e a lupa para ver os pixels de perto.'
     ],
-    camadas: [['cavalos', 'Cavalos (idle)'], ['ceu', 'Pássaros'], ['piloto', 'Painel PixelLab × código'], ['fundo', 'Fundo parado']],
+    camadas: [['cavalos', 'Cavalos (idle)'], ['paisagem', 'Árvores e pasto'], ['ceu', 'Pássaros, borboletas e folhas'], ['piloto', 'Painel PixelLab × código'], ['fundo', 'Fundo parado']],
     init: function () {
       var s = this;
       var defs = [['robusto-folhas', 'castanho', 'retrato', 4, 150, false], ['padrao-lisa', 'baio', 'retrato', 62, 156, true], ['esguio-ondas', 'tordilho', 'retrato', 118, 152, false], ['padrao-chamas', 'alazao', 'parado', 186, 158, false]];
@@ -1166,6 +1239,22 @@
       s.passaros = new Bando(rngCosmetica(51), 3, { tipo: 'longe', cor: P.sombra, y0: 8, y1: 40, v: 7, qps: 7, largura: 320, paralaxe: 0 });
       s.revoada = new Revoada({ tipo: 'longe', cor: P.sombra, n: 7, y: 20, v: 16, qps: 8, periodo: 16 });
       s.part = new Particulas(60); s.rng = rngCosmetica(52);
+      // paisagem (mais movimento): o pasto ondula em faixas de brilho que correm (vento no campo) e as copas balançam
+      var hb = Buf.de(IMG['telas/haras']); s.hb = hb; s.comp = new Buf(256, 160);
+      s.pasto = new CicloCor(hb, function (x, y, h) { return y >= 104 && y < 134 ? (['676633', 'a2a947', '91db69', 'cddf6c'].indexOf(h) >= 0 ? 0 : -1) : -1; },
+        [['676633', 'a2a947', '91db69', 'cddf6c']], function (x, y, r, d, t) {
+          var v = fsin(x * 0.055 - t * 1.9 + y * 0.18) + 0.45 * fsin(x * 0.13 + t * 0.7 - y * 0.3);
+          return Math.max(0, Math.min(3, d + (v > 0.95 ? 1 : v < -1.1 ? -1 : 0)));
+        }, 12);
+      var VERDE_H = ['165a4c', '239063', '1ebc73', '676633', '547e64', '374e4a', 'a2a947'], mh = new Int16Array(256 * 160), TOPO = new Int16Array(256).fill(999), PESO = new Float32Array(256 * 160);
+      for (var y = 40; y < 96; y++) for (var x = 0; x < 256; x++) {
+        if (!(x < 100 || x > 220)) continue;
+        if (VERDE_H.indexOf(hexDe(hb.d[y * 256 + x])) >= 0) { mh[y * 256 + x] = 1; if (TOPO[x] === 999) TOPO[x] = y; }
+      }
+      for (y = 40; y < 96; y++) for (x = 0; x < 256; x++) { var dd = y - TOPO[x]; PESO[y * 256 + x] = dd >= 0 && dd < 8 ? 1 - dd / 10 : dd >= 8 && dd < 20 ? 0.45 : 0; }
+      s.arvores = new Deforma(hb, mh, [{ id: 1, x0: 0, x1: 102, y0: 40, y1: 96 }, { id: 1, x0: 218, x1: 256, y0: 40, y1: 96 }], function (x, y, cx, t, v, i) {
+        v[0] = PESO[i] ? Math.round(PESO[i] * cx.amp * fsin(cx.tt + x * 0.11 + y * 0.05)) : 0; v[1] = 0;
+      }, 10, function (t) { s.arvores.caixas.forEach(function (c) { c.tt = t * 1.4; c.amp = 0.9 + ventoEm(c.x0, t) * 0.7; }); });
       s.borboletas = [{ x: 40, y: 112, f: 0, cor: P.ouro }, { x: 170, y: 120, f: 2.1, cor: P.branco }, { x: 230, y: 108, f: 4.3, cor: P.ouroC }];
       // painel do piloto pago: o mesmo cavalo (padrão, baio) por código à esquerda e com os quadros do PixelLab à direita
       var cores = [0].concat(PELAGENS.baio.slice(1).map(c32));
@@ -1184,7 +1273,14 @@
     },
     quadro: function (t, dt, L) {
       var s = this;
-      mede(L.fundo, function () { D(IMG['telas/haras'], 0, 0); });
+      if (MAIS && L.paisagem.ativo) {
+        var q = Math.floor(t * 12);
+        if (q !== s.tique) mede(L.paisagem, function () {
+          s.tique = q; s.pasto.passo = -1; s.pasto.atualiza(t);
+          var src = s.pasto.saida.d, d = s.comp.d; d.set(src); s.arvores.aplica(src, d, q / 12); s.comp.poe();
+        });
+        mede(L.fundo, function () { D(s.comp.c, 0, 0); });
+      } else { s.tique = -1; mede(L.fundo, function () { D(IMG['telas/haras'], 0, 0); }); }
       mede(L.piloto, function () { desenhaPiloto(s, t); });
       mede(L.ceu, function () {
         s.passaros.desenha(t, 0, 256);
@@ -1278,17 +1374,27 @@
     expedicao: 'Jorro de lava no vulcão, mais fumaça e bombas; espuma de corredeira no rio; placas girando mais; capim com rajadas fortes; revoada sobre o vale; folhas em redemoinho.',
     cavalos: 'Gestos a cada 1–3,5 s e mais fortes, gestos que se juntam (cauda junto com outro), sacudir a cabeça; borboletas, folhas soltas e revoada.'
   };
+  // vegetação e água que mexem o tempo todo, não só nas rajadas (pedido do Vinicius, 2026-11-23)
+  var CONTINUO = {
+    litoral: 'Folhas dos coqueiros ondulando da coroa para as pontas, capim da praia numa onda que não para, espuma correndo na mureta e o mar com brilho e ondulação.',
+    expedicao: 'Copas das matas e dos pinheiros balançando 1 px na faixa de cima, fora de fase; capim em onda contínua; linhas de espuma descendo o rio.',
+    cavalos: 'Pasto com faixas de brilho que correm (o vento no campo) e as copas das árvores balançando.',
+    fornalha: 'Sem vegetação nem água: a lava do fosso e das encostas já corre o tempo todo.'
+  };
   function montaNotas(cena) {
     el('notas').innerHTML = cena.notas.map(function (n) { return '<li>' + n + '</li>'; }).join('') +
-      '<li><span class="tag mais">mais movimento</span> ' + NOTAS_MAIS[cena.id] + '</li>';
+      '<li><span class="tag mais">mais movimento</span> ' + NOTAS_MAIS[cena.id] + '</li>' +
+      (CONTINUO[cena.id] ? '<li><span class="tag mais">sempre</span> ' + CONTINUO[cena.id] + '</li>' : '');
   }
   function montaControles(cena) {
     var ctl = el('ctlCena'); ctl.innerHTML = '';
     // Atual (a principal, aprovada) × Mais movimento (para comparar)
-    var bA = botao('Atual', !cena.mais, function () { cena.mais = false; bA.setAttribute('aria-pressed', 'true'); bM.setAttribute('aria-pressed', 'false'); }),
-      bM = botao('Mais movimento', !!cena.mais, function () { cena.mais = true; bM.setAttribute('aria-pressed', 'true'); bA.setAttribute('aria-pressed', 'false'); });
+    // a "mais movimento" foi a escolhida pelo Vinicius (2026-11-23) e abre por padrão; a anterior fica para comparar
+    if (cena.mais == null) cena.mais = true;
+    var bM = botao('Mais movimento (escolhida)', !!cena.mais, function () { cena.mais = true; bM.setAttribute('aria-pressed', 'true'); bA.setAttribute('aria-pressed', 'false'); }),
+      bA = botao('Versão anterior', !cena.mais, function () { cena.mais = false; bA.setAttribute('aria-pressed', 'true'); bM.setAttribute('aria-pressed', 'false'); });
     var grupo = document.createElement('div'); grupo.className = 'estilo'; grupo.setAttribute('role', 'group'); grupo.setAttribute('aria-label', 'Versão');
-    grupo.appendChild(bA); grupo.appendChild(bM); ctl.appendChild(grupo);
+    grupo.appendChild(bM); grupo.appendChild(bA); ctl.appendChild(grupo);
     if (cena.id === 'litoral') {
       ctl.appendChild(botao('Câmera em corrida', estado.camera, function (b) { estado.camera = !estado.camera; b.setAttribute('aria-pressed', estado.camera); }));
     }
@@ -1382,7 +1488,7 @@
     el('resumo').innerHTML =
       '<span>quadros/s: <b>' + janela.length + '</b></span>' +
       '<span>animações: <b>' + anim.toFixed(2) + ' ms</b> aqui, <b>≈ ' + (anim * 4).toFixed(2) + ' ms</b> num celular médio (×4, se aberto no computador) de 2 ms</span>' +
-      '<span>por versão: atual <b>' + fmtV('atual') + '</b> · mais movimento <b>' + fmtV('mais') + '</b></span>' +
+      '<span>por versão: mais movimento <b>' + fmtV('mais') + '</b> · anterior <b>' + fmtV('atual') + '</b></span>' +
       '<span>quadro inteiro (com a cópia ampliada): <b>' + medidor.total.toFixed(2) + ' ms</b></span>' +
       '<span>chamadas de desenho: <b>' + Math.round(medidor.chamadasMedia) + '</b> de 300</span>' +
       '<span>partículas: <b>' + medidor.particulas + '</b> de 150</span>' +
