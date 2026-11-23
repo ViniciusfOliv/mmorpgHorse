@@ -510,6 +510,11 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .montaria-linha[aria-disabled="true"] { opacity: 0.42; cursor: not-allowed; }
 .item-skills { grid-template-columns: minmax(0, 1fr); }
 .item-skill { justify-content: flex-start; }
+.item-skill-opcao { min-width: 0; }
+.item-skill { gap: 6px; }
+.item-skill .rank-marcas { margin-left: auto; }
+.item-skill-opcao .habilidade-resumo { padding: 2px 4px 0; }
+.levelup .habilidade--nova { margin-top: 6px; text-align: left; }
 
 /* opções selecionáveis (aria-pressed) */
 .opcoes { display: grid; gap: 10px; }
@@ -801,6 +806,35 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .habilidade span { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); }
 .habilidade .habilidade-quando { color: var(--texto); }
 .habilidade--garra { margin-top: 8px; }
+/* skill em resumo (ajustes 1): ícone, nome e rank no gatilho (um botão com a peça ⓘ depois do nome, como o nome dos
+   status), o resumo embaixo e o texto completo num balão (.skill-dica). Mouse (só onde há hover) ou foco do teclado: o
+   balão por cima, sem empurrar a tela nem pegar o mouse; toque/clique (aria-expanded): o texto abre embaixo do resumo */
+.skill-dica-area { position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ajuda.skill-dica-btn:not(.skill-dica-btn--i) {
+  width: auto; height: auto; min-width: 0; min-height: 44px; margin: -8px 0 -6px; padding: 0 2px; gap: 6px; justify-content: flex-start; align-self: flex-start;
+  color: var(--texto); font: inherit; text-align: left; white-space: normal;
+}
+.skill-dica-btn:not(.skill-dica-btn--i)::before { order: 1; }
+.skill-dica-btn b { min-width: 0; overflow-wrap: anywhere; }
+.skill-dica-topo { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.skill-dica-topo > .btn { flex: 1 1 auto; min-width: 0; }
+.ajuda.skill-dica-btn--i { margin: 0 -8px 0 -12px; }
+.habilidade-resumo, .habilidade span.habilidade-resumo { font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.3; color: var(--texto); }
+.skill-dica {
+  display: none; flex-direction: column; gap: 2px; margin: 4px 0 0; padding: 6px 8px; background: var(--painel-3);
+  box-shadow: 0 0 0 2px var(--sombra), inset 3px 0 0 0 var(--ouro); font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.4;
+}
+.skill-dica span, .habilidade .skill-dica span { color: var(--texto); }
+.skill-dica .habilidade-quando { color: var(--ouro-claro); }
+.skill-dica-area:has([data-dica][aria-expanded="true"]) > .skill-dica { display: flex; }
+.skill-dica-area:has([data-dica]:focus-visible:not([aria-expanded="true"]):not(.dica-esc)) > .skill-dica {
+  display: flex; position: absolute; left: 0; right: 0; top: 100%; z-index: 30; pointer-events: none;
+}
+@media (hover: hover) {
+  .skill-dica-area:has([data-dica]:hover:not([aria-expanded="true"]):not(.dica-esc)) > .skill-dica {
+    display: flex; position: absolute; left: 0; right: 0; top: 100%; z-index: 30; pointer-events: none;
+  }
+}
 /* Rank das skills de vaga (aba Skills): o topo, as 5 marcas, a linha do próximo rank, o custo e o "Subir rank" */
 .rank-topo { justify-content: space-between; margin: 0 0 8px; color: var(--texto-2); }
 .rank-topo strong { color: var(--texto); }

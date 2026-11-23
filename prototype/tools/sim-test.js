@@ -54,6 +54,16 @@ test('catálogo de skills', function () {
 });
 
 section('ranks');
+test('toda skill tem um resumo curto para a tela (ajustes 1): sem números, até 30 letras, um por skill', function () {
+  var vistos = {};
+  Object.keys(G.SKILLS).forEach(function (id) {
+    var r = G.SKILLS[id].resumo;
+    assert.ok(typeof r === 'string' && r.length >= 8 && r.length <= 30, id + ': resumo "' + r + '"');
+    assert.ok(!/[0-9%]/.test(r), id + ': o resumo não leva números (eles mudam com o rank e ficam no texto completo): ' + r);
+    assert.ok(r[0] === r[0].toUpperCase() && !/[.!]$/.test(r), id + ': maiúscula no começo, sem ponto final: ' + r);
+    assert.ok(!vistos[r], id + ': resumo repetido de ' + vistos[r]); vistos[r] = id;
+  });
+});
 test('rankScale: 1,00 1,15 1,30 1,45 1,60; 0, 6, "3" e NaN viram 1, 5, 1 e 1', function () {
   [1, 1.15, 1.30, 1.45, 1.60].forEach(function (v, i) { assert.ok(Math.abs(S.rankScale(i + 1) - v) < 1e-12, 'rank ' + (i + 1)); });
   assert.strictEqual(S.rankScale(0), S.rankScale(1)); assert.strictEqual(S.rankScale(6), S.rankScale(5));

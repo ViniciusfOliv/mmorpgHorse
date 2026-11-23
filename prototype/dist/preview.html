@@ -507,6 +507,11 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .montaria-linha[aria-disabled="true"] { opacity: 0.42; cursor: not-allowed; }
 .item-skills { grid-template-columns: minmax(0, 1fr); }
 .item-skill { justify-content: flex-start; }
+.item-skill-opcao { min-width: 0; }
+.item-skill { gap: 6px; }
+.item-skill .rank-marcas { margin-left: auto; }
+.item-skill-opcao .habilidade-resumo { padding: 2px 4px 0; }
+.levelup .habilidade--nova { margin-top: 6px; text-align: left; }
 
 /* opções selecionáveis (aria-pressed) */
 .opcoes { display: grid; gap: 10px; }
@@ -798,6 +803,35 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .habilidade span { font-family: var(--fonte-9); font-size: var(--t-s); color: var(--texto-2); }
 .habilidade .habilidade-quando { color: var(--texto); }
 .habilidade--garra { margin-top: 8px; }
+/* skill em resumo (ajustes 1): ícone, nome e rank no gatilho (um botão com a peça ⓘ depois do nome, como o nome dos
+   status), o resumo embaixo e o texto completo num balão (.skill-dica). Mouse (só onde há hover) ou foco do teclado: o
+   balão por cima, sem empurrar a tela nem pegar o mouse; toque/clique (aria-expanded): o texto abre embaixo do resumo */
+.skill-dica-area { position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ajuda.skill-dica-btn:not(.skill-dica-btn--i) {
+  width: auto; height: auto; min-width: 0; min-height: 44px; margin: -8px 0 -6px; padding: 0 2px; gap: 6px; justify-content: flex-start; align-self: flex-start;
+  color: var(--texto); font: inherit; text-align: left; white-space: normal;
+}
+.skill-dica-btn:not(.skill-dica-btn--i)::before { order: 1; }
+.skill-dica-btn b { min-width: 0; overflow-wrap: anywhere; }
+.skill-dica-topo { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.skill-dica-topo > .btn { flex: 1 1 auto; min-width: 0; }
+.ajuda.skill-dica-btn--i { margin: 0 -8px 0 -12px; }
+.habilidade-resumo, .habilidade span.habilidade-resumo { font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.3; color: var(--texto); }
+.skill-dica {
+  display: none; flex-direction: column; gap: 2px; margin: 4px 0 0; padding: 6px 8px; background: var(--painel-3);
+  box-shadow: 0 0 0 2px var(--sombra), inset 3px 0 0 0 var(--ouro); font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.4;
+}
+.skill-dica span, .habilidade .skill-dica span { color: var(--texto); }
+.skill-dica .habilidade-quando { color: var(--ouro-claro); }
+.skill-dica-area:has([data-dica][aria-expanded="true"]) > .skill-dica { display: flex; }
+.skill-dica-area:has([data-dica]:focus-visible:not([aria-expanded="true"]):not(.dica-esc)) > .skill-dica {
+  display: flex; position: absolute; left: 0; right: 0; top: 100%; z-index: 30; pointer-events: none;
+}
+@media (hover: hover) {
+  .skill-dica-area:has([data-dica]:hover:not([aria-expanded="true"]):not(.dica-esc)) > .skill-dica {
+    display: flex; position: absolute; left: 0; right: 0; top: 100%; z-index: 30; pointer-events: none;
+  }
+}
 /* Rank das skills de vaga (aba Skills): o topo, as 5 marcas, a linha do próximo rank, o custo e o "Subir rank" */
 .rank-topo { justify-content: space-between; margin: 0 0 8px; color: var(--texto-2); }
 .rank-topo strong { color: var(--texto); }
@@ -1889,6 +1923,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   //   trigger: 'start' | 'straight' (reta de 150 m ou mais, fora a da largada) | 'curve' | 'curveExit'
   //            | 'hill' | 'lowStamina' (<=30%) | 'final' (onde começa a arrancada do cavalo, garraFrom) | 'dice' (uma tentativa,
   //            antes do 1º Dado) | 'weather:<sol|chuva|nevoa>'
+  //   resumo: o que a skill faz em poucas palavras, sem números (a tela mostra o nome, o rank e o resumo; o texto completo
+  //            com os números do rank abre por toque, mouse ou foco; ajustes 1, 2026-11-23)
   //   effect (chaves usadas):
   //     accelMult / speedMult: multiplicadores; drainMult: gasto de estamina;
   //     distanceM / durationS: duração do efeito em metros ou segundos;
@@ -1919,48 +1955,56 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // --- Gerais (qualquer tipo) ---
     'arranque': {
       id: 'arranque', name: 'Arranque', element: 'geral', trigger: 'start',
+      resumo: 'Aceleração na largada',
       desc: 'Largada explosiva: +10,8% de aceleração nos primeiros 100 m.',
       effect: { accelMult: 1.108, distanceM: 100 },
       rank5: { speedMult: 1.03 }
     },
     'sprint': {
       id: 'sprint', name: 'Sprint', element: 'geral', trigger: 'straight',
+      resumo: 'Velocidade nas retas longas',
       desc: 'Numa reta de 150 m ou mais (fora a da largada): +4% de velocidade por 150 m.',
       effect: { speedMult: 1.04, distanceM: 150 },
       rank5: { minStraightM: 100 }
     },
     'drift': {
       id: 'drift', name: 'Drift', element: 'geral', trigger: 'curve',
+      resumo: 'Rende mais nas curvas',
       desc: 'Em cada curva: +1,3% de rendimento na curva.',
       effect: { curveBonus: 0.013, blockScoped: true },
       rank5: { drainMult: 0.85 }
     },
     'saida-rapida': {
       id: 'saida-rapida', name: 'Saída Rápida', element: 'geral', trigger: 'curveExit',
+      resumo: 'Dispara ao sair da curva',
       desc: 'Ao sair da curva: +32% de aceleração e +4,5% de velocidade por 6s.',
       effect: { accelMult: 1.32, speedMult: 1.045, durationS: 6 },
       rank5: { durationS: 7 }
     },
     'folego-de-montanha': {
       id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'geral', trigger: 'hill',
+      resumo: 'Poupa fôlego nas subidas',
       desc: 'Em cada subida: gasta 70% menos estamina extra da subida.',
       effect: { hillDrainMult: 0.3, blockScoped: true },
       rank5: { exitRestore: 0.03 }
     },
     'segundo-ar': {
       id: 'segundo-ar', name: 'Segundo Ar', element: 'geral', trigger: 'lowStamina',
+      resumo: 'Recupera o fôlego ao cansar',
       desc: 'Quando a estamina cai a 30%, recupera 10% e ganha +3% de velocidade por 8s.',
       effect: { staminaRestore: 0.1, speedMult: 1.03, durationS: 8 },
       rank5: { lowStaminaAt: 0.35 }
     },
     'arrancada-final': {
       id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'geral', trigger: 'final',
+      resumo: 'Garra mais forte no fim',
       desc: 'Na reta final: +2,8% de força na arrancada de Garra.',
       effect: { garraBoostBonus: 0.028 },
       rank5: { speedMult: 1.01, untilFinish: true }
     },
     'dado-viciado': {
       id: 'dado-viciado', name: 'Dado Viciado', element: 'geral', trigger: 'dice',
+      resumo: 'Dado extra no Dado da Sorte',
       desc: 'Antes do 1º Dado da Sorte: rola 1 dado extra, de 1 a 60, em todos os Dados da corrida.',
       effect: { extraDice: 1 },
       rank5: { extraDice: 2 }
@@ -1968,12 +2012,14 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // --- Fogo ---
     'sol-a-pino': {
       id: 'sol-a-pino', name: 'Sol a Pino', element: 'fogo', trigger: 'weather:sol',
+      resumo: 'Fogo mais forte com sol',
       desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +7%.',
       effect: { weatherBonus: 0.04 },
       rank5: { weatherLingerS: 15 }
     },
     'chama-final': {
       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
+      resumo: 'Velocidade na reta final',
       desc: 'Na reta final: +4% de velocidade por 9,5s.',
       effect: { speedMult: 1.04, durationS: 9.5 },
       rank5: { durationS: 11 }
@@ -1981,18 +2027,21 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // --- Água ---
     'pe-na-chuva': {
       id: 'pe-na-chuva', name: 'Pé na Chuva', element: 'agua', trigger: 'weather:chuva',
+      resumo: 'Água mais forte com chuva',
       desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +7%.',
       effect: { weatherBonus: 0.04 },
       rank5: { weatherLingerS: 15 }
     },
     'canto-da-iara': {
       id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
+      resumo: 'Velocidade e fôlego no fim',
       desc: 'Na reta final: +4% de velocidade e 20% menos gasto de estamina por 9s.',
       effect: { speedMult: 1.04, drainMult: 0.8, durationS: 9 },
       rank5: { staminaRestore: 0.05 }
     },
     'nascente': {
       id: 'nascente', name: 'Nascente', element: 'agua', trigger: 'straight',
+      resumo: 'Recupera fôlego nas retas',
       desc: 'Numa reta de 150 m ou mais (fora a da largada): recupera 4,5% de estamina.',
       effect: { staminaRestore: 0.045 },
       rank5: { speedMult: 1.03, durationS: 4 }
@@ -2000,12 +2049,14 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     // --- Grama ---
     'nevoa-amiga': {
       id: 'nevoa-amiga', name: 'Névoa Amiga', element: 'grama', trigger: 'weather:nevoa',
+      resumo: 'Grama mais forte com névoa',
       desc: 'Com névoa: o bônus do clima para a Grama sobe de +3% para +7%.',
       effect: { weatherBonus: 0.04 },
       rank5: { weatherLingerS: 15 }
     },
     'casco-firme': {
       id: 'casco-firme', name: 'Casco Firme', element: 'grama', trigger: 'hill',
+      resumo: 'Rende mais nas subidas',
       desc: 'Em cada subida: +1,2% de rendimento na subida.',
       effect: { hillBonus: 0.012, blockScoped: true },
       rank5: { hillDrainMult: 0.7 }
@@ -13308,9 +13359,45 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   function skillHtml(id, tam, quando, rank, extra) {
     var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
     if (!sk) return '';
-    return '<div class="habilidade' + (rank >= GD.SKILL_RANKS.max ? ' habilidade--max' : '') + '"><b>' + skillIcone(id, tam) + esc(sk.name) + (rank ? rankMarcasHtml(rank) : '') + '</b>' +
-      '<span class="habilidade-efeito">' + esc(rank ? RS.skillDesc(id, rank) : sk.desc) + '</span>' +
-      (quando ? '<span class="habilidade-quando">' + esc(quando) + '</span>' : '') + (extra || '') + '</div>';
+    return '<div class="habilidade' + (rank >= GD.SKILL_RANKS.max ? ' habilidade--max' : '') + '">' +
+      skillDicaHtml(id, { tam: tam, rank: rank, quando: quando, extra: extra }) + '</div>';
+  }
+  // ---- Skill em resumo, texto completo sob demanda (ajustes 1, 2026-11-23): na tela ficam o ícone, o nome, o rank e o
+  // resumo curto (GameData.SKILLS[id].resumo, sem números); o texto completo (o efeito com os números do rank, quando ativa e
+  // o próximo rank) fica num balão ligado ao gatilho por aria-describedby. Com o mouse (só em aparelho com hover) ou com o
+  // foco do teclado ele aparece por cima, sem empurrar a tela; no toque (ou clique) o gatilho alterna aria-expanded e o
+  // texto abre embaixo do resumo, como as explicações "ⓘ" (alternaDica). O balão está sempre no DOM: o leitor de tela lê a
+  // descrição sem abrir nada.
+  // o: { tam (16/32), rank, quando, extra (HTML a mais no balão), cabeca (HTML do topo quando o nome não pode ser o
+  // gatilho, como na escolha do Cupom, onde o nome é o botão da ação: aí o gatilho é um "ⓘ" ao lado) }
+  var dicaSeq = 0;
+  function skillDicaHtml(id, o) {
+    var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
+    if (!sk) return '';
+    o = o || {};
+    var rank = o.rank;
+    return dicaAreaHtml({
+      nome: sk.name, cabeca: o.cabeca,
+      gatilho: '<b>' + skillIcone(id, o.tam || 16) + esc(sk.name) + (rank ? rankMarcasHtml(rank) : '') + '</b>',
+      resumo: esc(sk.resumo || ''),
+      balao: '<span class="habilidade-efeito">' + esc(rank ? RS.skillDesc(id, rank) : sk.desc) + '</span>' +
+        (o.quando ? '<span class="habilidade-quando">' + esc(o.quando) + '</span>' : '') + (o.extra || '')
+    });
+  }
+  // o bloco genérico (skill de vaga, skill de tipo, Garra): o.gatilho (HTML do botão) ou o.cabeca (HTML do topo, com o "ⓘ"
+  // ao lado), o.nome (para o "Detalhes de …"), o.resumo e o.balao (HTML), o.resumoCls (classe a mais no resumo)
+  function dicaAreaHtml(o) {
+    var did = 'dica-' + (++dicaSeq);
+    var attrs = ' data-dica aria-expanded="false" aria-describedby="' + did + '"';
+    var topo = o.cabeca != null
+      ? '<span class="skill-dica-topo">' + o.cabeca + '<button type="button" class="ajuda skill-dica-btn skill-dica-btn--i"' + attrs + ' aria-label="' + esc('Detalhes de ' + o.nome) + '" title="' + esc(o.nome) + '"></button></span>'
+      : '<button type="button" class="ajuda skill-dica-btn"' + attrs + '>' + o.gatilho + '</button>';
+    return '<span class="skill-dica-area">' + topo + '<span class="habilidade-resumo' + (o.resumoCls ? ' ' + o.resumoCls : '') + '">' + o.resumo + '</span>' +
+      '<span class="skill-dica" id="' + did + '" role="tooltip">' + o.balao + '</span></span>';
+  }
+  // o toque (ou clique, ou Enter/Espaço) no gatilho: abre ou fecha o texto completo embaixo do resumo, sem re-renderizar
+  function alternaDica(btn) {
+    btn.setAttribute('aria-expanded', btn.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');
   }
   // as 5 marcas do rank (cheias até o rank) e o algarismo romano; o leitor de tela lê "Rank III de V"
   var ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V'];   // o rank das skills na tela (1 a 5)
@@ -13374,8 +13461,12 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       linhas.push('Com a ' + GD.SKILLS['arrancada-final'].name + ': ' + vz(gb.boost) + ' em média.');
     }
     linhas.push('Mais Garra: começa antes e empurra mais.');
-    return '<div class="habilidade habilidade--garra"><b>' + iconeHtml('st-garra', '', 32) + 'Garra ' + st.garra + ' · todo cavalo tem</b>' +
-      linhas.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + '</div>';
+    // ajustes 1: o resumo à vista (onde a arrancada começa) e as linhas completas no balão
+    return '<div class="habilidade habilidade--garra">' + dicaAreaHtml({
+      nome: 'Garra', gatilho: '<b>' + iconeHtml('st-garra', '', 32) + 'Garra ' + st.garra + ' · todo cavalo tem</b>',
+      resumo: esc('Arrancada final aos ' + pctTxt(g.from) + ' da pista'),
+      balao: linhas.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('')
+    }) + '</div>';
   }
   // Skill de tipo: vaga própria, sempre ativa, num terço da pista; o efeito já multiplicado pela força P
   // (RaceSim.typeSkill), os mesmos números que a simulação usa.
@@ -13416,11 +13507,14 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     if (!ts) return '';
     var el = elementOf(horse.element), def = GD.TYPE_SKILLS[horse.element];
     var pontos = efeitoTipoPontosTxt(horse, ts);
+    // ajustes 1: o nome e o efeito em pontos (o resumo) à vista; a descrição e a intensidade no balão
+    var forca = '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',')) + '</span>';
     return '<div class="vaga-tipo vaga-tipo--' + esc(el.id) + '"><span class="vaga-tipo-rotulo">Skill de tipo · sempre ativa' + ajudaBtn('skillTipo', 'a skill de tipo') + '</span>' +
-      '<b>' + skillIcone(ts.id, 32) + esc(ts.name) + '</b>' +
-      (pontos ? '<span class="vaga-tipo-pontos">' + esc(pontos) + '</span>' + '<span>' + esc(def.desc) + '</span>'
-        : '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts, horse.element) + '.') + '</span>') +
-      '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',')) + '</span></div>';
+      dicaAreaHtml({
+        nome: ts.name, gatilho: '<b>' + skillIcone(ts.id, 32) + esc(ts.name) + '</b>',
+        resumo: esc(pontos || ('Age no ' + tercoTxt(ts) + ' da pista')), resumoCls: pontos ? 'vaga-tipo-pontos' : '',
+        balao: (pontos ? '<span>' + esc(def.desc) + '</span>' : '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts, horse.element) + '.') + '</span>') + forca
+      }) + '</div>';
   }
   function silkClass(r) { return r.isPlayer ? 'seda-voce' : 'seda-' + r.silkIdx; }
   function laneChip(r, i, extra) {
@@ -17291,7 +17385,10 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       if (m) {
         corpo = '<p>' + esc('Qual skill sai das vagas de ' + m.name + '? Entra outra, sorteada entre as que ele pode aprender.') + '</p>' +
           '<div class="opcoes item-skills">' + m.skills.filter(function (s) { return hasOwn(GD.SKILLS, s); }).map(function (s) {
-            return '<button type="button" class="btn item-skill" data-acao="item-skill" data-id="' + esc(s) + '"' + indisponivel(motS) + '>' + skillIcone(s, 16) + esc(skillNome(s)) + '</button>';
+            // ajustes 1: o nome e o rank no botão da escolha; o resumo embaixo e o texto completo no "ⓘ" ao lado
+            var rk = RS.rankOf(m, s);
+            return '<div class="item-skill-opcao">' + skillDicaHtml(s, { rank: rk, cabeca: '<button type="button" class="btn item-skill" data-acao="item-skill" data-id="' + esc(s) + '"' + indisponivel(motS) + '>' +
+              skillIcone(s, 16) + '<span class="item-skill-nome">' + esc(skillNome(s)) + '</span>' + rankMarcasHtml(rk) + '</button>' }) + '</div>';
           }).join('') + '</div>';
       }
       if (motS) corpo += '<p class="nota">' + esc(motS) + '</p>';
@@ -19053,8 +19150,12 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
         (corpoNivel ? '<div class="ganhos">' + corpoNivel + '</div>' : '') + '</div>';
     }
     if (R.learned && R.learned.length) {
+      // ajustes 1: o nome, o rank (I) e o resumo de cada skill nova; o texto completo no balão
       var skNames = R.learned.map(function (id) { return GD.SKILLS[id] ? GD.SKILLS[id].name : id; }).join(', ');
-      lvl += '<div class="levelup" role="status"><b>' + esc('Nova skill: ' + skNames + '!') + '</b></div>';
+      lvl += '<div class="levelup" role="status"><b>' + esc('Nova skill: ' + skNames + '!') + '</b>' +
+        R.learned.filter(function (id) { return hasOwn(GD.SKILLS, id); }).map(function (id) {
+          return '<div class="habilidade habilidade--nova">' + skillDicaHtml(id, { tam: 16, rank: 1 }) + '</div>';
+        }).join('') + '</div>';
     }
     // momentos da corrida (spec §10): skills, garra, cansaço, Dados da Sorte e viradas de clima,
     // de todos os corredores; sem ultrapassagens/chegadas/narração (a tabela já conta isso)
@@ -19147,6 +19248,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     }
     if (diaVirou()) { redesenhaDia(); return; }   // o dia virou desde o último desenho: a tela nova, e este toque não vale
     tiraMotivo(e.target);   // qualquer toque tira a linha do motivo (também o do ⓘ, que abre a ajuda); nunca há duas na tela
+    var dc = e.target.closest ? e.target.closest('[data-dica]') : null;
+    if (dc) { alternaDica(dc); return; }   // skill em resumo: abre/fecha o texto completo, sem acionar o cartão em volta
     var aj = e.target.closest ? e.target.closest('[data-ajuda]') : null;
     if (aj) { alternaAjuda(aj); return; }   // "ⓘ" (ou o nome do status): abre/fecha o texto, sem re-renderizar nem acionar o cartão em volta
     var b = e.target.closest ? e.target.closest('[data-acao]') : null;
@@ -20082,6 +20185,17 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     ui.montaria.renomear = null;
     rerenderKeepScroll(); focusAction('renomear', ui.montaria.uid);
   }
+  // Esc no gatilho de uma skill em resumo: fecha o texto aberto e esconde o balão do foco/mouse até o gatilho perder o foco
+  // ou o mouse (o balão some sem mover o foco, WCAG 1.4.13)
+  telaEl.addEventListener('keydown', function (e) {
+    if (!e.target || !e.target.hasAttribute || !e.target.hasAttribute('data-dica') || (e.key !== 'Escape' && e.key !== 'Esc')) return;
+    e.preventDefault(); e.stopPropagation();
+    e.target.setAttribute('aria-expanded', 'false');
+    e.target.classList.add('dica-esc');
+  });
+  function tiraDicaEsc(e) { if (e.target && e.target.classList && e.target.hasAttribute('data-dica')) e.target.classList.remove('dica-esc'); }
+  telaEl.addEventListener('focusout', tiraDicaEsc);
+  telaEl.addEventListener('mouseout', tiraDicaEsc);
   telaEl.addEventListener('keydown', function (e) {
     if (saveBloqueado || !e.target || e.target.id !== 'renomear-campo') return;
     if (e.key === 'Enter') { e.preventDefault(); renomearConfirma(); }

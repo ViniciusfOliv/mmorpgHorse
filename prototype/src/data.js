@@ -139,6 +139,8 @@
   //   trigger: 'start' | 'straight' (reta de 150 m ou mais, fora a da largada) | 'curve' | 'curveExit'
   //            | 'hill' | 'lowStamina' (<=30%) | 'final' (onde começa a arrancada do cavalo, garraFrom) | 'dice' (uma tentativa,
   //            antes do 1º Dado) | 'weather:<sol|chuva|nevoa>'
+  //   resumo: o que a skill faz em poucas palavras, sem números (a tela mostra o nome, o rank e o resumo; o texto completo
+  //            com os números do rank abre por toque, mouse ou foco; ajustes 1, 2026-11-23)
   //   effect (chaves usadas):
   //     accelMult / speedMult: multiplicadores; drainMult: gasto de estamina;
   //     distanceM / durationS: duração do efeito em metros ou segundos;
@@ -169,48 +171,56 @@
     // --- Gerais (qualquer tipo) ---
     'arranque': {
       id: 'arranque', name: 'Arranque', element: 'geral', trigger: 'start',
+      resumo: 'Aceleração na largada',
       desc: 'Largada explosiva: +10,8% de aceleração nos primeiros 100 m.',
       effect: { accelMult: 1.108, distanceM: 100 },
       rank5: { speedMult: 1.03 }
     },
     'sprint': {
       id: 'sprint', name: 'Sprint', element: 'geral', trigger: 'straight',
+      resumo: 'Velocidade nas retas longas',
       desc: 'Numa reta de 150 m ou mais (fora a da largada): +4% de velocidade por 150 m.',
       effect: { speedMult: 1.04, distanceM: 150 },
       rank5: { minStraightM: 100 }
     },
     'drift': {
       id: 'drift', name: 'Drift', element: 'geral', trigger: 'curve',
+      resumo: 'Rende mais nas curvas',
       desc: 'Em cada curva: +1,3% de rendimento na curva.',
       effect: { curveBonus: 0.013, blockScoped: true },
       rank5: { drainMult: 0.85 }
     },
     'saida-rapida': {
       id: 'saida-rapida', name: 'Saída Rápida', element: 'geral', trigger: 'curveExit',
+      resumo: 'Dispara ao sair da curva',
       desc: 'Ao sair da curva: +32% de aceleração e +4,5% de velocidade por 6s.',
       effect: { accelMult: 1.32, speedMult: 1.045, durationS: 6 },
       rank5: { durationS: 7 }
     },
     'folego-de-montanha': {
       id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'geral', trigger: 'hill',
+      resumo: 'Poupa fôlego nas subidas',
       desc: 'Em cada subida: gasta 70% menos estamina extra da subida.',
       effect: { hillDrainMult: 0.3, blockScoped: true },
       rank5: { exitRestore: 0.03 }
     },
     'segundo-ar': {
       id: 'segundo-ar', name: 'Segundo Ar', element: 'geral', trigger: 'lowStamina',
+      resumo: 'Recupera o fôlego ao cansar',
       desc: 'Quando a estamina cai a 30%, recupera 10% e ganha +3% de velocidade por 8s.',
       effect: { staminaRestore: 0.1, speedMult: 1.03, durationS: 8 },
       rank5: { lowStaminaAt: 0.35 }
     },
     'arrancada-final': {
       id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'geral', trigger: 'final',
+      resumo: 'Garra mais forte no fim',
       desc: 'Na reta final: +2,8% de força na arrancada de Garra.',
       effect: { garraBoostBonus: 0.028 },
       rank5: { speedMult: 1.01, untilFinish: true }
     },
     'dado-viciado': {
       id: 'dado-viciado', name: 'Dado Viciado', element: 'geral', trigger: 'dice',
+      resumo: 'Dado extra no Dado da Sorte',
       desc: 'Antes do 1º Dado da Sorte: rola 1 dado extra, de 1 a 60, em todos os Dados da corrida.',
       effect: { extraDice: 1 },
       rank5: { extraDice: 2 }
@@ -218,12 +228,14 @@
     // --- Fogo ---
     'sol-a-pino': {
       id: 'sol-a-pino', name: 'Sol a Pino', element: 'fogo', trigger: 'weather:sol',
+      resumo: 'Fogo mais forte com sol',
       desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +7%.',
       effect: { weatherBonus: 0.04 },
       rank5: { weatherLingerS: 15 }
     },
     'chama-final': {
       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
+      resumo: 'Velocidade na reta final',
       desc: 'Na reta final: +4% de velocidade por 9,5s.',
       effect: { speedMult: 1.04, durationS: 9.5 },
       rank5: { durationS: 11 }
@@ -231,18 +243,21 @@
     // --- Água ---
     'pe-na-chuva': {
       id: 'pe-na-chuva', name: 'Pé na Chuva', element: 'agua', trigger: 'weather:chuva',
+      resumo: 'Água mais forte com chuva',
       desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +7%.',
       effect: { weatherBonus: 0.04 },
       rank5: { weatherLingerS: 15 }
     },
     'canto-da-iara': {
       id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
+      resumo: 'Velocidade e fôlego no fim',
       desc: 'Na reta final: +4% de velocidade e 20% menos gasto de estamina por 9s.',
       effect: { speedMult: 1.04, drainMult: 0.8, durationS: 9 },
       rank5: { staminaRestore: 0.05 }
     },
     'nascente': {
       id: 'nascente', name: 'Nascente', element: 'agua', trigger: 'straight',
+      resumo: 'Recupera fôlego nas retas',
       desc: 'Numa reta de 150 m ou mais (fora a da largada): recupera 4,5% de estamina.',
       effect: { staminaRestore: 0.045 },
       rank5: { speedMult: 1.03, durationS: 4 }
@@ -250,12 +265,14 @@
     // --- Grama ---
     'nevoa-amiga': {
       id: 'nevoa-amiga', name: 'Névoa Amiga', element: 'grama', trigger: 'weather:nevoa',
+      resumo: 'Grama mais forte com névoa',
       desc: 'Com névoa: o bônus do clima para a Grama sobe de +3% para +7%.',
       effect: { weatherBonus: 0.04 },
       rank5: { weatherLingerS: 15 }
     },
     'casco-firme': {
       id: 'casco-firme', name: 'Casco Firme', element: 'grama', trigger: 'hill',
+      resumo: 'Rende mais nas subidas',
       desc: 'Em cada subida: +1,2% de rendimento na subida.',
       effect: { hillBonus: 0.012, blockScoped: true },
       rank5: { hillDrainMult: 0.7 }

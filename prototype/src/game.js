@@ -1540,9 +1540,45 @@
   function skillHtml(id, tam, quando, rank, extra) {
     var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
     if (!sk) return '';
-    return '<div class="habilidade' + (rank >= GD.SKILL_RANKS.max ? ' habilidade--max' : '') + '"><b>' + skillIcone(id, tam) + esc(sk.name) + (rank ? rankMarcasHtml(rank) : '') + '</b>' +
-      '<span class="habilidade-efeito">' + esc(rank ? RS.skillDesc(id, rank) : sk.desc) + '</span>' +
-      (quando ? '<span class="habilidade-quando">' + esc(quando) + '</span>' : '') + (extra || '') + '</div>';
+    return '<div class="habilidade' + (rank >= GD.SKILL_RANKS.max ? ' habilidade--max' : '') + '">' +
+      skillDicaHtml(id, { tam: tam, rank: rank, quando: quando, extra: extra }) + '</div>';
+  }
+  // ---- Skill em resumo, texto completo sob demanda (ajustes 1, 2026-11-23): na tela ficam o ícone, o nome, o rank e o
+  // resumo curto (GameData.SKILLS[id].resumo, sem números); o texto completo (o efeito com os números do rank, quando ativa e
+  // o próximo rank) fica num balão ligado ao gatilho por aria-describedby. Com o mouse (só em aparelho com hover) ou com o
+  // foco do teclado ele aparece por cima, sem empurrar a tela; no toque (ou clique) o gatilho alterna aria-expanded e o
+  // texto abre embaixo do resumo, como as explicações "ⓘ" (alternaDica). O balão está sempre no DOM: o leitor de tela lê a
+  // descrição sem abrir nada.
+  // o: { tam (16/32), rank, quando, extra (HTML a mais no balão), cabeca (HTML do topo quando o nome não pode ser o
+  // gatilho, como na escolha do Cupom, onde o nome é o botão da ação: aí o gatilho é um "ⓘ" ao lado) }
+  var dicaSeq = 0;
+  function skillDicaHtml(id, o) {
+    var sk = hasOwn(GD.SKILLS, id) ? GD.SKILLS[id] : null;
+    if (!sk) return '';
+    o = o || {};
+    var rank = o.rank;
+    return dicaAreaHtml({
+      nome: sk.name, cabeca: o.cabeca,
+      gatilho: '<b>' + skillIcone(id, o.tam || 16) + esc(sk.name) + (rank ? rankMarcasHtml(rank) : '') + '</b>',
+      resumo: esc(sk.resumo || ''),
+      balao: '<span class="habilidade-efeito">' + esc(rank ? RS.skillDesc(id, rank) : sk.desc) + '</span>' +
+        (o.quando ? '<span class="habilidade-quando">' + esc(o.quando) + '</span>' : '') + (o.extra || '')
+    });
+  }
+  // o bloco genérico (skill de vaga, skill de tipo, Garra): o.gatilho (HTML do botão) ou o.cabeca (HTML do topo, com o "ⓘ"
+  // ao lado), o.nome (para o "Detalhes de …"), o.resumo e o.balao (HTML), o.resumoCls (classe a mais no resumo)
+  function dicaAreaHtml(o) {
+    var did = 'dica-' + (++dicaSeq);
+    var attrs = ' data-dica aria-expanded="false" aria-describedby="' + did + '"';
+    var topo = o.cabeca != null
+      ? '<span class="skill-dica-topo">' + o.cabeca + '<button type="button" class="ajuda skill-dica-btn skill-dica-btn--i"' + attrs + ' aria-label="' + esc('Detalhes de ' + o.nome) + '" title="' + esc(o.nome) + '"></button></span>'
+      : '<button type="button" class="ajuda skill-dica-btn"' + attrs + '>' + o.gatilho + '</button>';
+    return '<span class="skill-dica-area">' + topo + '<span class="habilidade-resumo' + (o.resumoCls ? ' ' + o.resumoCls : '') + '">' + o.resumo + '</span>' +
+      '<span class="skill-dica" id="' + did + '" role="tooltip">' + o.balao + '</span></span>';
+  }
+  // o toque (ou clique, ou Enter/Espaço) no gatilho: abre ou fecha o texto completo embaixo do resumo, sem re-renderizar
+  function alternaDica(btn) {
+    btn.setAttribute('aria-expanded', btn.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');
   }
   // as 5 marcas do rank (cheias até o rank) e o algarismo romano; o leitor de tela lê "Rank III de V"
   var ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V'];   // o rank das skills na tela (1 a 5)
@@ -1606,8 +1642,12 @@
       linhas.push('Com a ' + GD.SKILLS['arrancada-final'].name + ': ' + vz(gb.boost) + ' em média.');
     }
     linhas.push('Mais Garra: começa antes e empurra mais.');
-    return '<div class="habilidade habilidade--garra"><b>' + iconeHtml('st-garra', '', 32) + 'Garra ' + st.garra + ' · todo cavalo tem</b>' +
-      linhas.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + '</div>';
+    // ajustes 1: o resumo à vista (onde a arrancada começa) e as linhas completas no balão
+    return '<div class="habilidade habilidade--garra">' + dicaAreaHtml({
+      nome: 'Garra', gatilho: '<b>' + iconeHtml('st-garra', '', 32) + 'Garra ' + st.garra + ' · todo cavalo tem</b>',
+      resumo: esc('Arrancada final aos ' + pctTxt(g.from) + ' da pista'),
+      balao: linhas.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('')
+    }) + '</div>';
   }
   // Skill de tipo: vaga própria, sempre ativa, num terço da pista; o efeito já multiplicado pela força P
   // (RaceSim.typeSkill), os mesmos números que a simulação usa.
@@ -1648,11 +1688,14 @@
     if (!ts) return '';
     var el = elementOf(horse.element), def = GD.TYPE_SKILLS[horse.element];
     var pontos = efeitoTipoPontosTxt(horse, ts);
+    // ajustes 1: o nome e o efeito em pontos (o resumo) à vista; a descrição e a intensidade no balão
+    var forca = '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',')) + '</span>';
     return '<div class="vaga-tipo vaga-tipo--' + esc(el.id) + '"><span class="vaga-tipo-rotulo">Skill de tipo · sempre ativa' + ajudaBtn('skillTipo', 'a skill de tipo') + '</span>' +
-      '<b>' + skillIcone(ts.id, 32) + esc(ts.name) + '</b>' +
-      (pontos ? '<span class="vaga-tipo-pontos">' + esc(pontos) + '</span>' + '<span>' + esc(def.desc) + '</span>'
-        : '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts, horse.element) + '.') + '</span>') +
-      '<span class="vaga-tipo-forca">' + esc('Intensidade ×' + ts.power.toFixed(2).replace('.', ',')) + '</span></div>';
+      dicaAreaHtml({
+        nome: ts.name, gatilho: '<b>' + skillIcone(ts.id, 32) + esc(ts.name) + '</b>',
+        resumo: esc(pontos || ('Age no ' + tercoTxt(ts) + ' da pista')), resumoCls: pontos ? 'vaga-tipo-pontos' : '',
+        balao: (pontos ? '<span>' + esc(def.desc) + '</span>' : '<span>' + esc('Age no ' + tercoTxt(ts) + ' da pista: ' + efeitoTipoTxt(ts, horse.element) + '.') + '</span>') + forca
+      }) + '</div>';
   }
   function silkClass(r) { return r.isPlayer ? 'seda-voce' : 'seda-' + r.silkIdx; }
   function laneChip(r, i, extra) {
@@ -5523,7 +5566,10 @@
       if (m) {
         corpo = '<p>' + esc('Qual skill sai das vagas de ' + m.name + '? Entra outra, sorteada entre as que ele pode aprender.') + '</p>' +
           '<div class="opcoes item-skills">' + m.skills.filter(function (s) { return hasOwn(GD.SKILLS, s); }).map(function (s) {
-            return '<button type="button" class="btn item-skill" data-acao="item-skill" data-id="' + esc(s) + '"' + indisponivel(motS) + '>' + skillIcone(s, 16) + esc(skillNome(s)) + '</button>';
+            // ajustes 1: o nome e o rank no botão da escolha; o resumo embaixo e o texto completo no "ⓘ" ao lado
+            var rk = RS.rankOf(m, s);
+            return '<div class="item-skill-opcao">' + skillDicaHtml(s, { rank: rk, cabeca: '<button type="button" class="btn item-skill" data-acao="item-skill" data-id="' + esc(s) + '"' + indisponivel(motS) + '>' +
+              skillIcone(s, 16) + '<span class="item-skill-nome">' + esc(skillNome(s)) + '</span>' + rankMarcasHtml(rk) + '</button>' }) + '</div>';
           }).join('') + '</div>';
       }
       if (motS) corpo += '<p class="nota">' + esc(motS) + '</p>';
@@ -7285,8 +7331,12 @@
         (corpoNivel ? '<div class="ganhos">' + corpoNivel + '</div>' : '') + '</div>';
     }
     if (R.learned && R.learned.length) {
+      // ajustes 1: o nome, o rank (I) e o resumo de cada skill nova; o texto completo no balão
       var skNames = R.learned.map(function (id) { return GD.SKILLS[id] ? GD.SKILLS[id].name : id; }).join(', ');
-      lvl += '<div class="levelup" role="status"><b>' + esc('Nova skill: ' + skNames + '!') + '</b></div>';
+      lvl += '<div class="levelup" role="status"><b>' + esc('Nova skill: ' + skNames + '!') + '</b>' +
+        R.learned.filter(function (id) { return hasOwn(GD.SKILLS, id); }).map(function (id) {
+          return '<div class="habilidade habilidade--nova">' + skillDicaHtml(id, { tam: 16, rank: 1 }) + '</div>';
+        }).join('') + '</div>';
     }
     // momentos da corrida (spec §10): skills, garra, cansaço, Dados da Sorte e viradas de clima,
     // de todos os corredores; sem ultrapassagens/chegadas/narração (a tabela já conta isso)
@@ -7379,6 +7429,8 @@
     }
     if (diaVirou()) { redesenhaDia(); return; }   // o dia virou desde o último desenho: a tela nova, e este toque não vale
     tiraMotivo(e.target);   // qualquer toque tira a linha do motivo (também o do ⓘ, que abre a ajuda); nunca há duas na tela
+    var dc = e.target.closest ? e.target.closest('[data-dica]') : null;
+    if (dc) { alternaDica(dc); return; }   // skill em resumo: abre/fecha o texto completo, sem acionar o cartão em volta
     var aj = e.target.closest ? e.target.closest('[data-ajuda]') : null;
     if (aj) { alternaAjuda(aj); return; }   // "ⓘ" (ou o nome do status): abre/fecha o texto, sem re-renderizar nem acionar o cartão em volta
     var b = e.target.closest ? e.target.closest('[data-acao]') : null;
@@ -8314,6 +8366,17 @@
     ui.montaria.renomear = null;
     rerenderKeepScroll(); focusAction('renomear', ui.montaria.uid);
   }
+  // Esc no gatilho de uma skill em resumo: fecha o texto aberto e esconde o balão do foco/mouse até o gatilho perder o foco
+  // ou o mouse (o balão some sem mover o foco, WCAG 1.4.13)
+  telaEl.addEventListener('keydown', function (e) {
+    if (!e.target || !e.target.hasAttribute || !e.target.hasAttribute('data-dica') || (e.key !== 'Escape' && e.key !== 'Esc')) return;
+    e.preventDefault(); e.stopPropagation();
+    e.target.setAttribute('aria-expanded', 'false');
+    e.target.classList.add('dica-esc');
+  });
+  function tiraDicaEsc(e) { if (e.target && e.target.classList && e.target.hasAttribute('data-dica')) e.target.classList.remove('dica-esc'); }
+  telaEl.addEventListener('focusout', tiraDicaEsc);
+  telaEl.addEventListener('mouseout', tiraDicaEsc);
   telaEl.addEventListener('keydown', function (e) {
     if (saveBloqueado || !e.target || e.target.id !== 'renomear-campo') return;
     if (e.key === 'Enter') { e.preventDefault(); renomearConfirma(); }

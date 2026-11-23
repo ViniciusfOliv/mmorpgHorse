@@ -45,7 +45,7 @@ const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adultera
   'corrida-lugar-dado-redimensiona', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
   'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
   'resultado', 'build', 'valor-peca', 'nivel-pontos', 'selo-teto', 'build-nivel1', 'selo', 'vaga-tipo', 'inicial', 'aura',
-  'skills', 'skills-aba', 'ranks', 'icones', 'marcas', 'marcas-corrida', 'portes', 'portes-corrida', 'ajuda', 'acabamento', 'celular', 'crescimento',
+  'skills', 'skills-aba', 'skills-resumo', 'ranks', 'icones', 'marcas', 'marcas-corrida', 'portes', 'portes-corrida', 'ajuda', 'acabamento', 'celular', 'crescimento',
   'crescimento-jogo',
   'fluxo', 'fluxo-saves', 'fluxo-cruzamento', 'fluxo-abas', 'fluxo-equipamento', 'fluxo-dev', 'fluxo-build-teste', 'fluxo-dado',
   'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'fluxo-capturas-ginasio', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
@@ -3784,6 +3784,14 @@ try {
         if (!treino && !(base >= 34)) problems.push(`${label}: o teste precisa de um prêmio base de 34 ou mais (veio ${base} no ${lugar}º); troque GIN_SEED`)
         if (nome === 'nenhuma' && ap.learned.length !== 0) problems.push(`${label}: sem insígnia a skill do nível 11 não deveria sair com GIN_SEED`)
         if (nome === 'grama' && ap.learned.length !== 1) problems.push(`${label}: com a insígnia de Grama a skill do nível 11 deveria sair com GIN_SEED`)
+        // ajustes 1: a skill nova aparece no resultado com o nome, o rank I e o resumo; o texto completo fechado no balão
+        if (ap.learned.length) {
+          const nv = await pg.evaluate(() => Array.from(document.querySelectorAll('.levelup .habilidade--nova')).map((h) => ({
+            txt: h.querySelector('.skill-dica-area > button').innerText.replace(/\s+/g, ' ').trim(), resumo: h.querySelector('.habilidade-resumo').textContent,
+            aberto: getComputedStyle(h.querySelector('.skill-dica')).display !== 'none', desc: h.querySelector('.skill-dica').textContent })))
+          const esp = ap.learned.map((id) => ({ txt: G.SKILLS[id].name + ' I', resumo: G.SKILLS[id].resumo, aberto: false, desc: S.skillDesc(id, 1) }))
+          if (JSON.stringify(nv) !== JSON.stringify(esp)) problems.push(`${label}: a skill nova no resultado ${JSON.stringify(nv)} (esperado ${JSON.stringify(esp)})`)
+        }
         // o resultado mostra o prêmio pago (no balanço e na linha do jogador)
         const celula = treino ? '+' + premio : premio ? Math.round(premio).toLocaleString('pt-BR') : '—'
         if (premio && (!balanco.includes('+' + premio) || voce !== celula)) problems.push(`${label}: o resultado não mostra o prêmio pago ${premio}: ${JSON.stringify({ balanco, voce, celula })}`)
@@ -7088,7 +7096,13 @@ try {
         notaDado: Array.from(document.querySelectorAll('[aria-labelledby="t-chegada"] .nota')).map(limpa).join(' | '),
         notaVazia: Array.from(document.querySelectorAll('#tela .nota')).map(limpa).filter((t) => /Nenhum momento/.test(t)),
         foco: document.activeElement ? (document.activeElement.dataset.acao || '') + ':' + (document.activeElement.dataset.id || '') : null,
-        skillNomes: R.learned.map((id) => (window.GameData.SKILLS[id] ? window.GameData.SKILLS[id].name : id))
+        skillNomes: R.learned.map((id) => (window.GameData.SKILLS[id] ? window.GameData.SKILLS[id].name : id)),
+        // ajustes 1: cada skill nova com o nome, o rank e o resumo à vista e o texto completo no balão (fechado)
+        novas: Array.from(document.querySelectorAll('.levelup .habilidade--nova')).map((h) => {
+          const g = h.querySelector('[data-dica]'), b = h.querySelector('.skill-dica')
+          return { txt: h.querySelector('.skill-dica-area > button').innerText.replace(/\s+/g, ' ').trim(), resumo: limpa(h.querySelector('.habilidade-resumo')), aberto: getComputedStyle(b).display !== 'none',
+            liga: !!g && g.getAttribute('aria-describedby') === b.id && b.getAttribute('role') === 'tooltip', desc: limpa(b) }
+        })
       }
     })
     // manchete, frase, entrada, prêmio, resultado, saldo e XP com os valores do ui.result
@@ -7111,6 +7125,8 @@ try {
       const sobe = r.R.levels > 0 ? [`Subiu para o nível ${r.R.nivel}!`] : []
       if (r.R.learned.length) sobe.push(`Nova skill: ${r.skillNomes.join(', ')}!`)
       if (r.levelup.length !== sobe.length || sobe.some((s, i) => !r.levelup[i].startsWith(s))) ruim(`avisos de nível/skill ${JSON.stringify(r.levelup)} (esperado ${JSON.stringify(sobe)})`)
+      const novasEsp = r.R.learned.map((id) => ({ txt: G.SKILLS[id].name + ' I', resumo: G.SKILLS[id].resumo, aberto: false, liga: true, desc: S.skillDesc(id, 1) }))
+      if (JSON.stringify(r.novas) !== JSON.stringify(novasEsp)) ruim(`skills novas em resumo ${JSON.stringify(r.novas)} (esperado ${JSON.stringify(novasEsp)})`)
     }
     // aba Chegada aberta: a tabela com os dados de hoje, em 2 linhas de texto na célula do cavalo, e a nota do Dado
     const confereChegada = (r, label) => {
@@ -8253,6 +8269,131 @@ try {
   // Pergaminho, Ouro reservado para a entrada da sala aberta, cavalo ativo com o páreo aberto); o Cupom avisa o rank que
   // se perde; o save v8 vira v9 com tudo no rank 1 e o rank adulterado é saneado; na corrida o balão traz o rank em romano
   // (dourado no V); o seletor da gaveta DEV só mexe no save de teste.
+  // ---------------- skills em resumo, texto completo sob demanda (ajustes 1, 2026-11-23) ----------------
+  // Na aba Skills (vagas, skill de tipo e Garra) e na escolha do Cupom ficam à vista o nome, o rank e o resumo
+  // (GameData.SKILLS[id].resumo); o texto completo (RaceSim.skillDesc do rank, quando ativa, o próximo rank) fica num balão
+  // ligado ao gatilho por aria-describedby, escondido até: o toque (celular: abre embaixo, aria-expanded), o mouse
+  // (computador: por cima, sem mexer no resto) ou o foco do teclado (por cima; Esc fecha).
+  if (quer('skills-resumo')) {
+    const label = 'skills-resumo'
+    const ler = (pg) => pg.evaluate(() => {
+      const r = (e) => e.getBoundingClientRect()
+      const vis = (e) => !!e && getComputedStyle(e).display !== 'none' && r(e).height > 0
+      return Array.from(document.querySelectorAll('#tela .skill-dica-area')).map((a) => {
+        const g = a.querySelector('[data-dica]'), b = a.querySelector('.skill-dica'), id = g && g.getAttribute('aria-describedby')
+        const dono = a.closest('.skill-rank, .vaga-tipo, .habilidade--garra, .item-skill-opcao')
+        const acoes = dono && dono.querySelector('.rank-acoes')
+        return {
+          skill: dono ? dono.getAttribute('data-skill') || (dono.querySelector('[data-acao="item-skill"]') || {}).dataset?.id || dono.className.split(' ')[0] : null,
+          visivel: (a.innerText || '').replace(/\s+/g, ' ').trim(), resumo: (a.querySelector('.habilidade-resumo') || {}).textContent || '',
+          desc: id && document.getElementById(id) === b ? b.textContent.replace(/\s+/g, ' ').trim() : null, role: b && b.getAttribute('role'),
+          aberto: vis(b), pos: b ? getComputedStyle(b).position : null, exp: g && g.getAttribute('aria-expanded'), tag: g && g.tagName,
+          acoesTop: acoes ? Math.round(r(acoes).top + window.scrollY) : null, gatilho: g ? (g.getAttribute('aria-label') || g.innerText.replace(/\s+/g, ' ').trim()) : ''
+        }
+      })
+    })
+    const tira = (t) => t.replace(/\s+/g, ' ').trim()
+    const confereFechado = (lista, onde, ids) => {
+      for (const id of ids) {
+        const a = lista.find((x) => x.skill === id)
+        if (!a) { problems.push(`[${label}] ${onde}: sem o bloco da skill ${id}`); continue }
+        const sk = G.SKILLS[id]
+        if (a.resumo !== sk.resumo || !a.visivel.includes(sk.name) || !a.visivel.includes(sk.resumo)) problems.push(`[${label}] ${onde} ${id}: à vista sem o nome e o resumo ${JSON.stringify(a)}`)
+        if (a.aberto || a.visivel.includes(tira(S.skillDesc(id, 1)).slice(0, 20))) problems.push(`[${label}] ${onde} ${id}: o texto completo à vista sem pedir ${JSON.stringify(a)}`)
+        if (!a.desc || a.role !== 'tooltip' || a.exp !== 'false' || a.tag !== 'BUTTON') problems.push(`[${label}] ${onde} ${id}: o balão não está ligado ao gatilho (aria-describedby, role, aria-expanded) ${JSON.stringify(a)}`)
+      }
+    }
+    const SKS = ['arranque', 'sprint', 'arrancada-final']
+    const prepara = async (pg) => {
+      await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await pg.waitForSelector('#t-estabulo')
+      await montaSave(pg, (raw) => {
+        raw.gold = 99999
+        raw.mounts[0].rarity = 'raro'; raw.mounts[0].skills = SKS.slice(); raw.mounts[0].skillRanks = { arranque: 3, sprint: 1, 'arrancada-final': 5 }
+        raw.mochila = Object.assign(raw.mochila || {}, { cupom: 1 })
+      })
+      await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await pg.waitForSelector('#t-montaria')
+      await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+      await pg.waitForSelector('#tela .skill-rank')
+    }
+    // celular: toque abre embaixo (as ações descem), outro toque fecha
+    const cel = await newPage(browser, { width: 360, height: 780 }, label + '-360', { hasTouch: true, isMobile: true })
+    try {
+      await prepara(cel)
+      const l0 = await ler(cel)
+      confereFechado(l0, 'aba Skills 360', SKS)
+      const ranks = await cel.evaluate(() => Array.from(document.querySelectorAll('#tela .skill-rank')).map((e) => e.getAttribute('data-skill') + ':' + (e.querySelector('.skill-dica-area .rank-marcas') || {}).getAttribute?.('aria-label')))
+      if (ranks.join() !== 'arranque:Rank III de V,sprint:Rank I de V,arrancada-final:Rank V de V') problems.push(`[${label}] o rank à vista no gatilho: ${ranks.join()}`)
+      for (const k of ['vaga-tipo', 'habilidade']) {
+        const a = l0.find((x) => x.skill === k)
+        if (!a || a.aberto || !a.resumo || !a.desc || a.exp !== 'false') problems.push(`[${label}] ${k === 'vaga-tipo' ? 'skill de tipo' : 'Garra'}: resumo à vista e o resto no balão ${JSON.stringify(a)}`)
+      }
+      const a0 = l0.find((x) => x.skill === 'arranque')
+      if (a0 && !a0.desc.includes(tira(S.skillDesc('arranque', 3)))) problems.push(`[${label}] o balão do Arranque sem o texto do rank III: ${a0.desc}`)
+      if (a0 && !a0.desc.includes('Ativa sempre: na largada')) problems.push(`[${label}] o balão do Arranque sem o "quando": ${a0.desc}`)
+      await cel.locator('.skill-rank[data-skill="arranque"] [data-dica]').tap()
+      const l1 = await ler(cel), a1 = l1.find((x) => x.skill === 'arranque'), s1 = l1.find((x) => x.skill === 'sprint')
+      if (!a1.aberto || a1.exp !== 'true' || a1.pos !== 'static' || !(a1.acoesTop > a0.acoesTop + 20)) problems.push(`[${label}] o toque não abriu o texto embaixo do resumo ${JSON.stringify({ antes: a0.acoesTop, a1 })}`)
+      if (s1.aberto) problems.push(`[${label}] o toque no Arranque abriu também o Sprint`)
+      if ((await cel.evaluate(() => window.__galope.ui.screen)) !== 'montaria') problems.push(`[${label}] o toque no gatilho mudou de tela`)
+      await checkOverflow(cel, label + ' aberto')
+      await cel.locator('.skill-rank[data-skill="arranque"] [data-dica]').tap()
+      const a2 = (await ler(cel)).find((x) => x.skill === 'arranque')
+      if (a2.aberto || a2.exp !== 'false') problems.push(`[${label}] o 2º toque não fechou ${JSON.stringify(a2)}`)
+      // a escolha do Cupom (pela Mochila): o botão da ação com o nome e o rank, o resumo embaixo e o "ⓘ" com o texto completo
+      await cel.locator('[data-acao="aba"][data-id="loja"]').click()
+      await cel.waitForSelector('#t-loja')
+      await cel.locator('#tela [data-acao="loja-parte"][data-id="mochila"]').click()
+      await cel.locator('#tela .item-linha--mochila[data-item="cupom"] [data-acao="item-usar"]').click()
+      await cel.locator('#tela .item-escolha [data-acao="item-cavalo"][data-id="m1"]').click()
+      await cel.waitForSelector('#tela [data-acao="item-skill"]')
+      const c0 = await ler(cel)
+      confereFechado(c0, 'Cupom', SKS)
+      const botoes = await cel.locator('#tela [data-acao="item-skill"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id') + ':' + b.innerText.replace(/\s+/g, ' ').trim() + ':' + (b.querySelector('.rank-marcas') || {}).getAttribute?.('aria-label')))
+      const espB = SKS.map((id, i) => id + ':' + G.SKILLS[id].name + ' ' + ['III', 'I', 'V'][i] + ':Rank ' + ['III', 'I', 'V'][i] + ' de V')
+      if (botoes.join('|') !== espB.join('|')) problems.push(`[${label}] Cupom: os botões da escolha ${JSON.stringify(botoes)} (esperado ${JSON.stringify(espB)})`)
+      const gi = c0.find((x) => x.skill === 'sprint')
+      if (!gi || gi.gatilho !== 'Detalhes de ' + G.SKILLS.sprint.name) problems.push(`[${label}] Cupom: o "ⓘ" do Sprint ${JSON.stringify(gi)}`)
+      await cel.locator('.item-skill-opcao:has([data-id="sprint"]) [data-dica]').tap()
+      const c1 = (await ler(cel)).find((x) => x.skill === 'sprint')
+      notes[label + '-360'] = { aba: l0.map((x) => x.skill + (x.aberto ? '+' : '-')).join(','), cupom: botoes, tocado: { antes: a0.acoesTop, depois: a1.acoesTop } }
+      if (!c1.aberto || c1.exp !== 'true' || (await cel.evaluate(() => JSON.stringify(window.__galope.ui.item))).includes('"passo":"confirma"')) problems.push(`[${label}] Cupom: o "ⓘ" não abriu o texto (ou escolheu a skill) ${JSON.stringify(c1)}`)
+      await checkOverflow(cel, label + ' cupom')
+      await cel.context().close()
+    } catch (e) { problems.push(`[${label}] celular: ${e.message}`); await cel.context().close().catch(() => {}) }
+    // computador: o mouse mostra por cima, sem mexer nas ações; o foco do teclado também; Esc fecha
+    const pc = await newPage(browser, { width: 1280, height: 800 }, label + '-1280')
+    try {
+      await prepara(pc)
+      const l0 = await ler(pc), a0 = l0.find((x) => x.skill === 'sprint')
+      confereFechado(l0, 'aba Skills 1280', SKS)
+      await pc.locator('.skill-rank[data-skill="sprint"] [data-dica]').hover()
+      const l1 = await ler(pc), a1 = l1.find((x) => x.skill === 'sprint')
+      if (!a1.aberto || a1.pos !== 'absolute' || a1.acoesTop !== a0.acoesTop || a1.exp !== 'false') problems.push(`[${label}] o mouse não mostrou o balão por cima ${JSON.stringify({ antes: a0.acoesTop, a1 })}`)
+      await pc.mouse.move(5, 5)
+      if ((await ler(pc)).find((x) => x.skill === 'sprint').aberto) problems.push(`[${label}] o balão ficou aberto com o mouse fora`)
+      // teclado: Tab até o gatilho do Sprint
+      await pc.locator('.skill-rank[data-skill="arranque"] [data-dica]').focus()
+      await pc.keyboard.press('Shift+Tab'); await pc.keyboard.press('Tab')
+      let ok = false
+      for (let i = 0; i < 12 && !ok; i++) {
+        await pc.keyboard.press('Tab')
+        ok = await pc.evaluate(() => { const a = document.activeElement; return !!a && a.hasAttribute('data-dica') && !!a.closest('.skill-rank[data-skill="sprint"]') })
+      }
+      const k1 = (await ler(pc)).find((x) => x.skill === 'sprint')
+      if (!ok || !k1.aberto || k1.pos !== 'absolute') problems.push(`[${label}] o foco do teclado não mostrou o balão ${JSON.stringify({ ok, k1 })}`)
+      await pc.keyboard.press('Escape')
+      const k2 = (await ler(pc)).find((x) => x.skill === 'sprint')
+      if (k2.aberto) problems.push(`[${label}] o Esc não escondeu o balão do foco`)
+      notes[label + '-1280'] = { mouse: a1.pos, teclado: k1.pos, esc: !k2.aberto }
+      await pc.keyboard.press('Enter')
+      const k3 = (await ler(pc)).find((x) => x.skill === 'sprint')
+      if (!k3.aberto || k3.exp !== 'true') problems.push(`[${label}] o Enter no gatilho não abriu o texto ${JSON.stringify(k3)}`)
+      await pc.context().close()
+    } catch (e) { problems.push(`[${label}] computador: ${e.message}`); await pc.context().close().catch(() => {}) }
+  }
+
   if (quer('ranks')) {
     const REAL = 'galope-elemental:v1', DEVK = 'galope-elemental:dev'
     const VP = { width: 360, height: 780 }
