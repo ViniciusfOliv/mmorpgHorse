@@ -42,7 +42,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
   'corrompido', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto',
   'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
-  'corrida-lugar-dado-redimensiona', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
+  'corrida-lugar-dado-redimensiona', 'corrida-camera', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
   'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
   'resultado', 'build', 'valor-peca', 'nivel-pontos', 'selo-teto', 'build-nivel1', 'selo', 'vaga-tipo', 'inicial', 'aura',
   'skills', 'skills-aba', 'skills-resumo', 'ranks', 'icones', 'marcas', 'marcas-corrida', 'portes', 'portes-corrida', 'ajuda', 'acabamento', 'celular', 'crescimento',
@@ -6872,6 +6872,88 @@ try {
         problems.push(`[${label}] ` + e.message)
       } finally {
         await pg.context().close()
+      }
+    }
+    // câmera centrada no jogador (ajustes 1, 2026-11-23): perto com o grupo junto, afasta para caber um rival a até
+    // RaceFx.CAMERA.limite metros (à frente ou atrás), aproxima de novo quando ele passa do limite (aí ele fica pela seta
+    // com os metros); a escala muda suave (no máximo 8% por quadro a 60 q/s) e o jogador fica no meio. O teste move um
+    // rival nos quadros da simulação (só o desenho os lê; os outros ficam 100 m atrás) e desenha à mão, a 60 q/s, quatro
+    // fases: junto, 20 m à frente, 18 m atrás e 60 m à frente
+    if (quer('corrida-camera')) {
+      const label = 'corrida-camera'
+      for (const vp of [{ width: 360, height: 780 }, { width: 1280, height: 800 }]) {
+        const tag = label + '-' + vp.width
+        const pg = await newPage(browser, vp, tag, { query: '?dev=1' })
+        try {
+          await abreCorrida(pg, tag, SEED7)
+          await pg.waitForFunction(() => window.__galope.race && window.__galope.race._state.phase === 'corrida', null, { timeout: 20000 })
+          const r = await pg.evaluate(() => {
+            const rv = window.__galope.race, s = rv._state, L = window.__galope.ui.lobby, FX = window.RaceFx, desenha = rv.frame
+            rv.frame = function () {}
+            const me = L.playerIdx, rival = me === 0 ? 1 : 0, T0 = L.sim.finishTimes[me] * 0.25
+            const fases = [{ nome: 'junto', d: 0, de: 0, ate: 3 }, { nome: 'frente', d: 20, de: 3, ate: 7 }, { nome: 'atras', d: -18, de: 7, ate: 10 }, { nome: 'longe', d: 60, de: 10, ate: 13 }]
+            const faseEm = (t) => fases.find((f) => t >= T0 + f.de && t < T0 + f.ate)
+            L.sim.frames.forEach((f) => {
+              const fa = faseEm(f.t)
+              if (!fa) return
+              for (let j = 0; j < L.n; j++) if (j !== me) f.pos[j] = f.pos[me] + (j === rival ? fa.d : -100 - j * 3)
+            })
+            const W = s.W, out = { quadros: 0, fases: {}, pior: 0, ppmMin: 99, ppmMax: 0, centro: 0, ms: [] }
+            fases.forEach((f) => { out.fases[f.nome] = { ppmFim: null, alvo: FX.camZoomAlvo([0, f.d], 0, W), visivel: 0, seta: 0, metros: null, quadros: 0 } })
+            let ts = performance.now(), ant = null
+            s.last = ts
+            for (let T = T0; T < T0 + 13; T += 1 / 60) {
+              ts += 1000 / 60
+              s.phase = 'corrida'; s.simT = T; s.mult = 1; s.flash = 0
+              const t0 = performance.now()
+              desenha(ts)
+              out.ms.push(performance.now() - t0)
+              // a fase pelo simT desenhado (o quadro anda um pouco além do T pedido); fora da janela, nada a conferir
+              const tS = s.simT, fa = faseEm(tS), z = s.ppmArt
+              if (ant) out.pior = Math.max(out.pior, Math.abs(Math.log(z / ant)))
+              ant = z; out.ppmMin = Math.min(out.ppmMin, z); out.ppmMax = Math.max(out.ppmMax, z)
+              if (!fa) continue
+              const o = out.fases[fa.nome], cav = FX._stats.caixasCavalos, eu = cav.find((c) => c.racer === me)
+              out.quadros++
+              if (eu && !s.finishCam) out.centro = Math.max(out.centro, Math.abs(eu.x + eu.w / 2 - W / 2))
+              // de 1,2 s depois do começo da fase (o tempo de a câmera chegar) até 0,2 s antes do fim (o quadro da simulação
+              // seguinte já pode ser o da outra fase), o que tem de valer
+              if (tS >= T0 + fa.de + 1.2 && tS < T0 + fa.ate - 0.2) {
+                const c = cav.find((x) => x.racer === rival), e = FX._stats.caixasEtiquetas.find((x) => x.racer === rival)
+                o.quadros++
+                if (c && c.x >= 0 && c.x + c.w <= W) o.visivel++
+                if (e) { o.seta++; o.metros = e.metros }
+                o.ppmFim = z
+              }
+            }
+            rv.frame = desenha
+            out.ms.sort((a, b) => a - b)
+            out.msMedia = +(out.ms.reduce((a, b) => a + b, 0) / out.ms.length).toFixed(2)
+            out.ms95 = +out.ms[Math.floor(out.ms.length * 0.95)].toFixed(2)
+            delete out.ms
+            out.W = W; out.piso = FX.CAMERA.piso; out.limite = FX.CAMERA.limite
+            return out
+          })
+          notes[tag] = r
+          const ruim = (m) => problems.push(`[${tag}] ${m} ${JSON.stringify(r.fases)}`)
+          const F = r.fases
+          if (r.quadros < 700 || Object.values(F).some((f) => f.quadros < 60)) ruim('poucos quadros desenhados')
+          if (F.junto.ppmFim < 11.5) ruim('com o grupo junto a câmera não ficou perto (12 px/m)')
+          for (const k of ['frente', 'atras']) {
+            if (!(F[k].alvo < 11 && Math.abs(F[k].ppmFim - F[k].alvo) < 0.01)) ruim(`rival ${k === 'frente' ? '20 m à frente' : '18 m atrás'}: a câmera não afastou até o alvo`)
+            if (!F[k].quadros || F[k].visivel !== F[k].quadros) ruim(`rival ${k}: fora da tela em parte dos quadros (${F[k].visivel} de ${F[k].quadros})`)
+            if (F[k].seta) ruim(`rival ${k}: com seta de fora da tela estando a menos do limite`)
+          }
+          if (F.longe.ppmFim < 11.5) ruim('rival além do limite: a câmera não voltou para perto')
+          if (!F.longe.seta || !/^\+60 m$/.test(F.longe.metros || '')) ruim('rival além do limite sem a seta "+60 m"')
+          if (r.pior > Math.log(1.08)) ruim(`a escala saltou ${(Math.exp(r.pior) * 100 - 100).toFixed(1)}% num quadro (máximo 8%)`)
+          if (r.ppmMin < r.piso || r.ppmMax > 12) ruim('a escala saiu do piso..12')
+          if (r.centro > 14) ruim(`o jogador saiu do meio da tela (${r.centro.toFixed(1)} px de arte)`)
+        } catch (e) {
+          problems.push(`[${tag}] ` + e.message)
+        } finally {
+          await pg.context().close()
+        }
       }
     }
     // a faixa do Dado em cima não cobre as etiquetas de quem está fora da tela. No Dado o pelotão anda junto (ninguém fica

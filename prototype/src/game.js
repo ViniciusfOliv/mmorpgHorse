@@ -94,9 +94,9 @@
   var TELA_S_MIN = 30, TELA_S_MAX = 51;
   // câmera da corrida e cadência do galope (guia §8a, etapa 2.4 da direção de arte): 12 px de arte por metro (o chão a
   // 16 m/s passa a ~190 px/s) e 14 quadros por segundo no ciclo de 6 do código = 21 no ciclo de 9 do molde, a 17 m/s
-  // câmera da corrida: de PPM_MIN a PPM_ARTE pixels de arte por metro (refino de 2026-11-23: a câmera enquadra o jogador e
-  // os rivais a até CAM_GRUPO_M dele; o 12 fixo deixava a disputa fora da tela)
-  var PPM_ARTE = 12, PPM_MIN = 4, CAM_GRUPO_M = 45, GALOPE_QPS = 14;
+  // câmera da corrida: PPM_ARTE pixels de arte por metro de perto; afasta para caber os rivais (RaceFx.CAMERA: centrada no
+  // jogador, até RaceFx.CAMERA.limite metros; ajustes 1, 2026-11-23)
+  var PPM_ARTE = 12, GALOPE_QPS = 14;
   var PLAYER_SILKS = '#f2c230';
   var BOT_SILKS = SP.SILKS.filter(function (c) { return c.toLowerCase() !== PLAYER_SILKS; });
   var PORTRAIT_SCALE = 3;        // escala dos retratos (portraitHtml sem opts.tamanho)
@@ -6681,32 +6681,21 @@
       FX.drawMiniMap(ctx, mapa, st.pos, silksCores, me, { x: mc.x, y: mc.y, w: mc.w, h: mc.h, P: self.S, piso: pisoCor });
     }
 
-    // câmera que enquadra a disputa (refino de 2026-11-23, escolha do Vinicius): o jogador e os rivais a até CAM_GRUPO_M
-    // metros dele cabem na tela, com a escala entre PPM_MIN e PPM_ARTE px de arte por metro (os cavalos continuam 1:1; só
-    // as distâncias encolhem). A escala e o deslocamento em relação ao jogador andam suaves (meia-vida ~0,3 s), para a
-    // câmera não pular quando alguém entra ou sai do grupo. Só apresentação: nada aqui volta para a simulação.
-    // Devolve a câmera (metro da borda esquerda) e grava self.ppmArt.
+    // câmera centrada no jogador (ajustes 1, 2026-11-23, pedido do Vinicius; era o meio do grupo): perto (12 px de arte
+    // por metro) e afastando para caber os rivais a até RaceFx.CAMERA.limite metros dele, à frente ou atrás; quem passa
+    // do limite fica pela seta da borda. A escala anda suave (RaceFx.camSuaviza: afasta em ~0,2 s, aproxima em ~0,6 s), e
+    // o deslocamento sai da escala (o jogador fica no meio), então nada pula. Os cavalos e o cenário continuam 1:1 na grade
+    // de arte (o buffer na escala inteira do guia §2): só os metros por pixel mudam. Só apresentação: nada aqui volta para a
+    // simulação. Devolve a câmera (metro da borda esquerda) e grava self.ppmArt.
     function enquadra(st, p, Wa) {
-      var lo = p, hi = p;
-      for (var j = 0; j < n; j++) {
-        if (j === me || Math.abs(st.pos[j] - p) > CAM_GRUPO_M) continue;
-        lo = Math.min(lo, st.pos[j]); hi = Math.max(hi, st.pos[j]);
-      }
-      // o grupo inteiro (focinhos de lo a hi, e o corpo e a cauda de ~50 px atrás de cada um) com folga dos lados
-      var alvo = clamp((Wa - 80) / Math.max(0.01, hi - lo), PPM_MIN, PPM_ARTE);
-      var agora = self.tReal, dtc = self.camT == null ? 1 : clamp(agora - self.camT, 0, 0.25);
+      var alvo = FX.camZoomAlvo(st.pos, me, Wa);
+      var agora = self.tReal, dtc = self.camT == null ? 0 : clamp(agora - self.camT, 0, 0.25);
       self.camT = agora;
-      var kS = 1 - Math.exp(-dtc * 2.3);
-      self.ppmArt = self.camT0 ? Math.exp(Math.log(self.ppmArt) + (Math.log(alvo) - Math.log(self.ppmArt)) * kS) : alvo;
-      var ppmA = self.ppmArt, visM = Wa / ppmA;
-      // o meio do grupo (o meio do corpo fica ~20 px atrás do focinho) no meio da tela; o jogador sempre inteiro na tela
-      // (focinho a 64 px ou mais da esquerda, com o corpo e a cauda, e a 16 px ou mais da direita, com a cabeça)
-      var off = (lo + hi) / 2 - p - (Wa / 2 + 20) / ppmA;
-      off = clamp(off, -(Wa - 16) / ppmA, -64 / ppmA);
-      self.camOff = self.camT0 ? self.camOff + (off - self.camOff) * kS : off;
+      self.ppmArt = self.camT0 ? FX.camSuaviza(self.ppmArt, alvo, dtc) : alvo;
       self.camT0 = true;
-      // na largada (todos juntos) a linha fica a 30 % da tela, como antes
-      return Math.max(-0.3 * visM, p + clamp(self.camOff, -(Wa - 16) / ppmA, -64 / ppmA));
+      var ppmA = self.ppmArt, visM = Wa / ppmA;
+      // na largada (todos juntos) a linha fica a 30 % da tela, como antes; depois o jogador no meio
+      return Math.max(-0.3 * visM, FX.camEsquerda(p, ppmA, Wa));
     }
 
     function draw(st, order) {

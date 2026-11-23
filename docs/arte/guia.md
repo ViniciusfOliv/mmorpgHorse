@@ -181,10 +181,16 @@ grade. Partículas são retângulos de 1 a 2 px. Nada de `Math.random` (hashes d
 
 ## 8a. Movimento da corrida
 
-- **Câmera que enquadra a disputa** (refino de 2026-11-23, escolha do Vinicius): a escala vai de **12 px de arte por
-  metro** (de perto, com o pelotão junto) a **4 px/m**, para caber o jogador e os rivais a até 45 m dele; muda suave
-  (meia-vida de ~0,3 s), os cavalos seguem 1:1 e só as distâncias encolhem. O cenário rola pelo que a câmera andou na
-  escala do quadro (sem salto quando a escala muda). Abaixo, a conta de 12 px/m, que vale de perto:
+- **Câmera centrada no jogador** (ajustes 1, 2026-11-23, pedido do Vinicius; substitui a "câmera que enquadra a
+  disputa" do refino do mesmo dia, que centrava o meio do grupo): o meio do corpo do jogador fica no meio da tela; a
+  escala é **12 px de arte por metro** com o grupo junto e **afasta só o necessário** para caber, inteiro, quem está a até
+  **30 m** dele, à frente ou atrás (o piso sai do limite: ~2,5 px/m numa tela de 240); quem passa de 30 m não força mais
+  zoom e aparece pela seta da borda com os metros. Muda suave e sem saltos (`RaceFx.camSuaviza`: afasta com meia-vida de
+  ~0,2 s, aproxima com ~0,6 s, e chega ao alvo; no máximo 8% por quadro a 60 q/s). **Escala inteira mantida:** o buffer
+  continua na resolução de arte ampliado por `s` inteiro e os cavalos e o cenário seguem 1:1; o zoom muda só quantos
+  metros cabem num pixel de arte (por isso não há degraus de `s`, que trocariam o layout das raias e borrariam a troca).
+  O cenário rola pelo que a câmera andou na escala do quadro (sem salto quando a escala muda). Abaixo, a conta de 12
+  px/m, que vale de perto:
 - **Escala visual de perto: 12 px de arte por metro** (a do jogo era 2 a 2,5). A 16 m/s o chão passa a ~190 px/s,
   quase uma tela por segundo: os cavalos parecem em velocidade máxima e o cenário passa rápido. Só a tela muda: a pista
   continua com os mesmos metros e a corrida com o mesmo tempo (pedido do Vinicius, 2026-11-20).

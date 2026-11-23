@@ -141,6 +141,17 @@
  *     arquibancada/arco: quanto a arquibancada sobe a mais que a pista; rampa: metros da entrada e da saída;
  *     tela: pixels de arte que as pontas da tela sobem; giros do traçado).
  *
+ *   RaceFx.CAMERA, camZoomAlvo, camEsquerda, camSuaviza: a câmera da corrida (ajustes 1, 2026-11-23, pedido do
+ *     Vinicius): centrada no jogador (o meio do corpo no meio da tela; o focinho CAMERA.nariz px à direita), perto
+ *     (CAMERA.max px de arte por metro) e afastando para caber os rivais a até CAMERA.limite metros, à frente (o focinho
+ *     até Wa − CAMERA.frente) ou atrás (a cauda, CAMERA.cauda px atrás do focinho, a partir de CAMERA.borda); quem passa
+ *     do limite não força mais zoom e aparece pela seta da borda. Os cavalos e o cenário continuam 1:1 na grade de arte
+ *     (escala inteira do guia §2): o zoom muda só quantos metros cabem num pixel de arte.
+ *     camZoomAlvo(pos, me, Wa) -> px de arte por metro; camEsquerda(p, ppm, Wa) -> metro da borda esquerda;
+ *     camSuaviza(atual, alvo, dt) -> a escala do quadro, aproximando o alvo em escala logarítmica (meia-vida
+ *     ln2/CAMERA.kAfasta ao afastar, ln2/CAMERA.kAproxima ao aproximar, e pelo menos CAMERA.vMin por segundo, para
+ *     chegar ao alvo): sem saltos.
+ *
  * ================================= DESENHO ==================================
  * Canvas 2D em pixel art (x, y em px do canvas; S = px por pixel de arte). Precisa de window.Sprites
  * (fonte 3×5). Nenhuma imagem: dados, plaquinhas e faíscas saem de fillRect.
@@ -1818,8 +1829,38 @@
     return out;
   }
 
+  // ---- câmera da corrida (ajustes 1): centrada no jogador, afasta até o limite (ver o topo do arquivo) ----
+  // cauda: o rabo do molde mais comprido (robusto) fica 62 px atrás do focinho; vMin: a escala anda pelo menos vMin (em log)
+  // por segundo, para chegar ao alvo em tempo finito (a exponencial sozinha deixaria o rival 1–2 px fora por muito tempo)
+  var CAMERA = { max: 12, piso: 2, limite: 30, nariz: 20, frente: 16, cauda: 62, borda: 2, kAfasta: 3, kAproxima: 1.2, vMin: 0.25 };
+  function camEsquerda(p, ppm, Wa) { return p - (Wa / 2 + CAMERA.nariz) / ppm; }
+  function camZoomAlvo(pos, me, Wa) {
+    var p = pos[me], frente = 0, atras = 0;
+    for (var j = 0; j < pos.length; j++) {
+      if (j === me) continue;
+      var d = pos[j] - p;
+      if (d > CAMERA.limite || d < -CAMERA.limite) continue;
+      if (d > frente) frente = d; else if (-d > atras) atras = -d;
+    }
+    var cx = Wa / 2 + CAMERA.nariz, z = CAMERA.max;
+    if (frente > 0) z = Math.min(z, (Wa - CAMERA.frente - cx) / frente);
+    if (atras > 0) z = Math.min(z, (cx - CAMERA.cauda - CAMERA.borda) / atras);
+    return Math.max(CAMERA.piso, z);
+  }
+  function camSuaviza(atual, alvo, dt) {
+    if (!(atual > 0)) return alvo;
+    var k = alvo < atual ? CAMERA.kAfasta : CAMERA.kAproxima, d = Math.log(alvo) - Math.log(atual), ad = Math.abs(d);
+    dt = Math.max(0, dt);
+    var passo = Math.max(ad * (1 - Math.exp(-dt * k)), CAMERA.vMin * dt);
+    return passo >= ad ? alvo : Math.exp(Math.log(atual) + (d > 0 ? passo : -passo));
+  }
+
   var RaceFx = {
     DADO: DADO,
+    CAMERA: CAMERA,
+    camZoomAlvo: camZoomAlvo,
+    camEsquerda: camEsquerda,
+    camSuaviza: camSuaviza,
     // puras
     timeline: timeline,
     skillIcon: skillIcon,
