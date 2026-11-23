@@ -6,7 +6,7 @@ para `docs/` e aqui fica só o caminho, entre crases (sem `@`, para não carrega
 ## 1. Projeto
 - **O que é:** jogo em pixel art de corrida de cavalos automática, com progressão RPG, elementos
   (Fogo/Água/Grama) e foco em PVP com apostas de moeda virtual.
-- **Plataformas:** web + Google Play.
+- **Plataformas:** web + Google Play + Steam (Steam decidida em 2026-11-19).
 - **Monetização:** duas moedas — 🪙 Ouro (só se ganha jogando; é o que se aposta) e 💎 Gemas
   (compradas; cosméticos e passe). Pacote de montaria só com moeda ganha jogando.
 - **Tecnologia:** base web (HTML/CSS/JS puro, sem dependências), em `prototype/`. Decidido em

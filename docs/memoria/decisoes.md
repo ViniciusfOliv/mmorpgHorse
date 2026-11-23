@@ -295,6 +295,28 @@ Build de teste desta branch (modo DEV, artefato novo; os oficiais não foram toc
   lugar: 9 e 249); o teto de `fillRect` por quadro foi de 4.500 para 4.700 (mediu 4.523) e a altura de referência da aba
   Skills de 1.426 para 1.551 px (a interface mudou de propósito).
 
+## 2026-11-19 — O jogo também vai para a Steam (decisão do Vinicius)
+- **Steam entra no escopo, junto com web e Google Play** — escolha do Vinicius. Caminho recomendado: a mesma base web
+  num build Electron + steamworks.js (é o que jogos em JS como Vampire Survivors e CrossCode fazem no PC). Comparação
+  com Defold, LÖVE, GameMaker, MonoGame/FNA, Heaps, Godot e Unity em `docs/teste-engine.md` §8: todos exigiriam
+  reescrever o cliente e portar o `sim.js`, e nenhum ganharia visual no aparelho medido. Se consoles entrarem no
+  escopo, planejar uma versão nativa só do cliente depois do lançamento, como Vampire Survivors fez com a Unity. O que
+  a Steam pede da base web (paisagem, controle, overlay, compras pela Steam) ficou no checklist do `docs/cronograma.md`.
+
+## 2026-11-19 — Teste de engine: fica web (o Vinicius pode vetar)
+- **A base web continua: não migrar para Godot** — o pior caso do lançamento (12 cavalos com clima, partículas,
+  explosões de skill, parallax, câmera com zoom e tremida) rodou no celular do Vinicius, na WebView do app do Claude, a
+  119,6 FPS numa tela de 120 Hz. O 1% low foi de 82,4, o p99 de 8,5 ms e o JS de 3,2 ms por quadro. O critério fixado
+  antes do teste era ≥ 55 no 1% low. Na resolução nativa e com 20 cavalos o resultado foi o mesmo. O Godot custaria 2 a
+  4 meses, o artefato como meio de teste e o risco de a corrida do cliente divergir do `sim.js` do servidor. Relatório
+  em `docs/teste-engine.md`.
+- **A corrida trava em 60 FPS em tela de 120 Hz, com um acumulador no ritmo da tela** (o do spike v3) — o limitador
+  simples (pular a batida que chega antes de 13 ms) gerou quadros de 25 ms e reprovou a fase 2 sem o jogo atrasar nada.
+- **Antes do lançamento: uma rodada longa (60 s, travada em 60) no celular e a bateria num Android fraco** — a primeira
+  rodada de 60 s teve 4,5% de quadros acima de 20 ms, e a bateria não repetiu isso. Se um aparelho fraco não passar, as
+  alavancas, sem reescrita, são: escala 3× ou 2×, menos camadas de clima em tela cheia e um desenhador WebGL2 da pista.
+  O Godot só volta se o aparelho-alvo ficar abaixo de 45 no 1% low até em escala 1×.
+
 ## 2026-11-19 — Qualidade primeiro, teste de engine e skills com 100% (decisões do Vinicius)
 - **A qualidade vem sempre primeiro: se Godot (ou Unity) for melhor em visual, FPS e jogabilidade, migramos** — pedido
   do Vinicius. Unity foi descartada na análise (pesada para 2D pixel art, licença, depende do editor, não dá para
