@@ -450,7 +450,12 @@ Forja); medições em `docs/exemplos.md` §5b; decisões em `decisoes.md` (2026-
   blocos `equipamento`, `forja` e `reforja` no `ui-test.mjs`.
 - **Para o Vinicius decidir:** os mesmos pontos do bloco A (XP do AFK alto, oponentes fracos para um Raro, prêmio que
   quase não cresce com a etapa) e a segunda parte da E2, que continua sem fechar (só informação).
-- **Falta:** a revisão da coordenação e a aprovação do Vinicius para integrar na `main` e republicar os oficiais.
+- **Revisão da coordenação e merge da `main` (2026-11-23):** a `main` (29f65fd: arte refinada, teste de engine,
+  créditos) foi trazida para o `claude/afk`; os quatro defeitos do relógio das vagas e a receita do Pergaminho foram
+  corrigidos (`decisoes.md`, "correções da revisão"). `check.sh` OK (79 blocos) e `balance.js` completo OK (380 metas)
+  depois disso. Artefatos de teste (não são os oficiais): produção https://claude.ai/artifact/BYNyJ3vZrmuJDiTWBryCxj e
+  DEV https://claude.ai/artifact/U17yYPgft3zCqQZzrTEgaP.
+- **Falta:** a aprovação do Vinicius para integrar na `main` e republicar os oficiais.
 
 ## Em andamento
 - **Teste de engine, web × Godot 4 (spike de 2026-11-19, branch `claude/teste-engine`, fora da `main`): resultado,
