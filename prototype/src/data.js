@@ -634,6 +634,28 @@
   };
 
   // ---------------------------------------------------------------------------------------------
+  // Corrida AFK (spec 2026-11-23-afk-drops §5). Regras em afk.js; os números de partida aqui, juntos, para ajustar
+  // pelas metas E1 a E6 do tools/balance.js e depois de jogar.
+  //   difs: as três dificuldades de cada fase (fase = etapa de ginásio), na ordem em que liberam. nivel: somado ao nível
+  //     da etapa (até nivelMax); rank: o das skills de vaga do oponente (null = o da etapa); mult: multiplicador de
+  //     prêmio; pecas: as cinco peças do oponente (bloco B; null = sem peças).
+  //   liberaApos: vitórias AFK numa dificuldade para liberar a seguinte, na mesma fase.
+  //   vagaPreco: Ouro de cada vaga (a 1ª é grátis); o tamanho da lista é o máximo de vagas.
+  //   offlineMin: limite do offline (min); offlineTetoMin: o teto com a Aveia dourada e o bestiário; amostra: duelos
+  //     simulados para medir a chance de vitória de uma configuração.
+  // ---------------------------------------------------------------------------------------------
+  var AFK = {
+    difs: [
+      { id: 'normal', name: 'Normal', nivel: 0, rank: null, mult: 1, pecas: null },
+      { id: 'dificil', name: 'Difícil', nivel: 12, rank: 3, mult: 2, pecas: { rar: 'magico', plus: 3 } },
+      { id: 'lendaria', name: 'Lendária', nivel: 25, nivelMax: 45, rank: 5, mult: 4, pecas: { rar: 'raro', plus: 5, doConjunto: true } }
+    ],
+    liberaApos: 50,
+    vagaPreco: [0, 1000, 3000, 8000, 20000],
+    offlineMin: 480, offlineTetoMin: 720, amostra: 400
+  };
+
+  // ---------------------------------------------------------------------------------------------
   // Equipamento: 5 slots por montaria. Cada peça dá um status principal e um secundário, definidos
   // pelo slot (GEAR_SLOT_INFO) e pela raridade (ECONOMY.gear.main/sub).
   //   id: '<slot>-<raridade>' (solta: Comum/Mágico) ou '<slot>-<conjunto>-<raridade>' (Raro/Lendário).
@@ -717,6 +739,7 @@
     GYM: GYM,
     GYM_ORDER: GYM_ORDER,
     GYMS: GYMS,
+    AFK: AFK,
     FOAL_NAMES: FOAL_NAMES,
     BREED_LEFT: BREED_LEFT
   };

@@ -20,9 +20,11 @@ step() { printf '\n== %s ==\n' "$1"; }
 step "1/8 Build (prototype/dist e docs/wiki.md)"
 node prototype/build.mjs
 
-step "2/8 Simulação"
+step "2/8 Simulação e AFK"
 node prototype/tools/sim-test.js > "$SHOTS_DIR/unit.txt" || { cat "$SHOTS_DIR/unit.txt"; exit 1; }
 tail -n 1 "$SHOTS_DIR/unit.txt"
+node prototype/tools/afk-test.js > "$SHOTS_DIR/afk.txt" || { cat "$SHOTS_DIR/afk.txt"; exit 1; }
+tail -n 1 "$SHOTS_DIR/afk.txt"
 
 step "3/8 Efeitos da corrida"
 node prototype/tools/fx-test.js > "$SHOTS_DIR/fx.txt" || { cat "$SHOTS_DIR/fx.txt"; exit 1; }
