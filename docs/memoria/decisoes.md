@@ -3,6 +3,31 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-23 — AFK, execução do bloco B (decisões do construtor; o design não muda)
+- **Principal das peças recalibrado para o PVE (meta E4):** Comum 0,75 · Mágico 1 · Raro 1,25 · Lendário 1,75, e +0,2 por
+  nível de melhoria (eram 2 · 2 · 3 · 4 e +0,5 quando a peça valia no PVP). O status é inteiro, então a soma das peças é
+  arredondada. Com isso o nível 45 com 5 Raras +7 vence o líder da Lendária dentro de 40–60% e, sem peças, de 15–35%.
+- **Conjunto de 3 peças: +10% em todas as linhas de farm** (o bônus antigo de skill e Sorte saiu: era de PVP); 4 peças:
+  clima 1,07; 5: sem penalidade de clima — os dois só no duelo do AFK (`entry.pve`).
+- **Peça que caiu no treino ou saiu da forja não tem preço de venda** (só "Descartar"): senão o AFK viraria Ouro por fora
+  do teto da E1. Só a peça comprada na loja vende de volta (25%).
+- **Sem trava de peça com páreo aberto:** como a peça não entra no Poder, equipar, tirar, melhorar e reforjar ficam
+  liberados sempre. As telas do PVP (Correr, largada, cabeça da Montaria, Estábulo) não mostram mais o resumo das peças.
+- **A sub-aba se chama "Peças"** (e não "Equipamento"): com 4 sub-abas a palavra não cabia numa linha a 360 px.
+- **`GEAR_PVP` (desligado) guarda o caminho antigo** (peças no Poder, na sala e nos bots; Pedra do pódio), em vez de
+  apagar o código; `Gear.botGear` e `Gear.ratingPts` saíram.
+- **Forja:** todas as receitas usam os materiais do ginásio escolhido na tela (a do Pergaminho "de qualquer ginásio" vale
+  em qualquer um); se um dos dois materiais não cobre a metade, o resto sai do outro; o troféu gasto é o que o jogador tem
+  mais. Peça pede confirmação (as linhas são sorteadas ao confirmar); Pedra e Pergaminho forjam direto. Seed das linhas:
+  `hash2(seedBase, 0x464F0000 + forjaCounter)`.
+- **Seed da reforja com dois hashes:** `hash2(hash2(seedBase, 0x52460000 + nº do uid), rerolls)`, no lugar de
+  `uid × 1000 + rerolls` do plano (que colidiria depois de 1.000 reforjas e disputaria faixa com outros sais).
+- **Reforja sem Selo:** o tipo novo não repete o das outras linhas, mas pode sair o mesmo de antes (como no plano).
+- **`ITEMS.selo` entrou já na B3** (a forja da Lendária precisa dele); ícone em código (medalha com fitas), sem créditos.
+- **O teste de interface do Selo no resultado troca o sorteio por um que sempre cai** (a regra dos 10% só para o 1º
+  lugar está no `sim-test.js`): achar uma sala com vitória e Selo pela seed levaria dezenas de corridas.
+- **Um commit só para o bloco B:** as tarefas B1 a B5 mexem nos mesmos arquivos e foram fechadas juntas.
+
 ## 2026-11-23 — AFK, execução do bloco A (decisões do construtor; o design não muda)
 - **`faseId` usa o id do ginásio do catálogo** (`fogo:2:dificil`, e não `fornalha:2:dificil` como no exemplo do plano):
   é o id que o `GameData.GYMS` e o progresso do save já usam.

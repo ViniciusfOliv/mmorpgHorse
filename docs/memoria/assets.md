@@ -143,4 +143,4 @@ vê esses ícones: entram na declaração de IA como os outros do lote `icones2`
   usam a do ginásio deles) e o baú.
 - **Custo:** zero. **Uso:** mochila, baú, bestiário e cartão do treino na Expedição. Teste: `moldes-test.mjs` ("os
   ícones dos itens do AFK").
-
+- **Bloco B (2026-11-23):** mais 1 mapa 16×16 em código, o **Selo do campeão** (`item-selo`: medalha de ouro com a estrela e duas fitas vermelhas), no mesmo arquivo. Sem IA, sem custo. Uso: mochila, forja, reforja, custo do rank V e resultado da corrida.

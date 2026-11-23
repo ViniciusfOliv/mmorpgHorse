@@ -1,10 +1,10 @@
 # Estado do projeto
 
-_Atualizado em 2026-11-23 (bloco A do treino AFK)._
+_Atualizado em 2026-11-23 (blocos A e B do treino AFK)._
 
 **Em andamento (2026-11-23): corrida AFK, drops, forja, bestiário e equipamento de PVE**, no branch `claude/afk` (chat
 próprio de implementação). Spec `docs/superpowers/specs/2026-11-23-afk-drops-design.md` e plano
-`docs/superpowers/plans/2026-11-23-afk-drops.md` (blocos A e B), aprovados pelo Vinicius. **Bloco A pronto (seção própria
+`docs/superpowers/plans/2026-11-23-afk-drops.md` (blocos A e B), aprovados pelo Vinicius. **Blocos A e B prontos (seções próprias
 abaixo), esperando a revisão do chat de coordenação; nada foi integrado na `main` nem republicado nos oficiais.** O rancho
 ficou só como ideia.
 
@@ -415,8 +415,24 @@ Spec e plano acima; regra no `docs/GDD.md` §8.3a; números no wiki (seção "Co
 - **Números de partida que mudaram:** Ouro por vitória × 0,15 (E1) e amostra da chance de 400 para 2.400 (E3).
 - **Para o Vinicius decidir** (em `docs/exemplos.md` §5b): o XP do AFK por hora é de 2 a 15 vezes o do PVP; os
   oponentes são fracos para um cavalo Raro; o prêmio quase não cresce com a etapa.
-- **Falta (bloco B):** peças no AFK e meta E4 (B1, B2), forja (B3), telas do equipamento, loja de peças e forja (B4),
-  reforja e Selo do campeão (B5). O `GEAR_ON` continua desligado: as peças que caem ficam guardadas.
+
+## Treino AFK, bloco B (pronto em 2026-11-23 no `claude/afk`; fora da `main`)
+Regra no `docs/GDD.md` §7 (reescrito: equipamento só de PVE) e §8.3a; números no wiki (Equipamento e Corrida AFK, com a
+Forja); medições em `docs/exemplos.md` §5b; decisões em `decisoes.md` (2026-11-23, "execução do bloco B").
+- **O que entrou:** peças com principal de corrida e **linhas de farm**, valendo **só no treino AFK**
+  (`Gear.resolvePve`; `entry.statAdd` e `entry.pve` no duelo); oponentes da Difícil com 5 Mágicas +3 e da Lendária com 5
+  Raras +5 do conjunto; **forja** (`prototype/src/forja.js`, `GameData.FORJA`, tela na Expedição); sub-aba **Peças** da
+  Montaria (selo "só AFK", total do treino, linhas), loja de peças e Pedras de volta; **reforja** de uma linha
+  (`Gear.custoReforja/podeReforjar/reforjar`); **Selo do campeão** (`Itens.seloPodio`: 1º lugar valendo, 10%; exigido no
+  rank IV → V, na reforja garantida e na forja da Lendária). Save continua v10 (campo novo `forjaCounter`; `selo` na mochila).
+- **Chaves no `game.js`:** `GEAR_ON = true` (telas) e `GEAR_PVP = false` (o caminho antigo das peças no Poder, na sala e
+  nos bots, e a Pedra do pódio: desligado). O `ui-test.mjs` lê as duas do build.
+- **O PVP não muda:** Poder, pareamento, sala e corrida ignoram as peças; não há trava de peça com páreo aberto.
+- **Metas:** E1 a E6 no `balance.js` (a E4 e a E6 novas). Testes: `afk-test.js` (forja), `sim-test.js` (reforja, Selo),
+  blocos `equipamento`, `forja` e `reforja` no `ui-test.mjs`.
+- **Para o Vinicius decidir:** os mesmos pontos do bloco A (XP do AFK alto, oponentes fracos para um Raro, prêmio que
+  quase não cresce com a etapa) e a segunda parte da E2, que continua sem fechar (só informação).
+- **Falta:** a revisão da coordenação e a aprovação do Vinicius para integrar na `main` e republicar os oficiais.
 
 ## Em andamento
 - **Teste de interface em paralelo (feito em 2026-11-17, commit `b3dda3d`; na `main` desde o mesmo dia, por decisão do
