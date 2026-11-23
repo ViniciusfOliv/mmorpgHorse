@@ -18,8 +18,12 @@ Cupom e no resultado; o texto completo num balão (`skillDicaHtml`/`dicaAreaHtml
 cima, toque embaixo, Esc fecha); bloco `skills-resumo` no `ui-test`. O wiki não muda. (3) **Símbolo ♂/♀** (ícones
 `ui-macho`/`ui-femea`) ao lado do nome no Estábulo e na cabeça da ficha, com "macho"/"fêmea" acessível. (4) **Expedição**:
 os cavalos selvagens viraram um bloco recolhido e desativado com o selo "em breve" (some a vitrine animada que fazia a
-`final-10-expedicao.png` mudar a cada rodada). Decisões em `decisoes.md`; resultado da verificação e artefato de teste na
-seção "Ajustes 1" abaixo.
+`final-10-expedicao.png` mudar a cada rodada). Decisões em `decisoes.md`. **Verificação:** `check.sh` completo OK (213 testes de
+simulação + 69 do AFK, 139 de efeitos, 176 de moldes, 25 camadas de arte, 1064 conferências do wiki, 132 metas do
+balanço rápido e 81 blocos de interface); custo por quadro sem piora (mesmas condições, antes → depois: chuva e ventania a
+1280 1,91 → 1,77–2,19 ms; 8 Míticos 1,96 → 1,91–2,13; portes 2,04 → 1,94–2,07; ruído da máquina). Capturas oficiais
+regeneradas (39 mudaram, nenhuma nova nem removida). **Artefato de teste novo** (jogo de produção do ramo):
+https://claude.ai/artifact/KnwuELhSrLKrMSEmNtAZ4N. Os oficiais não foram republicados; nada na `main`.
 
 **Teste de engine fechado e na `main` (2026-11-23): fica web** (relatório em `docs/teste-engine.md`; Godot só volta se um
 aparelho-alvo ficar abaixo de 45 FPS no 1% low até em escala 1×). Steam no escopo (Electron + steamworks.js). Antes do
