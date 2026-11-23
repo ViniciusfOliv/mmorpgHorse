@@ -2829,8 +2829,8 @@ test('cada peça do catálogo passa na validação contra o game.css', () => {
   for (const n of ['rebite', 'prego', 'veio', 'ajuda', 'ajuda-ativa']) assert.ok(IA.PECAS.some(p => p.nome === n), n);
 });
 test('os ícones de item (spec de itens §13; o Pergaminho de técnica desde 2026-11-19): uma peça item-<id> de 16x16 por item do catálogo, com contorno', () => {
-  const ITENS = createRequire(import.meta.url)('../src/data.js').ITEMS;
-  const ids = Object.keys(ITENS);
+  // os itens de uso; os do AFK (com `grupo`) têm os ícones deles (tarefa A7 do plano do AFK)
+  const ids = createRequire(import.meta.url)('../src/data.js').ITENS_USO;
   assert.deepStrictEqual(ids, ['torrao', 'estrela', 'redea', 'cupom', 'manual', 'pergaminho']);
   const desenhos = new Set();
   for (const id of ids) {

@@ -20,6 +20,7 @@
 - [Economia](#economia)
 - [Itens e recompensa diária](#itens)
 - [Ginásios da Expedição](#ginasios)
+- [Corrida AFK](#afk)
 - [Ícones reservados](#icones-reservados)
 - [Modo DEV](#dev)
 
@@ -1340,6 +1341,66 @@ O time do jogador tem no máximo o tamanho do time do adversário (pode levar me
 **Revanche do líder:** depois da insígnia, 1 tentativa por dia em cada ginásio (vencendo ou perdendo), com entrada de 50 de Ouro. O prêmio de cada vitória segue um rodízio fixo, sem sorteio, contado por ginásio: 100 de Ouro · 1 Torrão de açúcar · 100 de Ouro · 1 Manual de doma · 100 de Ouro · 1 Cupom de troca de skill, e recomeça. A revanche não dá Pergaminhos de técnica. Os cavalos do líder correm com o mesmo rank de skills da etapa dele. Com o relógio para trás não libera; dia estragado no save conta como "já tentou hoje".
 
 **Insígnias:** cada líder dá uma, para sempre. O bônus é da conta e não entra na simulação da corrida. Insígnia da Fornalha: +3% de Ouro nos prêmios das corridas valendo (arredondado para baixo); Insígnia do Remanso: +3% de XP para os cavalos, nas corridas e nos duelos (arredondado); Insígnia da Capoeira: +3 pontos na chance de aprender skill ao subir de level (8% → 11%). O Perfil mostra as 3 ("Insígnias (N de 3)"): a conquistada com o bônus, a que falta apagada, com o líder a vencer.
+
+<a id="afk"></a>
+
+## Corrida AFK
+
+Os cavalos treinam sozinhos nas fases dos ginásios: cada corrida AFK é um duelo nas regras do ginásio (vantagem de elemento, largada Nublado, pista da casa, Dado da Sorte), sem cansaço, contra um cavalo da etapa em rodízio fixo. Uma fase só libera depois de a etapa ser vencida no ginásio de verdade. O treino nunca dá insígnia, Rédea nova, os itens da 1ª vitória nem o prêmio da revanche, e nunca dá Torrão de açúcar, Estrela de treino, Manual de doma, Cupom de troca de skill e Pergaminho de técnica.
+
+| Dificuldade | Nível do oponente | Rank das skills do oponente | Multiplicador de prêmio | Libera com |
+| --- | --- | ---: | ---: | --- |
+| **Normal** | o da etapa | o da etapa | ×1 | a etapa vencida no ginásio |
+| **Difícil** | o da etapa + 12 | III | ×2 | 50 vitórias AFK na Normal da mesma fase |
+| **Lendária** | o da etapa + 25 (até 45) | V | ×4 | 50 vitórias AFK na Difícil da mesma fase |
+
+**Vagas:** até 5; cada cavalo ocupa no máximo uma. Preço em Ouro: 1ª grátis · 2ª 1.000 · 3ª 3.000 · 4ª 8.000 · 5ª 20.000. O Ouro reservado para a entrada da sala aberta nunca é gasto.
+
+**Ganho por vitória:** XP para o cavalo que correu, 40 × (1 + 0,15 × etapa) × multiplicador (etapa 0 no Soldado 1, 4 no líder), e Ouro, 2 · 3 · 4 · 5 · 8 do Soldado 1 ao líder, × multiplicador. **Na derrota:** 30% do XP e 25% do material do ginásio (arredondado para baixo), sem Ouro e sem os outros drops.
+
+| Drop | Normal | Difícil | Lendária |
+| --- | ---: | ---: | ---: |
+| Material do ginásio (metade de cada tipo) | 1 a 3 | 2 a 6 | 4 a 12 |
+| Material incomum do ginásio | 15% | 30% | 60% |
+| Pedra Negra | 6% | 12% | 24% |
+| Comida (Feno 60%, Cenoura 25%, Maçã 12%, Aveia dourada 3% do que cai) | 8% | 16% | 32% |
+| Peça de equipamento | 2% Comum ou Mágico solta | 1% Raro do conjunto | 2% Raro do conjunto · 0,2% Lendário do conjunto |
+| Pergaminho de reforja | 1,5% | 3% | 6% |
+| Troféu do oponente | 0,5% | 1% | 2% |
+
+Todo drop sai da seed da corrida. Os materiais e o incomum de cada ginásio só caem nele; a peça Raro ou Lendário que cai é do conjunto do ginásio (Ginásio da Fornalha: Sol; Ginásio do Remanso: Chuva; Ginásio da Capoeira: Névoa).
+
+| Item | Tipo | Para que serve | Teto na mochila | De onde vem |
+| --- | --- | --- | ---: | --- |
+| **Carvão** | Material do ginásio | Material de forja da Fornalha. | 999 | Cai em toda vitória no treino AFK da Fornalha. |
+| **Ferro bruto** | Material do ginásio | Material de forja da Fornalha. | 999 | Cai em toda vitória no treino AFK da Fornalha. |
+| **Junco** | Material do ginásio | Material de forja do Remanso. | 999 | Cai em toda vitória no treino AFK do Remanso. |
+| **Concha** | Material do ginásio | Material de forja do Remanso. | 999 | Cai em toda vitória no treino AFK do Remanso. |
+| **Fibra** | Material do ginásio | Material de forja da Capoeira. | 999 | Cai em toda vitória no treino AFK da Capoeira. |
+| **Resina** | Material do ginásio | Material de forja da Capoeira. | 999 | Cai em toda vitória no treino AFK da Capoeira. |
+| **Brasa viva** | Material incomum | Material incomum da Fornalha, para forjar peças melhores. | 999 | Cai às vezes nas vitórias do treino AFK da Fornalha. |
+| **Pérola de rio** | Material incomum | Material incomum do Remanso, para forjar peças melhores. | 999 | Cai às vezes nas vitórias do treino AFK do Remanso. |
+| **Seiva antiga** | Material incomum | Material incomum da Capoeira, para forjar peças melhores. | 999 | Cai às vezes nas vitórias do treino AFK da Capoeira. |
+| **Feno** | Comida | Dá 200 de XP a um cavalo. | 999 | Cai às vezes nas vitórias do treino AFK. |
+| **Cenoura** | Comida | Dá 500 de XP a um cavalo. | 999 | Cai às vezes nas vitórias do treino AFK. |
+| **Maçã** | Comida | Dá 1.200 de XP a um cavalo. | 999 | Cai às vezes nas vitórias do treino AFK. |
+| **Aveia dourada** | Comida | O próximo período fora rende 1 hora a mais no treino AFK. | 999 | Cai às vezes nas vitórias do treino AFK. |
+| **Pergaminho de reforja** | Reforja | Sorteia de novo uma linha de uma peça de equipamento, junto com Ouro. | 99 | Cai às vezes nas vitórias do treino AFK ou sai da forja. |
+| **Pederneira do Recruta Fagulha** | Troféu | Troféu de Recruta Fagulha. Conta no bestiário e entra na forja das peças de conjunto da Fornalha. | 99 | Cai raramente ao vencer Recruta Fagulha no treino AFK. |
+| **Archote do Cabo Tocha** | Troféu | Troféu de Cabo Tocha. Conta no bestiário e entra na forja das peças de conjunto da Fornalha. | 99 | Cai raramente ao vencer Cabo Tocha no treino AFK. |
+| **Lanterna do Sargento Candeeiro** | Troféu | Troféu de Sargento Candeeiro. Conta no bestiário e entra na forja das peças de conjunto da Fornalha. | 99 | Cai raramente ao vencer Sargento Candeeiro no treino AFK. |
+| **Braseiro do Tenente Coivara** | Troféu | Troféu de Tenente Coivara. Conta no bestiário e entra na forja das peças de conjunto da Fornalha. | 99 | Cai raramente ao vencer Tenente Coivara no treino AFK. |
+| **Elmo da Capitã Labareda** | Troféu | Troféu de Capitã Labareda. Conta no bestiário e entra na forja das peças de conjunto da Fornalha. | 99 | Cai raramente ao vencer Capitã Labareda no treino AFK. |
+| **Cantil do Recruta Orvalho** | Troféu | Troféu de Recruta Orvalho. Conta no bestiário e entra na forja das peças de conjunto do Remanso. | 99 | Cai raramente ao vencer Recruta Orvalho no treino AFK. |
+| **Balde do Cabo Goteira** | Troféu | Troféu de Cabo Goteira. Conta no bestiário e entra na forja das peças de conjunto do Remanso. | 99 | Cai raramente ao vencer Cabo Goteira no treino AFK. |
+| **Remo do Sargento Correnteza** | Troféu | Troféu de Sargento Correnteza. Conta no bestiário e entra na forja das peças de conjunto do Remanso. | 99 | Cai raramente ao vencer Sargento Correnteza no treino AFK. |
+| **Moringa do Tenente Cacimba** | Troféu | Troféu de Tenente Cacimba. Conta no bestiário e entra na forja das peças de conjunto do Remanso. | 99 | Cai raramente ao vencer Tenente Cacimba no treino AFK. |
+| **Capa do Mestre Aguaceiro** | Troféu | Troféu de Mestre Aguaceiro. Conta no bestiário e entra na forja das peças de conjunto do Remanso. | 99 | Cai raramente ao vencer Mestre Aguaceiro no treino AFK. |
+| **Regador do Recruta Broto** | Troféu | Troféu de Recruta Broto. Conta no bestiário e entra na forja das peças de conjunto da Capoeira. | 99 | Cai raramente ao vencer Recruta Broto no treino AFK. |
+| **Escova do Cabo Carrapicho** | Troféu | Troféu de Cabo Carrapicho. Conta no bestiário e entra na forja das peças de conjunto da Capoeira. | 99 | Cai raramente ao vencer Cabo Carrapicho no treino AFK. |
+| **Cajado do Sargento Juazeiro** | Troféu | Troféu de Sargento Juazeiro. Conta no bestiário e entra na forja das peças de conjunto da Capoeira. | 99 | Cai raramente ao vencer Sargento Juazeiro no treino AFK. |
+| **Facão do Tenente Aroeira** | Troféu | Troféu de Tenente Aroeira. Conta no bestiário e entra na forja das peças de conjunto da Capoeira. | 99 | Cai raramente ao vencer Tenente Aroeira no treino AFK. |
+| **Foice da Dona Capineira** | Troféu | Troféu de Dona Capineira. Conta no bestiário e entra na forja das peças de conjunto da Capoeira. | 99 | Cai raramente ao vencer Dona Capineira no treino AFK. |
 
 <a id="icones-reservados"></a>
 

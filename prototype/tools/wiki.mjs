@@ -1168,6 +1168,46 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `**Insígnias:** cada líder dá uma, para sempre. O bônus é da conta e não entra na simulação da corrida. ${gyIds.map((id) => `${G.GYMS[id].insignia.name}: ${bonusIns(id)}`).join('; ')}. O Perfil mostra as ${gyIds.length} ("Insígnias (N de ${gyIds.length})"): a conquistada com o bônus, a que falta apagada, com o líder a vencer.` }
   ])
 
+  // 12d. Corrida AFK (spec 2026-11-23-afk-drops §5) ------------------------------------------------------
+  // tudo de GameData.AFK e dos itens com `grupo` de GameData.ITEMS
+  const AK = G.AFK
+  if (!AK || !Array.isArray(AK.difs) || !AK.drops || !AK.materiais) throw new Error('wiki: GameData.AFK incompleto')
+  const afkIds = Object.keys(IT).filter((id) => IT[id].grupo)
+  const GRUPO_NOME = { material: 'Material do ginásio', incomum: 'Material incomum', comida: 'Comida', reforja: 'Reforja', trofeu: 'Troféu' }
+  for (const id of afkIds) if (!GRUPO_NOME[IT[id].grupo]) throw new Error(`wiki: item "${id}" com grupo desconhecido "${IT[id].grupo}"`)
+  const difNome = (d) => d.name
+  const chanceDif = (base, teto) => AK.difs.map((d) => N(pct(Math.min(teto == null ? 1 : teto, base * d.mult))))
+  const pecaTxt = (d) => {
+    const P = AK.drops.peca[d.id], partes = []
+    if (P.solta) partes.push(`${pct(P.solta)} ${nomeRar('comum')} ou ${nomeRar('magico')} solta`)
+    if (P.raro) partes.push(`${pct(P.raro)} ${nomeRar('raro')} do conjunto`)
+    if (P.lendario) partes.push(`${pct(P.lendario)} ${nomeRar('lendario')} do conjunto`)
+    return partes.join(' · ') || '—'
+  }
+  const pesosComida = AK.drops.comida.pesos, somaPesos = Object.values(pesosComida).reduce((a, b) => a + b, 0)
+  add('afk', 'Corrida AFK', 'AFK', [
+    { t: 'p', txt: `Os cavalos treinam sozinhos nas fases dos ginásios: cada corrida AFK é um duelo nas regras do ginásio (vantagem de elemento, largada ${nomeClima('nublado')}, pista da casa, Dado da Sorte), sem cansaço, contra um cavalo da etapa em rodízio fixo. Uma fase só libera depois de a etapa ser vencida no ginásio de verdade. O treino nunca dá insígnia, ${nomeItem('redea')}, os itens da 1ª vitória nem o prêmio da revanche, e nunca dá ${lista(['torrao', 'estrela', 'manual', 'cupom', 'pergaminho'].map(nomeItem))}.` },
+    { t: 'tabela', rotulo: 'Dificuldades', cab: ['Dificuldade', 'Nível do oponente', 'Rank das skills do oponente', 'Multiplicador de prêmio', 'Libera com'], linhas: AK.difs.map((d, i) => [
+      { md: `**${difNome(d)}**`, html: `<strong>${esc(difNome(d))}</strong>` },
+      d.nivel ? `o da etapa + ${num(d.nivel)}${d.nivelMax ? ` (até ${num(d.nivelMax)})` : ''}` : 'o da etapa',
+      d.rank == null ? 'o da etapa' : N(romano(d.rank)), N('×' + num(d.mult)),
+      i === 0 ? 'a etapa vencida no ginásio' : `${num(AK.liberaApos)} vitórias AFK na ${difNome(AK.difs[i - 1])} da mesma fase`]) },
+    { t: 'p', txt: `**Vagas:** até ${num(AK.vagaPreco.length)}; cada cavalo ocupa no máximo uma. Preço em Ouro: ${AK.vagaPreco.map((p, i) => `${i + 1}ª ${p ? num(p) : 'grátis'}`).join(' · ')}. O Ouro reservado para a entrada da sala aberta nunca é gasto.` },
+    { t: 'p', txt: `**Ganho por vitória:** XP para o cavalo que correu, ${num(AK.xpBase)} × (1 + ${num(AK.xpPorEtapa, 2)} × etapa) × multiplicador (etapa 0 no Soldado 1, 4 no líder), e Ouro, ${AK.ouro.map((o) => num(o)).join(' · ')} do Soldado 1 ao líder, × multiplicador. **Na derrota:** ${pct(AK.derrota.xp, 0)} do XP e ${pct(AK.derrota.material, 0)} do material do ginásio (arredondado para baixo), sem Ouro e sem os outros drops.` },
+    { t: 'tabela', rotulo: 'Drops por vitória', cab: ['Drop', ...AK.difs.map(difNome)], linhas: [
+      ['Material do ginásio (metade de cada tipo)', ...AK.difs.map((d) => N(`${num(AK.drops.material.min * d.mult)} a ${num(AK.drops.material.max * d.mult)}`))],
+      ['Material incomum do ginásio', ...chanceDif(AK.drops.incomum.chance, AK.drops.incomum.teto)],
+      ['Pedra Negra', ...chanceDif(AK.drops.pedra.chance)],
+      [`Comida (${Object.keys(pesosComida).map((id) => `${nomeItem(id)} ${pct(pesosComida[id] / somaPesos, 0)}`).join(', ')} do que cai)`, ...chanceDif(AK.drops.comida.chance)],
+      ['Peça de equipamento', ...AK.difs.map(pecaTxt)],
+      [nomeItem('pergaminho-reforja'), ...chanceDif(AK.drops.reforja.chance)],
+      ['Troféu do oponente', ...AK.difs.map((d) => N(pct(AK.drops.trofeu[d.id])))]
+    ] },
+    { t: 'p', txt: `Todo drop sai da seed da corrida. Os materiais e o incomum de cada ginásio só caem nele; a peça ${nomeRar('raro')} ou ${nomeRar('lendario')} que cai é do conjunto do ginásio (${gyIds.map((g) => `${G.GYMS[g].name}: ${G.GEAR_SETS[AK.materiais[g].conjunto].name}`).join('; ')}).` },
+    { t: 'tabela', rotulo: 'Itens do AFK', cab: ['Item', 'Tipo', 'Para que serve', 'Teto na mochila', 'De onde vem'], linhas: afkIds.map((id) => [
+      { md: `**${IT[id].name}**`, html: `<strong>${esc(IT[id].name)}</strong>` }, GRUPO_NOME[IT[id].grupo], IT[id].desc, N(num(IT[id].cap)), IT[id].origem]) }
+  ])
+
   // 13. Ícones reservados --------------------------------------------------------------------------------
   // Os da spec (2.6) ainda sem tela: já existem como arquivo, mas só entram nas telas com recursos que ainda vão chegar
   // (as três insígnias saíram daqui com a aba Expedição dos ginásios).
