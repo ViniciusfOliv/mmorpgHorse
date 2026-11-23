@@ -7,6 +7,8 @@
 //                        ui-test); ?dev=1 não faz nada. O build falha se sobrar algo do DEV ou do gancho.
 //   dist/jogo-dev.html -> TESTE: tudo, com window.__GALOPE_DEV = true antes dos scripts (modo DEV ligado sozinho,
 //                        save de teste) para o artefato do claude.ai, que não repassa ?dev=1
+//   dist/jogo-teste.html -> TESTADORES: tudo, com window.__GALOPE_RAPIDO = true (evolução ×10, iniciais Raros nota A,
+//                        rivais Mágicos e um Raro um pouco abaixo do Poder do jogador; save próprio; sem modo DEV)
 //   dist/preview.html -> DESENVOLVIMENTO e alvo do ui-test: tudo, num documento completo (com ?dev=1 abre o modo
 //                        DEV)
 //   dist/moldes.js    -> só a tabela window.__MOLDES, para o comparativo.html (que abre por file://
@@ -29,7 +31,7 @@ import { encodePng } from './tools/png.mjs'
 const ROOT = dirname(fileURLToPath(import.meta.url))
 const read = (p) => readFile(join(ROOT, p), 'utf8')
 
-const SCRIPTS = ['src/data.js', 'src/sim.js', 'src/breed.js', 'src/marcas.js', 'src/gear.js', 'src/itens.js', 'src/ginasio.js', 'src/sprites.js', 'src/fx.js', 'src/dev.js', 'src/game.js']
+const SCRIPTS = ['src/data.js', 'src/sim.js', 'src/breed.js', 'src/marcas.js', 'src/gear.js', 'src/itens.js', 'src/ginasio.js', 'src/afk.js', 'src/forja.js', 'src/sprites.js', 'src/fx.js', 'src/dev.js', 'src/game.js']
 const SO_DEV = ['src/dev.js']   // fora do jogo de produção
 
 // Blocos marcados (/*@dev:inicio*/ … /*@dev:fim*/, /*@teste:inicio*/ … /*@teste:fim*/): confere o balanço (sem
@@ -80,8 +82,9 @@ const arteJs = [
   `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`,
   `window.__ARENAS = ${jsonJs(await lerArenas(ROOT))};`,
   `window.__TELAS = ${jsonJs(await lerTelas(ROOT))};`,
-  // a licença da Galmuri (SIL OFL 1.1): acompanha a fonte embutida; a tela de Créditos mostra o texto inteiro
-  `window.__OFL = ${jsonJs(await read('assets/fontes/OFL-galmuri.txt'))};`,
+  // as licenças das fontes (SIL OFL 1.1): Nunito (a interface) e Galmuri (o texto da corrida) acompanham as fontes
+  // embutidas; a tela de Créditos mostra o texto inteiro
+  `window.__OFL = ${jsonJs('Nunito\n\n' + await read('assets/fontes/OFL-nunito.txt') + '\n\n— — —\n\nGalmuri\n\n' + await read('assets/fontes/OFL-galmuri.txt'))};`,
   // as camadas das 5 regiões na corrida (paralaxe; a pista, as cercas e as placas são de código)
   `window.__REGIOES = ${jsonJs(await lerRegioes(ROOT))};`,
   // os glifos da Galmuri para o texto do canvas (tools/fonte-glifos.mjs; o sprites.js lê o mesmo arquivo no Node)
@@ -111,14 +114,17 @@ const pagina = (extra, js, estilo = css) => [
 const body = pagina([], scriptsProd, cssProd)           // produção
 const bodyDev = pagina(['<script>window.__GALOPE_DEV = true;</script>'], scripts)
 const bodyPreview = pagina([], scripts)
+// build dos testadores (pedido do Vinicius, 2026-11-23): o jogo completo, sem o modo DEV ligado, com evolução ×10,
+// iniciais Raros nota A e rivais um pouco abaixo (bloco RAPIDO do game.js); save próprio
+const bodyTeste = pagina(['<script>window.__GALOPE_RAPIDO = true;</script>'], scripts)
 
-for (const [nome, html] of [['jogo.html', body], ['jogo-dev.html', bodyDev]]) {
+for (const [nome, html] of [['jogo.html', body], ['jogo-dev.html', bodyDev], ['jogo-teste.html', bodyTeste]]) {
   for (const tag of [/<!doctype/i, /<html[\s>]/i, /<head[\s>]/i, /<body[\s>]/i]) {
     if (tag.test(html)) throw new Error(`${nome} não pode conter ${tag}`)
   }
 }
 // produção: nada do modo DEV nem do gancho de teste pode sobrar
-for (const [proibido, o_que] of [[/__galope/i, 'o gancho de teste (__galope / __GALOPE_DEV)'], [/\bDev\./, 'referência a Dev. (dev.js)'], [/galope-elemental:dev/, "a chave do save DEV ('galope-elemental:dev')"], [/\.dev-[a-z]/, 'seletor .dev- (CSS do modo DEV)'], [/devDias/, 'o deslocamento de dias da gaveta DEV (devDias)'], [/dev-gin-/, 'as ações do grupo "Ginásios" da gaveta DEV (dev-gin-)']]) {
+for (const [proibido, o_que] of [[/__galope/i, 'o gancho de teste (__galope / __GALOPE_DEV)'], [/\bDev\./, 'referência a Dev. (dev.js)'], [/galope-elemental:dev/, "a chave do save DEV ('galope-elemental:dev')"], [/\.dev-[a-z]/, 'seletor .dev- (CSS do modo DEV)'], [/devDias/, 'o deslocamento de dias da gaveta DEV (devDias)'], [/devMin/, 'o relógio de teste do treino AFK (state.devMin, só no save DEV)'], [/dev-gin-/, 'as ações do grupo "Ginásios" da gaveta DEV (dev-gin-)']]) {
   const m = body.match(proibido)
   if (m) {
     const linha = body.slice(0, m.index).split('\n').length
@@ -136,6 +142,7 @@ const moldesJs = '// Gerado por build.mjs — não editar. Tabela dos moldes par
 await mkdir(join(ROOT, 'dist'), { recursive: true })
 await writeFile(join(ROOT, 'dist', 'jogo.html'), body)
 await writeFile(join(ROOT, 'dist', 'jogo-dev.html'), bodyDev)
+await writeFile(join(ROOT, 'dist', 'jogo-teste.html'), bodyTeste)
 await writeFile(join(ROOT, 'dist', 'preview.html'), preview)
 await writeFile(join(ROOT, 'dist', 'moldes.js'), moldesJs)
 {
@@ -154,6 +161,7 @@ console.log(`moldes: ${Object.keys(MOLDES.estilos).join(', ') || 'nenhum'} · ar
 console.log(`fontes e peças de pixel: ${kb(baseCss)}`)
 console.log(`dist/jogo.html    ${kb(body)}`)
 console.log(`dist/jogo-dev.html ${kb(bodyDev)}`)
+console.log(`dist/jogo-teste.html ${kb(bodyTeste)}`)
 console.log(`dist/preview.html ${kb(preview)}`)
 console.log(`dist/moldes.js    ${kb(moldesJs)}`)
 

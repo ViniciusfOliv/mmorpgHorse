@@ -153,6 +153,83 @@ entre os cavalos, não entre os ginásios); no do Remanso, um cavalo ★★★ n
 níveis (4/8/12/16/20), os descontos do cansaço, o teto e o XP não mudaram. Um desafio do líder tem ~4,7 duelos e
 leva ~6 min de corrida.
 
+## 5b. Corrida AFK (metas E1 a E6, 2026-11-23)
+
+Spec: `docs/superpowers/specs/2026-11-23-afk-drops-design.md` §7. Medido pelo `balance.js` completo (a seção sozinha:
+`node prototype/tools/balance.js --afk`, ~45 s). Cavalo típico das metas E1 e E2: Raro ★★, genética 16 em tudo, build dos
+bots, skills esperadas pelo nível no rank `1 + floor((nível − 1) / 12)`; 300 duelos em cada uma das 45 fases, por
+nível (10, 20, 35, 50) × elemento do cavalo × ginásio (36 casos).
+
+| Meta | Medido | Faixa |
+|---|---|---|
+| E1 Ouro do AFK por hora na fase que mais paga, com o máximo de +Ouro das peças (+55%), níveis 10 / 20 / 35 / 50 | 151,5 / 328,2 / 362,6 / 366,0 | < 450 (25% dos 1.800 do PVP) |
+| E1 teto absoluto (vitória certa no líder da Lendária, corrida mais curta medida: 73,0 s) | 367,1 | < 450 |
+| E2 casos em que a fase de maior ganho é a mais difícil liberada | 13 de 36 (36,1%) | até 50% ("não é sempre") |
+| E2 casos em que fica 1 ou 2 degraus abaixo (informação; ver abaixo) | 16 de 36 (44,4%); 3 ou mais abaixo: 7 | a meta pede ≥ 50% |
+| E3 chance medida (2.400 duelos) a menos de 3 p.p. da referência (5.000 duelos), 45 configurações | 44 de 45 (97,8%); a pior, 3,24 p.p. | ≥ 95% |
+| E3 ganho esperado por hora, offline ÷ ao vivo, somadas as configurações | 1,00 | 0,97–1,03 |
+| E3 o que o offline sorteia ÷ o valor esperado pela tabela (198.552 corridas) | 1,00 | 0,97–1,03 |
+| E5 determinismo (corridas, offline de 8 h, medição em fatias) e nada de `Math.random` nem relógio | sim | — |
+
+**Bloco B (2026-11-23, `balance.js` completo: 380 metas, todas passam).** Com as peças no treino (os oponentes da
+Difícil com 5 Mágicas +3 e os da Lendária com 5 Raras +5 do conjunto), os números da tabela acima mudaram um pouco:
+
+| Meta | Medido | Faixa |
+|---|---|---|
+| E1 Ouro do AFK por hora, níveis 10 / 20 / 35 / 50; teto absoluto | 132,1 / 294,1 / 360,6 / 369,2; 370,4 | < 450 |
+| E2 casos em que a fase de maior ganho é a mais difícil liberada | 10 de 36 (27,8%) | até 50% |
+| E2 casos em que fica 1 ou 2 degraus abaixo (informação) | 10 de 36 (27,8%); 3 ou mais abaixo: 16 | a meta pede ≥ 50% |
+| E3 chance medida a menos de 3 p.p. da referência | 45 de 45; a pior, 2,50 p.p. | ≥ 95% |
+| E3 offline ÷ ao vivo; sorteado ÷ esperado | 1,00; 1,01 | 0,97–1,03 |
+| E4 nível 45 com 5 Raras +7 do conjunto contra o líder na Lendária (Fornalha / Remanso / Capoeira) | 55,3% / 51,7% / 56,9% | 40–60% |
+| E4 o mesmo cavalo sem peças | 22,1% / 26,6% / 23,5% | 15–35% |
+| E6 reforja, 10.000 por raridade: cada tipo (Mágico 20%, Raro 25%, Lendário 33,3%) | o mais longe, 0,7 p.p. | ± 1 p.p. |
+| E6 valor fora da faixa; com Selo, tipo trocado ou valor abaixo da metade | 0; 0 | 0 |
+
+- **E4, o que a calibração mudou:** o principal das peças passou a 0,75 · 1 · 1,25 · 1,75 (Comum a Lendário) e a
+  melhoria a +0,2 por nível (eram 2 · 2 · 3 · 4 e +0,5, do tempo em que a peça valia no PVP). Com os valores antigos o
+  cavalo com 5 Raras +7 ganhava quase sempre. O status é inteiro: a soma das peças de um slot é arredondada, então os
+  degraus são de 1 ponto (5 Raras +7 = +2,65 → +3 por status; as 5 Raras +5 do líder = +2,25 → +2).
+- **E2, segunda parte:** continua sem fechar e piorou (de 44% para 28%): com as peças, a Difícil e a Lendária ficaram mais
+  duras para o cavalo típico da medição, que corre **sem peças**, e a fase que mais rende cai 3 ou mais degraus abaixo
+  em 16 casos. Fica como informação; a primeira parte ("não é sempre a mais difícil") é a que confere.
+
+**O que a calibração mudou** (números de partida):
+- **Ouro por vitória: 0,3 · 0,45 · 0,6 · 0,75 · 1,2** (Soldado 1 ao líder, × dificuldade; a spec partia de 2 · 3 · 4 · 5 · 8).
+  Com a tabela de partida, o cavalo típico de nível 50 tirava cerca de **2.440 de Ouro por hora** no líder da Lendária
+  com o máximo de +Ouro (o teto é 450): 32 de Ouro por vitória × 1,55 × 49 corridas por hora. A tabela nova é a de
+  partida × 0,15. A fração vira Ouro inteiro pela seed (0,3 é 1 de Ouro em 30% das vitórias), então o valor esperado
+  é exato.
+- **Amostra da chance medida: 2.400 duelos** (a spec partia de 400). Com 400, só 25 de 30 configurações ficavam a menos
+  de 3 p.p. da referência (o erro de uma proporção medida com 400 corridas é ±2,5 p.p. perto de 50%); com 1.600, 43 de
+  45 (95,6%, no limite); com 2.400, 44 de 45. São ~1,5 s de conta num computador, feitos em fatias de 10 duelos.
+- **A medição em fatias soma as durações em décimos de segundo inteiros**: a E5 achou que 25 + 35 duelos davam uma
+  soma diferente de 60 de uma vez (arredondamento a cada fatia).
+
+**Como a E2 e a E3 foram medidas** (a spec não fixava):
+- E2, "liberadas": a Normal de toda etapa de nível até o do cavalo; a Difícil e a Lendária quando a anterior está
+  liberada e o cavalo vence nela pelo menos 1 em 10 (as 50 vitórias saem em até ~11 h). "Degrau": a posição entre as
+  liberadas do ginásio, pela ordem do nível do oponente.
+- E3: as configurações são um inicial de outro elemento a −3, 0, +2, +5 ou −1 níveis do oponente (uma por fase), para
+  a chance cair no meio da faixa, onde a medida erra mais. O "ganho esperado" é o valor de referência por hora que a
+  tabela de drops dá para a chance e a duração medidas, dividido pelo que dá para as de referência; numa configuração
+  sozinha com chance baixa ele chega a 12% de diferença (1 p.p. de erro numa chance de 8%), e a meta vale para a soma.
+
+**Para o Vinicius decidir (bloco A):**
+1. **XP do AFK é muito maior que o do PVP.** Uma corrida valendo dá de 10 a 100 de XP (média 40,6) e cabem ~20 por
+   hora: ~810 de XP por hora. No AFK, com ~47 corridas por hora, o Soldado 1 na Normal dá ~1.900 de XP por hora (40 por
+   vitória) e o líder na Lendária ~12.500 (256 por vitória); na derrota ainda vêm 30%. Do nível 1 ao 50 são 33.075 de
+   XP: ~17 h no Soldado 1 da Normal, ~3 h no líder da Lendária, por cavalo, em até 5 vagas, também offline. Os números
+   são os de partida da spec (40 × (1 + 0,15 × etapa) × dificuldade) e nenhuma meta E os limita. Sugestão: uma meta
+   nova (por exemplo, XP do AFK por hora ≤ 1,5× o do PVP) e baixar a base de 40 para algo perto de 12.
+2. **Os oponentes são fracos para um cavalo Raro.** Os cavalos dos ginásios são os iniciais (Comuns, sem skill de
+   vaga): um Raro ★★ de nível 10 vence o Soldado 1 da Lendária (nível 29) 43% a 93% das vezes, e um de nível 20 vence o
+   líder da Lendária (nível 45) 37% a 90%. As peças dos oponentes (bloco B, calibradas pela E4) é que vão endurecer a
+   Difícil e a Lendária; por isso a segunda parte da E2 fica como informação até a B2.
+3. **O prêmio quase não cresce com a etapa** (só o XP, +15% por etapa, e o Ouro): material, incomum, Pedra e comida
+   são os mesmos do Soldado 1 ao líder. A etapa de maior ganho tende a ser a mais baixa que o cavalo vence bem na
+   dificuldade mais alta; as etapas de cima rendem quase só o troféu do oponente e a marca do bestiário.
+
 ## 6. Para revisar (decisões de design em aberto)
 
 Do bloco 1b (spec §15; detalhes no `docs/memoria/ESTADO.md`), **ainda em aberto** até o Vinicius jogar:

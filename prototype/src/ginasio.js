@@ -97,6 +97,30 @@
   // ---------------------------------------------------------------------------------------------
   // O desafio
   // ---------------------------------------------------------------------------------------------
+  // A config do RaceSim.simulate de UM duelo nas regras do ginásio (a mesma do resolver; a corrida AFK também usa):
+  // 2 corredores (0 = `meu`, 1 = `dele`), a vantagem de elemento em statMul (1 + GYM.vantagem para quem vence o
+  // elemento do outro), largada Nublada e a pista dada. opts = { pista: { distance, surface, blocks }, folegoMeu,
+  // folegoDele (ausentes: 1), recordFrames (ausente: false) }. Não sorteia nem simula; não muta as entradas.
+  function dueloCfg(meu, dele, seed, opts) {
+    var o = objeto(opts) || {}, pista = objeto(o.pista) || {};
+    var v = vantagem(meu && meu.element, dele && dele.element), mul = 1 + G.GYM.vantagem;
+    var cfg = {
+      seed: seed,
+      recordFrames: o.recordFrames === true,
+      conditions: copia({ distance: pista.distance, surface: pista.surface, weather: 'nublado', blocks: pista.blocks }),
+      racers: [
+        { horse: copia(meu), name: meu.name, isPlayer: true, folego: typeof o.folegoMeu === 'number' ? o.folegoMeu : 1, statMul: v === 1 ? mul : 1 },
+        { horse: copia(dele), name: dele.name, isPlayer: false, folego: typeof o.folegoDele === 'number' ? o.folegoDele : 1, statMul: v === -1 ? mul : 1 }
+      ]
+    };
+    // só o treino AFK passa peças (opts.pecasMeu / pecasDele = { statAdd, pve }); os duelos de ginásio de verdade, nunca
+    [o.pecasMeu, o.pecasDele].forEach(function (pc, k) {
+      if (!objeto(pc)) return;
+      if (objeto(pc.statAdd)) cfg.racers[k].statAdd = copia(pc.statAdd);
+      if (objeto(pc.pve)) cfg.racers[k].pve = copia(pc.pve);
+    });
+    return cfg;
+  }
   function folegoDe(perda) { return Math.max(r3(1 - G.GYM.fadiga.teto), r3(1 - perda)); }
   // e = { gymId, etapa (0–4), time: [horse…] (na ordem; 1 até o tamanho do time do adversário), seedBase, contador }.
   // -> { venceu, duelos: [{ a, b, cfg, vencedor: 'jogador' | 'adversario', metros, faixa, folegoA, folegoB,
@@ -113,22 +137,13 @@
     for (var t = 0; t < time.length; t++) if (!objeto(time[t]) || (time[t].skills != null && !Array.isArray(time[t].skills))) return null;
     var adv = et.cavalos.map(cavalo);
     for (var q = 0; q < adv.length; q++) if (!adv[q]) return null;
-    var cond = { distance: gym.pista.distance, surface: gym.pista.surface, weather: 'nublado', blocks: gym.pista.blocks };
-    var mul = 1 + G.GYM.vantagem;
     var i = 0, j = 0, perdaA = 0, perdaB = 0, duelos = [];
     while (i < time.length && j < adv.length) {
       var d = duelos.length;
       var v = vantagem(time[i].element, adv[j].element);
       var folegoA = folegoDe(perdaA), folegoB = folegoDe(perdaB);
-      var cfg = {
-        seed: S.hash2(e.seedBase, SAL + e.contador * PASSO_DUELO + d),
-        recordFrames: false,
-        conditions: copia(cond),
-        racers: [
-          { horse: copia(time[i]), name: time[i].name, isPlayer: true, folego: folegoA, statMul: v === 1 ? mul : 1 },
-          { horse: copia(adv[j]), name: adv[j].name, isPlayer: false, folego: folegoB, statMul: v === -1 ? mul : 1 }
-        ]
-      };
+      var cfg = dueloCfg(time[i], adv[j], S.hash2(e.seedBase, SAL + e.contador * PASSO_DUELO + d),
+        { pista: gym.pista, folegoMeu: folegoA, folegoDele: folegoB, recordFrames: false });
       var res = S.simulate(cfg);
       var jogador = res.finishOrder[0] === 0;
       var m = metros(res), f = faixa(m);
@@ -269,6 +284,7 @@
     cavalo: cavalo,
     metros: metros,
     faixa: faixa,
+    dueloCfg: dueloCfg,
     resolver: resolver,
     acerto: acerto,
     podeDesafiar: podeDesafiar,

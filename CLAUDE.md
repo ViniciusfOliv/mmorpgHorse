@@ -11,7 +11,7 @@ para `docs/` e aqui fica só o caminho, entre crases (sem `@`, para não carrega
   (compradas; cosméticos e passe). Pacote de montaria só com moeda ganha jogando.
 - **Tecnologia:** base web (HTML/CSS/JS puro, sem dependências), em `prototype/`. Decidido em
   2026-11-10: o protótipo **vira o jogo**, empacotado para Android, e os módulos de regra (`sim.js`,
-  `data.js`, `breed.js`, `gear.js`, `itens.js`, `ginasio.js`) vão para o servidor. Empacotador e servidor ainda a definir.
+  `data.js`, `breed.js`, `gear.js`, `itens.js`, `ginasio.js`, `afk.js`, `forja.js`) vão para o servidor. Empacotador e servidor ainda a definir.
 - **Fonte da verdade:** `docs/GDD.md`. Números reais do protótipo: `docs/wiki.md` e
   `prototype/dist/wiki.html` (gerados do código pelo build; não editar). Medições de balanceamento:
   `docs/exemplos.md`. Fórmulas da simulação: comentário no topo de `prototype/src/sim.js`.
@@ -37,6 +37,7 @@ lançamento: `docs/cronograma.md`.
 |---|---|---|
 | Gerar o jogo e o wiki (`prototype/dist/`, `docs/wiki.md`) | `node prototype/build.mjs` | 1 s |
 | Testes unitários da simulação | `node prototype/tools/sim-test.js` | 3 s |
+| Testes do treino AFK e da forja | `node prototype/tools/afk-test.js` | 12 s |
 | Testes dos efeitos da corrida (dados, skills, clima, vento, curvas) | `node prototype/tools/fx-test.js` | 2 s |
 | Testes dos moldes de cavalo (PNGs e âncoras gerados) | `node prototype/tools/moldes-test.mjs` | <1 s |
 | Wiki: regerar (`--check` só confere) / testar (determinismo, cobertura, navegador) | `node prototype/tools/wiki.mjs` / `node prototype/tools/wiki-test.mjs` | <1 s / 2 s |
@@ -98,6 +99,9 @@ Guia completo (subagentes, MCP, permissões, tokens): `docs/guia-ferramentas.md`
 - Dado da Sorte e viradas de clima só com a RNG da seed (nada de `Math.random`).
 - Potro gerado só pela RNG da seed (`prototype/src/breed.js`); Mítico nunca nasce de cruzamento.
 - Melhoria de peça e Pedra Negra do pódio só pela RNG da seed (`prototype/src/gear.js`); Lendário nunca à venda.
+- Equipamento só vale no PVE (treino AFK): nunca entra no Poder, na sala nem na corrida do PVP ou dos ginásios.
+  Reforja de peça, linhas da peça forjada e Selo do campeão só pela RNG da seed (`gear.js`, `forja.js`, `itens.js`), e
+  só depois de confirmar; o Selo só cai no 1º lugar de corrida valendo.
 - Cupom de troca de skill e Manual de doma só sorteiam pela RNG da seed, e só depois de confirmar
   (`prototype/src/itens.js`); a loja de itens só aceita Ouro e a Rédea nova nunca é vendida.
 - Desafio de ginásio só é sorteado depois de a entrada (Ouro) ser paga, pela RNG da seed, e é gravado inteiro numa

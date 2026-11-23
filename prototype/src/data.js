@@ -139,6 +139,8 @@
   //   trigger: 'start' | 'straight' (reta de 150 m ou mais, fora a da largada) | 'curve' | 'curveExit'
   //            | 'hill' | 'lowStamina' (<=30%) | 'final' (onde começa a arrancada do cavalo, garraFrom) | 'dice' (uma tentativa,
   //            antes do 1º Dado) | 'weather:<sol|chuva|nevoa>'
+  //   resumo: o que a skill faz em poucas palavras, sem números (a tela mostra o nome, o rank e o resumo; o texto completo
+  //            com os números do rank abre por toque, mouse ou foco; ajustes 1, 2026-11-23)
   //   effect (chaves usadas):
   //     accelMult / speedMult: multiplicadores; drainMult: gasto de estamina;
   //     distanceM / durationS: duração do efeito em metros ou segundos;
@@ -158,59 +160,67 @@
   //   element: 'geral' (qualquer tipo aprende) ou o tipo que aprende.
   // ---------------------------------------------------------------------------
   // Ranks das skills de vaga (por cavalo, em horse.skillRanks): 1 a max. O fator do rank r é 1 + step × (r − 1).
-  // custo[r]: Ouro e Pergaminhos de técnica para subir de r para r + 1 (sem sorteio). diceTeto[r − 1]: até quanto
+  // custo[r]: Ouro e Pergaminhos de técnica (e, do IV para o V, Selos do campeão) para subir de r para r + 1 (sem sorteio). diceTeto[r − 1]: até quanto
   // rola o dado extra do Dado Viciado.
   var SKILL_RANKS = {
     max: 5, step: 0.15,
-    custo: { 1: { ouro: 150, perg: 1 }, 2: { ouro: 400, perg: 2 }, 3: { ouro: 900, perg: 4 }, 4: { ouro: 2000, perg: 7 } },
+    custo: { 1: { ouro: 150, perg: 1 }, 2: { ouro: 400, perg: 2 }, 3: { ouro: 900, perg: 4 }, 4: { ouro: 2000, perg: 7, selo: 1 } },
     diceTeto: [60, 70, 80, 90, 100]
   };
   var SKILLS = {
     // --- Gerais (qualquer tipo) ---
     'arranque': {
       id: 'arranque', name: 'Arranque', element: 'geral', trigger: 'start',
+      resumo: 'Aceleração na largada',
       desc: 'Largada explosiva: +10,8% de aceleração nos primeiros 100 m.',
       effect: { accelMult: 1.108, distanceM: 100 },
       rank5: { speedMult: 1.03 }
     },
     'sprint': {
       id: 'sprint', name: 'Sprint', element: 'geral', trigger: 'straight',
+      resumo: 'Velocidade nas retas longas',
       desc: 'Numa reta de 150 m ou mais (fora a da largada): +4% de velocidade por 150 m.',
       effect: { speedMult: 1.04, distanceM: 150 },
       rank5: { minStraightM: 100 }
     },
     'drift': {
       id: 'drift', name: 'Drift', element: 'geral', trigger: 'curve',
+      resumo: 'Rende mais nas curvas',
       desc: 'Em cada curva: +1,3% de rendimento na curva.',
       effect: { curveBonus: 0.013, blockScoped: true },
       rank5: { drainMult: 0.85 }
     },
     'saida-rapida': {
       id: 'saida-rapida', name: 'Saída Rápida', element: 'geral', trigger: 'curveExit',
+      resumo: 'Dispara ao sair da curva',
       desc: 'Ao sair da curva: +32% de aceleração e +4,5% de velocidade por 6s.',
       effect: { accelMult: 1.32, speedMult: 1.045, durationS: 6 },
       rank5: { durationS: 7 }
     },
     'folego-de-montanha': {
       id: 'folego-de-montanha', name: 'Fôlego de Montanha', short: 'FÔLEGO MONT.', element: 'geral', trigger: 'hill',
+      resumo: 'Poupa fôlego nas subidas',
       desc: 'Em cada subida: gasta 70% menos estamina extra da subida.',
       effect: { hillDrainMult: 0.3, blockScoped: true },
       rank5: { exitRestore: 0.03 }
     },
     'segundo-ar': {
       id: 'segundo-ar', name: 'Segundo Ar', element: 'geral', trigger: 'lowStamina',
+      resumo: 'Recupera o fôlego ao cansar',
       desc: 'Quando a estamina cai a 30%, recupera 10% e ganha +3% de velocidade por 8s.',
       effect: { staminaRestore: 0.1, speedMult: 1.03, durationS: 8 },
       rank5: { lowStaminaAt: 0.35 }
     },
     'arrancada-final': {
       id: 'arrancada-final', name: 'Arrancada Final', short: 'ARR. FINAL', element: 'geral', trigger: 'final',
+      resumo: 'Garra mais forte no fim',
       desc: 'Na reta final: +2,8% de força na arrancada de Garra.',
       effect: { garraBoostBonus: 0.028 },
       rank5: { speedMult: 1.01, untilFinish: true }
     },
     'dado-viciado': {
       id: 'dado-viciado', name: 'Dado Viciado', element: 'geral', trigger: 'dice',
+      resumo: 'Dado extra no Dado da Sorte',
       desc: 'Antes do 1º Dado da Sorte: rola 1 dado extra, de 1 a 60, em todos os Dados da corrida.',
       effect: { extraDice: 1 },
       rank5: { extraDice: 2 }
@@ -218,12 +228,14 @@
     // --- Fogo ---
     'sol-a-pino': {
       id: 'sol-a-pino', name: 'Sol a Pino', element: 'fogo', trigger: 'weather:sol',
+      resumo: 'Fogo mais forte com sol',
       desc: 'Com sol: o bônus do clima para o Fogo sobe de +3% para +7%.',
       effect: { weatherBonus: 0.04 },
       rank5: { weatherLingerS: 15 }
     },
     'chama-final': {
       id: 'chama-final', name: 'Chama Final', element: 'fogo', trigger: 'final',
+      resumo: 'Velocidade na reta final',
       desc: 'Na reta final: +4% de velocidade por 9,5s.',
       effect: { speedMult: 1.04, durationS: 9.5 },
       rank5: { durationS: 11 }
@@ -231,18 +243,21 @@
     // --- Água ---
     'pe-na-chuva': {
       id: 'pe-na-chuva', name: 'Pé na Chuva', element: 'agua', trigger: 'weather:chuva',
+      resumo: 'Água mais forte com chuva',
       desc: 'Com chuva: o bônus do clima para a Água sobe de +3% para +7%.',
       effect: { weatherBonus: 0.04 },
       rank5: { weatherLingerS: 15 }
     },
     'canto-da-iara': {
       id: 'canto-da-iara', name: 'Canto da Iara', short: 'CANTO IARA', element: 'agua', trigger: 'final',
+      resumo: 'Velocidade e fôlego no fim',
       desc: 'Na reta final: +4% de velocidade e 20% menos gasto de estamina por 9s.',
       effect: { speedMult: 1.04, drainMult: 0.8, durationS: 9 },
       rank5: { staminaRestore: 0.05 }
     },
     'nascente': {
       id: 'nascente', name: 'Nascente', element: 'agua', trigger: 'straight',
+      resumo: 'Recupera fôlego nas retas',
       desc: 'Numa reta de 150 m ou mais (fora a da largada): recupera 4,5% de estamina.',
       effect: { staminaRestore: 0.045 },
       rank5: { speedMult: 1.03, durationS: 4 }
@@ -250,12 +265,14 @@
     // --- Grama ---
     'nevoa-amiga': {
       id: 'nevoa-amiga', name: 'Névoa Amiga', element: 'grama', trigger: 'weather:nevoa',
+      resumo: 'Grama mais forte com névoa',
       desc: 'Com névoa: o bônus do clima para a Grama sobe de +3% para +7%.',
       effect: { weatherBonus: 0.04 },
       rank5: { weatherLingerS: 15 }
     },
     'casco-firme': {
       id: 'casco-firme', name: 'Casco Firme', element: 'grama', trigger: 'hill',
+      resumo: 'Rende mais nas subidas',
       desc: 'Em cada subida: +1,2% de rendimento na subida.',
       effect: { hillBonus: 0.012, blockScoped: true },
       rank5: { hillDrainMult: 0.7 }
@@ -482,15 +499,31 @@
     gear: {
       price: { comum: 100, magico: 250, raro: 600, lendario: 1500 },
       sellRate: 0.25, stonePrice: 40, stoneBundle: 5,
-      main: { comum: 2, magico: 2, raro: 3, lendario: 4 },
-      sub: { comum: 0, magico: 1, raro: 2, lendario: 3 },
-      plusStep: 0.5,   // cada +N soma plusStep ao status principal (uma peça +10 soma +5)
+      // o principal e o passo da melhoria, calibrados para o PVE pela meta E4 (eram 2 · 2 · 3 · 4 e 0,5 quando a peça
+      // valia no PVP): com 5 Raras +5 o líder da Lendária soma 2,25 por status (o status é inteiro: +2)
+      main: { comum: 0.75, magico: 1, raro: 1.25, lendario: 1.75 },
+      // Linhas de farm (só PVE; spec AFK §5.7): quantas por raridade e a faixa de cada tipo, em pontos percentuais
+      // inteiros (sorteio uniforme, passos de 1). Tipos sem repetir na mesma peça.
+      linhas: { comum: 0, magico: 1, raro: 2, lendario: 3 },
+      faixas: {
+        material: { magico: [3, 6], raro: [6, 10], lendario: [10, 15] },
+        xp: { magico: [3, 6], raro: [6, 10], lendario: [10, 15] },
+        raro: { magico: [2, 5], raro: [5, 8], lendario: [8, 12] },
+        trofeu: { magico: [6, 12], raro: [12, 20], lendario: [20, 30] },
+        ouro: { magico: [2, 4], raro: [4, 6], lendario: [6, 10] }
+      },
+      // Reforja (spec AFK §5.9): Ouro = arredonda para 10 (reforjaBase × reforjaFator^rerolls da peça), mais 1 Pergaminho
+      // de reforja; com 1 Selo do campeão a linha mantém o tipo e o valor sai da metade de cima da faixa.
+      reforjaBase: 100, reforjaFator: 1.5,
+      plusStep: 0.2,   // cada +N soma plusStep ao status principal (uma peça +10 soma +2)
       plusMax: 10,
       // Chance e custo (em pedras) de cada passo +0→+1 … +9→+10; falha derruba a partir de enhanceDropFrom.
       enhanceChance: [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25],
       enhanceCost: [1, 1, 1, 1, 1, 1, 2, 2, 2, 2],
       enhanceDropFrom: 6,
-      setBonus: { pieces: [3, 4, 5], skillEffect: 0.05, sorte: 5, ratingPts: [3, 15, 20] },
+      // conjunto (só PVE): 3 peças, os bônus de farm das linhas × (1 + farm); 4, o bônus do clima do conjunto sobe para `clima` (×1,07);
+      // 5, sem penalidade de clima
+      setBonus: { pieces: [3, 4, 5], farm: 0.10, clima: 1.07 },
       podiumStone: [0.6, 0.4, 0.25],
       startGear: ['sela-comum', 'ferraduras-comum']
     }
@@ -634,19 +667,141 @@
   };
 
   // ---------------------------------------------------------------------------------------------
-  // Equipamento: 5 slots por montaria. Cada peça dá um status principal e um secundário, definidos
-  // pelo slot (GEAR_SLOT_INFO) e pela raridade (ECONOMY.gear.main/sub).
+  // Corrida AFK (spec 2026-11-23-afk-drops §5). Regras em afk.js; os números de partida aqui, juntos, para ajustar
+  // pelas metas E1 a E6 do tools/balance.js e depois de jogar.
+  //   difs: as três dificuldades de cada fase (fase = etapa de ginásio), na ordem em que liberam. nivel: somado ao nível
+  //     da etapa (até nivelMax); rank: o das skills de vaga do oponente (null = o da etapa); mult: multiplicador de
+  //     prêmio; pecas: as cinco peças do oponente (bloco B; null = sem peças).
+  //   liberaApos: vitórias AFK numa dificuldade para liberar a seguinte, na mesma fase.
+  //   vagaPreco: Ouro de cada vaga (a 1ª é grátis); o tamanho da lista é o máximo de vagas.
+  //   offlineMin: limite do offline (min); offlineTetoMin: o teto com a Aveia dourada e o bestiário; amostra: duelos
+  //     simulados para medir a chance de vitória de uma configuração.
+  // ---------------------------------------------------------------------------------------------
+  var AFK = {
+    difs: [
+      { id: 'normal', name: 'Normal', nivel: 0, rank: null, mult: 1, pecas: null },
+      { id: 'dificil', name: 'Difícil', nivel: 12, rank: 3, mult: 2, pecas: { rar: 'magico', plus: 3 } },
+      { id: 'lendaria', name: 'Lendária', nivel: 25, nivelMax: 45, rank: 5, mult: 4, pecas: { rar: 'raro', plus: 5, doConjunto: true } }
+    ],
+    liberaApos: 50,
+    vagaPreco: [0, 1000, 3000, 8000, 20000],
+    // amostra: 2.400 (a spec partia de 400; com 400 só 25 de 30 configurações ficavam a menos de 3 p.p. da referência, e
+    // a meta E3 pede 95%; com 1.600 a E3 passava no limite, 43 de 45; 2.400 duelos levam ~1,5 s num computador, em fatias)
+    offlineMin: 480, offlineTetoMin: 720, amostra: 2400,
+    // Ganho por corrida (§5.3): xp = round(xpBase × (1 + xpPorEtapa × etapa) × mult); ouro = ouro[etapa] × mult
+    // (etapa 0–4: Soldado 1 ao líder). Na derrota: a fração do XP e do material comum (para baixo), sem raros nem Ouro.
+    // ouro: a tabela da spec (2 · 3 · 4 · 5 · 8) × 0,15, calibrada pela meta E1 (o Ouro do AFK por hora abaixo de 25% do
+    // PVP mesmo com o máximo de +Ouro das peças); a fração vira Ouro inteiro pela seed (parte inteira e mais 1 com a
+    // chance da fração).
+    xpBase: 40, xpPorEtapa: 0.15, ouro: [0.3, 0.45, 0.6, 0.75, 1.2],
+    derrota: { xp: 0.30, material: 0.25 },
+    // Drops por vitória (§5.4). material: quantidade sorteada de min a max, × mult, metade de cada tipo do ginásio.
+    // incomum, pedra, comida e reforja: chance na Normal, × mult (incomum com teto). peca: chance por dificuldade
+    // (solta = Comum ou Mágica sem conjunto, magica = fração das soltas que sai Mágica; raro e lendario = do conjunto
+    // do ginásio). trofeu: chance por dificuldade. comida.pesos: a divisão do que cai.
+    drops: {
+      material: { min: 1, max: 3 },
+      incomum: { chance: 0.15, teto: 0.60 },
+      pedra: { chance: 0.06 },
+      comida: { chance: 0.08, pesos: { feno: 60, cenoura: 25, maca: 12, 'aveia-dourada': 3 } },
+      peca: { normal: { solta: 0.02, magica: 0.3 }, dificil: { raro: 0.01 }, lendaria: { raro: 0.02, lendario: 0.002 } },
+      reforja: { chance: 0.015 },
+      trofeu: { normal: 0.005, dificil: 0.01, lendaria: 0.02 }
+    },
+    // Bestiário (§5.8): bônus da conta, só no AFK. marcos: vitórias AFK por oponente; raro e xp: `por` a cada oponente com
+    // `vitorias` vitórias; trofeu: `por` a cada troféu obtido; pagina: minutos de limite offline por página completa.
+    bestiario: {
+      marcos: [10, 100, 1000],
+      raro: { por: 0.01, teto: 0.15, vitorias: 100 },
+      xp: { por: 0.02, teto: 0.30, vitorias: 1000 },
+      trofeu: { por: 0.02, teto: 0.30 },
+      pagina: { min: 60, tetoMin: 180 }
+    },
+    // O que só cai em cada ginásio: os dois materiais comuns, o incomum e o conjunto das peças Raras e Lendárias.
+    materiais: {
+      fogo: { comuns: ['carvao', 'ferro-bruto'], incomum: 'brasa-viva', conjunto: 'sol' },
+      agua: { comuns: ['junco', 'concha'], incomum: 'perola-de-rio', conjunto: 'chuva' },
+      grama: { comuns: ['fibra', 'resina'], incomum: 'seiva-antiga', conjunto: 'nevoa' }
+    },
+    // O objeto de cada oponente (o troféu 'trofeu-<ginásio>-<etapa>' leva o nome dele), na ordem das etapas.
+    trofeus: {
+      fogo: ['Pederneira', 'Archote', 'Lanterna', 'Braseiro', 'Elmo'],
+      agua: ['Cantil', 'Balde', 'Remo', 'Moringa', 'Capa'],
+      grama: ['Regador', 'Escova', 'Cajado', 'Facão', 'Foice']
+    }
+  };
+  // Itens do AFK (spec §5.4): entram em ITEMS com `grupo` (material, incomum, comida, reforja, trofeu), sem preço (não
+  // se vendem) e com o teto próprio (cap). gymId: o ginásio em que caem. Comidas: xp (dado a um cavalo) ou aveiaMin
+  // (minutos a mais no limite do próximo offline).
+  (function () {
+    function add(id, grupo, name, plural, cap, desc, origem, extra) {
+      var it = { id: id, name: name, plural: plural, price: null, cap: cap, grupo: grupo, desc: desc, origem: origem };
+      Object.keys(extra || {}).forEach(function (k) { it[k] = extra[k]; });
+      ITEMS[id] = it;
+    }
+    var LUGAR = { fogo: 'da Fornalha', agua: 'do Remanso', grama: 'da Capoeira' };
+    var NOMES = {
+      carvao: ['Carvão', 'Carvões'], 'ferro-bruto': ['Ferro bruto', 'Ferros brutos'], junco: ['Junco', 'Juncos'], concha: ['Concha', 'Conchas'],
+      fibra: ['Fibra', 'Fibras'], resina: ['Resina', 'Resinas'],
+      'brasa-viva': ['Brasa viva', 'Brasas vivas'], 'perola-de-rio': ['Pérola de rio', 'Pérolas de rio'], 'seiva-antiga': ['Seiva antiga', 'Seivas antigas']
+    };
+    GYM_ORDER.forEach(function (g) {
+      AFK.materiais[g].comuns.forEach(function (id) {
+        add(id, 'material', NOMES[id][0], NOMES[id][1], 999, 'Material de forja ' + LUGAR[g] + '.', 'Cai em toda vitória no treino AFK ' + LUGAR[g] + '.', { gymId: g });
+      });
+    });
+    GYM_ORDER.forEach(function (g) {
+      var id = AFK.materiais[g].incomum;
+      add(id, 'incomum', NOMES[id][0], NOMES[id][1], 999, 'Material incomum ' + LUGAR[g] + ', para forjar peças melhores.', 'Cai às vezes nas vitórias do treino AFK ' + LUGAR[g] + '.', { gymId: g });
+    });
+    var COMIDA = 'Cai às vezes nas vitórias do treino AFK.';
+    add('feno', 'comida', 'Feno', 'Fenos', 999, 'Dá 200 de XP a um cavalo.', COMIDA, { xp: 200 });
+    add('cenoura', 'comida', 'Cenoura', 'Cenouras', 999, 'Dá 500 de XP a um cavalo.', COMIDA, { xp: 500 });
+    add('maca', 'comida', 'Maçã', 'Maçãs', 999, 'Dá 1.200 de XP a um cavalo.', COMIDA, { xp: 1200 });
+    add('aveia-dourada', 'comida', 'Aveia dourada', 'Aveias douradas', 999, 'O próximo período fora rende 1 hora a mais no treino AFK.', COMIDA, { aveiaMin: 60 });
+    // Selo do campeão (spec AFK §5.9): só no 1º lugar de corrida valendo, chance `podio` pela seed da sala. Gasta-se na
+    // subida do rank IV → V, na reforja garantida e na forja da Lendária. Nunca cai no AFK nem se vende.
+    add('selo', 'selo', 'Selo do campeão', 'Selos do campeão', 99,
+      'Prova de vitória no PVP. Entra na forja das peças Lendárias de conjunto.', 'Cai às vezes para o 1º lugar das corridas valendo; não está à venda.', { podio: 0.10 });
+    add('pergaminho-reforja', 'reforja', 'Pergaminho de reforja', 'Pergaminhos de reforja', 99,
+      'Sorteia de novo uma linha de uma peça de equipamento, junto com Ouro.', 'Cai às vezes nas vitórias do treino AFK ou sai da forja.');
+    GYM_ORDER.forEach(function (g) {
+      GYMS[g].etapas.forEach(function (et, e) {
+        var obj = AFK.trofeus[g][e], de = /^(Capitã|Dona) /.test(et.nome) ? ' da ' : ' do ';
+        add('trofeu-' + g + '-' + e, 'trofeu', obj + de + et.nome, obj + de + et.nome, 99,
+          'Troféu de ' + et.nome + '. Conta no bestiário e entra na forja das peças de conjunto ' + LUGAR[g] + '.',
+          'Cai raramente ao vencer ' + et.nome + ' no treino AFK.', { gymId: g, etapa: e });
+      });
+    });
+  })();
+
+  // Forja (spec AFK §5.6): receitas fixas, sem chance. mat = soma dos dois materiais comuns do ginásio escolhido;
+  // inc = o incomum dele; trofeu = troféus de qualquer oponente dele; selo = Selos do campeão; ouro = Ouro livre.
+  // Rara e Lendária saem do conjunto do ginásio. qualquerGinasio: a receita não depende de qual ginásio se escolhe.
+  var FORJA = {
+    comum: { mat: 10, inc: 0, trofeu: 0, ouro: 100 },
+    magico: { mat: 25, inc: 3, trofeu: 0, ouro: 300 },
+    raro: { mat: 60, inc: 10, trofeu: 1, ouro: 800 },
+    lendario: { mat: 120, inc: 20, trofeu: 3, selo: 2, ouro: 3000 },
+    pedra: { mat: 8, inc: 0, trofeu: 0, ouro: 30 },
+    reforja: { mat: 15, inc: 1, trofeu: 0, ouro: 150, qualquerGinasio: true }
+  };
+
+  // ---------------------------------------------------------------------------------------------
+  // Equipamento (só vale no PVE: treino AFK; nunca no PVP nem no Poder): 5 slots por montaria. Cada peça dá um status
+  // principal de corrida, pelo slot (GEAR_SLOT_INFO) e pela raridade (ECONOMY.gear.main), e linhas de farm sorteadas
+  // (ECONOMY.gear.linhas e faixas; cada peça do save guarda as suas).
   //   id: '<slot>-<raridade>' (solta: Comum/Mágico) ou '<slot>-<conjunto>-<raridade>' (Raro/Lendário).
   //   Conjuntos (sol/chuva/nevoa) dão bônus por nº de peças equipadas; Lendário não vai à loja.
   // ---------------------------------------------------------------------------------------------
   var GEAR_SLOTS = ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'];
 
   var GEAR_SLOT_INFO = {
-    ferraduras: { name: 'Ferraduras', main: 'vel', sub: 'acel' },
-    sela: { name: 'Sela', main: 'est', sub: 'garra' },
-    estribos: { name: 'Estribos', main: 'man', sub: 'sorte' },
-    testeira: { name: 'Testeira', main: 'acel', sub: 'garra' },
-    armadura: { name: 'Armadura', main: 'forca', sub: 'est' }
+    ferraduras: { name: 'Ferraduras', main: 'vel' },
+    sela: { name: 'Sela', main: 'est' },
+    estribos: { name: 'Estribos', main: 'man' },
+    testeira: { name: 'Testeira', main: 'acel' },
+    armadura: { name: 'Armadura', main: 'forca' }
   };
 
   var GEAR_SETS = {
@@ -670,7 +825,7 @@
       var id = slot + (set ? '-' + set : '') + '-' + rarity;
       GEAR[id] = {
         id: id, name: name, slot: slot, rarity: rarity, set: set,
-        main: ECONOMY.gear.main[rarity], sub: ECONOMY.gear.sub[rarity],
+        main: ECONOMY.gear.main[rarity],
         price: ECONOMY.gear.price[rarity], shop: rarity !== 'lendario'
       };
     }
@@ -684,6 +839,10 @@
       });
     });
   })();
+
+  // Os itens de uso (Torrão, Estrela, Rédea, Cupom, Manual, Pergaminho de técnica), na ordem do catálogo: os de ITEMS
+  // sem `grupo`. Os do AFK (com grupo) têm as suas telas e os seus tetos.
+  var ITENS_USO = Object.keys(ITEMS).filter(function (id) { return !ITEMS[id].grupo; });
 
   var GameData = {
     version: '0.2-prototipo',
@@ -711,12 +870,15 @@
     LEAGUES: LEAGUES,
     ECONOMY: ECONOMY,
     ITEMS: ITEMS,
+    ITENS_USO: ITENS_USO,
     SHOP_ORDER: SHOP_ORDER,
     BAG_MAX: BAG_MAX,
     DAILY: DAILY,
     GYM: GYM,
     GYM_ORDER: GYM_ORDER,
     GYMS: GYMS,
+    FORJA: FORJA,
+    AFK: AFK,
     FOAL_NAMES: FOAL_NAMES,
     BREED_LEFT: BREED_LEFT
   };

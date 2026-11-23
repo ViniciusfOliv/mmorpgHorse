@@ -33,17 +33,19 @@ const S = require('../src/sim.js')
 const B = require('../src/breed.js')
 const GR = require('../src/gear.js')
 const IT = require('../src/itens.js')
+const AFK = require('../src/afk.js')
+const FORJA = require('../src/forja.js')
 const G_ELS = Object.keys(G.ELEMENTS)
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // os blocos, na ordem em que aparecem no arquivo: todo if (quer(nome)) usa um nome daqui (quer() lança erro se não), e o
 // ui-test-paralelo.mjs roda exatamente esta lista. Bloco novo entra aqui, no lugar dele.
 const BLOCOS = ['reserva', 'gravacao2', 'treino', 'aviso', 'gravacao', 'adulterado', 'migracao', 'adulterado-v5', 'retrato',
-  'corrompido', 'areasegura', 'creditos', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto',
+  'corrompido', 'areasegura', 'creditos', 'afk', 'equipamento', 'forja', 'reforja', 'bestiario', 'texto', 'producao', 'itens', 'ginasio', 'ginasio-corrida', 'redimensiona', 'escala', 'teto',
   'corrida', 'corrida-390', 'corrida-forcado', 'corrida-girar', 'corrida-paisagem-8', 'corrida-8', 'corrida-lugar-dado',
-  'corrida-lugar-dado-redimensiona', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
+  'corrida-lugar-dado-redimensiona', 'corrida-camera', 'corrida-etiquetas-dado', 'corrida-faixa-lugar', 'corrida-faixa-lugar-pular',
   'corrida-faixa-lugar-pular-antes', 'corrida-dado-reduzido',
   'resultado', 'build', 'valor-peca', 'nivel-pontos', 'selo-teto', 'build-nivel1', 'selo', 'vaga-tipo', 'inicial', 'aura',
-  'skills', 'skills-aba', 'ranks', 'icones', 'marcas', 'marcas-corrida', 'portes', 'portes-corrida', 'ajuda', 'acabamento', 'celular', 'crescimento',
+  'skills', 'skills-aba', 'skills-resumo', 'ranks', 'icones', 'marcas', 'marcas-corrida', 'portes', 'portes-corrida', 'ajuda', 'acabamento', 'celular', 'crescimento',
   'crescimento-jogo',
   'fluxo', 'fluxo-saves', 'fluxo-cruzamento', 'fluxo-abas', 'fluxo-equipamento', 'fluxo-dev', 'fluxo-build-teste', 'fluxo-dado',
   'fluxo-natureza', 'fluxo-desempenho', 'fluxo-curvas', 'fluxo-capturas-itens', 'fluxo-capturas-ginasio', 'fluxo-loja', 'fluxo-desktop', 'fluxo-moldes', 'fluxo-sem-icones',
@@ -93,7 +95,12 @@ if (process.env.UI_PARALELO === '1' && SHOTS_SAO_OFICIAIS) throw new Error('ui-t
 // versão do save e equipamento (spec 1b §8, §10), lidos do jogo gerado: o teste segue o que o build tem
 const PREVIEW_JS = await readFile(join(DIST, 'preview.html'), 'utf8')
 const SAVE_V = Number((PREVIEW_JS.match(/var SAVE_VERSION = (\d+);/) || [])[1])
-const GEAR_ON = (PREVIEW_JS.match(/var GEAR_ON = (true|false);/) || [])[1] === 'true'
+// Desde o save v10 (AFK): a mochila também guarda os itens do AFK (GameData.ITEMS com `grupo`) e cada peça tem rerolls e
+// linhas. soUso: a mochila só com os itens de uso; pecasBase: as peças só com uid, id e plus (o que os testes de antes comparam).
+const soUso = (m) => Object.fromEntries(Object.entries(m || {}).filter(([id]) => !(G.ITEMS[id] && G.ITEMS[id].grupo)))
+const pecasBase = (items) => (items || []).map(({ uid, id, plus }) => ({ uid, id, plus }))
+const GEAR_FLAGS = PREVIEW_JS.match(/var GEAR_ON = (true|false), GEAR_PVP = (true|false);/) || []
+const GEAR_ON = GEAR_FLAGS[1] === 'true', GEAR_PVP = GEAR_FLAGS[2] === 'true'   // GEAR_ON: as telas de peças (só PVE); GEAR_PVP: peças no Poder e na corrida da sala (desligado)
 if (!(SAVE_V >= 6)) throw new Error('ui-test: não achei SAVE_VERSION (>= 6) no dist/preview.html')
 // SHOTS_T6: pasta (fora do repositório) para as capturas de conferência das telas da build; sem ela, não captura
 const SHOTS_T6 = process.env.SHOTS_T6 || null
@@ -715,11 +722,21 @@ try {
       if (s.pending.pr !== real) problems.push(`adulterado: Poder da sala ${s.pending.pr} != Poder real ${real}`)
       await ad.locator('button[data-acao="montaria"][data-id="m1"]').click()
       await ad.waitForSelector('#t-montaria')
-      if (GEAR_ON) {
+      if (GEAR_PVP) {
         // a trava continua: com o Poder da sala real, a Lendária não pode ser equipada
         await ad.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
         await ad.locator('[data-acao="equip-slot"][data-id="armadura"]').click()
         if (!(await ad.locator('[data-acao="equipar"][data-id="i99"]').isDisabled())) problems.push('adulterado: a peça Lendária pode ser equipada com o páreo aberto')
+      } else if (GEAR_ON) {
+        // equipamento só de PVE: a Lendária +10 pode ser equipada com o páreo aberto, e nem o Poder do cavalo nem o
+        // Poder que a sala viu mudam (as peças só valem no treino AFK)
+        await ad.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+        await ad.locator('[data-acao="equip-slot"][data-id="armadura"]').click()
+        await ad.locator('[data-acao="equipar"][data-id="i99"]').click()
+        const sE = await st()
+        if (sE.mounts[0].equip.armadura !== 'i99') problems.push('adulterado: a peça Lendária não equipou (as peças não mexem no Poder: não há trava com o páreo aberto)')
+        if (S.powerRating(sE.mounts[0]) !== S.powerRating(s.mounts[0]) || (await poderReal()) !== real) problems.push('adulterado: a peça Lendária equipada mudou o Poder')
+        if (sE.pending.pr !== real) problems.push(`adulterado: a peça Lendária equipada mudou o Poder da sala (${sE.pending.pr} != ${real})`)
       } else {
         // equipamento suspenso: sem a sub-aba Equipamento, e o "equipar" forçado (botão criado no DOM) não equipa a
         // Lendária; mesmo equipada ela não subiria o Poder (a corrida e o Poder ignoram as peças)
@@ -741,7 +758,7 @@ try {
       await ad.waitForSelector('#t-estabulo')
       s = await st()
       // (com o equipamento suspenso o pr sai sempre do retrato dos pontos, então o 99 999 ainda gravado volta ao real)
-      const prEsperado = GEAR_ON ? prGravado : await poderReal()
+      const prEsperado = GEAR_PVP ? prGravado : await poderReal()
       if (s.pending.gear !== null || s.pending.pr !== prEsperado) problems.push('adulterado: retrato inválido ' + JSON.stringify({ gear: s.pending.gear, pr: s.pending.pr, prGravado, prEsperado }))
     } catch (e) {
       problems.push('adulterado: ' + e.message)
@@ -802,7 +819,7 @@ try {
     if (m1.rarity !== 'raro' || m1.level !== 12 || m1.xp !== 30 || m1.grau !== 2 || m1.name !== 'Brasa' || JSON.stringify(m1.skills) !== '["sprint"]') out.push(`${rotulo}: Brasa mudou ` + JSON.stringify(m1))
     if (m2.element !== neutroVira(MIG_SEED, 'm2') || m2.grau !== 3 || m2.level !== 15) out.push(`${rotulo}: Ventania ${m2.element} (esperado ${neutroVira(MIG_SEED, 'm2')})`)
     if (m3.templateId !== null || m3.element !== neutroVira(MIG_SEED, 'm3') || JSON.stringify(m3.palette) !== JSON.stringify(MIG_V4.mounts[2].palette) || m3.name !== 'Pangaré') out.push(`${rotulo}: Pangaré ` + JSON.stringify(m3))
-    if (s.gold !== 900 || s.pedras !== 4 || JSON.stringify(s.items) !== JSON.stringify(MIG_V4.items)) out.push(`${rotulo}: Ouro/peças mudaram ` + JSON.stringify({ gold: s.gold, pedras: s.pedras, items: s.items }))
+    if (s.gold !== 900 || s.pedras !== 4 || JSON.stringify(pecasBase(s.items)) !== JSON.stringify(MIG_V4.items)) out.push(`${rotulo}: Ouro/peças mudaram ` + JSON.stringify({ gold: s.gold, pedras: s.pedras, items: s.items }))
     if (m1.equip.sela !== 'i1' || m1.equip.ferraduras !== 'i2') out.push(`${rotulo}: equipamento da Brasa ` + JSON.stringify(m1.equip))
     const p = s.pending
     if (!p || p.counter !== 7 || p.fee !== 100 || p.training !== false) out.push(`${rotulo}: sala aberta ` + JSON.stringify(p))
@@ -1020,7 +1037,7 @@ try {
       const prA = (await st()).pending.pr
       // 1. tira sela e ferraduras com a sala aberta (com o equipamento ligado o Poder cairia; suspenso, as peças saem só
       //    no save e o Poder não muda), apaga o retrato do equipamento do save (save de antes dele)
-      if (GEAR_ON) {
+      if (GEAR_PVP) {
         await rt.locator('[data-acao="equipar-tela"]').click()
         await rt.waitForSelector('#t-montaria')
         for (const slot of ['sela', 'ferraduras']) {
@@ -1029,7 +1046,7 @@ try {
         }
       }
       const raw = await bruto()
-      if (!GEAR_ON) { raw.mounts[0].equip.sela = null; raw.mounts[0].equip.ferraduras = null }
+      if (!GEAR_PVP) { raw.mounts[0].equip.sela = null; raw.mounts[0].equip.ferraduras = null }
       if (raw.mounts[0].equip.sela || raw.mounts[0].equip.ferraduras) problems.push('retrato: as peças não saíram')
       delete raw.pending.gear
       await grava(raw)
@@ -1143,17 +1160,19 @@ try {
       await pg.waitForSelector('#t-perfil')
       await pg.locator('[data-acao="perfil-creditos"]').click()
       await pg.waitForSelector('#t-creditos')
-      const ofl = (await readFile(join(ROOT, 'assets', 'fontes', 'OFL-galmuri.txt'), 'utf8')).replace(/\s+/g, ' ').trim()
+      // as duas licenças, na ordem do build: Nunito (a interface) e Galmuri (o texto da corrida)
+      const lic = async (n) => readFile(join(ROOT, 'assets', 'fontes', 'OFL-' + n + '.txt'), 'utf8')
+      const ofl = ('Nunito ' + await lic('nunito') + ' — — — Galmuri ' + await lic('galmuri')).replace(/\s+/g, ' ').trim()
       const a = await pg.evaluate(() => ({ foco: document.activeElement && document.activeElement.id, txt: document.querySelector('#tela').textContent.replace(/\s+/g, ' '),
         logo: !!document.querySelector('#tela .creditos img.logo-img[alt="Galope Elemental"]'), exp: document.querySelector('[data-acao="creditos-licenca"]').getAttribute('aria-expanded'), pre: !!document.querySelector('#licenca-fonte') }))
       if (a.foco !== 't-creditos') problems.push(`${label}: foco em ${a.foco} (esperado o título)`)
-      for (const t of ['Arte', 'Fonte', 'Paleta', 'Galmuri, de Lee Minseo', 'SIL Open Font License 1.1', 'Resurrect 64, de Kerrie Lake', 'PixelLab', 'Retro Diffusion', 'Nada é gerado por IA durante o jogo'])
+      for (const t of ['Arte', 'Fontes', 'Paleta', 'Nunito, de The Nunito Project', 'Galmuri, de Lee Minseo', 'SIL Open Font License 1.1', 'Resurrect 64, de Kerrie Lake', 'PixelLab', 'Retro Diffusion', 'Nada é gerado por IA durante o jogo'])
         if (!a.txt.includes(t)) problems.push(`${label}: falta "${t}"`)
       if (!a.logo || a.exp !== 'false' || a.pre) problems.push(`${label}: estado inicial ${JSON.stringify({ logo: a.logo, exp: a.exp, pre: a.pre })}`)
       await pg.locator('[data-acao="creditos-licenca"]').click()
       const b = await pg.evaluate(() => { const p = document.querySelector('#licenca-fonte'); return p && { txt: p.textContent.replace(/\s+/g, ' ').trim(), rola: p.scrollHeight > p.clientHeight, ov: getComputedStyle(p).overflowY,
         exp: document.querySelector('[data-acao="creditos-licenca"]').getAttribute('aria-expanded'), foco: document.activeElement && document.activeElement.getAttribute('data-acao') } })
-      if (!b || b.txt !== ofl) problems.push(`${label}: a licença aberta não é o texto inteiro da OFL (${b && b.txt.length} de ${ofl.length} caracteres)`)
+      if (!b || b.txt !== ofl) problems.push(`${label}: a licença aberta não é o texto inteiro das duas OFL (${b && b.txt.length} de ${ofl.length} caracteres)`)
       else if (!b.rola || b.ov !== 'auto' || b.exp !== 'true' || b.foco !== 'creditos-licenca') problems.push(`${label}: painel da licença ${JSON.stringify({ rola: b.rola, ov: b.ov, exp: b.exp, foco: b.foco })}`)
       await checkOverflow(pg, label)
       await pg.locator('[data-acao="perfil-voltar"]').click()
@@ -1172,6 +1191,501 @@ try {
     }
   }
 
+  // ---------------- treino AFK (spec 2026-11-23-afk-drops; plano, tarefa A7) ----------------
+  // No build de teste (save DEV), com o relógio do treino adiantado pelo state.devMin (o mesmo da gaveta DEV).
+  const AFK_DEVK = 'galope-elemental:dev'
+  // abre o jogo, monta o perfil (ginásios, cavalos fortes, Ouro) pelo save e recarrega
+  const afkAbrePerfil = async (label, monta) => {
+    const pg = await newPage(browser, { width: 360, height: 780 }, label, { pagina: 'jogo-dev.html' })
+    await pg.waitForSelector('#t-estabulo')
+    await pg.evaluate(([chave, fn]) => {
+      const g = JSON.parse(JSON.stringify(window.__galope.state)), RS = window.RaceSim
+      const m2 = JSON.parse(JSON.stringify(g.mounts[0])); m2.uid = 'm2'; m2.name = 'Dois'; g.mounts.push(m2); g.nextUid = 3
+      g.mounts.forEach((m) => { m.level = 30; m.alloc = RS.botAlloc(m) })
+      g.ginasios.fogo.etapa = 2; g.gold = 5000
+      new Function('g', fn)(g)
+      g.rev += 1
+      localStorage.setItem(chave, JSON.stringify(g))
+    }, [AFK_DEVK, monta || ''])
+    await pg.reload()
+    await pg.waitForSelector('#t-estabulo, #t-afk')
+    await pg.evaluate(() => { window.__galope.ui.dev.ouroInf = false })   // o Ouro infinito do DEV esconderia os gastos
+    return pg
+  }
+  const afkEst = (pg) => pg.evaluate(() => JSON.parse(JSON.stringify({ afk: window.__galope.state.afk, gold: window.__galope.state.gold, mochila: window.__galope.state.mochila,
+    pending: window.__galope.state.pending, mounts: window.__galope.state.mounts.map((m) => ({ uid: m.uid, level: m.level, xp: m.xp })), tela: window.__galope.ui.screen })))
+  const afkDisco = (pg) => pg.evaluate((k) => JSON.parse(localStorage.getItem(k)), AFK_DEVK)
+  const afkAvanca = (pg, min) => pg.evaluate((m) => { window.__galope.state.devMin = (window.__galope.state.devMin || 0) + m; window.__galope.afkTick() }, min)
+  const afkTxt = (pg, sel) => pg.evaluate((q) => [...document.querySelectorAll(q)].map((e) => e.textContent.replace(/\s+/g, ' ').trim()), sel)
+  const afkVaiTrilha = async (pg, gym) => {
+    await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao')
+    await pg.locator(`[data-acao="ginasio-abrir"][data-id="${gym}"]`).click(); await pg.waitForSelector('#t-ginasio')
+  }
+  const afkEsperaMedida = (pg, vaga) => pg.waitForFunction((i) => !!window.__galope.state.afk.vagas[i].ultima, vaga, { timeout: 60000 })
+  if (quer('afk')) {
+    const label = 'afk'
+    const pg = await afkAbrePerfil(label)
+    try {
+      // 1. na trilha, só os oponentes vencidos mostram "Treinar (AFK)"
+      await afkVaiTrilha(pg, 'fogo')
+      const tr = await pg.evaluate(() => [...document.querySelectorAll('#tela .etapa')].map((li) => ({ e: li.getAttribute('data-etapa'), estado: li.getAttribute('data-estado'), treinar: !!li.querySelector('[data-acao="afk-treinar"]') })))
+      if (JSON.stringify(tr.map((x) => x.treinar)) !== JSON.stringify([true, true, false, false, false])) problems.push(`${label}: "Treinar (AFK)" na trilha ${JSON.stringify(tr)} (esperado só nas 2 vencidas)`)
+      await checkOverflow(pg, label + ' trilha')
+      // 2. a escolha: o oponente tocado vem marcado, a Difícil apagada com o que falta, a vaga 1 livre; começar põe o cavalo
+      await pg.locator('[data-acao="afk-treinar"][data-id="fogo:0"]').click(); await pg.waitForSelector('#t-afk-escolha')
+      const esc = await pg.evaluate(() => ({ fase: [...document.querySelectorAll('[data-acao="afk-esc-fase"][aria-pressed="true"]')].map((b) => b.getAttribute('data-id')),
+        fases: document.querySelectorAll('[data-acao="afk-esc-fase"]').length, dif: document.querySelector('[data-acao="afk-esc-dif"][aria-pressed="true"]').getAttribute('data-id'),
+        dificil: document.querySelector('[data-acao="afk-esc-dif"][data-id="dificil"]').getAttribute('data-motivo'), foco: document.activeElement && document.activeElement.id }))
+      if (esc.fase.join() !== 'fogo:0' || esc.fases !== 2 || esc.dif !== 'normal' || !/Faltam 50 vitórias na Normal/.test(esc.dificil || '') || esc.foco !== 't-afk-escolha') problems.push(`${label}: escolha ${JSON.stringify(esc)}`)
+      await pg.locator('[data-acao="afk-esc-dif"][data-id="dificil"]').click({ force: true })   // apagada: só diz o porquê
+      await pg.evaluate(() => { const b = document.querySelector('[data-acao="afk-esc-dif"][data-id="dificil"]'); b.removeAttribute('aria-disabled'); b.click() })   // e nem o botão forçado escolhe
+      if ((await pg.evaluate(() => window.__galope.ui.afk.escolha.dif)) !== 'normal') problems.push(`${label}: a Difícil sem as 50 vitórias foi escolhida`)
+      await checkOverflow(pg, label + ' escolha')
+      const antes = await afkEst(pg)
+      await pg.locator('[data-acao="afk-esc-comecar"]').click(); await pg.waitForSelector('#t-afk')
+      // 3. uma corrida ao vivo larga logo: o contador e o ganho gravados antes de aparecer; o baú enche
+      await pg.waitForFunction(() => window.__galope.state.afk.vagas[0].contador >= 1, null, { timeout: 5000 }).catch(() => problems.push(`${label}: a 1ª corrida ao vivo não largou`))
+      const s1 = await afkEst(pg), d1 = await afkDisco(pg)
+      if (s1.afk.vagas[0].uid !== 'm1' || s1.afk.vagas[0].faseId !== 'fogo:0:normal') problems.push(`${label}: vaga 1 ${JSON.stringify(s1.afk.vagas[0])}`)
+      if (!(s1.afk.bau.xp.m1 > 0)) problems.push(`${label}: o baú não recebeu o XP da corrida ao vivo ${JSON.stringify(s1.afk.bau)}`)
+      if (JSON.stringify(d1.afk.bau) !== JSON.stringify(s1.afk.bau) || d1.afk.vagas[0].contador !== s1.afk.vagas[0].contador) problems.push(`${label}: o disco não tem a corrida (contador e baú gravados juntos)`)
+      if (!(s1.afk.vagas[0].inicioMin > antes.afk.vagas[0].inicioMin)) problems.push(`${label}: o relógio da vaga não foi para o fim da corrida`)
+      const cartao = (await afkTxt(pg, '.afk-vaga[data-vaga="0"]'))[0] || ''
+      if (!/Brasa/.test(cartao) || !/Contra Recruta Fagulha · Fornalha · Normal/.test(cartao) || !/em curso: faltam/.test(cartao) || !/(Medindo a chance|Chance de vitória)/.test(cartao)) problems.push(`${label}: cartão da vaga "${cartao}"`)
+      // recarregar no meio da corrida não repete a seed nem dá a corrida de novo
+      await pg.reload(); await pg.waitForSelector('#t-estabulo')
+      if ((await afkEst(pg)).afk.vagas[0].contador !== s1.afk.vagas[0].contador) problems.push(`${label}: recarregar mudou o contador da vaga`)
+      await pg.evaluate(() => { window.__galope.ui.dev.ouroInf = false })
+      await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.locator('[data-acao="afk-abrir"]').click(); await pg.waitForSelector('#t-afk')
+      // 2 min depois (a corrida já acabou): a seguinte larga, com outra seed (o contador anda de 1 em 1)
+      await afkAvanca(pg, 2)
+      await pg.waitForFunction((c) => window.__galope.state.afk.vagas[0].contador > c, s1.afk.vagas[0].contador, { timeout: 5000 }).catch(() => problems.push(`${label}: a 2ª corrida não largou depois do tempo da 1ª`))
+      // 4. comprar a 2ª vaga (1.000 de Ouro) e pôr o outro cavalo
+      const g0 = (await afkEst(pg)).gold
+      await pg.locator('[data-acao="afk-comprar"]').click()
+      const s2 = await afkEst(pg)
+      if (s2.afk.vagas.length !== 2 || s2.gold !== g0 - G.AFK.vagaPreco[1]) problems.push(`${label}: compra da vaga ${JSON.stringify({ vagas: s2.afk.vagas.length, gold: s2.gold, antes: g0 })}`)
+      await pg.locator('[data-acao="afk-escolher"][data-id="1"]').click(); await pg.waitForSelector('#t-afk-escolha')
+      await pg.locator('[data-acao="afk-esc-fase"][data-id="fogo:1"]').click()
+      await pg.locator('[data-acao="afk-esc-cavalo"][data-id="m2"]').click()
+      await pg.locator('[data-acao="afk-esc-comecar"]').click(); await pg.waitForSelector('#t-afk')
+      const s3 = await afkEst(pg)
+      if (s3.afk.vagas[1].uid !== 'm2' || s3.afk.vagas[1].faseId !== 'fogo:1:normal' || s3.afk.vagas[0].uid !== 'm1') problems.push(`${label}: 2ª vaga ${JSON.stringify(s3.afk.vagas.map((v) => [v.uid, v.faseId]))}`)
+      await checkOverflow(pg, label + ' vagas')
+      // 5. coletar o baú: o XP vai para os cavalos, o baú esvazia, o aviso diz o que veio
+      await afkEsperaMedida(pg, 0); await afkEsperaMedida(pg, 1)
+      const antesCol = await afkEst(pg)
+      await pg.locator('[data-acao="afk-coletar"]').click()
+      const s4 = await afkEst(pg)
+      const xpAntes = antesCol.afk.bau.xp.m1 || 0
+      if (Object.keys(s4.afk.bau.xp).length || s4.afk.bau.ouro !== 0 || Object.keys(s4.afk.bau.itens).length) problems.push(`${label}: o baú não esvaziou ${JSON.stringify(s4.afk.bau)}`)
+      if (!(xpAntes > 0) || !/Coletado:/.test((await afkTxt(pg, '.afk-coletado'))[0] || '')) problems.push(`${label}: coleta sem o aviso (XP no baú antes: ${xpAntes})`)
+      if (s4.gold !== antesCol.gold + antesCol.afk.bau.ouro) problems.push(`${label}: Ouro da coleta ${antesCol.gold} + ${antesCol.afk.bau.ouro} -> ${s4.gold}`)
+      for (const id of Object.keys(antesCol.afk.bau.itens)) if (s4.mochila[id] !== (antesCol.mochila[id] || 0) + antesCol.afk.bau.itens[id]) problems.push(`${label}: ${id} não entrou na mochila`)
+      // 6. voltar depois de 2 h: o resumo "Enquanto você estava fora", pela chance medida, sem passar do tempo
+      const antesFora = await afkEst(pg)
+      await afkAvanca(pg, 120)
+      await pg.waitForSelector('#t-afk-fora', { timeout: 5000 }).catch(() => problems.push(`${label}: sem o resumo depois de 2 h`))
+      const s5 = await afkEst(pg), resumo = (await afkTxt(pg, '.afk-resumo'))[0] || ''
+      const corr = s5.afk.vagas[0].contador - antesFora.afk.vagas[0].contador, dur = antesFora.afk.vagas[0].ultima.duracaoS
+      if (!(corr >= Math.floor(118 * 60 / dur) - 1 && corr <= Math.floor(120 * 60 / dur) + 1)) problems.push(`${label}: 2 h fora deram ${corr} corridas na vaga 1 (duração média ${dur} s)`)
+      if (!/Em (1 h 5\d min|2 h), 2 vagas correram/.test(resumo) || !/No baú:/.test(resumo)) problems.push(`${label}: resumo "${resumo}"`)
+      if (!(s5.afk.vitorias['fogo:0:normal'] > 30)) problems.push(`${label}: vitórias depois de 2 h ${JSON.stringify(s5.afk.vitorias)}`)
+      await checkOverflow(pg, label + ' resumo')
+      await pg.locator('[data-acao="afk-resumo-ok"]').click()
+      if (await pg.locator('#t-afk-fora').count()) problems.push(`${label}: o resumo não saiu com o "Entendi"`)
+      // relógio que não andou: nada a mais (as corridas ao vivo em curso seguem)
+      const c5 = (await afkEst(pg)).afk.vagas.map((v) => v.contador)
+      await pg.evaluate(() => window.__galope.afkTick())
+      const c6 = (await afkEst(pg)).afk.vagas.map((v) => v.contador)
+      if (c6[0] - c5[0] > 1 || c6[1] - c5[1] > 1) problems.push(`${label}: um tique sem o relógio andar deu corridas a mais ${JSON.stringify([c5, c6])}`)
+      // 7. assistir: a tela de corrida com o cabeçalho do treino; "Voltar ao treino" volta às vagas
+      await pg.waitForFunction(() => !!window.__galope.ui.afk.vivo[0], null, { timeout: 5000 }).catch(() => {})
+      await pg.locator('[data-acao="afk-assistir"][data-id="0"]').click(); await pg.waitForSelector('#t-corrida')
+      const cab = await pg.evaluate(() => ({ t: document.getElementById('t-corrida').textContent, linha: (document.getElementById('corrida-duelo') || {}).textContent, pular: document.getElementById('btn-pular').textContent, outra: !!document.querySelector('[data-acao="afk-outra"]') }))
+      if (cab.t !== 'Treino: Recruta Fagulha' || !/^Normal · corrida \d+ · /.test(cab.linha || '') || cab.pular !== 'Voltar ao treino' || !cab.outra) problems.push(`${label}: tela de assistir ${JSON.stringify(cab)}`)
+      const cAss = (await afkEst(pg)).afk.vagas[0].contador
+      await pg.locator('#btn-pular').click(); await pg.waitForSelector('#t-afk')
+      if ((await afkEst(pg)).afk.vagas[0].contador !== cAss) problems.push(`${label}: sair de assistir mudou o contador (pular não pode adiantar o treino)`)
+      // 7b. tirar o cavalo e pôr de novo não adianta a corrida seguinte: o relógio fica na vaga (5 vezes seguidas, 0 corridas a mais)
+      await pg.waitForFunction(() => { const g = window.__galope, v = g.state.afk.vagas[0]; return !!v.uid && v.inicioMin > g.agoraMin() + 0.3 }, null, { timeout: 8000 }).catch(() => problems.push(`${label}: a vaga 1 não está com uma corrida em curso para o teste do relógio`))
+      const antesTroca = (await afkEst(pg)).afk.vagas[0]
+      for (let k = 0; k < 5; k++) {
+        await pg.locator('[data-acao="afk-tirar"][data-id="0"]').click()
+        const vazia = (await afkEst(pg)).afk.vagas[0]
+        if (vazia.uid !== null || vazia.inicioMin !== antesTroca.inicioMin) problems.push(`${label}: "Tirar" não guardou o relógio da vaga ${JSON.stringify(vazia)}`)
+        await pg.locator('[data-acao="afk-escolher"][data-id="0"]').click(); await pg.waitForSelector('#t-afk-escolha')
+        await pg.locator(`[data-acao="afk-esc-fase"][data-id="${antesTroca.faseId.split(':').slice(0, 2).join(':')}"]`).click()
+        await pg.locator(`[data-acao="afk-esc-cavalo"][data-id="${antesTroca.uid}"]`).click()
+        await pg.locator('[data-acao="afk-esc-comecar"]').click(); await pg.waitForSelector('#t-afk')
+        await pg.evaluate(() => window.__galope.afkTick())
+      }
+      const depoisTroca = (await afkEst(pg)).afk.vagas[0]
+      if (depoisTroca.contador !== antesTroca.contador || depoisTroca.inicioMin !== antesTroca.inicioMin || depoisTroca.uid !== antesTroca.uid) problems.push(`${label}: tirar e recolocar 5 vezes adiantou o treino ${JSON.stringify({ antes: [antesTroca.contador, antesTroca.inicioMin], depois: [depoisTroca.contador, depoisTroca.inicioMin] })}`)
+      // 7c. assistindo com a aba escondida por 30 min: na volta, a corrida assistida fecha e o tempo dessa vaga também é acertado
+      await afkEsperaMedida(pg, 0)
+      await afkAvanca(pg, 2)
+      await pg.waitForFunction(() => !!window.__galope.ui.afk.vivo[0], null, { timeout: 8000 }).catch(() => {})
+      await pg.locator('[data-acao="afk-assistir"][data-id="0"]').click(); await pg.waitForSelector('#t-corrida')
+      const cVer = (await afkEst(pg)).afk.vagas[0].contador
+      await pg.evaluate(() => { const g = window.__galope; g.state.devMin = (g.state.devMin || 0) + 30; g.afkVoltou(); g.afkTick() })
+      await pg.waitForSelector('#t-afk')
+      const cVolta = (await afkEst(pg)).afk.vagas[0].contador
+      if (!(cVolta - cVer >= 15)) problems.push(`${label}: 30 min com a vaga assistida e a aba escondida renderam ${cVolta - cVer} corridas (esperado umas 23)`)
+      // 8. o ativo sai da vaga com a sala aberta: "Na sala", sem corridas, e volta a contar só quando a sala fecha
+      await pg.locator('[data-acao="aba"][data-id="correr"]').click(); await pg.waitForSelector('#t-correr')
+      await pg.locator('[data-acao="procurar"]').click(); await pg.waitForSelector('#t-largada')
+      if (!(await afkEst(pg)).pending) problems.push(`${label}: a sala não ficou aberta`)
+      await pg.goBack(); await pg.waitForSelector('#t-correr, #t-estabulo')
+      await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.locator('[data-acao="afk-abrir"]').click(); await pg.waitForSelector('#t-afk')
+      const c7 = (await afkEst(pg)).afk.vagas.map((v) => v.contador)
+      await afkAvanca(pg, 60)
+      await pg.waitForFunction((c) => window.__galope.state.afk.vagas[1].contador > c, c7[1], { timeout: 5000 }).catch(() => problems.push(`${label}: a vaga 2 não correu com a sala do ativo aberta`))
+      const s8 = await afkEst(pg), sala = (await afkTxt(pg, '.afk-vaga[data-vaga="0"]'))[0] || ''
+      if (s8.afk.vagas[0].contador !== c7[0]) problems.push(`${label}: o cavalo ativo correu no treino com a sala aberta (${c7[0]} -> ${s8.afk.vagas[0].contador})`)
+      if (!/Na sala/.test(sala) || (await pg.locator('[data-acao="afk-assistir"][data-id="0"]').getAttribute('aria-disabled')) !== 'true') problems.push(`${label}: vaga do ativo com a sala aberta "${sala}"`)
+      // o XP do ativo fica no baú ao coletar
+      const xpPreso = s8.afk.bau.xp.m1 || 0
+      await pg.locator('[data-acao="afk-coletar"]').click()
+      if (((await afkEst(pg)).afk.bau.xp.m1 || 0) !== xpPreso) problems.push(`${label}: o XP do ativo saiu do baú com a sala aberta`)
+      // 9. tirar o cavalo: a vaga fica livre e o contador fica
+      await pg.locator('[data-acao="afk-tirar"][data-id="1"]').click()
+      const s9 = await afkEst(pg)
+      if (s9.afk.vagas[1].uid !== null || !(s9.afk.vagas[1].contador >= s8.afk.vagas[1].contador)) problems.push(`${label}: tirar ${JSON.stringify(s9.afk.vagas[1])}`)
+      await checkOverflow(pg, label + ' fim')
+    } catch (e) {
+      problems.push(`[${label}] ` + e.message)
+    } finally { await pg.context().close() }
+    // 10. o aviso de perdas com a mochila cheia, e a comida: a Cenoura dá 500 de XP ao cavalo escolhido
+    const pg2 = await afkAbrePerfil(label + '-cheia', `g.mochila.carvao = 998; g.mochila.cenoura = 2; g.mounts[1].level = 5; g.mounts[1].xp = 0;
+      g.afk.bau = { ouro: 3, xp: { m1: 40, m9: 25 }, itens: { carvao: 5, 'ferro-bruto': 2 }, pedras: 1, pecas: [] };`)
+    try {
+      await pg2.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg2.locator('[data-acao="afk-abrir"]').click(); await pg2.waitForSelector('#t-afk')
+      const perdas = (await afkTxt(pg2, '.afk-perda')).join(' | ')
+      if (!/ao coletar, 4 Carvões se perdem/.test(perdas) || !/25 de XP eram de um cavalo que saiu do estábulo/.test(perdas)) problems.push(`${label}-cheia: avisos de perda "${perdas}"`)
+      await pg2.locator('[data-acao="afk-coletar"]').click()
+      const a1 = await afkEst(pg2)
+      if (a1.mochila.carvao !== 998 || !(await pg2.locator('[data-acao="afk-coletar-sim"]').count())) problems.push(`${label}-cheia: o 1º toque coletou sem confirmar`)
+      await pg2.locator('[data-acao="afk-coletar-nao"]').click()
+      if ((await afkEst(pg2)).afk.bau.itens.carvao !== 5) problems.push(`${label}-cheia: cancelar mexeu no baú`)
+      await pg2.locator('[data-acao="afk-coletar"]').click(); await pg2.locator('[data-acao="afk-coletar-sim"]').click()
+      const a2 = await afkEst(pg2), col = (await afkTxt(pg2, '.afk-coletado'))[0] || ''
+      if (a2.mochila.carvao !== 999 || a2.mochila['ferro-bruto'] !== 2 || Object.keys(a2.afk.bau.itens).length || Object.keys(a2.afk.bau.xp).length) problems.push(`${label}-cheia: coleta ${JSON.stringify({ m: [a2.mochila.carvao, a2.mochila['ferro-bruto']], bau: a2.afk.bau })}`)
+      if (!/Não coube na mochila: 4 Carvões/.test(col) || !/25 de XP de um cavalo que saiu do estábulo se perderam/.test(col)) problems.push(`${label}-cheia: aviso da coleta "${col}"`)
+      await checkOverflow(pg2, label + '-cheia')
+      // a Cenoura na Mochila
+      await pg2.locator('[data-acao="aba"][data-id="loja"]').click(); await pg2.locator('[data-acao="loja-parte"][data-id="mochila"]').click()
+      const m2a = (await afkEst(pg2)).mounts.find((m) => m.uid === 'm2')
+      await pg2.locator('[data-acao="comida-usar"][data-id="cenoura"]').click()
+      await pg2.locator('[data-acao="comida-dar"][data-id="m2"]').click()
+      const a3 = await afkEst(pg2), m2b = a3.mounts.find((m) => m.uid === 'm2')
+      let xp = 500, lv = m2a.level, resto = m2a.xp
+      while (resto + xp >= G.ECONOMY.xpToLevel(lv)) { xp -= G.ECONOMY.xpToLevel(lv) - resto; resto = 0; lv++ }
+      if (a3.mochila.cenoura !== 1 || m2b.level !== lv || m2b.xp !== resto + xp) problems.push(`${label}-cheia: a Cenoura deu ${JSON.stringify(m2b)} (esperado nível ${lv}, xp ${resto + xp}); sobraram ${a3.mochila.cenoura}`)
+      const avisoC = (await afkTxt(pg2, '[data-item="cenoura"] .item-aviso'))[0] || ''
+      if (!/Dois ganhou 500 de XP/.test(avisoC)) problems.push(`${label}-cheia: aviso da Cenoura "${avisoC}"`)
+      await checkOverflow(pg2, label + '-cheia mochila')
+    } catch (e) {
+      problems.push(`[${label}-cheia] ` + e.message)
+    } finally { await pg2.context().close() }
+    // 11. o jogo abre na tela do treino com o resumo depois de horas fechado (até o limite de 8 h), e save de antes do AFK migra
+    const pg3 = await afkAbrePerfil(label + '-abrir', `g.afk.vagas[0] = { uid: 'm1', faseId: 'fogo:0:normal', inicioMin: Date.now() / 60000 - 3 * 24 * 60, contador: 7, medida: null, ultima: { p: 0.9, duracaoS: 80 } };`)
+    try {
+      await pg3.waitForSelector('#t-afk-fora', { timeout: 5000 }).catch(() => problems.push(`${label}-abrir: o jogo não abriu no resumo do treino`))
+      const b1 = await afkEst(pg3), r3 = (await afkTxt(pg3, '.afk-resumo'))[0] || ''
+      if (b1.tela !== 'afk' || b1.afk.vagas[0].contador !== 7 + Math.floor(G.AFK.offlineMin * 60 / 80)) problems.push(`${label}-abrir: 3 dias fora ${JSON.stringify({ tela: b1.tela, c: b1.afk.vagas[0].contador })} (esperado só o limite de 8 h)`)
+      if (!/Em 8 h, 1 vaga correu 360 corridas/.test(r3) || !/conta até 8 h/.test(r3)) problems.push(`${label}-abrir: resumo "${r3}"`)
+      await pg3.goBack(); await pg3.waitForSelector('#t-expedicao', { timeout: 3000 }).catch(() => problems.push(`${label}-abrir: o voltar do aparelho não levou à Expedição`))
+    } catch (e) {
+      problems.push(`[${label}-abrir] ` + e.message)
+    } finally { await pg3.context().close() }
+  }
+  // ---------------- equipamento só de PVE: equipar muda a chance do treino AFK e nunca o Poder; loja, Pedra e melhoria ----------------
+  const pveEst = (pg) => pg.evaluate(() => JSON.parse(JSON.stringify(window.__galope.state)))
+  const pvePoderCabeca = (pg) => pg.evaluate(() => { const sp = Array.from(document.querySelectorAll('.montaria-cabeca .linha-meta span')).find((x) => /^Poder/.test(x.textContent)); return sp ? Number(sp.querySelector('b').textContent) : null })
+  const pveAbrePecas = async (pg, uid, slot) => {
+    await pg.locator('[data-acao="aba"][data-id="estabulo"]').click(); await pg.waitForSelector('#t-estabulo')
+    await pg.locator(`button[data-acao="montaria"][data-id="${uid}"]`).click(); await pg.waitForSelector('#t-montaria')
+    await pg.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+    if (slot) await pg.locator(`[data-acao="equip-slot"][data-id="${slot}"]`).click()
+  }
+  // a chance que o jogo tem de medir: a mesma medição (Afk.medirPasso, a amostra inteira) com o cavalo e as peças do save
+  const pveChance = (s, uid, faseId) => {
+    const m = s.mounts.find((x) => x.uid === uid), cav = JSON.parse(JSON.stringify(m))
+    cav.pve = GR.resolvePve(m, Object.fromEntries(s.items.map((it) => [it.uid, it])))
+    return AFK.medida(AFK.medirPasso(null, cav, faseId, G.AFK.amostra)).p
+  }
+  if (quer('equipamento')) {
+    const label = 'equipamento'
+    // Brasa no nível 5 contra o Cabo Tocha (Normal): sem peças ~39% de vitória, com 5 Raras +5 do Sol ~73%
+    const pg = await afkAbrePerfil(label, `var m = g.mounts[0]; m.level = 5; m.xp = 0; m.alloc = window.RaceSim.botAlloc(m);
+      m.equip = { ferraduras: null, sela: null, estribos: null, testeira: null, armadura: null };
+      g.items = ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'].map(function (sl, i) { return { uid: 'i' + (11 + i), id: sl + '-sol-raro', plus: 5, rerolls: 0, linhas: [{ tipo: 'material', valor: 8 }, { tipo: 'xp', valor: 7 }] }; })
+        .concat([{ uid: 'i20', id: 'sela-magico', plus: 0, rerolls: 0, linhas: [{ tipo: 'ouro', valor: 3 }], origem: 'afk' }]);
+      g.nextItemUid = 30; g.pedras = 0; g.gold = 5000;`)
+    try {
+      if (!GEAR_ON || GEAR_PVP) problems.push(`${label}: o equipamento deveria estar ligado só para o PVE (GEAR_ON ${GEAR_ON}, GEAR_PVP ${GEAR_PVP})`)
+      // 1. o cavalo sem peças vai treinar; a chance medida é a das regras
+      await afkVaiTrilha(pg, 'fogo')
+      await pg.locator('[data-acao="afk-treinar"][data-id="fogo:1"]').click(); await pg.waitForSelector('#t-afk-escolha')
+      await pg.locator('[data-acao="afk-esc-comecar"]').click(); await pg.waitForSelector('#t-afk')
+      await afkEsperaMedida(pg, 0)
+      let s = await pveEst(pg)
+      const p0 = s.afk.vagas[0].ultima.p, p0Regra = pveChance(s, 'm1', 'fogo:1:normal'), poder0 = S.powerRating(s.mounts[0])
+      if (s.afk.vagas[0].uid !== 'm1' || s.afk.vagas[0].faseId !== 'fogo:1:normal' || p0 !== p0Regra) problems.push(`${label}: chance sem peças ${p0} (regra: ${p0Regra}) ${JSON.stringify([s.afk.vagas[0].uid, s.afk.vagas[0].faseId])}`)
+      // 2. equipar as 5 Raras do Sol: o Poder não muda (cabeça da Montaria e powerRating), a sub-aba diz "só AFK"
+      await pveAbrePecas(pg, 'm1')
+      if ((await pvePoderCabeca(pg)) !== poder0) problems.push(`${label}: Poder na cabeça antes de equipar ${await pvePoderCabeca(pg)} (esperado ${poder0})`)
+      for (const [i, sl] of GR.SLOTS.entries()) {
+        await pg.locator(`[data-acao="equip-slot"][data-id="${sl}"]`).click()
+        await pg.locator(`[data-acao="equipar"][data-id="i${11 + i}"]`).click()
+      }
+      s = await pveEst(pg)
+      if (GR.SLOTS.some((sl, i) => s.mounts[0].equip[sl] !== 'i' + (11 + i))) problems.push(`${label}: as 5 peças não equiparam ${JSON.stringify(s.mounts[0].equip)}`)
+      if ((await pvePoderCabeca(pg)) !== poder0 || S.powerRating(s.mounts[0]) !== poder0) problems.push(`${label}: equipar 5 Raras +5 mudou o Poder (${poder0} -> ${await pvePoderCabeca(pg)})`)
+      const telaEq = (await pg.locator('#tela').textContent()) || ''
+      if (!/só AFK/.test(telaEq) || !/Sol ×5/.test(telaEq) || !/No treino AFK:/.test(telaEq) || !/\+8% material/.test(telaEq)) problems.push(`${label}: a sub-aba Peças sem o selo "só AFK", o conjunto, o total do treino ou as linhas de farm`)
+      await checkOverflow(pg, label + ' peças')
+      // 3. a chance estimada da vaga muda (medida de novo, com as peças) e é a das regras
+      await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.locator('[data-acao="afk-abrir"]').click(); await pg.waitForSelector('#t-afk')
+      await pg.waitForFunction((p) => { const v = window.__galope.state.afk.vagas[0]; return !!v.ultima && v.ultima.p !== p }, p0, { timeout: 60000 }).catch(() => problems.push(`${label}: a chance da vaga não mudou depois de equipar as peças`))
+      s = await pveEst(pg)
+      const p1 = s.afk.vagas[0].ultima.p, p1Regra = pveChance(s, 'm1', 'fogo:1:normal')
+      if (p1 !== p1Regra || !(p1 > p0 + 0.1)) problems.push(`${label}: chance com as peças ${p1} (regra: ${p1Regra}; sem peças ${p0})`)
+      const chTxt = (await afkTxt(pg, '.afk-vaga[data-vaga="0"] .afk-chance'))[0] || ''
+      if (chTxt !== 'Chance de vitória: ' + Math.round(p1 * 100) + '%') problems.push(`${label}: a vaga mostra "${chTxt}" (esperado ${Math.round(p1 * 100)}%)`)
+      notes.equipamentoPveChance = { semPecas: p0, comPecas: p1, poder: poder0 }
+      // 4. loja: comprar uma peça (250) e uma Pedra Negra (40); a peça comprada ganha a linha de farm pela seed
+      await pg.locator('[data-acao="aba"][data-id="loja"]').click(); await pg.waitForSelector('#t-loja')
+      await pg.locator('[data-acao="loja-tab"][data-id="estribos"]').click()
+      const g0 = (await pveEst(pg)).gold
+      await pg.locator('[data-acao="comprar"][data-id="estribos-magico"]').click()
+      await pg.locator('[data-acao="loja-tab"][data-id="pedras"]').click()
+      await pg.locator('[data-acao="comprar-pedra"][data-id="1"]').click()
+      s = await pveEst(pg)
+      const comprada = s.items[s.items.length - 1]
+      if (s.gold !== g0 - G.GEAR['estribos-magico'].price - G.ECONOMY.gear.stonePrice || s.pedras !== 1 || comprada.id !== 'estribos-magico' || comprada.uid !== 'i30' || comprada.origem) problems.push(`${label}: compra na loja ${JSON.stringify({ gold: [g0, s.gold], pedras: s.pedras, comprada })}`)
+      if (JSON.stringify(comprada.linhas) !== JSON.stringify(GR.linhasDaPeca({ uid: 'i30', id: 'estribos-magico' }, s.seedBase)) || comprada.linhas.length !== 1) problems.push(`${label}: a peça comprada sem a linha de farm da seed ${JSON.stringify(comprada.linhas)}`)
+      if (JSON.stringify((await afkDisco(pg)).items) !== JSON.stringify(s.items)) problems.push(`${label}: a compra não foi gravada`)
+      await checkOverflow(pg, label + ' loja')
+      // 5. melhorar a peça comprada com a Pedra (+0 → +1: 100%), pelo sorteio da seed; peça comprada vende, a do treino só descarta
+      await pveAbrePecas(pg, 'm1', 'estribos')
+      const odds = GR.enhanceOdds(0), esperada = GR.enhance({ uid: 'i30', id: 'estribos-magico', plus: 0 }, s.seedBase, s.enhanceCounter)
+      await pg.locator('[data-acao="melhorar"][data-id="i30"]').click()
+      await pg.locator('[data-acao="melhorar-sim"][data-id="i30"]').click()
+      s = await pveEst(pg)
+      if (s.items.find((x) => x.uid === 'i30').plus !== esperada.plus || esperada.plus !== 1 || s.pedras !== 1 - odds.cost) problems.push(`${label}: melhoria ${JSON.stringify({ plus: s.items.find((x) => x.uid === 'i30').plus, pedras: s.pedras, esperada })}`)
+      const vendeComprada = ((await pg.locator('[data-acao="vender"][data-id="i30"]').textContent()) || '').trim()
+      await pg.locator('[data-acao="equip-slot"][data-id="sela"]').click()
+      const vendeTreino = ((await pg.locator('[data-acao="vender"][data-id="i20"]').textContent()) || '').trim()
+      if (!/^Vender \(\d+\)$/.test(vendeComprada) || vendeTreino !== 'Descartar') problems.push(`${label}: venda da comprada "${vendeComprada}" e da que caiu no treino "${vendeTreino}" (esperado Vender (N) e Descartar)`)
+      const gD = (await pveEst(pg)).gold
+      await pg.locator('[data-acao="vender"][data-id="i20"]').click()
+      s = await pveEst(pg)
+      if (s.gold !== gD || s.items.some((x) => x.uid === 'i20')) problems.push(`${label}: descartar a peça do treino ${JSON.stringify({ gold: [gD, s.gold], ainda: s.items.some((x) => x.uid === 'i20') })}`)
+      // 6. uma sala PVP aberta com o cavalo cheio de peças vê o mesmo Poder; a vaga do ativo fica "na sala"
+      await abrirSala(pg)
+      s = await pveEst(pg)
+      if (s.pending.pr !== poder0) problems.push(`${label}: a sala viu o Poder ${s.pending.pr} com 5 Raras +5 equipadas (sem peças: ${poder0})`)
+      if (await pg.locator('#tela .slots, #tela [data-acao="equipar-tela"]').count()) problems.push(`${label}: a largada mostra as peças ou o atalho Equipar`)
+      const rivalComPeca = await pg.evaluate(() => window.__galope.ui.lobby.racers.some((r) => r.gear && r.gear.pieces && r.gear.pieces.length > 0))
+      if (rivalComPeca) problems.push(`${label}: algum corredor da sala tem peças`)
+      await checkOverflow(pg, label + ' largada')
+    } catch (e) {
+      problems.push(`${label}: ` + e.message)
+    }
+    await pg.context().close()
+  }
+
+  // ---------------- forja: receitas fixas, confirmação antes de sortear as linhas, a peça no inventário ----------------
+  if (quer('forja')) {
+    const label = 'forja'
+    const pg = await afkAbrePerfil(label, `g.mochila.carvao = 100; g.mochila['ferro-bruto'] = 60; g.mochila['brasa-viva'] = 14; g.mochila['trofeu-fogo-0'] = 1; g.mochila['trofeu-fogo-1'] = 2;
+      g.mochila.selo = 2; g.pedras = 0; g.gold = 5000;`)
+    const receita = (rec) => pg.evaluate((r) => {
+      const li = document.querySelector('.forja-receita[data-receita="' + r + '"]'), b = li && li.querySelector('[data-acao="forja-fazer"], [data-acao="forja-confirmar"]')
+      return li ? { txt: li.textContent.replace(/\s+/g, ' ').trim(), off: b ? b.getAttribute('aria-disabled') === 'true' : null, motivo: b ? b.getAttribute('data-motivo') : null } : null
+    }, rec)
+    try {
+      // 1. a Forja abre pela Expedição: 6 receitas, o estoque do ginásio e o tipo da peça
+      await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao')
+      await pg.locator('[data-acao="forja-abrir"]').click(); await pg.waitForSelector('#t-forja')
+      if ((await pg.evaluate(() => document.activeElement && document.activeElement.id)) !== 't-forja') problems.push(`${label}: o foco não foi para o título`)
+      const nomes = await afkTxt(pg, '.forja-receita .forja-nome')
+      if (JSON.stringify(nomes) !== JSON.stringify(['Peça Comum', 'Peça Mágica', 'Peça Rara de conjunto', 'Peça Lendária de conjunto', 'Pedra Negra', 'Pergaminho de reforja'])) problems.push(`${label}: receitas ${JSON.stringify(nomes)}`)
+      const estoque = (await afkTxt(pg, '.forja-estoque'))[0] || ''
+      for (const t of ['100 Carvões', '60 Ferros brutos', '14 Brasas vivas', '3 troféus', '2 Selos do campeão']) if (!estoque.includes(t)) problems.push(`${label}: o estoque não diz "${t}": ${estoque}`)
+      let r = await receita('raro')
+      if (!r || r.off || !/Custa 60 materiais \(Carvão \+ Ferro bruto\), 10 Brasas vivas, 1 troféu da Fornalha e 800 de Ouro\./.test(r.txt) || !/Sai: Ferraduras do Sol \(Raro\), com 2 linhas de farm sorteadas/.test(r.txt)) problems.push(`${label}: receita Rara ${JSON.stringify(r)}`)
+      r = await receita('lendario')
+      if (!r || !r.off || r.motivo !== 'Falta Brasa viva (precisa de 20, tem 14)') problems.push(`${label}: a Lendária deveria estar apagada por faltar Brasa ${JSON.stringify(r)}`)
+      await checkOverflow(pg, label + ' receitas')
+      // 2. forjar a Sela Rara: pede confirmação; antes de confirmar nada muda; ao confirmar, gasta e sorteia as linhas pela seed
+      await pg.locator('[data-acao="forja-slot"][data-id="sela"]').click()
+      const s0 = await pveEst(pg)
+      await pg.locator('[data-acao="forja-fazer"][data-id="raro"]').click()
+      const conf = (await afkTxt(pg, '.forja-confirma'))[0] || ''
+      if (!/Forjar Sela do Sol \(Raro\)\?/.test(conf) || !/As 2 linhas de farm são sorteadas ao confirmar/.test(conf)) problems.push(`${label}: confirmação "${conf}"`)
+      let s = await pveEst(pg)
+      if (JSON.stringify([s.gold, s.mochila, s.items, s.forjaCounter]) !== JSON.stringify([s0.gold, s0.mochila, s0.items, s0.forjaCounter])) problems.push(`${label}: abrir a confirmação já gastou ou sorteou`)
+      await pg.locator('[data-acao="forja-cancelar"][data-id="raro"]').click()
+      if (await pg.locator('.forja-confirma').count()) problems.push(`${label}: Cancelar não fechou a confirmação`)
+      await pg.locator('[data-acao="forja-fazer"][data-id="raro"]').click()
+      await pg.locator('[data-acao="forja-confirmar"][data-id="raro"]').click()
+      s = await pveEst(pg)
+      const esp = FORJA.forjar('raro', 'sela', 'fogo', s0.mochila, s0.seedBase, s0.forjaCounter), nova = s.items[s.items.length - 1]
+      if (s.items.length !== s0.items.length + 1 || nova.id !== 'sela-sol-raro' || nova.origem !== 'forja' || nova.plus !== 0 || nova.rerolls !== 0 || JSON.stringify(nova.linhas) !== JSON.stringify(esp.peca.linhas)) problems.push(`${label}: peça forjada ${JSON.stringify(nova)} (regra: ${JSON.stringify(esp.peca)})`)
+      if (s.gold !== s0.gold - 800 || s.forjaCounter !== s0.forjaCounter + 1 || s.mochila.carvao !== 70 || s.mochila['ferro-bruto'] !== 30 || s.mochila['brasa-viva'] !== 4 || s.mochila['trofeu-fogo-1'] !== 1 || s.mochila['trofeu-fogo-0'] !== 1) problems.push(`${label}: gasto da Rara ${JSON.stringify({ gold: [s0.gold, s.gold], c: s.forjaCounter, mochila: s.mochila })}`)
+      const d = await afkDisco(pg)
+      if (JSON.stringify(d.items) !== JSON.stringify(s.items) || d.gold !== s.gold || d.forjaCounter !== s.forjaCounter) problems.push(`${label}: a forja não foi gravada numa gravação só`)
+      const msg = (await afkTxt(pg, '.forja-msg'))[0] || ''
+      if (!/^Forjou Sela do Sol \(Raro\): \+\d+% .+, \+\d+% .+\. Está no inventário/.test(msg)) problems.push(`${label}: aviso da forja "${msg}"`)
+      if (!s.afk.bestiario.obtidos['sela-sol-raro']) problems.push(`${label}: a peça forjada não entrou no bestiário como obtida`)
+      // 3. sem material: a Rara de novo fica apagada com o motivo, e o botão forçado não forja
+      r = await receita('raro')
+      if (!r.off || r.motivo !== 'Falta Brasa viva (precisa de 10, tem 4)') problems.push(`${label}: a 2ª Rara deveria faltar Brasa ${JSON.stringify(r)}`)
+      await pg.evaluate(() => { const b = document.querySelector('[data-acao="forja-fazer"][data-id="raro"]'); b.removeAttribute('aria-disabled'); b.click() })
+      await pg.evaluate(() => { const b = document.createElement('button'); b.setAttribute('data-acao', 'forja-confirmar'); b.setAttribute('data-id', 'raro'); document.getElementById('tela').appendChild(b); b.click(); b.remove() })
+      const s1 = await pveEst(pg)
+      if (s1.items.length !== s.items.length || s1.gold !== s.gold || s1.forjaCounter !== s.forjaCounter) problems.push(`${label}: o botão forçado forjou sem material`)
+      // 4. Pedra Negra e Pergaminho de reforja: sem confirmação, sem sorteio
+      await pg.locator('[data-acao="forja-fazer"][data-id="pedra"]').click()
+      await pg.locator('[data-acao="forja-fazer"][data-id="reforja"]').click()
+      s = await pveEst(pg)
+      if (s.pedras !== 1 || s.mochila['pergaminho-reforja'] !== 1 || s.gold !== s1.gold - 30 - 150 || s.forjaCounter !== s1.forjaCounter || s.mochila['brasa-viva'] !== 3) problems.push(`${label}: Pedra e Pergaminho ${JSON.stringify({ pedras: s.pedras, perg: s.mochila['pergaminho-reforja'], gold: [s1.gold, s.gold], c: s.forjaCounter, brasa: s.mochila['brasa-viva'] })}`)
+      // 5. outro ginásio: os materiais são os dele (nenhum aqui), a receita fica apagada
+      await pg.locator('[data-acao="forja-gym"][data-id="agua"]').click()
+      r = await receita('comum')
+      if (!r.off || r.motivo !== 'Faltam materiais: Junco e Concha (precisa de 10, tem 0)' || !/Rara e Lendária saem do conjunto Chuva/.test((await pg.locator('#tela').textContent()) || '')) problems.push(`${label}: Remanso sem materiais ${JSON.stringify(r)}`)
+      await checkOverflow(pg, label + ' remanso')
+      // 6. a peça forjada está no inventário (sub-aba Peças), com as linhas e só "Descartar"; recarregar não muda as linhas
+      await pg.locator('[data-acao="forja-voltar"]').click(); await pg.waitForSelector('#t-expedicao')
+      await pveAbrePecas(pg, 'm1', 'sela')
+      const linha = ((await pg.locator(`.peca[data-peca="${nova.uid}"]`).textContent()) || '').replace(/\s+/g, ' ')
+      if (!/Sela do Sol \+0/.test(linha) || !/Descartar/.test(linha) || esp.peca.linhas.some((l) => !linha.includes('+' + l.valor + '%'))) problems.push(`${label}: a peça forjada no inventário "${linha}"`)
+      await pg.reload(); await pg.waitForSelector('#t-estabulo')
+      if (JSON.stringify((await pveEst(pg)).items.find((x) => x.uid === nova.uid).linhas) !== JSON.stringify(esp.peca.linhas)) problems.push(`${label}: recarregar mudou as linhas da peça forjada`)
+    } catch (e) {
+      problems.push(`${label}: ` + e.message)
+    }
+    await pg.context().close()
+  }
+
+  // ---------------- reforja de uma linha da peça e Selo do campeão ----------------
+  if (quer('reforja')) {
+    const label = 'reforja'
+    const pg = await afkAbrePerfil(label, `g.items.push({ uid: 'i11', id: 'sela-sol-raro', plus: 0, rerolls: 0, linhas: [{ tipo: 'material', valor: 8 }, { tipo: 'xp', valor: 7 }] });
+      g.items.push({ uid: 'i12', id: 'sela-comum', plus: 0, rerolls: 0, linhas: [] });
+      g.nextItemUid = 20; g.mochila['pergaminho-reforja'] = 3; g.mochila.selo = 1; g.gold = 5000;`)
+    const painel = () => pg.evaluate(() => {
+      const p = document.querySelector('.reforja'), b = p && p.querySelector('[data-acao="reforja-sim"]')
+      return p ? { txt: p.textContent.replace(/\s+/g, ' ').trim(), off: b.getAttribute('aria-disabled') === 'true', motivo: b.getAttribute('data-motivo'),
+        linhas: [...p.querySelectorAll('[data-acao="reforja-linha"]')].map((x) => [x.textContent.trim(), x.getAttribute('aria-pressed')]) } : null
+    })
+    try {
+      await pveAbrePecas(pg, 'm1', 'sela')
+      // 1. peça Comum não tem "Reforjar"; na Rara o painel pede a linha
+      if (await pg.locator('[data-acao="reforjar"][data-id="i12"]').count()) problems.push(`${label}: peça Comum (sem linhas) com o botão Reforjar`)
+      await pg.locator('[data-acao="reforjar"][data-id="i11"]').click()
+      let p = await painel()
+      if (!p || !p.off || p.motivo !== 'Escolha uma linha da peça' || JSON.stringify(p.linhas) !== JSON.stringify([['+8% material', 'false'], ['+7% XP', 'false']])) problems.push(`${label}: painel ao abrir ${JSON.stringify(p)}`)
+      await pg.locator('[data-acao="reforja-linha"][data-id="i11:0"]').click()
+      p = await painel()
+      if (p.off || !/Custa 1 Pergaminho de reforja \(tem 3\) e 100/.test(p.txt) || !/Pode sair pior/.test(p.txt)) problems.push(`${label}: painel com a linha escolhida ${JSON.stringify(p)}`)
+      await checkOverflow(pg, label + ' painel')
+      // 2. reforjar: desconta o Pergaminho e o Ouro, a linha nova é a da seed, e o próximo custo aparece maior
+      const s0 = await pveEst(pg), it0 = s0.items.find((x) => x.uid === 'i11')
+      const esp1 = GR.reforjar(it0, 0, false, s0.seedBase)
+      await pg.locator('[data-acao="reforja-sim"][data-id="i11"]').click()
+      let s = await pveEst(pg), it = s.items.find((x) => x.uid === 'i11')
+      if (s.gold !== s0.gold - 100 || s.mochila['pergaminho-reforja'] !== 2 || s.mochila.selo !== 1 || it.rerolls !== 1 || JSON.stringify(it.linhas) !== JSON.stringify(esp1.linhas)) problems.push(`${label}: 1ª reforja ${JSON.stringify({ gold: [s0.gold, s.gold], perg: s.mochila['pergaminho-reforja'], it, esp: esp1 })}`)
+      if (it.linhas[0].tipo === 'xp' || JSON.stringify(it.linhas[1]) !== JSON.stringify(it0.linhas[1])) problems.push(`${label}: a reforja repetiu o tipo da outra linha ou mexeu nela ${JSON.stringify(it.linhas)}`)
+      const d = await afkDisco(pg), itD = d.items.find((x) => x.uid === 'i11')
+      if (d.gold !== s.gold || itD.rerolls !== 1 || JSON.stringify(itD.linhas) !== JSON.stringify(it.linhas) || d.mochila['pergaminho-reforja'] !== 2) problems.push(`${label}: a reforja não foi gravada numa gravação só`)
+      p = await painel()
+      if (!p || !/Custa 1 Pergaminho de reforja \(tem 2\) e 150/.test(p.txt) || !/reforjas nesta peça: 1/.test(p.txt)) problems.push(`${label}: o próximo custo não apareceu maior ${JSON.stringify(p)}`)
+      // 3. recarregar não sorteia de novo: a linha fica, e a próxima reforja é a do rerolls 1
+      await pg.reload(); await pg.waitForSelector('#t-estabulo')
+      await pg.evaluate(() => { window.__galope.ui.dev.ouroInf = false })
+      if (JSON.stringify((await pveEst(pg)).items.find((x) => x.uid === 'i11').linhas) !== JSON.stringify(esp1.linhas)) problems.push(`${label}: recarregar mudou a linha reforjada`)
+      // 4. com o Selo: a linha mantém o tipo e o valor sai da metade de cima; gasta 150, 1 Pergaminho e o Selo
+      await pveAbrePecas(pg, 'm1', 'sela')
+      await pg.locator('[data-acao="reforjar"][data-id="i11"]').click()
+      await pg.locator('[data-acao="reforja-linha"][data-id="i11:1"]').click()
+      await pg.locator('[data-acao="reforja-selo"][data-id="i11"]').click()
+      p = await painel()
+      const fx = G.ECONOMY.gear.faixas.xp.raro, meio = Math.ceil((fx[0] + fx[1]) / 2)
+      if (p.off || !p.txt.includes(`Com o Selo: a linha continua de XP e o valor sai de ${meio}% a ${fx[1]}%.`) || !/, 1 Selo do campeão e 150/.test(p.txt)) problems.push(`${label}: painel com o Selo ${JSON.stringify(p)}`)
+      const s2 = await pveEst(pg), esp2 = GR.reforjar(s2.items.find((x) => x.uid === 'i11'), 1, true, s2.seedBase)
+      await pg.locator('[data-acao="reforja-sim"][data-id="i11"]').click()
+      s = await pveEst(pg); it = s.items.find((x) => x.uid === 'i11')
+      if (s.gold !== s2.gold - 150 || s.mochila['pergaminho-reforja'] !== 1 || s.mochila.selo !== 0 || it.rerolls !== 2 || JSON.stringify(it.linhas) !== JSON.stringify(esp2.linhas) || it.linhas[1].tipo !== 'xp' || it.linhas[1].valor < meio) problems.push(`${label}: reforja com Selo ${JSON.stringify({ gold: [s2.gold, s.gold], mochila: [s.mochila['pergaminho-reforja'], s.mochila.selo], it, esp: esp2 })}`)
+      p = await painel()
+      if (!/e 230/.test(p.txt)) problems.push(`${label}: o 3º custo deveria ser 230: ${p.txt}`)
+      // sem Selo na mochila, pedir o Selo apaga o Reforjar com o motivo; sem Ouro livre também
+      await pg.locator('[data-acao="reforja-selo"][data-id="i11"]').click()
+      p = await painel()
+      if (!p.off || p.motivo !== 'Falta Selo do campeão') problems.push(`${label}: sem Selo ${JSON.stringify([p.off, p.motivo])}`)
+      await pg.locator('[data-acao="reforja-selo"][data-id="i11"]').click()
+      await pg.evaluate(() => { window.__galope.state.gold = 200 })
+      await pg.locator('[data-acao="reforja-linha"][data-id="i11:0"]').click()
+      p = await painel()
+      if (!p.off || p.motivo !== 'Falta Ouro (precisa de 230)') problems.push(`${label}: sem Ouro ${JSON.stringify([p.off, p.motivo])}`)
+      await pg.evaluate(() => { const b = document.querySelector('[data-acao="reforja-sim"]'); b.removeAttribute('aria-disabled'); b.click() })
+      if ((await pveEst(pg)).items.find((x) => x.uid === 'i11').rerolls !== 2) problems.push(`${label}: o botão forçado reforjou sem Ouro`)
+      // 5. o Selo aparece no resultado da corrida valendo quando cai (o sorteio da seed trocado por um que sempre cai:
+      //    a regra dos 10% só para o 1º lugar está no sim-test) e entra na mochila na mesma gravação
+      await pg.evaluate(() => { window.__galope.state.gold = 5000; window.Itens.seloPodio = () => 1 })
+      await abrirSala(pg)
+      await pg.getByRole('button', { name: /^Largar/ }).click()
+      await pg.waitForSelector('#pista')
+      await pg.getByRole('button', { name: /Pular|Ver resultado/ }).click()
+      await pg.waitForSelector('#t-resultado')
+      const bal = await afkTxt(pg, '.balanco')
+      s = await pveEst(pg)
+      if (!/Selo do campeão ?\+1/.test(bal[0] || '') || s.mochila.selo !== 1 || (await afkDisco(pg)).mochila.selo !== 1) problems.push(`${label}: o Selo não apareceu no resultado ou não entrou na mochila: "${bal[0]}" ${s.mochila.selo}`)
+      await checkOverflow(pg, label + ' resultado')
+    } catch (e) {
+      problems.push(`${label}: ` + e.message)
+    }
+    await pg.context().close()
+  }
+
+  if (quer('bestiario')) {
+    const label = 'bestiario'
+    const pg = await afkAbrePerfil(label, `g.afk.bestiario = { vitorias: { 'fogo:0': 120, 'fogo:1': 3 }, vistos: { carvao: true, 'trofeu-fogo-0': true }, obtidos: { carvao: true, 'trofeu-fogo-0': true } };`)
+    try {
+      await pg.locator('[data-acao="aba"][data-id="expedicao"]').click(); await pg.waitForSelector('#t-expedicao')
+      const cart = (await afkTxt(pg, '[data-acao="bestiario-abrir"]'))[0] || ''
+      if (!/\+1% de drop raro e \+2% de chance de troféu/.test(cart)) problems.push(`${label}: cartão na Expedição "${cart}"`)
+      await pg.locator('[data-acao="bestiario-abrir"]').click(); await pg.waitForSelector('#t-bestiario')
+      const b = await pg.evaluate(() => ({ foco: document.activeElement && document.activeElement.id,
+        ops: [...document.querySelectorAll('.afk-best-op')].map((li) => ({ txt: li.textContent.replace(/\s+/g, ' ').trim(), feitos: li.querySelectorAll('.afk-marco--feito').length })),
+        itens: [...document.querySelectorAll('.afk-best-item')].map((li) => li.className.replace('afk-best-item ', '') + ':' + li.querySelector('.afk-best-nome').textContent) }))
+      if (b.foco !== 't-bestiario' || b.ops.length !== 5 || b.ops[0].feitos !== 2 || b.ops[1].feitos !== 0 || !/Recruta Fagulha ?120 vitórias no treino/.test(b.ops[0].txt)) problems.push(`${label}: oponentes ${JSON.stringify(b.ops.slice(0, 2))}`)
+      if (b.itens.length !== 18 || b.itens[0] !== 'afk-best-item--obtido:Carvão' || b.itens[1] !== 'afk-best-item--oculto:???' || !b.itens.includes('afk-best-item--obtido:Pederneira do Recruta Fagulha')) problems.push(`${label}: coleção ${JSON.stringify(b.itens)}`)
+      await checkOverflow(pg, label)
+      await pg.locator('[data-acao="bestiario-gym"][data-id="agua"]').click()
+      const t2 = (await afkTxt(pg, '#t-best-ops'))[0] || ''
+      if (!/Ginásio do Remanso/.test(t2) || (await pg.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-id'))) !== 'agua') problems.push(`${label}: troca de ginásio "${t2}"`)
+      // uma vitória no treino marca o oponente: a contagem do bestiário anda com a corrida gravada
+      await pg.locator('[data-acao="bestiario-voltar"]').click(); await pg.waitForSelector('#t-expedicao')
+      if ((await pg.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-acao'))) !== 'bestiario-abrir') problems.push(`${label}: o Voltar não devolveu o foco ao cartão do Bestiário`)
+      await afkVaiTrilha(pg, 'fogo')
+      await pg.locator('[data-acao="afk-treinar"][data-id="fogo:1"]').click(); await pg.waitForSelector('#t-afk-escolha')
+      await pg.locator('[data-acao="afk-esc-comecar"]').click(); await pg.waitForSelector('#t-afk')
+      await afkEsperaMedida(pg, 0)
+      await afkAvanca(pg, 60)
+      const s = await afkEst(pg)
+      if (!(s.afk.bestiario.vitorias['fogo:1'] > 3 + 20) || s.afk.bestiario.vitorias['fogo:1'] - 3 !== s.afk.vitorias['fogo:1:normal']) problems.push(`${label}: vitórias no bestiário ${JSON.stringify([s.afk.bestiario.vitorias, s.afk.vitorias])}`)
+      await pg.locator('[data-acao="bestiario-abrir"]').click(); await pg.waitForSelector('#t-bestiario')
+      const op1 = (await afkTxt(pg, '.afk-best-op'))[1] || ''
+      if (!new RegExp(`Cabo Tocha ?${s.afk.bestiario.vitorias["fogo:1"]} vitórias no treino`).test(op1)) problems.push(`${label}: o oponente vencido não aparece marcado "${op1}"`)
+      await pg.goBack(); await pg.waitForSelector('#t-expedicao', { timeout: 3000 }).catch(() => problems.push(`${label}: o voltar do aparelho não levou à Expedição`))
+    } catch (e) {
+      problems.push(`[${label}] ` + e.message)
+    } finally { await pg.context().close() }
+  }
   if (quer('texto')) {
     const tx = await newPage(browser, { width: 360, height: 640 }, 'texto')
     const tamanhos = (sels) => tx.evaluate((ss) => ss.map((sel) => {
@@ -1301,8 +1815,8 @@ try {
         const disco = JSON.parse(await bruto(pg, REAL))
         for (const [onde, s] of [['memória', await estadoDe(pg)], ['disco', disco]]) {
           const erro = (t) => problems.push(`${label} (${onde}): ${t}`)
-          if (s.v !== 9) erro('versão ' + s.v)
-          if (!igual(s.mochila, ZERO_MOCHILA)) erro('mochila ' + JSON.stringify(s.mochila))
+          if (s.v !== SAVE_V) erro('versão ' + s.v)
+          if (!igual(soUso(s.mochila), ZERO_MOCHILA)) erro('mochila ' + JSON.stringify(s.mochila))
           if (!igual(s.diaria, DIARIA_0)) erro('diária ' + JSON.stringify(s.diaria))
           if (!igual(s.lojaItens, LOJA_0)) erro('limites da loja ' + JSON.stringify(s.lojaItens))
           if (s.itemCounter !== 0) erro('itemCounter ' + s.itemCounter)
@@ -1341,7 +1855,7 @@ try {
       try {
         await pg.waitForSelector('#t-estabulo')
         const s = await estadoDe(pg), hoje = await hojeReal(pg)
-        if (!igual(s.mochila, ZERO_MOCHILA)) problems.push(`${label}: mochila ` + JSON.stringify(s.mochila))
+        if (!igual(soUso(s.mochila), ZERO_MOCHILA)) problems.push(`${label}: mochila ` + JSON.stringify(s.mochila))
         if (!igual(s.diaria, { prox: 0, ciclos: 0, ultimo: hoje })) problems.push(`${label}: diária ${JSON.stringify(s.diaria)} (ultimo corrompido = hoje ${hoje})`)
         // Rulings 7 e 8: dia corrompido vale hoje e compra corrompida vale o limite do dia (nada é liberado)
         if (!igual(s.lojaItens, LOJA_TETO(hoje))) problems.push(`${label}: limites da loja ${JSON.stringify(s.lojaItens)} (esperado o dia de hoje e os tetos)`)
@@ -1372,7 +1886,7 @@ try {
         await pg.reload({ waitUntil: 'domcontentloaded' })
         await pg.waitForSelector('#t-estabulo')
         const b = await estadoDe(pg)
-        for (const k of ['mochila', 'diaria', 'lojaItens', 'itemCounter']) if (!igual(b[k], k === 'mochila' ? Object.assign({}, bom[k], { pergaminho: 0 }) : bom[k])) problems.push(`${label}: ${k} bom mudou ${JSON.stringify(b[k])}`)
+        for (const k of ['mochila', 'diaria', 'lojaItens', 'itemCounter']) if (!igual(k === 'mochila' ? soUso(b[k]) : b[k], k === 'mochila' ? Object.assign({}, bom[k], { pergaminho: 0 }) : bom[k])) problems.push(`${label}: ${k} bom mudou ${JSON.stringify(b[k])}`)
         if (!igual(b.mounts.map((m) => m.torroes), [G.ITEMS.torrao.cap, 4])) problems.push(`${label}: torroes bons ` + JSON.stringify(b.mounts.map((m) => m.torroes)))
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
@@ -1382,7 +1896,7 @@ try {
     }
     // 3. save de versão 9 (mais nova que a 8 do jogo): tela de bloqueio, sem Estábulo, e a chave fica byte a byte igual
     //    (real, de teste e produção)
-    const SAVE_9 = JSON.stringify(Object.assign({}, SAVE_6, { v: 10, rev: 3, coisaNova: { a: [1, 2] }, gold: 123456 }))
+    const SAVE_9 = JSON.stringify(Object.assign({}, SAVE_6, { v: SAVE_V + 1, rev: 3, coisaNova: { a: [1, 2] }, gold: 123456 }))
     const conferirBloqueio = async (pg, label, chave, raw) => {
       await pg.waitForSelector('#t-bloqueio', { timeout: 5000 })
       const txt = (await pg.locator('#tela').textContent()) || ''
@@ -1406,7 +1920,7 @@ try {
       if ((await bruto(pg, chave)) !== raw) problems.push(`${label}: a chave ${chave} mudou depois de recarregar`)
     }
     // v como texto ("9"): Number("9") > 8, também é mais novo (o sanitize o leria como v8+ e gravaria v8 por cima)
-    const SAVE_9_TXT = JSON.stringify(Object.assign(JSON.parse(SAVE_9), { v: '10' }))
+    const SAVE_9_TXT = JSON.stringify(Object.assign(JSON.parse(SAVE_9), { v: String(SAVE_V + 1) }))
     for (const [label, chave, extra, raw] of [['itens-v9', REAL, {}, SAVE_9], ['itens-v9-dev', DEVK, { query: '?dev=1' }, SAVE_9],
       ['itens-v9-producao', REAL, { pagina: 'producao.html' }, SAVE_9], ['itens-v9-texto', REAL, {}, SAVE_9_TXT]]) {
       const pg = await newPage(browser, VP, label, comSave(chave, raw, extra))
@@ -1481,7 +1995,7 @@ try {
         for (const [id, v] of [['estrela', '2'], ['cupom', '150'], ['manual', '1']]) await pg.fill('#dev-mochila-' + id, v)
         await pg.locator('[data-acao="dev-mochila"]').click()
         s = await estadoDe(pg)
-        if (!igual(s.mochila, { torrao: 3, estrela: 2, cupom: G.BAG_MAX, manual: 1, pergaminho: 0 })) problems.push(`${label}: mochila depois de definir os quatro (150 vira o teto) ` + JSON.stringify(s.mochila))
+        if (!igual(soUso(s.mochila), { torrao: 3, estrela: 2, cupom: G.BAG_MAX, manual: 1, pergaminho: 0 })) problems.push(`${label}: mochila depois de definir os quatro (150 vira o teto) ` + JSON.stringify(s.mochila))
         // campo vazio: nada muda e a gaveta diz por quê
         await pg.fill('#dev-mochila-manual', '')
         await pg.locator('[data-acao="dev-mochila"]').click()
@@ -1653,7 +2167,8 @@ try {
         if ((await pg.evaluate(() => window.__galope.ui.lojaParte)) !== 'mochila') problems.push(`${label}: ui.lojaParte não é mochila`)
         if (await pg.locator('#tela [data-acao="item-comprar"]').count()) problems.push(`${label}: a Mochila mostra botão de compra`)
         const bag = await pg.locator('#tela .item-linha--mochila').evaluateAll((ls) => ls.map((l) => l.getAttribute('data-item')))
-        if (!igual(bag, Object.keys(G.ITEMS))) problems.push(`${label}: mochila ${bag.join(',')} (esperado a ordem do catálogo)`)
+        const bagAfk = bag.slice(G.ITENS_USO.length)
+        if (!igual(bag.slice(0, G.ITENS_USO.length), G.ITENS_USO) || bagAfk.length < 14 || bagAfk.some((id) => !(G.ITEMS[id] && G.ITEMS[id].grupo))) problems.push(`${label}: mochila ${bag.join(',')} (esperado a ordem do catálogo)`)
         for (const [id, n, falado] of [['torrao', 3, '3 Torrões de açúcar'], ['estrela', 0, '0 Estrelas de treino'], ['redea', 2, '2 Rédeas novas'], ['cupom', 0, '0 Cupons de troca de skill'], ['manual', 1, '1 Manual de doma']]) {
           const t = await txtLinha(id), a = await textoAcessivel(linha(id)), vazia = await linha(id).evaluate((l) => l.classList.contains('item-linha--vazia'))
           if (!a.includes(falado) || /[x×]\s*\d/.test(a)) problems.push(`${label}: o leitor de tela lê a linha de ${id} como "${a}" (esperado "${falado}", sem "x${n}")`)
@@ -1762,7 +2277,7 @@ try {
     const ALLOC0 = { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 }
     // seed 1006: o 1º Manual (contador 0) num cavalo de Água sem skill aprende; o 2º (contador 1), num de Grama, não
     const SAVE_T4 = Object.assign({}, SAVE_6, {
-      v: 9, rev: 5, seedBase: 1006, gold: 5000, redeas: 0, mochila: ZERO_MOCHILA, diaria: DIARIA_0, lojaItens: LOJA_0, itemCounter: 0,
+      v: SAVE_V, rev: 5, seedBase: 1006, gold: 5000, redeas: 0, mochila: ZERO_MOCHILA, diaria: DIARIA_0, lojaItens: LOJA_0, itemCounter: 0,
       mounts: [
         cav(brasa, { uid: 'm1', level: 12, skills: ['sprint'], alloc: { ...ALLOC0, vel: 3, acel: 2, est: 1 }, respecFree: false, torroes: 0 }),
         cav(mare, { uid: 'm2', level: 10, skills: [], alloc: { ...ALLOC0, vel: 2 }, respecFree: true, torroes: 0 }),
@@ -1863,10 +2378,10 @@ try {
         await pg.locator('.dev-gaveta [data-acao="dev-redeas"]').click()
         await devFechar(pg)
         let s = await h.estado()
-        if (!igual(s.mochila, { torrao: G.BAG_MAX, estrela: 2, cupom: 3, manual: 3, pergaminho: 0 }) || s.redeas !== 2 || s.seedBase !== 1006 || s.itemCounter !== 0) problems.push(`${label}: preparo ${JSON.stringify({ mochila: s.mochila, redeas: s.redeas, seed: s.seedBase, c: s.itemCounter })}`)
+        if (!igual(soUso(s.mochila), { torrao: G.BAG_MAX, estrela: 2, cupom: 3, manual: 3, pergaminho: 0 }) || s.redeas !== 2 || s.seedBase !== 1006 || s.itemCounter !== 0) problems.push(`${label}: preparo ${JSON.stringify({ mochila: s.mochila, redeas: s.redeas, seed: s.seedBase, c: s.itemCounter })}`)
         // a parte Mochila: cada item com quantidade tem o "Usar" (com o nome do item para o leitor de tela)
         await h.irMochila()
-        for (const id of Object.keys(G.ITEMS)) {
+        for (const id of G.ITENS_USO) {
           if (id === 'pergaminho') continue   // não se usa pela mochila: é gasto ao subir rank (bloco ranks)
           const b = h.usarMochila(id), t = ((await b.textContent().catch(() => '')) || '').replace(/\s+/g, ' ').trim()
           if ((await b.count()) !== 1 || !/^Usar/.test(t) || !t.includes(G.ITEMS[id].name)) problems.push(`${label}: a linha de ${id} sem o botão "Usar ${G.ITEMS[id].name}" (${t})`)
@@ -2940,7 +3455,7 @@ try {
     alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } }, o)
   // um save versão 8 completo (o:  campos trocados)
   const ginSave = (o = {}) => Object.assign({
-    v: 9, rev: 5, gold: 5000, tier: 50, seedBase: GIN_SEED, raceCounter: 0, pending: null, races: 0, wins: 0, podiums: 0, goldWon: 0,
+    v: SAVE_V, rev: 5, gold: 5000, tier: 50, seedBase: GIN_SEED, raceCounter: 0, pending: null, races: 0, wins: 0, podiums: 0, goldWon: 0,
     mounts: [ginCav(ginBrasa, { uid: 'm1', level: 10, xp: 295 }), ginCav(ginMare, { uid: 'm2', level: 4 })],
     activeId: 'm1', nextUid: 3, stableSlots: 3, breedCounter: 0, items: [], nextItemUid: 1, pedras: 0, enhanceCounter: 0,
     redeas: 0, avisoV6: false, mochila: { torrao: 0, estrela: 0, cupom: 0, manual: 0 }, diaria: { prox: 0, ciclos: 0, ultimo: null },
@@ -2984,7 +3499,7 @@ try {
         }
         const disco = JSON.parse(await ginDisco(pg, chave))
         for (const [onde, s] of [['memória', await ginEstado(pg)], ['disco', disco]]) {
-          if (s.v !== 9 || !ginIgual(s.ginasios, GIN_ZERO) || s.gymCounter !== 0) problems.push(`${label} (${onde}): ` + JSON.stringify({ v: s.v, ginasios: s.ginasios, gymCounter: s.gymCounter }))
+          if (s.v !== SAVE_V || !ginIgual(s.ginasios, GIN_ZERO) || s.gymCounter !== 0) problems.push(`${label} (${onde}): ` + JSON.stringify({ v: s.v, ginasios: s.ginasios, gymCounter: s.gymCounter }))
         }
         if (!ginIgual(await ginBonus(pg), { ouro: 0, xp: 0, skill: 0 })) problems.push(`${label}: bônus sem insígnia ` + JSON.stringify(await ginBonus(pg)))
       } catch (e) {
@@ -3009,7 +3524,7 @@ try {
         const eRef = await ginEstado(ref), simRef = await ginSimSala(ref)
         const e7 = await ginEstado(pg), d7 = JSON.parse(await ginDisco(pg, GIN_REAL))
         for (const [onde, s] of [['memória', e7], ['disco', d7]]) {
-          if (s.v !== 9 || !ginIgual(s.ginasios, GIN_ZERO) || s.gymCounter !== 0) problems.push(`${label} (${onde}): ginásios da v7 não zerados ` + JSON.stringify({ v: s.v, ginasios: s.ginasios, gymCounter: s.gymCounter }))
+          if (s.v !== SAVE_V || !ginIgual(s.ginasios, GIN_ZERO) || s.gymCounter !== 0) problems.push(`${label} (${onde}): ginásios da v7 não zerados ` + JSON.stringify({ v: s.v, ginasios: s.ginasios, gymCounter: s.gymCounter }))
           if (!ginIgual(semRev(s), semRev(eRef))) problems.push(`${label} (${onde}): o save migrado difere do mesmo save na versão 8 ` + JSON.stringify(semRev(s)).slice(0, 400))
           if (!s.pending || s.pending.counter !== 3 || s.pending.fee !== 50 || s.pending.training !== false || !ginIgual(s.pending, eRef.pending)) problems.push(`${label} (${onde}): sala aberta ` + JSON.stringify(s.pending))
         }
@@ -3106,8 +3621,8 @@ try {
     }
 
     // 4. save de versão 9 (também "9" em texto): tela de bloqueio, e a chave fica byte a byte igual (real e de teste)
-    for (const [label, pagina, chave, raw] of [['ginasio-v9', 'preview.html', GIN_REAL, JSON.stringify(ginSave({ v: 10, coisaNova: 1 }))],
-      ['ginasio-v9-dev', 'jogo-dev.html', GIN_DEV, JSON.stringify(ginSave({ v: 10 }))], ['ginasio-v9-texto', 'preview.html', GIN_REAL, JSON.stringify(ginSave({ v: '10' }))]]) {
+    for (const [label, pagina, chave, raw] of [['ginasio-v9', 'preview.html', GIN_REAL, JSON.stringify(ginSave({ v: SAVE_V + 1, coisaNova: 1 }))],
+      ['ginasio-v9-dev', 'jogo-dev.html', GIN_DEV, JSON.stringify(ginSave({ v: SAVE_V + 1 }))], ['ginasio-v9-texto', 'preview.html', GIN_REAL, JSON.stringify(ginSave({ v: String(SAVE_V + 1) }))]]) {
       const pg = await ginAbre(label, { save: raw, chave, pagina, espera: '#t-bloqueio' })
       try {
         if (await pg.locator('#t-estabulo, .app-abas, .dev-botao').count()) problems.push(`${label}: a tela de bloqueio mostra o jogo`)
@@ -3269,6 +3784,14 @@ try {
         if (!treino && !(base >= 34)) problems.push(`${label}: o teste precisa de um prêmio base de 34 ou mais (veio ${base} no ${lugar}º); troque GIN_SEED`)
         if (nome === 'nenhuma' && ap.learned.length !== 0) problems.push(`${label}: sem insígnia a skill do nível 11 não deveria sair com GIN_SEED`)
         if (nome === 'grama' && ap.learned.length !== 1) problems.push(`${label}: com a insígnia de Grama a skill do nível 11 deveria sair com GIN_SEED`)
+        // ajustes 1: a skill nova aparece no resultado com o nome, o rank I e o resumo; o texto completo fechado no balão
+        if (ap.learned.length) {
+          const nv = await pg.evaluate(() => Array.from(document.querySelectorAll('.levelup .habilidade--nova')).map((h) => ({
+            txt: h.querySelector('.skill-dica-area > button').innerText.replace(/\s+/g, ' ').trim(), resumo: h.querySelector('.habilidade-resumo').textContent,
+            aberto: getComputedStyle(h.querySelector('.skill-dica')).display !== 'none', desc: h.querySelector('.skill-dica').textContent })))
+          const esp = ap.learned.map((id) => ({ txt: G.SKILLS[id].name + ' I', resumo: G.SKILLS[id].resumo, aberto: false, desc: S.skillDesc(id, 1) }))
+          if (JSON.stringify(nv) !== JSON.stringify(esp)) problems.push(`${label}: a skill nova no resultado ${JSON.stringify(nv)} (esperado ${JSON.stringify(esp)})`)
+        }
         // o resultado mostra o prêmio pago (no balanço e na linha do jogador)
         const celula = treino ? '+' + premio : premio ? Math.round(premio).toLocaleString('pt-BR') : '—'
         if (premio && (!balanco.includes('+' + premio) || voce !== celula)) problems.push(`${label}: o resultado não mostra o prêmio pago ${premio}: ${JSON.stringify({ balanco, voce, celula })}`)
@@ -3297,9 +3820,11 @@ try {
         tag: b.tagName, acao: b.getAttribute('data-acao'), id: b.getAttribute('data-id'), txt: b.textContent.replace(/\s+/g, ' ').trim(),
         h: r(b).height, w: r(b).width, top: r(b).top + window.scrollY, ins: [...b.querySelectorAll('img.icone')].map((i) => i.className) }))
       const sel = document.getElementById('t-selvagens')
+      const selB = sel && sel.querySelector('button')
       return { cartoes, ponto: !!document.querySelector('.app-aba--ponto[data-id="expedicao"]'),
         pontos: [...document.querySelectorAll('.app-aba--ponto')].map((b) => b.getAttribute('data-id')).join(','),
-        selvagens: document.querySelectorAll('#tela .selvagem').length, selvagensTxt: sel ? sel.textContent : null,
+        selvagens: document.querySelectorAll('#tela .selvagem').length, selvagensTxt: sel ? sel.textContent.replace(/\s+/g, ' ').trim() : null,
+        selvagensBtn: selB ? { dis: selB.disabled, exp: selB.getAttribute('aria-expanded'), acao: selB.getAttribute('data-acao'), h: r(sel.closest('section')).height } : null,
         selvagensTop: sel ? r(sel).top + window.scrollY : null, abertura: (document.querySelector('#tela .tela > .nota') || {}).textContent || '' }
     })
     // a trilha aberta: as etapas na ordem do DOM (0 a 4), com o estado, o botão e a posição na tela
@@ -3410,9 +3935,15 @@ try {
         if (a.cartoes.map((c) => c.id).join() !== G.GYM_ORDER.join()) problems.push(`${label}: cartões ${a.cartoes.map((c) => c.id).join()} (esperado ${G.GYM_ORDER.join()})`)
         G.GYM_ORDER.forEach((id) => ginConfereCartao(label, a.cartoes.find((c) => c.id === id), id, 0, false))
         if (a.ponto) problems.push(`${label}: ponto na aba Expedição num save novo`)
-        // a vitrine continua (Ruling 4), abaixo dos ginásios, com os textos dela
-        if (a.selvagens !== 6 || !/Cavalos selvagens/.test(a.selvagensTxt || '') || !(a.selvagensTop > Math.max(...a.cartoes.map((c) => c.top)))) problems.push(`${label}: a vitrine não está abaixo dos ginásios ${JSON.stringify({ n: a.selvagens, t: a.selvagensTop, c: a.cartoes.map((c) => c.top) })}`)
-        if (!/Exemplos de achados em expedições\. A captura ainda não está neste protótipo\./.test(await pg.locator('#tela').textContent())) problems.push(`${label}: a nota da vitrine mudou`)
+        // os cavalos selvagens (ajustes 1, 2026-11-23): abaixo dos ginásios, só o título num bloco recolhido e desativado,
+        // com o selo "em breve"; nenhum retrato na tela, e o toque não abre nada
+        if (a.selvagens !== 0 || a.selvagensTxt !== 'Cavalos selvagens em breve' || !(a.selvagensTop > Math.max(...a.cartoes.map((c) => c.top)))) problems.push(`${label}: o bloco dos selvagens não está recolhido abaixo dos ginásios ${JSON.stringify({ n: a.selvagens, txt: a.selvagensTxt, t: a.selvagensTop, c: a.cartoes.map((c) => c.top) })}`)
+        if (!a.selvagensBtn || a.selvagensBtn.dis !== true || a.selvagensBtn.exp !== 'false' || a.selvagensBtn.acao || !(a.selvagensBtn.h < 100)) problems.push(`${label}: o bloco dos selvagens não é um botão desativado e recolhido ${JSON.stringify(a.selvagensBtn)}`)
+        await pg.locator('#t-selvagens button').click({ force: true })
+        await pg.locator('#t-selvagens').tap({ force: true }).catch(() => {})
+        await sleep(150)
+        const a2 = await ginAba(pg)
+        if (a2.selvagens !== 0 || !a2.selvagensBtn || a2.selvagensBtn.exp !== 'false' || a2.selvagensBtn.h !== a.selvagensBtn.h) problems.push(`${label}: o toque no bloco dos selvagens mudou a tela ${JSON.stringify(a2.selvagensBtn)}`)
         if (/Em breve/.test(a.abertura) || !/ginásio/i.test(a.abertura)) problems.push(`${label}: a abertura da aba não fala dos ginásios ou ainda diz "Em breve": ${a.abertura}`)
         for (const id of G.GYM_ORDER) {
           await ginAbreTrilha(pg, id)
@@ -6343,6 +6874,88 @@ try {
         await pg.context().close()
       }
     }
+    // câmera centrada no jogador (ajustes 1, 2026-11-23): perto com o grupo junto, afasta para caber um rival a até
+    // RaceFx.CAMERA.limite metros (à frente ou atrás), aproxima de novo quando ele passa do limite (aí ele fica pela seta
+    // com os metros); a escala muda suave (no máximo 8% por quadro a 60 q/s) e o jogador fica no meio. O teste move um
+    // rival nos quadros da simulação (só o desenho os lê; os outros ficam 100 m atrás) e desenha à mão, a 60 q/s, quatro
+    // fases: junto, 20 m à frente, 18 m atrás e 60 m à frente
+    if (quer('corrida-camera')) {
+      const label = 'corrida-camera'
+      for (const vp of [{ width: 360, height: 780 }, { width: 1280, height: 800 }]) {
+        const tag = label + '-' + vp.width
+        const pg = await newPage(browser, vp, tag, { query: '?dev=1' })
+        try {
+          await abreCorrida(pg, tag, SEED7)
+          await pg.waitForFunction(() => window.__galope.race && window.__galope.race._state.phase === 'corrida', null, { timeout: 20000 })
+          const r = await pg.evaluate(() => {
+            const rv = window.__galope.race, s = rv._state, L = window.__galope.ui.lobby, FX = window.RaceFx, desenha = rv.frame
+            rv.frame = function () {}
+            const me = L.playerIdx, rival = me === 0 ? 1 : 0, T0 = L.sim.finishTimes[me] * 0.25
+            const fases = [{ nome: 'junto', d: 0, de: 0, ate: 3 }, { nome: 'frente', d: 20, de: 3, ate: 7 }, { nome: 'atras', d: -18, de: 7, ate: 10 }, { nome: 'longe', d: 60, de: 10, ate: 13 }]
+            const faseEm = (t) => fases.find((f) => t >= T0 + f.de && t < T0 + f.ate)
+            L.sim.frames.forEach((f) => {
+              const fa = faseEm(f.t)
+              if (!fa) return
+              for (let j = 0; j < L.n; j++) if (j !== me) f.pos[j] = f.pos[me] + (j === rival ? fa.d : -100 - j * 3)
+            })
+            const W = s.W, out = { quadros: 0, fases: {}, pior: 0, ppmMin: 99, ppmMax: 0, centro: 0, ms: [] }
+            fases.forEach((f) => { out.fases[f.nome] = { ppmFim: null, alvo: FX.camZoomAlvo([0, f.d], 0, W), visivel: 0, seta: 0, metros: null, quadros: 0 } })
+            let ts = performance.now(), ant = null
+            s.last = ts
+            for (let T = T0; T < T0 + 13; T += 1 / 60) {
+              ts += 1000 / 60
+              s.phase = 'corrida'; s.simT = T; s.mult = 1; s.flash = 0
+              const t0 = performance.now()
+              desenha(ts)
+              out.ms.push(performance.now() - t0)
+              // a fase pelo simT desenhado (o quadro anda um pouco além do T pedido); fora da janela, nada a conferir
+              const tS = s.simT, fa = faseEm(tS), z = s.ppmArt
+              if (ant) out.pior = Math.max(out.pior, Math.abs(Math.log(z / ant)))
+              ant = z; out.ppmMin = Math.min(out.ppmMin, z); out.ppmMax = Math.max(out.ppmMax, z)
+              if (!fa) continue
+              const o = out.fases[fa.nome], cav = FX._stats.caixasCavalos, eu = cav.find((c) => c.racer === me)
+              out.quadros++
+              if (eu && !s.finishCam) out.centro = Math.max(out.centro, Math.abs(eu.x + eu.w / 2 - W / 2))
+              // de 1,2 s depois do começo da fase (o tempo de a câmera chegar) até 0,2 s antes do fim (o quadro da simulação
+              // seguinte já pode ser o da outra fase), o que tem de valer
+              if (tS >= T0 + fa.de + 1.2 && tS < T0 + fa.ate - 0.2) {
+                const c = cav.find((x) => x.racer === rival), e = FX._stats.caixasEtiquetas.find((x) => x.racer === rival)
+                o.quadros++
+                if (c && c.x >= 0 && c.x + c.w <= W) o.visivel++
+                if (e) { o.seta++; o.metros = e.metros }
+                o.ppmFim = z
+              }
+            }
+            rv.frame = desenha
+            out.ms.sort((a, b) => a - b)
+            out.msMedia = +(out.ms.reduce((a, b) => a + b, 0) / out.ms.length).toFixed(2)
+            out.ms95 = +out.ms[Math.floor(out.ms.length * 0.95)].toFixed(2)
+            delete out.ms
+            out.W = W; out.piso = FX.CAMERA.piso; out.limite = FX.CAMERA.limite
+            return out
+          })
+          notes[tag] = r
+          const ruim = (m) => problems.push(`[${tag}] ${m} ${JSON.stringify(r.fases)}`)
+          const F = r.fases
+          if (r.quadros < 700 || Object.values(F).some((f) => f.quadros < 60)) ruim('poucos quadros desenhados')
+          if (F.junto.ppmFim < 11.5) ruim('com o grupo junto a câmera não ficou perto (12 px/m)')
+          for (const k of ['frente', 'atras']) {
+            if (!(F[k].alvo < 11 && Math.abs(F[k].ppmFim - F[k].alvo) < 0.01)) ruim(`rival ${k === 'frente' ? '20 m à frente' : '18 m atrás'}: a câmera não afastou até o alvo`)
+            if (!F[k].quadros || F[k].visivel !== F[k].quadros) ruim(`rival ${k}: fora da tela em parte dos quadros (${F[k].visivel} de ${F[k].quadros})`)
+            if (F[k].seta) ruim(`rival ${k}: com seta de fora da tela estando a menos do limite`)
+          }
+          if (F.longe.ppmFim < 11.5) ruim('rival além do limite: a câmera não voltou para perto')
+          if (!F.longe.seta || !/^\+60 m$/.test(F.longe.metros || '')) ruim('rival além do limite sem a seta "+60 m"')
+          if (r.pior > Math.log(1.08)) ruim(`a escala saltou ${(Math.exp(r.pior) * 100 - 100).toFixed(1)}% num quadro (máximo 8%)`)
+          if (r.ppmMin < r.piso || r.ppmMax > 12) ruim('a escala saiu do piso..12')
+          if (r.centro > 14) ruim(`o jogador saiu do meio da tela (${r.centro.toFixed(1)} px de arte)`)
+        } catch (e) {
+          problems.push(`[${tag}] ` + e.message)
+        } finally {
+          await pg.context().close()
+        }
+      }
+    }
     // a faixa do Dado em cima não cobre as etiquetas de quem está fora da tela. No Dado o pelotão anda junto (ninguém fica
     // fora da câmera), então o teste afasta os rivais das raias 1 e 2 (150 m à frente e atrás, nos quadros da simulação
     // em volta do Dado, que só o desenho lê) e desenha à mão a janela do 1º Dado a 360x640, onde a etiqueta da raia 1
@@ -6556,7 +7169,7 @@ try {
         cls: li.className, hora: limpa(li.querySelector('time')), raia: limpa(li.querySelector('.raia--mini')), txt: limpa(li) }))
       const aviso = document.querySelector('.aviso--perda')
       return {
-        R: { place: R.place, fee: R.fee, prize: R.prize, stone: R.stone, pergaminho: R.pergaminho, training: R.training, xpGain: R.xpGain, levels: R.levels, learned: R.learned, nivel: R.after.level, gold: R.after.gold, paid: R.payouts ? R.payouts.prizes.length : 3 },
+        R: { place: R.place, fee: R.fee, prize: R.prize, stone: R.stone, pergaminho: R.pergaminho, selo: R.selo, training: R.training, xpGain: R.xpGain, levels: R.levels, learned: R.learned, nivel: R.after.level, gold: R.after.gold, paid: R.payouts ? R.payouts.prizes.length : 3 },
         n: L.n, net, sinal: (net > 0 ? '+' : net < 0 ? '−' : '') + fmt(Math.abs(net)), saldoTxt: fmt(R.after.gold),
         manchete: limpa(document.getElementById('t-resultado')), sub: sub ? limpa(sub) : null, pares,
         xp: limpa(document.querySelector('.resultado-xp')), levelup: Array.from(document.querySelectorAll('.levelup')).map(limpa),
@@ -6565,7 +7178,13 @@ try {
         notaDado: Array.from(document.querySelectorAll('[aria-labelledby="t-chegada"] .nota')).map(limpa).join(' | '),
         notaVazia: Array.from(document.querySelectorAll('#tela .nota')).map(limpa).filter((t) => /Nenhum momento/.test(t)),
         foco: document.activeElement ? (document.activeElement.dataset.acao || '') + ':' + (document.activeElement.dataset.id || '') : null,
-        skillNomes: R.learned.map((id) => (window.GameData.SKILLS[id] ? window.GameData.SKILLS[id].name : id))
+        skillNomes: R.learned.map((id) => (window.GameData.SKILLS[id] ? window.GameData.SKILLS[id].name : id)),
+        // ajustes 1: cada skill nova com o nome, o rank e o resumo à vista e o texto completo no balão (fechado)
+        novas: Array.from(document.querySelectorAll('.levelup .habilidade--nova')).map((h) => {
+          const g = h.querySelector('[data-dica]'), b = h.querySelector('.skill-dica')
+          return { txt: h.querySelector('.skill-dica-area > button').innerText.replace(/\s+/g, ' ').trim(), resumo: limpa(h.querySelector('.habilidade-resumo')), aberto: getComputedStyle(b).display !== 'none',
+            liga: !!g && g.getAttribute('aria-describedby') === b.id && b.getAttribute('role') === 'tooltip', desc: limpa(b) }
+        })
       }
     })
     // manchete, frase, entrada, prêmio, resultado, saldo e XP com os valores do ui.result
@@ -6581,12 +7200,15 @@ try {
         : [['Entrada', '−' + r.R.fee], [`Prêmio (${r.R.place}º lugar)`, r.R.prize ? '+' + r.R.prize : '0'], ['Resultado', r.sinal]]
       if (r.R.stone) esperado.push(['Pedra Negra', '+' + r.R.stone])
       if (r.R.pergaminho) esperado.push([G.ITEMS.pergaminho.name, '+' + r.R.pergaminho])   // o Pergaminho do pódio (corrida valendo)
+      if (r.R.selo) esperado.push([G.ITEMS.selo.name, '+' + r.R.selo])   // o Selo do campeão (1º lugar valendo, 10%)
       esperado.push(['Saldo', r.saldoTxt + 'Ouro'])   // ouroHtml: o número e o .sr "Ouro" colados
       if (JSON.stringify(r.pares) !== JSON.stringify(esperado)) ruim(`balanço ${JSON.stringify(r.pares)} (esperado ${JSON.stringify(esperado)})`)
       if (!r.xp || !r.xp.includes(`+${r.R.xpGain} XP`)) ruim(`XP ${JSON.stringify(r.xp)} sem "+${r.R.xpGain} XP"`)
       const sobe = r.R.levels > 0 ? [`Subiu para o nível ${r.R.nivel}!`] : []
       if (r.R.learned.length) sobe.push(`Nova skill: ${r.skillNomes.join(', ')}!`)
       if (r.levelup.length !== sobe.length || sobe.some((s, i) => !r.levelup[i].startsWith(s))) ruim(`avisos de nível/skill ${JSON.stringify(r.levelup)} (esperado ${JSON.stringify(sobe)})`)
+      const novasEsp = r.R.learned.map((id) => ({ txt: G.SKILLS[id].name + ' I', resumo: G.SKILLS[id].resumo, aberto: false, liga: true, desc: S.skillDesc(id, 1) }))
+      if (JSON.stringify(r.novas) !== JSON.stringify(novasEsp)) ruim(`skills novas em resumo ${JSON.stringify(r.novas)} (esperado ${JSON.stringify(novasEsp)})`)
     }
     // aba Chegada aberta: a tabela com os dados de hoje, em 2 linhas de texto na célula do cavalo, e a nota do Dado
     const confereChegada = (r, label) => {
@@ -7075,13 +7697,13 @@ try {
     await bd.context().close()
   }
 
-  // ---------------- valor da peça: a tela mostra o mesmo número que a simulação usa (Gear.resolve, plusStep 0,5) ----------------
+  // ---------------- valor da peça: a tela mostra o mesmo número que o treino AFK usa (Gear.resolvePve: principal + plusStep por melhoria) ----------------
   // Só com o equipamento ligado: suspenso (GEAR_ON = false), não há sub-aba Equipamento nem Loja para mostrar as peças
   // (o bloco crescimento confere que elas não aparecem).
   if (quer('valor-peca') && !GEAR_ON) notes['valor-peca'] = 'pulado: equipamento suspenso (GEAR_ON = false, spec 1b §8)'
   if (quer('valor-peca') && GEAR_ON) {
     const vp = await newPage(browser, { width: 360, height: 780 }, 'valor-peca')
-    const numTxt = (v) => (Number.isInteger(v) ? String(v) : String(Math.round(v * 10) / 10).replace('.', ','))
+    const numTxt = (v) => String(Math.round(v * 100) / 100).replace('.', ',')   // até duas casas: o passo da melhoria é 0,2 e o principal 0,75 · 1 · 1,25 · 1,75
     const modsDe = (id, plus) => GR.resolve({ equip: { [G.GEAR[id].slot]: 'x' } }, { x: { uid: 'x', id, plus } }).mods
     try {
       await vp.getByRole('button', { name: 'Escolher Brasa' }).click()
@@ -7103,7 +7725,6 @@ try {
       for (const slot of Object.keys(PLUS)) {
         const id = equipados[slot], info = G.GEAR_SLOT_INFO[slot], m = modsDe(id, PLUS[slot])
         let esperado = '+' + numTxt(m[info.main]) + ' ' + G.STATS[info.main].short
-        if (G.GEAR[id].sub) esperado += ', +' + numTxt(m[info.sub]) + ' ' + G.STATS[info.sub].short
         const rotulo = ((await vp.locator(`[data-acao="equip-slot"][data-id="${slot}"] .slot-peca`).textContent()) || '').trim()
         if (!rotulo.endsWith('· ' + esperado)) problems.push(`valor-peca: rótulo do slot ${slot} +${PLUS[slot]} = "${rotulo}" (a simulação usa ${esperado})`)
         await vp.locator(`[data-acao="equip-slot"][data-id="${slot}"]`).click()
@@ -7730,6 +8351,131 @@ try {
   // Pergaminho, Ouro reservado para a entrada da sala aberta, cavalo ativo com o páreo aberto); o Cupom avisa o rank que
   // se perde; o save v8 vira v9 com tudo no rank 1 e o rank adulterado é saneado; na corrida o balão traz o rank em romano
   // (dourado no V); o seletor da gaveta DEV só mexe no save de teste.
+  // ---------------- skills em resumo, texto completo sob demanda (ajustes 1, 2026-11-23) ----------------
+  // Na aba Skills (vagas, skill de tipo e Garra) e na escolha do Cupom ficam à vista o nome, o rank e o resumo
+  // (GameData.SKILLS[id].resumo); o texto completo (RaceSim.skillDesc do rank, quando ativa, o próximo rank) fica num balão
+  // ligado ao gatilho por aria-describedby, escondido até: o toque (celular: abre embaixo, aria-expanded), o mouse
+  // (computador: por cima, sem mexer no resto) ou o foco do teclado (por cima; Esc fecha).
+  if (quer('skills-resumo')) {
+    const label = 'skills-resumo'
+    const ler = (pg) => pg.evaluate(() => {
+      const r = (e) => e.getBoundingClientRect()
+      const vis = (e) => !!e && getComputedStyle(e).display !== 'none' && r(e).height > 0
+      return Array.from(document.querySelectorAll('#tela .skill-dica-area')).map((a) => {
+        const g = a.querySelector('[data-dica]'), b = a.querySelector('.skill-dica'), id = g && g.getAttribute('aria-describedby')
+        const dono = a.closest('.skill-rank, .vaga-tipo, .habilidade--garra, .item-skill-opcao')
+        const acoes = dono && dono.querySelector('.rank-acoes')
+        return {
+          skill: dono ? dono.getAttribute('data-skill') || (dono.querySelector('[data-acao="item-skill"]') || {}).dataset?.id || dono.className.split(' ')[0] : null,
+          visivel: (a.innerText || '').replace(/\s+/g, ' ').trim(), resumo: (a.querySelector('.habilidade-resumo') || {}).textContent || '',
+          desc: id && document.getElementById(id) === b ? b.textContent.replace(/\s+/g, ' ').trim() : null, role: b && b.getAttribute('role'),
+          aberto: vis(b), pos: b ? getComputedStyle(b).position : null, exp: g && g.getAttribute('aria-expanded'), tag: g && g.tagName,
+          acoesTop: acoes ? Math.round(r(acoes).top + window.scrollY) : null, gatilho: g ? (g.getAttribute('aria-label') || g.innerText.replace(/\s+/g, ' ').trim()) : ''
+        }
+      })
+    })
+    const tira = (t) => t.replace(/\s+/g, ' ').trim()
+    const confereFechado = (lista, onde, ids) => {
+      for (const id of ids) {
+        const a = lista.find((x) => x.skill === id)
+        if (!a) { problems.push(`[${label}] ${onde}: sem o bloco da skill ${id}`); continue }
+        const sk = G.SKILLS[id]
+        if (a.resumo !== sk.resumo || !a.visivel.includes(sk.name) || !a.visivel.includes(sk.resumo)) problems.push(`[${label}] ${onde} ${id}: à vista sem o nome e o resumo ${JSON.stringify(a)}`)
+        if (a.aberto || a.visivel.includes(tira(S.skillDesc(id, 1)).slice(0, 20))) problems.push(`[${label}] ${onde} ${id}: o texto completo à vista sem pedir ${JSON.stringify(a)}`)
+        if (!a.desc || a.role !== 'tooltip' || a.exp !== 'false' || a.tag !== 'BUTTON') problems.push(`[${label}] ${onde} ${id}: o balão não está ligado ao gatilho (aria-describedby, role, aria-expanded) ${JSON.stringify(a)}`)
+      }
+    }
+    const SKS = ['arranque', 'sprint', 'arrancada-final']
+    const prepara = async (pg) => {
+      await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
+      await pg.waitForSelector('#t-estabulo')
+      await montaSave(pg, (raw) => {
+        raw.gold = 99999
+        raw.mounts[0].rarity = 'raro'; raw.mounts[0].skills = SKS.slice(); raw.mounts[0].skillRanks = { arranque: 3, sprint: 1, 'arrancada-final': 5 }
+        raw.mochila = Object.assign(raw.mochila || {}, { cupom: 1 })
+      })
+      await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
+      await pg.waitForSelector('#t-montaria')
+      await pg.locator('[data-acao="montaria-aba"][data-id="skills"]').click()
+      await pg.waitForSelector('#tela .skill-rank')
+    }
+    // celular: toque abre embaixo (as ações descem), outro toque fecha
+    const cel = await newPage(browser, { width: 360, height: 780 }, label + '-360', { hasTouch: true, isMobile: true })
+    try {
+      await prepara(cel)
+      const l0 = await ler(cel)
+      confereFechado(l0, 'aba Skills 360', SKS)
+      const ranks = await cel.evaluate(() => Array.from(document.querySelectorAll('#tela .skill-rank')).map((e) => e.getAttribute('data-skill') + ':' + (e.querySelector('.skill-dica-area .rank-marcas') || {}).getAttribute?.('aria-label')))
+      if (ranks.join() !== 'arranque:Rank III de V,sprint:Rank I de V,arrancada-final:Rank V de V') problems.push(`[${label}] o rank à vista no gatilho: ${ranks.join()}`)
+      for (const k of ['vaga-tipo', 'habilidade']) {
+        const a = l0.find((x) => x.skill === k)
+        if (!a || a.aberto || !a.resumo || !a.desc || a.exp !== 'false') problems.push(`[${label}] ${k === 'vaga-tipo' ? 'skill de tipo' : 'Garra'}: resumo à vista e o resto no balão ${JSON.stringify(a)}`)
+      }
+      const a0 = l0.find((x) => x.skill === 'arranque')
+      if (a0 && !a0.desc.includes(tira(S.skillDesc('arranque', 3)))) problems.push(`[${label}] o balão do Arranque sem o texto do rank III: ${a0.desc}`)
+      if (a0 && !a0.desc.includes('Ativa sempre: na largada')) problems.push(`[${label}] o balão do Arranque sem o "quando": ${a0.desc}`)
+      await cel.locator('.skill-rank[data-skill="arranque"] [data-dica]').tap()
+      const l1 = await ler(cel), a1 = l1.find((x) => x.skill === 'arranque'), s1 = l1.find((x) => x.skill === 'sprint')
+      if (!a1.aberto || a1.exp !== 'true' || a1.pos !== 'static' || !(a1.acoesTop > a0.acoesTop + 20)) problems.push(`[${label}] o toque não abriu o texto embaixo do resumo ${JSON.stringify({ antes: a0.acoesTop, a1 })}`)
+      if (s1.aberto) problems.push(`[${label}] o toque no Arranque abriu também o Sprint`)
+      if ((await cel.evaluate(() => window.__galope.ui.screen)) !== 'montaria') problems.push(`[${label}] o toque no gatilho mudou de tela`)
+      await checkOverflow(cel, label + ' aberto')
+      await cel.locator('.skill-rank[data-skill="arranque"] [data-dica]').tap()
+      const a2 = (await ler(cel)).find((x) => x.skill === 'arranque')
+      if (a2.aberto || a2.exp !== 'false') problems.push(`[${label}] o 2º toque não fechou ${JSON.stringify(a2)}`)
+      // a escolha do Cupom (pela Mochila): o botão da ação com o nome e o rank, o resumo embaixo e o "ⓘ" com o texto completo
+      await cel.locator('[data-acao="aba"][data-id="loja"]').click()
+      await cel.waitForSelector('#t-loja')
+      await cel.locator('#tela [data-acao="loja-parte"][data-id="mochila"]').click()
+      await cel.locator('#tela .item-linha--mochila[data-item="cupom"] [data-acao="item-usar"]').click()
+      await cel.locator('#tela .item-escolha [data-acao="item-cavalo"][data-id="m1"]').click()
+      await cel.waitForSelector('#tela [data-acao="item-skill"]')
+      const c0 = await ler(cel)
+      confereFechado(c0, 'Cupom', SKS)
+      const botoes = await cel.locator('#tela [data-acao="item-skill"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id') + ':' + b.innerText.replace(/\s+/g, ' ').trim() + ':' + (b.querySelector('.rank-marcas') || {}).getAttribute?.('aria-label')))
+      const espB = SKS.map((id, i) => id + ':' + G.SKILLS[id].name + ' ' + ['III', 'I', 'V'][i] + ':Rank ' + ['III', 'I', 'V'][i] + ' de V')
+      if (botoes.join('|') !== espB.join('|')) problems.push(`[${label}] Cupom: os botões da escolha ${JSON.stringify(botoes)} (esperado ${JSON.stringify(espB)})`)
+      const gi = c0.find((x) => x.skill === 'sprint')
+      if (!gi || gi.gatilho !== 'Detalhes de ' + G.SKILLS.sprint.name) problems.push(`[${label}] Cupom: o "ⓘ" do Sprint ${JSON.stringify(gi)}`)
+      await cel.locator('.item-skill-opcao:has([data-id="sprint"]) [data-dica]').tap()
+      const c1 = (await ler(cel)).find((x) => x.skill === 'sprint')
+      notes[label + '-360'] = { aba: l0.map((x) => x.skill + (x.aberto ? '+' : '-')).join(','), cupom: botoes, tocado: { antes: a0.acoesTop, depois: a1.acoesTop } }
+      if (!c1.aberto || c1.exp !== 'true' || (await cel.evaluate(() => JSON.stringify(window.__galope.ui.item))).includes('"passo":"confirma"')) problems.push(`[${label}] Cupom: o "ⓘ" não abriu o texto (ou escolheu a skill) ${JSON.stringify(c1)}`)
+      await checkOverflow(cel, label + ' cupom')
+      await cel.context().close()
+    } catch (e) { problems.push(`[${label}] celular: ${e.message}`); await cel.context().close().catch(() => {}) }
+    // computador: o mouse mostra por cima, sem mexer nas ações; o foco do teclado também; Esc fecha
+    const pc = await newPage(browser, { width: 1280, height: 800 }, label + '-1280')
+    try {
+      await prepara(pc)
+      const l0 = await ler(pc), a0 = l0.find((x) => x.skill === 'sprint')
+      confereFechado(l0, 'aba Skills 1280', SKS)
+      await pc.locator('.skill-rank[data-skill="sprint"] [data-dica]').hover()
+      const l1 = await ler(pc), a1 = l1.find((x) => x.skill === 'sprint')
+      if (!a1.aberto || a1.pos !== 'absolute' || a1.acoesTop !== a0.acoesTop || a1.exp !== 'false') problems.push(`[${label}] o mouse não mostrou o balão por cima ${JSON.stringify({ antes: a0.acoesTop, a1 })}`)
+      await pc.mouse.move(5, 5)
+      if ((await ler(pc)).find((x) => x.skill === 'sprint').aberto) problems.push(`[${label}] o balão ficou aberto com o mouse fora`)
+      // teclado: Tab até o gatilho do Sprint
+      await pc.locator('.skill-rank[data-skill="arranque"] [data-dica]').focus()
+      await pc.keyboard.press('Shift+Tab'); await pc.keyboard.press('Tab')
+      let ok = false
+      for (let i = 0; i < 12 && !ok; i++) {
+        await pc.keyboard.press('Tab')
+        ok = await pc.evaluate(() => { const a = document.activeElement; return !!a && a.hasAttribute('data-dica') && !!a.closest('.skill-rank[data-skill="sprint"]') })
+      }
+      const k1 = (await ler(pc)).find((x) => x.skill === 'sprint')
+      if (!ok || !k1.aberto || k1.pos !== 'absolute') problems.push(`[${label}] o foco do teclado não mostrou o balão ${JSON.stringify({ ok, k1 })}`)
+      await pc.keyboard.press('Escape')
+      const k2 = (await ler(pc)).find((x) => x.skill === 'sprint')
+      if (k2.aberto) problems.push(`[${label}] o Esc não escondeu o balão do foco`)
+      notes[label + '-1280'] = { mouse: a1.pos, teclado: k1.pos, esc: !k2.aberto }
+      await pc.keyboard.press('Enter')
+      const k3 = (await ler(pc)).find((x) => x.skill === 'sprint')
+      if (!k3.aberto || k3.exp !== 'true') problems.push(`[${label}] o Enter no gatilho não abriu o texto ${JSON.stringify(k3)}`)
+      await pc.context().close()
+    } catch (e) { problems.push(`[${label}] computador: ${e.message}`); await pc.context().close().catch(() => {}) }
+  }
+
   if (quer('ranks')) {
     const REAL = 'galope-elemental:v1', DEVK = 'galope-elemental:dev'
     const VP = { width: 360, height: 780 }
@@ -7741,7 +8487,7 @@ try {
     const cav = (tpl, o) => Object.assign({ uid: 'm1', templateId: tpl.id, name: tpl.name, especie: 'cavalo', element: tpl.element, rarity: 'raro',
       grau: 2, sex: tpl.sex, level: 10, xp: 0, skills: [], potential: JSON.parse(JSON.stringify(tpl.potential)), palette: JSON.parse(JSON.stringify(tpl.palette)),
       breedLeft: 2, parents: null, born: 0, equip: {}, respecFree: false, torroes: 0, alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } }, o)
-    const save = (o) => Object.assign({ v: 9, rev: 3, gold: 500, tier: 50, seedBase: 4242, raceCounter: 0, pending: null, redeas: 0, avisoV6: false, races: 0, wins: 0, podiums: 0, goldWon: 0,
+    const save = (o) => Object.assign({ v: SAVE_V, rev: 3, gold: 500, tier: 50, seedBase: 4242, raceCounter: 0, pending: null, redeas: 0, avisoV6: false, races: 0, wins: 0, podiums: 0, goldWon: 0,
       mounts: [cav(brasa, { uid: 'm1', skills: ['sprint', 'drift'], skillRanks: { sprint: 1, drift: 1 } })], activeId: 'm1', nextUid: 3, stableSlots: 3, breedCounter: 0,
       items: [], nextItemUid: 1, pedras: 0, enhanceCounter: 0, settings: { motion: 'sistema' }, joquei: { padrao: 'liso', capacete: G.JOQUEI.capacete },
       mochila: { torrao: 0, estrela: 0, cupom: 0, manual: 0, pergaminho: 3 }, diaria: { prox: 0, ciclos: 0, ultimo: 20000 }, lojaItens: { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null },
@@ -7774,10 +8520,11 @@ try {
         await pg.waitForSelector('#t-estabulo')
         for (const [onde, s] of [['memória', await estado(pg)], ['disco', await disco(pg)]]) {
           const m1 = s.mounts.find((m) => m.uid === 'm1'), m2 = s.mounts.find((m) => m.uid === 'm2')
-          if (s.v !== 9 || SAVE_V !== 9) problems.push(`${label} (${onde}): versão ${s.v} (esperado 9; o build diz ${SAVE_V})`)
+          if (s.v !== SAVE_V) problems.push(`${label} (${onde}): versão ${s.v} (esperado a do build, ${SAVE_V})`)
           if (JSON.stringify(m1.skillRanks) !== JSON.stringify({ sprint: 1, drift: 1 }) || m1.skills.join() !== 'sprint,drift') problems.push(`${label} (${onde}): m1 ${JSON.stringify([m1.skills, m1.skillRanks])}`)
           if (JSON.stringify(m2.skillRanks) !== '{}') problems.push(`${label} (${onde}): m2 sem skill devia ter skillRanks {}: ${JSON.stringify(m2.skillRanks)}`)
-          if (JSON.stringify(s.mochila) !== JSON.stringify({ torrao: 1, estrela: 0, cupom: 2, manual: 0, pergaminho: 0 }) || s.gold !== 500) problems.push(`${label} (${onde}): mochila/Ouro ${JSON.stringify([s.mochila, s.gold])}`)
+          // os itens de uso como estavam, o Pergaminho em 0 e (desde o save v10) os itens do AFK em 0
+          if (JSON.stringify(s.mochila) !== JSON.stringify(Object.assign({ torrao: 1, estrela: 0, cupom: 2, manual: 0, pergaminho: 0 }, Object.fromEntries(Object.keys(G.ITEMS).filter((id) => G.ITEMS[id].grupo).map((id) => [id, 0])))) || s.gold !== 500) problems.push(`${label} (${onde}): mochila/Ouro ${JSON.stringify([s.mochila, s.gold])}`)
         }
         if (await pg.locator('#tela .aviso').count()) problems.push(`${label}: a migração mostrou um aviso`)
         await abaSkills(pg, 'm1')
@@ -8086,17 +8833,40 @@ try {
           raw.nextUid = 3; raw.stableSlots = 3
         })
         const est = await confereTela(pg, tag + ' estábulo')
-        // sexo e Corcel saíram da linha do Estábulo (3b §4) e da cabeça da ficha (3b §5): os ícones e o texto ao lado deles
-        // são conferidos na aba Ficha da m1 (Macho, Corcel) e da m2 (Fêmea, Corcel), abaixo
+        // o Corcel saiu da linha do Estábulo (3b §4) e da cabeça da ficha (3b §5): o ícone e o texto ao lado dele são
+        // conferidos na aba Ficha da m1 (Macho, Corcel) e da m2 (Fêmea, Corcel), abaixo. O símbolo do sexo voltou ao lado do
+        // nome (ajustes 1, 2026-11-23): ícone decorativo num <span role="img"> com "macho"/"fêmea", e o nome acessível da
+        // linha (o aria-label do botão) diz o sexo
         // (etapa 4: a medalha de raridade, de 24 px, fica só na ficha e na escolha inicial; a lista leva só o nome)
-        espera(est, 'estábulo', ['ui-perfil', 'ui-estrela', 'ui-estrela-vazia'])
+        espera(est, 'estábulo', ['ui-perfil', 'ui-estrela', 'ui-estrela-vazia', 'ui-macho', 'ui-femea'])
+        const sexoLinhas = await pg.evaluate(() => Array.prototype.map.call(document.querySelectorAll('button.montaria-linha'), (b) => {
+          const s = b.querySelector('.montaria-linha-nome .sexo-icone')
+          return { id: b.getAttribute('data-id'), rot: b.getAttribute('aria-label'), sexo: s && s.getAttribute('aria-label'), role: s && s.getAttribute('role') }
+        }))
+        const sexoEsperado = { m1: 'macho', m2: 'fêmea' }
+        for (const l of sexoLinhas) {
+          const e = sexoEsperado[l.id]
+          if (!e) continue
+          if (l.sexo !== e || l.role !== 'img' || !new RegExp(', ' + e + ',').test(l.rot || '')) problems.push(`${tag} estábulo: símbolo do sexo da linha ${l.id} ${JSON.stringify(l)} (esperado "${e}")`)
+        }
+        if (sexoLinhas.filter((l) => sexoEsperado[l.id]).length !== 2) problems.push(`${tag} estábulo: linhas m1/m2 não achadas ${JSON.stringify(sexoLinhas)}`)
+        // a cabeça da ficha: o símbolo ao lado do nome, dentro do h1 (o leitor de tela lê "Brasa, macho, #1")
+        const sexoCabeca = () => pg.evaluate(() => {
+          const s = document.querySelector('#t-montaria .montaria-nome .sexo-icone')
+          const n = document.querySelector('#t-montaria .montaria-nome')
+          if (!s || !n) return null
+          const a = s.getBoundingClientRect(), b = n.firstChild && n.firstChild.nodeType === 3 ? (() => { const r = document.createRange(); r.selectNodeContents(n.firstChild); return r.getBoundingClientRect() })() : null
+          return { sexo: s.getAttribute('aria-label'), role: s.getAttribute('role'), img: !!s.querySelector('img.icone'), junto: !!b && Math.abs(a.left - b.right) < 16 && Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2) < 12 }
+        })
         const fichaTxt = async () => ((await pg.locator('.montaria-ficha').textContent()) || '').replace(/\s+/g, ' ')
         const rotPerfil = await pg.locator('.app-perfil').getAttribute('aria-label')
         if (rotPerfil !== 'Perfil') problems.push(`${tag} estábulo: botão do Perfil com aria-label "${rotPerfil}"`)
         // Montaria m1: aba Status (os 7 status) e aba Skills (ícones de 32 px)
         await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
         await pg.waitForSelector('#t-montaria')
-        espera(await confereTela(pg, tag + ' montaria-status'), 'montaria-status', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-']))
+        espera(await confereTela(pg, tag + ' montaria-status'), 'montaria-status', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-', 'ui-macho']))
+        const sc1 = await sexoCabeca()
+        if (!sc1 || sc1.sexo !== 'macho' || sc1.role !== 'img' || !sc1.junto || (ICONES.includes('ui-macho') && !sc1.img)) problems.push(`${tag} ficha m1: símbolo do sexo na cabeça ${JSON.stringify(sc1)}`)
         await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
         espera(await confereTela(pg, tag + ' montaria-ficha'), 'montaria-ficha', ['ui-corcel', 'ui-macho'])
         const txt1 = await fichaTxt()
@@ -8107,7 +8877,9 @@ try {
             await pg.locator('button[data-acao="montaria"][data-id="m2"]').click()
             await pg.waitForSelector('#t-montaria')
             // a aba Status da m2 (a ficha abre nela): as regras gerais da tela e os 7 status e a liga, como na m1
-            espera(await confereTela(pg, tag + ' montaria-status m2'), 'montaria-status m2', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-']))
+            espera(await confereTela(pg, tag + ' montaria-status m2'), 'montaria-status m2', G.STAT_KEYS.map((k) => 'st-' + k).concat(['liga-', 'ui-femea']))
+            const sc2 = await sexoCabeca()
+            if (!sc2 || sc2.sexo !== 'fêmea' || sc2.role !== 'img' || !sc2.junto || (ICONES.includes('ui-femea') && !sc2.img)) problems.push(`${tag} ficha m2: símbolo do sexo na cabeça ${JSON.stringify(sc2)}`)
             await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
             espera(await confereTela(pg, tag + ' montaria-ficha m2'), 'montaria-ficha m2', ['ui-femea', 'ui-corcel'])
             const txt2 = await fichaTxt()
@@ -9432,26 +10204,26 @@ try {
       if (fora.length) problems.push(`acabamento (${tag}): o texto sai da placa do título (${fora.join(', ')})`)
     }
     // ---- Tarefa 4: botões, abas, barras, selos, ⓘ e fonte display ----
-    // Galmuri só no tamanho nativo (guia de arte §6, etapa 1a): todo elemento visível com texto próprio numa Galmuri tem
-    // font-size = tamanho nativo × --px (11 e 11 Bold: 12; 9: 10; 7: 8), e o --px é s / densidade com s inteiro
+    // a interface em Nunito (guia de arte §6; refino de 2026-11-23, era a Galmuri): todo elemento visível com texto próprio
+    // numa das duas faces embutidas, num tamanho da escala (--t-*: 12, 10 ou 8 × --px), e o --px é s / densidade com s inteiro
     const displayNaEscala = async (pg, tag) => {
       const r = await pg.evaluate(() => {
         const nome = (e) => e.tagName.toLowerCase() + (typeof e.className === 'string' && e.className.trim() ? '.' + e.className.trim().split(/\s+/).join('.') : '')
         const px = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px')), s = px * Math.max(1, window.devicePixelRatio || 1)
-        const NATIVO = { Galmuri11: 12, 'Galmuri11 Bold': 12, Galmuri9: 10, Galmuri7: 8 }
+        const FACES = ['Nunito', 'Nunito ExtraBold'], ESCALA = [12, 10, 8]
         const out = new Set()
         for (const e of document.querySelectorAll('body *')) {
           if (!(e.offsetWidth || e.offsetHeight)) continue
           if (![...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue
           if (e.closest('[aria-hidden="true"]')) continue   // ícones (o emoji de reserva) não são texto
           const cs = getComputedStyle(e), fam = cs.fontFamily.split(',')[0].replace(/["']/g, '').trim()
-          if (!(fam in NATIVO)) { out.add(nome(e) + ' fora da Galmuri (' + fam + ')'); continue }
-          if (Math.abs(parseFloat(cs.fontSize) - NATIVO[fam] * px) > 0.02) out.add((e.parentElement ? nome(e.parentElement) + ' > ' : '') + nome(e) + ' ' + fam + ' ' + cs.fontSize)
+          if (!FACES.includes(fam)) { out.add(nome(e) + ' fora da Nunito (' + fam + ')'); continue }
+          if (!ESCALA.some((t) => Math.abs(parseFloat(cs.fontSize) - t * px) <= 0.02)) out.add((e.parentElement ? nome(e.parentElement) + ' > ' : '') + nome(e) + ' ' + fam + ' ' + cs.fontSize)
         }
         return { s, ruins: [...out].slice(0, 10) }
       })
       if (Math.abs(r.s - Math.round(r.s)) > 0.001) problems.push(`acabamento (${tag}): --px × densidade = ${r.s}, não é inteiro`)
-      if (r.ruins.length) problems.push(`acabamento (${tag}): Galmuri fora do tamanho nativo em ${r.ruins.join(', ')}`)
+      if (r.ruins.length) problems.push(`acabamento (${tag}): texto fora da Nunito ou da escala --t-* em ${r.ruins.join(', ')}`)
     }
     // ⓘ desenhado (spec §4.13): sem o caractere no texto; o ::before de 14x14 px com --arte-ajuda (aberto: --arte-ajuda-ativa).
     // O mouse sai de cima antes (com o mouse em cima, a peça é a ativa).
@@ -9562,17 +10334,17 @@ try {
       else if (r.ruins.length) problems.push(`acabamento (${tag}): ${sel} sem o contorno --sombra${comClip ? ' ou sem o canto recortado (clip-path)' : ''}: ${r.ruins.join(', ')}`)
     }
     {
-      // fontes sem rede: os @font-face levam as Galmuri embutidas em data:
+      // fontes sem rede: os @font-face levam as duas Nunito embutidas em data:
       const pg = await newPage(browser, { width: 360, height: 780 }, 'acabamento-fontes', { bloquear: ['**/fonts.googleapis.com/**', '**/fonts.gstatic.com/**'] })
       try {
         await pg.waitForSelector('.inicial')
         const r = await pg.evaluate(async () => {
           await document.fonts.ready
           const carregadas = [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family.replace(/["']/g, ''))
-          return { ok: ['Galmuri11 Bold', 'Galmuri11', 'Galmuri9', 'Galmuri7'].every((f) => document.fonts.check('12px "' + f + '"')), carregadas }
+          return { ok: ['Nunito ExtraBold', 'Nunito'].every((f) => document.fonts.check('12px "' + f + '"')), carregadas }
         })
-        if (!r.ok) problems.push(`acabamento: document.fonts.check das Galmuri sem rede falhou`)
-        for (const fam of ['Galmuri11 Bold', 'Galmuri11', 'Galmuri9']) if (!r.carregadas.includes(fam)) problems.push(`acabamento: a face "${fam}" não ficou loaded sem rede (${JSON.stringify(r.carregadas)})`)
+        if (!r.ok) problems.push(`acabamento: document.fonts.check das Nunito sem rede falhou`)
+        for (const fam of ['Nunito ExtraBold', 'Nunito']) if (!r.carregadas.includes(fam)) problems.push(`acabamento: a face "${fam}" não ficou loaded sem rede (${JSON.stringify(r.carregadas)})`)
         await semBorderImage(pg, 'inicial')
         // tela inicial: display na escala, ⓘ desenhado (fechado e aberto) e contraste
         await displayNaEscala(pg, 'inicial')
@@ -10458,11 +11230,12 @@ try {
         if (!m) continue
         const ativa = m.uid === s.activeId, num = m.uid.replace(/\D+/g, '')
         const pts = podeComprar(m)
-        const rot = `${m.name} #${num}, nível ${m.level}${ativa ? ', ativa' : ''}${pts ? `, ${pts} ${pts === 1 ? 'ponto' : 'pontos'} para distribuir` : ''}. Abrir ficha.`
+        const rot = `${m.name} #${num}, ${m.sex === 'f' ? 'fêmea' : 'macho'}, nível ${m.level}${ativa ? ', ativa' : ''}${pts ? `, ${pts} ${pts === 1 ? 'ponto' : 'pontos'} para distribuir` : ''}. Abrir ficha.`
         if (l.tag !== 'BUTTON' || l.tipo !== 'button' || l.acao !== 'montaria') problems.push(`${label} ${tag}: linha de ${m.uid} não é um <button type="button" data-acao="montaria"> (${l.tag} ${l.tipo} ${l.acao})`)
         if (l.rotulo !== rot) problems.push(`${label} ${tag}: aria-label da linha de ${m.uid} "${l.rotulo}" (esperado "${rot}")`)
         if (l.ativa !== ativa || l.selosAtiva !== (ativa ? 1 : 0)) problems.push(`${label} ${tag}: linha de ${m.uid} com destaque ${l.ativa} e ${l.selosAtiva} selo(s) "Ativa" (ativa: ${ativa})`)
-        // à vista: nome e #N, estrelas, raridade, tipo e Poder (sem equipamento); fora da linha: sexo, cruzas, Corcel e XP (3b §4)
+        // à vista: nome e #N, estrelas, raridade, tipo e Poder (sem equipamento); fora da linha: cruzas, Corcel e XP (3b §4); o
+        // sexo só pelo símbolo ao lado do nome (ajustes 1), sem a palavra
         const visiveis = [m.name, '#' + num, G.RARITIES[m.rarity].name, G.ELEMENTS[m.element].name, 'Poder ' + S.powerRating(m)]
         const faltam = visiveis.filter((t) => !l.txt.includes(t))
         if (faltam.length || l.estrelas !== 1) problems.push(`${label} ${tag}: linha de ${m.uid} sem ${JSON.stringify(faltam)}${l.estrelas !== 1 ? ' e sem as estrelas' : ''}: "${l.txt}"`)
@@ -10630,7 +11403,7 @@ try {
       if (c.scrollY !== 0) problems.push(`${label} ${tag}: a ficha abriu com scrollY ${c.scrollY}`)
       // (no computador a barra de abas do app é a coluna da esquerda: não cobre a linha de abas)
       if (estreita && !(c.abasFundo <= c.appAbasTopo)) problems.push(`${label} ${tag}: o fundo da linha de abas (${c.abasFundo}) passa do topo da barra de abas do app (${c.appAbasTopo})`)
-      const esp = [['status', 'Status', 'true'], ['skills', 'Skills', 'false'], ['ficha', 'Ficha', 'false']]
+      const esp = [['status', 'Status', 'true'], ['skills', 'Skills', 'false']].concat(GEAR_ON ? [['equip', 'Peças', 'false']] : [], [['ficha', 'Ficha', 'false']])   // a sub-aba Peças (equipamento só de PVE) voltou
       if (JSON.stringify(c.subabas) !== JSON.stringify(esp) || c.aba !== 'status') problems.push(`${label} ${tag}: abas ${JSON.stringify(c.subabas)} na aba ${c.aba} (esperado ${JSON.stringify(esp)}, aberta em Status)`)
       // cabeça: o h1 é a placa, com o nome, o #N e o selo "Ativa" (só na ativa); raridade, estrelas e tipo; Poder e liga com
       // os ⓘ; o XP. Porte, marcas, cruzas, sexo, Corcel, chance de skill, pais e os botões ficam na aba Ficha
@@ -11149,7 +11922,7 @@ try {
         const s = await estado(pg), d = await disco(pg)
         for (const [onde, x] of [['memória', s], ['disco', d]]) {
           const erro = (t) => problems.push(`${label} (${onde}): ${t}`)
-          if (x.v !== 9) erro('versão ' + x.v)
+          if (x.v !== SAVE_V) erro('versão ' + x.v)
           if (x.redeas !== 0) erro('redeas ' + x.redeas)
           if (x.avisoV6 !== false) erro('avisoV6 ' + x.avisoV6 + ' depois de mostrar o aviso')
           for (const m of x.mounts) {
@@ -11157,7 +11930,7 @@ try {
             if (m.respecFree !== true) erro(`${m.uid}: respecFree ${m.respecFree}`)
           }
           // RF5: peças, melhorias, o que está equipado e as Pedras ficam iguais
-          if (!igual(x.items, MIG_V5.items)) erro('peças mudaram ' + JSON.stringify(x.items))
+          if (!igual(pecasBase(x.items), MIG_V5.items)) erro('peças mudaram ' + JSON.stringify(x.items))
           if (x.pedras !== 7 || x.enhanceCounter !== 3 || x.nextItemUid !== 6 || x.gold !== 1200) erro('Pedras/contadores/Ouro ' + JSON.stringify({ pedras: x.pedras, enh: x.enhanceCounter, next: x.nextItemUid, gold: x.gold }))
           for (const m0 of MIG_V5.mounts) {
             const m = x.mounts.find((y) => y.uid === m0.uid)
@@ -11242,7 +12015,7 @@ try {
         await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
         await pg.waitForSelector('#t-estabulo')
         let s = await estado(pg)
-        if (s.v !== 9 || s.redeas !== 0 || s.avisoV6 !== false || s.mounts[0].respecFree !== true || !igual(s.mounts[0].alloc, ZERO)) problems.push(`${label}: jogo novo ` + JSON.stringify({ v: s.v, redeas: s.redeas, avisoV6: s.avisoV6, m1: s.mounts[0] }))
+        if (s.v !== SAVE_V || s.redeas !== 0 || s.avisoV6 !== false || s.mounts[0].respecFree !== true || !igual(s.mounts[0].alloc, ZERO)) problems.push(`${label}: jogo novo ` + JSON.stringify({ v: s.v, redeas: s.redeas, avisoV6: s.avisoV6, m1: s.mounts[0] }))
         if ((await avisos(pg)).includes(AVISO_V6)) problems.push(`${label}: o jogo novo mostrou o aviso da migração`)
         // abrir a sala (pareamento): a 1ª monta a memória do Poder dos bots; as seguintes ficam bem abaixo de 15 ms
         const t = await pg.evaluate(() => {
@@ -11294,8 +12067,10 @@ try {
         if (!igual(abas, ['estabulo', 'correr', 'expedicao', 'haras', 'loja'])) problems.push(`${label}: abas ${abas.join(',')} (esperado estabulo,correr,expedicao,haras,loja)`)
         await forca(pg, 'aba', 'loja')
         if (!(await pg.locator('#t-loja').count())) problems.push(`${label}: a Loja não abriu`)
-        if (await pg.locator('#tela [data-acao="loja-tab"], #tela [data-acao="comprar"], #tela [data-acao="comprar-pedra"], #tela .loja-grade').count()) problems.push(`${label}: a Loja mostra peças ou Pedras com o equipamento suspenso`)
-        if (await pg.locator('.app-topo .pedras').count()) problems.push(`${label}: saldo de Pedras no cabeçalho`)
+        // equipamento só de PVE (GEAR_ON sem GEAR_PVP): a Loja de peças e o saldo de Pedras voltam; suspenso, não aparecem
+        const nLojaPecas = await pg.locator('#tela [data-acao="loja-tab"], #tela [data-acao="comprar"], #tela [data-acao="comprar-pedra"], #tela .loja-grade').count()
+        if (GEAR_ON ? nLojaPecas === 0 : nLojaPecas > 0) problems.push(GEAR_ON ? `${label}: a Loja sem as peças e as Pedras` : `${label}: a Loja mostra peças ou Pedras com o equipamento suspenso`)
+        if ((await pg.locator('.app-topo .pedras').count()) !== (GEAR_ON ? 1 : 0)) problems.push(`${label}: saldo de Pedras no cabeçalho ` + (GEAR_ON ? 'ausente' : 'com o equipamento suspenso'))
         await pg.locator('[data-acao="aba"][data-id="estabulo"]').click()
         await pg.waitForSelector('#t-estabulo')
         if (await pg.locator('#tela .slots, #tela .set-badge').count()) problems.push(`${label}: resumo de peças no Estábulo`)
@@ -11305,27 +12080,32 @@ try {
         await pg.locator('button[data-acao="montaria"][data-id="m1"]').click()
         await pg.waitForSelector('#t-montaria')
         const subabas = await pg.locator('[data-acao="montaria-aba"]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-id')))
-        if (!igual(subabas, ['status', 'skills', 'ficha'])) problems.push(`${label}: sub-abas da Montaria ${subabas.join(',')} (esperado status,skills,ficha)`)
-        if (await pg.locator('#tela .slots, #tela .set-badge').count()) problems.push(`${label}: resumo de peças na ficha da Montaria`)
+        const subEsp = GEAR_ON ? ['status', 'skills', 'equip', 'ficha'] : ['status', 'skills', 'ficha']
+        if (!igual(subabas, subEsp)) problems.push(`${label}: sub-abas da Montaria ${subabas.join(',')} (esperado ${subEsp.join(',')})`)
+        if (await pg.locator('#tela .slots, #tela .set-badge').count()) problems.push(`${label}: resumo de peças na ficha da Montaria (as peças ficam só na sub-aba Peças)`)
+        const poderCabeca = await pg.evaluate(() => { const sp = Array.from(document.querySelectorAll('.montaria-cabeca .linha-meta span')).find((x) => /^Poder/.test(x.textContent)); return sp ? Number(sp.querySelector('b').textContent) : null })
+        if (poderCabeca !== S.powerRating(Object.assign({}, m1, { equip: GR.emptyEquip() }))) problems.push(`${label}: Poder na cabeça da Montaria ${poderCabeca} com 5 Lendárias +4 (o do cavalo sem peças: ${S.powerRating(Object.assign({}, m1, { equip: GR.emptyEquip() }))})`)
         const nSkills = m1.skills.length
         await pg.locator('[data-acao="montaria-aba"][data-id="ficha"]').click()
         if (await pg.locator('#tela .slots, #tela .set-badge').count()) problems.push(`${label}: resumo de peças na aba Ficha da Montaria`)
         if (!new RegExp('Skills:\\s*' + nSkills + ' de ').test(await textoTela(pg))) problems.push(`${label}: a ficha não diz "Skills: ${nSkills} de N vagas"`)
         await pg.locator('[data-acao="montaria-aba"][data-id="status"]').click()
-        // ações de peça e da Loja com o botão forçado: nada muda
+        // suspenso: ações de peça e da Loja com o botão forçado não mudam nada. Só de PVE: o atalho "Equipar" das telas do
+        // PVP não existe (forçado, não faz nada); as ações de peça têm os blocos fluxo-equipamento, equipamento e forja
         const antes = await estado(pg)
-        for (const [acao, id] of [['equipar-tela', 'm1'], ['equip-slot', 'sela'], ['tirar', 'sela'], ['equipar', 'i9'], ['vender', 'i9'], ['melhorar', 'i1'], ['melhorar-sim', 'i1'],
+        for (const [acao, id] of GEAR_ON ? [['equipar-tela', 'm1']] : [['equipar-tela', 'm1'], ['equip-slot', 'sela'], ['tirar', 'sela'], ['equipar', 'i9'], ['vender', 'i9'], ['melhorar', 'i1'], ['melhorar-sim', 'i1'],
           ['vender-desfazer', null], ['comprar', 'sela-comum'], ['comprar-pedra', '1'], ['loja-tab', 'pedras'], ['montaria-aba', 'equip']]) await forca(pg, acao, id)
         const depois = await estado(pg)
         for (const c of ['items', 'gold', 'pedras', 'enhanceCounter', 'nextItemUid']) if (!igual(antes[c], depois[c])) problems.push(`${label}: ação de peça forçada mudou ${c}: ${JSON.stringify(antes[c])} -> ${JSON.stringify(depois[c])}`)
         if (!igual(antes.mounts[0].equip, depois.mounts[0].equip)) problems.push(`${label}: ação de peça forçada mudou o equipado ` + JSON.stringify(depois.mounts[0].equip))
         const ui1 = await pg.evaluate(() => ({ tela: window.__galope.ui.screen, aba: window.__galope.ui.montaria && window.__galope.ui.montaria.aba }))
-        if (ui1.tela !== 'montaria' || ui1.aba !== 'status') problems.push(`${label}: ação de peça forçada mudou a tela ` + JSON.stringify(ui1))
+        // (só de PVE, o "Equipar" forçado só abre a sub-aba Peças da montaria: não gasta nem equipa nada)
+        if (ui1.tela !== 'montaria' || ui1.aba !== (GEAR_ON ? 'equip' : 'status')) problems.push(`${label}: ação de peça forçada mudou a tela ` + JSON.stringify(ui1))
         // Perfil sem Pedras e sem a contagem de peças (as peças continuam no save)
         await pg.locator('[data-acao="perfil"]').click()
         await pg.waitForSelector('#t-perfil')
         const perfil = await textoTela(pg)
-        if (/Pedras/.test(perfil) || /peças?\b/.test(perfil)) problems.push(`${label}: Perfil com Pedras ou peças: ` + perfil.replace(/\s+/g, ' ').slice(0, 200))
+        if (GEAR_ON ? !(/Pedras/.test(perfil) && /6 peças/.test(perfil)) : /Pedras/.test(perfil) || /peças?\b/.test(perfil)) problems.push(`${label}: Perfil ${GEAR_ON ? 'sem as Pedras e as 6 peças' : 'com Pedras ou peças'}: ` + perfil.replace(/\s+/g, ' ').slice(0, 200))
         await pg.locator('[data-acao="perfil-voltar"]').click()
         // Correr e largada: sem o resumo de peças nem o atalho Equipar; o Poder é o do cavalo sem as peças
         const poder = S.powerRating(Object.assign({}, m1, { equip: GR.emptyEquip() }))
@@ -11850,7 +12630,7 @@ try {
   botGear.bots.forEach((b) => { b.league = S.leagueFor(b.rating).id })
   notes.botGear = botGear
   const alvoMax = S.leagueFor(botGear.pr * 1.115).id
-  if (!GEAR_ON) { if (botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: bot com peças com o equipamento suspenso ' + JSON.stringify(botGear)) }
+  if (!GEAR_PVP) { if (botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: bot com peças (as peças não valem no PVP) ' + JSON.stringify(botGear)) }
   else if (alvoMax === 'bronze' ? botGear.bots.some((b) => b.pieces !== 0) : !botGear.bots.some((b) => b.pieces > 0)) problems.push('sala: equipamento dos bots fora da liga do alvo (' + alvoMax + ') ' + JSON.stringify(botGear))
   await page.getByRole('button', { name: /^Voltar/ }).click()
   await page.waitForSelector('#t-correr')
@@ -11864,7 +12644,7 @@ try {
   if (lobbyA.seed !== lobbyB.seed || lobbyA.counter !== lobbyB.counter) problems.push(`voltar/recarregar re-sorteou a sala (${lobbyA.counter} -> ${lobbyB.counter})`)
   if (lobbyB.gold !== lobbyA.gold) problems.push('voltar à sala cobrou Ouro')
   // a sala mostra o resumo do equipamento da montaria ativa (com o equipamento suspenso, não mostra)
-  if (GEAR_ON ? (await page.locator('.slots').count()) < 1 : (await page.locator('.slots').count()) !== 0) problems.push(GEAR_ON ? 'sala: sem resumo do equipamento' : 'sala: resumo do equipamento com ele suspenso')
+  if (GEAR_PVP ? (await page.locator('.slots').count()) < 1 : (await page.locator('.slots').count()) !== 0) problems.push(GEAR_PVP ? 'sala: sem resumo do equipamento' : 'sala: resumo do equipamento na largada (as peças não valem no PVP)')
   await page.evaluate(() => window.scrollTo(0, 0))
   await sleep(300)
   await checkOverflow(page, 'largada')
@@ -11910,7 +12690,7 @@ try {
   if (after.gold !== goldBefore - after.result.fee + after.result.prize) problems.push(`ouro: ${after.gold} != ${goldBefore} - ${after.result.fee} + ${after.result.prize}`)
   if (after.pending) problems.push('sala continuou pendente depois de correr')
   // pedra do pódio: determinística pela seed da sala (1ª sala do save)
-  const expectStone = GEAR_ON ? GR.podiumStone(S.hash2(seedBase1, 1), after.result.place, after.result.fee) : 0   // suspenso: não cai
+  const expectStone = GEAR_PVP ? GR.podiumStone(S.hash2(seedBase1, 1), after.result.place, after.result.fee) : 0   // suspenso: não cai
   if (after.pedras !== expectStone || after.result.stone !== expectStone) problems.push(`pedra do pódio: ${after.pedras} (resultado ${after.result.stone}) != ${expectStone}`)
   const res = await page.evaluate(() => ({
     dados: window.__galope.ui.lobby.sim.events.filter((e) => e.type === 'dado').length,
@@ -11971,7 +12751,7 @@ try {
     const s = window.__galope.state
     return {
       ok: s.mounts.length === 1 && s.mounts[0].templateId === 'mare' && JSON.stringify(s.mounts[0].skills) === '[]' && s.activeId === 'm1' && s.gold === 777 && s.level === undefined &&
-        s.v === 9 && !('base' in s.mounts[0]) && s.items.length === 1 && s.items[0].id === 'sela-comum' && s.mounts[0].equip.sela === null && s.pedras === 0 &&
+        s.v === 10 && !('base' in s.mounts[0]) && s.items.length === 1 && s.items[0].id === 'sela-comum' && s.mounts[0].equip.sela === null && s.pedras === 0 &&
         s.inventory === undefined && s.equipped === undefined,
       tactic: s.tactic, save: JSON.stringify(s)
     }
@@ -12038,7 +12818,7 @@ try {
   {
     const s = await openSave('save-v3-completo', V3_FULL)
     const arm = s.items.filter((it) => it.id === 'armadura-magico')[0]
-    const ok = s.v === 9 && s.items.length === 9 && s.pedras === 3 && arm && s.mounts[0].equip.armadura === arm.uid &&
+    const ok = s.v === 10 && s.items.length === 9 && s.pedras === 3 && arm && s.mounts[0].equip.armadura === arm.uid &&
       s.gold === 999 && s.nextItemUid === 10 && s.inventory === undefined && s.equipped === undefined
     if (!ok) problems.push('save v3 completo não migrou os itens: ' + JSON.stringify({ items: s.items, equip: s.mounts[0] && s.mounts[0].equip, pedras: s.pedras, gold: s.gold, nextItemUid: s.nextItemUid }))
   }
@@ -12052,7 +12832,9 @@ try {
   {
     const s = await openSave('save-v4-corrompido', BAD_V4)
     const m1 = s.mounts[0] || {}, m2 = s.mounts[1] || {}
-    const ok = JSON.stringify(s.items) === JSON.stringify([{ uid: 'i1', id: 'sela-comum', plus: 3 }, { uid: 'i3', id: 'estribos-magico', plus: 1 }]) &&
+    // desde o save v10 cada peça tem rerolls e linhas (a Comum nenhuma, a Mágica uma, sorteada pela seed do save e pelo uid)
+    const ok = JSON.stringify(s.items.map((it) => ({ uid: it.uid, id: it.id, plus: it.plus, rerolls: it.rerolls }))) === JSON.stringify([{ uid: 'i1', id: 'sela-comum', plus: 3, rerolls: 0 }, { uid: 'i3', id: 'estribos-magico', plus: 1, rerolls: 0 }]) &&
+      s.items[0].linhas.length === 0 && s.items[1].linhas.length === 1 &&
       s.mounts.length === 2 && m1.equip.ferraduras === null && m1.equip.sela === 'i1' && m1.equip.estribos === 'i3' && m2.equip.estribos === null &&
       s.pedras === 0 && s.enhanceCounter === 0 && s.nextItemUid === 4 && s.gold === 444
     if (!ok) problems.push('save v4 corrompido não foi saneado: ' + JSON.stringify({ items: s.items, e1: m1.equip, e2: m2.equip, pedras: s.pedras, enh: s.enhanceCounter, next: s.nextItemUid, gold: s.gold }))
@@ -12307,9 +13089,9 @@ try {
       const estTxt = await mn.locator('#tela').textContent()
       if (/Preparar corrida|Cavalos selvagens|Recomeçar/.test(estTxt)) problems.push('menu: estábulo ainda tem conteúdo das outras abas')
       if ((await mn.locator('button[data-acao="montaria"][data-id="m1"]').count()) !== 1) problems.push('menu: o Estábulo sem o botão que abre a ficha (a linha da m1)')
-      // 7. expedição mostra a vitrine dos selvagens
+      // 7. expedição: os selvagens só como bloco recolhido e desativado, com "em breve" (ajustes 1)
       await mn.locator('[data-acao="aba"][data-id="expedicao"]').click()
-      if ((await mn.locator('.selvagem').count()) < 3) problems.push('menu: expedição sem selvagens')
+      if ((await mn.locator('.selvagem').count()) !== 0 || !/em breve/.test((await mn.locator('#t-selvagens').textContent()) || '')) problems.push('menu: expedição com a vitrine dos selvagens aberta ou sem o "em breve"')
       // 8. tela da Montaria: estado de guarda, captura, as sub-abas (Status, Skills, Ficha e, com o equipamento, Equipamento),
       //    Renomear e Liberar (na aba Ficha)
       await mn.locator('[data-acao="aba"][data-id="estabulo"]').click()
@@ -12330,7 +13112,7 @@ try {
         if ((await mn.locator(`[data-acao="montaria-aba"][data-id="${aba}"][aria-pressed="true"]`).count()) !== 1) problems.push('menu: sub-aba ' + aba + ' não ativou')
       }
       // .slots vem do gearSummaryHtml da cabeça, visível em qualquer sub-aba (com o equipamento suspenso, ausente)
-      if (GEAR_ON ? (await mn.locator('.slots').count()) < 1 : (await mn.locator('.slots').count()) !== 0) problems.push(GEAR_ON ? 'menu: resumo do equipamento ausente na cabeça da Montaria' : 'menu: resumo do equipamento na cabeça da Montaria com ele suspenso')
+      if (GEAR_PVP ? (await mn.locator('.montaria-cabeca .slots').count()) < 1 : (await mn.locator('.montaria-cabeca .slots').count()) !== 0) problems.push(GEAR_PVP ? 'menu: resumo do equipamento ausente na cabeça da Montaria' : 'menu: resumo do equipamento na cabeça da Montaria (só de PVE: fica na sub-aba Peças)')
       await mn.locator('[data-acao="renomear"][data-id="m1"]').click()   // campo na própria tela, como no teste principal
       await mn.fill('#renomear-campo', 'Trovão')
       await mn.locator('[data-acao="renomear-ok"]').click()
@@ -12575,31 +13357,64 @@ try {
         }
         await eq.locator('[data-acao="voltar"]').first().click()
         await eq.waitForSelector('#t-correr')
-        await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()   // "Equipar" da aba Correr
-        await eq.waitForSelector('#t-montaria')
-        if ((await eq.locator('[data-acao="montaria-aba"][data-id="equip"][aria-pressed="true"]').count()) !== 1) problems.push('equipamento: "Equipar" da aba Correr não abriu a sub-aba Equipamento')
+        // abre a Montaria da ativa na sub-aba Equipamento: com as peças no PVP, pelo "Equipar" da aba Correr; só de PVE,
+        // a aba Correr não tem resumo de peças nem atalho (as peças não valem na sala) e o caminho é o Estábulo
+        const abreEquip = async () => {
+          if (GEAR_PVP) {
+            await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
+            await eq.waitForSelector('#t-montaria')
+          } else {
+            await eq.locator('[data-acao="aba"][data-id="estabulo"]').click()
+            await eq.waitForSelector('#t-estabulo')
+            await eq.locator('button[data-acao="montaria"][data-id="m1"]').click()
+            await eq.waitForSelector('#t-montaria')
+            await eq.locator('[data-acao="montaria-aba"][data-id="equip"]').click()
+          }
+        }
+        if (!GEAR_PVP && await eq.locator('#tela .slots, #tela [data-acao="equipar-tela"]').count()) problems.push('equipamento: aba Correr com o resumo das peças ou o Equipar (as peças só valem no treino AFK)')
+        await abreEquip()
+        if ((await eq.locator('[data-acao="montaria-aba"][data-id="equip"][aria-pressed="true"]').count()) !== 1) problems.push('equipamento: a sub-aba Equipamento não abriu')
         await eq.locator('[data-acao="equip-slot"][data-id="sela"]').click()
         const pr = await eq.evaluate(() => window.__galope.state.pending && window.__galope.state.pending.pr)
-        if (!(await eq.locator(`[data-acao="equipar"][data-id="${L}"]`).isDisabled())) problems.push('equipamento: equipar a Lendária habilitado com páreo aberto')
-        if (!/Páreo aberto/.test(await txt())) problems.push('equipamento: sem aviso "Páreo aberto"')
-        if (!(await eq.locator('[data-acao="melhorar"][data-id="i1"]').isDisabled())) problems.push('equipamento: melhorar peça da ativa habilitado com páreo aberto')
-        // clique forçado no handler: equipar a Lendária e melhorar i1 continuam bloqueados
-        const travaAntes = await st()
-        await eq.evaluate((L) => { const b = document.querySelector('[data-acao="equipar"][data-id="' + L + '"]'); b.disabled = false; b.click() }, L)
-        if ((await st()).mounts[0].equip.sela !== 'i1') problems.push('equipamento: clique forçado equipou a Lendária com páreo aberto')
-        if (!/Páreo aberto/.test(await txt())) problems.push('equipamento: sem aviso "Páreo aberto" depois do clique forçado')
-        await eq.evaluate(() => { const b = document.querySelector('[data-acao="melhorar"][data-id="i1"]'); if (b) { b.disabled = false; b.click() } })
-        await eq.evaluate(() => { const b = document.querySelector('[data-acao="melhorar-sim"][data-id="i1"]'); if (b) { b.disabled = false; b.click() } })
-        const travaDepois = await st()
-        if (travaDepois.enhanceCounter !== travaAntes.enhanceCounter || travaDepois.pedras !== travaAntes.pedras || itemOf(travaDepois, 'i1').plus !== itemOf(travaAntes, 'i1').plus) {
-          problems.push('equipamento: clique forçado melhorou i1 com páreo aberto ' + JSON.stringify({ antes: [travaAntes.enhanceCounter, travaAntes.pedras], depois: [travaDepois.enhanceCounter, travaDepois.pedras] }))
+        if (GEAR_PVP) {
+          if (!(await eq.locator(`[data-acao="equipar"][data-id="${L}"]`).isDisabled())) problems.push('equipamento: equipar a Lendária habilitado com páreo aberto')
+          if (!/Páreo aberto/.test(await txt())) problems.push('equipamento: sem aviso "Páreo aberto"')
+          if (!(await eq.locator('[data-acao="melhorar"][data-id="i1"]').isDisabled())) problems.push('equipamento: melhorar peça da ativa habilitado com páreo aberto')
+          // clique forçado no handler: equipar a Lendária e melhorar i1 continuam bloqueados
+          const travaAntes = await st()
+          await eq.evaluate((L) => { const b = document.querySelector('[data-acao="equipar"][data-id="' + L + '"]'); b.disabled = false; b.click() }, L)
+          if ((await st()).mounts[0].equip.sela !== 'i1') problems.push('equipamento: clique forçado equipou a Lendária com páreo aberto')
+          if (!/Páreo aberto/.test(await txt())) problems.push('equipamento: sem aviso "Páreo aberto" depois do clique forçado')
+          await eq.evaluate(() => { const b = document.querySelector('[data-acao="melhorar"][data-id="i1"]'); if (b) { b.disabled = false; b.click() } })
+          await eq.evaluate(() => { const b = document.querySelector('[data-acao="melhorar-sim"][data-id="i1"]'); if (b) { b.disabled = false; b.click() } })
+          const travaDepois = await st()
+          if (travaDepois.enhanceCounter !== travaAntes.enhanceCounter || travaDepois.pedras !== travaAntes.pedras || itemOf(travaDepois, 'i1').plus !== itemOf(travaAntes, 'i1').plus) {
+            problems.push('equipamento: clique forçado melhorou i1 com páreo aberto ' + JSON.stringify({ antes: [travaAntes.enhanceCounter, travaAntes.pedras], depois: [travaDepois.enhanceCounter, travaDepois.pedras] }))
+          }
+          await eq.locator('[data-acao="tirar"][data-id="sela"]').click()
+          if ((await st()).mounts[0].equip.sela !== null) problems.push('equipamento: tirar bloqueado com páreo aberto')
+          await eq.locator('[data-acao="equipar"][data-id="i1"]').click()
+          if ((await st()).mounts[0].equip.sela !== 'i1') problems.push('equipamento: re-equipar i1 bloqueado com páreo aberto')
+        } else {
+          // só de PVE: com o páreo aberto, a sala viu o Poder do cavalo SEM as peças; equipar a Lendária e melhorar uma peça
+          // continuam liberados (não há trava), e o Poder da sala não muda
+          const semPecas = S.powerRating(Object.assign({}, antes.mounts[0], { equip: GR.emptyEquip() }))
+          if (pr !== semPecas) problems.push(`equipamento: a sala aberta com o cavalo cheio de peças viu o Poder ${pr} (sem as peças: ${semPecas})`)
+          if (/Páreo aberto/.test(await txt())) problems.push('equipamento: aviso "Páreo aberto" na aba Equipamento (as peças não mexem no Poder)')
+          if (await eq.locator(`[data-acao="equipar"][data-id="${L}"]`).isDisabled()) problems.push('equipamento: equipar a Lendária desabilitado com páreo aberto')
+          await eq.locator(`[data-acao="equipar"][data-id="${L}"]`).click()
+          let sP = await st()
+          if (sP.mounts[0].equip.sela !== L) problems.push('equipamento: a Lendária não equipou com o páreo aberto')
+          if (sP.pending.pr !== pr) problems.push(`equipamento: equipar a Lendária mudou o Poder da sala (${pr} -> ${sP.pending.pr})`)
+          const poderFicha = await eq.evaluate(() => { const sp = Array.from(document.querySelectorAll('.montaria-cabeca .linha-meta span')).find((x) => /^Poder/.test(x.textContent)); return sp ? Number(sp.querySelector('b').textContent) : null })
+          if (poderFicha !== semPecas) problems.push(`equipamento: Poder na ficha ${poderFicha} com 5 Lendárias (sem as peças: ${semPecas})`)
+          if (!/só AFK/.test(await txt())) problems.push('equipamento: a sub-aba sem o selo "só AFK"')
+          await eq.locator('[data-acao="tirar"][data-id="sela"]').click()
+          if ((await st()).mounts[0].equip.sela !== null) problems.push('equipamento: tirar bloqueado com páreo aberto')
+          await eq.locator('[data-acao="equipar"][data-id="i1"]').click()
+          if ((await st()).mounts[0].equip.sela !== 'i1') problems.push('equipamento: re-equipar i1 bloqueado com páreo aberto')
+          notes.equipamentoPve = { poderDaSala: pr, semPecas }
         }
-        await eq.locator('[data-acao="tirar"][data-id="sela"]').click()
-        if ((await st()).mounts[0].equip.sela !== null) problems.push('equipamento: tirar bloqueado com páreo aberto')
-        await eq.locator('[data-acao="equipar"][data-id="i1"]').click()
-        if ((await st()).mounts[0].equip.sela !== 'i1') problems.push('equipamento: re-equipar i1 bloqueado com páreo aberto')
-        const ratingL = S.powerRating(antes.mounts[0], GR.resolve({ equip: Object.assign({}, antes.mounts[0].equip, { sela: L }) }, Object.fromEntries(antes.items.map((it) => [it.uid, it]))))
-        notes.equipamentoTrava = { pr, liga: S.leagueFor(pr).name, ratingComLendaria: ratingL, ligaComLendaria: S.leagueFor(ratingL).name }
         // 10. sem rolagem horizontal
         await sleep(300)
         await checkOverflow(eq, 'equipamento')
@@ -12611,9 +13426,8 @@ try {
         const gold3 = s.gold
         if (gold3 !== goldAntes3 + 375 || s.items.length !== 6) problems.push('equipamento: 3ª venda ' + JSON.stringify({ gold: s.gold, goldAntes3, n: s.items.length }))
         await eq.locator('[data-acao="montaria-voltar"]').click()
-        await eq.waitForSelector('#t-correr')   // ui.tab é correr: a Montaria foi aberta pela aba Correr
-        await eq.locator('[data-acao="equipar-tela"][data-id="m1"]').click()
-        await eq.waitForSelector('#t-montaria')
+        await eq.waitForSelector(GEAR_PVP ? '#t-correr' : '#t-estabulo')   // a Montaria volta para a aba de onde foi aberta
+        await abreEquip()
         if (await eq.locator('[data-acao="vender-desfazer"]').count()) problems.push('equipamento: "Desfazer venda" continua depois de sair da tela')
         s = await st()
         if (s.items.length !== 6 || s.gold !== gold3 || itemOf(s, L)) problems.push('equipamento: venda não ficou depois de sair ' + JSON.stringify({ gold: s.gold, gold3, n: s.items.length }))
@@ -13581,9 +14395,15 @@ try {
       await lj.getByRole('button', { name: 'Procurar corrida' }).click()
       await lj.waitForSelector('#t-largada')
       const cheios = await lj.locator('#tela .slots .slot--cheio').count()
-      if (cheios !== 2) problems.push('loja: largada com ' + cheios + ' slots cheios (esperado 2)')
       const atalho = lj.locator('#tela [data-acao="equipar-tela"]')
-      if ((await atalho.count()) !== 1) problems.push('loja: largada sem o atalho Equipar')
+      if (!GEAR_PVP) {
+        // só de PVE: a largada não mostra as peças nem o atalho, e a sala viu o Poder do cavalo sem a sela comprada
+        if (cheios !== 0 || (await atalho.count()) !== 0) problems.push('loja: a largada mostra o resumo das peças ou o atalho Equipar (as peças só valem no treino AFK)')
+        s = await st()
+        const semPecas = S.powerRating(Object.assign({}, s.mounts[0], { equip: GR.emptyEquip() }))
+        if (s.pending.pr !== semPecas) problems.push(`loja: a sala viu o Poder ${s.pending.pr} com a sela comprada equipada (sem as peças: ${semPecas})`)
+      } else if (cheios !== 2) problems.push('loja: largada com ' + cheios + ' slots cheios (esperado 2)')
+      else if ((await atalho.count()) !== 1) problems.push('loja: largada sem o atalho Equipar')
       else {
         await atalho.click()
         await lj.waitForSelector('#t-montaria')

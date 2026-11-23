@@ -19,7 +19,7 @@
  *       'padrao') escolhe o molde do porte; no desenho por código, não muda nada.
  *   Sprites.drawRaridade(ctx, caixa, o)  caixa = horseBox(x, y, o): brilho na crina (só com molde), faíscas e
  *     rastro do Mítico (ver a seção RARIDADE VISÍVEL). Comum não desenha nada.
- *   Sprites.drawTrack(ctx, { width, height, cameraX, pxPerMeter, lanes, laneTop, laneH, surface,
+ *   Sprites.drawTrack(ctx, { width, height, cameraX, pxPerMeter, camPx?, lanes, laneTop, laneH, surface,
  *                           finishM, hills, curves, distanceMarkersEvery, t, weather, pixel, wind, curveScale })
  *     wind = { intensity: 'calmo'|'brisa'|'ventania', dir: 1|-1 } (só visual; padrão brisa ←): bandeirinhas
  *     da arquibancada, grama da borda e nuvens seguem o vento
@@ -2486,7 +2486,9 @@
     var weather = skyKey(o.weather || 'sol'), surface = o.surface || 'grama';
     var P = o.pixel || Math.max(1, Math.round(laneH / 12));
     var trackH = lanes * laneH, trackBottom = laneTop + trackH;
-    var camPx = cam * ppm, vento = ventoPista(o.wind);
+    // camPx: quanto o cenário já rolou, em pixels (texturas, cercas, camadas da região). Com a câmera que muda de escala
+    // (o zoom da corrida), o jogo manda o rolar acumulado (o.camPx): cam × ppm daria um salto no fundo a cada mudança de ppm
+    var camPx = o.camPx != null ? +o.camPx : cam * ppm, vento = ventoPista(o.wind);
     function sx(m) { return Math.round((m - cam) * ppm); }
     crisp(ctx);
     // (weather junta a névoa ao nublado, para o cenário por código; a troca de paleta da região usa o clima de verdade)

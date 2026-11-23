@@ -2811,7 +2811,7 @@ test('lerTokens: só os hex do primeiro :root, em #rrggbb minúsculo', () => {
   assert.strictEqual(TOK['--sombra'], '#2e222f');
 });
 test('os 4 tokens novos estão no :root', () => {
-  assert.strictEqual(TOK['--linha-luz'], '#92a984');
+  assert.strictEqual(TOK['--linha-luz'], '#8fd3ff');
   assert.strictEqual(TOK['--ouro-medio'], '#f79617');
   assert.strictEqual(TOK['--prego'], '#9babb2');
   assert.strictEqual(TOK['--prego-luz'], '#ffffff');
@@ -2829,8 +2829,8 @@ test('cada peça do catálogo passa na validação contra o game.css', () => {
   for (const n of ['rebite', 'prego', 'veio', 'ajuda', 'ajuda-ativa']) assert.ok(IA.PECAS.some(p => p.nome === n), n);
 });
 test('os ícones de item (spec de itens §13; o Pergaminho de técnica desde 2026-11-19): uma peça item-<id> de 16x16 por item do catálogo, com contorno', () => {
-  const ITENS = createRequire(import.meta.url)('../src/data.js').ITEMS;
-  const ids = Object.keys(ITENS);
+  // os itens de uso; os do AFK (com `grupo`) têm os ícones deles (tarefa A7 do plano do AFK)
+  const ids = createRequire(import.meta.url)('../src/data.js').ITENS_USO;
   assert.deepStrictEqual(ids, ['torrao', 'estrela', 'redea', 'cupom', 'manual', 'pergaminho']);
   const desenhos = new Set();
   for (const id of ids) {
@@ -2842,6 +2842,31 @@ test('os ícones de item (spec de itens §13; o Pergaminho de técnica desde 202
     desenhos.add(p.mapa.join('/'));
   }
   assert.strictEqual(desenhos.size, ids.length, 'dois ícones de item com o mesmo desenho');
+});
+
+test('os ícones dos itens do AFK: uma peça 16x16 com contorno por item (os troféus, a taça do ginásio), e o baú', () => {
+  const G = createRequire(import.meta.url)('../src/data.js');
+  const ids = Object.keys(G.ITEMS).filter(id => G.ITEMS[id].grupo);
+  assert.strictEqual(ids.length, 30);
+  const nomeDe = id => 'item-' + (G.ITEMS[id].grupo === 'trofeu' ? 'trofeu-' + G.ITEMS[id].gymId : id);
+  const desenhos = new Set(), css = fs.readFileSync(new URL('../src/game.css', import.meta.url), 'utf8');
+  for (const id of ids.concat(['bau'])) {
+    const nome = id === 'bau' ? 'item-bau' : nomeDe(id), p = IA.PECAS.find(x => x.nome === nome);
+    assert.ok(p, 'falta a peça ' + nome);
+    assert.strictEqual(p.mapa.length, 16, nome); p.mapa.forEach(l => assert.strictEqual(l.length, 16, nome));
+    assert.ok(Object.values(p.legenda).includes('--sombra'), nome + ': sem o contorno --sombra');
+    assert.ok(Object.keys(p.legenda).length >= 3, nome + ': menos de 3 cores');
+    assert.ok(css.includes('.item-icone--' + nome.slice(5) + ' { background-image: var(--arte-' + nome + '); }'), nome + ': sem a classe no game.css');
+    // contorno fechado: todo pixel pintado na borda do quadro, ou vizinho de um transparente, é --sombra
+    const k = Object.keys(p.legenda).find(c => p.legenda[c] === '--sombra');
+    p.mapa.forEach((l, y) => [...l].forEach((c, x) => {
+      if (c === '.' || c === k) return;
+      const viz = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]].some(([a, b]) => a < 0 || b < 0 || a > 15 || b > 15 || p.mapa[b][a] === '.');
+      assert.ok(!viz, `${nome}: pixel (${x}, ${y}) de cor encosta no vazio sem contorno`);
+    }));
+    desenhos.add(p.mapa.join('/') + JSON.stringify(p.legenda));
+  }
+  assert.strictEqual(desenhos.size, 15 + 3 + 1, 'cada item tem o seu desenho; os 15 troféus, 3 taças');
 });
 test('ida e volta do PNG: cada pixel tem a cor do token (alfa 255) ou alfa 0', () => {
   for (const p of IA.PECAS) {
@@ -2872,13 +2897,14 @@ test('cssArte: uma propriedade --arte-<nome> por peça e determinístico', () =>
   assert.ok(a.startsWith(':root {'));
 });
 const FONTES = await IA.cssFontes(PROTO);
-test('cssFontes: as quatro Galmuri embutidas em TTF, sem rede', () => {
+test('cssFontes: as duas Nunito embutidas em WOFF2, sem rede (a Galmuri só no atlas do canvas)', () => {
   const faces = FONTES.match(/@font-face\s*\{[^}]*\}/g) || [];
-  assert.strictEqual(faces.length, 4);
-  for (const fam of ["'Galmuri11 Bold'", "'Galmuri11'", "'Galmuri9'", "'Galmuri7'"]) {
+  assert.strictEqual(faces.length, 2);
+  assert.ok(!/Galmuri/.test(FONTES));
+  for (const fam of ["'Nunito ExtraBold'", "'Nunito'"]) {
     const face = faces.find(x => x.includes('font-family: ' + fam + ';'));
     assert.ok(face, fam);
-    assert.ok(face.includes('data:font/ttf;base64,') && !/https?:/.test(face), fam + ': só data:, sem URL de rede');
+    assert.ok(face.includes('data:font/woff2;base64,') && !/https?:/.test(face), fam + ': só data:, sem URL de rede');
     assert.ok(/font-display:\s*block/.test(face) && /font-weight:\s*400/.test(face) && /font-style:\s*normal/.test(face), fam);
   }
 });

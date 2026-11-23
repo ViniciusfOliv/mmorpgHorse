@@ -36,7 +36,9 @@
  *   entry.statMul (vantagem de elemento nos duelos de ginásio; ginasio.js): número de 0,9 a 1,1 que multiplica os
  *   seis status de corrida (todos menos a Sorte), arredondado e preso a 1–150, antes do statAdd; ausente,
  *   inválido ou fora da faixa vale 1 (a corrida é a de sempre).
- *   entry.statAdd (gancho de teste do balance.js, como noTypeSkill): soma ao status, preso a 1–150.
+ *   entry.statAdd (o principal das peças no treino AFK, afk.js; e gancho de teste do balance.js, como noTypeSkill):
+ *   soma ao status, arredondado e preso a 1–150. entry.pve (só o treino AFK): os bônus de clima do conjunto (ver applyWeather).
+ *   O PVP nunca passa statAdd nem pve: o equipamento não entra na corrida valendo nem no Poder.
  *
  * CLIMA (sol / chuva / nevoa / nublado). weatherMult(elemento, clima, bônus):
  *   dono do clima ×1,03 (T.weatherMult; com a skill de clima ativa, × (1,03 + weatherBonus do rank)),
@@ -887,6 +889,13 @@
     // marco das skills de clima (weatherLingerS): depois que o clima muda, o multiplicador reforçado continua
     // valendo até r.lingerUntil (o laço da corrida limpa e chama applyWeather de novo)
     var m = r.lingerUntil != null ? r.lingerM : weatherMult(r.element, weather, r.weatherBonus);
+    // conjunto de equipamento, só no treino AFK (entry.pve): 5 peças tiram a penalidade de clima; 4, no clima do conjunto, o
+    // bônus do elemento dono sobe para pve.mult (não acumula com a skill de clima: vale o maior)
+    var pv = r.pve;
+    if (pv) {
+      if (pv.semPenalidade && m < 1) m = 1;
+      if (pv.clima === weather && pv.mult > m && (GameData.ELEMENTS[r.element] || {}).weather === weather) m = pv.mult;
+    }
     r.weatherM = m;
     derive(r, r, m, null);
     // skill de tipo com statMul: no seu terço, os dois status do tipo valem × (1 + mul) (valores em r.Z)
@@ -912,6 +921,15 @@
   //   montagem: 1) startDelay, 2) jockeyErr;
   //   3) garraForca (a força da Garra nesta corrida; ela acontece sempre, ao cruzar r.garraFrom); por tick: 4) jitter.
   //   As skills de vaga e a skill de tipo não consomem a RNG (a ativação não é sorteada).
+  // entry.pve (só o treino AFK passa; o PVP nunca): { clima: id do clima do conjunto | null, mult: 1–1,1, semPenalidade }.
+  // Ausente ou inválido: null (a corrida é a de sempre).
+  function pveDe(p) {
+    if (!p || typeof p !== 'object') return null;
+    var clima = typeof p.clima === 'string' && Object.prototype.hasOwnProperty.call(GameData.WEATHERS, p.clima) ? p.clima : null;
+    var mult = typeof p.mult === 'number' && p.mult >= 1 && p.mult <= 1.1 ? p.mult : 1;
+    if (!clima && p.semPenalidade !== true) return null;
+    return { clima: clima, mult: mult, semPenalidade: p.semPenalidade === true };
+  }
   function buildRacer(entry, index, cond, rng) {
     var horse = entry.horse;
     // o equipamento não entra na corrida (por enquanto). entry.statMul (vantagem de elemento do ginásio): 0,9–1,1,
@@ -966,6 +984,7 @@
       blockIdx: -1,
       tried: {},
       effects: [],
+      pve: pveDe(entry.pve),
       pos: 0, v: 0, stamina: folego,
       exhausted: false, finished: false, finishTime: null,
       garraRolled: false, garraMult: 1,
