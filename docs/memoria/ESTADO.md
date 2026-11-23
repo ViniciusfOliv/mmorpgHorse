@@ -1,5 +1,13 @@
 # Estado do projeto
 
+**Integração de 2026-11-23 (aprovada pelo Vinicius: "pode integrar tudo na main e republicar"):** AFK (blocos A e B), forja,
+bestiário, equipamento de PVE, reforja, Selo do campeão, as correções da revisão, o build dos testadores e o lote 1 de
+ajustes (câmera, skills resumidas, sexo, selvagens escondidos) entraram na `main` por avanço direto (100e438), com o
+`check.sh` completo OK (213 + 69 testes de regra, 139 de efeitos, 176 de moldes, 1064 do wiki, 132 metas, 81 blocos de
+interface). Republicados: jogo (versão 16), DEV (14), wiki (13) e testadores (2, https://claude.ai/artifact/2McVg8D1wv5Qm8WWnSN8hL).
+Em andamento: animação ambiente (`claude/animacao-ambiente`, amostra v3 aprovada como "mais movimento"; lote pago de
+comer/cavar e spec a seguir); depois mapa dos ginásios, tela inicial e inventário.
+
 _Atualizado em 2026-11-23 (ajustes de interface, lote 1)._
 
 **Em andamento (2026-11-23): corrida AFK, drops, forja, bestiário e equipamento de PVE**, no branch `claude/afk` (chat

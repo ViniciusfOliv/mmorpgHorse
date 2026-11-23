@@ -3,6 +3,10 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-23 — Tudo na `main` (decisão do Vinicius)
+- **AFK, ajustes do lote 1 e build dos testadores integrados e oficiais republicados** ("pode integrar tudo na main e
+  republicar") — avanço direto de 29f65fd para 100e438, depois de o `check.sh` completo passar nesse commit.
+
 ## 2026-11-23 — Ajustes de interface, lote 1 (pedidos do Vinicius; ramo `claude/ajustes-1`, a partir de `claude/afk`)
 - **Câmera da corrida centrada no jogador; afasta só para caber quem está a até 30 m (à frente ou atrás)** — pedido do
   Vinicius ("focar no meu cavalo e afastar quando os outros se distanciam"); a do refino centrava o meio do grupo e o
