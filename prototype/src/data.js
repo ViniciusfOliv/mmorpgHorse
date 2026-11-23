@@ -484,6 +484,16 @@
       sellRate: 0.25, stonePrice: 40, stoneBundle: 5,
       main: { comum: 2, magico: 2, raro: 3, lendario: 4 },
       sub: { comum: 0, magico: 1, raro: 2, lendario: 3 },
+      // Linhas de farm (só PVE; spec AFK §5.7): quantas por raridade e a faixa de cada tipo, em pontos percentuais
+      // inteiros (sorteio uniforme, passos de 1). Tipos sem repetir na mesma peça.
+      linhas: { comum: 0, magico: 1, raro: 2, lendario: 3 },
+      faixas: {
+        material: { magico: [3, 6], raro: [6, 10], lendario: [10, 15] },
+        xp: { magico: [3, 6], raro: [6, 10], lendario: [10, 15] },
+        raro: { magico: [2, 5], raro: [5, 8], lendario: [8, 12] },
+        trofeu: { magico: [6, 12], raro: [12, 20], lendario: [20, 30] },
+        ouro: { magico: [2, 4], raro: [4, 6], lendario: [6, 10] }
+      },
       plusStep: 0.5,   // cada +N soma plusStep ao status principal (uma peça +10 soma +5)
       plusMax: 10,
       // Chance e custo (em pedras) de cada passo +0→+1 … +9→+10; falha derruba a partir de enhanceDropFrom.
@@ -652,8 +662,77 @@
     ],
     liberaApos: 50,
     vagaPreco: [0, 1000, 3000, 8000, 20000],
-    offlineMin: 480, offlineTetoMin: 720, amostra: 400
+    offlineMin: 480, offlineTetoMin: 720, amostra: 400,
+    // Ganho por corrida (§5.3): xp = round(xpBase × (1 + xpPorEtapa × etapa) × mult); ouro = ouro[etapa] × mult
+    // (etapa 0–4: Soldado 1 ao líder). Na derrota: a fração do XP e do material comum (para baixo), sem raros nem Ouro.
+    xpBase: 40, xpPorEtapa: 0.15, ouro: [2, 3, 4, 5, 8],
+    derrota: { xp: 0.30, material: 0.25 },
+    // Drops por vitória (§5.4). material: quantidade sorteada de min a max, × mult, metade de cada tipo do ginásio.
+    // incomum, pedra, comida e reforja: chance na Normal, × mult (incomum com teto). peca: chance por dificuldade
+    // (solta = Comum ou Mágica sem conjunto, magica = fração das soltas que sai Mágica; raro e lendario = do conjunto
+    // do ginásio). trofeu: chance por dificuldade. comida.pesos: a divisão do que cai.
+    drops: {
+      material: { min: 1, max: 3 },
+      incomum: { chance: 0.15, teto: 0.60 },
+      pedra: { chance: 0.06 },
+      comida: { chance: 0.08, pesos: { feno: 60, cenoura: 25, maca: 12, 'aveia-dourada': 3 } },
+      peca: { normal: { solta: 0.02, magica: 0.3 }, dificil: { raro: 0.01 }, lendaria: { raro: 0.02, lendario: 0.002 } },
+      reforja: { chance: 0.015 },
+      trofeu: { normal: 0.005, dificil: 0.01, lendaria: 0.02 }
+    },
+    // O que só cai em cada ginásio: os dois materiais comuns, o incomum e o conjunto das peças Raras e Lendárias.
+    materiais: {
+      fogo: { comuns: ['carvao', 'ferro-bruto'], incomum: 'brasa-viva', conjunto: 'sol' },
+      agua: { comuns: ['junco', 'concha'], incomum: 'perola-de-rio', conjunto: 'chuva' },
+      grama: { comuns: ['fibra', 'resina'], incomum: 'seiva-antiga', conjunto: 'nevoa' }
+    },
+    // O objeto de cada oponente (o troféu 'trofeu-<ginásio>-<etapa>' leva o nome dele), na ordem das etapas.
+    trofeus: {
+      fogo: ['Pederneira', 'Archote', 'Lanterna', 'Braseiro', 'Elmo'],
+      agua: ['Cantil', 'Balde', 'Remo', 'Moringa', 'Capa'],
+      grama: ['Regador', 'Escova', 'Cajado', 'Facão', 'Foice']
+    }
   };
+  // Itens do AFK (spec §5.4): entram em ITEMS com `grupo` (material, incomum, comida, reforja, trofeu), sem preço (não
+  // se vendem) e com o teto próprio (cap). gymId: o ginásio em que caem. Comidas: xp (dado a um cavalo) ou aveiaMin
+  // (minutos a mais no limite do próximo offline).
+  (function () {
+    function add(id, grupo, name, plural, cap, desc, origem, extra) {
+      var it = { id: id, name: name, plural: plural, price: null, cap: cap, grupo: grupo, desc: desc, origem: origem };
+      Object.keys(extra || {}).forEach(function (k) { it[k] = extra[k]; });
+      ITEMS[id] = it;
+    }
+    var LUGAR = { fogo: 'da Fornalha', agua: 'do Remanso', grama: 'da Capoeira' };
+    var NOMES = {
+      carvao: ['Carvão', 'Carvões'], 'ferro-bruto': ['Ferro bruto', 'Ferros brutos'], junco: ['Junco', 'Juncos'], concha: ['Concha', 'Conchas'],
+      fibra: ['Fibra', 'Fibras'], resina: ['Resina', 'Resinas'],
+      'brasa-viva': ['Brasa viva', 'Brasas vivas'], 'perola-de-rio': ['Pérola de rio', 'Pérolas de rio'], 'seiva-antiga': ['Seiva antiga', 'Seivas antigas']
+    };
+    GYM_ORDER.forEach(function (g) {
+      AFK.materiais[g].comuns.forEach(function (id) {
+        add(id, 'material', NOMES[id][0], NOMES[id][1], 999, 'Material de forja ' + LUGAR[g] + '.', 'Cai em toda vitória no treino AFK ' + LUGAR[g] + '.', { gymId: g });
+      });
+    });
+    GYM_ORDER.forEach(function (g) {
+      var id = AFK.materiais[g].incomum;
+      add(id, 'incomum', NOMES[id][0], NOMES[id][1], 999, 'Material incomum ' + LUGAR[g] + ', para forjar peças melhores.', 'Cai às vezes nas vitórias do treino AFK ' + LUGAR[g] + '.', { gymId: g });
+    });
+    var COMIDA = 'Cai às vezes nas vitórias do treino AFK.';
+    add('feno', 'comida', 'Feno', 'Fenos', 999, 'Dá 200 de XP a um cavalo.', COMIDA, { xp: 200 });
+    add('cenoura', 'comida', 'Cenoura', 'Cenouras', 999, 'Dá 500 de XP a um cavalo.', COMIDA, { xp: 500 });
+    add('maca', 'comida', 'Maçã', 'Maçãs', 999, 'Dá 1.200 de XP a um cavalo.', COMIDA, { xp: 1200 });
+    add('aveia-dourada', 'comida', 'Aveia dourada', 'Aveias douradas', 999, 'O próximo período fora rende 1 hora a mais no treino AFK.', COMIDA, { aveiaMin: 60 });
+    add('pergaminho-reforja', 'reforja', 'Pergaminho de reforja', 'Pergaminhos de reforja', 99,
+      'Sorteia de novo uma linha de uma peça de equipamento, junto com Ouro.', 'Cai às vezes nas vitórias do treino AFK ou sai da forja.');
+    GYM_ORDER.forEach(function (g) {
+      GYMS[g].etapas.forEach(function (et, e) {
+        var obj = AFK.trofeus[g][e], de = /^(Capitã|Dona) /.test(et.nome) ? ' da ' : ' do ';
+        add('trofeu-' + g + '-' + e, 'trofeu', obj + de + et.nome, obj + de + et.nome, 99,
+          'Troféu de ' + et.nome + '. Conta no bestiário e entra na forja das peças de conjunto ' + LUGAR[g] + '.',
+          'Cai raramente ao vencer ' + et.nome + ' no treino AFK.', { gymId: g, etapa: e });
+      });
+    });
+  })();
 
   // ---------------------------------------------------------------------------------------------
   // Equipamento: 5 slots por montaria. Cada peça dá um status principal e um secundário, definidos
@@ -707,6 +786,10 @@
     });
   })();
 
+  // Os itens de uso (Torrão, Estrela, Rédea, Cupom, Manual, Pergaminho de técnica), na ordem do catálogo: os de ITEMS
+  // sem `grupo`. Os do AFK (com grupo) têm as suas telas e os seus tetos.
+  var ITENS_USO = Object.keys(ITEMS).filter(function (id) { return !ITEMS[id].grupo; });
+
   var GameData = {
     version: '0.2-prototipo',
     STAT_KEYS: STAT_KEYS,
@@ -733,6 +816,7 @@
     LEAGUES: LEAGUES,
     ECONOMY: ECONOMY,
     ITEMS: ITEMS,
+    ITENS_USO: ITENS_USO,
     SHOP_ORDER: SHOP_ORDER,
     BAG_MAX: BAG_MAX,
     DAILY: DAILY,

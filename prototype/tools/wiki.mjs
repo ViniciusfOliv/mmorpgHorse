@@ -355,7 +355,7 @@ export function descreverAba(rotulo, F) {
     case 'Haras': return 'cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.'
     case 'Loja': {
       const venda = G.SHOP_ORDER   // a ordem fixa da loja (Ruling 11)
-      const itens = `em **Comprar**, os itens de uso (${lista(venda.map((id) => G.ITEMS[id].name))}) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os ${Object.keys(G.ITEMS).length} itens, quantos você tem de cada e o botão Usar (o ${G.ITEMS.pergaminho.name} não tem Usar: é gasto ao subir rank, na aba Skills do cavalo)`
+      const itens = `em **Comprar**, os itens de uso (${lista(venda.map((id) => G.ITEMS[id].name))}) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os ${G.ITENS_USO.length} itens, quantos você tem de cada e o botão Usar (o ${G.ITEMS.pergaminho.name} não tem Usar: é gasto ao subir rank, na aba Skills do cavalo)`
       return F.gearOn ? `${itens}; também peças de equipamento (menos as de raridade ${lista([...new Set(Object.keys(G.GEAR).filter((id) => !G.GEAR[id].shop).map((id) => nomeRar(G.GEAR[id].rarity)))])}) e Pedras Negras.` : itens + '.'
     }
     default: throw new Error(`wiki: aba desconhecida "${rotulo}" — descreva-a em descreverAba (prototype/tools/wiki.mjs)`)
@@ -1089,7 +1089,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
 
   // 12b. Itens e recompensa diária -----------------------------------------------------------------------
   // tudo de GameData.ITEMS / DAILY / BAG_MAX; item novo sem as regras abaixo quebra o wiki
-  const IT = G.ITEMS, DY = G.DAILY, itIds = Object.keys(IT)
+  const IT = G.ITEMS, DY = G.DAILY, itIds = G.ITENS_USO
   const nomeItem = (id) => { if (!IT[id]) throw new Error(`wiki: item desconhecido "${id}"`); return IT[id].name }
   const salaTxt = 'não no cavalo ativo com a sala aberta'
   const limitesItem = {
@@ -1186,7 +1186,7 @@ mods: piso, sol ${mult(T.sunDrain)}, subida, vácuo ${sinalPct(-T.draftSave, 0)}
     { t: 'p', txt: `Para testar: abra \`prototype/dist/preview.html?dev=1\` ou o build de teste \`prototype/dist/jogo-dev.html\` (liga sozinho; é o que vai para o artefato, que não repassa \`?dev=1\`). O save é separado (\`${DV.SAVE_KEY}\`): o jogo real não é lido nem gravado.` },
     { t: 'dl', itens: [
       ['Moedas', `Ouro infinito (volta a ${num(DV.GOLD_INF)} depois de cada gasto) e Pedras Negras à vontade.`],
-      ['Itens e dia', `os itens de uso e o dia do jogo: Definir mochila (quantos de cada um: ${lista(Object.keys(G.ITEMS).filter((id) => id !== 'redea').map(nomeItem))}, de 0 a ${num(G.BAG_MAX)}); Avançar 1 dia e Voltar 1 dia (o dia do jogo vai de ${F.devDiasMax} dias antes a ${F.devDiasMax} dias depois do aparelho, só no save de teste); Zerar diária e limites (a recompensa volta ao dia 1 para resgatar e os limites da loja zeram).`],
+      ['Itens e dia', `os itens de uso e o dia do jogo: Definir mochila (quantos de cada um: ${lista(G.ITENS_USO.filter((id) => id !== 'redea').map(nomeItem))}, de 0 a ${num(G.BAG_MAX)}); Avançar 1 dia e Voltar 1 dia (o dia do jogo vai de ${F.devDiasMax} dias antes a ${F.devDiasMax} dias depois do aparelho, só no save de teste); Zerar diária e limites (a recompensa volta ao dia 1 para resgatar e os limites da loja zeram).`],
       ['Ginásios', `quantas etapas de cada trilha estão vencidas (de 0 a ${num(G.GYMS[G.GYM_ORDER[0]].etapas.length)}; com todas, a insígnia, e o bônus dela vale na hora): Definir etapas; Liberar revanche (a de hoje, nos ${G.GYM_ORDER.length} ginásios); Zerar ginásios (nenhuma etapa vencida; o contador de desafios continua, para as seeds dos desafios não se repetirem).`],
       ['Cavalo', `cria ou substitui um cavalo com qualquer tipo, raridade, sexo, estrelas, level (1–${E.maxLevel}), genética (máxima ou por status), pontos distribuídos e até ${F.devVagas} skills (inclusive de outro tipo), cada uma com o seu rank (seletor de I a ${rMax}); copia iniciais e aluguéis; +10 levels; +1 cruza; devolve os pontos da ativa.`],
       ['Itens', 'só peças de equipamento: qualquer peça do catálogo, inclusive Lendária, com qualquer melhoria; conjunto completo de uma vez.'],

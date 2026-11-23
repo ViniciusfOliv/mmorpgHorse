@@ -1653,7 +1653,7 @@ try {
         if ((await pg.evaluate(() => window.__galope.ui.lojaParte)) !== 'mochila') problems.push(`${label}: ui.lojaParte não é mochila`)
         if (await pg.locator('#tela [data-acao="item-comprar"]').count()) problems.push(`${label}: a Mochila mostra botão de compra`)
         const bag = await pg.locator('#tela .item-linha--mochila').evaluateAll((ls) => ls.map((l) => l.getAttribute('data-item')))
-        if (!igual(bag, Object.keys(G.ITEMS))) problems.push(`${label}: mochila ${bag.join(',')} (esperado a ordem do catálogo)`)
+        if (!igual(bag, G.ITENS_USO)) problems.push(`${label}: mochila ${bag.join(',')} (esperado a ordem do catálogo)`)
         for (const [id, n, falado] of [['torrao', 3, '3 Torrões de açúcar'], ['estrela', 0, '0 Estrelas de treino'], ['redea', 2, '2 Rédeas novas'], ['cupom', 0, '0 Cupons de troca de skill'], ['manual', 1, '1 Manual de doma']]) {
           const t = await txtLinha(id), a = await textoAcessivel(linha(id)), vazia = await linha(id).evaluate((l) => l.classList.contains('item-linha--vazia'))
           if (!a.includes(falado) || /[x×]\s*\d/.test(a)) problems.push(`${label}: o leitor de tela lê a linha de ${id} como "${a}" (esperado "${falado}", sem "x${n}")`)
@@ -1866,7 +1866,7 @@ try {
         if (!igual(s.mochila, { torrao: G.BAG_MAX, estrela: 2, cupom: 3, manual: 3, pergaminho: 0 }) || s.redeas !== 2 || s.seedBase !== 1006 || s.itemCounter !== 0) problems.push(`${label}: preparo ${JSON.stringify({ mochila: s.mochila, redeas: s.redeas, seed: s.seedBase, c: s.itemCounter })}`)
         // a parte Mochila: cada item com quantidade tem o "Usar" (com o nome do item para o leitor de tela)
         await h.irMochila()
-        for (const id of Object.keys(G.ITEMS)) {
+        for (const id of G.ITENS_USO) {
           if (id === 'pergaminho') continue   // não se usa pela mochila: é gasto ao subir rank (bloco ranks)
           const b = h.usarMochila(id), t = ((await b.textContent().catch(() => '')) || '').replace(/\s+/g, ' ').trim()
           if ((await b.count()) !== 1 || !/^Usar/.test(t) || !t.includes(G.ITEMS[id].name)) problems.push(`${label}: a linha de ${id} sem o botão "Usar ${G.ITEMS[id].name}" (${t})`)

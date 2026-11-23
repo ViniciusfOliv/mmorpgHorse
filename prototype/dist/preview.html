@@ -2097,6 +2097,16 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       sellRate: 0.25, stonePrice: 40, stoneBundle: 5,
       main: { comum: 2, magico: 2, raro: 3, lendario: 4 },
       sub: { comum: 0, magico: 1, raro: 2, lendario: 3 },
+      // Linhas de farm (só PVE; spec AFK §5.7): quantas por raridade e a faixa de cada tipo, em pontos percentuais
+      // inteiros (sorteio uniforme, passos de 1). Tipos sem repetir na mesma peça.
+      linhas: { comum: 0, magico: 1, raro: 2, lendario: 3 },
+      faixas: {
+        material: { magico: [3, 6], raro: [6, 10], lendario: [10, 15] },
+        xp: { magico: [3, 6], raro: [6, 10], lendario: [10, 15] },
+        raro: { magico: [2, 5], raro: [5, 8], lendario: [8, 12] },
+        trofeu: { magico: [6, 12], raro: [12, 20], lendario: [20, 30] },
+        ouro: { magico: [2, 4], raro: [4, 6], lendario: [6, 10] }
+      },
       plusStep: 0.5,   // cada +N soma plusStep ao status principal (uma peça +10 soma +5)
       plusMax: 10,
       // Chance e custo (em pedras) de cada passo +0→+1 … +9→+10; falha derruba a partir de enhanceDropFrom.
@@ -2265,8 +2275,77 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     ],
     liberaApos: 50,
     vagaPreco: [0, 1000, 3000, 8000, 20000],
-    offlineMin: 480, offlineTetoMin: 720, amostra: 400
+    offlineMin: 480, offlineTetoMin: 720, amostra: 400,
+    // Ganho por corrida (§5.3): xp = round(xpBase × (1 + xpPorEtapa × etapa) × mult); ouro = ouro[etapa] × mult
+    // (etapa 0–4: Soldado 1 ao líder). Na derrota: a fração do XP e do material comum (para baixo), sem raros nem Ouro.
+    xpBase: 40, xpPorEtapa: 0.15, ouro: [2, 3, 4, 5, 8],
+    derrota: { xp: 0.30, material: 0.25 },
+    // Drops por vitória (§5.4). material: quantidade sorteada de min a max, × mult, metade de cada tipo do ginásio.
+    // incomum, pedra, comida e reforja: chance na Normal, × mult (incomum com teto). peca: chance por dificuldade
+    // (solta = Comum ou Mágica sem conjunto, magica = fração das soltas que sai Mágica; raro e lendario = do conjunto
+    // do ginásio). trofeu: chance por dificuldade. comida.pesos: a divisão do que cai.
+    drops: {
+      material: { min: 1, max: 3 },
+      incomum: { chance: 0.15, teto: 0.60 },
+      pedra: { chance: 0.06 },
+      comida: { chance: 0.08, pesos: { feno: 60, cenoura: 25, maca: 12, 'aveia-dourada': 3 } },
+      peca: { normal: { solta: 0.02, magica: 0.3 }, dificil: { raro: 0.01 }, lendaria: { raro: 0.02, lendario: 0.002 } },
+      reforja: { chance: 0.015 },
+      trofeu: { normal: 0.005, dificil: 0.01, lendaria: 0.02 }
+    },
+    // O que só cai em cada ginásio: os dois materiais comuns, o incomum e o conjunto das peças Raras e Lendárias.
+    materiais: {
+      fogo: { comuns: ['carvao', 'ferro-bruto'], incomum: 'brasa-viva', conjunto: 'sol' },
+      agua: { comuns: ['junco', 'concha'], incomum: 'perola-de-rio', conjunto: 'chuva' },
+      grama: { comuns: ['fibra', 'resina'], incomum: 'seiva-antiga', conjunto: 'nevoa' }
+    },
+    // O objeto de cada oponente (o troféu 'trofeu-<ginásio>-<etapa>' leva o nome dele), na ordem das etapas.
+    trofeus: {
+      fogo: ['Pederneira', 'Archote', 'Lanterna', 'Braseiro', 'Elmo'],
+      agua: ['Cantil', 'Balde', 'Remo', 'Moringa', 'Capa'],
+      grama: ['Regador', 'Escova', 'Cajado', 'Facão', 'Foice']
+    }
   };
+  // Itens do AFK (spec §5.4): entram em ITEMS com `grupo` (material, incomum, comida, reforja, trofeu), sem preço (não
+  // se vendem) e com o teto próprio (cap). gymId: o ginásio em que caem. Comidas: xp (dado a um cavalo) ou aveiaMin
+  // (minutos a mais no limite do próximo offline).
+  (function () {
+    function add(id, grupo, name, plural, cap, desc, origem, extra) {
+      var it = { id: id, name: name, plural: plural, price: null, cap: cap, grupo: grupo, desc: desc, origem: origem };
+      Object.keys(extra || {}).forEach(function (k) { it[k] = extra[k]; });
+      ITEMS[id] = it;
+    }
+    var LUGAR = { fogo: 'da Fornalha', agua: 'do Remanso', grama: 'da Capoeira' };
+    var NOMES = {
+      carvao: ['Carvão', 'Carvões'], 'ferro-bruto': ['Ferro bruto', 'Ferros brutos'], junco: ['Junco', 'Juncos'], concha: ['Concha', 'Conchas'],
+      fibra: ['Fibra', 'Fibras'], resina: ['Resina', 'Resinas'],
+      'brasa-viva': ['Brasa viva', 'Brasas vivas'], 'perola-de-rio': ['Pérola de rio', 'Pérolas de rio'], 'seiva-antiga': ['Seiva antiga', 'Seivas antigas']
+    };
+    GYM_ORDER.forEach(function (g) {
+      AFK.materiais[g].comuns.forEach(function (id) {
+        add(id, 'material', NOMES[id][0], NOMES[id][1], 999, 'Material de forja ' + LUGAR[g] + '.', 'Cai em toda vitória no treino AFK ' + LUGAR[g] + '.', { gymId: g });
+      });
+    });
+    GYM_ORDER.forEach(function (g) {
+      var id = AFK.materiais[g].incomum;
+      add(id, 'incomum', NOMES[id][0], NOMES[id][1], 999, 'Material incomum ' + LUGAR[g] + ', para forjar peças melhores.', 'Cai às vezes nas vitórias do treino AFK ' + LUGAR[g] + '.', { gymId: g });
+    });
+    var COMIDA = 'Cai às vezes nas vitórias do treino AFK.';
+    add('feno', 'comida', 'Feno', 'Fenos', 999, 'Dá 200 de XP a um cavalo.', COMIDA, { xp: 200 });
+    add('cenoura', 'comida', 'Cenoura', 'Cenouras', 999, 'Dá 500 de XP a um cavalo.', COMIDA, { xp: 500 });
+    add('maca', 'comida', 'Maçã', 'Maçãs', 999, 'Dá 1.200 de XP a um cavalo.', COMIDA, { xp: 1200 });
+    add('aveia-dourada', 'comida', 'Aveia dourada', 'Aveias douradas', 999, 'O próximo período fora rende 1 hora a mais no treino AFK.', COMIDA, { aveiaMin: 60 });
+    add('pergaminho-reforja', 'reforja', 'Pergaminho de reforja', 'Pergaminhos de reforja', 99,
+      'Sorteia de novo uma linha de uma peça de equipamento, junto com Ouro.', 'Cai às vezes nas vitórias do treino AFK ou sai da forja.');
+    GYM_ORDER.forEach(function (g) {
+      GYMS[g].etapas.forEach(function (et, e) {
+        var obj = AFK.trofeus[g][e], de = /^(Capitã|Dona) /.test(et.nome) ? ' da ' : ' do ';
+        add('trofeu-' + g + '-' + e, 'trofeu', obj + de + et.nome, obj + de + et.nome, 99,
+          'Troféu de ' + et.nome + '. Conta no bestiário e entra na forja das peças de conjunto ' + LUGAR[g] + '.',
+          'Cai raramente ao vencer ' + et.nome + ' no treino AFK.', { gymId: g, etapa: e });
+      });
+    });
+  })();
 
   // ---------------------------------------------------------------------------------------------
   // Equipamento: 5 slots por montaria. Cada peça dá um status principal e um secundário, definidos
@@ -2320,6 +2399,10 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     });
   })();
 
+  // Os itens de uso (Torrão, Estrela, Rédea, Cupom, Manual, Pergaminho de técnica), na ordem do catálogo: os de ITEMS
+  // sem `grupo`. Os do AFK (com grupo) têm as suas telas e os seus tetos.
+  var ITENS_USO = Object.keys(ITEMS).filter(function (id) { return !ITEMS[id].grupo; });
+
   var GameData = {
     version: '0.2-prototipo',
     STAT_KEYS: STAT_KEYS,
@@ -2346,6 +2429,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     LEAGUES: LEAGUES,
     ECONOMY: ECONOMY,
     ITEMS: ITEMS,
+    ITENS_USO: ITENS_USO,
     SHOP_ORDER: SHOP_ORDER,
     BAG_MAX: BAG_MAX,
     DAILY: DAILY,
@@ -4713,6 +4797,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
  *     só se fee > 0 e place em 1–3 (senão devolve 0 sem sortear). Cada lugar tem o seu sorteio, então
  *     as chances (60/40/25%) são independentes entre os lugares.
  *   - enhance/enhanceOdds só aceitam plus inteiro 0–9 (no +10 não melhora); fora disso, null.
+ *   - sortearLinhas(raridade, rng): duas chamadas por linha (tipo, valor), com a rng de quem chama (a corrida AFK, a
+ *     forja, a migração do save).
  *   - resolve/botGear/enhanceOdds/sellPrice/ratingPts: não sorteiam.
  *
  * OBJETO RESOLVIDO (resolve e botGear):
@@ -4817,6 +4903,20 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     return roll < EG.podiumStone[place - 1] ? 1 : 0;
   }
 
+  // Linhas de farm de uma peça (spec AFK §5.7): EG.linhas[raridade] linhas, cada uma com DUAS chamadas de rng(), nesta
+  // ordem: 1) o tipo, uniforme entre os de EG.faixas que a peça ainda não tem (na ordem das chaves); 2) o valor, inteiro
+  // uniforme na faixa da raridade (pontos percentuais). Raridade sem linhas (Comum) ou desconhecida: [] sem sortear.
+  function sortearLinhas(raridade, rng) {
+    var n = typeof raridade === 'string' && Object.prototype.hasOwnProperty.call(EG.linhas, raridade) ? EG.linhas[raridade] : 0;
+    var tipos = Object.keys(EG.faixas), out = [];
+    for (var i = 0; i < n && tipos.length; i++) {
+      var t = tipos.splice(Math.min(tipos.length - 1, Math.floor(rng() * tipos.length)), 1)[0];
+      var fx = EG.faixas[t][raridade];
+      out.push({ tipo: t, valor: fx[0] + Math.min(fx[1] - fx[0], Math.floor(rng() * (fx[1] - fx[0] + 1))) });
+    }
+    return out;
+  }
+
   function sellPrice(id) {
     var def = piece(id);
     return def ? Math.round(EG.price[def.rarity] * EG.sellRate) : 0;
@@ -4864,6 +4964,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     enhanceOdds: enhanceOdds,
     enhance: enhance,
     podiumStone: podiumStone,
+    sortearLinhas: sortearLinhas,
     botGear: botGear,
     sellPrice: sellPrice,
     ratingPts: ratingPts
@@ -4903,6 +5004,8 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
  *   usos (0x17E5 do plano caía em 61 × 100 + 17: o aprendizado do páreo 61 no nível 17).
  *   Ginásios (ginasio.js): 0x47490000 ("GI") + contador de desafios × 8 + nº do duelo (0–4), abaixo deste SAL,
  *   com folga de ~4 milhões de desafios.
+ *   Corrida AFK (afk.js): hash2(hash2(seedBase, 0x41460000 ("AF") + vaga 0–4), contador da vaga): o contador entra
+ *   num segundo hash, então não disputa faixa com os outros sais.
  *   Skill ao subir de nível num desafio de ginásio (game.js, desafia; Ruling 18): o applyXp com seedTag =
  *   20.000.000 + contador de desafios × 4 + posição no time (0–2), ou seja x = 2.000.000.000 + contador × 400 +
  *   posição × 100 + nível (0x77359400 em diante), acima de todos os outros (hash2 lê x >>> 0: ~5,7 milhões de
@@ -5502,6 +5605,26 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
  *   (e só com a Difícil liberada). vitoriasAfk = { faseId: n }.
  * OPONENTE: o n-ésimo cavalo da etapa em rodízio fixo (n % nº de cavalos da etapa), montado pelo Ginasio.cavalo no
  *   nível e no rank da fase (as estrelas são as da etapa).
+ * SEED: a corrida de número `contador` da vaga `vaga` (0–4) tem seedCorrida = hash2(hash2(seedBase, SAL + vaga),
+ *   contador), SAL = 0x41460000 ("AF"; o mapa dos sais do save está no topo do itens.js). O RaceSim.simulate usa essa
+ *   seed; os drops usam mulberry32(hash2(seedCorrida, 0xD209)) e a peça que cai mulberry32(hash2(seedCorrida, 0x9ECA)).
+ *   Quem chama grava o contador novo ANTES de mostrar o resultado (duas abas não repetem a seed).
+ * CORRIDA (correr): um duelo nas regras do ginásio (Ginasio.dueloCfg: vantagem de elemento, largada Nublada, pista do
+ *   ginásio, Dado da Sorte normal), sem cansaço, contra o oponente do rodízio (n = contador).
+ * PRÊMIO (premio): função só da fase, de venceu, da seedCorrida e do bônus — a corrida ao vivo e o offline usam a mesma.
+ *   bonus = { material, xp, raro, trofeu, ouro } em fração (0,3 = +30%; peças do cavalo + bestiário); lixo vale 0.
+ *   Ordem FIXA das chamadas da rng dos drops (todas acontecem sempre, caia ou não):
+ *     1) quantidade de material (min a max) · 2) para que tipo vai o ímpar · 3) arredondamento do bônus de material ·
+ *     4) arredondamento do bônus de Ouro · 5) incomum · 6) Pedra Negra · 7) comida · 8) qual comida · 9) peça ·
+ *     10) Pergaminho de reforja · 11) troféu.
+ *   Quantidade com fração (bônus): a parte inteira e mais 1 com chance igual à fração (o valor esperado é exato).
+ *   Vitória: XP e Ouro da fase (× bônus), material q × mult × (1 + bonus.material), metade de cada tipo; incomum,
+ *     Pedra e comida com chance × mult (incomum com teto antes do bônus) × (1 + bonus.raro); peça pela tabela da
+ *     dificuldade × (1 + bonus.raro); reforja chance × mult; troféu pela dificuldade × (1 + bonus.trofeu).
+ *   Derrota: XP × derrota.xp (sem bônus além do de XP) e floor(q × mult × derrota.material) de material; mais nada.
+ *   Peça (rng própria, só se caiu): 1) o slot (uniforme); 2) na solta, Mágica se < magica; depois as linhas
+ *     (Gear.sortearLinhas). Rara e Lendária são do conjunto do ginásio. Devolve { id, linhas }.
+ *   O AFK nunca dá Torrão, Estrela, Rédea, Manual, Cupom, Pergaminho de técnica, Selo, insígnia nem prêmio de ginásio.
  * VAGAS: até GameData.AFK.vagaPreco.length (5); a de índice k custa vagaPreco[k] de Ouro livre (fora do reservado da
  *   sala aberta; quem chama passa o Ouro livre).
  */
@@ -5512,8 +5635,11 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   var G = node ? require('./data.js') : root.GameData;
   var S = node ? require('./sim.js') : root.RaceSim;
   var GY = node ? require('./ginasio.js') : root.Ginasio;
+  var GR = node ? require('./gear.js') : root.Gear;
 
   var K = G.AFK;
+  var SAL = 0x41460000, SAL_DROP = 0xD209, SAL_PECA = 0x9ECA;
+  var BONUS_TIPOS = ['material', 'xp', 'raro', 'trofeu', 'ouro'];
 
   function temChave(o, k) { return !!o && Object.prototype.hasOwnProperty.call(o, k); }
   function inteiro(x) { return typeof x === 'number' && isFinite(x) && x === Math.floor(x); }
@@ -5587,6 +5713,89 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   }
 
   // ---------------------------------------------------------------------------------------------
+  // Corrida e prêmio
+  // ---------------------------------------------------------------------------------------------
+  function vagaOk(v) { return inteiro(v) && v >= 0 && v < K.vagaPreco.length; }
+  function seedCorrida(seedBase, vaga, contador) { return S.hash2(S.hash2(seedBase, SAL + vaga), contador); }
+  function bonusDe(b) {
+    var o = objeto(b) || {}, out = {};
+    BONUS_TIPOS.forEach(function (t) { out[t] = typeof o[t] === 'number' && isFinite(o[t]) && o[t] > 0 ? o[t] : 0; });
+    return out;
+  }
+  // x ≥ 0 com fração -> inteiro: a parte inteira e mais 1 se u < fração
+  function arredonda(x, u) { var i = Math.floor(x + 1e-9), f = x - i; return f > 1e-9 && u < f ? i + 1 : i; }
+  function soma(itens, id, n) { if (n > 0) itens[id] = (itens[id] || 0) + n; }
+  function pecaQueCai(f, raridade, seed) {
+    var rng = S.mulberry32(S.hash2(seed, SAL_PECA));
+    var slot = G.GEAR_SLOTS[Math.min(G.GEAR_SLOTS.length - 1, Math.floor(rng() * G.GEAR_SLOTS.length))], id;
+    if (raridade === 'solta') {
+      raridade = rng() < (K.drops.peca[f.dif].magica || 0) ? 'magico' : 'comum';
+      id = slot + '-' + raridade;
+    } else id = slot + '-' + K.materiais[f.gymId].conjunto + '-' + raridade;
+    return { id: id, linhas: GR.sortearLinhas(raridade, rng) };
+  }
+  // -> { xp, ouro, itens: { id: qtd }, pedras, pecas: [{ id, linhas }] } | null (fase inválida)
+  function premio(id, venceu, seed, bonus) {
+    var f = fase(id);
+    if (!f || typeof seed !== 'number' || !isFinite(seed)) return null;
+    var b = bonusDe(bonus), D = K.drops, M = K.materiais[f.gymId], rng = S.mulberry32(S.hash2(seed, SAL_DROP));
+    var u = [];
+    for (var i = 0; i < 11; i++) u.push(rng());
+    var out = { xp: 0, ouro: 0, itens: {}, pedras: 0, pecas: [] };
+    var xp = Math.round(K.xpBase * (1 + K.xpPorEtapa * f.etapa) * f.mult);
+    var q = (D.material.min + Math.min(D.material.max - D.material.min, Math.floor(u[0] * (D.material.max - D.material.min + 1)))) * f.mult;
+    function reparte(n) {
+      var meio = Math.floor(n / 2), impar = n - 2 * meio, a = u[1] < 0.5 ? 0 : 1;
+      soma(out.itens, M.comuns[0], meio + (impar && a === 0 ? 1 : 0));
+      soma(out.itens, M.comuns[1], meio + (impar && a === 1 ? 1 : 0));
+    }
+    if (!venceu) {
+      out.xp = Math.round(xp * K.derrota.xp * (1 + b.xp));
+      reparte(Math.floor(q * K.derrota.material + 1e-9));
+      return out;
+    }
+    out.xp = Math.round(xp * (1 + b.xp));
+    reparte(arredonda(q * (1 + b.material), u[2]));
+    out.ouro = arredonda(K.ouro[f.etapa] * f.mult * (1 + b.ouro), u[3]);
+    var raro = 1 + b.raro;
+    if (u[4] < Math.min(D.incomum.teto, D.incomum.chance * f.mult) * raro) soma(out.itens, M.incomum, 1);
+    if (u[5] < D.pedra.chance * f.mult * raro) out.pedras = 1;
+    if (u[6] < D.comida.chance * f.mult * raro) {
+      var ids = Object.keys(D.comida.pesos), total = 0, alvo, ac = 0;
+      ids.forEach(function (c) { total += D.comida.pesos[c]; });
+      alvo = u[7] * total;
+      for (var k = 0; k < ids.length; k++) { ac += D.comida.pesos[ids[k]]; if (alvo < ac || k === ids.length - 1) { soma(out.itens, ids[k], 1); break; } }
+    }
+    var P = D.peca[f.dif], lim = 0, caiu = null;
+    ['lendario', 'raro', 'solta'].forEach(function (r) {
+      if (caiu || !P[r]) return;
+      lim += P[r] * raro;
+      if (u[8] < lim) caiu = r;
+    });
+    if (caiu) out.pecas.push(pecaQueCai(f, caiu, seed));
+    if (u[9] < D.reforja.chance * f.mult) soma(out.itens, 'pergaminho-reforja', 1);
+    if (u[10] < D.trofeu[f.dif] * (1 + b.trofeu)) soma(out.itens, 'trofeu-' + f.gymId + '-' + f.etapa, 1);
+    return out;
+  }
+  // Uma corrida AFK. opts = { vaga (0–4; ausente: 0), recordFrames (true: devolve também `res`, o resultado do
+  // simulate com os quadros, para a tela animar) }.
+  // -> { venceu, metros, duracaoS, oponenteIdx, cfg, xp, ouro, itens, pedras, pecas [, res] } | null (entrada malformada)
+  function correr(cavalo, id, seedBase, contador, bonus, opts) {
+    var f = fase(id), o = objeto(opts) || {}, vaga = o.vaga == null ? 0 : o.vaga;
+    if (!f || !objeto(cavalo) || (cavalo.skills != null && !Array.isArray(cavalo.skills))) return null;
+    if (typeof seedBase !== 'number' || !isFinite(seedBase) || !inteiro(contador) || contador < 0 || !vagaOk(vaga)) return null;
+    var seed = seedCorrida(seedBase, vaga, contador), adv = oponente(id, contador);
+    var cfg = GY.dueloCfg(cavalo, adv, seed, { pista: G.GYMS[f.gymId].pista, recordFrames: o.recordFrames === true });
+    var res = S.simulate(cfg), venceu = res.finishOrder[0] === 0;
+    var p = premio(id, venceu, seed, bonus);
+    var t0 = res.finishTimes[0], t1 = res.finishTimes[1], dur = Math.max(isFinite(t0) ? t0 : 0, isFinite(t1) ? t1 : 0);
+    var out = { venceu: venceu, metros: GY.metros(res), duracaoS: Math.round(dur * 10) / 10, oponenteIdx: oponenteIdx(id, contador), cfg: cfg,
+      xp: p.xp, ouro: p.ouro, itens: p.itens, pedras: p.pedras, pecas: p.pecas };
+    if (o.recordFrames === true) out.res = res;
+    return out;
+  }
+
+  // ---------------------------------------------------------------------------------------------
   // Vagas
   // ---------------------------------------------------------------------------------------------
   function podeComprarVaga(qtdAtual, ouroLivre) {
@@ -5605,6 +5814,10 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
     liberada: liberada,
     oponenteIdx: oponenteIdx,
     oponente: oponente,
+    SAL: SAL,
+    seedCorrida: seedCorrida,
+    premio: premio,
+    correr: correr,
     podeComprarVaga: podeComprarVaga
   };
 
@@ -11299,7 +11512,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   var SAVE_VERSION = 9;
   var AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.';
   var REDEAS_MAX = 999;
-  var MOCHILA_IDS = Object.keys(GD.ITEMS).filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual, pergaminho
+  var MOCHILA_IDS = GD.ITENS_USO.filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual, pergaminho
   // os itens à venda, na ordem fixa da loja (GameData.SHOP_ORDER, spec de itens §6: Torrão, Manual, Cupom, Estrela)
   var LOJA_ITENS = GD.SHOP_ORDER.filter(function (id) { return hasOwn(GD.ITEMS, id) && GD.ITEMS[id].price != null; });
   // os que têm limite por dia (perDay), tirados do catálogo (o itens.js lê os mesmos campos): torrao, manual, cupom
@@ -15065,7 +15278,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // pela Mochila fica na linha do item
   function lojaMochilaHtml() {
     var msg = ui.itemMsg && ui.itemMsg.origem === 'mochila' ? ui.itemMsg : null;
-    return '<section class="caixa item-lista" aria-label="Mochila">' + Object.keys(GD.ITEMS).map(function (id) {
+    return '<section class="caixa item-lista" aria-label="Mochila">' + GD.ITENS_USO.map(function (id) {
       var n = itemQtd(id), semUso = id === 'pergaminho';   // o Pergaminho é gasto ao subir rank, na aba Skills
       var usar = n > 0 && !semUso ? '<div class="item-compra item-compra--usar"><button type="button" class="btn btn--pequeno" data-acao="item-usar" data-id="' + esc(id) + '">Usar' +
         '<span class="sr"> ' + esc(GD.ITEMS[id].name) + '</span></button></div>' : '';

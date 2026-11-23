@@ -9,6 +9,8 @@
  *     só se fee > 0 e place em 1–3 (senão devolve 0 sem sortear). Cada lugar tem o seu sorteio, então
  *     as chances (60/40/25%) são independentes entre os lugares.
  *   - enhance/enhanceOdds só aceitam plus inteiro 0–9 (no +10 não melhora); fora disso, null.
+ *   - sortearLinhas(raridade, rng): duas chamadas por linha (tipo, valor), com a rng de quem chama (a corrida AFK, a
+ *     forja, a migração do save).
  *   - resolve/botGear/enhanceOdds/sellPrice/ratingPts: não sorteiam.
  *
  * OBJETO RESOLVIDO (resolve e botGear):
@@ -113,6 +115,20 @@
     return roll < EG.podiumStone[place - 1] ? 1 : 0;
   }
 
+  // Linhas de farm de uma peça (spec AFK §5.7): EG.linhas[raridade] linhas, cada uma com DUAS chamadas de rng(), nesta
+  // ordem: 1) o tipo, uniforme entre os de EG.faixas que a peça ainda não tem (na ordem das chaves); 2) o valor, inteiro
+  // uniforme na faixa da raridade (pontos percentuais). Raridade sem linhas (Comum) ou desconhecida: [] sem sortear.
+  function sortearLinhas(raridade, rng) {
+    var n = typeof raridade === 'string' && Object.prototype.hasOwnProperty.call(EG.linhas, raridade) ? EG.linhas[raridade] : 0;
+    var tipos = Object.keys(EG.faixas), out = [];
+    for (var i = 0; i < n && tipos.length; i++) {
+      var t = tipos.splice(Math.min(tipos.length - 1, Math.floor(rng() * tipos.length)), 1)[0];
+      var fx = EG.faixas[t][raridade];
+      out.push({ tipo: t, valor: fx[0] + Math.min(fx[1] - fx[0], Math.floor(rng() * (fx[1] - fx[0] + 1))) });
+    }
+    return out;
+  }
+
   function sellPrice(id) {
     var def = piece(id);
     return def ? Math.round(EG.price[def.rarity] * EG.sellRate) : 0;
@@ -160,6 +176,7 @@
     enhanceOdds: enhanceOdds,
     enhance: enhance,
     podiumStone: podiumStone,
+    sortearLinhas: sortearLinhas,
     botGear: botGear,
     sellPrice: sellPrice,
     ratingPts: ratingPts

@@ -26,6 +26,8 @@
  *   usos (0x17E5 do plano caía em 61 × 100 + 17: o aprendizado do páreo 61 no nível 17).
  *   Ginásios (ginasio.js): 0x47490000 ("GI") + contador de desafios × 8 + nº do duelo (0–4), abaixo deste SAL,
  *   com folga de ~4 milhões de desafios.
+ *   Corrida AFK (afk.js): hash2(hash2(seedBase, 0x41460000 ("AF") + vaga 0–4), contador da vaga): o contador entra
+ *   num segundo hash, então não disputa faixa com os outros sais.
  *   Skill ao subir de nível num desafio de ginásio (game.js, desafia; Ruling 18): o applyXp com seedTag =
  *   20.000.000 + contador de desafios × 4 + posição no time (0–2), ou seja x = 2.000.000.000 + contador × 400 +
  *   posição × 100 + nível (0x77359400 em diante), acima de todos os outros (hash2 lê x >>> 0: ~5,7 milhões de

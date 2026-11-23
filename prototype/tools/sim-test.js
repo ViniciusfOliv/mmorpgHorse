@@ -1725,9 +1725,9 @@ function todasCandidatas(el) { return Object.keys(G.SKILLS).filter(function (id)
 
 test('catálogo: 6 itens na ordem, preços, limites, chance, mochila e diária', function () {
   var I = G.ITEMS;
-  assert.deepStrictEqual(Object.keys(I), ['torrao', 'estrela', 'redea', 'cupom', 'manual', 'pergaminho']);
-  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].name; }), ['Torrão de açúcar', 'Estrela de treino', 'Rédea nova', 'Cupom de troca de skill', 'Manual de doma', 'Pergaminho de técnica']);
-  Object.keys(I).forEach(function (k) {
+  assert.deepStrictEqual(G.ITENS_USO, ['torrao', 'estrela', 'redea', 'cupom', 'manual', 'pergaminho']);
+  assert.deepStrictEqual(G.ITENS_USO.map(function (k) { return I[k].name; }), ['Torrão de açúcar', 'Estrela de treino', 'Rédea nova', 'Cupom de troca de skill', 'Manual de doma', 'Pergaminho de técnica']);
+  G.ITENS_USO.forEach(function (k) {
     assert.strictEqual(I[k].id, k);
     assert.ok(typeof I[k].desc === 'string' && I[k].desc.length > 10 && I[k].desc.indexOf('\n') < 0, k + ' desc');
     assert.ok(typeof I[k].origem === 'string' && I[k].origem.length > 10 && I[k].origem.indexOf('\n') < 0, k + ' origem');
@@ -1735,12 +1735,12 @@ test('catálogo: 6 itens na ordem, preços, limites, chance, mochila e diária',
     assert.ok(typeof I[k].name === 'string' && I[k].name.length > 3, k + ' name');
     assert.ok(typeof I[k].plural === 'string' && I[k].plural.length > 3 && I[k].plural !== I[k].name, k + ' plural');
   });
-  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].plural; }), ['Torrões de açúcar', 'Estrelas de treino', 'Rédeas novas', 'Cupons de troca de skill', 'Manuais de doma', 'Pergaminhos de técnica']);
+  assert.deepStrictEqual(G.ITENS_USO.map(function (k) { return I[k].plural; }), ['Torrões de açúcar', 'Estrelas de treino', 'Rédeas novas', 'Cupons de troca de skill', 'Manuais de doma', 'Pergaminhos de técnica']);
   // a ordem da loja é fixa no catálogo (Ruling 11, spec §6), não a do preço: só itens à venda, cada um uma vez
   assert.deepStrictEqual(G.SHOP_ORDER, ['torrao', 'manual', 'cupom', 'estrela']);
   G.SHOP_ORDER.forEach(function (k) { assert.ok(Object.prototype.hasOwnProperty.call(I, k) && I[k].price > 0, 'SHOP_ORDER: ' + k + ' sem preço'); });
-  assert.deepStrictEqual(Object.keys(I).filter(function (k) { return I[k].price != null; }).sort(), G.SHOP_ORDER.slice().sort(), 'SHOP_ORDER tem todos os itens à venda');
-  assert.deepStrictEqual(Object.keys(I).map(function (k) { return I[k].price; }), [120, 2000, null, 250, 200, undefined]);   // Rédea nova e Pergaminho de técnica: não se vendem
+  assert.deepStrictEqual(G.ITENS_USO.filter(function (k) { return I[k].price != null; }).sort(), G.SHOP_ORDER.slice().sort(), 'SHOP_ORDER tem todos os itens à venda');
+  assert.deepStrictEqual(G.ITENS_USO.map(function (k) { return I[k].price; }), [120, 2000, null, 250, 200, undefined]);   // Rédea nova e Pergaminho de técnica: não se vendem
   assert.strictEqual(I.torrao.perDay, 2); assert.strictEqual(I.cupom.perDay, 1); assert.strictEqual(I.manual.perDay, 1);
   assert.strictEqual(I.torrao.cap, 10); assert.strictEqual(I.estrela.everyDays, 7); assert.strictEqual(I.manual.chance, 0.35);
   assert.strictEqual(G.BAG_MAX, 99);
@@ -2132,7 +2132,7 @@ test('Estrela de treino diz de onde vem, com os números do catálogo', function
 });
 test('a origem de cada item cita os ginásios só quando algum ginásio dá o item (Ruling 28 dos ginásios)', function () {
   // a verdade sai do catálogo: o prêmio de alguma etapa de algum ginásio ou o rodízio da revanche do líder
-  Object.keys(G.ITEMS).forEach(function (id) {
+  G.ITENS_USO.forEach(function (id) {
     var daGin = G.GYM_ORDER.some(function (g) { return G.GYMS[g].etapas.some(function (e) { return e.premio.itens.indexOf(id) >= 0 || (id === 'pergaminho' && e.premio.pergaminhos > 0); }); }) ||
       G.GYM.revanche.ciclo.some(function (c) { return c.item === id; });
     assert.strictEqual(/ginásio/.test(G.ITEMS[id].origem), daGin, id + ': ' + G.ITEMS[id].origem);
