@@ -5,11 +5,12 @@
  * Sorte, skills que ativam sempre, com rank; sem tática; o equipamento não mexe em status por enquanto).
  *
  *   node tools/balance.js            # relatório completo (todas as metas)
- *   node tools/balance.js --quick    # menos corridas; as metas ruidosas demais (M6, M9, P1, S1, S5, S6, A1) e as dos desafios de
- *                                    # ginásio (G1, G2, G3, G5, G7) só no completo
+ *   node tools/balance.js --quick    # menos corridas; as metas ruidosas demais (M6, M9, P1, S1, S5, S6, A1), as dos desafios de
+ *                                    # ginásio (G1, G2, G3, G5, G7) e as do AFK (E1, E2, E3) só no completo
  *   node tools/balance.js --tune '{"curveBase":0.84}'   # sobrescreve RaceSim.TUNING (só p/ ajuste)
  *   node tools/balance.js --skills [N]   # só as skills por rank (S1, S5, S6), N pares por skill (padrão 8000), ~2 min
  *   node tools/balance.js --skilltune '{"sprint":{"effect":{"speedMult":1.04}}}'   # sobrescreve GameData.SKILLS (só p/ ajuste)
+ *   node tools/balance.js --afk      # só as metas do AFK (E1 a E6), ~2 min
  *   node tools/balance.js --exemplo  # imprime a corrida de exemplo usada em docs/exemplos.md
  *
  * Sai com código 1 se alguma meta falhar.
@@ -30,6 +31,7 @@ var G = require('../src/data.js');
 var S = require('../src/sim.js');
 var GR = require('../src/gear.js');
 var GY = require('../src/ginasio.js');
+var AF = require('../src/afk.js');
 var WT = require('worker_threads');
 
 var args = process.argv.slice(2);
@@ -507,7 +509,72 @@ function tGymPrimeiro(P, a, b) {
   }
   return o;
 }
-var TASKS = { starters: tStarters, duel: tDuel, catDuel: tCatDuel, spec: tSpec, typeGain: tTypeGain, audit: tAudit, rank: tRank,
+// ---------------------------------------------------------------------------
+// Corrida AFK (metas E1–E6; spec 2026-11-23-afk-drops §7). Cavalo típico: Raro ★★, genética 16 em tudo, build dos
+// bots, skills normais esperadas pelo nível (ordem fixa pela seed 2311) e rank pelo nível: 1 + floor((nível − 1) / 12),
+// teto 5. A corrida é a do jogo (Ginasio.dueloCfg: pista da casa, largada Nublada, vantagem de elemento, sem cansaço).
+// ---------------------------------------------------------------------------
+var AFK_LV = [10, 20, 35, 50];
+function afkRank(level) { return Math.min(G.SKILL_RANKS.max, 1 + Math.floor((level - 1) / 12)); }
+function afkTipico(el, level) {
+  var order = shuffle(Object.keys(G.SKILLS), rngOf(2311, 7));
+  var h = build({ rarity: 'raro', level: level, grau: 2, element: el, g: 16 }, rngOf(2311, 8), { order: order }, 'Típico').h;
+  return S.withRanks(h, afkRank(level));
+}
+// p e duração de uma fase: duelos k = a..b−1 contra o oponente k do rodízio. P: { el, level, fase, seed }
+function tAfkFase(P, a, b) {
+  var h = afkTipico(P.el, P.level), f = AF.fase(P.fase), pista = G.GYMS[f.gymId].pista, o = { n: 0, w: 0, dur: 0 };
+  for (var k = a; k < b; k++) {
+    var r = S.simulate(GY.dueloCfg(h, AF.oponente(P.fase, k), S.hash2(P.seed, k), { pista: pista }));
+    o.n++; if (r.finishOrder[0] === 0) o.w++;
+    o.dur += Math.max(r.finishTimes[0], r.finishTimes[1]);
+  }
+  return o;
+}
+// E3: a medida do jogo (Afk.medirPasso, amostra do catálogo) contra a de referência (5.000 duelos, outra série de
+// seeds), numa configuração; e `per` períodos offline de 8 h sorteados com a medida do jogo (o valor de referência do que
+// renderam). Um pedaço só (a..b é ignorado: a medição é sequencial). O cavalo é um inicial do catálogo perto do nível do
+// oponente, para a chance ficar no meio da faixa (onde a medida erra mais). P: { base, level, fase, ref, per }
+function tAfkMedida(P) {
+  var h = GY.cavalo({ base: P.base, level: P.level, grau: 2 }), e = null, r = null, REF = { amostra: P.ref, sal: 1 };
+  do { e = AF.medirPasso(e, h, P.fase, 400); } while (!AF.medidaPronta(e));
+  do { r = AF.medirPasso(r, h, P.fase, 400, REF); } while (!AF.medidaPronta(r, REF));
+  var m = AF.medida(e), mr = AF.medida(r, REF), o = { n: 1, p: m.p, pRef: mr.p, dur: m.duracaoS, durRef: mr.duracaoS, offV: 0, offN: 0, offW: 0 };
+  for (var k = 0; k < P.per; k++) {
+    var off = AF.offline({ uid: 'm1', faseId: P.fase, inicioMin: 0, contador: 0 }, G.AFK.offlineMin, m, 4000 + k, null, G.AFK.offlineMin, 0);
+    o.offV += afkValor(off); o.offN += off.corridas; o.offW += off.vitorias;
+  }
+  return o;
+}
+// Valor de referência em Ouro de um ganho (só para as metas; spec §7): material 10, incomum 60, Pedra 40, Feno 20,
+// Cenoura 50, Maçã 120, Aveia 150, troféu 400, peça pelo preço da loja (Lendária 1.500), XP 0,1 por ponto, Ouro 1.
+var AFK_REF = { material: 10, incomum: 60, pedra: 40, feno: 20, cenoura: 50, maca: 120, 'aveia-dourada': 150, trofeu: 400, xp: 0.1 };
+function afkValorItem(id) {
+  var it = G.ITEMS[id];
+  if (!it) return 0;
+  if (it.grupo === 'material' || it.grupo === 'incomum' || it.grupo === 'trofeu') return AFK_REF[it.grupo];
+  return AFK_REF[id] || 0;   // comidas; o Pergaminho de reforja não tem valor de referência
+}
+function afkValor(g) {
+  var v = g.xp * AFK_REF.xp + g.ouro + g.pedras * AFK_REF.pedra;
+  Object.keys(g.itens).forEach(function (id) { v += g.itens[id] * afkValorItem(id); });
+  g.pecas.forEach(function (pc) { v += G.ECONOMY.gear.price[G.GEAR[pc.id].rarity]; });
+  return v;
+}
+// Valor esperado de referência de uma vitória e de uma derrota da fase (sem bônus), pela tabela de drops.
+function afkValorEsperado(f) {
+  var K = G.AFK, D = K.drops, q = (D.material.min + D.material.max) / 2 * f.mult, P = D.peca[f.dif], pr = G.ECONOMY.gear.price;
+  var xp = Math.round(K.xpBase * (1 + K.xpPorEtapa * f.etapa) * f.mult), tot = 0, ev = 0;
+  Object.keys(D.comida.pesos).forEach(function (c) { tot += D.comida.pesos[c]; ev += D.comida.pesos[c] * AFK_REF[c]; });
+  var v = q * AFK_REF.material + Math.min(D.incomum.teto, D.incomum.chance * f.mult) * AFK_REF.incomum + D.pedra.chance * f.mult * AFK_REF.pedra +
+    D.comida.chance * f.mult * ev / tot + (P.solta || 0) * ((1 - (P.magica || 0)) * pr.comum + (P.magica || 0) * pr.magico) + (P.raro || 0) * pr.raro +
+    (P.lendario || 0) * pr.lendario + D.trofeu[f.dif] * AFK_REF.trofeu + xp * AFK_REF.xp + K.ouro[f.etapa] * f.mult;
+  // derrota: a fração do XP e o material para baixo (a média de floor(q × fração) nas quantidades possíveis)
+  var md = 0, nq = 0;
+  for (var x = D.material.min; x <= D.material.max; x++) { md += Math.floor(x * f.mult * K.derrota.material + 1e-9); nq++; }
+  return { vitoria: v, derrota: Math.round(xp * K.derrota.xp) * AFK_REF.xp + md / nq * AFK_REF.material, ouro: K.ouro[f.etapa] * f.mult };
+}
+var TASKS = { afkFase: tAfkFase, afkMedida: tAfkMedida, starters: tStarters, duel: tDuel, catDuel: tCatDuel, spec: tSpec, typeGain: tTypeGain, audit: tAudit, rank: tRank,
   lobby: tLobby, m9: tM9, robin: tRobin, pvp8: tPvp8, flips: tFlips, skillObs: tSkillObs, gym: tGym, gymPista: tGymPista, gymPrimeiro: tGymPrimeiro };
 
 if (!WT.isMainThread) {
@@ -588,6 +655,7 @@ if (skIdx >= 0) {
   return;
 }
 
+var SO_AFK = args.indexOf('--afk') >= 0;   // só a seção do AFK (metas E), para calibrar sem esperar o relatório todo
 var t0 = Date.now(); // só para medir o tempo do relatório (não entra na simulação)
 
 // Tamanho das amostras: [completo, --quick]. As metas com margem curta para a faixa usam o mesmo N
@@ -654,6 +722,28 @@ G.GYM_ORDER.forEach(function (gid, gi) {
   job('g7s-' + gid, 'gym', { gym: gid, etapa: 4, el: gid, dL: 4, size: 1, semCansaco: true, seed: 7700 + gi }, N_G, 8);
 });
 
+// Corrida AFK (E): E1, E2 e E3 só no completo; E5 nos dois modos (no relatório, sem worker).
+if (SO_AFK) JOBS = {};
+var N_AFK = 300, AFK_REFN = 5000, AFK_PER = 12;
+var AFK_FASES = AF.fases(), AFK_E3 = [];
+if (!QUICK) {
+  AFK_LV.forEach(function (L, li) {
+    EL3.forEach(function (el, ei) {
+      G.GYM_ORDER.forEach(function (gid, gi) {
+        AFK_FASES.forEach(function (fid, fi) {
+          if (AF.fase(fid).gymId === gid) job('afk-' + L + '-' + el + '-' + fid, 'afkFase', { el: el, level: L, fase: fid, seed: 8100 + li * 1000 + ei * 100 + gi * 10 + fi }, N_AFK, 1);
+        });
+      });
+    });
+  });
+  // E3: uma configuração por fase (45): um inicial de outro elemento, a −3, 0, +2, +5 ou −1 níveis do oponente
+  AFK_FASES.forEach(function (fid, i) {
+    var f = AF.fase(fid), c = { fase: fid, base: GYM_STARTER[EL3[(i + 1) % 3]], level: Math.max(1, Math.min(G.ECONOMY.maxLevel, f.nivel + [-3, 0, 2, 5, -1][i % 5])) };
+    AFK_E3.push(c);
+    job('afkm-' + fid, 'afkMedida', { base: c.base, level: c.level, fase: fid, ref: AFK_REFN, per: AFK_PER }, 1, 1);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Saída: seções em ordem; cada check fica na seção em que aparece
 // ---------------------------------------------------------------------------
@@ -705,7 +795,7 @@ function skillRankReport(RK, N, conta) {
   log('');
 }
 
-runPool().then(report, function (e) { console.error('[balance] worker falhou: ' + (e && e.stack || e)); process.exit(1); });
+runPool().then(SO_AFK ? function (R) { reportAfk(R); finish(); } : report, function (e) { console.error('[balance] worker falhou: ' + (e && e.stack || e)); process.exit(1); });
 
 function report(R) {
   function wr(key) { return pct(R[key].wA, R[key].n); }
@@ -1187,6 +1277,7 @@ function report(R) {
   log('');
 
   reportGym(R);
+  reportAfk(R);
   finish();
 }
 
@@ -1308,6 +1399,147 @@ function reportGym(R) {
   checkBool('G9', 'Ginásio: mesma seed e mesma configuração dão o mesmo desafio, duelo a duelo (' + casos.length + ' desafios, reexecução em ordem inversa; cada duelo refeito pelo cfg dá o mesmo vencedor e a mesma distância)', iguais && resim);
   checkBool('G9', 'Ginásio: nada no caminho do desafio chama Math.random, Date.now nem new Date', !usou);
   checkBool('G9', 'Ginásio: o contador seguinte dá outro desafio', outro.every(function (j, i) { return j !== ida[i]; }));
+}
+// ---------------------------------------------------------------------------
+// E) Corrida AFK
+// ---------------------------------------------------------------------------
+function reportAfk(R) {
+  var K = G.AFK, EG = G.ECONOMY.gear, E = G.ECONOMY;
+  var DN = {}; K.difs.forEach(function (d) { DN[d.id] = d.name; });
+  var ETN = ['Soldado 1', 'Soldado 2', 'Soldado 3', 'Soldado 4', 'Líder'];
+  var faseTxt = function (f) { return ETN[f.etapa] + ' ' + DN[f.dif] + ' (nível ' + f.nivel + ')'; };
+  log('### E. Corrida AFK (metas E1–E6)');
+  log('');
+  if (QUICK) {
+    log('> **--quick: as metas E1, E2 e E3 só rodam no completo**; aqui só a E5 (determinismo). A E4 e a E6 entram com o bloco B (peças no AFK e reforja).');
+    log('');
+  } else {
+    // ---- o máximo de +Ouro das peças: 5 Lendárias com a linha de Ouro no topo da faixa, e o conjunto de 3
+    var ouroMax = 5 * EG.faixas.ouro.lendario[1] / 100 * (1 + EG.setFarm);
+    var pvpHora = 20 * 100 * E.maxRacers * (1 - E.houseFee) / E.maxRacers, teto = 0.25 * pvpHora;
+    log('Cavalo típico: Raro ★★, genética 16, build dos bots, skills esperadas pelo nível no rank `1 + floor((nível − 1) / 12)`. ' + N_AFK + ' duelos por fase (as 15 fases de cada ginásio), ' +
+      'pela corrida do jogo (pista da casa, largada Nublada, vantagem de elemento, sem cansaço, oponente em rodízio).');
+    log('');
+    // ---- por caso (nível × elemento do cavalo × ginásio): chance, duração, Ouro e valor por hora de cada fase
+    var casos = [];
+    AFK_LV.forEach(function (L) {
+      EL3.forEach(function (el) {
+        G.GYM_ORDER.forEach(function (gid) {
+          var fs = AFK_FASES.filter(function (fid) { return AF.fase(fid).gymId === gid; }).map(function (fid) {
+            var f = AF.fase(fid), x = R['afk-' + L + '-' + el + '-' + fid], p = x.w / x.n, dur = x.dur / x.n, v = afkValorEsperado(f);
+            return { f: f, p: p, dur: dur, ouroH: p * v.ouro * (1 + ouroMax) * 3600 / dur, valorH: (p * v.vitoria + (1 - p) * v.derrota) * 3600 / dur };
+          });
+          // liberadas (modelo): a Normal de toda etapa de nível até o do cavalo; a Difícil e a Lendária quando a
+          // anterior está liberada e o cavalo vence nela pelo menos 1 em 10 (as 50 vitórias saem em até ~11 h)
+          var porId = {}; fs.forEach(function (x) { porId[x.f.id] = x; });
+          var lib = fs.filter(function (x) {
+            if (G.GYMS[gid].etapas[x.f.etapa].cavalos[0].level > L) return false;
+            for (var d = 0; K.difs[d].id !== x.f.dif; d++) if (porId[gid + ':' + x.f.etapa + ':' + K.difs[d].id].p < 0.10) return false;
+            return true;
+          }).sort(function (a, b) { return a.f.nivel - b.f.nivel || a.f.mult - b.f.mult; });
+          var melhor = lib.reduce(function (a, b) { return b.valorH > a.valorH ? b : a; });
+          var ouroTop = fs.reduce(function (a, b) { return b.ouroH > a.ouroH ? b : a; });
+          var difTop = Math.max.apply(null, lib.map(function (x) { return x.f.mult; }));
+          casos.push({ L: L, el: el, gid: gid, fs: fs, lib: lib, melhor: melhor, ouroTop: ouroTop, degraus: lib.length - 1 - lib.indexOf(melhor),
+            difAbaixo: K.difs.map(function (d) { return d.mult; }).indexOf(difTop) - K.difs.map(function (d) { return d.mult; }).indexOf(melhor.f.mult) });
+        });
+      });
+    });
+    // ---- E1
+    log('**E1. Ouro do AFK por hora** na fase que mais rende Ouro (entre as 45), com o máximo de +Ouro das peças (+' + f1(100 * ouroMax) + '%: 5 Lendárias com a linha de Ouro no topo e o conjunto de 3). ' +
+      'Referência do PVP: 20 corridas por hora, entrada de 100, sala de 8, prêmio médio de ' + Math.round(pvpHora / 20) + ' por corrida = ' + Math.round(pvpHora) + ' por hora; o teto do AFK é 25% disso, ' + Math.round(teto) + ' por hora.');
+    log('');
+    log('| Nível | Maior Ouro por hora (cavalo × ginásio) | Fase | Chance | Duração |');
+    log('|---|---|---|---|---|');
+    AFK_LV.forEach(function (L) {
+      var top = casos.filter(function (c) { return c.L === L; }).reduce(function (a, b) { return b.ouroTop.ouroH > a.ouroTop.ouroH ? b : a; });
+      log('| ' + L + ' | **' + f1(top.ouroTop.ouroH) + '** (' + G.ELEMENTS[top.el].name + ' na ' + G.GYMS[top.gid].name.replace('Ginásio d', 'd').replace(/^d[oa] /, '') + ') | ' + faseTxt(top.ouroTop.f) + ' | ' + f1(100 * top.ouroTop.p) + '% | ' + f1(top.ouroTop.dur) + ' s |');
+      check('E1', 'AFK: Ouro por hora na melhor fase, com o máximo de +Ouro, no nível ' + L + ' (teto ' + Math.round(teto) + ' = 25% do PVP)', top.ouroTop.ouroH, 0, teto, '');
+    });
+    // o teto absoluto: vencendo sempre a fase que mais paga, na duração mais curta medida entre todas as fases
+    var durMin = Math.min.apply(null, casos.map(function (c) { return Math.min.apply(null, c.fs.map(function (x) { return x.dur; })); }));
+    var ouroTeto = Math.max.apply(null, AFK_FASES.map(function (fid) { return afkValorEsperado(AF.fase(fid)).ouro; })) * (1 + ouroMax) * 3600 / durMin;
+    log('');
+    log('Teto absoluto (vencendo sempre a fase que mais paga, na duração mais curta medida, ' + f1(durMin) + ' s): **' + f1(ouroTeto) + '** de Ouro por hora.');
+    check('E1', 'AFK: teto absoluto de Ouro por hora (vitória certa na fase que mais paga, corrida mais curta medida)', ouroTeto, 0, teto, '');
+    log('');
+    // ---- E2
+    var hardest = casos.filter(function (c) { return c.degraus === 0; }).length;
+    var d12 = casos.filter(function (c) { return c.degraus === 1 || c.degraus === 2; }).length;
+    var dif12 = casos.filter(function (c) { return c.difAbaixo >= 1; }).length;
+    log('**E2. A fase de maior ganho** (valor de referência por hora: material 10, incomum 60, Pedra 40, Feno 20, Cenoura 50, Maçã 120, Aveia 150, troféu 400, peça pelo preço da loja, XP 0,1 por ponto). ' +
+      'Liberadas, para a meta: a Normal de toda etapa de nível até o do cavalo; a Difícil e a Lendária quando a anterior está liberada e o cavalo vence nela pelo menos 1 em 10. ' +
+      'Degrau: a posição entre as liberadas do ginásio, pela ordem do nível do oponente.');
+    log('');
+    log('| Nível | Cavalo | Ginásio | Fase de maior ganho | Chance | Valor por hora | A mais difícil liberada | Chance | Degraus abaixo |');
+    log('|---|---|---|---|---|---|---|---|---|');
+    casos.forEach(function (c) {
+      var topo = c.lib[c.lib.length - 1];
+      log('| ' + c.L + ' | ' + G.ELEMENTS[c.el].name + ' | ' + G.GYMS[c.gid].name.replace('Ginásio ', '') + ' | ' + faseTxt(c.melhor.f) + ' | ' + f1(100 * c.melhor.p) + '% | ' + Math.round(c.melhor.valorH) +
+        ' | ' + faseTxt(topo.f) + ' | ' + f1(100 * topo.p) + '% | ' + c.degraus + ' |');
+    });
+    log('');
+    log('Em ' + hardest + ' de ' + casos.length + ' casos a fase de maior ganho é a mais difícil liberada; em ' + d12 + ' fica 1 ou 2 degraus abaixo; em ' + (casos.length - hardest - d12) + ', 3 ou mais. ' +
+      'Contando só a dificuldade (Normal, Difícil, Lendária), em ' + dif12 + ' casos a de maior ganho fica abaixo da dificuldade mais alta liberada.');
+    log('');
+    check('E2', 'AFK: casos em que a fase de maior ganho É a mais difícil liberada (a meta: não ser sempre; até metade)', pct(hardest, casos.length), 0, 50);
+    log('> **E2, segunda parte ("em pelo menos metade dos casos fica 1 ou 2 degraus abaixo"): ' + f1(pct(d12, casos.length)) + '% — informação, ainda não é meta.** Os oponentes da Difícil e da Lendária ganham peças no bloco B ' +
+      '(e a meta E4 calibra essas peças): até lá um cavalo típico de nível 35 ou 50 vence o líder da Lendária quase sempre, e a fase de maior ganho acaba sendo a mais difícil que existe. A segunda parte é medida de novo na tarefa B2.');
+    log('');
+    // ---- E3
+    var dentro = 0, pior = 0, piorTxt = '', espMed = 0, espRef = 0, offV = 0, offEsp = 0, offN = 0, piorG = 0;
+    log('**E3. Chance medida e offline.** ' + AFK_E3.length + ' configurações (uma por fase: um inicial de outro elemento a −3, 0, +2, +5 ou −1 níveis do oponente, para a chance cair no meio da faixa): a medida do jogo (' + K.amostra +
+      ' duelos, `Afk.medirPasso`) contra a de referência (' + AFK_REFN + ' duelos, outra série de seeds). "Ganho esperado": o valor de referência por hora que a tabela de drops dá para a chance e a duração medidas, ' +
+      'dividido pelo que dá para as de referência (é o quanto o offline paga a mais ou a menos que ao vivo por erro da medida).');
+    log('');
+    log('| Fase | Cavalo | p medido | p de referência | Diferença (p.p.) | Duração medida / referência | Ganho esperado: offline ÷ ao vivo |');
+    log('|---|---|---|---|---|---|---|');
+    AFK_E3.forEach(function (c) {
+      var x = R['afkm-' + c.fase], f = AF.fase(c.fase), v = afkValorEsperado(f), dp = 100 * Math.abs(x.p - x.pRef);
+      var gMed = (x.p * v.vitoria + (1 - x.p) * v.derrota) / x.dur, gRef = (x.pRef * v.vitoria + (1 - x.pRef) * v.derrota) / x.durRef, razao = gMed / gRef;
+      if (dp < 3) dentro++;
+      if (dp > pior) { pior = dp; piorTxt = G.GYMS[f.gymId].name.replace('Ginásio ', '') + ', ' + faseTxt(f); }
+      piorG = Math.max(piorG, Math.abs(razao - 1));
+      espMed += gMed; espRef += gRef;
+      offV += x.offV; offN += x.offN; offEsp += x.offW * v.vitoria + (x.offN - x.offW) * v.derrota;
+      log('| ' + G.GYMS[f.gymId].name.replace('Ginásio ', '') + ', ' + faseTxt(f) + ' | ' + starterById(c.base).name + ' nível ' + c.level + ' | ' + f1(100 * x.p) + '% | ' + f1(100 * x.pRef) + '% | ' + f2(dp) +
+        ' | ' + f1(x.dur) + ' / ' + f1(x.durRef) + ' s | ' + f2(razao) + ' |');
+    });
+    log('');
+    log('Dentro de 3 p.p.: ' + dentro + ' de ' + AFK_E3.length + ' (a pior, ' + f2(pior) + ' p.p.: ' + piorTxt + '). Ganho esperado, somadas as configurações: offline ÷ ao vivo = ' + f2(espMed / espRef) +
+      ' (a configuração mais longe: ' + f1(100 * piorG) + '%). Sorteio do offline: ' + offN + ' corridas sorteadas (' + AFK_PER + ' períodos de 8 h por configuração) renderam ' + f2(offV / offEsp) +
+      ' do valor esperado pela tabela de drops para as vitórias e derrotas sorteadas.');
+    log('');
+    check('E3', 'AFK: configurações com a chance medida a menos de 3 p.p. da referência', pct(dentro, AFK_E3.length), 95, 100);
+    check('E3', 'AFK: ganho esperado por hora, offline ÷ ao vivo, somadas as configurações (a menos de 3%)', espMed / espRef, 0.97, 1.03, '');
+    check('E3', 'AFK: o que o offline sorteia ÷ o valor esperado pela tabela de drops (a menos de 3%)', offV / offEsp, 0.97, 1.03, '');
+    log('> **E4** (5 peças Raras +7 do conjunto certo contra o líder na Lendária) e **E6** (reforja) entram com o bloco B.');
+    log('');
+  }
+  // ---- E5: determinismo e nada de Math.random / relógio no caminho (nos dois modos)
+  var h5 = afkTipico('agua', 24), B5 = { material: 0.2, xp: 0.1, raro: 0.3, trofeu: 0.5, ouro: 0.1 };
+  var casos5 = ['fogo:1:normal', 'agua:3:dificil', 'grama:4:lendaria', 'fogo:4:dificil'].map(function (f, i) { return { f: f, seed: seedOf(8900, i), vaga: i, c: 10 + i * 7 }; });
+  var mr = Math.random, dn = Date.now, DataOrig = global.Date, usou = false, ida, volta, outro, off1, off2, med1, med2;
+  Math.random = function () { usou = true; return mr.apply(Math, arguments); };
+  Date.now = function () { usou = true; return dn.apply(DataOrig, arguments); };
+  var Detector = function () { usou = true; return new (Function.prototype.bind.apply(DataOrig, [null].concat([].slice.call(arguments))))(); };
+  Detector.now = Date.now;
+  global.Date = Detector;
+  try {
+    var corre = function (c, d) { return JSON.stringify(AF.correr(h5, c.f, c.seed, c.c + (d || 0), B5, { vaga: c.vaga })); };
+    ida = casos5.map(function (c) { return corre(c); });
+    volta = casos5.slice().reverse().map(function (c) { return corre(c); }).reverse();
+    outro = casos5.map(function (c) { return corre(c, 1); });
+    var vg = { uid: 'm1', faseId: 'agua:3:dificil', inicioMin: 100, contador: 5 }, md = { p: 0.55, duracaoS: 78 };
+    off1 = JSON.stringify(AF.offline(vg, 100 + 480, md, 4321, B5, 480, 2)); off2 = JSON.stringify(AF.offline(vg, 100 + 480, md, 4321, B5, 480, 2));
+    med1 = JSON.stringify(AF.medirPasso(null, h5, 'agua:3:dificil', 60)); med2 = JSON.stringify(AF.medirPasso(AF.medirPasso(null, h5, 'agua:3:dificil', 25), h5, 'agua:3:dificil', 35));
+  } finally { Math.random = mr; DataOrig.now = dn; global.Date = DataOrig; }
+  checkBool('E5', 'AFK: mesma seed, mesmo cavalo e mesma fase dão as mesmas corridas e os mesmos drops (' + casos5.length + ' corridas, reexecução em ordem inversa; offline de 8 h e medição em fatias, duas vezes)',
+    ida.every(function (j, i) { return j === volta[i]; }) && off1 === off2 && med1 === med2);
+  checkBool('E5', 'AFK: nada no caminho das regras chama Math.random, Date.now nem new Date', !usou);
+  checkBool('E5', 'AFK: o contador seguinte dá outra corrida', outro.every(function (j, i) { return j !== ida[i]; }));
+  log('E5: determinismo conferido em ' + casos5.length + ' corridas, num offline de 8 h e numa medição em fatias; nenhuma chamada a `Math.random`, `Date.now` ou `new Date`.');
+  log('');
 }
 function wrG4(R, gid, el) { var x = R['g4-' + gid + '-' + el]; return pct(x.wA, x.n); }
 

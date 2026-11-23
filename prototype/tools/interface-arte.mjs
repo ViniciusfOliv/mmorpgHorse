@@ -5,6 +5,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { encodePng } from './png.mjs';
+import { PECAS_AFK } from './icones-afk.mjs';
 
 // legenda: caractere -> token (ex.: '--sombra'); '.' é sempre transparente e não entra na legenda.
 // ⓘ: disco claro com o "i" vazado em --sombra (o ponto em cima, a haste de 3 pixels embaixo). Com o contorno escuro em
@@ -133,7 +134,9 @@ export const PECAS = [
     '..kkkkkkRRRRkk..',
     '.kPPPPPPPRRPPPk.',
     '.kDDDDDDDDDDDDk.',
-    '..kkkkkkkkkkkk..'], legenda: { k: '--sombra', P: '--texto', D: '--texto-2', m: '--madeira-2', R: '--seda-0' } }
+    '..kkkkkkkkkkkk..'], legenda: { k: '--sombra', P: '--texto', D: '--texto-2', m: '--madeira-2', R: '--seda-0' } },
+  // ícones dos itens do AFK (materiais, comidas, troféus, Pergaminho de reforja) e do baú: tools/icones-afk.mjs
+  ...PECAS_AFK
 ];
 
 // Tokens `--nome: #hex;` do primeiro bloco :root { … } (valor em #rrggbb minúsculo; o que não é hex fica de fora).

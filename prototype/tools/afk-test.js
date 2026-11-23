@@ -19,7 +19,7 @@ function progCom(etapas) { var o = {}; G.GYM_ORDER.forEach(function (id) { o[id]
 function cav(base, level, grau) { var h = GY.cavalo({ base: base, level: level, grau: grau || 2 }); h.uid = 'c-' + base + '-' + level; return h; }
 
 section('fases, dificuldades e vagas');
-test('GameData.AFK: três dificuldades, liberação em 50 vitórias, preço das 5 vagas, limites do offline e amostra de 1.600', function () {
+test('GameData.AFK: três dificuldades, liberação em 50 vitórias, preço das 5 vagas, limites do offline e amostra de 2.400', function () {
   var K = G.AFK;
   assert.deepStrictEqual(K.difs.map(function (d) { return d.id; }), ['normal', 'dificil', 'lendaria']);
   assert.deepStrictEqual(K.difs.map(function (d) { return d.mult; }), [1, 2, 4]);
@@ -30,7 +30,7 @@ test('GameData.AFK: três dificuldades, liberação em 50 vitórias, preço das 
   assert.deepStrictEqual(K.difs[2].pecas, { rar: 'raro', plus: 5, doConjunto: true });
   assert.strictEqual(K.liberaApos, 50);
   assert.deepStrictEqual(K.vagaPreco, [0, 1000, 3000, 8000, 20000]);
-  assert.strictEqual(K.offlineMin, 480); assert.strictEqual(K.offlineTetoMin, 720); assert.strictEqual(K.amostra, 1600);
+  assert.strictEqual(K.offlineMin, 480); assert.strictEqual(K.offlineTetoMin, 720); assert.strictEqual(K.amostra, 2400);
 });
 test('faseId e fase: ida e volta nas 45 fases; id estragado devolve null', function () {
   var n = 0;
@@ -159,10 +159,18 @@ test('itens novos do AFK no catálogo: 6 materiais, 3 incomuns, 4 comidas, 15 tr
   }); });
   assert.strictEqual(I.feno.xp, 200); assert.strictEqual(I.cenoura.xp, 500); assert.strictEqual(I.maca.xp, 1200); assert.strictEqual(I['aveia-dourada'].aveiaMin, 60);
 });
-test('XP e Ouro por vitória: round(40 × (1 + 0,15 × etapa) × mult) e [2, 3, 4, 5, 8] × mult; derrota 30% do XP e nada de Ouro', function () {
-  [['fogo:0:normal', 40, 2], ['fogo:2:normal', 52, 4], ['agua:4:normal', 64, 8], ['agua:4:dificil', 128, 16], ['grama:4:lendaria', 256, 32], ['grama:1:lendaria', 184, 12]].forEach(function (c) {
-    var v = A.premio(c[0], true, 77, BONUS0), d = A.premio(c[0], false, 77, BONUS0);
-    assert.strictEqual(v.xp, c[1], c[0] + ' xp'); assert.strictEqual(v.ouro, c[2], c[0] + ' ouro');
+test('XP e Ouro por vitória: round(40 × (1 + 0,15 × etapa) × mult) e, em média, ouro[etapa] × mult (a fração sai pela seed); derrota 30% do XP e nada de Ouro', function () {
+  assert.deepStrictEqual(G.AFK.ouro, [0.3, 0.45, 0.6, 0.75, 1.2]);
+  [['fogo:0:normal', 40], ['fogo:2:normal', 52], ['agua:4:normal', 64], ['agua:4:dificil', 128], ['grama:4:lendaria', 256], ['grama:1:lendaria', 184]].forEach(function (c) {
+    var f = A.fase(c[0]), alvo = G.AFK.ouro[f.etapa] * f.mult, soma = 0, n = 20000;
+    for (var i = 0; i < n; i++) {
+      var v = A.premio(c[0], true, S.hash2(77, i), BONUS0);
+      assert.strictEqual(v.xp, c[1], c[0] + ' xp');
+      assert.ok(v.ouro === Math.floor(alvo + 1e-9) || v.ouro === Math.floor(alvo + 1e-9) + 1, c[0] + ' ouro ' + v.ouro);
+      soma += v.ouro;
+    }
+    perto(soma / n, alvo, 0.02, c[0] + ' Ouro médio');
+    var d = A.premio(c[0], false, 77, BONUS0);
     assert.strictEqual(d.xp, Math.round(c[1] * 0.3), c[0] + ' xp da derrota'); assert.strictEqual(d.ouro, 0);
   });
 });
@@ -254,7 +262,7 @@ test('bonus.trofeu 0,3 leva o troféu da Normal a 0,65%; bonus.raro multiplica i
   var n = 200000, c = amostra('agua:2:normal', n, { material: 0.25, xp: 0.10, raro: 0.5, trofeu: 0.3, ouro: 0.5 });
   perto(c.trofeu / n, 0.0065, 0.0006, 'troféu'); perto(c.incomum / n, 0.225, 0.004, 'incomum'); perto(c.pedra / n, 0.09, 0.003, 'Pedra');
   perto(c.peca / n, 0.03, 0.0015, 'peça'); perto(c.comida / n, 0.12, 0.003, 'comida'); perto(c.reforja / n, 0.015, 0.001, 'reforja (não é drop raro)');
-  perto(c.material / n, 2.5, 0.02, 'material'); perto(c.ouro / n, 6, 0.02, 'Ouro (4 × 1,5)'); assert.strictEqual(c.xp / n, Math.round(52 * 1.1));
+  perto(c.material / n, 2.5, 0.02, 'material'); perto(c.ouro / n, 0.9, 0.01, 'Ouro (0,6 × 1,5)'); assert.strictEqual(c.xp / n, Math.round(52 * 1.1));
   // bônus estragado vale 0
   assert.deepStrictEqual(A.premio('agua:2:normal', true, 9, null), A.premio('agua:2:normal', true, 9, BONUS0));
   assert.deepStrictEqual(A.premio('agua:2:normal', true, 9, { material: 'x', xp: -1, raro: NaN, trofeu: Infinity, ouro: {} }), A.premio('agua:2:normal', true, 9, BONUS0));
@@ -337,13 +345,16 @@ test('chaveConfig muda com nível, pontos, skills, ranks, estrelas, torrões e f
 test('medirPasso: avança em fatias até a amostra, sem passar; mesma configuração dá a mesma medida; outra configuração recomeça', function () {
   var h = congela(cav('ipe', 16)), f = 'agua:3:normal', N = G.AFK.amostra;
   var e = A.medirPasso(null, h, f, 10);
-  assert.strictEqual(e.feitos, 10); assert.strictEqual(e.chave, A.chaveConfig(h, f)); assert.ok(e.vitorias >= 0 && e.vitorias <= 10 && e.somaDuracao > 400);
+  assert.strictEqual(e.feitos, 10); assert.strictEqual(e.chave, A.chaveConfig(h, f)); assert.ok(e.vitorias >= 0 && e.vitorias <= 10 && e.somaDuracao > 4000 && e.somaDuracao === Math.floor(e.somaDuracao), 'a soma das durações em décimos de segundo, inteira');
   assert.strictEqual(A.medidaPronta(e), false); assert.strictEqual(A.medida(e), null, 'incompleta não vale');
   var e2 = A.medirPasso(e, h, f, 7); assert.strictEqual(e2.feitos, 17); assert.strictEqual(e.feitos, 10, 'não muta a entrada');
   var fim = A.medirPasso(e2, h, f, 99999);
   assert.strictEqual(fim.feitos, N); assert.strictEqual(A.medidaPronta(fim), true);
   assert.deepStrictEqual(A.medirPasso(fim, h, f, 50), fim, 'completa: não anda mais');
   var deUma = medir(h, f);
+  // qualquer divisão em fatias dá a mesma medida (a soma das durações é inteira)
+  var e3 = null; [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987].forEach(function (n) { e3 = A.medirPasso(e3, h, f, n); });
+  assert.deepStrictEqual(e3, fim);
   assert.deepStrictEqual(deUma, fim, 'em fatias de 10, 7 e o resto ou de 400 em 400: a mesma medida');
   var m = A.medida(fim);
   assert.ok(m.p > 0 && m.p < 1 && Math.abs(m.p - fim.vitorias / N) < 1e-12); assert.ok(m.duracaoS > 55 && m.duracaoS < 95, 'duração média de um duelo: ' + m.duracaoS);
@@ -553,7 +564,7 @@ test('comida: Feno, Cenoura e Maçã dão XP ao cavalo escolhido; a Aveia soma 6
 });
 test('save antigo migra com afk vazio e a 1ª vaga liberada', function () {
   var a = A.sanear(undefined, { uids: ['m1'], progresso: progCom({}), agoraMin: 777 });
-  assert.deepStrictEqual(a, { vagas: [{ uid: null, faseId: null, inicioMin: 0, contador: 0, medida: null }], bau: A.bauVazio(), vitorias: {}, bestiario: A.bestiarioVazio(), aveiaMin: 0, xpCounter: 0 });
+  assert.deepStrictEqual(a, { vagas: [{ uid: null, faseId: null, inicioMin: 0, contador: 0, medida: null, ultima: null }], bau: A.bauVazio(), vitorias: {}, bestiario: A.bestiarioVazio(), aveiaMin: 0, xpCounter: 0 });
   assert.deepStrictEqual(A.sanear('lixo', { uids: [], progresso: null, agoraMin: 777 }), a);
   assert.deepStrictEqual(A.sanear(a, { uids: ['m1'], progresso: progCom({}), agoraMin: 900 }), a, 'saneado de novo: igual (o início guardado fica)');
 });
@@ -570,7 +581,7 @@ test('save com vaga de uid inexistente fica com a vaga vazia; fase ou dificuldad
   ], vitorias: { 'fogo:0:normal': 49 } };
   var a = A.sanear(bruto, ctx);
   assert.strictEqual(a.vagas.length, 5);
-  assert.deepStrictEqual(a.vagas[0], { uid: 'm1', faseId: 'fogo:1:normal', inicioMin: 4000, contador: 12, medida: med });
+  assert.deepStrictEqual(a.vagas[0], { uid: 'm1', faseId: 'fogo:1:normal', inicioMin: 4000, contador: 12, medida: med, ultima: null });
   [1, 2, 3, 4].forEach(function (i) { assert.strictEqual(a.vagas[i].uid, null, 'vaga ' + i); assert.strictEqual(a.vagas[i].faseId, null); assert.strictEqual(a.vagas[i].medida, null); assert.strictEqual(a.vagas[i].inicioMin, 0, 'vaga vazia não tem início'); });
   assert.deepStrictEqual(a.vagas.map(function (v) { return v.contador; }), [12, 7, 3, 5, 2], 'o contador de cada vaga nunca volta');
   // com as 50 vitórias, a Difícil vale
@@ -589,8 +600,8 @@ test('sanear: números fora da faixa, medida de outra configuração, baú e bes
     aveiaMin: 9999, xpCounter: -2
   }, ctx);
   assert.strictEqual(a.vagas.length, 3);
-  assert.deepStrictEqual(a.vagas[0], { uid: 'm1', faseId: 'fogo:0:normal', inicioMin: 5000, contador: 0, medida: null });
-  assert.deepStrictEqual(a.vagas[1], { uid: null, faseId: null, inicioMin: 0, contador: 0, medida: null });
+  assert.deepStrictEqual(a.vagas[0], { uid: 'm1', faseId: 'fogo:0:normal', inicioMin: 5000, contador: 0, medida: null, ultima: null });
+  assert.deepStrictEqual(a.vagas[1], { uid: null, faseId: null, inicioMin: 0, contador: 0, medida: null, ultima: null });
   assert.deepStrictEqual(a.bau, { ouro: 0, xp: { m3: 40 }, itens: { carvao: 3, concha: 1000000 }, pedras: 0,
     pecas: [{ id: 'sela-comum', linhas: [] }, { id: 'sela-sol-raro', linhas: [{ tipo: 'xp', valor: 7 }, { tipo: 'ouro', valor: 5 }] }] });
   assert.deepStrictEqual(a.vitorias, { 'fogo:0:normal': 12, 'agua:0:normal': 4 });
@@ -629,6 +640,70 @@ test('creditar: o ganho de uma vaga vai para o baú, as vitórias da fase, o bes
   assert.strictEqual(n2.vagas[0].contador, 9 + off.corridas); assert.strictEqual(n2.vitorias['fogo:2:normal'], off.vitorias); assert.strictEqual(n2.bestiario.vitorias['fogo:2'], off.vitorias);
   assert.strictEqual(n2.bau.xp.m1, off.xp); assert.deepStrictEqual(n2.bau.itens, off.itens);
   assert.strictEqual(A.creditar(afk, 3, r), null, 'vaga que não existe'); assert.strictEqual(A.creditar(afk, 1, r), null, 'vaga vazia');
+});
+
+section('operações das vagas (o que a tela chama)');
+function ctxDe(o) { return Object.assign({ uids: ['m1', 'm2', 'm3'], progresso: progCom({ fogo: 3, agua: 1 }), agoraMin: 6000 }, o || {}); }
+test('ocupar: põe o cavalo na vaga com o início em agora, sem medida, e mantém o contador; cada recusa com o motivo', function () {
+  var a0 = A.sanear({ vagas: [{ contador: 9 }, { contador: 4 }] }, ctxDe());
+  congela(a0);
+  var r = A.ocupar(a0, 1, 'm2', 'fogo:1:normal', ctxDe());
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.afk.vagas[1], { uid: 'm2', faseId: 'fogo:1:normal', inicioMin: 6000, contador: 4, medida: null, ultima: null });
+  assert.deepStrictEqual(r.afk.vagas[0], a0.vagas[0]);
+  // o mesmo cavalo em outra vaga: sai da antiga (um cavalo ocupa no máximo uma)
+  var r2 = A.ocupar(r.afk, 0, 'm2', 'agua:0:normal', ctxDe({ agoraMin: 6100 }));
+  assert.strictEqual(r2.ok, true); assert.strictEqual(r2.afk.vagas[0].uid, 'm2'); assert.strictEqual(r2.afk.vagas[1].uid, null); assert.strictEqual(r2.afk.vagas[1].contador, 4);
+  // trocar a fase na mesma vaga zera a medida e a última chance (a configuração mudou) e recomeça o relógio
+  var comMed = JSON.parse(JSON.stringify(r.afk)); comMed.vagas[1].ultima = { p: 0.5, duracaoS: 70 };
+  var r3 = A.ocupar(comMed, 1, 'm2', 'fogo:0:normal', ctxDe({ agoraMin: 6200 }));
+  assert.strictEqual(r3.afk.vagas[1].ultima, null); assert.strictEqual(r3.afk.vagas[1].inicioMin, 6200);
+  [[5, 'm1', 'fogo:0:normal', 'Essa vaga não existe.'], [0, 'm9', 'fogo:0:normal', 'Esse cavalo não está no estábulo.'], [0, 'm1', 'fogo:4:normal', 'Vença esse oponente no ginásio primeiro.'],
+    [0, 'm1', 'fogo:0:dificil', 'Faltam 50 vitórias na Normal para liberar a Difícil.'], [0, 'm1', 'lixo', 'Essa fase não existe.']].forEach(function (c) {
+    assert.deepStrictEqual(A.ocupar(a0, c[0], c[1], c[2], ctxDe()), { ok: false, motivo: c[3] }, c[3]);
+  });
+  var com20 = JSON.parse(JSON.stringify(a0)); com20.vitorias['fogo:0:normal'] = 20;
+  assert.strictEqual(A.ocupar(com20, 0, 'm1', 'fogo:0:dificil', ctxDe()).motivo, 'Faltam 30 vitórias na Normal para liberar a Difícil.');
+  com20.vitorias['fogo:0:normal'] = 50;
+  assert.strictEqual(A.ocupar(com20, 0, 'm1', 'fogo:0:dificil', ctxDe()).ok, true);
+  assert.strictEqual(A.ocupar(com20, 0, 'm1', 'fogo:0:lendaria', ctxDe()).motivo, 'Faltam 50 vitórias na Difícil para liberar a Lendária.');
+});
+test('esvaziar: a vaga fica vazia e o contador fica; comprarVaga acrescenta uma vaga vazia até o máximo', function () {
+  var a = A.ocupar(A.sanear(null, ctxDe()), 0, 'm1', 'fogo:0:normal', ctxDe()).afk;
+  a.vagas[0].contador = 31;
+  var e = A.esvaziar(congela(a), 0);
+  assert.deepStrictEqual(e.vagas[0], { uid: null, faseId: null, inicioMin: 0, contador: 31, medida: null, ultima: null });
+  assert.strictEqual(A.esvaziar(a, 4), null);
+  var b = a;
+  for (var k = 1; k < 5; k++) { b = A.comprarVaga(b); assert.strictEqual(b.vagas.length, k + 1); assert.deepStrictEqual(b.vagas[k], { uid: null, faseId: null, inicioMin: 0, contador: 0, medida: null, ultima: null }); }
+  assert.strictEqual(A.comprarVaga(b), null, 'máximo de 5');
+  assert.strictEqual(a.vagas.length, 1, 'sem mutar');
+});
+test('coletar com cavalo preso na sala aberta: o XP dele fica no baú, o resto sai', function () {
+  var bau = { ouro: 4, xp: { m1: 100, m2: 60, m9: 7 }, itens: { junco: 2 }, pedras: 1, pecas: [] };
+  var r = A.bauColetar(bau, {}, ['m1', 'm2'], ['m1']);
+  assert.deepStrictEqual(r.xpPorCavalo, { m2: 60 }); assert.strictEqual(r.xpDescartado, 7); assert.deepStrictEqual(r.xpRetido, { m1: 100 });
+  assert.deepStrictEqual(r.bau, { ouro: 0, xp: { m1: 100 }, itens: {}, pedras: 0, pecas: [] });
+  assert.deepStrictEqual(A.bauColetar(bau, {}, ['m1', 'm2']).xpRetido, {});
+});
+test('a última chance completa fica na vaga até a medida nova terminar; sanear a mantém e joga fora lixo', function () {
+  var ctx = ctxDe(), a = A.ocupar(A.sanear(null, ctx), 0, 'm1', 'fogo:0:normal', ctx).afk;
+  a.vagas[0].ultima = { p: 0.62, duracaoS: 77.3 };
+  assert.deepStrictEqual(A.sanear(a, ctx).vagas[0].ultima, { p: 0.62, duracaoS: 77.3 });
+  [{ p: 2, duracaoS: 70 }, { p: 0.5, duracaoS: 0 }, { p: 'x', duracaoS: 70 }, 'x', 7, { p: 0.5 }].forEach(function (u, i) {
+    a.vagas[0].ultima = u; assert.strictEqual(A.sanear(a, ctx).vagas[0].ultima, null, 'lixo ' + i);
+  });
+  // medir(vaga): avança a medida da vaga e, quando completa, grava a última chance
+  var h = cav('mare', 8); a.vagas[0].ultima = null;
+  var v1 = A.medirVaga(a.vagas[0], h, 200);
+  assert.strictEqual(v1.medida.feitos, 200); assert.strictEqual(v1.ultima, null);
+  var v2 = v1; while (!A.medidaPronta(v2.medida)) v2 = A.medirVaga(v2, h, 400);
+  assert.deepStrictEqual(v2.ultima, A.medida(v2.medida)); assert.strictEqual(A.medirVaga(v2, h, 400), v2, 'completa: a mesma vaga, sem trabalho');
+  // o cavalo subiu de nível: a medida recomeça, a última chance (do nível anterior) continua valendo até a nova terminar
+  var h2 = cav('mare', 9); h2.uid = h.uid;
+  var v3 = A.medirVaga(v2, h2, 100);
+  assert.strictEqual(v3.medida.feitos, 100); assert.deepStrictEqual(v3.ultima, v2.ultima);
+  assert.strictEqual(A.medirVaga({ uid: null, faseId: null }, h, 10).medida, undefined, 'vaga vazia não mede');
 });
 
 section('pureza');

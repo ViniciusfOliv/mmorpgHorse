@@ -382,6 +382,25 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .item-icone--cupom { background-image: var(--arte-item-cupom); }
 .item-icone--manual { background-image: var(--arte-item-manual); }
 .item-icone--pergaminho { background-image: var(--arte-item-pergaminho); }
+/* itens do AFK (tools/icones-afk.mjs); os 15 troféus usam a taça do ginásio deles */
+.item-icone--carvao { background-image: var(--arte-item-carvao); }
+.item-icone--ferro-bruto { background-image: var(--arte-item-ferro-bruto); }
+.item-icone--junco { background-image: var(--arte-item-junco); }
+.item-icone--concha { background-image: var(--arte-item-concha); }
+.item-icone--fibra { background-image: var(--arte-item-fibra); }
+.item-icone--resina { background-image: var(--arte-item-resina); }
+.item-icone--brasa-viva { background-image: var(--arte-item-brasa-viva); }
+.item-icone--perola-de-rio { background-image: var(--arte-item-perola-de-rio); }
+.item-icone--seiva-antiga { background-image: var(--arte-item-seiva-antiga); }
+.item-icone--feno { background-image: var(--arte-item-feno); }
+.item-icone--cenoura { background-image: var(--arte-item-cenoura); }
+.item-icone--maca { background-image: var(--arte-item-maca); }
+.item-icone--aveia-dourada { background-image: var(--arte-item-aveia-dourada); }
+.item-icone--pergaminho-reforja { background-image: var(--arte-item-pergaminho-reforja); }
+.item-icone--trofeu-fogo { background-image: var(--arte-item-trofeu-fogo); }
+.item-icone--trofeu-agua { background-image: var(--arte-item-trofeu-agua); }
+.item-icone--trofeu-grama { background-image: var(--arte-item-trofeu-grama); }
+.item-icone--bau { background-image: var(--arte-item-bau); }
 .item-nome { grid-column: 2; margin: 0; font-family: var(--fonte-ui); font-size: var(--t-m); line-height: 24px; overflow-wrap: anywhere; }
 .item-qtd { grid-column: 3; grid-row: 1; justify-self: end; font-weight: 700; line-height: 24px; white-space: nowrap; }
 .item-desc { grid-column: 2 / -1; margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }

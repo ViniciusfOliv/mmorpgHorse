@@ -8,9 +8,26 @@ Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada fr
   é o id que o `GameData.GYMS` e o progresso do save já usam.
 - **A vantagem de elemento do AFK é a do ginásio (`GYM.vantagem`, hoje 4%)**, e não um número próprio: a spec diz "nas
   regras do duelo de ginásio" e cita 3%, que era o valor antigo; a corrida AFK chama o mesmo `Ginasio.dueloCfg`.
-- **Amostra da chance medida: 1.600 duelos (a spec partia de 400).** Medido em 30 configurações contra 5.000 duelos: com
-  400, só 25 ficam a menos de 3 p.p. (a conta do desvio de uma proporção dá o mesmo: ±2,5 p.p. perto de 50%); com 1.200,
-  29; com 1.600, as 30. A meta E3 pede 95%. 1.600 duelos levam ~1 s num computador, feitos em fatias.
+- **Amostra da chance medida: 2.400 duelos (a spec partia de 400).** Com 400, só 25 de 30 configurações ficam a menos de
+  3 p.p. da referência de 5.000 (a conta do desvio de uma proporção dá o mesmo: ±2,5 p.p. perto de 50%); com 1.600, 43
+  de 45 no `balance.js` (95,6%, no limite da E3); com 2.400, 44 de 45. São ~1,5 s num computador, feitos em fatias.
+- **Ouro do AFK: a tabela de partida × 0,15** (0,3 · 0,45 · 0,6 · 0,75 · 1,2 por vitória, × dificuldade). Com a de
+  partida o cavalo típico de nível 50 tirava ~2.440 de Ouro por hora no líder da Lendária com o máximo de +Ouro (teto
+  da E1: 450); agora o teto absoluto medido é 367.
+- **E2 e E3, como foram medidas** (a spec não fixava): em `docs/exemplos.md` §5b. A segunda parte da E2 ("1 ou 2 degraus
+  abaixo em metade dos casos") deu 44% e fica como informação até a B2: os oponentes da Difícil e da Lendária ainda não
+  têm as peças que a E4 vai calibrar.
+- **Para o Vinicius (não mudei regra):** o XP do AFK por hora é de 2 a 15 vezes o do PVP com os números de partida;
+  os oponentes são fracos para um cavalo Raro; o prêmio quase não cresce com a etapa. Números em `docs/exemplos.md` §5b.
+- **A medição em fatias soma as durações em décimos de segundo inteiros** (a E5 achou a diferença entre fatias).
+- **Vaga vazia não tem início** (`inicioMin` 0): o save saneado é o mesmo em qualquer hora; o relógio da vaga começa
+  quando um cavalo entra.
+- **A vaga guarda a última chance completa** (`ultima`): o offline usa essa enquanto a medida nova (o cavalo mudou) não
+  termina, como a spec pede; trocar o cavalo ou a fase da vaga zera as duas.
+- **XP de cavalo preso na sala aberta fica no baú** ao coletar (o resto sai), pela regra da sala: nada sobe o Poder do
+  cavalo ativo acima do que a sala viu.
+- **Bônus de insígnia não entra no AFK** (nem o +3% de Ouro nem o +3% de XP): o AFK tem os bônus dele (peças e
+  bestiário).
 - **Peça solta (Comum ou Mágica) só cai na Normal**, Rara na Difícil (1%) e na Lendária (2%), Lendária só na Lendária
   (0,2%): a leitura literal da tabela do §5.4. Das soltas, 30% saem Mágicas (número de partida, `drops.peca.normal.magica`).
 - **"Drop raro" (bônus das peças e do bestiário) multiplica incomum, Pedra, peça e comida**, como na lista do §5.7; o

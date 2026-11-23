@@ -1356,7 +1356,7 @@ Os cavalos treinam sozinhos nas fases dos ginásios: cada corrida AFK é um duel
 
 **Vagas:** até 5; cada cavalo ocupa no máximo uma. Preço em Ouro: 1ª grátis · 2ª 1.000 · 3ª 3.000 · 4ª 8.000 · 5ª 20.000. O Ouro reservado para a entrada da sala aberta nunca é gasto.
 
-**Ganho por vitória:** XP para o cavalo que correu, 40 × (1 + 0,15 × etapa) × multiplicador (etapa 0 no Soldado 1, 4 no líder), e Ouro, 2 · 3 · 4 · 5 · 8 do Soldado 1 ao líder, × multiplicador. **Na derrota:** 30% do XP e 25% do material do ginásio (arredondado para baixo), sem Ouro e sem os outros drops.
+**Ganho por vitória:** XP para o cavalo que correu, 40 × (1 + 0,15 × etapa) × multiplicador (etapa 0 no Soldado 1, 4 no líder), e Ouro, 0,3 · 0,45 · 0,6 · 0,75 · 1,2 do Soldado 1 ao líder, × multiplicador (a fração vira Ouro inteiro pela seed: 0,3 é 1 de Ouro em 30% das vitórias). **Na derrota:** 30% do XP e 25% do material do ginásio (arredondado para baixo), sem Ouro e sem os outros drops.
 
 | Drop | Normal | Difícil | Lendária |
 | --- | ---: | ---: | ---: |

@@ -494,6 +494,7 @@
         trofeu: { magico: [6, 12], raro: [12, 20], lendario: [20, 30] },
         ouro: { magico: [2, 4], raro: [4, 6], lendario: [6, 10] }
       },
+      setFarm: 0.10,   // conjunto de 3 peças ou mais: os bônus de farm das linhas valem × (1 + setFarm) (só PVE)
       plusStep: 0.5,   // cada +N soma plusStep ao status principal (uma peça +10 soma +5)
       plusMax: 10,
       // Chance e custo (em pedras) de cada passo +0→+1 … +9→+10; falha derruba a partir de enhanceDropFrom.
@@ -662,12 +663,15 @@
     ],
     liberaApos: 50,
     vagaPreco: [0, 1000, 3000, 8000, 20000],
-    // amostra: 1.600 (a spec partia de 400; com 400 só 25 de 30 configurações ficavam a menos de 3 p.p. da referência,
-    // e a meta E3 pede 95%; 1.600 duelos levam ~1 s num computador, em fatias)
-    offlineMin: 480, offlineTetoMin: 720, amostra: 1600,
+    // amostra: 2.400 (a spec partia de 400; com 400 só 25 de 30 configurações ficavam a menos de 3 p.p. da referência, e
+    // a meta E3 pede 95%; com 1.600 a E3 passava no limite, 43 de 45; 2.400 duelos levam ~1,5 s num computador, em fatias)
+    offlineMin: 480, offlineTetoMin: 720, amostra: 2400,
     // Ganho por corrida (§5.3): xp = round(xpBase × (1 + xpPorEtapa × etapa) × mult); ouro = ouro[etapa] × mult
     // (etapa 0–4: Soldado 1 ao líder). Na derrota: a fração do XP e do material comum (para baixo), sem raros nem Ouro.
-    xpBase: 40, xpPorEtapa: 0.15, ouro: [2, 3, 4, 5, 8],
+    // ouro: a tabela da spec (2 · 3 · 4 · 5 · 8) × 0,15, calibrada pela meta E1 (o Ouro do AFK por hora abaixo de 25% do
+    // PVP mesmo com o máximo de +Ouro das peças); a fração vira Ouro inteiro pela seed (parte inteira e mais 1 com a
+    // chance da fração).
+    xpBase: 40, xpPorEtapa: 0.15, ouro: [0.3, 0.45, 0.6, 0.75, 1.2],
     derrota: { xp: 0.30, material: 0.25 },
     // Drops por vitória (§5.4). material: quantidade sorteada de min a max, × mult, metade de cada tipo do ginásio.
     // incomum, pedra, comida e reforja: chance na Normal, × mult (incomum com teto). peca: chance por dificuldade

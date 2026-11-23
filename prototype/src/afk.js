@@ -37,7 +37,7 @@
  *   (elemento, raridade, genética, nível, estrelas, pontos, torrões, skills, ranks, peças) ou a fase. medirPasso avança
  *   a medição em n duelos sem quadros: o duelo i (0, 1, …) usa a seed hash2(hash2(hashTexto(chave), SAL_MEDIDA), i) —
  *   própria da configuração, não do save — contra o oponente i do rodízio. estado = { chave, feitos, vitorias,
- *   somaDuracao }; completo com feitos === GameData.AFK.amostra. medida(estado) -> { p, duracaoS } | null (incompleta).
+ *   somaDuracao (em décimos de segundo, inteiro: a soma é a mesma em qualquer divisão em fatias) }; completo com feitos === GameData.AFK.amostra. medida(estado) -> { p, duracaoS } | null (incompleta).
  * OFFLINE: minutos = clamp(agoraMin − vaga.inicioMin, 0, limite); corridas = floor(minutos × 60 / duração média); a
  *   corrida k usa a mesma seedCorrida que a corrida ao vivo de contador vaga.contador + k usaria; vence se
  *   mulberry32(hash2(seedCorrida, 0x0FF1))() < p; o prêmio é o premio() de sempre. Sem medida completa: 0 corridas.
@@ -49,8 +49,8 @@
  *   (foi para o baú); obtido = já entrou na mochila ou no inventário. Bônus da conta, só no AFK (bestiarioBonus), com
  *   os tetos de GameData.AFK.bestiario. Página de um ginásio: os 5 oponentes, os 3 materiais, as 10 peças do conjunto
  *   (5 Raras e 5 Lendárias) e os 5 troféus; completa com tudo obtido e o último marco de vitórias em todos os oponentes.
- * ESTADO DO SAVE (sanear): { vagas: [{ uid, faseId, inicioMin, contador, medida }] (1 a 5; vaga vazia: uid e faseId
- *   null), bau, vitorias: { faseId: n }, bestiario, aveiaMin (minutos de Aveia para o próximo offline), xpCounter (a
+ * ESTADO DO SAVE (sanear): { vagas: [{ uid, faseId, inicioMin, contador, medida, ultima }] (1 a 5; vaga vazia: uid e
+ *   faseId null; ultima = { p, duracaoS } da última medida completa: o offline usa esta enquanto a nova não termina), bau, vitorias: { faseId: n }, bestiario, aveiaMin (minutos de Aveia para o próximo offline), xpCounter (a
  *   seed do aprendizado de skill ao subir de nível com XP do AFK) }. O contador de cada vaga nunca volta (não repete seed).
  * VAGAS: até GameData.AFK.vagaPreco.length (5); a de índice k custa vagaPreco[k] de Ouro livre (fora do reservado da
  *   sala aberta; quem chama passa o Ouro livre).
@@ -246,7 +246,7 @@
   function amostraDe(opts) { var o = objeto(opts) || {}; return inteiro(o.amostra) && o.amostra > 0 ? o.amostra : K.amostra; }
   function estadoOk(e, chave, total) {
     return objeto(e) && e.chave === chave && inteiro(e.feitos) && e.feitos >= 0 && e.feitos <= total && inteiro(e.vitorias) && e.vitorias >= 0 &&
-      e.vitorias <= e.feitos && typeof e.somaDuracao === 'number' && isFinite(e.somaDuracao) && e.somaDuracao >= 0;
+      e.vitorias <= e.feitos && inteiro(e.somaDuracao) && e.somaDuracao >= 0;
   }
   // opts (só para as ferramentas de balanço): { amostra: outro tamanho, sal: outra série de seeds }.
   function medirPasso(estado, cavalo, id, n, opts) {
@@ -261,16 +261,15 @@
       var res = S.simulate(GY.dueloCfg(cavalo, oponente(id, i), S.hash2(base, i), { pista: pista }));
       if (res.finishOrder[0] === 0) e.vitorias++;
       var t0 = res.finishTimes[0], t1 = res.finishTimes[1];
-      e.somaDuracao += Math.max(isFinite(t0) ? t0 : 0, isFinite(t1) ? t1 : 0);
+      e.somaDuracao += Math.round(Math.max(isFinite(t0) ? t0 : 0, isFinite(t1) ? t1 : 0) * 10);   // décimos inteiros: a soma não depende das fatias
     }
     e.feitos = ate;
-    e.somaDuracao = Math.round(e.somaDuracao * 10) / 10;
     return e;
   }
   function medidaPronta(estado, opts) { return !!objeto(estado) && typeof estado.chave === 'string' && estadoOk(estado, estado.chave, amostraDe(opts)) && estado.feitos === amostraDe(opts); }
   function medida(estado, opts) {
     if (!medidaPronta(estado, opts)) return null;
-    return { p: estado.vitorias / estado.feitos, duracaoS: Math.round(estado.somaDuracao / estado.feitos * 10) / 10 };
+    return { p: estado.vitorias / estado.feitos, duracaoS: Math.round(estado.somaDuracao / estado.feitos) / 10 };
   }
   function minutosOk(x) { return typeof x === 'number' && isFinite(x) && x > 0 ? x : 0; }
   function limiteOffline(aveiaMin, bestiarioMin) { return Math.min(K.offlineTetoMin, K.offlineMin + minutosOk(aveiaMin) + minutosOk(bestiarioMin)); }
@@ -332,19 +331,23 @@
     return out;
   }
   // mochila: { id: qtd } (a do save; só os itens do AFK mudam). uidsVivos: os uids dos cavalos que existem.
-  // -> { mochila (nova), entrou: { id: n }, perdidos: { id: n }, xpPorCavalo: { uid: n }, xpDescartado, ouro, pedras,
-  //      pecas, bau (o baú depois: vazio) }
-  function bauColetar(bau, mochila, uidsVivos) {
+  // uidsPresos: os cavalos que não podem receber XP agora (o ativo com a sala aberta): o XP deles fica no baú.
+  // -> { mochila (nova), entrou: { id: n }, perdidos: { id: n }, xpPorCavalo: { uid: n }, xpRetido: { uid: n },
+  //      xpDescartado, ouro, pedras, pecas, bau (o baú depois: vazio, ou só com o XP retido) }
+  function bauColetar(bau, mochila, uidsVivos, uidsPresos) {
     var b = bauSaneado(bau), m = {}, src = objeto(mochila) || {}, vivos = Array.isArray(uidsVivos) ? uidsVivos : [], k;
     for (k in src) if (temChave(src, k)) m[k] = src[k];
-    var out = { mochila: m, entrou: {}, perdidos: {}, xpPorCavalo: {}, xpDescartado: 0, ouro: b.ouro, pedras: b.pedras, pecas: b.pecas, bau: bauVazio() };
+    var presos = Array.isArray(uidsPresos) ? uidsPresos : [];
+    var out = { mochila: m, entrou: {}, perdidos: {}, xpPorCavalo: {}, xpRetido: {}, xpDescartado: 0, ouro: b.ouro, pedras: b.pedras, pecas: b.pecas, bau: bauVazio() };
     Object.keys(b.itens).forEach(function (id) {
       var tem = qtdOk(m[id], ITEM_MAX), cabe = Math.max(0, G.ITEMS[id].cap - tem), entra = Math.min(cabe, b.itens[id]);
       if (entra > 0) { m[id] = tem + entra; out.entrou[id] = entra; }
       if (b.itens[id] > entra) out.perdidos[id] = b.itens[id] - entra;
     });
     Object.keys(b.xp).forEach(function (uid) {
-      if (vivos.indexOf(uid) >= 0) out.xpPorCavalo[uid] = b.xp[uid]; else out.xpDescartado += b.xp[uid];
+      if (vivos.indexOf(uid) < 0) out.xpDescartado += b.xp[uid];
+      else if (presos.indexOf(uid) >= 0) { out.xpRetido[uid] = b.xp[uid]; out.bau.xp[uid] = b.xp[uid]; }
+      else out.xpPorCavalo[uid] = b.xp[uid];
     });
     return out;
   }
@@ -440,7 +443,7 @@
   // Estado do save
   // ---------------------------------------------------------------------------------------------
   // vaga vazia: sem início (0), para o save saneado ser o mesmo em qualquer hora; o início é posto quando um cavalo entra
-  function vagaVazia(contador) { return { uid: null, faseId: null, inicioMin: 0, contador: contador || 0, medida: null }; }
+  function vagaVazia(contador) { return { uid: null, faseId: null, inicioMin: 0, contador: contador || 0, medida: null, ultima: null }; }
   // ctx = { uids: [uid dos cavalos que existem], progresso (dos ginásios), agoraMin }
   function sanear(bruto, ctx) {
     var s = objeto(bruto) || {}, c = objeto(ctx) || {}, uids = Array.isArray(c.uids) ? c.uids : [];
@@ -460,13 +463,68 @@
       usados[b.uid] = true;
       var med = objeto(b.medida) && typeof b.medida.chave === 'string' && estadoOk(b.medida, b.medida.chave, K.amostra)
         ? { chave: b.medida.chave, feitos: b.medida.feitos, vitorias: b.medida.vitorias, somaDuracao: b.medida.somaDuracao } : null;
-      out.vagas.push({ uid: b.uid, faseId: b.faseId, inicioMin: inicio, contador: contador, medida: med });
+      out.vagas.push({ uid: b.uid, faseId: b.faseId, inicioMin: inicio, contador: contador, medida: med, ultima: ultimaOk(b.ultima) });
     });
     out.aveiaMin = Math.min(K.offlineTetoMin - K.offlineMin, qtdOk(s.aveiaMin, CONT_MAX));
     out.xpCounter = qtdOk(s.xpCounter, CONT_MAX);
     return out;
   }
+  // a última chance completa da vaga ({ p, duracaoS }): o offline usa esta enquanto uma medida nova não termina
+  function ultimaOk(u) {
+    return objeto(u) && typeof u.p === 'number' && u.p >= 0 && u.p <= 1 && typeof u.duracaoS === 'number' && isFinite(u.duracaoS) && u.duracaoS > 0
+      ? { p: u.p, duracaoS: u.duracaoS } : null;
+  }
   function copiaAfk(afk) { return JSON.parse(JSON.stringify(afk)); }
+  // Avança a medida da vaga em n duelos (o cavalo dela, como está agora). Completa: grava vaga.ultima. Vaga vazia, ou
+  // medida já completa para a configuração de agora: a mesma vaga (sem cópia). -> a vaga nova
+  function medirVaga(vaga, cavalo, n) {
+    if (!objeto(vaga) || !vaga.uid || !fase(vaga.faseId) || !objeto(cavalo)) return vaga;
+    if (medidaPronta(vaga.medida) && vaga.medida.chave === chaveConfig(cavalo, vaga.faseId)) return vaga;
+    var e = medirPasso(vaga.medida, cavalo, vaga.faseId, n);
+    if (!e) return vaga;
+    var out = { uid: vaga.uid, faseId: vaga.faseId, inicioMin: vaga.inicioMin, contador: vaga.contador, medida: e, ultima: ultimaOk(vaga.ultima) };
+    if (medidaPronta(e)) out.ultima = medida(e);
+    return out;
+  }
+  function plural(n, um, varios) { return n === 1 ? um : varios; }
+  // Põe o cavalo `uid` na vaga idx, na fase dada (ctx como no sanear). O relógio da vaga começa em ctx.agoraMin; a medida
+  // e a última chance zeram (a configuração é outra); o contador fica. O cavalo sai da vaga em que estava.
+  // -> { ok: true, afk } | { ok: false, motivo }
+  function ocupar(afk, idx, uid, id, ctx) {
+    var c = objeto(ctx) || {}, uids = Array.isArray(c.uids) ? c.uids : [];
+    if (!objeto(afk) || !Array.isArray(afk.vagas) || !inteiro(idx) || idx < 0 || idx >= afk.vagas.length) return { ok: false, motivo: 'Essa vaga não existe.' };
+    var f = fase(id);
+    if (!f) return { ok: false, motivo: 'Essa fase não existe.' };
+    if (typeof uid !== 'string' || uids.indexOf(uid) < 0) return { ok: false, motivo: 'Esse cavalo não está no estábulo.' };
+    if (!liberada(id, c.progresso, afk.vitorias)) {
+      var prog = GY.sanear(c.progresso, 0)[f.gymId];
+      if (f.etapa >= prog.etapa) return { ok: false, motivo: 'Vença esse oponente no ginásio primeiro.' };
+      for (var d = 1; d < K.difs.length; d++) {
+        var falta = K.liberaApos - vitoriasDe(afk.vitorias, f.gymId + ':' + f.etapa + ':' + K.difs[d - 1].id);
+        if (falta > 0) return { ok: false, motivo: plural(falta, 'Falta ', 'Faltam ') + falta + plural(falta, ' vitória na ', ' vitórias na ') + K.difs[d - 1].name + ' para liberar a ' + K.difs[d].name + '.' };
+        if (K.difs[d].id === f.dif) break;
+      }
+      return { ok: false, motivo: 'Essa fase ainda não está liberada.' };
+    }
+    var out = copiaAfk(afk);
+    out.vagas.forEach(function (v, i) { if (v.uid === uid) out.vagas[i] = vagaVazia(v.contador); });
+    out.vagas[idx] = { uid: uid, faseId: id, inicioMin: typeof c.agoraMin === 'number' && isFinite(c.agoraMin) ? c.agoraMin : 0, contador: afk.vagas[idx].contador, medida: null, ultima: null };
+    return { ok: true, afk: out };
+  }
+  // -> o afk com a vaga idx vazia (o contador fica) | null
+  function esvaziar(afk, idx) {
+    if (!objeto(afk) || !Array.isArray(afk.vagas) || !inteiro(idx) || idx < 0 || idx >= afk.vagas.length) return null;
+    var out = copiaAfk(afk);
+    out.vagas[idx] = vagaVazia(afk.vagas[idx].contador);
+    return out;
+  }
+  // -> o afk com mais uma vaga vazia | null (já no máximo). O Ouro é de quem chama (podeComprarVaga).
+  function comprarVaga(afk) {
+    if (!objeto(afk) || !Array.isArray(afk.vagas) || afk.vagas.length >= K.vagaPreco.length) return null;
+    var out = copiaAfk(afk);
+    out.vagas.push(vagaVazia(0));
+    return out;
+  }
   // O ganho de uma corrida (correr) ou de um período fora (offline) da vaga idx: baú, vitórias da fase, bestiário e o
   // contador da vaga. -> o afk novo | null (vaga inexistente ou vazia). Não muta.
   function creditar(afk, idx, ganho) {
@@ -525,6 +583,10 @@
     usarComida: usarComida,
     sanear: sanear,
     creditar: creditar,
+    medirVaga: medirVaga,
+    ocupar: ocupar,
+    esvaziar: esvaziar,
+    comprarVaga: comprarVaga,
     aposOffline: aposOffline,
     podeComprarVaga: podeComprarVaga
   };
