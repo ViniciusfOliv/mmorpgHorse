@@ -441,6 +441,196 @@ test('offline rende, em média, o mesmo que ao vivo com o mesmo p (o ganho esper
   assert.ok(Math.abs(offMat / offN - vivoMat / n) / (vivoMat / n) < 0.06, 'material por corrida: offline ' + (offMat / offN).toFixed(2) + ' × ao vivo ' + (vivoMat / n).toFixed(2));
 });
 
+section('baú, bestiário, comida e save');
+function ganho(o) { return Object.assign({ vitorias: 0, corridas: 0, xp: 0, ouro: 0, itens: {}, pedras: 0, pecas: [] }, o || {}); }
+function afkNovo() { return A.sanear(null, { uids: ['m1', 'm2'], progresso: progCom({ fogo: 5, agua: 2 }), agoraMin: 5000 }); }
+test('bauSomar junta Ouro, XP por cavalo, itens, Pedras e peças, sem mutar', function () {
+  var b0 = congela(A.bauVazio());
+  assert.deepStrictEqual(b0, { ouro: 0, xp: {}, itens: {}, pedras: 0, pecas: [] });
+  var b1 = A.bauSomar(b0, ganho({ xp: 40, ouro: 3, itens: { carvao: 2 }, pedras: 1, pecas: [{ id: 'sela-comum', linhas: [] }] }), 'm1');
+  var b2 = A.bauSomar(congela(b1), ganho({ xp: 12, ouro: 0, itens: { carvao: 1, feno: 1 } }), 'm2');
+  var b3 = A.bauSomar(b2, ganho({ xp: 8, ouro: 2 }), 'm1');
+  assert.deepStrictEqual(b3, { ouro: 5, xp: { m1: 48, m2: 12 }, itens: { carvao: 3, feno: 1 }, pedras: 1, pecas: [{ id: 'sela-comum', linhas: [] }] });
+  assert.deepStrictEqual(A.bauSomar(null, ganho({ xp: 5 }), 'm1'), { ouro: 0, xp: { m1: 5 }, itens: {}, pedras: 0, pecas: [] });
+  assert.strictEqual(A.bauVazioE(b0), true); assert.strictEqual(A.bauVazioE(b3), false);
+});
+test('coletar com material no teto: perdidos mostra o excedente e o resto entra (Foco 3)', function () {
+  var bau = congela({ ouro: 30, xp: { m1: 100 }, itens: { carvao: 10, 'ferro-bruto': 4, 'trofeu-fogo-0': 2, feno: 3 }, pedras: 2, pecas: [{ id: 'sela-sol-raro', linhas: [{ tipo: 'xp', valor: 7 }, { tipo: 'ouro', valor: 5 }] }] });
+  var moch = congela({ torrao: 3, carvao: 995, 'ferro-bruto': 999, 'trofeu-fogo-0': 98 });
+  var r = A.bauColetar(bau, moch, ['m1']);
+  assert.deepStrictEqual(r.perdidos, { carvao: 6, 'ferro-bruto': 4, 'trofeu-fogo-0': 1 });
+  assert.deepStrictEqual(r.mochila, { torrao: 3, carvao: 999, 'ferro-bruto': 999, 'trofeu-fogo-0': 99, feno: 3 });
+  assert.deepStrictEqual(r.entrou, { carvao: 4, 'trofeu-fogo-0': 1, feno: 3 });
+  assert.strictEqual(r.ouro, 30); assert.strictEqual(r.pedras, 2); assert.deepStrictEqual(r.xpPorCavalo, { m1: 100 }); assert.strictEqual(r.xpDescartado, 0);
+  assert.deepStrictEqual(r.pecas, bau.pecas); assert.deepStrictEqual(r.bau, A.bauVazio());
+  // sem nada no teto, nada se perde
+  assert.deepStrictEqual(A.bauColetar(bau, {}, ['m1']).perdidos, {});
+  // item fora do AFK no baú (save adulterado) não entra na mochila nem conta como perdido
+  var adul = A.bauColetar({ ouro: 0, xp: {}, itens: { torrao: 5, estrela: 1, xyz: 2 }, pedras: 0, pecas: [] }, { torrao: 1 }, []);
+  assert.deepStrictEqual(adul.mochila, { torrao: 1 }); assert.deepStrictEqual(adul.perdidos, {});
+});
+test('coletar com cavalo que sumiu: xpDescartado e os itens entram (Foco 4)', function () {
+  var bau = { ouro: 9, xp: { m1: 100, m7: 250, m8: 40 }, itens: { junco: 5 }, pedras: 0, pecas: [] };
+  var r = A.bauColetar(bau, {}, ['m1', 'm2']);
+  assert.deepStrictEqual(r.xpPorCavalo, { m1: 100 }); assert.strictEqual(r.xpDescartado, 290);
+  assert.deepStrictEqual(r.mochila, { junco: 5 }); assert.strictEqual(r.ouro, 9);
+});
+test('bestiarioRegistrar conta as vitórias por oponente e marca o que caiu como visto; bestiarioObter marca o que entrou', function () {
+  var b0 = congela(A.bestiarioVazio());
+  var b1 = A.bestiarioRegistrar(b0, ganho({ itens: { carvao: 2, 'trofeu-fogo-2': 1 }, pecas: [{ id: 'sela-sol-raro', linhas: [] }] }), 'fogo:2', true);
+  assert.deepStrictEqual(b1.vitorias, { 'fogo:2': 1 }); assert.deepStrictEqual(Object.keys(b1.vistos).sort(), ['carvao', 'sela-sol-raro', 'trofeu-fogo-2']); assert.deepStrictEqual(b1.obtidos, {});
+  var b2 = A.bestiarioRegistrar(b1, ganho({ itens: { carvao: 1 } }), 'fogo:2', false);
+  assert.deepStrictEqual(b2.vitorias, { 'fogo:2': 1 }, 'derrota não conta');
+  // offline: várias vitórias de uma vez
+  var b3 = A.bestiarioRegistrar(b2, ganho({ vitorias: 37, corridas: 60 }), 'fogo:2', true);
+  assert.strictEqual(b3.vitorias['fogo:2'], 38);
+  var b4 = A.bestiarioObter(b3, { carvao: 2 }, [{ id: 'sela-sol-raro', linhas: [] }]);
+  assert.deepStrictEqual(Object.keys(b4.obtidos).sort(), ['carvao', 'sela-sol-raro']); assert.ok(b4.vistos.carvao && b4.vistos['sela-sol-raro'], 'obtido também é visto');
+  assert.deepStrictEqual(A.bestiarioRegistrar(b0, ganho(), 'lixo:9', true), b0, 'oponente inválido não conta');
+});
+function bestCom(vit, obt) { var b = A.bestiarioVazio(); Object.keys(vit || {}).forEach(function (k) { b.vitorias[k] = vit[k]; }); (obt || []).forEach(function (id) { b.obtidos[id] = true; b.vistos[id] = true; }); return b; }
+function paginaIds(g) { return A.bestiarioPagina(A.bestiarioVazio(), g).itens.map(function (x) { return x.id; }); }
+test('bônus do bestiário: +1% de drop raro por oponente com 100 vitórias, +2% de XP por oponente com 1.000, +2% de troféu por troféu', function () {
+  assert.deepStrictEqual(A.bestiarioBonus(A.bestiarioVazio()), { raro: 0, xp: 0, trofeu: 0, offlineMin: 0 });
+  var b = bestCom({ 'fogo:0': 100, 'fogo:1': 99, 'agua:4': 1000, 'grama:2': 5000 }, ['trofeu-fogo-0', 'trofeu-agua-3', 'carvao']);
+  var bo = A.bestiarioBonus(b);
+  assert.ok(Math.abs(bo.raro - 0.03) < 1e-9, 'três com 100 ou mais: ' + bo.raro); assert.ok(Math.abs(bo.xp - 0.04) < 1e-9, 'dois com 1.000: ' + bo.xp);
+  assert.ok(Math.abs(bo.trofeu - 0.04) < 1e-9, 'dois troféus: ' + bo.trofeu); assert.strictEqual(bo.offlineMin, 0);
+});
+test('bônus do bestiário respeita os tetos (15%, 30%, 30%, 180 min)', function () {
+  var vit = {}, obt = [];
+  G.GYM_ORDER.forEach(function (g) { for (var e = 0; e < 5; e++) vit[g + ':' + e] = 99999; obt = obt.concat(paginaIds(g)); });
+  var bo = A.bestiarioBonus(bestCom(vit, obt));
+  assert.ok(Math.abs(bo.raro - 0.15) < 1e-9); assert.ok(Math.abs(bo.xp - 0.30) < 1e-9); assert.ok(Math.abs(bo.trofeu - 0.30) < 1e-9); assert.strictEqual(bo.offlineMin, 180);
+  // números de partida maiores não furam o teto
+  var K = G.AFK.bestiario, guarda = [K.raro.por, K.xp.por, K.trofeu.por, K.pagina.min];
+  try { K.raro.por = 0.5; K.xp.por = 0.5; K.trofeu.por = 0.5; K.pagina.min = 500;
+    assert.deepStrictEqual(A.bestiarioBonus(bestCom(vit, obt)), { raro: 0.15, xp: 0.30, trofeu: 0.30, offlineMin: 180 });
+  } finally { K.raro.por = guarda[0]; K.xp.por = guarda[1]; K.trofeu.por = guarda[2]; K.pagina.min = guarda[3]; }
+});
+test('página completa dá +60 min: os 5 oponentes com 1.000 vitórias e tudo obtido (3 materiais, 10 peças do conjunto, 5 troféus)', function () {
+  var ids = paginaIds('agua');
+  assert.strictEqual(ids.length, 18);
+  assert.deepStrictEqual(ids.slice(0, 3), ['junco', 'concha', 'perola-de-rio']);
+  assert.strictEqual(ids.filter(function (id) { return G.GEAR[id] && G.GEAR[id].set === 'chuva'; }).length, 10);
+  assert.strictEqual(ids.filter(function (id) { return /^trofeu-agua-/.test(id); }).length, 5);
+  var vit = {}; for (var e = 0; e < 5; e++) vit['agua:' + e] = 1000;
+  var cheia = bestCom(vit, ids), pg = A.bestiarioPagina(cheia, 'agua');
+  assert.strictEqual(pg.completa, true); assert.strictEqual(A.bestiarioBonus(cheia).offlineMin, 60);
+  assert.deepStrictEqual(pg.oponentes.map(function (o) { return o.marcos; }), [[true, true, true], [true, true, true], [true, true, true], [true, true, true], [true, true, true]]);
+  assert.strictEqual(pg.oponentes[4].nome, 'Mestre Aguaceiro'); assert.strictEqual(pg.oponentes[2].id, 'agua:2');
+  // falta um troféu, ou um oponente com 999: não completa
+  assert.strictEqual(A.bestiarioBonus(bestCom(vit, ids.slice(0, 17))).offlineMin, 0);
+  var quase = JSON.parse(JSON.stringify(vit)); quase['agua:3'] = 999;
+  assert.strictEqual(A.bestiarioPagina(bestCom(quase, ids), 'agua').completa, false);
+  assert.deepStrictEqual(A.bestiarioPagina(bestCom({ 'agua:1': 150 }, ['junco']), 'agua').oponentes[1].marcos, [true, true, false]);
+  var pv = A.bestiarioPagina(bestCom({}, ['junco']), 'agua').itens[0];
+  assert.deepStrictEqual(pv, { id: 'junco', tipo: 'item', visto: true, obtido: true });
+  assert.strictEqual(A.bestiarioPagina(A.bestiarioVazio(), 'lava'), null);
+});
+test('comida: Feno, Cenoura e Maçã dão XP ao cavalo escolhido; a Aveia soma 60 min só ao próximo offline e zera depois', function () {
+  var afk = afkNovo(), h = cav('mare', 5);
+  assert.deepStrictEqual(A.usarComida('feno', h, afk), { ok: true, xp: 200 });
+  assert.deepStrictEqual(A.usarComida('cenoura', h, afk), { ok: true, xp: 500 });
+  assert.deepStrictEqual(A.usarComida('maca', h, afk), { ok: true, xp: 1200 });
+  assert.deepStrictEqual(A.usarComida('feno', null, afk), { ok: false, motivo: 'Escolha um cavalo.' });
+  var topo = cav('mare', G.ECONOMY.maxLevel);
+  assert.strictEqual(A.usarComida('feno', topo, afk).ok, false, 'no nível máximo a comida não é gasta');
+  assert.strictEqual(afk.aveiaMin, 0);
+  var a1 = A.usarComida('aveia-dourada', null, afk);
+  assert.deepStrictEqual(a1, { ok: true, aveiaMin: 60 });
+  afk.aveiaMin = a1.aveiaMin;
+  assert.strictEqual(A.limiteOffline(afk.aveiaMin, 0), 540);
+  // dentro do teto de 720 min: com 240 min de Aveia (ou 180 do bestiário + 60), outra não entra
+  afk.aveiaMin = 240;
+  assert.deepStrictEqual(A.usarComida('aveia-dourada', null, afk), { ok: false, motivo: 'O próximo período fora já está no limite de 12 horas.' });
+  afk.aveiaMin = 60;
+  assert.strictEqual(A.usarComida('aveia-dourada', null, afk, 180).ok, false, 'com +3 h do bestiário e 1 h de Aveia, já são 12 h');
+  assert.strictEqual(A.usarComida('aveia-dourada', null, afk, 120).aveiaMin, 120);
+  // zera quando o offline é contado
+  assert.strictEqual(A.aposOffline(afk).aveiaMin, 0); assert.strictEqual(afk.aveiaMin, 60, 'sem mutar');
+  ['torrao', 'carvao', 'trofeu-fogo-0', 'pergaminho-reforja', 'xyz', null].forEach(function (id) { assert.strictEqual(A.usarComida(id, h, afk).ok, false, String(id)); });
+});
+test('save antigo migra com afk vazio e a 1ª vaga liberada', function () {
+  var a = A.sanear(undefined, { uids: ['m1'], progresso: progCom({}), agoraMin: 777 });
+  assert.deepStrictEqual(a, { vagas: [{ uid: null, faseId: null, inicioMin: 0, contador: 0, medida: null }], bau: A.bauVazio(), vitorias: {}, bestiario: A.bestiarioVazio(), aveiaMin: 0, xpCounter: 0 });
+  assert.deepStrictEqual(A.sanear('lixo', { uids: [], progresso: null, agoraMin: 777 }), a);
+  assert.deepStrictEqual(A.sanear(a, { uids: ['m1'], progresso: progCom({}), agoraMin: 900 }), a, 'saneado de novo: igual (o início guardado fica)');
+});
+test('save com vaga de uid inexistente fica com a vaga vazia; fase ou dificuldade não liberada também; o contador fica', function () {
+  var ctx = { uids: ['m1', 'm2'], progresso: progCom({ fogo: 2 }), agoraMin: 5000 };
+  var med = A.medirPasso(null, cav('mare', 9), 'fogo:1:normal', 20);
+  var bruto = { vagas: [
+    { uid: 'm1', faseId: 'fogo:1:normal', inicioMin: 4000, contador: 12, medida: med },
+    { uid: 'm9', faseId: 'fogo:0:normal', inicioMin: 4100, contador: 7, medida: null },          // cavalo que não existe
+    { uid: 'm2', faseId: 'fogo:3:normal', inicioMin: 4200, contador: 3, medida: null },          // etapa não vencida no ginásio
+    { uid: 'm2', faseId: 'fogo:0:dificil', inicioMin: 4300, contador: 5, medida: null },         // Difícil sem as 50 vitórias
+    { uid: 'm1', faseId: 'fogo:0:normal', inicioMin: 4400, contador: 2, medida: null },          // cavalo repetido (já está na vaga 1)
+    { uid: 'm2', faseId: 'fogo:0:normal', inicioMin: 1, contador: 1, medida: null }              // 6ª vaga: não existe
+  ], vitorias: { 'fogo:0:normal': 49 } };
+  var a = A.sanear(bruto, ctx);
+  assert.strictEqual(a.vagas.length, 5);
+  assert.deepStrictEqual(a.vagas[0], { uid: 'm1', faseId: 'fogo:1:normal', inicioMin: 4000, contador: 12, medida: med });
+  [1, 2, 3, 4].forEach(function (i) { assert.strictEqual(a.vagas[i].uid, null, 'vaga ' + i); assert.strictEqual(a.vagas[i].faseId, null); assert.strictEqual(a.vagas[i].medida, null); assert.strictEqual(a.vagas[i].inicioMin, 0, 'vaga vazia não tem início'); });
+  assert.deepStrictEqual(a.vagas.map(function (v) { return v.contador; }), [12, 7, 3, 5, 2], 'o contador de cada vaga nunca volta');
+  // com as 50 vitórias, a Difícil vale
+  bruto.vitorias['fogo:0:normal'] = 50;
+  assert.strictEqual(A.sanear(bruto, ctx).vagas[3].faseId, 'fogo:0:dificil');
+});
+test('sanear: números fora da faixa, medida de outra configuração, baú e bestiário com lixo', function () {
+  var ctx = { uids: ['m1'], progresso: progCom({ fogo: 5 }), agoraMin: 5000 };
+  var a = A.sanear({
+    vagas: [{ uid: 'm1', faseId: 'fogo:0:normal', inicioMin: 'ontem', contador: -4, medida: { chave: 5, feitos: 3 } }, null, 'x'],
+    bau: { ouro: -5, xp: { m1: 10.5, m2: 'x', m3: 40, '': 3 }, itens: { carvao: 3, torrao: 9, feno: -1, junco: 2.5, xyz: 1, concha: 2e9 }, pedras: 'muitas',
+      pecas: [{ id: 'sela-comum', linhas: [] }, { id: 'sela-magico', linhas: [] }, { id: 'nada', linhas: [] }, { id: 'sela-sol-raro', linhas: [{ tipo: 'xp', valor: 7 }, { tipo: 'xp', valor: 8 }] },
+        { id: 'sela-sol-raro', linhas: [{ tipo: 'xp', valor: 7 }, { tipo: 'ouro', valor: 5 }] }, null] },
+    vitorias: { 'fogo:0:normal': 12, 'fogo:1:normal': -3, 'lixo': 9, 'fogo:2:normal': 1.5, 'agua:0:normal': 4 },
+    bestiario: { vitorias: { 'fogo:1': 30, 'lava:0': 5, 'fogo:9': 2, 'fogo:2': -1 }, vistos: { carvao: true, torrao: true, 'sela-sol-raro': 1, xyz: true }, obtidos: { carvao: true, junco: 'sim', estrela: true } },
+    aveiaMin: 9999, xpCounter: -2
+  }, ctx);
+  assert.strictEqual(a.vagas.length, 3);
+  assert.deepStrictEqual(a.vagas[0], { uid: 'm1', faseId: 'fogo:0:normal', inicioMin: 5000, contador: 0, medida: null });
+  assert.deepStrictEqual(a.vagas[1], { uid: null, faseId: null, inicioMin: 0, contador: 0, medida: null });
+  assert.deepStrictEqual(a.bau, { ouro: 0, xp: { m3: 40 }, itens: { carvao: 3, concha: 1000000 }, pedras: 0,
+    pecas: [{ id: 'sela-comum', linhas: [] }, { id: 'sela-sol-raro', linhas: [{ tipo: 'xp', valor: 7 }, { tipo: 'ouro', valor: 5 }] }] });
+  assert.deepStrictEqual(a.vitorias, { 'fogo:0:normal': 12, 'agua:0:normal': 4 });
+  assert.deepStrictEqual(a.bestiario, { vitorias: { 'fogo:1': 30 }, vistos: { carvao: true, 'sela-sol-raro': true }, obtidos: { carvao: true } });
+  assert.strictEqual(a.aveiaMin, G.AFK.offlineTetoMin - G.AFK.offlineMin); assert.strictEqual(a.xpCounter, 0);
+  // início no futuro (relógio voltado para trás) fica como está: não rende até o relógio passar dele
+  assert.strictEqual(A.sanear({ vagas: [{ uid: 'm1', faseId: 'fogo:0:normal', inicioMin: 9000, contador: 1, medida: null }] }, ctx).vagas[0].inicioMin, 9000);
+});
+test('peça antiga (sem linhas) ganha as linhas pela seed do save e pelo uid: as mesmas em duas cargas; linhas válidas ficam; lixo é sorteado de novo', function () {
+  var it = congela({ uid: 'i7', id: 'sela-sol-raro', plus: 4 });
+  var a = GR.linhasDaPeca(it, 4242), b = GR.linhasDaPeca(it, 4242);
+  assert.deepStrictEqual(a, b); assert.strictEqual(a.length, 2); assert.ok(GR.linhasValidas(it.id, a));
+  assert.deepStrictEqual(a, GR.sortearLinhas('raro', S.mulberry32(S.hash2(4242, 0x20000000 + 7))));
+  var dif = 0; for (var k = 1; k <= 20; k++) if (JSON.stringify(GR.linhasDaPeca({ uid: 'i' + k, id: 'sela-sol-raro' }, 4242)) !== JSON.stringify(a)) dif++;
+  assert.ok(dif >= 15, 'cada peça tem as suas linhas');
+  assert.notDeepStrictEqual(GR.linhasDaPeca(it, 4243), a, 'outro save, outras linhas');
+  var boas = [{ tipo: 'trofeu', valor: 15 }, { tipo: 'raro', valor: 6 }];
+  assert.deepStrictEqual(GR.linhasDaPeca({ uid: 'i7', id: 'sela-sol-raro', linhas: boas }, 4242), boas);
+  [[{ tipo: 'trofeu', valor: 15 }], [{ tipo: 'trofeu', valor: 99 }, { tipo: 'raro', valor: 6 }], [{ tipo: 'raro', valor: 6 }, { tipo: 'raro', valor: 7 }], [{ tipo: 'vel', valor: 6 }, { tipo: 'raro', valor: 7 }],
+    [{ tipo: 'trofeu', valor: 15.5 }, { tipo: 'raro', valor: 6 }], 'x', null].forEach(function (ruim, i) {
+    assert.deepStrictEqual(GR.linhasDaPeca({ uid: 'i7', id: 'sela-sol-raro', linhas: ruim }, 4242), a, 'lixo ' + i);
+  });
+  assert.deepStrictEqual(GR.linhasDaPeca({ uid: 'i3', id: 'sela-comum' }, 4242), []); assert.strictEqual(GR.linhasDaPeca({ uid: 'i3', id: 'sela-magico' }, 4242).length, 1);
+  assert.strictEqual(GR.linhasDaPeca({ uid: 'i3', id: 'sela-sol-lendario' }, 4242).length, 3); assert.deepStrictEqual(GR.linhasDaPeca({ uid: 'i3', id: 'nada' }, 4242), []);
+  assert.deepStrictEqual(GR.linhasDaPeca(null, 1), []);
+});
+test('creditar: o ganho de uma vaga vai para o baú, as vitórias da fase, o bestiário e o contador, sem mutar', function () {
+  var afk = afkNovo(); afk.vagas[0] = { uid: 'm1', faseId: 'fogo:2:normal', inicioMin: 5000, contador: 9, medida: null };
+  congela(afk);
+  var r = A.correr(cav('mare', 14), 'fogo:2:normal', 88, 9, BONUS0, { vaga: 0 });
+  var n = A.creditar(afk, 0, r);
+  assert.strictEqual(n.vagas[0].contador, 10); assert.strictEqual(n.bau.xp.m1, r.xp); assert.strictEqual(n.bau.ouro, r.ouro);
+  assert.strictEqual(n.vitorias['fogo:2:normal'] || 0, r.venceu ? 1 : 0); assert.strictEqual(n.bestiario.vitorias['fogo:2'] || 0, r.venceu ? 1 : 0);
+  // offline: avança corridas, soma as vitórias
+  var off = A.offline(afk.vagas[0], 5000 + 240, { p: 0.6, duracaoS: 75 }, 88, BONUS0, 480, 0), n2 = A.creditar(afk, 0, off);
+  assert.strictEqual(n2.vagas[0].contador, 9 + off.corridas); assert.strictEqual(n2.vitorias['fogo:2:normal'], off.vitorias); assert.strictEqual(n2.bestiario.vitorias['fogo:2'], off.vitorias);
+  assert.strictEqual(n2.bau.xp.m1, off.xp); assert.deepStrictEqual(n2.bau.itens, off.itens);
+  assert.strictEqual(A.creditar(afk, 3, r), null, 'vaga que não existe'); assert.strictEqual(A.creditar(afk, 1, r), null, 'vaga vazia');
+});
+
 section('pureza');
 test('afk.js é puro: sem Math.random, relógio, tela nem estado global; carrega no navegador e no build', function () {
   var fonte = fs.readFileSync(path.join(__dirname, '../src/afk.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');

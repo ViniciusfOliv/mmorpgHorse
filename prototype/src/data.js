@@ -682,6 +682,15 @@
       reforja: { chance: 0.015 },
       trofeu: { normal: 0.005, dificil: 0.01, lendaria: 0.02 }
     },
+    // Bestiário (§5.8): bônus da conta, só no AFK. marcos: vitórias AFK por oponente; raro e xp: `por` a cada oponente com
+    // `vitorias` vitórias; trofeu: `por` a cada troféu obtido; pagina: minutos de limite offline por página completa.
+    bestiario: {
+      marcos: [10, 100, 1000],
+      raro: { por: 0.01, teto: 0.15, vitorias: 100 },
+      xp: { por: 0.02, teto: 0.30, vitorias: 1000 },
+      trofeu: { por: 0.02, teto: 0.30 },
+      pagina: { min: 60, tetoMin: 180 }
+    },
     // O que só cai em cada ginásio: os dois materiais comuns, o incomum e o conjunto das peças Raras e Lendárias.
     materiais: {
       fogo: { comuns: ['carvao', 'ferro-bruto'], incomum: 'brasa-viva', conjunto: 'sol' },

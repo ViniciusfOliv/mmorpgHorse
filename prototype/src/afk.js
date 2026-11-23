@@ -42,6 +42,16 @@
  *   corrida k usa a mesma seedCorrida que a corrida ao vivo de contador vaga.contador + k usaria; vence se
  *   mulberry32(hash2(seedCorrida, 0x0FF1))() < p; o prêmio é o premio() de sempre. Sem medida completa: 0 corridas.
  *   limiteOffline(aveiaMin, bestiarioMin) = min(offlineTetoMin, offlineMin + aveia + bestiário).
+ * BAÚ: { ouro, xp: { uid: n }, itens: { id: n }, pedras, pecas: [{ id, linhas }] }. Tudo o que as vagas rendem cai nele
+ *   (bauSomar); bauColetar passa tudo de uma vez: os itens até o teto de cada um (GameData.ITEMS[id].cap; o que passa
+ *   vira `perdidos`), o XP por cavalo (o de cavalo que não existe mais vira `xpDescartado`), o Ouro, as Pedras e as peças.
+ * BESTIÁRIO: { vitorias: { '<ginásio>:<etapa>': n }, vistos: { id: true }, obtidos: { id: true } }. Visto = já caiu
+ *   (foi para o baú); obtido = já entrou na mochila ou no inventário. Bônus da conta, só no AFK (bestiarioBonus), com
+ *   os tetos de GameData.AFK.bestiario. Página de um ginásio: os 5 oponentes, os 3 materiais, as 10 peças do conjunto
+ *   (5 Raras e 5 Lendárias) e os 5 troféus; completa com tudo obtido e o último marco de vitórias em todos os oponentes.
+ * ESTADO DO SAVE (sanear): { vagas: [{ uid, faseId, inicioMin, contador, medida }] (1 a 5; vaga vazia: uid e faseId
+ *   null), bau, vitorias: { faseId: n }, bestiario, aveiaMin (minutos de Aveia para o próximo offline), xpCounter (a
+ *   seed do aprendizado de skill ao subir de nível com XP do AFK) }. O contador de cada vaga nunca volta (não repete seed).
  * VAGAS: até GameData.AFK.vagaPreco.length (5); a de índice k custa vagaPreco[k] de Ouro livre (fora do reservado da
  *   sala aberta; quem chama passa o Ouro livre).
  */
@@ -289,6 +299,191 @@
   }
 
   // ---------------------------------------------------------------------------------------------
+  // Baú
+  // ---------------------------------------------------------------------------------------------
+  var ITEM_MAX = 1000000, PECAS_MAX = 500, CONT_MAX = 1e9;
+  function itemAfk(id) { return typeof id === 'string' && temChave(G.ITEMS, id) && !!G.ITEMS[id].grupo; }
+  function qtdOk(x, max) { return inteiro(x) && x > 0 ? Math.min(x, max) : 0; }
+  function bauVazio() { return { ouro: 0, xp: {}, itens: {}, pedras: 0, pecas: [] }; }
+  function bauSaneado(bruto) {
+    var b = objeto(bruto) || {}, out = bauVazio(), k;
+    out.ouro = qtdOk(b.ouro, CONT_MAX); out.pedras = qtdOk(b.pedras, ITEM_MAX);
+    var xp = objeto(b.xp) || {}, it = objeto(b.itens) || {};
+    for (k in xp) if (temChave(xp, k) && k && qtdOk(xp[k], CONT_MAX)) out.xp[k] = qtdOk(xp[k], CONT_MAX);
+    for (k in it) if (temChave(it, k) && itemAfk(k) && qtdOk(it[k], ITEM_MAX)) out.itens[k] = qtdOk(it[k], ITEM_MAX);
+    (Array.isArray(b.pecas) ? b.pecas : []).forEach(function (p) {
+      var ls = objeto(p) ? GR.linhasValidas(p.id, p.linhas) : null;
+      if (ls && out.pecas.length < PECAS_MAX) out.pecas.push({ id: p.id, linhas: ls });
+    });
+    return out;
+  }
+  function bauVazioE(bau) {
+    var b = bauSaneado(bau);
+    return !b.ouro && !b.pedras && !b.pecas.length && !Object.keys(b.xp).length && !Object.keys(b.itens).length;
+  }
+  // ganho: o que o correr, o premio ou o offline devolvem ({ xp, ouro, itens, pedras, pecas }); o XP vai para cavaloUid.
+  function bauSomar(bau, ganho, cavaloUid) {
+    var out = bauSaneado(bau), g = bauSaneado({ ouro: ganho && ganho.ouro, itens: ganho && ganho.itens, pedras: ganho && ganho.pedras, pecas: ganho && ganho.pecas }), k;
+    out.ouro = Math.min(CONT_MAX, out.ouro + g.ouro); out.pedras = Math.min(ITEM_MAX, out.pedras + g.pedras);
+    for (k in g.itens) if (temChave(g.itens, k)) out.itens[k] = Math.min(ITEM_MAX, (out.itens[k] || 0) + g.itens[k]);
+    g.pecas.forEach(function (p) { if (out.pecas.length < PECAS_MAX) out.pecas.push(p); });
+    var xp = qtdOk(ganho && ganho.xp, CONT_MAX);
+    if (xp && typeof cavaloUid === 'string' && cavaloUid) out.xp[cavaloUid] = Math.min(CONT_MAX, (out.xp[cavaloUid] || 0) + xp);
+    return out;
+  }
+  // mochila: { id: qtd } (a do save; só os itens do AFK mudam). uidsVivos: os uids dos cavalos que existem.
+  // -> { mochila (nova), entrou: { id: n }, perdidos: { id: n }, xpPorCavalo: { uid: n }, xpDescartado, ouro, pedras,
+  //      pecas, bau (o baú depois: vazio) }
+  function bauColetar(bau, mochila, uidsVivos) {
+    var b = bauSaneado(bau), m = {}, src = objeto(mochila) || {}, vivos = Array.isArray(uidsVivos) ? uidsVivos : [], k;
+    for (k in src) if (temChave(src, k)) m[k] = src[k];
+    var out = { mochila: m, entrou: {}, perdidos: {}, xpPorCavalo: {}, xpDescartado: 0, ouro: b.ouro, pedras: b.pedras, pecas: b.pecas, bau: bauVazio() };
+    Object.keys(b.itens).forEach(function (id) {
+      var tem = qtdOk(m[id], ITEM_MAX), cabe = Math.max(0, G.ITEMS[id].cap - tem), entra = Math.min(cabe, b.itens[id]);
+      if (entra > 0) { m[id] = tem + entra; out.entrou[id] = entra; }
+      if (b.itens[id] > entra) out.perdidos[id] = b.itens[id] - entra;
+    });
+    Object.keys(b.xp).forEach(function (uid) {
+      if (vivos.indexOf(uid) >= 0) out.xpPorCavalo[uid] = b.xp[uid]; else out.xpDescartado += b.xp[uid];
+    });
+    return out;
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Bestiário
+  // ---------------------------------------------------------------------------------------------
+  function oponenteIdOk(id) {
+    if (typeof id !== 'string') return false;
+    var p = id.split(':');
+    return p.length === 2 && /^[0-9]$/.test(p[1]) && faseId(p[0], Number(p[1]), K.difs[0].id) !== null;
+  }
+  function coisaOk(id) { return itemAfk(id) || (typeof id === 'string' && temChave(G.GEAR, id)); }
+  function bestiarioVazio() { return { vitorias: {}, vistos: {}, obtidos: {} }; }
+  function bestiarioSaneado(bruto) {
+    var b = objeto(bruto) || {}, out = bestiarioVazio(), v = objeto(b.vitorias) || {}, k;
+    for (k in v) if (temChave(v, k) && oponenteIdOk(k) && qtdOk(v[k], CONT_MAX)) out.vitorias[k] = qtdOk(v[k], CONT_MAX);
+    ['vistos', 'obtidos'].forEach(function (c) {
+      var o = objeto(b[c]) || {};
+      for (var id in o) if (temChave(o, id) && coisaOk(id) && (o[id] === true || (c === 'vistos' && o[id] === 1))) out[c][id] = true;
+    });
+    Object.keys(out.obtidos).forEach(function (id) { out.vistos[id] = true; });
+    return out;
+  }
+  // oponenteId = '<ginásio>:<etapa>'. venceu: houve vitória; conta 1, ou ganho.vitorias quando vier (a soma do offline).
+  function bestiarioRegistrar(best, ganho, oponenteId, venceu) {
+    var out = bestiarioSaneado(best);
+    if (!oponenteIdOk(oponenteId)) return out;
+    var g = objeto(ganho) || {}, n = venceu !== true ? 0 : (inteiro(g.vitorias) && g.vitorias > 0 ? g.vitorias : 1);
+    if (n > 0) out.vitorias[oponenteId] = Math.min(CONT_MAX, (out.vitorias[oponenteId] || 0) + n);
+    Object.keys(objeto(g.itens) || {}).forEach(function (id) { if (itemAfk(id) && g.itens[id] > 0) out.vistos[id] = true; });
+    (Array.isArray(g.pecas) ? g.pecas : []).forEach(function (p) { if (objeto(p) && coisaOk(p.id)) out.vistos[p.id] = true; });
+    return out;
+  }
+  // itens: { id: n } que entraram na mochila; pecas: [{ id }] que entraram no inventário (da coleta ou da forja).
+  function bestiarioObter(best, itens, pecas) {
+    var out = bestiarioSaneado(best), it = objeto(itens) || {};
+    Object.keys(it).forEach(function (id) { if (itemAfk(id) && it[id] > 0) { out.obtidos[id] = true; out.vistos[id] = true; } });
+    (Array.isArray(pecas) ? pecas : []).forEach(function (p) { if (objeto(p) && typeof p.id === 'string' && temChave(G.GEAR, p.id)) { out.obtidos[p.id] = true; out.vistos[p.id] = true; } });
+    return out;
+  }
+  // -> { gymId, oponentes: [{ id, etapa, nome, vitorias, marcos: [bool…] }], itens: [{ id, tipo: 'item' | 'peca', visto,
+  //      obtido }], completa } | null
+  function bestiarioPagina(best, gymId) {
+    if (typeof gymId !== 'string' || !temChave(G.GYMS, gymId)) return null;
+    var b = bestiarioSaneado(best), B = K.bestiario, M = K.materiais[gymId], gym = G.GYMS[gymId];
+    var ops = gym.etapas.map(function (et, e) {
+      var v = b.vitorias[gymId + ':' + e] || 0;
+      return { id: gymId + ':' + e, etapa: e, nome: et.nome, vitorias: v, marcos: B.marcos.map(function (m) { return v >= m; }) };
+    });
+    var ids = M.comuns.concat([M.incomum]).map(function (id) { return [id, 'item']; });
+    ['raro', 'lendario'].forEach(function (r) { G.GEAR_SLOTS.forEach(function (s) { ids.push([s + '-' + M.conjunto + '-' + r, 'peca']); }); });
+    gym.etapas.forEach(function (et, e) { ids.push(['trofeu-' + gymId + '-' + e, 'item']); });
+    var itens = ids.map(function (x) { return { id: x[0], tipo: x[1], visto: !!b.vistos[x[0]], obtido: !!b.obtidos[x[0]] }; });
+    var topo = B.marcos[B.marcos.length - 1];
+    var completa = ops.every(function (o) { return o.vitorias >= topo; }) && itens.every(function (i) { return i.obtido; });
+    return { gymId: gymId, oponentes: ops, itens: itens, completa: completa };
+  }
+  function r4(x) { return Math.round(x * 10000) / 10000; }
+  // -> { raro, xp, trofeu (frações), offlineMin }
+  function bestiarioBonus(best) {
+    var b = bestiarioSaneado(best), B = K.bestiario, nRaro = 0, nXp = 0, nTrof = 0, paginas = 0;
+    Object.keys(b.vitorias).forEach(function (k) { if (b.vitorias[k] >= B.raro.vitorias) nRaro++; if (b.vitorias[k] >= B.xp.vitorias) nXp++; });
+    Object.keys(b.obtidos).forEach(function (id) { if (itemAfk(id) && G.ITEMS[id].grupo === 'trofeu') nTrof++; });
+    G.GYM_ORDER.forEach(function (g) { if (bestiarioPagina(b, g).completa) paginas++; });
+    return {
+      raro: r4(Math.min(B.raro.teto, nRaro * B.raro.por)), xp: r4(Math.min(B.xp.teto, nXp * B.xp.por)),
+      trofeu: r4(Math.min(B.trofeu.teto, nTrof * B.trofeu.por)), offlineMin: Math.min(B.pagina.tetoMin, paginas * B.pagina.min)
+    };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Comida
+  // ---------------------------------------------------------------------------------------------
+  // Feno, Cenoura e Maçã: -> { ok, xp } para o cavalo escolhido (quem chama aplica o XP e gasta o item). Aveia dourada:
+  // -> { ok, aveiaMin } (o novo afk.aveiaMin), sempre dentro do teto do offline (bestiarioMin: o bônus do bestiário).
+  function usarComida(id, cavalo, afk, bestiarioMin) {
+    if (!itemAfk(id) || G.ITEMS[id].grupo !== 'comida') return { ok: false, motivo: 'Isso não é comida.' };
+    var it = G.ITEMS[id];
+    if (it.aveiaMin) {
+      var atual = minutosOk(objeto(afk) && afk.aveiaMin);
+      if (K.offlineMin + atual + minutosOk(bestiarioMin) + it.aveiaMin > K.offlineTetoMin) {
+        return { ok: false, motivo: 'O próximo período fora já está no limite de ' + Math.round(K.offlineTetoMin / 60) + ' horas.' };
+      }
+      return { ok: true, aveiaMin: atual + it.aveiaMin };
+    }
+    if (!objeto(cavalo)) return { ok: false, motivo: 'Escolha um cavalo.' };
+    if (cavalo.level >= G.ECONOMY.maxLevel) return { ok: false, motivo: (cavalo.name || 'O cavalo') + ' já está no nível máximo.' };
+    return { ok: true, xp: it.xp };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Estado do save
+  // ---------------------------------------------------------------------------------------------
+  // vaga vazia: sem início (0), para o save saneado ser o mesmo em qualquer hora; o início é posto quando um cavalo entra
+  function vagaVazia(contador) { return { uid: null, faseId: null, inicioMin: 0, contador: contador || 0, medida: null }; }
+  // ctx = { uids: [uid dos cavalos que existem], progresso (dos ginásios), agoraMin }
+  function sanear(bruto, ctx) {
+    var s = objeto(bruto) || {}, c = objeto(ctx) || {}, uids = Array.isArray(c.uids) ? c.uids : [];
+    var agora = typeof c.agoraMin === 'number' && isFinite(c.agoraMin) ? c.agoraMin : 0;
+    var out = { vagas: [], bau: bauSaneado(s.bau), vitorias: {}, bestiario: bestiarioSaneado(s.bestiario), aveiaMin: 0, xpCounter: 0 };
+    var v = objeto(s.vitorias) || {}, k;
+    for (k in v) if (temChave(v, k) && fase(k) && qtdOk(v[k], CONT_MAX)) out.vitorias[k] = qtdOk(v[k], CONT_MAX);
+    var livres = liberadas(c.progresso, out.vitorias), usados = {};
+    var brutas = Array.isArray(s.vagas) ? s.vagas.slice(0, K.vagaPreco.length) : [];
+    if (!brutas.length) brutas = [null];
+    brutas.forEach(function (bv) {
+      var b = objeto(bv) || {};
+      var contador = inteiro(b.contador) && b.contador >= 0 ? Math.min(b.contador, CONT_MAX) : 0;
+      var inicio = typeof b.inicioMin === 'number' && isFinite(b.inicioMin) ? b.inicioMin : agora;
+      var ok = typeof b.uid === 'string' && uids.indexOf(b.uid) >= 0 && !usados[b.uid] && livres.indexOf(b.faseId) >= 0;
+      if (!ok) { out.vagas.push(vagaVazia(contador)); return; }
+      usados[b.uid] = true;
+      var med = objeto(b.medida) && typeof b.medida.chave === 'string' && estadoOk(b.medida, b.medida.chave, K.amostra)
+        ? { chave: b.medida.chave, feitos: b.medida.feitos, vitorias: b.medida.vitorias, somaDuracao: b.medida.somaDuracao } : null;
+      out.vagas.push({ uid: b.uid, faseId: b.faseId, inicioMin: inicio, contador: contador, medida: med });
+    });
+    out.aveiaMin = Math.min(K.offlineTetoMin - K.offlineMin, qtdOk(s.aveiaMin, CONT_MAX));
+    out.xpCounter = qtdOk(s.xpCounter, CONT_MAX);
+    return out;
+  }
+  function copiaAfk(afk) { return JSON.parse(JSON.stringify(afk)); }
+  // O ganho de uma corrida (correr) ou de um período fora (offline) da vaga idx: baú, vitórias da fase, bestiário e o
+  // contador da vaga. -> o afk novo | null (vaga inexistente ou vazia). Não muta.
+  function creditar(afk, idx, ganho) {
+    if (!objeto(afk) || !Array.isArray(afk.vagas) || !inteiro(idx) || idx < 0 || idx >= afk.vagas.length || !objeto(ganho)) return null;
+    var vg = afk.vagas[idx], f = vg && vg.uid ? fase(vg.faseId) : null;
+    if (!f) return null;
+    var out = copiaAfk(afk), n = inteiro(ganho.vitorias) ? ganho.vitorias : (ganho.venceu === true ? 1 : 0);
+    out.bau = bauSomar(afk.bau, ganho, vg.uid);
+    if (n > 0) out.vitorias[f.id] = Math.min(CONT_MAX, (out.vitorias[f.id] || 0) + n);
+    out.bestiario = bestiarioRegistrar(afk.bestiario, { vitorias: n, itens: ganho.itens, pecas: ganho.pecas }, f.gymId + ':' + f.etapa, n > 0);
+    out.vagas[idx].contador = inteiro(ganho.contador) && ganho.contador > vg.contador ? Math.min(CONT_MAX, ganho.contador) : Math.min(CONT_MAX, vg.contador + 1);
+    return out;
+  }
+  // Depois de contar um período fora: a Aveia dourada daquele período acabou.
+  function aposOffline(afk) { var out = copiaAfk(afk); out.aveiaMin = 0; return out; }
+
+  // ---------------------------------------------------------------------------------------------
   // Vagas
   // ---------------------------------------------------------------------------------------------
   function podeComprarVaga(qtdAtual, ouroLivre) {
@@ -318,6 +513,19 @@
     limiteOffline: limiteOffline,
     offlineVenceu: offlineVenceu,
     offline: offline,
+    bauVazio: bauVazio,
+    bauVazioE: bauVazioE,
+    bauSomar: bauSomar,
+    bauColetar: bauColetar,
+    bestiarioVazio: bestiarioVazio,
+    bestiarioRegistrar: bestiarioRegistrar,
+    bestiarioObter: bestiarioObter,
+    bestiarioPagina: bestiarioPagina,
+    bestiarioBonus: bestiarioBonus,
+    usarComida: usarComida,
+    sanear: sanear,
+    creditar: creditar,
+    aposOffline: aposOffline,
     podeComprarVaga: podeComprarVaga
   };
 

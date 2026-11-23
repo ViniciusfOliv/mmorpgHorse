@@ -19,11 +19,11 @@
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio, AF = window.Afk;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
-  if (!GD || !RS || !SP || !GR || !FX || !IT || !GN || !telaEl) {
-    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, itens.js, ginasio.js, sprites.js ou fx.js).';
+  if (!GD || !RS || !SP || !GR || !FX || !IT || !GN || !AF || !telaEl) {
+    if (telaEl) telaEl.textContent = 'Não foi possível carregar o jogo (faltam data.js, sim.js, gear.js, itens.js, ginasio.js, afk.js, sprites.js ou fx.js).';
     return;
   }
   // Modo DEV: decidido uma vez, na carga. O código DEV fica entre marcadores de bloco "@dev" (e o gancho de
@@ -616,10 +616,20 @@
   //   vaga. Save de antes da v9 (sem o campo): toda skill fica no rank 1, sem aviso. Em qualquer versão o campo passa
   //   pelo Itens.sanearRanks: rank ausente ou inválido (0, 7, "3", NaN) vale 1 e rank de skill que o cavalo não tem some.
   //   A mochila ganha o Pergaminho de técnica (ausente: 0).
-  var SAVE_VERSION = 9;
+  // v9 -> v10 (corrida AFK, 2026-11-23; spec afk-drops §6), em sanitize e gravado logo ao abrir: nada do save antigo muda.
+  //   state.afk = a forma de Afk.sanear: { vagas: [{ uid, faseId, inicioMin, contador, medida }] (1 a 5; a 1ª já vem
+  //     liberada, vazia), bau, vitorias: { faseId: n }, bestiario, aveiaMin, xpCounter }. Vaga com cavalo que não existe,
+  //     fase ou dificuldade não liberada fica vazia (o contador da vaga fica); números fora da faixa voltam ao padrão.
+  //   A mochila ganha os itens do AFK (GameData.ITEMS com `grupo`), cada um de 0 ao teto dele (cap).
+  //   Cada peça ganha linhas: [{ tipo, valor }] e rerolls (inteiro ≥ 0). Peça de antes (sem linhas) ou com linhas
+  //     inválidas recebe as linhas pela seed do save e pelo uid (Gear.linhasDaPeca: sempre as mesmas) e rerolls 0.
+  var SAVE_VERSION = 10;
   var AVISO_V6 = 'As regras de crescimento mudaram: os pontos dos seus cavalos voltaram para distribuir.';
   var REDEAS_MAX = 999;
   var MOCHILA_IDS = GD.ITENS_USO.filter(function (id) { return id !== 'redea'; });   // torrao, estrela, cupom, manual, pergaminho
+  // os itens do AFK (materiais, incomuns, comidas, Pergaminho de reforja, troféus): na mochila, cada um com o teto dele
+  var AFK_IDS = Object.keys(GD.ITEMS).filter(function (id) { return !!GD.ITEMS[id].grupo; });
+  var REROLLS_MAX = 1e6;
   // os itens à venda, na ordem fixa da loja (GameData.SHOP_ORDER, spec de itens §6: Torrão, Manual, Cupom, Estrela)
   var LOJA_ITENS = GD.SHOP_ORDER.filter(function (id) { return hasOwn(GD.ITEMS, id) && GD.ITEMS[id].price != null; });
   // os que têm limite por dia (perDay), tirados do catálogo (o itens.js lê os mesmos campos): torrao, manual, cupom
@@ -677,8 +687,10 @@
   }
 
   // cria uma peça +0 no save st (uid 'i' + nextItemUid) e devolve a instância
-  function addItem(st, id) {
-    var it = { uid: 'i' + st.nextItemUid, id: id, plus: 0 };
+  // linhas: as que já vieram sorteadas (peça que caiu no AFK ou saiu da forja); sem elas, pela seed do save e pelo uid
+  function addItem(st, id, linhas) {
+    var it = { uid: 'i' + st.nextItemUid, id: id, plus: 0, rerolls: 0 };
+    it.linhas = GR.linhasDaPeca({ uid: it.uid, id: id, linhas: linhas }, st.seedBase);
     st.items.push(it);
     st.nextItemUid += 1;
     return it;
@@ -712,11 +724,12 @@
       itemCounter: 0,
       ginasios: GN.sanear(null, 0),   // os três ginásios sem nenhuma etapa vencida (revDia null: nunca tentou a revanche)
       gymCounter: 0,
+      afk: null,          // posto logo abaixo (Afk.sanear: a 1ª vaga liberada e vazia, baú e bestiário vazios)
       settings: { motion: 'sistema' },
       joquei: joqueiInicial()
     };
     /*@dev:inicio*/
-    if (DEV_MODE) st.devDias = 0;   // deslocamento de dias da gaveta DEV: só no save de teste
+    if (DEV_MODE) { st.devDias = 0; st.devMin = 0; }   // deslocamento de dias (e de minutos do AFK) da gaveta DEV: só no save de teste
     /*@dev:fim*/
     // equipamento inicial (+0) já equipado no inicial
     GE.startGear.forEach(function (id) {
@@ -724,12 +737,14 @@
       var it = addItem(st, id);
       st.mounts[0].equip[GD.GEAR[id].slot] = it.uid;
     });
+    st.afk = AF.sanear(null, { uids: ['m1'], progresso: st.ginasios, agoraMin: agoraMin(st) });
     return st;
   }
 
   function mochilaVazia() {
     var mo = {};
     MOCHILA_IDS.forEach(function (id) { mo[id] = 0; });
+    AFK_IDS.forEach(function (id) { mo[id] = 0; });
     return mo;
   }
   function lojaItensVazia() {
@@ -857,7 +872,7 @@
     if (!s || typeof s !== 'object') return null;
     var mounts, activeId, nextUid, stableSlots, breedCounter;
     var start = BR.stableSlotsStart, max = BR.stableSlotsMax;
-    var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4, v6 = Number(s.v) >= 6, v7 = Number(s.v) >= 7, v8 = Number(s.v) >= 8;
+    var v3 = Number(s.v) >= 3, v4 = Number(s.v) >= 4, v6 = Number(s.v) >= 6, v7 = Number(s.v) >= 7, v8 = Number(s.v) >= 8, v10 = Number(s.v) >= 10;
     var seedBase = num(s.seedBase, null, 0, 4294967295);
     if (seedBase == null) seedBase = freshSeedBase(0);
     var rawEquip = {};   // uid da montaria -> equip cru do save (validado depois das peças)
@@ -923,7 +938,7 @@
     base.avisoV6 = v6 ? s.avisoV6 === true : true;
     // Itens, loja e diária (v7): save de antes da v7 fica com o padrão do newState (tudo zerado, o dia 1 para resgatar)
     /*@dev:inicio*/
-    if (DEV_MODE) base.devDias = inteiroOu(s.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX);
+    if (DEV_MODE) { base.devDias = inteiroOu(s.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX); base.devMin = inteiroOu(s.devMin, 0, 0, DEV_MIN_MAX); }
     /*@dev:fim*/
     // Num save v7, dado de dia ou de limite corrompido não libera nada (Rulings 7 e 8): dia (ultimo, dia, estrelaDia)
     // que não é null nem inteiro de 0 a DIA_MAX vale hoje; compra do dia corrompida vale o limite; diária ou loja que
@@ -933,6 +948,7 @@
       var diaOu = function (x) { return x === null ? null : inteiroOu(x, hoje, 0, DIA_MAX); };
       var mch = objetoOu(s.mochila) || {}, di = objetoOu(s.diaria), lj = objetoOu(s.lojaItens), cp = lj && objetoOu(lj.comprados) || {};
       MOCHILA_IDS.forEach(function (id) { base.mochila[id] = inteiroOu(mch[id], 0, 0, GD.BAG_MAX); });
+      if (v10) AFK_IDS.forEach(function (id) { base.mochila[id] = inteiroOu(mch[id], 0, 0, GD.ITEMS[id].cap); });
       base.diaria = {
         prox: inteiroOu(di && di.prox, 0, 0, GD.DAILY.dias.length - 1),
         ciclos: inteiroOu(di && di.ciclos, 0, 0, 1e9),
@@ -949,6 +965,9 @@
       base.ginasios = GN.sanear(s.ginasios, hojeDia(base));
       base.gymCounter = inteiroOu(s.gymCounter, 0, 0, 1e9);
     }
+    // Corrida AFK (v10): save de antes fica com o AFK vazio e a 1ª vaga liberada. Num save v10, o Afk.sanear (vaga de
+    // cavalo que não existe ou de fase não liberada fica vazia; o resto, na faixa)
+    base.afk = AF.sanear(v10 ? s.afk : null, { uids: base.mounts.map(function (m) { return m.uid; }), progresso: base.ginasios, agoraMin: agoraMin(base) });
     // Poder da sala (R16) = o maior entre o Poder do retrato dos pontos de quando a sala abriu (pending.alloc, tirado
     // em openLobby) e o Poder com que a ativa corre agora. Nem mais (liberaria pontos acima do que a sala viu) nem
     // menos (os rivais sairiam mais fracos). O equipamento não entra (spec 1b §8): o retrato dele (pending.gear) fica
@@ -1009,7 +1028,8 @@
         if (typeof it.id !== 'string' || !hasOwn(GD.GEAR, it.id)) return;
         var p = it.plus;
         if (!(typeof p === 'number' && p === Math.floor(p) && p >= 0 && p <= GE.plusMax)) return;
-        var out = { uid: it.uid, id: it.id, plus: p };
+        var out = { uid: it.uid, id: it.id, plus: p, rerolls: inteiroOu(it.rerolls, 0, 0, REROLLS_MAX) };
+        out.linhas = GR.linhasDaPeca(it, base.seedBase);   // v10; peça de antes (ou com lixo): pela seed do save e pelo uid
         items.push(out);
         byUid[out.uid] = out;
         maxItemUid = Math.max(maxItemUid, Number(out.uid.slice(1)));
@@ -1023,7 +1043,8 @@
         if (newId === null) { pedras += OLD_RAPADURA_PEDRAS; return; }
         if (!hasOwn(GD.GEAR, newId)) return;
         n += 1;
-        var out = { uid: 'i' + n, id: newId, plus: 0 };
+        var out = { uid: 'i' + n, id: newId, plus: 0, rerolls: 0 };
+        out.linhas = GR.linhasDaPeca(out, base.seedBase);
         items.push(out);
         byUid[out.uid] = out;
         if (oldId === s.equipped && !legacyEquip) legacyEquip = out;
@@ -1185,6 +1206,17 @@
     if (DEV_MODE && st) dia += inteiroOu(st.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX);
     /*@dev:fim*/
     return dia;
+  }
+  // O "agora" do AFK, em minutos inteiros desde 1970 (o relógio do aparelho, como o dia da diária): o ÚNICO lugar que lê
+  // o relógio para as regras do AFK (o afk.js recebe o número). No modo DEV soma o deslocamento de dias da gaveta e o de
+  // minutos do AFK (só no save de teste). st: o save do deslocamento (padrão: o state).
+  function agoraMin(st) {
+    var min = Math.floor(Date.now() / 60000);
+    /*@dev:inicio*/
+    st = st || state;
+    if (DEV_MODE && st) min += inteiroOu(st.devDias, 0, -DEV_DIAS_MAX, DEV_DIAS_MAX) * 1440 + inteiroOu(st.devMin, 0, 0, DEV_MIN_MAX);
+    /*@dev:fim*/
+    return min;
   }
   // O dia virou com o jogo aberto (decisão 19 do controlador): sem temporizador, o dia só é conferido quando a aba volta a
   // ficar visível (visibilitychange, no start) e no começo de um toque (o clique delegado da tela). Se hojeDia() mudou desde
@@ -1755,6 +1787,7 @@
   // As funções puras (cavalo, peça, condições, vento, seed, Ouro) estão em dev.js.
   // ===========================================================================
   var DEV_SKILL_VAGAS = 5;   // selects de skill na gaveta (o máximo de vagas, Mítico)
+  var DEV_MIN_MAX = 600000;   // "AFK: avançar o relógio": deslocamento de 0 a 600.000 minutos (state.devMin, só no save de teste)
   var DEV_DIAS_MAX = 400;   // "Avançar/Voltar 1 dia": deslocamento de −400 a 400 dias (state.devDias, só no save de teste)
   var devEl = null;
   if (DEV_MODE) {

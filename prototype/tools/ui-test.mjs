@@ -93,6 +93,10 @@ if (process.env.UI_PARALELO === '1' && SHOTS_SAO_OFICIAIS) throw new Error('ui-t
 // versão do save e equipamento (spec 1b §8, §10), lidos do jogo gerado: o teste segue o que o build tem
 const PREVIEW_JS = await readFile(join(DIST, 'preview.html'), 'utf8')
 const SAVE_V = Number((PREVIEW_JS.match(/var SAVE_VERSION = (\d+);/) || [])[1])
+// Desde o save v10 (AFK): a mochila também guarda os itens do AFK (GameData.ITEMS com `grupo`) e cada peça tem rerolls e
+// linhas. soUso: a mochila só com os itens de uso; pecasBase: as peças só com uid, id e plus (o que os testes de antes comparam).
+const soUso = (m) => Object.fromEntries(Object.entries(m || {}).filter(([id]) => !(G.ITEMS[id] && G.ITEMS[id].grupo)))
+const pecasBase = (items) => (items || []).map(({ uid, id, plus }) => ({ uid, id, plus }))
 const GEAR_ON = (PREVIEW_JS.match(/var GEAR_ON = (true|false);/) || [])[1] === 'true'
 if (!(SAVE_V >= 6)) throw new Error('ui-test: não achei SAVE_VERSION (>= 6) no dist/preview.html')
 // SHOTS_T6: pasta (fora do repositório) para as capturas de conferência das telas da build; sem ela, não captura
@@ -802,7 +806,7 @@ try {
     if (m1.rarity !== 'raro' || m1.level !== 12 || m1.xp !== 30 || m1.grau !== 2 || m1.name !== 'Brasa' || JSON.stringify(m1.skills) !== '["sprint"]') out.push(`${rotulo}: Brasa mudou ` + JSON.stringify(m1))
     if (m2.element !== neutroVira(MIG_SEED, 'm2') || m2.grau !== 3 || m2.level !== 15) out.push(`${rotulo}: Ventania ${m2.element} (esperado ${neutroVira(MIG_SEED, 'm2')})`)
     if (m3.templateId !== null || m3.element !== neutroVira(MIG_SEED, 'm3') || JSON.stringify(m3.palette) !== JSON.stringify(MIG_V4.mounts[2].palette) || m3.name !== 'Pangaré') out.push(`${rotulo}: Pangaré ` + JSON.stringify(m3))
-    if (s.gold !== 900 || s.pedras !== 4 || JSON.stringify(s.items) !== JSON.stringify(MIG_V4.items)) out.push(`${rotulo}: Ouro/peças mudaram ` + JSON.stringify({ gold: s.gold, pedras: s.pedras, items: s.items }))
+    if (s.gold !== 900 || s.pedras !== 4 || JSON.stringify(pecasBase(s.items)) !== JSON.stringify(MIG_V4.items)) out.push(`${rotulo}: Ouro/peças mudaram ` + JSON.stringify({ gold: s.gold, pedras: s.pedras, items: s.items }))
     if (m1.equip.sela !== 'i1' || m1.equip.ferraduras !== 'i2') out.push(`${rotulo}: equipamento da Brasa ` + JSON.stringify(m1.equip))
     const p = s.pending
     if (!p || p.counter !== 7 || p.fee !== 100 || p.training !== false) out.push(`${rotulo}: sala aberta ` + JSON.stringify(p))
@@ -1301,8 +1305,8 @@ try {
         const disco = JSON.parse(await bruto(pg, REAL))
         for (const [onde, s] of [['memória', await estadoDe(pg)], ['disco', disco]]) {
           const erro = (t) => problems.push(`${label} (${onde}): ${t}`)
-          if (s.v !== 9) erro('versão ' + s.v)
-          if (!igual(s.mochila, ZERO_MOCHILA)) erro('mochila ' + JSON.stringify(s.mochila))
+          if (s.v !== SAVE_V) erro('versão ' + s.v)
+          if (!igual(soUso(s.mochila), ZERO_MOCHILA)) erro('mochila ' + JSON.stringify(s.mochila))
           if (!igual(s.diaria, DIARIA_0)) erro('diária ' + JSON.stringify(s.diaria))
           if (!igual(s.lojaItens, LOJA_0)) erro('limites da loja ' + JSON.stringify(s.lojaItens))
           if (s.itemCounter !== 0) erro('itemCounter ' + s.itemCounter)
@@ -1341,7 +1345,7 @@ try {
       try {
         await pg.waitForSelector('#t-estabulo')
         const s = await estadoDe(pg), hoje = await hojeReal(pg)
-        if (!igual(s.mochila, ZERO_MOCHILA)) problems.push(`${label}: mochila ` + JSON.stringify(s.mochila))
+        if (!igual(soUso(s.mochila), ZERO_MOCHILA)) problems.push(`${label}: mochila ` + JSON.stringify(s.mochila))
         if (!igual(s.diaria, { prox: 0, ciclos: 0, ultimo: hoje })) problems.push(`${label}: diária ${JSON.stringify(s.diaria)} (ultimo corrompido = hoje ${hoje})`)
         // Rulings 7 e 8: dia corrompido vale hoje e compra corrompida vale o limite do dia (nada é liberado)
         if (!igual(s.lojaItens, LOJA_TETO(hoje))) problems.push(`${label}: limites da loja ${JSON.stringify(s.lojaItens)} (esperado o dia de hoje e os tetos)`)
@@ -1372,7 +1376,7 @@ try {
         await pg.reload({ waitUntil: 'domcontentloaded' })
         await pg.waitForSelector('#t-estabulo')
         const b = await estadoDe(pg)
-        for (const k of ['mochila', 'diaria', 'lojaItens', 'itemCounter']) if (!igual(b[k], k === 'mochila' ? Object.assign({}, bom[k], { pergaminho: 0 }) : bom[k])) problems.push(`${label}: ${k} bom mudou ${JSON.stringify(b[k])}`)
+        for (const k of ['mochila', 'diaria', 'lojaItens', 'itemCounter']) if (!igual(k === 'mochila' ? soUso(b[k]) : b[k], k === 'mochila' ? Object.assign({}, bom[k], { pergaminho: 0 }) : bom[k])) problems.push(`${label}: ${k} bom mudou ${JSON.stringify(b[k])}`)
         if (!igual(b.mounts.map((m) => m.torroes), [G.ITEMS.torrao.cap, 4])) problems.push(`${label}: torroes bons ` + JSON.stringify(b.mounts.map((m) => m.torroes)))
       } catch (e) {
         problems.push(`[${label}] ` + e.message)
@@ -1382,7 +1386,7 @@ try {
     }
     // 3. save de versão 9 (mais nova que a 8 do jogo): tela de bloqueio, sem Estábulo, e a chave fica byte a byte igual
     //    (real, de teste e produção)
-    const SAVE_9 = JSON.stringify(Object.assign({}, SAVE_6, { v: 10, rev: 3, coisaNova: { a: [1, 2] }, gold: 123456 }))
+    const SAVE_9 = JSON.stringify(Object.assign({}, SAVE_6, { v: SAVE_V + 1, rev: 3, coisaNova: { a: [1, 2] }, gold: 123456 }))
     const conferirBloqueio = async (pg, label, chave, raw) => {
       await pg.waitForSelector('#t-bloqueio', { timeout: 5000 })
       const txt = (await pg.locator('#tela').textContent()) || ''
@@ -1406,7 +1410,7 @@ try {
       if ((await bruto(pg, chave)) !== raw) problems.push(`${label}: a chave ${chave} mudou depois de recarregar`)
     }
     // v como texto ("9"): Number("9") > 8, também é mais novo (o sanitize o leria como v8+ e gravaria v8 por cima)
-    const SAVE_9_TXT = JSON.stringify(Object.assign(JSON.parse(SAVE_9), { v: '10' }))
+    const SAVE_9_TXT = JSON.stringify(Object.assign(JSON.parse(SAVE_9), { v: String(SAVE_V + 1) }))
     for (const [label, chave, extra, raw] of [['itens-v9', REAL, {}, SAVE_9], ['itens-v9-dev', DEVK, { query: '?dev=1' }, SAVE_9],
       ['itens-v9-producao', REAL, { pagina: 'producao.html' }, SAVE_9], ['itens-v9-texto', REAL, {}, SAVE_9_TXT]]) {
       const pg = await newPage(browser, VP, label, comSave(chave, raw, extra))
@@ -1481,7 +1485,7 @@ try {
         for (const [id, v] of [['estrela', '2'], ['cupom', '150'], ['manual', '1']]) await pg.fill('#dev-mochila-' + id, v)
         await pg.locator('[data-acao="dev-mochila"]').click()
         s = await estadoDe(pg)
-        if (!igual(s.mochila, { torrao: 3, estrela: 2, cupom: G.BAG_MAX, manual: 1, pergaminho: 0 })) problems.push(`${label}: mochila depois de definir os quatro (150 vira o teto) ` + JSON.stringify(s.mochila))
+        if (!igual(soUso(s.mochila), { torrao: 3, estrela: 2, cupom: G.BAG_MAX, manual: 1, pergaminho: 0 })) problems.push(`${label}: mochila depois de definir os quatro (150 vira o teto) ` + JSON.stringify(s.mochila))
         // campo vazio: nada muda e a gaveta diz por quê
         await pg.fill('#dev-mochila-manual', '')
         await pg.locator('[data-acao="dev-mochila"]').click()
@@ -1762,7 +1766,7 @@ try {
     const ALLOC0 = { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 }
     // seed 1006: o 1º Manual (contador 0) num cavalo de Água sem skill aprende; o 2º (contador 1), num de Grama, não
     const SAVE_T4 = Object.assign({}, SAVE_6, {
-      v: 9, rev: 5, seedBase: 1006, gold: 5000, redeas: 0, mochila: ZERO_MOCHILA, diaria: DIARIA_0, lojaItens: LOJA_0, itemCounter: 0,
+      v: SAVE_V, rev: 5, seedBase: 1006, gold: 5000, redeas: 0, mochila: ZERO_MOCHILA, diaria: DIARIA_0, lojaItens: LOJA_0, itemCounter: 0,
       mounts: [
         cav(brasa, { uid: 'm1', level: 12, skills: ['sprint'], alloc: { ...ALLOC0, vel: 3, acel: 2, est: 1 }, respecFree: false, torroes: 0 }),
         cav(mare, { uid: 'm2', level: 10, skills: [], alloc: { ...ALLOC0, vel: 2 }, respecFree: true, torroes: 0 }),
@@ -1863,7 +1867,7 @@ try {
         await pg.locator('.dev-gaveta [data-acao="dev-redeas"]').click()
         await devFechar(pg)
         let s = await h.estado()
-        if (!igual(s.mochila, { torrao: G.BAG_MAX, estrela: 2, cupom: 3, manual: 3, pergaminho: 0 }) || s.redeas !== 2 || s.seedBase !== 1006 || s.itemCounter !== 0) problems.push(`${label}: preparo ${JSON.stringify({ mochila: s.mochila, redeas: s.redeas, seed: s.seedBase, c: s.itemCounter })}`)
+        if (!igual(soUso(s.mochila), { torrao: G.BAG_MAX, estrela: 2, cupom: 3, manual: 3, pergaminho: 0 }) || s.redeas !== 2 || s.seedBase !== 1006 || s.itemCounter !== 0) problems.push(`${label}: preparo ${JSON.stringify({ mochila: s.mochila, redeas: s.redeas, seed: s.seedBase, c: s.itemCounter })}`)
         // a parte Mochila: cada item com quantidade tem o "Usar" (com o nome do item para o leitor de tela)
         await h.irMochila()
         for (const id of G.ITENS_USO) {
@@ -2940,7 +2944,7 @@ try {
     alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } }, o)
   // um save versão 8 completo (o:  campos trocados)
   const ginSave = (o = {}) => Object.assign({
-    v: 9, rev: 5, gold: 5000, tier: 50, seedBase: GIN_SEED, raceCounter: 0, pending: null, races: 0, wins: 0, podiums: 0, goldWon: 0,
+    v: SAVE_V, rev: 5, gold: 5000, tier: 50, seedBase: GIN_SEED, raceCounter: 0, pending: null, races: 0, wins: 0, podiums: 0, goldWon: 0,
     mounts: [ginCav(ginBrasa, { uid: 'm1', level: 10, xp: 295 }), ginCav(ginMare, { uid: 'm2', level: 4 })],
     activeId: 'm1', nextUid: 3, stableSlots: 3, breedCounter: 0, items: [], nextItemUid: 1, pedras: 0, enhanceCounter: 0,
     redeas: 0, avisoV6: false, mochila: { torrao: 0, estrela: 0, cupom: 0, manual: 0 }, diaria: { prox: 0, ciclos: 0, ultimo: null },
@@ -2984,7 +2988,7 @@ try {
         }
         const disco = JSON.parse(await ginDisco(pg, chave))
         for (const [onde, s] of [['memória', await ginEstado(pg)], ['disco', disco]]) {
-          if (s.v !== 9 || !ginIgual(s.ginasios, GIN_ZERO) || s.gymCounter !== 0) problems.push(`${label} (${onde}): ` + JSON.stringify({ v: s.v, ginasios: s.ginasios, gymCounter: s.gymCounter }))
+          if (s.v !== SAVE_V || !ginIgual(s.ginasios, GIN_ZERO) || s.gymCounter !== 0) problems.push(`${label} (${onde}): ` + JSON.stringify({ v: s.v, ginasios: s.ginasios, gymCounter: s.gymCounter }))
         }
         if (!ginIgual(await ginBonus(pg), { ouro: 0, xp: 0, skill: 0 })) problems.push(`${label}: bônus sem insígnia ` + JSON.stringify(await ginBonus(pg)))
       } catch (e) {
@@ -3009,7 +3013,7 @@ try {
         const eRef = await ginEstado(ref), simRef = await ginSimSala(ref)
         const e7 = await ginEstado(pg), d7 = JSON.parse(await ginDisco(pg, GIN_REAL))
         for (const [onde, s] of [['memória', e7], ['disco', d7]]) {
-          if (s.v !== 9 || !ginIgual(s.ginasios, GIN_ZERO) || s.gymCounter !== 0) problems.push(`${label} (${onde}): ginásios da v7 não zerados ` + JSON.stringify({ v: s.v, ginasios: s.ginasios, gymCounter: s.gymCounter }))
+          if (s.v !== SAVE_V || !ginIgual(s.ginasios, GIN_ZERO) || s.gymCounter !== 0) problems.push(`${label} (${onde}): ginásios da v7 não zerados ` + JSON.stringify({ v: s.v, ginasios: s.ginasios, gymCounter: s.gymCounter }))
           if (!ginIgual(semRev(s), semRev(eRef))) problems.push(`${label} (${onde}): o save migrado difere do mesmo save na versão 8 ` + JSON.stringify(semRev(s)).slice(0, 400))
           if (!s.pending || s.pending.counter !== 3 || s.pending.fee !== 50 || s.pending.training !== false || !ginIgual(s.pending, eRef.pending)) problems.push(`${label} (${onde}): sala aberta ` + JSON.stringify(s.pending))
         }
@@ -3106,8 +3110,8 @@ try {
     }
 
     // 4. save de versão 9 (também "9" em texto): tela de bloqueio, e a chave fica byte a byte igual (real e de teste)
-    for (const [label, pagina, chave, raw] of [['ginasio-v9', 'preview.html', GIN_REAL, JSON.stringify(ginSave({ v: 10, coisaNova: 1 }))],
-      ['ginasio-v9-dev', 'jogo-dev.html', GIN_DEV, JSON.stringify(ginSave({ v: 10 }))], ['ginasio-v9-texto', 'preview.html', GIN_REAL, JSON.stringify(ginSave({ v: '10' }))]]) {
+    for (const [label, pagina, chave, raw] of [['ginasio-v9', 'preview.html', GIN_REAL, JSON.stringify(ginSave({ v: SAVE_V + 1, coisaNova: 1 }))],
+      ['ginasio-v9-dev', 'jogo-dev.html', GIN_DEV, JSON.stringify(ginSave({ v: SAVE_V + 1 }))], ['ginasio-v9-texto', 'preview.html', GIN_REAL, JSON.stringify(ginSave({ v: String(SAVE_V + 1) }))]]) {
       const pg = await ginAbre(label, { save: raw, chave, pagina, espera: '#t-bloqueio' })
       try {
         if (await pg.locator('#t-estabulo, .app-abas, .dev-botao').count()) problems.push(`${label}: a tela de bloqueio mostra o jogo`)
@@ -7741,7 +7745,7 @@ try {
     const cav = (tpl, o) => Object.assign({ uid: 'm1', templateId: tpl.id, name: tpl.name, especie: 'cavalo', element: tpl.element, rarity: 'raro',
       grau: 2, sex: tpl.sex, level: 10, xp: 0, skills: [], potential: JSON.parse(JSON.stringify(tpl.potential)), palette: JSON.parse(JSON.stringify(tpl.palette)),
       breedLeft: 2, parents: null, born: 0, equip: {}, respecFree: false, torroes: 0, alloc: { vel: 0, acel: 0, man: 0, forca: 0, est: 0, garra: 0, sorte: 0 } }, o)
-    const save = (o) => Object.assign({ v: 9, rev: 3, gold: 500, tier: 50, seedBase: 4242, raceCounter: 0, pending: null, redeas: 0, avisoV6: false, races: 0, wins: 0, podiums: 0, goldWon: 0,
+    const save = (o) => Object.assign({ v: SAVE_V, rev: 3, gold: 500, tier: 50, seedBase: 4242, raceCounter: 0, pending: null, redeas: 0, avisoV6: false, races: 0, wins: 0, podiums: 0, goldWon: 0,
       mounts: [cav(brasa, { uid: 'm1', skills: ['sprint', 'drift'], skillRanks: { sprint: 1, drift: 1 } })], activeId: 'm1', nextUid: 3, stableSlots: 3, breedCounter: 0,
       items: [], nextItemUid: 1, pedras: 0, enhanceCounter: 0, settings: { motion: 'sistema' }, joquei: { padrao: 'liso', capacete: G.JOQUEI.capacete },
       mochila: { torrao: 0, estrela: 0, cupom: 0, manual: 0, pergaminho: 3 }, diaria: { prox: 0, ciclos: 0, ultimo: 20000 }, lojaItens: { dia: null, comprados: { torrao: 0, manual: 0, cupom: 0 }, estrelaDia: null },
@@ -7774,10 +7778,11 @@ try {
         await pg.waitForSelector('#t-estabulo')
         for (const [onde, s] of [['memória', await estado(pg)], ['disco', await disco(pg)]]) {
           const m1 = s.mounts.find((m) => m.uid === 'm1'), m2 = s.mounts.find((m) => m.uid === 'm2')
-          if (s.v !== 9 || SAVE_V !== 9) problems.push(`${label} (${onde}): versão ${s.v} (esperado 9; o build diz ${SAVE_V})`)
+          if (s.v !== SAVE_V) problems.push(`${label} (${onde}): versão ${s.v} (esperado a do build, ${SAVE_V})`)
           if (JSON.stringify(m1.skillRanks) !== JSON.stringify({ sprint: 1, drift: 1 }) || m1.skills.join() !== 'sprint,drift') problems.push(`${label} (${onde}): m1 ${JSON.stringify([m1.skills, m1.skillRanks])}`)
           if (JSON.stringify(m2.skillRanks) !== '{}') problems.push(`${label} (${onde}): m2 sem skill devia ter skillRanks {}: ${JSON.stringify(m2.skillRanks)}`)
-          if (JSON.stringify(s.mochila) !== JSON.stringify({ torrao: 1, estrela: 0, cupom: 2, manual: 0, pergaminho: 0 }) || s.gold !== 500) problems.push(`${label} (${onde}): mochila/Ouro ${JSON.stringify([s.mochila, s.gold])}`)
+          // os itens de uso como estavam, o Pergaminho em 0 e (desde o save v10) os itens do AFK em 0
+          if (JSON.stringify(s.mochila) !== JSON.stringify(Object.assign({ torrao: 1, estrela: 0, cupom: 2, manual: 0, pergaminho: 0 }, Object.fromEntries(Object.keys(G.ITEMS).filter((id) => G.ITEMS[id].grupo).map((id) => [id, 0])))) || s.gold !== 500) problems.push(`${label} (${onde}): mochila/Ouro ${JSON.stringify([s.mochila, s.gold])}`)
         }
         if (await pg.locator('#tela .aviso').count()) problems.push(`${label}: a migração mostrou um aviso`)
         await abaSkills(pg, 'm1')
@@ -11149,7 +11154,7 @@ try {
         const s = await estado(pg), d = await disco(pg)
         for (const [onde, x] of [['memória', s], ['disco', d]]) {
           const erro = (t) => problems.push(`${label} (${onde}): ${t}`)
-          if (x.v !== 9) erro('versão ' + x.v)
+          if (x.v !== SAVE_V) erro('versão ' + x.v)
           if (x.redeas !== 0) erro('redeas ' + x.redeas)
           if (x.avisoV6 !== false) erro('avisoV6 ' + x.avisoV6 + ' depois de mostrar o aviso')
           for (const m of x.mounts) {
@@ -11157,7 +11162,7 @@ try {
             if (m.respecFree !== true) erro(`${m.uid}: respecFree ${m.respecFree}`)
           }
           // RF5: peças, melhorias, o que está equipado e as Pedras ficam iguais
-          if (!igual(x.items, MIG_V5.items)) erro('peças mudaram ' + JSON.stringify(x.items))
+          if (!igual(pecasBase(x.items), MIG_V5.items)) erro('peças mudaram ' + JSON.stringify(x.items))
           if (x.pedras !== 7 || x.enhanceCounter !== 3 || x.nextItemUid !== 6 || x.gold !== 1200) erro('Pedras/contadores/Ouro ' + JSON.stringify({ pedras: x.pedras, enh: x.enhanceCounter, next: x.nextItemUid, gold: x.gold }))
           for (const m0 of MIG_V5.mounts) {
             const m = x.mounts.find((y) => y.uid === m0.uid)
@@ -11242,7 +11247,7 @@ try {
         await pg.getByRole('button', { name: 'Escolher Brasa' }).click()
         await pg.waitForSelector('#t-estabulo')
         let s = await estado(pg)
-        if (s.v !== 9 || s.redeas !== 0 || s.avisoV6 !== false || s.mounts[0].respecFree !== true || !igual(s.mounts[0].alloc, ZERO)) problems.push(`${label}: jogo novo ` + JSON.stringify({ v: s.v, redeas: s.redeas, avisoV6: s.avisoV6, m1: s.mounts[0] }))
+        if (s.v !== SAVE_V || s.redeas !== 0 || s.avisoV6 !== false || s.mounts[0].respecFree !== true || !igual(s.mounts[0].alloc, ZERO)) problems.push(`${label}: jogo novo ` + JSON.stringify({ v: s.v, redeas: s.redeas, avisoV6: s.avisoV6, m1: s.mounts[0] }))
         if ((await avisos(pg)).includes(AVISO_V6)) problems.push(`${label}: o jogo novo mostrou o aviso da migração`)
         // abrir a sala (pareamento): a 1ª monta a memória do Poder dos bots; as seguintes ficam bem abaixo de 15 ms
         const t = await pg.evaluate(() => {
@@ -11971,7 +11976,7 @@ try {
     const s = window.__galope.state
     return {
       ok: s.mounts.length === 1 && s.mounts[0].templateId === 'mare' && JSON.stringify(s.mounts[0].skills) === '[]' && s.activeId === 'm1' && s.gold === 777 && s.level === undefined &&
-        s.v === 9 && !('base' in s.mounts[0]) && s.items.length === 1 && s.items[0].id === 'sela-comum' && s.mounts[0].equip.sela === null && s.pedras === 0 &&
+        s.v === 10 && !('base' in s.mounts[0]) && s.items.length === 1 && s.items[0].id === 'sela-comum' && s.mounts[0].equip.sela === null && s.pedras === 0 &&
         s.inventory === undefined && s.equipped === undefined,
       tactic: s.tactic, save: JSON.stringify(s)
     }
@@ -12038,7 +12043,7 @@ try {
   {
     const s = await openSave('save-v3-completo', V3_FULL)
     const arm = s.items.filter((it) => it.id === 'armadura-magico')[0]
-    const ok = s.v === 9 && s.items.length === 9 && s.pedras === 3 && arm && s.mounts[0].equip.armadura === arm.uid &&
+    const ok = s.v === 10 && s.items.length === 9 && s.pedras === 3 && arm && s.mounts[0].equip.armadura === arm.uid &&
       s.gold === 999 && s.nextItemUid === 10 && s.inventory === undefined && s.equipped === undefined
     if (!ok) problems.push('save v3 completo não migrou os itens: ' + JSON.stringify({ items: s.items, equip: s.mounts[0] && s.mounts[0].equip, pedras: s.pedras, gold: s.gold, nextItemUid: s.nextItemUid }))
   }
@@ -12052,7 +12057,9 @@ try {
   {
     const s = await openSave('save-v4-corrompido', BAD_V4)
     const m1 = s.mounts[0] || {}, m2 = s.mounts[1] || {}
-    const ok = JSON.stringify(s.items) === JSON.stringify([{ uid: 'i1', id: 'sela-comum', plus: 3 }, { uid: 'i3', id: 'estribos-magico', plus: 1 }]) &&
+    // desde o save v10 cada peça tem rerolls e linhas (a Comum nenhuma, a Mágica uma, sorteada pela seed do save e pelo uid)
+    const ok = JSON.stringify(s.items.map((it) => ({ uid: it.uid, id: it.id, plus: it.plus, rerolls: it.rerolls }))) === JSON.stringify([{ uid: 'i1', id: 'sela-comum', plus: 3, rerolls: 0 }, { uid: 'i3', id: 'estribos-magico', plus: 1, rerolls: 0 }]) &&
+      s.items[0].linhas.length === 0 && s.items[1].linhas.length === 1 &&
       s.mounts.length === 2 && m1.equip.ferraduras === null && m1.equip.sela === 'i1' && m1.equip.estribos === 'i3' && m2.equip.estribos === null &&
       s.pedras === 0 && s.enhanceCounter === 0 && s.nextItemUid === 4 && s.gold === 444
     if (!ok) problems.push('save v4 corrompido não foi saneado: ' + JSON.stringify({ items: s.items, e1: m1.equip, e2: m2.equip, pedras: s.pedras, enh: s.enhanceCounter, next: s.nextItemUid, gold: s.gold }))

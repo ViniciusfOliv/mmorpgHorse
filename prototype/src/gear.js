@@ -129,6 +129,36 @@
     return out;
   }
 
+  // As linhas de uma peça, se válidas para a raridade dela (a quantidade certa, tipos sem repetir, valores inteiros na
+  // faixa): uma cópia; senão null (quem chama sorteia de novo pela seed ou descarta a peça).
+  function linhasValidas(id, linhas) {
+    var def = piece(id);
+    if (!def || !Array.isArray(linhas) || linhas.length !== (EG.linhas[def.rarity] || 0)) return null;
+    var out = [], visto = {};
+    for (var i = 0; i < linhas.length; i++) {
+      var l = linhas[i];
+      if (!l || typeof l !== 'object' || typeof l.tipo !== 'string' || !Object.prototype.hasOwnProperty.call(EG.faixas, l.tipo) || visto[l.tipo]) return null;
+      var fx = EG.faixas[l.tipo][def.rarity];
+      if (!fx || typeof l.valor !== 'number' || l.valor !== Math.floor(l.valor) || l.valor < fx[0] || l.valor > fx[1]) return null;
+      visto[l.tipo] = true;
+      out.push({ tipo: l.tipo, valor: l.valor });
+    }
+    return out;
+  }
+
+  // As linhas de uma peça do save: as dela, se válidas; senão (peça de antes das linhas, ou lixo) sorteadas pela seed do
+  // save e pelo número do uid ('i<n>'): rng = mulberry32(hash2(seedBase, 0x20000000 + n)). A mesma peça ganha sempre as
+  // mesmas linhas, em qualquer carga do save.
+  var SAL_LINHAS = 0x20000000;
+  function linhasDaPeca(item, seedBase) {
+    var def = item ? piece(item.id) : null;
+    if (!def) return [];
+    var ok = linhasValidas(item.id, item.linhas);
+    if (ok) return ok;
+    var n = typeof item.uid === 'string' && /^i\d{1,9}$/.test(item.uid) ? Number(item.uid.slice(1)) : 0;
+    return sortearLinhas(def.rarity, S.mulberry32(S.hash2(seedBase, SAL_LINHAS + n)));
+  }
+
   function sellPrice(id) {
     var def = piece(id);
     return def ? Math.round(EG.price[def.rarity] * EG.sellRate) : 0;
@@ -177,6 +207,8 @@
     enhance: enhance,
     podiumStone: podiumStone,
     sortearLinhas: sortearLinhas,
+    linhasValidas: linhasValidas,
+    linhasDaPeca: linhasDaPeca,
     botGear: botGear,
     sellPrice: sellPrice,
     ratingPts: ratingPts
