@@ -1,6 +1,9 @@
 # Corrida AFK, drops, forja, bestiário e equipamento de PVE — design
 
-_2026-11-23 · decidido em conversa com o Vinicius no chat de coordenação. Números marcados **partida** são para ajustar
+_2026-11-23 · decidido em conversa com o Vinicius no chat de coordenação; **revisado no mesmo dia** (fluxo pelo ginásio,
+peças com linhas sorteadas, Pergaminho de reforja e Selo do campeão, a seção 5.9)._
+
+_Original: decidido em conversa com o Vinicius no chat de coordenação. Números marcados **partida** são para ajustar
 pela tabela de economia e pelo `balance.js`; o resto é regra. O rancho (fazenda) ficou só como ideia e está fora._
 
 ## 1. Intenção
@@ -54,6 +57,9 @@ O PVP valendo continua sendo o centro: é lá que se ganha e se arrisca Ouro de 
 ### 5.1 Fases e dificuldades
 - As fases são as 15 etapas dos ginásios (Soldados 1 a 4 e o líder dos três ginásios). **Uma fase só libera no AFK
   depois de vencida no ginásio de verdade.**
+- **Caminho na tela:** aba Expedição → o ginásio → a trilha mostra os oponentes já vencidos, cada um com "Treinar (AFK)"
+  e a escolha da dificuldade liberada; dali se escolhe a vaga e o cavalo. A tela de AFK (vagas e baú) também fica na
+  Expedição, para acompanhar e coletar.
 - Cada fase tem 3 dificuldades, liberadas em ordem: a Difícil depois de **50 vitórias** AFK na Normal da mesma fase, a
   Lendária depois de 50 na Difícil (partida).
 
@@ -94,9 +100,13 @@ O PVP valendo continua sendo o centro: é lá que se ganha e se arrisca Ouro de 
 | Pedra Negra | — | 6% | chance × multiplicador |
 | Comida | Feno (XP +200 a um cavalo), Cenoura (XP +500), Maçã (XP +1.200), Aveia dourada (+1 h no limite offline do próximo período) | 8% (Feno 60%, Cenoura 25%, Maçã 12%, Aveia 3% do que cai) | chance × multiplicador |
 | Peça | Comum ou Mágica solta (Normal); Rara de conjunto (Difícil e Lendária); Lendária (só Lendária) | 2%; Rara 1% na Difícil e 2% na Lendária; Lendária 0,2% | ver as colunas |
+| Pergaminho de reforja | — | 1,5% | chance × multiplicador |
 | Troféu do oponente | um por oponente (15), ex.: "Lanterna do Sargento Candeeiro" | 0,5% | Difícil 1%, Lendária 2% |
 
-- **O AFK não dá:** Torrão, Estrela, Rédea, Manual, Cupom nem Pergaminho (sobem o poder no PVP e seguem vindo de PVP,
+- Toda peça que cai nasce com as linhas de farm sorteadas (5.7), pela seed da corrida.
+- **Os materiais e o incomum de cada ginásio só caem nele**, e a peça Rara do conjunto daquele ginásio só se forja com o
+  incomum dele (5.6).
+- **O AFK não dá:** Selo do campeão, Torrão, Estrela, Rédea, Manual, Cupom nem Pergaminho de técnica (sobem o poder no PVP e seguem vindo de PVP,
   ginásio, loja e diária).
 - Os itens novos ficam na mochila, com teto de 999 para materiais e comidas e de 99 para troféus (partida). Quando um
   item chega ao teto, o excedente se perde e a tela avisa antes.
@@ -129,17 +139,35 @@ O PVP valendo continua sendo o centro: é lá que se ganha e se arrisca Ouro de 
 |---|---|
 | Peça Comum (qualquer slot) | 10 materiais do ginásio + 100 de Ouro |
 | Peça Mágica | 25 materiais + 3 incomuns + 300 de Ouro |
-| Peça Rara de conjunto | 60 materiais + 10 incomuns + 1 troféu do ginásio do conjunto + 800 de Ouro |
+| Peça Rara de conjunto | 60 materiais + 10 incomuns **do ginásio do conjunto** + 1 troféu desse ginásio + 800 de Ouro |
+| Peça Lendária de conjunto | 120 materiais + 20 incomuns do ginásio do conjunto + 3 troféus desse ginásio + **2 Selos do campeão** + 3.000 de Ouro |
 | Pedra Negra | 8 materiais + 30 de Ouro |
+| Pergaminho de reforja | 15 materiais de qualquer ginásio + 1 incomum + 150 de Ouro |
 
-- O jogador escolhe o slot e o ginásio (que define o conjunto); o resultado é a peça escolhida, sem sorteio.
-- Lendária nunca se forja e nunca é vendida: só cai na dificuldade Lendária.
+- O jogador escolhe o slot e o ginásio (que define o conjunto); o slot, a raridade e o conjunto saem como escolhidos,
+  sem sorteio. **Só as linhas de farm** são sorteadas (5.7), pela seed da forja, depois de confirmar.
+- Lendária nunca é vendida: cai na dificuldade Lendária ou se forja com Selos do campeão.
 - Melhoria de peça (+0 a +10, com Pedras) volta como no GDD §7, com o sorteio pela seed.
 
 ### 5.7 Equipamento de PVE (B)
 - Cada peça tem o **principal de corrida** do GDD §7 (Ferraduras: Velocidade, Sela: Estamina, Estribos: Manobra,
-  Testeira: Aceleração, Armadura: Força) e um **secundário de farm** por slot, que **substitui** o secundário de corrida
-  do §7 (`GEAR_SLOT_INFO.sub` e `ECONOMY.gear.sub` saem):
+  Testeira: Aceleração, Armadura: Força) e **linhas de farm sorteadas**, que **substituem** o secundário de corrida do
+  §7 (`GEAR_SLOT_INFO.sub` e `ECONOMY.gear.sub` saem). **Revisão de 2026-11-23: a tabela fixa por slot logo abaixo foi
+  substituída pelas linhas sorteadas; fica só como referência dos nomes.**
+- **Linhas por raridade:** Comum 0 · Mágico 1 · Raro 2 · Lendário 3. Cada linha sorteia o **tipo** (material, XP, drop
+  raro, troféu, Ouro; sem repetir tipo na mesma peça) e o **valor** dentro da faixa da raridade (partida):
+
+  | Tipo | Mágico | Raro | Lendário |
+  |---|---|---|---|
+  | material | 3–6% | 6–10% | 10–15% |
+  | XP | 3–6% | 6–10% | 10–15% |
+  | drop raro | 2–5% | 5–8% | 8–12% |
+  | troféu | 6–12% | 12–20% | 20–30% |
+  | Ouro do AFK | 2–4% | 4–6% | 6–10% |
+
+  (valor em passos de 1 ponto percentual, sorteio uniforme). Melhoria (+0 a +10) sobe só o principal.
+
+  Tabela antiga, por slot (substituída):
 
 | Slot | Secundário de farm | Comum | Mágico | Raro | Lendário |
 |---|---|---|---|---|---|
@@ -170,9 +198,26 @@ O PVP valendo continua sendo o centro: é lá que se ganha e se arrisca Ouro de 
   - cada troféu: +2% de chance de troféu (até +30%);
   - página completa (tudo obtido e 1.000 vitórias): +1 h de limite offline (até +3 h).
 
+### 5.9 Reforja e Selo do campeão (revisão de 2026-11-23)
+- **Pergaminho de reforja:** rerrola **uma linha escolhida** da peça (tipo e valor, sem repetir um tipo que a peça já
+  tem). Cada uso gasta 1 Pergaminho de reforja e Ouro; o Ouro cresce a cada reroll **na mesma peça** e nunca volta a
+  zero: `custo = arredonda para 10 (100 × 1,5^n)`, com n = rerolls já feitos naquela peça (100, 150, 230, 340, 510…).
+  O sorteio sai da seed (`seedBase` + contador da peça), só depois de confirmar, e não se repete ao recarregar. O Ouro
+  reservado para a entrada da sala aberta nunca é gasto.
+- **Selo do campeão (só PVP):** cai **só no 1º lugar de corrida valendo**, 10% pela seed na liquidação (sal próprio,
+  como o Pergaminho de técnica). Nunca no AFK, no treino, na loja nem por Gemas. Usos:
+  - **skills (PVP e PVE):** a subida do rank IV para o V passa a pedir também **1 Selo** (além de 2.000 de Ouro e 7
+    Pergaminhos de técnica) — muda o custo da spec das skills com ranks;
+  - **reforja garantida (PVE):** gastar 1 Selo junto no reroll faz a linha **manter o tipo** e sortear o valor só na
+    **metade de cima** da faixa;
+  - **forja da Lendária de conjunto (PVE):** 2 Selos (5.6).
+- Mochila: Pergaminho de reforja até 99; Selo do campeão até 99.
+
 ## 6. Save
 - `SAVE_VERSION` sobe para o número seguinte ao das skills com ranks. Entram `afk` (vagas: cavalo, fase, dificuldade,
   contador e momento de início; cache de `p`; o baú), as vitórias por oponente e o bestiário, e os itens novos na mochila.
+- Cada peça ganha `linhas: [{ tipo, valor }]` e `rerolls` (n). Peças antigas migram com linhas sorteadas pela seed do
+  save e a uid da peça (determinístico) e `rerolls: 0`. Selo do campeão e Pergaminho de reforja entram na mochila.
 - O saneamento corrige vaga com cavalo inexistente, fase não liberada, dificuldade não liberada e números fora da faixa.
 - Peças e Pedras que já estavam no save continuam como estão.
 
@@ -185,6 +230,8 @@ O PVP valendo continua sendo o centro: é lá que se ganha e se arrisca Ouro de 
 - **E3:** offline a menos de 3% de ao vivo (5.5).
 - **E4:** um cavalo de nível 45 com 5 peças Raras +7 do conjunto certo vence o líder na Lendária de 40% a 60%; sem
   peças, de 15% a 35%.
+- **E6:** em 10.000 reforjas, cada tipo sai na proporção esperada (±1 p.p.) e o valor fica dentro da faixa; com Selo,
+  sempre na metade de cima e com o mesmo tipo.
 - **E5:** determinismo: a mesma seed, o mesmo cavalo e a mesma fase dão as mesmas corridas e os mesmos drops; nada chama
   `Math.random`, `Date.now` nem `new Date` no caminho das regras.
 - G1 a G9, P1, P2 e M8 continuam passando (o PVP não muda).

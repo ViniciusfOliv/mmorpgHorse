@@ -3,6 +3,17 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-23 — AFK: revisão do Vinicius (spec e plano atualizados)
+- **Treinar pelo ginásio:** Expedição → ginásio → os oponentes já vencidos com "Treinar (AFK)".
+- **Drop exclusivo por ginásio pesa de verdade:** a peça Rara (e a Lendária) do conjunto só se forja com o incomum e os
+  troféus do ginásio do conjunto.
+- **Peças com linhas de farm sorteadas pela seed** (Mágico 1, Raro 2, Lendário 3), no lugar do atributo fixo por slot.
+- **Pergaminho de reforja:** rerrola uma linha escolhida; Ouro crescente na mesma peça (100 × 1,5^n), sem voltar a zero.
+- **Selo do campeão, só do 1º lugar no PVP valendo (10%):** passa a ser exigido no rank IV → V das skills (muda o custo
+  da spec das skills), garante a reforja (mantém o tipo, valor na metade de cima — chamada da coordenação, já que a
+  reforja é de uma linha só) e forja a Lendária de conjunto (2 Selos).
+- Plano: `docs/superpowers/plans/2026-11-23-afk-drops.md` (blocos A e B, B5 novo).
+
 ## 2026-11-23 — Conteúdo PVE: corrida AFK, itens e rancho (decisões do Vinicius, design em andamento)
 - **Corrida AFK com drops (estilo Idleon/Taskbar Hero), itens mais variados (raros, bestiário, quantidades por ação) e
   equipamento com status só de PVE** entram em design juntos, porque compartilham os drops — propostas do Vinicius. O
