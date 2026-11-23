@@ -19,8 +19,8 @@ tamanho do nome mais largo) e a Força virou 16×16 como os outros status (eea20
 com 3 fundos; 0f95be2). (5) **Câmera que enquadra a disputa** (4 a 12 px/m, suave, o jogador e os rivais a até 45 m) e
 **seta + metros** ("+12 m"/"–8 m") para quem está fora da tela — a placa de metros tinha saído na etapa 2.4 de propósito
 (o guia dizia "sem metros"), e voltou a pedido (37559a4). `check.sh` completo OK (74 blocos), capturas oficiais
-regeneradas (536e54f) e DEV do ramo republicado (versão 8). Próximo: o Vinicius jogar e dizer se sobe para a `main` e
-republica os oficiais.
+regeneradas (536e54f) e DEV do ramo republicado (versão 8). **Na `main` em 2026-11-23** (05927d1, junto com o teste de engine que já estava lá) e os três
+oficiais republicados: jogo na versão 15, DEV na 13 e wiki na 12.
 
 **Fase:** Protótipo, a caminho do MVP. **Ainda não é hora de publicar no Play**; o caminho, as
 durações e o checklist estão em `docs/cronograma.md`. **Tecnologia decidida (2026-11-10):** o
@@ -41,7 +41,9 @@ protótipo vira o jogo, a mesma base web empacotada para Android, com os módulo
   dia, jogo e DEV de novo com o build 53e4ced, o da tela de desafio do ginásio e do Recomeçar do DEV, já na `main`: jogo
   na versão 12 e DEV na 10; o wiki não mudou; em 2026-11-21, os três com o build 97d99df, o das skills com 100% e ranks
   junto com a direção de arte: jogo na versão 13, DEV na 11 e wiki na 10; em 2026-11-23, os três com o build cfd678c, o da
-  direção de arte inteira integrada (etapas 1 a 8), já na `main`: jogo na versão 14, DEV na 12 e wiki na 11):
+  direção de arte inteira integrada (etapas 1 a 8), já na `main`: jogo na versão 14, DEV na 12 e wiki na 11; no mesmo dia,
+  os três com o build 05927d1, o do refino (Nunito + azul, moldura nas cenas, câmera que enquadra): jogo na versão 15, DEV
+  na 13 e wiki na 12):
   - jogo de produção, sem modo DEV: https://claude.ai/artifact/MKTKQUYmzBNun92abFzygn (`prototype/dist/jogo.html`)
   - build de teste com modo DEV: https://claude.ai/artifact/LiMr2cM7FRgFZqJ6dFHPhU (`prototype/dist/jogo-dev.html`)
   - wiki: https://claude.ai/artifact/Bp47f9qE3tSswu1A9zdF2y (`prototype/dist/wiki.html`)
