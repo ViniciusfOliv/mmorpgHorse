@@ -19,7 +19,6 @@
   "sk-nevoa-amiga": 24,
   "sk-pe-na-chuva": 24,
   "sk-sol-a-pino": 24,
-  "st-forca": 24,
   "sk-tipo-grama": 24,
   "sk-drift": 24,
   "liga-bronze": 24,
@@ -72,5 +71,6 @@
   "sk-segundo-ar": 16,
   "sk-tipo-agua": 16,
   "sk-tipo-fogo": 16,
+  "st-forca": 16,
   "ui-corcel": 16
 }
