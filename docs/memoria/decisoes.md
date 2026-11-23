@@ -3,6 +3,16 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-23 — Conteúdo PVE: corrida AFK, itens e rancho (decisões do Vinicius, design em andamento)
+- **Corrida AFK com drops (estilo Idleon/Taskbar Hero), itens mais variados (raros, bestiário, quantidades por ação) e
+  equipamento com status só de PVE** entram em design juntos, porque compartilham os drops — propostas do Vinicius. O
+  equipamento suspenso volta valendo só no PVE (AFK e expedição), nunca no PVP, o que mantém o PVP justo.
+- **O AFK é para assistir enquanto joga e também para coletar offline** — escolha do Vinicius.
+- **O Ouro continua vindo principalmente do PVP**; o AFK rende sobretudo material (proposta da coordenação, para a
+  aposta continuar sendo o centro).
+- **O rancho (fazenda estilo Stardew/Albion, com comidas, casas e trabalhadores) fica só como ideia por enquanto** —
+  escolha do Vinicius; se voltar, começa como tela de gestão.
+
 ## 2026-11-20 — Direção de arte (decisões do Vinicius)
 - **Visual com qualidade e desempenho em 100%, sem nada improvisado por ser mais barato; a ferramenta é a melhor para
   cada tipo de asset (PixelLab, outra IA ou software)** — pedido do Vinicius. O diagnóstico da coordenação: escalas de
