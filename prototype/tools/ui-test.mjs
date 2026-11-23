@@ -1037,7 +1037,7 @@ try {
       const prA = (await st()).pending.pr
       // 1. tira sela e ferraduras com a sala aberta (com o equipamento ligado o Poder cairia; suspenso, as peças saem só
       //    no save e o Poder não muda), apaga o retrato do equipamento do save (save de antes dele)
-      if (GEAR_ON) {
+      if (GEAR_PVP) {
         await rt.locator('[data-acao="equipar-tela"]').click()
         await rt.waitForSelector('#t-montaria')
         for (const slot of ['sela', 'ferraduras']) {
@@ -1046,7 +1046,7 @@ try {
         }
       }
       const raw = await bruto()
-      if (!GEAR_ON) { raw.mounts[0].equip.sela = null; raw.mounts[0].equip.ferraduras = null }
+      if (!GEAR_PVP) { raw.mounts[0].equip.sela = null; raw.mounts[0].equip.ferraduras = null }
       if (raw.mounts[0].equip.sela || raw.mounts[0].equip.ferraduras) problems.push('retrato: as peças não saíram')
       delete raw.pending.gear
       await grava(raw)
