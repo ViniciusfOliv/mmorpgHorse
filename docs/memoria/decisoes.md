@@ -3,6 +3,13 @@
 Formato: **decisão** — motivo. A mais nova fica no topo. O detalhe de cada frente está na spec dela
 (`docs/superpowers/specs/`) e o design no `docs/GDD.md`; aqui fica o *quando* e o *porquê*.
 
+## 2026-11-23 — Build dos testadores (`dist/jogo-teste.html`, pedido do Vinicius)
+- **Terceiro build, só para testes rápidos de outras pessoas, sem o modo DEV**: evolução ×10 (XP da corrida, do ginásio e
+  do AFK; as comidas não, porque o texto delas diz o valor), iniciais Raros com genética 22 (nota A) em todos os status,
+  rivais da sala Mágicos com um só Raro e Poder entre 90% e 96% do cavalo ativo (o rival acima do alvo perde pontos
+  livres e, se preciso, genética). Save próprio (`galope-elemental:teste-rapido`). Bloco `RAPIDO` do `game.js` dentro de
+  `@dev` (o build tira da produção; `jogo.html` não muda). Os ginásios seguem como estão.
+
 ## 2026-11-23 — AFK: correções da revisão da coordenação e merge da `main`
 - **Relógio da vaga (defeito grave corrigido):** "Tirar" + "Começar treino" largava e creditava outra corrida na hora.
   Agora a vaga vazia **guarda o relógio** (`inicioMin`), `Afk.ocupar` usa o maior entre agora, o relógio da vaga de

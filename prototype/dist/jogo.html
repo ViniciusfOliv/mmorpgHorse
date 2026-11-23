@@ -11523,6 +11523,12 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   // ===========================================================================
   var SAVE_KEY = 'galope-elemental:v1';
   
+  // Build dos testadores (dist/jogo-teste.html, que liga o modo rápido; pedido do Vinicius, 2026-11-23): para
+  // testes rápidos de outras pessoas, sem o modo DEV. Evolução ×10 (XP da corrida, do ginásio e do AFK), iniciais Raros
+  // com genética nota A em todos os status e rivais da sala Mágicos com um só Raro, um pouco abaixo do Poder do jogador.
+  // Save próprio. O build tira este bloco do jogo de produção; as regras dos módulos não mudam.
+  var RAPIDO = null;
+  
   var E = GD.ECONOMY;
   var GE = E.gear;
   // Equipamento só no PVE (spec 2026-11-23-afk-drops §5.7; antes, suspenso desde o bloco 1b). A corrida valendo, a sala,
@@ -16587,12 +16593,20 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       // alvo em torno do rating do jogador (−8,5%..+11,5%); o rating já pesa cada habilidade pela chance
       // do gatilho. O leve viés para cima mantém a margem da casa (~10%) também contra bots.
       var target = pr * (0.915 + 0.2 * rng());
+      var poolB = pool;
+      if (RAPIDO) {
+        // testadores: o 1º rival é Raro e os outros Mágicos, todos um pouco abaixo do Poder do jogador
+        target = pr * (RAPIDO.alvo[0] + (RAPIDO.alvo[1] - RAPIDO.alvo[0]) * rng());
+        var rarB = b === 0 ? 'raro' : 'magico';
+        poolB = pool.filter(function (tpl) { return tpl.rarity === rarB; });
+        if (!poolB.length) poolB = pool;
+      }
       // equipamento do bot pela liga do alvo e pelo elemento do template; com o equipamento suspenso (GEAR_ON) o bot
       // corre sem peças, mas o sorteio continua consumido (a ordem da RNG da sala não muda com a constante)
       var gpick = rng();
       var leagueIdx = leagueIndex(target);
       var botGear = function () { return null; };   // o equipamento só vale no PVE: os bots da sala nunca têm peças
-      var inBand = pool.map(function (tpl) {
+      var inBand = poolB.map(function (tpl) {
         var bd = levelBand(tpl);
         return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, bd[0], bd[1], rankBots) };
       })
@@ -16601,7 +16615,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       var cands = fresh.length ? fresh : inBand;
       if (!cands.length) {
         // ninguém plausível na faixa: o mais próximo do alvo em qualquer nível
-        var all = pool.map(function (tpl) {
+        var all = poolB.map(function (tpl) {
           return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, null, null, rankBots) };
         });
         all.sort(function (x, y) { return x.fit.diff - y.fit.diff; });
@@ -16612,6 +16626,16 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       var horse = RS.withRanks(choice.tpl, rankBots);   // genética do catálogo; os pontos livres pela build fixa
       horse.level = choice.fit.level;
       horse.alloc = RS.botAlloc(horse);
+      if (RAPIDO && RS.powerRating(horse) > target) {
+        // testadores: o rival (sobretudo o Raro) perde pontos livres até ficar no alvo, abaixo do jogador
+        var cheio = horse.alloc, lo = 0, hi = 1;
+        var comFator = function (f) { var o = {}; Object.keys(cheio).forEach(function (k) { o[k] = Math.floor(cheio[k] * f); }); return o; };
+        for (var it = 0; it < 12; it++) { var mid = (lo + hi) / 2; horse.alloc = comFator(mid); if (RS.powerRating(horse) > target) hi = mid; else lo = mid; }
+        horse.alloc = comFator(lo);
+        // ainda acima sem pontos livres (Raro de genética alta): a genética desce um degrau por vez até o alvo
+        var pot = horse.potential = JSON.parse(JSON.stringify(horse.potential));
+        for (var desce = 0; desce < 32 && RS.powerRating(horse) > target; desce++) Object.keys(pot).forEach(function (k) { pot[k] = Math.max(0, pot[k] - 1); });
+      }
       horse.id = choice.tpl.id + '-b' + b;
       var silkIdx = SP.SILKS.indexOf(BOT_SILKS[silkOrder[b % silkOrder.length]]);
       bots.push({

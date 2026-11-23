@@ -455,6 +455,8 @@ Forja); medições em `docs/exemplos.md` §5b; decisões em `decisoes.md` (2026-
   corrigidos (`decisoes.md`, "correções da revisão"). `check.sh` OK (79 blocos) e `balance.js` completo OK (380 metas)
   depois disso. Artefatos de teste (não são os oficiais): produção https://claude.ai/artifact/BYNyJ3vZrmuJDiTWBryCxj e
   DEV https://claude.ai/artifact/U17yYPgft3zCqQZzrTEgaP.
+- **Build dos testadores** (`prototype/dist/jogo-teste.html`: evolução ×10, iniciais Raros nota A, rivais um pouco
+  abaixo; save próprio; decisões de 2026-11-23). `check.sh` OK (79 blocos, 132 metas no rápido).
 - **Falta:** a aprovação do Vinicius para integrar na `main` e republicar os oficiais.
 
 ## Em andamento

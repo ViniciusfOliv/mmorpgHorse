@@ -7,6 +7,8 @@
 //                        ui-test); ?dev=1 não faz nada. O build falha se sobrar algo do DEV ou do gancho.
 //   dist/jogo-dev.html -> TESTE: tudo, com window.__GALOPE_DEV = true antes dos scripts (modo DEV ligado sozinho,
 //                        save de teste) para o artefato do claude.ai, que não repassa ?dev=1
+//   dist/jogo-teste.html -> TESTADORES: tudo, com window.__GALOPE_RAPIDO = true (evolução ×10, iniciais Raros nota A,
+//                        rivais Mágicos e um Raro um pouco abaixo do Poder do jogador; save próprio; sem modo DEV)
 //   dist/preview.html -> DESENVOLVIMENTO e alvo do ui-test: tudo, num documento completo (com ?dev=1 abre o modo
 //                        DEV)
 //   dist/moldes.js    -> só a tabela window.__MOLDES, para o comparativo.html (que abre por file://
@@ -112,8 +114,11 @@ const pagina = (extra, js, estilo = css) => [
 const body = pagina([], scriptsProd, cssProd)           // produção
 const bodyDev = pagina(['<script>window.__GALOPE_DEV = true;</script>'], scripts)
 const bodyPreview = pagina([], scripts)
+// build dos testadores (pedido do Vinicius, 2026-11-23): o jogo completo, sem o modo DEV ligado, com evolução ×10,
+// iniciais Raros nota A e rivais um pouco abaixo (bloco RAPIDO do game.js); save próprio
+const bodyTeste = pagina(['<script>window.__GALOPE_RAPIDO = true;</script>'], scripts)
 
-for (const [nome, html] of [['jogo.html', body], ['jogo-dev.html', bodyDev]]) {
+for (const [nome, html] of [['jogo.html', body], ['jogo-dev.html', bodyDev], ['jogo-teste.html', bodyTeste]]) {
   for (const tag of [/<!doctype/i, /<html[\s>]/i, /<head[\s>]/i, /<body[\s>]/i]) {
     if (tag.test(html)) throw new Error(`${nome} não pode conter ${tag}`)
   }
@@ -137,6 +142,7 @@ const moldesJs = '// Gerado por build.mjs — não editar. Tabela dos moldes par
 await mkdir(join(ROOT, 'dist'), { recursive: true })
 await writeFile(join(ROOT, 'dist', 'jogo.html'), body)
 await writeFile(join(ROOT, 'dist', 'jogo-dev.html'), bodyDev)
+await writeFile(join(ROOT, 'dist', 'jogo-teste.html'), bodyTeste)
 await writeFile(join(ROOT, 'dist', 'preview.html'), preview)
 await writeFile(join(ROOT, 'dist', 'moldes.js'), moldesJs)
 {
@@ -155,6 +161,7 @@ console.log(`moldes: ${Object.keys(MOLDES.estilos).join(', ') || 'nenhum'} · ar
 console.log(`fontes e peças de pixel: ${kb(baseCss)}`)
 console.log(`dist/jogo.html    ${kb(body)}`)
 console.log(`dist/jogo-dev.html ${kb(bodyDev)}`)
+console.log(`dist/jogo-teste.html ${kb(bodyTeste)}`)
 console.log(`dist/preview.html ${kb(preview)}`)
 console.log(`dist/moldes.js    ${kb(moldesJs)}`)
 
