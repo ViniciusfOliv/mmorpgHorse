@@ -18,6 +18,9 @@
  *     rng() < GameData.ITEMS.pergaminho.podio[place − 1]. Quem chama só chama em corrida valendo, na liquidação.
  *     SAL_PERGAMINHO = 0x50450000 ("PE"): com a seed da sala só se usam índice do corredor + 1, 0xC0FFEE (mapa),
  *     0xD1CE (Dado), 0xA11CE (sala), 0xB1AC + lugar (Pedra Negra) e 0x4A4F0000 + raia (jóquei).
+ *   - seloPodio(seed, place): UMA chamada, rng = mulberry32(hash2(seed, SAL_SELO + 1)), com a seed DA SALA, só se
+ *     place é 1 (senão devolve 0 sem sortear). Sai 1 se rng() < GameData.ITEMS.selo.podio. SAL_SELO = 0x53450000 ("SE").
+ *     Quem chama só chama em corrida valendo, na liquidação (nunca no treino nem no AFK).
  *   - subirRank e podeSubirRank não sorteiam (a subida de rank nunca falha).
  *   - Nenhuma outra função sorteia.
  * SAL: hash2(seedBase, x) já é usado com x = contador da sala (buildLobby), nº do páreo × 100 + nível
@@ -26,6 +29,9 @@
  *   usos (0x17E5 do plano caía em 61 × 100 + 17: o aprendizado do páreo 61 no nível 17).
  *   Ginásios (ginasio.js): 0x47490000 ("GI") + contador de desafios × 8 + nº do duelo (0–4), abaixo deste SAL,
  *   com folga de ~4 milhões de desafios.
+ *   Forja (forja.js): 0x464F0000 ("FO") + contador de peças forjadas (as linhas da peça). Reforja (gear.js):
+ *   hash2(hash2(seedBase, 0x52460000 ("RF") + nº do uid da peça), rerolls da peça): o rerolls entra num segundo hash.
+ *   Linhas de peça antiga (gear.js, linhasDaPeca): 0x20000000 + nº do uid.
  *   Corrida AFK (afk.js): hash2(hash2(seedBase, 0x41460000 ("AF") + vaga 0–4), contador da vaga): o contador entra
  *   num segundo hash, então não disputa faixa com os outros sais.
  *   Skill ao subir de nível num desafio de ginásio (game.js, desafia; Ruling 18): o applyXp com seedTag =
@@ -54,6 +60,7 @@
 
   var SAL = 0x49540000;
   var SAL_PERGAMINHO = 0x50450000;
+  var SAL_SELO = 0x53450000;   // "SE"
   var DIA_MAX = Math.floor(Date.UTC(9999, 11, 31) / 86400000);   // diaLocal(9999, 11, 31): o maior dia guardado
   var I = G.ITEMS, D = G.DAILY;
   // os que têm limite por dia (perDay), lidos do catálogo a cada uso (hoje: torrao, manual, cupom): item novo com perDay
@@ -163,7 +170,7 @@
     if (skills.indexOf(skillId) < 0 || !temChave(G.SKILLS, skillId)) return { ok: false, motivo: 'Este cavalo não tem essa skill nas vagas.' };
     var rank = sanearRanks(skills, mount.skillRanks)[skillId];
     if (rank >= G.SKILL_RANKS.max) return { ok: false, motivo: 'Rank máximo', rank: rank };
-    var custo = { ouro: G.SKILL_RANKS.custo[rank].ouro, perg: G.SKILL_RANKS.custo[rank].perg };
+    var custo = { ouro: G.SKILL_RANKS.custo[rank].ouro, perg: G.SKILL_RANKS.custo[rank].perg, selo: G.SKILL_RANKS.custo[rank].selo || 0 };
     if (c.salaAbertaAtivo) return { ok: false, motivo: 'Com o páreo aberto, o cavalo ativo não sobe rank', custo: custo, rank: rank };
     if (!(Number(c.ouroLivre) >= custo.ouro)) {
       var reservado = Number(c.ouro) >= custo.ouro;
@@ -171,6 +178,7 @@
         custo: custo, rank: rank };
     }
     if (!(Number(c.pergaminhos) >= custo.perg)) return { ok: false, motivo: 'Faltam Pergaminhos (precisa de ' + custo.perg + ')', custo: custo, rank: rank };
+    if (custo.selo && !(Number(c.selos) >= custo.selo)) return { ok: false, motivo: 'Falta Selo do campeão', custo: custo, rank: rank };
     return { ok: true, custo: custo, rank: rank };
   }
   // O rank novo e o custo a descontar (quem chama confere podeSubirRank e grava tudo junto). null: skill que o cavalo
@@ -181,7 +189,7 @@
     var ranks = sanearRanks(skills, mount.skillRanks), rank = ranks[skillId];
     if (rank >= G.SKILL_RANKS.max) return null;
     ranks[skillId] = rank + 1;
-    return { skillRanks: ranks, ouro: G.SKILL_RANKS.custo[rank].ouro, perg: G.SKILL_RANKS.custo[rank].perg };
+    return { skillRanks: ranks, ouro: G.SKILL_RANKS.custo[rank].ouro, perg: G.SKILL_RANKS.custo[rank].perg, selo: G.SKILL_RANKS.custo[rank].selo || 0 };
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -192,6 +200,14 @@
     if (place !== 1 && place !== 2 && place !== 3) return 0;
     var roll = S.mulberry32(S.hash2(seed >>> 0, SAL_PERGAMINHO + place))();
     return roll < I.pergaminho.podio[place - 1] ? 1 : 0;
+  }
+
+  // Selo do campeão (spec AFK §5.9): 0 ou 1, só para o 1º lugar de uma corrida valendo, pela seed da sala (um sorteio,
+  // sal próprio: não mexe no do Pergaminho de técnica). Quem chama só chama na liquidação de corrida valendo.
+  function seloPodio(seed, place) {
+    if (place !== 1 || typeof seed !== 'number' || !isFinite(seed)) return 0;
+    var roll = S.mulberry32(S.hash2(seed >>> 0, SAL_SELO + place))();
+    return roll < I.selo.podio ? 1 : 0;
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -295,6 +311,7 @@
     SAL: SAL,
     SAL_PERGAMINHO: SAL_PERGAMINHO,
     pergaminhoPodio: pergaminhoPodio,
+    seloPodio: seloPodio,
     sanearRanks: sanearRanks,
     podeSubirRank: podeSubirRank,
     subirRank: subirRank,

@@ -104,7 +104,7 @@
   function dueloCfg(meu, dele, seed, opts) {
     var o = objeto(opts) || {}, pista = objeto(o.pista) || {};
     var v = vantagem(meu && meu.element, dele && dele.element), mul = 1 + G.GYM.vantagem;
-    return {
+    var cfg = {
       seed: seed,
       recordFrames: o.recordFrames === true,
       conditions: copia({ distance: pista.distance, surface: pista.surface, weather: 'nublado', blocks: pista.blocks }),
@@ -113,6 +113,13 @@
         { horse: copia(dele), name: dele.name, isPlayer: false, folego: typeof o.folegoDele === 'number' ? o.folegoDele : 1, statMul: v === -1 ? mul : 1 }
       ]
     };
+    // só o treino AFK passa peças (opts.pecasMeu / pecasDele = { statAdd, pve }); os duelos de ginásio de verdade, nunca
+    [o.pecasMeu, o.pecasDele].forEach(function (pc, k) {
+      if (!objeto(pc)) return;
+      if (objeto(pc.statAdd)) cfg.racers[k].statAdd = copia(pc.statAdd);
+      if (objeto(pc.pve)) cfg.racers[k].pve = copia(pc.pve);
+    });
+    return cfg;
   }
   function folegoDe(perda) { return Math.max(r3(1 - G.GYM.fadiga.teto), r3(1 - perda)); }
   // e = { gymId, etapa (0–4), time: [horse…] (na ordem; 1 até o tamanho do time do adversário), seedBase, contador }.

@@ -151,7 +151,8 @@ for (const id in G.SKILLS) confere(a.html.includes(`id="skill-${id}"`), `skill $
   confere(/A revanche não dá Pergaminhos de técnica/.test(secGin), 'Ginásios: a revanche sem "não dá Pergaminhos"')
   // cruzamento, itens, equipamento e DEV
   confere(/Rank: cada skill herdada nasce 1 rank abaixo do pai que a tem/.test(a.md.slice(a.md.indexOf('## Cruzamento'), a.md.indexOf('## Equipamento'))), 'Cruzamento: as skills do potro sem a regra do rank')
-  confere(a.md.includes(`+${Math.round(G.ECONOMY.gear.setBonus.skillEffect * 100)}% no efeito das skills`) && !/p\.p\. na chance de (?:todas as )?skills/.test(a.md), 'Equipamento: o bônus de 3 peças devia ser "+5% no efeito das skills" (setBonus.skillEffect)')
+  confere(/\*\*Só vale no treino AFK \(PVE\)\.\*\*/.test(a.md) && a.md.includes(`linhas de farm +${Math.round(G.ECONOMY.gear.setBonus.farm * 100)}%`) && !/no efeito das skills/.test(a.md.slice(a.md.indexOf('## Equipamento'), a.md.indexOf('## Economia'))), 'Equipamento: a seção devia dizer que só vale no treino AFK e que 3 peças dão +10% nas linhas de farm')
+  for (const t of Object.keys(G.ECONOMY.gear.faixas)) for (const r of ['magico', 'raro', 'lendario']) confere(a.md.includes(`${G.ECONOMY.gear.faixas[t][r][0]}–${G.ECONOMY.gear.faixas[t][r][1]}%`), `Equipamento: falta a faixa da linha ${t} ${r}`)
   const devCav = (a.md.match(/^- \*\*Cavalo:\*\* (.*)$/m) || [])[1] || ''
   confere(/cada uma com o seu rank \(seletor de I a V\)/.test(devCav), `o Modo DEV no wiki sem o seletor de rank por skill: ${devCav}`)
   confere(G.HELP.rank.includes(`+${Math.round(K.step * 100)}%`), `HELP.rank não diz "+${Math.round(K.step * 100)}%" por passo (SKILL_RANKS.step): ${G.HELP.rank}`)

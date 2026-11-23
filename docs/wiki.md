@@ -32,7 +32,7 @@
 
 ### Ciclo de uma corrida
 
-1. **Escolher a montaria.** No começo você escolhe uma das 3 iniciais (Brasa, Maré e Ipê) e recebe 500 de Ouro.
+1. **Escolher a montaria.** No começo você escolhe uma das 3 iniciais (Brasa, Maré e Ipê) e recebe 500 de Ouro e o equipamento inicial (Sela de Couro Cru e Ferradura Leve, já equipado).
 2. **Procurar sala.** Na aba Correr você escolhe a entrada (50, 100 ou 250 de Ouro). A sala tem de 4 a 8 corredores: você e bots com Poder perto do seu. Pista, clima e rivais saem da seed da sala e não mudam até você correr.
 3. **Pagar a entrada.** Só depois de "Largar!" a corrida é simulada; o resultado nunca é calculado antes.
 4. **Corrida automática.** O jóquei dosa o ritmo pela estamina; skills disparam nos gatilhos; o Dado da Sorte rola em 1/3 e 2/3 da pista e pode virar o clima; a Garra decide a reta final.
@@ -40,11 +40,11 @@
 
 ### Abas do jogo
 
-- **Estábulo:** o cartão da recompensa do dia, no topo; suas montarias (3 vagas no começo, até 8), status, skills (com o rank de cada uma e o botão Subir rank) e a redistribuição dos pontos; escolher a ativa.
+- **Estábulo:** o cartão da recompensa do dia, no topo; suas montarias (3 vagas no começo, até 8), status, skills (com o rank de cada uma) e equipamento; escolher a ativa.
 - **Correr:** escolher a entrada (50, 100 ou 250 de Ouro) e procurar corrida; sem Ouro para a menor entrada, treino gratuito.
 - **Expedição:** os 3 ginásios (Ginásio da Fornalha, Ginásio do Remanso e Ginásio da Capoeira), cada um com quantas etapas já venceu ("N de 5 vencidos"), a insígnia conquistada e "Revanche hoje" quando a revanche do líder está livre (o ponto na aba avisa) ou "Revanche amanhã" depois de tentada a de hoje. Tocar no ginásio abre a trilha: as 5 etapas de baixo para cima (Soldado 1, Soldado 2, Soldado 3, Soldado 4 e o Líder), cada uma vencida, próxima (a única que se toca) ou fechada ("Vença a etapa anterior"), e o ponto fraco escrito ("Ponto fraco: Água vence Fogo"); ao abrir, a trilha rola o mínimo para a etapa que se pode tocar aparecer inteira. **Preparo:** a etapa próxima mostra os cavalos do adversário (nível, estrelas, elemento e Poder), a pista da casa, a entrada e o prêmio da 1ª vitória; em "Seu time" você toca nos seus cavalos na ordem em que vão correr, até o tamanho do time do adversário (tocar de novo tira). Cada linha diz "Vantagem" ou "Desvantagem" contra o elemento do ginásio; com uma sala de corrida aberta (valendo ou treino), o cavalo ativo fica de fora, com o motivo escrito. **Pagar:** "Desafiar (N de Ouro)" cobra a entrada e só então o desafio é simulado; sem time, sem Ouro (o reservado para a sala aberta não conta) ou com a mochila cheia do item do prêmio, o botão fica apagado com o motivo. **Duelos:** cada duelo passa na tela de corrida, com 2 raias: a placa diz "Duelo N" (nunca quantos serão), e uma linha diz a vantagem de elemento e o fôlego de quem larga cansado; "Pular" termina o duelo (depois da chegada ele diz "Continuar") e "Pular tudo" vai direto ao resumo. Entre um duelo e outro, um cartão diz como foi o seu cavalo e por quantos metros, quem saiu e quem entra, a faixa do cansaço com o fôlego de quem ficou ("Vitória apertada (menos de 1 m): … larga com 75% do fôlego") e a vantagem do próximo duelo, com "Próximo duelo" e "Pular tudo". Os metros são truncados para baixo (7,6 m aparece como 7 m); abaixo de 1 m, "menos de 1 m". **Resumo:** cada duelo com "Você venceu" ou "Você perdeu", os metros e o fôlego de quem seguiu; a entrada, o prêmio e os itens; o XP de cada cavalo (os níveis e as skills que aprendeu, ou "não correu"); a insígnia e a etapa liberada. Perdendo, "Tentar de novo" volta ao preparo com o mesmo time; sempre há "Voltar à trilha". **Revanche:** depois da insígnia, a etapa do líder vira a revanche, uma vez por dia: "Revanche hoje", com a entrada de 50 de Ouro e o prêmio de hoje do rodízio; tentada a de hoje, a etapa diz "Feita hoje" e "Revanche de hoje feita. Volte amanhã.", e a revanche perdida não tem "Tentar de novo". **Treino AFK:** na trilha, cada oponente já vencido tem "Treinar (AFK)", que abre a escolha do treino (oponente, dificuldade, vaga e cavalo). O cartão "Treino AFK" da aba abre as vagas (o cavalo, o oponente, a chance de vitória medida, a corrida em curso e a última; Assistir, Trocar e Tirar; "Abrir vaga" com o preço) e o baú ("Coletar tudo"); o cartão "Bestiário" abre as páginas dos ginásios (ver Corrida AFK). Embaixo, a vitrine de 6 cavalos selvagens (a captura ainda não existe no protótipo).
 - **Haras:** cruzar com um reprodutor de aluguel ou com outra montaria sua, ou fazer a Troca.
-- **Loja:** em **Comprar**, os itens de uso (Torrão de açúcar, Manual de doma, Cupom de troca de skill e Estrela de treino) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os 6 itens, quantos você tem de cada e o botão Usar (o Pergaminho de técnica não tem Usar: é gasto ao subir rank, na aba Skills do cavalo) e, embaixo, os itens do treino AFK por grupo (comidas, com o Usar e a escolha do cavalo; materiais; Pergaminho de reforja; troféus).
+- **Loja:** em **Comprar**, os itens de uso (Torrão de açúcar, Manual de doma, Cupom de troca de skill e Estrela de treino) com Ouro, um toque por compra, dentro do limite do dia; em **Mochila**, os 6 itens, quantos você tem de cada e o botão Usar (o Pergaminho de técnica não tem Usar: é gasto ao subir rank, na aba Skills do cavalo) e, embaixo, os itens do treino AFK por grupo (comidas, com o Usar e a escolha do cavalo; materiais; Pergaminho de reforja; troféus); também peças de equipamento (menos as de raridade Lendário) e Pedras Negras.
 - **Perfil (o botão do cabeçalho):** as estatísticas (corridas, vitórias, pódios e prêmios), o Ouro e quantas montarias você tem; as insígnias dos ginásios ("Insígnias (N de 3)", as 3 na ordem Insígnia da Fornalha, Insígnia do Remanso e Insígnia da Capoeira: a conquistada com o ícone, o nome e o bônus; a que falta apagada, com "Vença o líder do …"); o seu jóquei (seda e capacete); as animações; e "Recomeçar com outro inicial".
 
 > Ainda não existem no protótipo: Gemas, passe, ovos, contas, servidor, as expedições fora os ginásios e a captura. A única moeda é o Ouro; as Pedras Negras são material de melhoria.
@@ -101,7 +101,7 @@ custo do i-ésimo ponto num mesmo status (i = 0, 1, …) = 1 + piso(i / 10)
 - **Torrões:** cada Torrão de açúcar usado no cavalo é 1 ponto a mais, somado depois do piso; até 10 por cavalo (ver Itens).
 - **Teto:** base + pontos ≤ 150 em cada status. Ninguém chega lá: o pior caso (Mítico ★★★ no Nv 50, genética 31, com os 10 torrões e todos os pontos num status) fica em 148.
 - **Sorte:** só de nascimento, não recebe pontos: fica na base, de 40 (Comum, genética 0) a 76 (Mítico, genética 31).
-- **Equipamento:** suspenso; as peças não mexem nos status (ver Equipamento).
+- **Equipamento:** só vale no treino AFK; na corrida valendo e no Poder as peças não mexem nos status (ver Equipamento).
 
 **Custo dos pontos num mesmo status**
 
@@ -417,7 +417,6 @@ Sobe o rank de uma skill do cavalo, junto com Ouro, na aba Skills. Só se ganha 
 - **Bots da sala:** todas as skills de vaga de todos os bots ficam no mesmo rank: a média, arredondada, dos ranks das skills de vaga do seu cavalo (rank I se ele não tem skill de vaga). Sem sorteio; o rank entra no Poder do bot. A sala mostra "skills rank N" nos rivais.
 - **Oponentes dos ginásios:** rank fixo por etapa, sem sorteio (coluna "Rank das skills" de cada trilha, em Ginásios da Expedição); a revanche usa o do líder. Hoje as montarias-base dos ginásios (Brasa, Maré e Ipê) não têm skill de vaga, então esse rank ainda não muda nada na prática.
 - **Na pista:** o balão da skill mostra o rank em algarismo romano a partir do II, no fim do nome ("ARRANQUE III"); o rank I não aparece.
-- **Conjunto de equipamento (suspenso):** o bônus de 3 peças seria +5% no efeito das skills, multiplicando o fator do rank (ver Equipamento).
 
 **Skills por rank (o texto do jogo no rank I e no V; o do V já traz o marco)**
 
@@ -1033,75 +1032,87 @@ As estrelas do potro multiplicam os pontos que ele ganha por level (ver Raridade
 
 ## Equipamento
 
-> **Suspenso:** as peças, a melhoria, o que está equipado e as Pedras Negras ficam guardados, mas a corrida, os status e o Poder ignoram o equipamento por enquanto. O catálogo abaixo é o que volta quando ele for revisto.
+> **Só vale no treino AFK (PVE).** O equipamento nunca entra na corrida valendo, na sala, no Poder nem nos duelos de ginásio: lá todo cavalo corre sem peças.
 
-Cada montaria tem 5 slots. Cada peça soma um status principal (o valor da raridade + a melhoria) e um secundário, definidos pelo slot. Peças Comum e Mágico são soltas; Raro e Lendário pertencem a um conjunto (Sol, Chuva e Névoa).
+Cada montaria tem 5 slots. Cada peça soma um **status principal de corrida** (o valor da raridade + a melhoria), definido pelo slot, e tem **linhas de farm** sorteadas pela seed quando a peça nasce. Peças Comum e Mágico são soltas; Raro e Lendário pertencem a um conjunto (Sol, Chuva e Névoa). O status da corrida é inteiro: a soma das peças de um slot é arredondada (2,25 vira +2).
 
-| Slot | Status principal | Status secundário |
-| --- | --- | --- |
-| Ferraduras | Velocidade | Aceleração |
-| Sela | Estamina | Garra |
-| Estribos | Manobra | Sorte |
-| Testeira | Aceleração | Garra |
-| Armadura | Força | Estamina |
+| Slot | Status principal |
+| --- | --- |
+| Ferraduras | Velocidade |
+| Sela | Estamina |
+| Estribos | Manobra |
+| Testeira | Aceleração |
+| Armadura | Força |
 
-| Raridade | Principal | Secundário | Preço | Venda | Na loja |
+| Raridade | Principal | Linhas de farm | Preço | Venda | Na loja |
 | --- | ---: | ---: | --- | --- | --- |
-| Comum | +2 | +0 | 100 | 25 | sim |
-| Mágico | +2 | +1 | 250 | 63 | sim |
-| Raro | +3 | +2 | 600 | 150 | sim |
-| Lendário | +4 | +3 | 1.500 | 375 | **nunca à venda** |
+| Comum | +0,75 | 0 | 100 | 25 | sim |
+| Mágico | +1 | 1 | 250 | 63 | sim |
+| Raro | +1,25 | 2 | 600 | 150 | sim |
+| Lendário | +1,75 | 3 | 1.500 | 375 | **nunca à venda** |
 
 Venda devolve 25% do preço. Peças Lendário nunca estão à venda. Equipamento inicial: Sela de Couro Cru e Ferradura Leve.
 
+### Linhas de farm
+
+Cada linha tem um tipo (sem repetir na mesma peça) e um valor inteiro em pontos percentuais, sorteado na faixa da raridade (sorteio uniforme). Os percentuais das peças equipadas somam entre si e multiplicam o ganho do treino AFK daquele cavalo (com o bestiário). A melhoria sobe só o principal.
+
+| Tipo | Mágico | Raro | Lendário |
+| --- | ---: | ---: | ---: |
+| Material do ginásio | 3–6% | 6–10% | 10–15% |
+| XP | 3–6% | 6–10% | 10–15% |
+| Drop raro (incomum, Pedra Negra, peça, comida) | 2–5% | 5–8% | 8–12% |
+| Chance de troféu | 6–12% | 12–20% | 20–30% |
+| Ouro do treino | 2–4% | 4–6% | 6–10% |
+
 ### Catálogo completo
 
-| Peça | Slot | Raridade | Conjunto | Principal | Secundário | Preço | Loja |
-| --- | --- | --- | --- | ---: | ---: | --- | --- |
-| **Ferradura Leve** | Ferraduras | Comum | — | +2 VEL | — | 100 | sim |
-| **Ferradura com Cravos** | Ferraduras | Mágico | — | +2 VEL | +1 ACE | 250 | sim |
-| **Ferraduras do Sol** | Ferraduras | Raro | Sol | +3 VEL | +2 ACE | 600 | sim |
-| **Ferraduras do Sol** | Ferraduras | Lendário | Sol | +4 VEL | +3 ACE | 1.500 | não |
-| **Ferraduras da Chuva** | Ferraduras | Raro | Chuva | +3 VEL | +2 ACE | 600 | sim |
-| **Ferraduras da Chuva** | Ferraduras | Lendário | Chuva | +4 VEL | +3 ACE | 1.500 | não |
-| **Ferraduras da Névoa** | Ferraduras | Raro | Névoa | +3 VEL | +2 ACE | 600 | sim |
-| **Ferraduras da Névoa** | Ferraduras | Lendário | Névoa | +4 VEL | +3 ACE | 1.500 | não |
-| **Sela de Couro Cru** | Sela | Comum | — | +2 EST | — | 100 | sim |
-| **Sela Acolchoada** | Sela | Mágico | — | +2 EST | +1 GAR | 250 | sim |
-| **Sela do Sol** | Sela | Raro | Sol | +3 EST | +2 GAR | 600 | sim |
-| **Sela do Sol** | Sela | Lendário | Sol | +4 EST | +3 GAR | 1.500 | não |
-| **Sela da Chuva** | Sela | Raro | Chuva | +3 EST | +2 GAR | 600 | sim |
-| **Sela da Chuva** | Sela | Lendário | Chuva | +4 EST | +3 GAR | 1.500 | não |
-| **Sela da Névoa** | Sela | Raro | Névoa | +3 EST | +2 GAR | 600 | sim |
-| **Sela da Névoa** | Sela | Lendário | Névoa | +4 EST | +3 GAR | 1.500 | não |
-| **Estribos de Corda** | Estribos | Comum | — | +2 MAN | — | 100 | sim |
-| **Esporas de Prata** | Estribos | Mágico | — | +2 MAN | +1 SOR | 250 | sim |
-| **Estribos do Sol** | Estribos | Raro | Sol | +3 MAN | +2 SOR | 600 | sim |
-| **Estribos do Sol** | Estribos | Lendário | Sol | +4 MAN | +3 SOR | 1.500 | não |
-| **Estribos da Chuva** | Estribos | Raro | Chuva | +3 MAN | +2 SOR | 600 | sim |
-| **Estribos da Chuva** | Estribos | Lendário | Chuva | +4 MAN | +3 SOR | 1.500 | não |
-| **Estribos da Névoa** | Estribos | Raro | Névoa | +3 MAN | +2 SOR | 600 | sim |
-| **Estribos da Névoa** | Estribos | Lendário | Névoa | +4 MAN | +3 SOR | 1.500 | não |
-| **Antolhos** | Testeira | Comum | — | +2 ACE | — | 100 | sim |
-| **Testeira de Couro** | Testeira | Mágico | — | +2 ACE | +1 GAR | 250 | sim |
-| **Testeira do Sol** | Testeira | Raro | Sol | +3 ACE | +2 GAR | 600 | sim |
-| **Testeira do Sol** | Testeira | Lendário | Sol | +4 ACE | +3 GAR | 1.500 | não |
-| **Testeira da Chuva** | Testeira | Raro | Chuva | +3 ACE | +2 GAR | 600 | sim |
-| **Testeira da Chuva** | Testeira | Lendário | Chuva | +4 ACE | +3 GAR | 1.500 | não |
-| **Testeira da Névoa** | Testeira | Raro | Névoa | +3 ACE | +2 GAR | 600 | sim |
-| **Testeira da Névoa** | Testeira | Lendário | Névoa | +4 ACE | +3 GAR | 1.500 | não |
-| **Manta de Lã** | Armadura | Comum | — | +2 FOR | — | 100 | sim |
-| **Capa Impermeável** | Armadura | Mágico | — | +2 FOR | +1 EST | 250 | sim |
-| **Armadura do Sol** | Armadura | Raro | Sol | +3 FOR | +2 EST | 600 | sim |
-| **Armadura do Sol** | Armadura | Lendário | Sol | +4 FOR | +3 EST | 1.500 | não |
-| **Armadura da Chuva** | Armadura | Raro | Chuva | +3 FOR | +2 EST | 600 | sim |
-| **Armadura da Chuva** | Armadura | Lendário | Chuva | +4 FOR | +3 EST | 1.500 | não |
-| **Armadura da Névoa** | Armadura | Raro | Névoa | +3 FOR | +2 EST | 600 | sim |
-| **Armadura da Névoa** | Armadura | Lendário | Névoa | +4 FOR | +3 EST | 1.500 | não |
+| Peça | Slot | Raridade | Conjunto | Principal | Preço | Loja |
+| --- | --- | --- | --- | ---: | --- | --- |
+| **Ferradura Leve** | Ferraduras | Comum | — | +0,75 VEL | 100 | sim |
+| **Ferradura com Cravos** | Ferraduras | Mágico | — | +1 VEL | 250 | sim |
+| **Ferraduras do Sol** | Ferraduras | Raro | Sol | +1,25 VEL | 600 | sim |
+| **Ferraduras do Sol** | Ferraduras | Lendário | Sol | +1,75 VEL | 1.500 | não |
+| **Ferraduras da Chuva** | Ferraduras | Raro | Chuva | +1,25 VEL | 600 | sim |
+| **Ferraduras da Chuva** | Ferraduras | Lendário | Chuva | +1,75 VEL | 1.500 | não |
+| **Ferraduras da Névoa** | Ferraduras | Raro | Névoa | +1,25 VEL | 600 | sim |
+| **Ferraduras da Névoa** | Ferraduras | Lendário | Névoa | +1,75 VEL | 1.500 | não |
+| **Sela de Couro Cru** | Sela | Comum | — | +0,75 EST | 100 | sim |
+| **Sela Acolchoada** | Sela | Mágico | — | +1 EST | 250 | sim |
+| **Sela do Sol** | Sela | Raro | Sol | +1,25 EST | 600 | sim |
+| **Sela do Sol** | Sela | Lendário | Sol | +1,75 EST | 1.500 | não |
+| **Sela da Chuva** | Sela | Raro | Chuva | +1,25 EST | 600 | sim |
+| **Sela da Chuva** | Sela | Lendário | Chuva | +1,75 EST | 1.500 | não |
+| **Sela da Névoa** | Sela | Raro | Névoa | +1,25 EST | 600 | sim |
+| **Sela da Névoa** | Sela | Lendário | Névoa | +1,75 EST | 1.500 | não |
+| **Estribos de Corda** | Estribos | Comum | — | +0,75 MAN | 100 | sim |
+| **Esporas de Prata** | Estribos | Mágico | — | +1 MAN | 250 | sim |
+| **Estribos do Sol** | Estribos | Raro | Sol | +1,25 MAN | 600 | sim |
+| **Estribos do Sol** | Estribos | Lendário | Sol | +1,75 MAN | 1.500 | não |
+| **Estribos da Chuva** | Estribos | Raro | Chuva | +1,25 MAN | 600 | sim |
+| **Estribos da Chuva** | Estribos | Lendário | Chuva | +1,75 MAN | 1.500 | não |
+| **Estribos da Névoa** | Estribos | Raro | Névoa | +1,25 MAN | 600 | sim |
+| **Estribos da Névoa** | Estribos | Lendário | Névoa | +1,75 MAN | 1.500 | não |
+| **Antolhos** | Testeira | Comum | — | +0,75 ACE | 100 | sim |
+| **Testeira de Couro** | Testeira | Mágico | — | +1 ACE | 250 | sim |
+| **Testeira do Sol** | Testeira | Raro | Sol | +1,25 ACE | 600 | sim |
+| **Testeira do Sol** | Testeira | Lendário | Sol | +1,75 ACE | 1.500 | não |
+| **Testeira da Chuva** | Testeira | Raro | Chuva | +1,25 ACE | 600 | sim |
+| **Testeira da Chuva** | Testeira | Lendário | Chuva | +1,75 ACE | 1.500 | não |
+| **Testeira da Névoa** | Testeira | Raro | Névoa | +1,25 ACE | 600 | sim |
+| **Testeira da Névoa** | Testeira | Lendário | Névoa | +1,75 ACE | 1.500 | não |
+| **Manta de Lã** | Armadura | Comum | — | +0,75 FOR | 100 | sim |
+| **Capa Impermeável** | Armadura | Mágico | — | +1 FOR | 250 | sim |
+| **Armadura do Sol** | Armadura | Raro | Sol | +1,25 FOR | 600 | sim |
+| **Armadura do Sol** | Armadura | Lendário | Sol | +1,75 FOR | 1.500 | não |
+| **Armadura da Chuva** | Armadura | Raro | Chuva | +1,25 FOR | 600 | sim |
+| **Armadura da Chuva** | Armadura | Lendário | Chuva | +1,75 FOR | 1.500 | não |
+| **Armadura da Névoa** | Armadura | Raro | Névoa | +1,25 FOR | 600 | sim |
+| **Armadura da Névoa** | Armadura | Lendário | Névoa | +1,75 FOR | 1.500 | não |
 
 ### Melhoria (+1 a +10)
 
-Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela seed do save). A partir de +6, a falha **derruba** a peça 1 nível. Cada + soma 0,5 no status principal (uma peça +10 soma +5). Pedra Negra: 40 de Ouro na loja (pacote de 5 = 200).
+Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela seed do save). A partir de +6, a falha **derruba** a peça 1 nível. Cada + soma 0,2 no status principal (uma peça +10 soma +2). Pedra Negra: 40 de Ouro na loja (pacote de 5 = 200); também cai no treino AFK e sai da forja.
 
 | Passo | Chance | Custo (pedras) | Se falhar | Pedras esperadas no passo | Pedras esperadas desde +0 |
 | --- | ---: | ---: | --- | ---: | ---: |
@@ -1116,7 +1127,7 @@ Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela see
 | +8 → +9 | 30% | 2 | cai para +7 | 54,7 | 91,7 |
 | +9 → +10 | 25% | 2 | cai para +8 | 172 | 263,7 |
 
-**Pedra Negra do pódio (não cai enquanto o equipamento estiver suspenso):** só em corrida valendo (entrada paga), sorteada pela seed da sala: 1º lugar 60%, 2º lugar 40%, 3º lugar 25%.
+**Pedra Negra do pódio:** desligada (a corrida valendo dá o Pergaminho de técnica); a Pedra vem da loja, do treino AFK e da forja.
 
 ### Conjuntos
 
@@ -1126,28 +1137,25 @@ Cada tentativa gasta Pedras Negras e tem uma chance de sucesso (sorteio pela see
 | Chuva | Chuva | Água | Ferraduras da Chuva (Raro), Ferraduras da Chuva (Lendário), Sela da Chuva (Raro), Sela da Chuva (Lendário), Estribos da Chuva (Raro), Estribos da Chuva (Lendário), Testeira da Chuva (Raro), Testeira da Chuva (Lendário), Armadura da Chuva (Raro), Armadura da Chuva (Lendário) |
 | Névoa | Névoa | Grama | Ferraduras da Névoa (Raro), Ferraduras da Névoa (Lendário), Sela da Névoa (Raro), Sela da Névoa (Lendário), Estribos da Névoa (Raro), Estribos da Névoa (Lendário), Testeira da Névoa (Raro), Testeira da Névoa (Lendário), Armadura da Névoa (Raro), Armadura da Névoa (Lendário) |
 
-**Bônus total por número de peças do mesmo conjunto (cada linha já é o total)**
+**Bônus total por número de peças do mesmo conjunto (cada linha já é o total; só no treino AFK)**
 
 | Peças | Bônus |
 | ---: | --- |
-| 3 | +5 Sorte; efeito das skills de vaga +5% (o fator do rank × 1,05) |
-| 4 | +5 Sorte; efeito das skills de vaga +5% (o fator do rank × 1,05); no clima do conjunto, reforçaria o bônus do elemento dono para ×1,08 (não acumula com a skill de clima: vale o maior) |
-| 5 | +5 Sorte; efeito das skills de vaga +5% (o fator do rank × 1,05); no clima do conjunto, reforçaria o bônus do elemento dono para ×1,08 (não acumula com a skill de clima: vale o maior); anula a penalidade de clima (×0,97 vira ×1) |
+| 3 | linhas de farm +10% (cada bônus × 1,1) |
+| 4 | linhas de farm +10% (cada bônus × 1,1); no clima do conjunto, o bônus do elemento dono sobe para ×1,07 (não acumula com a skill de clima: vale o maior) |
+| 5 | linhas de farm +10% (cada bônus × 1,1); no clima do conjunto, o bônus do elemento dono sobe para ×1,07 (não acumula com a skill de clima: vale o maior); anula a penalidade de clima (×0,97 vira ×1) |
 
-Cada linha é o total daquele patamar, não soma com as de cima: +5 Sorte e +5% no efeito das skills valem uma vez a partir de 3 peças. Vale o conjunto com mais peças equipadas (empate: Sol, Chuva e Névoa, nessa ordem). Enquanto o equipamento estiver suspenso, nenhum bônus de conjunto vale.
+Cada linha é o total daquele patamar, não soma com as de cima. Vale o conjunto com mais peças equipadas (empate: Sol, Chuva e Névoa, nessa ordem).
 
-### Equipamento dos bots por liga
+### Peças dos oponentes do treino AFK
 
-| Liga do alvo | Peças do bot |
+| Dificuldade | Peças do oponente |
 | --- | --- |
-| Bronze | nada |
-| Prata | Ferradura Leve +0, Sela de Couro Cru +0 |
-| Ouro | Ferradura Leve +2, Sela de Couro Cru +2, Estribos de Corda +2, Antolhos +2, Manta de Lã +2 |
-| Platina | Ferradura com Cravos +3, Sela Acolchoada +3, Esporas de Prata +3, Testeira de Couro +3, Capa Impermeável +3 |
-| Diamante | Ferraduras do Sol +4, Sela do Sol +4, Estribos do Sol +4, Testeira de Couro +3, Capa Impermeável +3 |
-| Lenda | Ferraduras do Sol +7, Sela do Sol +7, Estribos do Sol +7, Testeira do Sol +7, Armadura do Sol +7 |
+| Normal | sem peças |
+| Difícil | 5 Mágicos +3 (+1,6 em cada status principal) |
+| Lendária | 5 Raros +5 do conjunto do ginásio (+2,25 em cada status principal) |
 
-O conjunto dos bots é o do clima do elemento deles (nos exemplos acima, Fogo). Enquanto o equipamento estiver suspenso, os bots correm sem peças.
+Os bots da sala e os oponentes dos ginásios de verdade correm sempre sem peças.
 
 <a id="economia"></a>
 
@@ -1376,6 +1384,19 @@ Tudo o que as vagas rendem cai num **baú único**; "Coletar tudo" passa de uma 
 
 **Ao vivo** (com a tela "Treino AFK" aberta): cada vaga corre de verdade, uma corrida atrás da outra, no tempo do duelo; o resultado sai da seed do save (vaga e contador) e é gravado antes de aparecer. "Assistir" mostra a corrida da vaga. **Offline** (outra tela ou jogo fechado): o jogo mede a chance de vitória do cavalo naquela fase com 2.400 duelos simulados aos poucos, guardados até o cavalo ou a fase mudar; as corridas do tempo fora (minutos ÷ duração média medida) são decididas pela seed contra essa chance, e cada vitória rola os mesmos drops. Limite: 8 h, até 12 h com a Aveia dourada e o bestiário. O relógio é o do aparelho; relógio para trás não rende. O cavalo ativo para de treinar enquanto a sala do PVP está aberta.
 
+### Forja
+
+Na aba Expedição. Receitas fixas, **sem chance de falhar**: o jogador escolhe o ginásio (de onde saem os materiais e, na Raro e na Lendário, o conjunto) e o tipo da peça. "Materiais" é a soma dos dois materiais comuns do ginásio, gastos meio a meio; o troféu pode ser de qualquer oponente dele. Só as **linhas de farm** da peça são sorteadas, pela seed do save e pelo contador de forjas, depois de confirmar. Peça forjada não tem preço de venda. O Ouro reservado para a entrada da sala aberta nunca é gasto.
+
+| Forjar | Materiais | Incomum | Troféus | Selo do campeão | Ouro |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **Peça Comum (solta)** | 10 | — | — | — | 100 |
+| **Peça Mágico (solta)** | 25 | 3 | — | — | 300 |
+| **Peça Raro do conjunto do ginásio** | 60 | 10 | 1 | — | 800 |
+| **Peça Lendário do conjunto do ginásio** | 120 | 20 | 3 | 2 | 3.000 |
+| **Pedra Negra** | 8 | — | — | — | 30 |
+| **Pergaminho de reforja** | 15 | 1 | — | — | 150 |
+
 ### Bestiário
 
 Uma página por ginásio: os oponentes (marcos de 10, 100 e 1.000 vitórias no treino), os materiais, as peças do conjunto e os troféus (vistos e obtidos). Bônus da conta, só no AFK: 1% de drop raro por oponente com 100 vitórias (até 15%); 2% de XP por oponente com 1.000 (até 30%); 2% de chance de troféu por troféu (até 30%); 1 h de limite offline por página completa (até 3 h). "Drop raro" vale para material incomum, Pedra Negra, peça e comida.
@@ -1395,6 +1416,7 @@ Uma página por ginásio: os oponentes (marcos de 10, 100 e 1.000 vitórias no t
 | **Cenoura** | Comida | Dá 500 de XP a um cavalo. | 999 | Cai às vezes nas vitórias do treino AFK. |
 | **Maçã** | Comida | Dá 1.200 de XP a um cavalo. | 999 | Cai às vezes nas vitórias do treino AFK. |
 | **Aveia dourada** | Comida | O próximo período fora rende 1 hora a mais no treino AFK. | 999 | Cai às vezes nas vitórias do treino AFK. |
+| **Selo do campeão** | Selo | Prova de vitória no PVP. Entra na forja das peças Lendárias de conjunto. | 99 | Cai às vezes para o 1º lugar das corridas valendo; não está à venda. |
 | **Pergaminho de reforja** | Reforja | Sorteia de novo uma linha de uma peça de equipamento, junto com Ouro. | 99 | Cai às vezes nas vitórias do treino AFK ou sai da forja. |
 | **Pederneira do Recruta Fagulha** | Troféu | Troféu de Recruta Fagulha. Conta no bestiário e entra na forja das peças de conjunto da Fornalha. | 99 | Cai raramente ao vencer Recruta Fagulha no treino AFK. |
 | **Archote do Cabo Tocha** | Troféu | Troféu de Cabo Tocha. Conta no bestiário e entra na forja das peças de conjunto da Fornalha. | 99 | Cai raramente ao vencer Cabo Tocha no treino AFK. |

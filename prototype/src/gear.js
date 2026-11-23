@@ -11,25 +11,18 @@
  *   - enhance/enhanceOdds só aceitam plus inteiro 0–9 (no +10 não melhora); fora disso, null.
  *   - sortearLinhas(raridade, rng): duas chamadas por linha (tipo, valor), com a rng de quem chama (a corrida AFK, a
  *     forja, a migração do save).
- *   - resolve/botGear/enhanceOdds/sellPrice/ratingPts: não sorteiam.
+ *   - resolvePve/fixas/enhanceOdds/sellPrice: não sorteiam.
  *
- * OBJETO RESOLVIDO (resolve e botGear):
- *   { mods: { vel, acel, man, forca, est, garra, sorte },        // sempre as 7 chaves
- *     special: { skillEffectBonus, weatherDoubleClimate, ignoreWeatherPenalty },
+ * O EQUIPAMENTO SÓ VALE NO PVE (treino AFK; spec 2026-11-23-afk-drops §5.7): nunca entra na corrida valendo, no Poder,
+ * na sala nem nos duelos de ginásio de verdade. OBJETO RESOLVIDO (resolvePve e fixas):
+ *   { mods: { vel, acel, man, forca, est, garra, sorte },        // sempre as 7 chaves; só o principal de cada peça
+ *     farm: { material, xp, raro, trofeu, ouro },                 // frações; a soma das linhas das peças
+ *     special: { weatherDoubleClimate, ignoreWeatherPenalty },
  *     set: { id, count },                                         // id null e count 0 sem peças de conjunto
  *     pieces: [{ slot, uid, id, plus }] }                         // ordem de GEAR_SLOTS, só peças válidas
- * Cada peça soma main + plus × plusStep (0,5) no status principal do slot e sub no secundário; os mods
- * podem ser fracionários (RaceSim.computeStats arredonda uma vez só, no fim).
- * Conjunto = o que tem mais peças (empate: ordem sol/chuva/nevoa). Bônus acumulam:
- *   >= 3: sorte +5 e skillEffectBonus 0,05 (o efeito das skills × 1,05: entry.skillScale da corrida) · >= 4: weatherDoubleClimate = set.id (o bônus do clima
- *   sobe para ×1,07 só se a montaria for do elemento dono do clima do conjunto; para os outros não
- *   muda nada) · >= 5: ignoreWeatherPenalty.
- *
- * BOTS por liga (botGear), conjunto = clima do elemento (elemento sem clima ou desconhecido: floor(pick*3)
- *   em sol/chuva/nevoa):
- *   0 nada · 1 ferraduras-comum, sela-comum +0 · 2 cinco Comuns +2 · 3 cinco Mágicas +3 ·
- *   4 três Raras +4 do conjunto (ferraduras, sela, estribos) + testeira-magico, armadura-magico +3 ·
- *   5 cinco Raras +7 do conjunto.
+ * Cada peça soma main + plus × plusStep (0,5) no status principal do slot; os mods podem ser fracionários (quem corre
+ * arredonda). Conjunto = o que tem mais peças (empate: ordem sol/chuva/nevoa). Bônus acumulam:
+ *   >= 3: o farm × (1 + setBonus.farm) · >= 4: weatherDoubleClimate = set.id · >= 5: ignoreWeatherPenalty.
  */
 (function (root) {
   'use strict';
@@ -53,12 +46,18 @@
     return o;
   }
 
-  function resolve(mount, itemsByUid) {
+  var FARM_TIPOS = Object.keys(EG.faixas);
+  function farmZero() { var f = {}; FARM_TIPOS.forEach(function (t) { f[t] = 0; }); return f; }
+  // O equipamento de uma montaria para o PVE (treino AFK). Nunca entra no PVP nem no Poder.
+  //   mods: o principal de cada peça (valor da raridade + plus × plusStep; o status da corrida é inteiro: quem corre arredonda) no status do slot;
+  //   farm: a soma das linhas das peças, em fração (0,07 = +7%), por tipo; com 3 peças ou mais do mesmo conjunto,
+  //     × (1 + setBonus.farm);
+  //   special: com 4 peças do conjunto, weatherDoubleClimate = o conjunto; com 5, ignoreWeatherPenalty.
+  function resolvePve(mount, itemsByUid) {
     var mods = {};
     G.STAT_KEYS.forEach(function (k) { mods[k] = 0; });
-    var special = { skillEffectBonus: 0, weatherDoubleClimate: null, ignoreWeatherPenalty: false };
-    var pieces = [];
-    var counts = {};
+    var special = { weatherDoubleClimate: null, ignoreWeatherPenalty: false };
+    var pieces = [], counts = {}, farm = farmZero();
     var equip = (mount && mount.equip) || {};
     var items = itemsByUid || {};
     SLOTS.forEach(function (slot) {
@@ -69,9 +68,8 @@
       if (!def || def.slot !== slot) return;
       var plus = item.plus;
       if (!validPlus(plus)) return;
-      var info = G.GEAR_SLOT_INFO[slot];
-      mods[info.main] += def.main + plus * EG.plusStep;   // cada +N vale plusStep (0,5) no principal
-      mods[info.sub] += def.sub;
+      mods[G.GEAR_SLOT_INFO[slot].main] += def.main + plus * EG.plusStep;   // cada +N vale plusStep (0,5) no principal
+      (linhasValidas(item.id, item.linhas) || []).forEach(function (l) { farm[l.tipo] += l.valor; });
       if (def.set) counts[def.set] = (counts[def.set] || 0) + 1;
       pieces.push({ slot: slot, uid: uid, id: def.id, plus: plus });
     });
@@ -79,11 +77,24 @@
     SET_ORDER.forEach(function (id) {
       if ((counts[id] || 0) > count) { setId = id; count = counts[id]; }
     });
-    var sb = EG.setBonus;
-    if (count >= sb.pieces[0]) { mods.sorte += sb.sorte; special.skillEffectBonus = sb.skillEffect; }
+    var sb = EG.setBonus, fator = count >= sb.pieces[0] ? 1 + sb.farm : 1;
+    FARM_TIPOS.forEach(function (t) { farm[t] = Math.round(farm[t] * fator * 100) / 10000; });
+    G.STAT_KEYS.forEach(function (k) { mods[k] = Math.round(mods[k] * 100) / 100; });   // 1,25 + 7 × 0,2 sem o resto do ponto flutuante
     if (count >= sb.pieces[1]) special.weatherDoubleClimate = setId;
     if (count >= sb.pieces[2]) special.ignoreWeatherPenalty = true;
-    return { mods: mods, special: special, set: { id: setId, count: count }, pieces: pieces };
+    return { mods: mods, farm: farm, special: special, set: { id: setId, count: count }, pieces: pieces };
+  }
+  // As cinco peças fixas de um oponente do treino AFK (GameData.AFK.difs[].pecas): raridade, +N e, se do conjunto, qual.
+  // Sem linhas de farm (o oponente não coleta nada). -> o mesmo objeto do resolvePve | null (sem peças)
+  function fixas(p, setId) {
+    if (!p || typeof p !== 'object') return null;
+    var equip = {}, items = {};
+    SLOTS.forEach(function (slot, i) {
+      var id = slot + (p.doConjunto ? '-' + setId : '') + '-' + p.rar, uid = 'f' + (i + 1);
+      if (!piece(id)) return;
+      equip[slot] = uid; items[uid] = { uid: uid, id: id, plus: p.plus, linhas: [] };
+    });
+    return resolvePve({ equip: equip }, items);
   }
 
   // plus válido: inteiro em 0–plusMax (fracionário, texto etc. => inválido). enhanceOdds só melhora até plusMax−1:
@@ -159,59 +170,82 @@
     return sortearLinhas(def.rarity, S.mulberry32(S.hash2(seedBase, SAL_LINHAS + n)));
   }
 
+  // Reforja (spec AFK §5.9): sorteia de novo UMA linha escolhida da peça. Custa 1 Pergaminho de reforja e Ouro, que
+  // cresce a cada reforja na mesma peça e nunca volta (custoReforja); com 1 Selo do campeão (comSelo) a linha mantém o
+  // tipo e o valor sai da metade de cima da faixa ([ceil((min + max) / 2), max]).
+  // rng = mulberry32(hash2(hash2(seedBase, SAL_REFORJA + nº do uid), rerolls)): o nº de reforjas da peça entra num
+  // segundo hash (como o contador da vaga do AFK), então não disputa faixa com os outros sais do save; a mesma peça no
+  // mesmo rerolls dá sempre o mesmo resultado (recarregar não muda). Quem chama grava rerolls + 1 junto com a linha.
+  // Chamadas de rng(): sem Selo, 1) o tipo (uniforme entre os de EG.faixas que as OUTRAS linhas não têm, na ordem das
+  // chaves; o tipo atual pode sair de novo) e 2) o valor; com Selo, só o valor.
+  var SAL_REFORJA = 0x52460000;   // "RF"
+  function numUid(item) { return item && typeof item.uid === 'string' && /^i\d{1,9}$/.test(item.uid) ? Number(item.uid.slice(1)) : 0; }
+  function rerollsDe(item) {
+    var n = item ? item.rerolls : 0;
+    return typeof n === 'number' && isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  }
+  function custoReforja(item) {
+    return Math.round(EG.reforjaBase * Math.pow(EG.reforjaFator, Math.min(60, rerollsDe(item))) / 10) * 10;
+  }
+  function milhar(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+  // mochila: { 'pergaminho-reforja': n, selo: n }; ouroLivre: o Ouro fora do reservado da sala aberta
+  function podeReforjar(item, idxLinha, comSelo, mochila, ouroLivre) {
+    var def = item ? piece(item.id) : null;
+    if (!def) return { ok: false, motivo: 'Peça inválida' };
+    if (!(EG.linhas[def.rarity] > 0)) return { ok: false, motivo: 'Peça Comum não tem linhas' };
+    var linhas = linhasValidas(item.id, item.linhas);
+    if (!linhas || typeof idxLinha !== 'number' || idxLinha !== Math.floor(idxLinha) || idxLinha < 0 || idxLinha >= linhas.length) return { ok: false, motivo: 'Escolha uma linha da peça' };
+    var custo = custoReforja(item), m = mochila || {};
+    if (!(Number(m['pergaminho-reforja']) >= 1)) return { ok: false, motivo: 'Falta Pergaminho de reforja', custo: custo };
+    if (comSelo && !(Number(m.selo) >= 1)) return { ok: false, motivo: 'Falta Selo do campeão', custo: custo };
+    if (!(typeof ouroLivre === 'number' && ouroLivre >= custo)) return { ok: false, motivo: 'Falta Ouro (precisa de ' + milhar(custo) + ')', custo: custo };
+    return { ok: true, custo: custo };
+  }
+  // -> { linhas (cópia com a linha nova), rerolls (o novo) } | null (peça sem linhas, linhas inválidas ou índice fora)
+  function reforjar(item, idxLinha, comSelo, seedBase) {
+    var def = item ? piece(item.id) : null;
+    var linhas = def ? linhasValidas(item.id, item.linhas) : null;
+    if (!linhas || !linhas.length || typeof idxLinha !== 'number' || idxLinha !== Math.floor(idxLinha) || idxLinha < 0 || idxLinha >= linhas.length) return null;
+    if (typeof seedBase !== 'number' || !isFinite(seedBase)) return null;
+    var n = rerollsDe(item), rng = S.mulberry32(S.hash2(S.hash2(seedBase, SAL_REFORJA + numUid(item)), n));
+    var tipo = linhas[idxLinha].tipo, fx, min;
+    if (comSelo) {
+      fx = EG.faixas[tipo][def.rarity];
+      min = Math.ceil((fx[0] + fx[1]) / 2);
+    } else {
+      var outros = {};
+      linhas.forEach(function (l, i) { if (i !== idxLinha) outros[l.tipo] = true; });
+      var tipos = Object.keys(EG.faixas).filter(function (t) { return !outros[t]; });
+      tipo = tipos[Math.min(tipos.length - 1, Math.floor(rng() * tipos.length))];
+      fx = EG.faixas[tipo][def.rarity];
+      min = fx[0];
+    }
+    linhas[idxLinha] = { tipo: tipo, valor: min + Math.min(fx[1] - min, Math.floor(rng() * (fx[1] - min + 1))) };
+    return { linhas: linhas, rerolls: n + 1 };
+  }
+
   function sellPrice(id) {
     var def = piece(id);
     return def ? Math.round(EG.price[def.rarity] * EG.sellRate) : 0;
-  }
-
-  function ratingPts(count) {
-    var i = EG.setBonus.pieces.indexOf(count);
-    return i >= 0 ? EG.setBonus.ratingPts[i] : 0;
-  }
-
-  function botGear(leagueIdx, element, pick) {
-    var lg = Math.max(0, Math.min(5, Math.floor(leagueIdx) || 0));
-    var el = Object.prototype.hasOwnProperty.call(G.ELEMENTS, element) ? G.ELEMENTS[element] : null;
-    var setId = el && el.weather
-      ? el.weather
-      : SET_ORDER[Math.max(0, Math.min(2, Math.floor(pick * 3) || 0))];
-    var list = [];
-    function add(slot, id, plus) { list.push({ slot: slot, id: id, plus: plus }); }
-    if (lg === 1) {
-      add('ferraduras', 'ferraduras-comum', 0); add('sela', 'sela-comum', 0);
-    } else if (lg === 2) {
-      SLOTS.forEach(function (s) { add(s, s + '-comum', 2); });
-    } else if (lg === 3) {
-      SLOTS.forEach(function (s) { add(s, s + '-magico', 3); });
-    } else if (lg === 4) {
-      ['ferraduras', 'sela', 'estribos'].forEach(function (s) { add(s, s + '-' + setId + '-raro', 4); });
-      add('testeira', 'testeira-magico', 3); add('armadura', 'armadura-magico', 3);
-    } else if (lg === 5) {
-      SLOTS.forEach(function (s) { add(s, s + '-' + setId + '-raro', 7); });
-    }
-    var equip = {}, items = {};
-    list.forEach(function (p, i) {
-      var uid = 'b' + (i + 1);
-      equip[p.slot] = uid;
-      items[uid] = { uid: uid, id: p.id, plus: p.plus };
-    });
-    return resolve({ equip: equip }, items);
   }
 
   var Gear = {
     SLOTS: SLOTS,
     piece: piece,
     emptyEquip: emptyEquip,
-    resolve: resolve,
+    resolve: resolvePve,   // o nome antigo: é o mesmo resolvePve (o equipamento só existe no PVE)
+    resolvePve: resolvePve,
+    fixas: fixas,
     enhanceOdds: enhanceOdds,
     enhance: enhance,
     podiumStone: podiumStone,
     sortearLinhas: sortearLinhas,
     linhasValidas: linhasValidas,
     linhasDaPeca: linhasDaPeca,
-    botGear: botGear,
-    sellPrice: sellPrice,
-    ratingPts: ratingPts
+    custoReforja: custoReforja,
+    podeReforjar: podeReforjar,
+    reforjar: reforjar,
+    sellPrice: sellPrice
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = Gear;

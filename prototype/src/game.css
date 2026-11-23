@@ -401,6 +401,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .item-icone--trofeu-agua { background-image: var(--arte-item-trofeu-agua); }
 .item-icone--trofeu-grama { background-image: var(--arte-item-trofeu-grama); }
 .item-icone--bau { background-image: var(--arte-item-bau); }
+.item-icone--selo { background-image: var(--arte-item-selo); }
 .item-nome { grid-column: 2; margin: 0; font-family: var(--fonte-ui); font-size: var(--t-m); line-height: 24px; overflow-wrap: anywhere; }
 .item-qtd { grid-column: 3; grid-row: 1; justify-self: end; font-weight: 700; line-height: 24px; white-space: nowrap; }
 .item-desc { grid-column: 2 / -1; margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 22px; color: var(--texto-2); }
@@ -939,6 +940,24 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .afk-best-bonus p { margin: 0; }
 .afk-best-abas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 2px 2px 6px; }
 .afk-best-aba[aria-pressed="true"] { background: var(--painel-3); box-shadow: 0 0 0 2px var(--sombra), inset 0 -4px 0 0 var(--ouro); }
+/* reforja de uma linha da peça (aba Equipamento) */
+.reforja { margin-top: 8px; padding: 8px; background: var(--painel); box-shadow: 0 0 0 2px var(--sombra); display: grid; gap: 6px; }
+.reforja p { margin: 0; }
+.reforja-linhas { display: grid; gap: 6px; }
+.reforja-linha[aria-pressed="true"], .reforja-selo[aria-pressed="true"] { background: var(--painel-3); box-shadow: 0 0 0 2px var(--sombra), inset 0 -4px 0 0 var(--ouro); }
+.reforja-selo { display: flex; align-items: center; justify-content: center; gap: 8px; }
+/* forja: o que você tem, o tipo da peça e as receitas */
+.forja-estoque { list-style: none; margin: 0 0 6px; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
+.forja-estoque li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.forja-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 6px; }
+.forja-slot { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.forja-slot[aria-pressed="true"] { background: var(--painel-3); box-shadow: 0 0 0 2px var(--sombra), inset 0 -4px 0 0 var(--ouro); }
+.forja-receitas { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.forja-receita { padding: 10px; background: var(--painel-2); box-shadow: 0 0 0 2px var(--sombra); }
+.forja-nome { margin: 0 0 2px; font-size: 1em; }
+.forja-sai, .forja-custo { margin: 0 0 6px; }
+.forja-confirma { flex-wrap: wrap; }
+.forja-confirma .nota { flex: 1 0 100%; margin: 0 0 6px; }
 .afk-best-ops, .afk-best-itens { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .afk-best-op { display: grid; grid-template-columns: calc(var(--px) * 64) minmax(0, 1fr); align-items: center; gap: 10px; padding: 4px 8px; background: var(--painel-2); }
 .afk-best-op .etapa-busto { grid-column: 1; grid-row: auto; }
@@ -956,6 +975,12 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .afk-best-item--oculto { background: var(--painel); }
 .afk-best-item--oculto .item-icone, .afk-best-item--oculto .afk-best-peca { opacity: 0.35; }
 .afk-best-item--oculto .afk-best-nome { color: var(--texto-2); }
+/* equipamento de PVE: o selo "só AFK" no título, o total das peças equipadas e as linhas de farm de cada peça */
+.selo-afk { margin-left: 8px; padding: 2px 6px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); background: var(--ouro); color: var(--tinta); white-space: nowrap; }
+.equip-total { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.25; overflow-wrap: anywhere; }
+.peca-linhas { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.peca-linhas > li { padding: 2px 6px; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); background: var(--painel); color: var(--ganho); }
+.peca-sem-linhas { display: block; }
 /* comidas na Mochila: a escolha do cavalo embaixo da linha do item */
 .item-lista--afk > h2 { margin-bottom: 2px; }
 .comida-cavalos { justify-content: flex-start; }

@@ -158,11 +158,11 @@
   //   element: 'geral' (qualquer tipo aprende) ou o tipo que aprende.
   // ---------------------------------------------------------------------------
   // Ranks das skills de vaga (por cavalo, em horse.skillRanks): 1 a max. O fator do rank r é 1 + step × (r − 1).
-  // custo[r]: Ouro e Pergaminhos de técnica para subir de r para r + 1 (sem sorteio). diceTeto[r − 1]: até quanto
+  // custo[r]: Ouro e Pergaminhos de técnica (e, do IV para o V, Selos do campeão) para subir de r para r + 1 (sem sorteio). diceTeto[r − 1]: até quanto
   // rola o dado extra do Dado Viciado.
   var SKILL_RANKS = {
     max: 5, step: 0.15,
-    custo: { 1: { ouro: 150, perg: 1 }, 2: { ouro: 400, perg: 2 }, 3: { ouro: 900, perg: 4 }, 4: { ouro: 2000, perg: 7 } },
+    custo: { 1: { ouro: 150, perg: 1 }, 2: { ouro: 400, perg: 2 }, 3: { ouro: 900, perg: 4 }, 4: { ouro: 2000, perg: 7, selo: 1 } },
     diceTeto: [60, 70, 80, 90, 100]
   };
   var SKILLS = {
@@ -482,8 +482,9 @@
     gear: {
       price: { comum: 100, magico: 250, raro: 600, lendario: 1500 },
       sellRate: 0.25, stonePrice: 40, stoneBundle: 5,
-      main: { comum: 2, magico: 2, raro: 3, lendario: 4 },
-      sub: { comum: 0, magico: 1, raro: 2, lendario: 3 },
+      // o principal e o passo da melhoria, calibrados para o PVE pela meta E4 (eram 2 · 2 · 3 · 4 e 0,5 quando a peça
+      // valia no PVP): com 5 Raras +5 o líder da Lendária soma 2,25 por status (o status é inteiro: +2)
+      main: { comum: 0.75, magico: 1, raro: 1.25, lendario: 1.75 },
       // Linhas de farm (só PVE; spec AFK §5.7): quantas por raridade e a faixa de cada tipo, em pontos percentuais
       // inteiros (sorteio uniforme, passos de 1). Tipos sem repetir na mesma peça.
       linhas: { comum: 0, magico: 1, raro: 2, lendario: 3 },
@@ -494,14 +495,18 @@
         trofeu: { magico: [6, 12], raro: [12, 20], lendario: [20, 30] },
         ouro: { magico: [2, 4], raro: [4, 6], lendario: [6, 10] }
       },
-      setFarm: 0.10,   // conjunto de 3 peças ou mais: os bônus de farm das linhas valem × (1 + setFarm) (só PVE)
-      plusStep: 0.5,   // cada +N soma plusStep ao status principal (uma peça +10 soma +5)
+      // Reforja (spec AFK §5.9): Ouro = arredonda para 10 (reforjaBase × reforjaFator^rerolls da peça), mais 1 Pergaminho
+      // de reforja; com 1 Selo do campeão a linha mantém o tipo e o valor sai da metade de cima da faixa.
+      reforjaBase: 100, reforjaFator: 1.5,
+      plusStep: 0.2,   // cada +N soma plusStep ao status principal (uma peça +10 soma +2)
       plusMax: 10,
       // Chance e custo (em pedras) de cada passo +0→+1 … +9→+10; falha derruba a partir de enhanceDropFrom.
       enhanceChance: [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25],
       enhanceCost: [1, 1, 1, 1, 1, 1, 2, 2, 2, 2],
       enhanceDropFrom: 6,
-      setBonus: { pieces: [3, 4, 5], skillEffect: 0.05, sorte: 5, ratingPts: [3, 15, 20] },
+      // conjunto (só PVE): 3 peças, os bônus de farm das linhas × (1 + farm); 4, o bônus do clima do conjunto sobe para `clima` (×1,07);
+      // 5, sem penalidade de clima
+      setBonus: { pieces: [3, 4, 5], farm: 0.10, clima: 1.07 },
       podiumStone: [0.6, 0.4, 0.25],
       startGear: ['sela-comum', 'ferraduras-comum']
     }
@@ -737,6 +742,10 @@
     add('cenoura', 'comida', 'Cenoura', 'Cenouras', 999, 'Dá 500 de XP a um cavalo.', COMIDA, { xp: 500 });
     add('maca', 'comida', 'Maçã', 'Maçãs', 999, 'Dá 1.200 de XP a um cavalo.', COMIDA, { xp: 1200 });
     add('aveia-dourada', 'comida', 'Aveia dourada', 'Aveias douradas', 999, 'O próximo período fora rende 1 hora a mais no treino AFK.', COMIDA, { aveiaMin: 60 });
+    // Selo do campeão (spec AFK §5.9): só no 1º lugar de corrida valendo, chance `podio` pela seed da sala. Gasta-se na
+    // subida do rank IV → V, na reforja garantida e na forja da Lendária. Nunca cai no AFK nem se vende.
+    add('selo', 'selo', 'Selo do campeão', 'Selos do campeão', 99,
+      'Prova de vitória no PVP. Entra na forja das peças Lendárias de conjunto.', 'Cai às vezes para o 1º lugar das corridas valendo; não está à venda.', { podio: 0.10 });
     add('pergaminho-reforja', 'reforja', 'Pergaminho de reforja', 'Pergaminhos de reforja', 99,
       'Sorteia de novo uma linha de uma peça de equipamento, junto com Ouro.', 'Cai às vezes nas vitórias do treino AFK ou sai da forja.');
     GYM_ORDER.forEach(function (g) {
@@ -749,20 +758,33 @@
     });
   })();
 
+  // Forja (spec AFK §5.6): receitas fixas, sem chance. mat = soma dos dois materiais comuns do ginásio escolhido;
+  // inc = o incomum dele; trofeu = troféus de qualquer oponente dele; selo = Selos do campeão; ouro = Ouro livre.
+  // Rara e Lendária saem do conjunto do ginásio. qualquerGinasio: a receita não depende de qual ginásio se escolhe.
+  var FORJA = {
+    comum: { mat: 10, inc: 0, trofeu: 0, ouro: 100 },
+    magico: { mat: 25, inc: 3, trofeu: 0, ouro: 300 },
+    raro: { mat: 60, inc: 10, trofeu: 1, ouro: 800 },
+    lendario: { mat: 120, inc: 20, trofeu: 3, selo: 2, ouro: 3000 },
+    pedra: { mat: 8, inc: 0, trofeu: 0, ouro: 30 },
+    reforja: { mat: 15, inc: 1, trofeu: 0, ouro: 150, qualquerGinasio: true }
+  };
+
   // ---------------------------------------------------------------------------------------------
-  // Equipamento: 5 slots por montaria. Cada peça dá um status principal e um secundário, definidos
-  // pelo slot (GEAR_SLOT_INFO) e pela raridade (ECONOMY.gear.main/sub).
+  // Equipamento (só vale no PVE: treino AFK; nunca no PVP nem no Poder): 5 slots por montaria. Cada peça dá um status
+  // principal de corrida, pelo slot (GEAR_SLOT_INFO) e pela raridade (ECONOMY.gear.main), e linhas de farm sorteadas
+  // (ECONOMY.gear.linhas e faixas; cada peça do save guarda as suas).
   //   id: '<slot>-<raridade>' (solta: Comum/Mágico) ou '<slot>-<conjunto>-<raridade>' (Raro/Lendário).
   //   Conjuntos (sol/chuva/nevoa) dão bônus por nº de peças equipadas; Lendário não vai à loja.
   // ---------------------------------------------------------------------------------------------
   var GEAR_SLOTS = ['ferraduras', 'sela', 'estribos', 'testeira', 'armadura'];
 
   var GEAR_SLOT_INFO = {
-    ferraduras: { name: 'Ferraduras', main: 'vel', sub: 'acel' },
-    sela: { name: 'Sela', main: 'est', sub: 'garra' },
-    estribos: { name: 'Estribos', main: 'man', sub: 'sorte' },
-    testeira: { name: 'Testeira', main: 'acel', sub: 'garra' },
-    armadura: { name: 'Armadura', main: 'forca', sub: 'est' }
+    ferraduras: { name: 'Ferraduras', main: 'vel' },
+    sela: { name: 'Sela', main: 'est' },
+    estribos: { name: 'Estribos', main: 'man' },
+    testeira: { name: 'Testeira', main: 'acel' },
+    armadura: { name: 'Armadura', main: 'forca' }
   };
 
   var GEAR_SETS = {
@@ -786,7 +808,7 @@
       var id = slot + (set ? '-' + set : '') + '-' + rarity;
       GEAR[id] = {
         id: id, name: name, slot: slot, rarity: rarity, set: set,
-        main: ECONOMY.gear.main[rarity], sub: ECONOMY.gear.sub[rarity],
+        main: ECONOMY.gear.main[rarity],
         price: ECONOMY.gear.price[rarity], shop: rarity !== 'lendario'
       };
     }
@@ -838,6 +860,7 @@
     GYM: GYM,
     GYM_ORDER: GYM_ORDER,
     GYMS: GYMS,
+    FORJA: FORJA,
     AFK: AFK,
     FOAL_NAMES: FOAL_NAMES,
     BREED_LEFT: BREED_LEFT

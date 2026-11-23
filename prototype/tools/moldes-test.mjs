@@ -2847,7 +2847,7 @@ test('os ícones de item (spec de itens §13; o Pergaminho de técnica desde 202
 test('os ícones dos itens do AFK: uma peça 16x16 com contorno por item (os troféus, a taça do ginásio), e o baú', () => {
   const G = createRequire(import.meta.url)('../src/data.js');
   const ids = Object.keys(G.ITEMS).filter(id => G.ITEMS[id].grupo);
-  assert.strictEqual(ids.length, 29);
+  assert.strictEqual(ids.length, 30);
   const nomeDe = id => 'item-' + (G.ITEMS[id].grupo === 'trofeu' ? 'trofeu-' + G.ITEMS[id].gymId : id);
   const desenhos = new Set(), css = fs.readFileSync(new URL('../src/game.css', import.meta.url), 'utf8');
   for (const id of ids.concat(['bau'])) {
@@ -2866,7 +2866,7 @@ test('os ícones dos itens do AFK: uma peça 16x16 com contorno por item (os tro
     }));
     desenhos.add(p.mapa.join('/') + JSON.stringify(p.legenda));
   }
-  assert.strictEqual(desenhos.size, 14 + 3 + 1, 'cada item tem o seu desenho; os 15 troféus, 3 taças');
+  assert.strictEqual(desenhos.size, 15 + 3 + 1, 'cada item tem o seu desenho; os 15 troféus, 3 taças');
 });
 test('ida e volta do PNG: cada pixel tem a cor do token (alfa 255) ou alfa 0', () => {
   for (const p of IA.PECAS) {

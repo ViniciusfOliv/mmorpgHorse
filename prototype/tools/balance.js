@@ -521,13 +521,20 @@ function afkTipico(el, level) {
   var h = build({ rarity: 'raro', level: level, grau: 2, element: el, g: 16 }, rngOf(2311, 8), { order: order }, 'Típico').h;
   return S.withRanks(h, afkRank(level));
 }
-// p e duração de uma fase: duelos k = a..b−1 contra o oponente k do rodízio. P: { el, level, fase, seed }
+// p e duração de uma fase: corridas k = a..b−1 pelo Afk.correr (o oponente k do rodízio, com as peças da dificuldade).
+// P: { el, level, fase, seed }; ou, para a E4, { base, level, fase, seed, pecas: { set, plus } } (um inicial do catálogo,
+// com 5 Raras +plus do conjunto dado, ou sem peças)
 function tAfkFase(P, a, b) {
-  var h = afkTipico(P.el, P.level), f = AF.fase(P.fase), pista = G.GYMS[f.gymId].pista, o = { n: 0, w: 0, dur: 0 };
+  var h = P.base ? GY.cavalo({ base: P.base, level: P.level, grau: 2 }) : afkTipico(P.el, P.level), o = { n: 0, w: 0, dur: 0 };
+  if (P.pecas) {
+    var equip = {}, items = {};
+    G.GEAR_SLOTS.forEach(function (sl, i) { equip[sl] = 'i' + i; items['i' + i] = { uid: 'i' + i, id: sl + '-' + P.pecas.set + '-raro', plus: P.pecas.plus, linhas: [] }; });
+    h.pve = GR.resolvePve({ equip: equip }, items);
+  }
   for (var k = a; k < b; k++) {
-    var r = S.simulate(GY.dueloCfg(h, AF.oponente(P.fase, k), S.hash2(P.seed, k), { pista: pista }));
-    o.n++; if (r.finishOrder[0] === 0) o.w++;
-    o.dur += Math.max(r.finishTimes[0], r.finishTimes[1]);
+    var r = AF.correr(h, P.fase, P.seed, k, null);
+    o.n++; if (r.venceu) o.w++;
+    o.dur += r.duracaoS;
   }
   return o;
 }
@@ -724,7 +731,7 @@ G.GYM_ORDER.forEach(function (gid, gi) {
 
 // Corrida AFK (E): E1, E2 e E3 só no completo; E5 nos dois modos (no relatório, sem worker).
 if (SO_AFK) JOBS = {};
-var N_AFK = 300, AFK_REFN = 5000, AFK_PER = 12;
+var N_AFK = 300, AFK_REFN = 5000, AFK_PER = 12, N_E4 = 3000;
 var AFK_FASES = AF.fases(), AFK_E3 = [];
 if (!QUICK) {
   AFK_LV.forEach(function (L, li) {
@@ -735,6 +742,12 @@ if (!QUICK) {
         });
       });
     });
+  });
+  // E4: o inicial do elemento do ginásio, no nível 45, contra o líder na Lendária: com 5 Raras +7 do conjunto dele e sem peças
+  G.GYM_ORDER.forEach(function (gid, gi) {
+    var fid = AF.faseId(gid, 4, 'lendaria'), cj = G.AFK.materiais[gid].conjunto;
+    job('afke4-' + gid + '-com', 'afkFase', { base: GYM_STARTER[gid], level: 45, fase: fid, seed: 8800 + gi, pecas: { set: cj, plus: 7 } }, N_E4, 4);
+    job('afke4-' + gid + '-sem', 'afkFase', { base: GYM_STARTER[gid], level: 45, fase: fid, seed: 8800 + gi }, N_E4, 4);
   });
   // E3: uma configuração por fase (45): um inicial de outro elemento, a −3, 0, +2, +5 ou −1 níveis do oponente
   AFK_FASES.forEach(function (fid, i) {
@@ -1141,7 +1154,7 @@ function report(R) {
     for (var q = 0; q < m; q++) {
       var h = cat(ALL[Math.floor(rng() * ALL.length)]);
       var lg = Math.floor(rng() * 6);
-      rs.push({ horse: h, gear: rng() < 0.6 ? GR.botGear(lg, h.element, rng()) : null, name: G.BOT_NAMES[q], isPlayer: q === 0 });
+      rs.push({ horse: h, gear: (rng() < 0.6 ? rng() : 0, null),   /* sem peças (só PVE); as chamadas da rng ficam para o sorteio não mudar */ name: G.BOT_NAMES[q], isPlayer: q === 0 });
     }
     return { seed: seed, conditions: S.randomConditions(S.hash2(seed, 99)), racers: rs };
   }
@@ -1411,11 +1424,11 @@ function reportAfk(R) {
   log('### E. Corrida AFK (metas E1–E6)');
   log('');
   if (QUICK) {
-    log('> **--quick: as metas E1, E2 e E3 só rodam no completo**; aqui só a E5 (determinismo). A E4 e a E6 entram com o bloco B (peças no AFK e reforja).');
+    log('> **--quick: as metas E1, E2 e E3 só rodam no completo**; aqui só a E5 (determinismo). A E4 também; a E6 (reforja) roda nos dois modos.');
     log('');
   } else {
     // ---- o máximo de +Ouro das peças: 5 Lendárias com a linha de Ouro no topo da faixa, e o conjunto de 3
-    var ouroMax = 5 * EG.faixas.ouro.lendario[1] / 100 * (1 + EG.setFarm);
+    var ouroMax = 5 * EG.faixas.ouro.lendario[1] / 100 * (1 + EG.setBonus.farm);
     var pvpHora = 20 * 100 * E.maxRacers * (1 - E.houseFee) / E.maxRacers, teto = 0.25 * pvpHora;
     log('Cavalo típico: Raro ★★, genética 16, build dos bots, skills esperadas pelo nível no rank `1 + floor((nível − 1) / 12)`. ' + N_AFK + ' duelos por fase (as 15 fases de cada ginásio), ' +
       'pela corrida do jogo (pista da casa, largada Nublada, vantagem de elemento, sem cansaço, oponente em rodízio).');
@@ -1483,8 +1496,8 @@ function reportAfk(R) {
       'Contando só a dificuldade (Normal, Difícil, Lendária), em ' + dif12 + ' casos a de maior ganho fica abaixo da dificuldade mais alta liberada.');
     log('');
     check('E2', 'AFK: casos em que a fase de maior ganho É a mais difícil liberada (a meta: não ser sempre; até metade)', pct(hardest, casos.length), 0, 50);
-    log('> **E2, segunda parte ("em pelo menos metade dos casos fica 1 ou 2 degraus abaixo"): ' + f1(pct(d12, casos.length)) + '% — informação, ainda não é meta.** Os oponentes da Difícil e da Lendária ganham peças no bloco B ' +
-      '(e a meta E4 calibra essas peças): até lá um cavalo típico de nível 35 ou 50 vence o líder da Lendária quase sempre, e a fase de maior ganho acaba sendo a mais difícil que existe. A segunda parte é medida de novo na tarefa B2.');
+    log('> **E2, segunda parte ("em pelo menos metade dos casos fica 1 ou 2 degraus abaixo"): ' + f1(pct(d12, casos.length)) + '% — informação.** Os oponentes da Difícil e da Lendária correm com as peças da dificuldade ' +
+      '(Mágicas +3 e Raras +5, calibradas pela E4); o cavalo típico destas medições (Raro ★★) corre sem peças.');
     log('');
     // ---- E3
     var dentro = 0, pior = 0, piorTxt = '', espMed = 0, espRef = 0, offV = 0, offEsp = 0, offN = 0, piorG = 0;
@@ -1513,7 +1526,19 @@ function reportAfk(R) {
     check('E3', 'AFK: configurações com a chance medida a menos de 3 p.p. da referência', pct(dentro, AFK_E3.length), 95, 100);
     check('E3', 'AFK: ganho esperado por hora, offline ÷ ao vivo, somadas as configurações (a menos de 3%)', espMed / espRef, 0.97, 1.03, '');
     check('E3', 'AFK: o que o offline sorteia ÷ o valor esperado pela tabela de drops (a menos de 3%)', offV / offEsp, 0.97, 1.03, '');
-    log('> **E4** (5 peças Raras +7 do conjunto certo contra o líder na Lendária) e **E6** (reforja) entram com o bloco B.');
+    // ---- E4
+    log('**E4. Peças no treino.** O inicial do elemento do ginásio, no nível 45 (o mesmo cavalo do líder, sem a vantagem de elemento), contra o líder na Lendária (nível 45, com 5 Raras +5 do conjunto do ginásio), ' + N_E4 +
+      ' corridas: com 5 Raras +7 do mesmo conjunto e sem peças. Principal das peças: ' + ['comum', 'magico', 'raro', 'lendario'].map(function (r) { return G.RARITIES[r].name + ' ' + String(EG.main[r]).replace('.', ','); }).join(' · ') +
+      ', mais ' + String(EG.plusStep).replace('.', ',') + ' por melhoria.');
+    log('');
+    log('| Ginásio | Com 5 Raras +7 | Sem peças |');
+    log('|---|---|---|');
+    G.GYM_ORDER.forEach(function (gid) {
+      var c = R['afke4-' + gid + '-com'], z = R['afke4-' + gid + '-sem'], pc = pct(c.w, c.n), pz = pct(z.w, z.n);
+      log('| ' + G.GYMS[gid].name + ' | **' + f1(pc) + '%** | **' + f1(pz) + '%** |');
+      check('E4', 'AFK: nível 45 com 5 Raras +7 contra o líder na Lendária, ' + G.GYMS[gid].name, pc, 40, 60);
+      check('E4', 'AFK: nível 45 sem peças contra o líder na Lendária, ' + G.GYMS[gid].name, pz, 15, 35);
+    });
     log('');
   }
   // ---- E5: determinismo e nada de Math.random / relógio no caminho (nos dois modos)
@@ -1539,6 +1564,36 @@ function reportAfk(R) {
   checkBool('E5', 'AFK: nada no caminho das regras chama Math.random, Date.now nem new Date', !usou);
   checkBool('E5', 'AFK: o contador seguinte dá outra corrida', outro.every(function (j, i) { return j !== ida[i]; }));
   log('E5: determinismo conferido em ' + casos5.length + ' corridas, num offline de 8 h e numa medição em fatias; nenhuma chamada a `Math.random`, `Date.now` ou `new Date`.');
+  log('');
+  // ---- E6: reforja (nos dois modos; sem worker): 10.000 reforjas por raridade, sem Selo e com Selo
+  var N_E6 = 10000, FX = G.ECONOMY.gear.faixas, TIPOS6 = Object.keys(FX), RARS6 = ['magico', 'raro', 'lendario'];
+  var PECA6 = { magico: 'sela-magico', raro: 'sela-sol-raro', lendario: 'sela-sol-lendario' };
+  log('**E6. Reforja.** ' + N_E6 + ' reforjas por raridade (a linha 0 de uma peça com as outras linhas fixas, uma peça nova a cada sorteio), sem Selo e com Selo.');
+  log('');
+  log('| Raridade | Tipos livres | Esperado por tipo | Saiu (sem Selo) | Valor fora da faixa | Com Selo: tipo trocado | Com Selo: valor abaixo da metade |');
+  log('|---|---|---|---|---|---|---|');
+  RARS6.forEach(function (rar) {
+    var nl = G.ECONOMY.gear.linhas[rar], linhas = [];
+    for (var i6 = 0; i6 < nl; i6++) linhas.push({ tipo: TIPOS6[i6], valor: FX[TIPOS6[i6]][rar][0] });
+    var livres = TIPOS6.filter(function (t) { return linhas.slice(1).every(function (l) { return l.tipo !== t; }); });
+    var conta = {}, fora = 0, trocou = 0, baixo = 0, mudo = 0;
+    livres.forEach(function (t) { conta[t] = 0; });
+    for (var k6 = 0; k6 < N_E6; k6++) {
+      var pc = { uid: 'i' + (k6 + 1), id: PECA6[rar], plus: 0, rerolls: k6 % 5, linhas: linhas };
+      var r6 = GR.reforjar(pc, 0, false, 20261123), l6 = r6.linhas[0], f6 = FX[l6.tipo][rar];
+      if (conta[l6.tipo] == null) fora++; else conta[l6.tipo]++;
+      if (!(l6.valor >= f6[0] && l6.valor <= f6[1]) || l6.valor !== Math.floor(l6.valor)) fora++;
+      if (JSON.stringify(r6.linhas.slice(1)) !== JSON.stringify(linhas.slice(1)) || r6.rerolls !== pc.rerolls + 1) mudo++;
+      var s6 = GR.reforjar(pc, 0, true, 20261123).linhas[0], g6 = FX[linhas[0].tipo][rar];
+      if (s6.tipo !== linhas[0].tipo) trocou++;
+      if (s6.valor < Math.ceil((g6[0] + g6[1]) / 2) || s6.valor > g6[1]) baixo++;
+    }
+    var esp = 100 / livres.length;
+    log('| ' + G.RARITIES[rar].name + ' | ' + livres.length + ' | ' + esp.toFixed(1) + '% | ' + livres.map(function (t) { return t + ' ' + (100 * conta[t] / N_E6).toFixed(1) + '%'; }).join(' · ') + ' | ' + fora + ' | ' + trocou + ' | ' + baixo + ' |');
+    livres.forEach(function (t) { check('E6', 'Reforja ' + G.RARITIES[rar].name + ': tipo "' + t + '" na proporção esperada (' + esp.toFixed(1) + '% ± 1 p.p.)', 100 * conta[t] / N_E6, esp - 1, esp + 1); });
+    checkBool('E6', 'Reforja ' + G.RARITIES[rar].name + ': valor sempre dentro da faixa, as outras linhas intactas e o rerolls + 1', fora === 0 && mudo === 0);
+    checkBool('E6', 'Reforja ' + G.RARITIES[rar].name + ' com Selo: sempre o mesmo tipo e o valor na metade de cima', trocou === 0 && baixo === 0);
+  });
   log('');
 }
 function wrG4(R, gid, el) { var x = R['g4-' + gid + '-' + el]; return pct(x.wA, x.n); }
@@ -1575,8 +1630,8 @@ function gearCell(g) {   // "5 peças (sol ×5)" / "2 peças" / "—"
 function exemplo() {
   var byId = {}; ALL.forEach(function (h) { byId[h.id] = h; });
   var field = [
-    { horse: cat(byId.ipe, 6), gear: GR.botGear(2, 'grama', 0.5), name: 'Você', isPlayer: true },
-    { horse: cat(byId.brasa, 6), gear: GR.botGear(1, 'fogo', 0.5), name: G.BOT_NAMES[0], isPlayer: false },
+    { horse: cat(byId.ipe, 6), gear: null, name: 'Você', isPlayer: true },
+    { horse: cat(byId.brasa, 6), gear: null, name: G.BOT_NAMES[0], isPlayer: false },
     { horse: cat(byId.mare, 6), gear: null, name: G.BOT_NAMES[1], isPlayer: false },
     { horse: cat(byId['w-garoa']), gear: null, name: G.BOT_NAMES[2], isPlayer: false },
     { horse: cat(byId['w-ticao']), gear: null, name: G.BOT_NAMES[3], isPlayer: false },

@@ -142,6 +142,26 @@
   // ---------------------------------------------------------------------------------------------
   // Corrida e prêmio
   // ---------------------------------------------------------------------------------------------
+  // PEÇAS (só aqui o equipamento vale): cavalo.pve é o Gear.resolvePve do cavalo (quem chama põe; ausente: sem peças).
+  // O principal entra como statAdd; 4 peças do conjunto reforçam o clima dele, 5 tiram a penalidade (entry.pve do sim).
+  // O oponente usa as peças fixas da dificuldade (Gear.fixas; na Lendária, do conjunto do ginásio).
+  function pecasDe(g) {
+    if (!objeto(g) || !objeto(g.mods)) return null;
+    var add = {}, tem = false, sp = objeto(g.special) || {};
+    G.STAT_KEYS.forEach(function (k) { if (typeof g.mods[k] === 'number' && g.mods[k] > 0) { add[k] = g.mods[k]; tem = true; } });
+    var cj = typeof sp.weatherDoubleClimate === 'string' && temChave(G.GEAR_SETS, sp.weatherDoubleClimate) ? G.GEAR_SETS[sp.weatherDoubleClimate].weather : null;
+    var pve = cj || sp.ignoreWeatherPenalty === true ? { clima: cj, mult: G.ECONOMY.gear.setBonus.clima, semPenalidade: sp.ignoreWeatherPenalty === true } : null;
+    if (!tem && !pve) return null;
+    var out = {};
+    if (tem) out.statAdd = add;
+    if (pve) out.pve = pve;
+    return out;
+  }
+  function pecasOponente(f) { return f.pecas ? pecasDe(GR.fixas(f.pecas, K.materiais[f.gymId].conjunto)) : null; }
+  // a config do duelo n da fase (o cavalo com as peças dele contra o oponente n com as da dificuldade)
+  function cfgDuelo(cavalo, f, n, seed, quadros) {
+    return GY.dueloCfg(cavalo, oponente(f.id, n), seed, { pista: G.GYMS[f.gymId].pista, recordFrames: quadros === true, pecasMeu: pecasDe(cavalo.pve), pecasDele: pecasOponente(f) });
+  }
   function vagaOk(v) { return inteiro(v) && v >= 0 && v < K.vagaPreco.length; }
   function seedCorrida(seedBase, vaga, contador) { return S.hash2(S.hash2(seedBase, SAL + vaga), contador); }
   function bonusDe(b) {
@@ -211,8 +231,8 @@
     var f = fase(id), o = objeto(opts) || {}, vaga = o.vaga == null ? 0 : o.vaga;
     if (!f || !objeto(cavalo) || (cavalo.skills != null && !Array.isArray(cavalo.skills))) return null;
     if (typeof seedBase !== 'number' || !isFinite(seedBase) || !inteiro(contador) || contador < 0 || !vagaOk(vaga)) return null;
-    var seed = seedCorrida(seedBase, vaga, contador), adv = oponente(id, contador);
-    var cfg = GY.dueloCfg(cavalo, adv, seed, { pista: G.GYMS[f.gymId].pista, recordFrames: o.recordFrames === true });
+    var seed = seedCorrida(seedBase, vaga, contador);
+    var cfg = cfgDuelo(cavalo, f, contador, seed, o.recordFrames === true);
     var res = S.simulate(cfg), venceu = res.finishOrder[0] === 0;
     var p = premio(id, venceu, seed, bonus);
     var t0 = res.finishTimes[0], t1 = res.finishTimes[1], dur = Math.max(isFinite(t0) ? t0 : 0, isFinite(t1) ? t1 : 0);
@@ -241,6 +261,8 @@
     });
     var sk = Array.isArray(cavalo.skills) ? cavalo.skills : [], rk = objeto(cavalo.skillRanks) || {};
     partes.push(sk.map(function (s) { return s + '=' + (rk[s] == null ? 1 : rk[s]); }).join(','));
+    var pc = pecasDe(cavalo.pve);   // as peças: o que entra na corrida (o principal e o clima do conjunto)
+    partes.push(pc ? JSON.stringify(pc) : '');
     return partes.join('|');
   }
   function amostraDe(opts) { var o = objeto(opts) || {}; return inteiro(o.amostra) && o.amostra > 0 ? o.amostra : K.amostra; }
@@ -255,10 +277,10 @@
     var total = amostraDe(opts), o = objeto(opts) || {};
     var e = estadoOk(estado, chave, total) ? { chave: chave, feitos: estado.feitos, vitorias: estado.vitorias, somaDuracao: estado.somaDuracao }
       : { chave: chave, feitos: 0, vitorias: 0, somaDuracao: 0 };
-    var base = S.hash2(hashTexto(chave), SAL_MEDIDA + (inteiro(o.sal) && o.sal > 0 ? o.sal : 0)), f = fase(id), pista = G.GYMS[f.gymId].pista;
+    var base = S.hash2(hashTexto(chave), SAL_MEDIDA + (inteiro(o.sal) && o.sal > 0 ? o.sal : 0)), f = fase(id);
     var ate = Math.min(total, e.feitos + (inteiro(n) && n > 0 ? n : 0));
     for (var i = e.feitos; i < ate; i++) {
-      var res = S.simulate(GY.dueloCfg(cavalo, oponente(id, i), S.hash2(base, i), { pista: pista }));
+      var res = S.simulate(cfgDuelo(cavalo, f, i, S.hash2(base, i), false));
       if (res.finishOrder[0] === 0) e.vitorias++;
       var t0 = res.finishTimes[0], t1 = res.finishTimes[1];
       e.somaDuracao += Math.round(Math.max(isFinite(t0) ? t0 : 0, isFinite(t1) ? t1 : 0) * 10);   // décimos inteiros: a soma não depende das fatias

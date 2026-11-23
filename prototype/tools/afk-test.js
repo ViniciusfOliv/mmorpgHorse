@@ -706,6 +706,137 @@ test('a última chance completa fica na vaga até a medida nova terminar; sanear
   assert.strictEqual(A.medirVaga({ uid: null, faseId: null }, h, 10).medida, undefined, 'vaga vazia não mede');
 });
 
+section('peças no treino AFK (bloco B)');
+function equipado(h, ids, plus, linhas) {
+  var items = {}, equip = {};
+  ids.forEach(function (id, i) { var uid = 'i' + (i + 1); items[uid] = { uid: uid, id: id, plus: plus || 0, linhas: (linhas && linhas[i]) || GR.linhasDaPeca({ uid: uid, id: id }, 7) }; equip[G.GEAR[id].slot] = uid; });
+  var c = JSON.parse(JSON.stringify(h)); c.pve = GR.resolvePve({ equip: equip }, items);
+  return c;
+}
+var CINCO_SOL = G.GEAR_SLOTS.map(function (sl) { return sl + '-sol-raro'; });
+test('o cavalo corre com o principal das peças (statAdd) e o oponente com as da dificuldade; a Normal não tem peças', function () {
+  var h = cav('mare', 30), hp = equipado(h, CINCO_SOL, 7);
+  var n = A.correr(hp, 'fogo:4:normal', 5, 0, BONUS0), d = A.correr(hp, 'fogo:4:dificil', 5, 0, BONUS0), l = A.correr(hp, 'fogo:4:lendaria', 5, 0, BONUS0);
+  assert.deepStrictEqual(n.cfg.racers[0].statAdd, { vel: 2.65, acel: 2.65, man: 2.65, forca: 2.65, est: 2.65 });
+  assert.deepStrictEqual(n.cfg.racers[0].pve, { clima: 'sol', mult: 1.07, semPenalidade: true });
+  assert.strictEqual(n.cfg.racers[1].statAdd, undefined); assert.strictEqual(n.cfg.racers[1].pve, undefined);
+  assert.deepStrictEqual(d.cfg.racers[1].statAdd, { vel: 1.6, acel: 1.6, man: 1.6, forca: 1.6, est: 1.6 }, 'Difícil: 5 Mágicas +3');
+  assert.strictEqual(d.cfg.racers[1].pve, undefined, 'Mágicas não formam conjunto');
+  assert.deepStrictEqual(l.cfg.racers[1].statAdd, { vel: 2.25, acel: 2.25, man: 2.25, forca: 2.25, est: 2.25 }, 'Lendária: 5 Raras +5');
+  assert.deepStrictEqual(l.cfg.racers[1].pve, { clima: 'sol', mult: 1.07, semPenalidade: true }, 'do conjunto do ginásio (Fornalha → Sol)');
+  // sem peças, o cavalo não leva nada
+  assert.strictEqual(A.correr(h, 'fogo:4:lendaria', 5, 0, BONUS0).cfg.racers[0].statAdd, undefined);
+  // as peças mudam a corrida
+  var com = 0, sem = 0;
+  for (var c = 0; c < 300; c++) { com += A.correr(hp, 'fogo:4:lendaria', 9, c, BONUS0).venceu ? 1 : 0; sem += A.correr(h, 'fogo:4:lendaria', 9, c, BONUS0).venceu ? 1 : 0; }
+  assert.ok(com > sem + 15, 'com 5 Raras +7 vence mais: ' + com + ' × ' + sem);
+});
+test('trocar uma peça muda a chaveConfig e invalida a medida; as linhas de farm (que não mexem na corrida) não mudam', function () {
+  var h = cav('ipe', 25), a = equipado(h, CINCO_SOL, 7), b = equipado(h, CINCO_SOL.slice(0, 4).concat(['armadura-magico']), 7), c = equipado(h, CINCO_SOL, 8);
+  var k = A.chaveConfig(a, 'agua:2:normal');
+  assert.notStrictEqual(k, A.chaveConfig(h, 'agua:2:normal'), 'com peças × sem peças');
+  assert.notStrictEqual(k, A.chaveConfig(b, 'agua:2:normal'), 'outra peça'); assert.notStrictEqual(k, A.chaveConfig(c, 'agua:2:normal'), 'outra melhoria');
+  var outrasLinhas = equipado(h, CINCO_SOL, 7, CINCO_SOL.map(function () { return [{ tipo: 'xp', valor: 6 }, { tipo: 'ouro', valor: 4 }]; }));
+  assert.strictEqual(A.chaveConfig(outrasLinhas, 'agua:2:normal'), k, 'só o farm mudou: a corrida é a mesma');
+  var vaga = { uid: 'm1', faseId: 'agua:2:normal', inicioMin: 0, contador: 0, medida: null, ultima: null };
+  var v1 = A.medirVaga(vaga, a, 300), v2 = A.medirVaga(v1, b, 50);
+  assert.strictEqual(v1.medida.feitos, 300); assert.strictEqual(v2.medida.feitos, 50, 'a medida recomeça com a peça trocada'); assert.strictEqual(v2.medida.chave, A.chaveConfig(b, 'agua:2:normal'));
+});
+
+section('forja (bloco B)');
+var FJ; try { FJ = require('../src/forja.js'); } catch (e) { FJ = {}; console.log('  (forja.js não carregou: ' + e.message + ')'); }
+var MOCH_FOGO = { carvao: 200, 'ferro-bruto': 200, 'brasa-viva': 50, 'trofeu-fogo-2': 5, selo: 5 };
+test('GameData.FORJA: as seis receitas com os custos da spec', function () {
+  assert.deepStrictEqual(G.FORJA, {
+    comum: { mat: 10, inc: 0, trofeu: 0, ouro: 100 }, magico: { mat: 25, inc: 3, trofeu: 0, ouro: 300 },
+    raro: { mat: 60, inc: 10, trofeu: 1, ouro: 800 }, lendario: { mat: 120, inc: 20, trofeu: 3, selo: 2, ouro: 3000 },
+    pedra: { mat: 8, inc: 0, trofeu: 0, ouro: 30 }, reforja: { mat: 15, inc: 1, trofeu: 0, ouro: 150, qualquerGinasio: true }
+  });
+  assert.strictEqual(G.ITEMS.selo.cap, 99);
+});
+test('forjar Rara de Sela na Fornalha gasta 30 Carvão + 30 Ferro, 10 Brasas, 1 troféu da Fornalha e 800, e dá a Sela do conjunto Sol com 2 linhas', function () {
+  var m = congela(JSON.parse(JSON.stringify(MOCH_FOGO)));
+  var p = FJ.pode('raro', 'sela', 'fogo', m, 800);
+  assert.deepStrictEqual(p, { ok: true, gasto: { itens: { carvao: 30, 'ferro-bruto': 30, 'brasa-viva': 10, 'trofeu-fogo-2': 1 }, ouro: 800 } });
+  var r = FJ.forjar('raro', 'sela', 'fogo', m, 4242, 0);
+  assert.strictEqual(r.ouro, 800);
+  assert.deepStrictEqual(r.mochila, { carvao: 170, 'ferro-bruto': 170, 'brasa-viva': 40, 'trofeu-fogo-2': 4, selo: 5 });
+  assert.strictEqual(r.peca.id, 'sela-sol-raro');
+  assert.strictEqual(r.peca.linhas.length, 2);
+  assert.ok(require('../src/gear.js').linhasValidas(r.peca.id, r.peca.linhas), 'linhas válidas para uma Rara');
+  assert.strictEqual(FJ.forjar('raro', 'estribos', 'agua', { junco: 60, 'perola-de-rio': 10, 'trofeu-agua-0': 1 }, 1, 0).peca.id, 'estribos-chuva-raro');
+  assert.strictEqual(FJ.forjar('raro', 'armadura', 'grama', { resina: 60, 'seiva-antiga': 10, 'trofeu-grama-4': 1 }, 1, 0).peca.id, 'armadura-nevoa-raro');
+});
+test('Rara do Sol com Pérola de rio no lugar da Brasa: motivo', function () {
+  var m = { carvao: 200, 'ferro-bruto': 200, 'perola-de-rio': 50, 'trofeu-fogo-0': 1 };
+  var p = FJ.pode('raro', 'sela', 'fogo', m, 99999);
+  assert.strictEqual(p.ok, false);
+  assert.strictEqual(p.motivo, 'Falta Brasa viva (precisa de 10, tem 0)');
+  assert.strictEqual(FJ.forjar('raro', 'sela', 'fogo', m, 1, 0), null);
+});
+test('Lendária sem 2 Selos: motivo; com 2, sai a Lendária do conjunto com 3 linhas e gasta 3 troféus e 2 Selos', function () {
+  var m = { carvao: 60, 'ferro-bruto': 60, 'brasa-viva': 20, 'trofeu-fogo-0': 1, 'trofeu-fogo-3': 2, selo: 1 };
+  assert.strictEqual(FJ.pode('lendario', 'ferraduras', 'fogo', m, 99999).motivo, 'Falta Selo do campeão (precisa de 2, tem 1)');
+  m.selo = 2;
+  var r = FJ.forjar('lendario', 'ferraduras', 'fogo', m, 9, 3);
+  assert.strictEqual(r.peca.id, 'ferraduras-sol-lendario');
+  assert.strictEqual(r.peca.linhas.length, 3);
+  assert.deepStrictEqual(r.mochila, { carvao: 0, 'ferro-bruto': 0, 'brasa-viva': 0, 'trofeu-fogo-0': 0, 'trofeu-fogo-3': 0, selo: 0 });
+  assert.strictEqual(r.ouro, 3000);
+});
+test('sem troféu: motivo; troféu de outro ginásio não serve', function () {
+  var m = { carvao: 200, 'ferro-bruto': 200, 'brasa-viva': 50, 'trofeu-agua-0': 3 };
+  var p = FJ.pode('raro', 'sela', 'fogo', m, 99999);
+  assert.strictEqual(p.ok, false);
+  assert.strictEqual(p.motivo, 'Falta troféu da Fornalha (precisa de 1, tem 0)');
+});
+test('Ouro reservado da sala não conta: com o Ouro livre abaixo do custo, motivo; forjar não confere o Ouro', function () {
+  assert.strictEqual(FJ.pode('raro', 'sela', 'fogo', MOCH_FOGO, 799).motivo, 'Falta Ouro (precisa de 800)');
+  assert.strictEqual(FJ.pode('lendario', 'sela', 'fogo', MOCH_FOGO, 2999).motivo, 'Falta Ouro (precisa de 3.000)');
+  assert.strictEqual(FJ.pode('raro', 'sela', 'fogo', MOCH_FOGO, 800).ok, true);
+});
+test('mesma seed e contador dão as mesmas linhas; contador diferente muda; a forja não muta a mochila', function () {
+  var m = congela(JSON.parse(JSON.stringify(MOCH_FOGO)));
+  var a = FJ.forjar('raro', 'sela', 'fogo', m, 777, 5), b = FJ.forjar('raro', 'sela', 'fogo', m, 777, 5);
+  assert.deepStrictEqual(a, b);
+  var dif = 0;
+  for (var c = 0; c < 20; c++) if (JSON.stringify(FJ.forjar('raro', 'sela', 'fogo', m, 777, c).peca.linhas) !== JSON.stringify(a.peca.linhas)) dif++;
+  assert.ok(dif >= 15, 'contadores diferentes dão linhas diferentes (' + dif + '/20)');
+  assert.strictEqual(FJ.forjar('raro', 'sela', 'fogo', m, 777, -1), null);
+  assert.strictEqual(FJ.forjar('raro', 'sela', 'fogo', m, NaN, 0), null);
+});
+test('material: meio a meio, o ímpar sai do que o jogador tem mais, e o que falta de um sai do outro', function () {
+  assert.deepStrictEqual(FJ.pode('magico', 'sela', 'agua', { junco: 40, concha: 90, 'perola-de-rio': 3 }, 300).gasto.itens, { junco: 12, concha: 13, 'perola-de-rio': 3 });
+  assert.deepStrictEqual(FJ.pode('magico', 'sela', 'agua', { junco: 90, concha: 40, 'perola-de-rio': 3 }, 300).gasto.itens, { junco: 13, concha: 12, 'perola-de-rio': 3 });
+  assert.deepStrictEqual(FJ.pode('comum', 'sela', 'agua', { junco: 2, concha: 40 }, 100).gasto.itens, { junco: 2, concha: 8 });
+  assert.deepStrictEqual(FJ.pode('comum', 'sela', 'agua', { concha: 10 }, 100).gasto.itens, { concha: 10 });
+  assert.strictEqual(FJ.pode('comum', 'sela', 'agua', { junco: 4, concha: 5 }, 100).motivo, 'Faltam materiais: Junco e Concha (precisa de 10, tem 9)');
+  assert.strictEqual(FJ.forjar('comum', 'sela', 'agua', { junco: 5, concha: 5 }, 1, 0).peca.id, 'sela-comum');
+  assert.deepStrictEqual(FJ.forjar('comum', 'sela', 'agua', { junco: 5, concha: 5 }, 1, 0).peca.linhas, []);
+  assert.strictEqual(FJ.forjar('magico', 'testeira', 'grama', { fibra: 25, 'seiva-antiga': 3 }, 1, 0).peca.id, 'testeira-magico');
+});
+test('Pedra Negra e Pergaminho de reforja: sem slot, sem sorteio; o Pergaminho respeita o teto de 99', function () {
+  var r = FJ.forjar('pedra', null, 'grama', { fibra: 4, resina: 4 });
+  assert.deepStrictEqual(r, { mochila: { fibra: 0, resina: 0 }, ouro: 30, pedra: 1 });
+  var q = FJ.forjar('reforja', null, 'fogo', { carvao: 15, 'brasa-viva': 1, 'pergaminho-reforja': 2 });
+  assert.deepStrictEqual(q, { mochila: { carvao: 0, 'brasa-viva': 0, 'pergaminho-reforja': 3 }, ouro: 150, item: 'pergaminho-reforja' });
+  assert.strictEqual(FJ.pode('reforja', null, 'fogo', { carvao: 15, 'brasa-viva': 1, 'pergaminho-reforja': 99 }, 999).ok, false);
+});
+test('receita, slot ou ginásio inválido: pode recusa e forjar devolve null', function () {
+  [['xyz', 'sela', 'fogo'], ['raro', 'xyz', 'fogo'], ['raro', 'sela', 'xyz'], [null, null, null], ['raro', null, 'fogo'], ['__proto__', 'sela', 'fogo']].forEach(function (c) {
+    assert.strictEqual(FJ.pode(c[0], c[1], c[2], MOCH_FOGO, 99999).ok, false, JSON.stringify(c));
+    assert.strictEqual(FJ.forjar(c[0], c[1], c[2], MOCH_FOGO, 1, 0), null, JSON.stringify(c));
+  });
+  assert.strictEqual(FJ.pode('raro', 'sela', 'fogo', null, 99999).ok, false);
+});
+test('forja.js é puro e entra no build, no index.html e depois do afk.js', function () {
+  var fonte = fs.readFileSync(path.join(__dirname, '../src/forja.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(!/Math\.random|Date|performance\.now|document|window|localStorage/.test(fonte), 'forja.js sem sorteio fora da seed, relógio ou tela');
+  assert.ok(/root\.Forja = Forja/.test(fonte), 'UMD no navegador');
+  assert.ok(fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8').indexOf('src/forja.js') > 0, 'index.html carrega');
+  assert.ok(/'src\/afk\.js', 'src\/forja\.js'/.test(fs.readFileSync(path.join(__dirname, '../build.mjs'), 'utf8')), 'build.mjs junta, depois do afk.js');
+});
+
 section('pureza');
 test('afk.js é puro: sem Math.random, relógio, tela nem estado global; carrega no navegador e no build', function () {
   var fonte = fs.readFileSync(path.join(__dirname, '../src/afk.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');

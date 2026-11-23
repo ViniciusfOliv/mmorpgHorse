@@ -19,7 +19,7 @@
 (function () {
   'use strict';
 
-  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio, AF = window.Afk;
+  var GD = window.GameData, RS = window.RaceSim, SP = window.Sprites, GR = window.Gear, FX = window.RaceFx, IT = window.Itens, GN = window.Ginasio, AF = window.Afk, FJ = window.Forja;
   var telaEl = document.getElementById('tela');
   var appEl = document.getElementById('app');
   if (!GD || !RS || !SP || !GR || !FX || !IT || !GN || !AF || !telaEl) {
@@ -52,16 +52,13 @@
   /*@dev:fim*/
   var E = GD.ECONOMY;
   var GE = E.gear;
-  // Equipamento suspenso (bloco 1b, spec 2026-11-12-crescimento-livre §8). A corrida, o Poder e os status já ignoram
-  // as peças (sim.js). Com GEAR_ON = false:
-  // - a aba Loja e a sub-aba Equipamento somem, e o resumo das peças sai do Estábulo, do Correr, da ficha e da largada;
-  // - o saldo de Pedras Negras sai do cabeçalho e do Perfil;
-  // - a Pedra Negra do pódio não cai (GR.podiumStone não é chamado) e os bots correm sem peças;
-  // - as ações de peça (equipar, tirar, melhorar, vender, comprar) não fazem nada, nem com o botão forçado.
-  // Peças, melhorias, o que está equipado e as Pedras ficam no save sem mudança: nada é vendido nem convertido.
-  // O código do equipamento fica, desligado por esta constante, para voltar depois. Ligar a constante não basta: o gear
-  // precisa entrar de novo na corrida (`entry`), no `powerRating` e na trava do páreo (`canEquip` hoje passaria sempre).
-  var GEAR_ON = false;
+  // Equipamento só no PVE (spec 2026-11-23-afk-drops §5.7; antes, suspenso desde o bloco 1b). A corrida valendo, a sala,
+  // o Poder e os duelos de ginásio ignoram as peças (sim.js): elas só valem no treino AFK (afk.js).
+  // GEAR_ON = true liga as telas do equipamento: a sub-aba Equipamento da Montaria (com o selo "só AFK"), a loja de peças
+  //   e de Pedras Negras, o saldo de Pedras e as ações de peça (equipar, tirar, melhorar, vender, comprar, reforjar).
+  // GEAR_PVP = false, e fica: nada de peça na aba Correr, na largada, nos rivais nem no resultado; os bots sem peças; a
+  //   Pedra Negra do pódio não cai (o pódio dá o Pergaminho de técnica; a Pedra vem da loja, do treino e da forja).
+  var GEAR_ON = true, GEAR_PVP = false;
   var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
   var TRAINING_GOLD = [30, 22, 16, 12, 10, 10, 10, 10];
   var MIN_ENTRY = Math.min.apply(null, E.entryTiers);
@@ -688,8 +685,10 @@
 
   // cria uma peça +0 no save st (uid 'i' + nextItemUid) e devolve a instância
   // linhas: as que já vieram sorteadas (peça que caiu no AFK ou saiu da forja); sem elas, pela seed do save e pelo uid
-  function addItem(st, id, linhas) {
+  // origem: 'afk' (caiu no treino) ou 'forja'; ausente = comprada na loja ou de antes (só essa tem preço de venda)
+  function addItem(st, id, linhas, origem) {
     var it = { uid: 'i' + st.nextItemUid, id: id, plus: 0, rerolls: 0 };
+    if (origem) it.origem = origem;
     it.linhas = GR.linhasDaPeca({ uid: it.uid, id: id, linhas: linhas }, st.seedBase);
     st.items.push(it);
     st.nextItemUid += 1;
@@ -716,6 +715,7 @@
       nextItemUid: 1,
       pedras: 0,
       enhanceCounter: 0,
+      forjaCounter: 0,
       redeas: 0,          // Rédeas novas (bloco 1b §9): vêm no 7º dia da recompensa diária (e da gaveta DEV)
       avisoV6: false,     // aviso da migração v5 -> v6 ainda por mostrar (só em save migrado)
       mochila: mochilaVazia(),
@@ -1029,6 +1029,7 @@
         var p = it.plus;
         if (!(typeof p === 'number' && p === Math.floor(p) && p >= 0 && p <= GE.plusMax)) return;
         var out = { uid: it.uid, id: it.id, plus: p, rerolls: inteiroOu(it.rerolls, 0, 0, REROLLS_MAX) };
+        if (it.origem === 'afk' || it.origem === 'forja') out.origem = it.origem;   // veio do treino ou da forja: sem preço de venda
         out.linhas = GR.linhasDaPeca(it, base.seedBase);   // v10; peça de antes (ou com lixo): pela seed do save e pelo uid
         items.push(out);
         byUid[out.uid] = out;
@@ -1074,6 +1075,7 @@
     base.nextItemUid = v4 ? Math.max(num(s.nextItemUid, 0, 0, 1e9), maxItemUid + 1) : maxItemUid + 1;
     base.pedras = pedras;
     base.enhanceCounter = v4 ? num(s.enhanceCounter, 0, 0, 1e9) : 0;
+    base.forjaCounter = v4 ? num(s.forjaCounter, 0, 0, 1e9) : 0;   // peças forjadas (a seed das linhas; nunca volta)
   }
 
   // Skills salvas de uma montaria: só ids que ela pode ter (mesmas regras do RaceSim.learnSkill:
@@ -1651,7 +1653,7 @@
   // ===========================================================================
   // Tipos de tela: 'aba' (raiz, com cabeçalho e barra; não empilha histórico), 'sub' (com cabeçalho e barra;
   // empilha um estado e o Voltar devolve a ui.tab) e 'full' (tela cheia, sem casca).
-  var SCREEN_KIND = { bloqueio: 'full', inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', ginasio: 'sub', afk: 'sub', bestiario: 'sub', largada: 'full', corrida: 'full', desafio: 'full', entreduelos: 'full', resultado: 'full' };
+  var SCREEN_KIND = { bloqueio: 'full', inicial: 'full', estabulo: 'aba', correr: 'aba', expedicao: 'aba', haras: 'aba', loja: 'aba', montaria: 'sub', perfil: 'sub', ginasio: 'sub', afk: 'sub', bestiario: 'sub', forja: 'sub', largada: 'full', corrida: 'full', desafio: 'full', entreduelos: 'full', resultado: 'full' };
   // as 5 abas da barra (o handler 'aba' só abre as desta lista; o wiki lê esta linha). A Loja (itens e mochila, spec de
   // itens §6) fica sempre: o que é do equipamento dentro dela (peças e Pedras Negras) continua atrás do GEAR_ON
   var ABAS = [{ id: 'estabulo', icone: '🐴', rotulo: 'Estábulo' }, { id: 'correr', icone: '🏁', rotulo: 'Correr' }, { id: 'expedicao', icone: '🧭', rotulo: 'Expedição' }, { id: 'haras', icone: '💞', rotulo: 'Haras' }, { id: 'loja', icone: '🛒', rotulo: 'Loja' }];
@@ -1708,6 +1710,7 @@
     // tela de desafio, na tela de corrida e no cartão entre eles, e saem ao ir a qualquer outra tela
     var assiste = !!(ui.gym && ui.gym.ver) && (screen === 'corrida' || screen === 'entreduelos' || screen === 'desafio');
     if (screen !== 'bestiario') ui.bestiario = null;
+    if (screen !== 'forja') ui.forja = null;
     if (screen !== 'ginasio' && !assiste) ui.gym = null;
     else if (!assiste && ui.gym) ui.gym.ver = null;
     // a Loja guarda o estado enquanto uma sub-tela aberta a partir dela está por cima
@@ -1747,10 +1750,10 @@
     }
     // treino AFK: da escolha do treino volta às vagas; das vagas e do bestiário, à Expedição
     if (ui.screen === 'afk' && ui.afk && ui.afk.escolha) { ui.afk.escolha = null; go('afk'); return; }
-    if (ui.screen === 'afk' || ui.screen === 'bestiario') {
-      var deBest = ui.screen === 'bestiario';
+    if (ui.screen === 'afk' || ui.screen === 'bestiario' || ui.screen === 'forja') {
+      var volta = ui.screen === 'bestiario' ? 'bestiario-abrir' : ui.screen === 'forja' ? 'forja-abrir' : 'afk-abrir';
       go('expedicao');
-      focoNaLinha(deBest ? 'bestiario-abrir' : 'afk-abrir', null);
+      focoNaLinha(volta, null);
       return;
     }
     var uid = ui.screen === 'montaria' && ui.montaria ? ui.montaria.uid : null;
@@ -2123,7 +2126,7 @@
 
     var itens = devGrupo('itens', 'Itens',
       '<p class="nota">Qualquer peça do catálogo, inclusive Lendária (só no perfil DEV). Comum e Mágico são peças soltas; Raro e Lendário usam o conjunto.' +
-        (GEAR_ON ? '' : ' Com o equipamento suspenso, as peças só ficam guardadas no save: não entram na corrida nem no Poder.') + '</p>' +
+        ' As peças só valem no treino AFK: não entram na corrida valendo nem no Poder.' + '</p>' +
       '<div class="dev-campos">' +
         devSelect('slot', 'Slot', GR.SLOTS.map(function (sl) { return [sl, GD.GEAR_SLOT_INFO[sl].name]; }), f.slot) +
         devSelect('conjunto', 'Conjunto', devListaDe(GD.GEAR_SETS, nomeDe), f.conjunto) +
@@ -2492,6 +2495,7 @@
       case 'ginasio': html = renderGinasio(); break;
       case 'afk': html = renderAfk(); break;
       case 'bestiario': html = renderBestiario(); break;
+      case 'forja': html = renderForja(); break;
       default: html = renderInicial();
     }
     var comCasca = kindOf(ui.screen) !== 'full';
@@ -2693,7 +2697,7 @@
       (saveCorrompido ? '<p class="aviso" role="status">Não foi possível ler o seu progresso salvo (o arquivo está corrompido). O jogo recomeçou; ' +
         (saveCorrompido === 'guardado' ? 'uma cópia do arquivo antigo foi guardada.' : 'não foi possível guardar uma cópia do arquivo antigo.') + '</p>' : '') +
       '<p class="sub">Escolha seu primeiro cavalo. Ele corre sozinho nas corridas valendo Ouro: você decide ' +
-        (GEAR_ON ? 'o item' : 'onde vão os pontos') + ' e a aposta antes da largada.</p></header>' +
+        (GEAR_PVP ? 'o item' : 'onde vão os pontos') + ' e a aposta antes da largada.</p></header>' +
       '<div class="iniciais-nav" role="group" aria-label="Comparar os 3 iniciais">' + nav + '<span class="nota">Deslize para comparar</span></div>' +
       '<div class="iniciais">' + cards + '</div>' +
       '<p class="nota">Elementos não batem de frente: Fogo, Água e Grama ganham ou perdem conforme o clima de cada corrida, que pode virar no Dado da Sorte.</p>' +
@@ -2750,7 +2754,7 @@
         '<span>' + sexoHtml(m.sex) + '</span>' +
         '<span>cruza ' + esc(m.breedLeft) + 'x</span>' + corcel +
         (isActive ? '<span class="badge-ativa">Ativa</span>' : '') +
-      '</div>' + xpHtml(m.level, m.xp, true) + (GEAR_ON ? gearSummaryHtml(m) : '') +
+      '</div>' + xpHtml(m.level, m.xp, true) + (GEAR_PVP ? gearSummaryHtml(m) : '') +
     '</article>';
   }
 
@@ -2899,7 +2903,7 @@
           xpHtml(h.level, h.xp, true) +
           '<div class="linha-meta"><span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
         '</div></div>' +
-        (GEAR_ON ? '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
+        (GEAR_PVP ? '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
           '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div></div>' : '') +
       '</article>' +
       '<section class="caixa" aria-labelledby="r-entrada">' +
@@ -3677,9 +3681,11 @@
   function afkPresa(v) { return !!state.pending && !!v.uid && v.uid === state.activeId; }
   // os bônus de uma vaga: o bestiário (da conta) e, no bloco B, as peças do cavalo
   function afkBonus(uid) {
-    var b = AF.bestiarioBonus(state.afk.bestiario);
-    return { material: 0, xp: b.xp, raro: b.raro, trofeu: b.trofeu, ouro: 0 };
+    var b = AF.bestiarioBonus(state.afk.bestiario), m = mountByUid(uid), f = m ? gearOf(m).farm : { material: 0, xp: 0, raro: 0, trofeu: 0, ouro: 0 };
+    return { material: f.material, xp: b.xp + f.xp, raro: b.raro + f.raro, trofeu: b.trofeu + f.trofeu, ouro: f.ouro };
   }
+  // o cavalo como o afk.js o recebe: com as peças resolvidas (pve), que só valem aqui
+  function afkCavalo(m) { var c = clone(m); c.pve = gearOf(m); return c; }
   function afkLimite() { return AF.limiteOffline(state.afk.aveiaMin, AF.bestiarioBonus(state.afk.bestiario).offlineMin); }
   function afkGinNome(gymId) { return GD.GYMS[gymId].name.replace(/^Ginásio d[aeo] /, ''); }
   function afkDif(id) { return GD.AFK.difs.filter(function (d) { return d.id === id; })[0]; }
@@ -3753,7 +3759,7 @@
     var s0 = state, v = state.afk.vagas[i], m = v && v.uid ? mountByUid(v.uid) : null, agora = agoraMin();
     if (!m || afkPresa(v) || !(agora >= v.inicioMin)) return false;
     var antes = clone(state);
-    var r = AF.correr(m, v.faseId, state.seedBase, v.contador, afkBonus(v.uid), { vaga: i });
+    var r = AF.correr(afkCavalo(m), v.faseId, state.seedBase, v.contador, afkBonus(v.uid), { vaga: i });
     var novo = r ? AF.creditar(state.afk, i, r) : null;
     if (!novo) return false;
     novo.vagas[i].inicioMin = agora + r.duracaoS / 60;
@@ -3809,9 +3815,9 @@
   }
   // a chance da vaga: a medida completa da configuração de agora; ou a medição em andamento (com a última completa, se há)
   function afkChanceTxt(v) {
-    var m = mountByUid(v.uid), pronta = !!m && AF.medidaPronta(v.medida) && v.medida.chave === AF.chaveConfig(m, v.faseId);
+    var m = mountByUid(v.uid), ch = m ? AF.chaveConfig(afkCavalo(m), v.faseId) : null, pronta = !!m && AF.medidaPronta(v.medida) && v.medida.chave === ch;
     if (pronta) return 'Chance de vitória: ' + Math.round(v.ultima.p * 100) + '%';
-    var feitos = m && v.medida && v.medida.chave === AF.chaveConfig(m, v.faseId) ? v.medida.feitos : 0;
+    var feitos = m && v.medida && v.medida.chave === ch ? v.medida.feitos : 0;
     return 'Medindo a chance: ' + Math.floor(100 * feitos / GD.AFK.amostra) + '%' + (v.ultima ? ' (antes: ' + Math.round(v.ultima.p * 100) + '%)' : '');
   }
 
@@ -3820,7 +3826,7 @@
     if (!state || saveBloqueado) return -1;
     for (var i = 0; i < state.afk.vagas.length; i++) {
       var v = state.afk.vagas[i], m = v.uid ? mountByUid(v.uid) : null;
-      if (m && !(AF.medidaPronta(v.medida) && v.medida.chave === AF.chaveConfig(m, v.faseId))) return i;
+      if (m && !(AF.medidaPronta(v.medida) && v.medida.chave === AF.chaveConfig(afkCavalo(m), v.faseId))) return i;
     }
     return -1;
   }
@@ -3835,7 +3841,7 @@
     var parado = document.visibilityState === 'hidden' || ui.screen === 'corrida' || ui.screen === 'largada';
     if (parado) { afkMedeTimer = window.setTimeout(afkMede, 1000); return; }
     var v = state.afk.vagas[i];
-    state.afk.vagas[i] = AF.medirVaga(v, mountByUid(v.uid), AFK_FATIA);
+    state.afk.vagas[i] = AF.medirVaga(v, afkCavalo(mountByUid(v.uid)), AFK_FATIA);
     afkMedeDesde += AFK_FATIA;
     if (AF.medidaPronta(state.afk.vagas[i].medida) || afkMedeDesde >= AFK_GRAVA_A_CADA) { afkMedeDesde = 0; persist(); }
     if (state && ui.screen === 'afk') afkPinta();
@@ -3940,7 +3946,7 @@
     AFK_IDS.forEach(function (id) { state.mochila[id] = inteiroOu(c.mochila[id], 0, 0, GD.ITEMS[id].cap); });
     state.gold = Math.min(1e9, state.gold + c.ouro);
     state.pedras = Math.min(1e6, state.pedras + c.pedras);
-    var pecas = c.pecas.map(function (p) { return addItem(state, p.id, p.linhas); });
+    var pecas = c.pecas.map(function (p) { return addItem(state, p.id, p.linhas, 'afk'); });
     var subiu = [];
     Object.keys(c.xpPorCavalo).forEach(function (uid) {
       var m = mountByUid(uid), g = applyXp(m, c.xpPorCavalo[uid], AFK_SEED_TAG + state.afk.xpCounter);
@@ -4231,6 +4237,107 @@
       '</section>';
   }
 
+  // ---- forja (ui.forja = { gym, slot, confirma: receita | null, msg: texto | null }) ----
+  // Receitas fixas (Forja.pode / Forja.forjar): o jogador escolhe o ginásio (os materiais e o conjunto) e o tipo da peça.
+  // Só as linhas de farm são sorteadas, pela seed do save e pelo contador de forjas, depois de confirmar.
+  var FORJA_ROT = { comum: 'Peça Comum', magico: 'Peça Mágica', raro: 'Peça Rara de conjunto', lendario: 'Peça Lendária de conjunto', pedra: 'Pedra Negra', reforja: 'Pergaminho de reforja' };
+  function forjaUi() {
+    if (!ui.forja) ui.forja = { gym: GD.GYM_ORDER[0], slot: GD.GEAR_SLOTS[0], confirma: null, msg: null };
+    return ui.forja;
+  }
+  function forjaTrofeus(g) {
+    var n = 0;
+    GD.AFK.trofeus[g].forEach(function (_, e) { n += itemQtd('trofeu-' + g + '-' + e); });
+    return n;
+  }
+  function forjaCustoTxt(rec, g) {
+    var R = GD.FORJA[rec], M = GD.AFK.materiais[g], p = [];
+    p.push(R.mat + ' materiais (' + GD.ITEMS[M.comuns[0]].name + ' + ' + GD.ITEMS[M.comuns[1]].name + ')');
+    if (R.inc) p.push(itemQtdTxt(M.incomum, R.inc));
+    if (R.trofeu) p.push(R.trofeu + (R.trofeu === 1 ? ' troféu' : ' troféus') + ' ' + GD.GYMS[g].name.replace(/^Ginásio /, ''));
+    if (R.selo) p.push(itemQtdTxt('selo', R.selo));
+    p.push(fmt(R.ouro) + ' de Ouro');
+    return ginJunta(p);
+  }
+  function forjaSaiTxt(rec, U) {
+    if (rec === 'pedra') return 'Pedra Negra';
+    if (rec === 'reforja') return 'Pergaminho de reforja';
+    var id = FJ.pecaId(rec, U.slot, U.gym), d = GD.GEAR[id];
+    return d.name + ' (' + GD.RARITIES[d.rarity].name + ')';
+  }
+  function forjaPode(rec, U) { return FJ.pode(rec, U.slot, U.gym, state.mochila, ouroLivre()); }
+  // -> true se forjou (uma gravação: o gasto e o que saiu)
+  function forjaFaz(rec) {
+    var U = forjaUi(), s0 = state;
+    persist();
+    if (state !== s0) return false;
+    U.confirma = null;
+    var p = forjaPode(rec, U);
+    if (!p.ok) { U.msg = p.motivo; return false; }
+    var antes = clone(state), c = state.forjaCounter;
+    var r = FJ.forjar(rec, U.slot, U.gym, state.mochila, state.seedBase, c), txt;
+    if (!r) { U.msg = 'Não foi possível forjar.'; return false; }
+    AFK_IDS.forEach(function (id) { state.mochila[id] = inteiroOu(r.mochila[id], 0, 0, GD.ITEMS[id].cap); });
+    state.gold -= r.ouro;
+    if (r.peca) {
+      state.forjaCounter = c + 1;   // o contador novo vai na mesma gravação da peça
+      var it = addItem(state, r.peca.id, r.peca.linhas, 'forja');
+      state.afk.bestiario = AF.bestiarioObter(state.afk.bestiario, {}, [r.peca]);
+      txt = 'Forjou ' + forjaSaiTxt(rec, U) + (it.linhas.length ? ': ' + it.linhas.map(linhaTxt).join(', ') : '') + '. Está no inventário (aba Peças da montaria).';
+    } else if (r.pedra) {
+      state.pedras = Math.min(1e6, state.pedras + r.pedra);
+      txt = 'Forjou 1 Pedra Negra. Você tem ' + pedrasTxt(state.pedras) + '.';
+    } else {
+      txt = 'Forjou 1 Pergaminho de reforja. Você tem ' + fmt(itemQtd('pergaminho-reforja')) + '.';
+    }
+    var gv = gravaGasto(s0, antes);
+    if (gv === 'outra-aba') return false;
+    U.msg = gv === 'ok' ? txt : FALHA_SALVAR;
+    return gv === 'ok';
+  }
+  function renderForja() {
+    var U = forjaUi(), g = U.gym, M = GD.AFK.materiais[g], conj = GD.GEAR_SETS[M.conjunto];
+    var abas = GD.GYM_ORDER.map(function (x) {
+      return '<button type="button" class="btn btn--pequeno afk-best-aba" data-acao="forja-gym" data-id="' + esc(x) + '" aria-pressed="' + (x === g) + '">' + esc(afkGinNome(x)) + '</button>';
+    }).join('');
+    var slots = GD.GEAR_SLOTS.map(function (sl) {
+      return '<button type="button" class="btn btn--pequeno forja-slot" data-acao="forja-slot" data-id="' + esc(sl) + '" aria-pressed="' + (sl === U.slot) + '">' +
+        iconeHtml('slot-' + sl, '◆', 16) + ' ' + esc(GD.GEAR_SLOT_INFO[sl].name) + '</button>';
+    }).join('');
+    function tem(id) { return '<li>' + itemIconeHtml(id) + '<span>' + esc(itemQtdTxt(id, itemQtd(id))) + '</span></li>'; }
+    var estoque = '<ul class="forja-estoque" aria-label="O que você tem">' + tem(M.comuns[0]) + tem(M.comuns[1]) + tem(M.incomum) +
+      '<li><span class="item-icone item-icone--trofeu-' + esc(g) + '" aria-hidden="true"></span><span>' + esc(forjaTrofeus(g) + (forjaTrofeus(g) === 1 ? ' troféu' : ' troféus')) + '</span></li>' +
+      tem('selo') + '</ul>';
+    var linhas = FJ.RECEITAS.map(function (rec) {
+      var p = forjaPode(rec, U), peca = FJ.ehPeca(rec), sai = forjaSaiTxt(rec, U), nl = peca ? GD.ECONOMY.gear.linhas[rec] : 0, corpo;
+      if (U.confirma === rec) {
+        corpo = '<div class="acoes forja-confirma"><p class="nota">' + esc('Forjar ' + sai + '? Gasta ' + forjaCustoTxt(rec, g) + '.' +
+            (nl ? ' ' + (nl === 1 ? 'A linha de farm é sorteada' : 'As ' + nl + ' linhas de farm são sorteadas') + ' ao confirmar.' : '')) + '</p>' +
+          '<button type="button" class="btn btn--ouro" data-acao="forja-confirmar" data-id="' + esc(rec) + '"' + indisponivel(p.ok ? '' : p.motivo) + '>Confirmar</button>' +
+          '<button type="button" class="btn" data-acao="forja-cancelar" data-id="' + esc(rec) + '">Cancelar</button></div>';
+      } else {
+        corpo = '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="forja-fazer" data-id="' + esc(rec) + '"' + indisponivel(p.ok ? '' : p.motivo) +
+          '>Forjar<span class="sr"> ' + esc(sai) + '</span></button></div>';
+      }
+      return '<li class="forja-receita" data-receita="' + esc(rec) + '"><h3 class="forja-nome">' + esc(FORJA_ROT[rec]) + '</h3>' +
+        '<p class="forja-sai">' + esc(peca ? 'Sai: ' + sai + (nl ? ', com ' + nl + (nl === 1 ? ' linha de farm sorteada' : ' linhas de farm sorteadas') : ', sem linha de farm') : rec === 'pedra' ? 'Melhora peças na aba Peças da montaria.' : 'Sorteia de novo uma linha de uma peça.') + '</p>' +
+        '<p class="nota forja-custo">' + esc('Custa ' + forjaCustoTxt(rec, g) + '.') + '</p>' + corpo + '</li>';
+    }).join('');
+    return '<section class="tela tela--afk" aria-labelledby="t-forja">' +
+      '<button type="button" class="btn btn--pequeno" data-acao="forja-voltar">Voltar</button>' +
+      '<h1 class="titulo titulo--tela" id="t-forja" tabindex="-1" data-foco>Forja</h1>' +
+      '<p class="nota">Receitas fixas, sem chance de falhar. Os materiais caem no treino AFK de cada ginásio; as peças só valem no treino AFK.</p>' +
+      '<div class="afk-best-abas" role="group" aria-label="Materiais de qual ginásio">' + abas + '</div>' +
+      '<section class="caixa" aria-labelledby="t-forja-tem"><h2 class="titulo" id="t-forja-tem">' + esc('Você tem (' + afkGinNome(g) + ')') + '</h2>' + estoque +
+        '<p class="nota">' + esc(pedrasTxt(state.pedras) + ' · ' + fmt(ouroLivre()) + ' de Ouro para gastar' + (ouroReservado() ? ' (' + reservaTxt() + ')' : '') + '.') + '</p></section>' +
+      '<section class="caixa" aria-labelledby="t-forja-slot"><h2 class="titulo" id="t-forja-slot">Tipo da peça</h2>' +
+        '<div class="forja-slots" role="group" aria-label="Tipo da peça">' + slots + '</div>' +
+        '<p class="nota">' + esc('Rara e Lendária saem do conjunto ' + conj.name + ', o ' + GD.GYMS[g].name.replace(/^Ginásio /, '') + '.') + '</p></section>' +
+      (U.msg ? '<p class="aviso forja-msg" role="status">' + esc(U.msg) + '</p>' : '') +
+      '<section class="caixa" aria-labelledby="t-forja-rec"><h2 class="titulo" id="t-forja-rec">Receitas</h2><ul class="forja-receitas">' + linhas + '</ul></section>' +
+      '</section>';
+  }
+
   // ---- comidas (Mochila): Feno, Cenoura e Maçã dão XP a um cavalo; a Aveia dourada estica o próximo período fora ----
   // ui.comida = { id } (a comida esperando a escolha do cavalo) | null; ui.comidaMsg = { id, txt } (o aviso do último uso)
   function comidaMotivo(id, m) {
@@ -4264,7 +4371,7 @@
     return gv === 'ok';
   }
   // as linhas dos itens do AFK na Mochila, por grupo (as comidas com o Usar; troféus só os que você tem)
-  var AFK_GRUPOS = [['comida', 'Comidas'], ['material', 'Materiais de forja'], ['incomum', 'Materiais incomuns'], ['reforja', 'Reforja'], ['trofeu', 'Troféus']];
+  var AFK_GRUPOS = [['comida', 'Comidas'], ['material', 'Materiais de forja'], ['incomum', 'Materiais incomuns'], ['reforja', 'Reforja'], ['selo', 'Selo do campeão'], ['trofeu', 'Troféus']];
   function mochilaAfkHtml() {
     return AFK_GRUPOS.map(function (gr) {
       var ids = AFK_IDS.filter(function (id) { return GD.ITEMS[id].grupo === gr[0] && (gr[0] !== 'trofeu' || itemQtd(id) > 0); });
@@ -4301,6 +4408,10 @@
       '<li><button type="button" class="afk-cartao" data-acao="bestiario-abrir">' +
         '<span class="ginasio-cartao-nome">Bestiário</span>' +
         '<span class="ginasio-cartao-meta"><span>' + esc('Bônus: ' + afkBonusTxt()) + '</span></span>' +
+        pixelSvg(SETA_ROWS, 'ginasio-cartao-seta') + '</button></li>' +
+      '<li><button type="button" class="afk-cartao" data-acao="forja-abrir">' +
+        '<span class="ginasio-cartao-nome">Forja</span>' +
+        '<span class="ginasio-cartao-meta"><span>Peças, Pedras Negras e Pergaminhos com os materiais do treino</span></span>' +
         pixelSvg(SETA_ROWS, 'ginasio-cartao-seta') + '</button></li></ul></section>';
   }
 
@@ -4560,20 +4671,8 @@
     e[slot] = uid;
     return e;
   }
-  function ratingWith(mount, equip) {
-    return RS.powerRating(mount, GR.resolve({ equip: equip }, itemsByUid()));
-  }
-  // trava parcial (spec §9): com páreo aberto, a ativa só aceita um equip que não passe do rating da sala
-  function canEquip(mount, equipNovo) {
-    var P = state.pending;
-    if (!P || mount.uid !== state.activeId) return { ok: true, limit: null };
-    return { ok: ratingWith(mount, equipNovo) <= P.pr, limit: P.pr };
-  }
-  // peça equipada na ativa com páreo aberto não pode ser melhorada
-  function enhanceLocked(uid) {
-    var where = isEquipped(uid);
-    return !!(state.pending && where && where.mount.uid === state.activeId);
-  }
+  // O equipamento só vale no treino AFK: não mexe no Poder nem na sala aberta, então equipar, tirar e melhorar não têm
+  // trava de páreo (as travas de quando a peça entrava no Poder saíram com o equipamento de PVE).
   function rarityRank(id) {
     var def = GR.piece(id);
     return def && GD.RARITIES[def.rarity] ? GD.RARITIES[def.rarity].order : -1;
@@ -4597,12 +4696,17 @@
     var r = Math.round(v * 10) / 10;
     return r === Math.floor(r) ? String(r) : String(r).replace('.', ',');
   }
+  var FARM_ROT = { material: 'material', xp: 'XP', raro: 'drop raro', trofeu: 'troféu', ouro: 'Ouro do treino' };
+  function linhaTxt(l) { return '+' + l.valor + '% ' + FARM_ROT[l.tipo]; }
+  // "+2,65 EST" e as linhas de farm da peça ("+7% XP, +15% troféu")
   function pieceModsText(item) {
     var def = GR.piece(item.id), info = GD.GEAR_SLOT_INFO[def.slot], mods = pieceMods(item.id, item.plus);
-    var t = '+' + statNum(mods[info.main]) + ' ' + GD.STATS[info.main].short;
-    if (def.sub) t += ', +' + statNum(mods[info.sub]) + ' ' + GD.STATS[info.sub].short;
+    var t = '+' + statNum2(mods[info.main]) + ' ' + GD.STATS[info.main].short;
+    (item.linhas || []).forEach(function (l) { t += ', ' + linhaTxt(l); });
     return t;
   }
+  // valor do principal com até duas casas e vírgula ("1,25", "2,65", "3")
+  function statNum2(v) { return String(Math.round(v * 100) / 100).replace('.', ','); }
   function pieceLabel(item) {
     var def = GR.piece(item.id);
     return def.name + ' · ' + GD.RARITIES[def.rarity].name + ' · +' + item.plus + ' · ' + pieceModsText(item);
@@ -4611,27 +4715,31 @@
     var st = gear.set, sb = GE.setBonus;
     if (!st || !st.id || !st.count || !hasOwn(GD.GEAR_SETS, st.id)) return '<p class="set-linha nota">sem conjunto</p>';
     var bon = [];
-    if (st.count >= sb.pieces[0]) bon.push('+' + sb.sorte + ' Sorte e +' + Math.round(sb.skillEffect * 100) + '% no efeito das skills');
-    if (st.count >= sb.pieces[1]) bon.push('bônus do clima reforçado (×1,07)');
+    if (st.count >= sb.pieces[0]) bon.push('linhas de farm +' + Math.round(sb.farm * 100) + '%');
+    if (st.count >= sb.pieces[1]) bon.push('bônus do clima reforçado (×' + String(sb.clima).replace('.', ',') + ')');
     if (st.count >= sb.pieces[2]) bon.push('sem penalidade de clima');
     return '<p class="set-linha"><span class="set-badge">' + esc(GD.GEAR_SETS[st.id].name + ' ×' + st.count) + '</span> ' +
       '<span class="nota">' + esc(bon.length ? bon.join(' · ') : 'bônus a partir de ' + sb.pieces[0] + ' peças') + '</span></p>';
   }
+  // o que as peças equipadas somam no treino AFK: "+3 VEL, +2 EST · farm: +7% XP, +15% troféu"
+  function gearTotalTxt(gear) {
+    var st = GD.STAT_KEYS.filter(function (k) { return gear.mods[k] > 0; }).map(function (k) { return '+' + statNum2(gear.mods[k]) + ' ' + GD.STATS[k].short; });
+    var fm = Object.keys(FARM_ROT).filter(function (t) { return gear.farm[t] > 0; }).map(function (t) { return '+' + statNum2(gear.farm[t] * 100) + '% ' + FARM_ROT[t]; });
+    if (!st.length && !fm.length) return 'Nenhuma peça equipada.';
+    return 'No treino AFK: ' + (st.length ? st.join(', ') : 'sem status') + (fm.length ? ' · farm: ' + fm.join(', ') : '') + '.';
+  }
+  // o que a peça vale na venda: só a comprada na loja devolve Ouro; a que caiu no treino ou saiu da forja não tem preço
+  // (senão o treino AFK viraria Ouro por fora do teto da meta E1)
+  function precoVenda(item) { return item.origem ? 0 : GR.sellPrice(item.id); }
   function pedrasTxt(n) { return n + (n === 1 ? ' pedra' : ' pedras'); }
 
-  // uma peça da lista aberta: equipada (Tirar/Melhorar) ou do inventário (Equipar/Melhorar/Vender)
-  function equipRowHtml(m, item, equipped, ratingNow) {
+  // uma peça da lista aberta: equipada (Tirar/Melhorar) ou do inventário (Equipar/Melhorar/Vender), com as linhas de farm
+  function equipRowHtml(m, item, equipped) {
     var def = GR.piece(item.id);
-    var novo = equipWith(m, def.slot, equipped ? null : item.uid);
-    var depois = ratingWith(m, novo);
-    var lock = canEquip(m, novo);
     var odds = GR.enhanceOdds(item.plus);
-    var travada = enhanceLocked(item.uid);
     var uid = esc(item.uid);
-    var d = depois - ratingNow;
-    var poder = '<span class="peca-poder">Poder ' + ratingNow + ' → <b class="' + (d > 0 ? 'mais' : d < 0 ? 'menos-t' : '') + '">' + depois + '</b></span>';
     var acoes;
-    if (ui.montaria.equip.confirm === item.uid && odds && !travada) {
+    if (ui.montaria.equip.confirm === item.uid && odds) {
       var falha = odds.dropTo < item.plus ? 'cai para +' + odds.dropTo : 'continua +' + item.plus;
       var semPedras = state.pedras < odds.cost;
       acoes = '<div class="confirma" role="group" aria-label="Confirmar melhoria"><span>' +
@@ -4641,35 +4749,88 @@
           (semPedras ? 'Sem pedras' : 'Tentar') + '</button>' +
         '<button type="button" class="btn btn--pequeno" data-acao="melhorar-nao" data-id="' + uid + '">Cancelar</button></div>';
     } else {
-      var limite = lock.ok ? '' : ' disabled title="' + esc('Páreo aberto: passaria do Poder ' + lock.limit) + '"';
       var mel = '<button type="button" class="btn btn--pequeno" data-acao="melhorar" data-id="' + uid + '"' +
-        (!odds ? ' disabled title="Já está no máximo"' : travada ? ' disabled title="Páreo aberto"' : '') + '>Melhorar</button>';
+        (!odds ? ' disabled title="Já está no máximo"' : '') + '>Melhorar</button>';
+      var pv = precoVenda(item);
       acoes = '<div class="acoes-peca">' + (equipped
-        ? '<button type="button" class="btn btn--pequeno" data-acao="tirar" data-id="' + esc(def.slot) + '"' + limite + '>Tirar</button>' + mel
-        : '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="equipar" data-id="' + uid + '"' + limite + '>Equipar</button>' + mel +
-          '<button type="button" class="btn btn--pequeno" data-acao="vender" data-id="' + uid + '">Vender (' + fmt(GR.sellPrice(item.id)) + ')</button>') +
-        '</div>';
+        ? '<button type="button" class="btn btn--pequeno" data-acao="tirar" data-id="' + esc(def.slot) + '">Tirar</button>' + mel
+        : '<button type="button" class="btn btn--pequeno btn--ouro" data-acao="equipar" data-id="' + uid + '">Equipar</button>' + mel +
+          '<button type="button" class="btn btn--pequeno" data-acao="vender" data-id="' + uid + '">' + (pv ? 'Vender (' + fmt(pv) + ')' : 'Descartar') + '</button>') +
+        reforjarBtnHtml(item) + '</div>';
     }
-    return '<div class="peca' + (equipped ? ' peca--equipada' : '') + '">' +
+    var info = GD.GEAR_SLOT_INFO[def.slot], mods = pieceMods(item.id, item.plus);
+    var linhas = (item.linhas || []).length
+      ? '<ul class="peca-linhas" aria-label="Linhas de farm">' + item.linhas.map(function (l) { return '<li>' + esc(linhaTxt(l)) + '</li>'; }).join('') + '</ul>'
+      : '<span class="nota peca-sem-linhas">sem linha de farm</span>';
+    return '<div class="peca' + (equipped ? ' peca--equipada' : '') + '" data-peca="' + uid + '">' +
       '<div class="peca-info"><b>' + esc(def.name + ' +' + item.plus) + '</b>' +
         '<span class="linha-meta">' + rarityHtml(def.rarity) + (equipped ? '<span class="badge-ativa">Equipada</span>' : '') +
-          '<span>' + esc(pieceModsText(item)) + '</span></span>' + poder + '</div>' +
-      acoes + '</div>';
+          '<span>' + esc('+' + statNum2(mods[info.main]) + ' ' + GD.STATS[info.main].short) + '</span></span>' + linhas + '</div>' +
+      acoes + reforjaPainelHtml(item) + '</div>';
+  }
+  // Reforja (spec AFK §5.9): sorteia de novo uma linha escolhida da peça, com 1 Pergaminho de reforja e Ouro (que cresce
+  // a cada reforja na mesma peça). ui.montaria.equip.reforja = { uid, linha: índice | null, selo: bool } | null.
+  function reforjaMochila() { return { 'pergaminho-reforja': itemQtd('pergaminho-reforja'), selo: itemQtd('selo') }; }
+  function reforjarBtnHtml(item) {
+    if (!(item.linhas || []).length) return '';
+    return '<button type="button" class="btn btn--pequeno" data-acao="reforjar" data-id="' + esc(item.uid) + '">Reforjar</button>';
+  }
+  function reforjaPainelHtml(item) {
+    var Rf = ui.montaria.equip.reforja;
+    if (!Rf || Rf.uid !== item.uid || !(item.linhas || []).length) return '';
+    var uid = esc(item.uid), custo = GR.custoReforja(item), def = GR.piece(item.id);
+    var linhas = item.linhas.map(function (l, i) {
+      return '<button type="button" class="btn btn--pequeno reforja-linha" data-acao="reforja-linha" data-id="' + uid + ':' + i + '" aria-pressed="' + (Rf.linha === i) + '">' + esc(linhaTxt(l)) + '</button>';
+    }).join('');
+    var p = Rf.linha == null ? { ok: false, motivo: 'Escolha uma linha da peça' } : GR.podeReforjar(item, Rf.linha, Rf.selo, reforjaMochila(), ouroLivre());
+    var fx = Rf.linha != null ? GE.faixas[item.linhas[Rf.linha].tipo][def.rarity] : null;
+    var oque = Rf.linha == null ? 'Escolha a linha que será sorteada de novo.'
+      : Rf.selo ? 'Com o Selo: a linha continua de ' + FARM_ROT[item.linhas[Rf.linha].tipo] + ' e o valor sai de ' + Math.ceil((fx[0] + fx[1]) / 2) + '% a ' + fx[1] + '%.'
+        : 'Sorteia o tipo (sem repetir o das outras linhas) e o valor. Pode sair pior.';
+    return '<div class="reforja" role="group" aria-label="' + esc('Reforjar ' + def.name) + '">' +
+      '<p class="reforja-titulo"><b>Reforjar qual linha?</b></p><div class="reforja-linhas">' + linhas + '</div>' +
+      '<button type="button" class="btn btn--pequeno reforja-selo" data-acao="reforja-selo" data-id="' + uid + '" aria-pressed="' + !!Rf.selo + '">' +
+        itemIconeHtml('selo') + '<span>' + esc('Usar 1 Selo do campeão (tem ' + fmt(itemQtd('selo')) + ')') + '</span></button>' +
+      '<p class="nota reforja-oque">' + esc(oque) + '</p>' +
+      '<p class="reforja-custo">' + esc('Custa 1 Pergaminho de reforja (tem ' + fmt(itemQtd('pergaminho-reforja')) + ')' + (Rf.selo ? ', 1 Selo do campeão' : '') + ' e ') + ouroHtml(custo) +
+        '<span class="nota">' + esc(' · reforjas nesta peça: ' + fmt(item.rerolls || 0) + ' (o Ouro sobe a cada uma)') + '</span></p>' +
+      '<div class="acoes-peca"><button type="button" class="btn btn--pequeno btn--ouro" data-acao="reforja-sim" data-id="' + uid + '"' + indisponivel(p.ok ? '' : p.motivo) + '>Reforjar</button>' +
+        '<button type="button" class="btn btn--pequeno" data-acao="reforja-nao" data-id="' + uid + '">Fechar</button></div></div>';
+  }
+  // -> true se reforjou (uma gravação: o Pergaminho, o Ouro, o Selo, a linha nova e o rerolls)
+  function reforjaFaz(uid) {
+    var Q = ui.montaria.equip, Rf = Q.reforja, s0 = state;
+    persist();
+    if (state !== s0) return false;
+    var item = itemByUid(uid);
+    if (!item || !Rf || Rf.uid !== uid || Rf.linha == null) return false;
+    var p = GR.podeReforjar(item, Rf.linha, Rf.selo, reforjaMochila(), ouroLivre());
+    if (!p.ok) { Q.msg = p.motivo + '.'; return false; }
+    // paga antes de ver: o sorteio sai da seed do save, do uid e do nº de reforjas da peça (recarregar não muda)
+    var antes = clone(state), era = item.linhas[Rf.linha], r = GR.reforjar(item, Rf.linha, Rf.selo, state.seedBase);
+    if (!r) { Q.msg = 'Não foi possível reforjar.'; return false; }
+    state.gold -= p.custo;
+    state.mochila['pergaminho-reforja'] = itemQtd('pergaminho-reforja') - 1;
+    if (Rf.selo) state.mochila.selo = itemQtd('selo') - 1;
+    item.linhas = r.linhas; item.rerolls = r.rerolls;
+    var g = gravaGasto(s0, antes);
+    if (g === 'outra-aba') return false;
+    if (g === 'falhou') { Q.msg = FALHA_SALVAR; return false; }
+    Q.msg = GR.piece(item.id).name + ': ' + linhaTxt(era) + ' virou ' + linhaTxt(r.linhas[Rf.linha]) + '.';
+    if (Rf.selo && itemQtd('selo') < 1) Rf.selo = false;
+    return true;
   }
 
   // conteúdo da sub-aba Equipamento da Montaria (estado em ui.montaria.equip)
   function montariaEquipHtml(m) {
-    var Q = ui.montaria.equip, P = state.pending;
+    var Q = ui.montaria.equip;
     var gear = gearOf(m);
-    var rating = RS.powerRating(clone(m), gear);
     var avisos = '';
     if (Q.msg) avisos += '<p class="aviso" role="status">' + esc(Q.msg) + '</p>';
     if (Q.undo) {
       avisos += '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="vender-desfazer">' +
-        esc('Desfazer venda de ' + (GR.piece(Q.undo.item.id) || { name: '?' }).name + ' (−' + fmt(Q.undo.price) + ' de Ouro)') + '</button></div>';
+        esc('Desfazer ' + (Q.undo.price ? 'venda' : 'descarte') + ' de ' + (GR.piece(Q.undo.item.id) || { name: '?' }).name + (Q.undo.price ? ' (−' + fmt(Q.undo.price) + ' de Ouro)' : '')) + '</button></div>';
     }
-    if (P && m.uid === state.activeId) avisos += '<p class="aviso">' + esc('Páreo aberto: o Poder não pode passar de ' + P.pr) + '</p>';
-
     var bySlot = {};
     gear.pieces.forEach(function (p) { bySlot[p.slot] = p; });
     var linhas = GR.SLOTS.map(function (slot) {
@@ -4677,8 +4838,8 @@
       var cur = bySlot[slot] ? itemByUid(bySlot[slot].uid) : null;
       var lista = '';
       if (aberto) {
-        var rows = (cur ? [equipRowHtml(m, cur, true, rating)] : []).concat(freePieces(slot).map(function (it) {
-          return equipRowHtml(m, it, false, rating);
+        var rows = (cur ? [equipRowHtml(m, cur, true)] : []).concat(freePieces(slot).map(function (it) {
+          return equipRowHtml(m, it, false);
         }));
         lista = '<div class="pecas" id="pecas-' + esc(slot) + '">' + (rows.length ? rows.join('')
           : '<p class="nota">' + esc('Nenhuma peça de ' + info.name + ' no inventário.') + '</p>') + '</div>';
@@ -4690,9 +4851,11 @@
     }).join('');
 
     return avisos +
-      '<section class="caixa" aria-labelledby="t-pecas"><h2 class="titulo" id="t-pecas">Peças</h2>' +
+      '<section class="caixa" aria-labelledby="t-pecas"><h2 class="titulo" id="t-pecas">Peças <span class="selo-afk">só AFK</span></h2>' +
+        '<p class="nota equip-so-afk">As peças só valem no treino AFK. Na corrida valendo, na sala e no Poder, todo cavalo corre sem elas.</p>' +
+        '<p class="equip-total">' + esc(gearTotalTxt(gear)) + '</p>' +
         setLineHtml(gear) +
-        '<p class="nota">Toque num slot para ver as peças do inventário. Melhorar gasta Pedras Negras; vender devolve 25% do preço.</p>' +
+        '<p class="nota">Toque num slot para ver as peças do inventário. Melhorar gasta Pedras Negras; só peça comprada na loja tem preço de venda (25%).</p>' +
         '<div class="slot-linhas">' + linhas + '</div></section>';
   }
 
@@ -4700,7 +4863,7 @@
   // Tela da Montaria (sub-tela): cabeça com o retrato grande e sub-abas Status / Skills / (Equipamento) / Ficha
   // ===========================================================================
   // a sub-aba Equipamento some com o equipamento suspenso (GEAR_ON); o handler 'montaria-aba' só abre as desta lista
-  var MONTARIA_ABAS = [{ id: 'status', rotulo: 'Status' }, { id: 'skills', rotulo: 'Skills' }, { id: 'equip', rotulo: 'Equipamento' },
+  var MONTARIA_ABAS = [{ id: 'status', rotulo: 'Status' }, { id: 'skills', rotulo: 'Skills' }, { id: 'equip', rotulo: 'Peças' },
     { id: 'ficha', rotulo: 'Ficha' }]
     .filter(function (a) { return GEAR_ON || a.id !== 'equip'; });
   function montariaAbaValida(id) { return MONTARIA_ABAS.some(function (a) { return a.id === id; }); }
@@ -5014,7 +5177,7 @@
         '<div class="linha-meta">' + rarityHtml(m.rarity, true) + ajudaBtn('raridade', 'a raridade') + estrelasHtml(m.grau) + ajudaBtn('estrelas', 'as estrelas') + elementHtml(m.element) + '</div>' +
         '<div class="linha-meta"><span>Poder <b>' + rating + '</b>' + ajudaBtn('poder', 'o Poder') + '</span>' + leagueHtml(rating) + ajudaBtn('liga', 'a liga') + '</div>' +
         xpHtml(m.level, m.xp, true) +
-        (GEAR_ON ? gearSummaryHtml(m) : '') +
+        (GEAR_PVP ? gearSummaryHtml(m) : '') +   // só de PVE: as peças ficam na sub-aba Peças (a cabeça é a do cavalo no PVP)
       '</div></article>';
 
     var subabas = '<div class="subabas" role="group" aria-label="Seções da montaria">' + MONTARIA_ABAS.map(function (a) {
@@ -5195,12 +5358,14 @@
   // o contexto do Itens.podeSubirRank: o Ouro fora do reservado para a entrada da sala aberta, o saldo todo, os
   // Pergaminhos da mochila e se o cavalo é o ativo com páreo aberto (o Poder dele não pode passar do que a sala viu)
   function rankCtx(m) {
-    return { ouroLivre: ouroLivre(), ouro: state.gold, pergaminhos: itemQtd('pergaminho'), salaAbertaAtivo: m.uid === state.activeId && !!state.pending };
+    return { ouroLivre: ouroLivre(), ouro: state.gold, pergaminhos: itemQtd('pergaminho'), selos: itemQtd('selo'), salaAbertaAtivo: m.uid === state.activeId && !!state.pending };
   }
   function rankCustoHtml(custo) {
     return '<span class="rank-custo">' + ouroHtml(custo.ouro) + '<span class="rank-mais" aria-hidden="true">+</span>' +
       '<span class="rank-perg">' + itemIconeHtml('pergaminho') + '<span class="sr"> e </span><b>' + custo.perg + '</b><span class="sr"> ' +
-      esc(custo.perg === 1 ? GD.ITEMS.pergaminho.name : GD.ITEMS.pergaminho.plural) + '</span></span></span>';
+      esc(custo.perg === 1 ? GD.ITEMS.pergaminho.name : GD.ITEMS.pergaminho.plural) + '</span></span>' +
+      (custo.selo ? '<span class="rank-mais" aria-hidden="true">+</span><span class="rank-perg rank-selo">' + itemIconeHtml('selo') + '<span class="sr"> e </span><b>' + custo.selo + '</b><span class="sr"> ' +
+        esc(custo.selo === 1 ? GD.ITEMS.selo.name : GD.ITEMS.selo.plural) + '</span></span>' : '') + '</span>';
   }
   // a linha do próximo rank dentro do bloco da skill: o efeito que vem (no IV → V, também o marco); no V, o marco ativo
   function rankProxHtml(id, rank) {
@@ -5267,6 +5432,7 @@
     m.skillRanks = r.skillRanks;
     state.gold -= r.ouro;
     state.mochila.pergaminho = itemQtd('pergaminho') - r.perg;
+    if (r.selo) state.mochila.selo = itemQtd('selo') - r.selo;
     var g = gravaGasto(s0, antes);
     if (g === 'outra-aba') return 'outra-aba';
     if (g === 'falhou') return FALHA_SALVAR;
@@ -5398,9 +5564,8 @@
 
   function lojaStatsTxt(def) {
     var info = GD.GEAR_SLOT_INFO[def.slot];
-    var t = '+' + def.main + ' ' + GD.STATS[info.main].short;
-    if (def.sub) t += ' · +' + def.sub + ' ' + GD.STATS[info.sub].short;
-    return t;
+    var nl = GE.linhas[def.rarity] || 0;
+    return '+' + statNum2(def.main) + ' ' + GD.STATS[info.main].short + ' · ' + (nl ? nl + (nl === 1 ? ' linha de farm' : ' linhas de farm') + ' (sorteio ao comprar)' : 'sem linha de farm') + ' · só no treino AFK';
   }
   // diferença do principal para a peça que a montaria ativa usa no slot (com o +N dela)
   function lojaDiffTxt(def) {
@@ -5410,7 +5575,7 @@
     var info = GD.GEAR_SLOT_INFO[def.slot];
     var d = pieceMods(def.id, 0)[info.main] - pieceMods(cur.id, cur.plus)[info.main];
     if (!d) return 'igual à equipada';
-    return (d > 0 ? '+' : '−') + statNum(Math.abs(d)) + ' ' + GD.STATS[info.main].short + ' em relação à equipada';
+    return (d > 0 ? '+' : '−') + statNum2(Math.abs(d)) + ' ' + GD.STATS[info.main].short + ' em relação à equipada';
   }
   function lojaBotaoHtml(acao, id, price) {
     var pode = podeGastar(price);
@@ -5431,7 +5596,7 @@
   function pedraProdutoHtml(n) {
     return '<article class="produto">' +
       '<h3 class="produto-nome">Pedra Negra ×' + n + '</h3>' +
-      '<p class="produto-diff">' + esc('Melhora peças na aba Equipamento da montaria. Você tem ' + pedrasTxt(state.pedras) + '.') + '</p>' +
+      '<p class="produto-diff">' + esc('Melhora peças na aba Peças da montaria. Você tem ' + pedrasTxt(state.pedras) + '.') + '</p>' +
       '<div class="produto-preco">' + lojaBotaoHtml('comprar-pedra', String(n), n * GE.stonePrice) + '</div>' +
     '</article>';
   }
@@ -5452,7 +5617,7 @@
         return GD.GEAR[k].shop && GD.GEAR[k].slot === Q.tab;
       }).map(function (k) { return produtoHtml(GD.GEAR[k]); }).join('');
     }
-    var nota = Q.tab === 'pedras' ? 'Pedras Negras melhoram peças (+1 a +10) na aba Equipamento da montaria.'
+    var nota = Q.tab === 'pedras' ? 'Pedras Negras melhoram peças (+1 a +10) na aba Peças da montaria.'
       : 'A diferença compara com a peça que ' + activeMount().name + ' (ativa) usa neste slot. Comprar não equipa.';
     return msg + '<section class="caixa" aria-label="Equipamento">' + abas + '<p class="nota">' + esc(nota) + '</p>' +
         '<div class="loja-grade">' + produtos + '</div></section>';
@@ -5574,7 +5739,7 @@
       // corre sem peças, mas o sorteio continua consumido (a ordem da RNG da sala não muda com a constante)
       var gpick = rng();
       var leagueIdx = leagueIndex(target);
-      var botGear = function (tpl) { return GEAR_ON ? GR.botGear(leagueIdx, tpl.element, gpick) : null; };
+      var botGear = function () { return null; };   // o equipamento só vale no PVE: os bots da sala nunca têm peças
       var inBand = pool.map(function (tpl) {
         var bd = levelBand(tpl);
         return { tpl: tpl, gear: botGear(tpl), fit: bestLevelFor(tpl, target, bd[0], bd[1], rankBots) };
@@ -5631,7 +5796,7 @@
     r.horse = playerHorse(); r.gear = corredorGear();
   }
   // equipamento do jogador na sala e na corrida: com o equipamento suspenso (GEAR_ON), nenhum (a corrida já o ignora)
-  function corredorGear() { return GEAR_ON ? playerGear() : null; }
+  function corredorGear() { return GEAR_PVP ? playerGear() : null; }
 
   // ===========================================================================
   // Tela 3 — Sala de largada
@@ -5656,7 +5821,7 @@
     var tips = [];
     var sh = sharePct(L.cond);
     if (sh.curva >= 40) tips.push('Muitas curvas: Manobra segura a velocidade na curva e na saída dela.');
-    if (sh.subida >= 30) tips.push('Muitas subidas: Força ajuda a não perder ritmo' + (GEAR_ON ? ' (a Armadura dá Força).' : '.'));
+    if (sh.subida >= 30) tips.push('Muitas subidas: Força ajuda a não perder ritmo' + (GEAR_PVP ? ' (a Armadura dá Força).' : '.'));
     if (L.cond.distance >= 1800) tips.push('Pista longa: Estamina segura o ritmo até o fim.');   // longa a partir de 1.800 m, como no balance.js (distGroup)
     // clima contra o elemento: a penalidade vale sempre (o conjunto de 5 peças não a anula mais, porque o
     // equipamento não entra na corrida), e só o Dado da Sorte pode virar o clima
@@ -5691,7 +5856,7 @@
         '<span class="nome">' + esc(r.isPlayer ? h.name : r.name) + '</span></b>' +
         '<small>' + (r.isPlayer ? '' : '<span>' + esc(h.name) + '</span>') + elementHtml(h.element) + rarityHtml(h.rarity) +
         '<span>Nv ' + h.level + '</span>' +
-        (GEAR_ON ? setBadgeHtml(r.gear) : '') + '</small></div>' +
+        (GEAR_PVP ? setBadgeHtml(r.gear) : '') + '</small></div>' +
       '<div class="poder"><b>' + rating + '</b><small>Poder</small></div></li>';
   }
 
@@ -5736,7 +5901,7 @@
           '<div class="cavalo-info"><b class="cavalo-nome">' + esc(eu.horse.name) + '</b>' +
           '<div class="linha-meta">' + rarityHtml(eu.horse.rarity) + elementHtml(eu.horse.element) +
             '<span>Poder <b>' + RS.powerRating(eu.horse) + '</b></span></div></div></div>' +
-        (GEAR_ON ? '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
+        (GEAR_PVP ? '<div class="tela-cabeca"><span class="rotulo">Equipamento</span>' + gearSummaryHtml(activeMount()) +
           '<div class="acoes"><button type="button" class="btn btn--pequeno" data-acao="equipar-tela" data-id="' + esc(state.activeId) + '">Equipar</button></div>' +
           (state.pending ? '<p class="nota">' + esc('Com o páreo aberto, só trocas que não passem do Poder da sala (' + state.pending.pr + ').') + '</p>' : '') +
         '</div>' : '') + '</section>' +
@@ -5788,10 +5953,7 @@
       seed: L.seed,
       conditions: L.cond,
       racers: L.racers.map(function (r) {
-        // bônus de 3 peças do conjunto (suspenso com o equipamento): o efeito das skills × (1 + skillEffectBonus)
-        var e = { horse: r.horse, gear: r.gear, name: r.name, isPlayer: r.isPlayer };
-        if (r.gear && r.gear.special && r.gear.special.skillEffectBonus) e.skillScale = 1 + r.gear.special.skillEffectBonus;
-        return e;
+        return { horse: r.horse, gear: r.gear, name: r.name, isPlayer: r.isPlayer };   // sem peças: o equipamento só vale no treino AFK
       })
     };
     L.sim = RS.simulate(cfg);
@@ -5815,13 +5977,17 @@
     state.gold = state.gold - L.fee + prize;
     // Pedra Negra do pódio: só em corrida valendo, pela seed da sala, na mesma gravação do Ouro. Com o equipamento
     // suspenso (GEAR_ON) não cai: o podiumStone (RNG própria, da seed da sala) nem é chamado; o resto não muda
-    var stone = L.training || !GEAR_ON ? 0 : GR.podiumStone(L.seed, place, L.fee);
+    var stone = L.training || !GEAR_PVP ? 0 : GR.podiumStone(L.seed, place, L.fee);
     state.pedras += stone;
     // Pergaminho de técnica do pódio: só em corrida valendo (o treino nem chama o sorteio), pela seed da sala (RNG
     // própria: não desloca nada), na mesma gravação do Ouro. Com a mochila no teto, não entra (pergCheia avisa).
     var perg = L.training ? 0 : IT.pergaminhoPodio(L.seed, place), pergCheia = false;
     if (perg && itemQtd('pergaminho') + perg > GD.BAG_MAX) { perg = 0; pergCheia = true; }
     state.mochila.pergaminho = itemQtd('pergaminho') + perg;
+    // Selo do campeão: só o 1º lugar de corrida valendo, pela seed da sala (sal próprio), na mesma gravação do Ouro
+    var selo = L.training ? 0 : IT.seloPodio(L.seed, place), seloCheio = false;
+    if (selo && itemQtd('selo') + selo > GD.ITEMS.selo.cap) { selo = 0; seloCheio = true; }
+    state.mochila.selo = itemQtd('selo') + selo;
     var gained = applyXp(activeMount(), xpGain, state.raceCounter);
     var levels = gained.levels, learned = gained.learned;
     state.races += 1;
@@ -5836,7 +6002,7 @@
 
     var hAfter = playerHorse();
     return {
-      place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone, pergaminho: perg, pergCheia: pergCheia,
+      place: place, prize: prize, fee: L.fee, training: L.training, payouts: pay, stone: stone, pergaminho: perg, pergCheia: pergCheia, selo: selo, seloCheio: seloCheio,
       xpGain: xpGain, levels: levels, learned: learned,
       before: before,
       after: { level: hAfter.level, xp: hAfter.xp, gold: state.gold, stats: RS.computeStats(hAfter),
@@ -6978,7 +7144,9 @@
         par('Resultado', signed(net), net > 0 ? 'mais' : net < 0 ? 'menos-t' : '') +
         (R.stone ? par('Pedra Negra', iconeHtml('pedra-negra', '🪨') + ' +1', 'mais') : '') +
         (R.pergaminho ? par(GD.ITEMS.pergaminho.name, itemIconeHtml('pergaminho') + ' +' + R.pergaminho, 'mais') : '') +
-        (R.pergCheia ? par(GD.ITEMS.pergaminho.name, 'Mochila cheia (' + GD.BAG_MAX + '): não coube') : '')) + '</dl>';
+        (R.pergCheia ? par(GD.ITEMS.pergaminho.name, 'Mochila cheia (' + GD.BAG_MAX + '): não coube') : '') +
+        (R.selo ? par(GD.ITEMS.selo.name, itemIconeHtml('selo') + ' +' + R.selo, 'mais') : '') +
+        (R.seloCheio ? par(GD.ITEMS.selo.name, 'Mochila cheia (' + GD.ITEMS.selo.cap + '): não coube') : '')) + '</dl>';
 
     var lvl = '';
     if (R.levels > 0) {
@@ -7305,7 +7473,7 @@
         var gC = gravaGasto(sC, antesC);
         if (gC === 'outra-aba') break;
         if (gC === 'falhou') { ui.loja.msg = FALHA_SALVAR; rerenderKeepScroll(); break; }
-        ui.loja.msg = 'Comprou ' + pd.name + '. Equipe na aba Equipamento da montaria.';
+        ui.loja.msg = 'Comprou ' + pd.name + '. Equipe na aba Peças da montaria.';
         rerenderKeepScroll(); break;
       }
       case 'comprar-pedra': {
@@ -7524,7 +7692,7 @@
         if (!qm || !qd || isEquipped(id)) break;
         var qe = equipWith(qm, qd.slot, id);
         ui.montaria.equip.confirm = null; ui.montaria.equip.msg = null;
-        if (canEquip(qm, qe).ok) { qm.equip = qe; persist(); }
+        qm.equip = qe; persist();
         rerenderKeepScroll(); break;
       }
       case 'tirar': {
@@ -7532,15 +7700,44 @@
         if (!tm || GR.SLOTS.indexOf(id) < 0 || !tm.equip || !tm.equip[id]) break;
         var te = equipWith(tm, id, null);
         ui.montaria.equip.confirm = null; ui.montaria.equip.msg = null;
-        if (canEquip(tm, te).ok) { tm.equip = te; persist(); }
+        tm.equip = te; persist();
         rerenderKeepScroll(); break;
       }
       case 'melhorar': {
         var mi0 = itemByUid(id);
-        if (!ui.montaria || !mi0 || !GR.enhanceOdds(mi0.plus) || enhanceLocked(id)) break;
+        if (!ui.montaria || !mi0 || !GR.enhanceOdds(mi0.plus)) break;
         ui.montaria.equip.confirm = id; ui.montaria.equip.msg = null;
         rerenderKeepScroll(); focusAction('melhorar-nao', id); break;
       }
+      case 'reforjar': {
+        if (!ui.montaria || !itemByUid(id) || !(itemByUid(id).linhas || []).length) break;
+        var Qr = ui.montaria.equip, aberto = Qr.reforja && Qr.reforja.uid === id;
+        Qr.reforja = aberto ? null : { uid: id, linha: itemByUid(id).linhas.length === 1 ? 0 : null, selo: false };
+        Qr.confirm = null; Qr.msg = null;
+        rerenderKeepScroll(); focusAction(aberto ? 'reforjar' : 'reforja-nao', id); break;
+      }
+      case 'reforja-linha': {
+        var pl = String(id).split(':'), il = Number(pl[1]), itl = ui.montaria ? itemByUid(pl[0]) : null, Ql = ui.montaria && ui.montaria.equip.reforja;
+        if (!itl || !Ql || Ql.uid !== pl[0] || !(il >= 0 && il < (itl.linhas || []).length) || il !== Math.floor(il)) break;
+        Ql.linha = il;
+        rerenderKeepScroll(); focusAction('reforja-linha', id); break;
+      }
+      case 'reforja-selo': {
+        var Qs = ui.montaria && ui.montaria.equip.reforja;
+        if (!Qs || Qs.uid !== id) break;
+        Qs.selo = !Qs.selo;
+        rerenderKeepScroll(); focusAction('reforja-selo', id); break;
+      }
+      case 'reforja-sim':
+        if (!ui.montaria || !ui.montaria.equip.reforja) break;
+        ui.montaria.equip.msg = null;
+        reforjaFaz(id);
+        if (state && ui.montaria) { rerenderKeepScroll(); focusAction('reforja-sim', id); }
+        break;
+      case 'reforja-nao':
+        if (!ui.montaria) break;
+        ui.montaria.equip.reforja = null;
+        rerenderKeepScroll(); focusAction('reforjar', id); break;
       case 'melhorar-nao':
         if (ui.montaria) ui.montaria.equip.confirm = null;
         rerenderKeepScroll(); focusAction('melhorar', id); break;
@@ -7552,7 +7749,7 @@
         if (state !== sM) break;      // save mais novo adotado: adoptExternal já navegou
         var mi = itemByUid(id);
         var mo = mi ? GR.enhanceOdds(mi.plus) : null;
-        if (!mo || state.pedras < mo.cost || enhanceLocked(id)) { rerenderKeepScroll(); break; }
+        if (!mo || state.pedras < mo.cost) { rerenderKeepScroll(); break; }
         // paga antes de ver: debita as pedras e avança o contador, só então sorteia (um sorteio por tentativa)
         var antesM = clone(state);
         state.pedras -= mo.cost;
@@ -7576,7 +7773,7 @@
         if (state !== sV) break;
         var vi = itemByUid(id);
         if (!vi || isEquipped(id)) { rerenderKeepScroll(); break; }
-        var vp = GR.sellPrice(vi.id), antesV = clone(state);
+        var vp = precoVenda(vi), antesV = clone(state);
         state.gold += vp;
         state.items = state.items.filter(function (x) { return x.uid !== id; });
         var gV = gravaGasto(sV, antesV);
@@ -7584,7 +7781,7 @@
         if (gV === 'falhou') { ui.montaria.equip.msg = FALHA_SALVAR; rerenderKeepScroll(); break; }
         ui.montaria.equip.undo = { item: vi, price: vp };
         ui.montaria.equip.confirm = null;
-        ui.montaria.equip.msg = 'Vendida por ' + fmt(vp) + ' de Ouro';
+        ui.montaria.equip.msg = vp ? 'Vendida por ' + fmt(vp) + ' de Ouro' : 'Peça descartada.';
         rerenderKeepScroll(); focusAction('vender-desfazer'); break;
       }
       case 'vender-desfazer': {
@@ -7691,9 +7888,38 @@
         break;
       case 'afk-voltar':
       case 'bestiario-voltar':
+      case 'forja-voltar':
       case 'afk-esc-voltar':
-        if (ui.screen === 'afk' || ui.screen === 'bestiario') voltaDaSubtela();
+        if (ui.screen === 'afk' || ui.screen === 'bestiario' || ui.screen === 'forja') voltaDaSubtela();
         break;
+      // ---- forja ----
+      case 'forja-abrir':
+        if (!state) break;
+        ui.tab = 'expedicao'; ui.forja = null; forjaUi();
+        go('forja'); break;
+      case 'forja-gym':
+        if (ui.screen !== 'forja' || !hasOwn(GD.GYMS, id)) break;
+        forjaUi().gym = id; ui.forja.confirma = null; ui.forja.msg = null;
+        rerenderKeepScroll(); focusAction('forja-gym', id); break;
+      case 'forja-slot':
+        if (ui.screen !== 'forja' || GD.GEAR_SLOTS.indexOf(id) < 0) break;
+        forjaUi().slot = id; ui.forja.confirma = null; ui.forja.msg = null;
+        rerenderKeepScroll(); focusAction('forja-slot', id); break;
+      case 'forja-fazer':
+        if (ui.screen !== 'forja' || FJ.RECEITAS.indexOf(id) < 0) break;
+        forjaUi().msg = null;
+        if (FJ.ehPeca(id)) { ui.forja.confirma = id; rerenderKeepScroll(); focusAction('forja-confirmar', id); break; }   // a peça sorteia as linhas: pede confirmação
+        forjaFaz(id);
+        if (state && ui.screen === 'forja') { rerenderKeepScroll(); focusAction('forja-fazer', id); }
+        break;
+      case 'forja-confirmar':
+        if (ui.screen !== 'forja' || !FJ.ehPeca(id) || forjaUi().confirma !== id) break;
+        forjaFaz(id);
+        if (state && ui.screen === 'forja') { rerenderKeepScroll(); focusAction('forja-fazer', id); }
+        break;
+      case 'forja-cancelar':
+        if (ui.screen !== 'forja') break;
+        forjaUi().confirma = null; rerenderKeepScroll(); focusAction('forja-fazer', id); break;
       case 'afk-resumo-ok':
         if (ui.screen !== 'afk') break;
         afkUi().resumo = null; rerenderKeepScroll(); break;
@@ -8161,7 +8387,7 @@
       agoraMin: function () { return agoraMin(); },
       afkTick: function () { afkTick(); },
       bonusConta: function () { return bonusConta(); },
-      GEAR_ON: GEAR_ON
+      GEAR_ON: GEAR_ON, GEAR_PVP: GEAR_PVP
     };
     // rascunho dos pontos livres da tela da Montaria (null sem rascunho), para o teste ler
     Object.defineProperty(ui, 'rascunho', { configurable: true, get: function () { return ui.montaria ? ui.montaria.rascunho : null; } });
