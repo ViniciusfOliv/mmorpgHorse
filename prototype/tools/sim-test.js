@@ -2570,6 +2570,30 @@ test('ginásio: resolver — determinismo, seed por (contador, duelo), sal próp
   ruins.forEach(function (x, k) { assert.strictEqual(GY.resolver(x), null, 'malformada ' + k); });
   assert.doesNotThrow(function () { GY.resolver({ gymId: 'fogo', etapa: 0, time: [{}], seedBase: 1, contador: 0 }); }, 'cavalo vazio não quebra');
 });
+test('ginásio: resolver dá o mesmo desafio antes e depois da extração do dueloCfg (20 desafios gravados antes de mexer)', function () {
+  var h = crypto.createHash('sha256'), gyms = ['fogo', 'agua', 'grama'];
+  for (var c = 0; c < 20; c++) {
+    var time = timeDe([[['mare', 'ipe', 'brasa'][c % 3], 14 + c], ['w-faisca', 10 + c], [['brasa', 'mare', 'ipe'][c % 3], 20]]);
+    var et = c % 5, n = [1, 1, 2, 2, 3][et];
+    h.update(JSON.stringify(GY.resolver({ gymId: gyms[c % 3], etapa: et, time: time.slice(0, n), seedBase: 1000 + c * 7, contador: c * 3 })));
+  }
+  assert.strictEqual(h.digest('hex'), '2a2d65ed2fc19c11fc24b4776346950626373df845a53dba93ec7f668f733428');
+});
+test('ginásio: dueloCfg com fôlego 1 e sem peças monta 2 corredores com o statMul da vantagem, Nublado e a pista dada', function () {
+  var meu = congela(timeDe([['mare', 10]])[0]), dele = congela(timeDe([['brasa', 10]])[0]), pista = congela(JSON.parse(JSON.stringify(G.GYMS.fogo.pista)));
+  var c = GY.dueloCfg(meu, dele, 123, { pista: pista });
+  assert.strictEqual(c.seed, 123); assert.strictEqual(c.recordFrames, false); assert.strictEqual(c.racers.length, 2);
+  assert.deepStrictEqual(c.conditions, { distance: pista.distance, surface: pista.surface, weather: 'nublado', blocks: pista.blocks });
+  assert.notStrictEqual(c.conditions.blocks, pista.blocks, 'cópia da pista');
+  assert.deepStrictEqual(c.racers[0], { horse: meu, name: meu.name, isPlayer: true, folego: 1, statMul: 1 + G.GYM.vantagem });
+  assert.deepStrictEqual(c.racers[1], { horse: dele, name: dele.name, isPlayer: false, folego: 1, statMul: 1 });
+  var inv = GY.dueloCfg(dele, meu, 5, { pista: pista, folegoMeu: 0.75, folegoDele: 0.9, recordFrames: true });
+  assert.strictEqual(inv.racers[0].statMul, 1); assert.strictEqual(inv.racers[1].statMul, 1 + G.GYM.vantagem);
+  assert.strictEqual(inv.racers[0].folego, 0.75); assert.strictEqual(inv.racers[1].folego, 0.9); assert.strictEqual(inv.recordFrames, true);
+  var igual = GY.dueloCfg(meu, meu, 5, { pista: pista });
+  assert.strictEqual(igual.racers[0].statMul, 1); assert.strictEqual(igual.racers[1].statMul, 1);
+  assert.ok(S.simulate(c).finishOrder.length === 2, 'a config corre');
+});
 // resultado montado à mão: [a, b, quem venceu]
 function resMao(lista, venceu) { return { venceu: venceu, duelos: lista.map(function (x) { return { a: x[0], b: x[1], vencedor: x[2] ? 'jogador' : 'adversario', metros: 10, faixa: GY.faixa(10) }; }) }; }
 test('ginásio: acerto — prêmio só na 1ª vitória, derrota só XP, XP por duelo, insígnia na etapa 5', function () {
