@@ -1,6 +1,6 @@
 // prototype/tools/interface-arte.mjs — peças de pixel e fontes embutidas da interface (usado pelo build e pelos testes).
 // As peças são mapas de caracteres pintados com tokens do :root do game.css; viram PNGs em data: URL nas propriedades
-// --arte-<nome>, e o CSS do jogo as usa em background (sem border-image). As fontes (Galmuri, TTF) vão em data:, sem
+// --arte-<nome>, e o CSS do jogo as usa em background (sem border-image). As fontes (Nunito, WOFF2) vão em data:, sem
 // depender de rede.
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -193,13 +193,13 @@ export function cssArte(css) {
   return ':root {\n' + linhas.join('\n') + '\n}';
 }
 
-// Galmuri (Lee Minseo, OFL 1.1; guia de arte §6), subconjunto latino em TTF: uma família por arquivo (o negrito é uma
-// família própria, para o navegador nunca sintetizar nem trocar de arquivo pelo peso)
+// Nunito (The Nunito Project, OFL 1.1; guia de arte §6, refino de 2026-11-23: a interface em HTML trocou a Galmuri por
+// uma fonte moderna), subconjunto latino em WOFF2 do @fontsource/nunito 5.1.0: uma família por arquivo (o ExtraBold dos
+// títulos é uma família própria, para o navegador nunca sintetizar nem trocar de arquivo pelo peso). A Galmuri continua
+// no texto do canvas da corrida, pelo atlas de glifos (fonte-glifos.mjs), e não vai mais em @font-face.
 const FONTES = [
-  { familia: 'Galmuri11 Bold', arquivo: 'galmuri11-bold-latin.ttf' },
-  { familia: 'Galmuri11', arquivo: 'galmuri11-latin.ttf' },
-  { familia: 'Galmuri9', arquivo: 'galmuri9-latin.ttf' },
-  { familia: 'Galmuri7', arquivo: 'galmuri7-latin.ttf' }
+  { familia: 'Nunito ExtraBold', arquivo: 'nunito-latin-800-normal.woff2' },
+  { familia: 'Nunito', arquivo: 'nunito-latin-600-normal.woff2' }
 ];
 
 // root = a pasta prototype/. Embutidas: o jogo abre sem rede e sem piscar de fonte.
@@ -207,7 +207,7 @@ export async function cssFontes(root) {
   const faces = [];
   for (const f of FONTES) {
     const b64 = (await readFile(join(root, 'assets', 'fontes', f.arquivo))).toString('base64');
-    faces.push(`@font-face {\n  font-family: '${f.familia}';\n  font-style: normal;\n  font-weight: 400;\n  font-display: block;\n  src: url(data:font/ttf;base64,${b64}) format('truetype');\n}`);
+    faces.push(`@font-face {\n  font-family: '${f.familia}';\n  font-style: normal;\n  font-weight: 400;\n  font-display: block;\n  src: url(data:font/woff2;base64,${b64}) format('woff2');\n}`);
   }
   return faces.join('\n');
 }

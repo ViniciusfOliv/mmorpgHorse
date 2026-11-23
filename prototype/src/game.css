@@ -1,29 +1,30 @@
 /* Layout: uma coluna central (até 520px) de painéis no estilo "programa de corrida";
    a pista quebra a coluna (sangra até a borda no celular, cresce até 1120px no desktop).
    Mundo único: estábulo à noite (piso de tábuas), cerca creme e placar dourado.
-   Grade de pixel (guia de arte §2): molduras, sombras e letras em múltiplos de --px (1 pixel de arte); Galmuri só no
-   tamanho nativo de cada arquivo (--t-*). */
+   Grade de pixel (guia de arte §2): molduras e sombras em múltiplos de --px (1 pixel de arte); o texto em Nunito
+   (refino de 2026-11-23), nos tamanhos --t-*, também em múltiplos de --px. */
 :root {
   /* cores (guia de arte §3, etapa 1b): toda cor é da Resurrect 64, pelos papéis fixos do guia; os véus translúcidos
      (--escuro-*, --veu, --brilho-*, --holofote) são da interface, não de sprite */
   color-scheme: dark;
   /* chão e painéis */
-  --noite: #2e222f;
-  --noite-2: #3e3546;
-  --painel: #313638;
-  --painel-2: #374e4a;
-  --painel-3: #165a4c;
-  --linha: #547e64;
-  --linha-luz: #92a984;
+  /* tom azul (refino de 2026-11-23, escolha do Vinicius: "Nunito + azul"; era o verde-acinzentado 313638/374e4a/165a4c) */
+  --noite: #323353;
+  --noite-2: #2e222f;
+  --painel: #3e3546;
+  --painel-2: #484a77;
+  --painel-3: #4d65b4;
+  --linha: #4d9be6;
+  --linha-luz: #8fd3ff;
   --sombra: #2e222f;
   /* madeira (placas) */
   --madeira: #9e4539;
   --madeira-2: #4c3e24;
   --madeira-luz: #cd683d;
   /* texto */
-  --texto: #c7dcd0;
-  --texto-2: #9babb2;
-  --texto-3: #92a984;
+  --texto: #ffffff;
+  --texto-2: #c7dcd0;
+  --texto-3: #9babb2;
   --tinta: #2e222f;
   /* acentos */
   --ouro: #f9c22b;
@@ -77,12 +78,13 @@
   --veu: rgb(46 34 47 / 0.74);
   --holofote: rgb(255 226 122 / 0.06);
   /* tipografia */
-  /* Galmuri (guia de arte §6): cada tamanho tem o seu arquivo e só aparece no tamanho nativo, em múltiplos do pixel
-     de arte (--px); nunca ampliada nem reduzida. 11 Bold: títulos e números; 11: corpo; 9: secundário; 7: miúdo. */
-  --fonte-display: 'Galmuri11 Bold', 'Galmuri11', monospace;
-  --fonte-ui: 'Galmuri11', monospace;
-  --fonte-9: 'Galmuri9', monospace;
-  --fonte-7: 'Galmuri7', monospace;
+  /* Nunito (guia de arte §6; refino de 2026-11-23: a Galmuri deixava a interface com cara de "coisa antiga" e ficou só
+     no canvas da corrida): ExtraBold (800) nos títulos e números, SemiBold (600) no resto. Os nomes --fonte-9/--fonte-7
+     são da Galmuri e ficaram para não mexer em cada regra: hoje marcam só o papel (secundário, miúdo) pelo tamanho. */
+  --fonte-display: 'Nunito ExtraBold', 'Nunito', system-ui, sans-serif;
+  --fonte-ui: 'Nunito', system-ui, sans-serif;
+  --fonte-9: 'Nunito', system-ui, sans-serif;
+  --fonte-7: 'Nunito', system-ui, sans-serif;
   --t-l: calc(var(--px) * 12);
   --t-m: calc(var(--px) * 12);
   --t-s: calc(var(--px) * 10);
@@ -110,14 +112,14 @@ body {
     linear-gradient(90deg, var(--noite-2) 2px, transparent 2px);
   background-size: 100% 32px, 128px 32px;
   color: var(--texto);
-  font: 400 var(--t-s)/var(--lh-s) var(--fonte-9);   /* o texto corrido é secundário (guia §6): Galmuri9; nomes, botões e títulos pedem a 11 */
+  font: 400 var(--t-s)/var(--lh-s) var(--fonte-9);   /* o texto corrido é secundário (guia §6); nomes, botões e títulos pedem o --t-m */
   font-synthesis: none;
-  -webkit-font-smoothing: none;
+  -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }
 button { font: inherit; color: inherit; }
 b, strong { font-weight: 400; color: var(--texto); }
-small { font-size: inherit; }   /* o "smaller" do navegador tiraria a Galmuri do tamanho nativo */
+small { font-size: inherit; }   /* o "smaller" do navegador sairia da escala --t-* */
 .ord { font-family: var(--fonte-7); font-size: var(--t-7); vertical-align: 0.8em; line-height: 0; }
 /* pixelated por último: é o que o Chrome aplica (crisp-edges fica de reserva); a corrida pode ser ampliada pelo CSS */
 canvas { image-rendering: crisp-edges; image-rendering: pixelated; display: block; }
@@ -627,16 +629,20 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 .build-topo > span.nota { font-family: var(--fonte-7); font-size: var(--t-7); line-height: var(--lh-7); }
 .build-topo .pontos-livres { margin: 0; font-family: var(--fonte-9); font-size: var(--t-s); line-height: var(--lh-s); color: var(--texto); }   /* Galmuri9: o topo cabe numa linha a 360 px */
 .build-topo .pontos-livres b { color: var(--ganho); }
-.build { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+/* a grade das colunas é da lista e as linhas a herdam (subgrid): a coluna do nome fica do tamanho do nome mais largo,
+   igual em todas as linhas (com a Nunito a largura da sigla varia; numa coluna fixa o ⓘ ficava embaixo da nota) */
+.build {
+  list-style: none; margin: 0; padding: 0; display: grid; row-gap: 6px; column-gap: 4px;
+  grid-template-columns: max-content 24px minmax(0, 1fr) 144px;
+}
 /* linha de um status (3b §6): numa linha de 44 px o nome (o botão de ajuda), a nota, o valor com o custo do próximo ponto
-   embaixo dele e +1, +5, +10; a barra fina embaixo de tudo. Colunas de largura fixa: os botões e as barras ficam alinhados
+   embaixo dele e +1, +5, +10; a barra fina embaixo de tudo. Colunas iguais em todas as linhas: os botões e as barras ficam alinhados
    de uma linha para a outra (também na Sorte, sem botões) e não andam quando o "+N" do rascunho aparece */
 .build-linha {
-  display: grid; grid-template-columns: calc(var(--px) * 16 + 52px) 24px minmax(0, 1fr) 144px; grid-template-areas: "nome nota valor acao" "barra barra barra barra";
-  align-items: center; column-gap: 4px; row-gap: 4px;
+  grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; grid-template-areas: "nome nota valor acao" "barra barra barra barra";
+  align-items: center; row-gap: 4px;
 }
-/* o nome é o próprio botão de ajuda (.ajuda--nome): ícone, sigla e a peça ⓘ (o ::before) depois dela, num alvo de 44 px.
-   A coluna cabe os três (ícone de 16 px de arte + 52 px para a sigla, os vãos e o ⓘ): mais estreita, o ⓘ ficava embaixo da nota */
+/* o nome é o próprio botão de ajuda (.ajuda--nome): ícone, sigla e a peça ⓘ (o ::before) depois dela, num alvo de 44 px */
 .ajuda.ajuda--nome {
   grid-area: nome; width: 100%; height: 44px; margin: 0; padding: 0 2px; gap: 4px; justify-content: flex-start;
   color: var(--texto-2); font: 400 var(--t-s)/1 var(--fonte-9); text-align: left; white-space: nowrap;

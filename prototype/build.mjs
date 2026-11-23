@@ -80,8 +80,9 @@ const arteJs = [
   `window.__TREINADORES = ${jsonJs(await lerTreinadores(ROOT))};`,
   `window.__ARENAS = ${jsonJs(await lerArenas(ROOT))};`,
   `window.__TELAS = ${jsonJs(await lerTelas(ROOT))};`,
-  // a licença da Galmuri (SIL OFL 1.1): acompanha a fonte embutida; a tela de Créditos mostra o texto inteiro
-  `window.__OFL = ${jsonJs(await read('assets/fontes/OFL-galmuri.txt'))};`,
+  // as licenças das fontes (SIL OFL 1.1): Nunito (a interface) e Galmuri (o texto da corrida) acompanham as fontes
+  // embutidas; a tela de Créditos mostra o texto inteiro
+  `window.__OFL = ${jsonJs('Nunito\n\n' + await read('assets/fontes/OFL-nunito.txt') + '\n\n— — —\n\nGalmuri\n\n' + await read('assets/fontes/OFL-galmuri.txt'))};`,
   // as camadas das 5 regiões na corrida (paralaxe; a pista, as cercas e as placas são de código)
   `window.__REGIOES = ${jsonJs(await lerRegioes(ROOT))};`,
   // os glifos da Galmuri para o texto do canvas (tools/fonte-glifos.mjs; o sprites.js lê o mesmo arquivo no Node)

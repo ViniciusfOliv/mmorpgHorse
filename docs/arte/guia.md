@@ -115,7 +115,14 @@ f04f78 f68181 fca790 fdcbb0
 
 ## 6. Fonte
 
-**Uma família só: Galmuri** (Minseo Lee, licença OFL 1.1 sem nome reservado; github.com/quiple/galmuri). Três
+**Refino de 2026-11-23 (escolha do Vinicius, opção "Nunito + azul"):** a interface em HTML passou para a **Nunito**
+(The Nunito Project, OFL 1.1; subconjunto latino em WOFF2 do @fontsource/nunito 5.1.0, embutido no build): ExtraBold
+(800) nos títulos, saldo e números, SemiBold (600) no resto, nos mesmos tamanhos da escala (`--t-*`: 12, 10 e 8 × `--px`).
+A Galmuri deixava as telas com cara de "coisa antiga". Junto veio o tom azul dos painéis (`--noite` 323353, `--painel`
+3e3546, `--painel-2` 484a77, `--painel-3` 4d65b4, `--linha` 4d9be6, texto branco), todo da Resurrect 64. **A Galmuri
+continua no canvas da corrida** (balões, HUD do céu, placas, contagem), pelo atlas de glifos; a tabela abaixo vale para ele.
+
+**No canvas da corrida: Galmuri** (Minseo Lee, licença OFL 1.1 sem nome reservado; github.com/quiple/galmuri). Três
 tamanhos da mesma grade e da mesma autora, desenhados pixel a pixel, com Bold de verdade e o português inteiro
 (á à â ã é ê í ó ô õ ú ü ç, maiúsculas acentuadas, º e ª do "1º lugar"). Comparação com Jersey, Micro 5, m5x7, Pixel
 Operator e Press Start 2P em `docs/arte/fontes-comparacao.png` (renderizadas no tamanho nativo, alfa binário, ampliadas 3×).
@@ -134,7 +141,7 @@ Operator e Press Start 2P em `docs/arte/fontes-comparacao.png` (renderizadas no 
   KB). No canvas, um atlas por tamanho gerado no build (PNG + JSON de larguras).
 - Texto claro sobre escuro tem sombra de 1 px `2e222f` embaixo e à direita, nunca contorno de 4 lados (engrossa e embola
   os acentos). Entrelinha com folga de 2 px acima da maiúscula, para o acento.
-- Crédito e licença OFL na tela de créditos (exigência da licença).
+- Crédito e licença OFL das duas fontes (Nunito e Galmuri) na tela de créditos (exigência da licença).
 
 ## 7. Tamanhos por categoria (em pixels de arte, mostrados 1:1)
 

@@ -2518,9 +2518,9 @@
         '<button type="button" class="btn" data-acao="perfil-creditos" data-id="creditos">Créditos</button></section>' +
       '<footer class="caixa">' + resetHtml() + '</footer></section>';
   }
-  // Créditos (etapa 8 da direção de arte; texto de docs/arte/creditos.md): quem fez o jogo e a arte, a fonte e a paleta. A
-  // licença da Galmuri (SIL OFL 1.1) tem de acompanhar a fonte, que o jogo embute: o botão "Licença da fonte" mostra o
-  // texto inteiro (window.__OFL, embutido pelo build) num painel que rola. Uma vista do Perfil (ui.perfilVer): o "Voltar"
+  // Créditos (etapa 8 da direção de arte; texto de docs/arte/creditos.md): quem fez o jogo e a arte, as fontes e a paleta.
+  // As licenças da Nunito e da Galmuri (SIL OFL 1.1) têm de acompanhar as fontes, que o jogo embute: o botão "Licenças das
+  // fontes" mostra o texto inteiro (window.__OFL, embutido pelo build) num painel que rola. Uma vista do Perfil (ui.perfilVer): o "Voltar"
   // e o voltar do aparelho levam de volta ao Perfil, com o foco no botão "Créditos".
   function renderCreditos() {
     var ofl = typeof window.__OFL === 'string' ? window.__OFL : '';
@@ -2532,10 +2532,12 @@
       '<section class="caixa creditos" aria-labelledby="t-cred-arte"><h2 class="titulo" id="t-cred-arte">Arte</h2>' +
         '<p>Direção de arte, acabamento e composição por código.</p>' +
         '<p>Arte gerada com ajuda de IA (PixelLab, Retro Diffusion), escolhida e acabada à mão. Nada é gerado por IA durante o jogo.</p></section>' +
-      '<section class="caixa creditos" aria-labelledby="t-cred-fonte"><h2 class="titulo" id="t-cred-fonte">Fonte</h2>' +
-        '<p>Galmuri, de Lee Minseo — SIL Open Font License 1.1.</p>' +
-        (ofl ? '<button type="button" class="btn" data-acao="creditos-licenca" aria-expanded="' + !!ui.licencaAberta + '" aria-controls="licenca-fonte">Licença da fonte</button>' +
-          (ui.licencaAberta ? '<pre class="licenca" id="licenca-fonte" tabindex="0" aria-label="Licença da fonte Galmuri">' + esc(ofl) + '</pre>' : '') : '') +
+      '<section class="caixa creditos" aria-labelledby="t-cred-fonte"><h2 class="titulo" id="t-cred-fonte">Fontes</h2>' +
+        '<p>Nunito, de The Nunito Project (Vernon Adams e colaboradores), na interface.</p>' +
+        '<p>Galmuri, de Lee Minseo, no texto da corrida.</p>' +
+        '<p>As duas sob a SIL Open Font License 1.1.</p>' +
+        (ofl ? '<button type="button" class="btn" data-acao="creditos-licenca" aria-expanded="' + !!ui.licencaAberta + '" aria-controls="licenca-fonte">Licenças das fontes</button>' +
+          (ui.licencaAberta ? '<pre class="licenca" id="licenca-fonte" tabindex="0" aria-label="Licenças das fontes Nunito e Galmuri">' + esc(ofl) + '</pre>' : '') : '') +
       '</section>' +
       '<section class="caixa creditos" aria-labelledby="t-cred-paleta"><h2 class="titulo" id="t-cred-paleta">Paleta</h2>' +
         '<p>Resurrect 64, de Kerrie Lake (Lospec).</p></section>' +

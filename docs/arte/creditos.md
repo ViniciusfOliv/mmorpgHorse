@@ -14,16 +14,19 @@ Jogo, regras e código: Vinicius (nome de autor a confirmar antes de publicar)
 - Direção de arte, acabamento e composição por código.
 - Arte gerada com ajuda de IA (PixelLab, Retro Diffusion), escolhida e acabada à mão. Nada é gerado por IA durante o jogo.
 
-**Fonte**
-- Galmuri, de Lee Minseo — SIL Open Font License 1.1 (o texto completo da licença fica num botão "Licença da fonte").
+**Fontes**
+- Nunito, de The Nunito Project (Vernon Adams e colaboradores), na interface.
+- Galmuri, de Lee Minseo, no texto da corrida.
+- As duas sob a SIL Open Font License 1.1 (o texto completo das licenças fica num botão "Licenças das fontes").
 
 **Paleta**
 - Resurrect 64, de Kerrie Lake (Lospec).
 
 ## Notas para a implementação
 
-- O texto completo da OFL está em `prototype/assets/fontes/OFL-galmuri.txt`; a licença exige que ele acompanhe a fonte
-  quando ela é distribuída (o jogo embute a fonte). Mostrar o texto num painel que rola, sem resumir.
+- O texto completo das OFL está em `prototype/assets/fontes/OFL-nunito.txt` e `OFL-galmuri.txt`; a licença exige que ele
+  acompanhe a fonte quando ela é distribuída (o jogo embute as fontes). Mostrar o texto num painel que rola, sem resumir.
+- Nunito: subconjunto latino em WOFF2 do pacote @fontsource/nunito 5.1.0, sem alterar desenhos (pode manter o nome).
 - O nome reservado da fonte não pode ser usado num derivado modificado: o jogo usa um subconjunto latino sem alterar os
   desenhos, então pode manter o nome "Galmuri" (conferir de novo se algum glifo for editado).
 - A paleta Resurrect 64 é de uso livre; o crédito é cortesia e fica.
