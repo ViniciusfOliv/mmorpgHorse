@@ -847,16 +847,18 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .iniciais-nav .nota { flex-basis: 100%; }
 
 /* ---------- estábulo ---------- */
-.selvagens { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-.selvagem { background: var(--painel-2); padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; min-width: 0; }
-.selvagem .retrato { align-self: center; margin-bottom: 6px; }
-.selvagem b { font-family: var(--fonte-ui); font-size: var(--t-m); }
-.selvagem .nota { font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.3; }
-.selvagem--comum { box-shadow: inset 0 -4px 0 0 var(--r-comum); }
-.selvagem--magico { box-shadow: inset 0 -4px 0 0 var(--r-magico); }
-.selvagem--raro { box-shadow: inset 0 -4px 0 0 var(--r-raro); }
-.selvagem--lendario { box-shadow: inset 0 -4px 0 0 var(--r-lendario); }
-.selvagem--mitico { box-shadow: inset 0 -4px 0 0 var(--r-mitico); }
+/* os cavalos selvagens (ajustes 1): só o título, num bloco recolhido e desativado com o selo "em breve"; o botão
+   disabled não reage ao toque (sem hover, sem cursor de mão) e o texto fica apagado */
+.selvagens-bloco > h2.titulo { margin: 0; }
+.selvagens-abrir {
+  all: unset; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; flex: 1 1 auto; min-height: 44px;
+  font: inherit; color: var(--texto-2); cursor: default; pointer-events: none;
+}
+.selvagens-abrir > span:first-child { opacity: 0.75; }
+.selo-breve {
+  margin-left: auto; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--tinta); background: var(--texto-2); padding: 4px 6px 3px; box-shadow: 0 0 0 2px var(--sombra); text-shadow: none;
+}
 /* ---------- Expedição: ginásios e a trilha (spec 2026-11-17-ginasios §10) ---------- */
 /* cartão do ginásio e etapa tocável: a moldura do botão (§4.4), como a linha do Estábulo; avança 4px sobre o respiro do painel */
 .ginasios, .afk-cartoes, .trilha { list-style: none; margin: 0 -4px; padding: 0; display: flex; flex-direction: column; gap: 16px; }
@@ -11846,6 +11848,7 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
   var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
   var TRAINING_GOLD = [30, 22, 16, 12, 10, 10, 10, 10];
   var MIN_ENTRY = Math.min.apply(null, E.entryTiers);
+  // os selvagens de exemplo: o jogo só mostra o bloco recolhido "em breve" (ajustes 1); a lista fica para o wiki (wiki.mjs)
   var WILD_SHOWCASE = ['w-faisca', 'w-mandacaru', 'w-ventania', 'w-fogareu', 'w-iara', 'w-boitata'];
   var TRACK_NAMES = [
     'Prado do Cerrado', 'Hipódromo da Lagoa', 'Raia do Engenho', 'Prado Beira-Rio',
@@ -14782,24 +14785,21 @@ window.__GLIFOS = {"fonte":"Galmuri (Lee Minseo, OFL 1.1)","fontes":{"g7":{"px":
       pixelSvg(SETA_ROWS, 'montaria-linha-seta ginasio-cartao-seta') +
     '</button></li>';
   }
+  // Os cavalos selvagens (ajustes 1, 2026-11-23, pedido do Vinicius): só o título, num bloco recolhido e desativado com o
+  // selo "em breve" (o botão disabled não abre, não pega foco nem reage ao toque). A vitrine de retratos saiu até a captura
+  // existir; nada da regra muda.
+  function selvagensBlocoHtml() {
+    return '<section class="caixa selvagens-bloco" aria-labelledby="t-selvagens">' +
+      '<h2 class="titulo selvagens-titulo" id="t-selvagens"><button type="button" class="selvagens-abrir" disabled aria-expanded="false">' +
+        '<span>Cavalos selvagens</span> <span class="selo-breve">em breve</span></button></h2></section>';
+  }
   function renderExpedicao() {
-    var wild = WILD_SHOWCASE.map(horseById).filter(Boolean).map(function (w) {
-      return '<div class="selvagem selvagem--' + esc(w.rarity) + '">' + portraitHtml(w) +
-        '<b>' + esc(w.name) + '</b>' +
-        '<span class="linha-meta">' + rarityHtml(w.rarity) + '<span class="nivel">Nv ' + w.level + '</span></span>' +
-        elementHtml(w.element) +
-        '<span class="nota">' + esc(w.habitat || '') + '</span></div>';
-    }).join('');
     return '<section class="tela" aria-labelledby="t-expedicao">' +
       cenaAbaHtml('expedicao', '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>') +
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
         '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
-      '</section>' + afkCartaoHtml() +
-      '<section class="caixa" aria-labelledby="t-selvagens"><h2 class="titulo" id="t-selvagens">Cavalos selvagens</h2>' +
-        '<p class="nota">Exemplos de achados em expedições. A captura ainda não está neste protótipo.</p>' +
-        '<div class="selvagens">' + wild + '</div>' +
-      '</section>' +
+      '</section>' + afkCartaoHtml() + selvagensBlocoHtml() +
       '</section>';
   }
 

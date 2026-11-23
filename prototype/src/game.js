@@ -80,6 +80,7 @@
   var STAT_KEYS = GD.STAT_KEYS || ['vel', 'acel', 'man', 'forca', 'est', 'garra', 'sorte'];
   var TRAINING_GOLD = [30, 22, 16, 12, 10, 10, 10, 10];
   var MIN_ENTRY = Math.min.apply(null, E.entryTiers);
+  // os selvagens de exemplo: o jogo só mostra o bloco recolhido "em breve" (ajustes 1); a lista fica para o wiki (wiki.mjs)
   var WILD_SHOWCASE = ['w-faisca', 'w-mandacaru', 'w-ventania', 'w-fogareu', 'w-iara', 'w-boitata'];
   var TRACK_NAMES = [
     'Prado do Cerrado', 'Hipódromo da Lagoa', 'Raia do Engenho', 'Prado Beira-Rio',
@@ -3016,24 +3017,21 @@
       pixelSvg(SETA_ROWS, 'montaria-linha-seta ginasio-cartao-seta') +
     '</button></li>';
   }
+  // Os cavalos selvagens (ajustes 1, 2026-11-23, pedido do Vinicius): só o título, num bloco recolhido e desativado com o
+  // selo "em breve" (o botão disabled não abre, não pega foco nem reage ao toque). A vitrine de retratos saiu até a captura
+  // existir; nada da regra muda.
+  function selvagensBlocoHtml() {
+    return '<section class="caixa selvagens-bloco" aria-labelledby="t-selvagens">' +
+      '<h2 class="titulo selvagens-titulo" id="t-selvagens"><button type="button" class="selvagens-abrir" disabled aria-expanded="false">' +
+        '<span>Cavalos selvagens</span> <span class="selo-breve">em breve</span></button></h2></section>';
+  }
   function renderExpedicao() {
-    var wild = WILD_SHOWCASE.map(horseById).filter(Boolean).map(function (w) {
-      return '<div class="selvagem selvagem--' + esc(w.rarity) + '">' + portraitHtml(w) +
-        '<b>' + esc(w.name) + '</b>' +
-        '<span class="linha-meta">' + rarityHtml(w.rarity) + '<span class="nivel">Nv ' + w.level + '</span></span>' +
-        elementHtml(w.element) +
-        '<span class="nota">' + esc(w.habitat || '') + '</span></div>';
-    }).join('');
     return '<section class="tela" aria-labelledby="t-expedicao">' +
       cenaAbaHtml('expedicao', '<h1 class="titulo titulo--tela" id="t-expedicao" tabindex="-1" data-foco>Expedição</h1>') +
       '<p class="nota">Cada ginásio tem soldados e um líder. Vença um por um, em ordem, para ganhar Ouro, itens e a insígnia.</p>' +
       '<section class="caixa" aria-labelledby="t-ginasios"><h2 class="titulo" id="t-ginasios">Ginásios</h2>' +
         '<ul class="ginasios">' + GD.GYM_ORDER.map(ginasioCartaoHtml).join('') + '</ul>' +
-      '</section>' + afkCartaoHtml() +
-      '<section class="caixa" aria-labelledby="t-selvagens"><h2 class="titulo" id="t-selvagens">Cavalos selvagens</h2>' +
-        '<p class="nota">Exemplos de achados em expedições. A captura ainda não está neste protótipo.</p>' +
-        '<div class="selvagens">' + wild + '</div>' +
-      '</section>' +
+      '</section>' + afkCartaoHtml() + selvagensBlocoHtml() +
       '</section>';
   }
 

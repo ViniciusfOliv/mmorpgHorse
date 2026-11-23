@@ -798,16 +798,18 @@ html.app-com-abas.com-barra-pontos { scroll-padding-bottom: calc(64px + var(--ba
 .iniciais-nav .nota { flex-basis: 100%; }
 
 /* ---------- estábulo ---------- */
-.selvagens { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-.selvagem { background: var(--painel-2); padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; min-width: 0; }
-.selvagem .retrato { align-self: center; margin-bottom: 6px; }
-.selvagem b { font-family: var(--fonte-ui); font-size: var(--t-m); }
-.selvagem .nota { font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1.3; }
-.selvagem--comum { box-shadow: inset 0 -4px 0 0 var(--r-comum); }
-.selvagem--magico { box-shadow: inset 0 -4px 0 0 var(--r-magico); }
-.selvagem--raro { box-shadow: inset 0 -4px 0 0 var(--r-raro); }
-.selvagem--lendario { box-shadow: inset 0 -4px 0 0 var(--r-lendario); }
-.selvagem--mitico { box-shadow: inset 0 -4px 0 0 var(--r-mitico); }
+/* os cavalos selvagens (ajustes 1): só o título, num bloco recolhido e desativado com o selo "em breve"; o botão
+   disabled não reage ao toque (sem hover, sem cursor de mão) e o texto fica apagado */
+.selvagens-bloco > h2.titulo { margin: 0; }
+.selvagens-abrir {
+  all: unset; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; flex: 1 1 auto; min-height: 44px;
+  font: inherit; color: var(--texto-2); cursor: default; pointer-events: none;
+}
+.selvagens-abrir > span:first-child { opacity: 0.75; }
+.selo-breve {
+  margin-left: auto; font-family: var(--fonte-9); font-size: var(--t-s); line-height: 1; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--tinta); background: var(--texto-2); padding: 4px 6px 3px; box-shadow: 0 0 0 2px var(--sombra); text-shadow: none;
+}
 /* ---------- Expedição: ginásios e a trilha (spec 2026-11-17-ginasios §10) ---------- */
 /* cartão do ginásio e etapa tocável: a moldura do botão (§4.4), como a linha do Estábulo; avança 4px sobre o respiro do painel */
 .ginasios, .afk-cartoes, .trilha { list-style: none; margin: 0 -4px; padding: 0; display: flex; flex-direction: column; gap: 16px; }

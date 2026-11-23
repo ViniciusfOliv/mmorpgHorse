@@ -3812,9 +3812,11 @@ try {
         tag: b.tagName, acao: b.getAttribute('data-acao'), id: b.getAttribute('data-id'), txt: b.textContent.replace(/\s+/g, ' ').trim(),
         h: r(b).height, w: r(b).width, top: r(b).top + window.scrollY, ins: [...b.querySelectorAll('img.icone')].map((i) => i.className) }))
       const sel = document.getElementById('t-selvagens')
+      const selB = sel && sel.querySelector('button')
       return { cartoes, ponto: !!document.querySelector('.app-aba--ponto[data-id="expedicao"]'),
         pontos: [...document.querySelectorAll('.app-aba--ponto')].map((b) => b.getAttribute('data-id')).join(','),
-        selvagens: document.querySelectorAll('#tela .selvagem').length, selvagensTxt: sel ? sel.textContent : null,
+        selvagens: document.querySelectorAll('#tela .selvagem').length, selvagensTxt: sel ? sel.textContent.replace(/\s+/g, ' ').trim() : null,
+        selvagensBtn: selB ? { dis: selB.disabled, exp: selB.getAttribute('aria-expanded'), acao: selB.getAttribute('data-acao'), h: r(sel.closest('section')).height } : null,
         selvagensTop: sel ? r(sel).top + window.scrollY : null, abertura: (document.querySelector('#tela .tela > .nota') || {}).textContent || '' }
     })
     // a trilha aberta: as etapas na ordem do DOM (0 a 4), com o estado, o botão e a posição na tela
@@ -3925,9 +3927,15 @@ try {
         if (a.cartoes.map((c) => c.id).join() !== G.GYM_ORDER.join()) problems.push(`${label}: cartões ${a.cartoes.map((c) => c.id).join()} (esperado ${G.GYM_ORDER.join()})`)
         G.GYM_ORDER.forEach((id) => ginConfereCartao(label, a.cartoes.find((c) => c.id === id), id, 0, false))
         if (a.ponto) problems.push(`${label}: ponto na aba Expedição num save novo`)
-        // a vitrine continua (Ruling 4), abaixo dos ginásios, com os textos dela
-        if (a.selvagens !== 6 || !/Cavalos selvagens/.test(a.selvagensTxt || '') || !(a.selvagensTop > Math.max(...a.cartoes.map((c) => c.top)))) problems.push(`${label}: a vitrine não está abaixo dos ginásios ${JSON.stringify({ n: a.selvagens, t: a.selvagensTop, c: a.cartoes.map((c) => c.top) })}`)
-        if (!/Exemplos de achados em expedições\. A captura ainda não está neste protótipo\./.test(await pg.locator('#tela').textContent())) problems.push(`${label}: a nota da vitrine mudou`)
+        // os cavalos selvagens (ajustes 1, 2026-11-23): abaixo dos ginásios, só o título num bloco recolhido e desativado,
+        // com o selo "em breve"; nenhum retrato na tela, e o toque não abre nada
+        if (a.selvagens !== 0 || a.selvagensTxt !== 'Cavalos selvagens em breve' || !(a.selvagensTop > Math.max(...a.cartoes.map((c) => c.top)))) problems.push(`${label}: o bloco dos selvagens não está recolhido abaixo dos ginásios ${JSON.stringify({ n: a.selvagens, txt: a.selvagensTxt, t: a.selvagensTop, c: a.cartoes.map((c) => c.top) })}`)
+        if (!a.selvagensBtn || a.selvagensBtn.dis !== true || a.selvagensBtn.exp !== 'false' || a.selvagensBtn.acao || !(a.selvagensBtn.h < 100)) problems.push(`${label}: o bloco dos selvagens não é um botão desativado e recolhido ${JSON.stringify(a.selvagensBtn)}`)
+        await pg.locator('#t-selvagens button').click({ force: true })
+        await pg.locator('#t-selvagens').tap({ force: true }).catch(() => {})
+        await sleep(150)
+        const a2 = await ginAba(pg)
+        if (a2.selvagens !== 0 || !a2.selvagensBtn || a2.selvagensBtn.exp !== 'false' || a2.selvagensBtn.h !== a.selvagensBtn.h) problems.push(`${label}: o toque no bloco dos selvagens mudou a tela ${JSON.stringify(a2.selvagensBtn)}`)
         if (/Em breve/.test(a.abertura) || !/ginásio/i.test(a.abertura)) problems.push(`${label}: a abertura da aba não fala dos ginásios ou ainda diz "Em breve": ${a.abertura}`)
         for (const id of G.GYM_ORDER) {
           await ginAbreTrilha(pg, id)
@@ -12858,9 +12866,9 @@ try {
       const estTxt = await mn.locator('#tela').textContent()
       if (/Preparar corrida|Cavalos selvagens|Recomeçar/.test(estTxt)) problems.push('menu: estábulo ainda tem conteúdo das outras abas')
       if ((await mn.locator('button[data-acao="montaria"][data-id="m1"]').count()) !== 1) problems.push('menu: o Estábulo sem o botão que abre a ficha (a linha da m1)')
-      // 7. expedição mostra a vitrine dos selvagens
+      // 7. expedição: os selvagens só como bloco recolhido e desativado, com "em breve" (ajustes 1)
       await mn.locator('[data-acao="aba"][data-id="expedicao"]').click()
-      if ((await mn.locator('.selvagem').count()) < 3) problems.push('menu: expedição sem selvagens')
+      if ((await mn.locator('.selvagem').count()) !== 0 || !/em breve/.test((await mn.locator('#t-selvagens').textContent()) || '')) problems.push('menu: expedição com a vitrine dos selvagens aberta ou sem o "em breve"')
       // 8. tela da Montaria: estado de guarda, captura, as sub-abas (Status, Skills, Ficha e, com o equipamento, Equipamento),
       //    Renomear e Liberar (na aba Ficha)
       await mn.locator('[data-acao="aba"][data-id="estabulo"]').click()
