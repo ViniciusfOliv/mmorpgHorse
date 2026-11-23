@@ -1,0 +1,81 @@
+<main class="spike">
+  <header class="topo">
+    <h1>Teste de engine</h1>
+    <p class="sub">Uma corrida no pior caso visual do lançamento, desenhada com o código do jogo: cavalos com galope e
+      paletas, poeira, clima, parallax, câmera com zoom e tremida, explosões de skill, faixa de ordem e balões. Toque em
+      <b>Rodar bateria</b>, deixe a tela ligada por cerca de 1 minuto e cole o resumo no chat.</p>
+  </header>
+
+  <div class="palco" id="palco"><canvas id="tela" aria-label="Corrida de teste"></canvas></div>
+
+  <div class="medidor" id="medidor" aria-live="off">
+    <div class="m"><span class="m-r">FPS agora</span><span class="m-v" id="m-fps">—</span></div>
+    <div class="m"><span class="m-r">média</span><span class="m-v" id="m-med">—</span></div>
+    <div class="m"><span class="m-r">1% low</span><span class="m-v" id="m-low">—</span></div>
+    <div class="m"><span class="m-r">quadro (ms)</span><span class="m-v" id="m-ms">—</span></div>
+    <div class="m"><span class="m-r">JS (ms)</span><span class="m-v" id="m-js">—</span></div>
+    <div class="m"><span class="m-r">resolução</span><span class="m-v" id="m-res">—</span></div>
+    <div class="m"><span class="m-r">partículas</span><span class="m-v" id="m-part">—</span></div>
+    <div class="m"><span class="m-r">chamadas</span><span class="m-v" id="m-cham">—</span></div>
+  </div>
+
+  <ol class="ordem" id="ordem" aria-label="Ordem da corrida"></ol>
+  <p class="vizinhos" id="vizinhos">Largada em instantes</p>
+
+  <section class="acoes">
+    <button type="button" id="b-bateria" class="primario">Rodar bateria (~83 s)</button>
+    <button type="button" id="b-livre">Rodada livre (60 s)</button>
+    <span class="estado" id="estado" role="status">Modo livre: mexa nas camadas abaixo.</span>
+  </section>
+
+  <section class="controles" aria-label="Camadas e escala">
+    <div class="grupo">
+      <span class="g-r">Cavalos</span>
+      <div class="seg" data-grupo="n">
+        <button type="button" data-v="6">6</button><button type="button" data-v="12">12</button><button type="button" data-v="20">20</button>
+      </div>
+    </div>
+    <div class="grupo">
+      <span class="g-r">Escala</span>
+      <div class="seg" data-grupo="escala">
+        <button type="button" data-v="1x">1×</button><button type="button" data-v="2x">2×</button><button type="button" data-v="3x">3×</button><button type="button" data-v="jogo">jogo</button><button type="button" data-v="nativo">nativo</button>
+      </div>
+    </div>
+    <div class="grupo">
+      <span class="g-r">Limite</span>
+      <div class="seg" data-grupo="limite">
+        <button type="button" data-v="livre">livre</button><button type="button" data-v="60">60 FPS</button>
+      </div>
+    </div>
+    <div class="grupo">
+      <span class="g-r">Clima</span>
+      <div class="seg" data-grupo="clima">
+        <button type="button" data-v="ciclo">ciclo</button><button type="button" data-v="sol">sol</button><button type="button" data-v="chuva">chuva</button><button type="button" data-v="nevoa">névoa</button><button type="button" data-v="nublado">nublado</button>
+      </div>
+    </div>
+    <div class="grupo grupo--camadas">
+      <span class="g-r">Camadas</span>
+      <div class="liga" data-grupo="camadas">
+        <button type="button" data-v="cenario">Cenário</button>
+        <button type="button" data-v="parallax">Parallax extra</button>
+        <button type="button" data-v="clima">Clima</button>
+        <button type="button" data-v="poeira">Poeira</button>
+        <button type="button" data-v="skills">Skills</button>
+        <button type="button" data-v="camera">Câmera</button>
+        <button type="button" data-v="hud">HUD e ordem</button>
+      </div>
+    </div>
+    <p class="nota">Escala: <b>1×</b> e <b>2×</b> desenham 1 ou 2 pixels de canvas por pixel de arte e o navegador
+      amplia (nessas duas os cavalos mudam de tamanho); <b>3×</b> é a menor que deixa os cavalos iguais; <b>jogo</b> é a regra do jogo hoje (pixel do aparelho, reduzida acima de 1,5 milhão de pixels);
+      <b>nativo</b> é o pixel do aparelho sem redução.</p>
+  </section>
+
+  <section class="resumo" aria-labelledby="resumo-t">
+    <h2 id="resumo-t">Resumo</h2>
+    <textarea id="resumo" readonly rows="12" spellcheck="false">Rode a bateria (ou uma rodada livre) para gerar o resumo.</textarea>
+    <div class="acoes">
+      <button type="button" id="b-copiar">Copiar resumo</button>
+      <span class="estado" id="copiado" role="status"></span>
+    </div>
+  </section>
+</main>
