@@ -8,7 +8,7 @@ Mudou o texto aqui? Mude lá também. Manter em sincronia com `declaracao-ia.md`
 
 **Galope Elemental**
 
-Jogo, regras e código: Vinicius (nome de autor a confirmar antes de publicar)
+Jogo, regras e código: Vinicius
 
 **Arte**
 - Direção de arte, acabamento e composição por código.
@@ -30,4 +30,4 @@ Jogo, regras e código: Vinicius (nome de autor a confirmar antes de publicar)
 - O nome reservado da fonte não pode ser usado num derivado modificado: o jogo usa um subconjunto latino sem alterar os
   desenhos, então pode manter o nome "Galmuri" (conferir de novo se algum glifo for editado).
 - A paleta Resurrect 64 é de uso livre; o crédito é cortesia e fica.
-- O nome do desenvolvedor é o que ele escolher para a loja (confirmar antes de publicar).
+- O nome do desenvolvedor nos créditos é "Vinicius" (confirmado por ele em 2026-11-23).
